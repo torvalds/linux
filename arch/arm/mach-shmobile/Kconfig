@@ -24,6 +24,7 @@ config ARCH_SH73A0
 	bool "SH-Mobile AG5 (R8A73A00)"
 	select CPU_V7
 	select SH_CLK_CPG
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_GIC
 
 comment "SH-Mobile Board Type"
