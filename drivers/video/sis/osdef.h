@@ -56,7 +56,6 @@
 
 /* The choices are: */
 #define SIS_LINUX_KERNEL		/* Linux kernel framebuffer */
-#undef  SIS_XORG_XF86			/* XFree86/X.org */
 
 #ifdef OutPortByte
 #undef OutPortByte
@@ -110,24 +109,5 @@
 #define SiS_SetMemory(MemoryAddress,MemorySize,value) memset_io(MemoryAddress, value, MemorySize)
 
 #endif /* LINUX_KERNEL */
-
-/**********************************************************************/
-/*  XFree86/X.org                                                    */
-/**********************************************************************/
-
-#ifdef SIS_XORG_XF86
-
-#define SIS300
-#define SIS315H
-
-#define OutPortByte(p,v) outSISREG((IOADDRESS)(p),(CARD8)(v))
-#define OutPortWord(p,v) outSISREGW((IOADDRESS)(p),(CARD16)(v))
-#define OutPortLong(p,v) outSISREGL((IOADDRESS)(p),(CARD32)(v))
-#define InPortByte(p)    inSISREG((IOADDRESS)(p))
-#define InPortWord(p)    inSISREGW((IOADDRESS)(p))
-#define InPortLong(p)    inSISREGL((IOADDRESS)(p))
-#define SiS_SetMemory(MemoryAddress,MemorySize,value) memset(MemoryAddress, value, MemorySize)
-
-#endif /* XF86 */
 
 #endif  /* _OSDEF_H_ */

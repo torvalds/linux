@@ -1166,12 +1166,6 @@ SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       SiS_Pr->SiS_VBInfo, SiS_Pr->SiS_SetFlag);
 #endif
 #endif
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-   xf86DrvMsg(0, X_PROBED, "(init301: VBInfo=0x%04x, SetFlag=0x%04x)\n",
-      SiS_Pr->SiS_VBInfo, SiS_Pr->SiS_SetFlag);
-#endif
-#endif
 }
 
 /*********************************************/
@@ -1415,12 +1409,6 @@ SiS_SetTVMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
    }
 
    SiS_Pr->SiS_VBInfo &= ~SetPALTV;
-
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-   xf86DrvMsg(0, X_INFO, "(init301: TVMode %x, VBInfo %x)\n", SiS_Pr->SiS_TVMode, SiS_Pr->SiS_VBInfo);
-#endif
-#endif
 }
 
 /*********************************************/
@@ -1447,18 +1435,6 @@ SiS_GetLCDInfoBIOS(struct SiS_Private *SiS_Pr)
    unsigned char  *ROMAddr;
    unsigned short temp;
 
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-   xf86DrvMsg(0, X_INFO, "Paneldata driver: [%d %d] [H %d %d] [V %d %d] [C %d 0x%02x 0x%02x]\n",
-	SiS_Pr->PanelHT, SiS_Pr->PanelVT,
-	SiS_Pr->PanelHRS, SiS_Pr->PanelHRE,
-	SiS_Pr->PanelVRS, SiS_Pr->PanelVRE,
-	SiS_Pr->SiS_VBVCLKData[SiS_Pr->PanelVCLKIdx315].CLOCK,
-	SiS_Pr->SiS_VBVCLKData[SiS_Pr->PanelVCLKIdx315].Part4_A,
-	SiS_Pr->SiS_VBVCLKData[SiS_Pr->PanelVCLKIdx315].Part4_B);
-#endif
-#endif
-
    if((ROMAddr = GetLCDStructPtr661(SiS_Pr))) {
       if((temp = SISGETROMW(6)) != SiS_Pr->PanelHT) {
 	 SiS_Pr->SiS_NeedRomModeData = true;
@@ -1479,18 +1455,6 @@ SiS_GetLCDInfoBIOS(struct SiS_Private *SiS_Pr)
 	 SiS_Pr->SiS_VBVCLKData[VCLK_CUSTOM_315].Part4_A = ROMAddr[19];
       SiS_Pr->SiS_VCLKData[VCLK_CUSTOM_315].SR2C =
 	 SiS_Pr->SiS_VBVCLKData[VCLK_CUSTOM_315].Part4_B = ROMAddr[20];
-
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-      xf86DrvMsg(0, X_INFO, "Paneldata BIOS:  [%d %d] [H %d %d] [V %d %d] [C %d 0x%02x 0x%02x]\n",
-	SiS_Pr->PanelHT, SiS_Pr->PanelVT,
-	SiS_Pr->PanelHRS, SiS_Pr->PanelHRE,
-	SiS_Pr->PanelVRS, SiS_Pr->PanelVRE,
-	SiS_Pr->SiS_VBVCLKData[SiS_Pr->PanelVCLKIdx315].CLOCK,
-	SiS_Pr->SiS_VBVCLKData[SiS_Pr->PanelVCLKIdx315].Part4_A,
-	SiS_Pr->SiS_VBVCLKData[SiS_Pr->PanelVCLKIdx315].Part4_B);
-#endif
-#endif
 
    }
 #endif
@@ -2192,11 +2156,6 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 	SiS_Pr->SiS_LCDInfo, SiS_Pr->SiS_LCDResInfo, SiS_Pr->SiS_LCDTypeInfo);
 #endif
 #endif
-#ifdef SIS_XORG_XF86
-  xf86DrvMsgVerb(0, X_PROBED, 4,
-	"(init301: LCDInfo=0x%04x LCDResInfo=0x%02x LCDTypeInfo=0x%02x SetFlag=0x%04x)\n",
-	SiS_Pr->SiS_LCDInfo, SiS_Pr->SiS_LCDResInfo, SiS_Pr->SiS_LCDTypeInfo, SiS_Pr->SiS_SetFlag);
-#endif
 }
 
 /*********************************************/
@@ -2409,12 +2368,6 @@ SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
      }
 
   }
-
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-  xf86DrvMsg(0, X_INFO, "VCLKIndex %d (0x%x)\n", VCLKIndex, VCLKIndex);
-#endif
-#endif
 
   return VCLKIndex;
 }
@@ -3527,12 +3480,6 @@ SiS_GetCRT2Data301(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 	      default                  : LCDPtr = SiS_Pr->SiS_ExtLCD1024x768Data;   break;
 	   }
 
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-	   xf86DrvMsg(0, X_INFO, "GetCRT2Data: Index %d ResIndex %d\n", CRT2Index, ResIndex);
-#endif
-#endif
-
 	   SiS_Pr->SiS_RVBHCMAX  = (LCDPtr+ResIndex)->RVBHCMAX;
 	   SiS_Pr->SiS_RVBHCFACT = (LCDPtr+ResIndex)->RVBHCFACT;
 	   SiS_Pr->SiS_VGAHT     = (LCDPtr+ResIndex)->VGAHT;
@@ -3891,11 +3838,6 @@ SiS_HandlePWD(struct SiS_Private *SiS_Pr)
 	 ret = 1;
       }
       SiS_SetRegANDOR(SiS_Pr->SiS_Part4Port,0x27,0x7f,temp);
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-      xf86DrvMsg(0, 0, "Setting PWD %x\n", temp);
-#endif
-#endif
    }
 #endif
    return ret;
@@ -5420,27 +5362,6 @@ SiS_SetGroup1_301(struct SiS_Private *SiS_Pr, unsigned short ModeNo,unsigned sho
 
   temp = SiS_GetRegByte((SiS_Pr->SiS_P3ca+0x02));
   SiS_SetReg(SiS_Pr->SiS_Part1Port,0x1b,temp);			/* ? */
-
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-   xf86DrvMsg(0, X_INFO, "%d %d %d %d  %d %d %d %d  (%d %d %d %d)\n",
-	SiS_Pr->CHDisplay, SiS_Pr->CHSyncStart, SiS_Pr->CHSyncEnd, SiS_Pr->CHTotal,
-	SiS_Pr->CVDisplay, SiS_Pr->CVSyncStart, SiS_Pr->CVSyncEnd, SiS_Pr->CVTotal,
-	SiS_Pr->CHBlankStart, SiS_Pr->CHBlankEnd, SiS_Pr->CVBlankStart, SiS_Pr->CVBlankEnd);
-
-   xf86DrvMsg(0, X_INFO, " {{0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,\n",
-	SiS_Pr->CCRT1CRTC[0], SiS_Pr->CCRT1CRTC[1],
-	SiS_Pr->CCRT1CRTC[2], SiS_Pr->CCRT1CRTC[3],
-	SiS_Pr->CCRT1CRTC[4], SiS_Pr->CCRT1CRTC[5],
-	SiS_Pr->CCRT1CRTC[6], SiS_Pr->CCRT1CRTC[7]);
-   xf86DrvMsg(0, X_INFO, "   0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,\n",
-	SiS_Pr->CCRT1CRTC[8], SiS_Pr->CCRT1CRTC[9],
-	SiS_Pr->CCRT1CRTC[10], SiS_Pr->CCRT1CRTC[11],
-	SiS_Pr->CCRT1CRTC[12], SiS_Pr->CCRT1CRTC[13],
-	SiS_Pr->CCRT1CRTC[14], SiS_Pr->CCRT1CRTC[15]);
-   xf86DrvMsg(0, X_INFO, "   0x%02x}},\n", SiS_Pr->CCRT1CRTC[16]);
-#endif
-#endif
 }
 
 /* Setup panel link
@@ -7130,12 +7051,6 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
 
     /* Non-expanding: lcdvdes = tempcx = VT-1; lcdvdee = tempbx = VDE-1 */
 
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-    xf86DrvMsg(0, X_INFO, "lcdvdes 0x%x lcdvdee 0x%x\n", tempcx, tempbx);
-#endif
-#endif
-
     SiS_SetReg(SiS_Pr->SiS_Part2Port,0x05,tempcx);	/* lcdvdes  */
     SiS_SetReg(SiS_Pr->SiS_Part2Port,0x06,tempbx);	/* lcdvdee  */
 
@@ -7184,12 +7099,6 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
        tempbx = SiS_Pr->CVSyncStart;
     }
 
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-    xf86DrvMsg(0, X_INFO, "lcdvrs 0x%x\n", tempbx);
-#endif
-#endif
-
     SiS_SetReg(SiS_Pr->SiS_Part2Port,0x04,tempbx);	    /* lcdvrs */
 
     temp = (tempbx >> 4) & 0xF0;
@@ -7200,12 +7109,6 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
        temp &= 0xf0;
        temp |= (SiS_Pr->CVSyncEnd & 0x0f);
     }
-
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-    xf86DrvMsg(0, X_INFO, "lcdvre[3:0] 0x%x\n", (temp & 0x0f));
-#endif
-#endif
 
     SiS_SetReg(SiS_Pr->SiS_Part2Port,0x01,temp);
 
@@ -7245,12 +7148,6 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
        tempax >>= 1;
     }
 
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-    xf86DrvMsg(0, X_INFO, "lcdhdee 0x%x\n", tempbx);
-#endif
-#endif
-
     tempbx += bridgeoffset;
 
     SiS_SetReg(SiS_Pr->SiS_Part2Port,0x23,tempbx);	    /* lcdhdee */
@@ -7276,12 +7173,6 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
        tempbx += bridgeoffset;
     }
 
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-    xf86DrvMsg(0, X_INFO, "lcdhrs 0x%x\n", tempbx);
-#endif
-#endif
-
     SiS_SetReg(SiS_Pr->SiS_Part2Port,0x1C,tempbx);	    /* lcdhrs */
     SiS_SetRegANDOR(SiS_Pr->SiS_Part2Port,0x1D,0x0F,((tempbx >> 4) & 0xf0));
 
@@ -7299,12 +7190,6 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
        if(SiS_IsDualLink(SiS_Pr)) tempbx >>= 1;
        tempbx += bridgeoffset;
     }
-
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-    xf86DrvMsg(0, X_INFO, "lcdhre 0x%x\n", tempbx);
-#endif
-#endif
 
     SiS_SetReg(SiS_Pr->SiS_Part2Port,0x21,tempbx);	    /* lcdhre */
 
@@ -8703,16 +8588,6 @@ SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
       SiS_GetLVDSDesData(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
    }
 
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-  xf86DrvMsg(0, X_INFO, "(init301: LCDHDES 0x%03x LCDVDES 0x%03x)\n", SiS_Pr->SiS_LCDHDES, SiS_Pr->SiS_LCDVDES);
-  xf86DrvMsg(0, X_INFO, "(init301: HDE     0x%03x VDE     0x%03x)\n", SiS_Pr->SiS_HDE, SiS_Pr->SiS_VDE);
-  xf86DrvMsg(0, X_INFO, "(init301: VGAHDE  0x%03x VGAVDE  0x%03x)\n", SiS_Pr->SiS_VGAHDE, SiS_Pr->SiS_VGAVDE);
-  xf86DrvMsg(0, X_INFO, "(init301: HT      0x%03x VT      0x%03x)\n", SiS_Pr->SiS_HT, SiS_Pr->SiS_VT);
-  xf86DrvMsg(0, X_INFO, "(init301: VGAHT   0x%03x VGAVT   0x%03x)\n", SiS_Pr->SiS_VGAHT, SiS_Pr->SiS_VGAVT);
-#endif
-#endif
-
    if(SiS_Pr->SiS_SetFlag & LowModeTests) {
       SiS_SetGroup1(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
    }
@@ -8923,11 +8798,6 @@ SiS_SetTrumpionBlock(struct SiS_Private *SiS_Pr, unsigned char *dataptr)
      dataptr = SiS_SetTrumpBlockLoop(SiS_Pr, dataptr);
      if(!dataptr) return false;
   }
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-  xf86DrvMsg(0, X_INFO, "Trumpion block success\n");
-#endif
-#endif
   return true;
 }
 #endif
@@ -9114,9 +8984,7 @@ SiS_SetCH70xxANDOR(struct SiS_Private *SiS_Pr, unsigned short reg,
 }
 
 /* Our own DDC functions */
-#ifndef SIS_XORG_XF86
 static
-#endif
 unsigned short
 SiS_InitDDCRegs(struct SiS_Private *SiS_Pr, unsigned int VBFlags, int VGAEngine,
                 unsigned short adaptnum, unsigned short DDCdatatype, bool checkcr32,
@@ -9224,12 +9092,6 @@ SiS_InitDDCRegs(struct SiS_Private *SiS_Pr, unsigned int VBFlags, int VGAEngine,
 
     SiS_SetupDDCN(SiS_Pr);
 
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-    xf86DrvMsg(0, X_INFO, "DDC Port %x Index %x Shift %d\n",
-    		SiS_Pr->SiS_DDC_Port, SiS_Pr->SiS_DDC_Index, temp);
-#endif
-#endif
     return 0;
 }
 
@@ -9292,11 +9154,6 @@ SiS_DoProbeDDC(struct SiS_Private *SiS_Pr)
     SiS_SetSwitchDDC2(SiS_Pr);
     if(SiS_PrepareDDC(SiS_Pr)) {
          SiS_SetStop(SiS_Pr);
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-         xf86DrvMsg(0, X_INFO, "Probe: Prepare failed\n");
-#endif
-#endif
          return 0xFFFF;
     }
     mask = 0xf0;
@@ -9310,11 +9167,6 @@ SiS_DoProbeDDC(struct SiS_Private *SiS_Pr)
        } else {
            failed = true;
 	   ret = 0xFFFF;
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-           xf86DrvMsg(0, X_INFO, "Probe: Read 1 failed\n");
-#endif
-#endif
        }
     }
     if(!failed) {
@@ -9324,11 +9176,6 @@ SiS_DoProbeDDC(struct SiS_Private *SiS_Pr)
        if(temp == value) ret = 0;
        else {
           ret = 0xFFFF;
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-          xf86DrvMsg(0, X_INFO, "Probe: Read 2 failed\n");
-#endif
-#endif
           if(SiS_Pr->SiS_DDC_DeviceAddr == 0xa0) {
              if(temp == 0x30) ret = 0;
           }
@@ -9338,9 +9185,7 @@ SiS_DoProbeDDC(struct SiS_Private *SiS_Pr)
     return ret;
 }
 
-#ifndef SIS_XORG_XF86
 static
-#endif
 unsigned short
 SiS_ProbeDDC(struct SiS_Private *SiS_Pr)
 {
@@ -9357,9 +9202,7 @@ SiS_ProbeDDC(struct SiS_Private *SiS_Pr)
    return flag;
 }
 
-#ifndef SIS_XORG_XF86
 static
-#endif
 unsigned short
 SiS_ReadDDC(struct SiS_Private *SiS_Pr, unsigned short DDCdatatype, unsigned char *buffer)
 {
@@ -9606,11 +9449,6 @@ SiS_SetSCLKHigh(struct SiS_Private *SiS_Pr)
     temp = SiS_GetReg(SiS_Pr->SiS_DDC_Port,SiS_Pr->SiS_DDC_Index);
   } while((!(temp & SiS_Pr->SiS_DDC_Clk)) && --watchdog);
   if (!watchdog) {
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-        xf86DrvMsg(0, X_INFO, "SetClkHigh failed\n");
-#endif
-#endif
   	return 0xFFFF;
   }
   SiS_DDC2Delay(SiS_Pr,SiS_I2CDELAYSHORT);

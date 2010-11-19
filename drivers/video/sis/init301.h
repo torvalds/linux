@@ -56,11 +56,6 @@
 #include "osdef.h"
 #include "initdef.h"
 
-#ifdef SIS_XORG_XF86
-#include "sis.h"
-#include "sis_regs.h"
-#endif
-
 #ifdef SIS_LINUX_KERNEL
 #include "vgatypes.h"
 #include "vstruct.h"
@@ -412,21 +407,12 @@ unsigned short	SiS_HandleDDC(struct SiS_Private *SiS_Pr, unsigned int VBFlags, i
 			unsigned short adaptnum, unsigned short DDCdatatype,
 			unsigned char *buffer, unsigned int VBFlags2);
 
-#ifdef SIS_XORG_XF86
-unsigned short		SiS_InitDDCRegs(struct SiS_Private *SiS_Pr, unsigned int VBFlags,
-				int VGAEngine, unsigned short adaptnum, unsigned short DDCdatatype,
-				bool checkcr32, unsigned int VBFlags2);
-unsigned short		SiS_ProbeDDC(struct SiS_Private *SiS_Pr);
-unsigned short		SiS_ReadDDC(struct SiS_Private *SiS_Pr, unsigned short DDCdatatype,
-				unsigned char *buffer);
-#else
 static unsigned short	SiS_InitDDCRegs(struct SiS_Private *SiS_Pr, unsigned int VBFlags,
 				int VGAEngine, unsigned short adaptnum, unsigned short DDCdatatype,
 				bool checkcr32, unsigned int VBFlags2);
 static unsigned short	SiS_ProbeDDC(struct SiS_Private *SiS_Pr);
 static unsigned short	SiS_ReadDDC(struct SiS_Private *SiS_Pr, unsigned short DDCdatatype,
 				unsigned char *buffer);
-#endif
 static void		SiS_SetSwitchDDC2(struct SiS_Private *SiS_Pr);
 static unsigned short	SiS_SetStart(struct SiS_Private *SiS_Pr);
 static unsigned short	SiS_SetStop(struct SiS_Private *SiS_Pr);

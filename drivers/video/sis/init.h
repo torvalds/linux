@@ -56,17 +56,6 @@
 #include "osdef.h"
 #include "initdef.h"
 
-#ifdef SIS_XORG_XF86
-#include "sis.h"
-#define SIS_NEED_inSISREG
-#define SIS_NEED_inSISREGW
-#define SIS_NEED_inSISREGL
-#define SIS_NEED_outSISREG
-#define SIS_NEED_outSISREGW
-#define SIS_NEED_outSISREGL
-#include "sis_regs.h"
-#endif
-
 #ifdef SIS_LINUX_KERNEL
 #include "vgatypes.h"
 #include "vstruct.h"
@@ -1521,10 +1510,6 @@ static const struct SiS_LVDSCRT1Data SiS_LVDSCRT1640x480_1_H[] =
 };
 
 bool		SiSInitPtr(struct SiS_Private *SiS_Pr);
-#ifdef SIS_XORG_XF86
-unsigned short	SiS_GetModeID(int VGAEngine, unsigned int VBFlags, int HDisplay, int VDisplay,
-				int Depth, bool FSTN, int LCDwith, int LCDheight);
-#endif
 unsigned short	SiS_GetModeID_LCD(int VGAEngine, unsigned int VBFlags, int HDisplay,
 				int VDisplay, int Depth, bool FSTN,
 				unsigned short CustomT, int LCDwith, int LCDheight,
@@ -1579,26 +1564,12 @@ unsigned short	SiS_GetFIFOThresholdB300(unsigned short idx1, unsigned short idx2
 unsigned short	SiS_GetLatencyFactor630(struct SiS_Private *SiS_Pr, unsigned short index);
 #endif
 void		SiS_LoadDAC(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex);
-#ifdef SIS_XORG_XF86
-bool		SiSSetMode(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn, unsigned short ModeNo,
-				bool dosetpitch);
-bool		SiSBIOSSetMode(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn,
-				DisplayModePtr mode, bool IsCustom);
-bool		SiSBIOSSetModeCRT2(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn,
-				DisplayModePtr mode, bool IsCustom);
-bool		SiSBIOSSetModeCRT1(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn,
-				DisplayModePtr mode, bool IsCustom);
-#endif
 #ifdef SIS_LINUX_KERNEL
 bool		SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
 #endif
 void		SiS_CalcCRRegisters(struct SiS_Private *SiS_Pr, int depth);
 void		SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 				unsigned short ModeIdIndex);
-#ifdef SIS_XORG_XF86
-void		SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata, int xres,
-				int yres, DisplayModePtr current);
-#endif
 #ifdef SIS_LINUX_KERNEL
 void		SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata, int xres,
 				int yres, struct fb_var_screeninfo *var, bool writeres);
@@ -1625,17 +1596,6 @@ extern unsigned short	SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short
 				unsigned short ModeIdIndex, unsigned short RRTI);
 extern bool		SiS_IsVAMode(struct SiS_Private *);
 extern bool		SiS_IsDualEdge(struct SiS_Private *);
-
-#ifdef SIS_XORG_XF86
-/* From other modules: */
-extern unsigned short	SiS_CheckBuildCustomMode(ScrnInfoPtr pScrn, DisplayModePtr mode,
-				unsigned int VBFlags);
-extern unsigned char	SiS_GetSetBIOSScratch(ScrnInfoPtr pScrn, unsigned short offset,
-				unsigned char value);
-extern unsigned char	SiS_GetSetModeID(ScrnInfoPtr pScrn, unsigned char id);
-extern unsigned short 	SiS_GetModeNumber(ScrnInfoPtr pScrn, DisplayModePtr mode,
-				unsigned int VBFlags);
-#endif
 
 #ifdef SIS_LINUX_KERNEL
 #ifdef SIS300

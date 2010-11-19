@@ -233,9 +233,6 @@ struct SiS_Private
 {
 	unsigned char			ChipType;
 	unsigned char			ChipRevision;
-#ifdef SIS_XORG_XF86
-	PCITAG				PciTag;
-#endif
 #ifdef SIS_LINUX_KERNEL
 	void				*ivideo;
 #endif
@@ -280,9 +277,6 @@ struct SiS_Private
 	unsigned short			SiS_IF_DEF_FSTN;
 	unsigned short			SiS_SysFlags;
 	unsigned char			SiS_VGAINFO;
-#ifdef SIS_XORG_XF86
-	unsigned short			SiS_CP1, SiS_CP2, SiS_CP3, SiS_CP4;
-#endif
 	bool				SiS_UseROM;
 	bool				SiS_ROMNew;
 	bool				SiS_XGIROM;
