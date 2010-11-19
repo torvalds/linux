@@ -1960,7 +1960,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		    gfn_t gfn, pfn_t pfn, bool speculative,
 		    bool can_unsync, bool reset_host_protection)
 {
-	u64 spte;
+	u64 spte, entry = *sptep;
 	int ret = 0;
 
 	/*
@@ -2031,6 +2031,14 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 
 set_pte:
 	update_spte(sptep, spte);
+	/*
+	 * If we overwrite a writable spte with a read-only one we
+	 * should flush remote TLBs. Otherwise rmap_write_protect
+	 * will find a read-only spte, even though the writable spte
+	 * might be cached on a CPU's TLB.
+	 */
+	if (is_writable_pte(entry) && !is_writable_pte(*sptep))
+		kvm_flush_remote_tlbs(vcpu->kvm);
 done:
 	return ret;
 }
@@ -2067,16 +2075,6 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		} else if (pfn != spte_to_pfn(*sptep)) {
 			pgprintk("hfn old %llx new %llx\n",
 				 spte_to_pfn(*sptep), pfn);
-			drop_spte(vcpu->kvm, sptep, shadow_trap_nonpresent_pte);
-			kvm_flush_remote_tlbs(vcpu->kvm);
-		/*
-		 * If we overwrite a writable spte with a read-only one,
-		 * drop it and flush remote TLBs. Otherwise rmap_write_protect
-		 * will find a read-only spte, even though the writable spte
-		 * might be cached on a CPU's TLB.
-		 */
-		} else if (is_writable_pte(*sptep) &&
-			  (!(pte_access & ACC_WRITE_MASK) || !dirty)) {
 			drop_spte(vcpu->kvm, sptep, shadow_trap_nonpresent_pte);
 			kvm_flush_remote_tlbs(vcpu->kvm);
 		} else
