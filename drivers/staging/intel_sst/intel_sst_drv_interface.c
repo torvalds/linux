@@ -288,18 +288,27 @@ void sst_process_mad_ops(struct work_struct *work)
 	}
 	return;
 }
-/*
- * sst_control_set - Set Control params
- *
- * @control_list: list of controls to be set
- *
- * This function is called by MID sound card driver to set
- * SST/Sound card controls. This is registered with MID driver
- */
-int sst_control_set(int control_element, void *value)
+
+void send_intial_rx_timeslot(void)
 {
-	int retval = 0, str_id = 0;
-	struct stream_info *stream;
+	if (sst_drv_ctx->pci_id == SST_MRST_PCI_ID &&
+			sst_drv_ctx->rx_time_slot_status != RX_TIMESLOT_UNINIT
+			&& sst_drv_ctx->pmic_vendor != SND_NC)
+		sst_enable_rx_timeslot(sst_drv_ctx->rx_time_slot_status);
+}
+
+/*
+ * sst_open_pcm_stream - Open PCM interface
+ *
+ * @str_param: parameters of pcm stream
+ *
+ * This function is called by MID sound card driver to open
+ * a new pcm interface
+ */
+int sst_open_pcm_stream(struct snd_sst_params *str_param)
+{
+	struct stream_info *str_info;
+	int retval;
 
 	if (sst_drv_ctx->sst_state == SST_SUSPENDED) {
 		/*LPE is suspended, resume it before proceding*/
@@ -318,45 +327,68 @@ int sst_control_set(int control_element, void *value)
 			pr_err("FW download fail %x, abort\n", retval);
 			return retval;
 		}
-		if (sst_drv_ctx->pci_id == SST_MRST_PCI_ID &&
-			sst_drv_ctx->rx_time_slot_status != RX_TIMESLOT_UNINIT
-				&& sst_drv_ctx->pmic_vendor != SND_NC)
-			sst_enable_rx_timeslot(
-					sst_drv_ctx->rx_time_slot_status);
+		send_intial_rx_timeslot();
 	}
 
-	switch (control_element) {
-	case SST_SND_ALLOC: {
-		struct snd_sst_params *str_param;
-		struct stream_info *str_info;
+	if (!str_param)
+		return -EINVAL;
 
-		str_param = (struct snd_sst_params *)value;
-		BUG_ON(!str_param);
-		retval = sst_get_stream(str_param);
-		if (retval >= 0)
-			sst_drv_ctx->stream_cnt++;
+	retval = sst_get_stream(str_param);
+	if (retval > 0) {
+		sst_drv_ctx->stream_cnt++;
 		str_info = &sst_drv_ctx->streams[retval];
 		str_info->src = MAD_DRV;
-		break;
 	}
+	return retval;
+}
 
+/*
+ * sst_close_pcm_stream - Close PCM interface
+ *
+ * @str_id: stream id to be closed
+ *
+ * This function is called by MID sound card driver to close
+ * an existing pcm interface
+ */
+int sst_close_pcm_stream(unsigned int str_id)
+{
+	struct stream_info *stream;
+
+	pr_debug("sst: stream free called\n");
+	if (sst_validate_strid(str_id))
+		return -EINVAL;
+	stream = &sst_drv_ctx->streams[str_id];
+	free_stream_context(str_id);
+	stream->pcm_substream = NULL;
+	stream->status = STREAM_UN_INIT;
+	stream->period_elapsed = NULL;
+	sst_drv_ctx->stream_cnt--;
+	pr_debug("sst: will call runtime put now\n");
+	return 0;
+}
+
+/*
+ * sst_device_control - Set Control params
+ *
+ * @cmd: control cmd to be set
+ * @arg: command argument
+ *
+ * This function is called by MID sound card driver to set
+ * SST/Sound card controls for an opened stream.
+ * This is registered with MID driver
+ */
+int sst_device_control(int cmd, void *arg)
+{
+	int retval = 0, str_id = 0;
+
+	switch (cmd) {
 	case SST_SND_PAUSE:
 	case SST_SND_RESUME:
 	case SST_SND_DROP:
 	case SST_SND_START:
-		sst_drv_ctx->mad_ops.control_op = control_element;
-		sst_drv_ctx->mad_ops.stream_id = *(int *)value;
+		sst_drv_ctx->mad_ops.control_op = cmd;
+		sst_drv_ctx->mad_ops.stream_id = *(int *)arg;
 		queue_work(sst_drv_ctx->mad_wq, &sst_drv_ctx->mad_ops.wq);
-		break;
-
-	case SST_SND_FREE:
-		str_id = *(int *)value;
-		stream = &sst_drv_ctx->streams[str_id];
-		free_stream_context(str_id);
-		stream->pcm_substream = NULL;
-		stream->status = STREAM_UN_INIT;
-		stream->period_elapsed = NULL;
-		sst_drv_ctx->stream_cnt--;
 		break;
 
 	case SST_SND_STREAM_INIT: {
@@ -364,7 +396,7 @@ int sst_control_set(int control_element, void *value)
 		struct stream_info *stream;
 
 		pr_debug("stream init called\n");
-		str_info = (struct pcm_stream_info *)value;
+		str_info = (struct pcm_stream_info *)arg;
 		str_id = str_info->str_id;
 		retval = sst_validate_strid(str_id);
 		if (retval)
@@ -386,7 +418,7 @@ int sst_control_set(int control_element, void *value)
 		struct stream_info *stream;
 
 
-		stream_info = (struct pcm_stream_info *)value;
+		stream_info = (struct pcm_stream_info *)arg;
 		str_id = stream_info->str_id;
 		retval = sst_validate_strid(str_id);
 		if (retval)
@@ -412,7 +444,7 @@ int sst_control_set(int control_element, void *value)
 		break;
 	}
 	case SST_ENABLE_RX_TIME_SLOT: {
-		int status = *(int *)value;
+		int status = *(int *)arg;
 		sst_drv_ctx->rx_time_slot_status = status ;
 		sst_enable_rx_timeslot(status);
 		break;
@@ -427,8 +459,14 @@ int sst_control_set(int control_element, void *value)
 }
 
 
+struct intel_sst_pcm_control pcm_ops = {
+	.open = sst_open_pcm_stream,
+	.device_control = sst_device_control,
+	.close = sst_close_pcm_stream,
+};
+
 struct intel_sst_card_ops sst_pmic_ops = {
-	.control_set = sst_control_set,
+	.pcm_control = &pcm_ops,
 };
 
 /*
@@ -458,7 +496,7 @@ int register_sst_card(struct intel_sst_card_ops *card)
 			sst_pmic_ops.module_name = card->module_name;
 			sst_drv_ctx->pmic_state = SND_MAD_INIT_DONE;
 			sst_drv_ctx->rx_time_slot_status = 0; /*default AMIC*/
-			card->control_set = sst_pmic_ops.control_set;
+			card->pcm_control = sst_pmic_ops.pcm_control;
 			sst_drv_ctx->scard_ops->card_status = SND_CARD_UN_INIT;
 			return 0;
 		} else {
@@ -484,7 +522,7 @@ EXPORT_SYMBOL_GPL(register_sst_card);
  */
 void unregister_sst_card(struct intel_sst_card_ops *card)
 {
-	if (sst_pmic_ops.control_set == card->control_set) {
+	if (sst_pmic_ops.pcm_control == card->pcm_control) {
 		/* unreg */
 		sst_pmic_ops.module_name = "";
 		sst_drv_ctx->pmic_state = SND_MAD_UN_INIT;

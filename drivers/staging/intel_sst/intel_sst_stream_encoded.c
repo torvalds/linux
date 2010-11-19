@@ -32,9 +32,9 @@
 #include <linux/syscalls.h>
 #include <linux/firmware.h>
 #include <linux/sched.h>
-#include <linux/rar_register.h>
 #ifdef CONFIG_MRST_RAR_HANDLER
-#include "../../../drivers/staging/memrar/memrar.h"
+#include <linux/rar_register.h>
+#include "../memrar/memrar.h"
 #endif
 #include "intel_sst_ioctl.h"
 #include "intel_sst.h"
@@ -880,13 +880,13 @@ static int sst_send_decode_mess(int str_id, struct stream_info *str_info,
 	return retval;
 }
 
+#ifdef CONFIG_MRST_RAR_HANDLER
 static int sst_prepare_input_buffers_rar(struct stream_info *str_info,
 			struct snd_sst_dbufs *dbufs,
 			int *input_index, int *in_copied,
 			int *input_index_valid_size, int *new_entry_flag)
 {
 	int retval = 0;
-#ifdef CONFIG_MRST_RAR_HANDLER
 	int i;
 
 	if (str_info->ops == STREAM_OPS_PLAYBACK_DRM) {
@@ -921,9 +921,10 @@ static int sst_prepare_input_buffers_rar(struct stream_info *str_info,
 		str_info->decode_ibuf_type = dbufs->ibufs->type;
 		*in_copied = str_info->decode_isize;
 	}
-#endif
 	return retval;
 }
+#endif
+
 /*This function is used to prepare the kernel input buffers with contents
 before sending for decode*/
 static int sst_prepare_input_buffers(struct stream_info *str_info,

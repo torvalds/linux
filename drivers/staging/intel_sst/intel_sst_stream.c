@@ -47,7 +47,7 @@
  */
 int sst_check_device_type(u32 device, u32 num_chan, u32 *pcm_slot)
 {
-	if (device >= MAX_NUM_STREAMS) {
+	if (device > MAX_NUM_STREAMS_MFLD) {
 		pr_debug("device type invalid %d\n", device);
 		return -EINVAL;
 	}

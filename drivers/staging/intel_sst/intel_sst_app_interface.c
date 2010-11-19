@@ -100,11 +100,15 @@ static int intel_sst_check_device(void)
  */
 int intel_sst_open(struct inode *i_node, struct file *file_ptr)
 {
-	int retval = intel_sst_check_device();
-	if (retval)
-		return retval;
+	unsigned int retval;
 
 	mutex_lock(&sst_drv_ctx->stream_lock);
+	retval = intel_sst_check_device();
+	if (retval) {
+		mutex_unlock(&sst_drv_ctx->stream_lock);
+		return retval;
+	}
+
 	if (sst_drv_ctx->encoded_cnt < MAX_ENC_STREAM) {
 		struct ioctl_pvt_data *data =
 			kzalloc(sizeof(struct ioctl_pvt_data), GFP_KERNEL);
@@ -139,12 +143,16 @@ int intel_sst_open(struct inode *i_node, struct file *file_ptr)
  */
 int intel_sst_open_cntrl(struct inode *i_node, struct file *file_ptr)
 {
-	int retval = intel_sst_check_device();
-	if (retval)
-		return retval;
+	unsigned int retval;
 
 	/* audio manager open */
 	mutex_lock(&sst_drv_ctx->stream_lock);
+	retval = intel_sst_check_device();
+	if (retval) {
+		mutex_unlock(&sst_drv_ctx->stream_lock);
+		return retval;
+	}
+
 	if (sst_drv_ctx->am_cnt < MAX_AM_HANDLES) {
 		sst_drv_ctx->am_cnt++;
 		pr_debug("AM handle opened...\n");

@@ -104,12 +104,10 @@ static struct snd_pcm_hardware snd_intelmad_stream = {
 static int snd_intelmad_pcm_trigger(struct snd_pcm_substream *substream,
 					int cmd)
 {
-	int ret_val = 0;
+	int ret_val = 0, str_id;
 	struct snd_intelmad *intelmaddata;
 	struct mad_stream_pvt *stream;
-	/*struct stream_buffer buffer_to_sst;*/
-
-
+	struct intel_sst_pcm_control *sst_ops;
 
 	WARN_ON(!substream);
 
@@ -118,38 +116,35 @@ static int snd_intelmad_pcm_trigger(struct snd_pcm_substream *substream,
 
 	WARN_ON(!intelmaddata->sstdrv_ops);
 	WARN_ON(!intelmaddata->sstdrv_ops->scard_ops);
+	sst_ops  = intelmaddata->sstdrv_ops->pcm_control;
+	str_id = stream->stream_info.str_id;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		pr_debug("Trigger Start\n");
-		ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_START,
-				&stream->stream_info.str_id);
+		ret_val = sst_ops->device_control(SST_SND_START, &str_id);
 		if (ret_val)
 			return ret_val;
 		stream->stream_status = RUNNING;
 		stream->substream = substream;
-		stream->stream_status = RUNNING;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		pr_debug("in stop\n");
-		ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_DROP,
-				&stream->stream_info.str_id);
+		ret_val = sst_ops->device_control(SST_SND_DROP, &str_id);
 		if (ret_val)
 			return ret_val;
 		stream->stream_status = DROPPED;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		pr_debug("in pause\n");
-		ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_PAUSE,
-				&stream->stream_info.str_id);
+		ret_val = sst_ops->device_control(SST_SND_PAUSE, &str_id);
 		if (ret_val)
 			return ret_val;
 		stream->stream_status = PAUSED;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		pr_debug("in pause release\n");
-		ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_RESUME,
-						&stream->stream_info.str_id);
+		ret_val = sst_ops->device_control(SST_SND_RESUME, &str_id);
 		if (ret_val)
 			return ret_val;
 		stream->stream_status = RUNNING;
@@ -184,8 +179,8 @@ static int snd_intelmad_pcm_prepare(struct snd_pcm_substream *substream)
 
 	if (stream->stream_info.str_id) {
 		pr_debug("Prepare called for already set stream\n");
-		ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_DROP,
-					&stream->stream_info.str_id);
+		ret_val = intelmaddata->sstdrv_ops->pcm_control->device_control(
+				SST_SND_DROP, &stream->stream_info.str_id);
 		return ret_val;
 	}
 
@@ -253,8 +248,8 @@ static snd_pcm_uframes_t snd_intelmad_pcm_pointer
 	if (stream->stream_status == INIT)
 		return 0;
 
-	ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_BUFFER_POINTER,
-				&stream->stream_info);
+	ret_val = intelmaddata->sstdrv_ops->pcm_control->device_control(
+			SST_SND_BUFFER_POINTER, &stream->stream_info);
 	if (ret_val) {
 		pr_err("error code = 0x%x\n", ret_val);
 		return ret_val;
@@ -280,20 +275,20 @@ static int snd_intelmad_close(struct snd_pcm_substream *substream)
 {
 	struct snd_intelmad *intelmaddata;
 	struct mad_stream_pvt *stream;
-	int ret_val = 0;
+	int ret_val = 0, str_id;
 
 	WARN_ON(!substream);
 
 	stream = substream->runtime->private_data;
+	str_id = stream->stream_info.str_id;
 
-	pr_debug("snd_intelmad_close called\n");
+	pr_debug("sst: snd_intelmad_close called for %d\n", str_id);
 	intelmaddata = snd_pcm_substream_chip(substream);
 
 	pr_debug("str id = %d\n", stream->stream_info.str_id);
 	if (stream->stream_info.str_id) {
 		/* SST API to actually stop/free the stream */
-		ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_FREE,
-				&stream->stream_info.str_id);
+		ret_val = intelmaddata->sstdrv_ops->pcm_control->close(str_id);
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			intelmaddata->playback_cnt--;
 		else

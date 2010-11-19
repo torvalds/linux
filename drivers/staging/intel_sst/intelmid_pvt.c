@@ -95,10 +95,8 @@ int snd_intelmad_alloc_stream(struct snd_pcm_substream *substream)
 		pr_debug("Capture stream,Device %d\n", stream->device);
 	}
 	str_params.device_type = stream->device;
-	ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_ALLOC,
-					&str_params);
-	pr_debug("SST_SND_PLAY/CAPTURE ret_val = %x\n",
-			ret_val);
+	ret_val = intelmaddata->sstdrv_ops->pcm_control->open(&str_params);
+	pr_debug("sst: SST_SND_PLAY/CAPTURE ret_val = %x\n", ret_val);
 	if (ret_val < 0)
 		return ret_val;
 
@@ -121,8 +119,8 @@ int snd_intelmad_init_stream(struct snd_pcm_substream *substream)
 	stream->stream_info.mad_substream = substream;
 	stream->stream_info.buffer_ptr = 0;
 	stream->stream_info.sfreq = substream->runtime->rate;
-	ret_val = intelmaddata->sstdrv_ops->control_set(SST_SND_STREAM_INIT,
-					&stream->stream_info);
+	ret_val = intelmaddata->sstdrv_ops->pcm_control->device_control(
+			SST_SND_STREAM_INIT, &stream->stream_info);
 	if (ret_val)
 		pr_err("control_set ret error %d\n", ret_val);
 	return ret_val;

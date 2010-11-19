@@ -494,6 +494,7 @@ static int snd_intelmad_device_set(struct snd_kcontrol *kcontrol,
 	struct snd_intelmad *intelmaddata;
 	struct snd_pmic_ops *scard_ops;
 	int ret_val = 0, vendor, status;
+	struct intel_sst_pcm_control *pcm_control;
 
 	pr_debug("snd_intelmad_device_set called\n");
 
@@ -521,15 +522,13 @@ static int snd_intelmad_device_set(struct snd_kcontrol *kcontrol,
 	case INPUT_SEL:
 		vendor = intelmaddata->sstdrv_ops->vendor_id;
 		if ((vendor == SND_MX) || (vendor == SND_FS)) {
-			if (uval->value.enumerated.item[0] == HS_MIC) {
+			pcm_control = intelmaddata->sstdrv_ops->pcm_control;
+			if (uval->value.enumerated.item[0] == HS_MIC)
 				status = 1;
-				intelmaddata->sstdrv_ops->
-				control_set(SST_ENABLE_RX_TIME_SLOT, &status);
-			} else {
+			else
 				status = 0;
-				intelmaddata->sstdrv_ops->
-				control_set(SST_ENABLE_RX_TIME_SLOT, &status);
-			}
+			pcm_control->device_control(
+					SST_ENABLE_RX_TIME_SLOT, &status);
 		}
 		ret_val = scard_ops->set_input_dev(
 				uval->value.enumerated.item[0]);
