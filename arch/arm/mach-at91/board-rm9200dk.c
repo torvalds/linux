@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-at91/board-dk.c
+ * linux/arch/arm/mach-at91/board-rm9200dk.c
  *
  *  Copyright (C) 2005 SAN People
  *
