@@ -33,6 +33,7 @@
 #include <linux/bitops.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
+#include <linux/serial.h>
 #include "usb-wwan.h"
 
 static int debug;
@@ -122,6 +123,83 @@ int usb_wwan_tiocmset(struct tty_struct *tty, struct file *file,
 	return intfdata->send_setup(port);
 }
 EXPORT_SYMBOL(usb_wwan_tiocmset);
+
+static int get_serial_info(struct usb_serial_port *port,
+			   struct serial_struct __user *retinfo)
+{
+	struct serial_struct tmp;
+
+	if (!retinfo)
+		return -EFAULT;
+
+	memset(&tmp, 0, sizeof(tmp));
+	tmp.line            = port->serial->minor;
+	tmp.port            = port->number;
+	tmp.baud_base       = tty_get_baud_rate(port->port.tty);
+	tmp.close_delay	    = port->port.close_delay / 10;
+	tmp.closing_wait    = port->port.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
+				 ASYNC_CLOSING_WAIT_NONE :
+				 port->port.closing_wait / 10;
+
+	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
+		return -EFAULT;
+	return 0;
+}
+
+static int set_serial_info(struct usb_serial_port *port,
+			   struct serial_struct __user *newinfo)
+{
+	struct serial_struct new_serial;
+	unsigned int closing_wait, close_delay;
+	int retval = 0;
+
+	if (copy_from_user(&new_serial, newinfo, sizeof(new_serial)))
+		return -EFAULT;
+
+	close_delay = new_serial.close_delay * 10;
+	closing_wait = new_serial.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
+			ASYNC_CLOSING_WAIT_NONE : new_serial.closing_wait * 10;
+
+	mutex_lock(&port->port.mutex);
+
+	if (!capable(CAP_SYS_ADMIN)) {
+		if ((close_delay != port->port.close_delay) ||
+		    (closing_wait != port->port.closing_wait))
+			retval = -EPERM;
+		else
+			retval = -EOPNOTSUPP;
+	} else {
+		port->port.close_delay  = close_delay;
+		port->port.closing_wait = closing_wait;
+	}
+
+	mutex_unlock(&port->port.mutex);
+	return retval;
+}
+
+int usb_wwan_ioctl(struct tty_struct *tty, struct file *file,
+		   unsigned int cmd, unsigned long arg)
+{
+	struct usb_serial_port *port = tty->driver_data;
+
+	dbg("%s cmd 0x%04x", __func__, cmd);
+
+	switch (cmd) {
+	case TIOCGSERIAL:
+		return get_serial_info(port,
+				       (struct serial_struct __user *) arg);
+	case TIOCSSERIAL:
+		return set_serial_info(port,
+				       (struct serial_struct __user *) arg);
+	default:
+		break;
+	}
+
+	dbg("%s arg not supported", __func__);
+
+	return -ENOIOCTLCMD;
+}
+EXPORT_SYMBOL(usb_wwan_ioctl);
 
 /* Write */
 int usb_wwan_write(struct tty_struct *tty, struct usb_serial_port *port,

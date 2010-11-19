@@ -989,6 +989,7 @@ static struct usb_serial_driver option_1port_device = {
 	.set_termios       = usb_wwan_set_termios,
 	.tiocmget          = usb_wwan_tiocmget,
 	.tiocmset          = usb_wwan_tiocmset,
+	.ioctl             = usb_wwan_ioctl,
 	.attach            = usb_wwan_startup,
 	.disconnect        = usb_wwan_disconnect,
 	.release           = usb_wwan_release,
