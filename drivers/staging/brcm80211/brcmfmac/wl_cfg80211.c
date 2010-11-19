@@ -95,12 +95,12 @@ static s32 wl_cfg80211_config_default_key(struct wiphy *wiphy,
 					    struct net_device *dev,
 					    u8 key_idx);
 static s32 wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
-				 u8 key_idx, const u8 *mac_addr,
+				 u8 key_idx, bool pairwise, const u8 *mac_addr,
 				 struct key_params *params);
 static s32 wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
-				 u8 key_idx, const u8 *mac_addr);
+				 u8 key_idx, bool pairwise, const u8 *mac_addr);
 static s32 wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
-				 u8 key_idx, const u8 *mac_addr,
+				 u8 key_idx, bool pairwise, const u8 *mac_addr,
 				 void *cookie, void (*callback) (void *cookie,
 								 struct
 								 key_params *
@@ -1615,7 +1615,7 @@ wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 
 static s32
 wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
-		    u8 key_idx, const u8 *mac_addr,
+		    u8 key_idx, bool pairwise, const u8 *mac_addr,
 		    struct key_params *params)
 {
 	struct wl_wsec_key key;
@@ -1700,7 +1700,7 @@ wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 
 static s32
 wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
-		    u8 key_idx, const u8 *mac_addr)
+		    u8 key_idx, bool pairwise, const u8 *mac_addr)
 {
 	struct wl_wsec_key key;
 	s32 err = 0;
@@ -1756,7 +1756,7 @@ wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 
 static s32
 wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
-		    u8 key_idx, const u8 *mac_addr, void *cookie,
+		    u8 key_idx, bool pairwise, const u8 *mac_addr, void *cookie,
 		    void (*callback) (void *cookie, struct key_params * params))
 {
 	struct key_params params;

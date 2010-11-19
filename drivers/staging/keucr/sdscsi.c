@@ -152,7 +152,7 @@ int SD_SCSI_Read(struct us_data *us, struct scsi_cmnd *srb)
 		bnByte = bn;
 		
 	// set up the command wrapper
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = blenByte;
 	bcb->Flags  = 0x80;
@@ -192,7 +192,7 @@ int SD_SCSI_Write(struct us_data *us, struct scsi_cmnd *srb)
 		bnByte = bn;
 
 	// set up the command wrapper
-	memset(bcb, 0, sizeof(bcb));
+	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = blenByte;
 	bcb->Flags  = 0x00;

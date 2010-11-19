@@ -401,13 +401,19 @@ struct radeon_hpd {
 };
 
 struct radeon_router {
-	bool valid;
 	u32 router_id;
 	struct radeon_i2c_bus_rec i2c_info;
 	u8 i2c_addr;
-	u8 mux_type;
-	u8 mux_control_pin;
-	u8 mux_state;
+	/* i2c mux */
+	bool ddc_valid;
+	u8 ddc_mux_type;
+	u8 ddc_mux_control_pin;
+	u8 ddc_mux_state;
+	/* clock/data mux */
+	bool cd_valid;
+	u8 cd_mux_type;
+	u8 cd_mux_control_pin;
+	u8 cd_mux_state;
 };
 
 struct radeon_connector {
@@ -488,7 +494,8 @@ extern void radeon_i2c_put_byte(struct radeon_i2c_chan *i2c,
 				u8 slave_addr,
 				u8 addr,
 				u8 val);
-extern void radeon_router_select_port(struct radeon_connector *radeon_connector);
+extern void radeon_router_select_ddc_port(struct radeon_connector *radeon_connector);
+extern void radeon_router_select_cd_port(struct radeon_connector *radeon_connector);
 extern bool radeon_ddc_probe(struct radeon_connector *radeon_connector);
 extern int radeon_ddc_get_modes(struct radeon_connector *radeon_connector);
 

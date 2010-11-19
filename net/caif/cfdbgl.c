@@ -12,6 +12,8 @@
 #include <net/caif/cfsrvl.h>
 #include <net/caif/cfpkt.h>
 
+#define container_obj(layr) ((struct cfsrvl *) layr)
+
 static int cfdbgl_receive(struct cflayer *layr, struct cfpkt *pkt);
 static int cfdbgl_transmit(struct cflayer *layr, struct cfpkt *pkt);
 
@@ -38,5 +40,17 @@ static int cfdbgl_receive(struct cflayer *layr, struct cfpkt *pkt)
 
 static int cfdbgl_transmit(struct cflayer *layr, struct cfpkt *pkt)
 {
+	struct cfsrvl *service = container_obj(layr);
+	struct caif_payload_info *info;
+	int ret;
+
+	if (!cfsrvl_ready(service, &ret))
+		return ret;
+
+	/* Add info for MUX-layer to route the packet out */
+	info = cfpkt_info(pkt);
+	info->channel_id = service->layer.id;
+	info->dev_info = &service->dev_info;
+
 	return layr->dn->transmit(layr->dn, pkt);
 }

@@ -2955,11 +2955,7 @@ jme_init_one(struct pci_dev *pdev,
 	 * Tell stack that we are not ready to work until open()
 	 */
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
 
-	/*
-	 * Register netdev
-	 */
 	rc = register_netdev(netdev);
 	if (rc) {
 		pr_err("Cannot register net device\n");

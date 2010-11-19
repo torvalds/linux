@@ -946,7 +946,9 @@ static int check_overlay_src(struct drm_device *dev,
 {
 	int uv_hscale = uv_hsubsampling(rec->flags);
 	int uv_vscale = uv_vsubsampling(rec->flags);
-	u32 stride_mask, depth, tmp;
+	u32 stride_mask;
+	int depth;
+	u32 tmp;
 
 	/* check src dimensions */
 	if (IS_845G(dev) || IS_I830(dev)) {

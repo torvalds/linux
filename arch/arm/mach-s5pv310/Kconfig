@@ -11,6 +11,7 @@ if ARCH_S5PV310
 
 config CPU_S5PV310
 	bool
+	select S3C_PL330_DMA
 	help
 	  Enable S5PV310 CPU support
 

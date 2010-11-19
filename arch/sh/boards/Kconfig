@@ -81,13 +81,6 @@ config SH_7343_SOLUTION_ENGINE
 	  Select 7343 SolutionEngine if configuring for a Hitachi
 	  SH7343 (SH-Mobile 3AS) evaluation board.
 
-config SH_7751_SYSTEMH
-	bool "SystemH7751R"
-	depends on CPU_SUBTYPE_SH7751R
-	help
-	  Select SystemH if you are configuring for a Renesas SystemH
-	  7751R evaluation board.
-
 config SH_HP6XX
 	bool "HP6XX"
 	select SYS_SUPPORTS_APM_EMULATION

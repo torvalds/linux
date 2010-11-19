@@ -673,16 +673,17 @@ static void nfsd4_hash_conn(struct nfsd4_conn *conn, struct nfsd4_session *ses)
 	spin_unlock(&clp->cl_lock);
 }
 
-static void nfsd4_register_conn(struct nfsd4_conn *conn)
+static int nfsd4_register_conn(struct nfsd4_conn *conn)
 {
 	conn->cn_xpt_user.callback = nfsd4_conn_lost;
-	register_xpt_user(conn->cn_xprt, &conn->cn_xpt_user);
+	return register_xpt_user(conn->cn_xprt, &conn->cn_xpt_user);
 }
 
 static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
 {
 	struct nfsd4_conn *conn;
 	u32 flags = NFS4_CDFC4_FORE;
+	int ret;
 
 	if (ses->se_flags & SESSION4_BACK_CHAN)
 		flags |= NFS4_CDFC4_BACK;
@@ -690,7 +691,10 @@ static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
 	if (!conn)
 		return nfserr_jukebox;
 	nfsd4_hash_conn(conn, ses);
-	nfsd4_register_conn(conn);
+	ret = nfsd4_register_conn(conn);
+	if (ret)
+		/* oops; xprt is already down: */
+		nfsd4_conn_lost(&conn->cn_xpt_user);
 	return nfs_ok;
 }
 
@@ -1644,6 +1648,7 @@ static void nfsd4_sequence_check_conn(struct nfsd4_conn *new, struct nfsd4_sessi
 {
 	struct nfs4_client *clp = ses->se_client;
 	struct nfsd4_conn *c;
+	int ret;
 
 	spin_lock(&clp->cl_lock);
 	c = __nfsd4_find_conn(new->cn_xprt, ses);
@@ -1654,7 +1659,10 @@ static void nfsd4_sequence_check_conn(struct nfsd4_conn *new, struct nfsd4_sessi
 	}
 	__nfsd4_hash_conn(new, ses);
 	spin_unlock(&clp->cl_lock);
-	nfsd4_register_conn(new);
+	ret = nfsd4_register_conn(new);
+	if (ret)
+		/* oops; xprt is already down: */
+		nfsd4_conn_lost(&new->cn_xpt_user);
 	return;
 }
 

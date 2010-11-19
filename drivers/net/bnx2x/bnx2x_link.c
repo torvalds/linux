@@ -610,7 +610,7 @@ static u8 bnx2x_bmac_enable(struct link_params *params,
 	/* reset and unreset the BigMac */
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR,
 		     (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port));
-	udelay(10);
+	msleep(1);
 
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET,
 		     (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << port));
@@ -3525,13 +3525,19 @@ static u8 bnx2x_8073_config_init(struct bnx2x_phy *phy,
 	DP(NETIF_MSG_LINK, "Before rom RX_ALARM(port1): 0x%x\n", tmp1);
 
 	/* Enable CL37 BAM */
-	bnx2x_cl45_read(bp, phy,
-			MDIO_AN_DEVAD,
-			MDIO_AN_REG_8073_BAM, &val);
-	bnx2x_cl45_write(bp, phy,
-			 MDIO_AN_DEVAD,
-			 MDIO_AN_REG_8073_BAM, val | 1);
+	if (REG_RD(bp, params->shmem_base +
+			 offsetof(struct shmem_region, dev_info.
+				  port_hw_config[params->port].default_cfg)) &
+	    PORT_HW_CFG_ENABLE_BAM_ON_KR_ENABLED) {
 
+		bnx2x_cl45_read(bp, phy,
+				MDIO_AN_DEVAD,
+				MDIO_AN_REG_8073_BAM, &val);
+		bnx2x_cl45_write(bp, phy,
+				 MDIO_AN_DEVAD,
+				 MDIO_AN_REG_8073_BAM, val | 1);
+		DP(NETIF_MSG_LINK, "Enable CL37 BAM on KR\n");
+	}
 	if (params->loopback_mode == LOOPBACK_EXT) {
 		bnx2x_807x_force_10G(bp, phy);
 		DP(NETIF_MSG_LINK, "Forced speed 10G on 807X\n");
@@ -5302,7 +5308,7 @@ static u8 bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 {
 	struct bnx2x *bp = params->bp;
 	u16 autoneg_val, an_1000_val, an_10_100_val;
-	bnx2x_wait_reset_complete(bp, phy);
+
 	bnx2x_bits_en(bp, NIG_REG_LATCH_BC_0 + params->port*4,
 		      1 << NIG_LATCH_BC_ENABLE_MI_INT);
 
@@ -5431,6 +5437,7 @@ static u8 bnx2x_8481_config_init(struct bnx2x_phy *phy,
 
 	/* HW reset */
 	bnx2x_ext_phy_hw_reset(bp, params->port);
+	bnx2x_wait_reset_complete(bp, phy);
 
 	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD, MDIO_PMA_REG_CTRL, 1<<15);
 	return bnx2x_848xx_cmn_config_init(phy, params, vars);
@@ -5441,7 +5448,7 @@ static u8 bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 				  struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
-	u8 port = params->port, initialize = 1;
+	u8 port, initialize = 1;
 	u16 val;
 	u16 temp;
 	u32 actual_phy_selection;
@@ -5450,11 +5457,16 @@ static u8 bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 	/* This is just for MDIO_CTL_REG_84823_MEDIA register. */
 
 	msleep(1);
+	if (CHIP_IS_E2(bp))
+		port = BP_PATH(bp);
+	else
+		port = params->port;
 	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
 		       MISC_REGISTERS_GPIO_OUTPUT_HIGH,
 		       port);
-	msleep(200); /* 100 is not enough */
-
+	bnx2x_wait_reset_complete(bp, phy);
+	/* Wait for GPHY to come out of reset */
+	msleep(50);
 	/* BCM84823 requires that XGXS links up first @ 10G for normal
 	behavior */
 	temp = vars->line_speed;
@@ -5625,7 +5637,11 @@ static void bnx2x_848x3_link_reset(struct bnx2x_phy *phy,
 				   struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
-	u8 port = params->port;
+	u8 port;
+	if (CHIP_IS_E2(bp))
+		port = BP_PATH(bp);
+	else
+		port = params->port;
 	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
 			    MISC_REGISTERS_GPIO_OUTPUT_LOW,
 			    port);
@@ -6928,7 +6944,7 @@ u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 		  u8 reset_ext_phy)
 {
 	struct bnx2x *bp = params->bp;
-	u8 phy_index, port = params->port;
+	u8 phy_index, port = params->port, clear_latch_ind = 0;
 	DP(NETIF_MSG_LINK, "Resetting the link of port %d\n", port);
 	/* disable attentions */
 	vars->link_status = 0;
@@ -6966,9 +6982,18 @@ u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 				params->phy[phy_index].link_reset(
 					&params->phy[phy_index],
 					params);
+			if (params->phy[phy_index].flags &
+			    FLAGS_REARM_LATCH_SIGNAL)
+				clear_latch_ind = 1;
 		}
 	}
 
+	if (clear_latch_ind) {
+		/* Clear latching indication */
+		bnx2x_rearm_latch_signal(bp, port, 0);
+		bnx2x_bits_dis(bp, NIG_REG_LATCH_BC_0 + port*4,
+			       1 << NIG_LATCH_BC_ENABLE_MI_INT);
+	}
 	if (params->phy[INT_PHY].link_reset)
 		params->phy[INT_PHY].link_reset(
 			&params->phy[INT_PHY], params);
@@ -6999,6 +7024,7 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp,
 	s8 port;
 	s8 port_of_path = 0;
 
+	bnx2x_ext_phy_hw_reset(bp, 0);
 	/* PART1 - Reset both phys */
 	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
 		u32 shmem_base, shmem2_base;
@@ -7021,7 +7047,8 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp,
 			return -EINVAL;
 		}
 		/* disable attentions */
-		bnx2x_bits_dis(bp, NIG_REG_MASK_INTERRUPT_PORT0 + port*4,
+		bnx2x_bits_dis(bp, NIG_REG_MASK_INTERRUPT_PORT0 +
+			       port_of_path*4,
 			     (NIG_MASK_XGXS0_LINK_STATUS |
 			      NIG_MASK_XGXS0_LINK10G |
 			      NIG_MASK_SERDES0_LINK_STATUS |
@@ -7132,7 +7159,7 @@ static u8 bnx2x_8726_common_init_phy(struct bnx2x *bp,
 		(1<<(MISC_REGISTERS_GPIO_3 + MISC_REGISTERS_GPIO_PORT_SHIFT)));
 	REG_WR(bp, MISC_REG_GPIO_EVENT_EN, val);
 
-	bnx2x_ext_phy_hw_reset(bp, 1);
+	bnx2x_ext_phy_hw_reset(bp, 0);
 	msleep(5);
 	for (port = 0; port < PORT_MAX; port++) {
 		u32 shmem_base, shmem2_base;

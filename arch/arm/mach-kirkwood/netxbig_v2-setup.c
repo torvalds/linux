@@ -403,7 +403,7 @@ MACHINE_START(NET2BIG_V2, "LaCie 2Big Network v2")
 	.init_machine	= netxbig_v2_init,
 	.map_io		= kirkwood_map_io,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &lacie_v2_timer,
+	.timer		= &kirkwood_timer,
 MACHINE_END
 #endif
 
@@ -413,6 +413,6 @@ MACHINE_START(NET5BIG_V2, "LaCie 5Big Network v2")
 	.init_machine	= netxbig_v2_init,
 	.map_io		= kirkwood_map_io,
 	.init_irq	= kirkwood_init_irq,
-	.timer		= &lacie_v2_timer,
+	.timer		= &kirkwood_timer,
 MACHINE_END
 #endif

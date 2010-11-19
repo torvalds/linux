@@ -1161,6 +1161,14 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	dev_info(&dev->dev, "Solos FPGA Version %d.%02d svn-%d\n",
 		 major_ver, minor_ver, fpga_ver);
 
+	if (fpga_ver < 37 && (fpga_upgrade || firmware_upgrade ||
+			      db_fpga_upgrade || db_firmware_upgrade)) {
+		dev_warn(&dev->dev,
+			 "FPGA too old; cannot upgrade flash. Use JTAG.\n");
+		fpga_upgrade = firmware_upgrade = 0;
+		db_fpga_upgrade = db_firmware_upgrade = 0;
+	}
+
 	if (card->fpga_version >= DMA_SUPPORTED){
 		card->using_dma = 1;
 	} else {

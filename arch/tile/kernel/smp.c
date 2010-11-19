@@ -115,7 +115,7 @@ static void smp_start_cpu_interrupt(void)
 static void smp_stop_cpu_interrupt(void)
 {
 	set_cpu_online(smp_processor_id(), 0);
-	raw_local_irq_disable_all();
+	arch_local_irq_disable_all();
 	for (;;)
 		asm("nap");
 }

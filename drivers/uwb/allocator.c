@@ -326,7 +326,8 @@ int uwb_rsv_find_best_allocation(struct uwb_rsv *rsv, struct uwb_mas_bm *availab
 	int bit_index;
 
 	ai = kzalloc(sizeof(struct uwb_rsv_alloc_info), GFP_KERNEL);
-	
+	if (!ai)
+		return UWB_RSV_ALLOC_NOT_FOUND;
 	ai->min_mas = rsv->min_mas;
 	ai->max_mas = rsv->max_mas;
 	ai->max_interval = rsv->max_interval;

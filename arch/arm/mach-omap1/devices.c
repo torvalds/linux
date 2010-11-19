@@ -321,10 +321,9 @@ static struct platform_device omap_wdt_device = {
 static int __init omap_init_wdt(void)
 {
 	if (!cpu_is_omap16xx())
-		return;
+		return -ENODEV;
 
-	platform_device_register(&omap_wdt_device);
-	return 0;
+	return platform_device_register(&omap_wdt_device);
 }
 subsys_initcall(omap_init_wdt);
 #endif

@@ -147,8 +147,10 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		irq = xen_allocate_pirq(v[i], 0, /* not sharable */
 			(type == PCI_CAP_ID_MSIX) ?
 			"pcifront-msi-x" : "pcifront-msi");
-		if (irq < 0)
-			return -1;
+		if (irq < 0) {
+			ret = -1;
+			goto free;
+		}
 
 		ret = set_irq_msi(irq, msidesc);
 		if (ret)
@@ -164,7 +166,7 @@ error:
 	if (ret == -ENODEV)
 		dev_err(&dev->dev, "Xen PCI frontend has not registered" \
 			" MSI/MSI-X support!\n");
-
+free:
 	kfree(v);
 	return ret;
 }

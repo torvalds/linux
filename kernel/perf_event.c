@@ -674,6 +674,8 @@ event_sched_in(struct perf_event *event,
 
 	event->tstamp_running += ctx->time - event->tstamp_stopped;
 
+	event->shadow_ctx_time = ctx->time - ctx->timestamp;
+
 	if (!is_software_event(event))
 		cpuctx->active_oncpu++;
 	ctx->nr_active++;
@@ -3396,7 +3398,8 @@ static u32 perf_event_tid(struct perf_event *event, struct task_struct *p)
 }
 
 static void perf_output_read_one(struct perf_output_handle *handle,
-				 struct perf_event *event)
+				 struct perf_event *event,
+				 u64 enabled, u64 running)
 {
 	u64 read_format = event->attr.read_format;
 	u64 values[4];
@@ -3404,11 +3407,11 @@ static void perf_output_read_one(struct perf_output_handle *handle,
 
 	values[n++] = perf_event_count(event);
 	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
-		values[n++] = event->total_time_enabled +
+		values[n++] = enabled +
 			atomic64_read(&event->child_total_time_enabled);
 	}
 	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
-		values[n++] = event->total_time_running +
+		values[n++] = running +
 			atomic64_read(&event->child_total_time_running);
 	}
 	if (read_format & PERF_FORMAT_ID)
@@ -3421,7 +3424,8 @@ static void perf_output_read_one(struct perf_output_handle *handle,
  * XXX PERF_FORMAT_GROUP vs inherited events seems difficult.
  */
 static void perf_output_read_group(struct perf_output_handle *handle,
-			    struct perf_event *event)
+			    struct perf_event *event,
+			    u64 enabled, u64 running)
 {
 	struct perf_event *leader = event->group_leader, *sub;
 	u64 read_format = event->attr.read_format;
@@ -3431,10 +3435,10 @@ static void perf_output_read_group(struct perf_output_handle *handle,
 	values[n++] = 1 + leader->nr_siblings;
 
 	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
-		values[n++] = leader->total_time_enabled;
+		values[n++] = enabled;
 
 	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
-		values[n++] = leader->total_time_running;
+		values[n++] = running;
 
 	if (leader != event)
 		leader->pmu->read(leader);
@@ -3459,13 +3463,35 @@ static void perf_output_read_group(struct perf_output_handle *handle,
 	}
 }
 
+#define PERF_FORMAT_TOTAL_TIMES (PERF_FORMAT_TOTAL_TIME_ENABLED|\
+				 PERF_FORMAT_TOTAL_TIME_RUNNING)
+
 static void perf_output_read(struct perf_output_handle *handle,
 			     struct perf_event *event)
 {
+	u64 enabled = 0, running = 0, now, ctx_time;
+	u64 read_format = event->attr.read_format;
+
+	/*
+	 * compute total_time_enabled, total_time_running
+	 * based on snapshot values taken when the event
+	 * was last scheduled in.
+	 *
+	 * we cannot simply called update_context_time()
+	 * because of locking issue as we are called in
+	 * NMI context
+	 */
+	if (read_format & PERF_FORMAT_TOTAL_TIMES) {
+		now = perf_clock();
+		ctx_time = event->shadow_ctx_time + now;
+		enabled = ctx_time - event->tstamp_enabled;
+		running = ctx_time - event->tstamp_running;
+	}
+
 	if (event->attr.read_format & PERF_FORMAT_GROUP)
-		perf_output_read_group(handle, event);
+		perf_output_read_group(handle, event, enabled, running);
 	else
-		perf_output_read_one(handle, event);
+		perf_output_read_one(handle, event, enabled, running);
 }
 
 void perf_output_sample(struct perf_output_handle *handle,
