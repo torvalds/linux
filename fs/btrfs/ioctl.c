@@ -1669,12 +1669,11 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 		olen = len = src->i_size - off;
 	/* if we extend to eof, continue to block boundary */
 	if (off + len == src->i_size)
-		len = ((src->i_size + bs-1) & ~(bs-1))
-			- off;
+		len = ALIGN(src->i_size, bs) - off;
 
 	/* verify the end result is block aligned */
-	if ((off & (bs-1)) ||
-	    ((off + len) & (bs-1)))
+	if (!IS_ALIGNED(off, bs) || !IS_ALIGNED(off + len, bs) ||
+	    !IS_ALIGNED(destoff, bs))
 		goto out_unlock;
 
 	/* do any pending delalloc/csum calc on src, one way or
