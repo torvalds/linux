@@ -318,7 +318,6 @@ static void do_svc_module_reset(struct avp_svc_info *avp_svc,
 		resp.err = 0;
 		goto send_response;
 	}
-	pr_info("avp_svc: module reset: %s\n", mod->name);
 
 	aclk = &avp_svc->clks[mod->clk_req];
 	tegra_periph_reset_assert(aclk->clk);
@@ -348,8 +347,6 @@ static void do_svc_module_clock(struct avp_svc_info *avp_svc,
 		resp.err = AVP_ERR_EINVAL;
 		goto send_response;
 	}
-	pr_info("avp_svc: module clock: %s %s\n", mod->name,
-		msg->enable ? "on" : "off");
 
 	mutex_lock(&avp_svc->clk_lock);
 	aclk = &avp_svc->clks[mod->clk_req];
