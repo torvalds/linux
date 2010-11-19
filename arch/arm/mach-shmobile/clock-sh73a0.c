@@ -47,7 +47,7 @@ static struct clk *main_clks[] = {
 
 enum { MSTP219,
 	MSTP207, MSTP206, MSTP204, MSTP203, MSTP202, MSTP201, MSTP200,
-	MSTP331, MSTP329,
+	MSTP331, MSTP329, MSTP403,
 	MSTP_NR };
 
 #define MSTP(_parent, _reg, _bit, _flags) \
@@ -64,6 +64,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP200] = MSTP(&sub_clk, SMSTPCR2, 0, 0), /* SCIFA4 */
 	[MSTP331] = MSTP(&sub_clk, SMSTPCR3, 31, 0), /* SCIFA6 */
 	[MSTP329] = MSTP(&r_clk, SMSTPCR3, 29, 0), /* CMT10 */
+	[MSTP403] = MSTP(&r_clk, SMSTPCR4, 0, 0), /* KEYSC0 */
 };
 
 #define CLKDEV_DEV_ID(_id, _clk) { .dev_id = _id, .clk = _clk }
@@ -80,6 +81,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh-sci.4", &mstp_clks[MSTP200]), /* SCIFA4 */
 	CLKDEV_DEV_ID("sh-sci.6", &mstp_clks[MSTP331]), /* SCIFA6 */
 	CLKDEV_DEV_ID("sh_cmt.10", &mstp_clks[MSTP329]), /* CMT10 */
+	CLKDEV_DEV_ID("sh_keysc.0", &mstp_clks[MSTP403]), /* KEYSC0 */
 };
 
 void __init sh73a0_clock_init(void)
