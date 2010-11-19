@@ -177,7 +177,7 @@ ip_vs_set_state(struct ip_vs_conn *cp, int direction,
 	return pp->state_transition(cp, direction, skb, pp);
 }
 
-static inline void
+static inline int
 ip_vs_conn_fill_param_persist(const struct ip_vs_service *svc,
 			      struct sk_buff *skb, int protocol,
 			      const union nf_inet_addr *caddr, __be16 cport,
@@ -187,7 +187,9 @@ ip_vs_conn_fill_param_persist(const struct ip_vs_service *svc,
 	ip_vs_conn_fill_param(svc->af, protocol, caddr, cport, vaddr, vport, p);
 	p->pe = svc->pe;
 	if (p->pe && p->pe->fill_param)
-		p->pe->fill_param(p, skb);
+		return p->pe->fill_param(p, skb);
+
+	return 0;
 }
 
 /*
@@ -200,7 +202,7 @@ ip_vs_conn_fill_param_persist(const struct ip_vs_service *svc,
 static struct ip_vs_conn *
 ip_vs_sched_persist(struct ip_vs_service *svc,
 		    struct sk_buff *skb,
-		    __be16 src_port, __be16 dst_port)
+		    __be16 src_port, __be16 dst_port, int *ignored)
 {
 	struct ip_vs_conn *cp = NULL;
 	struct ip_vs_iphdr iph;
@@ -268,20 +270,27 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 				vaddr = &fwmark;
 			}
 		}
-		ip_vs_conn_fill_param_persist(svc, skb, protocol, &snet, 0,
-					      vaddr, vport, &param);
+		/* return *ignored = -1 so NF_DROP can be used */
+		if (ip_vs_conn_fill_param_persist(svc, skb, protocol, &snet, 0,
+						  vaddr, vport, &param) < 0) {
+			*ignored = -1;
+			return NULL;
+		}
 	}
 
 	/* Check if a template already exists */
 	ct = ip_vs_ct_in_get(&param);
 	if (!ct || !ip_vs_check_template(ct)) {
-		/* No template found or the dest of the connection
+		/*
+		 * No template found or the dest of the connection
 		 * template is not available.
+		 * return *ignored=0 i.e. ICMP and NF_DROP
 		 */
 		dest = svc->scheduler->schedule(svc, skb);
 		if (!dest) {
 			IP_VS_DBG(1, "p-schedule: no dest found.\n");
 			kfree(param.pe_data);
+			*ignored = 0;
 			return NULL;
 		}
 
@@ -296,6 +305,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 				    IP_VS_CONN_F_TEMPLATE, dest, skb->mark);
 		if (ct == NULL) {
 			kfree(param.pe_data);
+			*ignored = -1;
 			return NULL;
 		}
 
@@ -323,6 +333,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	cp = ip_vs_conn_new(&param, &dest->addr, dport, flags, dest, skb->mark);
 	if (cp == NULL) {
 		ip_vs_conn_put(ct);
+		*ignored = -1;
 		return NULL;
 	}
 
@@ -342,6 +353,21 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
  *  It selects a server according to the virtual service, and
  *  creates a connection entry.
  *  Protocols supported: TCP, UDP
+ *
+ *  Usage of *ignored
+ *
+ * 1 :   protocol tried to schedule (eg. on SYN), found svc but the
+ *       svc/scheduler decides that this packet should be accepted with
+ *       NF_ACCEPT because it must not be scheduled.
+ *
+ * 0 :   scheduler can not find destination, so try bypass or
+ *       return ICMP and then NF_DROP (ip_vs_leave).
+ *
+ * -1 :  scheduler tried to schedule but fatal error occurred, eg.
+ *       ip_vs_conn_new failure (ENOMEM) or ip_vs_sip_fill_param
+ *       failure such as missing Call-ID, ENOMEM on skb_linearize
+ *       or pe_data. In this case we should return NF_DROP without
+ *       any attempts to send ICMP with ip_vs_leave.
  */
 struct ip_vs_conn *
 ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
@@ -372,11 +398,9 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 	}
 
 	/*
-	 * Do not schedule replies from local real server. It is risky
-	 * for fwmark services but mostly for persistent services.
+	 *    Do not schedule replies from local real server.
 	 */
 	if ((!skb->dev || skb->dev->flags & IFF_LOOPBACK) &&
-	    (svc->flags & IP_VS_SVC_F_PERSISTENT || svc->fwmark) &&
 	    (cp = pp->conn_in_get(svc->af, skb, pp, &iph, iph.len, 1))) {
 		IP_VS_DBG_PKT(12, svc->af, pp, skb, 0,
 			      "Not scheduling reply for existing connection");
@@ -387,10 +411,10 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 	/*
 	 *    Persistent service
 	 */
-	if (svc->flags & IP_VS_SVC_F_PERSISTENT) {
-		*ignored = 0;
-		return ip_vs_sched_persist(svc, skb, pptr[0], pptr[1]);
-	}
+	if (svc->flags & IP_VS_SVC_F_PERSISTENT)
+		return ip_vs_sched_persist(svc, skb, pptr[0], pptr[1], ignored);
+
+	*ignored = 0;
 
 	/*
 	 *    Non-persistent service
@@ -402,8 +426,6 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 			       "check your ipvs configuration\n");
 		return NULL;
 	}
-
-	*ignored = 0;
 
 	dest = svc->scheduler->schedule(svc, skb);
 	if (dest == NULL) {
@@ -425,8 +447,10 @@ ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
 		cp = ip_vs_conn_new(&p, &dest->addr,
 				    dest->port ? dest->port : pptr[1],
 				    flags, dest, skb->mark);
-		if (!cp)
+		if (!cp) {
+			*ignored = -1;
 			return NULL;
+		}
 	}
 
 	IP_VS_DBG_BUF(6, "Schedule fwd:%c c:%s:%u v:%s:%u "

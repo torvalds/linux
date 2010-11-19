@@ -47,13 +47,18 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 * incoming connection, and create a connection entry.
 		 */
 		*cpp = ip_vs_schedule(svc, skb, pp, &ignored);
-		if (!*cpp && !ignored) {
-			*verdict = ip_vs_leave(svc, skb, pp);
+		if (!*cpp && ignored <= 0) {
+			if (!ignored)
+				*verdict = ip_vs_leave(svc, skb, pp);
+			else {
+				ip_vs_service_put(svc);
+				*verdict = NF_DROP;
+			}
 			return 0;
 		}
 		ip_vs_service_put(svc);
 	}
-
+	/* NF_ACCEPT */
 	return 1;
 }
 
