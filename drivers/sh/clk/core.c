@@ -418,8 +418,11 @@ int clk_register(struct clk *clk)
 		list_add(&clk->sibling, &root_clks);
 
 	list_add(&clk->node, &clock_list);
+
+#ifdef CONFIG_SH_CLK_CPG_LEGACY
 	if (clk->ops && clk->ops->init)
 		clk->ops->init(clk);
+#endif
 
 out_unlock:
 	mutex_unlock(&clock_list_sem);
