@@ -1366,7 +1366,7 @@ static void cleanup(struct spi_device *spi)
 	kfree(chip);
 }
 
-static int __init init_queue(struct driver_data *drv_data)
+static int __devinit init_queue(struct driver_data *drv_data)
 {
 	INIT_LIST_HEAD(&drv_data->queue);
 	spin_lock_init(&drv_data->lock);
@@ -1454,7 +1454,7 @@ static int destroy_queue(struct driver_data *drv_data)
 	return 0;
 }
 
-static int __init pxa2xx_spi_probe(struct platform_device *pdev)
+static int __devinit pxa2xx_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct pxa2xx_spi_master *platform_info;
@@ -1723,13 +1723,14 @@ static struct platform_driver driver = {
 		.pm	= &pxa2xx_spi_pm_ops,
 #endif
 	},
+	.probe = pxa2xx_spi_probe,
 	.remove = pxa2xx_spi_remove,
 	.shutdown = pxa2xx_spi_shutdown,
 };
 
 static int __init pxa2xx_spi_init(void)
 {
-	return platform_driver_probe(&driver, pxa2xx_spi_probe);
+	return platform_driver_register(&driver);
 }
 subsys_initcall(pxa2xx_spi_init);
 
