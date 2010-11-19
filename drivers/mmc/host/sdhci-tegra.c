@@ -206,6 +206,7 @@ static int tegra_sdhci_suspend(struct platform_device *pdev, pm_message_t state)
 	if (ret)
 		pr_err("%s: failed, error = %d\n", __func__, ret);
 
+	tegra_sdhci_enable_clock(host, 0);
 	return ret;
 }
 
