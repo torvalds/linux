@@ -1384,6 +1384,7 @@ static int __init ifx_spi_init(void)
 	if (result) {
 		pr_err("%s: tty_register_driver failed(%d)",
 			DRVNAME, result);
+		put_tty_driver(tty_drv);
 		return result;
 	}
 
