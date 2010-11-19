@@ -244,6 +244,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_space_cache:
 			printk(KERN_INFO "btrfs: enabling disk space caching\n");
 			btrfs_set_opt(info->mount_opt, SPACE_CACHE);
+			break;
 		case Opt_clear_cache:
 			printk(KERN_INFO "btrfs: force clearing of disk cache\n");
 			btrfs_set_opt(info->mount_opt, CLEAR_CACHE);
