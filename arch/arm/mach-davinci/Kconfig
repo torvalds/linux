@@ -148,7 +148,6 @@ config MACH_DAVINCI_DA850_EVM
 	bool "TI DA850/OMAP-L138/AM18x Reference Platform"
 	default ARCH_DAVINCI_DA850
 	depends on ARCH_DAVINCI_DA850
-	select GPIO_PCA953X
 	help
 	  Say Y here to select the TI DA850/OMAP-L138/AM18x Evaluation Module.
 
@@ -177,6 +176,9 @@ config DA850_UI_RMII
 	  not be functional if RMII mode is selected.
 
 endchoice
+
+config GPIO_PCA953X
+	default MACH_DAVINCI_DA850_EVM
 
 config MACH_TNETV107X
 	bool "TI TNETV107X Reference Platform"
