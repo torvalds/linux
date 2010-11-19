@@ -206,12 +206,12 @@ static inline u32 ir_extract_bits(u32 data, u32 mask)
 	u32 vbit = 1, value = 0;
 
 	do {
-	    if (mask & 1) {
-		if (data & 1)
-			value |= vbit;
-		vbit <<= 1;
-	    }
-	    data >>= 1;
+		if (mask & 1) {
+			if (data & 1)
+				value |= vbit;
+			vbit <<= 1;
+		}
+		data >>= 1;
 	} while (mask >>= 1);
 
 	return value;

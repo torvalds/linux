@@ -1,4 +1,4 @@
-/* ir-raw-event.c - handle IR Pulse/Space event
+/* ir-raw.c - handle IR pulse/space events
  *
  * Copyright (C) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
  *

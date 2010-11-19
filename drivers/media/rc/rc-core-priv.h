@@ -13,8 +13,8 @@
  *  GNU General Public License for more details.
  */
 
-#ifndef _IR_RAW_EVENT
-#define _IR_RAW_EVENT
+#ifndef _RC_CORE_PRIV
+#define _RC_CORE_PRIV
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -190,4 +190,4 @@ void ir_raw_init(void);
 #endif
 
 
-#endif /* _IR_RAW_EVENT */
+#endif /* _RC_CORE_PRIV */

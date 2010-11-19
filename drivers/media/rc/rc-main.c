@@ -1,4 +1,4 @@
-/* rc-core.c - handle IR scancode->keycode tables
+/* rc-main.c - Remote Controller core module
  *
  * Copyright (C) 2009-2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
  *
