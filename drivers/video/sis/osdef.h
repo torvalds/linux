@@ -54,30 +54,6 @@
 #ifndef _SIS_OSDEF_H_
 #define _SIS_OSDEF_H_
 
-#ifdef OutPortByte
-#undef OutPortByte
-#endif
-
-#ifdef OutPortWord
-#undef OutPortWord
-#endif
-
-#ifdef OutPortLong
-#undef OutPortLong
-#endif
-
-#ifdef InPortByte
-#undef InPortByte
-#endif
-
-#ifdef InPortWord
-#undef InPortWord
-#endif
-
-#ifdef InPortLong
-#undef InPortLong
-#endif
-
 /**********************************************************************/
 /*  LINUX KERNEL                                                      */
 /**********************************************************************/
@@ -87,12 +63,6 @@
 #warning sisfb will not work!
 #endif
 
-#define OutPortByte(p,v) outb((u8)(v),(SISIOADDRESS)(p))
-#define OutPortWord(p,v) outw((u16)(v),(SISIOADDRESS)(p))
-#define OutPortLong(p,v) outl((u32)(v),(SISIOADDRESS)(p))
-#define InPortByte(p)    inb((SISIOADDRESS)(p))
-#define InPortWord(p)    inw((SISIOADDRESS)(p))
-#define InPortLong(p)    inl((SISIOADDRESS)(p))
 #define SiS_SetMemory(MemoryAddress,MemorySize,value) memset_io(MemoryAddress, value, MemorySize)
 
 #endif  /* _OSDEF_H_ */

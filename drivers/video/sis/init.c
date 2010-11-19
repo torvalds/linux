@@ -882,51 +882,51 @@ SiS_GetModeID_VGA2(int VGAEngine, unsigned int VBFlags, int HDisplay, int VDispl
 void
 SiS_SetReg(SISIOADDRESS port, unsigned short index, unsigned short data)
 {
-   OutPortByte(port, index);
-   OutPortByte(port + 1, data);
+	outb((u8)index, port);
+	outb((u8)data, port + 1);
 }
 
 void
 SiS_SetRegByte(SISIOADDRESS port, unsigned short data)
 {
-   OutPortByte(port, data);
+	outb((u8)data, port);
 }
 
 void
 SiS_SetRegShort(SISIOADDRESS port, unsigned short data)
 {
-   OutPortWord(port, data);
+	outw((u16)data, port);
 }
 
 void
 SiS_SetRegLong(SISIOADDRESS port, unsigned int data)
 {
-   OutPortLong(port, data);
+	outl((u32)data, port);
 }
 
 unsigned char
 SiS_GetReg(SISIOADDRESS port, unsigned short index)
 {
-   OutPortByte(port, index);
-   return(InPortByte(port + 1));
+	outb((u8)index, port);
+	return inb(port + 1);
 }
 
 unsigned char
 SiS_GetRegByte(SISIOADDRESS port)
 {
-   return(InPortByte(port));
+	return inb(port);
 }
 
 unsigned short
 SiS_GetRegShort(SISIOADDRESS port)
 {
-   return(InPortWord(port));
+	return inw(port);
 }
 
 unsigned int
 SiS_GetRegLong(SISIOADDRESS port)
 {
-   return(InPortLong(port));
+	return inl(port);
 }
 
 void
