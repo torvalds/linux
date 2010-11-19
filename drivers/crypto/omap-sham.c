@@ -72,7 +72,6 @@
 
 #define DEFAULT_TIMEOUT_INTERVAL	HZ
 
-#define FLAGS_FIRST		0x0001
 #define FLAGS_FINUP		0x0002
 #define FLAGS_FINAL		0x0004
 #define FLAGS_FAST		0x0008
@@ -513,8 +512,6 @@ static int omap_sham_init(struct ahash_request *req)
 
 	ctx->flags = 0;
 
-	ctx->flags |= FLAGS_FIRST;
-
 	dev_dbg(dd->dev, "init: digest size: %d\n",
 		crypto_ahash_digestsize(tfm));
 
@@ -739,12 +736,9 @@ static int omap_sham_update(struct ahash_request *req)
 			/* may be can use faster functions */
 			int aligned = IS_ALIGNED((u32)ctx->sg->offset,
 								sizeof(u32));
-
-			if (aligned && (ctx->flags & FLAGS_FIRST))
+			if (aligned)
 				/* digest: first and final */
 				ctx->flags |= FLAGS_FAST;
-
-			ctx->flags &= ~FLAGS_FIRST;
 		}
 	} else if (ctx->bufcnt + ctx->total <= ctx->buflen) {
 		/* if not finaup -> not fast */
