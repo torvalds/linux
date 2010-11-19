@@ -309,26 +309,29 @@
 #define DC_DISP_DAC_CRT_CTRL			0x4c0
 #define DC_DISP_DISP_MISC_CONTROL		0x4c1
 
-#define DC_WINC_COLOR_PALETTE(x)		(0x500 + (x))
+#define DC_WIN_COLOR_PALETTE(x)			(0x500 + (x))
 
-#define DC_WINC_PALETTE_COLOR_EXT		0x600
-#define DC_WINC_H_FILTER_P(x)			(0x601 + (x))
-#define DC_WINC_CSC_YOF				0x611
-#define DC_WINC_CSC_KYRGB			0x612
-#define DC_WINC_CSC_KUR				0x613
-#define DC_WINC_CSC_KVR				0x614
-#define DC_WINC_CSC_KUG				0x615
-#define DC_WINC_CSC_KVG				0x616
-#define DC_WINC_CSC_KUB				0x617
-#define DC_WINC_CSC_KVB				0x618
-#define DC_WINC_V_FILTER_P(x)			(0x619 + (x))
+#define DC_WIN_PALETTE_COLOR_EXT		0x600
+#define DC_WIN_H_FILTER_P(x)			(0x601 + (x))
+#define DC_WIN_CSC_YOF				0x611
+#define DC_WIN_CSC_KYRGB			0x612
+#define DC_WIN_CSC_KUR				0x613
+#define DC_WIN_CSC_KVR				0x614
+#define DC_WIN_CSC_KUG				0x615
+#define DC_WIN_CSC_KVG				0x616
+#define DC_WIN_CSC_KUB				0x617
+#define DC_WIN_CSC_KVB				0x618
+#define DC_WIN_V_FILTER_P(x)			(0x619 + (x))
 #define DC_WIN_WIN_OPTIONS			0x700
 #define  H_DIRECTION_INCREMENT		(0 << 0)
 #define  H_DIRECTION_DECREMENTT		(1 << 0)
 #define  V_DIRECTION_INCREMENT		(0 << 2)
 #define  V_DIRECTION_DECREMENTT		(1 << 2)
 #define  COLOR_EXPAND			(1 << 6)
+#define  H_FILTER_ENABLE		(1 << 8)
+#define  V_FILTER_ENABLE		(1 << 10)
 #define  CP_ENABLE			(1 << 16)
+#define  CSC_ENABLE			(1 << 18)
 #define  DV_ENABLE			(1 << 20)
 #define  WIN_ENABLE			(1 << 30)
 
@@ -366,6 +369,8 @@
 #define  V_DDA_INC(x)		(((x) & 0xffff) << 16)
 
 #define DC_WIN_LINE_STRIDE			0x70a
+#define  LINE_STRIDE(x)		(x)
+#define  UV_LINE_STRIDE(x)	(((x) & 0xffff) << 16)
 #define DC_WIN_BUF_STRIDE			0x70b
 #define DC_WIN_UV_BUF_STRIDE			0x70c
 #define DC_WIN_BUFFER_ADDR_MODE			0x70d
