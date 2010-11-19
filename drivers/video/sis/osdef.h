@@ -82,15 +82,7 @@
 /*  LINUX KERNEL                                                      */
 /**********************************************************************/
 
-#ifdef CONFIG_FB_SIS_300
-#define SIS300
-#endif
-
-#ifdef CONFIG_FB_SIS_315
-#define SIS315H
-#endif
-
-#if !defined(SIS300) && !defined(SIS315H)
+#if !defined(CONFIG_FB_SIS_300) && !defined(CONFIG_FB_SIS_315)
 #warning Neither CONFIG_FB_SIS_300 nor CONFIG_FB_SIS_315 is set
 #warning sisfb will not work!
 #endif

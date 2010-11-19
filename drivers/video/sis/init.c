@@ -62,11 +62,11 @@
 
 #include "init.h"
 
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
 #include "300vtbl.h"
 #endif
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 #include "310vtbl.h"
 #endif
 
@@ -78,7 +78,7 @@
 /*         POINTER INITIALIZATION            */
 /*********************************************/
 
-#if defined(SIS300) || defined(SIS315H)
+#if defined(CONFIG_FB_SIS_300) || defined(CONFIG_FB_SIS_315)
 static void
 InitCommonPointer(struct SiS_Private *SiS_Pr)
 {
@@ -160,7 +160,7 @@ InitCommonPointer(struct SiS_Private *SiS_Pr)
 }
 #endif
 
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
 static void
 InitTo300Pointer(struct SiS_Private *SiS_Pr)
 {
@@ -237,7 +237,7 @@ InitTo300Pointer(struct SiS_Private *SiS_Pr)
 }
 #endif
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 static void
 InitTo310Pointer(struct SiS_Private *SiS_Pr)
 {
@@ -321,13 +321,13 @@ bool
 SiSInitPtr(struct SiS_Private *SiS_Pr)
 {
    if(SiS_Pr->ChipType < SIS_315H) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
       InitTo300Pointer(SiS_Pr);
 #else
       return false;
 #endif
    } else {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       InitTo310Pointer(SiS_Pr);
 #else
       return false;
@@ -1087,7 +1087,7 @@ static void
 SiSInitPCIetc(struct SiS_Private *SiS_Pr)
 {
    switch(SiS_Pr->ChipType) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
    case SIS_300:
    case SIS_540:
    case SIS_630:
@@ -1106,7 +1106,7 @@ SiSInitPCIetc(struct SiS_Private *SiS_Pr)
       SiS_SetRegOR(SiS_Pr->SiS_P3c4,0x1E,0x5A);
       break;
 #endif
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    case SIS_315H:
    case SIS_315:
    case SIS_315PRO:
@@ -1170,7 +1170,7 @@ SiSSetLVDSetc(struct SiS_Private *SiS_Pr)
    if((temp == 1) || (temp == 2)) return;
 
    switch(SiS_Pr->ChipType) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
    case SIS_540:
    case SIS_630:
    case SIS_730:
@@ -1184,7 +1184,7 @@ SiSSetLVDSetc(struct SiS_Private *SiS_Pr)
 	}
 	break;
 #endif
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    case SIS_550:
    case SIS_650:
    case SIS_740:
@@ -1499,7 +1499,7 @@ SiS_CheckMemorySize(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 /*           HELPER: Get DRAM type           */
 /*********************************************/
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 static unsigned char
 SiS_Get310DRAMType(struct SiS_Private *SiS_Pr)
 {
@@ -2122,7 +2122,7 @@ SiS_SetCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       SiS_SetReg(SiS_Pr->SiS_P3d4,0x14,0x4F);
    }
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    if(SiS_Pr->ChipType == XGI_20) {
       SiS_SetReg(SiS_Pr->SiS_P3d4,0x04,crt1data[4] - 1);
       if(!(temp = crt1data[5] & 0x1f)) {
@@ -2205,7 +2205,7 @@ SiS_SetCRT1VCLK(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    SiS_SetReg(SiS_Pr->SiS_P3c4,0x2c,clkb);
 
    if(SiS_Pr->ChipType >= SIS_315H) {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       SiS_SetReg(SiS_Pr->SiS_P3c4,0x2D,0x01);
       if(SiS_Pr->ChipType == XGI_20) {
          unsigned short mf = SiS_GetModeFlag(SiS_Pr, ModeNo, ModeIdIndex);
@@ -2226,7 +2226,7 @@ SiS_SetCRT1VCLK(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 /*                  FIFO                     */
 /*********************************************/
 
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
 void
 SiS_GetFIFOThresholdIndex300(struct SiS_Private *SiS_Pr, unsigned short *idx1,
 		unsigned short *idx2)
@@ -2535,9 +2535,9 @@ SiS_SetCRT1FIFO_630(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 
    sisfb_write_nbridge_pci_dword(SiS_Pr, 0xA0, templ);
 }
-#endif /* SIS300 */
+#endif /* CONFIG_FB_SIS_300 */
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 static void
 SiS_SetCRT1FIFO_310(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
 {
@@ -2589,7 +2589,7 @@ SiS_SetVCLKState(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    }
 
    if(SiS_Pr->ChipType < SIS_315H) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
       if(VCLK > 150) data |= 0x80;
       SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x07,0x7B,data);
 
@@ -2598,7 +2598,7 @@ SiS_SetVCLKState(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x32,0xF7,data);
 #endif
    } else if(SiS_Pr->ChipType < XGI_20) {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       if(VCLK >= 166) data |= 0x0c;
       SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x32,0xf3,data);
 
@@ -2607,7 +2607,7 @@ SiS_SetVCLKState(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       }
 #endif
    } else {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       if(VCLK >= 200) data |= 0x0c;
       if(SiS_Pr->ChipType == XGI_20) data &= ~0x04;
       SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x32,0xf3,data);
@@ -2652,7 +2652,7 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 		unsigned short ModeIdIndex, unsigned short RRTI)
 {
    unsigned short data, infoflag = 0, modeflag, resindex;
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    unsigned char  *ROMAddr  = SiS_Pr->VirtualRomBase;
    unsigned short data2, data3;
 #endif
@@ -2713,7 +2713,7 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x0F,0xB7,data);
    }
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    if(SiS_Pr->ChipType >= SIS_315H) {
       SiS_SetRegAND(SiS_Pr->SiS_P3c4,0x31,0xfb);
    }
@@ -2803,7 +2803,7 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 
    SiS_SetVCLKState(SiS_Pr, ModeNo, RRTI, ModeIdIndex);
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    if(((SiS_Pr->ChipType >= SIS_315H) && (SiS_Pr->ChipType < SIS_661)) ||
        (SiS_Pr->ChipType == XGI_40)) {
       if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x31) & 0x40) {
@@ -2822,7 +2822,7 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 #endif
 }
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 static void
 SiS_SetupDualChip(struct SiS_Private *SiS_Pr)
 {
@@ -3000,7 +3000,7 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
    }
 
    switch(SiS_Pr->ChipType) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
    case SIS_300:
       SiS_SetCRT1FIFO_300(SiS_Pr, ModeNo, RefreshRateTableIndex);
       break;
@@ -3011,7 +3011,7 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
       break;
 #endif
    default:
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       if(SiS_Pr->ChipType == XGI_20) {
          unsigned char sr2b = 0, sr2c = 0;
          switch(ModeNo) {
@@ -3034,7 +3034,7 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
 
    SiS_SetCRT1ModeRegs(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    if(SiS_Pr->ChipType == XGI_40) {
       SiS_SetupDualChip(SiS_Pr);
    }
@@ -3074,7 +3074,7 @@ SiS_InitVB(struct SiS_Private *SiS_Pr)
 static void
 SiS_ResetVB(struct SiS_Private *SiS_Pr)
 {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
    unsigned short temp;
 
@@ -3109,7 +3109,7 @@ SiS_StrangeStuff(struct SiS_Private *SiS_Pr)
     * which locks CRT2 in some way to CRT1 timing. Disable
     * this here.
     */
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    if((IS_SIS651) || (IS_SISM650) ||
       SiS_Pr->ChipType == SIS_340 ||
       SiS_Pr->ChipType == XGI_40) {
@@ -3130,7 +3130,7 @@ SiS_StrangeStuff(struct SiS_Private *SiS_Pr)
 static void
 SiS_Handle760(struct SiS_Private *SiS_Pr)
 {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    unsigned int somebase;
    unsigned char temp1, temp2, temp3;
 
@@ -3272,7 +3272,7 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    SiS_DisplayOn(SiS_Pr);
    SiS_SetRegByte(SiS_Pr->SiS_P3c6,0xFF);
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    if(SiS_Pr->ChipType >= SIS_315H) {
       if(SiS_Pr->SiS_IF_DEF_LVDS == 1) {
 	 if(!(SiS_IsDualEdge(SiS_Pr))) {
@@ -3284,7 +3284,7 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
    if(SiS_Pr->SiS_VBType & VB_SIS30xBLV) {
       if(SiS_Pr->ChipType >= SIS_315H) {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 	 if(!SiS_Pr->SiS_ROMNew) {
 	    if(SiS_IsVAMode(SiS_Pr)) {
 	       SiS_SetRegOR(SiS_Pr->SiS_P3d4,0x35,0x01);
@@ -3407,7 +3407,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    SiS_Pr->CVBlankStart = SiS_Pr->SiS_VGAVDE;
 
    if(SiS_Pr->ChipType < SIS_315H) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
       tempbx = SiS_Pr->SiS_VGAHT;
       if(SiS_Pr->SiS_LCDInfo & DontExpandLCD) {
          tempbx = SiS_Pr->PanelHT;
@@ -3416,7 +3416,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       remaining = tempbx % 8;
 #endif
    } else {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       /* OK for LCDA, LVDS */
       tempbx = SiS_Pr->PanelHT - SiS_Pr->PanelXRes;
       tempax = SiS_Pr->SiS_VGAHDE;  /* not /2 ! */
@@ -3430,7 +3430,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    SiS_Pr->CHTotal = SiS_Pr->CHBlankEnd = tempbx;
 
    if(SiS_Pr->ChipType < SIS_315H) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
       if(SiS_Pr->SiS_VGAHDE == SiS_Pr->PanelXRes) {
 	 SiS_Pr->CHSyncStart = SiS_Pr->SiS_VGAHDE + ((SiS_Pr->PanelHRS + 1) & ~1);
 	 SiS_Pr->CHSyncEnd = SiS_Pr->CHSyncStart + SiS_Pr->PanelHRE;
@@ -3462,7 +3462,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       }
 #endif
    } else {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       tempax = VGAHDE;
       if(SiS_Pr->SiS_LCDInfo & DontExpandLCD) {
 	 tempbx = SiS_Pr->PanelXRes;
@@ -3481,7 +3481,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    if(SiS_Pr->SiS_LCDInfo & DontExpandLCD) {
       tempax = SiS_Pr->PanelYRes;
    } else if(SiS_Pr->ChipType < SIS_315H) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
       /* Stupid hack for 640x400/320x200 */
       if(SiS_Pr->SiS_LCDResInfo == Panel_1024x768) {
 	 if((tempax + tempbx) == 438) tempbx += 16;

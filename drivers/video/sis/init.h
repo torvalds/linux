@@ -273,7 +273,7 @@ static const struct SiS_ModeResInfo_S SiS_ModeResInfo[] =
 	{ 1280, 854, 8,16}    /* 0x22 */
 };
 
-#if defined(SIS300) || defined(SIS315H)
+#if defined(CONFIG_FB_SIS_300) || defined(CONFIG_FB_SIS_315)
 static const struct SiS_StandTable_S SiS_StandTable[]=
 {
 /* 0x00: MD_0_200 */
@@ -1549,7 +1549,7 @@ unsigned short	SiS_GetColorDepth(struct SiS_Private *SiS_Pr, unsigned short Mode
 				unsigned short ModeIdIndex);
 unsigned short	SiS_GetOffset(struct SiS_Private *SiS_Pr,unsigned short ModeNo,
 				unsigned short ModeIdIndex, unsigned short RRTI);
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
 void		SiS_GetFIFOThresholdIndex300(struct SiS_Private *SiS_Pr, unsigned short *idx1,
 				unsigned short *idx2);
 unsigned short	SiS_GetFIFOThresholdB300(unsigned short idx1, unsigned short idx2);
@@ -1585,12 +1585,12 @@ extern unsigned short	SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short
 extern bool		SiS_IsVAMode(struct SiS_Private *);
 extern bool		SiS_IsDualEdge(struct SiS_Private *);
 
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
 extern unsigned int	sisfb_read_nbridge_pci_dword(struct SiS_Private *SiS_Pr, int reg);
 extern void		sisfb_write_nbridge_pci_dword(struct SiS_Private *SiS_Pr, int reg,
 				unsigned int val);
 #endif
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 extern void		sisfb_write_nbridge_pci_byte(struct SiS_Private *SiS_Pr, int reg,
 				unsigned char val);
 extern unsigned int	sisfb_read_mio_pci_word(struct SiS_Private *SiS_Pr, int reg);
