@@ -74,7 +74,7 @@
 
 #define FLAGS_FINUP		0x0002
 #define FLAGS_FINAL		0x0004
-#define FLAGS_FAST		0x0008
+#define FLAGS_SG		0x0008
 #define FLAGS_SHA1		0x0010
 #define FLAGS_DMA_ACTIVE	0x0020
 #define FLAGS_OUTPUT_READY	0x0040
@@ -393,6 +393,8 @@ static int omap_sham_xmit_dma_map(struct omap_sham_dev *dd,
 		return -EINVAL;
 	}
 
+	ctx->flags &= ~FLAGS_SG;
+
 	/* next call does not fail... so no unmap in the case of error */
 	return omap_sham_xmit_dma(dd, ctx->dma_addr, length, final);
 }
@@ -402,9 +404,6 @@ static int omap_sham_update_dma_slow(struct omap_sham_dev *dd)
 	struct omap_sham_reqctx *ctx = ahash_request_ctx(dd->req);
 	unsigned int final;
 	size_t count;
-
-	if (!ctx->total)
-		return 0;
 
 	omap_sham_append_sg(ctx);
 
@@ -422,25 +421,62 @@ static int omap_sham_update_dma_slow(struct omap_sham_dev *dd)
 	return 0;
 }
 
-static int omap_sham_update_dma_fast(struct omap_sham_dev *dd)
+/* Start address alignment */
+#define SG_AA(sg)	(IS_ALIGNED(sg->offset, sizeof(u32)))
+/* SHA1 block size alignment */
+#define SG_SA(sg)	(IS_ALIGNED(sg->length, SHA1_MD5_BLOCK_SIZE))
+
+static int omap_sham_update_dma_start(struct omap_sham_dev *dd)
 {
 	struct omap_sham_reqctx *ctx = ahash_request_ctx(dd->req);
-	unsigned int length;
+	unsigned int length, final, tail;
+	struct scatterlist *sg;
 
-	ctx->flags |= FLAGS_FAST;
+	if (!ctx->total)
+		return 0;
 
-	length = min(ctx->total, sg_dma_len(ctx->sg));
-	ctx->total = length;
+	if (ctx->bufcnt || ctx->offset)
+		return omap_sham_update_dma_slow(dd);
+
+	dev_dbg(dd->dev, "fast: digcnt: %d, bufcnt: %u, total: %u\n",
+			ctx->digcnt, ctx->bufcnt, ctx->total);
+
+	sg = ctx->sg;
+
+	if (!SG_AA(sg))
+		return omap_sham_update_dma_slow(dd);
+
+	if (!sg_is_last(sg) && !SG_SA(sg))
+		/* size is not SHA1_BLOCK_SIZE aligned */
+		return omap_sham_update_dma_slow(dd);
+
+	length = min(ctx->total, sg->length);
+
+	if (sg_is_last(sg)) {
+		if (!(ctx->flags & FLAGS_FINUP)) {
+			/* not last sg must be SHA1_MD5_BLOCK_SIZE aligned */
+			tail = length & (SHA1_MD5_BLOCK_SIZE - 1);
+			/* without finup() we need one block to close hash */
+			if (!tail)
+				tail = SHA1_MD5_BLOCK_SIZE;
+			length -= tail;
+		}
+	}
 
 	if (!dma_map_sg(dd->dev, ctx->sg, 1, DMA_TO_DEVICE)) {
 		dev_err(dd->dev, "dma_map_sg  error\n");
 		return -EINVAL;
 	}
 
+	ctx->flags |= FLAGS_SG;
+
 	ctx->total -= length;
+	ctx->offset = length; /* offset where to start slow */
+
+	final = (ctx->flags & FLAGS_FINUP) && !ctx->total;
 
 	/* next call does not fail... so no unmap in the case of error */
-	return omap_sham_xmit_dma(dd, sg_dma_address(ctx->sg), length, 1);
+	return omap_sham_xmit_dma(dd, sg_dma_address(ctx->sg), length, final);
 }
 
 static int omap_sham_update_cpu(struct omap_sham_dev *dd)
@@ -460,11 +496,17 @@ static int omap_sham_update_dma_stop(struct omap_sham_dev *dd)
 	struct omap_sham_reqctx *ctx = ahash_request_ctx(dd->req);
 
 	omap_stop_dma(dd->dma_lch);
-	if (ctx->flags & FLAGS_FAST)
+	if (ctx->flags & FLAGS_SG) {
 		dma_unmap_sg(dd->dev, ctx->sg, 1, DMA_TO_DEVICE);
-	else
+		if (ctx->sg->length == ctx->offset) {
+			ctx->sg = sg_next(ctx->sg);
+			if (ctx->sg)
+				ctx->offset = 0;
+		}
+	} else {
 		dma_unmap_single(dd->dev, ctx->dma_addr, ctx->buflen,
 				 DMA_TO_DEVICE);
+	}
 
 	return 0;
 }
@@ -545,10 +587,8 @@ static int omap_sham_update_req(struct omap_sham_dev *dd)
 
 	if (ctx->flags & FLAGS_CPU)
 		err = omap_sham_update_cpu(dd);
-	else if (ctx->flags & FLAGS_FAST)
-		err = omap_sham_update_dma_fast(dd);
 	else
-		err = omap_sham_update_dma_slow(dd);
+		err = omap_sham_update_dma_start(dd);
 
 	/* wait for dma completion before can take more data */
 	dev_dbg(dd->dev, "update: err: %d, digcnt: %d\n", err, ctx->digcnt);
@@ -730,18 +770,13 @@ static int omap_sham_update(struct ahash_request *req)
 			*/
 			omap_sham_append_sg(ctx);
 			return 0;
-		} else if (ctx->bufcnt + ctx->total <= 64) {
+		} else if (ctx->bufcnt + ctx->total <= SHA1_MD5_BLOCK_SIZE) {
+			/*
+			* faster to use CPU for short transfers
+			*/
 			ctx->flags |= FLAGS_CPU;
-		} else if (!ctx->bufcnt && sg_is_last(ctx->sg)) {
-			/* may be can use faster functions */
-			int aligned = IS_ALIGNED((u32)ctx->sg->offset,
-								sizeof(u32));
-			if (aligned)
-				/* digest: first and final */
-				ctx->flags |= FLAGS_FAST;
 		}
-	} else if (ctx->bufcnt + ctx->total <= ctx->buflen) {
-		/* if not finaup -> not fast */
+	} else if (ctx->bufcnt + ctx->total < ctx->buflen) {
 		omap_sham_append_sg(ctx);
 		return 0;
 	}
@@ -1026,7 +1061,7 @@ static void omap_sham_done_task(unsigned long data)
 		dd->flags &= ~FLAGS_DMA_ACTIVE;
 		omap_sham_update_dma_stop(dd);
 		if (!dd->err)
-			err = omap_sham_update_dma_slow(dd);
+			err = omap_sham_update_dma_start(dd);
 	}
 
 	err = dd->err ? : err;
