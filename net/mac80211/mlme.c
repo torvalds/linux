@@ -31,10 +31,15 @@
 #define IEEE80211_MAX_PROBE_TRIES 5
 
 /*
- * beacon loss detection timeout
- * XXX: should depend on beacon interval
+ * Beacon loss timeout is calculated as N frames times the
+ * advertised beacon interval.  This may need to be somewhat
+ * higher than what hardware might detect to account for
+ * delays in the host processing frames. But since we also
+ * probe on beacon miss before declaring the connection lost
+ * default to what we want.
  */
-#define IEEE80211_BEACON_LOSS_TIME	(2 * HZ)
+#define IEEE80211_BEACON_LOSS_COUNT	7
+
 /*
  * Time the connection can be idle before we probe
  * it to see if we can still talk to the AP.
@@ -121,7 +126,7 @@ void ieee80211_sta_reset_beacon_monitor(struct ieee80211_sub_if_data *sdata)
 		return;
 
 	mod_timer(&sdata->u.mgd.bcn_mon_timer,
-		  round_jiffies_up(jiffies + IEEE80211_BEACON_LOSS_TIME));
+		  round_jiffies_up(jiffies + sdata->u.mgd.beacon_timeout));
 }
 
 void ieee80211_sta_reset_conn_monitor(struct ieee80211_sub_if_data *sdata)
@@ -870,6 +875,9 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	bss_info_changed |= BSS_CHANGED_BEACON_INT;
 	bss_info_changed |= ieee80211_handle_bss_capability(sdata,
 		cbss->capability, bss->has_erp_value, bss->erp_value);
+
+	sdata->u.mgd.beacon_timeout = usecs_to_jiffies(ieee80211_tu_to_usec(
+		IEEE80211_BEACON_LOSS_COUNT * bss_conf->beacon_int));
 
 	sdata->u.mgd.associated = cbss;
 	memcpy(sdata->u.mgd.bssid, cbss->bssid, ETH_ALEN);
