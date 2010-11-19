@@ -66,9 +66,6 @@ static int __init omap_l2_cache_init(void)
 	l2cache_base = ioremap(OMAP44XX_L2CACHE_BASE, SZ_4K);
 	BUG_ON(!l2cache_base);
 
-	/* Enable PL310 L2 Cache controller */
-	omap_smc1(0x102, 0x1);
-
 	/*
 	 * 16-way associativity, parity disabled
 	 * Way size - 32KB (es1.0)
@@ -79,10 +76,18 @@ static int __init omap_l2_cache_init(void)
 			(0x1 << L2X0_AUX_CTRL_NS_LOCKDOWN_SHIFT) |
 			(0x1 << L2X0_AUX_CTRL_NS_INT_CTRL_SHIFT));
 
-	if (omap_rev() == OMAP4430_REV_ES1_0)
+	if (omap_rev() == OMAP4430_REV_ES1_0) {
 		aux_ctrl |= 0x2 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT;
-	else
-		aux_ctrl |= 0x3 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT;
+	} else {
+		aux_ctrl |= ((0x3 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT) |
+			(1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT) |
+			(1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT));
+	}
+	if (omap_rev() != OMAP4430_REV_ES1_0)
+		omap_smc1(0x109, aux_ctrl);
+
+	/* Enable PL310 L2 Cache controller */
+	omap_smc1(0x102, 0x1);
 
 	l2x0_init(l2cache_base, aux_ctrl, L2X0_AUX_CTRL_MASK);
 
