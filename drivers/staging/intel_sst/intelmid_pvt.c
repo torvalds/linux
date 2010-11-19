@@ -146,30 +146,29 @@ int sst_sc_reg_access(struct sc_reg_access *sc_access,
 		for (i = 0; i < num_val; i++) {
 			retval = intel_scu_ipc_iowrite8(sc_access[i].reg_addr,
 							sc_access[i].value);
-			if (retval) {
-				pr_err("IPC write failed!!! %d\n", retval);
-				return retval;
-			}
+			if (retval)
+				goto err;
 		}
 	} else if (type == PMIC_READ) {
 		for (i = 0; i < num_val; i++) {
 			retval = intel_scu_ipc_ioread8(sc_access[i].reg_addr,
 							&(sc_access[i].value));
-			if (retval) {
-				pr_err("IPC read failed!!!!!%d\n", retval);
-				return retval;
-			}
+			if (retval)
+				goto err;
 		}
 	} else {
 		for (i = 0; i < num_val; i++) {
 			retval = intel_scu_ipc_update_register(
 				sc_access[i].reg_addr, sc_access[i].value,
 				sc_access[i].mask);
-			if (retval) {
-				pr_err("IPC Modify failed!!!%d\n", retval);
-				return retval;
-			}
+			if (retval)
+				goto err;
 		}
 	}
-	return retval;
+	return 0;
+err:
+	pr_err("IPC failed for cmd %d, %d\n", retval, type);
+	pr_err("reg:0x%2x addr:0x%2x\n",
+		sc_access[i].reg_addr, sc_access[i].value);
+ 	return retval;
 }
