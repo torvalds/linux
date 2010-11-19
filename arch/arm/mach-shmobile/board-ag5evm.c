@@ -193,6 +193,12 @@ static void __init ag5evm_init(void)
 	gpio_request(GPIO_FN_KEYOUT8, NULL);
 	gpio_request(GPIO_FN_PORT149_KEYOUT9, NULL);
 
+	/* enable IC2 2 and 3 */
+	gpio_request(GPIO_FN_PORT236_I2C_SDA2, NULL);
+	gpio_request(GPIO_FN_PORT237_I2C_SCL2, NULL);
+	gpio_request(GPIO_FN_PORT248_I2C_SCL3, NULL);
+	gpio_request(GPIO_FN_PORT249_I2C_SDA3, NULL);
+
 	/* enable SMSC911X */
 	gpio_request(GPIO_PORT144, NULL); /* PINTA2 */
 	gpio_direction_input(GPIO_PORT144);
