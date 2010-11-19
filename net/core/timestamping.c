@@ -31,7 +31,7 @@ static unsigned int classify(struct sk_buff *skb)
 	if (likely(skb->dev &&
 		   skb->dev->phydev &&
 		   skb->dev->phydev->drv))
-		return sk_run_filter(skb, ptp_filter, ARRAY_SIZE(ptp_filter));
+		return sk_run_filter(skb, ptp_filter);
 	else
 		return PTP_CLASS_NONE;
 }

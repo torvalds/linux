@@ -519,7 +519,7 @@ static inline unsigned int run_filter(struct sk_buff *skb, struct sock *sk,
 	rcu_read_lock_bh();
 	filter = rcu_dereference_bh(sk->sk_filter);
 	if (filter != NULL)
-		res = sk_run_filter(skb, filter->insns, filter->len);
+		res = sk_run_filter(skb, filter->insns);
 	rcu_read_unlock_bh();
 
 	return res;
