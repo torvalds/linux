@@ -356,6 +356,7 @@ struct regulator_consumer_supply cpcap_sw2_consumers[] = {
 
 struct regulator_consumer_supply cpcap_sw4_consumers[] = {
 	REGULATOR_CONSUMER("sw4", NULL),
+	REGULATOR_CONSUMER("vdd_aon", NULL),
 };
 
 struct regulator_consumer_supply cpcap_sw5_consumers[] = {
