@@ -755,7 +755,7 @@ int xen_destroy_irq(int irq)
 		goto out;
 
 	if (xen_initial_domain()) {
-		unmap_irq.pirq = info->u.pirq.gsi;
+		unmap_irq.pirq = info->u.pirq.pirq;
 		unmap_irq.domid = DOMID_SELF;
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_unmap_pirq, &unmap_irq);
 		if (rc) {
