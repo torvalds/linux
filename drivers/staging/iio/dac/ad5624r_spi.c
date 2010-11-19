@@ -209,13 +209,8 @@ static const struct attribute_group ad5624r_attribute_group = {
 
 static int __devinit ad5624r_probe(struct spi_device *spi)
 {
-
 	struct ad5624r_state *st;
 	int ret = 0;
-	char *chip_name = spi->dev.platform_data;
-
-	if (!chip_name)
-		return -ENODEV;
 
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
 	if (st == NULL) {
@@ -224,17 +219,7 @@ static int __devinit ad5624r_probe(struct spi_device *spi)
 	}
 	spi_set_drvdata(spi, st);
 
-	if (strcmp(chip_name, "ad5624r") == 0)
-		st->data_len = 12;
-	else if (strcmp(chip_name, "ad5644r") == 0)
-		st->data_len = 14;
-	else if (strcmp(chip_name, "ad5664r") == 0)
-		st->data_len = 16;
-	else {
-		dev_err(&spi->dev, "not supported chip type\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
+	st->data_len = spi_get_device_id(spi)->driver_data;
 
 	st->us = spi;
 	st->indio_dev = iio_allocate_device();
@@ -278,6 +263,13 @@ static int __devexit ad5624r_remove(struct spi_device *spi)
 	return 0;
 }
 
+static const struct spi_device_id ad5624r_id[] = {
+	{"ad5624r", 12},
+	{"ad5644r", 14},
+	{"ad5664r", 16},
+	{}
+};
+
 static struct spi_driver ad5624r_driver = {
 	.driver = {
 		.name = "ad5624r",
@@ -285,6 +277,7 @@ static struct spi_driver ad5624r_driver = {
 	},
 	.probe = ad5624r_probe,
 	.remove = __devexit_p(ad5624r_remove),
+	.id_table = ad5624r_id,
 };
 
 static __init int ad5624r_spi_init(void)
