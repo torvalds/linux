@@ -1134,6 +1134,12 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 			sdata->flags &= ~IEEE80211_SDATA_DONT_BRIDGE_PACKETS;
 	}
 
+	if (params->ht_opmode >= 0) {
+		sdata->vif.bss_conf.ht_operation_mode =
+			(u16) params->ht_opmode;
+		changed |= BSS_CHANGED_HT;
+	}
+
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	return 0;
