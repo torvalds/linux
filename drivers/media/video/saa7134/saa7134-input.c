@@ -41,11 +41,6 @@ static int pinnacle_remote;
 module_param(pinnacle_remote, int, 0644);    /* Choose Pinnacle PCTV remote */
 MODULE_PARM_DESC(pinnacle_remote, "Specify Pinnacle PCTV remote: 0=coloured, 1=grey (defaults to 0)");
 
-static unsigned int disable_other_ir;
-module_param(disable_other_ir, int, 0644);
-MODULE_PARM_DESC(disable_other_ir, "disable full codes of "
-    "alternative remotes from other manufacturers");
-
 #define dprintk(fmt, arg...)	if (ir_debug) \
 	printk(KERN_DEBUG "%s/ir: " fmt, dev->name , ## arg)
 #define i2cdprintk(fmt, arg...)    if (ir_debug) \
@@ -282,22 +277,12 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 		i2cdprintk("read error\n");
 		return -EIO;
 	}
-	/* IR of this card normally decode signals NEC-standard from
-	 * - Sven IHOO MT 5.1R remote. xxyye718
-	 * - Sven DVD HD-10xx remote. xxyyf708
-	 * - BBK ...
-	 * - mayby others
-	 * So, skip not our, if disable full codes mode.
-	 */
-	if (data[10] != 0x6b && data[11] != 0x86 && disable_other_ir)
-		return 0;
 
-	/* Wrong data decode fix */
 	if (data[9] != (unsigned char)(~data[8]))
 		return 0;
 
-	*ir_key = data[9];
-	*ir_raw = data[9];
+	*ir_raw = ((data[10] << 16) | (data[11] << 8) | (data[9] << 0));
+	*ir_key = *ir_raw;
 
 	return 1;
 }
