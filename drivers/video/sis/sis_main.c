@@ -4147,23 +4147,6 @@ sisfb_find_rom(struct pci_dev *pdev)
 
         }
 
-#else
-
-	pci_read_config_dword(pdev, PCI_ROM_ADDRESS, &temp);
-	pci_write_config_dword(pdev, PCI_ROM_ADDRESS,
-			(ivideo->video_base & PCI_ROM_ADDRESS_MASK) | PCI_ROM_ADDRESS_ENABLE);
-
-	rom_base = ioremap(ivideo->video_base, 65536);
-	if(rom_base) {
-		if(sisfb_check_rom(rom_base, ivideo)) {
-			if((myrombase = vmalloc(65536)))
-				memcpy_fromio(myrombase, rom_base, 65536);
-		}
-		iounmap(rom_base);
-	}
-
-	pci_write_config_dword(pdev, PCI_ROM_ADDRESS, temp);
-
 #endif
 
 	return myrombase;
