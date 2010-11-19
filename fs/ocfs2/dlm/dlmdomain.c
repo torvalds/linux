@@ -460,8 +460,6 @@ redo_bucket:
 		}
 		cond_resched_lock(&dlm->spinlock);
 		num += n;
-		mlog(0, "%s: touched %d lockreses in bucket %d "
-		     "(tot=%d)\n", dlm->name, n, i, num);
 	}
 	spin_unlock(&dlm->spinlock);
 	wake_up(&dlm->dlm_thread_wq);
