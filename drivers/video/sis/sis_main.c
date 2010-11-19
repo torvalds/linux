@@ -60,6 +60,11 @@
 #include "sis.h"
 #include "sis_main.h"
 
+#if !defined(CONFIG_FB_SIS_300) && !defined(CONFIG_FB_SIS_315)
+#warning Neither CONFIG_FB_SIS_300 nor CONFIG_FB_SIS_315 is set
+#warning sisfb will not work!
+#endif
+
 static void sisfb_handle_command(struct sis_video_info *ivideo,
 				 struct sisfb_cmd *sisfb_command);
 
