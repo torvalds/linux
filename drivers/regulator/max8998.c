@@ -354,7 +354,7 @@ static inline void buck2_gpio_set(int gpio, int v)
 }
 
 static int max8998_set_voltage_buck(struct regulator_dev *rdev,
-				    int min_uV, int max_uV, int *selector)
+				    int min_uV, int max_uV, unsigned *selector)
 {
 	struct max8998_data *max8998 = rdev_get_drvdata(rdev);
 	struct max8998_platform_data *pdata =
