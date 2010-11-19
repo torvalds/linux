@@ -480,9 +480,6 @@ struct wlc_hw_info {
 	bool phyclk;		/* phy is out of reset and has clock */
 	bool dma_lpbk;		/* core is in DMA loopback */
 
-#ifdef BCMSDIO
-	void *sdh;
-#endif
 	bool ucode_loaded;	/* true after ucode downloaded */
 
 

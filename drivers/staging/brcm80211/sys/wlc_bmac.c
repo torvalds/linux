@@ -56,9 +56,6 @@
 #include <wl_export.h>
 #include "wl_ucode.h"
 #include "d11ucode_ext.h"
-#ifdef BCMSDIO
-#include <bcmsdh.h>
-#endif
 #include <bcmotp.h>
 
 /* BMAC_NOTE: With WLC_HIGH defined, some fns in this file make calls to high level
@@ -3209,9 +3206,7 @@ static inline u32 wlc_intstatus(wlc_info_t *wlc, bool in_isr)
 	 */
 	/* turn off the interrupts */
 	W_REG(osh, &regs->macintmask, 0);
-#ifndef BCMSDIO
 	(void)R_REG(osh, &regs->macintmask);	/* sync readback */
-#endif
 	wlc->macintmask = 0;
 
 	/* clear device interrupts */

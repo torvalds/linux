@@ -40,9 +40,6 @@
 #include <wlc_pub.h>
 #include <wlc_scb.h>
 #include <wl_dbg.h>
-#ifdef BCMSDIO
-#include <bcmsdh.h>
-#endif
 #include <wl_export.h>
 
 #include <wl_mac80211.h>
@@ -50,9 +47,6 @@
 #include <wl_ucode.h>
 #include <d11ucode_ext.h>
 
-#ifdef BCMSDIO
-extern struct device *sdiommc_dev;
-#endif
 
 extern void wlc_wme_setparams(wlc_info_t *wlc, u16 aci, void *arg,
 			      bool suspend);
@@ -127,7 +121,6 @@ MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver.");
 MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
-#ifndef BCMSDIO
 /* recognized PCI IDs */
 static struct pci_device_id wl_id_table[] = {
 	{PCI_VENDOR_ID_BROADCOM, 0x4357, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},	/* 43225 2G */
@@ -138,12 +131,7 @@ static struct pci_device_id wl_id_table[] = {
 
 MODULE_DEVICE_TABLE(pci, wl_id_table);
 static void wl_remove(struct pci_dev *pdev);
-#endif				/* !BCMSDIO */
 
-#ifdef BCMSDIO
-static uint sd_drivestrength = 6;
-module_param(sd_drivestrength, uint, 0);
-#endif
 
 #ifdef BCMDBG
 static int msglevel = 0xdeadbeef;
@@ -701,9 +689,6 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	tasklet_init(&wl->tasklet, wl_dpc, (unsigned long) wl);
 
 
-#ifdef BCMSDIO
-	SET_IEEE80211_DEV(hw, sdiommc_dev);
-#endif
 
 	base_addr = regs;
 
@@ -754,10 +739,6 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 		WL_ERROR(("wl%d: Error setting MPC variable to 0\n",
 			  unit));
 	}
-#ifdef BCMSDIO
-	/* Set SDIO drive strength */
-	wlc_iovar_setint(wl->wlc, "sd_drivestrength", sd_drivestrength);
-#endif
 
 	/* register our interrupt handler */
 	if (request_irq(irq, wl_isr, IRQF_SHARED, KBUILD_MODNAME, wl)) {
@@ -1048,7 +1029,6 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 	return ieee_hw_rate_init(hw);
 }
 
-#ifndef BCMSDIO
 /**
  * determines if a device is a WL device, and if so, attaches it.
  *
@@ -1219,7 +1199,6 @@ static struct pci_driver wl_pci_driver = {
  .remove   = __devexit_p(wl_remove),
  .id_table = wl_id_table,
 };
-#endif				/* !BCMSDIO */
 
 /**
  * This is the main entry point for the WL driver.
@@ -1253,12 +1232,10 @@ static int __init wl_module_init(void)
 	}
 #endif				/* BCMDBG */
 
-#ifndef BCMSDIO
 	error = pci_register_driver(&wl_pci_driver);
 	if (!error)
 		return 0;
 
-#endif				/* !BCMSDIO */
 
 
 	return error;
@@ -1273,9 +1250,7 @@ static int __init wl_module_init(void)
  */
 static void __exit wl_module_exit(void)
 {
-#ifndef BCMSDIO
 	pci_unregister_driver(&wl_pci_driver);
-#endif				/* !BCMSDIO */
 
 }
 

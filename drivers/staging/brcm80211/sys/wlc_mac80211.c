@@ -48,11 +48,7 @@
 #include <wlc_ampdu.h>
 #include <wlc_event.h>
 #include <wl_export.h>
-#ifdef BCMSDIO
-#include <bcmsdh.h>
-#else
 #include "d11ucode_ext.h"
-#endif
 #include <wlc_alloc.h>
 #include <net/mac80211.h>
 #include <wl_dbg.h>

@@ -75,10 +75,6 @@ struct wl_info {
 	atomic_t callbacks;	/* # outstanding callback functions */
 	struct wl_timer *timers;	/* timer cleanup queue */
 	struct tasklet_struct tasklet;	/* dpc tasklet */
-#ifdef BCMSDIO
-	bcmsdh_info_t *sdh;	/* pointer to sdio bus handler */
-	unsigned long flags;		/* current irq flags */
-#endif				/* BCMSDIO */
 	bool resched;		/* dpc needs to be and is rescheduled */
 #ifdef LINUXSTA_PS
 	u32 pci_psstate[16];	/* pci ps-state save/restore */

@@ -318,9 +318,6 @@ typedef struct wlc_pub {
 				 * is implemented properly in osl of that port
 				 * when it enables this Power Save feature.
 				 */
-#ifdef BCMSDIO
-	uint sdiod_drive_strength;	/* SDIO drive strength */
-#endif				/* BCMSDIO */
 
 	u16 boardrev;	/* version # of particular board */
 	u8 sromrev;		/* version # of the srom */
