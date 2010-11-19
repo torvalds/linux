@@ -786,6 +786,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			else
 				nonpresent = shadow_notrap_nonpresent_pte;
 			drop_spte(vcpu->kvm, &sp->spt[i], nonpresent);
+			kvm_flush_remote_tlbs(vcpu->kvm);
 			continue;
 		}
 
