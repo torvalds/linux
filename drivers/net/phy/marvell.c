@@ -30,6 +30,7 @@
 #include <linux/ethtool.h>
 #include <linux/phy.h>
 #include <linux/marvell_phy.h>
+#include <linux/of.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -186,6 +187,87 @@ static int marvell_config_aneg(struct phy_device *phydev)
 
 	return 0;
 }
+
+#ifdef CONFIG_OF_MDIO
+/*
+ * Set and/or override some configuration registers based on the
+ * marvell,reg-init property stored in the of_node for the phydev.
+ *
+ * marvell,reg-init = <reg-page reg mask value>,...;
+ *
+ * There may be one or more sets of <reg-page reg mask value>:
+ *
+ * reg-page: which register bank to use.
+ * reg: the register.
+ * mask: if non-zero, ANDed with existing register value.
+ * value: ORed with the masked value and written to the regiser.
+ *
+ */
+static int marvell_of_reg_init(struct phy_device *phydev)
+{
+	const __be32 *paddr;
+	int len, i, saved_page, current_page, page_changed, ret;
+
+	if (!phydev->dev.of_node)
+		return 0;
+
+	paddr = of_get_property(phydev->dev.of_node, "marvell,reg-init", &len);
+	if (!paddr || len < (4 * sizeof(*paddr)))
+		return 0;
+
+	saved_page = phy_read(phydev, MII_MARVELL_PHY_PAGE);
+	if (saved_page < 0)
+		return saved_page;
+	page_changed = 0;
+	current_page = saved_page;
+
+	ret = 0;
+	len /= sizeof(*paddr);
+	for (i = 0; i < len - 3; i += 4) {
+		u16 reg_page = be32_to_cpup(paddr + i);
+		u16 reg = be32_to_cpup(paddr + i + 1);
+		u16 mask = be32_to_cpup(paddr + i + 2);
+		u16 val_bits = be32_to_cpup(paddr + i + 3);
+		int val;
+
+		if (reg_page != current_page) {
+			current_page = reg_page;
+			page_changed = 1;
+			ret = phy_write(phydev, MII_MARVELL_PHY_PAGE, reg_page);
+			if (ret < 0)
+				goto err;
+		}
+
+		val = 0;
+		if (mask) {
+			val = phy_read(phydev, reg);
+			if (val < 0) {
+				ret = val;
+				goto err;
+			}
+			val &= mask;
+		}
+		val |= val_bits;
+
+		ret = phy_write(phydev, reg, val);
+		if (ret < 0)
+			goto err;
+
+	}
+err:
+	if (page_changed) {
+		i = phy_write(phydev, MII_MARVELL_PHY_PAGE, saved_page);
+		if (ret == 0)
+			ret = i;
+	}
+	return ret;
+}
+#else
+static int marvell_of_reg_init(struct phy_device *phydev)
+{
+	return 0;
+}
+#endif /* CONFIG_OF_MDIO */
 
 static int m88e1121_config_aneg(struct phy_device *phydev)
 {
@@ -369,6 +451,9 @@ static int m88e1111_config_init(struct phy_device *phydev)
 			return err;
 	}
 
+	err = marvell_of_reg_init(phydev);
+	if (err < 0)
+		return err;
 
 	err = phy_write(phydev, MII_BMCR, BMCR_RESET);
 	if (err < 0)
@@ -421,6 +506,10 @@ static int m88e1118_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
+	err = marvell_of_reg_init(phydev);
+	if (err < 0)
+		return err;
+
 	/* Reset address */
 	err = phy_write(phydev, MII_MARVELL_PHY_PAGE, 0x0);
 	if (err < 0)
@@ -444,6 +533,10 @@ static int m88e1149_config_init(struct phy_device *phydev)
 
 	/* Enable 1000 Mbit */
 	err = phy_write(phydev, 0x15, 0x1048);
+	if (err < 0)
+		return err;
+
+	err = marvell_of_reg_init(phydev);
 	if (err < 0)
 		return err;
 
@@ -517,6 +610,10 @@ static int m88e1145_config_init(struct phy_device *phydev)
 				return err;
 		}
 	}
+
+	err = marvell_of_reg_init(phydev);
+	if (err < 0)
+		return err;
 
 	return 0;
 }
