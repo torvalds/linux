@@ -41,7 +41,7 @@ static struct v4l2_file_operations cx18_v4l2_enc_fops = {
 	.read = cx18_v4l2_read,
 	.open = cx18_v4l2_open,
 	/* FIXME change to video_ioctl2 if serialization lock can be removed */
-	.ioctl = cx18_v4l2_ioctl,
+	.unlocked_ioctl = cx18_v4l2_ioctl,
 	.release = cx18_v4l2_close,
 	.poll = cx18_v4l2_enc_poll,
 };
