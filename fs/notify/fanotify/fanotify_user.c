@@ -200,7 +200,7 @@ static int prepare_for_access_response(struct fsnotify_group *group,
 
 	mutex_lock(&group->fanotify_data.access_mutex);
 
-	if (group->fanotify_data.bypass_perm) {
+	if (atomic_read(&group->fanotify_data.bypass_perm)) {
 		mutex_unlock(&group->fanotify_data.access_mutex);
 		kmem_cache_free(fanotify_response_event_cache, re);
 		event->response = FAN_ALLOW;
@@ -390,7 +390,7 @@ static int fanotify_release(struct inode *ignored, struct file *file)
 
 	mutex_lock(&group->fanotify_data.access_mutex);
 
-	group->fanotify_data.bypass_perm = true;
+	atomic_inc(&group->fanotify_data.bypass_perm);
 
 	list_for_each_entry_safe(re, lre, &group->fanotify_data.access_list, list) {
 		pr_debug("%s: found group=%p re=%p event=%p\n", __func__, group,
@@ -703,6 +703,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 	mutex_init(&group->fanotify_data.access_mutex);
 	init_waitqueue_head(&group->fanotify_data.access_waitq);
 	INIT_LIST_HEAD(&group->fanotify_data.access_list);
+	atomic_set(&group->fanotify_data.bypass_perm, 0);
 #endif
 	switch (flags & FAN_ALL_CLASS_BITS) {
 	case FAN_CLASS_NOTIF:
