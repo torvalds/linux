@@ -249,8 +249,11 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	 * The migration_call() CPU_DYING callback will have removed all
 	 * runnable tasks from the cpu, there's only the idle task left now
 	 * that the migration thread is done doing the stop_machine thing.
+	 *
+	 * Wait for the stop thread to go away.
 	 */
-	BUG_ON(!idle_cpu(cpu));
+	while (!idle_cpu(cpu))
+		cpu_relax();
 
 	/* This actually kills the CPU. */
 	__cpu_die(cpu);
