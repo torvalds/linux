@@ -1133,7 +1133,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	if (ret) {
 		dev_err(&spi->dev, "Unable to get irq %x",
 			gpio_to_irq(ifx_dev->gpio.srdy));
-		goto error_ret6;
+		goto error_ret7;
 	}
 
 	/* set pm runtime power state and register with power system */
@@ -1153,6 +1153,8 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 		mrdy_set_low(ifx_dev);
 	return 0;
 
+error_ret7:
+	free_irq(gpio_to_irq(ifx_dev->gpio.reset_out), (void *)ifx_dev);
 error_ret6:
 	gpio_free(ifx_dev->gpio.srdy);
 error_ret5:
