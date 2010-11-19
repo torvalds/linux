@@ -122,6 +122,7 @@ struct bttv_format {
 
 struct bttv_ir {
 	struct rc_dev           *dev;
+	struct timer_list       timer;
 
 	char                    name[32];
 	char                    phys[32];
@@ -136,11 +137,9 @@ struct bttv_ir {
 	int                     start; // What should RC5_START() be
 	int                     addr; // What RC5_ADDR() should be.
 	int                     rc5_remote_gap;
-	struct timer_list       timer;
 
 	/* RC5 gpio */
 	u32                     rc5_gpio;
-	struct timer_list       timer_end;  /* timer_end for code completion */
 	u32                     last_bit;   /* last raw bit seen */
 	u32                     code;       /* raw code under construction */
 	struct timeval          base_time;  /* time of last seen code */

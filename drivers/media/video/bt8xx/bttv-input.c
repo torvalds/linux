@@ -283,8 +283,7 @@ static int bttv_rc5_irq(struct bttv *btv)
 		ir->base_time = tv;
 		ir->last_bit = 0;
 
-		mod_timer(&ir->timer_end,
-			  current_jiffies + msecs_to_jiffies(30));
+		mod_timer(&ir->timer, current_jiffies + msecs_to_jiffies(30));
 	}
 
 	/* toggle GPIO pin 4 to reset the irq */
@@ -303,8 +302,7 @@ static void bttv_ir_start(struct bttv *btv, struct bttv_ir *ir)
 		add_timer(&ir->timer);
 	} else if (ir->rc5_gpio) {
 		/* set timer_end for code completion */
-		setup_timer(&ir->timer_end, bttv_rc5_timer_end,
-			    (unsigned long)ir);
+		setup_timer(&ir->timer, bttv_rc5_timer_end, (unsigned long)ir);
 		ir->shift_by = 1;
 		ir->start = 3;
 		ir->addr = 0x0;
@@ -322,7 +320,7 @@ static void bttv_ir_stop(struct bttv *btv)
 	if (btv->remote->rc5_gpio) {
 		u32 gpio;
 
-		del_timer_sync(&btv->remote->timer_end);
+		del_timer_sync(&btv->remote->timer);
 		flush_scheduled_work();
 
 		gpio = bttv_gpio_read(&btv->c);
