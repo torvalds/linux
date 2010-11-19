@@ -56,7 +56,6 @@
 #include "osdef.h"
 #include "initdef.h"
 
-#ifdef SIS_LINUX_KERNEL
 #include "vgatypes.h"
 #include "vstruct.h"
 #ifdef SIS_CP
@@ -67,7 +66,6 @@
 #include <linux/fb.h>
 #include "sis.h"
 #include <video/sisfb.h>
-#endif
 
 /* Mode numbers */
 static const unsigned short ModeIndex_320x200[]      = {0x59, 0x41, 0x00, 0x4f};
@@ -1535,17 +1533,11 @@ void		SiS_SetRegOR(SISIOADDRESS Port,unsigned short Index, unsigned short DataOR
 void		SiS_DisplayOn(struct SiS_Private *SiS_Pr);
 void		SiS_DisplayOff(struct SiS_Private *SiS_Pr);
 void		SiSRegInit(struct SiS_Private *SiS_Pr, SISIOADDRESS BaseAddr);
-#ifndef SIS_LINUX_KERNEL
-void		SiSSetLVDSetc(struct SiS_Private *SiS_Pr);
-#endif
 void		SiS_SetEnableDstn(struct SiS_Private *SiS_Pr, int enable);
 void		SiS_SetEnableFstn(struct SiS_Private *SiS_Pr, int enable);
 unsigned short	SiS_GetModeFlag(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 				unsigned short ModeIdIndex);
 bool		SiSDetermineROMLayout661(struct SiS_Private *SiS_Pr);
-#ifndef SIS_LINUX_KERNEL
-void		SiS_GetVBType(struct SiS_Private *SiS_Pr);
-#endif
 
 bool		SiS_SearchModeID(struct SiS_Private *SiS_Pr, unsigned short *ModeNo,
 				unsigned short *ModeIdIndex);
@@ -1564,16 +1556,12 @@ unsigned short	SiS_GetFIFOThresholdB300(unsigned short idx1, unsigned short idx2
 unsigned short	SiS_GetLatencyFactor630(struct SiS_Private *SiS_Pr, unsigned short index);
 #endif
 void		SiS_LoadDAC(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex);
-#ifdef SIS_LINUX_KERNEL
 bool		SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
-#endif
 void		SiS_CalcCRRegisters(struct SiS_Private *SiS_Pr, int depth);
 void		SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 				unsigned short ModeIdIndex);
-#ifdef SIS_LINUX_KERNEL
 void		SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata, int xres,
 				int yres, struct fb_var_screeninfo *var, bool writeres);
-#endif
 
 /* From init301.c: */
 extern void		SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
@@ -1597,7 +1585,6 @@ extern unsigned short	SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short
 extern bool		SiS_IsVAMode(struct SiS_Private *);
 extern bool		SiS_IsDualEdge(struct SiS_Private *);
 
-#ifdef SIS_LINUX_KERNEL
 #ifdef SIS300
 extern unsigned int	sisfb_read_nbridge_pci_dword(struct SiS_Private *SiS_Pr, int reg);
 extern void		sisfb_write_nbridge_pci_dword(struct SiS_Private *SiS_Pr, int reg,
@@ -1607,7 +1594,6 @@ extern void		sisfb_write_nbridge_pci_dword(struct SiS_Private *SiS_Pr, int reg,
 extern void		sisfb_write_nbridge_pci_byte(struct SiS_Private *SiS_Pr, int reg,
 				unsigned char val);
 extern unsigned int	sisfb_read_mio_pci_word(struct SiS_Private *SiS_Pr, int reg);
-#endif
 #endif
 
 #endif

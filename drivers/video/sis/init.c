@@ -1150,9 +1150,7 @@ SiSInitPCIetc(struct SiS_Private *SiS_Pr)
 /*             HELPER: SetLVDSetc            */
 /*********************************************/
 
-#ifdef SIS_LINUX_KERNEL
 static
-#endif
 void
 SiSSetLVDSetc(struct SiS_Private *SiS_Pr)
 {
@@ -1418,9 +1416,7 @@ SiS_ResetSegmentRegisters(struct SiS_Private *SiS_Pr)
 /*             HELPER: GetVBType             */
 /*********************************************/
 
-#ifdef SIS_LINUX_KERNEL
 static
-#endif
 void
 SiS_GetVBType(struct SiS_Private *SiS_Pr)
 {
@@ -1485,7 +1481,6 @@ SiS_GetVBType(struct SiS_Private *SiS_Pr)
 /*           HELPER: Check RAM size          */
 /*********************************************/
 
-#ifdef SIS_LINUX_KERNEL
 static bool
 SiS_CheckMemorySize(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 		unsigned short ModeIdIndex)
@@ -1499,7 +1494,6 @@ SiS_CheckMemorySize(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    if(AdapterMemSize < memorysize) return false;
    return true;
 }
-#endif
 
 /*********************************************/
 /*           HELPER: Get DRAM type           */
@@ -1572,7 +1566,6 @@ SiS_GetMCLK(struct SiS_Private *SiS_Pr)
 /*           HELPER: ClearBuffer             */
 /*********************************************/
 
-#ifdef SIS_LINUX_KERNEL
 static void
 SiS_ClearBuffer(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 {
@@ -1597,7 +1590,6 @@ SiS_ClearBuffer(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
       SiS_SetMemory(memaddr, 0x8000, 0);
    }
 }
-#endif
 
 /*********************************************/
 /*           HELPER: SearchModeID            */
@@ -2504,11 +2496,7 @@ SiS_SetCRT1FIFO_630(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x09,0x80,data);
 
   /* Write foreground and background queue */
-#ifdef SIS_LINUX_KERNEL
    templ = sisfb_read_nbridge_pci_dword(SiS_Pr, 0x50);
-#else
-   templ = pciReadLong(0x00000000, 0x50);
-#endif
 
    if(SiS_Pr->ChipType == SIS_730) {
 
@@ -2528,13 +2516,8 @@ SiS_SetCRT1FIFO_630(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 
    }
 
-#ifdef SIS_LINUX_KERNEL
    sisfb_write_nbridge_pci_dword(SiS_Pr, 0x50, templ);
    templ = sisfb_read_nbridge_pci_dword(SiS_Pr, 0xA0);
-#else
-   pciWriteLong(0x00000000, 0x50, templ);
-   templ = pciReadLong(0x00000000, 0xA0);
-#endif
 
    /* GUI grant timer (PCI config 0xA3) */
    if(SiS_Pr->ChipType == SIS_730) {
@@ -2550,11 +2533,7 @@ SiS_SetCRT1FIFO_630(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 
    }
 
-#ifdef SIS_LINUX_KERNEL
    sisfb_write_nbridge_pci_dword(SiS_Pr, 0xA0, templ);
-#else
-   pciWriteLong(0x00000000, 0xA0, templ);
-#endif
 }
 #endif /* SIS300 */
 
@@ -3063,11 +3042,9 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
 
    SiS_LoadDAC(SiS_Pr, ModeNo, ModeIdIndex);
 
-#ifdef SIS_LINUX_KERNEL
    if(SiS_Pr->SiS_flag_clearbuffer) {
       SiS_ClearBuffer(SiS_Pr, ModeNo);
    }
-#endif
 
    if(!(SiS_Pr->SiS_VBInfo & (SetSimuScanMode | SwitchCRT2 | SetCRT2ToLCDA))) {
       SiS_WaitRetrace1(SiS_Pr);
@@ -3163,11 +3140,7 @@ SiS_Handle760(struct SiS_Private *SiS_Pr)
        (!(SiS_Pr->SiS_SysFlags & SF_760UMA)) )
       return;
 
-#ifdef SIS_LINUX_KERNEL
    somebase = sisfb_read_mio_pci_word(SiS_Pr, 0x74);
-#else
-   somebase = pciReadWord(0x00001000, 0x74);
-#endif
    somebase &= 0xffff;
 
    if(somebase == 0) return;
@@ -3183,13 +3156,8 @@ SiS_Handle760(struct SiS_Private *SiS_Pr)
       temp2 = 0x0b;
    }
 
-#ifdef SIS_LINUX_KERNEL
    sisfb_write_nbridge_pci_byte(SiS_Pr, 0x7e, temp1);
    sisfb_write_nbridge_pci_byte(SiS_Pr, 0x8d, temp2);
-#else
-   pciWriteByte(0x00000000, 0x7e, temp1);
-   pciWriteByte(0x00000000, 0x8d, temp2);
-#endif
 
    SiS_SetRegByte((somebase + 0x85), temp3);
 #endif
@@ -3205,21 +3173,17 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    SISIOADDRESS BaseAddr = SiS_Pr->IOAddress;
    unsigned short RealModeNo, ModeIdIndex;
    unsigned char  backupreg = 0;
-#ifdef SIS_LINUX_KERNEL
    unsigned short KeepLockReg;
 
    SiS_Pr->UseCustomMode = false;
    SiS_Pr->CRT1UsesCustomMode = false;
-#endif
 
    SiS_Pr->SiS_flag_clearbuffer = 0;
 
    if(SiS_Pr->UseCustomMode) {
       ModeNo = 0xfe;
    } else {
-#ifdef SIS_LINUX_KERNEL
       if(!(ModeNo & 0x80)) SiS_Pr->SiS_flag_clearbuffer = 1;
-#endif
       ModeNo &= 0x7f;
    }
 
@@ -3233,9 +3197,7 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
    SiS_Pr->SiS_VGAINFO = 0x11;
 
-#ifdef SIS_LINUX_KERNEL
    KeepLockReg = SiS_GetReg(SiS_Pr->SiS_P3c4,0x05);
-#endif
    SiS_SetReg(SiS_Pr->SiS_P3c4,0x05,0x86);
 
    SiSInitPCIetc(SiS_Pr);
@@ -3272,12 +3234,10 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    SiS_GetLCDResInfo(SiS_Pr, ModeNo, ModeIdIndex);
    SiS_SetLowModeTest(SiS_Pr, ModeNo);
 
-#ifdef SIS_LINUX_KERNEL
    /* Check memory size (kernel framebuffer driver only) */
    if(!SiS_CheckMemorySize(SiS_Pr, ModeNo, ModeIdIndex)) {
       return false;
    }
-#endif
 
    SiS_OpenCRTC(SiS_Pr);
 
@@ -3356,10 +3316,8 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
    SiS_Handle760(SiS_Pr);
 
-#ifdef SIS_LINUX_KERNEL
    /* We never lock registers in XF86 */
    if(KeepLockReg != 0xA1) SiS_SetReg(SiS_Pr->SiS_P3c4,0x05,0x00);
-#endif
 
    return true;
 }
@@ -3581,9 +3539,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 void
 SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata,
 			int xres, int yres,
-#ifdef SIS_LINUX_KERNEL
 			struct fb_var_screeninfo *var, bool writeres
-#endif
 )
 {
    unsigned short HRE, HBE, HRS, HBS, HDE, HT;
@@ -3627,12 +3583,10 @@ SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata,
 
    D = B - F - C;
 
-#ifdef SIS_LINUX_KERNEL
    if(writeres) var->xres = xres = E * 8;
    var->left_margin = D * 8;
    var->right_margin = F * 8;
    var->hsync_len = C * 8;
-#endif
 
    /* Vertical */
    sr_data = crdata[13];
@@ -3679,12 +3633,10 @@ SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata,
 
    D = B - F - C;
 
-#ifdef SIS_LINUX_KERNEL
    if(writeres) var->yres = yres = E;
    var->upper_margin = D;
    var->lower_margin = F;
    var->vsync_len = C;
-#endif
 
    if((xres == 320) && ((yres == 200) || (yres == 240))) {
 	/* Terrible hack, but correct CRTC data for
@@ -3693,11 +3645,9 @@ SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata,
 	 * a negative D. The CRT controller does not
 	 * seem to like correcting HRE to 50)
 	 */
-#ifdef SIS_LINUX_KERNEL
       var->left_margin = (400 - 376);
       var->right_margin = (328 - 320);
       var->hsync_len = (376 - 328);
-#endif
 
    }
 

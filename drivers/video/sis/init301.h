@@ -56,7 +56,6 @@
 #include "osdef.h"
 #include "initdef.h"
 
-#ifdef SIS_LINUX_KERNEL
 #include "vgatypes.h"
 #include "vstruct.h"
 #ifdef SIS_CP
@@ -67,7 +66,6 @@
 #include <linux/fb.h>
 #include "sis.h"
 #include <video/sisfb.h>
-#endif
 
 static const unsigned char SiS_YPbPrTable[3][64] = {
   {
@@ -351,9 +349,6 @@ static unsigned char SiS300_TrumpionData[14][80] = {
 #endif
 
 void		SiS_UnLockCRT2(struct SiS_Private *SiS_Pr);
-#ifndef SIS_LINUX_KERNEL
-void		SiS_LockCRT2(struct SiS_Private *SiS_Pr);
-#endif
 void		SiS_EnableCRT2(struct SiS_Private *SiS_Pr);
 unsigned short	SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex);
 void		SiS_WaitRetrace1(struct SiS_Private *SiS_Pr);
@@ -370,9 +365,6 @@ unsigned short	SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo
 			unsigned short RefreshRateTableIndex);
 unsigned short	SiS_GetResInfo(struct SiS_Private *SiS_Pr,unsigned short ModeNo,unsigned short ModeIdIndex);
 void		SiS_DisableBridge(struct SiS_Private *SiS_Pr);
-#ifndef SIS_LINUX_KERNEL
-void		SiS_EnableBridge(struct SiS_Private *SiS_Pr);
-#endif
 bool		SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
 void		SiS_SiS30xBLOn(struct SiS_Private *SiS_Pr);
 void		SiS_SiS30xBLOff(struct SiS_Private *SiS_Pr);
@@ -381,10 +373,6 @@ void		SiS_SetCH700x(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned cha
 unsigned short	SiS_GetCH700x(struct SiS_Private *SiS_Pr, unsigned short tempax);
 void		SiS_SetCH701x(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val);
 unsigned short	SiS_GetCH701x(struct SiS_Private *SiS_Pr, unsigned short tempax);
-#ifndef SIS_LINUX_KERNEL
-void		SiS_SetCH70xx(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val);
-unsigned short	SiS_GetCH70xx(struct SiS_Private *SiS_Pr, unsigned short tempax);
-#endif
 void		SiS_SetCH70xxANDOR(struct SiS_Private *SiS_Pr, unsigned short reg,
 			unsigned char orval,unsigned short andval);
 #ifdef SIS315H
@@ -473,10 +461,8 @@ extern void		SiS_GetFIFOThresholdIndex300(struct SiS_Private *SiS_Pr, unsigned s
 				unsigned short *tempcl);
 extern unsigned short	SiS_GetFIFOThresholdB300(unsigned short tempbx, unsigned short tempcl);
 extern unsigned short	SiS_GetLatencyFactor630(struct SiS_Private *SiS_Pr, unsigned short index);
-#ifdef SIS_LINUX_KERNEL
 extern unsigned int	sisfb_read_nbridge_pci_dword(struct SiS_Private *SiS_Pr, int reg);
 extern unsigned int	sisfb_read_lpc_pci_dword(struct SiS_Private *SiS_Pr, int reg);
-#endif
 #endif
 
 #endif

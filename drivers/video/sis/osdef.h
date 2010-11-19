@@ -54,9 +54,6 @@
 #ifndef _SIS_OSDEF_H_
 #define _SIS_OSDEF_H_
 
-/* The choices are: */
-#define SIS_LINUX_KERNEL		/* Linux kernel framebuffer */
-
 #ifdef OutPortByte
 #undef OutPortByte
 #endif
@@ -85,8 +82,6 @@
 /*  LINUX KERNEL                                                      */
 /**********************************************************************/
 
-#ifdef SIS_LINUX_KERNEL
-
 #ifdef CONFIG_FB_SIS_300
 #define SIS300
 #endif
@@ -107,7 +102,5 @@
 #define InPortWord(p)    inw((SISIOADDRESS)(p))
 #define InPortLong(p)    inl((SISIOADDRESS)(p))
 #define SiS_SetMemory(MemoryAddress,MemorySize,value) memset_io(MemoryAddress, value, MemorySize)
-
-#endif /* LINUX_KERNEL */
 
 #endif  /* _OSDEF_H_ */
