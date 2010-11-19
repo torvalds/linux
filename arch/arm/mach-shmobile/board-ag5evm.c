@@ -121,16 +121,19 @@ void __init ag5evm_init_irq(void)
 
 static void __init ag5evm_init(void)
 {
+	sh73a0_pinmux_init();
+
 	/* enable SCIFA2 */
-	__raw_writeb(0x12, PORT154CR); /* TXD */
-	__raw_writeb(0x22, PORT155CR); /* RXD */
-	__raw_writeb(0x12, PORT156CR); /* RTS */
-	__raw_writeb(0x22, PORT157CR); /* CTS */
+	gpio_request(GPIO_FN_SCIFA2_TXD1, NULL);
+	gpio_request(GPIO_FN_SCIFA2_RXD1, NULL);
+	gpio_request(GPIO_FN_SCIFA2_RTS1_, NULL);
+	gpio_request(GPIO_FN_SCIFA2_CTS1_, NULL);
 
 	/* enable SMSC911X */
-	__raw_writeb(0x20, PORT144CR); /* PINTA2 */
-	__raw_writeb(0x10, PORT145CR); /* RESET */
-	__raw_writel(__raw_readl(PORTR159_128DR) & ~(1 << 17), PORTR159_128DR);
+	gpio_request(GPIO_PORT144, NULL); /* PINTA2 */
+	gpio_direction_input(GPIO_PORT144);
+	gpio_request(GPIO_PORT145, NULL); /* RESET */
+	gpio_direction_output(GPIO_PORT145, 1);
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Shared attribute override enable, 64K*8way */
