@@ -329,7 +329,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		return;
 	kvm_get_pfn(pfn);
 	/*
-	 * we call mmu_set_spte() with reset_host_protection = true beacuse that
+	 * we call mmu_set_spte() with host_writable = true beacuse that
 	 * vcpu->arch.update_pte.pfn was fetched from get_user_pages(write = 1).
 	 */
 	mmu_set_spte(vcpu, spte, sp->role.access, pte_access, 0, 0,
@@ -744,7 +744,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			    bool clear_unsync)
 {
 	int i, offset, nr_present;
-	bool reset_host_protection;
+	bool host_writable;
 	gpa_t first_pte_gpa;
 
 	offset = nr_present = 0;
@@ -794,14 +794,14 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
 		if (!(sp->spt[i] & SPTE_HOST_WRITEABLE)) {
 			pte_access &= ~ACC_WRITE_MASK;
-			reset_host_protection = 0;
+			host_writable = 0;
 		} else {
-			reset_host_protection = 1;
+			host_writable = 1;
 		}
 		set_spte(vcpu, &sp->spt[i], pte_access, 0, 0,
 			 is_dirty_gpte(gpte), PT_PAGE_TABLE_LEVEL, gfn,
 			 spte_to_pfn(sp->spt[i]), true, false,
-			 reset_host_protection);
+			 host_writable);
 	}
 
 	return !nr_present;

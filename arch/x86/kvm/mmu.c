@@ -1958,7 +1958,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		    unsigned pte_access, int user_fault,
 		    int write_fault, int dirty, int level,
 		    gfn_t gfn, pfn_t pfn, bool speculative,
-		    bool can_unsync, bool reset_host_protection)
+		    bool can_unsync, bool host_writable)
 {
 	u64 spte, entry = *sptep;
 	int ret = 0;
@@ -1985,7 +1985,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		spte |= kvm_x86_ops->get_mt_mask(vcpu, gfn,
 			kvm_is_mmio_pfn(pfn));
 
-	if (reset_host_protection)
+	if (host_writable)
 		spte |= SPTE_HOST_WRITEABLE;
 
 	spte |= (u64)pfn << PAGE_SHIFT;
@@ -2048,7 +2048,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 			 int user_fault, int write_fault, int dirty,
 			 int *ptwrite, int level, gfn_t gfn,
 			 pfn_t pfn, bool speculative,
-			 bool reset_host_protection)
+			 bool host_writable)
 {
 	int was_rmapped = 0;
 	int rmap_count;
@@ -2083,7 +2083,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 
 	if (set_spte(vcpu, sptep, pte_access, user_fault, write_fault,
 		      dirty, level, gfn, pfn, speculative, true,
-		      reset_host_protection)) {
+		      host_writable)) {
 		if (write_fault)
 			*ptwrite = 1;
 		kvm_mmu_flush_tlb(vcpu);
