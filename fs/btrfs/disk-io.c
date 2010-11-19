@@ -1561,10 +1561,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 						 GFP_NOFS);
 	struct btrfs_root *csum_root = kzalloc(sizeof(struct btrfs_root),
 						 GFP_NOFS);
-	struct btrfs_root *tree_root = kzalloc(sizeof(struct btrfs_root),
-					       GFP_NOFS);
-	struct btrfs_fs_info *fs_info = kzalloc(sizeof(*fs_info),
-						GFP_NOFS);
+	struct btrfs_root *tree_root = btrfs_sb(sb);
+	struct btrfs_fs_info *fs_info = tree_root->fs_info;
 	struct btrfs_root *chunk_root = kzalloc(sizeof(struct btrfs_root),
 						GFP_NOFS);
 	struct btrfs_root *dev_root = kzalloc(sizeof(struct btrfs_root),
