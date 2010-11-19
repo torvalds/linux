@@ -121,6 +121,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_BSS_SHORT_SLOT_TIME] = { .type = NLA_U8 },
 	[NL80211_ATTR_BSS_BASIC_RATES] = { .type = NLA_BINARY,
 					   .len = NL80211_MAX_SUPP_RATES },
+	[NL80211_ATTR_BSS_HT_OPMODE] = { .type = NLA_U16 },
 
 	[NL80211_ATTR_MESH_PARAMS] = { .type = NLA_NESTED },
 
@@ -2462,6 +2463,7 @@ static int nl80211_set_bss(struct sk_buff *skb, struct genl_info *info)
 	params.use_short_preamble = -1;
 	params.use_short_slot_time = -1;
 	params.ap_isolate = -1;
+	params.ht_opmode = -1;
 
 	if (info->attrs[NL80211_ATTR_BSS_CTS_PROT])
 		params.use_cts_prot =
@@ -2480,6 +2482,9 @@ static int nl80211_set_bss(struct sk_buff *skb, struct genl_info *info)
 	}
 	if (info->attrs[NL80211_ATTR_AP_ISOLATE])
 		params.ap_isolate = !!nla_get_u8(info->attrs[NL80211_ATTR_AP_ISOLATE]);
+	if (info->attrs[NL80211_ATTR_BSS_HT_OPMODE])
+		params.ht_opmode =
+			nla_get_u16(info->attrs[NL80211_ATTR_BSS_HT_OPMODE]);
 
 	if (!rdev->ops->change_bss)
 		return -EOPNOTSUPP;

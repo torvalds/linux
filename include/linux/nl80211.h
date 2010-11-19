@@ -849,6 +849,8 @@ enum nl80211_commands {
  *	flag isn't set, the frame will be rejected. This is also used as an
  *	nl80211 capability flag.
  *
+ * @NL80211_ATTR_BSS_HTOPMODE: HT operation mode (u16)
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1024,6 +1026,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_MCAST_RATE,
 
 	NL80211_ATTR_OFFCHANNEL_TX_OK,
+
+	NL80211_ATTR_BSS_HT_OPMODE,
 
 	/* add attributes here, update the policy in nl80211.c */
 

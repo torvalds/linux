@@ -605,6 +605,8 @@ struct mpath_info {
  *	(or NULL for no change)
  * @basic_rates_len: number of basic rates
  * @ap_isolate: do not forward packets between connected stations
+ * @ht_opmode: HT Operation mode
+ * 	(u16 = opmode, -1 = do not change)
  */
 struct bss_parameters {
 	int use_cts_prot;
@@ -613,6 +615,7 @@ struct bss_parameters {
 	u8 *basic_rates;
 	u8 basic_rates_len;
 	int ap_isolate;
+	int ht_opmode;
 };
 
 /*
