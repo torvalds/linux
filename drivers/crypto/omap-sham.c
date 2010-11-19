@@ -318,6 +318,16 @@ static int omap_sham_xmit_dma(struct omap_sham_dev *dd, dma_addr_t dma_addr,
 	omap_set_dma_src_params(dd->dma_lch, 0, OMAP_DMA_AMODE_POST_INC,
 				dma_addr, 0, 0);
 
+	omap_set_dma_dest_params(dd->dma_lch, 0,
+			OMAP_DMA_AMODE_CONSTANT,
+			dd->phys_base + SHA_REG_DIN(0), 0, 16);
+
+	omap_set_dma_dest_burst_mode(dd->dma_lch,
+			OMAP_DMA_DATA_BURST_16);
+
+	omap_set_dma_src_burst_mode(dd->dma_lch,
+			OMAP_DMA_DATA_BURST_4);
+
 	err = omap_sham_write_ctrl(dd, length, final, 1);
 	if (err)
 		return err;
@@ -1071,15 +1081,6 @@ static int omap_sham_dma_init(struct omap_sham_dev *dd)
 		dev_err(dd->dev, "Unable to request DMA channel\n");
 		return err;
 	}
-	omap_set_dma_dest_params(dd->dma_lch, 0,
-			OMAP_DMA_AMODE_CONSTANT,
-			dd->phys_base + SHA_REG_DIN(0), 0, 16);
-
-	omap_set_dma_dest_burst_mode(dd->dma_lch,
-			OMAP_DMA_DATA_BURST_16);
-
-	omap_set_dma_src_burst_mode(dd->dma_lch,
-			OMAP_DMA_DATA_BURST_4);
 
 	return 0;
 }
