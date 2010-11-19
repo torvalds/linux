@@ -49,7 +49,7 @@ module_param(ir_rc5_remote_gap, int, 0644);
 
 static void ir_handle_key(struct bttv *btv)
 {
-	struct card_ir *ir = btv->remote;
+	struct bttv_ir *ir = btv->remote;
 	u32 gpio,data;
 
 	/* read gpio value */
@@ -83,7 +83,7 @@ static void ir_handle_key(struct bttv *btv)
 
 static void ir_enltv_handle_key(struct bttv *btv)
 {
-	struct card_ir *ir = btv->remote;
+	struct bttv_ir *ir = btv->remote;
 	u32 gpio, data, keyup;
 
 	/* read gpio value */
@@ -122,7 +122,7 @@ static void ir_enltv_handle_key(struct bttv *btv)
 
 void bttv_input_irq(struct bttv *btv)
 {
-	struct card_ir *ir = btv->remote;
+	struct bttv_ir *ir = btv->remote;
 
 	if (!ir->polling)
 		ir_handle_key(btv);
@@ -131,7 +131,7 @@ void bttv_input_irq(struct bttv *btv)
 static void bttv_input_timer(unsigned long data)
 {
 	struct bttv *btv = (struct bttv*)data;
-	struct card_ir *ir = btv->remote;
+	struct bttv_ir *ir = btv->remote;
 
 	if (btv->c.type == BTTV_BOARD_ENLTV_FM_2)
 		ir_enltv_handle_key(btv);
@@ -185,9 +185,9 @@ static u32 bttv_rc5_decode(unsigned int code)
 	return rc5;
 }
 
-void bttv_rc5_timer_end(unsigned long data)
+static void bttv_rc5_timer_end(unsigned long data)
 {
-	struct card_ir *ir = (struct card_ir *)data;
+	struct bttv_ir *ir = (struct bttv_ir *)data;
 	struct timeval tv;
 	unsigned long current_jiffies;
 	u32 gap;
@@ -206,7 +206,7 @@ void bttv_rc5_timer_end(unsigned long data)
 	}
 
 	/* signal we're ready to start a new code */
-	ir->active = 0;
+	ir->active = false;
 
 	/* Allow some timer jitter (RC5 is ~24ms anyway so this is ok) */
 	if (gap < 28000) {
@@ -242,7 +242,7 @@ void bttv_rc5_timer_end(unsigned long data)
 
 static int bttv_rc5_irq(struct bttv *btv)
 {
-	struct card_ir *ir = btv->remote;
+	struct bttv_ir *ir = btv->remote;
 	struct timeval tv;
 	u32 gpio;
 	u32 gap;
@@ -278,7 +278,7 @@ static int bttv_rc5_irq(struct bttv *btv)
 		}
 		/* starting new code */
 	} else {
-		ir->active = 1;
+		ir->active = true;
 		ir->code = 0;
 		ir->base_time = tv;
 		ir->last_bit = 0;
@@ -295,7 +295,7 @@ static int bttv_rc5_irq(struct bttv *btv)
 
 /* ---------------------------------------------------------------------- */
 
-static void bttv_ir_start(struct bttv *btv, struct card_ir *ir)
+static void bttv_ir_start(struct bttv *btv, struct bttv_ir *ir)
 {
 	if (ir->polling) {
 		setup_timer(&ir->timer, bttv_input_timer, (unsigned long)btv);
@@ -303,9 +303,8 @@ static void bttv_ir_start(struct bttv *btv, struct card_ir *ir)
 		add_timer(&ir->timer);
 	} else if (ir->rc5_gpio) {
 		/* set timer_end for code completion */
-		init_timer(&ir->timer_end);
-		ir->timer_end.function = bttv_rc5_timer_end;
-		ir->timer_end.data = (unsigned long)ir;
+		setup_timer(&ir->timer_end, bttv_rc5_timer_end,
+			    (unsigned long)ir);
 		ir->shift_by = 1;
 		ir->start = 3;
 		ir->addr = 0x0;
@@ -409,7 +408,7 @@ int __devexit fini_bttv_i2c(struct bttv *btv)
 
 int bttv_input_init(struct bttv *btv)
 {
-	struct card_ir *ir;
+	struct bttv_ir *ir;
 	char *ir_codes = NULL;
 	struct rc_dev *rc;
 	int err = -ENOMEM;
