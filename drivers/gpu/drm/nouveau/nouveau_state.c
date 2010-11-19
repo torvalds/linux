@@ -1126,8 +1126,9 @@ nouveau_ioctl_setparam(struct drm_device *dev, void *data,
 }
 
 /* Wait until (value(reg) & mask) == val, up until timeout has hit */
-bool nouveau_wait_until(struct drm_device *dev, uint64_t timeout,
-			uint32_t reg, uint32_t mask, uint32_t val)
+bool
+nouveau_wait_eq(struct drm_device *dev, uint64_t timeout,
+		uint32_t reg, uint32_t mask, uint32_t val)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
@@ -1135,6 +1136,23 @@ bool nouveau_wait_until(struct drm_device *dev, uint64_t timeout,
 
 	do {
 		if ((nv_rd32(dev, reg) & mask) == val)
+			return true;
+	} while (ptimer->read(dev) - start < timeout);
+
+	return false;
+}
+
+/* Wait until (value(reg) & mask) != val, up until timeout has hit */
+bool
+nouveau_wait_ne(struct drm_device *dev, uint64_t timeout,
+		uint32_t reg, uint32_t mask, uint32_t val)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
+	uint64_t start = ptimer->read(dev);
+
+	do {
+		if ((nv_rd32(dev, reg) & mask) != val)
 			return true;
 	} while (ptimer->read(dev) - start < timeout);
 
