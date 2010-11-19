@@ -230,20 +230,12 @@ static int pllc2_set_rate(struct clk *clk,
 	if (idx < 0)
 		return idx;
 
-	if (rate == clk->parent->rate) {
-		pllc2_disable(clk);
-		return 0;
-	}
+	if (rate == clk->parent->rate)
+		return -EINVAL;
 
 	value = __raw_readl(PLLC2CR) & ~(0x3f << 24);
 
-	if (value & 0x80000000)
-		pllc2_disable(clk);
-
 	__raw_writel((value & ~0x80000000) | ((idx + 19) << 24), PLLC2CR);
-
-	if (value & 0x80000000)
-		return pllc2_enable(clk);
 
 	return 0;
 }

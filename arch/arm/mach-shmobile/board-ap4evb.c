@@ -969,6 +969,11 @@ static int __init hdmi_init_pm_clock(void)
 		goto out;
 	}
 
+	ret = clk_enable(&sh7372_pllc2_clk);
+	if (ret < 0) {
+		pr_err("Cannot enable pllc2 clock\n");
+		goto out;
+	}
 	pr_debug("PLLC2 set frequency %lu\n", rate);
 
 	ret = clk_set_parent(hdmi_ick, &sh7372_pllc2_clk);
