@@ -5934,8 +5934,7 @@ free_ordered:
 	 */
 	if (write) {
 		struct btrfs_ordered_extent *ordered;
-		ordered = btrfs_lookup_ordered_extent(inode,
-						      dip->logical_offset);
+		ordered = btrfs_lookup_ordered_extent(inode, file_offset);
 		if (!test_bit(BTRFS_ORDERED_PREALLOC, &ordered->flags) &&
 		    !test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags))
 			btrfs_free_reserved_extent(root, ordered->start,
