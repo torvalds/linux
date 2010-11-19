@@ -26,11 +26,6 @@ struct osl_pubinfo {
 	bool mmbus;		/* Bus supports memory-mapped registers */
 	pktfree_cb_fn_t tx_fn;	/* Callback function for PKTFREE */
 	void *tx_ctx;		/* Context to the callback function */
-#if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
-	osl_rreg_fn_t rreg_fn;	/* Read Register function */
-	osl_wreg_fn_t wreg_fn;	/* Write Register function */
-	void *reg_ctx;		/* Context to the reg callback functions */
-#endif
 };
 
 /* osl handle type forward declaration */

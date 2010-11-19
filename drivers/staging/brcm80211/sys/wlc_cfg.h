@@ -23,8 +23,6 @@
 
 #define IS_SINGLEBAND_5G(device)	0
 
-/* Keep WLC_HIGH_ONLY, WLC_SPLIT for USB extension later on */
-
 /* **** Core type/rev defaults **** */
 #define D11_DEFAULT	0x0fffffb0	/* Supported  D11 revs: 4, 5, 7-27
 					 * also need to update wlc.h MAXCOREREV

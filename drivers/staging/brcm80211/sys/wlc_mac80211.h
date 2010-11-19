@@ -815,7 +815,6 @@ struct antsel_info {
 #define WLC_IS_MATCH_SSID(wlc, ssid1, ssid2, len1, len2) \
 	((len1 == len2) && !bcmp(ssid1, ssid2, len1))
 
-/* API shared by both WLC_HIGH and WLC_LOW driver */
 extern void wlc_high_dpc(wlc_info_t *wlc, u32 macintstatus);
 extern void wlc_fatal_error(wlc_info_t *wlc);
 extern void wlc_bmac_rpc_watchdog(wlc_info_t *wlc);

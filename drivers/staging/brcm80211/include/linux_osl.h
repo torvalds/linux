@@ -61,15 +61,6 @@ extern uint osl_pci_slot(struct osl_info *osh);
 		((struct osl_pubinfo *)osh)->tx_ctx = _tx_ctx;	\
 	} while (0)
 
-#if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
-#define REGOPSSET(osh, rreg, wreg, ctx)			\
-	do {						\
-		((struct osl_pubinfo *)osh)->rreg_fn = rreg;	\
-		((struct osl_pubinfo *)osh)->wreg_fn = wreg;	\
-		((struct osl_pubinfo *)osh)->reg_ctx = ctx;	\
-	} while (0)
-#endif
-
 #define BUS_SWAP32(v)		(v)
 
 extern void *osl_dma_alloc_consistent(struct osl_info *osh, uint size,
@@ -320,33 +311,5 @@ osl_pkt_tonative(struct osl_pubinfo *osh, void *pkt)
 						((x) ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE))
 /* PKTSETSUMNEEDED and PKTSUMGOOD are not possible because skb->ip_summed is overloaded */
 #define PKTSHARED(skb)                  (((struct sk_buff *)(skb))->cloned)
-
-#if defined(BCMSDIO) && !defined(BRCM_FULLMAC)
-#define RPC_READ_REG(osh, r) (\
-	sizeof(*(r)) == sizeof(u8) ? osl_readb((osh), (volatile u8*)(r)) : \
-	sizeof(*(r)) == sizeof(u16) ? osl_readw((osh), (volatile u16*)(r)) : \
-	osl_readl((osh), (volatile u32*)(r)) \
-)
-#define RPC_WRITE_REG(osh, r, v) do { \
-	switch (sizeof(*(r))) { \
-	case sizeof(u8): \
-		osl_writeb((osh), (volatile u8*)(r), (u8)(v)); \
-		break; \
-	case sizeof(u16): \
-		osl_writew((osh), (volatile u16*)(r), (u16)(v)); \
-		break; \
-	case sizeof(u32): \
-		osl_writel((osh), (volatile u32*)(r), (u32)(v)); \
-		break; \
-	} \
-} while (0)
-
-extern u8 osl_readb(struct osl_info *osh, volatile u8 *r);
-extern u16 osl_readw(struct osl_info *osh, volatile u16 *r);
-extern u32 osl_readl(struct osl_info *osh, volatile u32 *r);
-extern void osl_writeb(struct osl_info *osh, volatile u8 *r, u8 v);
-extern void osl_writew(struct osl_info *osh, volatile u16 *r, u16 v);
-extern void osl_writel(struct osl_info *osh, volatile u32 *r, u32 v);
-#endif				/* BCMSDIO */
 
 #endif				/* _linux_osl_h_ */

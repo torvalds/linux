@@ -610,10 +610,6 @@ extern void wlc_pmkid_event(struct wlc_bsscfg *cfg);
 #define BAND_2G_NAME		"2.4G"
 #define BAND_5G_NAME		"5G"
 
-#if defined(BCMSDIO) || defined(WLC_HIGH_ONLY)
-void wlc_device_removed(void *arg);
-#endif
-
 /* BMAC RPC: 7 u32 params: pkttotlen, fifo, commit, fid, txpktpend, pktflag, rpc_id */
 #define WLC_RPCTX_PARAMS		32
 
