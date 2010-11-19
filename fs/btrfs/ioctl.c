@@ -1873,8 +1873,8 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			 * but shouldn't round up the file size
 			 */
 			endoff = new_key.offset + datal;
-			if (endoff > off+olen)
-				endoff = off+olen;
+			if (endoff > destoff+olen)
+				endoff = destoff+olen;
 			if (endoff > inode->i_size)
 				btrfs_i_size_write(inode, endoff);
 
