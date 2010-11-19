@@ -553,12 +553,12 @@ static int carl9170_usb_flush(struct ar9170 *ar)
 		usb_free_urb(urb);
 	}
 
-	ret = usb_wait_anchor_empty_timeout(&ar->tx_cmd, HZ);
+	ret = usb_wait_anchor_empty_timeout(&ar->tx_cmd, 1000);
 	if (ret == 0)
 		err = -ETIMEDOUT;
 
 	/* lets wait a while until the tx - queues are dried out */
-	ret = usb_wait_anchor_empty_timeout(&ar->tx_anch, HZ);
+	ret = usb_wait_anchor_empty_timeout(&ar->tx_anch, 1000);
 	if (ret == 0)
 		err = -ETIMEDOUT;
 

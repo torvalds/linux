@@ -303,7 +303,7 @@ static inline void neigh_confirm(struct neighbour *neigh)
 
 static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 {
-	unsigned long now = ACCESS_ONCE(jiffies);
+	unsigned long now = jiffies;
 	
 	if (neigh->used != now)
 		neigh->used = now;

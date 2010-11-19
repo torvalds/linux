@@ -9064,7 +9064,7 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	default:
 		pr_err("Unknown board_type (%ld), aborting\n",
 			   ent->driver_data);
-		return ENODEV;
+		return -ENODEV;
 	}
 
 	cid_count += CNIC_CONTEXT_USE;
