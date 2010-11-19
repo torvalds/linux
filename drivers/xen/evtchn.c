@@ -431,7 +431,7 @@ static int evtchn_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = u;
 
-	return 0;
+	return nonseekable_open(inode, filp);;
 }
 
 static int evtchn_release(struct inode *inode, struct file *filp)
@@ -467,7 +467,7 @@ static const struct file_operations evtchn_fops = {
 	.fasync  = evtchn_fasync,
 	.open    = evtchn_open,
 	.release = evtchn_release,
-	.llseek = noop_llseek,
+	.llseek	 = no_llseek,
 };
 
 static struct miscdevice evtchn_miscdev = {
