@@ -591,7 +591,7 @@ static struct tps6507x_board tps_board = {
 	.tps6507x_ts_init_data = &tps6507x_touchscreen_data,
 };
 
-static struct i2c_board_info __initdata da850evm_tps65070_info[] = {
+static struct i2c_board_info __initdata da850_evm_tps65070_info[] = {
 	{
 		I2C_BOARD_INFO("tps6507x", 0x48),
 		.platform_data = &tps_board,
@@ -600,8 +600,8 @@ static struct i2c_board_info __initdata da850evm_tps65070_info[] = {
 
 static int __init pmic_tps65070_init(void)
 {
-	return i2c_register_board_info(1, da850evm_tps65070_info,
-					ARRAY_SIZE(da850evm_tps65070_info));
+	return i2c_register_board_info(1, da850_evm_tps65070_info,
+					ARRAY_SIZE(da850_evm_tps65070_info));
 }
 
 static const short da850_evm_lcdc_pins[] = {
