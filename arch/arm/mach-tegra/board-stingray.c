@@ -101,82 +101,6 @@ __tagtable(ATAG_NVIDIA, parse_tag_nvidia);
 static unsigned long ramconsole_start = SZ_512M - SZ_1M;
 static unsigned long ramconsole_size = SZ_1M;
 
-static struct plat_serial8250_port hs_uarta_platform_data[] = {
-	{
-		.mapbase	= TEGRA_UARTA_BASE,
-		.membase	= IO_ADDRESS(TEGRA_UARTA_BASE),
-		.irq		= INT_UARTA,
-	}, {
-		.flags		= 0
-	}
-};
-
-static struct platform_device hs_uarta = {
-	.name = "tegra_uart",
-	.id = 0,
-	.dev = {
-		.platform_data = hs_uarta_platform_data,
-		.coherent_dma_mask = 0xffffffff,
-	},
-};
-
-static struct plat_serial8250_port hs_uartc_platform_data[] = {
-	{
-		.mapbase	= TEGRA_UARTC_BASE,
-		.membase	= IO_ADDRESS(TEGRA_UARTC_BASE),
-		.irq		= INT_UARTC,
-	}, {
-		.flags		= 0
-	}
-};
-
-static struct platform_device hs_uartc = {
-	.name = "tegra_uart",
-	.id = 2,
-	.dev = {
-		.platform_data = hs_uartc_platform_data,
-		.coherent_dma_mask = 0xffffffff,
-	},
-};
-
-static struct plat_serial8250_port hs_uartd_platform_data[] = {
-	{
-		.mapbase	= TEGRA_UARTD_BASE,
-		.membase	= IO_ADDRESS(TEGRA_UARTD_BASE),
-		.irq		= INT_UARTD,
-	}, {
-		.flags		= 0
-	}
-};
-
-static struct platform_device hs_uartd = {
-	.name = "tegra_uart",
-	.id = 3,
-	.dev = {
-		.platform_data = hs_uartd_platform_data,
-		.coherent_dma_mask = 0xffffffff,
-	},
-};
-
-static struct plat_serial8250_port hs_uarte_platform_data[] = {
-	{
-		.mapbase	= TEGRA_UARTE_BASE,
-		.membase	= IO_ADDRESS(TEGRA_UARTE_BASE),
-		.irq		= INT_UARTE,
-	}, {
-		.flags		= 0
-	}
-};
-
-static struct platform_device hs_uarte = {
-	.name = "tegra_uart",
-	.id = 4,
-	.dev = {
-		.platform_data = hs_uarte_platform_data,
-		.coherent_dma_mask = 0xffffffff,
-	},
-};
-
 static struct resource mdm6600_resources[] = {
 	[0] = {
 		.flags = IORESOURCE_IRQ,
@@ -608,10 +532,10 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&cpcap_otg,
 	&bq24617_device,
 	&bcm4329_rfkill,
-	&hs_uarta,
-	&hs_uartc,
-	&hs_uartd,
-	&hs_uarte,
+	&tegra_uarta_device,
+	&tegra_uartc_device,
+	&tegra_uartd_device,
+	&tegra_uarte_device,
 	&tegra_spi_device1,
 	&tegra_spi_device2,
 	&tegra_spi_device3,
