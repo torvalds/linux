@@ -1221,8 +1221,8 @@ static int __devexit tegra_uart_remove(struct platform_device *pdev)
 static int tegra_uart_probe(struct platform_device *pdev)
 {
 	struct tegra_uart_port *t;
-	struct plat_serial8250_port *pdata = pdev->dev.platform_data;
 	struct uart_port *u;
+	struct resource *resource;
 	int ret;
 	char name[64];
 	if (pdev->id < 0 || pdev->id > tegra_uart_driver.nr) {
@@ -1242,9 +1242,20 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	u->ops = &tegra_uart_ops;
 	u->type = ~PORT_UNKNOWN;
 	u->fifosize = 32;
-	u->mapbase = pdata->mapbase;
-	u->membase = pdata->membase;
-	u->irq = pdata->irq;
+
+	resource = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (unlikely(!resource))
+		return -ENXIO;
+
+	u->mapbase = resource->start;
+	u->membase = IO_ADDRESS(u->mapbase);
+	if (unlikely(!u->membase))
+		return -ENOMEM;
+
+	u->irq = platform_get_irq(pdev, 0);
+	if (unlikely(u->irq < 0))
+		return -ENXIO;
+
 	u->regshift = 2;
 
 	t->clk = clk_get(&pdev->dev, NULL);

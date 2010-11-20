@@ -638,102 +638,117 @@ struct platform_device tegra_pwfm3_device = {
 	.resource	= &tegra_pwfm3_resource,
 };
 
-static struct plat_serial8250_port tegra_uart0_port[] = {
+static struct resource tegra_uarta_resources[] = {
 	[0] = {
-		.mapbase	= TEGRA_UARTA_BASE,
-		.membase	= IO_ADDRESS(TEGRA_UARTA_BASE),
-		.irq		= INT_UARTA,
+		.start 	= TEGRA_UARTA_BASE,
+		.end	= TEGRA_UARTA_BASE + TEGRA_UARTA_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.flags		= 0,
+		.start	= INT_UARTA,
+		.end	= INT_UARTA,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
-static struct plat_serial8250_port tegra_uart1_port[] = {
+static struct resource tegra_uartb_resources[]= {
 	[0] = {
-		.mapbase	= TEGRA_UARTB_BASE,
-		.membase	= IO_ADDRESS(TEGRA_UARTB_BASE),
-		.irq		= INT_UARTB,
+		.start 	= TEGRA_UARTB_BASE,
+		.end	= TEGRA_UARTB_BASE + TEGRA_UARTB_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.flags		= 0,
+		.start	= INT_UARTB,
+		.end	= INT_UARTB,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
-static struct plat_serial8250_port tegra_uart2_port[] = {
+static struct resource tegra_uartc_resources[] = {
 	[0] = {
-		.mapbase	= TEGRA_UARTC_BASE,
-		.membase	= IO_ADDRESS(TEGRA_UARTC_BASE),
-		.irq		= INT_UARTC,
+		.start 	= TEGRA_UARTC_BASE,
+		.end	= TEGRA_UARTC_BASE + TEGRA_UARTC_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.flags		= 0,
+		.start	= INT_UARTC,
+		.end	= INT_UARTC,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
-static struct plat_serial8250_port tegra_uart3_port[] = {
+static struct resource tegra_uartd_resources[] = {
 	[0] = {
-		.mapbase	= TEGRA_UARTD_BASE,
-		.membase	= IO_ADDRESS(TEGRA_UARTD_BASE),
-		.irq		= INT_UARTD,
+		.start 	= TEGRA_UARTD_BASE,
+		.end	= TEGRA_UARTD_BASE + TEGRA_UARTD_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.flags		= 0,
+		.start	= INT_UARTD,
+		.end	= INT_UARTD,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
-static struct plat_serial8250_port tegra_uart4_port[] = {
+static struct resource tegra_uarte_resources[] = {
 	[0] = {
-		.mapbase	= TEGRA_UARTE_BASE,
-		.membase	= IO_ADDRESS(TEGRA_UARTE_BASE),
-		.irq		= INT_UARTE,
+		.start 	= TEGRA_UARTE_BASE,
+		.end	= TEGRA_UARTE_BASE + TEGRA_UARTE_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.flags		= 0,
+		.start	= INT_UARTE,
+		.end	= INT_UARTE,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
-struct platform_device tegra_uart0_device = {
+struct platform_device tegra_uarta_device = {
 	.name	= "tegra_uart",
 	.id	= 0,
+	.num_resources	= ARRAY_SIZE(tegra_uarta_resources),
+	.resource	= tegra_uarta_resources,
 	.dev	= {
-		.platform_data		= tegra_uart0_port,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
-struct platform_device tegra_uart1_device = {
+struct platform_device tegra_uartb_device = {
 	.name	= "tegra_uart",
 	.id	= 1,
+	.num_resources	= ARRAY_SIZE(tegra_uartb_resources),
+	.resource	= tegra_uartb_resources,
 	.dev	= {
-		.platform_data		= tegra_uart1_port,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
-struct platform_device tegra_uart2_device = {
+struct platform_device tegra_uartc_device = {
 	.name	= "tegra_uart",
 	.id	= 2,
+	.num_resources	= ARRAY_SIZE(tegra_uartc_resources),
+	.resource	= tegra_uartc_resources,
 	.dev	= {
-		.platform_data		= tegra_uart2_port,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
-struct platform_device tegra_uart3_device = {
+struct platform_device tegra_uartd_device = {
 	.name	= "tegra_uart",
 	.id	= 3,
+	.num_resources	= ARRAY_SIZE(tegra_uartd_resources),
+	.resource	= tegra_uartd_resources,
 	.dev	= {
-		.platform_data		= tegra_uart3_port,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
 
-struct platform_device tegra_uart4_device = {
+struct platform_device tegra_uarte_device = {
 	.name	= "tegra_uart",
 	.id	= 4,
+	.num_resources	= ARRAY_SIZE(tegra_uarte_resources),
+	.resource	= tegra_uarte_resources,
 	.dev	= {
-		.platform_data		= tegra_uart4_port,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
