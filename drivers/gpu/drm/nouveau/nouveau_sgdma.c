@@ -241,12 +241,6 @@ nouveau_sgdma_init(struct drm_device *dev)
 	}
 
 	if (dev_priv->card_type < NV_50) {
-		/* special case, allocated from global instmem heap so
-		 * cinst is invalid, we use it on all channels though so
-		 * cinst needs to be valid, set it the same as pinst
-		 */
-		gpuobj->cinst = gpuobj->pinst;
-
 		nv_wo32(gpuobj, 0, NV_CLASS_DMA_IN_MEMORY |
 				   (1 << 12) /* PT present */ |
 				   (0 << 13) /* PT *not* linear */ |

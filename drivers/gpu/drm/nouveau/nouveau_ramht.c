@@ -104,12 +104,12 @@ nouveau_ramht_insert(struct nouveau_channel *chan, u32 handle,
 	nouveau_gpuobj_ref(gpuobj, &entry->gpuobj);
 
 	if (dev_priv->card_type < NV_40) {
-		ctx = NV_RAMHT_CONTEXT_VALID | (gpuobj->cinst >> 4) |
+		ctx = NV_RAMHT_CONTEXT_VALID | (gpuobj->pinst >> 4) |
 		      (chan->id << NV_RAMHT_CONTEXT_CHANNEL_SHIFT) |
 		      (gpuobj->engine << NV_RAMHT_CONTEXT_ENGINE_SHIFT);
 	} else
 	if (dev_priv->card_type < NV_50) {
-		ctx = (gpuobj->cinst >> 4) |
+		ctx = (gpuobj->pinst >> 4) |
 		      (chan->id << NV40_RAMHT_CONTEXT_CHANNEL_SHIFT) |
 		      (gpuobj->engine << NV40_RAMHT_CONTEXT_ENGINE_SHIFT);
 	} else {

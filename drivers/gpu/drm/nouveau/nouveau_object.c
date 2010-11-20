@@ -202,11 +202,7 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 		if (gpuobj->pinst != ~0)
 			gpuobj->pinst += ramin->start;
 
-		if (dev_priv->card_type < NV_50)
-			gpuobj->cinst = gpuobj->pinst;
-		else
-			gpuobj->cinst = ramin->start;
-
+		gpuobj->cinst = ramin->start;
 		gpuobj->vinst = ramin->start + chan->ramin->vinst;
 		gpuobj->node  = ramin;
 	} else {
