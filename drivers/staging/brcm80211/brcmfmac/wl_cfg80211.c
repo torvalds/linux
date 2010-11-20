@@ -29,10 +29,6 @@
 #include <dhdioctl.h>
 #include <wlioctl.h>
 
-#include <proto/ethernet.h>
-#include <dngl_stats.h>
-#include <dhd.h>
-
 #include <linux/kthread.h>
 #include <linux/netdevice.h>
 #include <linux/sched.h>
