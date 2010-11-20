@@ -171,8 +171,6 @@ struct nfs_cache_array {
 	struct nfs_cache_array_entry array[0];
 };
 
-#define MAX_READDIR_ARRAY ((PAGE_SIZE - sizeof(struct nfs_cache_array)) / sizeof(struct nfs_cache_array_entry))
-
 typedef __be32 * (*decode_dirent_t)(struct xdr_stream *, struct nfs_entry *, struct nfs_server *, int);
 typedef struct {
 	struct file	*file;
@@ -257,11 +255,14 @@ int nfs_readdir_add_to_array(struct nfs_entry *entry, struct page *page)
 
 	if (IS_ERR(array))
 		return PTR_ERR(array);
-	ret = -ENOSPC;
-	if (array->size >= MAX_READDIR_ARRAY)
-		goto out;
 
 	cache_entry = &array->array[array->size];
+
+	/* Check that this entry lies within the page bounds */
+	ret = -ENOSPC;
+	if ((char *)&cache_entry[1] - (char *)page_address(page) > PAGE_SIZE)
+		goto out;
+
 	cache_entry->cookie = entry->prev_cookie;
 	cache_entry->ino = entry->ino;
 	ret = nfs_readdir_make_qstr(&cache_entry->string, entry->name, entry->len);
