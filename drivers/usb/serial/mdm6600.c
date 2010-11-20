@@ -628,6 +628,7 @@ static void mdm6600_read_int_callback(struct urb *u)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
+	case -EPROTO:
 		dbg("%s: urb terminated, status %d", __func__, u->status);
 		return;
 	default:
@@ -766,6 +767,7 @@ static void mdm6600_read_bulk_cb(struct urb *u)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
+	case -EPROTO:
 		dbg("%s: urb terminated, status %d", __func__, u->status);
 		usb_anchor_urb(u, &modem->read.free_list);
 		return;
