@@ -701,11 +701,12 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 	int res = 0;
 	struct nfs_cache_array *array = NULL;
 	unsigned int d_type = DT_UNKNOWN;
-	struct dentry *dentry = NULL;
 
 	array = nfs_readdir_get_array(desc->page);
-	if (IS_ERR(array))
-		return PTR_ERR(array);
+	if (IS_ERR(array)) {
+		res = PTR_ERR(array);
+		goto out;
+	}
 
 	for (i = desc->cache_entry_index; i < array->size; i++) {
 		d_type = DT_UNKNOWN;
@@ -726,9 +727,8 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 		desc->eof = 1;
 
 	nfs_readdir_release_array(desc->page);
+out:
 	cache_page_release(desc);
-	if (dentry != NULL)
-		dput(dentry);
 	dfprintk(DIRCACHE, "NFS: nfs_do_filldir() filling ended @ cookie %Lu; returning = %d\n",
 			(unsigned long long)*desc->dir_cookie, res);
 	return res;
