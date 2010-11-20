@@ -916,6 +916,7 @@ static void __init tegra_stingray_init(void)
 	gpio_export(TEGRA_GPIO_PV5, false);
 	if (stingray_revision() <= STINGRAY_REVISION_P0) {
 		bq24617_device.resource = bq24617_resources_m1_p0;
+		bq24617_device.num_resources = ARRAY_SIZE(bq24617_resources_m1_p0);
 
 		tegra_gpio_enable(TEGRA_GPIO_PV6);
 		gpio_request(TEGRA_GPIO_PV6, "chg_stat2");
