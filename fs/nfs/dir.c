@@ -763,13 +763,14 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 		goto out;
 	}
 
+	desc->page_index = 0;
+	desc->page = page;
+
 	if (nfs_readdir_xdr_to_array(desc, page, inode) == -1) {
 		status = -EIO;
 		goto out_release;
 	}
 
-	desc->page_index = 0;
-	desc->page = page;
 	status = nfs_do_filldir(desc, dirent, filldir);
 
  out:
