@@ -656,7 +656,7 @@ nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, struct nfs_s
 out_overflow:
 	print_overflow_msg(__func__, xdr);
 out_overflow_exit:
-	return ERR_PTR(-EIO);
+	return ERR_PTR(-EAGAIN);
 }
 
 /*
