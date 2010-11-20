@@ -248,8 +248,7 @@ char * __init xen_memory_setup(void)
 	else
 		extra_pages = 0;
 
-	if (!xen_initial_domain())
-		xen_add_extra_mem(extra_pages);
+	xen_add_extra_mem(extra_pages);
 
 	return "Xen";
 }
