@@ -2367,7 +2367,7 @@ static inline char *alloc_one_pg_vec_page(unsigned long order,
 	 * __get_free_pages failed, fall back to vmalloc
 	 */
 	*flags |= PGV_FROM_VMALLOC;
-	buffer = vmalloc((1 << order) * PAGE_SIZE);
+	buffer = vzalloc((1 << order) * PAGE_SIZE);
 
 	if (buffer)
 		return buffer;
