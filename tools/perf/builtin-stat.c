@@ -153,9 +153,9 @@ struct stats			walltime_nsecs_stats;
 	 attrs[counter].config == PERF_COUNT_##c)
 
 #define ERR_PERF_OPEN \
-"Error: counter %d, sys_perf_event_open() syscall returned with %d (%s)\n"
+"counter %d, sys_perf_event_open() syscall returned with %d (%s).  /bin/dmesg may provide additional information."
 
-static int create_perf_stat_counter(int counter)
+static int create_perf_stat_counter(int counter, bool *perm_err)
 {
 	struct perf_event_attr *attr = attrs + counter;
 	int thread;
@@ -171,11 +171,14 @@ static int create_perf_stat_counter(int counter)
 		for (cpu = 0; cpu < nr_cpus; cpu++) {
 			fd[cpu][counter][0] = sys_perf_event_open(attr,
 					-1, cpumap[cpu], -1, 0);
-			if (fd[cpu][counter][0] < 0)
-				pr_debug(ERR_PERF_OPEN, counter,
+			if (fd[cpu][counter][0] < 0) {
+				if (errno == EPERM || errno == EACCES)
+					*perm_err = true;
+				error(ERR_PERF_OPEN, counter,
 					 fd[cpu][counter][0], strerror(errno));
-			else
+			} else {
 				++ncreated;
+			}
 		}
 	} else {
 		attr->inherit = !no_inherit;
@@ -186,12 +189,15 @@ static int create_perf_stat_counter(int counter)
 		for (thread = 0; thread < thread_num; thread++) {
 			fd[0][counter][thread] = sys_perf_event_open(attr,
 				all_tids[thread], -1, -1, 0);
-			if (fd[0][counter][thread] < 0)
-				pr_debug(ERR_PERF_OPEN, counter,
+			if (fd[0][counter][thread] < 0) {
+				if (errno == EPERM || errno == EACCES)
+					*perm_err = true;
+				error(ERR_PERF_OPEN, counter,
 					 fd[0][counter][thread],
 					 strerror(errno));
-			else
+			} else {
 				++ncreated;
+			}
 		}
 	}
 
@@ -332,6 +338,7 @@ static int run_perf_stat(int argc __used, const char **argv)
 	int status = 0;
 	int counter, ncreated = 0;
 	int child_ready_pipe[2], go_pipe[2];
+	bool perm_err = false;
 	const bool forks = (argc > 0);
 	char buf;
 
@@ -390,12 +397,15 @@ static int run_perf_stat(int argc __used, const char **argv)
 	}
 
 	for (counter = 0; counter < nr_counters; counter++)
-		ncreated += create_perf_stat_counter(counter);
+		ncreated += create_perf_stat_counter(counter, &perm_err);
 
-	if (ncreated == 0) {
-		pr_err("No permission to collect %sstats.\n"
-		       "Consider tweaking /proc/sys/kernel/perf_event_paranoid.\n",
-		       system_wide ? "system-wide " : "");
+	if (ncreated < nr_counters) {
+		if (perm_err)
+			error("You may not have permission to collect %sstats.\n"
+			      "\t Consider tweaking"
+			      " /proc/sys/kernel/perf_event_paranoid or running as root.",
+			      system_wide ? "system-wide " : "");
+		die("Not all events could be opened.\n");
 		if (child_pid != -1)
 			kill(child_pid, SIGTERM);
 		return -1;

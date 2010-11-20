@@ -1214,7 +1214,9 @@ try_again:
 			int err = errno;
 
 			if (err == EPERM || err == EACCES)
-				die("No permission - are you root?\n");
+				die("Permission error - are you root?\n"
+					"\t Consider tweaking"
+					" /proc/sys/kernel/perf_event_paranoid.\n");
 			/*
 			 * If it's cycles then fall back to hrtimer
 			 * based cpu-clock-tick sw counter, which
@@ -1231,7 +1233,7 @@ try_again:
 				goto try_again;
 			}
 			printf("\n");
-			error("perfcounter syscall returned with %d (%s)\n",
+			error("sys_perf_event_open() syscall returned with %d (%s).  /bin/dmesg may provide additional information.\n",
 					fd[i][counter][thread_index], strerror(err));
 			die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 			exit(-1);

@@ -326,7 +326,7 @@ try_again:
 				goto try_again;
 			}
 			printf("\n");
-			error("perfcounter syscall returned with %d (%s)\n",
+			error("sys_perf_event_open() syscall returned with %d (%s).  /bin/dmesg may provide additional information.\n",
 					fd[nr_cpu][counter][thread_index], strerror(err));
 
 #if defined(__i386__) || defined(__x86_64__)
