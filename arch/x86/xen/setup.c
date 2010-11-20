@@ -23,7 +23,6 @@
 #include <xen/interface/callback.h>
 #include <xen/interface/memory.h>
 #include <xen/interface/physdev.h>
-#include <xen/interface/memory.h>
 #include <xen/features.h>
 
 #include "xen-ops.h"
