@@ -424,8 +424,9 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		switch (dev_priv->gart_info.type) {
 		case NOUVEAU_GART_AGP:
 			man->flags = TTM_MEMTYPE_FLAG_MAPPABLE;
-			man->available_caching = TTM_PL_FLAG_UNCACHED;
-			man->default_caching = TTM_PL_FLAG_UNCACHED;
+			man->available_caching = TTM_PL_FLAG_UNCACHED |
+				TTM_PL_FLAG_WC;
+			man->default_caching = TTM_PL_FLAG_WC;
 			break;
 		case NOUVEAU_GART_SGDMA:
 			man->flags = TTM_MEMTYPE_FLAG_MAPPABLE |
