@@ -709,13 +709,15 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 	}
 
 	for (i = desc->cache_entry_index; i < array->size; i++) {
+		struct nfs_cache_array_entry *ent;
 		d_type = DT_UNKNOWN;
 
-		res = filldir(dirent, array->array[i].string.name,
-			array->array[i].string.len, file->f_pos,
-			nfs_compat_user_ino64(array->array[i].ino), d_type);
-		if (res < 0)
+		ent = &array->array[i];
+		if (filldir(dirent, ent->string.name, ent->string.len,
+		    file->f_pos, nfs_compat_user_ino64(ent->ino), d_type) < 0) {
+			desc->eof = 1;
 			break;
+		}
 		file->f_pos++;
 		desc->cache_entry_index = i;
 		if (i < (array->size-1))
@@ -820,14 +822,14 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		res = readdir_search_pagecache(desc);
 
 		if (res == -EBADCOOKIE) {
+			res = 0;
 			/* This means either end of directory */
 			if (*desc->dir_cookie && desc->eof == 0) {
 				/* Or that the server has 'lost' a cookie */
 				res = uncached_readdir(desc, dirent, filldir);
-				if (res >= 0)
+				if (res == 0)
 					continue;
 			}
-			res = 0;
 			break;
 		}
 		if (res == -ETOOSMALL && desc->plus) {
@@ -842,10 +844,8 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			break;
 
 		res = nfs_do_filldir(desc, dirent, filldir);
-		if (res < 0) {
-			res = 0;
+		if (res < 0)
 			break;
-		}
 	}
 out:
 	nfs_unblock_sillyrename(dentry);
