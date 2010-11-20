@@ -106,7 +106,6 @@ static int mdm6600_wake_irq;
  * changed if other ttyUSB have been registered before.
  */
 static int mdm6600_attached_ports;
-static int mdm6600_suspended_ports;
 
 static void mdm6600_read_bulk_work(struct work_struct *work);
 static void mdm6600_read_bulk_cb(struct urb *urb);
@@ -801,11 +800,12 @@ static int mdm6600_suspend(struct usb_interface *intf, pm_message_t message)
 
 	spin_lock_irq(&modem->susp_lock);
 
-	if (!modem->susp_count++ && modem->opened) {
-		if (!mdm6600_suspended_ports++)
-			enable_irq(mdm6600_wake_irq);
+	if (modem->number == MODEM_INTERFACE_NUM)
+		enable_irq(mdm6600_wake_irq);
 
+	if (!modem->susp_count++ && modem->opened) {
 		spin_unlock_irq(&modem->susp_lock);
+
 		dbg("%s: kill urbs", __func__);
 		mdm6600_kill_urbs(modem);
 		return 0;
@@ -826,10 +826,10 @@ static int mdm6600_resume(struct usb_interface *intf)
 
 	spin_lock_irq(&modem->susp_lock);
 
-	if (!--modem->susp_count && modem->opened) {
-		if (!--mdm6600_suspended_ports)
-			disable_irq(mdm6600_wake_irq);
+	if (modem->number == MODEM_INTERFACE_NUM)
+		disable_irq(mdm6600_wake_irq);
 
+	if (!--modem->susp_count && modem->opened) {
 		dbg("%s: submit urbs", __func__);
 		spin_unlock_irq(&modem->susp_lock);
 
