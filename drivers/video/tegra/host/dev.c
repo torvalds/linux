@@ -452,7 +452,7 @@ static int nvhost_ioctl_ctrl_module_mutex(
 	struct nvhost_ctrl_module_mutex_args *args)
 {
 	int err = 0;
-	if (args->id >= NV_HOST1X_SYNCPT_NB_PTS ||
+	if (args->id >= NV_HOST1X_NB_MLOCKS ||
 	    args->lock > 1)
 		return -EINVAL;
 
