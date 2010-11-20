@@ -794,11 +794,9 @@ static void
 nv10_graph_context_switch(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	struct nouveau_channel *chan = NULL;
 	int chid;
 
-	pgraph->fifo_access(dev, false);
 	nouveau_wait_for_idle(dev);
 
 	/* If previous context is valid, we need to save it */
@@ -809,8 +807,6 @@ nv10_graph_context_switch(struct drm_device *dev)
 	chan = dev_priv->channels.ptr[chid];
 	if (chan && chan->pgraph_ctx)
 		nv10_graph_load_context(chan);
-
-	pgraph->fifo_access(dev, true);
 }
 
 #define NV_WRITE_CTX(reg, val) do { \
@@ -980,8 +976,6 @@ nv17_graph_mthd_lma_window(struct nouveau_channel *chan,
 	struct drm_device *dev = chan->dev;
 	struct graph_state *ctx = chan->pgraph_ctx;
 	struct pipe_state *pipe = &ctx->pipe_state;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	uint32_t pipe_0x0040[1], pipe_0x64c0[8], pipe_0x6a80[3], pipe_0x6ab0[3];
 	uint32_t xfmode0, xfmode1;
 	int i;
@@ -1048,8 +1042,6 @@ nv17_graph_mthd_lma_window(struct nouveau_channel *chan,
 
 	nouveau_wait_for_idle(dev);
 
-	pgraph->fifo_access(dev, true);
-
 	return 0;
 }
 
@@ -1058,8 +1050,6 @@ nv17_graph_mthd_lma_enable(struct nouveau_channel *chan,
 			   u32 class, u32 mthd, u32 data)
 {
 	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 
 	nouveau_wait_for_idle(dev);
 
@@ -1067,8 +1057,6 @@ nv17_graph_mthd_lma_enable(struct nouveau_channel *chan,
 		nv_rd32(dev, NV10_PGRAPH_DEBUG_4) | 0x1 << 8);
 	nv_wr32(dev, 0x004006b0,
 		nv_rd32(dev, 0x004006b0) | 0x8 << 24);
-
-	pgraph->fifo_access(dev, true);
 
 	return 0;
 }

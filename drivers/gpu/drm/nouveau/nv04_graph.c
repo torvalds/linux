@@ -373,7 +373,6 @@ nv04_graph_context_switch(struct drm_device *dev)
 	struct nouveau_channel *chan = NULL;
 	int chid;
 
-	pgraph->fifo_access(dev, false);
 	nouveau_wait_for_idle(dev);
 
 	/* If previous context is valid, we need to save it */
@@ -384,8 +383,6 @@ nv04_graph_context_switch(struct drm_device *dev)
 	chan = dev_priv->channels.ptr[chid];
 	if (chan)
 		nv04_graph_load_context(chan);
-
-	pgraph->fifo_access(dev, true);
 }
 
 static uint32_t *ctx_reg(struct graph_state *ctx, uint32_t reg)
