@@ -163,6 +163,7 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 		bf = list_first_entry(&tid->buf_q, struct ath_buf, list);
 		list_move_tail(&bf->list, &bf_head);
 
+		spin_unlock_bh(&txq->axq_lock);
 		fi = get_frame_info(bf->bf_mpdu);
 		if (fi->retries) {
 			ath_tx_update_baw(sc, tid, fi->seqno);
@@ -170,6 +171,7 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 		} else {
 			ath_tx_send_normal(sc, txq, tid, &bf_head);
 		}
+		spin_lock_bh(&txq->axq_lock);
 	}
 
 	spin_unlock_bh(&txq->axq_lock);
