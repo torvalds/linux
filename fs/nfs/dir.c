@@ -466,8 +466,9 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 	struct xdr_stream stream;
 	struct xdr_buf buf;
 	__be32 *ptr = xdr_page;
-	int status;
 	struct nfs_cache_array *array;
+	unsigned int count = 0;
+	int status;
 
 	buf.head->iov_base = xdr_page;
 	buf.head->iov_len = buflen;
@@ -488,6 +489,8 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 			break;
 		}
 
+		count++;
+
 		if (desc->plus == 1)
 			nfs_prime_dcache(desc->file->f_path.dentry, entry);
 
@@ -496,13 +499,14 @@ int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *en
 			break;
 	} while (!entry->eof);
 
-	if (status == -EBADCOOKIE && entry->eof) {
+	if (count == 0 || (status == -EBADCOOKIE && entry->eof == 1)) {
 		array = nfs_readdir_get_array(page);
 		if (!IS_ERR(array)) {
 			array->eof_index = array->size;
 			status = 0;
 			nfs_readdir_release_array(page);
-		}
+		} else
+			status = PTR_ERR(array);
 	}
 	return status;
 }
