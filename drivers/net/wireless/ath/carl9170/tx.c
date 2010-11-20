@@ -1261,7 +1261,7 @@ static void carl9170_tx(struct ar9170 *ar)
 static bool carl9170_tx_ampdu_queue(struct ar9170 *ar,
 	struct ieee80211_sta *sta, struct sk_buff *skb)
 {
-	struct _carl9170_tx_superframe *super = (void *) super;
+	struct _carl9170_tx_superframe *super = (void *) skb->data;
 	struct carl9170_sta_info *sta_info;
 	struct carl9170_sta_tid *agg;
 	struct sk_buff *iter;
