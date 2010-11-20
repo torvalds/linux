@@ -162,6 +162,7 @@ struct nfs_cache_array_entry {
 	u64 cookie;
 	u64 ino;
 	struct qstr string;
+	unsigned char d_type;
 };
 
 struct nfs_cache_array {
@@ -265,6 +266,7 @@ int nfs_readdir_add_to_array(struct nfs_entry *entry, struct page *page)
 
 	cache_entry->cookie = entry->prev_cookie;
 	cache_entry->ino = entry->ino;
+	cache_entry->d_type = entry->d_type;
 	ret = nfs_readdir_make_qstr(&cache_entry->string, entry->name, entry->len);
 	if (ret)
 		goto out;
@@ -701,7 +703,6 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 	int i = 0;
 	int res = 0;
 	struct nfs_cache_array *array = NULL;
-	unsigned int d_type = DT_UNKNOWN;
 
 	array = nfs_readdir_get_array(desc->page);
 	if (IS_ERR(array)) {
@@ -711,11 +712,11 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 
 	for (i = desc->cache_entry_index; i < array->size; i++) {
 		struct nfs_cache_array_entry *ent;
-		d_type = DT_UNKNOWN;
 
 		ent = &array->array[i];
 		if (filldir(dirent, ent->string.name, ent->string.len,
-		    file->f_pos, nfs_compat_user_ino64(ent->ino), d_type) < 0) {
+		    file->f_pos, nfs_compat_user_ino64(ent->ino),
+		    ent->d_type) < 0) {
 			desc->eof = 1;
 			break;
 		}

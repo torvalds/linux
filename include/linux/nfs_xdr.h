@@ -483,6 +483,7 @@ struct nfs_entry {
 	int			eof;
 	struct nfs_fh *		fh;
 	struct nfs_fattr *	fattr;
+	unsigned char		d_type;
 };
 
 /*
