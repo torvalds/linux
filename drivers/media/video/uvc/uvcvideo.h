@@ -4,6 +4,14 @@
 #include <linux/kernel.h>
 #include <linux/videodev2.h>
 
+#ifndef __KERNEL__
+/*
+ * This header provides binary compatibility with applications using the private
+ * uvcvideo API. This API is deprecated and will be removed in 2.6.42.
+ * Applications should be recompiled against the public linux/uvcvideo.h header.
+ */
+#warn "The uvcvideo.h header is deprecated, use linux/uvcvideo.h instead."
+
 /*
  * Dynamic controls
  */
@@ -17,23 +25,6 @@
 #define UVC_CTRL_DATA_TYPE_BITMASK	5
 
 /* Control flags */
-#define UVC_CTRL_FLAG_SET_CUR		(1 << 0)
-#define UVC_CTRL_FLAG_GET_CUR		(1 << 1)
-#define UVC_CTRL_FLAG_GET_MIN		(1 << 2)
-#define UVC_CTRL_FLAG_GET_MAX		(1 << 3)
-#define UVC_CTRL_FLAG_GET_RES		(1 << 4)
-#define UVC_CTRL_FLAG_GET_DEF		(1 << 5)
-/* Control should be saved at suspend and restored at resume. */
-#define UVC_CTRL_FLAG_RESTORE		(1 << 6)
-/* Control can be updated by the camera. */
-#define UVC_CTRL_FLAG_AUTO_UPDATE	(1 << 7)
-
-#define UVC_CTRL_FLAG_GET_RANGE \
-	(UVC_CTRL_FLAG_GET_CUR | UVC_CTRL_FLAG_GET_MIN | \
-	 UVC_CTRL_FLAG_GET_MAX | UVC_CTRL_FLAG_GET_RES | \
-	 UVC_CTRL_FLAG_GET_DEF)
-
-/* Old control flags, don't use */
 #define UVC_CONTROL_SET_CUR	(1 << 0)
 #define UVC_CONTROL_GET_CUR	(1 << 1)
 #define UVC_CONTROL_GET_MIN	(1 << 2)
@@ -47,21 +38,9 @@
 				 UVC_CONTROL_GET_MAX | UVC_CONTROL_GET_RES | \
 				 UVC_CONTROL_GET_DEF)
 
-struct uvc_xu_control_info {
-	__u8 entity[16];
-	__u8 index;
-	__u8 selector;
-	__u16 size;
-	__u32 flags;
-};
-
 struct uvc_menu_info {
 	__u32 value;
 	__u8 name[32];
-};
-
-struct uvc_xu_control_mapping_old {
-	__u8 reserved[64];
 };
 
 struct uvc_xu_control_mapping {
@@ -81,6 +60,20 @@ struct uvc_xu_control_mapping {
 	__u32 reserved[4];
 };
 
+#endif
+
+struct uvc_xu_control_info {
+	__u8 entity[16];
+	__u8 index;
+	__u8 selector;
+	__u16 size;
+	__u32 flags;
+};
+
+struct uvc_xu_control_mapping_old {
+	__u8 reserved[64];
+};
+
 struct uvc_xu_control {
 	__u8 unit;
 	__u8 selector;
@@ -88,25 +81,25 @@ struct uvc_xu_control {
 	__u8 __user *data;
 };
 
-struct uvc_xu_control_query {
-	__u8 unit;
-	__u8 selector;
-	__u8 query;
-	__u16 size;
-	__u8 __user *data;
-};
-
+#ifndef __KERNEL__
 #define UVCIOC_CTRL_ADD		_IOW('U', 1, struct uvc_xu_control_info)
 #define UVCIOC_CTRL_MAP_OLD	_IOWR('U', 2, struct uvc_xu_control_mapping_old)
 #define UVCIOC_CTRL_MAP		_IOWR('U', 2, struct uvc_xu_control_mapping)
 #define UVCIOC_CTRL_GET		_IOWR('U', 3, struct uvc_xu_control)
 #define UVCIOC_CTRL_SET		_IOW('U', 4, struct uvc_xu_control)
-#define UVCIOC_CTRL_QUERY	_IOWR('U', 5, struct uvc_xu_control_query)
+#else
+#define __UVCIOC_CTRL_ADD	_IOW('U', 1, struct uvc_xu_control_info)
+#define __UVCIOC_CTRL_MAP_OLD	_IOWR('U', 2, struct uvc_xu_control_mapping_old)
+#define __UVCIOC_CTRL_MAP	_IOWR('U', 2, struct uvc_xu_control_mapping)
+#define __UVCIOC_CTRL_GET	_IOWR('U', 3, struct uvc_xu_control)
+#define __UVCIOC_CTRL_SET	_IOW('U', 4, struct uvc_xu_control)
+#endif
 
 #ifdef __KERNEL__
 
 #include <linux/poll.h>
 #include <linux/usb/video.h>
+#include <linux/uvcvideo.h>
 
 /* --------------------------------------------------------------------------
  * UVC constants
@@ -184,8 +177,8 @@ struct uvc_xu_control_query {
  * Driver specific constants.
  */
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(1, 0, 0)
-#define DRIVER_VERSION		"v1.0.0"
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(1, 1, 0)
+#define DRIVER_VERSION		"v1.1.0"
 
 /* Number of isochronous URBs. */
 #define UVC_URBS		5
@@ -682,4 +675,3 @@ void uvc_video_decode_isight(struct urb *urb, struct uvc_streaming *stream,
 #endif /* __KERNEL__ */
 
 #endif
-

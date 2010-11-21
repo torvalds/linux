@@ -1036,24 +1036,25 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	 * UVCIOC_CTRL_GET and UVCIOC_CTRL_SET are deprecated and scheduled for
 	 * removal in 2.6.42.
 	 */
-	case UVCIOC_CTRL_ADD:
+	case __UVCIOC_CTRL_ADD:
 		uvc_v4l2_ioctl_warn();
 		return -EEXIST;
 
-	case UVCIOC_CTRL_MAP_OLD:
+	case __UVCIOC_CTRL_MAP_OLD:
 		uvc_v4l2_ioctl_warn();
+	case __UVCIOC_CTRL_MAP:
 	case UVCIOC_CTRL_MAP:
 		return uvc_ioctl_ctrl_map(chain, arg,
-					  cmd == UVCIOC_CTRL_MAP_OLD);
+					  cmd == __UVCIOC_CTRL_MAP_OLD);
 
-	case UVCIOC_CTRL_GET:
-	case UVCIOC_CTRL_SET:
+	case __UVCIOC_CTRL_GET:
+	case __UVCIOC_CTRL_SET:
 	{
 		struct uvc_xu_control *xctrl = arg;
 		struct uvc_xu_control_query xqry = {
 			.unit		= xctrl->unit,
 			.selector	= xctrl->selector,
-			.query		= cmd == UVCIOC_CTRL_GET
+			.query		= cmd == __UVCIOC_CTRL_GET
 					? UVC_GET_CUR : UVC_SET_CUR,
 			.size		= xctrl->size,
 			.data		= xctrl->data,
