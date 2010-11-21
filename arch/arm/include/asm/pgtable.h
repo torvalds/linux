@@ -138,8 +138,7 @@ extern void __pgd_error(const char *file, int line, pgd_t);
  */
 #define FIRST_USER_ADDRESS	PAGE_SIZE
 
-#define FIRST_USER_PGD_NR	1
-#define USER_PTRS_PER_PGD	((TASK_SIZE/PGDIR_SIZE) - FIRST_USER_PGD_NR)
+#define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
 
 /*
  * section address mask and size definitions.
