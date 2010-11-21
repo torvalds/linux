@@ -655,7 +655,8 @@ static void b43_nphy_tx_iq_workaround(struct b43_wldev *dev)
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/clip-detection */
-static void b43_nphy_write_clip_detection(struct b43_wldev *dev, u16 *clip_st)
+static void b43_nphy_write_clip_detection(struct b43_wldev *dev,
+					  const u16 *clip_st)
 {
 	b43_phy_write(dev, B43_NPHY_C1_CLIP1THRES, clip_st[0]);
 	b43_phy_write(dev, B43_NPHY_C2_CLIP1THRES, clip_st[1]);
@@ -731,7 +732,7 @@ static void b43_nphy_stay_in_carrier_search(struct b43_wldev *dev, bool enable)
 	struct b43_phy_n *nphy = phy->n;
 
 	if (enable) {
-		u16 clip[] = { 0xFFFF, 0xFFFF };
+		static const u16 clip[] = { 0xFFFF, 0xFFFF };
 		if (nphy->deaf_count++ == 0) {
 			nphy->classifier_state = b43_nphy_classifier(dev, 0, 0);
 			b43_nphy_classifier(dev, 0x7, 0);
@@ -843,7 +844,7 @@ static void b43_nphy_adjust_lna_gain_table(struct b43_wldev *dev)
 	u16 data[4];
 	s16 gain[2];
 	u16 minmax[2];
-	u16 lna_gain[4] = { -2, 10, 19, 25 };
+	static const u16 lna_gain[4] = { -2, 10, 19, 25 };
 
 	if (nphy->hang_avoid)
 		b43_nphy_stay_in_carrier_search(dev, 1);
@@ -2299,7 +2300,7 @@ static void b43_nphy_int_pa_set_tx_dig_filters(struct b43_wldev *dev)
 {
 	int i, j;
 	/* B43_NPHY_TXF_20CO_S0A1, B43_NPHY_TXF_40CO_S0A1, unknown */
-	u16 offset[] = { 0x186, 0x195, 0x2C5 };
+	static const u16 offset[] = { 0x186, 0x195, 0x2C5 };
 
 	for (i = 0; i < 3; i++)
 		for (j = 0; j < 15; j++)

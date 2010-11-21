@@ -116,7 +116,7 @@ void iwl3945_disable_events(struct iwl_priv *priv)
 	u32 base;		/* SRAM address of event log header */
 	u32 disable_ptr;	/* SRAM address of event-disable bitmap array */
 	u32 array_size;		/* # of u32 entries in array */
-	u32 evt_disable[IWL_EVT_DISABLE_SIZE] = {
+	static const u32 evt_disable[IWL_EVT_DISABLE_SIZE] = {
 		0x00000000,	/*   31 -    0  Event id numbers */
 		0x00000000,	/*   63 -   32 */
 		0x00000000,	/*   95 -   64 */

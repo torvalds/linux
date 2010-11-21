@@ -1996,7 +1996,7 @@ static void iwlagn_set_kill_ack_msk(struct iwl_priv *priv,
 				     struct iwl_bt_uart_msg *uart_msg)
 {
 	u8 kill_ack_msk;
-	__le32 bt_kill_ack_msg[2] = {
+	static const __le32 bt_kill_ack_msg[2] = {
 			cpu_to_le32(0xFFFFFFF), cpu_to_le32(0xFFFFFC00) };
 
 	kill_ack_msk = (((BT_UART_MSG_FRAME3A2DP_MSK |
@@ -2280,7 +2280,7 @@ static const char *get_csr_string(int cmd)
 void iwl_dump_csr(struct iwl_priv *priv)
 {
 	int i;
-	u32 csr_tbl[] = {
+	static const u32 csr_tbl[] = {
 		CSR_HW_IF_CONFIG_REG,
 		CSR_INT_COALESCING,
 		CSR_INT,
@@ -2339,7 +2339,7 @@ int iwl_dump_fh(struct iwl_priv *priv, char **buf, bool display)
 	int pos = 0;
 	size_t bufsz = 0;
 #endif
-	u32 fh_tbl[] = {
+	static const u32 fh_tbl[] = {
 		FH_RSCSR_CHNL0_STTS_WPTR_REG,
 		FH_RSCSR_CHNL0_RBDCB_BASE_REG,
 		FH_RSCSR_CHNL0_WPTR,
