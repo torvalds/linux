@@ -30,7 +30,7 @@ static void hash_init(struct hashtable_t *hash)
 	hash->elements = 0;
 
 	for (i = 0 ; i < hash->size; i++)
-		hash->table[i] = NULL;
+		INIT_HLIST_HEAD(&hash->table[i]);
 }
 
 /* free only the hashtable and the hash itself. */
@@ -70,15 +70,13 @@ struct hashtable_t *hash_new(int size)
 void *hash_remove_bucket(struct hashtable_t *hash, struct hash_it_t *hash_it_t)
 {
 	void *data_save;
+	struct element_t *bucket;
 
-	data_save = hash_it_t->bucket->data;
+	bucket = hlist_entry(hash_it_t->walk, struct element_t, hlist);
+	data_save = bucket->data;
 
-	if (hash_it_t->prev_bucket != NULL)
-		hash_it_t->prev_bucket->next = hash_it_t->bucket->next;
-	else if (hash_it_t->first_bucket != NULL)
-		(*hash_it_t->first_bucket) = hash_it_t->bucket->next;
-
-	kfree(hash_it_t->bucket);
+	hlist_del(hash_it_t->walk);
+	kfree(bucket);
 	hash->elements--;
 
 	return data_save;

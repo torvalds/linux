@@ -22,10 +22,11 @@
 #ifndef _NET_BATMAN_ADV_HASH_H_
 #define _NET_BATMAN_ADV_HASH_H_
 
+#include <linux/list.h>
+
 #define HASHIT(name) struct hash_it_t name = { \
-		.index = -1, .bucket = NULL, \
-		.prev_bucket = NULL, \
-		.first_bucket = NULL }
+		.index = 0, .walk = NULL, \
+		.safe = NULL}
 
 /* callback to a compare function.  should
  * compare 2 element datas for their keys,
@@ -41,18 +42,17 @@ typedef void (*hashdata_free_cb)(void *, void *);
 
 struct element_t {
 	void *data;		/* pointer to the data */
-	struct element_t *next;	/* overflow bucket pointer */
+	struct hlist_node hlist;	/* bucket list pointer */
 };
 
 struct hash_it_t {
-	int index;
-	struct element_t *bucket;
-	struct element_t *prev_bucket;
-	struct element_t **first_bucket;
+	size_t index;
+	struct hlist_node *walk;
+	struct hlist_node *safe;
 };
 
 struct hashtable_t {
-	struct element_t **table;   /* the hashtable itself, with the buckets */
+	struct hlist_head *table;   /* the hashtable itself, with the buckets */
 	int elements;		    /* number of elements registered */
 	int size;		    /* size of hashtable */
 };
@@ -75,19 +75,21 @@ void hash_destroy(struct hashtable_t *hash);
 static inline void hash_delete(struct hashtable_t *hash,
 			       hashdata_free_cb free_cb, void *arg)
 {
-	struct element_t *bucket, *last_bucket;
+	struct hlist_head *head;
+	struct hlist_node *walk, *safe;
+	struct element_t *bucket;
 	int i;
 
 	for (i = 0; i < hash->size; i++) {
-		bucket = hash->table[i];
+		head = &hash->table[i];
 
-		while (bucket != NULL) {
+		hlist_for_each_safe(walk, safe, head) {
+			bucket = hlist_entry(walk, struct element_t, hlist);
 			if (free_cb != NULL)
 				free_cb(bucket->data, arg);
 
-			last_bucket = bucket;
-			bucket = bucket->next;
-			kfree(last_bucket);
+			hlist_del(walk);
+			kfree(bucket);
 		}
 	}
 
@@ -100,36 +102,30 @@ static inline int hash_add(struct hashtable_t *hash,
 			   hashdata_choose_cb choose, void *data)
 {
 	int index;
-	struct element_t *bucket, *prev_bucket = NULL;
+	struct hlist_head *head;
+	struct hlist_node *walk, *safe;
+	struct element_t *bucket;
 
 	if (!hash)
 		return -1;
 
 	index = choose(data, hash->size);
-	bucket = hash->table[index];
+	head = &hash->table[index];
 
-	while (bucket != NULL) {
+	hlist_for_each_safe(walk, safe, head) {
+		bucket = hlist_entry(walk, struct element_t, hlist);
 		if (compare(bucket->data, data))
 			return -1;
-
-		prev_bucket = bucket;
-		bucket = bucket->next;
 	}
 
-	/* found the tail of the list, add new element */
+	/* no duplicate found in list, add new element */
 	bucket = kmalloc(sizeof(struct element_t), GFP_ATOMIC);
 
 	if (bucket == NULL)
 		return -1;
 
 	bucket->data = data;
-	bucket->next = NULL;
-
-	/* and link it */
-	if (prev_bucket == NULL)
-		hash->table[index] = bucket;
-	else
-		prev_bucket->next = bucket;
+	hlist_add_head(&bucket->hlist, head);
 
 	hash->elements++;
 	return 0;
@@ -144,22 +140,16 @@ static inline void *hash_remove(struct hashtable_t *hash,
 				hashdata_choose_cb choose, void *data)
 {
 	struct hash_it_t hash_it_t;
+	struct element_t *bucket;
+	struct hlist_head *head;
 
 	hash_it_t.index = choose(data, hash->size);
-	hash_it_t.bucket = hash->table[hash_it_t.index];
-	hash_it_t.prev_bucket = NULL;
+	head = &hash->table[hash_it_t.index];
 
-	while (hash_it_t.bucket != NULL) {
-		if (compare(hash_it_t.bucket->data, data)) {
-			hash_it_t.first_bucket =
-				(hash_it_t.bucket ==
-				 hash->table[hash_it_t.index] ?
-				 &hash->table[hash_it_t.index] : NULL);
+	hlist_for_each(hash_it_t.walk, head) {
+		bucket = hlist_entry(hash_it_t.walk, struct element_t, hlist);
+		if (compare(bucket->data, data))
 			return hash_remove_bucket(hash, &hash_it_t);
-		}
-
-		hash_it_t.prev_bucket = hash_it_t.bucket;
-		hash_it_t.bucket = hash_it_t.bucket->next;
 	}
 
 	return NULL;
@@ -172,19 +162,20 @@ static inline void *hash_find(struct hashtable_t *hash,
 			      hashdata_choose_cb choose, void *keydata)
 {
 	int index;
+	struct hlist_head *head;
+	struct hlist_node *walk;
 	struct element_t *bucket;
 
 	if (!hash)
 		return NULL;
 
 	index = choose(keydata , hash->size);
-	bucket = hash->table[index];
+	head = &hash->table[index];
 
-	while (bucket != NULL) {
+	hlist_for_each(walk, head) {
+		bucket = hlist_entry(walk, struct element_t, hlist);
 		if (compare(bucket->data, keydata))
 			return bucket->data;
-
-		bucket = bucket->next;
 	}
 
 	return NULL;
@@ -193,13 +184,14 @@ static inline void *hash_find(struct hashtable_t *hash,
 /* resize the hash, returns the pointer to the new hash or NULL on
  * error. removes the old hash on success */
 static inline struct hashtable_t *hash_resize(struct hashtable_t *hash,
-					      hashdata_compare_cb compare,
 					      hashdata_choose_cb choose,
 					      int size)
 {
 	struct hashtable_t *new_hash;
+	struct hlist_head *head, *new_head;
+	struct hlist_node *walk, *safe;
 	struct element_t *bucket;
-	int i;
+	int i, new_index;
 
 	/* initialize a new hash with the new size */
 	new_hash = hash_new(size);
@@ -209,17 +201,20 @@ static inline struct hashtable_t *hash_resize(struct hashtable_t *hash,
 
 	/* copy the elements */
 	for (i = 0; i < hash->size; i++) {
-		bucket = hash->table[i];
+		head = &hash->table[i];
 
-		while (bucket != NULL) {
-			hash_add(new_hash, compare, choose, bucket->data);
-			bucket = bucket->next;
+		hlist_for_each_safe(walk, safe, head) {
+			bucket = hlist_entry(walk, struct element_t, hlist);
+
+			new_index = choose(bucket->data, size);
+			new_head = &new_hash->table[new_index];
+
+			hlist_del(walk);
+			hlist_add_head(walk, new_head);
 		}
 	}
 
-	/* remove hash and eventual overflow buckets but not the content
-	 * itself. */
-	hash_delete(hash, NULL, NULL);
+	hash_destroy(hash);
 
 	return new_hash;
 }
@@ -236,63 +231,29 @@ static inline struct hash_it_t *hash_iterate(struct hashtable_t *hash,
 	if (!iter)
 		return NULL;
 
-	/* sanity checks first (if our bucket got deleted in the last
-	 * iteration): */
-	if (iter->bucket != NULL) {
-		if (iter->first_bucket != NULL) {
-			/* we're on the first element and it got removed after
-			 * the last iteration. */
-			if ((*iter->first_bucket) != iter->bucket) {
-				/* there are still other elements in the list */
-				if ((*iter->first_bucket) != NULL) {
-					iter->prev_bucket = NULL;
-					iter->bucket = (*iter->first_bucket);
-					iter->first_bucket =
-						&hash->table[iter->index];
-					return iter;
-				} else {
-					iter->bucket = NULL;
-				}
+	iter->walk = iter->safe;
+
+	/* we search for the next head with list entries */
+	if (!iter->walk) {
+		while (iter->index < hash->size) {
+			if (hlist_empty(&hash->table[iter->index]))
+				iter->index++;
+			else {
+				iter->walk = hash->table[iter->index].first;
+
+				/* search next time */
+				++iter->index;
+				break;
 			}
-		} else if (iter->prev_bucket != NULL) {
-			/*
-			* we're not on the first element, and the bucket got
-			* removed after the last iteration.  the last bucket's
-			* next pointer is not pointing to our actual bucket
-			* anymore.  select the next.
-			*/
-			if (iter->prev_bucket->next != iter->bucket)
-				iter->bucket = iter->prev_bucket;
 		}
 	}
 
-	/* now as we are sane, select the next one if there is some */
-	if (iter->bucket != NULL) {
-		if (iter->bucket->next != NULL) {
-			iter->prev_bucket = iter->bucket;
-			iter->bucket = iter->bucket->next;
-			iter->first_bucket = NULL;
-			return iter;
-		}
-	}
+	/* return iter when we found bucket otherwise null */
+	if (!iter->walk)
+		return NULL;
 
-	/* if not returned yet, we've reached the last one on the index and have
-	 * to search forward */
-	iter->index++;
-	/* go through the entries of the hash table */
-	while (iter->index < hash->size) {
-		if ((hash->table[iter->index]) != NULL) {
-			iter->prev_bucket = NULL;
-			iter->bucket = hash->table[iter->index];
-			iter->first_bucket = &hash->table[iter->index];
-			return iter;
-		} else {
-			iter->index++;
-		}
-	}
-
-	/* nothing to iterate over anymore */
-	return NULL;
+	iter->safe = iter->walk->next;
+	return iter;
 }
 
 #endif /* _NET_BATMAN_ADV_HASH_H_ */

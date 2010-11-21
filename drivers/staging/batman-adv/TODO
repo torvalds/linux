@@ -1,5 +1,3 @@
- * remove own list functionality from hash
- * use hlist_head, hlist_node in hash
  * Request a new review
  * Process the comments from the review
  * Move into mainline proper

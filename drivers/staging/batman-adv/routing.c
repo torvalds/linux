@@ -38,6 +38,7 @@ void slide_own_bcast_window(struct batman_if *batman_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(batman_if->soft_iface);
 	HASHIT(hashit);
+	struct element_t *bucket;
 	struct orig_node *orig_node;
 	TYPE_OF_WORD *word;
 	unsigned long flags;
@@ -45,7 +46,8 @@ void slide_own_bcast_window(struct batman_if *batman_if)
 	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
 
 	while (hash_iterate(bat_priv->orig_hash, &hashit)) {
-		orig_node = hashit.bucket->data;
+		bucket = hlist_entry(hashit.walk, struct element_t, hlist);
+		orig_node = bucket->data;
 		word = &(orig_node->bcast_own[batman_if->if_num * NUM_WORDS]);
 
 		bit_get_packet(bat_priv, word, 1, 0);
