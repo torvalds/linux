@@ -548,7 +548,7 @@ int lpfc_sli4_brdreset(struct lpfc_hba *);
 int lpfc_sli4_add_fcf_record(struct lpfc_hba *, struct fcf_record *);
 void lpfc_sli_remove_dflt_fcf(struct lpfc_hba *);
 int lpfc_sli4_get_els_iocb_cnt(struct lpfc_hba *);
-int lpfc_sli4_init_vpi(struct lpfc_hba *, uint16_t);
+int lpfc_sli4_init_vpi(struct lpfc_vport *);
 uint32_t lpfc_sli4_cq_release(struct lpfc_queue *, bool);
 uint32_t lpfc_sli4_eq_release(struct lpfc_queue *, bool);
 void lpfc_sli4_fcfi_unreg(struct lpfc_hba *, uint16_t);

@@ -1634,7 +1634,6 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 	case MBX_READ_LNK_STAT:
 	case MBX_REG_LOGIN:
 	case MBX_UNREG_LOGIN:
-	case MBX_READ_LA:
 	case MBX_CLEAR_LA:
 	case MBX_DUMP_MEMORY:
 	case MBX_DUMP_CONTEXT:
@@ -1656,7 +1655,7 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 	case MBX_READ_SPARM64:
 	case MBX_READ_RPI64:
 	case MBX_REG_LOGIN64:
-	case MBX_READ_LA64:
+	case MBX_READ_TOPOLOGY:
 	case MBX_WRITE_WWN:
 	case MBX_SET_DEBUG:
 	case MBX_LOAD_EXP_ROM:
@@ -4357,13 +4356,16 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	}
 
 	rc = lpfc_sli4_read_rev(phba, mboxq, vpd, &vpd_size);
-	if (unlikely(rc))
-		goto out_free_vpd;
-
+	if (unlikely(rc)) {
+		kfree(vpd);
+		goto out_free_mbox;
+	}
 	mqe = &mboxq->u.mqe;
 	phba->sli_rev = bf_get(lpfc_mbx_rd_rev_sli_lvl, &mqe->un.read_rev);
 	if (bf_get(lpfc_mbx_rd_rev_fcoe, &mqe->un.read_rev))
-		phba->hba_flag |= HBA_FCOE_SUPPORT;
+		phba->hba_flag |= HBA_FCOE_MODE;
+	else
+		phba->hba_flag &= ~HBA_FCOE_MODE;
 
 	if (bf_get(lpfc_mbx_rd_rev_cee_ver, &mqe->un.read_rev) ==
 		LPFC_DCBX_CEE_MODE)
@@ -4372,13 +4374,14 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		phba->hba_flag &= ~HBA_FIP_SUPPORT;
 
 	if (phba->sli_rev != LPFC_SLI_REV4 ||
-	    !(phba->hba_flag & HBA_FCOE_SUPPORT)) {
+	    !(phba->hba_flag & HBA_FCOE_MODE)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
 			"0376 READ_REV Error. SLI Level %d "
 			"FCoE enabled %d\n",
-			phba->sli_rev, phba->hba_flag & HBA_FCOE_SUPPORT);
+			phba->sli_rev, phba->hba_flag & HBA_FCOE_MODE);
 		rc = -EIO;
-		goto out_free_vpd;
+		kfree(vpd);
+		goto out_free_mbox;
 	}
 	/*
 	 * Evaluate the read rev and vpd data. Populate the driver
@@ -4392,6 +4395,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 				"Using defaults.\n", rc);
 		rc = 0;
 	}
+	kfree(vpd);
 
 	/* Save information as VPD data */
 	phba->vpd.rev.biuRev = mqe->un.read_rev.first_hw_rev;
@@ -4428,7 +4432,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 	if (unlikely(rc)) {
 		rc = -EIO;
-		goto out_free_vpd;
+		goto out_free_mbox;
 	}
 
 	/*
@@ -4476,7 +4480,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	if (rc) {
 		phba->link_state = LPFC_HBA_ERROR;
 		rc = -ENOMEM;
-		goto out_free_vpd;
+		goto out_free_mbox;
 	}
 
 	mboxq->vport = vport;
@@ -4501,7 +4505,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 				rc, bf_get(lpfc_mqe_status, mqe));
 		phba->link_state = LPFC_HBA_ERROR;
 		rc = -EIO;
-		goto out_free_vpd;
+		goto out_free_mbox;
 	}
 
 	if (phba->cfg_soft_wwnn)
@@ -4526,7 +4530,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 				"0582 Error %d during sgl post operation\n",
 					rc);
 		rc = -ENODEV;
-		goto out_free_vpd;
+		goto out_free_mbox;
 	}
 
 	/* Register SCSI SGL pool to the device */
@@ -4538,7 +4542,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		/* Some Scsi buffers were moved to the abort scsi list */
 		/* A pci function reset will repost them */
 		rc = -ENODEV;
-		goto out_free_vpd;
+		goto out_free_mbox;
 	}
 
 	/* Post the rpi header region to the device. */
@@ -4548,7 +4552,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 				"0393 Error %d during rpi post operation\n",
 				rc);
 		rc = -ENODEV;
-		goto out_free_vpd;
+		goto out_free_mbox;
 	}
 
 	/* Set up all the queues to the device */
@@ -4608,33 +4612,33 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		}
 	}
 
+	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+		/*
+		 * The FC Port needs to register FCFI (index 0)
+		 */
+		lpfc_reg_fcfi(phba, mboxq);
+		mboxq->vport = phba->pport;
+		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+		if (rc == MBX_SUCCESS)
+			rc = 0;
+		else
+			goto out_unset_queue;
+	}
 	/*
 	 * The port is ready, set the host's link state to LINK_DOWN
 	 * in preparation for link interrupts.
 	 */
-	lpfc_init_link(phba, mboxq, phba->cfg_topology, phba->cfg_link_speed);
-	mboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-	lpfc_set_loopback_flag(phba);
-	/* Change driver state to LPFC_LINK_DOWN right before init link */
 	spin_lock_irq(&phba->hbalock);
 	phba->link_state = LPFC_LINK_DOWN;
 	spin_unlock_irq(&phba->hbalock);
-	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
-	if (unlikely(rc != MBX_NOT_FINISHED)) {
-		kfree(vpd);
-		return 0;
-	} else
-		rc = -EIO;
-
+	rc = phba->lpfc_hba_init_link(phba, MBX_NOWAIT);
+out_unset_queue:
 	/* Unset all the queues set up in this routine when error out */
 	if (rc)
 		lpfc_sli4_queue_unset(phba);
-
 out_stop_timers:
 	if (rc)
 		lpfc_stop_hba_timers(phba);
-out_free_vpd:
-	kfree(vpd);
 out_free_mbox:
 	mempool_free(mboxq, phba->mbox_mem_pool);
 	return rc;
@@ -12157,42 +12161,37 @@ lpfc_sli4_resume_rpi(struct lpfc_nodelist *ndlp)
 
 /**
  * lpfc_sli4_init_vpi - Initialize a vpi with the port
- * @phba: pointer to lpfc hba data structure.
- * @vpi: vpi value to activate with the port.
+ * @vport: Pointer to the vport for which the vpi is being initialized
  *
- * This routine is invoked to activate a vpi with the
- * port when the host intends to use vports with a
- * nonzero vpi.
+ * This routine is invoked to activate a vpi with the port.
  *
  * Returns:
  *    0 success
  *    -Evalue otherwise
  **/
 int
-lpfc_sli4_init_vpi(struct lpfc_hba *phba, uint16_t vpi)
+lpfc_sli4_init_vpi(struct lpfc_vport *vport)
 {
 	LPFC_MBOXQ_t *mboxq;
 	int rc = 0;
 	int retval = MBX_SUCCESS;
 	uint32_t mbox_tmo;
-
-	if (vpi == 0)
-		return -EINVAL;
+	struct lpfc_hba *phba = vport->phba;
 	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mboxq)
 		return -ENOMEM;
-	lpfc_init_vpi(phba, mboxq, vpi);
+	lpfc_init_vpi(phba, mboxq, vport->vpi);
 	mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_INIT_VPI);
 	rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
 	if (rc != MBX_SUCCESS) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_SLI,
 				"2022 INIT VPI Mailbox failed "
 				"status %d, mbxStatus x%x\n", rc,
 				bf_get(lpfc_mqe_status, &mboxq->u.mqe));
 		retval = -EIO;
 	}
 	if (rc != MBX_TIMEOUT)
-		mempool_free(mboxq, phba->mbox_mem_pool);
+		mempool_free(mboxq, vport->phba->mbox_mem_pool);
 
 	return retval;
 }

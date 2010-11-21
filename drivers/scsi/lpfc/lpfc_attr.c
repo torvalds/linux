@@ -52,10 +52,6 @@
 #define LPFC_MIN_DEVLOSS_TMO 1
 #define LPFC_MAX_DEVLOSS_TMO 255
 
-#define LPFC_MAX_LINK_SPEED 8
-#define LPFC_LINK_SPEED_BITMAP 0x00000117
-#define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8"
-
 /**
  * lpfc_jedec_to_ascii - Hex to ascii convertor according to JEDEC rules
  * @incr: integer to convert.
@@ -463,7 +459,7 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 		if (phba->sli.sli_flag & LPFC_MENLO_MAINT)
 			len += snprintf(buf + len, PAGE_SIZE-len,
 					"   Menlo Maint Mode\n");
-		else if (phba->fc_topology == TOPOLOGY_LOOP) {
+		else if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 			if (vport->fc_flag & FC_PUBLIC_LOOP)
 				len += snprintf(buf + len, PAGE_SIZE-len,
 						"   Public Loop\n");
@@ -2837,14 +2833,8 @@ static struct bin_attribute sysfs_drvr_stat_data_attr = {
 /*
 # lpfc_link_speed: Link speed selection for initializing the Fibre Channel
 # connection.
-#       0  = auto select (default)
-#       1  = 1 Gigabaud
-#       2  = 2 Gigabaud
-#       4  = 4 Gigabaud
-#       8  = 8 Gigabaud
-# Value range is [0,8]. Default value is 0.
+# Value range is [0,16]. Default value is 0.
 */
-
 /**
  * lpfc_link_speed_set - Set the adapters link speed
  * @phba: lpfc_hba pointer.
@@ -2869,7 +2859,7 @@ lpfc_link_speed_store(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host  *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
-	int val = 0;
+	int val = LPFC_USER_LINK_SPEED_AUTO;
 	int nolip = 0;
 	const char *val_buf = buf;
 	int err;
@@ -2885,15 +2875,20 @@ lpfc_link_speed_store(struct device *dev, struct device_attribute *attr,
 	if (sscanf(val_buf, "%i", &val) != 1)
 		return -EINVAL;
 
-	if (((val == LINK_SPEED_1G) && !(phba->lmt & LMT_1Gb)) ||
-		((val == LINK_SPEED_2G) && !(phba->lmt & LMT_2Gb)) ||
-		((val == LINK_SPEED_4G) && !(phba->lmt & LMT_4Gb)) ||
-		((val == LINK_SPEED_8G) && !(phba->lmt & LMT_8Gb)) ||
-		((val == LINK_SPEED_10G) && !(phba->lmt & LMT_10Gb)))
+	if (((val == LPFC_USER_LINK_SPEED_1G) && !(phba->lmt & LMT_1Gb)) ||
+	    ((val == LPFC_USER_LINK_SPEED_2G) && !(phba->lmt & LMT_2Gb)) ||
+	    ((val == LPFC_USER_LINK_SPEED_4G) && !(phba->lmt & LMT_4Gb)) ||
+	    ((val == LPFC_USER_LINK_SPEED_8G) && !(phba->lmt & LMT_8Gb)) ||
+	    ((val == LPFC_USER_LINK_SPEED_10G) && !(phba->lmt & LMT_10Gb)) ||
+	    ((val == LPFC_USER_LINK_SPEED_16G) && !(phba->lmt & LMT_16Gb))) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2879 lpfc_link_speed attribute cannot be set "
+				"to %d. Speed is not supported by this port.\n",
+				val);
 		return -EINVAL;
-
-	if ((val >= 0 && val <= 8)
-		&& (LPFC_LINK_SPEED_BITMAP & (1 << val))) {
+	}
+	if ((val >= 0) && (val <= LPFC_USER_LINK_SPEED_MAX) &&
+	    (LPFC_USER_LINK_SPEED_BITMAP & (1 << val))) {
 		prev_val = phba->cfg_link_speed;
 		phba->cfg_link_speed = val;
 		if (nolip)
@@ -2906,11 +2901,9 @@ lpfc_link_speed_store(struct device *dev, struct device_attribute *attr,
 		} else
 			return strlen(buf);
 	}
-
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-		"%d:0469 lpfc_link_speed attribute cannot be set to %d, "
-		"allowed range is [0, 8]\n",
-		phba->brd_no, val);
+		"0469 lpfc_link_speed attribute cannot be set to %d, "
+		"allowed values are ["LPFC_LINK_SPEED_STRING"]\n", val);
 	return -EINVAL;
 }
 
@@ -2938,8 +2931,8 @@ lpfc_param_show(link_speed)
 static int
 lpfc_link_speed_init(struct lpfc_hba *phba, int val)
 {
-	if ((val >= 0 && val <= LPFC_MAX_LINK_SPEED)
-		&& (LPFC_LINK_SPEED_BITMAP & (1 << val))) {
+	if ((val >= 0) && (val <= LPFC_USER_LINK_SPEED_MAX) &&
+	    (LPFC_USER_LINK_SPEED_BITMAP & (1 << val))) {
 		phba->cfg_link_speed = val;
 		return 0;
 	}
@@ -2947,12 +2940,12 @@ lpfc_link_speed_init(struct lpfc_hba *phba, int val)
 			"0405 lpfc_link_speed attribute cannot "
 			"be set to %d, allowed values are "
 			"["LPFC_LINK_SPEED_STRING"]\n", val);
-	phba->cfg_link_speed = 0;
+	phba->cfg_link_speed = LPFC_USER_LINK_SPEED_AUTO;
 	return -EINVAL;
 }
 
 static DEVICE_ATTR(lpfc_link_speed, S_IRUGO | S_IWUSR,
-		lpfc_link_speed_show, lpfc_link_speed_store);
+		   lpfc_link_speed_show, lpfc_link_speed_store);
 
 /*
 # lpfc_aer_support: Support PCIe device Advanced Error Reporting (AER)
@@ -3798,8 +3791,7 @@ sysfs_mbox_read(struct file *filp, struct kobject *kobj,
 			}
 			break;
 		case MBX_READ_SPARM64:
-		case MBX_READ_LA:
-		case MBX_READ_LA64:
+		case MBX_READ_TOPOLOGY:
 		case MBX_REG_LOGIN:
 		case MBX_REG_LOGIN64:
 		case MBX_CONFIG_PORT:
@@ -3989,7 +3981,7 @@ lpfc_get_host_port_type(struct Scsi_Host *shost)
 	if (vport->port_type == LPFC_NPIV_PORT) {
 		fc_host_port_type(shost) = FC_PORTTYPE_NPIV;
 	} else if (lpfc_is_link_up(phba)) {
-		if (phba->fc_topology == TOPOLOGY_LOOP) {
+		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 			if (vport->fc_flag & FC_PUBLIC_LOOP)
 				fc_host_port_type(shost) = FC_PORTTYPE_NLPORT;
 			else
@@ -4058,23 +4050,26 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 
 	if (lpfc_is_link_up(phba)) {
 		switch(phba->fc_linkspeed) {
-			case LA_1GHZ_LINK:
-				fc_host_speed(shost) = FC_PORTSPEED_1GBIT;
+		case LPFC_LINK_SPEED_1GHZ:
+			fc_host_speed(shost) = FC_PORTSPEED_1GBIT;
 			break;
-			case LA_2GHZ_LINK:
-				fc_host_speed(shost) = FC_PORTSPEED_2GBIT;
+		case LPFC_LINK_SPEED_2GHZ:
+			fc_host_speed(shost) = FC_PORTSPEED_2GBIT;
 			break;
-			case LA_4GHZ_LINK:
-				fc_host_speed(shost) = FC_PORTSPEED_4GBIT;
+		case LPFC_LINK_SPEED_4GHZ:
+			fc_host_speed(shost) = FC_PORTSPEED_4GBIT;
 			break;
-			case LA_8GHZ_LINK:
-				fc_host_speed(shost) = FC_PORTSPEED_8GBIT;
+		case LPFC_LINK_SPEED_8GHZ:
+			fc_host_speed(shost) = FC_PORTSPEED_8GBIT;
 			break;
-			case LA_10GHZ_LINK:
-				fc_host_speed(shost) = FC_PORTSPEED_10GBIT;
+		case LPFC_LINK_SPEED_10GHZ:
+			fc_host_speed(shost) = FC_PORTSPEED_10GBIT;
 			break;
-			default:
-				fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
+		case LPFC_LINK_SPEED_16GHZ:
+			fc_host_speed(shost) = FC_PORTSPEED_16GBIT;
+			break;
+		default:
+			fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 			break;
 		}
 	} else
@@ -4097,7 +4092,7 @@ lpfc_get_host_fabric_name (struct Scsi_Host *shost)
 	spin_lock_irq(shost->host_lock);
 
 	if ((vport->fc_flag & FC_FABRIC) ||
-	    ((phba->fc_topology == TOPOLOGY_LOOP) &&
+	    ((phba->fc_topology == LPFC_TOPOLOGY_LOOP) &&
 	     (vport->fc_flag & FC_PUBLIC_LOOP)))
 		node_name = wwn_to_u64(phba->fc_fabparam.nodeName.u.wwn);
 	else
@@ -4208,11 +4203,11 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	hs->invalid_crc_count -= lso->invalid_crc_count;
 	hs->error_frames -= lso->error_frames;
 
-	if (phba->hba_flag & HBA_FCOE_SUPPORT) {
+	if (phba->hba_flag & HBA_FCOE_MODE) {
 		hs->lip_count = -1;
 		hs->nos_count = (phba->link_events >> 1);
 		hs->nos_count -= lso->link_events;
-	} else if (phba->fc_topology == TOPOLOGY_LOOP) {
+	} else if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 		hs->lip_count = (phba->fc_eventTag >> 1);
 		hs->lip_count -= lso->link_events;
 		hs->nos_count = -1;
@@ -4303,7 +4298,7 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	lso->invalid_tx_word_count = pmb->un.varRdLnk.invalidXmitWord;
 	lso->invalid_crc_count = pmb->un.varRdLnk.crcCnt;
 	lso->error_frames = pmb->un.varRdLnk.crcCnt;
-	if (phba->hba_flag & HBA_FCOE_SUPPORT)
+	if (phba->hba_flag & HBA_FCOE_MODE)
 		lso->link_events = (phba->link_events >> 1);
 	else
 		lso->link_events = (phba->fc_eventTag >> 1);

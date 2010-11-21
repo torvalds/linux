@@ -523,7 +523,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	phba->fc_edtovResol = sp->cmn.edtovResolution;
 	phba->fc_ratov = (be32_to_cpu(sp->cmn.w2.r_a_tov) + 999) / 1000;
 
-	if (phba->fc_topology == TOPOLOGY_LOOP) {
+	if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_PUBLIC_LOOP;
 		spin_unlock_irq(shost->host_lock);
@@ -832,6 +832,12 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		if (lpfc_els_retry(phba, cmdiocb, rspiocb))
 			goto out;
 
+		/* FLOGI failure */
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0100 FLOGI failure Status:x%x/x%x TMO:x%x\n",
+				 irsp->ulpStatus, irsp->un.ulpWord[4],
+				 irsp->ulpTimeout);
+
 		/* FLOGI failed, so there is no fabric */
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag &= ~(FC_FABRIC | FC_PUBLIC_LOOP);
@@ -843,13 +849,16 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if (phba->alpa_map[0] == 0) {
 			vport->cfg_discovery_threads = LPFC_MAX_DISC_THREADS;
+			if ((phba->sli_rev == LPFC_SLI_REV4) &&
+			    (!(vport->fc_flag & FC_VFI_REGISTERED) ||
+			     (vport->fc_prevDID != vport->fc_myDID))) {
+				if (vport->fc_flag & FC_VFI_REGISTERED)
+					lpfc_sli4_unreg_all_rpis(vport);
+				lpfc_issue_reg_vfi(vport);
+				lpfc_nlp_put(ndlp);
+				goto out;
+			}
 		}
-
-		/* FLOGI failure */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
-				 "0100 FLOGI failure Status:x%x/x%x TMO:x%x\n",
-				 irsp->ulpStatus, irsp->un.ulpWord[4],
-				 irsp->ulpTimeout);
 		goto flogifail;
 	}
 	spin_lock_irq(shost->host_lock);
@@ -879,7 +888,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if (sp->cmn.fPort)
 			rc = lpfc_cmpl_els_flogi_fabric(vport, ndlp, sp, irsp);
-		else if (!(phba->hba_flag & HBA_FCOE_SUPPORT))
+		else if (!(phba->hba_flag & HBA_FCOE_MODE))
 			rc = lpfc_cmpl_els_flogi_nport(vport, ndlp, sp);
 		else {
 			lpfc_printf_vlog(vport, KERN_ERR,
@@ -1027,7 +1036,7 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		icmd->ulpCt_l = 0;
 	}
 
-	if (phba->fc_topology != TOPOLOGY_LOOP) {
+	if (phba->fc_topology != LPFC_TOPOLOGY_LOOP) {
 		icmd->un.elsreq64.myID = 0;
 		icmd->un.elsreq64.fl = 1;
 	}
@@ -2722,7 +2731,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			if (cmd == ELS_CMD_FLOGI) {
 				if (PCI_DEVICE_ID_HORNET ==
 					phba->pcidev->device) {
-					phba->fc_topology = TOPOLOGY_LOOP;
+					phba->fc_topology = LPFC_TOPOLOGY_LOOP;
 					phba->pport->fc_myDID = 0;
 					phba->alpa_map[0] = 0;
 					phba->alpa_map[1] = 0;
@@ -2877,7 +2886,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		retry = 1;
 
 	if (((cmd == ELS_CMD_FLOGI) || (cmd == ELS_CMD_FDISC)) &&
-	    (phba->fc_topology != TOPOLOGY_LOOP) &&
+	    (phba->fc_topology != LPFC_TOPOLOGY_LOOP) &&
 	    !lpfc_error_lost_link(irsp)) {
 		/* FLOGI retry policy */
 		retry = 1;
@@ -4597,7 +4606,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 	lpfc_set_disctmo(vport);
 
-	if (phba->fc_topology == TOPOLOGY_LOOP) {
+	if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 		/* We should never receive a FLOGI in loop mode, ignore it */
 		did = icmd->un.elsreq64.remoteID;
 
@@ -4940,7 +4949,7 @@ lpfc_els_rsp_rps_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	pcmd += sizeof(uint32_t); /* Skip past command */
 	rps_rsp = (RPS_RSP *)pcmd;
 
-	if (phba->fc_topology != TOPOLOGY_LOOP)
+	if (phba->fc_topology != LPFC_TOPOLOGY_LOOP)
 		status = 0x10;
 	else
 		status = 0x8;
@@ -5482,7 +5491,7 @@ lpfc_els_rcv_fan(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		    (memcmp(&phba->fc_fabparam.portName, &fp->FportName,
 			    sizeof(struct lpfc_name)))) {
 			/* This port has switched fabrics. FLOGI is required */
-			lpfc_initial_flogi(vport);
+			lpfc_issue_init_vfi(vport);
 		} else {
 			/* FAN verified - skip FLOGI */
 			vport->fc_myDID = vport->fc_prevDID;
@@ -6373,7 +6382,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	if (!ndlp) {
 		ndlp = mempool_alloc(phba->nlp_mem_pool, GFP_KERNEL);
 		if (!ndlp) {
-			if (phba->fc_topology == TOPOLOGY_LOOP) {
+			if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 				lpfc_disc_start(vport);
 				return;
 			}
@@ -6386,7 +6395,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
 		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_UNUSED_NODE);
 		if (!ndlp) {
-			if (phba->fc_topology == TOPOLOGY_LOOP) {
+			if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
 				lpfc_disc_start(vport);
 				return;
 			}
@@ -6510,7 +6519,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			spin_unlock_irq(shost->host_lock);
 			if (vport->port_type == LPFC_PHYSICAL_PORT
 				&& !(vport->fc_flag & FC_LOGO_RCVD_DID_CHNG))
-				lpfc_initial_flogi(vport);
+				lpfc_issue_init_vfi(vport);
 			else
 				lpfc_initial_fdisc(vport);
 			break;
@@ -6747,7 +6756,7 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	vport->fc_flag &= ~FC_VPORT_CVL_RCVD;
 	vport->fc_flag &= ~FC_VPORT_LOGO_RCVD;
 	vport->fc_flag |= FC_FABRIC;
-	if (vport->phba->fc_topology == TOPOLOGY_LOOP)
+	if (vport->phba->fc_topology == LPFC_TOPOLOGY_LOOP)
 		vport->fc_flag |=  FC_PUBLIC_LOOP;
 	spin_unlock_irq(shost->host_lock);
 
