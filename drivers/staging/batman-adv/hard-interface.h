@@ -47,7 +47,6 @@ static inline void hardif_free_ref(struct kref *refcount)
 	struct batman_if *batman_if;
 
 	batman_if = container_of(refcount, struct batman_if, refcount);
-	dev_put(batman_if->net_dev);
 	kfree(batman_if);
 }
 

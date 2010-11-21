@@ -36,6 +36,15 @@
 /* protect update critical side of if_list - but not the content */
 static DEFINE_SPINLOCK(if_list_lock);
 
+static void hardif_free_rcu(struct rcu_head *rcu)
+{
+	struct batman_if *batman_if;
+
+	batman_if = container_of(rcu, struct batman_if, rcu);
+	dev_put(batman_if->net_dev);
+	kref_put(&batman_if->refcount, hardif_free_ref);
+}
+
 struct batman_if *get_batman_if_by_netdev(struct net_device *net_dev)
 {
 	struct batman_if *batman_if;
@@ -462,9 +471,8 @@ static void hardif_remove_interface(struct batman_if *batman_if)
 		return;
 
 	batman_if->if_status = IF_TO_BE_REMOVED;
-	synchronize_rcu();
 	sysfs_del_hardif(&batman_if->hardif_obj);
-	kref_put(&batman_if->refcount, hardif_free_ref);
+	call_rcu(&batman_if->rcu, hardif_free_rcu);
 }
 
 void hardif_remove_interfaces(void)
