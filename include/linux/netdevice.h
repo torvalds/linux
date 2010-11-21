@@ -503,6 +503,10 @@ struct netdev_queue {
 	struct Qdisc		*qdisc;
 	unsigned long		state;
 	struct Qdisc		*qdisc_sleeping;
+#ifdef CONFIG_RPS
+	struct kobject		kobj;
+#endif
+
 /*
  * write mostly part
  */
@@ -528,6 +532,30 @@ struct rps_map {
 	u16 cpus[0];
 };
 #define RPS_MAP_SIZE(_num) (sizeof(struct rps_map) + (_num * sizeof(u16)))
+
+/*
+ * This structure holds an XPS map which can be of variable length.  The
+ * map is an array of queues.
+ */
+struct xps_map {
+	unsigned int len;
+	unsigned int alloc_len;
+	struct rcu_head rcu;
+	u16 queues[0];
+};
+#define XPS_MAP_SIZE(_num) (sizeof(struct xps_map) + (_num * sizeof(u16)))
+#define XPS_MIN_MAP_ALLOC ((L1_CACHE_BYTES - sizeof(struct xps_map))	\
+    / sizeof(u16))
+
+/*
+ * This structure holds all XPS maps for device.  Maps are indexed by CPU.
+ */
+struct xps_dev_maps {
+	struct rcu_head rcu;
+	struct xps_map *cpu_map[0];
+};
+#define XPS_DEV_MAPS_SIZE (sizeof(struct xps_dev_maps) +		\
+    (nr_cpu_ids * sizeof(struct xps_map *)))
 
 /*
  * The rps_dev_flow structure contains the mapping of a flow to a CPU and the
@@ -1015,6 +1043,8 @@ struct net_device {
 
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
 	spinlock_t		tx_global_lock;
+
+	struct xps_dev_maps	*xps_maps;
 
 	/* These may be needed for future network-power-down code. */
 

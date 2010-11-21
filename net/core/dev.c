@@ -1557,12 +1557,16 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
  */
 int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 {
+	int rc;
+
 	if (txq < 1 || txq > dev->num_tx_queues)
 		return -EINVAL;
 
 	if (dev->reg_state == NETREG_REGISTERED) {
 		ASSERT_RTNL();
 
+		rc = netdev_queue_update_kobjects(dev, dev->real_num_tx_queues,
+						  txq);
 		if (txq < dev->real_num_tx_queues)
 			qdisc_reset_all_tx_gt(dev, txq);
 	}
@@ -2142,6 +2146,44 @@ static inline u16 dev_cap_txqueue(struct net_device *dev, u16 queue_index)
 	return queue_index;
 }
 
+static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
+{
+#ifdef CONFIG_RPS
+	struct xps_dev_maps *dev_maps;
+	struct xps_map *map;
+	int queue_index = -1;
+
+	rcu_read_lock();
+	dev_maps = rcu_dereference(dev->xps_maps);
+	if (dev_maps) {
+		map = rcu_dereference(
+		    dev_maps->cpu_map[raw_smp_processor_id()]);
+		if (map) {
+			if (map->len == 1)
+				queue_index = map->queues[0];
+			else {
+				u32 hash;
+				if (skb->sk && skb->sk->sk_hash)
+					hash = skb->sk->sk_hash;
+				else
+					hash = (__force u16) skb->protocol ^
+					    skb->rxhash;
+				hash = jhash_1word(hash, hashrnd);
+				queue_index = map->queues[
+				    ((u64)hash * map->len) >> 32];
+			}
+			if (unlikely(queue_index >= dev->real_num_tx_queues))
+				queue_index = -1;
+		}
+	}
+	rcu_read_unlock();
+
+	return queue_index;
+#else
+	return -1;
+#endif
+}
+
 static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 					struct sk_buff *skb)
 {
@@ -2161,7 +2203,9 @@ static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 		    queue_index >= dev->real_num_tx_queues) {
 			int old_index = queue_index;
 
-			queue_index = skb_tx_hash(dev, skb);
+			queue_index = get_xps_queue(dev, skb);
+			if (queue_index < 0)
+				queue_index = skb_tx_hash(dev, skb);
 
 			if (queue_index != old_index && sk) {
 				struct dst_entry *dst =
@@ -5066,6 +5110,7 @@ static int netif_alloc_netdev_queues(struct net_device *dev)
 {
 	unsigned int count = dev->num_tx_queues;
 	struct netdev_queue *tx;
+	int i;
 
 	BUG_ON(count < 1);
 
@@ -5076,6 +5121,10 @@ static int netif_alloc_netdev_queues(struct net_device *dev)
 		return -ENOMEM;
 	}
 	dev->_tx = tx;
+
+	for (i = 0; i < count; i++)
+		tx[i].dev = dev;
+
 	return 0;
 }
 
@@ -5083,8 +5132,6 @@ static void netdev_init_one_queue(struct net_device *dev,
 				  struct netdev_queue *queue,
 				  void *_unused)
 {
-	queue->dev = dev;
-
 	/* Initialize queue lock */
 	spin_lock_init(&queue->_xmit_lock);
 	netdev_set_xmit_lockdep_class(&queue->_xmit_lock, dev->type);
