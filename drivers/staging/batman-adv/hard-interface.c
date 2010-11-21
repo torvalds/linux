@@ -31,8 +31,6 @@
 
 #include <linux/if_arp.h>
 
-#define MIN(x, y) ((x) < (y) ? (x) : (y))
-
 /* protect update critical side of if_list - but not the content */
 static DEFINE_SPINLOCK(if_list_lock);
 
@@ -220,8 +218,8 @@ int hardif_min_mtu(struct net_device *soft_iface)
 		if (batman_if->soft_iface != soft_iface)
 			continue;
 
-		min_mtu = MIN(batman_if->net_dev->mtu - BAT_HEADER_LEN,
-			      min_mtu);
+		min_mtu = min_t(int, batman_if->net_dev->mtu - BAT_HEADER_LEN,
+				min_mtu);
 	}
 	rcu_read_unlock();
 out:
