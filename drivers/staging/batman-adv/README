@@ -1,4 +1,4 @@
-[state: 04-09-2010]
+[state: 21-11-2010]
 
 BATMAN-ADV
 ----------
@@ -67,7 +67,8 @@ All  mesh  wide  settings  can be found in batman's own interface
 folder:
 
 #  ls  /sys/class/net/bat0/mesh/
-#  aggregated_ogms  bonding  orig_interval  vis_mode
+#  aggregated_ogms  bonding  fragmentation  orig_interval
+#  vis_mode
 
 
 There is a special folder for debugging informations:
@@ -237,4 +238,3 @@ You can also contact the Authors:
 
 Marek  Lindner  <lindner_marek@yahoo.de>
 Simon  Wunderlich  <siwu@hrz.tu-chemnitz.de>
-
