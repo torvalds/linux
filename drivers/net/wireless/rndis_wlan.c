@@ -817,7 +817,8 @@ exit_unlock:
 	return ret;
 }
 
-static int rndis_set_oid(struct usbnet *dev, __le32 oid, void *data, int len)
+static int rndis_set_oid(struct usbnet *dev, __le32 oid, const void *data,
+			 int len)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(dev);
 	union {
@@ -1033,7 +1034,7 @@ static int set_essid(struct usbnet *usbdev, struct ndis_80211_ssid *ssid)
 	return ret;
 }
 
-static int set_bssid(struct usbnet *usbdev, u8 bssid[ETH_ALEN])
+static int set_bssid(struct usbnet *usbdev, const u8 *bssid)
 {
 	int ret;
 
@@ -1049,7 +1050,9 @@ static int set_bssid(struct usbnet *usbdev, u8 bssid[ETH_ALEN])
 
 static int clear_bssid(struct usbnet *usbdev)
 {
-	u8 broadcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	static const u8 broadcast_mac[ETH_ALEN] = {
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	};
 
 	return set_bssid(usbdev, broadcast_mac);
 }
