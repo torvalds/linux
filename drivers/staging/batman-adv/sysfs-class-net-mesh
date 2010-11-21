@@ -29,6 +29,13 @@ Description:
                 Defines the interval in milliseconds in which batman
                 sends its protocol messages.
 
+What:           /sys/class/net/<mesh_iface>/mesh/hop_penalty
+Date:           Oct 2010
+Contact:        Linus Lüssing <linus.luessing@web.de>
+Description:
+		Defines the penalty which will be applied to an
+		originator message's tq-field on every hop.
+
 What:           /sys/class/net/<mesh_iface>/mesh/vis_mode
 Date:           May 2010
 Contact:        Marek Lindner <lindner_marek@yahoo.de>

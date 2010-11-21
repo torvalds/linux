@@ -118,6 +118,7 @@ struct bat_priv {
 	atomic_t fragmentation;		/* boolean */
 	atomic_t vis_mode;		/* VIS_TYPE_* */
 	atomic_t orig_interval;		/* uint */
+	atomic_t hop_penalty;		/* uint */
 	atomic_t log_level;		/* uint */
 	atomic_t bcast_seqno;
 	atomic_t bcast_queue_left;
