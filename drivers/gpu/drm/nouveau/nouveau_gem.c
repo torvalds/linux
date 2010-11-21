@@ -358,8 +358,7 @@ validate_list(struct nouveau_channel *chan, struct list_head *list,
 		}
 
 		nvbo->channel = (b->read_domains & (1 << 31)) ? NULL : chan;
-		ret = ttm_bo_validate(&nvbo->bo, &nvbo->placement,
-				      true, false, false);
+		ret = nouveau_bo_validate(nvbo, true, false, false);
 		nvbo->channel = NULL;
 		if (unlikely(ret)) {
 			if (ret != -ERESTARTSYS)

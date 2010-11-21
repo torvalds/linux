@@ -1285,6 +1285,8 @@ extern void nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val);
 extern u32 nouveau_bo_rd32(struct nouveau_bo *nvbo, unsigned index);
 extern void nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val);
 extern void nouveau_bo_fence(struct nouveau_bo *, struct nouveau_fence *);
+extern int nouveau_bo_validate(struct nouveau_bo *, bool interruptible,
+			       bool no_wait_reserve, bool no_wait_gpu);
 
 /* nouveau_fence.c */
 struct nouveau_fence;
