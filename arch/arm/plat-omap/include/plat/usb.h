@@ -11,6 +11,7 @@ enum ehci_hcd_omap_mode {
 	EHCI_HCD_OMAP_MODE_UNKNOWN,
 	EHCI_HCD_OMAP_MODE_PHY,
 	EHCI_HCD_OMAP_MODE_TLL,
+	EHCI_HCD_OMAP_MODE_HSIC,
 };
 
 enum ohci_omap3_port_mode {
