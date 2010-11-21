@@ -1045,38 +1045,3 @@ void __init paging_init(struct machine_desc *mdesc)
 	empty_zero_page = virt_to_page(zero_page);
 	__flush_dcache_page(NULL, empty_zero_page);
 }
-
-/*
- * In order to soft-boot, we need to insert a 1:1 mapping in place of
- * the user-mode pages.  This will then ensure that we have predictable
- * results when turning the mmu off
- */
-void setup_mm_for_reboot(char mode)
-{
-	unsigned long base_pmdval;
-	pgd_t *pgd;
-	int i;
-
-	/*
-	 * We need to access to user-mode page tables here. For kernel threads
-	 * we don't have any user-mode mappings so we use the context that we
-	 * "borrowed".
-	 */
-	pgd = current->active_mm->pgd;
-
-	base_pmdval = PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | PMD_TYPE_SECT;
-	if (cpu_architecture() <= CPU_ARCH_ARMv5TEJ && !cpu_is_xscale())
-		base_pmdval |= PMD_BIT4;
-
-	for (i = 0; i < FIRST_USER_PGD_NR + USER_PTRS_PER_PGD; i++, pgd++) {
-		unsigned long pmdval = (i << PGDIR_SHIFT) | base_pmdval;
-		pmd_t *pmd;
-
-		pmd = pmd_off(pgd, i << PGDIR_SHIFT);
-		pmd[0] = __pmd(pmdval);
-		pmd[1] = __pmd(pmdval + (1 << (PGDIR_SHIFT - 1)));
-		flush_pmd_entry(pmd);
-	}
-
-	local_flush_tlb_all();
-}
