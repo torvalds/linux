@@ -378,7 +378,7 @@ int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 	/* TODO: check this for locks */
 	hna_local_add(soft_iface, ethhdr->h_source);
 
-	if (is_bcast(ethhdr->h_dest) || is_mcast(ethhdr->h_dest)) {
+	if (is_multicast_ether_addr(ethhdr->h_dest)) {
 		ret = gw_is_target(bat_priv, skb);
 
 		if (ret < 0)

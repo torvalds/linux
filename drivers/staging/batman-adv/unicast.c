@@ -283,7 +283,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	spin_lock_bh(&bat_priv->orig_hash_lock);
 
 	/* get routing information */
-	if (is_bcast(ethhdr->h_dest) || is_mcast(ethhdr->h_dest))
+	if (is_multicast_ether_addr(ethhdr->h_dest))
 		orig_node = (struct orig_node *)gw_get_selected(bat_priv);
 	else
 		orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,

@@ -109,6 +109,7 @@
 #include <linux/mutex.h>	/* mutex */
 #include <linux/module.h>	/* needed by all modules */
 #include <linux/netdevice.h>	/* netdevice */
+#include <linux/etherdevice.h>  /* ethernet address classifaction */
 #include <linux/if_ether.h>	/* ethernet header */
 #include <linux/poll.h>		/* poll_table */
 #include <linux/kthread.h>	/* kernel threads */
@@ -136,8 +137,6 @@ void mesh_free(struct net_device *soft_iface);
 void inc_module_count(void);
 void dec_module_count(void);
 int is_my_mac(uint8_t *addr);
-int is_bcast(uint8_t *addr);
-int is_mcast(uint8_t *addr);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 int debug_log(struct bat_priv *bat_priv, char *fmt, ...);
