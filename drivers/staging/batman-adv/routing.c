@@ -1131,12 +1131,6 @@ static int route_unicast_packet(struct sk_buff *skb,
 
 	unicast_packet = (struct unicast_packet *)skb->data;
 
-	/* packet for me */
-	if (is_my_mac(unicast_packet->dest)) {
-		interface_rx(recv_if->soft_iface, skb, hdr_size);
-		return NET_RX_SUCCESS;
-	}
-
 	/* TTL exceeded */
 	if (unicast_packet->ttl < 2) {
 		pr_debug("Warning - can't forward unicast packet from %pM to "
@@ -1170,7 +1164,6 @@ static int route_unicast_packet(struct sk_buff *skb,
 		return NET_RX_DROP;
 
 	unicast_packet = (struct unicast_packet *)skb->data;
-	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* decrement ttl */
 	unicast_packet->ttl--;
