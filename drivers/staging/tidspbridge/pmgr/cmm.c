@@ -250,26 +250,23 @@ int cmm_create(struct cmm_object **ph_cmm_mgr,
 	*ph_cmm_mgr = NULL;
 	/* create, zero, and tag a cmm mgr object */
 	cmm_obj = kzalloc(sizeof(struct cmm_object), GFP_KERNEL);
-	if (cmm_obj != NULL) {
-		if (mgr_attrts == NULL)
-			mgr_attrts = &cmm_dfltmgrattrs;	/* set defaults */
+	if (!cmm_obj)
+		return -ENOMEM;
 
-		/* 4 bytes minimum */
-		DBC_ASSERT(mgr_attrts->ul_min_block_size >= 4);
-		/* save away smallest block allocation for this cmm mgr */
-		cmm_obj->ul_min_block_size = mgr_attrts->ul_min_block_size;
-		cmm_obj->dw_page_size = PAGE_SIZE;
+	if (mgr_attrts == NULL)
+		mgr_attrts = &cmm_dfltmgrattrs;	/* set defaults */
 
-		/* Note: DSP SM seg table(aDSPSMSegTab[]) zero'd by
-		 * MEM_ALLOC_OBJECT */
+	/* 4 bytes minimum */
+	DBC_ASSERT(mgr_attrts->ul_min_block_size >= 4);
+	/* save away smallest block allocation for this cmm mgr */
+	cmm_obj->ul_min_block_size = mgr_attrts->ul_min_block_size;
+	cmm_obj->dw_page_size = PAGE_SIZE;
 
-		/* create node free list */
-		INIT_LIST_HEAD(&cmm_obj->node_free_list);
-		mutex_init(&cmm_obj->cmm_lock);
-		*ph_cmm_mgr = cmm_obj;
-	} else {
-		status = -ENOMEM;
-	}
+	/* create node free list */
+	INIT_LIST_HEAD(&cmm_obj->node_free_list);
+	mutex_init(&cmm_obj->cmm_lock);
+	*ph_cmm_mgr = cmm_obj;
+
 	return status;
 }
 
@@ -346,13 +343,12 @@ void cmm_exit(void)
  *  Purpose:
  *      Free the given buffer.
  */
-int cmm_free_buf(struct cmm_object *hcmm_mgr, void *buf_pa,
-			u32 ul_seg_id)
+int cmm_free_buf(struct cmm_object *hcmm_mgr, void *buf_pa, u32 ul_seg_id)
 {
 	struct cmm_object *cmm_mgr_obj = (struct cmm_object *)hcmm_mgr;
 	int status = -EFAULT;
 	struct cmm_mnode *curr, *tmp;
-	struct cmm_allocator *allocator = NULL;
+	struct cmm_allocator *allocator;
 	struct cmm_attrs *pattrs;
 
 	DBC_REQUIRE(refs > 0);
@@ -366,21 +362,22 @@ int cmm_free_buf(struct cmm_object *hcmm_mgr, void *buf_pa,
 		status = -EFAULT;
 		return status;
 	}
-	/* get the allocator for this segment id */
+
 	allocator = get_allocator(cmm_mgr_obj, ul_seg_id);
-	if (allocator != NULL) {
-		mutex_lock(&cmm_mgr_obj->cmm_lock);
-		list_for_each_entry_safe(curr, tmp, &allocator->in_use_list,
-				link) {
-			if (curr->dw_pa == (u32) buf_pa) {
-				list_del(&curr->link);
-				add_to_free_list(allocator, curr);
-				status = 0;
-				break;
-			}
+	if (!allocator)
+		return status;
+
+	mutex_lock(&cmm_mgr_obj->cmm_lock);
+	list_for_each_entry_safe(curr, tmp, &allocator->in_use_list, link) {
+		if (curr->dw_pa == (u32) buf_pa) {
+			list_del(&curr->link);
+			add_to_free_list(allocator, curr);
+			status = 0;
+			break;
 		}
-		mutex_unlock(&cmm_mgr_obj->cmm_lock);
 	}
+	mutex_unlock(&cmm_mgr_obj->cmm_lock);
+
 	return status;
 }
 
@@ -438,31 +435,30 @@ int cmm_get_info(struct cmm_object *hcmm_mgr,
 	for (ul_seg = 1; ul_seg <= CMM_MAXGPPSEGS; ul_seg++) {
 		/* get the allocator object for this segment id */
 		altr = get_allocator(cmm_mgr_obj, ul_seg);
-		if (altr != NULL) {
-			cmm_info_obj->ul_num_gppsm_segs++;
-			cmm_info_obj->seg_info[ul_seg - 1].dw_seg_base_pa =
-			    altr->shm_base - altr->ul_dsp_size;
-			cmm_info_obj->seg_info[ul_seg - 1].ul_total_seg_size =
-			    altr->ul_dsp_size + altr->ul_sm_size;
-			cmm_info_obj->seg_info[ul_seg - 1].dw_gpp_base_pa =
-			    altr->shm_base;
-			cmm_info_obj->seg_info[ul_seg - 1].ul_gpp_size =
-			    altr->ul_sm_size;
-			cmm_info_obj->seg_info[ul_seg - 1].dw_dsp_base_va =
-			    altr->dw_dsp_base;
-			cmm_info_obj->seg_info[ul_seg - 1].ul_dsp_size =
-			    altr->ul_dsp_size;
-			cmm_info_obj->seg_info[ul_seg - 1].dw_seg_base_va =
-			    altr->dw_vm_base - altr->ul_dsp_size;
-			cmm_info_obj->seg_info[ul_seg - 1].ul_in_use_cnt = 0;
-			/* Count inUse blocks */
-			list_for_each_entry(curr, &altr->in_use_list, link) {
-				cmm_info_obj->ul_total_in_use_cnt++;
-				cmm_info_obj->seg_info[ul_seg -
-						       1].ul_in_use_cnt++;
-			}
+		if (!altr)
+			continue;
+		cmm_info_obj->ul_num_gppsm_segs++;
+		cmm_info_obj->seg_info[ul_seg - 1].dw_seg_base_pa =
+			altr->shm_base - altr->ul_dsp_size;
+		cmm_info_obj->seg_info[ul_seg - 1].ul_total_seg_size =
+			altr->ul_dsp_size + altr->ul_sm_size;
+		cmm_info_obj->seg_info[ul_seg - 1].dw_gpp_base_pa =
+			altr->shm_base;
+		cmm_info_obj->seg_info[ul_seg - 1].ul_gpp_size =
+			altr->ul_sm_size;
+		cmm_info_obj->seg_info[ul_seg - 1].dw_dsp_base_va =
+			altr->dw_dsp_base;
+		cmm_info_obj->seg_info[ul_seg - 1].ul_dsp_size =
+			altr->ul_dsp_size;
+		cmm_info_obj->seg_info[ul_seg - 1].dw_seg_base_va =
+			altr->dw_vm_base - altr->ul_dsp_size;
+		cmm_info_obj->seg_info[ul_seg - 1].ul_in_use_cnt = 0;
+
+		list_for_each_entry(curr, &altr->in_use_list, link) {
+			cmm_info_obj->ul_total_in_use_cnt++;
+			cmm_info_obj->seg_info[ul_seg - 1].ul_in_use_cnt++;
 		}
-	}			/* end for */
+	}
 	mutex_unlock(&cmm_mgr_obj->cmm_lock);
 	return status;
 }
@@ -508,23 +504,25 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 	DBC_REQUIRE(dw_gpp_base_pa != 0);
 	DBC_REQUIRE(gpp_base_va != 0);
 	DBC_REQUIRE((c_factor <= CMM_ADDTODSPPA) &&
-		    (c_factor >= CMM_SUBFROMDSPPA));
+			(c_factor >= CMM_SUBFROMDSPPA));
+
 	dev_dbg(bridge, "%s: dw_gpp_base_pa %x ul_size %x dsp_addr_offset %x "
-		"dw_dsp_base %x ul_dsp_size %x gpp_base_va %x\n", __func__,
-		dw_gpp_base_pa, ul_size, dsp_addr_offset, dw_dsp_base,
-		ul_dsp_size, gpp_base_va);
-	if (!hcmm_mgr) {
-		status = -EFAULT;
-		return status;
-	}
+			"dw_dsp_base %x ul_dsp_size %x gpp_base_va %x\n",
+			__func__, dw_gpp_base_pa, ul_size, dsp_addr_offset,
+			dw_dsp_base, ul_dsp_size, gpp_base_va);
+
+	if (!hcmm_mgr)
+		return -EFAULT;
+
 	/* make sure we have room for another allocator */
 	mutex_lock(&cmm_mgr_obj->cmm_lock);
+
 	slot_seg = get_slot(cmm_mgr_obj);
 	if (slot_seg < 0) {
-		/* get a slot number */
 		status = -EPERM;
 		goto func_end;
 	}
+
 	/* Check if input ul_size is big enough to alloc at least one block */
 	if (ul_size < cmm_mgr_obj->ul_min_block_size) {
 		status = -EINVAL;
@@ -533,37 +531,35 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 
 	/* create, zero, and tag an SM allocator object */
 	psma = kzalloc(sizeof(struct cmm_allocator), GFP_KERNEL);
-	if (psma != NULL) {
-		psma->hcmm_mgr = hcmm_mgr;	/* ref to parent */
-		psma->shm_base = dw_gpp_base_pa;	/* SM Base phys */
-		psma->ul_sm_size = ul_size;	/* SM segment size in bytes */
-		psma->dw_vm_base = gpp_base_va;
-		psma->dw_dsp_phys_addr_offset = dsp_addr_offset;
-		psma->c_factor = c_factor;
-		psma->dw_dsp_base = dw_dsp_base;
-		psma->ul_dsp_size = ul_dsp_size;
-		if (psma->dw_vm_base == 0) {
-			status = -EPERM;
-			goto func_end;
-		}
-		/* return the actual segment identifier */
-		*sgmt_id = (u32) slot_seg + 1;
-		/* create memory free list */
-		INIT_LIST_HEAD(&psma->free_list);
+	if (!psma) {
+		status = -ENOMEM;
+		goto func_end;
+	}
 
-		/* create memory in-use list */
-		INIT_LIST_HEAD(&psma->in_use_list);
+	psma->hcmm_mgr = hcmm_mgr;	/* ref to parent */
+	psma->shm_base = dw_gpp_base_pa;	/* SM Base phys */
+	psma->ul_sm_size = ul_size;	/* SM segment size in bytes */
+	psma->dw_vm_base = gpp_base_va;
+	psma->dw_dsp_phys_addr_offset = dsp_addr_offset;
+	psma->c_factor = c_factor;
+	psma->dw_dsp_base = dw_dsp_base;
+	psma->ul_dsp_size = ul_dsp_size;
+	if (psma->dw_vm_base == 0) {
+		status = -EPERM;
+		goto func_end;
+	}
+	/* return the actual segment identifier */
+	*sgmt_id = (u32) slot_seg + 1;
 
-		/* Get a mem node for this hunk-o-memory */
-		new_node = get_node(cmm_mgr_obj, dw_gpp_base_pa,
-				    psma->dw_vm_base, ul_size);
-		/* Place node on the SM allocator's free list */
-		if (new_node) {
-			list_add_tail(&new_node->link, &psma->free_list);
-		} else {
-			status = -ENOMEM;
-			goto func_end;
-		}
+	INIT_LIST_HEAD(&psma->free_list);
+	INIT_LIST_HEAD(&psma->in_use_list);
+
+	/* Get a mem node for this hunk-o-memory */
+	new_node = get_node(cmm_mgr_obj, dw_gpp_base_pa,
+			psma->dw_vm_base, ul_size);
+	/* Place node on the SM allocator's free list */
+	if (new_node) {
+		list_add_tail(&new_node->link, &psma->free_list);
 	} else {
 		status = -ENOMEM;
 		goto func_end;
@@ -572,12 +568,11 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 	cmm_mgr_obj->pa_gppsm_seg_tab[slot_seg] = psma;
 
 func_end:
-	if (status && psma) {
-		/* Cleanup allocator */
+	/* Cleanup allocator */
+	if (status && psma)
 		un_register_gppsm_seg(psma);
-	}
-
 	mutex_unlock(&cmm_mgr_obj->cmm_lock);
+
 	return status;
 }
 
@@ -595,36 +590,36 @@ int cmm_un_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 	u32 ul_id = ul_seg_id;
 
 	DBC_REQUIRE(ul_seg_id > 0);
-	if (hcmm_mgr) {
-		if (ul_seg_id == CMM_ALLSEGMENTS)
-			ul_id = 1;
+	if (!hcmm_mgr)
+		return -EFAULT;
 
-		if ((ul_id > 0) && (ul_id <= CMM_MAXGPPSEGS)) {
-			while (ul_id <= CMM_MAXGPPSEGS) {
-				mutex_lock(&cmm_mgr_obj->cmm_lock);
-				/* slot = seg_id-1 */
-				psma = cmm_mgr_obj->pa_gppsm_seg_tab[ul_id - 1];
-				if (psma != NULL) {
-					un_register_gppsm_seg(psma);
-					/* Set alctr ptr to NULL for future
-					 * reuse */
-					cmm_mgr_obj->pa_gppsm_seg_tab[ul_id -
-								      1] = NULL;
-				} else if (ul_seg_id != CMM_ALLSEGMENTS) {
-					status = -EPERM;
-				}
-				mutex_unlock(&cmm_mgr_obj->cmm_lock);
-				if (ul_seg_id != CMM_ALLSEGMENTS)
-					break;
+	if (ul_seg_id == CMM_ALLSEGMENTS)
+		ul_id = 1;
 
-				ul_id++;
-			}	/* end while */
-		} else {
-			status = -EINVAL;
+	if ((ul_id <= 0) || (ul_id > CMM_MAXGPPSEGS))
+		return -EINVAL;
+
+	/*
+	 * FIXME: CMM_MAXGPPSEGS == 1. why use a while cycle? Seems to me like
+	 * the ul_seg_id is not needed here. It must be always 1.
+	 */
+	while (ul_id <= CMM_MAXGPPSEGS) {
+		mutex_lock(&cmm_mgr_obj->cmm_lock);
+		/* slot = seg_id-1 */
+		psma = cmm_mgr_obj->pa_gppsm_seg_tab[ul_id - 1];
+		if (psma != NULL) {
+			un_register_gppsm_seg(psma);
+			/* Set alctr ptr to NULL for future reuse */
+			cmm_mgr_obj->pa_gppsm_seg_tab[ul_id - 1] = NULL;
+		} else if (ul_seg_id != CMM_ALLSEGMENTS) {
+			status = -EPERM;
 		}
-	} else {
-		status = -EFAULT;
-	}
+		mutex_unlock(&cmm_mgr_obj->cmm_lock);
+		if (ul_seg_id != CMM_ALLSEGMENTS)
+			break;
+
+		ul_id++;
+	}	/* end while */
 	return status;
 }
 
@@ -690,26 +685,29 @@ static s32 get_slot(struct cmm_object *cmm_mgr_obj)
 static struct cmm_mnode *get_node(struct cmm_object *cmm_mgr_obj, u32 dw_pa,
 				  u32 dw_va, u32 ul_size)
 {
-	struct cmm_mnode *pnode = NULL;
+	struct cmm_mnode *pnode;
 
 	DBC_REQUIRE(cmm_mgr_obj != NULL);
 	DBC_REQUIRE(dw_pa != 0);
 	DBC_REQUIRE(dw_va != 0);
 	DBC_REQUIRE(ul_size != 0);
+
 	/* Check cmm mgr's node freelist */
 	if (list_empty(&cmm_mgr_obj->node_free_list)) {
 		pnode = kzalloc(sizeof(struct cmm_mnode), GFP_KERNEL);
+		if (!pnode)
+			return NULL;
 	} else {
 		/* surely a valid element */
 		pnode = list_first_entry(&cmm_mgr_obj->node_free_list,
 				struct cmm_mnode, link);
-		list_del(&pnode->link);
+		list_del_init(&pnode->link);
 	}
-	if (pnode) {
-		pnode->dw_pa = dw_pa;	/* Physical addr of start of block */
-		pnode->dw_va = dw_va;	/* Virtual   "            " */
-		pnode->ul_size = ul_size;	/* Size of block */
-	}
+
+	pnode->dw_pa = dw_pa;
+	pnode->dw_va = dw_va;
+	pnode->ul_size = ul_size;
+
 	return pnode;
 }
 
@@ -740,11 +738,10 @@ static struct cmm_mnode *get_free_block(struct cmm_allocator *allocator,
 		return NULL;
 
 	list_for_each_entry_safe(node, tmp, &allocator->free_list, link) {
-		if (usize <= (u32) node->ul_size) {
+		if (usize <= node->ul_size) {
 			list_del(&node->link);
 			return node;
 		}
-
 	}
 
 	return NULL;
@@ -756,59 +753,36 @@ static struct cmm_mnode *get_free_block(struct cmm_allocator *allocator,
  *      Coalesce node into the freelist in ascending size order.
  */
 static void add_to_free_list(struct cmm_allocator *allocator,
-			     struct cmm_mnode *pnode)
+			     struct cmm_mnode *node)
 {
-	struct cmm_mnode *node_prev = NULL;
-	struct cmm_mnode *node_next = NULL;
-	struct cmm_mnode *mnode_obj;
-	u32 dw_this_pa;
-	u32 dw_next_pa;
+	struct cmm_mnode *curr;
 
-	if (!pnode) {
-		pr_err("%s: failed - pnode is NULL\n", __func__);
+	if (!node) {
+		pr_err("%s: failed - node is NULL\n", __func__);
 		return;
 	}
 
-	dw_this_pa = pnode->dw_pa;
-	dw_next_pa = NEXT_PA(pnode);
-	list_for_each_entry(mnode_obj, &allocator->free_list, link) {
-		if (dw_this_pa == NEXT_PA(mnode_obj)) {
-			/* found the block ahead of this one */
-			node_prev = mnode_obj;
-		} else if (dw_next_pa == mnode_obj->dw_pa) {
-			node_next = mnode_obj;
+	list_for_each_entry(curr, &allocator->free_list, link) {
+		if (NEXT_PA(curr) == node->dw_pa) {
+			curr->ul_size += node->ul_size;
+			delete_node(allocator->hcmm_mgr, node);
+			return;
 		}
-		if ((node_prev != NULL) && (node_next != NULL))
-			break;
-	}
-	if (node_prev != NULL) {
-		/* combine with previous block */
-		list_del(&node_prev->link);
-		/* grow node to hold both */
-		pnode->ul_size += node_prev->ul_size;
-		pnode->dw_pa = node_prev->dw_pa;
-		pnode->dw_va = node_prev->dw_va;
-		/* place node on mgr nodeFreeList */
-		delete_node(allocator->hcmm_mgr, node_prev);
-	}
-	if (node_next != NULL) {
-		/* combine with next block */
-		list_del(&node_next->link);
-		/* grow da node */
-		pnode->ul_size += node_next->ul_size;
-		/* place node on mgr nodeFreeList */
-		delete_node(allocator->hcmm_mgr, node_next);
-	}
-	/* Now, let's add to freelist in increasing size order */
-	list_for_each_entry(mnode_obj, &allocator->free_list, link) {
-		if (pnode->ul_size <= mnode_obj->ul_size) {
-			/* insert our node before the current traversed node  */
-			list_add_tail(&pnode->link, &mnode_obj->link);
+		if (curr->dw_pa == NEXT_PA(node)) {
+			curr->dw_pa = node->dw_pa;
+			curr->dw_va = node->dw_va;
+			curr->ul_size += node->ul_size;
+			delete_node(allocator->hcmm_mgr, node);
 			return;
 		}
 	}
-	/* add our pnode to the end of the freelist */
-	list_add_tail(&pnode->link, &allocator->free_list);
+	list_for_each_entry(curr, &allocator->free_list, link) {
+		if (curr->ul_size >= node->ul_size) {
+			list_add_tail(&node->link, &curr->link);
+			return;
+		}
+	}
+	list_add_tail(&node->link, &allocator->free_list);
 }
 
 /*
@@ -820,19 +794,10 @@ static void add_to_free_list(struct cmm_allocator *allocator,
 static struct cmm_allocator *get_allocator(struct cmm_object *cmm_mgr_obj,
 					   u32 ul_seg_id)
 {
-	struct cmm_allocator *allocator = NULL;
-
 	DBC_REQUIRE(cmm_mgr_obj != NULL);
 	DBC_REQUIRE((ul_seg_id > 0) && (ul_seg_id <= CMM_MAXGPPSEGS));
-	allocator = cmm_mgr_obj->pa_gppsm_seg_tab[ul_seg_id - 1];
-	if (allocator != NULL) {
-		/* make sure it's for real */
-		if (!allocator) {
-			allocator = NULL;
-			DBC_ASSERT(false);
-		}
-	}
-	return allocator;
+
+	return cmm_mgr_obj->pa_gppsm_seg_tab[ul_seg_id - 1];
 }
 
 /*

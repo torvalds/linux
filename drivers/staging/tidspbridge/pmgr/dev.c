@@ -78,8 +78,8 @@ struct dev_object {
 	struct ldr_module *module_obj;	/* Bridge Module handle. */
 	u32 word_size;		/* DSP word size: quick access. */
 	struct drv_object *hdrv_obj;	/* Driver Object */
-	struct list_head proc_list;	/* List of Processor attached to
-					 * this device */
+	/* List of Processors attached to this device */
+	struct list_head proc_list;
 	struct node_mgr *hnode_mgr;
 };
 
@@ -787,9 +787,8 @@ bool dev_init(void)
  *  Purpose:
  *      Notify all clients of this device of a change in device status.
  */
-int dev_notify_clients(struct dev_object *hdev_obj, u32 ret)
+int dev_notify_clients(struct dev_object *dev_obj, u32 ret)
 {
-	struct dev_object *dev_obj = hdev_obj;
 	struct list_head *curr;
 
 	/*
@@ -797,7 +796,7 @@ int dev_notify_clients(struct dev_object *hdev_obj, u32 ret)
 	 * at the begining. If not, this can go horribly wrong.
 	 */
 	list_for_each(curr, &dev_obj->proc_list)
-		proc_notify_clients((void *)curr, (u32) ret);
+		proc_notify_clients((void *)curr, ret);
 
 	return 0;
 }
@@ -981,7 +980,6 @@ static int init_cod_mgr(struct dev_object *dev_obj)
 int dev_insert_proc_object(struct dev_object *hdev_obj,
 				  u32 proc_obj, bool *already_attached)
 {
-	int status = 0;
 	struct dev_object *dev_obj = (struct dev_object *)hdev_obj;
 
 	DBC_REQUIRE(refs > 0);
@@ -998,9 +996,7 @@ int dev_insert_proc_object(struct dev_object *hdev_obj,
 	 */
 	list_add_tail((struct list_head *)proc_obj, &dev_obj->proc_list);
 
-	DBC_ENSURE(!status && !list_empty(&dev_obj->proc_list));
-
-	return status;
+	return 0;
 }
 
 /*
@@ -1043,14 +1039,10 @@ int dev_remove_proc_object(struct dev_object *hdev_obj, u32 proc_obj)
 	return status;
 }
 
-int dev_get_dev_type(struct dev_object *device_obj, u8 *dev_type)
+int dev_get_dev_type(struct dev_object *dev_obj, u8 *dev_type)
 {
-	int status = 0;
-	struct dev_object *dev_obj = (struct dev_object *)device_obj;
-
 	*dev_type = dev_obj->dev_type;
-
-	return status;
+	return 0;
 }
 
 /*
