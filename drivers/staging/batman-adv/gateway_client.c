@@ -23,6 +23,9 @@
 #include "gateway_client.h"
 #include "gateway_common.h"
 #include "hard-interface.h"
+#include <linux/ip.h>
+#include <linux/udp.h>
+#include <linux/if_vlan.h>
 
 static void gw_node_free_ref(struct kref *refcount)
 {
@@ -38,6 +41,16 @@ static void gw_node_free_rcu(struct rcu_head *rcu)
 
 	gw_node = container_of(rcu, struct gw_node, rcu);
 	kref_put(&gw_node->refcount, gw_node_free_ref);
+}
+
+void *gw_get_selected(struct bat_priv *bat_priv)
+{
+	struct gw_node *curr_gateway_tmp = bat_priv->curr_gw;
+
+	if (!curr_gateway_tmp)
+		return NULL;
+
+	return curr_gateway_tmp->orig_node;
 }
 
 void gw_deselect(struct bat_priv *bat_priv)
@@ -384,4 +397,51 @@ int gw_client_seq_print_text(struct seq_file *seq, void *offset)
 		seq_printf(seq, "No gateways in range ...\n");
 
 	return 0;
+}
+
+int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
+{
+	struct ethhdr *ethhdr;
+	struct iphdr *iphdr;
+	struct udphdr *udphdr;
+	unsigned int header_len = 0;
+
+	if (atomic_read(&bat_priv->gw_mode) == GW_MODE_OFF)
+		return 0;
+
+	/* check for ethernet header */
+	if (!pskb_may_pull(skb, header_len + ETH_HLEN))
+		return 0;
+	ethhdr = (struct ethhdr *)skb->data;
+	header_len += ETH_HLEN;
+
+	/* check for ip header */
+	if (ntohs(ethhdr->h_proto) != ETH_P_IP)
+		return 0;
+
+	if (!pskb_may_pull(skb, header_len + sizeof(struct iphdr)))
+		return 0;
+	iphdr = (struct iphdr *)(skb->data + header_len);
+	header_len += iphdr->ihl * 4;
+
+	/* check for udp header */
+	if (iphdr->protocol != IPPROTO_UDP)
+		return 0;
+
+	if (!pskb_may_pull(skb, header_len + sizeof(struct udphdr)))
+		return 0;
+	udphdr = (struct udphdr *)(skb->data + header_len);
+	header_len += sizeof(struct udphdr);
+
+	/* check for bootp port */
+	if (ntohs(udphdr->dest) != 67)
+		return 0;
+
+	if (atomic_read(&bat_priv->gw_mode) == GW_MODE_SERVER)
+		return -1;
+
+	if (!bat_priv->curr_gw)
+		return 0;
+
+	return 1;
 }
