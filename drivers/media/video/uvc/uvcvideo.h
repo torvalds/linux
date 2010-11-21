@@ -17,15 +17,30 @@
 #define UVC_CTRL_DATA_TYPE_BITMASK	5
 
 /* Control flags */
+#define UVC_CTRL_FLAG_SET_CUR		(1 << 0)
+#define UVC_CTRL_FLAG_GET_CUR		(1 << 1)
+#define UVC_CTRL_FLAG_GET_MIN		(1 << 2)
+#define UVC_CTRL_FLAG_GET_MAX		(1 << 3)
+#define UVC_CTRL_FLAG_GET_RES		(1 << 4)
+#define UVC_CTRL_FLAG_GET_DEF		(1 << 5)
+/* Control should be saved at suspend and restored at resume. */
+#define UVC_CTRL_FLAG_RESTORE		(1 << 6)
+/* Control can be updated by the camera. */
+#define UVC_CTRL_FLAG_AUTO_UPDATE	(1 << 7)
+
+#define UVC_CTRL_FLAG_GET_RANGE \
+	(UVC_CTRL_FLAG_GET_CUR | UVC_CTRL_FLAG_GET_MIN | \
+	 UVC_CTRL_FLAG_GET_MAX | UVC_CTRL_FLAG_GET_RES | \
+	 UVC_CTRL_FLAG_GET_DEF)
+
+/* Old control flags, don't use */
 #define UVC_CONTROL_SET_CUR	(1 << 0)
 #define UVC_CONTROL_GET_CUR	(1 << 1)
 #define UVC_CONTROL_GET_MIN	(1 << 2)
 #define UVC_CONTROL_GET_MAX	(1 << 3)
 #define UVC_CONTROL_GET_RES	(1 << 4)
 #define UVC_CONTROL_GET_DEF	(1 << 5)
-/* Control should be saved at suspend and restored at resume. */
 #define UVC_CONTROL_RESTORE	(1 << 6)
-/* Control can be updated by the camera. */
 #define UVC_CONTROL_AUTO_UPDATE	(1 << 7)
 
 #define UVC_CONTROL_GET_RANGE	(UVC_CONTROL_GET_CUR | UVC_CONTROL_GET_MIN | \
