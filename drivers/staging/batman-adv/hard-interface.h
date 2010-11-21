@@ -42,17 +42,13 @@ int batman_skb_recv(struct sk_buff *skb,
 int hardif_min_mtu(struct net_device *soft_iface);
 void update_min_mtu(struct net_device *soft_iface);
 
-static inline void hardif_hold(struct batman_if *batman_if)
+static inline void hardif_free_ref(struct kref *refcount)
 {
-	atomic_inc(&batman_if->refcnt);
-}
+	struct batman_if *batman_if;
 
-static inline void hardif_put(struct batman_if *batman_if)
-{
-	if (atomic_dec_and_test(&batman_if->refcnt)) {
-		dev_put(batman_if->net_dev);
-		kfree(batman_if);
-	}
+	batman_if = container_of(refcount, struct batman_if, refcount);
+	dev_put(batman_if->net_dev);
+	kfree(batman_if);
 }
 
 #endif /* _NET_BATMAN_ADV_HARD_INTERFACE_H_ */

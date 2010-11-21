@@ -50,7 +50,7 @@ struct batman_if *get_batman_if_by_netdev(struct net_device *net_dev)
 
 out:
 	if (batman_if)
-		hardif_hold(batman_if);
+		kref_get(&batman_if->refcount);
 
 	rcu_read_unlock();
 	return batman_if;
@@ -100,7 +100,7 @@ static struct batman_if *get_active_batman_if(struct net_device *soft_iface)
 
 out:
 	if (batman_if)
-		hardif_hold(batman_if);
+		kref_get(&batman_if->refcount);
 
 	rcu_read_unlock();
 	return batman_if;
@@ -125,13 +125,13 @@ static void set_primary_if(struct bat_priv *bat_priv,
 	struct batman_if *old_if;
 
 	if (batman_if)
-		hardif_hold(batman_if);
+		kref_get(&batman_if->refcount);
 
 	old_if = bat_priv->primary_if;
 	bat_priv->primary_if = batman_if;
 
 	if (old_if)
-		hardif_put(old_if);
+		kref_put(&old_if->refcount, hardif_free_ref);
 
 	if (!bat_priv->primary_if)
 		return;
@@ -315,7 +315,7 @@ int hardif_enable_interface(struct batman_if *batman_if, char *iface_name)
 	batman_if->batman_adv_ptype.type = __constant_htons(ETH_P_BATMAN);
 	batman_if->batman_adv_ptype.func = batman_skb_recv;
 	batman_if->batman_adv_ptype.dev = batman_if->net_dev;
-	hardif_hold(batman_if);
+	kref_get(&batman_if->refcount);
 	dev_add_pack(&batman_if->batman_adv_ptype);
 
 	atomic_set(&batman_if->seqno, 1);
@@ -374,7 +374,7 @@ void hardif_disable_interface(struct batman_if *batman_if)
 	bat_info(batman_if->soft_iface, "Removing interface: %s\n",
 		 batman_if->net_dev->name);
 	dev_remove_pack(&batman_if->batman_adv_ptype);
-	hardif_put(batman_if);
+	kref_put(&batman_if->refcount, hardif_free_ref);
 
 	bat_priv->num_ifaces--;
 	orig_hash_del_if(batman_if, bat_priv->num_ifaces);
@@ -386,7 +386,7 @@ void hardif_disable_interface(struct batman_if *batman_if)
 		set_primary_if(bat_priv, new_if);
 
 		if (new_if)
-			hardif_put(new_if);
+			kref_put(&new_if->refcount, hardif_free_ref);
 	}
 
 	kfree(batman_if->packet_buff);
@@ -432,8 +432,7 @@ static struct batman_if *hardif_add_interface(struct net_device *net_dev)
 	batman_if->soft_iface = NULL;
 	batman_if->if_status = IF_NOT_IN_USE;
 	INIT_LIST_HEAD(&batman_if->list);
-	atomic_set(&batman_if->refcnt, 0);
-	hardif_hold(batman_if);
+	kref_init(&batman_if->refcount);
 
 	check_known_mac_addr(batman_if->net_dev);
 
@@ -442,7 +441,7 @@ static struct batman_if *hardif_add_interface(struct net_device *net_dev)
 	spin_unlock(&if_list_lock);
 
 	/* extra reference for return */
-	hardif_hold(batman_if);
+	kref_get(&batman_if->refcount);
 	return batman_if;
 
 free_if:
@@ -465,7 +464,7 @@ static void hardif_remove_interface(struct batman_if *batman_if)
 	batman_if->if_status = IF_TO_BE_REMOVED;
 	synchronize_rcu();
 	sysfs_del_hardif(&batman_if->hardif_obj);
-	hardif_put(batman_if);
+	kref_put(&batman_if->refcount, hardif_free_ref);
 }
 
 void hardif_remove_interfaces(void)
@@ -522,10 +521,8 @@ static int hard_if_event(struct notifier_block *this,
 			update_min_mtu(batman_if->soft_iface);
 		break;
 	case NETDEV_CHANGEADDR:
-		if (batman_if->if_status == IF_NOT_IN_USE) {
-			hardif_put(batman_if);
-			goto out;
-		}
+		if (batman_if->if_status == IF_NOT_IN_USE)
+			goto hardif_put;
 
 		check_known_mac_addr(batman_if->net_dev);
 		update_mac_addresses(batman_if);
@@ -537,8 +534,9 @@ static int hard_if_event(struct notifier_block *this,
 	default:
 		break;
 	};
-	hardif_put(batman_if);
 
+hardif_put:
+	kref_put(&batman_if->refcount, hardif_free_ref);
 out:
 	return NOTIFY_DONE;
 }

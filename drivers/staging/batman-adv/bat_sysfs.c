@@ -413,7 +413,7 @@ static ssize_t show_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	length = sprintf(buff, "%s\n", batman_if->if_status == IF_NOT_IN_USE ?
 			 "none" : batman_if->soft_iface->name);
 
-	hardif_put(batman_if);
+	kref_put(&batman_if->refcount, hardif_free_ref);
 
 	return length;
 }
@@ -436,7 +436,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	if (strlen(buff) >= IFNAMSIZ) {
 		pr_err("Invalid parameter for 'mesh_iface' setting received: "
 		       "interface name too long '%s'\n", buff);
-		hardif_put(batman_if);
+		kref_put(&batman_if->refcount, hardif_free_ref);
 		return -EINVAL;
 	}
 
@@ -447,7 +447,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 
 	if ((batman_if->if_status == status_tmp) || ((batman_if->soft_iface) &&
 	    (strncmp(batman_if->soft_iface->name, buff, IFNAMSIZ) == 0))) {
-		hardif_put(batman_if);
+		kref_put(&batman_if->refcount, hardif_free_ref);
 		return count;
 	}
 
@@ -455,7 +455,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 		rtnl_lock();
 		hardif_disable_interface(batman_if);
 		rtnl_unlock();
-		hardif_put(batman_if);
+		kref_put(&batman_if->refcount, hardif_free_ref);
 		return count;
 	}
 
@@ -467,7 +467,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	}
 
 	ret = hardif_enable_interface(batman_if, buff);
-	hardif_put(batman_if);
+	kref_put(&batman_if->refcount, hardif_free_ref);
 
 	return ret;
 }
@@ -502,7 +502,7 @@ static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
 		break;
 	}
 
-	hardif_put(batman_if);
+	kref_put(&batman_if->refcount, hardif_free_ref);
 
 	return length;
 }
