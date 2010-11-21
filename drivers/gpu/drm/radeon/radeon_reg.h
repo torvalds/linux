@@ -422,6 +422,7 @@
 #       define RADEON_CRTC_CSYNC_EN         (1 <<  4)
 #       define RADEON_CRTC_ICON_EN          (1 << 15)
 #       define RADEON_CRTC_CUR_EN           (1 << 16)
+#       define RADEON_CRTC_VSTAT_MODE_MASK  (3 << 17)
 #       define RADEON_CRTC_CUR_MODE_MASK    (7 << 20)
 #       define RADEON_CRTC_CUR_MODE_SHIFT   20
 #       define RADEON_CRTC_CUR_MODE_MONO    0

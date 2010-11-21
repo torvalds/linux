@@ -277,6 +277,9 @@ struct radeon_crtc {
 	fixed20_12 hsc;
 	struct drm_display_mode native_mode;
 	int pll_id;
+	/* page flipping */
+	struct radeon_unpin_work *unpin_work;
+	int deferred_flip_completion;
 };
 
 struct radeon_encoder_primary_dac {
@@ -659,4 +662,7 @@ int radeon_fbdev_total_size(struct radeon_device *rdev);
 bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj);
 
 void radeon_fb_output_poll_changed(struct radeon_device *rdev);
+
+void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id);
+
 #endif
