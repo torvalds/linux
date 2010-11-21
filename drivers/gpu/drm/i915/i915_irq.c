@@ -766,6 +766,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	do_gettimeofday(&error->time);
 
 	error->overlay = intel_overlay_capture_error_state(dev);
+	error->display = intel_display_capture_error_state(dev);
 
 	spin_lock_irqsave(&dev_priv->error_lock, flags);
 	if (dev_priv->first_error == NULL) {

@@ -140,6 +140,8 @@ struct sdvo_device_mapping {
 	u8 ddc_pin;
 };
 
+struct intel_display_error_state;
+
 struct drm_i915_error_state {
 	u32 eir;
 	u32 pgtbl_er;
@@ -187,6 +189,7 @@ struct drm_i915_error_state {
 	} *active_bo, *pinned_bo;
 	u32 active_bo_count, pinned_bo_count;
 	struct intel_overlay_error_state *overlay;
+	struct intel_display_error_state *display;
 };
 
 struct drm_i915_display_funcs {
@@ -1223,6 +1226,11 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 #ifdef CONFIG_DEBUG_FS
 extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);
 extern void intel_overlay_print_error_state(struct seq_file *m, struct intel_overlay_error_state *error);
+
+extern struct intel_display_error_state *intel_display_capture_error_state(struct drm_device *dev);
+extern void intel_display_print_error_state(struct seq_file *m,
+					    struct drm_device *dev,
+					    struct intel_display_error_state *error);
 #endif
 
 /**
