@@ -380,6 +380,82 @@ done:
 }
 
 /*
+ * VMA operations.
+ */
+static void uvc_vm_open(struct vm_area_struct *vma)
+{
+	struct uvc_buffer *buffer = vma->vm_private_data;
+	buffer->vma_use_count++;
+}
+
+static void uvc_vm_close(struct vm_area_struct *vma)
+{
+	struct uvc_buffer *buffer = vma->vm_private_data;
+	buffer->vma_use_count--;
+}
+
+static const struct vm_operations_struct uvc_vm_ops = {
+	.open		= uvc_vm_open,
+	.close		= uvc_vm_close,
+};
+
+/*
+ * Memory-map a video buffer.
+ *
+ * This function implements video buffers memory mapping and is intended to be
+ * used by the device mmap handler.
+ */
+int uvc_queue_mmap(struct uvc_video_queue *queue, struct vm_area_struct *vma)
+{
+	struct uvc_buffer *uninitialized_var(buffer);
+	struct page *page;
+	unsigned long addr, start, size;
+	unsigned int i;
+	int ret = 0;
+
+	start = vma->vm_start;
+	size = vma->vm_end - vma->vm_start;
+
+	mutex_lock(&queue->mutex);
+
+	for (i = 0; i < queue->count; ++i) {
+		buffer = &queue->buffer[i];
+		if ((buffer->buf.m.offset >> PAGE_SHIFT) == vma->vm_pgoff)
+			break;
+	}
+
+	if (i == queue->count || size != queue->buf_size) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	/*
+	 * VM_IO marks the area as being an mmaped region for I/O to a
+	 * device. It also prevents the region from being core dumped.
+	 */
+	vma->vm_flags |= VM_IO;
+
+	addr = (unsigned long)queue->mem + buffer->buf.m.offset;
+	while (size > 0) {
+		page = vmalloc_to_page((void *)addr);
+		if ((ret = vm_insert_page(vma, start, page)) < 0)
+			goto done;
+
+		start += PAGE_SIZE;
+		addr += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+
+	vma->vm_ops = &uvc_vm_ops;
+	vma->vm_private_data = buffer;
+	uvc_vm_open(vma);
+
+done:
+	mutex_unlock(&queue->mutex);
+	return ret;
+}
+
+/*
  * Poll the video queue.
  *
  * This function implements video queue polling and is intended to be used by

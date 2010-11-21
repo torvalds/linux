@@ -574,6 +574,8 @@ extern int uvc_queue_enable(struct uvc_video_queue *queue, int enable);
 extern void uvc_queue_cancel(struct uvc_video_queue *queue, int disconnect);
 extern struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 		struct uvc_buffer *buf);
+extern int uvc_queue_mmap(struct uvc_video_queue *queue,
+		struct vm_area_struct *vma);
 extern unsigned int uvc_queue_poll(struct uvc_video_queue *queue,
 		struct file *file, poll_table *wait);
 extern int uvc_queue_allocated(struct uvc_video_queue *queue);
