@@ -287,14 +287,14 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 	}
 	clk_enable(omap->usbhost_ick);
 
-	omap->usbhost_hs_fck = clk_get(omap->dev, "usbhost_120m_fck");
+	omap->usbhost_hs_fck = clk_get(omap->dev, "hs_fck");
 	if (IS_ERR(omap->usbhost_hs_fck)) {
 		ret = PTR_ERR(omap->usbhost_hs_fck);
 		goto err_host_120m_fck;
 	}
 	clk_enable(omap->usbhost_hs_fck);
 
-	omap->usbhost_fs_fck = clk_get(omap->dev, "usbhost_48m_fck");
+	omap->usbhost_fs_fck = clk_get(omap->dev, "fs_fck");
 	if (IS_ERR(omap->usbhost_fs_fck)) {
 		ret = PTR_ERR(omap->usbhost_fs_fck);
 		goto err_host_48m_fck;
