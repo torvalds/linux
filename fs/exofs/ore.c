@@ -49,9 +49,17 @@ int ore_verify_layout(unsigned total_comps, struct ore_layout *layout)
 {
 	u64 stripe_length;
 
-/* FIXME: Only raid0 is supported for now. */
-	if (layout->raid_algorithm != PNFS_OSD_RAID_0) {
-		ORE_ERR("Only RAID_0 for now\n");
+	switch (layout->raid_algorithm) {
+	case PNFS_OSD_RAID_0:
+		layout->parity = 0;
+		break;
+	case PNFS_OSD_RAID_5:
+		layout->parity = 1;
+		break;
+	case PNFS_OSD_RAID_PQ:
+	case PNFS_OSD_RAID_4:
+	default:
+		ORE_ERR("Only RAID_0/5 for now\n");
 		return -EINVAL;
 	}
 	if (0 != (layout->stripe_unit & ~PAGE_MASK)) {
