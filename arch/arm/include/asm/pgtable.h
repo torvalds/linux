@@ -301,6 +301,7 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 #define pgd_present(pgd)	(1)
 #define pgd_clear(pgdp)		do { } while (0)
 #define set_pgd(pgd,pgdp)	do { } while (0)
+#define set_pud(pud,pudp)	do { } while (0)
 
 
 /* Find an entry in the second-level page table.. */

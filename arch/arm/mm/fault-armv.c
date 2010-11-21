@@ -95,6 +95,7 @@ static int adjust_pte(struct vm_area_struct *vma, unsigned long address,
 {
 	spinlock_t *ptl;
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	int ret;
@@ -103,7 +104,11 @@ static int adjust_pte(struct vm_area_struct *vma, unsigned long address,
 	if (pgd_none_or_clear_bad(pgd))
 		return 0;
 
-	pmd = pmd_offset(pgd, address);
+	pud = pud_offset(pgd, address);
+	if (pud_none_or_clear_bad(pud))
+		return 0;
+
+	pmd = pmd_offset(pud, address);
 	if (pmd_none_or_clear_bad(pmd))
 		return 0;
 
