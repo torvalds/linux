@@ -22,7 +22,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
-#include <sound/soc-dapm.h>
 #include <sound/soc.h>
 
 #define JZ4740_REG_CODEC_1 0x0
