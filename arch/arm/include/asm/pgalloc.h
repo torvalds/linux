@@ -30,11 +30,8 @@
 #define pmd_free(mm, pmd)		do { } while (0)
 #define pgd_populate(mm,pmd,pte)	BUG()
 
-extern pgd_t *get_pgd_slow(struct mm_struct *mm);
-extern void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd);
-
-#define pgd_alloc(mm)			get_pgd_slow(mm)
-#define pgd_free(mm, pgd)		free_pgd_slow(mm, pgd)
+extern pgd_t *pgd_alloc(struct mm_struct *mm);
+extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);
 
 #define PGALLOC_GFP	(GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO)
 
