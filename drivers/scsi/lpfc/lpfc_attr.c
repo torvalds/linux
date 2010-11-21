@@ -3305,12 +3305,12 @@ LPFC_ATTR_R(fcp_eq_count, LPFC_FP_EQN_DEF, LPFC_FP_EQN_MIN, LPFC_FP_EQN_MAX,
 LPFC_ATTR_R(enable_hba_reset, 1, 0, 1, "Enable HBA resets from the driver.");
 
 /*
-# lpfc_enable_hba_heartbeat: Enable HBA heartbeat timer..
+# lpfc_enable_hba_heartbeat: Disable HBA heartbeat timer..
 #       0  = HBA Heartbeat disabled
 #       1  = HBA Heartbeat enabled (default)
 # Value range is [0,1]. Default value is 1.
 */
-LPFC_ATTR_R(enable_hba_heartbeat, 1, 0, 1, "Enable HBA Heartbeat.");
+LPFC_ATTR_R(enable_hba_heartbeat, 0, 0, 1, "Enable HBA Heartbeat.");
 
 /*
 # lpfc_enable_bg: Enable BlockGuard (Emulex's Implementation of T10-DIF)
