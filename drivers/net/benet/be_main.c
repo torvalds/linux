@@ -41,6 +41,7 @@ static DEFINE_PCI_DEVICE_TABLE(be_dev_ids) = {
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID2) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID1) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID2) },
+	{ PCI_DEVICE(EMULEX_VENDOR_ID, OC_DEVICE_ID3)},
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
@@ -188,6 +189,8 @@ static void be_eq_notify(struct be_adapter *adapter, u16 qid,
 {
 	u32 val = 0;
 	val |= qid & DB_EQ_RING_ID_MASK;
+	val |= ((qid & DB_EQ_RING_ID_EXT_MASK) <<
+			DB_EQ_RING_ID_EXT_MASK_SHIFT);
 
 	if (adapter->eeh_err)
 		return;
@@ -205,6 +208,8 @@ void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm, u16 num_popped)
 {
 	u32 val = 0;
 	val |= qid & DB_CQ_RING_ID_MASK;
+	val |= ((qid & DB_CQ_RING_ID_EXT_MASK) <<
+			DB_CQ_RING_ID_EXT_MASK_SHIFT);
 
 	if (adapter->eeh_err)
 		return;
@@ -404,7 +409,8 @@ static void be_tx_stats_update(struct be_adapter *adapter,
 }
 
 /* Determine number of WRB entries needed to xmit data in an skb */
-static u32 wrb_cnt_for_skb(struct sk_buff *skb, bool *dummy)
+static u32 wrb_cnt_for_skb(struct be_adapter *adapter, struct sk_buff *skb,
+								bool *dummy)
 {
 	int cnt = (skb->len > skb->data_len);
 
@@ -412,12 +418,13 @@ static u32 wrb_cnt_for_skb(struct sk_buff *skb, bool *dummy)
 
 	/* to account for hdr wrb */
 	cnt++;
-	if (cnt & 1) {
+	if (lancer_chip(adapter) || !(cnt & 1)) {
+		*dummy = false;
+	} else {
 		/* add a dummy to make it an even num */
 		cnt++;
 		*dummy = true;
-	} else
-		*dummy = false;
+	}
 	BUG_ON(cnt > BE_MAX_TX_FRAG_COUNT);
 	return cnt;
 }
@@ -443,8 +450,18 @@ static void wrb_fill_hdr(struct be_adapter *adapter, struct be_eth_hdr_wrb *hdr,
 		AMAP_SET_BITS(struct amap_eth_hdr_wrb, lso, hdr, 1);
 		AMAP_SET_BITS(struct amap_eth_hdr_wrb, lso_mss,
 			hdr, skb_shinfo(skb)->gso_size);
-		if (skb_is_gso_v6(skb))
+		if (skb_is_gso_v6(skb) && !lancer_chip(adapter))
 			AMAP_SET_BITS(struct amap_eth_hdr_wrb, lso6, hdr, 1);
+		if (lancer_chip(adapter) && adapter->sli_family  ==
+							LANCER_A0_SLI_FAMILY) {
+			AMAP_SET_BITS(struct amap_eth_hdr_wrb, ipcs, hdr, 1);
+			if (is_tcp_pkt(skb))
+				AMAP_SET_BITS(struct amap_eth_hdr_wrb,
+								tcpcs, hdr, 1);
+			else if (is_udp_pkt(skb))
+				AMAP_SET_BITS(struct amap_eth_hdr_wrb,
+								udpcs, hdr, 1);
+		}
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		if (is_tcp_pkt(skb))
 			AMAP_SET_BITS(struct amap_eth_hdr_wrb, tcpcs, hdr, 1);
@@ -566,7 +583,7 @@ static netdev_tx_t be_xmit(struct sk_buff *skb,
 	u32 start = txq->head;
 	bool dummy_wrb, stopped = false;
 
-	wrb_cnt = wrb_cnt_for_skb(skb, &dummy_wrb);
+	wrb_cnt = wrb_cnt_for_skb(adapter, skb, &dummy_wrb);
 
 	copied = make_tx_wrbs(adapter, skb, wrb_cnt, dummy_wrb);
 	if (copied) {
@@ -1035,7 +1052,8 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 			return;
 		}
 		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
-		vid = swab16(vid);
+		if (!lancer_chip(adapter))
+			vid = swab16(vid);
 		vlan_hwaccel_receive_skb(skb, adapter->vlan_grp, vid);
 	} else {
 		netif_receive_skb(skb);
@@ -1113,7 +1131,8 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 		napi_gro_frags(&eq_obj->napi);
 	} else {
 		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
-		vid = swab16(vid);
+		if (!lancer_chip(adapter))
+			vid = swab16(vid);
 
 		if (!adapter->vlan_grp || adapter->vlans_added == 0)
 			return;
@@ -1381,7 +1400,8 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 		sent_skb = sent_skbs[txq->tail];
 		end_idx = txq->tail;
 		index_adv(&end_idx,
-			wrb_cnt_for_skb(sent_skb, &dummy_wrb) - 1, txq->len);
+			wrb_cnt_for_skb(adapter, sent_skb, &dummy_wrb) - 1,
+			txq->len);
 		be_tx_compl_process(adapter, end_idx);
 	}
 }
@@ -1476,7 +1496,9 @@ static int be_tx_queues_create(struct be_adapter *adapter)
 	/* Ask BE to create Tx Event queue */
 	if (be_cmd_eq_create(adapter, eq, adapter->tx_eq.cur_eqd))
 		goto tx_eq_free;
-	adapter->base_eq_id = adapter->tx_eq.q.id;
+
+	adapter->tx_eq.msix_vec_idx = adapter->msix_vec_next_idx++;
+
 
 	/* Alloc TX eth compl queue */
 	cq = &adapter->tx_obj.cq;
@@ -1568,6 +1590,8 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 		if (rc)
 			goto err;
 
+		rxo->rx_eq.msix_vec_idx = adapter->msix_vec_next_idx++;
+
 		/* CQ */
 		cq = &rxo->cq;
 		rc = be_queue_alloc(adapter, cq, RX_CQ_LEN,
@@ -1578,7 +1602,6 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 		rc = be_cmd_cq_create(adapter, cq, eq, false, false, 3);
 		if (rc)
 			goto err;
-
 		/* Rx Q */
 		q = &rxo->q;
 		rc = be_queue_alloc(adapter, q, RX_Q_LEN,
@@ -1611,29 +1634,45 @@ err:
 	return -1;
 }
 
-/* There are 8 evt ids per func. Retruns the evt id's bit number */
-static inline int be_evt_bit_get(struct be_adapter *adapter, u32 eq_id)
+static bool event_peek(struct be_eq_obj *eq_obj)
 {
-	return eq_id - adapter->base_eq_id;
+	struct be_eq_entry *eqe = queue_tail_node(&eq_obj->q);
+	if (!eqe->evt)
+		return false;
+	else
+		return true;
 }
 
 static irqreturn_t be_intx(int irq, void *dev)
 {
 	struct be_adapter *adapter = dev;
 	struct be_rx_obj *rxo;
-	int isr, i;
+	int isr, i, tx = 0 , rx = 0;
 
-	isr = ioread32(adapter->csr + CEV_ISR0_OFFSET +
-		(adapter->tx_eq.q.id/ 8) * CEV_ISR_SIZE);
-	if (!isr)
-		return IRQ_NONE;
+	if (lancer_chip(adapter)) {
+		if (event_peek(&adapter->tx_eq))
+			tx = event_handle(adapter, &adapter->tx_eq);
+		for_all_rx_queues(adapter, rxo, i) {
+			if (event_peek(&rxo->rx_eq))
+				rx |= event_handle(adapter, &rxo->rx_eq);
+		}
 
-	if ((1 << be_evt_bit_get(adapter, adapter->tx_eq.q.id) & isr))
-		event_handle(adapter, &adapter->tx_eq);
+		if (!(tx || rx))
+			return IRQ_NONE;
 
-	for_all_rx_queues(adapter, rxo, i) {
-		if ((1 << be_evt_bit_get(adapter, rxo->rx_eq.q.id) & isr))
-			event_handle(adapter, &rxo->rx_eq);
+	} else {
+		isr = ioread32(adapter->csr + CEV_ISR0_OFFSET +
+			(adapter->tx_eq.q.id / 8) * CEV_ISR_SIZE);
+		if (!isr)
+			return IRQ_NONE;
+
+		if ((1 << adapter->tx_eq.msix_vec_idx & isr))
+			event_handle(adapter, &adapter->tx_eq);
+
+		for_all_rx_queues(adapter, rxo, i) {
+			if ((1 << rxo->rx_eq.msix_vec_idx & isr))
+				event_handle(adapter, &rxo->rx_eq);
+		}
 	}
 
 	return IRQ_HANDLED;
@@ -1830,8 +1869,7 @@ static void be_worker(struct work_struct *work)
 			be_post_rx_frags(rxo);
 		}
 	}
-
-	if (!adapter->ue_detected)
+	if (!adapter->ue_detected && !lancer_chip(adapter))
 		be_detect_dump_ue(adapter);
 
 reschedule:
@@ -1910,10 +1948,10 @@ static void be_sriov_disable(struct be_adapter *adapter)
 #endif
 }
 
-static inline int be_msix_vec_get(struct be_adapter *adapter, u32 eq_id)
+static inline int be_msix_vec_get(struct be_adapter *adapter,
+					struct be_eq_obj *eq_obj)
 {
-	return adapter->msix_entries[
-			be_evt_bit_get(adapter, eq_id)].vector;
+	return adapter->msix_entries[eq_obj->msix_vec_idx].vector;
 }
 
 static int be_request_irq(struct be_adapter *adapter,
@@ -1924,14 +1962,14 @@ static int be_request_irq(struct be_adapter *adapter,
 	int vec;
 
 	sprintf(eq_obj->desc, "%s-%s", netdev->name, desc);
-	vec = be_msix_vec_get(adapter, eq_obj->q.id);
+	vec = be_msix_vec_get(adapter, eq_obj);
 	return request_irq(vec, handler, 0, eq_obj->desc, context);
 }
 
 static void be_free_irq(struct be_adapter *adapter, struct be_eq_obj *eq_obj,
 			void *context)
 {
-	int vec = be_msix_vec_get(adapter, eq_obj->q.id);
+	int vec = be_msix_vec_get(adapter, eq_obj);
 	free_irq(vec, context);
 }
 
@@ -2036,14 +2074,15 @@ static int be_close(struct net_device *netdev)
 	netif_carrier_off(netdev);
 	adapter->link_up = false;
 
-	be_intr_set(adapter, false);
+	if (!lancer_chip(adapter))
+		be_intr_set(adapter, false);
 
 	if (adapter->msix_enabled) {
-		vec = be_msix_vec_get(adapter, tx_eq->q.id);
+		vec = be_msix_vec_get(adapter, tx_eq);
 		synchronize_irq(vec);
 
 		for_all_rx_queues(adapter, rxo, i) {
-			vec = be_msix_vec_get(adapter, rxo->rx_eq.q.id);
+			vec = be_msix_vec_get(adapter, &rxo->rx_eq);
 			synchronize_irq(vec);
 		}
 	} else {
@@ -2082,7 +2121,8 @@ static int be_open(struct net_device *netdev)
 
 	be_irq_register(adapter);
 
-	be_intr_set(adapter, true);
+	if (!lancer_chip(adapter))
+		be_intr_set(adapter, true);
 
 	/* The evt queues are created in unarmed state; arm them */
 	for_all_rx_queues(adapter, rxo, i) {
@@ -2548,6 +2588,9 @@ static void be_netdev_init(struct net_device *netdev)
 
 	netdev->vlan_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_HW_CSUM;
 
+	if (lancer_chip(adapter))
+		netdev->vlan_features |= NETIF_F_TSO6;
+
 	netdev->flags |= IFF_MULTICAST;
 
 	adapter->rx_csum = true;
@@ -2586,6 +2629,15 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 {
 	u8 __iomem *addr;
 	int pcicfg_reg, db_reg;
+
+	if (lancer_chip(adapter)) {
+		addr = ioremap_nocache(pci_resource_start(adapter->pdev, 0),
+			pci_resource_len(adapter->pdev, 0));
+		if (addr == NULL)
+			return -ENOMEM;
+		adapter->db = addr;
+		return 0;
+	}
 
 	if (be_physfn(adapter)) {
 		addr = ioremap_nocache(pci_resource_start(adapter->pdev, 2),
@@ -2783,6 +2835,44 @@ static int be_get_config(struct be_adapter *adapter)
 	return 0;
 }
 
+static int be_dev_family_check(struct be_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	u32 sli_intf = 0, if_type;
+
+	switch (pdev->device) {
+	case BE_DEVICE_ID1:
+	case OC_DEVICE_ID1:
+		adapter->generation = BE_GEN2;
+		break;
+	case BE_DEVICE_ID2:
+	case OC_DEVICE_ID2:
+		adapter->generation = BE_GEN3;
+		break;
+	case OC_DEVICE_ID3:
+		pci_read_config_dword(pdev, SLI_INTF_REG_OFFSET, &sli_intf);
+		if_type = (sli_intf & SLI_INTF_IF_TYPE_MASK) >>
+						SLI_INTF_IF_TYPE_SHIFT;
+
+		if (((sli_intf & SLI_INTF_VALID_MASK) != SLI_INTF_VALID) ||
+			if_type != 0x02) {
+			dev_err(&pdev->dev, "SLI_INTF reg val is not valid\n");
+			return -EINVAL;
+		}
+		if (num_vfs > 0) {
+			dev_err(&pdev->dev, "VFs not supported\n");
+			return -EINVAL;
+		}
+		adapter->sli_family = ((sli_intf & SLI_INTF_FAMILY_MASK) >>
+					 SLI_INTF_FAMILY_SHIFT);
+		adapter->generation = BE_GEN3;
+		break;
+	default:
+		adapter->generation = 0;
+	}
+	return 0;
+}
+
 static int __devinit be_probe(struct pci_dev *pdev,
 			const struct pci_device_id *pdev_id)
 {
@@ -2805,22 +2895,13 @@ static int __devinit be_probe(struct pci_dev *pdev,
 		goto rel_reg;
 	}
 	adapter = netdev_priv(netdev);
-
-	switch (pdev->device) {
-	case BE_DEVICE_ID1:
-	case OC_DEVICE_ID1:
-		adapter->generation = BE_GEN2;
-		break;
-	case BE_DEVICE_ID2:
-	case OC_DEVICE_ID2:
-		adapter->generation = BE_GEN3;
-		break;
-	default:
-		adapter->generation = 0;
-	}
-
 	adapter->pdev = pdev;
 	pci_set_drvdata(pdev, adapter);
+
+	status = be_dev_family_check(adapter);
+	if (!status)
+		goto free_netdev;
+
 	adapter->netdev = netdev;
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
@@ -2895,7 +2976,7 @@ ctrl_clean:
 	be_ctrl_cleanup(adapter);
 free_netdev:
 	be_sriov_disable(adapter);
-	free_netdev(adapter->netdev);
+	free_netdev(netdev);
 	pci_set_drvdata(pdev, NULL);
 rel_reg:
 	pci_release_regions(pdev);
