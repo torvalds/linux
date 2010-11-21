@@ -36,6 +36,9 @@ static struct sk_buff *frag_merge_packet(struct list_head *head,
 	struct unicast_frag_packet *up =
 		(struct unicast_frag_packet *)skb->data;
 	struct sk_buff *tmp_skb;
+	struct unicast_packet *unicast_packet;
+	int hdr_len = sizeof(struct unicast_packet),
+	    uni_diff = sizeof(struct unicast_frag_packet) - hdr_len;
 
 	/* set skb to the first part and tmp_skb to the second part */
 	if (up->flags & UNI_FRAG_HEAD) {
@@ -59,6 +62,11 @@ static struct sk_buff *frag_merge_packet(struct list_head *head,
 
 	memcpy(skb_put(skb, tmp_skb->len), tmp_skb->data, tmp_skb->len);
 	kfree_skb(tmp_skb);
+
+	memmove(skb->data + uni_diff, skb->data, hdr_len);
+	unicast_packet = (struct unicast_packet *) skb_pull(skb, uni_diff);
+	unicast_packet->packet_type = BAT_UNICAST;
+
 	return skb;
 }
 

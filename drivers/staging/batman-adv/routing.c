@@ -1128,6 +1128,8 @@ static int route_unicast_packet(struct sk_buff *skb,
 	unsigned long flags;
 	struct unicast_packet *unicast_packet;
 	struct ethhdr *ethhdr = (struct ethhdr *)skb_mac_header(skb);
+	int ret;
+	struct sk_buff *new_skb;
 
 	unicast_packet = (struct unicast_packet *)skb->data;
 
@@ -1170,6 +1172,22 @@ static int route_unicast_packet(struct sk_buff *skb,
 	    skb->len > batman_if->net_dev->mtu)
 		return frag_send_skb(skb, bat_priv, batman_if,
 				     dstaddr);
+
+	if (unicast_packet->packet_type == BAT_UNICAST_FRAG &&
+	    2 * skb->len - hdr_size <= batman_if->net_dev->mtu) {
+
+		ret = frag_reassemble_skb(skb, bat_priv, &new_skb);
+
+		if (ret == NET_RX_DROP)
+			return NET_RX_DROP;
+
+		/* packet was buffered for late merge */
+		if (!new_skb)
+			return NET_RX_SUCCESS;
+
+		skb = new_skb;
+		unicast_packet = (struct unicast_packet *) skb->data;
+	}
 
 	/* decrement ttl */
 	unicast_packet->ttl--;
@@ -1224,7 +1242,8 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
 		if (!new_skb)
 			return NET_RX_SUCCESS;
 
-		interface_rx(recv_if->soft_iface, new_skb, hdr_size);
+		interface_rx(recv_if->soft_iface, new_skb,
+			     sizeof(struct unicast_packet));
 		return NET_RX_SUCCESS;
 	}
 
