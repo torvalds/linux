@@ -301,17 +301,34 @@ static int parse_scriptname(const struct option *opt __used,
 	return 0;
 }
 
-#define for_each_lang(scripts_dir, lang_dirent, lang_next)		\
+/* Helper function for filesystems that return a dent->d_type DT_UNKNOWN */
+static int is_directory(const char *base_path, const struct dirent *dent)
+{
+	char path[PATH_MAX];
+	struct stat st;
+
+	sprintf(path, "%s/%s", base_path, dent->d_name);
+	if (stat(path, &st))
+		return 0;
+
+	return S_ISDIR(st.st_mode);
+}
+
+#define for_each_lang(scripts_path, scripts_dir, lang_dirent, lang_next)\
 	while (!readdir_r(scripts_dir, &lang_dirent, &lang_next) &&	\
 	       lang_next)						\
-		if (lang_dirent.d_type == DT_DIR &&			\
+		if ((lang_dirent.d_type == DT_DIR ||			\
+		     (lang_dirent.d_type == DT_UNKNOWN &&		\
+		      is_directory(scripts_path, &lang_dirent))) &&	\
 		    (strcmp(lang_dirent.d_name, ".")) &&		\
 		    (strcmp(lang_dirent.d_name, "..")))
 
-#define for_each_script(lang_dir, script_dirent, script_next)		\
+#define for_each_script(lang_path, lang_dir, script_dirent, script_next)\
 	while (!readdir_r(lang_dir, &script_dirent, &script_next) &&	\
 	       script_next)						\
-		if (script_dirent.d_type != DT_DIR)
+		if (script_dirent.d_type != DT_DIR &&			\
+		    (script_dirent.d_type != DT_UNKNOWN ||		\
+		     !is_directory(lang_path, &script_dirent)))
 
 
 #define RECORD_SUFFIX			"-record"
@@ -466,14 +483,14 @@ static int list_available_scripts(const struct option *opt __used,
 	if (!scripts_dir)
 		return -1;
 
-	for_each_lang(scripts_dir, lang_dirent, lang_next) {
+	for_each_lang(scripts_path, scripts_dir, lang_dirent, lang_next) {
 		snprintf(lang_path, MAXPATHLEN, "%s/%s/bin", scripts_path,
 			 lang_dirent.d_name);
 		lang_dir = opendir(lang_path);
 		if (!lang_dir)
 			continue;
 
-		for_each_script(lang_dir, script_dirent, script_next) {
+		for_each_script(lang_path, lang_dir, script_dirent, script_next) {
 			script_root = strdup(script_dirent.d_name);
 			str = ends_with(script_root, REPORT_SUFFIX);
 			if (str) {
@@ -514,14 +531,14 @@ static char *get_script_path(const char *script_root, const char *suffix)
 	if (!scripts_dir)
 		return NULL;
 
-	for_each_lang(scripts_dir, lang_dirent, lang_next) {
+	for_each_lang(scripts_path, scripts_dir, lang_dirent, lang_next) {
 		snprintf(lang_path, MAXPATHLEN, "%s/%s/bin", scripts_path,
 			 lang_dirent.d_name);
 		lang_dir = opendir(lang_path);
 		if (!lang_dir)
 			continue;
 
-		for_each_script(lang_dir, script_dirent, script_next) {
+		for_each_script(lang_path, lang_dir, script_dirent, script_next) {
 			__script_root = strdup(script_dirent.d_name);
 			str = ends_with(__script_root, suffix);
 			if (str) {
