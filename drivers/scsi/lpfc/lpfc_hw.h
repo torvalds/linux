@@ -1172,7 +1172,10 @@ typedef struct {
 #define PCI_VENDOR_ID_EMULEX        0x10df
 #define PCI_DEVICE_ID_FIREFLY       0x1ae5
 #define PCI_DEVICE_ID_PROTEUS_VF    0xe100
+#define PCI_DEVICE_ID_BALIUS        0xe131
 #define PCI_DEVICE_ID_PROTEUS_PF    0xe180
+#define PCI_DEVICE_ID_LANCER_FC     0xe200
+#define PCI_DEVICE_ID_LANCER_FCOE   0xe260
 #define PCI_DEVICE_ID_SAT_SMB       0xf011
 #define PCI_DEVICE_ID_SAT_MID       0xf015
 #define PCI_DEVICE_ID_RFLY          0xf095
@@ -1189,6 +1192,7 @@ typedef struct {
 #define PCI_DEVICE_ID_SAT           0xf100
 #define PCI_DEVICE_ID_SAT_SCSP      0xf111
 #define PCI_DEVICE_ID_SAT_DCSP      0xf112
+#define PCI_DEVICE_ID_FALCON        0xf180
 #define PCI_DEVICE_ID_SUPERFLY      0xf700
 #define PCI_DEVICE_ID_DRAGONFLY     0xf800
 #define PCI_DEVICE_ID_CENTAUR       0xf900
@@ -1210,8 +1214,6 @@ typedef struct {
 #define PCI_VENDOR_ID_SERVERENGINE  0x19a2
 #define PCI_DEVICE_ID_TIGERSHARK    0x0704
 #define PCI_DEVICE_ID_TOMCAT        0x0714
-#define PCI_DEVICE_ID_FALCON        0xf180
-#define PCI_DEVICE_ID_BALIUS        0xe131
 
 #define JEDEC_ID_ADDRESS            0x0080001c
 #define FIREFLY_JEDEC_ID            0x1ACC

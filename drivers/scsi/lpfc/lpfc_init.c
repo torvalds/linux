@@ -1853,6 +1853,14 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		m = (typeof(m)){"LPVe12002", "PCIe Shared I/O",
 				"Fibre Channel Adapter"};
 		break;
+	case PCI_DEVICE_ID_LANCER_FC:
+		oneConnect = 1;
+		m = (typeof(m)){"Undefined", "PCIe", "Fibre Channel Adapter"};
+		break;
+	case PCI_DEVICE_ID_LANCER_FCOE:
+		oneConnect = 1;
+		m = (typeof(m)){"Undefined", "PCIe", "FCoE"};
+		break;
 	default:
 		m = (typeof(m)){"Unknown", "", ""};
 		break;
@@ -3950,7 +3958,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	int rc, i, hbq_count, buf_size, dma_buf_size, max_buf_size;
 	uint8_t pn_page[LPFC_MAX_SUPPORTED_PAGES] = {0};
 	struct lpfc_mqe *mqe;
-	int longs;
+	int longs, sli_family;
 
 	/* Before proceed, wait for POST done and device ready */
 	rc = lpfc_sli4_post_status_check(phba);
@@ -4012,12 +4020,22 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 */
 	buf_size = (sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp) +
 		    ((phba->cfg_sg_seg_cnt + 2) * sizeof(struct sli4_sge)));
-	/* Feature Level 1 hardware is limited to 2 pages */
-	if ((bf_get(lpfc_sli_intf_featurelevel1, &phba->sli4_hba.sli_intf) ==
-	     LPFC_SLI_INTF_FEATURELEVEL1_1))
-		max_buf_size = LPFC_SLI4_FL1_MAX_BUF_SIZE;
-	else
-		max_buf_size = LPFC_SLI4_MAX_BUF_SIZE;
+
+	sli_family = bf_get(lpfc_sli_intf_sli_family, &phba->sli4_hba.sli_intf);
+	max_buf_size = LPFC_SLI4_MAX_BUF_SIZE;
+	switch (sli_family) {
+	case LPFC_SLI_INTF_FAMILY_BE2:
+	case LPFC_SLI_INTF_FAMILY_BE3:
+		/* There is a single hint for BE - 2 pages per BPL. */
+		if (bf_get(lpfc_sli_intf_sli_hint1, &phba->sli4_hba.sli_intf) ==
+		    LPFC_SLI_INTF_SLI_HINT1_1)
+			max_buf_size = LPFC_SLI4_FL1_MAX_BUF_SIZE;
+		break;
+	case LPFC_SLI_INTF_FAMILY_LNCR_A0:
+	case LPFC_SLI_INTF_FAMILY_LNCR_B0:
+	default:
+		break;
+	}
 	for (dma_buf_size = LPFC_SLI4_MIN_BUF_SIZE;
 	     dma_buf_size < max_buf_size && buf_size > dma_buf_size;
 	     dma_buf_size = dma_buf_size << 1)
@@ -5233,16 +5251,22 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 		   &phba->sli4_hba.sli_intf) == LPFC_SLI_INTF_VALID) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"2534 Device Info: ChipType=0x%x, SliRev=0x%x, "
-				"FeatureL1=0x%x, FeatureL2=0x%x\n",
+				"IFType=0x%x, SLIHint_1=0x%x, SLIHint_2=0x%x, "
+				"FT=0x%x\n",
 				bf_get(lpfc_sli_intf_sli_family,
 				       &phba->sli4_hba.sli_intf),
 				bf_get(lpfc_sli_intf_slirev,
 				       &phba->sli4_hba.sli_intf),
-				bf_get(lpfc_sli_intf_featurelevel1,
+				bf_get(lpfc_sli_intf_if_type,
 				       &phba->sli4_hba.sli_intf),
-				bf_get(lpfc_sli_intf_featurelevel2,
+				bf_get(lpfc_sli_intf_sli_hint1,
+				       &phba->sli4_hba.sli_intf),
+				bf_get(lpfc_sli_intf_sli_hint2,
+				       &phba->sli4_hba.sli_intf),
+				bf_get(lpfc_sli_intf_func_type,
 				       &phba->sli4_hba.sli_intf));
 	}
+
 	phba->sli4_hba.ue_mask_lo = readl(phba->sli4_hba.UEMASKLOregaddr);
 	phba->sli4_hba.ue_mask_hi = readl(phba->sli4_hba.UEMASKHIregaddr);
 	/* With uncoverable error, log the error message and return error */
@@ -8991,6 +9015,10 @@ static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_FALCON,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_BALIUS,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LANCER_FC,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_LANCER_FCOE,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0 }
 };
