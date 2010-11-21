@@ -16,6 +16,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #include <linux/types.h>
+#include <linux/list.h>
 
 /*  ----------------------------------- Host OS */
 #include <dspbridge/host_os.h>
@@ -25,9 +26,6 @@
 
 /*  ----------------------------------- Trace & Debug */
 #include <dspbridge/dbc.h>
-
-/*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/list.h>
 
 /*  ----------------------------------- This */
 #include <dspbridge/drv.h>
@@ -42,8 +40,8 @@
 
 /*  ----------------------------------- Defines, Data Structures, Typedefs */
 struct drv_object {
-	struct lst_list *dev_list;
-	struct lst_list *dev_node_string;
+	struct list_head dev_list;
+	struct list_head dev_node_string;
 };
 
 /*
@@ -316,22 +314,8 @@ int drv_create(struct drv_object **drv_obj)
 	pdrv_object = kzalloc(sizeof(struct drv_object), GFP_KERNEL);
 	if (pdrv_object) {
 		/* Create and Initialize List of device objects */
-		pdrv_object->dev_list = kzalloc(sizeof(struct lst_list),
-							GFP_KERNEL);
-		if (pdrv_object->dev_list) {
-			/* Create and Initialize List of device Extension */
-			pdrv_object->dev_node_string =
-				kzalloc(sizeof(struct lst_list), GFP_KERNEL);
-			if (!(pdrv_object->dev_node_string)) {
-				status = -EPERM;
-			} else {
-				INIT_LIST_HEAD(&pdrv_object->
-					       dev_node_string->head);
-				INIT_LIST_HEAD(&pdrv_object->dev_list->head);
-			}
-		} else {
-			status = -ENOMEM;
-		}
+		INIT_LIST_HEAD(&pdrv_object->dev_list);
+		INIT_LIST_HEAD(&pdrv_object->dev_node_string);
 	} else {
 		status = -ENOMEM;
 	}
@@ -348,8 +332,6 @@ int drv_create(struct drv_object **drv_obj)
 	if (!status) {
 		*drv_obj = pdrv_object;
 	} else {
-		kfree(pdrv_object->dev_list);
-		kfree(pdrv_object->dev_node_string);
 		/* Free the DRV Object */
 		kfree(pdrv_object);
 	}
@@ -386,13 +368,6 @@ int drv_destroy(struct drv_object *driver_obj)
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(pdrv_object);
 
-	/*
-	 *  Delete the List if it exists.Should not come here
-	 *  as the drv_remove_dev_object and the Last drv_request_resources
-	 *  removes the list if the lists are empty.
-	 */
-	kfree(pdrv_object->dev_list);
-	kfree(pdrv_object->dev_node_string);
 	kfree(pdrv_object);
 	/* Update the DRV Object in the driver data */
 	if (drv_datap) {
@@ -424,7 +399,7 @@ int drv_get_dev_object(u32 index, struct drv_object *hdrv_obj,
 	DBC_REQUIRE(device_obj != NULL);
 	DBC_REQUIRE(index >= 0);
 	DBC_REQUIRE(refs > 0);
-	DBC_ASSERT(!(LST_IS_EMPTY(pdrv_obj->dev_list)));
+	DBC_ASSERT(!(list_empty(&pdrv_obj->dev_list)));
 
 	dev_obj = (struct dev_object *)drv_get_first_dev_object();
 	for (i = 0; i < index; i++) {
@@ -455,9 +430,8 @@ u32 drv_get_first_dev_object(void)
 
 	if (drv_datap && drv_datap->drv_object) {
 		pdrv_obj = drv_datap->drv_object;
-		if ((pdrv_obj->dev_list != NULL) &&
-		    !LST_IS_EMPTY(pdrv_obj->dev_list))
-			dw_dev_object = (u32) lst_first(pdrv_obj->dev_list);
+		if (!list_empty(&pdrv_obj->dev_list))
+			dw_dev_object = (u32) pdrv_obj->dev_list.next;
 	} else {
 		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 	}
@@ -479,10 +453,9 @@ u32 drv_get_first_dev_extension(void)
 
 	if (drv_datap && drv_datap->drv_object) {
 		pdrv_obj = drv_datap->drv_object;
-		if ((pdrv_obj->dev_node_string != NULL) &&
-		    !LST_IS_EMPTY(pdrv_obj->dev_node_string)) {
+		if (!list_empty(&pdrv_obj->dev_node_string)) {
 			dw_dev_extension =
-			    (u32) lst_first(pdrv_obj->dev_node_string);
+			    (u32) pdrv_obj->dev_node_string.next;
 		}
 	} else {
 		pr_err("%s: Failed to retrieve the object handle\n", __func__);
@@ -503,16 +476,15 @@ u32 drv_get_next_dev_object(u32 hdev_obj)
 	u32 dw_next_dev_object = 0;
 	struct drv_object *pdrv_obj;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
-
-	DBC_REQUIRE(hdev_obj != 0);
+	struct list_head *curr;
 
 	if (drv_datap && drv_datap->drv_object) {
 		pdrv_obj = drv_datap->drv_object;
-		if ((pdrv_obj->dev_list != NULL) &&
-		    !LST_IS_EMPTY(pdrv_obj->dev_list)) {
-			dw_next_dev_object = (u32) lst_next(pdrv_obj->dev_list,
-							    (struct list_head *)
-							    hdev_obj);
+		if (!list_empty(&pdrv_obj->dev_list)) {
+			curr = (struct list_head *)hdev_obj;
+			if (list_is_last(curr, &pdrv_obj->dev_list))
+				return 0;
+			dw_next_dev_object = (u32) curr->next;
 		}
 	} else {
 		pr_err("%s: Failed to retrieve the object handle\n", __func__);
@@ -534,16 +506,15 @@ u32 drv_get_next_dev_extension(u32 dev_extension)
 	u32 dw_dev_extension = 0;
 	struct drv_object *pdrv_obj;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
-
-	DBC_REQUIRE(dev_extension != 0);
+	struct list_head *curr;
 
 	if (drv_datap && drv_datap->drv_object) {
 		pdrv_obj = drv_datap->drv_object;
-		if ((pdrv_obj->dev_node_string != NULL) &&
-		    !LST_IS_EMPTY(pdrv_obj->dev_node_string)) {
-			dw_dev_extension =
-			    (u32) lst_next(pdrv_obj->dev_node_string,
-					   (struct list_head *)dev_extension);
+		if (!list_empty(&pdrv_obj->dev_node_string)) {
+			curr = (struct list_head *)dev_extension;
+			if (list_is_last(curr, &pdrv_obj->dev_node_string))
+				return 0;
+			dw_dev_extension = (u32) curr->next;
 		}
 	} else {
 		pr_err("%s: Failed to retrieve the object handle\n", __func__);
@@ -584,11 +555,8 @@ int drv_insert_dev_object(struct drv_object *driver_obj,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(hdev_obj != NULL);
 	DBC_REQUIRE(pdrv_object);
-	DBC_ASSERT(pdrv_object->dev_list);
 
-	lst_put_tail(pdrv_object->dev_list, (struct list_head *)hdev_obj);
-
-	DBC_ENSURE(!LST_IS_EMPTY(pdrv_object->dev_list));
+	list_add_tail((struct list_head *)hdev_obj, &pdrv_object->dev_list);
 
 	return 0;
 }
@@ -610,26 +578,17 @@ int drv_remove_dev_object(struct drv_object *driver_obj,
 	DBC_REQUIRE(pdrv_object);
 	DBC_REQUIRE(hdev_obj != NULL);
 
-	DBC_REQUIRE(pdrv_object->dev_list != NULL);
-	DBC_REQUIRE(!LST_IS_EMPTY(pdrv_object->dev_list));
+	DBC_REQUIRE(!list_empty(&pdrv_object->dev_list));
 
 	/* Search list for p_proc_object: */
-	for (cur_elem = lst_first(pdrv_object->dev_list); cur_elem != NULL;
-	     cur_elem = lst_next(pdrv_object->dev_list, cur_elem)) {
+	list_for_each(cur_elem, &pdrv_object->dev_list) {
 		/* If found, remove it. */
 		if ((struct dev_object *)cur_elem == hdev_obj) {
-			lst_remove_elem(pdrv_object->dev_list, cur_elem);
+			list_del(cur_elem);
 			status = 0;
 			break;
 		}
 	}
-	/* Remove list if empty. */
-	if (LST_IS_EMPTY(pdrv_object->dev_list)) {
-		kfree(pdrv_object->dev_list);
-		pdrv_object->dev_list = NULL;
-	}
-	DBC_ENSURE((pdrv_object->dev_list == NULL) ||
-		   !LST_IS_EMPTY(pdrv_object->dev_list));
 
 	return status;
 }
@@ -663,14 +622,13 @@ int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 	if (!status) {
 		pszdev_node = kzalloc(sizeof(struct drv_ext), GFP_KERNEL);
 		if (pszdev_node) {
-			lst_init_elem(&pszdev_node->link);
 			strncpy(pszdev_node->sz_string,
 				(char *)dw_context, MAXREGPATHLENGTH - 1);
 			pszdev_node->sz_string[MAXREGPATHLENGTH - 1] = '\0';
 			/* Update the Driver Object List */
 			*dev_node_strg = (u32) pszdev_node->sz_string;
-			lst_put_tail(pdrv_object->dev_node_string,
-				     (struct list_head *)pszdev_node);
+			list_add_tail(&pszdev_node->link,
+					&pdrv_object->dev_node_string);
 		} else {
 			status = -ENOMEM;
 			*dev_node_strg = 0;
@@ -682,7 +640,7 @@ int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 	}
 
 	DBC_ENSURE((!status && dev_node_strg != NULL &&
-		    !LST_IS_EMPTY(pdrv_object->dev_node_string)) ||
+		    !list_empty(&pdrv_object->dev_node_string)) ||
 		   (status && *dev_node_strg == 0));
 
 	return status;
@@ -696,7 +654,6 @@ int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 int drv_release_resources(u32 dw_context, struct drv_object *hdrv_obj)
 {
 	int status = 0;
-	struct drv_object *pdrv_object = (struct drv_object *)hdrv_obj;
 	struct drv_ext *pszdev_node;
 
 	/*
@@ -706,22 +663,12 @@ int drv_release_resources(u32 dw_context, struct drv_object *hdrv_obj)
 	for (pszdev_node = (struct drv_ext *)drv_get_first_dev_extension();
 	     pszdev_node != NULL; pszdev_node = (struct drv_ext *)
 	     drv_get_next_dev_extension((u32) pszdev_node)) {
-		if (!pdrv_object->dev_node_string) {
-			/* When this could happen? */
-			continue;
-		}
 		if ((u32) pszdev_node == dw_context) {
 			/* Found it */
 			/* Delete from the Driver object list */
-			lst_remove_elem(pdrv_object->dev_node_string,
-					(struct list_head *)pszdev_node);
-			kfree((void *)pszdev_node);
+			list_del(&pszdev_node->link);
+			kfree(pszdev_node);
 			break;
-		}
-		/* Delete the List if it is empty */
-		if (LST_IS_EMPTY(pdrv_object->dev_node_string)) {
-			kfree(pdrv_object->dev_node_string);
-			pdrv_object->dev_node_string = NULL;
 		}
 	}
 	return status;

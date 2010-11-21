@@ -29,7 +29,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/list.h>
 #include <dspbridge/ntfy.h>
 #include <dspbridge/sync.h>
 /*  ----------------------------------- Bridge Driver */
@@ -357,7 +356,6 @@ proc_attach(u32 processor_id,
 		 * Return handle to this Processor Object:
 		 * Find out if the Device is already attached to a
 		 * Processor. If so, return AlreadyAttached status */
-		lst_init_elem(&p_proc_object->link);
 		status = dev_insert_proc_object(p_proc_object->hdev_obj,
 						(u32) p_proc_object,
 						&p_proc_object->

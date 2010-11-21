@@ -18,6 +18,8 @@
 
 #include <linux/types.h>
 #include <linux/bitmap.h>
+#include <linux/list.h>
+
 /*  ----------------------------------- Host OS */
 #include <dspbridge/host_os.h>
 
@@ -28,7 +30,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/list.h>
 #include <dspbridge/memdefs.h>
 #include <dspbridge/proc.h>
 #include <dspbridge/strm.h>
@@ -129,7 +130,7 @@ struct node_mgr {
 	struct bridge_drv_interface *intf_fxns;
 	struct dcd_manager *hdcd_mgr;	/* Proc/Node data manager */
 	struct disp_object *disp_obj;	/* Node dispatcher */
-	struct lst_list *node_list;	/* List of all allocated nodes */
+	struct list_head node_list;	/* List of all allocated nodes */
 	u32 num_nodes;		/* Number of nodes in node_list */
 	u32 num_created;	/* Number of nodes *created* on DSP */
 	DECLARE_BITMAP(pipe_map, MAXPIPES); /* Pipe connection bitmap */
@@ -640,13 +641,12 @@ func_cont:
 	if (!status) {
 		/* Add the node to the node manager's list of allocated
 		 * nodes. */
-		lst_init_elem((struct list_head *)pnode);
 		NODE_SET_STATE(pnode, NODE_ALLOCATED);
 
 		mutex_lock(&hnode_mgr->node_mgr_lock);
 
-		lst_put_tail(hnode_mgr->node_list, (struct list_head *) pnode);
-			++(hnode_mgr->num_nodes);
+		list_add_tail(&pnode->list_elem, &hnode_mgr->node_list);
+		++(hnode_mgr->num_nodes);
 
 		/* Exit critical section */
 		mutex_unlock(&hnode_mgr->node_mgr_lock);
@@ -1338,9 +1338,7 @@ int node_create_mgr(struct node_mgr **node_man,
 	node_mgr_obj = kzalloc(sizeof(struct node_mgr), GFP_KERNEL);
 	if (node_mgr_obj) {
 		node_mgr_obj->hdev_obj = hdev_obj;
-		node_mgr_obj->node_list = kzalloc(sizeof(struct lst_list),
-				GFP_KERNEL);
-		INIT_LIST_HEAD(&node_mgr_obj->node_list->head);
+		INIT_LIST_HEAD(&node_mgr_obj->node_list);
 		node_mgr_obj->ntfy_obj = kmalloc(
 				sizeof(struct ntfy_object), GFP_KERNEL);
 		if (node_mgr_obj->ntfy_obj)
@@ -1563,7 +1561,7 @@ func_cont1:
 	}
 	/* Free host side resources even if a failure occurred */
 	/* Remove node from hnode_mgr->node_list */
-	lst_remove_elem(hnode_mgr->node_list, (struct list_head *)pnode);
+	list_del(&pnode->list_elem);
 	hnode_mgr->num_nodes--;
 	/* Decrement count of nodes created on DSP */
 	if ((state != NODE_ALLOCATED) || ((state == NODE_ALLOCATED) &&
@@ -1617,7 +1615,7 @@ int node_enum_nodes(struct node_mgr *hnode_mgr, void **node_tab,
 			   u32 *pu_allocated)
 {
 	struct node_object *hnode;
-	u32 i;
+	u32 i = 0;
 	int status = 0;
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(node_tab != NULL || node_tab_size == 0);
@@ -1636,15 +1634,8 @@ int node_enum_nodes(struct node_mgr *hnode_mgr, void **node_tab,
 		*pu_num_nodes = 0;
 		status = -EINVAL;
 	} else {
-		hnode = (struct node_object *)lst_first(hnode_mgr->
-			node_list);
-		for (i = 0; i < hnode_mgr->num_nodes; i++) {
-			DBC_ASSERT(hnode);
-			node_tab[i] = hnode;
-			hnode = (struct node_object *)lst_next
-				(hnode_mgr->node_list,
-				(struct list_head *)hnode);
-		}
+		list_for_each_entry(hnode, &hnode_mgr->node_list, list_elem)
+			node_tab[i++] = hnode;
 		*pu_allocated = *pu_num_nodes = hnode_mgr->num_nodes;
 	}
 	/* end of sync_enter_cs */
@@ -2632,7 +2623,7 @@ func_end:
  */
 static void delete_node_mgr(struct node_mgr *hnode_mgr)
 {
-	struct node_object *hnode;
+	struct node_object *hnode, *tmp;
 
 	if (hnode_mgr) {
 		/* Free resources */
@@ -2640,13 +2631,10 @@ static void delete_node_mgr(struct node_mgr *hnode_mgr)
 			dcd_destroy_manager(hnode_mgr->hdcd_mgr);
 
 		/* Remove any elements remaining in lists */
-		if (hnode_mgr->node_list) {
-			while ((hnode = (struct node_object *)
-				lst_get_head(hnode_mgr->node_list)))
-				delete_node(hnode, NULL);
-
-			DBC_ASSERT(LST_IS_EMPTY(hnode_mgr->node_list));
-			kfree(hnode_mgr->node_list);
+		list_for_each_entry_safe(hnode, tmp, &hnode_mgr->node_list,
+				list_elem) {
+			list_del(&hnode->list_elem);
+			delete_node(hnode, NULL);
 		}
 		mutex_destroy(&hnode_mgr->node_mgr_lock);
 		if (hnode_mgr->ntfy_obj) {
@@ -3186,23 +3174,17 @@ int node_find_addr(struct node_mgr *node_mgr, u32 sym_addr,
 {
 	struct node_object *node_obj;
 	int status = -ENOENT;
-	u32 n;
 
 	pr_debug("%s(0x%x, 0x%x, 0x%x, 0x%x,  %s)\n", __func__,
 			(unsigned int) node_mgr,
 			sym_addr, offset_range,
 			(unsigned int) sym_addr_output, sym_name);
 
-	node_obj = (struct node_object *)(node_mgr->node_list->head.next);
-
-	for (n = 0; n < node_mgr->num_nodes; n++) {
+	list_for_each_entry(node_obj, &node_mgr->node_list, list_elem) {
 		status = nldr_find_addr(node_obj->nldr_node_obj, sym_addr,
 			offset_range, sym_addr_output, sym_name);
-
 		if (!status)
 			break;
-
-		node_obj = (struct node_object *) (node_obj->list_elem.next);
 	}
 
 	return status;
