@@ -2059,7 +2059,7 @@ static void lbs_cfg_set_regulatory_hint(struct lbs_private *priv)
 	};
 
 	/* Section 5.17.2 */
-	static struct region_code_mapping regmap[] = {
+	static const struct region_code_mapping regmap[] = {
 		{"US ", 0x10}, /* US FCC */
 		{"CA ", 0x20}, /* Canada */
 		{"EU ", 0x30}, /* ETSI   */
