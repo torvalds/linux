@@ -40,7 +40,6 @@
 /*  ----------------------------------- OS Adaptation Layer */
 #include <dspbridge/list.h>
 #include <dspbridge/sync.h>
-#include <dspbridge/utildefs.h>
 
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/dev.h>
@@ -245,7 +244,6 @@ int cmm_create(struct cmm_object **ph_cmm_mgr,
 {
 	struct cmm_object *cmm_obj = NULL;
 	int status = 0;
-	struct util_sysinfo sys_info;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(ph_cmm_mgr != NULL);
@@ -261,12 +259,7 @@ int cmm_create(struct cmm_object **ph_cmm_mgr,
 		DBC_ASSERT(mgr_attrts->ul_min_block_size >= 4);
 		/* save away smallest block allocation for this cmm mgr */
 		cmm_obj->ul_min_block_size = mgr_attrts->ul_min_block_size;
-		/* save away the systems memory page size */
-		sys_info.dw_page_size = PAGE_SIZE;
-		sys_info.dw_allocation_granularity = PAGE_SIZE;
-		sys_info.dw_number_of_processors = 1;
-
-		cmm_obj->dw_page_size = sys_info.dw_page_size;
+		cmm_obj->dw_page_size = PAGE_SIZE;
 
 		/* Note: DSP SM seg table(aDSPSMSegTab[]) zero'd by
 		 * MEM_ALLOC_OBJECT */
