@@ -395,6 +395,8 @@ struct pktgen_hdr {
 	__be32 tv_usec;
 };
 
+static bool pktgen_exiting __read_mostly;
+
 struct pktgen_thread {
 	spinlock_t if_lock;		/* for list of devices */
 	struct list_head if_list;	/* All device here */
@@ -3451,11 +3453,6 @@ static void pktgen_rem_thread(struct pktgen_thread *t)
 
 	remove_proc_entry(t->tsk->comm, pg_proc_dir);
 
-	mutex_lock(&pktgen_thread_lock);
-
-	list_del(&t->th_list);
-
-	mutex_unlock(&pktgen_thread_lock);
 }
 
 static void pktgen_resched(struct pktgen_dev *pkt_dev)
@@ -3602,6 +3599,8 @@ static int pktgen_thread_worker(void *arg)
 		pkt_dev = next_to_run(t);
 
 		if (unlikely(!pkt_dev && t->control == 0)) {
+			if (pktgen_exiting)
+				break;
 			wait_event_interruptible_timeout(t->queue,
 							 t->control != 0,
 							 HZ/10);
@@ -3653,6 +3652,13 @@ static int pktgen_thread_worker(void *arg)
 
 	pr_debug("%s removing thread\n", t->tsk->comm);
 	pktgen_rem_thread(t);
+
+	/* Wait for kthread_stop */
+	while (!kthread_should_stop()) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+	}
+	__set_current_state(TASK_RUNNING);
 
 	return 0;
 }
@@ -3928,6 +3934,7 @@ static void __exit pg_cleanup(void)
 	struct list_head *q, *n;
 
 	/* Stop all interfaces & threads */
+	pktgen_exiting = true;
 
 	list_for_each_safe(q, n, &pktgen_threads) {
 		t = list_entry(q, struct pktgen_thread, th_list);
