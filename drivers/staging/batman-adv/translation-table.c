@@ -79,7 +79,7 @@ void hna_local_add(struct net_device *soft_iface, uint8_t *addr)
 	required_bytes += BAT_PACKET_LEN;
 
 	if ((required_bytes > ETH_DATA_LEN) ||
-	    (atomic_read(&bat_priv->aggregation_enabled) &&
+	    (atomic_read(&bat_priv->aggregated_ogms) &&
 	     required_bytes > MAX_AGGREGATION_BYTES) ||
 	    (bat_priv->num_local_hna + 1 > 255)) {
 		bat_dbg(DBG_ROUTES, bat_priv,

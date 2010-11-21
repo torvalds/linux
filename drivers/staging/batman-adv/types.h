@@ -113,12 +113,12 @@ struct neigh_node {
 struct bat_priv {
 	atomic_t mesh_state;
 	struct net_device_stats stats;
-	atomic_t aggregation_enabled;
-	atomic_t bonding_enabled;
-	atomic_t frag_enabled;
-	atomic_t vis_mode;
-	atomic_t orig_interval;
-	atomic_t log_level;
+	atomic_t aggregated_ogms;	/* boolean */
+	atomic_t bonding;		/* boolean */
+	atomic_t fragmentation;		/* boolean */
+	atomic_t vis_mode;		/* VIS_TYPE_* */
+	atomic_t orig_interval;		/* uint */
+	atomic_t log_level;		/* uint */
 	atomic_t bcast_seqno;
 	atomic_t bcast_queue_left;
 	atomic_t batman_queue_left;

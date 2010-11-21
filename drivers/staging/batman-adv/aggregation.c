@@ -123,7 +123,7 @@ static void new_aggregated_packet(unsigned char *packet_buff, int packet_len,
 		return;
 	}
 
-	if ((atomic_read(&bat_priv->aggregation_enabled)) &&
+	if ((atomic_read(&bat_priv->aggregated_ogms)) &&
 	    (packet_len < MAX_AGGREGATION_BYTES))
 		forw_packet_aggr->skb = dev_alloc_skb(MAX_AGGREGATION_BYTES +
 						      sizeof(struct ethhdr));
@@ -206,7 +206,7 @@ void add_bat_packet_to_list(struct bat_priv *bat_priv,
 	/* find position for the packet in the forward queue */
 	spin_lock_irqsave(&bat_priv->forw_bat_list_lock, flags);
 	/* own packets are not to be aggregated */
-	if ((atomic_read(&bat_priv->aggregation_enabled)) && (!own_packet)) {
+	if ((atomic_read(&bat_priv->aggregated_ogms)) && (!own_packet)) {
 		hlist_for_each_entry(forw_packet_pos, tmp_node,
 				     &bat_priv->forw_bat_list, list) {
 			if (can_aggregate_with(batman_packet,
@@ -233,7 +233,7 @@ void add_bat_packet_to_list(struct bat_priv *bat_priv,
 		 * later on
 		 */
 		if ((!own_packet) &&
-		    (atomic_read(&bat_priv->aggregation_enabled)))
+		    (atomic_read(&bat_priv->aggregated_ogms)))
 			send_time += msecs_to_jiffies(MAX_AGGREGATION_MS);
 
 		new_aggregated_packet(packet_buff, packet_len,

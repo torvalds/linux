@@ -41,7 +41,7 @@ static ssize_t show_aggr_ogms(struct kobject *kobj, struct attribute *attr,
 {
 	struct device *dev = to_dev(kobj->parent);
 	struct bat_priv *bat_priv = netdev_priv(to_net_dev(dev));
-	int aggr_status = atomic_read(&bat_priv->aggregation_enabled);
+	int aggr_status = atomic_read(&bat_priv->aggregated_ogms);
 
 	return sprintf(buff, "%s\n",
 		       aggr_status == 0 ? "disabled" : "enabled");
@@ -73,15 +73,15 @@ static ssize_t store_aggr_ogms(struct kobject *kobj, struct attribute *attr,
 		return -EINVAL;
 	}
 
-	if (atomic_read(&bat_priv->aggregation_enabled) == aggr_tmp)
+	if (atomic_read(&bat_priv->aggregated_ogms) == aggr_tmp)
 		return count;
 
 	bat_info(net_dev, "Changing aggregation from: %s to: %s\n",
-		 atomic_read(&bat_priv->aggregation_enabled) == 1 ?
+		 atomic_read(&bat_priv->aggregated_ogms) == 1 ?
 		 "enabled" : "disabled", aggr_tmp == 1 ? "enabled" :
 		 "disabled");
 
-	atomic_set(&bat_priv->aggregation_enabled, (unsigned)aggr_tmp);
+	atomic_set(&bat_priv->aggregated_ogms, (unsigned)aggr_tmp);
 	return count;
 }
 
@@ -90,7 +90,7 @@ static ssize_t show_bond(struct kobject *kobj, struct attribute *attr,
 {
 	struct device *dev = to_dev(kobj->parent);
 	struct bat_priv *bat_priv = netdev_priv(to_net_dev(dev));
-	int bond_status = atomic_read(&bat_priv->bonding_enabled);
+	int bond_status = atomic_read(&bat_priv->bonding);
 
 	return sprintf(buff, "%s\n",
 		       bond_status == 0 ? "disabled" : "enabled");
@@ -122,15 +122,15 @@ static ssize_t store_bond(struct kobject *kobj, struct attribute *attr,
 		return -EINVAL;
 	}
 
-	if (atomic_read(&bat_priv->bonding_enabled) == bonding_enabled_tmp)
+	if (atomic_read(&bat_priv->bonding) == bonding_enabled_tmp)
 		return count;
 
 	bat_info(net_dev, "Changing bonding from: %s to: %s\n",
-		 atomic_read(&bat_priv->bonding_enabled) == 1 ?
+		 atomic_read(&bat_priv->bonding) == 1 ?
 		 "enabled" : "disabled",
 		 bonding_enabled_tmp == 1 ? "enabled" : "disabled");
 
-	atomic_set(&bat_priv->bonding_enabled, (unsigned)bonding_enabled_tmp);
+	atomic_set(&bat_priv->bonding, (unsigned)bonding_enabled_tmp);
 	return count;
 }
 
@@ -139,7 +139,7 @@ static ssize_t show_frag(struct kobject *kobj, struct attribute *attr,
 {
 	struct device *dev = to_dev(kobj->parent);
 	struct bat_priv *bat_priv = netdev_priv(to_net_dev(dev));
-	int frag_status = atomic_read(&bat_priv->frag_enabled);
+	int frag_status = atomic_read(&bat_priv->fragmentation);
 
 	return sprintf(buff, "%s\n",
 		       frag_status == 0 ? "disabled" : "enabled");
@@ -171,15 +171,15 @@ static ssize_t store_frag(struct kobject *kobj, struct attribute *attr,
 		return -EINVAL;
 	}
 
-	if (atomic_read(&bat_priv->frag_enabled) == frag_enabled_tmp)
+	if (atomic_read(&bat_priv->fragmentation) == frag_enabled_tmp)
 		return count;
 
 	bat_info(net_dev, "Changing fragmentation from: %s to: %s\n",
-		 atomic_read(&bat_priv->frag_enabled) == 1 ?
+		 atomic_read(&bat_priv->fragmentation) == 1 ?
 		 "enabled" : "disabled",
 		 frag_enabled_tmp == 1 ? "enabled" : "disabled");
 
-	atomic_set(&bat_priv->frag_enabled, (unsigned)frag_enabled_tmp);
+	atomic_set(&bat_priv->fragmentation, (unsigned)frag_enabled_tmp);
 	update_min_mtu(net_dev);
 	return count;
 }

@@ -318,7 +318,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	/* copy the destination for faster routing */
 	memcpy(unicast_packet->dest, orig_node->orig, ETH_ALEN);
 
-	if (atomic_read(&bat_priv->frag_enabled) &&
+	if (atomic_read(&bat_priv->fragmentation) &&
 	    data_len + sizeof(struct unicast_packet) >
 	    batman_if->net_dev->mtu) {
 		/* send frag skb decreases ttl */

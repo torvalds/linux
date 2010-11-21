@@ -208,7 +208,7 @@ int hardif_min_mtu(struct net_device *soft_iface)
 	 * (have MTU > 1500 + BAT_HEADER_LEN) */
 	int min_mtu = ETH_DATA_LEN;
 
-	if (atomic_read(&bat_priv->frag_enabled))
+	if (atomic_read(&bat_priv->fragmentation))
 		goto out;
 
 	rcu_read_lock();
@@ -332,7 +332,7 @@ int hardif_enable_interface(struct batman_if *batman_if, char *iface_name)
 	bat_info(batman_if->soft_iface, "Adding interface: %s\n",
 		 batman_if->net_dev->name);
 
-	if (atomic_read(&bat_priv->frag_enabled) && batman_if->net_dev->mtu <
+	if (atomic_read(&bat_priv->fragmentation) && batman_if->net_dev->mtu <
 		ETH_DATA_LEN + BAT_HEADER_LEN)
 		bat_info(batman_if->soft_iface,
 			"The MTU of interface %s is too small (%i) to handle "
@@ -343,7 +343,7 @@ int hardif_enable_interface(struct batman_if *batman_if, char *iface_name)
 			batman_if->net_dev->name, batman_if->net_dev->mtu,
 			ETH_DATA_LEN + BAT_HEADER_LEN);
 
-	if (!atomic_read(&bat_priv->frag_enabled) && batman_if->net_dev->mtu <
+	if (!atomic_read(&bat_priv->fragmentation) && batman_if->net_dev->mtu <
 		ETH_DATA_LEN + BAT_HEADER_LEN)
 		bat_info(batman_if->soft_iface,
 			"The MTU of interface %s is too small (%i) to handle "
