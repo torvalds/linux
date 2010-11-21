@@ -17,6 +17,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/bitmap.h>
 /*  ----------------------------------- Host OS */
 #include <dspbridge/host_os.h>
 
@@ -50,7 +51,6 @@
 #include <dspbridge/dspioctl.h>
 
 /*  ----------------------------------- Others */
-#include <dspbridge/gb.h>
 #include <dspbridge/uuidutil.h>
 
 /*  ----------------------------------- This */
@@ -132,11 +132,14 @@ struct node_mgr {
 	struct lst_list *node_list;	/* List of all allocated nodes */
 	u32 num_nodes;		/* Number of nodes in node_list */
 	u32 num_created;	/* Number of nodes *created* on DSP */
-	struct gb_t_map *pipe_map;	/* Pipe connection bit map */
-	struct gb_t_map *pipe_done_map;	/* Pipes that are half free */
-	struct gb_t_map *chnl_map;	/* Channel allocation bit map */
-	struct gb_t_map *dma_chnl_map;	/* DMA Channel allocation bit map */
-	struct gb_t_map *zc_chnl_map;	/* Zero-Copy Channel alloc bit map */
+	DECLARE_BITMAP(pipe_map, MAXPIPES); /* Pipe connection bitmap */
+	DECLARE_BITMAP(pipe_done_map, MAXPIPES); /* Pipes that are half free */
+	/* Channel allocation bitmap */
+	DECLARE_BITMAP(chnl_map, CHNL_MAXCHANNELS);
+	/* DMA Channel allocation bitmap */
+	DECLARE_BITMAP(dma_chnl_map, CHNL_MAXCHANNELS);
+	/* Zero-Copy Channel alloc bitmap */
+	DECLARE_BITMAP(zc_chnl_map, CHNL_MAXCHANNELS);
 	struct ntfy_object *ntfy_obj;	/* Manages registered notifications */
 	struct mutex node_mgr_lock;	/* For critical sections */
 	u32 ul_fxn_addrs[NUMRMSFXNS];	/* RMS function addresses */
@@ -847,8 +850,8 @@ int node_connect(struct node_object *node1, u32 stream1,
 	struct node_object *dev_node_obj;
 	struct node_object *hnode;
 	struct stream_chnl *pstream;
-	u32 pipe_id = GB_NOBITS;
-	u32 chnl_id = GB_NOBITS;
+	u32 pipe_id;
+	u32 chnl_id;
 	s8 chnl_mode;
 	u32 dw_length;
 	int status = 0;
@@ -951,10 +954,11 @@ int node_connect(struct node_object *node1, u32 stream1,
 				      && (node2_type == NODE_TASK
 					  || node2_type == NODE_DAISSOCKET))) {
 		/* Find available pipe */
-		pipe_id = gb_findandset(hnode_mgr->pipe_map);
-		if (pipe_id == GB_NOBITS) {
+		pipe_id = find_first_zero_bit(hnode_mgr->pipe_map, MAXPIPES);
+		if (pipe_id == MAXPIPES) {
 			status = -ECONNREFUSED;
 		} else {
+			set_bit(pipe_id, hnode_mgr->pipe_map);
 			node1->outputs[stream1].type = NODECONNECT;
 			node2->inputs[stream2].type = NODECONNECT;
 			node1->outputs[stream1].dev_id = pipe_id;
@@ -971,7 +975,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 
 				output->sz_device = NULL;
 				input->sz_device = NULL;
-				gb_clear(hnode_mgr->pipe_map, pipe_id);
+				clear_bit(pipe_id, hnode_mgr->pipe_map);
 				status = -ENOMEM;
 			} else {
 				/* Copy "/dbpipe<pipId>" name to device names */
@@ -996,34 +1000,47 @@ int node_connect(struct node_object *node1, u32 stream1,
 		 *  called for this node. */
 		if (pattrs) {
 			if (pattrs->strm_mode == STRMMODE_RDMA) {
-				chnl_id =
-				    gb_findandset(hnode_mgr->dma_chnl_map);
+				chnl_id = find_first_zero_bit(
+						hnode_mgr->dma_chnl_map,
+						CHNL_MAXCHANNELS);
 				/* dma chans are 2nd transport chnl set
 				 * ids(e.g. 16-31) */
-				(chnl_id != GB_NOBITS) ?
-				    (chnl_id =
-				     chnl_id +
-				     hnode_mgr->ul_num_chnls) : chnl_id;
+				if (chnl_id != CHNL_MAXCHANNELS) {
+					set_bit(chnl_id,
+						hnode_mgr->dma_chnl_map);
+					chnl_id = chnl_id +
+						hnode_mgr->ul_num_chnls;
+				}
 			} else if (pattrs->strm_mode == STRMMODE_ZEROCOPY) {
-				chnl_id = gb_findandset(hnode_mgr->zc_chnl_map);
+				chnl_id = find_first_zero_bit(
+						hnode_mgr->zc_chnl_map,
+						CHNL_MAXCHANNELS);
 				/* zero-copy chans are 3nd transport set
 				 * (e.g. 32-47) */
-				(chnl_id != GB_NOBITS) ? (chnl_id = chnl_id +
-							  (2 *
-							   hnode_mgr->
-							   ul_num_chnls))
-				    : chnl_id;
+				if (chnl_id != CHNL_MAXCHANNELS) {
+					set_bit(chnl_id,
+						hnode_mgr->zc_chnl_map);
+					chnl_id = chnl_id +
+						(2 * hnode_mgr->ul_num_chnls);
+				}
 			} else {	/* must be PROCCOPY */
 				DBC_ASSERT(pattrs->strm_mode ==
 					   STRMMODE_PROCCOPY);
-				chnl_id = gb_findandset(hnode_mgr->chnl_map);
+				chnl_id = find_first_zero_bit(
+						hnode_mgr->chnl_map,
+						CHNL_MAXCHANNELS);
 				/* e.g. 0-15 */
+				if (chnl_id != CHNL_MAXCHANNELS)
+					set_bit(chnl_id, hnode_mgr->chnl_map);
 			}
 		} else {
 			/* default to PROCCOPY */
-			chnl_id = gb_findandset(hnode_mgr->chnl_map);
+			chnl_id = find_first_zero_bit(hnode_mgr->chnl_map,
+					CHNL_MAXCHANNELS);
+			if (chnl_id != CHNL_MAXCHANNELS)
+				set_bit(chnl_id, hnode_mgr->chnl_map);
 		}
-		if (chnl_id == GB_NOBITS) {
+		if (chnl_id == CHNL_MAXCHANNELS) {
 			status = -ECONNREFUSED;
 			goto func_cont2;
 		}
@@ -1033,18 +1050,19 @@ int node_connect(struct node_object *node1, u32 stream1,
 
 		if (pattrs) {
 			if (pattrs->strm_mode == STRMMODE_RDMA) {
-				gb_clear(hnode_mgr->dma_chnl_map, chnl_id -
-					 hnode_mgr->ul_num_chnls);
+				clear_bit(chnl_id - hnode_mgr->ul_num_chnls,
+						hnode_mgr->dma_chnl_map);
 			} else if (pattrs->strm_mode == STRMMODE_ZEROCOPY) {
-				gb_clear(hnode_mgr->zc_chnl_map, chnl_id -
-					 (2 * hnode_mgr->ul_num_chnls));
+				clear_bit(chnl_id -
+						(2 * hnode_mgr->ul_num_chnls),
+						hnode_mgr->zc_chnl_map);
 			} else {
 				DBC_ASSERT(pattrs->strm_mode ==
 					   STRMMODE_PROCCOPY);
-				gb_clear(hnode_mgr->chnl_map, chnl_id);
+				clear_bit(chnl_id, hnode_mgr->chnl_map);
 			}
 		} else {
-			gb_clear(hnode_mgr->chnl_map, chnl_id);
+			clear_bit(chnl_id, hnode_mgr->chnl_map);
 		}
 		status = -ENOMEM;
 func_cont2:
@@ -1321,22 +1339,14 @@ int node_create_mgr(struct node_mgr **node_man,
 	if (node_mgr_obj) {
 		node_mgr_obj->hdev_obj = hdev_obj;
 		node_mgr_obj->node_list = kzalloc(sizeof(struct lst_list),
-							GFP_KERNEL);
-		node_mgr_obj->pipe_map = gb_create(MAXPIPES);
-		node_mgr_obj->pipe_done_map = gb_create(MAXPIPES);
-		if (node_mgr_obj->node_list == NULL
-		    || node_mgr_obj->pipe_map == NULL
-		    || node_mgr_obj->pipe_done_map == NULL) {
-			status = -ENOMEM;
-		} else {
-			INIT_LIST_HEAD(&node_mgr_obj->node_list->head);
-			node_mgr_obj->ntfy_obj = kmalloc(
+				GFP_KERNEL);
+		INIT_LIST_HEAD(&node_mgr_obj->node_list->head);
+		node_mgr_obj->ntfy_obj = kmalloc(
 				sizeof(struct ntfy_object), GFP_KERNEL);
-			if (node_mgr_obj->ntfy_obj)
-				ntfy_init(node_mgr_obj->ntfy_obj);
-			else
-				status = -ENOMEM;
-		}
+		if (node_mgr_obj->ntfy_obj)
+			ntfy_init(node_mgr_obj->ntfy_obj);
+		else
+			status = -ENOMEM;
 		node_mgr_obj->num_created = 0;
 	} else {
 		status = -ENOMEM;
@@ -1372,27 +1382,14 @@ int node_create_mgr(struct node_mgr **node_man,
 		/* Get msg_ctrl queue manager */
 		dev_get_msg_mgr(hdev_obj, &node_mgr_obj->msg_mgr_obj);
 		mutex_init(&node_mgr_obj->node_mgr_lock);
-		node_mgr_obj->chnl_map = gb_create(node_mgr_obj->ul_num_chnls);
-		/* dma chnl map. ul_num_chnls is # per transport */
-		node_mgr_obj->dma_chnl_map =
-		    gb_create(node_mgr_obj->ul_num_chnls);
-		node_mgr_obj->zc_chnl_map =
-		    gb_create(node_mgr_obj->ul_num_chnls);
-		if ((node_mgr_obj->chnl_map == NULL)
-		    || (node_mgr_obj->dma_chnl_map == NULL)
-		    || (node_mgr_obj->zc_chnl_map == NULL)) {
-			status = -ENOMEM;
-		} else {
-			/* Block out reserved channels */
-			for (i = 0; i < node_mgr_obj->ul_chnl_offset; i++)
-				gb_set(node_mgr_obj->chnl_map, i);
+		/* Block out reserved channels */
+		for (i = 0; i < node_mgr_obj->ul_chnl_offset; i++)
+			set_bit(i, node_mgr_obj->chnl_map);
 
-			/* Block out channels reserved for RMS */
-			gb_set(node_mgr_obj->chnl_map,
-			       node_mgr_obj->ul_chnl_offset);
-			gb_set(node_mgr_obj->chnl_map,
-			       node_mgr_obj->ul_chnl_offset + 1);
-		}
+		/* Block out channels reserved for RMS */
+		set_bit(node_mgr_obj->ul_chnl_offset, node_mgr_obj->chnl_map);
+		set_bit(node_mgr_obj->ul_chnl_offset + 1,
+				node_mgr_obj->chnl_map);
 	}
 	if (!status) {
 		/* NO RM Server on the IVA */
@@ -2657,21 +2654,6 @@ static void delete_node_mgr(struct node_mgr *hnode_mgr)
 			kfree(hnode_mgr->ntfy_obj);
 		}
 
-		if (hnode_mgr->pipe_map)
-			gb_delete(hnode_mgr->pipe_map);
-
-		if (hnode_mgr->pipe_done_map)
-			gb_delete(hnode_mgr->pipe_done_map);
-
-		if (hnode_mgr->chnl_map)
-			gb_delete(hnode_mgr->chnl_map);
-
-		if (hnode_mgr->dma_chnl_map)
-			gb_delete(hnode_mgr->dma_chnl_map);
-
-		if (hnode_mgr->zc_chnl_map)
-			gb_delete(hnode_mgr->zc_chnl_map);
-
 		if (hnode_mgr->disp_obj)
 			disp_delete(hnode_mgr->disp_obj);
 
@@ -2786,25 +2768,25 @@ static void free_stream(struct node_mgr *hnode_mgr, struct stream_chnl stream)
 {
 	/* Free up the pipe id unless other node has not yet been deleted. */
 	if (stream.type == NODECONNECT) {
-		if (gb_test(hnode_mgr->pipe_done_map, stream.dev_id)) {
+		if (test_bit(stream.dev_id, hnode_mgr->pipe_done_map)) {
 			/* The other node has already been deleted */
-			gb_clear(hnode_mgr->pipe_done_map, stream.dev_id);
-			gb_clear(hnode_mgr->pipe_map, stream.dev_id);
+			clear_bit(stream.dev_id, hnode_mgr->pipe_done_map);
+			clear_bit(stream.dev_id, hnode_mgr->pipe_map);
 		} else {
 			/* The other node has not been deleted yet */
-			gb_set(hnode_mgr->pipe_done_map, stream.dev_id);
+			set_bit(stream.dev_id, hnode_mgr->pipe_done_map);
 		}
 	} else if (stream.type == HOSTCONNECT) {
 		if (stream.dev_id < hnode_mgr->ul_num_chnls) {
-			gb_clear(hnode_mgr->chnl_map, stream.dev_id);
+			clear_bit(stream.dev_id, hnode_mgr->chnl_map);
 		} else if (stream.dev_id < (2 * hnode_mgr->ul_num_chnls)) {
 			/* dsp-dma */
-			gb_clear(hnode_mgr->dma_chnl_map, stream.dev_id -
-				 (1 * hnode_mgr->ul_num_chnls));
+			clear_bit(stream.dev_id - (1 * hnode_mgr->ul_num_chnls),
+					hnode_mgr->dma_chnl_map);
 		} else if (stream.dev_id < (3 * hnode_mgr->ul_num_chnls)) {
 			/* zero-copy */
-			gb_clear(hnode_mgr->zc_chnl_map, stream.dev_id -
-				 (2 * hnode_mgr->ul_num_chnls));
+			clear_bit(stream.dev_id - (2 * hnode_mgr->ul_num_chnls),
+					hnode_mgr->zc_chnl_map);
 		}
 	}
 }
