@@ -259,8 +259,7 @@ void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id)
 	/* wakeup userspace */
 	if (work->event) {
 		e = work->event;
-		do_gettimeofday(&now);
-		e->event.sequence = drm_vblank_count(rdev->ddev, radeon_crtc->crtc_id);
+		e->event.sequence = drm_vblank_count_and_time(rdev->ddev, crtc_id, &now);
 		e->event.tv_sec = now.tv_sec;
 		e->event.tv_usec = now.tv_usec;
 		list_add_tail(&e->base.link, &e->base.file_priv->event_list);
