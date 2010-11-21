@@ -32,6 +32,8 @@
 #include "ring_buffer.h"
 #include "vis.h"
 #include "aggregation.h"
+#include "gateway_common.h"
+#include "gateway_client.h"
 #include "unicast.h"
 
 void slide_own_bcast_window(struct batman_if *batman_if)
@@ -316,11 +318,23 @@ static void update_orig(struct bat_priv *bat_priv,
 
 	update_routes(bat_priv, orig_node, neigh_node,
 		      hna_buff, tmp_hna_buff_len);
-	return;
+	goto update_gw;
 
 update_hna:
 	update_routes(bat_priv, orig_node, orig_node->router,
 		      hna_buff, tmp_hna_buff_len);
+
+update_gw:
+	if (orig_node->gw_flags != batman_packet->gw_flags)
+		gw_node_update(bat_priv, orig_node, batman_packet->gw_flags);
+
+	orig_node->gw_flags = batman_packet->gw_flags;
+
+	/* restart gateway selection if fast or late switching was enabled */
+	if ((orig_node->gw_flags) &&
+	    (atomic_read(&bat_priv->gw_mode) == GW_MODE_CLIENT) &&
+	    (atomic_read(&bat_priv->gw_sel_class) > 2))
+		gw_check_election(bat_priv, orig_node);
 }
 
 /* checks whether the host restarted and is in the protection time.

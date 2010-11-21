@@ -32,7 +32,7 @@
 #define BAT_UNICAST_FRAG 0x06
 
 /* this file is included by batctl which needs these defines */
-#define COMPAT_VERSION 13
+#define COMPAT_VERSION 12
 #define DIRECTLINK 0x40
 #define VIS_SERVER 0x20
 #define PRIMARIES_FIRST_HOP 0x10
@@ -61,6 +61,8 @@ struct batman_packet {
 	uint8_t  prev_sender[6];
 	uint8_t  ttl;
 	uint8_t  num_hna;
+	uint8_t  gw_flags;  /* flags related to gateway class */
+	uint8_t  align;
 } __attribute__((packed));
 
 #define BAT_PACKET_LEN sizeof(struct batman_packet)

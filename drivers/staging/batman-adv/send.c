@@ -28,6 +28,7 @@
 #include "types.h"
 #include "vis.h"
 #include "aggregation.h"
+#include "gateway_common.h"
 #include "originator.h"
 
 
@@ -283,6 +284,13 @@ void schedule_own_packet(struct batman_if *batman_if)
 		batman_packet->flags |= VIS_SERVER;
 	else
 		batman_packet->flags &= ~VIS_SERVER;
+
+	if ((batman_if == bat_priv->primary_if) &&
+	    (atomic_read(&bat_priv->gw_mode) == GW_MODE_SERVER))
+		batman_packet->gw_flags =
+				(uint8_t)atomic_read(&bat_priv->gw_bandwidth);
+	else
+		batman_packet->gw_flags = 0;
 
 	atomic_inc(&batman_if->seqno);
 

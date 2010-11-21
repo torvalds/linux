@@ -55,6 +55,7 @@ struct batman_if {
  *	@last_valid: when last packet from this node was received
  *	@bcast_seqno_reset: time when the broadcast seqno window was reset
  *	@batman_seqno_reset: time when the batman seqno window was reset
+ *	@gw_flags: flags related to gateway class
  *	@flags: for now only VIS_SERVER flag
  *	@last_real_seqno: last and best known squence number
  *	@last_ttl: ttl of last received packet
@@ -74,7 +75,8 @@ struct orig_node {
 	unsigned long last_valid;
 	unsigned long bcast_seqno_reset;
 	unsigned long batman_seqno_reset;
-	uint8_t  flags;
+	uint8_t gw_flags;
+	uint8_t flags;
 	unsigned char *hna_buff;
 	int16_t hna_buff_len;
 	uint32_t last_real_seqno;
@@ -88,6 +90,14 @@ struct orig_node {
 		uint8_t candidates;
 		struct neigh_node *selected;
 	} bond;
+};
+
+struct gw_node {
+	struct hlist_node list;
+	struct orig_node *orig_node;
+	unsigned long deleted;
+	struct kref refcount;
+	struct rcu_head rcu;
 };
 
 /**
@@ -117,6 +127,9 @@ struct bat_priv {
 	atomic_t bonding;		/* boolean */
 	atomic_t fragmentation;		/* boolean */
 	atomic_t vis_mode;		/* VIS_TYPE_* */
+	atomic_t gw_mode;		/* GW_MODE_* */
+	atomic_t gw_sel_class;		/* uint */
+	atomic_t gw_bandwidth;		/* gw bandwidth */
 	atomic_t orig_interval;		/* uint */
 	atomic_t hop_penalty;		/* uint */
 	atomic_t log_level;		/* uint */
@@ -132,6 +145,7 @@ struct bat_priv {
 	struct dentry *debug_dir;
 	struct hlist_head forw_bat_list;
 	struct hlist_head forw_bcast_list;
+	struct hlist_head gw_list;
 	struct list_head vis_send_list;
 	struct hashtable_t *orig_hash;
 	struct hashtable_t *hna_local_hash;
@@ -142,6 +156,7 @@ struct bat_priv {
 	spinlock_t forw_bcast_list_lock; /* protects  */
 	spinlock_t hna_lhash_lock; /* protects hna_local_hash */
 	spinlock_t hna_ghash_lock; /* protects hna_global_hash */
+	spinlock_t gw_list_lock; /* protects gw_list */
 	spinlock_t vis_hash_lock; /* protects vis_hash */
 	spinlock_t vis_list_lock; /* protects vis_info::recv_list */
 	spinlock_t softif_neigh_lock; /* protects soft-interface neigh list */
@@ -150,6 +165,7 @@ struct bat_priv {
 	struct delayed_work hna_work;
 	struct delayed_work orig_work;
 	struct delayed_work vis_work;
+	struct gw_node *curr_gw;
 	struct vis_info *my_vis_info;
 };
 

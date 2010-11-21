@@ -19,4 +19,21 @@
 #
 
 obj-$(CONFIG_BATMAN_ADV) += batman-adv.o
-batman-adv-y := main.o bat_debugfs.o bat_sysfs.o send.o routing.o soft-interface.o icmp_socket.o translation-table.o bitarray.o hash.o ring_buffer.o vis.o hard-interface.o aggregation.o originator.o unicast.o
+batman-adv-y += aggregation.o
+batman-adv-y += bat_debugfs.o
+batman-adv-y += bat_sysfs.o
+batman-adv-y += bitarray.o
+batman-adv-y += gateway_client.o
+batman-adv-y += gateway_common.o
+batman-adv-y += hard-interface.o
+batman-adv-y += hash.o
+batman-adv-y += icmp_socket.o
+batman-adv-y += main.o
+batman-adv-y += originator.o
+batman-adv-y += ring_buffer.o
+batman-adv-y += routing.o
+batman-adv-y += send.o
+batman-adv-y += soft-interface.o
+batman-adv-y += translation-table.o
+batman-adv-y += unicast.o
+batman-adv-y += vis.o

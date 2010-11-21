@@ -22,6 +22,27 @@ Description:
                 mesh will be fragmented or silently discarded if the
                 packet size exceeds the outgoing interface MTU.
 
+What:           /sys/class/net/<mesh_iface>/mesh/gw_bandwidth
+Date:           October 2010
+Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Description:
+                Defines the bandwidth which is propagated by this
+                node if gw_mode was set to 'server'.
+
+What:           /sys/class/net/<mesh_iface>/mesh/gw_mode
+Date:           October 2010
+Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Description:
+                Defines the state of the gateway features. Can be
+                either 'off', 'client' or 'server'.
+
+What:           /sys/class/net/<mesh_iface>/mesh/gw_sel_class
+Date:           October 2010
+Contact:        Marek Lindner <lindner_marek@yahoo.de>
+Description:
+                Defines the selection criteria this node will use
+                to choose a gateway if gw_mode was set to 'client'.
+
 What:           /sys/class/net/<mesh_iface>/mesh/orig_interval
 Date:           May 2010
 Contact:        Marek Lindner <lindner_marek@yahoo.de>

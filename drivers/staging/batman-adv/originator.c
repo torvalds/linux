@@ -26,6 +26,7 @@
 #include "hash.h"
 #include "translation-table.h"
 #include "routing.h"
+#include "gateway_client.h"
 #include "hard-interface.h"
 #include "unicast.h"
 #include "soft-interface.h"
@@ -279,6 +280,8 @@ static void _purge_orig(struct bat_priv *bat_priv)
 		orig_node = bucket->data;
 
 		if (purge_orig_node(bat_priv, orig_node)) {
+			if (orig_node->gw_flags)
+				gw_node_delete(bat_priv, orig_node);
 			hash_remove_bucket(bat_priv->orig_hash, &hashit);
 			free_orig_node(orig_node, bat_priv);
 		}
@@ -289,6 +292,9 @@ static void _purge_orig(struct bat_priv *bat_priv)
 	}
 
 	spin_unlock_bh(&bat_priv->orig_hash_lock);
+
+	gw_node_purge(bat_priv);
+	gw_election(bat_priv);
 
 	softif_neigh_purge(bat_priv);
 }

@@ -24,6 +24,8 @@
 #include "translation-table.h"
 #include "originator.h"
 #include "hard-interface.h"
+#include "gateway_common.h"
+#include "gateway_client.h"
 #include "vis.h"
 
 #define to_dev(obj)		container_of(obj, struct device, kobj)
@@ -249,12 +251,122 @@ static ssize_t store_vis_mode(struct kobject *kobj, struct attribute *attr,
 	return count;
 }
 
+static void post_gw_deselect(struct net_device *net_dev)
+{
+	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	gw_deselect(bat_priv);
+}
+
+static ssize_t show_gw_mode(struct kobject *kobj, struct attribute *attr,
+			    char *buff)
+{
+	struct bat_priv *bat_priv = kobj_to_batpriv(kobj);
+	int bytes_written;
+
+	switch (atomic_read(&bat_priv->gw_mode)) {
+	case GW_MODE_CLIENT:
+		bytes_written = sprintf(buff, "%s\n", GW_MODE_CLIENT_NAME);
+		break;
+	case GW_MODE_SERVER:
+		bytes_written = sprintf(buff, "%s\n", GW_MODE_SERVER_NAME);
+		break;
+	default:
+		bytes_written = sprintf(buff, "%s\n", GW_MODE_OFF_NAME);
+		break;
+	}
+
+	return bytes_written;
+}
+
+static ssize_t store_gw_mode(struct kobject *kobj, struct attribute *attr,
+			     char *buff, size_t count)
+{
+	struct net_device *net_dev = kobj_to_netdev(kobj);
+	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	char *curr_gw_mode_str;
+	int gw_mode_tmp = -1;
+
+	if (buff[count - 1] == '\n')
+		buff[count - 1] = '\0';
+
+	if (strncmp(buff, GW_MODE_OFF_NAME, strlen(GW_MODE_OFF_NAME)) == 0)
+		gw_mode_tmp = GW_MODE_OFF;
+
+	if (strncmp(buff, GW_MODE_CLIENT_NAME,
+		   strlen(GW_MODE_CLIENT_NAME)) == 0)
+		gw_mode_tmp = GW_MODE_CLIENT;
+
+	if (strncmp(buff, GW_MODE_SERVER_NAME,
+		   strlen(GW_MODE_SERVER_NAME)) == 0)
+		gw_mode_tmp = GW_MODE_SERVER;
+
+	if (gw_mode_tmp < 0) {
+		bat_info(net_dev,
+			 "Invalid parameter for 'gw mode' setting received: "
+			 "%s\n", buff);
+		return -EINVAL;
+	}
+
+	if (atomic_read(&bat_priv->gw_mode) == gw_mode_tmp)
+		return count;
+
+	switch (atomic_read(&bat_priv->gw_mode)) {
+	case GW_MODE_CLIENT:
+		curr_gw_mode_str = GW_MODE_CLIENT_NAME;
+		break;
+	case GW_MODE_SERVER:
+		curr_gw_mode_str = GW_MODE_SERVER_NAME;
+		break;
+	default:
+		curr_gw_mode_str = GW_MODE_OFF_NAME;
+		break;
+	}
+
+	bat_info(net_dev, "Changing gw mode from: %s to: %s\n",
+		 curr_gw_mode_str, buff);
+
+	gw_deselect(bat_priv);
+	atomic_set(&bat_priv->gw_mode, (unsigned)gw_mode_tmp);
+	return count;
+}
+
+static ssize_t show_gw_bwidth(struct kobject *kobj, struct attribute *attr,
+			      char *buff)
+{
+	struct bat_priv *bat_priv = kobj_to_batpriv(kobj);
+	int down, up;
+	int gw_bandwidth = atomic_read(&bat_priv->gw_bandwidth);
+
+	gw_bandwidth_to_kbit(gw_bandwidth, &down, &up);
+	return sprintf(buff, "%i%s/%i%s\n",
+		       (down > 2048 ? down / 1024 : down),
+		       (down > 2048 ? "MBit" : "KBit"),
+		       (up > 2048 ? up / 1024 : up),
+		       (up > 2048 ? "MBit" : "KBit"));
+}
+
+static ssize_t store_gw_bwidth(struct kobject *kobj, struct attribute *attr,
+			       char *buff, size_t count)
+{
+	struct net_device *net_dev = kobj_to_netdev(kobj);
+
+	if (buff[count - 1] == '\n')
+		buff[count - 1] = '\0';
+
+	return gw_bandwidth_set(net_dev, buff, count);
+}
+
 BAT_ATTR_BOOL(aggregated_ogms, S_IRUGO | S_IWUSR, NULL);
 BAT_ATTR_BOOL(bonding, S_IRUGO | S_IWUSR, NULL);
 BAT_ATTR_BOOL(fragmentation, S_IRUGO | S_IWUSR, update_min_mtu);
 static BAT_ATTR(vis_mode, S_IRUGO | S_IWUSR, show_vis_mode, store_vis_mode);
+static BAT_ATTR(gw_mode, S_IRUGO | S_IWUSR, show_gw_mode, store_gw_mode);
 BAT_ATTR_UINT(orig_interval, S_IRUGO | S_IWUSR, 2 * JITTER, INT_MAX, NULL);
 BAT_ATTR_UINT(hop_penalty, S_IRUGO | S_IWUSR, 0, TQ_MAX_VALUE, NULL);
+BAT_ATTR_UINT(gw_sel_class, S_IRUGO | S_IWUSR, 1, TQ_MAX_VALUE,
+	      post_gw_deselect);
+static BAT_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, show_gw_bwidth,
+		store_gw_bwidth);
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 BAT_ATTR_UINT(log_level, S_IRUGO | S_IWUSR, 0, 3, NULL);
 #endif
@@ -264,8 +376,11 @@ static struct bat_attribute *mesh_attrs[] = {
 	&bat_attr_bonding,
 	&bat_attr_fragmentation,
 	&bat_attr_vis_mode,
+	&bat_attr_gw_mode,
 	&bat_attr_orig_interval,
 	&bat_attr_hop_penalty,
+	&bat_attr_gw_sel_class,
+	&bat_attr_gw_bandwidth,
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 	&bat_attr_log_level,
 #endif

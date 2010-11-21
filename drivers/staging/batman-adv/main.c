@@ -29,6 +29,7 @@
 #include "icmp_socket.h"
 #include "translation-table.h"
 #include "hard-interface.h"
+#include "gateway_client.h"
 #include "types.h"
 #include "vis.h"
 #include "hash.h"
@@ -84,12 +85,14 @@ int mesh_init(struct net_device *soft_iface)
 	spin_lock_init(&bat_priv->forw_bcast_list_lock);
 	spin_lock_init(&bat_priv->hna_lhash_lock);
 	spin_lock_init(&bat_priv->hna_ghash_lock);
+	spin_lock_init(&bat_priv->gw_list_lock);
 	spin_lock_init(&bat_priv->vis_hash_lock);
 	spin_lock_init(&bat_priv->vis_list_lock);
 	spin_lock_init(&bat_priv->softif_neigh_lock);
 
 	INIT_HLIST_HEAD(&bat_priv->forw_bat_list);
 	INIT_HLIST_HEAD(&bat_priv->forw_bcast_list);
+	INIT_HLIST_HEAD(&bat_priv->gw_list);
 	INIT_HLIST_HEAD(&bat_priv->softif_neigh_list);
 
 	if (originator_init(bat_priv) < 1)
@@ -129,6 +132,7 @@ void mesh_free(struct net_device *soft_iface)
 
 	vis_quit(bat_priv);
 
+	gw_node_purge(bat_priv);
 	originator_free(bat_priv);
 
 	hna_local_free(bat_priv);
