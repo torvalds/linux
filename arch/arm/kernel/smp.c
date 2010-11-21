@@ -85,7 +85,6 @@ static inline void identity_mapping_add(pgd_t *pgd, unsigned long start,
 		pmd[1] = __pmd(addr | prot);
 		addr += SECTION_SIZE;
 		flush_pmd_entry(pmd);
-		outer_clean_range(__pa(pmd), __pa(pmd + 1));
 	}
 }
 
@@ -100,7 +99,6 @@ static inline void identity_mapping_del(pgd_t *pgd, unsigned long start,
 		pmd[0] = __pmd(0);
 		pmd[1] = __pmd(0);
 		clean_pmd_entry(pmd);
-		outer_clean_range(__pa(pmd), __pa(pmd + 1));
 	}
 }
 
