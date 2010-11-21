@@ -101,40 +101,6 @@ done:
  */
 
 /*
- * Mapping V4L2 controls to UVC controls can be straighforward if done well.
- * Most of the UVC controls exist in V4L2, and can be mapped directly. Some
- * must be grouped (for instance the Red Balance, Blue Balance and Do White
- * Balance V4L2 controls use the White Balance Component UVC control) or
- * otherwise translated. The approach we take here is to use a translation
- * table for the controls that can be mapped directly, and handle the others
- * manually.
- */
-static int uvc_v4l2_query_menu(struct uvc_video_chain *chain,
-	struct v4l2_querymenu *query_menu)
-{
-	struct uvc_menu_info *menu_info;
-	struct uvc_control_mapping *mapping;
-	struct uvc_control *ctrl;
-	u32 index = query_menu->index;
-	u32 id = query_menu->id;
-
-	ctrl = uvc_find_control(chain, query_menu->id, &mapping);
-	if (ctrl == NULL || mapping->v4l2_type != V4L2_CTRL_TYPE_MENU)
-		return -EINVAL;
-
-	if (query_menu->index >= mapping->menu_count)
-		return -EINVAL;
-
-	memset(query_menu, 0, sizeof(*query_menu));
-	query_menu->id = id;
-	query_menu->index = index;
-
-	menu_info = &mapping->menu_info[query_menu->index];
-	strlcpy(query_menu->name, menu_info->name, sizeof query_menu->name);
-	return 0;
-}
-
-/*
  * Find the frame interval closest to the requested frame interval for the
  * given frame format and size. This should be done by the device as part of
  * the Video Probe and Commit negotiation, but some hardware don't implement
@@ -624,7 +590,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	}
 
 	case VIDIOC_QUERYMENU:
-		return uvc_v4l2_query_menu(chain, arg);
+		return uvc_query_v4l2_menu(chain, arg);
 
 	case VIDIOC_G_EXT_CTRLS:
 	{

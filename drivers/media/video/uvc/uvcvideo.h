@@ -606,10 +606,10 @@ extern int uvc_status_suspend(struct uvc_device *dev);
 extern int uvc_status_resume(struct uvc_device *dev);
 
 /* Controls */
-extern struct uvc_control *uvc_find_control(struct uvc_video_chain *chain,
-		__u32 v4l2_id, struct uvc_control_mapping **mapping);
 extern int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 		struct v4l2_queryctrl *v4l2_ctrl);
+extern int uvc_query_v4l2_menu(struct uvc_video_chain *chain,
+		struct v4l2_querymenu *query_menu);
 
 extern int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 		const struct uvc_control_mapping *mapping);
