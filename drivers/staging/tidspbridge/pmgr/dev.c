@@ -16,6 +16,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #include <linux/types.h>
+#include <linux/list.h>
 
 /*  ----------------------------------- Host OS */
 #include <dspbridge/host_os.h>
@@ -28,7 +29,6 @@
 
 /*  ----------------------------------- OS Adaptation Layer */
 #include <dspbridge/ldr.h>
-#include <dspbridge/list.h>
 
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/cod.h>
@@ -60,7 +60,6 @@
 
 /* The Bridge device object: */
 struct dev_object {
-	/* LST requires "link" to be first field! */
 	struct list_head link;	/* Link to next dev_object. */
 	u8 dev_type;		/* Device Type */
 	struct cfg_devnode *dev_node_obj;	/* Platform specific dev id */
@@ -79,7 +78,7 @@ struct dev_object {
 	struct ldr_module *module_obj;	/* Bridge Module handle. */
 	u32 word_size;		/* DSP word size: quick access. */
 	struct drv_object *hdrv_obj;	/* Driver Object */
-	struct lst_list *proc_list;	/* List of Proceeosr attached to
+	struct list_head proc_list;	/* List of Processor attached to
 					 * this device */
 	struct node_mgr *hnode_mgr;
 };
@@ -255,19 +254,12 @@ int dev_create_device(struct dev_object **device_obj,
 				    (struct dev_object *)dev_obj, NULL);
 	}
 	/* Add the new DEV_Object to the global list: */
-	if (!status) {
-		lst_init_elem(&dev_obj->link);
+	if (!status)
 		status = drv_insert_dev_object(hdrv_obj, dev_obj);
-	}
+
 	/* Create the Processor List */
-	if (!status) {
-		dev_obj->proc_list = kzalloc(sizeof(struct lst_list),
-							GFP_KERNEL);
-		if (!(dev_obj->proc_list))
-			status = -EPERM;
-		else
-			INIT_LIST_HEAD(&dev_obj->proc_list->head);
-	}
+	if (!status)
+		INIT_LIST_HEAD(&dev_obj->proc_list);
 leave:
 	/*  If all went well, return a handle to the dev object;
 	 *  else, cleanup and return NULL in the OUT parameter. */
@@ -275,7 +267,6 @@ leave:
 		*device_obj = dev_obj;
 	} else {
 		if (dev_obj) {
-			kfree(dev_obj->proc_list);
 			if (dev_obj->cod_mgr)
 				cod_delete(dev_obj->cod_mgr);
 			if (dev_obj->dmm_mgr)
@@ -403,9 +394,6 @@ int dev_destroy_device(struct dev_object *hdev_obj)
 		} else
 			status = -EPERM;
 		if (!status) {
-			kfree(dev_obj->proc_list);
-			dev_obj->proc_list = NULL;
-
 			/* Remove this DEV_Object from the global list: */
 			drv_remove_dev_object(dev_obj->hdrv_obj, dev_obj);
 			/* Free The library * LDR_FreeModule
@@ -801,18 +789,17 @@ bool dev_init(void)
  */
 int dev_notify_clients(struct dev_object *hdev_obj, u32 ret)
 {
-	int status = 0;
-
 	struct dev_object *dev_obj = hdev_obj;
-	void *proc_obj;
+	struct list_head *curr;
 
-	for (proc_obj = (void *)lst_first(dev_obj->proc_list);
-	     proc_obj != NULL;
-	     proc_obj = (void *)lst_next(dev_obj->proc_list,
-					 (struct list_head *)proc_obj))
-		proc_notify_clients(proc_obj, (u32) ret);
+	/*
+	 * FIXME: this code needs struct proc_object to have a list_head
+	 * at the begining. If not, this can go horribly wrong.
+	 */
+	list_for_each(curr, &dev_obj->proc_list)
+		proc_notify_clients((void *)curr, (u32) ret);
 
-	return status;
+	return 0;
 }
 
 /*
@@ -1000,15 +987,18 @@ int dev_insert_proc_object(struct dev_object *hdev_obj,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(dev_obj);
 	DBC_REQUIRE(proc_obj != 0);
-	DBC_REQUIRE(dev_obj->proc_list != NULL);
 	DBC_REQUIRE(already_attached != NULL);
-	if (!LST_IS_EMPTY(dev_obj->proc_list))
+	if (!list_empty(&dev_obj->proc_list))
 		*already_attached = true;
 
 	/* Add DevObject to tail. */
-	lst_put_tail(dev_obj->proc_list, (struct list_head *)proc_obj);
+	/*
+	 * FIXME: this code needs struct proc_object to have a list_head
+	 * at the begining. If not, this can go horribly wrong.
+	 */
+	list_add_tail((struct list_head *)proc_obj, &dev_obj->proc_list);
 
-	DBC_ENSURE(!status && !LST_IS_EMPTY(dev_obj->proc_list));
+	DBC_ENSURE(!status && !list_empty(&dev_obj->proc_list));
 
 	return status;
 }
@@ -1039,15 +1029,12 @@ int dev_remove_proc_object(struct dev_object *hdev_obj, u32 proc_obj)
 
 	DBC_REQUIRE(dev_obj);
 	DBC_REQUIRE(proc_obj != 0);
-	DBC_REQUIRE(dev_obj->proc_list != NULL);
-	DBC_REQUIRE(!LST_IS_EMPTY(dev_obj->proc_list));
+	DBC_REQUIRE(!list_empty(&dev_obj->proc_list));
 
 	/* Search list for dev_obj: */
-	for (cur_elem = lst_first(dev_obj->proc_list); cur_elem != NULL;
-	     cur_elem = lst_next(dev_obj->proc_list, cur_elem)) {
-		/* If found, remove it. */
+	list_for_each(cur_elem, &dev_obj->proc_list) {
 		if ((u32) cur_elem == proc_obj) {
-			lst_remove_elem(dev_obj->proc_list, cur_elem);
+			list_del(cur_elem);
 			status = 0;
 			break;
 		}

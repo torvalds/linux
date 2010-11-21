@@ -12,7 +12,7 @@
  * describes a block of physically contiguous shared memory used for
  * future allocations by CMM.
  *
- * Memory is coelesced back to the appropriate heap when a buffer is
+ * Memory is coalesced back to the appropriate heap when a buffer is
  * freed.
  *
  * Notes:
@@ -30,6 +30,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #include <linux/types.h>
+#include <linux/list.h>
 
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
@@ -38,7 +39,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/list.h>
 #include <dspbridge/sync.h>
 
 /*  ----------------------------------- Platform Manager */
@@ -73,9 +73,9 @@ struct cmm_allocator {		/* sma */
 	u32 ul_dsp_size;	/* DSP seg size in bytes */
 	struct cmm_object *hcmm_mgr;	/* back ref to parent mgr */
 	/* node list of available memory */
-	struct lst_list *free_list_head;
+	struct list_head free_list;
 	/* node list of memory in use */
-	struct lst_list *in_use_list_head;
+	struct list_head in_use_list;
 };
 
 struct cmm_xlator {		/* Pa<->Va translator object */
@@ -97,7 +97,7 @@ struct cmm_object {
 	 * Cmm Lock is used to serialize access mem manager for multi-threads.
 	 */
 	struct mutex cmm_lock;	/* Lock to access cmm mgr */
-	struct lst_list *node_free_list_head;	/* Free list of memory nodes */
+	struct list_head node_free_list;	/* Free list of memory nodes */
 	u32 ul_min_block_size;	/* Min SM block; default 16 bytes */
 	u32 dw_page_size;	/* Memory Page size (1k/4k) */
 	/* GPP SM segment ptrs */
@@ -215,8 +215,7 @@ void *cmm_calloc_buf(struct cmm_object *hcmm_mgr, u32 usize,
 			pnode->client_proc = current->tgid;
 
 			/* put our node on InUse list */
-			lst_put_tail(allocator->in_use_list_head,
-				     (struct list_head *)pnode);
+			list_add_tail(&pnode->link, &allocator->in_use_list);
 			buf_pa = (void *)pnode->dw_pa;	/* physical address */
 			/* clear mem */
 			pbyte = (u8 *) pnode->dw_va;
@@ -265,18 +264,9 @@ int cmm_create(struct cmm_object **ph_cmm_mgr,
 		 * MEM_ALLOC_OBJECT */
 
 		/* create node free list */
-		cmm_obj->node_free_list_head =
-				kzalloc(sizeof(struct lst_list),
-						GFP_KERNEL);
-		if (cmm_obj->node_free_list_head == NULL) {
-			status = -ENOMEM;
-			cmm_destroy(cmm_obj, true);
-		} else {
-			INIT_LIST_HEAD(&cmm_obj->
-				       node_free_list_head->head);
-			mutex_init(&cmm_obj->cmm_lock);
-			*ph_cmm_mgr = cmm_obj;
-		}
+		INIT_LIST_HEAD(&cmm_obj->node_free_list);
+		mutex_init(&cmm_obj->cmm_lock);
+		*ph_cmm_mgr = cmm_obj;
 	} else {
 		status = -ENOMEM;
 	}
@@ -294,7 +284,7 @@ int cmm_destroy(struct cmm_object *hcmm_mgr, bool force)
 	struct cmm_info temp_info;
 	int status = 0;
 	s32 slot_seg;
-	struct cmm_mnode *pnode;
+	struct cmm_mnode *node, *tmp;
 
 	DBC_REQUIRE(refs > 0);
 	if (!hcmm_mgr) {
@@ -324,15 +314,10 @@ int cmm_destroy(struct cmm_object *hcmm_mgr, bool force)
 			}
 		}
 	}
-	if (cmm_mgr_obj->node_free_list_head != NULL) {
-		/* Free the free nodes */
-		while (!LST_IS_EMPTY(cmm_mgr_obj->node_free_list_head)) {
-			pnode = (struct cmm_mnode *)
-			    lst_get_head(cmm_mgr_obj->node_free_list_head);
-			kfree(pnode);
-		}
-		/* delete NodeFreeList list */
-		kfree(cmm_mgr_obj->node_free_list_head);
+	list_for_each_entry_safe(node, tmp, &cmm_mgr_obj->node_free_list,
+			link) {
+		list_del(&node->link);
+		kfree(node);
 	}
 	mutex_unlock(&cmm_mgr_obj->cmm_lock);
 	if (!status) {
@@ -366,7 +351,7 @@ int cmm_free_buf(struct cmm_object *hcmm_mgr, void *buf_pa,
 {
 	struct cmm_object *cmm_mgr_obj = (struct cmm_object *)hcmm_mgr;
 	int status = -EFAULT;
-	struct cmm_mnode *mnode_obj = NULL;
+	struct cmm_mnode *curr, *tmp;
 	struct cmm_allocator *allocator = NULL;
 	struct cmm_attrs *pattrs;
 
@@ -385,22 +370,14 @@ int cmm_free_buf(struct cmm_object *hcmm_mgr, void *buf_pa,
 	allocator = get_allocator(cmm_mgr_obj, ul_seg_id);
 	if (allocator != NULL) {
 		mutex_lock(&cmm_mgr_obj->cmm_lock);
-		mnode_obj =
-		    (struct cmm_mnode *)lst_first(allocator->in_use_list_head);
-		while (mnode_obj) {
-			if ((u32) buf_pa == mnode_obj->dw_pa) {
-				/* Found it */
-				lst_remove_elem(allocator->in_use_list_head,
-						(struct list_head *)mnode_obj);
-				/* back to freelist */
-				add_to_free_list(allocator, mnode_obj);
-				status = 0;	/* all right! */
+		list_for_each_entry_safe(curr, tmp, &allocator->in_use_list,
+				link) {
+			if (curr->dw_pa == (u32) buf_pa) {
+				list_del(&curr->link);
+				add_to_free_list(allocator, curr);
+				status = 0;
 				break;
 			}
-			/* next node. */
-			mnode_obj = (struct cmm_mnode *)
-			    lst_next(allocator->in_use_list_head,
-				     (struct list_head *)mnode_obj);
 		}
 		mutex_unlock(&cmm_mgr_obj->cmm_lock);
 	}
@@ -443,7 +420,7 @@ int cmm_get_info(struct cmm_object *hcmm_mgr,
 	u32 ul_seg;
 	int status = 0;
 	struct cmm_allocator *altr;
-	struct cmm_mnode *mnode_obj = NULL;
+	struct cmm_mnode *curr;
 
 	DBC_REQUIRE(cmm_info_obj != NULL);
 
@@ -478,17 +455,11 @@ int cmm_get_info(struct cmm_object *hcmm_mgr,
 			cmm_info_obj->seg_info[ul_seg - 1].dw_seg_base_va =
 			    altr->dw_vm_base - altr->ul_dsp_size;
 			cmm_info_obj->seg_info[ul_seg - 1].ul_in_use_cnt = 0;
-			mnode_obj = (struct cmm_mnode *)
-			    lst_first(altr->in_use_list_head);
 			/* Count inUse blocks */
-			while (mnode_obj) {
+			list_for_each_entry(curr, &altr->in_use_list, link) {
 				cmm_info_obj->ul_total_in_use_cnt++;
 				cmm_info_obj->seg_info[ul_seg -
 						       1].ul_in_use_cnt++;
-				/* next node. */
-				mnode_obj = (struct cmm_mnode *)
-				    lst_next(altr->in_use_list_head,
-					     (struct list_head *)mnode_obj);
 			}
 		}
 	}			/* end for */
@@ -578,30 +549,17 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 		/* return the actual segment identifier */
 		*sgmt_id = (u32) slot_seg + 1;
 		/* create memory free list */
-		psma->free_list_head = kzalloc(sizeof(struct lst_list),
-							GFP_KERNEL);
-		if (psma->free_list_head == NULL) {
-			status = -ENOMEM;
-			goto func_end;
-		}
-		INIT_LIST_HEAD(&psma->free_list_head->head);
+		INIT_LIST_HEAD(&psma->free_list);
 
 		/* create memory in-use list */
-		psma->in_use_list_head = kzalloc(sizeof(struct
-						lst_list), GFP_KERNEL);
-		if (psma->in_use_list_head == NULL) {
-			status = -ENOMEM;
-			goto func_end;
-		}
-		INIT_LIST_HEAD(&psma->in_use_list_head->head);
+		INIT_LIST_HEAD(&psma->in_use_list);
 
 		/* Get a mem node for this hunk-o-memory */
 		new_node = get_node(cmm_mgr_obj, dw_gpp_base_pa,
 				    psma->dw_vm_base, ul_size);
 		/* Place node on the SM allocator's free list */
 		if (new_node) {
-			lst_put_tail(psma->free_list_head,
-				     (struct list_head *)new_node);
+			list_add_tail(&new_node->link, &psma->free_list);
 		} else {
 			status = -ENOMEM;
 			goto func_end;
@@ -680,41 +638,22 @@ int cmm_un_register_gppsm_seg(struct cmm_object *hcmm_mgr,
  */
 static void un_register_gppsm_seg(struct cmm_allocator *psma)
 {
-	struct cmm_mnode *mnode_obj = NULL;
-	struct cmm_mnode *next_node = NULL;
+	struct cmm_mnode *curr, *tmp;
 
 	DBC_REQUIRE(psma != NULL);
-	if (psma->free_list_head != NULL) {
-		/* free nodes on free list */
-		mnode_obj = (struct cmm_mnode *)lst_first(psma->free_list_head);
-		while (mnode_obj) {
-			next_node =
-			    (struct cmm_mnode *)lst_next(psma->free_list_head,
-							 (struct list_head *)
-							 mnode_obj);
-			lst_remove_elem(psma->free_list_head,
-					(struct list_head *)mnode_obj);
-			kfree((void *)mnode_obj);
-			/* next node. */
-			mnode_obj = next_node;
-		}
-		kfree(psma->free_list_head);	/* delete freelist */
-		/* free nodes on InUse list */
-		mnode_obj =
-		    (struct cmm_mnode *)lst_first(psma->in_use_list_head);
-		while (mnode_obj) {
-			next_node =
-			    (struct cmm_mnode *)lst_next(psma->in_use_list_head,
-							 (struct list_head *)
-							 mnode_obj);
-			lst_remove_elem(psma->in_use_list_head,
-					(struct list_head *)mnode_obj);
-			kfree((void *)mnode_obj);
-			/* next node. */
-			mnode_obj = next_node;
-		}
-		kfree(psma->in_use_list_head);	/* delete InUse list */
+
+	/* free nodes on free list */
+	list_for_each_entry_safe(curr, tmp, &psma->free_list, link) {
+		list_del(&curr->link);
+		kfree(curr);
 	}
+
+	/* free nodes on InUse list */
+	list_for_each_entry_safe(curr, tmp, &psma->in_use_list, link) {
+		list_del(&curr->link);
+		kfree(curr);
+	}
+
 	if ((void *)psma->dw_vm_base != NULL)
 		MEM_UNMAP_LINEAR_ADDRESS((void *)psma->dw_vm_base);
 
@@ -758,15 +697,15 @@ static struct cmm_mnode *get_node(struct cmm_object *cmm_mgr_obj, u32 dw_pa,
 	DBC_REQUIRE(dw_va != 0);
 	DBC_REQUIRE(ul_size != 0);
 	/* Check cmm mgr's node freelist */
-	if (LST_IS_EMPTY(cmm_mgr_obj->node_free_list_head)) {
+	if (list_empty(&cmm_mgr_obj->node_free_list)) {
 		pnode = kzalloc(sizeof(struct cmm_mnode), GFP_KERNEL);
 	} else {
 		/* surely a valid element */
-		pnode = (struct cmm_mnode *)
-		    lst_get_head(cmm_mgr_obj->node_free_list_head);
+		pnode = list_first_entry(&cmm_mgr_obj->node_free_list,
+				struct cmm_mnode, link);
+		list_del(&pnode->link);
 	}
 	if (pnode) {
-		lst_init_elem((struct list_head *)pnode);	/* set self */
 		pnode->dw_pa = dw_pa;	/* Physical addr of start of block */
 		pnode->dw_va = dw_va;	/* Virtual   "            " */
 		pnode->ul_size = ul_size;	/* Size of block */
@@ -783,9 +722,7 @@ static struct cmm_mnode *get_node(struct cmm_object *cmm_mgr_obj, u32 dw_pa,
 static void delete_node(struct cmm_object *cmm_mgr_obj, struct cmm_mnode *pnode)
 {
 	DBC_REQUIRE(pnode != NULL);
-	lst_init_elem((struct list_head *)pnode);	/* init .self ptr */
-	lst_put_tail(cmm_mgr_obj->node_free_list_head,
-		     (struct list_head *)pnode);
+	list_add_tail(&pnode->link, &cmm_mgr_obj->node_free_list);
 }
 
 /*
@@ -797,28 +734,26 @@ static void delete_node(struct cmm_object *cmm_mgr_obj, struct cmm_mnode *pnode)
 static struct cmm_mnode *get_free_block(struct cmm_allocator *allocator,
 					u32 usize)
 {
-	if (allocator) {
-		struct cmm_mnode *mnode_obj = (struct cmm_mnode *)
-		    lst_first(allocator->free_list_head);
-		while (mnode_obj) {
-			if (usize <= (u32) mnode_obj->ul_size) {
-				lst_remove_elem(allocator->free_list_head,
-						(struct list_head *)mnode_obj);
-				return mnode_obj;
-			}
-			/* next node. */
-			mnode_obj = (struct cmm_mnode *)
-			    lst_next(allocator->free_list_head,
-				     (struct list_head *)mnode_obj);
+	struct cmm_mnode *node, *tmp;
+
+	if (!allocator)
+		return NULL;
+
+	list_for_each_entry_safe(node, tmp, &allocator->free_list, link) {
+		if (usize <= (u32) node->ul_size) {
+			list_del(&node->link);
+			return node;
 		}
+
 	}
+
 	return NULL;
 }
 
 /*
  *  ======== add_to_free_list ========
  *  Purpose:
- *      Coelesce node into the freelist in ascending size order.
+ *      Coalesce node into the freelist in ascending size order.
  */
 static void add_to_free_list(struct cmm_allocator *allocator,
 			     struct cmm_mnode *pnode)
@@ -829,71 +764,51 @@ static void add_to_free_list(struct cmm_allocator *allocator,
 	u32 dw_this_pa;
 	u32 dw_next_pa;
 
-	DBC_REQUIRE(pnode != NULL);
-	DBC_REQUIRE(allocator != NULL);
+	if (!pnode) {
+		pr_err("%s: failed - pnode is NULL\n", __func__);
+		return;
+	}
+
 	dw_this_pa = pnode->dw_pa;
 	dw_next_pa = NEXT_PA(pnode);
-	mnode_obj = (struct cmm_mnode *)lst_first(allocator->free_list_head);
-	while (mnode_obj) {
+	list_for_each_entry(mnode_obj, &allocator->free_list, link) {
 		if (dw_this_pa == NEXT_PA(mnode_obj)) {
 			/* found the block ahead of this one */
 			node_prev = mnode_obj;
 		} else if (dw_next_pa == mnode_obj->dw_pa) {
 			node_next = mnode_obj;
 		}
-		if ((node_prev == NULL) || (node_next == NULL)) {
-			/* next node. */
-			mnode_obj = (struct cmm_mnode *)
-			    lst_next(allocator->free_list_head,
-				     (struct list_head *)mnode_obj);
-		} else {
-			/* got 'em */
+		if ((node_prev != NULL) && (node_next != NULL))
 			break;
-		}
-	}			/* while */
+	}
 	if (node_prev != NULL) {
 		/* combine with previous block */
-		lst_remove_elem(allocator->free_list_head,
-				(struct list_head *)node_prev);
+		list_del(&node_prev->link);
 		/* grow node to hold both */
 		pnode->ul_size += node_prev->ul_size;
 		pnode->dw_pa = node_prev->dw_pa;
 		pnode->dw_va = node_prev->dw_va;
 		/* place node on mgr nodeFreeList */
-		delete_node((struct cmm_object *)allocator->hcmm_mgr,
-			    node_prev);
+		delete_node(allocator->hcmm_mgr, node_prev);
 	}
 	if (node_next != NULL) {
 		/* combine with next block */
-		lst_remove_elem(allocator->free_list_head,
-				(struct list_head *)node_next);
+		list_del(&node_next->link);
 		/* grow da node */
 		pnode->ul_size += node_next->ul_size;
 		/* place node on mgr nodeFreeList */
-		delete_node((struct cmm_object *)allocator->hcmm_mgr,
-			    node_next);
+		delete_node(allocator->hcmm_mgr, node_next);
 	}
 	/* Now, let's add to freelist in increasing size order */
-	mnode_obj = (struct cmm_mnode *)lst_first(allocator->free_list_head);
-	while (mnode_obj) {
-		if (pnode->ul_size <= mnode_obj->ul_size)
-			break;
-
-		/* next node. */
-		mnode_obj =
-		    (struct cmm_mnode *)lst_next(allocator->free_list_head,
-						 (struct list_head *)mnode_obj);
+	list_for_each_entry(mnode_obj, &allocator->free_list, link) {
+		if (pnode->ul_size <= mnode_obj->ul_size) {
+			/* insert our node before the current traversed node  */
+			list_add_tail(&pnode->link, &mnode_obj->link);
+			return;
+		}
 	}
-	/* if mnode_obj is NULL then add our pnode to the end of the freelist */
-	if (mnode_obj == NULL) {
-		lst_put_tail(allocator->free_list_head,
-			     (struct list_head *)pnode);
-	} else {
-		/* insert our node before the current traversed node */
-		lst_insert_before(allocator->free_list_head,
-				  (struct list_head *)pnode,
-				  (struct list_head *)mnode_obj);
-	}
+	/* add our pnode to the end of the freelist */
+	list_add_tail(&pnode->link, &allocator->free_list);
 }
 
 /*
