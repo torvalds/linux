@@ -415,6 +415,14 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 	ethhdr = (struct ethhdr *)skb->data;
 	header_len += ETH_HLEN;
 
+	/* check for initial vlan header */
+	if (ntohs(ethhdr->h_proto) == ETH_P_8021Q) {
+		if (!pskb_may_pull(skb, header_len + VLAN_HLEN))
+			return 0;
+		ethhdr = (struct ethhdr *)(skb->data + VLAN_HLEN);
+		header_len += VLAN_HLEN;
+	}
+
 	/* check for ip header */
 	if (ntohs(ethhdr->h_proto) != ETH_P_IP)
 		return 0;
