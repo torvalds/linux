@@ -42,7 +42,7 @@ int hna_local_init(struct bat_priv *bat_priv)
 	if (bat_priv->hna_local_hash)
 		return 1;
 
-	bat_priv->hna_local_hash = hash_new(128, choose_orig);
+	bat_priv->hna_local_hash = hash_new(128);
 
 	if (!bat_priv->hna_local_hash)
 		return 0;
@@ -65,7 +65,8 @@ void hna_local_add(struct net_device *soft_iface, uint8_t *addr)
 	spin_lock_irqsave(&bat_priv->hna_lhash_lock, flags);
 	hna_local_entry =
 		((struct hna_local_entry *)hash_find(bat_priv->hna_local_hash,
-						     compare_orig, addr));
+						     compare_orig, choose_orig,
+						     addr));
 	spin_unlock_irqrestore(&bat_priv->hna_lhash_lock, flags);
 
 	if (hna_local_entry) {
@@ -108,13 +109,15 @@ void hna_local_add(struct net_device *soft_iface, uint8_t *addr)
 
 	spin_lock_irqsave(&bat_priv->hna_lhash_lock, flags);
 
-	hash_add(bat_priv->hna_local_hash, compare_orig, hna_local_entry);
+	hash_add(bat_priv->hna_local_hash, compare_orig, choose_orig,
+		 hna_local_entry);
 	bat_priv->num_local_hna++;
 	atomic_set(&bat_priv->hna_local_changed, 1);
 
 	if (bat_priv->hna_local_hash->elements * 4 >
 					bat_priv->hna_local_hash->size) {
 		swaphash = hash_resize(bat_priv->hna_local_hash, compare_orig,
+				       choose_orig,
 				       bat_priv->hna_local_hash->size * 2);
 
 		if (!swaphash)
@@ -130,7 +133,7 @@ void hna_local_add(struct net_device *soft_iface, uint8_t *addr)
 
 	hna_global_entry = ((struct hna_global_entry *)
 				hash_find(bat_priv->hna_global_hash,
-					  compare_orig, addr));
+					  compare_orig, choose_orig, addr));
 
 	if (hna_global_entry)
 		_hna_global_del_orig(bat_priv, hna_global_entry,
@@ -234,7 +237,7 @@ static void hna_local_del(struct bat_priv *bat_priv,
 	bat_dbg(DBG_ROUTES, bat_priv, "Deleting local hna entry (%pM): %s\n",
 		hna_local_entry->addr, message);
 
-	hash_remove(bat_priv->hna_local_hash, compare_orig,
+	hash_remove(bat_priv->hna_local_hash, compare_orig, choose_orig,
 		    hna_local_entry->addr);
 	_hna_local_del(hna_local_entry, bat_priv);
 }
@@ -248,7 +251,8 @@ void hna_local_remove(struct bat_priv *bat_priv,
 	spin_lock_irqsave(&bat_priv->hna_lhash_lock, flags);
 
 	hna_local_entry = (struct hna_local_entry *)
-		hash_find(bat_priv->hna_local_hash, compare_orig, addr);
+		hash_find(bat_priv->hna_local_hash, compare_orig, choose_orig,
+			  addr);
 	if (hna_local_entry)
 		hna_local_del(bat_priv, hna_local_entry, message);
 
@@ -298,7 +302,7 @@ int hna_global_init(struct bat_priv *bat_priv)
 	if (bat_priv->hna_global_hash)
 		return 1;
 
-	bat_priv->hna_global_hash = hash_new(128, choose_orig);
+	bat_priv->hna_global_hash = hash_new(128);
 
 	if (!bat_priv->hna_global_hash)
 		return 0;
@@ -323,7 +327,7 @@ void hna_global_add_orig(struct bat_priv *bat_priv,
 		hna_ptr = hna_buff + (hna_buff_count * ETH_ALEN);
 		hna_global_entry = (struct hna_global_entry *)
 			hash_find(bat_priv->hna_global_hash, compare_orig,
-				  hna_ptr);
+				  choose_orig, hna_ptr);
 
 		if (!hna_global_entry) {
 			spin_unlock_irqrestore(&bat_priv->hna_ghash_lock,
@@ -345,7 +349,7 @@ void hna_global_add_orig(struct bat_priv *bat_priv,
 
 			spin_lock_irqsave(&bat_priv->hna_ghash_lock, flags);
 			hash_add(bat_priv->hna_global_hash, compare_orig,
-				 hna_global_entry);
+				 choose_orig, hna_global_entry);
 
 		}
 
@@ -358,7 +362,7 @@ void hna_global_add_orig(struct bat_priv *bat_priv,
 		hna_ptr = hna_buff + (hna_buff_count * ETH_ALEN);
 		hna_local_entry = (struct hna_local_entry *)
 			hash_find(bat_priv->hna_local_hash, compare_orig,
-				  hna_ptr);
+				  choose_orig, hna_ptr);
 
 		if (hna_local_entry)
 			hna_local_del(bat_priv, hna_local_entry,
@@ -386,6 +390,7 @@ void hna_global_add_orig(struct bat_priv *bat_priv,
 	if (bat_priv->hna_global_hash->elements * 4 >
 					bat_priv->hna_global_hash->size) {
 		swaphash = hash_resize(bat_priv->hna_global_hash, compare_orig,
+				       choose_orig,
 				       bat_priv->hna_global_hash->size * 2);
 
 		if (!swaphash)
@@ -456,7 +461,7 @@ static void _hna_global_del_orig(struct bat_priv *bat_priv,
 		hna_global_entry->addr, hna_global_entry->orig_node->orig,
 		message);
 
-	hash_remove(bat_priv->hna_global_hash, compare_orig,
+	hash_remove(bat_priv->hna_global_hash, compare_orig, choose_orig,
 		    hna_global_entry->addr);
 	kfree(hna_global_entry);
 }
@@ -478,7 +483,7 @@ void hna_global_del_orig(struct bat_priv *bat_priv,
 		hna_ptr = orig_node->hna_buff + (hna_buff_count * ETH_ALEN);
 		hna_global_entry = (struct hna_global_entry *)
 			hash_find(bat_priv->hna_global_hash, compare_orig,
-				  hna_ptr);
+				  choose_orig, hna_ptr);
 
 		if ((hna_global_entry) &&
 		    (hna_global_entry->orig_node == orig_node))
@@ -517,7 +522,7 @@ struct orig_node *transtable_search(struct bat_priv *bat_priv, uint8_t *addr)
 	spin_lock_irqsave(&bat_priv->hna_ghash_lock, flags);
 	hna_global_entry = (struct hna_global_entry *)
 				hash_find(bat_priv->hna_global_hash,
-					  compare_orig, addr);
+					  compare_orig, choose_orig, addr);
 	spin_unlock_irqrestore(&bat_priv->hna_ghash_lock, flags);
 
 	if (!hna_global_entry)

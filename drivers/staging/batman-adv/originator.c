@@ -45,7 +45,7 @@ int originator_init(struct bat_priv *bat_priv)
 		return 1;
 
 	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
-	bat_priv->orig_hash = hash_new(128, choose_orig);
+	bat_priv->orig_hash = hash_new(128);
 
 	if (!bat_priv->orig_hash)
 		goto err;
@@ -128,9 +128,11 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 	struct orig_node *orig_node;
 	struct hashtable_t *swaphash;
 	int size;
+	int hash_added;
 
 	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
-						   compare_orig, addr));
+						   compare_orig, choose_orig,
+						   addr));
 
 	if (orig_node)
 		return orig_node;
@@ -167,11 +169,14 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 	if (!orig_node->bcast_own_sum)
 		goto free_bcast_own;
 
-	if (hash_add(bat_priv->orig_hash, compare_orig, orig_node) < 0)
+	hash_added = hash_add(bat_priv->orig_hash, compare_orig, choose_orig,
+			      orig_node);
+	if (hash_added < 0)
 		goto free_bcast_own_sum;
 
 	if (bat_priv->orig_hash->elements * 4 > bat_priv->orig_hash->size) {
 		swaphash = hash_resize(bat_priv->orig_hash, compare_orig,
+				       choose_orig,
 				       bat_priv->orig_hash->size * 2);
 
 		if (!swaphash)

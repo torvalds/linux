@@ -226,7 +226,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 
 	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
 	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
-						   compare_orig,
+						   compare_orig, choose_orig,
 						   icmp_packet->dst));
 
 	if (!orig_node)
