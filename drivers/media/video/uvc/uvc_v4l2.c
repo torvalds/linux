@@ -494,11 +494,9 @@ static int uvc_v4l2_release(struct file *file)
 	if (uvc_has_privileges(handle)) {
 		uvc_video_enable(stream, 0);
 
-		mutex_lock(&stream->queue.mutex);
 		if (uvc_free_buffers(&stream->queue) < 0)
 			uvc_printk(KERN_ERR, "uvc_v4l2_release: Unable to "
 					"free buffers.\n");
-		mutex_unlock(&stream->queue.mutex);
 	}
 
 	/* Release the file handle. */

@@ -90,6 +90,39 @@ void uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type,
 }
 
 /*
+ * Free the video buffers.
+ *
+ * This function must be called with the queue lock held.
+ */
+static int __uvc_free_buffers(struct uvc_video_queue *queue)
+{
+	unsigned int i;
+
+	for (i = 0; i < queue->count; ++i) {
+		if (queue->buffer[i].vma_use_count != 0)
+			return -EBUSY;
+	}
+
+	if (queue->count) {
+		vfree(queue->mem);
+		queue->count = 0;
+	}
+
+	return 0;
+}
+
+int uvc_free_buffers(struct uvc_video_queue *queue)
+{
+	int ret;
+
+	mutex_lock(&queue->mutex);
+	ret = __uvc_free_buffers(queue);
+	mutex_unlock(&queue->mutex);
+
+	return ret;
+}
+
+/*
  * Allocate the video buffers.
  *
  * Pages are reserved to make sure they will not be swapped, as they will be
@@ -110,7 +143,7 @@ int uvc_alloc_buffers(struct uvc_video_queue *queue, unsigned int nbuffers,
 
 	mutex_lock(&queue->mutex);
 
-	if ((ret = uvc_free_buffers(queue)) < 0)
+	if ((ret = __uvc_free_buffers(queue)) < 0)
 		goto done;
 
 	/* Bail out if no buffers should be allocated. */
@@ -149,28 +182,6 @@ int uvc_alloc_buffers(struct uvc_video_queue *queue, unsigned int nbuffers,
 done:
 	mutex_unlock(&queue->mutex);
 	return ret;
-}
-
-/*
- * Free the video buffers.
- *
- * This function must be called with the queue lock held.
- */
-int uvc_free_buffers(struct uvc_video_queue *queue)
-{
-	unsigned int i;
-
-	for (i = 0; i < queue->count; ++i) {
-		if (queue->buffer[i].vma_use_count != 0)
-			return -EBUSY;
-	}
-
-	if (queue->count) {
-		vfree(queue->mem);
-		queue->count = 0;
-	}
-
-	return 0;
 }
 
 /*
