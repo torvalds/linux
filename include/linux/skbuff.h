@@ -386,9 +386,10 @@ struct sk_buff {
 #else
 	__u8			deliver_no_wcard:1;
 #endif
+	__u8			ooo_okay:1;
 	kmemcheck_bitfield_end(flags2);
 
-	/* 0/14 bit hole */
+	/* 0/13 bit hole */
 
 #ifdef CONFIG_NET_DMA
 	dma_cookie_t		dma_cookie;
