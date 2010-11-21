@@ -37,9 +37,9 @@
  *      which may cause timeouts and/or failure offunction sync_wait_on_event.
  *      This invariant condition is:
  *
- *          LST_Empty(pchnl->pio_completions) ==> pchnl->sync_event is reset
+ *          list_empty(&pchnl->pio_completions) ==> pchnl->sync_event is reset
  *      and
- *          !LST_Empty(pchnl->pio_completions) ==> pchnl->sync_event is set.
+ *          !list_empty(&pchnl->pio_completions) ==> pchnl->sync_event is set.
  */
 
 #include <linux/types.h>
@@ -73,11 +73,9 @@
 #define MAILBOX_IRQ INT_MAIL_MPU_IRQ
 
 /*  ----------------------------------- Function Prototypes */
-static struct lst_list *create_chirp_list(u32 chirps);
+static int create_chirp_list(struct list_head *list, u32 chirps);
 
-static void free_chirp_list(struct lst_list *chirp_list);
-
-static struct chnl_irp *make_new_chirp(void);
+static void free_chirp_list(struct list_head *list);
 
 static int search_free_channel(struct chnl_mgr *chnl_mgr_obj,
 				      u32 *chnl);
@@ -179,10 +177,14 @@ func_cont:
 	}
 	if (!status) {
 		/* Get a free chirp: */
-		chnl_packet_obj =
-		    (struct chnl_irp *)lst_get_head(pchnl->free_packets_list);
-		if (chnl_packet_obj == NULL)
+		if (!list_empty(&pchnl->free_packets_list)) {
+			chnl_packet_obj = list_first_entry(
+					&pchnl->free_packets_list,
+					struct chnl_irp, link);
+			list_del(&chnl_packet_obj->link);
+		} else {
 			status = -EIO;
+		}
 
 	}
 	if (!status) {
@@ -206,8 +208,7 @@ func_cont:
 		chnl_packet_obj->dw_arg = dw_arg;
 		chnl_packet_obj->status = (is_eos ? CHNL_IOCSTATEOS :
 					   CHNL_IOCSTATCOMPLETE);
-		lst_put_tail(pchnl->pio_requests,
-			     (struct list_head *)chnl_packet_obj);
+		list_add_tail(&chnl_packet_obj->link, &pchnl->pio_requests);
 		pchnl->cio_reqs++;
 		DBC_ASSERT(pchnl->cio_reqs <= pchnl->chnl_packets);
 		/*
@@ -254,7 +255,7 @@ int bridge_chnl_cancel_io(struct chnl_object *chnl_obj)
 	struct chnl_object *pchnl = (struct chnl_object *)chnl_obj;
 	u32 chnl_id = -1;
 	s8 chnl_mode;
-	struct chnl_irp *chnl_packet_obj;
+	struct chnl_irp *chirp, *tmp;
 	struct chnl_mgr *chnl_mgr_obj = NULL;
 
 	/* Check args: */
@@ -272,7 +273,7 @@ int bridge_chnl_cancel_io(struct chnl_object *chnl_obj)
 	 *  IORequests or dispatching. */
 	spin_lock_bh(&chnl_mgr_obj->chnl_mgr_lock);
 	pchnl->dw_state |= CHNL_STATECANCEL;
-	if (LST_IS_EMPTY(pchnl->pio_requests))
+	if (list_empty(&pchnl->pio_requests))
 		goto func_cont;
 
 	if (pchnl->chnl_type == CHNL_PCPY) {
@@ -286,18 +287,14 @@ int bridge_chnl_cancel_io(struct chnl_object *chnl_obj)
 		}
 	}
 	/* Move all IOR's to IOC queue: */
-	while (!LST_IS_EMPTY(pchnl->pio_requests)) {
-		chnl_packet_obj =
-		    (struct chnl_irp *)lst_get_head(pchnl->pio_requests);
-		if (chnl_packet_obj) {
-			chnl_packet_obj->byte_size = 0;
-			chnl_packet_obj->status |= CHNL_IOCSTATCANCEL;
-			lst_put_tail(pchnl->pio_completions,
-				     (struct list_head *)chnl_packet_obj);
-			pchnl->cio_cs++;
-			pchnl->cio_reqs--;
-			DBC_ASSERT(pchnl->cio_reqs >= 0);
-		}
+	list_for_each_entry_safe(chirp, tmp, &pchnl->pio_requests, link) {
+		list_del(&chirp->link);
+		chirp->byte_size = 0;
+		chirp->status |= CHNL_IOCSTATCANCEL;
+		list_add_tail(&chirp->link, &pchnl->pio_completions);
+		pchnl->cio_cs++;
+		pchnl->cio_reqs--;
+		DBC_ASSERT(pchnl->cio_reqs >= 0);
 	}
 func_cont:
 	spin_unlock_bh(&chnl_mgr_obj->chnl_mgr_lock);
@@ -353,20 +350,14 @@ func_cont:
 			pchnl->sync_event = NULL;
 		}
 		/* Free I/O request and I/O completion queues: */
-		if (pchnl->pio_completions) {
-			free_chirp_list(pchnl->pio_completions);
-			pchnl->pio_completions = NULL;
-			pchnl->cio_cs = 0;
-		}
-		if (pchnl->pio_requests) {
-			free_chirp_list(pchnl->pio_requests);
-			pchnl->pio_requests = NULL;
-			pchnl->cio_reqs = 0;
-		}
-		if (pchnl->free_packets_list) {
-			free_chirp_list(pchnl->free_packets_list);
-			pchnl->free_packets_list = NULL;
-		}
+		free_chirp_list(&pchnl->pio_completions);
+		pchnl->cio_cs = 0;
+
+		free_chirp_list(&pchnl->pio_requests);
+		pchnl->cio_reqs = 0;
+
+		free_chirp_list(&pchnl->free_packets_list);
+
 		/* Release channel object. */
 		kfree(pchnl);
 		pchnl = NULL;
@@ -505,7 +496,7 @@ int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 timeout)
 		    && (pchnl->chnl_type == CHNL_PCPY)) {
 			/* Wait for IO completions, up to the specified
 			 * timeout: */
-			while (!LST_IS_EMPTY(pchnl->pio_requests) && !status) {
+			while (!list_empty(&pchnl->pio_requests) && !status) {
 				status = bridge_chnl_get_ioc(chnl_obj,
 						timeout, &chnl_ioc_obj);
 				if (status)
@@ -521,7 +512,7 @@ int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 timeout)
 			pchnl->dw_state &= ~CHNL_STATECANCEL;
 		}
 	}
-	DBC_ENSURE(status || LST_IS_EMPTY(pchnl->pio_requests));
+	DBC_ENSURE(status || list_empty(&pchnl->pio_requests));
 	return status;
 }
 
@@ -581,7 +572,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 	if (!chan_ioc || !pchnl) {
 		status = -EFAULT;
 	} else if (timeout == CHNL_IOCNOWAIT) {
-		if (LST_IS_EMPTY(pchnl->pio_completions))
+		if (list_empty(&pchnl->pio_completions))
 			status = -EREMOTEIO;
 
 	}
@@ -596,7 +587,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 
 	ioc.status = CHNL_IOCSTATCOMPLETE;
 	if (timeout !=
-	    CHNL_IOCNOWAIT && LST_IS_EMPTY(pchnl->pio_completions)) {
+	    CHNL_IOCNOWAIT && list_empty(&pchnl->pio_completions)) {
 		if (timeout == CHNL_IOCINFINITE)
 			timeout = SYNC_INFINITE;
 
@@ -611,7 +602,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 			 * fails due to unkown causes. */
 			/* Even though Wait failed, there may be something in
 			 * the Q: */
-			if (LST_IS_EMPTY(pchnl->pio_completions)) {
+			if (list_empty(&pchnl->pio_completions)) {
 				ioc.status |= CHNL_IOCSTATCANCEL;
 				dequeue_ioc = false;
 			}
@@ -622,30 +613,26 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 	omap_mbox_disable_irq(dev_ctxt->mbox, IRQ_RX);
 	if (dequeue_ioc) {
 		/* Dequeue IOC and set chan_ioc; */
-		DBC_ASSERT(!LST_IS_EMPTY(pchnl->pio_completions));
-		chnl_packet_obj =
-		    (struct chnl_irp *)lst_get_head(pchnl->pio_completions);
+		DBC_ASSERT(!list_empty(&pchnl->pio_completions));
+		chnl_packet_obj = list_first_entry(&pchnl->pio_completions,
+				struct chnl_irp, link);
+		list_del(&chnl_packet_obj->link);
 		/* Update chan_ioc from channel state and chirp: */
-		if (chnl_packet_obj) {
-			pchnl->cio_cs--;
-			/*  If this is a zero-copy channel, then set IOC's pbuf
-			 *  to the DSP's address. This DSP address will get
-			 *  translated to user's virtual addr later. */
-			{
-				host_sys_buf = chnl_packet_obj->host_sys_buf;
-				ioc.pbuf = chnl_packet_obj->host_user_buf;
-			}
-			ioc.byte_size = chnl_packet_obj->byte_size;
-			ioc.buf_size = chnl_packet_obj->buf_size;
-			ioc.dw_arg = chnl_packet_obj->dw_arg;
-			ioc.status |= chnl_packet_obj->status;
-			/* Place the used chirp on the free list: */
-			lst_put_tail(pchnl->free_packets_list,
-				     (struct list_head *)chnl_packet_obj);
-		} else {
-			ioc.pbuf = NULL;
-			ioc.byte_size = 0;
-		}
+		pchnl->cio_cs--;
+		/*
+		 * If this is a zero-copy channel, then set IOC's pbuf
+		 * to the DSP's address. This DSP address will get
+		 * translated to user's virtual addr later.
+		 */
+		host_sys_buf = chnl_packet_obj->host_sys_buf;
+		ioc.pbuf = chnl_packet_obj->host_user_buf;
+		ioc.byte_size = chnl_packet_obj->byte_size;
+		ioc.buf_size = chnl_packet_obj->buf_size;
+		ioc.dw_arg = chnl_packet_obj->dw_arg;
+		ioc.status |= chnl_packet_obj->status;
+		/* Place the used chirp on the free list: */
+		list_add_tail(&chnl_packet_obj->link,
+				&pchnl->free_packets_list);
 	} else {
 		ioc.pbuf = NULL;
 		ioc.byte_size = 0;
@@ -653,7 +640,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 		ioc.buf_size = 0;
 	}
 	/* Ensure invariant: If any IOC's are queued for this channel... */
-	if (!LST_IS_EMPTY(pchnl->pio_completions)) {
+	if (!list_empty(&pchnl->pio_completions)) {
 		/*  Since DSPStream_Reclaim() does not take a timeout
 		 *  parameter, we pass the stream's timeout value to
 		 *  bridge_chnl_get_ioc. We cannot determine whether or not
@@ -818,9 +805,16 @@ int bridge_chnl_open(struct chnl_object **chnl,
 	/* Protect queues from io_dpc: */
 	pchnl->dw_state = CHNL_STATECANCEL;
 	/* Allocate initial IOR and IOC queues: */
-	pchnl->free_packets_list = create_chirp_list(pattrs->uio_reqs);
-	pchnl->pio_requests = create_chirp_list(0);
-	pchnl->pio_completions = create_chirp_list(0);
+	status = create_chirp_list(&pchnl->free_packets_list,
+			pattrs->uio_reqs);
+	if (status) {
+		kfree(pchnl);
+		goto func_end;
+	}
+
+	INIT_LIST_HEAD(&pchnl->pio_requests);
+	INIT_LIST_HEAD(&pchnl->pio_completions);
+
 	pchnl->chnl_packets = pattrs->uio_reqs;
 	pchnl->cio_cs = 0;
 	pchnl->cio_reqs = 0;
@@ -840,40 +834,26 @@ int bridge_chnl_open(struct chnl_object **chnl,
 	}
 
 	if (!status) {
-		if (pchnl->pio_completions && pchnl->pio_requests &&
-		    pchnl->free_packets_list) {
-			/* Initialize CHNL object fields: */
-			pchnl->chnl_mgr_obj = chnl_mgr_obj;
-			pchnl->chnl_id = ch_id;
-			pchnl->chnl_mode = chnl_mode;
-			pchnl->user_event = sync_event;
-			pchnl->sync_event = sync_event;
-			/* Get the process handle */
-			pchnl->process = current->tgid;
-			pchnl->pcb_arg = 0;
-			pchnl->bytes_moved = 0;
-			/* Default to proc-copy */
-			pchnl->chnl_type = CHNL_PCPY;
-		} else {
-			status = -ENOMEM;
-		}
+		/* Initialize CHNL object fields: */
+		pchnl->chnl_mgr_obj = chnl_mgr_obj;
+		pchnl->chnl_id = ch_id;
+		pchnl->chnl_mode = chnl_mode;
+		pchnl->user_event = sync_event;
+		pchnl->sync_event = sync_event;
+		/* Get the process handle */
+		pchnl->process = current->tgid;
+		pchnl->pcb_arg = 0;
+		pchnl->bytes_moved = 0;
+		/* Default to proc-copy */
+		pchnl->chnl_type = CHNL_PCPY;
 	}
 
 	if (status) {
 		/* Free memory */
-		if (pchnl->pio_completions) {
-			free_chirp_list(pchnl->pio_completions);
-			pchnl->pio_completions = NULL;
-			pchnl->cio_cs = 0;
-		}
-		if (pchnl->pio_requests) {
-			free_chirp_list(pchnl->pio_requests);
-			pchnl->pio_requests = NULL;
-		}
-		if (pchnl->free_packets_list) {
-			free_chirp_list(pchnl->free_packets_list);
-			pchnl->free_packets_list = NULL;
-		}
+		free_chirp_list(&pchnl->pio_completions);
+		pchnl->cio_cs = 0;
+		free_chirp_list(&pchnl->pio_requests);
+		free_chirp_list(&pchnl->free_packets_list);
 		kfree(sync_event);
 		sync_event = NULL;
 
@@ -924,37 +904,35 @@ int bridge_chnl_register_notify(struct chnl_object *chnl_obj,
  *  Purpose:
  *      Initialize a queue of channel I/O Request/Completion packets.
  *  Parameters:
+ *      list:       Pointer to a list_head
  *      chirps:     Number of Chirps to allocate.
  *  Returns:
- *      Pointer to queue of IRPs, or NULL.
+ *      0 if successful, error code otherwise.
  *  Requires:
  *  Ensures:
  */
-static struct lst_list *create_chirp_list(u32 chirps)
+static int create_chirp_list(struct list_head *list, u32 chirps)
 {
-	struct lst_list *chirp_list;
-	struct chnl_irp *chnl_packet_obj;
+	struct chnl_irp *chirp;
 	u32 i;
 
-	chirp_list = kzalloc(sizeof(struct lst_list), GFP_KERNEL);
+	INIT_LIST_HEAD(list);
 
-	if (chirp_list) {
-		INIT_LIST_HEAD(&chirp_list->head);
-		/* Make N chirps and place on queue. */
-		for (i = 0; (i < chirps)
-		     && ((chnl_packet_obj = make_new_chirp()) != NULL); i++) {
-			lst_put_tail(chirp_list,
-				     (struct list_head *)chnl_packet_obj);
-		}
-
-		/* If we couldn't allocate all chirps, free those allocated: */
-		if (i != chirps) {
-			free_chirp_list(chirp_list);
-			chirp_list = NULL;
-		}
+	/* Make N chirps and place on queue. */
+	for (i = 0; i < chirps; i++) {
+		chirp = kzalloc(sizeof(struct chnl_irp), GFP_KERNEL);
+		if (!chirp)
+			break;
+		list_add_tail(&chirp->link, list);
 	}
 
-	return chirp_list;
+	/* If we couldn't allocate all chirps, free those allocated: */
+	if (i != chirps) {
+		free_chirp_list(list);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 /*
@@ -962,31 +940,16 @@ static struct lst_list *create_chirp_list(u32 chirps)
  *  Purpose:
  *      Free the queue of Chirps.
  */
-static void free_chirp_list(struct lst_list *chirp_list)
+static void free_chirp_list(struct list_head *chirp_list)
 {
+	struct chnl_irp *chirp, *tmp;
+
 	DBC_REQUIRE(chirp_list != NULL);
 
-	while (!LST_IS_EMPTY(chirp_list))
-		kfree(lst_get_head(chirp_list));
-
-	kfree(chirp_list);
-}
-
-/*
- *  ======== make_new_chirp ========
- *      Allocate the memory for a new channel IRP.
- */
-static struct chnl_irp *make_new_chirp(void)
-{
-	struct chnl_irp *chnl_packet_obj;
-
-	chnl_packet_obj = kzalloc(sizeof(struct chnl_irp), GFP_KERNEL);
-	if (chnl_packet_obj != NULL) {
-		/* lst_init_elem only resets the list's member values. */
-		lst_init_elem(&chnl_packet_obj->link);
+	list_for_each_entry_safe(chirp, tmp, chirp_list, link) {
+		list_del(&chirp->link);
+		kfree(chirp);
 	}
-
-	return chnl_packet_obj;
 }
 
 /*

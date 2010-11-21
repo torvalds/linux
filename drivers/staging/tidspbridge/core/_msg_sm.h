@@ -20,7 +20,7 @@
 #ifndef _MSG_SM_
 #define _MSG_SM_
 
-#include <dspbridge/list.h>
+#include <linux/list.h>
 #include <dspbridge/msgdefs.h>
 
 /*
@@ -86,12 +86,12 @@ struct msg_mgr {
 	struct bridge_drv_interface *intf_fxns;
 
 	struct io_mgr *hio_mgr;	/* IO manager */
-	struct lst_list *queue_list;	/* List of MSG_QUEUEs */
+	struct list_head queue_list;	/* List of MSG_QUEUEs */
 	spinlock_t msg_mgr_lock;	/* For critical sections */
 	/* Signalled when MsgFrame is available */
 	struct sync_object *sync_event;
-	struct lst_list *msg_free_list;	/* Free MsgFrames ready to be filled */
-	struct lst_list *msg_used_list;	/* MsgFrames ready to go to DSP */
+	struct list_head msg_free_list;	/* Free MsgFrames ready to be filled */
+	struct list_head msg_used_list;	/* MsgFrames ready to go to DSP */
 	u32 msgs_pending;	/* # of queued messages to go to DSP */
 	u32 max_msgs;		/* Max # of msgs that fit in buffer */
 	msg_onexit on_exit;	/* called when RMS_EXIT is received */
@@ -111,9 +111,9 @@ struct msg_queue {
 	struct msg_mgr *hmsg_mgr;
 	u32 max_msgs;		/* Node message depth */
 	u32 msgq_id;		/* Node environment pointer */
-	struct lst_list *msg_free_list;	/* Free MsgFrames ready to be filled */
+	struct list_head msg_free_list;	/* Free MsgFrames ready to be filled */
 	/* Filled MsgFramess waiting to be read */
-	struct lst_list *msg_used_list;
+	struct list_head msg_used_list;
 	void *arg;		/* Handle passed to mgr on_exit callback */
 	struct sync_object *sync_event;	/* Signalled when message is ready */
 	struct sync_object *sync_done;	/* For synchronizing cleanup */

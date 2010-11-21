@@ -19,7 +19,6 @@
 #ifndef CMMDEFS_
 #define CMMDEFS_
 
-#include <dspbridge/list.h>
 
 /* Cmm attributes used in cmm_create() */
 struct cmm_mgrattrs {

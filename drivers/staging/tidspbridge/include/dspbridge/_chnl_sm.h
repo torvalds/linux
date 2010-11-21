@@ -26,7 +26,7 @@
 #include <dspbridge/dspapi.h>
 #include <dspbridge/dspdefs.h>
 
-#include <dspbridge/list.h>
+#include <linux/list.h>
 #include <dspbridge/ntfy.h>
 
 /*
@@ -148,13 +148,13 @@ struct chnl_object {
 	struct sync_object *sync_event;
 	u32 process;		/* Process which created this channel */
 	u32 pcb_arg;		/* Argument to use with callback */
-	struct lst_list *pio_requests;	/* List of IOR's to driver */
+	struct list_head pio_requests;	/* List of IOR's to driver */
 	s32 cio_cs;		/* Number of IOC's in queue */
 	s32 cio_reqs;		/* Number of IORequests in queue */
 	s32 chnl_packets;	/* Initial number of free Irps */
 	/* List of IOC's from driver */
-	struct lst_list *pio_completions;
-	struct lst_list *free_packets_list;	/* List of free Irps */
+	struct list_head pio_completions;
+	struct list_head free_packets_list;	/* List of free Irps */
 	struct ntfy_object *ntfy_obj;
 	u32 bytes_moved;	/* Total number of bytes transfered */
 

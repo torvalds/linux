@@ -24,6 +24,7 @@
  * function.
  */
 #include <linux/types.h>
+#include <linux/list.h>
 
 /* Host OS */
 #include <dspbridge/host_os.h>
@@ -1092,15 +1093,17 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 	pchnl = chnl_mgr_obj->ap_channel[chnl_id];
 	if ((pchnl != NULL) && CHNL_IS_INPUT(pchnl->chnl_mode)) {
 		if ((pchnl->dw_state & ~CHNL_STATEEOS) == CHNL_STATEREADY) {
-			if (!pchnl->pio_requests)
-				goto func_end;
 			/* Get the I/O request, and attempt a transfer */
-			chnl_packet_obj = (struct chnl_irp *)
-			    lst_get_head(pchnl->pio_requests);
-			if (chnl_packet_obj) {
-				pchnl->cio_reqs--;
-				if (pchnl->cio_reqs < 0)
+			if (!list_empty(&pchnl->pio_requests)) {
+				if (!pchnl->cio_reqs)
 					goto func_end;
+
+				chnl_packet_obj = list_first_entry(
+						&pchnl->pio_requests,
+						struct chnl_irp, link);
+				list_del(&chnl_packet_obj->link);
+				pchnl->cio_reqs--;
+
 				/*
 				 * Ensure we don't overflow the client's
 				 * buffer.
@@ -1127,21 +1130,18 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 					 * the channel state.
 					 */
 					chnl_packet_obj->status |=
-					    CHNL_IOCSTATEOS;
+						CHNL_IOCSTATEOS;
 					pchnl->dw_state |= CHNL_STATEEOS;
 					/*
 					 * Notify that end of stream has
 					 * occurred.
 					 */
 					ntfy_notify(pchnl->ntfy_obj,
-						    DSP_STREAMDONE);
+							DSP_STREAMDONE);
 				}
 				/* Tell DSP if no more I/O buffers available */
-				if (!pchnl->pio_requests)
-					goto func_end;
-				if (LST_IS_EMPTY(pchnl->pio_requests)) {
+				if (list_empty(&pchnl->pio_requests))
 					set_chnl_free(sm, pchnl->chnl_id);
-				}
 				clear_chnl = true;
 				notify_client = true;
 			} else {
@@ -1213,21 +1213,18 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 		msg.msgq_id =
 		    read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
 		msg_input += sizeof(struct msg_dspmsg);
-		if (!hmsg_mgr->queue_list)
-			goto func_end;
 
 		/* Determine which queue to put the message in */
-		msg_queue_obj =
-		    (struct msg_queue *)lst_first(hmsg_mgr->queue_list);
 		dev_dbg(bridge,	"input msg: dw_cmd=0x%x dw_arg1=0x%x "
-			"dw_arg2=0x%x msgq_id=0x%x \n", msg.msg.dw_cmd,
+			"dw_arg2=0x%x msgq_id=0x%x\n", msg.msg.dw_cmd,
 			msg.msg.dw_arg1, msg.msg.dw_arg2, msg.msgq_id);
 		/*
 		 * Interrupt may occur before shared memory and message
 		 * input locations have been set up. If all nodes were
 		 * cleaned up, hmsg_mgr->max_msgs should be 0.
 		 */
-		while (msg_queue_obj != NULL) {
+		list_for_each_entry(msg_queue_obj, &hmsg_mgr->queue_list,
+				list_elem) {
 			if (msg.msgq_id == msg_queue_obj->msgq_id) {
 				/* Found it */
 				if (msg.msg.dw_cmd == RMS_EXITACK) {
@@ -1237,47 +1234,39 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 					 * queued.
 					 */
 					(*hmsg_mgr->on_exit) ((void *)
-							   msg_queue_obj->arg,
-							   msg.msg.dw_arg1);
+							msg_queue_obj->arg,
+							msg.msg.dw_arg1);
+					break;
+				}
+				/*
+				 * Not an exit acknowledgement, queue
+				 * the message.
+				 */
+				if (!list_empty(&msg_queue_obj->
+							msg_free_list)) {
+					pmsg = list_first_entry(
+						&msg_queue_obj->msg_free_list,
+						struct msg_frame, list_elem);
+					list_del(&pmsg->list_elem);
+					pmsg->msg_data = msg;
+					list_add_tail(&pmsg->list_elem,
+						&msg_queue_obj->msg_used_list);
+					ntfy_notify
+						(msg_queue_obj->ntfy_obj,
+						 DSP_NODEMESSAGEREADY);
+					sync_set_event
+						(msg_queue_obj->sync_event);
 				} else {
 					/*
-					 * Not an exit acknowledgement, queue
-					 * the message.
+					 * No free frame to copy the
+					 * message into.
 					 */
-					if (!msg_queue_obj->msg_free_list)
-						goto func_end;
-					pmsg = (struct msg_frame *)lst_get_head
-					    (msg_queue_obj->msg_free_list);
-					if (msg_queue_obj->msg_used_list
-					    && pmsg) {
-						pmsg->msg_data = msg;
-						lst_put_tail
-						 (msg_queue_obj->msg_used_list,
-						     (struct list_head *)pmsg);
-						ntfy_notify
-						    (msg_queue_obj->ntfy_obj,
-						     DSP_NODEMESSAGEREADY);
-						sync_set_event
-						    (msg_queue_obj->sync_event);
-					} else {
-						/*
-						 * No free frame to copy the
-						 * message into.
-						 */
-						pr_err("%s: no free msg frames,"
-						       " discarding msg\n",
-						       __func__);
-					}
+					pr_err("%s: no free msg frames,"
+							" discarding msg\n",
+							__func__);
 				}
 				break;
 			}
-
-			if (!hmsg_mgr->queue_list || !msg_queue_obj)
-				goto func_end;
-			msg_queue_obj =
-			    (struct msg_queue *)lst_next(hmsg_mgr->queue_list,
-							 (struct list_head *)
-							 msg_queue_obj);
 		}
 	}
 	/* Set the post SWI flag */
@@ -1301,8 +1290,7 @@ static void notify_chnl_complete(struct chnl_object *pchnl,
 {
 	bool signal_event;
 
-	if (!pchnl || !pchnl->sync_event ||
-	    !pchnl->pio_completions || !chnl_packet_obj)
+	if (!pchnl || !pchnl->sync_event || !chnl_packet_obj)
 		goto func_end;
 
 	/*
@@ -1311,10 +1299,9 @@ static void notify_chnl_complete(struct chnl_object *pchnl,
 	 * signalled by the only IO completion list consumer:
 	 * bridge_chnl_get_ioc().
 	 */
-	signal_event = LST_IS_EMPTY(pchnl->pio_completions);
+	signal_event = list_empty(&pchnl->pio_completions);
 	/* Enqueue the IO completion info for the client */
-	lst_put_tail(pchnl->pio_completions,
-		     (struct list_head *)chnl_packet_obj);
+	list_add_tail(&chnl_packet_obj->link, &pchnl->pio_completions);
 	pchnl->cio_cs++;
 
 	if (pchnl->cio_cs > pchnl->chnl_packets)
@@ -1361,21 +1348,23 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 		goto func_end;
 
 	pchnl = chnl_mgr_obj->ap_channel[chnl_id];
-	if (!pchnl || !pchnl->pio_requests) {
+	if (!pchnl || list_empty(&pchnl->pio_requests)) {
 		/* Shouldn't get here */
 		goto func_end;
 	}
-	/* Get the I/O request, and attempt a transfer */
-	chnl_packet_obj = (struct chnl_irp *)lst_get_head(pchnl->pio_requests);
-	if (!chnl_packet_obj)
+
+	if (!pchnl->cio_reqs)
 		goto func_end;
+
+	/* Get the I/O request, and attempt a transfer */
+	chnl_packet_obj = list_first_entry(&pchnl->pio_requests,
+			struct chnl_irp, link);
+	list_del(&chnl_packet_obj->link);
 
 	pchnl->cio_reqs--;
-	if (pchnl->cio_reqs < 0 || !pchnl->pio_requests)
-		goto func_end;
 
 	/* Record fact that no more I/O buffers available */
-	if (LST_IS_EMPTY(pchnl->pio_requests))
+	if (list_empty(&pchnl->pio_requests))
 		chnl_mgr_obj->dw_output_mask &= ~(1 << chnl_id);
 
 	/* Transfer buffer to DSP side */
@@ -1436,14 +1425,11 @@ static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 		msg_output = pio_mgr->msg_output;
 		/* Copy num_msgs messages into shared memory */
 		for (i = 0; i < num_msgs; i++) {
-			if (!hmsg_mgr->msg_used_list) {
-				pmsg = NULL;
-				goto func_end;
-			} else {
-				pmsg = (struct msg_frame *)
-				    lst_get_head(hmsg_mgr->msg_used_list);
-			}
-			if (pmsg != NULL) {
+			if (!list_empty(&hmsg_mgr->msg_used_list)) {
+				pmsg = list_first_entry(
+						&hmsg_mgr->msg_used_list,
+						struct msg_frame, list_elem);
+				list_del(&pmsg->list_elem);
 				val = (pmsg->msg_data).msgq_id;
 				addr = (u32) &(((struct msg_dspmsg *)
 						 msg_output)->msgq_id);
@@ -1465,10 +1451,8 @@ static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 				write_ext32_bit_dsp_data(
 					pio_mgr->hbridge_context, addr, val);
 				msg_output += sizeof(struct msg_dspmsg);
-				if (!hmsg_mgr->msg_free_list)
-					goto func_end;
-				lst_put_tail(hmsg_mgr->msg_free_list,
-					     (struct list_head *)pmsg);
+				list_add_tail(&pmsg->list_elem,
+						&hmsg_mgr->msg_free_list);
 				sync_set_event(hmsg_mgr->sync_event);
 			}
 		}
@@ -1492,8 +1476,6 @@ static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 						MBX_PCPY_CLASS);
 		}
 	}
-func_end:
-	return;
 }
 
 /*
