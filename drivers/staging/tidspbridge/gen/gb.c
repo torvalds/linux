@@ -19,7 +19,6 @@
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <linux/types.h>
 /*  ----------------------------------- This */
-#include <dspbridge/gs.h>
 #include <dspbridge/gb.h>
 
 struct gb_t_map {
@@ -52,17 +51,17 @@ struct gb_t_map *gb_create(u32 len)
 {
 	struct gb_t_map *map;
 	u32 i;
-	map = (struct gb_t_map *)gs_alloc(sizeof(struct gb_t_map));
+	map = kzalloc(sizeof(struct gb_t_map), GFP_KERNEL);
 	if (map != NULL) {
 		map->len = len;
 		map->wcnt = len / BITS_PER_LONG + 1;
-		map->words = (u32 *) gs_alloc(map->wcnt * sizeof(u32));
+		map->words = kzalloc(map->wcnt * sizeof(u32), GFP_KERNEL);
 		if (map->words != NULL) {
 			for (i = 0; i < map->wcnt; i++)
 				map->words[i] = 0L;
 
 		} else {
-			gs_frees(map, sizeof(struct gb_t_map));
+			kfree(map);
 			map = NULL;
 		}
 	}
@@ -78,8 +77,8 @@ struct gb_t_map *gb_create(u32 len)
 
 void gb_delete(struct gb_t_map *map)
 {
-	gs_frees(map->words, map->wcnt * sizeof(u32));
-	gs_frees(map, sizeof(struct gb_t_map));
+	kfree(map->words);
+	kfree(map);
 }
 
 /*
