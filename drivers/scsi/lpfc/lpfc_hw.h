@@ -880,6 +880,24 @@ struct  RLS_RSP {		/* Structure is in Big Endian format */
 	uint32_t crcCnt;
 };
 
+struct RRQ {			/* Structure is in Big Endian format */
+	uint32_t rrq;
+#define rrq_rsvd_SHIFT		24
+#define rrq_rsvd_MASK		0x000000ff
+#define rrq_rsvd_WORD		rrq
+#define rrq_did_SHIFT		0
+#define rrq_did_MASK		0x00ffffff
+#define rrq_did_WORD		rrq
+	uint32_t rrq_exchg;
+#define rrq_oxid_SHIFT		16
+#define rrq_oxid_MASK		0xffff
+#define rrq_oxid_WORD		rrq_exchg
+#define rrq_rxid_SHIFT		0
+#define rrq_rxid_MASK		0xffff
+#define rrq_rxid_WORD		rrq_exchg
+};
+
+
 struct RTV_RSP {		/* Structure is in Big Endian format */
 	uint32_t ratov;
 	uint32_t edtov;

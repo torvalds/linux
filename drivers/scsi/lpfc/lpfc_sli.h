@@ -82,6 +82,7 @@ struct lpfc_iocbq {
 		struct lpfc_iocbq    *rsp_iocb;
 		struct lpfcMboxq     *mbox;
 		struct lpfc_nodelist *ndlp;
+		struct lpfc_node_rrq *rrq;
 	} context_un;
 
 	void (*fabric_iocb_cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,

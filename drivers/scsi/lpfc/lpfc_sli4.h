@@ -466,6 +466,7 @@ struct lpfc_sglq {
 	struct list_head clist;
 	enum lpfc_sge_type buff_type; /* is this a scsi sgl */
 	enum lpfc_sgl_state state;
+	struct lpfc_nodelist *ndlp; /* ndlp associated with IO */
 	uint16_t iotag;         /* pre-assigned IO tag */
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
 	struct sli4_sge *sgl;	/* pre-assigned SGL */

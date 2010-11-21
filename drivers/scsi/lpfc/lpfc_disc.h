@@ -68,6 +68,12 @@ struct lpfc_fast_path_event {
 	} un;
 };
 
+#define LPFC_SLI4_MAX_XRI	1024	/* Used to make the ndlp's xri_bitmap */
+#define XRI_BITMAP_ULONGS (LPFC_SLI4_MAX_XRI / BITS_PER_LONG)
+struct lpfc_node_rrqs {
+	unsigned long xri_bitmap[XRI_BITMAP_ULONGS];
+};
+
 struct lpfc_nodelist {
 	struct list_head nlp_listp;
 	struct lpfc_name nlp_portname;
@@ -110,7 +116,18 @@ struct lpfc_nodelist {
 	atomic_t cmd_pending;
 	uint32_t cmd_qdepth;
 	unsigned long last_change_time;
+	struct lpfc_node_rrqs active_rrqs;
 	struct lpfc_scsicmd_bkt *lat_data;	/* Latency data */
+};
+struct lpfc_node_rrq {
+	struct list_head list;
+	uint16_t xritag;
+	uint16_t send_rrq;
+	uint16_t rxid;
+	uint32_t         nlp_DID;		/* FC D_ID of entry */
+	struct lpfc_vport *vport;
+	struct lpfc_nodelist *ndlp;
+	unsigned long rrq_stop_time;
 };
 
 /* Defines for nlp_flag (uint32) */

@@ -416,5 +416,13 @@ struct lpfc_iocbq *lpfc_sli_ringtx_get(struct lpfc_hba *,
 int __lpfc_sli_issue_iocb(struct lpfc_hba *, uint32_t,
 	struct lpfc_iocbq *, uint32_t);
 uint32_t lpfc_drain_txq(struct lpfc_hba *);
-
-
+void lpfc_clr_rrq_active(struct lpfc_hba *, uint16_t, struct lpfc_node_rrq *);
+int lpfc_test_rrq_active(struct lpfc_hba *, struct lpfc_nodelist *, uint16_t);
+void lpfc_handle_rrq_active(struct lpfc_hba *);
+int lpfc_send_rrq(struct lpfc_hba *, struct lpfc_node_rrq *);
+int lpfc_set_rrq_active(struct lpfc_hba *, struct lpfc_nodelist *,
+	uint16_t, uint16_t, uint16_t);
+void lpfc_cleanup_wt_rrqs(struct lpfc_hba *);
+void lpfc_cleanup_vports_rrqs(struct lpfc_vport *);
+struct lpfc_node_rrq *lpfc_get_active_rrq(struct lpfc_vport *, uint16_t,
+	uint32_t);

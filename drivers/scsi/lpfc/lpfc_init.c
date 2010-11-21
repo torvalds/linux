@@ -930,6 +930,35 @@ lpfc_hb_timeout(unsigned long ptr)
 }
 
 /**
+ * lpfc_rrq_timeout - The RRQ-timer timeout handler
+ * @ptr: unsigned long holds the pointer to lpfc hba data structure.
+ *
+ * This is the RRQ-timer timeout handler registered to the lpfc driver. When
+ * this timer fires, a RRQ timeout event shall be posted to the lpfc driver
+ * work-port-events bitmap and the worker thread is notified. This timeout
+ * event will be used by the worker thread to invoke the actual timeout
+ * handler routine, lpfc_rrq_handler. Any periodical operations will
+ * be performed in the timeout handler and the RRQ timeout event bit shall
+ * be cleared by the worker thread after it has taken the event bitmap out.
+ **/
+static void
+lpfc_rrq_timeout(unsigned long ptr)
+{
+	struct lpfc_hba *phba;
+	uint32_t tmo_posted;
+	unsigned long iflag;
+
+	phba = (struct lpfc_hba *)ptr;
+	spin_lock_irqsave(&phba->pport->work_port_lock, iflag);
+	tmo_posted = phba->hba_flag & HBA_RRQ_ACTIVE;
+	if (!tmo_posted)
+		phba->hba_flag |= HBA_RRQ_ACTIVE;
+	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflag);
+	if (!tmo_posted)
+		lpfc_worker_wake_up(phba);
+}
+
+/**
  * lpfc_hb_mbox_cmpl - The lpfc heart-beat mailbox command callback function
  * @phba: pointer to lpfc hba data structure.
  * @pmboxq: pointer to the driver internal queue element for mailbox command.
@@ -3990,6 +4019,9 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	init_timer(&phba->hb_tmofunc);
 	phba->hb_tmofunc.function = lpfc_hb_timeout;
 	phba->hb_tmofunc.data = (unsigned long)phba;
+	init_timer(&phba->rrq_tmr);
+	phba->rrq_tmr.function = lpfc_rrq_timeout;
+	phba->rrq_tmr.data = (unsigned long)phba;
 
 	psli = &phba->sli;
 	/* MBOX heartbeat timer */
@@ -8191,6 +8223,8 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 				"1413 Failed to initialize iocb list.\n");
 		goto out_unset_driver_resource_s4;
 	}
+
+	INIT_LIST_HEAD(&phba->active_rrq_list);
 
 	/* Set up common device driver resources */
 	error = lpfc_setup_driver_resource_phase2(phba);
