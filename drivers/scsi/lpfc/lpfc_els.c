@@ -6201,7 +6201,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			cmd, did, vport->port_state);
 
 		/* Unsupported ELS command, reject */
-		rjt_err = LSRJT_INVALID_CMD;
+		rjt_err = LSRJT_CMD_UNSUPPORTED;
 
 		/* Unknown ELS command <elsCmd> received from NPORT <did> */
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
@@ -6408,18 +6408,31 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	}
 
 	if (vport->cfg_fdmi_on) {
-		ndlp_fdmi = mempool_alloc(phba->nlp_mem_pool,
-					  GFP_KERNEL);
+		/* If this is the first time, allocate an ndlp and initialize
+		 * it. Otherwise, make sure the node is enabled and then do the
+		 * login.
+		 */
+		ndlp_fdmi = lpfc_findnode_did(vport, FDMI_DID);
+		if (!ndlp_fdmi) {
+			ndlp_fdmi = mempool_alloc(phba->nlp_mem_pool,
+						  GFP_KERNEL);
+			if (ndlp_fdmi) {
+				lpfc_nlp_init(vport, ndlp_fdmi, FDMI_DID);
+				ndlp_fdmi->nlp_type |= NLP_FABRIC;
+			} else
+				return;
+		}
+		if (!NLP_CHK_NODE_ACT(ndlp_fdmi))
+			ndlp_fdmi = lpfc_enable_node(vport,
+						     ndlp_fdmi,
+						     NLP_STE_NPR_NODE);
+
 		if (ndlp_fdmi) {
-			lpfc_nlp_init(vport, ndlp_fdmi, FDMI_DID);
-			ndlp_fdmi->nlp_type |= NLP_FABRIC;
 			lpfc_nlp_set_state(vport, ndlp_fdmi,
-				NLP_STE_PLOGI_ISSUE);
-			lpfc_issue_els_plogi(vport, ndlp_fdmi->nlp_DID,
-					     0);
+					   NLP_STE_PLOGI_ISSUE);
+			lpfc_issue_els_plogi(vport, ndlp_fdmi->nlp_DID, 0);
 		}
 	}
-	return;
 }
 
 /**

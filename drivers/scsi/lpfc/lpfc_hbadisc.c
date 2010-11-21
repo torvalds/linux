@@ -4059,6 +4059,11 @@ lpfc_unreg_hba_rpis(struct lpfc_hba *phba)
 	int i;
 
 	vports = lpfc_create_vport_work_array(phba);
+	if (!vports) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+			"2884 Vport array allocation failed \n");
+		return;
+	}
 	for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 		shost = lpfc_shost_from_vport(vports[i]);
 		spin_lock_irq(shost->host_lock);
@@ -5253,6 +5258,10 @@ lpfc_fcf_inuse(struct lpfc_hba *phba)
 	struct Scsi_Host  *shost;
 
 	vports = lpfc_create_vport_work_array(phba);
+
+	/* If driver cannot allocate memory, indicate fcf is in use */
+	if (!vports)
+		return 1;
 
 	for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 		shost = lpfc_shost_from_vport(vports[i]);

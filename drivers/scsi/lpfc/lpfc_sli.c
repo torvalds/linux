@@ -5863,6 +5863,8 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 	IOCB_t *icmd;
 	int numBdes = 0;
 	int i = 0;
+	uint32_t offset = 0; /* accumulated offset in the sg request list */
+	int inbound = 0; /* number of sg reply entries inbound from firmware */
 
 	if (!piocbq || !sglq)
 		return xritag;
@@ -5897,6 +5899,20 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 			 */
 			bde.tus.w = le32_to_cpu(bpl->tus.w);
 			sgl->sge_len = cpu_to_le32(bde.tus.f.bdeSize);
+			/* The offsets in the sgl need to be accumulated
+			 * separately for the request and reply lists.
+			 * The request is always first, the reply follows.
+			 */
+			if (piocbq->iocb.ulpCommand == CMD_GEN_REQUEST64_CR) {
+				/* add up the reply sg entries */
+				if (bpl->tus.f.bdeFlags == BUFF_TYPE_BDE_64I)
+					inbound++;
+				/* first inbound? reset the offset */
+				if (inbound == 1)
+					offset = 0;
+				bf_set(lpfc_sli4_sge_offset, sgl, offset);
+				offset += bde.tus.f.bdeSize;
+			}
 			bpl++;
 			sgl++;
 		}
@@ -6140,6 +6156,18 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(wqe_ebde_cnt, &wqe->fcp_icmd.wqe_com, 0);
 	break;
 	case CMD_GEN_REQUEST64_CR:
+		/* For this command calculate the xmit length of the
+		 * request bde.
+		 */
+		xmit_len = 0;
+		numBdes = iocbq->iocb.un.genreq64.bdl.bdeSize /
+			sizeof(struct ulp_bde64);
+		for (i = 0; i < numBdes; i++) {
+			if (bpl[i].tus.f.bdeFlags != BUFF_TYPE_BDE_64)
+				break;
+			bde.tus.w = le32_to_cpu(bpl[i].tus.w);
+			xmit_len += bde.tus.f.bdeSize;
+		}
 		/* word3 iocb=IO_TAG wqe=request_payload_len */
 		wqe->gen_req.request_payload_len = xmit_len;
 		/* word4 iocb=parameter wqe=relative_offset memcpy */
@@ -12854,6 +12882,7 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 	struct lpfc_nodelist *act_mbx_ndlp = NULL;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 	LIST_HEAD(mbox_cmd_list);
+	uint8_t restart_loop;
 
 	/* Clean up internally queued mailbox commands with the vport */
 	spin_lock_irq(&phba->hbalock);
@@ -12882,6 +12911,38 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 			mb->mbox_flag |= LPFC_MBX_IMED_UNREG;
 		}
 	}
+	/* Cleanup any mailbox completions which are not yet processed */
+	do {
+		restart_loop = 0;
+		list_for_each_entry(mb, &phba->sli.mboxq_cmpl, list) {
+			/*
+			 * If this mailox is already processed or it is
+			 * for another vport ignore it.
+			 */
+			if ((mb->vport != vport) ||
+				(mb->mbox_flag & LPFC_MBX_IMED_UNREG))
+				continue;
+
+			if ((mb->u.mb.mbxCommand != MBX_REG_LOGIN64) &&
+				(mb->u.mb.mbxCommand != MBX_REG_VPI))
+				continue;
+
+			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+			if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
+				ndlp = (struct lpfc_nodelist *)mb->context2;
+				/* Unregister the RPI when mailbox complete */
+				mb->mbox_flag |= LPFC_MBX_IMED_UNREG;
+				restart_loop = 1;
+				spin_unlock_irq(&phba->hbalock);
+				spin_lock(shost->host_lock);
+				ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
+				spin_unlock(shost->host_lock);
+				spin_lock_irq(&phba->hbalock);
+				break;
+			}
+		}
+	} while (restart_loop);
+
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Release the cleaned-up mailbox commands */

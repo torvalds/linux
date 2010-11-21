@@ -3247,10 +3247,12 @@ lpfc_sli4_perform_vport_cvl(struct lpfc_vport *vport)
 		if (!ndlp)
 			return 0;
 	}
-	if (phba->pport->port_state < LPFC_FLOGI)
+	if ((phba->pport->port_state < LPFC_FLOGI) &&
+		(phba->pport->port_state != LPFC_VPORT_FAILED))
 		return NULL;
 	/* If virtual link is not yet instantiated ignore CVL */
-	if ((vport != phba->pport) && (vport->port_state < LPFC_FDISC))
+	if ((vport != phba->pport) && (vport->port_state < LPFC_FDISC)
+		&& (vport->port_state != LPFC_VPORT_FAILED))
 		return NULL;
 	shost = lpfc_shost_from_vport(vport);
 	if (!shost)

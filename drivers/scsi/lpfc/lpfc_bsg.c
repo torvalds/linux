@@ -2162,7 +2162,7 @@ lpfc_bsg_diag_test(struct fc_bsg_job *job)
 		goto loopback_test_exit;
 	}
 
-	if (size >= BUF_SZ_4K) {
+	if (full_size >= BUF_SZ_4K) {
 		/*
 		 * Allocate memory for ioctl data. If buffer is bigger than 64k,
 		 * then we allocate 64k and re-use that buffer over and over to
@@ -2171,7 +2171,7 @@ lpfc_bsg_diag_test(struct fc_bsg_job *job)
 		 * problem with GET_FCPTARGETMAPPING...
 		 */
 		if (size <= (64 * 1024))
-			total_mem = size;
+			total_mem = full_size;
 		else
 			total_mem = 64 * 1024;
 	} else
