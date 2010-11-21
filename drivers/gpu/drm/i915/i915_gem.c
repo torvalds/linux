@@ -3630,8 +3630,15 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 
 	for (i = 0; i < count; i++) {
 		char __user *ptr = (char __user *)(uintptr_t)exec[i].relocs_ptr;
-		size_t length = exec[i].relocation_count * sizeof(struct drm_i915_gem_relocation_entry);
+		int length; /* limited by fault_in_pages_readable() */
 
+		/* First check for malicious input causing overflow */
+		if (exec[i].relocation_count >
+		    INT_MAX / sizeof(struct drm_i915_gem_relocation_entry))
+			return -EINVAL;
+
+		length = exec[i].relocation_count *
+			sizeof(struct drm_i915_gem_relocation_entry);
 		if (!access_ok(VERIFY_READ, ptr, length))
 			return -EFAULT;
 
