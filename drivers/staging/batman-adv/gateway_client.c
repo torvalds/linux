@@ -24,6 +24,7 @@
 #include "gateway_common.h"
 #include "hard-interface.h"
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
 
@@ -403,6 +404,7 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 {
 	struct ethhdr *ethhdr;
 	struct iphdr *iphdr;
+	struct ipv6hdr *ipv6hdr;
 	struct udphdr *udphdr;
 	unsigned int header_len = 0;
 
@@ -424,17 +426,32 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 	}
 
 	/* check for ip header */
-	if (ntohs(ethhdr->h_proto) != ETH_P_IP)
-		return 0;
+	switch (ntohs(ethhdr->h_proto)) {
+	case ETH_P_IP:
+		if (!pskb_may_pull(skb, header_len + sizeof(struct iphdr)))
+			return 0;
+		iphdr = (struct iphdr *)(skb->data + header_len);
+		header_len += iphdr->ihl * 4;
 
-	if (!pskb_may_pull(skb, header_len + sizeof(struct iphdr)))
-		return 0;
-	iphdr = (struct iphdr *)(skb->data + header_len);
-	header_len += iphdr->ihl * 4;
+		/* check for udp header */
+		if (iphdr->protocol != IPPROTO_UDP)
+			return 0;
 
-	/* check for udp header */
-	if (iphdr->protocol != IPPROTO_UDP)
+		break;
+	case ETH_P_IPV6:
+		if (!pskb_may_pull(skb, header_len + sizeof(struct ipv6hdr)))
+			return 0;
+		ipv6hdr = (struct ipv6hdr *)(skb->data + header_len);
+		header_len += sizeof(struct ipv6hdr);
+
+		/* check for udp header */
+		if (ipv6hdr->nexthdr != IPPROTO_UDP)
+			return 0;
+
+		break;
+	default:
 		return 0;
+	}
 
 	if (!pskb_may_pull(skb, header_len + sizeof(struct udphdr)))
 		return 0;
@@ -442,7 +459,12 @@ int gw_is_target(struct bat_priv *bat_priv, struct sk_buff *skb)
 	header_len += sizeof(struct udphdr);
 
 	/* check for bootp port */
-	if (ntohs(udphdr->dest) != 67)
+	if ((ntohs(ethhdr->h_proto) == ETH_P_IP) &&
+	     (ntohs(udphdr->dest) != 67))
+		return 0;
+
+	if ((ntohs(ethhdr->h_proto) == ETH_P_IPV6) &&
+	    (ntohs(udphdr->dest) != 547))
 		return 0;
 
 	if (atomic_read(&bat_priv->gw_mode) == GW_MODE_SERVER)
