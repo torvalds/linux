@@ -73,28 +73,29 @@ no_pgd:
 	return NULL;
 }
 
-void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+void pgd_free(struct mm_struct *mm, pgd_t *pgd_base)
 {
+	pgd_t *pgd;
 	pmd_t *pmd;
 	pgtable_t pte;
 
-	if (!pgd)
+	if (!pgd_base)
 		return;
 
-	/* pgd is always present and good */
-	pmd = pmd_off(pgd, 0);
-	if (pmd_none(*pmd))
-		goto free;
-	if (pmd_bad(*pmd)) {
-		pmd_ERROR(*pmd);
-		pmd_clear(pmd);
-		goto free;
-	}
+	pgd = pgd_base + pgd_index(0);
+	if (pgd_none_or_clear_bad(pgd))
+		goto no_pgd;
+
+	pmd = pmd_offset(pgd, 0);
+	if (pmd_none_or_clear_bad(pmd))
+		goto no_pmd;
 
 	pte = pmd_pgtable(*pmd);
 	pmd_clear(pmd);
 	pte_free(mm, pte);
+no_pmd:
+	pgd_clear(pgd);
 	pmd_free(mm, pmd);
-free:
-	free_pages((unsigned long) pgd, 2);
+no_pgd:
+	free_pages((unsigned long) pgd_base, 2);
 }
