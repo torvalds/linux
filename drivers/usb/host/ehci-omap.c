@@ -156,8 +156,8 @@ struct ehci_hcd_omap {
 	struct device		*dev;
 
 	struct clk		*usbhost_ick;
-	struct clk		*usbhost2_120m_fck;
-	struct clk		*usbhost1_48m_fck;
+	struct clk		*usbhost_hs_fck;
+	struct clk		*usbhost_fs_fck;
 	struct clk		*usbtll_fck;
 	struct clk		*usbtll_ick;
 
@@ -286,19 +286,19 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 	}
 	clk_enable(omap->usbhost_ick);
 
-	omap->usbhost2_120m_fck = clk_get(omap->dev, "usbhost_120m_fck");
-	if (IS_ERR(omap->usbhost2_120m_fck)) {
-		ret = PTR_ERR(omap->usbhost2_120m_fck);
+	omap->usbhost_hs_fck = clk_get(omap->dev, "usbhost_120m_fck");
+	if (IS_ERR(omap->usbhost_hs_fck)) {
+		ret = PTR_ERR(omap->usbhost_hs_fck);
 		goto err_host_120m_fck;
 	}
-	clk_enable(omap->usbhost2_120m_fck);
+	clk_enable(omap->usbhost_hs_fck);
 
-	omap->usbhost1_48m_fck = clk_get(omap->dev, "usbhost_48m_fck");
-	if (IS_ERR(omap->usbhost1_48m_fck)) {
-		ret = PTR_ERR(omap->usbhost1_48m_fck);
+	omap->usbhost_fs_fck = clk_get(omap->dev, "usbhost_48m_fck");
+	if (IS_ERR(omap->usbhost_fs_fck)) {
+		ret = PTR_ERR(omap->usbhost_fs_fck);
 		goto err_host_48m_fck;
 	}
-	clk_enable(omap->usbhost1_48m_fck);
+	clk_enable(omap->usbhost_fs_fck);
 
 	if (omap->phy_reset) {
 		/* Refer: ISSUE1 */
@@ -472,8 +472,8 @@ err_tll_ick:
 	clk_put(omap->usbtll_fck);
 
 err_tll_fck:
-	clk_disable(omap->usbhost1_48m_fck);
-	clk_put(omap->usbhost1_48m_fck);
+	clk_disable(omap->usbhost_fs_fck);
+	clk_put(omap->usbhost_fs_fck);
 
 	if (omap->phy_reset) {
 		if (gpio_is_valid(omap->reset_gpio_port[0]))
@@ -484,8 +484,8 @@ err_tll_fck:
 	}
 
 err_host_48m_fck:
-	clk_disable(omap->usbhost2_120m_fck);
-	clk_put(omap->usbhost2_120m_fck);
+	clk_disable(omap->usbhost_hs_fck);
+	clk_put(omap->usbhost_hs_fck);
 
 err_host_120m_fck:
 	clk_disable(omap->usbhost_ick);
@@ -550,16 +550,16 @@ static void omap_stop_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 		omap->usbhost_ick = NULL;
 	}
 
-	if (omap->usbhost1_48m_fck != NULL) {
-		clk_disable(omap->usbhost1_48m_fck);
-		clk_put(omap->usbhost1_48m_fck);
-		omap->usbhost1_48m_fck = NULL;
+	if (omap->usbhost_fs_fck != NULL) {
+		clk_disable(omap->usbhost_fs_fck);
+		clk_put(omap->usbhost_fs_fck);
+		omap->usbhost_fs_fck = NULL;
 	}
 
-	if (omap->usbhost2_120m_fck != NULL) {
-		clk_disable(omap->usbhost2_120m_fck);
-		clk_put(omap->usbhost2_120m_fck);
-		omap->usbhost2_120m_fck = NULL;
+	if (omap->usbhost_hs_fck != NULL) {
+		clk_disable(omap->usbhost_hs_fck);
+		clk_put(omap->usbhost_hs_fck);
+		omap->usbhost_hs_fck = NULL;
 	}
 
 	if (omap->usbtll_ick != NULL) {
