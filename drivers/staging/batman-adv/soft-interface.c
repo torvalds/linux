@@ -97,9 +97,8 @@ void softif_neigh_purge(struct bat_priv *bat_priv)
 {
 	struct softif_neigh *softif_neigh, *softif_neigh_tmp;
 	struct hlist_node *node, *node_tmp;
-	unsigned long flags;
 
-	spin_lock_irqsave(&bat_priv->softif_neigh_lock, flags);
+	spin_lock_bh(&bat_priv->softif_neigh_lock);
 
 	hlist_for_each_entry_safe(softif_neigh, node, node_tmp,
 				  &bat_priv->softif_neigh_list, list) {
@@ -125,7 +124,7 @@ void softif_neigh_purge(struct bat_priv *bat_priv)
 		call_rcu(&softif_neigh->rcu, softif_neigh_free_rcu);
 	}
 
-	spin_unlock_irqrestore(&bat_priv->softif_neigh_lock, flags);
+	spin_unlock_bh(&bat_priv->softif_neigh_lock);
 }
 
 static struct softif_neigh *softif_neigh_get(struct bat_priv *bat_priv,
@@ -133,7 +132,6 @@ static struct softif_neigh *softif_neigh_get(struct bat_priv *bat_priv,
 {
 	struct softif_neigh *softif_neigh;
 	struct hlist_node *node;
-	unsigned long flags;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(softif_neigh, node,
@@ -158,9 +156,9 @@ static struct softif_neigh *softif_neigh_get(struct bat_priv *bat_priv,
 	kref_init(&softif_neigh->refcount);
 
 	INIT_HLIST_NODE(&softif_neigh->list);
-	spin_lock_irqsave(&bat_priv->softif_neigh_lock, flags);
+	spin_lock_bh(&bat_priv->softif_neigh_lock);
 	hlist_add_head_rcu(&softif_neigh->list, &bat_priv->softif_neigh_list);
-	spin_unlock_irqrestore(&bat_priv->softif_neigh_lock, flags);
+	spin_unlock_bh(&bat_priv->softif_neigh_lock);
 
 found:
 	kref_get(&softif_neigh->refcount);

@@ -85,9 +85,8 @@ static int bat_socket_release(struct inode *inode, struct file *file)
 	struct socket_client *socket_client = file->private_data;
 	struct socket_packet *socket_packet;
 	struct list_head *list_pos, *list_pos_tmp;
-	unsigned long flags;
 
-	spin_lock_irqsave(&socket_client->lock, flags);
+	spin_lock_bh(&socket_client->lock);
 
 	/* for all packets in the queue ... */
 	list_for_each_safe(list_pos, list_pos_tmp, &socket_client->queue_list) {
@@ -99,7 +98,7 @@ static int bat_socket_release(struct inode *inode, struct file *file)
 	}
 
 	socket_client_hash[socket_client->index] = NULL;
-	spin_unlock_irqrestore(&socket_client->lock, flags);
+	spin_unlock_bh(&socket_client->lock);
 
 	kfree(socket_client);
 	dec_module_count();
@@ -114,7 +113,6 @@ static ssize_t bat_socket_read(struct file *file, char __user *buf,
 	struct socket_packet *socket_packet;
 	size_t packet_len;
 	int error;
-	unsigned long flags;
 
 	if ((file->f_flags & O_NONBLOCK) && (socket_client->queue_len == 0))
 		return -EAGAIN;
@@ -131,14 +129,14 @@ static ssize_t bat_socket_read(struct file *file, char __user *buf,
 	if (error)
 		return error;
 
-	spin_lock_irqsave(&socket_client->lock, flags);
+	spin_lock_bh(&socket_client->lock);
 
 	socket_packet = list_first_entry(&socket_client->queue_list,
 					 struct socket_packet, list);
 	list_del(&socket_packet->list);
 	socket_client->queue_len--;
 
-	spin_unlock_irqrestore(&socket_client->lock, flags);
+	spin_unlock_bh(&socket_client->lock);
 
 	error = __copy_to_user(buf, &socket_packet->icmp_packet,
 			       socket_packet->icmp_len);
@@ -164,7 +162,6 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	struct batman_if *batman_if;
 	size_t packet_len = sizeof(struct icmp_packet);
 	uint8_t dstaddr[ETH_ALEN];
-	unsigned long flags;
 
 	if (len < sizeof(struct icmp_packet)) {
 		bat_dbg(DBG_BATMAN, bat_priv,
@@ -224,7 +221,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
 		goto dst_unreach;
 
-	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
+	spin_lock_bh(&bat_priv->orig_hash_lock);
 	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
 						   compare_orig, choose_orig,
 						   icmp_packet->dst));
@@ -238,7 +235,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	batman_if = orig_node->router->if_incoming;
 	memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 
-	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
+	spin_unlock_bh(&bat_priv->orig_hash_lock);
 
 	if (!batman_if)
 		goto dst_unreach;
@@ -258,7 +255,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	goto out;
 
 unlock:
-	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
+	spin_unlock_bh(&bat_priv->orig_hash_lock);
 dst_unreach:
 	icmp_packet->msg_type = DESTINATION_UNREACHABLE;
 	bat_socket_add_packet(socket_client, icmp_packet, packet_len);
@@ -313,7 +310,6 @@ static void bat_socket_add_packet(struct socket_client *socket_client,
 				  size_t icmp_len)
 {
 	struct socket_packet *socket_packet;
-	unsigned long flags;
 
 	socket_packet = kmalloc(sizeof(struct socket_packet), GFP_ATOMIC);
 
@@ -324,12 +320,12 @@ static void bat_socket_add_packet(struct socket_client *socket_client,
 	memcpy(&socket_packet->icmp_packet, icmp_packet, icmp_len);
 	socket_packet->icmp_len = icmp_len;
 
-	spin_lock_irqsave(&socket_client->lock, flags);
+	spin_lock_bh(&socket_client->lock);
 
 	/* while waiting for the lock the socket_client could have been
 	 * deleted */
 	if (!socket_client_hash[icmp_packet->uid]) {
-		spin_unlock_irqrestore(&socket_client->lock, flags);
+		spin_unlock_bh(&socket_client->lock);
 		kfree(socket_packet);
 		return;
 	}
@@ -346,7 +342,7 @@ static void bat_socket_add_packet(struct socket_client *socket_client,
 		socket_client->queue_len--;
 	}
 
-	spin_unlock_irqrestore(&socket_client->lock, flags);
+	spin_unlock_bh(&socket_client->lock);
 
 	wake_up(&socket_client->queue_wait);
 }

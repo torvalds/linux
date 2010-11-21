@@ -54,12 +54,11 @@ static int fdebug_log(struct debug_log *debug_log, char *fmt, ...)
 	va_list args;
 	static char debug_log_buf[256];
 	char *p;
-	unsigned long flags;
 
 	if (!debug_log)
 		return 0;
 
-	spin_lock_irqsave(&debug_log->lock, flags);
+	spin_lock_bh(&debug_log->lock);
 	va_start(args, fmt);
 	printed_len = vscnprintf(debug_log_buf, sizeof(debug_log_buf),
 				 fmt, args);
@@ -68,7 +67,7 @@ static int fdebug_log(struct debug_log *debug_log, char *fmt, ...)
 	for (p = debug_log_buf; *p != 0; p++)
 		emit_log_char(debug_log, *p);
 
-	spin_unlock_irqrestore(&debug_log->lock, flags);
+	spin_unlock_bh(&debug_log->lock);
 
 	wake_up(&debug_log->queue_wait);
 
@@ -110,7 +109,6 @@ static ssize_t log_read(struct file *file, char __user *buf,
 	struct debug_log *debug_log = bat_priv->debug_log;
 	int error, i = 0;
 	char c;
-	unsigned long flags;
 
 	if ((file->f_flags & O_NONBLOCK) &&
 	    !(debug_log->log_end - debug_log->log_start))
@@ -131,7 +129,7 @@ static ssize_t log_read(struct file *file, char __user *buf,
 	if (error)
 		return error;
 
-	spin_lock_irqsave(&debug_log->lock, flags);
+	spin_lock_bh(&debug_log->lock);
 
 	while ((!error) && (i < count) &&
 	       (debug_log->log_start != debug_log->log_end)) {
@@ -139,18 +137,18 @@ static ssize_t log_read(struct file *file, char __user *buf,
 
 		debug_log->log_start++;
 
-		spin_unlock_irqrestore(&debug_log->lock, flags);
+		spin_unlock_bh(&debug_log->lock);
 
 		error = __put_user(c, buf);
 
-		spin_lock_irqsave(&debug_log->lock, flags);
+		spin_lock_bh(&debug_log->lock);
 
 		buf++;
 		i++;
 
 	}
 
-	spin_unlock_irqrestore(&debug_log->lock, flags);
+	spin_unlock_bh(&debug_log->lock);
 
 	if (!error)
 		return i;

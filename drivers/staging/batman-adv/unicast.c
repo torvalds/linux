@@ -170,7 +170,6 @@ void frag_list_free(struct list_head *head)
 int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 			struct sk_buff **new_skb)
 {
-	unsigned long flags;
 	struct orig_node *orig_node;
 	struct frag_packet_list_entry *tmp_frag_entry;
 	int ret = NET_RX_DROP;
@@ -178,7 +177,7 @@ int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 		(struct unicast_frag_packet *)skb->data;
 
 	*new_skb = NULL;
-	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
+	spin_lock_bh(&bat_priv->orig_hash_lock);
 	orig_node = ((struct orig_node *)
 		    hash_find(bat_priv->orig_hash, compare_orig, choose_orig,
 			      unicast_packet->orig));
@@ -211,7 +210,7 @@ int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 	if (*new_skb)
 		ret = NET_RX_SUCCESS;
 out:
-	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
+	spin_unlock_bh(&bat_priv->orig_hash_lock);
 
 	return ret;
 }
@@ -279,9 +278,8 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	struct neigh_node *router;
 	int data_len = skb->len;
 	uint8_t dstaddr[6];
-	unsigned long flags;
 
-	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
+	spin_lock_bh(&bat_priv->orig_hash_lock);
 
 	/* get routing information */
 	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
@@ -304,7 +302,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	batman_if = router->if_incoming;
 	memcpy(dstaddr, router->addr, ETH_ALEN);
 
-	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
+	spin_unlock_bh(&bat_priv->orig_hash_lock);
 
 	if (batman_if->if_status != IF_ACTIVE)
 		goto dropped;
@@ -334,7 +332,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 	return 0;
 
 unlock:
-	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
+	spin_unlock_bh(&bat_priv->orig_hash_lock);
 dropped:
 	kfree_skb(skb);
 	return 1;
