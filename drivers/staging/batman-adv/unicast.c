@@ -29,7 +29,7 @@
 #include "hard-interface.h"
 
 
-struct sk_buff *merge_frag_packet(struct list_head *head,
+struct sk_buff *frag_merge_packet(struct list_head *head,
 				  struct frag_packet_list_entry *tfp,
 				  struct sk_buff *skb)
 {
@@ -62,7 +62,7 @@ struct sk_buff *merge_frag_packet(struct list_head *head,
 	return skb;
 }
 
-void create_frag_entry(struct list_head *head, struct sk_buff *skb)
+void frag_create_entry(struct list_head *head, struct sk_buff *skb)
 {
 	struct frag_packet_list_entry *tfp;
 	struct unicast_frag_packet *up =
@@ -78,7 +78,7 @@ void create_frag_entry(struct list_head *head, struct sk_buff *skb)
 	return;
 }
 
-int create_frag_buffer(struct list_head *head)
+int frag_create_buffer(struct list_head *head)
 {
 	int i;
 	struct frag_packet_list_entry *tfp;
@@ -99,7 +99,7 @@ int create_frag_buffer(struct list_head *head)
 	return 0;
 }
 
-struct frag_packet_list_entry *search_frag_packet(struct list_head *head,
+struct frag_packet_list_entry *frag_search_packet(struct list_head *head,
 						 struct unicast_frag_packet *up)
 {
 	struct frag_packet_list_entry *tfp;

@@ -1231,24 +1231,24 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
 		orig_node->last_frag_packet = jiffies;
 
 		if (list_empty(&orig_node->frag_list) &&
-			create_frag_buffer(&orig_node->frag_list)) {
+			frag_create_buffer(&orig_node->frag_list)) {
 			spin_unlock_irqrestore(&bat_priv->orig_hash_lock,
 					       flags);
 			return NET_RX_DROP;
 		}
 
 		tmp_frag_entry =
-			search_frag_packet(&orig_node->frag_list,
+			frag_search_packet(&orig_node->frag_list,
 					   unicast_packet);
 
 		if (!tmp_frag_entry) {
-			create_frag_entry(&orig_node->frag_list, skb);
+			frag_create_entry(&orig_node->frag_list, skb);
 			spin_unlock_irqrestore(&bat_priv->orig_hash_lock,
 					       flags);
 			return NET_RX_SUCCESS;
 		}
 
-		skb = merge_frag_packet(&orig_node->frag_list,
+		skb = frag_merge_packet(&orig_node->frag_list,
 					tmp_frag_entry, skb);
 		spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
 		if (!skb)
