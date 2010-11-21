@@ -29,9 +29,9 @@
 #include "hard-interface.h"
 
 
-struct sk_buff *frag_merge_packet(struct list_head *head,
-				  struct frag_packet_list_entry *tfp,
-				  struct sk_buff *skb)
+static struct sk_buff *frag_merge_packet(struct list_head *head,
+					 struct frag_packet_list_entry *tfp,
+					 struct sk_buff *skb)
 {
 	struct unicast_frag_packet *up =
 		(struct unicast_frag_packet *)skb->data;
@@ -62,7 +62,7 @@ struct sk_buff *frag_merge_packet(struct list_head *head,
 	return skb;
 }
 
-void frag_create_entry(struct list_head *head, struct sk_buff *skb)
+static void frag_create_entry(struct list_head *head, struct sk_buff *skb)
 {
 	struct frag_packet_list_entry *tfp;
 	struct unicast_frag_packet *up =
@@ -78,7 +78,7 @@ void frag_create_entry(struct list_head *head, struct sk_buff *skb)
 	return;
 }
 
-int frag_create_buffer(struct list_head *head)
+static int frag_create_buffer(struct list_head *head)
 {
 	int i;
 	struct frag_packet_list_entry *tfp;
@@ -99,7 +99,7 @@ int frag_create_buffer(struct list_head *head)
 	return 0;
 }
 
-struct frag_packet_list_entry *frag_search_packet(struct list_head *head,
+static struct frag_packet_list_entry *frag_search_packet(struct list_head *head,
 						 struct unicast_frag_packet *up)
 {
 	struct frag_packet_list_entry *tfp;
@@ -150,6 +150,60 @@ void frag_list_free(struct list_head *head)
 		}
 	}
 	return;
+}
+
+/* frag_reassemble_skb():
+ * returns NET_RX_DROP if the operation failed - skb is left intact
+ * returns NET_RX_SUCCESS if the fragment was buffered (skb_new will be NULL)
+ * or the skb could be reassembled (skb_new will point to the new packet and
+ * skb was freed)
+ */
+int frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
+			struct sk_buff **new_skb)
+{
+	unsigned long flags;
+	struct orig_node *orig_node;
+	struct frag_packet_list_entry *tmp_frag_entry;
+	int ret = NET_RX_DROP;
+	struct unicast_frag_packet *unicast_packet =
+		(struct unicast_frag_packet *)skb->data;
+
+	*new_skb = NULL;
+	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
+	orig_node = ((struct orig_node *)
+		    hash_find(bat_priv->orig_hash, unicast_packet->orig));
+
+	if (!orig_node) {
+		pr_debug("couldn't find originator in orig_hash\n");
+		goto out;
+	}
+
+	orig_node->last_frag_packet = jiffies;
+
+	if (list_empty(&orig_node->frag_list) &&
+	    frag_create_buffer(&orig_node->frag_list)) {
+		pr_debug("couldn't create frag buffer\n");
+		goto out;
+	}
+
+	tmp_frag_entry = frag_search_packet(&orig_node->frag_list,
+					    unicast_packet);
+
+	if (!tmp_frag_entry) {
+		frag_create_entry(&orig_node->frag_list, skb);
+		ret = NET_RX_SUCCESS;
+		goto out;
+	}
+
+	*new_skb = frag_merge_packet(&orig_node->frag_list, tmp_frag_entry,
+				     skb);
+	/* if not, merge failed */
+	if (*new_skb)
+		ret = NET_RX_SUCCESS;
+out:
+	spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
+
+	return ret;
 }
 
 static int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,

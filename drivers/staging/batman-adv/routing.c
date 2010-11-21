@@ -1204,10 +1204,9 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct unicast_frag_packet *unicast_packet;
-	struct orig_node *orig_node;
-	struct frag_packet_list_entry *tmp_frag_entry;
 	int hdr_size = sizeof(struct unicast_frag_packet);
-	unsigned long flags;
+	struct sk_buff *new_skb = NULL;
+	int ret;
 
 	if (check_unicast_packet(skb, hdr_size) < 0)
 		return NET_RX_DROP;
@@ -1217,44 +1216,16 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
 	/* packet for me */
 	if (is_my_mac(unicast_packet->dest)) {
 
-		spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
-		orig_node = ((struct orig_node *)
-			hash_find(bat_priv->orig_hash, unicast_packet->orig));
+		ret = frag_reassemble_skb(skb, bat_priv, &new_skb);
 
-		if (!orig_node) {
-			pr_debug("couldn't find orig node for fragmentation\n");
-			spin_unlock_irqrestore(&bat_priv->orig_hash_lock,
-					       flags);
+		if (ret == NET_RX_DROP)
 			return NET_RX_DROP;
-		}
 
-		orig_node->last_frag_packet = jiffies;
-
-		if (list_empty(&orig_node->frag_list) &&
-			frag_create_buffer(&orig_node->frag_list)) {
-			spin_unlock_irqrestore(&bat_priv->orig_hash_lock,
-					       flags);
-			return NET_RX_DROP;
-		}
-
-		tmp_frag_entry =
-			frag_search_packet(&orig_node->frag_list,
-					   unicast_packet);
-
-		if (!tmp_frag_entry) {
-			frag_create_entry(&orig_node->frag_list, skb);
-			spin_unlock_irqrestore(&bat_priv->orig_hash_lock,
-					       flags);
+		/* packet was buffered for late merge */
+		if (!new_skb)
 			return NET_RX_SUCCESS;
-		}
 
-		skb = frag_merge_packet(&orig_node->frag_list,
-					tmp_frag_entry, skb);
-		spin_unlock_irqrestore(&bat_priv->orig_hash_lock, flags);
-		if (!skb)
-			return NET_RX_DROP;
-
-		interface_rx(recv_if->soft_iface, skb, hdr_size);
+		interface_rx(recv_if->soft_iface, new_skb, hdr_size);
 		return NET_RX_SUCCESS;
 	}
 
