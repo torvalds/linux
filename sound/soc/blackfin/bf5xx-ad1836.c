@@ -20,7 +20,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/pcm_params.h>
 
 #include <asm/blackfin.h>

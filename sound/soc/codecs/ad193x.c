@@ -19,7 +19,6 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
-#include <sound/soc-dapm.h>
 #include "ad193x.h"
 
 /* codec private data */

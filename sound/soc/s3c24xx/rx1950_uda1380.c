@@ -25,7 +25,6 @@
 #include <linux/clk.h>
 
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/uda1380.h>
 #include <sound/jack.h>
 

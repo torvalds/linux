@@ -16,7 +16,6 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/jack.h>
 #include <asm/mach-types.h>
 #include <mach/gpio.h>

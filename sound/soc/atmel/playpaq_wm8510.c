@@ -33,7 +33,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 
 #include <mach/at32ap700x.h>
 #include <mach/portmux.h>

@@ -27,7 +27,6 @@
 #include <sound/control.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 #include <sound/uda1380.h>
 

@@ -21,7 +21,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 
 #include "s3c-dma.h"
 #include "s3c-ac97.h"

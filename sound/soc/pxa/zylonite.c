@@ -20,7 +20,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 
 #include "../codecs/wm9713.h"
 #include "pxa2xx-ac97.h"

@@ -19,7 +19,6 @@
 #include <sound/ac97_codec.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 
 #include "wm9705.h"
 

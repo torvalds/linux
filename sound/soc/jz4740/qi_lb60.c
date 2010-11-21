@@ -19,7 +19,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 #include <linux/gpio.h>
 
 #define QI_LB60_SND_GPIO JZ_GPIO_PORTB(29)

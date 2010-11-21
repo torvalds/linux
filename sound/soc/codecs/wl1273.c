@@ -26,7 +26,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc-dai.h>
-#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
 #include "wl1273.h"

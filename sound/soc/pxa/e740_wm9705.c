@@ -16,7 +16,6 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <sound/soc-dapm.h>
 
 #include <mach/audio.h>
 #include <mach/eseries-gpio.h>
