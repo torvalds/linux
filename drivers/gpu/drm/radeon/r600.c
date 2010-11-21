@@ -3294,13 +3294,13 @@ restart_ih:
 			switch (src_data) {
 			case 0: /* D1 vblank */
 				if (rdev->irq.stat_regs.r600.disp_int & LB_D1_VBLANK_INTERRUPT) {
-					if (rdev->irq.pflip[0])
-						radeon_crtc_handle_flip(rdev, 0);
 					if (rdev->irq.crtc_vblank_int[0]) {
 						drm_handle_vblank(rdev->ddev, 0);
 						rdev->pm.vblank_sync = true;
 						wake_up(&rdev->irq.vblank_queue);
 					}
+					if (rdev->irq.pflip[0])
+						radeon_crtc_handle_flip(rdev, 0);
 					rdev->irq.stat_regs.r600.disp_int &= ~LB_D1_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D1 vblank\n");
 				}
@@ -3320,13 +3320,13 @@ restart_ih:
 			switch (src_data) {
 			case 0: /* D2 vblank */
 				if (rdev->irq.stat_regs.r600.disp_int & LB_D2_VBLANK_INTERRUPT) {
-					if (rdev->irq.pflip[1])
-						radeon_crtc_handle_flip(rdev, 1);
 					if (rdev->irq.crtc_vblank_int[1]) {
 						drm_handle_vblank(rdev->ddev, 1);
 						rdev->pm.vblank_sync = true;
 						wake_up(&rdev->irq.vblank_queue);
 					}
+					if (rdev->irq.pflip[1])
+						radeon_crtc_handle_flip(rdev, 1);
 					rdev->irq.stat_regs.r600.disp_int &= ~LB_D2_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D2 vblank\n");
 				}

@@ -662,22 +662,22 @@ int rs600_irq_process(struct radeon_device *rdev)
 		}
 		/* Vertical blank interrupts */
 		if (G_007EDC_LB_D1_VBLANK_INTERRUPT(rdev->irq.stat_regs.r500.disp_int)) {
-			if (rdev->irq.pflip[0])
-				radeon_crtc_handle_flip(rdev, 0);
 			if (rdev->irq.crtc_vblank_int[0]) {
 				drm_handle_vblank(rdev->ddev, 0);
 				rdev->pm.vblank_sync = true;
 				wake_up(&rdev->irq.vblank_queue);
 			}
+			if (rdev->irq.pflip[0])
+				radeon_crtc_handle_flip(rdev, 0);
 		}
 		if (G_007EDC_LB_D2_VBLANK_INTERRUPT(rdev->irq.stat_regs.r500.disp_int)) {
-			if (rdev->irq.pflip[1])
-				radeon_crtc_handle_flip(rdev, 1);
 			if (rdev->irq.crtc_vblank_int[1]) {
 				drm_handle_vblank(rdev->ddev, 1);
 				rdev->pm.vblank_sync = true;
 				wake_up(&rdev->irq.vblank_queue);
 			}
+			if (rdev->irq.pflip[1])
+				radeon_crtc_handle_flip(rdev, 1);
 		}
 		if (G_007EDC_DC_HOT_PLUG_DETECT1_INTERRUPT(rdev->irq.stat_regs.r500.disp_int)) {
 			queue_hotplug = true;
