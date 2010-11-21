@@ -127,6 +127,9 @@
 #define	EHCI_INSNREG05_ULPI_EXTREGADD_SHIFT		8
 #define	EHCI_INSNREG05_ULPI_WRDATA_SHIFT		0
 
+#define is_ehci_phy_mode(x)	(x == EHCI_HCD_OMAP_MODE_PHY)
+#define is_ehci_tll_mode(x)	(x == EHCI_HCD_OMAP_MODE_TLL)
+
 /*-------------------------------------------------------------------------*/
 
 static inline void ehci_omap_writel(void __iomem *base, u32 reg, u32 val)
@@ -387,27 +390,27 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 	/* Bypass the TLL module for PHY mode operation */
 	if (cpu_is_omap3430() && (omap_rev() <= OMAP3430_REV_ES2_1)) {
 		dev_dbg(omap->dev, "OMAP3 ES version <= ES2.1\n");
-		if ((omap->port_mode[0] == EHCI_HCD_OMAP_MODE_PHY) ||
-			(omap->port_mode[1] == EHCI_HCD_OMAP_MODE_PHY) ||
-				(omap->port_mode[2] == EHCI_HCD_OMAP_MODE_PHY))
+		if (is_ehci_phy_mode(omap->port_mode[0]) ||
+			is_ehci_phy_mode(omap->port_mode[1]) ||
+				is_ehci_phy_mode(omap->port_mode[2]))
 			reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_BYPASS;
 		else
 			reg |= OMAP_UHH_HOSTCONFIG_ULPI_BYPASS;
 	} else {
 		dev_dbg(omap->dev, "OMAP3 ES version > ES2.1\n");
-		if (omap->port_mode[0] == EHCI_HCD_OMAP_MODE_PHY)
+		if (is_ehci_phy_mode(omap->port_mode[0]))
 			reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_P1_BYPASS;
-		else if (omap->port_mode[0] == EHCI_HCD_OMAP_MODE_TLL)
+		else if (is_ehci_tll_mode(omap->port_mode[0]))
 			reg |= OMAP_UHH_HOSTCONFIG_ULPI_P1_BYPASS;
 
-		if (omap->port_mode[1] == EHCI_HCD_OMAP_MODE_PHY)
+		if (is_ehci_phy_mode(omap->port_mode[1]))
 			reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_P2_BYPASS;
-		else if (omap->port_mode[1] == EHCI_HCD_OMAP_MODE_TLL)
+		else if (is_ehci_tll_mode(omap->port_mode[1]))
 			reg |= OMAP_UHH_HOSTCONFIG_ULPI_P2_BYPASS;
 
-		if (omap->port_mode[2] == EHCI_HCD_OMAP_MODE_PHY)
+		if (is_ehci_phy_mode(omap->port_mode[2]))
 			reg &= ~OMAP_UHH_HOSTCONFIG_ULPI_P3_BYPASS;
-		else if (omap->port_mode[2] == EHCI_HCD_OMAP_MODE_TLL)
+		else if (is_ehci_tll_mode(omap->port_mode[2]))
 			reg |= OMAP_UHH_HOSTCONFIG_ULPI_P3_BYPASS;
 
 	}
