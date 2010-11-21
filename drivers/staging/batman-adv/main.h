@@ -71,6 +71,8 @@
 				   * forw_packet->direct_link_flags */
 #define MAX_AGGREGATION_MS 100
 
+#define SOFTIF_NEIGH_TIMEOUT 180000 /* 3 minutes */
+
 #define RESET_PROTECTION_MS 30000
 #define EXPECTED_SEQNO_RANGE	65536
 /* don't reset again within 30 seconds */

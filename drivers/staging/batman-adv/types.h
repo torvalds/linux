@@ -123,6 +123,8 @@ struct bat_priv {
 	atomic_t bcast_queue_left;
 	atomic_t batman_queue_left;
 	char num_ifaces;
+	struct hlist_head softif_neigh_list;
+	struct softif_neigh *softif_neigh;
 	struct debug_log *debug_log;
 	struct batman_if *primary_if;
 	struct kobject *mesh_obj;
@@ -141,6 +143,7 @@ struct bat_priv {
 	spinlock_t hna_ghash_lock; /* protects hna_global_hash */
 	spinlock_t vis_hash_lock; /* protects vis_hash */
 	spinlock_t vis_list_lock; /* protects vis_info::recv_list */
+	spinlock_t softif_neigh_lock; /* protects soft-interface neigh list */
 	int16_t num_local_hna;
 	atomic_t hna_local_changed;
 	struct delayed_work hna_work;
@@ -237,6 +240,15 @@ struct vis_info_entry {
 struct recvlist_node {
 	struct list_head list;
 	uint8_t mac[ETH_ALEN];
+};
+
+struct softif_neigh {
+	struct hlist_node list;
+	uint8_t addr[ETH_ALEN];
+	unsigned long last_seen;
+	short vid;
+	struct kref refcount;
+	struct rcu_head rcu;
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */

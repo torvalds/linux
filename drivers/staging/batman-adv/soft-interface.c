@@ -33,7 +33,9 @@
 #include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
+#include <linux/if_vlan.h>
 #include "unicast.h"
+#include "routing.h"
 
 
 static int bat_get_settings(struct net_device *dev, struct ethtool_cmd *cmd);
@@ -75,6 +77,220 @@ int my_skb_head_push(struct sk_buff *skb, unsigned int len)
 	return 0;
 }
 
+static void softif_neigh_free_ref(struct kref *refcount)
+{
+	struct softif_neigh *softif_neigh;
+
+	softif_neigh = container_of(refcount, struct softif_neigh, refcount);
+	kfree(softif_neigh);
+}
+
+static void softif_neigh_free_rcu(struct rcu_head *rcu)
+{
+	struct softif_neigh *softif_neigh;
+
+	softif_neigh = container_of(rcu, struct softif_neigh, rcu);
+	kref_put(&softif_neigh->refcount, softif_neigh_free_ref);
+}
+
+void softif_neigh_purge(struct bat_priv *bat_priv)
+{
+	struct softif_neigh *softif_neigh, *softif_neigh_tmp;
+	struct hlist_node *node, *node_tmp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&bat_priv->softif_neigh_lock, flags);
+
+	hlist_for_each_entry_safe(softif_neigh, node, node_tmp,
+				  &bat_priv->softif_neigh_list, list) {
+
+		if ((!time_after(jiffies, softif_neigh->last_seen +
+				msecs_to_jiffies(SOFTIF_NEIGH_TIMEOUT))) &&
+		    (atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE))
+			continue;
+
+		hlist_del_rcu(&softif_neigh->list);
+
+		if (bat_priv->softif_neigh == softif_neigh) {
+			bat_dbg(DBG_ROUTES, bat_priv,
+				 "Current mesh exit point '%pM' vanished "
+				 "(vid: %d).\n",
+				 softif_neigh->addr, softif_neigh->vid);
+			softif_neigh_tmp = bat_priv->softif_neigh;
+			bat_priv->softif_neigh = NULL;
+			kref_put(&softif_neigh_tmp->refcount,
+				 softif_neigh_free_ref);
+		}
+
+		call_rcu(&softif_neigh->rcu, softif_neigh_free_rcu);
+	}
+
+	spin_unlock_irqrestore(&bat_priv->softif_neigh_lock, flags);
+}
+
+static struct softif_neigh *softif_neigh_get(struct bat_priv *bat_priv,
+					     uint8_t *addr, short vid)
+{
+	struct softif_neigh *softif_neigh;
+	struct hlist_node *node;
+	unsigned long flags;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(softif_neigh, node,
+				 &bat_priv->softif_neigh_list, list) {
+		if (memcmp(softif_neigh->addr, addr, ETH_ALEN) != 0)
+			continue;
+
+		if (softif_neigh->vid != vid)
+			continue;
+
+		softif_neigh->last_seen = jiffies;
+		goto found;
+	}
+
+	softif_neigh = kzalloc(sizeof(struct softif_neigh), GFP_ATOMIC);
+	if (!softif_neigh)
+		goto out;
+
+	memcpy(softif_neigh->addr, addr, ETH_ALEN);
+	softif_neigh->vid = vid;
+	softif_neigh->last_seen = jiffies;
+	kref_init(&softif_neigh->refcount);
+
+	INIT_HLIST_NODE(&softif_neigh->list);
+	spin_lock_irqsave(&bat_priv->softif_neigh_lock, flags);
+	hlist_add_head_rcu(&softif_neigh->list, &bat_priv->softif_neigh_list);
+	spin_unlock_irqrestore(&bat_priv->softif_neigh_lock, flags);
+
+found:
+	kref_get(&softif_neigh->refcount);
+out:
+	rcu_read_unlock();
+	return softif_neigh;
+}
+
+int softif_neigh_seq_print_text(struct seq_file *seq, void *offset)
+{
+	struct net_device *net_dev = (struct net_device *)seq->private;
+	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	struct softif_neigh *softif_neigh;
+	struct hlist_node *node;
+	size_t buf_size, pos;
+	char *buff;
+
+	if (!bat_priv->primary_if) {
+		return seq_printf(seq, "BATMAN mesh %s disabled - "
+			       "please specify interfaces to enable it\n",
+			       net_dev->name);
+	}
+
+	seq_printf(seq, "Softif neighbor list (%s)\n", net_dev->name);
+
+	buf_size = 1;
+	/* Estimate length for: "   xx:xx:xx:xx:xx:xx\n" */
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(softif_neigh, node,
+				 &bat_priv->softif_neigh_list, list)
+		buf_size += 30;
+	rcu_read_unlock();
+
+	buff = kmalloc(buf_size, GFP_ATOMIC);
+	if (!buff)
+		return -ENOMEM;
+
+	buff[0] = '\0';
+	pos = 0;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(softif_neigh, node,
+				 &bat_priv->softif_neigh_list, list) {
+		pos += snprintf(buff + pos, 31, "%s %pM (vid: %d)\n",
+				bat_priv->softif_neigh == softif_neigh
+				? "=>" : "  ", softif_neigh->addr,
+				softif_neigh->vid);
+	}
+	rcu_read_unlock();
+
+	seq_printf(seq, "%s", buff);
+	kfree(buff);
+	return 0;
+}
+
+static void softif_batman_recv(struct sk_buff *skb, struct net_device *dev,
+			       short vid)
+{
+	struct bat_priv *bat_priv = netdev_priv(dev);
+	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
+	struct batman_packet *batman_packet;
+	struct softif_neigh *softif_neigh, *softif_neigh_tmp;
+
+	if (ntohs(ethhdr->h_proto) == ETH_P_8021Q)
+		batman_packet = (struct batman_packet *)
+					(skb->data + ETH_HLEN + VLAN_HLEN);
+	else
+		batman_packet = (struct batman_packet *)(skb->data + ETH_HLEN);
+
+	if (batman_packet->version != COMPAT_VERSION)
+		goto err;
+
+	if (batman_packet->packet_type != BAT_PACKET)
+		goto err;
+
+	if (!(batman_packet->flags & PRIMARIES_FIRST_HOP))
+		goto err;
+
+	if (is_my_mac(batman_packet->orig))
+		goto err;
+
+	softif_neigh = softif_neigh_get(bat_priv, batman_packet->orig, vid);
+
+	if (!softif_neigh)
+		goto err;
+
+	if (bat_priv->softif_neigh == softif_neigh)
+		goto out;
+
+	/* we got a neighbor but its mac is 'bigger' than ours  */
+	if (memcmp(bat_priv->primary_if->net_dev->dev_addr,
+		   softif_neigh->addr, ETH_ALEN) < 0)
+		goto out;
+
+	/* switch to new 'smallest neighbor' */
+	if ((bat_priv->softif_neigh) &&
+	    (memcmp(softif_neigh->addr, bat_priv->softif_neigh->addr,
+							ETH_ALEN) < 0)) {
+		bat_dbg(DBG_ROUTES, bat_priv,
+			"Changing mesh exit point from %pM (vid: %d) "
+			"to %pM (vid: %d).\n",
+			 bat_priv->softif_neigh->addr,
+			 bat_priv->softif_neigh->vid,
+			 softif_neigh->addr, softif_neigh->vid);
+		softif_neigh_tmp = bat_priv->softif_neigh;
+		bat_priv->softif_neigh = softif_neigh;
+		kref_put(&softif_neigh_tmp->refcount, softif_neigh_free_ref);
+		/* we need to hold the additional reference */
+		goto err;
+	}
+
+	/* close own batX device and use softif_neigh as exit node */
+	if ((!bat_priv->softif_neigh) &&
+	    (memcmp(softif_neigh->addr,
+		    bat_priv->primary_if->net_dev->dev_addr, ETH_ALEN) < 0)) {
+		bat_dbg(DBG_ROUTES, bat_priv,
+			"Setting mesh exit point to %pM (vid: %d).\n",
+			softif_neigh->addr, softif_neigh->vid);
+		bat_priv->softif_neigh = softif_neigh;
+		/* we need to hold the additional reference */
+		goto err;
+	}
+
+out:
+	kref_put(&softif_neigh->refcount, softif_neigh_free_ref);
+err:
+	kfree_skb(skb);
+	return;
+}
+
 static int interface_open(struct net_device *dev)
 {
 	netif_start_queue(dev);
@@ -109,7 +325,6 @@ static int interface_set_mac_addr(struct net_device *dev, void *p)
 	}
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-
 	return 0;
 }
 
@@ -129,12 +344,35 @@ int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	struct bcast_packet *bcast_packet;
+	struct vlan_ethhdr *vhdr;
 	int data_len = skb->len, ret;
+	short vid = -1;
 
 	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
 		goto dropped;
 
 	soft_iface->trans_start = jiffies;
+
+	switch (ntohs(ethhdr->h_proto)) {
+	case ETH_P_8021Q:
+		vhdr = (struct vlan_ethhdr *)skb->data;
+		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
+
+		if (ntohs(vhdr->h_vlan_encapsulated_proto) != ETH_P_BATMAN)
+			break;
+
+		/* fall through */
+	case ETH_P_BATMAN:
+		softif_batman_recv(skb, soft_iface, vid);
+		goto end;
+	}
+
+	/**
+	 * if we have a another chosen mesh exit node in range
+	 * it will transport the packets to the mesh
+	 */
+	if ((bat_priv->softif_neigh) && (bat_priv->softif_neigh->vid == vid))
+		goto dropped;
 
 	/* TODO: check this for locks */
 	hna_local_add(soft_iface, ethhdr->h_source);
@@ -189,16 +427,60 @@ end:
 }
 
 void interface_rx(struct net_device *soft_iface,
-		  struct sk_buff *skb, int hdr_size)
+		  struct sk_buff *skb, struct batman_if *recv_if,
+		  int hdr_size)
 {
-	struct bat_priv *priv = netdev_priv(soft_iface);
+	struct bat_priv *bat_priv = netdev_priv(soft_iface);
+	struct unicast_packet *unicast_packet;
+	struct ethhdr *ethhdr;
+	struct vlan_ethhdr *vhdr;
+	short vid = -1;
+	int ret;
 
 	/* check if enough space is available for pulling, and pull */
 	if (!pskb_may_pull(skb, hdr_size))
 		goto dropped;
 
 	skb_pull_rcsum(skb, hdr_size);
-/*	skb_set_mac_header(skb, -sizeof(struct ethhdr));*/
+	skb_reset_mac_header(skb);
+
+	ethhdr = (struct ethhdr *)skb_mac_header(skb);
+
+	switch (ntohs(ethhdr->h_proto)) {
+	case ETH_P_8021Q:
+		vhdr = (struct vlan_ethhdr *)skb->data;
+		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
+
+		if (ntohs(vhdr->h_vlan_encapsulated_proto) != ETH_P_BATMAN)
+			break;
+
+		/* fall through */
+	case ETH_P_BATMAN:
+		goto dropped;
+	}
+
+	/**
+	 * if we have a another chosen mesh exit node in range
+	 * it will transport the packets to the non-mesh network
+	 */
+	if ((bat_priv->softif_neigh) && (bat_priv->softif_neigh->vid == vid)) {
+		skb_push(skb, hdr_size);
+		unicast_packet = (struct unicast_packet *)skb->data;
+
+		if ((unicast_packet->packet_type != BAT_UNICAST) &&
+		    (unicast_packet->packet_type != BAT_UNICAST_FRAG))
+			goto dropped;
+
+		skb_reset_mac_header(skb);
+
+		memcpy(unicast_packet->dest,
+		       bat_priv->softif_neigh->addr, ETH_ALEN);
+		ret = route_unicast_packet(skb, recv_if, hdr_size);
+		if (ret == NET_RX_DROP)
+			goto dropped;
+
+		goto out;
+	}
 
 	/* skb->dev & skb->pkt_type are set here */
 	if (unlikely(!pskb_may_pull(skb, ETH_HLEN)))
@@ -211,8 +493,8 @@ void interface_rx(struct net_device *soft_iface,
 
 /*	skb->ip_summed = CHECKSUM_UNNECESSARY;*/
 
-	priv->stats.rx_packets++;
-	priv->stats.rx_bytes += skb->len + sizeof(struct ethhdr);
+	bat_priv->stats.rx_packets++;
+	bat_priv->stats.rx_bytes += skb->len + sizeof(struct ethhdr);
 
 	soft_iface->last_rx = jiffies;
 
@@ -221,6 +503,7 @@ void interface_rx(struct net_device *soft_iface,
 
 dropped:
 	kfree_skb(skb);
+out:
 	return;
 }
 
@@ -310,6 +593,7 @@ struct net_device *softif_create(char *name)
 
 	bat_priv->primary_if = NULL;
 	bat_priv->num_ifaces = 0;
+	bat_priv->softif_neigh = NULL;
 
 	ret = sysfs_add_meshif(soft_iface);
 	if (ret < 0)

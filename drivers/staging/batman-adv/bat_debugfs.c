@@ -27,6 +27,7 @@
 #include "translation-table.h"
 #include "originator.h"
 #include "hard-interface.h"
+#include "soft-interface.h"
 #include "vis.h"
 #include "icmp_socket.h"
 
@@ -227,6 +228,12 @@ static int originators_open(struct inode *inode, struct file *file)
 	return single_open(file, orig_seq_print_text, net_dev);
 }
 
+static int softif_neigh_open(struct inode *inode, struct file *file)
+{
+	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	return single_open(file, softif_neigh_seq_print_text, net_dev);
+}
+
 static int transtable_global_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
@@ -263,12 +270,14 @@ struct bat_debuginfo bat_debuginfo_##_name = {	\
 };
 
 static BAT_DEBUGINFO(originators, S_IRUGO, originators_open);
+static BAT_DEBUGINFO(softif_neigh, S_IRUGO, softif_neigh_open);
 static BAT_DEBUGINFO(transtable_global, S_IRUGO, transtable_global_open);
 static BAT_DEBUGINFO(transtable_local, S_IRUGO, transtable_local_open);
 static BAT_DEBUGINFO(vis_data, S_IRUGO, vis_data_open);
 
 static struct bat_debuginfo *mesh_debuginfos[] = {
 	&bat_debuginfo_originators,
+	&bat_debuginfo_softif_neigh,
 	&bat_debuginfo_transtable_global,
 	&bat_debuginfo_transtable_local,
 	&bat_debuginfo_vis_data,

@@ -1117,8 +1117,8 @@ static int check_unicast_packet(struct sk_buff *skb, int hdr_size)
 	return 0;
 }
 
-static int route_unicast_packet(struct sk_buff *skb,
-				struct batman_if *recv_if, int hdr_size)
+int route_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if,
+			 int hdr_size)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct orig_node *orig_node;
@@ -1186,7 +1186,7 @@ static int route_unicast_packet(struct sk_buff *skb,
 			return NET_RX_SUCCESS;
 
 		skb = new_skb;
-		unicast_packet = (struct unicast_packet *) skb->data;
+		unicast_packet = (struct unicast_packet *)skb->data;
 	}
 
 	/* decrement ttl */
@@ -1210,7 +1210,7 @@ int recv_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if)
 
 	/* packet for me */
 	if (is_my_mac(unicast_packet->dest)) {
-		interface_rx(recv_if->soft_iface, skb, hdr_size);
+		interface_rx(recv_if->soft_iface, skb, recv_if, hdr_size);
 		return NET_RX_SUCCESS;
 	}
 
@@ -1242,7 +1242,7 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct batman_if *recv_if)
 		if (!new_skb)
 			return NET_RX_SUCCESS;
 
-		interface_rx(recv_if->soft_iface, new_skb,
+		interface_rx(recv_if->soft_iface, new_skb, recv_if,
 			     sizeof(struct unicast_packet));
 		return NET_RX_SUCCESS;
 	}
@@ -1324,7 +1324,7 @@ int recv_bcast_packet(struct sk_buff *skb, struct batman_if *recv_if)
 	add_bcast_packet_to_list(bat_priv, skb);
 
 	/* broadcast for me */
-	interface_rx(recv_if->soft_iface, skb, hdr_size);
+	interface_rx(recv_if->soft_iface, skb, recv_if, hdr_size);
 
 	return NET_RX_SUCCESS;
 }
