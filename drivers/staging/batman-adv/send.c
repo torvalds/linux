@@ -28,6 +28,7 @@
 #include "types.h"
 #include "vis.h"
 #include "aggregation.h"
+#include "originator.h"
 
 
 static void send_outstanding_bcast_packet(struct work_struct *work);

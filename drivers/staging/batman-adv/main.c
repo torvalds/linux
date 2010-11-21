@@ -149,13 +149,6 @@ void dec_module_count(void)
 	module_put(THIS_MODULE);
 }
 
-/* returns 1 if they are the same originator */
-
-int compare_orig(void *data1, void *data2)
-{
-	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
-}
-
 /* hashfunction to choose an entry in a hash table of given size */
 /* hash algorithm from http://en.wikipedia.org/wiki/Hash_table */
 int choose_orig(void *data, int32_t size)

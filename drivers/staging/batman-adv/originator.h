@@ -33,4 +33,11 @@ int orig_seq_print_text(struct seq_file *seq, void *offset);
 int orig_hash_add_if(struct batman_if *batman_if, int max_if_num);
 int orig_hash_del_if(struct batman_if *batman_if, int max_if_num);
 
+
+/* returns 1 if they are the same originator */
+static inline int compare_orig(void *data1, void *data2)
+{
+	return (memcmp(data1, data2, ETH_ALEN) == 0 ? 1 : 0);
+}
+
 #endif /* _NET_BATMAN_ADV_ORIGINATOR_H_ */

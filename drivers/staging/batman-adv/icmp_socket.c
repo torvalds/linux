@@ -26,6 +26,7 @@
 #include "send.h"
 #include "types.h"
 #include "hash.h"
+#include "originator.h"
 #include "hard-interface.h"
 
 
@@ -225,6 +226,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 
 	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
 	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
+						   compare_orig,
 						   icmp_packet->dst));
 
 	if (!orig_node)

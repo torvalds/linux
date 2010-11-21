@@ -1,6 +1,6 @@
  * remove own list functionality from hash
  * use hlist_head, hlist_node in hash
- * don't use callbacks for compare+choose in hash
+ * don't use callbacks for choose in hash
  * think about more efficient ways instead of abstraction of hash
  * Request a new review
  * Process the comments from the review

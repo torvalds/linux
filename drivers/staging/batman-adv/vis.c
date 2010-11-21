@@ -26,6 +26,7 @@
 #include "soft-interface.h"
 #include "hard-interface.h"
 #include "hash.h"
+#include "originator.h"
 
 #define MAX_VIS_PACKET_SIZE 1000
 
@@ -363,7 +364,7 @@ static struct vis_info *add_packet(struct bat_priv *bat_priv,
 						     sizeof(struct vis_packet));
 
 	memcpy(search_packet->vis_orig, vis_packet->vis_orig, ETH_ALEN);
-	old_info = hash_find(bat_priv->vis_hash, &search_elem);
+	old_info = hash_find(bat_priv->vis_hash, vis_info_cmp, &search_elem);
 	kfree_skb(search_elem.skb_packet);
 
 	if (old_info != NULL) {
@@ -380,7 +381,7 @@ static struct vis_info *add_packet(struct bat_priv *bat_priv,
 			}
 		}
 		/* remove old entry */
-		hash_remove(bat_priv->vis_hash, old_info);
+		hash_remove(bat_priv->vis_hash, vis_info_cmp, old_info);
 		send_list_del(old_info);
 		kref_put(&old_info->refcount, free_info);
 	}
@@ -421,7 +422,7 @@ static struct vis_info *add_packet(struct bat_priv *bat_priv,
 	recv_list_add(bat_priv, &info->recv_list, packet->sender_orig);
 
 	/* try to add it */
-	if (hash_add(bat_priv->vis_hash, info) < 0) {
+	if (hash_add(bat_priv->vis_hash, vis_info_cmp, info) < 0) {
 		/* did not work (for some reason) */
 		kref_put(&old_info->refcount, free_info);
 		info = NULL;
@@ -710,6 +711,7 @@ static void unicast_vis_packet(struct bat_priv *bat_priv,
 	spin_lock_irqsave(&bat_priv->orig_hash_lock, flags);
 	packet = (struct vis_packet *)info->skb_packet->data;
 	orig_node = ((struct orig_node *)hash_find(bat_priv->orig_hash,
+						   compare_orig,
 						   packet->target_orig));
 
 	if ((!orig_node) || (!orig_node->router))
@@ -794,13 +796,14 @@ int vis_init(struct bat_priv *bat_priv)
 {
 	struct vis_packet *packet;
 	unsigned long flags;
+	int hash_added;
 
 	if (bat_priv->vis_hash)
 		return 1;
 
 	spin_lock_irqsave(&bat_priv->vis_hash_lock, flags);
 
-	bat_priv->vis_hash = hash_new(256, vis_info_cmp, vis_info_choose);
+	bat_priv->vis_hash = hash_new(256, vis_info_choose);
 	if (!bat_priv->vis_hash) {
 		pr_err("Can't initialize vis_hash\n");
 		goto err;
@@ -839,7 +842,9 @@ int vis_init(struct bat_priv *bat_priv)
 
 	INIT_LIST_HEAD(&bat_priv->vis_send_list);
 
-	if (hash_add(bat_priv->vis_hash, bat_priv->my_vis_info) < 0) {
+	hash_added = hash_add(bat_priv->vis_hash, vis_info_cmp,
+			      bat_priv->my_vis_info);
+	if (hash_added < 0) {
 		pr_err("Can't add own vis packet into hash\n");
 		/* not in hash, need to remove it manually. */
 		kref_put(&bat_priv->my_vis_info->refcount, free_info);

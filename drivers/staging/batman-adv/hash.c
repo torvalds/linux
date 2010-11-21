@@ -137,8 +137,7 @@ struct hash_it_t *hash_iterate(struct hashtable_t *hash,
 }
 
 /* allocates and clears the hash */
-struct hashtable_t *hash_new(int size, hashdata_compare_cb compare,
-			     hashdata_choose_cb choose)
+struct hashtable_t *hash_new(int size, hashdata_choose_cb choose)
 {
 	struct hashtable_t *hash;
 
@@ -157,14 +156,13 @@ struct hashtable_t *hash_new(int size, hashdata_compare_cb compare,
 
 	hash_init(hash);
 
-	hash->compare = compare;
 	hash->choose = choose;
 
 	return hash;
 }
 
 /* adds data to the hashtable. returns 0 on success, -1 on error */
-int hash_add(struct hashtable_t *hash, void *data)
+int hash_add(struct hashtable_t *hash, hashdata_compare_cb compare, void *data)
 {
 	int index;
 	struct element_t *bucket, *prev_bucket = NULL;
@@ -176,7 +174,7 @@ int hash_add(struct hashtable_t *hash, void *data)
 	bucket = hash->table[index];
 
 	while (bucket != NULL) {
-		if (hash->compare(bucket->data, data))
+		if (compare(bucket->data, data))
 			return -1;
 
 		prev_bucket = bucket;
@@ -204,7 +202,8 @@ int hash_add(struct hashtable_t *hash, void *data)
 
 /* finds data, based on the key in keydata. returns the found data on success,
  * or NULL on error */
-void *hash_find(struct hashtable_t *hash, void *keydata)
+void *hash_find(struct hashtable_t *hash, hashdata_compare_cb compare,
+		void *keydata)
 {
 	int index;
 	struct element_t *bucket;
@@ -216,7 +215,7 @@ void *hash_find(struct hashtable_t *hash, void *keydata)
 	bucket = hash->table[index];
 
 	while (bucket != NULL) {
-		if (hash->compare(bucket->data, keydata))
+		if (compare(bucket->data, keydata))
 			return bucket->data;
 
 		bucket = bucket->next;
@@ -250,7 +249,8 @@ void *hash_remove_bucket(struct hashtable_t *hash, struct hash_it_t *hash_it_t)
  * can remove the used structure yourself, or NULL on error .  data could be the
  * structure you use with just the key filled, we just need the key for
  * comparing. */
-void *hash_remove(struct hashtable_t *hash, void *data)
+void *hash_remove(struct hashtable_t *hash, hashdata_compare_cb compare,
+		  void *data)
 {
 	struct hash_it_t hash_it_t;
 
@@ -259,7 +259,7 @@ void *hash_remove(struct hashtable_t *hash, void *data)
 	hash_it_t.prev_bucket = NULL;
 
 	while (hash_it_t.bucket != NULL) {
-		if (hash->compare(hash_it_t.bucket->data, data)) {
+		if (compare(hash_it_t.bucket->data, data)) {
 			hash_it_t.first_bucket =
 				(hash_it_t.bucket ==
 				 hash->table[hash_it_t.index] ?
@@ -276,14 +276,15 @@ void *hash_remove(struct hashtable_t *hash, void *data)
 
 /* resize the hash, returns the pointer to the new hash or NULL on
  * error. removes the old hash on success. */
-struct hashtable_t *hash_resize(struct hashtable_t *hash, int size)
+struct hashtable_t *hash_resize(struct hashtable_t *hash,
+				hashdata_compare_cb compare, int size)
 {
 	struct hashtable_t *new_hash;
 	struct element_t *bucket;
 	int i;
 
 	/* initialize a new hash with the new size */
-	new_hash = hash_new(size, hash->compare, hash->choose);
+	new_hash = hash_new(size, hash->choose);
 
 	if (new_hash == NULL)
 		return NULL;
@@ -293,7 +294,7 @@ struct hashtable_t *hash_resize(struct hashtable_t *hash, int size)
 		bucket = hash->table[i];
 
 		while (bucket != NULL) {
-			hash_add(new_hash, bucket->data);
+			hash_add(new_hash, compare, bucket->data);
 			bucket = bucket->next;
 		}
 	}
