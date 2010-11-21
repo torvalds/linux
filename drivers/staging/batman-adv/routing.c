@@ -1165,6 +1165,12 @@ static int route_unicast_packet(struct sk_buff *skb,
 
 	unicast_packet = (struct unicast_packet *)skb->data;
 
+	if (unicast_packet->packet_type == BAT_UNICAST &&
+	    atomic_read(&bat_priv->frag_enabled) &&
+	    skb->len > batman_if->net_dev->mtu)
+		return frag_send_skb(skb, bat_priv, batman_if,
+				     dstaddr);
+
 	/* decrement ttl */
 	unicast_packet->ttl--;
 

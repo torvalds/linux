@@ -206,8 +206,8 @@ out:
 	return ret;
 }
 
-static int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
-			 struct batman_if *batman_if, uint8_t dstaddr[])
+int frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
+		  struct batman_if *batman_if, uint8_t dstaddr[])
 {
 	struct unicast_packet tmp_uc, *unicast_packet;
 	struct sk_buff *frag_skb;
