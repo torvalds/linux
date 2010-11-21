@@ -310,10 +310,9 @@ static bool ath9k_hw_chip_test(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 regAddr[2] = { AR_STA_ID0 };
 	u32 regHold[2];
-	u32 patternData[4] = { 0x55555555,
-			       0xaaaaaaaa,
-			       0x66666666,
-			       0x99999999 };
+	static const u32 patternData[4] = {
+		0x55555555, 0xaaaaaaaa, 0x66666666, 0x99999999
+	};
 	int i, j, loop_max;
 
 	if (!AR_SREV_9300_20_OR_LATER(ah)) {
@@ -436,7 +435,7 @@ static int ath9k_hw_init_macaddr(struct ath_hw *ah)
 	u32 sum;
 	int i;
 	u16 eeval;
-	u32 EEP_MAC[] = { EEP_MAC_LSW, EEP_MAC_MID, EEP_MAC_MSW };
+	static const u32 EEP_MAC[] = { EEP_MAC_LSW, EEP_MAC_MID, EEP_MAC_MSW };
 
 	sum = 0;
 	for (i = 0; i < 3; i++) {

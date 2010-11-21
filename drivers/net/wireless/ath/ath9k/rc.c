@@ -864,7 +864,7 @@ static bool ath_rc_update_per(struct ath_softc *sc,
 	bool state_change = false;
 	int count, n_bad_frames;
 	u8 last_per;
-	static u32 nretry_to_per_lookup[10] = {
+	static const u32 nretry_to_per_lookup[10] = {
 		100 * 0 / 1,
 		100 * 1 / 4,
 		100 * 1 / 2,
@@ -1087,13 +1087,13 @@ static int ath_rc_get_rateindex(const struct ath_rate_table *rate_table,
 				struct ieee80211_tx_rate *rate)
 {
 	int rix = 0, i = 0;
-	int mcs_rix_off[] = { 7, 15, 20, 21, 22, 23 };
+	static const int mcs_rix_off[] = { 7, 15, 20, 21, 22, 23 };
 
 	if (!(rate->flags & IEEE80211_TX_RC_MCS))
 		return rate->idx;
 
 	while (rate->idx > mcs_rix_off[i] &&
-	      i < sizeof(mcs_rix_off)/sizeof(int)) {
+	       i < ARRAY_SIZE(mcs_rix_off)) {
 		rix++; i++;
 	}
 

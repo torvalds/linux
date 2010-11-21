@@ -128,7 +128,7 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 					    struct ath9k_channel *chan)
 {
-	u32 spur_freq[4] = { 2420, 2440, 2464, 2480 };
+	static const u32 spur_freq[4] = { 2420, 2440, 2464, 2480 };
 	int cur_bb_spur, negative = 0, cck_spur_freq;
 	int i;
 
@@ -1161,7 +1161,7 @@ static void ar9003_hw_set_radar_conf(struct ath_hw *ah)
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
-	const u32 ar9300_cca_regs[6] = {
+	static const u32 ar9300_cca_regs[6] = {
 		AR_PHY_CCA_0,
 		AR_PHY_CCA_1,
 		AR_PHY_CCA_2,

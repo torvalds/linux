@@ -626,13 +626,13 @@ static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
 	struct cal_target_power_ht targetPowerHt20,
 				    targetPowerHt40 = {0, {0, 0, 0, 0} };
 	u16 scaledPower = 0, minCtlPower, maxRegAllowedPower;
-	u16 ctlModesFor11g[] = {CTL_11B,
-				CTL_11G,
-				CTL_2GHT20,
-				CTL_11B_EXT,
-				CTL_11G_EXT,
-				CTL_2GHT40};
-	u16 numCtlModes = 0, *pCtlMode = NULL, ctlMode, freq;
+	static const u16 ctlModesFor11g[] = {
+		CTL_11B, CTL_11G, CTL_2GHT20,
+		CTL_11B_EXT, CTL_11G_EXT, CTL_2GHT40
+	};
+	u16 numCtlModes = 0;
+	const u16 *pCtlMode = NULL;
+	u16 ctlMode, freq;
 	struct chan_centers centers;
 	int tx_chainmask;
 	u16 twiceMinEdgePower;

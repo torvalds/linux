@@ -4455,14 +4455,16 @@ static void ar9003_hw_set_power_per_rate_table(struct ath_hw *ah,
 	int i;
 	int16_t  twiceLargestAntenna;
 	u16 scaledPower = 0, minCtlPower, maxRegAllowedPower;
-	u16 ctlModesFor11a[] = {
+	static const u16 ctlModesFor11a[] = {
 		CTL_11A, CTL_5GHT20, CTL_11A_EXT, CTL_5GHT40
 	};
-	u16 ctlModesFor11g[] = {
+	static const u16 ctlModesFor11g[] = {
 		CTL_11B, CTL_11G, CTL_2GHT20, CTL_11B_EXT,
 		CTL_11G_EXT, CTL_2GHT40
 	};
-	u16 numCtlModes, *pCtlMode, ctlMode, freq;
+	u16 numCtlModes;
+	const u16 *pCtlMode;
+	u16 ctlMode, freq;
 	struct chan_centers centers;
 	u8 *ctlIndex;
 	u8 ctlNum;

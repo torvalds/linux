@@ -244,13 +244,15 @@ static void ar5008_hw_spur_mitigate(struct ath_hw *ah,
 	int upper, lower, cur_vit_mask;
 	int tmp, new;
 	int i;
-	int pilot_mask_reg[4] = { AR_PHY_TIMING7, AR_PHY_TIMING8,
-			  AR_PHY_PILOT_MASK_01_30, AR_PHY_PILOT_MASK_31_60
+	static int pilot_mask_reg[4] = {
+		AR_PHY_TIMING7, AR_PHY_TIMING8,
+		AR_PHY_PILOT_MASK_01_30, AR_PHY_PILOT_MASK_31_60
 	};
-	int chan_mask_reg[4] = { AR_PHY_TIMING9, AR_PHY_TIMING10,
-			 AR_PHY_CHANNEL_MASK_01_30, AR_PHY_CHANNEL_MASK_31_60
+	static int chan_mask_reg[4] = {
+		AR_PHY_TIMING9, AR_PHY_TIMING10,
+		AR_PHY_CHANNEL_MASK_01_30, AR_PHY_CHANNEL_MASK_31_60
 	};
-	int inc[4] = { 0, 100, 0, 0 };
+	static int inc[4] = { 0, 100, 0, 0 };
 
 	int8_t mask_m[123];
 	int8_t mask_p[123];
@@ -1084,12 +1086,12 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 		break;
 	}
 	case ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION:{
-		const int m1ThreshLow[] = { 127, 50 };
-		const int m2ThreshLow[] = { 127, 40 };
-		const int m1Thresh[] = { 127, 0x4d };
-		const int m2Thresh[] = { 127, 0x40 };
-		const int m2CountThr[] = { 31, 16 };
-		const int m2CountThrLow[] = { 63, 48 };
+		static const int m1ThreshLow[] = { 127, 50 };
+		static const int m2ThreshLow[] = { 127, 40 };
+		static const int m1Thresh[] = { 127, 0x4d };
+		static const int m2Thresh[] = { 127, 0x40 };
+		static const int m2CountThr[] = { 31, 16 };
+		static const int m2CountThrLow[] = { 63, 48 };
 		u32 on = param ? 1 : 0;
 
 		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
@@ -1141,7 +1143,7 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 		break;
 	}
 	case ATH9K_ANI_CCK_WEAK_SIGNAL_THR:{
-		const int weakSigThrCck[] = { 8, 6 };
+		static const int weakSigThrCck[] = { 8, 6 };
 		u32 high = param ? 1 : 0;
 
 		REG_RMW_FIELD(ah, AR_PHY_CCK_DETECT,
@@ -1157,7 +1159,7 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 		break;
 	}
 	case ATH9K_ANI_FIRSTEP_LEVEL:{
-		const int firstep[] = { 0, 4, 8 };
+		static const int firstep[] = { 0, 4, 8 };
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(firstep)) {
@@ -1178,7 +1180,7 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 		break;
 	}
 	case ATH9K_ANI_SPUR_IMMUNITY_LEVEL:{
-		const int cycpwrThr1[] = { 2, 4, 6, 8, 10, 12, 14, 16 };
+		static const int cycpwrThr1[] = { 2, 4, 6, 8, 10, 12, 14, 16 };
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(cycpwrThr1)) {
@@ -1627,7 +1629,7 @@ static void ar5008_hw_set_radar_conf(struct ath_hw *ah)
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
-	const u32 ar5416_cca_regs[6] = {
+	static const u32 ar5416_cca_regs[6] = {
 		AR_PHY_CCA,
 		AR_PHY_CH1_CCA,
 		AR_PHY_CH2_CCA,
