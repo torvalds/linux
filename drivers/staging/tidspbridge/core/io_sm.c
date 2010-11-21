@@ -1195,29 +1195,29 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 	input_empty = msg_ctr_obj->buf_empty;
 	num_msgs = msg_ctr_obj->size;
 	if (input_empty)
-		goto func_end;
+		return;
 
 	msg_input = pio_mgr->msg_input;
 	for (i = 0; i < num_msgs; i++) {
 		/* Read the next message */
 		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msg.dw_cmd);
 		msg.msg.dw_cmd =
-		    read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
+			read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
 		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msg.dw_arg1);
 		msg.msg.dw_arg1 =
-		    read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
+			read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
 		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msg.dw_arg2);
 		msg.msg.dw_arg2 =
-		    read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
+			read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
 		addr = (u32) &(((struct msg_dspmsg *)msg_input)->msgq_id);
 		msg.msgq_id =
-		    read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
+			read_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr);
 		msg_input += sizeof(struct msg_dspmsg);
 
 		/* Determine which queue to put the message in */
 		dev_dbg(bridge,	"input msg: dw_cmd=0x%x dw_arg1=0x%x "
-			"dw_arg2=0x%x msgq_id=0x%x\n", msg.msg.dw_cmd,
-			msg.msg.dw_arg1, msg.msg.dw_arg2, msg.msgq_id);
+				"dw_arg2=0x%x msgq_id=0x%x\n", msg.msg.dw_cmd,
+				msg.msg.dw_arg1, msg.msg.dw_arg2, msg.msgq_id);
 		/*
 		 * Interrupt may occur before shared memory and message
 		 * input locations have been set up. If all nodes were
@@ -1225,48 +1225,43 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 		 */
 		list_for_each_entry(msg_queue_obj, &hmsg_mgr->queue_list,
 				list_elem) {
-			if (msg.msgq_id == msg_queue_obj->msgq_id) {
-				/* Found it */
-				if (msg.msg.dw_cmd == RMS_EXITACK) {
-					/*
-					 * Call the node exit notification.
-					 * The exit message does not get
-					 * queued.
-					 */
-					(*hmsg_mgr->on_exit) ((void *)
-							msg_queue_obj->arg,
-							msg.msg.dw_arg1);
-					break;
-				}
+			if (msg.msgq_id != msg_queue_obj->msgq_id)
+				continue;
+			/* Found it */
+			if (msg.msg.dw_cmd == RMS_EXITACK) {
 				/*
-				 * Not an exit acknowledgement, queue
-				 * the message.
+				 * Call the node exit notification.
+				 * The exit message does not get
+				 * queued.
 				 */
-				if (!list_empty(&msg_queue_obj->
-							msg_free_list)) {
-					pmsg = list_first_entry(
-						&msg_queue_obj->msg_free_list,
-						struct msg_frame, list_elem);
-					list_del(&pmsg->list_elem);
-					pmsg->msg_data = msg;
-					list_add_tail(&pmsg->list_elem,
-						&msg_queue_obj->msg_used_list);
-					ntfy_notify
-						(msg_queue_obj->ntfy_obj,
-						 DSP_NODEMESSAGEREADY);
-					sync_set_event
-						(msg_queue_obj->sync_event);
-				} else {
-					/*
-					 * No free frame to copy the
-					 * message into.
-					 */
-					pr_err("%s: no free msg frames,"
-							" discarding msg\n",
-							__func__);
-				}
+				(*hmsg_mgr->on_exit)(msg_queue_obj->arg,
+						msg.msg.dw_arg1);
 				break;
 			}
+			/*
+			 * Not an exit acknowledgement, queue
+			 * the message.
+			 */
+			if (list_empty(&msg_queue_obj->msg_free_list)) {
+				/*
+				 * No free frame to copy the
+				 * message into.
+				 */
+				pr_err("%s: no free msg frames,"
+						" discarding msg\n",
+						__func__);
+				break;
+			}
+
+			pmsg = list_first_entry(&msg_queue_obj->msg_free_list,
+					struct msg_frame, list_elem);
+			list_del(&pmsg->list_elem);
+			pmsg->msg_data = msg;
+			list_add_tail(&pmsg->list_elem,
+					&msg_queue_obj->msg_used_list);
+			ntfy_notify(msg_queue_obj->ntfy_obj,
+					DSP_NODEMESSAGEREADY);
+			sync_set_event(msg_queue_obj->sync_event);
 		}
 	}
 	/* Set the post SWI flag */
@@ -1276,8 +1271,6 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 		msg_ctr_obj->post_swi = true;
 		sm_interrupt_dsp(pio_mgr->hbridge_context, MBX_PCPY_CLASS);
 	}
-func_end:
-	return;
 }
 
 /*
@@ -1408,73 +1401,68 @@ static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 {
 	u32 num_msgs = 0;
 	u32 i;
-	u8 *msg_output;
+	struct msg_dspmsg *msg_output;
 	struct msg_frame *pmsg;
 	struct msg_ctrl *msg_ctr_obj;
-	u32 output_empty;
 	u32 val;
 	u32 addr;
 
 	msg_ctr_obj = pio_mgr->msg_output_ctrl;
 
 	/* Check if output has been cleared */
-	output_empty = msg_ctr_obj->buf_empty;
-	if (output_empty) {
-		num_msgs = (hmsg_mgr->msgs_pending > hmsg_mgr->max_msgs) ?
-		    hmsg_mgr->max_msgs : hmsg_mgr->msgs_pending;
-		msg_output = pio_mgr->msg_output;
-		/* Copy num_msgs messages into shared memory */
-		for (i = 0; i < num_msgs; i++) {
-			if (!list_empty(&hmsg_mgr->msg_used_list)) {
-				pmsg = list_first_entry(
-						&hmsg_mgr->msg_used_list,
-						struct msg_frame, list_elem);
-				list_del(&pmsg->list_elem);
-				val = (pmsg->msg_data).msgq_id;
-				addr = (u32) &(((struct msg_dspmsg *)
-						 msg_output)->msgq_id);
-				write_ext32_bit_dsp_data(
-					pio_mgr->hbridge_context, addr, val);
-				val = (pmsg->msg_data).msg.dw_cmd;
-				addr = (u32) &((((struct msg_dspmsg *)
-						  msg_output)->msg).dw_cmd);
-				write_ext32_bit_dsp_data(
-					pio_mgr->hbridge_context, addr, val);
-				val = (pmsg->msg_data).msg.dw_arg1;
-				addr = (u32) &((((struct msg_dspmsg *)
-						  msg_output)->msg).dw_arg1);
-				write_ext32_bit_dsp_data(
-					pio_mgr->hbridge_context, addr, val);
-				val = (pmsg->msg_data).msg.dw_arg2;
-				addr = (u32) &((((struct msg_dspmsg *)
-						  msg_output)->msg).dw_arg2);
-				write_ext32_bit_dsp_data(
-					pio_mgr->hbridge_context, addr, val);
-				msg_output += sizeof(struct msg_dspmsg);
-				list_add_tail(&pmsg->list_elem,
-						&hmsg_mgr->msg_free_list);
-				sync_set_event(hmsg_mgr->sync_event);
-			}
-		}
+	if (!msg_ctr_obj->buf_empty)
+		return;
 
-		if (num_msgs > 0) {
-			hmsg_mgr->msgs_pending -= num_msgs;
+	num_msgs = (hmsg_mgr->msgs_pending > hmsg_mgr->max_msgs) ?
+		hmsg_mgr->max_msgs : hmsg_mgr->msgs_pending;
+	msg_output = (struct msg_dspmsg *) pio_mgr->msg_output;
+
+	/* Copy num_msgs messages into shared memory */
+	for (i = 0; i < num_msgs; i++) {
+		if (list_empty(&hmsg_mgr->msg_used_list))
+			continue;
+
+		pmsg = list_first_entry(&hmsg_mgr->msg_used_list,
+				struct msg_frame, list_elem);
+		list_del(&pmsg->list_elem);
+
+		val = (pmsg->msg_data).msgq_id;
+		addr = (u32) &msg_output->msgq_id;
+		write_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr, val);
+
+		val = (pmsg->msg_data).msg.dw_cmd;
+		addr = (u32) &msg_output->msg.dw_cmd;
+		write_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr, val);
+
+		val = (pmsg->msg_data).msg.dw_arg1;
+		addr = (u32) &msg_output->msg.dw_arg1;
+		write_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr, val);
+
+		val = (pmsg->msg_data).msg.dw_arg2;
+		addr = (u32) &msg_output->msg.dw_arg2;
+		write_ext32_bit_dsp_data(pio_mgr->hbridge_context, addr, val);
+
+		msg_output++;
+		list_add_tail(&pmsg->list_elem, &hmsg_mgr->msg_free_list);
+		sync_set_event(hmsg_mgr->sync_event);
+	}
+
+	if (num_msgs > 0) {
+		hmsg_mgr->msgs_pending -= num_msgs;
 #if _CHNL_WORDSIZE == 2
-			/*
-			 * Access can be different SM access word size
-			 * (e.g. 16/32 bit words)
-			 */
-			msg_ctr_obj->size = (u16) num_msgs;
+		/*
+		 * Access can be different SM access word size
+		 * (e.g. 16/32 bit words)
+		 */
+		msg_ctr_obj->size = (u16) num_msgs;
 #else
-			msg_ctr_obj->size = num_msgs;
+		msg_ctr_obj->size = num_msgs;
 #endif
-			msg_ctr_obj->buf_empty = false;
-			/* Set the post SWI flag */
-			msg_ctr_obj->post_swi = true;
-			/* Tell the DSP we have written the output. */
-			sm_interrupt_dsp(pio_mgr->hbridge_context,
-						MBX_PCPY_CLASS);
-		}
+		msg_ctr_obj->buf_empty = false;
+		/* Set the post SWI flag */
+		msg_ctr_obj->post_swi = true;
+		/* Tell the DSP we have written the output. */
+		sm_interrupt_dsp(pio_mgr->hbridge_context, MBX_PCPY_CLASS);
 	}
 }
 
