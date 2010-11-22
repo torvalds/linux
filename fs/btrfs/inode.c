@@ -5731,7 +5731,7 @@ static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 
 	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
 	if (ret)
-		goto out_err;
+		goto free_ordered;
 
 	if (write && !skip_sum) {
 		ret = btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
@@ -5740,7 +5740,7 @@ static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 				   __btrfs_submit_bio_start_direct_io,
 				   __btrfs_submit_bio_done);
 		if (ret)
-			goto out_err;
+			goto free_ordered;
 		return;
 	} else if (!skip_sum)
 		btrfs_lookup_bio_sums_dio(root, inode, bio,
@@ -5748,11 +5748,8 @@ static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 
 	ret = btrfs_map_bio(root, rw, bio, 0, 1);
 	if (ret)
-		goto out_err;
+		goto free_ordered;
 	return;
-out_err:
-	kfree(dip->csums);
-	kfree(dip);
 free_ordered:
 	/*
 	 * If this is a write, we need to clean up the reserved space and kill
