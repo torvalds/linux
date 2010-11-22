@@ -1817,6 +1817,10 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	ah->misc_mode |= AR_PCU_MIC_NEW_LOC_ENA;
 
+	/* enable key search for every frame in an aggregate */
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		ah->misc_mode |= AR_PCU_ALWAYS_PERFORM_KEYSEARCH;
+
 	pCap->low_2ghz_chan = 2312;
 	pCap->high_2ghz_chan = 2732;
 
