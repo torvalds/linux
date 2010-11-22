@@ -9,3 +9,13 @@ config AD5624R_SPI
 	help
 	  Say yes here to build support for Analog Devices AD5624R, AD5644R and
 	  AD5664R convertors (DAC). This driver uses the common SPI interface.
+
+config AD5446
+	tristate "Analog Devices AD5444, AD5446 and AD5541A, AD5512A DAC SPI driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD5444, AD5446
+	  and AD5541A, AD5512A DACs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5446.
