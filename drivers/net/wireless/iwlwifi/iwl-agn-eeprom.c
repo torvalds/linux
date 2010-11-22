@@ -248,6 +248,27 @@ err:
 
 }
 
+int iwl_eeprom_check_sku(struct iwl_priv *priv)
+{
+	u16 eeprom_sku;
+
+	eeprom_sku = iwl_eeprom_query16(priv, EEPROM_SKU_CAP);
+
+	priv->cfg->sku = ((eeprom_sku & EEPROM_SKU_CAP_BAND_SELECTION) >>
+			EEPROM_SKU_CAP_BAND_POS);
+	if (eeprom_sku & EEPROM_SKU_CAP_11N_ENABLE)
+		priv->cfg->sku |= IWL_SKU_N;
+
+	if (!priv->cfg->sku) {
+		IWL_ERR(priv, "Invalid device sku\n");
+		return -EINVAL;
+	}
+
+	IWL_INFO(priv, "Device SKU: 0X%x\n", priv->cfg->sku);
+
+	return 0;
+}
+
 void iwl_eeprom_get_mac(const struct iwl_priv *priv, u8 *mac)
 {
 	const u8 *addr = priv->cfg->ops->lib->eeprom_ops.query_addr(priv,

@@ -2022,6 +2022,9 @@ struct iwl_compressed_ba_resp {
 	__le64 bitmap;
 	__le16 scd_flow;
 	__le16 scd_ssn;
+	/* following only for 5000 series and up */
+	u8 txed;	/* number of frames sent */
+	u8 txed_2_done; /* number of frames acked */
 } __packed;
 
 /*
@@ -2407,9 +2410,9 @@ struct iwl_link_quality_cmd {
 #define BT_FRAG_THRESHOLD_MAX	0
 #define BT_FRAG_THRESHOLD_MIN	0
 
-#define BT_AGG_THRESHOLD_DEF	0
-#define BT_AGG_THRESHOLD_MAX	0
-#define BT_AGG_THRESHOLD_MIN	0
+#define BT_AGG_THRESHOLD_DEF	1200
+#define BT_AGG_THRESHOLD_MAX	8000
+#define BT_AGG_THRESHOLD_MIN	400
 
 /*
  * REPLY_BT_CONFIG = 0x9b (command, has simple generic response)
@@ -2447,8 +2450,8 @@ struct iwl_bt_cmd {
 
 #define IWLAGN_BT3_T7_DEFAULT		1
 
-#define IWLAGN_BT_KILL_ACK_MASK_DEFAULT	cpu_to_le32(0xffffffff)
-#define IWLAGN_BT_KILL_CTS_MASK_DEFAULT	cpu_to_le32(0xffffffff)
+#define IWLAGN_BT_KILL_ACK_MASK_DEFAULT	cpu_to_le32(0xffff0000)
+#define IWLAGN_BT_KILL_CTS_MASK_DEFAULT	cpu_to_le32(0xffff0000)
 
 #define IWLAGN_BT3_PRIO_SAMPLE_DEFAULT	2
 

@@ -833,17 +833,23 @@ static void rs_bt_update_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 			    struct iwl_lq_sta *lq_sta)
 {
 	struct iwl_scale_tbl_info *tbl;
-	bool full_concurrent;
+	bool full_concurrent = priv->bt_full_concurrent;
 	unsigned long flags;
 
-	spin_lock_irqsave(&priv->lock, flags);
-	if (priv->bt_ci_compliance && priv->bt_ant_couple_ok)
-		full_concurrent = true;
-	else
-		full_concurrent = false;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (priv->bt_full_concurrent != full_concurrent) {
+	if (priv->bt_ant_couple_ok) {
+		/*
+		 * Is there a need to switch between
+		 * full concurrency and 3-wire?
+		 */
+		spin_lock_irqsave(&priv->lock, flags);
+		if (priv->bt_ci_compliance && priv->bt_ant_couple_ok)
+			full_concurrent = true;
+		else
+			full_concurrent = false;
+		spin_unlock_irqrestore(&priv->lock, flags);
+	}
+	if ((priv->bt_traffic_load != priv->last_bt_traffic_load) ||
+	    (priv->bt_full_concurrent != full_concurrent)) {
 		priv->bt_full_concurrent = full_concurrent;
 
 		/* Update uCode's rate table. */
@@ -1040,8 +1046,7 @@ done:
 	if (sta && sta->supp_rates[sband->band])
 		rs_rate_scale_perform(priv, skb, sta, lq_sta);
 
-	/* Is there a need to switch between full concurrency and 3-wire? */
-	if (priv->bt_ant_couple_ok)
+	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist)
 		rs_bt_update_lq(priv, ctx, lq_sta);
 }
 
@@ -3010,10 +3015,7 @@ static void rs_fill_link_cmd(struct iwl_priv *priv,
 	 */
 	if (priv && priv->cfg->bt_params &&
 	    priv->cfg->bt_params->agg_time_limit &&
-	    priv->cfg->bt_params->agg_time_limit >=
-		LINK_QUAL_AGG_TIME_LIMIT_MIN &&
-	    priv->cfg->bt_params->agg_time_limit <=
-		 LINK_QUAL_AGG_TIME_LIMIT_MAX)
+	    priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)
 		lq_cmd->agg_params.agg_time_limit =
 			cpu_to_le16(priv->cfg->bt_params->agg_time_limit);
 }

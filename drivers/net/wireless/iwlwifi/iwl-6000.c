@@ -546,6 +546,7 @@ static struct iwl_bt_params iwl6000_bt_params = {
 	.bt_statistics = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.advanced_bt_coexist = true,
+	.agg_time_limit = BT_AGG_THRESHOLD_DEF,
 	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
 	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
 };
@@ -555,7 +556,6 @@ struct iwl_cfg iwl6000g2a_2agn_cfg = {
 	.fw_name_pre = IWL6000G2A_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
@@ -566,6 +566,7 @@ struct iwl_cfg iwl6000g2a_2agn_cfg = {
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
 	.need_temp_offset_calib = true,
+	.led_mode = IWL_LED_RF_STATE,
 };
 
 struct iwl_cfg iwl6000g2a_2abg_cfg = {
@@ -573,7 +574,6 @@ struct iwl_cfg iwl6000g2a_2abg_cfg = {
 	.fw_name_pre = IWL6000G2A_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
@@ -583,6 +583,7 @@ struct iwl_cfg iwl6000g2a_2abg_cfg = {
 	.base_params = &iwl6000_base_params,
 	.need_dc_calib = true,
 	.need_temp_offset_calib = true,
+	.led_mode = IWL_LED_RF_STATE,
 };
 
 struct iwl_cfg iwl6000g2a_2bg_cfg = {
@@ -590,7 +591,6 @@ struct iwl_cfg iwl6000g2a_2bg_cfg = {
 	.fw_name_pre = IWL6000G2A_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
@@ -600,6 +600,7 @@ struct iwl_cfg iwl6000g2a_2bg_cfg = {
 	.base_params = &iwl6000_base_params,
 	.need_dc_calib = true,
 	.need_temp_offset_calib = true,
+	.led_mode = IWL_LED_RF_STATE,
 };
 
 struct iwl_cfg iwl6000g2b_2agn_cfg = {
@@ -607,7 +608,6 @@ struct iwl_cfg iwl6000g2b_2agn_cfg = {
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
@@ -619,6 +619,7 @@ struct iwl_cfg iwl6000g2b_2agn_cfg = {
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
 	.need_temp_offset_calib = true,
+	.led_mode = IWL_LED_RF_STATE,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
@@ -628,7 +629,6 @@ struct iwl_cfg iwl6000g2b_2abg_cfg = {
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
@@ -639,6 +639,7 @@ struct iwl_cfg iwl6000g2b_2abg_cfg = {
 	.bt_params = &iwl6000_bt_params,
 	.need_dc_calib = true,
 	.need_temp_offset_calib = true,
+	.led_mode = IWL_LED_RF_STATE,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
@@ -648,7 +649,6 @@ struct iwl_cfg iwl6000g2b_2bgn_cfg = {
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_G|IWL_SKU_N,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
@@ -660,6 +660,7 @@ struct iwl_cfg iwl6000g2b_2bgn_cfg = {
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
 	.need_temp_offset_calib = true,
+	.led_mode = IWL_LED_RF_STATE,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
@@ -669,7 +670,6 @@ struct iwl_cfg iwl6000g2b_2bg_cfg = {
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
@@ -680,6 +680,7 @@ struct iwl_cfg iwl6000g2b_2bg_cfg = {
 	.bt_params = &iwl6000_bt_params,
 	.need_dc_calib = true,
 	.need_temp_offset_calib = true,
+	.led_mode = IWL_LED_RF_STATE,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
@@ -689,7 +690,6 @@ struct iwl_cfg iwl6000g2b_bgn_cfg = {
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_G|IWL_SKU_N,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
@@ -701,6 +701,7 @@ struct iwl_cfg iwl6000g2b_bgn_cfg = {
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
 	.need_temp_offset_calib = true,
+	.led_mode = IWL_LED_RF_STATE,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
@@ -710,7 +711,6 @@ struct iwl_cfg iwl6000g2b_bg_cfg = {
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
@@ -721,6 +721,7 @@ struct iwl_cfg iwl6000g2b_bg_cfg = {
 	.bt_params = &iwl6000_bt_params,
 	.need_dc_calib = true,
 	.need_temp_offset_calib = true,
+	.led_mode = IWL_LED_RF_STATE,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
@@ -733,7 +734,6 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.valid_tx_ant = ANT_BC,
 	.valid_rx_ant = ANT_BC,
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
@@ -743,6 +743,7 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 	.base_params = &iwl6000_base_params,
 	.ht_params = &iwl6000_ht_params,
 	.pa_type = IWL_PA_INTERNAL,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl6000i_2abg_cfg = {
@@ -750,7 +751,6 @@ struct iwl_cfg iwl6000i_2abg_cfg = {
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G,
 	.valid_tx_ant = ANT_BC,
 	.valid_rx_ant = ANT_BC,
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
@@ -759,6 +759,7 @@ struct iwl_cfg iwl6000i_2abg_cfg = {
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl6000_base_params,
 	.pa_type = IWL_PA_INTERNAL,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl6000i_2bg_cfg = {
@@ -766,7 +767,6 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
 	.valid_tx_ant = ANT_BC,
 	.valid_rx_ant = ANT_BC,
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
@@ -775,6 +775,7 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl6000_base_params,
 	.pa_type = IWL_PA_INTERNAL,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl6050_2agn_cfg = {
@@ -782,7 +783,6 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.fw_name_pre = IWL6050_FW_PRE,
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
 	.ops = &iwl6050_ops,
@@ -792,6 +792,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.base_params = &iwl6050_base_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl6050g2_bgn_cfg = {
@@ -799,7 +800,6 @@ struct iwl_cfg iwl6050g2_bgn_cfg = {
 	.fw_name_pre = IWL6050_FW_PRE,
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
-	.sku = IWL_SKU_G|IWL_SKU_N,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6050G2_EEPROM_VERSION,
@@ -809,6 +809,7 @@ struct iwl_cfg iwl6050g2_bgn_cfg = {
 	.base_params = &iwl6050_base_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
+	.led_mode = IWL_LED_RF_STATE,
 };
 
 struct iwl_cfg iwl6050_2abg_cfg = {
@@ -816,7 +817,6 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.fw_name_pre = IWL6050_FW_PRE,
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G,
 	.valid_tx_ant = ANT_AB,
 	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
@@ -825,6 +825,7 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl6050_base_params,
 	.need_dc_calib = true,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl6000_3agn_cfg = {
@@ -832,7 +833,6 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.valid_tx_ant = ANT_ABC,
 	.valid_rx_ant = ANT_ABC,
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
@@ -842,6 +842,7 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.base_params = &iwl6000_base_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl130_bgn_cfg = {
@@ -849,7 +850,6 @@ struct iwl_cfg iwl130_bgn_cfg = {
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_G|IWL_SKU_N,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_A,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
@@ -860,6 +860,7 @@ struct iwl_cfg iwl130_bgn_cfg = {
 	.bt_params = &iwl6000_bt_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
+	.led_mode = IWL_LED_RF_STATE,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
@@ -869,7 +870,6 @@ struct iwl_cfg iwl130_bg_cfg = {
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_A,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
@@ -879,6 +879,7 @@ struct iwl_cfg iwl130_bg_cfg = {
 	.base_params = &iwl6000_coex_base_params,
 	.bt_params = &iwl6000_bt_params,
 	.need_dc_calib = true,
+	.led_mode = IWL_LED_RF_STATE,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
