@@ -807,23 +807,20 @@ cifs_parse_mount_options(char *options, const char *devname,
 	short int override_gid = -1;
 	bool uid_specified = false;
 	bool gid_specified = false;
+	char *nodename = utsname()->nodename;
 
 	separator[0] = ',';
 	separator[1] = 0;
 
-	if (Local_System_Name[0] != 0)
-		memcpy(vol->source_rfc1001_name, Local_System_Name, 15);
-	else {
-		char *nodename = utsname()->nodename;
-		int n = strnlen(nodename, 15);
-		memset(vol->source_rfc1001_name, 0x20, 15);
-		for (i = 0; i < n; i++) {
-			/* does not have to be perfect mapping since field is
-			informational, only used for servers that do not support
-			port 445 and it can be overridden at mount time */
-			vol->source_rfc1001_name[i] = toupper(nodename[i]);
-		}
-	}
+	/*
+	 * does not have to be perfect mapping since field is
+	 * informational, only used for servers that do not support
+	 * port 445 and it can be overridden at mount time
+	 */
+	memset(vol->source_rfc1001_name, 0x20, 15);
+	for (i = 0; i < strnlen(nodename, 15); i++)
+		vol->source_rfc1001_name[i] = toupper(nodename[i]);
+
 	vol->source_rfc1001_name[15] = 0;
 	/* null target name indicates to use *SMBSERVR default called name
 	   if we end up sending RFC1001 session initialize */
