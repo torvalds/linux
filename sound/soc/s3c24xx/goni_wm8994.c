@@ -25,7 +25,7 @@
 #include <linux/mfd/wm8994/registers.h>
 #include "../codecs/wm8994.h"
 #include "dma.h"
-#include "s3c64xx-i2s.h"
+#include "i2s.h"
 
 #define MACHINE_NAME	0
 #define CPU_VOICE_DAI	1
@@ -163,12 +163,6 @@ static int goni_hifi_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	/* set the cpu system clock */
-	ret = snd_soc_dai_set_sysclk(cpu_dai, S3C64XX_CLKSRC_PCLK,
-			0, SND_SOC_CLOCK_IN);
-	if (ret < 0)
-		return ret;
-
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
@@ -249,7 +243,7 @@ static struct snd_soc_dai_link goni_dai[] = {
 {
 	.name = "WM8994",
 	.stream_name = "WM8994 HiFi",
-	.cpu_dai_name = "s3c64xx-i2s-v4",
+	.cpu_dai_name = "samsung-i2s.0",
 	.codec_dai_name = "wm8994-hifi",
 	.platform_name = "samsung-audio",
 	.codec_name = "wm8994-codec.0-0x1a",
