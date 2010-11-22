@@ -50,6 +50,7 @@ struct tegra_ehci_hcd {
 	struct otg_transceiver *transceiver;
 	int host_resumed;
 	int bus_suspended;
+	int port_resuming;
 	struct tegra_ehci_context context;
 	int power_down_on_bus_suspend;
 };
@@ -82,6 +83,7 @@ static int tegra_ehci_hub_control(
 )
 {
 	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
+	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
 	u32 __iomem	*status_reg;
 	u32		temp;
 	unsigned long	flags;
@@ -94,10 +96,89 @@ static int tegra_ehci_hub_control(
 	 * that are write on clear, by writing back the register read value, so
 	 * USB_PORT_FEAT_ENABLE is handled by masking the set on clear bits
 	 */
-	if ((typeReq == ClearPortFeature) && (wValue == USB_PORT_FEAT_ENABLE)) {
+	if (typeReq == ClearPortFeature && wValue == USB_PORT_FEAT_ENABLE) {
 		spin_lock_irqsave(&ehci->lock, flags);
 		temp = ehci_readl(ehci, status_reg);
 		ehci_writel(ehci, (temp & ~PORT_RWC_BITS) & ~PORT_PE, status_reg);
+		spin_unlock_irqrestore(&ehci->lock, flags);
+		return retval;
+	}
+
+	if (typeReq == GetPortStatus) {
+		spin_lock_irqsave(&ehci->lock, flags);
+		temp = ehci_readl(ehci, status_reg);
+		if (tegra->port_resuming &&  !(temp & PORT_SUSPEND)) {
+			/* resume completed */
+			tegra->port_resuming = 0;
+			tegra_usb_phy_postresume(tegra->phy);
+		}
+		spin_unlock_irqrestore(&ehci->lock, flags);
+	}
+
+	if (typeReq == SetPortFeature && wValue == USB_PORT_FEAT_SUSPEND) {
+		spin_lock_irqsave(&ehci->lock, flags);
+		temp = ehci_readl(ehci, status_reg);
+		if ((temp & PORT_PE) == 0 || (temp & PORT_RESET) != 0)
+			retval = -EPIPE;
+
+		/* After above check the port must be connected.
+		 * Set appropriate bit thus could put phy into low power
+		 * mode if we have hostpc feature
+		 */
+		temp &= ~PORT_WKCONN_E;
+		temp |= PORT_WKDISC_E | PORT_WKOC_E;
+		ehci_writel(ehci, temp | PORT_SUSPEND, status_reg);
+		if (handshake(ehci, status_reg, PORT_SUSPEND,
+						PORT_SUSPEND, 5000))
+			pr_err("%s: timeout waiting for PORT_SUSPEND\n", __func__);
+		spin_unlock_irqrestore(&ehci->lock, flags);
+		return retval;
+	}
+
+	/*
+	 * Tegra host controller will time the resume operation to clear the bit
+	 * when the port control state switches to HS or FS Idle. This behavior
+	 * is different from EHCI where the host controller driver is required
+	 * to set this bit to a zero after the resume duration is timed in the
+	 * driver.
+	 */
+	if (typeReq == ClearPortFeature && wValue == USB_PORT_FEAT_SUSPEND) {
+		spin_lock_irqsave(&ehci->lock, flags);
+		temp = ehci_readl(ehci, status_reg);
+		if ((temp & PORT_RESET) || !(temp & PORT_PE))
+			retval = -EPIPE;
+
+		if (!(temp & PORT_SUSPEND)) {
+			spin_unlock_irqrestore(&ehci->lock, flags);
+			return retval;
+		}
+
+		tegra_usb_phy_preresume(tegra->phy);
+
+		/* reschedule root hub polling during resume signaling */
+		ehci->reset_done[wIndex-1] = jiffies + msecs_to_jiffies(25);
+		/* check the port again */
+		mod_timer(&ehci_to_hcd(ehci)->rh_timer,
+				ehci->reset_done[wIndex-1]);
+
+		temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
+		/* start resume signalling */
+		ehci_writel(ehci, temp | PORT_RESUME, status_reg);
+
+		/* polling PORT_RESUME until the controller clear this bit */
+		if (handshake(ehci, status_reg, PORT_RESUME, 0, 20000))
+			pr_err("%s: timeout waiting for PORT_RESUME\n", __func__);
+
+		/* write PORT_RESUME to 0 to clear PORT_SUSPEND bit */
+		temp &= ~(PORT_RESUME | PORT_SUSPEND);
+		ehci_writel(ehci, temp, status_reg);
+
+		/* polling PORT_SUSPEND until the controller clear this bit */
+		if (handshake(ehci, status_reg, PORT_SUSPEND, 0, 2000))
+			pr_err("%s: timeout waiting for PORT_SUSPEND\n", __func__);
+
+		tegra->port_resuming = 1;
+
 		spin_unlock_irqrestore(&ehci->lock, flags);
 		return retval;
 	}
@@ -357,6 +438,8 @@ static int tegra_ehci_bus_resume(struct usb_hcd *hcd)
 		tegra->bus_suspended = 0;
 	}
 
+	tegra_usb_phy_preresume(tegra->phy);
+	tegra->port_resuming = 1;
 	return ehci_bus_resume(hcd);
 }
 
