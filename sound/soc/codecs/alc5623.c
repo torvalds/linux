@@ -1022,10 +1022,8 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 	dev_dbg(&client->dev, "Found codec id : alc56%02x\n", vid2);
 
 	alc5623 = kzalloc(sizeof(struct alc5623_priv), GFP_KERNEL);
-	if (alc5623 == NULL) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (alc5623 == NULL)
+		return -ENOMEM;
 
 	pdata = client->dev.platform_data;
 	if (pdata) {
@@ -1056,12 +1054,9 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 		&soc_codec_device_alc5623, &alc5623_dai, 1);
 	if (ret != 0) {
 		dev_err(&client->dev, "Failed to register codec: %d\n", ret);
-		goto err;
+		kfree(alc5623);
 	}
 
-	return 0;
-
-err:
 	return ret;
 }
 
