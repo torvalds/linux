@@ -296,7 +296,7 @@ static struct s3c_audio_pdata s3c_ac97_pdata;
 static u64 s3c64xx_ac97_dmamask = DMA_BIT_MASK(32);
 
 struct platform_device s3c64xx_device_ac97 = {
-	.name		  = "s3c-ac97",
+	.name		  = "samsung-ac97",
 	.id		  = -1,
 	.num_resources	  = ARRAY_SIZE(s3c64xx_ac97_resource),
 	.resource	  = s3c64xx_ac97_resource,

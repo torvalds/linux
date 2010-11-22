@@ -46,7 +46,7 @@ static struct snd_soc_dai_link smdk_dai = {
 	.name = "AC97",
 	.stream_name = "AC97 PCM",
 	.platform_name = "samsung-audio",
-	.cpu_dai_name = "s3c-ac97",
+	.cpu_dai_name = "samsung-ac97",
 	.codec_dai_name = "wm9713-hifi",
 	.codec_name = "wm9713-codec",
 };

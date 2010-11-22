@@ -484,7 +484,7 @@ static struct resource s3c_ac97_resource[] = {
 static u64 s3c_device_audio_dmamask = 0xffffffffUL;
 
 struct platform_device s3c_device_ac97 = {
-	.name		  = "s3c-ac97",
+	.name		  = "samsung-ac97",
 	.id		  = -1,
 	.num_resources	  = ARRAY_SIZE(s3c_ac97_resource),
 	.resource	  = s3c_ac97_resource,
