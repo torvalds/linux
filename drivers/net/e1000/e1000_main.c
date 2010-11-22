@@ -1425,13 +1425,12 @@ static int e1000_setup_tx_resources(struct e1000_adapter *adapter,
 	int size;
 
 	size = sizeof(struct e1000_buffer) * txdr->count;
-	txdr->buffer_info = vmalloc(size);
+	txdr->buffer_info = vzalloc(size);
 	if (!txdr->buffer_info) {
 		e_err(probe, "Unable to allocate memory for the Tx descriptor "
 		      "ring\n");
 		return -ENOMEM;
 	}
-	memset(txdr->buffer_info, 0, size);
 
 	/* round up to nearest 4K */
 
@@ -1621,13 +1620,12 @@ static int e1000_setup_rx_resources(struct e1000_adapter *adapter,
 	int size, desc_len;
 
 	size = sizeof(struct e1000_buffer) * rxdr->count;
-	rxdr->buffer_info = vmalloc(size);
+	rxdr->buffer_info = vzalloc(size);
 	if (!rxdr->buffer_info) {
 		e_err(probe, "Unable to allocate memory for the Rx descriptor "
 		      "ring\n");
 		return -ENOMEM;
 	}
-	memset(rxdr->buffer_info, 0, size);
 
 	desc_len = sizeof(struct e1000_rx_desc);
 

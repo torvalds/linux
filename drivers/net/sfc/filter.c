@@ -428,10 +428,9 @@ int efx_probe_filters(struct efx_nic *efx)
 					     GFP_KERNEL);
 		if (!table->used_bitmap)
 			goto fail;
-		table->spec = vmalloc(table->size * sizeof(*table->spec));
+		table->spec = vzalloc(table->size * sizeof(*table->spec));
 		if (!table->spec)
 			goto fail;
-		memset(table->spec, 0, table->size * sizeof(*table->spec));
 	}
 
 	return 0;

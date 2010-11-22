@@ -430,10 +430,9 @@ int igbvf_setup_tx_resources(struct igbvf_adapter *adapter,
 	int size;
 
 	size = sizeof(struct igbvf_buffer) * tx_ring->count;
-	tx_ring->buffer_info = vmalloc(size);
+	tx_ring->buffer_info = vzalloc(size);
 	if (!tx_ring->buffer_info)
 		goto err;
-	memset(tx_ring->buffer_info, 0, size);
 
 	/* round up to nearest 4K */
 	tx_ring->size = tx_ring->count * sizeof(union e1000_adv_tx_desc);
@@ -470,10 +469,9 @@ int igbvf_setup_rx_resources(struct igbvf_adapter *adapter,
 	int size, desc_len;
 
 	size = sizeof(struct igbvf_buffer) * rx_ring->count;
-	rx_ring->buffer_info = vmalloc(size);
+	rx_ring->buffer_info = vzalloc(size);
 	if (!rx_ring->buffer_info)
 		goto err;
-	memset(rx_ring->buffer_info, 0, size);
 
 	desc_len = sizeof(union e1000_adv_rx_desc);
 

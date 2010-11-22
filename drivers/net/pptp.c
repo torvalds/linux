@@ -673,8 +673,7 @@ static int __init pptp_init_module(void)
 	int err = 0;
 	pr_info("PPTP driver version " PPTP_DRIVER_VERSION "\n");
 
-	callid_sock = __vmalloc((MAX_CALLID + 1) * sizeof(void *),
-		GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
+	callid_sock = vzalloc((MAX_CALLID + 1) * sizeof(void *));
 	if (!callid_sock) {
 		pr_err("PPTP: cann't allocate memory\n");
 		return -ENOMEM;

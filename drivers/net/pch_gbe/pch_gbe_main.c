@@ -1523,12 +1523,11 @@ int pch_gbe_setup_tx_resources(struct pch_gbe_adapter *adapter,
 	int desNo;
 
 	size = (int)sizeof(struct pch_gbe_buffer) * tx_ring->count;
-	tx_ring->buffer_info = vmalloc(size);
+	tx_ring->buffer_info = vzalloc(size);
 	if (!tx_ring->buffer_info) {
 		pr_err("Unable to allocate memory for the buffer infomation\n");
 		return -ENOMEM;
 	}
-	memset(tx_ring->buffer_info, 0, size);
 
 	tx_ring->size = tx_ring->count * (int)sizeof(struct pch_gbe_tx_desc);
 
@@ -1573,12 +1572,11 @@ int pch_gbe_setup_rx_resources(struct pch_gbe_adapter *adapter,
 	int desNo;
 
 	size = (int)sizeof(struct pch_gbe_buffer) * rx_ring->count;
-	rx_ring->buffer_info = vmalloc(size);
+	rx_ring->buffer_info = vzalloc(size);
 	if (!rx_ring->buffer_info) {
 		pr_err("Unable to allocate memory for the receive descriptor ring\n");
 		return -ENOMEM;
 	}
-	memset(rx_ring->buffer_info, 0, size);
 	rx_ring->size = rx_ring->count * (int)sizeof(struct pch_gbe_rx_desc);
 	rx_ring->desc =	dma_alloc_coherent(&pdev->dev, rx_ring->size,
 					   &rx_ring->dma, GFP_KERNEL);

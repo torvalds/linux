@@ -1496,11 +1496,9 @@ static int ehea_init_q_skba(struct ehea_q_skb_arr *q_skba, int max_q_entries)
 {
 	int arr_size = sizeof(void *) * max_q_entries;
 
-	q_skba->arr = vmalloc(arr_size);
+	q_skba->arr = vzalloc(arr_size);
 	if (!q_skba->arr)
 		return -ENOMEM;
-
-	memset(q_skba->arr, 0, arr_size);
 
 	q_skba->len = max_q_entries;
 	q_skba->index = 0;

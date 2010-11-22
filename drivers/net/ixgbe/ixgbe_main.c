@@ -5181,12 +5181,11 @@ int ixgbe_setup_tx_resources(struct ixgbe_ring *tx_ring)
 	int size;
 
 	size = sizeof(struct ixgbe_tx_buffer) * tx_ring->count;
-	tx_ring->tx_buffer_info = vmalloc_node(size, tx_ring->numa_node);
+	tx_ring->tx_buffer_info = vzalloc_node(size, tx_ring->numa_node);
 	if (!tx_ring->tx_buffer_info)
-		tx_ring->tx_buffer_info = vmalloc(size);
+		tx_ring->tx_buffer_info = vzalloc(size);
 	if (!tx_ring->tx_buffer_info)
 		goto err;
-	memset(tx_ring->tx_buffer_info, 0, size);
 
 	/* round up to nearest 4K */
 	tx_ring->size = tx_ring->count * sizeof(union ixgbe_adv_tx_desc);
@@ -5246,12 +5245,11 @@ int ixgbe_setup_rx_resources(struct ixgbe_ring *rx_ring)
 	int size;
 
 	size = sizeof(struct ixgbe_rx_buffer) * rx_ring->count;
-	rx_ring->rx_buffer_info = vmalloc_node(size, rx_ring->numa_node);
+	rx_ring->rx_buffer_info = vzalloc_node(size, rx_ring->numa_node);
 	if (!rx_ring->rx_buffer_info)
-		rx_ring->rx_buffer_info = vmalloc(size);
+		rx_ring->rx_buffer_info = vzalloc(size);
 	if (!rx_ring->rx_buffer_info)
 		goto err;
-	memset(rx_ring->rx_buffer_info, 0, size);
 
 	/* Round up to nearest 4K */
 	rx_ring->size = rx_ring->count * sizeof(union ixgbe_adv_rx_desc);

@@ -669,13 +669,12 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 	int size;
 
 	size = sizeof(struct ixgb_buffer) * txdr->count;
-	txdr->buffer_info = vmalloc(size);
+	txdr->buffer_info = vzalloc(size);
 	if (!txdr->buffer_info) {
 		netif_err(adapter, probe, adapter->netdev,
 			  "Unable to allocate transmit descriptor ring memory\n");
 		return -ENOMEM;
 	}
-	memset(txdr->buffer_info, 0, size);
 
 	/* round up to nearest 4K */
 
@@ -759,13 +758,12 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 	int size;
 
 	size = sizeof(struct ixgb_buffer) * rxdr->count;
-	rxdr->buffer_info = vmalloc(size);
+	rxdr->buffer_info = vzalloc(size);
 	if (!rxdr->buffer_info) {
 		netif_err(adapter, probe, adapter->netdev,
 			  "Unable to allocate receive descriptor ring\n");
 		return -ENOMEM;
 	}
-	memset(rxdr->buffer_info, 0, size);
 
 	/* Round up to nearest 4K */
 
