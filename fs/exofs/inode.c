@@ -350,8 +350,10 @@ static int readpage_strip(void *data, struct page *page)
 
 		if (!pcol->read_4_write)
 			unlock_page(page);
-		EXOFS_DBGMSG("readpage_strip(0x%lx, 0x%lx) empty page,"
-			     " splitting\n", inode->i_ino, page->index);
+		EXOFS_DBGMSG("readpage_strip(0x%lx) empty page len=%zx "
+			     "read_4_write=%d index=0x%lx end_index=0x%lx "
+			     "splitting\n", inode->i_ino, len,
+			     pcol->read_4_write, page->index, end_index);
 
 		return read_exec(pcol);
 	}
@@ -722,11 +724,28 @@ int exofs_write_begin(struct file *file, struct address_space *mapping,
 
 	 /* read modify write */
 	if (!PageUptodate(page) && (len != PAGE_CACHE_SIZE)) {
+		loff_t i_size = i_size_read(mapping->host);
+		pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
+		size_t rlen;
+
+		if (page->index < end_index)
+			rlen = PAGE_CACHE_SIZE;
+		else if (page->index == end_index)
+			rlen = i_size & ~PAGE_CACHE_MASK;
+		else
+			rlen = 0;
+
+		if (!rlen) {
+			clear_highpage(page);
+			SetPageUptodate(page);
+			goto out;
+		}
+
 		ret = _readpage(page, true);
 		if (ret) {
 			/*SetPageError was done by _readpage. Is it ok?*/
 			unlock_page(page);
-			EXOFS_DBGMSG("__readpage_filler failed\n");
+			EXOFS_DBGMSG("__readpage failed\n");
 		}
 	}
 out:
