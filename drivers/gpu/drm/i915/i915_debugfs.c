@@ -609,6 +609,36 @@ static const char *purgeable_flag(int purgeable)
 	return purgeable ? " purgeable" : "";
 }
 
+static void print_error_buffers(struct seq_file *m,
+				const char *name,
+				struct drm_i915_error_buffer *err,
+				int count)
+{
+	seq_printf(m, "%s [%d]:\n", name, count);
+
+	while (count--) {
+		seq_printf(m, "  %08x %8zd %04x %04x %08x%s%s%s%s%s",
+			   err->gtt_offset,
+			   err->size,
+			   err->read_domains,
+			   err->write_domain,
+			   err->seqno,
+			   pin_flag(err->pinned),
+			   tiling_flag(err->tiling),
+			   dirty_flag(err->dirty),
+			   purgeable_flag(err->purgeable),
+			   ring_str(err->ring));
+
+		if (err->name)
+			seq_printf(m, " (name: %d)", err->name);
+		if (err->fence_reg != I915_FENCE_REG_NONE)
+			seq_printf(m, " (fence: %d)", err->fence_reg);
+
+		seq_printf(m, "\n");
+		err++;
+	}
+}
+
 static int i915_error_state(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -658,30 +688,15 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	seq_printf(m, "  INSTPM: 0x%08x\n", error->instpm);
 	seq_printf(m, "  seqno: 0x%08x\n", error->seqno);
 
-	if (error->active_bo_count) {
-		seq_printf(m, "Buffers [%d]:\n", error->active_bo_count);
+	if (error->active_bo)
+		print_error_buffers(m, "Active",
+				    error->active_bo,
+				    error->active_bo_count);
 
-		for (i = 0; i < error->active_bo_count; i++) {
-			seq_printf(m, "  %08x %8zd %08x %08x %08x%s%s%s%s %s",
-				   error->active_bo[i].gtt_offset,
-				   error->active_bo[i].size,
-				   error->active_bo[i].read_domains,
-				   error->active_bo[i].write_domain,
-				   error->active_bo[i].seqno,
-				   pin_flag(error->active_bo[i].pinned),
-				   tiling_flag(error->active_bo[i].tiling),
-				   dirty_flag(error->active_bo[i].dirty),
-				   purgeable_flag(error->active_bo[i].purgeable),
-				   ring_str(error->active_bo[i].ring));
-
-			if (error->active_bo[i].name)
-				seq_printf(m, " (name: %d)", error->active_bo[i].name);
-			if (error->active_bo[i].fence_reg != I915_FENCE_REG_NONE)
-				seq_printf(m, " (fence: %d)", error->active_bo[i].fence_reg);
-
-			seq_printf(m, "\n");
-		}
-	}
+	if (error->pinned_bo)
+		print_error_buffers(m, "Pinned",
+				    error->pinned_bo,
+				    error->pinned_bo_count);
 
 	for (i = 0; i < ARRAY_SIZE(error->batchbuffer); i++) {
 		if (error->batchbuffer[i]) {
