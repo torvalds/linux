@@ -639,6 +639,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 
 	ah->hw_version.devid = devid;
 	ah->hw_version.subsysid = 0; /* FIXME */
+	ah->ah_flags |= AH_USE_EEPROM;
 	priv->ah = ah;
 
 	common = ath9k_hw_common(ah);
