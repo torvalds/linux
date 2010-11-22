@@ -13,13 +13,15 @@
 
 /*#define DEBUG*/
 
+#include <linux/sched.h>
 #include <linux/types.h>
+#include <linux/videodev2.h>
 #include <media/videobuf-core.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-mediabus.h>
 #include <media/s3c_fimc.h>
-#include <linux/videodev2.h>
+
 #include "regs-fimc.h"
 
 #define err(fmt, args...) \
