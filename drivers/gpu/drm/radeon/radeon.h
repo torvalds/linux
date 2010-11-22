@@ -180,6 +180,7 @@ void rs690_pm_info(struct radeon_device *rdev);
 extern u32 rv6xx_get_temp(struct radeon_device *rdev);
 extern u32 rv770_get_temp(struct radeon_device *rdev);
 extern u32 evergreen_get_temp(struct radeon_device *rdev);
+extern u32 sumo_get_temp(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -687,6 +688,7 @@ enum radeon_int_thermal_type {
 	THERMAL_TYPE_RV6XX,
 	THERMAL_TYPE_RV770,
 	THERMAL_TYPE_EVERGREEN,
+	THERMAL_TYPE_SUMO,
 };
 
 struct radeon_voltage {

@@ -57,6 +57,14 @@ u32 evergreen_get_temp(struct radeon_device *rdev)
 	return actual_temp * 1000;
 }
 
+u32 sumo_get_temp(struct radeon_device *rdev)
+{
+	u32 temp = RREG32(CG_THERMAL_STATUS) & 0xff;
+	u32 actual_temp = (temp >> 1) & 0xff;
+
+	return actual_temp * 1000;
+}
+
 void evergreen_pm_misc(struct radeon_device *rdev)
 {
 	int req_ps_idx = rdev->pm.requested_power_state_index;
