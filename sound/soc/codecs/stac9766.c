@@ -383,6 +383,7 @@ static struct snd_soc_codec_driver soc_codec_dev_stac9766 = {
 	.reg_cache_size = sizeof(stac9766_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_step = 2,
+	.reg_cache_default = stac9766_reg,
 };
 
 static __devinit int stac9766_probe(struct platform_device *pdev)

@@ -146,7 +146,6 @@ static int wm8523_startup(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	return 0;
 	snd_pcm_hw_constraint_list(substream->runtime, 0,
 				   SNDRV_PCM_HW_PARAM_RATE,
 				   &wm8523->rate_constraint);

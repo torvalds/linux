@@ -2515,6 +2515,8 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8994 = {
 	.resume =	wm8994_resume,
 	.read = wm8994_read,
 	.write = wm8994_write,
+	.readable_register = wm8994_readable,
+	.volatile_register = wm8994_volatile,
 	.set_bias_level = wm8994_set_bias_level,
 };
 
