@@ -479,11 +479,6 @@ static void emulate_gp(struct x86_emulate_ctxt *ctxt, int err)
 	emulate_exception(ctxt, GP_VECTOR, err, true);
 }
 
-static void emulate_pf(struct x86_emulate_ctxt *ctxt)
-{
-	emulate_exception(ctxt, PF_VECTOR, 0, true);
-}
-
 static void emulate_ud(struct x86_emulate_ctxt *ctxt)
 {
 	emulate_exception(ctxt, UD_VECTOR, 0, false);
@@ -1183,9 +1178,6 @@ static int emulate_popf(struct x86_emulate_ctxt *ctxt,
 
 	*(unsigned long *)dest =
 		(ctxt->eflags & ~change_mask) | (val & change_mask);
-
-	if (rc == X86EMUL_PROPAGATE_FAULT)
-		emulate_pf(ctxt);
 
 	return rc;
 }
