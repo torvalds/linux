@@ -32,8 +32,6 @@
 
 #include "dummy.h"
 
-#define REGULATOR_VERSION "0.5"
-
 static DEFINE_MUTEX(regulator_list_mutex);
 static LIST_HEAD(regulator_list);
 static LIST_HEAD(regulator_map_list);
@@ -2579,8 +2577,6 @@ EXPORT_SYMBOL_GPL(regulator_get_init_drvdata);
 static int __init regulator_init(void)
 {
 	int ret;
-
-	printk(KERN_INFO "regulator: core version %s\n", REGULATOR_VERSION);
 
 	ret = class_register(&regulator_class);
 
