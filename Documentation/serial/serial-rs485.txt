@@ -11,10 +11,11 @@
 
 2. HARDWARE-RELATED CONSIDERATIONS
 
-   Some CPUs (e.g., Atmel AT91) contain a built-in half-duplex mode capable of
-   automatically controlling line direction by toggling RTS. That can used to
-   control external half-duplex hardware like an RS485 transceiver or any
-   RS232-connected half-duplex device like some modems.
+   Some CPUs/UARTs (e.g., Atmel AT91 or 16C950 UART) contain a built-in
+   half-duplex mode capable of automatically controlling line direction by
+   toggling RTS or DTR signals. That can be used to control external
+   half-duplex hardware like an RS485 transceiver or any RS232-connected
+   half-duplex devices like some modems.
 
    For these microcontrollers, the Linux driver should be made capable of
    working in both modes, and proper ioctls (see later) should be made
