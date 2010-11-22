@@ -896,7 +896,9 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 		if (!request)
 			return;
 	}
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_TUSB_OMAP_DMA)
 exit:
+#endif
 	/* Analyze request */
 	rxstate(musb, to_musb_request(request));
 }
