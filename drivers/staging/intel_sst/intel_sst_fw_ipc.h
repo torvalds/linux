@@ -68,6 +68,8 @@
 #define IPC_IA_CAPT_VOICE 0x17
 #define IPC_IA_DECODE_FRAMES 0x18
 
+#define IPC_IA_ALG_PARAMS 0x1A
+
 /* I2L Stream config/control msgs */
 #define IPC_IA_ALLOC_STREAM 0x20 /* Allocate a stream ID */
 #define IPC_IA_FREE_STREAM 0x21 /* Free the stream ID */

@@ -828,6 +828,141 @@ static void sst_print_stream_params(struct snd_sst_get_stream_params *get_prm)
 }
 
 /**
+ * sst_create_algo_ipc - create ipc msg for algorithm parameters
+ *
+ * @algo_params: Algorithm parameters
+ * @msg: post msg pointer
+ *
+ * This function is called to create ipc msg
+ */
+int sst_create_algo_ipc(struct snd_ppp_params *algo_params,
+					struct ipc_post **msg)
+{
+	if (sst_create_large_msg(msg))
+		return -ENOMEM;
+	sst_fill_header(&(*msg)->header,
+			IPC_IA_ALG_PARAMS, 1, algo_params->str_id);
+	(*msg)->header.part.data = sizeof(u32) +
+			sizeof(*algo_params) + algo_params->size;
+	memcpy((*msg)->mailbox_data, &(*msg)->header, sizeof(u32));
+	memcpy((*msg)->mailbox_data + sizeof(u32),
+				algo_params, sizeof(*algo_params));
+	return 0;
+}
+
+/**
+ * sst_send_algo_ipc - send ipc msg for algorithm parameters
+ *
+ * @msg: post msg pointer
+ *
+ * This function is called to send ipc msg
+ */
+int sst_send_algo_ipc(struct ipc_post **msg)
+{
+	sst_drv_ctx->ppp_params_blk.condition = false;
+	sst_drv_ctx->ppp_params_blk.ret_code = 0;
+	sst_drv_ctx->ppp_params_blk.on = true;
+	sst_drv_ctx->ppp_params_blk.data = NULL;
+	spin_lock(&sst_drv_ctx->list_spin_lock);
+	list_add_tail(&(*msg)->node, &sst_drv_ctx->ipc_dispatch_list);
+	spin_unlock(&sst_drv_ctx->list_spin_lock);
+	sst_post_message(&sst_drv_ctx->ipc_post_msg_wq);
+	return sst_wait_interruptible_timeout(sst_drv_ctx,
+			&sst_drv_ctx->ppp_params_blk, SST_BLOCK_TIMEOUT);
+}
+
+/**
+ * intel_sst_ioctl_dsp - recieves the device ioctl's
+ *
+ * @cmd:Ioctl cmd
+ * @arg:data
+ *
+ * This function is called when a user space component
+ * sends a DSP Ioctl to SST driver
+ */
+long intel_sst_ioctl_dsp(unsigned int cmd, unsigned long arg)
+{
+	int retval = 0;
+	struct snd_ppp_params algo_params;
+	struct snd_ppp_params *algo_params_copied;
+	struct ipc_post *msg;
+
+	switch (_IOC_NR(cmd)) {
+	case _IOC_NR(SNDRV_SST_SET_ALGO):
+		if (copy_from_user(&algo_params, (void __user *)arg,
+							sizeof(algo_params)))
+			return -EFAULT;
+		if (algo_params.size > SST_MAILBOX_SIZE)
+			return -EMSGSIZE;
+
+		pr_debug("Algo ID %d Str id %d Enable %d Size %d\n",
+			algo_params.algo_id, algo_params.str_id,
+			algo_params.enable, algo_params.size);
+		retval = sst_create_algo_ipc(&algo_params, &msg);
+		if (retval)
+			break;
+		algo_params.reserved = 0;
+		if (copy_from_user(msg->mailbox_data + sizeof(algo_params),
+				algo_params.params, algo_params.size))
+			return -EFAULT;
+
+		retval = sst_send_algo_ipc(&msg);
+		if (retval) {
+			pr_debug("Error in sst_set_algo = %d\n", retval);
+			retval = -EIO;
+		}
+		break;
+
+	case _IOC_NR(SNDRV_SST_GET_ALGO):
+		if (copy_from_user(&algo_params, (void __user *)arg,
+							sizeof(algo_params)))
+			return -EFAULT;
+		pr_debug("Algo ID %d Str id %d Enable %d Size %d\n",
+			algo_params.algo_id, algo_params.str_id,
+			algo_params.enable, algo_params.size);
+		retval = sst_create_algo_ipc(&algo_params, &msg);
+		if (retval)
+			break;
+		algo_params.reserved = 1;
+		retval = sst_send_algo_ipc(&msg);
+		if (retval) {
+			pr_debug("Error in sst_get_algo = %d\n", retval);
+			retval = -EIO;
+			break;
+		}
+		algo_params_copied = (struct snd_ppp_params *)
+					sst_drv_ctx->ppp_params_blk.data;
+		if (algo_params_copied->size > algo_params.size) {
+			pr_debug("mem insufficient to copy\n");
+			retval = -EMSGSIZE;
+			goto free_mem;
+		} else {
+			char __user *tmp;
+
+			if (copy_to_user(algo_params.params,
+					algo_params_copied->params,
+					algo_params_copied->size)) {
+				retval = -EFAULT;
+				goto free_mem;
+			}
+			tmp = (char __user *)arg + offsetof(
+					struct snd_ppp_params, size);
+			if (copy_to_user(tmp, &algo_params_copied->size,
+						 sizeof(__u32))) {
+				retval = -EFAULT;
+				goto free_mem;
+			}
+
+		}
+free_mem:
+		kfree(algo_params_copied->params);
+		kfree(algo_params_copied);
+		break;
+	}
+	return retval;
+}
+
+/**
  * intel_sst_ioctl - receives the device ioctl's
  * @file_ptr:pointer to file
  * @cmd:Ioctl cmd
@@ -1270,6 +1405,14 @@ free_iobufs:
 		kfree(fw_info);
 		break;
 	}
+	case _IOC_NR(SNDRV_SST_GET_ALGO):
+	case _IOC_NR(SNDRV_SST_SET_ALGO):
+		if (minor != AM_MODULE) {
+			retval = -EBADRQC;
+			break;
+		}
+		retval = intel_sst_ioctl_dsp(cmd, arg);
+		break;
 	default:
 		retval = -EINVAL;
 	}

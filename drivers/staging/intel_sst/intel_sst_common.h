@@ -392,7 +392,7 @@ struct intel_sst_drv {
 
 	struct stream_info	streams[MAX_NUM_STREAMS];
 	struct stream_alloc_block alloc_block[MAX_ACTIVE_STREAM];
-	struct sst_block	tgt_dev_blk, fw_info_blk,
+	struct sst_block	tgt_dev_blk, fw_info_blk, ppp_params_blk,
 				vol_info_blk, mute_info_blk, hs_info_blk;
 	struct mutex		list_lock;/* mutex for IPC list locking */
 	spinlock_t	list_spin_lock; /* mutex for IPC list locking */

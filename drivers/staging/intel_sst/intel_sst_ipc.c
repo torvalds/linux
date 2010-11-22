@@ -336,6 +336,55 @@ void sst_process_reply(struct work_struct *work)
 				wake_up(&sst_drv_ctx->wait_queue);
 		}
 		break;
+	case IPC_IA_ALG_PARAMS: {
+		pr_debug("sst:IPC_ALG_PARAMS response %x\n", msg->header.full);
+		pr_debug("sst: data value %x\n", msg->header.part.data);
+		pr_debug("sst: large value %x\n", msg->header.part.large);
+
+		if (!msg->header.part.large) {
+			if (!msg->header.part.data) {
+				pr_debug("sst: alg set success\n");
+				sst_drv_ctx->ppp_params_blk.ret_code = 0;
+			} else {
+				pr_debug("sst: alg set failed\n");
+				sst_drv_ctx->ppp_params_blk.ret_code =
+							-msg->header.part.data;
+			}
+
+		} else if (msg->header.part.data) {
+			struct snd_ppp_params *mailbox_params, *get_params;
+			char *params;
+
+			pr_debug("sst: alg get success\n");
+			mailbox_params = (struct snd_ppp_params *)msg->mailbox;
+			get_params = kzalloc(sizeof(*get_params), GFP_KERNEL);
+			if (get_params == NULL) {
+				pr_err("sst: out of memory for ALG PARAMS");
+				break;
+			}
+			memcpy_fromio(get_params, mailbox_params,
+							sizeof(*get_params));
+			get_params->params = kzalloc(mailbox_params->size,
+							GFP_KERNEL);
+			if (get_params->params == NULL) {
+				kfree(get_params);
+				pr_err("sst: out of memory for ALG PARAMS block");
+				break;
+			}
+			params = msg->mailbox;
+			params = params + sizeof(*mailbox_params) - sizeof(u32);
+			memcpy_fromio(get_params->params, params,
+							get_params->size);
+			sst_drv_ctx->ppp_params_blk.ret_code = 0;
+			sst_drv_ctx->ppp_params_blk.data = get_params;
+		}
+
+		if (sst_drv_ctx->ppp_params_blk.on == true) {
+			sst_drv_ctx->ppp_params_blk.condition = true;
+			wake_up(&sst_drv_ctx->wait_queue);
+		}
+		break;
+	}
 	case IPC_IA_GET_FW_INFO: {
 		struct snd_sst_fw_info *fw_info =
 			(struct snd_sst_fw_info *)msg->mailbox;

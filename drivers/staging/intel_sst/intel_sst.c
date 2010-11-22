@@ -306,19 +306,19 @@ static int __devinit intel_sst_probe(struct pci_dev *pci,
 		goto do_unmap_dram;
 	pr_debug("Registered IRQ 0x%x\n", pci->irq);
 
+	/*Register LPE Control as misc driver*/
+	ret = misc_register(&lpe_ctrl);
+	if (ret) {
+		pr_err("couldn't register control device\n");
+		goto do_free_irq;
+	}
+
 	if (sst_drv_ctx->pci_id == SST_MRST_PCI_ID) {
 		ret = misc_register(&lpe_dev);
 		if (ret) {
-			pr_err("couldn't register LPE device\n");
-			goto do_free_irq;
-		}
-
-		/*Register LPE Control as misc driver*/
-		ret = misc_register(&lpe_ctrl);
-		if (ret) {
-			pr_err("couldn't register misc driver\n");
-			goto do_free_irq;
-		}
+ 			pr_err("couldn't register misc driver\n");
+			goto do_free_misc;
+ 		}
 	}
 	sst_drv_ctx->lpe_stalled = 0;
 	pm_runtime_set_active(&pci->dev);
@@ -327,6 +327,8 @@ static int __devinit intel_sst_probe(struct pci_dev *pci,
 	pr_debug("...successfully done!!!\n");
 	return ret;
 
+do_free_misc:
+	misc_deregister(&lpe_ctrl);
 do_free_irq:
 	free_irq(pci->irq, sst_drv_ctx);
 do_unmap_dram:
@@ -371,10 +373,9 @@ static void __devexit intel_sst_remove(struct pci_dev *pci)
 	mutex_lock(&sst_drv_ctx->sst_lock);
 	sst_drv_ctx->sst_state = SST_UN_INIT;
 	mutex_unlock(&sst_drv_ctx->sst_lock);
-	if (sst_drv_ctx->pci_id == SST_MRST_PCI_ID) {
+	misc_deregister(&lpe_ctrl);
+	if (sst_drv_ctx->pci_id == SST_MRST_PCI_ID)
 		misc_deregister(&lpe_dev);
-		misc_deregister(&lpe_ctrl);
-	}
 	free_irq(pci->irq, sst_drv_ctx);
 	iounmap(sst_drv_ctx->dram);
 	iounmap(sst_drv_ctx->iram);
