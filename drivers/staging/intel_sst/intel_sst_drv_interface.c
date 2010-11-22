@@ -32,6 +32,7 @@
 #include <linux/pci.h>
 #include <linux/fs.h>
 #include <linux/firmware.h>
+#include <linux/pm_runtime.h>
 #include "intel_sst.h"
 #include "intel_sst_ioctl.h"
 #include "intel_sst_fw_ipc.h"
@@ -310,12 +311,15 @@ int sst_open_pcm_stream(struct snd_sst_params *str_param)
 	struct stream_info *str_info;
 	int retval;
 
+	pm_runtime_get_sync(&sst_drv_ctx->pci->dev);
+
 	if (sst_drv_ctx->sst_state == SST_SUSPENDED) {
-		/*LPE is suspended, resume it before proceding*/
+		/* LPE is suspended, resume it before proceding*/
 		pr_debug("Resuming from Suspended state\n");
 		retval = intel_sst_resume(sst_drv_ctx->pci);
 		if (retval) {
 			pr_err("Resume Failed = %#x, abort\n", retval);
+			pm_runtime_put(&sst_drv_ctx->pci->dev);
 			return retval;
 		}
 	}
@@ -325,20 +329,25 @@ int sst_open_pcm_stream(struct snd_sst_params *str_param)
 		retval = sst_download_fw();
 		if (retval) {
 			pr_err("FW download fail %x, abort\n", retval);
+			pm_runtime_put(&sst_drv_ctx->pci->dev);
 			return retval;
 		}
 		send_intial_rx_timeslot();
 	}
 
-	if (!str_param)
+	if (!str_param) {
+		pm_runtime_put(&sst_drv_ctx->pci->dev);
 		return -EINVAL;
+	}
 
 	retval = sst_get_stream(str_param);
 	if (retval > 0) {
 		sst_drv_ctx->stream_cnt++;
 		str_info = &sst_drv_ctx->streams[retval];
 		str_info->src = MAD_DRV;
-	}
+	} else
+		pm_runtime_put(&sst_drv_ctx->pci->dev);
+
 	return retval;
 }
 
@@ -364,6 +373,7 @@ int sst_close_pcm_stream(unsigned int str_id)
 	stream->period_elapsed = NULL;
 	sst_drv_ctx->stream_cnt--;
 	pr_debug("sst: will call runtime put now\n");
+	pm_runtime_put(&sst_drv_ctx->pci->dev);
 	return 0;
 }
 

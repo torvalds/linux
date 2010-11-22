@@ -182,6 +182,7 @@ int process_fw_init(struct sst_ipc_msg_wq *msg)
 		sst_send_sound_card_type();
 	mutex_lock(&sst_drv_ctx->sst_lock);
 	sst_drv_ctx->sst_state = SST_FW_RUNNING;
+	sst_drv_ctx->lpe_stalled = 0;
 	mutex_unlock(&sst_drv_ctx->sst_lock);
 	pr_debug("FW Version %x.%x\n",
 			init->fw_version.major, init->fw_version.minor);

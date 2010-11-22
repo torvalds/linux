@@ -51,7 +51,8 @@ static int intel_sst_reset_dsp_mrst(void)
 	union config_status_reg csr;
 
 	pr_debug("Resetting the DSP in mrst\n");
-	csr.full = 0x3a2;
+	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
+	csr.full |= 0x382;
 	sst_shim_write(sst_drv_ctx->shim, SST_CSR, csr.full);
 	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
 	csr.part.strb_cntr_rst = 0;

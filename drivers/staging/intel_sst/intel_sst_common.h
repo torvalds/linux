@@ -37,6 +37,7 @@
 #define SST_FW_FILENAME_MFLD "fw_sst_082f.bin"
 #define SST_MRST_PCI_ID 0x080A
 #define SST_MFLD_PCI_ID 0x082F
+#define SST_SUSPEND_DELAY 2000
 
 enum sst_states {
 	SST_FW_LOADED = 1,

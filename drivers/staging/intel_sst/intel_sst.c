@@ -36,6 +36,7 @@
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
 #include <linux/miscdevice.h>
+#include <linux/pm_runtime.h>
 #include <asm/mrst.h>
 #include "intel_sst.h"
 #include "intel_sst_ioctl.h"
@@ -320,6 +321,9 @@ static int __devinit intel_sst_probe(struct pci_dev *pci,
 		}
 	}
 	sst_drv_ctx->lpe_stalled = 0;
+	pm_runtime_set_active(&pci->dev);
+	pm_runtime_enable(&pci->dev);
+	pm_runtime_allow(&pci->dev);
 	pr_debug("...successfully done!!!\n");
 	return ret;
 
@@ -408,8 +412,10 @@ int intel_sst_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pr_debug("intel_sst_suspend called\n");
 
-	if (sst_drv_ctx->pb_streams != 0 || sst_drv_ctx->cp_streams != 0)
-		return -EPERM;
+	if (sst_drv_ctx->stream_cnt) {
+		pr_err("active streams,not able to suspend\n");
+		return -EBUSY;
+	}
 	/*Assert RESET on LPE Processor*/
 	csr.full = sst_shim_read(sst_drv_ctx->shim, SST_CSR);
 	csr.full = csr.full | 0x2;
@@ -439,7 +445,7 @@ int intel_sst_resume(struct pci_dev *pci)
 	pr_debug("intel_sst_resume called\n");
 	if (sst_drv_ctx->sst_state != SST_SUSPENDED) {
 		pr_err("SST is not in suspended state\n");
-		return -EPERM;
+		return 0;
 	}
 	sst_drv_ctx = pci_get_drvdata(pci);
 	pci_set_power_state(pci, PCI_D0);
@@ -453,6 +459,34 @@ int intel_sst_resume(struct pci_dev *pci)
 	mutex_unlock(&sst_drv_ctx->sst_lock);
 	return 0;
 }
+
+static int intel_sst_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	pr_debug("runtime_suspend called\n");
+	return intel_sst_suspend(pci_dev, PMSG_SUSPEND);
+}
+
+static int intel_sst_runtime_resume(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	pr_debug("runtime_resume called\n");
+	return intel_sst_resume(pci_dev);
+}
+
+static int intel_sst_runtime_idle(struct device *dev)
+{
+	pr_debug("runtime_idle called\n");
+	if (sst_drv_ctx->stream_cnt == 0 && sst_drv_ctx->am_cnt == 0)
+		pm_schedule_suspend(dev, SST_SUSPEND_DELAY);
+	return -EBUSY;
+}
+
+static const struct dev_pm_ops intel_sst_pm = {
+	.runtime_suspend = intel_sst_runtime_suspend,
+	.runtime_resume = intel_sst_runtime_resume,
+	.runtime_idle = intel_sst_runtime_idle,
+};
 
 /* PCI Routines */
 static struct pci_device_id intel_sst_ids[] = {
@@ -470,6 +504,9 @@ static struct pci_driver driver = {
 #ifdef CONFIG_PM
 	.suspend = intel_sst_suspend,
 	.resume = intel_sst_resume,
+	.driver = {
+		.pm = &intel_sst_pm,
+	},
 #endif
 };
 

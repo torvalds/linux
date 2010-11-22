@@ -35,6 +35,7 @@
 #include <linux/aio.h>
 #include <linux/uaccess.h>
 #include <linux/firmware.h>
+#include <linux/pm_runtime.h>
 #include <linux/ioctl.h>
 #include <linux/smp_lock.h>
 #ifdef CONFIG_MRST_RAR_HANDLER
@@ -103,8 +104,10 @@ int intel_sst_open(struct inode *i_node, struct file *file_ptr)
 	unsigned int retval;
 
 	mutex_lock(&sst_drv_ctx->stream_lock);
+	pm_runtime_get_sync(&sst_drv_ctx->pci->dev);
 	retval = intel_sst_check_device();
 	if (retval) {
+		pm_runtime_put(&sst_drv_ctx->pci->dev);
 		mutex_unlock(&sst_drv_ctx->stream_lock);
 		return retval;
 	}
@@ -113,6 +116,7 @@ int intel_sst_open(struct inode *i_node, struct file *file_ptr)
 		struct ioctl_pvt_data *data =
 			kzalloc(sizeof(struct ioctl_pvt_data), GFP_KERNEL);
 		if (!data) {
+			pm_runtime_put(&sst_drv_ctx->pci->dev);
 			mutex_unlock(&sst_drv_ctx->stream_lock);
 			return -ENOMEM;
 		}
@@ -125,6 +129,7 @@ int intel_sst_open(struct inode *i_node, struct file *file_ptr)
 		pr_debug("pvt_id handle = %d!\n", data->pvt_id);
 	} else {
 		retval = -EUSERS;
+		pm_runtime_put(&sst_drv_ctx->pci->dev);
 		mutex_unlock(&sst_drv_ctx->stream_lock);
 	}
 	return retval;
@@ -147,8 +152,10 @@ int intel_sst_open_cntrl(struct inode *i_node, struct file *file_ptr)
 
 	/* audio manager open */
 	mutex_lock(&sst_drv_ctx->stream_lock);
+	pm_runtime_get_sync(&sst_drv_ctx->pci->dev);
 	retval = intel_sst_check_device();
 	if (retval) {
+		pm_runtime_put(&sst_drv_ctx->pci->dev);
 		mutex_unlock(&sst_drv_ctx->stream_lock);
 		return retval;
 	}
@@ -157,8 +164,10 @@ int intel_sst_open_cntrl(struct inode *i_node, struct file *file_ptr)
 		sst_drv_ctx->am_cnt++;
 		pr_debug("AM handle opened...\n");
 		file_ptr->private_data = NULL;
-	} else
+	} else {
 		retval = -EACCES;
+		pm_runtime_put(&sst_drv_ctx->pci->dev);
+	}
 
 	mutex_unlock(&sst_drv_ctx->stream_lock);
 	return retval;
@@ -181,6 +190,7 @@ int intel_sst_release(struct inode *i_node, struct file *file_ptr)
 	mutex_lock(&sst_drv_ctx->stream_lock);
 	sst_drv_ctx->encoded_cnt--;
 	sst_drv_ctx->stream_cnt--;
+	pm_runtime_put(&sst_drv_ctx->pci->dev);
 	mutex_unlock(&sst_drv_ctx->stream_lock);
 	free_stream_context(data->str_id);
 	kfree(data);
@@ -192,6 +202,7 @@ int intel_sst_release_cntrl(struct inode *i_node, struct file *file_ptr)
 	/* audio manager close */
 	mutex_lock(&sst_drv_ctx->stream_lock);
 	sst_drv_ctx->am_cnt--;
+	pm_runtime_put(&sst_drv_ctx->pci->dev);
 	mutex_unlock(&sst_drv_ctx->stream_lock);
 	pr_debug("AM handle closed\n");
 	return 0;
