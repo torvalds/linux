@@ -3837,8 +3837,10 @@ int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page)
 
 	spin_lock(&tree->buffer_lock);
 	eb = radix_tree_lookup(&tree->buffer, start >> PAGE_CACHE_SHIFT);
-	if (!eb)
-		goto out;
+	if (!eb) {
+		spin_unlock(&tree->buffer_lock);
+		return ret;
+	}
 
 	if (test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
 		ret = 0;
