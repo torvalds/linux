@@ -27,6 +27,14 @@
 #include "s3c-dma.h"
 #include "s3c64xx-i2s.h"
 
+#define MACHINE_NAME	0
+#define CPU_VOICE_DAI	1
+
+static const char *aquila_str[] = {
+	[MACHINE_NAME] = "aquila",
+	[CPU_VOICE_DAI] = "aquila-voice-dai",
+};
+
 static struct snd_soc_card goni;
 static struct platform_device *goni_snd_device;
 
@@ -114,6 +122,11 @@ static int goni_wm8994_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "LINEOUT1P");
 	snd_soc_dapm_nc_pin(dapm, "LINEOUT2N");
 	snd_soc_dapm_nc_pin(dapm, "LINEOUT2P");
+
+	if (machine_is_aquila()) {
+		snd_soc_dapm_nc_pin(dapm, "SPKOUTRN");
+		snd_soc_dapm_nc_pin(dapm, "SPKOUTRP");
+	}
 
 	snd_soc_dapm_sync(dapm);
 
@@ -263,7 +276,11 @@ static int __init goni_init(void)
 {
 	int ret;
 
-	if (!machine_is_goni())
+	if (machine_is_aquila()) {
+		voice_dai.name = aquila_str[CPU_VOICE_DAI];
+		goni_dai[1].cpu_dai_name = aquila_str[CPU_VOICE_DAI];
+		goni.name = aquila_str[MACHINE_NAME];
+	} else if (!machine_is_goni())
 		return -ENODEV;
 
 	goni_snd_device = platform_device_alloc("soc-audio", -1);

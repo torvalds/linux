@@ -145,22 +145,13 @@ config SND_S3C64XX_SOC_SMARTQ
 	select SND_S3C64XX_SOC_I2S
 	select SND_SOC_WM8750
 
-config SND_S5PC110_SOC_AQUILA_WM8994
-	tristate "SoC I2S Audio support for AQUILA - WM8994"
-	depends on SND_S3C24XX_SOC && MACH_AQUILA
+config SND_SOC_GONI_AQUILA_WM8994
+	tristate "SoC I2S Audio support for AQUILA/GONI - WM8994"
+	depends on SND_S3C24XX_SOC && (MACH_GONI || MACH_AQUILA)
 	select SND_S3C64XX_SOC_I2S_V4
 	select SND_SOC_WM8994
 	help
-	  Say Y if you want to add support for SoC audio on aquila
-	  with the WM8994.
-
-config SND_S5PV210_SOC_GONI_WM8994
-	tristate "SoC I2S Audio support for GONI - WM8994"
-	depends on SND_S3C24XX_SOC && MACH_GONI
-	select SND_S3C64XX_SOC_I2S_V4
-	select SND_SOC_WM8994
-	help
-	  Say Y if you want to add support for SoC audio on goni
+	  Say Y if you want to add support for SoC audio on goni or aquila
 	  with the WM8994.
 
 config SND_SOC_SMDK_SPDIF
