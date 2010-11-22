@@ -7102,6 +7102,10 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 	btrfs_wait_ordered_range(inode, alloc_start, alloc_end - alloc_start);
 
 	mutex_lock(&inode->i_mutex);
+	ret = inode_newsize_ok(inode, alloc_end);
+	if (ret)
+		goto out;
+
 	if (alloc_start > inode->i_size) {
 		ret = btrfs_cont_expand(inode, alloc_start);
 		if (ret)
