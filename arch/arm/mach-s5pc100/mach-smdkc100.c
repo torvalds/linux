@@ -96,6 +96,7 @@ static struct s3c2410_uartcfg smdkc100_uartcfgs[] __initdata = {
 
 /* I2C0 */
 static struct i2c_board_info i2c_devs0[] __initdata = {
+	{I2C_BOARD_INFO("wm8580", 0x1b),},
 };
 
 /* I2C1 */
@@ -190,6 +191,7 @@ static struct platform_device *smdkc100_devices[] __initdata = {
 	&s3c_device_ts,
 	&s3c_device_wdt,
 	&smdkc100_lcd_powerdev,
+	&samsung_asoc_dma,
 	&s5pc100_device_iis0,
 	&samsung_device_keypad,
 	&s5pc100_device_ac97,

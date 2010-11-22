@@ -17,6 +17,8 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
+#include <asm/mach-types.h>
+
 #include "../codecs/wm8580.h"
 #include "dma.h"
 #include "i2s.h"
@@ -200,33 +202,49 @@ static int smdk_wm8580_init_paifrx(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+enum {
+	PRI_PLAYBACK = 0,
+	PRI_CAPTURE,
+	SEC_PLAYBACK,
+};
+
 static struct snd_soc_dai_link smdk_dai[] = {
-{ /* Primary Playback i/f */
-	.name = "WM8580 PAIF RX",
-	.stream_name = "Playback",
-	.cpu_dai_name = "samsung-i2s.2",
-	.codec_dai_name = "wm8580-hifi-playback",
-	.platform_name = "samsung-audio",
-	.codec_name = "wm8580-codec.0-001b",
-	.init = smdk_wm8580_init_paifrx,
-	.ops = &smdk_ops,
-},
-{ /* Primary Capture i/f */
-	.name = "WM8580 PAIF TX",
-	.stream_name = "Capture",
-	.cpu_dai_name = "samsung-i2s.2",
-	.codec_dai_name = "wm8580-hifi-capture",
-	.platform_name = "samsung-audio",
-	.codec_name = "wm8580-codec.0-001b",
-	.init = smdk_wm8580_init_paiftx,
-	.ops = &smdk_ops,
-},
+	[PRI_PLAYBACK] = { /* Primary Playback i/f */
+		.name = "WM8580 PAIF RX",
+		.stream_name = "Playback",
+		.cpu_dai_name = "samsung-i2s.2",
+		.codec_dai_name = "wm8580-hifi-playback",
+		.platform_name = "samsung-audio",
+		.codec_name = "wm8580-codec.0-001b",
+		.init = smdk_wm8580_init_paifrx,
+		.ops = &smdk_ops,
+	},
+	[PRI_CAPTURE] = { /* Primary Capture i/f */
+		.name = "WM8580 PAIF TX",
+		.stream_name = "Capture",
+		.cpu_dai_name = "samsung-i2s.2",
+		.codec_dai_name = "wm8580-hifi-capture",
+		.platform_name = "samsung-audio",
+		.codec_name = "wm8580-codec.0-001b",
+		.init = smdk_wm8580_init_paiftx,
+		.ops = &smdk_ops,
+	},
+	[SEC_PLAYBACK] = { /* Sec_Fifo Playback i/f */
+		.name = "Sec_FIFO TX",
+		.stream_name = "Playback",
+		.cpu_dai_name = "samsung-i2s.x",
+		.codec_dai_name = "wm8580-hifi-playback",
+		.platform_name = "samsung-audio",
+		.codec_name = "wm8580-codec.0-001b",
+		.init = smdk_wm8580_init_paifrx,
+		.ops = &smdk_ops,
+	},
 };
 
 static struct snd_soc_card smdk = {
 	.name = "SMDK-I2S",
 	.dai_link = smdk_dai,
-	.num_links = ARRAY_SIZE(smdk_dai),
+	.num_links = 2,
 };
 
 static struct platform_device *smdk_snd_device;
@@ -234,6 +252,19 @@ static struct platform_device *smdk_snd_device;
 static int __init smdk_audio_init(void)
 {
 	int ret;
+	char *str;
+
+	if (machine_is_smdkc100()) {
+		smdk.num_links = 3;
+		/* S5PC100 has I2S0 as v5 */
+		str = (char *)smdk_dai[PRI_PLAYBACK].cpu_dai_name;
+		str[strlen(str) - 1] = '0';
+		str = (char *)smdk_dai[PRI_CAPTURE].cpu_dai_name;
+		str[strlen(str) - 1] = '0';
+		/* Secondary is at offset SAMSUNG_I2S_SECOFF from Primary */
+		str = (char *)smdk_dai[SEC_PLAYBACK].cpu_dai_name;
+		str[strlen(str) - 1] = '0' + SAMSUNG_I2S_SECOFF;
+	}
 
 	smdk_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!smdk_snd_device)
