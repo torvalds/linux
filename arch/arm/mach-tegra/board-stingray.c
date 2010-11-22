@@ -893,6 +893,19 @@ static int __init stingray_revision_parse(char *options)
 }
 __setup("hw_rev=", stingray_revision_parse);
 
+int stingray_qbp_usb_hw_bypass_enabled(void)
+{
+	/* We could use the boot_mode string instead of probing the HW, but
+	 * that would not work if we enable run-time switching to this mode
+	 * in the future.
+	 */
+	if (gpio_get_value(TEGRA_GPIO_PT3) && !gpio_get_value(TEGRA_GPIO_PV4)) {
+		pr_info("stingray_qbp_usb_hw_bypass enabled\n");
+		return 1;
+	}
+	return 0;
+}
+
 static struct tegra_suspend_platform_data stingray_suspend = {
 	.cpu_timer = 1500,
 	.cpu_off_timer = 1,
@@ -950,13 +963,15 @@ static void __init tegra_stingray_init(void)
 	tegra_common_init();
 	tegra_init_suspend(&stingray_suspend);
 
-	/* Stingray has a USB switch that disconnects the usb port from the AP20
+	/* Stingray has a USB switch that disconnects the usb port from the T20
 	   unless a factory cable is used, the factory jumper is set, or the
 	   usb_data_en gpio is set.
 	 */
-	tegra_gpio_enable(TEGRA_GPIO_PV4);
-	gpio_request(TEGRA_GPIO_PV4, "usb_data_en");
-	gpio_direction_output(TEGRA_GPIO_PV4, 1);
+	if (!stingray_qbp_usb_hw_bypass_enabled()) {
+		tegra_gpio_enable(TEGRA_GPIO_PV4);
+		gpio_request(TEGRA_GPIO_PV4, "usb_data_en");
+		gpio_direction_output(TEGRA_GPIO_PV4, 1);
+	}
 
 	/* USB_FORCEON_N (TEGRA_GPIO_PC5) should be forced high at boot
 	   and will be pulled low by the hardware on attach */

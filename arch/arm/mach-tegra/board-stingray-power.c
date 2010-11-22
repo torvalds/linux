@@ -270,7 +270,6 @@ static struct platform_device cpcap_notification_led = {
 
 static struct platform_device *cpcap_devices[] = {
 	&cpcap_validity_device,
-	&cpcap_whisper_device,
 	&cpcap_notification_led,
 	&cpcap_privacy_led,
 	&cpcap_3mm5_device,
@@ -719,6 +718,9 @@ int __init stingray_power_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(cpcap_devices); i++)
 		cpcap_device_register(cpcap_devices[i]);
+
+	if (!stingray_qbp_usb_hw_bypass_enabled())
+		cpcap_device_register(&cpcap_whisper_device);
 
 	(void) cpcap_driver_register(&cpcap_validity_driver);
 
