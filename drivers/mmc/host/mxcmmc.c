@@ -967,7 +967,6 @@ static int mxcmci_remove(struct platform_device *pdev)
 	clk_put(host->clk);
 
 	release_mem_region(host->res->start, resource_size(host->res));
-	release_resource(host->res);
 
 	mmc_free_host(mmc);
 
