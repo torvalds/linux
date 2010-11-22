@@ -1828,9 +1828,9 @@ static void end_bio_extent_preparewrite(struct bio *bio, int err)
 	bio_put(bio);
 }
 
-static struct bio *
-extent_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
-		 gfp_t gfp_flags)
+struct bio *
+btrfs_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
+		gfp_t gfp_flags)
 {
 	struct bio *bio;
 
@@ -1919,7 +1919,7 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 	else
 		nr = bio_get_nr_vecs(bdev);
 
-	bio = extent_bio_alloc(bdev, sector, nr, GFP_NOFS | __GFP_HIGH);
+	bio = btrfs_bio_alloc(bdev, sector, nr, GFP_NOFS | __GFP_HIGH);
 
 	bio_add_page(bio, page, page_size, offset);
 	bio->bi_end_io = end_io_func;
