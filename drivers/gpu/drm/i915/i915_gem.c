@@ -1905,11 +1905,22 @@ static void i915_gem_reset_ring_lists(struct drm_i915_private *dev_priv,
 	}
 }
 
+static void i915_gem_reset_fences(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int i;
+
+	for (i = 0; i < 16; i++) {
+		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
+		if (reg->obj)
+			i915_gem_clear_fence_reg(reg->obj);
+	}
+}
+
 void i915_gem_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
-	int i;
 
 	i915_gem_reset_ring_lists(dev_priv, &dev_priv->render_ring);
 	i915_gem_reset_ring_lists(dev_priv, &dev_priv->bsd_ring);
@@ -1940,15 +1951,7 @@ void i915_gem_reset(struct drm_device *dev)
 	}
 
 	/* The fence registers are invalidated so clear them out */
-	for (i = 0; i < 16; i++) {
-		struct drm_i915_fence_reg *reg;
-
-		reg = &dev_priv->fence_regs[i];
-		if (!reg->obj)
-			continue;
-
-		i915_gem_clear_fence_reg(reg->obj);
-	}
+	i915_gem_reset_fences(dev);
 }
 
 /**
@@ -4705,6 +4708,8 @@ i915_gem_idle(struct drm_device *dev)
 			return ret;
 		}
 	}
+
+	i915_gem_reset_fences(dev);
 
 	/* Hack!  Don't let anybody do execbuf while we don't control the chip.
 	 * We need to replace this with a semaphore, or something.
