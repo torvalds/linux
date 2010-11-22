@@ -74,7 +74,7 @@ config SND_S3C64XX_SOC_WM8580
 	tristate "SoC I2S Audio support for WM8580 on SMDK64XX"
 	depends on SND_S3C24XX_SOC && MACH_SMDK6410
 	select SND_SOC_WM8580
-	select SND_S3C64XX_SOC_I2S_V4
+	select SND_SAMSUNG_I2S
 	help
 	  Say Y if you want to add support for SoC audio on the SMDK6410.
 

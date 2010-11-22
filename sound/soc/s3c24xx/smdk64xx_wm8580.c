@@ -19,7 +19,7 @@
 
 #include "../codecs/wm8580.h"
 #include "dma.h"
-#include "s3c64xx-i2s.h"
+#include "i2s.h"
 
 /*
  * Default CFG switch settings to use this driver:
@@ -95,17 +95,6 @@ static int smdk64xx_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_sysclk(cpu_dai, S3C64XX_CLKSRC_CDCLK,
-					0, SND_SOC_CLOCK_IN);
-	if (ret < 0)
-		return ret;
-
-	/* We use PCLK for basic ops in SoC-Slave mode */
-	ret = snd_soc_dai_set_sysclk(cpu_dai, S3C64XX_CLKSRC_PCLK,
-					0, SND_SOC_CLOCK_IN);
-	if (ret < 0)
-		return ret;
-
 	/* Set WM8580 to drive MCLK from its PLLA */
 	ret = snd_soc_dai_set_clkdiv(codec_dai, WM8580_MCLK,
 					WM8580_CLKSRC_PLLA);
@@ -119,14 +108,6 @@ static int smdk64xx_hw_params(struct snd_pcm_substream *substream,
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8580_CLKSRC_PLLA,
 				     pll_out, SND_SOC_CLOCK_IN);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C_I2SV2_DIV_BCLK, bfs);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C_I2SV2_DIV_RCLK, rfs);
 	if (ret < 0)
 		return ret;
 
@@ -223,7 +204,7 @@ static struct snd_soc_dai_link smdk64xx_dai[] = {
 { /* Primary Playback i/f */
 	.name = "WM8580 PAIF RX",
 	.stream_name = "Playback",
-	.cpu_dai_name = "samsung-i2s-v4",
+	.cpu_dai_name = "samsung-i2s.2",
 	.codec_dai_name = "wm8580-hifi-playback",
 	.platform_name = "samsung-audio",
 	.codec_name = "wm8580-codec.0-001b",
@@ -233,7 +214,7 @@ static struct snd_soc_dai_link smdk64xx_dai[] = {
 { /* Primary Capture i/f */
 	.name = "WM8580 PAIF TX",
 	.stream_name = "Capture",
-	.cpu_dai_name = "samsung-i2s-v4",
+	.cpu_dai_name = "samsung-i2s.2",
 	.codec_dai_name = "wm8580-hifi-capture",
 	.platform_name = "samsung-audio",
 	.codec_name = "wm8580-codec.0-001b",
