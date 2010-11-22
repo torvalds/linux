@@ -28,6 +28,7 @@
 #include <linux/freezer.h>
 #include <linux/crc32c.h>
 #include <linux/slab.h>
+#include <linux/migrate.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -355,6 +356,8 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	ret = btree_read_extent_buffer_pages(root, eb, start + PAGE_CACHE_SIZE,
 					     btrfs_header_generation(eb));
 	BUG_ON(ret);
+	WARN_ON(!btrfs_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN));
+
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
 		WARN_ON(1);
@@ -693,6 +696,26 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 				   __btree_submit_bio_done);
 }
 
+static int btree_migratepage(struct address_space *mapping,
+			struct page *newpage, struct page *page)
+{
+	/*
+	 * we can't safely write a btree page from here,
+	 * we haven't done the locking hook
+	 */
+	if (PageDirty(page))
+		return -EAGAIN;
+	/*
+	 * Buffers may be managed in a filesystem specific way.
+	 * We must have no buffers or drop them.
+	 */
+	if (page_has_private(page) &&
+	    !try_to_release_page(page, GFP_KERNEL))
+		return -EAGAIN;
+
+	return migrate_page(mapping, newpage, page);
+}
+
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct extent_io_tree *tree;
@@ -707,8 +730,7 @@ static int btree_writepage(struct page *page, struct writeback_control *wbc)
 	}
 
 	redirty_page_for_writepage(wbc, page);
-	eb = btrfs_find_tree_block(root, page_offset(page),
-				      PAGE_CACHE_SIZE);
+	eb = btrfs_find_tree_block(root, page_offset(page), PAGE_CACHE_SIZE);
 	WARN_ON(!eb);
 
 	was_dirty = test_and_set_bit(EXTENT_BUFFER_DIRTY, &eb->bflags);
@@ -799,6 +821,7 @@ static const struct address_space_operations btree_aops = {
 	.releasepage	= btree_releasepage,
 	.invalidatepage = btree_invalidatepage,
 	.sync_page	= block_sync_page,
+	.migratepage	= btree_migratepage,
 };
 
 int readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize,
