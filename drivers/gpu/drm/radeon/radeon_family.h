@@ -80,6 +80,7 @@ enum radeon_family {
 	CHIP_JUNIPER,
 	CHIP_CYPRESS,
 	CHIP_HEMLOCK,
+	CHIP_PALM,
 	CHIP_LAST,
 };
 
