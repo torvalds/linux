@@ -1,5 +1,5 @@
 # S3c24XX Platform Support
-snd-soc-s3c24xx-objs := s3c-dma.o
+snd-soc-s3c24xx-objs := dma.o
 snd-soc-s3c24xx-i2s-objs := s3c24xx-i2s.o
 snd-soc-s3c2412-i2s-objs := s3c2412-i2s.o
 snd-soc-s3c64xx-i2s-objs := s3c64xx-i2s.o

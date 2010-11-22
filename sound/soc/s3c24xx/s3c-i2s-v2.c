@@ -28,7 +28,7 @@
 
 #include "regs-i2s-v2.h"
 #include "s3c-i2s-v2.h"
-#include "s3c-dma.h"
+#include "dma.h"
 
 #undef S3C_IIS_V2_SUPPORTED
 

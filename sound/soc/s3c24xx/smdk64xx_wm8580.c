@@ -18,7 +18,7 @@
 #include <sound/soc.h>
 
 #include "../codecs/wm8580.h"
-#include "s3c-dma.h"
+#include "dma.h"
 #include "s3c64xx-i2s.h"
 
 /*

@@ -38,7 +38,7 @@
 
 #include <plat/regs-iis.h>
 
-#include "s3c-dma.h"
+#include "dma.h"
 #include "s3c24xx-i2s.h"
 
 static struct s3c2410_dma_client s3c24xx_dma_client_out = {

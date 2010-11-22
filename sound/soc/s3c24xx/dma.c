@@ -1,5 +1,5 @@
 /*
- * s3c-dma.c  --  ALSA Soc Audio Layer
+ * dma.c  --  ALSA Soc Audio Layer
  *
  * (c) 2006 Wolfson Microelectronics PLC.
  * Graeme Gregory graeme.gregory@wolfsonmicro.com or linux@wolfsonmicro.com
@@ -30,7 +30,7 @@
 #include <mach/hardware.h>
 #include <mach/dma.h>
 
-#include "s3c-dma.h"
+#include "dma.h"
 
 static const struct snd_pcm_hardware s3c_dma_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
@@ -453,7 +453,7 @@ static int s3c_dma_new(struct snd_card *card,
 		if (ret)
 			goto out;
 	}
- out:
+out:
 	return ret;
 }
 

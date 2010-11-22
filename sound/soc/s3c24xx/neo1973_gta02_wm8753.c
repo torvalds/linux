@@ -31,7 +31,7 @@
 #include <asm/io.h>
 #include <mach/gta02.h>
 #include "../codecs/wm8753.h"
-#include "s3c-dma.h"
+#include "dma.h"
 #include "s3c24xx-i2s.h"
 
 static struct snd_soc_card neo1973_gta02;

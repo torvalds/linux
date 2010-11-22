@@ -24,7 +24,7 @@
 #include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/registers.h>
 #include "../codecs/wm8994.h"
-#include "s3c-dma.h"
+#include "dma.h"
 #include "s3c64xx-i2s.h"
 
 #define MACHINE_NAME	0

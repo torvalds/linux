@@ -24,7 +24,7 @@
 #include <mach/dma.h>
 #include <plat/audio.h>
 
-#include "s3c-dma.h"
+#include "dma.h"
 #include "s3c-ac97.h"
 
 #define AC_CMD_ADDR(x) (x << 16)

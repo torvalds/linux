@@ -20,7 +20,7 @@
 #include <plat/audio.h>
 #include <mach/dma.h>
 
-#include "s3c-dma.h"
+#include "dma.h"
 #include "spdif.h"
 
 /* Registers */

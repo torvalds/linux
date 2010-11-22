@@ -18,7 +18,7 @@
 
 #include <sound/soc.h>
 
-#include "s3c-dma.h"
+#include "dma.h"
 #include "spdif.h"
 
 /* Audio clock settings are belonged to board specific part. Every

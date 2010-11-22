@@ -25,7 +25,7 @@
 #include <mach/map.h>
 #include <mach/dma.h>
 
-#include "s3c-dma.h"
+#include "dma.h"
 #include "regs-i2s-v2.h"
 #include "s3c64xx-i2s.h"
 

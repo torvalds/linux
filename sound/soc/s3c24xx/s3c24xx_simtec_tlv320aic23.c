@@ -17,7 +17,7 @@
 
 #include <plat/audio-simtec.h>
 
-#include "s3c-dma.h"
+#include "dma.h"
 #include "s3c24xx-i2s.h"
 #include "s3c24xx_simtec.h"
 

@@ -15,7 +15,7 @@
 #include <linux/device.h>
 #include <sound/soc.h>
 
-#include "s3c-dma.h"
+#include "dma.h"
 #include "s3c-ac97.h"
 
 static struct snd_soc_card smdk;

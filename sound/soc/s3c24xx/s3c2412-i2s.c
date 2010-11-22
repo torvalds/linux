@@ -35,7 +35,7 @@
 #include <mach/regs-gpio.h>
 #include <mach/dma.h>
 
-#include "s3c-dma.h"
+#include "dma.h"
 #include "regs-i2s-v2.h"
 #include "s3c2412-i2s.h"
 
