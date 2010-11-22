@@ -7002,6 +7002,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key ins;
 	u64 cur_offset = start;
+	u64 i_size;
 	int ret = 0;
 	bool own_trans = true;
 
@@ -7043,11 +7044,11 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		    (actual_len > inode->i_size) &&
 		    (cur_offset > inode->i_size)) {
 			if (cur_offset > actual_len)
-				i_size_write(inode, actual_len);
+				i_size = actual_len;
 			else
-				i_size_write(inode, cur_offset);
-			i_size_write(inode, cur_offset);
-			btrfs_ordered_update_i_size(inode, cur_offset, NULL);
+				i_size = cur_offset;
+			i_size_write(inode, i_size);
+			btrfs_ordered_update_i_size(inode, i_size, NULL);
 		}
 
 		ret = btrfs_update_inode(trans, root, inode);
