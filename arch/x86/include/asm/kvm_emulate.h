@@ -15,6 +15,12 @@
 
 struct x86_emulate_ctxt;
 
+struct x86_exception {
+	u8 vector;
+	bool error_code_valid;
+	u16 error_code;
+};
+
 /*
  * x86_emulate_ops:
  *
@@ -229,9 +235,8 @@ struct x86_emulate_ctxt {
 
 	bool perm_ok; /* do not check permissions if true */
 
-	int exception; /* exception that happens during emulation or -1 */
-	u32 error_code; /* error code for exception */
-	bool error_code_valid;
+	bool have_exception;
+	struct x86_exception exception;
 
 	/* decode cache */
 	struct decode_cache decode;

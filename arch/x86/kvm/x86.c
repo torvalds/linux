@@ -4254,12 +4254,13 @@ static void toggle_interruptibility(struct kvm_vcpu *vcpu, u32 mask)
 static void inject_emulated_exception(struct kvm_vcpu *vcpu)
 {
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
-	if (ctxt->exception == PF_VECTOR)
+	if (ctxt->exception.vector == PF_VECTOR)
 		kvm_propagate_fault(vcpu);
-	else if (ctxt->error_code_valid)
-		kvm_queue_exception_e(vcpu, ctxt->exception, ctxt->error_code);
+	else if (ctxt->exception.error_code_valid)
+		kvm_queue_exception_e(vcpu, ctxt->exception.vector,
+				      ctxt->exception.error_code);
 	else
-		kvm_queue_exception(vcpu, ctxt->exception);
+		kvm_queue_exception(vcpu, ctxt->exception.vector);
 }
 
 static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
@@ -4371,7 +4372,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	if (!(emulation_type & EMULTYPE_NO_DECODE)) {
 		init_emulate_ctxt(vcpu);
 		vcpu->arch.emulate_ctxt.interruptibility = 0;
-		vcpu->arch.emulate_ctxt.exception = -1;
+		vcpu->arch.emulate_ctxt.have_exception = false;
 		vcpu->arch.emulate_ctxt.perm_ok = false;
 
 		r = x86_decode_insn(&vcpu->arch.emulate_ctxt);
@@ -4437,7 +4438,7 @@ restart:
 	}
 
 done:
-	if (vcpu->arch.emulate_ctxt.exception >= 0) {
+	if (vcpu->arch.emulate_ctxt.have_exception) {
 		inject_emulated_exception(vcpu);
 		r = EMULATE_DONE;
 	} else if (vcpu->arch.pio.count) {

@@ -469,9 +469,9 @@ static ulong linear(struct x86_emulate_ctxt *ctxt,
 static void emulate_exception(struct x86_emulate_ctxt *ctxt, int vec,
 				      u32 error, bool valid)
 {
-	ctxt->exception = vec;
-	ctxt->error_code = error;
-	ctxt->error_code_valid = valid;
+	ctxt->exception.vector = vec;
+	ctxt->exception.error_code = error;
+	ctxt->exception.error_code_valid = valid;
 }
 
 static void emulate_gp(struct x86_emulate_ctxt *ctxt, int err)
@@ -3015,23 +3015,27 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 
 	if (ctxt->mode == X86EMUL_MODE_PROT64 && (c->d & No64)) {
 		emulate_ud(ctxt);
+		rc = X86EMUL_PROPAGATE_FAULT;
 		goto done;
 	}
 
 	/* LOCK prefix is allowed only with some instructions */
 	if (c->lock_prefix && (!(c->d & Lock) || c->dst.type != OP_MEM)) {
 		emulate_ud(ctxt);
+		rc = X86EMUL_PROPAGATE_FAULT;
 		goto done;
 	}
 
 	if ((c->d & SrcMask) == SrcMemFAddr && c->src.type != OP_MEM) {
 		emulate_ud(ctxt);
+		rc = X86EMUL_PROPAGATE_FAULT;
 		goto done;
 	}
 
 	/* Privileged instruction can be executed only in CPL=0 */
 	if ((c->d & Priv) && ops->cpl(ctxt->vcpu)) {
 		emulate_gp(ctxt, 0);
+		rc = X86EMUL_PROPAGATE_FAULT;
 		goto done;
 	}
 
@@ -3210,6 +3214,7 @@ special_insn:
 	case 0x8c:  /* mov r/m, sreg */
 		if (c->modrm_reg > VCPU_SREG_GS) {
 			emulate_ud(ctxt);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		}
 		c->dst.val = ops->get_segment_selector(c->modrm_reg, ctxt->vcpu);
@@ -3225,6 +3230,7 @@ special_insn:
 		if (c->modrm_reg == VCPU_SREG_CS ||
 		    c->modrm_reg > VCPU_SREG_GS) {
 			emulate_ud(ctxt);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		}
 
@@ -3357,6 +3363,7 @@ special_insn:
 		c->dst.bytes = min(c->dst.bytes, 4u);
 		if (!emulator_io_permited(ctxt, ops, c->src.val, c->dst.bytes)) {
 			emulate_gp(ctxt, 0);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		}
 		if (!pio_in_emulated(ctxt, ops, c->dst.bytes, c->src.val,
@@ -3371,6 +3378,7 @@ special_insn:
 		if (!emulator_io_permited(ctxt, ops, c->dst.val,
 					  c->src.bytes)) {
 			emulate_gp(ctxt, 0);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		}
 		ops->pio_out_emulated(c->src.bytes, c->dst.val,
@@ -3396,6 +3404,7 @@ special_insn:
 	case 0xfa: /* cli */
 		if (emulator_bad_iopl(ctxt, ops)) {
 			emulate_gp(ctxt, 0);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		} else
 			ctxt->eflags &= ~X86_EFLAGS_IF;
@@ -3403,6 +3412,7 @@ special_insn:
 	case 0xfb: /* sti */
 		if (emulator_bad_iopl(ctxt, ops)) {
 			emulate_gp(ctxt, 0);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		} else {
 			ctxt->interruptibility = KVM_X86_SHADOW_INT_STI;
@@ -3475,6 +3485,8 @@ writeback:
 	ctxt->eip = c->eip;
 
 done:
+	if (rc == X86EMUL_PROPAGATE_FAULT)
+		ctxt->have_exception = true;
 	return (rc == X86EMUL_UNHANDLEABLE) ? EMULATION_FAILED : EMULATION_OK;
 
 twobyte_insn:
@@ -3537,6 +3549,7 @@ twobyte_insn:
 			break;
 		case 5: /* not defined */
 			emulate_ud(ctxt);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		case 7: /* invlpg*/
 			emulate_invlpg(ctxt->vcpu,
@@ -3567,6 +3580,7 @@ twobyte_insn:
 		case 5 ... 7:
 		case 9 ... 15:
 			emulate_ud(ctxt);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		}
 		c->dst.val = ops->get_cr(c->modrm_reg, ctxt->vcpu);
@@ -3575,6 +3589,7 @@ twobyte_insn:
 		if ((ops->get_cr(4, ctxt->vcpu) & X86_CR4_DE) &&
 		    (c->modrm_reg == 4 || c->modrm_reg == 5)) {
 			emulate_ud(ctxt);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		}
 		ops->get_dr(c->modrm_reg, &c->dst.val, ctxt->vcpu);
@@ -3582,6 +3597,7 @@ twobyte_insn:
 	case 0x22: /* mov reg, cr */
 		if (ops->set_cr(c->modrm_reg, c->src.val, ctxt->vcpu)) {
 			emulate_gp(ctxt, 0);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		}
 		c->dst.type = OP_NONE;
@@ -3590,6 +3606,7 @@ twobyte_insn:
 		if ((ops->get_cr(4, ctxt->vcpu) & X86_CR4_DE) &&
 		    (c->modrm_reg == 4 || c->modrm_reg == 5)) {
 			emulate_ud(ctxt);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		}
 
@@ -3598,6 +3615,7 @@ twobyte_insn:
 				 ~0ULL : ~0U), ctxt->vcpu) < 0) {
 			/* #UD condition is already handled by the code above */
 			emulate_gp(ctxt, 0);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		}
 
@@ -3609,6 +3627,7 @@ twobyte_insn:
 			| ((u64)c->regs[VCPU_REGS_RDX] << 32);
 		if (ops->set_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], msr_data)) {
 			emulate_gp(ctxt, 0);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		}
 		rc = X86EMUL_CONTINUE;
@@ -3617,6 +3636,7 @@ twobyte_insn:
 		/* rdmsr */
 		if (ops->get_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], &msr_data)) {
 			emulate_gp(ctxt, 0);
+			rc = X86EMUL_PROPAGATE_FAULT;
 			goto done;
 		} else {
 			c->regs[VCPU_REGS_RAX] = (u32)msr_data;
