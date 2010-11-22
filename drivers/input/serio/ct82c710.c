@@ -191,6 +191,9 @@ static int __devinit ct82c710_probe(struct platform_device *dev)
 
 	serio_register_port(ct82c710_port);
 
+	printk(KERN_INFO "serio: C&T 82c710 mouse port at %#llx irq %d\n",
+		(unsigned long long)CT82C710_DATA, CT82C710_IRQ);
+
 	return 0;
 }
 
@@ -236,11 +239,6 @@ static int __init ct82c710_init(void)
 	error = platform_device_add(ct82c710_device);
 	if (error)
 		goto err_free_device;
-
-	serio_register_port(ct82c710_port);
-
-	printk(KERN_INFO "serio: C&T 82c710 mouse port at %#llx irq %d\n",
-		(unsigned long long)CT82C710_DATA, CT82C710_IRQ);
 
 	return 0;
 
