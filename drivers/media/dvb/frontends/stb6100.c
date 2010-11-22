@@ -117,7 +117,10 @@ static const struct stb6100_regmask stb6100_template[] = {
 	[STB6100_TEST3]		= { 0x00, 0xde },
 };
 
-static void stb6100_normalise_regs(u8 regs[])
+/*
+ * Currently unused. Some boards might need it in the future
+ */
+static inline void stb6100_normalise_regs(u8 regs[])
 {
 	int i;
 
