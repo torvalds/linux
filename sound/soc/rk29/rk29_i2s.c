@@ -2,7 +2,6 @@
  * rk29_i2s.c  --  ALSA SoC ROCKCHIP IIS Audio Layer Platform driver
  *
  * Driver for rockchip iis audio
- *  Copyright (C) 2009 lhh
  *
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -577,7 +576,7 @@ static void __exit rockchip_i2s_exit(void)
 module_exit(rockchip_i2s_exit);
 
 /* Module information */
-MODULE_AUTHOR("lhh lhh@rock-chips.com");
+MODULE_AUTHOR("rockchip");
 MODULE_DESCRIPTION("ROCKCHIP IIS ASoC Interface");
 MODULE_LICENSE("GPL");
 

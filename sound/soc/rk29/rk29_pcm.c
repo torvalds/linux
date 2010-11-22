@@ -2,7 +2,6 @@
  * rk29_pcm.c  --  ALSA SoC ROCKCHIP PCM Audio Layer Platform driver
  *
  * Driver for rockchip pcm audio
- *  Copyright (C) 2009 lhh
  *
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -676,7 +675,7 @@ static void __exit rockchip_soc_platform_exit(void)
 module_exit(rockchip_soc_platform_exit);
 
 /* Module information */
-MODULE_AUTHOR("lhh lhh@rock-chips.com");
+MODULE_AUTHOR("rockchip");
 MODULE_DESCRIPTION("ROCKCHIP PCM ASoC Interface");
 MODULE_LICENSE("GPL");
 

@@ -2,7 +2,6 @@
  * rockchip-pcm.h - ALSA PCM interface for the Rockchip rk28 SoC
  *
  * Driver for rockchip iis audio
- *  Copyright (C) 2009 lhh
  *
  *
  * This program is free software; you can redistribute it and/or modify

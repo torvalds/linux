@@ -2,7 +2,6 @@
  * rockchip-iis.h - ALSA IIS interface for the Rockchip rk28 SoC
  *
  * Driver for rockchip iis audio
- *  Copyright (C) 2009 lhh
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

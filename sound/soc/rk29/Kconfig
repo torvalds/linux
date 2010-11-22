@@ -1,7 +1,6 @@
 config SND_RK29_SOC
 	tristate "SoC Audio for the rockchip RK29 System-on-Chip"
 	depends on ARCH_RK29 && SND_SOC
-        select SND_RK29_SOC_I2S
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the ROCKCHIP IIS interface. You will also need
@@ -12,30 +11,38 @@ config SND_RK29_SOC_I2S
 
 config SND_RK29_SOC_WM8988
 	tristate "SoC I2S Audio support for rockchip - WM8988"
-	depends on SND_RK29_SOC 
+	depends on SND_RK29_SOC && I2C_RK29
 	select SND_RK29_SOC_I2S
 	select SND_SOC_WM8988
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the WM8988.
 
+config SND_RK29_SOC_WM8900
+	tristate "SoC I2S Audio support for rockchip - WM8900"
+	depends on SND_RK29_SOC && I2C_RK29
+	select SND_RK29_SOC_I2S
+	select SND_SOC_WM8900
+	help
+	  Say Y if you want to add support for SoC audio on rockchip
+	  with the WM8900.
+
 config SND_RK29_SOC_RK1000
 	tristate "SoC I2S Audio support for rockchip - RK1000"
-	depends on SND_RK29_SOC && RK1000_CONTROL
+	depends on SND_RK29_SOC && RK1000_CONTROL && I2C_RK29
 	select SND_RK29_SOC_I2S
 	select SND_SOC_RK1000
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RK1000.	 
 	   
-if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994
+if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994 || SND_RK29_SOC_WM8900
 choice
   prompt "Set i2s type"
-
-	config SND_CODEC_SOC_MASTER
+	config SND_RK29_CODEC_SOC_MASTER
 		tristate  "Codec run in Master"
 
-	config SND_CODEC_SOC_SLAVE
+	config SND_RK29_CODEC_SOC_SLAVE
 		tristate  "Codec run in Slave"
 endchoice
 endif
