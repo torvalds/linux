@@ -951,7 +951,7 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 		struct sdma_buffer_descriptor *bd = &sdmac->bd[i];
 		int param;
 
-		bd->buffer_addr = sgl->dma_address;
+		bd->buffer_addr = sg->dma_address;
 
 		count = sg->length;
 
