@@ -3642,24 +3642,31 @@ gpa_t kvm_mmu_gva_to_gpa_system(struct kvm_vcpu *vcpu, gva_t gva, u32 *error)
 	return vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, 0, error);
 }
 
+static int make_page_fault(struct x86_exception *exception, u32 error)
+{
+	exception->vector = PF_VECTOR;
+	exception->error_code_valid = true;
+	exception->error_code = error;
+	return X86EMUL_PROPAGATE_FAULT;
+}
+
 static int kvm_read_guest_virt_helper(gva_t addr, void *val, unsigned int bytes,
 				      struct kvm_vcpu *vcpu, u32 access,
-				      u32 *error)
+				      struct x86_exception *exception)
 {
 	void *data = val;
 	int r = X86EMUL_CONTINUE;
+	u32 error;
 
 	while (bytes) {
 		gpa_t gpa = vcpu->arch.walk_mmu->gva_to_gpa(vcpu, addr, access,
-							    error);
+							    &error);
 		unsigned offset = addr & (PAGE_SIZE-1);
 		unsigned toread = min(bytes, (unsigned)PAGE_SIZE - offset);
 		int ret;
 
-		if (gpa == UNMAPPED_GVA) {
-			r = X86EMUL_PROPAGATE_FAULT;
-			goto out;
-		}
+		if (gpa == UNMAPPED_GVA)
+			return make_page_fault(exception, error);
 		ret = kvm_read_guest(vcpu->kvm, gpa, data, toread);
 		if (ret < 0) {
 			r = X86EMUL_IO_NEEDED;
@@ -3676,47 +3683,50 @@ out:
 
 /* used for instruction fetching */
 static int kvm_fetch_guest_virt(gva_t addr, void *val, unsigned int bytes,
-				struct kvm_vcpu *vcpu, u32 *error)
+				struct kvm_vcpu *vcpu,
+				struct x86_exception *exception)
 {
 	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
 	return kvm_read_guest_virt_helper(addr, val, bytes, vcpu,
-					  access | PFERR_FETCH_MASK, error);
+					  access | PFERR_FETCH_MASK,
+					  exception);
 }
 
 static int kvm_read_guest_virt(gva_t addr, void *val, unsigned int bytes,
-			       struct kvm_vcpu *vcpu, u32 *error)
+			       struct kvm_vcpu *vcpu,
+			       struct x86_exception *exception)
 {
 	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
 	return kvm_read_guest_virt_helper(addr, val, bytes, vcpu, access,
-					  error);
+					  exception);
 }
 
 static int kvm_read_guest_virt_system(gva_t addr, void *val, unsigned int bytes,
-			       struct kvm_vcpu *vcpu, u32 *error)
+				      struct kvm_vcpu *vcpu,
+				      struct x86_exception *exception)
 {
-	return kvm_read_guest_virt_helper(addr, val, bytes, vcpu, 0, error);
+	return kvm_read_guest_virt_helper(addr, val, bytes, vcpu, 0, exception);
 }
 
 static int kvm_write_guest_virt_system(gva_t addr, void *val,
 				       unsigned int bytes,
 				       struct kvm_vcpu *vcpu,
-				       u32 *error)
+				       struct x86_exception *exception)
 {
 	void *data = val;
 	int r = X86EMUL_CONTINUE;
+	u32 error;
 
 	while (bytes) {
 		gpa_t gpa =  vcpu->arch.walk_mmu->gva_to_gpa(vcpu, addr,
 							     PFERR_WRITE_MASK,
-							     error);
+							     &error);
 		unsigned offset = addr & (PAGE_SIZE-1);
 		unsigned towrite = min(bytes, (unsigned)PAGE_SIZE - offset);
 		int ret;
 
-		if (gpa == UNMAPPED_GVA) {
-			r = X86EMUL_PROPAGATE_FAULT;
-			goto out;
-		}
+		if (gpa == UNMAPPED_GVA)
+			return make_page_fault(exception, error);
 		ret = kvm_write_guest(vcpu->kvm, gpa, data, towrite);
 		if (ret < 0) {
 			r = X86EMUL_IO_NEEDED;
@@ -3734,10 +3744,11 @@ out:
 static int emulator_read_emulated(unsigned long addr,
 				  void *val,
 				  unsigned int bytes,
-				  unsigned int *error_code,
+				  struct x86_exception *exception,
 				  struct kvm_vcpu *vcpu)
 {
 	gpa_t                 gpa;
+	u32 error_code;
 
 	if (vcpu->mmio_read_completed) {
 		memcpy(val, vcpu->mmio_data, bytes);
@@ -3747,17 +3758,17 @@ static int emulator_read_emulated(unsigned long addr,
 		return X86EMUL_CONTINUE;
 	}
 
-	gpa = kvm_mmu_gva_to_gpa_read(vcpu, addr, error_code);
+	gpa = kvm_mmu_gva_to_gpa_read(vcpu, addr, &error_code);
 
 	if (gpa == UNMAPPED_GVA)
-		return X86EMUL_PROPAGATE_FAULT;
+		return make_page_fault(exception, error_code);
 
 	/* For APIC access vmexit */
 	if ((gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
 		goto mmio;
 
-	if (kvm_read_guest_virt(addr, val, bytes, vcpu, NULL)
-				== X86EMUL_CONTINUE)
+	if (kvm_read_guest_virt(addr, val, bytes, vcpu, exception)
+	    == X86EMUL_CONTINUE)
 		return X86EMUL_CONTINUE;
 
 mmio:
@@ -3781,7 +3792,7 @@ mmio:
 }
 
 int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
-			  const void *val, int bytes)
+			const void *val, int bytes)
 {
 	int ret;
 
@@ -3795,15 +3806,16 @@ int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 static int emulator_write_emulated_onepage(unsigned long addr,
 					   const void *val,
 					   unsigned int bytes,
-					   unsigned int *error_code,
+					   struct x86_exception *exception,
 					   struct kvm_vcpu *vcpu)
 {
 	gpa_t                 gpa;
+	u32 error_code;
 
-	gpa = kvm_mmu_gva_to_gpa_write(vcpu, addr, error_code);
+	gpa = kvm_mmu_gva_to_gpa_write(vcpu, addr, &error_code);
 
 	if (gpa == UNMAPPED_GVA)
-		return X86EMUL_PROPAGATE_FAULT;
+		return make_page_fault(exception, error_code);
 
 	/* For APIC access vmexit */
 	if ((gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
@@ -3833,7 +3845,7 @@ mmio:
 int emulator_write_emulated(unsigned long addr,
 			    const void *val,
 			    unsigned int bytes,
-			    unsigned int *error_code,
+			    struct x86_exception *exception,
 			    struct kvm_vcpu *vcpu)
 {
 	/* Crossing a page boundary? */
@@ -3841,7 +3853,7 @@ int emulator_write_emulated(unsigned long addr,
 		int rc, now;
 
 		now = -addr & ~PAGE_MASK;
-		rc = emulator_write_emulated_onepage(addr, val, now, error_code,
+		rc = emulator_write_emulated_onepage(addr, val, now, exception,
 						     vcpu);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
@@ -3849,7 +3861,7 @@ int emulator_write_emulated(unsigned long addr,
 		val += now;
 		bytes -= now;
 	}
-	return emulator_write_emulated_onepage(addr, val, bytes, error_code,
+	return emulator_write_emulated_onepage(addr, val, bytes, exception,
 					       vcpu);
 }
 
@@ -3867,7 +3879,7 @@ static int emulator_cmpxchg_emulated(unsigned long addr,
 				     const void *old,
 				     const void *new,
 				     unsigned int bytes,
-				     unsigned int *error_code,
+				     struct x86_exception *exception,
 				     struct kvm_vcpu *vcpu)
 {
 	gpa_t gpa;
@@ -3925,7 +3937,7 @@ static int emulator_cmpxchg_emulated(unsigned long addr,
 emul_write:
 	printk_once(KERN_WARNING "kvm: emulating exchange as write\n");
 
-	return emulator_write_emulated(addr, new, bytes, error_code, vcpu);
+	return emulator_write_emulated(addr, new, bytes, exception, vcpu);
 }
 
 static int kernel_pio(struct kvm_vcpu *vcpu, void *pd)
