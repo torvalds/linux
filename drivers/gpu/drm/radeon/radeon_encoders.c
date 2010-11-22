@@ -1056,6 +1056,7 @@ atombios_set_edp_panel_power(struct drm_connector *connector, int action)
 
 union external_encoder_control {
 	EXTERNAL_ENCODER_CONTROL_PS_ALLOCATION v1;
+	EXTERNAL_ENCODER_CONTROL_PS_ALLOCATION_V3 v3;
 };
 
 static void
@@ -1066,6 +1067,7 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder *ext_radeon_encoder = to_radeon_encoder(ext_encoder);
 	union external_encoder_control args;
 	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 	int index = GetIndexIntoMasterTable(COMMAND, ExternalEncoderControl);
@@ -1073,6 +1075,7 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 	int dp_clock = 0;
 	int dp_lane_count = 0;
 	int connector_object_id = 0;
+	u32 ext_enum = (ext_radeon_encoder->encoder_enum & ENUM_ID_MASK) >> ENUM_ID_SHIFT;
 
 	if (connector) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
@@ -1110,6 +1113,37 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 				args.v1.sDigEncoder.ucLaneNum = 8;
 			else
 				args.v1.sDigEncoder.ucLaneNum = 4;
+			break;
+		case 3:
+			args.v3.sExtEncoder.ucAction = action;
+			if (action == EXTERNAL_ENCODER_ACTION_V3_ENCODER_INIT)
+				args.v3.sExtEncoder.usConnectorId = connector_object_id;
+			else
+				args.v3.sExtEncoder.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
+			args.v3.sExtEncoder.ucEncoderMode = atombios_get_encoder_mode(encoder);
+
+			if (args.v3.sExtEncoder.ucEncoderMode == ATOM_ENCODER_MODE_DP) {
+				if (dp_clock == 270000)
+					args.v3.sExtEncoder.ucConfig |= EXTERNAL_ENCODER_CONFIG_V3_DPLINKRATE_2_70GHZ;
+				else if (dp_clock == 540000)
+					args.v3.sExtEncoder.ucConfig |= EXTERNAL_ENCODER_CONFIG_V3_DPLINKRATE_5_40GHZ;
+				args.v3.sExtEncoder.ucLaneNum = dp_lane_count;
+			} else if (radeon_encoder->pixel_clock > 165000)
+				args.v3.sExtEncoder.ucLaneNum = 8;
+			else
+				args.v3.sExtEncoder.ucLaneNum = 4;
+			switch (ext_enum) {
+			case GRAPH_OBJECT_ENUM_ID1:
+				args.v3.sExtEncoder.ucConfig |= EXTERNAL_ENCODER_CONFIG_V3_ENCODER1;
+				break;
+			case GRAPH_OBJECT_ENUM_ID2:
+				args.v3.sExtEncoder.ucConfig |= EXTERNAL_ENCODER_CONFIG_V3_ENCODER2;
+				break;
+			case GRAPH_OBJECT_ENUM_ID3:
+				args.v3.sExtEncoder.ucConfig |= EXTERNAL_ENCODER_CONFIG_V3_ENCODER3;
+				break;
+			}
+			args.v3.sExtEncoder.ucBitPerColor = PANEL_8BIT_PER_COLOR;
 			break;
 		default:
 			DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
@@ -1301,12 +1335,18 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 		switch (mode) {
 		case DRM_MODE_DPMS_ON:
 		default:
-			action = ATOM_ENABLE;
+			if (ASIC_IS_DCE41(rdev) && (rdev->flags & RADEON_IS_IGP))
+				action = EXTERNAL_ENCODER_ACTION_V3_ENABLE_OUTPUT;
+			else
+				action = ATOM_ENABLE;
 			break;
 		case DRM_MODE_DPMS_STANDBY:
 		case DRM_MODE_DPMS_SUSPEND:
 		case DRM_MODE_DPMS_OFF:
-			action = ATOM_DISABLE;
+			if (ASIC_IS_DCE41(rdev) && (rdev->flags & RADEON_IS_IGP))
+				action = EXTERNAL_ENCODER_ACTION_V3_DISABLE_OUTPUT;
+			else
+				action = ATOM_DISABLE;
 			break;
 		}
 		atombios_external_encoder_setup(encoder, ext_encoder, action);
@@ -1627,7 +1667,13 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	if (ext_encoder) {
-		atombios_external_encoder_setup(encoder, ext_encoder, ATOM_ENABLE);
+		if (ASIC_IS_DCE41(rdev) && (rdev->flags & RADEON_IS_IGP)) {
+			atombios_external_encoder_setup(encoder, ext_encoder,
+							EXTERNAL_ENCODER_ACTION_V3_ENCODER_INIT);
+			atombios_external_encoder_setup(encoder, ext_encoder,
+							EXTERNAL_ENCODER_ACTION_V3_ENCODER_SETUP);
+		} else
+			atombios_external_encoder_setup(encoder, ext_encoder, ATOM_ENABLE);
 	}
 
 	atombios_apply_encoder_quirks(encoder, adjusted_mode);
@@ -2046,6 +2092,8 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum, uint32_t 
 	case ENCODER_OBJECT_ID_TITFP513:
 	case ENCODER_OBJECT_ID_VT1623:
 	case ENCODER_OBJECT_ID_HDMI_SI1930:
+	case ENCODER_OBJECT_ID_TRAVIS:
+	case ENCODER_OBJECT_ID_NUTMEG:
 		/* these are handled by the primary encoders */
 		radeon_encoder->is_ext_encoder = true;
 		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT))
