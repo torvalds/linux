@@ -716,6 +716,24 @@ int fib_table_flush(struct fib_table *tb)
 	return found;
 }
 
+void fib_free_table(struct fib_table *tb)
+{
+	struct fn_hash *table = (struct fn_hash *) tb->tb_data;
+	struct fn_zone *fz, *next;
+
+	next = table->fn_zone_list;
+	while (next != NULL) {
+		fz = next;
+		next = fz->fz_next;
+
+		if (fz->fz_hash != fz->fz_embedded_hash)
+			fz_hash_free(fz->fz_hash, fz->fz_divisor);
+
+		kfree(fz);
+	}
+
+	kfree(tb);
+}
 
 static inline int
 fn_hash_dump_bucket(struct sk_buff *skb, struct netlink_callback *cb,

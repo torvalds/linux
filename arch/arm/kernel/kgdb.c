@@ -79,7 +79,7 @@ sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *task)
 		return;
 
 	/* Initialize to zero */
-	for (regno = 0; regno < DBG_MAX_REG_NUM; regno++)
+	for (regno = 0; regno < GDB_MAX_REGS; regno++)
 		gdb_regs[regno] = 0;
 
 	/* Otherwise, we have only some registers from switch_to() */

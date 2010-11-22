@@ -1460,9 +1460,9 @@ static int cgroup_get_rootdir(struct super_block *sb)
 	return 0;
 }
 
-static int cgroup_get_sb(struct file_system_type *fs_type,
+static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 			 int flags, const char *unused_dev_name,
-			 void *data, struct vfsmount *mnt)
+			 void *data)
 {
 	struct cgroup_sb_opts opts;
 	struct cgroupfs_root *root;
@@ -1596,10 +1596,9 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
 		drop_parsed_module_refcounts(opts.subsys_bits);
 	}
 
-	simple_set_mnt(mnt, sb);
 	kfree(opts.release_agent);
 	kfree(opts.name);
-	return 0;
+	return dget(sb->s_root);
 
  drop_new_super:
 	deactivate_locked_super(sb);
@@ -1608,7 +1607,7 @@ static int cgroup_get_sb(struct file_system_type *fs_type,
  out_err:
 	kfree(opts.release_agent);
 	kfree(opts.name);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 static void cgroup_kill_sb(struct super_block *sb) {
@@ -1658,7 +1657,7 @@ static void cgroup_kill_sb(struct super_block *sb) {
 
 static struct file_system_type cgroup_fs_type = {
 	.name = "cgroup",
-	.get_sb = cgroup_get_sb,
+	.mount = cgroup_mount,
 	.kill_sb = cgroup_kill_sb,
 };
 

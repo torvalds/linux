@@ -15,11 +15,11 @@
  * General Public License for more details.
  */
 
-/**
+/*
  * Contains base driver definitions.
  */
 
-/**
+/*
  *  bfa_drv.h Linux driver data structures.
  */
 
@@ -309,7 +309,6 @@ void		bfad_bfa_tmo(unsigned long data);
 void		bfad_init_timer(struct bfad_s *bfad);
 int		bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad);
 void		bfad_pci_uninit(struct pci_dev *pdev, struct bfad_s *bfad);
-void		bfad_fcs_port_cfg(struct bfad_s *bfad);
 void		bfad_drv_uninit(struct bfad_s *bfad);
 int		bfad_worker(void *ptr);
 void		bfad_debugfs_init(struct bfad_port_s *port);

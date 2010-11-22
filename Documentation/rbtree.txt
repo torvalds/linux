@@ -21,8 +21,8 @@ three rotations, respectively, to balance the tree), with slightly slower
 To quote Linux Weekly News:
 
     There are a number of red-black trees in use in the kernel.
-    The anticipatory, deadline, and CFQ I/O schedulers all employ
-    rbtrees to track requests; the packet CD/DVD driver does the same.
+    The deadline and CFQ I/O schedulers employ rbtrees to
+    track requests; the packet CD/DVD driver does the same.
     The high-resolution timer code uses an rbtree to organize outstanding
     timer requests.  The ext3 filesystem tracks directory entries in a
     red-black tree.  Virtual memory areas (VMAs) are tracked with red-black

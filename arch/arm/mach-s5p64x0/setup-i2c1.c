@@ -25,18 +25,14 @@ struct platform_device; /* don't need the contents */
 
 void s5p6440_i2c1_cfg_gpio(struct platform_device *dev)
 {
-	s3c_gpio_cfgpin(S5P6440_GPR(9), S3C_GPIO_SFN(6));
-	s3c_gpio_setpull(S5P6440_GPR(9), S3C_GPIO_PULL_UP);
-	s3c_gpio_cfgpin(S5P6440_GPR(10), S3C_GPIO_SFN(6));
-	s3c_gpio_setpull(S5P6440_GPR(10), S3C_GPIO_PULL_UP);
+	s3c_gpio_cfgall_range(S5P6440_GPR(9), 2,
+			      S3C_GPIO_SFN(6), S3C_GPIO_PULL_UP);
 }
 
 void s5p6450_i2c1_cfg_gpio(struct platform_device *dev)
 {
-	s3c_gpio_cfgpin(S5P6450_GPR(9), S3C_GPIO_SFN(6));
-	s3c_gpio_setpull(S5P6450_GPR(9), S3C_GPIO_PULL_UP);
-	s3c_gpio_cfgpin(S5P6450_GPR(10), S3C_GPIO_SFN(6));
-	s3c_gpio_setpull(S5P6450_GPR(10), S3C_GPIO_PULL_UP);
+	s3c_gpio_cfgall_range(S5P6450_GPR(9), 2,
+			      S3C_GPIO_SFN(6), S3C_GPIO_PULL_UP);
 }
 
 void s3c_i2c1_cfg_gpio(struct platform_device *dev) { }

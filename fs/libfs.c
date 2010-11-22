@@ -201,9 +201,8 @@ static const struct super_operations simple_super_operations = {
  * Common helper for pseudo-filesystems (sockfs, pipefs, bdev - stuff that
  * will never be mountable)
  */
-int get_sb_pseudo(struct file_system_type *fs_type, char *name,
-	const struct super_operations *ops, unsigned long magic,
-	struct vfsmount *mnt)
+struct dentry *mount_pseudo(struct file_system_type *fs_type, char *name,
+	const struct super_operations *ops, unsigned long magic)
 {
 	struct super_block *s = sget(fs_type, NULL, set_anon_super, NULL);
 	struct dentry *dentry;
@@ -211,7 +210,7 @@ int get_sb_pseudo(struct file_system_type *fs_type, char *name,
 	struct qstr d_name = {.name = name, .len = strlen(name)};
 
 	if (IS_ERR(s))
-		return PTR_ERR(s);
+		return ERR_CAST(s);
 
 	s->s_flags = MS_NOUSER;
 	s->s_maxbytes = MAX_LFS_FILESIZE;
@@ -241,12 +240,11 @@ int get_sb_pseudo(struct file_system_type *fs_type, char *name,
 	d_instantiate(dentry, root);
 	s->s_root = dentry;
 	s->s_flags |= MS_ACTIVE;
-	simple_set_mnt(mnt, s);
-	return 0;
+	return dget(s->s_root);
 
 Enomem:
 	deactivate_locked_super(s);
-	return -ENOMEM;
+	return ERR_PTR(-ENOMEM);
 }
 
 int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
@@ -951,7 +949,7 @@ EXPORT_SYMBOL(dcache_dir_lseek);
 EXPORT_SYMBOL(dcache_dir_open);
 EXPORT_SYMBOL(dcache_readdir);
 EXPORT_SYMBOL(generic_read_dir);
-EXPORT_SYMBOL(get_sb_pseudo);
+EXPORT_SYMBOL(mount_pseudo);
 EXPORT_SYMBOL(simple_write_begin);
 EXPORT_SYMBOL(simple_write_end);
 EXPORT_SYMBOL(simple_dir_inode_operations);

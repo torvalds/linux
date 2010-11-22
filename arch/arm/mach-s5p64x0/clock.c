@@ -73,24 +73,6 @@ static const u32 clock_table[][3] = {
 	{L2 * 1000, (3 << ARM_DIV_RATIO_SHIFT), (0 << S5P64X0_CLKDIV0_HCLK_SHIFT)},
 };
 
-int s5p64x0_epll_enable(struct clk *clk, int enable)
-{
-	unsigned int ctrlbit = clk->ctrlbit;
-	unsigned int epll_con = __raw_readl(S5P64X0_EPLL_CON) & ~ctrlbit;
-
-	if (enable)
-		__raw_writel(epll_con | ctrlbit, S5P64X0_EPLL_CON);
-	else
-		__raw_writel(epll_con, S5P64X0_EPLL_CON);
-
-	return 0;
-}
-
-unsigned long s5p64x0_epll_get_rate(struct clk *clk)
-{
-	return clk->rate;
-}
-
 unsigned long s5p64x0_armclk_get_rate(struct clk *clk)
 {
 	unsigned long rate = clk_get_rate(clk->parent);

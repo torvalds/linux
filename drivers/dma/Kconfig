@@ -200,11 +200,11 @@ config PL330_DMA
 	  platform_data for a dma-pl330 device.
 
 config PCH_DMA
-	tristate "Topcliff PCH DMA support"
+	tristate "Topcliff (Intel EG20T) PCH DMA support"
 	depends on PCI && X86
 	select DMA_ENGINE
 	help
-	  Enable support for the Topcliff PCH DMA engine.
+	  Enable support for the Topcliff (Intel EG20T) PCH DMA engine.
 
 config IMX_SDMA
 	tristate "i.MX SDMA support"

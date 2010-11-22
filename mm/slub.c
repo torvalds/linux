@@ -3273,9 +3273,9 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 		kfree(n);
 		kfree(s);
 	}
+err:
 	up_write(&slub_lock);
 
-err:
 	if (flags & SLAB_PANIC)
 		panic("Cannot create slabcache %s\n", name);
 	else
@@ -3862,6 +3862,7 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
 			x += sprintf(buf + x, " N%d=%lu",
 					node, nodes[node]);
 #endif
+	up_read(&slub_lock);
 	kfree(nodes);
 	return x + sprintf(buf + x, "\n");
 }

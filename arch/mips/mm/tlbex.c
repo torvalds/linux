@@ -338,13 +338,12 @@ static void __cpuinit build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case CPU_4KSC:
 	case CPU_20KC:
 	case CPU_25KF:
-	case CPU_BCM3302:
-	case CPU_BCM4710:
+	case CPU_BMIPS32:
+	case CPU_BMIPS3300:
+	case CPU_BMIPS4350:
+	case CPU_BMIPS4380:
+	case CPU_BMIPS5000:
 	case CPU_LOONGSON2:
-	case CPU_BCM6338:
-	case CPU_BCM6345:
-	case CPU_BCM6348:
-	case CPU_BCM6358:
 	case CPU_R5500:
 		if (m4kc_tlbp_war())
 			uasm_i_nop(p);

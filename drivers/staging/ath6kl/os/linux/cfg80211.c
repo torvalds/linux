@@ -808,7 +808,7 @@ ar6k_cfg80211_scanComplete_event(AR_SOFTC_T *ar, A_STATUS status)
 
 static int
 ar6k_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
-                      A_UINT8 key_index, const A_UINT8 *mac_addr,
+                      A_UINT8 key_index, bool pairwise, const A_UINT8 *mac_addr,
                       struct key_params *params)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(ndev);
@@ -901,7 +901,7 @@ ar6k_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 
 static int
 ar6k_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
-                      A_UINT8 key_index, const A_UINT8 *mac_addr)
+                      A_UINT8 key_index, bool pairwise, const A_UINT8 *mac_addr)
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(ndev);
 
@@ -936,7 +936,8 @@ ar6k_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 
 static int
 ar6k_cfg80211_get_key(struct wiphy *wiphy, struct net_device *ndev,
-                      A_UINT8 key_index, const A_UINT8 *mac_addr, void *cookie,
+                      A_UINT8 key_index, bool pairwise, const A_UINT8 *mac_addr,
+                      void *cookie,
                       void (*callback)(void *cookie, struct key_params*))
 {
     AR_SOFTC_T *ar = (AR_SOFTC_T *)ar6k_priv(ndev);

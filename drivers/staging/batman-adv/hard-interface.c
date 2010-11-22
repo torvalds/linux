@@ -165,7 +165,7 @@ static void update_mac_addresses(struct batman_if *batman_if)
 	       batman_if->net_dev->dev_addr, ETH_ALEN);
 }
 
-static void check_known_mac_addr(uint8_t *addr)
+static void check_known_mac_addr(struct net_device *net_dev)
 {
 	struct batman_if *batman_if;
 
@@ -175,11 +175,16 @@ static void check_known_mac_addr(uint8_t *addr)
 		    (batman_if->if_status != IF_TO_BE_ACTIVATED))
 			continue;
 
-		if (!compare_orig(batman_if->net_dev->dev_addr, addr))
+		if (batman_if->net_dev == net_dev)
+			continue;
+
+		if (!compare_orig(batman_if->net_dev->dev_addr,
+				  net_dev->dev_addr))
 			continue;
 
 		pr_warning("The newly added mac address (%pM) already exists "
-			   "on: %s\n", addr, batman_if->net_dev->name);
+			   "on: %s\n", net_dev->dev_addr,
+			   batman_if->net_dev->name);
 		pr_warning("It is strongly recommended to keep mac addresses "
 			   "unique to avoid problems!\n");
 	}
@@ -430,7 +435,7 @@ static struct batman_if *hardif_add_interface(struct net_device *net_dev)
 	atomic_set(&batman_if->refcnt, 0);
 	hardif_hold(batman_if);
 
-	check_known_mac_addr(batman_if->net_dev->dev_addr);
+	check_known_mac_addr(batman_if->net_dev);
 
 	spin_lock(&if_list_lock);
 	list_add_tail_rcu(&batman_if->list, &if_list);
@@ -515,7 +520,7 @@ static int hard_if_event(struct notifier_block *this,
 			goto out;
 		}
 
-		check_known_mac_addr(batman_if->net_dev->dev_addr);
+		check_known_mac_addr(batman_if->net_dev);
 		update_mac_addresses(batman_if);
 
 		bat_priv = netdev_priv(batman_if->soft_iface);

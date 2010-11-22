@@ -391,6 +391,9 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	u32 hw_reconf_flags = 0;
 	int i;
 
+	if (local->scan_sdata == sdata)
+		ieee80211_scan_cancel(local);
+
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	/*
@@ -522,9 +525,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		 */
 		synchronize_rcu();
 		skb_queue_purge(&sdata->skb_queue);
-
-		if (local->scan_sdata == sdata)
-			ieee80211_scan_cancel(local);
 
 		/*
 		 * Disable beaconing here for mesh only, AP and IBSS

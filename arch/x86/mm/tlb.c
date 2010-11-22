@@ -251,7 +251,7 @@ static void __cpuinit calculate_tlb_offset(void)
 	}
 }
 
-static int tlb_cpuhp_notify(struct notifier_block *n,
+static int __cpuinit tlb_cpuhp_notify(struct notifier_block *n,
 		unsigned long action, void *hcpu)
 {
 	switch (action & 0xf) {

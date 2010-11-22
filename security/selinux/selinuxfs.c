@@ -1909,16 +1909,15 @@ err:
 	goto out;
 }
 
-static int sel_get_sb(struct file_system_type *fs_type,
-		      int flags, const char *dev_name, void *data,
-		      struct vfsmount *mnt)
+static struct dentry *sel_mount(struct file_system_type *fs_type,
+		      int flags, const char *dev_name, void *data)
 {
-	return get_sb_single(fs_type, flags, data, sel_fill_super, mnt);
+	return mount_single(fs_type, flags, data, sel_fill_super);
 }
 
 static struct file_system_type sel_fs_type = {
 	.name		= "selinuxfs",
-	.get_sb		= sel_get_sb,
+	.mount		= sel_mount,
 	.kill_sb	= kill_litter_super,
 };
 

@@ -82,9 +82,11 @@ static struct usb_device_id carl9170_usb_ids[] = {
 	{ USB_DEVICE(0x07d1, 0x3c10) },
 	/* D-Link DWA 160 A2 */
 	{ USB_DEVICE(0x07d1, 0x3a09) },
+	/* D-Link DWA 130 D */
+	{ USB_DEVICE(0x07d1, 0x3a0f) },
 	/* Netgear WNA1000 */
 	{ USB_DEVICE(0x0846, 0x9040) },
-	/* Netgear WNDA3100 */
+	/* Netgear WNDA3100 (v1) */
 	{ USB_DEVICE(0x0846, 0x9010) },
 	/* Netgear WN111 v2 */
 	{ USB_DEVICE(0x0846, 0x9001), .driver_info = CARL9170_ONE_LED },

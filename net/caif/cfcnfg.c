@@ -173,18 +173,15 @@ static struct cfcnfg_phyinfo *cfcnfg_get_phyinfo(struct cfcnfg *cnfg,
 	return NULL;
 }
 
-int cfcnfg_get_named(struct cfcnfg *cnfg, char *name)
+
+int cfcnfg_get_id_from_ifi(struct cfcnfg *cnfg, int ifi)
 {
 	int i;
-
-	/* Try to match with specified name */
-	for (i = 0; i < MAX_PHY_LAYERS; i++) {
-		if (cnfg->phy_layers[i].frm_layer != NULL
-		    && strcmp(cnfg->phy_layers[i].phy_layer->name,
-			      name) == 0)
-			return cnfg->phy_layers[i].frm_layer->id;
-	}
-	return 0;
+	for (i = 0; i < MAX_PHY_LAYERS; i++)
+		if (cnfg->phy_layers[i].frm_layer != NULL &&
+				cnfg->phy_layers[i].ifindex == ifi)
+			return i;
+	return -ENODEV;
 }
 
 int cfcnfg_disconn_adapt_layer(struct cfcnfg *cnfg, struct cflayer *adap_layer)

@@ -27,7 +27,7 @@
 #define BFA_IOCFCOE_INTR_DELAY	25
 #define BFA_IOCFCOE_INTR_LATENCY 5
 
-/**
+/*
  * Interrupt coalescing configuration.
  */
 #pragma pack(1)
@@ -38,7 +38,7 @@ struct bfa_iocfc_intr_attr_s {
 	u16	delay;		/*  delay in microseconds     */
 };
 
-/**
+/*
  * IOC firmware configuraton
  */
 struct bfa_iocfc_fwcfg_s {
@@ -71,7 +71,7 @@ struct bfa_iocfc_drvcfg_s {
 	u32		rsvd;
 };
 
-/**
+/*
  * IOC configuration
  */
 struct bfa_iocfc_cfg_s {
@@ -79,7 +79,7 @@ struct bfa_iocfc_cfg_s {
 	struct bfa_iocfc_drvcfg_s	drvcfg;	/*  driver side config	  */
 };
 
-/**
+/*
  * IOC firmware IO stats
  */
 struct bfa_fw_io_stats_s {
@@ -152,7 +152,7 @@ struct bfa_fw_io_stats_s {
 						 */
 };
 
-/**
+/*
  * IOC port firmware stats
  */
 
@@ -262,7 +262,7 @@ struct bfa_fw_fcoe_stats_s {
     u32    mac_invalids;       /*  Invalid mac assigned                */
 };
 
-/**
+/*
  * IOC firmware FCoE port stats
  */
 struct bfa_fw_fcoe_port_stats_s {
@@ -270,7 +270,7 @@ struct bfa_fw_fcoe_port_stats_s {
     struct bfa_fw_fip_stats_s   fip_stats;
 };
 
-/**
+/*
  * IOC firmware FC uport stats
  */
 struct bfa_fw_fc_uport_stats_s {
@@ -278,7 +278,7 @@ struct bfa_fw_fc_uport_stats_s {
 	struct bfa_fw_port_lksm_stats_s		lksm_stats;
 };
 
-/**
+/*
  * IOC firmware FC port stats
  */
 union bfa_fw_fc_port_stats_s {
@@ -286,7 +286,7 @@ union bfa_fw_fc_port_stats_s {
 	struct bfa_fw_fcoe_port_stats_s	fcoe_stats;
 };
 
-/**
+/*
  * IOC firmware port stats
  */
 struct bfa_fw_port_stats_s {
@@ -295,7 +295,7 @@ struct bfa_fw_port_stats_s {
 	union  bfa_fw_fc_port_stats_s		fc_port;
 };
 
-/**
+/*
  * fcxchg module statistics
  */
 struct bfa_fw_fcxchg_stats_s {
@@ -308,7 +308,7 @@ struct bfa_fw_lpsm_stats_s {
 	u32	cls_tx;
 };
 
-/**
+/*
  *  Trunk statistics
  */
 struct bfa_fw_trunk_stats_s {
@@ -334,7 +334,7 @@ struct bfa_fw_advsm_stats_s {
 	u32 elp_dropped;		/*  ELP dropped		*/
 };
 
-/**
+/*
  * IOCFC firmware stats
  */
 struct bfa_fw_iocfc_stats_s {
@@ -345,7 +345,7 @@ struct bfa_fw_iocfc_stats_s {
 	u32	set_intr_reqs;	/*  set interrupt reqs */
 };
 
-/**
+/*
  * IOC attributes returned in queries
  */
 struct bfa_iocfc_attr_s {
@@ -353,7 +353,7 @@ struct bfa_iocfc_attr_s {
 	struct bfa_iocfc_intr_attr_s	intr_attr;	/*  interrupt attr */
 };
 
-/**
+/*
  * Eth_sndrcv mod stats
  */
 struct bfa_fw_eth_sndrcv_stats_s {
@@ -361,7 +361,7 @@ struct bfa_fw_eth_sndrcv_stats_s {
 	u32	rsvd;		/*  64bit align    */
 };
 
-/**
+/*
  * CT MAC mod stats
  */
 struct bfa_fw_mac_mod_stats_s {
@@ -379,7 +379,7 @@ struct bfa_fw_mac_mod_stats_s {
 	u32	rsvd;		/*  64bit align    */
 };
 
-/**
+/*
  * CT MOD stats
  */
 struct bfa_fw_ct_mod_stats_s {
@@ -391,7 +391,7 @@ struct bfa_fw_ct_mod_stats_s {
 	u32	rsvd;		/*  64bit align    */
 };
 
-/**
+/*
  * IOC firmware stats
  */
 struct bfa_fw_stats_s {
@@ -412,7 +412,7 @@ struct bfa_fw_stats_s {
 #define BFA_IOCFC_PATHTOV_MAX	60
 #define BFA_IOCFC_QDEPTH_MAX	2000
 
-/**
+/*
  * QoS states
  */
 enum bfa_qos_state {
@@ -420,7 +420,7 @@ enum bfa_qos_state {
 	BFA_QOS_OFFLINE = 2,		/*  QoS is offline */
 };
 
-/**
+/*
  * QoS  Priority levels.
  */
 enum bfa_qos_priority {
@@ -430,7 +430,7 @@ enum bfa_qos_priority {
 	BFA_QOS_LOW  =  3,	/*  QoS Priority Level Low */
 };
 
-/**
+/*
  * QoS  bandwidth allocation for each priority level
  */
 enum bfa_qos_bw_alloc {
@@ -439,7 +439,7 @@ enum bfa_qos_bw_alloc {
 	BFA_QOS_BW_LOW  =  10,	/*  bandwidth allocation for Low */
 };
 #pragma pack(1)
-/**
+/*
  * QoS attribute returned in QoS Query
  */
 struct bfa_qos_attr_s {
@@ -448,7 +448,7 @@ struct bfa_qos_attr_s {
 	u32  total_bb_cr;		/*  Total BB Credits */
 };
 
-/**
+/*
  * These fields should be displayed only from the CLI.
  * There will be a separate BFAL API (get_qos_vc_attr ?)
  * to retrieve this.
@@ -471,7 +471,7 @@ struct bfa_qos_vc_attr_s {
 							    * total_vc_count */
 };
 
-/**
+/*
  * QoS statistics
  */
 struct bfa_qos_stats_s {
@@ -489,7 +489,7 @@ struct bfa_qos_stats_s {
 	u32	rsvd;		    /* padding for 64 bit alignment */
 };
 
-/**
+/*
  * FCoE statistics
  */
 struct bfa_fcoe_stats_s {
@@ -540,7 +540,7 @@ struct bfa_fcoe_stats_s {
 	u64	rxf_bcast_vlan;	/*  Rx FCoE broadcast vlan frames   */
 };
 
-/**
+/*
  * QoS or FCoE stats (fcport stats excluding physical FC port stats)
  */
 union bfa_fcport_stats_u {
@@ -639,7 +639,7 @@ enum bfa_port_states {
 	BFA_PORT_ST_MAX_STATE,
 };
 
-/**
+/*
  *	Port operational type (in sync with SNIA port type).
  */
 enum bfa_port_type {
@@ -651,7 +651,7 @@ enum bfa_port_type {
 	BFA_PORT_TYPE_VPORT	= 22,	/*  NPIV - virtual port */
 };
 
-/**
+/*
  *	Port topology setting. A port's topology and fabric login status
  *	determine its operational type.
  */
@@ -662,7 +662,7 @@ enum bfa_port_topology {
 	BFA_PORT_TOPOLOGY_AUTO = 3,	/*  auto topology selection */
 };
 
-/**
+/*
  *	Physical port loopback types.
  */
 enum bfa_port_opmode {
@@ -679,7 +679,7 @@ enum bfa_port_opmode {
 	(_mode == BFA_PORT_OPMODE_LB_SLW) ||		\
 	(_mode == BFA_PORT_OPMODE_LB_EXT))
 
-/**
+/*
  *	Port link state
  */
 enum bfa_port_linkstate {
@@ -687,7 +687,7 @@ enum bfa_port_linkstate {
 	BFA_PORT_LINKDOWN	= 2,	/*  Physical port/Trunk link down */
 };
 
-/**
+/*
  *	Port link state reason code
  */
 enum bfa_port_linkstate_rsn {
@@ -733,7 +733,7 @@ enum bfa_port_linkstate_rsn {
 	CEE_ISCSI_PRI_OVERLAP_FCOE_PRI		= 43
 };
 #pragma pack(1)
-/**
+/*
  *      Physical port configuration
  */
 struct bfa_port_cfg_s {
@@ -753,7 +753,7 @@ struct bfa_port_cfg_s {
 };
 #pragma pack()
 
-/**
+/*
  *	Port attribute values.
  */
 struct bfa_port_attr_s {
@@ -800,7 +800,7 @@ struct bfa_port_attr_s {
 	u8			rsvd1[6];
 };
 
-/**
+/*
  *	      Port FCP mappings.
  */
 struct bfa_port_fcpmap_s {
@@ -815,7 +815,7 @@ struct bfa_port_fcpmap_s {
 	char		luid[256];
 };
 
-/**
+/*
  *	      Port RNID info.
  */
 struct bfa_port_rnid_s {
@@ -848,7 +848,7 @@ struct bfa_fcport_fcf_s {
 	mac_t	   mac;	    /*  FCF mac		  */
 };
 
-/**
+/*
  *	Trunk states for BCU/BFAL
  */
 enum bfa_trunk_state {
@@ -857,7 +857,7 @@ enum bfa_trunk_state {
 	BFA_TRUNK_OFFLINE	= 2,	/*  Trunk is offline		*/
 };
 
-/**
+/*
  *	VC attributes for trunked link
  */
 struct bfa_trunk_vc_attr_s {
@@ -867,7 +867,7 @@ struct bfa_trunk_vc_attr_s {
 	u16 vc_credits[8];
 };
 
-/**
+/*
  *	Link state information
  */
 struct bfa_port_link_s {
@@ -959,7 +959,7 @@ struct bfa_rport_hal_stats_s {
 	u32        rsvd;
 };
 #pragma pack(1)
-/**
+/*
  *  Rport's QoS attributes
  */
 struct bfa_rport_qos_attr_s {
@@ -987,7 +987,7 @@ struct bfa_itnim_ioprofile_s {
 	struct bfa_itnim_latency_s io_latency;
 };
 
-/**
+/*
  * FC physical port statistics.
  */
 struct bfa_port_fc_stats_s {
@@ -1022,7 +1022,7 @@ struct bfa_port_fc_stats_s {
 	u64     err_enc;        /*  Encoding err frame_8b10b    */
 };
 
-/**
+/*
  * Eth Physical Port statistics.
  */
 struct bfa_port_eth_stats_s {
@@ -1070,7 +1070,7 @@ struct bfa_port_eth_stats_s {
 	u64     tx_iscsi_zero_pause; /*  Tx iSCSI zero pause    */
 };
 
-/**
+/*
  *              Port statistics.
  */
 union bfa_port_stats_u {

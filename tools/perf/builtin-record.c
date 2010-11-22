@@ -790,7 +790,7 @@ static const char * const record_usage[] = {
 
 static bool force, append_file;
 
-static const struct option options[] = {
+const struct option record_options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events),
@@ -839,16 +839,16 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
 	int i, j, err = -ENOMEM;
 
-	argc = parse_options(argc, argv, options, record_usage,
+	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc && target_pid == -1 && target_tid == -1 &&
 		!system_wide && !cpu_list)
-		usage_with_options(record_usage, options);
+		usage_with_options(record_usage, record_options);
 
 	if (force && append_file) {
 		fprintf(stderr, "Can't overwrite and append at the same time."
 				" You need to choose between -f and -A");
-		usage_with_options(record_usage, options);
+		usage_with_options(record_usage, record_options);
 	} else if (append_file) {
 		write_mode = WRITE_APPEND;
 	} else {
@@ -871,7 +871,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		if (thread_num <= 0) {
 			fprintf(stderr, "Can't find all threads of pid %d\n",
 					target_pid);
-			usage_with_options(record_usage, options);
+			usage_with_options(record_usage, record_options);
 		}
 	} else {
 		all_tids=malloc(sizeof(pid_t));

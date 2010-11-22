@@ -75,6 +75,17 @@ ENTRY(cpu_arm946_do_idle)
 	mov	pc, lr
 
 /*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(arm946_flush_icache_all)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+	mov	pc, lr
+ENDPROC(arm946_flush_icache_all)
+
+/*
  *	flush_user_cache_all()
  */
 ENTRY(arm946_flush_user_cache_all)
@@ -296,6 +307,7 @@ ENTRY(arm946_dma_unmap_area)
 ENDPROC(arm946_dma_unmap_area)
 
 ENTRY(arm946_cache_fns)
+	.long	arm946_flush_icache_all
 	.long	arm946_flush_kern_cache_all
 	.long	arm946_flush_user_cache_all
 	.long	arm946_flush_user_cache_range

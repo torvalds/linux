@@ -1077,7 +1077,6 @@ static void __NS8390_init(struct net_device *dev, int startp)
 	ei_outb_p(ei_local->rx_start_page, e8390_base + EN1_CURPAG);
 	ei_outb_p(E8390_NODMA+E8390_PAGE0+E8390_STOP, e8390_base+E8390_CMD);
 
-	netif_start_queue(dev);
 	ei_local->tx1 = ei_local->tx2 = 0;
 	ei_local->txing = 0;
 

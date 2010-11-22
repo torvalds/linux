@@ -412,6 +412,11 @@ static inline void irq_free_desc(unsigned int irq)
 	irq_free_descs(irq, 1);
 }
 
+static inline int irq_reserve_irq(unsigned int irq)
+{
+	return irq_reserve_irqs(irq, 1);
+}
+
 #endif /* CONFIG_GENERIC_HARDIRQS */
 
 #endif /* !CONFIG_S390 */

@@ -210,7 +210,7 @@ static int make_request(mddev_t *mddev, struct bio *bio)
 		}
 	}
 	if (failit) {
-		struct bio *b = bio_clone(bio, GFP_NOIO);
+		struct bio *b = bio_clone_mddev(bio, GFP_NOIO, mddev);
 		b->bi_bdev = conf->rdev->bdev;
 		b->bi_private = bio;
 		b->bi_end_io = faulty_fail;

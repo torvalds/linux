@@ -60,7 +60,7 @@ static unsigned int ns_to_tim_reg(unsigned int tim_mult, unsigned int nsecs)
 	 * Compute # of eclock periods to get desired duration in
 	 * nanoseconds.
 	 */
-	val = DIV_ROUND_UP(nsecs * (octeon_get_clock_rate() / 1000000),
+	val = DIV_ROUND_UP(nsecs * (octeon_get_io_clock_rate() / 1000000),
 			  1000 * tim_mult);
 
 	return val;
@@ -652,8 +652,6 @@ static irqreturn_t octeon_cf_interrupt(int irq, void *dev_instance)
 		struct octeon_cf_data *ocd;
 
 		ap = host->ports[i];
-		ocd = ap->dev->platform_data;
-
 		ocd = ap->dev->platform_data;
 		cf_port = ap->private_data;
 		dma_int.u64 =

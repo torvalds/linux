@@ -2097,11 +2097,11 @@ enomem0:
 }
 
 /* "mount -t gadgetfs path /dev/gadget" ends up here */
-static int
-gadgetfs_get_sb (struct file_system_type *t, int flags,
-		const char *path, void *opts, struct vfsmount *mnt)
+static struct dentry *
+gadgetfs_mount (struct file_system_type *t, int flags,
+		const char *path, void *opts)
 {
-	return get_sb_single (t, flags, opts, gadgetfs_fill_super, mnt);
+	return mount_single (t, flags, opts, gadgetfs_fill_super);
 }
 
 static void
@@ -2119,7 +2119,7 @@ gadgetfs_kill_sb (struct super_block *sb)
 static struct file_system_type gadgetfs_type = {
 	.owner		= THIS_MODULE,
 	.name		= shortname,
-	.get_sb		= gadgetfs_get_sb,
+	.mount		= gadgetfs_mount,
 	.kill_sb	= gadgetfs_kill_sb,
 };
 

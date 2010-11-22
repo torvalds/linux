@@ -39,6 +39,7 @@
 #include <dspbridge/cod.h>
 #include <dspbridge/dev.h>
 #include <dspbridge/procpriv.h>
+#include <dspbridge/dmm.h>
 
 /*  ----------------------------------- Resource Manager */
 #include <dspbridge/mgr.h>
@@ -51,7 +52,6 @@
 #include <dspbridge/msg.h>
 #include <dspbridge/dspioctl.h>
 #include <dspbridge/drv.h>
-#include <_tiomap.h>
 
 /*  ----------------------------------- This */
 #include <dspbridge/proc.h>
@@ -151,21 +151,34 @@ static struct dmm_map_object *add_mapping_info(struct process_context *pr_ctxt,
 	return map_obj;
 }
 
+static int match_exact_map_obj(struct dmm_map_object *map_obj,
+					u32 dsp_addr, u32 size)
+{
+	if (map_obj->dsp_addr == dsp_addr && map_obj->size != size)
+		pr_err("%s: addr match (0x%x), size don't (0x%x != 0x%x)\n",
+				__func__, dsp_addr, map_obj->size, size);
+
+	return map_obj->dsp_addr == dsp_addr &&
+		map_obj->size == size;
+}
+
 static void remove_mapping_information(struct process_context *pr_ctxt,
-						u32 dsp_addr)
+						u32 dsp_addr, u32 size)
 {
 	struct dmm_map_object *map_obj;
 
-	pr_debug("%s: looking for virt 0x%x\n", __func__, dsp_addr);
+	pr_debug("%s: looking for virt 0x%x size 0x%x\n", __func__,
+							dsp_addr, size);
 
 	spin_lock(&pr_ctxt->dmm_map_lock);
 	list_for_each_entry(map_obj, &pr_ctxt->dmm_map_list, link) {
-		pr_debug("%s: candidate: mpu_addr 0x%x virt 0x%x\n",
+		pr_debug("%s: candidate: mpu_addr 0x%x virt 0x%x size 0x%x\n",
 							__func__,
 							map_obj->mpu_addr,
-							map_obj->dsp_addr);
+							map_obj->dsp_addr,
+							map_obj->size);
 
-		if (map_obj->dsp_addr == dsp_addr) {
+		if (match_exact_map_obj(map_obj, dsp_addr, size)) {
 			pr_debug("%s: match, deleting map info\n", __func__);
 			list_del(&map_obj->link);
 			kfree(map_obj->dma_info.sg);
@@ -1077,6 +1090,7 @@ int proc_load(void *hprocessor, const s32 argc_index,
 	s32 cnew_envp;		/* "  " in new_envp[] */
 	s32 nproc_id = 0;	/* Anticipate MP version. */
 	struct dcd_manager *hdcd_handle;
+	struct dmm_object *dmm_mgr;
 	u32 dw_ext_end;
 	u32 proc_id;
 	int brd_state;
@@ -1267,6 +1281,25 @@ int proc_load(void *hprocessor, const s32 argc_index,
 			if (!status)
 				status = cod_get_sym_value(cod_mgr, EXTEND,
 							   &dw_ext_end);
+
+			/* Reset DMM structs and add an initial free chunk */
+			if (!status) {
+				status =
+				    dev_get_dmm_mgr(p_proc_object->hdev_obj,
+						    &dmm_mgr);
+				if (dmm_mgr) {
+					/* Set dw_ext_end to DMM START u8
+					 * address */
+					dw_ext_end =
+					    (dw_ext_end + 1) * DSPWORDSIZE;
+					/* DMM memory is from EXT_END */
+					status = dmm_create_tables(dmm_mgr,
+								   dw_ext_end,
+								   DMMPOOLSIZE);
+				} else {
+					status = -EFAULT;
+				}
+			}
 		}
 	}
 	/* Restore the original argv[0] */
@@ -1319,10 +1352,12 @@ int proc_map(void *hprocessor, void *pmpu_addr, u32 ul_size,
 {
 	u32 va_align;
 	u32 pa_align;
+	struct dmm_object *dmm_mgr;
 	u32 size_align;
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
 	struct dmm_map_object *map_obj;
+	u32 tmp_addr = 0;
 
 #ifdef CONFIG_TIDSPBRIDGE_CACHE_LINE_CHECK
 	if ((ul_map_attr & BUFMODE_MASK) != RBUF) {
@@ -1347,30 +1382,33 @@ int proc_map(void *hprocessor, void *pmpu_addr, u32 ul_size,
 	}
 	/* Critical section */
 	mutex_lock(&proc_lock);
+	dmm_get_handle(p_proc_object, &dmm_mgr);
+	if (dmm_mgr)
+		status = dmm_map_memory(dmm_mgr, va_align, size_align);
+	else
+		status = -EFAULT;
 
 	/* Add mapping to the page tables. */
 	if (!status) {
+
+		/* Mapped address = MSB of VA | LSB of PA */
+		tmp_addr = (va_align | ((u32) pmpu_addr & (PG_SIZE4K - 1)));
 		/* mapped memory resource tracking */
-		map_obj = add_mapping_info(pr_ctxt, pa_align, va_align,
+		map_obj = add_mapping_info(pr_ctxt, pa_align, tmp_addr,
 						size_align);
-		if (!map_obj) {
+		if (!map_obj)
 			status = -ENOMEM;
-		} else {
-			va_align = user_to_dsp_map(
-				p_proc_object->hbridge_context->dsp_mmu,
-				pa_align, va_align, size_align,
-				map_obj->pages);
-			if (IS_ERR_VALUE(va_align))
-				status = (int)va_align;
-		}
+		else
+			status = (*p_proc_object->intf_fxns->pfn_brd_mem_map)
+			    (p_proc_object->hbridge_context, pa_align, va_align,
+			     size_align, ul_map_attr, map_obj->pages);
 	}
 	if (!status) {
 		/* Mapped address = MSB of VA | LSB of PA */
-		map_obj->dsp_addr = (va_align |
-					((u32)pmpu_addr & (PG_SIZE4K - 1)));
-		*pp_map_addr = (void *)map_obj->dsp_addr;
+		*pp_map_addr = (void *) tmp_addr;
 	} else {
-		remove_mapping_information(pr_ctxt, va_align);
+		remove_mapping_information(pr_ctxt, tmp_addr, size_align);
+		dmm_un_map_memory(dmm_mgr, va_align, &size_align);
 	}
 	mutex_unlock(&proc_lock);
 
@@ -1459,6 +1497,55 @@ int proc_register_notify(void *hprocessor, u32 event_mask,
 		}
 	}
 func_end:
+	return status;
+}
+
+/*
+ *  ======== proc_reserve_memory ========
+ *  Purpose:
+ *      Reserve a virtually contiguous region of DSP address space.
+ */
+int proc_reserve_memory(void *hprocessor, u32 ul_size,
+			       void **pp_rsv_addr,
+			       struct process_context *pr_ctxt)
+{
+	struct dmm_object *dmm_mgr;
+	int status = 0;
+	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
+	struct dmm_rsv_object *rsv_obj;
+
+	if (!p_proc_object) {
+		status = -EFAULT;
+		goto func_end;
+	}
+
+	status = dmm_get_handle(p_proc_object, &dmm_mgr);
+	if (!dmm_mgr) {
+		status = -EFAULT;
+		goto func_end;
+	}
+
+	status = dmm_reserve_memory(dmm_mgr, ul_size, (u32 *) pp_rsv_addr);
+	if (status != 0)
+		goto func_end;
+
+	/*
+	 * A successful reserve should be followed by insertion of rsv_obj
+	 * into dmm_rsv_list, so that reserved memory resource tracking
+	 * remains uptodate
+	 */
+	rsv_obj = kmalloc(sizeof(struct dmm_rsv_object), GFP_KERNEL);
+	if (rsv_obj) {
+		rsv_obj->dsp_reserved_addr = (u32) *pp_rsv_addr;
+		spin_lock(&pr_ctxt->dmm_rsv_lock);
+		list_add(&rsv_obj->link, &pr_ctxt->dmm_rsv_list);
+		spin_unlock(&pr_ctxt->dmm_rsv_lock);
+	}
+
+func_end:
+	dev_dbg(bridge, "%s: hprocessor: 0x%p ul_size: 0x%x pp_rsv_addr: 0x%p "
+		"status 0x%x\n", __func__, hprocessor,
+		ul_size, pp_rsv_addr, status);
 	return status;
 }
 
@@ -1610,7 +1697,9 @@ int proc_un_map(void *hprocessor, void *map_addr,
 {
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
+	struct dmm_object *dmm_mgr;
 	u32 va_align;
+	u32 size_align;
 
 	va_align = PG_ALIGN_LOW((u32) map_addr, PG_SIZE4K);
 	if (!p_proc_object) {
@@ -1618,11 +1707,24 @@ int proc_un_map(void *hprocessor, void *map_addr,
 		goto func_end;
 	}
 
+	status = dmm_get_handle(hprocessor, &dmm_mgr);
+	if (!dmm_mgr) {
+		status = -EFAULT;
+		goto func_end;
+	}
+
 	/* Critical section */
 	mutex_lock(&proc_lock);
+	/*
+	 * Update DMM structures. Get the size to unmap.
+	 * This function returns error if the VA is not mapped
+	 */
+	status = dmm_un_map_memory(dmm_mgr, (u32) va_align, &size_align);
 	/* Remove mapping from the page tables. */
-	status = user_to_dsp_unmap(p_proc_object->hbridge_context->dsp_mmu,
-								va_align);
+	if (!status) {
+		status = (*p_proc_object->intf_fxns->pfn_brd_mem_un_map)
+		    (p_proc_object->hbridge_context, va_align, size_align);
+	}
 
 	mutex_unlock(&proc_lock);
 	if (status)
@@ -1633,11 +1735,60 @@ int proc_un_map(void *hprocessor, void *map_addr,
 	 * from dmm_map_list, so that mapped memory resource tracking
 	 * remains uptodate
 	 */
-	remove_mapping_information(pr_ctxt, (u32) map_addr);
+	remove_mapping_information(pr_ctxt, (u32) map_addr, size_align);
 
 func_end:
 	dev_dbg(bridge, "%s: hprocessor: 0x%p map_addr: 0x%p status: 0x%x\n",
 		__func__, hprocessor, map_addr, status);
+	return status;
+}
+
+/*
+ *  ======== proc_un_reserve_memory ========
+ *  Purpose:
+ *      Frees a previously reserved region of DSP address space.
+ */
+int proc_un_reserve_memory(void *hprocessor, void *prsv_addr,
+				  struct process_context *pr_ctxt)
+{
+	struct dmm_object *dmm_mgr;
+	int status = 0;
+	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
+	struct dmm_rsv_object *rsv_obj;
+
+	if (!p_proc_object) {
+		status = -EFAULT;
+		goto func_end;
+	}
+
+	status = dmm_get_handle(p_proc_object, &dmm_mgr);
+	if (!dmm_mgr) {
+		status = -EFAULT;
+		goto func_end;
+	}
+
+	status = dmm_un_reserve_memory(dmm_mgr, (u32) prsv_addr);
+	if (status != 0)
+		goto func_end;
+
+	/*
+	 * A successful unreserve should be followed by removal of rsv_obj
+	 * from dmm_rsv_list, so that reserved memory resource tracking
+	 * remains uptodate
+	 */
+	spin_lock(&pr_ctxt->dmm_rsv_lock);
+	list_for_each_entry(rsv_obj, &pr_ctxt->dmm_rsv_list, link) {
+		if (rsv_obj->dsp_reserved_addr == (u32) prsv_addr) {
+			list_del(&rsv_obj->link);
+			kfree(rsv_obj);
+			break;
+		}
+	}
+	spin_unlock(&pr_ctxt->dmm_rsv_lock);
+
+func_end:
+	dev_dbg(bridge, "%s: hprocessor: 0x%p prsv_addr: 0x%p status: 0x%x\n",
+		__func__, hprocessor, prsv_addr, status);
 	return status;
 }
 

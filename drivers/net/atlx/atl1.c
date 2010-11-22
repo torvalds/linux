@@ -3043,7 +3043,6 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	atl1_pcie_patch(adapter);
 	/* assume we have no link for now */
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
 
 	setup_timer(&adapter->phy_config_timer, atl1_phy_config,
 		    (unsigned long)adapter);

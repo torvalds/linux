@@ -537,7 +537,7 @@ static int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 	server->mnt = NULL;
 	server->sock_file = NULL;
 	init_waitqueue_head(&server->conn_wq);
-	init_MUTEX(&server->sem);
+	sema_init(&server->sem, 1);
 	INIT_LIST_HEAD(&server->entry);
 	INIT_LIST_HEAD(&server->xmitq);
 	INIT_LIST_HEAD(&server->recvq);
@@ -793,16 +793,16 @@ out:
 	return error;
 }
 
-static int smb_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *smb_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, smb_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, smb_fill_super);
 }
 
 static struct file_system_type smb_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "smbfs",
-	.get_sb		= smb_get_sb,
+	.mount		= smb_mount,
 	.kill_sb	= kill_anon_super,
 	.fs_flags	= FS_BINARY_MOUNTDATA,
 };

@@ -19,6 +19,7 @@
 #include <linux/klist.h>
 #include <linux/agp_backend.h>
 #include <linux/log2.h>
+#include <linux/slab.h>
 
 #include <asm/parisc-device.h>
 #include <asm/ropes.h>

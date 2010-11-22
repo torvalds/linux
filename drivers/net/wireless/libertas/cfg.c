@@ -700,8 +700,9 @@ static void lbs_scan_worker(struct work_struct *work)
 
 	if (priv->scan_channel < priv->scan_req->n_channels) {
 		cancel_delayed_work(&priv->scan_work);
-		queue_delayed_work(priv->work_thread, &priv->scan_work,
-			msecs_to_jiffies(300));
+		if (!priv->stopping)
+			queue_delayed_work(priv->work_thread, &priv->scan_work,
+				msecs_to_jiffies(300));
 	}
 
 	/* This is the final data we are about to send */

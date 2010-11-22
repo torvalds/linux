@@ -182,13 +182,13 @@ static void kexec_find_and_set_command_line(struct kimage *image)
 
 		if ((entry & IND_SOURCE)) {
 			void *va =
-				kmap_atomic_pfn(entry >> PAGE_SHIFT, KM_USER0);
+				kmap_atomic_pfn(entry >> PAGE_SHIFT);
 			r = kexec_bn2cl(va);
 			if (r) {
 				command_line = r;
 				break;
 			}
-			kunmap_atomic(va, KM_USER0);
+			kunmap_atomic(va);
 		}
 	}
 
@@ -198,7 +198,7 @@ static void kexec_find_and_set_command_line(struct kimage *image)
 
 		hverr = hv_set_command_line(
 			(HV_VirtAddr) command_line, strlen(command_line));
-		kunmap_atomic(command_line, KM_USER0);
+		kunmap_atomic(command_line);
 	} else {
 		pr_info("%s: no command line found; making empty\n",
 		       __func__);
