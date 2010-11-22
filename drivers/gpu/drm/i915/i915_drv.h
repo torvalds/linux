@@ -1245,45 +1245,49 @@ extern void intel_display_print_error_state(struct seq_file *m,
 		LOCK_TEST_WITH_RETURN(dev, file_priv);			\
 } while (0)
 
-#define I915_READ(reg)		i915_read(dev_priv, (reg), 4)
-#define I915_WRITE(reg, val)	i915_write(dev_priv, (reg), (val), 4)
-#define I915_READ16(reg)	i915_read(dev_priv, (reg), 2)
-#define I915_WRITE16(reg, val)	i915_write(dev_priv, (reg), (val), 2)
-#define I915_READ8(reg)		i915_read(dev_priv, (reg), 1)
-#define I915_WRITE8(reg, val)	i915_write(dev_priv, (reg), (val), 1)
-#define I915_WRITE64(reg, val)	i915_write(dev_priv, (reg), (val), 8)
-#define I915_READ64(reg)	i915_read(dev_priv, (reg), 8)
 
+#define __i915_read(x, y) \
+static inline u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
+	u##x val = read##y(dev_priv->regs + reg); \
+	trace_i915_reg_rw('R', reg, val, sizeof(val)); \
+	return val; \
+}
+__i915_read(8, b)
+__i915_read(16, w)
+__i915_read(32, l)
+__i915_read(64, q)
+#undef __i915_read
+
+#define __i915_write(x, y) \
+static inline void i915_write##x(struct drm_i915_private *dev_priv, u32 reg, u##x val) { \
+	trace_i915_reg_rw('W', reg, val, sizeof(val)); \
+	write##y(val, dev_priv->regs + reg); \
+}
+__i915_write(8, b)
+__i915_write(16, w)
+__i915_write(32, l)
+__i915_write(64, q)
+#undef __i915_write
+
+#define I915_READ8(reg)		i915_read8(dev_priv, (reg))
+#define I915_WRITE8(reg, val)	i915_write8(dev_priv, (reg), (val))
+
+#define I915_READ16(reg)	i915_read16(dev_priv, (reg))
+#define I915_WRITE16(reg, val)	i915_write16(dev_priv, (reg), (val))
+#define I915_READ16_NOTRACE(reg)	readw(dev_priv->regs + (reg))
+#define I915_WRITE16_NOTRACE(reg, val)	writew(val, dev_priv->regs + (reg))
+
+#define I915_READ(reg)		i915_read32(dev_priv, (reg))
+#define I915_WRITE(reg, val)	i915_write32(dev_priv, (reg), (val))
 #define I915_READ_NOTRACE(reg)		readl(dev_priv->regs + (reg))
 #define I915_WRITE_NOTRACE(reg, val)	writel(val, dev_priv->regs + (reg))
-#define I915_READ16_NOTRACE(reg)		readw(dev_priv->regs + (reg))
-#define I915_WRITE16_NOTRACE(reg, val)	writew(val, dev_priv->regs + (reg))
+
+#define I915_WRITE64(reg, val)	i915_write64(dev_priv, (reg), (val))
+#define I915_READ64(reg)	i915_read64(dev_priv, (reg))
 
 #define POSTING_READ(reg)	(void)I915_READ_NOTRACE(reg)
 #define POSTING_READ16(reg)	(void)I915_READ16_NOTRACE(reg)
 
-static inline u32 i915_read(struct drm_i915_private *dev_priv, u32 reg, int len)
-{
-       u64 val = 0;
-
-       switch (len) {
-       case 8:
-               val = readq(dev_priv->regs + reg);
-               break;
-       case 4:
-               val = readl(dev_priv->regs + reg);
-               break;
-       case 2:
-               val = readw(dev_priv->regs + reg);
-               break;
-       case 1:
-               val = readb(dev_priv->regs + reg);
-               break;
-       }
-       trace_i915_reg_rw('R', reg, val, len);
-
-       return val;
-}
 
 /* On SNB platform, before reading ring registers forcewake bit
  * must be set to prevent GT core from power down and stale values being
