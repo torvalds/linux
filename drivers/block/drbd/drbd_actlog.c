@@ -1153,7 +1153,7 @@ retry:
 	for (i = 0; i < AL_EXT_PER_BM_SECT; i++) {
 		sig = wait_event_interruptible(mdev->al_wait,
 					       !_is_in_al(mdev, enr * AL_EXT_PER_BM_SECT + i) ||
-					       (test_bit(BME_PRIORITY, &bm_ext->flags) && sa));
+					       test_bit(BME_PRIORITY, &bm_ext->flags));
 
 		if (sig || (test_bit(BME_PRIORITY, &bm_ext->flags) && sa)) {
 			spin_lock_irq(&mdev->al_lock);
@@ -1167,8 +1167,9 @@ retry:
 				return -EINTR;
 			if (schedule_timeout_interruptible(HZ/10))
 				return -EINTR;
-			if (--sa == 0)
-				dev_warn(DEV,"drbd_rs_begin_io() no longer stepping aside.\n");
+			if (sa && --sa == 0)
+				dev_warn(DEV,"drbd_rs_begin_io() stepped aside for 20sec."
+					 "Resync stalled?\n");
 			goto retry;
 		}
 	}
