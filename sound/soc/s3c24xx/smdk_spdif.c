@@ -157,7 +157,7 @@ static struct snd_soc_card smdk;
 static struct snd_soc_dai_link smdk_dai = {
 	.name = "S/PDIF",
 	.stream_name = "S/PDIF PCM Playback",
-	.platform_name = "s3c24xx-pcm-audio",
+	.platform_name = "samsung-audio",
 	.cpu_dai_name = "samsung-spdif",
 	.codec_dai_name = "dit-hifi",
 	.codec_name = "spdif-dit",

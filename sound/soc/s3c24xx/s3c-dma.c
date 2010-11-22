@@ -476,7 +476,7 @@ static int __devexit s3c24xx_soc_platform_remove(struct platform_device *pdev)
 
 static struct platform_driver s3c24xx_pcm_driver = {
 	.driver = {
-		.name = "s3c24xx-pcm-audio",
+		.name = "samsung-audio",
 		.owner = THIS_MODULE,
 	},
 
@@ -499,4 +499,4 @@ module_exit(snd_s3c24xx_pcm_exit);
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("Samsung S3C Audio DMA module");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:s3c24xx-pcm-audio");
+MODULE_ALIAS("platform:samsung-audio");

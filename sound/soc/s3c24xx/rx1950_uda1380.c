@@ -94,7 +94,7 @@ static struct snd_soc_dai_link rx1950_uda1380_dai[] = {
 		.cpu_dai_name	= "s3c24xx-iis",
 		.codec_dai_name	= "uda1380-hifi",
 		.init		= rx1950_uda1380_init,
-		.platform_name	= "s3c24xx-pcm-audio",
+		.platform_name	= "samsung-audio",
 		.codec_name	= "uda1380-codec.0-001a",
 		.ops		= &rx1950_ops,
 	},

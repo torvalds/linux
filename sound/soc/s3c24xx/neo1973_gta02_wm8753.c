@@ -400,7 +400,7 @@ static struct snd_soc_dai_link neo1973_gta02_dai[] = {
 	.cpu_dai_name = "s3c24xx-i2s",
 	.codec_dai_name = "wm8753-hifi",
 	.init = neo1973_gta02_wm8753_init,
-	.platform_name = "s3c24xx-pcm-audio",
+	.platform_name = "samsung-audio",
 	.codec_name = "wm8753-codec.0-0x1a",
 	.ops = &neo1973_gta02_hifi_ops,
 },
@@ -411,7 +411,7 @@ static struct snd_soc_dai_link neo1973_gta02_dai[] = {
 	.codec_dai_name = "wm8753-voice",
 	.ops = &neo1973_gta02_voice_ops,
 	.codec_name = "wm8753-codec.0-0x1a",
-	.platform_name = "s3c24xx-pcm-audio",
+	.platform_name = "samsung-audio",
 },
 };
 

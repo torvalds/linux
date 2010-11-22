@@ -264,7 +264,7 @@ EXPORT_SYMBOL(s3c_device_iis);
 static u64 s3c_device_audio_dmamask = 0xffffffffUL;
 
 struct platform_device s3c_device_pcm = {
-	.name		  = "s3c24xx-pcm-audio",
+	.name		  = "samsung-audio",
 	.id		  = -1,
 	.dev              = {
 		.dma_mask = &s3c_device_audio_dmamask,
