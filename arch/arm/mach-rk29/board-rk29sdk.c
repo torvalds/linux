@@ -410,6 +410,13 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
+#if defined (CONFIG_SND_SOC_RK1000)
+	{
+		.type    		= "rk1000_i2c_codec",
+		.addr           = 0x60,
+		.flags			= 0,
+	},
+#endif
 #if defined (CONFIG_BATTERY_STC3100)
 	{
 		.type    		= "stc3100-battery",
@@ -663,6 +670,12 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_I2C3_RK29
 	&rk29_device_i2c3,
 #endif
+
+#ifdef CONFIG_SND_RK29_SOC_I2S
+        &rk29_device_iis_2ch,
+        //&rk29_device_iis_8ch,
+#endif
+
 #ifdef CONFIG_KEYS_RK29
 	&rk29_device_keys,
 #endif

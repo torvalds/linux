@@ -100,6 +100,12 @@ struct rk29_i2c_platform_data {
 	int (*io_deinit)(void);
 };
 
+/*i2s*/
+struct rk29_i2s_platform_data {
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+};
+
 void __init rk29_map_common_io(void);
 void __init rk29_clock_init(void);
 
