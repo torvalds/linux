@@ -525,26 +525,23 @@ i915_ringbuffer_last_batch(struct drm_device *dev,
 	/* Locate the current position in the ringbuffer and walk back
 	 * to find the most recently dispatched batch buffer.
 	 */
-	bbaddr = 0;
 	head = I915_READ_HEAD(ring) & HEAD_ADDR;
-	val = (u32 *)(ring->virtual_start + head);
 
+	val = (u32 *)(ring->virtual_start + head);
 	while (--val >= (u32 *)ring->virtual_start) {
 		bbaddr = i915_get_bbaddr(dev, val);
 		if (bbaddr)
-			break;
+			return bbaddr;
 	}
 
-	if (bbaddr == 0) {
-		val = (u32 *)(ring->virtual_start + ring->size);
-		while (--val >= (u32 *)ring->virtual_start) {
-			bbaddr = i915_get_bbaddr(dev, val);
-			if (bbaddr)
-				break;
-		}
+	val = (u32 *)(ring->virtual_start + ring->size);
+	while (--val >= (u32 *)ring->virtual_start) {
+		bbaddr = i915_get_bbaddr(dev, val);
+		if (bbaddr)
+			return bbaddr;
 	}
 
-	return bbaddr;
+	return 0;
 }
 
 static u32 capture_bo_list(struct drm_i915_error_buffer *err,
