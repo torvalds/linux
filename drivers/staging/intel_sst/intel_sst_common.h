@@ -33,10 +33,9 @@
 
 /* driver names */
 #define SST_DRV_NAME "intel_sst_driver"
-#define SST_FW_FILENAME_MRST "fw_sst_080a.bin"
-#define SST_FW_FILENAME_MFLD "fw_sst_082f.bin"
 #define SST_MRST_PCI_ID 0x080A
 #define SST_MFLD_PCI_ID 0x082F
+#define PCI_ID_LENGTH 4
 #define SST_SUSPEND_DELAY 2000
 
 enum sst_states {

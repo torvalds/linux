@@ -48,13 +48,14 @@ int sst_download_fw(void)
 {
 	int retval;
 	const struct firmware *fw_sst;
-	const char *name;
+	char name[20];
+
 	if (sst_drv_ctx->sst_state != SST_UN_INIT)
 		return -EPERM;
-	if (sst_drv_ctx->pci_id == SST_MRST_PCI_ID)
-		name = SST_FW_FILENAME_MRST;
-	else
-		name = SST_FW_FILENAME_MFLD;
+
+	snprintf(name, sizeof(name), "%s%04x%s", "fw_sst_",
+					sst_drv_ctx->pci_id, ".bin");
+
 	pr_debug("Downloading %s FW now...\n", name);
 	retval = request_firmware(&fw_sst, name, &sst_drv_ctx->pci->dev);
 	if (retval) {
