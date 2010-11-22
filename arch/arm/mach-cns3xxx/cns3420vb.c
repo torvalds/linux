@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/compiler.h>
 #include <linux/io.h>
+#include <linux/dma-mapping.h>
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
 #include <linux/platform_device.h>
@@ -108,10 +109,63 @@ static void __init cns3420_early_serial_setup(void)
 }
 
 /*
+ * USB
+ */
+static struct resource cns3xxx_usb_ehci_resources[] = {
+	[0] = {
+		.start = CNS3XXX_USB_BASE,
+		.end   = CNS3XXX_USB_BASE + SZ_16M - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_CNS3XXX_USB_EHCI,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static u64 cns3xxx_usb_ehci_dma_mask = DMA_BIT_MASK(32);
+
+static struct platform_device cns3xxx_usb_ehci_device = {
+	.name          = "cns3xxx-ehci",
+	.num_resources = ARRAY_SIZE(cns3xxx_usb_ehci_resources),
+	.resource      = cns3xxx_usb_ehci_resources,
+	.dev           = {
+		.dma_mask          = &cns3xxx_usb_ehci_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+};
+
+static struct resource cns3xxx_usb_ohci_resources[] = {
+	[0] = {
+		.start = CNS3XXX_USB_OHCI_BASE,
+		.end   = CNS3XXX_USB_OHCI_BASE + SZ_16M - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_CNS3XXX_USB_OHCI,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static u64 cns3xxx_usb_ohci_dma_mask = DMA_BIT_MASK(32);
+
+static struct platform_device cns3xxx_usb_ohci_device = {
+	.name          = "cns3xxx-ohci",
+	.num_resources = ARRAY_SIZE(cns3xxx_usb_ohci_resources),
+	.resource      = cns3xxx_usb_ohci_resources,
+	.dev           = {
+		.dma_mask          = &cns3xxx_usb_ohci_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+};
+
+/*
  * Initialization
  */
 static struct platform_device *cns3420_pdevs[] __initdata = {
 	&cns3420_nor_pdev,
+	&cns3xxx_usb_ehci_device,
+	&cns3xxx_usb_ohci_device,
 };
 
 static void __init cns3420_init(void)

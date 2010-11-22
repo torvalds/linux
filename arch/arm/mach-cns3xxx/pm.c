@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <asm/atomic.h>
 #include <mach/system.h>
 #include <mach/cns3xxx.h>
 #include <mach/pm.h>
@@ -118,3 +119,6 @@ int cns3xxx_cpu_clock(void)
 	return cpu;
 }
 EXPORT_SYMBOL(cns3xxx_cpu_clock);
+
+atomic_t usb_pwr_ref = ATOMIC_INIT(0);
+EXPORT_SYMBOL(usb_pwr_ref);
