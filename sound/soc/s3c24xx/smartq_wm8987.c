@@ -25,7 +25,7 @@
 #include <asm/mach-types.h>
 
 #include "dma.h"
-#include "s3c64xx-i2s.h"
+#include "i2s.h"
 
 #include "../codecs/wm8750.h"
 
@@ -41,12 +41,8 @@ static int smartq_hifi_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct s3c_i2sv2_rate_calc div;
 	unsigned int clk = 0;
 	int ret;
-
-	s3c_i2sv2_iis_calc_rate(&div, NULL, params_rate(params),
-				s3c_i2sv2_get_clock(cpu_dai));
 
 	switch (params_rate(params)) {
 	case 8000:
@@ -78,20 +74,21 @@ static int smartq_hifi_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
+	/* Use PCLK for I2S signal generation */
+	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_RCLKSRC_0,
+					0, SND_SOC_CLOCK_IN);
+	if (ret < 0)
+		return ret;
+
+	/* Gate the RCLK output on PAD */
+	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_CDCLK,
+					0, SND_SOC_CLOCK_IN);
+	if (ret < 0)
+		return ret;
+
 	/* set the codec system clock for DAC and ADC */
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8750_SYSCLK, clk,
 				     SND_SOC_CLOCK_IN);
-	if (ret < 0)
-		return ret;
-
-	/* set MCLK division for sample rate */
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C_I2SV2_DIV_RCLK, div.fs_div);
-	if (ret < 0)
-		return ret;
-
-	/* set prescaler division for sample rate */
-	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C_I2SV2_DIV_PRESCALER,
-				     div.clk_div - 1);
 	if (ret < 0)
 		return ret;
 
@@ -212,7 +209,7 @@ static struct snd_soc_dai_link smartq_dai[] = {
 	{
 		.name		= "wm8987",
 		.stream_name	= "SmartQ Hi-Fi",
-		.cpu_dai_name	= "s3c64xx-i2s.0",
+		.cpu_dai_name	= "samsung-i2s.0",
 		.codec_dai_name	= "wm8750-hifi",
 		.platform_name	= "samsung-audio",
 		.codec_name	= "wm8750-codec.0-0x1a",

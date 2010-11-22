@@ -145,7 +145,7 @@ config SND_SOC_SMDK_WM9713
 config SND_S3C64XX_SOC_SMARTQ
 	tristate "SoC I2S Audio support for SmartQ board"
 	depends on SND_S3C24XX_SOC && MACH_SMARTQ
-	select SND_S3C64XX_SOC_I2S
+	select SND_SAMSUNG_I2S
 	select SND_SOC_WM8750
 
 config SND_SOC_GONI_AQUILA_WM8994
