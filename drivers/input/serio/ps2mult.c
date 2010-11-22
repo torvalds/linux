@@ -207,7 +207,7 @@ static int ps2mult_connect(struct serio *serio, struct serio_driver *drv)
 err_out:
 	while (--i >= 0)
 		kfree(psm->ports[i].serio);
-	kfree(serio);
+	kfree(psm);
 	return error;
 }
 
