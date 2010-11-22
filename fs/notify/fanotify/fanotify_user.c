@@ -769,8 +769,10 @@ SYSCALL_DEFINE(fanotify_mark)(int fanotify_fd, unsigned int flags,
 	if (flags & ~FAN_ALL_MARK_FLAGS)
 		return -EINVAL;
 	switch (flags & (FAN_MARK_ADD | FAN_MARK_REMOVE | FAN_MARK_FLUSH)) {
-	case FAN_MARK_ADD:
+	case FAN_MARK_ADD:		/* fallthrough */
 	case FAN_MARK_REMOVE:
+		if (!mask)
+			return -EINVAL;
 	case FAN_MARK_FLUSH:
 		break;
 	default:
