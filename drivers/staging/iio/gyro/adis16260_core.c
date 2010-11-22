@@ -635,6 +635,12 @@ err_ret:
 	return ret;
 }
 
+static const struct spi_device_id adis16260_id[] = {
+	{"adis16260", 0},
+	{"adis16265", 0},
+	{}
+};
+
 static struct spi_driver adis16260_driver = {
 	.driver = {
 		.name = "adis16260",
@@ -642,6 +648,7 @@ static struct spi_driver adis16260_driver = {
 	},
 	.probe = adis16260_probe,
 	.remove = __devexit_p(adis16260_remove),
+	.id_table = adis16260_id,
 };
 
 static __init int adis16260_init(void)
