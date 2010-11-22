@@ -347,8 +347,6 @@ static void utmi_phy_power_on(struct tegra_usb_phy *phy)
 
 	val = readl(base + UTMIP_TX_CFG0);
 	val &= ~UTMIP_FS_PREABMLE_J;
-	if (phy->instance == 2)
-		val |= UTMIP_HS_DISCON_DISABLE;
 	writel(val, base + UTMIP_TX_CFG0);
 
 	val = readl(base + UTMIP_HSRX_CFG0);
@@ -479,6 +477,26 @@ static void utmi_phy_power_off(struct tegra_usb_phy *phy)
 	writel(val, base + UTMIP_XCVR_CFG1);
 
 	utmip_pad_power_off(phy);
+}
+
+static void utmi_phy_preresume(struct tegra_usb_phy *phy)
+{
+	unsigned long val;
+	void __iomem *base = phy->regs;
+
+	val = readl(base + UTMIP_TX_CFG0);
+	val |= UTMIP_HS_DISCON_DISABLE;
+	writel(val, base + UTMIP_TX_CFG0);
+}
+
+static void utmi_phy_postresume(struct tegra_usb_phy *phy)
+{
+	unsigned long val;
+	void __iomem *base = phy->regs;
+
+	val = readl(base + UTMIP_TX_CFG0);
+	val &= ~UTMIP_HS_DISCON_DISABLE;
+	writel(val, base + UTMIP_TX_CFG0);
 }
 
 static void ulpi_viewport_write(struct tegra_usb_phy *phy, u8 addr, u8 data)
@@ -669,6 +687,20 @@ int tegra_usb_phy_power_off(struct tegra_usb_phy *phy)
 	else
 		utmi_phy_power_off(phy);
 
+	return 0;
+}
+
+int tegra_usb_phy_preresume(struct tegra_usb_phy *phy)
+{
+	if (phy->instance == 2)
+		utmi_phy_preresume(phy);
+	return 0;
+}
+
+int tegra_usb_phy_postresume(struct tegra_usb_phy *phy)
+{
+	if (phy->instance == 2)
+		utmi_phy_postresume(phy);
 	return 0;
 }
 
