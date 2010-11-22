@@ -72,7 +72,7 @@ struct guest_walker {
 	unsigned pt_access;
 	unsigned pte_access;
 	gfn_t gfn;
-	u32 error_code;
+	struct x86_exception fault;
 };
 
 static gfn_t gpte_to_gfn_lvl(pt_element_t gpte, int lvl)
@@ -266,21 +266,23 @@ walk:
 	return 1;
 
 error:
-	walker->error_code = 0;
+	walker->fault.vector = PF_VECTOR;
+	walker->fault.error_code_valid = true;
+	walker->fault.error_code = 0;
 	if (present)
-		walker->error_code |= PFERR_PRESENT_MASK;
+		walker->fault.error_code |= PFERR_PRESENT_MASK;
 
-	walker->error_code |= write_fault | user_fault;
+	walker->fault.error_code |= write_fault | user_fault;
 
 	if (fetch_fault && mmu->nx)
-		walker->error_code |= PFERR_FETCH_MASK;
+		walker->fault.error_code |= PFERR_FETCH_MASK;
 	if (rsvd_fault)
-		walker->error_code |= PFERR_RSVD_MASK;
+		walker->fault.error_code |= PFERR_RSVD_MASK;
 
 	vcpu->arch.fault.address    = addr;
-	vcpu->arch.fault.error_code = walker->error_code;
+	vcpu->arch.fault.error_code = walker->fault.error_code;
 
-	trace_kvm_mmu_walker_error(walker->error_code);
+	trace_kvm_mmu_walker_error(walker->fault.error_code);
 	return 0;
 }
 
@@ -688,11 +690,8 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr, u32 access,
 	if (r) {
 		gpa = gfn_to_gpa(walker.gfn);
 		gpa |= vaddr & ~PAGE_MASK;
-	} else if (exception) {
-		exception->vector = PF_VECTOR;
-		exception->error_code_valid = true;
-		exception->error_code = walker.error_code;
-	}
+	} else if (exception)
+		*exception = walker.fault;
 
 	return gpa;
 }
@@ -710,11 +709,8 @@ static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gva_t vaddr,
 	if (r) {
 		gpa = gfn_to_gpa(walker.gfn);
 		gpa |= vaddr & ~PAGE_MASK;
-	} else if (exception) {
-		exception->vector = PF_VECTOR;
-		exception->error_code_valid = true;
-		exception->error_code = walker.error_code;
-	}
+	} else if (exception)
+		*exception = walker.fault;
 
 	return gpa;
 }
