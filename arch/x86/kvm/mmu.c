@@ -2567,18 +2567,19 @@ void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 }
 
 static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, gva_t vaddr,
-				  u32 access, u32 *error)
+				  u32 access, struct x86_exception *exception)
 {
-	if (error)
-		*error = 0;
+	if (exception)
+		exception->error_code = 0;
 	return vaddr;
 }
 
 static gpa_t nonpaging_gva_to_gpa_nested(struct kvm_vcpu *vcpu, gva_t vaddr,
-					 u32 access, u32 *error)
+					 u32 access,
+					 struct x86_exception *exception)
 {
-	if (error)
-		*error = 0;
+	if (exception)
+		exception->error_code = 0;
 	return vcpu->arch.nested_mmu.translate_gpa(vcpu, vaddr, access);
 }
 

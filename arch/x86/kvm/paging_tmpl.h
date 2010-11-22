@@ -677,7 +677,7 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 }
 
 static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr, u32 access,
-			       u32 *error)
+			       struct x86_exception *exception)
 {
 	struct guest_walker walker;
 	gpa_t gpa = UNMAPPED_GVA;
@@ -688,14 +688,18 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr, u32 access,
 	if (r) {
 		gpa = gfn_to_gpa(walker.gfn);
 		gpa |= vaddr & ~PAGE_MASK;
-	} else if (error)
-		*error = walker.error_code;
+	} else if (exception) {
+		exception->vector = PF_VECTOR;
+		exception->error_code_valid = true;
+		exception->error_code = walker.error_code;
+	}
 
 	return gpa;
 }
 
 static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gva_t vaddr,
-				      u32 access, u32 *error)
+				      u32 access,
+				      struct x86_exception *exception)
 {
 	struct guest_walker walker;
 	gpa_t gpa = UNMAPPED_GVA;
@@ -706,8 +710,11 @@ static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gva_t vaddr,
 	if (r) {
 		gpa = gfn_to_gpa(walker.gfn);
 		gpa |= vaddr & ~PAGE_MASK;
-	} else if (error)
-		*error = walker.error_code;
+	} else if (exception) {
+		exception->vector = PF_VECTOR;
+		exception->error_code_valid = true;
+		exception->error_code = walker.error_code;
+	}
 
 	return gpa;
 }

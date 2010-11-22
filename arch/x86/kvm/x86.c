@@ -3603,51 +3603,47 @@ static gpa_t translate_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u32 access)
 static gpa_t translate_nested_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u32 access)
 {
 	gpa_t t_gpa;
-	u32 error;
+	struct x86_exception exception;
 
 	BUG_ON(!mmu_is_nested(vcpu));
 
 	/* NPT walks are always user-walks */
 	access |= PFERR_USER_MASK;
-	t_gpa  = vcpu->arch.mmu.gva_to_gpa(vcpu, gpa, access, &error);
+	t_gpa  = vcpu->arch.mmu.gva_to_gpa(vcpu, gpa, access, &exception);
 	if (t_gpa == UNMAPPED_GVA)
 		vcpu->arch.fault.nested = true;
 
 	return t_gpa;
 }
 
-gpa_t kvm_mmu_gva_to_gpa_read(struct kvm_vcpu *vcpu, gva_t gva, u32 *error)
+gpa_t kvm_mmu_gva_to_gpa_read(struct kvm_vcpu *vcpu, gva_t gva,
+			      struct x86_exception *exception)
 {
 	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
-	return vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, access, error);
+	return vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, access, exception);
 }
 
- gpa_t kvm_mmu_gva_to_gpa_fetch(struct kvm_vcpu *vcpu, gva_t gva, u32 *error)
+ gpa_t kvm_mmu_gva_to_gpa_fetch(struct kvm_vcpu *vcpu, gva_t gva,
+				struct x86_exception *exception)
 {
 	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
 	access |= PFERR_FETCH_MASK;
-	return vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, access, error);
+	return vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, access, exception);
 }
 
-gpa_t kvm_mmu_gva_to_gpa_write(struct kvm_vcpu *vcpu, gva_t gva, u32 *error)
+gpa_t kvm_mmu_gva_to_gpa_write(struct kvm_vcpu *vcpu, gva_t gva,
+			       struct x86_exception *exception)
 {
 	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
 	access |= PFERR_WRITE_MASK;
-	return vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, access, error);
+	return vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, access, exception);
 }
 
 /* uses this to access any guest's mapped memory without checking CPL */
-gpa_t kvm_mmu_gva_to_gpa_system(struct kvm_vcpu *vcpu, gva_t gva, u32 *error)
+gpa_t kvm_mmu_gva_to_gpa_system(struct kvm_vcpu *vcpu, gva_t gva,
+				struct x86_exception *exception)
 {
-	return vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, 0, error);
-}
-
-static int make_page_fault(struct x86_exception *exception, u32 error)
-{
-	exception->vector = PF_VECTOR;
-	exception->error_code_valid = true;
-	exception->error_code = error;
-	return X86EMUL_PROPAGATE_FAULT;
+	return vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, 0, exception);
 }
 
 static int kvm_read_guest_virt_helper(gva_t addr, void *val, unsigned int bytes,
@@ -3656,17 +3652,16 @@ static int kvm_read_guest_virt_helper(gva_t addr, void *val, unsigned int bytes,
 {
 	void *data = val;
 	int r = X86EMUL_CONTINUE;
-	u32 error;
 
 	while (bytes) {
 		gpa_t gpa = vcpu->arch.walk_mmu->gva_to_gpa(vcpu, addr, access,
-							    &error);
+							    exception);
 		unsigned offset = addr & (PAGE_SIZE-1);
 		unsigned toread = min(bytes, (unsigned)PAGE_SIZE - offset);
 		int ret;
 
 		if (gpa == UNMAPPED_GVA)
-			return make_page_fault(exception, error);
+			return X86EMUL_PROPAGATE_FAULT;
 		ret = kvm_read_guest(vcpu->kvm, gpa, data, toread);
 		if (ret < 0) {
 			r = X86EMUL_IO_NEEDED;
@@ -3715,18 +3710,17 @@ static int kvm_write_guest_virt_system(gva_t addr, void *val,
 {
 	void *data = val;
 	int r = X86EMUL_CONTINUE;
-	u32 error;
 
 	while (bytes) {
 		gpa_t gpa =  vcpu->arch.walk_mmu->gva_to_gpa(vcpu, addr,
 							     PFERR_WRITE_MASK,
-							     &error);
+							     exception);
 		unsigned offset = addr & (PAGE_SIZE-1);
 		unsigned towrite = min(bytes, (unsigned)PAGE_SIZE - offset);
 		int ret;
 
 		if (gpa == UNMAPPED_GVA)
-			return make_page_fault(exception, error);
+			return X86EMUL_PROPAGATE_FAULT;
 		ret = kvm_write_guest(vcpu->kvm, gpa, data, towrite);
 		if (ret < 0) {
 			r = X86EMUL_IO_NEEDED;
@@ -3748,7 +3742,6 @@ static int emulator_read_emulated(unsigned long addr,
 				  struct kvm_vcpu *vcpu)
 {
 	gpa_t                 gpa;
-	u32 error_code;
 
 	if (vcpu->mmio_read_completed) {
 		memcpy(val, vcpu->mmio_data, bytes);
@@ -3758,10 +3751,10 @@ static int emulator_read_emulated(unsigned long addr,
 		return X86EMUL_CONTINUE;
 	}
 
-	gpa = kvm_mmu_gva_to_gpa_read(vcpu, addr, &error_code);
+	gpa = kvm_mmu_gva_to_gpa_read(vcpu, addr, exception);
 
 	if (gpa == UNMAPPED_GVA)
-		return make_page_fault(exception, error_code);
+		return X86EMUL_PROPAGATE_FAULT;
 
 	/* For APIC access vmexit */
 	if ((gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
@@ -3810,12 +3803,11 @@ static int emulator_write_emulated_onepage(unsigned long addr,
 					   struct kvm_vcpu *vcpu)
 {
 	gpa_t                 gpa;
-	u32 error_code;
 
-	gpa = kvm_mmu_gva_to_gpa_write(vcpu, addr, &error_code);
+	gpa = kvm_mmu_gva_to_gpa_write(vcpu, addr, exception);
 
 	if (gpa == UNMAPPED_GVA)
-		return make_page_fault(exception, error_code);
+		return X86EMUL_PROPAGATE_FAULT;
 
 	/* For APIC access vmexit */
 	if ((gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
