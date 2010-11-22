@@ -420,7 +420,7 @@ static int __devinit atmel_abdac_probe(struct platform_device *pdev)
 		return PTR_ERR(pclk);
 	}
 	sample_clk = clk_get(&pdev->dev, "sample_clk");
-	if (IS_ERR(pclk)) {
+	if (IS_ERR(sample_clk)) {
 		dev_dbg(&pdev->dev, "no sample clock\n");
 		retval = PTR_ERR(pclk);
 		goto out_put_pclk;

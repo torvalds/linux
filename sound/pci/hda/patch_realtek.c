@@ -10816,6 +10816,9 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 	return 0;
 }
 
+static int alc861vd_auto_create_multi_out_ctls(struct alc_spec *spec,
+					     const struct auto_pin_cfg *cfg);
+
 /* almost identical with ALC880 parser... */
 static int alc882_parse_auto_config(struct hda_codec *codec)
 {
@@ -10833,7 +10836,10 @@ static int alc882_parse_auto_config(struct hda_codec *codec)
 	err = alc880_auto_fill_dac_nids(spec, &spec->autocfg);
 	if (err < 0)
 		return err;
-	err = alc880_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	if (codec->vendor_id == 0x10ec0887)
+		err = alc861vd_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	else
+		err = alc880_auto_create_multi_out_ctls(spec, &spec->autocfg);
 	if (err < 0)
 		return err;
 	err = alc880_auto_create_extra_out(spec, spec->autocfg.hp_pins[0],
@@ -16963,7 +16969,7 @@ static void alc861vd_auto_init_analog_input(struct hda_codec *codec)
 #define alc861vd_idx_to_mixer_switch(nid)	((nid) + 0x0c)
 
 /* add playback controls from the parsed DAC table */
-/* Based on ALC880 version. But ALC861VD has separate,
+/* Based on ALC880 version. But ALC861VD and ALC887 have separate,
  * different NIDs for mute/unmute switch and volume control */
 static int alc861vd_auto_create_multi_out_ctls(struct alc_spec *spec,
 					     const struct auto_pin_cfg *cfg)
@@ -19298,6 +19304,7 @@ static const struct alc_fixup alc662_fixups[] = {
 
 static struct snd_pci_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x038b, "Acer Aspire 8943G", ALC662_FIXUP_ASPIRE),
+	SND_PCI_QUIRK(0x144d, 0xc051, "Samsung R720", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo Ideapad Y550P", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Ideapad Y550", ALC662_FIXUP_IDEAPAD),
 	{}

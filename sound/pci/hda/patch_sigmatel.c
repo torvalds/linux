@@ -389,6 +389,11 @@ static hda_nid_t stac92hd83xxx_dmic_nids[STAC92HD83XXX_NUM_DMICS + 1] = {
 	0x11, 0x20, 0
 };
 
+#define STAC92HD87B_NUM_DMICS	 1
+static hda_nid_t stac92hd87b_dmic_nids[STAC92HD87B_NUM_DMICS + 1] = {
+	0x11, 0
+};
+
 #define STAC92HD83XXX_NUM_CAPS	2
 static unsigned long stac92hd83xxx_capvols[] = {
 	HDA_COMPOSE_AMP_VAL(0x17, 3, 0, HDA_OUTPUT),
@@ -5452,12 +5457,17 @@ again:
 				stac92hd83xxx_brd_tbl[spec->board_config]);
 
 	switch (codec->vendor_id) {
+	case 0x111d76d1:
+	case 0x111d76d9:
+		spec->dmic_nids = stac92hd87b_dmic_nids;
+		spec->num_dmics = stac92xx_connected_ports(codec,
+				stac92hd87b_dmic_nids,
+				STAC92HD87B_NUM_DMICS);
+		/* Fall through */
 	case 0x111d7666:
 	case 0x111d7667:
 	case 0x111d7668:
 	case 0x111d7669:
-	case 0x111d76d1:
-	case 0x111d76d9:
 		spec->num_pins = ARRAY_SIZE(stac92hd88xxx_pin_nids);
 		spec->pin_nids = stac92hd88xxx_pin_nids;
 		spec->mono_nid = 0;

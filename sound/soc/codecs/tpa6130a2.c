@@ -119,13 +119,13 @@ static int tpa6130a2_power(int power)
 {
 	struct	tpa6130a2_data *data;
 	u8	val;
-	int	ret;
+	int	ret = 0;
 
 	BUG_ON(tpa6130a2_client == NULL);
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	mutex_lock(&data->mutex);
-	if (power) {
+	if (power && !data->power_state) {
 		/* Power on */
 		if (data->power_gpio >= 0)
 			gpio_set_value(data->power_gpio, 1);
@@ -153,7 +153,7 @@ static int tpa6130a2_power(int power)
 		val = tpa6130a2_read(TPA6130A2_REG_CONTROL);
 		val &= ~TPA6130A2_SWS;
 		tpa6130a2_i2c_write(TPA6130A2_REG_CONTROL, val);
-	} else {
+	} else if (!power && data->power_state) {
 		/* set SWS */
 		val = tpa6130a2_read(TPA6130A2_REG_CONTROL);
 		val |= TPA6130A2_SWS;
