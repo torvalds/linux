@@ -92,8 +92,10 @@ extern void	rtnl_link_unregister(struct rtnl_link_ops *ops);
  * 		       specific netlink attributes.
  * 	@get_link_af_size: Function to calculate size of address family specific
  * 			   netlink attributes exlusive the container attribute.
- * 	@parse_link_af: Function to parse a IFLA_AF_SPEC attribute and modify
- *			net_device accordingly.
+ *	@validate_link_af: Validate a IFLA_AF_SPEC attribute, must check attr
+ *			   for invalid configuration settings.
+ * 	@set_link_af: Function to parse a IFLA_AF_SPEC attribute and modify
+ *		      net_device accordingly.
  */
 struct rtnl_af_ops {
 	struct list_head	list;
@@ -103,8 +105,10 @@ struct rtnl_af_ops {
 						const struct net_device *dev);
 	size_t			(*get_link_af_size)(const struct net_device *dev);
 
-	int			(*parse_link_af)(struct net_device *dev,
-						 const struct nlattr *attr);
+	int			(*validate_link_af)(const struct net_device *dev,
+						    const struct nlattr *attr);
+	int			(*set_link_af)(struct net_device *dev,
+					       const struct nlattr *attr);
 };
 
 extern int	__rtnl_af_register(struct rtnl_af_ops *ops);

@@ -3956,11 +3956,6 @@ static int inet6_fill_link_af(struct sk_buff *skb, const struct net_device *dev)
 	return 0;
 }
 
-static int inet6_parse_link_af(struct net_device *dev, const struct nlattr *nla)
-{
-	return -EOPNOTSUPP;
-}
-
 static int inet6_fill_ifinfo(struct sk_buff *skb, struct inet6_dev *idev,
 			     u32 pid, u32 seq, int event, unsigned int flags)
 {
@@ -4670,7 +4665,6 @@ static struct rtnl_af_ops inet6_ops = {
 	.family		  = AF_INET6,
 	.fill_link_af	  = inet6_fill_link_af,
 	.get_link_af_size = inet6_get_link_af_size,
-	.parse_link_af	  = inet6_parse_link_af,
 };
 
 /*

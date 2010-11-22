@@ -1289,14 +1289,14 @@ static const struct nla_policy inet_af_policy[IFLA_INET_MAX+1] = {
 	[IFLA_INET_CONF]	= { .type = NLA_NESTED },
 };
 
-static int inet_parse_link_af(struct net_device *dev, const struct nlattr *nla)
+static int inet_validate_link_af(const struct net_device *dev,
+				 const struct nlattr *nla)
 {
-	struct in_device *in_dev = __in_dev_get_rcu(dev);
 	struct nlattr *a, *tb[IFLA_INET_MAX+1];
 	int err, rem;
 
-	if (!in_dev)
-		return -EOPNOTSUPP;
+	if (dev && !__in_dev_get_rcu(dev))
+		return -EAFNOSUPPORT;
 
 	err = nla_parse_nested(tb, IFLA_INET_MAX, nla, inet_af_policy);
 	if (err < 0)
@@ -1313,6 +1313,21 @@ static int inet_parse_link_af(struct net_device *dev, const struct nlattr *nla)
 				return -EINVAL;
 		}
 	}
+
+	return 0;
+}
+
+static int inet_set_link_af(struct net_device *dev, const struct nlattr *nla)
+{
+	struct in_device *in_dev = __in_dev_get_rcu(dev);
+	struct nlattr *a, *tb[IFLA_INET_MAX+1];
+	int rem;
+
+	if (!in_dev)
+		return -EAFNOSUPPORT;
+
+	if (nla_parse_nested(tb, IFLA_INET_MAX, nla, NULL) < 0)
+		BUG();
 
 	if (tb[IFLA_INET_CONF]) {
 		nla_for_each_nested(a, tb[IFLA_INET_CONF], rem)
@@ -1689,7 +1704,8 @@ static struct rtnl_af_ops inet_af_ops = {
 	.family		  = AF_INET,
 	.fill_link_af	  = inet_fill_link_af,
 	.get_link_af_size = inet_get_link_af_size,
-	.parse_link_af	  = inet_parse_link_af,
+	.validate_link_af = inet_validate_link_af,
+	.set_link_af	  = inet_set_link_af,
 };
 
 void __init devinet_init(void)
