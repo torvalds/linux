@@ -138,6 +138,7 @@
 #define MC_SHARED_CHMAP						0x2004
 #define		NOOFCHAN_SHIFT					12
 #define		NOOFCHAN_MASK					0x00003000
+#define MC_SHARED_CHREMAP					0x2008
 
 #define	MC_ARB_RAMCFG					0x2760
 #define		NOOFBANK_SHIFT					0
@@ -303,6 +304,7 @@
 #define		BILINEAR_PRECISION_8_BIT			(1 << 31)
 
 #define	TCP_CNTL					0x9610
+#define	TCP_CHAN_STEER					0x9614
 
 #define	VGT_CACHE_INVALIDATION				0x88C4
 #define		CACHE_INVALIDATION(x)				((x)<<0)
