@@ -194,14 +194,15 @@ void interface_rx(struct net_device *soft_iface,
 	struct bat_priv *priv = netdev_priv(soft_iface);
 
 	/* check if enough space is available for pulling, and pull */
-	if (!pskb_may_pull(skb, hdr_size)) {
-		kfree_skb(skb);
-		return;
-	}
+	if (!pskb_may_pull(skb, hdr_size))
+		goto dropped;
+
 	skb_pull_rcsum(skb, hdr_size);
 /*	skb_set_mac_header(skb, -sizeof(struct ethhdr));*/
 
 	/* skb->dev & skb->pkt_type are set here */
+	if (unlikely(!pskb_may_pull(skb, ETH_HLEN)))
+		goto dropped;
 	skb->protocol = eth_type_trans(skb, soft_iface);
 
 	/* should not be neccesary anymore as we use skb_pull_rcsum()
@@ -216,6 +217,11 @@ void interface_rx(struct net_device *soft_iface,
 	soft_iface->last_rx = jiffies;
 
 	netif_rx(skb);
+	return;
+
+dropped:
+	kfree_skb(skb);
+	return;
 }
 
 #ifdef HAVE_NET_DEVICE_OPS
