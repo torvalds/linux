@@ -1321,6 +1321,43 @@ bool radeon_atombios_get_ppll_ss_info(struct radeon_device *rdev,
 	return false;
 }
 
+static void radeon_atombios_get_igp_ss_overrides(struct radeon_device *rdev,
+						 struct radeon_atom_ss *ss,
+						 int id)
+{
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	int index = GetIndexIntoMasterTable(DATA, IntegratedSystemInfo);
+	u16 data_offset, size;
+	struct _ATOM_INTEGRATED_SYSTEM_INFO_V6 *igp_info;
+	u8 frev, crev;
+	u16 percentage = 0, rate = 0;
+
+	/* get any igp specific overrides */
+	if (atom_parse_data_header(mode_info->atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+		igp_info = (struct _ATOM_INTEGRATED_SYSTEM_INFO_V6 *)
+			(mode_info->atom_context->bios + data_offset);
+		switch (id) {
+		case ASIC_INTERNAL_SS_ON_TMDS:
+			percentage = le16_to_cpu(igp_info->usDVISSPercentage);
+			rate = le16_to_cpu(igp_info->usDVISSpreadRateIn10Hz);
+			break;
+		case ASIC_INTERNAL_SS_ON_HDMI:
+			percentage = le16_to_cpu(igp_info->usHDMISSPercentage);
+			rate = le16_to_cpu(igp_info->usHDMISSpreadRateIn10Hz);
+			break;
+		case ASIC_INTERNAL_SS_ON_LVDS:
+			percentage = le16_to_cpu(igp_info->usLvdsSSPercentage);
+			rate = le16_to_cpu(igp_info->usLvdsSSpreadRateIn10Hz);
+			break;
+		}
+		if (percentage)
+			ss->percentage = percentage;
+		if (rate)
+			ss->rate = rate;
+	}
+}
+
 union asic_ss_info {
 	struct _ATOM_ASIC_INTERNAL_SS_INFO info;
 	struct _ATOM_ASIC_INTERNAL_SS_INFO_V2 info_2;
@@ -1385,6 +1422,8 @@ bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
 						le16_to_cpu(ss_info->info_3.asSpreadSpectrum[i].usSpreadSpectrumPercentage);
 					ss->type = ss_info->info_3.asSpreadSpectrum[i].ucSpreadSpectrumMode;
 					ss->rate = le16_to_cpu(ss_info->info_3.asSpreadSpectrum[i].usSpreadRateIn10Hz);
+					if (rdev->flags & RADEON_IS_IGP)
+						radeon_atombios_get_igp_ss_overrides(rdev, ss, id);
 					return true;
 				}
 			}
