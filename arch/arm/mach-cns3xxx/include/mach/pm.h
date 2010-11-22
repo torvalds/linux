@@ -8,14 +8,12 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __CNS3XXX_CORE_H
-#define __CNS3XXX_CORE_H
+#ifndef __CNS3XXX_PM_H
+#define __CNS3XXX_PM_H
 
-extern void __iomem *gic_cpu_base_addr;
-extern struct sys_timer cns3xxx_timer;
+void cns3xxx_pwr_clk_en(unsigned int block);
+void cns3xxx_pwr_clk_dis(unsigned int block);
+void cns3xxx_pwr_power_up(unsigned int block);
+void cns3xxx_pwr_power_down(unsigned int block);
 
-void __init cns3xxx_map_io(void);
-void __init cns3xxx_init_irq(void);
-void cns3xxx_power_off(void);
-
-#endif /* __CNS3XXX_CORE_H */
+#endif /* __CNS3XXX_PM_H */
