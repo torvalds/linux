@@ -2011,9 +2011,12 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 
 			/* Disable the keep-alive feature */
 			ret = wl1271_acx_keep_alive_mode(wl, false);
-
 			if (ret < 0)
 				goto out_sleep;
+
+			/* restore the bssid filter and go to dummy bssid */
+			wl1271_unjoin(wl);
+			wl1271_dummy_join(wl);
 		}
 
 	}
