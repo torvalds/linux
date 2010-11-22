@@ -41,7 +41,9 @@
  * @bo:             refcounted buffer object pointer.
  * @new_sync_obj_arg: New sync_obj_arg for @bo, to be used once
  * adding a new sync object.
- * @reservied:      Indicates whether @bo has been reserved for validation.
+ * @reserved:       Indicates whether @bo has been reserved for validation.
+ * @removed:        Indicates whether @bo has been removed from lru lists.
+ * @put_count:      Number of outstanding references on bo::list_kref.
  */
 
 struct ttm_validate_buffer {
@@ -49,6 +51,8 @@ struct ttm_validate_buffer {
 	struct ttm_buffer_object *bo;
 	void *new_sync_obj_arg;
 	bool reserved;
+	bool removed;
+	int put_count;
 };
 
 /**

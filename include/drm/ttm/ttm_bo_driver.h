@@ -864,6 +864,20 @@ extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
 			  bool interruptible,
 			  bool no_wait, bool use_sequence, uint32_t sequence);
 
+
+/**
+ * ttm_bo_reserve_locked:
+ *
+ * Similar to ttm_bo_reserve, but must be called with the glob::lru_lock
+ * spinlock held, and will not remove reserved buffers from the lru lists.
+ * The function may release the LRU spinlock if it needs to sleep.
+ */
+
+extern int ttm_bo_reserve_locked(struct ttm_buffer_object *bo,
+				 bool interruptible,
+				 bool no_wait, bool use_sequence,
+				 uint32_t sequence);
+
 /**
  * ttm_bo_unreserve
  *
