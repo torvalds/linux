@@ -1,4 +1,4 @@
-/*  sound/soc/s3c24xx/s3c-pcm.h
+/*  sound/soc/s3c24xx/pcm.h
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

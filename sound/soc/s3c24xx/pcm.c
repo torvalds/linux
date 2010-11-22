@@ -1,4 +1,4 @@
-/* sound/soc/s3c24xx/s3c-pcm.c
+/* sound/soc/s3c24xx/pcm.c
  *
  * ALSA SoC Audio Layer - S3C PCM-Controller driver
  *
@@ -30,7 +30,7 @@
 #include <plat/dma.h>
 
 #include "dma.h"
-#include "s3c-pcm.h"
+#include "pcm.h"
 
 static struct s3c2410_dma_client s3c_pcm_dma_client_out = {
 	.name		= "PCM Stereo out"
