@@ -1766,7 +1766,8 @@ static const char *pp_lib_thermal_controller_names[] = {
 	"NONE",
 	"External GPIO",
 	"Evergreen",
-	"adt7473 with internal",
+	"emc2103",
+	"Sumo",
 };
 
 union power_info {
@@ -1774,12 +1775,15 @@ union power_info {
 	struct _ATOM_POWERPLAY_INFO_V2 info_2;
 	struct _ATOM_POWERPLAY_INFO_V3 info_3;
 	struct _ATOM_PPLIB_POWERPLAYTABLE pplib;
+	struct _ATOM_PPLIB_POWERPLAYTABLE2 pplib2;
+	struct _ATOM_PPLIB_POWERPLAYTABLE3 pplib3;
 };
 
 union pplib_clock_info {
 	struct _ATOM_PPLIB_R600_CLOCK_INFO r600;
 	struct _ATOM_PPLIB_RS780_CLOCK_INFO rs780;
 	struct _ATOM_PPLIB_EVERGREEN_CLOCK_INFO evergreen;
+	struct _ATOM_PPLIB_SUMO_CLOCK_INFO sumo;
 };
 
 union pplib_power_state {
@@ -2022,10 +2026,17 @@ static void radeon_atombios_add_pplib_thermal_controller(struct radeon_device *r
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			rdev->pm.int_thermal_type = THERMAL_TYPE_EVERGREEN;
+		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_SUMO) {
+			DRM_INFO("Internal thermal controller %s fan control\n",
+				 (controller->ucFanParameters &
+				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+			rdev->pm.int_thermal_type = THERMAL_TYPE_SUMO;
 		} else if ((controller->ucType ==
 			    ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO) ||
 			   (controller->ucType ==
-			    ATOM_PP_THERMALCONTROLLER_ADT7473_WITH_INTERNAL)) {
+			    ATOM_PP_THERMALCONTROLLER_ADT7473_WITH_INTERNAL) ||
+			   (controller->ucType ==
+			    ATOM_PP_THERMALCONTROLLER_EMC2103_WITH_INTERNAL)) {
 			DRM_INFO("Special thermal controller config\n");
 		} else {
 			DRM_INFO("Possible %s thermal controller at 0x%02x %s fan control\n",
@@ -2129,9 +2140,15 @@ static bool radeon_atombios_parse_pplib_clock_info(struct radeon_device *rdev,
 	u32 sclk, mclk;
 
 	if (rdev->flags & RADEON_IS_IGP) {
-		sclk = le16_to_cpu(clock_info->rs780.usLowEngineClockLow);
-		sclk |= clock_info->rs780.ucLowEngineClockHigh << 16;
-		rdev->pm.power_state[state_index].clock_info[mode_index].sclk = sclk;
+		if (rdev->family >= CHIP_PALM) {
+			sclk = le16_to_cpu(clock_info->sumo.usEngineClockLow);
+			sclk |= clock_info->sumo.ucEngineClockHigh << 16;
+			rdev->pm.power_state[state_index].clock_info[mode_index].sclk = sclk;
+		} else {
+			sclk = le16_to_cpu(clock_info->rs780.usLowEngineClockLow);
+			sclk |= clock_info->rs780.ucLowEngineClockHigh << 16;
+			rdev->pm.power_state[state_index].clock_info[mode_index].sclk = sclk;
+		}
 	} else if (ASIC_IS_DCE4(rdev)) {
 		sclk = le16_to_cpu(clock_info->evergreen.usEngineClockLow);
 		sclk |= clock_info->evergreen.ucEngineClockHigh << 16;
@@ -2237,6 +2254,82 @@ static int radeon_atombios_parse_power_table_4_5(struct radeon_device *rdev)
 	return state_index;
 }
 
+static int radeon_atombios_parse_power_table_6(struct radeon_device *rdev)
+{
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	struct _ATOM_PPLIB_NONCLOCK_INFO *non_clock_info;
+	union pplib_power_state *power_state;
+	int i, j, non_clock_array_index, clock_array_index;
+	int state_index = 0, mode_index = 0;
+	union pplib_clock_info *clock_info;
+	struct StateArray *state_array;
+	struct ClockInfoArray *clock_info_array;
+	struct NonClockInfoArray *non_clock_info_array;
+	bool valid;
+	union power_info *power_info;
+	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
+        u16 data_offset;
+	u8 frev, crev;
+
+	if (!atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset))
+		return state_index;
+	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
+
+	radeon_atombios_add_pplib_thermal_controller(rdev, &power_info->pplib.sThermalController);
+	state_array = (struct StateArray *)
+		(mode_info->atom_context->bios + data_offset +
+		 power_info->pplib.usStateArrayOffset);
+	clock_info_array = (struct ClockInfoArray *)
+		(mode_info->atom_context->bios + data_offset +
+		 power_info->pplib.usClockInfoArrayOffset);
+	non_clock_info_array = (struct NonClockInfoArray *)
+		(mode_info->atom_context->bios + data_offset +
+		 power_info->pplib.usNonClockInfoArrayOffset);
+	for (i = 0; i < state_array->ucNumEntries; i++) {
+		mode_index = 0;
+		power_state = (union pplib_power_state *)&state_array->states[i];
+		/* XXX this might be an inagua bug... */
+		non_clock_array_index = i; /* power_state->v2.nonClockInfoIndex */
+		non_clock_info = (struct _ATOM_PPLIB_NONCLOCK_INFO *)
+			&non_clock_info_array->nonClockInfo[non_clock_array_index];
+		for (j = 0; j < power_state->v2.ucNumDPMLevels; j++) {
+			clock_array_index = power_state->v2.clockInfoIndex[j];
+			/* XXX this might be an inagua bug... */
+			if (clock_array_index >= clock_info_array->ucNumEntries)
+				continue;
+			clock_info = (union pplib_clock_info *)
+				&clock_info_array->clockInfo[clock_array_index];
+			valid = radeon_atombios_parse_pplib_clock_info(rdev,
+								       state_index, mode_index,
+								       clock_info);
+			if (valid)
+				mode_index++;
+		}
+		rdev->pm.power_state[state_index].num_clock_modes = mode_index;
+		if (mode_index) {
+			radeon_atombios_parse_pplib_non_clock_info(rdev, state_index, mode_index,
+								   non_clock_info);
+			state_index++;
+		}
+	}
+	/* if multiple clock modes, mark the lowest as no display */
+	for (i = 0; i < state_index; i++) {
+		if (rdev->pm.power_state[i].num_clock_modes > 1)
+			rdev->pm.power_state[i].clock_info[0].flags |=
+				RADEON_PM_MODE_NO_DISPLAY;
+	}
+	/* first mode is usually default */
+	if (rdev->pm.default_power_state_index == -1) {
+		rdev->pm.power_state[0].type =
+			POWER_STATE_TYPE_DEFAULT;
+		rdev->pm.default_power_state_index = 0;
+		rdev->pm.power_state[0].default_clock_mode =
+			&rdev->pm.power_state[0].clock_info[0];
+	}
+	return state_index;
+}
+
 void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 {
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
@@ -2258,6 +2351,9 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 		case 4:
 		case 5:
 			state_index = radeon_atombios_parse_power_table_4_5(rdev);
+			break;
+		case 6:
+			state_index = radeon_atombios_parse_power_table_6(rdev);
 			break;
 		default:
 			break;
