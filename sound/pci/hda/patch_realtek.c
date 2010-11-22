@@ -1681,6 +1681,8 @@ struct alc_fixup {
 	unsigned int sku;
 	const struct alc_pincfg *pins;
 	const struct hda_verb *verbs;
+	void (*func)(struct hda_codec *codec, const struct alc_fixup *fix,
+		     int pre_init);
 };
 
 static void alc_pick_fixup(struct hda_codec *codec,
@@ -1719,6 +1721,13 @@ static void alc_pick_fixup(struct hda_codec *codec,
 			    codec->chip_name, quirk->name);
 #endif
 		add_verb(codec->spec, fix->verbs);
+	}
+	if (fix->func) {
+#ifdef CONFIG_SND_DEBUG_VERBOSE
+		snd_printdd(KERN_INFO "hda_codec: %s: Apply fix-func for %s\n",
+			    codec->chip_name, quirk->name);
+#endif
+		fix->func(codec, fix, pre_init);
 	}
 }
 
