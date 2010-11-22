@@ -546,7 +546,7 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	}
 
 	nv_crtc->fb.offset = fb->nvbo->bo.offset - dev_priv->vm_vram_base;
-	nv_crtc->fb.tile_flags = fb->nvbo->tile_flags;
+	nv_crtc->fb.tile_flags = nouveau_bo_tile_layout(fb->nvbo);
 	nv_crtc->fb.cpp = drm_fb->bits_per_pixel / 8;
 	if (!nv_crtc->fb.blanked && dev_priv->chipset != 0x50) {
 		ret = RING_SPACE(evo, 2);
@@ -578,7 +578,7 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 				  fb->nvbo->tile_mode);
 	}
 	if (dev_priv->chipset == 0x50)
-		OUT_RING(evo, (fb->nvbo->tile_flags << 8) | format);
+		OUT_RING(evo, (nv_crtc->fb.tile_flags << 8) | format);
 	else
 		OUT_RING(evo, format);
 

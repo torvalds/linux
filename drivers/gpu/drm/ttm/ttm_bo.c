@@ -224,6 +224,9 @@ int ttm_bo_reserve_locked(struct ttm_buffer_object *bo,
 	int ret;
 
 	while (unlikely(atomic_cmpxchg(&bo->reserved, 0, 1) != 0)) {
+		/**
+		 * Deadlock avoidance for multi-bo reserving.
+		 */
 		if (use_sequence && bo->seq_valid &&
 			(sequence - bo->val_seq < (1 << 31))) {
 			return -EAGAIN;
@@ -241,6 +244,14 @@ int ttm_bo_reserve_locked(struct ttm_buffer_object *bo,
 	}
 
 	if (use_sequence) {
+		/**
+		 * Wake up waiters that may need to recheck for deadlock,
+		 * if we decreased the sequence number.
+		 */
+		if (unlikely((bo->val_seq - sequence < (1 << 31))
+			     || !bo->seq_valid))
+			wake_up_all(&bo->event_queue);
+
 		bo->val_seq = sequence;
 		bo->seq_valid = true;
 	} else {

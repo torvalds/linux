@@ -1193,7 +1193,6 @@
 #define VTOTAL(pipe) _PIPE(pipe, VTOTAL_A, VTOTAL_B)
 #define VBLANK(pipe) _PIPE(pipe, VBLANK_A, VBLANK_B)
 #define VSYNC(pipe) _PIPE(pipe, VSYNC_A, VSYNC_B)
-#define PIPESRC(pipe) _PIPE(pipe, PIPEASRC, PIPEBSRC)
 #define BCLRPAT(pipe) _PIPE(pipe, BCLRPAT_A, BCLRPAT_B)
 
 /* VGA port control */
@@ -2207,6 +2206,7 @@
 #define   PIPE_6BPC				(2 << 5)
 #define   PIPE_12BPC				(3 << 5)
 
+#define PIPESRC(pipe) _PIPE(pipe, PIPEASRC, PIPEBSRC)
 #define PIPECONF(pipe) _PIPE(pipe, PIPEACONF, PIPEBCONF)
 #define PIPEDSL(pipe)  _PIPE(pipe, PIPEADSL, PIPEBDSL)
 
@@ -2375,6 +2375,10 @@
 #define CURBCNTR		0x700c0
 #define CURBBASE		0x700c4
 #define CURBPOS			0x700c8
+
+#define CURCNTR(pipe) _PIPE(pipe, CURACNTR, CURBCNTR)
+#define CURBASE(pipe) _PIPE(pipe, CURABASE, CURBBASE)
+#define CURPOS(pipe) _PIPE(pipe, CURAPOS, CURBPOS)
 
 /* Display A control */
 #define DSPACNTR                0x70180

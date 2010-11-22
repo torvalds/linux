@@ -129,7 +129,7 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 			if (ramin == NULL) {
 				spin_unlock(&dev_priv->ramin_lock);
 				nouveau_gpuobj_ref(NULL, &gpuobj);
-				return ret;
+				return -ENOMEM;
 			}
 
 			ramin = drm_mm_get_block_atomic(ramin, size, align);

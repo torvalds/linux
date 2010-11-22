@@ -552,6 +552,40 @@ i915_ringbuffer_last_batch(struct drm_device *dev,
 	return bbaddr;
 }
 
+static u32 capture_bo_list(struct drm_i915_error_buffer *err,
+			   int count,
+			   struct list_head *head)
+{
+	struct drm_i915_gem_object *obj;
+	int i = 0;
+
+	list_for_each_entry(obj, head, mm_list) {
+		err->size = obj->base.size;
+		err->name = obj->base.name;
+		err->seqno = obj->last_rendering_seqno;
+		err->gtt_offset = obj->gtt_offset;
+		err->read_domains = obj->base.read_domains;
+		err->write_domain = obj->base.write_domain;
+		err->fence_reg = obj->fence_reg;
+		err->pinned = 0;
+		if (obj->pin_count > 0)
+			err->pinned = 1;
+		if (obj->user_pin_count > 0)
+			err->pinned = -1;
+		err->tiling = obj->tiling_mode;
+		err->dirty = obj->dirty;
+		err->purgeable = obj->madv != I915_MADV_WILLNEED;
+		err->ring = obj->ring->id;
+
+		if (++i == count)
+			break;
+
+		err++;
+	}
+
+	return i;
+}
+
 /**
  * i915_capture_error_state - capture an error record for later analysis
  * @dev: drm device
@@ -700,45 +734,39 @@ static void i915_capture_error_state(struct drm_device *dev)
 	error->ringbuffer = i915_error_object_create(dev,
 			dev_priv->render_ring.gem_object);
 
-	/* Record buffers on the active list. */
+	/* Record buffers on the active and pinned lists. */
 	error->active_bo = NULL;
-	error->active_bo_count = 0;
+	error->pinned_bo = NULL;
 
-	if (count)
+	error->active_bo_count = count;
+	list_for_each_entry(obj_priv, &dev_priv->mm.pinned_list, mm_list)
+		count++;
+	error->pinned_bo_count = count - error->active_bo_count;
+
+	if (count) {
 		error->active_bo = kmalloc(sizeof(*error->active_bo)*count,
 					   GFP_ATOMIC);
-
-	if (error->active_bo) {
-		int i = 0;
-		list_for_each_entry(obj_priv, &dev_priv->mm.active_list, mm_list) {
-			struct drm_gem_object *obj = &obj_priv->base;
-
-			error->active_bo[i].size = obj->size;
-			error->active_bo[i].name = obj->name;
-			error->active_bo[i].seqno = obj_priv->last_rendering_seqno;
-			error->active_bo[i].gtt_offset = obj_priv->gtt_offset;
-			error->active_bo[i].read_domains = obj->read_domains;
-			error->active_bo[i].write_domain = obj->write_domain;
-			error->active_bo[i].fence_reg = obj_priv->fence_reg;
-			error->active_bo[i].pinned = 0;
-			if (obj_priv->pin_count > 0)
-				error->active_bo[i].pinned = 1;
-			if (obj_priv->user_pin_count > 0)
-				error->active_bo[i].pinned = -1;
-			error->active_bo[i].tiling = obj_priv->tiling_mode;
-			error->active_bo[i].dirty = obj_priv->dirty;
-			error->active_bo[i].purgeable = obj_priv->madv != I915_MADV_WILLNEED;
-			error->active_bo[i].ring = obj_priv->ring->id;
-
-			if (++i == count)
-				break;
-		}
-		error->active_bo_count = i;
+		if (error->active_bo)
+			error->pinned_bo =
+				error->active_bo + error->active_bo_count;
 	}
+
+	if (error->active_bo)
+		error->active_bo_count =
+			capture_bo_list(error->active_bo,
+					error->active_bo_count,
+					&dev_priv->mm.active_list);
+
+	if (error->pinned_bo)
+		error->pinned_bo_count =
+			capture_bo_list(error->pinned_bo,
+					error->pinned_bo_count,
+					&dev_priv->mm.pinned_list);
 
 	do_gettimeofday(&error->time);
 
 	error->overlay = intel_overlay_capture_error_state(dev);
+	error->display = intel_display_capture_error_state(dev);
 
 	spin_lock_irqsave(&dev_priv->error_lock, flags);
 	if (dev_priv->first_error == NULL) {

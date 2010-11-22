@@ -180,7 +180,7 @@ int radeon_wb_init(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->wb.wb_obj == NULL) {
-		r = radeon_bo_create(rdev, NULL, RADEON_GPU_PAGE_SIZE, true,
+		r = radeon_bo_create(rdev, NULL, RADEON_GPU_PAGE_SIZE, PAGE_SIZE, true,
 				RADEON_GEM_DOMAIN_GTT, &rdev->wb.wb_obj);
 		if (r) {
 			dev_warn(rdev->dev, "(%d) create WB bo failed\n", r);

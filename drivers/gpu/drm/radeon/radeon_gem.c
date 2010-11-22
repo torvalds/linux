@@ -67,7 +67,7 @@ int radeon_gem_object_create(struct radeon_device *rdev, int size,
 	if (alignment < PAGE_SIZE) {
 		alignment = PAGE_SIZE;
 	}
-	r = radeon_bo_create(rdev, gobj, size, kernel, initial_domain, &robj);
+	r = radeon_bo_create(rdev, gobj, size, alignment, kernel, initial_domain, &robj);
 	if (r) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("Failed to allocate GEM object (%d, %d, %u, %d)\n",

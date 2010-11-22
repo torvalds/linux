@@ -6269,3 +6269,113 @@ int intel_modeset_vga_set_state(struct drm_device *dev, bool state)
 	pci_write_config_word(dev_priv->bridge_dev, INTEL_GMCH_CTRL, gmch_ctrl);
 	return 0;
 }
+
+#ifdef CONFIG_DEBUG_FS
+#include <linux/seq_file.h>
+
+struct intel_display_error_state {
+	struct intel_cursor_error_state {
+		u32 control;
+		u32 position;
+		u32 base;
+		u32 size;
+	} cursor[2];
+
+	struct intel_pipe_error_state {
+		u32 conf;
+		u32 source;
+
+		u32 htotal;
+		u32 hblank;
+		u32 hsync;
+		u32 vtotal;
+		u32 vblank;
+		u32 vsync;
+	} pipe[2];
+
+	struct intel_plane_error_state {
+		u32 control;
+		u32 stride;
+		u32 size;
+		u32 pos;
+		u32 addr;
+		u32 surface;
+		u32 tile_offset;
+	} plane[2];
+};
+
+struct intel_display_error_state *
+intel_display_capture_error_state(struct drm_device *dev)
+{
+        drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_display_error_state *error;
+	int i;
+
+	error = kmalloc(sizeof(*error), GFP_ATOMIC);
+	if (error == NULL)
+		return NULL;
+
+	for (i = 0; i < 2; i++) {
+		error->cursor[i].control = I915_READ(CURCNTR(i));
+		error->cursor[i].position = I915_READ(CURPOS(i));
+		error->cursor[i].base = I915_READ(CURBASE(i));
+
+		error->plane[i].control = I915_READ(DSPCNTR(i));
+		error->plane[i].stride = I915_READ(DSPSTRIDE(i));
+		error->plane[i].size = I915_READ(DSPSIZE(i));
+		error->plane[i].pos= I915_READ(DSPPOS(i));
+		error->plane[i].addr = I915_READ(DSPADDR(i));
+		if (INTEL_INFO(dev)->gen >= 4) {
+			error->plane[i].surface = I915_READ(DSPSURF(i));
+			error->plane[i].tile_offset = I915_READ(DSPTILEOFF(i));
+		}
+
+		error->pipe[i].conf = I915_READ(PIPECONF(i));
+		error->pipe[i].source = I915_READ(PIPESRC(i));
+		error->pipe[i].htotal = I915_READ(HTOTAL(i));
+		error->pipe[i].hblank = I915_READ(HBLANK(i));
+		error->pipe[i].hsync = I915_READ(HSYNC(i));
+		error->pipe[i].vtotal = I915_READ(VTOTAL(i));
+		error->pipe[i].vblank = I915_READ(VBLANK(i));
+		error->pipe[i].vsync = I915_READ(VSYNC(i));
+	}
+
+	return error;
+}
+
+void
+intel_display_print_error_state(struct seq_file *m,
+				struct drm_device *dev,
+				struct intel_display_error_state *error)
+{
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		seq_printf(m, "Pipe [%d]:\n", i);
+		seq_printf(m, "  CONF: %08x\n", error->pipe[i].conf);
+		seq_printf(m, "  SRC: %08x\n", error->pipe[i].source);
+		seq_printf(m, "  HTOTAL: %08x\n", error->pipe[i].htotal);
+		seq_printf(m, "  HBLANK: %08x\n", error->pipe[i].hblank);
+		seq_printf(m, "  HSYNC: %08x\n", error->pipe[i].hsync);
+		seq_printf(m, "  VTOTAL: %08x\n", error->pipe[i].vtotal);
+		seq_printf(m, "  VBLANK: %08x\n", error->pipe[i].vblank);
+		seq_printf(m, "  VSYNC: %08x\n", error->pipe[i].vsync);
+
+		seq_printf(m, "Plane [%d]:\n", i);
+		seq_printf(m, "  CNTR: %08x\n", error->plane[i].control);
+		seq_printf(m, "  STRIDE: %08x\n", error->plane[i].stride);
+		seq_printf(m, "  SIZE: %08x\n", error->plane[i].size);
+		seq_printf(m, "  POS: %08x\n", error->plane[i].pos);
+		seq_printf(m, "  ADDR: %08x\n", error->plane[i].addr);
+		if (INTEL_INFO(dev)->gen >= 4) {
+			seq_printf(m, "  SURF: %08x\n", error->plane[i].surface);
+			seq_printf(m, "  TILEOFF: %08x\n", error->plane[i].tile_offset);
+		}
+
+		seq_printf(m, "Cursor [%d]:\n", i);
+		seq_printf(m, "  CNTR: %08x\n", error->cursor[i].control);
+		seq_printf(m, "  POS: %08x\n", error->cursor[i].position);
+		seq_printf(m, "  BASE: %08x\n", error->cursor[i].base);
+	}
+}
+#endif
