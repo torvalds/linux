@@ -1915,7 +1915,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 
 	ret = ops->read_std(old_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
 			    &ctxt->exception);
-	if (ret == X86EMUL_PROPAGATE_FAULT)
+	if (ret != X86EMUL_CONTINUE)
 		/* FIXME: need to provide precise fault address */
 		return ret;
 
@@ -1923,13 +1923,13 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 
 	ret = ops->write_std(old_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
 			     &ctxt->exception);
-	if (ret == X86EMUL_PROPAGATE_FAULT)
+	if (ret != X86EMUL_CONTINUE)
 		/* FIXME: need to provide precise fault address */
 		return ret;
 
 	ret = ops->read_std(new_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
 			    &ctxt->exception);
-	if (ret == X86EMUL_PROPAGATE_FAULT)
+	if (ret != X86EMUL_CONTINUE)
 		/* FIXME: need to provide precise fault address */
 		return ret;
 
@@ -1940,7 +1940,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 				     &tss_seg.prev_task_link,
 				     sizeof tss_seg.prev_task_link,
 				     ctxt->vcpu, &ctxt->exception);
-		if (ret == X86EMUL_PROPAGATE_FAULT)
+		if (ret != X86EMUL_CONTINUE)
 			/* FIXME: need to provide precise fault address */
 			return ret;
 	}
@@ -2049,7 +2049,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 
 	ret = ops->read_std(old_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
 			    &ctxt->exception);
-	if (ret == X86EMUL_PROPAGATE_FAULT)
+	if (ret != X86EMUL_CONTINUE)
 		/* FIXME: need to provide precise fault address */
 		return ret;
 
@@ -2057,13 +2057,13 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 
 	ret = ops->write_std(old_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
 			     &ctxt->exception);
-	if (ret == X86EMUL_PROPAGATE_FAULT)
+	if (ret != X86EMUL_CONTINUE)
 		/* FIXME: need to provide precise fault address */
 		return ret;
 
 	ret = ops->read_std(new_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
 			    &ctxt->exception);
-	if (ret == X86EMUL_PROPAGATE_FAULT)
+	if (ret != X86EMUL_CONTINUE)
 		/* FIXME: need to provide precise fault address */
 		return ret;
 
@@ -2074,7 +2074,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 				     &tss_seg.prev_task_link,
 				     sizeof tss_seg.prev_task_link,
 				     ctxt->vcpu, &ctxt->exception);
-		if (ret == X86EMUL_PROPAGATE_FAULT)
+		if (ret != X86EMUL_CONTINUE)
 			/* FIXME: need to provide precise fault address */
 			return ret;
 	}
