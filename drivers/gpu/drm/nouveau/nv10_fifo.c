@@ -53,6 +53,11 @@ nv10_fifo_create_context(struct nouveau_channel *chan)
 	if (ret)
 		return ret;
 
+	chan->user = ioremap(pci_resource_start(dev->pdev, 0) +
+			     NV03_USER(chan->id), PAGE_SIZE);
+	if (!chan->user)
+		return -ENOMEM;
+
 	/* Fill entries that are seen filled in dumps of nvidia driver just
 	 * after channel's is put into DMA mode
 	 */

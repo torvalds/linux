@@ -129,6 +129,11 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 	if (ret)
 		return ret;
 
+	chan->user = ioremap(pci_resource_start(dev->pdev, 0) +
+			     NV03_USER(chan->id), PAGE_SIZE);
+	if (!chan->user)
+		return -ENOMEM;
+
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
 	/* Setup initial state */
@@ -173,6 +178,10 @@ nv04_fifo_destroy_context(struct nouveau_channel *chan)
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	/* Free the channel resources */
+	if (chan->user) {
+		iounmap(chan->user);
+		chan->user = NULL;
+	}
 	nouveau_gpuobj_ref(NULL, &chan->ramfc);
 }
 

@@ -113,7 +113,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_channel *chan;
 	unsigned long flags;
-	int user, ret;
+	int ret;
 
 	/* allocate and lock channel structure */
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
@@ -160,23 +160,6 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	}
 
 	nouveau_dma_pre_init(chan);
-
-	/* Locate channel's user control regs */
-	if (dev_priv->card_type < NV_40)
-		user = NV03_USER(chan->id);
-	else
-	if (dev_priv->card_type < NV_50)
-		user = NV40_USER(chan->id);
-	else
-		user = NV50_USER(chan->id);
-
-	chan->user = ioremap(pci_resource_start(dev->pdev, 0) + user,
-								PAGE_SIZE);
-	if (!chan->user) {
-		NV_ERROR(dev, "ioremap of regs failed.\n");
-		nouveau_channel_put(&chan);
-		return -ENOMEM;
-	}
 	chan->user_put = 0x40;
 	chan->user_get = 0x44;
 
@@ -355,9 +338,6 @@ nouveau_channel_del(struct kref *ref)
 {
 	struct nouveau_channel *chan =
 		container_of(ref, struct nouveau_channel, ref);
-
-	if (chan->user)
-		iounmap(chan->user);
 
 	kfree(chan);
 }

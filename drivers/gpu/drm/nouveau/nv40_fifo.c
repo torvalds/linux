@@ -47,6 +47,11 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 	if (ret)
 		return ret;
 
+	chan->user = ioremap(pci_resource_start(dev->pdev, 0) +
+			     NV40_USER(chan->id), PAGE_SIZE);
+	if (!chan->user)
+		return -ENOMEM;
+
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
 	nv_wi32(dev, fc +  0, chan->pushbuf_base);

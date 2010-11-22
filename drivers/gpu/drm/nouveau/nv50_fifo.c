@@ -261,6 +261,11 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 	}
 	ramfc = chan->ramfc;
 
+	chan->user = ioremap(pci_resource_start(dev->pdev, 0) +
+			     NV50_USER(chan->id), PAGE_SIZE);
+	if (!chan->user)
+		return -ENOMEM;
+
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
 	nv_wo32(ramfc, 0x48, chan->pushbuf->cinst >> 4);
@@ -327,6 +332,10 @@ nv50_fifo_destroy_context(struct nouveau_channel *chan)
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	/* Free the channel resources */
+	if (chan->user) {
+		iounmap(chan->user);
+		chan->user = NULL;
+	}
 	nouveau_gpuobj_ref(NULL, &ramfc);
 	nouveau_gpuobj_ref(NULL, &chan->cache);
 }
