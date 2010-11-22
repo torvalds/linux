@@ -1,4 +1,4 @@
-/* sound/soc/s3c24xx/smartq_wm8987.c
+/* sound/soc/samsung/smartq_wm8987.c
  *
  * Copyright 2010 Maurus Cuelenaere <mcuelenaere@gmail.com>
  *

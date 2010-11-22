@@ -1,4 +1,4 @@
-/* sound/soc/s3c24xx/s3c2412-i2s.c
+/* sound/soc/samsung/s3c2412-i2s.c
  *
  * ALSA Soc Audio Layer - S3C2412 I2S driver
  *

@@ -1,4 +1,4 @@
-/* sound/soc/s3c24xx/s3c-i2c-v2.c
+/* sound/soc/samsung/s3c-i2c-v2.c
  *
  * ALSA Soc Audio Layer - I2S core for newer Samsung SoCs.
  *

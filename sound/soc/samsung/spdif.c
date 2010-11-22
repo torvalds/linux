@@ -1,4 +1,4 @@
-/* sound/soc/s3c24xx/spdif.c
+/* sound/soc/samsung/spdif.c
  *
  * ALSA SoC Audio Layer - Samsung S/PDIF Controller driver
  *

@@ -1,4 +1,4 @@
-/* sound/soc/s3c24xx/s3c24xx_simtec.h
+/* sound/soc/samsung/s3c24xx_simtec.h
  *
  * Copyright 2009 Simtec Electronics
  *

@@ -1,4 +1,4 @@
-/* sound/soc/s3c24xx/i2s.c
+/* sound/soc/samsung/i2s.c
  *
  * ALSA SoC Audio Layer - Samsung I2S Controller driver
  *

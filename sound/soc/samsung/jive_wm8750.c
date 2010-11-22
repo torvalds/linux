@@ -1,4 +1,4 @@
-/* sound/soc/s3c24xx/jive_wm8750.c
+/* sound/soc/samsung/jive_wm8750.c
  *
  * Copyright 2007,2008 Simtec Electronics
  *

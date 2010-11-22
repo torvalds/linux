@@ -1,4 +1,4 @@
-/* sound/soc/s3c24xx/pcm.c
+/* sound/soc/samsung/pcm.c
  *
  * ALSA SoC Audio Layer - S3C PCM-Controller driver
  *

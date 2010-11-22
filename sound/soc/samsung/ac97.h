@@ -1,4 +1,4 @@
-/* sound/soc/s3c24xx/ac97.h
+/* sound/soc/samsung/ac97.h
  *
  * ALSA SoC Audio Layer - S3C AC97 Controller driver
  *	Evolved from s3c2443-ac97.h
