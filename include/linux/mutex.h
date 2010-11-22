@@ -160,4 +160,8 @@ extern int mutex_trylock(struct mutex *lock);
 extern void mutex_unlock(struct mutex *lock);
 extern int atomic_dec_and_mutex_lock(atomic_t *cnt, struct mutex *lock);
 
+#ifndef CONFIG_HAVE_ARCH_MUTEX_CPU_RELAX
+#define arch_mutex_cpu_relax()	cpu_relax()
+#endif
+
 #endif
