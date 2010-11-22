@@ -1,4 +1,4 @@
-/* sound/soc/s3c24xx/s3c-ac97.c
+/* sound/soc/s3c24xx/ac97.c
  *
  * ALSA SoC Audio Layer - S3C AC97 Controller driver
  * 	Evolved from s3c2443-ac97.c
@@ -25,7 +25,7 @@
 #include <plat/audio.h>
 
 #include "dma.h"
-#include "s3c-ac97.h"
+#include "ac97.h"
 
 #define AC_CMD_ADDR(x) (x << 16)
 #define AC_CMD_DATA(x) (x & 0xffff)
@@ -122,7 +122,7 @@ static unsigned short s3c_ac97_read(struct snd_ac97 *ac97,
 	data = (stat & 0xffff);
 
 	if (addr != reg)
-		pr_err("s3c-ac97: req addr = %02x, rep addr = %02x\n",
+		pr_err("ac97: req addr = %02x, rep addr = %02x\n",
 			reg, addr);
 
 	mutex_unlock(&s3c_ac97.lock);
@@ -334,7 +334,7 @@ static struct snd_soc_dai_ops s3c_ac97_mic_dai_ops = {
 
 static struct snd_soc_dai_driver s3c_ac97_dai[] = {
 	[S3C_AC97_DAI_PCM] = {
-		.name =	"s3c-ac97",
+		.name =	"samsung-ac97",
 		.ac97_control = 1,
 		.playback = {
 			.stream_name = "AC97 Playback",
@@ -351,7 +351,7 @@ static struct snd_soc_dai_driver s3c_ac97_dai[] = {
 		.ops = &s3c_ac97_dai_ops,
 	},
 	[S3C_AC97_DAI_MIC] = {
-		.name = "s3c-ac97-mic",
+		.name = "samsung-ac97-mic",
 		.ac97_control = 1,
 		.capture = {
 			.stream_name = "AC97 Mic Capture",
@@ -407,7 +407,7 @@ static __devinit int s3c_ac97_probe(struct platform_device *pdev)
 	}
 
 	if (!request_mem_region(mem_res->start,
-				resource_size(mem_res), "s3c-ac97")) {
+				resource_size(mem_res), "ac97")) {
 		dev_err(&pdev->dev, "Unable to request register region\n");
 		return -EBUSY;
 	}
@@ -431,7 +431,7 @@ static __devinit int s3c_ac97_probe(struct platform_device *pdev)
 
 	s3c_ac97.ac97_clk = clk_get(&pdev->dev, "ac97");
 	if (IS_ERR(s3c_ac97.ac97_clk)) {
-		dev_err(&pdev->dev, "s3c-ac97 failed to get ac97_clock\n");
+		dev_err(&pdev->dev, "ac97 failed to get ac97_clock\n");
 		ret = -ENODEV;
 		goto err2;
 	}
@@ -446,7 +446,7 @@ static __devinit int s3c_ac97_probe(struct platform_device *pdev)
 	ret = request_irq(irq_res->start, s3c_ac97_irq,
 					IRQF_DISABLED, "AC97", NULL);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "s3c-ac97: interrupt request failed.\n");
+		dev_err(&pdev->dev, "ac97: interrupt request failed.\n");
 		goto err4;
 	}
 

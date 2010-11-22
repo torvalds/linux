@@ -23,7 +23,7 @@
 #include <sound/soc.h>
 
 #include "dma.h"
-#include "s3c-ac97.h"
+#include "ac97.h"
 
 static struct snd_soc_card ln2440sbc;
 
