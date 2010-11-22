@@ -302,6 +302,7 @@ nv50_instmem_resume(struct drm_device *dev)
 
 struct nv50_gpuobj_node {
 	struct nouveau_vram *vram;
+	struct nouveau_vma chan_vma;
 	u32 align;
 };
 
@@ -310,6 +311,7 @@ int
 nv50_instmem_get(struct nouveau_gpuobj *gpuobj, u32 size, u32 align)
 {
 	struct drm_device *dev = gpuobj->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_gpuobj_node *node = NULL;
 	int ret;
 
@@ -328,8 +330,23 @@ nv50_instmem_get(struct nouveau_gpuobj *gpuobj, u32 size, u32 align)
 	}
 
 	gpuobj->vinst = node->vram->offset;
-	gpuobj->size  = size;
-	gpuobj->node  = node;
+
+	if (gpuobj->flags & NVOBJ_FLAG_VM) {
+		ret = nouveau_vm_get(dev_priv->chan_vm, size, 12,
+				     NV_MEM_ACCESS_RW | NV_MEM_ACCESS_SYS,
+				     &node->chan_vma);
+		if (ret) {
+			nv50_vram_del(dev, &node->vram);
+			kfree(node);
+			return ret;
+		}
+
+		nouveau_vm_map(&node->chan_vma, node->vram);
+		gpuobj->vinst = node->chan_vma.offset;
+	}
+
+	gpuobj->size = size;
+	gpuobj->node = node;
 	return 0;
 }
 
@@ -342,6 +359,10 @@ nv50_instmem_put(struct nouveau_gpuobj *gpuobj)
 	node = gpuobj->node;
 	gpuobj->node = NULL;
 
+	if (node->chan_vma.node) {
+		nouveau_vm_unmap(&node->chan_vma);
+		nouveau_vm_put(&node->chan_vma);
+	}
 	nv50_vram_del(dev, &node->vram);
 	kfree(node);
 }
