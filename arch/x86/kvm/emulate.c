@@ -466,33 +466,33 @@ static ulong linear(struct x86_emulate_ctxt *ctxt,
 	return la;
 }
 
-static void emulate_exception(struct x86_emulate_ctxt *ctxt, int vec,
-				      u32 error, bool valid)
+static int emulate_exception(struct x86_emulate_ctxt *ctxt, int vec,
+			     u32 error, bool valid)
 {
 	ctxt->exception.vector = vec;
 	ctxt->exception.error_code = error;
 	ctxt->exception.error_code_valid = valid;
+	return X86EMUL_PROPAGATE_FAULT;
 }
 
-static void emulate_gp(struct x86_emulate_ctxt *ctxt, int err)
+static int emulate_gp(struct x86_emulate_ctxt *ctxt, int err)
 {
-	emulate_exception(ctxt, GP_VECTOR, err, true);
+	return emulate_exception(ctxt, GP_VECTOR, err, true);
 }
 
-static void emulate_ud(struct x86_emulate_ctxt *ctxt)
+static int emulate_ud(struct x86_emulate_ctxt *ctxt)
 {
-	emulate_exception(ctxt, UD_VECTOR, 0, false);
+	return emulate_exception(ctxt, UD_VECTOR, 0, false);
 }
 
-static void emulate_ts(struct x86_emulate_ctxt *ctxt, int err)
+static int emulate_ts(struct x86_emulate_ctxt *ctxt, int err)
 {
-	emulate_exception(ctxt, TS_VECTOR, err, true);
+	return emulate_exception(ctxt, TS_VECTOR, err, true);
 }
 
 static int emulate_de(struct x86_emulate_ctxt *ctxt)
 {
-	emulate_exception(ctxt, DE_VECTOR, 0, false);
-	return X86EMUL_PROPAGATE_FAULT;
+	return emulate_exception(ctxt, DE_VECTOR, 0, false);
 }
 
 static int do_fetch_insn_byte(struct x86_emulate_ctxt *ctxt,
@@ -898,10 +898,8 @@ static int read_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 
 	get_descriptor_table_ptr(ctxt, ops, selector, &dt);
 
-	if (dt.size < index * 8 + 7) {
-		emulate_gp(ctxt, selector & 0xfffc);
-		return X86EMUL_PROPAGATE_FAULT;
-	}
+	if (dt.size < index * 8 + 7)
+		return emulate_gp(ctxt, selector & 0xfffc);
 	addr = dt.address + index * 8;
 	ret = ops->read_std(addr, desc, sizeof *desc, ctxt->vcpu,
 			    &ctxt->exception);
@@ -921,10 +919,8 @@ static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 
 	get_descriptor_table_ptr(ctxt, ops, selector, &dt);
 
-	if (dt.size < index * 8 + 7) {
-		emulate_gp(ctxt, selector & 0xfffc);
-		return X86EMUL_PROPAGATE_FAULT;
-	}
+	if (dt.size < index * 8 + 7)
+		return emulate_gp(ctxt, selector & 0xfffc);
 
 	addr = dt.address + index * 8;
 	ret = ops->write_std(addr, desc, sizeof *desc, ctxt->vcpu,
@@ -1165,10 +1161,8 @@ static int emulate_popf(struct x86_emulate_ctxt *ctxt,
 			change_mask |= EFLG_IF;
 		break;
 	case X86EMUL_MODE_VM86:
-		if (iopl < 3) {
-			emulate_gp(ctxt, 0);
-			return X86EMUL_PROPAGATE_FAULT;
-		}
+		if (iopl < 3)
+			return emulate_gp(ctxt, 0);
 		change_mask |= EFLG_IF;
 		break;
 	default: /* real mode */
@@ -1347,10 +1341,8 @@ static int emulate_iret_real(struct x86_emulate_ctxt *ctxt,
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
-	if (temp_eip & ~0xffff) {
-		emulate_gp(ctxt, 0);
-		return X86EMUL_PROPAGATE_FAULT;
-	}
+	if (temp_eip & ~0xffff)
+		return emulate_gp(ctxt, 0);
 
 	rc = emulate_pop(ctxt, ops, &cs, c->op_bytes);
 
@@ -1601,10 +1593,8 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	/* syscall is not available in real mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL ||
-	    ctxt->mode == X86EMUL_MODE_VM86) {
-		emulate_ud(ctxt);
-		return X86EMUL_PROPAGATE_FAULT;
-	}
+	    ctxt->mode == X86EMUL_MODE_VM86)
+		return emulate_ud(ctxt);
 
 	setup_syscalls_segments(ctxt, ops, &cs, &ss);
 
@@ -1655,34 +1645,26 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	u16 cs_sel, ss_sel;
 
 	/* inject #GP if in real mode */
-	if (ctxt->mode == X86EMUL_MODE_REAL) {
-		emulate_gp(ctxt, 0);
-		return X86EMUL_PROPAGATE_FAULT;
-	}
+	if (ctxt->mode == X86EMUL_MODE_REAL)
+		return emulate_gp(ctxt, 0);
 
 	/* XXX sysenter/sysexit have not been tested in 64bit mode.
 	* Therefore, we inject an #UD.
 	*/
-	if (ctxt->mode == X86EMUL_MODE_PROT64) {
-		emulate_ud(ctxt);
-		return X86EMUL_PROPAGATE_FAULT;
-	}
+	if (ctxt->mode == X86EMUL_MODE_PROT64)
+		return emulate_ud(ctxt);
 
 	setup_syscalls_segments(ctxt, ops, &cs, &ss);
 
 	ops->get_msr(ctxt->vcpu, MSR_IA32_SYSENTER_CS, &msr_data);
 	switch (ctxt->mode) {
 	case X86EMUL_MODE_PROT32:
-		if ((msr_data & 0xfffc) == 0x0) {
-			emulate_gp(ctxt, 0);
-			return X86EMUL_PROPAGATE_FAULT;
-		}
+		if ((msr_data & 0xfffc) == 0x0)
+			return emulate_gp(ctxt, 0);
 		break;
 	case X86EMUL_MODE_PROT64:
-		if (msr_data == 0x0) {
-			emulate_gp(ctxt, 0);
-			return X86EMUL_PROPAGATE_FAULT;
-		}
+		if (msr_data == 0x0)
+			return emulate_gp(ctxt, 0);
 		break;
 	}
 
@@ -1722,10 +1704,8 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	/* inject #GP if in real mode or Virtual 8086 mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL ||
-	    ctxt->mode == X86EMUL_MODE_VM86) {
-		emulate_gp(ctxt, 0);
-		return X86EMUL_PROPAGATE_FAULT;
-	}
+	    ctxt->mode == X86EMUL_MODE_VM86)
+		return emulate_gp(ctxt, 0);
 
 	setup_syscalls_segments(ctxt, ops, &cs, &ss);
 
@@ -1740,18 +1720,14 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	switch (usermode) {
 	case X86EMUL_MODE_PROT32:
 		cs_sel = (u16)(msr_data + 16);
-		if ((msr_data & 0xfffc) == 0x0) {
-			emulate_gp(ctxt, 0);
-			return X86EMUL_PROPAGATE_FAULT;
-		}
+		if ((msr_data & 0xfffc) == 0x0)
+			return emulate_gp(ctxt, 0);
 		ss_sel = (u16)(msr_data + 24);
 		break;
 	case X86EMUL_MODE_PROT64:
 		cs_sel = (u16)(msr_data + 32);
-		if (msr_data == 0x0) {
-			emulate_gp(ctxt, 0);
-			return X86EMUL_PROPAGATE_FAULT;
-		}
+		if (msr_data == 0x0)
+			return emulate_gp(ctxt, 0);
 		ss_sel = cs_sel + 8;
 		cs.d = 0;
 		cs.l = 1;
@@ -1982,10 +1958,8 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 	struct decode_cache *c = &ctxt->decode;
 	int ret;
 
-	if (ops->set_cr(3, tss->cr3, ctxt->vcpu)) {
-		emulate_gp(ctxt, 0);
-		return X86EMUL_PROPAGATE_FAULT;
-	}
+	if (ops->set_cr(3, tss->cr3, ctxt->vcpu))
+		return emulate_gp(ctxt, 0);
 	c->eip = tss->eip;
 	ctxt->eflags = tss->eflags | 2;
 	c->regs[VCPU_REGS_RAX] = tss->eax;
@@ -2107,10 +2081,8 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 
 	if (reason != TASK_SWITCH_IRET) {
 		if ((tss_selector & 3) > next_tss_desc.dpl ||
-		    ops->cpl(ctxt->vcpu) > next_tss_desc.dpl) {
-			emulate_gp(ctxt, 0);
-			return X86EMUL_PROPAGATE_FAULT;
-		}
+		    ops->cpl(ctxt->vcpu) > next_tss_desc.dpl)
+			return emulate_gp(ctxt, 0);
 	}
 
 	desc_limit = desc_limit_scaled(&next_tss_desc);
@@ -2331,10 +2303,8 @@ static int em_rdtsc(struct x86_emulate_ctxt *ctxt)
 	struct decode_cache *c = &ctxt->decode;
 	u64 tsc = 0;
 
-	if (cpl > 0 && (ctxt->ops->get_cr(4, ctxt->vcpu) & X86_CR4_TSD)) {
-		emulate_gp(ctxt, 0);
-		return X86EMUL_PROPAGATE_FAULT;
-	}
+	if (cpl > 0 && (ctxt->ops->get_cr(4, ctxt->vcpu) & X86_CR4_TSD))
+		return emulate_gp(ctxt, 0);
 	ctxt->ops->get_msr(ctxt->vcpu, MSR_IA32_TSC, &tsc);
 	c->regs[VCPU_REGS_RAX] = (u32)tsc;
 	c->regs[VCPU_REGS_RDX] = tsc >> 32;
@@ -2979,28 +2949,24 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 	ctxt->decode.mem_read.pos = 0;
 
 	if (ctxt->mode == X86EMUL_MODE_PROT64 && (c->d & No64)) {
-		emulate_ud(ctxt);
-		rc = X86EMUL_PROPAGATE_FAULT;
+		rc = emulate_ud(ctxt);
 		goto done;
 	}
 
 	/* LOCK prefix is allowed only with some instructions */
 	if (c->lock_prefix && (!(c->d & Lock) || c->dst.type != OP_MEM)) {
-		emulate_ud(ctxt);
-		rc = X86EMUL_PROPAGATE_FAULT;
+		rc = emulate_ud(ctxt);
 		goto done;
 	}
 
 	if ((c->d & SrcMask) == SrcMemFAddr && c->src.type != OP_MEM) {
-		emulate_ud(ctxt);
-		rc = X86EMUL_PROPAGATE_FAULT;
+		rc = emulate_ud(ctxt);
 		goto done;
 	}
 
 	/* Privileged instruction can be executed only in CPL=0 */
 	if ((c->d & Priv) && ops->cpl(ctxt->vcpu)) {
-		emulate_gp(ctxt, 0);
-		rc = X86EMUL_PROPAGATE_FAULT;
+		rc = emulate_gp(ctxt, 0);
 		goto done;
 	}
 
@@ -3178,8 +3144,7 @@ special_insn:
 		break;
 	case 0x8c:  /* mov r/m, sreg */
 		if (c->modrm_reg > VCPU_SREG_GS) {
-			emulate_ud(ctxt);
-			rc = X86EMUL_PROPAGATE_FAULT;
+			rc = emulate_ud(ctxt);
 			goto done;
 		}
 		c->dst.val = ops->get_segment_selector(c->modrm_reg, ctxt->vcpu);
@@ -3194,8 +3159,7 @@ special_insn:
 
 		if (c->modrm_reg == VCPU_SREG_CS ||
 		    c->modrm_reg > VCPU_SREG_GS) {
-			emulate_ud(ctxt);
-			rc = X86EMUL_PROPAGATE_FAULT;
+			rc = emulate_ud(ctxt);
 			goto done;
 		}
 
@@ -3327,8 +3291,7 @@ special_insn:
 	do_io_in:
 		c->dst.bytes = min(c->dst.bytes, 4u);
 		if (!emulator_io_permited(ctxt, ops, c->src.val, c->dst.bytes)) {
-			emulate_gp(ctxt, 0);
-			rc = X86EMUL_PROPAGATE_FAULT;
+			rc = emulate_gp(ctxt, 0);
 			goto done;
 		}
 		if (!pio_in_emulated(ctxt, ops, c->dst.bytes, c->src.val,
@@ -3342,8 +3305,7 @@ special_insn:
 		c->src.bytes = min(c->src.bytes, 4u);
 		if (!emulator_io_permited(ctxt, ops, c->dst.val,
 					  c->src.bytes)) {
-			emulate_gp(ctxt, 0);
-			rc = X86EMUL_PROPAGATE_FAULT;
+			rc = emulate_gp(ctxt, 0);
 			goto done;
 		}
 		ops->pio_out_emulated(c->src.bytes, c->dst.val,
@@ -3368,16 +3330,14 @@ special_insn:
 		break;
 	case 0xfa: /* cli */
 		if (emulator_bad_iopl(ctxt, ops)) {
-			emulate_gp(ctxt, 0);
-			rc = X86EMUL_PROPAGATE_FAULT;
+			rc = emulate_gp(ctxt, 0);
 			goto done;
 		} else
 			ctxt->eflags &= ~X86_EFLAGS_IF;
 		break;
 	case 0xfb: /* sti */
 		if (emulator_bad_iopl(ctxt, ops)) {
-			emulate_gp(ctxt, 0);
-			rc = X86EMUL_PROPAGATE_FAULT;
+			rc = emulate_gp(ctxt, 0);
 			goto done;
 		} else {
 			ctxt->interruptibility = KVM_X86_SHADOW_INT_STI;
