@@ -60,13 +60,13 @@ config SND_S3C24XX_SOC_JIVE_WM8750
 	help
 	  Sat Y if you want to add support for SoC audio on the Jive.
 
-config SND_S3C64XX_SOC_WM8580
-	tristate "SoC I2S Audio support for WM8580 on SMDK64XX"
+config SND_SOC_SMDK_WM8580
+	tristate "SoC I2S Audio support for WM8580 on SMDK"
 	depends on SND_S3C24XX_SOC && MACH_SMDK6410
 	select SND_SOC_WM8580
 	select SND_SAMSUNG_I2S
 	help
-	  Say Y if you want to add support for SoC audio on the SMDK6410.
+	  Say Y if you want to add support for SoC audio on the SMDKs.
 
 config SND_S3C24XX_SOC_SMDK2443_WM9710
 	tristate "SoC AC97 Audio support for SMDK2443 - WM9710"
