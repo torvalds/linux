@@ -41,6 +41,9 @@ config SND_S5P_SOC_SPDIF
 	tristate
 	select SND_SOC_SPDIF
 
+config SND_SAMSUNG_I2S
+	tristate
+
 config SND_S3C24XX_SOC_NEO1973_WM8753
 	tristate "SoC I2S Audio support for NEO1973 - WM8753"
 	depends on SND_S3C24XX_SOC && MACH_NEO1973_GTA01
