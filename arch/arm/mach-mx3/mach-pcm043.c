@@ -237,7 +237,7 @@ static void pcm043_ac97_warm_reset(struct snd_ac97 *ac97)
 		return;
 	}
 
-	mxc_iomux_v3_setup_pad(&txfs_gpio);
+	mxc_iomux_v3_setup_pad(txfs_gpio);
 
 	/* warm reset */
 	gpio_direction_output(AC97_GPIO_TXFS, 1);
@@ -245,7 +245,7 @@ static void pcm043_ac97_warm_reset(struct snd_ac97 *ac97)
 	gpio_set_value(AC97_GPIO_TXFS, 0);
 
 	gpio_free(AC97_GPIO_TXFS);
-	mxc_iomux_v3_setup_pad(&txfs);
+	mxc_iomux_v3_setup_pad(txfs);
 }
 
 static void pcm043_ac97_cold_reset(struct snd_ac97 *ac97)
@@ -269,9 +269,9 @@ static void pcm043_ac97_cold_reset(struct snd_ac97 *ac97)
 	if (ret)
 		goto err3;
 
-	mxc_iomux_v3_setup_pad(&txfs_gpio);
-	mxc_iomux_v3_setup_pad(&txd_gpio);
-	mxc_iomux_v3_setup_pad(&reset_gpio);
+	mxc_iomux_v3_setup_pad(txfs_gpio);
+	mxc_iomux_v3_setup_pad(txd_gpio);
+	mxc_iomux_v3_setup_pad(reset_gpio);
 
 	gpio_direction_output(AC97_GPIO_TXFS, 0);
 	gpio_direction_output(AC97_GPIO_TXD, 0);
@@ -281,8 +281,8 @@ static void pcm043_ac97_cold_reset(struct snd_ac97 *ac97)
 	udelay(10);
 	gpio_direction_output(AC97_GPIO_RESET, 1);
 
-	mxc_iomux_v3_setup_pad(&txd);
-	mxc_iomux_v3_setup_pad(&txfs);
+	mxc_iomux_v3_setup_pad(txd);
+	mxc_iomux_v3_setup_pad(txfs);
 
 	gpio_free(AC97_GPIO_RESET);
 err3:

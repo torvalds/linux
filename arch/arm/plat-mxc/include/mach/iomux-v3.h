@@ -42,58 +42,42 @@
  * If <padname> or <padmode> refers to a GPIO, it is named
  * GPIO_<unit>_<num>
  *
- */
+ * IOMUX/PAD Bit field definitions
+ *
+ * MUX_CTRL_OFS:	    0..11 (12)
+ * PAD_CTRL_OFS:	   12..23 (12)
+ * SEL_INPUT_OFS:	   24..35 (12)
+ * MUX_MODE + SION:	   36..40  (5)
+ * PAD_CTRL + NO_PAD_CTRL: 41..57 (17)
+ * SEL_INP:		   58..61  (4)
+ * reserved:		     63    (1)
+*/
 
-typedef struct deprecated_pad_desc {
-	unsigned mux_ctrl_ofs:12; /* IOMUXC_SW_MUX_CTL_PAD offset */
-	unsigned mux_mode:8;
-	unsigned pad_ctrl_ofs:12; /* IOMUXC_SW_PAD_CTRL offset */
-#define	NO_PAD_CTRL	(1 << 16)
-	unsigned pad_ctrl:17;
-	unsigned select_input_ofs:12; /* IOMUXC_SELECT_INPUT offset */
-	unsigned select_input:3;
-} iomux_v3_cfg_t;
+typedef u64 iomux_v3_cfg_t;
 
-static inline unsigned int MUX_CTRL_OFS(iomux_v3_cfg_t *pad)
-{
-	return pad->mux_ctrl_ofs;
-}
+#define MUX_CTRL_OFS_SHIFT	0
+#define MUX_CTRL_OFS_MASK	((iomux_v3_cfg_t)0xfff << MUX_CTRL_OFS_SHIFT)
+#define MUX_PAD_CTRL_OFS_SHIFT	12
+#define MUX_PAD_CTRL_OFS_MASK	((iomux_v3_cfg_t)0xfff << MUX_PAD_CTRL_OFS_SHIFT)
+#define MUX_SEL_INPUT_OFS_SHIFT	24
+#define MUX_SEL_INPUT_OFS_MASK	((iomux_v3_cfg_t)0xfff << MUX_SEL_INPUT_OFS_SHIFT)
 
-static inline unsigned int MUX_MODE(iomux_v3_cfg_t *pad)
-{
-	return pad->mux_mode;
-}
+#define MUX_MODE_SHIFT		36
+#define MUX_MODE_MASK		((iomux_v3_cfg_t)0x1f << MUX_MODE_SHIFT)
+#define MUX_PAD_CTRL_SHIFT	41
+#define MUX_PAD_CTRL_MASK	((iomux_v3_cfg_t)0x1ffff << MUX_PAD_CTRL_SHIFT)
+#define NO_PAD_CTRL		((iomux_v3_cfg_t)1 << (MUX_PAD_CTRL_SHIFT + 16))
+#define MUX_SEL_INPUT_SHIFT	58
+#define MUX_SEL_INPUT_MASK	((iomux_v3_cfg_t)0xf << MUX_SEL_INPUT_SHIFT)
 
-static inline unsigned int MUX_SELECT_INPUT_OFS(iomux_v3_cfg_t *pad)
-{
-	return pad->select_input_ofs;
-}
-
-static inline unsigned int MUX_SELECT_INPUT(iomux_v3_cfg_t *pad)
-{
-	return pad->select_input;
-}
-
-static inline unsigned int MUX_PAD_CTRL_OFS(iomux_v3_cfg_t *pad)
-{
-	return pad->pad_ctrl_ofs;
-}
-
-static inline unsigned int MUX_PAD_CTRL(iomux_v3_cfg_t *pad)
-{
-	return pad->pad_ctrl;
-}
-
-#define IOMUX_PAD(_pad_ctrl_ofs, _mux_ctrl_ofs, _mux_mode, _select_input_ofs, \
-		_select_input, _pad_ctrl)				\
-		{							\
-			.mux_ctrl_ofs     = _mux_ctrl_ofs,		\
-			.mux_mode         = _mux_mode,			\
-			.pad_ctrl_ofs     = _pad_ctrl_ofs,		\
-			.pad_ctrl         = _pad_ctrl,			\
-			.select_input_ofs = _select_input_ofs,		\
-			.select_input     = _select_input,		\
-		}
+#define IOMUX_PAD(_pad_ctrl_ofs, _mux_ctrl_ofs, _mux_mode, _sel_input_ofs, \
+		_sel_input, _pad_ctrl)					\
+	(((iomux_v3_cfg_t)(_mux_ctrl_ofs) << MUX_CTRL_OFS_SHIFT) |	\
+		((iomux_v3_cfg_t)(_mux_mode) << MUX_MODE_SHIFT) |	\
+		((iomux_v3_cfg_t)(_pad_ctrl_ofs) << MUX_PAD_CTRL_OFS_SHIFT) | \
+		((iomux_v3_cfg_t)(_pad_ctrl) << MUX_PAD_CTRL_SHIFT) |	\
+		((iomux_v3_cfg_t)(_sel_input_ofs) << MUX_SEL_INPUT_OFS_SHIFT) | \
+		((iomux_v3_cfg_t)(_sel_input) << MUX_SEL_INPUT_SHIFT))
 
 /*
  * Use to set PAD control
@@ -137,7 +121,7 @@ static inline unsigned int MUX_PAD_CTRL(iomux_v3_cfg_t *pad)
 /*
  * setups a single pad in the iomuxer
  */
-int mxc_iomux_v3_setup_pad(iomux_v3_cfg_t *pad);
+int mxc_iomux_v3_setup_pad(iomux_v3_cfg_t pad);
 
 /*
  * setups mutliple pads

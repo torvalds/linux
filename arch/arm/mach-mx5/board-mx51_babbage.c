@@ -193,7 +193,7 @@ static int gpio_usbh1_active(void)
 	int ret;
 
 	/* Set USBH1_STP to GPIO and toggle it */
-	mxc_iomux_v3_setup_pad(&usbh1stp_gpio);
+	mxc_iomux_v3_setup_pad(usbh1stp_gpio);
 	ret = gpio_request(BABBAGE_USBH1_STP, "usbh1_stp");
 
 	if (ret) {
@@ -206,7 +206,7 @@ static int gpio_usbh1_active(void)
 	gpio_free(BABBAGE_USBH1_STP);
 
 	/* De-assert USB PHY RESETB */
-	mxc_iomux_v3_setup_pad(&phyreset_gpio);
+	mxc_iomux_v3_setup_pad(phyreset_gpio);
 	ret = gpio_request(BABBAGE_PHY_RESET, "phy_reset");
 
 	if (ret) {
@@ -352,7 +352,8 @@ static const struct spi_imx_master mx51_babbage_spi_pdata __initconst = {
 static void __init mxc_board_init(void)
 {
 	iomux_v3_cfg_t usbh1stp = MX51_PAD_USBH1_STP__USBH1_STP;
-	iomux_v3_cfg_t power_key = MX51_PAD_EIM_A27__GPIO_2_21;
+	iomux_v3_cfg_t power_key = (MX51_PAD_EIM_A27__GPIO_2_21 &
+				~MUX_PAD_CTRL_MASK) | MX51_GPIO_PAD_CTRL_2;
 
 #if defined(CONFIG_CPU_FREQ_IMX)
 	get_cpu_op = mx51_get_cpu_op;
@@ -364,8 +365,7 @@ static void __init mxc_board_init(void)
 	imx51_add_fec(NULL);
 
 	/* Set the PAD settings for the pwr key. */
-	power_key.pad_ctrl = MX51_GPIO_PAD_CTRL_2;
-	mxc_iomux_v3_setup_pad(&power_key);
+	mxc_iomux_v3_setup_pad(power_key);
 	imx51_add_gpio_keys(&imx_button_data);
 
 	imx51_add_imx_i2c(0, &babbage_i2c_data);
@@ -382,7 +382,7 @@ static void __init mxc_board_init(void)
 	gpio_usbh1_active();
 	mxc_register_device(&mxc_usbh1_device, &usbh1_config);
 	/* setback USBH1_STP to be function */
-	mxc_iomux_v3_setup_pad(&usbh1stp);
+	mxc_iomux_v3_setup_pad(usbh1stp);
 	babbage_usbhub_reset();
 
 	imx51_add_sdhci_esdhc_imx(0, NULL);

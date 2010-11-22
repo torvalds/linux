@@ -34,17 +34,24 @@ static void __iomem *base;
 /*
  * configures a single pad in the iomuxer
  */
-int mxc_iomux_v3_setup_pad(iomux_v3_cfg_t *pad)
+int mxc_iomux_v3_setup_pad(iomux_v3_cfg_t pad)
 {
-	if (MUX_CTRL_OFS(pad))
-		__raw_writel(MUX_MODE(pad), base + MUX_CTRL_OFS(pad));
+	u32 mux_ctrl_ofs = (pad & MUX_CTRL_OFS_MASK) >> MUX_CTRL_OFS_SHIFT;
+	u32 mux_mode = (pad & MUX_MODE_MASK) >> MUX_MODE_SHIFT;
+	u32 sel_input_ofs = (pad & MUX_SEL_INPUT_OFS_MASK) >> MUX_SEL_INPUT_OFS_SHIFT;
+	u32 sel_input = (pad & MUX_SEL_INPUT_MASK) >> MUX_SEL_INPUT_SHIFT;
+	u32 pad_ctrl_ofs = (pad & MUX_PAD_CTRL_OFS_MASK) >> MUX_PAD_CTRL_OFS_SHIFT;
+	u32 pad_ctrl = (pad & MUX_PAD_CTRL_MASK) >> MUX_PAD_CTRL_SHIFT;
 
-	if (MUX_SELECT_INPUT_OFS(pad))
-		__raw_writel(MUX_SELECT_INPUT(pad),
-			base + MUX_SELECT_INPUT_OFS(pad));
+	if (mux_ctrl_ofs)
+		__raw_writel(mux_mode, base + mux_ctrl_ofs);
 
-	if (!(MUX_PAD_CTRL(pad) & NO_PAD_CTRL) && MUX_PAD_CTRL_OFS(pad))
-		__raw_writel(MUX_PAD_CTRL(pad), base + MUX_PAD_CTRL_OFS(pad));
+	if (sel_input_ofs)
+		__raw_writel(sel_input, base + sel_input_ofs);
+
+	if (!(pad_ctrl & NO_PAD_CTRL) && pad_ctrl_ofs)
+		__raw_writel(pad_ctrl, base + pad_ctrl_ofs);
+
 	return 0;
 }
 EXPORT_SYMBOL(mxc_iomux_v3_setup_pad);
@@ -56,7 +63,7 @@ int mxc_iomux_v3_setup_multiple_pads(iomux_v3_cfg_t *pad_list, unsigned count)
 	int ret;
 
 	for (i = 0; i < count; i++) {
-		ret = mxc_iomux_v3_setup_pad(p);
+		ret = mxc_iomux_v3_setup_pad(*p);
 		if (ret)
 			return ret;
 		p++;
