@@ -833,7 +833,6 @@ static int do_touch_multi_msg(struct qtouch_ts_data *ts, struct qtm_object *obj,
 	uint32_t finger;
 	int down;
 
-
 	finger = msg->report_id - obj->report_id_min;
 	if (finger >= ts->pdata->multi_touch_cfg.num_touch)
 		return 0;
@@ -888,7 +887,7 @@ static int do_touch_multi_msg(struct qtouch_ts_data *ts, struct qtm_object *obj,
 		input_report_abs(ts->input_dev, ABS_MT_POSITION_Y,
 				 ts->finger_data[i].y_data);
 		input_report_abs(ts->input_dev, ABS_MT_TRACKING_ID,
-				 i+1);
+				 i);
 		input_mt_sync(ts->input_dev);
 	}
 	input_sync(ts->input_dev);
