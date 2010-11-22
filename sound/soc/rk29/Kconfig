@@ -9,6 +9,20 @@ config SND_RK29_SOC
 config SND_RK29_SOC_I2S
 	tristate 
 
+config SND_RK29_SOC_I2S_2CH
+        bool "Soc RK29 I2S 2 Channel support"
+        default y
+	depends on SND_RK29_SOC_I2S
+	help
+                This supports the use of the 2 Channel I2S interface on rk29 processors.
+
+config SND_RK29_SOC_I2S_8CH
+        bool "Soc RK29 I2S 8 Channel support"
+        default y
+	depends on SND_RK29_SOC_I2S
+	help
+                This supports the use of the 8 Channel I2S interface on rk29 processors.
+
 config SND_RK29_SOC_WM8988
 	tristate "SoC I2S Audio support for rockchip - WM8988"
 	depends on SND_RK29_SOC && I2C_RK29

@@ -180,46 +180,47 @@ static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
 static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		unsigned int fmt)
 {
-    struct rk29_i2s_info *i2s = to_info(cpu_dai);	
-    u32 tx_ctl,rx_ctl;
-    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-    
-    tx_ctl = readl(&(pheadi2s->I2S_TXCTL));
-    tx_ctl &= (~MASTER_MODE);
-    
-    switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	  case SND_SOC_DAIFMT_CBM_CFM:  	
-	  	tx_ctl |= MASTER_MODE;  
-	  	break;
-	  case SND_SOC_DAIFMT_CBS_CFS:
-	  	tx_ctl |= SLAVE_MODE;  
-	  	break;
-	  default:
-	  	DBG("unknwon master/slave format\n");
-	  	return -EINVAL;
-	  }
-    tx_ctl &= ~IISMOD_SDF_MASK;
-    
-    switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
-    case SND_SOC_DAIFMT_RIGHT_J:
-    	tx_ctl |= RIGHT_JUSTIFIED;
-    	break;
-    case SND_SOC_DAIFMT_LEFT_J:
-    	tx_ctl |= LEFT_JUSTIFIED;
-    	break;
-    case SND_SOC_DAIFMT_I2S:
-    	tx_ctl |= I2S_MODE;
-    	break;
-    default:
-    	DBG("Unknown data format\n");
-    	return -EINVAL;
-	  }
-	tx_ctl = tx_ctl & (~(0xff<<8)) & (~(0x03<<16)) & (~(1<<3));  
-	tx_ctl = tx_ctl | OVERSAMPLING_RATE_64FS | SCK_RATE4 | STEREO_MODE;   
-    writel(tx_ctl, &(pheadi2s->I2S_TXCTL));
-    rx_ctl = tx_ctl | CLEAR_RXFIFO;
-    writel(rx_ctl, &(pheadi2s->I2S_RXCTL));
-    return 0;
+        struct rk29_i2s_info *i2s = to_info(cpu_dai);	
+        u32 tx_ctl,rx_ctl;
+
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+
+        tx_ctl = readl(&(pheadi2s->I2S_TXCTL));
+        tx_ctl &= (~MASTER_MODE);
+
+        switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+                case SND_SOC_DAIFMT_CBM_CFM:  	
+                        tx_ctl |= MASTER_MODE;  
+                        break;
+                case SND_SOC_DAIFMT_CBS_CFS:
+                        tx_ctl |= SLAVE_MODE;  
+                        break;
+                default:
+                        DBG("unknwon master/slave format\n");
+                        return -EINVAL;
+        }
+        tx_ctl &= ~IISMOD_SDF_MASK;
+
+        switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+                case SND_SOC_DAIFMT_RIGHT_J:
+                        tx_ctl |= RIGHT_JUSTIFIED;
+                        break;
+                case SND_SOC_DAIFMT_LEFT_J:
+                        tx_ctl |= LEFT_JUSTIFIED;
+                        break;
+                case SND_SOC_DAIFMT_I2S:
+                        tx_ctl |= I2S_MODE;
+                        break;
+                default:
+                        DBG("Unknown data format\n");
+                        return -EINVAL;
+        }
+        tx_ctl = tx_ctl & (~(0xff<<8)) & (~(0x03<<16)) & (~(1<<3));  
+        tx_ctl = tx_ctl | OVERSAMPLING_RATE_64FS | SCK_RATE4 | STEREO_MODE;   
+        writel(tx_ctl, &(pheadi2s->I2S_TXCTL));
+        rx_ctl = tx_ctl | CLEAR_RXFIFO;
+        writel(rx_ctl, &(pheadi2s->I2S_RXCTL));
+        return 0;
 }
 
 static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
@@ -316,28 +317,28 @@ static int rockchip_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 static int rockchip_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	int div_id, int div)
 {
-    //u32 reg;
-    
-    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-    /*when i2s in master mode ,must set codec pll div*/
-    switch (div_id) {
-    case ROCKCHIP_DIV_BCLK:
-    	//reg = readl(&(pheadi2s->I2S_TXCTL)) & ~S3C2410_IISMOD_FS_MASK;
-    	//writel(reg | div, &(pheadi2s->I2S_TXCTL));
-    	break;
-    case ROCKCHIP_DIV_MCLK:
-    	//reg = readl(rockchip_i2s.regs + S3C2410_IISMOD) & ~(S3C2410_IISMOD_384FS);
-    	//writel(reg | div, s3c24xx_i2s.regs + S3C2410_IISMOD);
-    	break;
-    case ROCKCHIP_DIV_PRESCALER:
-    	//writel(div, s3c24xx_i2s.regs + S3C2410_IISPSR);
-    	//reg = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
-    	//writel(reg | S3C2410_IISCON_PSCEN, s3c24xx_i2s.regs + S3C2410_IISCON);
-    	break;
-    default:
-    	return -EINVAL;
-	}
-    return 0;
+        //u32 reg;
+
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        /*when i2s in master mode ,must set codec pll div*/
+        switch (div_id) {
+        case ROCKCHIP_DIV_BCLK:
+                //reg = readl(&(pheadi2s->I2S_TXCTL)) & ~S3C2410_IISMOD_FS_MASK;
+                //writel(reg | div, &(pheadi2s->I2S_TXCTL));
+                break;
+        case ROCKCHIP_DIV_MCLK:
+                //reg = readl(rockchip_i2s.regs + S3C2410_IISMOD) & ~(S3C2410_IISMOD_384FS);
+                //writel(reg | div, s3c24xx_i2s.regs + S3C2410_IISMOD);
+                break;
+        case ROCKCHIP_DIV_PRESCALER:
+                //writel(div, s3c24xx_i2s.regs + S3C2410_IISPSR);
+                //reg = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
+                //writel(reg | S3C2410_IISCON_PSCEN, s3c24xx_i2s.regs + S3C2410_IISCON);
+                break;
+        default:
+                return -EINVAL;
+        }
+        return 0;
 }
 
 static int rockchip_set_sysclk(struct snd_soc_dai *cpu_dai,
