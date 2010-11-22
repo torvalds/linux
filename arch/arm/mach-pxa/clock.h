@@ -21,14 +21,6 @@ struct clk {
 		.con_id		= _conname,		\
 	}
 
-#define DEFINE_CKEN(_name, _cken, _rate, _delay)	\
-struct clk clk_##_name = {				\
-		.ops	= &clk_cken_ops,		\
-		.rate	= _rate,			\
-		.cken	= CKEN_##_cken,			\
-		.delay	= _delay,			\
-	}
-
 #define DEFINE_CK(_name, _cken, _ops)			\
 struct clk clk_##_name = {				\
 		.ops	= _ops,				\
@@ -39,6 +31,14 @@ struct clk clk_##_name = {				\
 struct clk clk_##_name = {				\
 		.ops	= _ops, 			\
 		.rate	= _rate,			\
+		.delay	= _delay,			\
+	}
+
+#define DEFINE_CKEN(_name, _cken, _rate, _delay)	\
+struct clk clk_##_name = {				\
+		.ops	= &clk_cken_ops,		\
+		.rate	= _rate,			\
+		.cken	= CKEN_##_cken,			\
 		.delay	= _delay,			\
 	}
 
@@ -54,12 +54,6 @@ struct clk clk_##_name = {				\
 		.rate	= _rate,			\
 		.cken	= CKEN_##_cken,			\
 		.delay	= _delay,			\
-	}
-
-#define DEFINE_PXA3_CK(_name, _cken, _ops)		\
-struct clk clk_##_name = {				\
-		.ops	= _ops,				\
-		.cken	= CKEN_##_cken,			\
 	}
 
 extern const struct clkops clk_pxa3xx_cken_ops;

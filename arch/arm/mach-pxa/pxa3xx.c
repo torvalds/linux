@@ -216,9 +216,6 @@ static struct clk clk_dummy = {
 	.ops		= &clk_dummy_ops,
 };
 
-static DEFINE_PXA3_CK(pxa3xx_lcd, LCD, &clk_pxa3xx_hsio_ops);
-static DEFINE_PXA3_CK(pxa3xx_camera, CAMERA, &clk_pxa3xx_hsio_ops);
-static DEFINE_PXA3_CK(pxa3xx_ac97, AC97, &clk_pxa3xx_ac97_ops);
 static DEFINE_PXA3_CKEN(pxa3xx_ffuart, FFUART, 14857000, 1);
 static DEFINE_PXA3_CKEN(pxa3xx_btuart, BTUART, 14857000, 1);
 static DEFINE_PXA3_CKEN(pxa3xx_stuart, STUART, 14857000, 1);
@@ -235,6 +232,10 @@ static DEFINE_PXA3_CKEN(pxa3xx_pwm0, PWM0, 13000000, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_pwm1, PWM1, 13000000, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_mmc1, MMC1, 19500000, 0);
 static DEFINE_PXA3_CKEN(pxa3xx_mmc2, MMC2, 19500000, 0);
+
+static DEFINE_CK(pxa3xx_lcd, LCD, &clk_pxa3xx_hsio_ops);
+static DEFINE_CK(pxa3xx_camera, CAMERA, &clk_pxa3xx_hsio_ops);
+static DEFINE_CK(pxa3xx_ac97, AC97, &clk_pxa3xx_ac97_ops);
 
 static struct clk_lookup pxa3xx_clkregs[] = {
 	INIT_CLKREG(&clk_pxa3xx_pout, NULL, "CLK_POUT"),
