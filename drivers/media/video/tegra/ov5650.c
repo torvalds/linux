@@ -578,7 +578,9 @@ static int ov5650_get_otp(struct ov5650_info *info, void __user *ubuffer)
 
 	otpp = (uint8_t *)&info->otp_data;
 
-	/* Either we never read the OTP or CRC failure. */
+	/* If we've already read the OTP successfully (and CRC matched).
+	   Alternatively this is set also if ignore_otp was provided in
+	   platform data, so we don't try to read OTP on known-bad hardware. */
 	if (info->otp_valid)
 		goto end;
 
@@ -765,7 +767,8 @@ static int ov5650_probe(struct i2c_client *client,
 
 	info->pdata = client->dev.platform_data;
 	info->i2c_client = client;
-	info->otp_valid = false;
+	if (info->pdata->ignore_otp)
+		info->otp_valid = true;
 
 	i2c_set_clientdata(client, info);
 	return 0;

@@ -34,6 +34,7 @@
 
 #include <mach/gpio.h>
 
+#include "board-stingray.h"
 #include "gpio-names.h"
 
 #define KXTF9_IRQ_GPIO		TEGRA_GPIO_PV3
@@ -46,23 +47,6 @@
 #define OV5650_PWRDN_GPIO	TEGRA_GPIO_PBB1
 #define SOC2030_RESETN_GPIO	TEGRA_GPIO_PD5
 #define SOC2030_PWRDN_GPIO	TEGRA_GPIO_PBB5
-
-static int stingray_ov5650_init(void)
-{
-	tegra_gpio_enable(OV5650_RESETN_GPIO);
-	gpio_request(OV5650_RESETN_GPIO, "ov5650_reset");
-	gpio_direction_output(OV5650_RESETN_GPIO, 0);
-	gpio_export(OV5650_RESETN_GPIO, false);
-
-	tegra_gpio_enable(OV5650_PWRDN_GPIO);
-	gpio_request(OV5650_PWRDN_GPIO, "ov5650_pwrdn");
-	gpio_direction_output(OV5650_PWRDN_GPIO, 1);
-	gpio_export(OV5650_PWRDN_GPIO, false);
-
-	pr_info("initialize the ov5650 sensor\n");
-
-	return 0;
-}
 
 static int stingray_ov5650_power_on(void)
 {
@@ -92,7 +76,30 @@ static int stingray_ov5650_power_off(void)
 struct ov5650_platform_data stingray_ov5650_data = {
 	.power_on = stingray_ov5650_power_on,
 	.power_off = stingray_ov5650_power_off,
+	.ignore_otp = false
 };
+
+static int stingray_ov5650_init(void)
+{
+	tegra_gpio_enable(OV5650_RESETN_GPIO);
+	gpio_request(OV5650_RESETN_GPIO, "ov5650_reset");
+	gpio_direction_output(OV5650_RESETN_GPIO, 0);
+	gpio_export(OV5650_RESETN_GPIO, false);
+
+	tegra_gpio_enable(OV5650_PWRDN_GPIO);
+	gpio_request(OV5650_PWRDN_GPIO, "ov5650_pwrdn");
+	gpio_direction_output(OV5650_PWRDN_GPIO, 1);
+	gpio_export(OV5650_PWRDN_GPIO, false);
+
+	if (stingray_revision() <= STINGRAY_REVISION_P1) {
+		stingray_ov5650_data.ignore_otp = true;
+		pr_info("running on old hardware, ignoring OTP data\n");
+	}
+
+	pr_info("initialize the ov5650 sensor\n");
+
+	return 0;
+}
 
 static int stingray_soc2030_init(void)
 {

@@ -67,9 +67,12 @@ struct ov5650_mode {
 };
 #ifdef __KERNEL__
 struct ov5650_platform_data {
+
+	/* Assume OTP data are corrupted, so just
+	   return an empty block when asked. */
+	bool ignore_otp;
 	int (*power_on)(void);
 	int (*power_off)(void);
-
 };
 #endif /* __KERNEL__ */
 
