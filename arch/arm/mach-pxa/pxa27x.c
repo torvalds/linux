@@ -161,36 +161,37 @@ static unsigned long clk_pxa27x_lcd_getrate(struct clk *clk)
 }
 
 static const struct clkops clk_pxa27x_lcd_ops = {
-	.enable		= clk_cken_enable,
-	.disable	= clk_cken_disable,
+	.enable		= clk_pxa2xx_cken_enable,
+	.disable	= clk_pxa2xx_cken_disable,
 	.getrate	= clk_pxa27x_lcd_getrate,
 };
 
+static DEFINE_PXA2_CKEN(pxa27x_ffuart, FFUART, 14857000, 1);
+static DEFINE_PXA2_CKEN(pxa27x_btuart, BTUART, 14857000, 1);
+static DEFINE_PXA2_CKEN(pxa27x_stuart, STUART, 14857000, 1);
+static DEFINE_PXA2_CKEN(pxa27x_i2s, I2S, 14682000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_i2c, I2C, 32842000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_usb, USB, 48000000, 5);
+static DEFINE_PXA2_CKEN(pxa27x_mmc, MMC, 19500000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_ficp, FICP, 48000000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_usbhost, USBHOST, 48000000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_pwri2c, PWRI2C, 13000000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_keypad, KEYPAD, 32768, 0);
+static DEFINE_PXA2_CKEN(pxa27x_ssp1, SSP1, 13000000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_ssp2, SSP2, 13000000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_ssp3, SSP3, 13000000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_pwm0, PWM0, 13000000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_pwm1, PWM1, 13000000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_ac97, AC97, 24576000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_ac97conf, AC97CONF, 24576000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_msl, MSL, 48000000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_usim, USIM, 48000000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_memstk, MEMSTK, 19500000, 0);
+static DEFINE_PXA2_CKEN(pxa27x_im, IM, 0, 0);
+static DEFINE_PXA2_CKEN(pxa27x_memc, MEMC, 0, 0);
+
 static DEFINE_CK(pxa27x_lcd, LCD, &clk_pxa27x_lcd_ops);
 static DEFINE_CK(pxa27x_camera, CAMERA, &clk_pxa27x_lcd_ops);
-static DEFINE_CKEN(pxa27x_ffuart, FFUART, 14857000, 1);
-static DEFINE_CKEN(pxa27x_btuart, BTUART, 14857000, 1);
-static DEFINE_CKEN(pxa27x_stuart, STUART, 14857000, 1);
-static DEFINE_CKEN(pxa27x_i2s, I2S, 14682000, 0);
-static DEFINE_CKEN(pxa27x_i2c, I2C, 32842000, 0);
-static DEFINE_CKEN(pxa27x_usb, USB, 48000000, 5);
-static DEFINE_CKEN(pxa27x_mmc, MMC, 19500000, 0);
-static DEFINE_CKEN(pxa27x_ficp, FICP, 48000000, 0);
-static DEFINE_CKEN(pxa27x_usbhost, USBHOST, 48000000, 0);
-static DEFINE_CKEN(pxa27x_pwri2c, PWRI2C, 13000000, 0);
-static DEFINE_CKEN(pxa27x_keypad, KEYPAD, 32768, 0);
-static DEFINE_CKEN(pxa27x_ssp1, SSP1, 13000000, 0);
-static DEFINE_CKEN(pxa27x_ssp2, SSP2, 13000000, 0);
-static DEFINE_CKEN(pxa27x_ssp3, SSP3, 13000000, 0);
-static DEFINE_CKEN(pxa27x_pwm0, PWM0, 13000000, 0);
-static DEFINE_CKEN(pxa27x_pwm1, PWM1, 13000000, 0);
-static DEFINE_CKEN(pxa27x_ac97, AC97, 24576000, 0);
-static DEFINE_CKEN(pxa27x_ac97conf, AC97CONF, 24576000, 0);
-static DEFINE_CKEN(pxa27x_msl, MSL, 48000000, 0);
-static DEFINE_CKEN(pxa27x_usim, USIM, 48000000, 0);
-static DEFINE_CKEN(pxa27x_memstk, MEMSTK, 19500000, 0);
-static DEFINE_CKEN(pxa27x_im, IM, 0, 0);
-static DEFINE_CKEN(pxa27x_memc, MEMC, 0, 0);
 
 static struct clk_lookup pxa27x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa27x_lcd, "pxa2xx-fb", NULL),
