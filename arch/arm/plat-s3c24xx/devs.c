@@ -259,21 +259,6 @@ struct platform_device s3c_device_iis = {
 
 EXPORT_SYMBOL(s3c_device_iis);
 
-/* ASoC PCM DMA */
-
-static u64 s3c_device_audio_dmamask = 0xffffffffUL;
-
-struct platform_device s3c_device_pcm = {
-	.name		  = "samsung-audio",
-	.id		  = -1,
-	.dev              = {
-		.dma_mask = &s3c_device_audio_dmamask,
-		.coherent_dma_mask = 0xffffffffUL
-	}
-};
-
-EXPORT_SYMBOL(s3c_device_pcm);
-
 /* RTC */
 
 static struct resource s3c_rtc_resource[] = {
@@ -495,6 +480,8 @@ static struct resource s3c_ac97_resource[] = {
 		.flags = IORESOURCE_DMA,
 	},
 };
+
+static u64 s3c_device_audio_dmamask = 0xffffffffUL;
 
 struct platform_device s3c_device_ac97 = {
 	.name		  = "s3c-ac97",

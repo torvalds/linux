@@ -315,16 +315,3 @@ void __init s3c64xx_ac97_setup_gpio(int num)
 	else
 		s3c_ac97_pdata.cfg_gpio = s3c64xx_ac97_cfg_gpe;
 }
-
-static u64 s3c_device_audio_dmamask = 0xffffffffUL;
-
-struct platform_device s3c_device_pcm = {
-	.name		  = "samsung-audio",
-	.id		  = -1,
-	.dev              = {
-		.dma_mask = &s3c_device_audio_dmamask,
-		.coherent_dma_mask = 0xffffffffUL
-	}
-};
-EXPORT_SYMBOL(s3c_device_pcm);
-
