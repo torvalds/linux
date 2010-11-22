@@ -1097,7 +1097,7 @@ store_tabletPointerMode(struct device *dev, struct device_attribute *attr, const
 }
 
 static DEVICE_ATTR(pointer_mode,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletPointerMode, store_tabletPointerMode);
 
 /***********************************************************************
@@ -1134,7 +1134,7 @@ store_tabletCoordinateMode(struct device *dev, struct device_attribute *attr, co
 }
 
 static DEVICE_ATTR(coordinate_mode,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletCoordinateMode, store_tabletCoordinateMode);
 
 /***********************************************************************
@@ -1176,7 +1176,7 @@ store_tabletToolMode(struct device *dev, struct device_attribute *attr, const ch
 }
 
 static DEVICE_ATTR(tool_mode,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletToolMode, store_tabletToolMode);
 
 /***********************************************************************
@@ -1219,7 +1219,7 @@ store_tabletXtilt(struct device *dev, struct device_attribute *attr, const char 
 }
 
 static DEVICE_ATTR(xtilt,
-		   S_IRUGO | S_IWUGO, show_tabletXtilt, store_tabletXtilt);
+		   S_IRUGO | S_IWUSR, show_tabletXtilt, store_tabletXtilt);
 
 /***********************************************************************
  * support routines for the 'ytilt' file. Note that this file
@@ -1261,7 +1261,7 @@ store_tabletYtilt(struct device *dev, struct device_attribute *attr, const char 
 }
 
 static DEVICE_ATTR(ytilt,
-		   S_IRUGO | S_IWUGO, show_tabletYtilt, store_tabletYtilt);
+		   S_IRUGO | S_IWUSR, show_tabletYtilt, store_tabletYtilt);
 
 /***********************************************************************
  * support routines for the 'jitter' file. Note that this file
@@ -1288,7 +1288,7 @@ store_tabletJitterDelay(struct device *dev, struct device_attribute *attr, const
 }
 
 static DEVICE_ATTR(jitter,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletJitterDelay, store_tabletJitterDelay);
 
 /***********************************************************************
@@ -1317,7 +1317,7 @@ store_tabletProgrammableDelay(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(delay,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletProgrammableDelay, store_tabletProgrammableDelay);
 
 /***********************************************************************
@@ -1406,7 +1406,7 @@ store_tabletStylusUpper(struct device *dev, struct device_attribute *attr, const
 }
 
 static DEVICE_ATTR(stylus_upper,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletStylusUpper, store_tabletStylusUpper);
 
 /***********************************************************************
@@ -1437,7 +1437,7 @@ store_tabletStylusLower(struct device *dev, struct device_attribute *attr, const
 }
 
 static DEVICE_ATTR(stylus_lower,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletStylusLower, store_tabletStylusLower);
 
 /***********************************************************************
@@ -1475,7 +1475,7 @@ store_tabletMouseLeft(struct device *dev, struct device_attribute *attr, const c
 }
 
 static DEVICE_ATTR(mouse_left,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletMouseLeft, store_tabletMouseLeft);
 
 /***********************************************************************
@@ -1505,7 +1505,7 @@ store_tabletMouseMiddle(struct device *dev, struct device_attribute *attr, const
 }
 
 static DEVICE_ATTR(mouse_middle,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletMouseMiddle, store_tabletMouseMiddle);
 
 /***********************************************************************
@@ -1535,7 +1535,7 @@ store_tabletMouseRight(struct device *dev, struct device_attribute *attr, const 
 }
 
 static DEVICE_ATTR(mouse_right,
-		   S_IRUGO | S_IWUGO,
+		   S_IRUGO | S_IWUSR,
 		   show_tabletMouseRight, store_tabletMouseRight);
 
 /***********************************************************************
@@ -1567,7 +1567,7 @@ store_tabletWheel(struct device *dev, struct device_attribute *attr, const char 
 }
 
 static DEVICE_ATTR(wheel,
-		   S_IRUGO | S_IWUGO, show_tabletWheel, store_tabletWheel);
+		   S_IRUGO | S_IWUSR, show_tabletWheel, store_tabletWheel);
 
 /***********************************************************************
  * support routines for the 'execute' file. Note that this file
@@ -1600,7 +1600,7 @@ store_tabletExecute(struct device *dev, struct device_attribute *attr, const cha
 }
 
 static DEVICE_ATTR(execute,
-		   S_IRUGO | S_IWUGO, show_tabletExecute, store_tabletExecute);
+		   S_IRUGO | S_IWUSR, show_tabletExecute, store_tabletExecute);
 
 /***********************************************************************
  * support routines for the 'odm_code' file. Note that this file

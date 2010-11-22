@@ -423,7 +423,7 @@ nfs_xdr_readdirres(struct rpc_rqst *req, __be32 *p, void *dummy)
 	struct page **page;
 	size_t hdrlen;
 	unsigned int pglen, recvd;
-	int status, nr = 0;
+	int status;
 
 	if ((status = ntohl(*p++)))
 		return nfs_stat_to_errno(status);
@@ -443,7 +443,7 @@ nfs_xdr_readdirres(struct rpc_rqst *req, __be32 *p, void *dummy)
 	if (pglen > recvd)
 		pglen = recvd;
 	page = rcvbuf->pages;
-	return nr;
+	return pglen;
 }
 
 static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)

@@ -191,7 +191,7 @@ nv40_temp_get(struct drm_device *dev)
 	int offset = sensor->offset_mult / sensor->offset_div;
 	int core_temp;
 
-	if (dev_priv->chipset >= 0x50) {
+	if (dev_priv->card_type >= NV_50) {
 		core_temp = nv_rd32(dev, 0x20008);
 	} else {
 		core_temp = nv_rd32(dev, 0x0015b4) & 0x1fff;

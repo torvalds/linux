@@ -334,7 +334,7 @@ static uchar calc_sync_xfer(unsigned int period, unsigned int offset)
 
 static void in2000_execute(struct Scsi_Host *instance);
 
-static int in2000_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
+static int in2000_queuecommand_lck(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 {
 	struct Scsi_Host *instance;
 	struct IN2000_hostdata *hostdata;
@@ -430,6 +430,8 @@ static int in2000_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 	DB(DB_QUEUE_COMMAND, printk(")Q-%ld ", cmd->serial_number))
 	    return 0;
 }
+
+static DEF_SCSI_QCMD(in2000_queuecommand)
 
 
 

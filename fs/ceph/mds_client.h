@@ -170,6 +170,8 @@ struct ceph_mds_request {
 
 	union ceph_mds_request_args r_args;
 	int r_fmode;        /* file mode, if expecting cap */
+	uid_t r_uid;
+	gid_t r_gid;
 
 	/* for choosing which mds to send this request to */
 	int r_direct_mode;

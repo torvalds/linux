@@ -57,7 +57,6 @@
 #include <linux/fcntl.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
-#include <linux/smp_lock.h>
 #include <linux/usb.h>
 #include <linux/timer.h>
 
