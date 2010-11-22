@@ -566,6 +566,12 @@ static int btrfs_test_super(struct super_block *s, void *data)
 	struct btrfs_fs_devices *test_fs_devices = data;
 	struct btrfs_root *root = btrfs_sb(s);
 
+	/*
+	 * If this super block is going away, return false as it
+	 * can't match as an existing super block.
+	 */
+	if (!atomic_read(&s->s_active))
+		return 0;
 	return root->fs_info->fs_devices == test_fs_devices;
 }
 
