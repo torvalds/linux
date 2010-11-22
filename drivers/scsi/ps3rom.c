@@ -211,7 +211,7 @@ static int ps3rom_write_request(struct ps3_storage_device *dev,
 	return 0;
 }
 
-static int ps3rom_queuecommand(struct scsi_cmnd *cmd,
+static int ps3rom_queuecommand_lck(struct scsi_cmnd *cmd,
 			       void (*done)(struct scsi_cmnd *))
 {
 	struct ps3rom_private *priv = shost_priv(cmd->device->host);
@@ -259,6 +259,8 @@ static int ps3rom_queuecommand(struct scsi_cmnd *cmd,
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(ps3rom_queuecommand)
 
 static int decode_lv1_status(u64 status, unsigned char *sense_key,
 			     unsigned char *asc, unsigned char *ascq)

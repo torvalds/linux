@@ -249,6 +249,7 @@ alloc_semaphore(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_semaphore *sema;
+	int ret;
 
 	if (!USE_SEMA(dev))
 		return NULL;
@@ -257,10 +258,14 @@ alloc_semaphore(struct drm_device *dev)
 	if (!sema)
 		goto fail;
 
+	ret = drm_mm_pre_get(&dev_priv->fence.heap);
+	if (ret)
+		goto fail;
+
 	spin_lock(&dev_priv->fence.lock);
 	sema->mem = drm_mm_search_free(&dev_priv->fence.heap, 4, 0, 0);
 	if (sema->mem)
-		sema->mem = drm_mm_get_block(sema->mem, 4, 0);
+		sema->mem = drm_mm_get_block_atomic(sema->mem, 4, 0);
 	spin_unlock(&dev_priv->fence.lock);
 
 	if (!sema->mem)

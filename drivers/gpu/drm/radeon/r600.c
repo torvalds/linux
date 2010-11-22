@@ -2718,7 +2718,7 @@ static int r600_ih_ring_alloc(struct radeon_device *rdev)
 	/* Allocate ring buffer */
 	if (rdev->ih.ring_obj == NULL) {
 		r = radeon_bo_create(rdev, NULL, rdev->ih.ring_size,
-				     true,
+				     PAGE_SIZE, true,
 				     RADEON_GEM_DOMAIN_GTT,
 				     &rdev->ih.ring_obj);
 		if (r) {
