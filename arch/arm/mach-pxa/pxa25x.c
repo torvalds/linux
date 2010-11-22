@@ -92,23 +92,21 @@ unsigned int pxa25x_get_clk_frequency_khz(int info)
 	return (turbo & 1) ? (N/1000) : (M/1000);
 }
 
-/*
- * Return the current memory clock frequency in units of 10kHz
- */
-unsigned int pxa25x_get_memclk_frequency_10khz(void)
+static unsigned long clk_pxa25x_mem_getrate(struct clk *clk)
 {
-	return L_clk_mult[(CCCR >> 0) & 0x1f] * BASE_CLK / 10000;
+	return L_clk_mult[(CCCR >> 0) & 0x1f] * BASE_CLK;
 }
 
-static unsigned long clk_pxa25x_lcd_getrate(struct clk *clk)
-{
-	return pxa25x_get_memclk_frequency_10khz() * 10000;
-}
+static const struct clkops clk_pxa25x_mem_ops = {
+	.enable		= clk_dummy_enable,
+	.disable	= clk_dummy_disable,
+	.getrate	= clk_pxa25x_mem_getrate,
+};
 
 static const struct clkops clk_pxa25x_lcd_ops = {
 	.enable		= clk_pxa2xx_cken_enable,
 	.disable	= clk_pxa2xx_cken_disable,
-	.getrate	= clk_pxa25x_lcd_getrate,
+	.getrate	= clk_pxa25x_mem_getrate,
 };
 
 static unsigned long gpio12_config_32k[] = {
@@ -185,6 +183,7 @@ static DEFINE_PXA2_CKEN(pxa25x_ficp, FICP, 47923000, 0);
 static DEFINE_CK(pxa25x_lcd, LCD, &clk_pxa25x_lcd_ops);
 static DEFINE_CLK(pxa25x_gpio11, &clk_pxa25x_gpio11_ops, 3686400, 0);
 static DEFINE_CLK(pxa25x_gpio12, &clk_pxa25x_gpio12_ops, 32768, 0);
+static DEFINE_CLK(pxa25x_mem, &clk_pxa25x_mem_ops, 0, 0);
 
 static struct clk_lookup pxa25x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa25x_lcd, "pxa2xx-fb", NULL),
@@ -205,6 +204,7 @@ static struct clk_lookup pxa25x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa25x_ac97, NULL, "AC97CLK"),
 	INIT_CLKREG(&clk_pxa25x_gpio11, NULL, "GPIO11_CLK"),
 	INIT_CLKREG(&clk_pxa25x_gpio12, NULL, "GPIO12_CLK"),
+	INIT_CLKREG(&clk_pxa25x_mem, "pxa2xx-pcmcia", NULL),
 };
 
 static struct clk_lookup pxa25x_hwuart_clkreg =

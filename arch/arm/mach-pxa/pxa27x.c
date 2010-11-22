@@ -111,10 +111,9 @@ unsigned int pxa27x_get_clk_frequency_khz(int info)
 }
 
 /*
- * Return the current mem clock frequency in units of 10kHz as
- * reflected by CCCR[A], B, and L
+ * Return the current mem clock frequency as reflected by CCCR[A], B, and L
  */
-unsigned int pxa27x_get_memclk_frequency_10khz(void)
+static unsigned long clk_pxa27x_mem_getrate(struct clk *clk)
 {
 	unsigned long ccsr, clkcfg;
 	unsigned int l, L, m, M;
@@ -133,8 +132,14 @@ unsigned int pxa27x_get_memclk_frequency_10khz(void)
 	L = l * BASE_CLK;
 	M = (!cccr_a) ? (L/m) : ((b) ? L : (L/2));
 
-	return (M / 10000);
+	return M;
 }
+
+static const struct clkops clk_pxa27x_mem_ops = {
+	.enable		= clk_dummy_enable,
+	.disable	= clk_dummy_disable,
+	.getrate	= clk_pxa27x_mem_getrate,
+};
 
 /*
  * Return the current LCD clock frequency in units of 10kHz as
@@ -192,6 +197,7 @@ static DEFINE_PXA2_CKEN(pxa27x_memc, MEMC, 0, 0);
 
 static DEFINE_CK(pxa27x_lcd, LCD, &clk_pxa27x_lcd_ops);
 static DEFINE_CK(pxa27x_camera, CAMERA, &clk_pxa27x_lcd_ops);
+static DEFINE_CLK(pxa27x_mem, &clk_pxa27x_mem_ops, 0, 0);
 
 static struct clk_lookup pxa27x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa27x_lcd, "pxa2xx-fb", NULL),
@@ -220,6 +226,7 @@ static struct clk_lookup pxa27x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa27x_memstk, NULL, "MSTKCLK"),
 	INIT_CLKREG(&clk_pxa27x_im, NULL, "IMCLK"),
 	INIT_CLKREG(&clk_pxa27x_memc, NULL, "MEMCLK"),
+	INIT_CLKREG(&clk_pxa27x_mem, "pxa2xx-pcmcia", NULL),
 };
 
 #ifdef CONFIG_PM

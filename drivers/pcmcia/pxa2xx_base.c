@@ -179,8 +179,8 @@ static int pxa2xx_pcmcia_set_mcxx(struct soc_pcmcia_socket *skt, unsigned int cl
 
 static int pxa2xx_pcmcia_set_timing(struct soc_pcmcia_socket *skt)
 {
-	unsigned int clk = get_memclk_frequency_10khz();
-	return pxa2xx_pcmcia_set_mcxx(skt, clk);
+	unsigned long clk = clk_get_rate(skt->clk);
+	return pxa2xx_pcmcia_set_mcxx(skt, clk / 10000);
 }
 
 #ifdef CONFIG_CPU_FREQ
@@ -282,24 +282,33 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 	struct pcmcia_low_level *ops;
 	struct skt_dev_info *sinfo;
 	struct soc_pcmcia_socket *skt;
+	struct clk *clk;
 
 	ops = (struct pcmcia_low_level *)dev->dev.platform_data;
 	if (!ops)
 		return -ENODEV;
 
+	clk = clk_get(&dev->dev, NULL);
+	if (!clk)
+		return -ENODEV;
+
 	pxa2xx_drv_pcmcia_ops(ops);
 
 	sinfo = kzalloc(SKT_DEV_INFO_SIZE(ops->nr), GFP_KERNEL);
-	if (!sinfo)
+	if (!sinfo) {
+		clk_put(clk);
 		return -ENOMEM;
+	}
 
 	sinfo->nskt = ops->nr;
+	sinfo->clk = clk;
 
 	/* Initialize processor specific parameters */
 	for (i = 0; i < ops->nr; i++) {
 		skt = &sinfo->skt[i];
 
 		skt->nr = ops->first + i;
+		skt->clk = clk;
 		skt->ops = ops;
 		skt->socket.owner = ops->owner;
 		skt->socket.dev.parent = &dev->dev;
@@ -314,6 +323,7 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 		while (--i >= 0)
 			soc_pcmcia_remove_one(&sinfo->skt[i]);
 		kfree(sinfo);
+		clk_put(clk);
 	} else {
 		pxa2xx_configure_sockets(&dev->dev);
 		dev_set_drvdata(&dev->dev, sinfo);
@@ -332,6 +342,7 @@ static int pxa2xx_drv_pcmcia_remove(struct platform_device *dev)
 	for (i = 0; i < sinfo->nskt; i++)
 		soc_pcmcia_remove_one(&sinfo->skt[i]);
 
+	clk_put(sinfo->clk);
 	kfree(sinfo);
 	return 0;
 }

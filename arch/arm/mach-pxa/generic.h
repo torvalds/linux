@@ -36,18 +36,14 @@ extern unsigned int get_clk_frequency_khz(int info);
 
 #ifdef CONFIG_PXA25x
 extern unsigned pxa25x_get_clk_frequency_khz(int);
-extern unsigned pxa25x_get_memclk_frequency_10khz(void);
 #else
 #define pxa25x_get_clk_frequency_khz(x)		(0)
-#define pxa25x_get_memclk_frequency_10khz()	(0)
 #endif
 
 #ifdef CONFIG_PXA27x
 extern unsigned pxa27x_get_clk_frequency_khz(int);
-extern unsigned pxa27x_get_memclk_frequency_10khz(void);
 #else
 #define pxa27x_get_clk_frequency_khz(x)		(0)
-#define pxa27x_get_memclk_frequency_10khz()	(0)
 #endif
 
 #if defined(CONFIG_PXA25x) || defined(CONFIG_PXA27x)

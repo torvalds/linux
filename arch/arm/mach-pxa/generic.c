@@ -72,19 +72,6 @@ unsigned int get_clk_frequency_khz(int info)
 EXPORT_SYMBOL(get_clk_frequency_khz);
 
 /*
- * Return the current memory clock frequency in units of 10kHz
- */
-unsigned int get_memclk_frequency_10khz(void)
-{
-	if (cpu_is_pxa25x())
-		return pxa25x_get_memclk_frequency_10khz();
-	else if (cpu_is_pxa27x())
-		return pxa27x_get_memclk_frequency_10khz();
-	return 0;
-}
-EXPORT_SYMBOL(get_memclk_frequency_10khz);
-
-/*
  * Intel PXA2xx internal register mapping.
  *
  * Note: virtual 0xfffe0000-0xffffffff is reserved for the vector table
