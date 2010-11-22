@@ -1161,7 +1161,7 @@ static void r600_mc_program(struct radeon_device *rdev)
  * Note: GTT start, end, size should be initialized before calling this
  * function on AGP platform.
  */
-void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
+static void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 {
 	u64 size_bf, size_af;
 

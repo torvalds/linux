@@ -1945,7 +1945,7 @@ int evergreen_mc_init(struct radeon_device *rdev)
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
 	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
-	r600_vram_gtt_location(rdev, &rdev->mc);
+	r700_vram_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
 
 	return 0;

@@ -1001,6 +1001,48 @@ static void rv770_vram_scratch_fini(struct radeon_device *rdev)
 	radeon_bo_unref(&rdev->vram_scratch.robj);
 }
 
+void r700_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
+{
+	u64 size_bf, size_af;
+
+	if (mc->mc_vram_size > 0xE0000000) {
+		/* leave room for at least 512M GTT */
+		dev_warn(rdev->dev, "limiting VRAM\n");
+		mc->real_vram_size = 0xE0000000;
+		mc->mc_vram_size = 0xE0000000;
+	}
+	if (rdev->flags & RADEON_IS_AGP) {
+		size_bf = mc->gtt_start;
+		size_af = 0xFFFFFFFF - mc->gtt_end + 1;
+		if (size_bf > size_af) {
+			if (mc->mc_vram_size > size_bf) {
+				dev_warn(rdev->dev, "limiting VRAM\n");
+				mc->real_vram_size = size_bf;
+				mc->mc_vram_size = size_bf;
+			}
+			mc->vram_start = mc->gtt_start - mc->mc_vram_size;
+		} else {
+			if (mc->mc_vram_size > size_af) {
+				dev_warn(rdev->dev, "limiting VRAM\n");
+				mc->real_vram_size = size_af;
+				mc->mc_vram_size = size_af;
+			}
+			mc->vram_start = mc->gtt_end;
+		}
+		mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
+		dev_info(rdev->dev, "VRAM: %lluM 0x%08llX - 0x%08llX (%lluM used)\n",
+				mc->mc_vram_size >> 20, mc->vram_start,
+				mc->vram_end, mc->real_vram_size >> 20);
+	} else {
+		u64 base = 0;
+		if (rdev->flags & RADEON_IS_IGP)
+			base = (RREG32(MC_VM_FB_LOCATION) & 0xFFFF) << 24;
+		radeon_vram_location(rdev, &rdev->mc, base);
+		rdev->mc.gtt_base_align = 0;
+		radeon_gtt_location(rdev, mc);
+	}
+}
+
 int rv770_mc_init(struct radeon_device *rdev)
 {
 	u32 tmp;
@@ -1041,7 +1083,7 @@ int rv770_mc_init(struct radeon_device *rdev)
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
 	rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
-	r600_vram_gtt_location(rdev, &rdev->mc);
+	r700_vram_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
 
 	return 0;
