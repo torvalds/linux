@@ -223,7 +223,7 @@ static struct snd_soc_dai_link smdk64xx_dai[] = {
 { /* Primary Playback i/f */
 	.name = "WM8580 PAIF RX",
 	.stream_name = "Playback",
-	.cpu_dai_name = "s3c64xx-iis-v4",
+	.cpu_dai_name = "samsung-i2s-v4",
 	.codec_dai_name = "wm8580-hifi-playback",
 	.platform_name = "samsung-audio",
 	.codec_name = "wm8580-codec.0-001b",
@@ -233,7 +233,7 @@ static struct snd_soc_dai_link smdk64xx_dai[] = {
 { /* Primary Capture i/f */
 	.name = "WM8580 PAIF TX",
 	.stream_name = "Capture",
-	.cpu_dai_name = "s3c64xx-iis-v4",
+	.cpu_dai_name = "samsung-i2s-v4",
 	.codec_dai_name = "wm8580-hifi-capture",
 	.platform_name = "samsung-audio",
 	.codec_name = "wm8580-codec.0-001b",

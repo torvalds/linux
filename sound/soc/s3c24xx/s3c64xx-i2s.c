@@ -218,7 +218,7 @@ static struct platform_driver s3c64xx_iis_driver = {
 	.probe  = s3c64xx_iis_dev_probe,
 	.remove = s3c64xx_iis_dev_remove,
 	.driver = {
-		.name = "s3c64xx-iis",
+		.name = "samsung-i2s",
 		.owner = THIS_MODULE,
 	},
 };
@@ -239,4 +239,4 @@ module_exit(s3c64xx_i2s_exit);
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("S3C64XX I2S SoC Interface");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:s3c64xx-iis");
+MODULE_ALIAS("platform:samsung-i2s");

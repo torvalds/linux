@@ -206,7 +206,7 @@ static struct platform_driver s3c64xx_i2sv4_driver = {
 	.probe  = s3c64xx_i2sv4_dev_probe,
 	.remove = s3c64xx_i2sv4_dev_remove,
 	.driver = {
-		.name = "s3c64xx-iis-v4",
+		.name = "samsung-i2s-v4",
 		.owner = THIS_MODULE,
 	},
 };
@@ -227,4 +227,4 @@ module_exit(s3c64xx_i2sv4_exit);
 MODULE_AUTHOR("Jaswinder Singh, <jassi.brar@samsung.com>");
 MODULE_DESCRIPTION("S3C64XX I2Sv4 SoC Interface");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:s3c64xx-iis-v4");
+MODULE_ALIAS("platform:samsung-i2s-v4");
