@@ -800,6 +800,10 @@ static int is_valid_state_transition(struct drbd_conf *mdev,
 	    os.conn < C_CONNECTED)
 		rv = SS_NEED_CONNECTION;
 
+	if ((ns.conn == C_SYNC_TARGET || ns.conn == C_SYNC_SOURCE)
+	    && os.conn < C_WF_REPORT_PARAMS)
+		rv = SS_NEED_CONNECTION; /* No NetworkFailure -> SyncTarget etc... */
+
 	return rv;
 }
 
