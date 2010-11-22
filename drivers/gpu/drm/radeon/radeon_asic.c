@@ -849,7 +849,9 @@ int radeon_asic_init(struct radeon_device *rdev)
 	if (rdev->flags & RADEON_SINGLE_CRTC)
 		rdev->num_crtc = 1;
 	else {
-		if (ASIC_IS_DCE4(rdev))
+		if (ASIC_IS_DCE41(rdev))
+			rdev->num_crtc = 2;
+		else if (ASIC_IS_DCE4(rdev))
 			rdev->num_crtc = 6;
 		else
 			rdev->num_crtc = 2;

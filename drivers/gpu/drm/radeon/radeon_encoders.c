@@ -713,7 +713,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
  * DIG1/2 can drive UNIPHY0/1/2 link A or link B
  *
  * DCE 4.0
- * - 3 DIG transmitter blocks UNPHY0/1/2 (links A and B).
+ * - 3 DIG transmitter blocks UNIPHY0/1/2 (links A and B).
  * Supports up to 6 digital outputs
  * - 6 DIG encoder blocks.
  * - DIG to PHY mapping is hardcoded
@@ -723,6 +723,12 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
  * DIG4 drives UNIPHY1 link B
  * DIG5 drives UNIPHY2 link A, A+B
  * DIG6 drives UNIPHY2 link B
+ *
+ * DCE 4.1
+ * - 3 DIG transmitter blocks UNIPHY0/1/2 (links A and B).
+ * Supports up to 6 digital outputs
+ * - 2 DIG encoder blocks.
+ * DIG1/2 can drive UNIPHY0/1/2 link A or link B
  *
  * Routing
  * crtc -> dig encoder -> UNIPHY/LVTMA (1 or 2 links)
@@ -904,9 +910,15 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		else
 			args.v3.ucLaneNum = 4;
 
-		if (dig->linkb) {
-			args.v3.acConfig.ucLinkSel = 1;
-			args.v3.acConfig.ucEncoderSel = 1;
+		if (ASIC_IS_DCE41(rdev)) {
+			args.v3.acConfig.ucEncoderSel = dig->dig_encoder;
+			if (dig->linkb)
+				args.v3.acConfig.ucLinkSel = 1;
+		} else {
+			if (dig->linkb) {
+				args.v3.acConfig.ucLinkSel = 1;
+				args.v3.acConfig.ucEncoderSel = 1;
+			}
 		}
 
 		/* Select the PLL for the PHY
@@ -1482,6 +1494,11 @@ static int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder)
 	struct drm_encoder *test_encoder;
 	struct radeon_encoder_atom_dig *dig;
 	uint32_t dig_enc_in_use = 0;
+
+	/* on DCE41 and encoder can driver any phy so just crtc id */
+	if (ASIC_IS_DCE41(rdev)) {
+		return radeon_crtc->crtc_id;
+	}
 
 	if (ASIC_IS_DCE4(rdev)) {
 		dig = radeon_encoder->enc_priv;
