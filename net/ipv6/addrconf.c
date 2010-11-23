@@ -2758,13 +2758,13 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 			ifa->state = INET6_IFADDR_STATE_DEAD;
 			spin_unlock_bh(&ifa->state_lock);
 
-			if (state == INET6_IFADDR_STATE_DEAD) {
-				in6_ifa_put(ifa);
-			} else {
+			if (state != INET6_IFADDR_STATE_DEAD) {
 				__ipv6_ifa_notify(RTM_DELADDR, ifa);
 				atomic_notifier_call_chain(&inet6addr_chain,
 							   NETDEV_DOWN, ifa);
 			}
+
+			in6_ifa_put(ifa);
 			write_lock_bh(&idev->lock);
 		}
 	}
