@@ -1461,21 +1461,28 @@ static int bnx2i_conn_get_param(struct iscsi_cls_conn *cls_conn,
 	struct bnx2i_conn *bnx2i_conn = conn->dd_data;
 	int len = 0;
 
+	if (!(bnx2i_conn && bnx2i_conn->ep && bnx2i_conn->ep->hba))
+		goto out;
+
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:
-		if (bnx2i_conn->ep)
+		mutex_lock(&bnx2i_conn->ep->hba->net_dev_lock);
+		if (bnx2i_conn->ep->cm_sk)
 			len = sprintf(buf, "%hu\n",
 				      bnx2i_conn->ep->cm_sk->dst_port);
+		mutex_unlock(&bnx2i_conn->ep->hba->net_dev_lock);
 		break;
 	case ISCSI_PARAM_CONN_ADDRESS:
-		if (bnx2i_conn->ep)
+		mutex_lock(&bnx2i_conn->ep->hba->net_dev_lock);
+		if (bnx2i_conn->ep->cm_sk)
 			len = sprintf(buf, "%pI4\n",
 				      &bnx2i_conn->ep->cm_sk->dst_ip);
+		mutex_unlock(&bnx2i_conn->ep->hba->net_dev_lock);
 		break;
 	default:
 		return iscsi_conn_get_param(cls_conn, param, buf);
 	}
-
+out:
 	return len;
 }
 
