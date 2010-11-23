@@ -3041,7 +3041,7 @@ static void security_netlbl_cache_add(struct netlbl_lsm_secattr *secattr,
 int security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr,
 				   u32 *sid)
 {
-	int rc = -EIDRM;
+	int rc;
 	struct context *ctx;
 	struct context ctx_new;
 
@@ -3052,16 +3052,15 @@ int security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr,
 
 	read_lock(&policy_rwlock);
 
-	if (secattr->flags & NETLBL_SECATTR_CACHE) {
+	if (secattr->flags & NETLBL_SECATTR_CACHE)
 		*sid = *(u32 *)secattr->cache->data;
-		rc = 0;
-	} else if (secattr->flags & NETLBL_SECATTR_SECID) {
+	else if (secattr->flags & NETLBL_SECATTR_SECID)
 		*sid = secattr->attr.secid;
-		rc = 0;
-	} else if (secattr->flags & NETLBL_SECATTR_MLS_LVL) {
+	else if (secattr->flags & NETLBL_SECATTR_MLS_LVL) {
+		rc = -EIDRM;
 		ctx = sidtab_search(&sidtab, SECINITSID_NETMSG);
 		if (ctx == NULL)
-			goto netlbl_secattr_to_sid_return;
+			goto out;
 
 		context_init(&ctx_new);
 		ctx_new.user = ctx->user;
@@ -3069,34 +3068,35 @@ int security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr,
 		ctx_new.type = ctx->type;
 		mls_import_netlbl_lvl(&ctx_new, secattr);
 		if (secattr->flags & NETLBL_SECATTR_MLS_CAT) {
-			if (ebitmap_netlbl_import(&ctx_new.range.level[0].cat,
-						  secattr->attr.mls.cat) != 0)
-				goto netlbl_secattr_to_sid_return;
+			rc = ebitmap_netlbl_import(&ctx_new.range.level[0].cat,
+						   secattr->attr.mls.cat);
+			if (rc)
+				goto out;
 			memcpy(&ctx_new.range.level[1].cat,
 			       &ctx_new.range.level[0].cat,
 			       sizeof(ctx_new.range.level[0].cat));
 		}
-		if (mls_context_isvalid(&policydb, &ctx_new) != 1)
-			goto netlbl_secattr_to_sid_return_cleanup;
+		rc = -EIDRM;
+		if (!mls_context_isvalid(&policydb, &ctx_new))
+			goto out_free;
 
 		rc = sidtab_context_to_sid(&sidtab, &ctx_new, sid);
-		if (rc != 0)
-			goto netlbl_secattr_to_sid_return_cleanup;
+		if (rc)
+			goto out_free;
 
 		security_netlbl_cache_add(secattr, *sid);
 
 		ebitmap_destroy(&ctx_new.range.level[0].cat);
-	} else {
+	} else
 		*sid = SECSID_NULL;
-		rc = 0;
-	}
 
-netlbl_secattr_to_sid_return:
+	read_unlock(&policy_rwlock);
+	return 0;
+out_free:
+	ebitmap_destroy(&ctx_new.range.level[0].cat);
+out:
 	read_unlock(&policy_rwlock);
 	return rc;
-netlbl_secattr_to_sid_return_cleanup:
-	ebitmap_destroy(&ctx_new.range.level[0].cat);
-	goto netlbl_secattr_to_sid_return;
 }
 
 /**
