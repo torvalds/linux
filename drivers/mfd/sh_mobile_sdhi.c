@@ -136,6 +136,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 		priv->param_rx.slave_id = p->dma_slave_rx;
 		priv->dma_priv.chan_priv_tx = &priv->param_tx;
 		priv->dma_priv.chan_priv_rx = &priv->param_rx;
+		priv->dma_priv.alignment_shift = 1; /* 2-byte alignment */
 		mmc_data->dma = &priv->dma_priv;
 	}
 
