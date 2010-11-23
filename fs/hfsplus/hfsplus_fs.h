@@ -157,6 +157,11 @@ struct hfsplus_sb_info {
 #define HFSPLUS_SB_HFSX		3
 #define HFSPLUS_SB_CASEFOLD	4
 
+static inline struct hfsplus_sb_info *HFSPLUS_SB(struct super_block *sb)
+{
+	return sb->s_fs_info;
+}
+
 
 struct hfsplus_inode_info {
 	atomic_t opencnt;
@@ -205,9 +210,30 @@ struct hfsplus_inode_info {
 #define HFSPLUS_EXT_NEW		0x0002
 
 #define HFSPLUS_I_RSRC		0	/* represents a resource fork */
+#define HFSPLUS_I_CAT_DIRTY	1	/* has changes in the catalog tree */
+#define HFSPLUS_I_EXT_DIRTY	2	/* has changes in the extent tree */
+#define HFSPLUS_I_ALLOC_DIRTY	3	/* has changes in the allocation file */
 
 #define HFSPLUS_IS_RSRC(inode) \
 	test_bit(HFSPLUS_I_RSRC, &HFSPLUS_I(inode)->flags)
+
+static inline struct hfsplus_inode_info *HFSPLUS_I(struct inode *inode)
+{
+	return list_entry(inode, struct hfsplus_inode_info, vfs_inode);
+}
+
+/*
+ * Mark an inode dirty, and also mark the btree in which the
+ * specific type of metadata is stored.
+ * For data or metadata that gets written back by into the catalog btree
+ * by hfsplus_write_inode a plain mark_inode_dirty call is enough.
+ */
+static inline void hfsplus_mark_inode_dirty(struct inode *inode,
+		unsigned int flag)
+{
+	set_bit(flag, &HFSPLUS_I(inode)->flags);
+	mark_inode_dirty(inode);
+}
 
 struct hfs_find_data {
 	/* filled by caller */
@@ -396,17 +422,6 @@ int hfsplus_read_wrapper(struct super_block *);
 int hfs_part_find(struct super_block *, sector_t *, sector_t *);
 int hfsplus_submit_bio(struct block_device *bdev, sector_t sector,
 		void *data, int rw);
-
-/* access macros */
-static inline struct hfsplus_sb_info *HFSPLUS_SB(struct super_block *sb)
-{
-	return sb->s_fs_info;
-}
-
-static inline struct hfsplus_inode_info *HFSPLUS_I(struct inode *inode)
-{
-	return list_entry(inode, struct hfsplus_inode_info, vfs_inode);
-}
 
 /* time macros */
 #define __hfsp_mt2ut(t)		(be32_to_cpu(t) - 2082844800U)

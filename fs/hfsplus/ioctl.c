@@ -147,9 +147,11 @@ int hfsplus_setxattr(struct dentry *dentry, const char *name,
 			res = -ERANGE;
 	} else
 		res = -EOPNOTSUPP;
-	if (!res)
+	if (!res) {
 		hfs_bnode_write(fd.bnode, &entry, fd.entryoffset,
 				sizeof(struct hfsplus_cat_file));
+		hfsplus_mark_inode_dirty(inode, HFSPLUS_I_CAT_DIRTY);
+	}
 out:
 	hfs_find_exit(&fd);
 	return res;

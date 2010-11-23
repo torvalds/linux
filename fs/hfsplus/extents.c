@@ -108,6 +108,14 @@ static void __hfsplus_ext_write_extent(struct inode *inode, struct hfs_find_data
 				fd->entryoffset, fd->entrylength);
 		hip->extent_state &= ~HFSPLUS_EXT_DIRTY;
 	}
+
+	/*
+	 * We can't just use hfsplus_mark_inode_dirty here, because we
+	 * also get called from hfsplus_write_inode, which should not
+	 * redirty the inode.  Instead the callers have to be careful
+	 * to explicily mark the inode dirty, too.
+	 */
+	set_bit(HFSPLUS_I_EXT_DIRTY, &hip->flags);
 }
 
 static void hfsplus_ext_write_extent_locked(struct inode *inode)
@@ -197,6 +205,7 @@ int hfsplus_get_block(struct inode *inode, sector_t iblock,
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 	int res = -EIO;
 	u32 ablock, dblock, mask;
+	int was_dirty = 0;
 	int shift;
 
 	/* Convert inode block to disk allocation block */
@@ -223,14 +232,20 @@ int hfsplus_get_block(struct inode *inode, sector_t iblock,
 		return -EIO;
 
 	mutex_lock(&hip->extents_lock);
+
+	/*
+	 * hfsplus_ext_read_extent will write out a cached extent into
+	 * the extents btree.  In that case we may have to mark the inode
+	 * dirty even for a pure read of an extent here.
+	 */
+	was_dirty = (hip->extent_state & HFSPLUS_EXT_DIRTY);
 	res = hfsplus_ext_read_extent(inode, ablock);
-	if (!res) {
-		dblock = hfsplus_ext_find_block(hip->cached_extents,
-						ablock - hip->cached_start);
-	} else {
+	if (res) {
 		mutex_unlock(&hip->extents_lock);
 		return -EIO;
 	}
+	dblock = hfsplus_ext_find_block(hip->cached_extents,
+					ablock - hip->cached_start);
 	mutex_unlock(&hip->extents_lock);
 
 done:
@@ -242,8 +257,9 @@ done:
 		hip->phys_size += sb->s_blocksize;
 		hip->fs_blocks++;
 		inode_add_bytes(inode, sb->s_blocksize);
-		mark_inode_dirty(inode);
 	}
+	if (create || was_dirty)
+		mark_inode_dirty(inode);
 	return 0;
 }
 
@@ -438,7 +454,7 @@ out:
 	mutex_unlock(&hip->extents_lock);
 	if (!res) {
 		hip->alloc_blocks += len;
-		mark_inode_dirty(inode);
+		hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ALLOC_DIRTY);
 	}
 	return res;
 
@@ -529,5 +545,5 @@ out:
 	hip->phys_size = inode->i_size;
 	hip->fs_blocks = (inode->i_size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
 	inode_set_bytes(inode, hip->fs_blocks << sb->s_blocksize_bits);
-	mark_inode_dirty(inode);
+	hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ALLOC_DIRTY);
 }

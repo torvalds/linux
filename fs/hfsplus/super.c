@@ -472,7 +472,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 				   &str, sbi->hidden_dir);
 		mutex_unlock(&sbi->vh_mutex);
 
-		mark_inode_dirty(sbi->hidden_dir);
+		hfsplus_mark_inode_dirty(sbi->hidden_dir, HFSPLUS_I_CAT_DIRTY);
 	}
 out:
 	unload_nls(sbi->nls);

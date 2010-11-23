@@ -307,8 +307,9 @@ static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
 int hfsplus_file_fsync(struct file *file, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
+	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
-	int error, error2;
+	int error = 0, error2;
 
 	/*
 	 * Sync inode metadata into the catalog and extent trees.
@@ -318,13 +319,21 @@ int hfsplus_file_fsync(struct file *file, int datasync)
 	/*
 	 * And explicitly write out the btrees.
 	 */
-	error = filemap_write_and_wait(sbi->cat_tree->inode->i_mapping);
-	error2 = filemap_write_and_wait(sbi->ext_tree->inode->i_mapping);
-	if (!error)
-		error = error2;
-	error2 = filemap_write_and_wait(sbi->alloc_file->i_mapping);
-	if (!error)
-		error = error2;
+	if (test_and_clear_bit(HFSPLUS_I_CAT_DIRTY, &hip->flags))
+		error = filemap_write_and_wait(sbi->cat_tree->inode->i_mapping);
+
+	if (test_and_clear_bit(HFSPLUS_I_EXT_DIRTY, &hip->flags)) {
+		error2 = filemap_write_and_wait(sbi->ext_tree->inode->i_mapping);
+		if (!error)
+			error = error2;
+	}
+
+	if (test_and_clear_bit(HFSPLUS_I_ALLOC_DIRTY, &hip->flags)) {
+		error2 = filemap_write_and_wait(sbi->alloc_file->i_mapping);
+		if (!error)
+			error = error2;
+	}
+
 	return error;
 }
 
@@ -590,6 +599,8 @@ int hfsplus_cat_write_inode(struct inode *inode)
 		hfs_bnode_write(fd.bnode, &entry, fd.entryoffset,
 					 sizeof(struct hfsplus_cat_file));
 	}
+
+	set_bit(HFSPLUS_I_CAT_DIRTY, &HFSPLUS_I(inode)->flags);
 out:
 	hfs_find_exit(&fd);
 	return 0;
