@@ -267,6 +267,15 @@
 #define	AR5K_INIT_SIFS_HALF_RATE		32
 #define AR5K_INIT_SIFS_QUARTER_RATE		64
 
+/* Used to calculate tx time for non 5/10/40MHz
+ * operation */
+/* It's preamble time + signal time (16 + 4) */
+#define	AR5K_INIT_OFDM_PREAMPLE_TIME		20
+/* Preamble time for 40MHz (turbo) operation (min ?) */
+#define	AR5K_INIT_OFDM_PREAMBLE_TIME_MIN	14
+#define	AR5K_INIT_OFDM_SYMBOL_TIME		4
+#define	AR5K_INIT_OFDM_PLCP_BITS		22
+
 /* Rx latency for 5 and 10MHz operation (max ?) */
 #define AR5K_INIT_RX_LAT_MAX			63
 /* Tx latencies from initvals (5212 only but no problem
@@ -1083,6 +1092,7 @@ struct ath5k_hw {
 
 	u32			ah_limit_tx_retries;
 	u8			ah_coverage_class;
+	bool			ah_ack_bitrate_high;
 	u8			ah_bwmode;
 
 	/* Antenna Control */
@@ -1248,8 +1258,6 @@ void ath5k_hw_set_tsf64(struct ath5k_hw *ah, u64 tsf64);
 void ath5k_hw_reset_tsf(struct ath5k_hw *ah);
 void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval);
 bool ath5k_hw_check_beacon_timers(struct ath5k_hw *ah, int intval);
-/* ACK bit rate */
-void ath5k_hw_set_ack_bitrate_high(struct ath5k_hw *ah, bool high);
 /* Init function */
 void ath5k_hw_pcu_init(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 								u8 mode);

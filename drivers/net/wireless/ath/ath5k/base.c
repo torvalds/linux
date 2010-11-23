@@ -2420,7 +2420,9 @@ ath5k_init(struct ath5k_softc *sc)
 	for (i = 0; i < common->keymax; i++)
 		ath_hw_keyreset(common, (u16) i);
 
-	ath5k_hw_set_ack_bitrate_high(ah, true);
+	/* Use higher rates for acks instead of base
+	 * rate */
+	ah->ah_ack_bitrate_high = true;
 
 	for (i = 0; i < ARRAY_SIZE(sc->bslot); i++)
 		sc->bslot[i] = NULL;
