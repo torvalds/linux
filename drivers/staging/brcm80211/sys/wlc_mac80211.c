@@ -92,7 +92,7 @@
 /* To inform the ucode of the last mcast frame posted so that it can clear moredata bit */
 #define BCMCFID(wlc, fid) wlc_bmac_write_shm((wlc)->hw, M_BCMC_FID, (fid))
 
-#define WLC_WAR16165(wlc) (BUSTYPE(wlc->pub->sih->bustype) == PCI_BUS && \
+#define WLC_WAR16165(wlc) (wlc->pub->sih->bustype == PCI_BUS && \
 				(!AP_ENAB(wlc->pub)) && (wlc->war16165))
 
 /* debug/trace */

@@ -74,6 +74,6 @@ extern bool pcicore_pmecap_fast(struct osl_info *osh);
 extern void pcicore_pmeen(void *pch);
 extern void pcicore_pmeclr(void *pch);
 extern bool pcicore_pmestat(void *pch);
-#endif				/* defined(BCMSDIO) || (defined(BCMBUSTYPE) && (BCMBUSTYPE == SI_BUS)) */
+#endif /* defined(BCMSDIO)||(defined(BCMBUSTYPE) && (BCMBUSTYPE==SI_BUS)) */
 
 #endif				/* _NICPCI_H */

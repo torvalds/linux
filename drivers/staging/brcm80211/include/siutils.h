@@ -295,9 +295,9 @@ typedef struct si_info {
 #define	ILP_DIV_5MHZ		0	/* ILP = 5 MHz */
 #define	ILP_DIV_1MHZ		4	/* ILP = 1 MHz */
 
-#define PCI(si)		((BUSTYPE((si)->pub.bustype) == PCI_BUS) &&	\
+#define PCI(si)		(((si)->pub.bustype == PCI_BUS) &&	\
 			 ((si)->pub.buscoretype == PCI_CORE_ID))
-#define PCIE(si)	((BUSTYPE((si)->pub.bustype) == PCI_BUS) &&	\
+#define PCIE(si)	(((si)->pub.bustype == PCI_BUS) &&	\
 			 ((si)->pub.buscoretype == PCIE_CORE_ID))
 #define PCI_FORCEHT(si)	\
 	(PCIE(si) && (si->pub.chip == BCM4716_CHIP_ID))

@@ -1305,8 +1305,8 @@ void wl_free(wl_info_t *wl)
 	 * unregister_netdev() calls get_stats() which may read chip registers
 	 * so we cannot unmap the chip registers until after calling unregister_netdev() .
 	 */
-	if (wl->regsva && BUSTYPE(wl->bcm_bustype) != SDIO_BUS &&
-	    BUSTYPE(wl->bcm_bustype) != JTAG_BUS) {
+	if (wl->regsva && wl->bcm_bustype != SDIO_BUS &&
+	    wl->bcm_bustype != JTAG_BUS) {
 		iounmap((void *)wl->regsva);
 	}
 	wl->regsva = NULL;

@@ -90,7 +90,7 @@ static u32 _sb_coresba(si_info_t *sii)
 {
 	u32 sbaddr = 0;
 
-	switch (BUSTYPE(sii->pub.bustype)) {
+	switch (sii->pub.bustype) {
 	case SPI_BUS:
 	case SDIO_BUS:
 		sbaddr = (u32)(unsigned long)sii->curmap;
@@ -347,7 +347,7 @@ static void *_sb_setcoreidx(si_info_t *sii, uint coreidx)
 	u32 sbaddr = sii->coresba[coreidx];
 	void *regs;
 
-	switch (BUSTYPE(sii->pub.bustype)) {
+	switch (sii->pub.bustype) {
 #ifdef BCMSDIO
 	case SPI_BUS:
 	case SDIO_BUS:
@@ -412,8 +412,8 @@ bool sb_taclear(si_t *sih, bool details)
 
 	sii = SI_INFO(sih);
 
-	if ((BUSTYPE(sii->pub.bustype) == SDIO_BUS) ||
-	    (BUSTYPE(sii->pub.bustype) == SPI_BUS)) {
+	if ((sii->pub.bustype == SDIO_BUS) ||
+	    (sii->pub.bustype == SPI_BUS)) {
 
 		INTR_OFF(sii, intr_val);
 		origidx = si_coreidx(sih);

@@ -119,7 +119,7 @@ void ai_scan(si_t *sih, void *regs, uint devid)
 
 	erombase = R_REG(sii->osh, &cc->eromptr);
 
-	switch (BUSTYPE(sih->bustype)) {
+	switch (sih->bustype) {
 	case SI_BUS:
 		eromptr = (u32 *) REG_MAP(erombase, SI_CORE_SIZE);
 		break;
@@ -334,7 +334,7 @@ void *ai_setcoreidx(si_t *sih, uint coreidx)
 	ASSERT((sii->intrsenabled_fn == NULL)
 	       || !(*(sii)->intrsenabled_fn) ((sii)->intr_arg));
 
-	switch (BUSTYPE(sih->bustype)) {
+	switch (sih->bustype) {
 	case SI_BUS:
 		/* map new one */
 		if (!sii->regs[coreidx]) {
@@ -508,7 +508,7 @@ uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 	if (coreidx >= SI_MAXCORES)
 		return 0;
 
-	if (BUSTYPE(sih->bustype) == SI_BUS) {
+	if (sih->bustype == SI_BUS) {
 		/* If internal bus, we can always get at everything */
 		fast = true;
 		/* map if does not exist */
@@ -518,7 +518,7 @@ uint ai_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 			ASSERT(GOODREGS(sii->regs[coreidx]));
 		}
 		r = (u32 *) ((unsigned char *) sii->regs[coreidx] + regoff);
-	} else if (BUSTYPE(sih->bustype) == PCI_BUS) {
+	} else if (sih->bustype == PCI_BUS) {
 		/* If pci/pcie, we can get at pci/pcie regs and on newer cores to chipc */
 
 		if ((sii->coreid[coreidx] == CC_CORE_ID) && SI_FAST(sii)) {

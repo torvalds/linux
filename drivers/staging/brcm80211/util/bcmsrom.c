@@ -164,14 +164,14 @@ int srom_var_init(si_t *sih, uint bustype, void *curmap, struct osl_info *osh,
 
 	len = 0;
 
-	ASSERT(bustype == BUSTYPE(bustype));
+	ASSERT(bustype == bustype);
 	if (vars == NULL || count == NULL)
 		return 0;
 
 	*vars = NULL;
 	*count = 0;
 
-	switch (BUSTYPE(bustype)) {
+	switch (bustype) {
 	case SI_BUS:
 	case JTAG_BUS:
 		return initvars_srom_si(sih, osh, curmap, vars, count);
@@ -204,7 +204,7 @@ srom_read(si_t *sih, uint bustype, void *curmap, struct osl_info *osh,
 	uint i;
 #endif				/* BCMSDIO */
 
-	ASSERT(bustype == BUSTYPE(bustype));
+	ASSERT(bustype == bustype);
 
 	/* check input - 16-bit access only */
 	if (byteoff & 1 || nbytes & 1 || (byteoff + nbytes) > SROM_MAX)
@@ -213,7 +213,7 @@ srom_read(si_t *sih, uint bustype, void *curmap, struct osl_info *osh,
 	off = byteoff / 2;
 	nw = nbytes / 2;
 
-	if (BUSTYPE(bustype) == PCI_BUS) {
+	if (bustype == PCI_BUS) {
 		if (!curmap)
 			return 1;
 
@@ -235,7 +235,7 @@ srom_read(si_t *sih, uint bustype, void *curmap, struct osl_info *osh,
 		}
 #endif
 #ifdef BCMSDIO
-	} else if (BUSTYPE(bustype) == SDIO_BUS) {
+	} else if (bustype == SDIO_BUS) {
 		off = byteoff / 2;
 		nw = nbytes / 2;
 		for (i = 0; i < nw; i++) {
@@ -244,7 +244,7 @@ srom_read(si_t *sih, uint bustype, void *curmap, struct osl_info *osh,
 				return 1;
 		}
 #endif				/* BCMSDIO */
-	} else if (BUSTYPE(bustype) == SI_BUS) {
+	} else if (bustype == SI_BUS) {
 		return 1;
 	} else {
 		return 1;

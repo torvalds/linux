@@ -832,7 +832,7 @@ int wlc_bmac_attach(wlc_info_t *wlc, u16 vendor, u16 device, uint unit,
 	    || (wlc_hw->boardflags & BFL_NOPLLDOWN))
 		wlc_bmac_pllreq(wlc_hw, true, WLC_PLLREQ_SHARED);
 
-	if ((BUSTYPE(wlc_hw->sih->bustype) == PCI_BUS)
+	if ((wlc_hw->sih->bustype == PCI_BUS)
 	    && (si_pci_war16165(wlc_hw->sih)))
 		wlc->war16165 = true;
 
@@ -992,7 +992,7 @@ int wlc_bmac_attach(wlc_info_t *wlc, u16 vendor, u16 device, uint unit,
 	wlc_coredisable(wlc_hw);
 
 	/* Match driver "down" state */
-	if (BUSTYPE(wlc_hw->sih->bustype) == PCI_BUS)
+	if (wlc_hw->sih->bustype == PCI_BUS)
 		si_pci_down(wlc_hw->sih);
 
 	/* register sb interrupt callback functions */
@@ -1081,7 +1081,7 @@ int wlc_bmac_detach(wlc_info_t *wlc)
 		 */
 		si_deregister_intr_callback(wlc_hw->sih);
 
-		if (BUSTYPE(wlc_hw->sih->bustype) == PCI_BUS)
+		if (wlc_hw->sih->bustype == PCI_BUS)
 			si_pci_sleep(wlc_hw->sih);
 	}
 
@@ -1207,7 +1207,7 @@ int wlc_bmac_up_prep(wlc_hw_info_t *wlc_hw)
 	 */
 	coremask = (1 << wlc_hw->wlc->core->coreidx);
 
-	if (BUSTYPE(wlc_hw->sih->bustype) == PCI_BUS)
+	if (wlc_hw->sih->bustype == PCI_BUS)
 		si_pci_setup(wlc_hw->sih, coremask);
 
 	ASSERT(si_coreid(wlc_hw->sih) == D11_CORE_ID);
@@ -1218,13 +1218,13 @@ int wlc_bmac_up_prep(wlc_hw_info_t *wlc_hw)
 	 */
 	if (wlc_bmac_radio_read_hwdisabled(wlc_hw)) {
 		/* put SB PCI in down state again */
-		if (BUSTYPE(wlc_hw->sih->bustype) == PCI_BUS)
+		if (wlc_hw->sih->bustype == PCI_BUS)
 			si_pci_down(wlc_hw->sih);
 		wlc_bmac_xtal(wlc_hw, OFF);
 		return BCME_RADIOOFF;
 	}
 
-	if (BUSTYPE(wlc_hw->sih->bustype) == PCI_BUS)
+	if (wlc_hw->sih->bustype == PCI_BUS)
 		si_pci_up(wlc_hw->sih);
 
 	/* reset the d11 core */
@@ -1310,7 +1310,7 @@ int wlc_bmac_down_finish(wlc_hw_info_t *wlc_hw)
 
 		/* turn off primary xtal and pll */
 		if (!wlc_hw->noreset) {
-			if (BUSTYPE(wlc_hw->sih->bustype) == PCI_BUS)
+			if (wlc_hw->sih->bustype == PCI_BUS)
 				si_pci_down(wlc_hw->sih);
 			wlc_bmac_xtal(wlc_hw, OFF);
 		}
@@ -2263,7 +2263,7 @@ void wlc_bmac_hw_up(wlc_hw_info_t *wlc_hw)
 	si_clkctl_init(wlc_hw->sih);
 	wlc_clkctl_clk(wlc_hw, CLK_FAST);
 
-	if (BUSTYPE(wlc_hw->sih->bustype) == PCI_BUS) {
+	if (wlc_hw->sih->bustype == PCI_BUS) {
 		si_pci_fixcfg(wlc_hw->sih);
 
 		/* AI chip doesn't restore bar0win2 on hibernation/resume, need sw fixup */
@@ -4123,8 +4123,8 @@ void wlc_gpio_fast_deinit(wlc_hw_info_t *wlc_hw)
 	/* Only chips with internal bus or PCIE cores or certain PCI cores
 	 * are able to switch cores w/o disabling interrupts
 	 */
-	if (!((BUSTYPE(wlc_hw->sih->bustype) == SI_BUS) ||
-	      ((BUSTYPE(wlc_hw->sih->bustype) == PCI_BUS) &&
+	if (!((wlc_hw->sih->bustype == SI_BUS) ||
+	      ((wlc_hw->sih->bustype == PCI_BUS) &&
 	       ((wlc_hw->sih->buscoretype == PCIE_CORE_ID) ||
 		(wlc_hw->sih->buscorerev >= 13)))))
 		return;

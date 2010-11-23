@@ -300,7 +300,7 @@ void write_radio_reg(phy_info_t *pi, u16 addr, u16 val)
 		W_REG(osh, &pi->regs->phy4wdatalo, val);
 	}
 
-	if (BUSTYPE(pi->sh->bustype) == PCI_BUS) {
+	if (pi->sh->bustype == PCI_BUS) {
 		if (++pi->phy_wreg >= pi->phy_wreg_limit) {
 			(void)R_REG(osh, &pi->regs->maccontrol);
 			pi->phy_wreg = 0;
@@ -445,7 +445,7 @@ void write_phy_reg(phy_info_t *pi, u16 addr, u16 val)
 #else
 	W_REG(osh, (volatile u32 *)(&regs->phyregaddr),
 	      addr | (val << 16));
-	if (BUSTYPE(pi->sh->bustype) == PCI_BUS) {
+	if (pi->sh->bustype == PCI_BUS) {
 		if (++pi->phy_wreg >= pi->phy_wreg_limit) {
 			pi->phy_wreg = 0;
 			(void)R_REG(osh, &regs->phyversion);

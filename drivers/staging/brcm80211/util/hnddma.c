@@ -2666,8 +2666,8 @@ uint dma_addrwidth(si_t *sih, void *dmaregs)
 		/* backplane are 64-bit capable */
 		if (si_backplane64(sih))
 			/* If bus is System Backplane or PCIE then we can access 64-bits */
-			if ((BUSTYPE(sih->bustype) == SI_BUS) ||
-			    ((BUSTYPE(sih->bustype) == PCI_BUS) &&
+			if ((sih->bustype == SI_BUS) ||
+			    ((sih->bustype == PCI_BUS) &&
 			     (sih->buscoretype == PCIE_CORE_ID)))
 				return DMADDRWIDTH_64;
 
@@ -2681,8 +2681,8 @@ uint dma_addrwidth(si_t *sih, void *dmaregs)
 	dma32regs = (dma32regs_t *) dmaregs;
 
 	/* For System Backplane, PCIE bus or addrext feature, 32-bits ok */
-	if ((BUSTYPE(sih->bustype) == SI_BUS) ||
-	    ((BUSTYPE(sih->bustype) == PCI_BUS)
+	if ((sih->bustype == SI_BUS) ||
+	    ((sih->bustype == PCI_BUS)
 	     && sih->buscoretype == PCIE_CORE_ID)
 	    || (_dma32_addrext(osh, dma32regs)))
 		return DMADDRWIDTH_32;
