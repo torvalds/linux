@@ -944,8 +944,8 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 
 	/* Claim host controller */
 	sdio_claim_host(gInstance->func[func]);
-	for (pnext = pkt; pnext; pnext = PKTNEXT(pnext)) {
-		uint pkt_len = PKTLEN(pnext);
+	for (pnext = pkt; pnext; pnext = pnext->next) {
+		uint pkt_len = pnext->len;
 		pkt_len += 3;
 		pkt_len &= 0xFFFFFFFC;
 
@@ -962,23 +962,23 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 		 * is supposed to give
 		 * us something we can work with.
 		 */
-		ASSERT(((u32) (PKTDATA(pkt)) & DMA_ALIGN_MASK) == 0);
+		ASSERT(((u32) (pkt->data) & DMA_ALIGN_MASK) == 0);
 
 		if ((write) && (!fifo)) {
 			err_ret = sdio_memcpy_toio(gInstance->func[func], addr,
-						   ((u8 *) PKTDATA(pnext)),
+						   ((u8 *) (pnext->data)),
 						   pkt_len);
 		} else if (write) {
 			err_ret = sdio_memcpy_toio(gInstance->func[func], addr,
-						   ((u8 *) PKTDATA(pnext)),
+						   ((u8 *) (pnext->data)),
 						   pkt_len);
 		} else if (fifo) {
 			err_ret = sdio_readsb(gInstance->func[func],
-					      ((u8 *) PKTDATA(pnext)),
+					      ((u8 *) (pnext->data)),
 					      addr, pkt_len);
 		} else {
 			err_ret = sdio_memcpy_fromio(gInstance->func[func],
-						     ((u8 *) PKTDATA(pnext)),
+						     ((u8 *) (pnext->data)),
 						     addr, pkt_len);
 		}
 
@@ -1048,41 +1048,41 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 
 		/* For a write, copy the buffer data into the packet. */
 		if (write)
-			bcopy(buffer, PKTDATA(mypkt), buflen_u);
+			bcopy(buffer, mypkt->data, buflen_u);
 
 		Status =
 		    sdioh_request_packet(sd, fix_inc, write, func, addr, mypkt);
 
 		/* For a read, copy the packet data back to the buffer. */
 		if (!write)
-			bcopy(PKTDATA(mypkt), buffer, buflen_u);
+			bcopy(mypkt->data, buffer, buflen_u);
 
 		PKTFREE(sd->osh, mypkt, write ? true : false);
-	} else if (((u32) (PKTDATA(pkt)) & DMA_ALIGN_MASK) != 0) {
+	} else if (((u32) (pkt->data) & DMA_ALIGN_MASK) != 0) {
 		/* Case 2: We have a packet, but it is unaligned. */
 
 		/* In this case, we cannot have a chain. */
-		ASSERT(PKTNEXT(pkt) == NULL);
+		ASSERT(pkt->next == NULL);
 
 		sd_data(("%s: Creating aligned %s Packet, len=%d\n",
-			 __func__, write ? "TX" : "RX", PKTLEN(pkt)));
-		mypkt = PKTGET(sd->osh, PKTLEN(pkt), write ? true : false);
+			 __func__, write ? "TX" : "RX", pkt->len));
+		mypkt = PKTGET(sd->osh, pkt->len, write ? true : false);
 		if (!mypkt) {
 			sd_err(("%s: PKTGET failed: len %d\n",
-				__func__, PKTLEN(pkt)));
+				__func__, pkt->len));
 			return SDIOH_API_RC_FAIL;
 		}
 
 		/* For a write, copy the buffer data into the packet. */
 		if (write)
-			bcopy(PKTDATA(pkt), PKTDATA(mypkt), PKTLEN(pkt));
+			bcopy(pkt->data, mypkt->data, pkt->len);
 
 		Status =
 		    sdioh_request_packet(sd, fix_inc, write, func, addr, mypkt);
 
 		/* For a read, copy the packet data back to the buffer. */
 		if (!write)
-			bcopy(PKTDATA(mypkt), PKTDATA(pkt), PKTLEN(mypkt));
+			bcopy(mypkt->data, pkt->data, mypkt->len);
 
 		PKTFREE(sd->osh, mypkt, write ? true : false);
 	} else {		/* case 3: We have a packet and

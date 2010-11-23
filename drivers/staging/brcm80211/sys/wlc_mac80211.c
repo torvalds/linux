@@ -5042,9 +5042,9 @@ wlc_prec_enq_head(wlc_info_t *wlc, struct pktq *q, struct sk_buff *pkt,
 		/* Increment wme stats */
 		if (WME_ENAB(wlc->pub)) {
 			WLCNTINCR(wlc->pub->_wme_cnt->
-				  tx_failed[WME_PRIO2AC(PKTPRIO(p))].packets);
+				  tx_failed[WME_PRIO2AC(p->priority)].packets);
 			WLCNTADD(wlc->pub->_wme_cnt->
-				 tx_failed[WME_PRIO2AC(PKTPRIO(p))].bytes,
+				 tx_failed[WME_PRIO2AC(p->priority)].bytes,
 				 pkttotlen(wlc->osh, p));
 		}
 
@@ -5071,7 +5071,7 @@ void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 	struct pktq *q = &qi->q;
 	int prio;
 
-	prio = PKTPRIO(sdu);
+	prio = sdu->priority;
 
 	ASSERT(pktq_max(q) >= wlc->pub->tunables->datahiwat);
 
@@ -5111,7 +5111,7 @@ wlc_sendpkt_mac80211(wlc_info_t *wlc, struct sk_buff *sdu,
 	uint fifo;
 	void *pkt;
 	struct scb *scb = &global_scb;
-	struct dot11_header *d11_header = (struct dot11_header *)PKTDATA(sdu);
+	struct dot11_header *d11_header = (struct dot11_header *)(sdu->data);
 	u16 type, fc;
 
 	ASSERT(sdu);
@@ -5120,13 +5120,13 @@ wlc_sendpkt_mac80211(wlc_info_t *wlc, struct sk_buff *sdu,
 	type = FC_TYPE(fc);
 
 	/* 802.11 standard requires management traffic to go at highest priority */
-	prio = (type == FC_TYPE_DATA ? PKTPRIO(sdu) : MAXPRIO);
+	prio = (type == FC_TYPE_DATA ? sdu->priority : MAXPRIO);
 	fifo = prio2fifo[prio];
 
 	ASSERT((uint) PKTHEADROOM(sdu) >= TXOFF);
-	ASSERT(!PKTSHARED(sdu));
-	ASSERT(!PKTNEXT(sdu));
-	ASSERT(!PKTLINK(sdu));
+	ASSERT(!(sdu->cloned));
+	ASSERT(!(sdu->next));
+	ASSERT(!(sdu->prev));
 	ASSERT(fifo < NFIFO);
 
 	pkt = sdu;
@@ -5236,7 +5236,7 @@ wlc_txfifo(wlc_info_t *wlc, uint fifo, struct sk_buff *p, bool commit,
 	d11txh_t *txh;
 
 	ASSERT(fifo < NFIFO);
-	txh = (d11txh_t *) PKTDATA(p);
+	txh = (d11txh_t *) (p->data);
 
 	/* When a BC/MC frame is being committed to the BCMC fifo via DMA (NOT PIO), update
 	 * ucode or BSS info as appropriate.
@@ -5690,7 +5690,7 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 	osh = wlc->osh;
 
 	/* locate 802.11 MAC header */
-	h = (struct dot11_header *)PKTDATA(p);
+	h = (struct dot11_header *)(p->data);
 	fc = ltoh16(h->fc);
 	type = FC_TYPE(fc);
 
@@ -5731,12 +5731,12 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 		} else {
 			/* Increment the counter for first fragment */
 			if (tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT) {
-				SCB_SEQNUM(scb, PKTPRIO(p))++;
+				SCB_SEQNUM(scb, p->priority)++;
 			}
 
 			/* extract fragment number from frame first */
 			seq = ltoh16(seq) & FRAGNUM_MASK;
-			seq |= (SCB_SEQNUM(scb, PKTPRIO(p)) << SEQNUM_SHIFT);
+			seq |= (SCB_SEQNUM(scb, p->priority) << SEQNUM_SHIFT);
 			h->seq = htol16(seq);
 
 			frameid = ((seq << TXFID_SEQ_SHIFT) & TXFID_SEQ_MASK) |
@@ -6559,7 +6559,7 @@ wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, u32 frm_tx2)
 	if (p == NULL)
 		goto fatal;
 
-	txh = (d11txh_t *) PKTDATA(p);
+	txh = (d11txh_t *) (p->data);
 	mcl = ltoh16(txh->MacTxControlLow);
 
 	if (txs->phyerr) {
@@ -6649,8 +6649,8 @@ wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, u32 frm_tx2)
 	wlc_txfifo_complete(wlc, queue, 1);
 
 	if (lastframe) {
-		PKTSETNEXT(p, NULL);
-		PKTSETLINK(p, NULL);
+		p->next = NULL;
+		p->prev = NULL;
 		wlc->txretried = 0;
 		/* remove PLCP & Broadcom tx descriptor header */
 		skb_pull(p, D11_PHY_HDR_LEN);
@@ -6825,7 +6825,7 @@ prep_mac80211_status(wlc_info_t *wlc, d11rxhdr_t *rxh, struct sk_buff *p,
 	/* qual */
 	rx_status->antenna = (rxh->PhyRxStatus_0 & PRXS0_RXANT_UPSUBBAND) ? 1 : 0;	/* ant */
 
-	plcp = PKTDATA(p);
+	plcp = p->data;
 
 	rspec = wlc_compute_rspec(rxh, plcp);
 	if (IS_MCS(rspec)) {
@@ -6920,12 +6920,12 @@ wlc_recvctl(wlc_info_t *wlc, struct osl_info *osh, d11rxhdr_t *rxh,
 	prep_mac80211_status(wlc, rxh, p, &rx_status);
 
 	/* mac header+body length, exclude CRC and plcp header */
-	len_mpdu = PKTLEN(p) - D11_PHY_HDR_LEN - DOT11_FCS_LEN;
+	len_mpdu = p->len - D11_PHY_HDR_LEN - DOT11_FCS_LEN;
 	skb_pull(p, D11_PHY_HDR_LEN);
 	__skb_trim(p, len_mpdu);
 
-	ASSERT(!PKTNEXT(p));
-	ASSERT(!PKTLINK(p));
+	ASSERT(!(p->next));
+	ASSERT(!(p->prev));
 
 	ASSERT(IS_ALIGNED((unsigned long)skb->data, 2));
 
@@ -6980,7 +6980,7 @@ void BCMFASTPATH wlc_recv(wlc_info_t *wlc, struct sk_buff *p)
 	osh = wlc->osh;
 
 	/* frame starts with rxhdr */
-	rxh = (d11rxhdr_t *) PKTDATA(p);
+	rxh = (d11rxhdr_t *) (p->data);
 
 	/* strip off rxhdr */
 	skb_pull(p, wlc->hwrxoff);
@@ -6990,17 +6990,17 @@ void BCMFASTPATH wlc_recv(wlc_info_t *wlc, struct sk_buff *p)
 
 	/* MAC inserts 2 pad bytes for a4 headers or QoS or A-MSDU subframes */
 	if (rxh->RxStatus1 & RXS_PBPRES) {
-		if (PKTLEN(p) < 2) {
+		if (p->len < 2) {
 			WLCNTINCR(wlc->pub->_cnt->rxrunt);
 			WL_ERROR(("wl%d: wlc_recv: rcvd runt of len %d\n",
-				  wlc->pub->unit, PKTLEN(p)));
+				  wlc->pub->unit, p->len));
 			goto toss;
 		}
 		skb_pull(p, 2);
 	}
 
-	h = (struct dot11_header *)(PKTDATA(p) + D11_PHY_HDR_LEN);
-	len = PKTLEN(p);
+	h = (struct dot11_header *)(p->data + D11_PHY_HDR_LEN);
+	len = p->len;
 
 	if (rxh->RxStatus1 & RXS_FCSERR) {
 		if (wlc->pub->mac80211_state & MAC80211_PROMISC_BCNS) {
@@ -7804,7 +7804,7 @@ int wlc_prep_pdu(wlc_info_t *wlc, struct sk_buff *pdu, uint *fifop)
 	osh = wlc->osh;
 
 	ASSERT(pdu);
-	txh = (d11txh_t *) PKTDATA(pdu);
+	txh = (d11txh_t *) (pdu->data);
 	ASSERT(txh);
 	h = (struct dot11_header *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
 	ASSERT(h);

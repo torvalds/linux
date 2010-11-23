@@ -357,16 +357,16 @@ extern void bcmsdh_enable_hw_oob_intr(void *sdh, bool enable);
 #if defined(OOB_INTR_ONLY) && defined(SDIO_ISR_THREAD)
 #error OOB_INTR_ONLY is NOT working with SDIO_ISR_THREAD
 #endif	/* defined(OOB_INTR_ONLY) && defined(SDIO_ISR_THREAD) */
-#define PKTALIGN(osh, p, len, align)					\
+#define PKTALIGN(_osh, _p, _len, _align)				\
 	do {								\
 		uint datalign;						\
-		datalign = (unsigned long)PKTDATA((p));			\
-		datalign = roundup(datalign, (align)) - datalign;	\
-		ASSERT(datalign < (align));				\
-		ASSERT(PKTLEN((p)) >= ((len) + datalign));	\
+		datalign = (unsigned long)((_p)->data);			\
+		datalign = roundup(datalign, (_align)) - datalign;	\
+		ASSERT(datalign < (_align));				\
+		ASSERT((_p)->len >= ((_len) + datalign));		\
 		if (datalign)						\
-			skb_pull((p), datalign);			\
-		__skb_trim((p), (len));				\
+			skb_pull((_p), datalign);			\
+		__skb_trim((_p), (_len));				\
 	} while (0)
 
 /* Limit on rounding up frames */
@@ -927,7 +927,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 		goto done;
 	}
 
-	frame = (u8 *) PKTDATA(pkt);
+	frame = (u8 *) (pkt->data);
 
 	/* Add alignment padding, allocate new packet if needed */
 	pad = ((unsigned long)frame % DHD_SDALIGN);
@@ -936,37 +936,37 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 			DHD_INFO(("%s: insufficient headroom %d for %d pad\n",
 				  __func__, (int)PKTHEADROOM(pkt), pad));
 			bus->dhd->tx_realloc++;
-			new = PKTGET(osh, (PKTLEN(pkt) + DHD_SDALIGN), true);
+			new = PKTGET(osh, (pkt->len + DHD_SDALIGN), true);
 			if (!new) {
 				DHD_ERROR(("%s: couldn't allocate new %d-byte "
 					"packet\n",
-					__func__, PKTLEN(pkt) + DHD_SDALIGN));
+					__func__, pkt->len + DHD_SDALIGN));
 				ret = BCME_NOMEM;
 				goto done;
 			}
 
-			PKTALIGN(osh, new, PKTLEN(pkt), DHD_SDALIGN);
-			bcopy(PKTDATA(pkt), PKTDATA(new), PKTLEN(pkt));
+			PKTALIGN(osh, new, pkt->len, DHD_SDALIGN);
+			bcopy(pkt->data, new->data, pkt->len);
 			if (free_pkt)
 				PKTFREE(osh, pkt, true);
 			/* free the pkt if canned one is not used */
 			free_pkt = true;
 			pkt = new;
-			frame = (u8 *) PKTDATA(pkt);
+			frame = (u8 *) (pkt->data);
 			ASSERT(((unsigned long)frame % DHD_SDALIGN) == 0);
 			pad = 0;
 		} else {
 			skb_push(pkt, pad);
-			frame = (u8 *) PKTDATA(pkt);
+			frame = (u8 *) (pkt->data);
 
-			ASSERT((pad + SDPCM_HDRLEN) <= (int)PKTLEN(pkt));
+			ASSERT((pad + SDPCM_HDRLEN) <= (int)(pkt->len));
 			bzero(frame, pad + SDPCM_HDRLEN);
 		}
 	}
 	ASSERT(pad < DHD_SDALIGN);
 
 	/* Hardware tag: 2 byte len followed by 2 byte ~len check (all LE) */
-	len = (u16) PKTLEN(pkt);
+	len = (u16) (pkt->len);
 	*(u16 *) frame = htol16(len);
 	*(((u16 *) frame) + 1) = htol16(~len);
 
@@ -979,7 +979,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 	htol32_ua_store(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
 
 #ifdef DHD_DEBUG
-	tx_packets[PKTPRIO(pkt)]++;
+	tx_packets[pkt->priority]++;
 	if (DHD_BYTES_ON() &&
 	    (((DHD_CTL_ON() && (chan == SDPCM_CONTROL_CHANNEL)) ||
 	      (DHD_DATA_ON() && (chan != SDPCM_CONTROL_CHANNEL))))) {
@@ -1075,14 +1075,14 @@ int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 	DHD_TRACE(("%s: Enter\n", __func__));
 
 	osh = bus->dhd->osh;
-	datalen = PKTLEN(pkt);
+	datalen = pkt->len;
 
 #ifdef SDTEST
 	/* Push the test header if doing loopback */
 	if (bus->ext_loop) {
 		u8 *data;
 		skb_push(pkt, SDPCM_TEST_HDRLEN);
-		data = PKTDATA(pkt);
+		data = pkt->data;
 		*data++ = SDPCM_TEST_ECHOREQ;
 		*data++ = (u8) bus->loopid++;
 		*data++ = (datalen >> 0);
@@ -1093,9 +1093,9 @@ int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 
 	/* Add space for the header */
 	skb_push(pkt, SDPCM_HDRLEN);
-	ASSERT(IS_ALIGNED((unsigned long)PKTDATA(pkt), 2));
+	ASSERT(IS_ALIGNED((unsigned long)(pkt->data), 2));
 
-	prec = PRIO2PREC((PKTPRIO(pkt) & PRIOMASK));
+	prec = PRIO2PREC((pkt->priority & PRIOMASK));
 
 	/* Check for existing queue, current flow-control,
 			 pending event, or pending clock */
@@ -1191,7 +1191,7 @@ static uint dhdsdio_sendfromq(dhd_bus_t *bus, uint maxframes)
 			break;
 		}
 		dhd_os_sdunlock_txq(bus->dhd);
-		datalen = PKTLEN(pkt) - SDPCM_HDRLEN;
+		datalen = pkt->len - SDPCM_HDRLEN;
 
 #ifndef SDTEST
 		ret = dhdsdio_txpkt(bus, pkt, SDPCM_DATA_CHANNEL, true);
@@ -3204,8 +3204,8 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		dhd_os_sdlock_rxq(bus->dhd);
 
 		pfirst = plast = pnext = NULL;
-		dlen = (u16) PKTLEN(bus->glomd);
-		dptr = PKTDATA(bus->glomd);
+		dlen = (u16) (bus->glomd->len);
+		dptr = bus->glomd->data;
 		if (!dlen || (dlen & 1)) {
 			DHD_ERROR(("%s: bad glomd len(%d), ignore descriptor\n",
 			__func__, dlen));
@@ -3246,13 +3246,13 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 					   __func__, num, sublen));
 				break;
 			}
-			ASSERT(!PKTLINK(pnext));
+			ASSERT(!(pnext->prev));
 			if (!pfirst) {
 				ASSERT(!plast);
 				pfirst = plast = pnext;
 			} else {
 				ASSERT(plast);
-				PKTSETNEXT(plast, pnext);
+				plast->next = pnext;
 				plast = pnext;
 			}
 
@@ -3295,10 +3295,10 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		if (DHD_GLOM_ON()) {
 			DHD_GLOM(("%s: try superframe read, packet chain:\n",
 				__func__));
-			for (pnext = bus->glom; pnext; pnext = PKTNEXT(pnext)) {
+			for (pnext = bus->glom; pnext; pnext = pnext->next) {
 				DHD_GLOM(("    %p: %p len 0x%04x (%d)\n",
-					  pnext, (u8 *) PKTDATA(pnext),
-					  PKTLEN(pnext), PKTLEN(pnext)));
+					  pnext, (u8 *) (pnext->data),
+					  pnext->len, pnext->len));
 			}
 		}
 
@@ -3314,7 +3314,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 						      bcmsdh_cur_sbwad
 						      (bus->sdh), SDIO_FUNC_2,
 						      F2SYNC,
-						      (u8 *) PKTDATA(pfirst),
+						      (u8 *) pfirst->data,
 						      dlen, pfirst, NULL, NULL);
 		} else if (bus->dataptr) {
 			errcode = dhd_bcmsdh_recv_buf(bus,
@@ -3360,13 +3360,13 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		}
 #ifdef DHD_DEBUG
 		if (DHD_GLOM_ON()) {
-			prhex("SUPERFRAME", PKTDATA(pfirst),
-			      min_t(int, PKTLEN(pfirst), 48));
+			prhex("SUPERFRAME", pfirst->data,
+			      min_t(int, pfirst->len, 48));
 		}
 #endif
 
 		/* Validate the superframe header */
-		dptr = (u8 *) PKTDATA(pfirst);
+		dptr = (u8 *) (pfirst->data);
 		sublen = ltoh16_ua(dptr);
 		check = ltoh16_ua(dptr + sizeof(u16));
 
@@ -3404,11 +3404,11 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				   __func__));
 			errcode = -1;
 		} else if ((doff < SDPCM_HDRLEN) ||
-			   (doff > (PKTLEN(pfirst) - SDPCM_HDRLEN))) {
+			   (doff > (pfirst->len - SDPCM_HDRLEN))) {
 			DHD_ERROR(("%s (superframe): Bad data offset %d: HW %d "
 				"pkt %d min %d\n",
 				__func__, doff, sublen,
-				PKTLEN(pfirst), SDPCM_HDRLEN));
+				pfirst->len, SDPCM_HDRLEN));
 			errcode = -1;
 		}
 
@@ -3434,9 +3434,9 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 
 		/* Validate all the subframe headers */
 		for (num = 0, pnext = pfirst; pnext && !errcode;
-		     num++, pnext = PKTNEXT(pnext)) {
-			dptr = (u8 *) PKTDATA(pnext);
-			dlen = (u16) PKTLEN(pnext);
+		     num++, pnext = pnext->next) {
+			dptr = (u8 *) (pnext->data);
+			dlen = (u16) (pnext->len);
 			sublen = ltoh16_ua(dptr);
 			check = ltoh16_ua(dptr + sizeof(u16));
 			chan = SDPCM_PACKET_CHANNEL(&dptr[SDPCM_FRAMETAG_LEN]);
@@ -3496,10 +3496,10 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 
 		dhd_os_sdlock_rxq(bus->dhd);
 		for (num = 0; pfirst; rxseq++, pfirst = pnext) {
-			pnext = PKTNEXT(pfirst);
-			PKTSETNEXT(pfirst, NULL);
+			pnext = pfirst->next;
+			pfirst->next = NULL;
 
-			dptr = (u8 *) PKTDATA(pfirst);
+			dptr = (u8 *) (pfirst->data);
 			sublen = ltoh16_ua(dptr);
 			chan = SDPCM_PACKET_CHANNEL(&dptr[SDPCM_FRAMETAG_LEN]);
 			seq = SDPCM_PACKET_SEQUENCE(&dptr[SDPCM_FRAMETAG_LEN]);
@@ -3507,8 +3507,8 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 
 			DHD_GLOM(("%s: Get subframe %d, %p(%p/%d), sublen %d "
 				"chan %d seq %d\n",
-				__func__, num, pfirst, PKTDATA(pfirst),
-				PKTLEN(pfirst), sublen, chan, seq));
+				__func__, num, pfirst, pfirst->data,
+				pfirst->len, sublen, chan, seq));
 
 			ASSERT((chan == SDPCM_DATA_CHANNEL)
 			       || (chan == SDPCM_EVENT_CHANNEL));
@@ -3527,10 +3527,10 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 			__skb_trim(pfirst, sublen);
 			skb_pull(pfirst, doff);
 
-			if (PKTLEN(pfirst) == 0) {
+			if (pfirst->len == 0) {
 				PKTFREE(bus->dhd->osh, pfirst, false);
 				if (plast) {
-					PKTSETNEXT(plast, pnext);
+					plast->next = pnext;
 				} else {
 					ASSERT(save_pfirst == pfirst);
 					save_pfirst = pnext;
@@ -3543,7 +3543,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 				bus->dhd->rx_errors++;
 				PKTFREE(osh, pfirst, false);
 				if (plast) {
-					PKTSETNEXT(plast, pnext);
+					plast->next = pnext;
 				} else {
 					ASSERT(save_pfirst == pfirst);
 					save_pfirst = pnext;
@@ -3553,7 +3553,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 
 			/* this packet will go up, link back into
 				 chain and count it */
-			PKTSETNEXT(pfirst, pnext);
+			pfirst->next = pnext;
 			plast = pfirst;
 			num++;
 
@@ -3561,11 +3561,11 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 			if (DHD_GLOM_ON()) {
 				DHD_GLOM(("%s subframe %d to stack, %p(%p/%d) "
 				"nxt/lnk %p/%p\n",
-				__func__, num, pfirst, PKTDATA(pfirst),
-				PKTLEN(pfirst), PKTNEXT(pfirst),
-				PKTLINK(pfirst)));
-				prhex("", (u8 *) PKTDATA(pfirst),
-				      min_t(int, PKTLEN(pfirst), 32));
+				__func__, num, pfirst, pfirst->data,
+				pfirst->len, pfirst->next,
+				pfirst->prev));
+				prhex("", (u8 *) pfirst->data,
+				      min_t(int, pfirst->len, 32));
 			}
 #endif				/* DHD_DEBUG */
 		}
@@ -3737,9 +3737,9 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 				if (bus->bus == SPI_BUS)
 					bus->usebufpool = true;
 
-				ASSERT(!PKTLINK(pkt));
+				ASSERT(!(pkt->prev));
 				PKTALIGN(osh, pkt, rdlen, DHD_SDALIGN);
-				rxbuf = (u8 *) PKTDATA(pkt);
+				rxbuf = (u8 *) (pkt->data);
 				/* Read the entire frame */
 				sdret =
 				    dhd_bcmsdh_recv_buf(bus,
@@ -4103,17 +4103,17 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		}
 		dhd_os_sdunlock_rxq(bus->dhd);
 
-		ASSERT(!PKTLINK(pkt));
+		ASSERT(!(pkt->prev));
 
 		/* Leave room for what we already read, and align remainder */
-		ASSERT(firstread < (PKTLEN(pkt)));
+		ASSERT(firstread < pkt->len);
 		skb_pull(pkt, firstread);
 		PKTALIGN(osh, pkt, rdlen, DHD_SDALIGN);
 
 		/* Read the remaining frame data */
 		sdret =
 		    dhd_bcmsdh_recv_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2,
-					F2SYNC, ((u8 *) PKTDATA(pkt)), rdlen,
+					F2SYNC, ((u8 *) (pkt->data)), rdlen,
 					pkt, NULL, NULL);
 		bus->f2rxdata++;
 		ASSERT(sdret != BCME_PENDING);
@@ -4136,11 +4136,11 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 
 		/* Copy the already-read portion */
 		skb_push(pkt, firstread);
-		bcopy(bus->rxhdr, PKTDATA(pkt), firstread);
+		bcopy(bus->rxhdr, pkt->data, firstread);
 
 #ifdef DHD_DEBUG
 		if (DHD_BYTES_ON() && DHD_DATA_ON())
-			prhex("Rx Data", PKTDATA(pkt), len);
+			prhex("Rx Data", pkt->data, len);
 #endif
 
 deliver:
@@ -4151,7 +4151,7 @@ deliver:
 					__func__, len));
 #ifdef DHD_DEBUG
 				if (DHD_GLOM_ON()) {
-					prhex("Glom Data", PKTDATA(pkt), len);
+					prhex("Glom Data", pkt->data, len);
 				}
 #endif
 				__skb_trim(pkt, len);
@@ -4178,7 +4178,7 @@ deliver:
 		}
 #endif				/* SDTEST */
 
-		if (PKTLEN(pkt) == 0) {
+		if (pkt->len == 0) {
 			dhd_os_sdlock_rxq(bus->dhd);
 			PKTFREE(bus->dhd->osh, pkt, false);
 			dhd_os_sdunlock_rxq(bus->dhd);
@@ -4672,7 +4672,7 @@ static void dhdsdio_pktgen(dhd_bus_t *bus)
 		}
 		PKTALIGN(osh, pkt, (len + SDPCM_HDRLEN + SDPCM_TEST_HDRLEN),
 			 DHD_SDALIGN);
-		data = (u8 *) PKTDATA(pkt) + SDPCM_HDRLEN;
+		data = (u8 *) (pkt->data) + SDPCM_HDRLEN;
 
 		/* Write test header cmd and extra based on mode */
 		switch (bus->pktgen_mode) {
@@ -4711,9 +4711,9 @@ static void dhdsdio_pktgen(dhd_bus_t *bus)
 
 #ifdef DHD_DEBUG
 		if (DHD_BYTES_ON() && DHD_DATA_ON()) {
-			data = (u8 *) PKTDATA(pkt) + SDPCM_HDRLEN;
+			data = (u8 *) (pkt->data) + SDPCM_HDRLEN;
 			prhex("dhdsdio_pktgen: Tx Data", data,
-			      PKTLEN(pkt) - SDPCM_HDRLEN);
+			      pkt->len - SDPCM_HDRLEN);
 		}
 #endif
 
@@ -4750,7 +4750,7 @@ static void dhdsdio_sdtest_set(dhd_bus_t *bus, bool start)
 		return;
 	}
 	PKTALIGN(osh, pkt, (SDPCM_HDRLEN + SDPCM_TEST_HDRLEN), DHD_SDALIGN);
-	data = (u8 *) PKTDATA(pkt) + SDPCM_HDRLEN;
+	data = (u8 *) (pkt->data) + SDPCM_HDRLEN;
 
 	/* Fill in the test header */
 	*data++ = SDPCM_TEST_SEND;
@@ -4775,7 +4775,7 @@ static void dhdsdio_testrcv(dhd_bus_t *bus, struct sk_buff *pkt, uint seq)
 	u16 offset;
 
 	/* Check for min length */
-	pktlen = PKTLEN(pkt);
+	pktlen = pkt->len;
 	if (pktlen < SDPCM_TEST_HDRLEN) {
 		DHD_ERROR(("dhdsdio_restrcv: toss runt frame, pktlen %d\n",
 			   pktlen));
@@ -4784,7 +4784,7 @@ static void dhdsdio_testrcv(dhd_bus_t *bus, struct sk_buff *pkt, uint seq)
 	}
 
 	/* Extract header fields */
-	data = PKTDATA(pkt);
+	data = pkt->data;
 	cmd = *data++;
 	extra = *data++;
 	len = *data++;
@@ -4807,7 +4807,7 @@ static void dhdsdio_testrcv(dhd_bus_t *bus, struct sk_buff *pkt, uint seq)
 	case SDPCM_TEST_ECHOREQ:
 		/* Rx->Tx turnaround ok (even on NDIS w/current
 			 implementation) */
-		*(u8 *) (PKTDATA(pkt)) = SDPCM_TEST_ECHORSP;
+		*(u8 *) (pkt->data) = SDPCM_TEST_ECHORSP;
 		if (dhdsdio_txpkt(bus, pkt, SDPCM_TEST_CHANNEL, true) == 0) {
 			bus->pktgen_sent++;
 		} else {

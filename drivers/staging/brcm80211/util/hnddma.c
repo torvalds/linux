@@ -989,15 +989,15 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 	if (head == NULL)
 		return NULL;
 
-	len = ltoh16(*(u16 *) (PKTDATA(head)));
+	len = ltoh16(*(u16 *) (head->data));
 	DMA_TRACE(("%s: dma_rx len %d\n", di->name, len));
 
 #if defined(__mips__)
 	if (!len) {
-		while (!(len = *(u16 *) OSL_UNCACHED(PKTDATA(head))))
+		while (!(len = *(u16 *) OSL_UNCACHED(head->data)))
 			udelay(1);
 
-		*(u16 *) PKTDATA(head) = htol16((u16) len);
+		*(u16 *) (head->data) = htol16((u16) len);
 	}
 #endif				/* defined(__mips__) */
 
@@ -1010,7 +1010,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 	if (resid > 0) {
 		tail = head;
 		while ((resid > 0) && (p = _dma_getnextrxp(di, false))) {
-			PKTSETNEXT(tail, p);
+			tail->next = p;
 			pkt_len = min(resid, (int)di->rxbufsize);
 			__skb_trim(p, pkt_len);
 
@@ -1115,12 +1115,12 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 		/* Do a cached write instead of uncached write since DMA_MAP
 		 * will flush the cache.
 		 */
-		*(u32 *) (PKTDATA(p)) = 0;
+		*(u32 *) (p->data) = 0;
 
 		if (DMASGLIST_ENAB)
 			bzero(&di->rxp_dmah[rxout], sizeof(hnddma_seg_map_t));
 
-		pa = DMA_MAP(di->osh, PKTDATA(p),
+		pa = DMA_MAP(di->osh, p->data,
 			     di->rxbufsize, DMA_RX, p, &di->rxp_dmah[rxout]);
 
 		ASSERT(IS_ALIGNED(PHYSADDRLO(pa), 4));
@@ -1673,12 +1673,12 @@ static int dma32_txfast(dma_info_t *di, struct sk_buff *p0, bool commit)
 		uint nsegs, j;
 		hnddma_seg_map_t *map;
 
-		data = PKTDATA(p);
-		len = PKTLEN(p);
+		data = p->data;
+		len = p->len;
 #ifdef BCM_DMAPAD
 		len += PKTDMAPAD(di->osh, p);
 #endif
-		next = PKTNEXT(p);
+		next = p->next;
 
 		/* return nonzero if out of tx descriptors */
 		if (NEXTTXD(txout) == di->txin)
@@ -2323,12 +2323,12 @@ static int BCMFASTPATH dma64_txfast(dma_info_t *di, struct sk_buff *p0,
 		uint nsegs, j;
 		hnddma_seg_map_t *map;
 
-		data = PKTDATA(p);
-		len = PKTLEN(p);
+		data = p->data;
+		len = p->len;
 #ifdef BCM_DMAPAD
 		len += PKTDMAPAD(di->osh, p);
 #endif				/* BCM_DMAPAD */
-		next = PKTNEXT(p);
+		next = p->next;
 
 		/* return nonzero if out of tx descriptors */
 		if (NEXTTXD(txout) == di->txin)

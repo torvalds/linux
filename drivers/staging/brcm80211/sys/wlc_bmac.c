@@ -285,7 +285,7 @@ wlc_bmac_recv(wlc_hw_info_t *wlc_hw, uint fifo, bool bound)
 		if (!tail)
 			head = tail = p;
 		else {
-			PKTSETLINK(tail, p);
+			tail->prev = p;
 			tail = p;
 		}
 
@@ -302,11 +302,11 @@ wlc_bmac_recv(wlc_hw_info_t *wlc_hw, uint fifo, bool bound)
 
 	/* process each frame */
 	while ((p = head) != NULL) {
-		head = PKTLINK(head);
-		PKTSETLINK(p, NULL);
+		head = head->prev;
+		p->prev = NULL;
 
 		/* record the tsf_l in wlc_rxd11hdr */
-		wlc_rxhdr = (wlc_d11rxhdr_t *) PKTDATA(p);
+		wlc_rxhdr = (wlc_d11rxhdr_t *) p->data;
 		wlc_rxhdr->tsf_l = htol32(tsf_l);
 
 		/* compute the RSSI from d11rxhdr and record it in wlc_rxd11hr */
@@ -3327,7 +3327,7 @@ static bool wlc_bmac_txstatus_corerev4(wlc_hw_info_t *wlc_hw)
 
 	while (!fatal && (status_p = dma_rx(wlc_hw->di[RX_TXSTATUS_FIFO]))) {
 
-		txs = (tx_status_t *) PKTDATA(status_p);
+		txs = (tx_status_t *) status_p->data;
 		/* MAC uses little endian only */
 		ltoh16_buf((void *)txs, sizeof(tx_status_t));
 

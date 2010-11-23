@@ -440,7 +440,7 @@ struct wlc_if;
 
 #define	WLC_PREC_COUNT		16	/* Max precedence level implemented */
 
-/* pri is PKTPRIO encoded in the packet. This maps the Packet priority to
+/* pri is priority encoded in the packet. This maps the Packet priority to
  * enqueue precedence as defined in wlc_prec_map
  */
 extern const u8 wlc_prio2prec_map[];

@@ -153,7 +153,7 @@ static inline u16 pkt_txh_seqnum(wlc_info_t *wlc, struct sk_buff *p)
 {
 	d11txh_t *txh;
 	struct dot11_header *h;
-	txh = (d11txh_t *) PKTDATA(p);
+	txh = (d11txh_t *) p->data;
 	h = (struct dot11_header *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
 	return ltoh16(h->seq) >> SEQNUM_SHIFT;
 }
@@ -475,7 +475,7 @@ wlc_ampdu_agg(ampdu_info_t *ampdu, struct scb *scb, struct sk_buff *p,
 {
 	scb_ampdu_t *scb_ampdu;
 	scb_ampdu_tid_ini_t *ini;
-	u8 tid = (u8) PKTPRIO(p);
+	u8 tid = (u8) (p->priority);
 
 	scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
 
@@ -529,7 +529,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, struct sk_buff **pdu,
 
 	ASSERT(p);
 
-	tid = (u8) PKTPRIO(p);
+	tid = (u8) (p->priority);
 	ASSERT(tid < AMPDU_MAX_SCB_TID);
 
 	f = ampdu->fifo_tb + prio2fifo[tid];
@@ -589,7 +589,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, struct sk_buff **pdu,
 
 		/* pkt is good to be aggregated */
 		ASSERT(tx_info->flags & IEEE80211_TX_CTL_AMPDU);
-		txh = (d11txh_t *) PKTDATA(p);
+		txh = (d11txh_t *) p->data;
 		plcp = (u8 *) (txh + 1);
 		h = (struct dot11_header *)(plcp + D11_PHY_HDR_LEN);
 		seq = ltoh16(h->seq) >> SEQNUM_SHIFT;
@@ -744,7 +744,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, struct sk_buff **pdu,
 
 		if (p) {
 			if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) &&
-			    ((u8) PKTPRIO(p) == tid)) {
+			    ((u8) (p->priority) == tid)) {
 
 				plen =
 				    pkttotlen(osh, p) + AMPDU_MAX_MPDU_OVERHEAD;
@@ -778,7 +778,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, struct sk_buff **pdu,
 		WLCNTADD(ampdu->cnt->txmpdu, count);
 
 		/* patch up the last txh */
-		txh = (d11txh_t *) PKTDATA(pkt[count - 1]);
+		txh = (d11txh_t *) pkt[count - 1]->data;
 		mcl = ltoh16(txh->MacTxControlLow);
 		mcl &= ~TXC_AMPDU_MASK;
 		mcl |= (TXC_AMPDU_LAST << TXC_AMPDU_SHIFT);
@@ -796,7 +796,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, struct sk_buff **pdu,
 		ampdu_len -= roundup(len, 4) - len;
 
 		/* patch up the first txh & plcp */
-		txh = (d11txh_t *) PKTDATA(pkt[0]);
+		txh = (d11txh_t *) pkt[0]->data;
 		plcp = (u8 *) (txh + 1);
 
 		WLC_SET_MIMO_PLCP_LEN(plcp, ampdu_len);
@@ -901,7 +901,7 @@ wlc_ampdu_dotxstatus(ampdu_info_t *ampdu, struct scb *scb, struct sk_buff *p,
 	ASSERT(txs->status & TX_STATUS_AMPDU);
 	scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
 	ASSERT(scb_ampdu);
-	ini = SCB_AMPDU_INI(scb_ampdu, PKTPRIO(p));
+	ini = SCB_AMPDU_INI(scb_ampdu, p->priority);
 	ASSERT(ini->scb == scb);
 
 	/* BMAC_NOTE: For the split driver, second level txstatus comes later
@@ -985,7 +985,7 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb,
 	scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
 	ASSERT(scb_ampdu);
 
-	tid = (u8) PKTPRIO(p);
+	tid = (u8) (p->priority);
 
 	ini = SCB_AMPDU_INI(scb_ampdu, tid);
 	retry_limit = ampdu->retry_limit_tid[tid];
@@ -1065,7 +1065,7 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb,
 #ifdef BCMDBG
 			if (WL_ERROR_ON()) {
 				prpkt("txpkt (AMPDU)", wlc->osh, p);
-				wlc_print_txdesc((d11txh_t *) PKTDATA(p));
+				wlc_print_txdesc((d11txh_t *) p->data);
 				wlc_print_txstatus(txs);
 			}
 #endif				/* BCMDBG */
@@ -1076,7 +1076,7 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb,
 	while (p) {
 		tx_info = IEEE80211_SKB_CB(p);
 		ASSERT(tx_info->flags & IEEE80211_TX_CTL_AMPDU);
-		txh = (d11txh_t *) PKTDATA(p);
+		txh = (d11txh_t *) p->data;
 		mcl = ltoh16(txh->MacTxControlLow);
 		plcp = (u8 *) (txh + 1);
 		h = (struct dot11_header *)(plcp + D11_PHY_HDR_LEN);

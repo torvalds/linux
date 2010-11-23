@@ -39,19 +39,19 @@ uint pktfrombuf(struct osl_info *osh, struct sk_buff *p, uint offset, int len,
 	uint n, ret = 0;
 
 	/* skip 'offset' bytes */
-	for (; p && offset; p = PKTNEXT(p)) {
-		if (offset < (uint) PKTLEN(p))
+	for (; p && offset; p = p->next) {
+		if (offset < (uint) (p->len))
 			break;
-		offset -= PKTLEN(p);
+		offset -= p->len;
 	}
 
 	if (!p)
 		return 0;
 
 	/* copy the data */
-	for (; p && len; p = PKTNEXT(p)) {
-		n = min((uint) PKTLEN(p) - offset, (uint) len);
-		bcopy(buf, PKTDATA(p) + offset, n);
+	for (; p && len; p = p->next) {
+		n = min((uint) (p->len) - offset, (uint) len);
+		bcopy(buf, p->data + offset, n);
 		buf += n;
 		len -= n;
 		ret += n;
@@ -66,8 +66,8 @@ uint BCMFASTPATH pkttotlen(struct osl_info *osh, struct sk_buff *p)
 	uint total;
 
 	total = 0;
-	for (; p; p = PKTNEXT(p))
-		total += PKTLEN(p);
+	for (; p; p = p->next)
+		total += p->len;
 	return total;
 }
 
@@ -81,7 +81,7 @@ struct sk_buff *BCMFASTPATH pktq_penq(struct pktq *pq, int prec,
 	struct pktq_prec *q;
 
 	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(PKTLINK(p) == NULL);	/* queueing chains not allowed */
+	ASSERT(p->prev == NULL);	/* queueing chains not allowed */
 
 	ASSERT(!pktq_full(pq));
 	ASSERT(!pktq_pfull(pq, prec));
@@ -89,7 +89,7 @@ struct sk_buff *BCMFASTPATH pktq_penq(struct pktq *pq, int prec,
 	q = &pq->q[prec];
 
 	if (q->head)
-		PKTSETLINK(q->tail, p);
+		q->tail->prev = p;
 	else
 		q->head = p;
 
@@ -110,7 +110,7 @@ struct sk_buff *BCMFASTPATH pktq_penq_head(struct pktq *pq, int prec,
 	struct pktq_prec *q;
 
 	ASSERT(prec >= 0 && prec < pq->num_prec);
-	ASSERT(PKTLINK(p) == NULL);	/* queueing chains not allowed */
+	ASSERT(p->prev == NULL);	/* queueing chains not allowed */
 
 	ASSERT(!pktq_full(pq));
 	ASSERT(!pktq_pfull(pq, prec));
@@ -120,7 +120,7 @@ struct sk_buff *BCMFASTPATH pktq_penq_head(struct pktq *pq, int prec,
 	if (q->head == NULL)
 		q->tail = p;
 
-	PKTSETLINK(p, q->head);
+	p->prev = q->head;
 	q->head = p;
 	q->len++;
 
@@ -145,7 +145,7 @@ struct sk_buff *BCMFASTPATH pktq_pdeq(struct pktq *pq, int prec)
 	if (p == NULL)
 		return NULL;
 
-	q->head = PKTLINK(p);
+	q->head = p->prev;
 	if (q->head == NULL)
 		q->tail = NULL;
 
@@ -153,7 +153,7 @@ struct sk_buff *BCMFASTPATH pktq_pdeq(struct pktq *pq, int prec)
 
 	pq->len--;
 
-	PKTSETLINK(p, NULL);
+	p->prev = NULL;
 
 	return p;
 }
@@ -171,11 +171,11 @@ struct sk_buff *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 	if (p == NULL)
 		return NULL;
 
-	for (prev = NULL; p != q->tail; p = PKTLINK(p))
+	for (prev = NULL; p != q->tail; p = p->prev)
 		prev = p;
 
 	if (prev)
-		PKTSETLINK(prev, NULL);
+		prev->prev = NULL;
 	else
 		q->head = NULL;
 
@@ -196,8 +196,8 @@ void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir)
 	q = &pq->q[prec];
 	p = q->head;
 	while (p) {
-		q->head = PKTLINK(p);
-		PKTSETLINK(p, NULL);
+		q->head = p->prev;
+		p->prev = NULL;
 		PKTFREE(osh, p, dir);
 		q->len--;
 		pq->len--;
@@ -228,17 +228,17 @@ pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir,
 		if (fn == NULL || (*fn) (p, arg)) {
 			bool head = (p == q->head);
 			if (head)
-				q->head = PKTLINK(p);
+				q->head = p->prev;
 			else
-				PKTSETLINK(prev, PKTLINK(p));
-			PKTSETLINK(p, NULL);
+				prev->prev = p->prev;
+			p->prev = NULL;
 			PKTFREE(osh, p, dir);
 			q->len--;
 			pq->len--;
-			p = (head ? q->head : PKTLINK(prev));
+			p = (head ? q->head : prev->prev);
 		} else {
 			prev = p;
-			p = PKTLINK(p);
+			p = p->prev;
 		}
 	}
 
@@ -331,7 +331,7 @@ struct sk_buff *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp,
 	if (p == NULL)
 		return NULL;
 
-	q->head = PKTLINK(p);
+	q->head = p->prev;
 	if (q->head == NULL)
 		q->tail = NULL;
 
@@ -342,7 +342,7 @@ struct sk_buff *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp,
 
 	pq->len--;
 
-	PKTSETLINK(p, NULL);
+	p->prev = NULL;
 
 	return p;
 }
@@ -417,8 +417,8 @@ void prpkt(const char *msg, struct osl_info *osh, struct sk_buff *p0)
 	if (msg && (msg[0] != '\0'))
 		printf("%s:\n", msg);
 
-	for (p = p0; p; p = PKTNEXT(p))
-		prhex(NULL, PKTDATA(p), PKTLEN(p));
+	for (p = p0; p; p = p->next)
+		prhex(NULL, p->data, p->len);
 }
 #endif				/* defined(BCMDBG) */
 

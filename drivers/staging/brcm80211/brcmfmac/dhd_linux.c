@@ -1028,8 +1028,8 @@ int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 		return -ENODEV;
 
 	/* Update multicast statistic */
-	if (PKTLEN(pktbuf) >= ETHER_ADDR_LEN) {
-		u8 *pktdata = (u8 *) PKTDATA(pktbuf);
+	if (pktbuf->len >= ETHER_ADDR_LEN) {
+		u8 *pktdata = (u8 *) (pktbuf->data);
 		struct ether_header *eh = (struct ether_header *)pktdata;
 
 		if (ETHER_ISMULTI(eh->ether_dhost))
@@ -1151,8 +1151,8 @@ void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf,
 
 	for (i = 0; pktbuf && i < numpkt; i++, pktbuf = pnext) {
 
-		pnext = PKTNEXT(pktbuf);
-		PKTSETNEXT(pktbuf, NULL);
+		pnext = pktbuf->next;
+		pktbuf->next = NULL;
 
 		skb = PKTTONATIVE(dhdp->osh, pktbuf);
 
@@ -1233,7 +1233,7 @@ void dhd_txcomplete(dhd_pub_t *dhdp, struct sk_buff *txp, bool success)
 
 	dhd_prot_hdrpull(dhdp, &ifidx, txp);
 
-	eh = (struct ether_header *)PKTDATA(txp);
+	eh = (struct ether_header *)(txp->data);
 	type = ntoh16(eh->ether_type);
 
 	if (type == ETHER_TYPE_802_1X)

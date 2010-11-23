@@ -246,15 +246,10 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 #define	BZERO_SM(r, len)	memset((r), '\0', (len))
 
 /* packet primitives */
-#define	PKTGET(osh, len, send)		osl_pktget((osh), (len))
-#define	PKTFREE(osh, skb, send)		osl_pktfree((osh), (skb), (send))
-#define	PKTDATA(skb)		(((struct sk_buff *)(skb))->data)
-#define	PKTLEN(skb)		(((struct sk_buff *)(skb))->len)
-#define PKTHEADROOM(skb)		(PKTDATA(skb)-(((struct sk_buff *)(skb))->head))
-#define PKTTAILROOM(skb) ((((struct sk_buff *)(skb))->end)-(((struct sk_buff *)(skb))->tail))
-#define	PKTNEXT(skb)		(((struct sk_buff *)(skb))->next)
-#define	PKTSETNEXT(skb, x)	\
-	(((struct sk_buff *)(skb))->next = (struct sk_buff *)(x))
+#define	PKTGET(osh, len, send)	osl_pktget((osh), (len))
+#define	PKTFREE(osh, skb, send)	osl_pktfree((osh), (skb), (send))
+#define PKTHEADROOM(skb)	((skb)->data - (skb)->head)
+#define PKTTAILROOM(skb)	((skb)->end - (skb)->tail)
 #define PKTALLOCED(osh)		(((struct osl_pubinfo *)(osh))->pktalloced)
 extern void *osl_pktget(struct osl_info *osh, uint len);
 extern void osl_pktfree(struct osl_info *osh, void *skb, bool send);
@@ -293,14 +288,9 @@ osl_pkt_tonative(struct osl_pubinfo *osh, void *pkt)
 #define	PKTSKIPCT(osh, skb)
 #endif	/* BRCM_FULLMAC */
 
-#define	PKTLINK(skb)			(((struct sk_buff *)(skb))->prev)
-#define	PKTSETLINK(skb, x)		(((struct sk_buff *)(skb))->prev = (struct sk_buff*)(x))
-#define	PKTPRIO(skb)			(((struct sk_buff *)(skb))->priority)
-#define	PKTSETPRIO(skb, x)		(((struct sk_buff *)(skb))->priority = (x))
 #define PKTSUMNEEDED(skb)		(((struct sk_buff *)(skb))->ip_summed == CHECKSUM_PARTIAL)
 #define PKTSETSUMGOOD(skb, x)		(((struct sk_buff *)(skb))->ip_summed = \
 						((x) ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE))
 /* PKTSETSUMNEEDED and PKTSUMGOOD are not possible because skb->ip_summed is overloaded */
-#define PKTSHARED(skb)                  (((struct sk_buff *)(skb))->cloned)
 
 #endif				/* _linux_osl_h_ */

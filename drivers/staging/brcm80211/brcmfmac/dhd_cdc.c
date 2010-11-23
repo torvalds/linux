@@ -323,13 +323,13 @@ void dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, struct sk_buff *pktbuf)
 
 	skb_push(pktbuf, BDC_HEADER_LEN);
 
-	h = (struct bdc_header *)PKTDATA(pktbuf);
+	h = (struct bdc_header *)(pktbuf->data);
 
 	h->flags = (BDC_PROTO_VER << BDC_FLAG_VER_SHIFT);
 	if (PKTSUMNEEDED(pktbuf))
 		h->flags |= BDC_FLAG_SUM_NEEDED;
 
-	h->priority = (PKTPRIO(pktbuf) & BDC_PRIORITY_MASK);
+	h->priority = (pktbuf->priority & BDC_PRIORITY_MASK);
 	h->flags2 = 0;
 	h->rssi = 0;
 #endif				/* BDC */
@@ -341,13 +341,13 @@ bool dhd_proto_fcinfo(dhd_pub_t *dhd, struct sk_buff *pktbuf, u8 * fcbits)
 #ifdef BDC
 	struct bdc_header *h;
 
-	if (PKTLEN(pktbuf) < BDC_HEADER_LEN) {
+	if (pktbuf->len < BDC_HEADER_LEN) {
 		DHD_ERROR(("%s: rx data too short (%d < %d)\n",
-			   __func__, PKTLEN(pktbuf), BDC_HEADER_LEN));
+			   __func__, pktbuf->len, BDC_HEADER_LEN));
 		return BCME_ERROR;
 	}
 
-	h = (struct bdc_header *)PKTDATA(pktbuf);
+	h = (struct bdc_header *)(pktbuf->data);
 
 	*fcbits = h->priority >> BDC_PRIORITY_FC_SHIFT;
 	if ((h->flags2 & BDC_FLAG2_FC_FLAG) == BDC_FLAG2_FC_FLAG)
@@ -367,13 +367,13 @@ int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
 #ifdef BDC
 	/* Pop BDC header used to convey priority for buses that don't */
 
-	if (PKTLEN(pktbuf) < BDC_HEADER_LEN) {
+	if (pktbuf->len < BDC_HEADER_LEN) {
 		DHD_ERROR(("%s: rx data too short (%d < %d)\n", __func__,
-			   PKTLEN(pktbuf), BDC_HEADER_LEN));
+			   pktbuf->len, BDC_HEADER_LEN));
 		return BCME_ERROR;
 	}
 
-	h = (struct bdc_header *)PKTDATA(pktbuf);
+	h = (struct bdc_header *)(pktbuf->data);
 
 	*ifidx = BDC_GET_IF_IDX(h);
 	if (*ifidx >= DHD_MAX_IFS) {
@@ -396,7 +396,7 @@ int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
 		PKTSETSUMGOOD(pktbuf, true);
 	}
 
-	PKTSETPRIO(pktbuf, (h->priority & BDC_PRIORITY_MASK));
+	pktbuf->priority = h->priority & BDC_PRIORITY_MASK;
 
 	skb_pull(pktbuf, BDC_HEADER_LEN);
 #endif				/* BDC */
