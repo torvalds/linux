@@ -572,9 +572,9 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 static const char *ring_str(int ring)
 {
 	switch (ring) {
-	case RING_RENDER: return "render";
-	case RING_BSD: return "bsd";
-	case RING_BLT: return "blt";
+	case RING_RENDER: return " render";
+	case RING_BSD: return " bsd";
+	case RING_BLT: return " blt";
 	default: return "";
 	}
 }

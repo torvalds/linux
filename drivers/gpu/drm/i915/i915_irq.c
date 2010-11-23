@@ -575,7 +575,7 @@ static u32 capture_bo_list(struct drm_i915_error_buffer *err,
 		err->tiling = obj->tiling_mode;
 		err->dirty = obj->dirty;
 		err->purgeable = obj->madv != I915_MADV_WILLNEED;
-		err->ring = obj->ring->id;
+		err->ring = obj->ring ? obj->ring->id : 0;
 
 		if (++i == count)
 			break;
