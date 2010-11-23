@@ -2225,6 +2225,7 @@ static void handle_setup_packet(struct langwell_udc *dev,
 	u16	wValue = le16_to_cpu(setup->wValue);
 	u16	wIndex = le16_to_cpu(setup->wIndex);
 	u16	wLength = le16_to_cpu(setup->wLength);
+	u32	portsc1;
 
 	dev_vdbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
@@ -2311,6 +2312,28 @@ static void handle_setup_packet(struct langwell_udc *dev,
 				} else {
 					dev->remote_wakeup = 0;
 					dev->dev_status &= ~(1 << wValue);
+				}
+				break;
+			case USB_DEVICE_TEST_MODE:
+				dev_dbg(&dev->pdev->dev, "SETUP: TEST MODE\n");
+				if ((wIndex & 0xff) ||
+					(dev->gadget.speed != USB_SPEED_HIGH))
+					ep0_stall(dev);
+
+				switch (wIndex >> 8) {
+				case TEST_J:
+				case TEST_K:
+				case TEST_SE0_NAK:
+				case TEST_PACKET:
+				case TEST_FORCE_EN:
+					if (prime_status_phase(dev, EP_DIR_IN))
+						ep0_stall(dev);
+					portsc1 = readl(&dev->op_regs->portsc1);
+					portsc1 |= (wIndex & 0xf00) << 8;
+					writel(portsc1, &dev->op_regs->portsc1);
+					goto end;
+				default:
+					rc = -EOPNOTSUPP;
 				}
 				break;
 			default:
