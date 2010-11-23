@@ -4785,6 +4785,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		return -EPERM;
 
 	btrfs_inc_nlink(inode);
+	inode->i_ctime = CURRENT_TIME;
 
 	err = btrfs_set_inode_index(dir, &index);
 	if (err)
