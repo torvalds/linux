@@ -302,29 +302,28 @@ static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
 	return 0;
 }
 
-static int hfsplus_file_fsync(struct file *filp, int datasync)
+static int hfsplus_file_fsync(struct file *file, int datasync)
 {
-	struct inode *inode = filp->f_mapping->host;
-	struct super_block * sb;
-	int ret, err;
+	struct inode *inode = file->f_mapping->host;
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
+	int error, error2;
 
-	/* sync the inode to buffers */
-	ret = write_inode_now(inode, 0);
+	/*
+	 * Sync inode metadata into the catalog and extent trees.
+	 */
+	sync_inode_metadata(inode, 1);
 
-	/* sync the superblock to buffers */
-	sb = inode->i_sb;
-	if (sb->s_dirt) {
-		if (!(sb->s_flags & MS_RDONLY))
-			hfsplus_sync_fs(sb, 1);
-		else
-			sb->s_dirt = 0;
-	}
-
-	/* .. finally sync the buffers to disk */
-	err = sync_blockdev(sb->s_bdev);
-	if (!ret)
-		ret = err;
-	return ret;
+	/*
+	 * And explicitly write out the btrees.
+	 */
+	error = filemap_write_and_wait(sbi->cat_tree->inode->i_mapping);
+	error2 = filemap_write_and_wait(sbi->ext_tree->inode->i_mapping);
+	if (!error)
+		error = error2;
+	error2 = filemap_write_and_wait(sbi->alloc_file->i_mapping);
+	if (!error)
+		error = error2;
+	return error;
 }
 
 static const struct inode_operations hfsplus_file_inode_operations = {
