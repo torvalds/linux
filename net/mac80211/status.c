@@ -155,6 +155,10 @@ static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 
 		ieee80211_queue_work(&local->hw, &local->recalc_smps);
 	}
+
+	if ((sdata->vif.type == NL80211_IFTYPE_STATION) &&
+	    (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS))
+		ieee80211_sta_tx_notify(sdata, (void *) skb->data);
 }
 
 void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
