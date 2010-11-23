@@ -1,7 +1,7 @@
 /*
  * bnx2i_iscsi.c: Broadcom NetXtreme II iSCSI driver.
  *
- * Copyright (c) 2006 - 2009 Broadcom Corporation
+ * Copyright (c) 2006 - 2010 Broadcom Corporation
  * Copyright (c) 2007, 2008 Red Hat, Inc.  All rights reserved.
  * Copyright (c) 2007, 2008 Mike Christie
  *
@@ -10,6 +10,7 @@
  * the Free Software Foundation.
  *
  * Written by: Anil Veerabhadrappa (anilgv@broadcom.com)
+ * Maintained by: Eddie Wai (eddie.wai@broadcom.com)
  */
 
 #include <linux/slab.h>
