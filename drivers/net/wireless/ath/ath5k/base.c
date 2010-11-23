@@ -364,11 +364,6 @@ ath5k_copy_channels(struct ath5k_hw *ah,
 		case AR5K_MODE_11G:
 			channels[count].hw_value = chfreq | CHANNEL_OFDM;
 			break;
-		case AR5K_MODE_11A_TURBO:
-		case AR5K_MODE_11G_TURBO:
-			channels[count].hw_value = chfreq |
-				CHANNEL_OFDM | CHANNEL_TURBO;
-			break;
 		case AR5K_MODE_11B:
 			channels[count].hw_value = CHANNEL_B;
 		}

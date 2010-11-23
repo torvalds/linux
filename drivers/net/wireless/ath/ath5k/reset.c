@@ -834,7 +834,7 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 		AR5K_PHY_NF_SVAL(ee->ee_noise_floor_thr[ee_mode]),
 		AR5K_PHY_NFTHRES);
 
-	if ((channel->hw_value & CHANNEL_TURBO) &&
+	if ((ah->ah_bwmode == AR5K_BWMODE_40MHZ) &&
 	(ah->ah_ee_version >= AR5K_EEPROM_VERSION_5_0)) {
 		/* Switch settling time (Turbo) */
 		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_SETTLING,
@@ -1018,21 +1018,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		mode = AR5K_MODE_11B;
 		freq = AR5K_INI_RFGAIN_2GHZ;
 		ee_mode = AR5K_EEPROM_MODE_11B;
-		break;
-	case CHANNEL_T:
-		mode = AR5K_MODE_11A_TURBO;
-		freq = AR5K_INI_RFGAIN_5GHZ;
-		ee_mode = AR5K_EEPROM_MODE_11A;
-		break;
-	case CHANNEL_TG:
-		if (ah->ah_version == AR5K_AR5211) {
-			ATH5K_ERR(ah->ah_sc,
-				"TurboG mode not available on 5211");
-			return -EINVAL;
-		}
-		mode = AR5K_MODE_11G_TURBO;
-		freq = AR5K_INI_RFGAIN_2GHZ;
-		ee_mode = AR5K_EEPROM_MODE_11G;
 		break;
 	case CHANNEL_XR:
 		if (ah->ah_version == AR5K_AR5211) {

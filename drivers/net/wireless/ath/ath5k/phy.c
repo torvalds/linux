@@ -1358,12 +1358,10 @@ void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 
 	switch (ah->ah_current_channel->hw_value & CHANNEL_MODES) {
 	case CHANNEL_A:
-	case CHANNEL_T:
 	case CHANNEL_XR:
 		ee_mode = AR5K_EEPROM_MODE_11A;
 		break;
 	case CHANNEL_G:
-	case CHANNEL_TG:
 		ee_mode = AR5K_EEPROM_MODE_11G;
 		break;
 	default:
@@ -1946,12 +1944,10 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 
 	switch (channel->hw_value & CHANNEL_MODES) {
 	case CHANNEL_A:
-	case CHANNEL_T:
 	case CHANNEL_XR:
 		ee_mode = AR5K_EEPROM_MODE_11A;
 		break;
 	case CHANNEL_G:
-	case CHANNEL_TG:
 		ee_mode = AR5K_EEPROM_MODE_11G;
 		break;
 	case CHANNEL_B:
@@ -2385,19 +2381,19 @@ ath5k_get_max_ctl_power(struct ath5k_hw *ah,
 
 	switch (channel->hw_value & CHANNEL_MODES) {
 	case CHANNEL_A:
-		ctl_mode |= AR5K_CTL_11A;
+		if (ah->ah_bwmode == AR5K_BWMODE_40MHZ)
+			ctl_mode |= AR5K_CTL_TURBO;
+		else
+			ctl_mode |= AR5K_CTL_11A;
 		break;
 	case CHANNEL_G:
-		ctl_mode |= AR5K_CTL_11G;
+		if (ah->ah_bwmode == AR5K_BWMODE_40MHZ)
+			ctl_mode |= AR5K_CTL_TURBOG;
+		else
+			ctl_mode |= AR5K_CTL_11G;
 		break;
 	case CHANNEL_B:
 		ctl_mode |= AR5K_CTL_11B;
-		break;
-	case CHANNEL_T:
-		ctl_mode |= AR5K_CTL_TURBO;
-		break;
-	case CHANNEL_TG:
-		ctl_mode |= AR5K_CTL_TURBOG;
 		break;
 	case CHANNEL_XR:
 		/* Fall through */
@@ -3210,12 +3206,10 @@ int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 
 	switch (channel->hw_value & CHANNEL_MODES) {
 	case CHANNEL_A:
-	case CHANNEL_T:
 	case CHANNEL_XR:
 		ee_mode = AR5K_EEPROM_MODE_11A;
 		break;
 	case CHANNEL_G:
-	case CHANNEL_TG:
 		ee_mode = AR5K_EEPROM_MODE_11G;
 		break;
 	case CHANNEL_B:
