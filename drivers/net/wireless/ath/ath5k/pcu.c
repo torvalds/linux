@@ -129,7 +129,7 @@ int ath5k_hw_get_frame_duration(struct ath5k_hw *ah,
  *
  * @ah: The &struct ath5k_hw
  */
-static unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah)
+unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah)
 {
 	struct ieee80211_channel *channel = ah->ah_current_channel;
 	unsigned int slot_time;

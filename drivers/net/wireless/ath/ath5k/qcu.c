@@ -652,5 +652,13 @@ int ath5k_hw_init_queues(struct ath5k_hw *ah)
 		AR5K_REG_ENABLE_BITS(ah, AR5K_DCU_GBL_IFS_MISC,
 				AR5K_DCU_GBL_IFS_MISC_TURBO_MODE);
 
+	/* If we didn't set IFS timings through
+	 * ath5k_hw_set_coverage_class make sure
+	 * we set them here */
+	if (!ah->ah_coverage_class) {
+		unsigned int slot_time = ath5k_hw_get_default_slottime(ah);
+		ath5k_hw_set_ifs_intervals(ah, slot_time);
+	}
+
 	return 0;
 }
