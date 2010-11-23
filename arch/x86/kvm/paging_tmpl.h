@@ -299,25 +299,42 @@ static int FNAME(walk_addr_nested)(struct guest_walker *walker,
 					addr, access);
 }
 
+static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
+				    struct kvm_mmu_page *sp, u64 *spte,
+				    pt_element_t gpte)
+{
+	u64 nonpresent = shadow_trap_nonpresent_pte;
+
+	if (is_rsvd_bits_set(&vcpu->arch.mmu, gpte, PT_PAGE_TABLE_LEVEL))
+		goto no_present;
+
+	if (!is_present_gpte(gpte)) {
+		if (!sp->unsync)
+			nonpresent = shadow_notrap_nonpresent_pte;
+		goto no_present;
+	}
+
+	if (!(gpte & PT_ACCESSED_MASK))
+		goto no_present;
+
+	return false;
+
+no_present:
+	drop_spte(vcpu->kvm, spte, nonpresent);
+	return true;
+}
+
 static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			      u64 *spte, const void *pte)
 {
 	pt_element_t gpte;
 	unsigned pte_access;
 	pfn_t pfn;
-	u64 new_spte;
 
 	gpte = *(const pt_element_t *)pte;
-	if (~gpte & (PT_PRESENT_MASK | PT_ACCESSED_MASK)) {
-		if (!is_present_gpte(gpte)) {
-			if (sp->unsync)
-				new_spte = shadow_trap_nonpresent_pte;
-			else
-				new_spte = shadow_notrap_nonpresent_pte;
-			__set_spte(spte, new_spte);
-		}
+	if (FNAME(prefetch_invalid_gpte)(vcpu, sp, spte, gpte))
 		return;
-	}
+
 	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
 	pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
 	if (gpte_to_gfn(gpte) != vcpu->arch.update_pte.gfn)
@@ -364,7 +381,6 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 				u64 *sptep)
 {
 	struct kvm_mmu_page *sp;
-	struct kvm_mmu *mmu = &vcpu->arch.mmu;
 	pt_element_t *gptep = gw->prefetch_ptes;
 	u64 *spte;
 	int i;
@@ -395,16 +411,7 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 
 		gpte = gptep[i];
 
-		if (is_rsvd_bits_set(mmu, gpte, PT_PAGE_TABLE_LEVEL))
-			continue;
-
-		if (!is_present_gpte(gpte)) {
-			if (!sp->unsync)
-				__set_spte(spte, shadow_notrap_nonpresent_pte);
-			continue;
-		}
-
-		if (!(gpte & PT_ACCESSED_MASK))
+		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, spte, gpte))
 			continue;
 
 		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
@@ -761,7 +768,6 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		pt_element_t gpte;
 		gpa_t pte_gpa;
 		gfn_t gfn;
-		bool rsvd_bits_set;
 
 		if (!is_shadow_present_pte(sp->spt[i]))
 			continue;
@@ -773,18 +779,15 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 			return -EINVAL;
 
 		gfn = gpte_to_gfn(gpte);
-		rsvd_bits_set = is_rsvd_bits_set(&vcpu->arch.mmu, gpte,
-						 PT_PAGE_TABLE_LEVEL);
-		if (rsvd_bits_set || gfn != sp->gfns[i] ||
-		      !is_present_gpte(gpte) || !(gpte & PT_ACCESSED_MASK)) {
-			u64 nonpresent;
 
-			if (rsvd_bits_set || is_present_gpte(gpte) ||
-			      sp->unsync)
-				nonpresent = shadow_trap_nonpresent_pte;
-			else
-				nonpresent = shadow_notrap_nonpresent_pte;
-			drop_spte(vcpu->kvm, &sp->spt[i], nonpresent);
+		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
+			kvm_flush_remote_tlbs(vcpu->kvm);
+			continue;
+		}
+
+		if (gfn != sp->gfns[i]) {
+			drop_spte(vcpu->kvm, &sp->spt[i],
+				      shadow_trap_nonpresent_pte);
 			kvm_flush_remote_tlbs(vcpu->kvm);
 			continue;
 		}
