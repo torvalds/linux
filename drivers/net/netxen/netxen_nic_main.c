@@ -1277,6 +1277,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int i = 0, err;
 	int pci_func_id = PCI_FUNC(pdev->devfn);
 	uint8_t revision_id;
+	u32 val;
 
 	if (pdev->revision >= NX_P3_A0 && pdev->revision <= NX_P3_B1) {
 		pr_warning("%s: chip revisions between 0x%x-0x%x "
@@ -1352,8 +1353,9 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
-	if (reset_devices) {
-		if (adapter->portnum == 0) {
+	if (adapter->portnum == 0) {
+		val = NXRD32(adapter, NX_CRB_DEV_REF_COUNT);
+		if (val != 0xffffffff && val != 0) {
 			NXWR32(adapter, NX_CRB_DEV_REF_COUNT, 0);
 			adapter->need_fw_reset = 1;
 		}
