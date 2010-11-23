@@ -164,6 +164,22 @@ int hfsplus_sync_fs(struct super_block *sb, int wait)
 
 	sb->s_dirt = 0;
 
+	/*
+	 * Explicitly write out the special metadata inodes.
+	 *
+	 * While these special inodes are marked as hashed and written
+	 * out peridocically by the flusher threads we redirty them
+	 * during writeout of normal inodes, and thus the life lock
+	 * prevents us from getting the latest state to disk.
+	 */
+	error = filemap_write_and_wait(sbi->cat_tree->inode->i_mapping);
+	error2 = filemap_write_and_wait(sbi->ext_tree->inode->i_mapping);
+	if (!error)
+		error = error2;
+	error2 = filemap_write_and_wait(sbi->alloc_file->i_mapping);
+	if (!error)
+		error = error2;
+
 	mutex_lock(&sbi->vh_mutex);
 	mutex_lock(&sbi->alloc_mutex);
 	vhdr->free_blocks = cpu_to_be32(sbi->free_blocks);
@@ -176,9 +192,11 @@ int hfsplus_sync_fs(struct super_block *sb, int wait)
 		write_backup = 1;
 	}
 
-	error = hfsplus_submit_bio(sb->s_bdev,
+	error2 = hfsplus_submit_bio(sb->s_bdev,
 				   sbi->part_start + HFSPLUS_VOLHEAD_SECTOR,
 				   sbi->s_vhdr, WRITE_SYNC);
+	if (!error)
+		error = error2;
 	if (!write_backup)
 		goto out;
 
