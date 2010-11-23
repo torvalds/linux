@@ -43,14 +43,27 @@
 static unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah)
 {
 	struct ieee80211_channel *channel = ah->ah_current_channel;
+	unsigned int slot_time;
 
-	if (channel->hw_value & CHANNEL_TURBO)
-		return 6; /* both turbo modes */
+	switch (ah->ah_bwmode) {
+	case AR5K_BWMODE_40MHZ:
+		slot_time = AR5K_INIT_SLOT_TIME_TURBO;
+		break;
+	case AR5K_BWMODE_10MHZ:
+		slot_time = AR5K_INIT_SLOT_TIME_HALF_RATE;
+		break;
+	case AR5K_BWMODE_5MHZ:
+		slot_time = AR5K_INIT_SLOT_TIME_QUARTER_RATE;
+		break;
+	case AR5K_BWMODE_DEFAULT:
+		slot_time = AR5K_INIT_SLOT_TIME_DEFAULT;
+	default:
+		if (channel->hw_value & CHANNEL_CCK)
+			slot_time = AR5K_INIT_SLOT_TIME_B;
+		break;
+	}
 
-	if (channel->hw_value & CHANNEL_CCK)
-		return 20; /* 802.11b */
-
-	return 9; /* 802.11 a/g */
+	return slot_time;
 }
 
 /**
@@ -58,17 +71,30 @@ static unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah)
  *
  * @ah: The &struct ath5k_hw
  */
-static unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah)
+unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah)
 {
 	struct ieee80211_channel *channel = ah->ah_current_channel;
+	unsigned int sifs;
 
-	if (channel->hw_value & CHANNEL_TURBO)
-		return 8; /* both turbo modes */
+	switch (ah->ah_bwmode) {
+	case AR5K_BWMODE_40MHZ:
+		sifs = AR5K_INIT_SIFS_TURBO;
+		break;
+	case AR5K_BWMODE_10MHZ:
+		sifs = AR5K_INIT_SIFS_HALF_RATE;
+		break;
+	case AR5K_BWMODE_5MHZ:
+		sifs = AR5K_INIT_SIFS_QUARTER_RATE;
+		break;
+	case AR5K_BWMODE_DEFAULT:
+		sifs = AR5K_INIT_SIFS_DEFAULT_BG;
+	default:
+		if (channel->hw_value & CHANNEL_5GHZ)
+			sifs = AR5K_INIT_SIFS_DEFAULT_A;
+		break;
+	}
 
-	if (channel->hw_value & CHANNEL_5GHZ)
-		return 16; /* 802.11a */
-
-	return 10; /* 802.11 b/g */
+	return sifs;
 }
 
 /**
