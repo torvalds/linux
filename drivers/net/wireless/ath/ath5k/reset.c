@@ -730,24 +730,12 @@ static void ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 		ath5k_hw_reg_write(ah, data, AR5K_PHY_FRAME_CTL);
 	}
 
-	if ((ah->ah_radio == AR5K_RF5112) &&
-	(ah->ah_mac_srev < AR5K_SREV_AR5211)) {
-		u32 usec_reg;
-		/* 5311 has different tx/rx latency masks
-		 * from 5211, since we deal 5311 the same
-		 * as 5211 when setting initvals, shift
-		 * values here to their proper locations */
-		usec_reg = ath5k_hw_reg_read(ah, AR5K_USEC_5211);
-		ath5k_hw_reg_write(ah, usec_reg & (AR5K_USEC_1 |
-				AR5K_USEC_32 |
-				AR5K_USEC_TX_LATENCY_5211 |
-				AR5K_REG_SM(29,
-				AR5K_USEC_RX_LATENCY_5210)),
-				AR5K_USEC_5211);
+	if (ah->ah_mac_srev < AR5K_SREV_AR5211) {
 		/* Clear QCU/DCU clock gating register */
 		ath5k_hw_reg_write(ah, 0, AR5K_QCUDCU_CLKGT);
 		/* Set DAC/ADC delays */
-		ath5k_hw_reg_write(ah, 0x08, AR5K_PHY_SCAL);
+		ath5k_hw_reg_write(ah, AR5K_PHY_SCAL_32MHZ_5311,
+						AR5K_PHY_SCAL);
 		/* Enable PCU FIFO corruption ECO */
 		AR5K_REG_ENABLE_BITS(ah, AR5K_DIAG_SW_5211,
 					AR5K_DIAG_SW_ECO_ENABLE);
