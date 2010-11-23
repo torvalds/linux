@@ -61,6 +61,8 @@ static const char *aic3x_supply_names[AIC3X_NUM_SUPPLIES] = {
 	"DRVDD",	/* ADC Analog and Output Driver Voltage */
 };
 
+static LIST_HEAD(reset_list);
+
 struct aic3x_priv;
 
 struct aic3x_disable_nb {
@@ -77,6 +79,7 @@ struct aic3x_priv {
 	struct aic3x_setup_data *setup;
 	void *control_data;
 	unsigned int sysclk;
+	struct list_head list;
 	int master;
 	int gpio_reset;
 	int power;
@@ -1077,7 +1080,7 @@ static int aic3x_regulator_event(struct notifier_block *nb,
 		 * Put codec to reset and require cache sync as at least one
 		 * of the supplies was disabled
 		 */
-		if (aic3x->gpio_reset >= 0)
+		if (gpio_is_valid(aic3x->gpio_reset))
 			gpio_set_value(aic3x->gpio_reset, 0);
 		aic3x->codec->cache_sync = 1;
 	}
@@ -1104,7 +1107,7 @@ static int aic3x_set_power(struct snd_soc_codec *codec, int power)
 		if (!codec->cache_sync)
 			goto out;
 
-		if (aic3x->gpio_reset >= 0) {
+		if (gpio_is_valid(aic3x->gpio_reset)) {
 			udelay(1);
 			gpio_set_value(aic3x->gpio_reset, 1);
 		}
@@ -1346,11 +1349,25 @@ static int aic3x_init(struct snd_soc_codec *codec)
 	return 0;
 }
 
+static bool aic3x_is_shared_reset(struct aic3x_priv *aic3x)
+{
+	struct aic3x_priv *a;
+
+	list_for_each_entry(a, &reset_list, list) {
+		if (gpio_is_valid(aic3x->gpio_reset) &&
+		    aic3x->gpio_reset == a->gpio_reset)
+			return true;
+	}
+
+	return false;
+}
+
 static int aic3x_probe(struct snd_soc_codec *codec)
 {
 	struct aic3x_priv *aic3x = snd_soc_codec_get_drvdata(codec);
 	int ret, i;
 
+	INIT_LIST_HEAD(&aic3x->list);
 	codec->control_data = aic3x->control_data;
 	aic3x->codec = codec;
 	codec->dapm.idle_bias_off = 1;
@@ -1361,7 +1378,8 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	if (aic3x->gpio_reset >= 0) {
+	if (gpio_is_valid(aic3x->gpio_reset) &&
+	    !aic3x_is_shared_reset(aic3x)) {
 		ret = gpio_request(aic3x->gpio_reset, "tlv320aic3x reset");
 		if (ret != 0)
 			goto err_gpio;
@@ -1407,6 +1425,7 @@ static int aic3x_probe(struct snd_soc_codec *codec)
 		snd_soc_add_controls(codec, &aic3x_classd_amp_gain_ctrl, 1);
 
 	aic3x_add_widgets(codec);
+	list_add(&aic3x->list, &reset_list);
 
 	return 0;
 
@@ -1416,7 +1435,8 @@ err_notif:
 					      &aic3x->disable_nb[i].nb);
 	regulator_bulk_free(ARRAY_SIZE(aic3x->supplies), aic3x->supplies);
 err_get:
-	if (aic3x->gpio_reset >= 0)
+	if (gpio_is_valid(aic3x->gpio_reset) &&
+	    !aic3x_is_shared_reset(aic3x))
 		gpio_free(aic3x->gpio_reset);
 err_gpio:
 	return ret;
@@ -1428,7 +1448,9 @@ static int aic3x_remove(struct snd_soc_codec *codec)
 	int i;
 
 	aic3x_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	if (aic3x->gpio_reset >= 0) {
+	list_del(&aic3x->list);
+	if (gpio_is_valid(aic3x->gpio_reset) &&
+	    !aic3x_is_shared_reset(aic3x)) {
 		gpio_set_value(aic3x->gpio_reset, 0);
 		gpio_free(aic3x->gpio_reset);
 	}

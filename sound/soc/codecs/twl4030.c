@@ -233,6 +233,16 @@ static int twl4030_write(struct snd_soc_codec *codec,
 	return 0;
 }
 
+static inline void twl4030_wait_ms(int time)
+{
+	if (time < 60) {
+		time *= 1000;
+		usleep_range(time, time + 500);
+	} else {
+		msleep(time);
+	}
+}
+
 static void twl4030_codec_enable(struct snd_soc_codec *codec, int enable)
 {
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
@@ -338,10 +348,14 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 	twl4030_write(codec, TWL4030_REG_ANAMICL,
 		reg | TWL4030_CNCL_OFFSET_START);
 
-	/* wait for offset cancellation to complete */
+	/*
+	 * Wait for offset cancellation to complete.
+	 * Since this takes a while, do not slam the i2c.
+	 * Start polling the status after ~20ms.
+	 */
+	msleep(20);
 	do {
-		/* this takes a little while, so don't slam i2c */
-		udelay(2000);
+		usleep_range(1000, 2000);
 		twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &byte,
 				    TWL4030_REG_ANAMICL);
 	} while ((i++ < 100) &&
@@ -725,9 +739,12 @@ static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 	/* Base values for ramp delay calculation: 2^19 - 2^26 */
 	unsigned int ramp_base[] = {524288, 1048576, 2097152, 4194304,
 				    8388608, 16777216, 33554432, 67108864};
+	unsigned int delay;
 
 	hs_gain = twl4030_read_reg_cache(codec, TWL4030_REG_HS_GAIN_SET);
 	hs_pop = twl4030_read_reg_cache(codec, TWL4030_REG_HS_POPN_SET);
+	delay = (ramp_base[(hs_pop & TWL4030_RAMP_DELAY) >> 2] /
+		twl4030->sysclk) + 1;
 
 	/* Enable external mute control, this dramatically reduces
 	 * the pop-noise */
@@ -751,16 +768,14 @@ static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 		hs_pop |= TWL4030_RAMP_EN;
 		twl4030_write(codec, TWL4030_REG_HS_POPN_SET, hs_pop);
 		/* Wait ramp delay time + 1, so the VMID can settle */
-		mdelay((ramp_base[(hs_pop & TWL4030_RAMP_DELAY) >> 2] /
-			twl4030->sysclk) + 1);
+		twl4030_wait_ms(delay);
 	} else {
 		/* Headset ramp-down _not_ according to
 		 * the TRM, but in a way that it is working */
 		hs_pop &= ~TWL4030_RAMP_EN;
 		twl4030_write(codec, TWL4030_REG_HS_POPN_SET, hs_pop);
 		/* Wait ramp delay time + 1, so the VMID can settle */
-		mdelay((ramp_base[(hs_pop & TWL4030_RAMP_DELAY) >> 2] /
-			twl4030->sysclk) + 1);
+		twl4030_wait_ms(delay);
 		/* Bypass the reg_cache to mute the headset */
 		twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
 					hs_gain & (~0x0f),
@@ -835,7 +850,7 @@ static int digimic_event(struct snd_soc_dapm_widget *w,
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(w->codec);
 
 	if (twl4030->digimic_delay)
-		mdelay(twl4030->digimic_delay);
+		twl4030_wait_ms(twl4030->digimic_delay);
 	return 0;
 }
 
@@ -2258,9 +2273,12 @@ static int twl4030_soc_probe(struct snd_soc_codec *codec)
 
 static int twl4030_soc_remove(struct snd_soc_codec *codec)
 {
+	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
+
 	/* Reset registers to their chip default before leaving */
 	twl4030_reset_registers(codec);
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	kfree(twl4030);
 	return 0;
 }
 
@@ -2292,10 +2310,7 @@ static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 
 static int __devexit twl4030_codec_remove(struct platform_device *pdev)
 {
-	struct twl4030_priv *twl4030 = dev_get_drvdata(&pdev->dev);
-
 	snd_soc_unregister_codec(&pdev->dev);
-	kfree(twl4030);
 	return 0;
 }
 
