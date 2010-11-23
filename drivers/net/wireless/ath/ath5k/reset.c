@@ -688,19 +688,6 @@ static void ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 		AR5K_REG_DISABLE_BITS(ah, AR5K_TXCFG,
 				AR5K_TXCFG_DCU_DBL_BUF_DIS);
 
-	/* Set DAC/ADC delays */
-	if (ah->ah_version == AR5K_AR5212) {
-		u32 scal;
-		struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
-		if (ah->ah_mac_version == (AR5K_SREV_AR2417 >> 4))
-			scal = AR5K_PHY_SCAL_32MHZ_2417;
-		else if (ee->ee_is_hb63)
-			scal = AR5K_PHY_SCAL_32MHZ_HB63;
-		else
-			scal = AR5K_PHY_SCAL_32MHZ;
-		ath5k_hw_reg_write(ah, scal, AR5K_PHY_SCAL);
-	}
-
 	/* Set fast ADC */
 	if ((ah->ah_radio == AR5K_RF5413) ||
 	(ah->ah_mac_version == (AR5K_SREV_AR2417 >> 4))) {
@@ -739,6 +726,45 @@ static void ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 		/* Enable PCU FIFO corruption ECO */
 		AR5K_REG_ENABLE_BITS(ah, AR5K_DIAG_SW_5211,
 					AR5K_DIAG_SW_ECO_ENABLE);
+	}
+
+	if (ah->ah_bwmode) {
+		/* Increase PHY switch and AGC settling time
+		 * on turbo mode (ath5k_hw_commit_eeprom_settings
+		 * will override settling time if available) */
+		if (ah->ah_bwmode == AR5K_BWMODE_40MHZ) {
+
+			AR5K_REG_WRITE_BITS(ah, AR5K_PHY_SETTLING,
+						AR5K_PHY_SETTLING_AGC,
+						AR5K_AGC_SETTLING_TURBO);
+
+			/* XXX: Initvals indicate we only increase
+			 * switch time on AR5212, 5211 and 5210
+			 * only change agc time (bug?) */
+			if (ah->ah_version == AR5K_AR5212)
+				AR5K_REG_WRITE_BITS(ah, AR5K_PHY_SETTLING,
+						AR5K_PHY_SETTLING_SWITCH,
+						AR5K_SWITCH_SETTLING_TURBO);
+
+			if (ah->ah_version == AR5K_AR5210) {
+				/* Set Frame Control Register */
+				ath5k_hw_reg_write(ah,
+					(AR5K_PHY_FRAME_CTL_INI |
+					AR5K_PHY_TURBO_MODE |
+					AR5K_PHY_TURBO_SHORT | 0x2020),
+					AR5K_PHY_FRAME_CTL_5210);
+			}
+		/* On 5413 PHY force window length for half/quarter rate*/
+		} else if ((ah->ah_mac_srev >= AR5K_SREV_AR5424) &&
+		(ah->ah_mac_srev <= AR5K_SREV_AR5414)) {
+			AR5K_REG_WRITE_BITS(ah, AR5K_PHY_FRAME_CTL_5211,
+						AR5K_PHY_FRAME_CTL_WIN_LEN,
+						3);
+		}
+	} else if (ah->ah_version == AR5K_AR5210) {
+		/* Set Frame Control Register for normal operation */
+		ath5k_hw_reg_write(ah, (AR5K_PHY_FRAME_CTL_INI | 0x1020),
+						AR5K_PHY_FRAME_CTL_5210);
 	}
 }
 

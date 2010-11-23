@@ -271,19 +271,6 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		ath5k_hw_reg_write(ah, (ah->ah_bwmode == AR5K_BWMODE_40MHZ) ?
 			AR5K_INIT_PROTO_TIME_CNTRL_TURBO :
 			AR5K_INIT_PROTO_TIME_CNTRL, AR5K_IFS1);
-		/* Set AR5K_PHY_SETTLING */
-		ath5k_hw_reg_write(ah, (ah->ah_bwmode == AR5K_BWMODE_40MHZ) ?
-			(ath5k_hw_reg_read(ah, AR5K_PHY_SETTLING) & ~0x7F)
-			| 0x38 :
-			(ath5k_hw_reg_read(ah, AR5K_PHY_SETTLING) & ~0x7F)
-			| 0x1C,
-			AR5K_PHY_SETTLING);
-		/* Set Frame Control Register */
-		ath5k_hw_reg_write(ah, (ah->ah_bwmode == AR5K_BWMODE_40MHZ) ?
-			(AR5K_PHY_FRAME_CTL_INI | AR5K_PHY_TURBO_MODE |
-			AR5K_PHY_TURBO_SHORT | 0x2020) :
-			(AR5K_PHY_FRAME_CTL_INI | 0x1020),
-			AR5K_PHY_FRAME_CTL_5210);
 	}
 
 	/*

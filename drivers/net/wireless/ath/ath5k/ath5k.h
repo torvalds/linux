@@ -259,15 +259,23 @@
 #define	AR5K_INIT_TX_LAT_BG			384
 /* Tx latency for 40MHz (turbo) operation (min ?) */
 #define	AR5K_INIT_TX_LAT_MIN			32
+/* Default Tx/Rx latencies (same for 5211)*/
+#define AR5K_INIT_TX_LATENCY_5210		54
+#define	AR5K_INIT_RX_LATENCY_5210		29
 
 /* Tx frame to Tx data start delay */
 #define AR5K_INIT_TXF2TXD_START_DEFAULT		14
 #define AR5K_INIT_TXF2TXD_START_DELAY_10MHZ	12
 #define AR5K_INIT_TXF2TXD_START_DELAY_5MHZ	13
 
-/* Default Tx/Rx latencies (same for 5211)*/
-#define AR5K_INIT_TX_LATENCY_5210		54
-#define	AR5K_INIT_RX_LATENCY_5210		29
+/* We need to increase PHY switch and agc settling time
+ * on turbo mode */
+#define	AR5K_SWITCH_SETTLING			5760
+#define	AR5K_SWITCH_SETTLING_TURBO		7168
+
+#define	AR5K_AGC_SETTLING			28
+/* 38 on 5210 but shouldn't matter */
+#define	AR5K_AGC_SETTLING_TURBO			37
 
 
 /* GENERIC CHIPSET DEFINITIONS */
