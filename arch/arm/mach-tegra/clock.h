@@ -89,6 +89,7 @@ struct clk {
 	unsigned long		dvfs_rate;
 	unsigned long		rate;
 	unsigned long		max_rate;
+	unsigned long		min_rate;
 	bool			is_dvfs;
 	bool			auto_dvfs;
 	bool			cansleep;
@@ -104,6 +105,8 @@ struct clk {
 	const struct clk_mux_sel	*inputs;
 	u32				reg;
 	u32				reg_shift;
+
+	struct list_head		shared_bus_list;
 
 	union {
 		struct {
@@ -127,10 +130,6 @@ struct clk {
 			struct clk			*main;
 			struct clk			*backup;
 		} cpu;
-		struct {
-			struct list_head		list;
-			unsigned long			min_rate;
-		} shared_bus;
 		struct {
 			struct list_head		node;
 			bool				enabled;
