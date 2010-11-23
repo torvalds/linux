@@ -95,11 +95,18 @@ u32 ath5k_hw_get_rxdp(struct ath5k_hw *ah)
  * @ah: The &struct ath5k_hw
  * @phys_addr: RX descriptor address
  *
- * XXX: Should we check if rx is enabled before setting rxdp ?
+ * Returns -EIO if rx is active
  */
-void ath5k_hw_set_rxdp(struct ath5k_hw *ah, u32 phys_addr)
+int ath5k_hw_set_rxdp(struct ath5k_hw *ah, u32 phys_addr)
 {
+	if (ath5k_hw_reg_read(ah, AR5K_CR) & AR5K_CR_RXE) {
+		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+				"tried to set RXDP while rx was active !\n");
+		return -EIO;
+	}
+
 	ath5k_hw_reg_write(ah, phys_addr, AR5K_RXDP);
+	return 0;
 }
 
 
