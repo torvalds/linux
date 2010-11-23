@@ -493,6 +493,8 @@ static inline void napi_synchronize(const struct napi_struct *n)
 enum netdev_queue_state_t {
 	__QUEUE_STATE_XOFF,
 	__QUEUE_STATE_FROZEN,
+#define QUEUE_STATE_XOFF_OR_FROZEN ((1 << __QUEUE_STATE_XOFF)		| \
+				    (1 << __QUEUE_STATE_FROZEN))
 };
 
 struct netdev_queue {
@@ -1629,9 +1631,9 @@ static inline int netif_queue_stopped(const struct net_device *dev)
 	return netif_tx_queue_stopped(netdev_get_tx_queue(dev, 0));
 }
 
-static inline int netif_tx_queue_frozen(const struct netdev_queue *dev_queue)
+static inline int netif_tx_queue_frozen_or_stopped(const struct netdev_queue *dev_queue)
 {
-	return test_bit(__QUEUE_STATE_FROZEN, &dev_queue->state);
+	return dev_queue->state & QUEUE_STATE_XOFF_OR_FROZEN;
 }
 
 /**
