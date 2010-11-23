@@ -158,15 +158,6 @@
 #define AR5K_INI_RFGAIN_5GHZ		0
 #define AR5K_INI_RFGAIN_2GHZ		1
 
-/* TODO: Clean this up */
-#define AR5K_INI_VAL_11A		0
-#define AR5K_INI_VAL_11A_TURBO		1
-#define AR5K_INI_VAL_11B		2
-#define AR5K_INI_VAL_11G		3
-#define AR5K_INI_VAL_11G_TURBO		4
-#define AR5K_INI_VAL_XR			0
-#define AR5K_INI_VAL_MAX		5
-
 /*
  * Some tuneable values (these should be changeable by the user)
  * TODO: Make use of them and add more options OR use debug/configfs
@@ -429,12 +420,10 @@ struct ath5k_srev_name {
 
 enum ath5k_driver_mode {
 	AR5K_MODE_11A		=	0,
-	AR5K_MODE_11A_TURBO	=	1,
-	AR5K_MODE_11B		=	2,
-	AR5K_MODE_11G		=	3,
-	AR5K_MODE_11G_TURBO	=	4,
+	AR5K_MODE_11B		=	1,
+	AR5K_MODE_11G		=	2,
 	AR5K_MODE_XR		=	0,
-	AR5K_MODE_MAX		=	5
+	AR5K_MODE_MAX		=	3
 };
 
 enum ath5k_ant_mode {

@@ -44,7 +44,7 @@ struct ath5k_ini {
 
 struct ath5k_ini_mode {
 	u16	mode_register;
-	u32	mode_value[5];
+	u32	mode_value[3];
 };
 
 /* Initial register settings for AR5210 */
@@ -391,76 +391,74 @@ static const struct ath5k_ini ar5211_ini[] = {
  */
 static const struct ath5k_ini_mode ar5211_ini_mode[] = {
 	{ AR5K_TXCFG,
-	/*	  a	    aTurbo	  b	  g (OFDM)    */
-	   { 0x00000015, 0x00000015, 0x0000001d, 0x00000015 } },
+	/*	A/XR          B           G       */
+	   { 0x00000015, 0x0000001d, 0x00000015 } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(0),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(1),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(2),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(3),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(4),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(5),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(6),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(7),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(8),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(9),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_DCU_GBL_IFS_SLOT,
-	   { 0x00000168, 0x000001e0, 0x000001b8, 0x00000168 } },
+	   { 0x00000168, 0x000001b8, 0x00000168 } },
 	{ AR5K_DCU_GBL_IFS_SIFS,
-	   { 0x00000230, 0x000001e0, 0x000000b0, 0x00000230 } },
+	   { 0x00000230, 0x000000b0, 0x00000230 } },
 	{ AR5K_DCU_GBL_IFS_EIFS,
-	   { 0x00000d98, 0x00001180, 0x00001f48, 0x00000d98 } },
+	   { 0x00000d98, 0x00001f48, 0x00000d98 } },
 	{ AR5K_DCU_GBL_IFS_MISC,
-	   { 0x0000a0e0, 0x00014068, 0x00005880, 0x0000a0e0 } },
+	   { 0x0000a0e0, 0x00005880, 0x0000a0e0 } },
 	{ AR5K_TIME_OUT,
-	   { 0x04000400, 0x08000800, 0x20003000, 0x04000400 } },
+	   { 0x04000400, 0x20003000, 0x04000400 } },
 	{ AR5K_USEC_5211,
-	   { 0x0e8d8fa7, 0x0e8d8fcf, 0x01608f95, 0x0e8d8fa7 } },
-	{ AR5K_PHY_TURBO,
-	   { 0x00000000, 0x00000003, 0x00000000, 0x00000000 } },
+	   { 0x0e8d8fa7, 0x01608f95, 0x0e8d8fa7 } },
 	{ AR5K_PHY(8),
-	   { 0x02020200, 0x02020200, 0x02010200, 0x02020200 } },
-	{ AR5K_PHY(9),
-	   { 0x00000e0e, 0x00000e0e, 0x00000707, 0x00000e0e } },
-	{ AR5K_PHY(10),
-	   { 0x0a020001, 0x0a020001, 0x05010000, 0x0a020001 } },
-	{ AR5K_PHY(13),
-	   { 0x00000e0e, 0x00000e0e, 0x00000e0e, 0x00000e0e } },
-	{ AR5K_PHY(14),
-	   { 0x00000007, 0x00000007, 0x0000000b, 0x0000000b } },
-	{ AR5K_PHY(17),
-	   { 0x1372169c, 0x137216a5, 0x137216a8, 0x1372169c } },
-	{ AR5K_PHY(18),
-	   { 0x0018ba67, 0x0018ba67, 0x0018ba69, 0x0018ba69 } },
-	{ AR5K_PHY(20),
-	   { 0x0c28b4e0, 0x0c28b4e0, 0x0c28b4e0, 0x0c28b4e0 } },
+	   { 0x02020200, 0x02010200, 0x02020200 } },
+	{ AR5K_PHY_RF_CTL2,
+	   { 0x00000e0e, 0x00000707, 0x00000e0e } },
+	{ AR5K_PHY_RF_CTL3,
+	   { 0x0a020001, 0x05010000, 0x0a020001 } },
+	{ AR5K_PHY_RF_CTL4,
+	   { 0x00000e0e, 0x00000e0e, 0x00000e0e } },
+	{ AR5K_PHY_PA_CTL,
+	   { 0x00000007, 0x0000000b, 0x0000000b } },
+	{ AR5K_PHY_SETTLING,
+	   { 0x1372169c, 0x137216a8, 0x1372169c } },
+	{ AR5K_PHY_GAIN,
+	   { 0x0018ba67, 0x0018ba69, 0x0018ba69 } },
+	{ AR5K_PHY_DESIRED_SIZE,
+	   { 0x0c28b4e0, 0x0c28b4e0, 0x0c28b4e0 } },
 	{ AR5K_PHY_SIG,
-	   { 0x7e800d2e, 0x7e800d2e, 0x7ec00d2e, 0x7e800d2e } },
+	   { 0x7e800d2e, 0x7ec00d2e, 0x7e800d2e } },
 	{ AR5K_PHY_AGCCOARSE,
-	   { 0x31375d5e, 0x31375d5e, 0x313a5d5e, 0x31375d5e } },
+	   { 0x31375d5e, 0x313a5d5e, 0x31375d5e } },
 	{ AR5K_PHY_AGCCTL,
-	   { 0x0000bd10, 0x0000bd10, 0x0000bd38, 0x0000bd10 } },
+	   { 0x0000bd10, 0x0000bd38, 0x0000bd10 } },
 	{ AR5K_PHY_NF,
-	   { 0x0001ce00, 0x0001ce00, 0x0001ce00, 0x0001ce00 } },
+	   { 0x0001ce00, 0x0001ce00, 0x0001ce00 } },
 	{ AR5K_PHY_RX_DELAY,
-	   { 0x00002710, 0x00002710, 0x0000157c, 0x00002710 } },
+	   { 0x00002710, 0x0000157c, 0x00002710 } },
 	{ AR5K_PHY(70),
-	   { 0x00000190, 0x00000190, 0x00000084, 0x00000190 } },
+	   { 0x00000190, 0x00000084, 0x00000190 } },
 	{ AR5K_PHY_FRAME_CTL_5211,
-	   { 0x6fe01020, 0x6fe01020, 0x6fe00920, 0x6fe01020 } },
+	   { 0x6fe01020, 0x6fe00920, 0x6fe01020 } },
 	{ AR5K_PHY_PCDAC_TXPOWER_BASE,
-	   { 0x05ff14ff, 0x05ff14ff, 0x05ff14ff, 0x05ff19ff } },
+	   { 0x05ff14ff, 0x05ff14ff, 0x05ff19ff } },
 	{ AR5K_RF_BUFFER_CONTROL_4,
-	   { 0x00000010, 0x00000014, 0x00000010, 0x00000010 } },
+	   { 0x00000010, 0x00000010, 0x00000010 } },
 };
 
 /* Initial register settings for AR5212 */
@@ -677,89 +675,87 @@ static const struct ath5k_ini ar5212_ini_common_start[] = {
 /* Initial mode-specific settings for AR5212 (Written before ar5212_ini) */
 static const struct ath5k_ini_mode ar5212_ini_mode_start[] = {
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(0),
-	/*	a/XR	   aTurbo	  b	   g (DYN)     gTurbo     */
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f, 0x002ffc0f } },
+	/*	A/XR          B           G       */
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(1),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(2),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(3),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(4),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(5),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(6),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(7),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(8),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_QUEUE_DFS_LOCAL_IFS(9),
-	   { 0x002ffc0f, 0x002ffc0f, 0x002ffc1f, 0x002ffc0f, 0x002ffc0f } },
+	   { 0x002ffc0f, 0x002ffc1f, 0x002ffc0f } },
 	{ AR5K_DCU_GBL_IFS_SIFS,
-	   { 0x00000230, 0x000001e0, 0x000000b0, 0x00000160, 0x000001e0 } },
+	   { 0x00000230, 0x000000b0, 0x00000160 } },
 	{ AR5K_DCU_GBL_IFS_SLOT,
-	   { 0x00000168, 0x000001e0, 0x000001b8, 0x0000018c, 0x000001e0 } },
+	   { 0x00000168, 0x000001b8, 0x0000018c } },
 	{ AR5K_DCU_GBL_IFS_EIFS,
-	   { 0x00000e60, 0x00001180, 0x00001f1c, 0x00003e38, 0x00001180 } },
+	   { 0x00000e60, 0x00001f1c, 0x00003e38 } },
 	{ AR5K_DCU_GBL_IFS_MISC,
-	   { 0x0000a0e0, 0x00014068, 0x00005880, 0x0000b0e0, 0x00014068 } },
+	   { 0x0000a0e0, 0x00005880, 0x0000b0e0 } },
 	{ AR5K_TIME_OUT,
-	   { 0x03e803e8, 0x06e006e0, 0x04200420, 0x08400840, 0x06e006e0 } },
-	{ AR5K_PHY_TURBO,
-	   { 0x00000000, 0x00000003, 0x00000000, 0x00000000, 0x00000003 } },
+	   { 0x03e803e8, 0x04200420, 0x08400840 } },
 	{ AR5K_PHY(8),
-	   { 0x02020200, 0x02020200, 0x02010200, 0x02020200, 0x02020200 } },
+	   { 0x02020200, 0x02010200, 0x02020200 } },
 	{ AR5K_PHY_RF_CTL2,
-	   { 0x00000e0e, 0x00000e0e, 0x00000707, 0x00000e0e, 0x00000e0e } },
+	   { 0x00000e0e, 0x00000707, 0x00000e0e } },
 	{ AR5K_PHY_SETTLING,
-	   { 0x1372161c, 0x13721c25, 0x13721722, 0x137216a2, 0x13721c25 } },
+	   { 0x1372161c, 0x13721722, 0x137216a2 } },
 	{ AR5K_PHY_AGCCTL,
-	   { 0x00009d10, 0x00009d10, 0x00009d18, 0x00009d18, 0x00009d10 } },
+	   { 0x00009d10, 0x00009d18, 0x00009d18 } },
 	{ AR5K_PHY_NF,
-	   { 0x0001ce00, 0x0001ce00, 0x0001ce00, 0x0001ce00, 0x0001ce00 } },
+	   { 0x0001ce00, 0x0001ce00, 0x0001ce00 } },
 	{ AR5K_PHY_WEAK_OFDM_HIGH_THR,
-	   { 0x409a4190, 0x409a4190, 0x409a4190, 0x409a4190, 0x409a4190 } },
+	   { 0x409a4190, 0x409a4190, 0x409a4190 } },
 	{ AR5K_PHY(70),
-	   { 0x000001b8, 0x000001b8, 0x00000084, 0x00000108, 0x000001b8 } },
+	   { 0x000001b8, 0x00000084, 0x00000108 } },
 	{ AR5K_PHY_OFDM_SELFCORR,
-	   { 0x10058a05, 0x10058a05, 0x10058a05, 0x10058a05, 0x10058a05 } },
+	   { 0x10058a05, 0x10058a05, 0x10058a05 } },
 	{ 0xa230,
-	   { 0x00000000, 0x00000000, 0x00000000, 0x00000108, 0x00000000 } },
+	   { 0x00000000, 0x00000000, 0x00000108 } },
 };
 
 /* Initial mode-specific settings for AR5212 + RF5111 (Written after ar5212_ini) */
 static const struct ath5k_ini_mode rf5111_ini_mode_end[] = {
 	{ AR5K_TXCFG,
-	/*	a/XR	   aTurbo	  b	   g (DYN)     gTurbo     */
-	   { 0x00008015, 0x00008015, 0x00008015, 0x00008015, 0x00008015 } },
+	/*	A/XR          B           G       */
+	   { 0x00008015, 0x00008015, 0x00008015 } },
 	{ AR5K_USEC_5211,
-	   { 0x128d8fa7, 0x09880fcf, 0x04e00f95, 0x12e00fab, 0x09880fcf } },
+	   { 0x128d8fa7, 0x04e00f95, 0x12e00fab } },
 	{ AR5K_PHY_RF_CTL3,
-	   { 0x0a020001, 0x0a020001, 0x05010100, 0x0a020001, 0x0a020001 } },
+	   { 0x0a020001, 0x05010100, 0x0a020001 } },
 	{ AR5K_PHY_RF_CTL4,
-	   { 0x00000e0e, 0x00000e0e, 0x00000e0e, 0x00000e0e, 0x00000e0e } },
+	   { 0x00000e0e, 0x00000e0e, 0x00000e0e } },
 	{ AR5K_PHY_PA_CTL,
-	   { 0x00000007, 0x00000007, 0x0000000b, 0x0000000b, 0x0000000b } },
+	   { 0x00000007, 0x0000000b, 0x0000000b } },
 	{ AR5K_PHY_GAIN,
-	   { 0x0018da5a, 0x0018da5a, 0x0018ca69, 0x0018ca69, 0x0018ca69 } },
+	   { 0x0018da5a, 0x0018ca69, 0x0018ca69 } },
 	{ AR5K_PHY_DESIRED_SIZE,
-	   { 0x0de8b4e0, 0x0de8b4e0, 0x0de8b4e0, 0x0de8b4e0, 0x0de8b4e0 } },
+	   { 0x0de8b4e0, 0x0de8b4e0, 0x0de8b4e0 } },
 	{ AR5K_PHY_SIG,
-	   { 0x7e800d2e, 0x7e800d2e, 0x7ee84d2e, 0x7ee84d2e, 0x7e800d2e } },
+	   { 0x7e800d2e, 0x7ee84d2e, 0x7ee84d2e } },
 	{ AR5K_PHY_AGCCOARSE,
-	   { 0x3137665e, 0x3137665e, 0x3137665e, 0x3137665e, 0x3137615e } },
+	   { 0x3137665e, 0x3137665e, 0x3137665e } },
 	{ AR5K_PHY_WEAK_OFDM_LOW_THR,
-	   { 0x050cb081, 0x050cb081, 0x050cb081, 0x050cb080, 0x050cb080 } },
+	   { 0x050cb081, 0x050cb081, 0x050cb080 } },
 	{ AR5K_PHY_RX_DELAY,
-	   { 0x00002710, 0x00002710, 0x0000157c, 0x00002af8, 0x00002710 } },
+	   { 0x00002710, 0x0000157c, 0x00002af8 } },
 	{ AR5K_PHY_FRAME_CTL_5211,
-	   { 0xf7b81020, 0xf7b81020, 0xf7b80d20, 0xf7b81020, 0xf7b81020 } },
+	   { 0xf7b81020, 0xf7b80d20, 0xf7b81020 } },
 	{ AR5K_PHY_GAIN_2GHZ,
-	   { 0x642c416a, 0x642c416a, 0x6440416a, 0x6440416a, 0x6440416a } },
+	   { 0x642c416a, 0x6440416a, 0x6440416a } },
 	{ AR5K_PHY_CCK_RX_CTL_4,
-	   { 0x1883800a, 0x1883800a, 0x1873800a, 0x1883800a, 0x1883800a } },
+	   { 0x1883800a, 0x1873800a, 0x1883800a } },
 };
 
 static const struct ath5k_ini rf5111_ini_common_end[] = {
@@ -782,38 +778,38 @@ static const struct ath5k_ini rf5111_ini_common_end[] = {
 /* Initial mode-specific settings for AR5212 + RF5112 (Written after ar5212_ini) */
 static const struct ath5k_ini_mode rf5112_ini_mode_end[] = {
 	{ AR5K_TXCFG,
-	/*	a/XR	   aTurbo	  b	   g (DYN)     gTurbo     */
-	   { 0x00008015, 0x00008015, 0x00008015, 0x00008015, 0x00008015 } },
+	/*	A/XR          B           G       */
+	   { 0x00008015, 0x00008015, 0x00008015 } },
 	{ AR5K_USEC_5211,
-	   { 0x128d93a7, 0x098813cf, 0x04e01395, 0x12e013ab, 0x098813cf } },
+	   { 0x128d93a7, 0x04e01395, 0x12e013ab } },
 	{ AR5K_PHY_RF_CTL3,
-	   { 0x0a020001, 0x0a020001, 0x05020100, 0x0a020001, 0x0a020001 } },
+	   { 0x0a020001, 0x05020100, 0x0a020001 } },
 	{ AR5K_PHY_RF_CTL4,
-	   { 0x00000e0e, 0x00000e0e, 0x00000e0e, 0x00000e0e, 0x00000e0e } },
+	   { 0x00000e0e, 0x00000e0e, 0x00000e0e } },
 	{ AR5K_PHY_PA_CTL,
-	   { 0x00000007, 0x00000007, 0x0000000b, 0x0000000b, 0x0000000b } },
+	   { 0x00000007, 0x0000000b, 0x0000000b } },
 	{ AR5K_PHY_GAIN,
-	   { 0x0018da6d, 0x0018da6d, 0x0018ca75, 0x0018ca75, 0x0018ca75 } },
+	   { 0x0018da6d, 0x0018ca75, 0x0018ca75 } },
 	{ AR5K_PHY_DESIRED_SIZE,
-	   { 0x0de8b4e0, 0x0de8b4e0, 0x0de8b4e0, 0x0de8b4e0, 0x0de8b4e0 } },
+	   { 0x0de8b4e0, 0x0de8b4e0, 0x0de8b4e0 } },
 	{ AR5K_PHY_SIG,
-	   { 0x7e800d2e, 0x7e800d2e, 0x7ee80d2e, 0x7ee80d2e, 0x7e800d2e } },
+	   { 0x7e800d2e, 0x7ee80d2e, 0x7ee80d2e } },
 	{ AR5K_PHY_AGCCOARSE,
-	   { 0x3137665e, 0x3137665e, 0x3137665e, 0x3137665e, 0x3137665e } },
+	   { 0x3137665e, 0x3137665e, 0x3137665e } },
 	{ AR5K_PHY_WEAK_OFDM_LOW_THR,
-	   { 0x050cb081, 0x050cb081, 0x050cb081, 0x050cb081, 0x050cb081 } },
+	   { 0x050cb081, 0x050cb081, 0x050cb081 } },
 	{ AR5K_PHY_RX_DELAY,
-	   { 0x000007d0, 0x000007d0, 0x0000044c, 0x00000898, 0x000007d0 } },
+	   { 0x000007d0, 0x0000044c, 0x00000898 } },
 	{ AR5K_PHY_FRAME_CTL_5211,
-	   { 0xf7b81020, 0xf7b81020, 0xf7b80d10, 0xf7b81010, 0xf7b81010 } },
+	   { 0xf7b81020, 0xf7b80d10, 0xf7b81010 } },
 	{ AR5K_PHY_CCKTXCTL,
-	   { 0x00000000, 0x00000000, 0x00000008, 0x00000008, 0x00000008 } },
+	   { 0x00000000, 0x00000008, 0x00000008 } },
 	{ AR5K_PHY_CCK_CROSSCORR,
-	   { 0xd6be6788, 0xd6be6788, 0xd03e6788, 0xd03e6788, 0xd03e6788 } },
+	   { 0xd6be6788, 0xd03e6788, 0xd03e6788 } },
 	{ AR5K_PHY_GAIN_2GHZ,
-	   { 0x642c0140, 0x642c0140, 0x6442c160, 0x6442c160, 0x6442c160 } },
+	   { 0x642c0140, 0x6442c160, 0x6442c160 } },
 	{ AR5K_PHY_CCK_RX_CTL_4,
-	   { 0x1883800a, 0x1883800a, 0x1873800a, 0x1883800a, 0x1883800a } },
+	   { 0x1883800a, 0x1873800a, 0x1883800a } },
 };
 
 static const struct ath5k_ini rf5112_ini_common_end[] = {
@@ -833,66 +829,66 @@ static const struct ath5k_ini rf5112_ini_common_end[] = {
 /* Initial mode-specific settings for RF5413/5414 (Written after ar5212_ini) */
 static const struct ath5k_ini_mode rf5413_ini_mode_end[] = {
 	{ AR5K_TXCFG,
-	/*	a/XR	   aTurbo	  b	   g (DYN)     gTurbo     */
-	   { 0x00000015, 0x00000015, 0x00000015, 0x00000015, 0x00000015 } },
+	/*	A/XR          B           G       */
+	   { 0x00000015, 0x00000015, 0x00000015 } },
 	{ AR5K_USEC_5211,
-	   { 0x128d93a7, 0x098813cf, 0x04e01395, 0x12e013ab, 0x098813cf } },
+	   { 0x128d93a7, 0x04e01395, 0x12e013ab } },
 	{ AR5K_PHY_RF_CTL3,
-	   { 0x0a020001, 0x0a020001, 0x05020100, 0x0a020001, 0x0a020001 } },
+	   { 0x0a020001, 0x05020100, 0x0a020001 } },
 	{ AR5K_PHY_RF_CTL4,
-	   { 0x00000e0e, 0x00000e0e, 0x00000e0e, 0x00000e0e, 0x00000e0e } },
+	   { 0x00000e0e, 0x00000e0e, 0x00000e0e } },
 	{ AR5K_PHY_PA_CTL,
-	   { 0x00000007, 0x00000007, 0x0000000b, 0x0000000b, 0x0000000b } },
+	   { 0x00000007, 0x0000000b, 0x0000000b } },
 	{ AR5K_PHY_GAIN,
-	   { 0x0018fa61, 0x0018fa61, 0x001a1a63, 0x001a1a63, 0x001a1a63 } },
+	   { 0x0018fa61, 0x001a1a63, 0x001a1a63 } },
 	{ AR5K_PHY_DESIRED_SIZE,
-	   { 0x0c98b4e0, 0x0c98b4e0, 0x0c98b0da, 0x0c98b0da, 0x0c98b0da } },
+	   { 0x0c98b4e0, 0x0c98b0da, 0x0c98b0da } },
 	{ AR5K_PHY_SIG,
-	   { 0x7ec80d2e, 0x7ec80d2e, 0x7ec80d2e, 0x7ec80d2e, 0x7ec80d2e } },
+	   { 0x7ec80d2e, 0x7ec80d2e, 0x7ec80d2e } },
 	{ AR5K_PHY_AGCCOARSE,
-	   { 0x3139605e, 0x3139605e, 0x3139605e, 0x3139605e, 0x3139605e } },
+	   { 0x3139605e, 0x3139605e, 0x3139605e } },
 	{ AR5K_PHY_WEAK_OFDM_LOW_THR,
-	   { 0x050cb081, 0x050cb081, 0x050cb081, 0x050cb081, 0x050cb081 } },
+	   { 0x050cb081, 0x050cb081, 0x050cb081 } },
 	{ AR5K_PHY_RX_DELAY,
-	   { 0x000007d0, 0x000007d0, 0x0000044c, 0x00000898, 0x000007d0 } },
+	   { 0x000007d0, 0x0000044c, 0x00000898 } },
 	{ AR5K_PHY_FRAME_CTL_5211,
-	   { 0xf7b81000, 0xf7b81000, 0xf7b80d00, 0xf7b81000, 0xf7b81000 } },
+	   { 0xf7b81000, 0xf7b80d00, 0xf7b81000 } },
 	{ AR5K_PHY_CCKTXCTL,
-	   { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 } },
+	   { 0x00000000, 0x00000000, 0x00000000 } },
 	{ AR5K_PHY_CCK_CROSSCORR,
-	   { 0xd6be6788, 0xd6be6788, 0xd03e6788, 0xd03e6788, 0xd03e6788 } },
+	   { 0xd6be6788, 0xd03e6788, 0xd03e6788 } },
 	{ AR5K_PHY_GAIN_2GHZ,
-	   { 0x002ec1e0, 0x002ec1e0, 0x002ac120, 0x002ac120, 0x002ac120 } },
+	   { 0x002ec1e0, 0x002ac120, 0x002ac120 } },
 	{ AR5K_PHY_CCK_RX_CTL_4,
-	   { 0x1883800a, 0x1883800a, 0x1863800a, 0x1883800a, 0x1883800a } },
+	   { 0x1883800a, 0x1863800a, 0x1883800a } },
 	{ 0xa300,
-	   { 0x18010000, 0x18010000, 0x18010000, 0x18010000, 0x18010000 } },
+	   { 0x18010000, 0x18010000, 0x18010000 } },
 	{ 0xa304,
-	   { 0x30032602, 0x30032602, 0x30032602, 0x30032602, 0x30032602 } },
+	   { 0x30032602, 0x30032602, 0x30032602 } },
 	{ 0xa308,
-	   { 0x48073e06, 0x48073e06, 0x48073e06, 0x48073e06, 0x48073e06 } },
+	   { 0x48073e06, 0x48073e06, 0x48073e06 } },
 	{ 0xa30c,
-	   { 0x560b4c0a, 0x560b4c0a, 0x560b4c0a, 0x560b4c0a, 0x560b4c0a } },
+	   { 0x560b4c0a, 0x560b4c0a, 0x560b4c0a } },
 	{ 0xa310,
-	   { 0x641a600f, 0x641a600f, 0x641a600f, 0x641a600f, 0x641a600f } },
+	   { 0x641a600f, 0x641a600f, 0x641a600f } },
 	{ 0xa314,
-	   { 0x784f6e1b, 0x784f6e1b, 0x784f6e1b, 0x784f6e1b, 0x784f6e1b } },
+	   { 0x784f6e1b, 0x784f6e1b, 0x784f6e1b } },
 	{ 0xa318,
-	   { 0x868f7c5a, 0x868f7c5a, 0x868f7c5a, 0x868f7c5a, 0x868f7c5a } },
+	   { 0x868f7c5a, 0x868f7c5a, 0x868f7c5a } },
 	{ 0xa31c,
-	   { 0x90cf865b, 0x90cf865b, 0x8ecf865b, 0x8ecf865b, 0x8ecf865b } },
+	   { 0x90cf865b, 0x8ecf865b, 0x8ecf865b } },
 	{ 0xa320,
-	   { 0x9d4f970f, 0x9d4f970f, 0x9b4f970f, 0x9b4f970f, 0x9b4f970f } },
+	   { 0x9d4f970f, 0x9b4f970f, 0x9b4f970f } },
 	{ 0xa324,
-	   { 0xa7cfa38f, 0xa7cfa38f, 0xa3cf9f8f, 0xa3cf9f8f, 0xa3cf9f8f } },
+	   { 0xa7cfa38f, 0xa3cf9f8f, 0xa3cf9f8f } },
 	{ 0xa328,
-	   { 0xb55faf1f, 0xb55faf1f, 0xb35faf1f, 0xb35faf1f, 0xb35faf1f } },
+	   { 0xb55faf1f, 0xb35faf1f, 0xb35faf1f } },
 	{ 0xa32c,
-	   { 0xbddfb99f, 0xbddfb99f, 0xbbdfb99f, 0xbbdfb99f, 0xbbdfb99f } },
+	   { 0xbddfb99f, 0xbbdfb99f, 0xbbdfb99f } },
 	{ 0xa330,
-	   { 0xcb7fc53f, 0xcb7fc53f, 0xcb7fc73f, 0xcb7fc73f, 0xcb7fc73f } },
+	   { 0xcb7fc53f, 0xcb7fc73f, 0xcb7fc73f } },
 	{ 0xa334,
-	   { 0xd5ffd1bf, 0xd5ffd1bf, 0xd3ffd1bf, 0xd3ffd1bf, 0xd3ffd1bf } },
+	   { 0xd5ffd1bf, 0xd3ffd1bf, 0xd3ffd1bf } },
 };
 
 static const struct ath5k_ini rf5413_ini_common_end[] = {
@@ -972,38 +968,38 @@ static const struct ath5k_ini rf5413_ini_common_end[] = {
 /* XXX: a mode ? */
 static const struct ath5k_ini_mode rf2413_ini_mode_end[] = {
 	{ AR5K_TXCFG,
-	/*	a/XR	   aTurbo	  b	   g (DYN)     gTurbo     */
-	   { 0x00000015, 0x00000015, 0x00000015, 0x00000015, 0x00000015 } },
+	/*	A/XR          B           G       */
+	   { 0x00000015, 0x00000015, 0x00000015 } },
 	{ AR5K_USEC_5211,
-	   { 0x128d93a7, 0x098813cf, 0x04e01395, 0x12e013ab, 0x098813cf } },
+	   { 0x128d93a7, 0x04e01395, 0x12e013ab } },
 	{ AR5K_PHY_RF_CTL3,
-	   { 0x0a020001, 0x0a020001, 0x05020000, 0x0a020001, 0x0a020001 } },
+	   { 0x0a020001, 0x05020000, 0x0a020001 } },
 	{ AR5K_PHY_RF_CTL4,
-	   { 0x00000e00, 0x00000e00, 0x00000e00, 0x00000e00, 0x00000e00 } },
+	   { 0x00000e00, 0x00000e00, 0x00000e00 } },
 	{ AR5K_PHY_PA_CTL,
-	   { 0x00000002, 0x00000002, 0x0000000a, 0x0000000a, 0x0000000a } },
+	   { 0x00000002, 0x0000000a, 0x0000000a } },
 	{ AR5K_PHY_GAIN,
-	   { 0x0018da6d, 0x0018da6d, 0x001a6a64, 0x001a6a64, 0x001a6a64 } },
+	   { 0x0018da6d, 0x001a6a64, 0x001a6a64 } },
 	{ AR5K_PHY_DESIRED_SIZE,
-	   { 0x0de8b4e0, 0x0de8b4e0, 0x0de8b0da, 0x0c98b0da, 0x0de8b0da } },
+	   { 0x0de8b4e0, 0x0de8b0da, 0x0c98b0da } },
 	{ AR5K_PHY_SIG,
-	   { 0x7e800d2e, 0x7e800d2e, 0x7ee80d2e, 0x7ec80d2e, 0x7e800d2e } },
+	   { 0x7e800d2e, 0x7ee80d2e, 0x7ec80d2e } },
 	{ AR5K_PHY_AGCCOARSE,
-	   { 0x3137665e, 0x3137665e, 0x3137665e, 0x3139605e, 0x3137665e } },
+	   { 0x3137665e, 0x3137665e, 0x3139605e } },
 	{ AR5K_PHY_WEAK_OFDM_LOW_THR,
-	   { 0x050cb081, 0x050cb081, 0x050cb081, 0x050cb081, 0x050cb081 } },
+	   { 0x050cb081, 0x050cb081, 0x050cb081 } },
 	{ AR5K_PHY_RX_DELAY,
-	   { 0x000007d0, 0x000007d0, 0x0000044c, 0x00000898, 0x000007d0 } },
+	   { 0x000007d0, 0x0000044c, 0x00000898 } },
 	{ AR5K_PHY_FRAME_CTL_5211,
-	   { 0xf7b81000, 0xf7b81000, 0xf7b80d00, 0xf7b81000, 0xf7b81000 } },
+	   { 0xf7b81000, 0xf7b80d00, 0xf7b81000 } },
 	{ AR5K_PHY_CCKTXCTL,
-	   { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 } },
+	   { 0x00000000, 0x00000000, 0x00000000 } },
 	{ AR5K_PHY_CCK_CROSSCORR,
-	   { 0xd6be6788, 0xd6be6788, 0xd03e6788, 0xd03e6788, 0xd03e6788 } },
+	   { 0xd6be6788, 0xd03e6788, 0xd03e6788 } },
 	{ AR5K_PHY_GAIN_2GHZ,
-	   { 0x002c0140, 0x002c0140, 0x0042c140, 0x0042c140, 0x0042c140 } },
+	   { 0x002c0140, 0x0042c140, 0x0042c140 } },
 	{ AR5K_PHY_CCK_RX_CTL_4,
-	   { 0x1883800a, 0x1883800a, 0x1863800a, 0x1883800a, 0x1883800a } },
+	   { 0x1883800a, 0x1863800a, 0x1883800a } },
 };
 
 static const struct ath5k_ini rf2413_ini_common_end[] = {
@@ -1094,52 +1090,50 @@ static const struct ath5k_ini rf2413_ini_common_end[] = {
 /* XXX: a mode ? */
 static const struct ath5k_ini_mode rf2425_ini_mode_end[] = {
 	{ AR5K_TXCFG,
-	/*	a/XR	   aTurbo	  b	   g (DYN)     gTurbo     */
-	   { 0x00000015, 0x00000015, 0x00000015, 0x00000015, 0x00000015 } },
+	/*	A/XR          B           G       */
+	   { 0x00000015, 0x00000015, 0x00000015 } },
 	{ AR5K_USEC_5211,
-	   { 0x128d93a7, 0x098813cf, 0x04e01395, 0x12e013ab, 0x098813cf } },
-	{ AR5K_PHY_TURBO,
-	   { 0x00000000, 0x00000001, 0x00000000, 0x00000000, 0x00000001 } },
+	   { 0x128d93a7, 0x04e01395, 0x12e013ab } },
 	{ AR5K_PHY_RF_CTL3,
-	   { 0x0a020001, 0x0a020001, 0x05020100, 0x0a020001, 0x0a020001 } },
+	   { 0x0a020001, 0x05020100, 0x0a020001 } },
 	{ AR5K_PHY_RF_CTL4,
-	   { 0x00000e0e, 0x00000e0e, 0x00000e0e, 0x00000e0e, 0x00000e0e } },
+	   { 0x00000e0e, 0x00000e0e, 0x00000e0e } },
 	{ AR5K_PHY_PA_CTL,
-	   { 0x00000003, 0x00000003, 0x0000000b, 0x0000000b, 0x0000000b } },
+	   { 0x00000003, 0x0000000b, 0x0000000b } },
 	{ AR5K_PHY_SETTLING,
-	   { 0x1372161c, 0x13721c25, 0x13721722, 0x13721422, 0x13721c25 } },
+	   { 0x1372161c, 0x13721722, 0x13721422 } },
 	{ AR5K_PHY_GAIN,
-	   { 0x0018fa61, 0x0018fa61, 0x00199a65, 0x00199a65, 0x00199a65 } },
+	   { 0x0018fa61, 0x00199a65, 0x00199a65 } },
 	{ AR5K_PHY_DESIRED_SIZE,
-	   { 0x0c98b4e0, 0x0c98b4e0, 0x0c98b0da, 0x0c98b0da, 0x0c98b0da } },
+	   { 0x0c98b4e0, 0x0c98b0da, 0x0c98b0da } },
 	{ AR5K_PHY_SIG,
-	   { 0x7ec80d2e, 0x7ec80d2e, 0x7ec80d2e, 0x7ec80d2e, 0x7ec80d2e } },
+	   { 0x7ec80d2e, 0x7ec80d2e, 0x7ec80d2e } },
 	{ AR5K_PHY_AGCCOARSE,
-	   { 0x3139605e, 0x3139605e, 0x3139605e, 0x3139605e, 0x3139605e } },
+	   { 0x3139605e, 0x3139605e, 0x3139605e } },
 	{ AR5K_PHY_WEAK_OFDM_LOW_THR,
-	   { 0x050cb081, 0x050cb081, 0x050cb081, 0x050cb081, 0x050cb081 } },
+	   { 0x050cb081, 0x050cb081, 0x050cb081 } },
 	{ AR5K_PHY_RX_DELAY,
-	   { 0x000007d0, 0x000007d0, 0x0000044c, 0x00000898, 0x000007d0 } },
+	   { 0x000007d0, 0x0000044c, 0x00000898 } },
 	{ AR5K_PHY_FRAME_CTL_5211,
-	   { 0xf7b81000, 0xf7b81000, 0xf7b80d00, 0xf7b81000, 0xf7b81000 } },
+	   { 0xf7b81000, 0xf7b80d00, 0xf7b81000 } },
 	{ AR5K_PHY_CCKTXCTL,
-	   { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 } },
+	   { 0x00000000, 0x00000000, 0x00000000 } },
 	{ AR5K_PHY_CCK_CROSSCORR,
-	   { 0xd6be6788, 0xd6be6788, 0xd03e6788, 0xd03e6788, 0xd03e6788 } },
+	   { 0xd6be6788, 0xd03e6788, 0xd03e6788 } },
 	{ AR5K_PHY_GAIN_2GHZ,
-	   { 0x00000140, 0x00000140, 0x0052c140, 0x0052c140, 0x0052c140 } },
+	   { 0x00000140, 0x0052c140, 0x0052c140 } },
 	{ AR5K_PHY_CCK_RX_CTL_4,
-	   { 0x1883800a, 0x1883800a, 0x1863800a, 0x1883800a, 0x1883800a } },
+	   { 0x1883800a, 0x1863800a, 0x1883800a } },
 	{ 0xa324,
-	   { 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf } },
+	   { 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf } },
 	{ 0xa328,
-	   { 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf } },
+	   { 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf } },
 	{ 0xa32c,
-	   { 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf } },
+	   { 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf } },
 	{ 0xa330,
-	   { 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf } },
+	   { 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf } },
 	{ 0xa334,
-	   { 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf } },
+	   { 0xa7cfa7cf, 0xa7cfa7cf, 0xa7cfa7cf } },
 };
 
 static const struct ath5k_ini rf2425_ini_common_end[] = {
@@ -1368,15 +1362,15 @@ static const struct ath5k_ini rf5112_ini_bbgain[] = {
  * Write initial register dump
  */
 static void ath5k_hw_ini_registers(struct ath5k_hw *ah, unsigned int size,
-		const struct ath5k_ini *ini_regs, bool change_channel)
+		const struct ath5k_ini *ini_regs, bool skip_pcu)
 {
 	unsigned int i;
 
 	/* Write initial registers */
 	for (i = 0; i < size; i++) {
-		/* On channel change there is
-		 * no need to mess with PCU */
-		if (change_channel &&
+		/* Skip PCU registers if
+		 * requested */
+		if (skip_pcu &&
 				ini_regs[i].ini_register >= AR5K_PCU_MIN &&
 				ini_regs[i].ini_register <= AR5K_PCU_MAX)
 			continue;
@@ -1409,7 +1403,7 @@ static void ath5k_hw_ini_mode_registers(struct ath5k_hw *ah,
 
 }
 
-int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
+int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool skip_pcu)
 {
 	/*
 	 * Write initial register settings
@@ -1427,7 +1421,7 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
 		 * Write initial settings common for all modes
 		 */
 		ath5k_hw_ini_registers(ah, ARRAY_SIZE(ar5212_ini_common_start),
-				ar5212_ini_common_start, change_channel);
+				ar5212_ini_common_start, skip_pcu);
 
 		/* Second set of mode-specific settings */
 		switch (ah->ah_radio) {
@@ -1439,12 +1433,12 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
 
 			ath5k_hw_ini_registers(ah,
 					ARRAY_SIZE(rf5111_ini_common_end),
-					rf5111_ini_common_end, change_channel);
+					rf5111_ini_common_end, skip_pcu);
 
 			/* Baseband gain table */
 			ath5k_hw_ini_registers(ah,
 					ARRAY_SIZE(rf5111_ini_bbgain),
-					rf5111_ini_bbgain, change_channel);
+					rf5111_ini_bbgain, skip_pcu);
 
 			break;
 		case AR5K_RF5112:
@@ -1455,11 +1449,11 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
 
 			ath5k_hw_ini_registers(ah,
 					ARRAY_SIZE(rf5112_ini_common_end),
-					rf5112_ini_common_end, change_channel);
+					rf5112_ini_common_end, skip_pcu);
 
 			ath5k_hw_ini_registers(ah,
 					ARRAY_SIZE(rf5112_ini_bbgain),
-					rf5112_ini_bbgain, change_channel);
+					rf5112_ini_bbgain, skip_pcu);
 
 			break;
 		case AR5K_RF5413:
@@ -1470,11 +1464,11 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
 
 			ath5k_hw_ini_registers(ah,
 					ARRAY_SIZE(rf5413_ini_common_end),
-					rf5413_ini_common_end, change_channel);
+					rf5413_ini_common_end, skip_pcu);
 
 			ath5k_hw_ini_registers(ah,
 					ARRAY_SIZE(rf5112_ini_bbgain),
-					rf5112_ini_bbgain, change_channel);
+					rf5112_ini_bbgain, skip_pcu);
 
 			break;
 		case AR5K_RF2316:
@@ -1486,7 +1480,7 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
 
 			ath5k_hw_ini_registers(ah,
 					ARRAY_SIZE(rf2413_ini_common_end),
-					rf2413_ini_common_end, change_channel);
+					rf2413_ini_common_end, skip_pcu);
 
 			/* Override settings from rf2413_ini_common_end */
 			if (ah->ah_radio == AR5K_RF2316) {
@@ -1498,7 +1492,7 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
 
 			ath5k_hw_ini_registers(ah,
 					ARRAY_SIZE(rf5112_ini_bbgain),
-					rf5112_ini_bbgain, change_channel);
+					rf5112_ini_bbgain, skip_pcu);
 			break;
 		case AR5K_RF2317:
 		case AR5K_RF2425:
@@ -1509,11 +1503,11 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
 
 			ath5k_hw_ini_registers(ah,
 					ARRAY_SIZE(rf2425_ini_common_end),
-					rf2425_ini_common_end, change_channel);
+					rf2425_ini_common_end, skip_pcu);
 
 			ath5k_hw_ini_registers(ah,
 					ARRAY_SIZE(rf5112_ini_bbgain),
-					rf5112_ini_bbgain, change_channel);
+					rf5112_ini_bbgain, skip_pcu);
 			break;
 		default:
 			return -EINVAL;
@@ -1538,17 +1532,17 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
 		 * Write initial settings common for all modes
 		 */
 		ath5k_hw_ini_registers(ah, ARRAY_SIZE(ar5211_ini),
-				ar5211_ini, change_channel);
+				ar5211_ini, skip_pcu);
 
 		/* AR5211 only comes with 5111 */
 
 		/* Baseband gain table */
 		ath5k_hw_ini_registers(ah, ARRAY_SIZE(rf5111_ini_bbgain),
-				rf5111_ini_bbgain, change_channel);
+				rf5111_ini_bbgain, skip_pcu);
 	/* For AR5210 (for mode settings check out ath5k_hw_reset_tx_queue) */
 	} else if (ah->ah_version == AR5K_AR5210) {
 		ath5k_hw_ini_registers(ah, ARRAY_SIZE(ar5210_ini),
-				ar5210_ini, change_channel);
+				ar5210_ini, skip_pcu);
 	}
 
 	return 0;

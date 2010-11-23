@@ -328,14 +328,12 @@ ath5k_copy_channels(struct ath5k_hw *ah,
 
 	switch (mode) {
 	case AR5K_MODE_11A:
-	case AR5K_MODE_11A_TURBO:
 		/* 1..220, but 2GHz frequencies are filtered by check_channel */
 		size = 220 ;
 		chfreq = CHANNEL_5GHZ;
 		break;
 	case AR5K_MODE_11B:
 	case AR5K_MODE_11G:
-	case AR5K_MODE_11G_TURBO:
 		size = 26;
 		chfreq = CHANNEL_2GHZ;
 		break;
