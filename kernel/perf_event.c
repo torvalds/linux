@@ -2514,7 +2514,7 @@ static int perf_event_period(struct perf_event *event, u64 __user *arg)
 	int ret = 0;
 	u64 value;
 
-	if (!event->attr.sample_period)
+	if (!is_sampling_event(event))
 		return -EINVAL;
 
 	if (copy_from_user(&value, arg, sizeof(value)))
@@ -4385,7 +4385,7 @@ static void perf_swevent_event(struct perf_event *event, u64 nr,
 	if (!regs)
 		return;
 
-	if (!hwc->sample_period)
+	if (!is_sampling_event(event))
 		return;
 
 	if (nr == 1 && hwc->sample_period == 1 && !event->attr.freq)
@@ -4548,7 +4548,7 @@ static int perf_swevent_add(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	struct hlist_head *head;
 
-	if (hwc->sample_period) {
+	if (is_sampling_event(event)) {
 		hwc->last_period = hwc->sample_period;
 		perf_swevent_set_period(event);
 	}
@@ -4920,7 +4920,7 @@ static void perf_swevent_start_hrtimer(struct perf_event *event)
 
 	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hwc->hrtimer.function = perf_swevent_hrtimer;
-	if (hwc->sample_period) {
+	if (is_sampling_event(event)) {
 		s64 period = local64_read(&hwc->period_left);
 
 		if (period) {
@@ -4941,7 +4941,7 @@ static void perf_swevent_cancel_hrtimer(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 
-	if (hwc->sample_period) {
+	if (is_sampling_event(event)) {
 		ktime_t remaining = hrtimer_get_remaining(&hwc->hrtimer);
 		local64_set(&hwc->period_left, ktime_to_ns(remaining));
 
