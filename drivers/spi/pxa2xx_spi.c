@@ -742,6 +742,18 @@ static irqreturn_t ssp_int(int irq, void *dev_id)
 {
 	struct driver_data *drv_data = dev_id;
 	void __iomem *reg = drv_data->ioaddr;
+	u32 sccr1_reg = read_SSCR1(reg);
+	u32 mask = drv_data->mask_sr;
+	u32 status;
+
+	status = read_SSSR(reg);
+
+	/* Ignore possible writes if we don't need to write */
+	if (!(sccr1_reg & SSCR1_TIE))
+		mask &= ~SSSR_TFS;
+
+	if (!(status & mask))
+		return IRQ_NONE;
 
 	if (!drv_data->cur_msg) {
 
@@ -1512,7 +1524,8 @@ static int __devinit pxa2xx_spi_probe(struct platform_device *pdev)
 		drv_data->mask_sr = SSSR_TINT | SSSR_RFS | SSSR_TFS | SSSR_ROR;
 	}
 
-	status = request_irq(ssp->irq, ssp_int, 0, dev_name(dev), drv_data);
+	status = request_irq(ssp->irq, ssp_int, IRQF_SHARED, dev_name(dev),
+			drv_data);
 	if (status < 0) {
 		dev_err(&pdev->dev, "cannot get IRQ %d\n", ssp->irq);
 		goto out_error_master_alloc;
