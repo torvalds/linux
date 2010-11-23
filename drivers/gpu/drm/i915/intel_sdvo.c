@@ -107,7 +107,8 @@ struct intel_sdvo {
 	 * This is set if we treat the device as HDMI, instead of DVI.
 	 */
 	bool is_hdmi;
-	bool has_audio;
+	bool has_hdmi_monitor;
+	bool has_hdmi_audio;
 
 	/**
 	 * This is set if we detect output of sdvo device as LVDS and
@@ -1023,7 +1024,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	if (!intel_sdvo_set_target_input(intel_sdvo))
 		return;
 
-	if (intel_sdvo->is_hdmi &&
+	if (intel_sdvo->has_hdmi_monitor &&
 	    !intel_sdvo_set_avi_infoframe(intel_sdvo))
 		return;
 
@@ -1063,7 +1064,7 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	}
 	if (intel_crtc->pipe == 1)
 		sdvox |= SDVO_PIPE_B_SELECT;
-	if (intel_sdvo->has_audio)
+	if (intel_sdvo->has_hdmi_audio)
 		sdvox |= SDVO_AUDIO_ENABLE;
 
 	if (INTEL_INFO(dev)->gen >= 4) {
@@ -1388,8 +1389,10 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 		/* DDC bus is shared, match EDID to connector type */
 		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
 			status = connector_status_connected;
-			intel_sdvo->is_hdmi = drm_detect_hdmi_monitor(edid);
-			intel_sdvo->has_audio = drm_detect_monitor_audio(edid);
+			if (intel_sdvo->is_hdmi) {
+				intel_sdvo->has_hdmi_monitor = drm_detect_hdmi_monitor(edid);
+				intel_sdvo->has_hdmi_audio = drm_detect_monitor_audio(edid);
+			}
 		}
 		connector->display_info.raw_edid = NULL;
 		kfree(edid);
@@ -1398,7 +1401,7 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 	if (status == connector_status_connected) {
 		struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
 		if (intel_sdvo_connector->force_audio)
-			intel_sdvo->has_audio = intel_sdvo_connector->force_audio > 0;
+			intel_sdvo->has_hdmi_audio = intel_sdvo_connector->force_audio > 0;
 	}
 
 	return status;
@@ -1713,12 +1716,12 @@ intel_sdvo_set_property(struct drm_connector *connector,
 
 		intel_sdvo_connector->force_audio = val;
 
-		if (val > 0 && intel_sdvo->has_audio)
+		if (val > 0 && intel_sdvo->has_hdmi_audio)
 			return 0;
-		if (val < 0 && !intel_sdvo->has_audio)
+		if (val < 0 && !intel_sdvo->has_hdmi_audio)
 			return 0;
 
-		intel_sdvo->has_audio = val > 0;
+		intel_sdvo->has_hdmi_audio = val > 0;
 		goto done;
 	}
 
@@ -2070,14 +2073,14 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 		intel_sdvo_set_colorimetry(intel_sdvo,
 					   SDVO_COLORIMETRY_RGB256);
 		connector->connector_type = DRM_MODE_CONNECTOR_HDMIA;
+
+		intel_sdvo_add_hdmi_properties(intel_sdvo_connector);
 		intel_sdvo->is_hdmi = true;
 	}
 	intel_sdvo->base.clone_mask = ((1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
 				       (1 << INTEL_ANALOG_CLONE_BIT));
 
 	intel_sdvo_connector_init(intel_sdvo_connector, intel_sdvo);
-
-	intel_sdvo_add_hdmi_properties(intel_sdvo_connector);
 
 	return true;
 }
