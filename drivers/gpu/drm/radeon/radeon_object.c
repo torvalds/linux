@@ -34,6 +34,7 @@
 #include <drm/drmP.h>
 #include "radeon_drm.h"
 #include "radeon.h"
+#include "radeon_trace.h"
 
 
 int radeon_ttm_init(struct radeon_device *rdev);
@@ -137,6 +138,7 @@ retry:
 		list_add_tail(&bo->list, &rdev->gem.objects);
 		mutex_unlock(&bo->rdev->gem.mutex);
 	}
+	trace_radeon_bo_create(bo);
 	return 0;
 }
 
