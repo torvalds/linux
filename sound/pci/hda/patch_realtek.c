@@ -14623,7 +14623,10 @@ static int alc275_setup_dual_adc(struct hda_codec *codec)
 /* different alc269-variants */
 enum {
 	ALC269_TYPE_NORMAL,
+	ALC269_TYPE_ALC258,
 	ALC269_TYPE_ALC259,
+	ALC269_TYPE_ALC269VB,
+	ALC269_TYPE_ALC270,
 	ALC269_TYPE_ALC271X,
 };
 
@@ -15023,7 +15026,7 @@ static int alc269_fill_coef(struct hda_codec *codec)
 static int patch_alc269(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int board_config;
+	int board_config, coef;
 	int err;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -15034,14 +15037,23 @@ static int patch_alc269(struct hda_codec *codec)
 
 	alc_auto_parse_customize_define(codec);
 
-	if ((alc_read_coef_idx(codec, 0) & 0x00f0) == 0x0010){
+	coef = alc_read_coef_idx(codec, 0);
+	if ((coef & 0x00f0) == 0x0010) {
 		if (codec->bus->pci->subsystem_vendor == 0x1025 &&
 		    spec->cdefine.platform_type == 1) {
 			alc_codec_rename(codec, "ALC271X");
 			spec->codec_variant = ALC269_TYPE_ALC271X;
-		} else {
+		} else if ((coef & 0xf000) == 0x1000) {
+			spec->codec_variant = ALC269_TYPE_ALC270;
+		} else if ((coef & 0xf000) == 0x2000) {
 			alc_codec_rename(codec, "ALC259");
 			spec->codec_variant = ALC269_TYPE_ALC259;
+		} else if ((coef & 0xf000) == 0x3000) {
+			alc_codec_rename(codec, "ALC258");
+			spec->codec_variant = ALC269_TYPE_ALC258;
+		} else {
+			alc_codec_rename(codec, "ALC269VB");
+			spec->codec_variant = ALC269_TYPE_ALC269VB;
 		}
 	} else
 		alc_fix_pll_init(codec, 0x20, 0x04, 15);
