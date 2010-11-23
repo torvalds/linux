@@ -37,6 +37,7 @@
 #include "debug.h"
 #include "base.h"
 
+
 /*********\
 * Receive *
 \*********/
@@ -427,6 +428,7 @@ done:
 	return ret;
 }
 
+
 /*******************\
 * Interrupt masking *
 \*******************/
@@ -688,3 +690,46 @@ enum ath5k_int ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask)
 	return old_mask;
 }
 
+
+/********************\
+ Init/Stop functions
+\********************/
+
+/**
+ * ath5k_hw_dma_init - Initialize DMA unit
+ *
+ * @ah: The &struct ath5k_hw
+ *
+ * Set DMA size and pre-enable interrupts
+ * (driver handles tx/rx buffer setup and
+ * dma start/stop)
+ *
+ * XXX: Save/restore RXDP/TXDP registers ?
+ */
+void ath5k_hw_dma_init(struct ath5k_hw *ah)
+{
+	/*
+	 * Set Rx/Tx DMA Configuration
+	 *
+	 * Set standard DMA size (128). Note that
+	 * a DMA size of 512 causes rx overruns and tx errors
+	 * on pci-e cards (tested on 5424 but since rx overruns
+	 * also occur on 5416/5418 with madwifi we set 128
+	 * for all PCI-E cards to be safe).
+	 *
+	 * XXX: need to check 5210 for this
+	 * TODO: Check out tx triger level, it's always 64 on dumps but I
+	 * guess we can tweak it and see how it goes ;-)
+	 */
+	if (ah->ah_version != AR5K_AR5210) {
+		AR5K_REG_WRITE_BITS(ah, AR5K_TXCFG,
+			AR5K_TXCFG_SDMAMR, AR5K_DMASIZE_128B);
+		AR5K_REG_WRITE_BITS(ah, AR5K_RXCFG,
+			AR5K_RXCFG_SDMAMW, AR5K_DMASIZE_128B);
+	}
+
+	/* Pre-enable interrupts on 5211/5212*/
+	if (ah->ah_version != AR5K_AR5210)
+		ath5k_hw_set_imr(ah, ah->ah_imr);
+
+}

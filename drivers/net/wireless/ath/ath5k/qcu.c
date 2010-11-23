@@ -25,14 +25,52 @@ Queue Control Unit, DFS Control Unit Functions
 #include "debug.h"
 #include "base.h"
 
+
+/******************\
+* Helper functions *
+\******************/
+
 /*
- * Get properties for a transmit queue
+ * Get number of pending frames
+ * for a specific queue [5211+]
  */
-int ath5k_hw_get_tx_queueprops(struct ath5k_hw *ah, int queue,
-		struct ath5k_txq_info *queue_info)
+u32 ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue)
 {
-	memcpy(queue_info, &ah->ah_txq[queue], sizeof(struct ath5k_txq_info));
-	return 0;
+	u32 pending;
+	AR5K_ASSERT_ENTRY(queue, ah->ah_capabilities.cap_queues.q_tx_num);
+
+	/* Return if queue is declared inactive */
+	if (ah->ah_txq[queue].tqi_type == AR5K_TX_QUEUE_INACTIVE)
+		return false;
+
+	/* XXX: How about AR5K_CFG_TXCNT ? */
+	if (ah->ah_version == AR5K_AR5210)
+		return false;
+
+	pending = ath5k_hw_reg_read(ah, AR5K_QUEUE_STATUS(queue));
+	pending &= AR5K_QCU_STS_FRMPENDCNT;
+
+	/* It's possible to have no frames pending even if TXE
+	 * is set. To indicate that q has not stopped return
+	 * true */
+	if (!pending && AR5K_REG_READ_Q(ah, AR5K_QCU_TXE, queue))
+		return true;
+
+	return pending;
+}
+
+/*
+ * Set a transmit queue inactive
+ */
+void ath5k_hw_release_tx_queue(struct ath5k_hw *ah, unsigned int queue)
+{
+	if (WARN_ON(queue >= ah->ah_capabilities.cap_queues.q_tx_num))
+		return;
+
+	/* This queue will be skipped in further operations */
+	ah->ah_txq[queue].tqi_type = AR5K_TX_QUEUE_INACTIVE;
+	/*For SIMR setup*/
+	AR5K_Q_DISABLE_BITS(ah->ah_txq_status, queue);
 }
 
 /*
@@ -47,6 +85,16 @@ static u16 ath5k_cw_validate(u16 cw_req)
 		cw = (cw << 1) | 1;
 
 	return cw;
+}
+
+/*
+ * Get properties for a transmit queue
+ */
+int ath5k_hw_get_tx_queueprops(struct ath5k_hw *ah, int queue,
+		struct ath5k_txq_info *queue_info)
+{
+	memcpy(queue_info, &ah->ah_txq[queue], sizeof(struct ath5k_txq_info));
+	return 0;
 }
 
 /*
@@ -172,48 +220,10 @@ int ath5k_hw_setup_tx_queue(struct ath5k_hw *ah, enum ath5k_tx_queue queue_type,
 	return queue;
 }
 
-/*
- * Get number of pending frames
- * for a specific queue [5211+]
- */
-u32 ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue)
-{
-	u32 pending;
-	AR5K_ASSERT_ENTRY(queue, ah->ah_capabilities.cap_queues.q_tx_num);
 
-	/* Return if queue is declared inactive */
-	if (ah->ah_txq[queue].tqi_type == AR5K_TX_QUEUE_INACTIVE)
-		return false;
-
-	/* XXX: How about AR5K_CFG_TXCNT ? */
-	if (ah->ah_version == AR5K_AR5210)
-		return false;
-
-	pending = ath5k_hw_reg_read(ah, AR5K_QUEUE_STATUS(queue));
-	pending &= AR5K_QCU_STS_FRMPENDCNT;
-
-	/* It's possible to have no frames pending even if TXE
-	 * is set. To indicate that q has not stopped return
-	 * true */
-	if (!pending && AR5K_REG_READ_Q(ah, AR5K_QCU_TXE, queue))
-		return true;
-
-	return pending;
-}
-
-/*
- * Set a transmit queue inactive
- */
-void ath5k_hw_release_tx_queue(struct ath5k_hw *ah, unsigned int queue)
-{
-	if (WARN_ON(queue >= ah->ah_capabilities.cap_queues.q_tx_num))
-		return;
-
-	/* This queue will be skipped in further operations */
-	ah->ah_txq[queue].tqi_type = AR5K_TX_QUEUE_INACTIVE;
-	/*For SIMR setup*/
-	AR5K_Q_DISABLE_BITS(ah->ah_txq_status, queue);
-}
+/*******************************\
+* Single QCU/DCU initialization *
+\*******************************/
 
 /*
  * Set DFS properties for a transmit queue on DCU
@@ -512,6 +522,11 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 	return 0;
 }
 
+
+/**************************\
+* Global QCU/DCU functions *
+\**************************/
+
 /*
  * Set slot time on DCU
  */
@@ -530,3 +545,26 @@ int ath5k_hw_set_slot_time(struct ath5k_hw *ah, unsigned int slot_time)
 	return 0;
 }
 
+int ath5k_hw_init_queues(struct ath5k_hw *ah)
+{
+	int i, ret;
+
+	/* TODO: HW Compression support for data queues */
+	/* TODO: Burst prefetch for data queues */
+
+	/*
+	 * Reset queues and start beacon timers at the end of the reset routine
+	 * This also sets QCU mask on each DCU for 1:1 qcu to dcu mapping
+	 * Note: If we want we can assign multiple qcus on one dcu.
+	 */
+	for (i = 0; i < ah->ah_capabilities.cap_queues.q_tx_num; i++) {
+		ret = ath5k_hw_reset_tx_queue(ah, i);
+		if (ret) {
+			ATH5K_ERR(ah->ah_sc,
+				"failed to reset TX queue #%d\n", i);
+			return ret;
+		}
+	}
+
+	return 0;
+}

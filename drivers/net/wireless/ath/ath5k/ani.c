@@ -58,19 +58,19 @@ ath5k_ani_set_noise_immunity_level(struct ath5k_hw *ah, int level)
 {
 	/* TODO:
 	 * ANI documents suggest the following five levels to use, but the HAL
-	 * and ath9k use only use the last two levels, making this
+	 * and ath9k use only the last two levels, making this
 	 * essentially an on/off option. There *may* be a reason for this (???),
 	 * so i stick with the HAL version for now...
 	 */
 #if 0
-	static const s8 hi[] = { -18, -18, -16, -14, -12 };
 	static const s8 lo[] = { -52, -56, -60, -64, -70 };
+	static const s8 hi[] = { -18, -18, -16, -14, -12 };
 	static const s8 sz[] = { -34, -41, -48, -55, -62 };
 	static const s8 fr[] = { -70, -72, -75, -78, -80 };
 #else
-	static const s8 sz[] = { -55, -62 };
 	static const s8 lo[] = { -64, -70 };
 	static const s8 hi[] = { -14, -12 };
+	static const s8 sz[] = { -55, -62 };
 	static const s8 fr[] = { -78, -80 };
 #endif
 	if (level < 0 || level >= ARRAY_SIZE(sz)) {
