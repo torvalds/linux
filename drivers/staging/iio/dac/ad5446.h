@@ -56,20 +56,18 @@ struct ad5446_state {
 };
 
 /**
- * struct ad5446_chip_info - chip specifc information
+ * struct ad5446_chip_info - chip specific information
  * @bits:		accuracy of the DAC in bits
  * @storagebits:	number of bits written to the DAC
  * @left_shift:		number of bits the datum must be shifted
- * @sign:		data representation [s]igned or [u]nsigned
  * @int_vref_mv:	AD5620/40/60: the internal reference voltage
- * @store_sample:	chip specifc helper function to store the datum
+ * @store_sample:	chip specific helper function to store the datum
  */
 
 struct ad5446_chip_info {
 	u8				bits;
 	u8				storagebits;
 	u8				left_shift;
-	char				sign;
 	u16				int_vref_mv;
 	void (*store_sample)		(struct ad5446_state *st, unsigned val);
 };

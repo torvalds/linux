@@ -118,35 +118,30 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 		.bits = 12,
 		.storagebits = 16,
 		.left_shift = 2,
-		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
 		.store_sample = ad5446_store_sample,
 	},
 	[ID_AD5446] = {
 		.bits = 14,
 		.storagebits = 16,
 		.left_shift = 0,
-		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
 		.store_sample = ad5446_store_sample,
 	},
 	[ID_AD5542A] = {
 		.bits = 16,
 		.storagebits = 16,
 		.left_shift = 0,
-		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
 		.store_sample = ad5542_store_sample,
 	},
 	[ID_AD5512A] = {
 		.bits = 12,
 		.storagebits = 16,
 		.left_shift = 4,
-		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
 		.store_sample = ad5542_store_sample,
 	},
 	[ID_AD5620_2500] = {
 		.bits = 12,
 		.storagebits = 16,
 		.left_shift = 2,
-		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
 		.int_vref_mv = 2500,
 		.store_sample = ad5620_store_sample,
 	},
@@ -154,7 +149,6 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 		.bits = 12,
 		.storagebits = 16,
 		.left_shift = 2,
-		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
 		.int_vref_mv = 1250,
 		.store_sample = ad5620_store_sample,
 	},
@@ -162,7 +156,6 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 		.bits = 14,
 		.storagebits = 16,
 		.left_shift = 0,
-		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
 		.int_vref_mv = 2500,
 		.store_sample = ad5620_store_sample,
 	},
@@ -170,7 +163,6 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 		.bits = 14,
 		.storagebits = 16,
 		.left_shift = 0,
-		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
 		.int_vref_mv = 1250,
 		.store_sample = ad5620_store_sample,
 	},
@@ -178,7 +170,6 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 		.bits = 16,
 		.storagebits = 24,
 		.left_shift = 0,
-		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
 		.int_vref_mv = 2500,
 		.store_sample = ad5660_store_sample,
 	},
@@ -186,7 +177,6 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 		.bits = 16,
 		.storagebits = 24,
 		.left_shift = 0,
-		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
 		.int_vref_mv = 1250,
 		.store_sample = ad5660_store_sample,
 	},
