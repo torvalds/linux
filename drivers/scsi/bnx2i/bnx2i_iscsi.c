@@ -1640,18 +1640,26 @@ no_nx2_route:
 static int bnx2i_tear_down_conn(struct bnx2i_hba *hba,
 				 struct bnx2i_endpoint *ep)
 {
-	if (test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic))
+	if (test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic) && ep->cm_sk)
 		hba->cnic->cm_destroy(ep->cm_sk);
-
-	if (test_bit(ADAPTER_STATE_GOING_DOWN, &ep->hba->adapter_state))
-		ep->state = EP_STATE_DISCONN_COMPL;
 
 	if (test_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type) &&
 	    ep->state == EP_STATE_DISCONN_TIMEDOUT) {
-		printk(KERN_ALERT "bnx2i - ERROR - please submit GRC Dump,"
-				  " NW/PCIe trace, driver msgs to developers"
-				  " for analysis\n");
-		return 1;
+		if (ep->conn && ep->conn->cls_conn &&
+		    ep->conn->cls_conn->dd_data) {
+			struct iscsi_conn *conn = ep->conn->cls_conn->dd_data;
+
+			/* Must suspend all rx queue activity for this ep */
+			set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
+		}
+		/* CONN_DISCONNECT timeout may or may not be an issue depending
+		 * on what transcribed in TCP layer, different targets behave
+		 * differently
+		 */
+		printk(KERN_ALERT "bnx2i (%s): - WARN - CONN_DISCON timed out, "
+				  "please submit GRC Dump, NW/PCIe trace, "
+				  "driver msgs to developers for analysis\n",
+				  hba->netdev->name);
 	}
 
 	ep->state = EP_STATE_CLEANUP_START;
