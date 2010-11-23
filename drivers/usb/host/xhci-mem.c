@@ -1803,6 +1803,20 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 	}
 	xhci_dbg(xhci, "Found %u USB 2.0 ports and %u USB 3.0 ports.\n",
 			xhci->num_usb2_ports, xhci->num_usb3_ports);
+
+	/* Place limits on the number of roothub ports so that the hub
+	 * descriptors aren't longer than the USB core will allocate.
+	 */
+	if (xhci->num_usb3_ports > 15) {
+		xhci_dbg(xhci, "Limiting USB 3.0 roothub ports to 15.\n");
+		xhci->num_usb3_ports = 15;
+	}
+	if (xhci->num_usb2_ports > USB_MAXCHILDREN) {
+		xhci_dbg(xhci, "Limiting USB 2.0 roothub ports to %u.\n",
+				USB_MAXCHILDREN);
+		xhci->num_usb2_ports = USB_MAXCHILDREN;
+	}
+
 	/*
 	 * Note we could have all USB 3.0 ports, or all USB 2.0 ports.
 	 * Not sure how the USB core will handle a hub with no ports...
@@ -1827,6 +1841,8 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 					"addr = %p\n", i,
 					xhci->usb2_ports[port_index]);
 			port_index++;
+			if (port_index == xhci->num_usb2_ports)
+				break;
 		}
 	}
 	if (xhci->num_usb3_ports) {
@@ -1845,6 +1861,8 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 						"addr = %p\n", i,
 						xhci->usb3_ports[port_index]);
 				port_index++;
+				if (port_index == xhci->num_usb3_ports)
+					break;
 			}
 	}
 	return 0;
