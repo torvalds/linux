@@ -940,13 +940,11 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		struct ieee80211_channel *channel, bool fast, bool skip_pcu)
 {
-	struct ath_common *common = ath5k_hw_common(ah);
-	u32 s_seq[10], s_led[3], staid1_flags, tsf_up, tsf_lo;
+	u32 s_seq[10], s_led[3], tsf_up, tsf_lo;
 	u8 mode, freq, ee_mode;
 	int i, ret;
 
 	ee_mode = 0;
-	staid1_flags = 0;
 	tsf_up = 0;
 	tsf_lo = 0;
 	freq = 0;
@@ -1115,15 +1113,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	s_led[1] = ath5k_hw_reg_read(ah, AR5K_GPIOCR);
 	s_led[2] = ath5k_hw_reg_read(ah, AR5K_GPIODO);
 
-	/* AR5K_STA_ID1 flags, only preserve antenna
-	 * settings and ack/cts rate mode */
-	staid1_flags = ath5k_hw_reg_read(ah, AR5K_STA_ID1) &
-			(AR5K_STA_ID1_DEFAULT_ANTENNA |
-			AR5K_STA_ID1_DESC_ANTENNA |
-			AR5K_STA_ID1_RTS_DEF_ANTENNA |
-			AR5K_STA_ID1_ACKCTS_6MB |
-			AR5K_STA_ID1_BASE_RATE_11B |
-			AR5K_STA_ID1_SELFGEN_DEF_ANT);
 
 	/*
 	 * Since we are going to write rf buffer
@@ -1194,15 +1183,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	/* Gpio settings */
 	ath5k_hw_reg_write(ah, s_led[1], AR5K_GPIOCR);
 	ath5k_hw_reg_write(ah, s_led[2], AR5K_GPIODO);
-
-	/* Restore sta_id flags and preserve our mac address*/
-	ath5k_hw_reg_write(ah,
-			   get_unaligned_le32(common->macaddr),
-			   AR5K_STA_ID0);
-	ath5k_hw_reg_write(ah,
-			   staid1_flags | get_unaligned_le16(common->macaddr + 4),
-			   AR5K_STA_ID1);
-
 
 	/*
 	 * Initialize PCU
