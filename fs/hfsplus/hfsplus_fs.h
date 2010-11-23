@@ -107,8 +107,8 @@ struct hfsplus_vh;
 struct hfs_btree;
 
 struct hfsplus_sb_info {
-	struct buffer_head *s_vhbh;
 	struct hfsplus_vh *s_vhdr;
+	struct hfsplus_vh *s_backup_vhdr;
 	struct hfs_btree *ext_tree;
 	struct hfs_btree *cat_tree;
 	struct hfs_btree *attr_tree;
@@ -118,7 +118,8 @@ struct hfsplus_sb_info {
 
 	/* Runtime variables */
 	u32 blockoffset;
-	u32 sect_count;
+	sector_t part_start;
+	sector_t sect_count;
 	int fs_shift;
 
 	/* immutable data from the volume header */
@@ -385,8 +386,9 @@ int hfsplus_compare_dentry(struct dentry *dentry, struct qstr *s1, struct qstr *
 
 /* wrapper.c */
 int hfsplus_read_wrapper(struct super_block *);
-
 int hfs_part_find(struct super_block *, sector_t *, sector_t *);
+int hfsplus_submit_bio(struct block_device *bdev, sector_t sector,
+		void *data, int rw);
 
 /* access macros */
 static inline struct hfsplus_sb_info *HFSPLUS_SB(struct super_block *sb)

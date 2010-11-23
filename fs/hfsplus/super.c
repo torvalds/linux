@@ -157,45 +157,40 @@ int hfsplus_sync_fs(struct super_block *sb, int wait)
 {
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 	struct hfsplus_vh *vhdr = sbi->s_vhdr;
+	int write_backup = 0;
+	int error, error2;
 
 	dprint(DBG_SUPER, "hfsplus_write_super\n");
 
-	mutex_lock(&sbi->vh_mutex);
-	mutex_lock(&sbi->alloc_mutex);
 	sb->s_dirt = 0;
 
+	mutex_lock(&sbi->vh_mutex);
+	mutex_lock(&sbi->alloc_mutex);
 	vhdr->free_blocks = cpu_to_be32(sbi->free_blocks);
 	vhdr->next_cnid = cpu_to_be32(sbi->next_cnid);
 	vhdr->folder_count = cpu_to_be32(sbi->folder_count);
 	vhdr->file_count = cpu_to_be32(sbi->file_count);
 
-	mark_buffer_dirty(sbi->s_vhbh);
 	if (test_and_clear_bit(HFSPLUS_SB_WRITEBACKUP, &sbi->flags)) {
-		if (sbi->sect_count) {
-			struct buffer_head *bh;
-			u32 block, offset;
-
-			block = sbi->blockoffset;
-			block += (sbi->sect_count - 2) >> (sb->s_blocksize_bits - 9);
-			offset = ((sbi->sect_count - 2) << 9) & (sb->s_blocksize - 1);
-			printk(KERN_DEBUG "hfs: backup: %u,%u,%u,%u\n",
-					  sbi->blockoffset, sbi->sect_count,
-					  block, offset);
-			bh = sb_bread(sb, block);
-			if (bh) {
-				vhdr = (struct hfsplus_vh *)(bh->b_data + offset);
-				if (be16_to_cpu(vhdr->signature) == HFSPLUS_VOLHEAD_SIG) {
-					memcpy(vhdr, sbi->s_vhdr, sizeof(*vhdr));
-					mark_buffer_dirty(bh);
-					brelse(bh);
-				} else
-					printk(KERN_WARNING "hfs: backup not found!\n");
-			}
-		}
+		memcpy(sbi->s_backup_vhdr, sbi->s_vhdr, sizeof(*sbi->s_vhdr));
+		write_backup = 1;
 	}
+
+	error = hfsplus_submit_bio(sb->s_bdev,
+				   sbi->part_start + HFSPLUS_VOLHEAD_SECTOR,
+				   sbi->s_vhdr, WRITE_SYNC);
+	if (!write_backup)
+		goto out;
+
+	error2 = hfsplus_submit_bio(sb->s_bdev,
+				  sbi->part_start + sbi->sect_count - 2,
+				  sbi->s_backup_vhdr, WRITE_SYNC);
+	if (!error)
+		error2 = error;
+out:
 	mutex_unlock(&sbi->alloc_mutex);
 	mutex_unlock(&sbi->vh_mutex);
-	return 0;
+	return error;
 }
 
 static void hfsplus_write_super(struct super_block *sb)
@@ -229,7 +224,8 @@ static void hfsplus_put_super(struct super_block *sb)
 	hfs_btree_close(sbi->ext_tree);
 	iput(sbi->alloc_file);
 	iput(sbi->hidden_dir);
-	brelse(sbi->s_vhbh);
+	kfree(sbi->s_vhdr);
+	kfree(sbi->s_backup_vhdr);
 	unload_nls(sbi->nls);
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
