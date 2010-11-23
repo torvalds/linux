@@ -39,9 +39,6 @@
 #define USE_PCI_DMA_API 0
 #endif
 
-/* Max amount of stolen space, anything above will be returned to Linux */
-int intel_max_stolen = 32 * 1024 * 1024;
-
 static const struct aper_size_info_fixed intel_i810_sizes[] =
 {
 	{64, 16384, 4},
@@ -486,7 +483,7 @@ static unsigned int intel_gtt_stolen_entries(void)
 	u8 rdct;
 	int local = 0;
 	static const int ddt[4] = { 0, 16, 32, 64 };
-	unsigned int overhead_entries, stolen_entries;
+	unsigned int overhead_entries;
 	unsigned int stolen_size = 0;
 
 	pci_read_config_word(intel_private.bridge_dev,
@@ -625,12 +622,7 @@ static unsigned int intel_gtt_stolen_entries(void)
 		}
 	}
 
-	if (!local && stolen_size > intel_max_stolen) {
-		dev_info(&intel_private.bridge_dev->dev,
-			 "detected %dK stolen memory, trimming to %dK\n",
-			 stolen_size / KB(1), intel_max_stolen / KB(1));
-		stolen_size = intel_max_stolen;
-	} else if (stolen_size > 0) {
+	if (stolen_size > 0) {
 		dev_info(&intel_private.bridge_dev->dev, "detected %dK %s memory\n",
 		       stolen_size / KB(1), local ? "local" : "stolen");
 	} else {
@@ -639,9 +631,7 @@ static unsigned int intel_gtt_stolen_entries(void)
 		stolen_size = 0;
 	}
 
-	stolen_entries = stolen_size/KB(4) - overhead_entries;
-
-	return stolen_entries;
+	return stolen_size/KB(4) - overhead_entries;
 }
 
 static void i965_adjust_pgetbl_size(unsigned int size_flag)
