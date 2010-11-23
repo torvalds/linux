@@ -1513,7 +1513,7 @@ static void bnx2i_process_nopin_local_cmpl(struct iscsi_session *session,
 	task = iscsi_itt_to_task(conn,
 				 nop_in->itt & ISCSI_NOP_IN_MSG_INDEX);
 	if (task)
-		iscsi_put_task(task);
+		__iscsi_put_task(task);
 	spin_unlock(&session->lock);
 }
 
