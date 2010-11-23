@@ -1549,11 +1549,9 @@ static int bnx2i_process_nopin_mesg(struct iscsi_session *session,
 	struct iscsi_task *task;
 	struct bnx2i_nop_in_msg *nop_in;
 	struct iscsi_nopin *hdr;
-	u32 itt;
 	int tgt_async_nop = 0;
 
 	nop_in = (struct bnx2i_nop_in_msg *)cqe;
-	itt = nop_in->itt & ISCSI_NOP_IN_MSG_INDEX;
 
 	spin_lock(&session->lock);
 	hdr = (struct iscsi_nopin *)&bnx2i_conn->gen_pdu.resp_hdr;
@@ -1563,7 +1561,7 @@ static int bnx2i_process_nopin_mesg(struct iscsi_session *session,
 	hdr->exp_cmdsn = cpu_to_be32(nop_in->exp_cmd_sn);
 	hdr->ttt = cpu_to_be32(nop_in->ttt);
 
-	if (itt == (u16) RESERVED_ITT) {
+	if (nop_in->itt == (u16) RESERVED_ITT) {
 		bnx2i_unsol_pdu_adjust_rq(bnx2i_conn);
 		hdr->itt = RESERVED_ITT;
 		tgt_async_nop = 1;
@@ -1571,7 +1569,8 @@ static int bnx2i_process_nopin_mesg(struct iscsi_session *session,
 	}
 
 	/* this is a response to one of our nop-outs */
-	task = iscsi_itt_to_task(conn, itt);
+	task = iscsi_itt_to_task(conn,
+			 (itt_t) (nop_in->itt & ISCSI_NOP_IN_MSG_INDEX));
 	if (task) {
 		hdr->flags = ISCSI_FLAG_CMD_FINAL;
 		hdr->itt = task->hdr->itt;
@@ -1721,9 +1720,18 @@ static void bnx2i_process_new_cqes(struct bnx2i_conn *bnx2i_conn)
 		if (nopin->cq_req_sn != qp->cqe_exp_seq_sn)
 			break;
 
-		if (unlikely(test_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx)))
+		if (unlikely(test_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx))) {
+			if (nopin->op_code == ISCSI_OP_NOOP_IN &&
+			    nopin->itt == (u16) RESERVED_ITT) {
+				printk(KERN_ALERT "bnx2i: Unsolicited "
+					"NOP-In detected for suspended "
+					"connection dev=%s!\n",
+					bnx2i_conn->hba->netdev->name);
+				bnx2i_unsol_pdu_adjust_rq(bnx2i_conn);
+				goto cqe_out;
+			}
 			break;
-
+		}
 		tgt_async_msg = 0;
 
 		switch (nopin->op_code) {
@@ -1770,10 +1778,9 @@ static void bnx2i_process_new_cqes(struct bnx2i_conn *bnx2i_conn)
 			printk(KERN_ALERT "bnx2i: unknown opcode 0x%x\n",
 					  nopin->op_code);
 		}
-
 		if (!tgt_async_msg)
 			bnx2i_conn->ep->num_active_cmds--;
-
+cqe_out:
 		/* clear out in production version only, till beta keep opcode
 		 * field intact, will be helpful in debugging (context dump)
 		 * nopin->op_code = 0;
