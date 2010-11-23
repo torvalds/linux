@@ -719,7 +719,9 @@ static void stingray_usb_init(void)
 	tegra_ehci2_device.dev.platform_data = &tegra_ehci_pdata[1];
 	tegra_ehci3_device.dev.platform_data = &tegra_ehci_pdata[2];
 
-	platform_device_register(&tegra_udc_device);
+	if (strncmp(boot_mode, "factorycable", BOOT_MODE_MAX_LEN) ||
+            !mot_boot_recovery)
+		platform_device_register(&tegra_udc_device);
 	platform_device_register(&tegra_ehci2_device);
 	platform_device_register(&tegra_ehci3_device);
 #ifdef CONFIG_USB_ANDROID_RNDIS
@@ -748,7 +750,10 @@ static void stingray_usb_init(void)
 
 	platform_data->serial_number = usb_serial_num;
 	androidusb_device.dev.platform_data = platform_data;
-	platform_device_register(&androidusb_device);
+
+	if (strncmp(boot_mode, "factorycable", BOOT_MODE_MAX_LEN) ||
+            !mot_boot_recovery)
+		platform_device_register(&androidusb_device);
 }
 
 static void stingray_reset(char mode, const char *cmd)
