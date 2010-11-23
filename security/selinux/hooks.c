@@ -4524,11 +4524,11 @@ static unsigned int selinux_ip_postroute_compat(struct sk_buff *skb,
 	if (selinux_secmark_enabled())
 		if (avc_has_perm(sksec->sid, skb->secmark,
 				 SECCLASS_PACKET, PACKET__SEND, &ad))
-			return NF_DROP;
+			return NF_DROP_ERR(-ECONNREFUSED);
 
 	if (selinux_policycap_netpeer)
 		if (selinux_xfrm_postroute_last(sksec->sid, skb, &ad, proto))
-			return NF_DROP;
+			return NF_DROP_ERR(-ECONNREFUSED);
 
 	return NF_ACCEPT;
 }
