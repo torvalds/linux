@@ -15,6 +15,7 @@
  */
 
 #include <linux/kthread.h>
+#include <linux/semaphore.h>
 #include <bcmdefs.h>
 #include <linux/netdevice.h>
 #include <osl.h>
