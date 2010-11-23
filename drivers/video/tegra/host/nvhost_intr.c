@@ -178,8 +178,7 @@ static void run_handlers(struct list_head completed[NVHOST_INTR_ACTION_COUNT])
 		list_for_each_entry_safe(waiter, next, head, list) {
 			list_del(&waiter->list);
 			handler(waiter);
-			atomic_set(&waiter->state, WLS_HANDLED);
-			smp_wmb();
+			WARN_ON(atomic_xchg(&waiter->state, WLS_HANDLED) != WLS_REMOVED);
 			kref_put(&waiter->refcount, waiter_release);
 		}
 	}
