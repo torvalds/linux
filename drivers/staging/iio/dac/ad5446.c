@@ -23,6 +23,31 @@
 
 #include "ad5446.h"
 
+static void ad5446_store_sample(struct ad5446_state *st, unsigned val)
+{
+	st->data.d16 = cpu_to_be16(AD5446_LOAD |
+					(val << st->chip_info->left_shift));
+}
+
+static void ad5542_store_sample(struct ad5446_state *st, unsigned val)
+{
+	st->data.d16 = cpu_to_be16(val << st->chip_info->left_shift);
+}
+
+static void ad5620_store_sample(struct ad5446_state *st, unsigned val)
+{
+	st->data.d16 = cpu_to_be16(AD5620_LOAD |
+					(val << st->chip_info->left_shift));
+}
+
+static void ad5660_store_sample(struct ad5446_state *st, unsigned val)
+{
+	val |= AD5660_LOAD;
+	st->data.d24[0] = (val >> 16) & 0xFF;
+	st->data.d24[1] = (val >> 8) & 0xFF;
+	st->data.d24[2] = val & 0xFF;
+}
+
 static ssize_t ad5446_write(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf,
@@ -43,18 +68,7 @@ static ssize_t ad5446_write(struct device *dev,
 	}
 
 	mutex_lock(&dev_info->mlock);
-	switch (spi_get_device_id(st->spi)->driver_data) {
-	case ID_AD5444:
-	case ID_AD5446:
-			st->data = cpu_to_be16(AD5446_LOAD |
-					(val << st->chip_info->left_shift));
-			break;
-	case ID_AD5542A:
-	case ID_AD5512A:
-			st->data = cpu_to_be16(val << st->chip_info->left_shift);
-			break;
-	}
-
+	st->chip_info->store_sample(st, val);
 	ret = spi_sync(st->spi, &st->msg);
 	mutex_unlock(&dev_info->mlock);
 
@@ -105,24 +119,76 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 		.storagebits = 16,
 		.left_shift = 2,
 		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
+		.store_sample = ad5446_store_sample,
 	},
 	[ID_AD5446] = {
 		.bits = 14,
 		.storagebits = 16,
 		.left_shift = 0,
 		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
+		.store_sample = ad5446_store_sample,
 	},
 	[ID_AD5542A] = {
 		.bits = 16,
 		.storagebits = 16,
 		.left_shift = 0,
 		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
+		.store_sample = ad5542_store_sample,
 	},
 	[ID_AD5512A] = {
 		.bits = 12,
 		.storagebits = 16,
 		.left_shift = 4,
 		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
+		.store_sample = ad5542_store_sample,
+	},
+	[ID_AD5620_2500] = {
+		.bits = 12,
+		.storagebits = 16,
+		.left_shift = 2,
+		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
+		.int_vref_mv = 2500,
+		.store_sample = ad5620_store_sample,
+	},
+	[ID_AD5620_1250] = {
+		.bits = 12,
+		.storagebits = 16,
+		.left_shift = 2,
+		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
+		.int_vref_mv = 1250,
+		.store_sample = ad5620_store_sample,
+	},
+	[ID_AD5640_2500] = {
+		.bits = 14,
+		.storagebits = 16,
+		.left_shift = 0,
+		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
+		.int_vref_mv = 2500,
+		.store_sample = ad5620_store_sample,
+	},
+	[ID_AD5640_1250] = {
+		.bits = 14,
+		.storagebits = 16,
+		.left_shift = 0,
+		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
+		.int_vref_mv = 1250,
+		.store_sample = ad5620_store_sample,
+	},
+	[ID_AD5660_2500] = {
+		.bits = 16,
+		.storagebits = 24,
+		.left_shift = 0,
+		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
+		.int_vref_mv = 2500,
+		.store_sample = ad5660_store_sample,
+	},
+	[ID_AD5660_1250] = {
+		.bits = 16,
+		.storagebits = 24,
+		.left_shift = 0,
+		.sign = 'u', /* IIO_SCAN_EL_TYPE_UNSIGNED */
+		.int_vref_mv = 1250,
+		.store_sample = ad5660_store_sample,
 	},
 };
 
@@ -168,16 +234,28 @@ static int __devinit ad5446_probe(struct spi_device *spi)
 
 	/* Setup default message */
 
-	st->xfer.tx_buf = &st->data,
-	st->xfer.len = 2,
+	st->xfer.tx_buf = &st->data;
+	st->xfer.len = st->chip_info->storagebits / 8;
 
 	spi_message_init(&st->msg);
 	spi_message_add_tail(&st->xfer, &st->msg);
 
-	if (voltage_uv)
-		st->vref_mv = voltage_uv / 1000;
-	else
-		dev_warn(&spi->dev, "reference voltage unspecified\n");
+	switch (spi_get_device_id(spi)->driver_data) {
+		case ID_AD5620_2500:
+		case ID_AD5620_1250:
+		case ID_AD5640_2500:
+		case ID_AD5640_1250:
+		case ID_AD5660_2500:
+		case ID_AD5660_1250:
+			st->vref_mv = st->chip_info->int_vref_mv;
+			break;
+		default:
+			if (voltage_uv)
+				st->vref_mv = voltage_uv / 1000;
+			else
+				dev_warn(&spi->dev,
+					 "reference voltage unspecified\n");
+	}
 
 	ret = iio_device_register(st->indio_dev);
 	if (ret)
@@ -217,6 +295,12 @@ static const struct spi_device_id ad5446_id[] = {
 	{"ad5446", ID_AD5446},
 	{"ad5542a", ID_AD5542A},
 	{"ad5512a", ID_AD5512A},
+	{"ad5620-2500", ID_AD5620_2500}, /* AD5620/40/60: */
+	{"ad5620-1250", ID_AD5620_1250}, /* part numbers may look differently */
+	{"ad5640-2500", ID_AD5640_2500},
+	{"ad5640-1250", ID_AD5640_1250},
+	{"ad5660-2500", ID_AD5660_2500},
+	{"ad5660-1250", ID_AD5660_1250},
 	{}
 };
 
