@@ -2671,6 +2671,11 @@ struct iwl_spectrum_notification {
 #define IWL_POWER_SLEEP_OVER_DTIM_MSK		cpu_to_le16(BIT(2))
 #define IWL_POWER_PCI_PM_MSK			cpu_to_le16(BIT(3))
 #define IWL_POWER_FAST_PD			cpu_to_le16(BIT(4))
+#define IWL_POWER_BEACON_FILTERING		cpu_to_le16(BIT(5))
+#define IWL_POWER_SHADOW_REG_ENA		cpu_to_le16(BIT(6))
+#define IWL_POWER_CT_KILL_SET			cpu_to_le16(BIT(7))
+#define IWL_POWER_BT_SCO_ENA			cpu_to_le16(BIT(8))
+#define IWL_POWER_ADVANCE_PM_ENA		cpu_to_le16(BIT(9))
 
 struct iwl3945_powertable_cmd {
 	__le16 flags;
