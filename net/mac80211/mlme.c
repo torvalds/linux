@@ -28,6 +28,7 @@
 #include "rate.h"
 #include "led.h"
 
+#define IEEE80211_MAX_NULLFUNC_TRIES 2
 #define IEEE80211_MAX_PROBE_TRIES 5
 
 /*
@@ -1924,8 +1925,14 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 			    IEEE80211_STA_CONNECTION_POLL) &&
 	    ifmgd->associated) {
 		u8 bssid[ETH_ALEN];
+		int max_tries;
 
 		memcpy(bssid, ifmgd->associated->bssid, ETH_ALEN);
+
+		if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
+			max_tries = IEEE80211_MAX_NULLFUNC_TRIES;
+		else
+			max_tries = IEEE80211_MAX_PROBE_TRIES;
 
 		/* ACK received for nullfunc probing frame */
 		if (!ifmgd->probe_send_count)
@@ -1934,7 +1941,7 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 		else if (time_is_after_jiffies(ifmgd->probe_timeout))
 			run_again(ifmgd, ifmgd->probe_timeout);
 
-		else if (ifmgd->probe_send_count < IEEE80211_MAX_PROBE_TRIES) {
+		else if (ifmgd->probe_send_count < max_tries) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 			wiphy_debug(local->hw.wiphy,
 				    "%s: No probe response from AP %pM"
