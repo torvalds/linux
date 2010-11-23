@@ -649,6 +649,7 @@ enum {
 	EP_STATE_OFLD_FAILED            = 0x8000000,
 	EP_STATE_CONNECT_FAILED         = 0x10000000,
 	EP_STATE_DISCONN_TIMEDOUT       = 0x20000000,
+	EP_STATE_OFLD_FAILED_CID_BUSY   = 0x80000000,
 };
 
 /**
@@ -758,11 +759,11 @@ extern int bnx2i_send_iscsi_logout(struct bnx2i_conn *conn,
 				   struct iscsi_task *mtask);
 extern void bnx2i_send_cmd_cleanup_req(struct bnx2i_hba *hba,
 				       struct bnx2i_cmd *cmd);
-extern void bnx2i_send_conn_ofld_req(struct bnx2i_hba *hba,
-				     struct bnx2i_endpoint *ep);
-extern void bnx2i_update_iscsi_conn(struct iscsi_conn *conn);
-extern void bnx2i_send_conn_destroy(struct bnx2i_hba *hba,
+extern int bnx2i_send_conn_ofld_req(struct bnx2i_hba *hba,
 				    struct bnx2i_endpoint *ep);
+extern void bnx2i_update_iscsi_conn(struct iscsi_conn *conn);
+extern int bnx2i_send_conn_destroy(struct bnx2i_hba *hba,
+				   struct bnx2i_endpoint *ep);
 
 extern int bnx2i_alloc_qp_resc(struct bnx2i_hba *hba,
 			       struct bnx2i_endpoint *ep);

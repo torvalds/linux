@@ -1682,7 +1682,9 @@ static int bnx2i_tear_down_conn(struct bnx2i_hba *hba,
 	bnx2i_ep_destroy_list_add(hba, ep);
 
 	/* destroy iSCSI context, wait for it to complete */
-	bnx2i_send_conn_destroy(hba, ep);
+	if (bnx2i_send_conn_destroy(hba, ep))
+		ep->state = EP_STATE_CLEANUP_CMPL;
+
 	wait_event_interruptible(ep->ofld_wait,
 				 (ep->state != EP_STATE_CLEANUP_START));
 
@@ -1781,7 +1783,18 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 	bnx2i_ep->ofld_timer.data = (unsigned long) bnx2i_ep;
 	add_timer(&bnx2i_ep->ofld_timer);
 
-	bnx2i_send_conn_ofld_req(hba, bnx2i_ep);
+	if (bnx2i_send_conn_ofld_req(hba, bnx2i_ep)) {
+		if (bnx2i_ep->state == EP_STATE_OFLD_FAILED_CID_BUSY) {
+			printk(KERN_ALERT "bnx2i (%s): iscsi cid %d is busy\n",
+				hba->netdev->name, bnx2i_ep->ep_iscsi_cid);
+			rc = -EBUSY;
+		} else
+			rc = -ENOSPC;
+		printk(KERN_ALERT "bnx2i (%s): unable to send conn offld kwqe"
+			"\n", hba->netdev->name);
+		bnx2i_ep_ofld_list_del(hba, bnx2i_ep);
+		goto conn_failed;
+	}
 
 	/* Wait for CNIC hardware to setup conn context and return 'cid' */
 	wait_event_interruptible(bnx2i_ep->ofld_wait,
