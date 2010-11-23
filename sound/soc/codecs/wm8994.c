@@ -3903,6 +3903,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		return -ENOMEM;
 	snd_soc_codec_set_drvdata(codec, wm8994);
 
+	codec->reg_cache = &wm8994->reg_cache;
+
 	wm8994->pdata = dev_get_platdata(codec->dev->parent);
 	wm8994->codec = codec;
 

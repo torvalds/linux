@@ -20,9 +20,6 @@
 #include <sound/soc-dapm.h>
 #include <asm/mach-types.h>
 
-#include "../codecs/wm9712.h"
-#include "imx-ssi.h"
-
 static struct snd_soc_card imx_phycore;
 
 static struct snd_soc_ops imx_phycore_hifi_ops = {
@@ -41,7 +38,7 @@ static struct snd_soc_dai_link imx_phycore_dai_ac97[] = {
 };
 
 static struct snd_soc_card imx_phycore = {
-	.name		= "PhyCORE-audio",
+	.name		= "PhyCORE-ac97-audio",
 	.dai_link	= imx_phycore_dai_ac97,
 	.num_links	= ARRAY_SIZE(imx_phycore_dai_ac97),
 };

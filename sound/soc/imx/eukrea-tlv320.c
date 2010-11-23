@@ -34,8 +34,8 @@ static int eukrea_tlv320_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret;
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
@@ -79,10 +79,10 @@ static struct snd_soc_ops eukrea_tlv320_snd_ops = {
 static struct snd_soc_dai_link eukrea_tlv320_dai = {
 	.name		= "tlv320aic23",
 	.stream_name	= "TLV320AIC23",
-	.codec_dai	= "tlv320aic23-hifi",
+	.codec_dai_name	= "tlv320aic23-hifi",
 	.platform_name	= "imx-pcm-audio.0",
 	.codec_name	= "tlv320aic23-codec.0-001a",
-	.cpu_dai = "imx-ssi.0",
+	.cpu_dai_name	= "imx-ssi.0",
 	.ops		= &eukrea_tlv320_snd_ops,
 };
 
