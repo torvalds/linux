@@ -224,7 +224,7 @@ static int null_writer(struct driver_data *drv_data)
 	void __iomem *reg = drv_data->ioaddr;
 	u8 n_bytes = drv_data->n_bytes;
 
-	if (((read_SSSR(reg) & 0x00000f00) == 0x00000f00)
+	if (((read_SSSR(reg) & SSSR_TFL_MASK) == SSSR_TFL_MASK)
 		|| (drv_data->tx == drv_data->tx_end))
 		return 0;
 
@@ -252,7 +252,7 @@ static int u8_writer(struct driver_data *drv_data)
 {
 	void __iomem *reg = drv_data->ioaddr;
 
-	if (((read_SSSR(reg) & 0x00000f00) == 0x00000f00)
+	if (((read_SSSR(reg) & SSSR_TFL_MASK) == SSSR_TFL_MASK)
 		|| (drv_data->tx == drv_data->tx_end))
 		return 0;
 
@@ -279,7 +279,7 @@ static int u16_writer(struct driver_data *drv_data)
 {
 	void __iomem *reg = drv_data->ioaddr;
 
-	if (((read_SSSR(reg) & 0x00000f00) == 0x00000f00)
+	if (((read_SSSR(reg) & SSSR_TFL_MASK) == SSSR_TFL_MASK)
 		|| (drv_data->tx == drv_data->tx_end))
 		return 0;
 
@@ -306,7 +306,7 @@ static int u32_writer(struct driver_data *drv_data)
 {
 	void __iomem *reg = drv_data->ioaddr;
 
-	if (((read_SSSR(reg) & 0x00000f00) == 0x00000f00)
+	if (((read_SSSR(reg) & SSSR_TFL_MASK) == SSSR_TFL_MASK)
 		|| (drv_data->tx == drv_data->tx_end))
 		return 0;
 

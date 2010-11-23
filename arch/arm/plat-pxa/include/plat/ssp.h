@@ -82,7 +82,8 @@
 #define SSSR_TFS	(1 << 5)	/* Transmit FIFO Service Request */
 #define SSSR_RFS	(1 << 6)	/* Receive FIFO Service Request */
 #define SSSR_ROR	(1 << 7)	/* Receive FIFO Overrun */
-
+#define SSSR_TFL_MASK   (0xf << 8)	/* Transmit FIFO Level mask */
+#define SSSR_RFL_MASK   (0xf << 12)	/* Receive FIFO Level mask */
 
 /* extra bits in PXA255, PXA26x and PXA27x SSP ports */
 #define SSCR0_TISSP		(1 << 4)	/* TI Sync Serial Protocol */
