@@ -190,7 +190,9 @@ static struct dentry *hfsplus_file_lookup(struct inode *dir, struct dentry *dent
 	inode->i_ino = dir->i_ino;
 	INIT_LIST_HEAD(&hip->open_dir_list);
 	mutex_init(&hip->extents_lock);
-	hip->flags = HFSPLUS_FLG_RSRC;
+	hip->extent_state = 0;
+	hip->flags = 0;
+	set_bit(HFSPLUS_I_RSRC, &hip->flags);
 
 	hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
 	err = hfsplus_find_cat(sb, dir->i_ino, &fd);
@@ -369,6 +371,7 @@ struct inode *hfsplus_new_inode(struct super_block *sb, int mode)
 	INIT_LIST_HEAD(&hip->open_dir_list);
 	mutex_init(&hip->extents_lock);
 	atomic_set(&hip->opencnt, 0);
+	hip->extent_state = 0;
 	hip->flags = 0;
 	memset(hip->first_extents, 0, sizeof(hfsplus_extent_rec));
 	memset(hip->cached_extents, 0, sizeof(hfsplus_extent_rec));
@@ -498,8 +501,8 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		hfs_bnode_read(fd->bnode, &entry, fd->entryoffset,
 					sizeof(struct hfsplus_cat_file));
 
-		hfsplus_inode_read_fork(inode, HFSPLUS_IS_DATA(inode) ?
-					&file->data_fork : &file->rsrc_fork);
+		hfsplus_inode_read_fork(inode, HFSPLUS_IS_RSRC(inode) ?
+					&file->rsrc_fork : &file->data_fork);
 		hfsplus_get_perms(inode, &file->permissions, 0);
 		inode->i_nlink = 1;
 		if (S_ISREG(inode->i_mode)) {

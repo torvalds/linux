@@ -171,7 +171,7 @@ struct hfsplus_inode_info {
 	u32 cached_blocks;
 	hfsplus_extent_rec first_extents;
 	hfsplus_extent_rec cached_extents;
-	unsigned long flags;
+	unsigned int extent_state;
 	struct mutex extents_lock;
 
 	/*
@@ -186,6 +186,11 @@ struct hfsplus_inode_info {
 	u32 linkid;
 
 	/*
+	 * Accessed using atomic bitops.
+	 */
+	unsigned long flags;
+
+	/*
 	 * Protected by i_mutex.
 	 */
 	sector_t fs_blocks;
@@ -196,12 +201,13 @@ struct hfsplus_inode_info {
 	struct inode vfs_inode;
 };
 
-#define HFSPLUS_FLG_RSRC	0x0001
-#define HFSPLUS_FLG_EXT_DIRTY	0x0002
-#define HFSPLUS_FLG_EXT_NEW	0x0004
+#define HFSPLUS_EXT_DIRTY	0x0001
+#define HFSPLUS_EXT_NEW		0x0002
 
-#define HFSPLUS_IS_DATA(inode)   (!(HFSPLUS_I(inode)->flags & HFSPLUS_FLG_RSRC))
-#define HFSPLUS_IS_RSRC(inode)   (HFSPLUS_I(inode)->flags & HFSPLUS_FLG_RSRC)
+#define HFSPLUS_I_RSRC		0	/* represents a resource fork */
+
+#define HFSPLUS_IS_RSRC(inode) \
+	test_bit(HFSPLUS_I_RSRC, &HFSPLUS_I(inode)->flags)
 
 struct hfs_find_data {
 	/* filled by caller */
