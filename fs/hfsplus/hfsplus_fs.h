@@ -401,23 +401,6 @@ static inline struct hfsplus_inode_info *HFSPLUS_I(struct inode *inode)
 	return list_entry(inode, struct hfsplus_inode_info, vfs_inode);
 }
 
-#define sb_bread512(sb, sec, data) ({			\
-	struct buffer_head *__bh;			\
-	sector_t __block;				\
-	loff_t __start;					\
-	int __offset;					\
-							\
-	__start = (loff_t)(sec) << HFSPLUS_SECTOR_SHIFT;\
-	__block = __start >> (sb)->s_blocksize_bits;	\
-	__offset = __start & ((sb)->s_blocksize - 1);	\
-	__bh = sb_bread((sb), __block);			\
-	if (likely(__bh != NULL))			\
-		data = (void *)(__bh->b_data + __offset);\
-	else						\
-		data = NULL;				\
-	__bh;						\
-})
-
 /* time macros */
 #define __hfsp_mt2ut(t)		(be32_to_cpu(t) - 2082844800U)
 #define __hfsp_ut2mt(t)		(cpu_to_be32(t + 2082844800U))
