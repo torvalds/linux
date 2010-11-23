@@ -823,6 +823,14 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	mode = 0;
 
 	/*
+	 * Stop DMA
+	 *
+	 * Note: If DMA didn't stop continue
+	 * since only a reset will fix it.
+	 */
+	ath5k_hw_dma_stop(ah);
+
+	/*
 	 * Save some registers before a reset
 	 */
 	/*DCU/Antenna selection not available on 5210*/
@@ -1014,11 +1022,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 * Initialize PCU
 	 */
 	ath5k_hw_pcu_init(ah, op_mode, mode);
-
-	/* Clear any pending interrupts
-	 * PISR/SISR Not available on 5210 */
-	if (ah->ah_version != AR5K_AR5210)
-		ath5k_hw_reg_write(ah, 0xffffffff, AR5K_PISR);
 
 	/*
 	 * Initialize PHY

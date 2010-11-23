@@ -126,7 +126,7 @@ int ath5k_hw_start_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 
 	/* Return if queue is declared inactive */
 	if (ah->ah_txq[queue].tqi_type == AR5K_TX_QUEUE_INACTIVE)
-		return -EIO;
+		return -EINVAL;
 
 	if (ah->ah_version == AR5K_AR5210) {
 		tx_queue = ath5k_hw_reg_read(ah, AR5K_CR);
@@ -174,7 +174,7 @@ int ath5k_hw_start_tx_dma(struct ath5k_hw *ah, unsigned int queue)
  *
  * Stop DMA transmit on a specific hw queue and drain queue so we don't
  * have any pending frames. Returns -EBUSY if we still have pending frames,
- * -EINVAL if queue number is out of range.
+ * -EINVAL if queue number is out of range or inactive.
  *
  */
 int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
@@ -186,7 +186,7 @@ int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 
 	/* Return if queue is declared inactive */
 	if (ah->ah_txq[queue].tqi_type == AR5K_TX_QUEUE_INACTIVE)
-		return -EIO;
+		return -EINVAL;
 
 	if (ah->ah_version == AR5K_AR5210) {
 		tx_queue = ath5k_hw_reg_read(ah, AR5K_CR);
@@ -732,4 +732,50 @@ void ath5k_hw_dma_init(struct ath5k_hw *ah)
 	if (ah->ah_version != AR5K_AR5210)
 		ath5k_hw_set_imr(ah, ah->ah_imr);
 
+}
+
+/**
+ * ath5k_hw_dma_stop - stop DMA unit
+ *
+ * @ah: The &struct ath5k_hw
+ *
+ * Stop tx/rx DMA and interrupts. Returns
+ * -EBUSY if tx or rx dma failed to stop.
+ *
+ * XXX: Sometimes DMA unit hangs and we have
+ * stuck frames on tx queues, only a reset
+ * can fix that.
+ */
+int ath5k_hw_dma_stop(struct ath5k_hw *ah)
+{
+	int i, qmax, err;
+	err = 0;
+
+	/* Disable interrupts */
+	ath5k_hw_set_imr(ah, 0);
+
+	/* Stop rx dma */
+	err = ath5k_hw_stop_rx_dma(ah);
+	if (err)
+		return err;
+
+	/* Clear any pending interrupts
+	 * and disable tx dma */
+	if (ah->ah_version != AR5K_AR5210) {
+		ath5k_hw_reg_write(ah, 0xffffffff, AR5K_PISR);
+		qmax = AR5K_NUM_TX_QUEUES;
+	} else {
+		/* PISR/SISR Not available on 5210 */
+		ath5k_hw_reg_read(ah, AR5K_ISR);
+		qmax = AR5K_NUM_TX_QUEUES_NOQCU;
+	}
+
+	for (i = 0; i < qmax; i++) {
+		err = ath5k_hw_stop_tx_dma(ah, i);
+		/* -EINVAL -> queue inactive */
+		if (err != -EINVAL)
+			return err;
+	}
+
+	return err;
 }
