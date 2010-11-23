@@ -851,7 +851,23 @@ static int ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 		ath5k_hw_rfb_op(ah, rf_regs, ee->ee_xpd[ee_mode],
 						AR5K_RF_PLO_SEL, true);
 
-		/* TODO: Half/quarter channel support */
+		/* Tweak power detectors for half/quarter rate support */
+		if (ah->ah_bwmode == AR5K_BWMODE_5MHZ ||
+		ah->ah_bwmode == AR5K_BWMODE_10MHZ) {
+			u8 wait_i;
+
+			ath5k_hw_rfb_op(ah, rf_regs, 0x1f,
+						AR5K_RF_WAIT_S, true);
+
+			wait_i = (ah->ah_bwmode == AR5K_BWMODE_5MHZ) ?
+							0x1f : 0x10;
+
+			ath5k_hw_rfb_op(ah, rf_regs, wait_i,
+						AR5K_RF_WAIT_I, true);
+			ath5k_hw_rfb_op(ah, rf_regs, 3,
+						AR5K_RF_MAX_TIME, true);
+
+		}
 	}
 
 	if (ah->ah_radio == AR5K_RF5112) {
@@ -949,8 +965,20 @@ static int ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 		ath5k_hw_rfb_op(ah, rf_regs, ee->ee_i_gain[ee_mode],
 						AR5K_RF_GAIN_I, true);
 
-		/* TODO: Half/quarter channel support */
+		/* Tweak power detector for half/quarter rates */
+		if (ah->ah_bwmode == AR5K_BWMODE_5MHZ ||
+		ah->ah_bwmode == AR5K_BWMODE_10MHZ) {
+			u8 pd_delay;
 
+			pd_delay = (ah->ah_bwmode == AR5K_BWMODE_5MHZ) ?
+							0xf : 0x8;
+
+			ath5k_hw_rfb_op(ah, rf_regs, pd_delay,
+						AR5K_RF_PD_PERIOD_A, true);
+			ath5k_hw_rfb_op(ah, rf_regs, 0xf,
+						AR5K_RF_PD_DELAY_A, true);
+
+		}
 	}
 
 	if (ah->ah_radio == AR5K_RF5413 &&
