@@ -3029,6 +3029,8 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 		return le32_to_cpu(pBase->swreg);
 	case EEP_PAPRD:
 		return !!(pBase->featureEnable & BIT(5));
+	case EEP_CHAIN_MASK_REDUCE:
+		return (pBase->miscConfiguration >> 0x3) & 0x1;
 	default:
 		return 0;
 	}

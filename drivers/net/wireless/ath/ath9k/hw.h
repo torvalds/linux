@@ -187,6 +187,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_ANT_DIV_COMB		= BIT(12),
 	ATH9K_HW_CAP_2GHZ			= BIT(13),
 	ATH9K_HW_CAP_5GHZ			= BIT(14),
+	ATH9K_HW_CAP_APM			= BIT(15),
 };
 
 struct ath9k_hw_capabilities {

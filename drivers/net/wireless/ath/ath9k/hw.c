@@ -1974,6 +1974,12 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 			if ((ant_div_ctl1 & 0x1) && ((ant_div_ctl1 >> 3) & 0x1))
 				pCap->hw_caps |= ATH9K_HW_CAP_ANT_DIV_COMB;
 		}
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		if (ah->eep_ops->get_eeprom(ah, EEP_CHAIN_MASK_REDUCE))
+			pCap->hw_caps |= ATH9K_HW_CAP_APM;
+	}
+
+
 
 	return 0;
 }

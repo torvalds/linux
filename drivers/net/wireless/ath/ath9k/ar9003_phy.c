@@ -487,7 +487,11 @@ void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx)
 		break;
 	}
 
-	REG_WRITE(ah, AR_SELFGEN_MASK, tx);
+	if ((ah->caps.hw_caps & ATH9K_HW_CAP_APM) && (tx == 0x7))
+		REG_WRITE(ah, AR_SELFGEN_MASK, 0x3);
+	else
+		REG_WRITE(ah, AR_SELFGEN_MASK, tx);
+
 	if (tx == 0x5) {
 		REG_SET_BIT(ah, AR_PHY_ANALOG_SWAP,
 			    AR_PHY_SWAP_ALT_CHAIN);
