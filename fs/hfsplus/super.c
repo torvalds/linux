@@ -160,6 +160,9 @@ int hfsplus_sync_fs(struct super_block *sb, int wait)
 	int write_backup = 0;
 	int error, error2;
 
+	if (!wait)
+		return 0;
+
 	dprint(DBG_SUPER, "hfsplus_write_super\n");
 
 	sb->s_dirt = 0;
