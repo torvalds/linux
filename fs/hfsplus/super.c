@@ -215,16 +215,14 @@ static void hfsplus_put_super(struct super_block *sb)
 	if (!sb->s_fs_info)
 		return;
 
-	if (sb->s_dirt)
-		hfsplus_write_super(sb);
 	if (!(sb->s_flags & MS_RDONLY) && sbi->s_vhdr) {
 		struct hfsplus_vh *vhdr = sbi->s_vhdr;
 
 		vhdr->modify_date = hfsp_now2mt();
 		vhdr->attributes |= cpu_to_be32(HFSPLUS_VOL_UNMNT);
 		vhdr->attributes &= cpu_to_be32(~HFSPLUS_VOL_INCNSTNT);
-		mark_buffer_dirty(sbi->s_vhbh);
-		sync_dirty_buffer(sbi->s_vhbh);
+
+		hfsplus_sync_fs(sb, 1);
 	}
 
 	hfs_btree_close(sbi->cat_tree);
@@ -447,8 +445,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	be32_add_cpu(&vhdr->write_count, 1);
 	vhdr->attributes &= cpu_to_be32(~HFSPLUS_VOL_UNMNT);
 	vhdr->attributes |= cpu_to_be32(HFSPLUS_VOL_INCNSTNT);
-	mark_buffer_dirty(sbi->s_vhbh);
-	sync_dirty_buffer(sbi->s_vhbh);
+	hfsplus_sync_fs(sb, 1);
 
 	if (!sbi->hidden_dir) {
 		mutex_lock(&sbi->vh_mutex);
