@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
+#include <linux/blkdev.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/vfs.h>
@@ -212,6 +213,10 @@ int hfsplus_sync_fs(struct super_block *sb, int wait)
 out:
 	mutex_unlock(&sbi->alloc_mutex);
 	mutex_unlock(&sbi->vh_mutex);
+
+	if (!test_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags))
+		blkdev_issue_flush(sb->s_bdev, GFP_KERNEL, NULL);
+
 	return error;
 }
 

@@ -23,6 +23,7 @@ enum {
 	opt_umask, opt_uid, opt_gid,
 	opt_part, opt_session, opt_nls,
 	opt_nodecompose, opt_decompose,
+	opt_barrier, opt_nobarrier,
 	opt_force, opt_err
 };
 
@@ -37,6 +38,8 @@ static const match_table_t tokens = {
 	{ opt_nls, "nls=%s" },
 	{ opt_decompose, "decompose" },
 	{ opt_nodecompose, "nodecompose" },
+	{ opt_barrier, "barrier" },
+	{ opt_nobarrier, "nobarrier" },
 	{ opt_force, "force" },
 	{ opt_err, NULL }
 };
@@ -174,6 +177,12 @@ int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi)
 		case opt_nodecompose:
 			set_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags);
 			break;
+		case opt_barrier:
+			clear_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags);
+			break;
+		case opt_nobarrier:
+			set_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags);
+			break;
 		case opt_force:
 			set_bit(HFSPLUS_SB_FORCE, &sbi->flags);
 			break;
@@ -212,5 +221,7 @@ int hfsplus_show_options(struct seq_file *seq, struct vfsmount *mnt)
 		seq_printf(seq, ",nls=%s", sbi->nls->charset);
 	if (test_bit(HFSPLUS_SB_NODECOMPOSE, &sbi->flags))
 		seq_printf(seq, ",nodecompose");
+	if (test_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags))
+		seq_printf(seq, ",nobarrier");
 	return 0;
 }

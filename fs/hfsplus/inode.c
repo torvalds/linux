@@ -8,6 +8,7 @@
  * Inode handling routines
  */
 
+#include <linux/blkdev.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
@@ -333,6 +334,9 @@ int hfsplus_file_fsync(struct file *file, int datasync)
 		if (!error)
 			error = error2;
 	}
+
+	if (!test_bit(HFSPLUS_SB_NOBARRIER, &sbi->flags))
+		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
 
 	return error;
 }
