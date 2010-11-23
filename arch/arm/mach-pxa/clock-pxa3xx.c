@@ -159,3 +159,41 @@ const struct clkops clk_pxa3xx_pout_ops = {
 	.enable		= clk_pout_enable,
 	.disable	= clk_pout_disable,
 };
+
+#ifdef CONFIG_PM
+static uint32_t cken[2];
+static uint32_t accr;
+
+static int pxa3xx_clock_suspend(struct sys_device *d, pm_message_t state)
+{
+	cken[0] = CKENA;
+	cken[1] = CKENB;
+	accr = ACCR;
+	return 0;
+}
+
+static int pxa3xx_clock_resume(struct sys_device *d)
+{
+	ACCR = accr;
+	CKENA = cken[0];
+	CKENB = cken[1];
+	return 0;
+}
+#else
+#define pxa3xx_clock_suspend	NULL
+#define pxa3xx_clock_resume	NULL
+#endif
+
+struct sysdev_class pxa3xx_clock_sysclass = {
+	.name		= "pxa3xx-clock",
+	.suspend	= pxa3xx_clock_suspend,
+	.resume		= pxa3xx_clock_resume,
+};
+
+static int __init pxa3xx_clock_init(void)
+{
+	if (cpu_is_pxa3xx())
+		return sysdev_class_register(&pxa3xx_clock_sysclass);
+	return 0;
+}
+postcore_initcall(pxa3xx_clock_init);

@@ -103,30 +103,6 @@ static struct clk_lookup pxa3xx_clkregs[] = {
 static void __iomem *sram;
 static unsigned long wakeup_src;
 
-#define SAVE(x)		sleep_save[SLEEP_SAVE_##x] = x
-#define RESTORE(x)	x = sleep_save[SLEEP_SAVE_##x]
-
-enum {	SLEEP_SAVE_CKENA,
-	SLEEP_SAVE_CKENB,
-	SLEEP_SAVE_ACCR,
-
-	SLEEP_SAVE_COUNT,
-};
-
-static void pxa3xx_cpu_pm_save(unsigned long *sleep_save)
-{
-	SAVE(CKENA);
-	SAVE(CKENB);
-	SAVE(ACCR);
-}
-
-static void pxa3xx_cpu_pm_restore(unsigned long *sleep_save)
-{
-	RESTORE(ACCR);
-	RESTORE(CKENA);
-	RESTORE(CKENB);
-}
-
 /*
  * Enter a standby mode (S0D1C2 or S0D2C2).  Upon wakeup, the dynamic
  * memory controller has to be reinitialised, so we place some code
@@ -225,9 +201,6 @@ static int pxa3xx_cpu_pm_valid(suspend_state_t state)
 }
 
 static struct pxa_cpu_pm_fns pxa3xx_cpu_pm_fns = {
-	.save_count	= SLEEP_SAVE_COUNT,
-	.save		= pxa3xx_cpu_pm_save,
-	.restore	= pxa3xx_cpu_pm_restore,
 	.valid		= pxa3xx_cpu_pm_valid,
 	.enter		= pxa3xx_cpu_pm_enter,
 };
@@ -466,7 +439,9 @@ static struct sys_device pxa3xx_sysdev[] = {
 		.cls	= &pxa3xx_mfp_sysclass,
 	}, {
 		.cls	= &pxa_gpio_sysclass,
-	},
+	}, {
+		.cls	= &pxa3xx_clock_sysclass,
+	}
 };
 
 static int __init pxa3xx_init(void)

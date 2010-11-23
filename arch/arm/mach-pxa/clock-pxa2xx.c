@@ -54,3 +54,11 @@ struct sysdev_class pxa2xx_clock_sysclass = {
 	.suspend	= pxa2xx_clock_suspend,
 	.resume		= pxa2xx_clock_resume,
 };
+
+static int __init pxa2xx_clock_init(void)
+{
+	if (cpu_is_pxa2xx())
+		return sysdev_class_register(&pxa2xx_clock_sysclass);
+	return 0;
+}
+postcore_initcall(pxa2xx_clock_init);

@@ -72,4 +72,6 @@ extern const struct clkops clk_pxa3xx_pout_ops;
 
 extern void clk_pxa3xx_cken_enable(struct clk *);
 extern void clk_pxa3xx_cken_disable(struct clk *);
+
+extern struct sysdev_class pxa3xx_clock_sysclass;
 #endif
