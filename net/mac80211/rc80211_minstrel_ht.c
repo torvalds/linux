@@ -371,6 +371,9 @@ minstrel_aggr_check(struct minstrel_priv *mp, struct ieee80211_sta *pubsta, stru
 	if (likely(sta->ampdu_mlme.tid_tx[tid]))
 		return;
 
+	if (skb_get_queue_mapping(skb) == IEEE80211_AC_VO)
+		return;
+
 	ieee80211_start_tx_ba_session(pubsta, tid);
 }
 
