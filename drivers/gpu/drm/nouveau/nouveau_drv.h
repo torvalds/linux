@@ -887,8 +887,7 @@ extern int nouveau_gpuobj_new_fake(struct drm_device *, u32 pinst, u64 vinst,
 extern int nouveau_gpuobj_dma_new(struct nouveau_channel *, int class,
 				  uint64_t offset, uint64_t size, int access,
 				  int target, struct nouveau_gpuobj **);
-extern int nouveau_gpuobj_gr_new(struct nouveau_channel *, int class,
-				 struct nouveau_gpuobj **);
+extern int nouveau_gpuobj_gr_new(struct nouveau_channel *, u32 handle, int class);
 extern int nv50_gpuobj_dma_new(struct nouveau_channel *, int class, u64 base,
 			       u64 size, int target, int access, u32 type,
 			       u32 comp, struct nouveau_gpuobj **pobj);

@@ -137,22 +137,6 @@ nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	return 0;
 }
 
-static int
-nv04_fbcon_grobj_new(struct drm_device *dev, int class, uint32_t handle)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *obj = NULL;
-	int ret;
-
-	ret = nouveau_gpuobj_gr_new(dev_priv->channel, class, &obj);
-	if (ret)
-		return ret;
-
-	ret = nouveau_ramht_insert(dev_priv->channel, handle, obj);
-	nouveau_gpuobj_ref(NULL, &obj);
-	return ret;
-}
-
 int
 nv04_fbcon_accel_init(struct fb_info *info)
 {
@@ -192,29 +176,31 @@ nv04_fbcon_accel_init(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	ret = nv04_fbcon_grobj_new(dev, dev_priv->card_type >= NV_10 ?
-				   0x0062 : 0x0042, NvCtxSurf2D);
+	ret = nouveau_gpuobj_gr_new(chan, NvCtxSurf2D,
+				    dev_priv->card_type >= NV_10 ?
+				    0x0062 : 0x0042);
 	if (ret)
 		return ret;
 
-	ret = nv04_fbcon_grobj_new(dev, 0x0019, NvClipRect);
+	ret = nouveau_gpuobj_gr_new(chan, NvClipRect, 0x0019);
 	if (ret)
 		return ret;
 
-	ret = nv04_fbcon_grobj_new(dev, 0x0043, NvRop);
+	ret = nouveau_gpuobj_gr_new(chan, NvRop, 0x0043);
 	if (ret)
 		return ret;
 
-	ret = nv04_fbcon_grobj_new(dev, 0x0044, NvImagePatt);
+	ret = nouveau_gpuobj_gr_new(chan, NvImagePatt, 0x0044);
 	if (ret)
 		return ret;
 
-	ret = nv04_fbcon_grobj_new(dev, 0x004a, NvGdiRect);
+	ret = nouveau_gpuobj_gr_new(chan, NvGdiRect, 0x004a);
 	if (ret)
 		return ret;
 
-	ret = nv04_fbcon_grobj_new(dev, dev_priv->chipset >= 0x11 ?
-				   0x009f : 0x005f, NvImageBlit);
+	ret = nouveau_gpuobj_gr_new(chan, NvImageBlit,
+				    dev_priv->chipset >= 0x11 ?
+				    0x009f : 0x005f);
 	if (ret)
 		return ret;
 

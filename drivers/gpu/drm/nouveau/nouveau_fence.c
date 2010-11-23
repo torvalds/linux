@@ -438,12 +438,7 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 	int ret;
 
 	/* Create an NV_SW object for various sync purposes */
-	ret = nouveau_gpuobj_gr_new(chan, NV_SW, &obj);
-	if (ret)
-		return ret;
-
-	ret = nouveau_ramht_insert(chan, NvSw, obj);
-	nouveau_gpuobj_ref(NULL, &obj);
+	ret = nouveau_gpuobj_gr_new(chan, NvSw, NV_SW);
 	if (ret)
 		return ret;
 

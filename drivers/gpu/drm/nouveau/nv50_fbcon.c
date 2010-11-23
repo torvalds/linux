@@ -134,9 +134,8 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
-	struct nouveau_gpuobj *eng2d = NULL;
-	uint64_t fb;
 	int ret, format;
+	uint64_t fb;
 
 	fb = info->fix.smem_start - dev_priv->fb_phys + dev_priv->vm_vram_base;
 
@@ -167,12 +166,7 @@ nv50_fbcon_accel_init(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	ret = nouveau_gpuobj_gr_new(dev_priv->channel, 0x502d, &eng2d);
-	if (ret)
-		return ret;
-
-	ret = nouveau_ramht_insert(dev_priv->channel, Nv2D, eng2d);
-	nouveau_gpuobj_ref(NULL, &eng2d);
+	ret = nouveau_gpuobj_gr_new(dev_priv->channel, Nv2D, 0x502d);
 	if (ret)
 		return ret;
 
