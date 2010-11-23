@@ -67,8 +67,8 @@ static struct vpu_device enc_dev;
 
 struct vpu_client {
 	struct vpu_device	*dev;
-	s32			event_count;	/* for user */
-	atomic_t		event;		/* inc by irq */
+	atomic_t		dec_event;
+	atomic_t		enc_event;
 	struct fasync_struct	*async_queue;
 	wait_queue_head_t	wait;
 	struct file		*filp;	/* for /proc/vpu */
@@ -79,9 +79,6 @@ struct vpu_client {
 static struct vpu_client client;
 
 static void vpu_release_io(void);
-#ifdef CONFIG_RK29_VPU_DEBUG
-static void dump_regs(struct vpu_device *);
-#endif
 
 static long vpu_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
@@ -160,7 +157,6 @@ static int vpu_open(struct inode *inode, struct file *filp)
 	if (client.filp)
 		return -EBUSY;
 	client.dev = &dec_dev;
-	client.event_count = atomic_read(&client.event);
 	client.filp = filp;
 	pr_debug("dev opened\n");
 	return nonseekable_open(inode, filp);
@@ -173,11 +169,6 @@ static int vpu_fasync(int fd, struct file *filp, int mode)
 
 static int vpu_release(struct inode *inode, struct file *filp)
 {
-#ifdef CONFIG_RK29_VPU_DEBUG
-	dump_regs(&enc_dev);	/* dump the regs */
-	dump_regs(&dec_dev);	/* dump the regs */
-#endif
-
 	/* remove this filp from the asynchronusly notified filp's */
 	vpu_fasync(-1, filp, 0);
 
@@ -263,7 +254,6 @@ static void vpu_release_io(void)
 
 static void vpu_event_notify(void)
 {
-	atomic_inc(&client.event);
 	wake_up_interruptible(&client.wait);
 	if (client.async_queue)
 		kill_fasync(&client.async_queue, SIGIO, POLL_IN);
@@ -271,13 +261,10 @@ static void vpu_event_notify(void)
 
 static irqreturn_t hx170dec_isr(int irq, void *dev_id)
 {
-	unsigned int handled = 0;
-
 	struct vpu_device *dev = (struct vpu_device *) dev_id;
 	u32 irq_status_dec;
 	u32 irq_status_pp;
-
-	handled = 0;
+	u32 event = VPU_IRQ_EVENT_DEC_BIT;
 
 	/* interrupt status register read */
 	irq_status_dec = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
@@ -291,10 +278,9 @@ static irqreturn_t hx170dec_isr(int irq, void *dev_id)
 		writel(irq_status_dec & (~DEC_INTERRUPT_BIT),
 				dev->hwregs + DEC_INTERRUPT_REGISTER);
 
-		vpu_event_notify();
+		event |= VPU_IRQ_EVENT_DEC_IRQ_BIT;
 
 		pr_debug("DEC IRQ received!\n");
-		handled = 1;
 	}
 
 	if (irq_status_pp & PP_INTERRUPT_BIT) {
@@ -305,27 +291,26 @@ static irqreturn_t hx170dec_isr(int irq, void *dev_id)
 		writel(irq_status_pp & (~DEC_INTERRUPT_BIT),
 				dev->hwregs + PP_INTERRUPT_REGISTER);
 
-		vpu_event_notify();
+		event |= VPU_IRQ_EVENT_PP_IRQ_BIT;
 
 		pr_debug("PP IRQ received!\n");
-		handled = 1;
 	}
 
-	if (!handled) {
-		pr_debug("IRQ received, but not x170's!\n");
-	}
+	atomic_set(&client.dec_event, event);
+	vpu_event_notify();
 
-	return IRQ_RETVAL(handled);
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t hx280enc_isr(int irq, void *dev_id)
 {
 	struct vpu_device *dev = (struct vpu_device *) dev_id;
 	u32 irq_status;
+	u32 event = VPU_IRQ_EVENT_ENC_BIT;
 
 	irq_status = readl(dev->hwregs + ENC_INTERRUPT_REGISTER);
 
-	if (irq_status & ENC_INTERRUPT_BIT) {
+	if (likely(irq_status & ENC_INTERRUPT_BIT)) {
 #ifdef CONFIG_RK29_VPU_HW_PERFORMANCE
 		ktime_get_ts(&client.end_time);
 #endif
@@ -333,14 +318,15 @@ static irqreturn_t hx280enc_isr(int irq, void *dev_id)
 		writel(irq_status & (~ENC_INTERRUPT_BIT),
 				dev->hwregs + ENC_INTERRUPT_REGISTER);
 
-		vpu_event_notify();
+		event |= VPU_IRQ_EVENT_ENC_IRQ_BIT;
 
-		pr_debug("ENC IRQ handled!\n");
-		return IRQ_HANDLED;
-	} else {
-		pr_debug("ENC IRQ received, but NOT handled!\n");
-		return IRQ_NONE;
+		pr_debug("ENC IRQ received!\n");
 	}
+
+	atomic_set(&client.enc_event, event);
+	vpu_event_notify();
+
+	return IRQ_HANDLED;
 }
 
 static void vpu_reset_dec_asic(struct vpu_device * dev)
@@ -365,19 +351,6 @@ static void vpu_reset_enc_asic(struct vpu_device * dev)
 	}
 }
 
-#ifdef CONFIG_RK29_VPU_DEBUG
-static void dump_regs(struct vpu_device *dev)
-{
-	unsigned int i, n = dev->iosize >> 2;
-
-	pr_debug("Reg Dump Start\n");
-	for (i = 0; i < n; i++) {
-		pr_debug("\tswreg%d = %08X\n", i, readl(dev->hwregs + i));
-	}
-	pr_debug("Reg Dump End\n");
-}
-#endif
-
 static int vpu_mmap(struct file *fp, struct vm_area_struct *vm)
 {
 	unsigned long pfn;
@@ -398,7 +371,8 @@ static int vpu_mmap(struct file *fp, struct vm_area_struct *vm)
 static unsigned int vpu_poll(struct file *filep, poll_table *wait)
 {
 	poll_wait(filep, &client.wait, wait);
-	if (client.event_count != atomic_read(&client.event))
+
+	if (atomic_read(&client.dec_event) || atomic_read(&client.enc_event))
 		return POLLIN | POLLRDNORM;
 	return 0;
 }
@@ -408,9 +382,9 @@ static ssize_t vpu_read(struct file *filep, char __user *buf,
 {
 	DECLARE_WAITQUEUE(wait, current);
 	ssize_t retval;
-	s32 event_count;
+	u32 irq_event;
 
-	if (count != sizeof(s32))
+	if (count != sizeof(u32))
 		return -EINVAL;
 
 	add_wait_queue(&client.wait, &wait);
@@ -418,14 +392,13 @@ static ssize_t vpu_read(struct file *filep, char __user *buf,
 	do {
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		event_count = atomic_read(&client.event);
-		if (event_count != client.event_count) {
-			if (copy_to_user(buf, &event_count, count))
+		irq_event = atomic_xchg(&client.dec_event, 0) | atomic_xchg(&client.enc_event, 0);
+
+		if (irq_event) {
+			if (copy_to_user(buf, &irq_event, count))
 				retval = -EFAULT;
-			else {
-				client.event_count = event_count;
+			else
 				retval = count;
-			}
 			break;
 		}
 
@@ -484,7 +457,8 @@ static int __init vpu_init(void)
 	pp_dev = dec_dev;
 
 	init_waitqueue_head(&client.wait);
-	atomic_set(&client.event, 0);
+	atomic_set(&client.dec_event, 0);
+	atomic_set(&client.enc_event, 0);
 
 	vpu_reset_dec_asic(&dec_dev);	/* reset hardware */
 	vpu_reset_enc_asic(&enc_dev);	/* reset hardware */
@@ -534,11 +508,6 @@ static void __exit vpu_exit(void)
 	/* clear enc IRQ */
 	writel(0, enc_dev.hwregs + ENC_INTERRUPT_REGISTER);
 
-#ifdef CONFIG_RK29_VPU_DEBUG
-	dump_regs(&enc_dev);	/* dump the regs */
-	dump_regs(&dec_dev);	/* dump the regs */
-#endif
-
 	misc_deregister(&vpu_misc_device);
 	free_irq(IRQ_VEPU, (void *)&enc_dev);
 	free_irq(IRQ_VDPU, (void *)&dec_dev);
@@ -556,6 +525,7 @@ MODULE_LICENSE("GPL");
 static int proc_vpu_show(struct seq_file *s, void *v)
 {
 	unsigned int i, n;
+	s32 irq_event = atomic_read(&client.dec_event) | atomic_read(&client.enc_event);
 
 	if (client.filp) {
 		seq_printf(s, "Opened\n");
@@ -563,7 +533,13 @@ static int proc_vpu_show(struct seq_file *s, void *v)
 	} else {
 		seq_printf(s, "Closed\n");
 	}
-	seq_printf(s, "event_count %d event %d\n", client.event_count, atomic_read(&client.event));
+
+	seq_printf(s, "irq_event: 0x%08x (%s%s%s%s%s)\n", irq_event,
+		   irq_event & VPU_IRQ_EVENT_DEC_BIT ? "DEC " : "",
+		   irq_event & VPU_IRQ_EVENT_DEC_IRQ_BIT ? "DEC_IRQ " : "",
+		   irq_event & VPU_IRQ_EVENT_PP_IRQ_BIT ? "PP_IRQ " : "",
+		   irq_event & VPU_IRQ_EVENT_ENC_BIT ? "ENC " : "",
+		   irq_event & VPU_IRQ_EVENT_ENC_IRQ_BIT ? "ENC_IRQ" : "");
 #ifdef CONFIG_RK29_VPU_HW_PERFORMANCE
 	seq_printf(s, "end_time: %ld.%09ld\n", client.end_time.tv_sec, client.end_time.tv_nsec);
 #endif
