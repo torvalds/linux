@@ -3075,6 +3075,15 @@ void dhd_bus_country_set(struct net_device *dev, char *country_code)
 		strncpy(dhd->pub.country_code, country_code, WLC_CNTRY_BUF_SZ);
 }
 
+char *dhd_bus_country_get(struct net_device *dev)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+
+	if (dhd && (dhd->pub.country_code[0] != 0))
+		return dhd->pub.country_code;
+	return NULL;
+}
+
 void dhd_os_start_lock(dhd_pub_t *pub)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))

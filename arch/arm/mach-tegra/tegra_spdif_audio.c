@@ -48,6 +48,7 @@
 #include <linux/delay.h>
 #include <linux/tegra_audio.h>
 #include <linux/workqueue.h>
+#include <linux/pm.h>
 
 #include <mach/dma.h>
 #include <mach/iomap.h>
@@ -69,15 +70,12 @@ struct audio_stream {
 	int opened;
 	struct mutex lock;
 
-	struct tegra_audio_buf_config buf_config;
 	bool active; /* is DMA or PIO in progress? */
 	void *buffer;
 	dma_addr_t buf_phys;
 	struct kfifo fifo;
 	struct completion fifo_completion;
 	struct scatterlist sg;
-
-	struct tegra_audio_error_counts errors;
 
 	int spdif_fifo_atn_level;
 
@@ -112,6 +110,7 @@ struct audio_driver_state {
 
 	bool using_dma;
 	unsigned long dma_req_sel;
+	bool fifo_init;
 
 	int irq; /* for pio mode */
 	struct spdif_pio_stats pio_stats;
@@ -125,17 +124,17 @@ struct audio_driver_state {
 
 static inline int buf_size(struct audio_stream *s)
 {
-	return 1 << s->buf_config.size;
+	return 1 << PCM_BUFFER_MAX_SIZE_ORDER;
 }
 
 static inline int chunk_size(struct audio_stream *s)
 {
-	return 1 << s->buf_config.chunk;
+	return 1 << PCM_BUFFER_DMA_CHUNK_SIZE_ORDER;
 }
 
 static inline int threshold_size(struct audio_stream *s)
 {
-	return 1 << s->buf_config.threshold;
+	return 1 << PCM_BUFFER_THRESHOLD_ORDER;
 }
 
 static inline struct audio_driver_state *ads_from_misc_out(struct file *file)
@@ -237,7 +236,11 @@ static int spdif_fifo_set_attention_level(unsigned long base,
 static void spdif_fifo_enable(unsigned long base, int on)
 {
 	u32 val = spdif_readl(base, SPDIF_CTRL_0);
-	val &= ~(SPDIF_CTRL_0_TX_EN | SPDIF_CTRL_0_TC_EN);
+
+	if (on && (val & SPDIF_CTRL_0_TX_EN))
+		return;
+
+	val &= ~(SPDIF_CTRL_0_TX_EN | SPDIF_CTRL_0_TC_EN | SPDIF_CTRL_0_TU_EN);
 	val |= on ? (SPDIF_CTRL_0_TX_EN) : 0;
 	val |= on ? (SPDIF_CTRL_0_TC_EN) : 0;
 
@@ -347,12 +350,11 @@ static int spdif_set_sample_rate(struct audio_driver_state *state,
 				unsigned int sample_rate)
 {
 	unsigned int clock_freq = 0;
-	unsigned int parent_clock_freq = 0;
 	struct clk *spdif_clk;
 
 	unsigned int ch_sta[] = {
 		0x0, /* 44.1, default values */
-		0xf << 4, /* bits 36-39, original sample freq -- 44.1 */
+		0x0,
 		0x0,
 		0x0,
 		0x0,
@@ -362,37 +364,30 @@ static int spdif_set_sample_rate(struct audio_driver_state *state,
 	switch (sample_rate) {
 	case 32000:
 		clock_freq = 4096000; /* 4.0960 MHz */
-		parent_clock_freq = 12288000;
 		ch_sta[0] = 0x3 << 24;
-		ch_sta[1] = 0xC << 4;
+		/*ch_sta[1] = 0xC << 4;*/
 		break;
 	case 44100:
 		clock_freq = 5644800; /* 5.6448 MHz */
-		parent_clock_freq = 11289600;
 		ch_sta[0] = 0x0;
-		ch_sta[1] = 0xF << 4;
+		/*ch_sta[1] = 0xF << 4;*/
 		break;
 	case 48000:
 		clock_freq = 6144000; /* 6.1440MHz */
-		parent_clock_freq = 12288000;
 		ch_sta[0] = 0x2 << 24;
-		ch_sta[1] = 0xD << 4;
+		/*ch_sta[1] = 0xD << 4;*/
 		break;
 	case 88200:
 		clock_freq = 11289600; /* 11.2896 MHz */
-		parent_clock_freq = 11289600;
 		break;
 	case 96000:
 		clock_freq = 12288000; /* 12.288 MHz */
-		parent_clock_freq = 12288000;
 		break;
 	case 176400:
 		clock_freq = 22579200; /* 22.5792 MHz */
-		parent_clock_freq = 11289600;
 		break;
 	case 192000:
 		clock_freq = 24576000; /* 24.5760 MHz */
-		parent_clock_freq = 12288000;
 		break;
 	default:
 		return -1;
@@ -423,8 +418,32 @@ static int spdif_set_sample_rate(struct audio_driver_state *state,
 	return 0;
 }
 
-static int init_stream_buffer(struct audio_stream *,
-		struct tegra_audio_buf_config *cfg, unsigned);
+static int spdif_configure(struct platform_device *pdev)
+{
+	struct tegra_audio_platform_data *pdata = pdev->dev.platform_data;
+	struct audio_driver_state *state = pdata->driver_data;
+
+	if (!state)
+		return -ENOMEM;
+
+	/* disable interrupts from SPDIF */
+	spdif_writel(state->spdif_base, 0x0, SPDIF_CTRL_0);
+	spdif_fifo_clear(state->spdif_base);
+	spdif_enable_fifos(state->spdif_base, 0);
+
+	spdif_set_bit_mode(state->spdif_base, state->pdata->mode);
+	spdif_set_fifo_packed(state->spdif_base, state->pdata->fifo_fmt);
+
+	spdif_fifo_set_attention_level(state->spdif_base,
+				state->out.spdif_fifo_atn_level);
+
+	spdif_set_sample_rate(state, 44100);
+
+	state->fifo_init = true;
+	return 0;
+}
+
+static int init_stream_buffer(struct audio_stream *);
 
 static int setup_dma(struct audio_driver_state *);
 static void tear_down_dma(struct audio_driver_state *);
@@ -595,7 +614,6 @@ static void dma_tx_complete_callback(struct tegra_dma_req *req)
 	if (delta_us > max_delay_us) {
 		pr_debug("%s: too late by %lld us\n", __func__,
 			delta_us - max_delay_us);
-		aos->errors.late_dma++;
 	}
 
 	kfifo_dma_out_finish(&aos->fifo, count);
@@ -633,9 +651,14 @@ static void setup_dma_tx_request(struct tegra_dma_req *req,
 	req->to_memory = false;
 	req->dest_addr = spdif_get_fifo_phy_base(ads->spdif_phys);
 	req->dest_wrap = 4;
-	req->dest_bus_width = 16;
-	req->source_bus_width = 32;
+	if (ads->pdata->mode != SPDIF_BIT_MODE_MODE16BIT ||
+			ads->pdata->fifo_fmt)
+		req->dest_bus_width = 32;
+	else
+		req->dest_bus_width = 16;
+
 	req->source_wrap = 0;
+	req->source_bus_width = 32;
 	req->req_sel = ads->dma_req_sel;
 }
 
@@ -667,8 +690,6 @@ static int resume_dma_playback(struct audio_stream *aos)
 #if 0
 	spdif_fifo_clear(ads->spdif_base);
 #endif
-	spdif_fifo_set_attention_level(ads->spdif_base,
-			aos->spdif_fifo_atn_level);
 
 	req->source_addr = sg_dma_address(&aos->sg);
 	req->size = sg_dma_len(&aos->sg);
@@ -681,7 +702,12 @@ static int resume_dma_playback(struct audio_stream *aos)
 	pr_debug("%s resume playback (%d in fifo, writing %d)\n",
 			__func__, kfifo_len(&aos->fifo), req->size);
 
-	spdif_fifo_enable(ads->spdif_base, 1);
+	if (ads->fifo_init) {
+		spdif_set_bit_mode(ads->spdif_base, ads->pdata->mode);
+		spdif_set_fifo_packed(ads->spdif_base, ads->pdata->fifo_fmt);
+		spdif_fifo_enable(ads->spdif_base, 1);
+		ads->fifo_init = false;
+	}
 
 	aos->last_dma_ts = ktime_get_real();
 	rc = tegra_dma_enqueue_req(aos->dma_chan, req);
@@ -712,6 +738,7 @@ static void stop_dma_playback(struct audio_stream *aos)
 	}
 	if (spin == 100)
 		pr_warn("%s: spinny\n", __func__);
+	ads->fifo_init = true;
 }
 
 /* PIO (non-DMA) */
@@ -925,35 +952,6 @@ static long tegra_spdif_out_ioctl(struct file *file,
 	mutex_lock(&aos->lock);
 
 	switch (cmd) {
-	case TEGRA_AUDIO_OUT_SET_BUF_CONFIG: {
-		struct tegra_audio_buf_config cfg;
-		if (copy_from_user(&cfg, (void __user *)arg, sizeof(cfg))) {
-			rc = -EFAULT;
-			break;
-		}
-		if (kfifo_len(&aos->fifo)) {
-			pr_err("%s: playback in progress\n", __func__);
-			rc = -EBUSY;
-			break;
-		}
-		rc = init_stream_buffer(aos, &cfg, 0);
-		if (rc < 0)
-			break;
-		aos->buf_config = cfg;
-	}
-		break;
-	case TEGRA_AUDIO_OUT_GET_BUF_CONFIG:
-		if (copy_to_user((void __user *)arg, &aos->buf_config,
-				sizeof(aos->buf_config)))
-			rc = -EFAULT;
-		break;
-	case TEGRA_AUDIO_OUT_GET_ERROR_COUNT:
-		if (copy_to_user((void __user *)arg, &aos->errors,
-				sizeof(aos->errors)))
-			rc = -EFAULT;
-		if (!rc)
-			memset(&aos->errors, 0, sizeof(aos->errors));
-		break;
 	case TEGRA_AUDIO_OUT_FLUSH:
 		if (kfifo_len(&aos->fifo)) {
 			pr_debug("%s: flushing\n", __func__);
@@ -981,10 +979,9 @@ static int tegra_spdif_out_open(struct inode *inode, struct file *file)
 	if (!ads->out.opened++) {
 		pr_debug("%s: resetting fifo and error count\n", __func__);
 		ads->out.stop = false;
-		memset(&ads->out.errors, 0, sizeof(ads->out.errors));
 		kfifo_reset(&ads->out.fifo);
 
-	rc = spdif_set_sample_rate(ads, 44100);
+		rc = spdif_set_sample_rate(ads, 44100);
 	}
 
 	mutex_unlock(&ads->out.lock);
@@ -1049,55 +1046,19 @@ static const struct file_operations tegra_spdif_out_ctl_fops = {
 	.unlocked_ioctl = tegra_spdif_out_ioctl,
 };
 
-static int init_stream_buffer(struct audio_stream *s,
-				struct tegra_audio_buf_config *cfg,
-				unsigned padding)
+static int init_stream_buffer(struct audio_stream *s)
 {
-	pr_info("%s (size %d threshold %d chunk %d)\n", __func__,
-		cfg->size, cfg->threshold, cfg->chunk);
+	pr_info("%s\n", __func__);
 
-	if (cfg->chunk < PCM_DMA_CHUNK_MIN_SIZE_ORDER) {
-		pr_err("%s: chunk %d too small (%d min)\n", __func__,
-			cfg->chunk, PCM_DMA_CHUNK_MIN_SIZE_ORDER);
-		return -EINVAL;
-	}
-
-	if (cfg->chunk > cfg->size) {
-		pr_err("%s: chunk %d > size %d\n", __func__,
-				cfg->chunk, cfg->size);
-		return -EINVAL;
-	}
-
-	if (cfg->threshold > cfg->size) {
-		pr_err("%s: threshold %d > size %d\n", __func__,
-				cfg->threshold, cfg->size);
-		return -EINVAL;
-	}
-
-	if ((1 << cfg->size) < padding) {
-		pr_err("%s: size %d < buffer padding %d (bytes)\n", __func__,
-			cfg->size, padding);
-		return -EINVAL;
-	}
-
-	if (cfg->size > PCM_BUFFER_MAX_SIZE_ORDER) {
-		pr_err("%s: size %d exceeds max %d\n", __func__,
-			cfg->size, PCM_BUFFER_MAX_SIZE_ORDER);
-		return -EINVAL;
-	}
-
-	if (!s->buffer) {
-		pr_debug("%s: allocating buffer (size %d, padding %d)\n",
-				__func__, 1 << cfg->size, padding);
-		s->buffer = kmalloc((1 << cfg->size) + padding,
-				GFP_KERNEL | GFP_DMA);
-	}
+	kfree(s->buffer);
+	s->buffer = kmalloc(1 << PCM_BUFFER_MAX_SIZE_ORDER,
+			GFP_KERNEL | GFP_DMA);
 	if (!s->buffer) {
 		pr_err("%s: could not allocate output buffer\n", __func__);
 		return -ENOMEM;
 	}
 
-	kfifo_init(&s->fifo, s->buffer, 1 << cfg->size);
+	kfifo_init(&s->fifo, s->buffer, 1 << PCM_BUFFER_MAX_SIZE_ORDER);
 	sg_init_table(&s->sg, 1);
 	return 0;
 }
@@ -1312,8 +1273,6 @@ static int tegra_spdif_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 
-	state->out.spdif_fifo_atn_level = SPDIF_FIFO_ATN_LVL_FOUR_SLOTS;
-
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "no dma resource!\n");
@@ -1330,12 +1289,10 @@ static int tegra_spdif_probe(struct platform_device *pdev)
 
 	memset(&state->pio_stats, 0, sizeof(state->pio_stats));
 
-	/* disable interrupts from SPDIF */
-	spdif_fifo_clear(state->spdif_base);
-	spdif_enable_fifos(state->spdif_base, 0);
 
-	spdif_set_bit_mode(state->spdif_base, state->pdata->mode);
-	spdif_set_fifo_packed(state->spdif_base, state->pdata->fifo_fmt);
+	rc = spdif_configure(pdev);
+	if (rc < 0)
+		return rc;
 
 	state->out.opened = 0;
 	state->out.active = false;
@@ -1348,10 +1305,7 @@ static int tegra_spdif_probe(struct platform_device *pdev)
 	state->out.dma_has_it = false;
 
 	state->out.buffer = 0;
-	state->out.buf_config.size = PCM_BUFFER_MAX_SIZE_ORDER;
-	state->out.buf_config.threshold = PCM_BUFFER_THRESHOLD_ORDER;
-	state->out.buf_config.chunk = PCM_BUFFER_DMA_CHUNK_SIZE_ORDER;
-	rc = init_stream_buffer(&state->out, &state->out.buf_config, 0);
+	rc = init_stream_buffer(&state->out);
 	if (rc < 0)
 		return rc;
 
@@ -1405,12 +1359,29 @@ static int tegra_spdif_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int tegra_spdif_suspend(struct platform_device *pdev, pm_message_t mesg)
+{
+	/* dev_info(&pdev->dev, "%s\n", __func__); */
+	return 0;
+}
+
+static int tegra_spdif_resume(struct platform_device *pdev)
+{
+	return spdif_configure(pdev);
+}
+#endif /* CONFIG_PM */
+
 static struct platform_driver tegra_spdif_driver = {
 	.driver = {
 		.name = "spdif_out",
 		.owner = THIS_MODULE,
 	},
 	.probe = tegra_spdif_probe,
+#ifdef CONFIG_PM
+	.suspend = tegra_spdif_suspend,
+	.resume = tegra_spdif_resume,
+#endif
 };
 
 static int __init tegra_spdif_init(void)
