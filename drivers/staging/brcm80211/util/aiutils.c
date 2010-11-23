@@ -129,7 +129,7 @@ void ai_scan(si_t *sih, void *regs, uint devid)
 		sii->curwrap = (void *)((unsigned long)regs + SI_CORE_SIZE);
 
 		/* Now point the window at the erom */
-		OSL_PCI_WRITE_CONFIG(sii->osh, PCI_BAR0_WIN, 4, erombase);
+		pci_write_config_dword(sii->osh->pdev, PCI_BAR0_WIN, erombase);
 		eromptr = regs;
 		break;
 
@@ -351,10 +351,10 @@ void *ai_setcoreidx(si_t *sih, uint coreidx)
 
 	case PCI_BUS:
 		/* point bar0 window */
-		OSL_PCI_WRITE_CONFIG(sii->osh, PCI_BAR0_WIN, 4, addr);
+		pci_write_config_dword(sii->osh->pdev, PCI_BAR0_WIN, addr);
 		regs = sii->curmap;
 		/* point bar0 2nd 4KB window */
-		OSL_PCI_WRITE_CONFIG(sii->osh, PCI_BAR0_WIN2, 4, wrap);
+		pci_write_config_dword(sii->osh->pdev, PCI_BAR0_WIN2, wrap);
 		break;
 
 #ifdef BCMSDIO

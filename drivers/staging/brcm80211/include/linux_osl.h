@@ -40,15 +40,6 @@ extern void osl_assert(char *exp, char *file, int line);
 #endif				/* __GNUC__ */
 #endif				/* defined(BCMDBG_ASSERT) */
 
-/* PCI configuration space access macros */
-#define	OSL_PCI_READ_CONFIG(osh, offset, size) \
-	osl_pci_read_config((osh), (offset), (size))
-#define	OSL_PCI_WRITE_CONFIG(osh, offset, size, val) \
-	osl_pci_write_config((osh), (offset), (size), (val))
-extern u32 osl_pci_read_config(struct osl_info *osh, uint offset, uint size);
-extern void osl_pci_write_config(struct osl_info *osh, uint offset, uint size,
-				 uint val);
-
 /* PCI device bus # and slot # */
 #define OSL_PCI_BUS(osh)	osl_pci_bus(osh)
 #define OSL_PCI_SLOT(osh)	osl_pci_slot(osh)

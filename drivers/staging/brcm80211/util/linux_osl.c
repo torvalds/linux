@@ -128,19 +128,6 @@ void BCMFASTPATH osl_pktfree(struct osl_info *osh, void *p, bool send)
 	}
 }
 
-u32 osl_pci_read_config(struct osl_info *osh, uint offset, uint size)
-{
-	uint val;
-	pci_read_config_dword(osh->pdev, offset, &val);
-	return val;
-}
-
-void osl_pci_write_config(struct osl_info *osh, uint offset, uint size,
-			  uint val)
-{
-	pci_write_config_dword(osh->pdev, offset, val);
-}
-
 /* return bus # for the pci device pointed by osh->pdev */
 uint osl_pci_bus(struct osl_info *osh)
 {
