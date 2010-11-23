@@ -2350,10 +2350,14 @@ static void bnx2i_cm_remote_close(struct cnic_sock *cm_sk)
 static void bnx2i_cm_remote_abort(struct cnic_sock *cm_sk)
 {
 	struct bnx2i_endpoint *ep = (struct bnx2i_endpoint *) cm_sk->context;
+	u32 old_state = ep->state;
 
 	ep->state = EP_STATE_TCP_RST_RCVD;
-	if (ep->conn)
-		bnx2i_recovery_que_add_conn(ep->hba, ep->conn);
+	if (old_state == EP_STATE_DISCONN_START)
+		wake_up_interruptible(&ep->ofld_wait);
+	else
+		if (ep->conn)
+			bnx2i_recovery_que_add_conn(ep->hba, ep->conn);
 }
 
 

@@ -1907,6 +1907,7 @@ static int bnx2i_ep_tcp_conn_active(struct bnx2i_endpoint *bnx2i_ep)
 
 	switch (bnx2i_ep->state) {
 	case EP_STATE_CONNECT_START:
+	case EP_STATE_CONNECT_FAILED:
 	case EP_STATE_CLEANUP_FAILED:
 	case EP_STATE_OFLD_FAILED:
 	case EP_STATE_DISCONN_TIMEDOUT:
@@ -1922,13 +1923,10 @@ static int bnx2i_ep_tcp_conn_active(struct bnx2i_endpoint *bnx2i_ep)
 		ret = 1;
 		break;
 	case EP_STATE_TCP_RST_RCVD:
-		ret = 0;
-		break;
-	case EP_STATE_CONNECT_FAILED:
 		if (cnic_dev_10g)
-			ret = 1;
-		else
 			ret = 0;
+		else
+			ret = 1;
 		break;
 	default:
 		ret = 0;
