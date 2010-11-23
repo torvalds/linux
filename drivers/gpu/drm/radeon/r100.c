@@ -76,6 +76,8 @@ void r100_pre_page_flip(struct radeon_device *rdev, int crtc)
 	/* make sure flip is at vb rather than hb */
 	tmp = RREG32(RADEON_CRTC_OFFSET_CNTL + radeon_crtc->crtc_offset);
 	tmp &= ~RADEON_CRTC_OFFSET_FLIP_CNTL;
+	/* make sure pending bit is asserted */
+	tmp |= RADEON_CRTC_GUI_TRIG_OFFSET_LEFT_EN;
 	WREG32(RADEON_CRTC_OFFSET_CNTL + radeon_crtc->crtc_offset, tmp);
 
 	/* set pageflip to happen as late as possible in the vblank interval.
@@ -104,9 +106,9 @@ u32 r100_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base)
 	/* update the scanout addresses */
 	WREG32(RADEON_CRTC_OFFSET + radeon_crtc->crtc_offset, tmp);
 
-	/* Note: We don't wait for update_pending to assert, as this never
-	 * happens for some reason on R1xx - R4xx. Adds a bit of imprecision.
-	 */
+	/* Wait for update_pending to go high. */
+	while (!(RREG32(RADEON_CRTC_OFFSET + radeon_crtc->crtc_offset) & RADEON_CRTC_OFFSET__GUI_TRIG_OFFSET));
+	DRM_DEBUG("Update pending now high. Unlocking vupdate_lock.\n");
 
 	/* Unlock the lock, so double-buffering can take place inside vblank */
 	tmp &= ~RADEON_CRTC_OFFSET__OFFSET_LOCK;
