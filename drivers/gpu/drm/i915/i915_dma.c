@@ -1044,7 +1044,7 @@ static unsigned long i915_stolen_to_phys(struct drm_device *dev, u32 offset)
 		pci_read_config_byte(pdev, 0x9c, &val);
 		base = val >> 3 << 27;
 	}
-	base -= dev_priv->mm.gtt->gtt_stolen_entries << PAGE_SHIFT;
+	base -= dev_priv->mm.gtt->stolen_size;
 #endif
 
 	return base + offset;
@@ -1168,7 +1168,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	unsigned long prealloc_size, gtt_size, mappable_size;
 	int ret = 0;
 
-	prealloc_size = dev_priv->mm.gtt->gtt_stolen_entries << PAGE_SHIFT;
+	prealloc_size = dev_priv->mm.gtt->stolen_size;
 	gtt_size = dev_priv->mm.gtt->gtt_total_entries << PAGE_SHIFT;
 	mappable_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
 

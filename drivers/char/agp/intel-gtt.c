@@ -477,25 +477,16 @@ static const struct aper_size_info_fixed const intel_fake_agp_sizes[] = {
 	{512, 131072, 7},
 };
 
-static unsigned int intel_gtt_stolen_entries(void)
+static unsigned int intel_gtt_stolen_size(void)
 {
 	u16 gmch_ctrl;
 	u8 rdct;
 	int local = 0;
 	static const int ddt[4] = { 0, 16, 32, 64 };
-	unsigned int overhead_entries;
 	unsigned int stolen_size = 0;
 
 	pci_read_config_word(intel_private.bridge_dev,
 			     I830_GMCH_CTRL, &gmch_ctrl);
-
-	if (INTEL_GTT_GEN > 4 || IS_PINEVIEW)
-		overhead_entries = 0;
-	else
-		overhead_entries = intel_private.base.gtt_mappable_entries
-			/ 1024;
-
-	overhead_entries += 1; /* BIOS popup */
 
 	if (intel_private.bridge_dev->device == PCI_DEVICE_ID_INTEL_82830_HB ||
 	    intel_private.bridge_dev->device == PCI_DEVICE_ID_INTEL_82845G_HB) {
@@ -631,7 +622,7 @@ static unsigned int intel_gtt_stolen_entries(void)
 		stolen_size = 0;
 	}
 
-	return stolen_size/KB(4) - overhead_entries;
+	return stolen_size;
 }
 
 static void i965_adjust_pgetbl_size(unsigned int size_flag)
@@ -817,8 +808,8 @@ static int intel_gtt_init(void)
 	global_cache_flush();   /* FIXME: ? */
 
 	/* we have to call this as early as possible after the MMIO base address is known */
-	intel_private.base.gtt_stolen_entries = intel_gtt_stolen_entries();
-	if (intel_private.base.gtt_stolen_entries == 0) {
+	intel_private.base.stolen_size = intel_gtt_stolen_size();
+	if (intel_private.base.stolen_size == 0) {
 		intel_private.driver->cleanup();
 		iounmap(intel_private.registers);
 		iounmap(intel_private.gtt);
@@ -1006,8 +997,7 @@ static int intel_fake_agp_configure(void)
 
 	agp_bridge->gart_bus_addr = intel_private.gma_bus_addr;
 
-	for (i = intel_private.base.gtt_stolen_entries;
-			i < intel_private.base.gtt_total_entries; i++) {
+	for (i = 0; i < intel_private.base.gtt_total_entries; i++) {
 		intel_private.driver->write_entry(intel_private.scratch_page_dma,
 						  i, 0);
 	}
@@ -1065,17 +1055,7 @@ static int intel_fake_agp_insert_entries(struct agp_memory *mem,
 	if (mem->page_count == 0)
 		goto out;
 
-	if (pg_start < intel_private.base.gtt_stolen_entries) {
-		dev_printk(KERN_DEBUG, &intel_private.pcidev->dev,
-			   "pg_start == 0x%.8lx, gtt_stolen_entries == 0x%.8x\n",
-			   pg_start, intel_private.base.gtt_stolen_entries);
-
-		dev_info(&intel_private.pcidev->dev,
-			 "trying to insert into local/stolen memory\n");
-		goto out_err;
-	}
-
-	if ((pg_start + mem->page_count) > intel_private.base.gtt_total_entries)
+	if (pg_start + mem->page_count > intel_private.base.gtt_total_entries)
 		goto out_err;
 
 	if (type != mem->type)
@@ -1117,12 +1097,6 @@ static int intel_fake_agp_remove_entries(struct agp_memory *mem,
 
 	if (mem->page_count == 0)
 		return 0;
-
-	if (pg_start < intel_private.base.gtt_stolen_entries) {
-		dev_info(&intel_private.pcidev->dev,
-			 "trying to disable local/stolen memory\n");
-		return -EINVAL;
-	}
 
 	if (USE_PCI_DMA_API && INTEL_GTT_GEN > 2)
 		intel_agp_unmap_memory(mem);
@@ -1629,7 +1603,7 @@ int intel_gmch_probe(struct pci_dev *pdev,
 }
 EXPORT_SYMBOL(intel_gmch_probe);
 
-struct intel_gtt *intel_gtt_get(void)
+const struct intel_gtt *intel_gtt_get(void)
 {
 	return &intel_private.base;
 }

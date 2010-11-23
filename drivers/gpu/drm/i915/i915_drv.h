@@ -542,7 +542,7 @@ typedef struct drm_i915_private {
 
 	struct {
 		/** Bridge to intel-gtt-ko */
-		struct intel_gtt *gtt;
+		const struct intel_gtt *gtt;
 		/** Memory allocator for GTT stolen memory */
 		struct drm_mm stolen;
 		/** Memory allocator for GTT */
