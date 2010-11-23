@@ -226,11 +226,61 @@ int ath5k_hw_setup_tx_queue(struct ath5k_hw *ah, enum ath5k_tx_queue queue_type,
 \*******************************/
 
 /*
+ * Set tx retry limits on DCU
+ */
+static void ath5k_hw_set_tx_retry_limits(struct ath5k_hw *ah,
+					unsigned int queue)
+{
+	u32 retry_lg, retry_sh;
+
+	/*
+	 * Calculate and set retry limits
+	 */
+	if (ah->ah_software_retry) {
+		/* XXX Need to test this */
+		retry_lg = ah->ah_limit_tx_retries;
+		retry_sh = retry_lg = retry_lg > AR5K_DCU_RETRY_LMT_SH_RETRY ?
+			AR5K_DCU_RETRY_LMT_SH_RETRY : retry_lg;
+	} else {
+		retry_lg = AR5K_INIT_LG_RETRY;
+		retry_sh = AR5K_INIT_SH_RETRY;
+	}
+
+	/* Single data queue on AR5210 */
+	if (ah->ah_version == AR5K_AR5210) {
+		struct ath5k_txq_info *tq = &ah->ah_txq[queue];
+
+		if (queue > 0)
+			return;
+
+		ath5k_hw_reg_write(ah,
+			(tq->tqi_cw_min << AR5K_NODCU_RETRY_LMT_CW_MIN_S)
+			| AR5K_REG_SM(AR5K_INIT_SLG_RETRY,
+				AR5K_NODCU_RETRY_LMT_SLG_RETRY)
+			| AR5K_REG_SM(AR5K_INIT_SSH_RETRY,
+				AR5K_NODCU_RETRY_LMT_SSH_RETRY)
+			| AR5K_REG_SM(retry_lg, AR5K_NODCU_RETRY_LMT_LG_RETRY)
+			| AR5K_REG_SM(retry_sh, AR5K_NODCU_RETRY_LMT_SH_RETRY),
+			AR5K_NODCU_RETRY_LMT);
+	/* DCU on AR5211+ */
+	} else {
+		ath5k_hw_reg_write(ah,
+			AR5K_REG_SM(AR5K_INIT_SLG_RETRY,
+				AR5K_DCU_RETRY_LMT_SLG_RETRY) |
+			AR5K_REG_SM(AR5K_INIT_SSH_RETRY,
+				AR5K_DCU_RETRY_LMT_SSH_RETRY) |
+			AR5K_REG_SM(retry_lg, AR5K_DCU_RETRY_LMT_LG_RETRY) |
+			AR5K_REG_SM(retry_sh, AR5K_DCU_RETRY_LMT_SH_RETRY),
+			AR5K_QUEUE_DFS_RETRY_LIMIT(queue));
+	}
+	return;
+}
+
+/*
  * Set DFS properties for a transmit queue on DCU
  */
 int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 {
-	u32 retry_lg, retry_sh;
 	struct ath5k_txq_info *tq = &ah->ah_txq[queue];
 
 	AR5K_ASSERT_ENTRY(queue, ah->ah_capabilities.cap_queues.q_tx_num);
@@ -271,42 +321,7 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		ath5k_hw_reg_write(ah, (ah->ah_bwmode == AR5K_BWMODE_40MHZ) ?
 			AR5K_INIT_PROTO_TIME_CNTRL_TURBO :
 			AR5K_INIT_PROTO_TIME_CNTRL, AR5K_IFS1);
-	}
-
-	/*
-	 * Calculate and set retry limits
-	 */
-	if (ah->ah_software_retry) {
-		/* XXX Need to test this */
-		retry_lg = ah->ah_limit_tx_retries;
-		retry_sh = retry_lg = retry_lg > AR5K_DCU_RETRY_LMT_SH_RETRY ?
-			AR5K_DCU_RETRY_LMT_SH_RETRY : retry_lg;
 	} else {
-		retry_lg = AR5K_INIT_LG_RETRY;
-		retry_sh = AR5K_INIT_SH_RETRY;
-	}
-
-	/*No QCU/DCU [5210]*/
-	if (ah->ah_version == AR5K_AR5210) {
-		ath5k_hw_reg_write(ah,
-			(tq->tqi_cw_min << AR5K_NODCU_RETRY_LMT_CW_MIN_S)
-			| AR5K_REG_SM(AR5K_INIT_SLG_RETRY,
-				AR5K_NODCU_RETRY_LMT_SLG_RETRY)
-			| AR5K_REG_SM(AR5K_INIT_SSH_RETRY,
-				AR5K_NODCU_RETRY_LMT_SSH_RETRY)
-			| AR5K_REG_SM(retry_lg, AR5K_NODCU_RETRY_LMT_LG_RETRY)
-			| AR5K_REG_SM(retry_sh, AR5K_NODCU_RETRY_LMT_SH_RETRY),
-			AR5K_NODCU_RETRY_LMT);
-	} else {
-		/*QCU/DCU [5211+]*/
-		ath5k_hw_reg_write(ah,
-			AR5K_REG_SM(AR5K_INIT_SLG_RETRY,
-				AR5K_DCU_RETRY_LMT_SLG_RETRY) |
-			AR5K_REG_SM(AR5K_INIT_SSH_RETRY,
-				AR5K_DCU_RETRY_LMT_SSH_RETRY) |
-			AR5K_REG_SM(retry_lg, AR5K_DCU_RETRY_LMT_LG_RETRY) |
-			AR5K_REG_SM(retry_sh, AR5K_DCU_RETRY_LMT_SH_RETRY),
-			AR5K_QUEUE_DFS_RETRY_LIMIT(queue));
 
 	/*===Rest is also for QCU/DCU only [5211+]===*/
 
@@ -319,6 +334,11 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 			AR5K_REG_SM(tq->tqi_cw_max, AR5K_DCU_LCL_IFS_CW_MAX) |
 			AR5K_REG_SM(tq->tqi_aifs, AR5K_DCU_LCL_IFS_AIFS),
 			AR5K_QUEUE_DFS_LOCAL_IFS(queue));
+
+		/*
+		 * Set tx retry limits for this queue
+		 */
+		ath5k_hw_set_tx_retry_limits(ah, queue);
 
 		/*
 		 * Set misc registers
