@@ -1383,6 +1383,12 @@ static int bnx2i_conn_bind(struct iscsi_cls_session *cls_session,
 	ep = iscsi_lookup_endpoint(transport_fd);
 	if (!ep)
 		return -EINVAL;
+	/*
+	 * Forcefully terminate all in progress connection recovery at the
+	 * earliest, either in bind(), send_pdu(LOGIN), or conn_start()
+	 */
+	if (bnx2i_adapter_ready(hba))
+		return -EIO;
 
 	bnx2i_ep = ep->dd_data;
 	if ((bnx2i_ep->state == EP_STATE_TCP_FIN_RCVD) ||
@@ -1404,7 +1410,6 @@ static int bnx2i_conn_bind(struct iscsi_cls_session *cls_session,
 				  hba->netdev->name);
 		return -EEXIST;
 	}
-
 	bnx2i_ep->conn = bnx2i_conn;
 	bnx2i_conn->ep = bnx2i_ep;
 	bnx2i_conn->iscsi_conn_cid = bnx2i_ep->ep_iscsi_cid;
