@@ -250,20 +250,6 @@ char * __init xen_memory_setup(void)
 	return "Xen";
 }
 
-static void xen_idle(void)
-{
-	local_irq_disable();
-
-	if (need_resched())
-		local_irq_enable();
-	else {
-		current_thread_info()->status &= ~TS_POLLING;
-		smp_mb__after_clear_bit();
-		safe_halt();
-		current_thread_info()->status |= TS_POLLING;
-	}
-}
-
 /*
  * Set the bit indicating "nosegneg" library variants should be used.
  * We only need to bother in pure 32-bit mode; compat 32-bit processes
@@ -360,7 +346,11 @@ void __init xen_arch_setup(void)
 	       MAX_GUEST_CMDLINE > COMMAND_LINE_SIZE ?
 	       COMMAND_LINE_SIZE : MAX_GUEST_CMDLINE);
 
-	pm_idle = xen_idle;
+	/* Set up idle, making sure it calls safe_halt() pvop */
+#ifdef CONFIG_X86_32
+	boot_cpu_data.hlt_works_ok = 1;
+#endif
+	pm_idle = default_idle;
 
 	fiddle_vdso();
 }
