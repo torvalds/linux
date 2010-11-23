@@ -426,9 +426,6 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_format_t fmt;
 	unsigned element_cnt = 1;
 
-	dai->capture_dma_data = dev->dma_params;
-	dai->playback_dma_data = dev->dma_params;
-
 	/* general line settings */
 	spcr = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
@@ -601,6 +598,15 @@ static int davinci_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	return ret;
 }
 
+static int davinci_i2s_startup(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
+{
+	struct davinci_mcbsp_dev *dev = snd_soc_dai_get_drvdata(dai);
+
+	snd_soc_dai_set_dma_data(dai, substream, dev->dma_params);
+	return 0;
+}
+
 static void davinci_i2s_shutdown(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
@@ -612,6 +618,7 @@ static void davinci_i2s_shutdown(struct snd_pcm_substream *substream,
 #define DAVINCI_I2S_RATES	SNDRV_PCM_RATE_8000_96000
 
 static struct snd_soc_dai_ops davinci_i2s_dai_ops = {
+	.startup	= davinci_i2s_startup,
 	.shutdown	= davinci_i2s_shutdown,
 	.prepare	= davinci_i2s_prepare,
 	.trigger	= davinci_i2s_trigger,
@@ -749,7 +756,7 @@ static struct platform_driver davinci_mcbsp_driver = {
 	.probe		= davinci_i2s_probe,
 	.remove		= davinci_i2s_remove,
 	.driver		= {
-		.name	= "davinci-i2s",
+		.name	= "davinci-mcbsp",
 		.owner	= THIS_MODULE,
 	},
 };
