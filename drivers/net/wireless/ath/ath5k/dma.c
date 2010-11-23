@@ -70,7 +70,11 @@ int ath5k_hw_stop_rx_dma(struct ath5k_hw *ah)
 	for (i = 1000; i > 0 &&
 			(ath5k_hw_reg_read(ah, AR5K_CR) & AR5K_CR_RXE) != 0;
 			i--)
-		udelay(10);
+		udelay(100);
+
+	if (i)
+		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+				"failed to stop RX DMA !\n");
 
 	return i ? 0 : -EBUSY;
 }
@@ -217,7 +221,18 @@ int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 		 */
 		AR5K_REG_WRITE_Q(ah, AR5K_QCU_TXD, queue);
 
-		/*Check for pending frames*/
+		/* Wait for queue to stop */
+		for (i = 1000; i > 0 &&
+		(AR5K_REG_READ_Q(ah, AR5K_QCU_TXE, queue) != 0);
+		i--)
+			udelay(100);
+
+		if (AR5K_REG_READ_Q(ah, AR5K_QCU_TXE, queue))
+			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+				"queue %i didn't stop !\n", queue);
+
+		/* Check for pending frames */
+		i = 1000;
 		do {
 			pending = ath5k_hw_reg_read(ah,
 				AR5K_QUEUE_STATUS(queue)) &
@@ -248,12 +263,12 @@ int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 					AR5K_DIAG_SW_CHANNEL_IDLE_HIGH);
 
 			/* Wait a while and disable mechanism */
-			udelay(200);
+			udelay(400);
 			AR5K_REG_DISABLE_BITS(ah, AR5K_QUIET_CTL1,
 						AR5K_QUIET_CTL1_QT_EN);
 
 			/* Re-check for pending frames */
-			i = 40;
+			i = 100;
 			do {
 				pending = ath5k_hw_reg_read(ah,
 					AR5K_QUEUE_STATUS(queue)) &
@@ -263,12 +278,21 @@ int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 
 			AR5K_REG_DISABLE_BITS(ah, AR5K_DIAG_SW_5211,
 					AR5K_DIAG_SW_CHANNEL_IDLE_HIGH);
+
+			if (pending)
+				ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+					"quiet mechanism didn't work q:%i !\n",
+					queue);
 		}
 
 		/* Clear register */
 		ath5k_hw_reg_write(ah, 0, AR5K_QCU_TXD);
-		if (pending)
+		if (pending) {
+			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+					"tx dma didn't stop (q:%i, frm:%i) !\n",
+					queue, pending);
 			return -EBUSY;
+		}
 	}
 
 	/* TODO: Check for success on 5210 else return error */
