@@ -222,20 +222,17 @@ static struct clk_lookup pxa25x_hwuart_clkreg =
  */
 enum {
 	SLEEP_SAVE_PSTR,
-	SLEEP_SAVE_CKEN,
 	SLEEP_SAVE_COUNT
 };
 
 
 static void pxa25x_cpu_pm_save(unsigned long *sleep_save)
 {
-	SAVE(CKEN);
 	SAVE(PSTR);
 }
 
 static void pxa25x_cpu_pm_restore(unsigned long *sleep_save)
 {
-	RESTORE(CKEN);
 	RESTORE(PSTR);
 }
 
@@ -358,7 +355,9 @@ static struct sys_device pxa25x_sysdev[] = {
 		.cls	= &pxa2xx_mfp_sysclass,
 	}, {
 		.cls	= &pxa_gpio_sysclass,
-	},
+	}, {
+		.cls	= &pxa2xx_clock_sysclass,
+	}
 };
 
 static int __init pxa25x_init(void)

@@ -258,7 +258,6 @@ int __init pxa27x_set_pwrmode(unsigned int mode)
  */
 enum {
 	SLEEP_SAVE_PSTR,
-	SLEEP_SAVE_CKEN,
 	SLEEP_SAVE_MDREFR,
 	SLEEP_SAVE_PCFR,
 	SLEEP_SAVE_COUNT
@@ -269,7 +268,6 @@ void pxa27x_cpu_pm_save(unsigned long *sleep_save)
 	sleep_save[SLEEP_SAVE_MDREFR] = __raw_readl(MDREFR);
 	SAVE(PCFR);
 
-	SAVE(CKEN);
 	SAVE(PSTR);
 }
 
@@ -280,7 +278,6 @@ void pxa27x_cpu_pm_restore(unsigned long *sleep_save)
 
 	PSSR = PSSR_RDH | PSSR_PH;
 
-	RESTORE(CKEN);
 	RESTORE(PSTR);
 }
 
@@ -438,7 +435,9 @@ static struct sys_device pxa27x_sysdev[] = {
 		.cls	= &pxa2xx_mfp_sysclass,
 	}, {
 		.cls	= &pxa_gpio_sysclass,
-	},
+	}, {
+		.cls	= &pxa2xx_clock_sysclass,
+	}
 };
 
 static int __init pxa27x_init(void)

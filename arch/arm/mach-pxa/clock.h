@@ -1,3 +1,4 @@
+#include <linux/sysdev.h>
 #include <asm/clkdev.h>
 
 struct clkops {
@@ -52,6 +53,8 @@ extern const struct clkops clk_pxa2xx_cken_ops;
 
 void clk_pxa2xx_cken_enable(struct clk *clk);
 void clk_pxa2xx_cken_disable(struct clk *clk);
+
+extern struct sysdev_class pxa2xx_clock_sysclass;
 
 #ifdef CONFIG_PXA3xx
 #define DEFINE_PXA3_CKEN(_name, _cken, _rate, _delay)	\
