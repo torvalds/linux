@@ -522,10 +522,6 @@ static int mtd_blkpg_ioctl(struct mtd_info *mtd,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	/* Only master mtd device must be used to control partitions */
-	if (!mtd_is_master(mtd))
-		return -EINVAL;
-
 	if (copy_from_user(&a, arg, sizeof(struct blkpg_ioctl_arg)))
 		return -EFAULT;
 
@@ -534,6 +530,10 @@ static int mtd_blkpg_ioctl(struct mtd_info *mtd,
 
 	switch (a.op) {
 	case BLKPG_ADD_PARTITION:
+
+		/* Only master mtd device must be used to add partitions */
+		if (mtd_is_partition(mtd))
+			return -EINVAL;
 
 		return mtd_add_partition(mtd, p.devname, p.start, p.length);
 
