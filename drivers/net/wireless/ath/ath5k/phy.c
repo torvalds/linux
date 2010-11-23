@@ -3109,6 +3109,9 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 
 	/* Initialize TX power table */
 	switch (ah->ah_radio) {
+	case AR5K_RF5110:
+		/* TODO */
+		return 0;
 	case AR5K_RF5111:
 		type = AR5K_PWRTABLE_PWR_TO_PCDAC;
 		break;
