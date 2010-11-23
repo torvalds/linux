@@ -216,6 +216,14 @@ int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 		ath5k_hw_reg_write(ah, tx_queue, AR5K_CR);
 		ath5k_hw_reg_read(ah, AR5K_CR);
 	} else {
+
+		/*
+		 * Enable DCU early termination to quickly
+		 * flush any pending frames from QCU
+		 */
+		AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_MISC(queue),
+					AR5K_QCU_MISC_DCU_EARLY);
+
 		/*
 		 * Schedule TX disable and wait until queue is empty
 		 */
@@ -284,6 +292,12 @@ int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 					"quiet mechanism didn't work q:%i !\n",
 					queue);
 		}
+
+		/*
+		 * Disable DCU early termination
+		 */
+		AR5K_REG_DISABLE_BITS(ah, AR5K_QUEUE_MISC(queue),
+					AR5K_QCU_MISC_DCU_EARLY);
 
 		/* Clear register */
 		ath5k_hw_reg_write(ah, 0, AR5K_QCU_TXD);

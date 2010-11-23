@@ -340,9 +340,6 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		/*
 		 * Set misc registers
 		 */
-		/* Enable DCU early termination for this queue */
-		AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_MISC(queue),
-					AR5K_QCU_MISC_DCU_EARLY);
 
 		/* Enable DCU to wait for next fragment from QCU */
 		AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_DFS_MISC(queue),
