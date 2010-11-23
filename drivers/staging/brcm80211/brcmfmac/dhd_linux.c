@@ -2251,14 +2251,6 @@ static struct net_device_ops dhd_ops_pri = {
 	.ndo_set_multicast_list = dhd_set_multicast_list
 };
 
-static struct net_device_ops dhd_ops_virt = {
-	.ndo_get_stats = dhd_get_stats,
-	.ndo_do_ioctl = dhd_ioctl_entry,
-	.ndo_start_xmit = dhd_start_xmit,
-	.ndo_set_mac_address = dhd_set_mac_address,
-	.ndo_set_multicast_list = dhd_set_multicast_list
-};
-
 int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 {
 	dhd_info_t *dhd = (dhd_info_t *) dhdp->info;
