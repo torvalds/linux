@@ -647,5 +647,10 @@ int ath5k_hw_init_queues(struct ath5k_hw *ah)
 		 * on ath5k_hw_set_ifs_intervals */
 		ath5k_hw_set_tx_retry_limits(ah, 0);
 
+	/* Set the turbo flag when operating on 40MHz */
+	if (ah->ah_bwmode == AR5K_BWMODE_40MHZ)
+		AR5K_REG_ENABLE_BITS(ah, AR5K_DCU_GBL_IFS_MISC,
+				AR5K_DCU_GBL_IFS_MISC_TURBO_MODE);
+
 	return 0;
 }
