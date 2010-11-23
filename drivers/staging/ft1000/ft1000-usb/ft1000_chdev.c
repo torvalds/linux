@@ -78,88 +78,6 @@ static struct file_operations ft1000fops =
 	.llseek		= no_llseek,
 };
 
-
-
-
-//---------------------------------------------------------------------------
-// Function:    exec_mknod
-//
-// Parameters:
-//
-// Returns:
-//
-// Description:
-//
-// Notes:
-//
-//---------------------------------------------------------------------------
-static int exec_mknod (void *pdata)
-{
-	struct ft1000_info *info;
-    char mjnum[4];
-    char minornum[4];
-    char temp[32];
-    int retcode;
-//    int i;					//aelias [-] reason : unused variable
-    char *envp[] = { "HOME=/", "PATH=/usr/bin:/bin", NULL };
-    char *argv[]={"-m 666",temp,"c",mjnum,minornum,NULL};
-
-    info = pdata;
-    DEBUG("ft1000_chdev:exec_mknod is called with major number = %d\n", info->DeviceMajor);
-    sprintf(temp, "%s%s", "/dev/", info->DeviceName) ;
-    sprintf(mjnum, "%d", info->DeviceMajor);
-    sprintf(minornum, "%d", info->CardNumber);
-
-    //char *argv[]={"mknod","-m 666",temp,"c",mjnum,minornum,NULL};
-//    char *argv[]={"-m 666",temp,"c",mjnum,minornum,NULL};
-
-    //for (i=0; i<7;i++)
-    //    DEBUG("argv[%d]=%s\n", i, argv[i]);
-
-
-    retcode = call_usermodehelper ("/bin/mknod", argv, envp, 1);
-    if (retcode) {
-        DEBUG("ft1000_chdev:exec_mknod failed to make the node: retcode = %d\n", retcode);
-    }
-
-
-
-    return retcode;
-
-}
-
-//---------------------------------------------------------------------------
-// Function:    rm_mknod
-//
-// Description: This module removes the FT1000 device file
-//
-//---------------------------------------------------------------------------
-static int rm_mknod (void *pdata)
-{
-
-	struct ft1000_info *info;
-    //char *argv[4]={"rm", "-f", "/dev/FT1000", NULL};
-    int retcode;
-    char temp[32];
-    char *argv[]={"rm", "-f", temp, NULL};
-
-	info = (struct ft1000_info *)pdata;
-    DEBUG("ft1000_chdev:rm_mknod is called for device %s\n", info->DeviceName);
-    sprintf(temp, "%s%s", "/dev/", info->DeviceName) ;
-
-//    char *argv[]={"rm", "-f", temp, NULL};
-
-    retcode = call_usermodehelper ("/bin/rm", argv, NULL, 1);
-    if (retcode) {
-        DEBUG("ft1000_chdev:rm_mknod failed to remove the node: retcode = %d\n", retcode);
-    }
-    else
-        DEBUG("ft1000_chdev:rm_mknod done!\n");
-
-
-    return retcode;
-
-}
 //---------------------------------------------------------------------------
 // Function:    ft1000_get_buffer
 //
@@ -238,14 +156,9 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
 	struct ft1000_info *info = netdev_priv(dev->net);
     int result;
     int i;
-    pid_t pid;
 
     // make a new device name
     sprintf(info->DeviceName, "%s%d", "FT100", info->CardNumber);
-
-    // Delete any existing FT1000 node
-    pid = kernel_thread (rm_mknod,(void *)info, 0);
-    msleep(1000);
 
     DEBUG("ft1000_CreateDevice: number of instance = %d\n", ft1000_flarion_cnt);
     DEBUG("DeviceCreated = %x\n", info->DeviceCreated);
@@ -281,9 +194,6 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
 	info->DeviceMajor = result;
 	DEBUG("ft1000_PcdCreateDevice: device major = %d\n", info->DeviceMajor);
     }
-
-    // Create a thread to call user mode app to mknod
-    pid = kernel_thread (exec_mknod, (void *)info, 0);
 
     // initialize application information
 
@@ -350,7 +260,6 @@ void ft1000_DestroyDevice(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
     int result = 0;
-    pid_t pid;
 		int i;
 	struct dpram_blk *pdpram_blk;
 	struct dpram_blk *ptr;
@@ -365,8 +274,6 @@ void ft1000_DestroyDevice(struct net_device *dev)
 		unregister_chrdev(info->DeviceMajor, info->DeviceName);
 		DEBUG("ft1000_DestroyDevice: unregistered device \"%s\", result = %d\n",
 					   info->DeviceName, result);
-
-       pid = kernel_thread (rm_mknod, (void *)info, 0);
 
         // Make sure we free any memory reserve for slow Queue
         for (i=0; i<MAX_NUM_APP; i++) {
