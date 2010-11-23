@@ -246,21 +246,21 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 			return 0;
 
 		/* Set Slot time */
-		ath5k_hw_reg_write(ah, ah->ah_turbo ?
+		ath5k_hw_reg_write(ah, (ah->ah_bwmode == AR5K_BWMODE_40MHZ) ?
 			AR5K_INIT_SLOT_TIME_TURBO : AR5K_INIT_SLOT_TIME,
 			AR5K_SLOT_TIME);
 		/* Set ACK_CTS timeout */
-		ath5k_hw_reg_write(ah, ah->ah_turbo ?
+		ath5k_hw_reg_write(ah, (ah->ah_bwmode == AR5K_BWMODE_40MHZ) ?
 			AR5K_INIT_ACK_CTS_TIMEOUT_TURBO :
 			AR5K_INIT_ACK_CTS_TIMEOUT, AR5K_SLOT_TIME);
 		/* Set Transmit Latency */
-		ath5k_hw_reg_write(ah, ah->ah_turbo ?
+		ath5k_hw_reg_write(ah, (ah->ah_bwmode == AR5K_BWMODE_40MHZ) ?
 			AR5K_INIT_TRANSMIT_LATENCY_TURBO :
 			AR5K_INIT_TRANSMIT_LATENCY, AR5K_USEC_5210);
 
 		/* Set IFS0 */
-		if (ah->ah_turbo) {
-			 ath5k_hw_reg_write(ah, ((AR5K_INIT_SIFS_TURBO +
+		if (ah->ah_bwmode == AR5K_BWMODE_40MHZ) {
+			ath5k_hw_reg_write(ah, ((AR5K_INIT_SIFS_TURBO +
 				tq->tqi_aifs * AR5K_INIT_SLOT_TIME_TURBO) <<
 				AR5K_IFS0_DIFS_S) | AR5K_INIT_SIFS_TURBO,
 				AR5K_IFS0);
@@ -272,18 +272,18 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		}
 
 		/* Set IFS1 */
-		ath5k_hw_reg_write(ah, ah->ah_turbo ?
+		ath5k_hw_reg_write(ah, (ah->ah_bwmode == AR5K_BWMODE_40MHZ) ?
 			AR5K_INIT_PROTO_TIME_CNTRL_TURBO :
 			AR5K_INIT_PROTO_TIME_CNTRL, AR5K_IFS1);
 		/* Set AR5K_PHY_SETTLING */
-		ath5k_hw_reg_write(ah, ah->ah_turbo ?
+		ath5k_hw_reg_write(ah, (ah->ah_bwmode == AR5K_BWMODE_40MHZ) ?
 			(ath5k_hw_reg_read(ah, AR5K_PHY_SETTLING) & ~0x7F)
 			| 0x38 :
 			(ath5k_hw_reg_read(ah, AR5K_PHY_SETTLING) & ~0x7F)
 			| 0x1C,
 			AR5K_PHY_SETTLING);
 		/* Set Frame Control Register */
-		ath5k_hw_reg_write(ah, ah->ah_turbo ?
+		ath5k_hw_reg_write(ah, (ah->ah_bwmode == AR5K_BWMODE_40MHZ) ?
 			(AR5K_PHY_FRAME_CTL_INI | AR5K_PHY_TURBO_MODE |
 			AR5K_PHY_TURBO_SHORT | 0x2020) :
 			(AR5K_PHY_FRAME_CTL_INI | 0x1020),

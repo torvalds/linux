@@ -115,7 +115,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	 * HW information
 	 */
 	ah->ah_radar.r_enabled = AR5K_TUNE_RADAR_ALERT;
-	ah->ah_turbo = false;
+	ah->ah_bwmode = AR5K_BWMODE_DEFAULT;
 	ah->ah_txpower.txp_tpc = AR5K_TUNE_TPC_TXPOWER;
 	ah->ah_imr = 0;
 	ah->ah_limit_tx_retries = AR5K_INIT_TX_RETRY;

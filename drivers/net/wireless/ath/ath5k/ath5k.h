@@ -424,6 +424,12 @@ enum ath5k_ant_mode {
 	AR5K_ANTMODE_MAX,
 };
 
+enum ath5k_bw_mode {
+	AR5K_BWMODE_DEFAULT	= 0,	/* 20MHz, default operation */
+	AR5K_BWMODE_5MHZ	= 1,	/* Quarter rate */
+	AR5K_BWMODE_10MHZ	= 2,	/* Half rate */
+	AR5K_BWMODE_40MHZ	= 3	/* Turbo */
+};
 
 /****************\
   TX DEFINITIONS
@@ -1026,7 +1032,6 @@ struct ath5k_hw {
 	enum ath5k_int		ah_imr;
 
 	struct ieee80211_channel *ah_current_channel;
-	bool			ah_turbo;
 	bool			ah_calibration;
 	bool			ah_single_chip;
 
@@ -1044,6 +1049,7 @@ struct ath5k_hw {
 
 	u32			ah_limit_tx_retries;
 	u8			ah_coverage_class;
+	u8			ah_bwmode;
 
 	/* Antenna Control */
 	u32			ah_ant_ctl[AR5K_EEPROM_N_MODES][AR5K_ANT_MAX];
