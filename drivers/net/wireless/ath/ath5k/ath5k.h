@@ -222,34 +222,15 @@
 
 /* Initial values */
 #define	AR5K_INIT_CYCRSSI_THR1			2
-#define AR5K_INIT_TX_LATENCY			502
-#define AR5K_INIT_USEC				39
-#define AR5K_INIT_USEC_TURBO			79
-#define AR5K_INIT_USEC_32			31
-#define AR5K_INIT_SLOT_TIME_CLOCK		396
-#define AR5K_INIT_SLOT_TIME_TURBO_CLOCK		480
-#define AR5K_INIT_ACK_CTS_TIMEOUT		1024
-#define AR5K_INIT_ACK_CTS_TIMEOUT_TURBO		0x08000800
-#define AR5K_INIT_PROG_IFS			920
-#define AR5K_INIT_PROG_IFS_TURBO		960
-#define AR5K_INIT_EIFS				3440
-#define AR5K_INIT_EIFS_TURBO			6880
-#define AR5K_INIT_SIFS_CLOCK			560
-#define AR5K_INIT_SIFS_TURBO_CLOCK		480
+
+/* Tx retry limits */
 #define AR5K_INIT_SH_RETRY			10
 #define AR5K_INIT_LG_RETRY			AR5K_INIT_SH_RETRY
+/* For station mode */
 #define AR5K_INIT_SSH_RETRY			32
 #define AR5K_INIT_SLG_RETRY			AR5K_INIT_SSH_RETRY
 #define AR5K_INIT_TX_RETRY			10
 
-#define AR5K_INIT_PROTO_TIME_CNTRL		(			\
-	(AR5K_INIT_CARR_SENSE_EN << 26) | (AR5K_INIT_EIFS << 12) |	\
-	(AR5K_INIT_PROG_IFS)						\
-)
-#define AR5K_INIT_PROTO_TIME_CNTRL_TURBO	(			\
-	(AR5K_INIT_CARR_SENSE_EN << 26) | (AR5K_INIT_EIFS_TURBO << 12) | \
-	(AR5K_INIT_PROG_IFS_TURBO)					\
-)
 
 /* Slot time */
 #define AR5K_INIT_SLOT_TIME_TURBO		6
@@ -1240,6 +1221,10 @@ int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac);
 
 
 /* Protocol Control Unit Functions */
+/* Helpers */
+int ath5k_hw_get_frame_duration(struct ath5k_hw *ah,
+		int len, struct ieee80211_rate *rate);
+unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah);
 extern int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype opmode);
 void ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class);
 /* RX filter control*/
@@ -1273,7 +1258,7 @@ int ath5k_hw_setup_tx_queue(struct ath5k_hw *ah,
 u32 ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue);
 void ath5k_hw_release_tx_queue(struct ath5k_hw *ah, unsigned int queue);
 int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue);
-int ath5k_hw_set_slot_time(struct ath5k_hw *ah, unsigned int slot_time);
+int ath5k_hw_set_ifs_intervals(struct ath5k_hw *ah, unsigned int slot_time);
 /* Init function */
 int ath5k_hw_init_queues(struct ath5k_hw *ah);
 

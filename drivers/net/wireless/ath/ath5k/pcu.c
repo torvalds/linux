@@ -763,7 +763,7 @@ ath5k_hw_check_beacon_timers(struct ath5k_hw *ah, int intval)
  * @ah: The &struct ath5k_hw
  * @coverage_class: IEEE 802.11 coverage class number
  *
- * Sets slot time, ACK timeout and CTS timeout for given coverage class.
+ * Sets IFS intervals and ACK/CTS timeouts for given coverage class.
  */
 void ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class)
 {
@@ -772,7 +772,7 @@ void ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class)
 	int ack_timeout = ath5k_hw_get_default_sifs(ah) + slot_time;
 	int cts_timeout = ack_timeout;
 
-	ath5k_hw_set_slot_time(ah, slot_time);
+	ath5k_hw_set_ifs_intervals(ah, slot_time);
 	ath5k_hw_set_ack_timeout(ah, ack_timeout);
 	ath5k_hw_set_cts_timeout(ah, cts_timeout);
 

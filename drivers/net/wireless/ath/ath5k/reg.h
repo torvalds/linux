@@ -787,6 +787,7 @@
 #define	AR5K_DCU_GBL_IFS_MISC_LFSR_SLICE	0x00000007	/* LFSR Slice Select */
 #define	AR5K_DCU_GBL_IFS_MISC_TURBO_MODE	0x00000008	/* Turbo mode */
 #define	AR5K_DCU_GBL_IFS_MISC_SIFS_DUR_USEC	0x000003f0	/* SIFS Duration mask */
+#define	AR5K_DCU_GBL_IFS_MISC_SIFS_DUR_USEC_S	4
 #define	AR5K_DCU_GBL_IFS_MISC_USEC_DUR		0x000ffc00	/* USEC Duration mask */
 #define	AR5K_DCU_GBL_IFS_MISC_USEC_DUR_S	10
 #define	AR5K_DCU_GBL_IFS_MISC_DCU_ARB_DELAY	0x00300000	/* DCU Arbiter delay mask */
@@ -1311,7 +1312,7 @@
 #define AR5K_IFS1_EIFS		0x03fff000
 #define AR5K_IFS1_EIFS_S	12
 #define AR5K_IFS1_CS_EN		0x04000000
-
+#define AR5K_IFS1_CS_EN_S	26
 
 /*
  * CFP duration register
