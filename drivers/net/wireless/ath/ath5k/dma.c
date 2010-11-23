@@ -58,7 +58,7 @@ void ath5k_hw_start_rx_dma(struct ath5k_hw *ah)
  *
  * @ah:	The &struct ath5k_hw
  */
-int ath5k_hw_stop_rx_dma(struct ath5k_hw *ah)
+static int ath5k_hw_stop_rx_dma(struct ath5k_hw *ah)
 {
 	unsigned int i;
 
@@ -188,7 +188,7 @@ int ath5k_hw_start_tx_dma(struct ath5k_hw *ah, unsigned int queue)
  * -EINVAL if queue number is out of range or inactive.
  *
  */
-int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
+static int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 {
 	unsigned int i = 40;
 	u32 tx_queue, pending;
@@ -317,6 +317,26 @@ int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 	}
 
 	/* TODO: Check for success on 5210 else return error */
+	return 0;
+}
+
+/**
+ * ath5k_hw_stop_beacon_queue - Stop beacon queue
+ *
+ * @ah The &struct ath5k_hw
+ * @queue The queue number
+ *
+ * Returns -EIO if queue didn't stop
+ */
+int ath5k_hw_stop_beacon_queue(struct ath5k_hw *ah, unsigned int queue)
+{
+	int ret;
+	ret = ath5k_hw_stop_tx_dma(ah, queue);
+	if (ret) {
+		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
+				"beacon queue didn't stop !\n");
+		return -EIO;
+	}
 	return 0;
 }
 

@@ -1922,7 +1922,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 	 * This should never fail since we check above that no frames
 	 * are still pending on the queue.
 	 */
-	if (unlikely(ath5k_hw_stop_tx_dma(ah, sc->bhalq))) {
+	if (unlikely(ath5k_hw_stop_beacon_queue(ah, sc->bhalq))) {
 		ATH5K_WARN(sc, "beacon queue %u didn't start/stop ?\n", sc->bhalq);
 		/* NB: hw still stops DMA, so proceed */
 	}
@@ -2091,7 +2091,7 @@ ath5k_beacon_config(struct ath5k_softc *sc)
 		} else
 			ath5k_beacon_update_timers(sc, -1);
 	} else {
-		ath5k_hw_stop_tx_dma(sc->ah, sc->bhalq);
+		ath5k_hw_stop_beacon_queue(sc->ah, sc->bhalq);
 	}
 
 	ath5k_hw_set_imr(ah, sc->imask);

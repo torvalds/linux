@@ -1166,11 +1166,10 @@ void ath5k_hw_set_clockrate(struct ath5k_hw *ah);
 
 /* DMA Related Functions */
 void ath5k_hw_start_rx_dma(struct ath5k_hw *ah);
-int ath5k_hw_stop_rx_dma(struct ath5k_hw *ah);
 u32 ath5k_hw_get_rxdp(struct ath5k_hw *ah);
 int ath5k_hw_set_rxdp(struct ath5k_hw *ah, u32 phys_addr);
 int ath5k_hw_start_tx_dma(struct ath5k_hw *ah, unsigned int queue);
-int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue);
+int ath5k_hw_stop_beacon_queue(struct ath5k_hw *ah, unsigned int queue);
 u32 ath5k_hw_get_txdp(struct ath5k_hw *ah, unsigned int queue);
 int ath5k_hw_set_txdp(struct ath5k_hw *ah, unsigned int queue,
 				u32 phys_addr);
