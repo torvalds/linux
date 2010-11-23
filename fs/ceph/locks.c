@@ -49,6 +49,25 @@ static int ceph_lock_message(u8 lock_type, u16 operation, struct file *file,
 	req->r_args.filelock_change.wait = wait;
 
 	err = ceph_mdsc_do_request(mdsc, inode, req);
+
+	if ( operation == CEPH_MDS_OP_GETFILELOCK){
+		fl->fl_pid = le64_to_cpu(req->r_reply_info.filelock_reply->pid);
+		if (CEPH_LOCK_SHARED == req->r_reply_info.filelock_reply->type)
+			fl->fl_type = F_RDLCK;
+		else if (CEPH_LOCK_EXCL == req->r_reply_info.filelock_reply->type)
+			fl->fl_type = F_WRLCK;
+		else
+			fl->fl_type = F_UNLCK;
+
+		fl->fl_start = le64_to_cpu(req->r_reply_info.filelock_reply->start);
+		length = le64_to_cpu(req->r_reply_info.filelock_reply->start) +
+						 le64_to_cpu(req->r_reply_info.filelock_reply->length);
+		if (length >= 1)
+			fl->fl_end = length -1;
+		else
+			fl->fl_end = 0;
+
+	}
 	ceph_mdsc_put_request(req);
 	dout("ceph_lock_message: rule: %d, op: %d, pid: %llu, start: %llu, "
 	     "length: %llu, wait: %d, type`: %d, err code %d", (int)lock_type,
@@ -86,15 +105,18 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 
 	err = ceph_lock_message(CEPH_LOCK_FCNTL, op, file, lock_cmd, wait, fl);
 	if (!err) {
-		dout("mds locked, locking locally");
-		err = posix_lock_file(file, fl, NULL);
-		if (err && (CEPH_MDS_OP_SETFILELOCK == op)) {
-			/* undo! This should only happen if the kernel detects
-			 * local deadlock. */
-			ceph_lock_message(CEPH_LOCK_FCNTL, op, file,
-					  CEPH_LOCK_UNLOCK, 0, fl);
-			dout("got %d on posix_lock_file, undid lock", err);
+		if ( op != CEPH_MDS_OP_GETFILELOCK ){
+			dout("mds locked, locking locally");
+			err = posix_lock_file(file, fl, NULL);
+			if (err && (CEPH_MDS_OP_SETFILELOCK == op)) {
+				/* undo! This should only happen if the kernel detects
+				 * local deadlock. */
+				ceph_lock_message(CEPH_LOCK_FCNTL, op, file,
+						  CEPH_LOCK_UNLOCK, 0, fl);
+				dout("got %d on posix_lock_file, undid lock", err);
+			}
 		}
+
 	} else {
 		dout("mds returned error code %d", err);
 	}
