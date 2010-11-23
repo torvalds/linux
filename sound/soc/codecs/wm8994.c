@@ -2503,6 +2503,8 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC2_DET, wm8994);
 	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_SHRT, wm8994);
 	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_DET, wm8994);
+	kfree(wm8994->retune_mobile_texts);
+	kfree(wm8994->drc_texts);
 	kfree(wm8994);
 
 	return 0;
