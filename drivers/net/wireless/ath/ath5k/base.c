@@ -80,7 +80,8 @@ MODULE_SUPPORTED_DEVICE("Atheros 5xxx WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION("0.6.0 (EXPERIMENTAL)");
 
-static int ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan);
+static int ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
+								bool skip_pcu);
 static int ath5k_beacon_update(struct ieee80211_hw *hw,
 		struct ieee80211_vif *vif);
 static void ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf);
@@ -496,7 +497,7 @@ ath5k_chan_set(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 	 * hardware at the new frequency, and then re-enable
 	 * the relevant bits of the h/w.
 	 */
-	return ath5k_reset(sc, chan);
+	return ath5k_reset(sc, chan, true);
 }
 
 static void
@@ -2327,7 +2328,7 @@ ath5k_tx_complete_poll_work(struct work_struct *work)
 	if (needreset) {
 		ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
 			  "TX queues stuck, resetting\n");
-		ath5k_reset(sc, sc->curchan);
+		ath5k_reset(sc, NULL, true);
 	}
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work,
@@ -2407,7 +2408,7 @@ ath5k_init(struct ath5k_softc *sc)
 		AR5K_INT_RXORN | AR5K_INT_TXDESC | AR5K_INT_TXEOL |
 		AR5K_INT_FATAL | AR5K_INT_GLOBAL | AR5K_INT_MIB;
 
-	ret = ath5k_reset(sc, NULL);
+	ret = ath5k_reset(sc, NULL, false);
 	if (ret)
 		goto done;
 
@@ -2506,7 +2507,8 @@ ath5k_stop_hw(struct ath5k_softc *sc)
  * This should be called with sc->lock.
  */
 static int
-ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan)
+ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
+							bool skip_pcu)
 {
 	struct ath5k_hw *ah = sc->ah;
 	int ret;
@@ -2523,7 +2525,8 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 		sc->curchan = chan;
 		sc->curband = &sc->sbands[chan->band];
 	}
-	ret = ath5k_hw_reset(ah, sc->opmode, sc->curchan, chan != NULL);
+	ret = ath5k_hw_reset(ah, sc->opmode, sc->curchan, chan != NULL,
+								skip_pcu);
 	if (ret) {
 		ATH5K_ERR(sc, "can't reset hardware (%d)\n", ret);
 		goto err;
@@ -2569,7 +2572,7 @@ static void ath5k_reset_work(struct work_struct *work)
 		reset_work);
 
 	mutex_lock(&sc->lock);
-	ath5k_reset(sc, sc->curchan);
+	ath5k_reset(sc, NULL, true);
 	mutex_unlock(&sc->lock);
 }
 

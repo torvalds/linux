@@ -3223,7 +3223,7 @@ int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 \*************/
 
 int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
-						u8 mode, u8 ee_mode, u8 freq)
+				u8 mode, u8 ee_mode, u8 freq, bool fast)
 {
 	struct ieee80211_channel *curr_channel;
 	int ret, i;
@@ -3232,11 +3232,37 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	ret = 0;
 
 	/*
+	 * Sanity check for fast flag
+	 * Don't try fast channel change when changing modulation
+	 * mode/band. We check for chip compatibility on
+	 * ath5k_hw_reset.
+	 */
+	curr_channel = ah->ah_current_channel;
+	if (fast && (channel->hw_value != curr_channel->hw_value))
+		return -EINVAL;
+
+	/*
+	 * On fast channel change we only set the synth parameters
+	 * while PHY is running, enable calibration and skip the rest.
+	 */
+	if (fast) {
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_RFBUS_REQ,
+				    AR5K_PHY_RFBUS_REQ_REQUEST);
+		for (i = 0; i < 100; i++) {
+			if (ath5k_hw_reg_read(ah, AR5K_PHY_RFBUS_GRANT))
+				break;
+			udelay(5);
+		}
+		/* Failed */
+		if (i >= 100)
+			return -EIO;
+	}
+
+	/*
 	 * If we don't change channel/mode skip
 	 * tx powertable calculation and use the
 	 * cached one.
 	 */
-	curr_channel = ah->ah_current_channel;
 	if ((channel->hw_value == curr_channel->hw_value) &&
 	(channel->center_freq == curr_channel->center_freq))
 		fast_txp = true;
@@ -3262,7 +3288,7 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	 * any settings (5210 also only supports
 	 * a/aturbo modes)
 	 */
-	if (ah->ah_version != AR5K_AR5210) {
+	if ((ah->ah_version != AR5K_AR5210) && !fast) {
 
 		/*
 		 * Write initial RF gain settings
@@ -3308,7 +3334,7 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 				    AR5K_TXCFG_B_MODE);
 		}
 
-	} else {
+	} else if (ah->ah_version == AR5K_AR5210) {
 		mdelay(1);
 		/* Disable phy and wait */
 		ath5k_hw_reg_write(ah, AR5K_PHY_ACT_DISABLE, AR5K_PHY_ACT);
@@ -3345,18 +3371,26 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		mdelay(1);
 	}
 
-	/*
-	 * Perform ADC test to see if baseband is ready
-	 * Set TX hold and check ADC test register
-	 */
-	phy_tst1 = ath5k_hw_reg_read(ah, AR5K_PHY_TST1);
-	ath5k_hw_reg_write(ah, AR5K_PHY_TST1_TXHOLD, AR5K_PHY_TST1);
-	for (i = 0; i <= 20; i++) {
-		if (!(ath5k_hw_reg_read(ah, AR5K_PHY_ADC_TEST) & 0x10))
-			break;
-		udelay(200);
+	if (fast)
+		/*
+		 * Release RF Bus grant
+		 */
+		AR5K_REG_DISABLE_BITS(ah, AR5K_PHY_RFBUS_REQ,
+				    AR5K_PHY_RFBUS_REQ_REQUEST);
+	else {
+		/*
+		 * Perform ADC test to see if baseband is ready
+		 * Set tx hold and check adc test register
+		 */
+		phy_tst1 = ath5k_hw_reg_read(ah, AR5K_PHY_TST1);
+		ath5k_hw_reg_write(ah, AR5K_PHY_TST1_TXHOLD, AR5K_PHY_TST1);
+		for (i = 0; i <= 20; i++) {
+			if (!(ath5k_hw_reg_read(ah, AR5K_PHY_ADC_TEST) & 0x10))
+				break;
+			udelay(200);
+		}
+		ath5k_hw_reg_write(ah, phy_tst1, AR5K_PHY_TST1);
 	}
-	ath5k_hw_reg_write(ah, phy_tst1, AR5K_PHY_TST1);
 
 	/*
 	 * Start automatic gain control calibration

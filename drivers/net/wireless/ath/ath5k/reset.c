@@ -938,7 +938,7 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 \*********************/
 
 int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
-	struct ieee80211_channel *channel, bool change_channel)
+		struct ieee80211_channel *channel, bool fast, bool skip_pcu)
 {
 	struct ath_common *common = ath5k_hw_common(ah);
 	u32 s_seq[10], s_led[3], staid1_flags, tsf_up, tsf_lo;
@@ -952,6 +952,20 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	freq = 0;
 	mode = 0;
 
+	/*
+	 * Sanity check for fast flag
+	 * Fast channel change only available
+	 * on AR2413/AR5413.
+	 */
+	if (fast && (ah->ah_radio != AR5K_RF2413) &&
+	(ah->ah_radio != AR5K_RF5413))
+		fast = 0;
+
+	/* Disable sleep clock operation
+	 * to avoid register access delay on certain
+	 * PHY registers */
+	if (ah->ah_version == AR5K_AR5212)
+		ath5k_hw_set_sleep_clock(ah, false);
 
 	/*
 	 * Stop PCU
@@ -964,110 +978,136 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 * Note: If DMA didn't stop continue
 	 * since only a reset will fix it.
 	 */
-	ath5k_hw_dma_stop(ah);
+	ret = ath5k_hw_dma_stop(ah);
+
+	/* RF Bus grant won't work if we have pending
+	 * frames */
+	if (ret && fast) {
+		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_RESET,
+			"DMA didn't stop, falling back to normal reset\n");
+		fast = 0;
+		/* Non fatal, just continue with
+		 * normal reset */
+		ret = 0;
+	}
+
+	switch (channel->hw_value & CHANNEL_MODES) {
+	case CHANNEL_A:
+		mode = AR5K_MODE_11A;
+		freq = AR5K_INI_RFGAIN_5GHZ;
+		ee_mode = AR5K_EEPROM_MODE_11A;
+		break;
+	case CHANNEL_G:
+
+		if (ah->ah_version <= AR5K_AR5211) {
+			ATH5K_ERR(ah->ah_sc,
+				"G mode not available on 5210/5211");
+			return -EINVAL;
+		}
+
+		mode = AR5K_MODE_11G;
+		freq = AR5K_INI_RFGAIN_2GHZ;
+		ee_mode = AR5K_EEPROM_MODE_11G;
+		break;
+	case CHANNEL_B:
+
+		if (ah->ah_version < AR5K_AR5211) {
+			ATH5K_ERR(ah->ah_sc,
+				"B mode not available on 5210");
+			return -EINVAL;
+		}
+
+		mode = AR5K_MODE_11B;
+		freq = AR5K_INI_RFGAIN_2GHZ;
+		ee_mode = AR5K_EEPROM_MODE_11B;
+		break;
+	case CHANNEL_T:
+		mode = AR5K_MODE_11A_TURBO;
+		freq = AR5K_INI_RFGAIN_5GHZ;
+		ee_mode = AR5K_EEPROM_MODE_11A;
+		break;
+	case CHANNEL_TG:
+		if (ah->ah_version == AR5K_AR5211) {
+			ATH5K_ERR(ah->ah_sc,
+				"TurboG mode not available on 5211");
+			return -EINVAL;
+		}
+		mode = AR5K_MODE_11G_TURBO;
+		freq = AR5K_INI_RFGAIN_2GHZ;
+		ee_mode = AR5K_EEPROM_MODE_11G;
+		break;
+	case CHANNEL_XR:
+		if (ah->ah_version == AR5K_AR5211) {
+			ATH5K_ERR(ah->ah_sc,
+				"XR mode not available on 5211");
+			return -EINVAL;
+		}
+		mode = AR5K_MODE_XR;
+		freq = AR5K_INI_RFGAIN_5GHZ;
+		ee_mode = AR5K_EEPROM_MODE_11A;
+		break;
+	default:
+		ATH5K_ERR(ah->ah_sc,
+			"invalid channel: %d\n", channel->center_freq);
+		return -EINVAL;
+	}
+
+	/*
+	 * If driver requested fast channel change and DMA has stopped
+	 * go on. If it fails continue with a normal reset.
+	 */
+	if (fast) {
+		ret = ath5k_hw_phy_init(ah, channel, mode,
+					ee_mode, freq, true);
+		if (ret) {
+			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_RESET,
+				"fast chan change failed, falling back to normal reset\n");
+			/* Non fatal, can happen eg.
+			 * on mode change */
+			ret = 0;
+		} else
+			return 0;
+	}
 
 	/*
 	 * Save some registers before a reset
 	 */
-	/*DCU/Antenna selection not available on 5210*/
 	if (ah->ah_version != AR5K_AR5210) {
+		/*
+		 * Save frame sequence count
+		 * For revs. after Oahu, only save
+		 * seq num for DCU 0 (Global seq num)
+		 */
+		if (ah->ah_mac_srev < AR5K_SREV_AR5211) {
 
-		switch (channel->hw_value & CHANNEL_MODES) {
-		case CHANNEL_A:
-			mode = AR5K_MODE_11A;
-			freq = AR5K_INI_RFGAIN_5GHZ;
-			ee_mode = AR5K_EEPROM_MODE_11A;
-			break;
-		case CHANNEL_G:
-			mode = AR5K_MODE_11G;
-			freq = AR5K_INI_RFGAIN_2GHZ;
-			ee_mode = AR5K_EEPROM_MODE_11G;
-			break;
-		case CHANNEL_B:
-			mode = AR5K_MODE_11B;
-			freq = AR5K_INI_RFGAIN_2GHZ;
-			ee_mode = AR5K_EEPROM_MODE_11B;
-			break;
-		case CHANNEL_T:
-			mode = AR5K_MODE_11A_TURBO;
-			freq = AR5K_INI_RFGAIN_5GHZ;
-			ee_mode = AR5K_EEPROM_MODE_11A;
-			break;
-		case CHANNEL_TG:
-			if (ah->ah_version == AR5K_AR5211) {
-				ATH5K_ERR(ah->ah_sc,
-					"TurboG mode not available on 5211");
-				return -EINVAL;
-			}
-			mode = AR5K_MODE_11G_TURBO;
-			freq = AR5K_INI_RFGAIN_2GHZ;
-			ee_mode = AR5K_EEPROM_MODE_11G;
-			break;
-		case CHANNEL_XR:
-			if (ah->ah_version == AR5K_AR5211) {
-				ATH5K_ERR(ah->ah_sc,
-					"XR mode not available on 5211");
-				return -EINVAL;
-			}
-			mode = AR5K_MODE_XR;
-			freq = AR5K_INI_RFGAIN_5GHZ;
-			ee_mode = AR5K_EEPROM_MODE_11A;
-			break;
-		default:
-			ATH5K_ERR(ah->ah_sc,
-				"invalid channel: %d\n", channel->center_freq);
-			return -EINVAL;
+			for (i = 0; i < 10; i++)
+				s_seq[i] = ath5k_hw_reg_read(ah,
+					AR5K_QUEUE_DCU_SEQNUM(i));
+
+		} else {
+			s_seq[0] = ath5k_hw_reg_read(ah,
+					AR5K_QUEUE_DCU_SEQNUM(0));
 		}
 
-		if (change_channel) {
-			/*
-			 * Save frame sequence count
-			 * For revs. after Oahu, only save
-			 * seq num for DCU 0 (Global seq num)
-			 */
-			if (ah->ah_mac_srev < AR5K_SREV_AR5211) {
-
-				for (i = 0; i < 10; i++)
-					s_seq[i] = ath5k_hw_reg_read(ah,
-						AR5K_QUEUE_DCU_SEQNUM(i));
-
-			} else {
-				s_seq[0] = ath5k_hw_reg_read(ah,
-						AR5K_QUEUE_DCU_SEQNUM(0));
-			}
-
-			/* TSF accelerates on AR5211 during reset
-			 * As a workaround save it here and restore
-			 * it later so that it's back in time after
-			 * reset. This way it'll get re-synced on the
-			 * next beacon without breaking ad-hoc.
-			 *
-			 * On AR5212 TSF is almost preserved across a
-			 * reset so it stays back in time anyway and
-			 * we don't have to save/restore it.
-			 *
-			 * XXX: Since this breaks power saving we have
-			 * to disable power saving until we receive the
-			 * next beacon, so we can resync beacon timers */
-			if (ah->ah_version == AR5K_AR5211) {
-				tsf_up = ath5k_hw_reg_read(ah, AR5K_TSF_U32);
-				tsf_lo = ath5k_hw_reg_read(ah, AR5K_TSF_L32);
-			}
-		}
-
-		if (ah->ah_version == AR5K_AR5212) {
-			/* Restore normal 32/40MHz clock operation
-			 * to avoid register access delay on certain
-			 * PHY registers */
-			ath5k_hw_set_sleep_clock(ah, false);
-
-			/* Since we are going to write rf buffer
-			 * check if we have any pending gain_F
-			 * optimization settings */
-			if (change_channel && ah->ah_rf_banks != NULL)
-				ath5k_hw_gainf_calibrate(ah);
+		/* TSF accelerates on AR5211 during reset
+		 * As a workaround save it here and restore
+		 * it later so that it's back in time after
+		 * reset. This way it'll get re-synced on the
+		 * next beacon without breaking ad-hoc.
+		 *
+		 * On AR5212 TSF is almost preserved across a
+		 * reset so it stays back in time anyway and
+		 * we don't have to save/restore it.
+		 *
+		 * XXX: Since this breaks power saving we have
+		 * to disable power saving until we receive the
+		 * next beacon, so we can resync beacon timers */
+		if (ah->ah_version == AR5K_AR5211) {
+			tsf_up = ath5k_hw_reg_read(ah, AR5K_TSF_U32);
+			tsf_lo = ath5k_hw_reg_read(ah, AR5K_TSF_L32);
 		}
 	}
+
 
 	/*GPIOs*/
 	s_led[0] = ath5k_hw_reg_read(ah, AR5K_PCICFG) &
@@ -1085,6 +1125,17 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 			AR5K_STA_ID1_BASE_RATE_11B |
 			AR5K_STA_ID1_SELFGEN_DEF_ANT);
 
+	/*
+	 * Since we are going to write rf buffer
+	 * check if we have any pending gain_F
+	 * optimization settings
+	 */
+	if (ah->ah_version == AR5K_AR5212 &&
+	(ah->ah_radio <= AR5K_RF5112)) {
+		if (!fast && ah->ah_rf_banks != NULL)
+				ath5k_hw_gainf_calibrate(ah);
+	}
+
 	/* Wakeup the device */
 	ret = ath5k_hw_nic_wakeup(ah, channel->hw_value, false);
 	if (ret)
@@ -1098,7 +1149,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 							AR5K_PHY(0));
 
 	/* Write initial settings */
-	ret = ath5k_hw_write_initvals(ah, mode, change_channel);
+	ret = ath5k_hw_write_initvals(ah, mode, skip_pcu);
 	if (ret)
 		return ret;
 
@@ -1120,24 +1171,20 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 * Restore saved values
 	 */
 
-	/*DCU/Antenna selection not available on 5210*/
+	/* Seqnum, TSF */
 	if (ah->ah_version != AR5K_AR5210) {
+		if (ah->ah_mac_srev < AR5K_SREV_AR5211) {
+			for (i = 0; i < 10; i++)
+				ath5k_hw_reg_write(ah, s_seq[i],
+					AR5K_QUEUE_DCU_SEQNUM(i));
+		} else {
+			ath5k_hw_reg_write(ah, s_seq[0],
+				AR5K_QUEUE_DCU_SEQNUM(0));
+		}
 
-		if (change_channel) {
-			if (ah->ah_mac_srev < AR5K_SREV_AR5211) {
-				for (i = 0; i < 10; i++)
-					ath5k_hw_reg_write(ah, s_seq[i],
-						AR5K_QUEUE_DCU_SEQNUM(i));
-			} else {
-				ath5k_hw_reg_write(ah, s_seq[0],
-					AR5K_QUEUE_DCU_SEQNUM(0));
-			}
-
-
-			if (ah->ah_version == AR5K_AR5211) {
-				ath5k_hw_reg_write(ah, tsf_up, AR5K_TSF_U32);
-				ath5k_hw_reg_write(ah, tsf_lo, AR5K_TSF_L32);
-			}
+		if (ah->ah_version == AR5K_AR5211) {
+			ath5k_hw_reg_write(ah, tsf_up, AR5K_TSF_U32);
+			ath5k_hw_reg_write(ah, tsf_lo, AR5K_TSF_L32);
 		}
 	}
 
@@ -1165,7 +1212,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	/*
 	 * Initialize PHY
 	 */
-	ret = ath5k_hw_phy_init(ah, channel, mode, ee_mode, freq);
+	ret = ath5k_hw_phy_init(ah, channel, mode, ee_mode, freq, false);
 	if (ret) {
 		ATH5K_ERR(ah->ah_sc,
 			"failed to initialize PHY (%i) !\n", ret);

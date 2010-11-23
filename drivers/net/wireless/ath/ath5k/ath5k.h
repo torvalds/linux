@@ -1183,7 +1183,7 @@ void ath5k_unregister_leds(struct ath5k_softc *sc);
 int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial);
 int ath5k_hw_on_hold(struct ath5k_hw *ah);
 int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
-		   struct ieee80211_channel *channel, bool change_channel);
+	   struct ieee80211_channel *channel, bool fast, bool skip_pcu);
 int ath5k_hw_register_timeout(struct ath5k_hw *ah, u32 reg, u32 flag, u32 val,
 			      bool is_set);
 /* Power management functions */
@@ -1324,7 +1324,7 @@ void ath5k_hw_set_antenna_switch(struct ath5k_hw *ah, u8 ee_mode);
 int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower);
 /* Init function */
 int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
-						u8 mode, u8 ee_mode, u8 freq);
+				u8 mode, u8 ee_mode, u8 freq, bool fast);
 
 /*
  * Functions used internaly
