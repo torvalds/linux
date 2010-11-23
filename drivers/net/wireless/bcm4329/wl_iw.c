@@ -115,6 +115,10 @@ static int		g_onoff = G_WLAN_SET_ON;
 wl_iw_extra_params_t	g_wl_iw_params;
 static struct mutex	wl_cache_lock;
 
+#ifdef CONFIG_US_NON_DFS_CHANNELS_ONLY
+static bool use_non_dfs_channels = true;
+#endif
+
 extern bool wl_iw_conn_status_str(uint32 event_type, uint32 status,
 	uint32 reason, char* stringBuf, uint buflen);
 #include <bcmsdbus.h>
@@ -611,6 +615,31 @@ wl_iw_get_macaddr(
 	return error;
 }
 
+static int
+wl_iw_set_country_code(struct net_device *dev, char *ccode)
+{
+	char country_code[WLC_CNTRY_BUF_SZ];
+	int ret = -1;
+
+	WL_TRACE(("%s\n", __FUNCTION__));
+	if (!ccode)
+		ccode = dhd_bus_country_get(dev);
+	strncpy(country_code, ccode, sizeof(country_code));
+	if (ccode && (country_code[0] != 0)) {
+#ifdef CONFIG_US_NON_DFS_CHANNELS_ONLY
+		if (use_non_dfs_channels && !strncmp(country_code, "US", 2))
+			strncpy(country_code, "Q2", WLC_CNTRY_BUF_SZ);
+		if (!use_non_dfs_channels && !strncmp(country_code, "Q2", 2))
+			strncpy(country_code, "US", WLC_CNTRY_BUF_SZ);
+#endif
+		ret = dev_wlc_ioctl(dev, WLC_SET_COUNTRY, &country_code, sizeof(country_code));
+		if (ret >= 0) {
+			WL_TRACE(("%s: set country %s OK\n", __FUNCTION__, country_code));
+			dhd_bus_country_set(dev, &country_code[0]);
+		}
+	}
+	return ret;
+}
 
 static int
 wl_iw_set_country(
@@ -635,15 +664,10 @@ wl_iw_set_country(
 	if (country_offset != 0) {
 		strncpy(country_code, extra + country_offset + 1,
 			MIN(country_code_size, sizeof(country_code)));
-#ifdef CONFIG_US_NON_DFS_CHANNELS_ONLY
-		if (!strncmp(country_code, "US", 2))
-			strncpy(country_code, "Q2", WLC_CNTRY_BUF_SZ);
-#endif
-		if ((error = dev_wlc_ioctl(dev, WLC_SET_COUNTRY,
-			&country_code, sizeof(country_code))) >= 0) {
+		error = wl_iw_set_country_code(dev, country_code);
+		if (error >= 0) {
 			p += snprintf(p, MAX_WX_STRING, "OK");
 			WL_TRACE(("%s: set country %s OK\n", __FUNCTION__, country_code));
-			dhd_bus_country_set(dev, &country_code[0]);
 			goto exit;
 		}
 	}
@@ -1008,6 +1032,22 @@ wl_iw_set_suspend(
 
 	return ret;
 }
+
+#ifdef CONFIG_US_NON_DFS_CHANNELS_ONLY
+static int
+wl_iw_set_dfs_channels(
+	struct net_device *dev,
+	struct iw_request_info *info,
+	union iwreq_data *wrqu,
+	char *extra
+)
+{
+	use_non_dfs_channels = *(extra + strlen(SETDFSCHANNELS_CMD) + 1) - '0';
+	use_non_dfs_channels = (use_non_dfs_channels != 0) ? false : true;
+	wl_iw_set_country_code(dev, NULL);
+	return 0;
+}
+#endif
 
 int
 wl_format_ssid(char* ssid_buf, uint8* ssid, int ssid_len)
@@ -7008,22 +7048,26 @@ static int wl_iw_set_priv(
 			ret = wl_iw_set_country(dev, info, (union iwreq_data *)dwrq, extra);
 		else if (strnicmp(extra, "STOP", strlen("STOP")) == 0)
 			ret = wl_iw_control_wl_off(dev, info);
-	    else if (strnicmp(extra, BAND_GET_CMD, strlen(BAND_GET_CMD)) == 0)
+		else if (strnicmp(extra, BAND_GET_CMD, strlen(BAND_GET_CMD)) == 0)
 			ret = wl_iw_get_band(dev, info, (union iwreq_data *)dwrq, extra);
-	    else if (strnicmp(extra, BAND_SET_CMD, strlen(BAND_SET_CMD)) == 0)
+		else if (strnicmp(extra, BAND_SET_CMD, strlen(BAND_SET_CMD)) == 0)
 			ret = wl_iw_set_band(dev, info, (union iwreq_data *)dwrq, extra);
-	    else if (strnicmp(extra, DTIM_SKIP_GET_CMD, strlen(DTIM_SKIP_GET_CMD)) == 0)
+		else if (strnicmp(extra, DTIM_SKIP_GET_CMD, strlen(DTIM_SKIP_GET_CMD)) == 0)
 			ret = wl_iw_get_dtim_skip(dev, info, (union iwreq_data *)dwrq, extra);
-	    else if (strnicmp(extra, DTIM_SKIP_SET_CMD, strlen(DTIM_SKIP_SET_CMD)) == 0)
+		else if (strnicmp(extra, DTIM_SKIP_SET_CMD, strlen(DTIM_SKIP_SET_CMD)) == 0)
 			ret = wl_iw_set_dtim_skip(dev, info, (union iwreq_data *)dwrq, extra);
-	    else if (strnicmp(extra, SETSUSPEND_CMD, strlen(SETSUSPEND_CMD)) == 0)
+		else if (strnicmp(extra, SETSUSPEND_CMD, strlen(SETSUSPEND_CMD)) == 0)
 			ret = wl_iw_set_suspend(dev, info, (union iwreq_data *)dwrq, extra);
+#ifdef CONFIG_US_NON_DFS_CHANNELS_ONLY
+		else if (strnicmp(extra, SETDFSCHANNELS_CMD, strlen(SETDFSCHANNELS_CMD)) == 0)
+			ret = wl_iw_set_dfs_channels(dev, info, (union iwreq_data *)dwrq, extra);
+#endif
 #if defined(PNO_SUPPORT)
-	    else if (strnicmp(extra, PNOSSIDCLR_SET_CMD, strlen(PNOSSIDCLR_SET_CMD)) == 0)
+		else if (strnicmp(extra, PNOSSIDCLR_SET_CMD, strlen(PNOSSIDCLR_SET_CMD)) == 0)
 			ret = wl_iw_set_pno_reset(dev, info, (union iwreq_data *)dwrq, extra);
-	    else if (strnicmp(extra, PNOSETUP_SET_CMD, strlen(PNOSETUP_SET_CMD)) == 0)
+		else if (strnicmp(extra, PNOSETUP_SET_CMD, strlen(PNOSETUP_SET_CMD)) == 0)
 			ret = wl_iw_set_pno_set(dev, info, (union iwreq_data *)dwrq, extra);
-	    else if (strnicmp(extra, PNOENABLE_SET_CMD, strlen(PNOENABLE_SET_CMD)) == 0)
+		else if (strnicmp(extra, PNOENABLE_SET_CMD, strlen(PNOENABLE_SET_CMD)) == 0)
 			ret = wl_iw_set_pno_enable(dev, info, (union iwreq_data *)dwrq, extra);
 #endif
 #if defined(CSCAN)
@@ -8215,5 +8259,4 @@ void wl_iw_detach(void)
 		wl_iw_send_priv_event(priv_dev, "AP_DOWN");
 	}
 #endif
-
 }
