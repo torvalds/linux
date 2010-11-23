@@ -4589,7 +4589,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb, int ifindex,
 		}
 		if (secmark_perm == PACKET__FORWARD_OUT) {
 			if (selinux_skb_peerlbl_sid(skb, family, &peer_sid))
-				return NF_DROP_ERR(-ECONNREFUSED);
+				return NF_DROP;
 		} else
 			peer_sid = SECINITSID_KERNEL;
 	} else {
@@ -4602,7 +4602,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb, int ifindex,
 	ad.u.net.netif = ifindex;
 	ad.u.net.family = family;
 	if (selinux_parse_skb(skb, &ad, &addrp, 0, NULL))
-		return NF_DROP_ERR(-ECONNREFUSED);
+		return NF_DROP;
 
 	if (secmark_active)
 		if (avc_has_perm(peer_sid, skb->secmark,
@@ -4614,13 +4614,13 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb, int ifindex,
 		u32 node_sid;
 
 		if (sel_netif_sid(ifindex, &if_sid))
-			return NF_DROP_ERR(-ECONNREFUSED);
+			return NF_DROP;
 		if (avc_has_perm(peer_sid, if_sid,
 				 SECCLASS_NETIF, NETIF__EGRESS, &ad))
 			return NF_DROP_ERR(-ECONNREFUSED);
 
 		if (sel_netnode_sid(addrp, family, &node_sid))
-			return NF_DROP_ERR(-ECONNREFUSED);
+			return NF_DROP;
 		if (avc_has_perm(peer_sid, node_sid,
 				 SECCLASS_NODE, NODE__SENDTO, &ad))
 			return NF_DROP_ERR(-ECONNREFUSED);
