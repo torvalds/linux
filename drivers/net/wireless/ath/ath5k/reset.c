@@ -823,6 +823,11 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	mode = 0;
 
 	/*
+	 * Stop PCU
+	 */
+	ath5k_hw_stop_rx_pcu(ah);
+
+	/*
 	 * Stop DMA
 	 *
 	 * Note: If DMA didn't stop continue
