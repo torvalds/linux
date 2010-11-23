@@ -928,13 +928,13 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func,
 
 static SDIOH_API_RC
 sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
-		     uint addr, void *pkt)
+		     uint addr, struct sk_buff *pkt)
 {
 	bool fifo = (fix_inc == SDIOH_DATA_FIX);
 	u32 SGCount = 0;
 	int err_ret = 0;
 
-	void *pnext;
+	struct sk_buff *pnext;
 
 	sd_trace(("%s: Enter\n", __func__));
 
@@ -1026,10 +1026,10 @@ sdioh_request_packet(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 extern SDIOH_API_RC
 sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		     uint func, uint addr, uint reg_width, uint buflen_u,
-		     u8 *buffer, void *pkt)
+		     u8 *buffer, struct sk_buff *pkt)
 {
 	SDIOH_API_RC Status;
-	void *mypkt = NULL;
+	struct sk_buff *mypkt = NULL;
 
 	sd_trace(("%s: Enter\n", __func__));
 

@@ -46,15 +46,16 @@ extern int dhd_prot_init(dhd_pub_t *dhdp);
 /* Stop protocol: sync w/dongle state. */
 extern void dhd_prot_stop(dhd_pub_t *dhdp);
 
-extern bool dhd_proto_fcinfo(dhd_pub_t *dhd, void *pktbuf, u8 *fcbits);
+extern bool dhd_proto_fcinfo(dhd_pub_t *dhd, struct sk_buff *pktbuf,
+			     u8 *fcbits);
 
 /* Add any protocol-specific data header.
  * Caller must reserve prot_hdrlen prepend space.
  */
-extern void dhd_prot_hdrpush(dhd_pub_t *, int ifidx, void *txp);
+extern void dhd_prot_hdrpush(dhd_pub_t *, int ifidx, struct sk_buff *txp);
 
 /* Remove any protocol-specific data header. */
-extern int dhd_prot_hdrpull(dhd_pub_t *, int *ifidx, void *rxp);
+extern int dhd_prot_hdrpull(dhd_pub_t *, int *ifidx, struct sk_buff *rxp);
 
 /* Use protocol to issue ioctl to dongle */
 extern int dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc,

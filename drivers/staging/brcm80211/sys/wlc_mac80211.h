@@ -818,11 +818,13 @@ struct antsel_info {
 extern void wlc_high_dpc(wlc_info_t *wlc, u32 macintstatus);
 extern void wlc_fatal_error(wlc_info_t *wlc);
 extern void wlc_bmac_rpc_watchdog(wlc_info_t *wlc);
-extern void wlc_recv(wlc_info_t *wlc, void *p);
+extern void wlc_recv(wlc_info_t *wlc, struct sk_buff *p);
 extern bool wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, u32 frm_tx2);
-extern void wlc_txfifo(wlc_info_t *wlc, uint fifo, void *p, bool commit,
-		       s8 txpktpend);
+extern void wlc_txfifo(wlc_info_t *wlc, uint fifo, struct sk_buff *p,
+		       bool commit, s8 txpktpend);
 extern void wlc_txfifo_complete(wlc_info_t *wlc, uint fifo, s8 txpktpend);
+extern void wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
+			uint prec);
 extern void wlc_info_init(wlc_info_t *wlc, int unit);
 extern void wlc_print_txstatus(tx_status_t *txs);
 extern int wlc_xmtfifo_sz_get(wlc_info_t *wlc, uint fifo, uint *blocks);
@@ -879,7 +881,7 @@ extern void wlc_txflowcontrol_override(wlc_info_t *wlc, wlc_txq_info_t *qi,
 extern bool wlc_txflowcontrol_prio_isset(wlc_info_t *wlc, wlc_txq_info_t *qi,
 					 int prio);
 extern void wlc_send_q(wlc_info_t *wlc, wlc_txq_info_t *qi);
-extern int wlc_prep_pdu(wlc_info_t *wlc, void *pdu, uint *fifo);
+extern int wlc_prep_pdu(wlc_info_t *wlc, struct sk_buff *pdu, uint *fifo);
 
 extern u16 wlc_calc_lsig_len(wlc_info_t *wlc, ratespec_t ratespec,
 				uint mac_len);
@@ -923,8 +925,8 @@ extern bool wlc_ismpc(wlc_info_t *wlc);
 extern bool wlc_is_non_delay_mpc(wlc_info_t *wlc);
 extern void wlc_radio_mpc_upd(wlc_info_t *wlc);
 extern bool wlc_prec_enq(wlc_info_t *wlc, struct pktq *q, void *pkt, int prec);
-extern bool wlc_prec_enq_head(wlc_info_t *wlc, struct pktq *q, void *pkt,
-			      int prec, bool head);
+extern bool wlc_prec_enq_head(wlc_info_t *wlc, struct pktq *q,
+			      struct sk_buff *pkt, int prec, bool head);
 extern u16 wlc_phytxctl1_calc(wlc_info_t *wlc, ratespec_t rspec);
 extern void wlc_compute_plcp(wlc_info_t *wlc, ratespec_t rate, uint length,
 			     u8 *plcp);
@@ -953,8 +955,6 @@ extern void wlc_mimops_action_ht_send(wlc_info_t *wlc, wlc_bsscfg_t *bsscfg,
 extern void wlc_switch_shortslot(wlc_info_t *wlc, bool shortslot);
 extern void wlc_set_bssid(wlc_bsscfg_t *cfg);
 extern void wlc_edcf_setparams(wlc_bsscfg_t *cfg, bool suspend);
-extern void wlc_wme_setparams(wlc_info_t *wlc, u16 aci, void *arg,
-			      bool suspend);
 
 extern void wlc_set_ratetable(wlc_info_t *wlc);
 extern int wlc_set_mac(wlc_bsscfg_t *cfg);

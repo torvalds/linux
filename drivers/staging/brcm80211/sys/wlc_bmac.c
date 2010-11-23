@@ -270,9 +270,9 @@ static u32 WLBANDINITFN(wlc_setband_inact) (wlc_info_t *wlc, uint bandunit)
 static bool BCMFASTPATH
 wlc_bmac_recv(wlc_hw_info_t *wlc_hw, uint fifo, bool bound)
 {
-	void *p;
-	void *head = NULL;
-	void *tail = NULL;
+	struct sk_buff *p;
+	struct sk_buff *head = NULL;
+	struct sk_buff *tail = NULL;
 	uint n = 0;
 	uint bound_limit = bound ? wlc_hw->wlc->pub->tunables->rxbnd : -1;
 	u32 tsf_h, tsf_l;
@@ -3316,7 +3316,7 @@ bool BCMFASTPATH wlc_isr(wlc_info_t *wlc, bool *wantdpc)
 /* process tx completion events for corerev < 5 */
 static bool wlc_bmac_txstatus_corerev4(wlc_hw_info_t *wlc_hw)
 {
-	void *status_p;
+	struct sk_buff *status_p;
 	tx_status_t *txs;
 	struct osl_info *osh;
 	bool fatal = false;

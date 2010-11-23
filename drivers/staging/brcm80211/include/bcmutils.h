@@ -55,10 +55,10 @@
 #endif
 
 	typedef struct pktq_prec {
-		void *head;	/* first packet to dequeue */
-		void *tail;	/* last packet to dequeue */
-		u16 len;	/* number of queued packets */
-		u16 max;	/* maximum number of queued packets */
+		struct sk_buff *head;	/* first packet to dequeue */
+		struct sk_buff *tail;	/* last packet to dequeue */
+		u16 len;		/* number of queued packets */
+		u16 max;		/* maximum number of queued packets */
 	} pktq_prec_t;
 
 /* multi-priority pkt queue */
@@ -104,10 +104,13 @@
 #define pktq_ppeek(pq, prec)            ((pq)->q[prec].head)
 #define pktq_ppeek_tail(pq, prec)       ((pq)->q[prec].tail)
 
-	extern void *pktq_penq(struct pktq *pq, int prec, void *p);
-	extern void *pktq_penq_head(struct pktq *pq, int prec, void *p);
-	extern void *pktq_pdeq(struct pktq *pq, int prec);
-	extern void *pktq_pdeq_tail(struct pktq *pq, int prec);
+extern struct sk_buff *pktq_penq(struct pktq *pq, int prec,
+				 struct sk_buff *p);
+extern struct sk_buff *pktq_penq_head(struct pktq *pq, int prec,
+				      struct sk_buff *p);
+extern struct sk_buff *pktq_pdeq(struct pktq *pq, int prec);
+extern struct sk_buff *pktq_pdeq_tail(struct pktq *pq, int prec);
+
 /* Empty the queue at particular precedence level */
 #ifdef BRCM_FULLMAC
 	extern void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec,
@@ -119,8 +122,8 @@
 
 /* operations on a set of precedences in packet queue */
 
-	extern int pktq_mlen(struct pktq *pq, uint prec_bmp);
-	extern void *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
+extern int pktq_mlen(struct pktq *pq, uint prec_bmp);
+extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 
 /* operations on packet queue as a whole */
 
@@ -139,7 +142,7 @@
 
 	extern void pktq_init(struct pktq *pq, int num_prec, int max_len);
 /* prec_out may be NULL if caller is not interested in return value */
-	extern void *pktq_peek_tail(struct pktq *pq, int *prec_out);
+	extern struct sk_buff *pktq_peek_tail(struct pktq *pq, int *prec_out);
 #ifdef BRCM_FULLMAC
 	extern void pktq_flush(struct osl_info *osh, struct pktq *pq, bool dir);
 #else
@@ -164,7 +167,8 @@
 	extern char *getvar(char *vars, const char *name);
 	extern int getintvar(char *vars, const char *name);
 #ifdef BCMDBG
-	extern void prpkt(const char *msg, struct osl_info *osh, void *p0);
+	extern void prpkt(const char *msg, struct osl_info *osh,
+			  struct sk_buff *p0);
 #endif				/* BCMDBG */
 #define bcm_perf_enable()
 #define bcmstats(fmt)

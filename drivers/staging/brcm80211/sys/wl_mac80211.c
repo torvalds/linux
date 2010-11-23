@@ -48,13 +48,6 @@
 #include <d11ucode_ext.h>
 
 
-extern void wlc_wme_setparams(wlc_info_t *wlc, u16 aci, void *arg,
-			      bool suspend);
-bool wlc_sendpkt_mac80211(wlc_info_t *wlc, void *sdu, struct ieee80211_hw *hw);
-void wlc_mac_bcn_promisc_change(wlc_info_t *wlc, bool promisc);
-void wlc_set_addrmatch(wlc_info_t *wlc, int match_reg_offset,
-		       const struct ether_addr *addr);
-
 static void wl_timer(unsigned long data);
 static void _wl_timer(wl_timer_t *t);
 

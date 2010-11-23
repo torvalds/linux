@@ -327,9 +327,10 @@ void dhd_store_conn_status(u32 event, u32 status, u32 reason)
 	}
 }
 
-bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, void *pkt, int prec)
+bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
+		  int prec)
 {
-	void *p;
+	struct sk_buff *p;
 	int eprec = -1;		/* precedence to evict from */
 	bool discard_oldest;
 

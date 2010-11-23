@@ -1018,7 +1018,7 @@ static void dhd_set_multicast_list(struct net_device *dev)
 	up(&dhd->sysioc_sem);
 }
 
-int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
+int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 {
 	int ret;
 	dhd_info_t *dhd = (dhd_info_t *) (dhdp->info);
@@ -1132,13 +1132,15 @@ void dhd_txflowcontrol(dhd_pub_t *dhdp, int ifidx, bool state)
 		netif_wake_queue(net);
 }
 
-void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt)
+void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf,
+		  int numpkt)
 {
 	dhd_info_t *dhd = (dhd_info_t *) dhdp->info;
 	struct sk_buff *skb;
 	unsigned char *eth;
 	uint len;
-	void *data, *pnext, *save_pktbuf;
+	void *data;
+	struct sk_buff *pnext, *save_pktbuf;
 	int i;
 	dhd_if_t *ifp;
 	wl_event_msg_t event;
@@ -1222,7 +1224,7 @@ void dhd_event(struct dhd_info *dhd, char *evpkt, int evlen, int ifidx)
 	return;
 }
 
-void dhd_txcomplete(dhd_pub_t *dhdp, void *txp, bool success)
+void dhd_txcomplete(dhd_pub_t *dhdp, struct sk_buff *txp, bool success)
 {
 	uint ifidx;
 	dhd_info_t *dhd = (dhd_info_t *) (dhdp->info);

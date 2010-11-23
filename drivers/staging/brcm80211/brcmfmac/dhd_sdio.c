@@ -203,8 +203,8 @@ typedef struct dhd_bus {
 	u8 rx_seq;		/* Receive sequence number (expected) */
 	bool rxskip;		/* Skip receive (awaiting NAK ACK) */
 
-	void *glomd;		/* Packet containing glomming descriptor */
-	void *glom;		/* Packet chain for glommed superframe */
+	struct sk_buff *glomd;	/* Packet containing glomming descriptor */
+	struct sk_buff *glom;	/* Packet chain for glommed superframe */
 	uint glomerr;		/* Glom packet read errors */
 
 	u8 *rxbuf;		/* Buffer for receiving control packets */
@@ -446,11 +446,13 @@ static uint process_nvram_vars(char *varbuf, uint len);
 
 static void dhd_dongle_setmemsize(struct dhd_bus *bus, int mem_size);
 static int dhd_bcmsdh_recv_buf(dhd_bus_t *bus, u32 addr, uint fn,
-			       uint flags, u8 *buf, uint nbytes, void *pkt,
-			       bcmsdh_cmplt_fn_t complete, void *handle);
+			       uint flags, u8 *buf, uint nbytes,
+			       struct sk_buff *pkt, bcmsdh_cmplt_fn_t complete,
+			       void *handle);
 static int dhd_bcmsdh_send_buf(dhd_bus_t *bus, u32 addr, uint fn,
-			       uint flags, u8 *buf, uint nbytes, void *pkt,
-			       bcmsdh_cmplt_fn_t complete, void *handle);
+			       uint flags, u8 *buf, uint nbytes,
+			       struct sk_buff *pkt, bcmsdh_cmplt_fn_t complete,
+			       void *handle);
 
 static bool dhdsdio_download_firmware(struct dhd_bus *bus, struct osl_info *osh,
 				      void *sdh);
@@ -902,7 +904,8 @@ void dhd_enable_oob_intr(struct dhd_bus *bus, bool enable)
 
 /* Writes a HW/SW header into the packet and sends it. */
 /* Assumes: (a) header space already there, (b) caller holds lock */
-static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
+static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
+			 bool free_pkt)
 {
 	int ret;
 	struct osl_info *osh;
@@ -911,7 +914,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 	u32 swheader;
 	uint retries = 0;
 	bcmsdh_info_t *sdh;
-	void *new;
+	struct sk_buff *new;
 	int i;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
@@ -1063,7 +1066,7 @@ done:
 	return ret;
 }
 
-int dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
+int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 {
 	int ret = BCME_ERROR;
 	struct osl_info *osh;
@@ -1164,7 +1167,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 
 static uint dhdsdio_sendfromq(dhd_bus_t *bus, uint maxframes)
 {
-	void *pkt;
+	struct sk_buff *pkt;
 	u32 intstatus = 0;
 	uint retries = 0;
 	int ret = 0, prec_out;
@@ -3180,7 +3183,7 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 	u8 *dptr, num = 0;
 
 	u16 sublen, check;
-	void *pfirst, *plast, *pnext, *save_pfirst;
+	struct sk_buff *pfirst, *plast, *pnext, *save_pfirst;
 	struct osl_info *osh = bus->dhd->osh;
 
 	int errcode;
@@ -3590,7 +3593,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 	u8 fcbits;		/* Extracted fcbits from software header */
 	u8 delta;
 
-	void *pkt;		/* Packet for event or data frames */
+	struct sk_buff *pkt;		/* Packet for event or data frames */
 	u16 pad;		/* Number of pad bytes to read */
 	u16 rdlen;		/* Total number of bytes to read */
 	u8 rxseq;		/* Next sequence number to expect */
@@ -4628,7 +4631,7 @@ static void dhdsdio_pktgen_init(dhd_bus_t *bus)
 
 static void dhdsdio_pktgen(dhd_bus_t *bus)
 {
-	void *pkt;
+	struct sk_buff *pkt;
 	u8 *data;
 	uint pktcount;
 	uint fillbyte;
@@ -4735,7 +4738,7 @@ static void dhdsdio_pktgen(dhd_bus_t *bus)
 
 static void dhdsdio_sdtest_set(dhd_bus_t *bus, bool start)
 {
-	void *pkt;
+	struct sk_buff *pkt;
 	u8 *data;
 	struct osl_info *osh = bus->dhd->osh;
 
@@ -4760,7 +4763,7 @@ static void dhdsdio_sdtest_set(dhd_bus_t *bus, bool start)
 		bus->pktgen_fail++;
 }
 
-static void dhdsdio_testrcv(dhd_bus_t *bus, void *pkt, uint seq)
+static void dhdsdio_testrcv(dhd_bus_t *bus, struct sk_buff *pkt, uint seq)
 {
 	struct osl_info *osh = bus->dhd->osh;
 	u8 *data;
@@ -4962,7 +4965,7 @@ extern int dhd_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg, uint msglen)
 	dhd_bus_t *bus = dhdp->bus;
 	u32 addr, val;
 	int rv;
-	void *pkt;
+	struct sk_buff *pkt;
 
 	/* Address could be zero if CONSOLE := 0 in dongle Makefile */
 	if (bus->console_addr == 0)
@@ -5989,7 +5992,7 @@ err:
 
 static int
 dhd_bcmsdh_recv_buf(dhd_bus_t *bus, u32 addr, uint fn, uint flags,
-		    u8 *buf, uint nbytes, void *pkt,
+		    u8 *buf, uint nbytes, struct sk_buff *pkt,
 		    bcmsdh_cmplt_fn_t complete, void *handle)
 {
 	int status;
@@ -6003,7 +6006,7 @@ dhd_bcmsdh_recv_buf(dhd_bus_t *bus, u32 addr, uint fn, uint flags,
 
 static int
 dhd_bcmsdh_send_buf(dhd_bus_t *bus, u32 addr, uint fn, uint flags,
-		    u8 *buf, uint nbytes, void *pkt,
+		    u8 *buf, uint nbytes, struct sk_buff *pkt,
 		    bcmsdh_cmplt_fn_t complete, void *handle)
 {
 	return bcmsdh_send_buf

@@ -146,11 +146,10 @@ static void scb_ampdu_update_config_all(ampdu_info_t *ampdu);
 #define wlc_ampdu_txflowcontrol(a, b, c)	do {} while (0)
 
 static void wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb,
-					  void *p, tx_status_t *txs,
-					  u32 frmtxstatus,
-					  u32 frmtxstatus2);
+					  struct sk_buff *p, tx_status_t *txs,
+					  u32 frmtxstatus, u32 frmtxstatus2);
 
-static inline u16 pkt_txh_seqnum(wlc_info_t *wlc, void *p)
+static inline u16 pkt_txh_seqnum(wlc_info_t *wlc, struct sk_buff *p)
 {
 	d11txh_t *txh;
 	struct dot11_header *h;
@@ -471,7 +470,8 @@ static void wlc_ffpld_calc_mcs2ampdu_table(ampdu_info_t *ampdu, int f)
 }
 
 static void BCMFASTPATH
-wlc_ampdu_agg(ampdu_info_t *ampdu, struct scb *scb, void *p, uint prec)
+wlc_ampdu_agg(ampdu_info_t *ampdu, struct scb *scb, struct sk_buff *p,
+	      uint prec)
 {
 	scb_ampdu_t *scb_ampdu;
 	scb_ampdu_tid_ini_t *ini;
@@ -488,11 +488,12 @@ wlc_ampdu_agg(ampdu_info_t *ampdu, struct scb *scb, void *p, uint prec)
 }
 
 int BCMFASTPATH
-wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
+wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, struct sk_buff **pdu,
+	      int prec)
 {
 	wlc_info_t *wlc;
 	struct osl_info *osh;
-	void *p, *pkt[AMPDU_MAX_MPDU];
+	struct sk_buff *p, *pkt[AMPDU_MAX_MPDU];
 	u8 tid, ndelim;
 	int err = 0;
 	u8 preamble_type = WLC_GF_PREAMBLE;
@@ -884,7 +885,7 @@ wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, void **pdu, int prec)
 }
 
 void BCMFASTPATH
-wlc_ampdu_dotxstatus(ampdu_info_t *ampdu, struct scb *scb, void *p,
+wlc_ampdu_dotxstatus(ampdu_info_t *ampdu, struct scb *scb, struct sk_buff *p,
 		     tx_status_t *txs)
 {
 	scb_ampdu_t *scb_ampdu;
@@ -948,14 +949,12 @@ rate_status(wlc_info_t *wlc, struct ieee80211_tx_info *tx_info,
 	}
 }
 
-extern void wlc_txq_enq(wlc_info_t *wlc, struct scb *scb, void *sdu,
-			uint prec);
-
 #define SHORTNAME "AMPDU status"
 
 static void BCMFASTPATH
-wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb, void *p,
-			      tx_status_t *txs, u32 s1, u32 s2)
+wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb,
+			      struct sk_buff *p, tx_status_t *txs,
+			      u32 s1, u32 s2)
 {
 	scb_ampdu_t *scb_ampdu;
 	wlc_info_t *wlc = ampdu->wlc;

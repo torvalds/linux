@@ -79,7 +79,7 @@ extern SDIOH_API_RC sdioh_request_buffer(sdioh_info_t *si, uint pio_dma,
 					 uint fix_inc, uint rw, uint fnc_num,
 					 u32 addr, uint regwidth,
 					 u32 buflen, u8 *buffer,
-					 void *pkt);
+					 struct sk_buff *pkt);
 
 /* get cis data */
 extern SDIOH_API_RC sdioh_cis_read(sdioh_info_t *si, uint fuc, u8 *cis,

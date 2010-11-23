@@ -221,16 +221,15 @@ static const u8 acbitmap2maxprio[] = {
 #define WLC_REPLAY_CNTRS_VALUE	WPA_CAP_16_REPLAY_CNTRS
 
 /* local prototypes */
-extern void wlc_txq_enq(void *ctx, struct scb *scb, void *sdu, uint prec);
 static u16 BCMFASTPATH wlc_d11hdrs_mac80211(wlc_info_t *wlc,
-					       struct ieee80211_hw *hw, void *p,
+					       struct ieee80211_hw *hw,
+					       struct sk_buff *p,
 					       struct scb *scb, uint frag,
 					       uint nfrags, uint queue,
 					       uint next_frag_len,
 					       wsec_key_t *key,
 					       ratespec_t rspec_override);
-bool wlc_sendpkt_mac80211(wlc_info_t *wlc, void *sdu, struct ieee80211_hw *hw);
-void wlc_wme_setparams(wlc_info_t *wlc, u16 aci, void *arg, bool suspend);
+
 static void wlc_bss_default_init(wlc_info_t *wlc);
 static void wlc_ucode_mac_upd(wlc_info_t *wlc);
 static ratespec_t mac80211_wlc_set_nrate(wlc_info_t *wlc, wlcband_t *cur_band,
@@ -258,7 +257,7 @@ static void wlc_compute_mimo_plcp(ratespec_t rate, uint length, u8 *plcp);
 static u16 wlc_compute_frame_dur(wlc_info_t *wlc, ratespec_t rate,
 				    u8 preamble_type, uint next_frag_len);
 static void wlc_recvctl(wlc_info_t *wlc, struct osl_info *osh, d11rxhdr_t *rxh,
-			void *p);
+			struct sk_buff *p);
 static uint wlc_calc_frame_len(wlc_info_t *wlc, ratespec_t rate,
 			       u8 preamble_type, uint dur);
 static uint wlc_calc_ack_time(wlc_info_t *wlc, ratespec_t rate,
@@ -5000,10 +4999,10 @@ wlc_prec_enq(wlc_info_t *wlc, struct pktq *q, void *pkt, int prec)
 }
 
 bool BCMFASTPATH
-wlc_prec_enq_head(wlc_info_t *wlc, struct pktq *q, void *pkt, int prec,
-		  bool head)
+wlc_prec_enq_head(wlc_info_t *wlc, struct pktq *q, struct sk_buff *pkt,
+		  int prec, bool head)
 {
-	void *p;
+	struct sk_buff *p;
 	int eprec = -1;		/* precedence to evict from */
 
 	/* Determine precedence from which to evict packet, if any */
@@ -5064,7 +5063,8 @@ wlc_prec_enq_head(wlc_info_t *wlc, struct pktq *q, void *pkt, int prec,
 	return true;
 }
 
-void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, void *sdu, uint prec)
+void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
+			     uint prec)
 {
 	wlc_info_t *wlc = (wlc_info_t *) ctx;
 	wlc_txq_info_t *qi = wlc->active_queue;	/* Check me */
@@ -5104,7 +5104,8 @@ void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, void *sdu, uint prec)
 }
 
 bool BCMFASTPATH
-wlc_sendpkt_mac80211(wlc_info_t *wlc, void *sdu, struct ieee80211_hw *hw)
+wlc_sendpkt_mac80211(wlc_info_t *wlc, struct sk_buff *sdu,
+		     struct ieee80211_hw *hw)
 {
 	u8 prio;
 	uint fifo;
@@ -5141,7 +5142,7 @@ wlc_sendpkt_mac80211(wlc_info_t *wlc, void *sdu, struct ieee80211_hw *hw)
 
 void BCMFASTPATH wlc_send_q(wlc_info_t *wlc, wlc_txq_info_t *qi)
 {
-	void *pkt[DOT11_MAXNUMFRAGS];
+	struct sk_buff *pkt[DOT11_MAXNUMFRAGS];
 	int prec;
 	u16 prec_map;
 	int err = 0, i, count;
@@ -5228,7 +5229,8 @@ bcmc_fid_generate(wlc_info_t *wlc, wlc_bsscfg_t *bsscfg, d11txh_t *txh)
 }
 
 void BCMFASTPATH
-wlc_txfifo(wlc_info_t *wlc, uint fifo, void *p, bool commit, s8 txpktpend)
+wlc_txfifo(wlc_info_t *wlc, uint fifo, struct sk_buff *p, bool commit,
+	   s8 txpktpend)
 {
 	u16 frameid = INVALIDFID;
 	d11txh_t *txh;
@@ -5641,7 +5643,7 @@ wlc_rspec_to_rts_rspec(wlc_info_t *wlc, ratespec_t rspec, bool use_rspec,
  */
 static u16 BCMFASTPATH
 wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
-		     void *p, struct scb *scb, uint frag,
+		     struct sk_buff *p, struct scb *scb, uint frag,
 		     uint nfrags, uint queue, uint next_frag_len,
 		     wsec_key_t *key, ratespec_t rspec_override)
 {
@@ -6507,7 +6509,7 @@ static void wlc_war16165(wlc_info_t *wlc, bool tx)
 bool BCMFASTPATH
 wlc_dotxstatus(wlc_info_t *wlc, tx_status_t *txs, u32 frm_tx2)
 {
-	void *p;
+	struct sk_buff *p;
 	uint queue;
 	d11txh_t *txh;
 	struct scb *scb = NULL;
@@ -6790,7 +6792,7 @@ void wlc_bcn_li_upd(wlc_info_t *wlc)
 }
 
 static void
-prep_mac80211_status(wlc_info_t *wlc, d11rxhdr_t *rxh, void *p,
+prep_mac80211_status(wlc_info_t *wlc, d11rxhdr_t *rxh, struct sk_buff *p,
 		     struct ieee80211_rx_status *rx_status)
 {
 	u32 tsf_l, tsf_h;
@@ -6900,7 +6902,8 @@ prep_mac80211_status(wlc_info_t *wlc, d11rxhdr_t *rxh, void *p,
 }
 
 static void
-wlc_recvctl(wlc_info_t *wlc, struct osl_info *osh, d11rxhdr_t *rxh, void *p)
+wlc_recvctl(wlc_info_t *wlc, struct osl_info *osh, d11rxhdr_t *rxh,
+	    struct sk_buff *p)
 {
 	int len_mpdu;
 	struct ieee80211_rx_status rx_status;
@@ -6963,7 +6966,7 @@ void wlc_bss_list_free(wlc_info_t *wlc, wlc_bss_list_t *bss_list)
  * Param 'bound' indicates max. # frames to process before break out.
  */
 /* WLC_HIGH_API */
-void BCMFASTPATH wlc_recv(wlc_info_t *wlc, void *p)
+void BCMFASTPATH wlc_recv(wlc_info_t *wlc, struct sk_buff *p)
 {
 	d11rxhdr_t *rxh;
 	struct dot11_header *h;
@@ -7789,7 +7792,7 @@ wlc_bss_update_probe_resp(wlc_info_t *wlc, wlc_bsscfg_t *cfg, bool suspend)
 }
 
 /* prepares pdu for transmission. returns BCM error codes */
-int wlc_prep_pdu(wlc_info_t *wlc, void *pdu, uint *fifop)
+int wlc_prep_pdu(wlc_info_t *wlc, struct sk_buff *pdu, uint *fifop)
 {
 	struct osl_info *osh;
 	uint fifo;

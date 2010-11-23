@@ -512,6 +512,8 @@ extern bool wlc_isr(struct wlc_info *wlc, bool *wantdpc);
 extern bool wlc_dpc(struct wlc_info *wlc, bool bounded);
 extern bool wlc_send80211_raw(struct wlc_info *wlc, wlc_if_t *wlcif, void *p,
 			      uint ac);
+extern bool wlc_sendpkt_mac80211(wlc_info_t *wlc, struct sk_buff *sdu,
+				 struct ieee80211_hw *hw);
 extern int wlc_iovar_op(struct wlc_info *wlc, const char *name, void *params,
 			int p_len, void *arg, int len, bool set,
 			struct wlc_if *wlcif);
@@ -520,6 +522,11 @@ extern int wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 /* helper functions */
 extern void wlc_statsupd(struct wlc_info *wlc);
 extern int wlc_get_header_len(void);
+extern void wlc_mac_bcn_promisc_change(wlc_info_t *wlc, bool promisc);
+extern void wlc_set_addrmatch(wlc_info_t *wlc, int match_reg_offset,
+			      const struct ether_addr *addr);
+extern void wlc_wme_setparams(wlc_info_t *wlc, u16 aci, void *arg,
+			      bool suspend);
 
 extern wlc_pub_t *wlc_pub(void *wlc);
 

@@ -453,7 +453,7 @@ bool bcmsdh_regfail(void *sdh)
 
 int
 bcmsdh_recv_buf(void *sdh, u32 addr, uint fn, uint flags,
-		u8 *buf, uint nbytes, void *pkt,
+		u8 *buf, uint nbytes, struct sk_buff *pkt,
 		bcmsdh_cmplt_fn_t complete, void *handle)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;

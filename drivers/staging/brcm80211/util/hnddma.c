@@ -232,7 +232,7 @@ static bool dma32_alloc(dma_info_t *di, uint direction);
 static bool dma32_txreset(dma_info_t *di);
 static bool dma32_rxreset(dma_info_t *di);
 static bool dma32_txsuspendedidle(dma_info_t *di);
-static int dma32_txfast(dma_info_t *di, void *p0, bool commit);
+static int dma32_txfast(dma_info_t *di, struct sk_buff *p0, bool commit);
 static void *dma32_getnexttxp(dma_info_t *di, txd_range_t range);
 static void *dma32_getnextrxp(dma_info_t *di, bool forceall);
 static void dma32_txrotate(dma_info_t *di);
@@ -254,7 +254,7 @@ static bool dma64_alloc(dma_info_t *di, uint direction);
 static bool dma64_txreset(dma_info_t *di);
 static bool dma64_rxreset(dma_info_t *di);
 static bool dma64_txsuspendedidle(dma_info_t *di);
-static int dma64_txfast(dma_info_t *di, void *p0, bool commit);
+static int dma64_txfast(dma_info_t *di, struct sk_buff *p0, bool commit);
 static int dma64_txunframed(dma_info_t *di, void *p0, uint len, bool commit);
 static void *dma64_getpos(dma_info_t *di, bool direction);
 static void *dma64_getnexttxp(dma_info_t *di, txd_range_t range);
@@ -979,7 +979,7 @@ _dma_rx_param_get(dma_info_t *di, u16 *rxoffset, u16 *rxbufsize)
  */
 static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 {
-	void *p, *head, *tail;
+	struct sk_buff *p, *head, *tail;
 	uint len;
 	uint pkt_len;
 	int resid = 0;
@@ -1054,7 +1054,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
  */
 static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 {
-	void *p;
+	struct sk_buff *p;
 	u16 rxin, rxout;
 	u32 flags = 0;
 	uint n;
@@ -1652,9 +1652,9 @@ static bool dma32_txsuspendedidle(dma_info_t *di)
  * WARNING: call must check the return value for error.
  *   the error(toss frames) could be fatal and cause many subsequent hard to debug problems
  */
-static int dma32_txfast(dma_info_t *di, void *p0, bool commit)
+static int dma32_txfast(dma_info_t *di, struct sk_buff *p0, bool commit)
 {
-	void *p, *next;
+	struct sk_buff *p, *next;
 	unsigned char *data;
 	uint len;
 	u16 txout;
@@ -2301,9 +2301,10 @@ static int dma64_txunframed(dma_info_t *di, void *buf, uint len, bool commit)
  * WARNING: call must check the return value for error.
  *   the error(toss frames) could be fatal and cause many subsequent hard to debug problems
  */
-static int BCMFASTPATH dma64_txfast(dma_info_t *di, void *p0, bool commit)
+static int BCMFASTPATH dma64_txfast(dma_info_t *di, struct sk_buff *p0,
+				    bool commit)
 {
-	void *p, *next;
+	struct sk_buff *p, *next;
 	unsigned char *data;
 	uint len;
 	u16 txout;

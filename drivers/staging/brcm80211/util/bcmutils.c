@@ -33,7 +33,7 @@
 #include <proto/802.11.h>
 
 /* copy a buffer into a pkt buffer chain */
-uint pktfrombuf(struct osl_info *osh, void *p, uint offset, int len,
+uint pktfrombuf(struct osl_info *osh, struct sk_buff *p, uint offset, int len,
 		unsigned char *buf)
 {
 	uint n, ret = 0;
@@ -61,7 +61,7 @@ uint pktfrombuf(struct osl_info *osh, void *p, uint offset, int len,
 	return ret;
 }
 /* return total length of buffer chain */
-uint BCMFASTPATH pkttotlen(struct osl_info *osh, void *p)
+uint BCMFASTPATH pkttotlen(struct osl_info *osh, struct sk_buff *p)
 {
 	uint total;
 
@@ -75,7 +75,8 @@ uint BCMFASTPATH pkttotlen(struct osl_info *osh, void *p)
  * osl multiple-precedence packet queue
  * hi_prec is always >= the number of the highest non-empty precedence
  */
-void *BCMFASTPATH pktq_penq(struct pktq *pq, int prec, void *p)
+struct sk_buff *BCMFASTPATH pktq_penq(struct pktq *pq, int prec,
+				      struct sk_buff *p)
 {
 	struct pktq_prec *q;
 
@@ -103,7 +104,8 @@ void *BCMFASTPATH pktq_penq(struct pktq *pq, int prec, void *p)
 	return p;
 }
 
-void *BCMFASTPATH pktq_penq_head(struct pktq *pq, int prec, void *p)
+struct sk_buff *BCMFASTPATH pktq_penq_head(struct pktq *pq, int prec,
+					   struct sk_buff *p)
 {
 	struct pktq_prec *q;
 
@@ -130,10 +132,10 @@ void *BCMFASTPATH pktq_penq_head(struct pktq *pq, int prec, void *p)
 	return p;
 }
 
-void *BCMFASTPATH pktq_pdeq(struct pktq *pq, int prec)
+struct sk_buff *BCMFASTPATH pktq_pdeq(struct pktq *pq, int prec)
 {
 	struct pktq_prec *q;
-	void *p;
+	struct sk_buff *p;
 
 	ASSERT(prec >= 0 && prec < pq->num_prec);
 
@@ -156,10 +158,10 @@ void *BCMFASTPATH pktq_pdeq(struct pktq *pq, int prec)
 	return p;
 }
 
-void *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
+struct sk_buff *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 {
 	struct pktq_prec *q;
-	void *p, *prev;
+	struct sk_buff *p, *prev;
 
 	ASSERT(prec >= 0 && prec < pq->num_prec);
 
@@ -189,7 +191,7 @@ void *BCMFASTPATH pktq_pdeq_tail(struct pktq *pq, int prec)
 void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir)
 {
 	struct pktq_prec *q;
-	void *p;
+	struct sk_buff *p;
 
 	q = &pq->q[prec];
 	p = q->head;
@@ -218,7 +220,7 @@ pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir,
 	    ifpkt_cb_t fn, int arg)
 {
 	struct pktq_prec *q;
-	void *p, *prev = NULL;
+	struct sk_buff *p, *prev = NULL;
 
 	q = &pq->q[prec];
 	p = q->head;
@@ -275,7 +277,7 @@ void pktq_init(struct pktq *pq, int num_prec, int max_len)
 		pq->q[prec].max = pq->max;
 }
 
-void *pktq_peek_tail(struct pktq *pq, int *prec_out)
+struct sk_buff *pktq_peek_tail(struct pktq *pq, int *prec_out)
 {
 	int prec;
 
@@ -306,10 +308,11 @@ int pktq_mlen(struct pktq *pq, uint prec_bmp)
 	return len;
 }
 /* Priority dequeue from a specific set of precedences */
-void *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
+struct sk_buff *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp,
+				      int *prec_out)
 {
 	struct pktq_prec *q;
-	void *p;
+	struct sk_buff *p;
 	int prec;
 
 	if (pq->len == 0)
@@ -407,9 +410,9 @@ int getintvar(char *vars, const char *name)
 
 #if defined(BCMDBG)
 /* pretty hex print a pkt buffer chain */
-void prpkt(const char *msg, struct osl_info *osh, void *p0)
+void prpkt(const char *msg, struct osl_info *osh, struct sk_buff *p0)
 {
-	void *p;
+	struct sk_buff *p;
 
 	if (msg && (msg[0] != '\0'))
 		printf("%s:\n", msg);

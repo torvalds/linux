@@ -295,10 +295,12 @@ extern void dhd_detach(dhd_pub_t *dhdp);
 /* Indication from bus module to change flow-control state */
 extern void dhd_txflowcontrol(dhd_pub_t *dhdp, int ifidx, bool on);
 
-extern bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, void *pkt, int prec);
+extern bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q,
+			 struct sk_buff *pkt, int prec);
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
-extern void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *rxp, int numpkt);
+extern void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx,
+			 struct sk_buff *rxp, int numpkt);
 
 /* Return pointer to interface name */
 extern char *dhd_ifname(dhd_pub_t *dhdp, int idx);
@@ -307,7 +309,7 @@ extern char *dhd_ifname(dhd_pub_t *dhdp, int idx);
 extern void dhd_sched_dpc(dhd_pub_t *dhdp);
 
 /* Notify tx completion */
-extern void dhd_txcomplete(dhd_pub_t *dhdp, void *txp, bool success);
+extern void dhd_txcomplete(dhd_pub_t *dhdp, struct sk_buff *txp, bool success);
 
 /* Query ioctl */
 extern int dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
@@ -378,7 +380,7 @@ extern void dhd_vif_sendup(struct dhd_info *dhd, int ifidx, unsigned char * cp,
 			   int len);
 
 /* Send packet to dongle via data channel */
-extern int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pkt);
+extern int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pkt);
 
 /* Send event to host */
 extern void dhd_sendup_event(dhd_pub_t *dhdp, wl_event_msg_t *event,

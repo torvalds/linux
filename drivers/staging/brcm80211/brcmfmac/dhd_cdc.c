@@ -310,7 +310,7 @@ void dhd_prot_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 	bcm_bprintf(strbuf, "Protocol CDC: reqid %d\n", dhdp->prot->reqid);
 }
 
-void dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, void *pktbuf)
+void dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, struct sk_buff *pktbuf)
 {
 #ifdef BDC
 	struct bdc_header *h;
@@ -336,7 +336,7 @@ void dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, void *pktbuf)
 	BDC_SET_IF_IDX(h, ifidx);
 }
 
-bool dhd_proto_fcinfo(dhd_pub_t *dhd, void *pktbuf, u8 * fcbits)
+bool dhd_proto_fcinfo(dhd_pub_t *dhd, struct sk_buff *pktbuf, u8 * fcbits)
 {
 #ifdef BDC
 	struct bdc_header *h;
@@ -356,7 +356,7 @@ bool dhd_proto_fcinfo(dhd_pub_t *dhd, void *pktbuf, u8 * fcbits)
 	return false;
 }
 
-int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf)
+int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
 {
 #ifdef BDC
 	struct bdc_header *h;

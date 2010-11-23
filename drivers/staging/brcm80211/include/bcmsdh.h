@@ -122,7 +122,7 @@ extern int bcmsdh_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 			   u8 *buf, uint nbytes, void *pkt,
 			   bcmsdh_cmplt_fn_t complete, void *handle);
 extern int bcmsdh_recv_buf(void *sdh, u32 addr, uint fn, uint flags,
-			   u8 *buf, uint nbytes, void *pkt,
+			   u8 *buf, uint nbytes, struct sk_buff *pkt,
 			   bcmsdh_cmplt_fn_t complete, void *handle);
 
 /* Flags bits */

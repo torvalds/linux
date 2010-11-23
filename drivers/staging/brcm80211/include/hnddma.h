@@ -41,7 +41,7 @@ typedef void (*di_txsuspend_t) (hnddma_t *dmah);
 typedef void (*di_txresume_t) (hnddma_t *dmah);
 typedef bool(*di_txsuspended_t) (hnddma_t *dmah);
 typedef bool(*di_txsuspendedidle_t) (hnddma_t *dmah);
-typedef int (*di_txfast_t) (hnddma_t *dmah, void *p, bool commit);
+typedef int (*di_txfast_t) (hnddma_t *dmah, struct sk_buff *p, bool commit);
 typedef int (*di_txunframed_t) (hnddma_t *dmah, void *p, uint len,
 				bool commit);
 typedef void *(*di_getpos_t) (hnddma_t *di, bool direction);

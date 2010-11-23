@@ -36,7 +36,7 @@ extern void dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex);
 extern int dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex);
 
 /* Send a data frame to the dongle.  Callee disposes of txp. */
-extern int dhd_bus_txdata(struct dhd_bus *bus, void *txp);
+extern int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *txp);
 
 /* Send/receive a control message to/from the dongle.
  * Expects caller to enforce a single outstanding transaction.
