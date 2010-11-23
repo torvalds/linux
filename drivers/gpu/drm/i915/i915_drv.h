@@ -1093,11 +1093,11 @@ int i915_gem_init_object(struct drm_gem_object *obj);
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
 void i915_gem_free_object(struct drm_gem_object *obj);
-int i915_gem_object_pin(struct drm_i915_gem_object *obj,
-			uint32_t alignment,
-			bool map_and_fenceable);
+int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
+				     uint32_t alignment,
+				     bool map_and_fenceable);
 void i915_gem_object_unpin(struct drm_i915_gem_object *obj);
-int i915_gem_object_unbind(struct drm_i915_gem_object *obj);
+int __must_check i915_gem_object_unbind(struct drm_i915_gem_object *obj);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 
@@ -1110,37 +1110,42 @@ i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 	return (int32_t)(seq1 - seq2) >= 0;
 }
 
-int i915_gem_object_get_fence_reg(struct drm_i915_gem_object *obj,
-				  bool interruptible);
-int i915_gem_object_put_fence_reg(struct drm_i915_gem_object *obj,
-				  bool interruptible);
+int __must_check i915_gem_object_get_fence_reg(struct drm_i915_gem_object *obj,
+					       bool interruptible);
+int __must_check i915_gem_object_put_fence_reg(struct drm_i915_gem_object *obj,
+					       bool interruptible);
+
 void i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_reset(struct drm_device *dev);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj);
-int i915_gem_object_set_domain(struct drm_i915_gem_object *obj,
-			       uint32_t read_domains,
-			       uint32_t write_domain);
-int i915_gem_object_flush_gpu(struct drm_i915_gem_object *obj,
-			      bool interruptible);
-int i915_gem_init_ringbuffer(struct drm_device *dev);
+int __must_check i915_gem_object_set_domain(struct drm_i915_gem_object *obj,
+					    uint32_t read_domains,
+					    uint32_t write_domain);
+int __must_check i915_gem_object_flush_gpu(struct drm_i915_gem_object *obj,
+					   bool interruptible);
+int __must_check i915_gem_init_ringbuffer(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
-int i915_gem_do_init(struct drm_device *dev, unsigned long start,
-		     unsigned long mappable_end, unsigned long end);
-int i915_gpu_idle(struct drm_device *dev);
-int i915_gem_idle(struct drm_device *dev);
-int i915_add_request(struct drm_device *dev,
-		     struct drm_file *file_priv,
-		     struct drm_i915_gem_request *request,
-		     struct intel_ring_buffer *ring);
-int i915_do_wait_request(struct drm_device *dev,
-			 uint32_t seqno,
-			 bool interruptible,
-			 struct intel_ring_buffer *ring);
+void i915_gem_do_init(struct drm_device *dev,
+		      unsigned long start,
+		      unsigned long mappable_end,
+		      unsigned long end);
+int __must_check i915_gpu_idle(struct drm_device *dev);
+int __must_check i915_gem_idle(struct drm_device *dev);
+int __must_check i915_add_request(struct drm_device *dev,
+				  struct drm_file *file_priv,
+				  struct drm_i915_gem_request *request,
+				  struct intel_ring_buffer *ring);
+int __must_check i915_do_wait_request(struct drm_device *dev,
+				      uint32_t seqno,
+				      bool interruptible,
+				      struct intel_ring_buffer *ring);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
-int i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,
-				      int write);
-int i915_gem_object_set_to_display_plane(struct drm_i915_gem_object *obj,
-					 struct intel_ring_buffer *pipelined);
+int __must_check
+i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,
+				  bool write);
+int __must_check
+i915_gem_object_set_to_display_plane(struct drm_i915_gem_object *obj,
+				     struct intel_ring_buffer *pipelined);
 int i915_gem_attach_phys_object(struct drm_device *dev,
 				struct drm_i915_gem_object *obj,
 				int id,
@@ -1152,14 +1157,16 @@ void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
 /* i915_gem_gtt.c */
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
-int i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj);
+int __must_check i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj);
 void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj);
 
 /* i915_gem_evict.c */
-int i915_gem_evict_something(struct drm_device *dev, int min_size,
-			     unsigned alignment, bool mappable);
-int i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only);
-int i915_gem_evict_inactive(struct drm_device *dev, bool purgeable_only);
+int __must_check i915_gem_evict_something(struct drm_device *dev, int min_size,
+					  unsigned alignment, bool mappable);
+int __must_check i915_gem_evict_everything(struct drm_device *dev,
+					   bool purgeable_only);
+int __must_check i915_gem_evict_inactive(struct drm_device *dev,
+					 bool purgeable_only);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);

@@ -215,18 +215,12 @@ i915_gem_object_is_inactive(struct drm_i915_gem_object *obj)
 	return obj->gtt_space && !obj->active && obj->pin_count == 0;
 }
 
-int i915_gem_do_init(struct drm_device *dev,
-		     unsigned long start,
-		     unsigned long mappable_end,
-		     unsigned long end)
+void i915_gem_do_init(struct drm_device *dev,
+		      unsigned long start,
+		      unsigned long mappable_end,
+		      unsigned long end)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	if (start >= end ||
-	    (start & (PAGE_SIZE - 1)) != 0 ||
-	    (end & (PAGE_SIZE - 1)) != 0) {
-		return -EINVAL;
-	}
 
 	drm_mm_init(&dev_priv->mm.gtt_space, start,
 		    end - start);
@@ -234,8 +228,6 @@ int i915_gem_do_init(struct drm_device *dev,
 	dev_priv->mm.gtt_total = end - start;
 	dev_priv->mm.mappable_gtt_total = min(end, mappable_end) - start;
 	dev_priv->mm.gtt_mappable_end = mappable_end;
-
-	return 0;
 }
 
 int
@@ -243,13 +235,16 @@ i915_gem_init_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file)
 {
 	struct drm_i915_gem_init *args = data;
-	int ret;
+
+	if (args->gtt_start >= args->gtt_end ||
+	    (args->gtt_end | args->gtt_start) & (PAGE_SIZE - 1))
+		return -EINVAL;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_gem_do_init(dev, args->gtt_start, args->gtt_end, args->gtt_end);
+	i915_gem_do_init(dev, args->gtt_start, args->gtt_end, args->gtt_end);
 	mutex_unlock(&dev->struct_mutex);
 
-	return ret;
+	return 0;
 }
 
 int
@@ -2949,7 +2944,7 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
  * flushes to occur.
  */
 int
-i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, int write)
+i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 {
 	uint32_t old_write_domain, old_read_domains;
 	int ret;
@@ -5177,8 +5172,8 @@ rescan:
 				 &dev_priv->mm.inactive_list,
 				 mm_list) {
 		if (i915_gem_object_is_purgeable(obj)) {
-			i915_gem_object_unbind(obj);
-			if (--nr_to_scan == 0)
+			if (i915_gem_object_unbind(obj) == 0 &&
+			    --nr_to_scan == 0)
 				break;
 		}
 	}
@@ -5188,10 +5183,10 @@ rescan:
 	list_for_each_entry_safe(obj, next,
 				 &dev_priv->mm.inactive_list,
 				 mm_list) {
-		if (nr_to_scan) {
-			i915_gem_object_unbind(obj);
+		if (nr_to_scan &&
+		    i915_gem_object_unbind(obj) == 0)
 			nr_to_scan--;
-		} else
+		else
 			cnt++;
 	}
 
