@@ -95,25 +95,6 @@ static struct platform_device debug_uart = {
 	},
 };
 
-static struct plat_serial8250_port hsuart_platform_data[] = {
-	{
-		.mapbase	= TEGRA_UARTD_BASE,
-		.membase	= IO_ADDRESS(TEGRA_UARTD_BASE),
-		.irq		= INT_UARTD,
-	}, {
-		.flags		= 0
-	}
-};
-
-static struct platform_device hsuart = {
-	.name = "tegra_uart",
-	.id = 3,
-	.dev = {
-		.platform_data = hsuart_platform_data,
-		.coherent_dma_mask = 0xffffffff,
-	},
-};
-
 /* OTG gadget device */
 static u64 tegra_otg_dmamask = DMA_BIT_MASK(32);
 
@@ -277,7 +258,7 @@ static struct platform_device *olympus_devices[] __initdata = {
 	&tegra_otg,
 	&androidusb_device,
 	&pda_power_device,
-	&hsuart,
+	&tegra_uartd_device,
 	&tegra_i2c_device1,
 	&tegra_i2c_device2,
 	&tegra_i2c_device3,
