@@ -746,6 +746,14 @@ static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
  * Using the cached information from sp->gfns is safe because:
  * - The spte has a reference to the struct page, so the pfn for a given gfn
  *   can't change unless all sptes pointing to it are nuked first.
+ *
+ * Note:
+ *   We should flush all tlbs if spte is dropped even though guest is
+ *   responsible for it. Since if we don't, kvm_mmu_notifier_invalidate_page
+ *   and kvm_mmu_notifier_invalidate_range_start detect the mapping page isn't
+ *   used by guest then tlbs are not flushed, so guest is allowed to access the
+ *   freed pages.
+ *   And we increase kvm->tlbs_dirty to delay tlbs flush in this case.
  */
 static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
@@ -781,14 +789,14 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		gfn = gpte_to_gfn(gpte);
 
 		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
-			kvm_flush_remote_tlbs(vcpu->kvm);
+			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}
 
 		if (gfn != sp->gfns[i]) {
 			drop_spte(vcpu->kvm, &sp->spt[i],
 				      shadow_trap_nonpresent_pte);
-			kvm_flush_remote_tlbs(vcpu->kvm);
+			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}
 
