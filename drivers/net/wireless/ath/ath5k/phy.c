@@ -228,8 +228,20 @@ static inline int ath5k_hw_write_ofdm_timings(struct ath5k_hw *ah,
 	 * ALGO: coef = (5 * clock / carrier_freq) / 2
 	 * we scale coef by shifting clock value by 24 for
 	 * better precision since we use integers */
-	/* TODO: Half/quarter rate */
-	clock =  (channel->hw_value & CHANNEL_TURBO) ? 80 : 40;
+	switch (ah->ah_bwmode) {
+	case AR5K_BWMODE_40MHZ:
+		clock = 40 * 2;
+		break;
+	case AR5K_BWMODE_10MHZ:
+		clock = 40 / 2;
+		break;
+	case AR5K_BWMODE_5MHZ:
+		clock = 40 / 4;
+		break;
+	default:
+		clock = 40;
+		break;
+	}
 	coef_scaled = ((5 * (clock << 24)) / 2) / channel->center_freq;
 
 	/* Get exponent
