@@ -17,6 +17,7 @@
 #ifndef _linux_osl_h_
 #define _linux_osl_h_
 
+#include <linux/skbuff.h>
 
 extern struct osl_info *osl_attach(void *pdev, uint bustype);
 extern void osl_detach(struct osl_info *osh);
@@ -248,9 +249,7 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 /* packet primitives */
 #define	PKTGET(osh, len, send)	osl_pktget((osh), (len))
 #define	PKTFREE(osh, skb, send)	osl_pktfree((osh), (skb), (send))
-#define PKTHEADROOM(skb)	((skb)->data - (skb)->head)
-#define PKTTAILROOM(skb)	((skb)->end - (skb)->tail)
-#define PKTALLOCED(osh)		(((struct osl_pubinfo *)(osh))->pktalloced)
+
 extern void *osl_pktget(struct osl_info *osh, uint len);
 extern void osl_pktfree(struct osl_info *osh, void *skb, bool send);
 
@@ -281,8 +280,6 @@ osl_pkt_tonative(struct osl_pubinfo *osh, void *pkt)
 #define PKTTONATIVE(osh, pkt)	\
 	osl_pkt_tonative((struct osl_pubinfo *)(osh), (pkt))
 #else /* !BRCM_FULLMAC */
-#define PKTUNALLOC(osh)		(((struct osl_pubinfo *)(osh))->pktalloced--)
-
 #define	PKTSETSKIPCT(osh, skb)
 #define	PKTCLRSKIPCT(osh, skb)
 #define	PKTSKIPCT(osh, skb)

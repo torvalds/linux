@@ -2732,9 +2732,9 @@ uint wlc_down(wlc_info_t *wlc)
 
 
 	/* Verify all packets are flushed from the driver */
-	if (PKTALLOCED(wlc->osh) != 0) {
+	if (wlc->osh->pub.pktalloced != 0) {
 		WL_ERROR(("%d packets not freed at wlc_down!!!!!!\n",
-			  PKTALLOCED(wlc->osh)));
+			  wlc->osh->pub.pktalloced));
 	}
 #ifdef BCMDBG
 	/* Since all the packets should have been freed,
@@ -5123,7 +5123,7 @@ wlc_sendpkt_mac80211(wlc_info_t *wlc, struct sk_buff *sdu,
 	prio = (type == FC_TYPE_DATA ? sdu->priority : MAXPRIO);
 	fifo = prio2fifo[prio];
 
-	ASSERT((uint) PKTHEADROOM(sdu) >= TXOFF);
+	ASSERT((uint) skb_headroom(sdu) >= TXOFF);
 	ASSERT(!(sdu->cloned));
 	ASSERT(!(sdu->next));
 	ASSERT(!(sdu->prev));
@@ -6933,7 +6933,7 @@ wlc_recvctl(wlc_info_t *wlc, struct osl_info *osh, d11rxhdr_t *rxh,
 	ieee80211_rx_irqsafe(wlc->pub->ieee_hw, p);
 
 	WLCNTINCR(wlc->pub->_cnt->ieee_rx);
-	PKTUNALLOC(osh);
+	osh->pub.pktalloced--;
 	return;
 }
 

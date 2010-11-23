@@ -932,9 +932,9 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 	/* Add alignment padding, allocate new packet if needed */
 	pad = ((unsigned long)frame % DHD_SDALIGN);
 	if (pad) {
-		if (PKTHEADROOM(pkt) < pad) {
+		if (skb_headroom(pkt) < pad) {
 			DHD_INFO(("%s: insufficient headroom %d for %d pad\n",
-				  __func__, (int)PKTHEADROOM(pkt), pad));
+				  __func__, skb_headroom(pkt), pad));
 			bus->dhd->tx_realloc++;
 			new = PKTGET(osh, (pkt->len + DHD_SDALIGN), true);
 			if (!new) {
@@ -994,7 +994,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 		u16 pad = bus->blocksize - (len % bus->blocksize);
 		if ((pad <= bus->roundup) && (pad < bus->blocksize))
 #ifdef NOTUSED
-			if (pad <= PKTTAILROOM(pkt))
+			if (pad <= skb_tailroom(pkt))
 #endif				/* NOTUSED */
 				len += pad;
 	} else if (len % DHD_SDALIGN) {
@@ -1004,7 +1004,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 	/* Some controllers have trouble with odd bytes -- round to even */
 	if (forcealign && (len & (ALIGNMENT - 1))) {
 #ifdef NOTUSED
-		if (PKTTAILROOM(pkt))
+		if (skb_tailroom(pkt))
 #endif
 			len = roundup(len, ALIGNMENT);
 #ifdef NOTUSED
