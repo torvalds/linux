@@ -302,7 +302,7 @@ static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
 	return 0;
 }
 
-static int hfsplus_file_fsync(struct file *file, int datasync)
+int hfsplus_file_fsync(struct file *file, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
