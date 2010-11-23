@@ -883,6 +883,9 @@ config MIPS_DISABLE_OBSOLETE_IDE
 config SYNC_R4K
 	bool
 
+config MIPS_MACHINE
+	def_bool n
+
 config NO_IOPORT
 	def_bool n
 
