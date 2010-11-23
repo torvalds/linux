@@ -549,6 +549,7 @@ static struct iwl_bt_params iwl6000_bt_params = {
 	.agg_time_limit = BT_AGG_THRESHOLD_DEF,
 	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
 	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
+	.bt_sco_disable = true,
 };
 
 struct iwl_cfg iwl6000g2a_2agn_cfg = {

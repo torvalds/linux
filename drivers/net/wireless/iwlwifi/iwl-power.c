@@ -163,6 +163,15 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 	else
 		cmd->flags &= ~IWL_POWER_SLEEP_OVER_DTIM_MSK;
 
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
+		if (!priv->cfg->bt_params->bt_sco_disable)
+			cmd->flags |= IWL_POWER_BT_SCO_ENA;
+		else
+			cmd->flags &= ~IWL_POWER_BT_SCO_ENA;
+	}
+
+
 	slp_itrvl = le32_to_cpu(cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1]);
 	if (slp_itrvl > IWL_CONN_MAX_LISTEN_INTERVAL)
 		cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1] =
@@ -235,6 +244,14 @@ static void iwl_power_fill_sleep_cmd(struct iwl_priv *priv,
 
 	if (priv->power_data.pci_pm)
 		cmd->flags |= IWL_POWER_PCI_PM_MSK;
+
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
+		if (!priv->cfg->bt_params->bt_sco_disable)
+			cmd->flags |= IWL_POWER_BT_SCO_ENA;
+		else
+			cmd->flags &= ~IWL_POWER_BT_SCO_ENA;
+	}
 
 	cmd->rx_data_timeout = cpu_to_le32(1000 * dynps_ms);
 	cmd->tx_data_timeout = cpu_to_le32(1000 * dynps_ms);

@@ -334,6 +334,7 @@ struct iwl_base_params {
  * @agg_time_limit: maximum number of uSec in aggregation
  * @ampdu_factor: Maximum A-MPDU length factor
  * @ampdu_density: Minimum A-MPDU spacing
+ * @bt_sco_disable: uCode should not response to BT in SCO/ESCO mode
 */
 struct iwl_bt_params {
 	bool advanced_bt_coexist;
@@ -343,6 +344,7 @@ struct iwl_bt_params {
 	u16 agg_time_limit;
 	u8 ampdu_factor;
 	u8 ampdu_density;
+	bool bt_sco_disable;
 };
 /*
  * @use_rts_for_aggregation: use rts/cts protection for HT traffic

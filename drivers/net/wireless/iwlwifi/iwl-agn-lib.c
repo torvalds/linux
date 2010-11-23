@@ -1829,6 +1829,10 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	} else {
 		bt_cmd.flags = IWLAGN_BT_FLAG_COEX_MODE_3W <<
 					IWLAGN_BT_FLAG_COEX_MODE_SHIFT;
+		if (priv->cfg->bt_params &&
+		    priv->cfg->bt_params->bt_sco_disable)
+			bt_cmd.flags |= IWLAGN_BT_FLAG_SYNC_2_BT_DISABLE;
+
 		if (priv->bt_ch_announce)
 			bt_cmd.flags |= IWLAGN_BT_FLAG_CHANNEL_INHIBITION;
 		IWL_DEBUG_INFO(priv, "BT coex flag: 0X%x\n", bt_cmd.flags);
