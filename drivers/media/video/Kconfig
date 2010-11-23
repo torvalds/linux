@@ -938,6 +938,24 @@ config VIDEO_RK2818
 	---help---
 	  This is a v4l2 driver for the RK2818 Camera Sensor Interface	  
 
+config VIDEO_RK29
+	tristate "RK29XX Camera Sensor Interface driver"
+	depends on VIDEO_DEV && ARCH_RK29 && SOC_CAMERA && HAS_DMA
+	select VIDEOBUF_DMA_CONTIG
+	---help---
+	  This is a v4l2 driver for the RK29XX Camera Sensor Interface		  
+choice
+	prompt "RK29XX Camera Sensor Interface Work Mode"
+	depends on VIDEO_RK29
+	default VIDEO_RK29_WORK_ONEFRAME
+	---help---
+		RK29 Camera Sensor Interface(VIP) can work in 2 modes, ie:OneFrame,PingPong.
+config VIDEO_RK29_WORK_ONEFRAME
+	bool "VIP OneFrame Mode"
+
+config VIDEO_RK29_WORK_PINGPONG
+	bool "VIP PingPong Mode"
+endchoice
 #
 # USB Multimedia device configuration
 #

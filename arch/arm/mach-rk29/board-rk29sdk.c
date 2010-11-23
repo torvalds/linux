@@ -38,6 +38,8 @@
 #include <mach/rk29_iomap.h>
 #include <mach/board.h>
 #include <mach/rk29_nand.h>
+#include <mach/rk29_camera.h>                          /* ddl@rock-chips.com : camera support */
+#include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -450,7 +452,183 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
 };
 #endif
 
+/*****************************************************************************************
+ * camera  devices
+ * author: ddl@rock-chips.com
+ *****************************************************************************************/
+#ifdef CONFIG_VIDEO_RK29
+#define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_OV2655
+#define SENSOR_IIC_ADDR_0 	    0x60
+#define SENSOR_IIC_ADAPTER_ID_0    1
+#define SENSOR_POWER_PIN_0         INVALID_GPIO
+#define SENSOR_RESET_PIN_0         RK29_PIN0_PA2
+#define SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_L
+#define SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
 
+
+#define SENSOR_NAME_1 NULL
+#define SENSOR_IIC_ADDR_1 	    0x00
+#define SENSOR_IIC_ADAPTER_ID_1    0xff
+#define SENSOR_POWER_PIN_1         INVALID_GPIO
+#define SENSOR_RESET_PIN_1         INVALID_GPIO
+#define SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_L
+#define SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
+
+static int rk29_sensor_io_init(void);
+static int rk29_sensor_io_deinit(void);
+
+struct rk29camera_platform_data rk29_camera_platform_data = {
+    .io_init = rk29_sensor_io_init,
+    .io_deinit = rk29_sensor_io_deinit,
+    .gpio_res = {
+        {
+            .gpio_reset = SENSOR_RESET_PIN_0,
+            .gpio_power = SENSOR_POWER_PIN_0,
+            .gpio_flag = (SENSOR_POWERACTIVE_LEVEL_0|SENSOR_RESETACTIVE_LEVEL_0),
+            .dev_name = SENSOR_NAME_0,
+        }, {
+            .gpio_reset = SENSOR_RESET_PIN_1,
+            .gpio_power = SENSOR_POWER_PIN_1,
+            .gpio_flag = (SENSOR_POWERACTIVE_LEVEL_1|SENSOR_RESETACTIVE_LEVEL_1),
+            .dev_name = SENSOR_NAME_1,
+        }
+    }
+};
+
+static int rk29_sensor_io_init(void)
+{
+    int ret = 0, i;
+    unsigned int camera_reset = INVALID_GPIO, camera_power = INVALID_GPIO;
+	unsigned int camera_ioflag;
+
+    for (i=0; i<2; i++) {
+        camera_reset = rk29_camera_platform_data.gpio_res[i].gpio_reset;
+        camera_power = rk29_camera_platform_data.gpio_res[i].gpio_power;
+		camera_ioflag = rk29_camera_platform_data.gpio_res[i].gpio_flag;
+
+        if (camera_power != INVALID_GPIO) {
+            ret = gpio_request(camera_power, "camera power");
+            if (ret)
+                continue;
+
+            gpio_set_value(camera_reset, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+            gpio_direction_output(camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+
+			//printk("\n%s....%d  %x   \n",__FUNCTION__,__LINE__,(((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+
+        }
+
+        if (camera_reset != INVALID_GPIO) {
+            ret = gpio_request(camera_reset, "camera reset");
+            if (ret) {
+                if (camera_power != INVALID_GPIO)
+                    gpio_free(camera_power);
+
+                continue;
+            }
+
+            gpio_set_value(camera_reset, ((camera_ioflag&RK29_CAM_RESETACTIVE_MASK)>>RK29_CAM_RESETACTIVE_BITPOS));
+            gpio_direction_output(camera_reset, ((camera_ioflag&RK29_CAM_RESETACTIVE_MASK)>>RK29_CAM_RESETACTIVE_BITPOS));
+
+			//printk("\n%s....%d  %x \n",__FUNCTION__,__LINE__,((camera_ioflag&RK29_CAM_RESETACTIVE_MASK)>>RK29_CAM_RESETACTIVE_BITPOS));
+
+        }
+    }
+
+    return 0;
+}
+
+static int rk29_sensor_io_deinit(void)
+{
+    unsigned int i;
+    unsigned int camera_reset = INVALID_GPIO, camera_power = INVALID_GPIO;
+
+    //printk("\n%s....%d    ******** ddl *********\n",__FUNCTION__,__LINE__);
+
+    for (i=0; i<2; i++) {
+        camera_reset = rk29_camera_platform_data.gpio_res[i].gpio_reset;
+        camera_power = rk29_camera_platform_data.gpio_res[i].gpio_power;
+
+        if (camera_power != INVALID_GPIO){
+            gpio_direction_input(camera_power);
+            gpio_free(camera_power);
+        }
+
+        if (camera_reset != INVALID_GPIO)  {
+            gpio_direction_input(camera_reset);
+            gpio_free(camera_reset);
+        }
+    }
+
+    return 0;
+}
+
+
+static int rk29_sensor_power(struct device *dev, int on)
+{
+    unsigned int camera_reset = INVALID_GPIO, camera_power = INVALID_GPIO;
+	unsigned int camera_ioflag;
+
+    if(rk29_camera_platform_data.gpio_res[0].dev_name &&  (strcmp(rk29_camera_platform_data.gpio_res[0].dev_name, dev_name(dev)) == 0)) {
+        camera_reset = rk29_camera_platform_data.gpio_res[0].gpio_reset;
+        camera_power = rk29_camera_platform_data.gpio_res[0].gpio_power;
+		camera_ioflag = rk29_camera_platform_data.gpio_res[0].gpio_flag;
+    } else if (rk29_camera_platform_data.gpio_res[1].dev_name && (strcmp(rk29_camera_platform_data.gpio_res[1].dev_name, dev_name(dev)) == 0)) {
+        camera_reset = rk29_camera_platform_data.gpio_res[1].gpio_reset;
+        camera_power = rk29_camera_platform_data.gpio_res[1].gpio_power;
+		camera_ioflag = rk29_camera_platform_data.gpio_res[1].gpio_flag;
+    }
+
+    if (camera_reset != INVALID_GPIO) {
+        gpio_set_value(camera_reset, ((camera_ioflag&RK29_CAM_RESETACTIVE_MASK)>>RK29_CAM_RESETACTIVE_BITPOS));
+        //printk("\n%s..%s..ResetPin=%d ..PinLevel = %x \n",__FUNCTION__,dev_name(dev),camera_reset, ((camera_ioflag&RK29_CAM_RESETACTIVE_MASK)>>RK29_CAM_RESETACTIVE_BITPOS));
+    }
+    if (camera_power != INVALID_GPIO)  {
+        if (on) {
+        	gpio_set_value(camera_power, ((camera_ioflag&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+			//printk("\n%s..%s..PowerPin=%d ..PinLevel = %x   \n",__FUNCTION__,dev_name(dev), camera_power, ((camera_ioflag&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+		} else {
+			gpio_set_value(camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+			//printk("\n%s..%s..PowerPin=%d ..PinLevel = %x   \n",__FUNCTION__,dev_name(dev), camera_power, (((~camera_ioflag)&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
+		}
+	}
+
+    if (camera_reset != INVALID_GPIO)  {
+		if (on) {
+	        msleep(3);          /* delay 3 ms */
+	        gpio_set_value(camera_reset,(((~camera_ioflag)&RK29_CAM_RESETACTIVE_MASK)>>RK29_CAM_RESETACTIVE_BITPOS));
+	        //printk("\n%s..%s..ResetPin= %d..PinLevel = %x   \n",__FUNCTION__,dev_name(dev), camera_reset, (((~camera_ioflag)&RK29_CAM_RESETACTIVE_MASK)>>RK29_CAM_RESETACTIVE_BITPOS));
+		}
+    }
+    return 0;
+}
+
+static struct i2c_board_info rk29_i2c_cam_info[] = {
+	{
+		I2C_BOARD_INFO(SENSOR_NAME_0, SENSOR_IIC_ADDR_0>>1)
+	},
+};
+
+struct soc_camera_link rk29_iclink = {
+	.bus_id		= RK29_CAM_PLATFORM_DEV_ID,
+	.power		= rk29_sensor_power,
+	.board_info	= &rk29_i2c_cam_info[0],
+	.i2c_adapter_id	= SENSOR_IIC_ADAPTER_ID_0,
+	.module_name	= SENSOR_NAME_0,
+};
+
+/*platform_device : soc-camera need  */
+struct platform_device rk29_soc_camera_pdrv = {
+	.name	= "soc-camera-pdrv",
+	.id	= -1,
+	.dev	= {
+		.init_name = SENSOR_NAME_0,
+		.platform_data = &rk29_iclink,
+	},
+};
+
+extern struct platform_device rk29_device_camera;
+#endif
 /*****************************************************************************************
  * backlight  devices
  * author: nzy@rock-chips.com
@@ -700,6 +878,10 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_VIVANTE
 	&rk29_device_gpu,
 #endif
+#ifdef CONFIG_VIDEO_RK29
+ 	&rk29_device_camera,      /* ddl@rock-chips.com : camera support  */
+ 	&rk29_soc_camera_pdrv,
+ #endif
 	&android_pmem_device,
 	&android_pmem_vpu_device,
 };
