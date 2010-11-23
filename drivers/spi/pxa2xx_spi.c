@@ -23,6 +23,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/dma-mapping.h>
 #include <linux/spi/spi.h>
 #include <linux/workqueue.h>
@@ -35,9 +36,6 @@
 #include <asm/irq.h>
 #include <asm/delay.h>
 
-#include <mach/dma.h>
-#include <plat/ssp.h>
-#include <mach/pxa2xx_spi.h>
 
 MODULE_AUTHOR("Stephen Street");
 MODULE_DESCRIPTION("PXA2xx SSP SPI Controller");

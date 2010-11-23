@@ -25,12 +25,12 @@
 #include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/max7301.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/leds.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/pxa27x.h>
-#include <mach/pxa2xx_spi.h>
 #include <mach/pcm027.h>
 #include "generic.h"
 

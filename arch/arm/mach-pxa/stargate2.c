@@ -46,10 +46,10 @@
 #include <plat/i2c.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
-#include <mach/pxa2xx_spi.h>
 #include <mach/pxa27x-udc.h>
 
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/mfd/da903x.h>
 #include <linux/sht15.h>
 

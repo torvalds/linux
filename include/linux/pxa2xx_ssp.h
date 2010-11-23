@@ -1,5 +1,5 @@
 /*
- *  ssp.h
+ *  pxa2xx_ssp.h
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
  *
@@ -16,8 +16,8 @@
  *       PXA3xx     SSP1, SSP2, SSP3, SSP4
  */
 
-#ifndef __ASM_ARCH_SSP_H
-#define __ASM_ARCH_SSP_H
+#ifndef __LINUX_SSP_H
+#define __LINUX_SSP_H
 
 #include <linux/list.h>
 #include <linux/io.h>
@@ -184,4 +184,4 @@ static inline u32 pxa_ssp_read_reg(struct ssp_device *dev, u32 reg)
 
 struct ssp_device *pxa_ssp_request(int port, const char *label);
 void pxa_ssp_free(struct ssp_device *);
-#endif /* __ASM_ARCH_SSP_H */
+#endif

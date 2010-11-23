@@ -20,6 +20,7 @@
 #include <linux/z2_battery.h>
 #include <linux/dma-mapping.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/spi/libertas_spi.h>
 #include <linux/spi/lms283gf05.h>
 #include <linux/power_supply.h>
@@ -38,7 +39,6 @@
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <plat/pxa27x_keypad.h>
-#include <mach/pxa2xx_spi.h>
 
 #include <plat/i2c.h>
 

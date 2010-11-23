@@ -20,6 +20,7 @@
 #include <linux/dm9000.h>
 #include <linux/mmc/host.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -41,7 +42,6 @@
 #include <mach/pxa27x-udc.h>
 #include <mach/udc.h>
 #include <mach/pxafb.h>
-#include <mach/pxa2xx_spi.h>
 #include <mach/mfp-pxa27x.h>
 #include <mach/pm.h>
 #include <mach/audio.h>

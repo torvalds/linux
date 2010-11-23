@@ -32,6 +32,7 @@
 #include <linux/gpio.h>
 #include <linux/pda_power.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/input/matrix_keypad.h>
 
 #include <asm/setup.h>
@@ -44,7 +45,6 @@
 #include <mach/mmc.h>
 #include <mach/udc.h>
 #include <mach/tosa_bt.h>
-#include <mach/pxa2xx_spi.h>
 #include <mach/audio.h>
 
 #include <asm/mach/arch.h>

@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/spi/pxa2xx_spi.h>
 
 #include <asm/pmu.h>
 #include <mach/udc.h>
@@ -12,7 +13,6 @@
 #include <mach/irda.h>
 #include <mach/ohci.h>
 #include <plat/pxa27x_keypad.h>
-#include <mach/pxa2xx_spi.h>
 #include <mach/camera.h>
 #include <mach/audio.h>
 #include <mach/hardware.h>

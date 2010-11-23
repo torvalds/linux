@@ -25,6 +25,7 @@
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/mtd/sharpsl.h>
 
 #include <mach/hardware.h>
@@ -43,7 +44,6 @@
 #include <mach/irda.h>
 #include <mach/poodle.h>
 #include <mach/pxafb.h>
-#include <mach/pxa2xx_spi.h>
 #include <plat/i2c.h>
 
 #include <asm/hardware/scoop.h>

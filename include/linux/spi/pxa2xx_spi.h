@@ -15,9 +15,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
+#ifndef __linux_pxa2xx_spi_h
+#define __linux_pxa2xx_spi_h
 
-#ifndef PXA2XX_SPI_H_
-#define PXA2XX_SPI_H_
+#include <linux/pxa2xx_ssp.h>
+#include <mach/dma.h>
 
 #define PXA2XX_CS_ASSERT (0x01)
 #define PXA2XX_CS_DEASSERT (0x02)
@@ -44,4 +46,4 @@ struct pxa2xx_spi_chip {
 
 extern void pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_master *info);
 
-#endif /*PXA2XX_SPI_H_*/
+#endif

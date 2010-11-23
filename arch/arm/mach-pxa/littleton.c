@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/smc91x.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
@@ -42,7 +43,6 @@
 #include <mach/pxa300.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
-#include <mach/pxa2xx_spi.h>
 #include <plat/pxa27x_keypad.h>
 #include <mach/littleton.h>
 #include <plat/i2c.h>

@@ -24,7 +24,7 @@
 #include <mach/mxm8x10.h>
 
 #include <linux/spi/spi.h>
-#include <mach/pxa2xx_spi.h>
+#include <linux/spi/pxa2xx_spi.h>
 #include <linux/can/platform/mcp251x.h>
 
 #include "generic.h"
