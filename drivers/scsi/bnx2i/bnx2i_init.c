@@ -65,8 +65,6 @@ MODULE_PARM_DESC(rq_size, "Configure RQ size");
 
 u64 iscsi_error_mask = 0x00;
 
-static void bnx2i_unreg_one_device(struct bnx2i_hba *hba) ;
-
 
 /**
  * bnx2i_identify_device - identifies NetXtreme II device type
@@ -237,86 +235,6 @@ void bnx2i_stop(void *handle)
 	 */
 	clear_bit(ADAPTER_STATE_UP, &hba->adapter_state);
 }
-
-/**
- * bnx2i_register_device - register bnx2i adapter instance with the cnic driver
- * @hba:	Adapter instance to register
- *
- * registers bnx2i adapter instance with the cnic driver while holding the
- *	adapter structure lock
- */
-void bnx2i_register_device(struct bnx2i_hba *hba)
-{
-	int rc;
-
-	if (test_bit(ADAPTER_STATE_GOING_DOWN, &hba->adapter_state) ||
-	    test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
-		return;
-	}
-
-	rc = hba->cnic->register_device(hba->cnic, CNIC_ULP_ISCSI, hba);
-
-	if (!rc)
-		set_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
-}
-
-
-/**
- * bnx2i_reg_dev_all - registers all adapter instances with the cnic driver
- *
- * registers all bnx2i adapter instances with the cnic driver while holding
- *	the global resource lock
- */
-void bnx2i_reg_dev_all(void)
-{
-	struct bnx2i_hba *hba, *temp;
-
-	mutex_lock(&bnx2i_dev_lock);
-	list_for_each_entry_safe(hba, temp, &adapter_list, link)
-		bnx2i_register_device(hba);
-	mutex_unlock(&bnx2i_dev_lock);
-}
-
-
-/**
- * bnx2i_unreg_one_device - unregister adapter instance with the cnic driver
- * @hba:	Adapter instance to unregister
- *
- * registers bnx2i adapter instance with the cnic driver while holding
- *	the adapter structure lock
- */
-static void bnx2i_unreg_one_device(struct bnx2i_hba *hba)
-{
-	if (hba->ofld_conns_active ||
-	    !test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic) ||
-	    test_bit(ADAPTER_STATE_GOING_DOWN, &hba->adapter_state))
-		return;
-
-	hba->cnic->unregister_device(hba->cnic, CNIC_ULP_ISCSI);
-
-	/* ep_disconnect could come before NETDEV_DOWN, driver won't
-	 * see NETDEV_DOWN as it already unregistered itself.
-	 */
-	hba->adapter_state = 0;
-	clear_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic);
-}
-
-/**
- * bnx2i_unreg_dev_all - unregisters all bnx2i instances with the cnic driver
- *
- * unregisters all bnx2i adapter instances with the cnic driver while holding
- *	the global resource lock
- */
-void bnx2i_unreg_dev_all(void)
-{
-	struct bnx2i_hba *hba, *temp;
-
-	mutex_lock(&bnx2i_dev_lock);
-	list_for_each_entry_safe(hba, temp, &adapter_list, link)
-		bnx2i_unreg_one_device(hba);
-	mutex_unlock(&bnx2i_dev_lock);
-}
-
 
 /**
  * bnx2i_init_one - initialize an adapter instance and allocate memory resources

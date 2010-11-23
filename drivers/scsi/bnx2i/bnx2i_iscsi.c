@@ -1606,8 +1606,6 @@ static struct bnx2i_hba *bnx2i_check_route(struct sockaddr *dst_addr)
 	struct bnx2i_hba *hba;
 	struct cnic_dev *cnic = NULL;
 
-	bnx2i_reg_dev_all();
-
 	hba = get_adapter_list_head();
 	if (hba && hba->cnic)
 		cnic = hba->cnic->cm_select_dev(desti, CNIC_ULP_ISCSI);
@@ -1726,8 +1724,6 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 	if (shost) {
 		/* driver is given scsi host to work with */
 		hba = iscsi_host_priv(shost);
-		/* Register the device with cnic if not already done so */
-		bnx2i_register_device(hba);
 	} else
 		/*
 		 * check if the given destination can be reached through
@@ -1853,7 +1849,6 @@ qp_resc_err:
 check_busy:
 	mutex_unlock(&hba->net_dev_lock);
 nohba:
-	bnx2i_unreg_dev_all();
 	return ERR_PTR(rc);
 }
 
@@ -2089,8 +2084,6 @@ return_bnx2i_ep:
 
 	bnx2i_free_ep(ep);
 	mutex_unlock(&hba->net_dev_lock);
-	if (!hba->ofld_conns_active)
-		bnx2i_unreg_dev_all();
 
 	wake_up_interruptible(&hba->eh_wait);
 }
