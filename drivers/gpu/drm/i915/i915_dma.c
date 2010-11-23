@@ -1007,73 +1007,47 @@ intel_teardown_mchbar(struct drm_device *dev)
 #define PTE_VALID			(1 << 0)
 
 /**
- * i915_gtt_to_phys - take a GTT address and turn it into a physical one
+ * i915_stolen_to_phys - take an offset into stolen memory and turn it into
+ *                       a physical one
  * @dev: drm device
- * @gtt_addr: address to translate
+ * @offset: address to translate
  *
- * Some chip functions require allocations from stolen space but need the
- * physical address of the memory in question.  We use this routine
- * to get a physical address suitable for register programming from a given
- * GTT address.
+ * Some chip functions require allocations from stolen space and need the
+ * physical address of the memory in question.
  */
-static unsigned long i915_gtt_to_phys(struct drm_device *dev,
-				      unsigned long gtt_addr)
+static unsigned long i915_stolen_to_phys(struct drm_device *dev, u32 offset)
 {
-	unsigned long *gtt;
-	unsigned long entry, phys;
-	int gtt_bar = IS_GEN2(dev) ? 1 : 0;
-	int gtt_offset, gtt_size;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct pci_dev *pdev = dev_priv->bridge_dev;
+	u32 base;
 
-	if (INTEL_INFO(dev)->gen >= 4) {
-		if (IS_G4X(dev) || INTEL_INFO(dev)->gen > 4) {
-			gtt_offset = 2*1024*1024;
-			gtt_size = 2*1024*1024;
-		} else {
-			gtt_offset = 512*1024;
-			gtt_size = 512*1024;
-		}
+#if 0
+	/* On the machines I have tested the Graphics Base of Stolen Memory
+	 * is unreliable, so compute the base by subtracting the stolen memory
+	 * from the Top of Low Usable DRAM which is where the BIOS places
+	 * the graphics stolen memory.
+	 */
+	if (INTEL_INFO(dev)->gen > 3 || IS_G33(dev)) {
+		/* top 32bits are reserved = 0 */
+		pci_read_config_dword(pdev, 0xA4, &base);
 	} else {
-		gtt_bar = 3;
-		gtt_offset = 0;
-		gtt_size = pci_resource_len(dev->pdev, gtt_bar);
+		/* XXX presume 8xx is the same as i915 */
+		pci_bus_read_config_dword(pdev->bus, 2, 0x5C, &base);
 	}
-
-	gtt = ioremap_wc(pci_resource_start(dev->pdev, gtt_bar) + gtt_offset,
-			 gtt_size);
-	if (!gtt) {
-		DRM_ERROR("ioremap of GTT failed\n");
-		return 0;
+#else
+	if (INTEL_INFO(dev)->gen > 3 || IS_G33(dev)) {
+		u16 val;
+		pci_read_config_word(pdev, 0xb0, &val);
+		base = val >> 4 << 20;
+	} else {
+		u8 val;
+		pci_read_config_byte(pdev, 0x9c, &val);
+		base = val >> 3 << 27;
 	}
+	base -= dev_priv->mm.gtt->gtt_stolen_entries << PAGE_SHIFT;
+#endif
 
-	entry = *(volatile u32 *)(gtt + (gtt_addr / 1024));
-
-	DRM_DEBUG_DRIVER("GTT addr: 0x%08lx, PTE: 0x%08lx\n", gtt_addr, entry);
-
-	/* Mask out these reserved bits on this hardware. */
-	if (INTEL_INFO(dev)->gen < 4 && !IS_G33(dev))
-		entry &= ~PTE_ADDRESS_MASK_HIGH;
-
-	/* If it's not a mapping type we know, then bail. */
-	if ((entry & PTE_MAPPING_TYPE_MASK) != PTE_MAPPING_TYPE_UNCACHED &&
-	    (entry & PTE_MAPPING_TYPE_MASK) != PTE_MAPPING_TYPE_CACHED)	{
-		iounmap(gtt);
-		return 0;
-	}
-
-	if (!(entry & PTE_VALID)) {
-		DRM_ERROR("bad GTT entry in stolen space\n");
-		iounmap(gtt);
-		return 0;
-	}
-
-	iounmap(gtt);
-
-	phys =(entry & PTE_ADDRESS_MASK) |
-		((uint64_t)(entry & PTE_ADDRESS_MASK_HIGH) << (32 - 4));
-
-	DRM_DEBUG_DRIVER("GTT addr: 0x%08lx, phys addr: 0x%08lx\n", gtt_addr, phys);
-
-	return phys;
+	return base + offset;
 }
 
 static void i915_warn_stolen(struct drm_device *dev)
@@ -1089,47 +1063,28 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 	unsigned long cfb_base;
 	unsigned long ll_base = 0;
 
-	/* Leave 1M for line length buffer & misc. */
-	compressed_fb = drm_mm_search_free(&dev_priv->mm.vram, size, 4096, 0);
-	if (!compressed_fb) {
-		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
-		i915_warn_stolen(dev);
-		return;
-	}
+	compressed_fb = drm_mm_search_free(&dev_priv->mm.stolen, size, 4096, 0);
+	if (compressed_fb)
+		compressed_fb = drm_mm_get_block(compressed_fb, size, 4096);
+	if (!compressed_fb)
+		goto err;
 
-	compressed_fb = drm_mm_get_block(compressed_fb, size, 4096);
-	if (!compressed_fb) {
-		i915_warn_stolen(dev);
-		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
-		return;
-	}
-
-	cfb_base = i915_gtt_to_phys(dev, compressed_fb->start);
-	if (!cfb_base) {
-		DRM_ERROR("failed to get stolen phys addr, disabling FBC\n");
-		drm_mm_put_block(compressed_fb);
-	}
+	cfb_base = i915_stolen_to_phys(dev, compressed_fb->start);
+	if (!cfb_base)
+		goto err_fb;
 
 	if (!(IS_GM45(dev) || IS_IRONLAKE_M(dev))) {
-		compressed_llb = drm_mm_search_free(&dev_priv->mm.vram, 4096,
-						    4096, 0);
-		if (!compressed_llb) {
-			i915_warn_stolen(dev);
-			return;
-		}
+		compressed_llb = drm_mm_search_free(&dev_priv->mm.stolen,
+						    4096, 4096, 0);
+		if (compressed_llb)
+			compressed_llb = drm_mm_get_block(compressed_llb,
+							  4096, 4096);
+		if (!compressed_llb)
+			goto err_fb;
 
-		compressed_llb = drm_mm_get_block(compressed_llb, 4096, 4096);
-		if (!compressed_llb) {
-			i915_warn_stolen(dev);
-			return;
-		}
-
-		ll_base = i915_gtt_to_phys(dev, compressed_llb->start);
-		if (!ll_base) {
-			DRM_ERROR("failed to get stolen phys addr, disabling FBC\n");
-			drm_mm_put_block(compressed_fb);
-			drm_mm_put_block(compressed_llb);
-		}
+		ll_base = i915_stolen_to_phys(dev, compressed_llb->start);
+		if (!ll_base)
+			goto err_llb;
 	}
 
 	dev_priv->cfb_size = size;
@@ -1146,8 +1101,17 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 		dev_priv->compressed_llb = compressed_llb;
 	}
 
-	DRM_DEBUG_KMS("FBC base 0x%08lx, ll base 0x%08lx, size %dM\n", cfb_base,
-		  ll_base, size >> 20);
+	DRM_DEBUG_KMS("FBC base 0x%08lx, ll base 0x%08lx, size %dM\n",
+		      cfb_base, ll_base, size >> 20);
+	return;
+
+err_llb:
+	drm_mm_put_block(compressed_llb);
+err_fb:
+	drm_mm_put_block(compressed_fb);
+err:
+	dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
+	i915_warn_stolen(dev);
 }
 
 static void i915_cleanup_compression(struct drm_device *dev)
@@ -1207,12 +1171,11 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	prealloc_size = dev_priv->mm.gtt->gtt_stolen_entries << PAGE_SHIFT;
 	gtt_size = dev_priv->mm.gtt->gtt_total_entries << PAGE_SHIFT;
 	mappable_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
-	gtt_size -= PAGE_SIZE;
 
-	/* Basic memrange allocator for stolen space (aka mm.vram) */
-	drm_mm_init(&dev_priv->mm.vram, 0, prealloc_size);
+	/* Basic memrange allocator for stolen space */
+	drm_mm_init(&dev_priv->mm.stolen, 0, prealloc_size);
 
-	/* Let GEM Manage from end of prealloc space to end of aperture.
+	/* Let GEM Manage all of the aperture.
 	 *
 	 * However, leave one page at the end still bound to the scratch page.
 	 * There are a number of places where the hardware apparently
@@ -1221,7 +1184,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * at the last page of the aperture.  One page should be enough to
 	 * keep any prefetching inside of the aperture.
 	 */
-	i915_gem_do_init(dev, prealloc_size, mappable_size, gtt_size);
+	i915_gem_do_init(dev, 0, mappable_size, gtt_size - PAGE_SIZE);
 
 	mutex_lock(&dev->struct_mutex);
 	ret = i915_gem_init_ringbuffer(dev);
@@ -1233,16 +1196,17 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (I915_HAS_FBC(dev) && i915_powersave) {
 		int cfb_size;
 
-		/* Try to get an 8M buffer... */
-		if (prealloc_size > (9*1024*1024))
-			cfb_size = 8*1024*1024;
+		/* Leave 1M for line length buffer & misc. */
+
+		/* Try to get a 32M buffer... */
+		if (prealloc_size > (36*1024*1024))
+			cfb_size = 32*1024*1024;
 		else /* fall back to 7/8 of the stolen space */
 			cfb_size = prealloc_size * 7 / 8;
 		i915_setup_compression(dev, cfb_size);
 	}
 
-	/* Allow hardware batchbuffers unless told otherwise.
-	 */
+	/* Allow hardware batchbuffers unless told otherwise. */
 	dev_priv->allow_batchbuffer = 1;
 
 	ret = intel_parse_bios(dev);
@@ -1892,7 +1856,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv;
 	int ret = 0, mmio_bar;
-	uint32_t agp_size, prealloc_size;
+	uint32_t agp_size;
+
 	/* i915 has 4 more counters */
 	dev->counters += 4;
 	dev->types[6] = _DRM_STAT_IRQ;
@@ -1932,7 +1897,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_iomapfree;
 	}
 
-	prealloc_size = dev_priv->mm.gtt->gtt_stolen_entries << PAGE_SHIFT;
 	agp_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
 
         dev_priv->mm.gtt_mapping =
@@ -1979,15 +1943,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	/* enable GEM by default */
 	dev_priv->has_gem = 1;
-
-	if (prealloc_size > agp_size * 3 / 4) {
-		DRM_ERROR("Detected broken video BIOS with %d/%dkB of video "
-			  "memory stolen.\n",
-			  prealloc_size / 1024, agp_size / 1024);
-		DRM_ERROR("Disabling GEM. (try reducing stolen memory or "
-			  "updating the BIOS to fix).\n");
-		dev_priv->has_gem = 0;
-	}
 
 	if (dev_priv->has_gem == 0 &&
 	    drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -2162,7 +2117,7 @@ int i915_driver_unload(struct drm_device *dev)
 		mutex_unlock(&dev->struct_mutex);
 		if (I915_HAS_FBC(dev) && i915_powersave)
 			i915_cleanup_compression(dev);
-		drm_mm_takedown(&dev_priv->mm.vram);
+		drm_mm_takedown(&dev_priv->mm.stolen);
 
 		intel_cleanup_overlay(dev);
 
