@@ -806,7 +806,7 @@ __be16 xfrm_flowi_sport(struct flowi *fl)
 		port = htons(fl->fl_mh_type);
 		break;
 	case IPPROTO_GRE:
-		port = htonl(fl->fl_gre_key) >> 16;
+		port = htons(ntohl(fl->fl_gre_key) >> 16);
 		break;
 	default:
 		port = 0;	/*XXX*/
@@ -830,7 +830,7 @@ __be16 xfrm_flowi_dport(struct flowi *fl)
 		port = htons(fl->fl_icmp_code);
 		break;
 	case IPPROTO_GRE:
-		port = htonl(fl->fl_gre_key) & 0xffff;
+		port = htons(ntohl(fl->fl_gre_key) & 0xffff);
 		break;
 	default:
 		port = 0;	/*XXX*/
