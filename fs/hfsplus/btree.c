@@ -287,7 +287,7 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 		kunmap(*pagep);
 		nidx = node->next;
 		if (!nidx) {
-			printk(KERN_DEBUG "hfs: create new bmap node...\n");
+			dprint(DBG_BNODE_MOD, "hfs: create new bmap node.\n");
 			next_node = hfs_bmap_new_bmap(node, idx);
 		} else
 			next_node = hfs_bnode_find(tree, nidx);

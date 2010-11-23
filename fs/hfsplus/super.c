@@ -451,8 +451,6 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	sync_dirty_buffer(sbi->s_vhbh);
 
 	if (!sbi->hidden_dir) {
-		printk(KERN_DEBUG "hfs: create hidden dir...\n");
-
 		mutex_lock(&sbi->vh_mutex);
 		sbi->hidden_dir = hfsplus_new_inode(sb, S_IFDIR);
 		hfsplus_create_cat(sbi->hidden_dir->i_ino, sb->s_root->d_inode,

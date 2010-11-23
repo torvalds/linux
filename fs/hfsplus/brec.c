@@ -375,7 +375,7 @@ again:
 		end_off = hfs_bnode_read_u16(parent, end_rec_off);
 		if (end_rec_off - end_off < diff) {
 
-			printk(KERN_DEBUG "hfs: splitting index node...\n");
+			dprint(DBG_BNODE_MOD, "hfs: splitting index node.\n");
 			fd->bnode = parent;
 			new_node = hfs_bnode_split(fd);
 			if (IS_ERR(new_node))
