@@ -1296,55 +1296,14 @@ intel_sdvo_get_edid(struct drm_connector *connector)
 	return drm_get_edid(connector, &sdvo->ddc);
 }
 
-static struct drm_connector *
-intel_find_analog_connector(struct drm_device *dev)
-{
-	struct drm_connector *connector;
-	struct intel_sdvo *encoder;
-
-	list_for_each_entry(encoder,
-			    &dev->mode_config.encoder_list,
-			    base.base.head) {
-		if (encoder->base.type == INTEL_OUTPUT_ANALOG) {
-			list_for_each_entry(connector,
-					    &dev->mode_config.connector_list,
-					    head) {
-				if (&encoder->base ==
-				    intel_attached_encoder(connector))
-					return connector;
-			}
-		}
-	}
-
-	return NULL;
-}
-
-static int
-intel_analog_is_connected(struct drm_device *dev)
-{
-	struct drm_connector *analog_connector;
-
-	analog_connector = intel_find_analog_connector(dev);
-	if (!analog_connector)
-		return false;
-
-	if (analog_connector->funcs->detect(analog_connector, false) ==
-			connector_status_disconnected)
-		return false;
-
-	return true;
-}
-
 /* Mac mini hack -- use the same DDC as the analog connector */
 static struct edid *
 intel_sdvo_get_analog_edid(struct drm_connector *connector)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 
-	if (!intel_analog_is_connected(connector->dev))
-		return NULL;
-
-	return drm_get_edid(connector, &dev_priv->gmbus[dev_priv->crt_ddc_pin].adapter);
+	return drm_get_edid(connector,
+			    &dev_priv->gmbus[dev_priv->crt_ddc_pin].adapter);
 }
 
 enum drm_connector_status
@@ -1475,8 +1434,10 @@ static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 		edid = intel_sdvo_get_analog_edid(connector);
 
 	if (edid != NULL) {
-		drm_mode_connector_update_edid_property(connector, edid);
-		drm_add_edid_modes(connector, edid);
+		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
+			drm_mode_connector_update_edid_property(connector, edid);
+			drm_add_edid_modes(connector, edid);
+		}
 		connector->display_info.raw_edid = NULL;
 		kfree(edid);
 	}
