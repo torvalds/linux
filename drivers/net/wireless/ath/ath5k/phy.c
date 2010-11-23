@@ -1622,7 +1622,7 @@ ath5k_hw_set_spur_mitigation_filter(struct ath5k_hw *ah,
 	spur_chan_fbin = AR5K_EEPROM_NO_SPUR;
 	spur_detection_window = AR5K_SPUR_CHAN_WIDTH;
 	/* XXX: Half/Quarter channels ?*/
-	if (channel->hw_value & CHANNEL_TURBO)
+	if (ah->ah_bwmode == AR5K_BWMODE_40MHZ)
 		spur_detection_window *= 2;
 
 	for (i = 0; i < AR5K_EEPROM_N_SPUR_CHANS; i++) {
@@ -1651,32 +1651,43 @@ ath5k_hw_set_spur_mitigation_filter(struct ath5k_hw *ah,
 		 * Calculate deltas:
 		 * spur_freq_sigma_delta -> spur_offset / sample_freq << 21
 		 * spur_delta_phase -> spur_offset / chip_freq << 11
-		 * Note: Both values have 100KHz resolution
+		 * Note: Both values have 100Hz resolution
 		 */
-		/* XXX: Half/Quarter rate channels ? */
-		switch (channel->hw_value) {
-		case CHANNEL_A:
-			/* Both sample_freq and chip_freq are 40MHz */
-			spur_delta_phase = (spur_offset << 17) / 25;
-			spur_freq_sigma_delta = (spur_delta_phase >> 10);
-			symbol_width = AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz;
-			break;
-		case CHANNEL_G:
-			/* sample_freq -> 40MHz chip_freq -> 44MHz
-			 * (for b compatibility) */
-			spur_freq_sigma_delta = (spur_offset << 8) / 55;
-			spur_delta_phase = (spur_offset << 17) / 25;
-			symbol_width = AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz;
-			break;
-		case CHANNEL_T:
-		case CHANNEL_TG:
+		switch (ah->ah_bwmode) {
+		case AR5K_BWMODE_40MHZ:
 			/* Both sample_freq and chip_freq are 80MHz */
 			spur_delta_phase = (spur_offset << 16) / 25;
 			spur_freq_sigma_delta = (spur_delta_phase >> 10);
-			symbol_width = AR5K_SPUR_SYMBOL_WIDTH_TURBO_100Hz;
+			symbol_width = AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz * 2;
 			break;
+		case AR5K_BWMODE_10MHZ:
+			/* Both sample_freq and chip_freq are 20MHz (?) */
+			spur_delta_phase = (spur_offset << 18) / 25;
+			spur_freq_sigma_delta = (spur_delta_phase >> 10);
+			symbol_width = AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz / 2;
+		case AR5K_BWMODE_5MHZ:
+			/* Both sample_freq and chip_freq are 10MHz (?) */
+			spur_delta_phase = (spur_offset << 19) / 25;
+			spur_freq_sigma_delta = (spur_delta_phase >> 10);
+			symbol_width = AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz / 4;
 		default:
-			return;
+			if (channel->hw_value == CHANNEL_A) {
+				/* Both sample_freq and chip_freq are 40MHz */
+				spur_delta_phase = (spur_offset << 17) / 25;
+				spur_freq_sigma_delta =
+						(spur_delta_phase >> 10);
+				symbol_width =
+					AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz;
+			} else {
+				/* sample_freq -> 40MHz chip_freq -> 44MHz
+				 * (for b compatibility) */
+				spur_delta_phase = (spur_offset << 17) / 25;
+				spur_freq_sigma_delta =
+						(spur_offset << 8) / 55;
+				symbol_width =
+					AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz;
+			}
+			break;
 		}
 
 		/* Calculate pilot and magnitude masks */
