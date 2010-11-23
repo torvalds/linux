@@ -116,6 +116,12 @@ config BATTERY_STC3100
 	help
 	  Say Y here to enable support for batteries with STC3100(I2C) chip.
 
+config BATTERY_BQ27510
+	tristate "BQ27510 battery driver"
+	depends on I2C && ARCH_RK29
+	help
+	  Say Y here to enable support for batteries with BQ27510(I2C) chip.
+
 config BATTERY_RK2818
 	tristate "RK2818 battery"
 	depends on RK28_ADC

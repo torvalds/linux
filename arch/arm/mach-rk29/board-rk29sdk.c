@@ -426,6 +426,13 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
+#if defined (CONFIG_BATTERY_BQ27510)
+	{
+		.type    		= "bq27510-battery",
+		.addr           = 0x55,
+		.flags			= 0,
+	},
+#endif
 };
 #endif
 
