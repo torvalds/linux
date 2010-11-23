@@ -824,6 +824,11 @@ static int ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 
 	g_step = &go->go_step[ah->ah_gain.g_step_idx];
 
+	/* Set turbo mode (N/A on RF5413) */
+	if ((ah->ah_bwmode == AR5K_BWMODE_40MHZ) &&
+	(ah->ah_radio != AR5K_RF5413))
+		ath5k_hw_rfb_op(ah, rf_regs, 1, AR5K_RF_TURBO, false);
+
 	/* Bank Modifications (chip-specific) */
 	if (ah->ah_radio == AR5K_RF5111) {
 

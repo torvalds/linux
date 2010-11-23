@@ -79,8 +79,10 @@ struct ath5k_rf_reg {
  * life easier by using an index for each register
  * instead of a full rfb_field */
 enum ath5k_rf_regs_idx {
+	/* BANK 2 */
+	AR5K_RF_TURBO = 0,
 	/* BANK 6 */
-	AR5K_RF_OB_2GHZ = 0,
+	AR5K_RF_OB_2GHZ,
 	AR5K_RF_OB_5GHZ,
 	AR5K_RF_DB_2GHZ,
 	AR5K_RF_DB_5GHZ,
@@ -134,6 +136,9 @@ enum ath5k_rf_regs_idx {
 * RF5111 (Sombrero) *
 \*******************/
 
+/* BANK 2				len  pos col */
+#define	AR5K_RF5111_RF_TURBO		{ 1, 3,   0 }
+
 /* BANK 6				len  pos col */
 #define	AR5K_RF5111_OB_2GHZ		{ 3, 119, 0 }
 #define	AR5K_RF5111_DB_2GHZ		{ 3, 122, 0 }
@@ -158,6 +163,7 @@ enum ath5k_rf_regs_idx {
 #define	AR5K_RF5111_MAX_TIME		{ 2, 49,  0 }
 
 static const struct ath5k_rf_reg rf_regs_5111[] = {
+	{2, AR5K_RF_TURBO,		AR5K_RF5111_RF_TURBO},
 	{6, AR5K_RF_OB_2GHZ,		AR5K_RF5111_OB_2GHZ},
 	{6, AR5K_RF_DB_2GHZ,		AR5K_RF5111_DB_2GHZ},
 	{6, AR5K_RF_OB_5GHZ,		AR5K_RF5111_OB_5GHZ},
@@ -231,6 +237,9 @@ static const struct ath5k_ini_rfbuffer rfb_5111[] = {
 * RF5112/RF2112 (Derby) *
 \***********************/
 
+/* BANK 2 (Common)			len  pos col */
+#define	AR5K_RF5112X_RF_TURBO		{ 1, 1,   2 }
+
 /* BANK 7 (Common)			len  pos col */
 #define	AR5K_RF5112X_GAIN_I		{ 6, 14,  0 }
 #define	AR5K_RF5112X_MIXVGA_OVR		{ 1, 36,  0 }
@@ -262,6 +271,7 @@ static const struct ath5k_ini_rfbuffer rfb_5111[] = {
 #define AR5K_RF5112_PWD(_n)		{ 1, (302 - _n), 3 }
 
 static const struct ath5k_rf_reg rf_regs_5112[] = {
+	{2, AR5K_RF_TURBO,		AR5K_RF5112X_RF_TURBO},
 	{6, AR5K_RF_OB_2GHZ,		AR5K_RF5112_OB_2GHZ},
 	{6, AR5K_RF_DB_2GHZ,		AR5K_RF5112_DB_2GHZ},
 	{6, AR5K_RF_OB_5GHZ,		AR5K_RF5112_OB_5GHZ},
@@ -378,6 +388,7 @@ static const struct ath5k_ini_rfbuffer rfb_5112[] = {
 #define	AR5K_RF5112A_XB5_LVL		{ 2, 3,	  3 }
 
 static const struct ath5k_rf_reg rf_regs_5112a[] = {
+	{2, AR5K_RF_TURBO,		AR5K_RF5112X_RF_TURBO},
 	{6, AR5K_RF_OB_2GHZ,		AR5K_RF5112A_OB_2GHZ},
 	{6, AR5K_RF_DB_2GHZ,		AR5K_RF5112A_DB_2GHZ},
 	{6, AR5K_RF_OB_5GHZ,		AR5K_RF5112A_OB_5GHZ},
@@ -481,11 +492,15 @@ static const struct ath5k_ini_rfbuffer rfb_5112a[] = {
 * RF2413 (Griffin) *
 \******************/
 
+/* BANK 2				len  pos col */
+#define AR5K_RF2413_RF_TURBO		{ 1, 1,   2 }
+
 /* BANK 6 				len  pos col */
 #define	AR5K_RF2413_OB_2GHZ		{ 3, 168, 0 }
 #define	AR5K_RF2413_DB_2GHZ		{ 3, 165, 0 }
 
 static const struct ath5k_rf_reg rf_regs_2413[] = {
+	{2, AR5K_RF_TURBO,		AR5K_RF2413_RF_TURBO},
 	{6, AR5K_RF_OB_2GHZ,		AR5K_RF2413_OB_2GHZ},
 	{6, AR5K_RF_DB_2GHZ,		AR5K_RF2413_DB_2GHZ},
 };
@@ -536,11 +551,15 @@ static const struct ath5k_ini_rfbuffer rfb_2413[] = {
 * RF2315/RF2316 (Cobra SoC) *
 \***************************/
 
+/* BANK 2				len  pos col */
+#define	AR5K_RF2316_RF_TURBO		{ 1, 1,   2 }
+
 /* BANK 6				len  pos col */
 #define	AR5K_RF2316_OB_2GHZ		{ 3, 178, 0 }
 #define	AR5K_RF2316_DB_2GHZ		{ 3, 175, 0 }
 
 static const struct ath5k_rf_reg rf_regs_2316[] = {
+	{2, AR5K_RF_TURBO,		AR5K_RF2316_RF_TURBO},
 	{6, AR5K_RF_OB_2GHZ,		AR5K_RF2316_OB_2GHZ},
 	{6, AR5K_RF_DB_2GHZ,		AR5K_RF2316_DB_2GHZ},
 };
@@ -665,17 +684,20 @@ static const struct ath5k_ini_rfbuffer rfb_5413[] = {
 * AR2317 (Spider SoC)       *
 \***************************/
 
+/* BANK 2				len  pos col */
+#define AR5K_RF2425_RF_TURBO		{ 1, 1,   2 }
+
 /* BANK 6				len  pos col */
 #define	AR5K_RF2425_OB_2GHZ		{ 3, 193, 0 }
 #define	AR5K_RF2425_DB_2GHZ		{ 3, 190, 0 }
 
 static const struct ath5k_rf_reg rf_regs_2425[] = {
+	{2, AR5K_RF_TURBO,		AR5K_RF2425_RF_TURBO},
 	{6, AR5K_RF_OB_2GHZ,		AR5K_RF2425_OB_2GHZ},
 	{6, AR5K_RF_DB_2GHZ,		AR5K_RF2425_DB_2GHZ},
 };
 
 /* Default mode specific settings
- * XXX: a/aTurbo ?
  */
 static const struct ath5k_ini_rfbuffer rfb_2425[] = {
 	/* BANK / C.R.     A/XR         B           G      */
@@ -764,7 +786,6 @@ static const struct ath5k_ini_rfbuffer rfb_2317[] = {
 /*
  * TODO: Handle the few differences with swan during
  * bank modification and get rid of this
- * XXX: a/aTurbo ?
  */
 static const struct ath5k_ini_rfbuffer rfb_2417[] = {
 	/* BANK / C.R.     A/XR         B           G      */
