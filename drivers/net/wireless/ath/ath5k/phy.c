@@ -1235,7 +1235,6 @@ static int ath5k_hw_channel(struct ath5k_hw *ah,
 	}
 
 	ah->ah_current_channel = channel;
-	ath5k_hw_set_clockrate(ah);
 
 	return 0;
 }

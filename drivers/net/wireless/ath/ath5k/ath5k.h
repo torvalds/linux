@@ -242,14 +242,6 @@
 #define AR5K_INIT_SLG_RETRY			AR5K_INIT_SSH_RETRY
 #define AR5K_INIT_TX_RETRY			10
 
-#define AR5K_INIT_TRANSMIT_LATENCY		(			\
-	(AR5K_INIT_TX_LATENCY << 14) | (AR5K_INIT_USEC_32 << 7) |	\
-	(AR5K_INIT_USEC)						\
-)
-#define AR5K_INIT_TRANSMIT_LATENCY_TURBO	(			\
-	(AR5K_INIT_TX_LATENCY << 14) | (AR5K_INIT_USEC_32 << 7) |	\
-	(AR5K_INIT_USEC_TURBO)						\
-)
 #define AR5K_INIT_PROTO_TIME_CNTRL		(			\
 	(AR5K_INIT_CARR_SENSE_EN << 26) | (AR5K_INIT_EIFS << 12) |	\
 	(AR5K_INIT_PROG_IFS)						\
@@ -258,6 +250,24 @@
 	(AR5K_INIT_CARR_SENSE_EN << 26) | (AR5K_INIT_EIFS_TURBO << 12) | \
 	(AR5K_INIT_PROG_IFS_TURBO)					\
 )
+
+/* Rx latency for 5 and 10MHz operation (max ?) */
+#define AR5K_INIT_RX_LAT_MAX			63
+/* Tx latencies from initvals (5212 only but no problem
+ * because we only tweak them on 5212) */
+#define	AR5K_INIT_TX_LAT_A			54
+#define	AR5K_INIT_TX_LAT_BG			384
+/* Tx latency for 40MHz (turbo) operation (min ?) */
+#define	AR5K_INIT_TX_LAT_MIN			32
+
+/* Tx frame to Tx data start delay */
+#define AR5K_INIT_TXF2TXD_START_DEFAULT		14
+#define AR5K_INIT_TXF2TXD_START_DELAY_10MHZ	12
+#define AR5K_INIT_TXF2TXD_START_DELAY_5MHZ	13
+
+/* Default Tx/Rx latencies (same for 5211)*/
+#define AR5K_INIT_TX_LATENCY_5210		54
+#define	AR5K_INIT_RX_LATENCY_5210		29
 
 
 /* GENERIC CHIPSET DEFINITIONS */

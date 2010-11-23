@@ -253,10 +253,6 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		ath5k_hw_reg_write(ah, (ah->ah_bwmode == AR5K_BWMODE_40MHZ) ?
 			AR5K_INIT_ACK_CTS_TIMEOUT_TURBO :
 			AR5K_INIT_ACK_CTS_TIMEOUT, AR5K_SLOT_TIME);
-		/* Set Transmit Latency */
-		ath5k_hw_reg_write(ah, (ah->ah_bwmode == AR5K_BWMODE_40MHZ) ?
-			AR5K_INIT_TRANSMIT_LATENCY_TURBO :
-			AR5K_INIT_TRANSMIT_LATENCY, AR5K_USEC_5210);
 
 		/* Set IFS0 */
 		if (ah->ah_bwmode == AR5K_BWMODE_40MHZ) {
