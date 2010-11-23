@@ -72,6 +72,7 @@
 #define SSCR1_SPH	(1 << 4)	/* Motorola SPI SSPSCLK phase setting */
 #define SSCR1_MWDS	(1 << 5)	/* Microwire Transmit Data Size */
 
+#define SSSR_ALT_FRM_MASK	3	/* Masks the SFRM signal number */
 #define SSSR_TNF	(1 << 2)	/* Transmit FIFO Not Full */
 #define SSSR_RNE	(1 << 3)	/* Receive FIFO Not Empty */
 #define SSSR_BSY	(1 << 4)	/* SSP Busy */
@@ -160,6 +161,7 @@ enum pxa_ssp_type {
 	PXA25x_NSSP, /* pxa 255, 26x (including ASSP) */
 	PXA27x_SSP,
 	PXA168_SSP,
+	CE4100_SSP,
 };
 
 struct ssp_device {
