@@ -144,6 +144,7 @@ static int nes_netdev_open(struct net_device *netdev)
 	u32 nic_active_bit;
 	u32 nic_active;
 	struct list_head *list_pos, *list_temp;
+	unsigned long flags;
 
 	assert(nesdev != NULL);
 
@@ -233,18 +234,27 @@ static int nes_netdev_open(struct net_device *netdev)
 		first_nesvnic = nesvnic;
 	}
 
-	if (nesvnic->of_device_registered) {
-		nesdev->iw_status = 1;
-		nesdev->nesadapter->send_term_ok = 1;
-		nes_port_ibevent(nesvnic);
-	}
-
 	if (first_nesvnic->linkup) {
 		/* Enable network packets */
 		nesvnic->linkup = 1;
 		netif_start_queue(netdev);
 		netif_carrier_on(netdev);
 	}
+
+	spin_lock_irqsave(&nesvnic->port_ibevent_lock, flags);
+	if (nesvnic->of_device_registered) {
+		nesdev->nesadapter->send_term_ok = 1;
+		if (nesvnic->linkup == 1) {
+			if (nesdev->iw_status == 0) {
+				nesdev->iw_status = 1;
+				nes_port_ibevent(nesvnic);
+			}
+		} else {
+			nesdev->iw_status = 0;
+		}
+	}
+	spin_unlock_irqrestore(&nesvnic->port_ibevent_lock, flags);
+
 	napi_enable(&nesvnic->napi);
 	nesvnic->netdev_open = 1;
 
@@ -263,6 +273,7 @@ static int nes_netdev_stop(struct net_device *netdev)
 	u32 nic_active;
 	struct nes_vnic *first_nesvnic = NULL;
 	struct list_head *list_pos, *list_temp;
+	unsigned long flags;
 
 	nes_debug(NES_DBG_SHUTDOWN, "nesvnic=%p, nesdev=%p, netdev=%p %s\n",
 			nesvnic, nesdev, netdev, netdev->name);
@@ -315,12 +326,17 @@ static int nes_netdev_stop(struct net_device *netdev)
 	nic_active &= nic_active_mask;
 	nes_write_indexed(nesdev, NES_IDX_NIC_BROADCAST_ON, nic_active);
 
-
+	spin_lock_irqsave(&nesvnic->port_ibevent_lock, flags);
 	if (nesvnic->of_device_registered) {
 		nesdev->nesadapter->send_term_ok = 0;
 		nesdev->iw_status = 0;
-		nes_port_ibevent(nesvnic);
+		if (nesvnic->linkup == 1)
+			nes_port_ibevent(nesvnic);
 	}
+	del_timer_sync(&nesvnic->event_timer);
+	nesvnic->event_timer.function = NULL;
+	spin_unlock_irqrestore(&nesvnic->port_ibevent_lock, flags);
+
 	nes_destroy_nic_qp(nesvnic);
 
 	nesvnic->netdev_open = 0;
@@ -1750,7 +1766,10 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 		nesvnic->rdma_enabled = 0;
 	}
 	nesvnic->nic_cq.cq_number = nesvnic->nic.qp_id;
+	init_timer(&nesvnic->event_timer);
+	nesvnic->event_timer.function = NULL;
 	spin_lock_init(&nesvnic->tx_lock);
+	spin_lock_init(&nesvnic->port_ibevent_lock);
 	nesdev->netdev[nesdev->netdev_count] = netdev;
 
 	nes_debug(NES_DBG_INIT, "Adding nesvnic (%p) to the adapters nesvnic_list for MAC%d.\n",

@@ -1193,6 +1193,8 @@ struct nes_listener {
 
 struct nes_ib_device;
 
+#define NES_EVENT_DELAY msecs_to_jiffies(100)
+
 struct nes_vnic {
 	struct nes_ib_device *nesibdev;
 	u64 sq_full;
@@ -1247,6 +1249,10 @@ struct nes_vnic {
 	u32 lro_max_aggr;
 	struct net_lro_mgr lro_mgr;
 	struct net_lro_desc lro_desc[NES_MAX_LRO_DESCRIPTORS];
+	struct timer_list event_timer;
+	enum ib_event_type delayed_event;
+	enum ib_event_type last_dispatched_event;
+	spinlock_t port_ibevent_lock;
 };
 
 struct nes_ib_device {

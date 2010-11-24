@@ -2608,6 +2608,13 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 						netif_start_queue(nesvnic->netdev);
 					nesvnic->linkup = 1;
 					netif_carrier_on(nesvnic->netdev);
+
+					spin_lock(&nesvnic->port_ibevent_lock);
+					if (nesdev->iw_status == 0) {
+						nesdev->iw_status = 1;
+						nes_port_ibevent(nesvnic);
+					}
+					spin_unlock(&nesvnic->port_ibevent_lock);
 				}
 			}
 		} else {
@@ -2633,6 +2640,13 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 						netif_stop_queue(nesvnic->netdev);
 					nesvnic->linkup = 0;
 					netif_carrier_off(nesvnic->netdev);
+
+					spin_lock(&nesvnic->port_ibevent_lock);
+					if (nesdev->iw_status == 1) {
+						nesdev->iw_status = 0;
+						nes_port_ibevent(nesvnic);
+					}
+					spin_unlock(&nesvnic->port_ibevent_lock);
 				}
 			}
 		}
