@@ -153,16 +153,6 @@ void __init ag5evm_init_irq(void)
 	gic_cpu_init(0, __io(0xf0000100));
 }
 
-#define PORT144CR 0xe6052090
-#define PORT145CR 0xe6052091
-
-#define PORT154CR 0xe605209a
-#define PORT155CR 0xe605209b
-#define PORT156CR 0xe605209c
-#define PORT157CR 0xe605209d
-
-#define PORTR159_128DR 0xe6056004
-
 static void __init ag5evm_init(void)
 {
 	sh73a0_pinmux_init();
