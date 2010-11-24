@@ -108,6 +108,7 @@ static const struct i2c_device_id wm831x_i2c_id[] = {
 	{ "wm8320", WM8320 },
 	{ "wm8321", WM8321 },
 	{ "wm8325", WM8325 },
+	{ "wm8326", WM8326 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm831x_i2c_id);
