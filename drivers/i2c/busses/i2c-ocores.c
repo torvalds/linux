@@ -9,6 +9,41 @@
  * kind, whether express or implied.
  */
 
+/*
+ * Device tree configuration:
+ *
+ * Required properties:
+ * - compatible      : "opencores,i2c-ocores"
+ * - reg             : bus address start and address range size of device
+ * - interrupts      : interrupt number
+ * - regstep         : size of device registers in bytes
+ * - clock-frequency : frequency of bus clock in Hz
+ * 
+ * Example:
+ *
+ *  i2c0: ocores@a0000000 {
+ *              compatible = "opencores,i2c-ocores";
+ *              reg = <0xa0000000 0x8>;
+ *              interrupts = <10>;
+ *
+ *              regstep = <1>;
+ *              clock-frequency = <20000000>;
+ *
+ * -- Devices connected on this I2C bus get
+ * -- defined here; address- and size-cells
+ * -- apply to these child devices
+ *
+ *              #address-cells = <1>;
+ *              #size-cells = <0>;
+ *
+ *              dummy@60 {
+ *                     compatible = "dummy";
+ *                     reg = <60>;
+ *              };
+ *  };
+ *
+ */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
