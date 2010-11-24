@@ -125,6 +125,12 @@ extern void
 OUT_RINGp(struct nouveau_channel *chan, const void *data, unsigned nr_dwords);
 
 static inline void
+BEGIN_NVC0(struct nouveau_channel *chan, int op, int subc, int mthd, int size)
+{
+	OUT_RING(chan, (op << 28) | (size << 16) | (subc << 13) | (mthd >> 2));
+}
+
+static inline void
 BEGIN_RING(struct nouveau_channel *chan, int subc, int mthd, int size)
 {
 	OUT_RING(chan, (subc << 13) | (size << 18) | mthd);
