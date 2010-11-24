@@ -10,6 +10,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <plat/devs.h>
 
 static u64 audio_dmamask = DMA_BIT_MASK(32);
 
