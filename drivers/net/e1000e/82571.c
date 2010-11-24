@@ -52,6 +52,7 @@
 			      (ID_LED_DEF1_DEF2))
 
 #define E1000_GCR_L1_ACT_WITHOUT_L0S_RX 0x08000000
+#define AN_RETRY_COUNT          5 /* Autoneg Retry Count value */
 #define E1000_BASE1000T_STATUS          10
 #define E1000_IDLE_ERROR_COUNT_MASK     0xFF
 #define E1000_RECEIVE_ERROR_COUNTER     21
@@ -1503,6 +1504,8 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 	u32 rxcw;
 	u32 ctrl;
 	u32 status;
+	u32 txcw;
+	u32 i;
 	s32 ret_val = 0;
 
 	ctrl = er32(CTRL);
@@ -1613,16 +1616,32 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			e_dbg("ANYSTATE  -> DOWN\n");
 		} else {
 			/*
-			 * We have sync, and can tolerate one invalid (IV)
-			 * codeword before declaring link down, so reread
-			 * to look again.
+			 * Check several times, if Sync and Config
+			 * both are consistently 1 then simply ignore
+			 * the Invalid bit and restart Autoneg
 			 */
-			udelay(10);
-			rxcw = er32(RXCW);
-			if (rxcw & E1000_RXCW_IV) {
-				mac->serdes_link_state = e1000_serdes_link_down;
+			for (i = 0; i < AN_RETRY_COUNT; i++) {
+				udelay(10);
+				rxcw = er32(RXCW);
+				if ((rxcw & E1000_RXCW_IV) &&
+				    !((rxcw & E1000_RXCW_SYNCH) &&
+				      (rxcw & E1000_RXCW_C))) {
+					mac->serdes_has_link = false;
+					mac->serdes_link_state =
+					    e1000_serdes_link_down;
+					e_dbg("ANYSTATE  -> DOWN\n");
+					break;
+				}
+			}
+
+			if (i == AN_RETRY_COUNT) {
+				txcw = er32(TXCW);
+				txcw |= E1000_TXCW_ANE;
+				ew32(TXCW, txcw);
+				mac->serdes_link_state =
+				    e1000_serdes_link_autoneg_progress;
 				mac->serdes_has_link = false;
-				e_dbg("ANYSTATE  -> DOWN\n");
+				e_dbg("ANYSTATE  -> AN_PROG\n");
 			}
 		}
 	}
