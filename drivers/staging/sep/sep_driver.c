@@ -53,6 +53,7 @@
 #include <asm/cacheflush.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
+#include <linux/rar_register.h>
 
 #include <linux/netlink.h>
 #include <linux/connector.h>

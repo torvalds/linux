@@ -236,15 +236,6 @@ held by the proccess (struct file) */
 /* This stub header is for non Moorestown driver only */
 
 /*
- * Constants that specify different kinds of RAR regions that could be
- * set up.
- */
-static __u32 const RAR_TYPE_VIDEO;  /* 0 */
-static __u32 const RAR_TYPE_AUDIO = 1;
-static __u32 const RAR_TYPE_IMAGE = 2;
-static __u32 const RAR_TYPE_DATA  = 3;
-
-/*
  * @struct RAR_stat
  *
  * @brief This structure is used for @c RAR_HANDLER_STAT ioctl and for
@@ -372,57 +363,5 @@ struct RAR_buffer {
 #include "../memrar/memrar.h"
 
 #endif  /* MEMRAR */
-
-/* rar_register */
-#ifndef CONFIG_RAR_REGISTER
-/* This stub header is for non Moorestown driver only */
-
-/* The register_rar function is to used by other device drivers
- * to ensure that this driver is ready. As we cannot be sure of
- * the compile/execute order of dirvers in ther kernel, it is
- * best to give this driver a callback function to call when
- * it is ready to give out addresses. The callback function
- * would have those steps that continue the initialization of
- * a driver that do require a valid RAR address. One of those
- * steps would be to call get_rar_address()
- * This function return 0 on success an -1 on failure.
- */
-#define register_rar(a, b, c) (-ENODEV)
-
-/* The get_rar_address function is used by other device drivers
- * to obtain RAR address information on a RAR. It takes two
- * parameter:
- *
- * int rar_index
- * The rar_index is an index to the rar for which you wish to retrieve
- * the address information.
- * Values can be 0,1, or 2.
- *
- * struct RAR_address_struct is a pointer to a place to which the function
- * can return the address structure for the RAR.
- *
- * The function returns a 0 upon success or a -1 if there is no RAR
- * facility on this system.
- */
-#define rar_get_address(a, b, c) (-ENODEV)
-
-/* The lock_rar function is ued by other device drivers to lock an RAR.
- * once an RAR is locked, it stays locked until the next system reboot.
- * The function takes one parameter:
- *
- * int rar_index
- * The rar_index is an index to the rar that you want to lock.
- * Values can be 0,1, or 2.
- *
- * The function returns a 0 upon success or a -1 if there is no RAR
- * facility on this system.
- */
-#define rar_lock(a) (-1)
-
-#else /* using real RAR_REGISTER */
-
-#include <linux/rar_register.h>
-
-#endif  /* CONFIG_RAR_REGISTER */
 
 #endif /* SEP DRIVER CONFIG */
