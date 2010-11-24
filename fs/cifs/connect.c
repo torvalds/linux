@@ -116,6 +116,7 @@ struct smb_vol {
 
 static int ipv4_connect(struct TCP_Server_Info *server);
 static int ipv6_connect(struct TCP_Server_Info *server);
+static void tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink);
 static void cifs_prune_tlinks(struct work_struct *work);
 
 /*
@@ -2900,24 +2901,16 @@ remote_path_check:
 		goto mount_fail_check;
 	}
 
-	tlink->tl_index = pSesInfo->linux_uid;
+	tlink->tl_uid = pSesInfo->linux_uid;
 	tlink->tl_tcon = tcon;
 	tlink->tl_time = jiffies;
 	set_bit(TCON_LINK_MASTER, &tlink->tl_flags);
 	set_bit(TCON_LINK_IN_TREE, &tlink->tl_flags);
 
-	rc = radix_tree_preload(GFP_KERNEL);
-	if (rc == -ENOMEM) {
-		kfree(tlink);
-		goto mount_fail_check;
-	}
-
+	cifs_sb->master_tlink = tlink;
 	spin_lock(&cifs_sb->tlink_tree_lock);
-	radix_tree_insert(&cifs_sb->tlink_tree, pSesInfo->linux_uid, tlink);
-	radix_tree_tag_set(&cifs_sb->tlink_tree, pSesInfo->linux_uid,
-			   CIFS_TLINK_MASTER_TAG);
+	tlink_rb_insert(&cifs_sb->tlink_tree, tlink);
 	spin_unlock(&cifs_sb->tlink_tree_lock);
-	radix_tree_preload_end();
 
 	queue_delayed_work(system_nrt_wq, &cifs_sb->prune_tlinks,
 				TLINK_IDLE_EXPIRE);
@@ -3107,32 +3100,25 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 int
 cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 {
-	int i, ret;
+	struct rb_root *root = &cifs_sb->tlink_tree;
+	struct rb_node *node;
+	struct tcon_link *tlink;
 	char *tmp;
-	struct tcon_link *tlink[8];
-	unsigned long index = 0;
 
 	cancel_delayed_work_sync(&cifs_sb->prune_tlinks);
 
-	do {
-		spin_lock(&cifs_sb->tlink_tree_lock);
-		ret = radix_tree_gang_lookup(&cifs_sb->tlink_tree,
-					     (void **)tlink, index,
-					     ARRAY_SIZE(tlink));
-		/* increment index for next pass */
-		if (ret > 0)
-			index = tlink[ret - 1]->tl_index + 1;
-		for (i = 0; i < ret; i++) {
-			cifs_get_tlink(tlink[i]);
-			clear_bit(TCON_LINK_IN_TREE, &tlink[i]->tl_flags);
-			radix_tree_delete(&cifs_sb->tlink_tree,
-							tlink[i]->tl_index);
-		}
-		spin_unlock(&cifs_sb->tlink_tree_lock);
+	spin_lock(&cifs_sb->tlink_tree_lock);
+	while ((node = rb_first(root))) {
+		tlink = rb_entry(node, struct tcon_link, tl_rbnode);
+		cifs_get_tlink(tlink);
+		clear_bit(TCON_LINK_IN_TREE, &tlink->tl_flags);
+		rb_erase(node, root);
 
-		for (i = 0; i < ret; i++)
-			cifs_put_tlink(tlink[i]);
-	} while (ret != 0);
+		spin_unlock(&cifs_sb->tlink_tree_lock);
+		cifs_put_tlink(tlink);
+		spin_lock(&cifs_sb->tlink_tree_lock);
+	}
+	spin_unlock(&cifs_sb->tlink_tree_lock);
 
 	tmp = cifs_sb->prepath;
 	cifs_sb->prepathlen = 0;
@@ -3271,22 +3257,10 @@ out:
 	return tcon;
 }
 
-static struct tcon_link *
+static inline struct tcon_link *
 cifs_sb_master_tlink(struct cifs_sb_info *cifs_sb)
 {
-	struct tcon_link *tlink;
-	unsigned int ret;
-
-	spin_lock(&cifs_sb->tlink_tree_lock);
-	ret = radix_tree_gang_lookup_tag(&cifs_sb->tlink_tree, (void **)&tlink,
-					0, 1, CIFS_TLINK_MASTER_TAG);
-	spin_unlock(&cifs_sb->tlink_tree_lock);
-
-	/* the master tcon should always be present */
-	if (ret == 0)
-		BUG();
-
-	return tlink;
+	return cifs_sb->master_tlink;
 }
 
 struct cifsTconInfo *
@@ -3302,6 +3276,47 @@ cifs_sb_tcon_pending_wait(void *unused)
 	return signal_pending(current) ? -ERESTARTSYS : 0;
 }
 
+/* find and return a tlink with given uid */
+static struct tcon_link *
+tlink_rb_search(struct rb_root *root, uid_t uid)
+{
+	struct rb_node *node = root->rb_node;
+	struct tcon_link *tlink;
+
+	while (node) {
+		tlink = rb_entry(node, struct tcon_link, tl_rbnode);
+
+		if (tlink->tl_uid > uid)
+			node = node->rb_left;
+		else if (tlink->tl_uid < uid)
+			node = node->rb_right;
+		else
+			return tlink;
+	}
+	return NULL;
+}
+
+/* insert a tcon_link into the tree */
+static void
+tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink)
+{
+	struct rb_node **new = &(root->rb_node), *parent = NULL;
+	struct tcon_link *tlink;
+
+	while (*new) {
+		tlink = rb_entry(*new, struct tcon_link, tl_rbnode);
+		parent = *new;
+
+		if (tlink->tl_uid > new_tlink->tl_uid)
+			new = &((*new)->rb_left);
+		else
+			new = &((*new)->rb_right);
+	}
+
+	rb_link_node(&new_tlink->tl_rbnode, parent, new);
+	rb_insert_color(&new_tlink->tl_rbnode, root);
+}
+
 /*
  * Find or construct an appropriate tcon given a cifs_sb and the fsuid of the
  * current task.
@@ -3309,7 +3324,7 @@ cifs_sb_tcon_pending_wait(void *unused)
  * If the superblock doesn't refer to a multiuser mount, then just return
  * the master tcon for the mount.
  *
- * First, search the radix tree for an existing tcon for this fsuid. If one
+ * First, search the rbtree for an existing tcon for this fsuid. If one
  * exists, then check to see if it's pending construction. If it is then wait
  * for construction to complete. Once it's no longer pending, check to see if
  * it failed and either return an error or retry construction, depending on
@@ -3322,14 +3337,14 @@ struct tcon_link *
 cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
 {
 	int ret;
-	unsigned long fsuid = (unsigned long) current_fsuid();
+	uid_t fsuid = current_fsuid();
 	struct tcon_link *tlink, *newtlink;
 
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER))
 		return cifs_get_tlink(cifs_sb_master_tlink(cifs_sb));
 
 	spin_lock(&cifs_sb->tlink_tree_lock);
-	tlink = radix_tree_lookup(&cifs_sb->tlink_tree, fsuid);
+	tlink = tlink_rb_search(&cifs_sb->tlink_tree, fsuid);
 	if (tlink)
 		cifs_get_tlink(tlink);
 	spin_unlock(&cifs_sb->tlink_tree_lock);
@@ -3338,36 +3353,24 @@ cifs_sb_tlink(struct cifs_sb_info *cifs_sb)
 		newtlink = kzalloc(sizeof(*tlink), GFP_KERNEL);
 		if (newtlink == NULL)
 			return ERR_PTR(-ENOMEM);
-		newtlink->tl_index = fsuid;
+		newtlink->tl_uid = fsuid;
 		newtlink->tl_tcon = ERR_PTR(-EACCES);
 		set_bit(TCON_LINK_PENDING, &newtlink->tl_flags);
 		set_bit(TCON_LINK_IN_TREE, &newtlink->tl_flags);
 		cifs_get_tlink(newtlink);
 
-		ret = radix_tree_preload(GFP_KERNEL);
-		if (ret != 0) {
-			kfree(newtlink);
-			return ERR_PTR(ret);
-		}
-
 		spin_lock(&cifs_sb->tlink_tree_lock);
 		/* was one inserted after previous search? */
-		tlink = radix_tree_lookup(&cifs_sb->tlink_tree, fsuid);
+		tlink = tlink_rb_search(&cifs_sb->tlink_tree, fsuid);
 		if (tlink) {
 			cifs_get_tlink(tlink);
 			spin_unlock(&cifs_sb->tlink_tree_lock);
-			radix_tree_preload_end();
 			kfree(newtlink);
 			goto wait_for_construction;
 		}
-		ret = radix_tree_insert(&cifs_sb->tlink_tree, fsuid, newtlink);
-		spin_unlock(&cifs_sb->tlink_tree_lock);
-		radix_tree_preload_end();
-		if (ret) {
-			kfree(newtlink);
-			return ERR_PTR(ret);
-		}
 		tlink = newtlink;
+		tlink_rb_insert(&cifs_sb->tlink_tree, tlink);
+		spin_unlock(&cifs_sb->tlink_tree_lock);
 	} else {
 wait_for_construction:
 		ret = wait_on_bit(&tlink->tl_flags, TCON_LINK_PENDING,
@@ -3413,39 +3416,39 @@ cifs_prune_tlinks(struct work_struct *work)
 {
 	struct cifs_sb_info *cifs_sb = container_of(work, struct cifs_sb_info,
 						    prune_tlinks.work);
-	struct tcon_link *tlink[8];
-	unsigned long now = jiffies;
-	unsigned long index = 0;
-	int i, ret;
+	struct rb_root *root = &cifs_sb->tlink_tree;
+	struct rb_node *node = rb_first(root);
+	struct rb_node *tmp;
+	struct tcon_link *tlink;
 
-	do {
-		spin_lock(&cifs_sb->tlink_tree_lock);
-		ret = radix_tree_gang_lookup(&cifs_sb->tlink_tree,
-					     (void **)tlink, index,
-					     ARRAY_SIZE(tlink));
-		/* increment index for next pass */
-		if (ret > 0)
-			index = tlink[ret - 1]->tl_index + 1;
-		for (i = 0; i < ret; i++) {
-			if (test_bit(TCON_LINK_MASTER, &tlink[i]->tl_flags) ||
-			    atomic_read(&tlink[i]->tl_count) != 0 ||
-			    time_after(tlink[i]->tl_time + TLINK_IDLE_EXPIRE,
-				       now)) {
-				tlink[i] = NULL;
-				continue;
-			}
-			cifs_get_tlink(tlink[i]);
-			clear_bit(TCON_LINK_IN_TREE, &tlink[i]->tl_flags);
-			radix_tree_delete(&cifs_sb->tlink_tree,
-					  tlink[i]->tl_index);
-		}
+	/*
+	 * Because we drop the spinlock in the loop in order to put the tlink
+	 * it's not guarded against removal of links from the tree. The only
+	 * places that remove entries from the tree are this function and
+	 * umounts. Because this function is non-reentrant and is canceled
+	 * before umount can proceed, this is safe.
+	 */
+	spin_lock(&cifs_sb->tlink_tree_lock);
+	node = rb_first(root);
+	while (node != NULL) {
+		tmp = node;
+		node = rb_next(tmp);
+		tlink = rb_entry(tmp, struct tcon_link, tl_rbnode);
+
+		if (test_bit(TCON_LINK_MASTER, &tlink->tl_flags) ||
+		    atomic_read(&tlink->tl_count) != 0 ||
+		    time_after(tlink->tl_time + TLINK_IDLE_EXPIRE, jiffies))
+			continue;
+
+		cifs_get_tlink(tlink);
+		clear_bit(TCON_LINK_IN_TREE, &tlink->tl_flags);
+		rb_erase(tmp, root);
+
 		spin_unlock(&cifs_sb->tlink_tree_lock);
-
-		for (i = 0; i < ret; i++) {
-			if (tlink[i] != NULL)
-				cifs_put_tlink(tlink[i]);
-		}
-	} while (ret != 0);
+		cifs_put_tlink(tlink);
+		spin_lock(&cifs_sb->tlink_tree_lock);
+	}
+	spin_unlock(&cifs_sb->tlink_tree_lock);
 
 	queue_delayed_work(system_nrt_wq, &cifs_sb->prune_tlinks,
 				TLINK_IDLE_EXPIRE);

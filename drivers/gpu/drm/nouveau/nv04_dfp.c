@@ -185,14 +185,15 @@ static bool nv04_dfp_mode_fixup(struct drm_encoder *encoder,
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_connector *nv_connector = nouveau_encoder_connector_get(nv_encoder);
 
-	/* For internal panels and gpu scaling on DVI we need the native mode */
-	if (nv_connector->scaling_mode != DRM_MODE_SCALE_NONE) {
-		if (!nv_connector->native_mode)
-			return false;
+	if (!nv_connector->native_mode ||
+	    nv_connector->scaling_mode == DRM_MODE_SCALE_NONE ||
+	    mode->hdisplay > nv_connector->native_mode->hdisplay ||
+	    mode->vdisplay > nv_connector->native_mode->vdisplay) {
+		nv_encoder->mode = *adjusted_mode;
+
+	} else {
 		nv_encoder->mode = *nv_connector->native_mode;
 		adjusted_mode->clock = nv_connector->native_mode->clock;
-	} else {
-		nv_encoder->mode = *adjusted_mode;
 	}
 
 	return true;

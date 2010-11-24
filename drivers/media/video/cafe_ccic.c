@@ -2065,8 +2065,9 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 		sensor_cfg.clock_speed = 45;
 
 	cam->sensor_addr = 0x42;
-	cam->sensor = v4l2_i2c_new_subdev(&cam->v4l2_dev, &cam->i2c_adapter,
-			NULL, "ov7670", cam->sensor_addr, NULL);
+	cam->sensor = v4l2_i2c_new_subdev_cfg(&cam->v4l2_dev, &cam->i2c_adapter,
+			"ov7670", "ov7670", 0, &sensor_cfg, cam->sensor_addr,
+			NULL);
 	if (cam->sensor == NULL) {
 		ret = -ENODEV;
 		goto out_smbus;

@@ -673,16 +673,17 @@ static void nfsd4_hash_conn(struct nfsd4_conn *conn, struct nfsd4_session *ses)
 	spin_unlock(&clp->cl_lock);
 }
 
-static void nfsd4_register_conn(struct nfsd4_conn *conn)
+static int nfsd4_register_conn(struct nfsd4_conn *conn)
 {
 	conn->cn_xpt_user.callback = nfsd4_conn_lost;
-	register_xpt_user(conn->cn_xprt, &conn->cn_xpt_user);
+	return register_xpt_user(conn->cn_xprt, &conn->cn_xpt_user);
 }
 
 static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
 {
 	struct nfsd4_conn *conn;
 	u32 flags = NFS4_CDFC4_FORE;
+	int ret;
 
 	if (ses->se_flags & SESSION4_BACK_CHAN)
 		flags |= NFS4_CDFC4_BACK;
@@ -690,7 +691,10 @@ static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
 	if (!conn)
 		return nfserr_jukebox;
 	nfsd4_hash_conn(conn, ses);
-	nfsd4_register_conn(conn);
+	ret = nfsd4_register_conn(conn);
+	if (ret)
+		/* oops; xprt is already down: */
+		nfsd4_conn_lost(&conn->cn_xpt_user);
 	return nfs_ok;
 }
 
@@ -1644,6 +1648,7 @@ static void nfsd4_sequence_check_conn(struct nfsd4_conn *new, struct nfsd4_sessi
 {
 	struct nfs4_client *clp = ses->se_client;
 	struct nfsd4_conn *c;
+	int ret;
 
 	spin_lock(&clp->cl_lock);
 	c = __nfsd4_find_conn(new->cn_xprt, ses);
@@ -1654,7 +1659,10 @@ static void nfsd4_sequence_check_conn(struct nfsd4_conn *new, struct nfsd4_sessi
 	}
 	__nfsd4_hash_conn(new, ses);
 	spin_unlock(&clp->cl_lock);
-	nfsd4_register_conn(new);
+	ret = nfsd4_register_conn(new);
+	if (ret)
+		/* oops; xprt is already down: */
+		nfsd4_conn_lost(&new->cn_xpt_user);
 	return;
 }
 
@@ -2254,7 +2262,7 @@ nfs4_file_downgrade(struct nfs4_file *fp, unsigned int share_access)
  * Spawn a thread to perform a recall on the delegation represented
  * by the lease (file_lock)
  *
- * Called from break_lease() with lock_kernel() held.
+ * Called from break_lease() with lock_flocks() held.
  * Note: we assume break_lease will only call this *once* for any given
  * lease.
  */
@@ -2278,7 +2286,7 @@ void nfsd_break_deleg_cb(struct file_lock *fl)
 	list_add_tail(&dp->dl_recall_lru, &del_recall_lru);
 	spin_unlock(&recall_lock);
 
-	/* only place dl_time is set. protected by lock_kernel*/
+	/* only place dl_time is set. protected by lock_flocks*/
 	dp->dl_time = get_seconds();
 
 	/*
@@ -2295,7 +2303,7 @@ void nfsd_break_deleg_cb(struct file_lock *fl)
 /*
  * The file_lock is being reapd.
  *
- * Called by locks_free_lock() with lock_kernel() held.
+ * Called by locks_free_lock() with lock_flocks() held.
  */
 static
 void nfsd_release_deleg_cb(struct file_lock *fl)
@@ -2310,7 +2318,7 @@ void nfsd_release_deleg_cb(struct file_lock *fl)
 }
 
 /*
- * Called from setlease() with lock_kernel() held
+ * Called from setlease() with lock_flocks() held
  */
 static
 int nfsd_same_client_deleg_cb(struct file_lock *onlist, struct file_lock *try)

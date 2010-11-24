@@ -3184,13 +3184,9 @@ static int cpia_open(struct file *file)
 		goto oops;
 	}
 
-	err = -EINTR;
-	if(signal_pending(current))
-		goto oops;
-
 	/* Set ownership of /proc/cpia/videoX to current user */
 	if(cam->proc_entry)
-		cam->proc_entry->uid = current_uid();
+		cam->proc_entry->uid = current_euid();
 
 	/* set mark for loading first frame uncompressed */
 	cam->first_frame = 1;

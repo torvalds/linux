@@ -240,7 +240,7 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 			.addr	= DDC_ADDR,
 			.flags	= I2C_M_RD,
 			.len	= len,
-			.buf	= buf + start,
+			.buf	= buf,
 		}
 	};
 
@@ -253,7 +253,7 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 static u8 *
 drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 {
-	int i, j = 0;
+	int i, j = 0, valid_extensions = 0;
 	u8 *block, *new;
 
 	if ((block = kmalloc(EDID_LENGTH, GFP_KERNEL)) == NULL)
@@ -280,14 +280,28 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 
 	for (j = 1; j <= block[0x7e]; j++) {
 		for (i = 0; i < 4; i++) {
-			if (drm_do_probe_ddc_edid(adapter, block, j,
-						  EDID_LENGTH))
+			if (drm_do_probe_ddc_edid(adapter,
+				  block + (valid_extensions + 1) * EDID_LENGTH,
+				  j, EDID_LENGTH))
 				goto out;
-			if (drm_edid_block_valid(block + j * EDID_LENGTH))
+			if (drm_edid_block_valid(block + (valid_extensions + 1) * EDID_LENGTH)) {
+				valid_extensions++;
 				break;
+			}
 		}
 		if (i == 4)
-			goto carp;
+			dev_warn(connector->dev->dev,
+			 "%s: Ignoring invalid EDID block %d.\n",
+			 drm_get_connector_name(connector), j);
+	}
+
+	if (valid_extensions != block[0x7e]) {
+		block[EDID_LENGTH-1] += block[0x7e] - valid_extensions;
+		block[0x7e] = valid_extensions;
+		new = krealloc(block, (valid_extensions + 1) * EDID_LENGTH, GFP_KERNEL);
+		if (!new)
+			goto out;
+		block = new;
 	}
 
 	return block;

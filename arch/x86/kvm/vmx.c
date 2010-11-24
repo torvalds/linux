@@ -821,10 +821,9 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 #endif
 
 #ifdef CONFIG_X86_64
-	if (is_long_mode(&vmx->vcpu)) {
-		rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
+	rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
+	if (is_long_mode(&vmx->vcpu))
 		wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
-	}
 #endif
 	for (i = 0; i < vmx->save_nmsrs; ++i)
 		kvm_set_shared_msr(vmx->guest_msrs[i].index,
@@ -839,23 +838,23 @@ static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 
 	++vmx->vcpu.stat.host_state_reload;
 	vmx->host_state.loaded = 0;
-	if (vmx->host_state.fs_reload_needed)
-		loadsegment(fs, vmx->host_state.fs_sel);
+#ifdef CONFIG_X86_64
+	if (is_long_mode(&vmx->vcpu))
+		rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
+#endif
 	if (vmx->host_state.gs_ldt_reload_needed) {
 		kvm_load_ldt(vmx->host_state.ldt_sel);
 #ifdef CONFIG_X86_64
 		load_gs_index(vmx->host_state.gs_sel);
-		wrmsrl(MSR_KERNEL_GS_BASE, current->thread.gs);
 #else
 		loadsegment(gs, vmx->host_state.gs_sel);
 #endif
 	}
+	if (vmx->host_state.fs_reload_needed)
+		loadsegment(fs, vmx->host_state.fs_sel);
 	reload_tss();
 #ifdef CONFIG_X86_64
-	if (is_long_mode(&vmx->vcpu)) {
-		rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
-		wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
-	}
+	wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
 #endif
 	if (current_thread_info()->status & TS_USEDFPU)
 		clts();

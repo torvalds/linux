@@ -35,7 +35,7 @@
 
 #ifdef CONFIG_SH_SECUREEDGE5410
 #include <asm/rtc.h>
-#include <mach/snapgear.h>
+#include <mach/secureedge5410.h>
 
 #define	RTC_RESET	0x1000
 #define	RTC_IODATA	0x0800

@@ -529,7 +529,7 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		DRM_ERROR("Failed initializing VRAM heap.\n");
 		return r;
 	}
-	r = radeon_bo_create(rdev, NULL, 256 * 1024, true,
+	r = radeon_bo_create(rdev, NULL, 256 * 1024, PAGE_SIZE, true,
 				RADEON_GEM_DOMAIN_VRAM,
 				&rdev->stollen_vga_memory);
 	if (r) {
@@ -689,7 +689,8 @@ static int radeon_ttm_backend_bind(struct ttm_backend *backend,
 	gtt = container_of(backend, struct radeon_ttm_backend, backend);
 	gtt->offset = bo_mem->start << PAGE_SHIFT;
 	if (!gtt->num_pages) {
-		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n", gtt->num_pages, bo_mem, backend);
+		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
+		     gtt->num_pages, bo_mem, backend);
 	}
 	r = radeon_gart_bind(gtt->rdev, gtt->offset,
 			     gtt->num_pages, gtt->pages);

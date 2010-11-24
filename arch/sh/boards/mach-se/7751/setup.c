@@ -56,23 +56,5 @@ __initcall(se7751_devices_setup);
 static struct sh_machine_vector mv_7751se __initmv = {
 	.mv_name		= "7751 SolutionEngine",
 	.mv_nr_irqs		= 72,
-
-	.mv_inb			= sh7751se_inb,
-	.mv_inw			= sh7751se_inw,
-	.mv_inl			= sh7751se_inl,
-	.mv_outb		= sh7751se_outb,
-	.mv_outw		= sh7751se_outw,
-	.mv_outl		= sh7751se_outl,
-
-	.mv_inb_p		= sh7751se_inb_p,
-	.mv_inw_p		= sh7751se_inw,
-	.mv_inl_p		= sh7751se_inl,
-	.mv_outb_p		= sh7751se_outb_p,
-	.mv_outw_p		= sh7751se_outw,
-	.mv_outl_p		= sh7751se_outl,
-
-	.mv_insl		= sh7751se_insl,
-	.mv_outsl		= sh7751se_outsl,
-
 	.mv_init_irq		= init_7751se_IRQ,
 };

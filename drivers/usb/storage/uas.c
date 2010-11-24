@@ -331,10 +331,7 @@ static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 
 	iu->iu_id = IU_ID_COMMAND;
 	iu->tag = cpu_to_be16(stream_id);
-	if (sdev->ordered_tags && (cmnd->request->cmd_flags & REQ_HARDBARRIER))
-		iu->prio_attr = UAS_ORDERED_TAG;
-	else
-		iu->prio_attr = UAS_SIMPLE_TAG;
+	iu->prio_attr = UAS_SIMPLE_TAG;
 	iu->len = len;
 	int_to_scsilun(sdev->lun, &iu->lun);
 	memcpy(iu->cdb, cmnd->cmnd, cmnd->cmd_len);
@@ -433,7 +430,7 @@ static int uas_submit_urbs(struct scsi_cmnd *cmnd,
 	return 0;
 }
 
-static int uas_queuecommand(struct scsi_cmnd *cmnd,
+static int uas_queuecommand_lck(struct scsi_cmnd *cmnd,
 					void (*done)(struct scsi_cmnd *))
 {
 	struct scsi_device *sdev = cmnd->device;
@@ -490,6 +487,8 @@ static int uas_queuecommand(struct scsi_cmnd *cmnd,
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(uas_queuecommand)
 
 static int uas_eh_abort_handler(struct scsi_cmnd *cmnd)
 {

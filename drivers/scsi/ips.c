@@ -232,7 +232,7 @@ static int ips_detect(struct scsi_host_template *);
 static int ips_release(struct Scsi_Host *);
 static int ips_eh_abort(struct scsi_cmnd *);
 static int ips_eh_reset(struct scsi_cmnd *);
-static int ips_queue(struct scsi_cmnd *, void (*)(struct scsi_cmnd *));
+static int ips_queue(struct Scsi_Host *, struct scsi_cmnd *);
 static const char *ips_info(struct Scsi_Host *);
 static irqreturn_t do_ipsintr(int, void *);
 static int ips_hainit(ips_ha_t *);
@@ -1046,7 +1046,7 @@ static int ips_eh_reset(struct scsi_cmnd *SC)
 /*    Linux obtains io_request_lock before calling this function            */
 /*                                                                          */
 /****************************************************************************/
-static int ips_queue(struct scsi_cmnd *SC, void (*done) (struct scsi_cmnd *))
+static int ips_queue_lck(struct scsi_cmnd *SC, void (*done) (struct scsi_cmnd *))
 {
 	ips_ha_t *ha;
 	ips_passthru_t *pt;
@@ -1136,6 +1136,8 @@ static int ips_queue(struct scsi_cmnd *SC, void (*done) (struct scsi_cmnd *))
 
 	return (0);
 }
+
+static DEF_SCSI_QCMD(ips_queue)
 
 /****************************************************************************/
 /*                                                                          */

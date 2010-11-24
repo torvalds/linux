@@ -119,6 +119,8 @@ static int x25_state1_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 						&x25->vc_facil_mask);
 			if (len > 0)
 				skb_pull(skb, len);
+			else
+				return -1;
 			/*
 			 *	Copy any Call User Data.
 			 */

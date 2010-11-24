@@ -1406,6 +1406,8 @@ static inline void input_set_drvdata(struct input_dev *dev, void *data)
 int __must_check input_register_device(struct input_dev *);
 void input_unregister_device(struct input_dev *);
 
+void input_reset_device(struct input_dev *);
+
 int __must_check input_register_handler(struct input_handler *);
 void input_unregister_handler(struct input_handler *);
 
@@ -1421,7 +1423,7 @@ void input_release_device(struct input_handle *);
 int input_open_device(struct input_handle *);
 void input_close_device(struct input_handle *);
 
-int input_flush_device(struct input_handle* handle, struct file* file);
+int input_flush_device(struct input_handle *handle, struct file *file);
 
 void input_event(struct input_dev *dev, unsigned int type, unsigned int code, int value);
 void input_inject_event(struct input_handle *handle, unsigned int type, unsigned int code, int value);

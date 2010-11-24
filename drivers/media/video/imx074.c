@@ -451,7 +451,6 @@ static int imx074_probe(struct i2c_client *client,
 	ret = imx074_video_probe(icd, client);
 	if (ret < 0) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(priv);
 		return ret;
 	}
@@ -468,7 +467,6 @@ static int imx074_remove(struct i2c_client *client)
 	icd->ops = NULL;
 	if (icl->free_bus)
 		icl->free_bus(icl);
-	i2c_set_clientdata(client, NULL);
 	client->driver = NULL;
 	kfree(priv);
 

@@ -63,6 +63,7 @@ struct  intel_ring_buffer {
 			struct drm_i915_gem_execbuffer2 *exec,
 			struct drm_clip_rect *cliprects,
 			uint64_t exec_offset);
+	void		(*cleanup)(struct intel_ring_buffer *ring);
 
 	/**
 	 * List of objects currently involved in rendering from the
@@ -98,6 +99,8 @@ struct  intel_ring_buffer {
 
 	wait_queue_head_t irq_queue;
 	drm_local_map_t map;
+
+	void *private;
 };
 
 static inline u32

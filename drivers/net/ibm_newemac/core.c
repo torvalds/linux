@@ -2871,7 +2871,6 @@ static int __devinit emac_probe(struct platform_device *ofdev,
 	SET_ETHTOOL_OPS(ndev, &emac_ethtool_ops);
 
 	netif_carrier_off(ndev);
-	netif_stop_queue(ndev);
 
 	err = register_netdev(ndev);
 	if (err) {

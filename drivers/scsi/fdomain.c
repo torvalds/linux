@@ -1419,7 +1419,7 @@ static irqreturn_t do_fdomain_16x0_intr(int irq, void *dev_id)
    return IRQ_HANDLED;
 }
 
-static int fdomain_16x0_queue(struct scsi_cmnd *SCpnt,
+static int fdomain_16x0_queue_lck(struct scsi_cmnd *SCpnt,
 		void (*done)(struct scsi_cmnd *))
 {
    if (in_command) {
@@ -1468,6 +1468,8 @@ static int fdomain_16x0_queue(struct scsi_cmnd *SCpnt,
 
    return 0;
 }
+
+static DEF_SCSI_QCMD(fdomain_16x0_queue)
 
 #if DEBUG_ABORT
 static void print_info(struct scsi_cmnd *SCpnt)

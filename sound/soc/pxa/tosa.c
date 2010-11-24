@@ -79,7 +79,7 @@ static void tosa_ext_control(struct snd_soc_codec *codec)
 static int tosa_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 
 	/* check the jack status at stream startup */
 	tosa_ext_control(codec);

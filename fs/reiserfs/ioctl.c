@@ -9,7 +9,6 @@
 #include <linux/time.h>
 #include <asm/uaccess.h>
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 #include <linux/compat.h>
 
 /*

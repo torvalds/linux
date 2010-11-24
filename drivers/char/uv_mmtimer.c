@@ -23,7 +23,6 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/math64.h>
-#include <linux/smp_lock.h>
 
 #include <asm/genapic.h>
 #include <asm/uv/uv_hub.h>

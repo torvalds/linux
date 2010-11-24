@@ -811,7 +811,6 @@ int gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
 		INFO(dev, "MAC %pM\n", net->dev_addr);
 		INFO(dev, "HOST MAC %pM\n", dev->host_mac);
 
-		netif_stop_queue(net);
 		the_dev = dev;
 	}
 

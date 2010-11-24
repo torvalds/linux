@@ -727,7 +727,7 @@ qla1280_info(struct Scsi_Host *host)
  * context which is a big NO! NO!.
  **************************************************************************/
 static int
-qla1280_queuecommand(struct scsi_cmnd *cmd, void (*fn)(struct scsi_cmnd *))
+qla1280_queuecommand_lck(struct scsi_cmnd *cmd, void (*fn)(struct scsi_cmnd *))
 {
 	struct Scsi_Host *host = cmd->device->host;
 	struct scsi_qla_host *ha = (struct scsi_qla_host *)host->hostdata;
@@ -755,6 +755,8 @@ qla1280_queuecommand(struct scsi_cmnd *cmd, void (*fn)(struct scsi_cmnd *))
 #endif
 	return status;
 }
+
+static DEF_SCSI_QCMD(qla1280_queuecommand)
 
 enum action {
 	ABORT_COMMAND,
