@@ -692,8 +692,10 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 
 	/* fsnotify_alloc_group takes a ref.  Dropped in fanotify_release */
 	group = fsnotify_alloc_group(&fanotify_fsnotify_ops);
-	if (IS_ERR(group))
+	if (IS_ERR(group)) {
+		free_uid(user);
 		return PTR_ERR(group);
+	}
 
 	group->fanotify_data.user = user;
 	atomic_inc(&user->fanotify_listeners);
