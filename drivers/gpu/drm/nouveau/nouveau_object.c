@@ -643,10 +643,13 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, u32 handle, int class)
 found:
 	switch (oc->engine) {
 	case NVOBJ_ENGINE_SW:
-		ret = nouveau_gpuobj_sw_new(chan, class, &gpuobj);
-		if (ret)
-			return ret;
-		goto insert;
+		if (dev_priv->card_type < NV_C0) {
+			ret = nouveau_gpuobj_sw_new(chan, class, &gpuobj);
+			if (ret)
+				return ret;
+			goto insert;
+		}
+		break;
 	case NVOBJ_ENGINE_GR:
 		if (dev_priv->card_type >= NV_50 && !chan->ramin_grctx) {
 			struct nouveau_pgraph_engine *pgraph =
@@ -668,6 +671,10 @@ found:
 		}
 		break;
 	}
+
+	/* we're done if this is fermi */
+	if (dev_priv->card_type >= NV_C0)
+		return 0;
 
 	ret = nouveau_gpuobj_new(dev, chan,
 				 nouveau_gpuobj_class_instmem_size(dev, class),
