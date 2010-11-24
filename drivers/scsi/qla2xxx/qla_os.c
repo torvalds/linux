@@ -829,7 +829,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 {
 	scsi_qla_host_t *vha = shost_priv(cmd->device->host);
 	srb_t *sp;
-	int ret;
+	int ret = SUCCESS;
 	unsigned int id, lun;
 	unsigned long flags;
 	int wait = 0;
