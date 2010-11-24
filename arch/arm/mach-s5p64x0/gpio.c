@@ -473,21 +473,16 @@ static void __init s5p64x0_gpio_add_rbank_4bit2(struct s3c_gpio_chip *chip,
 
 static int __init s5p64x0_gpiolib_init(void)
 {
-	struct s3c_gpio_chip *s5p6440_chips = s5p6440_gpio_2bit;
-	int s5p6440_nr_chips = ARRAY_SIZE(s5p6440_gpio_2bit);
-
-	struct s3c_gpio_chip *s5p6450_chips = s5p6450_gpio_2bit;
-	int s5p6450_nr_chips = ARRAY_SIZE(s5p6450_gpio_2bit);
-
 	unsigned int chipid;
+
+	chipid = __raw_readl(S5P64X0_SYS_ID);
 
 	s5p64x0_gpiolib_set_cfg(s5p64x0_gpio_cfgs,
 				ARRAY_SIZE(s5p64x0_gpio_cfgs));
-	chipid = __raw_readl(S5P64X0_SYS_ID);
 
 	if ((chipid & 0xff000) == 0x50000) {
-		for (; s5p6450_nr_chips > 0; s5p6450_nr_chips--, s5p6450_chips++)
-			s3c_gpiolib_add(s5p6450_chips);
+		samsung_gpiolib_add_2bit_chips(s5p6450_gpio_2bit,
+					ARRAY_SIZE(s5p6450_gpio_2bit));
 
 		samsung_gpiolib_add_4bit_chips(s5p6450_gpio_4bit,
 					ARRAY_SIZE(s5p6450_gpio_4bit));
@@ -498,8 +493,8 @@ static int __init s5p64x0_gpiolib_init(void)
 		s5p64x0_gpio_add_rbank_4bit2(s5p6450_gpio_rbank_4bit2,
 					ARRAY_SIZE(s5p6450_gpio_rbank_4bit2));
 	} else {
-		for (; s5p6440_nr_chips > 0; s5p6440_nr_chips--, s5p6440_chips++)
-			s3c_gpiolib_add(s5p6440_chips);
+		samsung_gpiolib_add_2bit_chips(s5p6440_gpio_2bit,
+					ARRAY_SIZE(s5p6440_gpio_2bit));
 
 		samsung_gpiolib_add_4bit_chips(s5p6440_gpio_4bit,
 					ARRAY_SIZE(s5p6440_gpio_4bit));
