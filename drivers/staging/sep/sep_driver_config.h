@@ -421,7 +421,7 @@ struct RAR_buffer {
 
 #else /* using real RAR_REGISTER */
 
-#include "../rar_register/rar_register.h"
+#include <linux/rar_register.h>
 
 #endif  /* CONFIG_RAR_REGISTER */
 
