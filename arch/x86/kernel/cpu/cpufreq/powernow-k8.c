@@ -1556,13 +1556,13 @@ static int __cpuinit powernowk8_init(void)
 
 		cpb_capable = true;
 
-		register_cpu_notifier(&cpb_nb);
-
 		msrs = msrs_alloc();
 		if (!msrs) {
 			printk(KERN_ERR "%s: Error allocating msrs!\n", __func__);
 			return -ENOMEM;
 		}
+
+		register_cpu_notifier(&cpb_nb);
 
 		rdmsr_on_cpus(cpu_online_mask, MSR_K7_HWCR, msrs);
 
