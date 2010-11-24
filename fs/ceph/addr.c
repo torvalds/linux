@@ -204,7 +204,7 @@ static int readpage_nounlock(struct file *filp, struct page *page)
 	err = ceph_osdc_readpages(osdc, ceph_vino(inode), &ci->i_layout,
 				  page->index << PAGE_CACHE_SHIFT, &len,
 				  ci->i_truncate_seq, ci->i_truncate_size,
-				  &page, 1);
+				  &page, 1, 0);
 	if (err == -ENOENT)
 		err = 0;
 	if (err < 0) {
@@ -287,7 +287,7 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 	rc = ceph_osdc_readpages(osdc, ceph_vino(inode), &ci->i_layout,
 				 offset, &len,
 				 ci->i_truncate_seq, ci->i_truncate_size,
-				 pages, nr_pages);
+				 pages, nr_pages, 0);
 	if (rc == -ENOENT)
 		rc = 0;
 	if (rc < 0)
@@ -774,7 +774,7 @@ get_more_pages:
 					    snapc, do_sync,
 					    ci->i_truncate_seq,
 					    ci->i_truncate_size,
-					    &inode->i_mtime, true, 1);
+					    &inode->i_mtime, true, 1, 0);
 				max_pages = req->r_num_pages;
 
 				alloc_page_vec(fsc, req);

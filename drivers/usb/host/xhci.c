@@ -577,6 +577,65 @@ static void xhci_restore_registers(struct xhci_hcd *xhci)
 	xhci_write_64(xhci, xhci->s3.erst_base, &xhci->ir_set->erst_base);
 }
 
+static void xhci_set_cmd_ring_deq(struct xhci_hcd *xhci)
+{
+	u64	val_64;
+
+	/* step 2: initialize command ring buffer */
+	val_64 = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
+	val_64 = (val_64 & (u64) CMD_RING_RSVD_BITS) |
+		(xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
+				      xhci->cmd_ring->dequeue) &
+		 (u64) ~CMD_RING_RSVD_BITS) |
+		xhci->cmd_ring->cycle_state;
+	xhci_dbg(xhci, "// Setting command ring address to 0x%llx\n",
+			(long unsigned long) val_64);
+	xhci_write_64(xhci, val_64, &xhci->op_regs->cmd_ring);
+}
+
+/*
+ * The whole command ring must be cleared to zero when we suspend the host.
+ *
+ * The host doesn't save the command ring pointer in the suspend well, so we
+ * need to re-program it on resume.  Unfortunately, the pointer must be 64-byte
+ * aligned, because of the reserved bits in the command ring dequeue pointer
+ * register.  Therefore, we can't just set the dequeue pointer back in the
+ * middle of the ring (TRBs are 16-byte aligned).
+ */
+static void xhci_clear_command_ring(struct xhci_hcd *xhci)
+{
+	struct xhci_ring *ring;
+	struct xhci_segment *seg;
+
+	ring = xhci->cmd_ring;
+	seg = ring->deq_seg;
+	do {
+		memset(seg->trbs, 0, SEGMENT_SIZE);
+		seg = seg->next;
+	} while (seg != ring->deq_seg);
+
+	/* Reset the software enqueue and dequeue pointers */
+	ring->deq_seg = ring->first_seg;
+	ring->dequeue = ring->first_seg->trbs;
+	ring->enq_seg = ring->deq_seg;
+	ring->enqueue = ring->dequeue;
+
+	/*
+	 * Ring is now zeroed, so the HW should look for change of ownership
+	 * when the cycle bit is set to 1.
+	 */
+	ring->cycle_state = 1;
+
+	/*
+	 * Reset the hardware dequeue pointer.
+	 * Yes, this will need to be re-written after resume, but we're paranoid
+	 * and want to make sure the hardware doesn't access bogus memory
+	 * because, say, the BIOS or an SMI started the host without changing
+	 * the command ring pointers.
+	 */
+	xhci_set_cmd_ring_deq(xhci);
+}
+
 /*
  * Stop HC (not bus-specific)
  *
@@ -604,6 +663,7 @@ int xhci_suspend(struct xhci_hcd *xhci)
 		spin_unlock_irq(&xhci->lock);
 		return -ETIMEDOUT;
 	}
+	xhci_clear_command_ring(xhci);
 
 	/* step 3: save registers */
 	xhci_save_registers(xhci);
@@ -635,7 +695,6 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	u32			command, temp = 0;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
-	u64	val_64;
 	int	old_state, retval;
 
 	old_state = hcd->state;
@@ -648,15 +707,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		/* step 1: restore register */
 		xhci_restore_registers(xhci);
 		/* step 2: initialize command ring buffer */
-		val_64 = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
-		val_64 = (val_64 & (u64) CMD_RING_RSVD_BITS) |
-			 (xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
-					       xhci->cmd_ring->dequeue) &
-			 (u64) ~CMD_RING_RSVD_BITS) |
-			 xhci->cmd_ring->cycle_state;
-		xhci_dbg(xhci, "// Setting command ring address to 0x%llx\n",
-				(long unsigned long) val_64);
-		xhci_write_64(xhci, val_64, &xhci->op_regs->cmd_ring);
+		xhci_set_cmd_ring_deq(xhci);
 		/* step 3: restore state and start state*/
 		/* step 3: set CRS flag */
 		command = xhci_readl(xhci, &xhci->op_regs->command);
@@ -714,6 +765,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		return retval;
 	}
 
+	spin_unlock_irq(&xhci->lock);
 	/* Re-setup MSI-X */
 	if (hcd->irq)
 		free_irq(hcd->irq, hcd);
@@ -736,6 +788,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		hcd->irq = pdev->irq;
 	}
 
+	spin_lock_irq(&xhci->lock);
 	/* step 4: set Run/Stop bit */
 	command = xhci_readl(xhci, &xhci->op_regs->command);
 	command |= CMD_RUN;

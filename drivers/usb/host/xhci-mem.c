@@ -1045,7 +1045,7 @@ static inline u32 xhci_get_max_esit_payload(struct xhci_hcd *xhci,
 	if (udev->speed == USB_SPEED_SUPER)
 		return ep->ss_ep_comp.wBytesPerInterval;
 
-	max_packet = ep->desc.wMaxPacketSize & 0x3ff;
+	max_packet = GET_MAX_PACKET(ep->desc.wMaxPacketSize);
 	max_burst = (ep->desc.wMaxPacketSize & 0x1800) >> 11;
 	/* A 0 in max burst means 1 transfer per ESIT */
 	return max_packet * (max_burst + 1);
@@ -1135,7 +1135,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 		/* Fall through */
 	case USB_SPEED_FULL:
 	case USB_SPEED_LOW:
-		max_packet = ep->desc.wMaxPacketSize & 0x3ff;
+		max_packet = GET_MAX_PACKET(ep->desc.wMaxPacketSize);
 		ep_ctx->ep_info2 |= MAX_PACKET(max_packet);
 		break;
 	default:

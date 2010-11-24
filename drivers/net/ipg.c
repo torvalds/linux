@@ -88,16 +88,14 @@ static const char *ipg_brand_name[] = {
 	"IC PLUS IP1000 1000/100/10 based NIC",
 	"Sundance Technology ST2021 based NIC",
 	"Tamarack Microelectronics TC9020/9021 based NIC",
-	"Tamarack Microelectronics TC9020/9021 based NIC",
 	"D-Link NIC IP1000A"
 };
 
 static DEFINE_PCI_DEVICE_TABLE(ipg_pci_tbl) = {
 	{ PCI_VDEVICE(SUNDANCE,	0x1023), 0 },
 	{ PCI_VDEVICE(SUNDANCE,	0x2021), 1 },
-	{ PCI_VDEVICE(SUNDANCE,	0x1021), 2 },
-	{ PCI_VDEVICE(DLINK,	0x9021), 3 },
-	{ PCI_VDEVICE(DLINK,	0x4020), 4 },
+	{ PCI_VDEVICE(DLINK,	0x9021), 2 },
+	{ PCI_VDEVICE(DLINK,	0x4020), 3 },
 	{ 0, }
 };
 

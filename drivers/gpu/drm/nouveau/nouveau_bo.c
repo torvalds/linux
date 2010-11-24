@@ -143,8 +143,10 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	nvbo->no_vm = no_vm;
 	nvbo->tile_mode = tile_mode;
 	nvbo->tile_flags = tile_flags;
+	nvbo->bo.bdev = &dev_priv->ttm.bdev;
 
-	nouveau_bo_fixup_align(dev, tile_mode, tile_flags, &align, &size);
+	nouveau_bo_fixup_align(dev, tile_mode, nouveau_bo_tile_layout(nvbo),
+			       &align, &size);
 	align >>= PAGE_SHIFT;
 
 	nouveau_bo_placement_set(nvbo, flags, 0);
@@ -176,6 +178,31 @@ set_placement_list(uint32_t *pl, unsigned *n, uint32_t type, uint32_t flags)
 		pl[(*n)++] = TTM_PL_FLAG_SYSTEM | flags;
 }
 
+static void
+set_placement_range(struct nouveau_bo *nvbo, uint32_t type)
+{
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(nvbo->bo.bdev);
+
+	if (dev_priv->card_type == NV_10 &&
+	    nvbo->tile_mode && (type & TTM_PL_FLAG_VRAM)) {
+		/*
+		 * Make sure that the color and depth buffers are handled
+		 * by independent memory controller units. Up to a 9x
+		 * speed up when alpha-blending and depth-test are enabled
+		 * at the same time.
+		 */
+		int vram_pages = dev_priv->vram_size >> PAGE_SHIFT;
+
+		if (nvbo->tile_flags & NOUVEAU_GEM_TILE_ZETA) {
+			nvbo->placement.fpfn = vram_pages / 2;
+			nvbo->placement.lpfn = ~0;
+		} else {
+			nvbo->placement.fpfn = 0;
+			nvbo->placement.lpfn = vram_pages / 2;
+		}
+	}
+}
+
 void
 nouveau_bo_placement_set(struct nouveau_bo *nvbo, uint32_t type, uint32_t busy)
 {
@@ -190,6 +217,8 @@ nouveau_bo_placement_set(struct nouveau_bo *nvbo, uint32_t type, uint32_t busy)
 	pl->busy_placement = nvbo->busy_placements;
 	set_placement_list(nvbo->busy_placements, &pl->num_busy_placement,
 			   type | busy, flags);
+
+	set_placement_range(nvbo, type);
 }
 
 int
@@ -525,7 +554,8 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		stride  = 16 * 4;
 		height  = amount / stride;
 
-		if (new_mem->mem_type == TTM_PL_VRAM && nvbo->tile_flags) {
+		if (new_mem->mem_type == TTM_PL_VRAM &&
+		    nouveau_bo_tile_layout(nvbo)) {
 			ret = RING_SPACE(chan, 8);
 			if (ret)
 				return ret;
@@ -546,7 +576,8 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 			BEGIN_RING(chan, NvSubM2MF, 0x0200, 1);
 			OUT_RING  (chan, 1);
 		}
-		if (old_mem->mem_type == TTM_PL_VRAM && nvbo->tile_flags) {
+		if (old_mem->mem_type == TTM_PL_VRAM &&
+		    nouveau_bo_tile_layout(nvbo)) {
 			ret = RING_SPACE(chan, 8);
 			if (ret)
 				return ret;
@@ -753,7 +784,8 @@ nouveau_bo_vm_bind(struct ttm_buffer_object *bo, struct ttm_mem_reg *new_mem,
 	if (dev_priv->card_type == NV_50) {
 		ret = nv50_mem_vm_bind_linear(dev,
 					      offset + dev_priv->vm_vram_base,
-					      new_mem->size, nvbo->tile_flags,
+					      new_mem->size,
+					      nouveau_bo_tile_layout(nvbo),
 					      offset);
 		if (ret)
 			return ret;
@@ -894,7 +926,8 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	 * nothing to do here.
 	 */
 	if (bo->mem.mem_type != TTM_PL_VRAM) {
-		if (dev_priv->card_type < NV_50 || !nvbo->tile_flags)
+		if (dev_priv->card_type < NV_50 ||
+		    !nouveau_bo_tile_layout(nvbo))
 			return 0;
 	}
 

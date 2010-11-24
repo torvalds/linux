@@ -2017,7 +2017,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 			}
 		} else {
 			/* gpio_request fail so use -EINVAL for gpio_is_valid */
-			ubc->vbus_pin = -EINVAL;
+			udc->vbus_pin = -EINVAL;
 		}
 	}
 

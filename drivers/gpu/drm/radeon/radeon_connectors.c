@@ -1008,9 +1008,21 @@ static void radeon_dp_connector_destroy(struct drm_connector *connector)
 static int radeon_dp_get_modes(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
 	int ret;
 
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		if (!radeon_dig_connector->edp_on)
+			atombios_set_edp_panel_power(connector,
+						     ATOM_TRANSMITTER_ACTION_POWER_ON);
+	}
 	ret = radeon_ddc_get_modes(radeon_connector);
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		if (!radeon_dig_connector->edp_on)
+			atombios_set_edp_panel_power(connector,
+						     ATOM_TRANSMITTER_ACTION_POWER_OFF);
+	}
+
 	return ret;
 }
 
@@ -1029,8 +1041,14 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
 		/* eDP is always DP */
 		radeon_dig_connector->dp_sink_type = CONNECTOR_OBJECT_ID_DISPLAYPORT;
+		if (!radeon_dig_connector->edp_on)
+			atombios_set_edp_panel_power(connector,
+						     ATOM_TRANSMITTER_ACTION_POWER_ON);
 		if (radeon_dp_getdpcd(radeon_connector))
 			ret = connector_status_connected;
+		if (!radeon_dig_connector->edp_on)
+			atombios_set_edp_panel_power(connector,
+						     ATOM_TRANSMITTER_ACTION_POWER_OFF);
 	} else {
 		radeon_dig_connector->dp_sink_type = radeon_dp_getsinktype(radeon_connector);
 		if (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) {

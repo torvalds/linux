@@ -2104,7 +2104,6 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 
 	if (!(status & STS_EINT)) {
 		spin_unlock(&xhci->lock);
-		xhci_warn(xhci, "Spurious interrupt.\n");
 		return IRQ_NONE;
 	}
 	xhci_dbg(xhci, "op reg status = %08x\n", status);
