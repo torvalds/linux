@@ -1135,19 +1135,13 @@ find_unconfirmed_client(clientid_t *clid)
 }
 
 /*
- * Return 1 iff clp's clientid establishment method matches the use_exchange_id
- * parameter. Matching is based on the fact the at least one of the
- * EXCHGID4_FLAG_USE_{NON_PNFS,PNFS_MDS,PNFS_DS} flags must be set for v4.1
- *
  * FIXME: we need to unify the clientid namespaces for nfsv4.x
  * and correctly deal with client upgrade/downgrade in EXCHANGE_ID
  * and SET_CLIENTID{,_CONFIRM}
  */
-static inline int
-match_clientid_establishment(struct nfs4_client *clp, bool use_exchange_id)
+static bool clp_used_exchangeid(struct nfs4_client *clp)
 {
-	bool has_exchange_flags = (clp->cl_exchange_flags != 0);
-	return use_exchange_id == has_exchange_flags;
+	return clp->cl_exchange_flags != 0;
 }
 
 static struct nfs4_client *
@@ -1158,7 +1152,7 @@ find_confirmed_client_by_str(const char *dname, unsigned int hashval,
 
 	list_for_each_entry(clp, &conf_str_hashtbl[hashval], cl_strhash) {
 		if (same_name(clp->cl_recdir, dname) &&
-		    match_clientid_establishment(clp, use_exchange_id))
+		    clp_used_exchangeid(clp) == use_exchange_id)
 			return clp;
 	}
 	return NULL;
@@ -1172,7 +1166,7 @@ find_unconfirmed_client_by_str(const char *dname, unsigned int hashval,
 
 	list_for_each_entry(clp, &unconf_str_hashtbl[hashval], cl_strhash) {
 		if (same_name(clp->cl_recdir, dname) &&
-		    match_clientid_establishment(clp, use_exchange_id))
+		    clp_used_exchangeid(clp) == use_exchange_id)
 			return clp;
 	}
 	return NULL;
