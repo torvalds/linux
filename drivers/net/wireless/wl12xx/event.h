@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __WL1271_EVENT_H__
-#define __WL1271_EVENT_H__
+#ifndef __EVENT_H__
+#define __EVENT_H__
 
 /*
  * Mbox events

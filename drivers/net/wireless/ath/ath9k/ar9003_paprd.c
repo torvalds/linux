@@ -32,12 +32,12 @@ static void ar9003_paprd_setup_single_table(struct ath_hw *ah)
 {
 	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
 	struct ar9300_modal_eep_header *hdr;
-	const u32 ctrl0[3] = {
+	static const u32 ctrl0[3] = {
 		AR_PHY_PAPRD_CTRL0_B0,
 		AR_PHY_PAPRD_CTRL0_B1,
 		AR_PHY_PAPRD_CTRL0_B2
 	};
-	const u32 ctrl1[3] = {
+	static const u32 ctrl1[3] = {
 		AR_PHY_PAPRD_CTRL1_B0,
 		AR_PHY_PAPRD_CTRL1_B1,
 		AR_PHY_PAPRD_CTRL1_B2

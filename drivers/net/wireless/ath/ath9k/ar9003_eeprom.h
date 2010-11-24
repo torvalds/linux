@@ -79,6 +79,15 @@
 #define FIXED_CCA_THRESHOLD 15
 
 #define AR9300_BASE_ADDR 0x3ff
+#define AR9300_BASE_ADDR_512 0x1ff
+
+#define AR9300_OTP_BASE			0x14000
+#define AR9300_OTP_STATUS		0x15f18
+#define AR9300_OTP_STATUS_TYPE		0x7
+#define AR9300_OTP_STATUS_VALID		0x4
+#define AR9300_OTP_STATUS_ACCESS_BUSY	0x2
+#define AR9300_OTP_STATUS_SM_BUSY	0x1
+#define AR9300_OTP_READ_DATA		0x15f1c
 
 enum targetPowerHTRates {
 	HT_TARGET_RATE_0_8_16,
@@ -236,7 +245,7 @@ struct ar9300_modal_eep_header {
 	u8 thresh62;
 	__le32 papdRateMaskHt20;
 	__le32 papdRateMaskHt40;
-	u8 futureModal[24];
+	u8 futureModal[10];
 } __packed;
 
 struct ar9300_cal_data_per_freq_op_loop {
@@ -274,6 +283,20 @@ struct cal_ctl_data_5g {
 	struct cal_ctl_edge_pwr ctlEdges[AR9300_NUM_BAND_EDGES_5G];
 } __packed;
 
+struct ar9300_BaseExtension_1 {
+	u8 ant_div_control;
+	u8 future[13];
+} __packed;
+
+struct ar9300_BaseExtension_2 {
+	int8_t    tempSlopeLow;
+	int8_t    tempSlopeHigh;
+	u8   xatten1DBLow[AR9300_MAX_CHAINS];
+	u8   xatten1MarginLow[AR9300_MAX_CHAINS];
+	u8   xatten1DBHigh[AR9300_MAX_CHAINS];
+	u8   xatten1MarginHigh[AR9300_MAX_CHAINS];
+} __packed;
+
 struct ar9300_eeprom {
 	u8 eepromVersion;
 	u8 templateVersion;
@@ -283,6 +306,7 @@ struct ar9300_eeprom {
 	struct ar9300_base_eep_hdr baseEepHeader;
 
 	struct ar9300_modal_eep_header modalHeader2G;
+	struct ar9300_BaseExtension_1 base_ext1;
 	u8 calFreqPier2G[AR9300_NUM_2G_CAL_PIERS];
 	struct ar9300_cal_data_per_freq_op_loop
 	 calPierData2G[AR9300_MAX_CHAINS][AR9300_NUM_2G_CAL_PIERS];
@@ -302,6 +326,7 @@ struct ar9300_eeprom {
 	u8 ctl_freqbin_2G[AR9300_NUM_CTLS_2G][AR9300_NUM_BAND_EDGES_2G];
 	struct cal_ctl_data_2g ctlPowerData_2G[AR9300_NUM_CTLS_2G];
 	struct ar9300_modal_eep_header modalHeader5G;
+	struct ar9300_BaseExtension_2 base_ext2;
 	u8 calFreqPier5G[AR9300_NUM_5G_CAL_PIERS];
 	struct ar9300_cal_data_per_freq_op_loop
 	 calPierData5G[AR9300_MAX_CHAINS][AR9300_NUM_5G_CAL_PIERS];

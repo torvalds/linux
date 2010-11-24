@@ -44,15 +44,6 @@ static inline struct ieee80211_conf *ieee80211_get_hw_conf(
 	return &hw->conf;
 }
 
-static inline unsigned long elapsed_jiffies(unsigned long start,
-					    unsigned long end)
-{
-	if (end >= start)
-		return end - start;
-
-	return end + (MAX_JIFFY_OFFSET - start) + 1;
-}
-
 /**
  * iwl_queue_inc_wrap - increment queue index, wrap back to beginning
  * @index -- current index
@@ -104,42 +95,36 @@ static inline int iwl_alloc_fw_desc(struct pci_dev *pci_dev,
  * | | | | | | | |
  * | | | | | | +-+-------- AC queue (0-3)
  * | | | | | |
- * | +-+-+-+-+------------ HW A-MPDU queue
+ * | +-+-+-+-+------------ HW queue ID
  * |
- * +---------------------- indicates agg queue
+ * +---------------------- unused
  */
-static inline u8 iwl_virtual_agg_queue_num(u8 ac, u8 hwq)
+static inline void iwl_set_swq_id(struct iwl_tx_queue *txq, u8 ac, u8 hwq)
 {
 	BUG_ON(ac > 3);   /* only have 2 bits */
-	BUG_ON(hwq > 31); /* only have 5 bits */
+	BUG_ON(hwq > 31); /* only use 5 bits */
 
-	return 0x80 | (hwq << 2) | ac;
+	txq->swq_id = (hwq << 2) | ac;
 }
 
-static inline void iwl_wake_queue(struct iwl_priv *priv, u8 queue)
+static inline void iwl_wake_queue(struct iwl_priv *priv,
+				  struct iwl_tx_queue *txq)
 {
-	u8 ac = queue;
-	u8 hwq = queue;
-
-	if (queue & 0x80) {
-		ac = queue & 3;
-		hwq = (queue >> 2) & 0x1f;
-	}
+	u8 queue = txq->swq_id;
+	u8 ac = queue & 3;
+	u8 hwq = (queue >> 2) & 0x1f;
 
 	if (test_and_clear_bit(hwq, priv->queue_stopped))
 		if (atomic_dec_return(&priv->queue_stop_count[ac]) <= 0)
 			ieee80211_wake_queue(priv->hw, ac);
 }
 
-static inline void iwl_stop_queue(struct iwl_priv *priv, u8 queue)
+static inline void iwl_stop_queue(struct iwl_priv *priv,
+				  struct iwl_tx_queue *txq)
 {
-	u8 ac = queue;
-	u8 hwq = queue;
-
-	if (queue & 0x80) {
-		ac = queue & 3;
-		hwq = (queue >> 2) & 0x1f;
-	}
+	u8 queue = txq->swq_id;
+	u8 ac = queue & 3;
+	u8 hwq = (queue >> 2) & 0x1f;
 
 	if (!test_and_set_bit(hwq, priv->queue_stopped))
 		if (atomic_inc_return(&priv->queue_stop_count[ac]) > 0)

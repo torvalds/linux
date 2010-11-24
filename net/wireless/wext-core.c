@@ -467,8 +467,8 @@ void wireless_send_event(struct net_device *	dev,
 		 * The best the driver could do is to log an error message.
 		 * We will do it ourselves instead...
 		 */
-		printk(KERN_ERR "%s (WE) : Invalid/Unknown Wireless Event (0x%04X)\n",
-		       dev->name, cmd);
+		netdev_err(dev, "(WE) : Invalid/Unknown Wireless Event (0x%04X)\n",
+			   cmd);
 		return;
 	}
 
@@ -476,11 +476,13 @@ void wireless_send_event(struct net_device *	dev,
 	if (descr->header_type == IW_HEADER_TYPE_POINT) {
 		/* Check if number of token fits within bounds */
 		if (wrqu->data.length > descr->max_tokens) {
-			printk(KERN_ERR "%s (WE) : Wireless Event too big (%d)\n", dev->name, wrqu->data.length);
+			netdev_err(dev, "(WE) : Wireless Event too big (%d)\n",
+				   wrqu->data.length);
 			return;
 		}
 		if (wrqu->data.length < descr->min_tokens) {
-			printk(KERN_ERR "%s (WE) : Wireless Event too small (%d)\n", dev->name, wrqu->data.length);
+			netdev_err(dev, "(WE) : Wireless Event too small (%d)\n",
+				   wrqu->data.length);
 			return;
 		}
 		/* Calculate extra_len - extra is NULL for restricted events */

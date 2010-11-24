@@ -864,7 +864,7 @@ static bool ath_rc_update_per(struct ath_softc *sc,
 	bool state_change = false;
 	int count, n_bad_frames;
 	u8 last_per;
-	static u32 nretry_to_per_lookup[10] = {
+	static const u32 nretry_to_per_lookup[10] = {
 		100 * 0 / 1,
 		100 * 1 / 4,
 		100 * 1 / 2,
@@ -1087,13 +1087,13 @@ static int ath_rc_get_rateindex(const struct ath_rate_table *rate_table,
 				struct ieee80211_tx_rate *rate)
 {
 	int rix = 0, i = 0;
-	int mcs_rix_off[] = { 7, 15, 20, 21, 22, 23 };
+	static const int mcs_rix_off[] = { 7, 15, 20, 21, 22, 23 };
 
 	if (!(rate->flags & IEEE80211_TX_RC_MCS))
 		return rate->idx;
 
 	while (rate->idx > mcs_rix_off[i] &&
-	      i < sizeof(mcs_rix_off)/sizeof(int)) {
+	       i < ARRAY_SIZE(mcs_rix_off)) {
 		rix++; i++;
 	}
 
@@ -1354,23 +1354,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		tx_info->status.ampdu_len = 1;
 	}
 
-	/*
-	 * If an underrun error is seen assume it as an excessive retry only
-	 * if max frame trigger level has been reached (2 KB for singel stream,
-	 * and 4 KB for dual stream). Adjust the long retry as if the frame was
-	 * tried hw->max_rate_tries times to affect how ratectrl updates PER for
-	 * the failed rate. In case of congestion on the bus penalizing these
-	 * type of underruns should help hardware actually transmit new frames
-	 * successfully by eventually preferring slower rates. This itself
-	 * should also alleviate congestion on the bus.
-	 */
-	if ((tx_info->pad[0] & ATH_TX_INFO_UNDERRUN) &&
-	    (sc->sc_ah->tx_trig_level >= ath_rc_priv->tx_triglevel_max)) {
-		tx_status = 1;
-		is_underrun = 1;
-	}
-
-	if (tx_info->pad[0] & ATH_TX_INFO_XRETRY)
+	if (!(tx_info->flags & IEEE80211_TX_STAT_ACK))
 		tx_status = 1;
 
 	ath_rc_tx_status(sc, ath_rc_priv, tx_info, final_ts_idx, tx_status,
@@ -1379,7 +1363,8 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	/* Check if aggregation has to be enabled for this tid */
 	if (conf_is_ht(&sc->hw->conf) &&
 	    !(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
-		if (ieee80211_is_data_qos(fc)) {
+		if (ieee80211_is_data_qos(fc) &&
+		    skb_get_queue_mapping(skb) != IEEE80211_AC_VO) {
 			u8 *qc, tid;
 			struct ath_node *an;
 
@@ -1595,8 +1580,6 @@ static void *ath_rate_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp
 			  "Unable to allocate private rc structure\n");
 		return NULL;
 	}
-
-	rate_priv->tx_triglevel_max = sc->sc_ah->caps.tx_triglevel_max;
 
 	return rate_priv;
 }

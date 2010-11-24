@@ -21,10 +21,10 @@
  *
  */
 
-#ifndef __WL1271_SCAN_H__
-#define __WL1271_SCAN_H__
+#ifndef __SCAN_H__
+#define __SCAN_H__
 
-#include "wl1271.h"
+#include "wl12xx.h"
 
 int wl1271_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 		struct cfg80211_scan_request *req);

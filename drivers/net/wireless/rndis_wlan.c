@@ -156,6 +156,12 @@ MODULE_PARM_DESC(workaround_interval,
 #define RNDIS_STATUS_ADAPTER_NOT_OPEN		cpu_to_le32(0xc0010012)
 
 
+/* Known device types */
+#define RNDIS_UNKNOWN	0
+#define RNDIS_BCM4320A	1
+#define RNDIS_BCM4320B	2
+
+
 /* NDIS data structures. Taken from wpa_supplicant driver_ndis.c
  * slightly modified for datatype endianess, etc
  */
@@ -478,6 +484,7 @@ struct rndis_wlan_private {
 	struct ieee80211_rate rates[ARRAY_SIZE(rndis_rates)];
 	u32 cipher_suites[ARRAY_SIZE(rndis_cipher_suites)];
 
+	int device_type;
 	int caps;
 	int multicast_size;
 
@@ -810,7 +817,8 @@ exit_unlock:
 	return ret;
 }
 
-static int rndis_set_oid(struct usbnet *dev, __le32 oid, void *data, int len)
+static int rndis_set_oid(struct usbnet *dev, __le32 oid, const void *data,
+			 int len)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(dev);
 	union {
@@ -994,7 +1002,18 @@ static int level_to_qual(int level)
  */
 static int set_infra_mode(struct usbnet *usbdev, int mode);
 static void restore_keys(struct usbnet *usbdev);
-static int rndis_check_bssid_list(struct usbnet *usbdev);
+static int rndis_check_bssid_list(struct usbnet *usbdev, u8 *match_bssid,
+					bool *matched);
+
+static int rndis_start_bssid_list_scan(struct usbnet *usbdev)
+{
+	__le32 tmp;
+
+	/* Note: OID_802_11_BSSID_LIST_SCAN clears internal BSS list. */
+	tmp = cpu_to_le32(1);
+	return rndis_set_oid(usbdev, OID_802_11_BSSID_LIST_SCAN, &tmp,
+							sizeof(tmp));
+}
 
 static int set_essid(struct usbnet *usbdev, struct ndis_80211_ssid *ssid)
 {
@@ -1015,7 +1034,7 @@ static int set_essid(struct usbnet *usbdev, struct ndis_80211_ssid *ssid)
 	return ret;
 }
 
-static int set_bssid(struct usbnet *usbdev, u8 bssid[ETH_ALEN])
+static int set_bssid(struct usbnet *usbdev, const u8 *bssid)
 {
 	int ret;
 
@@ -1031,7 +1050,9 @@ static int set_bssid(struct usbnet *usbdev, u8 bssid[ETH_ALEN])
 
 static int clear_bssid(struct usbnet *usbdev)
 {
-	u8 broadcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	static const u8 broadcast_mac[ETH_ALEN] = {
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	};
 
 	return set_bssid(usbdev, broadcast_mac);
 }
@@ -1904,14 +1925,14 @@ static int rndis_scan(struct wiphy *wiphy, struct net_device *dev,
 	struct usbnet *usbdev = netdev_priv(dev);
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	int ret;
-	__le32 tmp;
+	int delay = SCAN_DELAY_JIFFIES;
 
 	netdev_dbg(usbdev->net, "cfg80211.scan\n");
 
 	/* Get current bssid list from device before new scan, as new scan
 	 * clears internal bssid list.
 	 */
-	rndis_check_bssid_list(usbdev);
+	rndis_check_bssid_list(usbdev, NULL, NULL);
 
 	if (!request)
 		return -EINVAL;
@@ -1921,13 +1942,13 @@ static int rndis_scan(struct wiphy *wiphy, struct net_device *dev,
 
 	priv->scan_request = request;
 
-	tmp = cpu_to_le32(1);
-	ret = rndis_set_oid(usbdev, OID_802_11_BSSID_LIST_SCAN, &tmp,
-							sizeof(tmp));
+	ret = rndis_start_bssid_list_scan(usbdev);
 	if (ret == 0) {
+		if (priv->device_type == RNDIS_BCM4320A)
+			delay = HZ;
+
 		/* Wait before retrieving scan results from device */
-		queue_delayed_work(priv->workqueue, &priv->scan_work,
-			SCAN_DELAY_JIFFIES);
+		queue_delayed_work(priv->workqueue, &priv->scan_work, delay);
 	}
 
 	return ret;
@@ -1981,7 +2002,8 @@ static struct cfg80211_bss *rndis_bss_info_update(struct usbnet *usbdev,
 		GFP_KERNEL);
 }
 
-static int rndis_check_bssid_list(struct usbnet *usbdev)
+static int rndis_check_bssid_list(struct usbnet *usbdev, u8 *match_bssid,
+					bool *matched)
 {
 	void *buf = NULL;
 	struct ndis_80211_bssid_list_ex *bssid_list;
@@ -2017,7 +2039,11 @@ resize_buf:
 		   count, len);
 
 	while (count && ((void *)bssid + bssid_len) <= (buf + len)) {
-		rndis_bss_info_update(usbdev, bssid);
+		if (rndis_bss_info_update(usbdev, bssid) && match_bssid &&
+		    matched) {
+			if (compare_ether_addr(bssid->mac, match_bssid))
+				*matched = true;
+		}
 
 		bssid = (void *)bssid + bssid_len;
 		bssid_len = le32_to_cpu(bssid->length);
@@ -2041,7 +2067,7 @@ static void rndis_get_scan_results(struct work_struct *work)
 	if (!priv->scan_request)
 		return;
 
-	ret = rndis_check_bssid_list(usbdev);
+	ret = rndis_check_bssid_list(usbdev, NULL, NULL);
 
 	cfg80211_scan_done(priv->scan_request, ret < 0);
 
@@ -2495,6 +2521,91 @@ static int rndis_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 	return rndis_set_oid(usbdev, OID_802_11_PMKID, &pmkid, sizeof(pmkid));
 }
 
+static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
+					   struct ndis_80211_assoc_info *info)
+{
+	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
+	struct ieee80211_channel *channel;
+	struct ndis_80211_conf config;
+	struct ndis_80211_ssid ssid;
+	s32 signal;
+	u64 timestamp;
+	u16 capability;
+	u16 beacon_interval;
+	__le32 rssi;
+	u8 ie_buf[34];
+	int len, ret, ie_len;
+
+	/* Get signal quality, in case of error use rssi=0 and ignore error. */
+	len = sizeof(rssi);
+	rssi = 0;
+	ret = rndis_query_oid(usbdev, OID_802_11_RSSI, &rssi, &len);
+	signal = level_to_qual(le32_to_cpu(rssi));
+
+	netdev_dbg(usbdev->net, "%s(): OID_802_11_RSSI -> %d, "
+		   "rssi:%d, qual: %d\n", __func__, ret, le32_to_cpu(rssi),
+		   level_to_qual(le32_to_cpu(rssi)));
+
+	/* Get AP capabilities */
+	if (info) {
+		capability = le16_to_cpu(info->resp_ie.capa);
+	} else {
+		/* Set atleast ESS/IBSS capability */
+		capability = (priv->infra_mode == NDIS_80211_INFRA_INFRA) ?
+				WLAN_CAPABILITY_ESS : WLAN_CAPABILITY_IBSS;
+	}
+
+	/* Get channel and beacon interval */
+	len = sizeof(config);
+	ret = rndis_query_oid(usbdev, OID_802_11_CONFIGURATION, &config, &len);
+	netdev_dbg(usbdev->net, "%s(): OID_802_11_CONFIGURATION -> %d\n",
+				__func__, ret);
+	if (ret >= 0) {
+		beacon_interval = le16_to_cpu(config.beacon_period);
+		channel = ieee80211_get_channel(priv->wdev.wiphy,
+				KHZ_TO_MHZ(le32_to_cpu(config.ds_config)));
+		if (!channel) {
+			netdev_warn(usbdev->net, "%s(): could not get channel."
+						 "\n", __func__);
+			return;
+		}
+	} else {
+		netdev_warn(usbdev->net, "%s(): could not get configuration.\n",
+					 __func__);
+		return;
+	}
+
+	/* Get SSID, in case of error, use zero length SSID and ignore error. */
+	len = sizeof(ssid);
+	memset(&ssid, 0, sizeof(ssid));
+	ret = rndis_query_oid(usbdev, OID_802_11_SSID, &ssid, &len);
+	netdev_dbg(usbdev->net, "%s(): OID_802_11_SSID -> %d, len: %d, ssid: "
+				"'%.32s'\n", __func__, ret,
+				le32_to_cpu(ssid.length), ssid.essid);
+
+	if (le32_to_cpu(ssid.length) > 32)
+		ssid.length = cpu_to_le32(32);
+
+	ie_buf[0] = WLAN_EID_SSID;
+	ie_buf[1] = le32_to_cpu(ssid.length);
+	memcpy(&ie_buf[2], ssid.essid, le32_to_cpu(ssid.length));
+
+	ie_len = le32_to_cpu(ssid.length) + 2;
+
+	/* no tsf */
+	timestamp = 0;
+
+	netdev_dbg(usbdev->net, "%s(): channel:%d(freq), bssid:[%pM], tsf:%d, "
+		"capa:%x, beacon int:%d, resp_ie(len:%d, essid:'%.32s'), "
+		"signal:%d\n", __func__, (channel ? channel->center_freq : -1),
+		bssid, (u32)timestamp, capability, beacon_interval, ie_len,
+		ssid.essid, signal);
+
+	cfg80211_inform_bss(priv->wdev.wiphy, channel, bssid,
+		timestamp, capability, beacon_interval, ie_buf, ie_len,
+		signal, GFP_KERNEL);
+}
+
 /*
  * workers, indication handlers, device poller
  */
@@ -2507,6 +2618,7 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 	u8 *req_ie, *resp_ie;
 	int ret, offset;
 	bool roamed = false;
+	bool match_bss;
 
 	if (priv->infra_mode == NDIS_80211_INFRA_INFRA && priv->connected) {
 		/* received media connect indication while connected, either
@@ -2558,6 +2670,13 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 					resp_ie_len =
 						CONTROL_BUFFER_SIZE - offset;
 			}
+		} else {
+			/* Since rndis_wlan_craft_connected_bss() might use info
+			 * later and expects info to contain valid data if
+			 * non-null, free info and set NULL here.
+			 */
+			kfree(info);
+			info = NULL;
 		}
 	} else if (WARN_ON(priv->infra_mode != NDIS_80211_INFRA_ADHOC))
 		return;
@@ -2569,13 +2688,26 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 	netdev_dbg(usbdev->net, "link up work: [%pM]%s\n",
 		   bssid, roamed ? " roamed" : "");
 
-	/* Internal bss list in device always contains at least the currently
+	/* Internal bss list in device should contain at least the currently
 	 * connected bss and we can get it to cfg80211 with
 	 * rndis_check_bssid_list().
-	 * NOTE: This is true for Broadcom chip, but not mentioned in RNDIS
-	 * spec.
+	 *
+	 * NDIS spec says: "If the device is associated, but the associated
+	 *  BSSID is not in its BSSID scan list, then the driver must add an
+	 *  entry for the BSSID at the end of the data that it returns in
+	 *  response to query of OID_802_11_BSSID_LIST."
+	 *
+	 * NOTE: Seems to be true for BCM4320b variant, but not BCM4320a.
 	 */
-	rndis_check_bssid_list(usbdev);
+	match_bss = false;
+	rndis_check_bssid_list(usbdev, bssid, &match_bss);
+
+	if (!is_zero_ether_addr(bssid) && !match_bss) {
+		/* Couldn't get bss from device, we need to manually craft bss
+		 * for cfg80211.
+		 */
+		rndis_wlan_craft_connected_bss(usbdev, bssid, info);
+	}
 
 	if (priv->infra_mode == NDIS_80211_INFRA_INFRA) {
 		if (!roamed)
@@ -2934,8 +3066,21 @@ static void rndis_device_poller(struct work_struct *work)
 	 * also polls device with rndis_command() and catches for media link
 	 * indications.
 	 */
-	if (!is_associated(usbdev))
+	if (!is_associated(usbdev)) {
+		/* Workaround bad scanning in BCM4320a devices with active
+		 * background scanning when not associated.
+		 */
+		if (priv->device_type == RNDIS_BCM4320A && priv->radio_on &&
+		    !priv->scan_request) {
+			/* Get previous scan results */
+			rndis_check_bssid_list(usbdev, NULL, NULL);
+
+			/* Initiate new scan */
+			rndis_start_bssid_list_scan(usbdev);
+		}
+
 		goto end;
+	}
 
 	len = sizeof(rssi);
 	ret = rndis_query_oid(usbdev, OID_802_11_RSSI, &rssi, &len);
@@ -2992,9 +3137,11 @@ end:
 /*
  * driver/device initialization
  */
-static void rndis_copy_module_params(struct usbnet *usbdev)
+static void rndis_copy_module_params(struct usbnet *usbdev, int device_type)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
+
+	priv->device_type = device_type;
 
 	priv->param_country[0] = modparam_country[0];
 	priv->param_country[1] = modparam_country[1];
@@ -3038,12 +3185,25 @@ static void rndis_copy_module_params(struct usbnet *usbdev)
 		priv->param_workaround_interval = modparam_workaround_interval;
 }
 
+static int unknown_early_init(struct usbnet *usbdev)
+{
+	/* copy module parameters for unknown so that iwconfig reports txpower
+	 * and workaround parameter is copied to private structure correctly.
+	 */
+	rndis_copy_module_params(usbdev, RNDIS_UNKNOWN);
+
+	/* This is unknown device, so do not try set configuration parameters.
+	 */
+
+	return 0;
+}
+
 static int bcm4320a_early_init(struct usbnet *usbdev)
 {
 	/* copy module parameters for bcm4320a so that iwconfig reports txpower
 	 * and workaround parameter is copied to private structure correctly.
 	 */
-	rndis_copy_module_params(usbdev);
+	rndis_copy_module_params(usbdev, RNDIS_BCM4320A);
 
 	/* bcm4320a doesn't handle configuration parameters well. Try
 	 * set any and you get partially zeroed mac and broken device.
@@ -3057,7 +3217,7 @@ static int bcm4320b_early_init(struct usbnet *usbdev)
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	char buf[8];
 
-	rndis_copy_module_params(usbdev);
+	rndis_copy_module_params(usbdev, RNDIS_BCM4320B);
 
 	/* Early initialization settings, setting these won't have effect
 	 * if called after generic_rndis_bind().
@@ -3320,7 +3480,7 @@ static const struct driver_info rndis_wlan_info = {
 	.tx_fixup =	rndis_tx_fixup,
 	.reset =	rndis_wlan_reset,
 	.stop =		rndis_wlan_stop,
-	.early_init =	bcm4320a_early_init,
+	.early_init =	unknown_early_init,
 	.indication =	rndis_wlan_indication,
 };
 

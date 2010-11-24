@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __WL1271_TX_H__
-#define __WL1271_TX_H__
+#ifndef __TX_H__
+#define __TX_H__
 
 #define TX_HW_BLOCK_SPARE                2
 #define TX_HW_BLOCK_SIZE                 252

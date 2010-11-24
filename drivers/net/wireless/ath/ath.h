@@ -104,6 +104,11 @@ enum ath_cipher {
 	ATH_CIPHER_MIC = 127
 };
 
+enum ath_drv_info {
+	AR7010_DEVICE		= BIT(0),
+	AR9287_DEVICE		= BIT(1),
+};
+
 /**
  * struct ath_ops - Register read/write operations
  *
@@ -147,6 +152,7 @@ struct ath_common {
 	u8 rx_chainmask;
 
 	u32 rx_bufsize;
+	u32 driver_info;
 
 	u32 keymax;
 	DECLARE_BITMAP(keymap, ATH_KEYMAX);

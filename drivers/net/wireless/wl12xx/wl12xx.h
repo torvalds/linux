@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __WL1271_H__
-#define __WL1271_H__
+#ifndef __WL12XX_H__
+#define __WL12XX_H__
 
 #include <linux/mutex.h>
 #include <linux/completion.h>
@@ -32,8 +32,8 @@
 #include <linux/bitops.h>
 #include <net/mac80211.h>
 
-#include "wl1271_conf.h"
-#include "wl1271_ini.h"
+#include "conf.h"
+#include "ini.h"
 
 #define DRIVER_NAME "wl1271"
 #define DRIVER_PREFIX DRIVER_NAME ": "

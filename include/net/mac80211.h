@@ -97,6 +97,20 @@ enum ieee80211_max_queues {
 };
 
 /**
+ * enum ieee80211_ac_numbers - AC numbers as used in mac80211
+ * @IEEE80211_AC_VO: voice
+ * @IEEE80211_AC_VI: video
+ * @IEEE80211_AC_BE: best effort
+ * @IEEE80211_AC_BK: background
+ */
+enum ieee80211_ac_numbers {
+	IEEE80211_AC_VO		= 0,
+	IEEE80211_AC_VI		= 1,
+	IEEE80211_AC_BE		= 2,
+	IEEE80211_AC_BK		= 3,
+};
+
+/**
  * struct ieee80211_tx_queue_params - transmit queue configuration
  *
  * The information provided in this structure is required for QoS
@@ -205,6 +219,7 @@ enum ieee80211_bss_change {
  * @basic_rates: bitmap of basic rates, each bit stands for an
  *	index into the rate table configured by the driver in
  *	the current band.
+ * @mcast_rate: per-band multicast rate index + 1 (0: disabled)
  * @bssid: The BSSID for this BSS
  * @enable_beacon: whether beaconing should be enabled or not
  * @channel_type: Channel type for this BSS -- the hardware might be
@@ -244,6 +259,7 @@ struct ieee80211_bss_conf {
 	u16 assoc_capability;
 	u64 timestamp;
 	u32 basic_rates;
+	int mcast_rate[IEEE80211_NUM_BANDS];
 	u16 ht_operation_mode;
 	s32 cqm_rssi_thold;
 	u32 cqm_rssi_hyst;
@@ -1652,6 +1668,11 @@ enum ieee80211_ampdu_mlme_action {
  *	and IV16) for the given key from hardware.
  *	The callback must be atomic.
  *
+ * @set_frag_threshold: Configuration of fragmentation threshold. Assign this
+ *	if the device does fragmentation by itself; if this callback is
+ *	implemented then the stack will not do fragmentation.
+ *	The callback can sleep.
+ *
  * @set_rts_threshold: Configuration of RTS threshold (if device needs it)
  *	The callback can sleep.
  *
@@ -1724,6 +1745,13 @@ enum ieee80211_ampdu_mlme_action {
  *	completion of the channel switch.
  *
  * @napi_poll: Poll Rx queue for incoming data frames.
+ *
+ * @set_antenna: Set antenna configuration (tx_ant, rx_ant) on the device.
+ *	Parameters are bitmaps of allowed antennas to use for TX/RX. Drivers may
+ *	reject TX/RX mask combinations they cannot support by returning -EINVAL
+ *	(also see nl80211.h @NL80211_ATTR_WIPHY_ANTENNA_TX).
+ *
+ * @get_antenna: Get current antenna configuration from device (tx_ant, rx_ant).
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1765,6 +1793,7 @@ struct ieee80211_ops {
 			 struct ieee80211_low_level_stats *stats);
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
 			     u32 *iv32, u16 *iv16);
+	int (*set_frag_threshold)(struct ieee80211_hw *hw, u32 value);
 	int (*set_rts_threshold)(struct ieee80211_hw *hw, u32 value);
 	int (*sta_add)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
@@ -1793,6 +1822,8 @@ struct ieee80211_ops {
 	void (*channel_switch)(struct ieee80211_hw *hw,
 			       struct ieee80211_channel_switch *ch_switch);
 	int (*napi_poll)(struct ieee80211_hw *hw, int budget);
+	int (*set_antenna)(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant);
+	int (*get_antenna)(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant);
 };
 
 /**
@@ -2501,6 +2532,21 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 			       struct ieee80211_sta *pubsta, bool block);
 
 /**
+ * ieee80211_ap_probereq_get - retrieve a Probe Request template
+ * @hw: pointer obtained from ieee80211_alloc_hw().
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * Creates a Probe Request template which can, for example, be uploaded to
+ * hardware. The template is filled with bssid, ssid and supported rate
+ * information. This function must only be called from within the
+ * .bss_info_changed callback function and only in managed mode. The function
+ * is only useful when the interface is associated, otherwise it will return
+ * NULL.
+ */
+struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif);
+
+/**
  * ieee80211_beacon_loss - inform hardware does not receive beacons
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
@@ -2640,7 +2686,7 @@ enum rate_control_changed {
  * @rate_idx_mask: user-requested rate mask (not MCS for now)
  * @skb: the skb that will be transmitted, the control information in it needs
  *	to be filled in
- * @ap: whether this frame is sent out in AP mode
+ * @bss: whether this frame is sent out in AP or IBSS mode
  */
 struct ieee80211_tx_rate_control {
 	struct ieee80211_hw *hw;
@@ -2651,7 +2697,7 @@ struct ieee80211_tx_rate_control {
 	bool rts, short_preamble;
 	u8 max_rate_idx;
 	u32 rate_idx_mask;
-	bool ap;
+	bool bss;
 };
 
 struct rate_control_ops {

@@ -1028,3 +1028,15 @@ void cfg80211_cqm_rssi_notify(struct net_device *dev,
 	nl80211_send_cqm_rssi_notify(rdev, dev, rssi_event, gfp);
 }
 EXPORT_SYMBOL(cfg80211_cqm_rssi_notify);
+
+void cfg80211_cqm_pktloss_notify(struct net_device *dev,
+				 const u8 *peer, u32 num_packets, gfp_t gfp)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	/* Indicate roaming trigger event to user space */
+	nl80211_send_cqm_pktloss_notify(rdev, dev, peer, num_packets, gfp);
+}
+EXPORT_SYMBOL(cfg80211_cqm_pktloss_notify);

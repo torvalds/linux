@@ -215,7 +215,6 @@ struct ath_rate_priv {
 	u32 per_down_time;
 	u32 probe_interval;
 	u32 prev_data_rix;
-	u32 tx_triglevel_max;
 	struct ath_rateset neg_rates;
 	struct ath_rateset neg_ht_rates;
 	struct ath_rate_softc *asc;
@@ -224,11 +223,6 @@ struct ath_rate_priv {
 	struct dentry *debugfs_rcstats;
 	struct ath_rc_stats rcstats[RATE_TABLE_SIZE];
 };
-
-#define ATH_TX_INFO_FRAME_TYPE_INTERNAL	(1 << 0)
-#define ATH_TX_INFO_FRAME_TYPE_PAUSE	(1 << 1)
-#define ATH_TX_INFO_XRETRY		(1 << 3)
-#define ATH_TX_INFO_UNDERRUN		(1 << 4)
 
 enum ath9k_internal_frame_type {
 	ATH9K_IFT_NOT_INTERNAL,

@@ -72,6 +72,34 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	return ret;
 }
 
+static void iwlagn_update_qos(struct iwl_priv *priv,
+			      struct iwl_rxon_context *ctx)
+{
+	int ret;
+
+	if (!ctx->is_active)
+		return;
+
+	ctx->qos_data.def_qos_parm.qos_flags = 0;
+
+	if (ctx->qos_data.qos_active)
+		ctx->qos_data.def_qos_parm.qos_flags |=
+			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
+
+	if (ctx->ht.enabled)
+		ctx->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
+
+	IWL_DEBUG_QOS(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
+		      ctx->qos_data.qos_active,
+		      ctx->qos_data.def_qos_parm.qos_flags);
+
+	ret = iwl_send_cmd_pdu(priv, ctx->qos_cmd,
+			       sizeof(struct iwl_qosparam_cmd),
+			       &ctx->qos_data.def_qos_parm);
+	if (ret)
+		IWL_ERR(priv, "Failed to update QoS\n");
+}
+
 static int iwlagn_update_beacon(struct iwl_priv *priv,
 				struct ieee80211_vif *vif)
 {
@@ -97,6 +125,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	/* cast away the const for active_rxon in this function */
 	struct iwl_rxon_cmd *active = (void *)&ctx->active;
 	bool new_assoc = !!(ctx->staging.filter_flags & RXON_FILTER_ASSOC_MSK);
+	bool old_assoc = !!(ctx->active.filter_flags & RXON_FILTER_ASSOC_MSK);
 	int ret;
 
 	lockdep_assert_held(&priv->mutex);
@@ -176,25 +205,27 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	 * AP station must be done after the BSSID is set to correctly
 	 * set up filters in the device.
 	 */
-	if (ctx->ctxid == IWL_RXON_CTX_BSS)
-		ret = iwlagn_disable_bss(priv, ctx, &ctx->staging);
-	else
-		ret = iwlagn_disable_pan(priv, ctx, &ctx->staging);
-	if (ret)
-		return ret;
+	if ((old_assoc && new_assoc) || !new_assoc) {
+		if (ctx->ctxid == IWL_RXON_CTX_BSS)
+			ret = iwlagn_disable_bss(priv, ctx, &ctx->staging);
+		else
+			ret = iwlagn_disable_pan(priv, ctx, &ctx->staging);
+		if (ret)
+			return ret;
 
-	memcpy(active, &ctx->staging, sizeof(*active));
+		memcpy(active, &ctx->staging, sizeof(*active));
 
-	/*
-	 * Un-assoc RXON clears the station table and WEP
-	 * keys, so we have to restore those afterwards.
-	 */
-	iwl_clear_ucode_stations(priv, ctx);
-	iwl_restore_stations(priv, ctx);
-	ret = iwl_restore_default_wep_keys(priv, ctx);
-	if (ret) {
-		IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
-		return ret;
+		/*
+		 * Un-assoc RXON clears the station table and WEP
+		 * keys, so we have to restore those afterwards.
+		 */
+		iwl_clear_ucode_stations(priv, ctx);
+		iwl_restore_stations(priv, ctx);
+		ret = iwl_restore_default_wep_keys(priv, ctx);
+		if (ret) {
+			IWL_ERR(priv, "Failed to restore WEP keys (%d)\n", ret);
+			return ret;
+		}
 	}
 
 	/* RXON timing must be before associated RXON */
@@ -205,6 +236,9 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	}
 
 	if (new_assoc) {
+		/* QoS info may be cleared by previous un-assoc RXON */
+		iwlagn_update_qos(priv, ctx);
+
 		/*
 		 * We'll run into this code path when beaconing is
 		 * enabled, but then we also need to send the beacon
@@ -235,6 +269,8 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		}
 		memcpy(active, &ctx->staging, sizeof(*active));
 
+		iwl_reprogram_ap_sta(priv, ctx);
+
 		/* IBSS beacon needs to be sent after setting assoc */
 		if (ctx->vif && (ctx->vif->type == NL80211_IFTYPE_ADHOC))
 			if (iwlagn_update_beacon(priv, ctx->vif))
@@ -259,34 +295,6 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	}
 
 	return 0;
-}
-
-static void iwlagn_update_qos(struct iwl_priv *priv,
-			      struct iwl_rxon_context *ctx)
-{
-	int ret;
-
-	if (!ctx->is_active)
-		return;
-
-	ctx->qos_data.def_qos_parm.qos_flags = 0;
-
-	if (ctx->qos_data.qos_active)
-		ctx->qos_data.def_qos_parm.qos_flags |=
-			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
-
-	if (ctx->ht.enabled)
-		ctx->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
-
-	IWL_DEBUG_QOS(priv, "send QoS cmd with Qos active=%d FLAGS=0x%X\n",
-		      ctx->qos_data.qos_active,
-		      ctx->qos_data.def_qos_parm.qos_flags);
-
-	ret = iwl_send_cmd_pdu(priv, ctx->qos_cmd,
-			       sizeof(struct iwl_qosparam_cmd),
-			       &ctx->qos_data.def_qos_parm);
-	if (ret)
-		IWL_ERR(priv, "Failed to update QoS\n");
 }
 
 int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
@@ -506,6 +514,11 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 	bool force = false;
 
 	mutex_lock(&priv->mutex);
+
+	if (WARN_ON(!ctx->vif)) {
+		mutex_unlock(&priv->mutex);
+		return;
+	}
 
 	if (changes & BSS_CHANGED_BEACON_INT)
 		force = true;

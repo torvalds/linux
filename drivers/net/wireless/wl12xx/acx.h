@@ -22,11 +22,11 @@
  *
  */
 
-#ifndef __WL1271_ACX_H__
-#define __WL1271_ACX_H__
+#ifndef __ACX_H__
+#define __ACX_H__
 
-#include "wl1271.h"
-#include "wl1271_cmd.h"
+#include "wl12xx.h"
+#include "cmd.h"
 
 /*************************************************************************
 
@@ -1161,7 +1161,7 @@ int wl1271_acx_ac_cfg(struct wl1271 *wl, u8 ac, u8 cw_min, u16 cw_max,
 int wl1271_acx_tid_cfg(struct wl1271 *wl, u8 queue_id, u8 channel_type,
 		       u8 tsid, u8 ps_scheme, u8 ack_policy,
 		       u32 apsd_conf0, u32 apsd_conf1);
-int wl1271_acx_frag_threshold(struct wl1271 *wl);
+int wl1271_acx_frag_threshold(struct wl1271 *wl, u16 frag_threshold);
 int wl1271_acx_tx_config_options(struct wl1271 *wl);
 int wl1271_acx_mem_cfg(struct wl1271 *wl);
 int wl1271_acx_init_mem_config(struct wl1271 *wl);

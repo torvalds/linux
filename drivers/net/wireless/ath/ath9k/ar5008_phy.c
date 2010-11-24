@@ -244,13 +244,15 @@ static void ar5008_hw_spur_mitigate(struct ath_hw *ah,
 	int upper, lower, cur_vit_mask;
 	int tmp, new;
 	int i;
-	int pilot_mask_reg[4] = { AR_PHY_TIMING7, AR_PHY_TIMING8,
-			  AR_PHY_PILOT_MASK_01_30, AR_PHY_PILOT_MASK_31_60
+	static int pilot_mask_reg[4] = {
+		AR_PHY_TIMING7, AR_PHY_TIMING8,
+		AR_PHY_PILOT_MASK_01_30, AR_PHY_PILOT_MASK_31_60
 	};
-	int chan_mask_reg[4] = { AR_PHY_TIMING9, AR_PHY_TIMING10,
-			 AR_PHY_CHANNEL_MASK_01_30, AR_PHY_CHANNEL_MASK_31_60
+	static int chan_mask_reg[4] = {
+		AR_PHY_TIMING9, AR_PHY_TIMING10,
+		AR_PHY_CHANNEL_MASK_01_30, AR_PHY_CHANNEL_MASK_31_60
 	};
-	int inc[4] = { 0, 100, 0, 0 };
+	static int inc[4] = { 0, 100, 0, 0 };
 
 	int8_t mask_m[123];
 	int8_t mask_p[123];
@@ -1084,12 +1086,12 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 		break;
 	}
 	case ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION:{
-		const int m1ThreshLow[] = { 127, 50 };
-		const int m2ThreshLow[] = { 127, 40 };
-		const int m1Thresh[] = { 127, 0x4d };
-		const int m2Thresh[] = { 127, 0x40 };
-		const int m2CountThr[] = { 31, 16 };
-		const int m2CountThrLow[] = { 63, 48 };
+		static const int m1ThreshLow[] = { 127, 50 };
+		static const int m2ThreshLow[] = { 127, 40 };
+		static const int m1Thresh[] = { 127, 0x4d };
+		static const int m2Thresh[] = { 127, 0x40 };
+		static const int m2CountThr[] = { 31, 16 };
+		static const int m2CountThrLow[] = { 63, 48 };
 		u32 on = param ? 1 : 0;
 
 		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
@@ -1141,7 +1143,7 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 		break;
 	}
 	case ATH9K_ANI_CCK_WEAK_SIGNAL_THR:{
-		const int weakSigThrCck[] = { 8, 6 };
+		static const int weakSigThrCck[] = { 8, 6 };
 		u32 high = param ? 1 : 0;
 
 		REG_RMW_FIELD(ah, AR_PHY_CCK_DETECT,
@@ -1157,7 +1159,7 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 		break;
 	}
 	case ATH9K_ANI_FIRSTEP_LEVEL:{
-		const int firstep[] = { 0, 4, 8 };
+		static const int firstep[] = { 0, 4, 8 };
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(firstep)) {
@@ -1178,7 +1180,7 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 		break;
 	}
 	case ATH9K_ANI_SPUR_IMMUNITY_LEVEL:{
-		const int cycpwrThr1[] = { 2, 4, 6, 8, 10, 12, 14, 16 };
+		static const int cycpwrThr1[] = { 2, 4, 6, 8, 10, 12, 14, 16 };
 		u32 level = param;
 
 		if (level >= ARRAY_SIZE(cycpwrThr1)) {
@@ -1579,10 +1581,55 @@ static void ar5008_hw_set_nf_limits(struct ath_hw *ah)
 	ah->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_5416_5GHZ;
 }
 
+static void ar5008_hw_set_radar_params(struct ath_hw *ah,
+				       struct ath_hw_radar_conf *conf)
+{
+	u32 radar_0 = 0, radar_1 = 0;
+
+	if (!conf) {
+		REG_CLR_BIT(ah, AR_PHY_RADAR_0, AR_PHY_RADAR_0_ENA);
+		return;
+	}
+
+	radar_0 |= AR_PHY_RADAR_0_ENA | AR_PHY_RADAR_0_FFT_ENA;
+	radar_0 |= SM(conf->fir_power, AR_PHY_RADAR_0_FIRPWR);
+	radar_0 |= SM(conf->radar_rssi, AR_PHY_RADAR_0_RRSSI);
+	radar_0 |= SM(conf->pulse_height, AR_PHY_RADAR_0_HEIGHT);
+	radar_0 |= SM(conf->pulse_rssi, AR_PHY_RADAR_0_PRSSI);
+	radar_0 |= SM(conf->pulse_inband, AR_PHY_RADAR_0_INBAND);
+
+	radar_1 |= AR_PHY_RADAR_1_MAX_RRSSI;
+	radar_1 |= AR_PHY_RADAR_1_BLOCK_CHECK;
+	radar_1 |= SM(conf->pulse_maxlen, AR_PHY_RADAR_1_MAXLEN);
+	radar_1 |= SM(conf->pulse_inband_step, AR_PHY_RADAR_1_RELSTEP_THRESH);
+	radar_1 |= SM(conf->radar_inband, AR_PHY_RADAR_1_RELPWR_THRESH);
+
+	REG_WRITE(ah, AR_PHY_RADAR_0, radar_0);
+	REG_WRITE(ah, AR_PHY_RADAR_1, radar_1);
+	if (conf->ext_channel)
+		REG_SET_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
+	else
+		REG_CLR_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
+}
+
+static void ar5008_hw_set_radar_conf(struct ath_hw *ah)
+{
+	struct ath_hw_radar_conf *conf = &ah->radar_conf;
+
+	conf->fir_power = -33;
+	conf->radar_rssi = 20;
+	conf->pulse_height = 10;
+	conf->pulse_rssi = 24;
+	conf->pulse_inband = 15;
+	conf->pulse_maxlen = 255;
+	conf->pulse_inband_step = 12;
+	conf->radar_inband = 8;
+}
+
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
-	const u32 ar5416_cca_regs[6] = {
+	static const u32 ar5416_cca_regs[6] = {
 		AR_PHY_CCA,
 		AR_PHY_CH1_CCA,
 		AR_PHY_CH2_CCA,
@@ -1609,6 +1656,7 @@ void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->restore_chainmask = ar5008_restore_chainmask;
 	priv_ops->set_diversity = ar5008_set_diversity;
 	priv_ops->do_getnf = ar5008_hw_do_getnf;
+	priv_ops->set_radar_params = ar5008_hw_set_radar_params;
 
 	if (modparam_force_new_ani) {
 		priv_ops->ani_control = ar5008_hw_ani_control_new;
@@ -1624,5 +1672,6 @@ void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 		priv_ops->compute_pll_control = ar5008_hw_compute_pll_control;
 
 	ar5008_hw_set_nf_limits(ah);
+	ar5008_hw_set_radar_conf(ah);
 	memcpy(ah->nf_regs, ar5416_cca_regs, sizeof(ah->nf_regs));
 }

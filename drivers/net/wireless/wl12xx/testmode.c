@@ -20,13 +20,13 @@
  * 02110-1301 USA
  *
  */
-#include "wl1271_testmode.h"
+#include "testmode.h"
 
 #include <linux/slab.h>
 #include <net/genetlink.h>
 
-#include "wl1271.h"
-#include "wl1271_acx.h"
+#include "wl12xx.h"
+#include "acx.h"
 
 #define WL1271_TM_MAX_DATA_LENGTH 1024
 

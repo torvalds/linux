@@ -2286,8 +2286,8 @@ static void untranslate(ray_dev_t *local, struct sk_buff *skb, int len)
 	struct ethhdr *peth;
 	UCHAR srcaddr[ADDRLEN];
 	UCHAR destaddr[ADDRLEN];
-	static UCHAR org_bridge[3] = { 0, 0, 0xf8 };
-	static UCHAR org_1042[3] = { 0, 0, 0 };
+	static const UCHAR org_bridge[3] = { 0, 0, 0xf8 };
+	static const UCHAR org_1042[3] = { 0, 0, 0 };
 
 	memcpy(destaddr, ieee80211_get_DA(pmac), ADDRLEN);
 	memcpy(srcaddr, ieee80211_get_SA(pmac), ADDRLEN);

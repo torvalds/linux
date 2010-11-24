@@ -24,7 +24,7 @@
 #ifndef __BOOT_H__
 #define __BOOT_H__
 
-#include "wl1271.h"
+#include "wl12xx.h"
 
 int wl1271_boot(struct wl1271 *wl);
 

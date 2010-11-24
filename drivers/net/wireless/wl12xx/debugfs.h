@@ -21,10 +21,10 @@
  *
  */
 
-#ifndef WL1271_DEBUGFS_H
-#define WL1271_DEBUGFS_H
+#ifndef __DEBUGFS_H__
+#define __DEBUGFS_H__
 
-#include "wl1271.h"
+#include "wl12xx.h"
 
 int wl1271_debugfs_init(struct wl1271 *wl);
 void wl1271_debugfs_exit(struct wl1271 *wl);

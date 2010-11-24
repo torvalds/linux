@@ -766,14 +766,6 @@ void ath9k_hw_startpcureceive(struct ath_hw *ah, bool is_scanning)
 }
 EXPORT_SYMBOL(ath9k_hw_startpcureceive);
 
-void ath9k_hw_stoppcurecv(struct ath_hw *ah)
-{
-	REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_RX_DIS);
-
-	ath9k_hw_disable_mib_counters(ah);
-}
-EXPORT_SYMBOL(ath9k_hw_stoppcurecv);
-
 void ath9k_hw_abortpcurecv(struct ath_hw *ah)
 {
 	REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_RX_ABORT | AR_DIAG_RX_DIS);

@@ -181,7 +181,8 @@ static inline int ath9k_htc_connect_svc(struct ath9k_htc_priv *priv,
 	return htc_connect_service(priv->htc, &req, ep_id);
 }
 
-static int ath9k_init_htc_services(struct ath9k_htc_priv *priv, u16 devid)
+static int ath9k_init_htc_services(struct ath9k_htc_priv *priv, u16 devid,
+				   u32 drv_info)
 {
 	int ret;
 
@@ -245,17 +246,10 @@ static int ath9k_init_htc_services(struct ath9k_htc_priv *priv, u16 devid)
 	 * the HIF layer, shouldn't matter much.
 	 */
 
-	switch(devid) {
-	case 0x7010:
-	case 0x7015:
-	case 0x9018:
-	case 0xA704:
-	case 0x1200:
+	if (drv_info & AR7010_DEVICE)
 		priv->htc->credits = 45;
-		break;
-	default:
+	else
 		priv->htc->credits = 33;
-	}
 
 	ret = htc_init(priv->htc);
 	if (ret)
@@ -308,7 +302,7 @@ static void ath9k_regwrite_single(void *hw_priv, u32 val, u32 reg_offset)
 	struct ath_hw *ah = (struct ath_hw *) hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
-	__be32 buf[2] = {
+	const __be32 buf[2] = {
 		cpu_to_be32(reg_offset),
 		cpu_to_be32(val),
 	};
@@ -627,7 +621,8 @@ static void ath9k_init_btcoex(struct ath9k_htc_priv *priv)
 }
 
 static int ath9k_init_priv(struct ath9k_htc_priv *priv,
-			   u16 devid, char *product)
+			   u16 devid, char *product,
+			   u32 drv_info)
 {
 	struct ath_hw *ah = NULL;
 	struct ath_common *common;
@@ -641,6 +636,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 
 	ah->hw_version.devid = devid;
 	ah->hw_version.subsysid = 0; /* FIXME */
+	ah->ah_flags |= AH_USE_EEPROM;
 	priv->ah = ah;
 
 	common = ath9k_hw_common(ah);
@@ -650,6 +646,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	common->hw = priv->hw;
 	common->priv = priv;
 	common->debug_mask = ath9k_debug;
+	common->driver_info = drv_info;
 
 	spin_lock_init(&priv->wmi->wmi_lock);
 	spin_lock_init(&priv->beacon_lock);
@@ -762,7 +759,7 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 }
 
 static int ath9k_init_device(struct ath9k_htc_priv *priv,
-			     u16 devid, char *product)
+			     u16 devid, char *product, u32 drv_info)
 {
 	struct ieee80211_hw *hw = priv->hw;
 	struct ath_common *common;
@@ -771,7 +768,7 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv,
 	struct ath_regulatory *reg;
 
 	/* Bring up device */
-	error = ath9k_init_priv(priv, devid, product);
+	error = ath9k_init_priv(priv, devid, product, drv_info);
 	if (error != 0)
 		goto err_init;
 
@@ -829,7 +826,7 @@ err_init:
 }
 
 int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
-			   u16 devid, char *product)
+			   u16 devid, char *product, u32 drv_info)
 {
 	struct ieee80211_hw *hw;
 	struct ath9k_htc_priv *priv;
@@ -856,14 +853,14 @@ int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
 		goto err_free;
 	}
 
-	ret = ath9k_init_htc_services(priv, devid);
+	ret = ath9k_init_htc_services(priv, devid, drv_info);
 	if (ret)
 		goto err_init;
 
 	/* The device may have been unplugged earlier. */
 	priv->op_flags &= ~OP_UNPLUGGED;
 
-	ret = ath9k_init_device(priv, devid, product);
+	ret = ath9k_init_device(priv, devid, product, drv_info);
 	if (ret)
 		goto err_init;
 
@@ -893,14 +890,15 @@ void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug)
 #ifdef CONFIG_PM
 int ath9k_htc_resume(struct htc_target *htc_handle)
 {
+	struct ath9k_htc_priv *priv = htc_handle->drv_priv;
 	int ret;
 
-	ret = ath9k_htc_wait_for_target(htc_handle->drv_priv);
+	ret = ath9k_htc_wait_for_target(priv);
 	if (ret)
 		return ret;
 
-	ret = ath9k_init_htc_services(htc_handle->drv_priv,
-			      htc_handle->drv_priv->ah->hw_version.devid);
+	ret = ath9k_init_htc_services(priv, priv->ah->hw_version.devid,
+				      priv->ah->common.driver_info);
 	return ret;
 }
 #endif

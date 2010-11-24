@@ -475,7 +475,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
 	int txq_id = skb_get_queue_mapping(skb);
-	u16 len, idx, len_org, hdr_len; /* TODO: len_org is not used */
+	u16 len, idx, hdr_len;
 	u8 id;
 	u8 unicast;
 	u8 sta_id;
@@ -612,14 +612,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	 */
 	len = sizeof(struct iwl3945_tx_cmd) +
 			sizeof(struct iwl_cmd_header) + hdr_len;
-
-	len_org = len;
 	len = (len + 3) & ~3;
-
-	if (len_org != len)
-		len_org = 1;
-	else
-		len_org = 0;
 
 	/* Physical address of this Tx command's header (not MAC header!),
 	 * within command buffer array. */
@@ -662,7 +655,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 			spin_unlock_irqrestore(&priv->lock, flags);
 		}
 
-		iwl_stop_queue(priv, skb_get_queue_mapping(skb));
+		iwl_stop_queue(priv, txq);
 	}
 
 	return 0;

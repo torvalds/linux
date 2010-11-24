@@ -1469,7 +1469,7 @@ static void iwl_teardown_interface(struct iwl_priv *priv,
 	 * both values are the same and zero.
 	 */
 	if (vif->type == NL80211_IFTYPE_ADHOC)
-		priv->bt_traffic_load = priv->notif_bt_traffic_load;
+		priv->bt_traffic_load = priv->last_bt_traffic_load;
 }
 
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,

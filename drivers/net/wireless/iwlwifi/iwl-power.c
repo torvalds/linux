@@ -75,6 +75,10 @@ struct iwl_power_vec_entry {
 
 #define NOSLP cpu_to_le16(0), 0, 0
 #define SLP IWL_POWER_DRIVER_ALLOW_SLEEP_MSK, 0, 0
+#define ASLP (IWL_POWER_POWER_SAVE_ENA_MSK |	\
+		IWL_POWER_POWER_MANAGEMENT_ENA_MSK | \
+		IWL_POWER_ADVANCE_PM_ENA_MSK)
+#define ASLP_TOUT(T) cpu_to_le32(T)
 #define TU_TO_USEC 1024
 #define SLP_TOUT(T) cpu_to_le32((T) * TU_TO_USEC)
 #define SLP_VEC(X0, X1, X2, X3, X4) {cpu_to_le32(X0), \
@@ -114,6 +118,52 @@ static const struct iwl_power_vec_entry range_2[IWL_POWER_NUM] = {
 	{{SLP, SLP_TOUT(25), SLP_TOUT(25), SLP_VEC(4, 7, 10, 10, 0xFF)}, 0}
 };
 
+/* advance power management */
+/* DTIM 0 - 2 */
+static const struct iwl_power_vec_entry apm_range_0[IWL_POWER_NUM] = {
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 4, 6, 0xFF), 0}, 0},
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 4, 6, 0xFF), 0}, 0},
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 4, 6, 0xFF), 0}, 0},
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 4, 6, 0xFF), 0}, 0},
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 6, 8, 0xFF), ASLP_TOUT(2)}, 2}
+};
+
+
+/* for DTIM period IWL_DTIM_RANGE_0_MAX + 1 through IWL_DTIM_RANGE_1_MAX */
+/* DTIM 3 - 10 */
+static const struct iwl_power_vec_entry apm_range_1[IWL_POWER_NUM] = {
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 4, 6, 0xFF), 0}, 0},
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 4, 6, 0xFF), 0}, 0},
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 4, 6, 0xFF), 0}, 0},
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 4, 6, 0xFF), 0}, 0},
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 6, 8, 0xFF), 0}, 2}
+};
+
+/* for DTIM period > IWL_DTIM_RANGE_1_MAX */
+/* DTIM 11 - */
+static const struct iwl_power_vec_entry apm_range_2[IWL_POWER_NUM] = {
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 4, 6, 0xFF), 0}, 0},
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 4, 6, 0xFF), 0}, 0},
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 4, 6, 0xFF), 0}, 0},
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 4, 6, 0xFF), 0}, 0},
+	{{ASLP, 0, 0, ASLP_TOUT(50), ASLP_TOUT(50),
+		SLP_VEC(1, 2, 6, 8, 0xFF), ASLP_TOUT(2)}, 2}
+};
+
 static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 				 struct iwl_powertable_cmd *cmd,
 				 enum iwl_power_level lvl, int period)
@@ -124,11 +174,19 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 	u8 skip;
 	u32 slp_itrvl;
 
-	table = range_2;
-	if (period <= IWL_DTIM_RANGE_1_MAX)
-		table = range_1;
-	if (period <= IWL_DTIM_RANGE_0_MAX)
-		table = range_0;
+	if (priv->cfg->adv_pm) {
+		table = apm_range_2;
+		if (period <= IWL_DTIM_RANGE_1_MAX)
+			table = apm_range_1;
+		if (period <= IWL_DTIM_RANGE_0_MAX)
+			table = apm_range_0;
+	} else {
+		table = range_2;
+		if (period <= IWL_DTIM_RANGE_1_MAX)
+			table = range_1;
+		if (period <= IWL_DTIM_RANGE_0_MAX)
+			table = range_0;
+	}
 
 	BUG_ON(lvl < 0 || lvl >= IWL_POWER_NUM);
 
@@ -162,6 +220,20 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 		cmd->flags |= IWL_POWER_SLEEP_OVER_DTIM_MSK;
 	else
 		cmd->flags &= ~IWL_POWER_SLEEP_OVER_DTIM_MSK;
+
+	if (priv->cfg->base_params->shadow_reg_enable)
+		cmd->flags |= IWL_POWER_SHADOW_REG_ENA;
+	else
+		cmd->flags &= ~IWL_POWER_SHADOW_REG_ENA;
+
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
+		if (!priv->cfg->bt_params->bt_sco_disable)
+			cmd->flags |= IWL_POWER_BT_SCO_ENA;
+		else
+			cmd->flags &= ~IWL_POWER_BT_SCO_ENA;
+	}
+
 
 	slp_itrvl = le32_to_cpu(cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1]);
 	if (slp_itrvl > IWL_CONN_MAX_LISTEN_INTERVAL)
@@ -235,6 +307,19 @@ static void iwl_power_fill_sleep_cmd(struct iwl_priv *priv,
 
 	if (priv->power_data.pci_pm)
 		cmd->flags |= IWL_POWER_PCI_PM_MSK;
+
+	if (priv->cfg->base_params->shadow_reg_enable)
+		cmd->flags |= IWL_POWER_SHADOW_REG_ENA;
+	else
+		cmd->flags &= ~IWL_POWER_SHADOW_REG_ENA;
+
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
+		if (!priv->cfg->bt_params->bt_sco_disable)
+			cmd->flags |= IWL_POWER_BT_SCO_ENA;
+		else
+			cmd->flags &= ~IWL_POWER_BT_SCO_ENA;
+	}
 
 	cmd->rx_data_timeout = cpu_to_le32(1000 * dynps_ms);
 	cmd->tx_data_timeout = cpu_to_le32(1000 * dynps_ms);

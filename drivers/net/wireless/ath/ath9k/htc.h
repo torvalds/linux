@@ -368,7 +368,7 @@ struct ath9k_htc_priv {
 	u16 seq_no;
 	u32 bmiss_cnt;
 
-	struct ath9k_hw_cal_data caldata[38];
+	struct ath9k_hw_cal_data caldata[ATH9K_NUM_CHANNELS];
 
 	spinlock_t beacon_lock;
 
@@ -461,7 +461,7 @@ void ath9k_init_leds(struct ath9k_htc_priv *priv);
 void ath9k_deinit_leds(struct ath9k_htc_priv *priv);
 
 int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
-			   u16 devid, char *product);
+			   u16 devid, char *product, u32 drv_info);
 void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug);
 #ifdef CONFIG_PM
 int ath9k_htc_resume(struct htc_target *htc_handle);

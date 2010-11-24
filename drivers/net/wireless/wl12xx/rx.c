@@ -23,11 +23,11 @@
 
 #include <linux/gfp.h>
 
-#include "wl1271.h"
-#include "wl1271_acx.h"
-#include "wl1271_reg.h"
-#include "wl1271_rx.h"
-#include "wl1271_io.h"
+#include "wl12xx.h"
+#include "acx.h"
+#include "reg.h"
+#include "rx.h"
+#include "io.h"
 
 static u8 wl1271_rx_get_mem_block(struct wl1271_fw_status *status,
 				  u32 drv_rx_counter)
@@ -61,7 +61,7 @@ static void wl1271_rx_status(struct wl1271 *wl,
 
 	status->rate_idx = wl1271_rate_to_idx(desc->rate, desc_band);
 
-#ifdef CONFIG_WL1271_HT
+#ifdef CONFIG_WL12XX_HT
 	/* 11n support */
 	if (desc->rate <= CONF_HW_RXTX_RATE_MCS0)
 		status->flag |= RX_FLAG_HT;

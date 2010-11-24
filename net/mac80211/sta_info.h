@@ -248,6 +248,7 @@ enum plink_state {
  * @sta: station information we share with the driver
  * @dead: set to true when sta is unlinked
  * @uploaded: set to true when sta is uploaded to the driver
+ * @lost_packets: number of consecutive lost packets
  */
 struct sta_info {
 	/* General information, mostly static */
@@ -334,6 +335,8 @@ struct sta_info {
 		bool add_has_run;
 	} debugfs;
 #endif
+
+	unsigned int lost_packets;
 
 	/* keep last! */
 	struct ieee80211_sta sta;

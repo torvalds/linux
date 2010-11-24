@@ -518,11 +518,11 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	struct iwl_cmd_meta *out_meta;
 	struct iwl_tx_cmd *tx_cmd;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
-	int swq_id, txq_id;
+	int txq_id;
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
 	dma_addr_t scratch_phys;
-	u16 len, len_org, firstlen, secondlen;
+	u16 len, firstlen, secondlen;
 	u16 seq_number = 0;
 	__le16 fc;
 	u8 hdr_len;
@@ -620,7 +620,6 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	}
 
 	txq = &priv->txq[txq_id];
-	swq_id = txq->swq_id;
 	q = &txq->q;
 
 	if (unlikely(iwl_queue_space(q) < q->high_mark)) {
@@ -687,30 +686,23 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	 */
 	len = sizeof(struct iwl_tx_cmd) +
 		sizeof(struct iwl_cmd_header) + hdr_len;
-
-	len_org = len;
-	firstlen = len = (len + 3) & ~3;
-
-	if (len_org != len)
-		len_org = 1;
-	else
-		len_org = 0;
+	firstlen = (len + 3) & ~3;
 
 	/* Tell NIC about any 2-byte padding after MAC header */
-	if (len_org)
+	if (firstlen != len)
 		tx_cmd->tx_flags |= TX_CMD_FLG_MH_PAD_MSK;
 
 	/* Physical address of this Tx command's header (not MAC header!),
 	 * within command buffer array. */
 	txcmd_phys = pci_map_single(priv->pci_dev,
-				    &out_cmd->hdr, len,
+				    &out_cmd->hdr, firstlen,
 				    PCI_DMA_BIDIRECTIONAL);
 	dma_unmap_addr_set(out_meta, mapping, txcmd_phys);
-	dma_unmap_len_set(out_meta, len, len);
+	dma_unmap_len_set(out_meta, len, firstlen);
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
 	priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
-						   txcmd_phys, len, 1, 0);
+						   txcmd_phys, firstlen, 1, 0);
 
 	if (!ieee80211_has_morefrags(hdr->frame_control)) {
 		txq->need_update = 1;
@@ -721,23 +713,21 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,
 	 * if any (802.11 null frames have no payload). */
-	secondlen = len = skb->len - hdr_len;
-	if (len) {
+	secondlen = skb->len - hdr_len;
+	if (secondlen > 0) {
 		phys_addr = pci_map_single(priv->pci_dev, skb->data + hdr_len,
-					   len, PCI_DMA_TODEVICE);
+					   secondlen, PCI_DMA_TODEVICE);
 		priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
-							   phys_addr, len,
+							   phys_addr, secondlen,
 							   0, 0);
 	}
 
 	scratch_phys = txcmd_phys + sizeof(struct iwl_cmd_header) +
 				offsetof(struct iwl_tx_cmd, scratch);
 
-	len = sizeof(struct iwl_tx_cmd) +
-		sizeof(struct iwl_cmd_header) + hdr_len;
 	/* take back ownership of DMA buffer to enable update */
 	pci_dma_sync_single_for_cpu(priv->pci_dev, txcmd_phys,
-				    len, PCI_DMA_BIDIRECTIONAL);
+				    firstlen, PCI_DMA_BIDIRECTIONAL);
 	tx_cmd->dram_lsb_ptr = cpu_to_le32(scratch_phys);
 	tx_cmd->dram_msb_ptr = iwl_get_dma_hi_addr(scratch_phys);
 
@@ -753,7 +743,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 						     le16_to_cpu(tx_cmd->len));
 
 	pci_dma_sync_single_for_device(priv->pci_dev, txcmd_phys,
-				       len, PCI_DMA_BIDIRECTIONAL);
+				       firstlen, PCI_DMA_BIDIRECTIONAL);
 
 	trace_iwlwifi_dev_tx(priv,
 			     &((struct iwl_tfd *)txq->tfds)[txq->q.write_ptr],
@@ -784,7 +774,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 			iwl_txq_update_write_ptr(priv, txq);
 			spin_unlock_irqrestore(&priv->lock, flags);
 		} else {
-			iwl_stop_queue(priv, txq->swq_id);
+			iwl_stop_queue(priv, txq);
 		}
 	}
 
@@ -1013,7 +1003,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	tid_data = &priv->stations[sta_id].tid[tid];
 	*ssn = SEQ_TO_SN(tid_data->seq_number);
 	tid_data->agg.txq_id = txq_id;
-	priv->txq[txq_id].swq_id = iwl_virtual_agg_queue_num(get_ac_from_tid(tid), txq_id);
+	iwl_set_swq_id(&priv->txq[txq_id], get_ac_from_tid(tid), txq_id);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	ret = priv->cfg->ops->lib->txq_agg_enable(priv, txq_id, tx_fifo,
@@ -1241,37 +1231,61 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	if (sh < 0) /* tbw something is wrong with indices */
 		sh += 0x100;
 
-	/* don't use 64-bit values for now */
-	bitmap = le64_to_cpu(ba_resp->bitmap) >> sh;
-
 	if (agg->frame_count > (64 - sh)) {
 		IWL_DEBUG_TX_REPLY(priv, "more frames than bitmap size");
 		return -1;
 	}
+	if (!priv->cfg->base_params->no_agg_framecnt_info && ba_resp->txed) {
+		/*
+		 * sent and ack information provided by uCode
+		 * use it instead of figure out ourself
+		 */
+		if (ba_resp->txed_2_done > ba_resp->txed) {
+			IWL_DEBUG_TX_REPLY(priv,
+				"bogus sent(%d) and ack(%d) count\n",
+				ba_resp->txed, ba_resp->txed_2_done);
+			/*
+			 * set txed_2_done = txed,
+			 * so it won't impact rate scale
+			 */
+			ba_resp->txed = ba_resp->txed_2_done;
+		}
+		IWL_DEBUG_HT(priv, "agg frames sent:%d, acked:%d\n",
+				ba_resp->txed, ba_resp->txed_2_done);
+	} else {
+		/* don't use 64-bit values for now */
+		bitmap = le64_to_cpu(ba_resp->bitmap) >> sh;
 
-	/* check for success or failure according to the
-	 * transmitted bitmap and block-ack bitmap */
-	sent_bitmap = bitmap & agg->bitmap;
+		/* check for success or failure according to the
+		 * transmitted bitmap and block-ack bitmap */
+		sent_bitmap = bitmap & agg->bitmap;
 
-	/* For each frame attempted in aggregation,
-	 * update driver's record of tx frame's status. */
-	i = 0;
-	while (sent_bitmap) {
-		ack = sent_bitmap & 1ULL;
-		successes += ack;
-		IWL_DEBUG_TX_REPLY(priv, "%s ON i=%d idx=%d raw=%d\n",
-			ack ? "ACK" : "NACK", i, (agg->start_idx + i) & 0xff,
-			agg->start_idx + i);
-		sent_bitmap >>= 1;
-		++i;
+		/* For each frame attempted in aggregation,
+		 * update driver's record of tx frame's status. */
+		i = 0;
+		while (sent_bitmap) {
+			ack = sent_bitmap & 1ULL;
+			successes += ack;
+			IWL_DEBUG_TX_REPLY(priv, "%s ON i=%d idx=%d raw=%d\n",
+				ack ? "ACK" : "NACK", i,
+				(agg->start_idx + i) & 0xff,
+				agg->start_idx + i);
+			sent_bitmap >>= 1;
+			++i;
+		}
 	}
-
 	info = IEEE80211_SKB_CB(priv->txq[scd_flow].txb[agg->start_idx].skb);
 	memset(&info->status, 0, sizeof(info->status));
 	info->flags |= IEEE80211_TX_STAT_ACK;
 	info->flags |= IEEE80211_TX_STAT_AMPDU;
-	info->status.ampdu_ack_len = successes;
-	info->status.ampdu_len = agg->frame_count;
+	if (!priv->cfg->base_params->no_agg_framecnt_info && ba_resp->txed) {
+		info->status.ampdu_ack_len = ba_resp->txed_2_done;
+		info->status.ampdu_len = ba_resp->txed;
+
+	} else {
+		info->status.ampdu_ack_len = successes;
+		info->status.ampdu_len = agg->frame_count;
+	}
 	iwlagn_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
 
 	IWL_DEBUG_TX_REPLY(priv, "Bitmap %llx\n", (unsigned long long)bitmap);
@@ -1385,7 +1399,7 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 		if ((iwl_queue_space(&txq->q) > txq->q.low_mark) &&
 		    priv->mac80211_registered &&
 		    (agg->state != IWL_EMPTYING_HW_QUEUE_DELBA))
-			iwl_wake_queue(priv, txq->swq_id);
+			iwl_wake_queue(priv, txq);
 
 		iwlagn_txq_check_empty(priv, sta_id, tid, scd_flow);
 	}

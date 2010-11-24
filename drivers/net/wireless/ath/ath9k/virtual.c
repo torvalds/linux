@@ -305,13 +305,12 @@ void ath9k_wiphy_chan_work(struct work_struct *work)
  * ath9k version of ieee80211_tx_status() for TX frames that are generated
  * internally in the driver.
  */
-void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
+void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb, int ftype)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 
-	if ((tx_info->pad[0] & ATH_TX_INFO_FRAME_TYPE_PAUSE) &&
-	    aphy->state == ATH_WIPHY_PAUSING) {
+	if (ftype == ATH9K_IFT_PAUSE && aphy->state == ATH_WIPHY_PAUSING) {
 		if (!(tx_info->flags & IEEE80211_TX_STAT_ACK)) {
 			printk(KERN_DEBUG "ath9k: %s: no ACK for pause "
 			       "frame\n", wiphy_name(hw->wiphy));

@@ -21,15 +21,15 @@
  *
  */
 
-#include "wl1271_debugfs.h"
+#include "debugfs.h"
 
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 
-#include "wl1271.h"
-#include "wl1271_acx.h"
-#include "wl1271_ps.h"
-#include "wl1271_io.h"
+#include "wl12xx.h"
+#include "acx.h"
+#include "ps.h"
+#include "io.h"
 
 /* ms */
 #define WL1271_DEBUGFS_STATS_LIFETIME 1000

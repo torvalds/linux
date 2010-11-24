@@ -199,8 +199,11 @@ static void sta_unblock(struct work_struct *wk)
 
 	if (!test_sta_flags(sta, WLAN_STA_PS_STA))
 		ieee80211_sta_ps_deliver_wakeup(sta);
-	else if (test_and_clear_sta_flags(sta, WLAN_STA_PSPOLL))
+	else if (test_and_clear_sta_flags(sta, WLAN_STA_PSPOLL)) {
+		clear_sta_flags(sta, WLAN_STA_PS_DRIVER);
 		ieee80211_sta_ps_deliver_poll_response(sta);
+	} else
+		clear_sta_flags(sta, WLAN_STA_PS_DRIVER);
 }
 
 static int sta_prepare_rate_control(struct ieee80211_local *local,
@@ -880,6 +883,13 @@ struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL(ieee80211_find_sta);
 
+static void clear_sta_ps_flags(void *_sta)
+{
+	struct sta_info *sta = _sta;
+
+	clear_sta_flags(sta, WLAN_STA_PS_DRIVER | WLAN_STA_PS_STA);
+}
+
 /* powersave support code */
 void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 {
@@ -894,7 +904,8 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 	/* Send all buffered frames to the station */
 	sent = ieee80211_add_pending_skbs(local, &sta->tx_filtered);
-	buffered = ieee80211_add_pending_skbs(local, &sta->ps_tx_buf);
+	buffered = ieee80211_add_pending_skbs_fn(local, &sta->ps_tx_buf,
+						 clear_sta_ps_flags, sta);
 	sent += buffered;
 	local->total_ps_buffered -= buffered;
 
@@ -973,7 +984,7 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 
 	if (block)
 		set_sta_flags(sta, WLAN_STA_PS_DRIVER);
-	else
+	else if (test_sta_flags(sta, WLAN_STA_PS_DRIVER))
 		ieee80211_queue_work(hw, &sta->drv_unblock_wk);
 }
 EXPORT_SYMBOL(ieee80211_sta_block_awake);

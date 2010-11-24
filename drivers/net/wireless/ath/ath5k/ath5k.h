@@ -25,6 +25,7 @@
 
 #include <linux/io.h>
 #include <linux/types.h>
+#include <linux/average.h>
 #include <net/mac80211.h>
 
 /* RX/TX descriptor hw structs
@@ -1102,7 +1103,7 @@ struct ath5k_hw {
 	struct ath5k_nfcal_hist ah_nfcal_hist;
 
 	/* average beacon RSSI in our BSS (used by ANI) */
-	struct ath5k_avg_val	ah_beacon_rssi_avg;
+	struct ewma		ah_beacon_rssi_avg;
 
 	/* noise floor from last periodic calibration */
 	s32			ah_noise_floor;
@@ -1313,29 +1314,6 @@ static inline u32 ath5k_hw_bitswap(u32 val, unsigned int bits)
 	}
 
 	return retval;
-}
-
-#define AVG_SAMPLES	8
-#define AVG_FACTOR	1000
-
-/**
- * ath5k_moving_average -  Exponentially weighted moving average
- * @avg: average structure
- * @val: current value
- *
- * This implementation make use of a struct ath5k_avg_val to prevent rounding
- * errors.
- */
-static inline struct ath5k_avg_val
-ath5k_moving_average(const struct ath5k_avg_val avg, const int val)
-{
-	struct ath5k_avg_val new;
-	new.avg_weight = avg.avg_weight  ?
-		(((avg.avg_weight * ((AVG_SAMPLES) - 1)) +
-			(val * (AVG_FACTOR))) / (AVG_SAMPLES)) :
-		(val * (AVG_FACTOR));
-	new.avg = new.avg_weight / (AVG_FACTOR);
-	return new;
 }
 
 #endif
