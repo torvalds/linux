@@ -110,6 +110,8 @@ static int fill_event_metadata(struct fsnotify_group *group,
 				   struct fanotify_event_metadata *metadata,
 				   struct fsnotify_event *event)
 {
+	int ret = 0;
+
 	pr_debug("%s: group=%p metadata=%p event=%p\n", __func__,
 		 group, metadata, event);
 
@@ -117,9 +119,15 @@ static int fill_event_metadata(struct fsnotify_group *group,
 	metadata->vers = FANOTIFY_METADATA_VERSION;
 	metadata->mask = event->mask & FAN_ALL_OUTGOING_EVENTS;
 	metadata->pid = pid_vnr(event->tgid);
-	metadata->fd = create_fd(group, event);
+	if (unlikely(event->mask & FAN_Q_OVERFLOW))
+		metadata->fd = FAN_NOFD;
+	else {
+		metadata->fd = create_fd(group, event);
+		if (metadata->fd < 0)
+			ret = metadata->fd;
+	}
 
-	return metadata->fd;
+	return ret;
 }
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
@@ -261,7 +269,7 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	if (ret < 0)
 		goto out;
 
-	fd = ret;
+	fd = fanotify_event_metadata.fd;
 	ret = prepare_for_access_response(group, event, fd);
 	if (ret)
 		goto out_close_fd;
@@ -275,7 +283,8 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 out_kill_access_response:
 	remove_access_response(group, event, fd);
 out_close_fd:
-	sys_close(fd);
+	if (fd != FAN_NOFD)
+		sys_close(fd);
 out:
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 	if (event->mask & FAN_ALL_PERM_EVENTS) {
