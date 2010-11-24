@@ -2195,7 +2195,8 @@ static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms
 		goto fail;
 	}
 
-	if (nlp->packet_type >= P_nl_after_last_packet) {
+	if (nlp->packet_type >= P_nl_after_last_packet ||
+	    nlp->packet_type == P_return_code_only) {
 		retcode = ERR_PACKET_NR;
 		goto fail;
 	}
@@ -2219,7 +2220,7 @@ static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms
 	reply = (struct drbd_nl_cfg_reply *) cn_reply->data;
 
 	reply->packet_type =
-		cm->reply_body_size ? nlp->packet_type : P_nl_after_last_packet;
+		cm->reply_body_size ? nlp->packet_type : P_return_code_only;
 	reply->minor = nlp->drbd_minor;
 	reply->ret_code = NO_ERROR; /* Might by modified by cm->function. */
 	/* reply->tag_list; might be modified by cm->function. */
@@ -2525,6 +2526,7 @@ void drbd_nl_send_reply(struct cn_msg *req, int ret_code)
 	cn_reply->len = sizeof(struct drbd_nl_cfg_reply);
 	cn_reply->flags = 0;
 
+	reply->packet_type = P_return_code_only;
 	reply->minor = ((struct drbd_nl_cfg_req *)req->data)->drbd_minor;
 	reply->ret_code = ret_code;
 

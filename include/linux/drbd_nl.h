@@ -146,9 +146,13 @@ NL_PACKET(new_c_uuid, 26,
        NL_BIT(		63,	T_MANDATORY,	clear_bm)
 )
 
+#ifdef NL_RESPONSE
+NL_RESPONSE(return_code_only, 27)
+#endif
+
 #undef NL_PACKET
 #undef NL_INTEGER
 #undef NL_INT64
 #undef NL_BIT
 #undef NL_STRING
-
+#undef NL_RESPONSE
