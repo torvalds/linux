@@ -222,7 +222,8 @@ int acpi_bus_get_power(acpi_handle handle, int *state)
 		 * indirectly (via power resources).
 		 */
 		if (device->power.flags.power_resources) {
-			result = acpi_power_get_inferred_state(device);
+			result = acpi_power_get_inferred_state(device,
+							&device->power.state);
 			if (result)
 				return result;
 		} else if (device->power.flags.explicit_get) {
