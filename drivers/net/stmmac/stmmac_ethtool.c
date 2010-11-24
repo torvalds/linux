@@ -94,7 +94,7 @@ static void stmmac_ethtool_getdrvinfo(struct net_device *dev,
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	if (!priv->is_gmac)
+	if (!priv->plat->has_gmac)
 		strcpy(info->driver, MAC100_ETHTOOL_NAME);
 	else
 		strcpy(info->driver, GMAC_ETHTOOL_NAME);
@@ -176,7 +176,7 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 
 	memset(reg_space, 0x0, REG_SPACE_SIZE);
 
-	if (!priv->is_gmac) {
+	if (!priv->plat->has_gmac) {
 		/* MAC registers */
 		for (i = 0; i < 12; i++)
 			reg_space[i] = readl(priv->ioaddr + (i * 4));

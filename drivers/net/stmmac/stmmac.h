@@ -37,7 +37,6 @@ struct stmmac_priv {
 	unsigned int cur_tx;
 	unsigned int dirty_tx;
 	unsigned int dma_tx_size;
-	int tx_coe;
 	int tx_coalesce;
 
 	struct dma_desc *dma_rx ;
@@ -48,7 +47,6 @@ struct stmmac_priv {
 	struct sk_buff_head rx_recycle;
 
 	struct net_device *dev;
-	int is_gmac;
 	dma_addr_t dma_rx_phy;
 	unsigned int dma_rx_size;
 	unsigned int dma_buf_sz;
@@ -60,14 +58,11 @@ struct stmmac_priv {
 	struct napi_struct napi;
 
 	phy_interface_t phy_interface;
-	int pbl;
-	int bus_id;
 	int phy_addr;
 	int phy_mask;
 	int (*phy_reset) (void *priv);
-	void (*fix_mac_speed) (void *priv, unsigned int speed);
-	void (*bus_setup)(void __iomem *ioaddr);
-	void *bsp_priv;
+	int rx_coe;
+	int no_csum_insertion;
 
 	int phy_irq;
 	struct phy_device *phydev;
@@ -77,7 +72,6 @@ struct stmmac_priv {
 	unsigned int flow_ctrl;
 	unsigned int pause;
 	struct mii_bus *mii;
-	int mii_clk_csr;
 
 	u32 msg_enable;
 	spinlock_t lock;
@@ -90,10 +84,7 @@ struct stmmac_priv {
 #ifdef STMMAC_VLAN_TAG_USED
 	struct vlan_group *vlgrp;
 #endif
-	int enh_desc;
-	int rx_coe;
-	int bugged_jumbo;
-	int no_csum_insertion;
+	struct plat_stmmacenet_data *plat;
 };
 
 #ifdef CONFIG_STM_DRIVERS
