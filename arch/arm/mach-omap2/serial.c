@@ -406,7 +406,7 @@ void omap_uart_resume_idle(int num)
 	struct omap_uart_state *uart;
 
 	list_for_each_entry(uart, &uart_list, node) {
-		if (num == uart->num) {
+		if (num == uart->num && uart->can_sleep) {
 			omap_uart_enable_clocks(uart);
 
 			/* Check for IO pad wakeup */
