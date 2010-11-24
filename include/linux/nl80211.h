@@ -1819,6 +1819,8 @@ enum nl80211_ps_state {
  *	the minimum amount the RSSI level must change after an event before a
  *	new event may be issued (to reduce effects of RSSI oscillation).
  * @NL80211_ATTR_CQM_RSSI_THRESHOLD_EVENT: RSSI threshold event
+ * @NL80211_ATTR_CQM_PKT_LOSS_EVENT: a u32 value indicating that this many
+ *	consecutive packets were not acknowledged by the peer
  * @__NL80211_ATTR_CQM_AFTER_LAST: internal
  * @NL80211_ATTR_CQM_MAX: highest key attribute
  */
@@ -1827,6 +1829,7 @@ enum nl80211_attr_cqm {
 	NL80211_ATTR_CQM_RSSI_THOLD,
 	NL80211_ATTR_CQM_RSSI_HYST,
 	NL80211_ATTR_CQM_RSSI_THRESHOLD_EVENT,
+	NL80211_ATTR_CQM_PKT_LOSS_EVENT,
 
 	/* keep last */
 	__NL80211_ATTR_CQM_AFTER_LAST,

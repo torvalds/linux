@@ -2601,6 +2601,18 @@ void cfg80211_cqm_rssi_notify(struct net_device *dev,
 			      enum nl80211_cqm_rssi_threshold_event rssi_event,
 			      gfp_t gfp);
 
+/**
+ * cfg80211_cqm_pktloss_notify - notify userspace about packetloss to peer
+ * @dev: network device
+ * @peer: peer's MAC address
+ * @num_packets: how many packets were lost -- should be a fixed threshold
+ *	but probably no less than maybe 50, or maybe a throughput dependent
+ *	threshold (to account for temporary interference)
+ * @gfp: context flags
+ */
+void cfg80211_cqm_pktloss_notify(struct net_device *dev,
+				 const u8 *peer, u32 num_packets, gfp_t gfp);
+
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 
 /* wiphy_printk helpers, similar to dev_printk */
