@@ -485,6 +485,14 @@ int acpi_power_get_inferred_state(struct acpi_device *device, int *state)
 	return 0;
 }
 
+int acpi_power_on_resources(struct acpi_device *device, int state)
+{
+	if (!device || state < ACPI_STATE_D0 || state > ACPI_STATE_D3)
+		return -EINVAL;
+
+	return acpi_power_on_list(&device->power.states[state].resources);
+}
+
 int acpi_power_transition(struct acpi_device *device, int state)
 {
 	int result;
