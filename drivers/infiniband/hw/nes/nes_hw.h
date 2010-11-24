@@ -1354,6 +1354,10 @@ struct nes_terminate_hdr {
 #define BAD_FRAME_OFFSET	64
 #define CQE_MAJOR_DRV		0x8000
 
+/* Used for link status recheck after interrupt processing */
+#define NES_LINK_RECHECK_DELAY	msecs_to_jiffies(50)
+#define NES_LINK_RECHECK_MAX	60
+
 #define nes_vlan_rx vlan_hwaccel_receive_skb
 #define nes_netif_rx netif_receive_skb
 

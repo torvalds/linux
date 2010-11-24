@@ -674,6 +674,8 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	}
 	nes_notifiers_registered++;
 
+	INIT_DELAYED_WORK(&nesdev->work, nes_recheck_link_status);
+
 	/* Initialize network devices */
 	if ((netdev = nes_netdev_init(nesdev, mmio_regs)) == NULL)
 		goto bail7;
@@ -756,6 +758,7 @@ static void __devexit nes_remove(struct pci_dev *pcidev)
 	struct nes_device *nesdev = pci_get_drvdata(pcidev);
 	struct net_device *netdev;
 	int netdev_index = 0;
+	unsigned long flags;
 
 		if (nesdev->netdev_count) {
 			netdev = nesdev->netdev[netdev_index];
@@ -781,6 +784,14 @@ static void __devexit nes_remove(struct pci_dev *pcidev)
 
 	free_irq(pcidev->irq, nesdev);
 	tasklet_kill(&nesdev->dpc_tasklet);
+
+	spin_lock_irqsave(&nesdev->nesadapter->phy_lock, flags);
+	if (nesdev->link_recheck) {
+		spin_unlock_irqrestore(&nesdev->nesadapter->phy_lock, flags);
+		cancel_delayed_work_sync(&nesdev->work);
+	} else {
+		spin_unlock_irqrestore(&nesdev->nesadapter->phy_lock, flags);
+	}
 
 	/* Deallocate the Adapter Structure */
 	nes_destroy_adapter(nesdev->nesadapter);
