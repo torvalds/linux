@@ -2948,6 +2948,7 @@ struct tg3 {
 	int				pcix_cap;
 	int				pcie_cap;
 	};
+	int				pcie_readrq;
 
 	struct mii_bus			*mdio_bus;
 	int				mdio_irq[PHY_MAX_ADDR];
