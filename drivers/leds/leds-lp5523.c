@@ -203,13 +203,6 @@ static int lp5523_configure(struct i2c_client *client)
 		{ 0x9c, 0x50, 0x9c, 0xd0, 0x9d, 0x80, 0xd8, 0x00, 0},
 	};
 
-	lp5523_write(client, LP5523_REG_RESET, 0xff);
-
-	usleep_range(10000, 20000); /*
-				     * Exact value is not available. 10 - 20ms
-				     * appears to be enough for reset.
-				     */
-
 	ret |= lp5523_write(client, LP5523_REG_ENABLE, LP5523_ENABLE);
 	/* Chip startup time is 500 us, 1 - 2 ms gives some margin */
 	usleep_range(1000, 2000);
@@ -941,6 +934,11 @@ static int lp5523_probe(struct i2c_client *client,
 		usleep_range(1000, 2000); /* 500us abs min. */
 	}
 
+	lp5523_write(client, LP5523_REG_RESET, 0xff);
+	usleep_range(10000, 20000); /*
+				     * Exact value is not available. 10 - 20ms
+				     * appears to be enough for reset.
+				     */
 	ret = lp5523_detect(client);
 	if (ret)
 		goto fail2;
