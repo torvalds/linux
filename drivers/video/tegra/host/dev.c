@@ -713,6 +713,10 @@ static int __devinit nvhost_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
+	clk_enable(host->mod.clk[0]);
+	nvhost_syncpt_reset(&host->syncpt);
+	clk_disable(host->mod.clk[0]);
+
 	nvhost_bus_register(host);
 
 	nvhost_debug_init(host);
