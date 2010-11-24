@@ -335,7 +335,15 @@ static void free_css_set_rcu(struct rcu_head *obj)
  * compiled into their kernel but not actually in use */
 static int use_task_css_set_links __read_mostly;
 
-static void __put_css_set(struct css_set *cg, int taskexit)
+/*
+ * refcounted get/put for css_set objects
+ */
+static inline void get_css_set(struct css_set *cg)
+{
+	atomic_inc(&cg->refcount);
+}
+
+static void put_css_set(struct css_set *cg)
 {
 	struct cg_cgroup_link *link;
 	struct cg_cgroup_link *saved_link;
@@ -361,36 +369,14 @@ static void __put_css_set(struct css_set *cg, int taskexit)
 		struct cgroup *cgrp = link->cgrp;
 		list_del(&link->cg_link_list);
 		list_del(&link->cgrp_link_list);
-		if (atomic_dec_and_test(&cgrp->count) &&
-		    notify_on_release(cgrp)) {
-			if (taskexit)
-				set_bit(CGRP_RELEASABLE, &cgrp->flags);
+		if (atomic_dec_and_test(&cgrp->count))
 			check_for_release(cgrp);
-		}
 
 		kfree(link);
 	}
 
 	write_unlock(&css_set_lock);
 	call_rcu(&cg->rcu_head, free_css_set_rcu);
-}
-
-/*
- * refcounted get/put for css_set objects
- */
-static inline void get_css_set(struct css_set *cg)
-{
-	atomic_inc(&cg->refcount);
-}
-
-static inline void put_css_set(struct css_set *cg)
-{
-	__put_css_set(cg, 0);
-}
-
-static inline void put_css_set_taskexit(struct css_set *cg)
-{
-	__put_css_set(cg, 1);
 }
 
 /*
@@ -1773,7 +1759,7 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 		if (ss->attach)
 			ss->attach(ss, cgrp, oldcgrp, tsk, false);
 	}
-	set_bit(CGRP_RELEASABLE, &oldcgrp->flags);
+	set_bit(CGRP_RELEASABLE, &cgrp->flags);
 	synchronize_rcu();
 	put_css_set(cg);
 
@@ -3361,6 +3347,8 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	if (err < 0)
 		goto err_remove;
 
+	set_bit(CGRP_RELEASABLE, &parent->flags);
+
 	/* The cgroup directory was pre-locked for us */
 	BUG_ON(!mutex_is_locked(&cgrp->dentry->d_inode->i_mutex));
 
@@ -3579,7 +3567,6 @@ again:
 	cgroup_d_remove_dir(d);
 	dput(d);
 
-	set_bit(CGRP_RELEASABLE, &parent->flags);
 	check_for_release(parent);
 
 	/*
@@ -4174,7 +4161,7 @@ void cgroup_exit(struct task_struct *tsk, int run_callbacks)
 	tsk->cgroups = &init_css_set;
 	task_unlock(tsk);
 	if (cg)
-		put_css_set_taskexit(cg);
+		put_css_set(cg);
 }
 
 /**
@@ -4344,6 +4331,14 @@ static void check_for_release(struct cgroup *cgrp)
 }
 
 /* Caller must verify that the css is not for root cgroup */
+void __css_get(struct cgroup_subsys_state *css, int count)
+{
+	atomic_add(count, &css->refcnt);
+	set_bit(CGRP_RELEASABLE, &css->cgroup->flags);
+}
+EXPORT_SYMBOL_GPL(__css_get);
+
+/* Caller must verify that the css is not for root cgroup */
 void __css_put(struct cgroup_subsys_state *css, int count)
 {
 	struct cgroup *cgrp = css->cgroup;
@@ -4351,10 +4346,7 @@ void __css_put(struct cgroup_subsys_state *css, int count)
 	rcu_read_lock();
 	val = atomic_sub_return(count, &css->refcnt);
 	if (val == 1) {
-		if (notify_on_release(cgrp)) {
-			set_bit(CGRP_RELEASABLE, &cgrp->flags);
-			check_for_release(cgrp);
-		}
+		check_for_release(cgrp);
 		cgroup_wakeup_rmdir_waiter(cgrp);
 	}
 	rcu_read_unlock();
