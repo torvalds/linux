@@ -249,6 +249,8 @@ static int ath9k_init_htc_services(struct ath9k_htc_priv *priv, u16 devid)
 	case 0x7010:
 	case 0x7015:
 	case 0x9018:
+	case 0xA704:
+	case 0x1200:
 		priv->htc->credits = 45;
 		break;
 	default:

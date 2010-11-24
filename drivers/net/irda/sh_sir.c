@@ -258,7 +258,7 @@ static int sh_sir_set_baudrate(struct sh_sir_self *self, u32 baudrate)
 
 	/* Baud Rate Error Correction x 10000 */
 	u32 rate_err_array[] = {
-		0000, 0625, 1250, 1875,
+		   0,  625, 1250, 1875,
 		2500, 3125, 3750, 4375,
 		5000, 5625, 6250, 6875,
 		7500, 8125, 8750, 9375,

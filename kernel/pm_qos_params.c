@@ -121,10 +121,10 @@ static inline int pm_qos_get_value(struct pm_qos_object *o)
 
 	switch (o->type) {
 	case PM_QOS_MIN:
-		return plist_last(&o->requests)->prio;
+		return plist_first(&o->requests)->prio;
 
 	case PM_QOS_MAX:
-		return plist_first(&o->requests)->prio;
+		return plist_last(&o->requests)->prio;
 
 	default:
 		/* runtime check for not using enum */

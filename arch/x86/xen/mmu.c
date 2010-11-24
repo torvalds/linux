@@ -2034,6 +2034,20 @@ static __init void xen_map_identity_early(pmd_t *pmd, unsigned long max_pfn)
 	set_page_prot(pmd, PAGE_KERNEL_RO);
 }
 
+void __init xen_setup_machphys_mapping(void)
+{
+	struct xen_machphys_mapping mapping;
+	unsigned long machine_to_phys_nr_ents;
+
+	if (HYPERVISOR_memory_op(XENMEM_machphys_mapping, &mapping) == 0) {
+		machine_to_phys_mapping = (unsigned long *)mapping.v_start;
+		machine_to_phys_nr_ents = mapping.max_mfn + 1;
+	} else {
+		machine_to_phys_nr_ents = MACH2PHYS_NR_ENTRIES;
+	}
+	machine_to_phys_order = fls(machine_to_phys_nr_ents - 1);
+}
+
 #ifdef CONFIG_X86_64
 static void convert_pfn_mfn(void *v)
 {
@@ -2627,7 +2641,8 @@ int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
 
 	prot = __pgprot(pgprot_val(prot) | _PAGE_IOMAP);
 
-	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
+	BUG_ON(!((vma->vm_flags & (VM_PFNMAP | VM_RESERVED | VM_IO)) ==
+				(VM_PFNMAP | VM_RESERVED | VM_IO)));
 
 	rmd.mfn = mfn;
 	rmd.prot = prot;

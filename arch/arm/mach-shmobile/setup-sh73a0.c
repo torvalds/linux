@@ -208,6 +208,111 @@ static struct platform_device cmt10_device = {
 	.num_resources	= ARRAY_SIZE(cmt10_resources),
 };
 
+static struct resource i2c0_resources[] = {
+	[0] = {
+		.name	= "IIC0",
+		.start	= 0xe6820000,
+		.end	= 0xe6820425 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_spi(167),
+		.end	= gic_spi(170),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource i2c1_resources[] = {
+	[0] = {
+		.name	= "IIC1",
+		.start	= 0xe6822000,
+		.end	= 0xe6822425 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_spi(51),
+		.end	= gic_spi(54),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource i2c2_resources[] = {
+	[0] = {
+		.name	= "IIC2",
+		.start	= 0xe6824000,
+		.end	= 0xe6824425 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_spi(171),
+		.end	= gic_spi(174),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource i2c3_resources[] = {
+	[0] = {
+		.name	= "IIC3",
+		.start	= 0xe6826000,
+		.end	= 0xe6826425 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_spi(183),
+		.end	= gic_spi(186),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource i2c4_resources[] = {
+	[0] = {
+		.name	= "IIC4",
+		.start	= 0xe6828000,
+		.end	= 0xe6828425 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_spi(187),
+		.end	= gic_spi(190),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device i2c0_device = {
+	.name		= "i2c-sh_mobile",
+	.id		= 0,
+	.resource	= i2c0_resources,
+	.num_resources	= ARRAY_SIZE(i2c0_resources),
+};
+
+static struct platform_device i2c1_device = {
+	.name		= "i2c-sh_mobile",
+	.id		= 1,
+	.resource	= i2c1_resources,
+	.num_resources	= ARRAY_SIZE(i2c1_resources),
+};
+
+static struct platform_device i2c2_device = {
+	.name		= "i2c-sh_mobile",
+	.id		= 2,
+	.resource	= i2c2_resources,
+	.num_resources	= ARRAY_SIZE(i2c2_resources),
+};
+
+static struct platform_device i2c3_device = {
+	.name		= "i2c-sh_mobile",
+	.id		= 3,
+	.resource	= i2c3_resources,
+	.num_resources	= ARRAY_SIZE(i2c3_resources),
+};
+
+static struct platform_device i2c4_device = {
+	.name		= "i2c-sh_mobile",
+	.id		= 4,
+	.resource	= i2c4_resources,
+	.num_resources	= ARRAY_SIZE(i2c4_resources),
+};
+
 static struct platform_device *sh73a0_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
@@ -221,10 +326,20 @@ static struct platform_device *sh73a0_early_devices[] __initdata = {
 	&cmt10_device,
 };
 
+static struct platform_device *sh73a0_late_devices[] __initdata = {
+	&i2c0_device,
+	&i2c1_device,
+	&i2c2_device,
+	&i2c3_device,
+	&i2c4_device,
+};
+
 void __init sh73a0_add_standard_devices(void)
 {
 	platform_add_devices(sh73a0_early_devices,
 			    ARRAY_SIZE(sh73a0_early_devices));
+	platform_add_devices(sh73a0_late_devices,
+			    ARRAY_SIZE(sh73a0_late_devices));
 }
 
 void __init sh73a0_add_early_devices(void)

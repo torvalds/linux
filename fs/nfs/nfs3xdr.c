@@ -555,7 +555,7 @@ nfs3_xdr_readdirres(struct rpc_rqst *req, __be32 *p, struct nfs3_readdirres *res
 	struct page **page;
 	size_t hdrlen;
 	u32 recvd, pglen;
-	int status, nr = 0;
+	int status;
 
 	status = ntohl(*p++);
 	/* Decode post_op_attrs */
@@ -586,7 +586,7 @@ nfs3_xdr_readdirres(struct rpc_rqst *req, __be32 *p, struct nfs3_readdirres *res
 		pglen = recvd;
 	page = rcvbuf->pages;
 
-	return nr;
+	return pglen;
 }
 
 __be32 *

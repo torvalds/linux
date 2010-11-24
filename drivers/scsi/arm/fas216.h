@@ -331,23 +331,21 @@ extern int fas216_init (struct Scsi_Host *instance);
  */
 extern int fas216_add (struct Scsi_Host *instance, struct device *dev);
 
-/* Function: int fas216_queue_command(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+/* Function: int fas216_queue_command(struct Scsi_Host *h, struct scsi_cmnd *SCpnt)
  * Purpose : queue a command for adapter to process.
- * Params  : SCpnt - Command to queue
- *	     done  - done function to call once command is complete
+ * Params  : h - host adapter
+ *	   : SCpnt - Command to queue
  * Returns : 0 - success, else error
  */
-extern int fas216_queue_command(struct scsi_cmnd *,
-				void (*done)(struct scsi_cmnd *));
+extern int fas216_queue_command(struct Scsi_Host *h, struct scsi_cmnd *SCpnt);
 
-/* Function: int fas216_noqueue_command(istruct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+/* Function: int fas216_noqueue_command(struct Scsi_Host *h, struct scsi_cmnd *SCpnt)
  * Purpose : queue a command for adapter to process, and process it to completion.
- * Params  : SCpnt - Command to queue
- *	     done  - done function to call once command is complete
+ * Params  : h - host adapter
+ *	   : SCpnt - Command to queue
  * Returns : 0 - success, else error
  */
-extern int fas216_noqueue_command(struct scsi_cmnd *,
-				  void (*done)(struct scsi_cmnd *));
+extern int fas216_noqueue_command(struct Scsi_Host *, struct scsi_cmnd *)
 
 /* Function: irqreturn_t fas216_intr (FAS216_Info *info)
  * Purpose : handle interrupts from the interface to progress a command

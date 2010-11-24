@@ -35,7 +35,6 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/compat.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <asm/atomic.h>
 #include <asm/uaccess.h>

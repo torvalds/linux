@@ -24,7 +24,6 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
-#include <linux/smp_lock.h>
 #include "input-compat.h"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
@@ -753,7 +752,7 @@ static int input_default_setkeycode(struct input_dev *dev,
 	if (index >= dev->keycodemax)
 		return -EINVAL;
 
-	if (dev->keycodesize < sizeof(dev->keycode) &&
+	if (dev->keycodesize < sizeof(ke->keycode) &&
 			(ke->keycode >> (dev->keycodesize * 8)))
 		return -EINVAL;
 

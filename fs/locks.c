@@ -122,7 +122,6 @@
 #include <linux/module.h>
 #include <linux/security.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/time.h>
 #include <linux/rcupdate.h>

@@ -644,15 +644,23 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 
 
 	case OMAP_MCBSP_CLKR_SRC_CLKR:
+		if (cpu_class_is_omap1())
+			break;
 		omap2_mcbsp1_mux_clkr_src(CLKR_SRC_CLKR);
 		break;
 	case OMAP_MCBSP_CLKR_SRC_CLKX:
+		if (cpu_class_is_omap1())
+			break;
 		omap2_mcbsp1_mux_clkr_src(CLKR_SRC_CLKX);
 		break;
 	case OMAP_MCBSP_FSR_SRC_FSR:
+		if (cpu_class_is_omap1())
+			break;
 		omap2_mcbsp1_mux_fsr_src(FSR_SRC_FSR);
 		break;
 	case OMAP_MCBSP_FSR_SRC_FSX:
+		if (cpu_class_is_omap1())
+			break;
 		omap2_mcbsp1_mux_fsr_src(FSR_SRC_FSX);
 		break;
 	default:

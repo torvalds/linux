@@ -47,7 +47,6 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/screen_info.h>
-#include <linux/smp_lock.h>
 #include <video/vga.h>
 #include <asm/io.h>
 

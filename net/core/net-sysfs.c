@@ -712,15 +712,21 @@ static void rx_queue_release(struct kobject *kobj)
 
 
 	map = rcu_dereference_raw(queue->rps_map);
-	if (map)
+	if (map) {
+		RCU_INIT_POINTER(queue->rps_map, NULL);
 		call_rcu(&map->rcu, rps_map_release);
+	}
 
 	flow_table = rcu_dereference_raw(queue->rps_flow_table);
-	if (flow_table)
+	if (flow_table) {
+		RCU_INIT_POINTER(queue->rps_flow_table, NULL);
 		call_rcu(&flow_table->rcu, rps_dev_flow_table_release);
+	}
 
 	if (atomic_dec_and_test(&first->count))
 		kfree(first);
+	else
+		memset(kobj, 0, sizeof(*kobj));
 }
 
 static struct kobj_type rx_queue_ktype = {

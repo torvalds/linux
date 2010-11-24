@@ -19,7 +19,7 @@ struct hlist_head *xfrm_hash_alloc(unsigned int sz)
 	if (sz <= PAGE_SIZE)
 		n = kzalloc(sz, GFP_KERNEL);
 	else if (hashdist)
-		n = __vmalloc(sz, GFP_KERNEL | __GFP_ZERO, PAGE_KERNEL);
+		n = vzalloc(sz);
 	else
 		n = (struct hlist_head *)
 			__get_free_pages(GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO,

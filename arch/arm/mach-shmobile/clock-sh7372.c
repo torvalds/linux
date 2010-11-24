@@ -230,20 +230,12 @@ static int pllc2_set_rate(struct clk *clk,
 	if (idx < 0)
 		return idx;
 
-	if (rate == clk->parent->rate) {
-		pllc2_disable(clk);
-		return 0;
-	}
+	if (rate == clk->parent->rate)
+		return -EINVAL;
 
 	value = __raw_readl(PLLC2CR) & ~(0x3f << 24);
 
-	if (value & 0x80000000)
-		pllc2_disable(clk);
-
 	__raw_writel((value & ~0x80000000) | ((idx + 19) << 24), PLLC2CR);
-
-	if (value & 0x80000000)
-		return pllc2_enable(clk);
 
 	return 0;
 }
@@ -453,10 +445,8 @@ static int fsidiv_enable(struct clk *clk)
 	unsigned long value;
 
 	value  = __raw_readl(clk->mapping->base) >> 16;
-	if (value < 2) {
-		fsidiv_disable(clk);
-		return -ENOENT;
-	}
+	if (value < 2)
+		return -EIO;
 
 	__raw_writel((value << 16) | 0x3, clk->mapping->base);
 
@@ -468,17 +458,12 @@ static int fsidiv_set_rate(struct clk *clk,
 {
 	int idx;
 
-	if (clk->parent->rate == rate) {
-		fsidiv_disable(clk);
-		return 0;
-	}
-
 	idx = (clk->parent->rate / rate) & 0xffff;
 	if (idx < 2)
-		return -ENOENT;
+		return -EINVAL;
 
 	__raw_writel(idx << 16, clk->mapping->base);
-	return fsidiv_enable(clk);
+	return 0;
 }
 
 static struct clk_ops fsidiv_clk_ops = {
@@ -609,8 +594,6 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("vck3_clk", &div6_clks[DIV6_VCK3]),
 	CLKDEV_CON_ID("fmsi_clk", &div6_clks[DIV6_FMSI]),
 	CLKDEV_CON_ID("fmso_clk", &div6_clks[DIV6_FMSO]),
-	CLKDEV_CON_ID("fsia_clk", &div6_reparent_clks[DIV6_FSIA]),
-	CLKDEV_CON_ID("fsib_clk", &div6_reparent_clks[DIV6_FSIB]),
 	CLKDEV_CON_ID("sub_clk", &div6_clks[DIV6_SUB]),
 	CLKDEV_CON_ID("spu_clk", &div6_clks[DIV6_SPU]),
 	CLKDEV_CON_ID("vou_clk", &div6_clks[DIV6_VOU]),
