@@ -1814,21 +1814,21 @@ out:
 	return ret;
 }
 
-static void wl1271_ssid_set(struct wl1271 *wl, struct sk_buff *beacon)
+static void wl1271_ssid_set(struct wl1271 *wl, struct sk_buff *skb,
+			    int offset)
 {
-	u8 *ptr = beacon->data +
-		offsetof(struct ieee80211_mgmt, u.beacon.variable);
+	u8 *ptr = skb->data + offset;
 
 	/* find the location of the ssid in the beacon */
-	while (ptr < beacon->data + beacon->len) {
+	while (ptr < skb->data + skb->len) {
 		if (ptr[0] == WLAN_EID_SSID) {
 			wl->ssid_len = ptr[1];
 			memcpy(wl->ssid, ptr+2, wl->ssid_len);
 			return;
 		}
-		ptr += ptr[1];
+		ptr += (ptr[1] + 2);
 	}
-	wl1271_error("ad-hoc beacon template has no SSID!\n");
+	wl1271_error("No SSID in IEs!\n");
 }
 
 static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
@@ -1871,8 +1871,11 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 
 		if (beacon) {
 			struct ieee80211_hdr *hdr;
+			int ieoffset = offsetof(struct ieee80211_mgmt,
+						u.beacon.variable);
 
-			wl1271_ssid_set(wl, beacon);
+			wl1271_ssid_set(wl, beacon, ieoffset);
+
 			ret = wl1271_cmd_template_set(wl, CMD_TEMPL_BEACON,
 						      beacon->data,
 						      beacon->len, 0,
@@ -1952,6 +1955,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
 			u32 rates;
+			int ieoffset;
 			wl->aid = bss_conf->aid;
 			set_assoc = true;
 
@@ -1980,13 +1984,13 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 				goto out_sleep;
 
 			/*
-			 * The SSID is intentionally set to NULL here - the
-			 * firmware will set the probe request with a
-			 * broadcast SSID regardless of what we set in the
-			 * template.
+			 * Get a template for hardware connection maintenance
 			 */
-			ret = wl1271_cmd_build_probe_req(wl, NULL, 0,
-							 NULL, 0, wl->band);
+			dev_kfree_skb(wl->probereq);
+			wl->probereq = wl1271_cmd_build_ap_probe_req(wl, NULL);
+			ieoffset = offsetof(struct ieee80211_mgmt,
+					    u.probe_req.variable);
+			wl1271_ssid_set(wl, wl->probereq, ieoffset);
 
 			/* enable the connection monitoring feature */
 			ret = wl1271_acx_conn_monit_params(wl, true);
@@ -2008,6 +2012,10 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			clear_bit(WL1271_FLAG_STA_STATE_SENT, &wl->flags);
 			clear_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags);
 			wl->aid = 0;
+
+			/* free probe-request template */
+			dev_kfree_skb(wl->probereq);
+			wl->probereq = NULL;
 
 			/* re-enable dynamic ps - just in case */
 			ieee80211_enable_dyn_ps(wl->vif);

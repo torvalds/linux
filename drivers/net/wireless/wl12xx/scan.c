@@ -51,6 +51,10 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	wl->scan.req = NULL;
 	ieee80211_scan_completed(wl->hw, false);
 
+	/* restore hardware connection monitoring template */
+	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+		wl1271_cmd_build_ap_probe_req(wl, wl->probereq);
+
 	if (wl->scan.failed) {
 		wl1271_info("Scan completed due to error.");
 		ieee80211_queue_work(wl->hw, &wl->recovery_work);

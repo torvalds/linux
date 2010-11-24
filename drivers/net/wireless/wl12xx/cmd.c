@@ -611,6 +611,34 @@ out:
 	return ret;
 }
 
+struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
+					      struct sk_buff *skb)
+{
+	int ret;
+
+	if (!skb)
+		skb = ieee80211_ap_probereq_get(wl->hw, wl->vif);
+	if (!skb)
+		goto out;
+
+	wl1271_dump(DEBUG_SCAN, "AP PROBE REQ: ", skb->data, skb->len);
+
+	if (wl->band == IEEE80211_BAND_2GHZ)
+		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
+					      skb->data, skb->len, 0,
+					      wl->conf.tx.basic_rate);
+	else
+		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
+					      skb->data, skb->len, 0,
+					      wl->conf.tx.basic_rate_5);
+
+	if (ret < 0)
+		wl1271_error("Unable to set ap probe request template.");
+
+out:
+	return skb;
+}
+
 int wl1271_build_qos_null_data(struct wl1271 *wl)
 {
 	struct ieee80211_qos_hdr template;
