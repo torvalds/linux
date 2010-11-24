@@ -9096,12 +9096,6 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	/* calc qm_cid_count */
 	bp->qm_cid_count = bnx2x_set_qm_cid_count(bp, cid_count);
 
-	rc = register_netdev(dev);
-	if (rc) {
-		dev_err(&pdev->dev, "Cannot register net device\n");
-		goto init_one_exit;
-	}
-
 	/* Configure interupt mode: try to enable MSI-X/MSI if
 	 * needed, set bp->num_queues appropriately.
 	 */
@@ -9109,6 +9103,12 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 
 	/* Add all NAPI objects */
 	bnx2x_add_all_napi(bp);
+
+	rc = register_netdev(dev);
+	if (rc) {
+		dev_err(&pdev->dev, "Cannot register net device\n");
+		goto init_one_exit;
+	}
 
 	bnx2x_get_pcie_width_speed(bp, &pcie_width, &pcie_speed);
 
