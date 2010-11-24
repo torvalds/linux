@@ -55,10 +55,6 @@
 #include <linux/delay.h>
 #include <linux/rar_register.h>
 
-#include <linux/netlink.h>
-#include <linux/connector.h>
-#include <linux/cn_proc.h>
-
 #include "../memrar/memrar.h"
 
 #include "sep_driver_hw_defs.h"
@@ -943,22 +939,10 @@ static unsigned long sep_set_time(struct sep_device *sep)
  */
 static int sep_init_caller_id(struct sep_device *sep)
 {
-	/* return value */
-	int ret_val;
-
-	/* counter */
 	int counter;
-
-	struct cb_id caller_id;
 
 	dev_dbg(&sep->pdev->dev,
 		"sep_init_caller_id start\n");
-
-	ret_val = 0;
-
-	/* init cb_id struct */
-	caller_id.idx = CN_IDX_PROC;
-	caller_id.val = CN_VAL_PROC;
 
 	/**
 	 * init caller id table
@@ -975,16 +959,10 @@ static int sep_init_caller_id(struct sep_device *sep)
 	dev_dbg(&sep->pdev->dev,
 		"caller id table init finished\n");
 
-	/* register to netlink connector */
-
-	if (ret_val)
-		dev_warn(&sep->pdev->dev,
-			"cn_add_callback failed %x\n", ret_val);
-
 	dev_dbg(&sep->pdev->dev,
 		"sep_init_caller_id end\n");
 
-	return ret_val;
+	return 0;
 }
 
 /**
