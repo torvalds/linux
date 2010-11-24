@@ -20,6 +20,7 @@ extern void __init pxa26x_init_irq(void);
 #endif
 extern void __init pxa27x_init_irq(void);
 extern void __init pxa3xx_init_irq(void);
+extern void __init pxa95x_init_irq(void);
 
 extern void __init pxa_map_io(void);
 extern void __init pxa25x_map_io(void);
@@ -54,10 +55,8 @@ static inline void pxa2xx_clear_reset_status(unsigned int mask) {}
 
 #ifdef CONFIG_PXA3xx
 extern unsigned pxa3xx_get_clk_frequency_khz(int);
-extern void pxa3xx_clear_reset_status(unsigned int);
 #else
 #define pxa3xx_get_clk_frequency_khz(x)		(0)
-static inline void pxa3xx_clear_reset_status(unsigned int mask) {}
 #endif
 
 extern struct sysdev_class pxa_irq_sysclass;

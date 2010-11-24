@@ -29,6 +29,7 @@
 #include <mach/reset.h>
 #include <mach/gpio.h>
 #include <mach/smemc.h>
+#include <mach/pxa3xx-regs.h>
 
 #include "generic.h"
 
@@ -36,9 +37,10 @@ void clear_reset_status(unsigned int mask)
 {
 	if (cpu_is_pxa2xx())
 		pxa2xx_clear_reset_status(mask);
-
-	if (cpu_is_pxa3xx())
-		pxa3xx_clear_reset_status(mask);
+	else {
+		/* RESET_STATUS_* has a 1:1 mapping with ARSR */
+		ARSR = mask;
+	}
 }
 
 unsigned long get_clock_tick_rate(void)

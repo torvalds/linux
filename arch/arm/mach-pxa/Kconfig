@@ -651,11 +651,17 @@ config CPU_PXA935
 	help
 	  PXA935 (codename Tavor-P65)
 
-config CPU_PXA950
+config PXA95x
 	bool
-	select CPU_PXA930
+	select CPU_PJ4
 	help
-	  PXA950 (codename Tavor-PV2)
+	  Select code specific to PXA95x variants
+
+config CPU_PXA955
+	bool
+	select PXA95x
+	help
+	  PXA950 (codename MG1)
 
 config PXA_SHARP_C7xx
 	bool

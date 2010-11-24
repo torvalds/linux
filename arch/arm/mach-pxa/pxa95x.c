@@ -1,9 +1,9 @@
 /*
- * linux/arch/arm/mach-pxa/pxa930.c
+ * linux/arch/arm/mach-pxa/pxa95x.c
  *
- * Code specific to PXA930
+ * code specific to PXA95x aka MGx
  *
- * Copyright (C) 2007-2008 Marvell Internation Ltd.
+ * Copyright (C) 2009-2010 Marvell International Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -12,13 +12,28 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
-#include <linux/dma-mapping.h>
+#include <linux/io.h>
+#include <linux/sysdev.h>
 
+#include <mach/hardware.h>
+#include <mach/gpio.h>
+#include <mach/pxa3xx-regs.h>
 #include <mach/pxa930.h>
+#include <mach/reset.h>
+#include <mach/pm.h>
+#include <mach/dma.h>
+#include <mach/regs-intc.h>
+#include <plat/i2c.h>
 
-static struct mfp_addr_map pxa930_mfp_addr_map[] __initdata = {
+#include "generic.h"
+#include "devices.h"
+#include "clock.h"
+
+static struct mfp_addr_map pxa95x_mfp_addr_map[] __initdata = {
 
 	MFP_ADDR(GPIO0, 0x02e0),
 	MFP_ADDR(GPIO1, 0x02dc),
@@ -128,6 +143,16 @@ static struct mfp_addr_map pxa930_mfp_addr_map[] __initdata = {
 	MFP_ADDR(GPIO105, 0x0328),
 	MFP_ADDR(GPIO106, 0x0404),
 
+	MFP_ADDR(GPIO159, 0x0524),
+	MFP_ADDR(GPIO163, 0x0534),
+	MFP_ADDR(GPIO167, 0x0544),
+	MFP_ADDR(GPIO168, 0x0548),
+	MFP_ADDR(GPIO169, 0x054c),
+	MFP_ADDR(GPIO170, 0x0550),
+	MFP_ADDR(GPIO171, 0x0554),
+	MFP_ADDR(GPIO172, 0x0558),
+	MFP_ADDR(GPIO173, 0x055c),
+
 	MFP_ADDR(nXCVREN, 0x0204),
 	MFP_ADDR(DF_CLE_nOE, 0x020c),
 	MFP_ADDR(DF_nADV1_ALE, 0x0218),
@@ -176,31 +201,108 @@ static struct mfp_addr_map pxa930_mfp_addr_map[] __initdata = {
 	MFP_ADDR_END,
 };
 
-static struct mfp_addr_map pxa935_mfp_addr_map[] __initdata = {
-	MFP_ADDR(GPIO159, 0x0524),
-	MFP_ADDR(GPIO163, 0x0534),
-	MFP_ADDR(GPIO167, 0x0544),
-	MFP_ADDR(GPIO168, 0x0548),
-	MFP_ADDR(GPIO169, 0x054c),
-	MFP_ADDR(GPIO170, 0x0550),
-	MFP_ADDR(GPIO171, 0x0554),
-	MFP_ADDR(GPIO172, 0x0558),
-	MFP_ADDR(GPIO173, 0x055c),
+static DEFINE_CK(pxa95x_lcd, LCD, &clk_pxa3xx_hsio_ops);
+static DEFINE_CLK(pxa95x_pout, &clk_pxa3xx_pout_ops, 13000000, 70);
+static DEFINE_PXA3_CKEN(pxa95x_ffuart, FFUART, 14857000, 1);
+static DEFINE_PXA3_CKEN(pxa95x_btuart, BTUART, 14857000, 1);
+static DEFINE_PXA3_CKEN(pxa95x_stuart, STUART, 14857000, 1);
+static DEFINE_PXA3_CKEN(pxa95x_i2c, I2C, 32842000, 0);
+static DEFINE_PXA3_CKEN(pxa95x_keypad, KEYPAD, 32768, 0);
+static DEFINE_PXA3_CKEN(pxa95x_ssp1, SSP1, 13000000, 0);
+static DEFINE_PXA3_CKEN(pxa95x_ssp2, SSP2, 13000000, 0);
+static DEFINE_PXA3_CKEN(pxa95x_ssp3, SSP3, 13000000, 0);
+static DEFINE_PXA3_CKEN(pxa95x_ssp4, SSP4, 13000000, 0);
+static DEFINE_PXA3_CKEN(pxa95x_pwm0, PWM0, 13000000, 0);
+static DEFINE_PXA3_CKEN(pxa95x_pwm1, PWM1, 13000000, 0);
 
-	MFP_ADDR_END,
+static struct clk_lookup pxa95x_clkregs[] = {
+	INIT_CLKREG(&clk_pxa95x_pout, NULL, "CLK_POUT"),
+	/* Power I2C clock is always on */
+	INIT_CLKREG(&clk_dummy, "pxa3xx-pwri2c.1", NULL),
+	INIT_CLKREG(&clk_pxa95x_lcd, "pxa2xx-fb", NULL),
+	INIT_CLKREG(&clk_pxa95x_ffuart, "pxa2xx-uart.0", NULL),
+	INIT_CLKREG(&clk_pxa95x_btuart, "pxa2xx-uart.1", NULL),
+	INIT_CLKREG(&clk_pxa95x_stuart, "pxa2xx-uart.2", NULL),
+	INIT_CLKREG(&clk_pxa95x_stuart, "pxa2xx-ir", "UARTCLK"),
+	INIT_CLKREG(&clk_pxa95x_i2c, "pxa2xx-i2c.0", NULL),
+	INIT_CLKREG(&clk_pxa95x_keypad, "pxa27x-keypad", NULL),
+	INIT_CLKREG(&clk_pxa95x_ssp1, "pxa27x-ssp.0", NULL),
+	INIT_CLKREG(&clk_pxa95x_ssp2, "pxa27x-ssp.1", NULL),
+	INIT_CLKREG(&clk_pxa95x_ssp3, "pxa27x-ssp.2", NULL),
+	INIT_CLKREG(&clk_pxa95x_ssp4, "pxa27x-ssp.3", NULL),
+	INIT_CLKREG(&clk_pxa95x_pwm0, "pxa27x-pwm.0", NULL),
+	INIT_CLKREG(&clk_pxa95x_pwm1, "pxa27x-pwm.1", NULL),
 };
 
-static int __init pxa930_init(void)
+void __init pxa95x_init_irq(void)
 {
-	if (cpu_is_pxa93x()) {
-		mfp_init_base(io_p2v(MFPR_BASE));
-		mfp_init_addr(pxa930_mfp_addr_map);
-	}
-
-	if (cpu_is_pxa935())
-		mfp_init_addr(pxa935_mfp_addr_map);
-
-	return 0;
+	pxa_init_irq(96, NULL);
+	pxa_init_gpio(IRQ_GPIO_2_x, 2, 127, NULL);
 }
 
-core_initcall(pxa930_init);
+/*
+ * device registration specific to PXA93x.
+ */
+
+void __init pxa95x_set_i2c_power_info(struct i2c_pxa_platform_data *info)
+{
+	pxa_register_device(&pxa3xx_device_i2c_power, info);
+}
+
+static struct platform_device *devices[] __initdata = {
+	&sa1100_device_rtc,
+	&pxa_device_rtc,
+	&pxa27x_device_ssp1,
+	&pxa27x_device_ssp2,
+	&pxa27x_device_ssp3,
+	&pxa3xx_device_ssp4,
+	&pxa27x_device_pwm0,
+	&pxa27x_device_pwm1,
+};
+
+static struct sys_device pxa95x_sysdev[] = {
+	{
+		.cls	= &pxa_irq_sysclass,
+	}, {
+		.cls	= &pxa_gpio_sysclass,
+	}, {
+		.cls	= &pxa3xx_clock_sysclass,
+	}
+};
+
+static int __init pxa95x_init(void)
+{
+	int ret = 0, i;
+
+	if (cpu_is_pxa95x()) {
+		mfp_init_base(io_p2v(MFPR_BASE));
+		mfp_init_addr(pxa95x_mfp_addr_map);
+
+		reset_status = ARSR;
+
+		/*
+		 * clear RDH bit every time after reset
+		 *
+		 * Note: the last 3 bits DxS are write-1-to-clear so carefully
+		 * preserve them here in case they will be referenced later
+		 */
+		ASCR &= ~(ASCR_RDH | ASCR_D1S | ASCR_D2S | ASCR_D3S);
+
+		clkdev_add_table(pxa95x_clkregs, ARRAY_SIZE(pxa95x_clkregs));
+
+		if ((ret = pxa_init_dma(IRQ_DMA, 32)))
+			return ret;
+
+		for (i = 0; i < ARRAY_SIZE(pxa95x_sysdev); i++) {
+			ret = sysdev_register(&pxa95x_sysdev[i]);
+			if (ret)
+				pr_err("failed to register sysdev[%d]\n", i);
+		}
+
+		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
+	}
+
+	return ret;
+}
+
+postcore_initcall(pxa95x_init);

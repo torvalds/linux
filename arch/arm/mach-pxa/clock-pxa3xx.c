@@ -192,7 +192,7 @@ struct sysdev_class pxa3xx_clock_sysclass = {
 
 static int __init pxa3xx_clock_init(void)
 {
-	if (cpu_is_pxa3xx())
+	if (cpu_is_pxa3xx() || cpu_is_pxa95x())
 		return sysdev_class_register(&pxa3xx_clock_sysclass);
 	return 0;
 }

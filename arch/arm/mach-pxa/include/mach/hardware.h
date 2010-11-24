@@ -195,14 +195,15 @@
 #define __cpu_is_pxa935(id)	(0)
 #endif
 
-#ifdef CONFIG_CPU_PXA950
-#define __cpu_is_pxa950(id)                             \
-	({                                              \
+#ifdef CONFIG_CPU_PXA955
+#define __cpu_is_pxa955(id)				\
+	({						\
 		unsigned int _id = (id) >> 4 & 0xfff;	\
-		_id == 0x697;				\
-	 })
+		_id == 0x581 || _id == 0xc08		\
+			|| _id == 0xb76;		\
+	})
 #else
-#define __cpu_is_pxa950(id)	(0)
+#define __cpu_is_pxa955(id)	(0)
 #endif
 
 #define cpu_is_pxa210()					\
@@ -255,10 +256,10 @@
 		__cpu_is_pxa935(read_cpuid_id());	\
 	 })
 
-#define cpu_is_pxa950()					\
+#define cpu_is_pxa955()					\
 	({						\
-		__cpu_is_pxa950(read_cpuid_id());	\
-	 })
+		__cpu_is_pxa955(read_cpuid_id());	\
+	})
 
 
 /*
@@ -297,6 +298,15 @@
 #define __cpu_is_pxa93x(id)	(0)
 #endif
 
+#ifdef CONFIG_PXA95x
+#define __cpu_is_pxa95x(id)				\
+	({						\
+		__cpu_is_pxa955(id);			\
+	})
+#else
+#define __cpu_is_pxa95x(id)	(0)
+#endif
+
 #define cpu_is_pxa2xx()					\
 	({						\
 		__cpu_is_pxa2xx(read_cpuid_id());	\
@@ -311,6 +321,12 @@
 	({						\
 		__cpu_is_pxa93x(read_cpuid_id());	\
 	 })
+
+#define cpu_is_pxa95x()					\
+	({						\
+		__cpu_is_pxa95x(read_cpuid_id());	\
+	})
+
 /*
  * return current memory and LCD clock frequency in units of 10kHz
  */
