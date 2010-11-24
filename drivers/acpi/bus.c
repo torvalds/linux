@@ -266,7 +266,7 @@ static int __acpi_bus_set_power(struct acpi_device *device, int state)
 
 	/* Make sure this is a valid target state */
 
-	if ((state == device->power.state) && !device->flags.force_power_state) {
+	if (state == device->power.state) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device is already at D%d\n",
 				  state));
 		return 0;
