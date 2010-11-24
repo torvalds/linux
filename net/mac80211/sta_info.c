@@ -244,8 +244,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->local = local;
 	sta->sdata = sdata;
 
-	ewma_init(&sta->avg_signal, 1000, 8);
-
 	if (sta_prepare_rate_control(local, sta, gfp)) {
 		kfree(sta);
 		return NULL;
