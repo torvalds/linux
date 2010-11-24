@@ -28,7 +28,6 @@
 #include <linux/spi/spi.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
-#include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
 
