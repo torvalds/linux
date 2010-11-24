@@ -764,7 +764,7 @@ out:
 /*
  * One-time initialisation.
  */
-static void __init reset_ctrl_regs(void *unused)
+static void reset_ctrl_regs(void *unused)
 {
 	int i;
 
@@ -798,6 +798,18 @@ static void __init reset_ctrl_regs(void *unused)
 		write_wb_reg(ARM_BASE_WVR + i, 0UL);
 	}
 }
+
+static int __cpuinit dbg_reset_notify(struct notifier_block *self,
+				      unsigned long action, void *cpu)
+{
+	if (action == CPU_ONLINE)
+		smp_call_function_single((int)cpu, reset_ctrl_regs, NULL, 1);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block __cpuinitdata dbg_reset_nb = {
+	.notifier_call = dbg_reset_notify,
+};
 
 static int __init arch_hw_breakpoint_init(void)
 {
@@ -846,6 +858,8 @@ static int __init arch_hw_breakpoint_init(void)
 	hook_ifault_code(2, hw_breakpoint_pending, SIGTRAP, TRAP_HWBKPT,
 			"breakpoint debug exception");
 
+	/* Register hotplug notifier. */
+	register_cpu_notifier(&dbg_reset_nb);
 out:
 	return ret;
 }
