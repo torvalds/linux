@@ -482,12 +482,6 @@ struct ecc_settings {
 	} flags;
 };
 
-struct scrubrate {
-       u32 scrubval;           /* bit pattern for scrub rate */
-       u32 bandwidth;          /* bandwidth consumed (bytes/sec) */
-};
-
-extern struct scrubrate scrubrates[23];
 extern const char *tt_msgs[4];
 extern const char *ll_msgs[4];
 extern const char *rrrr_msgs[16];

@@ -387,7 +387,7 @@ struct mem_ctl_info {
 	   representation and converts it to the closest matching
 	   bandwith in bytes/sec.
 	 */
-	int (*get_sdram_scrub_rate) (struct mem_ctl_info * mci, u32 * bw);
+	int (*get_sdram_scrub_rate) (struct mem_ctl_info * mci);
 
 
 	/* pointer to edac checking routine */

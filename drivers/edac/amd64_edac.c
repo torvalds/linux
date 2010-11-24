@@ -77,7 +77,11 @@ static int ddr3_dbam[] = { [0]		= -1,
  *FIXME: Produce a better mapping/linearisation.
  */
 
-struct scrubrate scrubrates[] = {
+
+struct scrubrate {
+       u32 scrubval;           /* bit pattern for scrub rate */
+       u32 bandwidth;          /* bandwidth consumed (bytes/sec) */
+} scrubrates[] = {
 	{ 0x01, 1600000000UL},
 	{ 0x02, 800000000UL},
 	{ 0x03, 400000000UL},
@@ -151,13 +155,11 @@ static int __amd64_set_scrub_rate(struct pci_dev *ctl, u32 new_bw, u32 min_rate)
 	}
 
 	scrubval = scrubrates[i].scrubval;
-	if (scrubval)
-		amd64_info("Setting scrub rate bandwidth: %u\n",
-			   scrubrates[i].bandwidth);
-	else
-		amd64_info("Turning scrubbing off.\n");
 
 	pci_write_bits32(ctl, K8_SCRCTRL, scrubval, 0x001F);
+
+	if (scrubval)
+		return scrubrates[i].bandwidth;
 
 	return 0;
 }
@@ -169,11 +171,11 @@ static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 bw)
 	return __amd64_set_scrub_rate(pvt->F3, bw, pvt->min_scrubrate);
 }
 
-static int amd64_get_scrub_rate(struct mem_ctl_info *mci, u32 *bw)
+static int amd64_get_scrub_rate(struct mem_ctl_info *mci)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u32 scrubval = 0;
-	int status = -1, i;
+	int i, retval = -EINVAL;
 
 	amd64_read_pci_cfg(pvt->F3, K8_SCRCTRL, &scrubval);
 
@@ -183,13 +185,11 @@ static int amd64_get_scrub_rate(struct mem_ctl_info *mci, u32 *bw)
 
 	for (i = 0; i < ARRAY_SIZE(scrubrates); i++) {
 		if (scrubrates[i].scrubval == scrubval) {
-			*bw = scrubrates[i].bandwidth;
-			status = 0;
+			retval = scrubrates[i].bandwidth;
 			break;
 		}
 	}
-
-	return status;
+	return retval;
 }
 
 /* Map from a CSROW entry to the mask entry that operates on it */
