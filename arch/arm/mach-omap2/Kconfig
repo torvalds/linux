@@ -189,6 +189,7 @@ config MACH_OMAP3_PANDORA
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
+	select REGULATOR_FIXED_VOLTAGE
 
 config MACH_OMAP3_TOUCHBOOK
 	bool "OMAP3 Touch Book"
@@ -240,6 +241,7 @@ config MACH_OMAP_ZOOM2
 	select SERIAL_8250
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_8250_CONSOLE
+	select REGULATOR_FIXED_VOLTAGE
 
 config MACH_OMAP_ZOOM3
 	bool "OMAP3630 Zoom3 board"
@@ -249,6 +251,7 @@ config MACH_OMAP_ZOOM3
 	select SERIAL_8250
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_8250_CONSOLE
+	select REGULATOR_FIXED_VOLTAGE
 
 config MACH_CM_T35
 	bool "CompuLab CM-T35 module"
