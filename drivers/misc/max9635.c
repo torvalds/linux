@@ -235,12 +235,7 @@ static int max9635_read_adj_als(struct max9635_data *als_data)
 		pr_info("exp = 0x%X, mant = 0x%X, lux = %d\n",
 			exponent, mantissa, lux);
 
-	/* TODO: temporary lens coefficient adjustment, final
-		 calculation pending on shipping lens profile. */
-	if (lux < 200)
-		lux = lux * als_data->als_pdata->lens_coeff_l;
-	else
-		lux = lux * als_data->als_pdata->lens_coeff_h;
+	lux = lux * (exponent + als_data->als_pdata->lens_coeff);
 
 	if (max9635_debug & 1)
 		pr_info("%s:Reporting LUX %d\n", __func__, lux);

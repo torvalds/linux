@@ -28,8 +28,7 @@ struct max9635_platform_data {
 	u8 threshold_timer;
 	u8 def_low_threshold;
 	u8 def_high_threshold;
-	u8 lens_coeff_l;
-	u8 lens_coeff_h;
+	u8 lens_coeff;
 };
 
 #endif	/* __KERNEL__ */
