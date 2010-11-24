@@ -341,9 +341,6 @@ static void vlan_transfer_features(struct net_device *dev,
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	vlandev->fcoe_ddp_xid = dev->fcoe_ddp_xid;
 #endif
-	vlandev->real_num_tx_queues = dev->real_num_tx_queues;
-	BUG_ON(vlandev->real_num_tx_queues > vlandev->num_tx_queues);
-
 	if (old_features != vlandev->features)
 		netdev_features_change(vlandev);
 }
