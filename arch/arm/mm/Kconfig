@@ -795,7 +795,7 @@ config CACHE_PL310
 
 config CACHE_TAUROS2
 	bool "Enable the Tauros2 L2 cache controller"
-	depends on (ARCH_DOVE || ARCH_MMP)
+	depends on (ARCH_DOVE || ARCH_MMP || CPU_PJ4)
 	default y
 	select OUTER_CACHE
 	help
