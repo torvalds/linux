@@ -2211,7 +2211,7 @@ static void drbd_connector_callback(struct cn_msg *req, struct netlink_skb_parms
 	reply_size += cm->reply_body_size;
 
 	/* allocation not in the IO path, cqueue thread context */
-	cn_reply = kmalloc(reply_size, GFP_KERNEL);
+	cn_reply = kzalloc(reply_size, GFP_KERNEL);
 	if (!cn_reply) {
 		retcode = ERR_NOMEM;
 		goto fail;
@@ -2382,7 +2382,7 @@ void drbd_bcast_ee(struct drbd_conf *mdev,
 	/* receiver thread context, which is not in the writeout path (of this node),
 	 * but may be in the writeout path of the _other_ node.
 	 * GFP_NOIO to avoid potential "distributed deadlock". */
-	cn_reply = kmalloc(
+	cn_reply = kzalloc(
 		sizeof(struct cn_msg)+
 		sizeof(struct drbd_nl_cfg_reply)+
 		sizeof(struct dump_ee_tag_len_struct)+
@@ -2517,6 +2517,7 @@ void drbd_nl_send_reply(struct cn_msg *req, int ret_code)
 		(struct drbd_nl_cfg_reply *)cn_reply->data;
 	int rr;
 
+	memset(buffer, 0, sizeof(buffer));
 	cn_reply->id = req->id;
 
 	cn_reply->seq = req->seq;
