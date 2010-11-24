@@ -1598,7 +1598,9 @@ static int ext3_dx_add_entry(handle_t *handle, struct dentry *dentry,
 			if (err)
 				goto journal_error;
 		}
-		ext3_journal_dirty_metadata(handle, frames[0].bh);
+		err = ext3_journal_dirty_metadata(handle, frames[0].bh);
+		if (err)
+			goto journal_error;
 	}
 	de = do_split(handle, dir, &bh, frame, &hinfo, &err);
 	if (!de)
