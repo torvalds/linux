@@ -1513,6 +1513,8 @@ EXPORT_SYMBOL_GPL(device_destroy);
  * exclusion between two different calls of device_rename
  * on the same device to ensure that new_name is valid and
  * won't conflict with other devices.
+ *
+ * "Never use this function, bad things will happen" - gregkh
  */
 int device_rename(struct device *dev, const char *new_name)
 {
