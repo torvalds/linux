@@ -663,7 +663,7 @@ init:
 	}
 
 unlock:
-	if (err && (vif_id != -1)) {
+	if (err && (vif_id >= 0)) {
 		vif_priv->active = false;
 		bitmap_release_region(&ar->vif_bitmap, vif_id, 0);
 		ar->vifs--;

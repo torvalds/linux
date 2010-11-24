@@ -410,6 +410,9 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 			val &= ~(AR_WA_BIT6 | AR_WA_BIT7);
 		}
 
+		if (AR_SREV_9280(ah))
+			val |= AR_WA_BIT22;
+
 		if (AR_SREV_9285E_20(ah))
 			val |= AR_WA_BIT23;
 
