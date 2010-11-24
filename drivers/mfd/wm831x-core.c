@@ -1610,17 +1610,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		break;
 
 	case WM8320:
-		ret = mfd_add_devices(wm831x->dev, -1,
-				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
-				      NULL, 0);
-		break;
-
 	case WM8321:
-		ret = mfd_add_devices(wm831x->dev, -1,
-				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
-				      NULL, 0);
-		break;
-
 	case WM8325:
 		ret = mfd_add_devices(wm831x->dev, -1,
 				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
