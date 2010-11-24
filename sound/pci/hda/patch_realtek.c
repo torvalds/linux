@@ -2014,6 +2014,36 @@ static struct hda_verb alc888_acer_aspire_6530g_verbs[] = {
 };
 
 /*
+ *ALC888 Acer Aspire 7730G model
+ */
+
+static struct hda_verb alc888_acer_aspire_7730G_verbs[] = {
+/* Bias voltage on for external mic port */
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN | PIN_VREF80},
+/* Front Mic: set to PIN_IN (empty by default) */
+	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+/* Unselect Front Mic by default in input mixer 3 */
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0xb)},
+/* Enable unsolicited event for HP jack */
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+/* Enable speaker output */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
+/* Enable headphone output */
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT | PIN_HP},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 2},
+/*Enable internal subwoofer */
+	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x17, AC_VERB_SET_CONNECT_SEL, 0x02},
+	{0x17, AC_VERB_SET_EAPD_BTLENABLE, 2},
+	{ }
+};
+
+/*
  * ALC889 Acer Aspire 8930G model
  */
 
@@ -2191,6 +2221,16 @@ static void alc888_acer_aspire_4930g_setup(struct hda_codec *codec)
 }
 
 static void alc888_acer_aspire_6530g_setup(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
+	spec->autocfg.speaker_pins[1] = 0x16;
+	spec->autocfg.speaker_pins[2] = 0x17;
+}
+
+static void alc888_acer_aspire_7730g_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 
@@ -9524,13 +9564,6 @@ static struct hda_verb alc883_acer_eapd_verbs[] = {
 	{ }
 };
 
-static struct hda_verb alc888_acer_aspire_7730G_verbs[] = {
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x17, AC_VERB_SET_CONNECT_SEL, 0x02},
-	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
-	{ } /* end */
-};
-
 static void alc888_6st_dell_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -10328,7 +10361,7 @@ static struct alc_config_preset alc882_presets[] = {
 		.const_channel_count = 6,
 		.input_mux = &alc883_capture_source,
 		.unsol_event = alc_automute_amp_unsol_event,
-		.setup = alc888_acer_aspire_6530g_setup,
+		.setup = alc888_acer_aspire_7730g_setup,
 		.init_hook = alc_automute_amp,
 	},
 	[ALC883_MEDION] = {
