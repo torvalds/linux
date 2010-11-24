@@ -2,7 +2,7 @@
  *   fs/cifs/fscache.c - CIFS filesystem cache interface
  *
  *   Copyright (c) 2010 Novell, Inc.
- *   Author(s): Suresh Jayaraman (sjayaraman@suse.de>
+ *   Author(s): Suresh Jayaraman <sjayaraman@suse.de>
  *
  *   This library is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU Lesser General Public License as published
@@ -67,10 +67,12 @@ static void cifs_fscache_enable_inode_cookie(struct inode *inode)
 	if (cifsi->fscache)
 		return;
 
-	cifsi->fscache = fscache_acquire_cookie(tcon->fscache,
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_FSCACHE) {
+		cifsi->fscache = fscache_acquire_cookie(tcon->fscache,
 				&cifs_fscache_inode_object_def, cifsi);
-	cFYI(1, "CIFS: got FH cookie (0x%p/0x%p)", tcon->fscache,
+		cFYI(1, "CIFS: got FH cookie (0x%p/0x%p)", tcon->fscache,
 				cifsi->fscache);
+	}
 }
 
 void cifs_fscache_release_inode_cookie(struct inode *inode)
@@ -101,10 +103,8 @@ void cifs_fscache_set_inode_cookie(struct inode *inode, struct file *filp)
 {
 	if ((filp->f_flags & O_ACCMODE) != O_RDONLY)
 		cifs_fscache_disable_inode_cookie(inode);
-	else {
+	else
 		cifs_fscache_enable_inode_cookie(inode);
-		cFYI(1, "CIFS: fscache inode cookie set");
-	}
 }
 
 void cifs_fscache_reset_inode_cookie(struct inode *inode)
