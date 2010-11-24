@@ -66,19 +66,10 @@ static const struct file_operations name## _ops = {			\
 };
 
 #define DEBUGFS_ADD(name, parent)					\
-	wl->debugfs.name = debugfs_create_file(#name, 0400, parent,	\
-					       wl, &name## _ops);	\
-	if (IS_ERR(wl->debugfs.name)) {					\
-		ret = PTR_ERR(wl->debugfs.name);			\
-		wl->debugfs.name = NULL;				\
-		goto out;						\
-	}
-
-#define DEBUGFS_DEL(name)						\
-	do {								\
-		debugfs_remove(wl->debugfs.name);			\
-		wl->debugfs.name = NULL;				\
-	} while (0)
+	entry = debugfs_create_file(#name, 0400, parent,		\
+				    wl, &name## _ops);			\
+	if (!entry || IS_ERR(entry))					\
+		goto err;						\
 
 #define DEBUGFS_FWSTATS_FILE(sub, name, fmt)				\
 static ssize_t sub## _ ##name## _read(struct file *file,		\
@@ -100,10 +91,7 @@ static const struct file_operations sub## _ ##name## _ops = {		\
 };
 
 #define DEBUGFS_FWSTATS_ADD(sub, name)				\
-	DEBUGFS_ADD(sub## _ ##name, wl->debugfs.fw_statistics)
-
-#define DEBUGFS_FWSTATS_DEL(sub, name)				\
-	DEBUGFS_DEL(sub## _ ##name)
+	DEBUGFS_ADD(sub## _ ##name, stats)
 
 static void wl1271_debugfs_update_stats(struct wl1271 *wl)
 {
@@ -305,109 +293,16 @@ static const struct file_operations gpio_power_ops = {
 	.llseek = default_llseek,
 };
 
-static void wl1271_debugfs_delete_files(struct wl1271 *wl)
-{
-	DEBUGFS_FWSTATS_DEL(tx, internal_desc_overflow);
-
-	DEBUGFS_FWSTATS_DEL(rx, out_of_mem);
-	DEBUGFS_FWSTATS_DEL(rx, hdr_overflow);
-	DEBUGFS_FWSTATS_DEL(rx, hw_stuck);
-	DEBUGFS_FWSTATS_DEL(rx, dropped);
-	DEBUGFS_FWSTATS_DEL(rx, fcs_err);
-	DEBUGFS_FWSTATS_DEL(rx, xfr_hint_trig);
-	DEBUGFS_FWSTATS_DEL(rx, path_reset);
-	DEBUGFS_FWSTATS_DEL(rx, reset_counter);
-
-	DEBUGFS_FWSTATS_DEL(dma, rx_requested);
-	DEBUGFS_FWSTATS_DEL(dma, rx_errors);
-	DEBUGFS_FWSTATS_DEL(dma, tx_requested);
-	DEBUGFS_FWSTATS_DEL(dma, tx_errors);
-
-	DEBUGFS_FWSTATS_DEL(isr, cmd_cmplt);
-	DEBUGFS_FWSTATS_DEL(isr, fiqs);
-	DEBUGFS_FWSTATS_DEL(isr, rx_headers);
-	DEBUGFS_FWSTATS_DEL(isr, rx_mem_overflow);
-	DEBUGFS_FWSTATS_DEL(isr, rx_rdys);
-	DEBUGFS_FWSTATS_DEL(isr, irqs);
-	DEBUGFS_FWSTATS_DEL(isr, tx_procs);
-	DEBUGFS_FWSTATS_DEL(isr, decrypt_done);
-	DEBUGFS_FWSTATS_DEL(isr, dma0_done);
-	DEBUGFS_FWSTATS_DEL(isr, dma1_done);
-	DEBUGFS_FWSTATS_DEL(isr, tx_exch_complete);
-	DEBUGFS_FWSTATS_DEL(isr, commands);
-	DEBUGFS_FWSTATS_DEL(isr, rx_procs);
-	DEBUGFS_FWSTATS_DEL(isr, hw_pm_mode_changes);
-	DEBUGFS_FWSTATS_DEL(isr, host_acknowledges);
-	DEBUGFS_FWSTATS_DEL(isr, pci_pm);
-	DEBUGFS_FWSTATS_DEL(isr, wakeups);
-	DEBUGFS_FWSTATS_DEL(isr, low_rssi);
-
-	DEBUGFS_FWSTATS_DEL(wep, addr_key_count);
-	DEBUGFS_FWSTATS_DEL(wep, default_key_count);
-	/* skipping wep.reserved */
-	DEBUGFS_FWSTATS_DEL(wep, key_not_found);
-	DEBUGFS_FWSTATS_DEL(wep, decrypt_fail);
-	DEBUGFS_FWSTATS_DEL(wep, packets);
-	DEBUGFS_FWSTATS_DEL(wep, interrupt);
-
-	DEBUGFS_FWSTATS_DEL(pwr, ps_enter);
-	DEBUGFS_FWSTATS_DEL(pwr, elp_enter);
-	DEBUGFS_FWSTATS_DEL(pwr, missing_bcns);
-	DEBUGFS_FWSTATS_DEL(pwr, wake_on_host);
-	DEBUGFS_FWSTATS_DEL(pwr, wake_on_timer_exp);
-	DEBUGFS_FWSTATS_DEL(pwr, tx_with_ps);
-	DEBUGFS_FWSTATS_DEL(pwr, tx_without_ps);
-	DEBUGFS_FWSTATS_DEL(pwr, rcvd_beacons);
-	DEBUGFS_FWSTATS_DEL(pwr, power_save_off);
-	DEBUGFS_FWSTATS_DEL(pwr, enable_ps);
-	DEBUGFS_FWSTATS_DEL(pwr, disable_ps);
-	DEBUGFS_FWSTATS_DEL(pwr, fix_tsf_ps);
-	/* skipping cont_miss_bcns_spread for now */
-	DEBUGFS_FWSTATS_DEL(pwr, rcvd_awake_beacons);
-
-	DEBUGFS_FWSTATS_DEL(mic, rx_pkts);
-	DEBUGFS_FWSTATS_DEL(mic, calc_failure);
-
-	DEBUGFS_FWSTATS_DEL(aes, encrypt_fail);
-	DEBUGFS_FWSTATS_DEL(aes, decrypt_fail);
-	DEBUGFS_FWSTATS_DEL(aes, encrypt_packets);
-	DEBUGFS_FWSTATS_DEL(aes, decrypt_packets);
-	DEBUGFS_FWSTATS_DEL(aes, encrypt_interrupt);
-	DEBUGFS_FWSTATS_DEL(aes, decrypt_interrupt);
-
-	DEBUGFS_FWSTATS_DEL(event, heart_beat);
-	DEBUGFS_FWSTATS_DEL(event, calibration);
-	DEBUGFS_FWSTATS_DEL(event, rx_mismatch);
-	DEBUGFS_FWSTATS_DEL(event, rx_mem_empty);
-	DEBUGFS_FWSTATS_DEL(event, rx_pool);
-	DEBUGFS_FWSTATS_DEL(event, oom_late);
-	DEBUGFS_FWSTATS_DEL(event, phy_transmit_error);
-	DEBUGFS_FWSTATS_DEL(event, tx_stuck);
-
-	DEBUGFS_FWSTATS_DEL(ps, pspoll_timeouts);
-	DEBUGFS_FWSTATS_DEL(ps, upsd_timeouts);
-	DEBUGFS_FWSTATS_DEL(ps, upsd_max_sptime);
-	DEBUGFS_FWSTATS_DEL(ps, upsd_max_apturn);
-	DEBUGFS_FWSTATS_DEL(ps, pspoll_max_apturn);
-	DEBUGFS_FWSTATS_DEL(ps, pspoll_utilization);
-	DEBUGFS_FWSTATS_DEL(ps, upsd_utilization);
-
-	DEBUGFS_FWSTATS_DEL(rxpipe, rx_prep_beacon_drop);
-	DEBUGFS_FWSTATS_DEL(rxpipe, descr_host_int_trig_rx_data);
-	DEBUGFS_FWSTATS_DEL(rxpipe, beacon_buffer_thres_host_int_trig_rx_data);
-	DEBUGFS_FWSTATS_DEL(rxpipe, missed_beacon_host_int_trig_rx_data);
-	DEBUGFS_FWSTATS_DEL(rxpipe, tx_xfr_host_int_trig_rx_data);
-
-	DEBUGFS_DEL(tx_queue_len);
-	DEBUGFS_DEL(retry_count);
-	DEBUGFS_DEL(excessive_retries);
-
-	DEBUGFS_DEL(gpio_power);
-}
-
 static int wl1271_debugfs_add_files(struct wl1271 *wl)
 {
 	int ret = 0;
+	struct dentry *entry, *stats;
+
+	stats = debugfs_create_dir("fw-statistics", wl->rootdir);
+	if (!stats || IS_ERR(stats)) {
+		entry = stats;
+		goto err;
+	}
 
 	DEBUGFS_FWSTATS_ADD(tx, internal_desc_overflow);
 
@@ -500,15 +395,19 @@ static int wl1271_debugfs_add_files(struct wl1271 *wl)
 	DEBUGFS_FWSTATS_ADD(rxpipe, missed_beacon_host_int_trig_rx_data);
 	DEBUGFS_FWSTATS_ADD(rxpipe, tx_xfr_host_int_trig_rx_data);
 
-	DEBUGFS_ADD(tx_queue_len, wl->debugfs.rootdir);
-	DEBUGFS_ADD(retry_count, wl->debugfs.rootdir);
-	DEBUGFS_ADD(excessive_retries, wl->debugfs.rootdir);
+	DEBUGFS_ADD(tx_queue_len, wl->rootdir);
+	DEBUGFS_ADD(retry_count, wl->rootdir);
+	DEBUGFS_ADD(excessive_retries, wl->rootdir);
 
-	DEBUGFS_ADD(gpio_power, wl->debugfs.rootdir);
+	DEBUGFS_ADD(gpio_power, wl->rootdir);
 
-out:
-	if (ret < 0)
-		wl1271_debugfs_delete_files(wl);
+	return 0;
+
+err:
+	if (IS_ERR(entry))
+		ret = PTR_ERR(entry);
+	else
+		ret = -ENOMEM;
 
 	return ret;
 }
@@ -524,21 +423,12 @@ int wl1271_debugfs_init(struct wl1271 *wl)
 {
 	int ret;
 
-	wl->debugfs.rootdir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	wl->rootdir = debugfs_create_dir(KBUILD_MODNAME, NULL);
 
-	if (IS_ERR(wl->debugfs.rootdir)) {
-		ret = PTR_ERR(wl->debugfs.rootdir);
-		wl->debugfs.rootdir = NULL;
+	if (IS_ERR(wl->rootdir)) {
+		ret = PTR_ERR(wl->rootdir);
+		wl->rootdir = NULL;
 		goto err;
-	}
-
-	wl->debugfs.fw_statistics = debugfs_create_dir("fw-statistics",
-						       wl->debugfs.rootdir);
-
-	if (IS_ERR(wl->debugfs.fw_statistics)) {
-		ret = PTR_ERR(wl->debugfs.fw_statistics);
-		wl->debugfs.fw_statistics = NULL;
-		goto err_root;
 	}
 
 	wl->stats.fw_stats = kzalloc(sizeof(*wl->stats.fw_stats),
@@ -563,12 +453,8 @@ err_file:
 	wl->stats.fw_stats = NULL;
 
 err_fw:
-	debugfs_remove(wl->debugfs.fw_statistics);
-	wl->debugfs.fw_statistics = NULL;
-
-err_root:
-	debugfs_remove(wl->debugfs.rootdir);
-	wl->debugfs.rootdir = NULL;
+	debugfs_remove_recursive(wl->rootdir);
+	wl->rootdir = NULL;
 
 err:
 	return ret;
@@ -576,15 +462,10 @@ err:
 
 void wl1271_debugfs_exit(struct wl1271 *wl)
 {
-	wl1271_debugfs_delete_files(wl);
-
 	kfree(wl->stats.fw_stats);
 	wl->stats.fw_stats = NULL;
 
-	debugfs_remove(wl->debugfs.fw_statistics);
-	wl->debugfs.fw_statistics = NULL;
-
-	debugfs_remove(wl->debugfs.rootdir);
-	wl->debugfs.rootdir = NULL;
+	debugfs_remove_recursive(wl->rootdir);
+	wl->rootdir = NULL;
 
 }
