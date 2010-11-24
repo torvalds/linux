@@ -149,7 +149,7 @@ void __init eukrea_mbimxsd51_baseboard_init(void)
 	imx51_add_imx_uart(1, NULL);
 	imx51_add_imx_uart(2, &uart_pdata);
 
-	imx51_add_esdhc(0, NULL);
+	imx51_add_sdhci_esdhc_imx(0, NULL);
 
 	gpio_request(GPIO_LED1, "LED1");
 	gpio_direction_output(GPIO_LED1, 1);

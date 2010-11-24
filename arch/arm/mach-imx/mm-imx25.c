@@ -30,25 +30,12 @@
 
 /*
  * This table defines static virtual address mappings for I/O regions.
- * These are the mappings common across all MX3 boards.
+ * These are the mappings common across all MX25 boards.
  */
-static struct map_desc mxc_io_desc[] __initdata = {
-	{
-		.virtual	= MX25_AVIC_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(MX25_AVIC_BASE_ADDR),
-		.length		= MX25_AVIC_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual	= MX25_AIPS1_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(MX25_AIPS1_BASE_ADDR),
-		.length		= MX25_AIPS1_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual	= MX25_AIPS2_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(MX25_AIPS2_BASE_ADDR),
-		.length		= MX25_AIPS2_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	},
+static struct map_desc mx25_io_desc[] __initdata = {
+	imx_map_entry(MX25, AVIC, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX25, AIPS1, MT_DEVICE_NONSHARED),
+	imx_map_entry(MX25, AIPS2, MT_DEVICE_NONSHARED),
 };
 
 /*
@@ -62,14 +49,14 @@ void __init mx25_map_io(void)
 	mxc_iomux_v3_init(MX25_IO_ADDRESS(MX25_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX25_IO_ADDRESS(MX25_WDOG_BASE_ADDR));
 
-	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
+	iotable_init(mx25_io_desc, ARRAY_SIZE(mx25_io_desc));
 }
 
 int imx25_register_gpios(void);
 
 void __init mx25_init_irq(void)
 {
-	mxc_init_irq((void __iomem *)MX25_AVIC_BASE_ADDR_VIRT);
+	mxc_init_irq(MX25_IO_ADDRESS(MX25_AVIC_BASE_ADDR));
 	imx25_register_gpios();
 }
 

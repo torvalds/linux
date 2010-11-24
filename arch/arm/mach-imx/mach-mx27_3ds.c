@@ -22,7 +22,6 @@
 
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <linux/input/matrix_keypad.h>
 #include <linux/irq.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -30,10 +29,8 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx27.h>
-#include <mach/mmc.h>
 
 #include "devices-imx27.h"
-#include "devices.h"
 
 #define SD1_EN_GPIO (GPIO_PORTB + 25)
 
@@ -92,7 +89,7 @@ static const uint32_t mx27_3ds_keymap[] = {
 	KEY(2, 3, KEY_F10),
 };
 
-static struct matrix_keymap_data mx27_3ds_keymap_data = {
+static const struct matrix_keymap_data mx27_3ds_keymap_data __initconst = {
 	.keymap		= mx27_3ds_keymap,
 	.keymap_size	= ARRAY_SIZE(mx27_3ds_keymap),
 };
@@ -109,7 +106,7 @@ static void mx27_3ds_sdhc1_exit(struct device *dev, void *data)
 	free_irq(IRQ_GPIOB(26), data);
 }
 
-static struct imxmmc_platform_data sdhc1_pdata = {
+static const struct imxmmc_platform_data sdhc1_pdata __initconst = {
 	.init = mx27_3ds_sdhc1_init,
 	.exit = mx27_3ds_sdhc1_exit,
 };
@@ -128,8 +125,8 @@ static void __init mx27pdk_init(void)
 	mx27_3ds_sdhc1_enable_level_translator();
 	imx27_add_imx_uart0(&uart_pdata);
 	imx27_add_fec(NULL);
-	mxc_register_device(&imx_kpp_device, &mx27_3ds_keymap_data);
-	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
+	imx27_add_imx_keypad(&mx27_3ds_keymap_data);
+	imx27_add_mxc_mmc(0, &sdhc1_pdata);
 }
 
 static void __init mx27pdk_timer_init(void)

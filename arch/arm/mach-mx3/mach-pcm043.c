@@ -27,7 +27,6 @@
 #include <linux/i2c/at24.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
-#include <linux/fsl_devices.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,7 +38,6 @@
 #include <mach/iomux-mx35.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
-#include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 #include <mach/audmux.h>
 
@@ -140,7 +138,6 @@ static struct i2c_board_info pcm043_i2c_devices[] = {
 
 static struct platform_device *devices[] __initdata = {
 	&pcm043_flash,
-	&imx_wdt_device0,
 };
 
 static struct pad_desc pcm043_pads[] = {
@@ -311,19 +308,19 @@ pcm037_nand_board_info __initconst = {
 };
 
 #if defined(CONFIG_USB_ULPI)
-static struct mxc_usbh_platform_data otg_pdata = {
+static struct mxc_usbh_platform_data otg_pdata __initdata = {
 	.portsc	= MXC_EHCI_MODE_UTMI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
-static struct mxc_usbh_platform_data usbh1_pdata = {
+static const struct mxc_usbh_platform_data usbh1_pdata __initconst = {
 	.portsc	= MXC_EHCI_MODE_SERIAL,
 	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
 		  MXC_EHCI_IPPUE_DOWN,
 };
 #endif
 
-static struct fsl_usb2_platform_data otg_device_pdata = {
+static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
 	.phy_mode       = FSL_USB2_PHY_UTMI,
 };
@@ -364,6 +361,7 @@ static void __init mxc_board_init(void)
 
 	imx35_add_fec(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	imx35_add_imx2_wdt(NULL);
 
 	imx35_add_imx_uart0(&uart_pdata);
 	imx35_add_mxc_nand(&pcm037_nand_board_info);
@@ -386,16 +384,16 @@ static void __init mxc_board_init(void)
 		otg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
 				ULPI_OTG_DRVVBUS | ULPI_OTG_DRVVBUS_EXT);
 
-		mxc_register_device(&mxc_otg_host, &otg_pdata);
+		imx35_add_mxc_ehci_otg(&otg_pdata);
 	}
 
-	mxc_register_device(&mxc_usbh1, &usbh1_pdata);
+	imx35_add_mxc_ehci_hs(&usbh1_pdata);
 #endif
 	if (!otg_mode_host)
-		mxc_register_device(&mxc_otg_udc_device, &otg_device_pdata);
+		imx35_add_fsl_usb2_udc(&otg_device_pdata);
 
 	imx35_add_flexcan1(NULL);
-	imx35_add_esdhc(0, NULL);
+	imx35_add_sdhci_esdhc_imx(0, NULL);
 }
 
 static void __init pcm043_timer_init(void)

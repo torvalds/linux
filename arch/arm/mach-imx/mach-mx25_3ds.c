@@ -39,11 +39,9 @@
 #include <asm/mach/map.h>
 #include <mach/common.h>
 #include <mach/mx25.h>
-#include <mach/imxfb.h>
 #include <mach/iomux-mx25.h>
 
 #include "devices-imx25.h"
-#include "devices.h"
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
@@ -107,7 +105,7 @@ static struct pad_desc mx25pdk_pads[] = {
 };
 
 static const struct fec_platform_data mx25_fec_pdata __initconst = {
-        .phy    = PHY_INTERFACE_MODE_RMII,
+	.phy    = PHY_INTERFACE_MODE_RMII,
 };
 
 #define FEC_ENABLE_GPIO		35
@@ -154,7 +152,7 @@ static struct imx_fb_videomode mx25pdk_modes[] = {
 	},
 };
 
-static struct imx_fb_platform_data mx25pdk_fb_pdata = {
+static const struct imx_fb_platform_data mx25pdk_fb_pdata __initconst = {
 	.mode		= mx25pdk_modes,
 	.num_modes	= ARRAY_SIZE(mx25pdk_modes),
 	.pwmr		= 0x00A903FF,
@@ -181,7 +179,7 @@ static const uint32_t mx25pdk_keymap[] = {
 	KEY(3, 3, KEY_POWER),
 };
 
-static struct matrix_keymap_data mx25pdk_keymap_data = {
+static const struct matrix_keymap_data mx25pdk_keymap_data __initdata = {
 	.keymap		= mx25pdk_keymap,
 	.keymap_size	= ARRAY_SIZE(mx25pdk_keymap),
 };
@@ -192,17 +190,17 @@ static void __init mx25pdk_init(void)
 			ARRAY_SIZE(mx25pdk_pads));
 
 	imx25_add_imx_uart0(&uart_pdata);
-	mxc_register_device(&mxc_usbh2, NULL);
+	imx25_add_mxc_ehci_hs(NULL);
 	imx25_add_mxc_nand(&mx25pdk_nand_board_info);
-	mxc_register_device(&mx25_rtc_device, NULL);
-	mxc_register_device(&mx25_fb_device, &mx25pdk_fb_pdata);
-	mxc_register_device(&mxc_wdt, NULL);
+	imx25_add_imxdi_rtc(NULL);
+	imx25_add_imx_fb(&mx25pdk_fb_pdata);
+	imx25_add_imx2_wdt(NULL);
 
 	mx25pdk_fec_reset();
 	imx25_add_fec(&mx25_fec_pdata);
-	mxc_register_device(&mx25_kpp_device, &mx25pdk_keymap_data);
+	imx25_add_imx_keypad(&mx25pdk_keymap_data);
 
-	imx25_add_esdhc(0, NULL);
+	imx25_add_sdhci_esdhc_imx(0, NULL);
 }
 
 static void __init mx25pdk_timer_init(void)

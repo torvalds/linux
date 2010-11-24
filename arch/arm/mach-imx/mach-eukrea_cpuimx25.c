@@ -26,7 +26,6 @@
 #include <linux/platform_device.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
-#include <linux/fsl_devices.h>
 
 #include <mach/eukrea-baseboards.h>
 #include <mach/hardware.h>
@@ -39,11 +38,9 @@
 #include <mach/mx25.h>
 #include <mach/mxc_nand.h>
 #include <mach/imxfb.h>
-#include <mach/mxc_ehci.h>
 #include <mach/iomux-mx25.h>
 
 #include "devices-imx25.h"
-#include "devices.h"
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
@@ -87,18 +84,18 @@ static struct i2c_board_info eukrea_cpuimx25_i2c_devices[] = {
 	},
 };
 
-static struct mxc_usbh_platform_data otg_pdata = {
+static const struct mxc_usbh_platform_data otg_pdata __initconst = {
 	.portsc	= MXC_EHCI_MODE_UTMI,
 	.flags	= MXC_EHCI_INTERFACE_DIFF_UNI,
 };
 
-static struct mxc_usbh_platform_data usbh2_pdata = {
+static const struct mxc_usbh_platform_data usbh2_pdata __initconst = {
 	.portsc	= MXC_EHCI_MODE_SERIAL,
 	.flags	= MXC_EHCI_INTERFACE_SINGLE_UNI | MXC_EHCI_INTERNAL_PHY |
 		  MXC_EHCI_IPPUE_DOWN,
 };
 
-static struct fsl_usb2_platform_data otg_device_pdata = {
+static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
 	.operating_mode = FSL_USB2_DR_DEVICE,
 	.phy_mode       = FSL_USB2_PHY_UTMI,
 };
@@ -126,7 +123,7 @@ static void __init eukrea_cpuimx25_init(void)
 
 	imx25_add_imx_uart0(&uart_pdata);
 	imx25_add_mxc_nand(&eukrea_cpuimx25_nand_board_info);
-	mxc_register_device(&mx25_rtc_device, NULL);
+	imx25_add_imxdi_rtc(NULL);
 	imx25_add_fec(&mx25_fec_pdata);
 
 	i2c_register_board_info(0, eukrea_cpuimx25_i2c_devices,
@@ -134,11 +131,11 @@ static void __init eukrea_cpuimx25_init(void)
 	imx25_add_imx_i2c0(&eukrea_cpuimx25_i2c0_data);
 
 	if (otg_mode_host)
-		mxc_register_device(&mxc_otg, &otg_pdata);
+		imx25_add_mxc_ehci_otg(&otg_pdata);
 	else
-		mxc_register_device(&otg_udc_device, &otg_device_pdata);
+		imx25_add_fsl_usb2_udc(&otg_device_pdata);
 
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+	imx25_add_mxc_ehci_hs(&usbh2_pdata);
 
 #ifdef CONFIG_MACH_EUKREA_MBIMXSD25_BASEBOARD
 	eukrea_mbimxsd25_baseboard_init();

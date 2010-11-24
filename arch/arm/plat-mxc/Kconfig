@@ -21,10 +21,6 @@ config ARCH_MX2
 
 config ARCH_MX25
 	bool "MX25-based"
-	select CPU_ARM926T
-	select ARCH_MXC_IOMUX_V3
-	select HAVE_FB_IMX
-	select ARCH_MXC_AUDMUX_V2
 	help
 	  This enables support for systems based on the Freescale i.MX25 family
 
@@ -51,7 +47,6 @@ endchoice
 
 source "arch/arm/mach-imx/Kconfig"
 source "arch/arm/mach-mx3/Kconfig"
-source "arch/arm/mach-mx25/Kconfig"
 source "arch/arm/mach-mxc91231/Kconfig"
 source "arch/arm/mach-mx5/Kconfig"
 
