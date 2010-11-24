@@ -210,6 +210,32 @@ static struct i2c_adapter ocores_adapter = {
 	.algo		= &ocores_algorithm,
 };
 
+#ifdef CONFIG_OF
+static int ocores_i2c_of_probe(struct platform_device* pdev,
+				struct ocores_i2c* i2c)
+{
+	__be32* val;
+
+	val = of_get_property(pdev->dev.of_node, "regstep", NULL);
+	if (!val) {
+		dev_err(&pdev->dev, "Missing required parameter 'regstep'");
+		return -ENODEV;
+	}
+	i2c->regstep = be32_to_cpup(val);
+
+	val = of_get_property(pdev->dev.of_node, "clock-frequency", NULL);
+	if (!val) {
+		dev_err(&pdev->dev,
+			"Missing required parameter 'clock-frequency'");
+		return -ENODEV;
+	}
+	i2c->clock_khz = be32_to_cpup(val) / 1000;
+
+	return 0;
+}
+#else
+#define ocores_i2c_of_probe(pdev,i2c) -ENODEV
+#endif
 
 static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 {
@@ -225,10 +251,6 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 
 	res2 = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res2)
-		return -ENODEV;
-
-	pdata = (struct ocores_i2c_platform_data*) pdev->dev.platform_data;
-	if (!pdata)
 		return -ENODEV;
 
 	i2c = kzalloc(sizeof(*i2c), GFP_KERNEL);
@@ -249,8 +271,16 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 		goto map_failed;
 	}
 
-	i2c->regstep = pdata->regstep;
-	i2c->clock_khz = pdata->clock_khz;
+	pdata = pdev->dev.platform_data;
+	if (pdata) {
+		i2c->regstep = pdata->regstep;
+		i2c->clock_khz = pdata->clock_khz;
+	} else {
+		ret = ocores_i2c_of_probe(pdev, i2c);
+		if (ret)
+			return ret;
+	}
+
 	ocores_init(i2c);
 
 	init_waitqueue_head(&i2c->wait);
@@ -265,6 +295,9 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 	i2c->adap = ocores_adapter;
 	i2c_set_adapdata(&i2c->adap, i2c);
 	i2c->adap.dev.parent = &pdev->dev;
+#ifdef CONFIG_OF
+	i2c->adap.dev.of_node = pdev->dev.of_node;
+#endif
 
 	/* add i2c adapter to i2c tree */
 	ret = i2c_add_adapter(&i2c->adap);
@@ -274,8 +307,10 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 	}
 
 	/* add in known devices to the bus */
-	for (i = 0; i < pdata->num_devices; i++)
-		i2c_new_device(&i2c->adap, pdata->devices + i);
+	if (pdata) {
+		for (i = 0; i < pdata->num_devices; i++)
+			i2c_new_device(&i2c->adap, pdata->devices + i);
+	}
 
 	return 0;
 
@@ -344,6 +379,16 @@ static int ocores_i2c_resume(struct platform_device *pdev)
 #define ocores_i2c_resume	NULL
 #endif
 
+#ifdef CONFIG_OF
+static struct of_device_id ocores_i2c_match[] = {
+        {
+                .compatible = "opencores,i2c-ocores",
+        },
+        {},
+};
+MODULE_DEVICE_TABLE(of, ocores_i2c_match);
+#endif
+
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:ocores-i2c");
 
@@ -355,6 +400,9 @@ static struct platform_driver ocores_i2c_driver = {
 	.driver  = {
 		.owner = THIS_MODULE,
 		.name = "ocores-i2c",
+#ifdef CONFIG_OF
+                .of_match_table = ocores_i2c_match,
+#endif
 	},
 };
 
