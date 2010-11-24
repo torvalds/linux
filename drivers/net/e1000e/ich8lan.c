@@ -3591,7 +3591,7 @@ void e1000e_disable_gig_wol_ich8lan(struct e1000_hw *hw)
 	ew32(PHY_CTRL, phy_ctrl);
 
 	if (hw->mac.type >= e1000_pchlan) {
-		e1000_oem_bits_config_ich8lan(hw, true);
+		e1000_oem_bits_config_ich8lan(hw, false);
 		ret_val = hw->phy.ops.acquire(hw);
 		if (ret_val)
 			return;
