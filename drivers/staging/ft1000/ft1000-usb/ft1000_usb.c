@@ -204,9 +204,9 @@ static int ft1000_probe(struct usb_interface *interface,
 
 	return 0;
 
-err_load:
-	kthread_stop(pft1000info->pPollThread);
 err_thread:
+	kthread_stop(pft1000info->pPollThread);
+err_load:
 	kfree(pFileStart);
 err_fw:
 	kfree(ft1000dev);
