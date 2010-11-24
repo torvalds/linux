@@ -768,6 +768,23 @@ static void __init reset_ctrl_regs(void *unused)
 {
 	int i;
 
+	/*
+	 * v7 debug contains save and restore registers so that debug state
+	 * can be maintained across low-power modes without leaving
+	 * the debug logic powered up. It is IMPLEMENTATION DEFINED whether
+	 * we can write to the debug registers out of reset, so we must
+	 * unlock the OS Lock Access Register to avoid taking undefined
+	 * instruction exceptions later on.
+	 */
+	if (debug_arch >= ARM_DEBUG_ARCH_V7_ECP14) {
+		/*
+		 * Unconditionally clear the lock by writing a value
+		 * other than 0xC5ACCE55 to the access register.
+		 */
+		asm volatile("mcr p14, 0, %0, c1, c0, 4" : : "r" (0));
+		isb();
+	}
+
 	if (enable_monitor_mode())
 		return;
 
@@ -810,17 +827,17 @@ static int __init arch_hw_breakpoint_init(void)
 		pr_warning("halting debug mode enabled. Assuming maximum "
 				"watchpoint size of 4 bytes.");
 	} else {
-		/* Work out the maximum supported watchpoint length. */
-		max_watchpoint_len = get_max_wp_len();
-		pr_info("maximum watchpoint size is %u bytes.\n",
-				max_watchpoint_len);
-
 		/*
 		 * Reset the breakpoint resources. We assume that a halting
 		 * debugger will leave the world in a nice state for us.
 		 */
 		smp_call_function(reset_ctrl_regs, NULL, 1);
 		reset_ctrl_regs(NULL);
+
+		/* Work out the maximum supported watchpoint length. */
+		max_watchpoint_len = get_max_wp_len();
+		pr_info("maximum watchpoint size is %u bytes.\n",
+				max_watchpoint_len);
 	}
 
 	/* Register debug fault handler. */
