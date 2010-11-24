@@ -1037,8 +1037,6 @@ static int sep_allocate_data_pool_memory_handler(struct sep_device *sep,
 		sizeof(struct alloc_struct));
 	if (error) {
 		error = -EFAULT;
-		dev_warn(&sep->pdev->dev,
-			"allocate data pool copy to user error\n");
 		goto end_function;
 	}
 
@@ -1083,13 +1081,10 @@ static int sep_lock_kernel_pages(struct sep_device *sep,
 	/* Map array */
 	struct sep_dma_map *map_array;
 
-	dev_dbg(&sep->pdev->dev,
-		"sep_lock_kernel_pages start\n");
-
-	dev_dbg(&sep->pdev->dev,
-		"kernel_virt_addr is %08x\n", kernel_virt_addr);
-	dev_dbg(&sep->pdev->dev,
-		"data_size is %x\n", data_size);
+	dev_dbg(&sep->pdev->dev, "sep_lock_kernel_pages start\n");
+	dev_dbg(&sep->pdev->dev, "kernel_virt_addr is %08x\n",
+							kernel_virt_addr);
+	dev_dbg(&sep->pdev->dev, "data_size is %x\n", data_size);
 
 	lli_array = kmalloc(sizeof(struct sep_lli_entry), GFP_ATOMIC);
 	if (!lli_array) {
@@ -1182,8 +1177,7 @@ static int sep_lock_user_pages(struct sep_device *sep,
 	/* Direction of the DMA mapping for locked pages */
 	enum dma_data_direction	dir;
 
-	dev_dbg(&sep->pdev->dev,
-		"sep_lock_user_pages start\n");
+	dev_dbg(&sep->pdev->dev, "sep_lock_user_pages start\n");
 
 	/* Set start and end pages  and num pages */
 	end_page = (app_virt_addr + data_size - 1) >> PAGE_SHIFT;
