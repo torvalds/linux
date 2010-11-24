@@ -245,13 +245,6 @@ static int lp5521_configure(struct i2c_client *client,
 
 	lp5521_init_engine(chip, attr_group);
 
-	lp5521_write(client, LP5521_REG_RESET, 0xff);
-
-	usleep_range(10000, 20000); /*
-				     * Exact value is not available. 10 - 20ms
-				     * appears to be enough for reset.
-				     */
-
 	/* Set all PWMs to direct control mode */
 	ret = lp5521_write(client, LP5521_REG_OP_MODE, 0x3F);
 
@@ -716,6 +709,11 @@ static int lp5521_probe(struct i2c_client *client,
 		usleep_range(1000, 2000); /* 500us abs min. */
 	}
 
+	lp5521_write(client, LP5521_REG_RESET, 0xff);
+	usleep_range(10000, 20000); /*
+				     * Exact value is not available. 10 - 20ms
+				     * appears to be enough for reset.
+				     */
 	ret = lp5521_detect(client);
 
 	if (ret) {
