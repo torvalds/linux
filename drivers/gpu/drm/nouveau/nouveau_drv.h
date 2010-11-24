@@ -240,6 +240,7 @@ struct nouveau_channel {
 	/* PFIFO context */
 	struct nouveau_gpuobj *ramfc;
 	struct nouveau_gpuobj *cache;
+	void *fifo_priv;
 
 	/* PGRAPH context */
 	/* XXX may be merge 2 pointers as private data ??? */
@@ -337,6 +338,7 @@ struct nouveau_fb_engine {
 };
 
 struct nouveau_fifo_engine {
+	void *priv;
 	int  channels;
 
 	struct nouveau_gpuobj *playlist[2];
