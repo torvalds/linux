@@ -7860,18 +7860,21 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		tw32(GRC_MODE, grc_mode);
 	}
 
-	if (tp->pci_chip_rev_id == CHIPREV_ID_57765_A0) {
-		u32 grc_mode = tr32(GRC_MODE);
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765) {
+		if (tp->pci_chip_rev_id == CHIPREV_ID_57765_A0) {
+			u32 grc_mode = tr32(GRC_MODE);
 
-		/* Access the lower 1K of PL PCIE block registers. */
-		val = grc_mode & ~GRC_MODE_PCIE_PORT_MASK;
-		tw32(GRC_MODE, val | GRC_MODE_PCIE_PL_SEL);
+			/* Access the lower 1K of PL PCIE block registers. */
+			val = grc_mode & ~GRC_MODE_PCIE_PORT_MASK;
+			tw32(GRC_MODE, val | GRC_MODE_PCIE_PL_SEL);
 
-		val = tr32(TG3_PCIE_TLDLPL_PORT + TG3_PCIE_PL_LO_PHYCTL5);
-		tw32(TG3_PCIE_TLDLPL_PORT + TG3_PCIE_PL_LO_PHYCTL5,
-		     val | TG3_PCIE_PL_LO_PHYCTL5_DIS_L2CLKREQ);
+			val = tr32(TG3_PCIE_TLDLPL_PORT +
+				   TG3_PCIE_PL_LO_PHYCTL5);
+			tw32(TG3_PCIE_TLDLPL_PORT + TG3_PCIE_PL_LO_PHYCTL5,
+			     val | TG3_PCIE_PL_LO_PHYCTL5_DIS_L2CLKREQ);
 
-		tw32(GRC_MODE, grc_mode);
+			tw32(GRC_MODE, grc_mode);
+		}
 
 		val = tr32(TG3_CPMU_LSPD_10MB_CLK);
 		val &= ~CPMU_LSPD_10MB_MACCLK_MASK;
