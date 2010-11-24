@@ -2715,17 +2715,17 @@ struct tg3_napi {
 	u32				last_irq_tag;
 	u32				int_mbox;
 	u32				coal_now;
-	u32				tx_prod;
-	u32				tx_cons;
-	u32				tx_pending;
-	u32				prodmbox;
 
-	u32				consmbox;
+	u32				consmbox ____cacheline_aligned;
 	u32				rx_rcb_ptr;
 	u16				*rx_rcb_prod_idx;
 	struct tg3_rx_prodring_set	prodring;
-
 	struct tg3_rx_buffer_desc	*rx_rcb;
+
+	u32				tx_prod	____cacheline_aligned;
+	u32				tx_cons;
+	u32				tx_pending;
+	u32				prodmbox;
 	struct tg3_tx_buffer_desc	*tx_ring;
 	struct ring_info		*tx_buffers;
 
