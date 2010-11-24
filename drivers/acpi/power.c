@@ -213,11 +213,13 @@ static int acpi_power_on(acpi_handle handle)
 				  resource->name));
 	} else {
 		result = __acpi_power_on(resource);
+		if (result)
+			resource->ref_count--;
 	}
 
 	mutex_unlock(&resource->resource_lock);
 
-	return 0;
+	return result;
 }
 
 static int acpi_power_off_device(acpi_handle handle)
