@@ -6337,13 +6337,13 @@ static void tg3_rx_prodring_fini(struct tg3 *tp,
 	kfree(tpr->rx_jmb_buffers);
 	tpr->rx_jmb_buffers = NULL;
 	if (tpr->rx_std) {
-		pci_free_consistent(tp->pdev, TG3_RX_STD_RING_BYTES(tp),
-				    tpr->rx_std, tpr->rx_std_mapping);
+		dma_free_coherent(&tp->pdev->dev, TG3_RX_STD_RING_BYTES(tp),
+				  tpr->rx_std, tpr->rx_std_mapping);
 		tpr->rx_std = NULL;
 	}
 	if (tpr->rx_jmb) {
-		pci_free_consistent(tp->pdev, TG3_RX_JMB_RING_BYTES(tp),
-				    tpr->rx_jmb, tpr->rx_jmb_mapping);
+		dma_free_coherent(&tp->pdev->dev, TG3_RX_JMB_RING_BYTES(tp),
+				  tpr->rx_jmb, tpr->rx_jmb_mapping);
 		tpr->rx_jmb = NULL;
 	}
 }
@@ -6356,8 +6356,10 @@ static int tg3_rx_prodring_init(struct tg3 *tp,
 	if (!tpr->rx_std_buffers)
 		return -ENOMEM;
 
-	tpr->rx_std = pci_alloc_consistent(tp->pdev, TG3_RX_STD_RING_BYTES(tp),
-					   &tpr->rx_std_mapping);
+	tpr->rx_std = dma_alloc_coherent(&tp->pdev->dev,
+					 TG3_RX_STD_RING_BYTES(tp),
+					 &tpr->rx_std_mapping,
+					 GFP_KERNEL);
 	if (!tpr->rx_std)
 		goto err_out;
 
@@ -6368,9 +6370,10 @@ static int tg3_rx_prodring_init(struct tg3 *tp,
 		if (!tpr->rx_jmb_buffers)
 			goto err_out;
 
-		tpr->rx_jmb = pci_alloc_consistent(tp->pdev,
-						   TG3_RX_JMB_RING_BYTES(tp),
-						   &tpr->rx_jmb_mapping);
+		tpr->rx_jmb = dma_alloc_coherent(&tp->pdev->dev,
+						 TG3_RX_JMB_RING_BYTES(tp),
+						 &tpr->rx_jmb_mapping,
+						 GFP_KERNEL);
 		if (!tpr->rx_jmb)
 			goto err_out;
 	}
@@ -6489,7 +6492,7 @@ static void tg3_free_consistent(struct tg3 *tp)
 		struct tg3_napi *tnapi = &tp->napi[i];
 
 		if (tnapi->tx_ring) {
-			pci_free_consistent(tp->pdev, TG3_TX_RING_BYTES,
+			dma_free_coherent(&tp->pdev->dev, TG3_TX_RING_BYTES,
 				tnapi->tx_ring, tnapi->tx_desc_mapping);
 			tnapi->tx_ring = NULL;
 		}
@@ -6498,25 +6501,26 @@ static void tg3_free_consistent(struct tg3 *tp)
 		tnapi->tx_buffers = NULL;
 
 		if (tnapi->rx_rcb) {
-			pci_free_consistent(tp->pdev, TG3_RX_RCB_RING_BYTES(tp),
-					    tnapi->rx_rcb,
-					    tnapi->rx_rcb_mapping);
+			dma_free_coherent(&tp->pdev->dev,
+					  TG3_RX_RCB_RING_BYTES(tp),
+					  tnapi->rx_rcb,
+					  tnapi->rx_rcb_mapping);
 			tnapi->rx_rcb = NULL;
 		}
 
 		tg3_rx_prodring_fini(tp, &tnapi->prodring);
 
 		if (tnapi->hw_status) {
-			pci_free_consistent(tp->pdev, TG3_HW_STATUS_SIZE,
-					    tnapi->hw_status,
-					    tnapi->status_mapping);
+			dma_free_coherent(&tp->pdev->dev, TG3_HW_STATUS_SIZE,
+					  tnapi->hw_status,
+					  tnapi->status_mapping);
 			tnapi->hw_status = NULL;
 		}
 	}
 
 	if (tp->hw_stats) {
-		pci_free_consistent(tp->pdev, sizeof(struct tg3_hw_stats),
-				    tp->hw_stats, tp->stats_mapping);
+		dma_free_coherent(&tp->pdev->dev, sizeof(struct tg3_hw_stats),
+				  tp->hw_stats, tp->stats_mapping);
 		tp->hw_stats = NULL;
 	}
 }
@@ -6529,9 +6533,10 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 {
 	int i;
 
-	tp->hw_stats = pci_alloc_consistent(tp->pdev,
-					    sizeof(struct tg3_hw_stats),
-					    &tp->stats_mapping);
+	tp->hw_stats = dma_alloc_coherent(&tp->pdev->dev,
+					  sizeof(struct tg3_hw_stats),
+					  &tp->stats_mapping,
+					  GFP_KERNEL);
 	if (!tp->hw_stats)
 		goto err_out;
 
@@ -6541,9 +6546,10 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 		struct tg3_napi *tnapi = &tp->napi[i];
 		struct tg3_hw_status *sblk;
 
-		tnapi->hw_status = pci_alloc_consistent(tp->pdev,
-							TG3_HW_STATUS_SIZE,
-							&tnapi->status_mapping);
+		tnapi->hw_status = dma_alloc_coherent(&tp->pdev->dev,
+						      TG3_HW_STATUS_SIZE,
+						      &tnapi->status_mapping,
+						      GFP_KERNEL);
 		if (!tnapi->hw_status)
 			goto err_out;
 
@@ -6564,9 +6570,10 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 			if (!tnapi->tx_buffers)
 				goto err_out;
 
-			tnapi->tx_ring = pci_alloc_consistent(tp->pdev,
-							      TG3_TX_RING_BYTES,
-						       &tnapi->tx_desc_mapping);
+			tnapi->tx_ring = dma_alloc_coherent(&tp->pdev->dev,
+							    TG3_TX_RING_BYTES,
+							&tnapi->tx_desc_mapping,
+							    GFP_KERNEL);
 			if (!tnapi->tx_ring)
 				goto err_out;
 		}
@@ -6599,9 +6606,10 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 		if (!i && (tp->tg3_flags3 & TG3_FLG3_ENABLE_RSS))
 			continue;
 
-		tnapi->rx_rcb = pci_alloc_consistent(tp->pdev,
-						     TG3_RX_RCB_RING_BYTES(tp),
-						     &tnapi->rx_rcb_mapping);
+		tnapi->rx_rcb = dma_alloc_coherent(&tp->pdev->dev,
+						   TG3_RX_RCB_RING_BYTES(tp),
+						   &tnapi->rx_rcb_mapping,
+						   GFP_KERNEL);
 		if (!tnapi->rx_rcb)
 			goto err_out;
 
@@ -14208,7 +14216,8 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 	u32 *buf, saved_dma_rwctrl;
 	int ret = 0;
 
-	buf = pci_alloc_consistent(tp->pdev, TEST_BUFFER_SIZE, &buf_dma);
+	buf = dma_alloc_coherent(&tp->pdev->dev, TEST_BUFFER_SIZE,
+				 &buf_dma, GFP_KERNEL);
 	if (!buf) {
 		ret = -ENOMEM;
 		goto out_nofree;
@@ -14392,7 +14401,7 @@ static int __devinit tg3_test_dma(struct tg3 *tp)
 	}
 
 out:
-	pci_free_consistent(tp->pdev, TEST_BUFFER_SIZE, buf, buf_dma);
+	dma_free_coherent(&tp->pdev->dev, TEST_BUFFER_SIZE, buf, buf_dma);
 out_nofree:
 	return ret;
 }
