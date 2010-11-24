@@ -34,9 +34,9 @@
 #define SEEK_MAX	SEEK_END
 
 struct fstrim_range {
-	uint64_t start;
-	uint64_t len;
-	uint64_t minlen;
+	__u64 start;
+	__u64 len;
+	__u64 minlen;
 };
 
 /* And dynamically-tunable limits and defaults: */
