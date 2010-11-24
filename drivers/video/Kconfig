@@ -657,6 +657,58 @@ config FB_BF537_LQ035
 	  To compile this driver as a module, choose M here: the
 	  module will be called bf537-lq035.
 
+config FB_BFIN_7393
+	tristate "Blackfin ADV7393 Video encoder"
+	depends on FB && BLACKFIN
+	select I2C
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This is the framebuffer device for a ADV7393 video encoder
+	  attached to a Blackfin on the PPI port.
+	  If your Blackfin board has a ADV7393 select Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bfin_adv7393fb.
+
+choice
+	prompt  "Video mode support"
+	depends on FB_BFIN_7393
+	default NTSC
+
+config NTSC
+	bool 'NTSC 720x480'
+
+config PAL
+	bool 'PAL 720x576'
+
+config NTSC_640x480
+	bool 'NTSC 640x480 (Experimental)'
+
+config PAL_640x480
+	bool 'PAL 640x480 (Experimental)'
+
+config NTSC_YCBCR
+	bool 'NTSC 720x480 YCbCR input'
+
+config PAL_YCBCR
+	bool 'PAL 720x576 YCbCR input'
+
+endchoice
+
+choice
+	prompt  "Size of ADV7393 frame buffer memory Single/Double Size"
+	depends on (FB_BFIN_7393)
+	default ADV7393_1XMEM
+
+config ADV7393_1XMEM
+	bool 'Single'
+
+config ADV7393_2XMEM
+	bool 'Double'
+endchoice
+
 config FB_STI
 	tristate "HP STI frame buffer device support"
 	depends on FB && PARISC
