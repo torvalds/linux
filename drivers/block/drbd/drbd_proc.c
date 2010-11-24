@@ -34,6 +34,7 @@
 #include "drbd_int.h"
 
 static int drbd_proc_open(struct inode *inode, struct file *file);
+static int drbd_proc_release(struct inode *inode, struct file *file);
 
 
 struct proc_dir_entry *drbd_proc;
@@ -42,7 +43,7 @@ const struct file_operations drbd_proc_fops = {
 	.open		= drbd_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= single_release,
+	.release	= drbd_proc_release,
 };
 
 void seq_printf_with_thousands_grouping(struct seq_file *seq, long v)
@@ -304,7 +305,15 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 
 static int drbd_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, drbd_seq_show, PDE(inode)->data);
+	if (try_module_get(THIS_MODULE))
+		return single_open(file, drbd_seq_show, PDE(inode)->data);
+	return -ENODEV;
+}
+
+static int drbd_proc_release(struct inode *inode, struct file *file)
+{
+	module_put(THIS_MODULE);
+	return single_release(inode, file);
 }
 
 /* PROC FS stuff end */
