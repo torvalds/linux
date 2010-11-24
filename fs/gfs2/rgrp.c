@@ -583,7 +583,7 @@ static int read_rindex_entry(struct gfs2_inode *ip,
  * Returns: 0 on successful update, error code otherwise
  */
 
-static int gfs2_ri_update(struct gfs2_inode *ip)
+int gfs2_ri_update(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct inode *inode = &ip->i_inode;
