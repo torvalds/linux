@@ -514,7 +514,8 @@ extern struct e1000_info e1000_pch_info;
 extern struct e1000_info e1000_pch2_info;
 extern struct e1000_info e1000_es2_info;
 
-extern s32 e1000e_read_pba_num(struct e1000_hw *hw, u32 *pba_num);
+extern s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
+					 u32 pba_num_size);
 
 extern s32  e1000e_commit_phy(struct e1000_hw *hw);
 

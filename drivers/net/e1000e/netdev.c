@@ -5626,7 +5626,8 @@ static void e1000_print_device_info(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
-	u32 pba_num;
+	u32 ret_val;
+	u8 pba_str[E1000_PBANUM_LENGTH];
 
 	/* print bus type/speed/width info */
 	e_info("(PCI Express:2.5GB/s:%s) %pM\n",
@@ -5637,9 +5638,12 @@ static void e1000_print_device_info(struct e1000_adapter *adapter)
 	       netdev->dev_addr);
 	e_info("Intel(R) PRO/%s Network Connection\n",
 	       (hw->phy.type == e1000_phy_ife) ? "10/100" : "1000");
-	e1000e_read_pba_num(hw, &pba_num);
-	e_info("MAC: %d, PHY: %d, PBA No: %06x-%03x\n",
-	       hw->mac.type, hw->phy.type, (pba_num >> 8), (pba_num & 0xff));
+	ret_val = e1000_read_pba_string_generic(hw, pba_str,
+						E1000_PBANUM_LENGTH);
+	if (ret_val)
+		strcpy(pba_str, "Unknown");
+	e_info("MAC: %d, PHY: %d, PBA No: %s\n",
+	       hw->mac.type, hw->phy.type, pba_str);
 }
 
 static void e1000_eeprom_checks(struct e1000_adapter *adapter)
