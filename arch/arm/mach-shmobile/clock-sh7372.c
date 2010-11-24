@@ -471,7 +471,7 @@ static int fsidiv_set_rate(struct clk *clk,
 		return -ENOENT;
 
 	__raw_writel(idx << 16, clk->mapping->base);
-	return fsidiv_enable(clk);
+	return 0;
 }
 
 static struct clk_ops fsidiv_clk_ops = {

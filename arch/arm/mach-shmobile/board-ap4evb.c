@@ -567,40 +567,72 @@ static struct platform_device *qhd_devices[] __initdata = {
 
 /* FSI */
 #define IRQ_FSI		evt2irq(0x1840)
+static int __fsi_set_rate(struct clk *clk, long rate, int enable)
+{
+	int ret = 0;
 
-static int fsi_set_rate(int is_porta, int rate)
+	if (rate <= 0)
+		return ret;
+
+	if (enable) {
+		ret = clk_set_rate(clk, clk_round_rate(clk, rate));
+		if (0 == ret)
+			ret = clk_enable(clk);
+	} else {
+		clk_disable(clk);
+	}
+
+	return ret;
+}
+
+static int fsi_set_rate(struct device *dev, int is_porta, int rate, int enable)
 {
 	struct clk *fsib_clk;
 	struct clk *fdiv_clk = &sh7372_fsidivb_clk;
+	long fsib_rate = 0;
+	long fdiv_rate = 0;
+	int ackmd_bpfmd;
 	int ret;
 
 	/* set_rate is not needed if port A */
 	if (is_porta)
 		return 0;
 
-	fsib_clk = clk_get(NULL, "fsib_clk");
-	if (IS_ERR(fsib_clk))
-		return -EINVAL;
-
 	switch (rate) {
 	case 44100:
-		clk_set_rate(fsib_clk, clk_round_rate(fsib_clk, 11283000));
-		ret = SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
+		fsib_rate	= rate * 256;
+		ackmd_bpfmd	= SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
 		break;
 	case 48000:
-		clk_set_rate(fsib_clk, clk_round_rate(fsib_clk, 85428000));
-		clk_set_rate(fdiv_clk, clk_round_rate(fdiv_clk, 12204000));
-		ret = SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
+		fsib_rate	= 85428000; /* around 48kHz x 256 x 7 */
+		fdiv_rate	= rate * 256;
+		ackmd_bpfmd	= SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
 		break;
 	default:
 		pr_err("unsupported rate in FSI2 port B\n");
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 
-	clk_put(fsib_clk);
+	/* FSI B setting */
+	fsib_clk = clk_get(dev, "ickb");
+	if (IS_ERR(fsib_clk))
+		return -EIO;
 
-	return ret;
+	ret = __fsi_set_rate(fsib_clk, fsib_rate, enable);
+	clk_put(fsib_clk);
+	if (ret < 0)
+		return ret;
+
+	/* FSI DIV setting */
+	ret = __fsi_set_rate(fdiv_clk, fdiv_rate, enable);
+	if (ret < 0) {
+		/* disable FSI B */
+		if (enable)
+			__fsi_set_rate(fsib_clk, fsib_rate, 0);
+		return ret;
+	}
+
+	return ackmd_bpfmd;
 }
 
 static struct sh_fsi_platform_info fsi_info = {
