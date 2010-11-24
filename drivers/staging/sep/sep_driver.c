@@ -3343,15 +3343,12 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	}
 
 	/* allocate the sep_device structure for this device */
-	sep_dev = kmalloc(sizeof(struct sep_device), GFP_ATOMIC);
+	sep_dev = kzalloc(sizeof(struct sep_device), GFP_ATOMIC);
 	if (sep_dev == NULL) {
 		dev_warn(&pdev->dev,
 			"can't kmalloc the sep_device structure\n");
 		return -ENOMEM;
 	}
-
-	/* zero out sep structure */
-	memset((void *)sep_dev, 0, sizeof(struct sep_device));
 
 	/*
 	 * we're going to use another variable for actually
@@ -3365,8 +3362,6 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 
 	if (pdev->device == MRST_PCI_DEVICE_ID)
 		sep->mrst = 1;
-	else
-		sep->mrst = 0;
 
 	dev_dbg(&sep->pdev->dev, "PCI obtained, device being prepared\n");
 	dev_dbg(&sep->pdev->dev, "revision is %d\n", sep->pdev->revision);
@@ -3423,7 +3418,6 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 			goto end_function_deallocate_sep_shared_area;
 		}
 	} else {
-
 		sep->rar_size = FAKE_RAR_SIZE;
 		sep->rar_addr = dma_alloc_coherent(NULL,
 			sep->rar_size, &sep->rar_bus, GFP_KERNEL);
