@@ -552,6 +552,10 @@ nouveau_card_init_channel(struct drm_device *dev)
 	if (ret)
 		return ret;
 
+	/* no dma objects on fermi... */
+	if (dev_priv->card_type >= NV_C0)
+		goto out_done;
+
 	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
 				     0, dev_priv->vram_size,
 				     NV_MEM_ACCESS_RW, NV_MEM_TARGET_VRAM,
@@ -576,6 +580,7 @@ nouveau_card_init_channel(struct drm_device *dev)
 	if (ret)
 		goto out_err;
 
+out_done:
 	mutex_unlock(&dev_priv->channel->mutex);
 	return 0;
 
