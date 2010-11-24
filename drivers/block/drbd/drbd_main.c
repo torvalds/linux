@@ -3174,11 +3174,20 @@ static void drbd_cleanup(void)
 
 	unregister_reboot_notifier(&drbd_notifier);
 
+	/* first remove proc,
+	 * drbdsetup uses it's presence to detect
+	 * whether DRBD is loaded.
+	 * If we would get stuck in proc removal,
+	 * but have netlink already deregistered,
+	 * some drbdsetup commands may wait forever
+	 * for an answer.
+	 */
+	if (drbd_proc)
+		remove_proc_entry("drbd", NULL);
+
 	drbd_nl_cleanup();
 
 	if (minor_table) {
-		if (drbd_proc)
-			remove_proc_entry("drbd", NULL);
 		i = minor_count;
 		while (i--)
 			drbd_delete_device(i);
