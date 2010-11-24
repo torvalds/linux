@@ -128,8 +128,15 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	if (obj->gtt_space != NULL)
 		seq_printf(m, " (gtt offset: %08x, size: %08x)",
 			   obj->gtt_offset, (unsigned int)obj->gtt_space->size);
-	if (obj->pin_mappable || obj->fault_mappable)
-		seq_printf(m, " (mappable)");
+	if (obj->pin_mappable || obj->fault_mappable) {
+		char s[3], *t = s;
+		if (obj->pin_mappable)
+			*t++ = 'p';
+		if (obj->fault_mappable)
+			*t++ = 'f';
+		*t = '\0';
+		seq_printf(m, " (%s mappable)", s);
+	}
 	if (obj->ring != NULL)
 		seq_printf(m, " (%s)", obj->ring->name);
 }
@@ -191,28 +198,79 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+#define count_objects(list, member) do { \
+	list_for_each_entry(obj, list, member) { \
+		size += obj->gtt_space->size; \
+		++count; \
+		if (obj->map_and_fenceable) { \
+			mappable_size += obj->gtt_space->size; \
+			++mappable_count; \
+		} \
+	} \
+} while(0)
+
 static int i915_gem_object_info(struct seq_file *m, void* data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 count, mappable_count;
+	size_t size, mappable_size;
+	struct drm_i915_gem_object *obj;
 	int ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
-	seq_printf(m, "%u objects\n", dev_priv->mm.object_count);
-	seq_printf(m, "%zu object bytes\n", dev_priv->mm.object_memory);
-	seq_printf(m, "%u pinned\n", dev_priv->mm.pin_count);
-	seq_printf(m, "%zu pin bytes\n", dev_priv->mm.pin_memory);
-	seq_printf(m, "%u mappable objects in gtt\n", dev_priv->mm.gtt_mappable_count);
-	seq_printf(m, "%zu mappable gtt bytes\n", dev_priv->mm.gtt_mappable_memory);
-	seq_printf(m, "%zu mappable gtt used bytes\n", dev_priv->mm.mappable_gtt_used);
-	seq_printf(m, "%zu mappable gtt total\n", dev_priv->mm.mappable_gtt_total);
-	seq_printf(m, "%u objects in gtt\n", dev_priv->mm.gtt_count);
-	seq_printf(m, "%zu gtt bytes\n", dev_priv->mm.gtt_memory);
-	seq_printf(m, "%zu gtt total\n", dev_priv->mm.gtt_total);
+	seq_printf(m, "%u objects, %zu bytes\n",
+		   dev_priv->mm.object_count,
+		   dev_priv->mm.object_memory);
+
+	size = count = mappable_size = mappable_count = 0;
+	count_objects(&dev_priv->mm.gtt_list, gtt_list);
+	seq_printf(m, "%u [%u] objects, %zu [%zu] bytes in gtt\n",
+		   count, mappable_count, size, mappable_size);
+
+	size = count = mappable_size = mappable_count = 0;
+	count_objects(&dev_priv->mm.active_list, mm_list);
+	count_objects(&dev_priv->mm.flushing_list, mm_list);
+	seq_printf(m, "  %u [%u] active objects, %zu [%zu] bytes\n",
+		   count, mappable_count, size, mappable_size);
+
+	size = count = mappable_size = mappable_count = 0;
+	count_objects(&dev_priv->mm.pinned_list, mm_list);
+	seq_printf(m, "  %u [%u] pinned objects, %zu [%zu] bytes\n",
+		   count, mappable_count, size, mappable_size);
+
+	size = count = mappable_size = mappable_count = 0;
+	count_objects(&dev_priv->mm.inactive_list, mm_list);
+	seq_printf(m, "  %u [%u] inactive objects, %zu [%zu] bytes\n",
+		   count, mappable_count, size, mappable_size);
+
+	size = count = mappable_size = mappable_count = 0;
+	count_objects(&dev_priv->mm.deferred_free_list, mm_list);
+	seq_printf(m, "  %u [%u] freed objects, %zu [%zu] bytes\n",
+		   count, mappable_count, size, mappable_size);
+
+	size = count = mappable_size = mappable_count = 0;
+	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
+		if (obj->fault_mappable) {
+			size += obj->gtt_space->size;
+			++count;
+		}
+		if (obj->pin_mappable) {
+			mappable_size += obj->gtt_space->size;
+			++mappable_count;
+		}
+	}
+	seq_printf(m, "%u pinned mappable objects, %zu bytes\n",
+		   mappable_count, mappable_size);
+	seq_printf(m, "%u fault mappable objects, %zu bytes\n",
+		   count, size);
+
+	seq_printf(m, "%zu [%zu] gtt total\n",
+		   dev_priv->mm.gtt_total, dev_priv->mm.mappable_gtt_total);
 
 	mutex_unlock(&dev->struct_mutex);
 
