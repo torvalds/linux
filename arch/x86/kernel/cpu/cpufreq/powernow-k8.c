@@ -1537,6 +1537,7 @@ static struct notifier_block cpb_nb = {
 static int __cpuinit powernowk8_init(void)
 {
 	unsigned int i, supported_cpus = 0, cpu;
+	int rv;
 
 	for_each_online_cpu(i) {
 		int rc;
@@ -1574,7 +1575,13 @@ static int __cpuinit powernowk8_init(void)
 			(cpb_enabled ? "on" : "off"));
 	}
 
-	return cpufreq_register_driver(&cpufreq_amd64_driver);
+	rv = cpufreq_register_driver(&cpufreq_amd64_driver);
+	if (rv < 0 && boot_cpu_has(X86_FEATURE_CPB)) {
+		unregister_cpu_notifier(&cpb_nb);
+		msrs_free(msrs);
+		msrs = NULL;
+	}
+	return rv;
 }
 
 /* driver entry point for term */
