@@ -458,6 +458,8 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 		seq_printf(s, ",acl");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
 		seq_printf(s, ",mfsymlinks");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_FSCACHE)
+		seq_printf(s, ",fsc");
 
 	seq_printf(s, ",rsize=%d", cifs_sb->rsize);
 	seq_printf(s, ",wsize=%d", cifs_sb->wsize);
