@@ -247,6 +247,7 @@ struct css_set {
 
 	/* For RCU-protected deletion */
 	struct rcu_head rcu_head;
+	struct work_struct work;
 };
 
 /*
