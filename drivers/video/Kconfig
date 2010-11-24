@@ -643,6 +643,20 @@ config FB_BFIN_LQ035Q1
 	  To compile this driver as a module, choose M here: the
 	  module will be called bfin-lq035q1-fb.
 
+config FB_BF537_LQ035
+	tristate "SHARP LQ035 TFT LCD (BF537 STAMP)"
+	depends on FB && (BF534 || BF536 || BF537) && I2C_BLACKFIN_TWI
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select BFIN_GPTIMERS
+	help
+	  This is the framebuffer device for a SHARP LQ035Q7DB03 TFT LCD
+	  attached to a BF537.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bf537-lq035.
+
 config FB_STI
 	tristate "HP STI frame buffer device support"
 	depends on FB && PARISC
