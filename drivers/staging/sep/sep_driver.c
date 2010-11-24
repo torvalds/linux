@@ -934,38 +934,6 @@ static unsigned long sep_set_time(struct sep_device *sep)
 }
 
 /**
- *	sep_init_caller_id - initializes the caller id functionality
- *	@sep: pointer to struct sep_device
- */
-static int sep_init_caller_id(struct sep_device *sep)
-{
-	int counter;
-
-	dev_dbg(&sep->pdev->dev,
-		"sep_init_caller_id start\n");
-
-	/**
-	 * init caller id table
-	 * note that locking is not needed here as this function is
-	 * called prior to registering the device file
-	 */
-	for (counter = 0; counter < SEP_CALLER_ID_TABLE_NUM_ENTRIES; counter++)
-		sep->caller_id_table[counter].pid = 0;
-
-
-	/* init access flag */
-	sep->singleton_access_flag = 0;
-
-	dev_dbg(&sep->pdev->dev,
-		"caller id table init finished\n");
-
-	dev_dbg(&sep->pdev->dev,
-		"sep_init_caller_id end\n");
-
-	return 0;
-}
-
-/**
  *	sep_set_caller_id_handler - inserts the data into the caller id table
  *      note that this function does fall under the ioctl lock
  *	@sep: sep device
@@ -4055,16 +4023,6 @@ static int __init sep_init(void)
 	spin_lock_init(&sep->snd_rply_lck);
 	mutex_init(&sep->sep_mutex);
 	mutex_init(&sep->ioctl_mutex);
-
-	if (sep->mrst == 0) {
-		ret_val = sep_init_caller_id(sep);
-		if (ret_val) {
-			dev_warn(&sep->pdev->dev,
-				"cant init caller id\n");
-			goto end_function_unregister_pci;
-		}
-
-	}
 
 	/* new chip requires share area reconfigure */
 	if (sep->pdev->revision == 4) { /* only for new chip */
