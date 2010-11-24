@@ -948,7 +948,8 @@ static int ts0710_close_channel(u8 dlci)
 	}
 
 	d->state = DISCONNECTING;
-	try = 3;
+	/* Reducing retry to improve recovery times on BP panic/powercycle */
+	try = 1;
 	while (try--) {
 		ts27010_send_disc(ts0710, dlci);
 		mutex_unlock(&d->lock);
@@ -1067,7 +1068,8 @@ int ts0710_open_channel(u8 dlci)
 
 	/* we are the first to try to open the dlci */
 	d->state = CONNECTING;
-	try = dlci == 0 ? 10 : 3;
+	/* userspace already has a retry mechanism, not needed here */
+	try = dlci == 0 ? 10 : 1;
 	while (try--) {
 		ts27010_send_sabm(ts0710, dlci);
 
