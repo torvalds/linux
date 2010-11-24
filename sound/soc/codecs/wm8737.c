@@ -78,6 +78,8 @@ static const unsigned int micboost_tlv[] = {
 static const DECLARE_TLV_DB_SCALE(pga_tlv, -9750, 50, 1);
 static const DECLARE_TLV_DB_SCALE(adc_tlv, -600, 600, 0);
 static const DECLARE_TLV_DB_SCALE(ng_tlv, -7800, 600, 0);
+static const DECLARE_TLV_DB_SCALE(alc_max_tlv, -1200, 600, 0);
+static const DECLARE_TLV_DB_SCALE(alc_target_tlv, -1800, 100, 0);
 
 static const char *micbias_enum_text[] = {
 	"25%",
@@ -102,6 +104,38 @@ static const char *high_cutoff_text[] = {
 
 static const struct soc_enum high_3d =
 	SOC_ENUM_SINGLE(WM8737_3D_ENHANCE, 5, 2, high_cutoff_text);
+
+static const char *alc_fn_text[] = {
+	"Disabled", "Right", "Left", "Stereo"
+};
+
+static const struct soc_enum alc_fn =
+	SOC_ENUM_SINGLE(WM8737_ALC1, 7, 4, alc_fn_text);
+
+static const char *alc_hold_text[] = {
+	"0", "2.67ms", "5.33ms", "10.66ms", "21.32ms", "42.64ms", "85.28ms",
+	"170.56ms", "341.12ms", "682.24ms", "1.364s", "2.728s", "5.458s",
+	"10.916s", "21.832s", "43.691s"
+};
+
+static const struct soc_enum alc_hold =
+	SOC_ENUM_SINGLE(WM8737_ALC2, 0, 16, alc_hold_text);
+
+static const char *alc_atk_text[] = {
+	"8.4ms", "16.8ms", "33.6ms", "67.2ms", "134.4ms", "268.8ms", "537.6ms",
+	"1.075s", "2.15s", "4.3s", "8.6s"
+};
+
+static const struct soc_enum alc_atk =
+	SOC_ENUM_SINGLE(WM8737_ALC3, 0, 11, alc_atk_text);
+
+static const char *alc_dcy_text[] = {
+	"33.6ms", "67.2ms", "134.4ms", "268.8ms", "537.6ms", "1.075s", "2.15s",
+	"4.3s", "8.6s", "17.2s", "34.41s"
+};
+
+static const struct soc_enum alc_dcy =
+	SOC_ENUM_SINGLE(WM8737_ALC3, 4, 11, alc_dcy_text);
 
 static const struct snd_kcontrol_new wm8737_snd_controls[] = {
 SOC_DOUBLE_R_TLV("Mic Boost Volume", WM8737_AUDIO_PATH_L, WM8737_AUDIO_PATH_R,
@@ -132,6 +166,14 @@ SOC_SINGLE_TLV("3D ADC Volume", WM8737_3D_ENHANCE, 7, 1, 1, adc_tlv),
 SOC_SINGLE("Noise Gate Switch", WM8737_NOISE_GATE, 0, 1, 0),
 SOC_SINGLE_TLV("Noise Gate Threshold Volume", WM8737_NOISE_GATE, 2, 7, 0,
 	       ng_tlv),
+
+SOC_ENUM("ALC", alc_fn),
+SOC_SINGLE_TLV("ALC Max Gain Volume", WM8737_ALC1, 4, 7, 0, alc_max_tlv),
+SOC_SINGLE_TLV("ALC Target Volume", WM8737_ALC1, 0, 15, 0, alc_target_tlv),
+SOC_ENUM("ALC Hold Time", alc_hold),
+SOC_SINGLE("ALC ZC Switch", WM8737_ALC2, 4, 1, 0),
+SOC_ENUM("ALC Attack Time", alc_atk),
+SOC_ENUM("ALC Decay Time", alc_dcy),
 };
 
 static const char *linsel_text[] = {
