@@ -134,15 +134,18 @@ struct lp5523_chip {
 	u8			num_leds;
 };
 
-#define cdev_to_led(c)          container_of(c, struct lp5523_led, cdev)
+static inline struct lp5523_led *cdev_to_led(struct led_classdev *cdev)
+{
+	return container_of(cdev, struct lp5523_led, cdev);
+}
 
-static struct lp5523_chip *engine_to_lp5523(struct lp5523_engine *engine)
+static inline struct lp5523_chip *engine_to_lp5523(struct lp5523_engine *engine)
 {
 	return container_of(engine, struct lp5523_chip,
 			    engines[engine->id - 1]);
 }
 
-static struct lp5523_chip *led_to_lp5523(struct lp5523_led *led)
+static inline struct lp5523_chip *led_to_lp5523(struct lp5523_led *led)
 {
 	return container_of(led, struct lp5523_chip,
 			    leds[led->id]);
