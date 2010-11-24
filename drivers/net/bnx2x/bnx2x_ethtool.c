@@ -1499,8 +1499,15 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	 * updates that have been performed while interrupts were
 	 * disabled.
 	 */
-	if (bp->common.int_block == INT_BLOCK_IGU)
+	if (bp->common.int_block == INT_BLOCK_IGU) {
+		/* Disable local BHes to prevent a dead-lock situation between
+		 * sch_direct_xmit() and bnx2x_run_loopback() (calling
+		 * bnx2x_tx_int()), as both are taking netif_tx_lock().
+		 */
+		local_bh_disable();
 		bnx2x_tx_int(fp_tx);
+		local_bh_enable();
+	}
 
 	rx_idx = le16_to_cpu(*fp_rx->rx_cons_sb);
 	if (rx_idx != rx_start_idx + num_pkts)
