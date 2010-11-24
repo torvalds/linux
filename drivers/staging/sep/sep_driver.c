@@ -98,7 +98,7 @@ static int sep_load_firmware(struct sep_device *sep)
 
 	error = request_firmware(&fw, res_name, &sep->pdev->dev);
 	if (error) {
-		dev_warn(&sep->pdev->dev, "cant request resident fw\n");
+		dev_warn(&sep->pdev->dev, "can't request resident fw\n");
 		return error;
 	}
 
@@ -3280,7 +3280,7 @@ static int sep_callback(unsigned long sep_context_pointer)
 							&rar_end_address);
 
 	if (error) {
-		dev_warn(&sep->pdev->dev, "mrst cant get rar region\n");
+		dev_warn(&sep->pdev->dev, "mrst can't get rar region\n");
 		goto end_function;
 	}
 
@@ -3417,7 +3417,7 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 		sep->rar_addr = dma_alloc_coherent(NULL,
 			sep->rar_size, &sep->rar_bus, GFP_KERNEL);
 		if (sep->rar_addr == NULL) {
-			dev_warn(&sep->pdev->dev, "cant allocate mfld rar\n");
+			dev_warn(&sep->pdev->dev, "can't allocate mfld rar\n");
 			error = -ENOMEM;
 			goto end_function_deallocate_sep_shared_area;
 		}
