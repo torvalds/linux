@@ -1523,8 +1523,10 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 				    e1000_serdes_link_autoneg_progress;
 				mac->serdes_has_link = false;
 				e_dbg("AN_UP     -> AN_PROG\n");
+			} else {
+				mac->serdes_has_link = true;
 			}
-		break;
+			break;
 
 		case e1000_serdes_link_forced_up:
 			/*
@@ -1543,6 +1545,8 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 				    e1000_serdes_link_autoneg_progress;
 				mac->serdes_has_link = false;
 				e_dbg("FORCED_UP -> AN_PROG\n");
+			} else {
+				mac->serdes_has_link = true;
 			}
 			break;
 
@@ -1598,6 +1602,7 @@ static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
 			ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 			mac->serdes_link_state =
 			    e1000_serdes_link_autoneg_progress;
+			mac->serdes_has_link = false;
 			e_dbg("DOWN      -> AN_PROG\n");
 			break;
 		}
