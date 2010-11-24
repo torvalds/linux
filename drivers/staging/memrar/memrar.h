@@ -95,6 +95,7 @@ struct RAR_buffer {
 	dma_addr_t bus_address;
 };
 
+#if defined(CONFIG_MRST_RAR_HANDLER)
 /**
  * rar_reserve() - reserve RAR buffers
  * @buffers:	array of RAR_buffers where type and size of buffers to
@@ -149,7 +150,25 @@ extern size_t rar_release(struct RAR_buffer *buffers,
 extern size_t rar_handle_to_bus(struct RAR_buffer *buffers,
 				size_t count);
 
+#else
 
+extern inline size_t rar_reserve(struct RAR_buffer *buffers, size_t count)
+{
+	return 0;
+}
+
+extern inline size_t rar_release(struct RAR_buffer *buffers, size_t count)
+{
+	return 0;
+}
+
+extern inline size_t rar_handle_to_bus(struct RAR_buffer *buffers,
+				size_t count)
+{
+	return 0;
+}
+
+#endif  /* MRST_RAR_HANDLER */
 #endif  /* __KERNEL__ */
 
 #endif  /* _MEMRAR_H */

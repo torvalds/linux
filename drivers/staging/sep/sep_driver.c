@@ -59,6 +59,8 @@
 #include <linux/connector.h>
 #include <linux/cn_proc.h>
 
+#include "../memrar/memrar.h"
+
 #include "sep_driver_hw_defs.h"
 #include "sep_driver_config.h"
 #include "sep_driver_api.h"
