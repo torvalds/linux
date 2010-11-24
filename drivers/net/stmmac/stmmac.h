@@ -87,28 +87,6 @@ struct stmmac_priv {
 	struct plat_stmmacenet_data *plat;
 };
 
-#ifdef CONFIG_STM_DRIVERS
-#include <linux/stm/pad.h>
-static inline int stmmac_claim_resource(struct platform_device *pdev)
-{
-	int ret = 0;
-	struct plat_stmmacenet_data *plat_dat = pdev->dev.platform_data;
-
-	/* Pad routing setup */
-	if (IS_ERR(devm_stm_pad_claim(&pdev->dev, plat_dat->pad_config,
-			dev_name(&pdev->dev)))) {
-		printk(KERN_ERR "%s: Failed to request pads!\n", __func__);
-		ret = -ENODEV;
-	}
-	return ret;
-}
-#else
-static inline int stmmac_claim_resource(struct platform_device *pdev)
-{
-	return 0;
-}
-#endif
-
 extern int stmmac_mdio_unregister(struct net_device *ndev);
 extern int stmmac_mdio_register(struct net_device *ndev);
 extern void stmmac_set_ethtool_ops(struct net_device *netdev);
