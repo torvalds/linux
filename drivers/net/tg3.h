@@ -2564,10 +2564,6 @@ struct ring_info {
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
-struct tg3_config_info {
-	u32				flags;
-};
-
 struct tg3_link_config {
 	/* Describes what we're trying to get. */
 	u32				advertising;
