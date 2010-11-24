@@ -125,11 +125,22 @@ struct lp5521_chip {
 	u8			num_leds;
 };
 
-#define cdev_to_led(c)		container_of(c, struct lp5521_led, cdev)
-#define engine_to_lp5521(eng)	container_of((eng), struct lp5521_chip, \
-						engines[(eng)->id - 1])
-#define led_to_lp5521(led)	container_of((led), struct lp5521_chip, \
-						leds[(led)->id])
+static inline struct lp5521_led *cdev_to_led(struct led_classdev *cdev)
+{
+	return container_of(cdev, struct lp5521_led, cdev);
+}
+
+static inline struct lp5521_chip *engine_to_lp5521(struct lp5521_engine *engine)
+{
+	return container_of(engine, struct lp5521_chip,
+			    engines[engine->id - 1]);
+}
+
+static inline struct lp5521_chip *led_to_lp5521(struct lp5521_led *led)
+{
+	return container_of(led, struct lp5521_chip,
+			    leds[led->id]);
+}
 
 static void lp5521_led_brightness_work(struct work_struct *work);
 
