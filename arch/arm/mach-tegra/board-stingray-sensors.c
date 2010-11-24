@@ -226,8 +226,7 @@ struct max9635_platform_data stingray_max9635_pdata = {
 	.threshold_timer = 0x19,
 	.def_low_threshold = 0xFE,
 	.def_high_threshold = 0xFF,
-	.lens_coeff_h = 7,
-	.lens_coeff_l = 10,
+	.lens_coeff = 20,
 };
 
 static int stingray_max9635_init(void)
