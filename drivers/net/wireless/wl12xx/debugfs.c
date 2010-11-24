@@ -423,7 +423,8 @@ int wl1271_debugfs_init(struct wl1271 *wl)
 {
 	int ret;
 
-	wl->rootdir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	wl->rootdir = debugfs_create_dir(KBUILD_MODNAME,
+					 wl->hw->wiphy->debugfsdir);
 
 	if (IS_ERR(wl->rootdir)) {
 		ret = PTR_ERR(wl->rootdir);

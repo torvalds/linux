@@ -2602,6 +2602,8 @@ int wl1271_register_hw(struct wl1271 *wl)
 
 	wl->mac80211_registered = true;
 
+	wl1271_debugfs_init(wl);
+
 	register_netdevice_notifier(&wl1271_dev_notifier);
 
 	wl1271_notice("loaded");
@@ -2735,8 +2737,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	/* Apply default driver configuration. */
 	wl1271_conf_init(wl);
-
-	wl1271_debugfs_init(wl);
 
 	order = get_order(WL1271_AGGR_BUFFER_SIZE);
 	wl->aggr_buf = (u8 *)__get_free_pages(GFP_KERNEL, order);
