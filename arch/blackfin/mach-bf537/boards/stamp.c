@@ -289,7 +289,7 @@ static struct platform_device isp1362_hcd_device = {
 #endif
 
 #if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
-unsigned short bfin_can_peripherals[] = {
+static unsigned short bfin_can_peripherals[] = {
 	P_CAN0_RX, P_CAN0_TX, 0
 };
 
@@ -693,7 +693,7 @@ static struct bfin5xx_spi_chip ad2s90_spi_chip_info = {
 #endif
 
 #if defined(CONFIG_AD2S120X) || defined(CONFIG_AD2S120X_MODULE)
-unsigned short ad2s120x_platform_data[] = {
+static unsigned short ad2s120x_platform_data[] = {
 	/* used as SAMPLE and RDVEL */
 	GPIO_PF5, GPIO_PF6, 0
 };
@@ -705,7 +705,7 @@ static struct bfin5xx_spi_chip ad2s120x_spi_chip_info = {
 #endif
 
 #if defined(CONFIG_AD2S1210) || defined(CONFIG_AD2S1210_MODULE)
-unsigned short ad2s1210_platform_data[] = {
+static unsigned short ad2s1210_platform_data[] = {
 	/* use as SAMPLE, A0, A1 */
 	GPIO_PF7, GPIO_PF8, GPIO_PF9,
 # if defined(CONFIG_AD2S1210_GPIO_INPUT) || defined(CONFIG_AD2S1210_GPIO_OUTPUT)
@@ -1717,7 +1717,7 @@ static struct resource bfin_uart0_resources[] = {
 #endif
 };
 
-unsigned short bfin_uart0_peripherals[] = {
+static unsigned short bfin_uart0_peripherals[] = {
 	P_UART0_TX, P_UART0_RX, 0
 };
 
@@ -1760,7 +1760,7 @@ static struct resource bfin_uart1_resources[] = {
 	},
 };
 
-unsigned short bfin_uart1_peripherals[] = {
+static unsigned short bfin_uart1_peripherals[] = {
 	P_UART1_TX, P_UART1_RX, 0
 };
 
@@ -2447,7 +2447,7 @@ static struct resource bfin_sport0_uart_resources[] = {
 	},
 };
 
-unsigned short bfin_sport0_peripherals[] = {
+static unsigned short bfin_sport0_peripherals[] = {
 	P_SPORT0_TFS, P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,
 	P_SPORT0_DRPRI, P_SPORT0_RSCLK, 0
 };
@@ -2481,7 +2481,7 @@ static struct resource bfin_sport1_uart_resources[] = {
 	},
 };
 
-unsigned short bfin_sport1_peripherals[] = {
+static unsigned short bfin_sport1_peripherals[] = {
 	P_SPORT1_TFS, P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_RFS,
 	P_SPORT1_DRPRI, P_SPORT1_RSCLK, 0
 };
