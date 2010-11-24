@@ -365,6 +365,7 @@ struct nouveau_pgraph_engine {
 	bool accel_blocked;
 	bool registered;
 	int grctx_size;
+	void *priv;
 
 	/* NV2x/NV3x context table (0x400780) */
 	struct nouveau_gpuobj *ctx_table;

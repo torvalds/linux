@@ -839,7 +839,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	}
 
 	/* Software copy if the card isn't up and running yet. */
-	if (!dev_priv->channel) {
+	if (!dev_priv->channel || dev_priv->card_type == NV_C0) {
 		ret = ttm_bo_move_memcpy(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 		goto out;
 	}
