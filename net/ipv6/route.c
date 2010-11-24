@@ -2453,8 +2453,6 @@ static int ip6_route_dev_notify(struct notifier_block *this,
 
 #ifdef CONFIG_PROC_FS
 
-#define RT6_INFO_LEN (32 + 4 + 32 + 4 + 32 + 40 + 5 + 1)
-
 struct rt6_proc_arg
 {
 	char *buffer;
