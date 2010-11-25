@@ -471,15 +471,19 @@ add:
 				f_pos >> dir->i_sb->s_blocksize_bits, 1, err);
 		if (!fibh->ebh)
 			goto out_err;
+		/* Extents could have been merged, invalidate our position */
+		brelse(epos.bh);
+		epos.bh = NULL;
+		epos.block = dinfo->i_location;
+		epos.offset = udf_file_entry_alloc_offset(dir);
 
 		if (!fibh->soffset) {
-			if (udf_next_aext(dir, &epos, &eloc, &elen, 1) ==
-			    (EXT_RECORDED_ALLOCATED >> 30)) {
-				block = eloc.logicalBlockNum + ((elen - 1) >>
+			/* Find the freshly allocated block */
+			while (udf_next_aext(dir, &epos, &eloc, &elen, 1) ==
+				(EXT_RECORDED_ALLOCATED >> 30))
+				;
+			block = eloc.logicalBlockNum + ((elen - 1) >>
 					dir->i_sb->s_blocksize_bits);
-			} else
-				block++;
-
 			brelse(fibh->sbh);
 			fibh->sbh = fibh->ebh;
 			fi = (struct fileIdentDesc *)(fibh->sbh->b_data);
