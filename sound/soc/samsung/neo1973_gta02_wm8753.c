@@ -438,7 +438,7 @@ static int __init neo1973_gta02_init(void)
 		return -ENOMEM;
 
 	/* register bluetooth DAI here */
-	ret = snd_soc_register_dai(&neo1973_gta02_snd_device->dev, -1, &bt_dai);
+	ret = snd_soc_register_dai(&neo1973_gta02_snd_device->dev, &bt_dai);
 	if (ret) {
 		platform_device_put(neo1973_gta02_snd_device);
 		return ret;
@@ -491,7 +491,7 @@ module_init(neo1973_gta02_init);
 
 static void __exit neo1973_gta02_exit(void)
 {
-	snd_soc_unregister_dai(&neo1973_gta02_snd_device->dev, -1);
+	snd_soc_unregister_dai(&neo1973_gta02_snd_device->dev);
 	platform_device_unregister(neo1973_gta02_snd_device);
 	gpio_free(GTA02_GPIO_HP_IN);
 	gpio_free(GTA02_GPIO_AMP_SHUT);
