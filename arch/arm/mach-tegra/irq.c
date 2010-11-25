@@ -146,6 +146,7 @@ void tegra_set_lp0_wake_pads(u32 wake_enb, u32 wake_level, u32 wake_any)
 	writel(wake_enb, pmc + PMC_WAKE_MASK);
 }
 
+#ifdef CONFIG_PM
 static void tegra_irq_handle_wake(void)
 {
 	int wake;
@@ -174,6 +175,7 @@ static void tegra_irq_handle_wake(void)
 		generic_handle_irq(irq);
 	}
 }
+#endif
 
 static void tegra_mask(unsigned int irq)
 {
@@ -251,6 +253,7 @@ void __init tegra_init_irq(void)
 	}
 }
 
+#ifdef CONFIG_PM
 void tegra_irq_suspend(void)
 {
 	tegra_legacy_irq_suspend();
@@ -261,6 +264,7 @@ void tegra_irq_resume(void)
 	tegra_legacy_irq_resume();
 	tegra_irq_handle_wake();
 }
+#endif
 
 #ifdef CONFIG_DEBUG_FS
 static int tegra_wake_irq_debug_show(struct seq_file *s, void *data)

@@ -79,10 +79,12 @@ struct suspend_context {
 volatile struct suspend_context tegra_sctx;
 
 static void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
+#ifdef CONFIG_PM
 static void __iomem *clk_rst = IO_ADDRESS(TEGRA_CLK_RESET_BASE);
 static void __iomem *flow_ctrl = IO_ADDRESS(TEGRA_FLOW_CTRL_BASE);
 static void __iomem *evp_reset = IO_ADDRESS(TEGRA_EXCEPTION_VECTORS_BASE)+0x100;
 static void __iomem *tmrus = IO_ADDRESS(TEGRA_TMRUS_BASE);
+#endif
 
 #define PMC_CTRL		0x0
 #define PMC_CTRL_LATCH_WAKEUPS	(1 << 5)
@@ -251,6 +253,7 @@ static int create_suspend_pgtable(void)
 
 
 
+#ifdef CONFIG_PM
 /*
  * suspend_cpu_complex
  *
@@ -386,8 +389,6 @@ unsigned int tegra_suspend_lp2(unsigned int us)
 
 	return remain;
 }
-
-#ifdef CONFIG_PM
 
 /* ensures that sufficient time is passed for a register write to
  * serialize into the 32KHz domain */
