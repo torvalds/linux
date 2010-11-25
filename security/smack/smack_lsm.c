@@ -1667,10 +1667,13 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 		ssp->smk_in = sp;
 	else if (strcmp(name, XATTR_SMACK_IPOUT) == 0) {
 		ssp->smk_out = sp;
-		rc = smack_netlabel(sock->sk, SMACK_CIPSO_SOCKET);
-		if (rc != 0)
-			printk(KERN_WARNING "Smack: \"%s\" netlbl error %d.\n",
-			       __func__, -rc);
+		if (sock->sk->sk_family != PF_UNIX) {
+			rc = smack_netlabel(sock->sk, SMACK_CIPSO_SOCKET);
+			if (rc != 0)
+				printk(KERN_WARNING
+					"Smack: \"%s\" netlbl error %d.\n",
+					__func__, -rc);
+		}
 	} else
 		return -EOPNOTSUPP;
 
@@ -2267,9 +2270,10 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		break;
 	case SOCKFS_MAGIC:
 		/*
-		 * Casey says sockets get the smack of the task.
+		 * Socket access is controlled by the socket
+		 * structures associated with the task involved.
 		 */
-		final = csp;
+		final = smack_known_star.smk_known;
 		break;
 	case PROC_SUPER_MAGIC:
 		/*
@@ -2296,7 +2300,16 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		/*
 		 * This isn't an understood special case.
 		 * Get the value from the xattr.
-		 *
+		 */
+
+		/*
+		 * UNIX domain sockets use lower level socket data.
+		 */
+		if (S_ISSOCK(inode->i_mode)) {
+			final = smack_known_star.smk_known;
+			break;
+		}
+		/*
 		 * No xattr support means, alas, no SMACK label.
 		 * Use the aforeapplied default.
 		 * It would be curious if the label of the task
@@ -2418,14 +2431,18 @@ static int smack_setprocattr(struct task_struct *p, char *name,
 static int smack_unix_stream_connect(struct socket *sock,
 				     struct socket *other, struct sock *newsk)
 {
-	struct inode *sp = SOCK_INODE(sock);
-	struct inode *op = SOCK_INODE(other);
+	struct socket_smack *ssp = sock->sk->sk_security;
+	struct socket_smack *osp = other->sk->sk_security;
 	struct smk_audit_info ad;
+	int rc = 0;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_NET);
 	smk_ad_setfield_u_net_sk(&ad, other->sk);
-	return smk_access(smk_of_inode(sp), smk_of_inode(op),
-				 MAY_READWRITE, &ad);
+
+	if (!capable(CAP_MAC_OVERRIDE))
+		rc = smk_access(ssp->smk_out, osp->smk_in, MAY_WRITE, &ad);
+
+	return rc;
 }
 
 /**
@@ -2438,13 +2455,18 @@ static int smack_unix_stream_connect(struct socket *sock,
  */
 static int smack_unix_may_send(struct socket *sock, struct socket *other)
 {
-	struct inode *sp = SOCK_INODE(sock);
-	struct inode *op = SOCK_INODE(other);
+	struct socket_smack *ssp = sock->sk->sk_security;
+	struct socket_smack *osp = other->sk->sk_security;
 	struct smk_audit_info ad;
+	int rc = 0;
 
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_NET);
 	smk_ad_setfield_u_net_sk(&ad, other->sk);
-	return smk_access(smk_of_inode(sp), smk_of_inode(op), MAY_WRITE, &ad);
+
+	if (!capable(CAP_MAC_OVERRIDE))
+		rc = smk_access(ssp->smk_out, osp->smk_in, MAY_WRITE, &ad);
+
+	return rc;
 }
 
 /**
@@ -2629,7 +2651,7 @@ static int smack_socket_getpeersec_stream(struct socket *sock,
 
 /**
  * smack_socket_getpeersec_dgram - pull in packet label
- * @sock: the socket
+ * @sock: the peer socket
  * @skb: packet data
  * @secid: pointer to where to put the secid of the packet
  *
@@ -2640,41 +2662,39 @@ static int smack_socket_getpeersec_dgram(struct socket *sock,
 
 {
 	struct netlbl_lsm_secattr secattr;
-	struct sock *sk;
+	struct socket_smack *sp;
 	char smack[SMK_LABELLEN];
-	int family = PF_INET;
-	u32 s;
+	int family = PF_UNSPEC;
+	u32 s = 0;	/* 0 is the invalid secid */
 	int rc;
 
-	/*
-	 * Only works for families with packets.
-	 */
-	if (sock != NULL) {
-		sk = sock->sk;
-		if (sk->sk_family != PF_INET && sk->sk_family != PF_INET6)
-			return 0;
-		family = sk->sk_family;
+	if (skb != NULL) {
+		if (skb->protocol == htons(ETH_P_IP))
+			family = PF_INET;
+		else if (skb->protocol == htons(ETH_P_IPV6))
+			family = PF_INET6;
 	}
-	/*
-	 * Translate what netlabel gave us.
-	 */
-	netlbl_secattr_init(&secattr);
-	rc = netlbl_skbuff_getattr(skb, family, &secattr);
-	if (rc == 0)
-		smack_from_secattr(&secattr, smack);
-	netlbl_secattr_destroy(&secattr);
+	if (family == PF_UNSPEC && sock != NULL)
+		family = sock->sk->sk_family;
 
-	/*
-	 * Give up if we couldn't get anything
-	 */
-	if (rc != 0)
-		return rc;
-
-	s = smack_to_secid(smack);
+	if (family == PF_UNIX) {
+		sp = sock->sk->sk_security;
+		s = smack_to_secid(sp->smk_out);
+	} else if (family == PF_INET || family == PF_INET6) {
+		/*
+		 * Translate what netlabel gave us.
+		 */
+		netlbl_secattr_init(&secattr);
+		rc = netlbl_skbuff_getattr(skb, family, &secattr);
+		if (rc == 0) {
+			smack_from_secattr(&secattr, smack);
+			s = smack_to_secid(smack);
+		}
+		netlbl_secattr_destroy(&secattr);
+	}
+	*secid = s;
 	if (s == 0)
 		return -EINVAL;
-
-	*secid = s;
 	return 0;
 }
 
