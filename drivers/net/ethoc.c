@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <net/ethoc.h>
 
 static int buffer_size = 0x8000; /* 32 KBytes */
@@ -982,10 +983,23 @@ static int __devinit ethoc_probe(struct platform_device *pdev)
 
 	/* Allow the platform setup code to pass in a MAC address. */
 	if (pdev->dev.platform_data) {
-		struct ethoc_platform_data *pdata =
-			(struct ethoc_platform_data *)pdev->dev.platform_data;
+		struct ethoc_platform_data *pdata = pdev->dev.platform_data;
 		memcpy(netdev->dev_addr, pdata->hwaddr, IFHWADDRLEN);
 		priv->phy_id = pdata->phy_id;
+	} else {
+		priv->phy_id = -1;
+
+#ifdef CONFIG_OF
+		{
+		const uint8_t* mac;
+
+		mac = of_get_property(pdev->dev.of_node,
+				      "local-mac-address",
+				      NULL);
+		if (mac)
+			memcpy(netdev->dev_addr, mac, IFHWADDRLEN);
+		}
+#endif
 	}
 
 	/* Check that the given MAC address is valid. If it isn't, read the
@@ -1113,6 +1127,16 @@ static int ethoc_resume(struct platform_device *pdev)
 # define ethoc_resume  NULL
 #endif
 
+#ifdef CONFIG_OF
+static struct of_device_id ethoc_match[] = {
+	{
+		.compatible = "opencores,ethoc",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, ethoc_match);
+#endif
+
 static struct platform_driver ethoc_driver = {
 	.probe   = ethoc_probe,
 	.remove  = __devexit_p(ethoc_remove),
@@ -1120,6 +1144,10 @@ static struct platform_driver ethoc_driver = {
 	.resume  = ethoc_resume,
 	.driver  = {
 		.name = "ethoc",
+		.owner = THIS_MODULE,
+#ifdef CONFIG_OF
+		.of_match_table = ethoc_match,
+#endif
 	},
 };
 
