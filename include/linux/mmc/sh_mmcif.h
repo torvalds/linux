@@ -59,6 +59,29 @@ struct sh_mmcif_plat_data {
 #define MMCIF_CE_HOST_STS2	0x0000004C
 #define MMCIF_CE_VERSION	0x0000007C
 
+/* CE_BUF_ACC */
+#define BUF_ACC_DMAWEN		(1 << 25)
+#define BUF_ACC_DMAREN		(1 << 24)
+#define BUF_ACC_BUSW_32		(0 << 17)
+#define BUF_ACC_BUSW_16		(1 << 17)
+#define BUF_ACC_ATYP		(1 << 16)
+
+/* CE_CLK_CTRL */
+#define CLK_ENABLE		(1 << 24) /* 1: output mmc clock */
+#define CLK_CLEAR		((1 << 19) | (1 << 18) | (1 << 17) | (1 << 16))
+#define CLK_SUP_PCLK		((1 << 19) | (1 << 18) | (1 << 17) | (1 << 16))
+#define SRSPTO_256		((1 << 13) | (0 << 12)) /* resp timeout */
+#define SRBSYTO_29		((1 << 11) | (1 << 10) |	\
+				 (1 << 9) | (1 << 8)) /* resp busy timeout */
+#define SRWDTO_29		((1 << 7) | (1 << 6) |		\
+				 (1 << 5) | (1 << 4)) /* read/write timeout */
+#define SCCSTO_29		((1 << 3) | (1 << 2) |		\
+				 (1 << 1) | (1 << 0)) /* ccs timeout */
+
+/* CE_VERSION */
+#define SOFT_RST_ON		(1 << 31)
+#define SOFT_RST_OFF		~SOFT_RST_ON
+
 static inline u32 sh_mmcif_readl(void __iomem *addr, int reg)
 {
 	return readl(addr + reg);
@@ -149,17 +172,23 @@ static inline void sh_mmcif_boot_init(void __iomem *base)
 
 	/* reset */
 	tmp = sh_mmcif_readl(base, MMCIF_CE_VERSION);
-	sh_mmcif_writel(base, MMCIF_CE_VERSION, tmp | 0x80000000);
-	sh_mmcif_writel(base, MMCIF_CE_VERSION, tmp & ~0x80000000);
+	sh_mmcif_writel(base, MMCIF_CE_VERSION, tmp | SOFT_RST_ON);
+	sh_mmcif_writel(base, MMCIF_CE_VERSION, tmp & SOFT_RST_OFF);
 
 	/* byte swap */
-	sh_mmcif_writel(base, MMCIF_CE_BUF_ACC, 0x00010000);
+	sh_mmcif_writel(base, MMCIF_CE_BUF_ACC, BUF_ACC_ATYP);
 
 	/* Set block size in MMCIF hardware */
 	sh_mmcif_writel(base, MMCIF_CE_BLOCK_SET, SH_MMCIF_BBS);
 
-	/* Enable the clock, set it to Bus clock/256 (about 325Khz)*/
-	sh_mmcif_writel(base, MMCIF_CE_CLK_CTRL, 0x01072fff);
+	/* Enable the clock, set it to Bus clock/256 (about 325Khz).
+	 * It is unclear where 0x70000 comes from or if it is even needed.
+	 * It is there for byte-compatibility with code that is known to
+	 * work.
+	 */
+	sh_mmcif_writel(base, MMCIF_CE_CLK_CTRL,
+			CLK_ENABLE | SRSPTO_256 | SRBSYTO_29 | SRWDTO_29 |
+			SCCSTO_29 | 0x70000);
 
 	/* CMD0 */
 	sh_mmcif_boot_cmd(base, 0x00000040, 0);
