@@ -50,8 +50,8 @@ static struct fimc_fmt fimc_formats[] = {
 		.planes_cnt = 1,
 		.flags = FMT_FLAGS_M2M,
 	}, {
-		.name = "XRGB-8-8-8-8, 24 bpp",
-		.fourcc	= V4L2_PIX_FMT_RGB24,
+		.name = "XRGB-8-8-8-8, 32 bpp",
+		.fourcc	= V4L2_PIX_FMT_RGB32,
 		.depth = 32,
 		.color	= S5P_FIMC_RGB888,
 		.buff_cnt = 1,
