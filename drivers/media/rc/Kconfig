@@ -177,4 +177,17 @@ config IR_WINBOND_CIR
            To compile this driver as a module, choose M here: the module will
 	   be called winbond_cir.
 
+config RC_LOOPBACK
+	tristate "Remote Control Loopback Driver"
+	depends on RC_CORE
+	---help---
+	   Say Y here if you want support for the remote control loopback
+	   driver which allows TX data to be sent back as RX data.
+	   This is mostly useful for debugging purposes.
+
+	   If you're not sure, select N here.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called rc_loopback.
+
 endif #RC_CORE
