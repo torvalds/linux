@@ -1814,6 +1814,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 		bt_cmd.prio_boost = 0;
 	bt_cmd.kill_ack_mask = priv->kill_ack_mask;
 	bt_cmd.kill_cts_mask = priv->kill_cts_mask;
+
 	bt_cmd.valid = priv->bt_valid;
 	bt_cmd.tx_prio_boost = 0;
 	bt_cmd.rx_prio_boost = 0;
@@ -1996,24 +1997,29 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 			BT_UART_MSG_FRAME7CONNECTABLE_POS);
 }
 
-static void iwlagn_set_kill_ack_msk(struct iwl_priv *priv,
-				     struct iwl_bt_uart_msg *uart_msg)
+static void iwlagn_set_kill_msk(struct iwl_priv *priv,
+				struct iwl_bt_uart_msg *uart_msg)
 {
-	u8 kill_ack_msk;
+	u8 kill_msk;
 	static const __le32 bt_kill_ack_msg[2] = {
-			cpu_to_le32(0xFFFFFFF), cpu_to_le32(0xFFFFFC00) };
+		IWLAGN_BT_KILL_ACK_MASK_DEFAULT,
+		IWLAGN_BT_KILL_ACK_CTS_MASK_SCO };
+	static const __le32 bt_kill_cts_msg[2] = {
+		IWLAGN_BT_KILL_CTS_MASK_DEFAULT,
+		IWLAGN_BT_KILL_ACK_CTS_MASK_SCO };
 
-	kill_ack_msk = (((BT_UART_MSG_FRAME3A2DP_MSK |
-			BT_UART_MSG_FRAME3SNIFF_MSK |
-			BT_UART_MSG_FRAME3SCOESCO_MSK) &
-			uart_msg->frame3) == 0) ? 1 : 0;
-	if (priv->kill_ack_mask != bt_kill_ack_msg[kill_ack_msk]) {
+	kill_msk = (BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3)
+		? 1 : 0;
+	if (priv->kill_ack_mask != bt_kill_ack_msg[kill_msk] ||
+	    priv->kill_cts_mask != bt_kill_cts_msg[kill_msk]) {
 		priv->bt_valid |= IWLAGN_BT_VALID_KILL_ACK_MASK;
-		priv->kill_ack_mask = bt_kill_ack_msg[kill_ack_msk];
+		priv->kill_ack_mask = bt_kill_ack_msg[kill_msk];
+		priv->bt_valid |= IWLAGN_BT_VALID_KILL_CTS_MASK;
+		priv->kill_cts_mask = bt_kill_cts_msg[kill_msk];
+
 		/* schedule to send runtime bt_config */
 		queue_work(priv->workqueue, &priv->bt_runtime_config);
 	}
-
 }
 
 void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
@@ -2064,7 +2070,7 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 		}
 	}
 
-	iwlagn_set_kill_ack_msk(priv, uart_msg);
+	iwlagn_set_kill_msk(priv, uart_msg);
 
 	/* FIXME: based on notification, adjust the prio_boost */
 
