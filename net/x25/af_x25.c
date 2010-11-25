@@ -1538,23 +1538,22 @@ out_dtefac_release:
 		}
 
 		case SIOCX25GCAUSEDIAG: {
-			struct x25_causediag causediag;
-			lock_kernel();
-			causediag = x25->causediag;
-			rc = copy_to_user(argp, &causediag,
-					  sizeof(causediag)) ? -EFAULT : 0;
-			unlock_kernel();
+			lock_sock(sk);
+			rc = copy_to_user(argp, &x25->causediag,
+					sizeof(x25->causediag))
+					? -EFAULT : 0;
+			release_sock(sk);
 			break;
 		}
 
 		case SIOCX25SCAUSEDIAG: {
 			struct x25_causediag causediag;
 			rc = -EFAULT;
-			lock_kernel();
 			if (copy_from_user(&causediag, argp, sizeof(causediag)))
 				break;
+			lock_sock(sk);
 			x25->causediag = causediag;
-			unlock_kernel();
+			release_sock(sk);
 			rc = 0;
 			break;
 
