@@ -611,13 +611,13 @@ static int ethoc_poll(struct napi_struct *napi, int budget)
 
 static int ethoc_mdio_read(struct mii_bus *bus, int phy, int reg)
 {
-	unsigned long timeout = jiffies + ETHOC_MII_TIMEOUT;
 	struct ethoc *priv = bus->priv;
+	int i;
 
 	ethoc_write(priv, MIIADDRESS, MIIADDRESS_ADDR(phy, reg));
 	ethoc_write(priv, MIICOMMAND, MIICOMMAND_READ);
 
-	while (time_before(jiffies, timeout)) {
+	for (i=0; i < 5; i++) {
 		u32 status = ethoc_read(priv, MIISTATUS);
 		if (!(status & MIISTATUS_BUSY)) {
 			u32 data = ethoc_read(priv, MIIRX_DATA);
@@ -625,8 +625,7 @@ static int ethoc_mdio_read(struct mii_bus *bus, int phy, int reg)
 			ethoc_write(priv, MIICOMMAND, 0);
 			return data;
 		}
-
-		schedule();
+		usleep_range(100,200);
 	}
 
 	return -EBUSY;
@@ -634,22 +633,21 @@ static int ethoc_mdio_read(struct mii_bus *bus, int phy, int reg)
 
 static int ethoc_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 {
-	unsigned long timeout = jiffies + ETHOC_MII_TIMEOUT;
 	struct ethoc *priv = bus->priv;
+	int i;
 
 	ethoc_write(priv, MIIADDRESS, MIIADDRESS_ADDR(phy, reg));
 	ethoc_write(priv, MIITX_DATA, val);
 	ethoc_write(priv, MIICOMMAND, MIICOMMAND_WRITE);
 
-	while (time_before(jiffies, timeout)) {
+	for (i=0; i < 5; i++) {
 		u32 stat = ethoc_read(priv, MIISTATUS);
 		if (!(stat & MIISTATUS_BUSY)) {
 			/* reset MII command register */
 			ethoc_write(priv, MIICOMMAND, 0);
 			return 0;
 		}
-
-		schedule();
+		usleep_range(100,200);
 	}
 
 	return -EBUSY;
