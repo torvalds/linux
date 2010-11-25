@@ -1512,11 +1512,11 @@ out_dtefac_release:
 		}
 
 		case SIOCX25GCALLUSERDATA: {
-			struct x25_calluserdata cud = x25->calluserdata;
-			lock_kernel();
-			rc = copy_to_user(argp, &cud,
-					  sizeof(cud)) ? -EFAULT : 0;
-			unlock_kernel();
+			lock_sock(sk);
+			rc = copy_to_user(argp, &x25->calluserdata,
+					sizeof(x25->calluserdata))
+					? -EFAULT : 0;
+			release_sock(sk);
 			break;
 		}
 
@@ -1524,15 +1524,15 @@ out_dtefac_release:
 			struct x25_calluserdata calluserdata;
 
 			rc = -EFAULT;
-			lock_kernel();
 			if (copy_from_user(&calluserdata, argp,
 					   sizeof(calluserdata)))
 				break;
 			rc = -EINVAL;
 			if (calluserdata.cudlength > X25_MAX_CUD_LEN)
 				break;
+			lock_sock(sk);
 			x25->calluserdata = calluserdata;
-			unlock_kernel();
+			release_sock(sk);
 			rc = 0;
 			break;
 		}
