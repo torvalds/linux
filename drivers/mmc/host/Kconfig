@@ -466,6 +466,12 @@ config MMC_SH_MMCIF
 
 	  This driver supports MMCIF in sh7724/sh7757/sh7372.
 
+config SH_MMCIF_DMA
+	bool "Use DMA for MMCIF"
+	depends on MMC_SH_MMCIF
+	help
+	  Use SH dma-engine driver for data transfer
+
 config MMC_JZ4740
 	tristate "JZ4740 SD/Multimedia Card Interface support"
 	depends on MACH_JZ4740

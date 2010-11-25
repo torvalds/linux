@@ -12,15 +12,7 @@
 
 #include <mach/hardware.h>
 #include <mach/devices-common.h>
-#ifdef SDMA_IS_MERGED
 #include <mach/sdma.h>
-#else
-struct sdma_platform_data {
-	int sdma_version;
-	char *cpu_name;
-	int to_version;
-};
-#endif
 
 struct imx_imx_sdma_data {
 	resource_size_t iobase;

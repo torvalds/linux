@@ -53,15 +53,8 @@
 #ifndef  _INIT301_H_
 #define  _INIT301_H_
 
-#include "osdef.h"
 #include "initdef.h"
 
-#ifdef SIS_XORG_XF86
-#include "sis.h"
-#include "sis_regs.h"
-#endif
-
-#ifdef SIS_LINUX_KERNEL
 #include "vgatypes.h"
 #include "vstruct.h"
 #ifdef SIS_CP
@@ -72,7 +65,6 @@
 #include <linux/fb.h>
 #include "sis.h"
 #include <video/sisfb.h>
-#endif
 
 static const unsigned char SiS_YPbPrTable[3][64] = {
   {
@@ -237,7 +229,7 @@ static const unsigned char SiS_Part2CLVX_6[] = {   /* 1080i */
     0xFF,0xFF,
 };
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 /* 661 et al LCD data structure (2.03.00) */
 static const unsigned char SiS_LCDStruct661[] = {
     /* 1024x768 */
@@ -279,7 +271,7 @@ static const unsigned char SiS_LCDStruct661[] = {
 };
 #endif
 
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
 static unsigned char SiS300_TrumpionData[14][80] = {
   { 0x02,0x0A,0x0A,0x01,0x04,0x01,0x00,0x03,0x0D,0x00,0x0D,0x10,0x7F,0x00,0x80,0x02,
     0x20,0x03,0x0B,0x00,0x90,0x01,0xC1,0x01,0x60,0x0C,0x30,0x10,0x00,0x00,0x04,0x23,
@@ -356,9 +348,6 @@ static unsigned char SiS300_TrumpionData[14][80] = {
 #endif
 
 void		SiS_UnLockCRT2(struct SiS_Private *SiS_Pr);
-#ifndef SIS_LINUX_KERNEL
-void		SiS_LockCRT2(struct SiS_Private *SiS_Pr);
-#endif
 void		SiS_EnableCRT2(struct SiS_Private *SiS_Pr);
 unsigned short	SiS_GetRatePtr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex);
 void		SiS_WaitRetrace1(struct SiS_Private *SiS_Pr);
@@ -375,9 +364,6 @@ unsigned short	SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo
 			unsigned short RefreshRateTableIndex);
 unsigned short	SiS_GetResInfo(struct SiS_Private *SiS_Pr,unsigned short ModeNo,unsigned short ModeIdIndex);
 void		SiS_DisableBridge(struct SiS_Private *SiS_Pr);
-#ifndef SIS_LINUX_KERNEL
-void		SiS_EnableBridge(struct SiS_Private *SiS_Pr);
-#endif
 bool		SiS_SetCRT2Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo);
 void		SiS_SiS30xBLOn(struct SiS_Private *SiS_Pr);
 void		SiS_SiS30xBLOff(struct SiS_Private *SiS_Pr);
@@ -386,13 +372,9 @@ void		SiS_SetCH700x(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned cha
 unsigned short	SiS_GetCH700x(struct SiS_Private *SiS_Pr, unsigned short tempax);
 void		SiS_SetCH701x(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val);
 unsigned short	SiS_GetCH701x(struct SiS_Private *SiS_Pr, unsigned short tempax);
-#ifndef SIS_LINUX_KERNEL
-void		SiS_SetCH70xx(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val);
-unsigned short	SiS_GetCH70xx(struct SiS_Private *SiS_Pr, unsigned short tempax);
-#endif
 void		SiS_SetCH70xxANDOR(struct SiS_Private *SiS_Pr, unsigned short reg,
 			unsigned char orval,unsigned short andval);
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 static void	SiS_Chrontel701xOn(struct SiS_Private *SiS_Pr);
 static void	SiS_Chrontel701xOff(struct SiS_Private *SiS_Pr);
 static void	SiS_ChrontelInitTVVSync(struct SiS_Private *SiS_Pr);
@@ -401,7 +383,7 @@ void		SiS_Chrontel701xBLOn(struct SiS_Private *SiS_Pr);
 void		SiS_Chrontel701xBLOff(struct SiS_Private *SiS_Pr);
 #endif /* 315 */
 
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
 static  bool	SiS_SetTrumpionBlock(struct SiS_Private *SiS_Pr, unsigned char *dataptr);
 void		SiS_SetChrontelGPIO(struct SiS_Private *SiS_Pr, unsigned short myvbinfo);
 #endif
@@ -412,21 +394,12 @@ unsigned short	SiS_HandleDDC(struct SiS_Private *SiS_Pr, unsigned int VBFlags, i
 			unsigned short adaptnum, unsigned short DDCdatatype,
 			unsigned char *buffer, unsigned int VBFlags2);
 
-#ifdef SIS_XORG_XF86
-unsigned short		SiS_InitDDCRegs(struct SiS_Private *SiS_Pr, unsigned int VBFlags,
-				int VGAEngine, unsigned short adaptnum, unsigned short DDCdatatype,
-				bool checkcr32, unsigned int VBFlags2);
-unsigned short		SiS_ProbeDDC(struct SiS_Private *SiS_Pr);
-unsigned short		SiS_ReadDDC(struct SiS_Private *SiS_Pr, unsigned short DDCdatatype,
-				unsigned char *buffer);
-#else
 static unsigned short	SiS_InitDDCRegs(struct SiS_Private *SiS_Pr, unsigned int VBFlags,
 				int VGAEngine, unsigned short adaptnum, unsigned short DDCdatatype,
 				bool checkcr32, unsigned int VBFlags2);
 static unsigned short	SiS_ProbeDDC(struct SiS_Private *SiS_Pr);
 static unsigned short	SiS_ReadDDC(struct SiS_Private *SiS_Pr, unsigned short DDCdatatype,
 				unsigned char *buffer);
-#endif
 static void		SiS_SetSwitchDDC2(struct SiS_Private *SiS_Pr);
 static unsigned short	SiS_SetStart(struct SiS_Private *SiS_Pr);
 static unsigned short	SiS_SetStop(struct SiS_Private *SiS_Pr);
@@ -441,13 +414,13 @@ static unsigned short	SiS_PrepareDDC(struct SiS_Private *SiS_Pr);
 static void		SiS_SendACK(struct SiS_Private *SiS_Pr, unsigned short yesno);
 static unsigned short	SiS_DoProbeDDC(struct SiS_Private *SiS_Pr);
 
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
 static void		SiS_OEM300Setting(struct SiS_Private *SiS_Pr,
 				unsigned short ModeNo, unsigned short ModeIdIndex, unsigned short RefTabindex);
 static void		SetOEMLCDData2(struct SiS_Private *SiS_Pr,
 				unsigned short ModeNo, unsigned short ModeIdIndex,unsigned short RefTableIndex);
 #endif
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 static void		SiS_OEM310Setting(struct SiS_Private *SiS_Pr,
 				unsigned short ModeNo,unsigned short ModeIdIndex, unsigned short RRTI);
 static void		SiS_OEM661Setting(struct SiS_Private *SiS_Pr,
@@ -482,15 +455,13 @@ extern void		SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short M
 extern void		SiS_CalcCRRegisters(struct SiS_Private *SiS_Pr, int depth);
 extern unsigned short	SiS_GetRefCRTVCLK(struct SiS_Private *SiS_Pr, unsigned short Index, int UseWide);
 extern unsigned short	SiS_GetRefCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short Index, int UseWide);
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
 extern void		SiS_GetFIFOThresholdIndex300(struct SiS_Private *SiS_Pr, unsigned short *tempbx,
 				unsigned short *tempcl);
 extern unsigned short	SiS_GetFIFOThresholdB300(unsigned short tempbx, unsigned short tempcl);
 extern unsigned short	SiS_GetLatencyFactor630(struct SiS_Private *SiS_Pr, unsigned short index);
-#ifdef SIS_LINUX_KERNEL
 extern unsigned int	sisfb_read_nbridge_pci_dword(struct SiS_Private *SiS_Pr, int reg);
 extern unsigned int	sisfb_read_lpc_pci_dword(struct SiS_Private *SiS_Pr, int reg);
-#endif
 #endif
 
 #endif

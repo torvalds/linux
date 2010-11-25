@@ -183,9 +183,7 @@ static int  isl29020_probe(struct i2c_client *client,
 
 static int isl29020_remove(struct i2c_client *client)
 {
-	struct als_data *data = i2c_get_clientdata(client);
 	sysfs_remove_group(&client->dev.kobj, &m_als_gr);
-	kfree(data);
 	return 0;
 }
 
@@ -245,6 +243,6 @@ static void  __exit sensor_isl29020_exit(void)
 module_init(sensor_isl29020_init);
 module_exit(sensor_isl29020_exit);
 
-MODULE_AUTHOR("Kalhan Trisal <kalhan.trisal@intel.com");
+MODULE_AUTHOR("Kalhan Trisal <kalhan.trisal@intel.com>");
 MODULE_DESCRIPTION("Intersil isl29020 ALS Driver");
 MODULE_LICENSE("GPL v2");

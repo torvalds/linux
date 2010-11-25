@@ -60,6 +60,11 @@
 #include "sis.h"
 #include "sis_main.h"
 
+#if !defined(CONFIG_FB_SIS_300) && !defined(CONFIG_FB_SIS_315)
+#warning Neither CONFIG_FB_SIS_300 nor CONFIG_FB_SIS_315 is set
+#warning sisfb will not work!
+#endif
+
 static void sisfb_handle_command(struct sis_video_info *ivideo,
 				 struct sisfb_cmd *sisfb_command);
 
@@ -4114,14 +4119,6 @@ sisfb_find_rom(struct pci_dev *pdev)
 			if(sisfb_check_rom(rom_base, ivideo)) {
 
 				if((myrombase = vmalloc(65536))) {
-
-					/* Work around bug in pci/rom.c: Folks forgot to check
-					 * whether the size retrieved from the BIOS image eventually
-					 * is larger than the mapped size
-					 */
-					if(pci_resource_len(pdev, PCI_ROM_RESOURCE) < romsize)
-						romsize = pci_resource_len(pdev, PCI_ROM_RESOURCE);
-
 					memcpy_fromio(myrombase, rom_base,
 							(romsize > 65536) ? 65536 : romsize);
 				}
@@ -4154,23 +4151,6 @@ sisfb_find_rom(struct pci_dev *pdev)
 		break;
 
         }
-
-#else
-
-	pci_read_config_dword(pdev, PCI_ROM_ADDRESS, &temp);
-	pci_write_config_dword(pdev, PCI_ROM_ADDRESS,
-			(ivideo->video_base & PCI_ROM_ADDRESS_MASK) | PCI_ROM_ADDRESS_ENABLE);
-
-	rom_base = ioremap(ivideo->video_base, 65536);
-	if(rom_base) {
-		if(sisfb_check_rom(rom_base, ivideo)) {
-			if((myrombase = vmalloc(65536)))
-				memcpy_fromio(myrombase, rom_base, 65536);
-		}
-		iounmap(rom_base);
-	}
-
-	pci_write_config_dword(pdev, PCI_ROM_ADDRESS, temp);
 
 #endif
 
