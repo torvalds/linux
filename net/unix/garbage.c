@@ -97,7 +97,7 @@ static DECLARE_WAIT_QUEUE_HEAD(unix_gc_wait);
 unsigned int unix_tot_inflight;
 
 
-static struct sock *unix_get_socket(struct file *filp)
+struct sock *unix_get_socket(struct file *filp)
 {
 	struct sock *u_sock = NULL;
 	struct inode *inode = filp->f_path.dentry->d_inode;
