@@ -41,6 +41,7 @@ config USB_ARCH_HAS_OHCI
 	default y if MFD_TC6393XB
 	default y if ARCH_W90X900
 	default y if ARCH_DAVINCI_DA8XX
+	default y if ARCH_CNS3XXX
 	# PPC:
 	default y if STB03xxx
 	default y if PPC_MPC52xx
@@ -66,6 +67,7 @@ config USB_ARCH_HAS_EHCI
 	default y if ARCH_AT91SAM9G45
 	default y if ARCH_MXC
 	default y if ARCH_OMAP3
+	default y if ARCH_CNS3XXX
 	default PCI
 
 # ARM SA1111 chips have a non-PCI based "OHCI-compatible" USB host interface.

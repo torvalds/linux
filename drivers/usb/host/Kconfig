@@ -147,6 +147,14 @@ config USB_W90X900_EHCI
 	---help---
 		Enables support for the W90X900 USB controller
 
+config USB_CNS3XXX_EHCI
+	bool "Cavium CNS3XXX EHCI Module"
+	depends on USB_EHCI_HCD && ARCH_CNS3XXX
+	---help---
+	  Enable support for the CNS3XXX SOC's on-chip EHCI controller.
+	  It is needed for high-speed (480Mbit/sec) USB 2.0 device
+	  support.
+
 config USB_OXU210HP_HCD
 	tristate "OXU210HP HCD support"
 	depends on USB
@@ -285,6 +293,13 @@ config USB_OHCI_HCD_SSB
 	  Broadcom based SSB bus.
 
 	  If unsure, say N.
+
+config USB_CNS3XXX_OHCI
+	bool "Cavium CNS3XXX OHCI Module"
+	depends on USB_OHCI_HCD && ARCH_CNS3XXX
+	---help---
+	  Enable support for the CNS3XXX SOC's on-chip OHCI controller.
+	  It is needed for low-speed USB 1.0 device support.
 
 config USB_OHCI_BIG_ENDIAN_DESC
 	bool
