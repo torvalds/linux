@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/kdebug.h>
 #include <linux/mutex.h>
+#include <linux/init.h>
 
 #include <asm/hwrpb.h>
 #include <asm/atomic.h>
@@ -863,13 +864,13 @@ static void alpha_perf_event_irq_handler(unsigned long la_ptr,
 /*
  * Init call to initialise performance events at kernel startup.
  */
-void __init init_hw_perf_events(void)
+int __init init_hw_perf_events(void)
 {
 	pr_info("Performance events: ");
 
 	if (!supported_cpu()) {
 		pr_cont("No support for your CPU.\n");
-		return;
+		return 0;
 	}
 
 	pr_cont("Supported CPU type!\n");
@@ -882,5 +883,7 @@ void __init init_hw_perf_events(void)
 	alpha_pmu = &ev67_pmu;
 
 	perf_pmu_register(&pmu);
-}
 
+	return 0;
+}
+early_initcall(init_hw_perf_events);

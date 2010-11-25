@@ -126,4 +126,4 @@ static int init_e500_pmu(void)
 	return register_fsl_emb_pmu(&e500_pmu);
 }
 
-arch_initcall(init_e500_pmu);
+early_initcall(init_e500_pmu);

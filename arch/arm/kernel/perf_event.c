@@ -3038,7 +3038,7 @@ init_hw_perf_events(void)
 
 	return 0;
 }
-arch_initcall(init_hw_perf_events);
+early_initcall(init_hw_perf_events);
 
 /*
  * Callchain handling code.

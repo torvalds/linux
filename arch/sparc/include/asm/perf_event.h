@@ -4,8 +4,6 @@
 #ifdef CONFIG_PERF_EVENTS
 #include <asm/ptrace.h>
 
-extern void init_hw_perf_events(void);
-
 #define perf_arch_fetch_caller_regs(regs, ip)		\
 do {							\
 	unsigned long _pstate, _asi, _pil, _i7, _fp;	\
@@ -26,8 +24,6 @@ do {							\
 	(regs)->u_regs[UREG_I6] = _fp;			\
 	(regs)->u_regs[UREG_I7] = _i7;			\
 } while (0)
-#else
-static inline void init_hw_perf_events(void)	{ }
 #endif
 
 #endif

@@ -682,4 +682,4 @@ static int init_power5p_pmu(void)
 	return register_power_pmu(&power5p_pmu);
 }
 
-arch_initcall(init_power5p_pmu);
+early_initcall(init_power5p_pmu);
