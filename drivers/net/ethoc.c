@@ -414,8 +414,19 @@ static int ethoc_rx(struct net_device *dev, int limit)
 
 		entry = priv->num_tx + (priv->cur_rx % priv->num_rx);
 		ethoc_read_bd(priv, entry, &bd);
-		if (bd.stat & RX_BD_EMPTY)
-			break;
+		if (bd.stat & RX_BD_EMPTY) {
+			ethoc_ack_irq(priv, INT_MASK_RX);
+			/* If packet (interrupt) came in between checking
+			 * BD_EMTPY and clearing the interrupt source, then we
+			 * risk missing the packet as the RX interrupt won't
+			 * trigger right away when we reenable it; hence, check
+			 * BD_EMTPY here again to make sure there isn't such a
+			 * packet waiting for us...
+			 */
+			ethoc_read_bd(priv, entry, &bd);
+			if (bd.stat & RX_BD_EMPTY)
+				break;
+		}
 
 		if (ethoc_update_rx_stats(priv, &bd) == 0) {
 			int size = bd.stat >> 16;
