@@ -218,6 +218,7 @@ int
 __nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
 {
 	unsigned long timeout = jiffies + (3 * DRM_HZ);
+	unsigned long sleep_time = jiffies + 1;
 	int ret = 0;
 
 	while (1) {
@@ -231,7 +232,7 @@ __nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
 
 		__set_current_state(intr ? TASK_INTERRUPTIBLE
 			: TASK_UNINTERRUPTIBLE);
-		if (lazy)
+		if (lazy && time_after_eq(jiffies, sleep_time))
 			schedule_timeout(1);
 
 		if (intr && signal_pending(current)) {
