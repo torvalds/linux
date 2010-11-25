@@ -522,6 +522,7 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 	INIT_LIST_HEAD(&fimc->vid_cap.active_buf_q);
 	fimc->vid_cap.active_buf_cnt = 0;
 	fimc->vid_cap.frame_count = 0;
+	fimc->vid_cap.buf_index = fimc_hw_get_frame_index(fimc);
 
 	set_bit(ST_CAPT_PEND, &fimc->state);
 	ret = videobuf_streamon(&fimc->vid_cap.vbq);
