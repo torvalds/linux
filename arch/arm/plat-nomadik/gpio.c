@@ -175,6 +175,8 @@ static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
 		int slpm_output = PIN_SLPM_DIR(cfg);
 		int slpm_val = PIN_SLPM_VAL(cfg);
 
+		af = NMK_GPIO_ALT_GPIO;
+
 		/*
 		 * The SLPM_* values are normal values + 1 to allow zero to
 		 * mean "same as normal".
