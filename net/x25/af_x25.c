@@ -1562,19 +1562,20 @@ out_dtefac_release:
 		case SIOCX25SCUDMATCHLEN: {
 			struct x25_subaddr sub_addr;
 			rc = -EINVAL;
-			lock_kernel();
+			lock_sock(sk);
 			if(sk->sk_state != TCP_CLOSE)
-				break;
+				goto out_cud_release;
 			rc = -EFAULT;
 			if (copy_from_user(&sub_addr, argp,
 					sizeof(sub_addr)))
-				break;
+				goto out_cud_release;
 			rc = -EINVAL;
 			if(sub_addr.cudmatchlength > X25_MAX_CUD_LEN)
-				break;
+				goto out_cud_release;
 			x25->cudmatchlength = sub_addr.cudmatchlength;
-			unlock_kernel();
 			rc = 0;
+out_cud_release:
+			release_sock(sk);
 			break;
 		}
 
