@@ -283,8 +283,14 @@ int do_syslog(int type, char __user *buf, int len, bool from_file)
 			return -EPERM;
 		if ((type != SYSLOG_ACTION_READ_ALL &&
 		     type != SYSLOG_ACTION_SIZE_BUFFER) &&
-		    !capable(CAP_SYS_ADMIN))
+		    !capable(CAP_SYSLOG)) {
+			/* remove after 2.6.38 */
+			if (capable(CAP_SYS_ADMIN))
+				WARN_ONCE(1, "Attempt to access syslog with "
+				  "CAP_SYS_ADMIN but no CAP_SYSLOG "
+				  "(deprecated and denied).\n");
 			return -EPERM;
+		}
 	}
 
 	error = security_syslog(type);
