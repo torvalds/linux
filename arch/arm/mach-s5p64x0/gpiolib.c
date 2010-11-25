@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-s5p64x0/gpio.c
+/* linux/arch/arm/mach-s5p64x0/gpiolib.c
  *
  * Copyright (c) 2009-2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
