@@ -1083,6 +1083,10 @@ int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
 int i915_gem_init_object(struct drm_gem_object *obj);
+void i915_gem_flush_ring(struct drm_device *dev,
+			 struct intel_ring_buffer *ring,
+			 uint32_t invalidate_domains,
+			 uint32_t flush_domains);
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
 void i915_gem_free_object(struct drm_gem_object *obj);
@@ -1094,6 +1098,12 @@ int __must_check i915_gem_object_unbind(struct drm_i915_gem_object *obj);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 
+int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
+int __must_check i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
+						bool interruptible);
+void i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
+				    struct intel_ring_buffer *ring);
+
 /**
  * Returns true if seq1 is later than seq2.
  */
@@ -1101,6 +1111,14 @@ static inline bool
 i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 {
 	return (int32_t)(seq1 - seq2) >= 0;
+}
+
+static inline u32
+i915_gem_next_request_seqno(struct drm_device *dev,
+			    struct intel_ring_buffer *ring)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	return ring->outstanding_lazy_request = dev_priv->next_seqno;
 }
 
 int __must_check i915_gem_object_get_fence_reg(struct drm_i915_gem_object *obj,
