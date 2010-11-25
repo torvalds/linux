@@ -583,6 +583,14 @@ struct snd_soc_prefix_map {
 	const char *name_prefix;
 };
 
+struct snd_soc_aux_dev {
+	const char *name;		/* Codec name */
+	const char *codec_name;		/* for multi-codec */
+
+	/* codec/machine specific init - e.g. add machine controls */
+	int (*init)(struct snd_soc_dapm_context *dapm);
+};
+
 /* SoC card */
 struct snd_soc_card {
 	const char *name;
@@ -623,6 +631,15 @@ struct snd_soc_card {
 	 */
 	struct snd_soc_prefix_map *prefix_map;
 	int num_prefixes;
+
+	/*
+	 * optional auxiliary devices such as amplifiers or codecs with DAI
+	 * link unused
+	 */
+	struct snd_soc_aux_dev *aux_dev;
+	int num_aux_devs;
+	struct snd_soc_pcm_runtime *rtd_aux;
+	int num_aux_rtd;
 
 	struct work_struct deferred_resume_work;
 
