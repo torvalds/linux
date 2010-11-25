@@ -561,6 +561,25 @@ ieee80211_remain_on_channel_timeout(struct ieee80211_work *wk)
 }
 
 static enum work_action __must_check
+ieee80211_offchannel_tx(struct ieee80211_work *wk)
+{
+	if (!wk->started) {
+		wk->timeout = jiffies + msecs_to_jiffies(wk->offchan_tx.wait);
+
+		/*
+		 * After this, offchan_tx.frame remains but now is no
+		 * longer a valid pointer -- we still need it as the
+		 * cookie for canceling this work.
+		 */
+		ieee80211_tx_skb(wk->sdata, wk->offchan_tx.frame);
+
+		return WORK_ACT_NONE;
+	}
+
+	return WORK_ACT_TIMEOUT;
+}
+
+static enum work_action __must_check
 ieee80211_assoc_beacon_wait(struct ieee80211_work *wk)
 {
 	if (wk->started)
@@ -954,6 +973,9 @@ static void ieee80211_work_work(struct work_struct *work)
 			break;
 		case IEEE80211_WORK_REMAIN_ON_CHANNEL:
 			rma = ieee80211_remain_on_channel_timeout(wk);
+			break;
+		case IEEE80211_WORK_OFFCHANNEL_TX:
+			rma = ieee80211_offchannel_tx(wk);
 			break;
 		case IEEE80211_WORK_ASSOC_BEACON_WAIT:
 			rma = ieee80211_assoc_beacon_wait(wk);

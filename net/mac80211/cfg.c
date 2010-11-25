@@ -1551,6 +1551,28 @@ static int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
 	return ieee80211_wk_cancel_remain_on_channel(sdata, cookie);
 }
 
+static enum work_done_result
+ieee80211_offchan_tx_done(struct ieee80211_work *wk, struct sk_buff *skb)
+{
+	/*
+	 * Use the data embedded in the work struct for reporting
+	 * here so if the driver mangled the SKB before dropping
+	 * it (which is the only way we really should get here)
+	 * then we don't report mangled data.
+	 *
+	 * If there was no wait time, then by the time we get here
+	 * the driver will likely not have reported the status yet,
+	 * so in that case userspace will have to deal with it.
+	 */
+
+	if (wk->offchan_tx.wait && wk->offchan_tx.frame)
+		cfg80211_mgmt_tx_status(wk->sdata->dev,
+					(unsigned long) wk->offchan_tx.frame,
+					wk->ie, wk->ie_len, false, GFP_KERNEL);
+
+	return WORK_DONE_DESTROY;
+}
+
 static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 			     struct ieee80211_channel *chan, bool offchan,
 			     enum nl80211_channel_type channel_type,
@@ -1561,20 +1583,22 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct sta_info *sta;
+	struct ieee80211_work *wk;
 	const struct ieee80211_mgmt *mgmt = (void *)buf;
 	u32 flags = IEEE80211_TX_INTFL_NL80211_FRAME_TX |
 		    IEEE80211_TX_CTL_REQ_TX_STATUS;
-
-	if (offchan)
-		return -EOPNOTSUPP;
+	bool is_offchan = false;
 
 	/* Check that we are on the requested channel for transmission */
 	if (chan != local->tmp_channel &&
 	    chan != local->oper_channel)
-		return -EBUSY;
+		is_offchan = true;
 	if (channel_type_valid &&
 	    (channel_type != local->tmp_channel_type &&
 	     channel_type != local->_oper_channel_type))
+		is_offchan = true;
+
+	if (is_offchan && !offchan)
 		return -EBUSY;
 
 	switch (sdata->vif.type) {
@@ -1608,10 +1632,68 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	IEEE80211_SKB_CB(skb)->flags = flags;
 
 	skb->dev = sdata->dev;
-	ieee80211_tx_skb(sdata, skb);
 
 	*cookie = (unsigned long) skb;
+
+	/*
+	 * Can transmit right away if the channel was the
+	 * right one and there's no wait involved... If a
+	 * wait is involved, we might otherwise not be on
+	 * the right channel for long enough!
+	 */
+	if (!is_offchan && !wait && !sdata->vif.bss_conf.idle) {
+		ieee80211_tx_skb(sdata, skb);
+		return 0;
+	}
+
+	wk = kzalloc(sizeof(*wk) + len, GFP_KERNEL);
+	if (!wk) {
+		kfree_skb(skb);
+		return -ENOMEM;
+	}
+
+	wk->type = IEEE80211_WORK_OFFCHANNEL_TX;
+	wk->chan = chan;
+	wk->sdata = sdata;
+	wk->done = ieee80211_offchan_tx_done;
+	wk->offchan_tx.frame = skb;
+	wk->offchan_tx.wait = wait;
+	wk->ie_len = len;
+	memcpy(wk->ie, buf, len);
+
+	ieee80211_add_work(wk);
 	return 0;
+}
+
+static int ieee80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
+					 struct net_device *dev,
+					 u64 cookie)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_work *wk;
+	int ret = -ENOENT;
+
+	mutex_lock(&local->mtx);
+	list_for_each_entry(wk, &local->work_list, list) {
+		if (wk->sdata != sdata)
+			continue;
+
+		if (wk->type != IEEE80211_WORK_OFFCHANNEL_TX)
+			continue;
+
+		if (cookie != (unsigned long) wk->offchan_tx.frame)
+			continue;
+
+		wk->timeout = jiffies;
+
+		ieee80211_queue_work(&local->hw, &local->work_work);
+		ret = 0;
+		break;
+	}
+	mutex_unlock(&local->mtx);
+
+	return ret;
 }
 
 static void ieee80211_mgmt_frame_register(struct wiphy *wiphy,
@@ -1698,6 +1780,7 @@ struct cfg80211_ops mac80211_config_ops = {
 	.remain_on_channel = ieee80211_remain_on_channel,
 	.cancel_remain_on_channel = ieee80211_cancel_remain_on_channel,
 	.mgmt_tx = ieee80211_mgmt_tx,
+	.mgmt_tx_cancel_wait = ieee80211_mgmt_tx_cancel_wait,
 	.set_cqm_rssi_config = ieee80211_set_cqm_rssi_config,
 	.mgmt_frame_register = ieee80211_mgmt_frame_register,
 	.set_antenna = ieee80211_set_antenna,

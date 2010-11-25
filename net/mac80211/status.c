@@ -321,10 +321,23 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 					msecs_to_jiffies(10));
 	}
 
-	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX)
+	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX) {
+		struct ieee80211_work *wk;
+
+		rcu_read_lock();
+		list_for_each_entry_rcu(wk, &local->work_list, list) {
+			if (wk->type != IEEE80211_WORK_OFFCHANNEL_TX)
+				continue;
+			if (wk->offchan_tx.frame != skb)
+				continue;
+			wk->offchan_tx.frame = NULL;
+			break;
+		}
+		rcu_read_unlock();
 		cfg80211_mgmt_tx_status(
 			skb->dev, (unsigned long) skb, skb->data, skb->len,
 			!!(info->flags & IEEE80211_TX_STAT_ACK), GFP_ATOMIC);
+	}
 
 	/* this was a transmitted frame, but now we want to reuse it */
 	skb_orphan(skb);
