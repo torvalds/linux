@@ -121,7 +121,7 @@ static void __map_groups__fixup_end(struct map_groups *self, enum map_type type)
 	 * We still haven't the actual symbols, so guess the
 	 * last map final address.
 	 */
-	curr->end = ~0UL;
+	curr->end = ~0ULL;
 }
 
 static void map_groups__fixup_end(struct map_groups *self)

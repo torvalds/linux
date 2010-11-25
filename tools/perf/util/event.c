@@ -392,7 +392,7 @@ static void event_set_kernel_mmap_len(struct map **maps, event_t *self)
 	 * a zero sized synthesized MMAP event for the kernel.
 	 */
 	if (maps[MAP__FUNCTION]->end == 0)
-		maps[MAP__FUNCTION]->end = ~0UL;
+		maps[MAP__FUNCTION]->end = ~0ULL;
 }
 
 static int event__process_kernel_mmap(event_t *self,
