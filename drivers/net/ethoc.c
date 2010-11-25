@@ -412,7 +412,7 @@ static int ethoc_rx(struct net_device *dev, int limit)
 		unsigned int entry;
 		struct ethoc_bd bd;
 
-		entry = priv->num_tx + (priv->cur_rx % priv->num_rx);
+		entry = priv->num_tx + priv->cur_rx;
 		ethoc_read_bd(priv, entry, &bd);
 		if (bd.stat & RX_BD_EMPTY) {
 			ethoc_ack_irq(priv, INT_MASK_RX);
@@ -456,7 +456,8 @@ static int ethoc_rx(struct net_device *dev, int limit)
 		bd.stat &= ~RX_BD_STATS;
 		bd.stat |=  RX_BD_EMPTY;
 		ethoc_write_bd(priv, entry, &bd);
-		priv->cur_rx++;
+		if (++priv->cur_rx == priv->num_rx)
+			priv->cur_rx = 0;
 	}
 
 	return count;
@@ -503,7 +504,7 @@ static int ethoc_tx(struct net_device *dev, int limit)
 	for (count = 0; count < limit; ++count) {
 		unsigned int entry;
 
-		entry = priv->dty_tx % priv->num_tx;
+		entry = priv->dty_tx & (priv->num_tx-1);
 
 		ethoc_read_bd(priv, entry, &bd);
 
@@ -1000,8 +1001,16 @@ static int __devinit ethoc_probe(struct platform_device *pdev)
 	/* calculate the number of TX/RX buffers, maximum 128 supported */
 	num_bd = min_t(unsigned int,
 		128, (netdev->mem_end - netdev->mem_start + 1) / ETHOC_BUFSIZ);
-	priv->num_tx = max(2, num_bd / 4);
+	if (num_bd < 4) {
+		ret = -ENODEV;
+		goto error;
+	}
+	/* num_tx must be a power of two */
+	priv->num_tx = rounddown_pow_of_two(num_bd >> 1);
 	priv->num_rx = num_bd - priv->num_tx;
+
+	dev_dbg(&pdev->dev, "ethoc: num_tx: %d num_rx: %d\n",
+		priv->num_tx, priv->num_rx);
 
 	priv->vma = devm_kzalloc(&pdev->dev, num_bd*sizeof(void*), GFP_KERNEL);
 	if (!priv->vma) {
