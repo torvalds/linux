@@ -78,7 +78,6 @@ struct rk29_bl_info{
 };
 
 struct rk29_sdmmc_platform_data {
-	unsigned int num_slots;
 	unsigned int host_caps;
 	unsigned int host_ocr_avail;
 	unsigned int use_dma:1;

@@ -389,7 +389,7 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 {
 	struct rk29_sdmmc	*host = arg;
 	struct mmc_data		*data = host->data;
-
+	printk("Enter:%s-----%d dma complete\n",__FUNCTION__,__LINE__);
 	if(host->use_dma == 0)
 		return;
 	dev_vdbg(&host->pdev->dev, "DMA complete\n");
@@ -412,7 +412,7 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *data)
 {
 	struct scatterlist		*sg;
-	unsigned int			direction;
+	unsigned int			i,direction;
 
 	if(host->use_dma == 0)
 		return -ENOSYS;
@@ -429,22 +429,20 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 		return -EINVAL;
 	if (data->blksz & 3)
 		return -EINVAL;
-
-	for_each_sg(data->sg, sg, data->sg_len, host->dma_chn) {
+	for_each_sg(data->sg, sg, data->sg_len, i) {
 		if (sg->offset & 3 || sg->length & 3)
 			return -EINVAL;
 	}
-
 	if (data->flags & MMC_DATA_READ)
 		direction = RK29_DMASRC_HW; 
 	else
-		direction = RK29_DMASRC_MEM;  
+		direction = RK29_DMASRC_MEM;  		
 	dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, 
-			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);				
     rk29_dma_devconfig(host->dma_chn, direction, (unsigned long )(host->regs+SDMMC_DATA));
     rk29_dma_enqueue(host->dma_chn, NULL, data->sg->dma_address, data->sg->length);	
 	rk29_sdmmc_write(host->regs, SDMMC_CTRL, (rk29_sdmmc_read(host->regs, SDMMC_CTRL))|SDMMC_CTRL_DMA_ENABLE);// enable dma
-	rk29_dma_ctrl(host->dma_chn, RK29_DMAF_AUTOSTART);
+	rk29_dma_ctrl(host->dma_chn, RK29_DMAOP_START);
 	printk("Enter:%s-----%d DMA DATA START\n",__FUNCTION__,__LINE__);
 	return 0;
 }
@@ -1183,7 +1181,6 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	if (!regs)
 		return -ENXIO;
 
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -1209,14 +1206,18 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	host->regs = ioremap(regs->start, regs->end - regs->start);
 	if (!host->regs)
 	    goto err_freemap;   
+	memcpy(host->dma_name, pdata->dma_name, 8);    
 	host->use_dma = pdata->use_dma;     
 	if(host->use_dma){
-		if(strncmp(host->dma_name, "sdio", strlen("sdio")) == 1)
-			host->dma_chn = rk29_dma_request(DMACH_SDIO, &rk29_dma_sdio1_client, NULL);
-		if(strncmp(host->dma_name, "sd_mmc", strlen("sd_mmc")) == 1)	
-			host->dma_chn = rk29_dma_request(DMACH_SDMMC, &rk29_dma_sdmmc0_client, NULL);
+		if(strncmp(host->dma_name, "sdio", strlen("sdio")) == 0){
+			rk29_dma_request(DMACH_SDIO, &rk29_dma_sdio1_client, NULL);
+			host->dma_chn = DMACH_SDIO;
+		}
+		if(strncmp(host->dma_name, "sd_mmc", strlen("sd_mmc")) == 0){	
+			rk29_dma_request(DMACH_SDMMC, &rk29_dma_sdmmc0_client, NULL);
+			host->dma_chn = DMACH_SDMMC;
+		}	
 		rk29_dma_config(host->dma_chn, 16);
-		rk29_dma_setflags(host->dma_chn, RK29_DMAF_AUTOSTART);
 		rk29_dma_set_buffdone_fn(host->dma_chn, rk29_sdmmc_dma_complete);	
 	}
 	host->bus_hz = 25000000;  ////cgu_get_clk_freq(CGU_SB_SD_MMC_CCLK_IN_ID); 
@@ -1246,8 +1247,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	if (ret)
 	    goto err_dmaunmap;
 
-	platform_set_drvdata(pdev, host); 
-	memcpy(host->dma_name, pdata->dma_name, 8);
+	platform_set_drvdata(pdev, host); 	
 	mmc->ops = &rk29_sdmmc_ops[pdev->id];
 	mmc->f_min = host->bus_hz/510;
 	mmc->f_max = host->bus_hz/20; //max f is clock to mmc_clk/2
@@ -1282,13 +1282,12 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA,1);
 	///rk29_sdmmc_write(host->regs, SDMMC_CLKDIV,2);
 	dev_info(&pdev->dev, "RK29 SDMMC controller at irq %d\n", irq);
-
 	return 0;
 err_dmaunmap:
 	if(host->use_dma){
-		if(strncmp(host->dma_name, "sdio", strlen("sdio")) == 1)
+		if(strncmp(host->dma_name, "sdio", strlen("sdio")) == 0)
 			rk29_dma_free(DMACH_SDIO, &rk29_dma_sdio1_client);
-		if(strncmp(host->dma_name, "sd_mmc", strlen("sd_mmc")) == 1)	
+		if(strncmp(host->dma_name, "sd_mmc", strlen("sd_mmc")) == 0)	
 			rk29_dma_free(DMACH_SDMMC, &rk29_dma_sdmmc0_client);
 	}
 err_freemap:
@@ -1322,9 +1321,9 @@ static int __exit rk29_sdmmc_remove(struct platform_device *pdev)
 	
 	free_irq(platform_get_irq(pdev, 0), host);
 	if(host->use_dma){
-		if(strncmp(host->dma_name, "sdio", strlen("sdio")) == 1)
+		if(strncmp(host->dma_name, "sdio", strlen("sdio")) == 0)
 			rk29_dma_free(DMACH_SDIO, &rk29_dma_sdio1_client);
-		if(strncmp(host->dma_name, "sd_mmc", strlen("sd_mmc")) == 1)	
+		if(strncmp(host->dma_name, "sd_mmc", strlen("sd_mmc")) == 0)	
 			rk29_dma_free(DMACH_SDMMC, &rk29_dma_sdmmc0_client);
 	}
 	iounmap(host->regs);

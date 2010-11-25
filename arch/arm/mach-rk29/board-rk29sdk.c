@@ -439,13 +439,26 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #ifdef CONFIG_I2C1_RK29
 static struct i2c_board_info __initdata board_i2c1_devices[] = {
 #if defined (CONFIG_RK1000_CONTROL1)
-		{
-			.type			= "rk1000_control",
-			.addr			= 0x40,
-			.flags			= 0,
-		},
+	{
+		.type			= "rk1000_control",
+		.addr			= 0x40,
+		.flags			= 0,
+	},
 #endif
-
+#if defined (CONFIG_SENSORS_AK8973)
+	{
+		.type    		= "ak8973",
+		.addr           = 0x1c,
+		.flags			= 0,
+	},
+#endif
+#if defined (CONFIG_SENSORS_AK8973)
+	{
+		.type    		= "ak8975",
+		.addr           = 0x1c,
+		.flags			= 0,
+	},
+#endif
 };
 #endif
 
@@ -715,9 +728,8 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	return 0;
 }
 
-//#define CONFIG_SDMMC0_USE_DMA
+#define CONFIG_SDMMC0_USE_DMA
 struct rk29_sdmmc_platform_data default_sdmmc0_data = {
-	.num_slots		= 1,
 	.host_ocr_avail = (MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|
 					   MMC_VDD_30_31|MMC_VDD_31_32|MMC_VDD_32_33| 
 					   MMC_VDD_33_34|MMC_VDD_34_35| MMC_VDD_35_36),
@@ -741,11 +753,11 @@ static int rk29_sdmmc1_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1C4_SDMMC1DATA1_NAME, GPIO1H_SDMMC1_DATA1);
 	rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_SDMMC1_DATA2);
 	rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_SDMMC1_DATA3);
+	rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_SDMMC1_DETECT_N);
 	return 0;
 }
 
 struct rk29_sdmmc_platform_data default_sdmmc1_data = {
-	.num_slots		= 1,
 	.host_ocr_avail = (MMC_VDD_26_27|MMC_VDD_27_28|MMC_VDD_28_29|
 					   MMC_VDD_29_30|MMC_VDD_30_31|MMC_VDD_31_32|
 					   MMC_VDD_32_33|MMC_VDD_33_34),
