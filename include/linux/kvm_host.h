@@ -673,11 +673,13 @@ static inline int kvm_irqfd(struct kvm *kvm, int fd, int gsi, int flags)
 
 static inline void kvm_irqfd_release(struct kvm *kvm) {}
 
+#ifdef CONFIG_HAVE_KVM_IRQCHIP
 static inline void kvm_irq_routing_update(struct kvm *kvm,
 					  struct kvm_irq_routing_table *irq_rt)
 {
 	rcu_assign_pointer(kvm->irq_routing, irq_rt);
 }
+#endif
 
 static inline int kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 {
