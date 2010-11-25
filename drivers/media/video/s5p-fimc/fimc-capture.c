@@ -652,6 +652,50 @@ static int fimc_cap_s_ctrl(struct file *file, void *priv,
 	return ret;
 }
 
+static int fimc_cap_cropcap(struct file *file, void *fh,
+			    struct v4l2_cropcap *cr)
+{
+	struct fimc_frame *f;
+	struct fimc_ctx *ctx = fh;
+	struct fimc_dev *fimc = ctx->fimc_dev;
+
+	if (cr->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	if (mutex_lock_interruptible(&fimc->lock))
+		return -ERESTARTSYS;
+
+	f = &ctx->s_frame;
+	cr->bounds.left		= 0;
+	cr->bounds.top		= 0;
+	cr->bounds.width	= f->o_width;
+	cr->bounds.height	= f->o_height;
+	cr->defrect		= cr->bounds;
+
+	mutex_unlock(&fimc->lock);
+	return 0;
+}
+
+static int fimc_cap_g_crop(struct file *file, void *fh, struct v4l2_crop *cr)
+{
+	struct fimc_frame *f;
+	struct fimc_ctx *ctx = file->private_data;
+	struct fimc_dev *fimc = ctx->fimc_dev;
+
+
+	if (mutex_lock_interruptible(&fimc->lock))
+		return -ERESTARTSYS;
+
+	f = &ctx->s_frame;
+	cr->c.left	= f->offs_h;
+	cr->c.top	= f->offs_v;
+	cr->c.width	= f->width;
+	cr->c.height	= f->height;
+
+	mutex_unlock(&fimc->lock);
+	return 0;
+}
+
 static int fimc_cap_s_crop(struct file *file, void *fh,
 			       struct v4l2_crop *cr)
 {
@@ -716,9 +760,9 @@ static const struct v4l2_ioctl_ops fimc_capture_ioctl_ops = {
 	.vidioc_g_ctrl			= fimc_vidioc_g_ctrl,
 	.vidioc_s_ctrl			= fimc_cap_s_ctrl,
 
-	.vidioc_g_crop			= fimc_vidioc_g_crop,
+	.vidioc_g_crop			= fimc_cap_g_crop,
 	.vidioc_s_crop			= fimc_cap_s_crop,
-	.vidioc_cropcap			= fimc_vidioc_cropcap,
+	.vidioc_cropcap			= fimc_cap_cropcap,
 
 	.vidioc_enum_input		= fimc_cap_enum_input,
 	.vidioc_s_input			= fimc_cap_s_input,

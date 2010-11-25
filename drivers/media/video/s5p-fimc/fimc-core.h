@@ -594,10 +594,6 @@ int fimc_vidioc_g_fmt(struct file *file, void *priv,
 		      struct v4l2_format *f);
 int fimc_vidioc_try_fmt(struct file *file, void *priv,
 			struct v4l2_format *f);
-int fimc_vidioc_g_crop(struct file *file, void *fh,
-		       struct v4l2_crop *cr);
-int fimc_vidioc_cropcap(struct file *file, void *fh,
-			struct v4l2_cropcap *cr);
 int fimc_vidioc_queryctrl(struct file *file, void *priv,
 			  struct v4l2_queryctrl *qc);
 int fimc_vidioc_g_ctrl(struct file *file, void *priv,

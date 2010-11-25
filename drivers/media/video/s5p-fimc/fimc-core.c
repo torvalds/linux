@@ -1115,7 +1115,7 @@ static int fimc_m2m_s_ctrl(struct file *file, void *priv,
 	return 0;
 }
 
-int fimc_vidioc_cropcap(struct file *file, void *fh,
+static int fimc_m2m_cropcap(struct file *file, void *fh,
 			struct v4l2_cropcap *cr)
 {
 	struct fimc_frame *frame;
@@ -1139,7 +1139,7 @@ int fimc_vidioc_cropcap(struct file *file, void *fh,
 	return 0;
 }
 
-int fimc_vidioc_g_crop(struct file *file, void *fh, struct v4l2_crop *cr)
+static int fimc_m2m_g_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 {
 	struct fimc_frame *frame;
 	struct fimc_ctx *ctx = file->private_data;
@@ -1167,22 +1167,22 @@ int fimc_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
 	struct fimc_frame *f;
 	u32 min_size, halign;
 
-	f = (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) ?
-		&ctx->s_frame : &ctx->d_frame;
-
 	if (cr->c.top < 0 || cr->c.left < 0) {
 		v4l2_err(&fimc->m2m.v4l2_dev,
 			"doesn't support negative values for top & left\n");
 		return -EINVAL;
 	}
 
-	f = ctx_get_frame(ctx, cr->type);
-	if (IS_ERR(f))
-		return PTR_ERR(f);
+	if (cr->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		f = (ctx->state & FIMC_CTX_CAP) ? &ctx->s_frame : &ctx->d_frame;
+	else if (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT &&
+		 ctx->state & FIMC_CTX_M2M)
+		f = &ctx->s_frame;
+	else
+		return -EINVAL;
 
-	min_size = (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
-		? fimc->variant->min_inp_pixsize
-		: fimc->variant->min_out_pixsize;
+	min_size = (f == &ctx->s_frame) ?
+		fimc->variant->min_inp_pixsize : fimc->variant->min_out_pixsize;
 
 	if (ctx->state & FIMC_CTX_M2M) {
 		if (fimc->id == 1 && fimc->variant->pix_hoff)
@@ -1285,9 +1285,9 @@ static const struct v4l2_ioctl_ops fimc_m2m_ioctl_ops = {
 	.vidioc_g_ctrl			= fimc_vidioc_g_ctrl,
 	.vidioc_s_ctrl			= fimc_m2m_s_ctrl,
 
-	.vidioc_g_crop			= fimc_vidioc_g_crop,
+	.vidioc_g_crop			= fimc_m2m_g_crop,
 	.vidioc_s_crop			= fimc_m2m_s_crop,
-	.vidioc_cropcap			= fimc_vidioc_cropcap
+	.vidioc_cropcap			= fimc_m2m_cropcap
 
 };
 
