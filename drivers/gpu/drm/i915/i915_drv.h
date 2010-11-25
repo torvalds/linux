@@ -712,8 +712,8 @@ struct drm_i915_gem_object {
 	struct list_head mm_list;
 	/** This object's place on GPU write list */
 	struct list_head gpu_write_list;
-	/** This object's place on eviction list */
-	struct list_head evict_list;
+	/** This object's place in the batchbuffer or on the eviction list */
+	struct list_head exec_list;
 
 	/**
 	 * This is set if the object is on the active or flushing lists
@@ -736,12 +736,6 @@ struct drm_i915_gem_object {
 	 * Size: 4 bits for 16 fences + sign (for FENCE_REG_NONE)
 	 */
 	signed int fence_reg : 5;
-
-	/**
-	 * Used for checking the object doesn't appear more than once
-	 * in an execbuffer object list.
-	 */
-	unsigned int in_execbuffer : 1;
 
 	/**
 	 * Advice: are the backing pages purgeable?

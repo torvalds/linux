@@ -34,7 +34,7 @@
 static bool
 mark_free(struct drm_i915_gem_object *obj, struct list_head *unwind)
 {
-	list_add(&obj->evict_list, unwind);
+	list_add(&obj->exec_list, unwind);
 	drm_gem_object_reference(&obj->base);
 	return drm_mm_scan_add_block(obj->gtt_space);
 }
@@ -127,7 +127,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 	}
 
 	/* Nothing found, clean up and bail out! */
-	list_for_each_entry(obj, &unwind_list, evict_list) {
+	list_for_each_entry(obj, &unwind_list, exec_list) {
 		ret = drm_mm_scan_remove_block(obj->gtt_space);
 		BUG_ON(ret);
 		drm_gem_object_unreference(&obj->base);
@@ -146,12 +146,12 @@ found:
 	while (!list_empty(&unwind_list)) {
 		obj = list_first_entry(&unwind_list,
 				       struct drm_i915_gem_object,
-				       evict_list);
+				       exec_list);
 		if (drm_mm_scan_remove_block(obj->gtt_space)) {
-			list_move(&obj->evict_list, &eviction_list);
+			list_move(&obj->exec_list, &eviction_list);
 			continue;
 		}
-		list_del(&obj->evict_list);
+		list_del_init(&obj->exec_list);
 		drm_gem_object_unreference(&obj->base);
 	}
 
@@ -159,10 +159,10 @@ found:
 	while (!list_empty(&eviction_list)) {
 		obj = list_first_entry(&eviction_list,
 				       struct drm_i915_gem_object,
-				       evict_list);
+				       exec_list);
 		if (ret == 0)
 			ret = i915_gem_object_unbind(obj);
-		list_del(&obj->evict_list);
+		list_del_init(&obj->exec_list);
 		drm_gem_object_unreference(&obj->base);
 	}
 

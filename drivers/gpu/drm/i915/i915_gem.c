@@ -3399,6 +3399,7 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 	INIT_LIST_HEAD(&obj->mm_list);
 	INIT_LIST_HEAD(&obj->gtt_list);
 	INIT_LIST_HEAD(&obj->ring_list);
+	INIT_LIST_HEAD(&obj->exec_list);
 	INIT_LIST_HEAD(&obj->gpu_write_list);
 	obj->madv = I915_MADV_WILLNEED;
 	/* Avoid an unnecessary call to unbind on the first bind. */
