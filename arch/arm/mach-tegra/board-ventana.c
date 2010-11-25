@@ -145,7 +145,7 @@ static struct gpio_keys_button ventana_keys[] = {
 	[0] = GPIO_KEY(KEY_MENU, PQ0, 0),
 	[1] = GPIO_KEY(KEY_HOME, PQ1, 0),
 	[2] = GPIO_KEY(KEY_BACK, PQ2, 0),
-	[3] = GPIO_KEY(KEY_VOLUMEUP, PQ3, 0),
+	[3] = GPIO_KEY(KEY_VOLUMEUP, PQ5, 0),
 	[4] = GPIO_KEY(KEY_VOLUMEDOWN, PQ4, 0),
 	[5] = GPIO_KEY(KEY_POWER, PV2, 1),
 };
