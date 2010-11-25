@@ -1290,7 +1290,8 @@ out:
 
 int exofs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
-	return exofs_update_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
+	/* FIXME: fix fsync and use wbc->sync_mode == WB_SYNC_ALL */
+	return exofs_update_inode(inode, 1);
 }
 
 /*
