@@ -462,7 +462,7 @@ static int ethoc_rx(struct net_device *dev, int limit)
 	return count;
 }
 
-static int ethoc_update_tx_stats(struct ethoc *dev, struct ethoc_bd *bd)
+static void ethoc_update_tx_stats(struct ethoc *dev, struct ethoc_bd *bd)
 {
 	struct net_device *netdev = dev->netdev;
 
@@ -492,7 +492,6 @@ static int ethoc_update_tx_stats(struct ethoc *dev, struct ethoc_bd *bd)
 	netdev->stats.collisions += (bd->stat >> 4) & 0xf;
 	netdev->stats.tx_bytes += bd->stat >> 16;
 	netdev->stats.tx_packets++;
-	return 0;
 }
 
 static int ethoc_tx(struct net_device *dev, int limit)
@@ -523,7 +522,7 @@ static int ethoc_tx(struct net_device *dev, int limit)
 				break;
 		}
 
-		(void)ethoc_update_tx_stats(priv, &bd);
+		ethoc_update_tx_stats(priv, &bd);
 		priv->dty_tx++;
 	}
 
