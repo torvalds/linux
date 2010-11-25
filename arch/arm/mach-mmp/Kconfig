@@ -56,7 +56,7 @@ config MACH_FLINT
 	  Flint Development Platform.
 	  MMP2-based board can't be co-existed with PXA168-based &
 	  PXA910-based development board. Since MMP2 is compatible to
-	  ARMv6 architecture.
+	  ARMv7 architecture.
 
 config MACH_MARVELL_JASPER
 	bool "Marvell's Jasper Development Platform"
@@ -66,7 +66,7 @@ config MACH_MARVELL_JASPER
 	  Jasper Development Platform.
 	  MMP2-based board can't be co-existed with PXA168-based &
 	  PXA910-based development board. Since MMP2 is compatible to
-	  ARMv6 architecture.
+	  ARMv7 architecture.
 
 config MACH_TETON_BGA
 	bool "Marvell's PXA168 Teton BGA Development Board"
