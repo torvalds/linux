@@ -537,6 +537,17 @@ static int arch_build_bp_info(struct perf_event *bp)
 		return -EINVAL;
 	}
 
+	/*
+	 * Breakpoints must be of length 2 (thumb) or 4 (ARM) bytes.
+	 * Watchpoints can be of length 1, 2, 4 or 8 bytes if supported
+	 * by the hardware and must be aligned to the appropriate number of
+	 * bytes.
+	 */
+	if (info->ctrl.type == ARM_BREAKPOINT_EXECUTE &&
+	    info->ctrl.len != ARM_BREAKPOINT_LEN_2 &&
+	    info->ctrl.len != ARM_BREAKPOINT_LEN_4)
+		return -EINVAL;
+
 	/* Address */
 	info->address = bp->attr.bp_addr;
 
@@ -561,7 +572,7 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 {
 	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 	int ret = 0;
-	u32 bytelen, max_len, offset, alignment_mask = 0x3;
+	u32 offset, alignment_mask = 0x3;
 
 	/* Build the arch_hw_breakpoint. */
 	ret = arch_build_bp_info(bp);
@@ -571,31 +582,26 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	/* Check address alignment. */
 	if (info->ctrl.len == ARM_BREAKPOINT_LEN_8)
 		alignment_mask = 0x7;
-	if (info->address & alignment_mask) {
-		/*
-		 * Try to fix the alignment. This may result in a length
-		 * that is too large, so we must check for that.
-		 */
-		bytelen = get_hbp_len(info->ctrl.len);
-		max_len = info->ctrl.type == ARM_BREAKPOINT_EXECUTE ? 4 :
-				max_watchpoint_len;
-
-		if (max_len >= 8)
-			offset = info->address & 0x7;
-		else
-			offset = info->address & 0x3;
-
-		if (bytelen > (1 << ((max_len - (offset + 1)) >> 1))) {
-			ret = -EFBIG;
-			goto out;
-		}
-
-		info->ctrl.len <<= offset;
-		info->address &= ~offset;
-
-		pr_debug("breakpoint alignment fixup: length = 0x%x, "
-			"address = 0x%x\n", info->ctrl.len, info->address);
+	offset = info->address & alignment_mask;
+	switch (offset) {
+	case 0:
+		/* Aligned */
+		break;
+	case 1:
+		/* Allow single byte watchpoint. */
+		if (info->ctrl.len == ARM_BREAKPOINT_LEN_1)
+			break;
+	case 2:
+		/* Allow halfword watchpoints and breakpoints. */
+		if (info->ctrl.len == ARM_BREAKPOINT_LEN_2)
+			break;
+	default:
+		ret = -EINVAL;
+		goto out;
 	}
+
+	info->address &= ~alignment_mask;
+	info->ctrl.len <<= offset;
 
 	/*
 	 * Currently we rely on an overflow handler to take
@@ -607,7 +613,6 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 		(arch_check_bp_in_kernelspace(bp) || !core_has_mismatch_bps()),
 			"overflow handler required but none found")) {
 		ret = -EINVAL;
-		goto out;
 	}
 out:
 	return ret;
