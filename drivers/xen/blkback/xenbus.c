@@ -382,6 +382,11 @@ static void frontend_changed(struct xenbus_device *dev,
 		if (dev->state == XenbusStateConnected)
 			break;
 
+		/* Enforce precondition before potential leak point.
+		 * blkif_disconnect() is idempotent.
+		 */
+		blkif_disconnect(be->blkif);
+
 		err = connect_ring(be);
 		if (err)
 			break;
@@ -399,6 +404,7 @@ static void frontend_changed(struct xenbus_device *dev,
 			break;
 		/* fall through if not online */
 	case XenbusStateUnknown:
+		/* implies blkif_disconnect() via blkback_remove() */
 		device_unregister(&dev->dev);
 		break;
 
