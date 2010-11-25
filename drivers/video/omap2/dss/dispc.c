@@ -1550,29 +1550,12 @@ static int _dispc_setup_plane(enum omap_plane plane,
 				height, pos_y, out_height);
 	}
 
+	if (!dss_feat_color_mode_supported(plane, color_mode))
+		return -EINVAL;
+
 	if (plane == OMAP_DSS_GFX) {
 		if (width != out_width || height != out_height)
 			return -EINVAL;
-
-		switch (color_mode) {
-		case OMAP_DSS_COLOR_ARGB16:
-		case OMAP_DSS_COLOR_ARGB32:
-		case OMAP_DSS_COLOR_RGBA32:
-			if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
-				return -EINVAL;
-		case OMAP_DSS_COLOR_RGBX32:
-			if (cpu_is_omap24xx())
-				return -EINVAL;
-			/* fall through */
-		case OMAP_DSS_COLOR_RGB12U:
-		case OMAP_DSS_COLOR_RGB16:
-		case OMAP_DSS_COLOR_RGB24P:
-		case OMAP_DSS_COLOR_RGB24U:
-			break;
-
-		default:
-			return -EINVAL;
-		}
 	} else {
 		/* video plane */
 
@@ -1586,35 +1569,9 @@ static int _dispc_setup_plane(enum omap_plane plane,
 		   out_height > height * 8)
 			return -EINVAL;
 
-		switch (color_mode) {
-		case OMAP_DSS_COLOR_RGBX32:
-		case OMAP_DSS_COLOR_RGB12U:
-			if (cpu_is_omap24xx())
-				return -EINVAL;
-			/* fall through */
-		case OMAP_DSS_COLOR_RGB16:
-		case OMAP_DSS_COLOR_RGB24P:
-		case OMAP_DSS_COLOR_RGB24U:
-			break;
-
-		case OMAP_DSS_COLOR_ARGB16:
-		case OMAP_DSS_COLOR_ARGB32:
-		case OMAP_DSS_COLOR_RGBA32:
-			if (!dss_has_feature(FEAT_GLOBAL_ALPHA))
-				return -EINVAL;
-			if (!dss_has_feature(FEAT_GLOBAL_ALPHA_VID1) &&
-					plane == OMAP_DSS_VIDEO1)
-				return -EINVAL;
-			break;
-
-		case OMAP_DSS_COLOR_YUV2:
-		case OMAP_DSS_COLOR_UYVY:
+		if (color_mode == OMAP_DSS_COLOR_YUV2 ||
+			color_mode == OMAP_DSS_COLOR_UYVY)
 			cconv = 1;
-			break;
-
-		default:
-			return -EINVAL;
-		}
 
 		/* Must use 5-tap filter? */
 		five_taps = height > out_height * 2;

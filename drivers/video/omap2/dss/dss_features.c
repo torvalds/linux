@@ -179,6 +179,13 @@ enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane)
 	return omap_current_dss_features->supported_color_modes[plane];
 }
 
+bool dss_feat_color_mode_supported(enum omap_plane plane,
+		enum omap_color_mode color_mode)
+{
+	return omap_current_dss_features->supported_color_modes[plane] &
+			color_mode;
+}
+
 /* DSS has_feature check */
 bool dss_has_feature(enum dss_feat_id id)
 {
