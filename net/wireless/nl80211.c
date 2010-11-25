@@ -163,16 +163,13 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_CQM] = { .type = NLA_NESTED, },
 	[NL80211_ATTR_LOCAL_STATE_CHANGE] = { .type = NLA_FLAG },
 	[NL80211_ATTR_AP_ISOLATE] = { .type = NLA_U8 },
-
 	[NL80211_ATTR_WIPHY_TX_POWER_SETTING] = { .type = NLA_U32 },
 	[NL80211_ATTR_WIPHY_TX_POWER_LEVEL] = { .type = NLA_U32 },
-
 	[NL80211_ATTR_FRAME_TYPE] = { .type = NLA_U16 },
-
 	[NL80211_ATTR_WIPHY_ANTENNA_TX] = { .type = NLA_U32 },
 	[NL80211_ATTR_WIPHY_ANTENNA_RX] = { .type = NLA_U32 },
-
 	[NL80211_ATTR_MCAST_RATE] = { .type = NLA_U32 },
+	[NL80211_ATTR_OFFCHANNEL_TX_OK] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -677,6 +674,7 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	CMD(remain_on_channel, REMAIN_ON_CHANNEL);
 	CMD(set_bitrate_mask, SET_TX_BITRATE_MASK);
 	CMD(mgmt_tx, FRAME);
+	CMD(mgmt_tx_cancel_wait, FRAME_WAIT_CANCEL);
 	if (dev->wiphy.flags & WIPHY_FLAG_NETNS_OK) {
 		i++;
 		NLA_PUT_U32(msg, i, NL80211_CMD_SET_WIPHY_NETNS);
@@ -697,6 +695,10 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	}
 
 	nla_nest_end(msg, nl_cmds);
+
+	/* for now at least assume all drivers have it */
+	if (dev->ops->mgmt_tx)
+		NLA_PUT_FLAG(msg, NL80211_ATTR_OFFCHANNEL_TX_OK);
 
 	if (mgmt_stypes) {
 		u16 stypes;
@@ -4244,6 +4246,8 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	void *hdr;
 	u64 cookie;
 	struct sk_buff *msg;
+	unsigned int wait = 0;
+	bool offchan;
 
 	if (!info->attrs[NL80211_ATTR_FRAME] ||
 	    !info->attrs[NL80211_ATTR_WIPHY_FREQ])
@@ -4260,6 +4264,12 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
 		return -EOPNOTSUPP;
 
+	if (info->attrs[NL80211_ATTR_DURATION]) {
+		if (!rdev->ops->mgmt_tx_cancel_wait)
+			return -EINVAL;
+		wait = nla_get_u32(info->attrs[NL80211_ATTR_DURATION]);
+	}
+
 	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
 		channel_type = nla_get_u32(
 			info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
@@ -4270,6 +4280,8 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 		channel_type_valid = true;
 	}
+
+	offchan = info->attrs[NL80211_ATTR_OFFCHANNEL_TX_OK];
 
 	freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
 	chan = rdev_freq_to_chan(rdev, freq, channel_type);
@@ -4287,8 +4299,8 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 		err = PTR_ERR(hdr);
 		goto free_msg;
 	}
-	err = cfg80211_mlme_mgmt_tx(rdev, dev, chan, channel_type,
-				    channel_type_valid,
+	err = cfg80211_mlme_mgmt_tx(rdev, dev, chan, offchan, channel_type,
+				    channel_type_valid, wait,
 				    nla_data(info->attrs[NL80211_ATTR_FRAME]),
 				    nla_len(info->attrs[NL80211_ATTR_FRAME]),
 				    &cookie);
@@ -4305,6 +4317,31 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
  free_msg:
 	nlmsg_free(msg);
 	return err;
+}
+
+static int nl80211_tx_mgmt_cancel_wait(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	u64 cookie;
+
+	if (!info->attrs[NL80211_ATTR_COOKIE])
+		return -EINVAL;
+
+	if (!rdev->ops->mgmt_tx_cancel_wait)
+		return -EOPNOTSUPP;
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO)
+		return -EOPNOTSUPP;
+
+	cookie = nla_get_u64(info->attrs[NL80211_ATTR_COOKIE]);
+
+	return rdev->ops->mgmt_tx_cancel_wait(&rdev->wiphy, dev, cookie);
 }
 
 static int nl80211_set_power_save(struct sk_buff *skb, struct genl_info *info)
@@ -4874,6 +4911,14 @@ static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_FRAME,
 		.doit = nl80211_tx_mgmt,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
+				  NL80211_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL80211_CMD_FRAME_WAIT_CANCEL,
+		.doit = nl80211_tx_mgmt_cancel_wait,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |

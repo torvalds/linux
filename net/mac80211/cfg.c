@@ -1552,9 +1552,9 @@ static int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
 }
 
 static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
-			     struct ieee80211_channel *chan,
+			     struct ieee80211_channel *chan, bool offchan,
 			     enum nl80211_channel_type channel_type,
-			     bool channel_type_valid,
+			     bool channel_type_valid, unsigned int wait,
 			     const u8 *buf, size_t len, u64 *cookie)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
@@ -1564,6 +1564,9 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 	const struct ieee80211_mgmt *mgmt = (void *)buf;
 	u32 flags = IEEE80211_TX_INTFL_NL80211_FRAME_TX |
 		    IEEE80211_TX_CTL_REQ_TX_STATUS;
+
+	if (offchan)
+		return -EOPNOTSUPP;
 
 	/* Check that we are on the requested channel for transmission */
 	if (chan != local->tmp_channel &&
