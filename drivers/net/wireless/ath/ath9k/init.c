@@ -15,7 +15,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/pm_qos_params.h>
 
 #include "ath9k.h"
 
@@ -179,8 +178,6 @@ static const struct ath_ops ath9k_common_ops = {
 	.read = ath9k_ioread32,
 	.write = ath9k_iowrite32,
 };
-
-struct pm_qos_request_list ath9k_pm_qos_req;
 
 /**************************/
 /*     Initialization     */
@@ -759,7 +756,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 	ath_init_leds(sc);
 	ath_start_rfkill_poll(sc);
 
-	pm_qos_add_request(&ath9k_pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
+	pm_qos_add_request(&sc->pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
 			   PM_QOS_DEFAULT_VALUE);
 
 	return 0;
@@ -830,7 +827,7 @@ void ath9k_deinit_device(struct ath_softc *sc)
 	}
 
 	ieee80211_unregister_hw(hw);
-	pm_qos_remove_request(&ath9k_pm_qos_req);
+	pm_qos_remove_request(&sc->pm_qos_req);
 	ath_rx_cleanup(sc);
 	ath_tx_cleanup(sc);
 	ath9k_deinit_softc(sc);
