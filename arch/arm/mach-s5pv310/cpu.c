@@ -168,7 +168,7 @@ static int __init s5pv310_l2x0_cache_init(void)
 	__raw_writel(L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN,
 		     S5P_VA_L2CC + L2X0_POWER_CTRL);
 
-	l2x0_init(S5P_VA_L2CC, 0x7C070001, 0xC200ffff);
+	l2x0_init(S5P_VA_L2CC, 0x7C470001, 0xC200ffff);
 
 	return 0;
 }
