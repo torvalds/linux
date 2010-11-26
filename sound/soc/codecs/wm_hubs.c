@@ -105,12 +105,20 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 		return;
 	}
 
-	/* Set for 32 series updates */
-	snd_soc_update_bits(codec, WM8993_DC_SERVO_1,
-			    WM8993_DCS_SERIES_NO_01_MASK,
-			    32 << WM8993_DCS_SERIES_NO_01_SHIFT);
-	wait_for_dc_servo(codec,
-			  WM8993_DCS_TRIG_SERIES_0 | WM8993_DCS_TRIG_SERIES_1);
+	/* Devices not using a DCS code correction have startup mode */
+	if (hubs->dcs_codes) {
+		/* Set for 32 series updates */
+		snd_soc_update_bits(codec, WM8993_DC_SERVO_1,
+				    WM8993_DCS_SERIES_NO_01_MASK,
+				    32 << WM8993_DCS_SERIES_NO_01_SHIFT);
+		wait_for_dc_servo(codec,
+				  WM8993_DCS_TRIG_SERIES_0 |
+				  WM8993_DCS_TRIG_SERIES_1);
+	} else {
+		wait_for_dc_servo(codec,
+				  WM8993_DCS_TRIG_STARTUP_0 |
+				  WM8993_DCS_TRIG_STARTUP_1);
+	}
 
 	/* Different chips in the family support different readback
 	 * methods.
