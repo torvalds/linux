@@ -80,7 +80,7 @@ struct sh_mmcif_plat_data {
 
 /* CE_VERSION */
 #define SOFT_RST_ON		(1 << 31)
-#define SOFT_RST_OFF		~SOFT_RST_ON
+#define SOFT_RST_OFF		0
 
 static inline u32 sh_mmcif_readl(void __iomem *addr, int reg)
 {
@@ -168,12 +168,9 @@ static inline int sh_mmcif_boot_do_read(void __iomem *base,
 
 static inline void sh_mmcif_boot_init(void __iomem *base)
 {
-	unsigned long tmp;
-
 	/* reset */
-	tmp = sh_mmcif_readl(base, MMCIF_CE_VERSION);
-	sh_mmcif_writel(base, MMCIF_CE_VERSION, tmp | SOFT_RST_ON);
-	sh_mmcif_writel(base, MMCIF_CE_VERSION, tmp & SOFT_RST_OFF);
+	sh_mmcif_writel(base, MMCIF_CE_VERSION, SOFT_RST_ON);
+	sh_mmcif_writel(base, MMCIF_CE_VERSION, SOFT_RST_OFF);
 
 	/* byte swap */
 	sh_mmcif_writel(base, MMCIF_CE_BUF_ACC, BUF_ACC_ATYP);
