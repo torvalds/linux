@@ -51,6 +51,7 @@ static void cns3xxx_pwr_soft_rst_force(unsigned int block)
 		reg &= ~(block & PM_SOFT_RST_REG_MASK);
 	} else {
 		reg &= ~(block & PM_SOFT_RST_REG_MASK);
+		__raw_writel(reg, PM_SOFT_RST_REG);
 		reg |= (block & PM_SOFT_RST_REG_MASK);
 	}
 
