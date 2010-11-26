@@ -68,7 +68,8 @@ enum {
 	SRP_TSK_MGMT_SQ_SIZE	= 1,
 	SRP_CMD_SQ_SIZE		= SRP_REQ_SQ_SIZE - SRP_TSK_MGMT_SQ_SIZE,
 
-	SRP_TAG_TSK_MGMT	= 1 << (SRP_RQ_SHIFT + 1),
+	SRP_TAG_NO_REQ		= ~0U,
+	SRP_TAG_TSK_MGMT	= 1U << 31,
 
 	SRP_FMR_SIZE		= 256,
 	SRP_FMR_POOL_SIZE	= 1024,
@@ -113,12 +114,8 @@ struct srp_request {
 	struct list_head	list;
 	struct scsi_cmnd       *scmnd;
 	struct srp_iu	       *cmd;
-	struct srp_iu	       *tsk_mgmt;
 	struct ib_pool_fmr     *fmr;
-	struct completion	done;
 	short			index;
-	u8			cmd_done;
-	u8			tsk_status;
 };
 
 struct srp_target_port {
@@ -165,6 +162,9 @@ struct srp_target_port {
 	int			status;
 	enum srp_target_state	state;
 	int			qp_in_error;
+
+	struct completion	tsk_mgmt_done;
+	u8			tsk_mgmt_status;
 };
 
 struct srp_iu {
