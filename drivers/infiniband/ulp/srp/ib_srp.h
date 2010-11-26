@@ -144,6 +144,8 @@ struct srp_target_port {
 
 	struct srp_iu	       *rx_ring[SRP_RQ_SIZE];
 
+	spinlock_t		lock;
+
 	struct list_head	free_tx;
 	struct srp_iu	       *tx_ring[SRP_SQ_SIZE];
 
