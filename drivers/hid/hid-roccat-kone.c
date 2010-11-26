@@ -35,6 +35,8 @@
 #include "hid-roccat.h"
 #include "hid-roccat-kone.h"
 
+static uint profile_numbers[5] = {0, 1, 2, 3, 4};
+
 /* kone_class is used for creating sysfs attributes via roccat char device */
 static struct class *kone_class;
 
@@ -323,9 +325,9 @@ static ssize_t kone_sysfs_write_settings(struct file *fp, struct kobject *kobj,
 	return sizeof(struct kone_settings);
 }
 
-static ssize_t kone_sysfs_read_profilex(struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count, int number) {
+static ssize_t kone_sysfs_read_profilex(struct file *fp,
+		struct kobject *kobj, struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count) {
 	struct device *dev =
 			container_of(kobj, struct device, kobj)->parent->parent;
 	struct kone_device *kone = hid_get_drvdata(dev_get_drvdata(dev));
@@ -337,46 +339,16 @@ static ssize_t kone_sysfs_read_profilex(struct kobject *kobj,
 		count = sizeof(struct kone_profile) - off;
 
 	mutex_lock(&kone->kone_lock);
-	memcpy(buf, ((char const *)&kone->profiles[number - 1]) + off, count);
+	memcpy(buf, ((char const *)&kone->profiles[*(uint *)(attr->private)]) + off, count);
 	mutex_unlock(&kone->kone_lock);
 
 	return count;
 }
 
-static ssize_t kone_sysfs_read_profile1(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count) {
-	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 1);
-}
-
-static ssize_t kone_sysfs_read_profile2(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count) {
-	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 2);
-}
-
-static ssize_t kone_sysfs_read_profile3(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count) {
-	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 3);
-}
-
-static ssize_t kone_sysfs_read_profile4(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count) {
-	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 4);
-}
-
-static ssize_t kone_sysfs_read_profile5(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count) {
-	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 5);
-}
-
 /* Writes data only if different to stored data */
-static ssize_t kone_sysfs_write_profilex(struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count, int number) {
+static ssize_t kone_sysfs_write_profilex(struct file *fp,
+		struct kobject *kobj, struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count) {
 	struct device *dev =
 			container_of(kobj, struct device, kobj)->parent->parent;
 	struct kone_device *kone = hid_get_drvdata(dev_get_drvdata(dev));
@@ -388,13 +360,14 @@ static ssize_t kone_sysfs_write_profilex(struct kobject *kobj,
 	if (off != 0 || count != sizeof(struct kone_profile))
 		return -EINVAL;
 
-	profile = &kone->profiles[number - 1];
+	profile = &kone->profiles[*(uint *)(attr->private)];
 
 	mutex_lock(&kone->kone_lock);
 	difference = memcmp(buf, profile, sizeof(struct kone_profile));
 	if (difference) {
 		retval = kone_set_profile(usb_dev,
-				(struct kone_profile const *)buf, number);
+				(struct kone_profile const *)buf,
+				*(uint *)(attr->private) + 1);
 		if (!retval)
 			memcpy(profile, buf, sizeof(struct kone_profile));
 	}
@@ -404,36 +377,6 @@ static ssize_t kone_sysfs_write_profilex(struct kobject *kobj,
 		return retval;
 
 	return sizeof(struct kone_profile);
-}
-
-static ssize_t kone_sysfs_write_profile1(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count) {
-	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 1);
-}
-
-static ssize_t kone_sysfs_write_profile2(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count) {
-	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 2);
-}
-
-static ssize_t kone_sysfs_write_profile3(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count) {
-	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 3);
-}
-
-static ssize_t kone_sysfs_write_profile4(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count) {
-	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 4);
-}
-
-static ssize_t kone_sysfs_write_profile5(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count) {
-	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 5);
 }
 
 static ssize_t kone_sysfs_show_actual_profile(struct device *dev,
@@ -691,32 +634,37 @@ static struct bin_attribute kone_bin_attributes[] = {
 	{
 		.attr = { .name = "profile1", .mode = 0660 },
 		.size = sizeof(struct kone_profile),
-		.read = kone_sysfs_read_profile1,
-		.write = kone_sysfs_write_profile1
+		.read = kone_sysfs_read_profilex,
+		.write = kone_sysfs_write_profilex,
+		.private = &profile_numbers[0]
 	},
 	{
 		.attr = { .name = "profile2", .mode = 0660 },
 		.size = sizeof(struct kone_profile),
-		.read = kone_sysfs_read_profile2,
-		.write = kone_sysfs_write_profile2
+		.read = kone_sysfs_read_profilex,
+		.write = kone_sysfs_write_profilex,
+		.private = &profile_numbers[1]
 	},
 	{
 		.attr = { .name = "profile3", .mode = 0660 },
 		.size = sizeof(struct kone_profile),
-		.read = kone_sysfs_read_profile3,
-		.write = kone_sysfs_write_profile3
+		.read = kone_sysfs_read_profilex,
+		.write = kone_sysfs_write_profilex,
+		.private = &profile_numbers[2]
 	},
 	{
 		.attr = { .name = "profile4", .mode = 0660 },
 		.size = sizeof(struct kone_profile),
-		.read = kone_sysfs_read_profile4,
-		.write = kone_sysfs_write_profile4
+		.read = kone_sysfs_read_profilex,
+		.write = kone_sysfs_write_profilex,
+		.private = &profile_numbers[3]
 	},
 	{
 		.attr = { .name = "profile5", .mode = 0660 },
 		.size = sizeof(struct kone_profile),
-		.read = kone_sysfs_read_profile5,
-		.write = kone_sysfs_write_profile5
+		.read = kone_sysfs_read_profilex,
+		.write = kone_sysfs_write_profilex,
+		.private = &profile_numbers[4]
 	},
 	__ATTR_NULL
 };

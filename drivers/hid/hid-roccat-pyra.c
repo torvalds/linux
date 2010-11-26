@@ -27,6 +27,8 @@
 #include "hid-roccat.h"
 #include "hid-roccat-pyra.h"
 
+static uint profile_numbers[5] = {0, 1, 2, 3, 4};
+
 /* pyra_class is used for creating sysfs attributes via roccat char device */
 static struct class *pyra_class;
 
@@ -223,7 +225,7 @@ static int pyra_set_settings(struct usb_device *usb_dev,
 
 static ssize_t pyra_sysfs_read_profilex_settings(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count, int number)
+		loff_t off, size_t count)
 {
 	struct device *dev =
 			container_of(kobj, struct device, kobj)->parent->parent;
@@ -236,56 +238,16 @@ static ssize_t pyra_sysfs_read_profilex_settings(struct file *fp,
 		count = sizeof(struct pyra_profile_settings) - off;
 
 	mutex_lock(&pyra->pyra_lock);
-	memcpy(buf, ((char const *)&pyra->profile_settings[number]) + off,
+	memcpy(buf, ((char const *)&pyra->profile_settings[*(uint *)(attr->private)]) + off,
 			count);
 	mutex_unlock(&pyra->pyra_lock);
 
 	return count;
 }
 
-static ssize_t pyra_sysfs_read_profile1_settings(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_settings(fp, kobj,
-			attr, buf, off, count, 0);
-}
-
-static ssize_t pyra_sysfs_read_profile2_settings(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_settings(fp, kobj,
-			attr, buf, off, count, 1);
-}
-
-static ssize_t pyra_sysfs_read_profile3_settings(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_settings(fp, kobj,
-			attr, buf, off, count, 2);
-}
-
-static ssize_t pyra_sysfs_read_profile4_settings(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_settings(fp, kobj,
-			attr, buf, off, count, 3);
-}
-
-static ssize_t pyra_sysfs_read_profile5_settings(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_settings(fp, kobj,
-			attr, buf, off, count, 4);
-}
-
 static ssize_t pyra_sysfs_read_profilex_buttons(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count, int number)
+		loff_t off, size_t count)
 {
 	struct device *dev =
 			container_of(kobj, struct device, kobj)->parent->parent;
@@ -298,51 +260,11 @@ static ssize_t pyra_sysfs_read_profilex_buttons(struct file *fp,
 		count = sizeof(struct pyra_profile_buttons) - off;
 
 	mutex_lock(&pyra->pyra_lock);
-	memcpy(buf, ((char const *)&pyra->profile_buttons[number]) + off,
+	memcpy(buf, ((char const *)&pyra->profile_buttons[*(uint *)(attr->private)]) + off,
 			count);
 	mutex_unlock(&pyra->pyra_lock);
 
 	return count;
-}
-
-static ssize_t pyra_sysfs_read_profile1_buttons(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_buttons(fp, kobj,
-			attr, buf, off, count, 0);
-}
-
-static ssize_t pyra_sysfs_read_profile2_buttons(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_buttons(fp, kobj,
-			attr, buf, off, count, 1);
-}
-
-static ssize_t pyra_sysfs_read_profile3_buttons(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_buttons(fp, kobj,
-			attr, buf, off, count, 2);
-}
-
-static ssize_t pyra_sysfs_read_profile4_buttons(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_buttons(fp, kobj,
-			attr, buf, off, count, 3);
-}
-
-static ssize_t pyra_sysfs_read_profile5_buttons(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	return pyra_sysfs_read_profilex_buttons(fp, kobj,
-			attr, buf, off, count, 4);
 }
 
 static ssize_t pyra_sysfs_write_profile_settings(struct file *fp,
@@ -525,27 +447,32 @@ static struct bin_attribute pyra_bin_attributes[] = {
 	{
 		.attr = { .name = "profile1_settings", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_settings),
-		.read = pyra_sysfs_read_profile1_settings
+		.read = pyra_sysfs_read_profilex_settings,
+		.private = &profile_numbers[0]
 	},
 	{
 		.attr = { .name = "profile2_settings", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_settings),
-		.read = pyra_sysfs_read_profile2_settings
+		.read = pyra_sysfs_read_profilex_settings,
+		.private = &profile_numbers[1]
 	},
 	{
 		.attr = { .name = "profile3_settings", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_settings),
-		.read = pyra_sysfs_read_profile3_settings
+		.read = pyra_sysfs_read_profilex_settings,
+		.private = &profile_numbers[2]
 	},
 	{
 		.attr = { .name = "profile4_settings", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_settings),
-		.read = pyra_sysfs_read_profile4_settings
+		.read = pyra_sysfs_read_profilex_settings,
+		.private = &profile_numbers[3]
 	},
 	{
 		.attr = { .name = "profile5_settings", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_settings),
-		.read = pyra_sysfs_read_profile5_settings
+		.read = pyra_sysfs_read_profilex_settings,
+		.private = &profile_numbers[4]
 	},
 	{
 		.attr = { .name = "profile_buttons", .mode = 0220 },
@@ -555,27 +482,32 @@ static struct bin_attribute pyra_bin_attributes[] = {
 	{
 		.attr = { .name = "profile1_buttons", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_buttons),
-		.read = pyra_sysfs_read_profile1_buttons
+		.read = pyra_sysfs_read_profilex_buttons,
+		.private = &profile_numbers[0]
 	},
 	{
 		.attr = { .name = "profile2_buttons", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_buttons),
-		.read = pyra_sysfs_read_profile2_buttons
+		.read = pyra_sysfs_read_profilex_buttons,
+		.private = &profile_numbers[1]
 	},
 	{
 		.attr = { .name = "profile3_buttons", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_buttons),
-		.read = pyra_sysfs_read_profile3_buttons
+		.read = pyra_sysfs_read_profilex_buttons,
+		.private = &profile_numbers[2]
 	},
 	{
 		.attr = { .name = "profile4_buttons", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_buttons),
-		.read = pyra_sysfs_read_profile4_buttons
+		.read = pyra_sysfs_read_profilex_buttons,
+		.private = &profile_numbers[3]
 	},
 	{
 		.attr = { .name = "profile5_buttons", .mode = 0440 },
 		.size = sizeof(struct pyra_profile_buttons),
-		.read = pyra_sysfs_read_profile5_buttons
+		.read = pyra_sysfs_read_profilex_buttons,
+		.private = &profile_numbers[4]
 	},
 	{
 		.attr = { .name = "settings", .mode = 0660 },
