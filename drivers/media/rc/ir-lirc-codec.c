@@ -100,7 +100,8 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char *buf,
 	struct lirc_codec *lirc;
 	struct rc_dev *dev;
 	int *txbuf; /* buffer with values to transmit */
-	int ret = 0, count;
+	int ret = 0;
+	size_t count;
 
 	lirc = lirc_get_pdata(file);
 	if (!lirc)
@@ -110,7 +111,7 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char *buf,
 		return -EINVAL;
 
 	count = n / sizeof(int);
-	if (count > LIRCBUF_SIZE || count % 2 == 0)
+	if (count > LIRCBUF_SIZE || count % 2 == 0 || n % sizeof(int) != 0)
 		return -EINVAL;
 
 	txbuf = memdup_user(buf, n);
