@@ -909,20 +909,6 @@ extern int perf_num_counters(void);
 extern const char *perf_pmu_name(void);
 extern void __perf_event_task_sched_in(struct task_struct *task);
 extern void __perf_event_task_sched_out(struct task_struct *task, struct task_struct *next);
-
-extern atomic_t perf_task_events;
-
-static inline void perf_event_task_sched_in(struct task_struct *task)
-{
-	COND_STMT(&perf_task_events, __perf_event_task_sched_in(task));
-}
-
-static inline
-void perf_event_task_sched_out(struct task_struct *task, struct task_struct *next)
-{
-	COND_STMT(&perf_task_events, __perf_event_task_sched_out(task, next));
-}
-
 extern int perf_event_init_task(struct task_struct *child);
 extern void perf_event_exit_task(struct task_struct *child);
 extern void perf_event_free_task(struct task_struct *task);
@@ -1029,6 +1015,21 @@ have_event:
 		regs = &hot_regs;
 	}
 	__perf_sw_event(event_id, nr, nmi, regs, addr);
+}
+
+extern atomic_t perf_task_events;
+
+static inline void perf_event_task_sched_in(struct task_struct *task)
+{
+	COND_STMT(&perf_task_events, __perf_event_task_sched_in(task));
+}
+
+static inline
+void perf_event_task_sched_out(struct task_struct *task, struct task_struct *next)
+{
+	perf_sw_event(PERF_COUNT_SW_CONTEXT_SWITCHES, 1, 1, NULL, 0);
+
+	COND_STMT(&perf_task_events, __perf_event_task_sched_out(task, next));
 }
 
 extern void perf_event_mmap(struct vm_area_struct *vma);
