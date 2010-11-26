@@ -138,8 +138,11 @@
 	cmpldi	cr0,r15,0			/* Check for user region */
 	std	r14,EX_TLB_ESR(r12)		/* write crazy -1 to frame */
 	beq	normal_tlb_miss
+
+	li	r11,_PAGE_PRESENT|_PAGE_BAP_SX	/* Base perm */
+	oris	r11,r11,_PAGE_ACCESSED@h
 	/* XXX replace the RMW cycles with immediate loads + writes */
-1:	mfspr	r10,SPRN_MAS1
+	mfspr	r10,SPRN_MAS1
 	cmpldi	cr0,r15,8			/* Check for vmalloc region */
 	rlwinm	r10,r10,0,16,1			/* Clear TID */
 	mtspr	SPRN_MAS1,r10

@@ -1123,7 +1123,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	else
 #endif /* CONFIG_PPC_HAS_HASH_64K */
 		rc = __hash_page_4K(ea, access, vsid, ptep, trap, local, ssize,
-				    subpage_protection(pgdir, ea));
+				    subpage_protection(mm, ea));
 
 	/* Dump some info in case of hash insertion failure, they should
 	 * never happen so it is really useful to know if/when they do

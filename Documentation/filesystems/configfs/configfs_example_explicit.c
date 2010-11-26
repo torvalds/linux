@@ -89,7 +89,7 @@ static ssize_t childless_storeme_write(struct childless *childless,
 	char *p = (char *) page;
 
 	tmp = simple_strtoul(p, &p, 10);
-	if (!p || (*p && (*p != '\n')))
+	if ((*p != '\0') && (*p != '\n'))
 		return -EINVAL;
 
 	if (tmp > INT_MAX)

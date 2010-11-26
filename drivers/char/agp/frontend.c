@@ -39,7 +39,6 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include "agp.h"

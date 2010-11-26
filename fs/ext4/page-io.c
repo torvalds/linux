@@ -237,8 +237,6 @@ static void ext4_end_bio(struct bio *bio, int error)
 			} while (bh != head);
 		}
 
-		put_io_page(io_end->pages[i]);
-
 		/*
 		 * If this is a partial write which happened to make
 		 * all buffers uptodate then we can optimize away a
@@ -248,6 +246,8 @@ static void ext4_end_bio(struct bio *bio, int error)
 		 */
 		if (!partial_write)
 			SetPageUptodate(page);
+
+		put_io_page(io_end->pages[i]);
 	}
 	io_end->num_io_pages = 0;
 	inode = io_end->inode;
