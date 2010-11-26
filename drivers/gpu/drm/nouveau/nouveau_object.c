@@ -460,8 +460,7 @@ nv50_gpuobj_dma_new(struct nouveau_channel *chan, int class, u64 base, u64 size,
 	struct drm_device *dev = chan->dev;
 	int ret;
 
-	ret = nouveau_gpuobj_new(dev, chan, 24, 16, NVOBJ_FLAG_ZERO_ALLOC |
-				 NVOBJ_FLAG_ZERO_FREE, pobj);
+	ret = nouveau_gpuobj_new(dev, chan, 24, 16, NVOBJ_FLAG_ZERO_FREE, pobj);
 	if (ret)
 		return ret;
 
@@ -536,9 +535,7 @@ nouveau_gpuobj_dma_new(struct nouveau_channel *chan, int class, u64 base,
 	flags0 |= (base & 0x00000fff) << 20;
 	flags2 |= (base & 0xfffff000);
 
-	ret = nouveau_gpuobj_new(dev, chan, (dev_priv->card_type >= NV_40) ?
-				 32 : 16, 16, NVOBJ_FLAG_ZERO_ALLOC |
-				 NVOBJ_FLAG_ZERO_FREE, &obj);
+	ret = nouveau_gpuobj_new(dev, chan, 16, 16, NVOBJ_FLAG_ZERO_FREE, &obj);
 	if (ret)
 		return ret;
 
