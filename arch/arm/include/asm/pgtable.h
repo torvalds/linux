@@ -299,72 +299,8 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 #define set_pgd(pgd,pgdp)	do { } while (0)
 
 
-#define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
-#define pfn_pte(pfn,prot)	(__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot)))
-
-#define pte_none(pte)		(!pte_val(pte))
-#define pte_clear(mm,addr,ptep)	set_pte_ext(ptep, __pte(0), 0)
-#define pte_page(pte)		(pfn_to_page(pte_pfn(pte)))
-#define pte_offset_kernel(dir,addr)	(pmd_page_vaddr(*(dir)) + __pte_index(addr))
-
-#define pte_offset_map(dir,addr)	(__pte_map(dir) + __pte_index(addr))
-#define pte_unmap(pte)			__pte_unmap(pte)
-
-#ifndef CONFIG_HIGHPTE
-#define __pte_map(dir)		pmd_page_vaddr(*(dir))
-#define __pte_unmap(pte)	do { } while (0)
-#else
-#define __pte_map(dir)		((pte_t *)kmap_atomic(pmd_page(*(dir))) + PTRS_PER_PTE)
-#define __pte_unmap(pte)	kunmap_atomic((pte - PTRS_PER_PTE))
-#endif
-
-#define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
-
-#if __LINUX_ARM_ARCH__ < 6
-static inline void __sync_icache_dcache(pte_t pteval)
-{
-}
-#else
-extern void __sync_icache_dcache(pte_t pteval);
-#endif
-
-static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep, pte_t pteval)
-{
-	if (addr >= TASK_SIZE)
-		set_pte_ext(ptep, pteval, 0);
-	else {
-		__sync_icache_dcache(pteval);
-		set_pte_ext(ptep, pteval, PTE_EXT_NG);
-	}
-}
-
-/*
- * The following only work if pte_present() is true.
- * Undefined behaviour if not..
- */
-#define pte_present(pte)	(pte_val(pte) & L_PTE_PRESENT)
-#define pte_write(pte)		(pte_val(pte) & L_PTE_WRITE)
-#define pte_dirty(pte)		(pte_val(pte) & L_PTE_DIRTY)
-#define pte_young(pte)		(pte_val(pte) & L_PTE_YOUNG)
-#define pte_exec(pte)		(pte_val(pte) & L_PTE_EXEC)
-#define pte_special(pte)	(0)
-
-#define pte_present_user(pte) \
-	((pte_val(pte) & (L_PTE_PRESENT | L_PTE_USER)) == \
-	 (L_PTE_PRESENT | L_PTE_USER))
-
-#define PTE_BIT_FUNC(fn,op) \
-static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
-
-PTE_BIT_FUNC(wrprotect, &= ~L_PTE_WRITE);
-PTE_BIT_FUNC(mkwrite,   |= L_PTE_WRITE);
-PTE_BIT_FUNC(mkclean,   &= ~L_PTE_DIRTY);
-PTE_BIT_FUNC(mkdirty,   |= L_PTE_DIRTY);
-PTE_BIT_FUNC(mkold,     &= ~L_PTE_YOUNG);
-PTE_BIT_FUNC(mkyoung,   |= L_PTE_YOUNG);
-
-static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
+/* Find an entry in the second-level page table.. */
+#define pmd_offset(dir, addr)	((pmd_t *)(dir))
 
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define pmd_present(pmd)	(pmd_val(pmd))
@@ -399,17 +335,73 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 /* we don't need complex calculations here as the pmd is folded into the pgd */
 #define pmd_addr_end(addr,end)	(end)
 
-/*
- * Conversion functions: convert a page and protection to a page entry,
- * and a page entry and page directory to the page they refer to.
- */
-#define mk_pte(page,prot)	pfn_pte(page_to_pfn(page),prot)
 
-/* Find an entry in the second-level page table.. */
-#define pmd_offset(dir, addr)	((pmd_t *)(dir))
+#ifndef CONFIG_HIGHPTE
+#define __pte_map(pmd)		pmd_page_vaddr(*(pmd))
+#define __pte_unmap(pte)	do { } while (0)
+#else
+#define __pte_map(pmd)		((pte_t *)kmap_atomic(pmd_page(*(pmd))) + PTRS_PER_PTE)
+#define __pte_unmap(pte)	kunmap_atomic((pte - PTRS_PER_PTE))
+#endif
 
-/* Find an entry in the third-level page table.. */
-#define __pte_index(addr)	(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+#define pte_index(addr)		(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+
+#define pte_offset_kernel(pmd,addr)	(pmd_page_vaddr(*(pmd)) + pte_index(addr))
+
+#define pte_offset_map(pmd,addr)	(__pte_map(pmd) + pte_index(addr))
+#define pte_unmap(pte)			__pte_unmap(pte)
+
+#define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
+#define pfn_pte(pfn,prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
+
+#define pte_page(pte)		pfn_to_page(pte_pfn(pte))
+#define mk_pte(page,prot)	pfn_pte(page_to_pfn(page), prot)
+
+#define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
+#define pte_clear(mm,addr,ptep)	set_pte_ext(ptep, __pte(0), 0)
+
+#if __LINUX_ARM_ARCH__ < 6
+static inline void __sync_icache_dcache(pte_t pteval)
+{
+}
+#else
+extern void __sync_icache_dcache(pte_t pteval);
+#endif
+
+static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+			      pte_t *ptep, pte_t pteval)
+{
+	if (addr >= TASK_SIZE)
+		set_pte_ext(ptep, pteval, 0);
+	else {
+		__sync_icache_dcache(pteval);
+		set_pte_ext(ptep, pteval, PTE_EXT_NG);
+	}
+}
+
+#define pte_none(pte)		(!pte_val(pte))
+#define pte_present(pte)	(pte_val(pte) & L_PTE_PRESENT)
+#define pte_write(pte)		(pte_val(pte) & L_PTE_WRITE)
+#define pte_dirty(pte)		(pte_val(pte) & L_PTE_DIRTY)
+#define pte_young(pte)		(pte_val(pte) & L_PTE_YOUNG)
+#define pte_exec(pte)		(pte_val(pte) & L_PTE_EXEC)
+#define pte_special(pte)	(0)
+
+#define pte_present_user(pte) \
+	((pte_val(pte) & (L_PTE_PRESENT | L_PTE_USER)) == \
+	 (L_PTE_PRESENT | L_PTE_USER))
+
+#define PTE_BIT_FUNC(fn,op) \
+static inline pte_t pte_##fn(pte_t pte) { pte_val(pte) op; return pte; }
+
+PTE_BIT_FUNC(wrprotect, &= ~L_PTE_WRITE);
+PTE_BIT_FUNC(mkwrite,   |= L_PTE_WRITE);
+PTE_BIT_FUNC(mkclean,   &= ~L_PTE_DIRTY);
+PTE_BIT_FUNC(mkdirty,   |= L_PTE_DIRTY);
+PTE_BIT_FUNC(mkold,     &= ~L_PTE_YOUNG);
+PTE_BIT_FUNC(mkyoung,   |= L_PTE_YOUNG);
+
+static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
