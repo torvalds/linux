@@ -246,6 +246,15 @@
 #define WM8994_INTERRUPT_STATUS_2_MASK          0x739
 #define WM8994_INTERRUPT_CONTROL                0x740
 #define WM8994_IRQ_DEBOUNCE                     0x748
+#define WM8958_DSP2_PROGRAM                     0x900
+#define WM8958_DSP2_CONFIG                      0x901
+#define WM8958_DSP2_MAGICNUM                    0xA00
+#define WM8958_DSP2_RELEASEYEAR                 0xA01
+#define WM8958_DSP2_RELEASEMONTHDAY             0xA02
+#define WM8958_DSP2_RELEASETIME                 0xA03
+#define WM8958_DSP2_VERMAJMIN                   0xA04
+#define WM8958_DSP2_VERBUILD                    0xA05
+#define WM8958_DSP2_EXECCONTROL                 0xA0D
 #define WM8994_WRITE_SEQUENCER_0                0x3000
 #define WM8994_WRITE_SEQUENCER_1                0x3001
 #define WM8994_WRITE_SEQUENCER_2                0x3002
@@ -2079,6 +2088,14 @@
 /*
  * R520 (0x208) - Clocking (1)
  */
+#define WM8958_DSP2CLK_ENA                      0x4000  /* DSP2CLK_ENA */
+#define WM8958_DSP2CLK_ENA_MASK                 0x4000  /* DSP2CLK_ENA */
+#define WM8958_DSP2CLK_ENA_SHIFT                    14  /* DSP2CLK_ENA */
+#define WM8958_DSP2CLK_ENA_WIDTH                     1  /* DSP2CLK_ENA */
+#define WM8958_DSP2CLK_SRC                      0x1000  /* DSP2CLK_SRC */
+#define WM8958_DSP2CLK_SRC_MASK                 0x1000  /* DSP2CLK_SRC */
+#define WM8958_DSP2CLK_SRC_SHIFT                    12  /* DSP2CLK_SRC */
+#define WM8958_DSP2CLK_SRC_WIDTH                     1  /* DSP2CLK_SRC */
 #define WM8994_TOCLK_ENA                        0x0010  /* TOCLK_ENA */
 #define WM8994_TOCLK_ENA_MASK                   0x0010  /* TOCLK_ENA */
 #define WM8994_TOCLK_ENA_SHIFT                       4  /* TOCLK_ENA */
@@ -4355,5 +4372,103 @@
 #define WM8994_TEMP_SHUT_DB_MASK                0x0001  /* TEMP_SHUT_DB */
 #define WM8994_TEMP_SHUT_DB_SHIFT                    0  /* TEMP_SHUT_DB */
 #define WM8994_TEMP_SHUT_DB_WIDTH                    1  /* TEMP_SHUT_DB */
+
+/*
+ * R2304 (0x900) - DSP2_Program
+ */
+#define WM8958_DSP2_ENA                         0x0001  /* DSP2_ENA */
+#define WM8958_DSP2_ENA_MASK                    0x0001  /* DSP2_ENA */
+#define WM8958_DSP2_ENA_SHIFT                        0  /* DSP2_ENA */
+#define WM8958_DSP2_ENA_WIDTH                        1  /* DSP2_ENA */
+
+/*
+ * R2305 (0x901) - DSP2_Config
+ */
+#define WM8958_MBC_SEL_MASK                     0x0030  /* MBC_SEL - [5:4] */
+#define WM8958_MBC_SEL_SHIFT                         4  /* MBC_SEL - [5:4] */
+#define WM8958_MBC_SEL_WIDTH                         2  /* MBC_SEL - [5:4] */
+#define WM8958_MBC_ENA                          0x0001  /* MBC_ENA */
+#define WM8958_MBC_ENA_MASK                     0x0001  /* MBC_ENA */
+#define WM8958_MBC_ENA_SHIFT                         0  /* MBC_ENA */
+#define WM8958_MBC_ENA_WIDTH                         1  /* MBC_ENA */
+
+/*
+ * R2560 (0xA00) - DSP2_MagicNum
+ */
+#define WM8958_DSP2_MAGIC_NUM_MASK              0xFFFF  /* DSP2_MAGIC_NUM - [15:0] */
+#define WM8958_DSP2_MAGIC_NUM_SHIFT                  0  /* DSP2_MAGIC_NUM - [15:0] */
+#define WM8958_DSP2_MAGIC_NUM_WIDTH                 16  /* DSP2_MAGIC_NUM - [15:0] */
+
+/*
+ * R2561 (0xA01) - DSP2_ReleaseYear
+ */
+#define WM8958_DSP2_RELEASE_YEAR_MASK           0xFFFF  /* DSP2_RELEASE_YEAR - [15:0] */
+#define WM8958_DSP2_RELEASE_YEAR_SHIFT               0  /* DSP2_RELEASE_YEAR - [15:0] */
+#define WM8958_DSP2_RELEASE_YEAR_WIDTH              16  /* DSP2_RELEASE_YEAR - [15:0] */
+
+/*
+ * R2562 (0xA02) - DSP2_ReleaseMonthDay
+ */
+#define WM8958_DSP2_RELEASE_MONTH_MASK          0xFF00  /* DSP2_RELEASE_MONTH - [15:8] */
+#define WM8958_DSP2_RELEASE_MONTH_SHIFT              8  /* DSP2_RELEASE_MONTH - [15:8] */
+#define WM8958_DSP2_RELEASE_MONTH_WIDTH              8  /* DSP2_RELEASE_MONTH - [15:8] */
+#define WM8958_DSP2_RELEASE_DAY_MASK            0x00FF  /* DSP2_RELEASE_DAY - [7:0] */
+#define WM8958_DSP2_RELEASE_DAY_SHIFT                0  /* DSP2_RELEASE_DAY - [7:0] */
+#define WM8958_DSP2_RELEASE_DAY_WIDTH                8  /* DSP2_RELEASE_DAY - [7:0] */
+
+/*
+ * R2563 (0xA03) - DSP2_ReleaseTime
+ */
+#define WM8958_DSP2_RELEASE_HOURS_MASK          0xFF00  /* DSP2_RELEASE_HOURS - [15:8] */
+#define WM8958_DSP2_RELEASE_HOURS_SHIFT              8  /* DSP2_RELEASE_HOURS - [15:8] */
+#define WM8958_DSP2_RELEASE_HOURS_WIDTH              8  /* DSP2_RELEASE_HOURS - [15:8] */
+#define WM8958_DSP2_RELEASE_MINS_MASK           0x00FF  /* DSP2_RELEASE_MINS - [7:0] */
+#define WM8958_DSP2_RELEASE_MINS_SHIFT               0  /* DSP2_RELEASE_MINS - [7:0] */
+#define WM8958_DSP2_RELEASE_MINS_WIDTH               8  /* DSP2_RELEASE_MINS - [7:0] */
+
+/*
+ * R2564 (0xA04) - DSP2_VerMajMin
+ */
+#define WM8958_DSP2_MAJOR_VER_MASK              0xFF00  /* DSP2_MAJOR_VER - [15:8] */
+#define WM8958_DSP2_MAJOR_VER_SHIFT                  8  /* DSP2_MAJOR_VER - [15:8] */
+#define WM8958_DSP2_MAJOR_VER_WIDTH                  8  /* DSP2_MAJOR_VER - [15:8] */
+#define WM8958_DSP2_MINOR_VER_MASK              0x00FF  /* DSP2_MINOR_VER - [7:0] */
+#define WM8958_DSP2_MINOR_VER_SHIFT                  0  /* DSP2_MINOR_VER - [7:0] */
+#define WM8958_DSP2_MINOR_VER_WIDTH                  8  /* DSP2_MINOR_VER - [7:0] */
+
+/*
+ * R2565 (0xA05) - DSP2_VerBuild
+ */
+#define WM8958_DSP2_BUILD_VER_MASK              0xFFFF  /* DSP2_BUILD_VER - [15:0] */
+#define WM8958_DSP2_BUILD_VER_SHIFT                  0  /* DSP2_BUILD_VER - [15:0] */
+#define WM8958_DSP2_BUILD_VER_WIDTH                 16  /* DSP2_BUILD_VER - [15:0] */
+
+/*
+ * R2573 (0xA0D) - DSP2_ExecControl
+ */
+#define WM8958_DSP2_STOPC                       0x0020  /* DSP2_STOPC */
+#define WM8958_DSP2_STOPC_MASK                  0x0020  /* DSP2_STOPC */
+#define WM8958_DSP2_STOPC_SHIFT                      5  /* DSP2_STOPC */
+#define WM8958_DSP2_STOPC_WIDTH                      1  /* DSP2_STOPC */
+#define WM8958_DSP2_STOPS                       0x0010  /* DSP2_STOPS */
+#define WM8958_DSP2_STOPS_MASK                  0x0010  /* DSP2_STOPS */
+#define WM8958_DSP2_STOPS_SHIFT                      4  /* DSP2_STOPS */
+#define WM8958_DSP2_STOPS_WIDTH                      1  /* DSP2_STOPS */
+#define WM8958_DSP2_STOPI                       0x0008  /* DSP2_STOPI */
+#define WM8958_DSP2_STOPI_MASK                  0x0008  /* DSP2_STOPI */
+#define WM8958_DSP2_STOPI_SHIFT                      3  /* DSP2_STOPI */
+#define WM8958_DSP2_STOPI_WIDTH                      1  /* DSP2_STOPI */
+#define WM8958_DSP2_STOP                        0x0004  /* DSP2_STOP */
+#define WM8958_DSP2_STOP_MASK                   0x0004  /* DSP2_STOP */
+#define WM8958_DSP2_STOP_SHIFT                       2  /* DSP2_STOP */
+#define WM8958_DSP2_STOP_WIDTH                       1  /* DSP2_STOP */
+#define WM8958_DSP2_RUNR                        0x0002  /* DSP2_RUNR */
+#define WM8958_DSP2_RUNR_MASK                   0x0002  /* DSP2_RUNR */
+#define WM8958_DSP2_RUNR_SHIFT                       1  /* DSP2_RUNR */
+#define WM8958_DSP2_RUNR_WIDTH                       1  /* DSP2_RUNR */
+#define WM8958_DSP2_RUN                         0x0001  /* DSP2_RUN */
+#define WM8958_DSP2_RUN_MASK                    0x0001  /* DSP2_RUN */
+#define WM8958_DSP2_RUN_SHIFT                        0  /* DSP2_RUN */
+#define WM8958_DSP2_RUN_WIDTH                        1  /* DSP2_RUN */
 
 #endif

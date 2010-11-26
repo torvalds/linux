@@ -80,6 +80,8 @@ struct wm8994_priv {
 	int dac_rates[2];
 	int lrclk_shared[2];
 
+	int mbc_ena[3];
+
 	/* Platform dependant DRC configuration */
 	const char **drc_texts;
 	int drc_cfg[WM8994_NUM_DRC];
@@ -137,6 +139,7 @@ static int wm8994_volatile(unsigned int reg)
 	case WM8994_RATE_STATUS:
 	case WM8994_LDO_1:
 	case WM8994_LDO_2:
+	case WM8958_DSP2_EXECCONTROL:
 		return 1;
 	default:
 		return 0;
@@ -520,6 +523,168 @@ static const struct soc_enum aif2dacl_src =
 static const struct soc_enum aif2dacr_src =
 	SOC_ENUM_SINGLE(WM8994_AIF2_CONTROL_2, 14, 2, aif_chan_src_text);
 
+static void wm8958_mbc_apply(struct snd_soc_codec *codec, int mbc, int start)
+{
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	int pwr_reg = snd_soc_read(codec, WM8994_POWER_MANAGEMENT_5);
+	int ena, reg, aif;
+
+	switch (mbc) {
+	case 0:
+		pwr_reg &= (WM8994_AIF1DAC1L_ENA | WM8994_AIF1DAC1R_ENA);
+		aif = 0;
+		break;
+	case 1:
+		pwr_reg &= (WM8994_AIF1DAC2L_ENA | WM8994_AIF1DAC2R_ENA);
+		aif = 0;
+		break;
+	case 2:
+		pwr_reg &= (WM8994_AIF2DACL_ENA | WM8994_AIF2DACR_ENA);
+		aif = 1;
+		break;
+	default:
+		BUG();
+		return;
+	}
+
+	/* We can only enable the MBC if the AIF is enabled and we
+	 * want it to be enabled. */
+	ena = pwr_reg && wm8994->mbc_ena[mbc];
+
+	reg = snd_soc_read(codec, WM8958_DSP2_PROGRAM);
+
+	dev_dbg(codec->dev, "MBC %d startup: %d, power: %x, DSP: %x\n",
+		mbc, start, pwr_reg, reg);
+
+	if (start && ena) {
+		/* If the DSP is already running then noop */
+		if (reg & WM8958_DSP2_ENA)
+			return;
+
+		/* Switch the clock over to the appropriate AIF */
+		snd_soc_update_bits(codec, WM8994_CLOCKING_1,
+				    WM8958_DSP2CLK_SRC | WM8958_DSP2CLK_ENA,
+				    aif << WM8958_DSP2CLK_SRC_SHIFT |
+				    WM8958_DSP2CLK_ENA);
+
+		snd_soc_update_bits(codec, WM8958_DSP2_PROGRAM,
+				    WM8958_DSP2_ENA, WM8958_DSP2_ENA);
+
+		/* TODO: Apply any user specified MBC settings */
+
+		/* Run the DSP */
+		snd_soc_write(codec, WM8958_DSP2_EXECCONTROL,
+			      WM8958_DSP2_RUNR);
+
+		/* And we're off! */
+		snd_soc_update_bits(codec, WM8958_DSP2_CONFIG,
+				    WM8958_MBC_ENA | WM8958_MBC_SEL_MASK,
+				    mbc << WM8958_MBC_SEL_SHIFT |
+				    WM8958_MBC_ENA);
+	} else {
+		/* If the DSP is already stopped then noop */
+		if (!(reg & WM8958_DSP2_ENA))
+			return;
+
+		snd_soc_update_bits(codec, WM8958_DSP2_CONFIG,
+				    WM8958_MBC_ENA, 0);	
+		snd_soc_update_bits(codec, WM8958_DSP2_PROGRAM,
+				    WM8958_DSP2_ENA, 0);
+		snd_soc_update_bits(codec, WM8994_CLOCKING_1,
+				    WM8958_DSP2CLK_ENA, 0);
+	}
+}
+
+static int wm8958_aif_ev(struct snd_soc_dapm_widget *w,
+		    struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	int mbc;
+
+	switch (w->shift) {
+	case 13:
+	case 12:
+		mbc = 2;
+		break;
+	case 11:
+	case 10:
+		mbc = 1;
+		break;
+	case 9:
+	case 8:
+		mbc = 0;
+		break;
+	default:
+		BUG();
+		return -EINVAL;
+	}
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		wm8958_mbc_apply(codec, mbc, 1);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		wm8958_mbc_apply(codec, mbc, 0);
+		break;
+	}
+
+	return 0;
+}
+
+static int wm8958_mbc_info(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 1;
+	return 0;
+}
+
+static int wm8958_mbc_get(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	int mbc = kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.integer.value[0] = wm8994->mbc_ena[mbc];
+
+	return 0;
+}
+
+static int wm8958_mbc_put(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol)
+{
+	int mbc = kcontrol->private_value;
+	int i;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+
+	if (ucontrol->value.integer.value[0] > 1)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(wm8994->mbc_ena); i++) {
+		if (mbc != i && wm8994->mbc_ena[i]) {
+			dev_dbg(codec->dev, "MBC %d active already\n", mbc);
+			return -EBUSY;
+		}
+	}
+
+	wm8994->mbc_ena[mbc] = ucontrol->value.integer.value[0];
+
+	wm8958_mbc_apply(codec, mbc, wm8994->mbc_ena[mbc]);
+
+	return 0;
+}
+
+#define WM8958_MBC_SWITCH(xname, xval) {\
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,\
+	.info = wm8958_mbc_info, \
+	.get = wm8958_mbc_get, .put = wm8958_mbc_put, \
+	.private_value = xval }
+
 static const struct snd_kcontrol_new wm8994_snd_controls[] = {
 SOC_DOUBLE_R_TLV("AIF1ADC1 Volume", WM8994_AIF1_ADC1_LEFT_VOLUME,
 		 WM8994_AIF1_ADC1_RIGHT_VOLUME,
@@ -649,6 +814,9 @@ SOC_SINGLE_TLV("AIF2 EQ5 Volume", WM8994_AIF2_EQ_GAINS_2, 6, 31, 0,
 
 static const struct snd_kcontrol_new wm8958_snd_controls[] = {
 SOC_SINGLE_TLV("AIF3 Boost Volume", WM8958_AIF3_CONTROL_2, 10, 3, 0, aif_tlv),
+WM8958_MBC_SWITCH("AIF1DAC1 MBC Switch", 0),
+WM8958_MBC_SWITCH("AIF1DAC2 MBC Switch", 1),
+WM8958_MBC_SWITCH("AIF2DAC MBC Switch", 2),
 };
 
 static int clk_sys_event(struct snd_soc_dapm_widget *w,
@@ -1018,19 +1186,23 @@ SND_SOC_DAPM_AIF_OUT("AIF1ADC1L", "AIF1 Capture",
 		     0, WM8994_POWER_MANAGEMENT_4, 9, 0),
 SND_SOC_DAPM_AIF_OUT("AIF1ADC1R", "AIF1 Capture",
 		     0, WM8994_POWER_MANAGEMENT_4, 8, 0),
-SND_SOC_DAPM_AIF_IN("AIF1DAC1L", NULL, 0,
-		    WM8994_POWER_MANAGEMENT_5, 9, 0),
-SND_SOC_DAPM_AIF_IN("AIF1DAC1R", NULL, 0,
-		    WM8994_POWER_MANAGEMENT_5, 8, 0),
+SND_SOC_DAPM_AIF_IN_E("AIF1DAC1L", NULL, 0,
+		      WM8994_POWER_MANAGEMENT_5, 9, 0, wm8958_aif_ev,
+		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_AIF_IN_E("AIF1DAC1R", NULL, 0,
+		      WM8994_POWER_MANAGEMENT_5, 8, 0, wm8958_aif_ev,
+		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_AIF_OUT("AIF1ADC2L", "AIF1 Capture",
 		     0, WM8994_POWER_MANAGEMENT_4, 11, 0),
 SND_SOC_DAPM_AIF_OUT("AIF1ADC2R", "AIF1 Capture",
 		     0, WM8994_POWER_MANAGEMENT_4, 10, 0),
-SND_SOC_DAPM_AIF_IN("AIF1DAC2L", NULL, 0,
-		    WM8994_POWER_MANAGEMENT_5, 11, 0),
-SND_SOC_DAPM_AIF_IN("AIF1DAC2R", NULL, 0,
-		    WM8994_POWER_MANAGEMENT_5, 10, 0),
+SND_SOC_DAPM_AIF_IN_E("AIF1DAC2L", NULL, 0,
+		      WM8994_POWER_MANAGEMENT_5, 11, 0, wm8958_aif_ev,
+		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_AIF_IN_E("AIF1DAC2R", NULL, 0,
+		      WM8994_POWER_MANAGEMENT_5, 10, 0, wm8958_aif_ev,
+		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_MIXER("AIF1ADC1L Mixer", SND_SOC_NOPM, 0, 0,
 		   aif1adc1l_mix, ARRAY_SIZE(aif1adc1l_mix)),
@@ -1059,10 +1231,12 @@ SND_SOC_DAPM_AIF_OUT("AIF2ADCL", NULL, 0,
 		     WM8994_POWER_MANAGEMENT_4, 13, 0),
 SND_SOC_DAPM_AIF_OUT("AIF2ADCR", NULL, 0,
 		     WM8994_POWER_MANAGEMENT_4, 12, 0),
-SND_SOC_DAPM_AIF_IN("AIF2DACL", NULL, 0,
-		    WM8994_POWER_MANAGEMENT_5, 13, 0),
-SND_SOC_DAPM_AIF_IN("AIF2DACR", NULL, 0,
-		    WM8994_POWER_MANAGEMENT_5, 12, 0),
+SND_SOC_DAPM_AIF_IN_E("AIF2DACL", NULL, 0,
+		      WM8994_POWER_MANAGEMENT_5, 13, 0, wm8958_aif_ev,
+		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_AIF_IN_E("AIF2DACR", NULL, 0,
+		      WM8994_POWER_MANAGEMENT_5, 12, 0, wm8958_aif_ev,
+		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_AIF_IN("AIF1DACDAT", "AIF1 Playback", 0, SND_SOC_NOPM, 0, 0),
 SND_SOC_DAPM_AIF_IN("AIF2DACDAT", "AIF2 Playback", 0, SND_SOC_NOPM, 0, 0),
