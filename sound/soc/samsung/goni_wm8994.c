@@ -283,20 +283,25 @@ static int __init goni_init(void)
 
 	/* register voice DAI here */
 	ret = snd_soc_register_dai(&goni_snd_device->dev, &voice_dai);
-	if (ret)
+	if (ret) {
+		platform_device_put(goni_snd_device);
 		return ret;
+	}
 
 	platform_set_drvdata(goni_snd_device, &goni);
 	ret = platform_device_add(goni_snd_device);
 
-	if (ret)
+	if (ret) {
+		snd_soc_unregister_dai(&goni_snd_device->dev);
 		platform_device_put(goni_snd_device);
+	}
 
 	return ret;
 }
 
 static void __exit goni_exit(void)
 {
+	snd_soc_unregister_dai(&goni_snd_device->dev);
 	platform_device_unregister(goni_snd_device);
 }
 
