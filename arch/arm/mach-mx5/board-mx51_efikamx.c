@@ -319,11 +319,11 @@ static void __init mxc_board_init(void)
 	mx51_efikamx_board_id();
 	mxc_register_device(&mxc_usbdr_host_device, &dr_utmi_config);
 	mxc_init_imx_uart();
-	imx51_add_esdhc(0, NULL);
+	imx51_add_sdhci_esdhc_imx(0, NULL);
 
 	/* on < 1.2 boards both SD controllers are used */
 	if (system_rev < 0x12) {
-		imx51_add_esdhc(1, NULL);
+		imx51_add_sdhci_esdhc_imx(1, NULL);
 		mx51_efikamx_leds[2].default_trigger = "mmc1";
 	}
 
