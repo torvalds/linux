@@ -309,7 +309,7 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	mutex_lock(&videodev_lock);
 	vdev = video_devdata(filp);
 	/* return ENODEV if the video device has already been removed. */
-	if (vdev == NULL) {
+	if (vdev == NULL || !video_is_registered(vdev)) {
 		mutex_unlock(&videodev_lock);
 		return -ENODEV;
 	}
@@ -624,7 +624,12 @@ void video_unregister_device(struct video_device *vdev)
 	if (!vdev || !video_is_registered(vdev))
 		return;
 
+	mutex_lock(&videodev_lock);
+	/* This must be in a critical section to prevent a race with v4l2_open.
+	 * Once this bit has been cleared video_get may never be called again.
+	 */
 	clear_bit(V4L2_FL_REGISTERED, &vdev->flags);
+	mutex_unlock(&videodev_lock);
 	device_unregister(&vdev->dev);
 }
 EXPORT_SYMBOL(video_unregister_device);
