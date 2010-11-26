@@ -121,7 +121,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 			tx_hdr.data_type = ATH9K_HTC_NORMAL;
 		}
 
-		if (ieee80211_is_data(fc)) {
+		if (ieee80211_is_data_qos(fc)) {
 			qc = ieee80211_get_qos_ctl(hdr);
 			tx_hdr.tidno = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 		}

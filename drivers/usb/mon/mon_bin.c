@@ -15,7 +15,6 @@
 #include <linux/poll.h>
 #include <linux/compat.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 

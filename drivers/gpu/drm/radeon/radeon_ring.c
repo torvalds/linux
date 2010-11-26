@@ -176,8 +176,8 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	INIT_LIST_HEAD(&rdev->ib_pool.bogus_ib);
 	/* Allocate 1M object buffer */
 	r = radeon_bo_create(rdev, NULL,  RADEON_IB_POOL_SIZE*64*1024,
-				true, RADEON_GEM_DOMAIN_GTT,
-				&rdev->ib_pool.robj);
+			     PAGE_SIZE, true, RADEON_GEM_DOMAIN_GTT,
+			     &rdev->ib_pool.robj);
 	if (r) {
 		DRM_ERROR("radeon: failed to ib pool (%d).\n", r);
 		return r;
@@ -332,7 +332,7 @@ int radeon_ring_init(struct radeon_device *rdev, unsigned ring_size)
 	rdev->cp.ring_size = ring_size;
 	/* Allocate ring buffer */
 	if (rdev->cp.ring_obj == NULL) {
-		r = radeon_bo_create(rdev, NULL, rdev->cp.ring_size, true,
+		r = radeon_bo_create(rdev, NULL, rdev->cp.ring_size, PAGE_SIZE, true,
 					RADEON_GEM_DOMAIN_GTT,
 					&rdev->cp.ring_obj);
 		if (r) {

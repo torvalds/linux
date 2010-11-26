@@ -36,7 +36,6 @@
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/kthread.h>
 
 #include "dvb_ca_en50221.h"

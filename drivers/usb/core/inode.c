@@ -39,7 +39,6 @@
 #include <linux/parser.h>
 #include <linux/notifier.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 #include <linux/usb/hcd.h>
 #include <asm/byteorder.h>
 #include "usb.h"

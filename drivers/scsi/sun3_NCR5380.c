@@ -908,7 +908,7 @@ static int NCR5380_init (struct Scsi_Host *instance, int flags)
  */
 
 /* Only make static if a wrapper function is used */
-static int NCR5380_queue_command(struct scsi_cmnd *cmd,
+static int NCR5380_queue_command_lck(struct scsi_cmnd *cmd,
 				 void (*done)(struct scsi_cmnd *))
 {
     SETUP_HOSTDATA(cmd->device->host);
@@ -1018,6 +1018,8 @@ static int NCR5380_queue_command(struct scsi_cmnd *cmd,
 	NCR5380_main(NULL);
     return 0;
 }
+
+static DEF_SCSI_QCMD(NCR5380_queue_command)
 
 /*
  * Function : NCR5380_main (void) 

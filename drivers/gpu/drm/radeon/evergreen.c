@@ -1650,7 +1650,36 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 		}
 	}
 
-	rdev->config.evergreen.tile_config = gb_addr_config;
+	/* setup tiling info dword.  gb_addr_config is not adequate since it does
+	 * not have bank info, so create a custom tiling dword.
+	 * bits 3:0   num_pipes
+	 * bits 7:4   num_banks
+	 * bits 11:8  group_size
+	 * bits 15:12 row_size
+	 */
+	rdev->config.evergreen.tile_config = 0;
+	switch (rdev->config.evergreen.max_tile_pipes) {
+	case 1:
+	default:
+		rdev->config.evergreen.tile_config |= (0 << 0);
+		break;
+	case 2:
+		rdev->config.evergreen.tile_config |= (1 << 0);
+		break;
+	case 4:
+		rdev->config.evergreen.tile_config |= (2 << 0);
+		break;
+	case 8:
+		rdev->config.evergreen.tile_config |= (3 << 0);
+		break;
+	}
+	rdev->config.evergreen.tile_config |=
+		((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
+	rdev->config.evergreen.tile_config |=
+		((mc_arb_ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT) << 8;
+	rdev->config.evergreen.tile_config |=
+		((gb_addr_config & 0x30000000) >> 28) << 12;
+
 	WREG32(GB_BACKEND_MAP, gb_backend_map);
 	WREG32(GB_ADDR_CONFIG, gb_addr_config);
 	WREG32(DMIF_ADDR_CONFIG, gb_addr_config);
