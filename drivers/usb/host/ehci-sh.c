@@ -219,10 +219,19 @@ static int __exit ehci_hcd_sh_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void ehci_hcd_sh_shutdown(struct platform_device *pdev)
+{
+	struct ehci_sh_priv *priv = platform_get_drvdata(pdev);
+	struct usb_hcd *hcd = priv->hcd;
+
+	if (hcd->driver->shutdown)
+		hcd->driver->shutdown(hcd);
+}
+
 static struct platform_driver ehci_hcd_sh_driver = {
 	.probe		= ehci_hcd_sh_probe,
 	.remove		= __exit_p(ehci_hcd_sh_remove),
-	.shutdown	= usb_hcd_platform_shutdown,
+	.shutdown	= ehci_hcd_sh_shutdown,
 	.driver		= {
 		.name	= "sh_ehci",
 		.owner	= THIS_MODULE,
