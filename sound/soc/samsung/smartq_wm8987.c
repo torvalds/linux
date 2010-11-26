@@ -274,6 +274,7 @@ err_unregister_device:
 
 static void __exit smartq_exit(void)
 {
+	gpio_free(S3C64XX_GPK(12));
 	snd_soc_jack_free_gpios(&smartq_jack, ARRAY_SIZE(smartq_jack_gpios),
 				smartq_jack_gpios);
 
