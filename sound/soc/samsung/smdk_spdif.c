@@ -183,7 +183,7 @@ static int __init smdk_init(void)
 
 	ret = platform_device_add(smdk_snd_spdif_dit_device);
 	if (ret)
-		goto err2;
+		goto err1;
 
 	smdk_snd_spdif_device = platform_device_alloc("soc-audio", -1);
 	if (!smdk_snd_spdif_device) {
@@ -195,17 +195,21 @@ static int __init smdk_init(void)
 
 	ret = platform_device_add(smdk_snd_spdif_device);
 	if (ret)
-		goto err1;
+		goto err3;
 
 	/* Set audio clock heirachy manually */
 	ret = set_audio_clock_heirachy(smdk_snd_spdif_device);
 	if (ret)
-		goto err1;
+		goto err4;
 
 	return 0;
-err1:
+err4:
+	platform_device_del(smdk_snd_spdif_device);
+err3:
 	platform_device_put(smdk_snd_spdif_device);
 err2:
+	platform_device_del(smdk_snd_spdif_dit_device);
+err1:
 	platform_device_put(smdk_snd_spdif_dit_device);
 	return ret;
 }
@@ -213,6 +217,7 @@ err2:
 static void __exit smdk_exit(void)
 {
 	platform_device_unregister(smdk_snd_spdif_device);
+	platform_device_unregister(smdk_snd_spdif_dit_device);
 }
 
 module_init(smdk_init);
