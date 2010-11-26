@@ -62,7 +62,7 @@ void hibernation_set_ops(struct platform_hibernation_ops *ops)
 {
 	if (ops && !(ops->begin && ops->end &&  ops->pre_snapshot
 	    && ops->prepare && ops->finish && ops->enter && ops->pre_restore
-	    && ops->restore_cleanup)) {
+	    && ops->restore_cleanup && ops->leave)) {
 		WARN_ON(1);
 		return;
 	}
