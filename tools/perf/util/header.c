@@ -152,6 +152,11 @@ void perf_header__set_feat(struct perf_header *self, int feat)
 	set_bit(feat, self->adds_features);
 }
 
+void perf_header__clear_feat(struct perf_header *self, int feat)
+{
+	clear_bit(feat, self->adds_features);
+}
+
 bool perf_header__has_feat(const struct perf_header *self, int feat)
 {
 	return test_bit(feat, self->adds_features);
@@ -431,8 +436,10 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 	int idx = 0, err;
 
 	session = container_of(self, struct perf_session, header);
-	if (perf_session__read_build_ids(session, true))
-		perf_header__set_feat(self, HEADER_BUILD_ID);
+
+	if (perf_header__has_feat(self, HEADER_BUILD_ID &&
+	    !perf_session__read_build_ids(session, true)))
+		perf_header__clear_feat(self, HEADER_BUILD_ID);
 
 	nr_sections = bitmap_weight(self->adds_features, HEADER_FEAT_BITS);
 	if (!nr_sections)

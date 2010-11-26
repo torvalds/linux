@@ -61,6 +61,7 @@ static bool			inherit_stat			=  false;
 static bool			no_samples			=  false;
 static bool			sample_address			=  false;
 static bool			no_buildid			=  false;
+static bool			no_buildid_cache		=  false;
 
 static long			samples				=      0;
 static u64			bytes_written			=      0;
@@ -437,7 +438,8 @@ static void atexit_header(void)
 	if (!pipe_output) {
 		session->header.data_size += bytes_written;
 
-		process_buildids();
+		if (!no_buildid)
+			process_buildids();
 		perf_header__write(&session->header, output, true);
 		perf_session__delete(session);
 		symbol__exit();
@@ -556,6 +558,9 @@ static int __cmd_record(int argc, const char **argv)
 		pr_err("Not enough memory for reading perf file header\n");
 		return -1;
 	}
+
+	if (!no_buildid)
+		perf_header__set_feat(&session->header, HEADER_BUILD_ID);
 
 	if (!file_new) {
 		err = perf_header__read(session, output);
@@ -831,8 +836,10 @@ const struct option record_options[] = {
 		    "Sample addresses"),
 	OPT_BOOLEAN('n', "no-samples", &no_samples,
 		    "don't sample"),
-	OPT_BOOLEAN('N', "no-buildid-cache", &no_buildid,
+	OPT_BOOLEAN('N', "no-buildid-cache", &no_buildid_cache,
 		    "do not update the buildid cache"),
+	OPT_BOOLEAN('B', "no-buildid", &no_buildid,
+		    "do not collect buildids in perf.data"),
 	OPT_END()
 };
 
@@ -857,7 +864,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	}
 
 	symbol__init();
-	if (no_buildid)
+
+	if (no_buildid_cache || no_buildid)
 		disable_buildid_cache();
 
 	if (!nr_counters) {
