@@ -178,7 +178,9 @@ static int lirc_cdev_add(struct irctl *ir)
 		cdev_init(cdev, &lirc_dev_fops);
 		cdev->owner = THIS_MODULE;
 	}
-	kobject_set_name(&cdev->kobj, "lirc%d", d->minor);
+	retval = kobject_set_name(&cdev->kobj, "lirc%d", d->minor);
+	if (retval)
+		return retval;
 
 	retval = cdev_add(cdev, MKDEV(MAJOR(lirc_base_dev), d->minor), 1);
 	if (retval)
