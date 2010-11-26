@@ -219,6 +219,27 @@ extern pgprot_t		pgprot_kernel;
 #define __PAGE_READONLY		__pgprot(_L_PTE_DEFAULT | L_PTE_USER)
 #define __PAGE_READONLY_EXEC	__pgprot(_L_PTE_DEFAULT | L_PTE_USER | L_PTE_EXEC)
 
+#define __pgprot_modify(prot,mask,bits)		\
+	__pgprot((pgprot_val(prot) & ~(mask)) | (bits))
+
+#define pgprot_noncached(prot) \
+	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_UNCACHED)
+
+#define pgprot_writecombine(prot) \
+	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_BUFFERABLE)
+
+#ifdef CONFIG_ARM_DMA_MEM_BUFFERABLE
+#define pgprot_dmacoherent(prot) \
+	__pgprot_modify(prot, L_PTE_MT_MASK|L_PTE_EXEC, L_PTE_MT_BUFFERABLE)
+#define __HAVE_PHYS_MEM_ACCESS_PROT
+struct file;
+extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
+				     unsigned long size, pgprot_t vma_prot);
+#else
+#define pgprot_dmacoherent(prot) \
+	__pgprot_modify(prot, L_PTE_MT_MASK|L_PTE_EXEC, L_PTE_MT_UNCACHED)
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 /*
@@ -321,28 +342,6 @@ PTE_BIT_FUNC(mkold,     &= ~L_PTE_YOUNG);
 PTE_BIT_FUNC(mkyoung,   |= L_PTE_YOUNG);
 
 static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
-
-#define __pgprot_modify(prot,mask,bits)		\
-	__pgprot((pgprot_val(prot) & ~(mask)) | (bits))
-
-/*
- * Mark the prot value as uncacheable and unbufferable.
- */
-#define pgprot_noncached(prot) \
-	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_UNCACHED)
-#define pgprot_writecombine(prot) \
-	__pgprot_modify(prot, L_PTE_MT_MASK, L_PTE_MT_BUFFERABLE)
-#ifdef CONFIG_ARM_DMA_MEM_BUFFERABLE
-#define pgprot_dmacoherent(prot) \
-	__pgprot_modify(prot, L_PTE_MT_MASK|L_PTE_EXEC, L_PTE_MT_BUFFERABLE)
-#define __HAVE_PHYS_MEM_ACCESS_PROT
-struct file;
-extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
-				     unsigned long size, pgprot_t vma_prot);
-#else
-#define pgprot_dmacoherent(prot) \
-	__pgprot_modify(prot, L_PTE_MT_MASK|L_PTE_EXEC, L_PTE_MT_UNCACHED)
-#endif
 
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define pmd_present(pmd)	(pmd_val(pmd))
