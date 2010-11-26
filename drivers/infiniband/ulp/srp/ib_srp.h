@@ -59,10 +59,8 @@ enum {
 
 	SRP_RQ_SHIFT    	= 6,
 	SRP_RQ_SIZE		= 1 << SRP_RQ_SHIFT,
-	SRP_RQ_MASK		= SRP_RQ_SIZE - 1,
 
 	SRP_SQ_SIZE		= SRP_RQ_SIZE,
-	SRP_SQ_MASK		= SRP_SQ_SIZE - 1,
 	SRP_RSP_SQ_SIZE		= 1,
 	SRP_REQ_SQ_SIZE		= SRP_SQ_SIZE - SRP_RSP_SQ_SIZE,
 	SRP_TSK_MGMT_SQ_SIZE	= 1,
@@ -144,11 +142,9 @@ struct srp_target_port {
 
 	int			zero_req_lim;
 
-	unsigned		rx_head;
 	struct srp_iu	       *rx_ring[SRP_RQ_SIZE];
 
-	unsigned		tx_head;
-	unsigned		tx_tail;
+	struct list_head	free_tx;
 	struct srp_iu	       *tx_ring[SRP_SQ_SIZE];
 
 	struct list_head	free_reqs;
@@ -168,6 +164,7 @@ struct srp_target_port {
 };
 
 struct srp_iu {
+	struct list_head	list;
 	u64			dma;
 	void		       *buf;
 	size_t			size;
