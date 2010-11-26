@@ -768,7 +768,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 		struct srp_direct_buf *buf = (void *) cmd->add_data;
 
 		buf->va  = cpu_to_be64(ib_sg_dma_address(ibdev, scat));
-		buf->key = cpu_to_be32(dev->mr->rkey);
+		buf->key = cpu_to_be32(target->rkey);
 		buf->len = cpu_to_be32(ib_sg_dma_len(ibdev, scat));
 	} else if (srp_map_fmr(target, scat, count, req,
 			       (void *) cmd->add_data)) {
@@ -793,7 +793,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 			buf->desc_list[i].va  =
 				cpu_to_be64(ib_sg_dma_address(ibdev, sg));
 			buf->desc_list[i].key =
-				cpu_to_be32(dev->mr->rkey);
+				cpu_to_be32(target->rkey);
 			buf->desc_list[i].len = cpu_to_be32(dma_len);
 			datalen += dma_len;
 		}
@@ -806,7 +806,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 		buf->table_desc.va  =
 			cpu_to_be64(req->cmd->dma + sizeof *cmd + sizeof *buf);
 		buf->table_desc.key =
-			cpu_to_be32(target->srp_host->srp_dev->mr->rkey);
+			cpu_to_be32(target->rkey);
 		buf->table_desc.len =
 			cpu_to_be32(count * sizeof (struct srp_direct_buf));
 
@@ -883,7 +883,7 @@ static int srp_post_send(struct srp_target_port *target,
 
 	list.addr   = iu->dma;
 	list.length = len;
-	list.lkey   = target->srp_host->srp_dev->mr->lkey;
+	list.lkey   = target->lkey;
 
 	wr.next       = NULL;
 	wr.wr_id      = (uintptr_t) iu;
@@ -902,7 +902,7 @@ static int srp_post_recv(struct srp_target_port *target, struct srp_iu *iu)
 
 	list.addr   = iu->dma;
 	list.length = iu->size;
-	list.lkey   = target->srp_host->srp_dev->mr->lkey;
+	list.lkey   = target->lkey;
 
 	wr.next     = NULL;
 	wr.wr_id    = (uintptr_t) iu;
@@ -1955,6 +1955,8 @@ static ssize_t srp_create_target(struct device *dev,
 	target->io_class   = SRP_REV16A_IB_IO_CLASS;
 	target->scsi_host  = target_host;
 	target->srp_host   = host;
+	target->lkey	   = host->srp_dev->mr->lkey;
+	target->rkey	   = host->srp_dev->mr->rkey;
 
 	spin_lock_init(&target->lock);
 	INIT_LIST_HEAD(&target->free_tx);

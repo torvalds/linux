@@ -117,6 +117,24 @@ struct srp_request {
 };
 
 struct srp_target_port {
+	/* These are RW in the hot path, and commonly used together */
+	struct list_head	free_tx;
+	struct list_head	free_reqs;
+	spinlock_t		lock;
+	s32			req_lim;
+
+	/* These are read-only in the hot path */
+	struct ib_cq	       *send_cq ____cacheline_aligned_in_smp;
+	struct ib_cq	       *recv_cq;
+	struct ib_qp	       *qp;
+	u32			lkey;
+	u32			rkey;
+	enum srp_target_state	state;
+
+	/* Everything above this point is used in the hot path of
+	 * command processing. Try to keep them packed into cachelines.
+	 */
+
 	__be64			id_ext;
 	__be64			ioc_guid;
 	__be64			service_id;
@@ -133,23 +151,13 @@ struct srp_target_port {
 	int			path_query_id;
 
 	struct ib_cm_id	       *cm_id;
-	struct ib_cq	       *recv_cq;
-	struct ib_cq	       *send_cq;
-	struct ib_qp	       *qp;
 
 	int			max_ti_iu_len;
-	s32			req_lim;
 
 	int			zero_req_lim;
 
-	struct srp_iu	       *rx_ring[SRP_RQ_SIZE];
-
-	spinlock_t		lock;
-
-	struct list_head	free_tx;
 	struct srp_iu	       *tx_ring[SRP_SQ_SIZE];
-
-	struct list_head	free_reqs;
+	struct srp_iu	       *rx_ring[SRP_RQ_SIZE];
 	struct srp_request	req_ring[SRP_CMD_SQ_SIZE];
 
 	struct work_struct	work;
@@ -157,7 +165,6 @@ struct srp_target_port {
 	struct list_head	list;
 	struct completion	done;
 	int			status;
-	enum srp_target_state	state;
 	int			qp_in_error;
 
 	struct completion	tsk_mgmt_done;
