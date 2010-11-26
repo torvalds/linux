@@ -168,7 +168,6 @@ struct srp_iu {
 	void		       *buf;
 	size_t			size;
 	enum dma_data_direction	direction;
-	enum srp_iu_type	type;
 };
 
 #endif /* IB_SRP_H */
