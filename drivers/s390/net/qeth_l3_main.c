@@ -1796,7 +1796,8 @@ static void qeth_l3_add_mc(struct qeth_card *card, struct in_device *in4_dev)
 	char buf[MAX_ADDR_LEN];
 
 	QETH_CARD_TEXT(card, 4, "addmc");
-	for (im4 = in4_dev->mc_list; im4; im4 = im4->next) {
+	for (im4 = rcu_dereference(in4_dev->mc_list); im4 != NULL;
+	     im4 = rcu_dereference(im4->next_rcu)) {
 		qeth_l3_get_mac_for_ipm(im4->multiaddr, buf, in4_dev->dev);
 		ipm = qeth_l3_get_addr_buffer(QETH_PROT_IPV4);
 		if (!ipm)
@@ -1828,9 +1829,9 @@ static void qeth_l3_add_vlan_mc(struct qeth_card *card)
 		in_dev = in_dev_get(netdev);
 		if (!in_dev)
 			continue;
-		read_lock(&in_dev->mc_list_lock);
+		rcu_read_lock();
 		qeth_l3_add_mc(card, in_dev);
-		read_unlock(&in_dev->mc_list_lock);
+		rcu_read_unlock();
 		in_dev_put(in_dev);
 	}
 }
@@ -1843,10 +1844,10 @@ static void qeth_l3_add_multicast_ipv4(struct qeth_card *card)
 	in4_dev = in_dev_get(card->dev);
 	if (in4_dev == NULL)
 		return;
-	read_lock(&in4_dev->mc_list_lock);
+	rcu_read_lock();
 	qeth_l3_add_mc(card, in4_dev);
 	qeth_l3_add_vlan_mc(card);
-	read_unlock(&in4_dev->mc_list_lock);
+	rcu_read_unlock();
 	in_dev_put(in4_dev);
 }
 
