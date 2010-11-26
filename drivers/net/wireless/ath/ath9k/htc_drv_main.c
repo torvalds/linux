@@ -184,6 +184,47 @@ err:
 	return ret;
 }
 
+static int ath9k_htc_add_monitor_interface(struct ath9k_htc_priv *priv)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_target_vif hvif;
+	int ret = 0;
+	u8 cmd_rsp;
+
+	if (priv->nvifs > 0)
+		return -ENOBUFS;
+
+	memset(&hvif, 0, sizeof(struct ath9k_htc_target_vif));
+	memcpy(&hvif.myaddr, common->macaddr, ETH_ALEN);
+
+	hvif.opmode = cpu_to_be32(HTC_M_MONITOR);
+	priv->ah->opmode = NL80211_IFTYPE_MONITOR;
+	hvif.index = priv->nvifs;
+
+	WMI_CMD_BUF(WMI_VAP_CREATE_CMDID, &hvif);
+	if (ret)
+		return ret;
+
+	priv->nvifs++;
+	return 0;
+}
+
+static int ath9k_htc_remove_monitor_interface(struct ath9k_htc_priv *priv)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_target_vif hvif;
+	int ret = 0;
+	u8 cmd_rsp;
+
+	memset(&hvif, 0, sizeof(struct ath9k_htc_target_vif));
+	memcpy(&hvif.myaddr, common->macaddr, ETH_ALEN);
+	hvif.index = 0; /* Should do for now */
+	WMI_CMD_BUF(WMI_VAP_REMOVE_CMDID, &hvif);
+	priv->nvifs--;
+
+	return ret;
+}
+
 static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta)
@@ -1199,6 +1240,16 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	WMI_CMD(WMI_STOP_RECV_CMDID);
 	skb_queue_purge(&priv->tx_queue);
 
+	/* Remove monitor interface here */
+	if (ah->opmode == NL80211_IFTYPE_MONITOR) {
+		if (ath9k_htc_remove_monitor_interface(priv))
+			ath_print(common, ATH_DBG_FATAL,
+				  "Unable to remove monitor interface\n");
+		else
+			ath_print(common, ATH_DBG_CONFIG,
+				  "Monitor interface removed\n");
+	}
+
 	if (ah->btcoex_hw.enabled) {
 		ath9k_hw_btcoex_disable(ah);
 		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
@@ -1372,13 +1423,16 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_MONITOR)
+	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		if (conf->flags & IEEE80211_CONF_MONITOR) {
-			ath_print(common, ATH_DBG_CONFIG,
-				  "HW opmode set to Monitor mode\n");
-			priv->ah->opmode = NL80211_IFTYPE_MONITOR;
+			if (ath9k_htc_add_monitor_interface(priv))
+				ath_print(common, ATH_DBG_FATAL,
+					  "Failed to set monitor mode\n");
+			else
+				ath_print(common, ATH_DBG_CONFIG,
+					  "HW opmode set to Monitor mode\n");
 		}
-
+	}
 
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
 		mutex_lock(&priv->htc_pm_lock);
