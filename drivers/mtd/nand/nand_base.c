@@ -2558,6 +2558,8 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 			break;
 	}
 
+	chip->options |= busw;
+	
 	/*
 	 * Check, if buswidth is correct. Hardware drivers should set
 	 * chip correct !

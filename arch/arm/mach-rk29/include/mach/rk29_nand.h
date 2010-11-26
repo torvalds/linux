@@ -40,6 +40,7 @@
 #define     FMC_FRDY		      		(0x1<<9)
 #define     FMC_FRDY_INT_EN   	(0x1<<10)
 #define     FMC_FRDY_INT_CLR		(0x1<<11)
+#define     FMC_WIDTH_16				(0x1<<12)
 //FMWAIT¼Ä´æÆ÷
 #define     FMW_RWCS_OFFSET		0
 #define     FMW_RWPW_OFFSET	5

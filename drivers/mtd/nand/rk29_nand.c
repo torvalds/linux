@@ -90,6 +90,22 @@ static struct nand_ecclayout nand_hw_eccoob_16 = {
 static const char *part_probes[] = { "cmdlinepart", NULL };
 #endif
 
+static void rk29_nand_wait_ready( struct mtd_info *mtd )
+{
+	struct nand_chip *nand_chip = mtd->priv;
+	struct rk29_nand_mtd *master = nand_chip->priv;
+	pNANDC pRK29NC=  (pNANDC)(master->regs);
+	uint32_t timeout = 1000;
+	
+	while (timeout>0)
+	{
+             timeout --;		   
+          if(pRK29NC->FMCTL&FMC_FRDY)
+		 break;
+	   udelay(1);  	  
+	}
+	return;
+}
 
 static void rk29_nand_wait_busy(struct mtd_info *mtd, uint32_t timeout)
 {
@@ -301,7 +317,6 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 	struct rk29_nand_mtd *master = nand_chip->priv;
 	pNANDC pRK29NC=  (pNANDC)(master->regs);
 
-       uint32_t timeout = 1000;
 	char status,ret;
 
 	
@@ -309,21 +324,15 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 
        case NAND_CMD_READID:
 	   	pRK29NC ->chip[master->cs].cmd = command;
+		rk29_nand_wait_ready(mtd);
 		pRK29NC ->chip[master->cs].addr = 0x0;
-		while (timeout>0)
-		{
-                 timeout --;
-		   udelay(1);  
-	          if(pRK29NC->FLCTL&FL_INTCLR)
-			 break;
-		  
-		}
-		
+		rk29_nand_wait_ready(mtd);
 		rk29_nand_wait_busy(mtd,READ_BUSY_COUNT);
 	   	break;
 		
        case NAND_CMD_READ0:
               pRK29NC ->chip[master->cs].cmd = command;
+			rk29_nand_wait_ready(mtd);
 	       if ( column>= 0 )
 	         {
                    pRK29NC ->chip[master->cs].addr = column & 0xff;	
@@ -336,15 +345,18 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 			pRK29NC ->chip[master->cs].addr = (page_addr >> 8) & 0xFF;
 			pRK29NC ->chip[master->cs].addr = (page_addr >> 16) & 0xff;
 		   }
+		rk29_nand_wait_ready(mtd);
 		if( mtd->writesize > 512)
 		    pRK29NC ->chip[0].cmd = NAND_CMD_READSTART;
 
+		rk29_nand_wait_ready(mtd);
 		rk29_nand_wait_busy(mtd,READ_BUSY_COUNT);
 		
 	   	break;
 		
 	case NAND_CMD_READ1:
               pRK29NC ->chip[master->cs].cmd = command;
+			rk29_nand_wait_ready(mtd);
 		break;
 		
        case NAND_CMD_READOOB:
@@ -354,6 +366,7 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
     		
 		pRK29NC ->chip[master->cs].cmd = command;  
 
+			rk29_nand_wait_ready(mtd);
               if ( mtd->writesize >512 )
                {
 			if ( column>= 0 )
@@ -373,6 +386,7 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 		{
 		   pRK29NC ->chip[master->cs].addr = column;
 		}
+			rk29_nand_wait_ready(mtd);
 			
 		rk29_nand_wait_busy(mtd,READ_BUSY_COUNT);
 		
@@ -382,9 +396,11 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 	case NAND_CMD_PAGEPROG:
 		pRK29NC ->FMCTL |= FMC_WP;  //解除写保护
 		pRK29NC ->chip[master->cs].cmd = command;
+		rk29_nand_wait_ready(mtd);
 		rk29_nand_wait_busy(mtd,PROGRAM_BUSY_COUNT);
 		
 		pRK29NC ->chip[master->cs].cmd  = NAND_CMD_STATUS;
+		rk29_nand_wait_ready(mtd);
 		status = pRK29NC ->chip[master->cs].data;
 		
 		if(status&0x1)
@@ -398,6 +414,7 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 		pRK29NC ->FMCTL |= FMC_WP;  //解除写保护
 		pRK29NC ->BCHCTL = 0x0;
 		pRK29NC ->chip[master->cs].cmd  = command;
+		rk29_nand_wait_ready(mtd);
 		if ( page_addr>=0 )
 		   {
 			pRK29NC ->chip[master->cs].addr = page_addr & 0xff;
@@ -409,8 +426,10 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 	case NAND_CMD_ERASE2:
 		pRK29NC ->FMCTL |= FMC_WP;  //解除写保护
 		pRK29NC ->chip[master->cs].cmd  = command;	       
+		rk29_nand_wait_ready(mtd);
 		rk29_nand_wait_busy(mtd,ERASE_BUSY_COUNT);
 		pRK29NC ->chip[master->cs].cmd  = NAND_CMD_STATUS;
+		rk29_nand_wait_ready(mtd);
 		status = pRK29NC ->chip[master->cs].data;
 		
 		if(status&0x1)
@@ -423,7 +442,7 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 	case NAND_CMD_SEQIN:
 		pRK29NC ->FMCTL |= FMC_WP;  //解除写保护
 		pRK29NC ->chip[master->cs].cmd  = command;
-	       udelay(1);
+		rk29_nand_wait_ready(mtd);
 		if ( column>= 0 )
 		  {
                    pRK29NC ->chip[master->cs].addr = column;
@@ -442,36 +461,22 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 	case NAND_CMD_STATUS:
 		pRK29NC ->BCHCTL = 0x0;
 		pRK29NC ->chip[master->cs].cmd = command;
-		while (timeout>0)
-		{
-                 timeout --;
-		   udelay(1);  
-	          if(pRK29NC->FLCTL&FL_INTCLR)
-			 break;
-		  
-		}
+		rk29_nand_wait_ready(mtd);
 		break;
 
 	case NAND_CMD_RESET:
 		pRK29NC ->chip[master->cs].cmd = command;
-		while (timeout>0)
-		{
-                 timeout --;
-		   udelay(1);  
-	          if(pRK29NC->FLCTL&FL_INTCLR)
-			 break;
-		  
-		}
+		rk29_nand_wait_ready(mtd);
 		rk29_nand_wait_busy(mtd,RESET_BUSY_COUNT);
 		break;
 
 	/* This applies to read commands */
 	default:
 	       pRK29NC ->chip[master->cs].cmd = command;
+			rk29_nand_wait_ready(mtd);
 		break;
 	}
 
-	udelay (1);
    
 }
 
@@ -545,6 +550,11 @@ int rk29_nand_calculate_ecc(struct mtd_info *mtd,const uint8_t *dat,uint8_t *ecc
 	rk29_nand_wait_busy(mtd,READ_BUSY_COUNT);
 	   
        pRK29NC->FLCTL |= FL_BYPASS;  // dma mode
+	
+	if(chip->options&NAND_BUSWIDTH_16)
+	{
+		pRK29NC ->FMCTL |= FMC_WIDTH_16;  // 设置为16位
+	}	 
 	  
 	for(i=0;i<mtd->writesize/0x400;i++)
 	{
@@ -580,7 +590,11 @@ void  rk29_nand_write_page(struct mtd_info *mtd,struct nand_chip *chip,const uin
 	
 	pRK29NC->FLCTL |= FL_BYPASS;  // dma mode
 
-   		
+  if(chip->options&NAND_BUSWIDTH_16)
+	{
+		pRK29NC ->FMCTL |= FMC_WIDTH_16;  // 设置为16位
+	}	 
+	 		
 	  for(i=0;i<mtd->writesize/0x400;i++)
 	   {
 	       memcpy((u_char *)(pRK29NC->buf),(buf+i*0x400),0x400);  //  only use nandc sram0		
@@ -630,7 +644,10 @@ int rk29_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip, int page, i
 	
        pRK29NC->FLCTL |= FL_BYPASS;  // dma mode
 
-	
+	if(chip->options&NAND_BUSWIDTH_16)
+	{
+		pRK29NC ->FMCTL |= FMC_WIDTH_16;  // 设置为16位
+	}	 
 
 	
 	for(i=0;i<mtd->writesize/0x400;i++)
@@ -671,7 +688,10 @@ int	rk29_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip, uint8_
 	   
        pRK29NC->FLCTL |= FL_BYPASS;  // dma mode
 
- 	
+ 	if(chip->options&NAND_BUSWIDTH_16)
+	{
+		pRK29NC ->FMCTL |= FMC_WIDTH_16;  // 设置为16位
+	}	 
 	   
 	for(i=0;i<mtd->writesize/0x400;i++)
 	{
@@ -872,7 +892,7 @@ static int rk29_nand_probe(struct platform_device *pdev)
 	
        pRK29NC =  (pNANDC)(master->regs);
        pRK29NC ->FMCTL = FMC_WP|FMC_FRDY;
-       pRK29NC ->FMWAIT |=  (1<<FMW_RWCS_OFFSET)|(4<<FMW_RWPW_OFFSET)|(1<<FMW_CSRW_OFFSET);
+       pRK29NC ->FMWAIT |=  (1<<FMW_RWCS_OFFSET)|(4<<FMW_RWPW_OFFSET)|(2<<FMW_CSRW_OFFSET);
 	pRK29NC ->BCHCTL = 0x1;
 
        this->select_chip(mtd, 0);
@@ -933,11 +953,6 @@ static int rk29_nand_probe(struct platform_device *pdev)
             DEBUG(MTD_DEBUG_LEVEL0, "RK2818 NAND: numchips error!!!\n");
     }
 #endif    
-#if 0
-      // rk281x dma mode bch must  (1k data + 32 oob) bytes align , so cheat system writesize =1024,oobsize=32
-	mtd->writesize = 1024;
-	mtd->oobsize = 32;
-#endif
 
 #ifdef CONFIG_MTD_PARTITIONS
         num_partitions = parse_mtd_partitions(mtd, part_probes, &partitions, 0);
