@@ -336,7 +336,9 @@ out:
 }
 
 static int wl1271_reg_notify(struct wiphy *wiphy,
-			     struct regulatory_request *request) {
+			     struct regulatory_request *request)
+{
+	struct wl1271 *wl = wiphy_to_ieee80211_hw(wiphy)->priv;
 	struct ieee80211_supported_band *band;
 	struct ieee80211_channel *ch;
 	int i;
@@ -346,6 +348,11 @@ static int wl1271_reg_notify(struct wiphy *wiphy,
 		ch = &band->channels[i];
 		if (ch->flags & IEEE80211_CHAN_DISABLED)
 			continue;
+
+		if (!wl->enable_11a) {
+			ch->flags |= IEEE80211_CHAN_DISABLED;
+			continue;
+		}
 
 		if (ch->flags & IEEE80211_CHAN_RADAR)
 			ch->flags |= IEEE80211_CHAN_NO_IBSS |
