@@ -364,8 +364,13 @@ int ENE_SendScsiCmd(struct us_data *us, BYTE fDir, void *buf, int use_sg)
 	}
 
 	if (buf) {
-		unsigned int pipe = fDir ==
-			FDIR_READ ? us->recv_bulk_pipe : us->send_bulk_pipe;
+		unsigned int pipe = fDir;
+
+		if (fDir == FDIR_READ)
+			pipe = us->recv_bulk_pipe;
+		else
+			pipe = us->send_bulk_pipe;
+
 		/* Bulk */
 		if (use_sg)
 			result = usb_stor_bulk_srb(us, pipe, us->srb);
