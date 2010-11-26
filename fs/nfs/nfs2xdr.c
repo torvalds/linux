@@ -485,6 +485,8 @@ nfs_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, struct nfs_se
 	entry->prev_cookie	  = entry->cookie;
 	entry->cookie	  = ntohl(*p++);
 
+	entry->d_type = DT_UNKNOWN;
+
 	p = xdr_inline_peek(xdr, 8);
 	if (p != NULL)
 		entry->eof = !p[0] && p[1];
@@ -495,7 +497,7 @@ nfs_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, struct nfs_se
 
 out_overflow:
 	print_overflow_msg(__func__, xdr);
-	return ERR_PTR(-EIO);
+	return ERR_PTR(-EAGAIN);
 }
 
 /*
