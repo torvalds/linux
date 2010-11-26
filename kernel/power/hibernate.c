@@ -647,6 +647,7 @@ int hibernate(void)
 		swsusp_free();
 		if (!error)
 			power_down();
+		in_suspend = 0;
 		pm_restore_gfp_mask();
 	} else {
 		pr_debug("PM: Image restored successfully.\n");
