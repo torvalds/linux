@@ -441,18 +441,28 @@ static void srp_disconnect_target(struct srp_target_port *target)
 	wait_for_completion(&target->done);
 }
 
+static bool srp_change_state(struct srp_target_port *target,
+			    enum srp_target_state old,
+			    enum srp_target_state new)
+{
+	bool changed = false;
+
+	spin_lock_irq(target->scsi_host->host_lock);
+	if (target->state == old) {
+		target->state = new;
+		changed = true;
+	}
+	spin_unlock_irq(target->scsi_host->host_lock);
+	return changed;
+}
+
 static void srp_remove_work(struct work_struct *work)
 {
 	struct srp_target_port *target =
 		container_of(work, struct srp_target_port, work);
 
-	spin_lock_irq(target->scsi_host->host_lock);
-	if (target->state != SRP_TARGET_DEAD) {
-		spin_unlock_irq(target->scsi_host->host_lock);
+	if (!srp_change_state(target, SRP_TARGET_DEAD, SRP_TARGET_REMOVED))
 		return;
-	}
-	target->state = SRP_TARGET_REMOVED;
-	spin_unlock_irq(target->scsi_host->host_lock);
 
 	spin_lock(&target->srp_host->target_lock);
 	list_del(&target->list);
@@ -560,13 +570,8 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	struct ib_wc wc;
 	int ret;
 
-	spin_lock_irq(target->scsi_host->host_lock);
-	if (target->state != SRP_TARGET_LIVE) {
-		spin_unlock_irq(target->scsi_host->host_lock);
+	if (!srp_change_state(target, SRP_TARGET_LIVE, SRP_TARGET_CONNECTING))
 		return -EAGAIN;
-	}
-	target->state = SRP_TARGET_CONNECTING;
-	spin_unlock_irq(target->scsi_host->host_lock);
 
 	srp_disconnect_target(target);
 	/*
@@ -605,13 +610,8 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	if (ret)
 		goto err;
 
-	spin_lock_irq(target->scsi_host->host_lock);
-	if (target->state == SRP_TARGET_CONNECTING) {
-		ret = 0;
-		target->state = SRP_TARGET_LIVE;
-	} else
+	if (!srp_change_state(target, SRP_TARGET_CONNECTING, SRP_TARGET_LIVE))
 		ret = -EAGAIN;
-	spin_unlock_irq(target->scsi_host->host_lock);
 
 	return ret;
 
@@ -621,9 +621,12 @@ err:
 
 	/*
 	 * We couldn't reconnect, so kill our target port off.
-	 * However, we have to defer the real removal because we might
-	 * be in the context of the SCSI error handler now, which
-	 * would deadlock if we call scsi_remove_host().
+	 * However, we have to defer the real removal because we
+	 * are in the context of the SCSI error handler now, which
+	 * will deadlock if we call scsi_remove_host().
+	 *
+	 * Schedule our work inside the lock to avoid a race with
+	 * the flush_scheduled_work() in srp_remove_one().
 	 */
 	spin_lock_irq(target->scsi_host->host_lock);
 	if (target->state == SRP_TARGET_CONNECTING) {
