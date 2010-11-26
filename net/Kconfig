@@ -220,6 +220,11 @@ config RPS
 	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
 	default y
 
+config XPS
+	boolean
+	depends on SMP && SYSFS && USE_GENERIC_SMP_HELPERS
+	default y
+
 menu "Network testing"
 
 config NET_PKTGEN

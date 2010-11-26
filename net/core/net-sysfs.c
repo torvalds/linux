@@ -751,10 +751,12 @@ static int rx_queue_add_kobject(struct net_device *net, int index)
 
 	return error;
 }
+#endif /* CONFIG_RPS */
 
 int
 net_rx_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
 {
+#ifdef CONFIG_RPS
 	int i;
 	int error = 0;
 
@@ -770,8 +772,12 @@ net_rx_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
 		kobject_put(&net->_rx[i].kobj);
 
 	return error;
+#else
+	return 0;
+#endif
 }
 
+#ifdef CONFIG_XPS
 /*
  * netdev_queue sysfs structures and functions.
  */
@@ -1090,10 +1096,12 @@ static int netdev_queue_add_kobject(struct net_device *net, int index)
 
 	return error;
 }
+#endif /* CONFIG_XPS */
 
 int
 netdev_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
 {
+#ifdef CONFIG_XPS
 	int i;
 	int error = 0;
 
@@ -1109,27 +1117,36 @@ netdev_queue_update_kobjects(struct net_device *net, int old_num, int new_num)
 		kobject_put(&net->_tx[i].kobj);
 
 	return error;
+#else
+	return 0;
+#endif
 }
 
 static int register_queue_kobjects(struct net_device *net)
 {
-	int error = 0, txq = 0, rxq = 0;
+	int error = 0, txq = 0, rxq = 0, real_rx = 0, real_tx = 0;
 
+#if defined(CONFIG_RPS) || defined(CONFIG_XPS)
 	net->queues_kset = kset_create_and_add("queues",
 	    NULL, &net->dev.kobj);
 	if (!net->queues_kset)
 		return -ENOMEM;
+#endif
 
-	error = net_rx_queue_update_kobjects(net, 0, net->real_num_rx_queues);
+#ifdef CONFIG_RPS
+	real_rx = net->real_num_rx_queues;
+#endif
+	real_tx = net->real_num_tx_queues;
+
+	error = net_rx_queue_update_kobjects(net, 0, real_rx);
 	if (error)
 		goto error;
-	rxq = net->real_num_rx_queues;
+	rxq = real_rx;
 
-	error = netdev_queue_update_kobjects(net, 0,
-					     net->real_num_tx_queues);
+	error = netdev_queue_update_kobjects(net, 0, real_tx);
 	if (error)
 		goto error;
-	txq = net->real_num_tx_queues;
+	txq = real_tx;
 
 	return 0;
 
@@ -1141,11 +1158,19 @@ error:
 
 static void remove_queue_kobjects(struct net_device *net)
 {
-	net_rx_queue_update_kobjects(net, net->real_num_rx_queues, 0);
-	netdev_queue_update_kobjects(net, net->real_num_tx_queues, 0);
+	int real_rx = 0, real_tx = 0;
+
+#ifdef CONFIG_RPS
+	real_rx = net->real_num_rx_queues;
+#endif
+	real_tx = net->real_num_tx_queues;
+
+	net_rx_queue_update_kobjects(net, real_rx, 0);
+	netdev_queue_update_kobjects(net, real_tx, 0);
+#if defined(CONFIG_RPS) || defined(CONFIG_XPS)
 	kset_unregister(net->queues_kset);
+#endif
 }
-#endif /* CONFIG_RPS */
 
 static const void *net_current_ns(void)
 {
@@ -1244,9 +1269,7 @@ void netdev_unregister_kobject(struct net_device * net)
 
 	kobject_get(&dev->kobj);
 
-#ifdef CONFIG_RPS
 	remove_queue_kobjects(net);
-#endif
 
 	device_del(dev);
 }
@@ -1285,13 +1308,11 @@ int netdev_register_kobject(struct net_device *net)
 	if (error)
 		return error;
 
-#ifdef CONFIG_RPS
 	error = register_queue_kobjects(net);
 	if (error) {
 		device_del(dev);
 		return error;
 	}
-#endif
 
 	return error;
 }

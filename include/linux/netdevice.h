@@ -536,30 +536,6 @@ struct rps_map {
 #define RPS_MAP_SIZE(_num) (sizeof(struct rps_map) + (_num * sizeof(u16)))
 
 /*
- * This structure holds an XPS map which can be of variable length.  The
- * map is an array of queues.
- */
-struct xps_map {
-	unsigned int len;
-	unsigned int alloc_len;
-	struct rcu_head rcu;
-	u16 queues[0];
-};
-#define XPS_MAP_SIZE(_num) (sizeof(struct xps_map) + (_num * sizeof(u16)))
-#define XPS_MIN_MAP_ALLOC ((L1_CACHE_BYTES - sizeof(struct xps_map))	\
-    / sizeof(u16))
-
-/*
- * This structure holds all XPS maps for device.  Maps are indexed by CPU.
- */
-struct xps_dev_maps {
-	struct rcu_head rcu;
-	struct xps_map *cpu_map[0];
-};
-#define XPS_DEV_MAPS_SIZE (sizeof(struct xps_dev_maps) +		\
-    (nr_cpu_ids * sizeof(struct xps_map *)))
-
-/*
  * The rps_dev_flow structure contains the mapping of a flow to a CPU and the
  * tail pointer for that CPU's input queue at the time of last enqueue.
  */
@@ -625,6 +601,32 @@ struct netdev_rx_queue {
 	struct net_device		*dev;
 } ____cacheline_aligned_in_smp;
 #endif /* CONFIG_RPS */
+
+#ifdef CONFIG_XPS
+/*
+ * This structure holds an XPS map which can be of variable length.  The
+ * map is an array of queues.
+ */
+struct xps_map {
+	unsigned int len;
+	unsigned int alloc_len;
+	struct rcu_head rcu;
+	u16 queues[0];
+};
+#define XPS_MAP_SIZE(_num) (sizeof(struct xps_map) + (_num * sizeof(u16)))
+#define XPS_MIN_MAP_ALLOC ((L1_CACHE_BYTES - sizeof(struct xps_map))	\
+    / sizeof(u16))
+
+/*
+ * This structure holds all XPS maps for device.  Maps are indexed by CPU.
+ */
+struct xps_dev_maps {
+	struct rcu_head rcu;
+	struct xps_map *cpu_map[0];
+};
+#define XPS_DEV_MAPS_SIZE (sizeof(struct xps_dev_maps) +		\
+    (nr_cpu_ids * sizeof(struct xps_map *)))
+#endif /* CONFIG_XPS */
 
 /*
  * This structure defines the management hooks for network devices.
@@ -1046,7 +1048,9 @@ struct net_device {
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
 	spinlock_t		tx_global_lock;
 
+#ifdef CONFIG_XPS
 	struct xps_dev_maps	*xps_maps;
+#endif
 
 	/* These may be needed for future network-power-down code. */
 

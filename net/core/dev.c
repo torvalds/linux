@@ -1567,6 +1567,9 @@ int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 
 		rc = netdev_queue_update_kobjects(dev, dev->real_num_tx_queues,
 						  txq);
+		if (rc)
+			return rc;
+
 		if (txq < dev->real_num_tx_queues)
 			qdisc_reset_all_tx_gt(dev, txq);
 	}
@@ -2148,7 +2151,7 @@ static inline u16 dev_cap_txqueue(struct net_device *dev, u16 queue_index)
 
 static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
 {
-#ifdef CONFIG_RPS
+#ifdef CONFIG_XPS
 	struct xps_dev_maps *dev_maps;
 	struct xps_map *map;
 	int queue_index = -1;
@@ -5085,9 +5088,9 @@ void netif_stacked_transfer_operstate(const struct net_device *rootdev,
 }
 EXPORT_SYMBOL(netif_stacked_transfer_operstate);
 
+#ifdef CONFIG_RPS
 static int netif_alloc_rx_queues(struct net_device *dev)
 {
-#ifdef CONFIG_RPS
 	unsigned int i, count = dev->num_rx_queues;
 	struct netdev_rx_queue *rx;
 
@@ -5102,9 +5105,9 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 
 	for (i = 0; i < count; i++)
 		rx[i].dev = dev;
-#endif
 	return 0;
 }
+#endif
 
 static int netif_alloc_netdev_queues(struct net_device *dev)
 {
