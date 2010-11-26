@@ -4,7 +4,7 @@
 
 #else /* __ASSEMBLY__ */
 
-extern inline void mmcif_update_progress(int nr)
+static inline void mmcif_update_progress(int nr)
 {
 }
 
