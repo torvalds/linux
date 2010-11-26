@@ -67,7 +67,6 @@ struct roccat_reader {
 };
 
 static int roccat_major;
-static struct class *roccat_class;
 static struct cdev roccat_cdev;
 
 static struct roccat_device *devices[ROCCAT_MAX_DEVICES];
@@ -289,12 +288,14 @@ EXPORT_SYMBOL_GPL(roccat_report_event);
 
 /*
  * roccat_connect() - create a char device for special event output
+ * @class: the class thats used to create the device. Meant to hold device
+ * specific sysfs attributes.
  * @hid: the hid device the char device should be connected to.
  *
  * Return value is minor device number in Range [0, ROCCAT_MAX_DEVICES] on
  * success, a negative error code on failure.
  */
-int roccat_connect(struct hid_device *hid)
+int roccat_connect(struct class *klass, struct hid_device *hid)
 {
 	unsigned int minor;
 	struct roccat_device *device;
@@ -320,7 +321,7 @@ int roccat_connect(struct hid_device *hid)
 		return -EINVAL;
 	}
 
-	device->dev = device_create(roccat_class, &hid->dev,
+	device->dev = device_create(klass, &hid->dev,
 			MKDEV(roccat_major, minor), NULL,
 			"%s%s%d", "roccat", hid->driver->name, minor);
 
@@ -361,7 +362,7 @@ void roccat_disconnect(int minor)
 
 	device->exist = 0; /* TODO exist maybe not needed */
 
-	device_destroy(roccat_class, MKDEV(roccat_major, minor));
+	device_destroy(device->dev->class, MKDEV(roccat_major, minor));
 
 	if (device->open) {
 		hid_hw_close(device->hid);
@@ -396,13 +397,6 @@ static int __init roccat_init(void)
 		return retval;
 	}
 
-	roccat_class = class_create(THIS_MODULE, "roccat");
-	if (IS_ERR(roccat_class)) {
-		retval = PTR_ERR(roccat_class);
-		unregister_chrdev_region(dev_id, ROCCAT_MAX_DEVICES);
-		return retval;
-	}
-
 	cdev_init(&roccat_cdev, &roccat_ops);
 	cdev_add(&roccat_cdev, dev_id, ROCCAT_MAX_DEVICES);
 
@@ -414,7 +408,6 @@ static void __exit roccat_exit(void)
 	dev_t dev_id = MKDEV(roccat_major, 0);
 
 	cdev_del(&roccat_cdev);
-	class_destroy(roccat_class);
 	unregister_chrdev_region(dev_id, ROCCAT_MAX_DEVICES);
 }
 
