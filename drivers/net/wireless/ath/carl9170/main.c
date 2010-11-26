@@ -1631,7 +1631,8 @@ void *carl9170_alloc(size_t priv_size)
 	 * supports these modes. The code which will add the
 	 * additional interface_modes is in fw.c.
 	 */
-	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+				     BIT(NL80211_IFTYPE_P2P_CLIENT);
 
 	hw->flags |= IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_REPORTS_TX_ACK_STATUS |
