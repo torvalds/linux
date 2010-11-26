@@ -90,7 +90,7 @@ struct rk29_sdmmc {
 	struct mmc_command	*cmd;
 	struct mmc_data		*data;
 	int			dma_chn;
-	//dma_addr_t		sg_dma;
+	dma_addr_t		dma_addr;;
 	//dma_sg_ll_t		*sg_cpu;
 	unsigned int	use_dma:1;
 	char			dma_name[8];
@@ -300,8 +300,8 @@ static void rk29_sdmmc_set_timeout(struct rk29_sdmmc *host,struct mmc_data *data
 	unsigned timeout;
 
 	timeout = ns_to_clocks(host->clock, data->timeout_ns) + data->timeout_clks;
-
-	rk29_sdmmc_write(host->regs, SDMMC_TMOUT, (timeout << 8) | (70));
+	rk29_sdmmc_write(host->regs, SDMMC_TMOUT, 0xffffffff);
+	///rk29_sdmmc_write(host->regs, SDMMC_TMOUT, (timeout << 8) | (70));
 }
 
 static u32 rk29_sdmmc_prepare_command(struct mmc_host *mmc,
@@ -363,7 +363,6 @@ static void send_stop_cmd(struct rk29_sdmmc *host, struct mmc_data *data)
 static void rk29_sdmmc_dma_cleanup(struct rk29_sdmmc *host)
 {
 	struct mmc_data			*data = host->data;
-
 	if (data) 
 		dma_unmap_sg(&host->pdev->dev, data->sg, data->sg_len,
 		     ((data->flags & MMC_DATA_WRITE)
@@ -389,7 +388,7 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 {
 	struct rk29_sdmmc	*host = arg;
 	struct mmc_data		*data = host->data;
-	printk("Enter:%s-----%d dma complete\n",__FUNCTION__,__LINE__);
+
 	if(host->use_dma == 0)
 		return;
 	dev_vdbg(&host->pdev->dev, "DMA complete\n");
@@ -397,7 +396,7 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 		printk("%s: sdio dma complete err\n",__FUNCTION__);
 	spin_lock(&host->lock);
 	rk29_sdmmc_dma_cleanup(host);
-    
+
 	/*
 	 * If the card was removed, data will be NULL. No point trying
 	 * to send the stop command or waiting for NBUSY in this case.
@@ -413,13 +412,13 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 {
 	struct scatterlist		*sg;
 	unsigned int			i,direction;
-
+	int dma_len=0;
 	if(host->use_dma == 0)
 		return -ENOSYS;
 	/* If we don't have a channel, we can't do DMA */
 	if (host->dma_chn < 0)
 		return -ENODEV;
-    
+
 	/*
 	 * We don't do DMA on "complex" transfers, i.e. with
 	 * non-word-aligned buffers or lengths. Also, we don't bother
@@ -437,13 +436,16 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 		direction = RK29_DMASRC_HW; 
 	else
 		direction = RK29_DMASRC_MEM;  		
-	dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, 
-			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);				
-    rk29_dma_devconfig(host->dma_chn, direction, (unsigned long )(host->regs+SDMMC_DATA));
-    rk29_dma_enqueue(host->dma_chn, NULL, data->sg->dma_address, data->sg->length);	
+					
+    rk29_dma_devconfig(host->dma_chn, direction, (unsigned long )(host->dma_addr));
+   		
+	dma_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, 
+			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);			                ;	   
+	for (i = 0; i < dma_len; i++) {                             
+    	rk29_dma_enqueue(host->dma_chn, host, sg_dma_address(&data->sg[i]),sg_dma_len(&data->sg[i]));  // data->sg->dma_address, data->sg->length);	    
+	}
 	rk29_sdmmc_write(host->regs, SDMMC_CTRL, (rk29_sdmmc_read(host->regs, SDMMC_CTRL))|SDMMC_CTRL_DMA_ENABLE);// enable dma
 	rk29_dma_ctrl(host->dma_chn, RK29_DMAOP_START);
-	printk("Enter:%s-----%d DMA DATA START\n",__FUNCTION__,__LINE__);
 	return 0;
 }
 
@@ -1219,8 +1221,9 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		}	
 		rk29_dma_config(host->dma_chn, 16);
 		rk29_dma_set_buffdone_fn(host->dma_chn, rk29_sdmmc_dma_complete);	
+		host->dma_addr = regs->start + SDMMC_DATA;
 	}
-	host->bus_hz = 25000000;  ////cgu_get_clk_freq(CGU_SB_SD_MMC_CCLK_IN_ID); 
+	host->bus_hz = 40000000;  ////cgu_get_clk_freq(CGU_SB_SD_MMC_CCLK_IN_ID); 
 
   	/* reset all blocks */
   	rk29_sdmmc_write(host->regs, SDMMC_CTRL,(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));

@@ -409,6 +409,7 @@ static inline void _finish_off(struct rk29_pl330_xfer *xfer,
 	ch = xfer->chan;
 
 	/* Do callback */
+
 	if (ch->callback_fn)
 		ch->callback_fn(xfer->token, xfer->px.bytes, res);
 
@@ -428,6 +429,7 @@ static inline int rk29_pl330_submit(struct rk29_pl330_chan *ch,
 		return 0;
 
 	xfer = get_from_queue(ch, 0);
+
 	if (xfer) {
 		r->x = &xfer->px;
 
@@ -1069,6 +1071,16 @@ static int pl330_probe(struct platform_device *pdev)
 
 	ret = request_irq(irq, pl330_irq_handler, 0,
 			dev_name(&pdev->dev), pl330_info);
+	if(pdev->id == 1){
+		request_irq(IRQ_DMAC2_1, pl330_irq_handler, 0,
+			dev_name(&pdev->dev), pl330_info);
+		request_irq(IRQ_DMAC2_2, pl330_irq_handler, 0,
+			dev_name(&pdev->dev), pl330_info);
+		request_irq(IRQ_DMAC2_3, pl330_irq_handler, 0,
+			dev_name(&pdev->dev), pl330_info);
+		request_irq(IRQ_DMAC2_4, pl330_irq_handler, 0,
+			dev_name(&pdev->dev), pl330_info);
+	}
 	if (ret)
 		goto probe_err4;
 
