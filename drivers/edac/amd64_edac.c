@@ -2466,8 +2466,9 @@ static void set_mc_sysfs_attrs(struct mem_ctl_info *mci)
 	for (; i < ARRAY_SIZE(amd64_dbg_attrs); i++)
 		sysfs_attrs[i] = amd64_dbg_attrs[i];
 
-	for (j = 0; j < ARRAY_SIZE(amd64_inj_attrs); j++, i++)
-		sysfs_attrs[i] = amd64_inj_attrs[j];
+	if (boot_cpu_data.x86 >= 0x10)
+		for (j = 0; j < ARRAY_SIZE(amd64_inj_attrs); j++, i++)
+			sysfs_attrs[i] = amd64_inj_attrs[j];
 
 	sysfs_attrs[i] = terminator;
 
