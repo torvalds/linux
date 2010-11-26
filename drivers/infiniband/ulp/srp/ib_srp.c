@@ -549,18 +549,24 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
 			scsi_sg_count(scmnd), scmnd->sc_data_direction);
 }
 
-static void srp_remove_req(struct srp_target_port *target, struct srp_request *req)
+static void srp_remove_req(struct srp_target_port *target,
+			   struct srp_request *req, s32 req_lim_delta)
 {
+	unsigned long flags;
+
 	srp_unmap_data(req->scmnd, target, req);
+	spin_lock_irqsave(target->scsi_host->host_lock, flags);
+	target->req_lim += req_lim_delta;
 	req->scmnd = NULL;
 	list_add_tail(&req->list, &target->free_reqs);
+	spin_unlock_irqrestore(target->scsi_host->host_lock, flags);
 }
 
 static void srp_reset_req(struct srp_target_port *target, struct srp_request *req)
 {
 	req->scmnd->result = DID_RESET << 16;
 	req->scmnd->scsi_done(req->scmnd);
-	srp_remove_req(target, req);
+	srp_remove_req(target, req, 0);
 }
 
 static int srp_reconnect_target(struct srp_target_port *target)
@@ -595,13 +601,11 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	while (ib_poll_cq(target->send_cq, 1, &wc) > 0)
 		; /* nothing */
 
-	spin_lock_irq(target->scsi_host->host_lock);
 	for (i = 0; i < SRP_CMD_SQ_SIZE; ++i) {
 		struct srp_request *req = &target->req_ring[i];
 		if (req->scmnd)
 			srp_reset_req(target, req);
 	}
-	spin_unlock_irq(target->scsi_host->host_lock);
 
 	INIT_LIST_HEAD(&target->free_tx);
 	for (i = 0; i < SRP_SQ_SIZE; ++i)
@@ -914,15 +918,12 @@ static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
 	struct srp_request *req;
 	struct scsi_cmnd *scmnd;
 	unsigned long flags;
-	s32 delta;
-
-	delta = (s32) be32_to_cpu(rsp->req_lim_delta);
-
-	spin_lock_irqsave(target->scsi_host->host_lock, flags);
-
-	target->req_lim += delta;
 
 	if (unlikely(rsp->tag & SRP_TAG_TSK_MGMT)) {
+		spin_lock_irqsave(target->scsi_host->host_lock, flags);
+		target->req_lim += be32_to_cpu(rsp->req_lim_delta);
+		spin_unlock_irqrestore(target->scsi_host->host_lock, flags);
+
 		target->tsk_mgmt_status = -1;
 		if (be32_to_cpu(rsp->resp_data_len) >= 4)
 			target->tsk_mgmt_status = rsp->data[3];
@@ -948,12 +949,10 @@ static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
 		else if (rsp->flags & (SRP_RSP_FLAG_DIOVER | SRP_RSP_FLAG_DIUNDER))
 			scsi_set_resid(scmnd, be32_to_cpu(rsp->data_in_res_cnt));
 
+		srp_remove_req(target, req, be32_to_cpu(rsp->req_lim_delta));
 		scmnd->host_scribble = NULL;
 		scmnd->scsi_done(scmnd);
-		srp_remove_req(target, req);
 	}
-
-	spin_unlock_irqrestore(target->scsi_host->host_lock, flags);
 }
 
 static int srp_response_common(struct srp_target_port *target, s32 req_delta,
@@ -1498,17 +1497,13 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 			      SRP_TSK_ABORT_TASK))
 		return FAILED;
 
-	spin_lock_irq(target->scsi_host->host_lock);
-
 	if (req->scmnd) {
 		if (!target->tsk_mgmt_status) {
-			srp_remove_req(target, req);
+			srp_remove_req(target, req, 0);
 			scmnd->result = DID_ABORT << 16;
 		} else
 			ret = FAILED;
 	}
-
-	spin_unlock_irq(target->scsi_host->host_lock);
 
 	return ret;
 }
@@ -1528,15 +1523,11 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 	if (target->tsk_mgmt_status)
 		return FAILED;
 
-	spin_lock_irq(target->scsi_host->host_lock);
-
 	for (i = 0; i < SRP_CMD_SQ_SIZE; ++i) {
 		struct srp_request *req = &target->req_ring[i];
 		if (req->scmnd && req->scmnd->device == scmnd->device)
 			srp_reset_req(target, req);
 	}
-
-	spin_unlock_irq(target->scsi_host->host_lock);
 
 	return SUCCESS;
 }
