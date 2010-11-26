@@ -109,6 +109,10 @@
 #define WM8994_AIF2DAC_LRCLK                    0x315
 #define WM8994_AIF2DAC_DATA                     0x316
 #define WM8994_AIF2ADC_DATA                     0x317
+#define WM8958_AIF3_CONTROL_1                   0x320
+#define WM8958_AIF3_CONTROL_2                   0x321
+#define WM8958_AIF3DAC_DATA                     0x322
+#define WM8958_AIF3ADC_DATA                     0x323
 #define WM8994_AIF1_ADC1_LEFT_VOLUME            0x400
 #define WM8994_AIF1_ADC1_RIGHT_VOLUME           0x401
 #define WM8994_AIF1_DAC1_LEFT_VOLUME            0x402
@@ -992,6 +996,12 @@
 /*
  * R6 (0x06) - Power Management (6)
  */
+#define WM8958_AIF3ADC_SRC_MASK                 0x0600  /* AIF3ADC_SRC - [10:9] */
+#define WM8958_AIF3ADC_SRC_SHIFT                     9  /* AIF3ADC_SRC - [10:9] */
+#define WM8958_AIF3ADC_SRC_WIDTH                     2  /* AIF3ADC_SRC - [10:9] */
+#define WM8958_AIF2DAC_SRC_MASK                 0x0180  /* AIF2DAC_SRC - [8:7] */
+#define WM8958_AIF2DAC_SRC_SHIFT                     7  /* AIF2DAC_SRC - [8:7] */
+#define WM8958_AIF2DAC_SRC_WIDTH                     2  /* AIF2DAC_SRC - [8:7] */
 #define WM8994_AIF3_TRI                         0x0020  /* AIF3_TRI */
 #define WM8994_AIF3_TRI_MASK                    0x0020  /* AIF3_TRI */
 #define WM8994_AIF3_TRI_SHIFT                        5  /* AIF3_TRI */
@@ -2551,6 +2561,63 @@
 #define WM8994_AIF2ADCR_DAT_INV_MASK            0x0001  /* AIF2ADCR_DAT_INV */
 #define WM8994_AIF2ADCR_DAT_INV_SHIFT                0  /* AIF2ADCR_DAT_INV */
 #define WM8994_AIF2ADCR_DAT_INV_WIDTH                1  /* AIF2ADCR_DAT_INV */
+
+/*
+ * R800 (0x320) - AIF3 Control (1)
+ */
+#define WM8958_AIF3_LRCLK_INV                   0x0080  /* AIF3_LRCLK_INV */
+#define WM8958_AIF3_LRCLK_INV_MASK              0x0080  /* AIF3_LRCLK_INV */
+#define WM8958_AIF3_LRCLK_INV_SHIFT                  7  /* AIF3_LRCLK_INV */
+#define WM8958_AIF3_LRCLK_INV_WIDTH                  1  /* AIF3_LRCLK_INV */
+#define WM8958_AIF3_WL_MASK                     0x0060  /* AIF3_WL - [6:5] */
+#define WM8958_AIF3_WL_SHIFT                         5  /* AIF3_WL - [6:5] */
+#define WM8958_AIF3_WL_WIDTH                         2  /* AIF3_WL - [6:5] */
+#define WM8958_AIF3_FMT_MASK                    0x0018  /* AIF3_FMT - [4:3] */
+#define WM8958_AIF3_FMT_SHIFT                        3  /* AIF3_FMT - [4:3] */
+#define WM8958_AIF3_FMT_WIDTH                        2  /* AIF3_FMT - [4:3] */
+
+/*
+ * R801 (0x321) - AIF3 Control (2)
+ */
+#define WM8958_AIF3DAC_BOOST_MASK               0x0C00  /* AIF3DAC_BOOST - [11:10] */
+#define WM8958_AIF3DAC_BOOST_SHIFT                  10  /* AIF3DAC_BOOST - [11:10] */
+#define WM8958_AIF3DAC_BOOST_WIDTH                   2  /* AIF3DAC_BOOST - [11:10] */
+#define WM8958_AIF3DAC_COMP                     0x0010  /* AIF3DAC_COMP */
+#define WM8958_AIF3DAC_COMP_MASK                0x0010  /* AIF3DAC_COMP */
+#define WM8958_AIF3DAC_COMP_SHIFT                    4  /* AIF3DAC_COMP */
+#define WM8958_AIF3DAC_COMP_WIDTH                    1  /* AIF3DAC_COMP */
+#define WM8958_AIF3DAC_COMPMODE                 0x0008  /* AIF3DAC_COMPMODE */
+#define WM8958_AIF3DAC_COMPMODE_MASK            0x0008  /* AIF3DAC_COMPMODE */
+#define WM8958_AIF3DAC_COMPMODE_SHIFT                3  /* AIF3DAC_COMPMODE */
+#define WM8958_AIF3DAC_COMPMODE_WIDTH                1  /* AIF3DAC_COMPMODE */
+#define WM8958_AIF3ADC_COMP                     0x0004  /* AIF3ADC_COMP */
+#define WM8958_AIF3ADC_COMP_MASK                0x0004  /* AIF3ADC_COMP */
+#define WM8958_AIF3ADC_COMP_SHIFT                    2  /* AIF3ADC_COMP */
+#define WM8958_AIF3ADC_COMP_WIDTH                    1  /* AIF3ADC_COMP */
+#define WM8958_AIF3ADC_COMPMODE                 0x0002  /* AIF3ADC_COMPMODE */
+#define WM8958_AIF3ADC_COMPMODE_MASK            0x0002  /* AIF3ADC_COMPMODE */
+#define WM8958_AIF3ADC_COMPMODE_SHIFT                1  /* AIF3ADC_COMPMODE */
+#define WM8958_AIF3ADC_COMPMODE_WIDTH                1  /* AIF3ADC_COMPMODE */
+#define WM8958_AIF3_LOOPBACK                    0x0001  /* AIF3_LOOPBACK */
+#define WM8958_AIF3_LOOPBACK_MASK               0x0001  /* AIF3_LOOPBACK */
+#define WM8958_AIF3_LOOPBACK_SHIFT                   0  /* AIF3_LOOPBACK */
+#define WM8958_AIF3_LOOPBACK_WIDTH                   1  /* AIF3_LOOPBACK */
+
+/*
+ * R802 (0x322) - AIF3DAC Data
+ */
+#define WM8958_AIF3DAC_DAT_INV                  0x0001  /* AIF3DAC_DAT_INV */
+#define WM8958_AIF3DAC_DAT_INV_MASK             0x0001  /* AIF3DAC_DAT_INV */
+#define WM8958_AIF3DAC_DAT_INV_SHIFT                 0  /* AIF3DAC_DAT_INV */
+#define WM8958_AIF3DAC_DAT_INV_WIDTH                 1  /* AIF3DAC_DAT_INV */
+
+/*
+ * R803 (0x323) - AIF3ADC Data
+ */
+#define WM8958_AIF3ADC_DAT_INV                  0x0001  /* AIF3ADC_DAT_INV */
+#define WM8958_AIF3ADC_DAT_INV_MASK             0x0001  /* AIF3ADC_DAT_INV */
+#define WM8958_AIF3ADC_DAT_INV_SHIFT                 0  /* AIF3ADC_DAT_INV */
+#define WM8958_AIF3ADC_DAT_INV_WIDTH                 1  /* AIF3ADC_DAT_INV */
 
 /*
  * R1024 (0x400) - AIF1 ADC1 Left Volume
