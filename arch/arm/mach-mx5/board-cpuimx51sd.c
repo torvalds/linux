@@ -43,19 +43,19 @@
 #include "devices-imx51.h"
 #include "devices.h"
 
-#define USBH1_RST		(1*32 + 28)
-#define ETH_RST			(1*32 + 31)
-#define TSC2007_IRQGPIO		(2*32 + 12)
-#define CAN_IRQGPIO		(0*32 + 1)
-#define CAN_RST			(3*32 + 15)
-#define CAN_NCS			(3*32 + 24)
-#define CAN_RXOBF		(0*32 + 4)
-#define CAN_RX1BF		(0*32 + 6)
-#define CAN_TXORTS		(0*32 + 7)
-#define CAN_TX1RTS		(0*32 + 8)
-#define CAN_TX2RTS		(0*32 + 9)
-#define I2C_SCL			(3*32 + 16)
-#define I2C_SDA			(3*32 + 17)
+#define USBH1_RST		IMX_GPIO_NR(2, 28)
+#define ETH_RST			IMX_GPIO_NR(2, 31)
+#define TSC2007_IRQGPIO		IMX_GPIO_NR(3, 12)
+#define CAN_IRQGPIO		IMX_GPIO_NR(1, 1)
+#define CAN_RST			IMX_GPIO_NR(4, 15)
+#define CAN_NCS			IMX_GPIO_NR(4, 24)
+#define CAN_RXOBF		IMX_GPIO_NR(1, 4)
+#define CAN_RX1BF		IMX_GPIO_NR(1, 6)
+#define CAN_TXORTS		IMX_GPIO_NR(1, 7)
+#define CAN_TX1RTS		IMX_GPIO_NR(1, 8)
+#define CAN_TX2RTS		IMX_GPIO_NR(1, 9)
+#define I2C_SCL			IMX_GPIO_NR(4, 16)
+#define I2C_SDA			IMX_GPIO_NR(4, 17)
 
 /* USB_CTRL_1 */
 #define MX51_USB_CTRL_1_OFFSET		0x10
@@ -243,7 +243,7 @@ static struct spi_board_info cpuimx51sd_spi_device[] = {
 		.mode		= SPI_MODE_0,
 		.chip_select     = 0,
 		.platform_data   = &mcp251x_info,
-		.irq             = gpio_to_irq(0 * 32 + 1)
+		.irq             = gpio_to_irq(CAN_IRQGPIO)
 	},
 };
 

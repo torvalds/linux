@@ -33,12 +33,12 @@
 #include "devices-imx51.h"
 #include "devices.h"
 
-#define MBIMX51_TSC2007_GPIO	(2*32 + 30)
+#define MBIMX51_TSC2007_GPIO	IMX_GPIO_NR(3, 30)
 #define MBIMX51_TSC2007_IRQ	(MXC_INTERNAL_IRQS + MBIMX51_TSC2007_GPIO)
-#define MBIMX51_LED0		(2*32 + 5)
-#define MBIMX51_LED1		(2*32 + 6)
-#define MBIMX51_LED2		(2*32 + 7)
-#define MBIMX51_LED3		(2*32 + 8)
+#define MBIMX51_LED0		IMX_GPIO_NR(3, 5)
+#define MBIMX51_LED1		IMX_GPIO_NR(3, 6)
+#define MBIMX51_LED2		IMX_GPIO_NR(3, 7)
+#define MBIMX51_LED3		IMX_GPIO_NR(3, 8)
 
 static struct gpio_led mbimx51_leds[] = {
 	{

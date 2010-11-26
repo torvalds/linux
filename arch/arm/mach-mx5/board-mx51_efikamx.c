@@ -43,22 +43,22 @@
 
 #define	MX51_USB_PLL_DIV_24_MHZ	0x01
 
-#define EFIKAMX_PCBID0		(2*32 + 16)
-#define EFIKAMX_PCBID1		(2*32 + 17)
-#define EFIKAMX_PCBID2		(2*32 + 11)
+#define EFIKAMX_PCBID0		IMX_GPIO_NR(3, 16)
+#define EFIKAMX_PCBID1		IMX_GPIO_NR(3, 17)
+#define EFIKAMX_PCBID2		IMX_GPIO_NR(3, 11)
 
-#define EFIKAMX_BLUE_LED	(2*32 + 13)
-#define EFIKAMX_GREEN_LED	(2*32 + 14)
-#define EFIKAMX_RED_LED		(2*32 + 15)
+#define EFIKAMX_BLUE_LED	IMX_GPIO_NR(3, 13)
+#define EFIKAMX_GREEN_LED	IMX_GPIO_NR(3, 14)
+#define EFIKAMX_RED_LED		IMX_GPIO_NR(3, 15)
 
-#define EFIKAMX_POWER_KEY	(1*32 + 31)
+#define EFIKAMX_POWER_KEY	IMX_GPIO_NR(2, 31)
 
-#define EFIKAMX_SPI_CS0		(3*32 + 24)
-#define EFIKAMX_SPI_CS1		(3*32 + 25)
+#define EFIKAMX_SPI_CS0		IMX_GPIO_NR(4, 24)
+#define EFIKAMX_SPI_CS1		IMX_GPIO_NR(4, 25)
 
 /* board 1.1 doesn't have same reset gpio */
-#define EFIKAMX_RESET1_1	(2*32 + 2)
-#define EFIKAMX_RESET		(0*32 + 4)
+#define EFIKAMX_RESET1_1	IMX_GPIO_NR(3, 2)
+#define EFIKAMX_RESET		IMX_GPIO_NR(1, 4)
 
 /* the pci ids pin have pull up. they're driven low according to board id */
 #define MX51_PAD_PCBID0	IOMUX_PAD(0x518, 0x130, 3, 0x0,   0, PAD_CTL_PUS_100K_UP)

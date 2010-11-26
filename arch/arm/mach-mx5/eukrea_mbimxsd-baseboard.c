@@ -70,8 +70,8 @@ static iomux_v3_cfg_t eukrea_mbimxsd_pads[] = {
 	MX51_PAD_SD1_DATA3__SD1_DATA3,
 };
 
-#define GPIO_LED1	(2 * 32 + 30)
-#define GPIO_SWITCH1	(2 * 32 + 31)
+#define GPIO_LED1	IMX_GPIO_NR(3, 30)
+#define GPIO_SWITCH1	IMX_GPIO_NR(3, 31)
 
 static struct gpio_led eukrea_mbimxsd_leds[] = {
 	{
