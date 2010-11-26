@@ -168,6 +168,8 @@ struct ath_common {
 	struct ath_regulatory regulatory;
 	const struct ath_ops *ops;
 	const struct ath_bus_ops *bus_ops;
+
+	bool btcoex_enabled;
 };
 
 struct sk_buff *ath_rxbuf_alloc(struct ath_common *common,
