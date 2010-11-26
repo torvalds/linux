@@ -21,6 +21,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <sound/core.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -95,6 +96,11 @@ struct wm8994_priv {
 
 	struct wm8994_micdet micdet[2];
 
+	wm8958_micdet_cb jack_cb;
+	void *jack_cb_data;
+	bool jack_is_mic;
+	bool jack_is_video;
+
 	int revision;
 	struct wm8994_pdata *pdata;
 };
@@ -140,6 +146,7 @@ static int wm8994_volatile(unsigned int reg)
 	case WM8994_LDO_1:
 	case WM8994_LDO_2:
 	case WM8958_DSP2_EXECCONTROL:
+	case WM8958_MIC_DETECT_3:
 		return 1;
 	default:
 		return 0;
@@ -2633,6 +2640,133 @@ static irqreturn_t wm8994_mic_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/* Default microphone detection handler for WM8958 - the user can
+ * override this if they wish.
+ */
+static void wm8958_default_micdet(u16 status, void *data)
+{
+	struct snd_soc_codec *codec = data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	int report = 0;
+
+	/* If nothing present then clear our statuses */
+	if (!(status & WM8958_MICD_STS)) {
+		wm8994->jack_is_video = false;
+		wm8994->jack_is_mic = false;
+		goto done;
+	}
+
+	/* Assume anything over 475 ohms is a microphone and remember
+	 * that we've seen one (since buttons override it) */
+	if (status & 0x600)
+		wm8994->jack_is_mic = true;
+	if (wm8994->jack_is_mic)
+		report |= SND_JACK_MICROPHONE;
+
+	/* Video has an impedence of approximately 75 ohms; assume
+	 * this isn't used as a button and remember it since buttons
+	 * override it. */
+	if (status & 0x40)
+		wm8994->jack_is_video = true;
+	if (wm8994->jack_is_video)
+		report |= SND_JACK_VIDEOOUT;
+
+	/* Everything else is buttons; just assign slots */
+	if (status & 0x4)
+		report |= SND_JACK_BTN_0;
+	if (status & 0x8)
+		report |= SND_JACK_BTN_1;
+	if (status & 0x10)
+		report |= SND_JACK_BTN_2;
+	if (status & 0x20)
+		report |= SND_JACK_BTN_3;
+	if (status & 0x80)
+		report |= SND_JACK_BTN_4;
+	if (status & 0x100)
+		report |= SND_JACK_BTN_5;
+
+done:
+	snd_soc_jack_report(wm8994->micdet[0].jack,
+			    SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2 |
+			    SND_JACK_BTN_3 | SND_JACK_BTN_4 | SND_JACK_BTN_5 |
+			    SND_JACK_MICROPHONE | SND_JACK_VIDEOOUT,
+			    report);
+}
+
+/**
+ * wm8958_mic_detect - Enable microphone detection via the WM8958 IRQ
+ *
+ * @codec:   WM8958 codec
+ * @jack:    jack to report detection events on
+ *
+ * Enable microphone detection functionality for the WM8958.  By
+ * default simple detection which supports the detection of up to 6
+ * buttons plus video and microphone functionality is supported.
+ *
+ * The WM8958 has an advanced jack detection facility which is able to
+ * support complex accessory detection, especially when used in
+ * conjunction with external circuitry.  In order to provide maximum
+ * flexiblity a callback is provided which allows a completely custom
+ * detection algorithm.
+ */
+int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
+		      wm8958_micdet_cb cb, void *cb_data)
+{
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	struct wm8994 *control = codec->control_data;
+
+	if (control->type != WM8958)
+		return -EINVAL;
+
+	if (jack) {
+		if (!cb) {
+			dev_dbg(codec->dev, "Using default micdet callback\n");
+			cb = wm8958_default_micdet;
+			cb_data = codec;
+		}
+
+		wm8994->micdet[0].jack = jack;
+		wm8994->jack_cb = cb;
+		wm8994->jack_cb_data = cb_data;
+
+		snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
+				    WM8958_MICD_ENA, WM8958_MICD_ENA);
+	} else {
+		snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
+				    WM8958_MICD_ENA, 0);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm8958_mic_detect);
+
+static irqreturn_t wm8958_mic_irq(int irq, void *data)
+{
+	struct wm8994_priv *wm8994 = data;
+	struct snd_soc_codec *codec = wm8994->codec;
+	int reg;
+
+	reg = snd_soc_read(codec, WM8958_MIC_DETECT_3);
+	if (reg < 0) {
+		dev_err(codec->dev, "Failed to read mic detect status: %d\n",
+			reg);
+		return IRQ_NONE;
+	}
+
+	if (!(reg & WM8958_MICD_VALID)) {
+		dev_dbg(codec->dev, "Mic detect data not valid\n");
+		goto out;
+	}
+
+	if (wm8994->jack_cb)
+		wm8994->jack_cb(reg, wm8994->jack_cb_data);
+	else
+		dev_warn(codec->dev, "Accessory detection with no callback\n");
+
+out:
+	return IRQ_HANDLED;
+}
+
 static int wm8994_codec_probe(struct snd_soc_codec *codec)
 {
 	struct wm8994 *control;
@@ -2730,6 +2864,17 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		if (ret != 0)
 			dev_warn(codec->dev,
 				 "Failed to request Mic2 short IRQ: %d\n",
+				 ret);
+		break;
+
+	case WM8958:
+		ret = wm8994_request_irq(codec->control_data,
+					 WM8994_IRQ_MIC1_DET,
+					 wm8958_mic_irq, "Mic detect",
+					 wm8994);
+		if (ret != 0)
+			dev_warn(codec->dev,
+				 "Failed to request Mic detect IRQ: %d\n",
 				 ret);
 		break;
 	}
@@ -2863,6 +3008,11 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 				wm8994);
 		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_SHRT,
 				wm8994);
+		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_DET,
+				wm8994);
+		break;
+
+	case WM8958:
 		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_DET,
 				wm8994);
 		break;

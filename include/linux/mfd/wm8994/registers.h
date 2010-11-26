@@ -70,6 +70,9 @@
 #define WM8994_DC_SERVO_4                       0x57
 #define WM8994_DC_SERVO_READBACK                0x58
 #define WM8994_ANALOGUE_HP_1                    0x60
+#define WM8958_MIC_DETECT_1                     0xD0
+#define WM8958_MIC_DETECT_2                     0xD1
+#define WM8958_MIC_DETECT_3                     0xD2
 #define WM8994_CHIP_REVISION                    0x100
 #define WM8994_CONTROL_INTERFACE                0x101
 #define WM8994_WRITE_SEQUENCER_CTRL_1           0x110
@@ -1969,6 +1972,46 @@
 #define WM8994_HPOUT1R_DLY_MASK                 0x0002  /* HPOUT1R_DLY */
 #define WM8994_HPOUT1R_DLY_SHIFT                     1  /* HPOUT1R_DLY */
 #define WM8994_HPOUT1R_DLY_WIDTH                     1  /* HPOUT1R_DLY */
+
+/*
+ * R208 (0xD0) - Mic Detect 1
+ */
+#define WM8958_MICD_BIAS_STARTTIME_MASK         0xF000  /* MICD_BIAS_STARTTIME - [15:12] */
+#define WM8958_MICD_BIAS_STARTTIME_SHIFT            12  /* MICD_BIAS_STARTTIME - [15:12] */
+#define WM8958_MICD_BIAS_STARTTIME_WIDTH             4  /* MICD_BIAS_STARTTIME - [15:12] */
+#define WM8958_MICD_RATE_MASK                   0x0F00  /* MICD_RATE - [11:8] */
+#define WM8958_MICD_RATE_SHIFT                       8  /* MICD_RATE - [11:8] */
+#define WM8958_MICD_RATE_WIDTH                       4  /* MICD_RATE - [11:8] */
+#define WM8958_MICD_DBTIME                      0x0002  /* MICD_DBTIME */
+#define WM8958_MICD_DBTIME_MASK                 0x0002  /* MICD_DBTIME */
+#define WM8958_MICD_DBTIME_SHIFT                     1  /* MICD_DBTIME */
+#define WM8958_MICD_DBTIME_WIDTH                     1  /* MICD_DBTIME */
+#define WM8958_MICD_ENA                         0x0001  /* MICD_ENA */
+#define WM8958_MICD_ENA_MASK                    0x0001  /* MICD_ENA */
+#define WM8958_MICD_ENA_SHIFT                        0  /* MICD_ENA */
+#define WM8958_MICD_ENA_WIDTH                        1  /* MICD_ENA */
+
+/*
+ * R209 (0xD1) - Mic Detect 2
+ */
+#define WM8958_MICD_LVL_SEL_MASK                0x00FF  /* MICD_LVL_SEL - [7:0] */
+#define WM8958_MICD_LVL_SEL_SHIFT                    0  /* MICD_LVL_SEL - [7:0] */
+#define WM8958_MICD_LVL_SEL_WIDTH                    8  /* MICD_LVL_SEL - [7:0] */
+
+/*
+ * R210 (0xD2) - Mic Detect 3
+ */
+#define WM8958_MICD_LVL_MASK                    0x07FC  /* MICD_LVL - [10:2] */
+#define WM8958_MICD_LVL_SHIFT                        2  /* MICD_LVL - [10:2] */
+#define WM8958_MICD_LVL_WIDTH                        9  /* MICD_LVL - [10:2] */
+#define WM8958_MICD_VALID                       0x0002  /* MICD_VALID */
+#define WM8958_MICD_VALID_MASK                  0x0002  /* MICD_VALID */
+#define WM8958_MICD_VALID_SHIFT                      1  /* MICD_VALID */
+#define WM8958_MICD_VALID_WIDTH                      1  /* MICD_VALID */
+#define WM8958_MICD_STS                         0x0001  /* MICD_STS */
+#define WM8958_MICD_STS_MASK                    0x0001  /* MICD_STS */
+#define WM8958_MICD_STS_SHIFT                        0  /* MICD_STS */
+#define WM8958_MICD_STS_WIDTH                        1  /* MICD_STS */
 
 /*
  * R256 (0x100) - Chip Revision
