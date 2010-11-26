@@ -80,6 +80,7 @@ static const struct fb_cmap default_16_colors = {
  *	@cmap: frame buffer colormap structure
  *	@len: length of @cmap
  *	@transp: boolean, 1 if there is transparency, 0 otherwise
+ *	@flags: flags for kmalloc memory allocation
  *
  *	Allocates memory for a colormap @cmap.  @len is the
  *	number of entries in the palette.
