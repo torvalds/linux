@@ -169,6 +169,7 @@ extern void mask_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries);
 extern int restore_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries);
 
 extern void setup_ioapic_ids_from_mpc(void);
+extern void setup_ioapic_ids_from_mpc_nocheck(void);
 
 struct mp_ioapic_gsi{
 	u32 gsi_base;
