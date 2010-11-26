@@ -1,17 +1,22 @@
 if ARCH_MX5
+# ARCH_MX51 is left for compatibility
 
 config ARCH_MX51
 	bool
-	default y
+
+config	SOC_IMX51
+	bool
 	select MXC_TZIC
 	select ARCH_MXC_IOMUX_V3
 	select ARCH_MXC_AUDMUX_V2
 	select ARCH_HAS_CPUFREQ
+	select ARCH_MX51
 
 comment "MX5 platforms:"
 
 config MACH_MX51_BABBAGE
 	bool "Support MX51 BABBAGE platforms"
+	select SOC_IMX51
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
@@ -23,6 +28,7 @@ config MACH_MX51_BABBAGE
 
 config MACH_MX51_3DS
 	bool "Support MX51PDK (3DS)"
+	select SOC_IMX51
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	select IMX_HAVE_PLATFORM_SPI_IMX
@@ -33,6 +39,7 @@ config MACH_MX51_3DS
 
 config MACH_EUKREA_CPUIMX51
 	bool "Support Eukrea CPUIMX51 module"
+	select SOC_IMX51
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_MXC_NAND
@@ -58,6 +65,7 @@ endchoice
 
 config MACH_EUKREA_CPUIMX51SD
 	bool "Support Eukrea CPUIMX51SD module"
+	select SOC_IMX51
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_SPI_IMX
 	select IMX_HAVE_PLATFORM_IMX_UART
@@ -83,6 +91,7 @@ endchoice
 
 config MACH_MX51_EFIKAMX
 	bool "Support MX51 Genesi Efika MX nettop"
+	select SOC_IMX51
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	select IMX_HAVE_PLATFORM_SPI_IMX

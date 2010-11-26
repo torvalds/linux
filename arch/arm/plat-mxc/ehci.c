@@ -246,7 +246,7 @@ int mxc_initialize_usb_hw(int port, unsigned int flags)
 		return 0;
 	}
 #endif /* CONFIG_MACH_MX27 */
-#ifdef CONFIG_ARCH_MX51
+#ifdef CONFIG_SOC_IMX51
 	if (cpu_is_mx51()) {
 		void __iomem *usb_base;
 		void __iomem *usbotg_base;

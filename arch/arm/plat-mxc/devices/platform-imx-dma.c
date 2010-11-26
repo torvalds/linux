@@ -54,10 +54,10 @@ struct imx_imx_sdma_data imx35_imx_sdma_data __initdata =
 	imx_imx_sdma_data_entry_single(MX35, 2, "imx35", 0);
 #endif /* ifdef CONFIG_SOC_IMX35 */
 
-#ifdef CONFIG_ARCH_MX51
+#ifdef CONFIG_SOC_IMX51
 struct imx_imx_sdma_data imx51_imx_sdma_data __initconst =
 	imx_imx_sdma_data_entry_single(MX51, 2, "imx51", 0);
-#endif /* ifdef CONFIG_ARCH_MX51 */
+#endif /* ifdef CONFIG_SOC_IMX51 */
 
 static struct platform_device __init __maybe_unused *imx_add_imx_sdma(
 		const struct imx_imx_sdma_data *data)
@@ -146,7 +146,7 @@ static struct sdma_script_start_addrs addr_imx35_to2 = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_MX51
+#ifdef CONFIG_SOC_IMX51
 static struct sdma_script_start_addrs addr_imx51_to1 = {
 	.ap_2_ap_addr = 642,
 	.uart_2_mcu_addr = 817,
