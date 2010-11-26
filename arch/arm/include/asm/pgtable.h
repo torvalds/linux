@@ -276,6 +276,29 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 extern struct page *empty_zero_page;
 #define ZERO_PAGE(vaddr)	(empty_zero_page)
 
+
+extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
+
+/* to find an entry in a page-table-directory */
+#define pgd_index(addr)		((addr) >> PGDIR_SHIFT)
+
+#define pgd_offset(mm, addr)	((mm)->pgd + pgd_index(addr))
+
+/* to find an entry in a kernel page-table-directory */
+#define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
+
+/*
+ * The "pgd_xxx()" functions here are trivial for a folded two-level
+ * setup: the pgd is never bad, and a pmd always exists (as it's folded
+ * into the pgd entry)
+ */
+#define pgd_none(pgd)		(0)
+#define pgd_bad(pgd)		(0)
+#define pgd_present(pgd)	(1)
+#define pgd_clear(pgdp)		do { } while (0)
+#define set_pgd(pgd,pgdp)	do { } while (0)
+
+
 #define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
 #define pfn_pte(pfn,prot)	(__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot)))
 
@@ -382,25 +405,6 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
  */
 #define mk_pte(page,prot)	pfn_pte(page_to_pfn(page),prot)
 
-/*
- * The "pgd_xxx()" functions here are trivial for a folded two-level
- * setup: the pgd is never bad, and a pmd always exists (as it's folded
- * into the pgd entry)
- */
-#define pgd_none(pgd)		(0)
-#define pgd_bad(pgd)		(0)
-#define pgd_present(pgd)	(1)
-#define pgd_clear(pgdp)		do { } while (0)
-#define set_pgd(pgd,pgdp)	do { } while (0)
-
-/* to find an entry in a page-table-directory */
-#define pgd_index(addr)		((addr) >> PGDIR_SHIFT)
-
-#define pgd_offset(mm, addr)	((mm)->pgd+pgd_index(addr))
-
-/* to find an entry in a kernel page-table-directory */
-#define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
-
 /* Find an entry in the second-level page table.. */
 #define pmd_offset(dir, addr)	((pmd_t *)(dir))
 
@@ -413,8 +417,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	pte_val(pte) = (pte_val(pte) & ~mask) | (pgprot_val(newprot) & mask);
 	return pte;
 }
-
-extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 /*
  * Encode and decode a swap entry.  Swap entries are stored in the Linux
