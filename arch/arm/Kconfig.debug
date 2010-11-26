@@ -23,7 +23,7 @@ config STRICT_DEVMEM
 config FRAME_POINTER
 	bool
 	depends on !THUMB2_KERNEL
-	default y if !ARM_UNWIND
+	default y if !ARM_UNWIND || FUNCTION_GRAPH_TRACER
 	help
 	  If you say N here, the resulting kernel will be slightly smaller and
 	  faster. However, if neither FRAME_POINTER nor ARM_UNWIND are enabled,
