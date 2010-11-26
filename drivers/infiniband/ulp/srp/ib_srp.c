@@ -553,7 +553,7 @@ static void srp_remove_req(struct srp_target_port *target, struct srp_request *r
 {
 	srp_unmap_data(req->scmnd, target, req);
 	req->scmnd = NULL;
-	list_move_tail(&req->list, &target->free_reqs);
+	list_add_tail(&req->list, &target->free_reqs);
 }
 
 static void srp_reset_req(struct srp_target_port *target, struct srp_request *req)
@@ -566,7 +566,6 @@ static void srp_reset_req(struct srp_target_port *target, struct srp_request *re
 static int srp_reconnect_target(struct srp_target_port *target)
 {
 	struct ib_qp_attr qp_attr;
-	struct srp_request *req, *tmp;
 	struct ib_wc wc;
 	int i, ret;
 
@@ -597,13 +596,16 @@ static int srp_reconnect_target(struct srp_target_port *target)
 		; /* nothing */
 
 	spin_lock_irq(target->scsi_host->host_lock);
-	list_for_each_entry_safe(req, tmp, &target->req_queue, list)
-		srp_reset_req(target, req);
+	for (i = 0; i < SRP_CMD_SQ_SIZE; ++i) {
+		struct srp_request *req = &target->req_ring[i];
+		if (req->scmnd)
+			srp_reset_req(target, req);
+	}
 	spin_unlock_irq(target->scsi_host->host_lock);
 
-	list_del_init(&target->free_tx);
+	INIT_LIST_HEAD(&target->free_tx);
 	for (i = 0; i < SRP_SQ_SIZE; ++i)
-		list_move(&target->tx_ring[i]->list, &target->free_tx);
+		list_add(&target->tx_ring[i]->list, &target->free_tx);
 
 	target->qp_in_error = 0;
 	ret = srp_connect_target(target);
@@ -1165,7 +1167,7 @@ static int srp_queuecommand_lck(struct scsi_cmnd *scmnd,
 		goto err_unmap;
 	}
 
-	list_move_tail(&req->list, &target->req_queue);
+	list_del(&req->list);
 
 	return 0;
 
@@ -1504,7 +1506,7 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 static int srp_reset_device(struct scsi_cmnd *scmnd)
 {
 	struct srp_target_port *target = host_to_target(scmnd->device->host);
-	struct srp_request *req, *tmp;
+	int i;
 
 	shost_printk(KERN_ERR, target->scsi_host, "SRP reset_device called\n");
 
@@ -1518,9 +1520,11 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 
 	spin_lock_irq(target->scsi_host->host_lock);
 
-	list_for_each_entry_safe(req, tmp, &target->req_queue, list)
+	for (i = 0; i < SRP_CMD_SQ_SIZE; ++i) {
+		struct srp_request *req = &target->req_ring[i];
 		if (req->scmnd && req->scmnd->device == scmnd->device)
 			srp_reset_req(target, req);
+	}
 
 	spin_unlock_irq(target->scsi_host->host_lock);
 
@@ -1954,7 +1958,6 @@ static ssize_t srp_create_target(struct device *dev,
 
 	INIT_LIST_HEAD(&target->free_tx);
 	INIT_LIST_HEAD(&target->free_reqs);
-	INIT_LIST_HEAD(&target->req_queue);
 	for (i = 0; i < SRP_CMD_SQ_SIZE; ++i) {
 		target->req_ring[i].index = i;
 		list_add_tail(&target->req_ring[i].list, &target->free_reqs);

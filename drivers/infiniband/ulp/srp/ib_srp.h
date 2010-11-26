@@ -148,7 +148,6 @@ struct srp_target_port {
 	struct srp_iu	       *tx_ring[SRP_SQ_SIZE];
 
 	struct list_head	free_reqs;
-	struct list_head	req_queue;
 	struct srp_request	req_ring[SRP_CMD_SQ_SIZE];
 
 	struct work_struct	work;
