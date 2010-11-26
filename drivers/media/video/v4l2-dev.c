@@ -186,12 +186,12 @@ static ssize_t v4l2_read(struct file *filp, char __user *buf,
 		size_t sz, loff_t *off)
 {
 	struct video_device *vdev = video_devdata(filp);
-	int ret = -EIO;
+	int ret = -ENODEV;
 
 	if (!vdev->fops->read)
 		return -EINVAL;
-	if (vdev->lock)
-		mutex_lock(vdev->lock);
+	if (vdev->lock && mutex_lock_interruptible(vdev->lock))
+		return -ERESTARTSYS;
 	if (video_is_registered(vdev))
 		ret = vdev->fops->read(filp, buf, sz, off);
 	if (vdev->lock)
@@ -203,12 +203,12 @@ static ssize_t v4l2_write(struct file *filp, const char __user *buf,
 		size_t sz, loff_t *off)
 {
 	struct video_device *vdev = video_devdata(filp);
-	int ret = -EIO;
+	int ret = -ENODEV;
 
 	if (!vdev->fops->write)
 		return -EINVAL;
-	if (vdev->lock)
-		mutex_lock(vdev->lock);
+	if (vdev->lock && mutex_lock_interruptible(vdev->lock))
+		return -ERESTARTSYS;
 	if (video_is_registered(vdev))
 		ret = vdev->fops->write(filp, buf, sz, off);
 	if (vdev->lock)
@@ -219,10 +219,10 @@ static ssize_t v4l2_write(struct file *filp, const char __user *buf,
 static unsigned int v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 {
 	struct video_device *vdev = video_devdata(filp);
-	int ret = DEFAULT_POLLMASK;
+	int ret = POLLERR | POLLHUP;
 
 	if (!vdev->fops->poll)
-		return ret;
+		return DEFAULT_POLLMASK;
 	if (vdev->lock)
 		mutex_lock(vdev->lock);
 	if (video_is_registered(vdev))
@@ -238,8 +238,8 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int ret = -ENODEV;
 
 	if (vdev->fops->unlocked_ioctl) {
-		if (vdev->lock)
-			mutex_lock(vdev->lock);
+		if (vdev->lock && mutex_lock_interruptible(vdev->lock))
+			return -ERESTARTSYS;
 		if (video_is_registered(vdev))
 			ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
 		if (vdev->lock)
@@ -265,8 +265,8 @@ static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 
 	if (!vdev->fops->mmap)
 		return ret;
-	if (vdev->lock)
-		mutex_lock(vdev->lock);
+	if (vdev->lock && mutex_lock_interruptible(vdev->lock))
+		return -ERESTARTSYS;
 	if (video_is_registered(vdev))
 		ret = vdev->fops->mmap(filp, vm);
 	if (vdev->lock)
@@ -292,8 +292,10 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	video_get(vdev);
 	mutex_unlock(&videodev_lock);
 	if (vdev->fops->open) {
-		if (vdev->lock)
-			mutex_lock(vdev->lock);
+		if (vdev->lock && mutex_lock_interruptible(vdev->lock)) {
+			ret = -ERESTARTSYS;
+			goto err;
+		}
 		if (video_is_registered(vdev))
 			ret = vdev->fops->open(filp);
 		else
@@ -302,6 +304,7 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 			mutex_unlock(vdev->lock);
 	}
 
+err:
 	/* decrease the refcount in case of an error */
 	if (ret)
 		video_put(vdev);
