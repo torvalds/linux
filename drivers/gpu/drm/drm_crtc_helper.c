@@ -848,7 +848,7 @@ static void output_poll_execute(struct work_struct *work)
 	struct delayed_work *delayed_work = to_delayed_work(work);
 	struct drm_device *dev = container_of(delayed_work, struct drm_device, mode_config.output_poll_work);
 	struct drm_connector *connector;
-	enum drm_connector_status old_status, status;
+	enum drm_connector_status old_status;
 	bool repoll = false, changed = false;
 
 	if (!drm_kms_helper_poll)
@@ -873,8 +873,9 @@ static void output_poll_execute(struct work_struct *work)
 		    !(connector->polled & DRM_CONNECTOR_POLL_HPD))
 			continue;
 
-		status = connector->funcs->detect(connector, false);
-		if (old_status != status)
+		connector->status = connector->funcs->detect(connector, false);
+		DRM_DEBUG_KMS("connector status updated to %d\n", connector->status);
+		if (old_status != connector->status)
 			changed = true;
 	}
 
