@@ -43,5 +43,6 @@ struct wm8994_access_mask {
 };
 
 extern const struct wm8994_access_mask wm8994_access_masks[WM8994_CACHE_SIZE];
+extern const __devinitdata  u16 wm8994_reg_defaults[WM8994_CACHE_SIZE];
 
 #endif

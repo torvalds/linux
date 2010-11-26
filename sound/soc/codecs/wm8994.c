@@ -57,8 +57,6 @@ static int wm8994_retune_mobile_base[] = {
 	WM8994_AIF2_EQ_GAINS_1,
 };
 
-#define WM8994_REG_CACHE_SIZE  0x621
-
 struct wm8994_micdet {
 	struct snd_soc_jack *jack;
 	int det;
@@ -71,7 +69,6 @@ struct wm8994_priv {
 	enum snd_soc_control_type control_type;
 	void *control_data;
 	struct snd_soc_codec *codec;
-	u16 reg_cache[WM8994_REG_CACHE_SIZE + 1];
 	int sysclk[2];
 	int sysclk_rate[2];
 	int mclk[2];
@@ -134,7 +131,7 @@ static int wm8994_readable(unsigned int reg)
 
 static int wm8994_volatile(unsigned int reg)
 {
-	if (reg >= WM8994_REG_CACHE_SIZE)
+	if (reg >= WM8994_CACHE_SIZE)
 		return 1;
 
 	switch (reg) {
@@ -156,12 +153,16 @@ static int wm8994_volatile(unsigned int reg)
 static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
 	unsigned int value)
 {
-	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	int ret;
 
 	BUG_ON(reg > WM8994_MAX_REGISTER);
 
-	if (!wm8994_volatile(reg))
-		wm8994->reg_cache[reg] = value;
+	if (!wm8994_volatile(reg)) {
+		ret = snd_soc_cache_write(codec, reg, value);
+		if (ret != 0)
+			dev_err(codec->dev, "Cache write to %x failed: %d\n",
+				reg, ret);
+	}
 
 	return wm8994_reg_write(codec->control_data, reg, value);
 }
@@ -169,14 +170,22 @@ static int wm8994_write(struct snd_soc_codec *codec, unsigned int reg,
 static unsigned int wm8994_read(struct snd_soc_codec *codec,
 				unsigned int reg)
 {
-	u16 *reg_cache = codec->reg_cache;
+	unsigned int val;
+	int ret;
 
 	BUG_ON(reg > WM8994_MAX_REGISTER);
 
-	if (wm8994_volatile(reg))
-		return wm8994_reg_read(codec->control_data, reg);
-	else
-		return reg_cache[reg];
+	if (!wm8994_volatile(reg) && wm8994_readable(reg) &&
+	    reg < codec->driver->reg_cache_size) {
+		ret = snd_soc_cache_read(codec, reg, &val);
+		if (ret >= 0)
+			return val;
+		else
+			dev_err(codec->dev, "Cache read from %x failed: %d\n",
+				reg, ret);
+	}
+
+	return wm8994_reg_read(codec->control_data, reg);
 }
 
 static int configure_aif_clock(struct snd_soc_codec *codec, int aif)
@@ -2370,26 +2379,12 @@ static int wm8994_suspend(struct snd_soc_codec *codec, pm_message_t state)
 static int wm8994_resume(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	u16 *reg_cache = codec->reg_cache;
 	int i, ret;
 
 	/* Restore the registers */
-	for (i = 1; i < ARRAY_SIZE(wm8994->reg_cache); i++) {
-		switch (i) {
-		case WM8994_LDO_1:
-		case WM8994_LDO_2:
-		case WM8994_SOFTWARE_RESET:
-			/* Handled by other MFD drivers */
-			continue;
-		default:
-			break;
-		}
-
-		if (!wm8994_access_masks[i].writable)
-			continue;
-
-		wm8994_reg_write(codec->control_data, i, reg_cache[i]);
-	}
+	ret = snd_soc_cache_sync(codec);
+	if (ret != 0)
+		dev_err(codec->dev, "Failed to sync cache: %d\n", ret);
 
 	wm8994_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -2782,27 +2777,27 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		return -ENOMEM;
 	snd_soc_codec_set_drvdata(codec, wm8994);
 
-	codec->reg_cache = &wm8994->reg_cache;
-
 	wm8994->pdata = dev_get_platdata(codec->dev->parent);
 	wm8994->codec = codec;
 
-	/* Fill the cache with physical values we inherited; don't reset */
-	ret = wm8994_bulk_read(codec->control_data, 0,
-			       ARRAY_SIZE(wm8994->reg_cache) - 1,
-			       codec->reg_cache);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to fill register cache: %d\n",
-			ret);
-		goto err;
-	}
+	/* Read our current status back from the chip - we don't want to
+	 * reset as this may interfere with the GPIO or LDO operation. */
+	for (i = 0; i < WM8994_CACHE_SIZE; i++) {
+		if (!wm8994_readable(i) || wm8994_volatile(i))
+			continue;
 
-	/* Clear the cached values for unreadable/volatile registers to
-	 * avoid potential confusion.
-	 */
-	for (i = 0; i < ARRAY_SIZE(wm8994->reg_cache); i++)
-		if (wm8994_volatile(i) || !wm8994_readable(i))
-			wm8994->reg_cache[i] = 0;
+		ret = wm8994_reg_read(codec->control_data, i);
+		if (ret <= 0)
+			continue;
+
+		ret = snd_soc_cache_write(codec, i, ret);
+		if (ret != 0) {
+			dev_err(codec->dev,
+				"Failed to initialise cache for 0x%x: %d\n",
+				i, ret);
+			goto err;
+		}
+	}
 
 	/* Set revision-specific configuration */
 	wm8994->revision = snd_soc_read(codec, WM8994_CHIP_REVISION);
@@ -3029,11 +3024,15 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8994 = {
 	.remove =	wm8994_codec_remove,
 	.suspend =	wm8994_suspend,
 	.resume =	wm8994_resume,
-	.read = wm8994_read,
-	.write = wm8994_write,
+	.read =		wm8994_read,
+	.write =	wm8994_write,
 	.readable_register = wm8994_readable,
 	.volatile_register = wm8994_volatile,
 	.set_bias_level = wm8994_set_bias_level,
+
+	.reg_cache_size = WM8994_CACHE_SIZE,
+	.reg_cache_default = wm8994_reg_defaults,
+	.reg_word_size = 2,
 };
 
 static int __devinit wm8994_probe(struct platform_device *pdev)
