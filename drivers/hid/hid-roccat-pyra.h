@@ -14,6 +14,9 @@
 
 #include <linux/types.h>
 
+/*
+ * Binary data structures used for hardware communication must have no padding.
+ */
 #pragma pack(push)
 #pragma pack(1)
 
