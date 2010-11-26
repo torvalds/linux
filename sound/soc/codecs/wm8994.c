@@ -18,6 +18,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -1803,6 +1804,8 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+			pm_runtime_get_sync(codec->dev);
+
 			/* Tweak DC servo and DSP configuration for
 			 * improved performance. */
 			if (control->type == WM8994 && wm8994->revision < 4) {
@@ -1878,6 +1881,8 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 					    WM8994_STARTUP_BIAS_ENA |
 					    WM8994_VMID_BUF_ENA |
 					    WM8994_VMID_RAMP_MASK, 0);
+
+			pm_runtime_put(codec->dev);
 		}
 		break;
 	}
@@ -2780,6 +2785,9 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	wm8994->pdata = dev_get_platdata(codec->dev->parent);
 	wm8994->codec = codec;
 
+	pm_runtime_enable(codec->dev);
+	pm_runtime_resume(codec->dev);
+
 	/* Read our current status back from the chip - we don't want to
 	 * reset as this may interfere with the GPIO or LDO operation. */
 	for (i = 0; i < WM8994_CACHE_SIZE; i++) {
@@ -2994,6 +3002,8 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 	struct wm8994 *control = codec->control_data;
 
 	wm8994_set_bias_level(codec, SND_SOC_BIAS_OFF);
+
+	pm_runtime_disable(codec->dev);
 
 	switch (control->type) {
 	case WM8994:
