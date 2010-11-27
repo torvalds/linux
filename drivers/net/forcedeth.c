@@ -1178,7 +1178,7 @@ static int phy_reset(struct net_device *dev, u32 bmcr_setup)
 
 	/* must wait till reset is deasserted */
 	while (miicontrol & BMCR_RESET) {
-		msleep(10);
+		usleep_range(10000, 20000);
 		miicontrol = mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ);
 		/* FIXME: 100 tries seem excessive */
 		if (tries++ > 100)
