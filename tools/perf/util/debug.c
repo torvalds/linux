@@ -46,6 +46,17 @@ int dump_printf(const char *fmt, ...)
 	return ret;
 }
 
+#ifdef NO_NEWT_SUPPORT
+void ui__warning(const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+}
+#endif
+
 static int dump_printf_color(const char *fmt, const char *color, ...)
 {
 	va_list args;
