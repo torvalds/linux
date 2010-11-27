@@ -381,11 +381,11 @@ static void b44_set_flow_ctrl(struct b44 *bp, u32 local, u32 remote)
 	__b44_set_flow_ctrl(bp, pause_enab);
 }
 
-#ifdef SSB_DRIVER_MIPS
-extern char *nvram_get(char *name);
+#ifdef CONFIG_BCM47XX
+#include <asm/mach-bcm47xx/nvram.h>
 static void b44_wap54g10_workaround(struct b44 *bp)
 {
-	const char *str;
+	char buf[20];
 	u32 val;
 	int err;
 
@@ -394,10 +394,9 @@ static void b44_wap54g10_workaround(struct b44 *bp)
 	 * see https://dev.openwrt.org/ticket/146
 	 * check and reset bit "isolate"
 	 */
-	str = nvram_get("boardnum");
-	if (!str)
+	if (nvram_getenv("boardnum", buf, sizeof(buf)) < 0)
 		return;
-	if (simple_strtoul(str, NULL, 0) == 2) {
+	if (simple_strtoul(buf, NULL, 0) == 2) {
 		err = __b44_readphy(bp, 0, MII_BMCR, &val);
 		if (err)
 			goto error;
