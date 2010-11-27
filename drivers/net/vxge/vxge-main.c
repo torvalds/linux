@@ -4602,9 +4602,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	/* Copy the station mac address to the list */
 	for (i = 0; i < vdev->no_of_vpath; i++) {
-		entry =	(struct vxge_mac_addrs *)
-				kzalloc(sizeof(struct vxge_mac_addrs),
-					GFP_KERNEL);
+		entry =	kzalloc(sizeof(struct vxge_mac_addrs), GFP_KERNEL);
 		if (NULL == entry) {
 			vxge_debug_init(VXGE_ERR,
 				"%s: mac_addr_list : memory allocation failed",

@@ -1219,8 +1219,7 @@ vxge_hw_device_initialize(
 	if (status != VXGE_HW_OK)
 		goto exit;
 
-	hldev = (struct __vxge_hw_device *)
-			vzalloc(sizeof(struct __vxge_hw_device));
+	hldev = vzalloc(sizeof(struct __vxge_hw_device));
 	if (hldev == NULL) {
 		status = VXGE_HW_ERR_OUT_OF_MEMORY;
 		goto exit;
@@ -2140,8 +2139,7 @@ __vxge_hw_mempool_create(
 		goto exit;
 	}
 
-	mempool = (struct vxge_hw_mempool *)
-			vzalloc(sizeof(struct vxge_hw_mempool));
+	mempool = vzalloc(sizeof(struct vxge_hw_mempool));
 	if (mempool == NULL) {
 		status = VXGE_HW_ERR_OUT_OF_MEMORY;
 		goto exit;
@@ -2165,7 +2163,7 @@ __vxge_hw_mempool_create(
 
 	/* allocate array of memblocks */
 	mempool->memblocks_arr =
-		(void **) vzalloc(sizeof(void *) * mempool->memblocks_max);
+		vzalloc(sizeof(void *) * mempool->memblocks_max);
 	if (mempool->memblocks_arr == NULL) {
 		__vxge_hw_mempool_destroy(mempool);
 		status = VXGE_HW_ERR_OUT_OF_MEMORY;
@@ -2175,7 +2173,7 @@ __vxge_hw_mempool_create(
 
 	/* allocate array of private parts of items per memblocks */
 	mempool->memblocks_priv_arr =
-		(void **) vzalloc(sizeof(void *) * mempool->memblocks_max);
+		vzalloc(sizeof(void *) * mempool->memblocks_max);
 	if (mempool->memblocks_priv_arr == NULL) {
 		__vxge_hw_mempool_destroy(mempool);
 		status = VXGE_HW_ERR_OUT_OF_MEMORY;
@@ -2184,7 +2182,7 @@ __vxge_hw_mempool_create(
 	}
 
 	/* allocate array of memblocks DMA objects */
-	mempool->memblocks_dma_arr = (struct vxge_hw_mempool_dma *)
+	mempool->memblocks_dma_arr =
 		vzalloc(sizeof(struct vxge_hw_mempool_dma) *
 			mempool->memblocks_max);
 
@@ -2196,8 +2194,7 @@ __vxge_hw_mempool_create(
 	}
 
 	/* allocate hash array of items */
-	mempool->items_arr =
-		(void **) vzalloc(sizeof(void *) * mempool->items_max);
+	mempool->items_arr = vzalloc(sizeof(void *) * mempool->items_max);
 	if (mempool->items_arr == NULL) {
 		__vxge_hw_mempool_destroy(mempool);
 		status = VXGE_HW_ERR_OUT_OF_MEMORY;
@@ -4258,8 +4255,7 @@ vxge_hw_vpath_open(struct __vxge_hw_device *hldev,
 	if (status != VXGE_HW_OK)
 		goto vpath_open_exit1;
 
-	vp = (struct __vxge_hw_vpath_handle *)
-		vzalloc(sizeof(struct __vxge_hw_vpath_handle));
+	vp = vzalloc(sizeof(struct __vxge_hw_vpath_handle));
 	if (vp == NULL) {
 		status = VXGE_HW_ERR_OUT_OF_MEMORY;
 		goto vpath_open_exit2;
@@ -5065,8 +5061,7 @@ static void vxge_hw_blockpool_block_add(struct __vxge_hw_device *devh,
 				item);
 
 	if (entry == NULL)
-		entry = (struct __vxge_hw_blockpool_entry *)
-			vmalloc(sizeof(struct __vxge_hw_blockpool_entry));
+		entry = vmalloc(sizeof(struct __vxge_hw_blockpool_entry));
 	else
 		list_del(&entry->item);
 
@@ -5182,8 +5177,7 @@ __vxge_hw_blockpool_free(struct __vxge_hw_device *devh,
 					item);
 
 		if (entry == NULL)
-			entry = (struct __vxge_hw_blockpool_entry *)
-				vmalloc(sizeof(
+			entry = vmalloc(sizeof(
 					struct __vxge_hw_blockpool_entry));
 		else
 			list_del(&entry->item);
