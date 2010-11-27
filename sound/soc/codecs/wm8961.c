@@ -711,7 +711,7 @@ static int wm8961_hw_params(struct snd_pcm_substream *substream,
 	if (fs <= 24000)
 		reg |= WM8961_DACSLOPE;
 	else
-		reg &= WM8961_DACSLOPE;
+		reg &= ~WM8961_DACSLOPE;
 	snd_soc_write(codec, WM8961_ADC_DAC_CONTROL_2, reg);
 
 	return 0;
@@ -736,7 +736,7 @@ static int wm8961_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		freq /= 2;
 	} else {
 		dev_dbg(codec->dev, "Using MCLK/1 for %dHz MCLK\n", freq);
-		reg &= WM8961_MCLKDIV;
+		reg &= ~WM8961_MCLKDIV;
 	}
 
 	snd_soc_write(codec, WM8961_CLOCKING1, reg);
