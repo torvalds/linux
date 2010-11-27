@@ -1013,10 +1013,8 @@ static void free_rings(struct net_device *dev)
 			pci_free_consistent(np->pci_dev, sizeof(struct ring_desc_ex) * (np->rx_ring_size + np->tx_ring_size),
 					    np->rx_ring.ex, np->ring_addr);
 	}
-	if (np->rx_skb)
-		kfree(np->rx_skb);
-	if (np->tx_skb)
-		kfree(np->tx_skb);
+	kfree(np->rx_skb);
+	kfree(np->tx_skb);
 }
 
 static int using_multi_irqs(struct net_device *dev)
@@ -4442,10 +4440,9 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 				pci_free_consistent(np->pci_dev, sizeof(struct ring_desc_ex) * (ring->rx_pending + ring->tx_pending),
 						    rxtx_ring, ring_addr);
 		}
-		if (rx_skbuff)
-			kfree(rx_skbuff);
-		if (tx_skbuff)
-			kfree(tx_skbuff);
+
+		kfree(rx_skbuff);
+		kfree(tx_skbuff);
 		goto exit;
 	}
 
