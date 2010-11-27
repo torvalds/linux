@@ -1794,8 +1794,15 @@ static void i915_gem_reset_fences(struct drm_device *dev)
 
 	for (i = 0; i < 16; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
-		if (reg->obj)
-			i915_gem_clear_fence_reg(reg->obj);
+		struct drm_i915_gem_object *obj = reg->obj;
+
+		if (!obj)
+			continue;
+
+		if (obj->tiling_mode)
+			i915_gem_release_mmap(obj);
+
+		i915_gem_clear_fence_reg(obj);
 	}
 }
 
