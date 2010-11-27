@@ -144,6 +144,13 @@ config CIFS_FSCACHE
 	    to be cached locally on disk through the general filesystem cache
 	    manager. If unsure, say N.
 
+config CIFS_ACL
+	  bool "Provide CIFS ACL support (EXPERIMENTAL)"
+	  depends on EXPERIMENTAL && CIFS_XATTR
+	  help
+	    Allows to fetch CIFS/NTFS ACL from the server.  The DACL blob
+	    is handed over to the application/caller.
+
 config CIFS_EXPERIMENTAL
 	  bool "CIFS Experimental Features (EXPERIMENTAL)"
 	  depends on CIFS && EXPERIMENTAL

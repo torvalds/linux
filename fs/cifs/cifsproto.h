@@ -134,6 +134,8 @@ extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 			      struct cifs_fattr *fattr, struct inode *inode,
 			      const char *path, const __u16 *pfid);
 extern int mode_to_cifs_acl(struct inode *inode, const char *path, __u64);
+extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
+					const char *, u32 *);
 
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
 			const char *);

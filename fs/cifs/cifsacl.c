@@ -608,7 +608,7 @@ static struct cifs_ntsd *get_cifs_acl_by_path(struct cifs_sb_info *cifs_sb,
 }
 
 /* Retrieve an ACL from the server */
-static struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *cifs_sb,
+struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *cifs_sb,
 				      struct inode *inode, const char *path,
 				      u32 *pacllen)
 {
