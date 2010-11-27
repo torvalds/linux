@@ -553,7 +553,7 @@ vmxnet3_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 	return -EOPNOTSUPP;
 }
 
-
+#ifdef VMXNET3_RSS
 static int
 vmxnet3_get_rss_indir(struct net_device *netdev,
 		      struct ethtool_rxfh_indir *p)
@@ -598,6 +598,7 @@ vmxnet3_set_rss_indir(struct net_device *netdev,
 	return 0;
 
 }
+#endif
 
 static struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_settings      = vmxnet3_get_settings,
@@ -623,8 +624,10 @@ static struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_ringparam     = vmxnet3_get_ringparam,
 	.set_ringparam     = vmxnet3_set_ringparam,
 	.get_rxnfc         = vmxnet3_get_rxnfc,
+#ifdef VMXNET3_RSS
 	.get_rxfh_indir    = vmxnet3_get_rss_indir,
 	.set_rxfh_indir    = vmxnet3_set_rss_indir,
+#endif
 };
 
 void vmxnet3_set_ethtool_ops(struct net_device *netdev)
