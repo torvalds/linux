@@ -56,23 +56,6 @@ static void bcm47xx_machine_halt(void)
 		cpu_relax();
 }
 
-static void str2eaddr(char *str, char *dest)
-{
-	int i = 0;
-
-	if (str == NULL) {
-		memset(dest, 0, 6);
-		return;
-	}
-
-	for (;;) {
-		dest[i++] = (char) simple_strtoul(str, NULL, 16);
-		str += 2;
-		if (!*str++ || i == 6)
-			break;
-	}
-}
-
 #define READ_FROM_NVRAM(_outvar, name, buf) \
 	if (nvram_getenv(name, buf, sizeof(buf)) >= 0)\
 		sprom->_outvar = simple_strtoul(buf, NULL, 0);
@@ -87,11 +70,11 @@ static void bcm47xx_fill_sprom(struct ssb_sprom *sprom)
 	sprom->revision = 1; /* Fallback: Old hardware does not define this. */
 	READ_FROM_NVRAM(revision, "sromrev", buf);
 	if (nvram_getenv("il0macaddr", buf, sizeof(buf)) >= 0)
-		str2eaddr(buf, sprom->il0mac);
+		nvram_parse_macaddr(buf, sprom->il0mac);
 	if (nvram_getenv("et0macaddr", buf, sizeof(buf)) >= 0)
-		str2eaddr(buf, sprom->et0mac);
+		nvram_parse_macaddr(buf, sprom->et0mac);
 	if (nvram_getenv("et1macaddr", buf, sizeof(buf)) >= 0)
-		str2eaddr(buf, sprom->et1mac);
+		nvram_parse_macaddr(buf, sprom->et1mac);
 	READ_FROM_NVRAM(et0phyaddr, "et0phyaddr", buf);
 	READ_FROM_NVRAM(et1phyaddr, "et1phyaddr", buf);
 	READ_FROM_NVRAM(et0mdcport, "et0mdcport", buf);
