@@ -20,6 +20,9 @@
  *             Wajdi Feghali (wajdi.k.feghali@intel.com)
  *    Copyright (c) 2010, Intel Corporation.
  *
+ * Ported x86_64 version to x86:
+ *    Author: Mathias Krause <minipli@googlemail.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -95,12 +98,16 @@ enc:        .octa 0x2
 #define IN	IN1
 #define KEY	%xmm2
 #define IV	%xmm3
+
 #define BSWAP_MASK %xmm10
 #define CTR	%xmm11
 #define INC	%xmm12
 
+#ifdef __x86_64__
+#define AREG	%rax
 #define KEYP	%rdi
 #define OUTP	%rsi
+#define UKEYP	OUTP
 #define INP	%rdx
 #define LEN	%rcx
 #define IVP	%r8
@@ -109,6 +116,18 @@ enc:        .octa 0x2
 #define TKEYP	T1
 #define T2	%r11
 #define TCTR_LOW T2
+#else
+#define AREG	%eax
+#define KEYP	%edi
+#define OUTP	AREG
+#define UKEYP	OUTP
+#define INP	%edx
+#define LEN	%esi
+#define IVP	%ebp
+#define KLEN	%ebx
+#define T1	%ecx
+#define TKEYP	T1
+#endif
 
 
 /* GHASH_MUL MACRO to implement: Data*HashKey mod (128,127,126,121,0)
@@ -1247,10 +1266,11 @@ _key_expansion_256a:
 	shufps $0b10001100, %xmm0, %xmm4
 	pxor %xmm4, %xmm0
 	pxor %xmm1, %xmm0
-	movaps %xmm0, (%rcx)
-	add $0x10, %rcx
+	movaps %xmm0, (TKEYP)
+	add $0x10, TKEYP
 	ret
 
+.align 4
 _key_expansion_192a:
 	pshufd $0b01010101, %xmm1, %xmm1
 	shufps $0b00010000, %xmm0, %xmm4
@@ -1268,12 +1288,13 @@ _key_expansion_192a:
 
 	movaps %xmm0, %xmm1
 	shufps $0b01000100, %xmm0, %xmm6
-	movaps %xmm6, (%rcx)
+	movaps %xmm6, (TKEYP)
 	shufps $0b01001110, %xmm2, %xmm1
-	movaps %xmm1, 16(%rcx)
-	add $0x20, %rcx
+	movaps %xmm1, 0x10(TKEYP)
+	add $0x20, TKEYP
 	ret
 
+.align 4
 _key_expansion_192b:
 	pshufd $0b01010101, %xmm1, %xmm1
 	shufps $0b00010000, %xmm0, %xmm4
@@ -1288,10 +1309,11 @@ _key_expansion_192b:
 	pxor %xmm3, %xmm2
 	pxor %xmm5, %xmm2
 
-	movaps %xmm0, (%rcx)
-	add $0x10, %rcx
+	movaps %xmm0, (TKEYP)
+	add $0x10, TKEYP
 	ret
 
+.align 4
 _key_expansion_256b:
 	pshufd $0b10101010, %xmm1, %xmm1
 	shufps $0b00010000, %xmm2, %xmm4
@@ -1299,8 +1321,8 @@ _key_expansion_256b:
 	shufps $0b10001100, %xmm2, %xmm4
 	pxor %xmm4, %xmm2
 	pxor %xmm1, %xmm2
-	movaps %xmm2, (%rcx)
-	add $0x10, %rcx
+	movaps %xmm2, (TKEYP)
+	add $0x10, TKEYP
 	ret
 
 /*
@@ -1308,17 +1330,23 @@ _key_expansion_256b:
  *                   unsigned int key_len)
  */
 ENTRY(aesni_set_key)
-	movups (%rsi), %xmm0		# user key (first 16 bytes)
-	movaps %xmm0, (%rdi)
-	lea 0x10(%rdi), %rcx		# key addr
-	movl %edx, 480(%rdi)
+#ifndef __x86_64__
+	pushl KEYP
+	movl 8(%esp), KEYP		# ctx
+	movl 12(%esp), UKEYP		# in_key
+	movl 16(%esp), %edx		# key_len
+#endif
+	movups (UKEYP), %xmm0		# user key (first 16 bytes)
+	movaps %xmm0, (KEYP)
+	lea 0x10(KEYP), TKEYP		# key addr
+	movl %edx, 480(KEYP)
 	pxor %xmm4, %xmm4		# xmm4 is assumed 0 in _key_expansion_x
 	cmp $24, %dl
 	jb .Lenc_key128
 	je .Lenc_key192
-	movups 0x10(%rsi), %xmm2	# other user key
-	movaps %xmm2, (%rcx)
-	add $0x10, %rcx
+	movups 0x10(UKEYP), %xmm2	# other user key
+	movaps %xmm2, (TKEYP)
+	add $0x10, TKEYP
 	AESKEYGENASSIST 0x1 %xmm2 %xmm1		# round 1
 	call _key_expansion_256a
 	AESKEYGENASSIST 0x1 %xmm0 %xmm1
@@ -1347,7 +1375,7 @@ ENTRY(aesni_set_key)
 	call _key_expansion_256a
 	jmp .Ldec_key
 .Lenc_key192:
-	movq 0x10(%rsi), %xmm2		# other user key
+	movq 0x10(UKEYP), %xmm2		# other user key
 	AESKEYGENASSIST 0x1 %xmm2 %xmm1		# round 1
 	call _key_expansion_192a
 	AESKEYGENASSIST 0x2 %xmm2 %xmm1		# round 2
@@ -1387,33 +1415,47 @@ ENTRY(aesni_set_key)
 	AESKEYGENASSIST 0x36 %xmm0 %xmm1	# round 10
 	call _key_expansion_128
 .Ldec_key:
-	sub $0x10, %rcx
-	movaps (%rdi), %xmm0
-	movaps (%rcx), %xmm1
-	movaps %xmm0, 240(%rcx)
-	movaps %xmm1, 240(%rdi)
-	add $0x10, %rdi
-	lea 240-16(%rcx), %rsi
+	sub $0x10, TKEYP
+	movaps (KEYP), %xmm0
+	movaps (TKEYP), %xmm1
+	movaps %xmm0, 240(TKEYP)
+	movaps %xmm1, 240(KEYP)
+	add $0x10, KEYP
+	lea 240-16(TKEYP), UKEYP
 .align 4
 .Ldec_key_loop:
-	movaps (%rdi), %xmm0
+	movaps (KEYP), %xmm0
 	AESIMC %xmm0 %xmm1
-	movaps %xmm1, (%rsi)
-	add $0x10, %rdi
-	sub $0x10, %rsi
-	cmp %rcx, %rdi
+	movaps %xmm1, (UKEYP)
+	add $0x10, KEYP
+	sub $0x10, UKEYP
+	cmp TKEYP, KEYP
 	jb .Ldec_key_loop
-	xor %rax, %rax
+	xor AREG, AREG
+#ifndef __x86_64__
+	popl KEYP
+#endif
 	ret
 
 /*
  * void aesni_enc(struct crypto_aes_ctx *ctx, u8 *dst, const u8 *src)
  */
 ENTRY(aesni_enc)
+#ifndef __x86_64__
+	pushl KEYP
+	pushl KLEN
+	movl 12(%esp), KEYP
+	movl 16(%esp), OUTP
+	movl 20(%esp), INP
+#endif
 	movl 480(KEYP), KLEN		# key length
 	movups (INP), STATE		# input
 	call _aesni_enc1
 	movups STATE, (OUTP)		# output
+#ifndef __x86_64__
+	popl KLEN
+	popl KEYP
+#endif
 	ret
 
 /*
@@ -1428,6 +1470,7 @@ ENTRY(aesni_enc)
  *	KEY
  *	TKEYP (T1)
  */
+.align 4
 _aesni_enc1:
 	movaps (KEYP), KEY		# key
 	mov KEYP, TKEYP
@@ -1490,6 +1533,7 @@ _aesni_enc1:
  *	KEY
  *	TKEYP (T1)
  */
+.align 4
 _aesni_enc4:
 	movaps (KEYP), KEY		# key
 	mov KEYP, TKEYP
@@ -1583,11 +1627,22 @@ _aesni_enc4:
  * void aesni_dec (struct crypto_aes_ctx *ctx, u8 *dst, const u8 *src)
  */
 ENTRY(aesni_dec)
+#ifndef __x86_64__
+	pushl KEYP
+	pushl KLEN
+	movl 12(%esp), KEYP
+	movl 16(%esp), OUTP
+	movl 20(%esp), INP
+#endif
 	mov 480(KEYP), KLEN		# key length
 	add $240, KEYP
 	movups (INP), STATE		# input
 	call _aesni_dec1
 	movups STATE, (OUTP)		#output
+#ifndef __x86_64__
+	popl KLEN
+	popl KEYP
+#endif
 	ret
 
 /*
@@ -1602,6 +1657,7 @@ ENTRY(aesni_dec)
  *	KEY
  *	TKEYP (T1)
  */
+.align 4
 _aesni_dec1:
 	movaps (KEYP), KEY		# key
 	mov KEYP, TKEYP
@@ -1664,6 +1720,7 @@ _aesni_dec1:
  *	KEY
  *	TKEYP (T1)
  */
+.align 4
 _aesni_dec4:
 	movaps (KEYP), KEY		# key
 	mov KEYP, TKEYP
@@ -1758,6 +1815,15 @@ _aesni_dec4:
  *		      size_t len)
  */
 ENTRY(aesni_ecb_enc)
+#ifndef __x86_64__
+	pushl LEN
+	pushl KEYP
+	pushl KLEN
+	movl 16(%esp), KEYP
+	movl 20(%esp), OUTP
+	movl 24(%esp), INP
+	movl 28(%esp), LEN
+#endif
 	test LEN, LEN		# check length
 	jz .Lecb_enc_ret
 	mov 480(KEYP), KLEN
@@ -1794,6 +1860,11 @@ ENTRY(aesni_ecb_enc)
 	cmp $16, LEN
 	jge .Lecb_enc_loop1
 .Lecb_enc_ret:
+#ifndef __x86_64__
+	popl KLEN
+	popl KEYP
+	popl LEN
+#endif
 	ret
 
 /*
@@ -1801,6 +1872,15 @@ ENTRY(aesni_ecb_enc)
  *		      size_t len);
  */
 ENTRY(aesni_ecb_dec)
+#ifndef __x86_64__
+	pushl LEN
+	pushl KEYP
+	pushl KLEN
+	movl 16(%esp), KEYP
+	movl 20(%esp), OUTP
+	movl 24(%esp), INP
+	movl 28(%esp), LEN
+#endif
 	test LEN, LEN
 	jz .Lecb_dec_ret
 	mov 480(KEYP), KLEN
@@ -1838,6 +1918,11 @@ ENTRY(aesni_ecb_dec)
 	cmp $16, LEN
 	jge .Lecb_dec_loop1
 .Lecb_dec_ret:
+#ifndef __x86_64__
+	popl KLEN
+	popl KEYP
+	popl LEN
+#endif
 	ret
 
 /*
@@ -1845,6 +1930,17 @@ ENTRY(aesni_ecb_dec)
  *		      size_t len, u8 *iv)
  */
 ENTRY(aesni_cbc_enc)
+#ifndef __x86_64__
+	pushl IVP
+	pushl LEN
+	pushl KEYP
+	pushl KLEN
+	movl 20(%esp), KEYP
+	movl 24(%esp), OUTP
+	movl 28(%esp), INP
+	movl 32(%esp), LEN
+	movl 36(%esp), IVP
+#endif
 	cmp $16, LEN
 	jb .Lcbc_enc_ret
 	mov 480(KEYP), KLEN
@@ -1862,6 +1958,12 @@ ENTRY(aesni_cbc_enc)
 	jge .Lcbc_enc_loop
 	movups STATE, (IVP)
 .Lcbc_enc_ret:
+#ifndef __x86_64__
+	popl KLEN
+	popl KEYP
+	popl LEN
+	popl IVP
+#endif
 	ret
 
 /*
@@ -1869,6 +1971,17 @@ ENTRY(aesni_cbc_enc)
  *		      size_t len, u8 *iv)
  */
 ENTRY(aesni_cbc_dec)
+#ifndef __x86_64__
+	pushl IVP
+	pushl LEN
+	pushl KEYP
+	pushl KLEN
+	movl 20(%esp), KEYP
+	movl 24(%esp), OUTP
+	movl 28(%esp), INP
+	movl 32(%esp), LEN
+	movl 36(%esp), IVP
+#endif
 	cmp $16, LEN
 	jb .Lcbc_dec_just_ret
 	mov 480(KEYP), KLEN
@@ -1882,16 +1995,30 @@ ENTRY(aesni_cbc_dec)
 	movaps IN1, STATE1
 	movups 0x10(INP), IN2
 	movaps IN2, STATE2
+#ifdef __x86_64__
 	movups 0x20(INP), IN3
 	movaps IN3, STATE3
 	movups 0x30(INP), IN4
 	movaps IN4, STATE4
+#else
+	movups 0x20(INP), IN1
+	movaps IN1, STATE3
+	movups 0x30(INP), IN2
+	movaps IN2, STATE4
+#endif
 	call _aesni_dec4
 	pxor IV, STATE1
+#ifdef __x86_64__
 	pxor IN1, STATE2
 	pxor IN2, STATE3
 	pxor IN3, STATE4
 	movaps IN4, IV
+#else
+	pxor (INP), STATE2
+	pxor 0x10(INP), STATE3
+	pxor IN1, STATE4
+	movaps IN2, IV
+#endif
 	movups STATE1, (OUTP)
 	movups STATE2, 0x10(OUTP)
 	movups STATE3, 0x20(OUTP)
@@ -1919,8 +2046,15 @@ ENTRY(aesni_cbc_dec)
 .Lcbc_dec_ret:
 	movups IV, (IVP)
 .Lcbc_dec_just_ret:
+#ifndef __x86_64__
+	popl KLEN
+	popl KEYP
+	popl LEN
+	popl IVP
+#endif
 	ret
 
+#ifdef __x86_64__
 .align 16
 .Lbswap_mask:
 	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
@@ -1936,6 +2070,7 @@ ENTRY(aesni_cbc_dec)
  *	INC:	== 1, in little endian
  *	BSWAP_MASK == endian swapping mask
  */
+.align 4
 _aesni_inc_init:
 	movaps .Lbswap_mask, BSWAP_MASK
 	movaps IV, CTR
@@ -1960,6 +2095,7 @@ _aesni_inc_init:
  *	CTR:	== output IV, in little endian
  *	TCTR_LOW: == lower qword of CTR
  */
+.align 4
 _aesni_inc:
 	paddq INC, CTR
 	add $1, TCTR_LOW
@@ -2031,3 +2167,4 @@ ENTRY(aesni_ctr_enc)
 	movups IV, (IVP)
 .Lctr_enc_just_ret:
 	ret
+#endif

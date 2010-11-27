@@ -94,8 +94,10 @@ asmlinkage void aesni_cbc_enc(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv);
 asmlinkage void aesni_cbc_dec(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv);
+#ifdef CONFIG_X86_64
 asmlinkage void aesni_ctr_enc(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv);
+#endif
 
 /* asmlinkage void aesni_gcm_enc()
  * void *ctx,  AES Key schedule. Starts on a 16 byte boundary.
@@ -410,6 +412,7 @@ static struct crypto_alg blk_cbc_alg = {
 	},
 };
 
+#ifdef CONFIG_X86_64
 static void ctr_crypt_final(struct crypto_aes_ctx *ctx,
 			    struct blkcipher_walk *walk)
 {
@@ -475,6 +478,7 @@ static struct crypto_alg blk_ctr_alg = {
 		},
 	},
 };
+#endif
 
 static int ablk_set_key(struct crypto_ablkcipher *tfm, const u8 *key,
 			unsigned int key_len)
@@ -622,6 +626,7 @@ static struct crypto_alg ablk_cbc_alg = {
 	},
 };
 
+#ifdef CONFIG_X86_64
 static int ablk_ctr_init(struct crypto_tfm *tfm)
 {
 	struct cryptd_ablkcipher *cryptd_tfm;
@@ -697,6 +702,7 @@ static struct crypto_alg ablk_rfc3686_ctr_alg = {
 		},
 	},
 };
+#endif
 #endif
 
 #ifdef HAS_LRW
@@ -1249,17 +1255,19 @@ static int __init aesni_init(void)
 		goto blk_ecb_err;
 	if ((err = crypto_register_alg(&blk_cbc_alg)))
 		goto blk_cbc_err;
-	if ((err = crypto_register_alg(&blk_ctr_alg)))
-		goto blk_ctr_err;
 	if ((err = crypto_register_alg(&ablk_ecb_alg)))
 		goto ablk_ecb_err;
 	if ((err = crypto_register_alg(&ablk_cbc_alg)))
 		goto ablk_cbc_err;
+#ifdef CONFIG_X86_64
+	if ((err = crypto_register_alg(&blk_ctr_alg)))
+		goto blk_ctr_err;
 	if ((err = crypto_register_alg(&ablk_ctr_alg)))
 		goto ablk_ctr_err;
 #ifdef HAS_CTR
 	if ((err = crypto_register_alg(&ablk_rfc3686_ctr_alg)))
 		goto ablk_rfc3686_ctr_err;
+#endif
 #endif
 #ifdef HAS_LRW
 	if ((err = crypto_register_alg(&ablk_lrw_alg)))
@@ -1296,18 +1304,20 @@ ablk_pcbc_err:
 	crypto_unregister_alg(&ablk_lrw_alg);
 ablk_lrw_err:
 #endif
+#ifdef CONFIG_X86_64
 #ifdef HAS_CTR
 	crypto_unregister_alg(&ablk_rfc3686_ctr_alg);
 ablk_rfc3686_ctr_err:
 #endif
 	crypto_unregister_alg(&ablk_ctr_alg);
 ablk_ctr_err:
+	crypto_unregister_alg(&blk_ctr_alg);
+blk_ctr_err:
+#endif
 	crypto_unregister_alg(&ablk_cbc_alg);
 ablk_cbc_err:
 	crypto_unregister_alg(&ablk_ecb_alg);
 ablk_ecb_err:
-	crypto_unregister_alg(&blk_ctr_alg);
-blk_ctr_err:
 	crypto_unregister_alg(&blk_cbc_alg);
 blk_cbc_err:
 	crypto_unregister_alg(&blk_ecb_alg);
@@ -1332,13 +1342,15 @@ static void __exit aesni_exit(void)
 #ifdef HAS_LRW
 	crypto_unregister_alg(&ablk_lrw_alg);
 #endif
+#ifdef CONFIG_X86_64
 #ifdef HAS_CTR
 	crypto_unregister_alg(&ablk_rfc3686_ctr_alg);
 #endif
 	crypto_unregister_alg(&ablk_ctr_alg);
+	crypto_unregister_alg(&blk_ctr_alg);
+#endif
 	crypto_unregister_alg(&ablk_cbc_alg);
 	crypto_unregister_alg(&ablk_ecb_alg);
-	crypto_unregister_alg(&blk_ctr_alg);
 	crypto_unregister_alg(&blk_cbc_alg);
 	crypto_unregister_alg(&blk_ecb_alg);
 	crypto_unregister_alg(&__aesni_alg);

@@ -539,8 +539,9 @@ config CRYPTO_AES_X86_64
 
 config CRYPTO_AES_NI_INTEL
 	tristate "AES cipher algorithms (AES-NI)"
-	depends on (X86 || UML_X86) && 64BIT
-	select CRYPTO_AES_X86_64
+	depends on (X86 || UML_X86)
+	select CRYPTO_AES_X86_64 if 64BIT
+	select CRYPTO_AES_586 if !64BIT
 	select CRYPTO_CRYPTD
 	select CRYPTO_ALGAPI
 	select CRYPTO_FPU
@@ -563,9 +564,10 @@ config CRYPTO_AES_NI_INTEL
 
 	  See <http://csrc.nist.gov/encryption/aes/> for more information.
 
-	  In addition to AES cipher algorithm support, the
-	  acceleration for some popular block cipher mode is supported
-	  too, including ECB, CBC, CTR, LRW, PCBC, XTS.
+	  In addition to AES cipher algorithm support, the acceleration
+	  for some popular block cipher mode is supported too, including
+	  ECB, CBC, LRW, PCBC, XTS. The 64 bit version has additional
+	  acceleration for CTR.
 
 config CRYPTO_ANUBIS
 	tristate "Anubis cipher algorithm"
