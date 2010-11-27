@@ -169,11 +169,27 @@ static int bcm47xx_get_invariants(struct ssb_bus *bus,
 void __init plat_mem_setup(void)
 {
 	int err;
+	char buf[100];
+	struct ssb_mipscore *mcore;
 
 	err = ssb_bus_ssbbus_register(&ssb_bcm47xx, SSB_ENUM_BASE,
 				      bcm47xx_get_invariants);
 	if (err)
 		panic("Failed to initialize SSB bus (err %d)\n", err);
+
+	mcore = &ssb_bcm47xx.mipscore;
+	if (nvram_getenv("kernel_args", buf, sizeof(buf)) >= 0) {
+		if (strstr(buf, "console=ttyS1")) {
+			struct ssb_serial_port port;
+
+			printk(KERN_DEBUG "Swapping serial ports!\n");
+			/* swap serial ports */
+			memcpy(&port, &mcore->serial_ports[0], sizeof(port));
+			memcpy(&mcore->serial_ports[0], &mcore->serial_ports[1],
+			       sizeof(port));
+			memcpy(&mcore->serial_ports[1], &port, sizeof(port));
+		}
+	}
 
 	_machine_restart = bcm47xx_machine_restart;
 	_machine_halt = bcm47xx_machine_halt;
