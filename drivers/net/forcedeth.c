@@ -60,10 +60,10 @@
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
+#include  <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
 #include <asm/system.h>
 
 #if 0
