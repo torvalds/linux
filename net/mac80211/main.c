@@ -605,6 +605,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	/* init dummy netdev for use w/ NAPI */
 	init_dummy_netdev(&local->napi_dev);
 
+	ieee80211_led_names(local);
+
 	return local_to_hw(local);
 }
 EXPORT_SYMBOL(ieee80211_alloc_hw);

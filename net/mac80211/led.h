@@ -18,6 +18,7 @@ extern void ieee80211_led_assoc(struct ieee80211_local *local,
 				bool associated);
 extern void ieee80211_led_radio(struct ieee80211_local *local,
 				bool enabled);
+extern void ieee80211_led_names(struct ieee80211_local *local);
 extern void ieee80211_led_init(struct ieee80211_local *local);
 extern void ieee80211_led_exit(struct ieee80211_local *local);
 #else
@@ -33,6 +34,9 @@ static inline void ieee80211_led_assoc(struct ieee80211_local *local,
 }
 static inline void ieee80211_led_radio(struct ieee80211_local *local,
 				       bool enabled)
+{
+}
+static inline void ieee80211_led_names(struct ieee80211_local *local)
 {
 }
 static inline void ieee80211_led_init(struct ieee80211_local *local)

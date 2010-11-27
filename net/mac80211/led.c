@@ -54,12 +54,22 @@ void ieee80211_led_radio(struct ieee80211_local *local, bool enabled)
 		led_trigger_event(local->radio_led, LED_OFF);
 }
 
+void ieee80211_led_names(struct ieee80211_local *local)
+{
+	snprintf(local->rx_led_name, sizeof(local->rx_led_name),
+		 "%srx", wiphy_name(local->hw.wiphy));
+	snprintf(local->tx_led_name, sizeof(local->tx_led_name),
+		 "%stx", wiphy_name(local->hw.wiphy));
+	snprintf(local->assoc_led_name, sizeof(local->assoc_led_name),
+		 "%sassoc", wiphy_name(local->hw.wiphy));
+	snprintf(local->radio_led_name, sizeof(local->radio_led_name),
+		 "%sradio", wiphy_name(local->hw.wiphy));
+}
+
 void ieee80211_led_init(struct ieee80211_local *local)
 {
 	local->rx_led = kzalloc(sizeof(struct led_trigger), GFP_KERNEL);
 	if (local->rx_led) {
-		snprintf(local->rx_led_name, sizeof(local->rx_led_name),
-			 "%srx", wiphy_name(local->hw.wiphy));
 		local->rx_led->name = local->rx_led_name;
 		if (led_trigger_register(local->rx_led)) {
 			kfree(local->rx_led);
@@ -69,8 +79,6 @@ void ieee80211_led_init(struct ieee80211_local *local)
 
 	local->tx_led = kzalloc(sizeof(struct led_trigger), GFP_KERNEL);
 	if (local->tx_led) {
-		snprintf(local->tx_led_name, sizeof(local->tx_led_name),
-			 "%stx", wiphy_name(local->hw.wiphy));
 		local->tx_led->name = local->tx_led_name;
 		if (led_trigger_register(local->tx_led)) {
 			kfree(local->tx_led);
@@ -80,8 +88,6 @@ void ieee80211_led_init(struct ieee80211_local *local)
 
 	local->assoc_led = kzalloc(sizeof(struct led_trigger), GFP_KERNEL);
 	if (local->assoc_led) {
-		snprintf(local->assoc_led_name, sizeof(local->assoc_led_name),
-			 "%sassoc", wiphy_name(local->hw.wiphy));
 		local->assoc_led->name = local->assoc_led_name;
 		if (led_trigger_register(local->assoc_led)) {
 			kfree(local->assoc_led);
@@ -91,8 +97,6 @@ void ieee80211_led_init(struct ieee80211_local *local)
 
 	local->radio_led = kzalloc(sizeof(struct led_trigger), GFP_KERNEL);
 	if (local->radio_led) {
-		snprintf(local->radio_led_name, sizeof(local->radio_led_name),
-			 "%sradio", wiphy_name(local->hw.wiphy));
 		local->radio_led->name = local->radio_led_name;
 		if (led_trigger_register(local->radio_led)) {
 			kfree(local->radio_led);
@@ -125,9 +129,7 @@ char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (local->radio_led)
-		return local->radio_led_name;
-	return NULL;
+	return local->radio_led_name;
 }
 EXPORT_SYMBOL(__ieee80211_get_radio_led_name);
 
@@ -135,9 +137,7 @@ char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (local->assoc_led)
-		return local->assoc_led_name;
-	return NULL;
+	return local->assoc_led_name;
 }
 EXPORT_SYMBOL(__ieee80211_get_assoc_led_name);
 
@@ -145,9 +145,7 @@ char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (local->tx_led)
-		return local->tx_led_name;
-	return NULL;
+	return local->tx_led_name;
 }
 EXPORT_SYMBOL(__ieee80211_get_tx_led_name);
 
@@ -155,8 +153,6 @@ char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (local->rx_led)
-		return local->rx_led_name;
-	return NULL;
+	return local->rx_led_name;
 }
 EXPORT_SYMBOL(__ieee80211_get_rx_led_name);
