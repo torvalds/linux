@@ -32,7 +32,6 @@
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <bcm47xx.h>
-#include <asm/fw/cfe/cfe_api.h>
 #include <asm/mach-bcm47xx/nvram.h>
 
 struct ssb_bus ssb_bcm47xx;
@@ -82,42 +81,33 @@ static int bcm47xx_get_invariants(struct ssb_bus *bus,
 	/* Fill boardinfo structure */
 	memset(&(iv->boardinfo), 0 , sizeof(struct ssb_boardinfo));
 
-	if (cfe_getenv("boardvendor", buf, sizeof(buf)) >= 0 ||
-	    nvram_getenv("boardvendor", buf, sizeof(buf)) >= 0)
+	if (nvram_getenv("boardvendor", buf, sizeof(buf)) >= 0)
 		iv->boardinfo.type = (u16)simple_strtoul(buf, NULL, 0);
-	if (cfe_getenv("boardtype", buf, sizeof(buf)) >= 0 ||
-	    nvram_getenv("boardtype", buf, sizeof(buf)) >= 0)
+	if (nvram_getenv("boardtype", buf, sizeof(buf)) >= 0)
 		iv->boardinfo.type = (u16)simple_strtoul(buf, NULL, 0);
-	if (cfe_getenv("boardrev", buf, sizeof(buf)) >= 0 ||
-	    nvram_getenv("boardrev", buf, sizeof(buf)) >= 0)
+	if (nvram_getenv("boardrev", buf, sizeof(buf)) >= 0)
 		iv->boardinfo.rev = (u16)simple_strtoul(buf, NULL, 0);
 
 	/* Fill sprom structure */
 	memset(&(iv->sprom), 0, sizeof(struct ssb_sprom));
 	iv->sprom.revision = 3;
 
-	if (cfe_getenv("et0macaddr", buf, sizeof(buf)) >= 0 ||
-	    nvram_getenv("et0macaddr", buf, sizeof(buf)) >= 0)
+	if (nvram_getenv("et0macaddr", buf, sizeof(buf)) >= 0)
 		str2eaddr(buf, iv->sprom.et0mac);
 
-	if (cfe_getenv("et1macaddr", buf, sizeof(buf)) >= 0 ||
-	    nvram_getenv("et1macaddr", buf, sizeof(buf)) >= 0)
+	if (nvram_getenv("et1macaddr", buf, sizeof(buf)) >= 0)
 		str2eaddr(buf, iv->sprom.et1mac);
 
-	if (cfe_getenv("et0phyaddr", buf, sizeof(buf)) >= 0 ||
-	    nvram_getenv("et0phyaddr", buf, sizeof(buf)) >= 0)
+	if (nvram_getenv("et0phyaddr", buf, sizeof(buf)) >= 0)
 		iv->sprom.et0phyaddr = simple_strtoul(buf, NULL, 0);
 
-	if (cfe_getenv("et1phyaddr", buf, sizeof(buf)) >= 0 ||
-	    nvram_getenv("et1phyaddr", buf, sizeof(buf)) >= 0)
+	if (nvram_getenv("et1phyaddr", buf, sizeof(buf)) >= 0)
 		iv->sprom.et1phyaddr = simple_strtoul(buf, NULL, 0);
 
-	if (cfe_getenv("et0mdcport", buf, sizeof(buf)) >= 0 ||
-	    nvram_getenv("et0mdcport", buf, sizeof(buf)) >= 0)
+	if (nvram_getenv("et0mdcport", buf, sizeof(buf)) >= 0)
 		iv->sprom.et0mdcport = simple_strtoul(buf, NULL, 10);
 
-	if (cfe_getenv("et1mdcport", buf, sizeof(buf)) >= 0 ||
-	    nvram_getenv("et1mdcport", buf, sizeof(buf)) >= 0)
+	if (nvram_getenv("et1mdcport", buf, sizeof(buf)) >= 0)
 		iv->sprom.et1mdcport = simple_strtoul(buf, NULL, 10);
 
 	return 0;
