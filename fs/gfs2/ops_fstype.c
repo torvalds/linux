@@ -1268,7 +1268,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 {
 	struct block_device *bdev;
 	struct super_block *s;
-	fmode_t mode = FMODE_READ;
+	fmode_t mode = FMODE_READ | FMODE_EXCL;
 	int error;
 	struct gfs2_args args;
 	struct gfs2_sbd *sdp;
@@ -1276,7 +1276,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 	if (!(flags & MS_RDONLY))
 		mode |= FMODE_WRITE;
 
-	bdev = open_bdev_exclusive(dev_name, mode, fs_type);
+	bdev = blkdev_get_by_path(dev_name, mode, fs_type);
 	if (IS_ERR(bdev))
 		return ERR_CAST(bdev);
 
@@ -1298,7 +1298,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 		goto error_bdev;
 
 	if (s->s_root)
-		close_bdev_exclusive(bdev, mode);
+		blkdev_put(bdev, mode);
 
 	memset(&args, 0, sizeof(args));
 	args.ar_quota = GFS2_QUOTA_DEFAULT;
@@ -1342,7 +1342,7 @@ error_super:
 	deactivate_locked_super(s);
 	return ERR_PTR(error);
 error_bdev:
-	close_bdev_exclusive(bdev, mode);
+	blkdev_put(bdev, mode);
 	return ERR_PTR(error);
 }
 

@@ -647,7 +647,7 @@ static struct block_device *ext4_blkdev_get(dev_t dev, struct super_block *sb)
 	struct block_device *bdev;
 	char b[BDEVNAME_SIZE];
 
-	bdev = open_by_devnum(dev, FMODE_READ|FMODE_WRITE);
+	bdev = blkdev_get_by_dev(dev, FMODE_READ|FMODE_WRITE|FMODE_EXCL, sb);
 	if (IS_ERR(bdev))
 		goto fail;
 	return bdev;
@@ -663,8 +663,7 @@ fail:
  */
 static int ext4_blkdev_put(struct block_device *bdev)
 {
-	bd_release(bdev);
-	return blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
+	return blkdev_put(bdev, FMODE_READ|FMODE_WRITE|FMODE_EXCL);
 }
 
 static int ext4_blkdev_remove(struct ext4_sb_info *sbi)
@@ -3757,13 +3756,6 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
 	bdev = ext4_blkdev_get(j_dev, sb);
 	if (bdev == NULL)
 		return NULL;
-
-	if (bd_claim(bdev, sb)) {
-		ext4_msg(sb, KERN_ERR,
-			"failed to claim external journal device");
-		blkdev_put(bdev, FMODE_READ|FMODE_WRITE);
-		return NULL;
-	}
 
 	blocksize = sb->s_blocksize;
 	hblock = bdev_logical_block_size(bdev);

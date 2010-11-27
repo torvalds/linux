@@ -1147,14 +1147,14 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 {
 	struct nilfs_super_data sd;
 	struct super_block *s;
-	fmode_t mode = FMODE_READ;
+	fmode_t mode = FMODE_READ | FMODE_EXCL;
 	struct dentry *root_dentry;
 	int err, s_new = false;
 
 	if (!(flags & MS_RDONLY))
 		mode |= FMODE_WRITE;
 
-	sd.bdev = open_bdev_exclusive(dev_name, mode, fs_type);
+	sd.bdev = blkdev_get_by_path(dev_name, mode, fs_type);
 	if (IS_ERR(sd.bdev))
 		return ERR_CAST(sd.bdev);
 
@@ -1233,7 +1233,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 	}
 
 	if (!s_new)
-		close_bdev_exclusive(sd.bdev, mode);
+		blkdev_put(sd.bdev, mode);
 
 	return root_dentry;
 
@@ -1242,7 +1242,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 
  failed:
 	if (!s_new)
-		close_bdev_exclusive(sd.bdev, mode);
+		blkdev_put(sd.bdev, mode);
 	return ERR_PTR(err);
 }
 

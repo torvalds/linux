@@ -295,11 +295,12 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			return -EINVAL;
 		if (get_user(n, (int __user *) arg))
 			return -EFAULT;
-		if (!(mode & FMODE_EXCL) && bd_claim(bdev, &bdev) < 0)
+		if (!(mode & FMODE_EXCL) &&
+		    blkdev_get(bdev, mode | FMODE_EXCL, &bdev) < 0)
 			return -EBUSY;
 		ret = set_blocksize(bdev, n);
 		if (!(mode & FMODE_EXCL))
-			bd_release(bdev);
+			blkdev_put(bdev, mode | FMODE_EXCL);
 		return ret;
 	case BLKPG:
 		ret = blkpg_ioctl(bdev, (struct blkpg_ioctl_arg __user *) arg);
