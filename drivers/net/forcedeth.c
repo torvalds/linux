@@ -3789,7 +3789,8 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 	if (np->msi_flags & NV_MSI_X_CAPABLE) {
 		for (i = 0; i < (np->msi_flags & NV_MSI_X_VECTORS_MASK); i++)
 			np->msi_x_entry[i].entry = i;
-		if ((ret = pci_enable_msix(np->pci_dev, np->msi_x_entry, (np->msi_flags & NV_MSI_X_VECTORS_MASK))) == 0) {
+		ret = pci_enable_msix(np->pci_dev, np->msi_x_entry, (np->msi_flags & NV_MSI_X_VECTORS_MASK));
+		if (ret == 0) {
 			np->msi_flags |= NV_MSI_X_ENABLED;
 			if (optimization_mode == NV_OPTIMIZATION_MODE_THROUGHPUT && !intr_test) {
 				/* Request irq for rx handling */
@@ -3841,7 +3842,8 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 		}
 	}
 	if (ret != 0 && np->msi_flags & NV_MSI_CAPABLE) {
-		if ((ret = pci_enable_msi(np->pci_dev)) == 0) {
+		ret = pci_enable_msi(np->pci_dev);
+		if (ret == 0) {
 			np->msi_flags |= NV_MSI_ENABLED;
 			dev->irq = np->pci_dev->irq;
 			if (request_irq(np->pci_dev->irq, handler, IRQF_SHARED, dev->name, dev) != 0) {
