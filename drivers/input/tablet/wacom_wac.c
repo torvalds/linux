@@ -14,6 +14,7 @@
 
 #include "wacom_wac.h"
 #include "wacom.h"
+#include <linux/input/mt.h>
 
 static int wacom_penpartner_irq(struct wacom_wac *wacom)
 {
