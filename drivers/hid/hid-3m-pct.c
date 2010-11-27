@@ -29,7 +29,6 @@ MODULE_LICENSE("GPL");
 
 #define MAX_SLOTS		60
 #define MAX_TRKID		USHRT_MAX
-#define MAX_EVENTS		360
 
 /* estimated signal-to-noise ratios */
 #define SN_MOVE			2048
@@ -123,9 +122,7 @@ static int mmm_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 					EV_ABS, ABS_MT_TRACKING_ID);
 			input_set_abs_params(hi->input, ABS_MT_TRACKING_ID,
 					     0, MAX_TRKID, 0, 0);
-			if (!hi->input->mt)
-				input_mt_create_slots(hi->input, MAX_SLOTS);
-			input_set_events_per_packet(hi->input, MAX_EVENTS);
+			input_mt_init_slots(hi->input, MAX_SLOTS);
 			return 1;
 		}
 		/* let hid-input decide for the others */

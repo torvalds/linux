@@ -12,20 +12,25 @@
 #include <linux/slab.h>
 
 /**
- * input_mt_create_slots() - create MT input slots
+ * input_mt_init_slots() - initialize MT input slots
  * @dev: input device supporting MT events and finger tracking
  * @num_slots: number of slots used by the device
  *
- * This function allocates all necessary memory for MT slot handling in the
- * input device, and adds ABS_MT_SLOT to the device capabilities. All slots
- * are initially marked as unused by setting ABS_MT_TRACKING_ID to -1.
+ * This function allocates all necessary memory for MT slot handling
+ * in the input device, adds ABS_MT_SLOT to the device capabilities
+ * and sets up appropriate event buffers. All slots are initially
+ * marked as unused by setting ABS_MT_TRACKING_ID to -1. May be called
+ * repeatedly. Returns -EINVAL if attempting to reinitialize with a
+ * different number of slots.
  */
-int input_mt_create_slots(struct input_dev *dev, unsigned int num_slots)
+int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots)
 {
 	int i;
 
 	if (!num_slots)
 		return 0;
+	if (dev->mt)
+		return dev->mtsize != num_slots ? -EINVAL : 0;
 
 	dev->mt = kcalloc(num_slots, sizeof(struct input_mt_slot), GFP_KERNEL);
 	if (!dev->mt)
@@ -33,6 +38,7 @@ int input_mt_create_slots(struct input_dev *dev, unsigned int num_slots)
 
 	dev->mtsize = num_slots;
 	input_set_abs_params(dev, ABS_MT_SLOT, 0, num_slots - 1, 0, 0);
+	input_set_events_per_packet(dev, 6 * num_slots);
 
 	/* Mark slots as 'unused' */
 	for (i = 0; i < num_slots; i++)
@@ -40,7 +46,7 @@ int input_mt_create_slots(struct input_dev *dev, unsigned int num_slots)
 
 	return 0;
 }
-EXPORT_SYMBOL(input_mt_create_slots);
+EXPORT_SYMBOL(input_mt_init_slots);
 
 /**
  * input_mt_destroy_slots() - frees the MT slots of the input device
@@ -54,5 +60,6 @@ void input_mt_destroy_slots(struct input_dev *dev)
 	kfree(dev->mt);
 	dev->mt = NULL;
 	dev->mtsize = 0;
+	dev->slot = 0;
 }
 EXPORT_SYMBOL(input_mt_destroy_slots);
