@@ -133,7 +133,7 @@ extern int cifs_get_inode_info_unix(struct inode **pinode,
 extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 			      struct cifs_fattr *fattr, struct inode *inode,
 			      const char *path, const __u16 *pfid);
-extern int mode_to_acl(struct inode *inode, const char *path, __u64);
+extern int mode_to_cifs_acl(struct inode *inode, const char *path, __u64);
 
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
 			const char *);
