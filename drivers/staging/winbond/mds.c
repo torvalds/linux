@@ -1,5 +1,4 @@
 #include "mds_f.h"
-#include "mlmetxrx_f.h"
 #include "mto.h"
 #include "wbhal.h"
 #include "wblinux_f.h"
@@ -395,6 +394,44 @@ static void Mds_HeaderCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *
 		pDes->PreambleMode =  CURRENT_PREAMBLE_MODE;
 	pT01->T01_plcp_header_length = pDes->PreambleMode;	/* Set preamble */
 
+}
+
+static void MLME_GetNextPacket(struct wbsoft_priv *adapter, struct wb35_descriptor *desc)
+{
+	desc->InternalUsed = desc->buffer_start_index + desc->buffer_number;
+	desc->InternalUsed %= MAX_DESCRIPTOR_BUFFER_INDEX;
+	desc->buffer_address[desc->InternalUsed] = adapter->sMlmeFrame.pMMPDU;
+	desc->buffer_size[desc->InternalUsed] = adapter->sMlmeFrame.len;
+	desc->buffer_total_size += adapter->sMlmeFrame.len;
+	desc->buffer_number++;
+	desc->Type = adapter->sMlmeFrame.DataType;
+}
+
+static void MLMEfreeMMPDUBuffer(struct wbsoft_priv *adapter, s8 *pData)
+{
+	int i;
+
+	/* Reclaim the data buffer */
+	for (i = 0; i < MAX_NUM_TX_MMPDU; i++) {
+		if (pData == (s8 *)&(adapter->sMlmeFrame.TxMMPDU[i]))
+			break;
+	}
+	if (adapter->sMlmeFrame.TxMMPDUInUse[i])
+		adapter->sMlmeFrame.TxMMPDUInUse[i] = false;
+	else  {
+		/* Something wrong
+		 PD43 Add debug code here??? */
+	}
+}
+
+static void MLME_SendComplete(struct wbsoft_priv *adapter, u8 PacketID, unsigned char SendOK)
+{
+    /* Reclaim the data buffer */
+	adapter->sMlmeFrame.len = 0;
+	MLMEfreeMMPDUBuffer(adapter, adapter->sMlmeFrame.pMMPDU);
+
+	/* Return resource */
+	adapter->sMlmeFrame.IsInUsed = PACKET_FREE_TO_USE;
 }
 
 void
