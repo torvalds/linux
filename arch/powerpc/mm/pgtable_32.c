@@ -230,6 +230,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 		area = get_vm_area_caller(size, VM_IOREMAP, caller);
 		if (area == 0)
 			return NULL;
+		area->phys_addr = p;
 		v = (unsigned long) area->addr;
 	} else {
 		v = (ioremap_bot -= size);
