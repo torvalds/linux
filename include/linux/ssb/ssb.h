@@ -55,6 +55,10 @@ struct ssb_sprom {
 	u8 tri5gl;		/* 5.2GHz TX isolation */
 	u8 tri5g;		/* 5.3GHz TX isolation */
 	u8 tri5gh;		/* 5.8GHz TX isolation */
+	u8 txpid2g[4];		/* 2GHz TX power index */
+	u8 txpid5gl[4];		/* 4.9 - 5.1GHz TX power index */
+	u8 txpid5g[4];		/* 5.1 - 5.5GHz TX power index */
+	u8 txpid5gh[4];		/* 5.5 - ...GHz TX power index */
 	u8 rxpo2g;		/* 2GHz RX power offset */
 	u8 rxpo5g;		/* 5GHz RX power offset */
 	u8 rssisav2g;		/* 2GHz RSSI params */
