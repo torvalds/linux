@@ -383,6 +383,35 @@ static int ssb_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 			     ssb_dev->id.revision);
 }
 
+#define ssb_config_attr(attrib, field, format_string) \
+static ssize_t \
+attrib##_show(struct device *dev, struct device_attribute *attr, char *buf) \
+{ \
+	return sprintf(buf, format_string, dev_to_ssb_dev(dev)->field); \
+}
+
+ssb_config_attr(core_num, core_index, "%u\n")
+ssb_config_attr(coreid, id.coreid, "0x%04x\n")
+ssb_config_attr(vendor, id.vendor, "0x%04x\n")
+ssb_config_attr(revision, id.revision, "%u\n")
+ssb_config_attr(irq, irq, "%u\n")
+static ssize_t
+name_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n",
+		       ssb_core_name(dev_to_ssb_dev(dev)->id.coreid));
+}
+
+static struct device_attribute ssb_device_attrs[] = {
+	__ATTR_RO(name),
+	__ATTR_RO(core_num),
+	__ATTR_RO(coreid),
+	__ATTR_RO(vendor),
+	__ATTR_RO(revision),
+	__ATTR_RO(irq),
+	__ATTR_NULL,
+};
+
 static struct bus_type ssb_bustype = {
 	.name		= "ssb",
 	.match		= ssb_bus_match,
@@ -392,6 +421,7 @@ static struct bus_type ssb_bustype = {
 	.suspend	= ssb_device_suspend,
 	.resume		= ssb_device_resume,
 	.uevent		= ssb_device_uevent,
+	.dev_attrs	= ssb_device_attrs,
 };
 
 static void ssb_buses_lock(void)
