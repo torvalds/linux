@@ -111,9 +111,6 @@
 /* --  WPA  -- */
 
 #define ELEMENT_ID_RSN_WPA					221
-#ifdef _WPA2_
-#define ELEMENT_ID_RSN_WPA2				    48
-#endif /* endif WPA2 */
 
 #define WLAN_MAX_PAIRWISE_CIPHER_SUITE_COUNT    ((u16) 6)
 #define WLAN_MAX_AUTH_KEY_MGT_SUITE_LIST_COUNT  ((u16) 2)
@@ -367,21 +364,11 @@ struct Extended_Supported_Rates_Element {
 
 /* WPA(802.11i draft 3.0) */
 #define VERSION_WPA				1
-#ifdef _WPA2_
-#define VERSION_WPA2            1
-#endif /* end def  _WPA2_ */
 /* WPA2.0 OUI=00:50:F2, the MSB is reserved for suite type */
 #define OUI_WPA					0x00F25000
-#ifdef _WPA2_
-/* for wpa2 change to 0x00ACOF04 by Ws 26/04/04 */
-#define OUI_WPA2				0x00AC0F00
-#endif /* end def _WPA2_ */
 
 #define OUI_WPA_ADDITIONAL		0x01
 #define WLAN_MIN_RSN_WPA_LENGTH                 6 /* added by ws 09/10/04 */
-#ifdef _WPA2_
-#define WLAN_MIN_RSN_WPA2_LENGTH                2 /* Fix to 2 09/14/05 */
-#endif /* end def _WPA2_ */
 
 #define oui_wpa                  (u32)(OUI_WPA|OUI_WPA_ADDITIONAL)
 
@@ -389,12 +376,6 @@ struct Extended_Supported_Rates_Element {
 #define WPA_OUI_LITTLE  ((u32) 0x01F25001)/* added by ws 09/23/04 */
 /* 20061108 For WPS. It's little endian. Big endian is 0x0050F204 */
 #define WPA_WPS_OUI				cpu_to_le32(0x04F25000)
-
-/* -----WPA2----- */
-#ifdef _WPA2_
-#define WPA2_OUI_BIG    ((u32)0x01AC0F00)
-#define WPA2_OUI_LITTLE ((u32)0x01AC0F01)
-#endif /* end def _WPA2_ */
 
 /* Authentication suite */
 #define OUI_AUTH_WPA_NONE           0x00 /* for WPA_NONE */
@@ -460,33 +441,6 @@ struct RSN_Capability_Element {
   } __attribute__ ((packed)) ;
 } __attribute__ ((packed)) ;
 
-#ifdef _WPA2_
-struct pmkid {
-  u8 pValue[16];
-};
-
-struct	WPA2_RSN_Information_Element {
-	u8					Element_ID;
-	u8					Length;
-	u16					Version;
-	struct suite_selector		GroupKeySuite;
-	u16					PairwiseKeySuiteCount;
-	struct suite_selector		PairwiseKeySuite[1];
-
-} __attribute__ ((packed));
-
-struct WPA2_RSN_Auth_Sub_Information_Element {
-	u16				AuthKeyMngtSuiteCount;
-	struct suite_selector	AuthKeyMngtSuite[1];
-} __attribute__ ((packed));
-
-
-struct PMKID_Information_Element {
-	u16				PMKID_Count;
-	struct pmkid pmkid[16];
-} __attribute__ ((packed));
-
-#endif /* enddef _WPA2_ */
 /*============================================================
 // MAC Frame structure (different type) and subfield structure
 //============================================================*/
