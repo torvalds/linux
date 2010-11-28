@@ -234,7 +234,6 @@ u32 hal_get_bss_pk_cnt(struct hw_data *hw_data);
 
 /* return 100ms count */
 #define hal_get_time_count(_P)		(_P->time_count / 10)
-#define hal_detect_error(_P)		(_P->WbUsb.DetectCount)
 
 #define hal_ibss_disconnect(_A)		(hal_stop_sync_bss(_A))
 

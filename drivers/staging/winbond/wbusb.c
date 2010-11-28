@@ -337,10 +337,8 @@ static void hal_stop(struct hw_data *pHwData)
 static unsigned char hal_idle(struct hw_data *pHwData)
 {
 	struct wb35_reg *reg = &pHwData->reg;
-	struct wb_usb *pWbUsb = &pHwData->WbUsb;
 
-	if (!pHwData->SurpriseRemove
-	    && (pWbUsb->DetectCount || reg->EP0vm_state != VM_STOP))
+	if (!pHwData->SurpriseRemove && reg->EP0vm_state != VM_STOP)
 		return false;
 
 	return true;
@@ -786,10 +784,8 @@ static int wb35_probe(struct usb_interface *intf,
 	interface = intf->cur_altsetting;
 	endpoint = &interface->endpoint[0].desc;
 
-	if (endpoint[2].wMaxPacketSize == 512) {
+	if (endpoint[2].wMaxPacketSize == 512)
 		printk("[w35und] Working on USB 2.0\n");
-		pWbUsb->IsUsb20 = 1;
-	}
 
 	err = wb35_hw_init(dev);
 	if (err)

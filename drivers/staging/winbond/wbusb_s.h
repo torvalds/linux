@@ -11,8 +11,6 @@
 #include <linux/types.h>
 
 struct wb_usb {
-	u32	IsUsb20;
 	struct	usb_device *udev;
-	u32	DetectCount;
 };
 #endif
