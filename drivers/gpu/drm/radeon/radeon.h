@@ -1449,65 +1449,6 @@ extern void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc
 extern int radeon_resume_kms(struct drm_device *dev);
 extern int radeon_suspend_kms(struct drm_device *dev, pm_message_t state);
 
-/* r100,rv100,rs100,rv200,rs200,r200,rv250,rs300,rv280 */
-extern void r100_gpu_lockup_update(struct r100_gpu_lockup *lockup, struct radeon_cp *cp);
-extern bool r100_gpu_cp_is_lockup(struct radeon_device *rdev, struct r100_gpu_lockup *lockup, struct radeon_cp *cp);
-
-/* rv200,rv250,rv280 */
-extern void r200_set_safe_registers(struct radeon_device *rdev);
-
-/* r300,r350,rv350,rv370,rv380 */
-extern void r300_set_reg_safe(struct radeon_device *rdev);
-extern void r300_mc_program(struct radeon_device *rdev);
-extern void r300_mc_init(struct radeon_device *rdev);
-extern void r300_clock_startup(struct radeon_device *rdev);
-extern int r300_mc_wait_for_idle(struct radeon_device *rdev);
-extern int rv370_pcie_gart_init(struct radeon_device *rdev);
-extern void rv370_pcie_gart_fini(struct radeon_device *rdev);
-extern int rv370_pcie_gart_enable(struct radeon_device *rdev);
-extern void rv370_pcie_gart_disable(struct radeon_device *rdev);
-
-/* r420,r423,rv410 */
-extern u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg);
-extern void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v);
-extern int r420_debugfs_pipes_info_init(struct radeon_device *rdev);
-extern void r420_pipes_init(struct radeon_device *rdev);
-
-/* rv515 */
-struct rv515_mc_save {
-	u32 d1vga_control;
-	u32 d2vga_control;
-	u32 vga_render_control;
-	u32 vga_hdp_control;
-	u32 d1crtc_control;
-	u32 d2crtc_control;
-};
-extern void rv515_bandwidth_avivo_update(struct radeon_device *rdev);
-extern void rv515_vga_render_disable(struct radeon_device *rdev);
-extern void rv515_set_safe_registers(struct radeon_device *rdev);
-extern void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save);
-extern void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save);
-extern void rv515_clock_startup(struct radeon_device *rdev);
-extern void rv515_debugfs(struct radeon_device *rdev);
-extern int rv515_suspend(struct radeon_device *rdev);
-
-/* rs400 */
-extern int rs400_gart_init(struct radeon_device *rdev);
-extern int rs400_gart_enable(struct radeon_device *rdev);
-extern void rs400_gart_adjust_size(struct radeon_device *rdev);
-extern void rs400_gart_disable(struct radeon_device *rdev);
-extern void rs400_gart_fini(struct radeon_device *rdev);
-
-/* rs600 */
-extern void rs600_set_safe_registers(struct radeon_device *rdev);
-extern int rs600_irq_set(struct radeon_device *rdev);
-extern void rs600_irq_disable(struct radeon_device *rdev);
-
-/* rs690, rs740 */
-extern void rs690_line_buffer_adjust(struct radeon_device *rdev,
-					struct drm_display_mode *mode1,
-					struct drm_display_mode *mode2);
-
 /* r600, rv610, rv630, rv620, rv635, rv670, rs780, rs880 */
 extern bool r600_card_posted(struct radeon_device *rdev);
 extern void r600_cp_stop(struct radeon_device *rdev);

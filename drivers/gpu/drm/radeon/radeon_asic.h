@@ -102,6 +102,11 @@ int r100_pci_gart_enable(struct radeon_device *rdev);
 void r100_pci_gart_disable(struct radeon_device *rdev);
 int r100_debugfs_mc_info_init(struct radeon_device *rdev);
 int r100_gui_wait_for_idle(struct radeon_device *rdev);
+void r100_gpu_lockup_update(struct r100_gpu_lockup *lockup,
+			    struct radeon_cp *cp);
+bool r100_gpu_cp_is_lockup(struct radeon_device *rdev,
+			   struct r100_gpu_lockup *lockup,
+			   struct radeon_cp *cp);
 void r100_ib_fini(struct radeon_device *rdev);
 int r100_ib_init(struct radeon_device *rdev);
 void r100_irq_disable(struct radeon_device *rdev);
@@ -138,10 +143,11 @@ extern void r100_post_page_flip(struct radeon_device *rdev, int crtc);
  * r200,rv250,rs300,rv280
  */
 extern int r200_copy_dma(struct radeon_device *rdev,
-			uint64_t src_offset,
-			uint64_t dst_offset,
-			unsigned num_pages,
+			 uint64_t src_offset,
+			 uint64_t dst_offset,
+			 unsigned num_pages,
 			 struct radeon_fence *fence);
+void r200_set_safe_registers(struct radeon_device *rdev);
 
 /*
  * r300,r350,rv350,rv380
@@ -162,6 +168,15 @@ extern uint32_t rv370_pcie_rreg(struct radeon_device *rdev, uint32_t reg);
 extern void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 extern void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes);
 extern int rv370_get_pcie_lanes(struct radeon_device *rdev);
+extern void r300_set_reg_safe(struct radeon_device *rdev);
+extern void r300_mc_program(struct radeon_device *rdev);
+extern void r300_mc_init(struct radeon_device *rdev);
+extern void r300_clock_startup(struct radeon_device *rdev);
+extern int r300_mc_wait_for_idle(struct radeon_device *rdev);
+extern int rv370_pcie_gart_init(struct radeon_device *rdev);
+extern void rv370_pcie_gart_fini(struct radeon_device *rdev);
+extern int rv370_pcie_gart_enable(struct radeon_device *rdev);
+extern void rv370_pcie_gart_disable(struct radeon_device *rdev);
 
 /*
  * r420,r423,rv410
@@ -171,6 +186,10 @@ extern void r420_fini(struct radeon_device *rdev);
 extern int r420_suspend(struct radeon_device *rdev);
 extern int r420_resume(struct radeon_device *rdev);
 extern void r420_pm_init_profile(struct radeon_device *rdev);
+extern u32 r420_mc_rreg(struct radeon_device *rdev, u32 reg);
+extern void r420_mc_wreg(struct radeon_device *rdev, u32 reg, u32 v);
+extern int r420_debugfs_pipes_info_init(struct radeon_device *rdev);
+extern void r420_pipes_init(struct radeon_device *rdev);
 
 /*
  * rs400,rs480
@@ -183,6 +202,12 @@ void rs400_gart_tlb_flush(struct radeon_device *rdev);
 int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
 uint32_t rs400_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs400_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
+int rs400_gart_init(struct radeon_device *rdev);
+int rs400_gart_enable(struct radeon_device *rdev);
+void rs400_gart_adjust_size(struct radeon_device *rdev);
+void rs400_gart_disable(struct radeon_device *rdev);
+void rs400_gart_fini(struct radeon_device *rdev);
+
 
 /*
  * rs600.
@@ -194,6 +219,7 @@ extern int rs600_suspend(struct radeon_device *rdev);
 extern int rs600_resume(struct radeon_device *rdev);
 int rs600_irq_set(struct radeon_device *rdev);
 int rs600_irq_process(struct radeon_device *rdev);
+void rs600_irq_disable(struct radeon_device *rdev);
 u32 rs600_get_vblank_counter(struct radeon_device *rdev, int crtc);
 void rs600_gart_tlb_flush(struct radeon_device *rdev);
 int rs600_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr);
@@ -211,6 +237,8 @@ extern void rs600_pm_finish(struct radeon_device *rdev);
 extern void rs600_pre_page_flip(struct radeon_device *rdev, int crtc);
 extern u32 rs600_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
 extern void rs600_post_page_flip(struct radeon_device *rdev, int crtc);
+void rs600_set_safe_registers(struct radeon_device *rdev);
+
 
 /*
  * rs690,rs740
@@ -222,10 +250,21 @@ int rs690_suspend(struct radeon_device *rdev);
 uint32_t rs690_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rs690_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rs690_bandwidth_update(struct radeon_device *rdev);
+void rs690_line_buffer_adjust(struct radeon_device *rdev,
+					struct drm_display_mode *mode1,
+					struct drm_display_mode *mode2);
 
 /*
  * rv515
  */
+struct rv515_mc_save {
+	u32 d1vga_control;
+	u32 d2vga_control;
+	u32 vga_render_control;
+	u32 vga_hdp_control;
+	u32 d1crtc_control;
+	u32 d2crtc_control;
+};
 int rv515_init(struct radeon_device *rdev);
 void rv515_fini(struct radeon_device *rdev);
 uint32_t rv515_mc_rreg(struct radeon_device *rdev, uint32_t reg);
@@ -236,6 +275,14 @@ void rv515_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rv515_bandwidth_update(struct radeon_device *rdev);
 int rv515_resume(struct radeon_device *rdev);
 int rv515_suspend(struct radeon_device *rdev);
+void rv515_bandwidth_avivo_update(struct radeon_device *rdev);
+void rv515_vga_render_disable(struct radeon_device *rdev);
+void rv515_set_safe_registers(struct radeon_device *rdev);
+void rv515_mc_stop(struct radeon_device *rdev, struct rv515_mc_save *save);
+void rv515_mc_resume(struct radeon_device *rdev, struct rv515_mc_save *save);
+void rv515_clock_startup(struct radeon_device *rdev);
+void rv515_debugfs(struct radeon_device *rdev);
+
 
 /*
  * r520,rv530,rv560,rv570,r580
