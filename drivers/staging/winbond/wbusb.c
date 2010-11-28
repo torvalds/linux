@@ -642,13 +642,6 @@ static int hal_init_hardware(struct ieee80211_hw *hw)
 
 	SoftwareSet = hal_software_set(pHwData);
 
-#ifdef Vendor2
-	/* Try to make sure the EEPROM contain */
-	SoftwareSet >>= 8;
-	if (SoftwareSet != 0x82)
-		return false;
-#endif
-
 	Wb35Rx_start(hw);
 	Wb35Tx_EP2VM_start(priv);
 
