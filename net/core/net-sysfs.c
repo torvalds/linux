@@ -956,8 +956,9 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 			if (map_len >= alloc_len) {
 				alloc_len = alloc_len ?
 				    2 * alloc_len : XPS_MIN_MAP_ALLOC;
-				new_map = kzalloc(XPS_MAP_SIZE(alloc_len),
-				    GFP_KERNEL);
+				new_map = kzalloc_node(XPS_MAP_SIZE(alloc_len),
+						       GFP_KERNEL,
+						       cpu_to_node(cpu));
 				if (!new_map)
 					goto error;
 				new_map->alloc_len = alloc_len;
