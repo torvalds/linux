@@ -1204,7 +1204,7 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct pipe_inode_info *pipe;
 	long ret;
 
-	pipe = file->f_path.dentry->d_inode->i_pipe;
+	pipe = get_pipe_info(file);
 	if (!pipe)
 		return -EBADF;
 
