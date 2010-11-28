@@ -1230,7 +1230,7 @@ void hid_disconnect(struct hid_device *hdev)
 EXPORT_SYMBOL_GPL(hid_disconnect);
 
 /* a list of devices for which there is a specialized driver on HID bus */
-static const struct hid_device_id hid_blacklist[] = {
+static const struct hid_device_id hid_have_special_driver[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_3M, USB_DEVICE_ID_3M1968) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_3M, USB_DEVICE_ID_3M2256) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_WCP32PU) },
@@ -1503,9 +1503,9 @@ static int hid_bus_match(struct device *dev, struct device_driver *drv)
 	if (!hid_match_device(hdev, hdrv))
 		return 0;
 
-	/* generic wants all non-blacklisted */
+	/* generic wants all that don't have specialized driver */
 	if (!strncmp(hdrv->name, "generic-", 8))
-		return !hid_match_id(hdev, hid_blacklist);
+		return !hid_match_id(hdev, hid_have_special_driver);
 
 	return 1;
 }
