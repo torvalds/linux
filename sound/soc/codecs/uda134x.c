@@ -597,6 +597,7 @@ static struct snd_soc_codec_driver soc_codec_dev_uda134x = {
 	.resume =       uda134x_soc_resume,
 	.reg_cache_size = sizeof(uda134x_reg),
 	.reg_word_size = sizeof(u8),
+	.reg_cache_default = uda134x_reg,
 	.reg_cache_step = 1,
 	.read = uda134x_read_reg_cache,
 	.write = uda134x_write,

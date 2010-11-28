@@ -17,6 +17,7 @@
 #include <linux/pm_runtime.h>
 
 #include <linux/mmc/card.h>
+#include <linux/mmc/host.h>
 #include <linux/mmc/sdio_func.h>
 
 #include "sdio_cis.h"
@@ -132,9 +133,11 @@ static int sdio_bus_probe(struct device *dev)
 	 * it should call pm_runtime_put_noidle() in its probe routine and
 	 * pm_runtime_get_noresume() in its remove routine.
 	 */
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0)
-		goto out;
+	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD) {
+		ret = pm_runtime_get_sync(dev);
+		if (ret < 0)
+			goto out;
+	}
 
 	/* Set the default block size so the driver is sure it's something
 	 * sensible. */
@@ -151,7 +154,8 @@ static int sdio_bus_probe(struct device *dev)
 	return 0;
 
 disable_runtimepm:
-	pm_runtime_put_noidle(dev);
+	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
+		pm_runtime_put_noidle(dev);
 out:
 	return ret;
 }
@@ -160,12 +164,14 @@ static int sdio_bus_remove(struct device *dev)
 {
 	struct sdio_driver *drv = to_sdio_driver(dev->driver);
 	struct sdio_func *func = dev_to_sdio_func(dev);
-	int ret;
+	int ret = 0;
 
 	/* Make sure card is powered before invoking ->remove() */
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0)
-		goto out;
+	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD) {
+		ret = pm_runtime_get_sync(dev);
+		if (ret < 0)
+			goto out;
+	}
 
 	drv->remove(func);
 
@@ -178,10 +184,12 @@ static int sdio_bus_remove(struct device *dev)
 	}
 
 	/* First, undo the increment made directly above */
-	pm_runtime_put_noidle(dev);
+	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
+		pm_runtime_put_noidle(dev);
 
 	/* Then undo the runtime PM settings in sdio_bus_probe() */
-	pm_runtime_put_noidle(dev);
+	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
+		pm_runtime_put_noidle(dev);
 
 out:
 	return ret;
@@ -191,6 +199,8 @@ out:
 
 static int sdio_bus_pm_prepare(struct device *dev)
 {
+	struct sdio_func *func = dev_to_sdio_func(dev);
+
 	/*
 	 * Resume an SDIO device which was suspended at run time at this
 	 * point, in order to allow standard SDIO suspend/resume paths
@@ -212,7 +222,8 @@ static int sdio_bus_pm_prepare(struct device *dev)
 	 * since there is little point in failing system suspend if a
 	 * device can't be resumed.
 	 */
-	pm_runtime_resume(dev);
+	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
+		pm_runtime_resume(dev);
 
 	return 0;
 }

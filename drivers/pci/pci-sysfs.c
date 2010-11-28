@@ -705,17 +705,21 @@ void pci_remove_legacy_files(struct pci_bus *b)
 
 #ifdef HAVE_PCI_MMAP
 
-int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vma)
+int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vma,
+		  enum pci_mmap_api mmap_api)
 {
-	unsigned long nr, start, size;
+	unsigned long nr, start, size, pci_start;
 
+	if (pci_resource_len(pdev, resno) == 0)
+		return 0;
 	nr = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 	start = vma->vm_pgoff;
 	size = ((pci_resource_len(pdev, resno) - 1) >> PAGE_SHIFT) + 1;
-	if (start < size && size - start >= nr)
+	pci_start = (mmap_api == PCI_MMAP_PROCFS) ?
+			pci_resource_start(pdev, resno) >> PAGE_SHIFT : 0;
+	if (start >= pci_start && start < pci_start + size &&
+			start + nr <= pci_start + size)
 		return 1;
-	WARN(1, "process \"%s\" tried to map 0x%08lx-0x%08lx on %s BAR %d (size 0x%08lx)\n",
-		current->comm, start, start+nr, pci_name(pdev), resno, size);
 	return 0;
 }
 
@@ -745,8 +749,15 @@ pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
 	if (i >= PCI_ROM_RESOURCE)
 		return -ENODEV;
 
-	if (!pci_mmap_fits(pdev, i, vma))
+	if (!pci_mmap_fits(pdev, i, vma, PCI_MMAP_SYSFS)) {
+		WARN(1, "process \"%s\" tried to map 0x%08lx bytes "
+			"at page 0x%08lx on %s BAR %d (start 0x%16Lx, size 0x%16Lx)\n",
+			current->comm, vma->vm_end-vma->vm_start, vma->vm_pgoff,
+			pci_name(pdev), i,
+			(u64)pci_resource_start(pdev, i),
+			(u64)pci_resource_len(pdev, i));
 		return -EINVAL;
+	}
 
 	/* pci_mmap_page_range() expects the same kind of entry as coming
 	 * from /proc/bus/pci/ which is a "user visible" value. If this is

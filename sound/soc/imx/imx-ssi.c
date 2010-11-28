@@ -439,7 +439,22 @@ void imx_pcm_free(struct snd_pcm *pcm)
 }
 EXPORT_SYMBOL_GPL(imx_pcm_free);
 
+static int imx_ssi_dai_probe(struct snd_soc_dai *dai)
+{
+	struct imx_ssi *ssi = dev_get_drvdata(dai->dev);
+	uint32_t val;
+
+	snd_soc_dai_set_drvdata(dai, ssi);
+
+	val = SSI_SFCSR_TFWM0(ssi->dma_params_tx.burstsize) |
+		SSI_SFCSR_RFWM0(ssi->dma_params_rx.burstsize);
+	writel(val, ssi->base + SSI_SFCSR);
+
+	return 0;
+}
+
 static struct snd_soc_dai_driver imx_ssi_dai = {
+	.probe = imx_ssi_dai_probe,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -454,20 +469,6 @@ static struct snd_soc_dai_driver imx_ssi_dai = {
 	},
 	.ops = &imx_ssi_pcm_dai_ops,
 };
-
-static int imx_ssi_dai_probe(struct snd_soc_dai *dai)
-{
-	struct imx_ssi *ssi = dev_get_drvdata(dai->dev);
-	uint32_t val;
-
-	snd_soc_dai_set_drvdata(dai, ssi);
-
-	val = SSI_SFCSR_TFWM0(ssi->dma_params_tx.burstsize) |
-		SSI_SFCSR_RFWM0(ssi->dma_params_rx.burstsize);
-	writel(val, ssi->base + SSI_SFCSR);
-
-	return 0;
-}
 
 static struct snd_soc_dai_driver imx_ac97_dai = {
 	.probe = imx_ssi_dai_probe,
@@ -677,9 +678,25 @@ static int imx_ssi_probe(struct platform_device *pdev)
 		goto failed_register;
 	}
 
-	ssi->soc_platform_pdev = platform_device_alloc("imx-fiq-pcm-audio", pdev->id);
-	if (!ssi->soc_platform_pdev)
+	ssi->soc_platform_pdev_fiq = platform_device_alloc("imx-fiq-pcm-audio", pdev->id);
+	if (!ssi->soc_platform_pdev_fiq) {
+		ret = -ENOMEM;
+		goto failed_pdev_fiq_alloc;
+	}
+
+	platform_set_drvdata(ssi->soc_platform_pdev_fiq, ssi);
+	ret = platform_device_add(ssi->soc_platform_pdev_fiq);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to add platform device\n");
+		goto failed_pdev_fiq_add;
+	}
+
+	ssi->soc_platform_pdev = platform_device_alloc("imx-pcm-audio", pdev->id);
+	if (!ssi->soc_platform_pdev) {
+		ret = -ENOMEM;
 		goto failed_pdev_alloc;
+	}
+
 	platform_set_drvdata(ssi->soc_platform_pdev, ssi);
 	ret = platform_device_add(ssi->soc_platform_pdev);
 	if (ret) {
@@ -692,6 +709,10 @@ static int imx_ssi_probe(struct platform_device *pdev)
 failed_pdev_add:
 	platform_device_put(ssi->soc_platform_pdev);
 failed_pdev_alloc:
+	platform_device_del(ssi->soc_platform_pdev_fiq);
+failed_pdev_fiq_add:
+	platform_device_put(ssi->soc_platform_pdev_fiq);
+failed_pdev_fiq_alloc:
 	snd_soc_unregister_dai(&pdev->dev);
 failed_register:
 failed_ac97:
@@ -712,8 +733,8 @@ static int __devexit imx_ssi_remove(struct platform_device *pdev)
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct imx_ssi *ssi = platform_get_drvdata(pdev);
 
-	platform_device_del(ssi->soc_platform_pdev);
-	platform_device_put(ssi->soc_platform_pdev);
+	platform_device_unregister(ssi->soc_platform_pdev);
+	platform_device_unregister(ssi->soc_platform_pdev_fiq);
 
 	snd_soc_unregister_dai(&pdev->dev);
 

@@ -13,7 +13,6 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/percpu.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/acct.h>

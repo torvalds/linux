@@ -1343,8 +1343,8 @@ uv_activation_descriptor_init(int node, int pnode)
 	 * each bau_desc is 64 bytes; there are 8 (UV_ITEMS_PER_DESCRIPTOR)
 	 * per cpu; and up to 32 (UV_ADP_SIZE) cpu's per uvhub
 	 */
-	bau_desc = (struct bau_desc *)kmalloc_node(sizeof(struct bau_desc)*
-		UV_ADP_SIZE*UV_ITEMS_PER_DESCRIPTOR, GFP_KERNEL, node);
+	bau_desc = kmalloc_node(sizeof(struct bau_desc) * UV_ADP_SIZE
+				* UV_ITEMS_PER_DESCRIPTOR, GFP_KERNEL, node);
 	BUG_ON(!bau_desc);
 
 	pa = uv_gpa(bau_desc); /* need the real nasid*/
@@ -1402,9 +1402,9 @@ uv_payload_queue_init(int node, int pnode)
 	struct bau_payload_queue_entry *pqp_malloc;
 	struct bau_control *bcp;
 
-	pqp = (struct bau_payload_queue_entry *) kmalloc_node(
-		(DEST_Q_SIZE + 1) * sizeof(struct bau_payload_queue_entry),
-		GFP_KERNEL, node);
+	pqp = kmalloc_node((DEST_Q_SIZE + 1)
+			   * sizeof(struct bau_payload_queue_entry),
+			   GFP_KERNEL, node);
 	BUG_ON(!pqp);
 	pqp_malloc = pqp;
 
@@ -1455,7 +1455,7 @@ static void __init uv_init_uvhub(int uvhub, int vector)
 	 * the below initialization can't be in firmware because the
 	 * messaging IRQ will be determined by the OS
 	 */
-	apicid = uvhub_to_first_apicid(uvhub);
+	apicid = uvhub_to_first_apicid(uvhub) | uv_apicid_hibits;
 	uv_write_global_mmr64(pnode, UVH_BAU_DATA_CONFIG,
 				      ((apicid << 32) | vector));
 }
@@ -1520,8 +1520,7 @@ static void __init uv_init_per_cpu(int nuvhubs)
 
 	timeout_us = calculate_destination_timeout();
 
-	uvhub_descs = (struct uvhub_desc *)
-		kmalloc(nuvhubs * sizeof(struct uvhub_desc), GFP_KERNEL);
+	uvhub_descs = kmalloc(nuvhubs * sizeof(struct uvhub_desc), GFP_KERNEL);
 	memset(uvhub_descs, 0, nuvhubs * sizeof(struct uvhub_desc));
 	uvhub_mask = kzalloc((nuvhubs+7)/8, GFP_KERNEL);
 	for_each_present_cpu(cpu) {

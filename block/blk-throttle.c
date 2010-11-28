@@ -645,7 +645,7 @@ static int throtl_dispatch_tg(struct throtl_data *td, struct throtl_grp *tg,
 {
 	unsigned int nr_reads = 0, nr_writes = 0;
 	unsigned int max_nr_reads = throtl_grp_quantum*3/4;
-	unsigned int max_nr_writes = throtl_grp_quantum - nr_reads;
+	unsigned int max_nr_writes = throtl_grp_quantum - max_nr_reads;
 	struct bio *bio;
 
 	/* Try to dispatch 75% READS and 25% WRITES */

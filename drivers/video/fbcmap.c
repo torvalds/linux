@@ -88,34 +88,48 @@ static const struct fb_cmap default_16_colors = {
  *
  */
 
-int fb_alloc_cmap(struct fb_cmap *cmap, int len, int transp)
+int fb_alloc_cmap_gfp(struct fb_cmap *cmap, int len, int transp, gfp_t flags)
 {
-    int size = len*sizeof(u16);
+	int size = len * sizeof(u16);
+	int ret = -ENOMEM;
 
-    if (cmap->len != len) {
-	fb_dealloc_cmap(cmap);
-	if (!len)
-	    return 0;
-	if (!(cmap->red = kmalloc(size, GFP_ATOMIC)))
-	    goto fail;
-	if (!(cmap->green = kmalloc(size, GFP_ATOMIC)))
-	    goto fail;
-	if (!(cmap->blue = kmalloc(size, GFP_ATOMIC)))
-	    goto fail;
-	if (transp) {
-	    if (!(cmap->transp = kmalloc(size, GFP_ATOMIC)))
+	if (cmap->len != len) {
+		fb_dealloc_cmap(cmap);
+		if (!len)
+			return 0;
+
+		cmap->red = kmalloc(size, flags);
+		if (!cmap->red)
+			goto fail;
+		cmap->green = kmalloc(size, flags);
+		if (!cmap->green)
+			goto fail;
+		cmap->blue = kmalloc(size, flags);
+		if (!cmap->blue)
+			goto fail;
+		if (transp) {
+			cmap->transp = kmalloc(size, flags);
+			if (!cmap->transp)
+				goto fail;
+		} else {
+			cmap->transp = NULL;
+		}
+	}
+	cmap->start = 0;
+	cmap->len = len;
+	ret = fb_copy_cmap(fb_default_cmap(len), cmap);
+	if (ret)
 		goto fail;
-	} else
-	    cmap->transp = NULL;
-    }
-    cmap->start = 0;
-    cmap->len = len;
-    fb_copy_cmap(fb_default_cmap(len), cmap);
-    return 0;
+	return 0;
 
 fail:
-    fb_dealloc_cmap(cmap);
-    return -ENOMEM;
+	fb_dealloc_cmap(cmap);
+	return ret;
+}
+
+int fb_alloc_cmap(struct fb_cmap *cmap, int len, int transp)
+{
+	return fb_alloc_cmap_gfp(cmap, len, transp, GFP_ATOMIC);
 }
 
 /**
@@ -250,8 +264,12 @@ int fb_set_user_cmap(struct fb_cmap_user *cmap, struct fb_info *info)
 	int rc, size = cmap->len * sizeof(u16);
 	struct fb_cmap umap;
 
+	if (size < 0 || size < cmap->len)
+		return -E2BIG;
+
 	memset(&umap, 0, sizeof(struct fb_cmap));
-	rc = fb_alloc_cmap(&umap, cmap->len, cmap->transp != NULL);
+	rc = fb_alloc_cmap_gfp(&umap, cmap->len, cmap->transp != NULL,
+				GFP_KERNEL);
 	if (rc)
 		return rc;
 	if (copy_from_user(umap.red, cmap->red, size) ||

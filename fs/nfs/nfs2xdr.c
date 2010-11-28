@@ -423,7 +423,7 @@ nfs_xdr_readdirres(struct rpc_rqst *req, __be32 *p, void *dummy)
 	struct page **page;
 	size_t hdrlen;
 	unsigned int pglen, recvd;
-	int status, nr = 0;
+	int status;
 
 	if ((status = ntohl(*p++)))
 		return nfs_stat_to_errno(status);
@@ -443,7 +443,7 @@ nfs_xdr_readdirres(struct rpc_rqst *req, __be32 *p, void *dummy)
 	if (pglen > recvd)
 		pglen = recvd;
 	page = rcvbuf->pages;
-	return nr;
+	return pglen;
 }
 
 static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
@@ -485,6 +485,8 @@ nfs_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, struct nfs_se
 	entry->prev_cookie	  = entry->cookie;
 	entry->cookie	  = ntohl(*p++);
 
+	entry->d_type = DT_UNKNOWN;
+
 	p = xdr_inline_peek(xdr, 8);
 	if (p != NULL)
 		entry->eof = !p[0] && p[1];
@@ -495,7 +497,7 @@ nfs_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, struct nfs_se
 
 out_overflow:
 	print_overflow_msg(__func__, xdr);
-	return ERR_PTR(-EIO);
+	return ERR_PTR(-EAGAIN);
 }
 
 /*

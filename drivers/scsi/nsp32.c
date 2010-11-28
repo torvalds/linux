@@ -196,8 +196,7 @@ static void __exit    exit_nsp32  (void);
 static int         nsp32_proc_info   (struct Scsi_Host *, char *, char **, off_t, int, int);
 
 static int         nsp32_detect      (struct pci_dev *pdev);
-static int         nsp32_queuecommand(struct scsi_cmnd *,
-		void (*done)(struct scsi_cmnd *));
+static int         nsp32_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
 static const char *nsp32_info        (struct Scsi_Host *);
 static int         nsp32_release     (struct Scsi_Host *);
 
@@ -909,7 +908,7 @@ static int nsp32_setup_sg_table(struct scsi_cmnd *SCpnt)
 	return TRUE;
 }
 
-static int nsp32_queuecommand(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+static int nsp32_queuecommand_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
 	nsp32_hw_data *data = (nsp32_hw_data *)SCpnt->device->host->hostdata;
 	nsp32_target *target;
@@ -1049,6 +1048,8 @@ static int nsp32_queuecommand(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(nsp32_queuecommand)
 
 /* initialize asic */
 static int nsp32hw_init(nsp32_hw_data *data)

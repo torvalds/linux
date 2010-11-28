@@ -137,4 +137,56 @@ static inline void finv_buffer(void *buffer, size_t size)
 	mb_incoherent();
 }
 
+/*
+ * Flush & invalidate a VA range that is homed remotely on a single core,
+ * waiting until the memory controller holds the flushed values.
+ */
+static inline void finv_buffer_remote(void *buffer, size_t size)
+{
+	char *p;
+	int i;
+
+	/*
+	 * Flush and invalidate the buffer out of the local L1/L2
+	 * and request the home cache to flush and invalidate as well.
+	 */
+	__finv_buffer(buffer, size);
+
+	/*
+	 * Wait for the home cache to acknowledge that it has processed
+	 * all the flush-and-invalidate requests.  This does not mean
+	 * that the flushed data has reached the memory controller yet,
+	 * but it does mean the home cache is processing the flushes.
+	 */
+	__insn_mf();
+
+	/*
+	 * Issue a load to the last cache line, which can't complete
+	 * until all the previously-issued flushes to the same memory
+	 * controller have also completed.  If we weren't striping
+	 * memory, that one load would be sufficient, but since we may
+	 * be, we also need to back up to the last load issued to
+	 * another memory controller, which would be the point where
+	 * we crossed an 8KB boundary (the granularity of striping
+	 * across memory controllers).  Keep backing up and doing this
+	 * until we are before the beginning of the buffer, or have
+	 * hit all the controllers.
+	 */
+	for (i = 0, p = (char *)buffer + size - 1;
+	     i < (1 << CHIP_LOG_NUM_MSHIMS()) && p >= (char *)buffer;
+	     ++i) {
+		const unsigned long STRIPE_WIDTH = 8192;
+
+		/* Force a load instruction to issue. */
+		*(volatile char *)p;
+
+		/* Jump to end of previous stripe. */
+		p -= STRIPE_WIDTH;
+		p = (char *)((unsigned long)p | (STRIPE_WIDTH - 1));
+	}
+
+	/* Wait for the loads (and thus flushes) to have completed. */
+	__insn_mf();
+}
+
 #endif /* _ASM_TILE_CACHEFLUSH_H */

@@ -2945,6 +2945,18 @@ source "drivers/s390/net/Kconfig"
 
 source "drivers/net/caif/Kconfig"
 
+config TILE_NET
+	tristate "Tilera GBE/XGBE network driver support"
+	depends on TILE
+	default y
+	select CRC32
+	help
+	  This is a standard Linux network device driver for the
+	  on-chip Tilera Gigabit Ethernet and XAUI interfaces.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called tile_net.
+
 config XEN_NETDEV_FRONTEND
 	tristate "Xen network device frontend driver"
 	depends on XEN

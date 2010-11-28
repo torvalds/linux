@@ -78,7 +78,7 @@ int rs400_gart_init(struct radeon_device *rdev)
 	int r;
 
 	if (rdev->gart.table.ram.ptr) {
-		WARN(1, "RS400 GART already initialized.\n");
+		WARN(1, "RS400 GART already initialized\n");
 		return 0;
 	}
 	/* Check gart size */

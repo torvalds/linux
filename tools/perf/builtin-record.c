@@ -697,17 +697,18 @@ static int __cmd_record(int argc, const char **argv)
 	if (err < 0)
 		err = event__synthesize_kernel_mmap(process_synthesized_event,
 						    session, machine, "_stext");
-	if (err < 0) {
-		pr_err("Couldn't record kernel reference relocation symbol.\n");
-		return err;
-	}
+	if (err < 0)
+		pr_err("Couldn't record kernel reference relocation symbol\n"
+		       "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
+		       "Check /proc/kallsyms permission or run as root.\n");
 
 	err = event__synthesize_modules(process_synthesized_event,
 					session, machine);
-	if (err < 0) {
-		pr_err("Couldn't record kernel reference relocation symbol.\n");
-		return err;
-	}
+	if (err < 0)
+		pr_err("Couldn't record kernel module information.\n"
+		       "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
+		       "Check /proc/modules permission or run as root.\n");
+
 	if (perf_guest)
 		perf_session__process_machines(session, event__synthesize_guest_os);
 
@@ -790,7 +791,7 @@ static const char * const record_usage[] = {
 
 static bool force, append_file;
 
-static const struct option options[] = {
+const struct option record_options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events),
@@ -839,16 +840,16 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
 	int i, j, err = -ENOMEM;
 
-	argc = parse_options(argc, argv, options, record_usage,
+	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc && target_pid == -1 && target_tid == -1 &&
 		!system_wide && !cpu_list)
-		usage_with_options(record_usage, options);
+		usage_with_options(record_usage, record_options);
 
 	if (force && append_file) {
 		fprintf(stderr, "Can't overwrite and append at the same time."
 				" You need to choose between -f and -A");
-		usage_with_options(record_usage, options);
+		usage_with_options(record_usage, record_options);
 	} else if (append_file) {
 		write_mode = WRITE_APPEND;
 	} else {
@@ -871,7 +872,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		if (thread_num <= 0) {
 			fprintf(stderr, "Can't find all threads of pid %d\n",
 					target_pid);
-			usage_with_options(record_usage, options);
+			usage_with_options(record_usage, record_options);
 		}
 	} else {
 		all_tids=malloc(sizeof(pid_t));

@@ -167,7 +167,6 @@ static int __init afeb9260_soc_init(void)
 
 	return 0;
 err1:
-	platform_device_del(afeb9260_snd_device);
 	platform_device_put(afeb9260_snd_device);
 	return err;
 }

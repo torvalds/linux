@@ -75,6 +75,11 @@ DEFINE_PER_CPU(struct vcpu_info, xen_vcpu_info);
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
 EXPORT_SYMBOL_GPL(xen_domain_type);
 
+unsigned long *machine_to_phys_mapping = (void *)MACH2PHYS_VIRT_START;
+EXPORT_SYMBOL(machine_to_phys_mapping);
+unsigned int   machine_to_phys_order;
+EXPORT_SYMBOL(machine_to_phys_order);
+
 struct start_info *xen_start_info;
 EXPORT_SYMBOL_GPL(xen_start_info);
 
@@ -1090,12 +1095,16 @@ static void __init xen_setup_stackprotector(void)
 /* First C function to be called on Xen boot */
 asmlinkage void __init xen_start_kernel(void)
 {
+	struct physdev_set_iopl set_iopl;
+	int rc;
 	pgd_t *pgd;
 
 	if (!xen_start_info)
 		return;
 
 	xen_domain_type = XEN_PV_DOMAIN;
+
+	xen_setup_machphys_mapping();
 
 	/* Install Xen paravirt ops */
 	pv_info = xen_info;
@@ -1191,8 +1200,6 @@ asmlinkage void __init xen_start_kernel(void)
 	/* Allocate and initialize top and mid mfn levels for p2m structure */
 	xen_build_mfn_list_list();
 
-	init_mm.pgd = pgd;
-
 	/* keep using Xen gdt for now; no urgent need to change it */
 
 #ifdef CONFIG_X86_32
@@ -1202,9 +1209,17 @@ asmlinkage void __init xen_start_kernel(void)
 #else
 	pv_info.kernel_rpl = 0;
 #endif
-
 	/* set the limit of our address space */
 	xen_reserve_top();
+
+	/* We used to do this in xen_arch_setup, but that is too late on AMD
+	 * were early_cpu_init (run before ->arch_setup()) calls early_amd_init
+	 * which pokes 0xcf8 port.
+	 */
+	set_iopl.iopl = 1;
+	rc = HYPERVISOR_physdev_op(PHYSDEVOP_set_iopl, &set_iopl);
+	if (rc != 0)
+		xen_raw_printk("physdev_op failed %d\n", rc);
 
 #ifdef CONFIG_X86_32
 	/* set up basic CPUID stuff */

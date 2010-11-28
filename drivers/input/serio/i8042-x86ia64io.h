@@ -351,6 +351,17 @@ static const struct dmi_system_id __initconst i8042_dmi_nomux_table[] = {
 		},
 	},
 	{
+		/*
+		 * Most (all?) VAIOs do not have external PS/2 ports nor
+		 * they implement active multiplexing properly, and
+		 * MUX discovery usually messes up keyboard/touchpad.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "VAIO"),
+		},
+	},
+	{
 		/* Amoi M636/A737 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Amoi Electronics CO.,LTD."),

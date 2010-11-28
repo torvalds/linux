@@ -183,13 +183,13 @@ radeon_connector_analog_encoder_conflict_solve(struct drm_connector *connector,
 					continue;
 
 				if (priority == true) {
-					DRM_INFO("1: conflicting encoders switching off %s\n", drm_get_connector_name(conflict));
-					DRM_INFO("in favor of %s\n", drm_get_connector_name(connector));
+					DRM_DEBUG_KMS("1: conflicting encoders switching off %s\n", drm_get_connector_name(conflict));
+					DRM_DEBUG_KMS("in favor of %s\n", drm_get_connector_name(connector));
 					conflict->status = connector_status_disconnected;
 					radeon_connector_update_scratch_regs(conflict, connector_status_disconnected);
 				} else {
-					DRM_INFO("2: conflicting encoders switching off %s\n", drm_get_connector_name(connector));
-					DRM_INFO("in favor of %s\n", drm_get_connector_name(conflict));
+					DRM_DEBUG_KMS("2: conflicting encoders switching off %s\n", drm_get_connector_name(connector));
+					DRM_DEBUG_KMS("in favor of %s\n", drm_get_connector_name(conflict));
 					current_status = connector_status_disconnected;
 				}
 				break;
@@ -432,13 +432,13 @@ static void radeon_fixup_lvds_native_mode(struct drm_encoder *encoder,
 			    mode->vdisplay == native_mode->vdisplay) {
 				*native_mode = *mode;
 				drm_mode_set_crtcinfo(native_mode, CRTC_INTERLACE_HALVE_V);
-				DRM_INFO("Determined LVDS native mode details from EDID\n");
+				DRM_DEBUG_KMS("Determined LVDS native mode details from EDID\n");
 				break;
 			}
 		}
 	}
 	if (!native_mode->clock) {
-		DRM_INFO("No LVDS native mode details, disabling RMX\n");
+		DRM_DEBUG_KMS("No LVDS native mode details, disabling RMX\n");
 		radeon_encoder->rmx_type = RMX_OFF;
 	}
 }
@@ -1008,9 +1008,21 @@ static void radeon_dp_connector_destroy(struct drm_connector *connector)
 static int radeon_dp_get_modes(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
 	int ret;
 
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		if (!radeon_dig_connector->edp_on)
+			atombios_set_edp_panel_power(connector,
+						     ATOM_TRANSMITTER_ACTION_POWER_ON);
+	}
 	ret = radeon_ddc_get_modes(radeon_connector);
+	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+		if (!radeon_dig_connector->edp_on)
+			atombios_set_edp_panel_power(connector,
+						     ATOM_TRANSMITTER_ACTION_POWER_OFF);
+	}
+
 	return ret;
 }
 
@@ -1029,8 +1041,14 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
 		/* eDP is always DP */
 		radeon_dig_connector->dp_sink_type = CONNECTOR_OBJECT_ID_DISPLAYPORT;
+		if (!radeon_dig_connector->edp_on)
+			atombios_set_edp_panel_power(connector,
+						     ATOM_TRANSMITTER_ACTION_POWER_ON);
 		if (radeon_dp_getdpcd(radeon_connector))
 			ret = connector_status_connected;
+		if (!radeon_dig_connector->edp_on)
+			atombios_set_edp_panel_power(connector,
+						     ATOM_TRANSMITTER_ACTION_POWER_OFF);
 	} else {
 		radeon_dig_connector->dp_sink_type = radeon_dp_getsinktype(radeon_connector);
 		if (radeon_dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT) {
@@ -1116,7 +1134,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 				radeon_connector->shared_ddc = true;
 				shared_ddc = true;
 			}
-			if (radeon_connector->router_bus && router->valid &&
+			if (radeon_connector->router_bus && router->ddc_valid &&
 			    (radeon_connector->router.router_id == router->router_id)) {
 				radeon_connector->shared_ddc = false;
 				shared_ddc = false;
@@ -1136,7 +1154,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 	radeon_connector->connector_object_id = connector_object_id;
 	radeon_connector->hpd = *hpd;
 	radeon_connector->router = *router;
-	if (router->valid) {
+	if (router->ddc_valid || router->cd_valid) {
 		radeon_connector->router_bus = radeon_i2c_lookup(rdev, &router->i2c_info);
 		if (!radeon_connector->router_bus)
 			goto failed;

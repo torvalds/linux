@@ -1765,7 +1765,7 @@ out:
 } /* End twa_scsi_eh_reset() */
 
 /* This is the main scsi queue function to handle scsi opcodes */
-static int twa_scsi_queue(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
+static int twa_scsi_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
 	int request_id, retval;
 	TW_Device_Extension *tw_dev = (TW_Device_Extension *)SCpnt->device->host->hostdata;
@@ -1811,6 +1811,8 @@ static int twa_scsi_queue(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd
 out:
 	return retval;
 } /* End twa_scsi_queue() */
+
+static DEF_SCSI_QCMD(twa_scsi_queue)
 
 /* This function hands scsi cdb's to the firmware */
 static int twa_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id, char *cdb, int use_sg, TW_SG_Entry *sglistarg)

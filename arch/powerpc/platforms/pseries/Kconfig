@@ -47,6 +47,12 @@ config LPARCFG
 config PPC_PSERIES_DEBUG
 	depends on PPC_PSERIES && PPC_EARLY_DEBUG
 	bool "Enable extra debug logging in platforms/pseries"
+        help
+	  Say Y here if you want the pseries core to produce a bunch of
+	  debug messages to the system log. Select this if you are having a
+	  problem with the pseries core and want to see more of what is
+	  going on. This does not enable debugging in lpar.c, which must
+	  be manually done due to its verbosity.
 	default y
 
 config PPC_SMLPAR

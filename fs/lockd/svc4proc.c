@@ -9,7 +9,6 @@
 
 #include <linux/types.h>
 #include <linux/time.h>
-#include <linux/smp_lock.h>
 #include <linux/lockd/lockd.h>
 #include <linux/lockd/share.h>
 

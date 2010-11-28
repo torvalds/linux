@@ -51,24 +51,28 @@ nv50_calc_pll2(struct drm_device *dev, struct pll_lims *pll, int clk,
 	       int *N, int *fN, int *M, int *P)
 {
 	fixed20_12 fb_div, a, b;
+	u32 refclk = pll->refclk / 10;
+	u32 max_vco_freq = pll->vco1.maxfreq / 10;
+	u32 max_vco_inputfreq = pll->vco1.max_inputfreq / 10;
+	clk /= 10;
 
-	*P = pll->vco1.maxfreq / clk;
+	*P = max_vco_freq / clk;
 	if (*P > pll->max_p)
 		*P = pll->max_p;
 	if (*P < pll->min_p)
 		*P = pll->min_p;
 
-	/* *M = ceil(refclk / pll->vco.max_inputfreq); */
-	a.full = dfixed_const(pll->refclk);
-	b.full = dfixed_const(pll->vco1.max_inputfreq);
+	/* *M = floor((refclk + max_vco_inputfreq) / max_vco_inputfreq); */
+	a.full = dfixed_const(refclk + max_vco_inputfreq);
+	b.full = dfixed_const(max_vco_inputfreq);
 	a.full = dfixed_div(a, b);
-	a.full = dfixed_ceil(a);
+	a.full = dfixed_floor(a);
 	*M = dfixed_trunc(a);
 
 	/* fb_div = (vco * *M) / refclk; */
 	fb_div.full = dfixed_const(clk * *P);
 	fb_div.full = dfixed_mul(fb_div, a);
-	a.full = dfixed_const(pll->refclk);
+	a.full = dfixed_const(refclk);
 	fb_div.full = dfixed_div(fb_div, a);
 
 	/* *N = floor(fb_div); */

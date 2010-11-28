@@ -375,7 +375,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	struct mmc_card *oldcard)
 {
 	struct mmc_card *card;
-	int err, ddr = MMC_SDR_MODE;
+	int err, ddr = 0;
 	u32 cid[4];
 	unsigned int max_dtr;
 
@@ -562,7 +562,11 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			       1 << bus_width, ddr);
 			err = 0;
 		} else {
-			mmc_card_set_ddr_mode(card);
+			if (ddr)
+				mmc_card_set_ddr_mode(card);
+			else
+				ddr = MMC_SDR_MODE;
+
 			mmc_set_bus_width_ddr(card->host, bus_width, ddr);
 		}
 	}

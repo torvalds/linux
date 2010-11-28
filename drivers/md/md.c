@@ -706,7 +706,7 @@ static struct mdk_personality *find_pers(int level, char *clevel)
 /* return the offset of the super block in 512byte sectors */
 static inline sector_t calc_dev_sboffset(struct block_device *bdev)
 {
-	sector_t num_sectors = bdev->bd_inode->i_size / 512;
+	sector_t num_sectors = i_size_read(bdev->bd_inode) / 512;
 	return MD_NEW_SIZE_SECTORS(num_sectors);
 }
 
@@ -1337,7 +1337,7 @@ super_90_rdev_size_change(mdk_rdev_t *rdev, sector_t num_sectors)
 	md_super_write(rdev->mddev, rdev, rdev->sb_start, rdev->sb_size,
 		       rdev->sb_page);
 	md_super_wait(rdev->mddev);
-	return num_sectors / 2; /* kB for sysfs */
+	return num_sectors;
 }
 
 
@@ -1386,7 +1386,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 	 */
 	switch(minor_version) {
 	case 0:
-		sb_start = rdev->bdev->bd_inode->i_size >> 9;
+		sb_start = i_size_read(rdev->bdev->bd_inode) >> 9;
 		sb_start -= 8*2;
 		sb_start &= ~(sector_t)(4*2-1);
 		break;
@@ -1472,7 +1472,7 @@ static int super_1_load(mdk_rdev_t *rdev, mdk_rdev_t *refdev, int minor_version)
 			ret = 0;
 	}
 	if (minor_version)
-		rdev->sectors = (rdev->bdev->bd_inode->i_size >> 9) -
+		rdev->sectors = (i_size_read(rdev->bdev->bd_inode) >> 9) -
 			le64_to_cpu(sb->data_offset);
 	else
 		rdev->sectors = rdev->sb_start;
@@ -1680,7 +1680,7 @@ super_1_rdev_size_change(mdk_rdev_t *rdev, sector_t num_sectors)
 		return 0; /* component must fit device */
 	if (rdev->sb_start < rdev->data_offset) {
 		/* minor versions 1 and 2; superblock before data */
-		max_sectors = rdev->bdev->bd_inode->i_size >> 9;
+		max_sectors = i_size_read(rdev->bdev->bd_inode) >> 9;
 		max_sectors -= rdev->data_offset;
 		if (!num_sectors || num_sectors > max_sectors)
 			num_sectors = max_sectors;
@@ -1690,7 +1690,7 @@ super_1_rdev_size_change(mdk_rdev_t *rdev, sector_t num_sectors)
 	} else {
 		/* minor version 0; superblock after data */
 		sector_t sb_start;
-		sb_start = (rdev->bdev->bd_inode->i_size >> 9) - 8*2;
+		sb_start = (i_size_read(rdev->bdev->bd_inode) >> 9) - 8*2;
 		sb_start &= ~(sector_t)(4*2 - 1);
 		max_sectors = rdev->sectors + sb_start - rdev->sb_start;
 		if (!num_sectors || num_sectors > max_sectors)
@@ -1704,7 +1704,7 @@ super_1_rdev_size_change(mdk_rdev_t *rdev, sector_t num_sectors)
 	md_super_write(rdev->mddev, rdev, rdev->sb_start, rdev->sb_size,
 		       rdev->sb_page);
 	md_super_wait(rdev->mddev);
-	return num_sectors / 2; /* kB for sysfs */
+	return num_sectors;
 }
 
 static struct super_type super_types[] = {
@@ -2584,7 +2584,7 @@ rdev_size_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 			if (!sectors)
 				return -EBUSY;
 		} else if (!sectors)
-			sectors = (rdev->bdev->bd_inode->i_size >> 9) -
+			sectors = (i_size_read(rdev->bdev->bd_inode) >> 9) -
 				rdev->data_offset;
 	}
 	if (sectors < my_mddev->dev_sectors)
@@ -2797,7 +2797,7 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 
 	kobject_init(&rdev->kobj, &rdev_ktype);
 
-	size = rdev->bdev->bd_inode->i_size >> BLOCK_SIZE_BITS;
+	size = i_size_read(rdev->bdev->bd_inode) >> BLOCK_SIZE_BITS;
 	if (!size) {
 		printk(KERN_WARNING 
 			"md: %s has zero or unknown size, marking faulty!\n",
@@ -4338,6 +4338,8 @@ static int md_alloc(dev_t dev, char *name)
 	if (mddev->kobj.sd &&
 	    sysfs_create_group(&mddev->kobj, &md_bitmap_group))
 		printk(KERN_DEBUG "pointless warning\n");
+
+	blk_queue_flush(mddev->queue, REQ_FLUSH | REQ_FUA);
  abort:
 	mutex_unlock(&disks_mutex);
 	if (!error && mddev->kobj.sd) {
@@ -5235,8 +5237,8 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 
 		if (!mddev->persistent) {
 			printk(KERN_INFO "md: nonpersistent superblock ...\n");
-			rdev->sb_start = rdev->bdev->bd_inode->i_size / 512;
-		} else 
+			rdev->sb_start = i_size_read(rdev->bdev->bd_inode) / 512;
+		} else
 			rdev->sb_start = calc_dev_sboffset(rdev->bdev);
 		rdev->sectors = rdev->sb_start;
 
@@ -5306,7 +5308,7 @@ static int hot_add_disk(mddev_t * mddev, dev_t dev)
 	if (mddev->persistent)
 		rdev->sb_start = calc_dev_sboffset(rdev->bdev);
 	else
-		rdev->sb_start = rdev->bdev->bd_inode->i_size / 512;
+		rdev->sb_start = i_size_read(rdev->bdev->bd_inode) / 512;
 
 	rdev->sectors = rdev->sb_start;
 

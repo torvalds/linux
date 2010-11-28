@@ -2222,8 +2222,6 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 	ASSERT(net);
 
 	ASSERT(!net->netdev_ops);
-	net->netdev_ops = &dhd_ops_virt;
-
 	net->netdev_ops = &dhd_ops_pri;
 
 	/*

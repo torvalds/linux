@@ -27,14 +27,6 @@
 /*
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
-/* Notes:
- *
- * We store bo pointer in drm_mm_node struct so we know which bo own a
- * specific node. There is no protection on the pointer, thus to make
- * sure things don't go berserk you have to access this pointer while
- * holding the global lru lock and make sure anytime you free a node you
- * reset the pointer to NULL.
- */
 
 #include "ttm/ttm_module.h"
 #include "ttm/ttm_bo_driver.h"
@@ -45,6 +37,7 @@
 #include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/module.h>
+#include <asm/atomic.h>
 
 #define TTM_ASSERT_LOCKED(param)
 #define TTM_DEBUG(fmt, arg...)
@@ -231,6 +224,9 @@ int ttm_bo_reserve_locked(struct ttm_buffer_object *bo,
 	int ret;
 
 	while (unlikely(atomic_cmpxchg(&bo->reserved, 0, 1) != 0)) {
+		/**
+		 * Deadlock avoidance for multi-bo reserving.
+		 */
 		if (use_sequence && bo->seq_valid &&
 			(sequence - bo->val_seq < (1 << 31))) {
 			return -EAGAIN;
@@ -248,6 +244,14 @@ int ttm_bo_reserve_locked(struct ttm_buffer_object *bo,
 	}
 
 	if (use_sequence) {
+		/**
+		 * Wake up waiters that may need to recheck for deadlock,
+		 * if we decreased the sequence number.
+		 */
+		if (unlikely((bo->val_seq - sequence < (1 << 31))
+			     || !bo->seq_valid))
+			wake_up_all(&bo->event_queue);
+
 		bo->val_seq = sequence;
 		bo->seq_valid = true;
 	} else {
@@ -452,6 +456,11 @@ static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 	ttm_bo_mem_put(bo, &bo->mem);
 
 	atomic_set(&bo->reserved, 0);
+
+	/*
+	 * Make processes trying to reserve really pick it up.
+	 */
+	smp_mb__after_atomic_dec();
 	wake_up_all(&bo->event_queue);
 }
 
@@ -460,7 +469,7 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_bo_global *glob = bo->glob;
 	struct ttm_bo_driver *driver;
-	void *sync_obj;
+	void *sync_obj = NULL;
 	void *sync_obj_arg;
 	int put_count;
 	int ret;
@@ -495,17 +504,20 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 		spin_lock(&glob->lru_lock);
 	}
 queue:
-	sync_obj = bo->sync_obj;
-	sync_obj_arg = bo->sync_obj_arg;
 	driver = bdev->driver;
+	if (bo->sync_obj)
+		sync_obj = driver->sync_obj_ref(bo->sync_obj);
+	sync_obj_arg = bo->sync_obj_arg;
 
 	kref_get(&bo->list_kref);
 	list_add_tail(&bo->ddestroy, &bdev->ddestroy);
 	spin_unlock(&glob->lru_lock);
 	spin_unlock(&bo->lock);
 
-	if (sync_obj)
+	if (sync_obj) {
 		driver->sync_obj_flush(sync_obj, sync_obj_arg);
+		driver->sync_obj_unref(&sync_obj);
+	}
 	schedule_delayed_work(&bdev->wq,
 			      ((HZ / 100) < 1) ? 1 : HZ / 100);
 }
@@ -822,7 +834,6 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 					bool no_wait_gpu)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_global *glob = bdev->glob;
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
 	int ret;
 
@@ -832,12 +843,6 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 			return ret;
 		if (mem->mm_node)
 			break;
-		spin_lock(&glob->lru_lock);
-		if (list_empty(&man->lru)) {
-			spin_unlock(&glob->lru_lock);
-			break;
-		}
-		spin_unlock(&glob->lru_lock);
 		ret = ttm_mem_evict_first(bdev, mem_type, interruptible,
 						no_wait_reserve, no_wait_gpu);
 		if (unlikely(ret != 0))
@@ -1125,35 +1130,9 @@ EXPORT_SYMBOL(ttm_bo_validate);
 int ttm_bo_check_placement(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement)
 {
-	int i;
+	BUG_ON((placement->fpfn || placement->lpfn) &&
+	       (bo->mem.num_pages > (placement->lpfn - placement->fpfn)));
 
-	if (placement->fpfn || placement->lpfn) {
-		if (bo->mem.num_pages > (placement->lpfn - placement->fpfn)) {
-			printk(KERN_ERR TTM_PFX "Page number range to small "
-				"Need %lu pages, range is [%u, %u]\n",
-				bo->mem.num_pages, placement->fpfn,
-				placement->lpfn);
-			return -EINVAL;
-		}
-	}
-	for (i = 0; i < placement->num_placement; i++) {
-		if (!capable(CAP_SYS_ADMIN)) {
-			if (placement->placement[i] & TTM_PL_FLAG_NO_EVICT) {
-				printk(KERN_ERR TTM_PFX "Need to be root to "
-					"modify NO_EVICT status.\n");
-				return -EINVAL;
-			}
-		}
-	}
-	for (i = 0; i < placement->num_busy_placement; i++) {
-		if (!capable(CAP_SYS_ADMIN)) {
-			if (placement->busy_placement[i] & TTM_PL_FLAG_NO_EVICT) {
-				printk(KERN_ERR TTM_PFX "Need to be root to "
-					"modify NO_EVICT status.\n");
-				return -EINVAL;
-			}
-		}
-	}
 	return 0;
 }
 
@@ -1176,6 +1155,10 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	if (num_pages == 0) {
 		printk(KERN_ERR TTM_PFX "Illegal buffer object size.\n");
+		if (destroy)
+			(*destroy)(bo);
+		else
+			kfree(bo);
 		return -EINVAL;
 	}
 	bo->destroy = destroy;
@@ -1369,18 +1352,9 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 	int ret = -EINVAL;
 	struct ttm_mem_type_manager *man;
 
-	if (type >= TTM_NUM_MEM_TYPES) {
-		printk(KERN_ERR TTM_PFX "Illegal memory type %d\n", type);
-		return ret;
-	}
-
+	BUG_ON(type >= TTM_NUM_MEM_TYPES);
 	man = &bdev->man[type];
-	if (man->has_type) {
-		printk(KERN_ERR TTM_PFX
-		       "Memory manager already initialized for type %d\n",
-		       type);
-		return ret;
-	}
+	BUG_ON(man->has_type);
 
 	ret = bdev->driver->init_mem_type(bdev, type, man);
 	if (ret)
@@ -1389,13 +1363,6 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 
 	ret = 0;
 	if (type != TTM_PL_SYSTEM) {
-		if (!p_size) {
-			printk(KERN_ERR TTM_PFX
-			       "Zero size memory manager type %d\n",
-			       type);
-			return ret;
-		}
-
 		ret = (*man->func->init)(man, p_size);
 		if (ret)
 			return ret;
