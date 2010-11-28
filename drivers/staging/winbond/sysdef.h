@@ -2,16 +2,10 @@
 
 #ifndef SYS_DEF_H
 #define SYS_DEF_H
-#define WB_LINUX
-#define WB_LINUX_WPA_PSK
 
 #define _USE_FALLBACK_RATE_
 
 #define _WPA2_
-
-#ifndef _WPA_PSK_DEBUG
-#undef  _WPA_PSK_DEBUG
-#endif
 
 /* debug print options, mark what debug you don't need */
 
