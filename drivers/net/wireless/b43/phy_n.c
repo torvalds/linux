@@ -2212,6 +2212,9 @@ static void b43_nphy_rev2_rssi_cal(struct b43_wldev *dev, u8 type)
 
 	b43_nphy_classifier(dev, 7, class);
 	b43_nphy_write_clip_detection(dev, clip_state);
+	/* Specs don't say about reset here, but it makes wl and b43 dumps
+	   identical, it really seems wl performs this */
+	b43_nphy_reset_cca(dev);
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RSSICalRev3 */
@@ -3625,6 +3628,7 @@ static void b43_nphy_op_prepare_structs(struct b43_wldev *dev)
 	nphy->gain_boost = true; /* this way we follow wl, assume it is true */
 	nphy->txrx_chain = 2; /* sth different than 0 and 1 for now */
 	nphy->phyrxchain = 3; /* to avoid b43_nphy_set_rx_core_state like wl */
+	nphy->perical = 2; /* avoid additional rssi cal on init (like wl) */
 }
 
 static void b43_nphy_op_free(struct b43_wldev *dev)
