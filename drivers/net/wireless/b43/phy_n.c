@@ -2064,7 +2064,10 @@ static void b43_nphy_rev2_rssi_cal(struct b43_wldev *dev, u8 type)
 	u16 class, override;
 	u8 regs_save_radio[2];
 	u16 regs_save_phy[2];
+
 	s8 offset[4];
+	u8 core;
+	u8 rail;
 
 	u16 clip_state[2];
 	u16 clip_off[2] = { 0xFFFF, 0xFFFF };
@@ -2165,12 +2168,11 @@ static void b43_nphy_rev2_rssi_cal(struct b43_wldev *dev, u8 type)
 		if (results_min[i] == 248)
 			offset[i] = code - 32;
 
-		if (i % 2 == 0)
-			b43_nphy_scale_offset_rssi(dev, 0, offset[i], 1, 0,
-							type);
-		else
-			b43_nphy_scale_offset_rssi(dev, 0, offset[i], 2, 1,
-							type);
+		core = (i / 2) ? 2 : 1;
+		rail = (i % 2) ? 1 : 0;
+
+		b43_nphy_scale_offset_rssi(dev, 0, offset[i], core, rail,
+						type);
 	}
 
 	b43_radio_maskset(dev, B2055_C1_PD_RSSIMISC, 0xF8, state[0]);
