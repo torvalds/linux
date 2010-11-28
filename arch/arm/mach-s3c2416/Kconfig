@@ -35,9 +35,12 @@ menu "S3C2416 Machines"
 config MACH_SMDK2416
 	bool "SMDK2416"
 	select CPU_S3C2416
+	select MACH_SMDK
 	select S3C_DEV_FB
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
+	select S3C_DEV_NAND
+	select S3C_DEV_USB_HOST
 	select S3C2416_PM if PM
 	help
 	  Say Y here if you are using an SMDK2416
