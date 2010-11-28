@@ -153,16 +153,12 @@ void Wb35Tx_stop(struct hw_data * pHwData)
 	// Trying to canceling the Trp of EP2
 	if (pWb35Tx->EP2vm_state == VM_RUNNING)
 		usb_unlink_urb( pWb35Tx->Tx2Urb ); // Only use unlink, let Wb35Tx_destrot to free them
-	#ifdef _PE_TX_DUMP_
-	printk("EP2 Tx stop\n");
-	#endif
+	pr_debug("EP2 Tx stop\n");
 
 	// Trying to canceling the Irp of EP4
 	if (pWb35Tx->EP4vm_state == VM_RUNNING)
 		usb_unlink_urb( pWb35Tx->Tx4Urb ); // Only use unlink, let Wb35Tx_destrot to free them
-	#ifdef _PE_TX_DUMP_
-	printk("EP4 Tx stop\n");
-	#endif
+	pr_debug("EP4 Tx stop\n");
 }
 
 //======================================================
@@ -182,9 +178,7 @@ void Wb35Tx_destroy(struct hw_data * pHwData)
 	if (pWb35Tx->Tx2Urb)
 		usb_free_urb( pWb35Tx->Tx2Urb );
 
-	#ifdef _PE_TX_DUMP_
-	printk("Wb35Tx_destroy OK\n");
-	#endif
+	pr_debug("Wb35Tx_destroy OK\n");
 }
 
 void Wb35Tx_CurrentTime(struct wbsoft_priv *adapter, u32 TimeCount)
@@ -279,9 +273,7 @@ static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter)
 	retv = usb_submit_urb(pUrb, GFP_ATOMIC);
 
 	if (retv < 0) {
-		#ifdef _PE_TX_DUMP_
-		printk("EP2 Tx Irp sending error\n");
-		#endif
+		pr_debug("EP2 Tx Irp sending error\n");
 		goto error;
 	}
 

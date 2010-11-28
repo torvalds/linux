@@ -184,10 +184,7 @@ static void hal_set_current_channel_ex(struct hw_data *pHwData, struct chan_info
 	RFSynthesizer_SwitchingChannel(pHwData, channel); /* Switch channel */
 	pHwData->Channel = channel.ChanNo;
 	pHwData->band = channel.band;
-#ifdef _PE_STATE_DUMP_
-	printk("Set channel is %d, band =%d\n", pHwData->Channel,
-	       pHwData->band);
-#endif
+	pr_debug("Set channel is %d, band =%d\n", pHwData->Channel, pHwData->band);
 	reg->M28_MacControl &= ~0xff;	/* Clean channel information field */
 	reg->M28_MacControl |= channel.ChanNo;
 	Wb35Reg_WriteWithCallbackValue(pHwData, 0x0828, reg->M28_MacControl,
@@ -728,9 +725,7 @@ static int wb35_hw_init(struct ieee80211_hw *hw)
 	}
 
 	priv->sLocalPara.bAntennaNo = hal_get_antenna_number(pHwData);
-#ifdef _PE_STATE_DUMP_
-	printk("Driver init, antenna no = %d\n", psLOCAL->bAntennaNo);
-#endif
+	pr_debug("Driver init, antenna no = %d\n", priv->sLocalPara.bAntennaNo);
 	hal_get_hw_radio_off(pHwData);
 
 	/* Waiting for HAL setting OK */
@@ -856,9 +851,7 @@ static void wb35_hw_halt(struct wbsoft_priv *adapter)
 {
 	/* Turn off Rx and Tx hardware ability */
 	hal_stop(&adapter->sHwData);
-#ifdef _PE_USB_INI_DUMP_
-	printk("[w35und] Hal_stop O.K.\n");
-#endif
+	pr_debug("[w35und] Hal_stop O.K.\n");
 	/* Waiting Irp completed */
 	msleep(100);
 

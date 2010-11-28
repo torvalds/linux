@@ -1012,9 +1012,7 @@ void RFSynthesizer_initial(struct hw_data *pHwData)
 	case RF_AIROHA_7230:
 		/* Start to fill RF parameters, PLL_ON should be pulled low. */
 		Wb35Reg_WriteSync(pHwData, 0x03dc, 0x00000000);
-		#ifdef _PE_STATE_DUMP_
-		printk("* PLL_ON    low\n");
-		#endif
+		pr_debug("* PLL_ON    low\n");
 		number = ARRAY_SIZE(al7230_rf_data_24);
 		Set_ChanIndep_RfData_al7230_24(pHwData, pltmp, number);
 		break;
@@ -1100,9 +1098,7 @@ void RFSynthesizer_initial(struct hw_data *pHwData)
 	case RF_AIROHA_7230:
 		/* RF parameters have filled completely, PLL_ON should be pulled high */
 		Wb35Reg_WriteSync(pHwData, 0x03dc, 0x00000080);
-		#ifdef _PE_STATE_DUMP_
-		printk("* PLL_ON    high\n");
-		#endif
+		pr_debug("* PLL_ON    high\n");
 
 		/* 2.4GHz */
 		ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x9ABA8F;
@@ -1117,9 +1113,7 @@ void RFSynthesizer_initial(struct hw_data *pHwData)
 
 		/* 5GHz */
 		Wb35Reg_WriteSync(pHwData, 0x03dc, 0x00000000);
-		#ifdef _PE_STATE_DUMP_
-		printk("* PLL_ON    low\n");
-		#endif
+		pr_debug("* PLL_ON    low\n");
 
 		number = ARRAY_SIZE(al7230_rf_data_50);
 		Set_ChanIndep_RfData_al7230_50(pHwData, pltmp, number);
@@ -1129,9 +1123,7 @@ void RFSynthesizer_initial(struct hw_data *pHwData)
 		msleep(5);
 
 		Wb35Reg_WriteSync(pHwData, 0x03dc, 0x00000080);
-		#ifdef _PE_STATE_DUMP_
-		printk("* PLL_ON    high\n");
-		#endif
+		pr_debug("* PLL_ON    high\n");
 
 		ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x9ABA8F;
 		Wb35Reg_WriteSync(pHwData, 0x0864, ltmp);
@@ -1797,9 +1789,7 @@ void RFSynthesizer_SwitchingChannel(struct hw_data *pHwData,  struct chan_info C
 
 			/* Write to register. number must less and equal than 16 */
 			Wb35Reg_BurstWrite(pHwData, 0x0864, pltmp, number, NO_INCREMENT);
-			#ifdef _PE_STATE_DUMP_
-			printk("Band changed\n");
-			#endif
+			pr_debug("Band changed\n");
 		}
 
 		if (Channel.band <= BAND_TYPE_OFDM_24) { /* channel 1 ~ 14 */
@@ -2338,13 +2328,6 @@ void EEPROMTxVgaAdjust(struct hw_data *pHwData)
 		pHwData->TxVgaFor50[32].TxVgaValue = pTxVga[17] - stmp * 2 / 4;
 		pHwData->TxVgaFor50[31].TxVgaValue = pTxVga[17] - stmp * 3 / 4;
 	}
-
-	#ifdef _PE_STATE_DUMP_
-	printk(" TxVgaFor24 :\n");
-	DataDmp((u8 *)pHwData->TxVgaFor24, 14 , 0);
-	printk(" TxVgaFor50 :\n");
-	DataDmp((u8 *)pHwData->TxVgaFor50, 70 , 0);
-	#endif
 }
 
 void BBProcessor_RateChanging(struct hw_data *pHwData,  u8 rate)
