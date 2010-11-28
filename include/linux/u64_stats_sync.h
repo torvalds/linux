@@ -67,21 +67,21 @@ struct u64_stats_sync {
 #endif
 };
 
-static void inline u64_stats_update_begin(struct u64_stats_sync *syncp)
+static inline void u64_stats_update_begin(struct u64_stats_sync *syncp)
 {
 #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
 	write_seqcount_begin(&syncp->seq);
 #endif
 }
 
-static void inline u64_stats_update_end(struct u64_stats_sync *syncp)
+static inline void u64_stats_update_end(struct u64_stats_sync *syncp)
 {
 #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
 	write_seqcount_end(&syncp->seq);
 #endif
 }
 
-static unsigned int inline u64_stats_fetch_begin(const struct u64_stats_sync *syncp)
+static inline unsigned int u64_stats_fetch_begin(const struct u64_stats_sync *syncp)
 {
 #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
 	return read_seqcount_begin(&syncp->seq);
@@ -93,7 +93,7 @@ static unsigned int inline u64_stats_fetch_begin(const struct u64_stats_sync *sy
 #endif
 }
 
-static bool inline u64_stats_fetch_retry(const struct u64_stats_sync *syncp,
+static inline bool u64_stats_fetch_retry(const struct u64_stats_sync *syncp,
 					 unsigned int start)
 {
 #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
@@ -112,7 +112,7 @@ static bool inline u64_stats_fetch_retry(const struct u64_stats_sync *syncp,
  * - UP 32bit must disable BH.
  * - 64bit have no problem atomically reading u64 values, irq safe.
  */
-static unsigned int inline u64_stats_fetch_begin_bh(const struct u64_stats_sync *syncp)
+static inline unsigned int u64_stats_fetch_begin_bh(const struct u64_stats_sync *syncp)
 {
 #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
 	return read_seqcount_begin(&syncp->seq);
@@ -124,7 +124,7 @@ static unsigned int inline u64_stats_fetch_begin_bh(const struct u64_stats_sync 
 #endif
 }
 
-static bool inline u64_stats_fetch_retry_bh(const struct u64_stats_sync *syncp,
+static inline bool u64_stats_fetch_retry_bh(const struct u64_stats_sync *syncp,
 					 unsigned int start)
 {
 #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
