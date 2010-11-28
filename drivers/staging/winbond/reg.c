@@ -2064,11 +2064,7 @@ void Mxx_initial(struct hw_data *pHwData)
 	 */
 
 	/* M00 bit set */
-	#ifdef _IBSS_BEACON_SEQ_STICK_
-	reg->M00_MacControl = 0; /* Solve beacon sequence number stop by software */
-	#else
 	reg->M00_MacControl = 0x80000000; /* Solve beacon sequence number stop by hardware */
-	#endif
 
 	/* M24 disable enter power save, BB RxOn and enable NAV attack */
 	reg->M24_MacControl = 0x08040042;
