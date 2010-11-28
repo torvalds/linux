@@ -472,7 +472,8 @@ static int skcipher_recvmsg(struct kiocb *unused, struct socket *sock,
 				goto unlock;
 
 			used = af_alg_make_sg(&ctx->rsgl, from, used, 1);
-			if (used < 0)
+			err = used;
+			if (err < 0)
 				goto unlock;
 
 			ablkcipher_request_set_crypt(&ctx->req, sg,
