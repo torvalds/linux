@@ -1316,12 +1316,11 @@ static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,
  * location, so checking ->i_pipe is not enough to verify that this is a
  * pipe.
  */
-static inline struct pipe_inode_info *pipe_info(struct inode *inode)
+static inline struct pipe_inode_info *get_pipe_info(struct file *file)
 {
-	if (S_ISFIFO(inode->i_mode))
-		return inode->i_pipe;
+	struct inode *i = file->f_path.dentry->d_inode;
 
-	return NULL;
+	return S_ISFIFO(i->i_mode) ? i->i_pipe : NULL;
 }
 
 /*
@@ -1336,8 +1335,8 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 	loff_t offset, *off;
 	long ret;
 
-	ipipe = pipe_info(in->f_path.dentry->d_inode);
-	opipe = pipe_info(out->f_path.dentry->d_inode);
+	ipipe = get_pipe_info(in);
+	opipe = get_pipe_info(out);
 
 	if (ipipe && opipe) {
 		if (off_in || off_out)
@@ -1555,7 +1554,7 @@ static long vmsplice_to_user(struct file *file, const struct iovec __user *iov,
 	int error;
 	long ret;
 
-	pipe = pipe_info(file->f_path.dentry->d_inode);
+	pipe = get_pipe_info(file);
 	if (!pipe)
 		return -EBADF;
 
@@ -1642,7 +1641,7 @@ static long vmsplice_to_pipe(struct file *file, const struct iovec __user *iov,
 	};
 	long ret;
 
-	pipe = pipe_info(file->f_path.dentry->d_inode);
+	pipe = get_pipe_info(file);
 	if (!pipe)
 		return -EBADF;
 
@@ -2022,8 +2021,8 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 static long do_tee(struct file *in, struct file *out, size_t len,
 		   unsigned int flags)
 {
-	struct pipe_inode_info *ipipe = pipe_info(in->f_path.dentry->d_inode);
-	struct pipe_inode_info *opipe = pipe_info(out->f_path.dentry->d_inode);
+	struct pipe_inode_info *ipipe = get_pipe_info(in);
+	struct pipe_inode_info *opipe = get_pipe_info(out);
 	int ret = -EINVAL;
 
 	/*
