@@ -250,11 +250,11 @@ static void ath_tid_drain(struct ath_softc *sc, struct ath_txq *txq,
 static void ath_tx_set_retry(struct ath_softc *sc, struct ath_txq *txq,
 			     struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ath_frame_info *fi = get_frame_info(skb);
 	struct ieee80211_hdr *hdr;
 
 	TX_STAT_INC(txq->axq_qnum, a_retries);
-	if (tx_info->control.rates[4].count++ > 0)
+	if (fi->retries++ > 0)
 		return;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
