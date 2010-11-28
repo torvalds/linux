@@ -320,5 +320,10 @@ static inline int mmc_card_is_removable(struct mmc_host *host)
 	return !(host->caps & MMC_CAP_NONREMOVABLE) && mmc_assume_removable;
 }
 
+static inline int mmc_card_is_powered_resumed(struct mmc_host *host)
+{
+	return host->pm_flags & MMC_PM_KEEP_POWER;
+}
+
 #endif
 
