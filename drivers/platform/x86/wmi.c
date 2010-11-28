@@ -801,7 +801,7 @@ static bool guid_already_parsed(const char *guid_string)
 		wblock = list_entry(p, struct wmi_block, list);
 		gblock = &wblock->gblock;
 
-		if (strncmp(gblock->guid, guid_string, 16) == 0)
+		if (memcmp(gblock->guid, guid_string, 16) == 0)
 			return true;
 	}
 	return false;
