@@ -356,7 +356,6 @@ struct txvga_for_50 {
  * ==============================================
  */
 
-#include "wbusb_s.h"
 #include "wb35reg_s.h"
 #include "wb35tx_s.h"
 #include "wb35rx_s.h"
@@ -437,7 +436,7 @@ struct hw_data {
 	 * Variable for each module
 	 * ==================================================
 	 */
-	struct wb_usb		WbUsb;	/* Need WbUsb.h */
+	struct usb_device	*udev;
 	struct wb35_reg		reg;	/* Need Wb35Reg.h */
 	struct wb35_tx		Wb35Tx; /* Need Wb35Tx.h */
 	struct wb35_rx		Wb35Rx; /* Need Wb35Rx.h */

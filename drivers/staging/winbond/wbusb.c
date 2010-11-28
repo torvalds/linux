@@ -747,7 +747,6 @@ static int wb35_probe(struct usb_interface *intf,
 	struct usb_host_interface *interface;
 	struct ieee80211_hw *dev;
 	struct wbsoft_priv *priv;
-	struct wb_usb *pWbUsb;
 	int nr, err;
 	u32 ltmp;
 
@@ -778,8 +777,7 @@ static int wb35_probe(struct usb_interface *intf,
 
 	priv = dev->priv;
 
-	pWbUsb = &priv->sHwData.WbUsb;
-	pWbUsb->udev = udev;
+	priv->sHwData.udev = udev;
 
 	interface = intf->cur_altsetting;
 	endpoint = &interface->endpoint[0].desc;

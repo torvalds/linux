@@ -88,8 +88,8 @@ static void Wb35Tx(struct wbsoft_priv *adapter)
 	//
 	// Issuing URB
 	//
-	usb_fill_bulk_urb(pUrb, pHwData->WbUsb.udev,
-			  usb_sndbulkpipe(pHwData->WbUsb.udev, 4),
+	usb_fill_bulk_urb(pUrb, pHwData->udev,
+			  usb_sndbulkpipe(pHwData->udev, 4),
 			  pTxBufferAddress, pMds->TxBufferSize[ SendIndex ],
 			  Wb35Tx_complete, adapter);
 
@@ -265,7 +265,7 @@ static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter)
 	//
 	// Issuing URB
 	//
-	usb_fill_int_urb( pUrb, pHwData->WbUsb.udev, usb_rcvintpipe(pHwData->WbUsb.udev,2),
+	usb_fill_int_urb( pUrb, pHwData->udev, usb_rcvintpipe(pHwData->udev,2),
 			  pltmp, MAX_INTERRUPT_LENGTH, Wb35Tx_EP2VM_complete, adapter, 32);
 
 	pWb35Tx->EP2vm_state = VM_RUNNING;

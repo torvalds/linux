@@ -260,8 +260,8 @@ static void Wb35Rx(struct ieee80211_hw *hw)
 	}
 	pRxBufferAddress = pWb35Rx->pDRx;
 
-	usb_fill_bulk_urb(urb, pHwData->WbUsb.udev,
-			  usb_rcvbulkpipe(pHwData->WbUsb.udev, 3),
+	usb_fill_bulk_urb(urb, pHwData->udev,
+			  usb_rcvbulkpipe(pHwData->udev, 3),
 			  pRxBufferAddress, MAX_USB_RX_BUFFER,
 			  Wb35Rx_Complete, hw);
 
