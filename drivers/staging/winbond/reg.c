@@ -1,4 +1,3 @@
-#include "sysdef.h"
 #include "wbhal.h"
 #include "wb35reg_f.h"
 #include "core.h"

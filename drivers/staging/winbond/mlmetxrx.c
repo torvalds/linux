@@ -15,8 +15,6 @@
 
   Copyright (c) 1996-2002 Winbond Electronics Corp. All Rights Reserved.
 ============================================================================ */
-#include "sysdef.h"
-
 #include "mds_f.h"
 
 void MLME_GetNextPacket(struct wbsoft_priv *adapter, struct wb35_descriptor *desc)

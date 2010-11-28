@@ -14,7 +14,6 @@
 #include <linux/slab.h>
 
 #include "core.h"
-#include "sysdef.h"
 #include "wb35rx_f.h"
 
 static void packet_came(struct ieee80211_hw *hw, char *pRxBufferAddress, int PacketSize)

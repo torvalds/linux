@@ -13,7 +13,6 @@
 
 #include "wb35tx_f.h"
 #include "mds_f.h"
-#include "sysdef.h"
 
 unsigned char
 Wb35Tx_get_tx_buffer(struct hw_data * pHwData, u8 **pBuffer)
