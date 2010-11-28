@@ -120,11 +120,15 @@ static void ir_enltv_handle_key(struct bttv *btv)
 	ir->last_gpio = data | keyup;
 }
 
+static int bttv_rc5_irq(struct bttv *btv);
+
 void bttv_input_irq(struct bttv *btv)
 {
 	struct bttv_ir *ir = btv->remote;
 
-	if (!ir->polling)
+	if (ir->rc5_gpio)
+		bttv_rc5_irq(btv);
+	else if (!ir->polling)
 		ir_handle_key(btv);
 }
 
@@ -251,10 +255,6 @@ static int bttv_rc5_irq(struct bttv *btv)
 	/* read gpio port */
 	gpio = bttv_gpio_read(&btv->c);
 
-	/* remote IRQ? */
-	if (!(gpio & 0x20))
-		return 0;
-
 	/* get time of bit */
 	current_jiffies = jiffies;
 	do_gettimeofday(&tv);
@@ -266,6 +266,13 @@ static int bttv_rc5_irq(struct bttv *btv)
 		gap = 1000000 * (tv.tv_sec - ir->base_time.tv_sec) +
 		    tv.tv_usec - ir->base_time.tv_usec;
 	}
+
+	dprintk(KERN_INFO DEVNAME ": RC5 IRQ: gap %d us for %s\n",
+		gap, (gpio & 0x20) ? "mark" : "space");
+
+	/* remote IRQ? */
+	if (!(gpio & 0x20))
+		return 0;
 
 	/* active code => add bit */
 	if (ir->active) {
@@ -479,8 +486,7 @@ int bttv_input_init(struct bttv *btv)
 		break;
 	case BTTV_BOARD_NEBULA_DIGITV:
 		ir_codes = RC_MAP_NEBULA;
-		btv->custom_irq = bttv_rc5_irq;
-		ir->rc5_gpio = 1;
+		ir->rc5_gpio = true;
 		break;
 	case BTTV_BOARD_MACHTV_MAGICTV:
 		ir_codes         = RC_MAP_APAC_VIEWCOMP;

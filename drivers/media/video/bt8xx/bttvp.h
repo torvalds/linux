@@ -139,7 +139,7 @@ struct bttv_ir {
 	int                     rc5_remote_gap;
 
 	/* RC5 gpio */
-	u32                     rc5_gpio;
+	bool			rc5_gpio;   /* Is RC5 legacy GPIO enabled? */
 	u32                     last_bit;   /* last raw bit seen */
 	u32                     code;       /* raw code under construction */
 	struct timeval          base_time;  /* time of last seen code */
@@ -364,12 +364,10 @@ struct bttv {
 	struct bttv_pll_info pll;
 	int triton1;
 	int gpioirq;
-	int (*custom_irq)(struct bttv *btv);
 
 	int use_i2c_hw;
 
 	/* old gpio interface */
-	wait_queue_head_t gpioq;
 	int shutdown;
 
 	void (*volume_gpio)(struct bttv *btv, __u16 volume);
