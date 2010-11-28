@@ -3,8 +3,6 @@
 #ifndef SYS_DEF_H
 #define SYS_DEF_H
 
-#define _USE_FALLBACK_RATE_
-
 #define _WPA2_
 
 /* debug print options, mark what debug you don't need */

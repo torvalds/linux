@@ -51,11 +51,7 @@ struct hw_data;
 #define DEFAULT_CWMAX			1023	/* (M2C) CWmax. Its value is in the range 0-1023. */
 #define DEFAULT_AID			1	/* (M34) AID. Its value is in the range 1-2007. */
 
-#ifdef _USE_FALLBACK_RATE_
 #define DEFAULT_RATE_RETRY_LIMIT	2	/* (M38) as named */
-#else
-#define DEFAULT_RATE_RETRY_LIMIT	7	/* (M38) as named */
-#endif
 
 #define DEFAULT_LONG_RETRY_LIMIT	7	/* (M38) LongRetryLimit. Its value is in the range 0-15. */
 #define DEFAULT_SHORT_RETRY_LIMIT	7	/* (M38) ShortRetryLimit. Its value is in the range 0-15. */
