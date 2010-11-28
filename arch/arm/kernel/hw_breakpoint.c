@@ -24,6 +24,7 @@
 #define pr_fmt(fmt) "hw-breakpoint: " fmt
 
 #include <linux/errno.h>
+#include <linux/hardirq.h>
 #include <linux/perf_event.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/smp.h>
@@ -736,13 +737,16 @@ unlock:
 
 /*
  * Called from either the Data Abort Handler [watchpoint] or the
- * Prefetch Abort Handler [breakpoint].
+ * Prefetch Abort Handler [breakpoint] with preemption disabled.
  */
 static int hw_breakpoint_pending(unsigned long addr, unsigned int fsr,
 				 struct pt_regs *regs)
 {
-	int ret = 1; /* Unhandled fault. */
+	int ret = 0;
 	u32 dscr;
+
+	/* We must be called with preemption disabled. */
+	WARN_ON(preemptible());
 
 	/* We only handle watchpoints and hardware breakpoints. */
 	ARM_DBG_READ(c1, 0, dscr);
@@ -758,11 +762,15 @@ static int hw_breakpoint_pending(unsigned long addr, unsigned int fsr,
 		watchpoint_handler(addr, regs);
 		break;
 	default:
-		goto out;
+		ret = 1; /* Unhandled fault. */
 	}
 
-	ret = 0;
-out:
+	/*
+	 * Re-enable preemption after it was disabled in the
+	 * low-level exception handling code.
+	 */
+	preempt_enable();
+
 	return ret;
 }
 
