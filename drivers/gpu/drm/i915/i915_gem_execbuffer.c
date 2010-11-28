@@ -530,6 +530,9 @@ i915_gem_execbuffer_reserve(struct drm_device *dev,
 	} while (1);
 
 err:
+	obj = list_entry(obj->exec_list.prev,
+			 struct drm_i915_gem_object,
+			 exec_list);
 	while (objects != &obj->exec_list) {
 		if (obj->gtt_space)
 			i915_gem_object_unpin(obj);
