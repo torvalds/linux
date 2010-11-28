@@ -899,6 +899,8 @@ static void xps_dev_maps_release(struct rcu_head *rcu)
 }
 
 static DEFINE_MUTEX(xps_map_mutex);
+#define xmap_dereference(P)		\
+	rcu_dereference_protected((P), lockdep_is_held(&xps_map_mutex))
 
 static ssize_t store_xps_map(struct netdev_queue *queue,
 		      struct netdev_queue_attribute *attribute,
@@ -935,11 +937,12 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 
 	mutex_lock(&xps_map_mutex);
 
-	dev_maps = dev->xps_maps;
+	dev_maps = xmap_dereference(dev->xps_maps);
 
 	for_each_possible_cpu(cpu) {
-		new_map = map = dev_maps ? dev_maps->cpu_map[cpu] : NULL;
-
+		map = dev_maps ?
+			xmap_dereference(dev_maps->cpu_map[cpu]) : NULL;
+		new_map = map;
 		if (map) {
 			for (pos = 0; pos < map->len; pos++)
 				if (map->queues[pos] == index)
@@ -975,13 +978,14 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 			else
 				new_map = NULL;
 		}
-		new_dev_maps->cpu_map[cpu] = new_map;
+		RCU_INIT_POINTER(new_dev_maps->cpu_map[cpu], new_map);
 	}
 
 	/* Cleanup old maps */
 	for_each_possible_cpu(cpu) {
-		map = dev_maps ? dev_maps->cpu_map[cpu] : NULL;
-		if (map && new_dev_maps->cpu_map[cpu] != map)
+		map = dev_maps ?
+			xmap_dereference(dev_maps->cpu_map[cpu]) : NULL;
+		if (map && xmap_dereference(new_dev_maps->cpu_map[cpu]) != map)
 			call_rcu(&map->rcu, xps_map_release);
 		if (new_dev_maps->cpu_map[cpu])
 			nonempty = 1;
@@ -1007,7 +1011,9 @@ error:
 
 	if (new_dev_maps)
 		for_each_possible_cpu(i)
-			kfree(new_dev_maps->cpu_map[i]);
+			kfree(rcu_dereference_protected(
+				new_dev_maps->cpu_map[i],
+				1));
 	kfree(new_dev_maps);
 	free_cpumask_var(mask);
 	return -ENOMEM;
@@ -1033,11 +1039,11 @@ static void netdev_queue_release(struct kobject *kobj)
 	index = get_netdev_queue_index(queue);
 
 	mutex_lock(&xps_map_mutex);
-	dev_maps = dev->xps_maps;
+	dev_maps = xmap_dereference(dev->xps_maps);
 
 	if (dev_maps) {
 		for_each_possible_cpu(i) {
-			map  = dev_maps->cpu_map[i];
+			map = xmap_dereference(dev_maps->cpu_map[i]);
 			if (!map)
 				continue;
 

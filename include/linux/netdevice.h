@@ -622,7 +622,7 @@ struct xps_map {
  */
 struct xps_dev_maps {
 	struct rcu_head rcu;
-	struct xps_map *cpu_map[0];
+	struct xps_map __rcu *cpu_map[0];
 };
 #define XPS_DEV_MAPS_SIZE (sizeof(struct xps_dev_maps) +		\
     (nr_cpu_ids * sizeof(struct xps_map *)))
@@ -1049,7 +1049,7 @@ struct net_device {
 	spinlock_t		tx_global_lock;
 
 #ifdef CONFIG_XPS
-	struct xps_dev_maps	*xps_maps;
+	struct xps_dev_maps __rcu *xps_maps;
 #endif
 
 	/* These may be needed for future network-power-down code. */
