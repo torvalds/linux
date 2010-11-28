@@ -481,11 +481,6 @@ Mds_Tx(struct wbsoft_priv *adapter)
 			XmitBufSize += CurrentSize;
 			XmitBufAddress += CurrentSize;
 
-#ifdef _IBSS_BEACON_SEQ_STICK_
-			if ((XmitBufAddress[DOT_11_DA_OFFSET+8] & 0xfc) != MAC_SUBTYPE_MNGMNT_PROBE_REQUEST) /* +8 for USB hdr */
-#endif
-				pMds->TxToggle = true;
-
 			/* Get packet to transmit completed, 1:TESTSTA 2:MLME 3: Ndis data */
 			MLME_SendComplete(adapter, 0, true);
 
