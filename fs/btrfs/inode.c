@@ -5602,15 +5602,18 @@ static void btrfs_endio_direct_write(struct bio *bio, int err)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_ordered_extent *ordered = NULL;
 	struct extent_state *cached_state = NULL;
+	u64 ordered_offset = dip->logical_offset;
+	u64 ordered_bytes = dip->bytes;
 	int ret;
 
 	if (err)
 		goto out_done;
-
-	ret = btrfs_dec_test_ordered_pending(inode, &ordered,
-					     dip->logical_offset, dip->bytes);
+again:
+	ret = btrfs_dec_test_first_ordered_pending(inode, &ordered,
+						   &ordered_offset,
+						   ordered_bytes);
 	if (!ret)
-		goto out_done;
+		goto out_test;
 
 	BUG_ON(!ordered);
 
@@ -5670,8 +5673,20 @@ out_unlock:
 out:
 	btrfs_delalloc_release_metadata(inode, ordered->len);
 	btrfs_end_transaction(trans, root);
+	ordered_offset = ordered->file_offset + ordered->len;
 	btrfs_put_ordered_extent(ordered);
 	btrfs_put_ordered_extent(ordered);
+
+out_test:
+	/*
+	 * our bio might span multiple ordered extents.  If we haven't
+	 * completed the accounting for the whole dio, go back and try again
+	 */
+	if (ordered_offset < dip->logical_offset + dip->bytes) {
+		ordered_bytes = dip->logical_offset + dip->bytes -
+			ordered_offset;
+		goto again;
+	}
 out_done:
 	bio->bi_private = dip->private;
 
