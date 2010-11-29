@@ -24,8 +24,6 @@
 #define REG_READ_D(_ah, _reg) \
 	ath9k_hw_common(_ah)->ops->read((_ah), (_reg))
 
-static struct dentry *ath9k_debugfs_root;
-
 static int ath9k_debugfs_open(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
@@ -878,11 +876,8 @@ int ath9k_init_debug(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
-	if (!ath9k_debugfs_root)
-		return -ENOENT;
-
-	sc->debug.debugfs_phy = debugfs_create_dir(wiphy_name(sc->hw->wiphy),
-						      ath9k_debugfs_root);
+	sc->debug.debugfs_phy = debugfs_create_dir("ath9k",
+						   sc->hw->wiphy->debugfsdir);
 	if (!sc->debug.debugfs_phy)
 		return -ENOMEM;
 
@@ -935,29 +930,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 	sc->debug.regidx = 0;
 	return 0;
 err:
-	ath9k_exit_debug(ah);
-	return -ENOMEM;
-}
-
-void ath9k_exit_debug(struct ath_hw *ah)
-{
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
-
 	debugfs_remove_recursive(sc->debug.debugfs_phy);
-}
-
-int ath9k_debug_create_root(void)
-{
-	ath9k_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!ath9k_debugfs_root)
-		return -ENOENT;
-
-	return 0;
-}
-
-void ath9k_debug_remove_root(void)
-{
-	debugfs_remove(ath9k_debugfs_root);
-	ath9k_debugfs_root = NULL;
+	sc->debug.debugfs_phy = NULL;
+	return -ENOMEM;
 }

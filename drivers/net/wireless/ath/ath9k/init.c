@@ -570,13 +570,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	if (ret)
 		goto err_hw;
 
-	ret = ath9k_init_debug(ah);
-	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to create debugfs files\n");
-		goto err_debug;
-	}
-
 	ret = ath9k_init_queues(sc);
 	if (ret)
 		goto err_queues;
@@ -599,8 +592,6 @@ err_btcoex:
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 err_queues:
-	ath9k_exit_debug(ah);
-err_debug:
 	ath9k_hw_deinit(ah);
 err_hw:
 	tasklet_kill(&sc->intr_tq);
@@ -744,6 +735,13 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 	if (error)
 		goto error_register;
 
+	error = ath9k_init_debug(ah);
+	if (error) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to create debugfs files\n");
+		goto error_world;
+	}
+
 	/* Handle world regulatory */
 	if (!ath_is_world_regd(reg)) {
 		error = regulatory_hint(hw->wiphy, reg->alpha2);
@@ -802,7 +800,6 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
-	ath9k_exit_debug(sc->sc_ah);
 	ath9k_hw_deinit(sc->sc_ah);
 
 	tasklet_kill(&sc->intr_tq);
@@ -869,20 +866,12 @@ static int __init ath9k_init(void)
 		goto err_out;
 	}
 
-	error = ath9k_debug_create_root();
-	if (error) {
-		printk(KERN_ERR
-			"ath9k: Unable to create debugfs root: %d\n",
-			error);
-		goto err_rate_unregister;
-	}
-
 	error = ath_pci_init();
 	if (error < 0) {
 		printk(KERN_ERR
 			"ath9k: No PCI devices found, driver not installed.\n");
 		error = -ENODEV;
-		goto err_remove_root;
+		goto err_rate_unregister;
 	}
 
 	error = ath_ahb_init();
@@ -896,8 +885,6 @@ static int __init ath9k_init(void)
  err_pci_exit:
 	ath_pci_exit();
 
- err_remove_root:
-	ath9k_debug_remove_root();
  err_rate_unregister:
 	ath_rate_control_unregister();
  err_out:
@@ -909,7 +896,6 @@ static void __exit ath9k_exit(void)
 {
 	ath_ahb_exit();
 	ath_pci_exit();
-	ath9k_debug_remove_root();
 	ath_rate_control_unregister();
 	printk(KERN_INFO "%s: Driver unloaded\n", dev_info);
 }
