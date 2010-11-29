@@ -126,14 +126,32 @@ static unsigned int prom_early_allocated __initdata;
 
 void * __init prom_early_alloc(unsigned long size)
 {
+	static u8 *mem;
+	static size_t free_mem;
 	void *res;
 
-	res = alloc_bootmem(size);
-	if (res)
-		memset(res, 0, size);
+	if (free_mem < size) {
+		const size_t chunk_size = max(PAGE_SIZE, size);
 
-	prom_early_allocated += size;
+		/*
+		 * To mimimize the number of allocations, grab at least
+		 * PAGE_SIZE of memory (that's an arbitrary choice that's
+		 * fast enough on the platforms we care about while minimizing
+		 * wasted bootmem) and hand off chunks of it to callers.
+		 */
+		res = alloc_bootmem(chunk_size);
+		if (!res)
+			return NULL;
+		prom_early_allocated += chunk_size;
+		memset(res, 0, chunk_size);
+		free_mem = chunk_size;
+		mem = res;
+	}
 
+	/* allocate from the local cache */
+	free_mem -= size;
+	res = mem;
+	mem += size;
 	return res;
 }
 
