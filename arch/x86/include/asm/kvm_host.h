@@ -779,6 +779,7 @@ enum {
 #define HF_VINTR_MASK		(1 << 2)
 #define HF_NMI_MASK		(1 << 3)
 #define HF_IRET_MASK		(1 << 4)
+#define HF_GUEST_MASK		(1 << 5) /* VCPU is in guest-mode */
 
 /*
  * Hardware virtualization extension instructions may fault if a
