@@ -16,7 +16,6 @@
 #include <linux/limits.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <linux/sysctl.h>
 #include <linux/slab.h>
 

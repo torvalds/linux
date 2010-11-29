@@ -134,9 +134,9 @@ void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
 }
 
 #if defined(CONFIG_HIGHPTE)
-pte_t *_pte_offset_map(pmd_t *dir, unsigned long address, enum km_type type)
+pte_t *_pte_offset_map(pmd_t *dir, unsigned long address)
 {
-	pte_t *pte = kmap_atomic(pmd_page(*dir), type) +
+	pte_t *pte = kmap_atomic(pmd_page(*dir)) +
 		(pmd_ptfn(*dir) << HV_LOG2_PAGE_TABLE_ALIGN) & ~PAGE_MASK;
 	return &pte[pte_index(address)];
 }

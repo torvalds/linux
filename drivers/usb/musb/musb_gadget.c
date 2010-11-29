@@ -644,10 +644,8 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	 */
 
 				csr |= MUSB_RXCSR_DMAENAB;
-				if (!musb_ep->hb_mult &&
-					musb_ep->hw_ep->rx_double_buffered)
-					csr |= MUSB_RXCSR_AUTOCLEAR;
 #ifdef USE_MODE1
+				csr |= MUSB_RXCSR_AUTOCLEAR;
 				/* csr |= MUSB_RXCSR_DMAMODE; */
 
 				/* this special sequence (enabling and then
@@ -656,6 +654,10 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 				 */
 				musb_writew(epio, MUSB_RXCSR,
 					csr | MUSB_RXCSR_DMAMODE);
+#else
+				if (!musb_ep->hb_mult &&
+					musb_ep->hw_ep->rx_double_buffered)
+					csr |= MUSB_RXCSR_AUTOCLEAR;
 #endif
 				musb_writew(epio, MUSB_RXCSR, csr);
 
@@ -807,7 +809,7 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 
 #if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_TUSB_OMAP_DMA)
 		/* Autoclear doesn't clear RxPktRdy for short packets */
-		if ((dma->desired_mode == 0)
+		if ((dma->desired_mode == 0 && !hw_ep->rx_double_buffered)
 				|| (dma->actual_len
 					& (musb_ep->packet_sz - 1))) {
 			/* ack the read! */
@@ -818,8 +820,16 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 		/* incomplete, and not short? wait for next IN packet */
 		if ((request->actual < request->length)
 				&& (musb_ep->dma->actual_len
-					== musb_ep->packet_sz))
+					== musb_ep->packet_sz)) {
+			/* In double buffer case, continue to unload fifo if
+ 			 * there is Rx packet in FIFO.
+ 			 **/
+			csr = musb_readw(epio, MUSB_RXCSR);
+			if ((csr & MUSB_RXCSR_RXPKTRDY) &&
+				hw_ep->rx_double_buffered)
+				goto exit;
 			return;
+		}
 #endif
 		musb_g_giveback(musb_ep, request, 0);
 
@@ -827,7 +837,7 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 		if (!request)
 			return;
 	}
-
+exit:
 	/* Analyze request */
 	rxstate(musb, to_musb_request(request));
 }
@@ -916,13 +926,9 @@ static int musb_gadget_enable(struct usb_ep *ep,
 		 * likewise high bandwidth periodic tx
 		 */
 		/* Set TXMAXP with the FIFO size of the endpoint
-		 * to disable double buffering mode. Currently, It seems that double
-		 * buffering has problem if musb RTL revision number < 2.0.
+		 * to disable double buffering mode.
 		 */
-		if (musb->hwvers < MUSB_HWVERS_2000)
-			musb_writew(regs, MUSB_TXMAXP, hw_ep->max_packet_sz_tx);
-		else
-			musb_writew(regs, MUSB_TXMAXP, musb_ep->packet_sz | (musb_ep->hb_mult << 11));
+		musb_writew(regs, MUSB_TXMAXP, musb_ep->packet_sz | (musb_ep->hb_mult << 11));
 
 		csr = MUSB_TXCSR_MODE | MUSB_TXCSR_CLRDATATOG;
 		if (musb_readw(regs, MUSB_TXCSR)
@@ -958,10 +964,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 		/* Set RXMAXP with the FIFO size of the endpoint
 		 * to disable double buffering mode.
 		 */
-		if (musb->hwvers < MUSB_HWVERS_2000)
-			musb_writew(regs, MUSB_RXMAXP, hw_ep->max_packet_sz_rx);
-		else
-			musb_writew(regs, MUSB_RXMAXP, musb_ep->packet_sz | (musb_ep->hb_mult << 11));
+		musb_writew(regs, MUSB_RXMAXP, musb_ep->packet_sz | (musb_ep->hb_mult << 11));
 
 		/* force shared fifo to OUT-only mode */
 		if (hw_ep->is_shared_fifo) {
@@ -1166,8 +1169,6 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 						: DMA_FROM_DEVICE);
 			request->mapped = 0;
 		}
-	} else if (!req->buf) {
-		return -ENODATA;
 	} else
 		request->mapped = 0;
 
@@ -1695,8 +1696,10 @@ int __init musb_gadget_setup(struct musb *musb)
 	musb_platform_try_idle(musb, 0);
 
 	status = device_register(&musb->g.dev);
-	if (status != 0)
+	if (status != 0) {
+		put_device(&musb->g.dev);
 		the_gadget = NULL;
+	}
 	return status;
 }
 

@@ -828,12 +828,22 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei->cur_aio_dio = NULL;
 	ei->i_sync_tid = 0;
 	ei->i_datasync_tid = 0;
+	atomic_set(&ei->i_ioend_count, 0);
 
 	return &ei->vfs_inode;
 }
 
+static int ext4_drop_inode(struct inode *inode)
+{
+	int drop = generic_drop_inode(inode);
+
+	trace_ext4_drop_inode(inode, drop);
+	return drop;
+}
+
 static void ext4_destroy_inode(struct inode *inode)
 {
+	ext4_ioend_wait(inode);
 	if (!list_empty(&(EXT4_I(inode)->i_orphan))) {
 		ext4_msg(inode->i_sb, KERN_ERR,
 			 "Inode %lu (%p): orphan list check failed!",
@@ -1173,6 +1183,7 @@ static const struct super_operations ext4_sops = {
 	.destroy_inode	= ext4_destroy_inode,
 	.write_inode	= ext4_write_inode,
 	.dirty_inode	= ext4_dirty_inode,
+	.drop_inode	= ext4_drop_inode,
 	.evict_inode	= ext4_evict_inode,
 	.put_super	= ext4_put_super,
 	.sync_fs	= ext4_sync_fs,
@@ -1186,7 +1197,6 @@ static const struct super_operations ext4_sops = {
 	.quota_write	= ext4_quota_write,
 #endif
 	.bdev_try_to_free_page = bdev_try_to_free_page,
-	.trim_fs	= ext4_trim_fs
 };
 
 static const struct super_operations ext4_nojournal_sops = {
@@ -1194,6 +1204,7 @@ static const struct super_operations ext4_nojournal_sops = {
 	.destroy_inode	= ext4_destroy_inode,
 	.write_inode	= ext4_write_inode,
 	.dirty_inode	= ext4_dirty_inode,
+	.drop_inode	= ext4_drop_inode,
 	.evict_inode	= ext4_evict_inode,
 	.write_super	= ext4_write_super,
 	.put_super	= ext4_put_super,
@@ -2699,7 +2710,6 @@ static int ext4_lazyinit_thread(void *arg)
 	struct ext4_li_request *elr;
 	unsigned long next_wakeup;
 	DEFINE_WAIT(wait);
-	int ret;
 
 	BUG_ON(NULL == eli);
 
@@ -2723,13 +2733,12 @@ cont_thread:
 			elr = list_entry(pos, struct ext4_li_request,
 					 lr_request);
 
-			if (time_after_eq(jiffies, elr->lr_next_sched))
-				ret = ext4_run_li_request(elr);
-
-			if (ret) {
-				ret = 0;
-				ext4_remove_li_request(elr);
-				continue;
+			if (time_after_eq(jiffies, elr->lr_next_sched)) {
+				if (ext4_run_li_request(elr) != 0) {
+					/* error, remove the lazy_init job */
+					ext4_remove_li_request(elr);
+					continue;
+				}
 			}
 
 			if (time_before(elr->lr_next_sched, next_wakeup))
@@ -2740,7 +2749,8 @@ cont_thread:
 		if (freezing(current))
 			refrigerator();
 
-		if (time_after_eq(jiffies, next_wakeup)) {
+		if ((time_after_eq(jiffies, next_wakeup)) ||
+		    (MAX_JIFFY_OFFSET == next_wakeup)) {
 			cond_resched();
 			continue;
 		}
@@ -2788,9 +2798,6 @@ static void ext4_clear_request_list(void)
 	struct ext4_li_request *elr;
 
 	mutex_lock(&ext4_li_info->li_list_mtx);
-	if (list_empty(&ext4_li_info->li_request_list))
-		return;
-
 	list_for_each_safe(pos, n, &ext4_li_info->li_request_list) {
 		elr = list_entry(pos, struct ext4_li_request,
 				 lr_request);
@@ -3257,13 +3264,14 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	 * Test whether we have more sectors than will fit in sector_t,
 	 * and whether the max offset is addressable by the page cache.
 	 */
-	ret = generic_check_addressable(sb->s_blocksize_bits,
+	err = generic_check_addressable(sb->s_blocksize_bits,
 					ext4_blocks_count(es));
-	if (ret) {
+	if (err) {
 		ext4_msg(sb, KERN_ERR, "filesystem"
 			 " too large to mount safely on this system");
 		if (sizeof(sector_t) < 8)
 			ext4_msg(sb, KERN_WARNING, "CONFIG_LBDAF not enabled");
+		ret = err;
 		goto failed_mount;
 	}
 
@@ -3347,6 +3355,24 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_gdb_count = db_count;
 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
 	spin_lock_init(&sbi->s_next_gen_lock);
+
+	err = percpu_counter_init(&sbi->s_freeblocks_counter,
+			ext4_count_free_blocks(sb));
+	if (!err) {
+		err = percpu_counter_init(&sbi->s_freeinodes_counter,
+				ext4_count_free_inodes(sb));
+	}
+	if (!err) {
+		err = percpu_counter_init(&sbi->s_dirs_counter,
+				ext4_count_dirs(sb));
+	}
+	if (!err) {
+		err = percpu_counter_init(&sbi->s_dirtyblocks_counter, 0);
+	}
+	if (err) {
+		ext4_msg(sb, KERN_ERR, "insufficient memory");
+		goto failed_mount3;
+	}
 
 	sbi->s_stripe = ext4_get_stripe_size(sbi);
 	sbi->s_max_writeback_mb_bump = 128;
@@ -3446,22 +3472,19 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	set_task_ioprio(sbi->s_journal->j_task, journal_ioprio);
 
-no_journal:
-	err = percpu_counter_init(&sbi->s_freeblocks_counter,
-				  ext4_count_free_blocks(sb));
-	if (!err)
-		err = percpu_counter_init(&sbi->s_freeinodes_counter,
-					  ext4_count_free_inodes(sb));
-	if (!err)
-		err = percpu_counter_init(&sbi->s_dirs_counter,
-					  ext4_count_dirs(sb));
-	if (!err)
-		err = percpu_counter_init(&sbi->s_dirtyblocks_counter, 0);
-	if (err) {
-		ext4_msg(sb, KERN_ERR, "insufficient memory");
-		goto failed_mount_wq;
-	}
+	/*
+	 * The journal may have updated the bg summary counts, so we
+	 * need to update the global counters.
+	 */
+	percpu_counter_set(&sbi->s_freeblocks_counter,
+			   ext4_count_free_blocks(sb));
+	percpu_counter_set(&sbi->s_freeinodes_counter,
+			   ext4_count_free_inodes(sb));
+	percpu_counter_set(&sbi->s_dirs_counter,
+			   ext4_count_dirs(sb));
+	percpu_counter_set(&sbi->s_dirtyblocks_counter, 0);
 
+no_journal:
 	EXT4_SB(sb)->dio_unwritten_wq = create_workqueue("ext4-dio-unwritten");
 	if (!EXT4_SB(sb)->dio_unwritten_wq) {
 		printk(KERN_ERR "EXT4-fs: failed to create DIO workqueue\n");
@@ -3611,10 +3634,6 @@ failed_mount_wq:
 		jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
 	}
-	percpu_counter_destroy(&sbi->s_freeblocks_counter);
-	percpu_counter_destroy(&sbi->s_freeinodes_counter);
-	percpu_counter_destroy(&sbi->s_dirs_counter);
-	percpu_counter_destroy(&sbi->s_dirtyblocks_counter);
 failed_mount3:
 	if (sbi->s_flex_groups) {
 		if (is_vmalloc_addr(sbi->s_flex_groups))
@@ -3622,6 +3641,10 @@ failed_mount3:
 		else
 			kfree(sbi->s_flex_groups);
 	}
+	percpu_counter_destroy(&sbi->s_freeblocks_counter);
+	percpu_counter_destroy(&sbi->s_freeinodes_counter);
+	percpu_counter_destroy(&sbi->s_dirs_counter);
+	percpu_counter_destroy(&sbi->s_dirtyblocks_counter);
 failed_mount2:
 	for (i = 0; i < db_count; i++)
 		brelse(sbi->s_group_desc[i]);
@@ -3949,13 +3972,11 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 	else
 		es->s_kbytes_written =
 			cpu_to_le64(EXT4_SB(sb)->s_kbytes_written);
-	if (percpu_counter_initialized(&EXT4_SB(sb)->s_freeblocks_counter))
-		ext4_free_blocks_count_set(es, percpu_counter_sum_positive(
-					&EXT4_SB(sb)->s_freeblocks_counter));
-	if (percpu_counter_initialized(&EXT4_SB(sb)->s_freeinodes_counter))
-		es->s_free_inodes_count =
-			cpu_to_le32(percpu_counter_sum_positive(
-					&EXT4_SB(sb)->s_freeinodes_counter));
+	ext4_free_blocks_count_set(es, percpu_counter_sum_positive(
+					   &EXT4_SB(sb)->s_freeblocks_counter));
+	es->s_free_inodes_count =
+		cpu_to_le32(percpu_counter_sum_positive(
+				&EXT4_SB(sb)->s_freeinodes_counter));
 	sb->s_dirt = 0;
 	BUFFER_TRACE(sbh, "marking dirty");
 	mark_buffer_dirty(sbh);
@@ -4556,12 +4577,10 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 
 static int ext4_quota_off(struct super_block *sb, int type)
 {
-	/* Force all delayed allocation blocks to be allocated */
-	if (test_opt(sb, DELALLOC)) {
-		down_read(&sb->s_umount);
+	/* Force all delayed allocation blocks to be allocated.
+	 * Caller already holds s_umount sem */
+	if (test_opt(sb, DELALLOC))
 		sync_filesystem(sb);
-		up_read(&sb->s_umount);
-	}
 
 	return dquot_quota_off(sb, type);
 }

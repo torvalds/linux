@@ -3491,10 +3491,8 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 				return err;
 		}
 
-		if (snd_hda_get_bool_hint(codec, "separate_dmux") != 1) {
+		if (snd_hda_get_bool_hint(codec, "separate_dmux") != 1)
 			snd_hda_add_imux_item(imux, label, index, NULL);
-			spec->num_analog_muxes++;
-		}
 	}
 
 	return 0;

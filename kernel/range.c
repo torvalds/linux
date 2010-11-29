@@ -119,7 +119,7 @@ static int cmp_range(const void *x1, const void *x2)
 
 int clean_sort_range(struct range *range, int az)
 {
-	int i, j, k = az - 1, nr_range = 0;
+	int i, j, k = az - 1, nr_range = az;
 
 	for (i = 0; i < k; i++) {
 		if (range[i].end)

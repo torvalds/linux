@@ -116,4 +116,6 @@ endmenu
 config SH_CLK_CPG
 	bool
 
+source "drivers/sh/Kconfig"
+
 endif

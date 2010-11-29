@@ -4363,9 +4363,9 @@ out_unreg_blkdev:
 out_put_disk:
 	while (dr--) {
 		del_timer(&motor_off_timer[dr]);
-		put_disk(disks[dr]);
 		if (disks[dr]->queue)
 			blk_cleanup_queue(disks[dr]->queue);
+		put_disk(disks[dr]);
 	}
 	return err;
 }
@@ -4573,8 +4573,8 @@ static void __exit floppy_module_exit(void)
 			device_remove_file(&floppy_device[drive].dev, &dev_attr_cmos);
 			platform_device_unregister(&floppy_device[drive]);
 		}
-		put_disk(disks[drive]);
 		blk_cleanup_queue(disks[drive]->queue);
+		put_disk(disks[drive]);
 	}
 
 	del_timer_sync(&fd_timeout);

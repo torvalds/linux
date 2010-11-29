@@ -716,8 +716,7 @@ static int setsockopt(struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
-	int prio, linksel;
-	struct ifreq ifreq;
+	int linksel;
 
 	if (cf_sk->sk.sk_socket->state != SS_UNCONNECTED)
 		return -ENOPROTOOPT;
@@ -732,33 +731,6 @@ static int setsockopt(struct socket *sock,
 			return -EINVAL;
 		lock_sock(&(cf_sk->sk));
 		cf_sk->conn_req.link_selector = linksel;
-		release_sock(&cf_sk->sk);
-		return 0;
-
-	case SO_PRIORITY:
-		if (lvl != SOL_SOCKET)
-			goto bad_sol;
-		if (ol < sizeof(int))
-			return -EINVAL;
-		if (copy_from_user(&prio, ov, sizeof(int)))
-			return -EINVAL;
-		lock_sock(&(cf_sk->sk));
-		cf_sk->conn_req.priority = prio;
-		release_sock(&cf_sk->sk);
-		return 0;
-
-	case SO_BINDTODEVICE:
-		if (lvl != SOL_SOCKET)
-			goto bad_sol;
-		if (ol < sizeof(struct ifreq))
-			return -EINVAL;
-		if (copy_from_user(&ifreq, ov, sizeof(ifreq)))
-			return -EFAULT;
-		lock_sock(&(cf_sk->sk));
-		strncpy(cf_sk->conn_req.link_name, ifreq.ifr_name,
-			sizeof(cf_sk->conn_req.link_name));
-		cf_sk->conn_req.link_name
-			[sizeof(cf_sk->conn_req.link_name)-1] = 0;
 		release_sock(&cf_sk->sk);
 		return 0;
 
@@ -880,6 +852,18 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	sock->state = SS_CONNECTING;
 	sk->sk_state = CAIF_CONNECTING;
 
+	/* Check priority value comming from socket */
+	/* if priority value is out of range it will be ajusted */
+	if (cf_sk->sk.sk_priority > CAIF_PRIO_MAX)
+		cf_sk->conn_req.priority = CAIF_PRIO_MAX;
+	else if (cf_sk->sk.sk_priority < CAIF_PRIO_MIN)
+		cf_sk->conn_req.priority = CAIF_PRIO_MIN;
+	else
+		cf_sk->conn_req.priority = cf_sk->sk.sk_priority;
+
+	/*ifindex = id of the interface.*/
+	cf_sk->conn_req.ifindex = cf_sk->sk.sk_bound_dev_if;
+
 	dbfs_atomic_inc(&cnt.num_connect_req);
 	cf_sk->layer.receive = caif_sktrecv_cb;
 	err = caif_connect_client(&cf_sk->conn_req,
@@ -905,6 +889,7 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	cf_sk->maxframe = mtu - (headroom + tailroom);
 	if (cf_sk->maxframe < 1) {
 		pr_warn("CAIF Interface MTU too small (%d)\n", dev->mtu);
+		err = -ENODEV;
 		goto out;
 	}
 
@@ -1142,7 +1127,7 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 	set_rx_flow_on(cf_sk);
 
 	/* Set default options on configuration */
-	cf_sk->conn_req.priority = CAIF_PRIO_NORMAL;
+	cf_sk->sk.sk_priority= CAIF_PRIO_NORMAL;
 	cf_sk->conn_req.link_selector = CAIF_LINK_LOW_LATENCY;
 	cf_sk->conn_req.protocol = protocol;
 	/* Increase the number of sockets created. */

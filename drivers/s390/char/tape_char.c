@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <linux/proc_fs.h>
 #include <linux/mtio.h>
-#include <linux/smp_lock.h>
 #include <linux/compat.h>
 
 #include <asm/uaccess.h>

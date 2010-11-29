@@ -15,7 +15,6 @@
 #include <linux/mman.h>
 #include <linux/uaccess.h>
 #include <linux/swap.h>
-#include <linux/smp_lock.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/seq_file.h>
@@ -266,9 +265,7 @@ static int mmap_return_errors(void *data, void *state)
 	xen_pfn_t *mfnp = data;
 	struct mmap_batch_state *st = state;
 
-	put_user(*mfnp, st->user++);
-
-	return 0;
+	return put_user(*mfnp, st->user++);
 }
 
 static struct vm_operations_struct privcmd_vm_ops;
@@ -323,10 +320,8 @@ static long privcmd_ioctl_mmap_batch(void __user *udata)
 	up_write(&mm->mmap_sem);
 
 	if (state.err > 0) {
-		ret = 0;
-
 		state.user = m.arr;
-		traverse_pages(m.num, sizeof(xen_pfn_t),
+		ret = traverse_pages(m.num, sizeof(xen_pfn_t),
 			       &pagelist,
 			       mmap_return_errors, &state);
 	}
@@ -384,8 +379,9 @@ static int privcmd_mmap(struct file *file, struct vm_area_struct *vma)
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return -ENOSYS;
 
-	/* DONTCOPY is essential for Xen as copy_page_range is broken. */
-	vma->vm_flags |= VM_RESERVED | VM_IO | VM_DONTCOPY;
+	/* DONTCOPY is essential for Xen because copy_page_range doesn't know
+	 * how to recreate these mappings */
+	vma->vm_flags |= VM_RESERVED | VM_IO | VM_DONTCOPY | VM_PFNMAP;
 	vma->vm_ops = &privcmd_vm_ops;
 	vma->vm_private_data = NULL;
 

@@ -862,7 +862,7 @@ int vmw_dmabuf_alloc_ioctl(struct drm_device *dev, void *data,
 			      &vmw_vram_sys_placement, true,
 			      &vmw_user_dmabuf_destroy);
 	if (unlikely(ret != 0))
-		return ret;
+		goto out_no_dmabuf;
 
 	tmp = ttm_bo_reference(&vmw_user_bo->dma.base);
 	ret = ttm_base_object_init(vmw_fpriv(file_priv)->tfile,
@@ -870,19 +870,21 @@ int vmw_dmabuf_alloc_ioctl(struct drm_device *dev, void *data,
 				   false,
 				   ttm_buffer_type,
 				   &vmw_user_dmabuf_release, NULL);
-	if (unlikely(ret != 0)) {
-		ttm_bo_unref(&tmp);
-	} else {
+	if (unlikely(ret != 0))
+		goto out_no_base_object;
+	else {
 		rep->handle = vmw_user_bo->base.hash.key;
 		rep->map_handle = vmw_user_bo->dma.base.addr_space_offset;
 		rep->cur_gmr_id = vmw_user_bo->base.hash.key;
 		rep->cur_gmr_offset = 0;
 	}
-	ttm_bo_unref(&tmp);
 
+out_no_base_object:
+	ttm_bo_unref(&tmp);
+out_no_dmabuf:
 	ttm_read_unlock(&vmaster->lock);
 
-	return 0;
+	return ret;
 }
 
 int vmw_dmabuf_unref_ioctl(struct drm_device *dev, void *data,

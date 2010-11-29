@@ -26,7 +26,7 @@
 #define IS_HW_CLEARED 1
 
 /*
- * The set of interrupts we enable for raw_local_irq_enable().
+ * The set of interrupts we enable for arch_local_irq_enable().
  * This is initialized to have just a single interrupt that the kernel
  * doesn't actually use as a sentinel.  During kernel init,
  * interrupts are added as the kernel gets prepared to support them.
@@ -225,7 +225,7 @@ void __cpuinit setup_irq_regs(void)
 	/* Enable interrupt delivery. */
 	unmask_irqs(~0UL);
 #if CHIP_HAS_IPI()
-	raw_local_irq_unmask(INT_IPI_K);
+	arch_local_irq_unmask(INT_IPI_K);
 #endif
 }
 

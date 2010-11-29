@@ -1286,6 +1286,7 @@ static long saa_ioctl(struct file *file,
 	case VIDIOCGCAP:
 		{
 			struct video_capability b;
+			memset(&b, 0, sizeof(b));
 			strcpy(b.name, saa->video_dev.name);
 			b.type = VID_TYPE_CAPTURE | VID_TYPE_OVERLAY |
 				VID_TYPE_CLIPPING | VID_TYPE_FRAMERAM |
@@ -1416,6 +1417,7 @@ static long saa_ioctl(struct file *file,
 	case VIDIOCGWIN:
 		{
 			struct video_window vw;
+			memset(&vw, 0, sizeof(vw));
 			vw.x = saa->win.x;
 			vw.y = saa->win.y;
 			vw.width = saa->win.width;
@@ -1448,6 +1450,7 @@ static long saa_ioctl(struct file *file,
 	case VIDIOCGFBUF:
 		{
 			struct video_buffer v;
+			memset(&v, 0, sizeof(v));
 			v.base = (void *)saa->win.vidadr;
 			v.height = saa->win.sheight;
 			v.width = saa->win.swidth;
@@ -1492,6 +1495,7 @@ static long saa_ioctl(struct file *file,
 	case VIDIOCGAUDIO:
 		{
 			struct video_audio v;
+			memset(&v, 0, sizeof(v));
 			v = saa->audio_dev;
 			v.flags &= ~(VIDEO_AUDIO_MUTE | VIDEO_AUDIO_MUTABLE);
 			v.flags |= VIDEO_AUDIO_MUTABLE | VIDEO_AUDIO_VOLUME;
@@ -1534,6 +1538,7 @@ static long saa_ioctl(struct file *file,
 	case VIDIOCGUNIT:
 		{
 			struct video_unit vu;
+			memset(&vu, 0, sizeof(vu));
 			vu.video = saa->video_dev.minor;
 			vu.vbi = VIDEO_NO_UNIT;
 			vu.radio = VIDEO_NO_UNIT;
@@ -1888,6 +1893,7 @@ static int saa_open(struct file *file)
 
 	saa->user++;
 	if (saa->user > 1) {
+		saa->user--;
 		unlock_kernel();
 		return 0;	/* device open already, don't reset */
 	}
@@ -2000,10 +2006,13 @@ static int __devinit configure_saa7146(struct pci_dev *pdev, int num)
 	if (retval < 0) {
 		dev_err(&pdev->dev, "%d: error in registering video device!\n",
 			num);
-		goto errio;
+		goto errirq;
 	}
 
 	return 0;
+
+errirq:
+	free_irq(saa->irq, saa);
 errio:
 	iounmap(saa->saa7146_mem);
 err:

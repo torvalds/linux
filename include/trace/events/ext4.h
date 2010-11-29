@@ -98,6 +98,103 @@ TRACE_EVENT(ext4_allocate_inode,
 		  (unsigned long) __entry->dir, __entry->mode)
 );
 
+TRACE_EVENT(ext4_evict_inode,
+	TP_PROTO(struct inode *inode),
+
+	TP_ARGS(inode),
+
+	TP_STRUCT__entry(
+		__field(	int,   dev_major                )
+		__field(	int,   dev_minor                )
+		__field(	ino_t,	ino			)
+		__field(	int,	nlink			)
+	),
+
+	TP_fast_assign(
+		__entry->dev_major = MAJOR(inode->i_sb->s_dev);
+		__entry->dev_minor = MINOR(inode->i_sb->s_dev);
+		__entry->ino	= inode->i_ino;
+		__entry->nlink	= inode->i_nlink;
+	),
+
+	TP_printk("dev %d,%d ino %lu nlink %d",
+		  __entry->dev_major, __entry->dev_minor,
+		  (unsigned long) __entry->ino, __entry->nlink)
+);
+
+TRACE_EVENT(ext4_drop_inode,
+	TP_PROTO(struct inode *inode, int drop),
+
+	TP_ARGS(inode, drop),
+
+	TP_STRUCT__entry(
+		__field(	int,	dev_major		)
+		__field(	int,	dev_minor		)
+		__field(	ino_t,	ino			)
+		__field(	int,	drop			)
+	),
+
+	TP_fast_assign(
+		__entry->dev_major = MAJOR(inode->i_sb->s_dev);
+		__entry->dev_minor = MINOR(inode->i_sb->s_dev);
+		__entry->ino	= inode->i_ino;
+		__entry->drop	= drop;
+	),
+
+	TP_printk("dev %d,%d ino %lu drop %d",
+		  __entry->dev_major, __entry->dev_minor,
+		  (unsigned long) __entry->ino, __entry->drop)
+);
+
+TRACE_EVENT(ext4_mark_inode_dirty,
+	TP_PROTO(struct inode *inode, unsigned long IP),
+
+	TP_ARGS(inode, IP),
+
+	TP_STRUCT__entry(
+		__field(	int,	dev_major		)
+		__field(	int,	dev_minor		)
+		__field(	ino_t,	ino			)
+		__field(unsigned long,	ip			)
+	),
+
+	TP_fast_assign(
+		__entry->dev_major = MAJOR(inode->i_sb->s_dev);
+		__entry->dev_minor = MINOR(inode->i_sb->s_dev);
+		__entry->ino	= inode->i_ino;
+		__entry->ip	= IP;
+	),
+
+	TP_printk("dev %d,%d ino %lu caller %pF",
+		  __entry->dev_major, __entry->dev_minor,
+		  (unsigned long) __entry->ino, (void *)__entry->ip)
+);
+
+TRACE_EVENT(ext4_begin_ordered_truncate,
+	TP_PROTO(struct inode *inode, loff_t new_size),
+
+	TP_ARGS(inode, new_size),
+
+	TP_STRUCT__entry(
+		__field(	int,	dev_major		)
+		__field(	int,	dev_minor		)
+		__field(	ino_t,	ino			)
+		__field(	loff_t,	new_size		)
+	),
+
+	TP_fast_assign(
+		__entry->dev_major	= MAJOR(inode->i_sb->s_dev);
+		__entry->dev_minor	= MINOR(inode->i_sb->s_dev);
+		__entry->ino		= inode->i_ino;
+		__entry->new_size	= new_size;
+	),
+
+	TP_printk("dev %d,%d ino %lu new_size %lld",
+		  __entry->dev_major, __entry->dev_minor,
+		  (unsigned long) __entry->ino,
+		  (long long) __entry->new_size)
+);
+
 DECLARE_EVENT_CLASS(ext4__write_begin,
 
 	TP_PROTO(struct inode *inode, loff_t pos, unsigned int len,

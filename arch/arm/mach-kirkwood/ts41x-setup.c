@@ -27,6 +27,10 @@
 #include "mpp.h"
 #include "tsx1x-common.h"
 
+/* for the PCIe reset workaround */
+#include <plat/pcie.h>
+
+
 #define QNAP_TS41X_JUMPER_JP1	45
 
 static struct i2c_board_info __initdata qnap_ts41x_i2c_rtc = {
@@ -140,8 +144,16 @@ static void __init qnap_ts41x_init(void)
 
 static int __init ts41x_pci_init(void)
 {
-	if (machine_is_ts41x())
+	if (machine_is_ts41x()) {
+		/*
+		 * Without this explicit reset, the PCIe SATA controller
+		 * (Marvell 88sx7042/sata_mv) is known to stop working
+		 * after a few minutes.
+		 */
+		orion_pcie_reset((void __iomem *)PCIE_VIRT_BASE);
+
 		kirkwood_pcie_init(KW_PCIE0);
+	}
 
    return 0;
 }

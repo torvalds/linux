@@ -27,6 +27,7 @@
 
 #include <mach/ipu.h>
 #include <mach/mx3_camera.h>
+#include <mach/dma.h>
 
 #define MX3_CAM_DRV_NAME "mx3-camera"
 
@@ -637,6 +638,9 @@ static bool chan_filter(struct dma_chan *chan, void *arg)
 {
 	struct dma_chan_request *rq = arg;
 	struct mx3_camera_pdata *pdata;
+
+	if (!imx_dma_is_ipu(chan))
+		return false;
 
 	if (!rq)
 		return false;

@@ -753,7 +753,9 @@ static int cxgb4vf_open(struct net_device *dev)
 	if (err)
 		return err;
 	set_bit(pi->port_id, &adapter->open_device_map);
-	link_start(dev);
+	err = link_start(dev);
+	if (err)
+		return err;
 	netif_tx_start_all_queues(dev);
 	return 0;
 }
@@ -1101,18 +1103,6 @@ static int cxgb4vf_set_mac_addr(struct net_device *dev, void *_addr)
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	pi->xact_addr_filt = ret;
 	return 0;
-}
-
-/*
- * Return a TX Queue on which to send the specified skb.
- */
-static u16 cxgb4vf_select_queue(struct net_device *dev, struct sk_buff *skb)
-{
-	/*
-	 * XXX For now just use the default hash but we probably want to
-	 * XXX look at other possibilities ...
-	 */
-	return skb_tx_hash(dev, skb);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2075,6 +2065,22 @@ static int adap_init0(struct adapter *adapter)
 	}
 
 	/*
+	 * Some environments do not properly handle PCIE FLRs -- e.g. in Linux
+	 * 2.6.31 and later we can't call pci_reset_function() in order to
+	 * issue an FLR because of a self- deadlock on the device semaphore.
+	 * Meanwhile, the OS infrastructure doesn't issue FLRs in all the
+	 * cases where they're needed -- for instance, some versions of KVM
+	 * fail to reset "Assigned Devices" when the VM reboots.  Therefore we
+	 * use the firmware based reset in order to reset any per function
+	 * state.
+	 */
+	err = t4vf_fw_reset(adapter);
+	if (err < 0) {
+		dev_err(adapter->pdev_dev, "FW reset failed: err=%d\n", err);
+		return err;
+	}
+
+	/*
 	 * Grab basic operational parameters.  These will predominantly have
 	 * been set up by the Physical Function Driver or will be hard coded
 	 * into the adapter.  We just have to live with them ...  Note that
@@ -2417,7 +2423,6 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
 	.ndo_get_stats		= cxgb4vf_get_stats,
 	.ndo_set_rx_mode	= cxgb4vf_set_rxmode,
 	.ndo_set_mac_address	= cxgb4vf_set_mac_addr,
-	.ndo_select_queue	= cxgb4vf_select_queue,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= cxgb4vf_do_ioctl,
 	.ndo_change_mtu		= cxgb4vf_change_mtu,
@@ -2600,7 +2605,6 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		pi->xact_addr_filt = -1;
 		pi->rx_offload = RX_CSO;
 		netif_carrier_off(netdev);
-		netif_tx_stop_all_queues(netdev);
 		netdev->irq = pdev->irq;
 
 		netdev->features = (NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6 |
@@ -2625,7 +2629,6 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netdev->do_ioctl = cxgb4vf_do_ioctl;
 		netdev->change_mtu = cxgb4vf_change_mtu;
 		netdev->set_mac_address = cxgb4vf_set_mac_addr;
-		netdev->select_queue = cxgb4vf_select_queue;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 		netdev->poll_controller = cxgb4vf_poll_controller;
 #endif
@@ -2844,6 +2847,14 @@ static struct pci_device_id cxgb4vf_pci_tbl[] = {
 	CH_DEVICE(0x4800, 0),	/* T440-dbg */
 	CH_DEVICE(0x4801, 0),	/* T420-cr */
 	CH_DEVICE(0x4802, 0),	/* T422-cr */
+	CH_DEVICE(0x4803, 0),	/* T440-cr */
+	CH_DEVICE(0x4804, 0),	/* T420-bch */
+	CH_DEVICE(0x4805, 0),   /* T440-bch */
+	CH_DEVICE(0x4806, 0),	/* T460-ch */
+	CH_DEVICE(0x4807, 0),	/* T420-so */
+	CH_DEVICE(0x4808, 0),	/* T420-cx */
+	CH_DEVICE(0x4809, 0),	/* T420-bt */
+	CH_DEVICE(0x480a, 0),   /* T404-bt */
 	{ 0, }
 };
 

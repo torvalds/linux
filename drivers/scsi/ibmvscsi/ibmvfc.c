@@ -1606,7 +1606,7 @@ static inline int ibmvfc_host_chkready(struct ibmvfc_host *vhost)
  * Returns:
  *	0 on success / other on failure
  **/
-static int ibmvfc_queuecommand(struct scsi_cmnd *cmnd,
+static int ibmvfc_queuecommand_lck(struct scsi_cmnd *cmnd,
 			       void (*done) (struct scsi_cmnd *))
 {
 	struct ibmvfc_host *vhost = shost_priv(cmnd->device->host);
@@ -1671,6 +1671,8 @@ static int ibmvfc_queuecommand(struct scsi_cmnd *cmnd,
 	done(cmnd);
 	return 0;
 }
+
+static DEF_SCSI_QCMD(ibmvfc_queuecommand)
 
 /**
  * ibmvfc_sync_completion - Signal that a synchronous command has completed

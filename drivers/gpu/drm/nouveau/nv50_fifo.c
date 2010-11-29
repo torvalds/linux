@@ -464,3 +464,8 @@ nv50_fifo_unload_context(struct drm_device *dev)
 	return 0;
 }
 
+void
+nv50_fifo_tlb_flush(struct drm_device *dev)
+{
+	nv50_vm_flush(dev, 5);
+}
