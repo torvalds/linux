@@ -16,8 +16,8 @@
 
 #define VXGE_VERSION_MAJOR	"2"
 #define VXGE_VERSION_MINOR	"0"
-#define VXGE_VERSION_FIX	"10"
-#define VXGE_VERSION_BUILD	"21808"
+#define VXGE_VERSION_FIX	"11"
+#define VXGE_VERSION_BUILD	"21932"
 #define VXGE_VERSION_FOR	"k"
 
 #define VXGE_FW_VER(maj, min, bld) (((maj) << 16) + ((min) << 8) + (bld))
