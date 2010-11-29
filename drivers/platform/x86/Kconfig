@@ -425,6 +425,7 @@ config EEEPC_WMI
 	depends on INPUT
 	depends on EXPERIMENTAL
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on RFKILL || RFKILL = n
 	select INPUT_SPARSEKMAP
 	select LEDS_CLASS
 	select NEW_LEDS
