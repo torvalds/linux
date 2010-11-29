@@ -307,7 +307,11 @@ static int type_index(void *key, void *datum, void *datap)
 		    || typdatum->bounds > p->p_types.nprim)
 			return -EINVAL;
 		p->p_type_val_to_name[typdatum->value - 1] = key;
-		p->type_val_to_struct[typdatum->value - 1] = typdatum;
+		/* this flex array was all preallocated, this cannot fail */
+		if (flex_array_put_ptr(p->type_val_to_struct_array,
+				       typdatum->value - 1, typdatum,
+				       GFP_KERNEL | __GFP_ZERO))
+			BUG();
 	}
 
 	return 0;
@@ -484,11 +488,17 @@ static int policydb_index_others(struct policydb *p)
 	if (!p->user_val_to_struct)
 		goto out;
 
+	/* Yes, I want the sizeof the pointer, not the structure */
 	rc = -ENOMEM;
-	p->type_val_to_struct =
-		kmalloc(p->p_types.nprim * sizeof(*(p->type_val_to_struct)),
-			GFP_KERNEL);
-	if (!p->type_val_to_struct)
+	p->type_val_to_struct_array = flex_array_alloc(sizeof(struct type_datum *),
+						       p->p_types.nprim,
+						       GFP_KERNEL | __GFP_ZERO);
+	if (!p->type_val_to_struct_array)
+		goto out;
+
+	rc = flex_array_prealloc(p->type_val_to_struct_array, 0,
+				 p->p_types.nprim - 1, GFP_KERNEL | __GFP_ZERO);
+	if (rc)
 		goto out;
 
 	rc = -ENOMEM;
@@ -699,7 +709,8 @@ void policydb_destroy(struct policydb *p)
 	kfree(p->class_val_to_struct);
 	kfree(p->role_val_to_struct);
 	kfree(p->user_val_to_struct);
-	kfree(p->type_val_to_struct);
+	if (p->type_val_to_struct_array)
+		flex_array_free(p->type_val_to_struct_array);
 
 	avtab_destroy(&p->te_avtab);
 
@@ -1618,7 +1629,10 @@ static int type_bounds_sanity_check(void *key, void *datum, void *datap)
 			return -EINVAL;
 		}
 
-		upper = p->type_val_to_struct[upper->bounds - 1];
+		upper = flex_array_get_ptr(p->type_val_to_struct_array,
+					   upper->bounds - 1);
+		BUG_ON(!upper);
+
 		if (upper->attribute) {
 			printk(KERN_ERR "SELinux: type %s: "
 			       "bounded by attribute %s",
