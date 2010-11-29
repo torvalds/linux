@@ -174,7 +174,8 @@ not_angel:
 		ldr	sp, [r0, #28]
 #ifdef CONFIG_AUTO_ZRELADDR
 		@ determine final kernel image address
-		and	r4, pc, #0xf8000000
+		mov	r4, pc
+		and	r4, r4, #0xf8000000
 		add	r4, r4, #TEXT_OFFSET
 #else
 		ldr	r4, =zreladdr
@@ -445,7 +446,8 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
  */
 		mov	r1, #0x1e
 		orr	r1, r1, #3 << 10
-		mov	r2, pc, lsr #20
+		mov	r2, pc
+		mov	r2, r2, lsr #20
 		orr	r1, r1, r2, lsl #20
 		add	r0, r3, r2, lsl #2
 		str	r1, [r0], #4
