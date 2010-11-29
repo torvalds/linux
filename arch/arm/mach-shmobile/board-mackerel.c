@@ -57,6 +57,66 @@
  * 0x4000_0000	LPDDR2-SDRAM (POP)	32bit
  */
 
+/*
+ * CPU mode
+ *
+ * SW4                                     | Boot Area| Master   | Remarks
+ *  1  | 2   | 3   | 4   | 5   | 6   | 8   |          | Processor|
+ * ----+-----+-----+-----+-----+-----+-----+----------+----------+--------------
+ * ON  | ON  | OFF | ON  | ON  | OFF | OFF | External | System   | External ROM
+ * ON  | ON  | ON  | ON  | ON  | OFF | OFF | External | System   | ROM Debug
+ * ON  | ON  | X   | ON  | OFF | OFF | OFF | Built-in | System   | ROM Debug
+ * X   | OFF | X   | X   | X   | X   | OFF | Built-in | System   | MaskROM
+ * OFF | X   | X   | X   | X   | X   | OFF | Built-in | System   | MaskROM
+ * X   | X   | X   | OFF | X   | X   | OFF | Built-in | System   | MaskROM
+ * OFF | ON  | OFF | X   | X   | OFF | ON  | External | System   | Standalone
+ * ON  | OFF | OFF | X   | X   | OFF | ON  | External | Realtime | Standalone
+*/
+
+/*
+ * NOR Flash ROM
+ *
+ *  SW1  |     SW2    | SW7  | NOR Flash ROM
+ *  bit1 | bit1  bit2 | bit1 | Memory allocation
+ * ------+------------+------+------------------
+ *  OFF  | ON     OFF | ON   |    Area 0
+ *  OFF  | ON     OFF | OFF  |    Area 4
+ */
+
+/*
+ * SMSC 9220
+ *
+ *  SW1		SMSC 9220
+ * -----------------------
+ *  ON		access disable
+ *  OFF		access enable
+ */
+
+/*
+ * NAND Flash ROM
+ *
+ *  SW1  |     SW2    | SW7  | NAND Flash ROM
+ *  bit1 | bit1  bit2 | bit2 | Memory allocation
+ * ------+------------+------+------------------
+ *  OFF  | ON     OFF | ON   |    FCE 0
+ *  OFF  | ON     OFF | OFF  |    FCE 1
+ */
+
+/*
+ * External interrupt pin settings
+ *
+ * IRQX  | pin setting        | device             | level
+ * ------+--------------------+--------------------+-------
+ * IRQ0  | ICR1A.IRQ0SA=0010  | SDHI2 card detect  | Low
+ * IRQ6  | ICR1A.IRQ6SA=0011  | Ether(LAN9220)     | High
+ * IRQ7  | ICR1A.IRQ7SA=0010  | LCD Tuch Panel     | Low
+ * IRQ8  | ICR2A.IRQ8SA=0010  | MMC/SD card detect | Low
+ * IRQ9  | ICR2A.IRQ9SA=0010  | KEY(TCA6408)       | Low
+ * IRQ21 | ICR4A.IRQ21SA=0011 | Sensor(ADXL345)    | High
+ * IRQ22 | ICR4A.IRQ22SA=0011 | Sensor(AK8975)     | High
+
+*/
+
 /* MTD */
 static struct mtd_partition nor_flash_partitions[] = {
 	{
