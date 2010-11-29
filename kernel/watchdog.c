@@ -57,6 +57,8 @@ static int __init hardlockup_panic_setup(char *str)
 {
 	if (!strncmp(str, "panic", 5))
 		hardlockup_panic = 1;
+	else if (!strncmp(str, "0", 1))
+		no_watchdog = 1;
 	return 1;
 }
 __setup("nmi_watchdog=", hardlockup_panic_setup);

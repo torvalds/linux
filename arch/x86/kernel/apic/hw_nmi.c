@@ -99,6 +99,3 @@ static int __init register_trigger_all_cpu_backtrace(void)
 }
 early_initcall(register_trigger_all_cpu_backtrace);
 #endif
-
-/* STUB calls to mimic old nmi_watchdog behaviour */
-int unknown_nmi_panic;
