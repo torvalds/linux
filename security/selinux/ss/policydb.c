@@ -411,58 +411,6 @@ static int (*index_f[SYM_NUM]) (void *key, void *datum, void *datap) =
 	cat_index,
 };
 
-/*
- * Define the common val_to_name array and the class
- * val_to_name and val_to_struct arrays in a policy
- * database structure.
- *
- * Caller must clean up upon failure.
- */
-static int policydb_index_classes(struct policydb *p)
-{
-	int rc;
-
-	rc = -ENOMEM;
-	p->sym_val_to_name[SYM_COMMONS] = flex_array_alloc(sizeof(char *),
-							   p->p_commons.nprim,
-							   GFP_KERNEL | __GFP_ZERO);
-	if (!p->sym_val_to_name[SYM_COMMONS])
-		goto out;
-
-	rc = flex_array_prealloc(p->sym_val_to_name[SYM_COMMONS],
-				 0, p->p_commons.nprim - 1,
-				 GFP_KERNEL | __GFP_ZERO);
-	if (rc)
-		goto out;
-
-	rc = hashtab_map(p->p_commons.table, common_index, p);
-	if (rc)
-		goto out;
-
-	rc = -ENOMEM;
-	p->class_val_to_struct =
-		kmalloc(p->p_classes.nprim * sizeof(*(p->class_val_to_struct)), GFP_KERNEL);
-	if (!p->class_val_to_struct)
-		goto out;
-
-	rc = -ENOMEM;
-	p->sym_val_to_name[SYM_CLASSES] = flex_array_alloc(sizeof(char *),
-							   p->p_classes.nprim,
-							   GFP_KERNEL | __GFP_ZERO);
-	if (!p->sym_val_to_name[SYM_CLASSES])
-		goto out;
-
-	rc = flex_array_prealloc(p->sym_val_to_name[SYM_CLASSES],
-				 0, p->p_classes.nprim - 1,
-				 GFP_KERNEL | __GFP_ZERO);
-	if (rc)
-		goto out;
-
-	rc = hashtab_map(p->p_classes.table, class_index, p);
-out:
-	return rc;
-}
-
 #ifdef DEBUG_HASHES
 static void symtab_hash_eval(struct symtab *s)
 {
@@ -500,7 +448,7 @@ static inline void rangetr_hash_eval(struct hashtab *h)
  *
  * Caller must clean up on failure.
  */
-static int policydb_index_others(struct policydb *p)
+static int policydb_index(struct policydb *p)
 {
 	int i, rc;
 
@@ -518,6 +466,13 @@ static int policydb_index_others(struct policydb *p)
 	avtab_hash_eval(&p->te_avtab, "rules");
 	symtab_hash_eval(p->symtab);
 #endif
+
+	rc = -ENOMEM;
+	p->class_val_to_struct =
+		kmalloc(p->p_classes.nprim * sizeof(*(p->class_val_to_struct)),
+			GFP_KERNEL);
+	if (!p->class_val_to_struct)
+		goto out;
 
 	rc = -ENOMEM;
 	p->role_val_to_struct =
@@ -550,7 +505,7 @@ static int policydb_index_others(struct policydb *p)
 	if (cond_init_bool_indexes(p))
 		goto out;
 
-	for (i = SYM_ROLES; i < SYM_NUM; i++) {
+	for (i = 0; i < SYM_NUM; i++) {
 		rc = -ENOMEM;
 		p->sym_val_to_name[i] = flex_array_alloc(sizeof(char *),
 							 p->symtab[i].nprim,
@@ -2296,11 +2251,7 @@ int policydb_read(struct policydb *p, void *fp)
 		lra = ra;
 	}
 
-	rc = policydb_index_classes(p);
-	if (rc)
-		goto bad;
-
-	rc = policydb_index_others(p);
+	rc = policydb_index(p);
 	if (rc)
 		goto bad;
 
