@@ -263,8 +263,7 @@ static int nuc900_ac97_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static int nuc900_ac97_probe(struct platform_device *pdev,
-					struct snd_soc_dai *dai)
+static int nuc900_ac97_probe(struct snd_soc_dai *dai)
 {
 	struct nuc900_audio *nuc900_audio = nuc900_ac97_data;
 	unsigned long val;
@@ -284,12 +283,12 @@ static int nuc900_ac97_probe(struct platform_device *pdev,
 	return 0;
 }
 
-static void nuc900_ac97_remove(struct platform_device *pdev,
-						struct snd_soc_dai *dai)
+static int nuc900_ac97_remove(struct snd_soc_dai *dai)
 {
 	struct nuc900_audio *nuc900_audio = nuc900_ac97_data;
 
 	clk_disable(nuc900_audio->clk);
+	return 0;
 }
 
 static struct snd_soc_dai_ops nuc900_ac97_dai_ops = {
