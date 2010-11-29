@@ -2,6 +2,7 @@
  * Eee PC WMI hotkey driver
  *
  * Copyright(C) 2010 Intel Corporation.
+ * Copyright(C) 2010 Corentin Chary <corentin.chary@gmail.com>
  *
  * Portions based on wistron_btns.c:
  * Copyright (C) 2005 Miloslav Trmac <mitr@volny.cz>
