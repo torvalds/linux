@@ -20,7 +20,6 @@ ifeq ($(NIC_SELECT),RTL8192U)
 endif
 #ccflags-y := -DJOHN_NOCPY
 #flags to enable or disble 80211D feature
-ccflags-y += -DENABLE_DOT11D
 ieee80211-rsl-objs := ieee80211_rx.o \
 		      ieee80211_softmac.o \
 		      ieee80211_tx.o \
@@ -75,7 +74,6 @@ CFLAGS += -I$(KSRC)/include -I.
 CFLAGS += -DMODVERSIONS -DEXPORT_SYMTAB -include $(KSRC)/include/linux/modversions.h
 #Kernel 2.4.20
 #CFLAGS += -D__NO_VERSION__ -DEXPORT_SYMTAB
-#CFLAGS += -DENABLE_DOT11D
 SMP := $(shell $(CC) $(MODCFLAGS) -E -dM $(CONFIG_FILE) | \
    grep CONFIG_SMP | awk '{print $$3}')
 ifneq ($(SMP),1)

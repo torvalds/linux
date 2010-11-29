@@ -6,9 +6,7 @@
 #include "r8192U_dm.h"
 #include "r819xU_firmware_img.h"
 
-#ifdef ENABLE_DOT11D
 #include "dot11d.h"
-#endif
 static u32 RF_CHANNEL_TABLE_ZEBRA[] = {
 	0,
 	0x085c, //2412 1
@@ -1257,13 +1255,11 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8* stage, u
 
 	RT_TRACE(COMP_CH, "====>%s()====stage:%d, step:%d, channel:%d\n", __FUNCTION__, *stage, *step, channel);
 //	RT_ASSERT(IsLegalChannel(Adapter, channel), ("illegal channel: %d\n", channel));
-#ifdef ENABLE_DOT11D
 	if (!IsLegalChannel(priv->ieee80211, channel))
 	{
 		RT_TRACE(COMP_ERR, "=============>set to illegal channel:%d\n", channel);
 		return true; //return true to tell upper caller function this channel setting is finished! Or it will in while loop.
 	}
-#endif
 //FIXME:need to check whether channel is legal or not here.WB
 
 
