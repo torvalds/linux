@@ -1947,7 +1947,7 @@ static void __exit rk29xx_spim_exit(void)
 subsys_initcall(rk29xx_spim_init);
 module_exit(rk29xx_spim_exit);
 
-MODULE_AUTHOR("cmc cmc@rock-chips.com");
+MODULE_AUTHOR("www.rock-chips.com");
 MODULE_DESCRIPTION("Rockchip RK29xx spim port driver");
 MODULE_LICENSE("GPL");;
 
