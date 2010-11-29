@@ -2374,14 +2374,6 @@ static struct ieee80211_rate wl1271_rates_5ghz[] = {
 
 /* 5 GHz band channels for WL1273 */
 static struct ieee80211_channel wl1271_channels_5ghz[] = {
-	{ .hw_value = 183, .center_freq = 4915},
-	{ .hw_value = 184, .center_freq = 4920},
-	{ .hw_value = 185, .center_freq = 4925},
-	{ .hw_value = 187, .center_freq = 4935},
-	{ .hw_value = 188, .center_freq = 4940},
-	{ .hw_value = 189, .center_freq = 4945},
-	{ .hw_value = 192, .center_freq = 4960},
-	{ .hw_value = 196, .center_freq = 4980},
 	{ .hw_value = 7, .center_freq = 5035},
 	{ .hw_value = 8, .center_freq = 5040},
 	{ .hw_value = 9, .center_freq = 5045},
