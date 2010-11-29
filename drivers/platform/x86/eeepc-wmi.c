@@ -49,6 +49,8 @@ MODULE_AUTHOR("Yong Wang <yong.y.wang@intel.com>");
 MODULE_DESCRIPTION("Eee PC WMI Hotkey Driver");
 MODULE_LICENSE("GPL");
 
+#define EEEPC_ACPI_HID		"ASUS010" /* old _HID used in eeepc-laptop */
+
 #define EEEPC_WMI_EVENT_GUID	"ABBC0F72-8EA1-11D1-00A0-C90629100000"
 #define EEEPC_WMI_MGMT_GUID	"97845ED0-4E6D-11DE-8A39-0800200C9A66"
 
@@ -861,6 +863,27 @@ static struct platform_driver platform_driver = {
 	},
 };
 
+static acpi_status __init eeepc_wmi_parse_device(acpi_handle handle, u32 level,
+						 void *context, void **retval)
+{
+	pr_warning("Found legacy ATKD device (%s)", EEEPC_ACPI_HID);
+	*(bool *)context = true;
+	return AE_CTRL_TERMINATE;
+}
+
+static int __init eeepc_wmi_check_atkd(void)
+{
+	acpi_status status;
+	bool found = false;
+
+	status = acpi_get_devices(EEEPC_ACPI_HID, eeepc_wmi_parse_device,
+				  &found, NULL);
+
+	if (ACPI_FAILURE(status) || !found)
+		return 0;
+	return -1;
+}
+
 static int __init eeepc_wmi_init(void)
 {
 	int err;
@@ -868,6 +891,16 @@ static int __init eeepc_wmi_init(void)
 	if (!wmi_has_guid(EEEPC_WMI_EVENT_GUID) ||
 	    !wmi_has_guid(EEEPC_WMI_MGMT_GUID)) {
 		pr_warning("No known WMI GUID found\n");
+		return -ENODEV;
+	}
+
+	if (eeepc_wmi_check_atkd()) {
+		pr_warning("WMI device present, but legacy ATKD device is also "
+			   "present and enabled.");
+		pr_warning("You probably booted with acpi_osi=\"Linux\" or "
+			   "acpi_osi=\"!Windows 2009\"");
+		pr_warning("Can't load eeepc-wmi, use default acpi_osi "
+			   "(preferred) or eeepc-laptop");
 		return -ENODEV;
 	}
 
