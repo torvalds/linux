@@ -452,7 +452,7 @@ static void handle_rx_mergeable(struct vhost_net *net)
 			move_iovec_hdr(vq->iov, vq->hdr, vhost_hlen, in);
 		else
 			/* Copy the header for use in VIRTIO_NET_F_MRG_RXBUF:
-			 * needed because sendmsg can modify msg_iov. */
+			 * needed because recvmsg can modify msg_iov. */
 			copy_iovec_hdr(vq->iov, vq->hdr, sock_hlen, in);
 		msg.msg_iovlen = in;
 		err = sock->ops->recvmsg(NULL, sock, &msg,
