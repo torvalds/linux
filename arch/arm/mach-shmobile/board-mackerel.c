@@ -294,6 +294,12 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_IRQ6_39,	NULL);
 
 	/* LCDC */
+	gpio_request(GPIO_FN_LCDD23,   NULL);
+	gpio_request(GPIO_FN_LCDD22,   NULL);
+	gpio_request(GPIO_FN_LCDD21,   NULL);
+	gpio_request(GPIO_FN_LCDD20,   NULL);
+	gpio_request(GPIO_FN_LCDD19,   NULL);
+	gpio_request(GPIO_FN_LCDD18,   NULL);
 	gpio_request(GPIO_FN_LCDD17,   NULL);
 	gpio_request(GPIO_FN_LCDD16,   NULL);
 	gpio_request(GPIO_FN_LCDD15,   NULL);
