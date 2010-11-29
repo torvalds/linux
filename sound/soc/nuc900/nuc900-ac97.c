@@ -313,7 +313,7 @@ static struct snd_soc_dai_driver nuc900_ac97_dai = {
 		.channels_max	= 2,
 	},
 	.ops = &nuc900_ac97_dai_ops,
-}
+};
 
 static int __devinit nuc900_ac97_drvprobe(struct platform_device *pdev)
 {
