@@ -1348,7 +1348,7 @@ static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 		ret = -ENOMEM;
 		goto err;
 	}
-	bitmap_zero(sync_bmp, reg_size);
+	bitmap_zero(sync_bmp, bmp_size);
 
 	/* allocate the lzo blocks and initialize them */
 	for (i = 0; i < blkcount; ++i) {
