@@ -18,6 +18,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/bitops.h>
 #include <linux/bug.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
@@ -153,6 +154,7 @@ struct context {
 	descriptor_callback_t callback;
 
 	struct tasklet_struct tasklet;
+	bool active;
 };
 
 #define IT_HEADER_SY(v)          ((v) <<  0)
@@ -168,6 +170,9 @@ struct iso_context {
 	int excess_bytes;
 	void *header;
 	size_t header_length;
+
+	u8 sync;
+	u8 tags;
 };
 
 #define CONFIG_ROM_SIZE 1024
@@ -184,7 +189,8 @@ struct fw_ohci {
 	u32 bus_time;
 	bool is_root;
 	bool csr_state_setclear_abdicate;
-
+	int n_ir;
+	int n_it;
 	/*
 	 * Spinlock for accessing fw_ohci data.  Never call out of
 	 * this driver with this lock held.
@@ -1161,6 +1167,7 @@ static struct descriptor *context_get_descriptors(struct context *ctx,
 static void context_run(struct context *ctx, u32 extra)
 {
 	struct fw_ohci *ohci = ctx->ohci;
+	ctx->active = true;
 
 	reg_write(ohci, COMMAND_PTR(ctx->regs),
 		  le32_to_cpu(ctx->last->branch_address));
@@ -1192,6 +1199,7 @@ static void context_stop(struct context *ctx)
 	u32 reg;
 	int i;
 
+	ctx->active = false;
 	reg_write(ctx->ohci, CONTROL_CLEAR(ctx->regs), CONTEXT_RUN);
 	flush_writes(ctx->ohci);
 
@@ -2641,6 +2649,10 @@ static int ohci_start_iso(struct fw_iso_context *base,
 		reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, 1 << index);
 		reg_write(ohci, CONTEXT_MATCH(ctx->context.regs), match);
 		context_run(&ctx->context, control);
+
+		ctx->sync = sync;
+		ctx->tags = tags;
+
 		break;
 	}
 
@@ -2737,6 +2749,26 @@ static int ohci_set_iso_channels(struct fw_iso_context *base, u64 *channels)
 
 	return ret;
 }
+
+#ifdef CONFIG_PM
+static void ohci_resume_iso_dma(struct fw_ohci *ohci)
+{
+	int i;
+	struct iso_context *ctx;
+
+	for (i = 0 ; i < ohci->n_ir ; i++) {
+		ctx = &ohci->ir_context_list[i];
+		if (ctx->context.active)
+			ohci_start_iso(&ctx->base, 0, ctx->sync, ctx->tags);
+	}
+
+	for (i = 0 ; i < ohci->n_it ; i++) {
+		ctx = &ohci->it_context_list[i];
+		if (ctx->context.active)
+			ohci_start_iso(&ctx->base, 0, ctx->sync, ctx->tags);
+	}
+}
+#endif
 
 static int queue_iso_transmit(struct iso_context *ctx,
 			      struct fw_iso_packet *packet,
@@ -3047,7 +3079,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	struct fw_ohci *ohci;
 	u32 bus_options, max_receive, link_speed, version;
 	u64 guid;
-	int i, err, n_ir, n_it;
+	int i, err;
 	size_t size;
 
 	ohci = kzalloc(sizeof(*ohci), GFP_KERNEL);
@@ -3141,15 +3173,15 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	ohci->ir_context_channels = ~0ULL;
 	ohci->ir_context_mask = reg_read(ohci, OHCI1394_IsoRecvIntMaskSet);
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, ~0);
-	n_ir = hweight32(ohci->ir_context_mask);
-	size = sizeof(struct iso_context) * n_ir;
+	ohci->n_ir = hweight32(ohci->ir_context_mask);
+	size = sizeof(struct iso_context) * ohci->n_ir;
 	ohci->ir_context_list = kzalloc(size, GFP_KERNEL);
 
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, ~0);
 	ohci->it_context_mask = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, ~0);
-	n_it = hweight32(ohci->it_context_mask);
-	size = sizeof(struct iso_context) * n_it;
+	ohci->n_it = hweight32(ohci->it_context_mask);
+	size = sizeof(struct iso_context) * ohci->n_it;
 	ohci->it_context_list = kzalloc(size, GFP_KERNEL);
 
 	if (ohci->it_context_list == NULL || ohci->ir_context_list == NULL) {
@@ -3174,7 +3206,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	fw_notify("Added fw-ohci device %s, OHCI v%x.%x, "
 		  "%d IR + %d IT contexts, quirks 0x%x\n",
 		  dev_name(&dev->dev), version >> 16, version & 0xff,
-		  n_ir, n_it, ohci->quirks);
+		  ohci->n_ir, ohci->n_it, ohci->quirks);
 
 	return 0;
 
@@ -3291,7 +3323,13 @@ static int pci_resume(struct pci_dev *dev)
 		reg_write(ohci, OHCI1394_GUIDHi, (u32)(ohci->card.guid >> 32));
 	}
 
-	return ohci_enable(&ohci->card, NULL, 0);
+	err = ohci_enable(&ohci->card, NULL, 0);
+
+	if (err)
+		return err;
+
+	ohci_resume_iso_dma(ohci);
+	return 0;
 }
 #endif
 
