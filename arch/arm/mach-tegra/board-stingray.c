@@ -218,7 +218,7 @@ static struct tegra_audio_platform_data tegra_audio2_pdata = {
 	.dsp_master	= true,  /* Bluetooth */
 	.dsp_master_clk = 8000,  /* Bluetooth audio speed */
 	.dma_on		= true,  /* use dma by default */
-	.i2s_clk_rate	= 1000000, /* BCM4329 max bitclock is 2048000 Hz */
+	.i2s_clk_rate	= 2000000, /* BCM4329 max bitclock is 2048000 Hz */
 	.dap_clk	= "clk_dev1",
 	.audio_sync_clk = "audio_2x",
 	.mode		= I2S_BIT_FORMAT_DSP, /* Using COCEC in network mode */
@@ -595,12 +595,10 @@ static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 	{ "emc",	"pll_m",	600000000,	false},*/
 	{ "pll_m",	NULL,		600000000,	true},
 	{ "mpe",	"pll_m",	250000000,	false},
-	{ "pll_a",	NULL,		11289600,	false},
-	{ "pll_a_out0",	NULL,		24000000,	false},
-	{ "i2s1",	"pll_a_out0",	24000000,	false},
-	{ "i2s2",	"pll_a_out0",	24000000,	false},
-	{ "audio",	"pll_a_out0",	24000000,	false},
-	{ "audio_2x",	"audio",	48000000,	false},
+	{ "pll_a",	NULL,		56448000,	false},
+	{ "pll_a_out0",	NULL,		11289600,	false},
+	{ "i2s1",	"pll_p",	24000000,	false},
+	{ "i2s2",	"pll_p",	2000000,	false},
 	{ "sdmmc2",	"pll_m",	48000000,	false},
 	{ "spdif_out",	"pll_a_out0",	5644800,	false},
 	{ NULL,		NULL,		0,		0},
