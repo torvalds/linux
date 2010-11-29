@@ -16,7 +16,8 @@
  */
 #ifdef ARCH_HAS_NMI_WATCHDOG
 #include <asm/nmi.h>
-#endif
+extern void touch_nmi_watchdog(void);
+#else
 #ifndef CONFIG_HARDLOCKUP_DETECTOR
 static inline void touch_nmi_watchdog(void)
 {
@@ -24,6 +25,7 @@ static inline void touch_nmi_watchdog(void)
 }
 #else
 extern void touch_nmi_watchdog(void);
+#endif
 #endif
 
 /*
