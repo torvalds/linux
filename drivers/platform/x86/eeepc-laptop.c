@@ -529,6 +529,15 @@ static void tpd_led_set(struct led_classdev *led_cdev,
 	queue_work(eeepc->led_workqueue, &eeepc->tpd_led_work);
 }
 
+static enum led_brightness tpd_led_get(struct led_classdev *led_cdev)
+{
+	struct eeepc_laptop *eeepc;
+
+	eeepc = container_of(led_cdev, struct eeepc_laptop, tpd_led);
+
+	return get_acpi(eeepc, CM_ASL_TPD);
+}
+
 static int eeepc_led_init(struct eeepc_laptop *eeepc)
 {
 	int rv;
@@ -543,6 +552,8 @@ static int eeepc_led_init(struct eeepc_laptop *eeepc)
 
 	eeepc->tpd_led.name = "eeepc::touchpad";
 	eeepc->tpd_led.brightness_set = tpd_led_set;
+	if (get_acpi(eeepc, CM_ASL_TPD) >= 0) /* if method is available */
+	  eeepc->tpd_led.brightness_get = tpd_led_get;
 	eeepc->tpd_led.max_brightness = 1;
 
 	rv = led_classdev_register(&eeepc->platform_device->dev,
