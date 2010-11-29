@@ -532,7 +532,7 @@ static int dso__split_kallsyms(struct dso *self, struct map *map,
 	struct machine *machine = kmaps->machine;
 	struct map *curr_map = map;
 	struct symbol *pos;
-	int count = 0;
+	int count = 0, moved = 0;	
 	struct rb_root *root = &self->symbols[map->type];
 	struct rb_node *next = rb_first(root);
 	int kernel_range = 0;
@@ -590,6 +590,11 @@ static int dso__split_kallsyms(struct dso *self, struct map *map,
 			char dso_name[PATH_MAX];
 			struct dso *dso;
 
+			if (count == 0) {
+				curr_map = map;
+				goto filter_symbol;
+			}
+
 			if (self->kernel == DSO_TYPE_GUEST_KERNEL)
 				snprintf(dso_name, sizeof(dso_name),
 					"[guest.kernel].%d",
@@ -615,7 +620,7 @@ static int dso__split_kallsyms(struct dso *self, struct map *map,
 			map_groups__insert(kmaps, curr_map);
 			++kernel_range;
 		}
-
+filter_symbol:
 		if (filter && filter(curr_map, pos)) {
 discard_symbol:		rb_erase(&pos->rb_node, root);
 			symbol__delete(pos);
@@ -623,8 +628,9 @@ discard_symbol:		rb_erase(&pos->rb_node, root);
 			if (curr_map != map) {
 				rb_erase(&pos->rb_node, root);
 				symbols__insert(&curr_map->dso->symbols[curr_map->type], pos);
-			}
-			count++;
+				++moved;
+			} else
+				++count;
 		}
 	}
 
@@ -634,7 +640,7 @@ discard_symbol:		rb_erase(&pos->rb_node, root);
 		dso__set_loaded(curr_map->dso, curr_map->type);
 	}
 
-	return count;
+	return count + moved;
 }
 
 int dso__load_kallsyms(struct dso *self, const char *filename,
