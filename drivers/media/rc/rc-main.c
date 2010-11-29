@@ -325,7 +325,7 @@ static int ir_setkeycode(struct input_dev *idev,
 	struct rc_map *rc_map = &rdev->rc_map;
 	unsigned int index;
 	unsigned int scancode;
-	int retval;
+	int retval = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rc_map->lock, flags);
