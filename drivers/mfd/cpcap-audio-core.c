@@ -32,6 +32,7 @@
 #include <mach/cpcap_audio.h>
 
 #define SLEEP_ACTIVATE_POWER_DELAY_MS	2
+#define STM_STDAC_ACTIVATE_RAMP_TIME	60
 #define CLOCK_TREE_RESET_DELAY_MS	1
 
 #define CPCAP_AUDIO_SPI_READBACK	1
@@ -766,6 +767,9 @@ static void cpcap_audio_configure_stdac(struct cpcap_audio_state *state,
 
 		logged_cpcap_write(state->cpcap, CPCAP_REG_SDAC,
 			stdac_changes.value, stdac_changes.mask);
+		if ((stdac_changes.value | CPCAP_BIT_ST_DAC_EN) &&
+		    (state->cpcap->vendor == CPCAP_VENDOR_ST))
+			msleep(STM_STDAC_ACTIVATE_RAMP_TIME);
 	}
 }
 
@@ -829,8 +833,9 @@ static void cpcap_audio_configure_output_gains(
 
 		reg_changes.value |=
 		    ((temp_output_gain << 2) | (temp_output_gain << 8));
-		/* VOL_EXTx is disabled, it's not connected, disable to reduce noise. */
-		/* If you need it, add | (temp_output_gain << 12) */
+		/* VOL_EXTx is disabled, it's not connected, disable to reduce
+		 * noise.  If you need it, add | (temp_output_gain << 12)
+		 */
 		reg_changes.mask = 0xFF3C;
 
 		logged_cpcap_write(state->cpcap, CPCAP_REG_RXVC,
