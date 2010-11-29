@@ -160,17 +160,6 @@ void generic_pipe_buf_release(struct pipe_inode_info *, struct pipe_buffer *);
 
 /* for F_SETPIPE_SZ and F_GETPIPE_SZ */
 long pipe_fcntl(struct file *, unsigned int, unsigned long arg);
-
-/*
- * After the inode slimming patch, i_pipe/i_bdev/i_cdev share the same
- * location, so checking ->i_pipe is not enough to verify that this is a
- * pipe.
- */
-static inline struct pipe_inode_info *get_pipe_info(struct file *file)
-{
-	struct inode *i = file->f_path.dentry->d_inode;
-
-	return S_ISFIFO(i->i_mode) ? i->i_pipe : NULL;
-}
+struct pipe_inode_info *get_pipe_info(struct file *file);
 
 #endif
