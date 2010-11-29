@@ -369,7 +369,7 @@ static int __init cns3xxx_pcie_init(void)
 {
 	int i;
 
-	hook_fault_code(16 + 6, cns3xxx_pcie_abort_handler, SIGBUS,
+	hook_fault_code(16 + 6, cns3xxx_pcie_abort_handler, SIGBUS, 0,
 			"imprecise external abort");
 
 	for (i = 0; i < ARRAY_SIZE(cns3xxx_pcie); i++) {
