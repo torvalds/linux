@@ -26,6 +26,8 @@ config ARM
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_HW_BREAKPOINT if (PERF_EVENTS && (CPU_V6 || CPU_V7))
 	select HAVE_C_RECORDMCOUNT
+	select HAVE_GENERIC_HARDIRQS
+	select HAVE_SPARSE_IRQ
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -96,10 +98,6 @@ config MCA
 	  laptops.  It is a bus system similar to PCI or ISA. See
 	  <file:Documentation/mca.txt> (and especially the web page given
 	  there) before attempting to build an MCA bus kernel.
-
-config GENERIC_HARDIRQS
-	bool
-	default y
 
 config STACKTRACE_SUPPORT
 	bool
@@ -179,9 +177,6 @@ config FIQ
 
 config ARCH_MTD_XIP
 	bool
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
 
 config ARM_L1_CACHE_SHIFT_6
 	bool
@@ -1451,15 +1446,6 @@ config HW_PERF_EVENTS
 	help
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
-
-config SPARSE_IRQ
-	def_bool n
-	help
-	  This enables support for sparse irqs. This is useful in general
-	  as most CPUs have a fairly sparse array of IRQ vectors, which
-	  the irq_desc then maps directly on to. Systems with a high
-	  number of off-chip IRQs will want to treat this as
-	  experimental until they have been independently verified.
 
 source "mm/Kconfig"
 
