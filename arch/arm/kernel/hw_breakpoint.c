@@ -337,7 +337,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 		/* Breakpoint */
 		ctrl_base = ARM_BASE_BCR;
 		val_base = ARM_BASE_BVR;
-		slots = __get_cpu_var(bp_on_reg);
+		slots = (struct perf_event **)__get_cpu_var(bp_on_reg);
 		max_slots = core_num_brps;
 		if (info->step_ctrl.enabled) {
 			/* Override the breakpoint data with the step data. */
@@ -357,7 +357,7 @@ int arch_install_hw_breakpoint(struct perf_event *bp)
 			ctrl_base = ARM_BASE_WCR;
 			val_base = ARM_BASE_WVR;
 		}
-		slots = __get_cpu_var(wp_on_reg);
+		slots = (struct perf_event **)__get_cpu_var(wp_on_reg);
 		max_slots = core_num_wrps;
 	}
 
@@ -394,7 +394,7 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 	if (info->ctrl.type == ARM_BREAKPOINT_EXECUTE) {
 		/* Breakpoint */
 		base = ARM_BASE_BCR;
-		slots = __get_cpu_var(bp_on_reg);
+		slots = (struct perf_event **)__get_cpu_var(bp_on_reg);
 		max_slots = core_num_brps;
 	} else {
 		/* Watchpoint */
@@ -402,7 +402,7 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp)
 			base = ARM_BASE_BCR + core_num_brps;
 		else
 			base = ARM_BASE_WCR;
-		slots = __get_cpu_var(wp_on_reg);
+		slots = (struct perf_event **)__get_cpu_var(wp_on_reg);
 		max_slots = core_num_wrps;
 	}
 
@@ -662,8 +662,10 @@ static void disable_single_step(struct perf_event *bp)
 static void watchpoint_handler(unsigned long unknown, struct pt_regs *regs)
 {
 	int i;
-	struct perf_event *wp, **slots = __get_cpu_var(wp_on_reg);
+	struct perf_event *wp, **slots;
 	struct arch_hw_breakpoint *info;
+
+	slots = (struct perf_event **)__get_cpu_var(wp_on_reg);
 
 	/* Without a disassembler, we can only handle 1 watchpoint. */
 	BUG_ON(core_num_wrps > 1);
@@ -703,8 +705,10 @@ static void watchpoint_handler(unsigned long unknown, struct pt_regs *regs)
 static void watchpoint_single_step_handler(unsigned long pc)
 {
 	int i;
-	struct perf_event *wp, **slots = __get_cpu_var(wp_on_reg);
+	struct perf_event *wp, **slots;
 	struct arch_hw_breakpoint *info;
+
+	slots = (struct perf_event **)__get_cpu_var(wp_on_reg);
 
 	for (i = 0; i < core_num_reserved_brps; ++i) {
 		rcu_read_lock();
@@ -734,9 +738,11 @@ static void breakpoint_handler(unsigned long unknown, struct pt_regs *regs)
 {
 	int i;
 	u32 ctrl_reg, val, addr;
-	struct perf_event *bp, **slots = __get_cpu_var(bp_on_reg);
+	struct perf_event *bp, **slots;
 	struct arch_hw_breakpoint *info;
 	struct arch_hw_breakpoint_ctrl ctrl;
+
+	slots = (struct perf_event **)__get_cpu_var(bp_on_reg);
 
 	/* The exception entry code places the amended lr in the PC. */
 	addr = regs->ARM_pc;
