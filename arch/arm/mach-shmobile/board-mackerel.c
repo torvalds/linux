@@ -32,6 +32,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#include <linux/smsc911x.h>
 
 #include <mach/common.h>
 #include <mach/sh7372.h>
@@ -109,8 +110,37 @@ static struct platform_device nor_flash_device = {
 	.resource	= nor_flash_resources,
 };
 
+/* SMSC */
+static struct resource smc911x_resources[] = {
+	{
+		.start	= 0x14000000,
+		.end	= 0x16000000 - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= evt2irq(0x02c0) /* IRQ6A */,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
+	},
+};
+
+static struct smsc911x_platform_config smsc911x_info = {
+	.flags		= SMSC911X_USE_16BIT | SMSC911X_SAVE_MAC_ADDRESS,
+	.irq_polarity   = SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type       = SMSC911X_IRQ_TYPE_PUSH_PULL,
+};
+
+static struct platform_device smc911x_device = {
+	.name           = "smsc911x",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(smc911x_resources),
+	.resource       = smc911x_resources,
+	.dev            = {
+		.platform_data = &smsc911x_info,
+	},
+};
+
 static struct platform_device *mackerel_devices[] __initdata = {
 	&nor_flash_device,
+	&smc911x_device,
 };
 
 static struct map_desc mackerel_io_desc[] __initdata = {
@@ -141,6 +171,10 @@ static void __init mackerel_init(void)
 	/* enable SCIFA0 */
 	gpio_request(GPIO_FN_SCIFA0_TXD, NULL);
 	gpio_request(GPIO_FN_SCIFA0_RXD, NULL);
+
+	/* enable SMSC911X */
+	gpio_request(GPIO_FN_CS5A,	NULL);
+	gpio_request(GPIO_FN_IRQ6_39,	NULL);
 
 	sh7372_add_standard_devices();
 
