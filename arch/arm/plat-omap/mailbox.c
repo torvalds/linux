@@ -92,10 +92,15 @@ int omap_mbox_msg_send(struct omap_mbox *mbox, mbox_msg_t msg)
 	struct omap_mbox_queue *mq = mbox->txq;
 	int ret = 0, len;
 
-	spin_lock(&mq->lock);
+	spin_lock_bh(&mq->lock);
 
 	if (kfifo_avail(&mq->fifo) < sizeof(msg)) {
 		ret = -ENOMEM;
+		goto out;
+	}
+
+	if (kfifo_is_empty(&mq->fifo) && !__mbox_poll_for_space(mbox)) {
+		mbox_fifo_write(mbox, msg);
 		goto out;
 	}
 
@@ -105,7 +110,7 @@ int omap_mbox_msg_send(struct omap_mbox *mbox, mbox_msg_t msg)
 	tasklet_schedule(&mbox->txq->tasklet);
 
 out:
-	spin_unlock(&mq->lock);
+	spin_unlock_bh(&mq->lock);
 	return ret;
 }
 EXPORT_SYMBOL(omap_mbox_msg_send);
