@@ -85,9 +85,11 @@ ENTRY(stext)
 	mrc	p15, 0, r9, c0, c0		@ get processor id
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
+ THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_p			@ yes, error 'p'
 	bl	__lookup_machine_type		@ r5=machinfo
 	movs	r8, r5				@ invalid machine (r5=0)?
+ THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_a			@ yes, error 'a'
 	bl	__vet_atags
 #ifdef CONFIG_SMP_ON_UP
@@ -283,6 +285,7 @@ ENTRY(secondary_startup)
 	bl	__lookup_processor_type
 	movs	r10, r5				@ invalid processor?
 	moveq	r0, #'p'			@ yes, error 'p'
+ THUMB( it	eq )		@ force fixup-able long branch encoding
 	beq	__error_p
 
 	/*
