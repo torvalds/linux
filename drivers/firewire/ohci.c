@@ -3284,6 +3284,13 @@ static int pci_resume(struct pci_dev *dev)
 		return err;
 	}
 
+	/* Some systems don't setup GUID register on resume from ram  */
+	if (!reg_read(ohci, OHCI1394_GUIDLo) &&
+					!reg_read(ohci, OHCI1394_GUIDHi)) {
+		reg_write(ohci, OHCI1394_GUIDLo, (u32)ohci->card.guid);
+		reg_write(ohci, OHCI1394_GUIDHi, (u32)(ohci->card.guid >> 32));
+	}
+
 	return ohci_enable(&ohci->card, NULL, 0);
 }
 #endif
