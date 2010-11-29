@@ -71,21 +71,12 @@
 #define PCH_REC			0x00007f00
 #define PCH_TEC			0x000000ff
 
+
 #define PCH_TX_OK		BIT(3)
 #define PCH_RX_OK		BIT(4)
 #define PCH_EPASSIV		BIT(5)
 #define PCH_EWARN		BIT(6)
 #define PCH_BUS_OFF		BIT(7)
-#define PCH_LEC0		BIT(0)
-#define PCH_LEC1		BIT(1)
-#define PCH_LEC2		BIT(2)
-#define PCH_LEC_ALL		(PCH_LEC0 | PCH_LEC1 | PCH_LEC2)
-#define PCH_STUF_ERR		PCH_LEC0
-#define PCH_FORM_ERR		PCH_LEC1
-#define PCH_ACK_ERR		(PCH_LEC0 | PCH_LEC1)
-#define PCH_BIT1_ERR		PCH_LEC2
-#define PCH_BIT0_ERR		(PCH_LEC0 | PCH_LEC2)
-#define PCH_CRC_ERR		(PCH_LEC1 | PCH_LEC2)
 
 /* bit position of certain controller bits. */
 #define PCH_BIT_BRP		0
@@ -115,6 +106,16 @@
 enum pch_ifreg {
 	PCH_RX_IFREG,
 	PCH_TX_IFREG,
+};
+
+enum pch_can_err {
+	PCH_STUF_ERR = 1,
+	PCH_FORM_ERR,
+	PCH_ACK_ERR,
+	PCH_BIT1_ERR,
+	PCH_BIT0_ERR,
+	PCH_CRC_ERR,
+	PCH_LEC_ALL,
 };
 
 enum pch_can_mode {
@@ -620,7 +621,7 @@ static void pch_can_error(struct net_device *ndev, u32 status)
 	struct sk_buff *skb;
 	struct pch_can_priv *priv = netdev_priv(ndev);
 	struct can_frame *cf;
-	u32 errc;
+	u32 errc, lec;
 	struct net_device_stats *stats = &(priv->ndev->stats);
 	enum can_state state = priv->can.state;
 
@@ -665,33 +666,37 @@ static void pch_can_error(struct net_device *ndev, u32 status)
 			"%s -> CAN controller is ERROR PASSIVE .\n", __func__);
 	}
 
-	if (status & PCH_LEC_ALL) {
+	lec = status & PCH_LEC_ALL;
+	switch (lec) {
+	case PCH_STUF_ERR:
+		cf->data[2] |= CAN_ERR_PROT_STUFF;
 		priv->can.can_stats.bus_error++;
 		stats->rx_errors++;
-		switch (status & PCH_LEC_ALL) {
-		case PCH_STUF_ERR:
-			cf->data[2] |= CAN_ERR_PROT_STUFF;
-			break;
-		case PCH_FORM_ERR:
-			cf->data[2] |= CAN_ERR_PROT_FORM;
-			break;
-		case PCH_ACK_ERR:
-			cf->data[2] |= CAN_ERR_PROT_LOC_ACK |
-				       CAN_ERR_PROT_LOC_ACK_DEL;
-			break;
-		case PCH_BIT1_ERR:
-		case PCH_BIT0_ERR:
-			cf->data[2] |= CAN_ERR_PROT_BIT;
-			break;
-		case PCH_CRC_ERR:
-			cf->data[2] |= CAN_ERR_PROT_LOC_CRC_SEQ |
-				       CAN_ERR_PROT_LOC_CRC_DEL;
-			break;
-		default:
-			iowrite32(status | PCH_LEC_ALL, &priv->regs->stat);
-			break;
-		}
-
+		break;
+	case PCH_FORM_ERR:
+		cf->data[2] |= CAN_ERR_PROT_FORM;
+		priv->can.can_stats.bus_error++;
+		stats->rx_errors++;
+		break;
+	case PCH_ACK_ERR:
+		cf->can_id |= CAN_ERR_ACK;
+		priv->can.can_stats.bus_error++;
+		stats->rx_errors++;
+		break;
+	case PCH_BIT1_ERR:
+	case PCH_BIT0_ERR:
+		cf->data[2] |= CAN_ERR_PROT_BIT;
+		priv->can.can_stats.bus_error++;
+		stats->rx_errors++;
+		break;
+	case PCH_CRC_ERR:
+		cf->data[2] |= CAN_ERR_PROT_LOC_CRC_SEQ |
+			       CAN_ERR_PROT_LOC_CRC_DEL;
+		priv->can.can_stats.bus_error++;
+		stats->rx_errors++;
+		break;
+	case PCH_LEC_ALL: /* Written by CPU. No error status */
+		break;
 	}
 
 	priv->can.state = state;
