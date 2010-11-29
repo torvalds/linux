@@ -28,10 +28,16 @@ MODULE_FIRMWARE(FIRMWARE_AR9271);
 static struct usb_device_id ath9k_hif_usb_ids[] = {
 	{ USB_DEVICE(0x0cf3, 0x9271) }, /* Atheros */
 	{ USB_DEVICE(0x0cf3, 0x1006) }, /* Atheros */
-	{ USB_DEVICE(0x0cf3, 0x7010) }, /* Atheros */
-	{ USB_DEVICE(0x0cf3, 0x7015) }, /* Atheros */
+	{ USB_DEVICE(0x0cf3, 0x7010),
+		.driver_info = AR7010_DEVICE },
+					/* Atheros */
+	{ USB_DEVICE(0x0cf3, 0x7015),
+		.driver_info = AR7010_DEVICE | AR9287_DEVICE },
+					/* Atheros */
 	{ USB_DEVICE(0x0846, 0x9030) }, /* Netgear N150 */
-	{ USB_DEVICE(0x0846, 0x9018) }, /* Netgear WNDA3200 */
+	{ USB_DEVICE(0x0846, 0x9018),
+		.driver_info = AR7010_DEVICE },
+					/* Netgear WNDA3200 */
 	{ USB_DEVICE(0x07D1, 0x3A10) }, /* Dlink Wireless 150 */
 	{ USB_DEVICE(0x13D3, 0x3327) }, /* Azurewave */
 	{ USB_DEVICE(0x13D3, 0x3328) }, /* Azurewave */
@@ -40,9 +46,13 @@ static struct usb_device_id ath9k_hif_usb_ids[] = {
 	{ USB_DEVICE(0x13D3, 0x3349) }, /* Azurewave */
 	{ USB_DEVICE(0x13D3, 0x3350) }, /* Azurewave */
 	{ USB_DEVICE(0x04CA, 0x4605) }, /* Liteon */
-	{ USB_DEVICE(0x083A, 0xA704) }, /* SMC Networks */
+	{ USB_DEVICE(0x083A, 0xA704),
+		.driver_info = AR7010_DEVICE },
+					/* SMC Networks */
 	{ USB_DEVICE(0x040D, 0x3801) }, /* VIA */
-	{ USB_DEVICE(0x1668, 0x1200) }, /* Verizon */
+	{ USB_DEVICE(0x1668, 0x1200),
+		.driver_info = AR7010_DEVICE | AR9287_DEVICE },
+					/* Verizon */
 	{ },
 };
 
@@ -776,7 +786,8 @@ static void ath9k_hif_usb_dealloc_urbs(struct hif_device_usb *hif_dev)
 	ath9k_hif_usb_dealloc_rx_urbs(hif_dev);
 }
 
-static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
+static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev,
+				     u32 drv_info)
 {
 	int transfer, err;
 	const void *data = hif_dev->firmware->data;
@@ -807,18 +818,10 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 	}
 	kfree(buf);
 
-	switch (hif_dev->device_id) {
-	case 0x7010:
-	case 0x7015:
-	case 0x9018:
-	case 0xA704:
-	case 0x1200:
+	if (drv_info & AR7010_DEVICE)
 		firm_offset = AR7010_FIRMWARE_TEXT;
-		break;
-	default:
+	else
 		firm_offset = AR9271_FIRMWARE_TEXT;
-		break;
-	}
 
 	/*
 	 * Issue FW download complete command to firmware.
@@ -836,7 +839,7 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 	return 0;
 }
 
-static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev)
+static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev, u32 drv_info)
 {
 	int ret, idx;
 	struct usb_host_interface *alt = &hif_dev->interface->altsetting[0];
@@ -852,7 +855,7 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev)
 	}
 
 	/* Download firmware */
-	ret = ath9k_hif_usb_download_fw(hif_dev);
+	ret = ath9k_hif_usb_download_fw(hif_dev, drv_info);
 	if (ret) {
 		dev_err(&hif_dev->udev->dev,
 			"ath9k_htc: Firmware - %s download failed\n",
@@ -931,23 +934,15 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 
 	/* Find out which firmware to load */
 
-	switch(hif_dev->device_id) {
-	case 0x7010:
-	case 0x7015:
-	case 0x9018:
-	case 0xA704:
-	case 0x1200:
+	if (id->driver_info & AR7010_DEVICE)
 		if (le16_to_cpu(udev->descriptor.bcdDevice) == 0x0202)
 			hif_dev->fw_name = FIRMWARE_AR7010_1_1;
 		else
 			hif_dev->fw_name = FIRMWARE_AR7010;
-		break;
-	default:
+	else
 		hif_dev->fw_name = FIRMWARE_AR9271;
-		break;
-	}
 
-	ret = ath9k_hif_usb_dev_init(hif_dev);
+	ret = ath9k_hif_usb_dev_init(hif_dev, id->driver_info);
 	if (ret) {
 		ret = -EINVAL;
 		goto err_hif_init_usb;
@@ -955,7 +950,7 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 
 	ret = ath9k_htc_hw_init(hif_dev->htc_handle,
 				&hif_dev->udev->dev, hif_dev->device_id,
-				hif_dev->udev->product);
+				hif_dev->udev->product, id->driver_info);
 	if (ret) {
 		ret = -EINVAL;
 		goto err_htc_hw_init;
@@ -1033,6 +1028,7 @@ static int ath9k_hif_usb_resume(struct usb_interface *interface)
 {
 	struct hif_device_usb *hif_dev =
 		(struct hif_device_usb *) usb_get_intfdata(interface);
+	struct htc_target *htc_handle = hif_dev->htc_handle;
 	int ret;
 
 	ret = ath9k_hif_usb_alloc_urbs(hif_dev);
@@ -1040,7 +1036,8 @@ static int ath9k_hif_usb_resume(struct usb_interface *interface)
 		return ret;
 
 	if (hif_dev->firmware) {
-		ret = ath9k_hif_usb_download_fw(hif_dev);
+		ret = ath9k_hif_usb_download_fw(hif_dev,
+				htc_handle->drv_priv->ah->common.driver_info);
 		if (ret)
 			goto fail_resume;
 	} else {
@@ -1050,7 +1047,7 @@ static int ath9k_hif_usb_resume(struct usb_interface *interface)
 
 	mdelay(100);
 
-	ret = ath9k_htc_resume(hif_dev->htc_handle);
+	ret = ath9k_htc_resume(htc_handle);
 
 	if (ret)
 		goto fail_resume;

@@ -32,9 +32,9 @@
 #include <linux/wl12xx.h>
 #include <linux/pm_runtime.h>
 
-#include "wl1271.h"
+#include "wl12xx.h"
 #include "wl12xx_80211.h"
-#include "wl1271_io.h"
+#include "io.h"
 
 #ifndef SDIO_VENDOR_ID_TI
 #define SDIO_VENDOR_ID_TI		0x0097

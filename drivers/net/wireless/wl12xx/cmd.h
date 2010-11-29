@@ -22,10 +22,10 @@
  *
  */
 
-#ifndef __WL1271_CMD_H__
-#define __WL1271_CMD_H__
+#ifndef __CMD_H__
+#define __CMD_H__
 
-#include "wl1271.h"
+#include "wl12xx.h"
 
 struct acx_header;
 
@@ -327,9 +327,6 @@ enum wl1271_channel_tune_bands {
 
 #define WL1271_PD_REFERENCE_POINT_BAND_B_G  0
 
-#define TEST_CMD_P2G_CAL                    0x02
-#define TEST_CMD_CHANNEL_TUNE               0x0d
-#define TEST_CMD_UPDATE_PD_REFERENCE_POINT  0x1d
 #define TEST_CMD_INI_FILE_RADIO_PARAM       0x19
 #define TEST_CMD_INI_FILE_GENERAL_PARAM     0x1E
 #define TEST_CMD_INI_FILE_RF_EXTENDED_PARAM 0x26
@@ -374,51 +371,6 @@ struct wl1271_ext_radio_parms_cmd {
 	u8 tx_per_channel_power_compensation_5[CONF_TX_PWR_COMPENSATION_LEN_5];
 	u8 padding[3];
 } __packed;
-
-struct wl1271_cmd_cal_channel_tune {
-	struct wl1271_cmd_header header;
-
-	struct wl1271_cmd_test_header test;
-
-	u8 band;
-	u8 channel;
-
-	__le16 radio_status;
-} __packed;
-
-struct wl1271_cmd_cal_update_ref_point {
-	struct wl1271_cmd_header header;
-
-	struct wl1271_cmd_test_header test;
-
-	__le32 ref_power;
-	__le32 ref_detector;
-	u8  sub_band;
-	u8  padding[3];
-} __packed;
-
-#define MAX_TLV_LENGTH         400
-#define	MAX_NVS_VERSION_LENGTH 12
-
-#define WL1271_CAL_P2G_BAND_B_G BIT(0)
-
-struct wl1271_cmd_cal_p2g {
-	struct wl1271_cmd_header header;
-
-	struct wl1271_cmd_test_header test;
-
-	__le16 len;
-	u8  buf[MAX_TLV_LENGTH];
-	u8  type;
-	u8  padding;
-
-	__le16 radio_status;
-	u8  nvs_version[MAX_NVS_VERSION_LENGTH];
-
-	u8  sub_band_mask;
-	u8  padding2;
-} __packed;
-
 
 /*
  * There are three types of disconnections:

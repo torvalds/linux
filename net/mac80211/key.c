@@ -84,10 +84,17 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 		goto out_unsupported;
 
 	sdata = key->sdata;
-	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
+		/*
+		 * The driver doesn't know anything about VLAN interfaces.
+		 * Hence, don't send GTKs for VLAN interfaces to the driver.
+		 */
+		if (!(key->conf.flags & IEEE80211_KEY_FLAG_PAIRWISE))
+			goto out_unsupported;
 		sdata = container_of(sdata->bss,
 				     struct ieee80211_sub_if_data,
 				     u.ap);
+	}
 
 	ret = drv_set_key(key->local, SET_KEY, sdata, sta, &key->conf);
 

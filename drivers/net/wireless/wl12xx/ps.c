@@ -21,9 +21,9 @@
  *
  */
 
-#include "wl1271_reg.h"
-#include "wl1271_ps.h"
-#include "wl1271_io.h"
+#include "reg.h"
+#include "ps.h"
+#include "io.h"
 
 #define WL1271_WAKEUP_TIMEOUT 500
 

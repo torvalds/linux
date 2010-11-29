@@ -307,6 +307,7 @@ static int iwlagn_set_pan_params(struct iwl_priv *priv)
 
 	if (ctx_bss->vif && ctx_pan->vif) {
 		int bcnint = ctx_pan->vif->bss_conf.beacon_int;
+		int dtim = ctx_pan->vif->bss_conf.dtim_period ?: 1;
 
 		/* should be set, but seems unused?? */
 		cmd.flags |= cpu_to_le16(IWL_WIPAN_PARAMS_FLG_SLOTTED_MODE);
@@ -329,10 +330,10 @@ static int iwlagn_set_pan_params(struct iwl_priv *priv)
 		if (test_bit(STATUS_SCAN_HW, &priv->status) ||
 		    (!ctx_bss->vif->bss_conf.idle &&
 		     !ctx_bss->vif->bss_conf.assoc)) {
-			slot0 = bcnint * 3 - 20;
+			slot0 = dtim * bcnint * 3 - 20;
 			slot1 = 20;
 		} else if (!ctx_pan->vif->bss_conf.idle &&
-                           !ctx_pan->vif->bss_conf.assoc) {
+			   !ctx_pan->vif->bss_conf.assoc) {
 			slot1 = bcnint * 3 - 20;
 			slot0 = 20;
 		}

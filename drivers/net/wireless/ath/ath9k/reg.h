@@ -864,15 +864,7 @@
      ((REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
 
 #define AR_DEVID_7010(_ah) \
-	(((_ah)->hw_version.devid == 0x7010) || \
-	 ((_ah)->hw_version.devid == 0x7015) || \
-	 ((_ah)->hw_version.devid == 0x9018) || \
-	 ((_ah)->hw_version.devid == 0xA704) || \
-	 ((_ah)->hw_version.devid == 0x1200))
-
-#define AR9287_HTC_DEVID(_ah) \
-	(((_ah)->hw_version.devid == 0x7015) || \
-	 ((_ah)->hw_version.devid == 0x1200))
+	((_ah)->common.driver_info & AR7010_DEVICE)
 
 #define AR_RADIO_SREV_MAJOR                   0xf0
 #define AR_RAD5133_SREV_MAJOR                 0xc0
@@ -1072,6 +1064,9 @@ enum {
 #define AR_INTR_PRIO_ASYNC_MASK   0x40c8
 #define AR_INTR_PRIO_SYNC_MASK    0x40cc
 #define AR_INTR_PRIO_ASYNC_ENABLE 0x40d4
+#define AR_ENT_OTP		  0x40d8
+#define AR_ENT_OTP_CHAIN2_DISABLE               0x00020000
+#define AR_ENT_OTP_MPSD		0x00800000
 
 #define AR_RTC_9300_PLL_DIV          0x000003ff
 #define AR_RTC_9300_PLL_DIV_S        0
@@ -1572,6 +1567,7 @@ enum {
 #define AR_PCU_TBTT_PROTECT        0x00200000
 #define AR_PCU_CLEAR_VMF           0x01000000
 #define AR_PCU_CLEAR_BA_VALID      0x04000000
+#define AR_PCU_ALWAYS_PERFORM_KEYSEARCH 0x10000000
 
 #define AR_PCU_BT_ANT_PREVENT_RX   0x00100000
 #define AR_PCU_BT_ANT_PREVENT_RX_S 20

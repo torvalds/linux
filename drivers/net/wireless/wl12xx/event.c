@@ -21,12 +21,12 @@
  *
  */
 
-#include "wl1271.h"
-#include "wl1271_reg.h"
-#include "wl1271_io.h"
-#include "wl1271_event.h"
-#include "wl1271_ps.h"
-#include "wl1271_scan.h"
+#include "wl12xx.h"
+#include "reg.h"
+#include "io.h"
+#include "event.h"
+#include "ps.h"
+#include "scan.h"
 #include "wl12xx_80211.h"
 
 void wl1271_pspoll_work(struct work_struct *work)

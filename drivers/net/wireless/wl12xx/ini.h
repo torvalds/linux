@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef __WL1271_INI_H__
-#define __WL1271_INI_H__
+#ifndef __INI_H__
+#define __INI_H__
 
 #define WL1271_INI_MAX_SMART_REFLEX_PARAM 16
 

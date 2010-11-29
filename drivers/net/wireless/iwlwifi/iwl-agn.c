@@ -97,7 +97,8 @@ void iwl_update_chain_flags(struct iwl_priv *priv)
 	if (priv->cfg->ops->hcmd->set_rxon_chain) {
 		for_each_context(priv, ctx) {
 			priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
-			iwlcore_commit_rxon(priv, ctx);
+			if (ctx->active.rx_chain != ctx->staging.rx_chain)
+				iwlcore_commit_rxon(priv, ctx);
 		}
 	}
 }
@@ -2716,6 +2717,8 @@ static void iwl_alive_start(struct iwl_priv *priv)
 
 	iwl_reset_run_time_calib(priv);
 
+	set_bit(STATUS_READY, &priv->status);
+
 	/* Configure the adapter for unassociated operation */
 	iwlcore_commit_rxon(priv, ctx);
 
@@ -2725,7 +2728,6 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	iwl_leds_init(priv);
 
 	IWL_DEBUG_INFO(priv, "ALIVE processing complete.\n");
-	set_bit(STATUS_READY, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
 
 	iwl_power_update_mode(priv, true);
@@ -3837,7 +3839,6 @@ static int iwl_init_drv(struct iwl_priv *priv)
 		priv->bt_on_thresh = BT_ON_THRESHOLD_DEF;
 		priv->bt_duration = BT_DURATION_LIMIT_DEF;
 		priv->dynamic_frag_thresh = BT_FRAG_THRESHOLD_DEF;
-		priv->dynamic_agg_thresh = BT_AGG_THRESHOLD_DEF;
 	}
 
 	/* Set the tx_power_user_lmt to the lowest power level
@@ -4132,6 +4133,10 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_iounmap;
 	}
 	err = iwl_eeprom_check_version(priv);
+	if (err)
+		goto out_free_eeprom;
+
+	err = iwl_eeprom_check_sku(priv);
 	if (err)
 		goto out_free_eeprom;
 

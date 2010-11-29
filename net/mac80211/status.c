@@ -155,7 +155,20 @@ static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 
 		ieee80211_queue_work(&local->hw, &local->recalc_smps);
 	}
+
+	if ((sdata->vif.type == NL80211_IFTYPE_STATION) &&
+	    (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS))
+		ieee80211_sta_tx_notify(sdata, (void *) skb->data);
 }
+
+/*
+ * Use a static threshold for now, best value to be determined
+ * by testing ...
+ * Should it depend on:
+ *  - on # of retransmissions
+ *  - current throughput (higher value for higher tpt)?
+ */
+#define STA_LOST_PKT_THRESHOLD	50
 
 void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
@@ -243,6 +256,19 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (!(info->flags & IEEE80211_TX_CTL_INJECTED) &&
 		    (info->flags & IEEE80211_TX_STAT_ACK))
 			ieee80211_frame_acked(sta, skb);
+
+		if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
+			if (info->flags & IEEE80211_TX_STAT_ACK) {
+				if (sta->lost_packets)
+					sta->lost_packets = 0;
+			} else if (++sta->lost_packets >= STA_LOST_PKT_THRESHOLD) {
+				cfg80211_cqm_pktloss_notify(sta->sdata->dev,
+							    sta->sta.addr,
+							    sta->lost_packets,
+							    GFP_ATOMIC);
+				sta->lost_packets = 0;
+			}
+		}
 	}
 
 	rcu_read_unlock();

@@ -21,7 +21,7 @@
  *
  */
 
-#include "wl1271_acx.h"
+#include "acx.h"
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -29,10 +29,10 @@
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 
-#include "wl1271.h"
+#include "wl12xx.h"
 #include "wl12xx_80211.h"
-#include "wl1271_reg.h"
-#include "wl1271_ps.h"
+#include "reg.h"
+#include "ps.h"
 
 int wl1271_acx_wake_up_conditions(struct wl1271 *wl)
 {
@@ -862,7 +862,7 @@ out:
 	return ret;
 }
 
-int wl1271_acx_frag_threshold(struct wl1271 *wl)
+int wl1271_acx_frag_threshold(struct wl1271 *wl, u16 frag_threshold)
 {
 	struct acx_frag_threshold *acx;
 	int ret = 0;
@@ -876,7 +876,7 @@ int wl1271_acx_frag_threshold(struct wl1271 *wl)
 		goto out;
 	}
 
-	acx->frag_threshold = cpu_to_le16(wl->conf.tx.frag_threshold);
+	acx->frag_threshold = cpu_to_le16(frag_threshold);
 	ret = wl1271_cmd_configure(wl, ACX_FRAG_CFG, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("Setting of frag threshold failed: %d", ret);

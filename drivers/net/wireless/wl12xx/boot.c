@@ -24,11 +24,11 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 
-#include "wl1271_acx.h"
-#include "wl1271_reg.h"
-#include "wl1271_boot.h"
-#include "wl1271_io.h"
-#include "wl1271_event.h"
+#include "acx.h"
+#include "reg.h"
+#include "boot.h"
+#include "io.h"
+#include "event.h"
 
 static struct wl1271_partition_set part_table[PART_TABLE_LEN] = {
 	[PART_DOWN] = {

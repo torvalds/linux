@@ -196,7 +196,7 @@ static void ar9003_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 	u32 qCoffDenom, iCoffDenom;
 	int32_t qCoff, iCoff;
 	int iqCorrNeg, i;
-	const u_int32_t offset_array[3] = {
+	static const u_int32_t offset_array[3] = {
 		AR_PHY_RX_IQCAL_CORR_B0,
 		AR_PHY_RX_IQCAL_CORR_B1,
 		AR_PHY_RX_IQCAL_CORR_B2,
@@ -603,22 +603,22 @@ static bool ar9003_hw_calc_iq_corr(struct ath_hw *ah,
 static void ar9003_hw_tx_iq_cal(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	const u32 txiqcal_status[AR9300_MAX_CHAINS] = {
+	static const u32 txiqcal_status[AR9300_MAX_CHAINS] = {
 		AR_PHY_TX_IQCAL_STATUS_B0,
 		AR_PHY_TX_IQCAL_STATUS_B1,
 		AR_PHY_TX_IQCAL_STATUS_B2,
 	};
-	const u32 tx_corr_coeff[AR9300_MAX_CHAINS] = {
+	static const u32 tx_corr_coeff[AR9300_MAX_CHAINS] = {
 		AR_PHY_TX_IQCAL_CORR_COEFF_01_B0,
 		AR_PHY_TX_IQCAL_CORR_COEFF_01_B1,
 		AR_PHY_TX_IQCAL_CORR_COEFF_01_B2,
 	};
-	const u32 rx_corr[AR9300_MAX_CHAINS] = {
+	static const u32 rx_corr[AR9300_MAX_CHAINS] = {
 		AR_PHY_RX_IQCAL_CORR_B0,
 		AR_PHY_RX_IQCAL_CORR_B1,
 		AR_PHY_RX_IQCAL_CORR_B2,
 	};
-	const u_int32_t chan_info_tab[] = {
+	static const u_int32_t chan_info_tab[] = {
 		AR_PHY_CHAN_INFO_TAB_0,
 		AR_PHY_CHAN_INFO_TAB_1,
 		AR_PHY_CHAN_INFO_TAB_2,
@@ -718,12 +718,19 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 			       struct ath9k_channel *chan)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
+	int val;
 
-	/*
-	 * 0x7 = 0b111 , AR9003 needs to be configured for 3-chain mode before
-	 * running AGC/TxIQ cals
-	 */
-	ar9003_hw_set_chain_masks(ah, 0x7, 0x7);
+	val = REG_READ(ah, AR_ENT_OTP);
+	ath_print(common, ATH_DBG_CALIBRATE, "ath9k: AR_ENT_OTP 0x%x\n", val);
+
+	if (val & AR_ENT_OTP_CHAIN2_DISABLE)
+		ar9003_hw_set_chain_masks(ah, 0x3, 0x3);
+	else
+		/*
+		 * 0x7 = 0b111 , AR9003 needs to be configured for 3-chain
+		 * mode before running AGC/TxIQ cals
+		 */
+		ar9003_hw_set_chain_masks(ah, 0x7, 0x7);
 
 	/* Do Tx IQ Calibration */
 	ar9003_hw_tx_iq_cal(ah);

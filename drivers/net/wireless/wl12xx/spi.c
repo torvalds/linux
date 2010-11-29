@@ -28,11 +28,11 @@
 #include <linux/wl12xx.h>
 #include <linux/slab.h>
 
-#include "wl1271.h"
+#include "wl12xx.h"
 #include "wl12xx_80211.h"
-#include "wl1271_io.h"
+#include "io.h"
 
-#include "wl1271_reg.h"
+#include "reg.h"
 
 #define WSPI_CMD_READ                 0x40000000
 #define WSPI_CMD_WRITE                0x00000000

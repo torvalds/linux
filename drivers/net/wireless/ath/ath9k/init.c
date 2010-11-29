@@ -533,6 +533,9 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	ah->hw_version.subsysid = subsysid;
 	sc->sc_ah = ah;
 
+	if (!sc->dev->platform_data)
+		ah->ah_flags |= AH_USE_EEPROM;
+
 	common = ath9k_hw_common(ah);
 	common->ops = &ath9k_common_ops;
 	common->bus_ops = bus_ops;

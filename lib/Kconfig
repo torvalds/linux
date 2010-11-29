@@ -210,4 +210,7 @@ config GENERIC_ATOMIC64
 config LRU_CACHE
 	tristate
 
+config AVERAGE
+	bool
+
 endmenu

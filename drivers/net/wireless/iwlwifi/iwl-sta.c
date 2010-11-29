@@ -400,7 +400,8 @@ static void iwl_sta_ucode_deactivate(struct iwl_priv *priv, u8 sta_id)
 }
 
 static int iwl_send_remove_station(struct iwl_priv *priv,
-				   const u8 *addr, int sta_id)
+				   const u8 *addr, int sta_id,
+				   bool temporary)
 {
 	struct iwl_rx_packet *pkt;
 	int ret;
@@ -436,9 +437,11 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 	if (!ret) {
 		switch (pkt->u.rem_sta.status) {
 		case REM_STA_SUCCESS_MSK:
-			spin_lock_irqsave(&priv->sta_lock, flags_spin);
-			iwl_sta_ucode_deactivate(priv, sta_id);
-			spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+			if (!temporary) {
+				spin_lock_irqsave(&priv->sta_lock, flags_spin);
+				iwl_sta_ucode_deactivate(priv, sta_id);
+				spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
+			}
 			IWL_DEBUG_ASSOC(priv, "REPLY_REMOVE_STA PASSED\n");
 			break;
 		default:
@@ -505,7 +508,7 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	return iwl_send_remove_station(priv, addr, sta_id);
+	return iwl_send_remove_station(priv, addr, sta_id, false);
 out_err:
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return -EINVAL;
@@ -623,6 +626,44 @@ void iwl_restore_stations(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		IWL_DEBUG_INFO(priv, "Restoring all known stations .... complete.\n");
 }
 EXPORT_SYMBOL(iwl_restore_stations);
+
+void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
+{
+	unsigned long flags;
+	int sta_id = ctx->ap_sta_id;
+	int ret;
+	struct iwl_addsta_cmd sta_cmd;
+	struct iwl_link_quality_cmd lq;
+	bool active;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE)) {
+		spin_unlock_irqrestore(&priv->sta_lock, flags);
+		return;
+	}
+
+	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(sta_cmd));
+	sta_cmd.mode = 0;
+	memcpy(&lq, priv->stations[sta_id].lq, sizeof(lq));
+
+	active = priv->stations[sta_id].used & IWL_STA_UCODE_ACTIVE;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	if (active) {
+		ret = iwl_send_remove_station(
+			priv, priv->stations[sta_id].sta.sta.addr,
+			sta_id, true);
+		if (ret)
+			IWL_ERR(priv, "failed to remove STA %pM (%d)\n",
+				priv->stations[sta_id].sta.sta.addr, ret);
+	}
+	ret = iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
+	if (ret)
+		IWL_ERR(priv, "failed to re-add STA %pM (%d)\n",
+			priv->stations[sta_id].sta.sta.addr, ret);
+	iwl_send_lq_cmd(priv, ctx, &lq, CMD_SYNC, true);
+}
+EXPORT_SYMBOL(iwl_reprogram_ap_sta);
 
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
 {

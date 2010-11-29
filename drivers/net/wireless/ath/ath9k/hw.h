@@ -485,6 +485,40 @@ struct ath_hw_antcomb_conf {
 };
 
 /**
+ * struct ath_hw_radar_conf - radar detection initialization parameters
+ *
+ * @pulse_inband: threshold for checking the ratio of in-band power
+ *	to total power for short radar pulses (half dB steps)
+ * @pulse_inband_step: threshold for checking an in-band power to total
+ *	power ratio increase for short radar pulses (half dB steps)
+ * @pulse_height: threshold for detecting the beginning of a short
+ *	radar pulse (dB step)
+ * @pulse_rssi: threshold for detecting if a short radar pulse is
+ *	gone (dB step)
+ * @pulse_maxlen: maximum pulse length (0.8 us steps)
+ *
+ * @radar_rssi: RSSI threshold for starting long radar detection (dB steps)
+ * @radar_inband: threshold for checking the ratio of in-band power
+ *	to total power for long radar pulses (half dB steps)
+ * @fir_power: threshold for detecting the end of a long radar pulse (dB)
+ *
+ * @ext_channel: enable extension channel radar detection
+ */
+struct ath_hw_radar_conf {
+	unsigned int pulse_inband;
+	unsigned int pulse_inband_step;
+	unsigned int pulse_height;
+	unsigned int pulse_rssi;
+	unsigned int pulse_maxlen;
+
+	unsigned int radar_rssi;
+	unsigned int radar_inband;
+	int fir_power;
+
+	bool ext_channel;
+};
+
+/**
  * struct ath_hw_private_ops - callbacks used internally by hardware code
  *
  * This structure contains private callbacks designed to only be used internally
@@ -549,6 +583,8 @@ struct ath_hw_private_ops {
 	bool (*ani_control)(struct ath_hw *ah, enum ath9k_ani_cmd cmd,
 			    int param);
 	void (*do_getnf)(struct ath_hw *ah, int16_t nfarray[NUM_NF_READINGS]);
+	void (*set_radar_params)(struct ath_hw *ah,
+				 struct ath_hw_radar_conf *conf);
 
 	/* ANI */
 	void (*ani_cache_ini_regs)(struct ath_hw *ah);
@@ -747,6 +783,8 @@ struct ath_hw {
 	u8 txchainmask;
 	u8 rxchainmask;
 
+	struct ath_hw_radar_conf radar_conf;
+
 	u32 originalGain[22];
 	int initPDADC;
 	int PDADCdelta;
@@ -804,6 +842,9 @@ struct ath_hw {
 	 * this register when in sleep states.
 	 */
 	u32 WARegVal;
+
+	/* Enterprise mode cap */
+	u32 ent_mode;
 };
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)

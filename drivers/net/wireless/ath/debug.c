@@ -19,14 +19,19 @@
 
 void ath_print(struct ath_common *common, int dbg_mask, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 
 	if (likely(!(common->debug_mask & dbg_mask)))
 		return;
 
 	va_start(args, fmt);
-	printk(KERN_DEBUG "ath: ");
-	vprintk(fmt, args);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk(KERN_DEBUG "ath: %pV", &vaf);
+
 	va_end(args);
 }
 EXPORT_SYMBOL(ath_print);

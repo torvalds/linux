@@ -278,7 +278,6 @@ struct iwl_cfg iwl1000_bgn_cfg = {
 	.fw_name_pre = IWL1000_FW_PRE,
 	.ucode_api_max = IWL1000_UCODE_API_MAX,
 	.ucode_api_min = IWL1000_UCODE_API_MIN,
-	.sku = IWL_SKU_G|IWL_SKU_N,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
@@ -287,6 +286,7 @@ struct iwl_cfg iwl1000_bgn_cfg = {
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl1000_base_params,
 	.ht_params = &iwl1000_ht_params,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl1000_bg_cfg = {
@@ -294,7 +294,6 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.fw_name_pre = IWL1000_FW_PRE,
 	.ucode_api_max = IWL1000_UCODE_API_MAX,
 	.ucode_api_min = IWL1000_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
@@ -302,6 +301,7 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.ops = &iwl1000_ops,
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl1000_base_params,
+	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl100_bgn_cfg = {
@@ -309,7 +309,6 @@ struct iwl_cfg iwl100_bgn_cfg = {
 	.fw_name_pre = IWL100_FW_PRE,
 	.ucode_api_max = IWL100_UCODE_API_MAX,
 	.ucode_api_min = IWL100_UCODE_API_MIN,
-	.sku = IWL_SKU_G|IWL_SKU_N,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_A,
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
@@ -318,6 +317,7 @@ struct iwl_cfg iwl100_bgn_cfg = {
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl1000_base_params,
 	.ht_params = &iwl1000_ht_params,
+	.led_mode = IWL_LED_RF_STATE,
 };
 
 struct iwl_cfg iwl100_bg_cfg = {
@@ -325,7 +325,6 @@ struct iwl_cfg iwl100_bg_cfg = {
 	.fw_name_pre = IWL100_FW_PRE,
 	.ucode_api_max = IWL100_UCODE_API_MAX,
 	.ucode_api_min = IWL100_UCODE_API_MIN,
-	.sku = IWL_SKU_G,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_A,
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
@@ -333,6 +332,7 @@ struct iwl_cfg iwl100_bg_cfg = {
 	.ops = &iwl1000_ops,
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl1000_base_params,
+	.led_mode = IWL_LED_RF_STATE,
 };
 
 MODULE_FIRMWARE(IWL1000_MODULE_FIRMWARE(IWL1000_UCODE_API_MAX));

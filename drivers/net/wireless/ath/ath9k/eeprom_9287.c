@@ -37,10 +37,10 @@ static bool ath9k_hw_ar9287_fill_eeprom(struct ath_hw *ah)
 	int addr, eep_start_loc;
 	eep_data = (u16 *)eep;
 
-	if (AR9287_HTC_DEVID(ah))
-		eep_start_loc = AR9287_HTC_EEP_START_LOC;
-	else
+	if (!common->driver_info)
 		eep_start_loc = AR9287_EEP_START_LOC;
+	else
+		eep_start_loc = AR9287_HTC_EEP_START_LOC;
 
 	if (!ath9k_hw_use_flash(ah)) {
 		ath_print(common, ATH_DBG_EEPROM,
@@ -626,13 +626,13 @@ static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
 	struct cal_target_power_ht targetPowerHt20,
 				    targetPowerHt40 = {0, {0, 0, 0, 0} };
 	u16 scaledPower = 0, minCtlPower, maxRegAllowedPower;
-	u16 ctlModesFor11g[] = {CTL_11B,
-				CTL_11G,
-				CTL_2GHT20,
-				CTL_11B_EXT,
-				CTL_11G_EXT,
-				CTL_2GHT40};
-	u16 numCtlModes = 0, *pCtlMode = NULL, ctlMode, freq;
+	static const u16 ctlModesFor11g[] = {
+		CTL_11B, CTL_11G, CTL_2GHT20,
+		CTL_11B_EXT, CTL_11G_EXT, CTL_2GHT40
+	};
+	u16 numCtlModes = 0;
+	const u16 *pCtlMode = NULL;
+	u16 ctlMode, freq;
 	struct chan_centers centers;
 	int tx_chainmask;
 	u16 twiceMinEdgePower;

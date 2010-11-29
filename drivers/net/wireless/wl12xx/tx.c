@@ -24,11 +24,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "wl1271.h"
-#include "wl1271_io.h"
-#include "wl1271_reg.h"
-#include "wl1271_ps.h"
-#include "wl1271_tx.h"
+#include "wl12xx.h"
+#include "io.h"
+#include "reg.h"
+#include "ps.h"
+#include "tx.h"
 
 static int wl1271_alloc_tx_id(struct wl1271 *wl, struct sk_buff *skb)
 {
@@ -209,7 +209,7 @@ u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set)
 		rate_set >>= 1;
 	}
 
-#ifdef CONFIG_WL1271_HT
+#ifdef CONFIG_WL12XX_HT
 	/* MCS rates indication are on bits 16 - 23 */
 	rate_set >>= HW_HT_RATES_OFFSET - band->n_bitrates;
 

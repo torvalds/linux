@@ -992,11 +992,8 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 				" swq_id=%#.2x (ac %d/hwq %d)\n",
 				cnt, q->read_ptr, q->write_ptr,
 				!!test_bit(cnt, priv->queue_stopped),
-				txq->swq_id,
-				txq->swq_id & 0x80 ? txq->swq_id & 3 :
-				txq->swq_id,
-				txq->swq_id & 0x80 ? (txq->swq_id >> 2) &
-				0x1f : txq->swq_id);
+				txq->swq_id, txq->swq_id & 3,
+				(txq->swq_id >> 2) & 0x1f);
 		if (cnt >= 4)
 			continue;
 		/* for the ACs, display the stop count too */
@@ -1580,7 +1577,7 @@ static ssize_t iwl_dbgfs_bt_traffic_read(struct file *file,
 		priv->bt_full_concurrent ? "full concurrency" : "3-wire");
 	pos += scnprintf(buf + pos, bufsz - pos, "BT status: %s, "
 			 "last traffic notif: %d\n",
-		priv->bt_status ? "On" : "Off", priv->notif_bt_traffic_load);
+		priv->bt_status ? "On" : "Off", priv->last_bt_traffic_load);
 	pos += scnprintf(buf + pos, bufsz - pos, "ch_announcement: %d, "
 			 "sco_active: %d, kill_ack_mask: %x, "
 			 "kill_cts_mask: %x\n",

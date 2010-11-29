@@ -116,7 +116,7 @@ void iwl3945_disable_events(struct iwl_priv *priv)
 	u32 base;		/* SRAM address of event log header */
 	u32 disable_ptr;	/* SRAM address of event-disable bitmap array */
 	u32 array_size;		/* # of u32 entries in array */
-	u32 evt_disable[IWL_EVT_DISABLE_SIZE] = {
+	static const u32 evt_disable[IWL_EVT_DISABLE_SIZE] = {
 		0x00000000,	/*   31 -    0  Event id numbers */
 		0x00000000,	/*   63 -   32 */
 		0x00000000,	/*   95 -   64 */
@@ -297,7 +297,7 @@ static void iwl3945_tx_queue_reclaim(struct iwl_priv *priv,
 	if (iwl_queue_space(q) > q->low_mark && (txq_id >= 0) &&
 			(txq_id != IWL39_CMD_QUEUE_NUM) &&
 			priv->mac80211_registered)
-		iwl_wake_queue(priv, txq_id);
+		iwl_wake_queue(priv, txq);
 }
 
 /**
@@ -2788,6 +2788,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.ops = &iwl3945_ops,
 	.mod_params = &iwl3945_mod_params,
 	.base_params = &iwl3945_base_params,
+	.led_mode = IWL_LED_BLINK,
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2800,6 +2801,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.ops = &iwl3945_ops,
 	.mod_params = &iwl3945_mod_params,
 	.base_params = &iwl3945_base_params,
+	.led_mode = IWL_LED_BLINK,
 };
 
 DEFINE_PCI_DEVICE_TABLE(iwl3945_hw_card_ids) = {

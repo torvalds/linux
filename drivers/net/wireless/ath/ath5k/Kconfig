@@ -4,6 +4,7 @@ config ATH5K
 	select MAC80211_LEDS
 	select LEDS_CLASS
 	select NEW_LEDS
+	select AVERAGE
 	---help---
 	  This module adds support for wireless adapters based on
 	  Atheros 5xxx chipset.

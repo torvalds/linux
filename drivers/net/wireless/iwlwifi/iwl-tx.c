@@ -359,13 +359,12 @@ int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	txq->need_update = 0;
 
 	/*
-	 * Aggregation TX queues will get their ID when aggregation begins;
-	 * they overwrite the setting done here. The command FIFO doesn't
-	 * need an swq_id so don't set one to catch errors, all others can
-	 * be set up to the identity mapping.
+	 * For the default queues 0-3, set up the swq_id
+	 * already -- all others need to get one later
+	 * (if they need one at all).
 	 */
-	if (txq_id != priv->cmd_queue)
-		txq->swq_id = txq_id;
+	if (txq_id < 4)
+		iwl_set_swq_id(txq, txq_id, txq_id);
 
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
 	 * iwl_queue_inc_wrap and iwl_queue_dec_wrap are broken. */

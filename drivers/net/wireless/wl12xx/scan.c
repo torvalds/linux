@@ -23,10 +23,10 @@
 
 #include <linux/ieee80211.h>
 
-#include "wl1271.h"
-#include "wl1271_cmd.h"
-#include "wl1271_scan.h"
-#include "wl1271_acx.h"
+#include "wl12xx.h"
+#include "cmd.h"
+#include "scan.h"
+#include "acx.h"
 
 void wl1271_scan_complete_work(struct work_struct *work)
 {

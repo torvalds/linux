@@ -29,13 +29,13 @@
 #include <linux/ieee80211.h>
 #include <linux/slab.h>
 
-#include "wl1271.h"
-#include "wl1271_reg.h"
-#include "wl1271_io.h"
-#include "wl1271_acx.h"
+#include "wl12xx.h"
+#include "reg.h"
+#include "io.h"
+#include "acx.h"
 #include "wl12xx_80211.h"
-#include "wl1271_cmd.h"
-#include "wl1271_event.h"
+#include "cmd.h"
+#include "event.h"
 
 #define WL1271_CMD_FAST_POLL_COUNT       50
 
