@@ -100,78 +100,78 @@ struct mc13783_regulator {
 };
 
 /* Voltage Values */
-static const int const mc13783_sw3_val[] = {
+static const int mc13783_sw3_val[] = {
 	5000000, 5000000, 5000000, 5500000,
 };
 
-static const int const mc13783_vaudio_val[] = {
+static const int mc13783_vaudio_val[] = {
 	2775000,
 };
 
-static const int const mc13783_viohi_val[] = {
+static const int mc13783_viohi_val[] = {
 	2775000,
 };
 
-static const int const mc13783_violo_val[] = {
+static const int mc13783_violo_val[] = {
 	1200000, 1300000, 1500000, 1800000,
 };
 
-static const int const mc13783_vdig_val[] = {
+static const int mc13783_vdig_val[] = {
 	1200000, 1300000, 1500000, 1800000,
 };
 
-static const int const mc13783_vgen_val[] = {
+static const int mc13783_vgen_val[] = {
 	1200000, 1300000, 1500000, 1800000,
 	1100000, 2000000, 2775000, 2400000,
 };
 
-static const int const mc13783_vrfdig_val[] = {
+static const int mc13783_vrfdig_val[] = {
 	1200000, 1500000, 1800000, 1875000,
 };
 
-static const int const mc13783_vrfref_val[] = {
+static const int mc13783_vrfref_val[] = {
 	2475000, 2600000, 2700000, 2775000,
 };
 
-static const int const mc13783_vrfcp_val[] = {
+static const int mc13783_vrfcp_val[] = {
 	2700000, 2775000,
 };
 
-static const int const mc13783_vsim_val[] = {
+static const int mc13783_vsim_val[] = {
 	1800000, 2900000, 3000000,
 };
 
-static const int const mc13783_vesim_val[] = {
+static const int mc13783_vesim_val[] = {
 	1800000, 2900000,
 };
 
-static const int const mc13783_vcam_val[] = {
+static const int mc13783_vcam_val[] = {
 	1500000, 1800000, 2500000, 2550000,
 	2600000, 2750000, 2800000, 3000000,
 };
 
-static const int const mc13783_vrfbg_val[] = {
+static const int mc13783_vrfbg_val[] = {
 	1250000,
 };
 
-static const int const mc13783_vvib_val[] = {
+static const int mc13783_vvib_val[] = {
 	1300000, 1800000, 2000000, 3000000,
 };
 
-static const int const mc13783_vmmc_val[] = {
+static const int mc13783_vmmc_val[] = {
 	1600000, 1800000, 2000000, 2600000,
 	2700000, 2800000, 2900000, 3000000,
 };
 
-static const int const mc13783_vrf_val[] = {
+static const int mc13783_vrf_val[] = {
 	1500000, 1875000, 2700000, 2775000,
 };
 
-static const int const mc13783_gpo_val[] = {
+static const int mc13783_gpo_val[] = {
 	3100000,
 };
 
-static const int const mc13783_pwgtdrv_val[] = {
+static const int mc13783_pwgtdrv_val[] = {
 	5500000,
 };
 
