@@ -4871,8 +4871,10 @@ static int __init l2cap_init(void)
 		return err;
 
 	_busy_wq = create_singlethread_workqueue("l2cap");
-	if (!_busy_wq)
-		goto error;
+	if (!_busy_wq) {
+		proto_unregister(&l2cap_proto);
+		return -ENOMEM;
+	}
 
 	err = bt_sock_register(BTPROTO_L2CAP, &l2cap_sock_family_ops);
 	if (err < 0) {
@@ -4900,6 +4902,7 @@ static int __init l2cap_init(void)
 	return 0;
 
 error:
+	destroy_workqueue(_busy_wq);
 	proto_unregister(&l2cap_proto);
 	return err;
 }
