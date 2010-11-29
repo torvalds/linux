@@ -73,6 +73,14 @@
 #define SPI_CSM_HALF            0x01               /* ss_n be high for half sclk_out cycles after every frame data is transferred */
 #define SPI_CSM_ONE             0x02               /* ss_n be high for one sclk_out cycle after every frame data is transferred */
 
+#define SPI_SSN_DELAY_OFFSET    10
+#define SPI_SSN_DELAY_HALF      0x00
+#define SPI_SSN_DELAY_ONE       0x01
+
+#define SPI_HALF_WORLD_TX_OFFSET       13
+#define SPI_HALF_WORLD_ON       0x00
+#define SPI_HALF_WORLD_OFF      0x01
+
 
 /* --------Bit fields in CTRLR0--------end */
 
