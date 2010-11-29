@@ -885,6 +885,7 @@ static int log_write(void __user *log_base,
 	int r;
 	if (!write_length)
 		return 0;
+	write_length += write_address % VHOST_PAGE_SIZE;
 	write_address /= VHOST_PAGE_SIZE;
 	for (;;) {
 		u64 base = (u64)(unsigned long)log_base;
@@ -898,7 +899,7 @@ static int log_write(void __user *log_base,
 		if (write_length <= VHOST_PAGE_SIZE)
 			break;
 		write_length -= VHOST_PAGE_SIZE;
-		write_address += VHOST_PAGE_SIZE;
+		write_address += 1;
 	}
 	return r;
 }
