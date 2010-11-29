@@ -20,7 +20,7 @@ struct arch_hw_breakpoint_ctrl {
 struct arch_hw_breakpoint {
 	u32	address;
 	u32	trigger;
-	struct perf_event *suspended_wp;
+	struct arch_hw_breakpoint_ctrl step_ctrl;
 	struct arch_hw_breakpoint_ctrl ctrl;
 };
 
