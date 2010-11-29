@@ -792,7 +792,6 @@ static struct snd_soc_rbtree_node *snd_soc_rbtree_lookup(
 	return NULL;
 }
 
-
 static int snd_soc_rbtree_insert(struct rb_root *root,
 				 struct snd_soc_rbtree_node *rbnode)
 {
@@ -826,14 +825,19 @@ static int snd_soc_rbtree_cache_sync(struct snd_soc_codec *codec)
 	struct rb_node *node;
 	struct snd_soc_rbtree_node *rbnode;
 	unsigned int val;
+	int ret;
 
 	rbtree_ctx = codec->reg_cache;
 	for (node = rb_first(&rbtree_ctx->root); node; node = rb_next(node)) {
 		rbnode = rb_entry(node, struct snd_soc_rbtree_node, node);
 		if (rbnode->value == rbnode->defval)
 			continue;
-		snd_soc_cache_read(codec, rbnode->reg, &val);
-		snd_soc_write(codec, rbnode->reg, val);
+		ret = snd_soc_cache_read(codec, rbnode->reg, &val);
+		if (ret)
+			return ret;
+		ret = snd_soc_write(codec, rbnode->reg, val);
+		if (ret)
+			return ret;
 		dev_dbg(codec->dev, "Synced register %#x, value = %#x\n",
 			rbnode->reg, val);
 	}
@@ -1110,11 +1114,16 @@ static int snd_soc_lzo_cache_sync(struct snd_soc_codec *codec)
 	struct snd_soc_lzo_ctx **lzo_blocks;
 	unsigned int val;
 	int i;
+	int ret;
 
 	lzo_blocks = codec->reg_cache;
 	for_each_set_bit(i, lzo_blocks[0]->sync_bmp, lzo_blocks[0]->sync_bmp_nbits) {
-		snd_soc_cache_read(codec, i, &val);
-		snd_soc_write(codec, i, val);
+		ret = snd_soc_cache_read(codec, i, &val);
+		if (ret)
+			return ret;
+		ret = snd_soc_write(codec, i, val);
+		if (ret)
+			return ret;
 		dev_dbg(codec->dev, "Synced register %#x, value = %#x\n",
 			i, val);
 	}
@@ -1390,12 +1399,15 @@ err_tofree:
 static int snd_soc_flat_cache_sync(struct snd_soc_codec *codec)
 {
 	int i;
+	int ret;
 	struct snd_soc_codec_driver *codec_drv;
 	unsigned int val;
 
 	codec_drv = codec->driver;
 	for (i = 0; i < codec_drv->reg_cache_size; ++i) {
-		snd_soc_cache_read(codec, i, &val);
+		ret = snd_soc_cache_read(codec, i, &val);
+		if (ret)
+			return ret;
 		if (codec_drv->reg_cache_default) {
 			switch (codec_drv->reg_word_size) {
 			case 1: {
@@ -1418,7 +1430,9 @@ static int snd_soc_flat_cache_sync(struct snd_soc_codec *codec)
 				BUG();
 			}
 		}
-		snd_soc_write(codec, i, val);
+		ret = snd_soc_write(codec, i, val);
+		if (ret)
+			return ret;
 		dev_dbg(codec->dev, "Synced register %#x, value = %#x\n",
 			i, val);
 	}
