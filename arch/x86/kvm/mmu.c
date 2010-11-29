@@ -2736,9 +2736,10 @@ static unsigned long get_cr3(struct kvm_vcpu *vcpu)
 	return vcpu->arch.cr3;
 }
 
-static void inject_page_fault(struct kvm_vcpu *vcpu)
+static void inject_page_fault(struct kvm_vcpu *vcpu,
+			      struct x86_exception *fault)
 {
-	vcpu->arch.mmu.inject_page_fault(vcpu);
+	vcpu->arch.mmu.inject_page_fault(vcpu, fault);
 }
 
 static void paging_free(struct kvm_vcpu *vcpu)

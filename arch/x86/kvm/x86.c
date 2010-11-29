@@ -334,23 +334,19 @@ void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned nr)
 }
 EXPORT_SYMBOL_GPL(kvm_requeue_exception);
 
-void kvm_inject_page_fault(struct kvm_vcpu *vcpu)
+void kvm_inject_page_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault)
 {
-	unsigned error_code = vcpu->arch.fault.error_code;
-
 	++vcpu->stat.pf_guest;
-	vcpu->arch.cr2 = vcpu->arch.fault.address;
-	kvm_queue_exception_e(vcpu, PF_VECTOR, error_code);
+	vcpu->arch.cr2 = fault->address;
+	kvm_queue_exception_e(vcpu, PF_VECTOR, fault->error_code);
 }
 
-void kvm_propagate_fault(struct kvm_vcpu *vcpu)
+void kvm_propagate_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault)
 {
-	if (mmu_is_nested(vcpu) && !vcpu->arch.fault.nested)
-		vcpu->arch.nested_mmu.inject_page_fault(vcpu);
+	if (mmu_is_nested(vcpu) && !fault->nested_page_fault)
+		vcpu->arch.nested_mmu.inject_page_fault(vcpu, fault);
 	else
-		vcpu->arch.mmu.inject_page_fault(vcpu);
-
-	vcpu->arch.fault.nested = false;
+		vcpu->arch.mmu.inject_page_fault(vcpu, fault);
 }
 
 void kvm_inject_nmi(struct kvm_vcpu *vcpu)
@@ -3610,8 +3606,6 @@ static gpa_t translate_nested_gpa(struct kvm_vcpu *vcpu, gpa_t gpa, u32 access)
 	/* NPT walks are always user-walks */
 	access |= PFERR_USER_MASK;
 	t_gpa  = vcpu->arch.mmu.gva_to_gpa(vcpu, gpa, access, &exception);
-	if (t_gpa == UNMAPPED_GVA)
-		vcpu->arch.fault.nested = true;
 
 	return t_gpa;
 }
@@ -4259,7 +4253,7 @@ static void inject_emulated_exception(struct kvm_vcpu *vcpu)
 {
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
 	if (ctxt->exception.vector == PF_VECTOR)
-		kvm_propagate_fault(vcpu);
+		kvm_propagate_fault(vcpu, &ctxt->exception);
 	else if (ctxt->exception.error_code_valid)
 		kvm_queue_exception_e(vcpu, ctxt->exception.vector,
 				      ctxt->exception.error_code);
@@ -6264,6 +6258,8 @@ static int apf_put_user(struct kvm_vcpu *vcpu, u32 val)
 void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 				     struct kvm_async_pf *work)
 {
+	struct x86_exception fault;
+
 	trace_kvm_async_pf_not_present(work->arch.token, work->gva);
 	kvm_add_async_pf_gfn(vcpu, work->arch.gfn);
 
@@ -6272,15 +6268,20 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 	     kvm_x86_ops->get_cpl(vcpu) == 0))
 		kvm_make_request(KVM_REQ_APF_HALT, vcpu);
 	else if (!apf_put_user(vcpu, KVM_PV_REASON_PAGE_NOT_PRESENT)) {
-		vcpu->arch.fault.error_code = 0;
-		vcpu->arch.fault.address = work->arch.token;
-		kvm_inject_page_fault(vcpu);
+		fault.vector = PF_VECTOR;
+		fault.error_code_valid = true;
+		fault.error_code = 0;
+		fault.nested_page_fault = false;
+		fault.address = work->arch.token;
+		kvm_inject_page_fault(vcpu, &fault);
 	}
 }
 
 void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 				 struct kvm_async_pf *work)
 {
+	struct x86_exception fault;
+
 	trace_kvm_async_pf_ready(work->arch.token, work->gva);
 	if (is_error_page(work->page))
 		work->arch.token = ~0; /* broadcast wakeup */
@@ -6289,9 +6290,12 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 
 	if ((vcpu->arch.apf.msr_val & KVM_ASYNC_PF_ENABLED) &&
 	    !apf_put_user(vcpu, KVM_PV_REASON_PAGE_READY)) {
-		vcpu->arch.fault.error_code = 0;
-		vcpu->arch.fault.address = work->arch.token;
-		kvm_inject_page_fault(vcpu);
+		fault.vector = PF_VECTOR;
+		fault.error_code_valid = true;
+		fault.error_code = 0;
+		fault.nested_page_fault = false;
+		fault.address = work->arch.token;
+		kvm_inject_page_fault(vcpu, &fault);
 	}
 	vcpu->arch.apf.halted = false;
 }

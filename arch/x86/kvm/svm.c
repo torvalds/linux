@@ -1647,14 +1647,15 @@ static void nested_svm_set_tdp_cr3(struct kvm_vcpu *vcpu,
 	force_new_asid(vcpu);
 }
 
-static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu)
+static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu,
+				       struct x86_exception *fault)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	svm->vmcb->control.exit_code = SVM_EXIT_NPF;
 	svm->vmcb->control.exit_code_hi = 0;
-	svm->vmcb->control.exit_info_1 = vcpu->arch.fault.error_code;
-	svm->vmcb->control.exit_info_2 = vcpu->arch.fault.address;
+	svm->vmcb->control.exit_info_1 = fault->error_code;
+	svm->vmcb->control.exit_info_2 = fault->address;
 
 	nested_svm_vmexit(svm);
 }
