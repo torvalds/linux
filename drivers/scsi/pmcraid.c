@@ -3478,7 +3478,7 @@ static int pmcraid_copy_sglist(
  *	  SCSI_MLQUEUE_DEVICE_BUSY if device is busy
  *	  SCSI_MLQUEUE_HOST_BUSY if host is busy
  */
-static int pmcraid_queuecommand(
+static int pmcraid_queuecommand_lck(
 	struct scsi_cmnd *scsi_cmd,
 	void (*done) (struct scsi_cmnd *)
 )
@@ -3583,6 +3583,8 @@ static int pmcraid_queuecommand(
 
 	return rc;
 }
+
+static DEF_SCSI_QCMD(pmcraid_queuecommand)
 
 /**
  * pmcraid_open -char node "open" entry, allowed only users with admin access

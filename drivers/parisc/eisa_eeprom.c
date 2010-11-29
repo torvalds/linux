@@ -24,7 +24,6 @@
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/fs.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>

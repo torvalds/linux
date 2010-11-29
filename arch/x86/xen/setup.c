@@ -23,7 +23,6 @@
 #include <xen/interface/callback.h>
 #include <xen/interface/memory.h>
 #include <xen/interface/physdev.h>
-#include <xen/interface/memory.h>
 #include <xen/features.h>
 
 #include "xen-ops.h"
@@ -248,8 +247,7 @@ char * __init xen_memory_setup(void)
 	else
 		extra_pages = 0;
 
-	if (!xen_initial_domain())
-		xen_add_extra_mem(extra_pages);
+	xen_add_extra_mem(extra_pages);
 
 	return "Xen";
 }
@@ -337,9 +335,6 @@ void __cpuinit xen_enable_syscall(void)
 
 void __init xen_arch_setup(void)
 {
-	struct physdev_set_iopl set_iopl;
-	int rc;
-
 	xen_panic_handler_init();
 
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);
@@ -355,11 +350,6 @@ void __init xen_arch_setup(void)
 
 	xen_enable_sysenter();
 	xen_enable_syscall();
-
-	set_iopl.iopl = 1;
-	rc = HYPERVISOR_physdev_op(PHYSDEVOP_set_iopl, &set_iopl);
-	if (rc != 0)
-		printk(KERN_INFO "physdev_op failed %d\n", rc);
 
 #ifdef CONFIG_ACPI
 	if (!(xen_start_info->flags & SIF_INITDOMAIN)) {

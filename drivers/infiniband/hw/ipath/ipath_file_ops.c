@@ -40,7 +40,6 @@
 #include <linux/highmem.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
-#include <linux/smp_lock.h>
 #include <asm/pgtable.h>
 
 #include "ipath_kernel.h"

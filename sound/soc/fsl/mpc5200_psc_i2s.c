@@ -160,7 +160,7 @@ static int __devinit psc_i2s_of_probe(struct platform_device *op,
 	rc = snd_soc_register_dais(&op->dev, psc_i2s_dai, ARRAY_SIZE(psc_i2s_dai));
 	if (rc != 0) {
 		pr_err("Failed to register DAI\n");
-		return 0;
+		return rc;
 	}
 
 	psc_dma = dev_get_drvdata(&op->dev);

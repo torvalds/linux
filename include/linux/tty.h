@@ -13,7 +13,6 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_ldisc.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 
 #include <asm/system.h>
 

@@ -33,9 +33,9 @@
 #include "drmP.h"
 #include "drm.h"
 #include "drm_sarea.h"
-#include "nouveau_drv.h"
 
-#define MIN(a,b) a < b ? a : b
+#include "nouveau_drv.h"
+#include "nouveau_pm.h"
 
 /*
  * NV10-NV40 tiling helpers
@@ -175,11 +175,10 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 			}
 		}
 	}
-	dev_priv->engine.instmem.flush(dev);
 
-	nv50_vm_flush(dev, 5);
-	nv50_vm_flush(dev, 0);
-	nv50_vm_flush(dev, 4);
+	dev_priv->engine.instmem.flush(dev);
+	dev_priv->engine.fifo.tlb_flush(dev);
+	dev_priv->engine.graph.tlb_flush(dev);
 	nv50_vm_flush(dev, 6);
 	return 0;
 }
@@ -209,11 +208,10 @@ nv50_mem_vm_unbind(struct drm_device *dev, uint64_t virt, uint32_t size)
 			pte++;
 		}
 	}
-	dev_priv->engine.instmem.flush(dev);
 
-	nv50_vm_flush(dev, 5);
-	nv50_vm_flush(dev, 0);
-	nv50_vm_flush(dev, 4);
+	dev_priv->engine.instmem.flush(dev);
+	dev_priv->engine.fifo.tlb_flush(dev);
+	dev_priv->engine.graph.tlb_flush(dev);
 	nv50_vm_flush(dev, 6);
 }
 
@@ -653,6 +651,7 @@ nouveau_mem_gart_init(struct drm_device *dev)
 void
 nouveau_mem_timing_init(struct drm_device *dev)
 {
+	/* cards < NVC0 only */
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct nouveau_pm_memtimings *memtimings = &pm->memtimings;
@@ -719,14 +718,14 @@ nouveau_mem_timing_init(struct drm_device *dev)
 		tUNK_19 = 1;
 		tUNK_20 = 0;
 		tUNK_21 = 0;
-		switch (MIN(recordlen,21)) {
-		case 21:
+		switch (min(recordlen, 22)) {
+		case 22:
 			tUNK_21 = entry[21];
-		case 20:
+		case 21:
 			tUNK_20 = entry[20];
-		case 19:
+		case 20:
 			tUNK_19 = entry[19];
-		case 18:
+		case 19:
 			tUNK_18 = entry[18];
 		default:
 			tUNK_0  = entry[0];
@@ -756,24 +755,30 @@ nouveau_mem_timing_init(struct drm_device *dev)
 		timing->reg_100228 = (tUNK_12 << 16 | tUNK_11 << 8 | tUNK_10);
 		if(recordlen > 19) {
 			timing->reg_100228 += (tUNK_19 - 1) << 24;
-		} else {
+		}/* I cannot back-up this else-statement right now
+			 else {
 			timing->reg_100228 += tUNK_12 << 24;
-		}
+		}*/
 
 		/* XXX: reg_10022c */
+		timing->reg_10022c = tUNK_2 - 1;
 
 		timing->reg_100230 = (tUNK_20 << 24 | tUNK_21 << 16 |
 				      tUNK_13 << 8  | tUNK_13);
 
 		/* XXX: +6? */
 		timing->reg_100234 = (tRAS << 24 | (tUNK_19 + 6) << 8 | tRC);
-		if(tUNK_10 > tUNK_11) {
-			timing->reg_100234 += tUNK_10 << 16;
-		} else {
-			timing->reg_100234 += tUNK_11 << 16;
+		timing->reg_100234 += max(tUNK_10,tUNK_11) << 16;
+
+		/* XXX; reg_100238, reg_10023c
+		 * reg: 0x00??????
+		 * reg_10023c:
+		 *      0 for pre-NV50 cards
+		 *      0x????0202 for NV50+ cards (empirical evidence) */
+		if(dev_priv->card_type >= NV_50) {
+			timing->reg_10023c = 0x202;
 		}
 
-		/* XXX; reg_100238, reg_10023c */
 		NV_DEBUG(dev, "Entry %d: 220: %08x %08x %08x %08x\n", i,
 			 timing->reg_100220, timing->reg_100224,
 			 timing->reg_100228, timing->reg_10022c);

@@ -35,7 +35,6 @@
 #include <linux/io.h>
 #include <asm/div64.h>
 #include <linux/pci.h>
-#include <linux/smp_lock.h>
 #include <linux/timer.h>
 #include <linux/byteorder/generic.h>
 #include <linux/firmware.h>

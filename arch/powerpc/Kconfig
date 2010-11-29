@@ -4,6 +4,10 @@ config PPC32
 	bool
 	default y if !PPC64
 
+config 32BIT
+	bool
+	default y if PPC32
+
 config 64BIT
 	bool
 	default y if PPC64

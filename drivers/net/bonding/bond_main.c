@@ -878,8 +878,10 @@ static void __bond_resend_igmp_join_requests(struct net_device *dev)
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev) {
+		read_lock(&in_dev->mc_list_lock);
 		for (im = in_dev->mc_list; im; im = im->next)
 			ip_mc_rejoin_group(im);
+		read_unlock(&in_dev->mc_list_lock);
 	}
 
 	rcu_read_unlock();
