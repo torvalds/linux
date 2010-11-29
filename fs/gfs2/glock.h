@@ -91,7 +91,7 @@ enum {
 #define GL_NOCACHE		0x00000400
   
 /*
- * lm_lock() and lm_async_cb return flags
+ * lm_async_cb return flags
  *
  * LM_OUT_ST_MASK
  * Masks the lower two bits of lock state in the returned value.
@@ -99,15 +99,11 @@ enum {
  * LM_OUT_CANCELED
  * The lock request was canceled.
  *
- * LM_OUT_ASYNC
- * The result of the request will be returned in an LM_CB_ASYNC callback.
- *
  */
 
 #define LM_OUT_ST_MASK		0x00000003
 #define LM_OUT_CANCELED		0x00000008
-#define LM_OUT_ASYNC		0x00000080
-#define LM_OUT_ERROR		0x00000100
+#define LM_OUT_ERROR		0x00000004
 
 /*
  * lm_recovery_done() messages
@@ -124,8 +120,8 @@ struct lm_lockops {
  	void (*lm_unmount) (struct gfs2_sbd *sdp);
 	void (*lm_withdraw) (struct gfs2_sbd *sdp);
 	void (*lm_put_lock) (struct kmem_cache *cachep, struct gfs2_glock *gl);
-	unsigned int (*lm_lock) (struct gfs2_glock *gl,
-				 unsigned int req_state, unsigned int flags);
+	int (*lm_lock) (struct gfs2_glock *gl, unsigned int req_state,
+			unsigned int flags);
 	void (*lm_cancel) (struct gfs2_glock *gl);
 	const match_table_t *lm_tokens;
 };

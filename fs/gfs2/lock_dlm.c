@@ -146,11 +146,10 @@ static u32 make_flags(const u32 lkid, const unsigned int gfs_flags,
 	return lkf;
 }
 
-static unsigned int gdlm_lock(struct gfs2_glock *gl,
-			      unsigned int req_state, unsigned int flags)
+static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
+		     unsigned int flags)
 {
 	struct lm_lockstruct *ls = &gl->gl_sbd->sd_lockstruct;
-	int error;
 	int req;
 	u32 lkf;
 
@@ -162,13 +161,8 @@ static unsigned int gdlm_lock(struct gfs2_glock *gl,
 	 * Submit the actual lock request.
 	 */
 
-	error = dlm_lock(ls->ls_dlm, req, &gl->gl_lksb, lkf, gl->gl_strname,
-			 GDLM_STRNAME_BYTES - 1, 0, gdlm_ast, gl, gdlm_bast);
-	if (error == -EAGAIN)
-		return 0;
-	if (error)
-		return LM_OUT_ERROR;
-	return LM_OUT_ASYNC;
+	return dlm_lock(ls->ls_dlm, req, &gl->gl_lksb, lkf, gl->gl_strname,
+			GDLM_STRNAME_BYTES - 1, 0, gdlm_ast, gl, gdlm_bast);
 }
 
 static void gdlm_put_lock(struct kmem_cache *cachep, struct gfs2_glock *gl)
