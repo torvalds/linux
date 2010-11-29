@@ -83,19 +83,19 @@ static inline int zeus_bit_to_irq(int bit)
 	return zeus_isa_irqs[bit] + PXA_ISA_IRQ(0);
 }
 
-static void zeus_ack_irq(unsigned int irq)
+static void zeus_ack_irq(struct irq_data *d)
 {
-	__raw_writew(zeus_irq_to_bitmask(irq), ZEUS_CPLD_ISA_IRQ);
+	__raw_writew(zeus_irq_to_bitmask(d->irq), ZEUS_CPLD_ISA_IRQ);
 }
 
-static void zeus_mask_irq(unsigned int irq)
+static void zeus_mask_irq(struct irq_data *d)
 {
-	zeus_irq_enabled_mask &= ~(zeus_irq_to_bitmask(irq));
+	zeus_irq_enabled_mask &= ~(zeus_irq_to_bitmask(d->irq));
 }
 
-static void zeus_unmask_irq(unsigned int irq)
+static void zeus_unmask_irq(struct irq_data *d)
 {
-	zeus_irq_enabled_mask |= zeus_irq_to_bitmask(irq);
+	zeus_irq_enabled_mask |= zeus_irq_to_bitmask(d->irq);
 }
 
 static inline unsigned long zeus_irq_pending(void)
@@ -111,7 +111,7 @@ static void zeus_irq_handler(unsigned int irq, struct irq_desc *desc)
 	do {
 		/* we're in a chained irq handler,
 		 * so ack the interrupt by hand */
-		desc->chip->ack(gpio_to_irq(ZEUS_ISA_GPIO));
+		desc->irq_data.chip->irq_ack(&desc->irq_data);
 
 		if (likely(pending)) {
 			irq = zeus_bit_to_irq(__ffs(pending));
@@ -122,10 +122,10 @@ static void zeus_irq_handler(unsigned int irq, struct irq_desc *desc)
 }
 
 static struct irq_chip zeus_irq_chip = {
-	.name	= "ISA",
-	.ack	= zeus_ack_irq,
-	.mask	= zeus_mask_irq,
-	.unmask	= zeus_unmask_irq,
+	.name		= "ISA",
+	.irq_ack	= zeus_ack_irq,
+	.irq_mask	= zeus_mask_irq,
+	.irq_unmask	= zeus_unmask_irq,
 };
 
 static void __init zeus_init_irq(void)

@@ -53,37 +53,37 @@ static inline int cpu_has_ipr(void)
 	return !cpu_is_pxa25x();
 }
 
-static void pxa_mask_irq(unsigned int irq)
+static void pxa_mask_irq(struct irq_data *d)
 {
-	void __iomem *base = get_irq_chip_data(irq);
+	void __iomem *base = irq_data_get_irq_chip_data(d);
 	uint32_t icmr = __raw_readl(base + ICMR);
 
-	icmr &= ~(1 << IRQ_BIT(irq));
+	icmr &= ~(1 << IRQ_BIT(d->irq));
 	__raw_writel(icmr, base + ICMR);
 }
 
-static void pxa_unmask_irq(unsigned int irq)
+static void pxa_unmask_irq(struct irq_data *d)
 {
-	void __iomem *base = get_irq_chip_data(irq);
+	void __iomem *base = irq_data_get_irq_chip_data(d);
 	uint32_t icmr = __raw_readl(base + ICMR);
 
-	icmr |= 1 << IRQ_BIT(irq);
+	icmr |= 1 << IRQ_BIT(d->irq);
 	__raw_writel(icmr, base + ICMR);
 }
 
 static struct irq_chip pxa_internal_irq_chip = {
 	.name		= "SC",
-	.ack		= pxa_mask_irq,
-	.mask		= pxa_mask_irq,
-	.unmask		= pxa_unmask_irq,
+	.irq_ack	= pxa_mask_irq,
+	.irq_mask	= pxa_mask_irq,
+	.irq_unmask	= pxa_unmask_irq,
 };
 
 /*
  * GPIO IRQs for GPIO 0 and 1
  */
-static int pxa_set_low_gpio_type(unsigned int irq, unsigned int type)
+static int pxa_set_low_gpio_type(struct irq_data *d, unsigned int type)
 {
-	int gpio = irq - IRQ_GPIO0;
+	int gpio = d->irq - IRQ_GPIO0;
 
 	if (__gpio_is_occupied(gpio)) {
 		pr_err("%s failed: GPIO is configured\n", __func__);
@@ -103,31 +103,31 @@ static int pxa_set_low_gpio_type(unsigned int irq, unsigned int type)
 	return 0;
 }
 
-static void pxa_ack_low_gpio(unsigned int irq)
+static void pxa_ack_low_gpio(struct irq_data *d)
 {
-	GEDR0 = (1 << (irq - IRQ_GPIO0));
+	GEDR0 = (1 << (d->irq - IRQ_GPIO0));
 }
 
-static void pxa_mask_low_gpio(unsigned int irq)
+static void pxa_mask_low_gpio(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc = irq_to_desc(d->irq);
 
-	desc->chip->mask(irq);
+	desc->irq_data.chip->irq_mask(d);
 }
 
-static void pxa_unmask_low_gpio(unsigned int irq)
+static void pxa_unmask_low_gpio(struct irq_data *d)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc = irq_to_desc(d->irq);
 
-	desc->chip->unmask(irq);
+	desc->irq_data.chip->irq_unmask(d);
 }
 
 static struct irq_chip pxa_low_gpio_chip = {
 	.name		= "GPIO-l",
-	.ack		= pxa_ack_low_gpio,
-	.mask		= pxa_mask_low_gpio,
-	.unmask		= pxa_unmask_low_gpio,
-	.set_type	= pxa_set_low_gpio_type,
+	.irq_ack	= pxa_ack_low_gpio,
+	.irq_mask	= pxa_mask_low_gpio,
+	.irq_unmask	= pxa_unmask_low_gpio,
+	.irq_set_type	= pxa_set_low_gpio_type,
 };
 
 static void __init pxa_init_low_gpio_irq(set_wake_t fn)
@@ -145,7 +145,7 @@ static void __init pxa_init_low_gpio_irq(set_wake_t fn)
 		set_irq_flags(irq, IRQF_VALID);
 	}
 
-	pxa_low_gpio_chip.set_wake = fn;
+	pxa_low_gpio_chip.irq_set_wake = fn;
 }
 
 static inline void __iomem *irq_base(int i)
@@ -188,7 +188,7 @@ void __init pxa_init_irq(int irq_nr, set_wake_t fn)
 	/* only unmasked interrupts kick us out of idle */
 	__raw_writel(1, irq_base(0) + ICCR);
 
-	pxa_internal_irq_chip.set_wake = fn;
+	pxa_internal_irq_chip.irq_set_wake = fn;
 	pxa_init_low_gpio_irq(fn);
 }
 
