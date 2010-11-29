@@ -942,6 +942,7 @@ struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
 
 static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
 {	
+#if 0
 	int i,j,ret;
 	
 	//cs
@@ -960,11 +961,13 @@ static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
 			gpio_direction_output(cs_gpios[i].cs_gpio, GPIO_HIGH);
 		}
 	}
+#endif
 	return 0;
 }
 
 static int spi_io_deinit(struct spi_cs_gpio *cs_gpios, int cs_num)
 {
+#if 0
 	int i;
 	
 	if (cs_gpios) {
@@ -973,19 +976,23 @@ static int spi_io_deinit(struct spi_cs_gpio *cs_gpios, int cs_num)
 			//rk29_mux_api_mode_resume(cs_gpios[i].cs_iomux_name);
 		}
 	}
-	
+#endif
 	return 0;
 }
 
 static int spi_io_fix_leakage_bug(void)
 {
+#if 0
 	gpio_direction_output(RK29_PIN2_PC1, GPIO_LOW); 
+#endif
 	return 0;
 }
 
 static int spi_io_resume_leakage_bug(void)
 {
+#if 0
 	gpio_direction_output(RK29_PIN2_PC1, GPIO_HIGH);
+#endif
 	return 0;
 }
 

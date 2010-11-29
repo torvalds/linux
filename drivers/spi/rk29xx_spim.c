@@ -220,6 +220,7 @@ static void flush(struct rk29xx_spi *dws)
 	wait_till_not_busy(dws);
 }
 
+#if 0
 static void spi_cs_control(struct rk29xx_spi *dws, u32 cs, u8 flag)
 {
 	struct rk29xx_spi_platform_data *pdata = dws->master->dev.platform_data;
@@ -230,6 +231,7 @@ static void spi_cs_control(struct rk29xx_spi *dws, u32 cs, u8 flag)
 	else
 		gpio_direction_output(cs_gpios[cs].cs_gpio, GPIO_LOW);
 }
+#endif
 
 static int null_writer(struct rk29xx_spi *dws)
 {
@@ -1509,7 +1511,7 @@ static int rk29xx_spi_setup(struct spi_device *spi)
 		if (!chip)
 			return -ENOMEM;
 
-		chip->cs_control = spi_cs_control;
+		chip->cs_control = NULL;
 		chip->enable_dma = 1;  //0;
 	}
 
