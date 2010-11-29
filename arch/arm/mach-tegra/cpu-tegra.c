@@ -29,6 +29,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/suspend.h>
+#include <linux/debugfs.h>
 
 #include <asm/smp_twd.h>
 #include <asm/system.h>
@@ -36,7 +37,7 @@
 #include <mach/hardware.h>
 #include <mach/clk.h>
 
-/* Frequency table index must be sequential starting at 0 */
+/* Frequency table index must be sequential starting at 0 and frequencies must be ascending*/
 static struct cpufreq_frequency_table freq_table[] = {
 	{ 0, 216000 },
 	{ 1, 312000 },
@@ -49,13 +50,26 @@ static struct cpufreq_frequency_table freq_table[] = {
 	{ 8, CPUFREQ_TABLE_END },
 };
 
+/* CPU frequency is gradually lowered when throttling is enabled */
+#define THROTTLE_START_INDEX	2
+#define THROTTLE_END_INDEX	6
+#define THROTTLE_DELAY		msecs_to_jiffies(2000)
+#define NO_DELAY		msecs_to_jiffies(0)
+
 #define NUM_CPUS	2
 
 static struct clk *cpu_clk;
 
+static struct workqueue_struct *workqueue;
+
 static unsigned long target_cpu_speed[NUM_CPUS];
 static DEFINE_MUTEX(tegra_cpu_lock);
 static bool is_suspended;
+
+static DEFINE_MUTEX(throttling_lock);
+static bool is_throttling;
+static struct delayed_work throttle_work;
+
 
 int tegra_verify_speed(struct cpufreq_policy *policy)
 {
@@ -143,6 +157,8 @@ static int tegra_target(struct cpufreq_policy *policy,
 {
 	int idx;
 	unsigned int freq;
+	unsigned int highest_speed;
+	unsigned int limit_when_throttling;
 	int ret = 0;
 
 	mutex_lock(&tegra_cpu_lock);
@@ -159,12 +175,136 @@ static int tegra_target(struct cpufreq_policy *policy,
 
 	target_cpu_speed[policy->cpu] = freq;
 
-	ret = tegra_update_cpu_speed(tegra_cpu_highest_speed());
+	highest_speed = tegra_cpu_highest_speed();
 
+	/* Do not go above this frequency when throttling */
+	limit_when_throttling = freq_table[THROTTLE_START_INDEX].frequency;
+
+	if (is_throttling && highest_speed > limit_when_throttling) {
+		if (tegra_getspeed(0) < limit_when_throttling) {
+			ret = tegra_update_cpu_speed(limit_when_throttling);
+			goto out;
+		} else {
+			ret = -EBUSY;
+			goto out;
+		}
+	}
+
+	ret = tegra_update_cpu_speed(highest_speed);
 out:
 	mutex_unlock(&tegra_cpu_lock);
 	return ret;
 }
+
+static bool tegra_throttling_needed(unsigned long *rate)
+{
+	unsigned int current_freq = tegra_getspeed(0);
+	int i;
+
+	for (i = THROTTLE_END_INDEX; i >= THROTTLE_START_INDEX; i--) {
+		if (freq_table[i].frequency < current_freq) {
+			*rate = freq_table[i].frequency;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static void tegra_throttle_work_func(struct work_struct *work)
+{
+	unsigned long rate;
+
+	mutex_lock(&tegra_cpu_lock);
+
+	if (tegra_throttling_needed(&rate) && tegra_update_cpu_speed(rate) == 0) {
+		queue_delayed_work(workqueue, &throttle_work, THROTTLE_DELAY);
+	}
+
+	mutex_unlock(&tegra_cpu_lock);
+}
+
+/**
+ * tegra_throttling_enable
+ * This functions may sleep
+ */
+void tegra_throttling_enable(void)
+{
+	mutex_lock(&throttling_lock);
+
+	if (!is_throttling) {
+		is_throttling = true;
+		queue_delayed_work(workqueue, &throttle_work, NO_DELAY);
+	}
+
+	mutex_unlock(&throttling_lock);
+}
+EXPORT_SYMBOL_GPL(tegra_throttling_enable);
+
+/**
+ * tegra_throttling_disable
+ * This functions may sleep
+ */
+void tegra_throttling_disable(void)
+{
+	mutex_lock(&throttling_lock);
+
+	if (is_throttling) {
+		cancel_delayed_work_sync(&throttle_work);
+		is_throttling = false;
+	}
+
+	mutex_unlock(&throttling_lock);
+}
+EXPORT_SYMBOL_GPL(tegra_throttling_disable);
+
+#ifdef CONFIG_DEBUG_FS
+static int throttle_debug_set(void *data, u64 val)
+{
+	if (val) {
+		tegra_throttling_enable();
+	} else {
+		tegra_throttling_disable();
+	}
+
+	return 0;
+}
+static int throttle_debug_get(void *data, u64 *val)
+{
+	*val = (u64) is_throttling;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(throttle_fops, throttle_debug_get, throttle_debug_set, "%llu\n");
+
+static struct dentry *cpu_tegra_debugfs_root;
+
+static int __init tegra_cpu_debug_init(void)
+{
+	cpu_tegra_debugfs_root = debugfs_create_dir("cpu-tegra", 0);
+
+	if (!cpu_tegra_debugfs_root)
+		return -ENOMEM;
+
+	if (!debugfs_create_file("throttle", 0644, cpu_tegra_debugfs_root, NULL, &throttle_fops))
+		goto err_out;
+
+	return 0;
+
+err_out:
+	debugfs_remove_recursive(cpu_tegra_debugfs_root);
+	return -ENOMEM;
+
+}
+
+static void __exit tegra_cpu_debug_exit(void)
+{
+	debugfs_remove_recursive(cpu_tegra_debugfs_root);
+}
+
+late_initcall(tegra_cpu_debug_init);
+module_exit(tegra_cpu_debug_exit);
+#endif
 
 static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 	void *dummy)
@@ -207,8 +347,10 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 	policy->shared_type = CPUFREQ_SHARED_TYPE_ALL;
 	cpumask_copy(policy->related_cpus, cpu_possible_mask);
 
-	if (policy->cpu == 0)
+	if (policy->cpu == 0) {
+		INIT_DELAYED_WORK(&throttle_work, tegra_throttle_work_func);
 		register_pm_notifier(&tegra_cpu_pm_notifier);
+	}
 
 	return 0;
 }
@@ -237,11 +379,15 @@ static struct cpufreq_driver tegra_cpufreq_driver = {
 
 static int __init tegra_cpufreq_init(void)
 {
+	workqueue = create_singlethread_workqueue("cpu-tegra");
+	if (!workqueue)
+		return -ENOMEM;
 	return cpufreq_register_driver(&tegra_cpufreq_driver);
 }
 
 static void __exit tegra_cpufreq_exit(void)
 {
+	destroy_workqueue(workqueue);
         cpufreq_unregister_driver(&tegra_cpufreq_driver);
 }
 
