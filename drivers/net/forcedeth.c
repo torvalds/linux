@@ -1181,6 +1181,33 @@ static int phy_reset(struct net_device *dev, u32 bmcr_setup)
 	return 0;
 }
 
+static int init_realtek_8211b(struct net_device *dev, struct fe_priv *np)
+{
+	static const struct {
+		int reg;
+		int init;
+	} ri[] = {
+		{ PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1 },
+		{ PHY_REALTEK_INIT_REG2, PHY_REALTEK_INIT2 },
+		{ PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3 },
+		{ PHY_REALTEK_INIT_REG3, PHY_REALTEK_INIT4 },
+		{ PHY_REALTEK_INIT_REG4, PHY_REALTEK_INIT5 },
+		{ PHY_REALTEK_INIT_REG5, PHY_REALTEK_INIT6 },
+		{ PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1 },
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ri); i++) {
+		if (mii_rw(dev, np->phyaddr, ri[i].reg, ri[i].init)) {
+			netdev_info(dev, "%s: phy init failed\n",
+				    pci_name(np->pci_dev));
+			return PHY_ERROR;
+		}
+	}
+
+	return 0;
+}
+
 static int phy_init(struct net_device *dev)
 {
 	struct fe_priv *np = get_nvpriv(dev);
@@ -1200,44 +1227,10 @@ static int phy_init(struct net_device *dev)
 	if (np->phy_oui == PHY_OUI_REALTEK) {
 		if (np->phy_model == PHY_MODEL_REALTEK_8211 &&
 		    np->phy_rev == PHY_REV_REALTEK_8211B) {
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
+			if (init_realtek_8211b(dev, np))
 				return PHY_ERROR;
-			}
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, PHY_REALTEK_INIT2)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
-				return PHY_ERROR;
-			}
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
-				return PHY_ERROR;
-			}
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG3, PHY_REALTEK_INIT4)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
-				return PHY_ERROR;
-			}
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG4, PHY_REALTEK_INIT5)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
-				return PHY_ERROR;
-			}
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG5, PHY_REALTEK_INIT6)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
-				return PHY_ERROR;
-			}
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
-				return PHY_ERROR;
-			}
-		}
-		if (np->phy_model == PHY_MODEL_REALTEK_8211 &&
-		    np->phy_rev == PHY_REV_REALTEK_8211C) {
+		} else if (np->phy_model == PHY_MODEL_REALTEK_8211 &&
+			   np->phy_rev == PHY_REV_REALTEK_8211C) {
 			u32 powerstate = readl(base + NvRegPowerState2);
 
 			/* need to perform hw phy reset */
@@ -1459,43 +1452,9 @@ static int phy_init(struct net_device *dev)
 		if (np->phy_model == PHY_MODEL_REALTEK_8211 &&
 		    np->phy_rev == PHY_REV_REALTEK_8211B) {
 			/* reset could have cleared these out, set them back */
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
+			if (init_realtek_8211b(dev, np))
 				return PHY_ERROR;
-			}
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG2, PHY_REALTEK_INIT2)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
-				return PHY_ERROR;
-			}
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT3)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
-				return PHY_ERROR;
-			}
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG3, PHY_REALTEK_INIT4)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
-				return PHY_ERROR;
-			}
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG4, PHY_REALTEK_INIT5)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
-				return PHY_ERROR;
-			}
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG5, PHY_REALTEK_INIT6)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
-				return PHY_ERROR;
-			}
-			if (mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG1, PHY_REALTEK_INIT1)) {
-				netdev_info(dev, "%s: phy init failed\n",
-					    pci_name(np->pci_dev));
-				return PHY_ERROR;
-			}
-		}
-		if (np->phy_model == PHY_MODEL_REALTEK_8201) {
+		} else if (np->phy_model == PHY_MODEL_REALTEK_8201) {
 			if (np->driver_data & DEV_NEED_PHY_INIT_FIX) {
 				phy_reserved = mii_rw(dev, np->phyaddr, PHY_REALTEK_INIT_REG6, MII_READ);
 				phy_reserved |= PHY_REALTEK_INIT7;
