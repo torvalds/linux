@@ -192,11 +192,6 @@ static inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 	return container_of(vcpu, struct vcpu_svm, vcpu);
 }
 
-static inline bool is_nested(struct vcpu_svm *svm)
-{
-	return svm->nested.vmcb;
-}
-
 static inline void enable_gif(struct vcpu_svm *svm)
 {
 	svm->vcpu.arch.hflags |= HF_GIF_MASK;
@@ -727,7 +722,7 @@ static void svm_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u64 g_tsc_offset = 0;
 
-	if (is_nested(svm)) {
+	if (is_guest_mode(vcpu)) {
 		g_tsc_offset = svm->vmcb->control.tsc_offset -
 			       svm->nested.hsave->control.tsc_offset;
 		svm->nested.hsave->control.tsc_offset = offset;
@@ -741,7 +736,7 @@ static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	svm->vmcb->control.tsc_offset += adjustment;
-	if (is_nested(svm))
+	if (is_guest_mode(vcpu))
 		svm->nested.hsave->control.tsc_offset += adjustment;
 }
 
@@ -1209,7 +1204,7 @@ static void update_cr0_intercept(struct vcpu_svm *svm)
 	if (gcr0 == *hcr0 && svm->vcpu.fpu_active) {
 		vmcb->control.intercept_cr_read &= ~INTERCEPT_CR0_MASK;
 		vmcb->control.intercept_cr_write &= ~INTERCEPT_CR0_MASK;
-		if (is_nested(svm)) {
+		if (is_guest_mode(&svm->vcpu)) {
 			struct vmcb *hsave = svm->nested.hsave;
 
 			hsave->control.intercept_cr_read  &= ~INTERCEPT_CR0_MASK;
@@ -1220,7 +1215,7 @@ static void update_cr0_intercept(struct vcpu_svm *svm)
 	} else {
 		svm->vmcb->control.intercept_cr_read |= INTERCEPT_CR0_MASK;
 		svm->vmcb->control.intercept_cr_write |= INTERCEPT_CR0_MASK;
-		if (is_nested(svm)) {
+		if (is_guest_mode(&svm->vcpu)) {
 			struct vmcb *hsave = svm->nested.hsave;
 
 			hsave->control.intercept_cr_read |= INTERCEPT_CR0_MASK;
@@ -1233,7 +1228,7 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (is_nested(svm)) {
+	if (is_guest_mode(vcpu)) {
 		/*
 		 * We are here because we run in nested mode, the host kvm
 		 * intercepts cr0 writes but the l1 hypervisor does not.
@@ -1471,7 +1466,7 @@ static void svm_fpu_activate(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u32 excp;
 
-	if (is_nested(svm)) {
+	if (is_guest_mode(vcpu)) {
 		u32 h_excp, n_excp;
 
 		h_excp  = svm->nested.hsave->control.intercept_exceptions;
@@ -1701,7 +1696,7 @@ static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 {
 	int vmexit;
 
-	if (!is_nested(svm))
+	if (!is_guest_mode(&svm->vcpu))
 		return 0;
 
 	svm->vmcb->control.exit_code = SVM_EXIT_EXCP_BASE + nr;
@@ -1719,7 +1714,7 @@ static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 /* This function returns true if it is save to enable the irq window */
 static inline bool nested_svm_intr(struct vcpu_svm *svm)
 {
-	if (!is_nested(svm))
+	if (!is_guest_mode(&svm->vcpu))
 		return true;
 
 	if (!(svm->vcpu.arch.hflags & HF_VINTR_MASK))
@@ -1758,7 +1753,7 @@ static inline bool nested_svm_intr(struct vcpu_svm *svm)
 /* This function returns true if it is save to enable the nmi window */
 static inline bool nested_svm_nmi(struct vcpu_svm *svm)
 {
-	if (!is_nested(svm))
+	if (!is_guest_mode(&svm->vcpu))
 		return true;
 
 	if (!(svm->nested.intercept & (1ULL << INTERCEPT_NMI)))
@@ -1995,7 +1990,8 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	if (!nested_vmcb)
 		return 1;
 
-	/* Exit nested SVM mode */
+	/* Exit Guest-Mode */
+	leave_guest_mode(&svm->vcpu);
 	svm->nested.vmcb = 0;
 
 	/* Give the current vmcb to the guest */
@@ -2303,7 +2299,9 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 
 	nested_svm_unmap(page);
 
-	/* nested_vmcb is our indicator if nested SVM is activated */
+	/* Enter Guest-Mode */
+	enter_guest_mode(&svm->vcpu);
+
 	svm->nested.vmcb = vmcb_gpa;
 
 	enable_gif(svm);
@@ -2589,7 +2587,7 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 	case MSR_IA32_TSC: {
 		u64 tsc_offset;
 
-		if (is_nested(svm))
+		if (is_guest_mode(vcpu))
 			tsc_offset = svm->nested.hsave->control.tsc_offset;
 		else
 			tsc_offset = svm->vmcb->control.tsc_offset;
@@ -3003,7 +3001,7 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 		return 1;
 	}
 
-	if (is_nested(svm)) {
+	if (is_guest_mode(vcpu)) {
 		int vmexit;
 
 		trace_kvm_nested_vmexit(svm->vmcb->save.rip, exit_code,
@@ -3110,7 +3108,7 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (is_nested(svm) && (vcpu->arch.hflags & HF_VINTR_MASK))
+	if (is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK))
 		return;
 
 	if (irr == -1)
@@ -3164,7 +3162,7 @@ static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
 
 	ret = !!(vmcb->save.rflags & X86_EFLAGS_IF);
 
-	if (is_nested(svm))
+	if (is_guest_mode(vcpu))
 		return ret && !(svm->vcpu.arch.hflags & HF_VINTR_MASK);
 
 	return ret;
@@ -3221,7 +3219,7 @@ static inline void sync_cr8_to_lapic(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (is_nested(svm) && (vcpu->arch.hflags & HF_VINTR_MASK))
+	if (is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK))
 		return;
 
 	if (!(svm->vmcb->control.intercept_cr_write & INTERCEPT_CR8_MASK)) {
@@ -3235,7 +3233,7 @@ static inline void sync_lapic_to_cr8(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u64 cr8;
 
-	if (is_nested(svm) && (vcpu->arch.hflags & HF_VINTR_MASK))
+	if (is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK))
 		return;
 
 	cr8 = kvm_get_cr8(vcpu);
@@ -3621,7 +3619,7 @@ static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	svm->vmcb->control.intercept_exceptions |= 1 << NM_VECTOR;
-	if (is_nested(svm))
+	if (is_guest_mode(vcpu))
 		svm->nested.hsave->control.intercept_exceptions |= 1 << NM_VECTOR;
 	update_cr0_intercept(svm);
 }
