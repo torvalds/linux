@@ -267,7 +267,7 @@ static void tpd_led_set(struct led_classdev *led_cdev,
 
 static int read_tpd_state(struct eeepc_wmi *eeepc)
 {
-	static u32 retval;
+	u32 retval;
 	acpi_status status;
 
 	status = eeepc_wmi_get_devstate(EEEPC_WMI_DEVID_TPDLED, &retval);
@@ -458,7 +458,7 @@ exit:
  */
 static int read_brightness(struct backlight_device *bd)
 {
-	static u32 retval;
+	u32 retval;
 	acpi_status status;
 
 	status = eeepc_wmi_get_devstate(EEEPC_WMI_DEVID_BACKLIGHT, &retval);
@@ -472,7 +472,7 @@ static int read_brightness(struct backlight_device *bd)
 static int update_bl_status(struct backlight_device *bd)
 {
 
-	static u32 ctrl_param;
+	u32 ctrl_param;
 	acpi_status status;
 
 	ctrl_param = bd->props.brightness;
