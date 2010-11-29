@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/kfifo.h>
 #include <linux/err.h>
+#include <linux/notifier.h>
 
 #include <plat/mailbox.h>
 
@@ -150,8 +151,8 @@ static void mbox_rx_work(struct work_struct *work)
 		len = kfifo_out(&mq->fifo, (unsigned char *)&msg, sizeof(msg));
 		WARN_ON(len != sizeof(msg));
 
-		if (mq->callback)
-			mq->callback((void *)msg);
+		blocking_notifier_call_chain(&mq->mbox->notifier, len,
+								(void *)msg);
 		spin_lock_irq(&mq->lock);
 		if (mq->full) {
 			mq->full = false;
@@ -249,41 +250,40 @@ static int omap_mbox_startup(struct omap_mbox *mbox)
 	int ret = 0;
 	struct omap_mbox_queue *mq;
 
-	if (mbox->ops->startup) {
-		mutex_lock(&mbox_configured_lock);
-		if (!mbox_configured)
+	mutex_lock(&mbox_configured_lock);
+	if (!mbox_configured++) {
+		if (likely(mbox->ops->startup)) {
 			ret = mbox->ops->startup(mbox);
+			if (unlikely(ret))
+				goto fail_startup;
+		} else
+			goto fail_startup;
+	}
 
-		if (ret) {
-			mutex_unlock(&mbox_configured_lock);
-			return ret;
+	if (!mbox->use_count++) {
+		ret = request_irq(mbox->irq, mbox_interrupt, IRQF_SHARED,
+							mbox->name, mbox);
+		if (unlikely(ret)) {
+			pr_err("failed to register mailbox interrupt:%d\n",
+									ret);
+			goto fail_request_irq;
 		}
-		mbox_configured++;
-		mutex_unlock(&mbox_configured_lock);
-	}
+		mq = mbox_queue_alloc(mbox, NULL, mbox_tx_tasklet);
+		if (!mq) {
+			ret = -ENOMEM;
+			goto fail_alloc_txq;
+		}
+		mbox->txq = mq;
 
-	ret = request_irq(mbox->irq, mbox_interrupt, IRQF_SHARED,
-				mbox->name, mbox);
-	if (ret) {
-		printk(KERN_ERR
-			"failed to register mailbox interrupt:%d\n", ret);
-		goto fail_request_irq;
+		mq = mbox_queue_alloc(mbox, mbox_rx_work, NULL);
+		if (!mq) {
+			ret = -ENOMEM;
+			goto fail_alloc_rxq;
+		}
+		mbox->rxq = mq;
+		mq->mbox = mbox;
 	}
-
-	mq = mbox_queue_alloc(mbox, NULL, mbox_tx_tasklet);
-	if (!mq) {
-		ret = -ENOMEM;
-		goto fail_alloc_txq;
-	}
-	mbox->txq = mq;
-
-	mq = mbox_queue_alloc(mbox, mbox_rx_work, NULL);
-	if (!mq) {
-		ret = -ENOMEM;
-		goto fail_alloc_rxq;
-	}
-	mbox->rxq = mq;
-
+	mutex_unlock(&mbox_configured_lock);
 	return 0;
 
 fail_alloc_rxq:
@@ -293,29 +293,34 @@ fail_alloc_txq:
 fail_request_irq:
 	if (mbox->ops->shutdown)
 		mbox->ops->shutdown(mbox);
-
+	mbox->use_count--;
+fail_startup:
+	mbox_configured--;
+	mutex_unlock(&mbox_configured_lock);
 	return ret;
 }
 
 static void omap_mbox_fini(struct omap_mbox *mbox)
 {
-	free_irq(mbox->irq, mbox);
-	tasklet_kill(&mbox->txq->tasklet);
-	flush_work(&mbox->rxq->work);
-	mbox_queue_free(mbox->txq);
-	mbox_queue_free(mbox->rxq);
+	mutex_lock(&mbox_configured_lock);
 
-	if (mbox->ops->shutdown) {
-		mutex_lock(&mbox_configured_lock);
-		if (mbox_configured > 0)
-			mbox_configured--;
-		if (!mbox_configured)
-			mbox->ops->shutdown(mbox);
-		mutex_unlock(&mbox_configured_lock);
+	if (!--mbox->use_count) {
+		free_irq(mbox->irq, mbox);
+		tasklet_kill(&mbox->txq->tasklet);
+		flush_work(&mbox->rxq->work);
+		mbox_queue_free(mbox->txq);
+		mbox_queue_free(mbox->rxq);
 	}
+
+	if (likely(mbox->ops->shutdown)) {
+		if (!--mbox_configured)
+			mbox->ops->shutdown(mbox);
+	}
+
+	mutex_unlock(&mbox_configured_lock);
 }
 
-struct omap_mbox *omap_mbox_get(const char *name)
+struct omap_mbox *omap_mbox_get(const char *name, struct notifier_block *nb)
 {
 	struct omap_mbox *mbox;
 	int ret;
@@ -334,12 +339,16 @@ struct omap_mbox *omap_mbox_get(const char *name)
 	if (ret)
 		return ERR_PTR(-ENODEV);
 
+	if (nb)
+		blocking_notifier_chain_register(&mbox->notifier, nb);
+
 	return mbox;
 }
 EXPORT_SYMBOL(omap_mbox_get);
 
-void omap_mbox_put(struct omap_mbox *mbox)
+void omap_mbox_put(struct omap_mbox *mbox, struct notifier_block *nb)
 {
+	blocking_notifier_chain_unregister(&mbox->notifier, nb);
 	omap_mbox_fini(mbox);
 }
 EXPORT_SYMBOL(omap_mbox_put);
@@ -363,6 +372,8 @@ int omap_mbox_register(struct device *parent, struct omap_mbox **list)
 			ret = PTR_ERR(mbox->dev);
 			goto err_out;
 		}
+
+		BLOCKING_INIT_NOTIFIER_HEAD(&mbox->notifier);
 	}
 	return 0;
 
