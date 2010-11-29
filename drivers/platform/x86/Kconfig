@@ -426,6 +426,8 @@ config EEEPC_WMI
 	depends on EXPERIMENTAL
 	depends on BACKLIGHT_CLASS_DEVICE
 	select INPUT_SPARSEKMAP
+	select LEDS_CLASS
+	select NEW_LEDS
 	---help---
 	  Say Y here if you want to support WMI-based hotkeys on Eee PC laptops.
 

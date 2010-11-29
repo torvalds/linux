@@ -34,6 +34,7 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>
+#include <linux/leds.h>
 #include <linux/platform_device.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
@@ -60,6 +61,7 @@ MODULE_ALIAS("wmi:"EEEPC_WMI_MGMT_GUID);
 #define EEEPC_WMI_METHODID_CFVS	0x53564643
 
 #define EEEPC_WMI_DEVID_BACKLIGHT	0x00050012
+#define EEEPC_WMI_DEVID_TPDLED		0x00100011
 
 static const struct key_entry eeepc_wmi_keymap[] = {
 	/* Sleep already handled via generic ACPI code */
@@ -87,6 +89,11 @@ struct eeepc_wmi {
 	struct input_dev *inputdev;
 	struct backlight_device *backlight_device;
 	struct platform_device *platform_device;
+
+	struct led_classdev tpd_led;
+	int tpd_led_wk;
+	struct workqueue_struct *led_workqueue;
+	struct work_struct tpd_led_work;
 };
 
 /* Only used in eeepc_wmi_init() and eeepc_wmi_exit() */
@@ -176,6 +183,105 @@ static acpi_status eeepc_wmi_set_devstate(u32 dev_id, u32 ctrl_param)
 	return status;
 }
 
+/*
+ * LEDs
+ */
+/*
+ * These functions actually update the LED's, and are called from a
+ * workqueue. By doing this as separate work rather than when the LED
+ * subsystem asks, we avoid messing with the Eeepc ACPI stuff during a
+ * potentially bad time, such as a timer interrupt.
+ */
+static void tpd_led_update(struct work_struct *work)
+{
+	int ctrl_param;
+	struct eeepc_wmi *eeepc;
+
+	eeepc = container_of(work, struct eeepc_wmi, tpd_led_work);
+
+	ctrl_param = eeepc->tpd_led_wk;
+	eeepc_wmi_set_devstate(EEEPC_WMI_DEVID_TPDLED, ctrl_param);
+}
+
+static void tpd_led_set(struct led_classdev *led_cdev,
+			enum led_brightness value)
+{
+	struct eeepc_wmi *eeepc;
+
+	eeepc = container_of(led_cdev, struct eeepc_wmi, tpd_led);
+
+	eeepc->tpd_led_wk = !!value;
+	queue_work(eeepc->led_workqueue, &eeepc->tpd_led_work);
+}
+
+static int read_tpd_state(struct eeepc_wmi *eeepc)
+{
+	static u32 ctrl_param;
+	acpi_status status;
+
+	status = eeepc_wmi_get_devstate(EEEPC_WMI_DEVID_TPDLED, &ctrl_param);
+
+	if (ACPI_FAILURE(status))
+		return -1;
+	else if (!ctrl_param || ctrl_param == 0x00060000)
+		/*
+		 * if touchpad led is present, DSTS will set some bits,
+		 * usually 0x00020000.
+		 * 0x00060000 means that the device is not supported
+		 */
+		return -ENODEV;
+	else
+		/* Status is stored in the first bit */
+		return ctrl_param & 0x1;
+}
+
+static enum led_brightness tpd_led_get(struct led_classdev *led_cdev)
+{
+	struct eeepc_wmi *eeepc;
+
+	eeepc = container_of(led_cdev, struct eeepc_wmi, tpd_led);
+
+	return read_tpd_state(eeepc);
+}
+
+static int eeepc_wmi_led_init(struct eeepc_wmi *eeepc)
+{
+	int rv;
+
+	if (read_tpd_state(eeepc) < 0)
+		return 0;
+
+	eeepc->led_workqueue = create_singlethread_workqueue("led_workqueue");
+	if (!eeepc->led_workqueue)
+		return -ENOMEM;
+	INIT_WORK(&eeepc->tpd_led_work, tpd_led_update);
+
+	eeepc->tpd_led.name = "eeepc::touchpad";
+	eeepc->tpd_led.brightness_set = tpd_led_set;
+	eeepc->tpd_led.brightness_get = tpd_led_get;
+	eeepc->tpd_led.max_brightness = 1;
+
+	rv = led_classdev_register(&eeepc->platform_device->dev,
+				   &eeepc->tpd_led);
+	if (rv) {
+		destroy_workqueue(eeepc->led_workqueue);
+		return rv;
+	}
+
+	return 0;
+}
+
+static void eeepc_wmi_led_exit(struct eeepc_wmi *eeepc)
+{
+	if (eeepc->tpd_led.dev)
+		led_classdev_unregister(&eeepc->tpd_led);
+	if (eeepc->led_workqueue)
+		destroy_workqueue(eeepc->led_workqueue);
+}
+
+/*
+ * Backlight
+ */
 static int read_brightness(struct backlight_device *bd)
 {
 	static u32 ctrl_param;
@@ -402,6 +508,10 @@ static struct platform_device * __init eeepc_wmi_add(void)
 	if (err)
 		goto fail_input;
 
+	err = eeepc_wmi_led_init(eeepc);
+	if (err)
+		goto fail_leds;
+
 	if (!acpi_video_backlight_support()) {
 		err = eeepc_wmi_backlight_init(eeepc);
 		if (err)
@@ -423,6 +533,8 @@ static struct platform_device * __init eeepc_wmi_add(void)
 fail_wmi_handler:
 	eeepc_wmi_backlight_exit(eeepc);
 fail_backlight:
+	eeepc_wmi_led_exit(eeepc);
+fail_leds:
 	eeepc_wmi_input_exit(eeepc);
 fail_input:
 	eeepc_wmi_platform_exit(eeepc);
@@ -439,6 +551,7 @@ static int eeepc_wmi_remove(struct platform_device *device)
 	wmi_remove_notify_handler(EEEPC_WMI_EVENT_GUID);
 	eeepc_wmi_backlight_exit(eeepc);
 	eeepc_wmi_input_exit(eeepc);
+	eeepc_wmi_led_exit(eeepc);
 	eeepc_wmi_platform_exit(eeepc);
 
 	kfree(eeepc);
