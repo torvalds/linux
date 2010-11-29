@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/parser.h>
 #include <linux/string.h>
+#include <linux/err.h>
 #include <keys/user-type.h>
 #include <keys/trusted-type.h>
 #include <keys/encrypted-type.h>
