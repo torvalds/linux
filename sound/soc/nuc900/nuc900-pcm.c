@@ -332,7 +332,7 @@ static struct snd_soc_platform_driver nuc900_soc_platform = {
 	.ops		= &nuc900_dma_ops,
 	.pcm_new	= nuc900_dma_new,
 	.pcm_free	= nuc900_dma_free_dma_buffers,
-}
+};
 
 static int __devinit nuc900_soc_platform_probe(struct platform_device *pdev)
 {
