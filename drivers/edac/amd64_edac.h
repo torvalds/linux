@@ -160,6 +160,14 @@
 #define OFF false
 
 /*
+ * Create a contiguous bitmask starting at bit position @lo and ending at
+ * position @hi. For example
+ *
+ * GENMASK(21, 39) gives us the 64bit vector 0x000000ffffe00000.
+ */
+#define GENMASK(lo, hi)			(((1ULL << ((hi) - (lo) + 1)) - 1) << (lo))
+
+/*
  * PCI-defined configuration space registers
  */
 
@@ -198,45 +206,14 @@
 /*
  * Function 2 - DRAM controller
  */
-#define K8_DCSB0			0x40
-#define F10_DCSB1			0x140
+#define DCSB0				0x40
+#define DCSB1				0x140
+#define DCSB_CS_ENABLE			BIT(0)
 
-#define K8_DCSB_CS_ENABLE		BIT(0)
-#define K8_DCSB_NPT_SPARE		BIT(1)
-#define K8_DCSB_NPT_TESTFAIL		BIT(2)
+#define DCSM0				0x60
+#define DCSM1				0x160
 
-/*
- * REV E: select [31:21] and [15:9] from DCSB and the shift amount to form
- * the address
- */
-#define REV_E_DCSB_BASE_BITS		(0xFFE0FE00ULL)
-#define REV_E_DCS_SHIFT			4
-
-#define REV_F_F1Xh_DCSB_BASE_BITS	(0x1FF83FE0ULL)
-#define REV_F_F1Xh_DCS_SHIFT		8
-
-/*
- * REV F and later: selects [28:19] and [13:5] from DCSB and the shift amount
- * to form the address
- */
-#define REV_F_DCSB_BASE_BITS		(0x1FF83FE0ULL)
-#define REV_F_DCS_SHIFT			8
-
-/* DRAM CS Mask Registers */
-#define K8_DCSM0			0x60
-#define F10_DCSM1			0x160
-
-/* REV E: select [29:21] and [15:9] from DCSM */
-#define REV_E_DCSM_MASK_BITS		0x3FE0FE00
-
-/* unused bits [24:20] and [12:0] */
-#define REV_E_DCS_NOTUSED_BITS		0x01F01FFF
-
-/* REV F and later: select [28:19] and [13:5] from DCSM */
-#define REV_F_F1Xh_DCSM_MASK_BITS	0x1FF83FE0
-
-/* unused bits [26:22] and [12:0] */
-#define REV_F_F1Xh_DCS_NOTUSED_BITS	0x07C01FFF
+#define csrow_enabled(i, dct, pvt)	((pvt)->csels[(dct)].csbases[(i)] & DCSB_CS_ENABLE)
 
 #define DBAM0				0x80
 #define DBAM1				0x180
@@ -412,6 +389,15 @@ struct dram_range {
 	struct reg_pair lim;
 };
 
+/* A DCT chip selects collection */
+struct chip_select {
+	u32 csbases[NUM_CHIPSELECTS];
+	u8 b_cnt;
+
+	u32 csmasks[NUM_CHIPSELECTS];
+	u8 m_cnt;
+};
+
 struct amd64_pvt {
 	struct low_ops *ops;
 
@@ -434,28 +420,11 @@ struct amd64_pvt {
 	u32 dbam0;		/* DRAM Base Address Mapping reg for DCT0 */
 	u32 dbam1;		/* DRAM Base Address Mapping reg for DCT1 */
 
-	/* DRAM CS Base Address Registers F2x[1,0][5C:40] */
-	u32 dcsb0[NUM_CHIPSELECTS];
-	u32 dcsb1[NUM_CHIPSELECTS];
-
-	/* DRAM CS Mask Registers F2x[1,0][6C:60] */
-	u32 dcsm0[NUM_CHIPSELECTS];
-	u32 dcsm1[NUM_CHIPSELECTS];
+	/* one for each DCT */
+	struct chip_select csels[2];
 
 	/* DRAM base and limit pairs F1x[78,70,68,60,58,50,48,40] */
 	struct dram_range ranges[DRAM_RANGES];
-
-	/*
-	 * The following fields are set at (load) run time, after CPU revision
-	 * has been determined, since the dct_base and dct_mask registers vary
-	 * based on revision
-	 */
-	u32 dcsb_base;		/* DCSB base bits */
-	u32 dcsm_mask;		/* DCSM mask bits */
-	u32 cs_count;		/* num chip selects (== num DCSB registers) */
-	u32 num_dcsm;		/* Number of DCSM registers */
-	u32 dcs_mask_notused;	/* DCSM notused mask bits */
-	u32 dcs_shift;		/* DCSB and DCSM shift value */
 
 	u64 top_mem;		/* top of memory below 4GB */
 	u64 top_mem2;		/* top of memory above 4GB */
