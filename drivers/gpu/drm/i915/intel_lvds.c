@@ -269,14 +269,13 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			u32 scaled_width = adjusted_mode->hdisplay * mode->vdisplay;
 			u32 scaled_height = mode->hdisplay * adjusted_mode->vdisplay;
 
-			pfit_control |= PFIT_ENABLE;
 			/* 965+ is easy, it does everything in hw */
 			if (scaled_width > scaled_height)
-				pfit_control |= PFIT_SCALING_PILLAR;
+				pfit_control |= PFIT_ENABLE | PFIT_SCALING_PILLAR;
 			else if (scaled_width < scaled_height)
-				pfit_control |= PFIT_SCALING_LETTER;
-			else
-				pfit_control |= PFIT_SCALING_AUTO;
+				pfit_control |= PFIT_ENABLE | PFIT_SCALING_LETTER;
+			else if (adjusted_mode->hdisplay != mode->hdisplay)
+				pfit_control |= PFIT_ENABLE | PFIT_SCALING_AUTO;
 		} else {
 			u32 scaled_width = adjusted_mode->hdisplay * mode->vdisplay;
 			u32 scaled_height = mode->hdisplay * adjusted_mode->vdisplay;
@@ -323,13 +322,17 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		 * Full scaling, even if it changes the aspect ratio.
 		 * Fortunately this is all done for us in hw.
 		 */
-		pfit_control |= PFIT_ENABLE;
-		if (INTEL_INFO(dev)->gen >= 4)
-			pfit_control |= PFIT_SCALING_AUTO;
-		else
-			pfit_control |= (VERT_AUTO_SCALE | HORIZ_AUTO_SCALE |
-					 VERT_INTERP_BILINEAR |
-					 HORIZ_INTERP_BILINEAR);
+		if (mode->vdisplay != adjusted_mode->vdisplay ||
+		    mode->hdisplay != adjusted_mode->hdisplay) {
+			pfit_control |= PFIT_ENABLE;
+			if (INTEL_INFO(dev)->gen >= 4)
+				pfit_control |= PFIT_SCALING_AUTO;
+			else
+				pfit_control |= (VERT_AUTO_SCALE |
+						 VERT_INTERP_BILINEAR |
+						 HORIZ_AUTO_SCALE |
+						 HORIZ_INTERP_BILINEAR);
+		}
 		break;
 
 	default:
