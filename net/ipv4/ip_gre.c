@@ -405,11 +405,11 @@ static struct ip_tunnel *ipgre_tunnel_locate(struct net *net,
 	if (parms->name[0])
 		strlcpy(name, parms->name, IFNAMSIZ);
 	else
-		sprintf(name, "gre%%d");
+		strcpy(name, "gre%d");
 
 	dev = alloc_netdev(sizeof(*t), name, ipgre_tunnel_setup);
 	if (!dev)
-	  return NULL;
+		return NULL;
 
 	dev_net_set(dev, net);
 
