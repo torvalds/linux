@@ -712,8 +712,11 @@ static int btree_migratepage(struct address_space *mapping,
 	if (page_has_private(page) &&
 	    !try_to_release_page(page, GFP_KERNEL))
 		return -EAGAIN;
-
+#ifdef CONFIG_MIGRATION
 	return migrate_page(mapping, newpage, page);
+#else
+	return -ENOSYS;
+#endif
 }
 
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
@@ -821,7 +824,9 @@ static const struct address_space_operations btree_aops = {
 	.releasepage	= btree_releasepage,
 	.invalidatepage = btree_invalidatepage,
 	.sync_page	= block_sync_page,
+#ifdef CONFIG_MIGRATION
 	.migratepage	= btree_migratepage,
+#endif
 };
 
 int readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize,
