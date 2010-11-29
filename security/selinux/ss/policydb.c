@@ -254,12 +254,17 @@ static int common_index(void *key, void *datum, void *datap)
 {
 	struct policydb *p;
 	struct common_datum *comdatum;
+	struct flex_array *fa;
 
 	comdatum = datum;
 	p = datap;
 	if (!comdatum->value || comdatum->value > p->p_commons.nprim)
 		return -EINVAL;
-	p->p_common_val_to_name[comdatum->value - 1] = key;
+
+	fa = p->sym_val_to_name[SYM_COMMONS];
+	if (flex_array_put_ptr(fa, comdatum->value - 1, key,
+			       GFP_KERNEL | __GFP_ZERO))
+		BUG();
 	return 0;
 }
 
@@ -267,12 +272,16 @@ static int class_index(void *key, void *datum, void *datap)
 {
 	struct policydb *p;
 	struct class_datum *cladatum;
+	struct flex_array *fa;
 
 	cladatum = datum;
 	p = datap;
 	if (!cladatum->value || cladatum->value > p->p_classes.nprim)
 		return -EINVAL;
-	p->p_class_val_to_name[cladatum->value - 1] = key;
+	fa = p->sym_val_to_name[SYM_CLASSES];
+	if (flex_array_put_ptr(fa, cladatum->value - 1, key,
+			       GFP_KERNEL | __GFP_ZERO))
+		BUG();
 	p->class_val_to_struct[cladatum->value - 1] = cladatum;
 	return 0;
 }
@@ -281,6 +290,7 @@ static int role_index(void *key, void *datum, void *datap)
 {
 	struct policydb *p;
 	struct role_datum *role;
+	struct flex_array *fa;
 
 	role = datum;
 	p = datap;
@@ -288,7 +298,11 @@ static int role_index(void *key, void *datum, void *datap)
 	    || role->value > p->p_roles.nprim
 	    || role->bounds > p->p_roles.nprim)
 		return -EINVAL;
-	p->p_role_val_to_name[role->value - 1] = key;
+
+	fa = p->sym_val_to_name[SYM_ROLES];
+	if (flex_array_put_ptr(fa, role->value - 1, key,
+			       GFP_KERNEL | __GFP_ZERO))
+		BUG();
 	p->role_val_to_struct[role->value - 1] = role;
 	return 0;
 }
@@ -297,6 +311,7 @@ static int type_index(void *key, void *datum, void *datap)
 {
 	struct policydb *p;
 	struct type_datum *typdatum;
+	struct flex_array *fa;
 
 	typdatum = datum;
 	p = datap;
@@ -306,10 +321,13 @@ static int type_index(void *key, void *datum, void *datap)
 		    || typdatum->value > p->p_types.nprim
 		    || typdatum->bounds > p->p_types.nprim)
 			return -EINVAL;
-		p->p_type_val_to_name[typdatum->value - 1] = key;
-		/* this flex array was all preallocated, this cannot fail */
-		if (flex_array_put_ptr(p->type_val_to_struct_array,
-				       typdatum->value - 1, typdatum,
+		fa = p->sym_val_to_name[SYM_TYPES];
+		if (flex_array_put_ptr(fa, typdatum->value - 1, key,
+				       GFP_KERNEL | __GFP_ZERO))
+			BUG();
+
+		fa = p->type_val_to_struct_array;
+		if (flex_array_put_ptr(fa, typdatum->value - 1, typdatum,
 				       GFP_KERNEL | __GFP_ZERO))
 			BUG();
 	}
@@ -321,6 +339,7 @@ static int user_index(void *key, void *datum, void *datap)
 {
 	struct policydb *p;
 	struct user_datum *usrdatum;
+	struct flex_array *fa;
 
 	usrdatum = datum;
 	p = datap;
@@ -328,7 +347,11 @@ static int user_index(void *key, void *datum, void *datap)
 	    || usrdatum->value > p->p_users.nprim
 	    || usrdatum->bounds > p->p_users.nprim)
 		return -EINVAL;
-	p->p_user_val_to_name[usrdatum->value - 1] = key;
+
+	fa = p->sym_val_to_name[SYM_USERS];
+	if (flex_array_put_ptr(fa, usrdatum->value - 1, key,
+			       GFP_KERNEL | __GFP_ZERO))
+		BUG();
 	p->user_val_to_struct[usrdatum->value - 1] = usrdatum;
 	return 0;
 }
@@ -337,6 +360,7 @@ static int sens_index(void *key, void *datum, void *datap)
 {
 	struct policydb *p;
 	struct level_datum *levdatum;
+	struct flex_array *fa;
 
 	levdatum = datum;
 	p = datap;
@@ -345,7 +369,10 @@ static int sens_index(void *key, void *datum, void *datap)
 		if (!levdatum->level->sens ||
 		    levdatum->level->sens > p->p_levels.nprim)
 			return -EINVAL;
-		p->p_sens_val_to_name[levdatum->level->sens - 1] = key;
+		fa = p->sym_val_to_name[SYM_LEVELS];
+		if (flex_array_put_ptr(fa, levdatum->level->sens - 1, key,
+				       GFP_KERNEL | __GFP_ZERO))
+			BUG();
 	}
 
 	return 0;
@@ -355,6 +382,7 @@ static int cat_index(void *key, void *datum, void *datap)
 {
 	struct policydb *p;
 	struct cat_datum *catdatum;
+	struct flex_array *fa;
 
 	catdatum = datum;
 	p = datap;
@@ -362,7 +390,10 @@ static int cat_index(void *key, void *datum, void *datap)
 	if (!catdatum->isalias) {
 		if (!catdatum->value || catdatum->value > p->p_cats.nprim)
 			return -EINVAL;
-		p->p_cat_val_to_name[catdatum->value - 1] = key;
+		fa = p->sym_val_to_name[SYM_CATS];
+		if (flex_array_put_ptr(fa, catdatum->value - 1, key,
+				       GFP_KERNEL | __GFP_ZERO))
+			BUG();
 	}
 
 	return 0;
@@ -392,9 +423,16 @@ static int policydb_index_classes(struct policydb *p)
 	int rc;
 
 	rc = -ENOMEM;
-	p->p_common_val_to_name =
-		kmalloc(p->p_commons.nprim * sizeof(char *), GFP_KERNEL);
-	if (!p->p_common_val_to_name)
+	p->sym_val_to_name[SYM_COMMONS] = flex_array_alloc(sizeof(char *),
+							   p->p_commons.nprim,
+							   GFP_KERNEL | __GFP_ZERO);
+	if (!p->sym_val_to_name[SYM_COMMONS])
+		goto out;
+
+	rc = flex_array_prealloc(p->sym_val_to_name[SYM_COMMONS],
+				 0, p->p_commons.nprim - 1,
+				 GFP_KERNEL | __GFP_ZERO);
+	if (rc)
 		goto out;
 
 	rc = hashtab_map(p->p_commons.table, common_index, p);
@@ -408,9 +446,16 @@ static int policydb_index_classes(struct policydb *p)
 		goto out;
 
 	rc = -ENOMEM;
-	p->p_class_val_to_name =
-		kmalloc(p->p_classes.nprim * sizeof(char *), GFP_KERNEL);
-	if (!p->p_class_val_to_name)
+	p->sym_val_to_name[SYM_CLASSES] = flex_array_alloc(sizeof(char *),
+							   p->p_classes.nprim,
+							   GFP_KERNEL | __GFP_ZERO);
+	if (!p->sym_val_to_name[SYM_CLASSES])
+		goto out;
+
+	rc = flex_array_prealloc(p->sym_val_to_name[SYM_CLASSES],
+				 0, p->p_classes.nprim - 1,
+				 GFP_KERNEL | __GFP_ZERO);
+	if (rc)
 		goto out;
 
 	rc = hashtab_map(p->p_classes.table, class_index, p);
@@ -507,10 +552,18 @@ static int policydb_index_others(struct policydb *p)
 
 	for (i = SYM_ROLES; i < SYM_NUM; i++) {
 		rc = -ENOMEM;
-		p->sym_val_to_name[i] =
-			kmalloc(p->symtab[i].nprim * sizeof(char *), GFP_KERNEL);
+		p->sym_val_to_name[i] = flex_array_alloc(sizeof(char *),
+							 p->symtab[i].nprim,
+							 GFP_KERNEL | __GFP_ZERO);
 		if (!p->sym_val_to_name[i])
 			goto out;
+
+		rc = flex_array_prealloc(p->sym_val_to_name[i],
+					 0, p->symtab[i].nprim - 1,
+					 GFP_KERNEL | __GFP_ZERO);
+		if (rc)
+			goto out;
+
 		rc = hashtab_map(p->symtab[i].table, index_f[i], p);
 		if (rc)
 			goto out;
@@ -703,8 +756,10 @@ void policydb_destroy(struct policydb *p)
 		hashtab_destroy(p->symtab[i].table);
 	}
 
-	for (i = 0; i < SYM_NUM; i++)
-		kfree(p->sym_val_to_name[i]);
+	for (i = 0; i < SYM_NUM; i++) {
+		if (p->sym_val_to_name[i])
+			flex_array_free(p->sym_val_to_name[i]);
+	}
 
 	kfree(p->class_val_to_struct);
 	kfree(p->role_val_to_struct);
@@ -1566,9 +1621,9 @@ static int user_bounds_sanity_check(void *key, void *datum, void *datap)
 			printk(KERN_ERR
 			       "SELinux: boundary violated policy: "
 			       "user=%s role=%s bounds=%s\n",
-			       p->p_user_val_to_name[user->value - 1],
-			       p->p_role_val_to_name[bit],
-			       p->p_user_val_to_name[upper->value - 1]);
+			       sym_name(p, SYM_USERS, user->value - 1),
+			       sym_name(p, SYM_ROLES, bit),
+			       sym_name(p, SYM_USERS, upper->value - 1));
 
 			return -EINVAL;
 		}
@@ -1603,9 +1658,9 @@ static int role_bounds_sanity_check(void *key, void *datum, void *datap)
 			printk(KERN_ERR
 			       "SELinux: boundary violated policy: "
 			       "role=%s type=%s bounds=%s\n",
-			       p->p_role_val_to_name[role->value - 1],
-			       p->p_type_val_to_name[bit],
-			       p->p_role_val_to_name[upper->value - 1]);
+			       sym_name(p, SYM_ROLES, role->value - 1),
+			       sym_name(p, SYM_TYPES, bit),
+			       sym_name(p, SYM_ROLES, upper->value - 1));
 
 			return -EINVAL;
 		}
@@ -1637,7 +1692,7 @@ static int type_bounds_sanity_check(void *key, void *datum, void *datap)
 			printk(KERN_ERR "SELinux: type %s: "
 			       "bounded by attribute %s",
 			       (char *) key,
-			       p->p_type_val_to_name[upper->value - 1]);
+			       sym_name(p, SYM_TYPES, upper->value - 1));
 			return -EINVAL;
 		}
 	}

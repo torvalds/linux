@@ -464,7 +464,7 @@ static void security_dump_masked_av(struct context *scontext,
 	if (!permissions)
 		return;
 
-	tclass_name = policydb.p_class_val_to_name[tclass - 1];
+	tclass_name = sym_name(&policydb, SYM_CLASSES, tclass - 1);
 	tclass_dat = policydb.class_val_to_struct[tclass - 1];
 	common_dat = tclass_dat->comdatum;
 
@@ -716,7 +716,7 @@ static int security_validtrans_handle_fail(struct context *ocontext,
 	audit_log(current->audit_context, GFP_ATOMIC, AUDIT_SELINUX_ERR,
 		  "security_validate_transition:  denied for"
 		  " oldcontext=%s newcontext=%s taskcontext=%s tclass=%s",
-		  o, n, t, policydb.p_class_val_to_name[tclass-1]);
+		  o, n, t, sym_name(&policydb, SYM_CLASSES, tclass-1));
 out:
 	kfree(o);
 	kfree(n);
@@ -1012,9 +1012,9 @@ static int context_struct_to_string(struct context *context, char **scontext, u3
 	}
 
 	/* Compute the size of the context. */
-	*scontext_len += strlen(policydb.p_user_val_to_name[context->user - 1]) + 1;
-	*scontext_len += strlen(policydb.p_role_val_to_name[context->role - 1]) + 1;
-	*scontext_len += strlen(policydb.p_type_val_to_name[context->type - 1]) + 1;
+	*scontext_len += strlen(sym_name(&policydb, SYM_USERS, context->user - 1)) + 1;
+	*scontext_len += strlen(sym_name(&policydb, SYM_ROLES, context->role - 1)) + 1;
+	*scontext_len += strlen(sym_name(&policydb, SYM_TYPES, context->type - 1)) + 1;
 	*scontext_len += mls_compute_context_len(context);
 
 	if (!scontext)
@@ -1030,12 +1030,12 @@ static int context_struct_to_string(struct context *context, char **scontext, u3
 	 * Copy the user name, role name and type name into the context.
 	 */
 	sprintf(scontextp, "%s:%s:%s",
-		policydb.p_user_val_to_name[context->user - 1],
-		policydb.p_role_val_to_name[context->role - 1],
-		policydb.p_type_val_to_name[context->type - 1]);
-	scontextp += strlen(policydb.p_user_val_to_name[context->user - 1]) +
-		     1 + strlen(policydb.p_role_val_to_name[context->role - 1]) +
-		     1 + strlen(policydb.p_type_val_to_name[context->type - 1]);
+		sym_name(&policydb, SYM_USERS, context->user - 1),
+		sym_name(&policydb, SYM_ROLES, context->role - 1),
+		sym_name(&policydb, SYM_TYPES, context->type - 1));
+	scontextp += strlen(sym_name(&policydb, SYM_USERS, context->user - 1)) +
+		     1 + strlen(sym_name(&policydb, SYM_ROLES, context->role - 1)) +
+		     1 + strlen(sym_name(&policydb, SYM_TYPES, context->type - 1));
 
 	mls_sid_to_context(context, &scontextp);
 
@@ -1333,7 +1333,7 @@ static int compute_sid_handle_invalid_context(
 		  " for scontext=%s"
 		  " tcontext=%s"
 		  " tclass=%s",
-		  n, s, t, policydb.p_class_val_to_name[tclass-1]);
+		  n, s, t, sym_name(&policydb, SYM_CLASSES, tclass-1));
 out:
 	kfree(s);
 	kfree(t);
@@ -1654,7 +1654,7 @@ static int convert_context(u32 key,
 	/* Convert the user. */
 	rc = -EINVAL;
 	usrdatum = hashtab_search(args->newp->p_users.table,
-				  args->oldp->p_user_val_to_name[c->user - 1]);
+				  sym_name(args->oldp, SYM_USERS, c->user - 1));
 	if (!usrdatum)
 		goto bad;
 	c->user = usrdatum->value;
@@ -1662,7 +1662,7 @@ static int convert_context(u32 key,
 	/* Convert the role. */
 	rc = -EINVAL;
 	role = hashtab_search(args->newp->p_roles.table,
-			      args->oldp->p_role_val_to_name[c->role - 1]);
+			      sym_name(args->oldp, SYM_ROLES, c->role - 1));
 	if (!role)
 		goto bad;
 	c->role = role->value;
@@ -1670,7 +1670,7 @@ static int convert_context(u32 key,
 	/* Convert the type. */
 	rc = -EINVAL;
 	typdatum = hashtab_search(args->newp->p_types.table,
-				  args->oldp->p_type_val_to_name[c->type - 1]);
+				  sym_name(args->oldp, SYM_TYPES, c->type - 1));
 	if (!typdatum)
 		goto bad;
 	c->type = typdatum->value;
@@ -2326,14 +2326,14 @@ int security_get_bools(int *len, char ***names, int **values)
 		size_t name_len;
 
 		(*values)[i] = policydb.bool_val_to_struct[i]->state;
-		name_len = strlen(policydb.p_bool_val_to_name[i]) + 1;
+		name_len = strlen(sym_name(&policydb, SYM_BOOLS, i)) + 1;
 
 		rc = -ENOMEM;
 		(*names)[i] = kmalloc(sizeof(char) * name_len, GFP_ATOMIC);
 		if (!(*names)[i])
 			goto err;
 
-		strncpy((*names)[i], policydb.p_bool_val_to_name[i], name_len);
+		strncpy((*names)[i], sym_name(&policydb, SYM_BOOLS, i), name_len);
 		(*names)[i][name_len - 1] = 0;
 	}
 	rc = 0;
@@ -2368,7 +2368,7 @@ int security_set_bools(int len, int *values)
 			audit_log(current->audit_context, GFP_ATOMIC,
 				AUDIT_MAC_CONFIG_CHANGE,
 				"bool=%s val=%d old_val=%d auid=%u ses=%u",
-				policydb.p_bool_val_to_name[i],
+				sym_name(&policydb, SYM_BOOLS, i),
 				!!values[i],
 				policydb.bool_val_to_struct[i]->state,
 				audit_get_loginuid(current),
@@ -3132,7 +3132,7 @@ int security_netlbl_sid_to_secattr(u32 sid, struct netlbl_lsm_secattr *secattr)
 		goto out;
 
 	rc = -ENOMEM;
-	secattr->domain = kstrdup(policydb.p_type_val_to_name[ctx->type - 1],
+	secattr->domain = kstrdup(sym_name(&policydb, SYM_TYPES, ctx->type - 1),
 				  GFP_ATOMIC);
 	if (secattr->domain == NULL)
 		goto out;
