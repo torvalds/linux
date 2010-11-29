@@ -49,12 +49,16 @@ static int ttm_tt_swapin(struct ttm_tt *ttm);
 static void ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
 	ttm->pages = drm_calloc_large(ttm->num_pages, sizeof(*ttm->pages));
+	ttm->dma_address = drm_calloc_large(ttm->num_pages,
+					    sizeof(*ttm->dma_address));
 }
 
 static void ttm_tt_free_page_directory(struct ttm_tt *ttm)
 {
 	drm_free_large(ttm->pages);
 	ttm->pages = NULL;
+	drm_free_large(ttm->dma_address);
+	ttm->dma_address = NULL;
 }
 
 static void ttm_tt_free_user_pages(struct ttm_tt *ttm)
@@ -105,7 +109,8 @@ static struct page *__ttm_tt_get_page(struct ttm_tt *ttm, int index)
 
 		INIT_LIST_HEAD(&h);
 
-		ret = ttm_get_pages(&h, ttm->page_flags, ttm->caching_state, 1);
+		ret = ttm_get_pages(&h, ttm->page_flags, ttm->caching_state, 1,
+				    &ttm->dma_address[index]);
 
 		if (ret != 0)
 			return NULL;
@@ -298,7 +303,8 @@ static void ttm_tt_free_alloced_pages(struct ttm_tt *ttm)
 			count++;
 		}
 	}
-	ttm_put_pages(&h, count, ttm->page_flags, ttm->caching_state);
+	ttm_put_pages(&h, count, ttm->page_flags, ttm->caching_state,
+		      ttm->dma_address);
 	ttm->state = tt_unpopulated;
 	ttm->first_himem_page = ttm->num_pages;
 	ttm->last_lomem_page = -1;

@@ -149,6 +149,7 @@ enum ttm_caching_state {
  * @swap_storage: Pointer to shmem struct file for swap storage.
  * @caching_state: The current caching state of the pages.
  * @state: The current binding state of the pages.
+ * @dma_address: The DMA (bus) addresses of the pages (if TTM_PAGE_FLAG_DMA32)
  *
  * This is a structure holding the pages, caching- and aperture binding
  * status for a buffer object that isn't backed by fixed (VRAM / AGP)
@@ -173,6 +174,7 @@ struct ttm_tt {
 		tt_unbound,
 		tt_unpopulated,
 	} state;
+	dma_addr_t *dma_address;
 };
 
 #define TTM_MEMTYPE_FLAG_FIXED         (1 << 0)	/* Fixed (on-card) PCI memory */
