@@ -49,7 +49,7 @@ static unsigned short nuc900_ac97_read(struct snd_ac97 *ac97,
 	mutex_lock(&ac97_mutex);
 
 	val = nuc900_checkready();
-	if (!!val) {
+	if (val) {
 		dev_err(nuc900_audio->dev, "AC97 codec is not ready\n");
 		goto out;
 	}
@@ -102,7 +102,7 @@ static void nuc900_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	mutex_lock(&ac97_mutex);
 
 	tmp = nuc900_checkready();
-	if (!!tmp)
+	if (tmp)
 		dev_err(nuc900_audio->dev, "AC97 codec is not ready\n");
 
 	/* clear the R_WB bit and write register index */
@@ -149,7 +149,7 @@ static void nuc900_ac97_warm_reset(struct snd_ac97 *ac97)
 	udelay(100);
 
 	val = nuc900_checkready();
-	if (!!val)
+	if (val)
 		dev_err(nuc900_audio->dev, "AC97 codec is not ready\n");
 
 	mutex_unlock(&ac97_mutex);
