@@ -695,6 +695,7 @@ int __init stingray_power_init(void)
 {
 	int i;
 	unsigned long pmc_cntrl_0;
+	int qbp_usb_hw_bypass_enabled = stingray_qbp_usb_hw_bypass_enabled();
 
 	/* Enable CORE_PWR_REQ signal from T20. The signal must be enabled
 	 * before the CPCAP uC firmware is started. */
@@ -715,7 +716,7 @@ int __init stingray_power_init(void)
 	for (i = 0; i < ARRAY_SIZE(cpcap_devices); i++)
 		cpcap_device_register(cpcap_devices[i]);
 
-	if (!stingray_qbp_usb_hw_bypass_enabled())
+	if (!qbp_usb_hw_bypass_enabled)
 		cpcap_device_register(&cpcap_whisper_device);
 
 	(void) cpcap_driver_register(&cpcap_validity_driver);
@@ -725,6 +726,16 @@ int __init stingray_power_init(void)
 
 	for (i = 0; i < MDM_CTRL_NUM_GPIOS; i++)
 		tegra_gpio_enable(mdm_ctrl_platform_data.gpios[i].number);
+
+	if (qbp_usb_hw_bypass_enabled) {
+		/* The default AP status is "no bypass", so we must override it */
+		mdm_ctrl_platform_data.gpios[MDM_CTRL_GPIO_AP_STATUS_0]. \
+				default_value = 1;
+		mdm_ctrl_platform_data.gpios[MDM_CTRL_GPIO_AP_STATUS_1]. \
+				default_value = 0;
+		mdm_ctrl_platform_data.gpios[MDM_CTRL_GPIO_AP_STATUS_2]. \
+				default_value = 0;
+	}
 
 	platform_device_register(&mdm_ctrl_platform_device);
 
