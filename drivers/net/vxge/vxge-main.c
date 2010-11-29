@@ -3922,9 +3922,6 @@ static void __devinit vxge_print_parm(struct vxgedev *vdev, u64 vpath_mask)
 		vxge_debug_init(VXGE_TRACE,
 			"%s: MAC Address learning enabled", vdev->ndev->name);
 
-	vxge_debug_init(VXGE_TRACE,
-		"%s: Rx doorbell mode enabled", vdev->ndev->name);
-
 	for (i = 0; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++) {
 		if (!vxge_bVALn(vpath_mask, i, 1))
 			continue;
@@ -3937,14 +3934,6 @@ static void __devinit vxge_print_parm(struct vxgedev *vdev, u64 vpath_mask)
 			((struct __vxge_hw_device  *)(vdev->devh))->
 				config.vp_config[i].rpa_strip_vlan_tag
 			? "Enabled" : "Disabled");
-		vxge_debug_init(VXGE_TRACE,
-			"%s: Ring blocks : %d", vdev->ndev->name,
-			((struct __vxge_hw_device  *)(vdev->devh))->
-				config.vp_config[i].ring.ring_blocks);
-		vxge_debug_init(VXGE_TRACE,
-			"%s: Fifo blocks : %d", vdev->ndev->name,
-			((struct __vxge_hw_device  *)(vdev->devh))->
-				config.vp_config[i].fifo.fifo_blocks);
 		vxge_debug_ll_config(VXGE_TRACE,
 			"%s: Max frags : %d", vdev->ndev->name,
 			((struct __vxge_hw_device  *)(vdev->devh))->
