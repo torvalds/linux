@@ -32,6 +32,7 @@
 #include <linux/linkage.h>
 #include <asm/inst.h>
 
+#ifdef __x86_64__
 .data
 POLY:   .octa 0xC2000000000000000000000000000001
 TWOONE: .octa 0x00000001000000000000000000000001
@@ -84,6 +85,7 @@ enc:        .octa 0x2
 #define arg8 STACK_OFFSET+16(%r14)
 #define arg9 STACK_OFFSET+24(%r14)
 #define arg10 STACK_OFFSET+32(%r14)
+#endif
 
 
 #define STATE1	%xmm0
@@ -130,6 +132,7 @@ enc:        .octa 0x2
 #endif
 
 
+#ifdef __x86_64__
 /* GHASH_MUL MACRO to implement: Data*HashKey mod (128,127,126,121,0)
 *
 *
@@ -1255,7 +1258,7 @@ _return_T_done_encrypt:
 	pop	%r13
 	pop	%r12
 	ret
-
+#endif
 
 
 _key_expansion_128:

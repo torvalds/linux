@@ -97,7 +97,6 @@ asmlinkage void aesni_cbc_dec(struct crypto_aes_ctx *ctx, u8 *out,
 #ifdef CONFIG_X86_64
 asmlinkage void aesni_ctr_enc(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv);
-#endif
 
 /* asmlinkage void aesni_gcm_enc()
  * void *ctx,  AES Key schedule. Starts on a 16 byte boundary.
@@ -149,6 +148,7 @@ aesni_rfc4106_gcm_ctx *aesni_rfc4106_gcm_ctx_get(struct crypto_aead *tfm)
 		PTR_ALIGN((u8 *)
 		crypto_tfm_ctx(crypto_aead_tfm(tfm)), AESNI_ALIGN);
 }
+#endif
 
 static inline struct crypto_aes_ctx *aes_ctx(void *raw_ctx)
 {
@@ -822,6 +822,7 @@ static struct crypto_alg ablk_xts_alg = {
 };
 #endif
 
+#ifdef CONFIG_X86_64
 static int rfc4106_init(struct crypto_tfm *tfm)
 {
 	struct cryptd_aead *cryptd_tfm;
@@ -1237,6 +1238,7 @@ static struct crypto_alg __rfc4106_alg = {
 		},
 	},
 };
+#endif
 
 static int __init aesni_init(void)
 {
@@ -1264,6 +1266,10 @@ static int __init aesni_init(void)
 		goto blk_ctr_err;
 	if ((err = crypto_register_alg(&ablk_ctr_alg)))
 		goto ablk_ctr_err;
+	if ((err = crypto_register_alg(&__rfc4106_alg)))
+		goto __aead_gcm_err;
+	if ((err = crypto_register_alg(&rfc4106_alg)))
+		goto aead_gcm_err;
 #ifdef HAS_CTR
 	if ((err = crypto_register_alg(&ablk_rfc3686_ctr_alg)))
 		goto ablk_rfc3686_ctr_err;
@@ -1281,19 +1287,9 @@ static int __init aesni_init(void)
 	if ((err = crypto_register_alg(&ablk_xts_alg)))
 		goto ablk_xts_err;
 #endif
-	err = crypto_register_alg(&__rfc4106_alg);
-	if (err)
-		goto __aead_gcm_err;
-	err = crypto_register_alg(&rfc4106_alg);
-	if (err)
-		goto aead_gcm_err;
 	return err;
 
-aead_gcm_err:
-	crypto_unregister_alg(&__rfc4106_alg);
-__aead_gcm_err:
 #ifdef HAS_XTS
-	crypto_unregister_alg(&ablk_xts_alg);
 ablk_xts_err:
 #endif
 #ifdef HAS_PCBC
@@ -1309,6 +1305,10 @@ ablk_lrw_err:
 	crypto_unregister_alg(&ablk_rfc3686_ctr_alg);
 ablk_rfc3686_ctr_err:
 #endif
+	crypto_unregister_alg(&rfc4106_alg);
+aead_gcm_err:
+	crypto_unregister_alg(&__rfc4106_alg);
+__aead_gcm_err:
 	crypto_unregister_alg(&ablk_ctr_alg);
 ablk_ctr_err:
 	crypto_unregister_alg(&blk_ctr_alg);
@@ -1331,8 +1331,6 @@ aes_err:
 
 static void __exit aesni_exit(void)
 {
-	crypto_unregister_alg(&__rfc4106_alg);
-	crypto_unregister_alg(&rfc4106_alg);
 #ifdef HAS_XTS
 	crypto_unregister_alg(&ablk_xts_alg);
 #endif
@@ -1346,6 +1344,8 @@ static void __exit aesni_exit(void)
 #ifdef HAS_CTR
 	crypto_unregister_alg(&ablk_rfc3686_ctr_alg);
 #endif
+	crypto_unregister_alg(&rfc4106_alg);
+	crypto_unregister_alg(&__rfc4106_alg);
 	crypto_unregister_alg(&ablk_ctr_alg);
 	crypto_unregister_alg(&blk_ctr_alg);
 #endif
