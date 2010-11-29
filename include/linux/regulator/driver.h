@@ -192,7 +192,7 @@ struct regulator_dev {
 };
 
 struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
-	struct device *dev, struct regulator_init_data *init_data,
+	struct device *dev, const struct regulator_init_data *init_data,
 	void *driver_data);
 void regulator_unregister(struct regulator_dev *rdev);
 

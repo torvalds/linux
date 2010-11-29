@@ -813,23 +813,26 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
  * set_mode.
  */
 static int set_machine_constraints(struct regulator_dev *rdev,
-	struct regulation_constraints *constraints)
+	const struct regulation_constraints *constraints)
 {
 	int ret = 0;
 	const char *name;
 	struct regulator_ops *ops = rdev->desc->ops;
 
-	rdev->constraints = constraints;
+	rdev->constraints = kmemdup(constraints, sizeof(*constraints),
+				    GFP_KERNEL);
+	if (!rdev->constraints)
+		return -ENOMEM;
 
 	name = rdev_get_name(rdev);
 
-	ret = machine_constraints_voltage(rdev, constraints);
+	ret = machine_constraints_voltage(rdev, rdev->constraints);
 	if (ret != 0)
 		goto out;
 
 	/* do we need to setup our suspend state */
 	if (constraints->initial_state) {
-		ret = suspend_prepare(rdev, constraints->initial_state);
+		ret = suspend_prepare(rdev, rdev->constraints->initial_state);
 		if (ret < 0) {
 			pr_err("failed to set suspend state for %s\n",
 				name);
@@ -846,7 +849,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 			goto out;
 		}
 
-		ret = ops->set_mode(rdev, constraints->initial_mode);
+		ret = ops->set_mode(rdev, rdev->constraints->initial_mode);
 		if (ret < 0) {
 			pr_err("failed to set initial mode for %s: %d\n",
 				name, ret);
@@ -857,7 +860,8 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	/* If the constraints say the regulator should be on at this point
 	 * and we have control then make sure it is enabled.
 	 */
-	if ((constraints->always_on || constraints->boot_on) && ops->enable) {
+	if ((rdev->constraints->always_on || rdev->constraints->boot_on) &&
+	    ops->enable) {
 		ret = ops->enable(rdev);
 		if (ret < 0) {
 			pr_err("failed to enable %s\n", name);
@@ -2289,7 +2293,7 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
  * Returns 0 on success.
  */
 struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
-	struct device *dev, struct regulator_init_data *init_data,
+	struct device *dev, const struct regulator_init_data *init_data,
 	void *driver_data)
 {
 	static atomic_t regulator_no = ATOMIC_INIT(0);
@@ -2444,6 +2448,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 	if (rdev->supply)
 		sysfs_remove_link(&rdev->dev.kobj, "supply");
 	device_unregister(&rdev->dev);
+	kfree(rdev->constraints);
 	mutex_unlock(&regulator_list_mutex);
 }
 EXPORT_SYMBOL_GPL(regulator_unregister);
