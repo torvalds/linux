@@ -3451,7 +3451,7 @@ static void vxge_device_unregister(struct __vxge_hw_device *hldev)
 	vxge_debug_entryexit(vdev->level_trace,	"%s: %s:%d", vdev->ndev->name,
 			     __func__, __LINE__);
 
-	memcpy(buf, dev->name, IFNAMSIZ);
+	strncpy(buf, dev->name, IFNAMSIZ);
 
 	/* in 2.6 will call stop() if device is up */
 	unregister_netdev(dev);
