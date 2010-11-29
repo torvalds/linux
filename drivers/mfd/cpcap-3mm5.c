@@ -153,11 +153,11 @@ static void hs_handler(enum cpcap_irqs irq, void *data)
 		 new_state);
 }
 
-static void key_handler(enum cpcap_irqs irq, void *data)
+static void mb2_handler(enum cpcap_irqs irq, void *data)
 {
 	struct cpcap_3mm5_data *data_3mm5 = data;
 
-	if ((irq != CPCAP_IRQ_MB2) && (irq != CPCAP_IRQ_UC_PRIMACRO_5))
+	if (irq != CPCAP_IRQ_MB2)
 		return;
 
 	if ((cpcap_irq_sense(data_3mm5->cpcap, CPCAP_IRQ_HS, 1) == 1) ||
@@ -166,21 +166,24 @@ static void key_handler(enum cpcap_irqs irq, void *data)
 		return;
 	}
 
-	if ((cpcap_irq_sense(data_3mm5->cpcap, CPCAP_IRQ_MB2, 0) == 0) ||
-	    (cpcap_irq_sense(data_3mm5->cpcap, CPCAP_IRQ_PTT, 0) == 0)) {
-		send_key_event(data_3mm5, 1);
-
-		/* If macro not available, only short presses are supported */
-		if (!cpcap_uc_status(data_3mm5->cpcap, CPCAP_MACRO_5)) {
-			send_key_event(data_3mm5, 0);
-
-			/* Attempt to restart the macro for next time. */
-			cpcap_uc_start(data_3mm5->cpcap, CPCAP_MACRO_5);
-		}
-	} else
-		send_key_event(data_3mm5, 0);
-
+	send_key_event(data_3mm5, 1);
 	cpcap_irq_unmask(data_3mm5->cpcap, CPCAP_IRQ_MB2);
+}
+
+static void mac5_handler(enum cpcap_irqs irq, void *data)
+{
+	struct cpcap_3mm5_data *data_3mm5 = data;
+
+	if (irq != CPCAP_IRQ_UC_PRIMACRO_5)
+		return;
+
+	if ((cpcap_irq_sense(data_3mm5->cpcap, CPCAP_IRQ_HS, 1) == 1) ||
+	    (switch_get_state(&data_3mm5->sdev) != HEADSET_WITH_MIC)) {
+		hs_handler(CPCAP_IRQ_HS, data_3mm5);
+		return;
+	}
+
+	send_key_event(data_3mm5, 0);
 	cpcap_irq_unmask(data_3mm5->cpcap, CPCAP_IRQ_UC_PRIMACRO_5);
 }
 
@@ -248,13 +251,13 @@ static int cpcap_3mm5_probe(struct platform_device *pdev)
 	if (retval)
 		goto reg_put;
 
-	retval = cpcap_irq_register(data->cpcap, CPCAP_IRQ_MB2, key_handler,
+	retval = cpcap_irq_register(data->cpcap, CPCAP_IRQ_MB2, mb2_handler,
 				    data);
 	if (retval)
 		goto free_hs;
 
 	retval = cpcap_irq_register(data->cpcap, CPCAP_IRQ_UC_PRIMACRO_5,
-				    key_handler, data);
+				    mac5_handler, data);
 	if (retval)
 		goto free_mb2;
 
