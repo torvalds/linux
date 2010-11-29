@@ -28,7 +28,7 @@
 
 /*
  * The placement of the Command Latch Enable (CLE) and
- * Address Latch Enable (ALE) is twised around in the
+ * Address Latch Enable (ALE) is twisted around in the
  * SPEAR310 implementation.
  */
 #if defined(CONFIG_MACH_SPEAR310)
@@ -63,7 +63,7 @@ struct fsmc_nor_bank_regs {
 
 /* ctrl_tim register definitions */
 
-struct fsms_nand_bank_regs {
+struct fsmc_nand_bank_regs {
 	uint32_t pc;
 	uint32_t sts;
 	uint32_t comm;
@@ -79,7 +79,7 @@ struct fsms_nand_bank_regs {
 struct fsmc_regs {
 	struct fsmc_nor_bank_regs nor_bank_regs[FSMC_MAX_NOR_BANKS];
 	uint8_t reserved_1[0x40 - 0x20];
-	struct fsms_nand_bank_regs bank_regs[FSMC_MAX_NAND_BANKS];
+	struct fsmc_nand_bank_regs bank_regs[FSMC_MAX_NAND_BANKS];
 	uint8_t reserved_2[0xfe0 - 0xc0];
 	uint32_t peripid0;			/* 0xfe0 */
 	uint32_t peripid1;			/* 0xfe4 */
