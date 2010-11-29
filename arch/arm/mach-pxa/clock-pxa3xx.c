@@ -9,7 +9,9 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
+#include <mach/smemc.h>
 #include <mach/pxa3xx-regs.h>
 
 #include "clock.h"
@@ -22,9 +24,6 @@
 
 #define ACCR_D0CS	(1 << 26)
 #define ACCR_PCCE	(1 << 11)
-
-/* crystal frequency to static memory controller multiplier (SMCFS) */
-static unsigned char smcfs_mult[8] = { 6, 0, 8, 0, 0, 16, };
 
 /* crystal frequency to HSIO bus frequency multiplier (HSS) */
 static unsigned char hss_mult[4] = { 8, 12, 16, 24 };
@@ -108,6 +107,20 @@ static unsigned long clk_pxa3xx_hsio_getrate(struct clk *clk)
 	return hsio_clk;
 }
 
+/* crystal frequency to static memory controller multiplier (SMCFS) */
+static unsigned int smcfs_mult[8] = { 6, 0, 8, 0, 0, 16, };
+static unsigned int df_clkdiv[4] = { 1, 2, 4, 1 };
+
+static unsigned long clk_pxa3xx_smemc_getrate(struct clk *clk)
+{
+	unsigned long acsr = ACSR;
+	unsigned long memclkcfg = __raw_readl(MEMCLKCFG);
+	unsigned int smcfs = (acsr >> 23) & 0x7;
+
+	return BASE_CLK * smcfs_mult[(acsr >> 23) & 0x7] /
+			df_clkdiv[(memclkcfg >> 16) & 0x3];
+}
+
 void clk_pxa3xx_cken_enable(struct clk *clk)
 {
 	unsigned long mask = 1ul << (clk->cken & 0x1f);
@@ -143,6 +156,12 @@ const struct clkops clk_pxa3xx_ac97_ops = {
 	.enable		= clk_pxa3xx_cken_enable,
 	.disable	= clk_pxa3xx_cken_disable,
 	.getrate	= clk_pxa3xx_ac97_getrate,
+};
+
+const struct clkops clk_pxa3xx_smemc_ops = {
+	.enable		= clk_pxa3xx_cken_enable,
+	.disable	= clk_pxa3xx_cken_disable,
+	.getrate	= clk_pxa3xx_smemc_getrate,
 };
 
 static void clk_pout_enable(struct clk *clk)

@@ -69,6 +69,7 @@ extern const struct clkops clk_pxa3xx_cken_ops;
 extern const struct clkops clk_pxa3xx_hsio_ops;
 extern const struct clkops clk_pxa3xx_ac97_ops;
 extern const struct clkops clk_pxa3xx_pout_ops;
+extern const struct clkops clk_pxa3xx_smemc_ops;
 
 extern void clk_pxa3xx_cken_enable(struct clk *);
 extern void clk_pxa3xx_cken_disable(struct clk *);
