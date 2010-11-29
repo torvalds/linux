@@ -560,24 +560,23 @@ static ssize_t store_cpufv(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(cpufv, S_IRUGO | S_IWUSR, NULL, store_cpufv);
 
+static struct attribute *platform_attributes[] = {
+	&dev_attr_cpufv.attr,
+	NULL
+};
+
+static struct attribute_group platform_attribute_group = {
+	.attrs = platform_attributes
+};
+
 static void eeepc_wmi_sysfs_exit(struct platform_device *device)
 {
-	device_remove_file(&device->dev, &dev_attr_cpufv);
+	sysfs_remove_group(&device->dev.kobj, &platform_attribute_group);
 }
 
 static int eeepc_wmi_sysfs_init(struct platform_device *device)
 {
-	int retval = -ENOMEM;
-
-	retval = device_create_file(&device->dev, &dev_attr_cpufv);
-	if (retval)
-		goto error_sysfs;
-
-	return 0;
-
-error_sysfs:
-	eeepc_wmi_sysfs_exit(device);
-	return retval;
+	return sysfs_create_group(&device->dev.kobj, &platform_attribute_group);
 }
 
 /*
