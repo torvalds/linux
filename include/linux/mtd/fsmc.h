@@ -115,25 +115,6 @@ struct fsmc_regs {
 #define FSMC_THOLD_4		(4 << 16)
 #define FSMC_THIZ_1		(1 << 24)
 
-/* peripid2 register definitions */
-#define FSMC_REVISION_MSK	(0xf)
-#define FSMC_REVISION_SHFT	(0x4)
-
-#define FSMC_VER1		1
-#define FSMC_VER2		2
-#define FSMC_VER3		3
-#define FSMC_VER4		4
-#define FSMC_VER5		5
-#define FSMC_VER6		6
-#define FSMC_VER7		7
-#define FSMC_VER8		8
-
-static inline uint32_t get_fsmc_version(struct fsmc_regs *regs)
-{
-	return (readl(&regs->peripid2) >> FSMC_REVISION_SHFT) &
-				FSMC_REVISION_MSK;
-}
-
 /*
  * There are 13 bytes of ecc for every 512 byte block in FSMC version 8
  * and it has to be read consecutively and immediately after the 512
