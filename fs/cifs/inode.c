@@ -1670,7 +1670,9 @@ cifs_inode_needs_reval(struct inode *inode)
 	return false;
 }
 
-/* check invalid_mapping flag and zap the cache if it's set */
+/*
+ * Zap the cache. Called when invalid_mapping flag is set.
+ */
 static void
 cifs_invalidate_mapping(struct inode *inode)
 {
