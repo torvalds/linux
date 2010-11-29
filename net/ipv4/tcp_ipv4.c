@@ -1763,44 +1763,25 @@ do_time_wait:
 	goto discard_it;
 }
 
-/* VJ's idea. Save last timestamp seen from this destination
- * and hold it at least for normal timewait interval to use for duplicate
- * segment detection in subsequent connections, before they enter synchronized
- * state.
- */
-
-int tcp_v4_remember_stamp(struct sock *sk)
+struct inet_peer *tcp_v4_get_peer(struct sock *sk, bool *release_it)
 {
+	struct rtable *rt = (struct rtable *) __sk_dst_get(sk);
 	struct inet_sock *inet = inet_sk(sk);
-	struct tcp_sock *tp = tcp_sk(sk);
-	struct rtable *rt = (struct rtable *)__sk_dst_get(sk);
-	struct inet_peer *peer = NULL;
-	int release_it = 0;
+	struct inet_peer *peer;
 
 	if (!rt || rt->rt_dst != inet->inet_daddr) {
 		peer = inet_getpeer_v4(inet->inet_daddr, 1);
-		release_it = 1;
+		*release_it = true;
 	} else {
 		if (!rt->peer)
 			rt_bind_peer(rt, 1);
 		peer = rt->peer;
+		*release_it = false;
 	}
 
-	if (peer) {
-		if ((s32)(peer->tcp_ts - tp->rx_opt.ts_recent) <= 0 ||
-		    ((u32)get_seconds() - peer->tcp_ts_stamp > TCP_PAWS_MSL &&
-		     peer->tcp_ts_stamp <= (u32)tp->rx_opt.ts_recent_stamp)) {
-			peer->tcp_ts_stamp = (u32)tp->rx_opt.ts_recent_stamp;
-			peer->tcp_ts = tp->rx_opt.ts_recent;
-		}
-		if (release_it)
-			inet_putpeer(peer);
-		return 1;
-	}
-
-	return 0;
+	return peer;
 }
-EXPORT_SYMBOL(tcp_v4_remember_stamp);
+EXPORT_SYMBOL(tcp_v4_get_peer);
 
 int tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw)
 {
@@ -1828,7 +1809,7 @@ const struct inet_connection_sock_af_ops ipv4_specific = {
 	.rebuild_header	   = inet_sk_rebuild_header,
 	.conn_request	   = tcp_v4_conn_request,
 	.syn_recv_sock	   = tcp_v4_syn_recv_sock,
-	.remember_stamp	   = tcp_v4_remember_stamp,
+	.get_peer	   = tcp_v4_get_peer,
 	.net_header_len	   = sizeof(struct iphdr),
 	.setsockopt	   = ip_setsockopt,
 	.getsockopt	   = ip_getsockopt,
