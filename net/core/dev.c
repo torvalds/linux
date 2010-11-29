@@ -5125,9 +5125,10 @@ static int netif_alloc_netdev_queues(struct net_device *dev)
 	}
 	dev->_tx = tx;
 
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count; i++) {
+		netdev_queue_numa_node_write(&tx[i], -1);
 		tx[i].dev = dev;
-
+	}
 	return 0;
 }
 

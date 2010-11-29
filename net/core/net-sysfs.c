@@ -913,6 +913,7 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 	struct xps_map *map, *new_map;
 	struct xps_dev_maps *dev_maps, *new_dev_maps;
 	int nonempty = 0;
+	int numa_node = -2;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -953,7 +954,14 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 			pos = map_len = alloc_len = 0;
 
 		need_set = cpu_isset(cpu, *mask) && cpu_online(cpu);
-
+#ifdef CONFIG_NUMA
+		if (need_set) {
+			if (numa_node == -2)
+				numa_node = cpu_to_node(cpu);
+			else if (numa_node != cpu_to_node(cpu))
+				numa_node = -1;
+		}
+#endif
 		if (need_set && pos >= map_len) {
 			/* Need to add queue to this CPU's map */
 			if (map_len >= alloc_len) {
@@ -1000,6 +1008,8 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 
 	if (dev_maps)
 		call_rcu(&dev_maps->rcu, xps_dev_maps_release);
+
+	netdev_queue_numa_node_write(queue, (numa_node >= 0) ? numa_node : -1);
 
 	mutex_unlock(&xps_map_mutex);
 

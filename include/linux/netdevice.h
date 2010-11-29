@@ -508,7 +508,9 @@ struct netdev_queue {
 #ifdef CONFIG_RPS
 	struct kobject		kobj;
 #endif
-
+#if defined(CONFIG_XPS) && defined(CONFIG_NUMA)
+	int			numa_node;
+#endif
 /*
  * write mostly part
  */
@@ -522,6 +524,22 @@ struct netdev_queue {
 	u64			tx_packets;
 	u64			tx_dropped;
 } ____cacheline_aligned_in_smp;
+
+static inline int netdev_queue_numa_node_read(const struct netdev_queue *q)
+{
+#if defined(CONFIG_XPS) && defined(CONFIG_NUMA)
+	return q->numa_node;
+#else
+	return -1;
+#endif
+}
+
+static inline void netdev_queue_numa_node_write(struct netdev_queue *q, int node)
+{
+#if defined(CONFIG_XPS) && defined(CONFIG_NUMA)
+	q->numa_node = node;
+#endif
+}
 
 #ifdef CONFIG_RPS
 /*
