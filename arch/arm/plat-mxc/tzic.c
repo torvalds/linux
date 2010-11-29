@@ -69,50 +69,50 @@ static int tzic_set_irq_fiq(unsigned int irq, unsigned int type)
 #endif
 
 /**
- * tzic_mask_irq() - Disable interrupt number "irq" in the TZIC
+ * tzic_mask_irq() - Disable interrupt source "d" in the TZIC
  *
- * @param  irq          interrupt source number
+ * @param  d            interrupt source
  */
-static void tzic_mask_irq(unsigned int irq)
+static void tzic_mask_irq(struct irq_data *d)
 {
 	int index, off;
 
-	index = irq >> 5;
-	off = irq & 0x1F;
+	index = d->irq >> 5;
+	off = d->irq & 0x1F;
 	__raw_writel(1 << off, tzic_base + TZIC_ENCLEAR0(index));
 }
 
 /**
- * tzic_unmask_irq() - Enable interrupt number "irq" in the TZIC
+ * tzic_unmask_irq() - Enable interrupt source "d" in the TZIC
  *
- * @param  irq          interrupt source number
+ * @param  d            interrupt source
  */
-static void tzic_unmask_irq(unsigned int irq)
+static void tzic_unmask_irq(struct irq_data *d)
 {
 	int index, off;
 
-	index = irq >> 5;
-	off = irq & 0x1F;
+	index = d->irq >> 5;
+	off = d->irq & 0x1F;
 	__raw_writel(1 << off, tzic_base + TZIC_ENSET0(index));
 }
 
 static unsigned int wakeup_intr[4];
 
 /**
- * tzic_set_wake_irq() - Set interrupt number "irq" in the TZIC as a wake-up source.
+ * tzic_set_wake_irq() - Set interrupt source "d" in the TZIC as a wake-up source.
  *
- * @param  irq          interrupt source number
+ * @param  d            interrupt source
  * @param  enable       enable as wake-up if equal to non-zero
  * 			disble as wake-up if equal to zero
  *
  * @return       This function returns 0 on success.
  */
-static int tzic_set_wake_irq(unsigned int irq, unsigned int enable)
+static int tzic_set_wake_irq(struct irq_data *d, unsigned int enable)
 {
 	unsigned int index, off;
 
-	index = irq >> 5;
-	off = irq & 0x1F;
+	index = d->irq >> 5;
+	off = d->irq & 0x1F;
 
 	if (index > 3)
 		return -EINVAL;
@@ -128,10 +128,10 @@ static int tzic_set_wake_irq(unsigned int irq, unsigned int enable)
 static struct mxc_irq_chip mxc_tzic_chip = {
 	.base = {
 		.name = "MXC_TZIC",
-		.ack = tzic_mask_irq,
-		.mask = tzic_mask_irq,
-		.unmask = tzic_unmask_irq,
-		.set_wake = tzic_set_wake_irq,
+		.irq_ack = tzic_mask_irq,
+		.irq_mask = tzic_mask_irq,
+		.irq_unmask = tzic_unmask_irq,
+		.irq_set_wake = tzic_set_wake_irq,
 	},
 #ifdef CONFIG_FIQ
 	.set_irq_fiq = tzic_set_irq_fiq,
