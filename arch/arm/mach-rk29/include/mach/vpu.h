@@ -18,6 +18,12 @@
 
 #include <linux/ioctl.h>    /* needed for the _IOW etc stuff used later */
 
+#define VPU_IRQ_EVENT_DEC_BIT		BIT(0)
+#define VPU_IRQ_EVENT_DEC_IRQ_BIT	BIT(1)
+#define VPU_IRQ_EVENT_PP_IRQ_BIT	BIT(2)
+#define VPU_IRQ_EVENT_ENC_BIT		BIT(8)
+#define VPU_IRQ_EVENT_ENC_IRQ_BIT	BIT(9)
+
 /*
  * Ioctl definitions
  */

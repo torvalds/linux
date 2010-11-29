@@ -131,10 +131,13 @@ static int rk1000_codec_write(struct snd_soc_codec *codec, unsigned int reg,
 	rk1000_codec_write_reg_cache (codec, reg, value);
 	i2c = (struct i2c_client *)codec->control_data;
 	i2c->addr = (i2c->addr & 0x60)|reg;
-	if (codec->hw_write(codec->control_data, data, 1) == 2)
+	if (codec->hw_write(codec->control_data, data, 1) == 2){
+                DBG("================%s Run OK================\n",__FUNCTION__,__LINE__);
 		return 0;
-	else
+	}else{
+	        DBG("================%s Run EIO================\n",__FUNCTION__,__LINE__);
 		return -EIO;
+        }
 }
 
 static const struct snd_kcontrol_new rk1000_codec_snd_controls[] = {
@@ -803,7 +806,7 @@ static int rk1000_codec_register(struct rk1000_codec_priv *rk1000_codec,
 		//goto err;
 	//}
 
-#if 1
+#if 0   //fzf rk2818 is SPK_CTL
 	gpio_request(RK2818_PIN_PF7, "rk1000_codec");	
 	rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL_NAME, IOMUXA_GPIO1_A3B7);
 	gpio_direction_output(RK2818_PIN_PF7,GPIO_HIGH);

@@ -11,6 +11,12 @@ menuconfig INPUT_KEYBOARD
 	  If unsure, say Y.
 
 if INPUT_KEYBOARD
+config KEYS_RK29
+	tristate "rk29 keyboard"
+	depends on ARCH_RK29
+	default y
+	help
+		rk29 keyboard drivers(gpio and adc)
 
 config KEYBOARD_AAED2000
 	tristate "AAED-2000 keyboard"

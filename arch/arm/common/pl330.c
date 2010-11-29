@@ -991,10 +991,10 @@ static inline int _ldst_devtomem(unsigned dry_run, u8 buf[],
 	int off = 0;
 
 	while (cyc--) {
-		off += _emit_WFP(dry_run, &buf[off], SINGLE, pxs->r->peri);
-		off += _emit_LDP(dry_run, &buf[off], SINGLE, pxs->r->peri);
+		off += _emit_WFP(dry_run, &buf[off], BURST, pxs->r->peri);
+		off += _emit_LDP(dry_run, &buf[off], BURST, pxs->r->peri);
 		off += _emit_ST(dry_run, &buf[off], ALWAYS);
-		off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
+		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
 	}
 
 	return off;
@@ -1006,10 +1006,10 @@ static inline int _ldst_memtodev(unsigned dry_run, u8 buf[],
 	int off = 0;
 
 	while (cyc--) {
-		off += _emit_WFP(dry_run, &buf[off], SINGLE, pxs->r->peri);
+		off += _emit_WFP(dry_run, &buf[off], BURST, pxs->r->peri);
 		off += _emit_LD(dry_run, &buf[off], ALWAYS);
-		off += _emit_STP(dry_run, &buf[off], SINGLE, pxs->r->peri);
-		off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
+		off += _emit_STP(dry_run, &buf[off], BURST, pxs->r->peri);
+		//off += _emit_FLUSHP(dry_run, &buf[off], pxs->r->peri);
 	}
 
 	return off;
@@ -1435,7 +1435,6 @@ int pl330_update(const struct pl330_info *pi)
 			i++;
 		}
 	}
-
 	/* Check which event happened i.e, thread notified */
 	val = readl(regs + ES);
 	if (pi->pcfg.num_events < 32
@@ -1478,7 +1477,6 @@ int pl330_update(const struct pl330_info *pi)
 			list_add_tail(&rqdone->rqd, &pl330->req_done);
 		}
 	}
-
 	/* Now that we are in no hurry, do the callbacks */
 	while (!list_empty(&pl330->req_done)) {
 		rqdone = container_of(pl330->req_done.next,

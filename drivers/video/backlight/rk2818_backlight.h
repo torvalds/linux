@@ -1,5 +1,5 @@
 /*
- *  linux/include/asm-arm/arch-rockchip/pwm.h
+ *  drivers/video/rk29_backlight.h
  *
  */
 

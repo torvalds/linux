@@ -125,7 +125,7 @@ adc_sync_read_callback(struct adc_client *client, void *param, int result)
 int adc_sync_read(struct adc_client *client)
 {
 	struct adc_request *req = NULL;
-	int err;
+	int err, tmo;
 
 	if(client == NULL) {
 		printk(KERN_ERR "client point is NULL");
@@ -153,7 +153,9 @@ int adc_sync_read(struct adc_client *client)
 		kfree(req);
 		return err;
 	}
-	wait_for_completion(&req->completion);
+	tmo = wait_for_completion_timeout(&req->completion,msecs_to_jiffies(100));
+	if(tmo == 0)
+		return -ETIMEDOUT;
 	return client->result;
 }
 EXPORT_SYMBOL(adc_sync_read);

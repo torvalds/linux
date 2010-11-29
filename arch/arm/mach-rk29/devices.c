@@ -20,6 +20,7 @@
 #include <mach/irqs.h>
 #include <mach/rk29_iomap.h>
 #include <mach/rk29-dma-pl330.h> 
+#include <mach/rk29_camera.h>                          /* ddl@rock-chips.com : camera support */
 #include "devices.h"
 #ifdef CONFIG_ADC_RK29
 static struct resource rk29_adc_resource[] = {
@@ -132,7 +133,18 @@ struct platform_device rk29_device_i2c3 = {
 };
 #endif
 
-
+/***********************************************************
+*	  backlight
+***************************************************************/
+#ifdef CONFIG_BACKLIGHT_RK29_BL
+struct platform_device rk29_device_backlight = {
+		.name	= "rk29_backlight",
+		.id 	= -1,
+        .dev    = {
+           .platform_data  = &rk29_bl_info,
+        }
+};
+#endif
 #ifdef CONFIG_SDMMC0_RK29 
 #ifndef CONFIG_EMMC_RK29 
 static struct resource resources_sdmmc0[] = {
@@ -363,6 +375,39 @@ struct platform_device rk29xx_device_spi1m = {
 	},
 };
 
+/* RK29 Camera :  ddl@rock-chips.com  */
+#ifdef CONFIG_VIDEO_RK29
+extern struct rk29camera_platform_data rk29_camera_platform_data;
+extern struct platform_device rk29_soc_camera_pdrv;
+
+static struct resource rk29_camera_resource[] = {
+	[0] = {
+		.start = RK29_VIP_PHYS,
+		.end   = RK29_VIP_PHYS + RK29_VIP_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_VIP,
+		.end   = IRQ_VIP,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static u64 rockchip_device_camera_dmamask = 0xffffffffUL;
+
+/*platform_device : */
+struct platform_device rk29_device_camera = {
+	.name		  = RK29_CAM_DRV_NAME,
+	.id		  = RK29_CAM_PLATFORM_DEV_ID,               /* This is used to put cameras on this interface */
+	.num_resources	  = ARRAY_SIZE(rk29_camera_resource),
+	.resource	  = rk29_camera_resource,
+	.dev            = {
+		.dma_mask = &rockchip_device_camera_dmamask,
+		.coherent_dma_mask = 0xffffffffUL,
+		.platform_data  = &rk29_camera_platform_data,
+	}
+};
+#endif
 #ifdef CONFIG_FB_RK29
 /* rk29 fb resource */
 static struct resource rk29_fb_resource[] = {
@@ -411,3 +456,64 @@ struct platform_device rk29_device_nand = {
 };
 #endif
 
+#if defined(CONFIG_SND_RK29_SOC_I2S)
+static struct resource rk29_iis_2ch_resource[] = {
+        [0] = {
+                .start = RK29_I2S_2CH_PHYS,
+                .end   = RK29_I2S_2CH_PHYS + RK29_I2S_2CH_SIZE,
+                .flags = IORESOURCE_MEM,
+        },
+        [1] = {
+                .start = DMACH_I2S_2CH_TX,
+                .end   = DMACH_I2S_2CH_TX,
+                .flags = IORESOURCE_DMA,
+        },
+        [2] = {
+                .start = DMACH_I2S_2CH_RX,
+                .end   = DMACH_I2S_2CH_RX,
+                .flags = IORESOURCE_DMA,
+        },
+        [3] = {
+                .start = IRQ_I2S_2CH,
+                .end   = IRQ_I2S_2CH,
+                .flags = IORESOURCE_IRQ,        
+        },
+};
+
+struct platform_device rk29_device_iis_2ch = {
+        .name           = "rk29-i2s",
+        .id             = 0,
+        .num_resources  = ARRAY_SIZE(rk29_iis_2ch_resource),
+        .resource       = rk29_iis_2ch_resource,
+};
+
+static struct resource rk29_iis_8ch_resource[] = {
+        [0] = {
+                .start = RK29_I2S_8CH_PHYS,
+                .end   = RK29_I2S_8CH_PHYS + RK29_I2S_8CH_SIZE,
+                .flags = IORESOURCE_MEM,
+        },
+        [1] = {
+                .start = DMACH_I2S_8CH_TX,
+                .end   = DMACH_I2S_8CH_TX,
+                .flags = IORESOURCE_DMA,
+        },
+        [2] = {
+                .start = DMACH_I2S_8CH_RX,
+                .end   = DMACH_I2S_8CH_RX,
+                .flags = IORESOURCE_DMA,
+        },
+        [3] = {
+                .start = IRQ_I2S_8CH,
+                .end   = IRQ_I2S_8CH,
+                .flags = IORESOURCE_IRQ,        
+        },
+};
+
+struct platform_device rk29_device_iis_8ch = {
+        .name           = "rk29-i2s",
+        .id             = 1,
+        .num_resources  = ARRAY_SIZE(rk29_iis_8ch_resource),
+        .resource       = rk29_iis_8ch_resource,
+};
+#endif

@@ -16,6 +16,8 @@
 #define __ASM_ARCH_RK29_BOARD_H
 
 #include <linux/types.h>
+#include <linux/timer.h>
+#include <linux/notifier.h>
 
 /*spi*/
 struct spi_cs_gpio {
@@ -66,8 +68,16 @@ struct rk29fb_info{
     int (*io_deinit)(void);
 };
 
+struct rk29_bl_info{
+    u32 pwm_id;
+    u32 bl_ref;
+    int (*io_init)(void);
+    int (*io_deinit)(void);
+    struct timer_list timer;  
+    struct notifier_block freq_transition;
+};
+
 struct rk29_sdmmc_platform_data {
-	unsigned int num_slots;
 	unsigned int host_caps;
 	unsigned int host_ocr_avail;
 	unsigned int use_dma:1;
@@ -85,6 +95,12 @@ struct rk29_i2c_platform_data {
 #define I2C_MODE_IRQ    0
 #define I2C_MODE_POLL   1
 	unsigned int    mode:1;
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+};
+
+/*i2s*/
+struct rk29_i2s_platform_data {
 	int (*io_init)(void);
 	int (*io_deinit)(void);
 };
