@@ -1846,13 +1846,6 @@ static int stmmac_resume(struct device *dev)
 	if (!netif_running(ndev))
 		return 0;
 
-	if (priv->shutdown) {
-		/* Re-open the interface and re-init the MAC/DMA
-		   and the rings (i.e. on hibernation stage) */
-		stmmac_open(dev);
-		return 0;
-	}
-
 	spin_lock(&priv->lock);
 
 	/* Power Down bit, into the PM register, is cleared
