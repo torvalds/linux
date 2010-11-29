@@ -2192,15 +2192,10 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	netdev_dbg(dev, "%s: entries %d queued for transmission. tx_flags_extra: %x\n",
 		   __func__, entries, tx_flags_extra);
-	{
-		int j;
-		for (j = 0; j < 64; j++) {
-			if ((j%16) == 0)
-				dprintk("\n%03x:", j);
-			dprintk(" %02x", ((unsigned char *)skb->data)[j]);
-		}
-		dprintk("\n");
-	}
+#ifdef DEBUG
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 16, 1,
+		       skb->data, 64, true);
+#endif
 
 	writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
 	return NETDEV_TX_OK;
@@ -2343,15 +2338,10 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 
 	netdev_dbg(dev, "%s: entries %d queued for transmission. tx_flags_extra: %x\n",
 		   __func__, entries, tx_flags_extra);
-	{
-		int j;
-		for (j = 0; j < 64; j++) {
-			if ((j%16) == 0)
-				dprintk("\n%03x:", j);
-			dprintk(" %02x", ((unsigned char *)skb->data)[j]);
-		}
-		dprintk("\n");
-	}
+#ifdef DEBUG
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 16, 1,
+		       skb->data, 64, true);
+#endif
 
 	writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
 	return NETDEV_TX_OK;
@@ -2666,16 +2656,11 @@ static int nv_rx_process(struct net_device *dev, int limit)
 		skb = np->get_rx_ctx->skb;
 		np->get_rx_ctx->skb = NULL;
 
-		{
-			int j;
 			netdev_dbg(dev, "Dumping packet (flags 0x%x)\n", flags);
-			for (j = 0; j < 64; j++) {
-				if ((j%16) == 0 && j)
-					dprintk("\n%03x:", j);
-				dprintk(" %02x", ((unsigned char *)skb->data)[j]);
-			}
-			dprintk("\n");
-		}
+#ifdef DEBUG
+			print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET,
+				       16, 1, skb->data, 64, true);
+#endif
 		/* look at what we actually got: */
 		if (np->desc_ver == DESC_VER_1) {
 			if (likely(flags & NV_RX_DESCRIPTORVALID)) {
@@ -2793,16 +2778,11 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 		skb = np->get_rx_ctx->skb;
 		np->get_rx_ctx->skb = NULL;
 
-		{
-			int j;
-			netdev_dbg(dev, "Dumping packet (flags 0x%x)\n", flags);
-			for (j = 0; j < 64; j++) {
-				if ((j%16) == 0 && j)
-					dprintk("\n%03x:", j);
-				dprintk(" %02x", ((unsigned char *)skb->data)[j]);
-			}
-			dprintk("\n");
-		}
+		netdev_dbg(dev, "Dumping packet (flags 0x%x)\n", flags);
+#ifdef DEBUG
+		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 16, 1,
+			       skb->data, 64, true);
+#endif
 		/* look at what we actually got: */
 		if (likely(flags & NV_RX2_DESCRIPTORVALID)) {
 			len = flags & LEN_MASK_V2;
