@@ -129,9 +129,7 @@ static void sta_rx_agg_reorder_timer_expired(unsigned long data)
 			timer_to_tid[0]);
 
 	rcu_read_lock();
-	spin_lock(&sta->lock);
 	ieee80211_release_reorder_timeout(sta, *ptid);
-	spin_unlock(&sta->lock);
 	rcu_read_unlock();
 }
 
@@ -256,7 +254,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	}
 
 	/* prepare A-MPDU MLME for Rx aggregation */
-	tid_agg_rx = kmalloc(sizeof(struct tid_ampdu_rx), GFP_ATOMIC);
+	tid_agg_rx = kmalloc(sizeof(struct tid_ampdu_rx), GFP_KERNEL);
 	if (!tid_agg_rx) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
@@ -280,9 +278,9 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 	/* prepare reordering buffer */
 	tid_agg_rx->reorder_buf =
-		kcalloc(buf_size, sizeof(struct sk_buff *), GFP_ATOMIC);
+		kcalloc(buf_size, sizeof(struct sk_buff *), GFP_KERNEL);
 	tid_agg_rx->reorder_time =
-		kcalloc(buf_size, sizeof(unsigned long), GFP_ATOMIC);
+		kcalloc(buf_size, sizeof(unsigned long), GFP_KERNEL);
 	if (!tid_agg_rx->reorder_buf || !tid_agg_rx->reorder_time) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())

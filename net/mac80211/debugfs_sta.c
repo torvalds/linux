@@ -112,34 +112,35 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 	char buf[71 + STA_TID_NUM * 40], *p = buf;
 	int i;
 	struct sta_info *sta = file->private_data;
+	struct tid_ampdu_rx *tid_rx;
+	struct tid_ampdu_tx *tid_tx;
 
-	spin_lock_bh(&sta->lock);
+	rcu_read_lock();
+
 	p += scnprintf(p, sizeof(buf) + buf - p, "next dialog_token: %#02x\n",
 			sta->ampdu_mlme.dialog_token_allocator + 1);
 	p += scnprintf(p, sizeof(buf) + buf - p,
 		       "TID\t\tRX active\tDTKN\tSSN\t\tTX\tDTKN\tpending\n");
-	for (i = 0; i < STA_TID_NUM; i++) {
-		p += scnprintf(p, sizeof(buf) + buf - p, "%02d", i);
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x",
-				!!sta->ampdu_mlme.tid_rx[i]);
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
-				sta->ampdu_mlme.tid_rx[i] ?
-				sta->ampdu_mlme.tid_rx[i]->dialog_token : 0);
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.3x",
-				sta->ampdu_mlme.tid_rx[i] ?
-				sta->ampdu_mlme.tid_rx[i]->ssn : 0);
 
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x",
-				!!sta->ampdu_mlme.tid_tx[i]);
+	for (i = 0; i < STA_TID_NUM; i++) {
+		tid_rx = rcu_dereference(sta->ampdu_mlme.tid_rx[i]);
+		tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[i]);
+
+		p += scnprintf(p, sizeof(buf) + buf - p, "%02d", i);
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x", !!tid_rx);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
-				sta->ampdu_mlme.tid_tx[i] ?
-				sta->ampdu_mlme.tid_tx[i]->dialog_token : 0);
+				tid_rx ? tid_rx->dialog_token : 0);
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.3x",
+				tid_rx ? tid_rx->ssn : 0);
+
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x", !!tid_tx);
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
+				tid_tx ? tid_tx->dialog_token : 0);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%03d",
-				sta->ampdu_mlme.tid_tx[i] ?
-				skb_queue_len(&sta->ampdu_mlme.tid_tx[i]->pending) : 0);
+				tid_tx ? skb_queue_len(&tid_tx->pending) : 0);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\n");
 	}
-	spin_unlock_bh(&sta->lock);
+	rcu_read_unlock();
 
 	return simple_read_from_buffer(userbuf, count, ppos, buf, p - buf);
 }

@@ -81,13 +81,14 @@ enum ieee80211_sta_info_flags {
  * @stop_initiator: initiator of a session stop
  * @tx_stop: TX DelBA frame when stopping
  *
- * This structure is protected by RCU and the per-station
- * spinlock. Assignments to the array holding it must hold
- * the spinlock, only the TX path can access it under RCU
- * lock-free if, and only if, the state has  the flag
- * %HT_AGG_STATE_OPERATIONAL set. Otherwise, the TX path
- * must also acquire the spinlock and re-check the state,
- * see comments in the tx code touching it.
+ * This structure's lifetime is managed by RCU, assignments to
+ * the array holding it must hold the aggregation mutex.
+ *
+ * The TX path can access it under RCU lock-free if, and
+ * only if, the state has the flag %HT_AGG_STATE_OPERATIONAL
+ * set. Otherwise, the TX path must also acquire the spinlock
+ * and re-check the state, see comments in the tx code
+ * touching it.
  */
 struct tid_ampdu_tx {
 	struct rcu_head rcu_head;
@@ -115,15 +116,13 @@ struct tid_ampdu_tx {
  * @rcu_head: RCU head used for freeing this struct
  * @reorder_lock: serializes access to reorder buffer, see below.
  *
- * This structure is protected by RCU and the per-station
- * spinlock. Assignments to the array holding it must hold
- * the spinlock.
+ * This structure's lifetime is managed by RCU, assignments to
+ * the array holding it must hold the aggregation mutex.
  *
- * The @reorder_lock is used to protect the variables and
- * arrays such as @reorder_buf, @reorder_time, @head_seq_num,
- * @stored_mpdu_num and @reorder_time from being corrupted by
- * concurrent access of the RX path and the expired frame
- * release timer.
+ * The @reorder_lock is used to protect the members of this
+ * struct, except for @timeout, @buf_size and @dialog_token,
+ * which are constant across the lifetime of the struct (the
+ * dialog token being used only for debugging).
  */
 struct tid_ampdu_rx {
 	struct rcu_head rcu_head;
