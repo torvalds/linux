@@ -1520,7 +1520,7 @@ static int snd_soc_flat_cache_init(struct snd_soc_codec *codec)
 /* an array of all supported compression types */
 static const struct snd_soc_cache_ops cache_types[] = {
 	{
-		.id = SND_SOC_NO_COMPRESSION,
+		.id = SND_SOC_FLAT_COMPRESSION,
 		.init = snd_soc_flat_cache_init,
 		.exit = snd_soc_flat_cache_exit,
 		.read = snd_soc_flat_cache_read,
