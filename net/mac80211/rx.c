@@ -2745,6 +2745,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 			if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
 				return;
+			goto out;
 		}
 	}
 
@@ -2784,6 +2785,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 			return;
 	}
 
+ out:
 	dev_kfree_skb(skb);
 }
 
