@@ -222,8 +222,6 @@ int tipc_disconnect_port(struct tipc_port *tp_ptr);
 /*
  * TIPC messaging routines
  */
-#define TIPC_PORT_IMPORTANCE 100	/* send using current port setting */
-
 int tipc_send(u32 portref, unsigned int num_sect, struct iovec const *msg_sect);
 
 int tipc_send2name(u32 portref, struct tipc_name const *name, u32 domain,
