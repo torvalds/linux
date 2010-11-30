@@ -1049,9 +1049,11 @@ static void ath9k_rx_skb_postprocess(struct ath_common *common,
 	int hdrlen, padpos, padsize;
 	u8 keyix;
 	__le16 fc;
+	bool is_mc;
 
 	/* see if any padding is done by the hw and remove it */
 	hdr = (struct ieee80211_hdr *) skb->data;
+	is_mc = !!is_multicast_ether_addr(hdr->addr1);
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 	fc = hdr->frame_control;
 	padpos = ath9k_cmn_padpos(hdr->frame_control);
@@ -1072,7 +1074,7 @@ static void ath9k_rx_skb_postprocess(struct ath_common *common,
 
 	keyix = rx_stats->rs_keyix;
 
-	if (!(keyix == ATH9K_RXKEYIX_INVALID) && !decrypt_error &&
+	if ((is_mc || !(keyix == ATH9K_RXKEYIX_INVALID)) && !decrypt_error &&
 	    ieee80211_has_protected(fc)) {
 		rxs->flag |= RX_FLAG_DECRYPTED;
 	} else if (ieee80211_has_protected(fc)
