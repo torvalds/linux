@@ -54,9 +54,11 @@ static inline void omap_serial_outp(struct plat_serial8250_port *p, int offset,
  */
 static void __init omap_serial_reset(struct plat_serial8250_port *p)
 {
-	omap_serial_outp(p, UART_OMAP_MDR1, 0x07);	/* disable UART */
+	omap_serial_outp(p, UART_OMAP_MDR1,
+			UART_OMAP_MDR1_DISABLE);	/* disable UART */
 	omap_serial_outp(p, UART_OMAP_SCR, 0x08);	/* TX watermark */
-	omap_serial_outp(p, UART_OMAP_MDR1, 0x00);	/* enable UART */
+	omap_serial_outp(p, UART_OMAP_MDR1,
+			UART_OMAP_MDR1_16X_MODE);	/* enable UART */
 
 	if (!cpu_is_omap15xx()) {
 		omap_serial_outp(p, UART_OMAP_SYSC, 0x01);

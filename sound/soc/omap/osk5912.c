@@ -177,7 +177,8 @@ static int __init osk_soc_init(void)
 	tlv320aic23_mclk = clk_get(dev, "mclk");
 	if (IS_ERR(tlv320aic23_mclk)) {
 		printk(KERN_ERR "Could not get mclk clock\n");
-		return -ENODEV;
+		err = PTR_ERR(tlv320aic23_mclk);
+		goto err2;
 	}
 
 	/*
@@ -188,7 +189,7 @@ static int __init osk_soc_init(void)
 		if (clk_set_rate(tlv320aic23_mclk, CODEC_CLOCK)) {
 			printk(KERN_ERR "Cannot set MCLK for AIC23 CODEC\n");
 			err = -ECANCELED;
-			goto err1;
+			goto err3;
 		}
 	}
 
@@ -196,9 +197,12 @@ static int __init osk_soc_init(void)
 	       (uint) clk_get_rate(tlv320aic23_mclk), CODEC_CLOCK);
 
 	return 0;
-err1:
+
+err3:
 	clk_put(tlv320aic23_mclk);
+err2:
 	platform_device_del(osk_snd_device);
+err1:
 	platform_device_put(osk_snd_device);
 
 	return err;
@@ -207,6 +211,7 @@ err1:
 
 static void __exit osk_soc_exit(void)
 {
+	clk_put(tlv320aic23_mclk);
 	platform_device_unregister(osk_snd_device);
 }
 

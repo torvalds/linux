@@ -136,16 +136,9 @@ static struct mtd_partition igep2_onenand_partitions[] = {
 	},
 };
 
-static int igep2_onenand_setup(void __iomem *onenand_base, int freq)
-{
-       /* nothing is required to be setup for onenand as of now */
-       return 0;
-}
-
 static struct omap_onenand_platform_data igep2_onenand_data = {
 	.parts = igep2_onenand_partitions,
 	.nr_parts = ARRAY_SIZE(igep2_onenand_partitions),
-	.onenand_setup = igep2_onenand_setup,
 	.dma_channel	= -1,	/* disable DMA in OMAP OneNAND driver */
 };
 
@@ -159,35 +152,34 @@ static struct platform_device igep2_onenand_device = {
 
 static void __init igep2_flash_init(void)
 {
-	u8		cs = 0;
-	u8		onenandcs = GPMC_CS_NUM + 1;
+	u8 cs = 0;
+	u8 onenandcs = GPMC_CS_NUM + 1;
 
-	while (cs < GPMC_CS_NUM) {
-		u32 ret = 0;
+	for (cs = 0; cs < GPMC_CS_NUM; cs++) {
+		u32 ret;
 		ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG1);
 
 		/* Check if NAND/oneNAND is configured */
 		if ((ret & 0xC00) == 0x800)
 			/* NAND found */
-			pr_err("IGEP v2: Unsupported NAND found\n");
+			pr_err("IGEP2: Unsupported NAND found\n");
 		else {
 			ret = gpmc_cs_read_reg(cs, GPMC_CS_CONFIG7);
 			if ((ret & 0x3F) == (ONENAND_MAP >> 24))
 				/* ONENAND found */
 				onenandcs = cs;
 		}
-		cs++;
 	}
+
 	if (onenandcs > GPMC_CS_NUM) {
-		pr_err("IGEP v2: Unable to find configuration in GPMC\n");
+		pr_err("IGEP2: Unable to find configuration in GPMC\n");
 		return;
 	}
 
-	if (onenandcs < GPMC_CS_NUM) {
-		igep2_onenand_data.cs = onenandcs;
-		if (platform_device_register(&igep2_onenand_device) < 0)
-			pr_err("IGEP v2: Unable to register OneNAND device\n");
-	}
+	igep2_onenand_data.cs = onenandcs;
+
+	if (platform_device_register(&igep2_onenand_device) < 0)
+		pr_err("IGEP2: Unable to register OneNAND device\n");
 }
 
 #else
@@ -253,9 +245,6 @@ static inline void __init igep2_init_smsc911x(void)
 #else
 static inline void __init igep2_init_smsc911x(void) { }
 #endif
-
-static struct omap_board_config_kernel igep2_config[] __initdata = {
-};
 
 static struct regulator_consumer_supply igep2_vmmc1_supply = {
 	.supply		= "vmmc",
@@ -493,8 +482,6 @@ static struct platform_device *igep2_devices[] __initdata = {
 
 static void __init igep2_init_irq(void)
 {
-	omap_board_config = igep2_config;
-	omap_board_config_size = ARRAY_SIZE(igep2_config);
 	omap2_init_common_hw(m65kxxxxam_sdrc_params, m65kxxxxam_sdrc_params);
 	omap_init_irq();
 	omap_gpio_init();

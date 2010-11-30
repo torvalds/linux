@@ -653,13 +653,13 @@ static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 {
 	if (p->capabilities & UART_CAP_SLEEP) {
 		if (p->capabilities & UART_CAP_EFR) {
-			serial_outp(p, UART_LCR, 0xBF);
+			serial_outp(p, UART_LCR, UART_LCR_CONF_MODE_B);
 			serial_outp(p, UART_EFR, UART_EFR_ECB);
 			serial_outp(p, UART_LCR, 0);
 		}
 		serial_outp(p, UART_IER, sleep ? UART_IERX_SLEEP : 0);
 		if (p->capabilities & UART_CAP_EFR) {
-			serial_outp(p, UART_LCR, 0xBF);
+			serial_outp(p, UART_LCR, UART_LCR_CONF_MODE_B);
 			serial_outp(p, UART_EFR, 0);
 			serial_outp(p, UART_LCR, 0);
 		}
@@ -752,7 +752,7 @@ static int size_fifo(struct uart_8250_port *up)
 	serial_outp(up, UART_FCR, UART_FCR_ENABLE_FIFO |
 		    UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT);
 	serial_outp(up, UART_MCR, UART_MCR_LOOP);
-	serial_outp(up, UART_LCR, UART_LCR_DLAB);
+	serial_outp(up, UART_LCR, UART_LCR_CONF_MODE_A);
 	old_dl = serial_dl_read(up);
 	serial_dl_write(up, 0x0001);
 	serial_outp(up, UART_LCR, 0x03);
@@ -764,7 +764,7 @@ static int size_fifo(struct uart_8250_port *up)
 		serial_inp(up, UART_RX);
 	serial_outp(up, UART_FCR, old_fcr);
 	serial_outp(up, UART_MCR, old_mcr);
-	serial_outp(up, UART_LCR, UART_LCR_DLAB);
+	serial_outp(up, UART_LCR, UART_LCR_CONF_MODE_A);
 	serial_dl_write(up, old_dl);
 	serial_outp(up, UART_LCR, old_lcr);
 
@@ -782,7 +782,7 @@ static unsigned int autoconfig_read_divisor_id(struct uart_8250_port *p)
 	unsigned int id;
 
 	old_lcr = serial_inp(p, UART_LCR);
-	serial_outp(p, UART_LCR, UART_LCR_DLAB);
+	serial_outp(p, UART_LCR, UART_LCR_CONF_MODE_A);
 
 	old_dll = serial_inp(p, UART_DLL);
 	old_dlm = serial_inp(p, UART_DLM);
@@ -836,7 +836,7 @@ static void autoconfig_has_efr(struct uart_8250_port *up)
 	 * recommended for new designs).
 	 */
 	up->acr = 0;
-	serial_out(up, UART_LCR, 0xBF);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_out(up, UART_EFR, UART_EFR_ECB);
 	serial_out(up, UART_LCR, 0x00);
 	id1 = serial_icr_read(up, UART_ID1);
@@ -945,7 +945,7 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	 * Check for presence of the EFR when DLAB is set.
 	 * Only ST16C650V1 UARTs pass this test.
 	 */
-	serial_outp(up, UART_LCR, UART_LCR_DLAB);
+	serial_outp(up, UART_LCR, UART_LCR_CONF_MODE_A);
 	if (serial_in(up, UART_EFR) == 0) {
 		serial_outp(up, UART_EFR, 0xA8);
 		if (serial_in(up, UART_EFR) != 0) {
@@ -963,7 +963,7 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	 * Maybe it requires 0xbf to be written to the LCR.
 	 * (other ST16C650V2 UARTs, TI16C752A, etc)
 	 */
-	serial_outp(up, UART_LCR, 0xBF);
+	serial_outp(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	if (serial_in(up, UART_EFR) == 0 && !broken_efr(up)) {
 		DEBUG_AUTOCONF("EFRv2 ");
 		autoconfig_has_efr(up);
@@ -1024,7 +1024,7 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	serial_outp(up, UART_FCR, UART_FCR_ENABLE_FIFO | UART_FCR7_64BYTE);
 	status1 = serial_in(up, UART_IIR) >> 5;
 	serial_outp(up, UART_FCR, UART_FCR_ENABLE_FIFO);
-	serial_outp(up, UART_LCR, UART_LCR_DLAB);
+	serial_outp(up, UART_LCR, UART_LCR_CONF_MODE_A);
 	serial_outp(up, UART_FCR, UART_FCR_ENABLE_FIFO | UART_FCR7_64BYTE);
 	status2 = serial_in(up, UART_IIR) >> 5;
 	serial_outp(up, UART_FCR, UART_FCR_ENABLE_FIFO);
@@ -1183,7 +1183,7 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	 * We also initialise the EFR (if any) to zero for later.  The
 	 * EFR occupies the same register location as the FCR and IIR.
 	 */
-	serial_outp(up, UART_LCR, 0xBF);
+	serial_outp(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_outp(up, UART_EFR, 0);
 	serial_outp(up, UART_LCR, 0);
 
@@ -1952,7 +1952,7 @@ static int serial8250_startup(struct uart_port *port)
 	if (up->port.type == PORT_16C950) {
 		/* Wake up and initialize UART */
 		up->acr = 0;
-		serial_outp(up, UART_LCR, 0xBF);
+		serial_outp(up, UART_LCR, UART_LCR_CONF_MODE_B);
 		serial_outp(up, UART_EFR, UART_EFR_ECB);
 		serial_outp(up, UART_IER, 0);
 		serial_outp(up, UART_LCR, 0);
@@ -2002,7 +2002,7 @@ static int serial8250_startup(struct uart_port *port)
 	if (up->port.type == PORT_16850) {
 		unsigned char fctr;
 
-		serial_outp(up, UART_LCR, 0xbf);
+		serial_outp(up, UART_LCR, UART_LCR_CONF_MODE_B);
 
 		fctr = serial_inp(up, UART_FCTR) & ~(UART_FCTR_RX|UART_FCTR_TX);
 		serial_outp(up, UART_FCTR, fctr | UART_FCTR_TRGD | UART_FCTR_RX);
@@ -2363,7 +2363,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		if (termios->c_cflag & CRTSCTS)
 			efr |= UART_EFR_CTS;
 
-		serial_outp(up, UART_LCR, 0xBF);
+		serial_outp(up, UART_LCR, UART_LCR_CONF_MODE_B);
 		serial_outp(up, UART_EFR, efr);
 	}
 

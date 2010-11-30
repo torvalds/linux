@@ -570,7 +570,7 @@ serial_omap_configure_xonxoff
 	unsigned char efr = 0;
 
 	up->lcr = serial_in(up, UART_LCR);
-	serial_out(up, UART_LCR, OMAP_UART_LCR_CONF_MDB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	up->efr = serial_in(up, UART_EFR);
 	serial_out(up, UART_EFR, up->efr & ~UART_EFR_ECB);
 
@@ -598,7 +598,7 @@ serial_omap_configure_xonxoff
 		efr |= OMAP_UART_SW_RX;
 
 	serial_out(up, UART_EFR, up->efr | UART_EFR_ECB);
-	serial_out(up, UART_LCR, UART_LCR_DLAB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 
 	up->mcr = serial_in(up, UART_MCR);
 
@@ -612,14 +612,14 @@ serial_omap_configure_xonxoff
 		up->mcr |= UART_MCR_XONANY;
 
 	serial_out(up, UART_MCR, up->mcr | UART_MCR_TCRTLR);
-	serial_out(up, UART_LCR, OMAP_UART_LCR_CONF_MDB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_out(up, UART_TI752_TCR, OMAP_UART_TCR_TRIG);
 	/* Enable special char function UARTi.EFR_REG[5] and
 	 * load the new software flow control mode IXON or IXOFF
 	 * and restore the UARTi.EFR_REG[4] ENHANCED_EN value.
 	 */
 	serial_out(up, UART_EFR, efr | UART_EFR_SCD);
-	serial_out(up, UART_LCR, UART_LCR_DLAB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 
 	serial_out(up, UART_MCR, up->mcr & ~UART_MCR_TCRTLR);
 	serial_out(up, UART_LCR, up->lcr);
@@ -724,22 +724,22 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	 * baud clock is not running
 	 * DLL_REG and DLH_REG set to 0.
 	 */
-	serial_out(up, UART_LCR, UART_LCR_DLAB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 	serial_out(up, UART_DLL, 0);
 	serial_out(up, UART_DLM, 0);
 	serial_out(up, UART_LCR, 0);
 
-	serial_out(up, UART_LCR, OMAP_UART_LCR_CONF_MDB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 
 	up->efr = serial_in(up, UART_EFR);
 	serial_out(up, UART_EFR, up->efr | UART_EFR_ECB);
 
-	serial_out(up, UART_LCR, UART_LCR_DLAB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 	up->mcr = serial_in(up, UART_MCR);
 	serial_out(up, UART_MCR, up->mcr | UART_MCR_TCRTLR);
 	/* FIFO ENABLE, DMA MODE */
 	serial_out(up, UART_FCR, up->fcr);
-	serial_out(up, UART_LCR, OMAP_UART_LCR_CONF_MDB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 
 	if (up->use_dma) {
 		serial_out(up, UART_TI752_TLR, 0);
@@ -748,52 +748,52 @@ serial_omap_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	serial_out(up, UART_EFR, up->efr);
-	serial_out(up, UART_LCR, UART_LCR_DLAB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 	serial_out(up, UART_MCR, up->mcr);
 
 	/* Protocol, Baud Rate, and Interrupt Settings */
 
-	serial_out(up, UART_OMAP_MDR1, OMAP_MDR1_DISABLE);
-	serial_out(up, UART_LCR, OMAP_UART_LCR_CONF_MDB);
+	serial_out(up, UART_OMAP_MDR1, UART_OMAP_MDR1_DISABLE);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 
 	up->efr = serial_in(up, UART_EFR);
 	serial_out(up, UART_EFR, up->efr | UART_EFR_ECB);
 
 	serial_out(up, UART_LCR, 0);
 	serial_out(up, UART_IER, 0);
-	serial_out(up, UART_LCR, OMAP_UART_LCR_CONF_MDB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 
 	serial_out(up, UART_DLL, quot & 0xff);          /* LS of divisor */
 	serial_out(up, UART_DLM, quot >> 8);            /* MS of divisor */
 
 	serial_out(up, UART_LCR, 0);
 	serial_out(up, UART_IER, up->ier);
-	serial_out(up, UART_LCR, OMAP_UART_LCR_CONF_MDB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 
 	serial_out(up, UART_EFR, up->efr);
 	serial_out(up, UART_LCR, cval);
 
 	if (baud > 230400 && baud != 3000000)
-		serial_out(up, UART_OMAP_MDR1, OMAP_MDR1_MODE13X);
+		serial_out(up, UART_OMAP_MDR1, UART_OMAP_MDR1_13X_MODE);
 	else
-		serial_out(up, UART_OMAP_MDR1, OMAP_MDR1_MODE16X);
+		serial_out(up, UART_OMAP_MDR1, UART_OMAP_MDR1_16X_MODE);
 
 	/* Hardware Flow Control Configuration */
 
 	if (termios->c_cflag & CRTSCTS) {
 		efr |= (UART_EFR_CTS | UART_EFR_RTS);
-		serial_out(up, UART_LCR, UART_LCR_DLAB);
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 
 		up->mcr = serial_in(up, UART_MCR);
 		serial_out(up, UART_MCR, up->mcr | UART_MCR_TCRTLR);
 
-		serial_out(up, UART_LCR, OMAP_UART_LCR_CONF_MDB);
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 		up->efr = serial_in(up, UART_EFR);
 		serial_out(up, UART_EFR, up->efr | UART_EFR_ECB);
 
 		serial_out(up, UART_TI752_TCR, OMAP_UART_TCR_TRIG);
 		serial_out(up, UART_EFR, efr); /* Enable AUTORTS and AUTOCTS */
-		serial_out(up, UART_LCR, UART_LCR_DLAB);
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 		serial_out(up, UART_MCR, up->mcr | UART_MCR_RTS);
 		serial_out(up, UART_LCR, cval);
 	}
@@ -815,13 +815,13 @@ serial_omap_pm(struct uart_port *port, unsigned int state,
 	unsigned char efr;
 
 	dev_dbg(up->port.dev, "serial_omap_pm+%d\n", up->pdev->id);
-	serial_out(up, UART_LCR, OMAP_UART_LCR_CONF_MDB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	efr = serial_in(up, UART_EFR);
 	serial_out(up, UART_EFR, efr | UART_EFR_ECB);
 	serial_out(up, UART_LCR, 0);
 
 	serial_out(up, UART_IER, (state != 0) ? UART_IERX_SLEEP : 0);
-	serial_out(up, UART_LCR, OMAP_UART_LCR_CONF_MDB);
+	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_out(up, UART_EFR, efr);
 	serial_out(up, UART_LCR, 0);
 	/* Enable module level wake up */

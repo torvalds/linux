@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/serial_8250.h>
 #include <linux/pm_runtime.h>
+#include <linux/console.h>
 
 #ifdef CONFIG_SERIAL_OMAP
 #include <plat/omap-serial.h>
@@ -168,9 +169,9 @@ static inline void serial_write_reg(struct omap_uart_state *uart, int offset,
 
 static inline void __init omap_uart_reset(struct omap_uart_state *uart)
 {
-	serial_write_reg(uart, UART_OMAP_MDR1, 0x07);
+	serial_write_reg(uart, UART_OMAP_MDR1, UART_OMAP_MDR1_DISABLE);
 	serial_write_reg(uart, UART_OMAP_SCR, 0x08);
-	serial_write_reg(uart, UART_OMAP_MDR1, 0x00);
+	serial_write_reg(uart, UART_OMAP_MDR1, UART_OMAP_MDR1_16X_MODE);
 }
 
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3)
@@ -218,7 +219,7 @@ static void omap_uart_save_context(struct omap_uart_state *uart)
 		return;
 
 	lcr = serial_read_reg(uart, UART_LCR);
-	serial_write_reg(uart, UART_LCR, 0xBF);
+	serial_write_reg(uart, UART_LCR, UART_LCR_CONF_MODE_B);
 	uart->dll = serial_read_reg(uart, UART_DLL);
 	uart->dlh = serial_read_reg(uart, UART_DLM);
 	serial_write_reg(uart, UART_LCR, lcr);
@@ -226,7 +227,7 @@ static void omap_uart_save_context(struct omap_uart_state *uart)
 	uart->sysc = serial_read_reg(uart, UART_OMAP_SYSC);
 	uart->scr = serial_read_reg(uart, UART_OMAP_SCR);
 	uart->wer = serial_read_reg(uart, UART_OMAP_WER);
-	serial_write_reg(uart, UART_LCR, 0x80);
+	serial_write_reg(uart, UART_LCR, UART_LCR_CONF_MODE_A);
 	uart->mcr = serial_read_reg(uart, UART_MCR);
 	serial_write_reg(uart, UART_LCR, lcr);
 
@@ -246,32 +247,35 @@ static void omap_uart_restore_context(struct omap_uart_state *uart)
 	uart->context_valid = 0;
 
 	if (uart->errata & UART_ERRATA_i202_MDR1_ACCESS)
-		omap_uart_mdr1_errataset(uart, 0x07, 0xA0);
+		omap_uart_mdr1_errataset(uart, UART_OMAP_MDR1_DISABLE, 0xA0);
 	else
-		serial_write_reg(uart, UART_OMAP_MDR1, 0x7);
-	serial_write_reg(uart, UART_LCR, 0xBF); /* Config B mode */
+		serial_write_reg(uart, UART_OMAP_MDR1, UART_OMAP_MDR1_DISABLE);
+
+	serial_write_reg(uart, UART_LCR, UART_LCR_CONF_MODE_B);
 	efr = serial_read_reg(uart, UART_EFR);
 	serial_write_reg(uart, UART_EFR, UART_EFR_ECB);
 	serial_write_reg(uart, UART_LCR, 0x0); /* Operational mode */
 	serial_write_reg(uart, UART_IER, 0x0);
-	serial_write_reg(uart, UART_LCR, 0xBF); /* Config B mode */
+	serial_write_reg(uart, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_write_reg(uart, UART_DLL, uart->dll);
 	serial_write_reg(uart, UART_DLM, uart->dlh);
 	serial_write_reg(uart, UART_LCR, 0x0); /* Operational mode */
 	serial_write_reg(uart, UART_IER, uart->ier);
-	serial_write_reg(uart, UART_LCR, 0x80);
+	serial_write_reg(uart, UART_LCR, UART_LCR_CONF_MODE_A);
 	serial_write_reg(uart, UART_MCR, uart->mcr);
-	serial_write_reg(uart, UART_LCR, 0xBF); /* Config B mode */
+	serial_write_reg(uart, UART_LCR, UART_LCR_CONF_MODE_B);
 	serial_write_reg(uart, UART_EFR, efr);
 	serial_write_reg(uart, UART_LCR, UART_LCR_WLEN8);
 	serial_write_reg(uart, UART_OMAP_SCR, uart->scr);
 	serial_write_reg(uart, UART_OMAP_WER, uart->wer);
 	serial_write_reg(uart, UART_OMAP_SYSC, uart->sysc);
+
 	if (uart->errata & UART_ERRATA_i202_MDR1_ACCESS)
-		omap_uart_mdr1_errataset(uart, 0x00, 0xA1);
+		omap_uart_mdr1_errataset(uart, UART_OMAP_MDR1_16X_MODE, 0xA1);
 	else
 		/* UART 16x mode */
-		serial_write_reg(uart, UART_OMAP_MDR1, 0x00);
+		serial_write_reg(uart, UART_OMAP_MDR1,
+				UART_OMAP_MDR1_16X_MODE);
 }
 #else
 static inline void omap_uart_save_context(struct omap_uart_state *uart) {}
@@ -406,7 +410,7 @@ void omap_uart_resume_idle(int num)
 	struct omap_uart_state *uart;
 
 	list_for_each_entry(uart, &uart_list, node) {
-		if (num == uart->num) {
+		if (num == uart->num && uart->can_sleep) {
 			omap_uart_enable_clocks(uart);
 
 			/* Check for IO pad wakeup */
@@ -807,6 +811,8 @@ void __init omap_serial_init_port(int port)
 
 	oh->dev_attr = uart;
 
+	acquire_console_sem(); /* in case the earlycon is on the UART */
+
 	/*
 	 * Because of early UART probing, UART did not get idled
 	 * on init.  Now that omap_device is ready, ensure full idle
@@ -830,6 +836,8 @@ void __init omap_serial_init_port(int port)
 		uart->timeout = (30 * HZ);
 	omap_uart_block_sleep(uart);
 	uart->timeout = DEFAULT_TIMEOUT;
+
+	release_console_sem();
 
 	if ((cpu_is_omap34xx() && uart->padconf) ||
 	    (uart->wk_en && uart->wk_mask)) {

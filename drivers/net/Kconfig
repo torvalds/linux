@@ -2543,10 +2543,10 @@ config PCH_GBE
 	depends on PCI
 	select MII
 	---help---
-	  This is a gigabit ethernet driver for Topcliff PCH.
-	  Topcliff PCH is the platform controller hub that is used in Intel's
+	  This is a gigabit ethernet driver for EG20T PCH.
+	  EG20T PCH is the platform controller hub that is used in Intel's
 	  general embedded platform.
-	  Topcliff PCH has Gigabit Ethernet interface.
+	  EG20T PCH has Gigabit Ethernet interface.
 	  Using this interface, it is able to access system devices connected
 	  to Gigabit Ethernet.
 	  This driver enables Gigabit Ethernet function.
@@ -2944,6 +2944,18 @@ source "drivers/ieee802154/Kconfig"
 source "drivers/s390/net/Kconfig"
 
 source "drivers/net/caif/Kconfig"
+
+config TILE_NET
+	tristate "Tilera GBE/XGBE network driver support"
+	depends on TILE
+	default y
+	select CRC32
+	help
+	  This is a standard Linux network device driver for the
+	  on-chip Tilera Gigabit Ethernet and XAUI interfaces.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called tile_net.
 
 config XEN_NETDEV_FRONTEND
 	tristate "Xen network device frontend driver"

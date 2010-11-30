@@ -308,9 +308,7 @@ static void __init ams_delta_init(void)
 #endif
 	platform_add_devices(ams_delta_devices, ARRAY_SIZE(ams_delta_devices));
 
-#ifdef CONFIG_AMS_DELTA_FIQ
 	ams_delta_init_fiq();
-#endif
 
 	omap_writew(omap_readw(ARM_RSTCT1) | 0x0004, ARM_RSTCT1);
 }

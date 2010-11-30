@@ -1176,7 +1176,7 @@ EXPORT_SYMBOL_GPL(aic3x_set_gpio);
 int aic3x_get_gpio(struct snd_soc_codec *codec, int gpio)
 {
 	u8 reg = gpio ? AIC3X_GPIO2_REG : AIC3X_GPIO1_REG;
-	u8 val, bit = gpio ? 2: 1;
+	u8 val = 0, bit = gpio ? 2 : 1;
 
 	aic3x_read(codec, reg, &val);
 	return (val >> bit) & 1;
@@ -1204,7 +1204,7 @@ EXPORT_SYMBOL_GPL(aic3x_set_headset_detection);
 
 int aic3x_headset_detected(struct snd_soc_codec *codec)
 {
-	u8 val;
+	u8 val = 0;
 	aic3x_read(codec, AIC3X_HEADSET_DETECT_CTRL_B, &val);
 	return (val >> 4) & 1;
 }
@@ -1212,7 +1212,7 @@ EXPORT_SYMBOL_GPL(aic3x_headset_detected);
 
 int aic3x_button_pressed(struct snd_soc_codec *codec)
 {
-	u8 val;
+	u8 val = 0;
 	aic3x_read(codec, AIC3X_HEADSET_DETECT_CTRL_B, &val);
 	return (val >> 5) & 1;
 }

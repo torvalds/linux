@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/i2c.h>
+#include <linux/sysdev.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

@@ -1047,8 +1047,14 @@ out:
 
 		if ((file->f_flags & O_DSYNC) || IS_SYNC(inode)) {
 			trans = btrfs_start_transaction(root, 0);
+			if (IS_ERR(trans)) {
+				num_written = PTR_ERR(trans);
+				goto done;
+			}
+			mutex_lock(&inode->i_mutex);
 			ret = btrfs_log_dentry_safe(trans, root,
 						    file->f_dentry);
+			mutex_unlock(&inode->i_mutex);
 			if (ret == 0) {
 				ret = btrfs_sync_log(trans, root);
 				if (ret == 0)
@@ -1067,6 +1073,7 @@ out:
 			     (start_pos + num_written - 1) >> PAGE_CACHE_SHIFT);
 		}
 	}
+done:
 	current->backing_dev_info = NULL;
 	return num_written ? num_written : err;
 }

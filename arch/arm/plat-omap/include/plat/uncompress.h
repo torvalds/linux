@@ -145,6 +145,7 @@ static inline void __arch_decomp_setup(unsigned long arch_id)
 		/* omap3 based boards using UART3 */
 		DEBUG_LL_OMAP3(3, cm_t35);
 		DEBUG_LL_OMAP3(3, cm_t3517);
+		DEBUG_LL_OMAP3(3, craneboard);
 		DEBUG_LL_OMAP3(3, igep0020);
 		DEBUG_LL_OMAP3(3, igep0030);
 		DEBUG_LL_OMAP3(3, nokia_rx51);
