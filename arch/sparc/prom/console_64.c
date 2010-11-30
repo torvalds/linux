@@ -18,41 +18,37 @@ extern int prom_stdin, prom_stdout;
 /* Non blocking get character from console input device, returns -1
  * if no input was taken.  This can be used for polling.
  */
-static int prom_nbgetchar(void)
+static int prom_nbgetchar(char *buf)
 {
 	unsigned long args[7];
-	char inc;
 
 	args[0] = (unsigned long) "read";
 	args[1] = 3;
 	args[2] = 1;
 	args[3] = (unsigned int) prom_stdin;
-	args[4] = (unsigned long) &inc;
+	args[4] = (unsigned long) buf;
 	args[5] = 1;
 	args[6] = (unsigned long) -1;
 
 	p1275_cmd_direct(args);
 
 	if (args[6] == 1)
-		return inc;
+		return 0;
 	return -1;
 }
 
 /* Non blocking put character to console device, returns -1 if
  * unsuccessful.
  */
-static int prom_nbputchar(char c)
+static int prom_nbputchar(const char *buf)
 {
 	unsigned long args[7];
-	char outc;
-	
-	outc = c;
 
 	args[0] = (unsigned long) "write";
 	args[1] = 3;
 	args[2] = 1;
 	args[3] = (unsigned int) prom_stdout;
-	args[4] = (unsigned long) &outc;
+	args[4] = (unsigned long) buf;
 	args[5] = 1;
 	args[6] = (unsigned long) -1;
 
@@ -65,17 +61,21 @@ static int prom_nbputchar(char c)
 }
 
 /* Blocking version of get character routine above. */
-char
-prom_getchar(void)
+void prom_getchar(char *buf)
 {
-	int character;
-	while((character = prom_nbgetchar()) == -1) ;
-	return (char) character;
+	while (1) {
+		int err = prom_nbgetchar(buf);
+		if (!err)
+			break;
+	}
 }
 
 /* Blocking version of put character routine above. */
-void
-prom_putchar(char c)
+void prom_putchar(const char *buf)
 {
-	prom_nbputchar(c);
+	while (1) {
+		int err = prom_nbputchar(buf);
+		if (!err)
+			break;
+	}
 }
