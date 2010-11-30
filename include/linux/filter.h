@@ -124,7 +124,9 @@ struct sock_fprog {	/* Required for SO_ATTACH_FILTER. */
 #define SKF_AD_MARK 	20
 #define SKF_AD_QUEUE	24
 #define SKF_AD_HATYPE	28
-#define SKF_AD_MAX	32
+#define SKF_AD_RXHASH	32
+#define SKF_AD_CPU	36
+#define SKF_AD_MAX	40
 #define SKF_NET_OFF   (-0x100000)
 #define SKF_LL_OFF    (-0x200000)
 

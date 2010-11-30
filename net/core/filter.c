@@ -375,6 +375,12 @@ load_b:
 				return 0;
 			A = skb->dev->type;
 			continue;
+		case SKF_AD_RXHASH:
+			A = skb->rxhash;
+			continue;
+		case SKF_AD_CPU:
+			A = raw_smp_processor_id();
+			continue;
 		case SKF_AD_NLATTR: {
 			struct nlattr *nla;
 
