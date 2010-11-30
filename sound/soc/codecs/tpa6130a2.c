@@ -151,11 +151,6 @@ static int tpa6130a2_power(u8 power)
 			data->power_state = 0;
 			goto exit;
 		}
-
-		/* Clear SWS */
-		val = tpa6130a2_read(TPA6130A2_REG_CONTROL);
-		val &= ~TPA6130A2_SWS;
-		tpa6130a2_i2c_write(TPA6130A2_REG_CONTROL, val);
 	} else {
 		/* set SWS */
 		val = tpa6130a2_read(TPA6130A2_REG_CONTROL);
@@ -301,6 +296,7 @@ static void tpa6130a2_channel_enable(u8 channel, int enable)
 		/* Enable amplifier */
 		val = tpa6130a2_read(TPA6130A2_REG_CONTROL);
 		val |= channel;
+		val &= ~TPA6130A2_SWS;
 		tpa6130a2_i2c_write(TPA6130A2_REG_CONTROL, val);
 
 		/* Unmute channel */
