@@ -125,6 +125,7 @@ struct kxtf9_data {
 
 	int hw_initialized;
 	atomic_t enabled;
+	int enabled_b4_suspend;
 	u8 shift_adj;
 	u8 resume_state[RESUME_ENTRIES];
 	int irq;
@@ -1151,6 +1152,7 @@ static int kxtf9_probe(struct i2c_client *client,
 
 	kxtf9_device_power_off(tf9);
 	atomic_set(&tf9->enabled, 0);
+	tf9->enabled_b4_suspend = 0;
 
 	err = request_irq(tf9->irq, kxtf9_isr, IRQF_TRIGGER_RISING,
 		"kxtf9_irq", tf9);
@@ -1207,15 +1209,21 @@ static int __devexit kxtf9_remove(struct i2c_client *client)
 
 static int kxtf9_resume(struct i2c_client *client)
 {
+	int err = -1 ;
 	struct kxtf9_data *tf9 = i2c_get_clientdata(client);
-
-	return kxtf9_enable(tf9);
+	if(tf9->enabled_b4_suspend != 0) {
+		err = kxtf9_enable(tf9);
+		if(!err) {
+			err = kxtf9_update_odr(tf9,tf9->pdata->poll_interval);
+		}
+	}
+	return err;
 }
 
 static int kxtf9_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct kxtf9_data *tf9 = i2c_get_clientdata(client);
-
+	tf9->enabled_b4_suspend = atomic_read(&tf9->enabled);
 	return kxtf9_disable(tf9);
 }
 
