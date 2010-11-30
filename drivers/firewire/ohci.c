@@ -418,10 +418,6 @@ static const char *tcodes[] = {
 	[0xc] = "-reserved-",		[0xd] = "-reserved-",
 	[0xe] = "link internal",	[0xf] = "-reserved-",
 };
-static const char *phys[] = {
-	[0x0] = "phy config packet",	[0x1] = "link-on packet",
-	[0x2] = "self-id packet",	[0x3] = "-reserved-",
-};
 
 static void log_ar_at_event(char dir, int speed, u32 *header, int evt)
 {
@@ -440,12 +436,6 @@ static void log_ar_at_event(char dir, int speed, u32 *header, int evt)
 		return;
 	}
 
-	if (header[0] == ~header[1]) {
-		fw_notify("A%c %s, %s, %08x\n",
-		    dir, evts[evt], phys[header[0] >> 30 & 0x3], header[0]);
-		return;
-	}
-
 	switch (tcode) {
 	case 0x0: case 0x6: case 0x8:
 		snprintf(specific, sizeof(specific), " = %08x",
@@ -460,8 +450,12 @@ static void log_ar_at_event(char dir, int speed, u32 *header, int evt)
 	}
 
 	switch (tcode) {
-	case 0xe: case 0xa:
+	case 0xa:
 		fw_notify("A%c %s, %s\n", dir, evts[evt], tcodes[tcode]);
+		break;
+	case 0xe:
+		fw_notify("A%c %s, PHY %08x %08x\n",
+			  dir, evts[evt], header[1], header[2]);
 		break;
 	case 0x0: case 0x1: case 0x4: case 0x5: case 0x9:
 		fw_notify("A%c spd %x tl %02x, "
@@ -1250,21 +1244,27 @@ static int at_context_queue_packet(struct context *ctx,
 	/*
 	 * The DMA format for asyncronous link packets is different
 	 * from the IEEE1394 layout, so shift the fields around
-	 * accordingly.  If header_length is 8, it's a PHY packet, to
-	 * which we need to prepend an extra quadlet.
+	 * accordingly.
 	 */
 
+	tcode = (packet->header[0] >> 4) & 0x0f;
 	header = (__le32 *) &d[1];
-	switch (packet->header_length) {
-	case 16:
-	case 12:
+	switch (tcode) {
+	case TCODE_WRITE_QUADLET_REQUEST:
+	case TCODE_WRITE_BLOCK_REQUEST:
+	case TCODE_WRITE_RESPONSE:
+	case TCODE_READ_QUADLET_REQUEST:
+	case TCODE_READ_BLOCK_REQUEST:
+	case TCODE_READ_QUADLET_RESPONSE:
+	case TCODE_READ_BLOCK_RESPONSE:
+	case TCODE_LOCK_REQUEST:
+	case TCODE_LOCK_RESPONSE:
 		header[0] = cpu_to_le32((packet->header[0] & 0xffff) |
 					(packet->speed << 16));
 		header[1] = cpu_to_le32((packet->header[1] & 0xffff) |
 					(packet->header[0] & 0xffff0000));
 		header[2] = cpu_to_le32(packet->header[2]);
 
-		tcode = (packet->header[0] >> 4) & 0x0f;
 		if (TCODE_IS_BLOCK_PACKET(tcode))
 			header[3] = cpu_to_le32(packet->header[3]);
 		else
@@ -1273,18 +1273,18 @@ static int at_context_queue_packet(struct context *ctx,
 		d[0].req_count = cpu_to_le16(packet->header_length);
 		break;
 
-	case 8:
+	case TCODE_LINK_INTERNAL:
 		header[0] = cpu_to_le32((OHCI1394_phy_tcode << 4) |
 					(packet->speed << 16));
-		header[1] = cpu_to_le32(packet->header[0]);
-		header[2] = cpu_to_le32(packet->header[1]);
+		header[1] = cpu_to_le32(packet->header[1]);
+		header[2] = cpu_to_le32(packet->header[2]);
 		d[0].req_count = cpu_to_le16(12);
 
-		if (is_ping_packet(packet->header))
+		if (is_ping_packet(&packet->header[1]))
 			d[0].control |= cpu_to_le16(DESCRIPTOR_PING);
 		break;
 
-	case 4:
+	case TCODE_STREAM_DATA:
 		header[0] = cpu_to_le32((packet->header[0] & 0xffff) |
 					(packet->speed << 16));
 		header[1] = cpu_to_le32(packet->header[0] & 0xffff0000);
