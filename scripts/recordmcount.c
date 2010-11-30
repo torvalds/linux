@@ -357,7 +357,7 @@ do_file(char const *const fname)
 int
 main(int argc, char const *argv[])
 {
-	const char ftrace[] = "kernel/trace/ftrace.o";
+	const char ftrace[] = "/ftrace.o";
 	int ftrace_size = sizeof(ftrace) - 1;
 	int n_error = 0;  /* gcc-4.3.0 false positive complaint */
 
