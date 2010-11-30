@@ -738,7 +738,7 @@ int __perf_session__process_events(struct perf_session *session,
 				   u64 data_offset, u64 data_size,
 				   u64 file_size, struct perf_event_ops *ops)
 {
-	u64 head, page_offset, file_offset;
+	u64 head, page_offset, file_offset, file_pos;
 	int err, mmap_prot, mmap_flags;
 	struct ui_progress *progress;
 	size_t	page_size;
@@ -758,6 +758,9 @@ int __perf_session__process_events(struct perf_session *session,
 	file_offset = page_offset;
 	head = data_offset - page_offset;
 
+	if (data_offset + data_size < file_size)
+		file_size = data_offset + data_size;
+
 	mmap_prot  = PROT_READ;
 	mmap_flags = MAP_SHARED;
 
@@ -773,6 +776,7 @@ remap:
 		err = -errno;
 		goto out_err;
 	}
+	file_pos = file_offset + head;
 	ui_progress__update(progress, file_offset);
 
 more:
@@ -799,10 +803,10 @@ more:
 	size = event->header.size;
 
 	dump_printf("\n%#Lx [%#x]: event: %d\n",
-		    file_offset + head, event->header.size, event->header.type);
+		    file_pos, event->header.size, event->header.type);
 
-	if (size == 0 || perf_session__process_event(session, event, ops,
-						     file_offset + head) < 0) {
+	if (size == 0 ||
+	    perf_session__process_event(session, event, ops, file_pos) < 0) {
 		dump_printf("%#Lx [%#x]: skipping unknown header type: %d\n",
 			    file_offset + head, event->header.size,
 			    event->header.type);
@@ -817,13 +821,11 @@ more:
 	}
 
 	head += size;
+	file_pos += size;
 
-	if (file_offset + head >= data_offset + data_size)
-		goto done;
-
-	if (file_offset + head < file_size)
+	if (file_pos < file_size)
 		goto more;
-done:
+
 	err = 0;
 	/* do the final flush for ordered samples */
 	session->ordered_samples.next_flush = ULLONG_MAX;
