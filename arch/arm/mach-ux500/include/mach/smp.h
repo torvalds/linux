@@ -10,7 +10,6 @@
 #define ASMARM_ARCH_SMP_H
 
 #include <asm/hardware/gic.h>
-#include <asm/smp_mpidr.h>
 
 /* This is required to wakeup the secondary core */
 extern void u8500_secondary_startup(void);
