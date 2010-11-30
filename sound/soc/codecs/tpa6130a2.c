@@ -41,7 +41,7 @@ struct tpa6130a2_data {
 	unsigned char regs[TPA6130A2_CACHEREGNUM];
 	struct regulator *supply;
 	int power_gpio;
-	unsigned char power_state;
+	u8 power_state:1;
 	enum tpa_model id;
 };
 
@@ -116,7 +116,7 @@ static int tpa6130a2_initialize(void)
 	return ret;
 }
 
-static int tpa6130a2_power(int power)
+static int tpa6130a2_power(u8 power)
 {
 	struct	tpa6130a2_data *data;
 	u8	val;
@@ -126,8 +126,10 @@ static int tpa6130a2_power(int power)
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	mutex_lock(&data->mutex);
-	if (power && !data->power_state) {
+	if (power == data->power_state)
+		goto exit;
 
+	if (power) {
 		ret = regulator_enable(data->supply);
 		if (ret != 0) {
 			dev_err(&tpa6130a2_client->dev,
@@ -154,7 +156,7 @@ static int tpa6130a2_power(int power)
 		val = tpa6130a2_read(TPA6130A2_REG_CONTROL);
 		val &= ~TPA6130A2_SWS;
 		tpa6130a2_i2c_write(TPA6130A2_REG_CONTROL, val);
-	} else if (!power && data->power_state) {
+	} else {
 		/* set SWS */
 		val = tpa6130a2_read(TPA6130A2_REG_CONTROL);
 		val |= TPA6130A2_SWS;
