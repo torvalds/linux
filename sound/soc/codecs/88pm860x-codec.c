@@ -1358,7 +1358,7 @@ static int pm860x_probe(struct snd_soc_codec *codec)
 					   pm860x->name[i], pm860x);
 		if (ret < 0) {
 			dev_err(codec->dev, "Failed to request IRQ!\n");
-			goto out_irq;
+			goto out;
 		}
 	}
 
@@ -1369,7 +1369,7 @@ static int pm860x_probe(struct snd_soc_codec *codec)
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to fill register cache: %d\n",
 			ret);
-		goto out_codec;
+		goto out;
 	}
 
 	snd_soc_add_controls(codec, pm860x_snd_controls,
@@ -1379,12 +1379,10 @@ static int pm860x_probe(struct snd_soc_codec *codec)
 	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
 	return 0;
 
-out_codec:
-	i = 3;
-out_irq:
-	for (; i >= 0; i--)
+out:
+	while (--i >= 0)
 		free_irq(pm860x->irq[i], pm860x);
-	return -EINVAL;
+	return ret;
 }
 
 static int pm860x_remove(struct snd_soc_codec *codec)
