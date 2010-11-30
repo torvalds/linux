@@ -38,6 +38,7 @@ static void *ehdr_curr; /* current ElfXX_Ehdr *  for resource cleanup */
 static char gpfx;	/* prefix for global symbol name (sometimes '_') */
 static struct stat sb;	/* Remember .st_size, etc. */
 static jmp_buf jmpenv;	/* setjmp/longjmp per-file error escape */
+static const char *altmcount;	/* alternate mcount symbol name */
 
 /* setjmp() return values */
 enum {
@@ -299,7 +300,9 @@ do_file(char const *const fname)
 		fail_file();
 	} break;
 	case EM_386:	 reltype = R_386_32;                   break;
-	case EM_ARM:	 reltype = R_ARM_ABS32;                break;
+	case EM_ARM:	 reltype = R_ARM_ABS32;
+			 altmcount = "__gnu_mcount_nc";
+			 break;
 	case EM_IA_64:	 reltype = R_IA64_IMM64;   gpfx = '_'; break;
 	case EM_MIPS:	 /* reltype: e_class    */ gpfx = '_'; break;
 	case EM_PPC:	 reltype = R_PPC_ADDR32;   gpfx = '_'; break;
