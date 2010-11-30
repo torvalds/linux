@@ -394,6 +394,11 @@ xfs_bmap_count_blocks(
 	int			whichfork,
 	int			*count);
 
+int
+xfs_bmap_punch_delalloc_range(
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		start_fsb,
+	xfs_fileoff_t		length);
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_BMAP_H__ */

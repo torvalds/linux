@@ -6070,3 +6070,79 @@ xfs_bmap_disk_count_leaves(
 		*count += xfs_bmbt_disk_get_blockcount(frp);
 	}
 }
+
+/*
+ * dead simple method of punching delalyed allocation blocks from a range in
+ * the inode. Walks a block at a time so will be slow, but is only executed in
+ * rare error cases so the overhead is not critical. This will alays punch out
+ * both the start and end blocks, even if the ranges only partially overlap
+ * them, so it is up to the caller to ensure that partial blocks are not
+ * passed in.
+ */
+int
+xfs_bmap_punch_delalloc_range(
+	struct xfs_inode	*ip,
+	xfs_fileoff_t		start_fsb,
+	xfs_fileoff_t		length)
+{
+	xfs_fileoff_t		remaining = length;
+	int			error = 0;
+
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+
+	do {
+		int		done;
+		xfs_bmbt_irec_t	imap;
+		int		nimaps = 1;
+		xfs_fsblock_t	firstblock;
+		xfs_bmap_free_t flist;
+
+		/*
+		 * Map the range first and check that it is a delalloc extent
+		 * before trying to unmap the range. Otherwise we will be
+		 * trying to remove a real extent (which requires a
+		 * transaction) or a hole, which is probably a bad idea...
+		 */
+		error = xfs_bmapi(NULL, ip, start_fsb, 1,
+				XFS_BMAPI_ENTIRE,  NULL, 0, &imap,
+				&nimaps, NULL);
+
+		if (error) {
+			/* something screwed, just bail */
+			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+				xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+			"Failed delalloc mapping lookup ino %lld fsb %lld.",
+						ip->i_ino, start_fsb);
+			}
+			break;
+		}
+		if (!nimaps) {
+			/* nothing there */
+			goto next_block;
+		}
+		if (imap.br_startblock != DELAYSTARTBLOCK) {
+			/* been converted, ignore */
+			goto next_block;
+		}
+		WARN_ON(imap.br_blockcount == 0);
+
+		/*
+		 * Note: while we initialise the firstblock/flist pair, they
+		 * should never be used because blocks should never be
+		 * allocated or freed for a delalloc extent and hence we need
+		 * don't cancel or finish them after the xfs_bunmapi() call.
+		 */
+		xfs_bmap_init(&flist, &firstblock);
+		error = xfs_bunmapi(NULL, ip, start_fsb, 1, 0, 1, &firstblock,
+					&flist, &done);
+		if (error)
+			break;
+
+		ASSERT(!flist.xbf_count && !flist.xbf_first);
+next_block:
+		start_fsb++;
+		remaining--;
+	} while(remaining > 0);
+
+	return error;
+}
