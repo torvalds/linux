@@ -41,13 +41,6 @@
 #include "user_reg.h"
 #include "config.h"
 
-struct subscr_data {
-	char usr_handle[8];
-	u32 domain;
-	u32 port_ref;
-	struct list_head subd_list;
-};
-
 struct manager {
 	u32 user_ref;
 	u32 port_ref;
