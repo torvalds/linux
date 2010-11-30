@@ -99,8 +99,7 @@ struct nested_state {
 
 	/* cache for intercepts of the guest */
 	u32 intercept_cr;
-	u16 intercept_dr_read;
-	u16 intercept_dr_write;
+	u32 intercept_dr;
 	u32 intercept_exceptions;
 	u64 intercept;
 
@@ -204,8 +203,7 @@ static void recalc_intercepts(struct vcpu_svm *svm)
 	g = &svm->nested;
 
 	c->intercept_cr = h->intercept_cr | g->intercept_cr;
-	c->intercept_dr_read = h->intercept_dr_read | g->intercept_dr_read;
-	c->intercept_dr_write = h->intercept_dr_write | g->intercept_dr_write;
+	c->intercept_dr = h->intercept_dr | g->intercept_dr;
 	c->intercept_exceptions = h->intercept_exceptions | g->intercept_exceptions;
 	c->intercept = h->intercept | g->intercept;
 }
@@ -241,6 +239,24 @@ static inline bool is_cr_intercept(struct vcpu_svm *svm, int bit)
 	struct vmcb *vmcb = get_host_vmcb(svm);
 
 	return vmcb->control.intercept_cr & (1U << bit);
+}
+
+static inline void set_dr_intercept(struct vcpu_svm *svm, int bit)
+{
+	struct vmcb *vmcb = get_host_vmcb(svm);
+
+	vmcb->control.intercept_dr |= (1U << bit);
+
+	recalc_intercepts(svm);
+}
+
+static inline void clr_dr_intercept(struct vcpu_svm *svm, int bit)
+{
+	struct vmcb *vmcb = get_host_vmcb(svm);
+
+	vmcb->control.intercept_dr &= ~(1U << bit);
+
+	recalc_intercepts(svm);
 }
 
 static inline void enable_gif(struct vcpu_svm *svm)
@@ -807,23 +823,23 @@ static void init_vmcb(struct vcpu_svm *svm)
 	set_cr_intercept(svm, INTERCEPT_CR4_WRITE);
 	set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 
-	control->intercept_dr_read =	INTERCEPT_DR0_MASK |
-					INTERCEPT_DR1_MASK |
-					INTERCEPT_DR2_MASK |
-					INTERCEPT_DR3_MASK |
-					INTERCEPT_DR4_MASK |
-					INTERCEPT_DR5_MASK |
-					INTERCEPT_DR6_MASK |
-					INTERCEPT_DR7_MASK;
+	set_dr_intercept(svm, INTERCEPT_DR0_READ);
+	set_dr_intercept(svm, INTERCEPT_DR1_READ);
+	set_dr_intercept(svm, INTERCEPT_DR2_READ);
+	set_dr_intercept(svm, INTERCEPT_DR3_READ);
+	set_dr_intercept(svm, INTERCEPT_DR4_READ);
+	set_dr_intercept(svm, INTERCEPT_DR5_READ);
+	set_dr_intercept(svm, INTERCEPT_DR6_READ);
+	set_dr_intercept(svm, INTERCEPT_DR7_READ);
 
-	control->intercept_dr_write =	INTERCEPT_DR0_MASK |
-					INTERCEPT_DR1_MASK |
-					INTERCEPT_DR2_MASK |
-					INTERCEPT_DR3_MASK |
-					INTERCEPT_DR4_MASK |
-					INTERCEPT_DR5_MASK |
-					INTERCEPT_DR6_MASK |
-					INTERCEPT_DR7_MASK;
+	set_dr_intercept(svm, INTERCEPT_DR0_WRITE);
+	set_dr_intercept(svm, INTERCEPT_DR1_WRITE);
+	set_dr_intercept(svm, INTERCEPT_DR2_WRITE);
+	set_dr_intercept(svm, INTERCEPT_DR3_WRITE);
+	set_dr_intercept(svm, INTERCEPT_DR4_WRITE);
+	set_dr_intercept(svm, INTERCEPT_DR5_WRITE);
+	set_dr_intercept(svm, INTERCEPT_DR6_WRITE);
+	set_dr_intercept(svm, INTERCEPT_DR7_WRITE);
 
 	control->intercept_exceptions = (1 << PF_VECTOR) |
 					(1 << UD_VECTOR) |
@@ -1923,15 +1939,9 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
 			vmexit = NESTED_EXIT_DONE;
 		break;
 	}
-	case SVM_EXIT_READ_DR0 ... SVM_EXIT_READ_DR7: {
-		u32 dr_bits = 1 << (exit_code - SVM_EXIT_READ_DR0);
-		if (svm->nested.intercept_dr_read & dr_bits)
-			vmexit = NESTED_EXIT_DONE;
-		break;
-	}
-	case SVM_EXIT_WRITE_DR0 ... SVM_EXIT_WRITE_DR7: {
-		u32 dr_bits = 1 << (exit_code - SVM_EXIT_WRITE_DR0);
-		if (svm->nested.intercept_dr_write & dr_bits)
+	case SVM_EXIT_READ_DR0 ... SVM_EXIT_WRITE_DR7: {
+		u32 bit = 1U << (exit_code - SVM_EXIT_READ_DR0);
+		if (svm->nested.intercept_dr & bit)
 			vmexit = NESTED_EXIT_DONE;
 		break;
 	}
@@ -1977,8 +1987,7 @@ static inline void copy_vmcb_control_area(struct vmcb *dst_vmcb, struct vmcb *fr
 	struct vmcb_control_area *from = &from_vmcb->control;
 
 	dst->intercept_cr         = from->intercept_cr;
-	dst->intercept_dr_read    = from->intercept_dr_read;
-	dst->intercept_dr_write   = from->intercept_dr_write;
+	dst->intercept_dr         = from->intercept_dr;
 	dst->intercept_exceptions = from->intercept_exceptions;
 	dst->intercept            = from->intercept;
 	dst->iopm_base_pa         = from->iopm_base_pa;
@@ -2280,8 +2289,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 
 	/* cache intercepts */
 	svm->nested.intercept_cr         = nested_vmcb->control.intercept_cr;
-	svm->nested.intercept_dr_read    = nested_vmcb->control.intercept_dr_read;
-	svm->nested.intercept_dr_write   = nested_vmcb->control.intercept_dr_write;
+	svm->nested.intercept_dr         = nested_vmcb->control.intercept_dr;
 	svm->nested.intercept_exceptions = nested_vmcb->control.intercept_exceptions;
 	svm->nested.intercept            = nested_vmcb->control.intercept;
 
@@ -2906,8 +2914,8 @@ void dump_vmcb(struct kvm_vcpu *vcpu)
 	pr_err("VMCB Control Area:\n");
 	pr_err("cr_read:            %04x\n", control->intercept_cr & 0xffff);
 	pr_err("cr_write:           %04x\n", control->intercept_cr >> 16);
-	pr_err("dr_read:            %04x\n", control->intercept_dr_read);
-	pr_err("dr_write:           %04x\n", control->intercept_dr_write);
+	pr_err("dr_read:            %04x\n", control->intercept_dr & 0xffff);
+	pr_err("dr_write:           %04x\n", control->intercept_dr >> 16);
 	pr_err("exceptions:         %08x\n", control->intercept_exceptions);
 	pr_err("intercepts:         %016llx\n", control->intercept);
 	pr_err("pause filter count: %d\n", control->pause_filter_count);

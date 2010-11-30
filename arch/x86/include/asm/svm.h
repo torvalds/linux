@@ -52,8 +52,7 @@ enum {
 
 struct __attribute__ ((__packed__)) vmcb_control_area {
 	u32 intercept_cr;
-	u16 intercept_dr_read;
-	u16 intercept_dr_write;
+	u32 intercept_dr;
 	u32 intercept_exceptions;
 	u64 intercept;
 	u8 reserved_1[42];
@@ -212,14 +211,22 @@ struct __attribute__ ((__packed__)) vmcb {
 #define INTERCEPT_CR4_WRITE	(16 + 4)
 #define INTERCEPT_CR8_WRITE	(16 + 8)
 
-#define INTERCEPT_DR0_MASK 1
-#define INTERCEPT_DR1_MASK (1 << 1)
-#define INTERCEPT_DR2_MASK (1 << 2)
-#define INTERCEPT_DR3_MASK (1 << 3)
-#define INTERCEPT_DR4_MASK (1 << 4)
-#define INTERCEPT_DR5_MASK (1 << 5)
-#define INTERCEPT_DR6_MASK (1 << 6)
-#define INTERCEPT_DR7_MASK (1 << 7)
+#define INTERCEPT_DR0_READ	0
+#define INTERCEPT_DR1_READ	1
+#define INTERCEPT_DR2_READ	2
+#define INTERCEPT_DR3_READ	3
+#define INTERCEPT_DR4_READ	4
+#define INTERCEPT_DR5_READ	5
+#define INTERCEPT_DR6_READ	6
+#define INTERCEPT_DR7_READ	7
+#define INTERCEPT_DR0_WRITE	(16 + 0)
+#define INTERCEPT_DR1_WRITE	(16 + 1)
+#define INTERCEPT_DR2_WRITE	(16 + 2)
+#define INTERCEPT_DR3_WRITE	(16 + 3)
+#define INTERCEPT_DR4_WRITE	(16 + 4)
+#define INTERCEPT_DR5_WRITE	(16 + 5)
+#define INTERCEPT_DR6_WRITE	(16 + 6)
+#define INTERCEPT_DR7_WRITE	(16 + 7)
 
 #define SVM_EVTINJ_VEC_MASK 0xff
 
