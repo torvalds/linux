@@ -45,7 +45,6 @@ static void xhci_hub_descriptor(struct xhci_hcd *xhci,
 	temp = 1 + (ports / 8);
 	desc->bDescLength = 7 + 2 * temp;
 
-	/* Why does core/hcd.h define bitmap?  It's just confusing. */
 	memset(&desc->DeviceRemovable[0], 0, temp);
 	memset(&desc->DeviceRemovable[temp], 0xff, temp);
 

@@ -2604,13 +2604,13 @@ static int u132_roothub_descriptor(struct u132 *u132,
 	retval = u132_read_pcimem(u132, roothub.b, &rh_b);
 	if (retval)
 		return retval;
-	memset(desc->bitmap, 0xff, sizeof(desc->bitmap));
-	desc->bitmap[0] = rh_b & RH_B_DR;
+	memset(desc->DeviceRemovable, 0xff, sizeof(desc->DeviceRemovable));
+	desc->DeviceRemovable[0] = rh_b & RH_B_DR;
 	if (u132->num_ports > 7) {
-		desc->bitmap[1] = (rh_b & RH_B_DR) >> 8;
-		desc->bitmap[2] = 0xff;
+		desc->DeviceRemovable[1] = (rh_b & RH_B_DR) >> 8;
+		desc->DeviceRemovable[2] = 0xff;
 	} else
-		desc->bitmap[1] = 0xff;
+		desc->DeviceRemovable[1] = 0xff;
 	return 0;
 }
 

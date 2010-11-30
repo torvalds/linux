@@ -641,13 +641,6 @@ static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb,
 
 /*-------------------------------------------------------------------------*/
 
-/* hub.h ... DeviceRemovable in 2.4.2-ac11, gone in 2.4.10 */
-/* bleech -- resurfaced in 2.4.11 or 2.4.12 */
-#define bitmap	DeviceRemovable
-
-
-/*-------------------------------------------------------------------------*/
-
 /* random stuff */
 
 #define	RUN_CONTEXT (in_irq() ? "in_irq" \
