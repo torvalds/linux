@@ -4969,10 +4969,7 @@ static int sky2_resume(struct pci_dev *pdev)
 	if (err)
 		goto out;
 
-	err = pci_restore_state(pdev);
-	if (err)
-		goto out;
-
+	pci_restore_state(pdev);
 	pci_enable_wake(pdev, PCI_D0, 0);
 
 	/* Re-enable all clocks */

@@ -4087,9 +4087,7 @@ static int skge_resume(struct pci_dev *pdev)
 	if (err)
 		goto out;
 
-	err = pci_restore_state(pdev);
-	if (err)
-		goto out;
+	pci_restore_state(pdev);
 
 	err = skge_reset(hw);
 	if (err)

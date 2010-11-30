@@ -356,12 +356,12 @@ int rt2x00pci_resume(struct pci_dev *pci_dev)
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 
 	if (pci_set_power_state(pci_dev, PCI_D0) ||
-	    pci_enable_device(pci_dev) ||
-	    pci_restore_state(pci_dev)) {
+	    pci_enable_device(pci_dev)) {
 		ERROR(rt2x00dev, "Failed to resume device.\n");
 		return -EIO;
 	}
 
+	pci_restore_state(pci_dev);
 	return rt2x00lib_resume(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_resume);

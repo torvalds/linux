@@ -449,7 +449,8 @@ static int pci_restore_standard_config(struct pci_dev *pci_dev)
 			return error;
 	}
 
-	return pci_restore_state(pci_dev);
+	pci_restore_state(pci_dev);
+	return 0;
 }
 
 static void pci_pm_default_resume_early(struct pci_dev *pci_dev)

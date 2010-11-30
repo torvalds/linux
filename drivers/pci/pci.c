@@ -937,14 +937,13 @@ pci_save_state(struct pci_dev *dev)
  * pci_restore_state - Restore the saved state of a PCI device
  * @dev: - PCI device that we're dealing with
  */
-int 
-pci_restore_state(struct pci_dev *dev)
+void pci_restore_state(struct pci_dev *dev)
 {
 	int i;
 	u32 val;
 
 	if (!dev->state_saved)
-		return 0;
+		return;
 
 	/* PCI Express register must be restored first */
 	pci_restore_pcie_state(dev);
@@ -968,8 +967,6 @@ pci_restore_state(struct pci_dev *dev)
 	pci_restore_iov_state(dev);
 
 	dev->state_saved = false;
-
-	return 0;
 }
 
 static int do_pci_enable_device(struct pci_dev *dev, int bars)

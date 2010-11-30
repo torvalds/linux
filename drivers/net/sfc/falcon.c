@@ -1066,22 +1066,9 @@ static int falcon_reset_hw(struct efx_nic *efx, enum reset_type method)
 
 	/* Restore PCI configuration if needed */
 	if (method == RESET_TYPE_WORLD) {
-		if (efx_nic_is_dual_func(efx)) {
-			rc = pci_restore_state(nic_data->pci_dev2);
-			if (rc) {
-				netif_err(efx, drv, efx->net_dev,
-					  "failed to restore PCI config for "
-					  "the secondary function\n");
-				goto fail3;
-			}
-		}
-		rc = pci_restore_state(efx->pci_dev);
-		if (rc) {
-			netif_err(efx, drv, efx->net_dev,
-				  "failed to restore PCI config for the "
-				  "primary function\n");
-			goto fail4;
-		}
+		if (efx_nic_is_dual_func(efx))
+			pci_restore_state(nic_data->pci_dev2);
+		pci_restore_state(efx->pci_dev);
 		netif_dbg(efx, drv, efx->net_dev,
 			  "successfully restored PCI config\n");
 	}
@@ -1092,7 +1079,7 @@ static int falcon_reset_hw(struct efx_nic *efx, enum reset_type method)
 		rc = -ETIMEDOUT;
 		netif_err(efx, hw, efx->net_dev,
 			  "timed out waiting for hardware reset\n");
-		goto fail5;
+		goto fail3;
 	}
 	netif_dbg(efx, hw, efx->net_dev, "hardware reset complete\n");
 
@@ -1100,11 +1087,9 @@ static int falcon_reset_hw(struct efx_nic *efx, enum reset_type method)
 
 	/* pci_save_state() and pci_restore_state() MUST be called in pairs */
 fail2:
-fail3:
 	pci_restore_state(efx->pci_dev);
 fail1:
-fail4:
-fail5:
+fail3:
 	return rc;
 }
 
