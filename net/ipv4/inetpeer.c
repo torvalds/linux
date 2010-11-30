@@ -63,7 +63,7 @@
  *		refcnt: atomically against modifications on other CPU;
  *		   usually under some other lock to prevent node disappearing
  *		dtime: unused node list lock
- *		v4daddr: unchangeable
+ *		daddr: unchangeable
  *		ip_id_count: atomic value (no lock needed)
  */
 
@@ -165,9 +165,9 @@ static void unlink_from_unused(struct inet_peer *p)
 	for (u = rcu_dereference_protected(_base->root,		\
 			lockdep_is_held(&_base->lock));		\
 	     u != peer_avl_empty; ) {				\
-		if (_daddr == u->v4daddr)			\
+		if (_daddr == u->daddr.a4)			\
 			break;					\
-		if ((__force __u32)_daddr < (__force __u32)u->v4daddr)	\
+		if ((__force __u32)_daddr < (__force __u32)u->daddr.a4)	\
 			v = &u->avl_left;			\
 		else						\
 			v = &u->avl_right;			\
@@ -191,7 +191,7 @@ static struct inet_peer *lookup_rcu_bh(__be32 daddr, struct inet_peer_base *base
 	int count = 0;
 
 	while (u != peer_avl_empty) {
-		if (daddr == u->v4daddr) {
+		if (daddr == u->daddr.a4) {
 			/* Before taking a reference, check if this entry was
 			 * deleted, unlink_from_pool() sets refcnt=-1 to make
 			 * distinction between an unused entry (refcnt=0) and
@@ -201,7 +201,7 @@ static struct inet_peer *lookup_rcu_bh(__be32 daddr, struct inet_peer_base *base
 				u = NULL;
 			return u;
 		}
-		if ((__force __u32)daddr < (__force __u32)u->v4daddr)
+		if ((__force __u32)daddr < (__force __u32)u->daddr.a4)
 			u = rcu_dereference_bh(u->avl_left);
 		else
 			u = rcu_dereference_bh(u->avl_right);
@@ -354,7 +354,7 @@ static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base)
 	if (atomic_cmpxchg(&p->refcnt, 1, -1) == 1) {
 		struct inet_peer __rcu **stack[PEER_MAXDEPTH];
 		struct inet_peer __rcu ***stackptr, ***delp;
-		if (lookup(p->v4daddr, stack, base) != p)
+		if (lookup(p->daddr.a4, stack, base) != p)
 			BUG();
 		delp = stackptr - 1; /* *delp[0] == p */
 		if (p->avl_left == peer_avl_empty_rcu) {
@@ -367,7 +367,7 @@ static void unlink_from_pool(struct inet_peer *p, struct inet_peer_base *base)
 			BUG_ON(rcu_dereference_protected(*stackptr[-1],
 					lockdep_is_held(&base->lock)) != t);
 			**--stackptr = t->avl_left;
-			/* t is removed, t->v4daddr > x->v4daddr for any
+			/* t is removed, t->daddr > x->daddr for any
 			 * x in p->avl_left subtree.
 			 * Put t in the old place of p. */
 			RCU_INIT_POINTER(*delp[0], t);
@@ -479,7 +479,7 @@ struct inet_peer *inet_getpeer(__be32 daddr, int create)
 	}
 	p = create ? kmem_cache_alloc(peer_cachep, GFP_ATOMIC) : NULL;
 	if (p) {
-		p->v4daddr = daddr;
+		p->daddr.a4 = daddr;
 		atomic_set(&p->refcnt, 1);
 		atomic_set(&p->rid, 0);
 		atomic_set(&p->ip_id_count, secure_ip_id(daddr));

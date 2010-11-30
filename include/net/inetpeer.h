@@ -13,10 +13,18 @@
 #include <linux/spinlock.h>
 #include <asm/atomic.h>
 
+typedef struct {
+	union {
+		__be32		a4;
+		__be32		a6[4];
+	};
+	__u16	family;
+} inet_peer_address_t;
+
 struct inet_peer {
 	/* group together avl_left,avl_right,v4daddr to speedup lookups */
 	struct inet_peer __rcu	*avl_left, *avl_right;
-	__be32			v4daddr;	/* peer's address */
+	inet_peer_address_t	daddr;
 	__u32			avl_height;
 	struct list_head	unused;
 	__u32			dtime;		/* the time of last use of not
