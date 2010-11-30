@@ -1171,7 +1171,9 @@ static int ethtool_set_ufo(struct net_device *dev, char __user *useraddr)
 		return -EFAULT;
 	if (edata.data && !(dev->features & NETIF_F_SG))
 		return -EINVAL;
-	if (edata.data && !(dev->features & NETIF_F_HW_CSUM))
+	if (edata.data && !((dev->features & NETIF_F_GEN_CSUM) ||
+		(dev->features & (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM))
+			== (NETIF_F_IP_CSUM|NETIF_F_IPV6_CSUM)))
 		return -EINVAL;
 	return dev->ethtool_ops->set_ufo(dev, edata.data);
 }

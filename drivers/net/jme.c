@@ -2076,12 +2076,11 @@ jme_change_mtu(struct net_device *netdev, int new_mtu)
 	}
 
 	if (new_mtu > 1900) {
-		netdev->features &= ~(NETIF_F_HW_CSUM |
-				NETIF_F_TSO |
-				NETIF_F_TSO6);
+		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+				NETIF_F_TSO | NETIF_F_TSO6);
 	} else {
 		if (test_bit(JME_FLAG_TXCSUM, &jme->flags))
-			netdev->features |= NETIF_F_HW_CSUM;
+			netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 		if (test_bit(JME_FLAG_TSO, &jme->flags))
 			netdev->features |= NETIF_F_TSO | NETIF_F_TSO6;
 	}
@@ -2514,10 +2513,12 @@ jme_set_tx_csum(struct net_device *netdev, u32 on)
 	if (on) {
 		set_bit(JME_FLAG_TXCSUM, &jme->flags);
 		if (netdev->mtu <= 1900)
-			netdev->features |= NETIF_F_HW_CSUM;
+			netdev->features |=
+				NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	} else {
 		clear_bit(JME_FLAG_TXCSUM, &jme->flags);
-		netdev->features &= ~NETIF_F_HW_CSUM;
+		netdev->features &=
+				~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
 	}
 
 	return 0;
@@ -2797,7 +2798,8 @@ jme_init_one(struct pci_dev *pdev,
 	netdev->netdev_ops = &jme_netdev_ops;
 	netdev->ethtool_ops		= &jme_ethtool_ops;
 	netdev->watchdog_timeo		= TX_TIMEOUT;
-	netdev->features		=	NETIF_F_HW_CSUM |
+	netdev->features		=	NETIF_F_IP_CSUM |
+						NETIF_F_IPV6_CSUM |
 						NETIF_F_SG |
 						NETIF_F_TSO |
 						NETIF_F_TSO6 |

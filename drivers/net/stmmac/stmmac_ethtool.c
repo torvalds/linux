@@ -197,16 +197,6 @@ static void stmmac_ethtool_gregs(struct net_device *dev,
 	}
 }
 
-static int stmmac_ethtool_set_tx_csum(struct net_device *netdev, u32 data)
-{
-	if (data)
-		netdev->features |= NETIF_F_HW_CSUM;
-	else
-		netdev->features &= ~NETIF_F_HW_CSUM;
-
-	return 0;
-}
-
 static u32 stmmac_ethtool_get_rx_csum(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
@@ -370,7 +360,7 @@ static struct ethtool_ops stmmac_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_rx_csum = stmmac_ethtool_get_rx_csum,
 	.get_tx_csum = ethtool_op_get_tx_csum,
-	.set_tx_csum = stmmac_ethtool_set_tx_csum,
+	.set_tx_csum = ethtool_op_set_tx_ipv6_csum,
 	.get_sg = ethtool_op_get_sg,
 	.set_sg = ethtool_op_set_sg,
 	.get_pauseparam = stmmac_get_pauseparam,

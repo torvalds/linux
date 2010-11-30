@@ -3368,7 +3368,7 @@ static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 
 	ndev->features |= NETIF_F_SG;
 
-	ndev->features |= NETIF_F_HW_CSUM;
+	ndev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	vxge_debug_init(vxge_hw_device_trace_level_get(hldev),
 		"%s : checksuming enabled", __func__);
 

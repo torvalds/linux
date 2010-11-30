@@ -2319,7 +2319,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	netdev->watchdog_timeo = PCH_GBE_WATCHDOG_PERIOD;
 	netif_napi_add(netdev, &adapter->napi,
 		       pch_gbe_napi_poll, PCH_GBE_RX_WEIGHT);
-	netdev->features = NETIF_F_HW_CSUM | NETIF_F_GRO;
+	netdev->features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_GRO;
 	pch_gbe_set_ethtool_ops(netdev);
 
 	pch_gbe_mac_reset_hw(&adapter->hw);
@@ -2358,9 +2358,9 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	pch_gbe_check_options(adapter);
 
 	if (adapter->tx_csum)
-		netdev->features |= NETIF_F_HW_CSUM;
+		netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	else
-		netdev->features &= ~NETIF_F_HW_CSUM;
+		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
 
 	/* initialize the wol settings based on the eeprom settings */
 	adapter->wake_up_evt = PCH_GBE_WL_INIT_SETTING;

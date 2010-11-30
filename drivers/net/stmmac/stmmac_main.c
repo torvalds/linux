@@ -1494,7 +1494,8 @@ static int stmmac_probe(struct net_device *dev)
 	dev->netdev_ops = &stmmac_netdev_ops;
 	stmmac_set_ethtool_ops(dev);
 
-	dev->features |= (NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_HIGHDMA);
+	dev->features |= NETIF_F_SG | NETIF_F_HIGHDMA |
+		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	dev->watchdog_timeo = msecs_to_jiffies(watchdog);
 #ifdef STMMAC_VLAN_TAG_USED
 	/* Both mac100 and gmac support receive VLAN tag detection */
@@ -1525,7 +1526,7 @@ static int stmmac_probe(struct net_device *dev)
 
 	DBG(probe, DEBUG, "%s: Scatter/Gather: %s - HW checksums: %s\n",
 	    dev->name, (dev->features & NETIF_F_SG) ? "on" : "off",
-	    (dev->features & NETIF_F_HW_CSUM) ? "on" : "off");
+	    (dev->features & NETIF_F_IP_CSUM) ? "on" : "off");
 
 	spin_lock_init(&priv->lock);
 

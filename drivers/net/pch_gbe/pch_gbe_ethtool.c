@@ -469,18 +469,6 @@ static int pch_gbe_set_rx_csum(struct net_device *netdev, u32 data)
 }
 
 /**
- * pch_gbe_get_tx_csum - Report whether transmit checksums are turned on or off
- * @netdev:  Network interface device structure
- * Returns
- *	true(1):  Checksum On
- *	false(0): Checksum Off
- */
-static u32 pch_gbe_get_tx_csum(struct net_device *netdev)
-{
-	return (netdev->features & NETIF_F_HW_CSUM) != 0;
-}
-
-/**
  * pch_gbe_set_tx_csum - Turn transmit checksums on or off
  * @netdev: Network interface device structure
  * @data:   Checksum on[true] or off[false]
@@ -493,11 +481,7 @@ static int pch_gbe_set_tx_csum(struct net_device *netdev, u32 data)
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 
 	adapter->tx_csum = data;
-	if (data)
-		netdev->features |= NETIF_F_HW_CSUM;
-	else
-		netdev->features &= ~NETIF_F_HW_CSUM;
-	return 0;
+	return ethtool_op_set_tx_ipv6_csum(netdev, data);
 }
 
 /**
@@ -572,7 +556,6 @@ static const struct ethtool_ops pch_gbe_ethtool_ops = {
 	.set_pauseparam = pch_gbe_set_pauseparam,
 	.get_rx_csum = pch_gbe_get_rx_csum,
 	.set_rx_csum = pch_gbe_set_rx_csum,
-	.get_tx_csum = pch_gbe_get_tx_csum,
 	.set_tx_csum = pch_gbe_set_tx_csum,
 	.get_strings = pch_gbe_get_strings,
 	.get_ethtool_stats = pch_gbe_get_ethtool_stats,
