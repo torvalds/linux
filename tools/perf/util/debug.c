@@ -57,21 +57,6 @@ void ui__warning(const char *format, ...)
 }
 #endif
 
-static int dump_printf_color(const char *fmt, const char *color, ...)
-{
-	va_list args;
-	int ret = 0;
-
-	if (dump_trace) {
-		va_start(args, color);
-		ret = color_vfprintf(stdout, color, fmt, args);
-		va_end(args);
-	}
-
-	return ret;
-}
-
-
 void trace_event(event_t *event)
 {
 	unsigned char *raw_event = (void *)event;
@@ -81,29 +66,29 @@ void trace_event(event_t *event)
 	if (!dump_trace)
 		return;
 
-	dump_printf(".");
-	dump_printf_color("\n. ... raw event: size %d bytes\n", color,
-			  event->header.size);
+	printf(".");
+	color_fprintf(stdout, color, "\n. ... raw event: size %d bytes\n",
+		      event->header.size);
 
 	for (i = 0; i < event->header.size; i++) {
 		if ((i & 15) == 0) {
-			dump_printf(".");
-			dump_printf_color("  %04x: ", color, i);
+			printf(".");
+			color_fprintf(stdout, color, "  %04x: ", i);
 		}
 
-		dump_printf_color(" %02x", color, raw_event[i]);
+		color_fprintf(stdout, color, " %02x", raw_event[i]);
 
 		if (((i & 15) == 15) || i == event->header.size-1) {
-			dump_printf_color("  ", color);
+			color_fprintf(stdout, color, "  ");
 			for (j = 0; j < 15-(i & 15); j++)
-				dump_printf_color("   ", color);
+				color_fprintf(stdout, color, "   ");
 			for (j = i & ~15; j <= i; j++) {
-				dump_printf_color("%c", color,
-						isprint(raw_event[j]) ?
-						raw_event[j] : '.');
+				color_fprintf(stdout, color, "%c",
+					      isprint(raw_event[j]) ?
+					      raw_event[j] : '.');
 			}
-			dump_printf_color("\n", color);
+			color_fprintf(stdout, color, "\n");
 		}
 	}
-	dump_printf(".\n");
+	printf(".\n");
 }
