@@ -36,15 +36,9 @@
 
 #include "core.h"
 #include "config.h"
-#include "dbg.h"
 #include "port.h"
-#include "addr.h"
-#include "link.h"
-#include "node.h"
 #include "name_table.h"
 #include "user_reg.h"
-#include "msg.h"
-#include "bcast.h"
 
 /* Connection management: */
 #define PROBING_INTERVAL 3600000	/* [ms] => 1 h */

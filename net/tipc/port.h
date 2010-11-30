@@ -37,11 +37,9 @@
 #ifndef _TIPC_PORT_H
 #define _TIPC_PORT_H
 
-#include "core.h"
 #include "ref.h"
 #include "net.h"
 #include "msg.h"
-#include "dbg.h"
 #include "node_subscr.h"
 
 #define TIPC_FLOW_CONTROL_WIN 512

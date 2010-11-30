@@ -35,19 +35,11 @@
  */
 
 #include "core.h"
-#include "dbg.h"
 #include "link.h"
-#include "net.h"
-#include "node.h"
 #include "port.h"
-#include "addr.h"
-#include "node_subscr.h"
 #include "name_distr.h"
-#include "bearer.h"
-#include "name_table.h"
 #include "discover.h"
 #include "config.h"
-#include "bcast.h"
 
 
 /*

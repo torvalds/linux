@@ -37,13 +37,7 @@
 #include "core.h"
 #include "config.h"
 #include "node.h"
-#include "cluster.h"
-#include "net.h"
-#include "addr.h"
-#include "node_subscr.h"
-#include "link.h"
 #include "port.h"
-#include "bearer.h"
 #include "name_distr.h"
 
 void node_print(struct print_buf *buf, struct tipc_node *n_ptr, char *str);

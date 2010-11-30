@@ -39,7 +39,6 @@
 
 /* ---------------------------------------------------------------------- */
 
-#include "core.h"
 #include "link.h"
 
 struct sk_buff *tipc_cfg_reply_alloc(int payload_size);

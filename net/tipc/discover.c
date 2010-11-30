@@ -35,9 +35,7 @@
  */
 
 #include "core.h"
-#include "dbg.h"
 #include "link.h"
-#include "zone.h"
 #include "discover.h"
 #include "port.h"
 #include "name_table.h"

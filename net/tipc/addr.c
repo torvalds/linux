@@ -35,11 +35,9 @@
  */
 
 #include "core.h"
-#include "dbg.h"
 #include "addr.h"
 #include "zone.h"
 #include "cluster.h"
-#include "net.h"
 
 /**
  * tipc_addr_domain_valid - validates a network domain address

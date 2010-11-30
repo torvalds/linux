@@ -36,9 +36,7 @@
 
 #include "core.h"
 #include "cluster.h"
-#include "dbg.h"
 #include "link.h"
-#include "msg.h"
 #include "name_distr.h"
 
 #define ITEM_SIZE sizeof(struct distr_item)

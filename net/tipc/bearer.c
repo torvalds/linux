@@ -36,12 +36,9 @@
 
 #include "core.h"
 #include "config.h"
-#include "dbg.h"
 #include "bearer.h"
-#include "link.h"
 #include "port.h"
 #include "discover.h"
-#include "bcast.h"
 
 #define MAX_ADDR_STR 32
 

@@ -36,13 +36,7 @@
 
 #include "core.h"
 #include "cluster.h"
-#include "addr.h"
-#include "node_subscr.h"
 #include "link.h"
-#include "node.h"
-#include "net.h"
-#include "msg.h"
-#include "bearer.h"
 
 static void tipc_cltr_multicast(struct cluster *c_ptr, struct sk_buff *buf,
 				u32 lower, u32 upper);

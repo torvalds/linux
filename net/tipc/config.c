@@ -35,14 +35,9 @@
  */
 
 #include "core.h"
-#include "dbg.h"
-#include "bearer.h"
 #include "port.h"
 #include "link.h"
-#include "zone.h"
-#include "addr.h"
 #include "name_table.h"
-#include "node.h"
 #include "user_reg.h"
 #include "config.h"
 

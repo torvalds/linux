@@ -36,18 +36,9 @@
  */
 
 #include "core.h"
-#include "msg.h"
-#include "dbg.h"
 #include "link.h"
-#include "net.h"
-#include "node.h"
 #include "port.h"
-#include "addr.h"
-#include "node_subscr.h"
 #include "name_distr.h"
-#include "bearer.h"
-#include "name_table.h"
-#include "port.h"
 #include "bcast.h"
 
 #define MAX_PKT_DEFAULT_MCAST 1500	/* bcast link max packet size (fixed) */

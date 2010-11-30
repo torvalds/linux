@@ -36,9 +36,6 @@
 
 #include "core.h"
 #include "zone.h"
-#include "net.h"
-#include "addr.h"
-#include "node_subscr.h"
 #include "cluster.h"
 #include "node.h"
 

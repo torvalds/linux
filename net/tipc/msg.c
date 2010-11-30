@@ -36,9 +36,7 @@
 
 #include "core.h"
 #include "addr.h"
-#include "dbg.h"
 #include "msg.h"
-#include "bearer.h"
 
 u32 tipc_msg_tot_importance(struct tipc_msg *m)
 {

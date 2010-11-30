@@ -39,7 +39,6 @@
 
 #include "dbg.h"
 #include "msg.h"
-#include "bearer.h"
 #include "node.h"
 
 #define PUSH_FAILED   1

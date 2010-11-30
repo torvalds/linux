@@ -36,15 +36,10 @@
 
 #include "core.h"
 #include "config.h"
-#include "dbg.h"
 #include "name_table.h"
 #include "name_distr.h"
-#include "addr.h"
-#include "node_subscr.h"
 #include "subscr.h"
 #include "port.h"
-#include "cluster.h"
-#include "bcast.h"
 
 static int tipc_nametbl_size = 1024;		/* must be a power of 2 */
 

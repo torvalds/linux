@@ -35,18 +35,13 @@
  */
 
 #include "core.h"
-#include "bearer.h"
 #include "net.h"
 #include "zone.h"
-#include "addr.h"
 #include "name_table.h"
 #include "name_distr.h"
 #include "subscr.h"
 #include "link.h"
-#include "msg.h"
 #include "port.h"
-#include "bcast.h"
-#include "discover.h"
 #include "config.h"
 
 /*

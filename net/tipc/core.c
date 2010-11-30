@@ -40,7 +40,6 @@
 #include <linux/random.h>
 
 #include "core.h"
-#include "dbg.h"
 #include "ref.h"
 #include "net.h"
 #include "user_reg.h"
