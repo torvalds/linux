@@ -338,6 +338,19 @@ config USB_S3C2410_DEBUG
 	boolean "S3C2410 udc debug messages"
 	depends on USB_GADGET_S3C2410
 
+config USB_GADGET_PXA_U2O
+	boolean "PXA9xx Processor USB2.0 controller"
+	select USB_GADGET_DUALSPEED
+	help
+	  PXA9xx Processor series include a high speed USB2.0 device
+	  controller, which support high speed and full speed USB peripheral.
+
+config USB_PXA_U2O
+	tristate
+	depends on USB_GADGET_PXA_U2O
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 #
 # Controllers available in both integrated and discrete versions
 #

@@ -25,6 +25,8 @@ obj-$(CONFIG_USB_CI13XXX)	+= ci13xxx_udc.o
 obj-$(CONFIG_USB_S3C_HSOTG)	+= s3c-hsotg.o
 obj-$(CONFIG_USB_LANGWELL)	+= langwell_udc.o
 obj-$(CONFIG_USB_EG20T)		+= pch_udc.o
+obj-$(CONFIG_USB_PXA_U2O)	+= mv_udc.o
+mv_udc-y			:= mv_udc_core.o mv_udc_phy.o
 
 #
 # USB gadget drivers
