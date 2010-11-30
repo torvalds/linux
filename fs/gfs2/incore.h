@@ -207,12 +207,14 @@ struct gfs2_glock {
 
 	spinlock_t gl_spin;
 
-	unsigned int gl_state;
-	unsigned int gl_target;
-	unsigned int gl_reply;
+	/* State fields protected by gl_spin */
+	unsigned int gl_state:2,	/* Current state */
+		     gl_target:2,	/* Target state */
+		     gl_demote_state:2,	/* State requested by remote node */
+		     gl_req:2,		/* State in last dlm request */
+		     gl_reply:8;	/* Last reply from the dlm */
+
 	unsigned int gl_hash;
-	unsigned int gl_req;
-	unsigned int gl_demote_state; /* state requested by remote node */
 	unsigned long gl_demote_time; /* time of first demote request */
 	struct list_head gl_holders;
 
