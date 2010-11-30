@@ -850,8 +850,10 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART1_RK29
 	&rk29_device_uart1,
 #endif	
-#ifdef CONFIG_SPIM_RK29XX
+#ifdef CONFIG_SPIM0_RK29
     &rk29xx_device_spi0m,
+#endif
+#ifdef CONFIG_SPIM1_RK29
     &rk29xx_device_spi1m,
 #endif
 #ifdef CONFIG_ADC_RK29
@@ -1084,7 +1086,7 @@ static struct spi_board_info board_spi_devices[] = {
 	{
 		.modalias	= "xpt2046_ts",
 		.chip_select	= 0,
-		.max_speed_hz	= 125 * 1000 * 26,/* (max sample rate @ 3V) * (cmd + data + overhead) */
+		.max_speed_hz	= 125 * 1000 * 8,/* (max sample rate @ 3V) * (cmd + data + overhead) */
 		.bus_num	= 0,
 		.irq = XPT2046_GPIO_INT,
 		.platform_data = &xpt2046_info,

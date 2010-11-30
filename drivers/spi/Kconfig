@@ -254,11 +254,23 @@ config SPIM_RK2818
 	help
 	  general driver for SPI controller core from DesignWare
 	  
-config SPIM_RK29XX
-	tristate "RK29xx SPI master controller core support"
+config SPIM_RK29
+	tristate "RK29 SPI master controller core support"
 	depends on ARCH_RK29 && SPI_MASTER
 	help
-	  general driver for SPI controller core from DesignWare	  
+	  general driver for SPI controller core from RockChips 
+
+config SPIM0_RK29
+	bool "RK29 SPI0 master controller"
+	depends on SPIM_RK29
+	help
+	  enable SPI0 master controller for RK29 	 
+
+config SPIM1_RK29
+	bool "RK29 SPI1 master controller"
+	depends on SPIM_RK29
+	help
+	  enable SPI1 master controller for RK29 		   
 
 #
 # There are lots of SPI device types, with sensors and memory
