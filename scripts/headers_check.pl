@@ -64,7 +64,7 @@ sub check_include
 
 sub check_declarations
 {
-	if ($line =~m/^\s*extern\b/) {
+	if ($line =~m/^(\s*extern|unsigned|char|short|int|long|void)\b/) {
 		printf STDERR "$filename:$lineno: " .
 		              "userspace cannot call function or variable " .
 		              "defined in the kernel\n";
