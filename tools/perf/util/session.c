@@ -418,7 +418,6 @@ static void flush_sample_queue(struct perf_session *s,
 
 		os->last_flush = iter->timestamp;
 		list_del(&iter->list);
-		free(iter->event);
 		free(iter);
 	}
 
@@ -531,7 +530,6 @@ static int queue_sample_event(event_t *event, struct sample_data *data,
 	u64 timestamp = data->time;
 	struct sample_queue *new;
 
-
 	if (timestamp < s->ordered_samples.last_flush) {
 		printf("Warning: Timestamp below last timeslice flush\n");
 		return -EINVAL;
@@ -542,14 +540,7 @@ static int queue_sample_event(event_t *event, struct sample_data *data,
 		return -ENOMEM;
 
 	new->timestamp = timestamp;
-
-	new->event = malloc(event->header.size);
-	if (!new->event) {
-		free(new);
-		return -ENOMEM;
-	}
-
-	memcpy(new->event, event, event->header.size);
+	new->event = event;
 
 	__queue_sample_event(new, s);
 
@@ -747,12 +738,12 @@ int __perf_session__process_events(struct perf_session *session,
 				   u64 file_size, struct perf_event_ops *ops)
 {
 	u64 head, page_offset, file_offset, file_pos, progress_next;
-	int err, mmap_prot, mmap_flags;
+	int err, mmap_prot, mmap_flags, map_idx = 0;
 	struct ui_progress *progress;
 	size_t	page_size, mmap_size;
+	char *buf, *mmaps[8];
 	event_t *event;
 	uint32_t size;
-	char *buf;
 
 	perf_event_ops__fill_defaults(ops);
 
@@ -774,6 +765,8 @@ int __perf_session__process_events(struct perf_session *session,
 	if (mmap_size > file_size)
 		mmap_size = file_size;
 
+	memset(mmaps, 0, sizeof(mmaps));
+
 	mmap_prot  = PROT_READ;
 	mmap_flags = MAP_SHARED;
 
@@ -789,6 +782,8 @@ remap:
 		err = -errno;
 		goto out_err;
 	}
+	mmaps[map_idx] = buf;
+	map_idx = (map_idx + 1) & (ARRAY_SIZE(mmaps) - 1);
 	file_pos = file_offset + head;
 
 more:
@@ -801,10 +796,10 @@ more:
 		size = 8;
 
 	if (head + event->header.size >= mmap_size) {
-		int munmap_ret;
-
-		munmap_ret = munmap(buf, mmap_size);
-		assert(munmap_ret == 0);
+		if (mmaps[map_idx]) {
+			munmap(mmaps[map_idx], mmap_size);
+			mmaps[map_idx] = NULL;
+		}
 
 		page_offset = page_size * (head / page_size);
 		file_offset += page_offset;
