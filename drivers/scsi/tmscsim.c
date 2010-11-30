@@ -1883,7 +1883,7 @@ dc390_ScsiRstDetect( struct dc390_acb* pACB )
     return;
 }
 
-static int DC390_queuecommand(struct scsi_cmnd *cmd,
+static int DC390_queuecommand_lck(struct scsi_cmnd *cmd,
 		void (*done)(struct scsi_cmnd *))
 {
 	struct scsi_device *sdev = cmd->device;
@@ -1943,6 +1943,8 @@ static int DC390_queuecommand(struct scsi_cmnd *cmd,
  device_busy:
 	return SCSI_MLQUEUE_DEVICE_BUSY;
 }
+
+static DEF_SCSI_QCMD(DC390_queuecommand)
 
 static void dc390_dumpinfo (struct dc390_acb* pACB, struct dc390_dcb* pDCB, struct dc390_srb* pSRB)
 {

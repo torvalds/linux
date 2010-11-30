@@ -734,7 +734,7 @@ const char *sym53c416_info(struct Scsi_Host *SChost)
 	return info;
 }
 
-int sym53c416_queuecommand(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
+static int sym53c416_queuecommand_lck(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
 {
 	int base;
 	unsigned long flags = 0;
@@ -760,6 +760,8 @@ int sym53c416_queuecommand(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
 	spin_unlock_irqrestore(&sym53c416_lock, flags);
 	return 0;
 }
+
+DEF_SCSI_QCMD(sym53c416_queuecommand)
 
 static int sym53c416_host_reset(Scsi_Cmnd *SCpnt)
 {

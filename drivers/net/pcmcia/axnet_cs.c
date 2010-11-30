@@ -111,13 +111,14 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id);
 
 typedef struct axnet_dev_t {
 	struct pcmcia_device	*p_dev;
-    caddr_t		base;
-    struct timer_list	watchdog;
-    int			stale, fast_poll;
-    u_short		link_status;
-    u_char		duplex_flag;
-    int			phy_id;
-    int			flags;
+	caddr_t	base;
+	struct timer_list	watchdog;
+	int	stale, fast_poll;
+	u_short	link_status;
+	u_char	duplex_flag;
+	int	phy_id;
+	int	flags;
+	int	active_low;
 } axnet_dev_t;
 
 static inline axnet_dev_t *PRIV(struct net_device *dev)
@@ -322,6 +323,8 @@ static int axnet_config(struct pcmcia_device *link)
     if (info->flags & IS_AX88790)
 	outb(0x10, dev->base_addr + AXNET_GPIO);  /* select Internal PHY */
 
+    info->active_low = 0;
+
     for (i = 0; i < 32; i++) {
 	j = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 1);
 	j2 = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 2);
@@ -329,15 +332,18 @@ static int axnet_config(struct pcmcia_device *link)
 	if ((j != 0) && (j != 0xffff)) break;
     }
 
-    /* Maybe PHY is in power down mode. (PPD_SET = 1) 
-       Bit 2 of CCSR is active low. */ 
     if (i == 32) {
+	/* Maybe PHY is in power down mode. (PPD_SET = 1)
+	   Bit 2 of CCSR is active low. */
 	pcmcia_write_config_byte(link, CISREG_CCSR, 0x04);
 	for (i = 0; i < 32; i++) {
 	    j = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 1);
 	    j2 = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 2);
 	    if (j == j2) continue;
-	    if ((j != 0) && (j != 0xffff)) break;
+	    if ((j != 0) && (j != 0xffff)) {
+		info->active_low = 1;
+		break;
+	    }
 	}
     }
 
@@ -383,8 +389,12 @@ static int axnet_suspend(struct pcmcia_device *link)
 static int axnet_resume(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
+	axnet_dev_t *info = PRIV(dev);
 
 	if (link->open) {
+		if (info->active_low == 1)
+			pcmcia_write_config_byte(link, CISREG_CCSR, 0x04);
+
 		axnet_reset_8390(dev);
 		AX88190_init(dev, 1);
 		netif_device_attach(dev);

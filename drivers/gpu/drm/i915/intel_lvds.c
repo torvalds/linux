@@ -481,11 +481,8 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
 
-	if (intel_lvds->edid) {
-		drm_mode_connector_update_edid_property(connector,
-							intel_lvds->edid);
+	if (intel_lvds->edid)
 		return drm_add_edid_modes(connector, intel_lvds->edid);
-	}
 
 	mode = drm_mode_duplicate(dev, intel_lvds->fixed_mode);
 	if (mode == 0)
@@ -939,7 +936,16 @@ void intel_lvds_init(struct drm_device *dev)
 	 */
 	intel_lvds->edid = drm_get_edid(connector,
 					&dev_priv->gmbus[pin].adapter);
-
+	if (intel_lvds->edid) {
+		if (drm_add_edid_modes(connector,
+				       intel_lvds->edid)) {
+			drm_mode_connector_update_edid_property(connector,
+								intel_lvds->edid);
+		} else {
+			kfree(intel_lvds->edid);
+			intel_lvds->edid = NULL;
+		}
+	}
 	if (!intel_lvds->edid) {
 		/* Didn't get an EDID, so
 		 * Set wide sync ranges so we get all modes

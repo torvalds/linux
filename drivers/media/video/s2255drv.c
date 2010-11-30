@@ -49,7 +49,6 @@
 #include <linux/videodev2.h>
 #include <linux/version.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>

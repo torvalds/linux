@@ -554,3 +554,13 @@ Why:    This is a legacy interface which have been replaced by a more
 Who:    NeilBrown <neilb@suse.de>
 
 ----------------------------
+
+What:	i2c_adapter.id
+When:	June 2011
+Why:	This field is deprecated. I2C device drivers shouldn't change their
+	behavior based on the underlying I2C adapter. Instead, the I2C
+	adapter driver should instantiate the I2C devices and provide the
+	needed platform-specific information.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+----------------------------

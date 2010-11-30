@@ -2,9 +2,6 @@
 #define LINUX_HARDIRQ_H
 
 #include <linux/preempt.h>
-#ifdef CONFIG_PREEMPT
-#include <linux/smp_lock.h>
-#endif
 #include <linux/lockdep.h>
 #include <linux/ftrace_irq.h>
 #include <asm/hardirq.h>
@@ -97,7 +94,8 @@
 #define in_nmi()	(preempt_count() & NMI_MASK)
 
 #if defined(CONFIG_PREEMPT) && defined(CONFIG_BKL)
-# define PREEMPT_INATOMIC_BASE kernel_locked()
+# include <linux/sched.h>
+# define PREEMPT_INATOMIC_BASE (current->lock_depth >= 0)
 #else
 # define PREEMPT_INATOMIC_BASE 0
 #endif

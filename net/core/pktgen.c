@@ -887,7 +887,7 @@ static ssize_t pktgen_if_write(struct file *file,
 	i += len;
 
 	if (debug) {
-		size_t copy = min(count, 1023);
+		size_t copy = min_t(size_t, count, 1023);
 		char tb[copy + 1];
 		if (copy_from_user(tb, user_buffer, copy))
 			return -EFAULT;
@@ -2612,8 +2612,8 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
 	 */
-	queue_map = pkt_dev->cur_queue_map;
 	mod_cur_headers(pkt_dev);
+	queue_map = pkt_dev->cur_queue_map;
 
 	datalen = (odev->hard_header_len + 16) & ~0xf;
 
@@ -2976,8 +2976,8 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
 	 */
-	queue_map = pkt_dev->cur_queue_map;
 	mod_cur_headers(pkt_dev);
+	queue_map = pkt_dev->cur_queue_map;
 
 	skb = __netdev_alloc_skb(odev,
 				 pkt_dev->cur_pkt_size + 64

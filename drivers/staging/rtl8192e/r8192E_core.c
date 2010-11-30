@@ -5829,6 +5829,9 @@ static void rtl8192_rx(struct net_device *dev)
                     }
                 }
 
+		pci_unmap_single(priv->pdev, *((dma_addr_t *) skb->cb),
+			priv->rxbuffersize, PCI_DMA_FROMDEVICE);
+
                 skb = new_skb;
                 priv->rx_buf[priv->rx_idx] = skb;
                 *((dma_addr_t *) skb->cb) = pci_map_single(priv->pdev, skb_tail_pointer(skb), priv->rxbuffersize, PCI_DMA_FROMDEVICE);

@@ -1430,8 +1430,8 @@ static int try_nonblocking_invalidate(struct inode *inode)
 	    invalidating_gen == ci->i_rdcache_gen) {
 		/* success. */
 		dout("try_nonblocking_invalidate %p success\n", inode);
-		ci->i_rdcache_gen = 0;
-		ci->i_rdcache_revoking = 0;
+		/* save any racing async invalidate some trouble */
+		ci->i_rdcache_revoking = ci->i_rdcache_gen - 1;
 		return 0;
 	}
 	dout("try_nonblocking_invalidate %p failed\n", inode);
@@ -2273,8 +2273,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int mds = session->s_mds;
-	unsigned seq = le32_to_cpu(grant->seq);
-	unsigned issue_seq = le32_to_cpu(grant->issue_seq);
+	int seq = le32_to_cpu(grant->seq);
 	int newcaps = le32_to_cpu(grant->caps);
 	int issued, implemented, used, wanted, dirty;
 	u64 size = le64_to_cpu(grant->size);
@@ -2286,8 +2285,8 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	int revoked_rdcache = 0;
 	int queue_invalidate = 0;
 
-	dout("handle_cap_grant inode %p cap %p mds%d seq %u/%u %s\n",
-	     inode, cap, mds, seq, issue_seq, ceph_cap_string(newcaps));
+	dout("handle_cap_grant inode %p cap %p mds%d seq %d %s\n",
+	     inode, cap, mds, seq, ceph_cap_string(newcaps));
 	dout(" size %llu max_size %llu, i_size %llu\n", size, max_size,
 		inode->i_size);
 
@@ -2383,7 +2382,6 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	}
 
 	cap->seq = seq;
-	cap->issue_seq = issue_seq;
 
 	/* file layout may have changed */
 	ci->i_layout = grant->layout;
@@ -2691,6 +2689,11 @@ static void handle_cap_import(struct ceph_mds_client *mdsc,
 		     NULL /* no caps context */);
 	try_flush_caps(inode, session, NULL);
 	up_read(&mdsc->snap_rwsem);
+
+	/* make sure we re-request max_size, if necessary */
+	spin_lock(&inode->i_lock);
+	ci->i_requested_max_size = 0;
+	spin_unlock(&inode->i_lock);
 }
 
 /*

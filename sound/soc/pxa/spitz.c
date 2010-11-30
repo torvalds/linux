@@ -108,8 +108,13 @@ static int spitz_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_codec *codec = rtd->codec;
 
+	mutex_lock(&codec->mutex);
+
 	/* check the jack status at stream startup */
 	spitz_ext_control(codec);
+
+	mutex_unlock(&codec->mutex);
+
 	return 0;
 }
 

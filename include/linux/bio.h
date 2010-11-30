@@ -66,10 +66,6 @@
 #define bio_offset(bio)		bio_iovec((bio))->bv_offset
 #define bio_segments(bio)	((bio)->bi_vcnt - (bio)->bi_idx)
 #define bio_sectors(bio)	((bio)->bi_size >> 9)
-#define bio_empty_barrier(bio) \
-	((bio->bi_rw & REQ_HARDBARRIER) && \
-	 !bio_has_data(bio) && \
-	 !(bio->bi_rw & REQ_DISCARD))
 
 static inline unsigned int bio_cur_bytes(struct bio *bio)
 {

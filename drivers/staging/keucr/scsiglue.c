@@ -87,7 +87,7 @@ static int slave_configure(struct scsi_device *sdev)
 
 /* This is always called with scsi_lock(host) held */
 //----- queuecommand() ---------------------
-static int queuecommand(struct scsi_cmnd *srb, void (*done)(struct scsi_cmnd *))
+static int queuecommand_lck(struct scsi_cmnd *srb, void (*done)(struct scsi_cmnd *))
 {
 	struct us_data *us = host_to_us(srb->device->host);
 
@@ -116,6 +116,8 @@ static int queuecommand(struct scsi_cmnd *srb, void (*done)(struct scsi_cmnd *))
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(queuecommand)
 
 /***********************************************************************
  * Error handling functions

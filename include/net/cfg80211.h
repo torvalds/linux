@@ -1355,7 +1355,7 @@ enum wiphy_flags {
 	WIPHY_FLAG_4ADDR_AP			= BIT(5),
 	WIPHY_FLAG_4ADDR_STATION		= BIT(6),
 	WIPHY_FLAG_CONTROL_PORT_PROTOCOL	= BIT(7),
-	WIPHY_FLAG_IBSS_RSN			= BIT(7),
+	WIPHY_FLAG_IBSS_RSN			= BIT(8),
 };
 
 struct mac_address {

@@ -27,6 +27,7 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 
+#include <mach/dma.h>
 #include <mach/hardware.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
@@ -1419,6 +1420,9 @@ static bool chan_filter(struct dma_chan *chan, void *arg)
 	struct dma_chan_request *rq = arg;
 	struct device *dev;
 	struct mx3fb_platform_data *mx3fb_pdata;
+
+	if (!imx_dma_is_ipu(chan))
+		return false;
 
 	if (!rq)
 		return false;

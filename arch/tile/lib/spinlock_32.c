@@ -167,23 +167,30 @@ void arch_write_lock_slow(arch_rwlock_t *rwlock, u32 val)
 	 * when we compare them.
 	 */
 	u32 my_ticket_;
-
-	/* Take out the next ticket; this will also stop would-be readers. */
-	if (val & 1)
-		val = get_rwlock(rwlock);
-	rwlock->lock = __insn_addb(val, 1 << WR_NEXT_SHIFT);
-
-	/* Extract my ticket value from the original word. */
-	my_ticket_ = val >> WR_NEXT_SHIFT;
+	u32 iterations = 0;
 
 	/*
-	 * Wait until the "current" field matches our ticket, and
-	 * there are no remaining readers.
+	 * Wait until there are no readers, then bump up the next
+	 * field and capture the ticket value.
 	 */
 	for (;;) {
+		if (!(val & 1)) {
+			if ((val >> RD_COUNT_SHIFT) == 0)
+				break;
+			rwlock->lock = val;
+		}
+		delay_backoff(iterations++);
+		val = __insn_tns((int *)&rwlock->lock);
+	}
+
+	/* Take out the next ticket and extract my ticket value. */
+	rwlock->lock = __insn_addb(val, 1 << WR_NEXT_SHIFT);
+	my_ticket_ = val >> WR_NEXT_SHIFT;
+
+	/* Wait until the "current" field matches our ticket. */
+	for (;;) {
 		u32 curr_ = val >> WR_CURR_SHIFT;
-		u32 readers = val >> RD_COUNT_SHIFT;
-		u32 delta = ((my_ticket_ - curr_) & WR_MASK) + !!readers;
+		u32 delta = ((my_ticket_ - curr_) & WR_MASK);
 		if (likely(delta == 0))
 			break;
 

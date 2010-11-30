@@ -168,7 +168,6 @@ static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
 static const u32 ddir_act[2] = { BLK_TC_ACT(BLK_TC_READ),
 				 BLK_TC_ACT(BLK_TC_WRITE) };
 
-#define BLK_TC_HARDBARRIER	BLK_TC_BARRIER
 #define BLK_TC_RAHEAD		BLK_TC_AHEAD
 
 /* The ilog2() calls fall out because they're constant */
@@ -196,7 +195,6 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 		return;
 
 	what |= ddir_act[rw & WRITE];
-	what |= MASK_TC_BIT(rw, HARDBARRIER);
 	what |= MASK_TC_BIT(rw, SYNC);
 	what |= MASK_TC_BIT(rw, RAHEAD);
 	what |= MASK_TC_BIT(rw, META);
@@ -1807,8 +1805,6 @@ void blk_fill_rwbs(char *rwbs, u32 rw, int bytes)
 
 	if (rw & REQ_RAHEAD)
 		rwbs[i++] = 'A';
-	if (rw & REQ_HARDBARRIER)
-		rwbs[i++] = 'B';
 	if (rw & REQ_SYNC)
 		rwbs[i++] = 'S';
 	if (rw & REQ_META)

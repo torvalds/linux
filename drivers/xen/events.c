@@ -278,17 +278,17 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 	cpumask_copy(irq_to_desc(irq)->affinity, cpumask_of(cpu));
 #endif
 
-	__clear_bit(chn, cpu_evtchn_mask(cpu_from_irq(irq)));
-	__set_bit(chn, cpu_evtchn_mask(cpu));
+	clear_bit(chn, cpu_evtchn_mask(cpu_from_irq(irq)));
+	set_bit(chn, cpu_evtchn_mask(cpu));
 
 	irq_info[irq].cpu = cpu;
 }
 
 static void init_evtchn_cpu_bindings(void)
 {
+	int i;
 #ifdef CONFIG_SMP
 	struct irq_desc *desc;
-	int i;
 
 	/* By default all event channels notify CPU#0. */
 	for_each_irq_desc(i, desc) {
@@ -296,7 +296,10 @@ static void init_evtchn_cpu_bindings(void)
 	}
 #endif
 
-	memset(cpu_evtchn_mask(0), ~0, sizeof(struct cpu_evtchn_s));
+	for_each_possible_cpu(i)
+		memset(cpu_evtchn_mask(i),
+		       (i == 0) ? ~0 : 0, sizeof(struct cpu_evtchn_s));
+
 }
 
 static inline void clear_evtchn(int port)
@@ -752,7 +755,7 @@ int xen_destroy_irq(int irq)
 		goto out;
 
 	if (xen_initial_domain()) {
-		unmap_irq.pirq = info->u.pirq.gsi;
+		unmap_irq.pirq = info->u.pirq.pirq;
 		unmap_irq.domid = DOMID_SELF;
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_unmap_pirq, &unmap_irq);
 		if (rc) {
@@ -1299,9 +1302,6 @@ static void restore_cpu_virqs(unsigned int cpu)
 		evtchn_to_irq[evtchn] = irq;
 		irq_info[irq] = mk_virq_info(evtchn, virq);
 		bind_evtchn_to_cpu(evtchn, cpu);
-
-		/* Ready for use. */
-		unmask_evtchn(evtchn);
 	}
 }
 
@@ -1327,10 +1327,6 @@ static void restore_cpu_ipis(unsigned int cpu)
 		evtchn_to_irq[evtchn] = irq;
 		irq_info[irq] = mk_ipi_info(evtchn, ipi);
 		bind_evtchn_to_cpu(evtchn, cpu);
-
-		/* Ready for use. */
-		unmask_evtchn(evtchn);
-
 	}
 }
 
@@ -1390,6 +1386,7 @@ void xen_poll_irq(int irq)
 void xen_irq_resume(void)
 {
 	unsigned int cpu, irq, evtchn;
+	struct irq_desc *desc;
 
 	init_evtchn_cpu_bindings();
 
@@ -1407,6 +1404,23 @@ void xen_irq_resume(void)
 	for_each_possible_cpu(cpu) {
 		restore_cpu_virqs(cpu);
 		restore_cpu_ipis(cpu);
+	}
+
+	/*
+	 * Unmask any IRQF_NO_SUSPEND IRQs which are enabled. These
+	 * are not handled by the IRQ core.
+	 */
+	for_each_irq_desc(irq, desc) {
+		if (!desc->action || !(desc->action->flags & IRQF_NO_SUSPEND))
+			continue;
+		if (desc->status & IRQ_DISABLED)
+			continue;
+
+		evtchn = evtchn_from_irq(irq);
+		if (evtchn == -1)
+			continue;
+
+		unmask_evtchn(evtchn);
 	}
 }
 

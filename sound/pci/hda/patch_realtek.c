@@ -14623,7 +14623,10 @@ static int alc275_setup_dual_adc(struct hda_codec *codec)
 /* different alc269-variants */
 enum {
 	ALC269_TYPE_NORMAL,
+	ALC269_TYPE_ALC258,
 	ALC269_TYPE_ALC259,
+	ALC269_TYPE_ALC269VB,
+	ALC269_TYPE_ALC270,
 	ALC269_TYPE_ALC271X,
 };
 
@@ -15023,7 +15026,7 @@ static int alc269_fill_coef(struct hda_codec *codec)
 static int patch_alc269(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int board_config;
+	int board_config, coef;
 	int err;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -15034,14 +15037,23 @@ static int patch_alc269(struct hda_codec *codec)
 
 	alc_auto_parse_customize_define(codec);
 
-	if ((alc_read_coef_idx(codec, 0) & 0x00f0) == 0x0010){
+	coef = alc_read_coef_idx(codec, 0);
+	if ((coef & 0x00f0) == 0x0010) {
 		if (codec->bus->pci->subsystem_vendor == 0x1025 &&
 		    spec->cdefine.platform_type == 1) {
 			alc_codec_rename(codec, "ALC271X");
 			spec->codec_variant = ALC269_TYPE_ALC271X;
-		} else {
+		} else if ((coef & 0xf000) == 0x1000) {
+			spec->codec_variant = ALC269_TYPE_ALC270;
+		} else if ((coef & 0xf000) == 0x2000) {
 			alc_codec_rename(codec, "ALC259");
 			spec->codec_variant = ALC269_TYPE_ALC259;
+		} else if ((coef & 0xf000) == 0x3000) {
+			alc_codec_rename(codec, "ALC258");
+			spec->codec_variant = ALC269_TYPE_ALC258;
+		} else {
+			alc_codec_rename(codec, "ALC269VB");
+			spec->codec_variant = ALC269_TYPE_ALC269VB;
 		}
 	} else
 		alc_fix_pll_init(codec, 0x20, 0x04, 15);
@@ -15104,7 +15116,7 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->stream_digital_capture = &alc269_pcm_digital_capture;
 
 	if (!spec->adc_nids) { /* wasn't filled automatically? use default */
-		if (spec->codec_variant != ALC269_TYPE_NORMAL) {
+		if (spec->codec_variant == ALC269_TYPE_NORMAL) {
 			spec->adc_nids = alc269_adc_nids;
 			spec->num_adc_nids = ARRAY_SIZE(alc269_adc_nids);
 			spec->capsrc_nids = alc269_capsrc_nids;
@@ -19298,6 +19310,7 @@ static const struct alc_fixup alc662_fixups[] = {
 
 static struct snd_pci_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x038b, "Acer Aspire 8943G", ALC662_FIXUP_ASPIRE),
+	SND_PCI_QUIRK(0x144d, 0xc051, "Samsung R720", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo Ideapad Y550P", ALC662_FIXUP_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Ideapad Y550", ALC662_FIXUP_IDEAPAD),
 	{}
@@ -19419,7 +19432,10 @@ static int patch_alc888(struct hda_codec *codec)
 {
 	if ((alc_read_coef_idx(codec, 0) & 0x00f0)==0x0030){
 		kfree(codec->chip_name);
-		codec->chip_name = kstrdup("ALC888-VD", GFP_KERNEL);
+		if (codec->vendor_id == 0x10ec0887)
+			codec->chip_name = kstrdup("ALC887-VD", GFP_KERNEL);
+		else
+			codec->chip_name = kstrdup("ALC888-VD", GFP_KERNEL);
 		if (!codec->chip_name) {
 			alc_free(codec);
 			return -ENOMEM;
@@ -19909,7 +19925,7 @@ static struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0885, .rev = 0x100103, .name = "ALC889A",
 	  .patch = patch_alc882 },
 	{ .id = 0x10ec0885, .name = "ALC885", .patch = patch_alc882 },
-	{ .id = 0x10ec0887, .name = "ALC887", .patch = patch_alc882 },
+	{ .id = 0x10ec0887, .name = "ALC887", .patch = patch_alc888 },
 	{ .id = 0x10ec0888, .rev = 0x100101, .name = "ALC1200",
 	  .patch = patch_alc882 },
 	{ .id = 0x10ec0888, .name = "ALC888", .patch = patch_alc888 },

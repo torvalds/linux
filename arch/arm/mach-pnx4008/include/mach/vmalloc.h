@@ -17,4 +17,4 @@
  * The vmalloc() routines leaves a hole of 4kB between each vmalloced
  * area for the same reason. ;)
  */
-#define VMALLOC_END       0xd0000000
+#define VMALLOC_END       0xd0000000UL

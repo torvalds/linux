@@ -293,9 +293,7 @@ struct ceph_inode_info {
 	int i_rd_ref, i_rdcache_ref, i_wr_ref;
 	int i_wrbuffer_ref, i_wrbuffer_ref_head;
 	u32 i_shared_gen;       /* increment each time we get FILE_SHARED */
-	u32 i_rdcache_gen;      /* we increment this each time we get
-				   FILE_CACHE.  If it's non-zero, we
-				   _may_ have cached pages. */
+	u32 i_rdcache_gen;      /* incremented each time we get FILE_CACHE. */
 	u32 i_rdcache_revoking; /* RDCACHE gen to async invalidate, if any */
 
 	struct list_head i_unsafe_writes; /* uncommitted sync writes */

@@ -4518,7 +4518,7 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 	xdr_read_pages(xdr, pglen);
 
 
-	return 0;
+	return pglen;
 }
 
 static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)

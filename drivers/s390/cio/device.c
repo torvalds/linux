@@ -1455,7 +1455,16 @@ static int io_subchannel_sch_event(struct subchannel *sch, int process)
 		break;
 	case IO_SCH_UNREG_ATTACH:
 	case IO_SCH_UNREG:
-		if (cdev)
+		if (!cdev)
+			break;
+		if (cdev->private->state == DEV_STATE_SENSE_ID) {
+			/*
+			 * Note: delayed work triggered by this event
+			 * and repeated calls to sch_event are synchronized
+			 * by the above check for work_pending(cdev).
+			 */
+			dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
+		} else
 			ccw_device_set_notoper(cdev);
 		break;
 	case IO_SCH_NOP:

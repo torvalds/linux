@@ -23,7 +23,6 @@
 #include <xen/interface/callback.h>
 #include <xen/interface/memory.h>
 #include <xen/interface/physdev.h>
-#include <xen/interface/memory.h>
 #include <xen/features.h>
 
 #include "xen-ops.h"
@@ -118,16 +117,18 @@ static unsigned long __init xen_return_unused_memory(unsigned long max_pfn,
 						     const struct e820map *e820)
 {
 	phys_addr_t max_addr = PFN_PHYS(max_pfn);
-	phys_addr_t last_end = 0;
+	phys_addr_t last_end = ISA_END_ADDRESS;
 	unsigned long released = 0;
 	int i;
 
+	/* Free any unused memory above the low 1Mbyte. */
 	for (i = 0; i < e820->nr_map && last_end < max_addr; i++) {
 		phys_addr_t end = e820->map[i].addr;
 		end = min(max_addr, end);
 
-		released += xen_release_chunk(last_end, end);
-		last_end = e820->map[i].addr + e820->map[i].size;
+		if (last_end < end)
+			released += xen_release_chunk(last_end, end);
+		last_end = max(last_end, e820->map[i].addr + e820->map[i].size);
 	}
 
 	if (last_end < max_addr)
@@ -164,6 +165,7 @@ char * __init xen_memory_setup(void)
 		XENMEM_memory_map;
 	rc = HYPERVISOR_memory_op(op, &memmap);
 	if (rc == -ENOSYS) {
+		BUG_ON(xen_initial_domain());
 		memmap.nr_entries = 1;
 		map[0].addr = 0ULL;
 		map[0].size = mem_end;
@@ -201,12 +203,13 @@ char * __init xen_memory_setup(void)
 	}
 
 	/*
-	 * Even though this is normal, usable memory under Xen, reserve
-	 * ISA memory anyway because too many things think they can poke
+	 * In domU, the ISA region is normal, usable memory, but we
+	 * reserve ISA memory anyway because too many things poke
 	 * about in there.
 	 *
-	 * In a dom0 kernel, this region is identity mapped with the
-	 * hardware ISA area, so it really is out of bounds.
+	 * In Dom0, the host E820 information can leave gaps in the
+	 * ISA range, which would cause us to release those pages.  To
+	 * avoid this, we unconditionally reserve them here.
 	 */
 	e820_add_region(ISA_START_ADDRESS, ISA_END_ADDRESS - ISA_START_ADDRESS,
 			E820_RESERVED);
@@ -244,8 +247,7 @@ char * __init xen_memory_setup(void)
 	else
 		extra_pages = 0;
 
-	if (!xen_initial_domain())
-		xen_add_extra_mem(extra_pages);
+	xen_add_extra_mem(extra_pages);
 
 	return "Xen";
 }
@@ -333,9 +335,6 @@ void __cpuinit xen_enable_syscall(void)
 
 void __init xen_arch_setup(void)
 {
-	struct physdev_set_iopl set_iopl;
-	int rc;
-
 	xen_panic_handler_init();
 
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);
@@ -351,11 +350,6 @@ void __init xen_arch_setup(void)
 
 	xen_enable_sysenter();
 	xen_enable_syscall();
-
-	set_iopl.iopl = 1;
-	rc = HYPERVISOR_physdev_op(PHYSDEVOP_set_iopl, &set_iopl);
-	if (rc != 0)
-		printk(KERN_INFO "physdev_op failed %d\n", rc);
 
 #ifdef CONFIG_ACPI
 	if (!(xen_start_info->flags & SIF_INITDOMAIN)) {

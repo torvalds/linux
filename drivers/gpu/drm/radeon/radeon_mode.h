@@ -375,6 +375,7 @@ struct radeon_encoder {
 	int hdmi_config_offset;
 	int hdmi_audio_workaround;
 	int hdmi_buffer_status;
+	bool is_ext_encoder;
 };
 
 struct radeon_connector_atom_dig {
@@ -385,6 +386,7 @@ struct radeon_connector_atom_dig {
 	u8 dp_sink_type;
 	int dp_clock;
 	int dp_lane_count;
+	bool edp_on;
 };
 
 struct radeon_gpio_rec {
@@ -401,13 +403,19 @@ struct radeon_hpd {
 };
 
 struct radeon_router {
-	bool valid;
 	u32 router_id;
 	struct radeon_i2c_bus_rec i2c_info;
 	u8 i2c_addr;
-	u8 mux_type;
-	u8 mux_control_pin;
-	u8 mux_state;
+	/* i2c mux */
+	bool ddc_valid;
+	u8 ddc_mux_type;
+	u8 ddc_mux_control_pin;
+	u8 ddc_mux_state;
+	/* clock/data mux */
+	bool cd_valid;
+	u8 cd_mux_type;
+	u8 cd_mux_control_pin;
+	u8 cd_mux_state;
 };
 
 struct radeon_connector {
@@ -488,7 +496,8 @@ extern void radeon_i2c_put_byte(struct radeon_i2c_chan *i2c,
 				u8 slave_addr,
 				u8 addr,
 				u8 val);
-extern void radeon_router_select_port(struct radeon_connector *radeon_connector);
+extern void radeon_router_select_ddc_port(struct radeon_connector *radeon_connector);
+extern void radeon_router_select_cd_port(struct radeon_connector *radeon_connector);
 extern bool radeon_ddc_probe(struct radeon_connector *radeon_connector);
 extern int radeon_ddc_get_modes(struct radeon_connector *radeon_connector);
 
@@ -516,9 +525,10 @@ struct drm_encoder *radeon_encoder_legacy_primary_dac_add(struct drm_device *dev
 struct drm_encoder *radeon_encoder_legacy_tv_dac_add(struct drm_device *dev, int bios_index, int with_tv);
 struct drm_encoder *radeon_encoder_legacy_tmds_int_add(struct drm_device *dev, int bios_index);
 struct drm_encoder *radeon_encoder_legacy_tmds_ext_add(struct drm_device *dev, int bios_index);
-extern void atombios_external_tmds_setup(struct drm_encoder *encoder, int action);
+extern void atombios_dvo_setup(struct drm_encoder *encoder, int action);
 extern void atombios_digital_setup(struct drm_encoder *encoder, int action);
 extern int atombios_get_encoder_mode(struct drm_encoder *encoder);
+extern void atombios_set_edp_panel_power(struct drm_connector *connector, int action);
 extern void radeon_encoder_set_active_device(struct drm_encoder *encoder);
 
 extern void radeon_crtc_load_lut(struct drm_crtc *crtc);

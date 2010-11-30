@@ -871,14 +871,14 @@ static int __init devices_setup(void)
 
 	/* set SPU2 clock to 83.4 MHz */
 	clk = clk_get(NULL, "spu_clk");
-	if (clk) {
+	if (!IS_ERR(clk)) {
 		clk_set_rate(clk, clk_round_rate(clk, 83333333));
 		clk_put(clk);
 	}
 
 	/* change parent of FSI A */
 	clk = clk_get(NULL, "fsia_clk");
-	if (clk) {
+	if (!IS_ERR(clk)) {
 		clk_register(&fsimcka_clk);
 		clk_set_parent(clk, &fsimcka_clk);
 		clk_set_rate(clk, 11000);
