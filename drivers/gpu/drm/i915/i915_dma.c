@@ -352,16 +352,16 @@ static int i915_emit_cmds(struct drm_device * dev, int *buffer, int dwords)
 
 int
 i915_emit_box(struct drm_device *dev,
-	      struct drm_clip_rect *boxes,
-	      int i, int DR1, int DR4)
+	      struct drm_clip_rect *box,
+	      int DR1, int DR4)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_clip_rect box = boxes[i];
 	int ret;
 
-	if (box.y2 <= box.y1 || box.x2 <= box.x1 || box.y2 <= 0 || box.x2 <= 0) {
+	if (box->y2 <= box->y1 || box->x2 <= box->x1 ||
+	    box->y2 <= 0 || box->x2 <= 0) {
 		DRM_ERROR("Bad box %d,%d..%d,%d\n",
-			  box.x1, box.y1, box.x2, box.y2);
+			  box->x1, box->y1, box->x2, box->y2);
 		return -EINVAL;
 	}
 
@@ -371,8 +371,8 @@ i915_emit_box(struct drm_device *dev,
 			return ret;
 
 		OUT_RING(GFX_OP_DRAWRECT_INFO_I965);
-		OUT_RING((box.x1 & 0xffff) | (box.y1 << 16));
-		OUT_RING(((box.x2 - 1) & 0xffff) | ((box.y2 - 1) << 16));
+		OUT_RING((box->x1 & 0xffff) | (box->y1 << 16));
+		OUT_RING(((box->x2 - 1) & 0xffff) | ((box->y2 - 1) << 16));
 		OUT_RING(DR4);
 	} else {
 		ret = BEGIN_LP_RING(6);
@@ -381,8 +381,8 @@ i915_emit_box(struct drm_device *dev,
 
 		OUT_RING(GFX_OP_DRAWRECT_INFO);
 		OUT_RING(DR1);
-		OUT_RING((box.x1 & 0xffff) | (box.y1 << 16));
-		OUT_RING(((box.x2 - 1) & 0xffff) | ((box.y2 - 1) << 16));
+		OUT_RING((box->x1 & 0xffff) | (box->y1 << 16));
+		OUT_RING(((box->x2 - 1) & 0xffff) | ((box->y2 - 1) << 16));
 		OUT_RING(DR4);
 		OUT_RING(0);
 	}
@@ -434,7 +434,7 @@ static int i915_dispatch_cmdbuffer(struct drm_device * dev,
 
 	for (i = 0; i < count; i++) {
 		if (i < nbox) {
-			ret = i915_emit_box(dev, cliprects, i,
+			ret = i915_emit_box(dev, &cliprects[i],
 					    cmd->DR1, cmd->DR4);
 			if (ret)
 				return ret;
@@ -467,7 +467,7 @@ static int i915_dispatch_batchbuffer(struct drm_device * dev,
 	count = nbox ? nbox : 1;
 	for (i = 0; i < count; i++) {
 		if (i < nbox) {
-			ret = i915_emit_box(dev, cliprects, i,
+			ret = i915_emit_box(dev, &cliprects[i],
 					    batch->DR1, batch->DR4);
 			if (ret)
 				return ret;

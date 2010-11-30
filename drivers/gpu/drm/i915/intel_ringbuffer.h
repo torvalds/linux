@@ -57,9 +57,7 @@ struct  intel_ring_buffer {
 				       u32 *seqno);
 	u32		(*get_seqno)(struct intel_ring_buffer *ring);
 	int		(*dispatch_execbuffer)(struct intel_ring_buffer *ring,
-					       struct drm_i915_gem_execbuffer2 *exec,
-					       struct drm_clip_rect *cliprects,
-					       uint64_t exec_offset);
+					       u32 offset, u32 length);
 	void		(*cleanup)(struct intel_ring_buffer *ring);
 
 	/**

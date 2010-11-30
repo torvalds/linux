@@ -966,8 +966,8 @@ extern int i915_driver_device_is_agp(struct drm_device * dev);
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
 extern int i915_emit_box(struct drm_device *dev,
-			 struct drm_clip_rect *boxes,
-			 int i, int DR1, int DR4);
+			 struct drm_clip_rect *box,
+			 int DR1, int DR4);
 extern int i915_reset(struct drm_device *dev, u8 flags);
 extern unsigned long i915_chipset_val(struct drm_i915_private *dev_priv);
 extern unsigned long i915_mch_val(struct drm_i915_private *dev_priv);

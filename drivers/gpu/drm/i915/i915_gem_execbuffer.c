@@ -825,6 +825,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *batch_obj;
 	struct drm_clip_rect *cliprects = NULL;
 	struct intel_ring_buffer *ring;
+	u32 exec_start, exec_len;
 	int ret, i;
 
 	if (!i915_gem_check_execbuffer(args)) {
@@ -871,6 +872,11 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	if (args->num_cliprects != 0) {
+		if (ring != &dev_priv->render_ring) {
+			DRM_ERROR("clip rectangles are only valid with the render ring\n");
+			return -EINVAL;
+		}
+
 		cliprects = kmalloc(args->num_cliprects * sizeof(*cliprects),
 				    GFP_KERNEL);
 		if (cliprects == NULL) {
@@ -959,11 +965,25 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret)
 		goto err;
 
-	ret = ring->dispatch_execbuffer(ring,
-					args, cliprects,
-					batch_obj->gtt_offset);
-	if (ret)
-		goto err;
+	exec_start = batch_obj->gtt_offset + args->batch_start_offset;
+	exec_len = args->batch_len;
+	if (cliprects) {
+		for (i = 0; i < args->num_cliprects; i++) {
+			ret = i915_emit_box(dev, &cliprects[i],
+					    args->DR1, args->DR4);
+			if (ret)
+				goto err;
+
+			ret = ring->dispatch_execbuffer(ring,
+							exec_start, exec_len);
+			if (ret)
+				goto err;
+		}
+	} else {
+		ret = ring->dispatch_execbuffer(ring, exec_start, exec_len);
+		if (ret)
+			goto err;
+	}
 
 	i915_gem_execbuffer_move_to_active(&objects, ring);
 	i915_gem_execbuffer_retire_commands(dev, file, ring);

@@ -508,25 +508,18 @@ ring_status_page_get_seqno(struct intel_ring_buffer *ring)
 }
 
 static int
-ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
-			 struct drm_i915_gem_execbuffer2 *exec,
-			 struct drm_clip_rect *cliprects,
-			 uint64_t exec_offset)
+ring_dispatch_execbuffer(struct intel_ring_buffer *ring, u32 offset, u32 length)
 {
-	uint32_t exec_start;
 	int ret;
-
-	exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
 
 	ret = intel_ring_begin(ring, 2);
 	if (ret)
 		return ret;
 
 	intel_ring_emit(ring,
-			MI_BATCH_BUFFER_START |
-			(2 << 6) |
+			MI_BATCH_BUFFER_START | (2 << 6) |
 			MI_BATCH_NON_SECURE_I965);
-	intel_ring_emit(ring, exec_start);
+	intel_ring_emit(ring, offset);
 	intel_ring_advance(ring);
 
 	return 0;
@@ -534,58 +527,40 @@ ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 
 static int
 render_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
-				struct drm_i915_gem_execbuffer2 *exec,
-				struct drm_clip_rect *cliprects,
-				uint64_t exec_offset)
+				u32 offset, u32 len)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int nbox = exec->num_cliprects;
-	uint32_t exec_start, exec_len;
-	int i, count, ret;
-
-	exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
-	exec_len = (uint32_t) exec->batch_len;
+	int ret;
 
 	trace_i915_gem_request_submit(dev, dev_priv->next_seqno + 1);
 
-	count = nbox ? nbox : 1;
-	for (i = 0; i < count; i++) {
-		if (i < nbox) {
-			ret = i915_emit_box(dev, cliprects, i,
-					    exec->DR1, exec->DR4);
-			if (ret)
-				return ret;
-		}
+	if (IS_I830(dev) || IS_845G(dev)) {
+		ret = intel_ring_begin(ring, 4);
+		if (ret)
+			return ret;
 
-		if (IS_I830(dev) || IS_845G(dev)) {
-			ret = intel_ring_begin(ring, 4);
-			if (ret)
-				return ret;
+		intel_ring_emit(ring, MI_BATCH_BUFFER);
+		intel_ring_emit(ring, offset | MI_BATCH_NON_SECURE);
+		intel_ring_emit(ring, offset + len - 8);
+		intel_ring_emit(ring, 0);
+	} else {
+		ret = intel_ring_begin(ring, 2);
+		if (ret)
+			return ret;
 
-			intel_ring_emit(ring, MI_BATCH_BUFFER);
-			intel_ring_emit(ring, exec_start | MI_BATCH_NON_SECURE);
-			intel_ring_emit(ring, exec_start + exec_len - 4);
-			intel_ring_emit(ring, 0);
+		if (INTEL_INFO(dev)->gen >= 4) {
+			intel_ring_emit(ring,
+					MI_BATCH_BUFFER_START | (2 << 6) |
+					MI_BATCH_NON_SECURE_I965);
+			intel_ring_emit(ring, offset);
 		} else {
-			ret = intel_ring_begin(ring, 2);
-			if (ret)
-				return ret;
-
-			if (INTEL_INFO(dev)->gen >= 4) {
-				intel_ring_emit(ring,
-						MI_BATCH_BUFFER_START | (2 << 6)
-						| MI_BATCH_NON_SECURE_I965);
-				intel_ring_emit(ring, exec_start);
-			} else {
-				intel_ring_emit(ring, MI_BATCH_BUFFER_START
-						| (2 << 6));
-				intel_ring_emit(ring, exec_start |
-						MI_BATCH_NON_SECURE);
-			}
+			intel_ring_emit(ring,
+					MI_BATCH_BUFFER_START | (2 << 6));
+			intel_ring_emit(ring, offset | MI_BATCH_NON_SECURE);
 		}
-		intel_ring_advance(ring);
 	}
+	intel_ring_advance(ring);
 
 	return 0;
 }
@@ -904,14 +879,9 @@ static void gen6_ring_flush(struct intel_ring_buffer *ring,
 
 static int
 gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
-			      struct drm_i915_gem_execbuffer2 *exec,
-			      struct drm_clip_rect *cliprects,
-			      uint64_t exec_offset)
+			      u32 offset, u32 len)
 {
-       uint32_t exec_start;
        int ret;
-
-       exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
 
        ret = intel_ring_begin(ring, 2);
        if (ret)
@@ -919,7 +889,7 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 
        intel_ring_emit(ring, MI_BATCH_BUFFER_START | MI_BATCH_NON_SECURE_I965);
        /* bit0-7 is the length on GEN6+ */
-       intel_ring_emit(ring, exec_start);
+       intel_ring_emit(ring, offset);
        intel_ring_advance(ring);
 
        return 0;
