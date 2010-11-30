@@ -114,6 +114,7 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->repipe = repipe;
 	INIT_LIST_HEAD(&self->ordered_samples.samples);
 	INIT_LIST_HEAD(&self->ordered_samples.sample_cache);
+	INIT_LIST_HEAD(&self->ordered_samples.to_free);
 	machine__init(&self->host_machine, "", HOST_KERNEL_ID);
 
 	if (mode == O_RDONLY) {
@@ -403,10 +404,10 @@ static void perf_session_free_sample_buffers(struct perf_session *session)
 {
 	struct ordered_samples *os = &session->ordered_samples;
 
-	while (!list_empty(&os->sample_cache)) {
+	while (!list_empty(&os->to_free)) {
 		struct sample_queue *sq;
 
-		sq = list_entry(os->sample_cache.next, struct sample_queue, list);
+		sq = list_entry(os->to_free.next, struct sample_queue, list);
 		list_del(&sq->list);
 		free(sq);
 	}
@@ -538,10 +539,13 @@ static void __queue_sample_event(struct sample_queue *new,
 	}
 }
 
+#define MAX_SAMPLE_BUFFER	(64 * 1024 / sizeof(struct sample_queue))
+
 static int queue_sample_event(event_t *event, struct sample_data *data,
 			      struct perf_session *s)
 {
-	struct list_head *sc = &s->ordered_samples.sample_cache;
+	struct ordered_samples *os = &s->ordered_samples;
+	struct list_head *sc = &os->sample_cache;
 	u64 timestamp = data->time;
 	struct sample_queue *new;
 
@@ -553,10 +557,17 @@ static int queue_sample_event(event_t *event, struct sample_data *data,
 	if (!list_empty(sc)) {
 		new = list_entry(sc->next, struct sample_queue, list);
 		list_del(&new->list);
+	} else if (os->sample_buffer) {
+		new = os->sample_buffer + os->sample_buffer_idx;
+		if (++os->sample_buffer_idx == MAX_SAMPLE_BUFFER)
+			os->sample_buffer = NULL;
 	} else {
-		new = malloc(sizeof(*new));
-		if (!new)
+		os->sample_buffer = malloc(MAX_SAMPLE_BUFFER * sizeof(*new));
+		if (!os->sample_buffer)
 			return -ENOMEM;
+		list_add(&os->sample_buffer->list, &os->to_free);
+		os->sample_buffer_idx = 2;
+		new = os->sample_buffer + 1;
 	}
 
 	new->timestamp = timestamp;

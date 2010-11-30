@@ -19,7 +19,10 @@ struct ordered_samples {
 	u64			max_timestamp;
 	struct list_head	samples;
 	struct list_head	sample_cache;
+	struct list_head	to_free;
+	struct sample_queue	*sample_buffer;
 	struct sample_queue	*last_sample;
+	int			sample_buffer_idx;
 };
 
 struct perf_session {
