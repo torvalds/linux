@@ -1778,7 +1778,7 @@ int tcp_v4_remember_stamp(struct sock *sk)
 	int release_it = 0;
 
 	if (!rt || rt->rt_dst != inet->inet_daddr) {
-		peer = inet_getpeer(inet->inet_daddr, 1);
+		peer = inet_getpeer_v4(inet->inet_daddr, 1);
 		release_it = 1;
 	} else {
 		if (!rt->peer)
@@ -1804,7 +1804,7 @@ EXPORT_SYMBOL(tcp_v4_remember_stamp);
 
 int tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw)
 {
-	struct inet_peer *peer = inet_getpeer(tw->tw_daddr, 1);
+	struct inet_peer *peer = inet_getpeer_v4(tw->tw_daddr, 1);
 
 	if (peer) {
 		const struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);

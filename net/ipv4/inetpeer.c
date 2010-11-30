@@ -444,7 +444,7 @@ static struct inet_peer_base *family_to_base(int family)
 }
 
 /* Called with or without local BH being disabled. */
-struct inet_peer *inet_getpeer(__be32 daddr, int create)
+struct inet_peer *inet_getpeer(inet_peer_address_t *daddr, int create)
 {
 	struct inet_peer __rcu **stack[PEER_MAXDEPTH], ***stackptr;
 	struct inet_peer_base *base = family_to_base(AF_INET);
@@ -454,7 +454,7 @@ struct inet_peer *inet_getpeer(__be32 daddr, int create)
 	 * Because of a concurrent writer, we might not find an existing entry.
 	 */
 	rcu_read_lock_bh();
-	p = lookup_rcu_bh(daddr, base);
+	p = lookup_rcu_bh(daddr->a4, base);
 	rcu_read_unlock_bh();
 
 	if (p) {
@@ -469,7 +469,7 @@ struct inet_peer *inet_getpeer(__be32 daddr, int create)
 	 * At least, nodes should be hot in our cache.
 	 */
 	spin_lock_bh(&base->lock);
-	p = lookup(daddr, stack, base);
+	p = lookup(daddr->a4, stack, base);
 	if (p != peer_avl_empty) {
 		atomic_inc(&p->refcnt);
 		spin_unlock_bh(&base->lock);
@@ -479,10 +479,10 @@ struct inet_peer *inet_getpeer(__be32 daddr, int create)
 	}
 	p = create ? kmem_cache_alloc(peer_cachep, GFP_ATOMIC) : NULL;
 	if (p) {
-		p->daddr.a4 = daddr;
+		p->daddr = *daddr;
 		atomic_set(&p->refcnt, 1);
 		atomic_set(&p->rid, 0);
-		atomic_set(&p->ip_id_count, secure_ip_id(daddr));
+		atomic_set(&p->ip_id_count, secure_ip_id(daddr->a4));
 		p->tcp_ts_stamp = 0;
 		INIT_LIST_HEAD(&p->unused);
 

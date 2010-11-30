@@ -50,7 +50,16 @@ struct inet_peer {
 void			inet_initpeers(void) __init;
 
 /* can be called with or without local BH being disabled */
-struct inet_peer	*inet_getpeer(__be32 daddr, int create);
+struct inet_peer	*inet_getpeer(inet_peer_address_t *daddr, int create);
+
+static inline struct inet_peer *inet_getpeer_v4(__be32 v4daddr, int create)
+{
+	inet_peer_address_t daddr;
+
+	daddr.a4 = v4daddr;
+	daddr.family = AF_INET;
+	return inet_getpeer(&daddr, create);
+}
 
 /* can be called from BH context or outside */
 extern void inet_putpeer(struct inet_peer *p);
