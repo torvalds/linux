@@ -47,12 +47,6 @@ extern void osl_assert(char *exp, char *file, int line);
 extern uint osl_pci_bus(struct osl_info *osh);
 extern uint osl_pci_slot(struct osl_info *osh);
 
-#define PKTFREESETCB(osh, _tx_fn, _tx_ctx)			\
-	do {							\
-		((struct osl_pubinfo *)osh)->tx_fn = _tx_fn;		\
-		((struct osl_pubinfo *)osh)->tx_ctx = _tx_ctx;	\
-	} while (0)
-
 #define BUS_SWAP32(v)		(v)
 
 extern void *osl_dma_alloc_consistent(struct osl_info *osh, uint size,

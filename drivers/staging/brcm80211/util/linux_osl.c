@@ -103,9 +103,6 @@ void BCMFASTPATH osl_pktfree(struct osl_info *osh, void *p, bool send)
 	skb = (struct sk_buff *)p;
 	ASSERT(skb);
 
-	if (send && osh->pub.tx_fn)
-		osh->pub.tx_fn(osh->pub.tx_ctx, p, 0);
-
 	/* perversion: we use skb->next to chain multi-skb packets */
 	while (skb) {
 		nskb = skb->next;
