@@ -105,10 +105,8 @@ struct net;
 
 /**
  *	struct sock_common - minimal network layer representation of sockets
- *	@skc_node: main hash linkage for various protocol lookup tables
- *	@skc_nulls_node: main hash linkage for TCP/UDP/UDP-Lite protocol
- *	@skc_refcnt: reference count
- *	@skc_tx_queue_mapping: tx queue number for this connection
+ *	@skc_daddr: Foreign IPv4 addr
+ *	@skc_rcv_saddr: Bound local IPv4 addr
  *	@skc_hash: hash value used with various protocol lookup tables
  *	@skc_u16hashes: two u16 hash values used by UDP lookup tables
  *	@skc_family: network address family
@@ -119,20 +117,20 @@ struct net;
  *	@skc_portaddr_node: second hash linkage for UDP/UDP-Lite protocol
  *	@skc_prot: protocol handlers inside a network family
  *	@skc_net: reference to the network namespace of this socket
+ *	@skc_node: main hash linkage for various protocol lookup tables
+ *	@skc_nulls_node: main hash linkage for TCP/UDP/UDP-Lite protocol
+ *	@skc_tx_queue_mapping: tx queue number for this connection
+ *	@skc_refcnt: reference count
  *
  *	This is the minimal network layer representation of sockets, the header
  *	for struct sock and struct inet_timewait_sock.
  */
 struct sock_common {
-	/*
-	 * first fields are not copied in sock_copy()
+	/* skc_daddr and skc_rcv_saddr must be grouped :
+	 * cf INET_MATCH() and INET_TW_MATCH()
 	 */
-	union {
-		struct hlist_node	skc_node;
-		struct hlist_nulls_node skc_nulls_node;
-	};
-	atomic_t		skc_refcnt;
-	int			skc_tx_queue_mapping;
+	__be32			skc_daddr;
+	__be32			skc_rcv_saddr;
 
 	union  {
 		unsigned int	skc_hash;
@@ -150,6 +148,18 @@ struct sock_common {
 #ifdef CONFIG_NET_NS
 	struct net	 	*skc_net;
 #endif
+	/*
+	 * fields between dontcopy_begin/dontcopy_end
+	 * are not copied in sock_copy()
+	 */
+	int			skc_dontcopy_begin[0];
+	union {
+		struct hlist_node	skc_node;
+		struct hlist_nulls_node skc_nulls_node;
+	};
+	int			skc_tx_queue_mapping;
+	atomic_t		skc_refcnt;
+	int                     skc_dontcopy_end[0];
 };
 
 /**
@@ -232,7 +242,8 @@ struct sock {
 #define sk_refcnt		__sk_common.skc_refcnt
 #define sk_tx_queue_mapping	__sk_common.skc_tx_queue_mapping
 
-#define sk_copy_start		__sk_common.skc_hash
+#define sk_dontcopy_begin	__sk_common.skc_dontcopy_begin
+#define sk_dontcopy_end		__sk_common.skc_dontcopy_end
 #define sk_hash			__sk_common.skc_hash
 #define sk_family		__sk_common.skc_family
 #define sk_state		__sk_common.skc_state
