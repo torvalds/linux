@@ -642,7 +642,8 @@ static int dac33_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		dac33_soft_power(codec, 1);
+		if (!dac33->substream)
+			dac33_soft_power(codec, 1);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
