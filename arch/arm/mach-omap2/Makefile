@@ -42,6 +42,7 @@ AFLAGS_sram34xx.o			:=-Wa,-march=armv7-a
 obj-$(CONFIG_ARCH_OMAP2420)		+= mux2420.o
 obj-$(CONFIG_ARCH_OMAP2430)		+= mux2430.o
 obj-$(CONFIG_ARCH_OMAP3)		+= mux34xx.o
+obj-$(CONFIG_ARCH_OMAP4)		+= mux44xx.o
 
 # SMS/SDRC
 obj-$(CONFIG_ARCH_OMAP2)		+= sdrc2xxx.o

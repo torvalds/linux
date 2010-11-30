@@ -293,6 +293,8 @@ static struct omap_board_mux rx51_mmc2_off_mux[] = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
 
+static struct omap_mux_partition *partition;
+
 /*
  * Current flows to eMMC when eMMC is off and the data lines are pulled up,
  * so pull them down. N.B. we pull 8 lines because we are using 8 lines.
@@ -300,9 +302,9 @@ static struct omap_board_mux rx51_mmc2_off_mux[] = {
 static void rx51_mmc2_remux(struct device *dev, int slot, int power_on)
 {
 	if (power_on)
-		omap_mux_write_array(rx51_mmc2_on_mux);
+		omap_mux_write_array(partition, rx51_mmc2_on_mux);
 	else
-		omap_mux_write_array(rx51_mmc2_off_mux);
+		omap_mux_write_array(partition, rx51_mmc2_off_mux);
 }
 
 static struct omap2_hsmmc_info mmc[] __initdata = {
@@ -922,7 +924,11 @@ void __init rx51_peripherals_init(void)
 	rx51_init_wl1251();
 	spi_register_board_info(rx51_peripherals_spi_board_info,
 				ARRAY_SIZE(rx51_peripherals_spi_board_info));
-	omap2_hsmmc_init(mmc);
+
+	partition = omap_mux_get("core");
+	if (partition)
+		omap2_hsmmc_init(mmc);
+
 	platform_device_register(&rx51_charger_device);
 }
 

@@ -85,6 +85,12 @@ config OMAP_PACKAGE_CUS
 config OMAP_PACKAGE_CBP
        bool
 
+config OMAP_PACKAGE_CBL
+       bool
+
+config OMAP_PACKAGE_CBS
+       bool
+
 comment "OMAP Board Type"
 	depends on ARCH_OMAP2PLUS
 
@@ -282,11 +288,15 @@ config MACH_OMAP_4430SDP
 	bool "OMAP 4430 SDP board"
 	default y
 	depends on ARCH_OMAP4
+	select OMAP_PACKAGE_CBL
+	select OMAP_PACKAGE_CBS
 
 config MACH_OMAP4_PANDA
 	bool "OMAP4 Panda Board"
 	default y
 	depends on ARCH_OMAP4
+	select OMAP_PACKAGE_CBL
+	select OMAP_PACKAGE_CBS
 
 config OMAP3_EMU
 	bool "OMAP3 debugging peripherals"
