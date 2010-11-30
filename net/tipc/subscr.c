@@ -542,7 +542,7 @@ static void subscr_named_msg_event(void *usr_handle,
 int tipc_subscr_start(void)
 {
 	struct tipc_name_seq seq = {TIPC_TOP_SRV, TIPC_TOP_SRV, TIPC_TOP_SRV};
-	int res = -1;
+	int res;
 
 	memset(&topsrv, 0, sizeof (topsrv));
 	spin_lock_init(&topsrv.lock);
