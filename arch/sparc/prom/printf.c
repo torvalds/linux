@@ -23,13 +23,14 @@ static char ppbuf[1024];
 
 void notrace prom_write(const char *buf, unsigned int n)
 {
-	char ch;
-
-	while (n != 0) {
-		--n;
-		if ((ch = *buf++) == '\n')
-			prom_putchar('\r');
-		prom_putchar(ch);
+	while (n-- != 0) {
+		char ch = *buf;
+		if (ch == '\n') {
+			char tmp = '\r';
+			prom_putchar(&tmp);
+		}
+		prom_putchar(buf);
+		buf++;
 	}
 }
 

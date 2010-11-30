@@ -105,10 +105,10 @@ extern int prom_getprev(void);
 /* Character operations to/from the console.... */
 
 /* Blocking get character from console. */
-extern char prom_getchar(void);
+extern void prom_getchar(char *buf);
 
 /* Blocking put character to console. */
-extern void prom_putchar(char character);
+extern void prom_putchar(const char *buf);
 
 /* Prom's internal routines, don't use in kernel/boot code. */
 extern void prom_printf(const char *fmt, ...);

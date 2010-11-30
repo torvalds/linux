@@ -19,27 +19,27 @@ extern void restore_current(void);
 /* Non blocking get character from console input device, returns -1
  * if no input was taken.  This can be used for polling.
  */
-static int prom_nbgetchar(void)
+static int prom_nbgetchar(char *buf)
 {
-	static char inc;
-	int i = -1;
 	unsigned long flags;
+	int i = -1;
 
 	spin_lock_irqsave(&prom_lock, flags);
 	switch(prom_vers) {
 	case PROM_V0:
 		i = (*(romvec->pv_nbgetchar))();
+		if (i != -1) {
+			*buf = i;
+			i = 0;
+		}
 		break;
 	case PROM_V2:
 	case PROM_V3:
-		if( (*(romvec->pv_v2devops).v2_dev_read)(*romvec->pv_v2bootargs.fd_stdin , &inc, 0x1) == 1) {
-			i = inc;
-		} else {
-			i = -1;
-		}
+		if ((*(romvec->pv_v2devops).v2_dev_read)(*romvec->pv_v2bootargs.fd_stdin,
+							 buf, 0x1) == 1)
+			i = 0;
 		break;
 	default:
-		i = -1;
 		break;
 	};
 	restore_current();
@@ -50,27 +50,23 @@ static int prom_nbgetchar(void)
 /* Non blocking put character to console device, returns -1 if
  * unsuccessful.
  */
-static int prom_nbputchar(char c)
+static int prom_nbputchar(const char *buf)
 {
-	static char outc;
 	unsigned long flags;
 	int i = -1;
 
 	spin_lock_irqsave(&prom_lock, flags);
 	switch(prom_vers) {
 	case PROM_V0:
-		i = (*(romvec->pv_nbputchar))(c);
+		i = (*(romvec->pv_nbputchar))(*buf);
 		break;
 	case PROM_V2:
 	case PROM_V3:
-		outc = c;
-		if( (*(romvec->pv_v2devops).v2_dev_write)(*romvec->pv_v2bootargs.fd_stdout, &outc, 0x1) == 1)
+		if ((*(romvec->pv_v2devops).v2_dev_write)(*romvec->pv_v2bootargs.fd_stdout,
+							  buf, 0x1) == 1)
 			i = 0;
-		else
-			i = -1;
 		break;
 	default:
-		i = -1;
 		break;
 	};
 	restore_current();
@@ -79,17 +75,21 @@ static int prom_nbputchar(char c)
 }
 
 /* Blocking version of get character routine above. */
-char
-prom_getchar(void)
+void prom_getchar(char *buf)
 {
-	int character;
-	while((character = prom_nbgetchar()) == -1) ;
-	return (char) character;
+	while (1) {
+		int err = prom_nbgetchar(buf);
+		if (!err)
+			break;
+	}
 }
 
 /* Blocking version of put character routine above. */
-void
-prom_putchar(char c)
+void prom_putchar(const char *buf)
 {
-	while(prom_nbputchar(c) == -1) ;
+	while (1) {
+		int err = prom_nbputchar(buf);
+		if (!err)
+			break;
+	}
 }
