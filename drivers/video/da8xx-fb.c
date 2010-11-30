@@ -1029,10 +1029,6 @@ static int __init fb_probe(struct platform_device *device)
 		goto err_release_pl_mem;
 	}
 
-	ret = request_irq(par->irq, lcdc_irq_handler, 0, DRIVER_NAME, par);
-	if (ret)
-		goto err_release_pl_mem;
-
 	/* Initialize par */
 	da8xx_fb_info->var.bits_per_pixel = lcd_cfg->bpp;
 
@@ -1060,7 +1056,7 @@ static int __init fb_probe(struct platform_device *device)
 
 	ret = fb_alloc_cmap(&da8xx_fb_info->cmap, PALETTE_SIZE, 0);
 	if (ret)
-		goto err_free_irq;
+		goto err_release_pl_mem;
 	da8xx_fb_info->cmap.len = par->palette_sz;
 
 	/* initialize var_screeninfo */
@@ -1088,8 +1084,13 @@ static int __init fb_probe(struct platform_device *device)
 		goto err_cpu_freq;
 	}
 #endif
+
+	ret = request_irq(par->irq, lcdc_irq_handler, 0, DRIVER_NAME, par);
+	if (ret)
+		goto irq_freq;
 	return 0;
 
+irq_freq:
 #ifdef CONFIG_CPU_FREQ
 err_cpu_freq:
 	unregister_framebuffer(da8xx_fb_info);
@@ -1097,9 +1098,6 @@ err_cpu_freq:
 
 err_dealloc_cmap:
 	fb_dealloc_cmap(&da8xx_fb_info->cmap);
-
-err_free_irq:
-	free_irq(par->irq, par);
 
 err_release_pl_mem:
 	dma_free_coherent(NULL, PALETTE_SIZE, par->v_palette_base,
