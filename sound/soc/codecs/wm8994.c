@@ -1858,15 +1858,33 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			pm_runtime_get_sync(codec->dev);
 
-			/* Tweak DC servo and DSP configuration for
-			 * improved performance. */
-			if (control->type == WM8994 && wm8994->revision < 4) {
-				/* Tweak DC servo and DSP configuration for
-				 * improved performance. */
-				snd_soc_write(codec, 0x102, 0x3);
-				snd_soc_write(codec, 0x56, 0x3);
-				snd_soc_write(codec, 0x817, 0);
-				snd_soc_write(codec, 0x102, 0);
+			switch (control->type) {
+			case WM8994:
+				if (wm8994->revision < 4) {
+					/* Tweak DC servo and DSP
+					 * configuration for improved
+					 * performance. */
+					snd_soc_write(codec, 0x102, 0x3);
+					snd_soc_write(codec, 0x56, 0x3);
+					snd_soc_write(codec, 0x817, 0);
+					snd_soc_write(codec, 0x102, 0);
+				}
+				break;
+
+			case WM8958:
+				if (wm8994->revision == 0) {
+					/* Optimise performance for rev A */
+					snd_soc_write(codec, 0x102, 0x3);
+					snd_soc_write(codec, 0xcb, 0x81);
+					snd_soc_write(codec, 0x817, 0);
+					snd_soc_write(codec, 0x102, 0);
+
+					snd_soc_update_bits(codec,
+							    WM8958_CHARGE_PUMP_2,
+							    WM8958_CP_DISCH,
+							    WM8958_CP_DISCH);
+				}
+				break;
 			}
 
 			/* Discharge LINEOUT1 & 2 */

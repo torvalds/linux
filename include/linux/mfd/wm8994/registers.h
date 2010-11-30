@@ -64,6 +64,7 @@
 #define WM8994_LDO_1                            0x3B
 #define WM8994_LDO_2                            0x3C
 #define WM8994_CHARGE_PUMP_1                    0x4C
+#define WM8958_CHARGE_PUMP_2                    0x4D
 #define WM8994_CLASS_W_1                        0x51
 #define WM8994_DC_SERVO_1                       0x54
 #define WM8994_DC_SERVO_2                       0x55
@@ -1924,6 +1925,14 @@
 #define WM8994_CP_ENA_MASK                      0x8000  /* CP_ENA */
 #define WM8994_CP_ENA_SHIFT                         15  /* CP_ENA */
 #define WM8994_CP_ENA_WIDTH                          1  /* CP_ENA */
+
+/*
+ * R77 (0x4D) - Charge Pump (2)
+ */
+#define WM8958_CP_DISCH                         0x8000  /* CP_DISCH */
+#define WM8958_CP_DISCH_MASK                    0x8000  /* CP_DISCH */
+#define WM8958_CP_DISCH_SHIFT                       15  /* CP_DISCH */
+#define WM8958_CP_DISCH_WIDTH                        1  /* CP_DISCH */
 
 /*
  * R81 (0x51) - Class W (1)
