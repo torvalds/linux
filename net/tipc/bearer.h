@@ -192,7 +192,6 @@ void tipc_bearer_schedule(struct bearer *b_ptr, struct link *l_ptr);
 struct bearer *tipc_bearer_find_interface(const char *if_name);
 int tipc_bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr);
 int tipc_bearer_congested(struct bearer *b_ptr, struct link *l_ptr);
-int tipc_bearer_init(void);
 void tipc_bearer_stop(void);
 void tipc_bearer_lock_push(struct bearer *b_ptr);
 

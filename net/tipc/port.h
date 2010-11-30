@@ -242,7 +242,6 @@ int tipc_port_reject_sections(struct port *p_ptr, struct tipc_msg *hdr,
 			      struct iovec const *msg_sect, u32 num_sect,
 			      int err);
 struct sk_buff *tipc_port_get_ports(void);
-struct sk_buff *port_show_stats(const void *req_tlv_area, int req_tlv_space);
 void tipc_port_recv_proto_msg(struct sk_buff *buf);
 void tipc_port_recv_mcast(struct sk_buff *buf, struct port_list *dp);
 void tipc_port_reinit(void);
