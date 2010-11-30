@@ -10,6 +10,8 @@
  * the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_BASENAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/input.h>
@@ -959,10 +961,8 @@ static int input_attach_handler(struct input_dev *dev, struct input_handler *han
 
 	error = handler->connect(handler, dev, id);
 	if (error && error != -ENODEV)
-		printk(KERN_ERR
-			"input: failed to attach handler %s to device %s, "
-			"error: %d\n",
-			handler->name, kobject_name(&dev->dev.kobj), error);
+		pr_err("failed to attach handler %s to device %s, error: %d\n",
+		       handler->name, kobject_name(&dev->dev.kobj), error);
 
 	return error;
 }
@@ -1820,9 +1820,8 @@ void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int
 		break;
 
 	default:
-		printk(KERN_ERR
-			"input_set_capability: unknown type %u (code %u)\n",
-			type, code);
+		pr_err("input_set_capability: unknown type %u (code %u)\n",
+		       type, code);
 		dump_stack();
 		return;
 	}
@@ -1904,8 +1903,9 @@ int input_register_device(struct input_dev *dev)
 		return error;
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
-	printk(KERN_INFO "input: %s as %s\n",
-		dev->name ? dev->name : "Unspecified device", path ? path : "N/A");
+	pr_info("%s as %s\n",
+		dev->name ? dev->name : "Unspecified device",
+		path ? path : "N/A");
 	kfree(path);
 
 	error = mutex_lock_interruptible(&input_mutex);
@@ -2187,7 +2187,7 @@ static int __init input_init(void)
 
 	err = class_register(&input_class);
 	if (err) {
-		printk(KERN_ERR "input: unable to register input_dev class\n");
+		pr_err("unable to register input_dev class\n");
 		return err;
 	}
 
@@ -2197,7 +2197,7 @@ static int __init input_init(void)
 
 	err = register_chrdev(INPUT_MAJOR, "input", &input_fops);
 	if (err) {
-		printk(KERN_ERR "input: unable to register char major %d", INPUT_MAJOR);
+		pr_err("unable to register char major %d", INPUT_MAJOR);
 		goto fail2;
 	}
 
