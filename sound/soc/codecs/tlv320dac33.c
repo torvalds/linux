@@ -315,8 +315,6 @@ static void dac33_init_chip(struct snd_soc_codec *codec)
 	 clock source = internal osc (?) */
 	dac33_write(codec, DAC33_ANA_VOL_SOFT_STEP_CTRL, DAC33_VOLCLKEN);
 
-	dac33_write(codec, DAC33_PWR_CTRL, DAC33_PDNALLB);
-
 	/* Restore only selected registers (gains mostly) */
 	dac33_write(codec, DAC33_LDAC_DIG_VOL_CTRL,
 		    dac33_read_reg_cache(codec, DAC33_LDAC_DIG_VOL_CTRL));
