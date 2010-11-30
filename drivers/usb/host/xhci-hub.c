@@ -28,33 +28,15 @@
 #define	PORT_RWC_BITS	(PORT_CSC | PORT_PEC | PORT_WRC | PORT_OCC | \
 			 PORT_RC | PORT_PLC | PORT_PE)
 
-static void xhci_hub_descriptor(struct usb_hcd *hcd, struct xhci_hcd *xhci,
-		struct usb_hub_descriptor *desc)
+static void xhci_common_hub_descriptor(struct xhci_hcd *xhci,
+		struct usb_hub_descriptor *desc, int ports)
 {
-	int ports;
 	u16 temp;
 
-	if (hcd->speed == HCD_USB3)
-		ports = xhci->num_usb3_ports;
-	else
-		ports = xhci->num_usb2_ports;
-
-	/* FIXME: return a USB 3.0 hub descriptor if this request was for the
-	 * USB3 roothub.
-	 */
-
-	/* USB 3.0 hubs have a different descriptor, but we fake this for now */
-	desc->bDescriptorType = 0x29;
 	desc->bPwrOn2PwrGood = 10;	/* xhci section 5.4.9 says 20ms max */
 	desc->bHubContrCurrent = 0;
 
 	desc->bNbrPorts = ports;
-	temp = 1 + (ports / 8);
-	desc->bDescLength = 7 + 2 * temp;
-
-	memset(&desc->u.hs.DeviceRemovable[0], 0, temp);
-	memset(&desc->u.hs.DeviceRemovable[temp], 0xff, temp);
-
 	/* Ugh, these should be #defines, FIXME */
 	/* Using table 11-13 in USB 2.0 spec. */
 	temp = 0;
@@ -69,6 +51,102 @@ static void xhci_hub_descriptor(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 	/* Bits 6:5 - no TTs in root ports */
 	/* Bit  7 - no port indicators */
 	desc->wHubCharacteristics = (__force __u16) cpu_to_le16(temp);
+}
+
+/* Fill in the USB 2.0 roothub descriptor */
+static void xhci_usb2_hub_descriptor(struct usb_hcd *hcd, struct xhci_hcd *xhci,
+		struct usb_hub_descriptor *desc)
+{
+	int ports;
+	u16 temp;
+	__u8 port_removable[(USB_MAXCHILDREN + 1 + 7) / 8];
+	u32 portsc;
+	unsigned int i;
+
+	ports = xhci->num_usb2_ports;
+
+	xhci_common_hub_descriptor(xhci, desc, ports);
+	desc->bDescriptorType = 0x29;
+	temp = 1 + (ports / 8);
+	desc->bDescLength = 7 + 2 * temp;
+
+	/* The Device Removable bits are reported on a byte granularity.
+	 * If the port doesn't exist within that byte, the bit is set to 0.
+	 */
+	memset(port_removable, 0, sizeof(port_removable));
+	for (i = 0; i < ports; i++) {
+		portsc = xhci_readl(xhci, xhci->usb3_ports[i]);
+		/* If a device is removable, PORTSC reports a 0, same as in the
+		 * hub descriptor DeviceRemovable bits.
+		 */
+		if (portsc & PORT_DEV_REMOVE)
+			/* This math is hairy because bit 0 of DeviceRemovable
+			 * is reserved, and bit 1 is for port 1, etc.
+			 */
+			port_removable[(i + 1) / 8] |= 1 << ((i + 1) % 8);
+	}
+
+	/* ch11.h defines a hub descriptor that has room for USB_MAXCHILDREN
+	 * ports on it.  The USB 2.0 specification says that there are two
+	 * variable length fields at the end of the hub descriptor:
+	 * DeviceRemovable and PortPwrCtrlMask.  But since we can have less than
+	 * USB_MAXCHILDREN ports, we may need to use the DeviceRemovable array
+	 * to set PortPwrCtrlMask bits.  PortPwrCtrlMask must always be set to
+	 * 0xFF, so we initialize the both arrays (DeviceRemovable and
+	 * PortPwrCtrlMask) to 0xFF.  Then we set the DeviceRemovable for each
+	 * set of ports that actually exist.
+	 */
+	memset(desc->u.hs.DeviceRemovable, 0xff,
+			sizeof(desc->u.hs.DeviceRemovable));
+	memset(desc->u.hs.PortPwrCtrlMask, 0xff,
+			sizeof(desc->u.hs.PortPwrCtrlMask));
+
+	for (i = 0; i < (ports + 1 + 7) / 8; i++)
+		memset(&desc->u.hs.DeviceRemovable[i], port_removable[i],
+				sizeof(__u8));
+}
+
+/* Fill in the USB 3.0 roothub descriptor */
+static void xhci_usb3_hub_descriptor(struct usb_hcd *hcd, struct xhci_hcd *xhci,
+		struct usb_hub_descriptor *desc)
+{
+	int ports;
+	u16 port_removable;
+	u32 portsc;
+	unsigned int i;
+
+	ports = xhci->num_usb3_ports;
+	xhci_common_hub_descriptor(xhci, desc, ports);
+	desc->bDescriptorType = 0x2a;
+	desc->bDescLength = 12;
+
+	/* header decode latency should be zero for roothubs,
+	 * see section 4.23.5.2.
+	 */
+	desc->u.ss.bHubHdrDecLat = 0;
+	desc->u.ss.wHubDelay = 0;
+
+	port_removable = 0;
+	/* bit 0 is reserved, bit 1 is for port 1, etc. */
+	for (i = 0; i < ports; i++) {
+		portsc = xhci_readl(xhci, xhci->usb3_ports[i]);
+		if (portsc & PORT_DEV_REMOVE)
+			port_removable |= 1 << (i + 1);
+	}
+	memset(&desc->u.ss.DeviceRemovable,
+			(__force __u16) cpu_to_le16(port_removable),
+			sizeof(__u16));
+}
+
+static void xhci_hub_descriptor(struct usb_hcd *hcd, struct xhci_hcd *xhci,
+		struct usb_hub_descriptor *desc)
+{
+
+	if (hcd->speed == HCD_USB3)
+		xhci_usb3_hub_descriptor(hcd, xhci, desc);
+	else
+		xhci_usb2_hub_descriptor(hcd, xhci, desc);
+
 }
 
 static unsigned int xhci_port_speed(unsigned int port_status)
@@ -320,6 +398,17 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		memset(buf, 0, 4);
 		break;
 	case GetHubDescriptor:
+		/* Check to make sure userspace is asking for the USB 3.0 hub
+		 * descriptor for the USB 3.0 roothub.  If not, we stall the
+		 * endpoint, like external hubs do.
+		 */
+		if (hcd->speed == HCD_USB3 &&
+				(wLength < USB_DT_SS_HUB_SIZE ||
+				 wValue != (USB_DT_SS_HUB << 8))) {
+			xhci_dbg(xhci, "Wrong hub descriptor type for "
+					"USB 3.0 roothub.\n");
+			goto error;
+		}
 		xhci_hub_descriptor(hcd, xhci,
 				(struct usb_hub_descriptor *) buf);
 		break;
@@ -331,6 +420,9 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		temp = xhci_readl(xhci, port_array[wIndex]);
 		xhci_dbg(xhci, "get port status, actual port %d status  = 0x%x\n", wIndex, temp);
 
+		/* FIXME - should we return a port status value like the USB
+		 * 3.0 external hubs do?
+		 */
 		/* wPortChange bits */
 		if (temp & PORT_CSC)
 			status |= USB_PORT_STAT_C_CONNECTION << 16;
@@ -401,6 +493,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		wIndex--;
 		temp = xhci_readl(xhci, port_array[wIndex]);
 		temp = xhci_port_state_to_neutral(temp);
+		/* FIXME: What new port features do we need to support? */
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
 			temp = xhci_readl(xhci, port_array[wIndex]);
@@ -469,6 +562,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			goto error;
 		wIndex--;
 		temp = xhci_readl(xhci, port_array[wIndex]);
+		/* FIXME: What new port features do we need to support? */
 		temp = xhci_port_state_to_neutral(temp);
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
