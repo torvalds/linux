@@ -193,6 +193,9 @@ struct fw_ohci {
 
 	struct mutex phy_reg_mutex;
 
+	void *misc_buffer;
+	dma_addr_t misc_buffer_bus;
+
 	struct ar_context ar_request_ctx;
 	struct ar_context ar_response_ctx;
 	struct context at_request_ctx;
@@ -623,11 +626,6 @@ static void ar_context_release(struct ar_context *ctx)
 {
 	unsigned int i;
 
-	if (ctx->descriptors)
-		dma_free_coherent(ctx->ohci->card.device,
-				  AR_BUFFERS * sizeof(struct descriptor),
-				  ctx->descriptors, ctx->descriptors_bus);
-
 	if (ctx->buffer)
 		vm_unmap_ram(ctx->buffer, AR_BUFFERS + AR_WRAPAROUND_PAGES);
 
@@ -925,8 +923,8 @@ error:
 	ctx->pointer = NULL;
 }
 
-static int ar_context_init(struct ar_context *ctx,
-			   struct fw_ohci *ohci, u32 regs)
+static int ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci,
+			   unsigned int descriptors_offset, u32 regs)
 {
 	unsigned int i;
 	dma_addr_t dma_addr;
@@ -960,13 +958,8 @@ static int ar_context_init(struct ar_context *ctx,
 	if (!ctx->buffer)
 		goto out_of_memory;
 
-	ctx->descriptors =
-		dma_alloc_coherent(ohci->card.device,
-				   AR_BUFFERS * sizeof(struct descriptor),
-				   &ctx->descriptors_bus,
-				   GFP_KERNEL);
-	if (!ctx->descriptors)
-		goto out_of_memory;
+	ctx->descriptors     = ohci->misc_buffer     + descriptors_offset;
+	ctx->descriptors_bus = ohci->misc_buffer_bus + descriptors_offset;
 
 	for (i = 0; i < AR_BUFFERS; i++) {
 		d = &ctx->descriptors[i];
@@ -3108,12 +3101,28 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	if (param_quirks)
 		ohci->quirks = param_quirks;
 
-	err = ar_context_init(&ohci->ar_request_ctx, ohci,
+	/*
+	 * Because dma_alloc_coherent() allocates at least one page,
+	 * we save space by using a common buffer for the AR request/
+	 * response descriptors and the self IDs buffer.
+	 */
+	BUILD_BUG_ON(AR_BUFFERS * sizeof(struct descriptor) > PAGE_SIZE/4);
+	BUILD_BUG_ON(SELF_ID_BUF_SIZE > PAGE_SIZE/2);
+	ohci->misc_buffer = dma_alloc_coherent(ohci->card.device,
+					       PAGE_SIZE,
+					       &ohci->misc_buffer_bus,
+					       GFP_KERNEL);
+	if (!ohci->misc_buffer) {
+		err = -ENOMEM;
+		goto fail_iounmap;
+	}
+
+	err = ar_context_init(&ohci->ar_request_ctx, ohci, 0,
 			      OHCI1394_AsReqRcvContextControlSet);
 	if (err < 0)
-		goto fail_iounmap;
+		goto fail_misc_buf;
 
-	err = ar_context_init(&ohci->ar_response_ctx, ohci,
+	err = ar_context_init(&ohci->ar_response_ctx, ohci, PAGE_SIZE/4,
 			      OHCI1394_AsRspRcvContextControlSet);
 	if (err < 0)
 		goto fail_arreq_ctx;
@@ -3148,15 +3157,8 @@ static int __devinit pci_probe(struct pci_dev *dev,
 		goto fail_contexts;
 	}
 
-	/* self-id dma buffer allocation */
-	ohci->self_id_cpu = dma_alloc_coherent(ohci->card.device,
-					       SELF_ID_BUF_SIZE,
-					       &ohci->self_id_bus,
-					       GFP_KERNEL);
-	if (ohci->self_id_cpu == NULL) {
-		err = -ENOMEM;
-		goto fail_contexts;
-	}
+	ohci->self_id_cpu = ohci->misc_buffer     + PAGE_SIZE/2;
+	ohci->self_id_bus = ohci->misc_buffer_bus + PAGE_SIZE/2;
 
 	bus_options = reg_read(ohci, OHCI1394_BusOptions);
 	max_receive = (bus_options >> 12) & 0xf;
@@ -3166,7 +3168,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
 
 	err = fw_card_add(&ohci->card, max_receive, link_speed, guid);
 	if (err)
-		goto fail_self_id;
+		goto fail_contexts;
 
 	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
 	fw_notify("Added fw-ohci device %s, OHCI v%x.%x, "
@@ -3176,9 +3178,6 @@ static int __devinit pci_probe(struct pci_dev *dev,
 
 	return 0;
 
- fail_self_id:
-	dma_free_coherent(ohci->card.device, SELF_ID_BUF_SIZE,
-			  ohci->self_id_cpu, ohci->self_id_bus);
  fail_contexts:
 	kfree(ohci->ir_context_list);
 	kfree(ohci->it_context_list);
@@ -3189,6 +3188,9 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	ar_context_release(&ohci->ar_response_ctx);
  fail_arreq_ctx:
 	ar_context_release(&ohci->ar_request_ctx);
+ fail_misc_buf:
+	dma_free_coherent(ohci->card.device, PAGE_SIZE,
+			  ohci->misc_buffer, ohci->misc_buffer_bus);
  fail_iounmap:
 	pci_iounmap(dev, ohci->registers);
  fail_iomem:
@@ -3228,10 +3230,10 @@ static void pci_remove(struct pci_dev *dev)
 	if (ohci->config_rom)
 		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
 				  ohci->config_rom, ohci->config_rom_bus);
-	dma_free_coherent(ohci->card.device, SELF_ID_BUF_SIZE,
-			  ohci->self_id_cpu, ohci->self_id_bus);
 	ar_context_release(&ohci->ar_request_ctx);
 	ar_context_release(&ohci->ar_response_ctx);
+	dma_free_coherent(ohci->card.device, PAGE_SIZE,
+			  ohci->misc_buffer, ohci->misc_buffer_bus);
 	context_release(&ohci->at_request_ctx);
 	context_release(&ohci->at_response_ctx);
 	kfree(ohci->it_context_list);
