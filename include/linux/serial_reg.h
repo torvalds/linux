@@ -99,6 +99,13 @@
 #define UART_LCR_WLEN7		0x02 /* Wordlength: 7 bits */
 #define UART_LCR_WLEN8		0x03 /* Wordlength: 8 bits */
 
+/*
+ * Access to some registers depends on register access / configuration
+ * mode.
+ */
+#define UART_LCR_CONF_MODE_A	UART_LCR_DLAB	/* Configutation mode A */
+#define UART_LCR_CONF_MODE_B	0xBF		/* Configutation mode B */
+
 #define UART_MCR	4	/* Out: Modem Control Register */
 #define UART_MCR_CLKSEL		0x80 /* Divide clock by 4 (TI16C752, EFR[4]=1) */
 #define UART_MCR_TCRTLR		0x40 /* Access TCR/TLR (TI16C752, EFR[4]=1) */

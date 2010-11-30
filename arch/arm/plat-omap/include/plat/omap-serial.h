@@ -33,15 +33,6 @@
 
 #define OMAP_MODE13X_SPEED	230400
 
-/*
- * LCR = 0XBF: Switch to Configuration Mode B.
- * In configuration mode b allow access
- * to EFR,DLL,DLH.
- * Reference OMAP TRM Chapter 17
- * Section: 1.4.3 Mode Selection
- */
-#define OMAP_UART_LCR_CONF_MDB	0XBF
-
 /* WER = 0x7F
  * Enable module level wakeup in WER reg
  */
