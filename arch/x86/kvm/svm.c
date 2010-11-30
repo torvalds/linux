@@ -2630,14 +2630,9 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 
 	switch (ecx) {
 	case MSR_IA32_TSC: {
-		u64 tsc_offset;
+		struct vmcb *vmcb = get_host_vmcb(svm);
 
-		if (is_guest_mode(vcpu))
-			tsc_offset = svm->nested.hsave->control.tsc_offset;
-		else
-			tsc_offset = svm->vmcb->control.tsc_offset;
-
-		*data = tsc_offset + native_read_tsc();
+		*data = vmcb->control.tsc_offset + native_read_tsc();
 		break;
 	}
 	case MSR_STAR:
