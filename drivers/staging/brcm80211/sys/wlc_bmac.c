@@ -588,7 +588,6 @@ static bool wlc_bmac_attach_dmapio(wlc_info_t *wlc, uint j, bool wme)
 		 */
 		addrwidth =
 		    dma_addrwidth(wlc_hw->sih, DMAREG(wlc_hw, DMA_TX, 0));
-		OSL_DMADDRWIDTH(osh, addrwidth);
 
 		if (!wl_alloc_dma_resources(wlc_hw->wlc->wl, addrwidth)) {
 			WL_ERROR(("wl%d: wlc_attach: alloc_dma_resources failed\n", unit));

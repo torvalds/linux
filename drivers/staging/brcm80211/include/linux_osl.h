@@ -85,9 +85,6 @@ extern uint osl_dma_map(struct osl_info *osh, void *va, uint size,
 extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 			  int direction);
 
-/* API for DMA addressing capability */
-#define OSL_DMADDRWIDTH(osh, addrwidth) do {} while (0)
-
 /* register access macros */
 #if defined(BCMSDIO)
 #ifdef BRCM_FULLMAC
