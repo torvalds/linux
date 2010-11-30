@@ -640,6 +640,10 @@ static struct platform_device fsi_device = {
 	},
 };
 
+static struct platform_device fsi_ak4643_device = {
+	.name		= "sh_fsi2_a_ak4643",
+};
+
 static struct sh_mobile_lcdc_info sh_mobile_lcdc1_info = {
 	.clock_source = LCDC_CLK_EXTERNAL,
 	.ch[0] = {
@@ -838,6 +842,7 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 	&sdhi1_device,
 	&usb1_host_device,
 	&fsi_device,
+	&fsi_ak4643_device,
 	&sh_mmcif_device,
 	&lcdc1_device,
 	&lcdc_device,

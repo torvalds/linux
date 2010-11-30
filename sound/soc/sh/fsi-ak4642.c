@@ -12,6 +12,13 @@
 #include <linux/platform_device.h>
 #include <sound/sh_fsi.h>
 
+struct fsi_ak4642_data {
+	const char *name;
+	const char *cpu_dai;
+	const char *codec;
+	const char *platform;
+};
+
 static int fsi_ak4642_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *dai = rtd->codec_dai;
@@ -27,17 +34,12 @@ static int fsi_ak4642_dai_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 static struct snd_soc_dai_link fsi_dai_link = {
-	.name		= "AK4642",
-	.stream_name	= "AK4642",
-	.cpu_dai_name	= "fsia-dai", /* fsi A */
+	/* .name */
+	/* .stream_name */
+	/* .cpu_dai_name */
 	.codec_dai_name	= "ak4642-hifi",
-#ifdef CONFIG_MACH_AP4EVB
-	.platform_name	= "sh_fsi2",
-	.codec_name	= "ak4642-codec.0-0013",
-#else
-	.platform_name	= "sh_fsi.0",
-	.codec_name	= "ak4642-codec.0-0012",
-#endif
+	/* .platform_name */
+	/* .codec_name */
 	.init		= fsi_ak4642_dai_init,
 	.ops		= NULL,
 };
@@ -50,13 +52,29 @@ static struct snd_soc_card fsi_soc_card  = {
 
 static struct platform_device *fsi_snd_device;
 
-static int __init fsi_ak4642_init(void)
+static int fsi_ak4642_probe(struct platform_device *pdev)
 {
 	int ret = -ENOMEM;
+	const struct platform_device_id	*id_entry;
+	struct fsi_ak4642_data *pdata;
+
+	id_entry = pdev->id_entry;
+	if (!id_entry) {
+		dev_err(&pdev->dev, "unknown fsi ak4642\n");
+		return -ENODEV;
+	}
+
+	pdata = (struct fsi_ak4642_data *)id_entry->driver_data;
 
 	fsi_snd_device = platform_device_alloc("soc-audio", FSI_PORT_A);
 	if (!fsi_snd_device)
 		goto out;
+
+	fsi_dai_link.name		= pdata->name;
+	fsi_dai_link.stream_name	= pdata->name;
+	fsi_dai_link.cpu_dai_name	= pdata->cpu_dai;
+	fsi_dai_link.platform_name	= pdata->platform;
+	fsi_dai_link.codec_name		= pdata->codec;
 
 	platform_set_drvdata(fsi_snd_device, &fsi_soc_card);
 	ret = platform_device_add(fsi_snd_device);
@@ -68,9 +86,100 @@ out:
 	return ret;
 }
 
-static void __exit fsi_ak4642_exit(void)
+static int fsi_ak4642_remove(struct platform_device *pdev)
 {
 	platform_device_unregister(fsi_snd_device);
+	return 0;
+}
+
+static struct fsi_ak4642_data fsi_a_ak4642 = {
+	.name		= "AK4642",
+	.cpu_dai	= "fsia-dai",
+	.codec		= "ak4642-codec.0-0012",
+	.platform	= "sh_fsi.0",
+};
+
+static struct fsi_ak4642_data fsi_b_ak4642 = {
+	.name		= "AK4642",
+	.cpu_dai	= "fsib-dai",
+	.codec		= "ak4642-codec.0-0012",
+	.platform	= "sh_fsi.0",
+};
+
+static struct fsi_ak4642_data fsi_a_ak4643 = {
+	.name		= "AK4643",
+	.cpu_dai	= "fsia-dai",
+	.codec		= "ak4642-codec.0-0013",
+	.platform	= "sh_fsi.0",
+};
+
+static struct fsi_ak4642_data fsi_b_ak4643 = {
+	.name		= "AK4643",
+	.cpu_dai	= "fsib-dai",
+	.codec		= "ak4642-codec.0-0013",
+	.platform	= "sh_fsi.0",
+};
+
+static struct fsi_ak4642_data fsi2_a_ak4642 = {
+	.name		= "AK4642",
+	.cpu_dai	= "fsia-dai",
+	.codec		= "ak4642-codec.0-0012",
+	.platform	= "sh_fsi2",
+};
+
+static struct fsi_ak4642_data fsi2_b_ak4642 = {
+	.name		= "AK4642",
+	.cpu_dai	= "fsib-dai",
+	.codec		= "ak4642-codec.0-0012",
+	.platform	= "sh_fsi2",
+};
+
+static struct fsi_ak4642_data fsi2_a_ak4643 = {
+	.name		= "AK4643",
+	.cpu_dai	= "fsia-dai",
+	.codec		= "ak4642-codec.0-0013",
+	.platform	= "sh_fsi2",
+};
+
+static struct fsi_ak4642_data fsi2_b_ak4643 = {
+	.name		= "AK4643",
+	.cpu_dai	= "fsib-dai",
+	.codec		= "ak4642-codec.0-0013",
+	.platform	= "sh_fsi2",
+};
+
+static struct platform_device_id fsi_id_table[] = {
+	/* FSI */
+	{ "sh_fsi_a_ak4642",	(kernel_ulong_t)&fsi_a_ak4642 },
+	{ "sh_fsi_b_ak4642",	(kernel_ulong_t)&fsi_b_ak4642 },
+	{ "sh_fsi_a_ak4643",	(kernel_ulong_t)&fsi_a_ak4643 },
+	{ "sh_fsi_b_ak4643",	(kernel_ulong_t)&fsi_b_ak4643 },
+
+	/* FSI 2 */
+	{ "sh_fsi2_a_ak4642",	(kernel_ulong_t)&fsi2_a_ak4642 },
+	{ "sh_fsi2_b_ak4642",	(kernel_ulong_t)&fsi2_b_ak4642 },
+	{ "sh_fsi2_a_ak4643",	(kernel_ulong_t)&fsi2_a_ak4643 },
+	{ "sh_fsi2_b_ak4643",	(kernel_ulong_t)&fsi2_b_ak4643 },
+	{},
+};
+
+static struct platform_driver fsi_ak4642 = {
+	.driver = {
+		.name	= "fsi-ak4642-audio",
+	},
+	.probe		= fsi_ak4642_probe,
+	.remove		= fsi_ak4642_remove,
+	.id_table	= fsi_id_table,
+};
+
+static int __init fsi_ak4642_init(void)
+{
+	return platform_driver_register(&fsi_ak4642);
+}
+
+static void __exit fsi_ak4642_exit(void)
+{
+	platform_driver_unregister(&fsi_ak4642);
 }
 
 module_init(fsi_ak4642_init);

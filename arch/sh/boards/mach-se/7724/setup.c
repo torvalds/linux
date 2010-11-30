@@ -343,6 +343,10 @@ static struct platform_device fsi_device = {
 	},
 };
 
+static struct platform_device fsi_ak4642_device = {
+	.name		= "sh_fsi_a_ak4642",
+};
+
 /* KEYSC in SoC (Needs SW33-2 set to ON) */
 static struct sh_keysc_info keysc_info = {
 	.mode = SH_KEYSC_MODE_1,
@@ -615,6 +619,7 @@ static struct platform_device *ms7724se_devices[] __initdata = {
 	&sh7724_usb0_host_device,
 	&sh7724_usb1_gadget_device,
 	&fsi_device,
+	&fsi_ak4642_device,
 	&sdhi0_cn7_device,
 	&sdhi1_cn8_device,
 	&irda_device,
