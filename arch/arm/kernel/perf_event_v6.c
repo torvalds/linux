@@ -400,7 +400,7 @@ armv6pmu_write_counter(int counter,
 		WARN_ONCE(1, "invalid counter number (%d)\n", counter);
 }
 
-void
+static void
 armv6pmu_enable_event(struct hw_perf_event *hwc,
 		      int idx)
 {
@@ -625,7 +625,7 @@ static const struct arm_pmu armv6pmu = {
 	.max_period		= (1LLU << 32) - 1,
 };
 
-const struct arm_pmu *__init armv6pmu_init(void)
+static const struct arm_pmu *__init armv6pmu_init(void)
 {
 	return &armv6pmu;
 }
@@ -655,17 +655,17 @@ static const struct arm_pmu armv6mpcore_pmu = {
 	.max_period		= (1LLU << 32) - 1,
 };
 
-const struct arm_pmu *__init armv6mpcore_pmu_init(void)
+static const struct arm_pmu *__init armv6mpcore_pmu_init(void)
 {
 	return &armv6mpcore_pmu;
 }
 #else
-const struct arm_pmu *__init armv6pmu_init(void)
+static const struct arm_pmu *__init armv6pmu_init(void)
 {
 	return NULL;
 }
 
-const struct arm_pmu *__init armv6mpcore_pmu_init(void)
+static const struct arm_pmu *__init armv6mpcore_pmu_init(void)
 {
 	return NULL;
 }

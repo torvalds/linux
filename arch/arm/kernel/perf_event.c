@@ -32,7 +32,7 @@ static struct platform_device *pmu_device;
  * Hardware lock to serialize accesses to PMU registers. Needed for the
  * read/modify/write sequences.
  */
-DEFINE_SPINLOCK(pmu_lock);
+static DEFINE_SPINLOCK(pmu_lock);
 
 /*
  * ARMv6 supports a maximum of 3 events, starting from index 1. If we add
@@ -65,7 +65,7 @@ struct cpu_hw_events {
 	 */
 	unsigned long		active_mask[BITS_TO_LONGS(ARMPMU_MAX_HWEVENTS)];
 };
-DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
+static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
 
 struct arm_pmu {
 	enum arm_perf_pmu_ids id;
@@ -673,17 +673,17 @@ arch_initcall(init_hw_perf_events);
  * This code has been adapted from the ARM OProfile support.
  */
 struct frame_tail {
-	struct frame_tail   *fp;
-	unsigned long	    sp;
-	unsigned long	    lr;
+	struct frame_tail __user *fp;
+	unsigned long sp;
+	unsigned long lr;
 } __attribute__((packed));
 
 /*
  * Get the return address for a single stackframe and return a pointer to the
  * next frame tail.
  */
-static struct frame_tail *
-user_backtrace(struct frame_tail *tail,
+static struct frame_tail __user *
+user_backtrace(struct frame_tail __user *tail,
 	       struct perf_callchain_entry *entry)
 {
 	struct frame_tail buftail;
@@ -709,10 +709,10 @@ user_backtrace(struct frame_tail *tail,
 void
 perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
-	struct frame_tail *tail;
+	struct frame_tail __user *tail;
 
 
-	tail = (struct frame_tail *)regs->ARM_fp - 1;
+	tail = (struct frame_tail __user *)regs->ARM_fp - 1;
 
 	while (tail && !((unsigned long)tail & 0x3))
 		tail = user_backtrace(tail, entry);
