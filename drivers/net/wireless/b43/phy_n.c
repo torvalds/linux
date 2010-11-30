@@ -67,6 +67,16 @@ enum b43_nphy_rf_sequence {
 	B43_RFSEQ_UPDATE_GAINU,
 };
 
+enum b43_nphy_rssi_type {
+	B43_NPHY_RSSI_X = 0,
+	B43_NPHY_RSSI_Y,
+	B43_NPHY_RSSI_Z,
+	B43_NPHY_RSSI_PWRDET,
+	B43_NPHY_RSSI_TSSI_I,
+	B43_NPHY_RSSI_TSSI_Q,
+	B43_NPHY_RSSI_TBD,
+};
+
 static void b43_nphy_stay_in_carrier_search(struct b43_wldev *dev,
 						bool enable);
 static void b43_nphy_set_rf_sequence(struct b43_wldev *dev, u8 cmd,
@@ -1739,7 +1749,8 @@ static void b43_nphy_bphy_init(struct b43_wldev *dev)
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/ScaleOffsetRssi */
 static void b43_nphy_scale_offset_rssi(struct b43_wldev *dev, u16 scale,
-				       s8 offset, u8 core, u8 rail, u8 type)
+					s8 offset, u8 core, u8 rail,
+					enum b43_nphy_rssi_type type)
 {
 	u16 tmp;
 	bool core1or5 = (core == 1) || (core == 5);
@@ -1748,53 +1759,59 @@ static void b43_nphy_scale_offset_rssi(struct b43_wldev *dev, u16 scale,
 	offset = clamp_val(offset, -32, 31);
 	tmp = ((scale & 0x3F) << 8) | (offset & 0x3F);
 
-	if (core1or5 && (rail == 0) && (type == 2))
+	if (core1or5 && (rail == 0) && (type == B43_NPHY_RSSI_Z))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_0I_RSSI_Z, tmp);
-	if (core1or5 && (rail == 1) && (type == 2))
+	if (core1or5 && (rail == 1) && (type == B43_NPHY_RSSI_Z))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_RSSI_Z, tmp);
-	if (core2or5 && (rail == 0) && (type == 2))
+	if (core2or5 && (rail == 0) && (type == B43_NPHY_RSSI_Z))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_1I_RSSI_Z, tmp);
-	if (core2or5 && (rail == 1) && (type == 2))
+	if (core2or5 && (rail == 1) && (type == B43_NPHY_RSSI_Z))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_RSSI_Z, tmp);
-	if (core1or5 && (rail == 0) && (type == 0))
+
+	if (core1or5 && (rail == 0) && (type == B43_NPHY_RSSI_X))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_0I_RSSI_X, tmp);
-	if (core1or5 && (rail == 1) && (type == 0))
+	if (core1or5 && (rail == 1) && (type == B43_NPHY_RSSI_X))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_RSSI_X, tmp);
-	if (core2or5 && (rail == 0) && (type == 0))
+	if (core2or5 && (rail == 0) && (type == B43_NPHY_RSSI_X))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_1I_RSSI_X, tmp);
-	if (core2or5 && (rail == 1) && (type == 0))
+	if (core2or5 && (rail == 1) && (type == B43_NPHY_RSSI_X))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_RSSI_X, tmp);
-	if (core1or5 && (rail == 0) && (type == 1))
+
+	if (core1or5 && (rail == 0) && (type == B43_NPHY_RSSI_Y))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_0I_RSSI_Y, tmp);
-	if (core1or5 && (rail == 1) && (type == 1))
+	if (core1or5 && (rail == 1) && (type == B43_NPHY_RSSI_Y))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_RSSI_Y, tmp);
-	if (core2or5 && (rail == 0) && (type == 1))
+	if (core2or5 && (rail == 0) && (type == B43_NPHY_RSSI_Y))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_1I_RSSI_Y, tmp);
-	if (core2or5 && (rail == 1) && (type == 1))
+	if (core2or5 && (rail == 1) && (type == B43_NPHY_RSSI_Y))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_RSSI_Y, tmp);
-	if (core1or5 && (rail == 0) && (type == 6))
+
+	if (core1or5 && (rail == 0) && (type == B43_NPHY_RSSI_TBD))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_0I_TBD, tmp);
-	if (core1or5 && (rail == 1) && (type == 6))
+	if (core1or5 && (rail == 1) && (type == B43_NPHY_RSSI_TBD))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_TBD, tmp);
-	if (core2or5 && (rail == 0) && (type == 6))
+	if (core2or5 && (rail == 0) && (type == B43_NPHY_RSSI_TBD))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_1I_TBD, tmp);
-	if (core2or5 && (rail == 1) && (type == 6))
+	if (core2or5 && (rail == 1) && (type == B43_NPHY_RSSI_TBD))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_TBD, tmp);
-	if (core1or5 && (rail == 0) && (type == 3))
+
+	if (core1or5 && (rail == 0) && (type == B43_NPHY_RSSI_PWRDET))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_0I_PWRDET, tmp);
-	if (core1or5 && (rail == 1) && (type == 3))
+	if (core1or5 && (rail == 1) && (type == B43_NPHY_RSSI_PWRDET))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_PWRDET, tmp);
-	if (core2or5 && (rail == 0) && (type == 3))
+	if (core2or5 && (rail == 0) && (type == B43_NPHY_RSSI_PWRDET))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_1I_PWRDET, tmp);
-	if (core2or5 && (rail == 1) && (type == 3))
+	if (core2or5 && (rail == 1) && (type == B43_NPHY_RSSI_PWRDET))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_PWRDET, tmp);
-	if (core1or5 && (type == 4))
+
+	if (core1or5 && (type == B43_NPHY_RSSI_TSSI_I))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_0I_TSSI, tmp);
-	if (core2or5 && (type == 4))
+	if (core2or5 && (type == B43_NPHY_RSSI_TSSI_I))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_1I_TSSI, tmp);
-	if (core1or5 && (type == 5))
+
+	if (core1or5 && (type == B43_NPHY_RSSI_TSSI_Q))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_0Q_TSSI, tmp);
-	if (core2or5 && (type == 5))
+	if (core2or5 && (type == B43_NPHY_RSSI_TSSI_Q))
 		b43_phy_write(dev, B43_NPHY_RSSIMC_1Q_TSSI, tmp);
 }
 
@@ -2246,9 +2263,9 @@ static void b43_nphy_rssi_cal(struct b43_wldev *dev)
 	if (dev->phy.rev >= 3) {
 		b43_nphy_rev3_rssi_cal(dev);
 	} else {
-		b43_nphy_rev2_rssi_cal(dev, 2);
-		b43_nphy_rev2_rssi_cal(dev, 0);
-		b43_nphy_rev2_rssi_cal(dev, 1);
+		b43_nphy_rev2_rssi_cal(dev, B43_NPHY_RSSI_Z);
+		b43_nphy_rev2_rssi_cal(dev, B43_NPHY_RSSI_X);
+		b43_nphy_rev2_rssi_cal(dev, B43_NPHY_RSSI_Y);
 	}
 }
 
