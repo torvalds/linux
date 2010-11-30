@@ -269,8 +269,10 @@ void __ref cpu_die(void)
 {
 	unsigned int cpu = smp_processor_id();
 
-	local_irq_disable();
 	idle_task_exit();
+
+	local_irq_disable();
+	mb();
 
 	/* Tell __cpu_die() that this CPU is now safe to dispose of */
 	complete(&cpu_died);
