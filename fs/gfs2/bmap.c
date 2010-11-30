@@ -763,7 +763,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	int metadata;
 	unsigned int revokes = 0;
 	int x;
-	int error;
+	int error = 0;
 
 	if (!*top)
 		sm->sm_first = 0;
