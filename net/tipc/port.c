@@ -88,7 +88,7 @@ static void port_incr_out_seqno(struct port *p_ptr)
  * tipc_multicast - send a multicast message to local and remote destinations
  */
 
-int tipc_multicast(u32 ref, struct tipc_name_seq const *seq, u32 domain,
+int tipc_multicast(u32 ref, struct tipc_name_seq const *seq,
 		   u32 num_sect, struct iovec const *msg_sect)
 {
 	struct tipc_msg *hdr;

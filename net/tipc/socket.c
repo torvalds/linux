@@ -596,7 +596,6 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 				break;
 			res = tipc_multicast(tport->ref,
 					     &dest->addr.nameseq,
-					     0,
 					     m->msg_iovlen,
 					     m->msg_iov);
 		}

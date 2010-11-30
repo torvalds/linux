@@ -235,7 +235,7 @@ int tipc_send2port(u32 portref, struct tipc_portid const *dest,
 int tipc_send_buf2port(u32 portref, struct tipc_portid const *dest,
 		struct sk_buff *buf, unsigned int dsz);
 
-int tipc_multicast(u32 portref, struct tipc_name_seq const *seq, u32 domain,
+int tipc_multicast(u32 portref, struct tipc_name_seq const *seq,
 		unsigned int section_count, struct iovec const *msg);
 
 int tipc_port_reject_sections(struct port *p_ptr, struct tipc_msg *hdr,
