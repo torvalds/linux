@@ -785,7 +785,7 @@ int fimc_register_capture_device(struct fimc_dev *fimc)
 	videobuf_queue_dma_contig_init(&vid_cap->vbq, &fimc_qops,
 		vid_cap->v4l2_dev.dev, &fimc->irqlock,
 		V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
-		sizeof(struct fimc_vid_buffer), (void *)ctx);
+		sizeof(struct fimc_vid_buffer), (void *)ctx, NULL);
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret) {
