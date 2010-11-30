@@ -15,28 +15,6 @@
 
 extern int prom_stdin, prom_stdout;
 
-/* Non blocking get character from console input device, returns -1
- * if no input was taken.  This can be used for polling.
- */
-static int prom_nbgetchar(char *buf)
-{
-	unsigned long args[7];
-
-	args[0] = (unsigned long) "read";
-	args[1] = 3;
-	args[2] = 1;
-	args[3] = (unsigned int) prom_stdin;
-	args[4] = (unsigned long) buf;
-	args[5] = 1;
-	args[6] = (unsigned long) -1;
-
-	p1275_cmd_direct(args);
-
-	if (args[6] == 1)
-		return 0;
-	return -1;
-}
-
 /* Non blocking put character to console device, returns -1 if
  * unsuccessful.
  */
@@ -58,16 +36,6 @@ static int prom_nbputchar(const char *buf)
 		return 0;
 	else
 		return -1;
-}
-
-/* Blocking version of get character routine above. */
-void prom_getchar(char *buf)
-{
-	while (1) {
-		int err = prom_nbgetchar(buf);
-		if (!err)
-			break;
-	}
 }
 
 /* Blocking version of put character routine above. */

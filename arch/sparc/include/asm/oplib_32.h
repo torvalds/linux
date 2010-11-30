@@ -102,11 +102,6 @@ extern int prom_getrev(void);
 /* Get the prom firmware revision. */
 extern int prom_getprev(void);
 
-/* Character operations to/from the console.... */
-
-/* Blocking get character from console. */
-extern void prom_getchar(char *buf);
-
 /* Blocking put character to console. */
 extern void prom_putchar(const char *buf);
 
