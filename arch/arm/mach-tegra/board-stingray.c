@@ -86,6 +86,10 @@
 #define USB_PRODUCT_ID_MTP_ADB          0x70A9
 #define USB_PRODUCT_ID_RNDIS            0x70AE
 #define USB_PRODUCT_ID_RNDIS_ADB        0x70AF
+#define USB_PRODUCT_ID_BP		0x70B0
+#define USB_PRODUCT_ID_BP_ADB		0x70B1
+#define USB_PRODUCT_ID_RNDIS_BP		0x70B2
+#define USB_PRODUCT_ID_RNDIS_BP_ADB	0x70B3
 #define USB_VENDOR_ID                   0x22b8
 
 struct tag_tegra {
@@ -346,6 +350,50 @@ static struct android_usb_platform_data andusb_plat_factory = {
 	.functions = factory_usb_functions,
 };
 
+static char *bp_usb_functions_bp[] = {
+	"acm", "usbnet"};
+static char *bp_usb_functions_bp_adb[] = {
+	"acm", "usbnet", "adb"};
+static char *bp_usb_functions_rndis_bp[] = {
+	"rndis", "acm", "usbnet"};
+static char *bp_usb_functions_all[] = {
+	"rndis", "acm", "usbnet", "adb"};
+
+static struct android_usb_product bp_usb_products[] = {
+	{
+		.product_id	= USB_PRODUCT_ID_BP,
+		.num_functions	= ARRAY_SIZE(bp_usb_functions_bp),
+		.functions	= bp_usb_functions_bp,
+	},
+	{
+		.product_id	= USB_PRODUCT_ID_BP_ADB,
+		.num_functions	= ARRAY_SIZE(bp_usb_functions_bp_adb),
+		.functions	= bp_usb_functions_bp_adb,
+	},
+	{
+		.product_id	= USB_PRODUCT_ID_RNDIS_BP,
+		.num_functions	= ARRAY_SIZE(bp_usb_functions_rndis_bp),
+		.functions	= bp_usb_functions_rndis_bp,
+	},
+	{
+		.product_id	= USB_PRODUCT_ID_RNDIS_BP_ADB,
+		.num_functions	= ARRAY_SIZE(bp_usb_functions_all),
+		.functions	= bp_usb_functions_all,
+	},
+};
+
+static struct android_usb_platform_data andusb_plat_bp = {
+	.vendor_id		= USB_VENDOR_ID,
+	.product_id		= USB_PRODUCT_ID_BP_ADB,
+	.manufacturer_name	= USB_MANUFACTURER_NAME,
+	.product_name		= USB_PRODUCT_NAME,
+	.serial_number		= "0000",
+	.num_products = ARRAY_SIZE(bp_usb_products),
+	.products = bp_usb_products,
+	.num_functions = ARRAY_SIZE(bp_usb_functions_all),
+	.functions = bp_usb_functions_all,
+};
+
 static struct platform_device usbnet_device = {
 	.name = "usbnet",
 };
@@ -365,6 +413,19 @@ static struct platform_device rndis_device = {
 	},
 };
 #endif
+
+static struct acm_platform_data acm_pdata = {
+	/* Modify num_inst at runtime depending on boot_mode */
+	.num_inst	= 1,
+};
+
+static struct platform_device acm_device = {
+	.name	= "acm",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &acm_pdata,
+	},
+};
 
 static struct tegra_utmip_config utmi_phy_config[] = {
 	[0] = {
@@ -779,12 +840,14 @@ static void stingray_usb_init(void)
 
 	struct android_usb_platform_data *platform_data;
 
+	int factorycable = !strncmp(boot_mode, "factorycable",
+			BOOT_MODE_MAX_LEN);
+
 	tegra_udc_device.dev.platform_data = &tegra_udc_pdata;
 	tegra_ehci2_device.dev.platform_data = &tegra_ehci_pdata[1];
 	tegra_ehci3_device.dev.platform_data = &tegra_ehci_pdata[2];
 
-	if (strncmp(boot_mode, "factorycable", BOOT_MODE_MAX_LEN) ||
-            !mot_boot_recovery)
+	if (!(factorycable && mot_boot_recovery))
 		platform_device_register(&tegra_udc_device);
 
 	if (stingray_hw_has_cdma()) {
@@ -806,22 +869,25 @@ static void stingray_usb_init(void)
 	platform_device_register(&rndis_device);
 #endif
 
-	if (!strncmp(boot_mode, "factorycable", BOOT_MODE_MAX_LEN) &&
-            !mot_boot_recovery)
-	{
-		platform_data = &andusb_plat_factory;
-		platform_device_register(&usbnet_device);
-	}
-	else {
-		platform_data = &andusb_plat;
-	}
+	if (!(factorycable && mot_boot_recovery)) {
+		if (factorycable) {
+			platform_data = &andusb_plat_factory;
+			platform_device_register(&usbnet_device);
+		} else if (!strncmp(boot_mode, "bp-tools",
+				BOOT_MODE_MAX_LEN)) {
+			platform_data = &andusb_plat_bp;
+			platform_device_register(&usbnet_device);
+			/* acm: LTE Modem + QC Modem + QC Diag */
+			acm_pdata.num_inst = 3;
+			platform_device_register(&acm_device);
+		} else {
+			platform_data = &andusb_plat;
+		}
 
-	platform_data->serial_number = usb_serial_num;
-	androidusb_device.dev.platform_data = platform_data;
-
-	if (strncmp(boot_mode, "factorycable", BOOT_MODE_MAX_LEN) ||
-            !mot_boot_recovery)
+		platform_data->serial_number = usb_serial_num;
+		androidusb_device.dev.platform_data = platform_data;
 		platform_device_register(&androidusb_device);
+	}
 }
 
 static void stingray_reset(char mode, const char *cmd)
