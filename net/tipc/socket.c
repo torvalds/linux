@@ -49,10 +49,9 @@
 
 #include <linux/tipc.h>
 #include <linux/tipc_config.h>
-#include <net/tipc/tipc_msg.h>
-#include <net/tipc/tipc_port.h>
 
 #include "core.h"
+#include "port.h"
 
 #define SS_LISTENING	-1	/* socket is listening */
 #define SS_READY	-2	/* socket is connectionless */

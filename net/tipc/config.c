@@ -43,8 +43,8 @@
 #include "addr.h"
 #include "name_table.h"
 #include "node.h"
+#include "user_reg.h"
 #include "config.h"
-#include "discover.h"
 
 struct subscr_data {
 	char usr_handle[8];

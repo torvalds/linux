@@ -37,6 +37,7 @@
 #include "core.h"
 #include "dbg.h"
 #include "name_table.h"
+#include "user_reg.h"
 #include "port.h"
 #include "ref.h"
 #include "subscr.h"

@@ -39,10 +39,6 @@
 
 #include <linux/tipc.h>
 #include <linux/tipc_config.h>
-#include <net/tipc/tipc_msg.h>
-#include <net/tipc/tipc_port.h>
-#include <net/tipc/tipc_bearer.h>
-#include <net/tipc/tipc.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -61,6 +57,9 @@
 
 
 #define TIPC_MOD_VER "2.0.0"
+
+struct tipc_msg;	/* msg.h */
+struct print_buf;	/* dbg.h */
 
 /*
  * TIPC sanity test macros
@@ -172,6 +171,13 @@ void tipc_dump_dbg(struct print_buf *, const char *fmt, ...);
  */
 
 #define ELINKCONG EAGAIN	/* link congestion <=> resource unavailable */
+
+/*
+ * TIPC operating mode routines
+ */
+#define TIPC_NOT_RUNNING  0
+#define TIPC_NODE_MODE    1
+#define TIPC_NET_MODE     2
 
 /*
  * Global configuration variables

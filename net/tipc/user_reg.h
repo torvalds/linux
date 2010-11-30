@@ -42,6 +42,11 @@
 int tipc_reg_start(void);
 void tipc_reg_stop(void);
 
+typedef void (*tipc_mode_event)(void *usr_handle, int mode, u32 addr);
+
+int tipc_attach(unsigned int *userref, tipc_mode_event, void *usr_handle);
+void tipc_detach(unsigned int userref);
+
 int tipc_reg_add_port(struct user_port *up_ptr);
 int tipc_reg_remove_port(struct user_port *up_ptr);
 
