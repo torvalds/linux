@@ -192,6 +192,26 @@ static inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 	return container_of(vcpu, struct vcpu_svm, vcpu);
 }
 
+static void recalc_intercepts(struct vcpu_svm *svm)
+{
+	struct vmcb_control_area *c, *h;
+	struct nested_state *g;
+
+	if (!is_guest_mode(&svm->vcpu))
+		return;
+
+	c = &svm->vmcb->control;
+	h = &svm->nested.hsave->control;
+	g = &svm->nested;
+
+	c->intercept_cr_read = h->intercept_cr_read | g->intercept_cr_read;
+	c->intercept_cr_write = h->intercept_cr_write | g->intercept_cr_write;
+	c->intercept_dr_read = h->intercept_dr_read | g->intercept_dr_read;
+	c->intercept_dr_write = h->intercept_dr_write | g->intercept_dr_write;
+	c->intercept_exceptions = h->intercept_exceptions | g->intercept_exceptions;
+	c->intercept = h->intercept | g->intercept;
+}
+
 static inline void enable_gif(struct vcpu_svm *svm)
 {
 	svm->vcpu.arch.hflags |= HF_GIF_MASK;
@@ -2273,23 +2293,6 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	/* We don't want to see VMMCALLs from a nested guest */
 	svm->vmcb->control.intercept &= ~(1ULL << INTERCEPT_VMMCALL);
 
-	/*
-	 * We don't want a nested guest to be more powerful than the guest, so
-	 * all intercepts are ORed
-	 */
-	svm->vmcb->control.intercept_cr_read |=
-		nested_vmcb->control.intercept_cr_read;
-	svm->vmcb->control.intercept_cr_write |=
-		nested_vmcb->control.intercept_cr_write;
-	svm->vmcb->control.intercept_dr_read |=
-		nested_vmcb->control.intercept_dr_read;
-	svm->vmcb->control.intercept_dr_write |=
-		nested_vmcb->control.intercept_dr_write;
-	svm->vmcb->control.intercept_exceptions |=
-		nested_vmcb->control.intercept_exceptions;
-
-	svm->vmcb->control.intercept |= nested_vmcb->control.intercept;
-
 	svm->vmcb->control.lbr_ctl = nested_vmcb->control.lbr_ctl;
 	svm->vmcb->control.int_vector = nested_vmcb->control.int_vector;
 	svm->vmcb->control.int_state = nested_vmcb->control.int_state;
@@ -2301,6 +2304,12 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 
 	/* Enter Guest-Mode */
 	enter_guest_mode(&svm->vcpu);
+
+	/*
+	 * Merge guest and host intercepts - must be called  with vcpu in
+	 * guest-mode to take affect here
+	 */
+	recalc_intercepts(svm);
 
 	svm->nested.vmcb = vmcb_gpa;
 
