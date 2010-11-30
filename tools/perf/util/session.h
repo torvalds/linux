@@ -18,6 +18,7 @@ struct ordered_samples {
 	u64			next_flush;
 	u64			max_timestamp;
 	struct list_head	samples;
+	struct list_head	sample_cache;
 	struct sample_queue	*last_sample;
 };
 

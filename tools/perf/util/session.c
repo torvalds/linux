@@ -113,6 +113,7 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->machines = RB_ROOT;
 	self->repipe = repipe;
 	INIT_LIST_HEAD(&self->ordered_samples.samples);
+	INIT_LIST_HEAD(&self->ordered_samples.sample_cache);
 	machine__init(&self->host_machine, "", HOST_KERNEL_ID);
 
 	if (mode == O_RDONLY) {
@@ -398,6 +399,19 @@ struct sample_queue {
 	struct list_head	list;
 };
 
+static void perf_session_free_sample_buffers(struct perf_session *session)
+{
+	struct ordered_samples *os = &session->ordered_samples;
+
+	while (!list_empty(&os->sample_cache)) {
+		struct sample_queue *sq;
+
+		sq = list_entry(os->sample_cache.next, struct sample_queue, list);
+		list_del(&sq->list);
+		free(sq);
+	}
+}
+
 static void flush_sample_queue(struct perf_session *s,
 			       struct perf_event_ops *ops)
 {
@@ -418,7 +432,7 @@ static void flush_sample_queue(struct perf_session *s,
 
 		os->last_flush = iter->timestamp;
 		list_del(&iter->list);
-		free(iter);
+		list_add(&iter->list, &os->sample_cache);
 	}
 
 	if (list_empty(head)) {
@@ -527,6 +541,7 @@ static void __queue_sample_event(struct sample_queue *new,
 static int queue_sample_event(event_t *event, struct sample_data *data,
 			      struct perf_session *s)
 {
+	struct list_head *sc = &s->ordered_samples.sample_cache;
 	u64 timestamp = data->time;
 	struct sample_queue *new;
 
@@ -535,9 +550,14 @@ static int queue_sample_event(event_t *event, struct sample_data *data,
 		return -EINVAL;
 	}
 
-	new = malloc(sizeof(*new));
-	if (!new)
-		return -ENOMEM;
+	if (!list_empty(sc)) {
+		new = list_entry(sc->next, struct sample_queue, list);
+		list_del(&new->list);
+	} else {
+		new = malloc(sizeof(*new));
+		if (!new)
+			return -ENOMEM;
+	}
 
 	new->timestamp = timestamp;
 	new->event = event;
@@ -730,6 +750,7 @@ more:
 done:
 	err = 0;
 out_err:
+	perf_session_free_sample_buffers(self);
 	return err;
 }
 
@@ -862,6 +883,7 @@ out_err:
 			    session->hists.stats.nr_unknown_events);
 	}
 
+	perf_session_free_sample_buffers(session);
 	return err;
 }
 
