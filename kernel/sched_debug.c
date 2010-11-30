@@ -54,8 +54,7 @@ static unsigned long nsec_low(unsigned long long nsec)
 #define SPLIT_NS(x) nsec_high(x), nsec_low(x)
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-static void print_cfs_group_stats(struct seq_file *m, int cpu,
-		struct task_group *tg)
+static void print_cfs_group_stats(struct seq_file *m, int cpu, struct task_group *tg)
 {
 	struct sched_entity *se = tg->se[cpu];
 	if (!se)
@@ -110,16 +109,6 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 		0LL, 0LL, 0LL, 0L, 0LL, 0L, 0LL, 0L);
 #endif
 
-#ifdef CONFIG_CGROUP_SCHED
-	{
-		char path[64];
-
-		rcu_read_lock();
-		cgroup_path(task_group(p)->css.cgroup, path, sizeof(path));
-		rcu_read_unlock();
-		SEQ_printf(m, " %s", path);
-	}
-#endif
 	SEQ_printf(m, "\n");
 }
 
@@ -147,19 +136,6 @@ static void print_rq(struct seq_file *m, struct rq *rq, int rq_cpu)
 	read_unlock_irqrestore(&tasklist_lock, flags);
 }
 
-#if defined(CONFIG_CGROUP_SCHED) && \
-	(defined(CONFIG_FAIR_GROUP_SCHED) || defined(CONFIG_RT_GROUP_SCHED))
-static void task_group_path(struct task_group *tg, char *buf, int buflen)
-{
-	/* may be NULL if the underlying cgroup isn't fully-created yet */
-	if (!tg->css.cgroup) {
-		buf[0] = '\0';
-		return;
-	}
-	cgroup_path(tg->css.cgroup, buf, buflen);
-}
-#endif
-
 void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 {
 	s64 MIN_vruntime = -1, min_vruntime, max_vruntime = -1,
@@ -168,16 +144,7 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	struct sched_entity *last;
 	unsigned long flags;
 
-#if defined(CONFIG_CGROUP_SCHED) && defined(CONFIG_FAIR_GROUP_SCHED)
-	char path[128];
-	struct task_group *tg = cfs_rq->tg;
-
-	task_group_path(tg, path, sizeof(path));
-
-	SEQ_printf(m, "\ncfs_rq[%d]:%s\n", cpu, path);
-#else
 	SEQ_printf(m, "\ncfs_rq[%d]:\n", cpu);
-#endif
 	SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "exec_clock",
 			SPLIT_NS(cfs_rq->exec_clock));
 
@@ -215,7 +182,7 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 	SEQ_printf(m, "  .%-30s: %ld\n", "load_contrib",
 			cfs_rq->load_contribution);
 	SEQ_printf(m, "  .%-30s: %d\n", "load_tg",
-			atomic_read(&tg->load_weight));
+			atomic_read(&cfs_rq->tg->load_weight));
 #endif
 
 	print_cfs_group_stats(m, cpu, cfs_rq->tg);
@@ -224,17 +191,7 @@ void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 
 void print_rt_rq(struct seq_file *m, int cpu, struct rt_rq *rt_rq)
 {
-#if defined(CONFIG_CGROUP_SCHED) && defined(CONFIG_RT_GROUP_SCHED)
-	char path[128];
-	struct task_group *tg = rt_rq->tg;
-
-	task_group_path(tg, path, sizeof(path));
-
-	SEQ_printf(m, "\nrt_rq[%d]:%s\n", cpu, path);
-#else
 	SEQ_printf(m, "\nrt_rq[%d]:\n", cpu);
-#endif
-
 
 #define P(x) \
 	SEQ_printf(m, "  .%-30s: %Ld\n", #x, (long long)(rt_rq->x))
