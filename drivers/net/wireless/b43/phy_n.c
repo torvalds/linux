@@ -3498,17 +3498,14 @@ int b43_phy_initn(struct b43_wldev *dev)
 					/* TODO N PHY Pre Calibrate TX Gain */
 					target = b43_nphy_get_tx_gains(dev);
 				}
-			}
+				if (!b43_nphy_cal_tx_iq_lo(dev, target, true, false))
+					if (b43_nphy_cal_rx_iq(dev, target, 2, 0) == 0)
+						b43_nphy_save_cal(dev);
+			} else if (nphy->mphase_cal_phase_id == 0)
+				;/* N PHY Periodic Calibration with arg 3 */
+		} else {
+			b43_nphy_restore_cal(dev);
 		}
-	}
-
-	if (!b43_nphy_cal_tx_iq_lo(dev, target, true, false)) {
-		if (b43_nphy_cal_rx_iq(dev, target, 2, 0) == 0)
-			b43_nphy_save_cal(dev);
-		else if (nphy->mphase_cal_phase_id == 0)
-			;/* N PHY Periodic Calibration with argument 3 */
-	} else {
-		b43_nphy_restore_cal(dev);
 	}
 
 	b43_nphy_tx_pwr_ctrl_coef_setup(dev);
