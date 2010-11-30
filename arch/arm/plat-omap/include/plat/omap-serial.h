@@ -31,9 +31,6 @@
  */
 #define OMAP_SERIAL_NAME	"ttyO"
 
-#define OMAP_MDR1_DISABLE	0x07
-#define OMAP_MDR1_MODE13X	0x03
-#define OMAP_MDR1_MODE16X	0x00
 #define OMAP_MODE13X_SPEED	230400
 
 /*
