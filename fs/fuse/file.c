@@ -1619,6 +1619,20 @@ static int fuse_ioctl_copy_user(struct page **pages, struct iovec *iov,
 	return 0;
 }
 
+/* Make sure iov_length() won't overflow */
+static int fuse_verify_ioctl_iov(struct iovec *iov, size_t count)
+{
+	size_t n;
+	u32 max = FUSE_MAX_PAGES_PER_REQ << PAGE_SHIFT;
+
+	for (n = 0; n < count; n++) {
+		if (iov->iov_len > (size_t) max)
+			return -ENOMEM;
+		max -= iov->iov_len;
+	}
+	return 0;
+}
+
 /*
  * For ioctls, there is no generic way to determine how much memory
  * needs to be read and/or written.  Furthermore, ioctls are allowed
@@ -1811,6 +1825,14 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 
 		in_iov = page_address(iov_page);
 		out_iov = in_iov + in_iovs;
+
+		err = fuse_verify_ioctl_iov(in_iov, in_iovs);
+		if (err)
+			goto out;
+
+		err = fuse_verify_ioctl_iov(out_iov, out_iovs);
+		if (err)
+			goto out;
 
 		goto retry;
 	}
