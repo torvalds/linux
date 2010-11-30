@@ -1790,8 +1790,12 @@ static irqreturn_t irq_handler(int irq, void *data)
 	if (!event || !~event)
 		return IRQ_NONE;
 
-	/* busReset must not be cleared yet, see OHCI 1.1 clause 7.2.3.2 */
-	reg_write(ohci, OHCI1394_IntEventClear, event & ~OHCI1394_busReset);
+	/*
+	 * busReset and postedWriteErr must not be cleared yet
+	 * (OHCI 1.1 clauses 7.2.3.2 and 13.2.8.1)
+	 */
+	reg_write(ohci, OHCI1394_IntEventClear,
+		  event & ~(OHCI1394_busReset | OHCI1394_postedWriteErr));
 	log_irqs(event);
 
 	if (event & OHCI1394_selfIDComplete)
@@ -1831,8 +1835,13 @@ static irqreturn_t irq_handler(int irq, void *data)
 		fw_error("Register access failure - "
 			 "please notify linux1394-devel@lists.sf.net\n");
 
-	if (unlikely(event & OHCI1394_postedWriteErr))
+	if (unlikely(event & OHCI1394_postedWriteErr)) {
+		reg_read(ohci, OHCI1394_PostedWriteAddressHi);
+		reg_read(ohci, OHCI1394_PostedWriteAddressLo);
+		reg_write(ohci, OHCI1394_IntEventClear,
+			  OHCI1394_postedWriteErr);
 		fw_error("PCI posted write error\n");
+	}
 
 	if (unlikely(event & OHCI1394_cycleTooLong)) {
 		if (printk_ratelimit())
