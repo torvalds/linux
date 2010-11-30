@@ -17,8 +17,8 @@ struct ordered_samples {
 	u64			last_flush;
 	u64			next_flush;
 	u64			max_timestamp;
-	struct list_head	samples_head;
-	struct sample_queue	*last_inserted;
+	struct list_head	samples;
+	struct sample_queue	*last_sample;
 };
 
 struct perf_session {
