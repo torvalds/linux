@@ -40,6 +40,7 @@ extern int pm_generic_runtime_idle(struct device *dev);
 extern int pm_generic_runtime_suspend(struct device *dev);
 extern int pm_generic_runtime_resume(struct device *dev);
 extern void pm_runtime_no_callbacks(struct device *dev);
+extern void pm_runtime_irq_safe(struct device *dev);
 extern void __pm_runtime_use_autosuspend(struct device *dev, bool use);
 extern void pm_runtime_set_autosuspend_delay(struct device *dev, int delay);
 extern unsigned long pm_runtime_autosuspend_expiration(struct device *dev);
@@ -124,6 +125,7 @@ static inline int pm_generic_runtime_idle(struct device *dev) { return 0; }
 static inline int pm_generic_runtime_suspend(struct device *dev) { return 0; }
 static inline int pm_generic_runtime_resume(struct device *dev) { return 0; }
 static inline void pm_runtime_no_callbacks(struct device *dev) {}
+static inline void pm_runtime_irq_safe(struct device *dev) {}
 
 static inline void pm_runtime_mark_last_busy(struct device *dev) {}
 static inline void __pm_runtime_use_autosuspend(struct device *dev,
@@ -194,6 +196,11 @@ static inline int pm_runtime_put_autosuspend(struct device *dev)
 static inline int pm_runtime_put_sync(struct device *dev)
 {
 	return __pm_runtime_idle(dev, RPM_GET_PUT);
+}
+
+static inline int pm_runtime_put_sync_suspend(struct device *dev)
+{
+	return __pm_runtime_suspend(dev, RPM_GET_PUT);
 }
 
 static inline int pm_runtime_put_sync_autosuspend(struct device *dev)
