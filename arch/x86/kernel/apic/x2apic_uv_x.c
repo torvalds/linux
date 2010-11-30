@@ -48,6 +48,16 @@ unsigned int uv_apicid_hibits;
 EXPORT_SYMBOL_GPL(uv_apicid_hibits);
 static DEFINE_SPINLOCK(uv_nmi_lock);
 
+static unsigned long __init uv_early_read_mmr(unsigned long addr)
+{
+	unsigned long val, *mmr;
+
+	mmr = early_ioremap(UV_LOCAL_MMR_BASE | addr, sizeof(*mmr));
+	val = *mmr;
+	early_iounmap(mmr, sizeof(*mmr));
+	return val;
+}
+
 static inline bool is_GRU_range(u64 start, u64 end)
 {
 	return start >= gru_start_paddr && end <= gru_end_paddr;
@@ -58,16 +68,12 @@ static bool uv_is_untracked_pat_range(u64 start, u64 end)
 	return is_ISA_range(start, end) || is_GRU_range(start, end);
 }
 
-static int early_get_nodeid(void)
+static int __init early_get_nodeid(void)
 {
 	union uvh_node_id_u node_id;
-	unsigned long *mmr;
-
-	mmr = early_ioremap(UV_LOCAL_MMR_BASE | UVH_NODE_ID, sizeof(*mmr));
-	node_id.v = *mmr;
-	early_iounmap(mmr, sizeof(*mmr));
 
 	/* Currently, all blades have same revision number */
+	node_id.v = uv_early_read_mmr(UVH_NODE_ID);
 	uv_min_hub_revision_id = node_id.s.revision;
 
 	return node_id.s.node_id;
@@ -75,11 +81,7 @@ static int early_get_nodeid(void)
 
 static void __init early_get_apic_pnode_shift(void)
 {
-	unsigned long *mmr;
-
-	mmr = early_ioremap(UV_LOCAL_MMR_BASE | UVH_APICID, sizeof(*mmr));
-	uvh_apicid.v = *mmr;
-	early_iounmap(mmr, sizeof(*mmr));
+	uvh_apicid.v = uv_early_read_mmr(UVH_APICID);
 	if (!uvh_apicid.v)
 		/*
 		 * Old bios, use default value
@@ -95,12 +97,8 @@ static void __init early_get_apic_pnode_shift(void)
 static void __init uv_set_apicid_hibit(void)
 {
 	union uvh_lb_target_physical_apic_id_mask_u apicid_mask;
-	unsigned long *mmr;
 
-	mmr = early_ioremap(UV_LOCAL_MMR_BASE |
-		UVH_LB_TARGET_PHYSICAL_APIC_ID_MASK, sizeof(*mmr));
-	apicid_mask.v = *mmr;
-	early_iounmap(mmr, sizeof(*mmr));
+	apicid_mask.v = uv_early_read_mmr(UVH_LB_TARGET_PHYSICAL_APIC_ID_MASK);
 	uv_apicid_hibits = apicid_mask.s.bit_enables & UV_APICID_HIBIT_MASK;
 }
 
