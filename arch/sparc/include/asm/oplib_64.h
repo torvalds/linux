@@ -94,11 +94,6 @@ extern void prom_halt_power_off(void) __attribute__ ((noreturn));
  */
 extern unsigned char prom_get_idprom(char *idp_buffer, int idpbuf_size);
 
-/* Character operations to/from the console.... */
-
-/* Blocking get character from console. */
-extern void prom_getchar(char *buf);
-
 /* Blocking put character to console. */
 extern void prom_putchar(const char *buf);
 
