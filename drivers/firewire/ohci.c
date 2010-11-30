@@ -3102,11 +3102,15 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	if (err < 0)
 		goto fail_arreq_ctx;
 
-	context_init(&ohci->at_request_ctx, ohci,
-		     OHCI1394_AsReqTrContextControlSet, handle_at_packet);
+	err = context_init(&ohci->at_request_ctx, ohci,
+			   OHCI1394_AsReqTrContextControlSet, handle_at_packet);
+	if (err < 0)
+		goto fail_arrsp_ctx;
 
-	context_init(&ohci->at_response_ctx, ohci,
-		     OHCI1394_AsRspTrContextControlSet, handle_at_packet);
+	err = context_init(&ohci->at_response_ctx, ohci,
+			   OHCI1394_AsRspTrContextControlSet, handle_at_packet);
+	if (err < 0)
+		goto fail_atreq_ctx;
 
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, ~0);
 	ohci->ir_context_channels = ~0ULL;
@@ -3163,7 +3167,9 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	kfree(ohci->ir_context_list);
 	kfree(ohci->it_context_list);
 	context_release(&ohci->at_response_ctx);
+ fail_atreq_ctx:
 	context_release(&ohci->at_request_ctx);
+ fail_arrsp_ctx:
 	ar_context_release(&ohci->ar_response_ctx);
  fail_arreq_ctx:
 	ar_context_release(&ohci->ar_request_ctx);
