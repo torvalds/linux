@@ -128,10 +128,12 @@ typedef struct xfs_buftarg {
 
 	/* per device delwri queue */
 	struct task_struct	*bt_task;
-	struct list_head	bt_list;
 	struct list_head	bt_delwrite_queue;
 	spinlock_t		bt_delwrite_lock;
 	unsigned long		bt_flags;
+
+	/* LRU control structures */
+	struct shrinker		bt_shrinker;
 } xfs_buftarg_t;
 
 /*
