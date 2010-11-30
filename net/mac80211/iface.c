@@ -220,6 +220,7 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		/* we're brought up, everything changes */
 		hw_reconf_flags = ~0;
 		ieee80211_led_radio(local, true);
+		ieee80211_start_tpt_led_trig(local);
 	}
 
 	/*

@@ -103,6 +103,13 @@ void ieee80211_led_init(struct ieee80211_local *local)
 			local->radio_led = NULL;
 		}
 	}
+
+	if (local->tpt_led_trigger) {
+		if (led_trigger_register(&local->tpt_led_trigger->trig)) {
+			kfree(local->tpt_led_trigger);
+			local->tpt_led_trigger = NULL;
+		}
+	}
 }
 
 void ieee80211_led_exit(struct ieee80211_local *local)
@@ -122,6 +129,11 @@ void ieee80211_led_exit(struct ieee80211_local *local)
 	if (local->rx_led) {
 		led_trigger_unregister(local->rx_led);
 		kfree(local->rx_led);
+	}
+
+	if (local->tpt_led_trigger) {
+		led_trigger_unregister(&local->tpt_led_trigger->trig);
+		kfree(local->tpt_led_trigger);
 	}
 }
 
@@ -156,3 +168,112 @@ char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw)
 	return local->rx_led_name;
 }
 EXPORT_SYMBOL(__ieee80211_get_rx_led_name);
+
+static unsigned long tpt_trig_traffic(struct ieee80211_local *local,
+				      struct tpt_led_trigger *tpt_trig)
+{
+	unsigned long traffic, delta;
+
+	traffic = tpt_trig->tx_bytes + tpt_trig->rx_bytes;
+
+	delta = traffic - tpt_trig->prev_traffic;
+	tpt_trig->prev_traffic = traffic;
+	return DIV_ROUND_UP(delta, 1024 / 8);
+}
+
+static void tpt_trig_timer(unsigned long data)
+{
+	struct ieee80211_local *local = (void *)data;
+	struct tpt_led_trigger *tpt_trig = local->tpt_led_trigger;
+	struct led_classdev *led_cdev;
+	unsigned long on, off, tpt;
+	int i;
+
+	if (!tpt_trig->running)
+		return;
+
+	mod_timer(&tpt_trig->timer, round_jiffies(jiffies + HZ));
+
+	tpt = tpt_trig_traffic(local, tpt_trig);
+
+	/* default to just solid on */
+	on = 1;
+	off = 0;
+
+	for (i = tpt_trig->blink_table_len - 1; i >= 0; i--) {
+		if (tpt_trig->blink_table[i].throughput < 0 ||
+		    tpt > tpt_trig->blink_table[i].throughput) {
+			off = tpt_trig->blink_table[i].blink_time / 2;
+			on = tpt_trig->blink_table[i].blink_time - off;
+			break;
+		}
+	}
+
+	read_lock(&tpt_trig->trig.leddev_list_lock);
+	list_for_each_entry(led_cdev, &tpt_trig->trig.led_cdevs, trig_list)
+		led_blink_set(led_cdev, &on, &off);
+	read_unlock(&tpt_trig->trig.leddev_list_lock);
+}
+
+extern char *__ieee80211_create_tpt_led_trigger(
+				struct ieee80211_hw *hw,
+				const struct ieee80211_tpt_blink *blink_table,
+				unsigned int blink_table_len)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct tpt_led_trigger *tpt_trig;
+
+	if (WARN_ON(local->tpt_led_trigger))
+		return NULL;
+
+	tpt_trig = kzalloc(sizeof(struct tpt_led_trigger), GFP_KERNEL);
+	if (!tpt_trig)
+		return NULL;
+
+	snprintf(tpt_trig->name, sizeof(tpt_trig->name),
+		 "%stpt", wiphy_name(local->hw.wiphy));
+
+	tpt_trig->trig.name = tpt_trig->name;
+
+	tpt_trig->blink_table = blink_table;
+	tpt_trig->blink_table_len = blink_table_len;
+
+	setup_timer(&tpt_trig->timer, tpt_trig_timer, (unsigned long)local);
+
+	local->tpt_led_trigger = tpt_trig;
+
+	return tpt_trig->name;
+}
+EXPORT_SYMBOL(__ieee80211_create_tpt_led_trigger);
+
+void ieee80211_start_tpt_led_trig(struct ieee80211_local *local)
+{
+	struct tpt_led_trigger *tpt_trig = local->tpt_led_trigger;
+
+	if (!tpt_trig)
+		return;
+
+	/* reset traffic */
+	tpt_trig_traffic(local, tpt_trig);
+	tpt_trig->running = true;
+
+	tpt_trig_timer((unsigned long)local);
+	mod_timer(&tpt_trig->timer, round_jiffies(jiffies + HZ));
+}
+
+void ieee80211_stop_tpt_led_trig(struct ieee80211_local *local)
+{
+	struct tpt_led_trigger *tpt_trig = local->tpt_led_trigger;
+	struct led_classdev *led_cdev;
+
+	if (!tpt_trig)
+		return;
+
+	tpt_trig->running = false;
+	del_timer_sync(&tpt_trig->timer);
+
+	read_lock(&tpt_trig->trig.leddev_list_lock);
+	list_for_each_entry(led_cdev, &tpt_trig->trig.led_cdevs, trig_list)
+		led_brightness_set(led_cdev, LED_OFF);
+	read_unlock(&tpt_trig->trig.leddev_list_lock);
+}

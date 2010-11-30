@@ -23,6 +23,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/etherdevice.h>
+#include <linux/leds.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
@@ -630,6 +631,17 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_SKB_ADD,
 };
 
+struct tpt_led_trigger {
+	struct led_trigger trig;
+	char name[32];
+	const struct ieee80211_tpt_blink *blink_table;
+	unsigned int blink_table_len;
+	struct timer_list timer;
+	bool running;
+	unsigned long prev_traffic;
+	unsigned long tx_bytes, rx_bytes;
+};
+
 /**
  * mac80211 scan flags - currently active scan mode
  *
@@ -838,6 +850,7 @@ struct ieee80211_local {
 #ifdef CONFIG_MAC80211_LEDS
 	int tx_led_counter, rx_led_counter;
 	struct led_trigger *tx_led, *rx_led, *assoc_led, *radio_led;
+	struct tpt_led_trigger *tpt_led_trigger;
 	char tx_led_name[32], rx_led_name[32],
 	     assoc_led_name[32], radio_led_name[32];
 #endif

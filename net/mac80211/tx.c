@@ -1297,6 +1297,7 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 
 	while (skb) {
 		int q = skb_get_queue_mapping(skb);
+		__le16 fc;
 
 		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 		ret = IEEE80211_TX_OK;
@@ -1339,6 +1340,7 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 		else
 			info->control.sta = NULL;
 
+		fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
 		ret = drv_tx(local, skb);
 		if (WARN_ON(ret != NETDEV_TX_OK && skb->len != len)) {
 			dev_kfree_skb(skb);
@@ -1349,6 +1351,7 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 			return IEEE80211_TX_AGAIN;
 		}
 
+		ieee80211_tpt_led_trig_tx(local, fc, len);
 		*skbp = skb = next;
 		ieee80211_led_tx(local, 1);
 		fragm = true;

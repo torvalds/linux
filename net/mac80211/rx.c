@@ -2928,6 +2928,9 @@ void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		return;
 	}
 
+	ieee80211_tpt_led_trig_rx(local,
+			((struct ieee80211_hdr *)skb->data)->frame_control,
+			skb->len);
 	__ieee80211_rx_handle_packet(hw, skb);
 
 	rcu_read_unlock();
