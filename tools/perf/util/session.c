@@ -386,7 +386,7 @@ static event__swap_op event__swap_ops[] = {
 
 struct sample_queue {
 	u64			timestamp;
-	struct sample_event	*event;
+	event_t			*event;
 	struct list_head	list;
 };
 
@@ -406,7 +406,7 @@ static void flush_sample_queue(struct perf_session *s,
 		if (iter->timestamp > limit)
 			break;
 
-		ops->sample((event_t *)iter->event, s);
+		ops->sample(iter->event, s);
 
 		os->last_flush = iter->timestamp;
 		list_del(&iter->list);
