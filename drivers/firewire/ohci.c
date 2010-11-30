@@ -1813,22 +1813,28 @@ static irqreturn_t irq_handler(int irq, void *data)
 	if (event & OHCI1394_respTxComplete)
 		tasklet_schedule(&ohci->at_response_ctx.tasklet);
 
-	iso_event = reg_read(ohci, OHCI1394_IsoRecvIntEventClear);
-	reg_write(ohci, OHCI1394_IsoRecvIntEventClear, iso_event);
+	if (event & OHCI1394_isochRx) {
+		iso_event = reg_read(ohci, OHCI1394_IsoRecvIntEventClear);
+		reg_write(ohci, OHCI1394_IsoRecvIntEventClear, iso_event);
 
-	while (iso_event) {
-		i = ffs(iso_event) - 1;
-		tasklet_schedule(&ohci->ir_context_list[i].context.tasklet);
-		iso_event &= ~(1 << i);
+		while (iso_event) {
+			i = ffs(iso_event) - 1;
+			tasklet_schedule(
+				&ohci->ir_context_list[i].context.tasklet);
+			iso_event &= ~(1 << i);
+		}
 	}
 
-	iso_event = reg_read(ohci, OHCI1394_IsoXmitIntEventClear);
-	reg_write(ohci, OHCI1394_IsoXmitIntEventClear, iso_event);
+	if (event & OHCI1394_isochTx) {
+		iso_event = reg_read(ohci, OHCI1394_IsoXmitIntEventClear);
+		reg_write(ohci, OHCI1394_IsoXmitIntEventClear, iso_event);
 
-	while (iso_event) {
-		i = ffs(iso_event) - 1;
-		tasklet_schedule(&ohci->it_context_list[i].context.tasklet);
-		iso_event &= ~(1 << i);
+		while (iso_event) {
+			i = ffs(iso_event) - 1;
+			tasklet_schedule(
+				&ohci->it_context_list[i].context.tasklet);
+			iso_event &= ~(1 << i);
+		}
 	}
 
 	if (unlikely(event & OHCI1394_regAccessFail))
