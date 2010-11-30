@@ -29,6 +29,7 @@
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/io.h>
+#include <linux/leds.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -309,11 +310,50 @@ static struct platform_device usb1_host_device = {
 	.resource	= usb1_host_resources,
 };
 
+/* LED */
+static struct gpio_led mackerel_leds[] = {
+	{
+		.name		= "led0",
+		.gpio		= GPIO_PORT0,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name		= "led1",
+		.gpio		= GPIO_PORT1,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name		= "led2",
+		.gpio		= GPIO_PORT2,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name		= "led3",
+		.gpio		= GPIO_PORT159,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}
+};
+
+static struct gpio_led_platform_data mackerel_leds_pdata = {
+	.leds = mackerel_leds,
+	.num_leds = ARRAY_SIZE(mackerel_leds),
+};
+
+static struct platform_device leds_device = {
+	.name = "leds-gpio",
+	.id = 0,
+	.dev = {
+		.platform_data  = &mackerel_leds_pdata,
+	},
+};
+
+
 static struct platform_device *mackerel_devices[] __initdata = {
 	&nor_flash_device,
 	&smc911x_device,
 	&lcdc_device,
 	&usb1_host_device,
+	&leds_device,
 };
 
 static struct map_desc mackerel_io_desc[] __initdata = {
