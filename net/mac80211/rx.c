@@ -1877,9 +1877,8 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += rx->skb->len;
 
-	if (ieee80211_is_data(hdr->frame_control) &&
-	    !is_multicast_ether_addr(hdr->addr1) &&
-	    local->hw.conf.dynamic_ps_timeout > 0 && local->ps_sdata) {
+	if (local->ps_sdata && local->hw.conf.dynamic_ps_timeout > 0 &&
+	    !is_multicast_ether_addr(((struct ethhdr *)rx->skb->data)->h_dest)) {
 			mod_timer(&local->dynamic_ps_timer, jiffies +
 			 msecs_to_jiffies(local->hw.conf.dynamic_ps_timeout));
 	}
