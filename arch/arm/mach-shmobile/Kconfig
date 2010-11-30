@@ -61,6 +61,10 @@ endchoice
 config MACH_AG5EVM
 	bool "AG5EVM board"
 	depends on ARCH_SH73A0
+
+config MACH_MACKEREL
+	bool "mackerel board"
+	depends on ARCH_SH7372
 	select ARCH_REQUIRE_GPIOLIB
 
 comment "SH-Mobile System Configuration"
@@ -70,9 +74,8 @@ menu "Memory configuration"
 config MEMORY_START
 	hex "Physical memory start address"
 	default "0x50000000" if MACH_G3EVM
-	default "0x40000000" if MACH_G4EVM
-	default "0x40000000" if MACH_AP4EVB
-	default "0x40000000" if MACH_AG5EVM
+	default "0x40000000" if MACH_G4EVM || MACH_AP4EVB || MACH_AG5EVM || \
+				MACH_MACKEREL
 	default "0x00000000"
 	---help---
 	  Tweak this only when porting to a new machine which does not
