@@ -460,7 +460,8 @@ void iwlcore_eeprom_enhanced_txpower(struct iwl_priv *priv)
 		 * always check for valid entry before process
 		 * the information
 		 */
-		if (!enhanced_txpower->common || enhanced_txpower->reserved)
+		if (!(enhanced_txpower->flags || enhanced_txpower->channel) ||
+		    enhanced_txpower->delta_20_in_40)
 			continue;
 
 		for (element = 0; element < eeprom_section_count; element++) {
