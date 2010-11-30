@@ -317,29 +317,15 @@ static void tpa6130a2_channel_enable(u8 channel, int enable)
 	}
 }
 
-static int tpa6130a2_left_event(struct snd_soc_dapm_widget *w,
+static int tpa6130a2_pga_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		tpa6130a2_channel_enable(TPA6130A2_HP_EN_L, 1);
+		tpa6130a2_channel_enable(w->shift, 1);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		tpa6130a2_channel_enable(TPA6130A2_HP_EN_L, 0);
-		break;
-	}
-	return 0;
-}
-
-static int tpa6130a2_right_event(struct snd_soc_dapm_widget *w,
-		struct snd_kcontrol *kcontrol, int event)
-{
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		tpa6130a2_channel_enable(TPA6130A2_HP_EN_R, 1);
-		break;
-	case SND_SOC_DAPM_POST_PMD:
-		tpa6130a2_channel_enable(TPA6130A2_HP_EN_R, 0);
+		tpa6130a2_channel_enable(w->shift, 0);
 		break;
 	}
 	return 0;
@@ -363,10 +349,10 @@ static int tpa6130a2_supply_event(struct snd_soc_dapm_widget *w,
 
 static const struct snd_soc_dapm_widget tpa6130a2_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA_E("TPA6130A2 Left", SND_SOC_NOPM,
-			0, 0, NULL, 0, tpa6130a2_left_event,
+			TPA6130A2_HP_EN_L, 0, NULL, 0, tpa6130a2_pga_event,
 			SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_PGA_E("TPA6130A2 Right", SND_SOC_NOPM,
-			0, 0, NULL, 0, tpa6130a2_right_event,
+			TPA6130A2_HP_EN_R, 0, NULL, 0, tpa6130a2_pga_event,
 			SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_SUPPLY("TPA6130A2 Enable", SND_SOC_NOPM,
 			0, 0, tpa6130a2_supply_event,
