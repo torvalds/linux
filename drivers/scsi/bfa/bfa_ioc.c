@@ -1683,7 +1683,8 @@ bfa_ioc_mbox_hbfail(struct bfa_ioc_s *ioc)
 static bfa_status_t
 bfa_ioc_smem_read(struct bfa_ioc_s *ioc, void *tbuf, u32 soff, u32 sz)
 {
-	u32 pgnum, loff, r32;
+	u32 pgnum, loff;
+	__be32 r32;
 	int i, len;
 	u32 *buf = tbuf;
 
@@ -1909,7 +1910,7 @@ bfa_ioc_is_initialized(struct bfa_ioc_s *ioc)
 void
 bfa_ioc_msgget(struct bfa_ioc_s *ioc, void *mbmsg)
 {
-	u32	*msgp = mbmsg;
+	__be32	*msgp = mbmsg;
 	u32	r32;
 	int		i;
 

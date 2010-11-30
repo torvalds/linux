@@ -95,8 +95,8 @@ enum {
  */
 union bfi_addr_u {
 	struct {
-		u32	addr_lo;
-		u32	addr_hi;
+		__be32	addr_lo;
+		__be32	addr_hi;
 	} a32;
 };
 

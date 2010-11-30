@@ -115,8 +115,8 @@ struct bfa_dma_s {
 static inline void
 __bfa_dma_addr_set(union bfi_addr_u *dma_addr, u64 pa)
 {
-	dma_addr->a32.addr_lo = (u32) pa;
-	dma_addr->a32.addr_hi = (u32) (bfa_os_u32(pa));
+	dma_addr->a32.addr_lo = (__be32) pa;
+	dma_addr->a32.addr_hi = (__be32) (bfa_os_u32(pa));
 }
 
 
@@ -125,8 +125,8 @@ __bfa_dma_addr_set(union bfi_addr_u *dma_addr, u64 pa)
 static inline void
 __bfa_dma_be_addr_set(union bfi_addr_u *dma_addr, u64 pa)
 {
-	dma_addr->a32.addr_lo = (u32) cpu_to_be32(pa);
-	dma_addr->a32.addr_hi = (u32) cpu_to_be32(bfa_os_u32(pa));
+	dma_addr->a32.addr_lo = cpu_to_be32(pa);
+	dma_addr->a32.addr_hi = cpu_to_be32(bfa_os_u32(pa));
 }
 
 struct bfa_ioc_regs_s {

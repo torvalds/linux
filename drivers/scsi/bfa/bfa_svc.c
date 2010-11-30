@@ -3127,7 +3127,7 @@ bfa_fcport_qos_stats_swap(struct bfa_qos_stats_s *d,
 	struct bfa_qos_stats_s *s)
 {
 	u32	*dip = (u32 *) d;
-	u32	*sip = (u32 *) s;
+	__be32	*sip = (__be32 *) s;
 	int		i;
 
 	/* Now swap the 32 bit fields */
@@ -3140,7 +3140,7 @@ bfa_fcport_fcoe_stats_swap(struct bfa_fcoe_stats_s *d,
 	struct bfa_fcoe_stats_s *s)
 {
 	u32	*dip = (u32 *) d;
-	u32	*sip = (u32 *) s;
+	__be32	*sip = (__be32 *) s;
 	int		i;
 
 	for (i = 0; i < ((sizeof(struct bfa_fcoe_stats_s))/sizeof(u32));

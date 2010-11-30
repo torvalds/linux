@@ -29,7 +29,7 @@ static void
 bfa_port_stats_swap(struct bfa_port_s *port, union bfa_port_stats_u *stats)
 {
 	u32    *dip = (u32 *) stats;
-	u32    t0, t1;
+	__be32    t0, t1;
 	int	    i;
 
 	for (i = 0; i < sizeof(union bfa_port_stats_u)/sizeof(u32);

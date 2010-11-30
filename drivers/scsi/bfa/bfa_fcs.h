@@ -109,7 +109,7 @@ struct bfa_fcs_lport_loop_s {
 
 struct bfa_fcs_lport_n2n_s {
 	u32        rsvd;
-	u16        reply_oxid;	/*  ox_id from the req flogi to be
+	__be16     reply_oxid;	/*  ox_id from the req flogi to be
 					 *used in flogi acc */
 	wwn_t           rem_port_wwn;	/*  Attached port's wwn */
 };
@@ -406,7 +406,7 @@ struct bfa_fcs_rport_s {
 	struct bfad_rport_s	*rp_drv;	/*  driver peer instance */
 	u32	pid;	/*  port ID of rport */
 	u16	maxfrsize;	/*  maximum frame size */
-	u16	reply_oxid;	/*  OX_ID of inbound requests */
+	__be16	reply_oxid;	/*  OX_ID of inbound requests */
 	enum fc_cos	fc_cos;	/*  FC classes of service supp */
 	bfa_boolean_t	cisc;	/*  CISC capable device */
 	bfa_boolean_t	prlo;	/*  processing prlo or LOGO */
@@ -471,7 +471,7 @@ void bfa_fcs_rport_plogi_create(struct bfa_fcs_lport_s *port,
 void bfa_fcs_rport_plogi(struct bfa_fcs_rport_s *rport, struct fchs_s *fchs,
 			 struct fc_logi_s *plogi);
 void bfa_fcs_rport_logo_imp(struct bfa_fcs_rport_s *rport);
-void bfa_fcs_rport_prlo(struct bfa_fcs_rport_s *rport, u16 ox_id);
+void bfa_fcs_rport_prlo(struct bfa_fcs_rport_s *rport, __be16 ox_id);
 
 void bfa_fcs_rport_itnim_ack(struct bfa_fcs_rport_s *rport);
 void bfa_fcs_rport_itntm_ack(struct bfa_fcs_rport_s *rport);
@@ -618,7 +618,7 @@ struct bfa_fcs_fdmi_hba_attr_s {
 	u8         option_rom_ver[BFA_VERSION_LEN];
 	u8         fw_version[8];
 	u8         os_name[256];
-	u32        max_ct_pyld;
+	__be32        max_ct_pyld;
 };
 
 /*
@@ -626,9 +626,9 @@ struct bfa_fcs_fdmi_hba_attr_s {
  */
 struct bfa_fcs_fdmi_port_attr_s {
 	u8         supp_fc4_types[32];	/* supported FC4 types */
-	u32        supp_speed;	/* supported speed */
-	u32        curr_speed;	/* current Speed */
-	u32        max_frm_size;	/* max frame size */
+	__be32        supp_speed;	/* supported speed */
+	__be32        curr_speed;	/* current Speed */
+	__be32        max_frm_size;	/* max frame size */
 	u8         os_device_name[256];	/* OS device Name */
 	u8         host_name[256];	/* host name */
 };

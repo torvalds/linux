@@ -82,7 +82,7 @@ struct fchs_s {
 	u8         df_ctl;		/* data field control */
 	u16        seq_cnt;	/* sequence count */
 
-	u16        ox_id;		/* originator exchange ID */
+	__be16     ox_id;		/* originator exchange ID */
 	u16        rx_id;		/* responder exchange ID */
 
 	u32        ro;		/* relative offset */
@@ -316,7 +316,7 @@ enum {
 struct fc_plogi_csp_s {
 	u8         verhi;	/* FC-PH high version */
 	u8         verlo;	/* FC-PH low version */
-	u16        bbcred;	/* BB_Credit */
+	__be16        bbcred;	/* BB_Credit */
 
 #ifdef __BIGENDIAN
 	u8         ciro:1,		/* continuously increasing RO */
@@ -355,12 +355,12 @@ struct fc_plogi_csp_s {
 			hg_supp:1;
 #endif
 
-	u16        rxsz;		/* recieve data_field size */
+	__be16        rxsz;		/* recieve data_field size */
 
-	u16        conseq;
-	u16        ro_bitmap;
+	__be16        conseq;
+	__be16        ro_bitmap;
 
-	u32        e_d_tov;
+	__be32        e_d_tov;
 };
 
 /*
@@ -873,7 +873,7 @@ struct fc_rscn_event_s {
 struct fc_rscn_pl_s {
 	u8         command;
 	u8         pagelen;
-	u16        payldlen;
+	__be16        payldlen;
 	struct fc_rscn_event_s event[1];
 };
 
@@ -926,9 +926,9 @@ struct fc_rnid_common_id_data_s {
 
 struct fc_rnid_general_topology_data_s {
 	u32        vendor_unique[4];
-	u32        asso_type;
+	__be32        asso_type;
 	u32        phy_port_num;
-	u32        num_attached_nodes;
+	__be32        num_attached_nodes;
 	u32        node_mgmt:8;
 	u32        ip_version:8;
 	u32        udp_tcp_port_num:16;
@@ -984,8 +984,8 @@ enum fc_rpsc_op_speed {
 };
 
 struct fc_rpsc_speed_info_s {
-	u16        port_speed_cap;	/*! see enum fc_rpsc_speed_cap */
-	u16        port_op_speed;	/*! see enum fc_rpsc_op_speed */
+	__be16        port_speed_cap;	/*! see enum fc_rpsc_speed_cap */
+	__be16        port_op_speed;	/*! see enum fc_rpsc_op_speed */
 };
 
 enum link_e2e_beacon_subcmd {
@@ -1056,9 +1056,9 @@ struct fc_rpsc_acc_s {
 
 struct fc_rpsc2_cmd_s {
 	struct fc_els_cmd_s els_cmd;
-	u32	token;
+	__be32	token;
 	u16	resvd;
-	u16	num_pids;	/* Number of pids in the request */
+	__be16	num_pids;	/* Number of pids in the request */
 	struct  {
 		u32	rsvd1:8;
 		u32	pid:24;		/* port identifier */
@@ -1076,12 +1076,12 @@ enum fc_rpsc2_port_type {
  * RPSC2 portInfo entry structure
  */
 struct fc_rpsc2_port_info_s {
-    u32    pid;        /* PID */
-    u16    resvd1;
-    u16    index;      /* port number / index */
-    u8     resvd2;
-    u8	   type;	/* port type N/NL/... */
-    u16    speed;      /* port Operating Speed */
+	__be32	pid;        /* PID */
+	u16	resvd1;
+	__be16	index;      /* port number / index */
+	u8	resvd2;
+	u8	type;	/* port type N/NL/... */
+	__be16	speed;      /* port Operating Speed */
 };
 
 /*
@@ -1090,7 +1090,7 @@ struct fc_rpsc2_port_info_s {
 struct fc_rpsc2_acc_s {
 	u8        els_cmd;
 	u8        resvd;
-    u16       num_pids;  /* Number of pids in the request */
+	__be16    num_pids;  /* Number of pids in the request */
     struct fc_rpsc2_port_info_s port_info[1];    /* port information */
 };
 
@@ -1200,7 +1200,7 @@ struct fcp_cmnd_s {
 	/*
 	 * !!! additional cdb bytes follows here!!!
 	 */
-	u32        fcp_dl;	/* bytes to be transferred */
+	__be32        fcp_dl;	/* bytes to be transferred */
 };
 
 #define fcp_cmnd_cdb_len(_cmnd) ((_cmnd)->addl_cdb_len * 4 + FCP_CMND_CDB_LEN)
@@ -1469,7 +1469,7 @@ struct fcgs_gidpn_resp_s {
 struct fcgs_rftid_req_s {
 	u32	rsvd:8;
 	u32	dap:24;		/* port identifier */
-	u32	fc4_type[8];	/* fc4 types */
+	__be32	fc4_type[8];	/* fc4 types */
 };
 
 /*
@@ -1764,7 +1764,7 @@ struct fcgs_req_s {
 
 /* Accept Response to GMAL */
 struct fcgs_gmal_resp_s {
-	u32	ms_len;   /* Num of entries */
+	__be32	ms_len;   /* Num of entries */
 	u8	ms_ma[256];
 };
 
@@ -1856,8 +1856,8 @@ enum fdmi_port_attribute_type {
  * FDMI attribute
  */
 struct fdmi_attr_s {
-	u16        type;
-	u16        len;
+	__be16        type;
+	__be16        len;
 	u8         value[1];
 };
 
@@ -1865,7 +1865,7 @@ struct fdmi_attr_s {
  * HBA Attribute Block
  */
 struct fdmi_hba_attr_s {
-	u32        attr_count;	/* # of attributes */
+	__be32        attr_count;	/* # of attributes */
 	struct fdmi_attr_s hba_attr;	/* n attributes */
 };
 
@@ -1873,7 +1873,7 @@ struct fdmi_hba_attr_s {
  * Registered Port List
  */
 struct fdmi_port_list_s {
-	u32        num_ports;	/* number Of Port Entries */
+	__be32        num_ports;	/* number Of Port Entries */
 	wwn_t           port_entry;	/* one or more */
 };
 
@@ -1881,7 +1881,7 @@ struct fdmi_port_list_s {
  * Port Attribute Block
  */
 struct fdmi_port_attr_s {
-	u32        attr_count;	/* # of attributes */
+	__be32        attr_count;	/* # of attributes */
 	struct fdmi_attr_s port_attr;	/* n attributes */
 };
 

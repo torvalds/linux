@@ -2594,7 +2594,7 @@ bfa_fcs_rport_set_del_timeout(u8 rport_tmo)
 		bfa_fcs_rport_del_timeout = rport_tmo * 1000;
 }
 void
-bfa_fcs_rport_prlo(struct bfa_fcs_rport_s *rport, u16 ox_id)
+bfa_fcs_rport_prlo(struct bfa_fcs_rport_s *rport, __be16 ox_id)
 {
 	bfa_trc(rport->fcs, rport->pid);
 

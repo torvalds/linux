@@ -32,7 +32,7 @@ static inline lun_t
 bfad_int_to_lun(u32 luno)
 {
 	union {
-		u16	scsi_lun[4];
+		__be16	scsi_lun[4];
 		lun_t		bfa_lun;
 	} lun;
 
