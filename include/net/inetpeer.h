@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/spinlock.h>
+#include <net/ipv6.h>
 #include <asm/atomic.h>
 
 typedef struct {
@@ -58,6 +59,15 @@ static inline struct inet_peer *inet_getpeer_v4(__be32 v4daddr, int create)
 
 	daddr.a4 = v4daddr;
 	daddr.family = AF_INET;
+	return inet_getpeer(&daddr, create);
+}
+
+static inline struct inet_peer *inet_getpeer_v6(struct in6_addr *v6daddr, int create)
+{
+	inet_peer_address_t daddr;
+
+	ipv6_addr_copy((struct in6_addr *)daddr.a6, v6daddr);
+	daddr.family = AF_INET6;
 	return inet_getpeer(&daddr, create);
 }
 
