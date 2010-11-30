@@ -24,6 +24,7 @@
 #include <linux/irq.h>
 #include <linux/percpu.h>
 #include <linux/clockchips.h>
+#include <linux/completion.h>
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
@@ -238,12 +239,20 @@ int __cpu_disable(void)
 	return 0;
 }
 
+static DECLARE_COMPLETION(cpu_died);
+
 /*
  * called on the thread which is asking for a CPU to be shutdown -
  * waits until shutdown has completed, or it is timed out.
  */
 void __cpu_die(unsigned int cpu)
 {
+	if (!wait_for_completion_timeout(&cpu_died, msecs_to_jiffies(5000))) {
+		pr_err("CPU%u: cpu didn't die\n", cpu);
+		return;
+	}
+	printk(KERN_NOTICE "CPU%u: shutdown\n", cpu);
+
 	if (!platform_cpu_kill(cpu))
 		printk("CPU%u: unable to kill\n", cpu);
 }
@@ -263,9 +272,12 @@ void __ref cpu_die(void)
 	local_irq_disable();
 	idle_task_exit();
 
+	/* Tell __cpu_die() that this CPU is now safe to dispose of */
+	complete(&cpu_died);
+
 	/*
 	 * actual CPU shutdown procedure is at least platform (if not
-	 * CPU) specific
+	 * CPU) specific.
 	 */
 	platform_cpu_die(cpu);
 

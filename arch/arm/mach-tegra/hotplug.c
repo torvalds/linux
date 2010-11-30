@@ -11,11 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/smp.h>
-#include <linux/completion.h>
 
 #include <asm/cacheflush.h>
-
-static DECLARE_COMPLETION(cpu_killed);
 
 static inline void cpu_enter_lowpower(void)
 {
@@ -94,7 +91,7 @@ static inline void platform_do_lowpower(unsigned int cpu)
 
 int platform_cpu_kill(unsigned int cpu)
 {
-	return wait_for_completion_timeout(&cpu_killed, 5000);
+	return 1;
 }
 
 /*
@@ -113,9 +110,6 @@ void platform_cpu_die(unsigned int cpu)
 		BUG();
 	}
 #endif
-
-	printk(KERN_NOTICE "CPU%u: shutdown\n", cpu);
-	complete(&cpu_killed);
 
 	/*
 	 * we're ready for shutdown now, so do it
