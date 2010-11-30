@@ -32,7 +32,7 @@ static void bfa_ioc_ct_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix);
 static void bfa_ioc_ct_notify_hbfail(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc);
 
-struct bfa_ioc_hwif_s hwif_ct;
+static struct bfa_ioc_hwif_s hwif_ct;
 
 /*
  * Called from bfa_ioc_attach() to map asic specific calls.

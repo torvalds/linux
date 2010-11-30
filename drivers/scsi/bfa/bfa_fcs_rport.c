@@ -2359,14 +2359,6 @@ bfa_fcs_rport_itnim_ack(struct bfa_fcs_rport_s *rport)
 	bfa_sm_send_event(rport, RPSM_EVENT_FC4_OFFLINE);
 }
 
-/*
- *	Called by fcptm to notify that the ITN cleanup is done.
- */
-void
-bfa_fcs_rport_tin_ack(struct bfa_fcs_rport_s *rport)
-{
-	bfa_sm_send_event(rport, RPSM_EVENT_FC4_OFFLINE);
-}
 
 /*
  *	brief

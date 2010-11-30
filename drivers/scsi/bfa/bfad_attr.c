@@ -25,7 +25,7 @@
 /*
  * FC transport template entry, get SCSI target port ID.
  */
-void
+static void
 bfad_im_get_starget_port_id(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost;
@@ -51,7 +51,7 @@ bfad_im_get_starget_port_id(struct scsi_target *starget)
 /*
  * FC transport template entry, get SCSI target nwwn.
  */
-void
+static void
 bfad_im_get_starget_node_name(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost;
@@ -77,7 +77,7 @@ bfad_im_get_starget_node_name(struct scsi_target *starget)
 /*
  * FC transport template entry, get SCSI target pwwn.
  */
-void
+static void
 bfad_im_get_starget_port_name(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost;
@@ -103,7 +103,7 @@ bfad_im_get_starget_port_name(struct scsi_target *starget)
 /*
  * FC transport template entry, get SCSI host port ID.
  */
-void
+static void
 bfad_im_get_host_port_id(struct Scsi_Host *shost)
 {
 	struct bfad_im_port_s *im_port =

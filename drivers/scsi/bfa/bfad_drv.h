@@ -263,10 +263,10 @@ struct bfad_hal_comp {
  */
 #define nextLowerInt(x)                         \
 do {                                            \
-	int i;                                  \
+	int __i;                                  \
 	(*x)--;					\
-	for (i = 1; i < (sizeof(int)*8); i <<= 1) \
-		(*x) = (*x) | (*x) >> i;	\
+	for (__i = 1; __i < (sizeof(int)*8); __i <<= 1) \
+		(*x) = (*x) | (*x) >> __i;	\
 	(*x)++;					\
 	(*x) = (*x) >> 1;			\
 } while (0)

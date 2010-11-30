@@ -61,12 +61,12 @@ int		msix_disable_cb = 0, msix_disable_ct = 0;
 u32	bfi_image_ct_fc_size, bfi_image_ct_cna_size, bfi_image_cb_fc_size;
 u32     *bfi_image_ct_fc, *bfi_image_ct_cna, *bfi_image_cb_fc;
 
-const char *msix_name_ct[] = {
+static const char *msix_name_ct[] = {
 	"cpe0", "cpe1", "cpe2", "cpe3",
 	"rme0", "rme1", "rme2", "rme3",
 	"ctrl" };
 
-const char *msix_name_cb[] = {
+static const char *msix_name_cb[] = {
 	"cpe0", "cpe1", "cpe2", "cpe3",
 	"rme0", "rme1", "rme2", "rme3",
 	"eemc", "elpu0", "elpu1", "epss", "mlpu" };

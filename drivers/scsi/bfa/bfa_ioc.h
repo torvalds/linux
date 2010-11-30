@@ -421,7 +421,7 @@ bfa_cb_image_get_chunk(int type, u32 off)
 		return bfi_image_ct_cna_get_chunk(off);	break;
 	case BFI_IMAGE_CB_FC:
 		return bfi_image_cb_fc_get_chunk(off);	break;
-	default: return 0;
+	default: return NULL;
 	}
 }
 

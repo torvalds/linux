@@ -2103,7 +2103,7 @@ bfa_fcs_lport_fdmi_timeout(void *arg)
 	bfa_sm_send_event(fdmi, FDMISM_EVENT_TIMEOUT);
 }
 
-void
+static void
 bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 			 struct bfa_fcs_fdmi_hba_attr_s *hba_attr)
 {
@@ -2147,7 +2147,7 @@ bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 	hba_attr->max_ct_pyld = cpu_to_be32(FC_MAX_PDUSZ);
 }
 
-void
+static void
 bfa_fcs_fdmi_get_portattr(struct bfa_fcs_lport_fdmi_s *fdmi,
 			  struct bfa_fcs_fdmi_port_attr_s *port_attr)
 {
@@ -4150,7 +4150,7 @@ bfa_fcs_lport_ns_query(struct bfa_fcs_lport_s *port)
 	bfa_sm_send_event(ns, NSSM_EVENT_NS_QUERY);
 }
 
-void
+static void
 bfa_fcs_lport_ns_boot_target_disc(bfa_fcs_lport_t *port)
 {
 
