@@ -191,8 +191,6 @@ int tipc_createport(unsigned int tipc_user, void *usr_handle,
 
 int tipc_deleteport(u32 portref);
 
-int tipc_ownidentity(u32 portref, struct tipc_portid *port);
-
 int tipc_portimportance(u32 portref, unsigned int *importance);
 int tipc_set_portimportance(u32 portref, unsigned int importance);
 

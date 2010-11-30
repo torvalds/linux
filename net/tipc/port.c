@@ -983,13 +983,6 @@ int tipc_createport(u32 user_ref,
 	return 0;
 }
 
-int tipc_ownidentity(u32 ref, struct tipc_portid *id)
-{
-	id->ref = ref;
-	id->node = tipc_own_addr;
-	return 0;
-}
-
 int tipc_portimportance(u32 ref, unsigned int *importance)
 {
 	struct port *p_ptr;

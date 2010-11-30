@@ -403,7 +403,8 @@ static int get_name(struct socket *sock, struct sockaddr *uaddr,
 		addr->addr.id.ref = tsock->peer_name.ref;
 		addr->addr.id.node = tsock->peer_name.node;
 	} else {
-		tipc_ownidentity(tsock->p->ref, &addr->addr.id);
+		addr->addr.id.ref = tsock->p->ref;
+		addr->addr.id.node = tipc_own_addr;
 	}
 
 	*uaddr_len = sizeof(*addr);
