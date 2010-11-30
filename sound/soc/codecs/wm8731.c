@@ -74,6 +74,7 @@ static const struct soc_enum wm8731_enum[] = {
 static const DECLARE_TLV_DB_SCALE(in_tlv, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(sidetone_tlv, -1500, 300, 0);
 static const DECLARE_TLV_DB_SCALE(out_tlv, -12100, 100, 1);
+static const DECLARE_TLV_DB_SCALE(mic_tlv, 0, 2000, 0);
 
 static const struct snd_kcontrol_new wm8731_snd_controls[] = {
 
@@ -86,7 +87,7 @@ SOC_DOUBLE_R_TLV("Capture Volume", WM8731_LINVOL, WM8731_RINVOL, 0, 31, 0,
 		 in_tlv),
 SOC_DOUBLE_R("Line Capture Switch", WM8731_LINVOL, WM8731_RINVOL, 7, 1, 1),
 
-SOC_SINGLE("Mic Boost (+20dB)", WM8731_APANA, 0, 1, 0),
+SOC_SINGLE_TLV("Mic Boost Volume", WM8731_APANA, 0, 1, 0, mic_tlv),
 SOC_SINGLE("Mic Capture Switch", WM8731_APANA, 1, 1, 1),
 
 SOC_SINGLE_TLV("Sidetone Playback Volume", WM8731_APANA, 6, 3, 1,
