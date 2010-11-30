@@ -29,17 +29,8 @@ extern u32 g_assert_type;
 	  do { if (!(exp)) osl_assert(#exp, __FILE__, __LINE__); } while (0)
 extern void osl_assert(char *exp, char *file, int line);
 #else
-#ifdef __GNUC__
-#define GCC_VERSION \
-			(__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
-#if GCC_VERSION > 30100
 #define ASSERT(exp)	do {} while (0)
-#else
-			/* ASSERT could cause segmentation fault on GCC3.1, use empty instead */
-#define ASSERT(exp)
-#endif				/* GCC_VERSION > 30100 */
-#endif				/* __GNUC__ */
-#endif				/* defined(BCMDBG_ASSERT) */
+#endif  /* defined(BCMDBG_ASSERT) */
 
 /* PCI device bus # and slot # */
 #define OSL_PCI_BUS(osh)	osl_pci_bus(osh)
