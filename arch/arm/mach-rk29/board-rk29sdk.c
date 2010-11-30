@@ -40,6 +40,8 @@
 #include <mach/rk29_nand.h>
 #include <mach/rk29_camera.h>                          /* ddl@rock-chips.com : camera support */
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
+#include <mach/vpu_mem.h>
+
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -81,27 +83,27 @@ static struct rk29_gpio_bank rk29_gpiobankinit[] = {
 	{
 		.id		= RK29_ID_GPIO1,
 		.offset	= RK29_GPIO1_BASE,
-	}, 
+	},
 	{
 		.id		= RK29_ID_GPIO2,
 		.offset	= RK29_GPIO2_BASE,
-	}, 
+	},
 	{
 		.id		= RK29_ID_GPIO3,
 		.offset	= RK29_GPIO3_BASE,
-	}, 
+	},
 	{
 		.id		= RK29_ID_GPIO4,
 		.offset	= RK29_GPIO4_BASE,
-	}, 
+	},
 	{
 		.id		= RK29_ID_GPIO5,
 		.offset	= RK29_GPIO5_BASE,
-	}, 
+	},
 	{
 		.id		= RK29_ID_GPIO6,
 		.offset	= RK29_GPIO6_BASE,
-	},  	
+	},
 };
 
 /*****************************************************************************************
@@ -320,19 +322,18 @@ static struct platform_device android_pmem_device = {
 };
 
 
-static struct android_pmem_platform_data android_pmem_vpu_pdata = {
-	.name		= "pmem_vpu",
+static struct vpu_mem_platform_data vpu_mem_pdata = {
+	.name		= "vpu_mem",
 	.start		= PMEM_VPU_BASE,
 	.size		= PMEM_VPU_SIZE,
-	.no_allocator	= 0,
 	.cached		= 1,
 };
 
-static struct platform_device android_pmem_vpu_device = {
-	.name		= "android_pmem",
-	.id		= 2,
+static struct platform_device rk29_vpu_mem_device = {
+	.name		= "vpu_mem",
+	.id		    = 2,
 	.dev		= {
-		.platform_data = &android_pmem_vpu_pdata,
+	.platform_data = &vpu_mem_pdata,
 	},
 };
 
@@ -733,7 +734,7 @@ static int rk29_sdmmc0_cfg_gpio(void)
 #define CONFIG_SDMMC0_USE_DMA
 struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 	.host_ocr_avail = (MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|
-					   MMC_VDD_30_31|MMC_VDD_31_32|MMC_VDD_32_33| 
+					   MMC_VDD_30_31|MMC_VDD_31_32|MMC_VDD_32_33|
 					   MMC_VDD_33_34|MMC_VDD_34_35| MMC_VDD_35_36),
 	.host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
 	.io_init = rk29_sdmmc0_cfg_gpio,
@@ -816,7 +817,7 @@ static struct platform_device rk29_device_keys = {
 
 static void __init rk29_board_iomux_init(void)
 {
-	#ifdef CONFIG_UART0_RK29	
+	#ifdef CONFIG_UART0_RK29
 	rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_UART0_SOUT);
 	rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_UART0_SIN);
 	#ifdef CONFIG_UART0_CTS_RTS_RK29
@@ -824,11 +825,11 @@ static void __init rk29_board_iomux_init(void)
 	rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_UART0_CTS_N);
 	#endif
 	#endif
-	#ifdef CONFIG_UART1_RK29	
+	#ifdef CONFIG_UART1_RK29
 	rk29_mux_api_set(GPIO2A5_UART1SOUT_NAME, GPIO2L_UART1_SOUT);
 	rk29_mux_api_set(GPIO2A4_UART1SIN_NAME, GPIO2L_UART1_SIN);
 	#endif
-	#ifdef CONFIG_UART2_RK29	
+	#ifdef CONFIG_UART2_RK29
 	rk29_mux_api_set(GPIO2B1_UART2SOUT_NAME, GPIO2L_UART2_SOUT);
 	rk29_mux_api_set(GPIO2B0_UART2SIN_NAME, GPIO2L_UART2_SIN);
 	#ifdef CONFIG_UART2_CTS_RTS_RK29
@@ -836,7 +837,7 @@ static void __init rk29_board_iomux_init(void)
 	rk29_mux_api_set(GPIO2A6_UART2CTSN_NAME, GPIO2L_UART2_CTS_N);
 	#endif
 	#endif
-	#ifdef CONFIG_UART3_RK29	
+	#ifdef CONFIG_UART3_RK29
 	rk29_mux_api_set(GPIO2B3_UART3SOUT_NAME, GPIO2L_UART3_SOUT);
 	rk29_mux_api_set(GPIO2B2_UART3SIN_NAME, GPIO2L_UART3_SIN);
 	#ifdef CONFIG_UART3_CTS_RTS_RK29
@@ -906,7 +907,7 @@ static struct platform_device *devices[] __initdata = {
  	&rk29_soc_camera_pdrv,
  #endif
 	&android_pmem_device,
-	&android_pmem_vpu_device,
+	&rk29_vpu_mem_device,
 };
 
 /*****************************************************************************************
@@ -1152,12 +1153,12 @@ static void __init machine_rk29_mapio(void)
 {
 	rk29_map_common_io();
 	rk29_clock_init();
-	rk29_iomux_init();	
+	rk29_iomux_init();
 }
 
 MACHINE_START(RK29, "RK29board")
 	/* UART for LL DEBUG */
-	.phys_io	= RK29_UART1_PHYS, 
+	.phys_io	= RK29_UART1_PHYS,
 	.io_pg_offst	= ((RK29_UART1_BASE) >> 18) & 0xfffc,
 	.boot_params	= RK29_SDRAM_PHYS + 0x88000,
 	.fixup		= machine_rk29_fixup,
