@@ -454,17 +454,17 @@ static int skcipher_recvmsg(struct kiocb *unused, struct socket *sock,
 
 			used = min_t(unsigned long, used, seglen);
 
+			used = af_alg_make_sg(&ctx->rsgl, from, used, 1);
+			err = used;
+			if (err < 0)
+				goto unlock;
+
 			if (ctx->more || used < ctx->used)
 				used -= used % bs;
 
 			err = -EINVAL;
 			if (!used)
-				goto unlock;
-
-			used = af_alg_make_sg(&ctx->rsgl, from, used, 1);
-			err = used;
-			if (err < 0)
-				goto unlock;
+				goto free;
 
 			ablkcipher_request_set_crypt(&ctx->req, sg,
 						     ctx->rsgl.sg, used,
@@ -476,6 +476,7 @@ static int skcipher_recvmsg(struct kiocb *unused, struct socket *sock,
 					crypto_ablkcipher_decrypt(&ctx->req),
 				&ctx->completion);
 
+free:
 			af_alg_free_sg(&ctx->rsgl);
 
 			if (err)
