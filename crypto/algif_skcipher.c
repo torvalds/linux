@@ -52,12 +52,18 @@ struct skcipher_ctx {
 #define MAX_SGL_ENTS ((PAGE_SIZE - sizeof(struct skcipher_sg_list)) / \
 		      sizeof(struct scatterlist) - 1)
 
-static inline bool skcipher_writable(struct sock *sk)
+static inline int skcipher_sndbuf(struct sock *sk)
 {
 	struct alg_sock *ask = alg_sk(sk);
 	struct skcipher_ctx *ctx = ask->private;
 
-	return ctx->used + PAGE_SIZE <= max_t(int, sk->sk_sndbuf, PAGE_SIZE);
+	return max_t(int, max_t(int, sk->sk_sndbuf & PAGE_MASK, PAGE_SIZE) -
+			  ctx->used, 0);
+}
+
+static inline bool skcipher_writable(struct sock *sk)
+{
+	return PAGE_SIZE <= skcipher_sndbuf(sk);
 }
 
 static int skcipher_alloc_sgl(struct sock *sk)
@@ -245,7 +251,6 @@ static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
 	struct af_alg_control con = {};
 	long copied = 0;
 	bool enc = 0;
-	int limit;
 	int err;
 	int i;
 
@@ -281,9 +286,6 @@ static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
 			memcpy(ctx->iv, con.iv->iv, ivsize);
 	}
 
-	limit = max_t(int, sk->sk_sndbuf, PAGE_SIZE);
-	limit -= ctx->used;
-
 	while (size) {
 		struct scatterlist *sg;
 		unsigned long len = size;
@@ -309,20 +311,16 @@ static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
 			ctx->used += len;
 			copied += len;
 			size -= len;
-			limit -= len;
 			continue;
 		}
 
-		if (limit < PAGE_SIZE) {
+		if (!skcipher_writable(sk)) {
 			err = skcipher_wait_for_wmem(sk, msg->msg_flags);
 			if (err)
 				goto unlock;
-
-			limit = max_t(int, sk->sk_sndbuf, PAGE_SIZE);
-			limit -= ctx->used;
 		}
 
-		len = min_t(unsigned long, len, limit);
+		len = min_t(unsigned long, len, skcipher_sndbuf(sk));
 
 		err = skcipher_alloc_sgl(sk);
 		if (err)
@@ -352,7 +350,6 @@ static int skcipher_sendmsg(struct kiocb *unused, struct socket *sock,
 			ctx->used += plen;
 			copied += plen;
 			size -= plen;
-			limit -= plen;
 			sgl->cur++;
 		} while (len && sgl->cur < MAX_SGL_ENTS);
 
@@ -380,7 +377,6 @@ static ssize_t skcipher_sendpage(struct socket *sock, struct page *page,
 	struct skcipher_ctx *ctx = ask->private;
 	struct skcipher_sg_list *sgl;
 	int err = -EINVAL;
-	int limit;
 
 	lock_sock(sk);
 	if (!ctx->more && ctx->used)
@@ -389,16 +385,10 @@ static ssize_t skcipher_sendpage(struct socket *sock, struct page *page,
 	if (!size)
 		goto done;
 
-	limit = max_t(int, sk->sk_sndbuf, PAGE_SIZE);
-	limit -= ctx->used;
-
-	if (limit < PAGE_SIZE) {
+	if (!skcipher_writable(sk)) {
 		err = skcipher_wait_for_wmem(sk, flags);
 		if (err)
 			goto unlock;
-
-		limit = max_t(int, sk->sk_sndbuf, PAGE_SIZE);
-		limit -= ctx->used;
 	}
 
 	err = skcipher_alloc_sgl(sk);
