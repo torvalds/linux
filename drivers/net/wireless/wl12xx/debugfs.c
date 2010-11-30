@@ -414,6 +414,9 @@ err:
 
 void wl1271_debugfs_reset(struct wl1271 *wl)
 {
+	if (!wl->rootdir)
+		return;
+
 	memset(wl->stats.fw_stats, 0, sizeof(*wl->stats.fw_stats));
 	wl->stats.retry_count = 0;
 	wl->stats.excessive_retries = 0;
