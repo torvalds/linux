@@ -50,15 +50,11 @@
 /**
  * struct tipc_user - registered TIPC user info
  * @next: index of next free registry entry (or -1 for an allocated entry)
- * @callback: ptr to routine to call when TIPC mode changes (NULL if none)
- * @usr_handle: user-defined value passed to callback routine
  * @ports: list of user ports owned by the user
  */
 
 struct tipc_user {
 	int next;
-	tipc_mode_event callback;
-	void *usr_handle;
 	struct list_head ports;
 };
 
@@ -95,41 +91,12 @@ static int reg_init(void)
 }
 
 /**
- * reg_callback - inform TIPC user about current operating mode
- */
-
-static void reg_callback(struct tipc_user *user_ptr)
-{
-	tipc_mode_event cb;
-	void *arg;
-
-	spin_lock_bh(&reg_lock);
-	cb = user_ptr->callback;
-	arg = user_ptr->usr_handle;
-	spin_unlock_bh(&reg_lock);
-
-	if (cb)
-		cb(arg, tipc_mode, tipc_own_addr);
-}
-
-/**
  * tipc_reg_start - activate TIPC user registry
  */
 
 int tipc_reg_start(void)
 {
-	u32 u;
-	int res;
-
-	if ((res = reg_init()))
-		return res;
-
-	for (u = 1; u <= MAX_USERID; u++) {
-		if (users[u].callback)
-			tipc_k_signal((Handler)reg_callback,
-				      (unsigned long)&users[u]);
-	}
-	return 0;
+	return reg_init();
 }
 
 /**
@@ -138,15 +105,9 @@ int tipc_reg_start(void)
 
 void tipc_reg_stop(void)
 {
-	int id;
-
 	if (!users)
 		return;
 
-	for (id = 1; id <= MAX_USERID; id++) {
-		if (users[id].callback)
-			reg_callback(&users[id]);
-	}
 	kfree(users);
 	users = NULL;
 }
@@ -157,12 +118,10 @@ void tipc_reg_stop(void)
  * NOTE: This routine may be called when TIPC is inactive.
  */
 
-int tipc_attach(u32 *userid, tipc_mode_event cb, void *usr_handle)
+int tipc_attach(u32 *userid)
 {
 	struct tipc_user *user_ptr;
 
-	if ((tipc_mode == TIPC_NOT_RUNNING) && !cb)
-		return -ENOPROTOOPT;
 	if (!users)
 		reg_init();
 
@@ -177,13 +136,9 @@ int tipc_attach(u32 *userid, tipc_mode_event cb, void *usr_handle)
 	user_ptr->next = -1;
 	spin_unlock_bh(&reg_lock);
 
-	user_ptr->callback = cb;
-	user_ptr->usr_handle = usr_handle;
 	INIT_LIST_HEAD(&user_ptr->ports);
 	atomic_inc(&tipc_user_count);
 
-	if (cb && (tipc_mode != TIPC_NOT_RUNNING))
-		tipc_k_signal((Handler)reg_callback, (unsigned long)user_ptr);
 	return 0;
 }
 
@@ -207,7 +162,6 @@ void tipc_detach(u32 userid)
 	}
 
 	user_ptr = &users[userid];
-	user_ptr->callback = NULL;
 	INIT_LIST_HEAD(&ports_temp);
 	list_splice(&user_ptr->ports, &ports_temp);
 	user_ptr->next = next_free_user;

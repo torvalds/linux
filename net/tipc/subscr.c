@@ -549,7 +549,7 @@ int tipc_subscr_start(void)
 	INIT_LIST_HEAD(&topsrv.subscriber_list);
 
 	spin_lock_bh(&topsrv.lock);
-	res = tipc_attach(&topsrv.user_ref, NULL, NULL);
+	res = tipc_attach(&topsrv.user_ref);
 	if (res) {
 		spin_unlock_bh(&topsrv.lock);
 		return res;

@@ -560,7 +560,7 @@ int tipc_cfg_init(void)
 	struct tipc_name_seq seq;
 	int res;
 
-	res = tipc_attach(&mng.user_ref, NULL, NULL);
+	res = tipc_attach(&mng.user_ref);
 	if (res)
 		goto failed;
 
