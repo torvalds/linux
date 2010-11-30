@@ -2274,7 +2274,7 @@ static int __devinit imon_probe(struct usb_interface *interface,
 	mutex_lock(&driver_lock);
 
 	first_if = usb_ifnum_to_if(usbdev, 0);
-	first_if_ctx = (struct imon_context *)usb_get_intfdata(first_if);
+	first_if_ctx = usb_get_intfdata(first_if);
 
 	if (ifnum == 0) {
 		ictx = imon_init_intf0(interface);
