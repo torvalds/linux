@@ -5471,8 +5471,13 @@ xfs_getbmap(
 			if (error)
 				goto out_unlock_iolock;
 		}
-
-		ASSERT(ip->i_delayed_blks == 0);
+		/*
+		 * even after flushing the inode, there can still be delalloc
+		 * blocks on the inode beyond EOF due to speculative
+		 * preallocation. These are not removed until the release
+		 * function is called or the inode is inactivated. Hence we
+		 * cannot assert here that ip->i_delayed_blks == 0.
+		 */
 	}
 
 	lock = xfs_ilock_map_shared(ip);
