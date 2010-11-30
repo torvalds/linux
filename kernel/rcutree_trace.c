@@ -161,7 +161,6 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 {
 	unsigned long gpnum;
 	int level = 0;
-	int phase;
 	struct rcu_node *rnp;
 
 	gpnum = rsp->gpnum;
@@ -178,13 +177,11 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 			seq_puts(m, "\n");
 			level = rnp->level;
 		}
-		phase = gpnum & 0x1;
-		seq_printf(m, "%lx/%lx %c%c>%c%c %d:%d ^%d    ",
+		seq_printf(m, "%lx/%lx %c%c>%c %d:%d ^%d    ",
 			   rnp->qsmask, rnp->qsmaskinit,
-			   "T."[list_empty(&rnp->blocked_tasks[phase])],
-			   "E."[list_empty(&rnp->blocked_tasks[phase + 2])],
-			   "T."[list_empty(&rnp->blocked_tasks[!phase])],
-			   "E."[list_empty(&rnp->blocked_tasks[!phase + 2])],
+			   ".G"[rnp->gp_tasks != NULL],
+			   ".E"[rnp->exp_tasks != NULL],
+			   ".T"[!list_empty(&rnp->blkd_tasks)],
 			   rnp->grplo, rnp->grphi, rnp->grpnum);
 	}
 	seq_puts(m, "\n");

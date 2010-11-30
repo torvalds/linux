@@ -1901,10 +1901,7 @@ static void __init rcu_init_one(struct rcu_state *rsp,
 					      j / rsp->levelspread[i - 1];
 			}
 			rnp->level = i;
-			INIT_LIST_HEAD(&rnp->blocked_tasks[0]);
-			INIT_LIST_HEAD(&rnp->blocked_tasks[1]);
-			INIT_LIST_HEAD(&rnp->blocked_tasks[2]);
-			INIT_LIST_HEAD(&rnp->blocked_tasks[3]);
+			INIT_LIST_HEAD(&rnp->blkd_tasks);
 		}
 	}
 
