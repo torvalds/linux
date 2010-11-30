@@ -96,7 +96,7 @@ struct omap_aes_reqctx {
 struct omap_aes_dev {
 	struct list_head	list;
 	unsigned long		phys_base;
-	void __iomem 		*io_base;
+	void __iomem		*io_base;
 	struct clk		*iclk;
 	struct omap_aes_ctx	*ctx;
 	struct device		*dev;
@@ -759,7 +759,7 @@ static struct crypto_alg algs[] = {
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= AES_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct omap_aes_ctx),
-	.cra_alignmask	 	= 0,
+	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
 	.cra_init		= omap_aes_cra_init,
@@ -779,7 +779,7 @@ static struct crypto_alg algs[] = {
 	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 	.cra_blocksize		= AES_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct omap_aes_ctx),
-	.cra_alignmask	 	= 0,
+	.cra_alignmask		= 0,
 	.cra_type		= &crypto_ablkcipher_type,
 	.cra_module		= THIS_MODULE,
 	.cra_init		= omap_aes_cra_init,
