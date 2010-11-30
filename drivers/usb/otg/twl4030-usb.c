@@ -678,7 +678,8 @@ static int __exit twl4030_usb_remove(struct platform_device *pdev)
 	/* disable complete OTG block */
 	twl4030_usb_clear_bits(twl, POWER_CTRL, POWER_CTRL_OTG_ENAB);
 
-	twl4030_phy_power(twl, 0);
+	if (!twl->asleep)
+		twl4030_phy_power(twl, 0);
 	regulator_put(twl->usb1v5);
 	regulator_put(twl->usb1v8);
 	regulator_put(twl->usb3v1);
