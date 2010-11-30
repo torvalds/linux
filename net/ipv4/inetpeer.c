@@ -532,6 +532,7 @@ static int compute_total(void)
 {
 	return v4_peers.total + v6_peers.total;
 }
+EXPORT_SYMBOL_GPL(inet_getpeer);
 
 /* Called with local BH disabled. */
 static void peer_check_expire(unsigned long dummy)
@@ -577,3 +578,4 @@ void inet_putpeer(struct inet_peer *p)
 
 	local_bh_enable();
 }
+EXPORT_SYMBOL_GPL(inet_putpeer);

@@ -188,11 +188,29 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 {
 	struct rt6_info *rt = (struct rt6_info *)dst;
 	struct inet6_dev *idev = rt->rt6i_idev;
+	struct inet_peer *peer = rt->rt6i_peer;
 
 	if (idev != NULL) {
 		rt->rt6i_idev = NULL;
 		in6_dev_put(idev);
 	}
+	if (peer) {
+		BUG_ON(!(rt->rt6i_flags & RTF_CACHE));
+		rt->rt6i_peer = NULL;
+		inet_putpeer(peer);
+	}
+}
+
+void rt6_bind_peer(struct rt6_info *rt, int create)
+{
+	struct inet_peer *peer;
+
+	if (WARN_ON(!(rt->rt6i_flags & RTF_CACHE)))
+		return;
+
+	peer = inet_getpeer_v6(&rt->rt6i_dst.addr, create);
+	if (peer && cmpxchg(&rt->rt6i_peer, NULL, peer) != NULL)
+		inet_putpeer(peer);
 }
 
 static void ip6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
