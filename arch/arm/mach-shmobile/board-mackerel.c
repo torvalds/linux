@@ -33,6 +33,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/smsc911x.h>
+#include <linux/usb/r8a66597.h>
 
 #include <video/sh_mobile_lcdc.h>
 
@@ -114,8 +115,22 @@
  * IRQ9  | ICR2A.IRQ9SA=0010  | KEY(TCA6408)       | Low
  * IRQ21 | ICR4A.IRQ21SA=0011 | Sensor(ADXL345)    | High
  * IRQ22 | ICR4A.IRQ22SA=0011 | Sensor(AK8975)     | High
+ */
 
-*/
+/*
+ * USB
+ *
+ * USB0 : CN22 : Function
+ * USB1 : CN31 : Function/Host *1
+ *
+ * J30 (for CN31) *1
+ * ----------+---------------+-------------
+ * 1-2 short | VBUS 5V       | Host
+ * open      | external VBUS | Function
+ *
+ * *1
+ * CN31 is used as Host in Linux.
+ */
 
 /* MTD */
 static struct mtd_partition nor_flash_partitions[] = {
@@ -254,10 +269,51 @@ static struct platform_device lcdc_device = {
 	},
 };
 
+/* USB1 (Host) */
+static void usb1_host_port_power(int port, int power)
+{
+	if (!power) /* only power-on is supported for now */
+		return;
+
+	/* set VBOUT/PWEN and EXTLP1 in DVSTCTR */
+	__raw_writew(__raw_readw(0xE68B0008) | 0x600, 0xE68B0008);
+}
+
+static struct r8a66597_platdata usb1_host_data = {
+	.on_chip	= 1,
+	.port_power	= usb1_host_port_power,
+};
+
+static struct resource usb1_host_resources[] = {
+	[0] = {
+		.name	= "USBHS",
+		.start	= 0xE68B0000,
+		.end	= 0xE68B00E6 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= evt2irq(0x1ce0) /* USB1_USB1I0 */,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device usb1_host_device = {
+	.name	= "r8a66597_hcd",
+	.id	= 1,
+	.dev = {
+		.dma_mask		= NULL,         /*  not use dma */
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &usb1_host_data,
+	},
+	.num_resources	= ARRAY_SIZE(usb1_host_resources),
+	.resource	= usb1_host_resources,
+};
+
 static struct platform_device *mackerel_devices[] __initdata = {
 	&nor_flash_device,
 	&smc911x_device,
 	&lcdc_device,
+	&usb1_host_device,
 };
 
 static struct map_desc mackerel_io_desc[] __initdata = {
@@ -326,6 +382,17 @@ static void __init mackerel_init(void)
 
 	gpio_request(GPIO_PORT151, NULL); /* LCDDON */
 	gpio_direction_output(GPIO_PORT151, 1);
+
+	/* USB enable */
+	gpio_request(GPIO_FN_VBUS0_1,    NULL);
+	gpio_request(GPIO_FN_IDIN_1_18,  NULL);
+	gpio_request(GPIO_FN_PWEN_1_115, NULL);
+	gpio_request(GPIO_FN_OVCN_1_114, NULL);
+	gpio_request(GPIO_FN_EXTLP_1,    NULL);
+	gpio_request(GPIO_FN_OVCN2_1,    NULL);
+
+	/* setup USB phy */
+	__raw_writew(0x8a0a, 0xE6058130);	/* USBCR2 */
 
 
 	sh7372_add_standard_devices();
