@@ -1856,7 +1856,8 @@ static irqreturn_t irq_handler(int irq, void *data)
 		spin_lock(&ohci->lock);
 		update_bus_time(ohci);
 		spin_unlock(&ohci->lock);
-	}
+	} else
+		flush_writes(ohci);
 
 	return IRQ_HANDLED;
 }
