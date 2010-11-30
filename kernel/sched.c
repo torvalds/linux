@@ -8085,7 +8085,6 @@ static inline void unregister_fair_sched_group(struct task_group *tg, int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long flags;
-	int i;
 
 	/*
 	* Only empty task groups can be destroyed; so we can speculatively
@@ -8095,7 +8094,7 @@ static inline void unregister_fair_sched_group(struct task_group *tg, int cpu)
 		return;
 
 	raw_spin_lock_irqsave(&rq->lock, flags);
-	list_del_leaf_cfs_rq(tg->cfs_rq[i]);
+	list_del_leaf_cfs_rq(tg->cfs_rq[cpu]);
 	raw_spin_unlock_irqrestore(&rq->lock, flags);
 }
 #else /* !CONFG_FAIR_GROUP_SCHED */
