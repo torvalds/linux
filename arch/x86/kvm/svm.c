@@ -259,6 +259,24 @@ static inline void clr_dr_intercept(struct vcpu_svm *svm, int bit)
 	recalc_intercepts(svm);
 }
 
+static inline void set_exception_intercept(struct vcpu_svm *svm, int bit)
+{
+	struct vmcb *vmcb = get_host_vmcb(svm);
+
+	vmcb->control.intercept_exceptions |= (1U << bit);
+
+	recalc_intercepts(svm);
+}
+
+static inline void clr_exception_intercept(struct vcpu_svm *svm, int bit)
+{
+	struct vmcb *vmcb = get_host_vmcb(svm);
+
+	vmcb->control.intercept_exceptions &= ~(1U << bit);
+
+	recalc_intercepts(svm);
+}
+
 static inline void enable_gif(struct vcpu_svm *svm)
 {
 	svm->vcpu.arch.hflags |= HF_GIF_MASK;
@@ -841,10 +859,9 @@ static void init_vmcb(struct vcpu_svm *svm)
 	set_dr_intercept(svm, INTERCEPT_DR6_WRITE);
 	set_dr_intercept(svm, INTERCEPT_DR7_WRITE);
 
-	control->intercept_exceptions = (1 << PF_VECTOR) |
-					(1 << UD_VECTOR) |
-					(1 << MC_VECTOR);
-
+	set_exception_intercept(svm, PF_VECTOR);
+	set_exception_intercept(svm, UD_VECTOR);
+	set_exception_intercept(svm, MC_VECTOR);
 
 	control->intercept =	(1ULL << INTERCEPT_INTR) |
 				(1ULL << INTERCEPT_NMI) |
@@ -921,7 +938,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 		control->nested_ctl = 1;
 		control->intercept &= ~((1ULL << INTERCEPT_TASK_SWITCH) |
 					(1ULL << INTERCEPT_INVLPG));
-		control->intercept_exceptions &= ~(1 << PF_VECTOR);
+		clr_exception_intercept(svm, PF_VECTOR);
 		clr_cr_intercept(svm, INTERCEPT_CR3_READ);
 		clr_cr_intercept(svm, INTERCEPT_CR3_WRITE);
 		save->g_pat = 0x0007040600070406ULL;
@@ -1382,20 +1399,18 @@ static void update_db_intercept(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	svm->vmcb->control.intercept_exceptions &=
-		~((1 << DB_VECTOR) | (1 << BP_VECTOR));
+	clr_exception_intercept(svm, DB_VECTOR);
+	clr_exception_intercept(svm, BP_VECTOR);
 
 	if (svm->nmi_singlestep)
-		svm->vmcb->control.intercept_exceptions |= (1 << DB_VECTOR);
+		set_exception_intercept(svm, DB_VECTOR);
 
 	if (vcpu->guest_debug & KVM_GUESTDBG_ENABLE) {
 		if (vcpu->guest_debug &
 		    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
-			svm->vmcb->control.intercept_exceptions |=
-				1 << DB_VECTOR;
+			set_exception_intercept(svm, DB_VECTOR);
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
-			svm->vmcb->control.intercept_exceptions |=
-				1 << BP_VECTOR;
+			set_exception_intercept(svm, BP_VECTOR);
 	} else
 		vcpu->guest_debug = 0;
 }
@@ -1516,21 +1531,8 @@ static int ud_interception(struct vcpu_svm *svm)
 static void svm_fpu_activate(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	u32 excp;
 
-	if (is_guest_mode(vcpu)) {
-		u32 h_excp, n_excp;
-
-		h_excp  = svm->nested.hsave->control.intercept_exceptions;
-		n_excp  = svm->nested.intercept_exceptions;
-		h_excp &= ~(1 << NM_VECTOR);
-		excp    = h_excp | n_excp;
-	} else {
-		excp  = svm->vmcb->control.intercept_exceptions;
-		excp &= ~(1 << NM_VECTOR);
-	}
-
-	svm->vmcb->control.intercept_exceptions = excp;
+	clr_exception_intercept(svm, NM_VECTOR);
 
 	svm->vcpu.fpu_active = 1;
 	update_cr0_intercept(svm);
@@ -3643,9 +3645,7 @@ static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	svm->vmcb->control.intercept_exceptions |= 1 << NM_VECTOR;
-	if (is_guest_mode(vcpu))
-		svm->nested.hsave->control.intercept_exceptions |= 1 << NM_VECTOR;
+	set_exception_intercept(svm, NM_VECTOR);
 	update_cr0_intercept(svm);
 }
 
