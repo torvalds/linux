@@ -773,10 +773,10 @@ remap:
 		err = -errno;
 		goto out_err;
 	}
+	ui_progress__update(progress, file_offset);
 
 more:
 	event = (event_t *)(buf + head);
-	ui_progress__update(progress, file_offset);
 
 	if (session->header.needs_swap)
 		perf_event_header__bswap(&event->header);
