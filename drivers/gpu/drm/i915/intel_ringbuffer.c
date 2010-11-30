@@ -109,6 +109,10 @@ render_ring_flush(struct intel_ring_buffer *ring,
 		if (invalidate_domains & I915_GEM_DOMAIN_INSTRUCTION)
 			cmd |= MI_EXE_FLUSH;
 
+		if (invalidate_domains & I915_GEM_DOMAIN_COMMAND &&
+		    (IS_G4X(dev) || IS_GEN5(dev)))
+			cmd |= MI_INVALIDATE_ISP;
+
 #if WATCH_EXEC
 		DRM_INFO("%s: queue flush %08x to ring\n", __func__, cmd);
 #endif
@@ -582,17 +586,6 @@ render_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 		}
 		intel_ring_advance(ring);
 	}
-
-	if (IS_G4X(dev) || IS_GEN5(dev)) {
-		if (intel_ring_begin(ring, 2) == 0) {
-			intel_ring_emit(ring, MI_FLUSH |
-					MI_NO_WRITE_FLUSH |
-					MI_INVALIDATE_ISP );
-			intel_ring_emit(ring, MI_NOOP);
-			intel_ring_advance(ring);
-		}
-	}
-	/* XXX breadcrumb */
 
 	return 0;
 }
