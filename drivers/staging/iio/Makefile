@@ -12,5 +12,5 @@ obj-$(CONFIG_IIO_SW_RING) += ring_sw.o
 obj-y += accel/
 obj-y += adc/
 obj-y += light/
-
 obj-y += trigger/
+obj-y += magnetometer/
