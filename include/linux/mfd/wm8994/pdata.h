@@ -30,6 +30,8 @@ struct wm8994_ldo_pdata {
 
 #define WM8994_DRC_REGS 5
 #define WM8994_EQ_REGS  19
+#define WM8958_MBC_CUTOFF_REGS 20
+#define WM8958_MBC_COEFF_REGS  48
 
 /**
  * DRC configurations are specified with a label and a set of register
@@ -59,6 +61,18 @@ struct wm8994_retune_mobile_cfg {
         u16 regs[WM8994_EQ_REGS];
 };
 
+/**
+ * Multiband compressor configurations are specified with a label and
+ * two sets of values to write.  Configurations are expected to be
+ * generated using the multiband compressor configuration panel in
+ * WISCE - see http://www.wolfsonmicro.com/wisce/
+ */
+struct wm8958_mbc_cfg {
+	const char *name;
+	u16 cutoff_regs[WM8958_MBC_CUTOFF_REGS];
+	u16 coeff_regs[WM8958_MBC_COEFF_REGS];
+};
+
 struct wm8994_pdata {
 	int gpio_base;
 
@@ -77,6 +91,9 @@ struct wm8994_pdata {
 
         int num_retune_mobile_cfgs;
         struct wm8994_retune_mobile_cfg *retune_mobile_cfgs;
+
+	int num_mbc_cfgs;
+	struct wm8958_mbc_cfg *mbc_cfgs;
 
         /* LINEOUT can be differential or single ended */
         unsigned int lineout1_diff:1;

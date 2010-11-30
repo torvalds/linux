@@ -92,6 +92,11 @@ struct wm8994_priv {
 	int retune_mobile_cfg[WM8994_NUM_EQ];
 	struct soc_enum retune_mobile_enum;
 
+	/* Platform dependant MBC configuration */
+	int mbc_cfg;
+	const char **mbc_texts;
+	struct soc_enum mbc_enum;
+
 	struct wm8994_micdet micdet[2];
 
 	wm8958_micdet_cb jack_cb;
@@ -543,8 +548,9 @@ static const struct soc_enum aif2dacr_src =
 static void wm8958_mbc_apply(struct snd_soc_codec *codec, int mbc, int start)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	struct wm8994_pdata *pdata = wm8994->pdata;
 	int pwr_reg = snd_soc_read(codec, WM8994_POWER_MANAGEMENT_5);
-	int ena, reg, aif;
+	int ena, reg, aif, i;
 
 	switch (mbc) {
 	case 0:
@@ -587,7 +593,20 @@ static void wm8958_mbc_apply(struct snd_soc_codec *codec, int mbc, int start)
 		snd_soc_update_bits(codec, WM8958_DSP2_PROGRAM,
 				    WM8958_DSP2_ENA, WM8958_DSP2_ENA);
 
-		/* TODO: Apply any user specified MBC settings */
+		/* If we've got user supplied MBC settings use them */
+		if (pdata && pdata->num_mbc_cfgs) {
+			struct wm8958_mbc_cfg *cfg
+				= &pdata->mbc_cfgs[wm8994->mbc_cfg];
+
+			for (i = 0; i < ARRAY_SIZE(cfg->coeff_regs); i++)
+				snd_soc_write(codec, i + WM8958_MBC_BAND_1_K_1,
+					      cfg->coeff_regs[i]);
+
+			for (i = 0; i < ARRAY_SIZE(cfg->cutoff_regs); i++)
+				snd_soc_write(codec,
+					      i + WM8958_MBC_BAND_2_LOWER_CUTOFF_C1_1,
+					      cfg->cutoff_regs[i]);
+		}
 
 		/* Run the DSP */
 		snd_soc_write(codec, WM8958_DSP2_EXECCONTROL,
@@ -644,6 +663,39 @@ static int wm8958_aif_ev(struct snd_soc_dapm_widget *w,
 		wm8958_mbc_apply(codec, mbc, 0);
 		break;
 	}
+
+	return 0;
+}
+
+static int wm8958_put_mbc_enum(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	struct wm8994_pdata *pdata = wm8994->pdata;
+	int value = ucontrol->value.integer.value[0];
+	int reg;
+
+	/* Don't allow on the fly reconfiguration */
+	reg = snd_soc_read(codec, WM8994_CLOCKING_1);
+	if (reg < 0 || reg & WM8958_DSP2CLK_ENA)
+		return -EBUSY;
+
+	if (value >= pdata->num_mbc_cfgs)
+		return -EINVAL;
+
+	wm8994->mbc_cfg = value;
+
+	return 0;
+}
+
+static int wm8958_get_mbc_enum(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = wm8994->mbc_cfg;
 
 	return 0;
 }
@@ -2538,6 +2590,34 @@ static void wm8994_handle_pdata(struct wm8994_priv *wm8994)
 
 	dev_dbg(codec->dev, "%d ReTune Mobile configurations\n",
 		pdata->num_retune_mobile_cfgs);
+
+	if (pdata->num_mbc_cfgs) {
+		struct snd_kcontrol_new control[] = {
+			SOC_ENUM_EXT("MBC Mode", wm8994->mbc_enum,
+				     wm8958_get_mbc_enum, wm8958_put_mbc_enum),
+		};
+
+		/* We need an array of texts for the enum API */
+		wm8994->mbc_texts = kmalloc(sizeof(char *)
+					    * pdata->num_mbc_cfgs, GFP_KERNEL);
+		if (!wm8994->mbc_texts) {
+			dev_err(wm8994->codec->dev,
+				"Failed to allocate %d MBC config texts\n",
+				pdata->num_mbc_cfgs);
+			return;
+		}
+
+		for (i = 0; i < pdata->num_mbc_cfgs; i++)
+			wm8994->mbc_texts[i] = pdata->mbc_cfgs[i].name;
+
+		wm8994->mbc_enum.max = pdata->num_mbc_cfgs;
+		wm8994->mbc_enum.texts = wm8994->mbc_texts;
+
+		ret = snd_soc_add_controls(wm8994->codec, control, 1);
+		if (ret != 0)
+			dev_err(wm8994->codec->dev,
+				"Failed to add MBC mode controls: %d\n", ret);
+	}
 
 	if (pdata->num_retune_mobile_cfgs)
 		wm8994_handle_retune_mobile_pdata(wm8994);
