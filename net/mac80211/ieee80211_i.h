@@ -637,9 +637,10 @@ struct tpt_led_trigger {
 	const struct ieee80211_tpt_blink *blink_table;
 	unsigned int blink_table_len;
 	struct timer_list timer;
-	bool running;
 	unsigned long prev_traffic;
 	unsigned long tx_bytes, rx_bytes;
+	unsigned int active, want;
+	bool running;
 };
 
 /**

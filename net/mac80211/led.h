@@ -21,8 +21,8 @@ void ieee80211_led_radio(struct ieee80211_local *local,
 void ieee80211_led_names(struct ieee80211_local *local);
 void ieee80211_led_init(struct ieee80211_local *local);
 void ieee80211_led_exit(struct ieee80211_local *local);
-void ieee80211_start_tpt_led_trig(struct ieee80211_local *local);
-void ieee80211_stop_tpt_led_trig(struct ieee80211_local *local);
+void ieee80211_mod_tpt_led_trig(struct ieee80211_local *local,
+				unsigned int types_on, unsigned int types_off);
 #else
 static inline void ieee80211_led_rx(struct ieee80211_local *local)
 {
@@ -47,10 +47,9 @@ static inline void ieee80211_led_init(struct ieee80211_local *local)
 static inline void ieee80211_led_exit(struct ieee80211_local *local)
 {
 }
-static inline void ieee80211_start_tpt_led_trig(struct ieee80211_local *local)
-{
-}
-static inline void ieee80211_stop_tpt_led_trig(struct ieee80211_local *local)
+static inline void ieee80211_mod_tpt_led_trig(struct ieee80211_local *local,
+					      unsigned int types_on,
+					      unsigned int types_off)
 {
 }
 #endif

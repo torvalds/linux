@@ -1863,13 +1863,26 @@ struct ieee80211_tpt_blink {
 	int blink_time;
 };
 
+/**
+ * enum ieee80211_tpt_led_trigger_flags - throughput trigger flags
+ * @IEEE80211_TPT_LEDTRIG_FL_RADIO: enable blinking with radio
+ * @IEEE80211_TPT_LEDTRIG_FL_WORK: enable blinking when working
+ * @IEEE80211_TPT_LEDTRIG_FL_CONNECTED: enable blinking when at least one
+ *	interface is connected in some way, including being an AP
+ */
+enum ieee80211_tpt_led_trigger_flags {
+	IEEE80211_TPT_LEDTRIG_FL_RADIO		= BIT(0),
+	IEEE80211_TPT_LEDTRIG_FL_WORK		= BIT(1),
+	IEEE80211_TPT_LEDTRIG_FL_CONNECTED	= BIT(2),
+};
+
 #ifdef CONFIG_MAC80211_LEDS
 extern char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw);
 extern char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw);
 extern char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw);
 extern char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw);
 extern char *__ieee80211_create_tpt_led_trigger(
-				struct ieee80211_hw *hw,
+				struct ieee80211_hw *hw, unsigned int flags,
 				const struct ieee80211_tpt_blink *blink_table,
 				unsigned int blink_table_len);
 #endif
@@ -1952,6 +1965,7 @@ static inline char *ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
 /**
  * ieee80211_create_tpt_led_trigger - create throughput LED trigger
  * @hw: the hardware to create the trigger for
+ * @flags: trigger flags, see &enum ieee80211_tpt_led_trigger_flags
  * @blink_table: the blink table -- needs to be ordered by throughput
  * @blink_table_len: size of the blink table
  *
@@ -1960,12 +1974,12 @@ static inline char *ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
  * This function must be called before ieee80211_register_hw().
  */
 static inline char *
-ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw,
+ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw, unsigned int flags,
 				 const struct ieee80211_tpt_blink *blink_table,
 				 unsigned int blink_table_len)
 {
 #ifdef CONFIG_MAC80211_LEDS
-	return __ieee80211_create_tpt_led_trigger(hw, blink_table,
+	return __ieee80211_create_tpt_led_trigger(hw, flags, blink_table,
 						  blink_table_len);
 #else
 	return NULL;

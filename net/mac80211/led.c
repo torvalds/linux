@@ -216,7 +216,7 @@ static void tpt_trig_timer(unsigned long data)
 }
 
 extern char *__ieee80211_create_tpt_led_trigger(
-				struct ieee80211_hw *hw,
+				struct ieee80211_hw *hw, unsigned int flags,
 				const struct ieee80211_tpt_blink *blink_table,
 				unsigned int blink_table_len)
 {
@@ -237,6 +237,7 @@ extern char *__ieee80211_create_tpt_led_trigger(
 
 	tpt_trig->blink_table = blink_table;
 	tpt_trig->blink_table_len = blink_table_len;
+	tpt_trig->want = flags;
 
 	setup_timer(&tpt_trig->timer, tpt_trig_timer, (unsigned long)local);
 
@@ -246,11 +247,11 @@ extern char *__ieee80211_create_tpt_led_trigger(
 }
 EXPORT_SYMBOL(__ieee80211_create_tpt_led_trigger);
 
-void ieee80211_start_tpt_led_trig(struct ieee80211_local *local)
+static void ieee80211_start_tpt_led_trig(struct ieee80211_local *local)
 {
 	struct tpt_led_trigger *tpt_trig = local->tpt_led_trigger;
 
-	if (!tpt_trig)
+	if (tpt_trig->running)
 		return;
 
 	/* reset traffic */
@@ -261,12 +262,12 @@ void ieee80211_start_tpt_led_trig(struct ieee80211_local *local)
 	mod_timer(&tpt_trig->timer, round_jiffies(jiffies + HZ));
 }
 
-void ieee80211_stop_tpt_led_trig(struct ieee80211_local *local)
+static void ieee80211_stop_tpt_led_trig(struct ieee80211_local *local)
 {
 	struct tpt_led_trigger *tpt_trig = local->tpt_led_trigger;
 	struct led_classdev *led_cdev;
 
-	if (!tpt_trig)
+	if (!tpt_trig->running)
 		return;
 
 	tpt_trig->running = false;
@@ -276,4 +277,32 @@ void ieee80211_stop_tpt_led_trig(struct ieee80211_local *local)
 	list_for_each_entry(led_cdev, &tpt_trig->trig.led_cdevs, trig_list)
 		led_brightness_set(led_cdev, LED_OFF);
 	read_unlock(&tpt_trig->trig.leddev_list_lock);
+}
+
+void ieee80211_mod_tpt_led_trig(struct ieee80211_local *local,
+				unsigned int types_on, unsigned int types_off)
+{
+	struct tpt_led_trigger *tpt_trig = local->tpt_led_trigger;
+	bool allowed;
+
+	WARN_ON(types_on & types_off);
+
+	if (!tpt_trig)
+		return;
+
+	tpt_trig->active &= ~types_off;
+	tpt_trig->active |= types_on;
+
+	/*
+	 * Regardless of wanted state, we shouldn't blink when
+	 * the radio is disabled -- this can happen due to some
+	 * code ordering issues with __ieee80211_recalc_idle()
+	 * being called before the radio is started.
+	 */
+	allowed = tpt_trig->active & IEEE80211_TPT_LEDTRIG_FL_RADIO;
+
+	if (!allowed || !(tpt_trig->active & tpt_trig->want))
+		ieee80211_stop_tpt_led_trig(local);
+	else
+		ieee80211_start_tpt_led_trig(local);
 }
