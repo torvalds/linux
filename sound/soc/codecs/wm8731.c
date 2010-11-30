@@ -64,12 +64,15 @@ static const u16 wm8731_reg[WM8731_CACHEREGNUM] = {
 #define wm8731_reset(c)	snd_soc_write(c, WM8731_RESET, 0)
 
 static const char *wm8731_input_select[] = {"Line In", "Mic"};
+
 static const char *wm8731_deemph[] = {"None", "32Khz", "44.1Khz", "48Khz"};
 
-static const struct soc_enum wm8731_enum[] = {
-	SOC_ENUM_SINGLE(WM8731_APANA, 2, 2, wm8731_input_select),
-	SOC_ENUM_SINGLE(WM8731_APDIGI, 1, 4, wm8731_deemph),
-};
+static const struct soc_enum wm8731_insel_enum =
+	SOC_ENUM_SINGLE(WM8731_APANA, 2, 2, wm8731_input_select);
+
+static const struct soc_enum wm8731_deemph_enum =
+	SOC_ENUM_SINGLE(WM8731_APDIGI, 1, 4, wm8731_deemph);
+
 
 static const DECLARE_TLV_DB_SCALE(in_tlv, -3450, 150, 0);
 static const DECLARE_TLV_DB_SCALE(sidetone_tlv, -1500, 300, 0);
@@ -96,7 +99,7 @@ SOC_SINGLE_TLV("Sidetone Playback Volume", WM8731_APANA, 6, 3, 1,
 SOC_SINGLE("ADC High Pass Filter Switch", WM8731_APDIGI, 0, 1, 1),
 SOC_SINGLE("Store DC Offset Switch", WM8731_APDIGI, 4, 1, 0),
 
-SOC_ENUM("Playback De-emphasis", wm8731_enum[1]),
+SOC_ENUM("Playback De-emphasis", wm8731_deemph_enum),
 };
 
 /* Output Mixer */
@@ -108,7 +111,7 @@ SOC_DAPM_SINGLE("HiFi Playback Switch", WM8731_APANA, 4, 1, 0),
 
 /* Input mux */
 static const struct snd_kcontrol_new wm8731_input_mux_controls =
-SOC_DAPM_ENUM("Input Select", wm8731_enum[0]);
+SOC_DAPM_ENUM("Input Select", wm8731_insel_enum);
 
 static const struct snd_soc_dapm_widget wm8731_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("OSC", WM8731_PWR, 5, 1, NULL, 0),
