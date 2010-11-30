@@ -87,7 +87,6 @@ enum {
 #define GL_ASYNC		0x00000040
 #define GL_EXACT		0x00000080
 #define GL_SKIP			0x00000100
-#define GL_ATIME		0x00000200
 #define GL_NOCACHE		0x00000400
   
 /*
@@ -125,19 +124,6 @@ struct lm_lockops {
 	void (*lm_cancel) (struct gfs2_glock *gl);
 	const match_table_t *lm_tokens;
 };
-
-#define LM_FLAG_TRY		0x00000001
-#define LM_FLAG_TRY_1CB		0x00000002
-#define LM_FLAG_NOEXP		0x00000004
-#define LM_FLAG_ANY		0x00000008
-#define LM_FLAG_PRIORITY	0x00000010
-
-#define GL_ASYNC		0x00000040
-#define GL_EXACT		0x00000080
-#define GL_SKIP			0x00000100
-#define GL_NOCACHE		0x00000400
-
-#define GLR_TRYFAILED		13
 
 extern struct workqueue_struct *gfs2_delete_workqueue;
 static inline struct gfs2_holder *gfs2_glock_is_locked_by_me(struct gfs2_glock *gl)
