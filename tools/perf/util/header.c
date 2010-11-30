@@ -946,11 +946,16 @@ perf_header__find_attr(u64 id, struct perf_header *header)
 
 	/*
 	 * We set id to -1 if the data file doesn't contain sample
-	 * ids. Check for this and avoid walking through the entire
-	 * list of ids which may be large.
+	 * ids. This can happen when the data file contains one type
+	 * of event and in that case, the header can still store the
+	 * event attribute information. Check for this and avoid
+	 * walking through the entire list of ids which may be large.
 	 */
-	if (id == -1ULL)
+	if (id == -1ULL) {
+		if (header->attrs > 0)
+			return &header->attr[0]->attr;
 		return NULL;
+	}
 
 	for (i = 0; i < header->attrs; i++) {
 		struct perf_header_attr *attr = header->attr[i];
