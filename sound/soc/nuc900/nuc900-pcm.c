@@ -50,11 +50,11 @@ static int nuc900_dma_hw_params(struct snd_pcm_substream *substream,
 	unsigned long flags;
 	int ret = 0;
 
-	spin_lock_irqsave(&nuc900_audio->lock, flags);
-
 	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 	if (ret < 0)
 		return ret;
+
+	spin_lock_irqsave(&nuc900_audio->lock, flags);
 
 	nuc900_audio->substream = substream;
 	nuc900_audio->dma_addr[substream->stream] = runtime->dma_addr;
@@ -169,6 +169,7 @@ static int nuc900_dma_prepare(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct nuc900_audio *nuc900_audio = runtime->private_data;
 	unsigned long flags, val;
+	int ret = 0;
 
 	spin_lock_irqsave(&nuc900_audio->lock, flags);
 
@@ -197,10 +198,10 @@ static int nuc900_dma_prepare(struct snd_pcm_substream *substream)
 		AUDIO_WRITE(nuc900_audio->mmio + ACTL_RESET, val);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 	spin_unlock_irqrestore(&nuc900_audio->lock, flags);
-	return 0;
+	return ret;
 }
 
 static int nuc900_dma_trigger(struct snd_pcm_substream *substream, int cmd)
