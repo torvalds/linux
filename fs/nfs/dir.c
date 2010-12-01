@@ -57,7 +57,7 @@ static int nfs_rename(struct inode *, struct dentry *,
 		      struct inode *, struct dentry *);
 static int nfs_fsync_dir(struct file *, int);
 static loff_t nfs_llseek_dir(struct file *, loff_t, int);
-static int nfs_readdir_clear_array(struct page*, gfp_t);
+static void nfs_readdir_clear_array(struct page*);
 
 const struct file_operations nfs_dir_operations = {
 	.llseek		= nfs_llseek_dir,
@@ -83,8 +83,8 @@ const struct inode_operations nfs_dir_inode_operations = {
 	.setattr	= nfs_setattr,
 };
 
-const struct address_space_operations nfs_dir_addr_space_ops = {
-	.releasepage = nfs_readdir_clear_array,
+const struct address_space_operations nfs_dir_aops = {
+	.freepage = nfs_readdir_clear_array,
 };
 
 #ifdef CONFIG_NFS_V3
@@ -214,17 +214,15 @@ void nfs_readdir_release_array(struct page *page)
  * we are freeing strings created by nfs_add_to_readdir_array()
  */
 static
-int nfs_readdir_clear_array(struct page *page, gfp_t mask)
+void nfs_readdir_clear_array(struct page *page)
 {
-	struct nfs_cache_array *array = nfs_readdir_get_array(page);
+	struct nfs_cache_array *array;
 	int i;
 
-	if (IS_ERR(array))
-		return PTR_ERR(array);
+	array = kmap_atomic(page, KM_USER0);
 	for (i = 0; i < array->size; i++)
 		kfree(array->array[i].string.name);
-	nfs_readdir_release_array(page);
-	return 0;
+	kunmap_atomic(array, KM_USER0);
 }
 
 /*
@@ -639,6 +637,8 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page* page)
 static
 void cache_page_release(nfs_readdir_descriptor_t *desc)
 {
+	if (!desc->page->mapping)
+		nfs_readdir_clear_array(desc->page);
 	page_cache_release(desc->page);
 	desc->page = NULL;
 }

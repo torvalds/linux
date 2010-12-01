@@ -401,6 +401,7 @@ extern const struct inode_operations nfs3_file_inode_operations;
 #endif /* CONFIG_NFS_V3 */
 extern const struct file_operations nfs_file_operations;
 extern const struct address_space_operations nfs_file_aops;
+extern const struct address_space_operations nfs_dir_aops;
 
 static inline struct nfs_open_context *nfs_file_open_context(struct file *filp)
 {
