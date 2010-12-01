@@ -221,8 +221,8 @@ struct fc_rport_priv {
  * @InputRequests:         Number of input requests
  * @OutputRequests:        Number of output requests
  * @ControlRequests:       Number of control requests
- * @InputMegabytes:        Number of received megabytes
- * @OutputMegabytes:       Number of transmitted megabytes
+ * @InputBytes:            Number of received bytes
+ * @OutputBytes:           Number of transmitted bytes
  * @VLinkFailureCount:     Number of virtual link failures
  * @MissDiscAdvCount:      Number of missing FIP discovery advertisement
  */
@@ -241,8 +241,8 @@ struct fcoe_dev_stats {
 	u64		InputRequests;
 	u64		OutputRequests;
 	u64		ControlRequests;
-	u64		InputMegabytes;
-	u64		OutputMegabytes;
+	u64		InputBytes;
+	u64		OutputBytes;
 	u64		VLinkFailureCount;
 	u64		MissDiscAdvCount;
 };
