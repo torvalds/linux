@@ -79,6 +79,7 @@ struct svc_xprt {
 	struct list_head	xpt_users;	/* callbacks on free */
 
 	struct net		*xpt_net;
+	struct rpc_xprt		*xpt_bc_xprt;	/* NFSv4.1 backchannel */
 };
 
 static inline void unregister_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u)

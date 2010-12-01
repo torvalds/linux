@@ -2379,9 +2379,9 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 	 * The backchannel uses the same socket connection as the
 	 * forechannel
 	 */
+	args->bc_xprt->xpt_bc_xprt = xprt;
 	xprt->bc_xprt = args->bc_xprt;
 	bc_sock = container_of(args->bc_xprt, struct svc_sock, sk_xprt);
-	bc_sock->sk_bc_xprt = xprt;
 	transport->sock = bc_sock->sk_sock;
 	transport->inet = bc_sock->sk_sk;
 
