@@ -297,6 +297,10 @@ static inline int tps6586x_regulator_preinit(struct device *parent,
 	uint8_t val1, val2;
 	int ret;
 
+	if (ri->enable_reg[0] == ri->enable_reg[1] &&
+	    ri->enable_bit[0] == ri->enable_bit[1])
+			return 0;
+
 	ret = tps6586x_read(parent, ri->enable_reg[0], &val1);
 	if (ret)
 		return ret;
