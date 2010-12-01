@@ -366,9 +366,9 @@ static int ak4535_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int ak4535_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 mute_reg = ak4535_read_reg_cache(codec, AK4535_DAC) & 0xffdf;
+	u16 mute_reg = ak4535_read_reg_cache(codec, AK4535_DAC);
 	if (!mute)
-		ak4535_write(codec, AK4535_DAC, mute_reg);
+		ak4535_write(codec, AK4535_DAC, mute_reg & ~0x20);
 	else
 		ak4535_write(codec, AK4535_DAC, mute_reg | 0x20);
 	return 0;
@@ -381,11 +381,11 @@ static int ak4535_set_bias_level(struct snd_soc_codec *codec,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		mute_reg = ak4535_read_reg_cache(codec, AK4535_DAC) & 0xffdf;
-		ak4535_write(codec, AK4535_DAC, mute_reg);
+		mute_reg = ak4535_read_reg_cache(codec, AK4535_DAC);
+		ak4535_write(codec, AK4535_DAC, mute_reg & ~0x20);
 		break;
 	case SND_SOC_BIAS_PREPARE:
-		mute_reg = ak4535_read_reg_cache(codec, AK4535_DAC) & 0xffdf;
+		mute_reg = ak4535_read_reg_cache(codec, AK4535_DAC);
 		ak4535_write(codec, AK4535_DAC, mute_reg | 0x20);
 		break;
 	case SND_SOC_BIAS_STANDBY:
