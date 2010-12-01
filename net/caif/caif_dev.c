@@ -307,6 +307,8 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 
 	case NETDEV_UNREGISTER:
 		caifd = caif_get(dev);
+		if (caifd == NULL)
+			break;
 		netdev_info(dev, "unregister\n");
 		atomic_set(&caifd->state, what);
 		caif_device_destroy(dev);

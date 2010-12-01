@@ -487,7 +487,7 @@ struct musb_context_registers {
 };
 
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
-    defined(CONFIG_ARCH_OMAP4)
+    defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_BLACKFIN)
 extern void musb_platform_save_context(struct musb *musb,
 		struct musb_context_registers *musb_context);
 extern void musb_platform_restore_context(struct musb *musb,

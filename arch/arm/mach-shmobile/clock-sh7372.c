@@ -50,6 +50,9 @@
 #define SMSTPCR3	0xe615013c
 #define SMSTPCR4	0xe6150140
 
+#define FSIDIVA		0xFE1F8000
+#define FSIDIVB		0xFE1F8008
+
 /* Platforms must set frequency on their DV_CLKI pin */
 struct clk sh7372_dv_clki_clk = {
 };
@@ -288,6 +291,7 @@ struct clk sh7372_pllc2_clk = {
 	.ops		= &pllc2_clk_ops,
 	.parent		= &extal1_div2_clk,
 	.freq_table	= pllc2_freq_table,
+	.nr_freqs	= ARRAY_SIZE(pllc2_freq_table) - 1,
 	.parent_table	= pllc2_parent,
 	.parent_num	= ARRAY_SIZE(pllc2_parent),
 };
@@ -415,6 +419,101 @@ static struct clk div6_reparent_clks[DIV6_REPARENT_NR] = {
 				      fsiackcr_parent, ARRAY_SIZE(fsiackcr_parent), 6, 2),
 	[DIV6_FSIB] = SH_CLK_DIV6_EXT(&pllc1_div2_clk, FSIBCKCR, 0,
 				      fsibckcr_parent, ARRAY_SIZE(fsibckcr_parent), 6, 2),
+};
+
+/* FSI DIV */
+static unsigned long fsidiv_recalc(struct clk *clk)
+{
+	unsigned long value;
+
+	value = __raw_readl(clk->mapping->base);
+
+	if ((value & 0x3) != 0x3)
+		return 0;
+
+	value >>= 16;
+	if (value < 2)
+		return 0;
+
+	return clk->parent->rate / value;
+}
+
+static long fsidiv_round_rate(struct clk *clk, unsigned long rate)
+{
+	return clk_rate_div_range_round(clk, 2, 0xffff, rate);
+}
+
+static void fsidiv_disable(struct clk *clk)
+{
+	__raw_writel(0, clk->mapping->base);
+}
+
+static int fsidiv_enable(struct clk *clk)
+{
+	unsigned long value;
+
+	value  = __raw_readl(clk->mapping->base) >> 16;
+	if (value < 2) {
+		fsidiv_disable(clk);
+		return -ENOENT;
+	}
+
+	__raw_writel((value << 16) | 0x3, clk->mapping->base);
+
+	return 0;
+}
+
+static int fsidiv_set_rate(struct clk *clk,
+			   unsigned long rate, int algo_id)
+{
+	int idx;
+
+	if (clk->parent->rate == rate) {
+		fsidiv_disable(clk);
+		return 0;
+	}
+
+	idx = (clk->parent->rate / rate) & 0xffff;
+	if (idx < 2)
+		return -ENOENT;
+
+	__raw_writel(idx << 16, clk->mapping->base);
+	return fsidiv_enable(clk);
+}
+
+static struct clk_ops fsidiv_clk_ops = {
+	.recalc		= fsidiv_recalc,
+	.round_rate	= fsidiv_round_rate,
+	.set_rate	= fsidiv_set_rate,
+	.enable		= fsidiv_enable,
+	.disable	= fsidiv_disable,
+};
+
+static struct clk_mapping sh7372_fsidiva_clk_mapping = {
+	.phys	= FSIDIVA,
+	.len	= 8,
+};
+
+struct clk sh7372_fsidiva_clk = {
+	.ops		= &fsidiv_clk_ops,
+	.parent		= &div6_reparent_clks[DIV6_FSIA], /* late install */
+	.mapping	= &sh7372_fsidiva_clk_mapping,
+};
+
+static struct clk_mapping sh7372_fsidivb_clk_mapping = {
+	.phys	= FSIDIVB,
+	.len	= 8,
+};
+
+struct clk sh7372_fsidivb_clk = {
+	.ops		= &fsidiv_clk_ops,
+	.parent		= &div6_reparent_clks[DIV6_FSIB],  /* late install */
+	.mapping	= &sh7372_fsidivb_clk_mapping,
+};
+
+static struct clk *late_main_clks[] = {
+	&sh7372_fsidiva_clk,
+	&sh7372_fsidivb_clk,
 };
 
 enum { MSTP001,
@@ -584,6 +683,9 @@ void __init sh7372_clock_init(void)
 
 	if (!ret)
 		ret = sh_clk_mstp32_register(mstp_clks, MSTP_NR);
+
+	for (k = 0; !ret && (k < ARRAY_SIZE(late_main_clks)); k++)
+		ret = clk_register(late_main_clks[k]);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 

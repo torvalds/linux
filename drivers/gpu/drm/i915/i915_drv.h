@@ -1321,6 +1321,7 @@ static inline void i915_write(struct drm_i915_private *dev_priv, u32 reg,
 
 #define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
 #define HAS_PCH_CPT(dev) (INTEL_PCH_TYPE(dev) == PCH_CPT)
+#define HAS_PCH_IBX(dev) (INTEL_PCH_TYPE(dev) == PCH_IBX)
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

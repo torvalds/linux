@@ -148,11 +148,11 @@ long tile_compat_sys_msgrcv(int msqid,
 #define compat_sys_readahead sys32_readahead
 #define compat_sys_sync_file_range compat_sys_sync_file_range2
 
-/* The native 64-bit "struct stat" matches the 32-bit "struct stat64". */
-#define compat_sys_stat64 sys_newstat
-#define compat_sys_lstat64 sys_newlstat
-#define compat_sys_fstat64 sys_newfstat
-#define compat_sys_fstatat64 sys_newfstatat
+/* We leverage the "struct stat64" type for 32-bit time_t/nsec. */
+#define compat_sys_stat64 sys_stat64
+#define compat_sys_lstat64 sys_lstat64
+#define compat_sys_fstat64 sys_fstat64
+#define compat_sys_fstatat64 sys_fstatat64
 
 /* The native sys_ptrace dynamically handles compat binaries. */
 #define compat_sys_ptrace sys_ptrace

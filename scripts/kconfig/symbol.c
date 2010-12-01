@@ -875,7 +875,7 @@ const char *sym_expand_string_value(const char *in)
 			symval = sym_get_string_value(sym);
 		}
 
-		newlen = strlen(res) + strlen(symval) + strlen(src);
+		newlen = strlen(res) + strlen(symval) + strlen(src) + 1;
 		if (newlen > reslen) {
 			reslen = newlen;
 			res = realloc(res, reslen);

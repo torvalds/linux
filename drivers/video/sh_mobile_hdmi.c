@@ -1071,6 +1071,10 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 		if (!hdmi->info)
 			goto out;
 
+		hdmi->monspec.modedb_len = 0;
+		fb_destroy_modedb(hdmi->monspec.modedb);
+		hdmi->monspec.modedb = NULL;
+
 		acquire_console_sem();
 
 		/* HDMI disconnect */
@@ -1078,7 +1082,6 @@ static void sh_hdmi_edid_work_fn(struct work_struct *work)
 
 		release_console_sem();
 		pm_runtime_put(hdmi->dev);
-		fb_destroy_modedb(hdmi->monspec.modedb);
 	}
 
 out:
