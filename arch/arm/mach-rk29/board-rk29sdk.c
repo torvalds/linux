@@ -368,7 +368,7 @@ static int rk29_i2c3_io_init(void)
 	return 0;
 }
 
-struct rk29_i2c_platform_data default_i2c0_data = { 
+struct rk29_i2c_platform_data default_i2c0_data = {
 	.bus_num    = 0,
 	.flags      = 0,
 	.slave_addr = 0xff,
@@ -377,7 +377,7 @@ struct rk29_i2c_platform_data default_i2c0_data = {
 	.io_init = rk29_i2c0_io_init,
 };
 
-struct rk29_i2c_platform_data default_i2c1_data = { 
+struct rk29_i2c_platform_data default_i2c1_data = {
 	.bus_num    = 1,
 	.flags      = 0,
 	.slave_addr = 0xff,
@@ -386,7 +386,7 @@ struct rk29_i2c_platform_data default_i2c1_data = {
 	.io_init = rk29_i2c1_io_init,
 };
 
-struct rk29_i2c_platform_data default_i2c2_data = { 
+struct rk29_i2c_platform_data default_i2c2_data = {
 	.bus_num    = 2,
 	.flags      = 0,
 	.slave_addr = 0xff,
@@ -395,7 +395,7 @@ struct rk29_i2c_platform_data default_i2c2_data = {
 	.io_init = rk29_i2c2_io_init,
 };
 
-struct rk29_i2c_platform_data default_i2c3_data = { 
+struct rk29_i2c_platform_data default_i2c3_data = {
 	.bus_num    = 3,
 	.flags      = 0,
 	.slave_addr = 0xff,
@@ -480,7 +480,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  * author: ddl@rock-chips.com
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK29
-#define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_OV2655
+#define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_OV2655			/* back camera sensor */
 #define SENSOR_IIC_ADDR_0 	    0x60
 #define SENSOR_IIC_ADAPTER_ID_0    1
 #define SENSOR_POWER_PIN_0         INVALID_GPIO
@@ -489,9 +489,9 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
 #define SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
 
 
-#define SENSOR_NAME_1 NULL
-#define SENSOR_IIC_ADDR_1 	    0x00
-#define SENSOR_IIC_ADAPTER_ID_1    0xff
+#define SENSOR_NAME_1 RK29_CAM_SENSOR_NAME_OV2659			/* front camera sensor */
+#define SENSOR_IIC_ADDR_1 	    0x60
+#define SENSOR_IIC_ADAPTER_ID_1    1
 #define SENSOR_POWER_PIN_1         INVALID_GPIO
 #define SENSOR_RESET_PIN_1         INVALID_GPIO
 #define SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_L
@@ -626,29 +626,54 @@ static int rk29_sensor_power(struct device *dev, int on)
     return 0;
 }
 
-static struct i2c_board_info rk29_i2c_cam_info[] = {
+static struct i2c_board_info rk29_i2c_cam_info_0[] = {
 	{
 		I2C_BOARD_INFO(SENSOR_NAME_0, SENSOR_IIC_ADDR_0>>1)
 	},
 };
 
-struct soc_camera_link rk29_iclink = {
+struct soc_camera_link rk29_iclink_0 = {
 	.bus_id		= RK29_CAM_PLATFORM_DEV_ID,
 	.power		= rk29_sensor_power,
-	.board_info	= &rk29_i2c_cam_info[0],
+	.board_info	= &rk29_i2c_cam_info_0[0],
 	.i2c_adapter_id	= SENSOR_IIC_ADAPTER_ID_0,
 	.module_name	= SENSOR_NAME_0,
 };
 
 /*platform_device : soc-camera need  */
-struct platform_device rk29_soc_camera_pdrv = {
+struct platform_device rk29_soc_camera_pdrv_0 = {
 	.name	= "soc-camera-pdrv",
-	.id	= -1,
+	.id	= 0,
 	.dev	= {
 		.init_name = SENSOR_NAME_0,
-		.platform_data = &rk29_iclink,
+		.platform_data = &rk29_iclink_0,
 	},
 };
+
+static struct i2c_board_info rk29_i2c_cam_info_1[] = {
+	{
+		I2C_BOARD_INFO(SENSOR_NAME_1, SENSOR_IIC_ADDR_1>>1)
+	},
+};
+
+struct soc_camera_link rk29_iclink_1 = {
+	.bus_id		= RK29_CAM_PLATFORM_DEV_ID,
+	.power		= rk29_sensor_power,
+	.board_info	= &rk29_i2c_cam_info_1[0],
+	.i2c_adapter_id	= SENSOR_IIC_ADAPTER_ID_1,
+	.module_name	= SENSOR_NAME_1,
+};
+
+/*platform_device : soc-camera need  */
+struct platform_device rk29_soc_camera_pdrv_1 = {
+	.name	= "soc-camera-pdrv",
+	.id	= 1,
+	.dev	= {
+		.init_name = SENSOR_NAME_1,
+		.platform_data = &rk29_iclink_1,
+	},
+};
+
 
 extern struct platform_device rk29_device_camera;
 #endif
@@ -663,8 +688,8 @@ extern struct platform_device rk29_device_camera;
  GPIO2A3_SDMMC0WRITEPRT_PWM2_NAME,   GPIO2L_PWM2
  GPIO1A5_EMMCPWREN_PWM3_NAME,     GPIO1L_PWM3
  */
- 
-#define PWM_ID            0  
+
+#define PWM_ID            0
 #define PWM_MUX_NAME      GPIO1B5_PWM0_NAME
 #define PWM_MUX_MODE      GPIO1L_PWM0
 #define PWM_MUX_MODE_GPIO GPIO1L_GPIO1B5
@@ -682,17 +707,17 @@ extern struct platform_device rk29_device_camera;
 static int rk29_backlight_io_init(void)
 {
     int ret = 0;
-    
+
     rk29_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
 	#ifdef  LCD_DISP_ON_PIN
-    rk29_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE); 
-	
-    ret = gpio_request(BL_EN_PIN, NULL); 
+    rk29_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE);
+
+    ret = gpio_request(BL_EN_PIN, NULL);
     if(ret != 0)
     {
-        gpio_free(BL_EN_PIN);   
+        gpio_free(BL_EN_PIN);
     }
-    
+
     gpio_direction_output(BL_EN_PIN, 0);
     gpio_set_value(BL_EN_PIN, BL_EN_VALUE);
 	#endif
@@ -712,7 +737,7 @@ struct rk29_bl_info rk29_bl_info = {
     .pwm_id   = PWM_ID,
     .bl_ref   = PWM_EFFECT_VALUE,
     .io_init   = rk29_backlight_io_init,
-    .io_deinit = rk29_backlight_io_deinit, 
+    .io_deinit = rk29_backlight_io_deinit,
 };
 #endif
 /*****************************************************************************************
@@ -805,7 +830,7 @@ struct platform_device rk29_device_gpu = {
 };
 #endif
 #ifdef CONFIG_KEYS_RK29
-extern struct rk29_keys_platform_data rk29_keys_pdata; 
+extern struct rk29_keys_platform_data rk29_keys_pdata;
 static struct platform_device rk29_device_keys = {
 	.name		= "rk29-keys",
 	.id		= -1,
@@ -850,7 +875,7 @@ static void __init rk29_board_iomux_init(void)
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART1_RK29
 	&rk29_device_uart1,
-#endif	
+#endif
 #ifdef CONFIG_SPIM0_RK29
     &rk29xx_device_spi0m,
 #endif
@@ -883,7 +908,7 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_KEYS_RK29
 	&rk29_device_keys,
 #endif
-#ifdef CONFIG_SDMMC0_RK29	
+#ifdef CONFIG_SDMMC0_RK29
 	&rk29_device_sdmmc0,
 #endif
 #ifdef CONFIG_SDMMC1_RK29
@@ -904,8 +929,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_VIDEO_RK29
  	&rk29_device_camera,      /* ddl@rock-chips.com : camera support  */
- 	&rk29_soc_camera_pdrv,
- #endif
+ 	&rk29_soc_camera_pdrv_0,
+ 	&rk29_soc_camera_pdrv_1,
+#endif
 	&android_pmem_device,
 	&rk29_vpu_mem_device,
 };
@@ -944,10 +970,10 @@ struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
 };
 
 static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
-{	
+{
 #if 0
 	int i,j,ret;
-	
+
 	//cs
 	if (cs_gpios) {
 		for (i=0; i<cs_num; i++) {
@@ -960,7 +986,7 @@ static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
 				}
 				printk("[fun:%s, line:%d], gpio request err\n", __func__, __LINE__);
 				return -1;
-			}			
+			}
 			gpio_direction_output(cs_gpios[i].cs_gpio, GPIO_HIGH);
 		}
 	}
@@ -972,7 +998,7 @@ static int spi_io_deinit(struct spi_cs_gpio *cs_gpios, int cs_num)
 {
 #if 0
 	int i;
-	
+
 	if (cs_gpios) {
 		for (i=0; i<cs_num; i++) {
 			gpio_free(cs_gpios[i].cs_gpio);
@@ -986,7 +1012,7 @@ static int spi_io_deinit(struct spi_cs_gpio *cs_gpios, int cs_num)
 static int spi_io_fix_leakage_bug(void)
 {
 #if 0
-	gpio_direction_output(RK29_PIN2_PC1, GPIO_LOW); 
+	gpio_direction_output(RK29_PIN2_PC1, GPIO_LOW);
 #endif
 	return 0;
 }
@@ -1024,7 +1050,7 @@ struct rk29xx_spi_platform_data rk29xx_spi1_platdata = {
 #define XPT2046_GPIO_INT           RK29_PIN0_PA3
 #define DEBOUNCE_REPTIME  3
 
-#if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI) 
+#if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI)
 static struct xpt2046_platform_data xpt2046_info = {
 	.model			= 2046,
 	.keep_vref_on 	= 1,
@@ -1054,7 +1080,7 @@ static struct xpt2046_platform_data xpt2046_info = {
 	.gpio_pendown		= XPT2046_GPIO_INT,
 	.penirq_recheck_delay_usecs = 1,
 };
-#elif defined(CONFIG_TOUCHSCREEN_XPT2046_SPI) 
+#elif defined(CONFIG_TOUCHSCREEN_XPT2046_SPI)
 static struct xpt2046_platform_data xpt2046_info = {
 	.model			= 2046,
 	.keep_vref_on 	= 1,
@@ -1067,7 +1093,7 @@ static struct xpt2046_platform_data xpt2046_info = {
 	.debounce_rep		= DEBOUNCE_REPTIME,
 	.debounce_tol		= 20,
 	.gpio_pendown		= XPT2046_GPIO_INT,
-	
+
 	.penirq_recheck_delay_usecs = 1,
 };
 #elif defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
@@ -1083,7 +1109,7 @@ static struct xpt2046_platform_data xpt2046_info = {
 	.debounce_rep		= DEBOUNCE_REPTIME,
 	.debounce_tol		= 20,
 	.gpio_pendown		= XPT2046_GPIO_INT,
-	
+
 	.penirq_recheck_delay_usecs = 1,
 };
 #endif
@@ -1100,7 +1126,7 @@ static struct spi_board_info board_spi_devices[] = {
 		.platform_data = &xpt2046_info,
 	},
 #endif
-}; 
+};
 
 
 static void __init rk29_gic_init_irq(void)
@@ -1117,9 +1143,9 @@ static void __init machine_rk29_init_irq(void)
 }
 
 static void __init machine_rk29_board_init(void)
-{ 
+{
         rk29_board_iomux_init();
-		platform_add_devices(devices, ARRAY_SIZE(devices));	
+		platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
 	i2c_register_board_info(default_i2c0_data.bus_num, board_i2c0_devices,
 			ARRAY_SIZE(board_i2c0_devices));

@@ -378,7 +378,6 @@ struct platform_device rk29xx_device_spi1m = {
 /* RK29 Camera :  ddl@rock-chips.com  */
 #ifdef CONFIG_VIDEO_RK29
 extern struct rk29camera_platform_data rk29_camera_platform_data;
-extern struct platform_device rk29_soc_camera_pdrv;
 
 static struct resource rk29_camera_resource[] = {
 	[0] = {
