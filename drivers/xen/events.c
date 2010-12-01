@@ -1293,6 +1293,42 @@ static int retrigger_dynirq(unsigned int irq)
 	return ret;
 }
 
+static void restore_cpu_pirqs(void)
+{
+	int pirq, rc, irq, gsi;
+	struct physdev_map_pirq map_irq;
+
+	for (pirq = 0; pirq < nr_irqs; pirq++) {
+		irq = pirq_to_irq[pirq];
+		if (irq == -1)
+			continue;
+
+		/* save/restore of PT devices doesn't work, so at this point the
+		 * only devices present are GSI based emulated devices */
+		gsi = gsi_from_irq(irq);
+		if (!gsi)
+			continue;
+
+		map_irq.domid = DOMID_SELF;
+		map_irq.type = MAP_PIRQ_TYPE_GSI;
+		map_irq.index = gsi;
+		map_irq.pirq = pirq;
+
+		rc = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
+		if (rc) {
+			printk(KERN_WARNING "xen map irq failed gsi=%d irq=%d pirq=%d rc=%d\n",
+					gsi, irq, pirq, rc);
+			irq_info[irq] = mk_unbound_info();
+			pirq_to_irq[pirq] = -1;
+			continue;
+		}
+
+		printk(KERN_DEBUG "xen: --> irq=%d, pirq=%d\n", irq, map_irq.pirq);
+
+		startup_pirq(irq);
+	}
+}
+
 static void restore_cpu_virqs(unsigned int cpu)
 {
 	struct evtchn_bind_virq bind_virq;
@@ -1436,6 +1472,8 @@ void xen_irq_resume(void)
 
 		unmask_evtchn(evtchn);
 	}
+
+	restore_cpu_pirqs();
 }
 
 static struct irq_chip xen_dynamic_chip __read_mostly = {
