@@ -346,6 +346,7 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
 		       struct writeback_control *wbc)
 {
 	struct address_space *mapping = inode->i_mapping;
+	long nr_to_write = wbc->nr_to_write;
 	unsigned dirty;
 	int ret;
 
@@ -368,6 +369,8 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
 		 */
 		if (wbc->sync_mode != WB_SYNC_ALL) {
 			requeue_io(inode, wb);
+			trace_writeback_single_inode_requeue(inode, wbc,
+							     nr_to_write);
 			return 0;
 		}
 
@@ -467,6 +470,7 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
 		}
 	}
 	inode_sync_complete(inode);
+	trace_writeback_single_inode(inode, wbc, nr_to_write);
 	return ret;
 }
 
