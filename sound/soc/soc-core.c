@@ -1644,7 +1644,6 @@ static int soc_probe_aux_dev(struct snd_soc_card *card, int num)
 	/* mark codec as probed and add to card codec list */
 	codec->probed = 1;
 	list_add(&codec->card_list, &card->codec_dev_list);
-	list_add(&codec->dapm.list, &card->dapm_list);
 
 	/* now that all clients have probed, initialise the DAI link */
 	if (aux_dev->init) {
