@@ -55,7 +55,6 @@ static void fcoe_ctlr_timeout(unsigned long);
 static void fcoe_ctlr_timer_work(struct work_struct *);
 static void fcoe_ctlr_recv_work(struct work_struct *);
 static int fcoe_ctlr_flogi_retry(struct fcoe_ctlr *);
-static void fcoe_ctlr_select(struct fcoe_ctlr *);
 
 static void fcoe_ctlr_vn_start(struct fcoe_ctlr *);
 static int fcoe_ctlr_vn_recv(struct fcoe_ctlr *, struct sk_buff *);
@@ -1398,6 +1397,8 @@ drop:
  * fcoe_ctlr_select() - Select the best FCF (if possible)
  * @fip: The FCoE controller
  *
+ * Returns the selected FCF, or NULL if none are usable.
+ *
  * If there are conflicting advertisements, no FCF can be chosen.
  *
  * If there is already a selected FCF, this will choose a better one or
@@ -1405,7 +1406,7 @@ drop:
  *
  * Called with lock held.
  */
-static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
+static struct fcoe_fcf *fcoe_ctlr_select(struct fcoe_ctlr *fip)
 {
 	struct fcoe_fcf *fcf;
 	struct fcoe_fcf *best = fip->sel_fcf;
@@ -1450,6 +1451,7 @@ static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
 		if (time_before(fip->ctlr_ka_time, fip->timer.expires))
 			mod_timer(&fip->timer, fip->ctlr_ka_time);
 	}
+	return best;
 }
 
 /**
@@ -1507,8 +1509,7 @@ static int fcoe_ctlr_flogi_retry(struct fcoe_ctlr *fip)
 	mutex_lock(&fip->ctlr_mutex);
 	spin_lock_bh(&fip->ctlr_lock);
 	LIBFCOE_FIP_DBG(fip, "re-sending FLOGI - reselect\n");
-	fcoe_ctlr_select(fip);
-	fcf = fip->sel_fcf;
+	fcf = fcoe_ctlr_select(fip);
 	if (!fcf || fcf->flogi_sent) {
 		kfree_skb(fip->flogi_req);
 		fip->flogi_req = NULL;
@@ -1548,14 +1549,12 @@ static void fcoe_ctlr_flogi_send(struct fcoe_ctlr *fip)
 	 */
 	if (fcf->flogi_sent) {
 		LIBFCOE_FIP_DBG(fip, "sending FLOGI - reselect\n");
-		fcoe_ctlr_select(fip);
-		fcf = fip->sel_fcf;
+		fcf = fcoe_ctlr_select(fip);
 		if (!fcf || fcf->flogi_sent) {
 			LIBFCOE_FIP_DBG(fip, "sending FLOGI - clearing\n");
 			list_for_each_entry(fcf, &fip->fcfs, list)
 				fcf->flogi_sent = 0;
-			fcoe_ctlr_select(fip);
-			fcf = fip->sel_fcf;
+			fcf = fcoe_ctlr_select(fip);
 		}
 	}
 	if (fcf) {
@@ -1612,8 +1611,7 @@ static void fcoe_ctlr_timer_work(struct work_struct *work)
 	sel = fip->sel_fcf;
 	if (!sel && fip->sel_time) {
 		if (time_after_eq(jiffies, fip->sel_time)) {
-			fcoe_ctlr_select(fip);
-			sel = fip->sel_fcf;
+			sel = fcoe_ctlr_select(fip);
 			fip->sel_time = 0;
 		} else if (time_after(next_timer, fip->sel_time))
 			next_timer = fip->sel_time;
