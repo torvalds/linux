@@ -344,6 +344,7 @@ config CPU_SUBTYPE_SH7720
 	select CPU_SH3
 	select CPU_HAS_DSP
 	select SYS_SUPPORTS_CMT
+	select USB_ARCH_HAS_OHCI
 	help
 	  Select SH7720 if you have a SH3-DSP SH7720 CPU.
 
@@ -352,6 +353,7 @@ config CPU_SUBTYPE_SH7721
 	select CPU_SH3
 	select CPU_HAS_DSP
 	select SYS_SUPPORTS_CMT
+	select USB_ARCH_HAS_OHCI
 	help
 	  Select SH7721 if you have a SH3-DSP SH7721 CPU.
 
@@ -429,6 +431,7 @@ config CPU_SUBTYPE_SH7757
 config CPU_SUBTYPE_SH7763
 	bool "Support SH7763 processor"
 	select CPU_SH4A
+	select USB_ARCH_HAS_OHCI
 	help
 	  Select SH7763 if you have a SH4A SH7763(R5S77631) CPU.
 
@@ -453,6 +456,8 @@ config CPU_SUBTYPE_SH7786
 	select CPU_SHX3
 	select CPU_HAS_PTEAEX
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select USB_ARCH_HAS_OHCI
+	select USB_ARCH_HAS_EHCI
 
 config CPU_SUBTYPE_SHX3
 	bool "Support SH-X3 processor"
