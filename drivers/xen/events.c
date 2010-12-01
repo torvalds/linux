@@ -668,17 +668,21 @@ out:
 #include <linux/msi.h>
 #include "../pci/msi.h"
 
-void xen_allocate_pirq_msi(char *name, int *irq, int *pirq)
+void xen_allocate_pirq_msi(char *name, int *irq, int *pirq, int alloc)
 {
 	spin_lock(&irq_mapping_update_lock);
 
-	*irq = find_unbound_irq();
-	if (*irq == -1)
-		goto out;
+	if (alloc & XEN_ALLOC_IRQ) {
+		*irq = find_unbound_irq();
+		if (*irq == -1)
+			goto out;
+	}
 
-	*pirq = find_unbound_pirq(MAP_PIRQ_TYPE_MSI);
-	if (*pirq == -1)
-		goto out;
+	if (alloc & XEN_ALLOC_PIRQ) {
+		*pirq = find_unbound_pirq(MAP_PIRQ_TYPE_MSI);
+		if (*pirq == -1)
+			goto out;
+	}
 
 	set_irq_chip_and_handler_name(*irq, &xen_pirq_chip,
 				      handle_level_irq, name);
@@ -766,6 +770,7 @@ int xen_destroy_irq(int irq)
 			printk(KERN_WARNING "unmap irq failed %d\n", rc);
 			goto out;
 		}
+		pirq_to_irq[info->u.pirq.pirq] = -1;
 	}
 	irq_info[irq] = mk_unbound_info();
 
@@ -784,6 +789,11 @@ int xen_vector_from_irq(unsigned irq)
 int xen_gsi_from_irq(unsigned irq)
 {
 	return gsi_from_irq(irq);
+}
+
+int xen_irq_from_pirq(unsigned pirq)
+{
+	return pirq_to_irq[pirq];
 }
 
 int bind_evtchn_to_irq(unsigned int evtchn)

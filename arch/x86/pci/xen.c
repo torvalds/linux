@@ -70,6 +70,9 @@ static int acpi_register_gsi_xen_hvm(struct device *dev, u32 gsi,
 struct xen_pci_frontend_ops *xen_pci_frontend;
 EXPORT_SYMBOL_GPL(xen_pci_frontend);
 
+#define XEN_PIRQ_MSI_DATA  (MSI_DATA_TRIGGER_EDGE | \
+		MSI_DATA_LEVEL_ASSERT | (3 << 8) | MSI_DATA_VECTOR(0))
+
 static void xen_msi_compose_msg(struct pci_dev *pdev, unsigned int pirq,
 		struct msi_msg *msg)
 {
@@ -83,12 +86,7 @@ static void xen_msi_compose_msg(struct pci_dev *pdev, unsigned int pirq,
 		MSI_ADDR_REDIRECTION_CPU |
 		MSI_ADDR_DEST_ID(pirq);
 
-	msg->data =
-		MSI_DATA_TRIGGER_EDGE |
-		MSI_DATA_LEVEL_ASSERT |
-		/* delivery mode reserved */
-		(3 << 8) |
-		MSI_DATA_VECTOR(0);
+	msg->data = XEN_PIRQ_MSI_DATA;
 }
 
 static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
@@ -98,8 +96,23 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	struct msi_msg msg;
 
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
+		__read_msi_msg(msidesc, &msg);
+		pirq = MSI_ADDR_EXT_DEST_ID(msg.address_hi) |
+			((msg.address_lo >> MSI_ADDR_DEST_ID_SHIFT) & 0xff);
+		if (xen_irq_from_pirq(pirq) >= 0 && msg.data == XEN_PIRQ_MSI_DATA) {
+			xen_allocate_pirq_msi((type == PCI_CAP_ID_MSIX) ?
+					"msi-x" : "msi", &irq, &pirq, XEN_ALLOC_IRQ);
+			if (irq < 0)
+				goto error;
+			ret = set_irq_msi(irq, msidesc);
+			if (ret < 0)
+				goto error_while;
+			printk(KERN_DEBUG "xen: msi already setup: msi --> irq=%d"
+					" pirq=%d\n", irq, pirq);
+			return 0;
+		}
 		xen_allocate_pirq_msi((type == PCI_CAP_ID_MSIX) ?
-				"msi-x" : "msi", &irq, &pirq);
+				"msi-x" : "msi", &irq, &pirq, (XEN_ALLOC_IRQ | XEN_ALLOC_PIRQ));
 		if (irq < 0 || pirq < 0)
 			goto error;
 		printk(KERN_DEBUG "xen: msi --> irq=%d, pirq=%d\n", irq, pirq);
