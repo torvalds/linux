@@ -1457,7 +1457,7 @@ wlc_mhfdef(wlc_info_t *wlc, u16 *mhfs, u16 mhf2_init)
 {
 	wlc_hw_info_t *wlc_hw = wlc->hw;
 
-	bzero(mhfs, sizeof(u16) * MHFMAX);
+	memset(mhfs, 0, MHFMAX * sizeof(u16));
 
 	mhfs[MHF2] |= mhf2_init;
 

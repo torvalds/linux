@@ -299,7 +299,7 @@ wlc_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 	uint count;
 	uint i;
 
-	bzero(rateset, sizeof(rateset));
+	memset(rateset, 0, sizeof(rateset));
 	count = rs->count;
 
 	for (i = 0; i < count; i++) {

@@ -1118,7 +1118,8 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 		*(u32 *) (p->data) = 0;
 
 		if (DMASGLIST_ENAB)
-			bzero(&di->rxp_dmah[rxout], sizeof(hnddma_seg_map_t));
+			memset(&di->rxp_dmah[rxout], 0,
+				sizeof(hnddma_seg_map_t));
 
 		pa = DMA_MAP(di->osh, p->data,
 			     di->rxbufsize, DMA_RX, p, &di->rxp_dmah[rxout]);
@@ -1688,7 +1689,8 @@ static int dma32_txfast(dma_info_t *di, struct sk_buff *p0, bool commit)
 			continue;
 
 		if (DMASGLIST_ENAB)
-			bzero(&di->txp_dmah[txout], sizeof(hnddma_seg_map_t));
+			memset(&di->txp_dmah[txout], 0,
+				sizeof(hnddma_seg_map_t));
 
 		/* get physical address of buffer start */
 		pa = DMA_MAP(di->osh, data, len, DMA_TX, p,
@@ -1960,7 +1962,7 @@ static void dma32_txrotate(dma_info_t *di)
 		if (DMASGLIST_ENAB) {
 			bcopy(&di->txp_dmah[old], &di->txp_dmah[new],
 			      sizeof(hnddma_seg_map_t));
-			bzero(&di->txp_dmah[old], sizeof(hnddma_seg_map_t));
+			memset(&di->txp_dmah[old], 0, sizeof(hnddma_seg_map_t));
 		}
 
 		di->txp[old] = NULL;
@@ -2339,7 +2341,8 @@ static int BCMFASTPATH dma64_txfast(dma_info_t *di, struct sk_buff *p0,
 
 		/* get physical address of buffer start */
 		if (DMASGLIST_ENAB)
-			bzero(&di->txp_dmah[txout], sizeof(hnddma_seg_map_t));
+			memset(&di->txp_dmah[txout], 0,
+				sizeof(hnddma_seg_map_t));
 
 		pa = DMA_MAP(di->osh, data, len, DMA_TX, p,
 			     &di->txp_dmah[txout]);
@@ -2637,7 +2640,7 @@ static void dma64_txrotate(dma_info_t *di)
 		if (DMASGLIST_ENAB) {
 			bcopy(&di->txp_dmah[old], &di->txp_dmah[new],
 			      sizeof(hnddma_seg_map_t));
-			bzero(&di->txp_dmah[old], sizeof(hnddma_seg_map_t));
+			memset(&di->txp_dmah[old], 0, sizeof(hnddma_seg_map_t));
 		}
 
 		di->txp[old] = NULL;

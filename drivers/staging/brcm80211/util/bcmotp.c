@@ -901,7 +901,7 @@ void *otp_init(si_t *sih)
 	void *ret = NULL;
 
 	oi = &otpinfo;
-	bzero(oi, sizeof(otpinfo_t));
+	memset(oi, 0, sizeof(otpinfo_t));
 
 	oi->ccrev = sih->ccrev;
 

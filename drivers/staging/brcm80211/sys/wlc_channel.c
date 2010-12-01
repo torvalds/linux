@@ -382,7 +382,7 @@ void wlc_locale_get_channels(const locale_info_t *locale, chanvec_t *channels)
 {
 	u8 i;
 
-	bzero(channels, sizeof(chanvec_t));
+	memset(channels, 0, sizeof(chanvec_t));
 
 	for (i = 0; i < ARRAY_SIZE(g_table_locale_base); i++) {
 		if (locale->valid_channels & (1 << i)) {
@@ -634,7 +634,7 @@ wlc_cm_info_t *wlc_channel_mgr_attach(wlc_info_t *wlc)
 	}
 
 	/* internal country information which must match regulatory constraints in firmware */
-	bzero(country_abbrev, WLC_CNTRY_BUF_SZ);
+	memset(country_abbrev, 0, WLC_CNTRY_BUF_SZ);
 	strncpy(country_abbrev, "X2", sizeof(country_abbrev) - 1);
 	country = wlc_country_lookup(wlc, country_abbrev);
 
@@ -763,7 +763,7 @@ wlc_set_country_common(wlc_cm_info_t *wlc_cm,
 	/* save current country state */
 	wlc_cm->country = country;
 
-	bzero(&prev_country_abbrev, WLC_CNTRY_BUF_SZ);
+	memset(&prev_country_abbrev, 0, WLC_CNTRY_BUF_SZ);
 	strncpy(prev_country_abbrev, wlc_cm->country_abbrev,
 		WLC_CNTRY_BUF_SZ - 1);
 
@@ -1008,7 +1008,7 @@ void wlc_quiet_channels_reset(wlc_cm_info_t *wlc_cm)
 	wlcband_t *band;
 	const chanvec_t *chanvec;
 
-	bzero(&wlc_cm->quiet_channels, sizeof(chanvec_t));
+	memset(&wlc_cm->quiet_channels, 0, sizeof(chanvec_t));
 
 	band = wlc->band;
 	for (i = 0; i < NBANDS(wlc);
@@ -1319,7 +1319,7 @@ wlc_channel_reg_limits(wlc_cm_info_t *wlc_cm, chanspec_t chanspec,
 	int maxpwr_idx;
 	uint j;
 
-	bzero(txpwr, sizeof(txpwr_limits_t));
+	memset(txpwr, 0, sizeof(txpwr_limits_t));
 
 	if (!wlc_valid_chanspec_db(wlc_cm, chanspec)) {
 		country = wlc_country_lookup(wlc, wlc->autocountry_default);

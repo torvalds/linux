@@ -751,7 +751,7 @@ sdioh_cis_read(sdioh_info_t *sd, uint func, u8 *cisd, u32 length)
 	sd_trace(("%s: Func = %d\n", __func__, func));
 
 	if (!sd->func_cis_ptr[func]) {
-		bzero(cis, length);
+		memset(cis, 0, length);
 		sd_err(("%s: no func_cis_ptr[%d]\n", __func__, func));
 		return SDIOH_API_RC_FAIL;
 	}

@@ -405,7 +405,7 @@ int srom_parsecis(struct osl_info *osh, u8 *pcis[], uint ciscnt, char **vars,
 		return -2;
 
 	varbuf_init(&b, base, MAXSZ_NVRAM_VARS);
-	bzero(base, MAXSZ_NVRAM_VARS);
+	memset(base, 0, MAXSZ_NVRAM_VARS);
 	eabuf[0] = '\0';
 	for (cisnum = 0; cisnum < ciscnt; cisnum++) {
 		cis = *pcis++;

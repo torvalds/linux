@@ -530,7 +530,7 @@ wl_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	/* Init the scb */
 	scb = (struct scb *)sta->drv_priv;
-	bzero(scb, sizeof(struct scb));
+	memset(scb, 0, sizeof(struct scb));
 	for (i = 0; i < NUMPRIO; i++)
 		scb->seqctl[i] = 0xFFFF;
 	scb->seqctl_nonqos = 0xFFFF;
@@ -1073,7 +1073,7 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, hw);
 
-	bzero(hw->priv, sizeof(*wl));
+	memset(hw->priv, 0, sizeof(*wl));
 
 	wl = wl_attach(pdev->vendor, pdev->device, pci_resource_start(pdev, 0),
 		       PCI_BUS, pdev, pdev->irq);
@@ -1555,7 +1555,7 @@ wl_timer_t *wl_init_timer(wl_info_t *wl, void (*fn) (void *arg), void *arg,
 		return 0;
 	}
 
-	bzero(t, sizeof(wl_timer_t));
+	memset(t, 0, sizeof(wl_timer_t));
 
 	init_timer(&t->timer);
 	t->timer.data = (unsigned long) t;
@@ -1747,7 +1747,7 @@ static int wl_request_fw(wl_info_t *wl, struct pci_dev *pdev)
 	char fw_name[100];
 	int i;
 
-	bzero((void *)&wl->fw, sizeof(struct wl_firmware));
+	memset((void *)&wl->fw, 0, sizeof(struct wl_firmware));
 	for (i = 0; i < WL_MAX_FW; i++) {
 		if (wl_firmwares[i] == NULL)
 			break;

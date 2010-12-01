@@ -380,7 +380,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 
 	ASSERT(GOODREGS(regs));
 
-	bzero((unsigned char *) sii, sizeof(si_info_t));
+	memset((unsigned char *) sii, 0, sizeof(si_info_t));
 
 	savewin = 0;
 
@@ -510,7 +510,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 
 	ASSERT(GOODREGS(regs));
 
-	bzero((unsigned char *) sii, sizeof(si_info_t));
+	memset((unsigned char *) sii, 0, sizeof(si_info_t));
 
 	savewin = 0;
 

@@ -976,7 +976,7 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb,
 
 #ifdef BCMDBG
 	u8 hole[AMPDU_MAX_MPDU];
-	bzero(hole, sizeof(hole));
+	memset(hole, 0, sizeof(hole));
 #endif
 
 	ASSERT(tx_info->flags & IEEE80211_TX_CTL_AMPDU);
@@ -993,7 +993,7 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb,
 
 	ASSERT(ini->scb == scb);
 
-	bzero(bitmap, sizeof(bitmap));
+	memset(bitmap, 0, sizeof(bitmap));
 	queue = txs->frameid & TXFID_QUEUE_MASK;
 	ASSERT(queue < AC_COUNT);
 
@@ -1318,7 +1318,7 @@ void wlc_ampdu_macaddr_upd(wlc_info_t *wlc)
 	char template[T_RAM_ACCESS_SZ * 2];
 
 	/* driver needs to write the ta in the template; ta is at offset 16 */
-	bzero(template, sizeof(template));
+	memset(template, 0, sizeof(template));
 	bcopy((char *)wlc->pub->cur_etheraddr.octet, template, ETHER_ADDR_LEN);
 	wlc_write_template_ram(wlc, (T_BA_TPL_BASE + 16), (T_RAM_ACCESS_SZ * 2),
 			       template);

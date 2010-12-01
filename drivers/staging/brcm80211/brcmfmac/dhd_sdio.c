@@ -960,7 +960,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 			frame = (u8 *) (pkt->data);
 
 			ASSERT((pad + SDPCM_HDRLEN) <= (int)(pkt->len));
-			bzero(frame, pad + SDPCM_HDRLEN);
+			memset(frame, 0, pad + SDPCM_HDRLEN);
 		}
 	}
 	ASSERT(pad < DHD_SDALIGN);
@@ -1252,7 +1252,7 @@ int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 			frame -= doff;
 			len += doff;
 			msglen += doff;
-			bzero(frame, doff + SDPCM_HDRLEN);
+			memset(frame, 0, doff + SDPCM_HDRLEN);
 		}
 		ASSERT(doff < DHD_SDALIGN);
 	}
@@ -2536,7 +2536,7 @@ static int dhdsdio_write_vars(dhd_bus_t *bus)
 		if (!vbuffer)
 			return BCME_NOMEM;
 
-		bzero(vbuffer, varsize);
+		memset(vbuffer, 0, varsize);
 		bcopy(bus->vars, vbuffer, bus->varsz);
 
 		/* Write the vars list */
@@ -5285,7 +5285,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, struct osl_info *osh, void *sdh,
 					"failed\n", fn));
 				break;
 			}
-			bzero(cis[fn], SBSDIO_CIS_SIZE_LIMIT);
+			memset(cis[fn], 0, SBSDIO_CIS_SIZE_LIMIT);
 
 			err = bcmsdh_cis_read(sdh, fn, cis[fn],
 						SBSDIO_CIS_SIZE_LIMIT);

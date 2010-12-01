@@ -347,10 +347,10 @@ wl_iw_config_commit(struct net_device *dev,
 	if (!ssid.SSID_len)
 		return 0;
 
-	bzero(&bssid, sizeof(struct sockaddr));
+	memset(&bssid, 0, sizeof(struct sockaddr));
 	error = dev_wlc_ioctl(dev, WLC_REASSOC, &bssid, ETHER_ADDR_LEN);
 	if (error) {
-		WL_ERROR(("%s: WLC_REASSOC to %s failed \n", __func__,
+		WL_ERROR(("%s: WLC_REASSOC to %s failed\n", __func__,
 			  ssid.SSID));
 		return error;
 	}
@@ -775,7 +775,7 @@ wl_iw_set_wap(struct net_device *dev,
 
 	if (ETHER_ISBCAST(awrq->sa_data) || ETHER_ISNULLADDR(awrq->sa_data)) {
 		scb_val_t scbval;
-		bzero(&scbval, sizeof(scb_val_t));
+		memset(&scbval, 0, sizeof(scb_val_t));
 		(void)dev_wlc_ioctl(dev, WLC_DISASSOC, &scbval,
 				    sizeof(scb_val_t));
 		return 0;
@@ -2412,7 +2412,7 @@ wl_iw_get_encode(struct net_device *dev,
 
 	WL_TRACE(("%s: SIOCGIWENCODE\n", dev->name));
 
-	bzero(&key, sizeof(wl_wsec_key_t));
+	memset(&key, 0, sizeof(wl_wsec_key_t));
 
 	if ((dwrq->flags & IW_ENCODE_INDEX) == 0) {
 		for (key.index = 0; key.index < DOT11_MAX_DEFAULT_KEYS;
@@ -2647,7 +2647,7 @@ wl_iw_set_pmksa(struct net_device *dev,
 
 	if (iwpmksa->cmd == IW_PMKSA_FLUSH) {
 		WL_WSEC(("wl_iw_set_pmksa - IW_PMKSA_FLUSH\n"));
-		bzero((char *)&pmkid_list, sizeof(pmkid_list));
+		memset((char *)&pmkid_list, 0, sizeof(pmkid_list));
 	}
 
 	else if (iwpmksa->cmd == IW_PMKSA_REMOVE) {
@@ -2676,7 +2676,7 @@ wl_iw_set_pmksa(struct net_device *dev,
 
 		if ((pmkid_list.pmkids.npmkid > 0)
 		    && (i < pmkid_list.pmkids.npmkid)) {
-			bzero(&pmkid_list.pmkids.pmkid[i], sizeof(pmkid_t));
+			memset(&pmkid_list.pmkids.pmkid[i], 0, sizeof(pmkid_t));
 			for (; i < (pmkid_list.pmkids.npmkid - 1); i++) {
 				bcopy(&pmkid_list.pmkids.pmkid[i + 1].BSSID,
 				      &pmkid_list.pmkids.pmkid[i].BSSID,
@@ -3409,16 +3409,16 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 	case WLC_E_DEAUTH_IND:
 	case WLC_E_DISASSOC_IND:
 		cmd = SIOCGIWAP;
-		bzero(wrqu.addr.sa_data, ETHER_ADDR_LEN);
+		memset(wrqu.addr.sa_data, 0, ETHER_ADDR_LEN);
 		wrqu.addr.sa_family = ARPHRD_ETHER;
-		bzero(&extra, ETHER_ADDR_LEN);
+		memset(&extra, 0, ETHER_ADDR_LEN);
 		break;
 	case WLC_E_LINK:
 	case WLC_E_NDIS_LINK:
 		cmd = SIOCGIWAP;
 		if (!(flags & WLC_EVENT_MSG_LINK)) {
-			bzero(wrqu.addr.sa_data, ETHER_ADDR_LEN);
-			bzero(&extra, ETHER_ADDR_LEN);
+			memset(wrqu.addr.sa_data, 0, ETHER_ADDR_LEN);
+			memset(&extra, 0, ETHER_ADDR_LEN);
 			WAKE_LOCK_TIMEOUT(iw->pub, WAKE_LOCK_LINK_DOWN_TMOUT,
 					  20 * HZ);
 		} else {
@@ -3488,7 +3488,7 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 				wrqu.data.length = sizeof(struct iw_pmkid_cand);
 				pmkidcand = pmkcandlist->pmkid_cand;
 				while (count) {
-					bzero(iwpmkidcand,
+					memset(iwpmkidcand, 0,
 					      sizeof(struct iw_pmkid_cand));
 					if (pmkidcand->preauth)
 						iwpmkidcand->flags |=
@@ -3586,7 +3586,7 @@ wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstats)
 	phy_noise = dtoh32(phy_noise);
 	WL_TRACE(("wl_iw_get_wireless_stats phy noise=%d\n", phy_noise));
 
-	bzero(&scb_val, sizeof(scb_val_t));
+	memset(&scb_val, 0, sizeof(scb_val_t));
 	res = dev_wlc_ioctl(dev, WLC_GET_RSSI, &scb_val, sizeof(scb_val_t));
 	if (res)
 		goto done;

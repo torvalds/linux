@@ -1538,7 +1538,7 @@ wlc_phy_chanspec_band_validch(wlc_phy_t *ppi, uint band, chanvec_t *channels)
 
 	ASSERT((band == WLC_BAND_2G) || (band == WLC_BAND_5G));
 
-	bzero(channels, sizeof(chanvec_t));
+	memset(channels, 0, sizeof(chanvec_t));
 
 	for (i = 0; i < ARRAY_SIZE(chan_info_all); i++) {
 		channel = chan_info_all[i].chan;
@@ -1900,7 +1900,7 @@ void wlc_phy_txpower_recalc_target(phy_info_t *pi)
 		tx_pwr_min = min(tx_pwr_min, tx_pwr_target[rate]);
 	}
 
-	bzero(pi->tx_power_offset, sizeof(pi->tx_power_offset));
+	memset(pi->tx_power_offset, 0, sizeof(pi->tx_power_offset));
 	pi->tx_power_max = tx_pwr_max;
 	pi->tx_power_min = tx_pwr_min;
 	pi->tx_power_max_rate_ind = tx_pwr_max_rate_ind;
@@ -2511,7 +2511,7 @@ wlc_phy_noise_calc_phy(phy_info_t *pi, u32 *cmplx_pwr, s8 *pwr_ant)
 	s8 cmplx_pwr_dbm[PHY_CORE_MAX];
 	u8 i;
 
-	bzero((u8 *) cmplx_pwr_dbm, sizeof(cmplx_pwr_dbm));
+	memset((u8 *) cmplx_pwr_dbm, 0, sizeof(cmplx_pwr_dbm));
 	ASSERT(pi->pubpi.phy_corenum <= PHY_CORE_MAX);
 	wlc_phy_compute_dB(cmplx_pwr, cmplx_pwr_dbm, pi->pubpi.phy_corenum);
 
@@ -2625,9 +2625,9 @@ wlc_phy_noise_sample_request(wlc_phy_t *pih, u8 reason, u8 ch)
 			u8 wait_crs = 0;
 			u8 i;
 
-			bzero((u8 *) est, sizeof(est));
-			bzero((u8 *) cmplx_pwr, sizeof(cmplx_pwr));
-			bzero((u8 *) noise_dbm_ant, sizeof(noise_dbm_ant));
+			memset((u8 *) est, 0, sizeof(est));
+			memset((u8 *) cmplx_pwr, 0, sizeof(cmplx_pwr));
+			memset((u8 *) noise_dbm_ant, 0, sizeof(noise_dbm_ant));
 
 			log_num_samps = PHY_NOISE_SAMPLE_LOG_NUM_NPHY;
 			num_samps = 1 << log_num_samps;
@@ -2708,8 +2708,8 @@ static s8 wlc_phy_noise_read_shmem(phy_info_t *pi)
 	u8 idx, core;
 
 	ASSERT(pi->pubpi.phy_corenum <= PHY_CORE_MAX);
-	bzero((u8 *) cmplx_pwr, sizeof(cmplx_pwr));
-	bzero((u8 *) noise_dbm_ant, sizeof(noise_dbm_ant));
+	memset((u8 *) cmplx_pwr, 0, sizeof(cmplx_pwr));
+	memset((u8 *) noise_dbm_ant, 0, sizeof(noise_dbm_ant));
 
 	for (idx = 0, core = 0; core < pi->pubpi.phy_corenum; idx += 2, core++) {
 		lo = wlapi_bmac_read_shm(pi->sh->physhim, M_PWRIND_MAP(idx));

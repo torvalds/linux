@@ -372,7 +372,8 @@ void wlc_reset(wlc_info_t *wlc)
 		wlc_statsupd(wlc);
 
 		/* reset our snapshot of macstat counters */
-		bzero((char *)wlc->core->macstat_snapshot, sizeof(macstat_t));
+		memset((char *)wlc->core->macstat_snapshot, 0,
+			sizeof(macstat_t));
 	}
 
 	wlc_bmac_reset(wlc->hw);
@@ -866,7 +867,7 @@ static int wlc_get_current_txpwr(wlc_info_t *wlc, void *pwr, uint len)
 	else if (len < sizeof(tx_power_t))
 		return BCME_BUFTOOSHORT;
 
-	bzero(&power, sizeof(tx_power_t));
+	memset(&power, 0, sizeof(tx_power_t));
 
 	power.chanspec = WLC_BAND_PI_RADIO_CHANSPEC;
 	if (wlc->pub->associated)
@@ -988,7 +989,7 @@ static int wlc_get_current_txpwr(wlc_info_t *wlc, void *pwr, uint len)
 	} else {
 		int band_idx = CHSPEC_IS2G(power.chanspec) ? 0 : 1;
 
-		bzero(old_power, sizeof(tx_power_legacy_t));
+		memset(old_power, 0, sizeof(tx_power_legacy_t));
 
 		old_power->txpwr_local_max = power.local_max;
 		old_power->txpwr_local_constraint = power.local_constraint;
@@ -1359,7 +1360,7 @@ void wlc_wme_setparams(wlc_info_t *wlc, u16 aci, void *arg, bool suspend)
 	wlc->wme_admctl = 0;
 
 	do {
-		bzero((char *)&acp_shm, sizeof(shm_acparams_t));
+		memset((char *)&acp_shm, 0, sizeof(shm_acparams_t));
 		/* find out which ac this set of params applies to */
 		ASSERT(aci < AC_COUNT);
 		/* set the admission control policy for this AC */
@@ -1440,7 +1441,7 @@ void wlc_edcf_setparams(wlc_bsscfg_t *cfg, bool suspend)
 	wlc->wme_admctl = 0;
 
 	for (i = 0; i < AC_COUNT; i++, edcf_acp++) {
-		bzero((char *)&acp_shm, sizeof(shm_acparams_t));
+		memset((char *)&acp_shm, 0, sizeof(shm_acparams_t));
 		/* find out which ac this set of params applies to */
 		aci = (edcf_acp->ACI & EDCF_ACI_MASK) >> EDCF_ACI_SHIFT;
 		ASSERT(aci < AC_COUNT);
@@ -2633,7 +2634,7 @@ int wlc_up(wlc_info_t *wlc)
 static void wlc_tx_prec_map_init(wlc_info_t *wlc)
 {
 	wlc->tx_prec_map = WLC_PREC_BMP_ALL;
-	bzero(wlc->fifo2prec_map, sizeof(u16) * NFIFO);
+	memset(wlc->fifo2prec_map, 0, NFIFO * sizeof(u16));
 
 	/* For non-WME, both fifos have overlapping MAXPRIO. So just disable all precedences
 	 * if either is full.
@@ -2790,10 +2791,10 @@ int wlc_set_gmode(wlc_info_t *wlc, u8 gmode, bool config)
 		wlc_protection_upd(wlc, WLC_PROT_G_USER, gmode);
 
 	/* Clear supported rates filter */
-	bzero(&wlc->sup_rates_override, sizeof(wlc_rateset_t));
+	memset(&wlc->sup_rates_override, 0, sizeof(wlc_rateset_t));
 
 	/* Clear rateset override */
-	bzero(&rs, sizeof(wlc_rateset_t));
+	memset(&rs, 0, sizeof(wlc_rateset_t));
 
 	switch (gmode) {
 	case GMODE_LEGACY_B:
@@ -3589,7 +3590,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 				break;
 			}
 
-			bzero((char *)&key, sizeof(key));
+			memset((char *)&key, 0, sizeof(key));
 			if (src_key) {
 				key.index = src_key->id;
 				key.len = src_key->len;
@@ -3686,7 +3687,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 			wlc_rateset_t rs;
 			wl_rateset_t *ret_rs = (wl_rateset_t *) arg;
 
-			bzero(&rs, sizeof(wlc_rateset_t));
+			memset(&rs, 0, sizeof(wlc_rateset_t));
 			wlc_default_rateset(wlc, (wlc_rateset_t *) &rs);
 
 			if (len < (int)(rs.count + sizeof(rs.count))) {
@@ -3714,7 +3715,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 				break;
 			}
 
-			bzero(&rs, sizeof(wlc_rateset_t));
+			memset(&rs, 0, sizeof(wlc_rateset_t));
 
 			/* Copy only legacy rateset section */
 			rs.count = in_rs->count;
@@ -4048,7 +4049,7 @@ _wlc_ioctl(wlc_info_t *wlc, int cmd, void *arg, int len, struct wlc_if *wlcif)
 
 			/* check for an empty rateset to clear the override */
 			if (rs.count == 0) {
-				bzero(&wlc->sup_rates_override,
+				memset(&wlc->sup_rates_override, 0,
 				      sizeof(wlc_rateset_t));
 				break;
 			}
@@ -4349,7 +4350,7 @@ int wlc_module_unregister(wlc_pub_t *pub, const char *name, void *hdl)
 	for (i = 0; i < WLC_MAXMODULES; i++) {
 		if (!strcmp(wlc->modulecb[i].name, name) &&
 		    (wlc->modulecb[i].hdl == hdl)) {
-			bzero(&wlc->modulecb[i], sizeof(modulecb_t));
+			memset(&wlc->modulecb[i], 0, sizeof(modulecb_t));
 			return 0;
 		}
 	}
@@ -5355,7 +5356,7 @@ wlc_compute_ofdm_plcp(ratespec_t rspec, u32 length, u8 *plcp)
 	rate_signal = rate_info[rate] & RATE_MASK;
 	ASSERT(rate_signal != 0);
 
-	bzero(plcp, D11_PHY_HDR_LEN);
+	memset(plcp, 0, D11_PHY_HDR_LEN);
 	D11A_PHY_HDR_SRATE((ofdm_phy_hdr_t *) plcp, rate_signal);
 
 	tmp = (length & 0xfff) << 5;
@@ -5718,7 +5719,7 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 
 	/* add Broadcom tx descriptor header */
 	txh = (d11txh_t *) skb_push(p, D11_TXH_LEN);
-	bzero((char *)txh, D11_TXH_LEN);
+	memset((char *)txh, 0, D11_TXH_LEN);
 
 	/* setup frameid */
 	if (tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
@@ -6134,9 +6135,10 @@ wlc_d11hdrs_mac80211(wlc_info_t *wlc, struct ieee80211_hw *hw,
 			      D11A_PHY_HDR_GRATE((ofdm_phy_hdr_t *) rts_plcp) :
 			      rts_plcp[0]) << 8;
 	} else {
-		bzero((char *)txh->RTSPhyHeader, D11_PHY_HDR_LEN);
-		bzero((char *)&txh->rts_frame, sizeof(struct dot11_rts_frame));
-		bzero((char *)txh->RTSPLCPFallback,
+		memset((char *)txh->RTSPhyHeader, 0, D11_PHY_HDR_LEN);
+		memset((char *)&txh->rts_frame, 0,
+			sizeof(struct dot11_rts_frame));
+		memset((char *)txh->RTSPLCPFallback, 0,
 		      sizeof(txh->RTSPLCPFallback));
 		txh->RTSDurFallback = 0;
 	}
@@ -7274,7 +7276,7 @@ void wlc_rate_lookup_init(wlc_info_t *wlc, wlc_rateset_t *rateset)
 	uint i;
 
 	/* incoming rates are in 500kbps units as in 802.11 Supported Rates */
-	bzero(br, WLC_MAXRATE + 1);
+	memset(br, 0, WLC_MAXRATE + 1);
 
 	/* For each basic rate in the rates list, make an entry in the
 	 * best basic lookup.
@@ -7608,7 +7610,7 @@ wlc_bcn_prb_template(wlc_info_t *wlc, uint type, ratespec_t bcn_rspec,
 	*len = hdr_len + body_len;	/* return actual size */
 
 	/* format PHY and MAC headers */
-	bzero((char *)buf, hdr_len);
+	memset((char *)buf, 0, hdr_len);
 
 	plcp = (cck_phy_hdr_t *) buf;
 
@@ -7729,7 +7731,7 @@ void wlc_shm_ssid_upd(wlc_info_t *wlc, wlc_bsscfg_t *cfg)
 	u8 ssidbuf[DOT11_MAX_SSID_LEN];
 
 	/* padding the ssid with zero and copy it into shm */
-	bzero(ssidbuf, DOT11_MAX_SSID_LEN);
+	memset(ssidbuf, 0, DOT11_MAX_SSID_LEN);
 	bcopy(ssidptr, ssidbuf, cfg->SSID_len);
 
 	wlc_copyto_shm(wlc, base, ssidbuf, DOT11_MAX_SSID_LEN);
@@ -7845,7 +7847,7 @@ void wlc_reprate_init(wlc_info_t *wlc)
 void wlc_bsscfg_reprate_init(wlc_bsscfg_t *bsscfg)
 {
 	bsscfg->txrspecidx = 0;
-	bzero((char *)bsscfg->txrspec, sizeof(bsscfg->txrspec));
+	memset((char *)bsscfg->txrspec, 0, sizeof(bsscfg->txrspec));
 }
 
 /* Retrieve a consolidated set of revision information,
@@ -7900,7 +7902,7 @@ static void wlc_bss_default_init(wlc_info_t *wlc)
 	wlc_bss_info_t *bi = wlc->default_bss;
 
 	/* init default and target BSS with some sane initial values */
-	bzero((char *)(bi), sizeof(wlc_bss_info_t));
+	memset((char *)(bi), 0, sizeof(wlc_bss_info_t));
 	bi->beacon_period = ISSIM_ENAB(wlc->pub->sih) ? BEACON_INTERVAL_DEF_QT :
 	    BEACON_INTERVAL_DEFAULT;
 	bi->dtim_period = ISSIM_ENAB(wlc->pub->sih) ? DTIM_INTERVAL_DEF_QT :

@@ -43,7 +43,7 @@ struct osl_info *osl_attach(void *pdev, uint bustype)
 	osh = kmalloc(sizeof(struct osl_info), GFP_ATOMIC);
 	ASSERT(osh);
 
-	bzero(osh, sizeof(struct osl_info));
+	memset(osh, 0, sizeof(struct osl_info));
 
 	osh->magic = OS_HANDLE_MAGIC;
 	osh->pdev = pdev;
