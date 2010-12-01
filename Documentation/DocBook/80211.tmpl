@@ -442,6 +442,21 @@
         <para>TBD</para>
 !Finclude/net/mac80211.h ieee80211_scan_completed
       </chapter>
+
+      <chapter id="aggregation">
+        <title>Aggregation</title>
+        <sect1>
+          <title>TX A-MPDU aggregation</title>
+!Pnet/mac80211/agg-tx.c TX A-MPDU aggregation
+!Cnet/mac80211/agg-tx.c
+        </sect1>
+        <sect1>
+          <title>RX A-MPDU aggregation</title>
+!Pnet/mac80211/agg-rx.c RX A-MPDU aggregation
+!Cnet/mac80211/agg-rx.c
+        </sect1>
+!Finclude/net/mac80211.h ieee80211_ampdu_mlme_action
+      </chapter>
     </part>
 
     <part id="rate-control">
@@ -508,6 +523,13 @@
           <title>STA information lifetime rules</title>
 !Pnet/mac80211/sta_info.c STA information lifetime rules
         </sect1>
+      </chapter>
+
+      <chapter id="aggregation-internals">
+        <title>Aggregation</title>
+!Fnet/mac80211/sta_info.h sta_ampdu_mlme
+!Fnet/mac80211/sta_info.h tid_ampdu_tx
+!Fnet/mac80211/sta_info.h tid_ampdu_rx
       </chapter>
 
       <chapter id="synchronisation">
