@@ -26,8 +26,9 @@ obj-$(CONFIG_LOCAL_TIMERS)		+= timer-mpu.o
 obj-$(CONFIG_HOTPLUG_CPU)		+= omap-hotplug.o
 obj-$(CONFIG_ARCH_OMAP4)		+= omap44xx-smc.o omap4-common.o
 
-AFLAGS_omap-headsmp.o			:=-Wa,-march=armv7-a
-AFLAGS_omap44xx-smc.o			:=-Wa,-march=armv7-a
+plus_sec := $(call as-instr,.arch_extension sec,+sec)
+AFLAGS_omap-headsmp.o			:=-Wa,-march=armv7-a$(plus_sec)
+AFLAGS_omap44xx-smc.o			:=-Wa,-march=armv7-a$(plus_sec)
 
 # Functions loaded to SRAM
 obj-$(CONFIG_ARCH_OMAP2420)		+= sram242x.o
