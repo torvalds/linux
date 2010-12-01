@@ -631,6 +631,7 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 			     struct fs_disk_quota *fdq)
 {
 	struct inode *inode = &ip->i_inode;
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct address_space *mapping = inode->i_mapping;
 	unsigned long index = loc >> PAGE_CACHE_SHIFT;
 	unsigned offset = loc & (PAGE_CACHE_SIZE - 1);
@@ -658,11 +659,11 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	qd->qd_qb.qb_value = qp->qu_value;
 	if (fdq) {
 		if (fdq->d_fieldmask & FS_DQ_BSOFT) {
-			qp->qu_warn = cpu_to_be64(fdq->d_blk_softlimit);
+			qp->qu_warn = cpu_to_be64(fdq->d_blk_softlimit >> sdp->sd_fsb2bb_shift);
 			qd->qd_qb.qb_warn = qp->qu_warn;
 		}
 		if (fdq->d_fieldmask & FS_DQ_BHARD) {
-			qp->qu_limit = cpu_to_be64(fdq->d_blk_hardlimit);
+			qp->qu_limit = cpu_to_be64(fdq->d_blk_hardlimit >> sdp->sd_fsb2bb_shift);
 			qd->qd_qb.qb_limit = qp->qu_limit;
 		}
 	}
@@ -1497,9 +1498,9 @@ static int gfs2_get_dqblk(struct super_block *sb, int type, qid_t id,
 	fdq->d_version = FS_DQUOT_VERSION;
 	fdq->d_flags = (type == QUOTA_USER) ? FS_USER_QUOTA : FS_GROUP_QUOTA;
 	fdq->d_id = id;
-	fdq->d_blk_hardlimit = be64_to_cpu(qlvb->qb_limit);
-	fdq->d_blk_softlimit = be64_to_cpu(qlvb->qb_warn);
-	fdq->d_bcount = be64_to_cpu(qlvb->qb_value);
+	fdq->d_blk_hardlimit = be64_to_cpu(qlvb->qb_limit) << sdp->sd_fsb2bb_shift;
+	fdq->d_blk_softlimit = be64_to_cpu(qlvb->qb_warn) << sdp->sd_fsb2bb_shift;
+	fdq->d_bcount = be64_to_cpu(qlvb->qb_value) << sdp->sd_fsb2bb_shift;
 
 	gfs2_glock_dq_uninit(&q_gh);
 out:
@@ -1566,10 +1567,10 @@ static int gfs2_set_dqblk(struct super_block *sb, int type, qid_t id,
 
 	/* If nothing has changed, this is a no-op */
 	if ((fdq->d_fieldmask & FS_DQ_BSOFT) &&
-	    (fdq->d_blk_softlimit == be64_to_cpu(qd->qd_qb.qb_warn)))
+	    ((fdq->d_blk_softlimit >> sdp->sd_fsb2bb_shift) == be64_to_cpu(qd->qd_qb.qb_warn)))
 		fdq->d_fieldmask ^= FS_DQ_BSOFT;
 	if ((fdq->d_fieldmask & FS_DQ_BHARD) &&
-	    (fdq->d_blk_hardlimit == be64_to_cpu(qd->qd_qb.qb_limit)))
+	    ((fdq->d_blk_hardlimit >> sdp->sd_fsb2bb_shift) == be64_to_cpu(qd->qd_qb.qb_limit)))
 		fdq->d_fieldmask ^= FS_DQ_BHARD;
 	if (fdq->d_fieldmask == 0)
 		goto out_i;

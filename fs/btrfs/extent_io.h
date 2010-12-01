@@ -310,4 +310,7 @@ int extent_clear_unlock_delalloc(struct inode *inode,
 				struct extent_io_tree *tree,
 				u64 start, u64 end, struct page *locked_page,
 				unsigned long op);
+struct bio *
+btrfs_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
+		gfp_t gfp_flags);
 #endif

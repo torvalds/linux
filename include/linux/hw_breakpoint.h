@@ -33,6 +33,8 @@ enum bp_type_idx {
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 
+extern int __init init_hw_breakpoint(void);
+
 static inline void hw_breakpoint_init(struct perf_event_attr *attr)
 {
 	memset(attr, 0, sizeof(*attr));
@@ -107,6 +109,8 @@ static inline struct arch_hw_breakpoint *counter_arch_bp(struct perf_event *bp)
 }
 
 #else /* !CONFIG_HAVE_HW_BREAKPOINT */
+
+static inline int __init init_hw_breakpoint(void) { return 0; }
 
 static inline struct perf_event *
 register_user_hw_breakpoint(struct perf_event_attr *attr,

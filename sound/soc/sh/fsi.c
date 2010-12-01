@@ -132,6 +132,8 @@ struct fsi_priv {
 	struct fsi_stream playback;
 	struct fsi_stream capture;
 
+	long rate;
+
 	u32 mst_ctrl;
 };
 
@@ -854,9 +856,16 @@ static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 	int is_play = fsi_is_play(substream);
+	struct fsi_master *master = fsi_get_master(fsi);
+	int (*set_rate)(struct device *dev, int is_porta, int rate, int enable);
 
 	fsi_irq_disable(fsi, is_play);
 	fsi_clk_ctrl(fsi, 0);
+
+	set_rate = master->info->set_rate;
+	if (set_rate && fsi->rate)
+		set_rate(dai->dev, fsi_is_port_a(fsi), fsi->rate, 0);
+	fsi->rate = 0;
 
 	pm_runtime_put_sync(dai->dev);
 }
@@ -891,20 +900,20 @@ static int fsi_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 	struct fsi_master *master = fsi_get_master(fsi);
-	int (*set_rate)(int is_porta, int rate) = master->info->set_rate;
+	int (*set_rate)(struct device *dev, int is_porta, int rate, int enable);
 	int fsi_ver = master->core->ver;
-	int is_play = fsi_is_play(substream);
+	long rate = params_rate(params);
 	int ret;
 
-	/* if slave mode, set_rate is not needed */
-	if (!fsi_is_master_mode(fsi, is_play))
+	set_rate = master->info->set_rate;
+	if (!set_rate)
 		return 0;
 
-	/* it is error if no set_rate */
-	if (!set_rate)
-		return -EIO;
+	ret = set_rate(dai->dev, fsi_is_port_a(fsi), rate, 1);
+	if (ret < 0) /* error */
+		return ret;
 
-	ret = set_rate(fsi_is_port_a(fsi), params_rate(params));
+	fsi->rate = rate;
 	if (ret > 0) {
 		u32 data = 0;
 

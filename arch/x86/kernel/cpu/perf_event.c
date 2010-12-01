@@ -381,6 +381,20 @@ static void release_pmc_hardware(void) {}
 
 #endif
 
+static bool check_hw_exists(void)
+{
+	u64 val, val_new = 0;
+	int ret = 0;
+
+	val = 0xabcdUL;
+	ret |= checking_wrmsrl(x86_pmu.perfctr, val);
+	ret |= rdmsrl_safe(x86_pmu.perfctr, &val_new);
+	if (ret || val != val_new)
+		return false;
+
+	return true;
+}
+
 static void reserve_ds_buffers(void);
 static void release_ds_buffers(void);
 
@@ -1371,6 +1385,12 @@ void __init init_hw_perf_events(void)
 	}
 
 	pmu_check_apic();
+
+	/* sanity check that the hardware exists or is emulated */
+	if (!check_hw_exists()) {
+		pr_cont("Broken PMU hardware detected, software events only.\n");
+		return;
+	}
 
 	pr_cont("%s PMU driver.\n", x86_pmu.name);
 

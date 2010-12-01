@@ -139,7 +139,7 @@ static int __init edac_init_mce_inject(void)
 	return 0;
 
 err_sysfs_create:
-	while (i-- >= 0)
+	while (--i >= 0)
 		sysfs_remove_file(mce_kobj, &sysfs_attrs[i]->attr);
 
 	kobject_del(mce_kobj);

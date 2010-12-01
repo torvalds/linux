@@ -233,7 +233,8 @@ static noinline int create_subvol(struct btrfs_root *root,
 	struct btrfs_inode_item *inode_item;
 	struct extent_buffer *leaf;
 	struct btrfs_root *new_root;
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct dentry *parent = dget_parent(dentry);
+	struct inode *dir;
 	int ret;
 	int err;
 	u64 objectid;
@@ -242,8 +243,13 @@ static noinline int create_subvol(struct btrfs_root *root,
 
 	ret = btrfs_find_free_objectid(NULL, root->fs_info->tree_root,
 				       0, &objectid);
-	if (ret)
+	if (ret) {
+		dput(parent);
 		return ret;
+	}
+
+	dir = parent->d_inode;
+
 	/*
 	 * 1 - inode item
 	 * 2 - refs
@@ -251,8 +257,10 @@ static noinline int create_subvol(struct btrfs_root *root,
 	 * 2 - dir items
 	 */
 	trans = btrfs_start_transaction(root, 6);
-	if (IS_ERR(trans))
+	if (IS_ERR(trans)) {
+		dput(parent);
 		return PTR_ERR(trans);
+	}
 
 	leaf = btrfs_alloc_free_block(trans, root, root->leafsize,
 				      0, objectid, NULL, 0, 0, 0);
@@ -339,6 +347,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 
 	d_instantiate(dentry, btrfs_lookup_dentry(dir, dentry));
 fail:
+	dput(parent);
 	if (async_transid) {
 		*async_transid = trans->transid;
 		err = btrfs_commit_transaction_async(trans, root, 1);
@@ -354,6 +363,7 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 			   char *name, int namelen, u64 *async_transid)
 {
 	struct inode *inode;
+	struct dentry *parent;
 	struct btrfs_pending_snapshot *pending_snapshot;
 	struct btrfs_trans_handle *trans;
 	int ret;
@@ -396,7 +406,9 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 
 	btrfs_orphan_cleanup(pending_snapshot->snap);
 
-	inode = btrfs_lookup_dentry(dentry->d_parent->d_inode, dentry);
+	parent = dget_parent(dentry);
+	inode = btrfs_lookup_dentry(parent->d_inode, dentry);
+	dput(parent);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
 		goto fail;
@@ -1669,12 +1681,11 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 		olen = len = src->i_size - off;
 	/* if we extend to eof, continue to block boundary */
 	if (off + len == src->i_size)
-		len = ((src->i_size + bs-1) & ~(bs-1))
-			- off;
+		len = ALIGN(src->i_size, bs) - off;
 
 	/* verify the end result is block aligned */
-	if ((off & (bs-1)) ||
-	    ((off + len) & (bs-1)))
+	if (!IS_ALIGNED(off, bs) || !IS_ALIGNED(off + len, bs) ||
+	    !IS_ALIGNED(destoff, bs))
 		goto out_unlock;
 
 	/* do any pending delalloc/csum calc on src, one way or
@@ -1874,8 +1885,8 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			 * but shouldn't round up the file size
 			 */
 			endoff = new_key.offset + datal;
-			if (endoff > off+olen)
-				endoff = off+olen;
+			if (endoff > destoff+olen)
+				endoff = destoff+olen;
 			if (endoff > inode->i_size)
 				btrfs_i_size_write(inode, endoff);
 

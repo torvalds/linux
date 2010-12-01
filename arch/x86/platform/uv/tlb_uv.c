@@ -1455,7 +1455,7 @@ static void __init uv_init_uvhub(int uvhub, int vector)
 	 * the below initialization can't be in firmware because the
 	 * messaging IRQ will be determined by the OS
 	 */
-	apicid = uvhub_to_first_apicid(uvhub);
+	apicid = uvhub_to_first_apicid(uvhub) | uv_apicid_hibits;
 	uv_write_global_mmr64(pnode, UVH_BAU_DATA_CONFIG,
 				      ((apicid << 32) | vector));
 }
