@@ -18,6 +18,7 @@ config CPU_S3C2440
 config CPU_S3C2442
 	bool
 	select CPU_ARM920T
+	select S3C_GPIO_PULL_DOWN
 	select S3C2410_CLOCK
 	select S3C2410_GPIO
 	select S3C2410_PM if PM
