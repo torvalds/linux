@@ -1321,27 +1321,27 @@ static void fc_tm_done(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 		 *
 		 * scsi-eh will escalate for when either happens.
 		 */
-		return;
+		goto out;
 	}
 
 	if (fc_fcp_lock_pkt(fsp))
-		return;
+		goto out;
 
 	/*
 	 * raced with eh timeout handler.
 	 */
-	if (!fsp->seq_ptr || !fsp->wait_for_comp) {
-		spin_unlock_bh(&fsp->scsi_pkt_lock);
-		return;
-	}
+	if (!fsp->seq_ptr || !fsp->wait_for_comp)
+		goto out_unlock;
 
 	fh = fc_frame_header_get(fp);
 	if (fh->fh_type != FC_TYPE_BLS)
 		fc_fcp_resp(fsp, fp);
 	fsp->seq_ptr = NULL;
 	fsp->lp->tt.exch_done(seq);
-	fc_frame_free(fp);
+out_unlock:
 	fc_fcp_unlock_pkt(fsp);
+out:
+	fc_frame_free(fp);
 }
 
 /**
