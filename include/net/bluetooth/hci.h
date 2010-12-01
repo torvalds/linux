@@ -489,7 +489,7 @@ struct hci_rp_read_local_name {
 
 #define HCI_OP_WRITE_PG_TIMEOUT		0x0c18
 
-#define HCI_OP_WRITE_SCAN_ENABLE 	0x0c1a
+#define HCI_OP_WRITE_SCAN_ENABLE	0x0c1a
 	#define SCAN_DISABLED		0x00
 	#define SCAN_INQUIRY		0x01
 	#define SCAN_PAGE		0x02
@@ -874,7 +874,7 @@ struct hci_ev_si_security {
 
 struct hci_command_hdr {
 	__le16	opcode;		/* OCF & OGF */
-	__u8 	plen;
+	__u8	plen;
 } __packed;
 
 struct hci_event_hdr {

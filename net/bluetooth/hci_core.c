@@ -44,7 +44,7 @@
 #include <net/sock.h>
 
 #include <asm/system.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -349,20 +349,23 @@ struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev, bdaddr_t *b
 void hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data)
 {
 	struct inquiry_cache *cache = &hdev->inq_cache;
-	struct inquiry_entry *e;
+	struct inquiry_entry *ie;
 
 	BT_DBG("cache %p, %s", cache, batostr(&data->bdaddr));
 
-	if (!(e = hci_inquiry_cache_lookup(hdev, &data->bdaddr))) {
+	ie = hci_inquiry_cache_lookup(hdev, &data->bdaddr);
+	if (!ie) {
 		/* Entry not in the cache. Add new one. */
-		if (!(e = kzalloc(sizeof(struct inquiry_entry), GFP_ATOMIC)))
+		ie = kzalloc(sizeof(struct inquiry_entry), GFP_ATOMIC);
+		if (!ie)
 			return;
-		e->next     = cache->list;
-		cache->list = e;
+
+		ie->next = cache->list;
+		cache->list = ie;
 	}
 
-	memcpy(&e->data, data, sizeof(*data));
-	e->timestamp = jiffies;
+	memcpy(&ie->data, data, sizeof(*data));
+	ie->timestamp = jiffies;
 	cache->timestamp = jiffies;
 }
 
@@ -422,16 +425,20 @@ int hci_inquiry(void __user *arg)
 
 	hci_dev_lock_bh(hdev);
 	if (inquiry_cache_age(hdev) > INQUIRY_CACHE_AGE_MAX ||
-					inquiry_cache_empty(hdev) ||
-					ir.flags & IREQ_CACHE_FLUSH) {
+				inquiry_cache_empty(hdev) ||
+				ir.flags & IREQ_CACHE_FLUSH) {
 		inquiry_cache_flush(hdev);
 		do_inquiry = 1;
 	}
 	hci_dev_unlock_bh(hdev);
 
 	timeo = ir.length * msecs_to_jiffies(2000);
-	if (do_inquiry && (err = hci_request(hdev, hci_inq_req, (unsigned long)&ir, timeo)) < 0)
-		goto done;
+
+	if (do_inquiry) {
+		err = hci_request(hdev, hci_inq_req, (unsigned long)&ir, timeo);
+		if (err < 0)
+			goto done;
+	}
 
 	/* for unlimited number of responses we will use buffer with 255 entries */
 	max_rsp = (ir.num_rsp == 0) ? 255 : ir.num_rsp;
@@ -439,7 +446,8 @@ int hci_inquiry(void __user *arg)
 	/* cache_dump can't sleep. Therefore we allocate temp buffer and then
 	 * copy it to the user space.
 	 */
-	if (!(buf = kmalloc(sizeof(struct inquiry_info) * max_rsp, GFP_KERNEL))) {
+	buf = kmalloc(sizeof(struct inquiry_info) *max_rsp, GFP_KERNEL);
+	if (!buf) {
 		err = -ENOMEM;
 		goto done;
 	}
@@ -611,7 +619,8 @@ int hci_dev_close(__u16 dev)
 	struct hci_dev *hdev;
 	int err;
 
-	if (!(hdev = hci_dev_get(dev)))
+	hdev = hci_dev_get(dev);
+	if (!hdev)
 		return -ENODEV;
 	err = hci_dev_do_close(hdev);
 	hci_dev_put(hdev);
@@ -623,7 +632,8 @@ int hci_dev_reset(__u16 dev)
 	struct hci_dev *hdev;
 	int ret = 0;
 
-	if (!(hdev = hci_dev_get(dev)))
+	hdev = hci_dev_get(dev);
+	if (!hdev)
 		return -ENODEV;
 
 	hci_req_lock(hdev);
@@ -663,7 +673,8 @@ int hci_dev_reset_stat(__u16 dev)
 	struct hci_dev *hdev;
 	int ret = 0;
 
-	if (!(hdev = hci_dev_get(dev)))
+	hdev = hci_dev_get(dev);
+	if (!hdev)
 		return -ENODEV;
 
 	memset(&hdev->stat, 0, sizeof(struct hci_dev_stats));
@@ -682,7 +693,8 @@ int hci_dev_cmd(unsigned int cmd, void __user *arg)
 	if (copy_from_user(&dr, arg, sizeof(dr)))
 		return -EFAULT;
 
-	if (!(hdev = hci_dev_get(dr.dev_id)))
+	hdev = hci_dev_get(dr.dev_id);
+	if (!hdev)
 		return -ENODEV;
 
 	switch (cmd) {
@@ -763,7 +775,8 @@ int hci_get_dev_list(void __user *arg)
 
 	size = sizeof(*dl) + dev_num * sizeof(*dr);
 
-	if (!(dl = kzalloc(size, GFP_KERNEL)))
+	dl = kzalloc(size, GFP_KERNEL);
+	if (!dl)
 		return -ENOMEM;
 
 	dr = dl->dev_req;
@@ -797,7 +810,8 @@ int hci_get_dev_info(void __user *arg)
 	if (copy_from_user(&di, arg, sizeof(di)))
 		return -EFAULT;
 
-	if (!(hdev = hci_dev_get(di.dev_id)))
+	hdev = hci_dev_get(di.dev_id);
+	if (!hdev)
 		return -ENODEV;
 
 	strcpy(di.name, hdev->name);
@@ -905,7 +919,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	hdev->sniff_max_interval = 800;
 	hdev->sniff_min_interval = 80;
 
-	tasklet_init(&hdev->cmd_task, hci_cmd_task,(unsigned long) hdev);
+	tasklet_init(&hdev->cmd_task, hci_cmd_task, (unsigned long) hdev);
 	tasklet_init(&hdev->rx_task, hci_rx_task, (unsigned long) hdev);
 	tasklet_init(&hdev->tx_task, hci_tx_task, (unsigned long) hdev);
 
@@ -1368,7 +1382,8 @@ void hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
 	bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
 	hci_add_acl_hdr(skb, conn->handle, flags | ACL_START);
 
-	if (!(list = skb_shinfo(skb)->frag_list)) {
+	list = skb_shinfo(skb)->frag_list;
+	if (!list) {
 		/* Non fragmented */
 		BT_DBG("%s nonfrag skb %p len %d", hdev->name, skb, skb->len);
 
@@ -1609,7 +1624,8 @@ static inline void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_conn_enter_active_mode(conn);
 
 		/* Send to upper protocol */
-		if ((hp = hci_proto[HCI_PROTO_L2CAP]) && hp->recv_acldata) {
+		hp = hci_proto[HCI_PROTO_L2CAP];
+		if (hp && hp->recv_acldata) {
 			hp->recv_acldata(conn, skb, flags);
 			return;
 		}
@@ -1644,7 +1660,8 @@ static inline void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		register struct hci_proto *hp;
 
 		/* Send to upper protocol */
-		if ((hp = hci_proto[HCI_PROTO_SCO]) && hp->recv_scodata) {
+		hp = hci_proto[HCI_PROTO_SCO];
+		if (hp && hp->recv_scodata) {
 			hp->recv_scodata(conn, skb);
 			return;
 		}
@@ -1727,7 +1744,8 @@ static void hci_cmd_task(unsigned long arg)
 	if (atomic_read(&hdev->cmd_cnt) && (skb = skb_dequeue(&hdev->cmd_q))) {
 		kfree_skb(hdev->sent_cmd);
 
-		if ((hdev->sent_cmd = skb_clone(skb, GFP_ATOMIC))) {
+		hdev->sent_cmd = skb_clone(skb, GFP_ATOMIC);
+		if (hdev->sent_cmd) {
 			atomic_dec(&hdev->cmd_cnt);
 			hci_send_frame(skb);
 			hdev->cmd_last_tx = jiffies;
