@@ -342,22 +342,18 @@ void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 	ADD_STATS(set_pte_at_current, mm == current->mm);
 	ADD_STATS(set_pte_at_kernel, mm == &init_mm);
 
-	if (mm == current->mm || mm == &init_mm) {
-		if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
-			struct multicall_space mcs;
-			mcs = xen_mc_entry(0);
+	if(paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
+		struct mmu_update u;
 
-			MULTI_update_va_mapping(mcs.mc, addr, pteval, 0);
-			ADD_STATS(set_pte_at_batched, 1);
-			xen_mc_issue(PARAVIRT_LAZY_MMU);
-			goto out;
-		} else
-			if (HYPERVISOR_update_va_mapping(addr, pteval, 0) == 0)
-				goto out;
-	}
-	xen_set_pte(ptep, pteval);
+		xen_mc_batch();
 
-out:	return;
+		u.ptr = virt_to_machine(ptep).maddr | MMU_NORMAL_PT_UPDATE;
+		u.val = pte_val_ma(pteval);
+		xen_extend_mmu_update(&u);
+
+		xen_mc_issue(PARAVIRT_LAZY_MMU);
+	} else
+		native_set_pte(ptep, pteval);
 }
 
 pte_t xen_ptep_modify_prot_start(struct mm_struct *mm,
