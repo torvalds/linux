@@ -347,6 +347,8 @@ int __init stingray_panel_init(void)
 		stingray_disp1_pdata.fb = &stingray_fb_data_p0;
 		stingray_disp1_out.modes = stingray_panel_modes_p0;
 	} else {
+		if (stingray_revision() >= STINGRAY_REVISION_P3)
+			stingray_lp8550_backlight_data.dev_ctrl_config = 0x02;
 		i2c_register_board_info(0, stingray_i2c_bus1_led_info,
 			ARRAY_SIZE(stingray_i2c_bus1_led_info));
 	}
