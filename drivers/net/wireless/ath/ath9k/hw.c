@@ -2044,7 +2044,8 @@ u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio)
 		val = REG_READ(ah, AR7010_GPIO_IN);
 		return (MS(val, AR7010_GPIO_IN_VAL) & AR_GPIO_BIT(gpio)) == 0;
 	} else if (AR_SREV_9300_20_OR_LATER(ah))
-		return MS_REG_READ(AR9300, gpio) != 0;
+		return (MS(REG_READ(ah, AR_GPIO_IN), AR9300_GPIO_IN_VAL) &
+			AR_GPIO_BIT(gpio)) != 0;
 	else if (AR_SREV_9271(ah))
 		return MS_REG_READ(AR9271, gpio) != 0;
 	else if (AR_SREV_9287_11_OR_LATER(ah))
