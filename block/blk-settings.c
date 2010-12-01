@@ -126,7 +126,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->alignment_offset = 0;
 	lim->io_opt = 0;
 	lim->misaligned = 0;
-	lim->no_cluster = 0;
+	lim->cluster = 1;
 }
 EXPORT_SYMBOL(blk_set_default_limits);
 
@@ -464,15 +464,6 @@ EXPORT_SYMBOL(blk_queue_io_opt);
 void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 {
 	blk_stack_limits(&t->limits, &b->limits, 0);
-
-	if (!t->queue_lock)
-		WARN_ON_ONCE(1);
-	else if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags)) {
-		unsigned long flags;
-		spin_lock_irqsave(t->queue_lock, flags);
-		queue_flag_clear(QUEUE_FLAG_CLUSTER, t);
-		spin_unlock_irqrestore(t->queue_lock, flags);
-	}
 }
 EXPORT_SYMBOL(blk_queue_stack_limits);
 
@@ -545,7 +536,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	t->io_min = max(t->io_min, b->io_min);
 	t->io_opt = lcm(t->io_opt, b->io_opt);
 
-	t->no_cluster |= b->no_cluster;
+	t->cluster &= b->cluster;
 	t->discard_zeroes_data &= b->discard_zeroes_data;
 
 	/* Physical block size a multiple of the logical block size? */
@@ -641,7 +632,6 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 		       sector_t offset)
 {
 	struct request_queue *t = disk->queue;
-	struct request_queue *b = bdev_get_queue(bdev);
 
 	if (bdev_stack_limits(&t->limits, bdev, offset >> 9) < 0) {
 		char top[BDEVNAME_SIZE], bottom[BDEVNAME_SIZE];
@@ -651,17 +641,6 @@ void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 
 		printk(KERN_NOTICE "%s: Warning: Device %s is misaligned\n",
 		       top, bottom);
-	}
-
-	if (!t->queue_lock)
-		WARN_ON_ONCE(1);
-	else if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(t->queue_lock, flags);
-		if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags))
-			queue_flag_clear(QUEUE_FLAG_CLUSTER, t);
-		spin_unlock_irqrestore(t->queue_lock, flags);
 	}
 }
 EXPORT_SYMBOL(disk_stack_limits);
