@@ -42,26 +42,37 @@ struct ceph_mds_reply_info_in {
 };
 
 /*
- * parsed info about an mds reply, including information about the
- * target inode and/or its parent directory and dentry, and directory
- * contents (for readdir results).
+ * parsed info about an mds reply, including information about
+ * either: 1) the target inode and/or its parent directory and dentry,
+ * and directory contents (for readdir results), or
+ * 2) the file range lock info (for fcntl F_GETLK results).
  */
 struct ceph_mds_reply_info_parsed {
 	struct ceph_mds_reply_head    *head;
 
+	/* trace */
 	struct ceph_mds_reply_info_in diri, targeti;
 	struct ceph_mds_reply_dirfrag *dirfrag;
 	char                          *dname;
 	u32                           dname_len;
 	struct ceph_mds_reply_lease   *dlease;
 
-	struct ceph_mds_reply_dirfrag *dir_dir;
-	int                           dir_nr;
-	char                          **dir_dname;
-	u32                           *dir_dname_len;
-	struct ceph_mds_reply_lease   **dir_dlease;
-	struct ceph_mds_reply_info_in *dir_in;
-	u8                            dir_complete, dir_end;
+	/* extra */
+	union {
+		/* for fcntl F_GETLK results */
+		struct ceph_filelock *filelock_reply;
+
+		/* for readdir results */
+		struct {
+			struct ceph_mds_reply_dirfrag *dir_dir;
+			int                           dir_nr;
+			char                          **dir_dname;
+			u32                           *dir_dname_len;
+			struct ceph_mds_reply_lease   **dir_dlease;
+			struct ceph_mds_reply_info_in *dir_in;
+			u8                            dir_complete, dir_end;
+		};
+	};
 
 	/* encoded blob describing snapshot contexts for certain
 	   operations (e.g., open) */

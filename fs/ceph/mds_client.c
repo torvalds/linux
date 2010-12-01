@@ -202,6 +202,38 @@ out_bad:
 }
 
 /*
+ * parse fcntl F_GETLK results
+ */
+static int parse_reply_info_filelock(void **p, void *end,
+                struct ceph_mds_reply_info_parsed *info)
+{
+	if (*p + sizeof(*info->filelock_reply) > end)
+		goto bad;
+
+	info->filelock_reply = *p;
+	*p += sizeof(*info->filelock_reply);
+
+	if (unlikely(*p != end))
+		goto bad;
+	return 0;
+
+bad:
+	return -EIO;
+}
+
+/*
+ * parse extra results
+ */
+static int parse_reply_info_extra(void **p, void *end,
+                struct ceph_mds_reply_info_parsed *info)
+{
+	if (info->head->op == CEPH_MDS_OP_GETFILELOCK)
+		return parse_reply_info_filelock(p, end, info);
+	else
+		return parse_reply_info_dir(p, end, info);
+}
+
+/*
  * parse entire mds reply
  */
 static int parse_reply_info(struct ceph_msg *msg,
@@ -223,10 +255,10 @@ static int parse_reply_info(struct ceph_msg *msg,
 			goto out_bad;
 	}
 
-	/* dir content */
+	/* extra */
 	ceph_decode_32_safe(&p, end, len, bad);
 	if (len > 0) {
-		err = parse_reply_info_dir(&p, p+len, info);
+		err = parse_reply_info_extra(&p, p+len, info);
 		if (err < 0)
 			goto out_bad;
 	}
@@ -2074,7 +2106,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 
 	mutex_lock(&session->s_mutex);
 	if (err < 0) {
-		pr_err("mdsc_handle_reply got corrupt reply mds%d\n", mds);
+		pr_err("mdsc_handle_reply got corrupt reply mds%d(tid:%lld)\n", mds, tid);
 		ceph_msg_dump(msg);
 		goto out_err;
 	}
@@ -2094,7 +2126,8 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	mutex_lock(&req->r_fill_mutex);
 	err = ceph_fill_trace(mdsc->fsc->sb, req, req->r_session);
 	if (err == 0) {
-		if (result == 0 && rinfo->dir_nr)
+		if (result == 0 && req->r_op != CEPH_MDS_OP_GETFILELOCK &&
+		    rinfo->dir_nr)
 			ceph_readdir_prepopulate(req, req->r_session);
 		ceph_unreserve_caps(mdsc, &req->r_caps_reservation);
 	}
