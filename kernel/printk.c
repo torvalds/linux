@@ -1332,6 +1332,7 @@ void register_console(struct console *newcon)
 		spin_unlock_irqrestore(&logbuf_lock, flags);
 	}
 	release_console_sem();
+	console_sysfs_notify();
 
 	/*
 	 * By unregistering the bootconsoles after we enable the real console
@@ -1390,6 +1391,7 @@ int unregister_console(struct console *console)
 		console_drivers->flags |= CON_CONSDEV;
 
 	release_console_sem();
+	console_sysfs_notify();
 	return res;
 }
 EXPORT_SYMBOL(unregister_console);

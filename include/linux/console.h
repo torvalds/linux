@@ -151,7 +151,7 @@ extern int is_console_locked(void);
 extern int braille_register_console(struct console *, int index,
 		char *console_options, char *braille_options);
 extern int braille_unregister_console(struct console *);
-
+extern void console_sysfs_notify(void);
 extern int console_suspend_enabled;
 
 /* Suspend and resume console messages over PM events */
