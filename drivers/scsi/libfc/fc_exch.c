@@ -108,7 +108,6 @@ struct fc_exch_mgr {
 		atomic_t non_bls_resp;
 	} stats;
 };
-#define	fc_seq_exch(sp) container_of(sp, struct fc_exch, seq)
 
 /**
  * struct fc_exch_mgr_anchor - primary structure for list of EMs
