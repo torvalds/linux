@@ -52,6 +52,8 @@
 #include <math.h>
 #include <locale.h>
 
+#define DEFAULT_SEPARATOR	" "
+
 static struct perf_event_attr default_attrs[] = {
 
   { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_TASK_CLOCK		},
@@ -83,7 +85,10 @@ static int			thread_num			=  0;
 static pid_t			child_pid			= -1;
 static bool			null_run			=  false;
 static bool			big_num				=  true;
+static int			big_num_opt			=  -1;
 static const char		*cpu_list;
+static const char		*csv_sep			= NULL;
+static bool			csv_output			= false;
 
 
 static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
@@ -449,12 +454,18 @@ static void print_noise(int counter, double avg)
 static void nsec_printout(int cpu, int counter, double avg)
 {
 	double msecs = avg / 1e6;
+	char cpustr[16] = { '\0', };
+	const char *fmt = csv_output ? "%s%.6f%s%s" : "%s%18.6f%s%-24s";
 
 	if (no_aggr)
-		fprintf(stderr, "CPU%-4d %18.6f  %-24s",
-			cpumap[cpu], msecs, event_name(counter));
-	else
-		fprintf(stderr, " %18.6f  %-24s", msecs, event_name(counter));
+		sprintf(cpustr, "CPU%*d%s",
+			csv_output ? 0 : -4,
+			cpumap[cpu], csv_sep);
+
+	fprintf(stderr, fmt, cpustr, msecs, csv_sep, event_name(counter));
+
+	if (csv_output)
+		return;
 
 	if (MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter)) {
 		fprintf(stderr, " # %10.3f CPUs ",
@@ -466,18 +477,26 @@ static void abs_printout(int cpu, int counter, double avg)
 {
 	double total, ratio = 0.0;
 	char cpustr[16] = { '\0', };
+	const char *fmt;
+
+	if (csv_output)
+		fmt = "%s%.0f%s%s";
+	else if (big_num)
+		fmt = "%s%'18.0f%s%-24s";
+	else
+		fmt = "%s%18.0f%s%-24s";
 
 	if (no_aggr)
-		sprintf(cpustr, "CPU%-4d", cpumap[cpu]);
+		sprintf(cpustr, "CPU%*d%s",
+			csv_output ? 0 : -4,
+			cpumap[cpu], csv_sep);
 	else
 		cpu = 0;
 
-	if (big_num)
-		fprintf(stderr, "%s %'18.0f  %-24s",
-			cpustr, avg, event_name(counter));
-	else
-		fprintf(stderr, "%s %18.0f  %-24s",
-			cpustr, avg, event_name(counter));
+	fprintf(stderr, fmt, cpustr, avg, csv_sep, event_name(counter));
+
+	if (csv_output)
+		return;
 
 	if (MATCH_EVENT(HARDWARE, HW_INSTRUCTIONS, counter)) {
 		total = avg_stats(&runtime_cycles_stats[cpu]);
@@ -515,8 +534,9 @@ static void print_counter_aggr(int counter)
 	int scaled = event_scaled[counter];
 
 	if (scaled == -1) {
-		fprintf(stderr, " %18s  %-24s\n",
-			"<not counted>", event_name(counter));
+		fprintf(stderr, "%*s%s%-24s\n",
+			csv_output ? 0 : 18,
+			"<not counted>", csv_sep, event_name(counter));
 		return;
 	}
 
@@ -524,6 +544,11 @@ static void print_counter_aggr(int counter)
 		nsec_printout(-1, counter, avg);
 	else
 		abs_printout(-1, counter, avg);
+
+	if (csv_output) {
+		fputc('\n', stderr);
+		return;
+	}
 
 	print_noise(counter, avg);
 
@@ -554,8 +579,12 @@ static void print_counter(int counter)
 		ena = cpu_counts[cpu][counter].ena;
 		run = cpu_counts[cpu][counter].run;
 		if (run == 0 || ena == 0) {
-			fprintf(stderr, "CPU%-4d %18s  %-24s", cpumap[cpu],
-					"<not counted>", event_name(counter));
+			fprintf(stderr, "CPU%*d%s%*s%s%-24s",
+				csv_output ? 0 : -4,
+				cpumap[cpu], csv_sep,
+				csv_output ? 0 : 18,
+				"<not counted>", csv_sep,
+				event_name(counter));
 
 			fprintf(stderr, "\n");
 			continue;
@@ -566,11 +595,13 @@ static void print_counter(int counter)
 		else
 			abs_printout(cpu, counter, val);
 
-		print_noise(counter, 1.0);
+		if (!csv_output) {
+			print_noise(counter, 1.0);
 
-		if (run != ena) {
-			fprintf(stderr, "  (scaled from %.2f%%)",
+			if (run != ena) {
+				fprintf(stderr, "  (scaled from %.2f%%)",
 					100.0 * run / ena);
+			}
 		}
 		fprintf(stderr, "\n");
 	}
@@ -582,21 +613,23 @@ static void print_stat(int argc, const char **argv)
 
 	fflush(stdout);
 
-	fprintf(stderr, "\n");
-	fprintf(stderr, " Performance counter stats for ");
-	if(target_pid == -1 && target_tid == -1) {
-		fprintf(stderr, "\'%s", argv[0]);
-		for (i = 1; i < argc; i++)
-			fprintf(stderr, " %s", argv[i]);
-	} else if (target_pid != -1)
-		fprintf(stderr, "process id \'%d", target_pid);
-	else
-		fprintf(stderr, "thread id \'%d", target_tid);
+	if (!csv_output) {
+		fprintf(stderr, "\n");
+		fprintf(stderr, " Performance counter stats for ");
+		if(target_pid == -1 && target_tid == -1) {
+			fprintf(stderr, "\'%s", argv[0]);
+			for (i = 1; i < argc; i++)
+				fprintf(stderr, " %s", argv[i]);
+		} else if (target_pid != -1)
+			fprintf(stderr, "process id \'%d", target_pid);
+		else
+			fprintf(stderr, "thread id \'%d", target_tid);
 
-	fprintf(stderr, "\'");
-	if (run_count > 1)
-		fprintf(stderr, " (%d runs)", run_count);
-	fprintf(stderr, ":\n\n");
+		fprintf(stderr, "\'");
+		if (run_count > 1)
+			fprintf(stderr, " (%d runs)", run_count);
+		fprintf(stderr, ":\n\n");
+	}
 
 	if (no_aggr) {
 		for (counter = 0; counter < nr_counters; counter++)
@@ -606,15 +639,17 @@ static void print_stat(int argc, const char **argv)
 			print_counter_aggr(counter);
 	}
 
-	fprintf(stderr, "\n");
-	fprintf(stderr, " %18.9f  seconds time elapsed",
-			avg_stats(&walltime_nsecs_stats)/1e9);
-	if (run_count > 1) {
-		fprintf(stderr, "   ( +- %7.3f%% )",
+	if (!csv_output) {
+		fprintf(stderr, "\n");
+		fprintf(stderr, " %18.9f  seconds time elapsed",
+				avg_stats(&walltime_nsecs_stats)/1e9);
+		if (run_count > 1) {
+			fprintf(stderr, "   ( +- %7.3f%% )",
 				100*stddev_stats(&walltime_nsecs_stats) /
 				avg_stats(&walltime_nsecs_stats));
+		}
+		fprintf(stderr, "\n\n");
 	}
-	fprintf(stderr, "\n\n");
 }
 
 static volatile int signr = -1;
@@ -644,6 +679,13 @@ static const char * const stat_usage[] = {
 	NULL
 };
 
+static int stat__set_big_num(const struct option *opt __used,
+			     const char *s __used, int unset)
+{
+	big_num_opt = unset ? 0 : 1;
+	return 0;
+}
+
 static const struct option options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
 		     "event selector. use 'perf list' to list available events",
@@ -664,12 +706,15 @@ static const struct option options[] = {
 		    "repeat command and print average + stddev (max: 100)"),
 	OPT_BOOLEAN('n', "null", &null_run,
 		    "null run - dont start any counters"),
-	OPT_BOOLEAN('B', "big-num", &big_num,
-		    "print large numbers with thousands\' separators"),
+	OPT_CALLBACK_NOOPT('B', "big-num", NULL, NULL, 
+			   "print large numbers with thousands\' separators",
+			   stat__set_big_num),
 	OPT_STRING('C', "cpu", &cpu_list, "cpu",
 		    "list of cpus to monitor in system-wide"),
 	OPT_BOOLEAN('A', "no-aggr", &no_aggr,
 		    "disable CPU count aggregation"),
+	OPT_STRING('x', "field-separator", &csv_sep, "separator",
+		   "print counts with custom separator"),
 	OPT_END()
 };
 
@@ -682,6 +727,25 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, options, stat_usage,
 		PARSE_OPT_STOP_AT_NON_OPTION);
+
+	if (csv_sep)
+		csv_output = true;
+	else
+		csv_sep = DEFAULT_SEPARATOR;
+
+	/*
+	 * let the spreadsheet do the pretty-printing
+	 */
+	if (csv_output) {
+		/* User explicitely passed -B? */
+		if (big_num_opt == 1) {
+			fprintf(stderr, "-B option not supported with -x\n");
+			usage_with_options(stat_usage, options);
+		} else /* Nope, so disable big number formatting */
+			big_num = false;
+	} else if (big_num_opt == 0) /* User passed --no-big-num */
+		big_num = false;
+
 	if (!argc && target_pid == -1 && target_tid == -1)
 		usage_with_options(stat_usage, options);
 	if (run_count <= 0)

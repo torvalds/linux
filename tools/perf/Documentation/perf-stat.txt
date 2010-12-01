@@ -78,6 +78,11 @@ This option is only valid in system-wide mode.
 --verbose::
         be more verbose (show counter open errors, etc)
 
+-x SEP::
+--field-separator SEP::
+print counts using a CSV-style output to make it easy to import directly into
+spreadsheets. Columns are separated by the string specified in SEP.
+
 EXAMPLES
 --------
 
