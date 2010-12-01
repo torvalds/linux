@@ -1703,8 +1703,10 @@ static int fc_lport_els_request(struct fc_bsg_job *job,
 	info->sg = job->reply_payload.sg_list;
 
 	if (!lport->tt.exch_seq_send(lport, fp, fc_lport_bsg_resp,
-				     NULL, info, tov))
+				     NULL, info, tov)) {
+		kfree(info);
 		return -ECOMM;
+	}
 	return 0;
 }
 
