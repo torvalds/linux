@@ -42,7 +42,7 @@ extern void pci_create_OF_bus_map(void);
 
 /* Translate a DMA address from device space to CPU space */
 extern u64 of_translate_dma_address(struct device_node *dev,
-				    const u32 *in_addr);
+				    const __be32 *in_addr);
 
 #ifdef CONFIG_PCI
 extern unsigned long pci_address_to_pio(phys_addr_t address);
