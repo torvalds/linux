@@ -973,7 +973,13 @@ static void fc_fcp_complete_locked(struct fc_fcp_pkt *fsp)
 		}
 		lport->tt.exch_done(seq);
 	}
-	fc_io_compl(fsp);
+	/*
+	 * Some resets driven by SCSI are not I/Os and do not have
+	 * SCSI commands associated with the requests. We should not
+	 * call I/O completion if we do not have a SCSI command.
+	 */
+	if (fsp->cmd)
+		fc_io_compl(fsp);
 }
 
 /**
