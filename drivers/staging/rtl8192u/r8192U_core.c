@@ -2198,6 +2198,8 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 
 	priv->rx_urb = kmalloc(sizeof(struct urb *) * (MAX_RX_URB+1),
 				GFP_KERNEL);
+	if (priv->rx_urb == NULL)
+		return -ENOMEM;
 
 #ifndef JACKSON_NEW_RX
 	for(i=0;i<(MAX_RX_URB+1);i++){
