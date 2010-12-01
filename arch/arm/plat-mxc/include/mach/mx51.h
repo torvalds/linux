@@ -301,7 +301,7 @@
 #define MX51_MXC_INT_GPIO4_HIGH		57
 #define MX51_MXC_INT_WDOG1		58
 #define MX51_MXC_INT_WDOG2		59
-#define MX51_MXC_INT_KPP		60
+#define MX51_INT_KPP			60
 #define MX51_INT_PWM1			61
 #define MX51_INT_I2C1			62
 #define MX51_INT_I2C2			63
