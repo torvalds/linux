@@ -1361,12 +1361,22 @@ static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
 {
 	struct fcoe_fcf *fcf;
 	struct fcoe_fcf *best = NULL;
+	struct fcoe_fcf *first;
+
+	first = list_first_entry(&fip->fcfs, struct fcoe_fcf, list);
 
 	list_for_each_entry(fcf, &fip->fcfs, list) {
 		LIBFCOE_FIP_DBG(fip, "consider FCF for fab %16.16llx "
 				"VFID %d map %x val %d\n",
 				fcf->fabric_name, fcf->vfid,
 				fcf->fc_map, fcoe_ctlr_mtu_valid(fcf));
+		if (fcf->fabric_name != first->fabric_name ||
+		    fcf->vfid != first->vfid ||
+		    fcf->fc_map != first->fc_map) {
+			LIBFCOE_FIP_DBG(fip, "Conflicting fabric, VFID, "
+					"or FC-MAP\n");
+			return NULL;
+		}
 		if (!fcoe_ctlr_fcf_usable(fcf)) {
 			LIBFCOE_FIP_DBG(fip, "FCF for fab %16.16llx "
 					"map %x %svalid %savailable\n",
@@ -1379,13 +1389,6 @@ static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
 		if (!best) {
 			best = fcf;
 			continue;
-		}
-		if (fcf->fabric_name != best->fabric_name ||
-		    fcf->vfid != best->vfid ||
-		    fcf->fc_map != best->fc_map) {
-			LIBFCOE_FIP_DBG(fip, "Conflicting fabric, VFID, "
-					"or FC-MAP\n");
-			return;
 		}
 		if (fcf->pri < best->pri)
 			best = fcf;
