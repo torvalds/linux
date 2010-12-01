@@ -1024,6 +1024,13 @@ static int ath9k_hif_usb_suspend(struct usb_interface *interface,
 	struct hif_device_usb *hif_dev =
 		(struct hif_device_usb *) usb_get_intfdata(interface);
 
+	/*
+	 * The device has to be set to FULLSLEEP mode in case no
+	 * interface is up.
+	 */
+	if (!(hif_dev->flags & HIF_USB_START))
+		ath9k_htc_suspend(hif_dev->htc_handle);
+
 	ath9k_hif_usb_dealloc_urbs(hif_dev);
 
 	return 0;
