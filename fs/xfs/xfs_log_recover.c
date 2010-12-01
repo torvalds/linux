@@ -2674,71 +2674,13 @@ xlog_recover_do_efd_trans(
 }
 
 /*
- * Perform the transaction
- *
- * If the transaction modifies a buffer or inode, do it now.  Otherwise,
- * EFIs and EFDs get queued up by adding entries into the AIL for them.
- */
-STATIC int
-xlog_recover_do_trans(
-	xlog_t			*log,
-	xlog_recover_t		*trans,
-	int			pass)
-{
-	int			error = 0;
-	xlog_recover_item_t	*item;
-
-	error = xlog_recover_reorder_trans(log, trans, pass);
-	if (error)
-		return error;
-
-	list_for_each_entry(item, &trans->r_itemq, ri_list) {
-		trace_xfs_log_recover_item_recover(log, trans, item, pass);
-		switch (ITEM_TYPE(item)) {
-		case XFS_LI_BUF:
-			error = xlog_recover_do_buffer_trans(log, item, pass);
-			break;
-		case XFS_LI_INODE:
-			error = xlog_recover_do_inode_trans(log, item, pass);
-			break;
-		case XFS_LI_EFI:
-			error = xlog_recover_do_efi_trans(log, item,
-							  trans->r_lsn, pass);
-			break;
-		case XFS_LI_EFD:
-			xlog_recover_do_efd_trans(log, item, pass);
-			error = 0;
-			break;
-		case XFS_LI_DQUOT:
-			error = xlog_recover_do_dquot_trans(log, item, pass);
-			break;
-		case XFS_LI_QUOTAOFF:
-			error = xlog_recover_do_quotaoff_trans(log, item,
-							       pass);
-			break;
-		default:
-			xlog_warn(
-	"XFS: invalid item type (%d) xlog_recover_do_trans", ITEM_TYPE(item));
-			ASSERT(0);
-			error = XFS_ERROR(EIO);
-			break;
-		}
-
-		if (error)
-			return error;
-	}
-
-	return 0;
-}
-
-/*
  * Free up any resources allocated by the transaction
  *
  * Remember that EFIs, EFDs, and IUNLINKs are handled later.
  */
 STATIC void
 xlog_recover_free_trans(
-	xlog_recover_t		*trans)
+	struct xlog_recover	*trans)
 {
 	xlog_recover_item_t	*item, *n;
 	int			i;
@@ -2757,17 +2699,64 @@ xlog_recover_free_trans(
 }
 
 STATIC int
-xlog_recover_commit_trans(
-	xlog_t			*log,
-	xlog_recover_t		*trans,
+xlog_recover_commit_item(
+	struct log		*log,
+	struct xlog_recover	*trans,
+	xlog_recover_item_t	*item,
 	int			pass)
 {
-	int			error;
+	trace_xfs_log_recover_item_recover(log, trans, item, pass);
+
+	switch (ITEM_TYPE(item)) {
+	case XFS_LI_BUF:
+		return xlog_recover_do_buffer_trans(log, item, pass);
+	case XFS_LI_INODE:
+		return xlog_recover_do_inode_trans(log, item, pass);
+	case XFS_LI_EFI:
+		return xlog_recover_do_efi_trans(log, item, trans->r_lsn, pass);
+	case XFS_LI_EFD:
+		xlog_recover_do_efd_trans(log, item, pass);
+		return 0;
+	case XFS_LI_DQUOT:
+		return xlog_recover_do_dquot_trans(log, item, pass);
+	case XFS_LI_QUOTAOFF:
+		return xlog_recover_do_quotaoff_trans(log, item, pass);
+	default:
+		xlog_warn(
+	"XFS: invalid item type (%d) xlog_recover_do_trans", ITEM_TYPE(item));
+		ASSERT(0);
+		return XFS_ERROR(EIO);
+	}
+}
+
+/*
+ * Perform the transaction.
+ *
+ * If the transaction modifies a buffer or inode, do it now.  Otherwise,
+ * EFIs and EFDs get queued up by adding entries into the AIL for them.
+ */
+STATIC int
+xlog_recover_commit_trans(
+	struct log		*log,
+	struct xlog_recover	*trans,
+	int			pass)
+{
+	int			error = 0;
+	xlog_recover_item_t	*item;
 
 	hlist_del(&trans->r_list);
-	if ((error = xlog_recover_do_trans(log, trans, pass)))
+
+	error = xlog_recover_reorder_trans(log, trans, pass);
+	if (error)
 		return error;
-	xlog_recover_free_trans(trans);			/* no error */
+
+	list_for_each_entry(item, &trans->r_itemq, ri_list) {
+		error = xlog_recover_commit_item(log, trans, item, pass);
+		if (error)
+			return error;
+	}
+
+	xlog_recover_free_trans(trans);
 	return 0;
 }
 
