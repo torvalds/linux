@@ -355,6 +355,12 @@ throtl_start_new_slice(struct throtl_data *td, struct throtl_grp *tg, bool rw)
 			tg->slice_end[rw], jiffies);
 }
 
+static inline void throtl_set_slice_end(struct throtl_data *td,
+		struct throtl_grp *tg, bool rw, unsigned long jiffy_end)
+{
+	tg->slice_end[rw] = roundup(jiffy_end, throtl_slice);
+}
+
 static inline void throtl_extend_slice(struct throtl_data *td,
 		struct throtl_grp *tg, bool rw, unsigned long jiffy_end)
 {
@@ -390,6 +396,16 @@ throtl_trim_slice(struct throtl_data *td, struct throtl_grp *tg, bool rw)
 	 */
 	if (throtl_slice_used(td, tg, rw))
 		return;
+
+	/*
+	 * A bio has been dispatched. Also adjust slice_end. It might happen
+	 * that initially cgroup limit was very low resulting in high
+	 * slice_end, but later limit was bumped up and bio was dispached
+	 * sooner, then we need to reduce slice_end. A high bogus slice_end
+	 * is bad because it does not allow new slice to start.
+	 */
+
+	throtl_set_slice_end(td, tg, rw, jiffies + throtl_slice);
 
 	time_elapsed = jiffies - tg->slice_start[rw];
 
