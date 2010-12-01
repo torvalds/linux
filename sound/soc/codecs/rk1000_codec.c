@@ -96,7 +96,7 @@ static unsigned int rk1000_codec_read(struct snd_soc_codec *codec, unsigned int 
 	struct i2c_client *client = codec->control_data;
 
 	/* Read register */
-	xfer[0].addr = (client->addr& 0x60)|(reg+1);
+	xfer[0].addr = (client->addr& 0x60)|(reg);
 	xfer[0].flags = I2C_M_RD;
 	xfer[0].len = 1;
 	xfer[0].buf = &reg;
@@ -126,12 +126,12 @@ static int rk1000_codec_write(struct snd_soc_codec *codec, unsigned int reg,
 {
 	u8 data[2];
 	struct i2c_client *i2c;
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+	DBG("Enter::%s, %d, reg=0x%02X, value=0x%02X\n",__FUNCTION__,__LINE__, reg, value);
 	data[0] = value & 0x00ff;
 	rk1000_codec_write_reg_cache (codec, reg, value);
 	i2c = (struct i2c_client *)codec->control_data;
 	i2c->addr = (i2c->addr & 0x60)|reg;
-	if (codec->hw_write(codec->control_data, data, 1) == 2){
+	if (codec->hw_write(codec->control_data, data, 1) == 1){
                 DBG("================%s Run OK================\n",__FUNCTION__,__LINE__);
 		return 0;
 	}else{
@@ -372,7 +372,7 @@ static int rk1000_codec_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct rk1000_codec_priv *rk1000_codec = codec->private_data;
 	
-    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 		
 	switch (freq) {
 	case 11289600:
@@ -546,63 +546,64 @@ static int rk1000_codec_pcm_hw_params(struct snd_pcm_substream *substream,
 	DBG("Enter::%s----%d  iface=%x srate =%x rate=%d\n",__FUNCTION__,__LINE__,iface,srate,params_rate(params));
 	
 	rk1000_codec_write(codec,ACCELCODEC_R0C, 0x17);  
-    rk1000_codec_write(codec,ACCELCODEC_R04, ASC_INT_MUTE_L|ASC_INT_MUTE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);   //soft mute
-    //必须先将clk和EN_INT都disable掉，否则切换bclk分频值可能导致codec内部时序混乱掉，
-    //表现出来的现象是，以后的音乐都变成了噪音，而且就算把输入codec的I2S_DATAOUT断开也一样出噪音
-    rk1000_codec_write(codec,ACCELCODEC_R0B, ASC_DEC_DISABLE|ASC_INT_DISABLE);  //0x00
+        rk1000_codec_write(codec,ACCELCODEC_R04, ASC_INT_MUTE_L|ASC_INT_MUTE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);   //soft mute
+        //必须先将clk和EN_INT都disable掉，否则切换bclk分频值可能导致codec内部时序混乱掉，
+        //表现出来的现象是，以后的音乐都变成了噪音，而且就算把输入codec的I2S_DATAOUT断开也一样出噪音
+        rk1000_codec_write(codec,ACCELCODEC_R0B, ASC_DEC_DISABLE|ASC_INT_DISABLE);  //0x00
 	
 	/* set iface & srate */
 	rk1000_codec_write(codec, ACCELCODEC_R09, iface);
 	if (coeff >= 0){
 		rk1000_codec_write(codec, ACCELCODEC_R0A, (coeff_div[coeff].sr << 1) | coeff_div[coeff].usb|ASC_CLKNODIV|ASC_CLK_ENABLE);
-	    rk1000_codec_write(codec, ACCELCODEC_R00, srate|coeff_div[coeff].bclk);
+	        rk1000_codec_write(codec, ACCELCODEC_R00, srate|coeff_div[coeff].bclk);
 	}		
-    rk1000_codec_write(codec,ACCELCODEC_R0B, gR0BReg);
+        rk1000_codec_write(codec,ACCELCODEC_R0B, gR0BReg);
 	return 0;
 }
 
 void PhaseOut(struct snd_soc_codec *codec,u32 nStep, u32 us)
 {
-    DBG("%s[%d]\n",__FUNCTION__,__LINE__); 
-    rk1000_codec_write(codec,ACCELCODEC_R17, 0x0F|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL
-    rk1000_codec_write(codec,ACCELCODEC_R18, 0x0F|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOR
-    udelay(us);
+        DBG("%s[%d]\n",__FUNCTION__,__LINE__); 
+        rk1000_codec_write(codec,ACCELCODEC_R17, 0x0F|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL
+        rk1000_codec_write(codec,ACCELCODEC_R18, 0x0F|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOR
+        udelay(us);
 }
 
 void PhaseIn(struct snd_soc_codec *codec,u32 nStep, u32 us)
 {
-    DBG("%s[%d]\n",__FUNCTION__,__LINE__); 
-    rk1000_codec_write(codec,ACCELCODEC_R17, 0x0f|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL
-    rk1000_codec_write(codec,ACCELCODEC_R18, 0x0f|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN); //gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOR
-    udelay(us);
+        DBG("%s[%d]\n",__FUNCTION__,__LINE__); 
+        rk1000_codec_write(codec,ACCELCODEC_R17, 0x0f|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL
+        rk1000_codec_write(codec,ACCELCODEC_R18, 0x0f|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN); //gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOR
+        udelay(us);
 }
 
 static int rk1000_codec_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	
-	DBG("Enter::%s----%d--mute=%d\n",__FUNCTION__,__LINE__,mute);
-	if (mute){
-	    PhaseOut(codec,1, 5000);
-		rk1000_codec_write(codec,ACCELCODEC_R19, 0xFF);  //AOM
-        rk1000_codec_write(codec,ACCELCODEC_R04, ASC_INT_MUTE_L|ASC_INT_MUTE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);  //soft mute   
-	}else{		
-		rk1000_codec_write(codec,ACCELCODEC_R1D, 0x2a);  //setup Vmid and Vref, other module power down
-		rk1000_codec_write(codec,ACCELCODEC_R1E, 0x40);  ///|ASC_PDASDML_ENABLE);
-        rk1000_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE|ASC_PDPAM_ENABLE);  ///|ASC_PDMICB_ENABLE|ASC_PDMIXM_ENABLE);
-        PhaseIn(codec,1, 5000);
-		///if(gCodecVol != 0){
-        rk1000_codec_write(codec,ACCELCODEC_R04, ASC_INT_ACTIVE_L|ASC_INT_ACTIVE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);
-        //}
-        rk1000_codec_write(codec,ACCELCODEC_R19, 0x7F);  //AOM
-        #if 0
-	    /*disable speaker */
-	    rockchip_mux_api_set(SPK_IOMUX_PIN_NAME, SPK_IOMUX_PIN_DIR);
-	    GPIOSetPinDirection(SPK_CTRL_PIN,GPIO_OUT);
-	    GPIOSetPinLevel(SPK_CTRL_PIN,GPIO_HIGH);
-       #endif
-	}
-	return 0;
+        struct snd_soc_codec *codec = dai->codec;
+
+        DBG("Enter::%s----%d--mute=%d\n",__FUNCTION__,__LINE__,mute);
+    
+        if (mute){
+                PhaseOut(codec,1, 5000);
+                rk1000_codec_write(codec,ACCELCODEC_R19, 0xFF);  //AOM
+                rk1000_codec_write(codec,ACCELCODEC_R04, ASC_INT_MUTE_L|ASC_INT_MUTE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);  //soft mute   
+        }else{		
+                rk1000_codec_write(codec,ACCELCODEC_R1D, 0x2a);  //setup Vmid and Vref, other module power down
+                rk1000_codec_write(codec,ACCELCODEC_R1E, 0x40);  ///|ASC_PDASDML_ENABLE);
+                rk1000_codec_write(codec,ACCELCODEC_R1F, 0x09|ASC_PDMIXM_ENABLE|ASC_PDPAM_ENABLE);  ///|ASC_PDMICB_ENABLE|ASC_PDMIXM_ENABLE);
+                PhaseIn(codec,1, 5000);
+                ///if(gCodecVol != 0){
+                rk1000_codec_write(codec,ACCELCODEC_R04, ASC_INT_ACTIVE_L|ASC_INT_ACTIVE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);
+                //}
+                rk1000_codec_write(codec,ACCELCODEC_R19, 0x7F);  //AOM
+                #if 0
+                /*disable speaker */
+                rockchip_mux_api_set(SPK_IOMUX_PIN_NAME, SPK_IOMUX_PIN_DIR);
+                GPIOSetPinDirection(SPK_CTRL_PIN,GPIO_OUT);
+                GPIOSetPinLevel(SPK_CTRL_PIN,GPIO_HIGH);
+                #endif
+        }
+        return 0;
 }
 
 static int rk1000_codec_set_bias_level(struct snd_soc_codec *codec,

@@ -94,7 +94,7 @@ static int rockchip_dma_buffer_set_enqueue(struct rockchip_runtime_data *prtd, d
 {   
 	struct rockchip_dma_buf_set *sg_buf;
 	
-    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	sg_buf = kzalloc(sizeof(struct rockchip_dma_buf_set), GFP_ATOMIC);/* ddl@rock-chips.com:GFP_KERNEL->GFP_ATOMIC */
 	
 	if (sg_buf == NULL) {
@@ -122,15 +122,13 @@ static int rockchip_dma_buffer_set_enqueue(struct rockchip_runtime_data *prtd, d
 
 void rockchip_pcm_dma_irq(s32 ch, void *data);
 
-
-
 void audio_start_dma(struct snd_pcm_substream *substream, int mode)
 {
 	struct rockchip_runtime_data *prtd;
 	unsigned long flags;
 	struct rockchip_dma_buf_set *sg_buf;
     
-    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
 	prtd = substream->runtime->private_data;
 
@@ -209,18 +207,25 @@ static void rockchip_pcm_enqueue(struct snd_pcm_substream *substream)
 	struct rockchip_runtime_data *prtd = substream->runtime->private_data;	
 	dma_addr_t pos = prtd->dma_pos;
 	int ret;
-    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+	char* vpos;
+	int i;
         
-    while (prtd->dma_loaded < prtd->dma_limit) {
+	
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        
+        while (prtd->dma_loaded < prtd->dma_limit) {
 		unsigned long len = prtd->dma_period;
 		
-        DBG("dma_loaded: %d\n", prtd->dma_loaded);
+                DBG("dma_loaded: %d\n", prtd->dma_loaded);
 		if ((pos + len) > prtd->dma_end) {
 			len  = prtd->dma_end - pos;
 		}
-		//ret = rockchip_dma_buffer_set_enqueue(prtd, pos, len);
+		//ret = rockchip_dma_buffer_set_enqueue(prtd, pos, len);		
 		ret = rk29_dma_enqueue(prtd->params->channel, 
 		        substream, pos, len);
+                
+                DBG("Enter::%s, %d, ret=%d, Channel=%d, Addr=0x%X, Len=%d\n",
+                        __FUNCTION__,__LINE__, ret, prtd->params->channel, pos, len);		        
 		if (ret == 0) {
 			prtd->dma_loaded++;
 			pos += prtd->dma_period;
@@ -235,7 +240,7 @@ static void rockchip_pcm_enqueue(struct snd_pcm_substream *substream)
 
 void rockchip_pcm_dma_irq(s32 ch, void *data)
 {    
-    struct snd_pcm_substream *substream = data;
+        struct snd_pcm_substream *substream = data;
 	struct rockchip_runtime_data *prtd;
 	unsigned long flags;
 	
@@ -249,8 +254,8 @@ void rockchip_pcm_dma_irq(s32 ch, void *data)
 	if (prtd->state & ST_RUNNING) {
 		rockchip_pcm_enqueue(substream);
 	}
-    spin_unlock(&prtd->lock);
-    local_irq_save(flags);
+        spin_unlock(&prtd->lock);
+        local_irq_save(flags);
 	if (prtd->state & ST_RUNNING) {
 		if (prtd->dma_loaded) {
 			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -263,8 +268,7 @@ void rockchip_pcm_dma_irq(s32 ch, void *data)
 }
 
 
-void rk29_audio_buffdone(struct rk29_dma_chan *ch,
-				   void *dev_id, int size,
+void rk29_audio_buffdone(void *dev_id, int size,
 				   enum rk29_dma_buffresult result)
 {
         struct snd_pcm_substream *substream = dev_id;
@@ -274,8 +278,10 @@ void rk29_audio_buffdone(struct rk29_dma_chan *ch,
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
 	prtd = substream->runtime->private_data;
-	if (substream)
+	DBG("Enter::%s----%d, substream=0x%08X, prtd=0x%08X\n",__FUNCTION__,__LINE__, substream, prtd);
+	if (substream){
 		snd_pcm_period_elapsed(substream);
+	}
 	spin_lock(&prtd->lock);
 	prtd->dma_loaded--;
 	if (prtd->state & ST_RUNNING) {
@@ -299,7 +305,8 @@ static int rockchip_pcm_hw_params(struct snd_pcm_substream *substream,
 	/*by Vincent Hsiung for EQ Vol Change*/
 	#define HW_PARAMS_FLAG_EQVOL_ON 0x21
 	#define HW_PARAMS_FLAG_EQVOL_OFF 0x22
-    if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
+
+        if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
     	{
     		return 0;
     	}
@@ -320,6 +327,7 @@ static int rockchip_pcm_hw_params(struct snd_pcm_substream *substream,
 
 		//ret = request_dma(prtd->params->channel, "i2s");  ///prtd->params->client->name);
                 ret = rk29_dma_request(prtd->params->channel, prtd->params->client, NULL);
+                DBG("Enter::%s, %d, ret=%d, Channel=%d\n", __FUNCTION__, __LINE__, ret, prtd->params->channel);
 /*
                 if(ret){
 			for(prtd->params->channel=5;prtd->params->channel>0;prtd->params->channel--){
@@ -386,18 +394,25 @@ static int rockchip_pcm_prepare(struct snd_pcm_substream *substream)
 		return 0;
 
         if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-                rk29_dma_devconfig(prtd->params->channel, 
+                ret = rk29_dma_devconfig(prtd->params->channel, 
                                RK29_DMASRC_MEM, 
                                prtd->params->dma_addr);
         }else{
-                rk29_dma_devconfig(prtd->params->channel, 
+                ret = rk29_dma_devconfig(prtd->params->channel, 
                                RK29_DMASRC_HW, 
                                prtd->params->dma_addr);
         }
-
-        rk29_dma_config(prtd->params->channel, 
+        DBG("Enter::%s, %d, ret=%d, Channel=%d, Addr=0x%X\n", __FUNCTION__, __LINE__, ret, prtd->params->channel, prtd->params->dma_addr);
+        ret = rk29_dma_config(prtd->params->channel, 
                 prtd->params->dma_size);
-        rk29_dma_ctrl(prtd->params, RK29_DMAOP_FLUSH);
+
+        DBG("Enter:%s, %d, ret = %d, Channel=%d, Size=%d\n", 
+                __FUNCTION__, __LINE__, ret, prtd->params->channel, 
+                prtd->params->dma_size);
+                
+        ret= rk29_dma_ctrl(prtd->params->channel, RK29_DMAOP_FLUSH);
+        DBG("Enter:%s, %d, ret = %d, Channel=%d\n", 
+                __FUNCTION__, __LINE__, ret, prtd->params->channel);
         
 	prtd->dma_loaded = 0;
 	prtd->dma_pos = prtd->dma_start;
@@ -530,12 +545,12 @@ static int rockchip_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct rockchip_runtime_data *prtd = runtime->private_data;
-    struct rockchip_dma_buf_set *sg_buf = NULL;
+        struct rockchip_dma_buf_set *sg_buf = NULL;
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 
 	if (!prtd)
 		DBG("rockchip_pcm_close called with prtd == NULL\n");
-    if (prtd) 
+        if (prtd) 
 		sg_buf = prtd->curr;
 
 	while (sg_buf != NULL) {
@@ -664,6 +679,7 @@ EXPORT_SYMBOL_GPL(rk29_soc_platform);
 
 static int __init rockchip_soc_platform_init(void)
 {
+        DBG("Enter::%s, %d\n", __FUNCTION__, __LINE__);
 	return snd_soc_register_platform(&rk29_soc_platform);
 }
 module_init(rockchip_soc_platform_init);

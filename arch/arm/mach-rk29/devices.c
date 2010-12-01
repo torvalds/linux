@@ -480,7 +480,7 @@ static struct resource rk29_iis_2ch_resource[] = {
 };
 
 struct platform_device rk29_device_iis_2ch = {
-        .name           = "rk29-i2s",
+        .name           = "rk29_i2s",
         .id             = 0,
         .num_resources  = ARRAY_SIZE(rk29_iis_2ch_resource),
         .resource       = rk29_iis_2ch_resource,
@@ -510,7 +510,7 @@ static struct resource rk29_iis_8ch_resource[] = {
 };
 
 struct platform_device rk29_device_iis_8ch = {
-        .name           = "rk29-i2s",
+        .name           = "rk29_i2s",
         .id             = 1,
         .num_resources  = ARRAY_SIZE(rk29_iis_8ch_resource),
         .resource       = rk29_iis_8ch_resource,

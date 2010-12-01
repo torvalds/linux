@@ -33,44 +33,44 @@
 static int rk29_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-    struct snd_soc_pcm_runtime *rtd = substream->private_data;
+        struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	int ret;
 	  
-    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
 	/*by Vincent Hsiung for EQ Vol Change*/
 	#define HW_PARAMS_FLAG_EQVOL_ON 0x21
 	#define HW_PARAMS_FLAG_EQVOL_OFF 0x22
-    if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
-    {
-    	ret = codec_dai->ops->hw_params(substream, params, codec_dai); //by Vincent
-    	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-    }
-    else
-    {
-	    /* set codec DAI configuration */
-	    #if defined (CONFIG_SND_CODEC_SOC_SLAVE) 
-	    ret = codec_dai->ops->set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS); 
-	    #endif	
-	    #if defined (CONFIG_SND_CODEC_SOC_MASTER) 
-	    ret = codec_dai->ops->set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM ); 
-	    #endif
-	    if (ret < 0)
-	    	  return ret; 
-	    /* set cpu DAI configuration */
-	    #if defined (CONFIG_SND_CODEC_SOC_SLAVE) 
-	    ret = cpu_dai->ops->set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	    #endif	
-	    #if defined (CONFIG_SND_CODEC_SOC_MASTER) 
-	    ret = cpu_dai->ops->set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
-	    #endif		
-	    if (ret < 0)
-	    	  return ret;
+        if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
+        {
+        	ret = codec_dai->ops->hw_params(substream, params, codec_dai); //by Vincent
+        	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        }
+        else
+        {
+                /* set codec DAI configuration */
+                #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+                ret = codec_dai->ops->set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+                	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS); 
+                #endif	
+                #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+                ret = codec_dai->ops->set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+                	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM ); 
+                #endif
+                if (ret < 0)
+                	  return ret; 
+                /* set cpu DAI configuration */
+                #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+                ret = cpu_dai->ops->set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+                	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
+                #endif	
+                #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+                ret = cpu_dai->ops->set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+                	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
+                #endif		
+                if (ret < 0)
+                	  return ret;
 	  }
     
 	  return 0;
@@ -98,28 +98,28 @@ static const struct snd_soc_dapm_route audio_map[]= {
  */
 static int rk29_rk1000_codec_init(struct snd_soc_codec *codec)
 {
-	struct snd_soc_dai *codec_dai = &codec->dai[0];
-	int ret;
-	  
-    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-    
-    ret = snd_soc_dai_set_sysclk(codec_dai, 0,
-		12000000, SND_SOC_CLOCK_IN);
-	if (ret < 0) {
-		printk(KERN_ERR "Failed to set WM8988 SYSCLK: %d\n", ret);
-		return ret;
-	}
-	
-    /* Add specific widgets */
-	snd_soc_dapm_new_controls(codec, rk29_dapm_widgets,
-				  ARRAY_SIZE(rk29_dapm_widgets));
-	
-    /* Set up specific audio path audio_mapnects */
-    snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
-       
-    snd_soc_dapm_sync(codec);
- 
-    return 0;
+        struct snd_soc_dai *codec_dai = &codec->dai[0];
+        int ret;
+
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+
+        ret = snd_soc_dai_set_sysclk(codec_dai, 0,
+                                        12000000, SND_SOC_CLOCK_IN);
+        if (ret < 0) {
+                printk(KERN_ERR "Failed to set WM8988 SYSCLK: %d\n", ret);
+                return ret;
+        }
+
+        /* Add specific widgets */
+        snd_soc_dapm_new_controls(codec, rk29_dapm_widgets,
+        		  ARRAY_SIZE(rk29_dapm_widgets));
+
+        /* Set up specific audio path audio_mapnects */
+        snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+
+        snd_soc_dapm_sync(codec);
+
+        return 0;
 }
 
 static struct snd_soc_ops rk29_ops = {
@@ -167,8 +167,8 @@ static int __init audio_card_init(void)
 	ret = platform_device_add(rk29_snd_device);
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	if (ret) {
-	    DBG("platform device add failed\n");
-	    platform_device_put(rk29_snd_device);
+	        DBG("platform device add failed\n");
+	        platform_device_put(rk29_snd_device);
 	}
 	return ret;
 }
