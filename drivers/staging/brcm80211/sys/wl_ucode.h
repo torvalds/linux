@@ -35,3 +35,11 @@ extern u32 *bcm43xx_24_lcn;
 extern u32 bcm43xx_24_lcnsz;
 extern u32 *bcm43xx_bommajor;
 extern u32 *bcm43xx_bomminor;
+
+extern int wl_ucode_data_init(struct wl_info *wl);
+extern void wl_ucode_data_free(void);
+
+extern int wl_ucode_init_buf(struct wl_info *wl, void **pbuf, unsigned int idx);
+extern int wl_ucode_init_uint(struct wl_info *wl, unsigned *data,
+			      unsigned int idx);
+extern void wl_ucode_free_buf(void *);

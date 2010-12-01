@@ -32,14 +32,13 @@
 #include <dhd.h>
 #include <dhdioctl.h>
 
-typedef void wlc_info_t;
-typedef void wl_info_t;
 typedef const struct si_pub si_t;
 #include <wlioctl.h>
 
 #include <proto/ethernet.h>
 #include <dngl_stats.h>
 #include <dhd.h>
+
 #define WL_ERROR(x) printf x
 #define WL_TRACE(x)
 #define WL_ASSOC(x)

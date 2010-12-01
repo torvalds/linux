@@ -144,4 +144,7 @@ typedef struct {
 /* Max. nvram variable table size */
 #define	MAXSZ_NVRAM_VARS	4096
 
+/* handle forward declaration */
+struct wl_info;
+
 #endif				/* _bcmdefs_h_ */

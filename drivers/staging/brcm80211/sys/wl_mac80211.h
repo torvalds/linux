@@ -97,9 +97,6 @@ struct wl_info {
 #define INT_LOCK(wl, flags)	spin_lock_irqsave(&(wl)->isr_lock, flags)
 #define INT_UNLOCK(wl, flags)	spin_unlock_irqrestore(&(wl)->isr_lock, flags)
 
-/* handle forward declaration */
-typedef struct wl_info wl_info_t;
-
 #ifndef PCI_D0
 #define PCI_D0		0
 #endif
@@ -114,12 +111,7 @@ extern irqreturn_t wl_isr(int irq, void *dev_id);
 
 extern int __devinit wl_pci_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *ent);
-extern void wl_free(wl_info_t *wl);
+extern void wl_free(struct wl_info *wl);
 extern int wl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
-extern int wl_ucode_data_init(wl_info_t *wl);
-extern void wl_ucode_data_free(void);
-extern void wl_ucode_free_buf(void *);
-extern int wl_ucode_init_buf(wl_info_t *wl, void **pbuf, u32 idx);
-extern int wl_ucode_init_uint(wl_info_t *wl, u32 *data, u32 idx);
 
 #endif				/* _wl_mac80211_h_ */

@@ -99,13 +99,13 @@ struct ieee80211_tkip_data {
 };
 
 #define WL_DEV_IF(dev)		((wl_if_t *)netdev_priv(dev))
-#define	WL_INFO(dev)		((wl_info_t *)(WL_DEV_IF(dev)->wl))	/* points to wl */
-static int wl_request_fw(wl_info_t *wl, struct pci_dev *pdev);
-static void wl_release_fw(wl_info_t *wl);
+#define	WL_INFO(dev)		((struct wl_info *)(WL_DEV_IF(dev)->wl))
+static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev);
+static void wl_release_fw(struct wl_info *wl);
 
 /* local prototypes */
-static int wl_start(struct sk_buff *skb, wl_info_t *wl);
-static int wl_start_int(wl_info_t *wl, struct ieee80211_hw *hw,
+static int wl_start(struct sk_buff *skb, struct wl_info *wl);
+static int wl_start_int(struct wl_info *wl, struct ieee80211_hw *hw,
 			struct sk_buff *skb);
 static void wl_dpc(unsigned long data);
 
@@ -176,7 +176,7 @@ static int wl_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	int status;
-	wl_info_t *wl = hw->priv;
+	struct wl_info *wl = hw->priv;
 	WL_LOCK(wl);
 	if (!wl->pub->up) {
 		WL_ERROR(("ops->tx called while down\n"));
@@ -191,7 +191,7 @@ static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 static int wl_ops_start(struct ieee80211_hw *hw)
 {
-	wl_info_t *wl = hw->priv;
+	struct wl_info *wl = hw->priv;
 	/* struct ieee80211_channel *curchan = hw->conf.channel; */
 	WL_NONE(("%s : Initial channel: %d\n", __func__, curchan->hw_value));
 
@@ -204,7 +204,7 @@ static int wl_ops_start(struct ieee80211_hw *hw)
 
 static void wl_ops_stop(struct ieee80211_hw *hw)
 {
-	wl_info_t *wl = hw->priv;
+	struct wl_info *wl = hw->priv;
 	ASSERT(wl);
 	WL_LOCK(wl);
 	wl_down(wl);
@@ -217,7 +217,7 @@ static void wl_ops_stop(struct ieee80211_hw *hw)
 static int
 wl_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
-	wl_info_t *wl;
+	struct wl_info *wl;
 	int err;
 
 	/* Just STA for now */
@@ -251,7 +251,7 @@ static int
 ieee_set_channel(struct ieee80211_hw *hw, struct ieee80211_channel *chan,
 		 enum nl80211_channel_type type)
 {
-	wl_info_t *wl = HW_TO_WL(hw);
+	struct wl_info *wl = HW_TO_WL(hw);
 	int err = 0;
 
 	switch (type) {
@@ -276,7 +276,7 @@ ieee_set_channel(struct ieee80211_hw *hw, struct ieee80211_channel *chan,
 static int wl_ops_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ieee80211_conf *conf = &hw->conf;
-	wl_info_t *wl = HW_TO_WL(hw);
+	struct wl_info *wl = HW_TO_WL(hw);
 	int err = 0;
 	int new_int;
 
@@ -343,7 +343,7 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 			struct ieee80211_vif *vif,
 			struct ieee80211_bss_conf *info, u32 changed)
 {
-	wl_info_t *wl = HW_TO_WL(hw);
+	struct wl_info *wl = HW_TO_WL(hw);
 	int val;
 
 
@@ -413,7 +413,7 @@ wl_ops_configure_filter(struct ieee80211_hw *hw,
 			unsigned int changed_flags,
 			unsigned int *total_flags, u64 multicast)
 {
-	wl_info_t *wl = hw->priv;
+	struct wl_info *wl = hw->priv;
 
 	changed_flags &= MAC_FILTERS;
 	*total_flags &= MAC_FILTERS;
@@ -500,7 +500,7 @@ static int
 wl_ops_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
-	wl_info_t *wl = hw->priv;
+	struct wl_info *wl = hw->priv;
 
 	WL_NONE(("%s: Enter (WME config)\n", __func__));
 	WL_NONE(("queue %d, txop %d, cwmin %d, cwmax %d, aifs %d\n", queue,
@@ -526,7 +526,7 @@ wl_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct scb *scb;
 
 	int i;
-	wl_info_t *wl = hw->priv;
+	struct wl_info *wl = hw->priv;
 
 	/* Init the scb */
 	scb = (struct scb *)sta->drv_priv;
@@ -571,7 +571,7 @@ wl_ampdu_action(struct ieee80211_hw *hw,
 #if defined(BCMDBG)
 	struct scb *scb = (struct scb *)sta->drv_priv;
 #endif
-	wl_info_t *wl = hw->priv;
+	struct wl_info *wl = hw->priv;
 
 	ASSERT(scb->magic == SCB_MAGIC);
 	switch (action) {
@@ -630,7 +630,7 @@ static const struct ieee80211_ops wl_ops = {
 	.ampdu_action = wl_ampdu_action,
 };
 
-static int wl_set_hint(wl_info_t *wl, char *abbrev)
+static int wl_set_hint(struct wl_info *wl, char *abbrev)
 {
 	WL_ERROR(("%s: Sending country code %c%c to MAC80211\n", __func__,
 		  abbrev[0], abbrev[1]));
@@ -648,10 +648,10 @@ static int wl_set_hint(wl_info_t *wl, char *abbrev)
  * a warning that this function is defined but not used if we declare
  * it as static.
  */
-static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
+static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 			    uint bustype, void *btparam, uint irq)
 {
-	wl_info_t *wl;
+	struct wl_info *wl;
 	struct osl_info *osh;
 	int unit, err;
 
@@ -954,7 +954,7 @@ static struct ieee80211_supported_band wl_band_5GHz_nphy = {
 
 static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 {
-	wl_info_t *wl = HW_TO_WL(hw);
+	struct wl_info *wl = HW_TO_WL(hw);
 	int has_5g;
 	char phy_list[4];
 
@@ -1033,7 +1033,7 @@ int __devinit
 wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int rc;
-	wl_info_t *wl;
+	struct wl_info *wl;
 	struct ieee80211_hw *hw;
 	u32 val;
 
@@ -1062,7 +1062,7 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if ((val & 0x0000ff00) != 0)
 		pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
 
-	hw = ieee80211_alloc_hw(sizeof(wl_info_t), &wl_ops);
+	hw = ieee80211_alloc_hw(sizeof(struct wl_info), &wl_ops);
 	if (!hw) {
 		WL_ERROR(("%s: ieee80211_alloc_hw failed\n", __func__));
 		rc = -ENOMEM;
@@ -1092,7 +1092,7 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef LINUXSTA_PS
 static int wl_suspend(struct pci_dev *pdev, pm_message_t state)
 {
-	wl_info_t *wl;
+	struct wl_info *wl;
 	struct ieee80211_hw *hw;
 
 	WL_TRACE(("wl: wl_suspend\n"));
@@ -1115,7 +1115,7 @@ static int wl_suspend(struct pci_dev *pdev, pm_message_t state)
 
 static int wl_resume(struct pci_dev *pdev)
 {
-	wl_info_t *wl;
+	struct wl_info *wl;
 	struct ieee80211_hw *hw;
 	int err = 0;
 	u32 val;
@@ -1154,7 +1154,7 @@ static int wl_resume(struct pci_dev *pdev)
 
 static void wl_remove(struct pci_dev *pdev)
 {
-	wl_info_t *wl;
+	struct wl_info *wl;
 	struct ieee80211_hw *hw;
 
 	hw = pci_get_drvdata(pdev);
@@ -1257,7 +1257,7 @@ module_exit(wl_module_exit);
  * by the wl parameter.
  *
  */
-void wl_free(wl_info_t *wl)
+void wl_free(struct wl_info *wl)
 {
 	wl_timer_t *t, *next;
 	struct osl_info *osh;
@@ -1316,7 +1316,7 @@ void wl_free(wl_info_t *wl)
 }
 
 /* transmit a packet */
-static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t *wl)
+static int BCMFASTPATH wl_start(struct sk_buff *skb, struct wl_info *wl)
 {
 	if (!wl)
 		return -ENETDOWN;
@@ -1325,19 +1325,19 @@ static int BCMFASTPATH wl_start(struct sk_buff *skb, wl_info_t *wl)
 }
 
 static int BCMFASTPATH
-wl_start_int(wl_info_t *wl, struct ieee80211_hw *hw, struct sk_buff *skb)
+wl_start_int(struct wl_info *wl, struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	wlc_sendpkt_mac80211(wl->wlc, skb, hw);
 	return NETDEV_TX_OK;
 }
 
-void wl_txflowcontrol(wl_info_t *wl, struct wl_if *wlif, bool state, int prio)
+void wl_txflowcontrol(struct wl_info *wl, struct wl_if *wlif, bool state,
+		      int prio)
 {
 	WL_ERROR(("Shouldn't be here %s\n", __func__));
 }
 
-
-void wl_init(wl_info_t *wl)
+void wl_init(struct wl_info *wl)
 {
 	WL_TRACE(("wl%d: wl_init\n", wl->pub->unit));
 
@@ -1346,7 +1346,7 @@ void wl_init(wl_info_t *wl)
 	wlc_init(wl->wlc);
 }
 
-uint wl_reset(wl_info_t *wl)
+uint wl_reset(struct wl_info *wl)
 {
 	WL_TRACE(("wl%d: wl_reset\n", wl->pub->unit));
 
@@ -1362,7 +1362,7 @@ uint wl_reset(wl_info_t *wl)
  * These are interrupt on/off entry points. Disable interrupts
  * during interrupt state transition.
  */
-void BCMFASTPATH wl_intrson(wl_info_t *wl)
+void BCMFASTPATH wl_intrson(struct wl_info *wl)
 {
 	unsigned long flags;
 
@@ -1371,12 +1371,12 @@ void BCMFASTPATH wl_intrson(wl_info_t *wl)
 	INT_UNLOCK(wl, flags);
 }
 
-bool wl_alloc_dma_resources(wl_info_t *wl, uint addrwidth)
+bool wl_alloc_dma_resources(struct wl_info *wl, uint addrwidth)
 {
 	return true;
 }
 
-u32 BCMFASTPATH wl_intrsoff(wl_info_t *wl)
+u32 BCMFASTPATH wl_intrsoff(struct wl_info *wl)
 {
 	unsigned long flags;
 	u32 status;
@@ -1387,7 +1387,7 @@ u32 BCMFASTPATH wl_intrsoff(wl_info_t *wl)
 	return status;
 }
 
-void wl_intrsrestore(wl_info_t *wl, u32 macintmask)
+void wl_intrsrestore(struct wl_info *wl, u32 macintmask)
 {
 	unsigned long flags;
 
@@ -1396,7 +1396,7 @@ void wl_intrsrestore(wl_info_t *wl, u32 macintmask)
 	INT_UNLOCK(wl, flags);
 }
 
-int wl_up(wl_info_t *wl)
+int wl_up(struct wl_info *wl)
 {
 	int error = 0;
 
@@ -1408,7 +1408,7 @@ int wl_up(wl_info_t *wl)
 	return error;
 }
 
-void wl_down(wl_info_t *wl)
+void wl_down(struct wl_info *wl)
 {
 	uint callbacks, ret_val = 0;
 
@@ -1429,11 +1429,11 @@ void wl_down(wl_info_t *wl)
 
 irqreturn_t BCMFASTPATH wl_isr(int irq, void *dev_id)
 {
-	wl_info_t *wl;
+	struct wl_info *wl;
 	bool ours, wantdpc;
 	unsigned long flags;
 
-	wl = (wl_info_t *) dev_id;
+	wl = (struct wl_info *) dev_id;
 
 	WL_ISRLOCK(wl, flags);
 
@@ -1457,9 +1457,9 @@ irqreturn_t BCMFASTPATH wl_isr(int irq, void *dev_id)
 
 static void BCMFASTPATH wl_dpc(unsigned long data)
 {
-	wl_info_t *wl;
+	struct wl_info *wl;
 
-	wl = (wl_info_t *) data;
+	wl = (struct wl_info *) data;
 
 	WL_LOCK(wl);
 
@@ -1492,17 +1492,17 @@ static void BCMFASTPATH wl_dpc(unsigned long data)
 	WL_UNLOCK(wl);
 }
 
-static void wl_link_up(wl_info_t *wl, char *ifname)
+static void wl_link_up(struct wl_info *wl, char *ifname)
 {
 	WL_ERROR(("wl%d: link up (%s)\n", wl->pub->unit, ifname));
 }
 
-static void wl_link_down(wl_info_t *wl, char *ifname)
+static void wl_link_down(struct wl_info *wl, char *ifname)
 {
 	WL_ERROR(("wl%d: link down (%s)\n", wl->pub->unit, ifname));
 }
 
-void wl_event(wl_info_t *wl, char *ifname, wlc_event_t *e)
+void wl_event(struct wl_info *wl, char *ifname, wlc_event_t *e)
 {
 
 	switch (e->event.event_type) {
@@ -1544,7 +1544,7 @@ static void _wl_timer(wl_timer_t *t)
 	WL_UNLOCK(t->wl);
 }
 
-wl_timer_t *wl_init_timer(wl_info_t *wl, void (*fn) (void *arg), void *arg,
+wl_timer_t *wl_init_timer(struct wl_info *wl, void (*fn) (void *arg), void *arg,
 			  const char *name)
 {
 	wl_timer_t *t;
@@ -1578,7 +1578,7 @@ wl_timer_t *wl_init_timer(wl_info_t *wl, void (*fn) (void *arg), void *arg,
 /* BMAC_NOTE: Add timer adds only the kernel timer since it's going to be more accurate
  * as well as it's easier to make it periodic
  */
-void wl_add_timer(wl_info_t *wl, wl_timer_t *t, uint ms, int periodic)
+void wl_add_timer(struct wl_info *wl, wl_timer_t *t, uint ms, int periodic)
 {
 #ifdef BCMDBG
 	if (t->set) {
@@ -1598,7 +1598,7 @@ void wl_add_timer(wl_info_t *wl, wl_timer_t *t, uint ms, int periodic)
 }
 
 /* return true if timer successfully deleted, false if still pending */
-bool wl_del_timer(wl_info_t *wl, wl_timer_t *t)
+bool wl_del_timer(struct wl_info *wl, wl_timer_t *t)
 {
 	if (t->set) {
 		t->set = false;
@@ -1611,7 +1611,7 @@ bool wl_del_timer(wl_info_t *wl, wl_timer_t *t)
 	return true;
 }
 
-void wl_free_timer(wl_info_t *wl, wl_timer_t *t)
+void wl_free_timer(struct wl_info *wl, wl_timer_t *t)
 {
 	wl_timer_t *tmp;
 
@@ -1647,7 +1647,7 @@ void wl_free_timer(wl_info_t *wl, wl_timer_t *t)
 
 static int wl_linux_watchdog(void *ctx)
 {
-	wl_info_t *wl = (wl_info_t *) ctx;
+	struct wl_info *wl = (struct wl_info *) ctx;
 	struct net_device_stats *stats = NULL;
 	uint id;
 	/* refresh stats */
@@ -1687,13 +1687,12 @@ struct wl_fw_hdr {
 	u32 idx;
 };
 
-
 char *wl_firmwares[WL_MAX_FW] = {
 	"brcm/bcm43xx",
 	NULL
 };
 
-int wl_ucode_init_buf(wl_info_t *wl, void **pbuf, u32 idx)
+int wl_ucode_init_buf(struct wl_info *wl, void **pbuf, u32 idx)
 {
 	int i, entry;
 	const u8 *pdata;
@@ -1719,7 +1718,7 @@ int wl_ucode_init_buf(wl_info_t *wl, void **pbuf, u32 idx)
 	return -1;
 }
 
-int wl_ucode_init_uint(wl_info_t *wl, u32 *data, u32 idx)
+int wl_ucode_init_uint(struct wl_info *wl, u32 *data, u32 idx)
 {
 	int i, entry;
 	const u8 *pdata;
@@ -1740,7 +1739,7 @@ int wl_ucode_init_uint(wl_info_t *wl, u32 *data, u32 idx)
 	return -1;
 }
 
-static int wl_request_fw(wl_info_t *wl, struct pci_dev *pdev)
+static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev)
 {
 	int status;
 	struct device *device = &pdev->dev;
@@ -1786,7 +1785,7 @@ void wl_ucode_free_buf(void *p)
 	kfree(p);
 }
 
-static void wl_release_fw(wl_info_t *wl)
+static void wl_release_fw(struct wl_info *wl)
 {
 	int i;
 	for (i = 0; i < WL_MAX_FW; i++) {
