@@ -1614,22 +1614,13 @@ xlog_recover_do_buffer_pass1(
 	xfs_buf_cancel_t	*nextp;
 	xfs_buf_cancel_t	*prevp;
 	xfs_buf_cancel_t	**bucket;
-	xfs_daddr_t		blkno = 0;
-	uint			len = 0;
-	ushort			flags = 0;
-
-	switch (buf_f->blf_type) {
-	case XFS_LI_BUF:
-		blkno = buf_f->blf_blkno;
-		len = buf_f->blf_len;
-		flags = buf_f->blf_flags;
-		break;
-	}
+	xfs_daddr_t		blkno = buf_f->blf_blkno;
+	uint			len = buf_f->blf_len;
 
 	/*
 	 * If this isn't a cancel buffer item, then just return.
 	 */
-	if (!(flags & XFS_BLF_CANCEL)) {
+	if (!(buf_f->blf_flags & XFS_BLF_CANCEL)) {
 		trace_xfs_log_recover_buf_not_cancel(log, buf_f);
 		return;
 	}
@@ -1767,77 +1758,38 @@ xlog_check_buffer_cancelled(
 	return 0;
 }
 
-STATIC int
-xlog_recover_do_buffer_pass2(
-	xlog_t			*log,
-	xfs_buf_log_format_t	*buf_f)
-{
-	xfs_daddr_t		blkno = 0;
-	ushort			flags = 0;
-	uint			len = 0;
-
-	switch (buf_f->blf_type) {
-	case XFS_LI_BUF:
-		blkno = buf_f->blf_blkno;
-		flags = buf_f->blf_flags;
-		len = buf_f->blf_len;
-		break;
-	}
-
-	return xlog_check_buffer_cancelled(log, blkno, len, flags);
-}
-
 /*
- * Perform recovery for a buffer full of inodes.  In these buffers,
- * the only data which should be recovered is that which corresponds
- * to the di_next_unlinked pointers in the on disk inode structures.
- * The rest of the data for the inodes is always logged through the
- * inodes themselves rather than the inode buffer and is recovered
- * in xlog_recover_do_inode_trans().
+ * Perform recovery for a buffer full of inodes.  In these buffers, the only
+ * data which should be recovered is that which corresponds to the
+ * di_next_unlinked pointers in the on disk inode structures.  The rest of the
+ * data for the inodes is always logged through the inodes themselves rather
+ * than the inode buffer and is recovered in xlog_recover_inode_pass2().
  *
- * The only time when buffers full of inodes are fully recovered is
- * when the buffer is full of newly allocated inodes.  In this case
- * the buffer will not be marked as an inode buffer and so will be
- * sent to xlog_recover_do_reg_buffer() below during recovery.
+ * The only time when buffers full of inodes are fully recovered is when the
+ * buffer is full of newly allocated inodes.  In this case the buffer will
+ * not be marked as an inode buffer and so will be sent to
+ * xlog_recover_do_reg_buffer() below during recovery.
  */
 STATIC int
 xlog_recover_do_inode_buffer(
-	xfs_mount_t		*mp,
+	struct xfs_mount	*mp,
 	xlog_recover_item_t	*item,
-	xfs_buf_t		*bp,
+	struct xfs_buf		*bp,
 	xfs_buf_log_format_t	*buf_f)
 {
 	int			i;
-	int			item_index;
-	int			bit;
-	int			nbits;
-	int			reg_buf_offset;
-	int			reg_buf_bytes;
+	int			item_index = 0;
+	int			bit = 0;
+	int			nbits = 0;
+	int			reg_buf_offset = 0;
+	int			reg_buf_bytes = 0;
 	int			next_unlinked_offset;
 	int			inodes_per_buf;
 	xfs_agino_t		*logged_nextp;
 	xfs_agino_t		*buffer_nextp;
-	unsigned int		*data_map = NULL;
-	unsigned int		map_size = 0;
 
 	trace_xfs_log_recover_buf_inode_buf(mp->m_log, buf_f);
 
-	switch (buf_f->blf_type) {
-	case XFS_LI_BUF:
-		data_map = buf_f->blf_data_map;
-		map_size = buf_f->blf_map_size;
-		break;
-	}
-	/*
-	 * Set the variables corresponding to the current region to
-	 * 0 so that we'll initialize them on the first pass through
-	 * the loop.
-	 */
-	reg_buf_offset = 0;
-	reg_buf_bytes = 0;
-	bit = 0;
-	nbits = 0;
-	item_index = 0;
 	inodes_per_buf = XFS_BUF_COUNT(bp) >> mp->m_sb.sb_inodelog;
 	for (i = 0; i < inodes_per_buf; i++) {
 		next_unlinked_offset = (i * mp->m_sb.sb_inodesize) +
@@ -1852,18 +1804,18 @@ xlog_recover_do_inode_buffer(
 			 * the current di_next_unlinked field.
 			 */
 			bit += nbits;
-			bit = xfs_next_bit(data_map, map_size, bit);
+			bit = xfs_next_bit(buf_f->blf_data_map,
+					   buf_f->blf_map_size, bit);
 
 			/*
 			 * If there are no more logged regions in the
 			 * buffer, then we're done.
 			 */
-			if (bit == -1) {
+			if (bit == -1)
 				return 0;
-			}
 
-			nbits = xfs_contig_bits(data_map, map_size,
-							 bit);
+			nbits = xfs_contig_bits(buf_f->blf_data_map,
+						buf_f->blf_map_size, bit);
 			ASSERT(nbits > 0);
 			reg_buf_offset = bit << XFS_BLF_SHIFT;
 			reg_buf_bytes = nbits << XFS_BLF_SHIFT;
@@ -1875,9 +1827,8 @@ xlog_recover_do_inode_buffer(
 		 * di_next_unlinked field, then move on to the next
 		 * di_next_unlinked field.
 		 */
-		if (next_unlinked_offset < reg_buf_offset) {
+		if (next_unlinked_offset < reg_buf_offset)
 			continue;
-		}
 
 		ASSERT(item->ri_buf[item_index].i_addr != NULL);
 		ASSERT((item->ri_buf[item_index].i_len % XFS_BLF_CHUNK) == 0);
@@ -1913,36 +1864,29 @@ xlog_recover_do_inode_buffer(
  * given buffer.  The bitmap in the buf log format structure indicates
  * where to place the logged data.
  */
-/*ARGSUSED*/
 STATIC void
 xlog_recover_do_reg_buffer(
 	struct xfs_mount	*mp,
 	xlog_recover_item_t	*item,
-	xfs_buf_t		*bp,
+	struct xfs_buf		*bp,
 	xfs_buf_log_format_t	*buf_f)
 {
 	int			i;
 	int			bit;
 	int			nbits;
-	unsigned int		*data_map = NULL;
-	unsigned int		map_size = 0;
 	int                     error;
 
 	trace_xfs_log_recover_buf_reg_buf(mp->m_log, buf_f);
 
-	switch (buf_f->blf_type) {
-	case XFS_LI_BUF:
-		data_map = buf_f->blf_data_map;
-		map_size = buf_f->blf_map_size;
-		break;
-	}
 	bit = 0;
 	i = 1;  /* 0 is the buf format structure */
 	while (1) {
-		bit = xfs_next_bit(data_map, map_size, bit);
+		bit = xfs_next_bit(buf_f->blf_data_map,
+				   buf_f->blf_map_size, bit);
 		if (bit == -1)
 			break;
-		nbits = xfs_contig_bits(data_map, map_size, bit);
+		nbits = xfs_contig_bits(buf_f->blf_data_map,
+					buf_f->blf_map_size, bit);
 		ASSERT(nbits > 0);
 		ASSERT(item->ri_buf[i].i_addr != NULL);
 		ASSERT(item->ri_buf[i].i_len % XFS_BLF_CHUNK == 0);
@@ -2182,13 +2126,9 @@ xlog_recover_do_buffer_trans(
 	int			pass)
 {
 	xfs_buf_log_format_t	*buf_f = item->ri_buf[0].i_addr;
-	xfs_mount_t		*mp;
+	xfs_mount_t		*mp = log->l_mp;
 	xfs_buf_t		*bp;
 	int			error;
-	int			cancel;
-	xfs_daddr_t		blkno;
-	int			len;
-	ushort			flags;
 	uint			buf_flags;
 
 	if (pass == XLOG_RECOVER_PASS1) {
@@ -2206,47 +2146,32 @@ xlog_recover_do_buffer_trans(
 		 * we call here will tell us whether or not to
 		 * continue with the replay of this buffer.
 		 */
-		cancel = xlog_recover_do_buffer_pass2(log, buf_f);
-		if (cancel) {
+		if (xlog_check_buffer_cancelled(log, buf_f->blf_blkno,
+				buf_f->blf_len, buf_f->blf_flags)) {
 			trace_xfs_log_recover_buf_cancel(log, buf_f);
 			return 0;
 		}
 	}
 	trace_xfs_log_recover_buf_recover(log, buf_f);
-	switch (buf_f->blf_type) {
-	case XFS_LI_BUF:
-		blkno = buf_f->blf_blkno;
-		len = buf_f->blf_len;
-		flags = buf_f->blf_flags;
-		break;
-	default:
-		xfs_fs_cmn_err(CE_ALERT, log->l_mp,
-			"xfs_log_recover: unknown buffer type 0x%x, logdev %s",
-			buf_f->blf_type, log->l_mp->m_logname ?
-			log->l_mp->m_logname : "internal");
-		XFS_ERROR_REPORT("xlog_recover_do_buffer_trans",
-				 XFS_ERRLEVEL_LOW, log->l_mp);
-		return XFS_ERROR(EFSCORRUPTED);
-	}
 
-	mp = log->l_mp;
 	buf_flags = XBF_LOCK;
-	if (!(flags & XFS_BLF_INODE_BUF))
+	if (!(buf_f->blf_flags & XFS_BLF_INODE_BUF))
 		buf_flags |= XBF_MAPPED;
 
-	bp = xfs_buf_read(mp->m_ddev_targp, blkno, len, buf_flags);
+	bp = xfs_buf_read(mp->m_ddev_targp, buf_f->blf_blkno, buf_f->blf_len,
+			  buf_flags);
 	if (XFS_BUF_ISERROR(bp)) {
-		xfs_ioerror_alert("xlog_recover_do..(read#1)", log->l_mp,
-				  bp, blkno);
+		xfs_ioerror_alert("xlog_recover_do..(read#1)", mp,
+				  bp, buf_f->blf_blkno);
 		error = XFS_BUF_GETERROR(bp);
 		xfs_buf_relse(bp);
 		return error;
 	}
 
 	error = 0;
-	if (flags & XFS_BLF_INODE_BUF) {
+	if (buf_f->blf_flags & XFS_BLF_INODE_BUF) {
 		error = xlog_recover_do_inode_buffer(mp, item, bp, buf_f);
-	} else if (flags &
+	} else if (buf_f->blf_flags &
 		  (XFS_BLF_UDQUOT_BUF|XFS_BLF_PDQUOT_BUF|XFS_BLF_GDQUOT_BUF)) {
 		xlog_recover_do_dquot_buffer(mp, log, item, bp, buf_f);
 	} else {
