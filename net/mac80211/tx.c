@@ -666,10 +666,11 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	if (unlikely(info->control.rates[0].idx < 0))
 		return TX_DROP;
 
-	if (txrc.reported_rate.idx < 0)
+	if (txrc.reported_rate.idx < 0) {
 		txrc.reported_rate = info->control.rates[0];
-
-	if (tx->sta)
+		if (tx->sta && ieee80211_is_data(hdr->frame_control))
+			tx->sta->last_tx_rate = txrc.reported_rate;
+	} else if (tx->sta)
 		tx->sta->last_tx_rate = txrc.reported_rate;
 
 	if (unlikely(!info->control.rates[0].count))
