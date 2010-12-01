@@ -94,8 +94,8 @@ extern void prom_halt_power_off(void) __attribute__ ((noreturn));
  */
 extern unsigned char prom_get_idprom(char *idp_buffer, int idpbuf_size);
 
-/* Blocking put character to console. */
-extern void prom_putchar(const char *buf);
+/* Write a buffer of characters to the console. */
+extern void prom_console_write_buf(const char *buf, int len);
 
 /* Prom's internal routines, don't use in kernel/boot code. */
 extern void prom_printf(const char *fmt, ...);

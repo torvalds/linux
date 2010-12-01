@@ -15,23 +15,45 @@
 
 #include <linux/kernel.h>
 #include <linux/compiler.h>
+#include <linux/spinlock.h>
 
 #include <asm/openprom.h>
 #include <asm/oplib.h>
 
+#define CONSOLE_WRITE_BUF_SIZE	1024
+
 static char ppbuf[1024];
+static char console_write_buf[CONSOLE_WRITE_BUF_SIZE];
+static DEFINE_RAW_SPINLOCK(console_write_lock);
 
 void notrace prom_write(const char *buf, unsigned int n)
 {
+	unsigned int dest_len;
+	unsigned long flags;
+	char *dest;
+
+	dest = console_write_buf;
+	raw_spin_lock_irqsave(&console_write_lock, flags);
+
+	dest_len = 0;
 	while (n-- != 0) {
-		char ch = *buf;
+		char ch = *buf++;
 		if (ch == '\n') {
-			char tmp = '\r';
-			prom_putchar(&tmp);
+			*dest++ = '\r';
+			dest_len++;
 		}
-		prom_putchar(buf);
-		buf++;
+		*dest++ = ch;
+		dest_len++;
+		if (dest_len >= CONSOLE_WRITE_BUF_SIZE - 1) {
+			prom_console_write_buf(console_write_buf, dest_len);
+			dest = console_write_buf;
+			dest_len = 0;
+		}
 	}
+	if (dest_len)
+		prom_console_write_buf(console_write_buf, dest_len);
+
+	raw_spin_unlock_irqrestore(&console_write_lock, flags);
 }
 
 void notrace prom_printf(const char *fmt, ...)
