@@ -243,11 +243,6 @@ static bool xen_page_pinned(void *ptr)
 	return PagePinned(page);
 }
 
-static bool xen_iomap_pte(pte_t pte)
-{
-	return pte_flags(pte) & _PAGE_IOMAP;
-}
-
 void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid)
 {
 	struct multicall_space mcs;
@@ -265,11 +260,6 @@ void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid)
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
 EXPORT_SYMBOL_GPL(xen_set_domain_pte);
-
-static void xen_set_iomap_pte(pte_t *ptep, pte_t pteval)
-{
-	xen_set_domain_pte(ptep, pteval, DOMID_IO);
-}
 
 static void xen_extend_mmu_update(const struct mmu_update *update)
 {
@@ -347,11 +337,6 @@ void set_pte_mfn(unsigned long vaddr, unsigned long mfn, pgprot_t flags)
 void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		    pte_t *ptep, pte_t pteval)
 {
-	if (xen_iomap_pte(pteval)) {
-		xen_set_iomap_pte(ptep, pteval);
-		goto out;
-	}
-
 	ADD_STATS(set_pte_at, 1);
 //	ADD_STATS(set_pte_at_pinned, xen_page_pinned(ptep));
 	ADD_STATS(set_pte_at_current, mm == current->mm);
@@ -632,11 +617,6 @@ void xen_set_pud(pud_t *ptr, pud_t val)
 
 void xen_set_pte(pte_t *ptep, pte_t pte)
 {
-	if (xen_iomap_pte(pte)) {
-		xen_set_iomap_pte(ptep, pte);
-		return;
-	}
-
 	ADD_STATS(pte_update, 1);
 //	ADD_STATS(pte_update_pinned, xen_page_pinned(ptep));
 	ADD_STATS(pte_update_batched, paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU);
@@ -653,11 +633,6 @@ void xen_set_pte(pte_t *ptep, pte_t pte)
 #ifdef CONFIG_X86_PAE
 void xen_set_pte_atomic(pte_t *ptep, pte_t pte)
 {
-	if (xen_iomap_pte(pte)) {
-		xen_set_iomap_pte(ptep, pte);
-		return;
-	}
-
 	set_64bit((u64 *)ptep, native_pte_val(pte));
 }
 
