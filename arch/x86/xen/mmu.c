@@ -108,12 +108,6 @@ static struct {
 
 	u32 prot_commit;
 	u32 prot_commit_batched;
-
-	u32 set_pte_at;
-	u32 set_pte_at_batched;
-	u32 set_pte_at_pinned;
-	u32 set_pte_at_current;
-	u32 set_pte_at_kernel;
 } mmu_stats;
 
 static u8 zero_stats;
@@ -334,26 +328,37 @@ void set_pte_mfn(unsigned long vaddr, unsigned long mfn, pgprot_t flags)
 	set_pte_vaddr(vaddr, mfn_pte(mfn, flags));
 }
 
+static bool xen_batched_set_pte(pte_t *ptep, pte_t pteval)
+{
+	struct mmu_update u;
+
+	if (paravirt_get_lazy_mode() != PARAVIRT_LAZY_MMU)
+		return false;
+
+	xen_mc_batch();
+
+	u.ptr = virt_to_machine(ptep).maddr | MMU_NORMAL_PT_UPDATE;
+	u.val = pte_val_ma(pteval);
+	xen_extend_mmu_update(&u);
+
+	xen_mc_issue(PARAVIRT_LAZY_MMU);
+
+	return true;
+}
+
+void xen_set_pte(pte_t *ptep, pte_t pteval)
+{
+	ADD_STATS(pte_update, 1);
+//	ADD_STATS(pte_update_pinned, xen_page_pinned(ptep));
+
+	if (!xen_batched_set_pte(ptep, pteval))
+		native_set_pte(ptep, pteval);
+}
+
 void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		    pte_t *ptep, pte_t pteval)
 {
-	ADD_STATS(set_pte_at, 1);
-//	ADD_STATS(set_pte_at_pinned, xen_page_pinned(ptep));
-	ADD_STATS(set_pte_at_current, mm == current->mm);
-	ADD_STATS(set_pte_at_kernel, mm == &init_mm);
-
-	if(paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
-		struct mmu_update u;
-
-		xen_mc_batch();
-
-		u.ptr = virt_to_machine(ptep).maddr | MMU_NORMAL_PT_UPDATE;
-		u.val = pte_val_ma(pteval);
-		xen_extend_mmu_update(&u);
-
-		xen_mc_issue(PARAVIRT_LAZY_MMU);
-	} else
-		native_set_pte(ptep, pteval);
+	xen_set_pte(ptep, pteval);
 }
 
 pte_t xen_ptep_modify_prot_start(struct mm_struct *mm,
@@ -611,21 +616,6 @@ void xen_set_pud(pud_t *ptr, pud_t val)
 	xen_set_pud_hyper(ptr, val);
 }
 
-void xen_set_pte(pte_t *ptep, pte_t pte)
-{
-	ADD_STATS(pte_update, 1);
-//	ADD_STATS(pte_update_pinned, xen_page_pinned(ptep));
-	ADD_STATS(pte_update_batched, paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU);
-
-#ifdef CONFIG_X86_PAE
-	ptep->pte_high = pte.pte_high;
-	smp_wmb();
-	ptep->pte_low = pte.pte_low;
-#else
-	*ptep = pte;
-#endif
-}
-
 #ifdef CONFIG_X86_PAE
 void xen_set_pte_atomic(pte_t *ptep, pte_t pte)
 {
@@ -634,9 +624,8 @@ void xen_set_pte_atomic(pte_t *ptep, pte_t pte)
 
 void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	ptep->pte_low = 0;
-	smp_wmb();		/* make sure low gets written first */
-	ptep->pte_high = 0;
+	if (!xen_batched_set_pte(ptep, native_make_pte(0)))
+		native_pte_clear(mm, addr, ptep);
 }
 
 void xen_pmd_clear(pmd_t *pmdp)
@@ -2451,14 +2440,6 @@ static int __init xen_mmu_debugfs(void)
 			   &mmu_stats.mmu_update_extended);
 	xen_debugfs_create_u32_array("mmu_update_histo", 0444, d_mmu_debug,
 				     mmu_stats.mmu_update_histo, 20);
-
-	debugfs_create_u32("set_pte_at", 0444, d_mmu_debug, &mmu_stats.set_pte_at);
-	debugfs_create_u32("set_pte_at_batched", 0444, d_mmu_debug,
-			   &mmu_stats.set_pte_at_batched);
-	debugfs_create_u32("set_pte_at_current", 0444, d_mmu_debug,
-			   &mmu_stats.set_pte_at_current);
-	debugfs_create_u32("set_pte_at_kernel", 0444, d_mmu_debug,
-			   &mmu_stats.set_pte_at_kernel);
 
 	debugfs_create_u32("prot_commit", 0444, d_mmu_debug, &mmu_stats.prot_commit);
 	debugfs_create_u32("prot_commit_batched", 0444, d_mmu_debug,
