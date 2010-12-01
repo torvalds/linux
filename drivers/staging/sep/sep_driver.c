@@ -110,7 +110,7 @@ static int sep_load_firmware(struct sep_device *sep)
 		sep->resident_addr);
 	dev_dbg(&sep->pdev->dev, "resident bus is %lx\n",
 		(unsigned long)sep->resident_bus);
-	dev_dbg(&sep->pdev->dev, "resident size is %08x\n",
+	dev_dbg(&sep->pdev->dev, "resident size is %08zx\n",
 		sep->resident_size);
 
 	/* Set addresses for dcache (no loading needed) */
@@ -144,7 +144,7 @@ static int sep_load_firmware(struct sep_device *sep)
 		sep->cache_addr);
 	dev_dbg(&sep->pdev->dev, "cache bus is %08lx\n",
 		(unsigned long)sep->cache_bus);
-	dev_dbg(&sep->pdev->dev, "cache size is %08x\n",
+	dev_dbg(&sep->pdev->dev, "cache size is %08zx\n",
 		sep->cache_size);
 
 	/* Set addresses and load extapp */
@@ -165,7 +165,7 @@ static int sep_load_firmware(struct sep_device *sep)
 		sep->extapp_addr);
 	dev_dbg(&sep->pdev->dev, "extapp bus is %08llx\n",
 		(unsigned long long)sep->extapp_bus);
-	dev_dbg(&sep->pdev->dev, "extapp size is %08x\n",
+	dev_dbg(&sep->pdev->dev, "extapp size is %08zx\n",
 		sep->extapp_size);
 
 	return error;
@@ -205,7 +205,7 @@ static int sep_map_and_alloc_shared_area(struct sep_device *sep)
 		return -ENOMEM;
 	}
 	dev_dbg(&sep->pdev->dev,
-		"shared_addr %x bytes @%p (bus %llx)\n",
+		"shared_addr %zx bytes @%p (bus %llx)\n",
 				sep->shared_size, sep->shared_addr,
 				(unsigned long long)sep->shared_bus);
 	return 0;
@@ -3290,7 +3290,7 @@ static int sep_callback(unsigned long sep_context_pointer)
 		error = -ENOMEM;
 		goto end_function;
 	}
-	dev_dbg(&sep->pdev->dev, "rar start is %p, phy is %llx, size is %x\n",
+	dev_dbg(&sep->pdev->dev, "rar start is %p, phy is %llx, size is %zx\n",
 			sep->rar_addr, (unsigned long long)sep->rar_bus,
 			sep->rar_size);
 
@@ -3537,7 +3537,7 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 		}
 
 		dev_dbg(&sep->pdev->dev, "rar start is %p, phy is %llx,"
-			" size is %x\n", sep->rar_addr,
+			" size is %zx\n", sep->rar_addr,
 			(unsigned long long)sep->rar_bus,
 			sep->rar_size);
 	}
