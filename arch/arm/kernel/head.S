@@ -412,10 +412,17 @@ __fixup_smp_on_up:
 	add	r4, r4, r3
 	add	r5, r5, r3
 2:	cmp	r4, r5
+	movhs	pc, lr
 	ldmia	r4!, {r0, r6}
-	strlo	r6, [r0, r3]
-	blo	2b
-	mov	pc, lr
+ ARM(	str	r6, [r0, r3]	)
+ THUMB(	add	r0, r0, r3	)
+#ifdef __ARMEB__
+ THUMB(	mov	r6, r6, ror #16	)	@ Convert word order for big-endian.
+#endif
+ THUMB(	strh	r6, [r0], #2	)	@ For Thumb-2, store as two halfwords
+ THUMB(	mov	r6, r6, lsr #16	)	@ to be robust against misaligned r3.
+ THUMB(	strh	r6, [r0]	)
+	b	2b
 ENDPROC(__fixup_smp)
 
 1:	.word	.
