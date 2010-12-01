@@ -2475,7 +2475,7 @@ static void fcoe_ctlr_vn_timeout(struct fcoe_ctlr *fip)
 	case FIP_ST_LINK_WAIT:
 		goto unlock;
 	default:
-		WARN(1, "unexpected state %d", fip->state);
+		WARN(1, "unexpected state %d\n", fip->state);
 		goto unlock;
 	}
 	mod_timer(&fip->timer, next_time);
