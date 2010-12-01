@@ -979,11 +979,9 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	}
 	mtu_valid = fcoe_ctlr_mtu_valid(fcf);
 	fcf->time = jiffies;
-	if (!found) {
-		LIBFCOE_FIP_DBG(fip, "New FCF for fab %16.16llx "
-				"map %x val %d\n",
-				fcf->fabric_name, fcf->fc_map, mtu_valid);
-	}
+	if (!found)
+		LIBFCOE_FIP_DBG(fip, "New FCF fab %16.16llx mac %pM\n",
+				fcf->fabric_name, fcf->fcf_mac);
 
 	/*
 	 * If this advertisement is not solicited and our max receive size
@@ -1405,10 +1403,12 @@ static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
 	first = list_first_entry(&fip->fcfs, struct fcoe_fcf, list);
 
 	list_for_each_entry(fcf, &fip->fcfs, list) {
-		LIBFCOE_FIP_DBG(fip, "consider FCF for fab %16.16llx "
-				"VFID %d map %x val %d\n",
-				fcf->fabric_name, fcf->vfid,
-				fcf->fc_map, fcoe_ctlr_mtu_valid(fcf));
+		LIBFCOE_FIP_DBG(fip, "consider FCF fab %16.16llx "
+				"VFID %d mac %pM map %x val %d "
+				"sent %u pri %u\n",
+				fcf->fabric_name, fcf->vfid, fcf->fcf_mac,
+				fcf->fc_map, fcoe_ctlr_mtu_valid(fcf),
+				fcf->flogi_sent, fcf->pri);
 		if (fcf->fabric_name != first->fabric_name ||
 		    fcf->vfid != first->vfid ||
 		    fcf->fc_map != first->fc_map) {
@@ -1432,6 +1432,7 @@ static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
 	}
 	fip->sel_fcf = best;
 	if (best) {
+		LIBFCOE_FIP_DBG(fip, "using FCF mac %pM\n", best->fcf_mac);
 		fip->port_ka_time = jiffies +
 			msecs_to_jiffies(FIP_VN_KA_PERIOD);
 		fip->ctlr_ka_time = jiffies + best->fka_period;
