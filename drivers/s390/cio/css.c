@@ -635,7 +635,7 @@ static void css_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 	init_subchannel_id(&mchk_schid);
 	mchk_schid.sch_no = crw0->rsid;
 	if (crw1)
-		mchk_schid.ssid = (crw1->rsid >> 8) & 3;
+		mchk_schid.ssid = (crw1->rsid >> 4) & 3;
 
 	/*
 	 * Since we are always presented with IPI in the CRW, we have to
