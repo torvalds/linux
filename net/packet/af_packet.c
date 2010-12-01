@@ -167,7 +167,6 @@ static int packet_set_ring(struct sock *sk, struct tpacket_req *req,
 #define PGV_FROM_VMALLOC 1
 struct pgv {
 	char *buffer;
-	unsigned char flags;
 };
 
 struct packet_ring_buffer {
@@ -2342,7 +2341,7 @@ static void free_pg_vec(struct pgv *pg_vec, unsigned int order,
 
 	for (i = 0; i < len; i++) {
 		if (likely(pg_vec[i].buffer)) {
-			if (pg_vec[i].flags & PGV_FROM_VMALLOC)
+			if (is_vmalloc_addr(pg_vec[i].buffer))
 				vfree(pg_vec[i].buffer);
 			else
 				free_pages((unsigned long)pg_vec[i].buffer,
@@ -2353,8 +2352,7 @@ static void free_pg_vec(struct pgv *pg_vec, unsigned int order,
 	kfree(pg_vec);
 }
 
-static inline char *alloc_one_pg_vec_page(unsigned long order,
-					  unsigned char *flags)
+static inline char *alloc_one_pg_vec_page(unsigned long order)
 {
 	char *buffer = NULL;
 	gfp_t gfp_flags = GFP_KERNEL | __GFP_COMP |
@@ -2368,7 +2366,6 @@ static inline char *alloc_one_pg_vec_page(unsigned long order,
 	/*
 	 * __get_free_pages failed, fall back to vmalloc
 	 */
-	*flags |= PGV_FROM_VMALLOC;
 	buffer = vzalloc((1 << order) * PAGE_SIZE);
 
 	if (buffer)
@@ -2377,7 +2374,6 @@ static inline char *alloc_one_pg_vec_page(unsigned long order,
 	/*
 	 * vmalloc failed, lets dig into swap here
 	 */
-	*flags = 0;
 	gfp_flags &= ~__GFP_NORETRY;
 	buffer = (char *)__get_free_pages(gfp_flags, order);
 	if (buffer)
@@ -2400,8 +2396,7 @@ static struct pgv *alloc_pg_vec(struct tpacket_req *req, int order)
 		goto out;
 
 	for (i = 0; i < block_nr; i++) {
-		pg_vec[i].buffer = alloc_one_pg_vec_page(order,
-							 &pg_vec[i].flags);
+		pg_vec[i].buffer = alloc_one_pg_vec_page(order);
 		if (unlikely(!pg_vec[i].buffer))
 			goto out_free_pgvec;
 	}
@@ -2585,13 +2580,8 @@ static int packet_mmap(struct file *file, struct socket *sock,
 			void *kaddr = rb->pg_vec[i].buffer;
 			int pg_num;
 
-			for (pg_num = 0; pg_num < rb->pg_vec_pages;
-					pg_num++) {
-				if (rb->pg_vec[i].flags & PGV_FROM_VMALLOC)
-					page = vmalloc_to_page(kaddr);
-				else
-					page = virt_to_page(kaddr);
-
+			for (pg_num = 0; pg_num < rb->pg_vec_pages; pg_num++) {
+				page = pgv_to_page(kaddr);
 				err = vm_insert_page(vma, start, page);
 				if (unlikely(err))
 					goto out;
