@@ -459,12 +459,12 @@ static int sep_free_dma_table_data_handler(struct sep_device *sep)
 		}
 
 		/* Reset all the values */
-		dma->in_page_array = 0;
-		dma->out_page_array = 0;
+		dma->in_page_array = NULL;
+		dma->out_page_array = NULL;
 		dma->in_num_pages = 0;
 		dma->out_num_pages = 0;
-		dma->in_map_array = 0;
-		dma->out_map_array = 0;
+		dma->in_map_array = NULL;
+		dma->out_map_array = NULL;
 		dma->in_map_num_entries = 0;
 		dma->out_map_num_entries = 0;
 	}
@@ -1114,13 +1114,13 @@ static int sep_lock_kernel_pages(struct sep_device *sep,
 	if (in_out_flag == SEP_DRIVER_IN_FLAG) {
 		*lli_array_ptr = lli_array;
 		sep->dma_res_arr[sep->nr_dcb_creat].in_num_pages = 1;
-		sep->dma_res_arr[sep->nr_dcb_creat].in_page_array = 0;
+		sep->dma_res_arr[sep->nr_dcb_creat].in_page_array = NULL;
 		sep->dma_res_arr[sep->nr_dcb_creat].in_map_array = map_array;
 		sep->dma_res_arr[sep->nr_dcb_creat].in_map_num_entries = 1;
 	} else {
 		*lli_array_ptr = lli_array;
 		sep->dma_res_arr[sep->nr_dcb_creat].out_num_pages = 1;
-		sep->dma_res_arr[sep->nr_dcb_creat].out_page_array = 0;
+		sep->dma_res_arr[sep->nr_dcb_creat].out_page_array = NULL;
 		sep->dma_res_arr[sep->nr_dcb_creat].out_map_array = map_array;
 		sep->dma_res_arr[sep->nr_dcb_creat].out_map_num_entries = 1;
 	}
@@ -1216,7 +1216,7 @@ static int sep_lock_user_pages(struct sep_device *sep,
 	result = get_user_pages(current, current->mm, app_virt_addr,
 		num_pages,
 		((in_out_flag == SEP_DRIVER_IN_FLAG) ? 0 : 1),
-		0, page_array, 0);
+		0, page_array, NULL);
 
 	up_read(&current->mm->mmap_sem);
 
@@ -1709,7 +1709,7 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 	dev_dbg(&sep->pdev->dev, "block_size is %x\n", block_size);
 
 	/* Initialize the pages pointers */
-	sep->dma_res_arr[sep->nr_dcb_creat].in_page_array = 0;
+	sep->dma_res_arr[sep->nr_dcb_creat].in_page_array = NULL;
 	sep->dma_res_arr[sep->nr_dcb_creat].in_num_pages = 0;
 
 	/* Set the kernel address for first table to be allocated */
@@ -1745,7 +1745,7 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 		sep->dma_res_arr[sep->nr_dcb_creat].in_num_pages);
 
 	current_entry = 0;
-	info_entry_ptr = 0;
+	info_entry_ptr = NULL;
 
 	sep_lli_entries = sep->dma_res_arr[sep->nr_dcb_creat].in_num_pages;
 
@@ -1794,7 +1794,7 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 			in_lli_table_ptr,
 			&current_entry, &num_entries_in_table, table_data_size);
 
-		if (info_entry_ptr == 0) {
+		if (info_entry_ptr == NULL) {
 
 			/* Set the output parameters to physical addresses */
 			*lli_table_ptr = sep_shared_area_virt_to_bus(sep,
@@ -1877,13 +1877,13 @@ static int sep_construct_dma_tables_from_lli(
 	/* Points to the area where next lli table can be allocated */
 	u32 lli_table_alloc_addr = 0;
 	/* Input lli table */
-	struct sep_lli_entry *in_lli_table_ptr = 0;
+	struct sep_lli_entry *in_lli_table_ptr = NULL;
 	/* Output lli table */
-	struct sep_lli_entry *out_lli_table_ptr = 0;
+	struct sep_lli_entry *out_lli_table_ptr = NULL;
 	/* Pointer to the info entry of the table - the last entry */
-	struct sep_lli_entry *info_in_entry_ptr = 0;
+	struct sep_lli_entry *info_in_entry_ptr = NULL;
 	/* Pointer to the info entry of the table - the last entry */
-	struct sep_lli_entry *info_out_entry_ptr = 0;
+	struct sep_lli_entry *info_out_entry_ptr = NULL;
 	/* Points to the first entry to be processed in the lli_in_array */
 	u32 current_in_entry = 0;
 	/* Points to the first entry to be processed in the lli_out_array */
@@ -1999,7 +1999,7 @@ static int sep_construct_dma_tables_from_lli(
 			table_data_size);
 
 		/* If info entry is null - this is the first table built */
-		if (info_in_entry_ptr == 0) {
+		if (info_in_entry_ptr == NULL) {
 			/* Set the output parameters to physical addresses */
 			*lli_table_in_ptr =
 			sep_shared_area_virt_to_bus(sep, in_lli_table_ptr);
@@ -2136,8 +2136,8 @@ static int sep_prepare_input_output_dma_table(struct sep_device *sep,
 	}
 
 	/* Initialize the pages pointers */
-	sep->dma_res_arr[sep->nr_dcb_creat].in_page_array = 0;
-	sep->dma_res_arr[sep->nr_dcb_creat].out_page_array = 0;
+	sep->dma_res_arr[sep->nr_dcb_creat].in_page_array = NULL;
+	sep->dma_res_arr[sep->nr_dcb_creat].out_page_array = NULL;
 
 	/* Lock the pages of the buffer and translate them to pages */
 	if (is_kva == true) {
@@ -2264,7 +2264,7 @@ static int sep_prepare_input_output_dma_table_in_dcb(struct sep_device *sep,
 	/* Size of tail */
 	u32 tail_size = 0;
 	/* Address of the created DCB table */
-	struct sep_dcblock *dcb_table_ptr = 0;
+	struct sep_dcblock *dcb_table_ptr = NULL;
 	/* The physical address of the first input DMA table */
 	dma_addr_t in_first_mlli_address = 0;
 	/* Number of entries in the first input DMA table */
@@ -2545,7 +2545,7 @@ static int sep_get_static_pool_addr_handler(struct sep_device *sep,
 	unsigned long arg)
 {
 	struct stat_pool_addr_struct command_args;
-	u32 *static_pool_addr = 0;
+	u32 *static_pool_addr = NULL;
 	unsigned long addr_hold;
 
 	dev_dbg(&sep->pdev->dev, "sep_get_static_pool_addr_handler start\n");
