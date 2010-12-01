@@ -39,6 +39,10 @@ u32 *bcm43xx_bomminor;
 
 int wl_ucode_data_init(struct wl_info *wl)
 {
+	int rc;
+	rc = wl_check_firmwares(wl);
+	if (rc < 0)
+		return rc;
 	wl_ucode_init_buf(wl, (void **)&d11lcn0bsinitvals24,
 			  D11LCN0BSINITVALS24);
 	wl_ucode_init_buf(wl, (void **)&d11lcn0initvals24, D11LCN0INITVALS24);

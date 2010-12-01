@@ -1776,8 +1776,7 @@ static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev)
 			 wl->fw.hdr_num_entries[i]));
 	}
 	wl->fw.fw_cnt = i;
-	wl_ucode_data_init(wl);
-	return 0;
+	return wl_ucode_data_init(wl);
 }
 
 void wl_ucode_free_buf(void *p)
@@ -1793,3 +1792,54 @@ static void wl_release_fw(struct wl_info *wl)
 		release_firmware(wl->fw.fw_hdr[i]);
 	}
 }
+
+
+/*
+ * checks validity of all firmware images loaded from user space
+ */
+int wl_check_firmwares(struct wl_info *wl)
+{
+	int i;
+	int entry;
+	int rc = 0;
+	const struct firmware *fw;
+	const struct firmware *fw_hdr;
+	struct wl_fw_hdr *ucode_hdr;
+	for (i = 0; i < WL_MAX_FW && rc == 0; i++) {
+		fw =  wl->fw.fw_bin[i];
+		fw_hdr = wl->fw.fw_hdr[i];
+		if (fw == NULL && fw_hdr == NULL) {
+			break;
+		} else if (fw == NULL || fw_hdr == NULL) {
+			WL_ERROR(("%s: invalid bin/hdr fw\n", __func__));
+			rc = -EBADF;
+		} else if (fw_hdr->size % sizeof(struct wl_fw_hdr)) {
+			WL_ERROR(("%s: non integral fw hdr file size %d/%d\n",
+				  __func__, fw_hdr->size,
+				  sizeof(struct wl_fw_hdr)));
+			rc = -EBADF;
+		} else if (fw->size < MIN_FW_SIZE || fw->size > MAX_FW_SIZE) {
+			WL_ERROR(("%s: out of bounds fw file size %d\n",
+				  __func__, fw->size));
+			rc = -EBADF;
+		} else {
+			/* check if ucode section overruns firmware image */
+			ucode_hdr = (struct wl_fw_hdr *)fw_hdr->data;
+			for (entry = 0; entry < wl->fw.hdr_num_entries[i] && rc;
+			     entry++, ucode_hdr++) {
+				if (ucode_hdr->offset + ucode_hdr->len >
+				    fw->size) {
+					WL_ERROR(("%s: conflicting bin/hdr\n",
+						  __func__));
+					rc = -EBADF;
+				}
+			}
+		}
+	}
+	if (rc == 0 && wl->fw.fw_cnt != i) {
+		WL_ERROR(("%s: invalid fw_cnt=%d\n", __func__, wl->fw.fw_cnt));
+		rc = -EBADF;
+	}
+	return rc;
+}
+
