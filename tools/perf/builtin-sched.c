@@ -1888,10 +1888,10 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(sched_usage, sched_options);
 
 	/*
-	 * Aliased to 'perf trace' for now:
+	 * Aliased to 'perf script' for now:
 	 */
-	if (!strcmp(argv[0], "trace"))
-		return cmd_trace(argc, argv, prefix);
+	if (!strcmp(argv[0], "script"))
+		return cmd_script(argc, argv, prefix);
 
 	symbol__init();
 	if (!strncmp(argv[0], "rec", 3)) {

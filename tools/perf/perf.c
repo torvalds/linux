@@ -323,7 +323,7 @@ static void handle_internal_command(int argc, const char **argv)
 		{ "top",	cmd_top,	0 },
 		{ "annotate",	cmd_annotate,	0 },
 		{ "version",	cmd_version,	0 },
-		{ "trace",	cmd_trace,	0 },
+		{ "script",	cmd_script,	0 },
 		{ "sched",	cmd_sched,	0 },
 		{ "probe",	cmd_probe,	0 },
 		{ "kmem",	cmd_kmem,	0 },

@@ -56,7 +56,7 @@ static void setup_scripting(void)
 
 static int cleanup_scripting(void)
 {
-	pr_debug("\nperf trace script stopped\n");
+	pr_debug("\nperf script stopped\n");
 
 	return scripting_ops->stop_script();
 }
@@ -137,7 +137,7 @@ static void sig_handler(int sig __unused)
 	session_done = 1;
 }
 
-static int __cmd_trace(struct perf_session *session)
+static int __cmd_script(struct perf_session *session)
 {
 	int ret;
 
@@ -247,7 +247,7 @@ static void list_available_languages(void)
 
 	fprintf(stderr, "\n");
 	fprintf(stderr, "Scripting language extensions (used in "
-		"perf trace -s [spec:]script.[spec]):\n\n");
+		"perf script -s [spec:]script.[spec]):\n\n");
 
 	list_for_each_entry(s, &script_specs, node)
 		fprintf(stderr, "  %-42s [%s]\n", s->spec, s->ops->name);
@@ -586,12 +586,12 @@ out:
 	return n_args;
 }
 
-static const char * const trace_usage[] = {
-	"perf trace [<options>]",
-	"perf trace [<options>] record <script> [<record-options>] <command>",
-	"perf trace [<options>] report <script> [script-args]",
-	"perf trace [<options>] <script> [<record-options>] <command>",
-	"perf trace [<options>] <top-script> [script-args]",
+static const char * const script_usage[] = {
+	"perf script [<options>]",
+	"perf script [<options>] record <script> [<record-options>] <command>",
+	"perf script [<options>] report <script> [script-args]",
+	"perf script [<options>] <script> [<record-options>] <command>",
+	"perf script [<options>] <top-script> [script-args]",
 	NULL
 };
 
@@ -608,7 +608,7 @@ static const struct option options[] = {
 		     "script file name (lang:script name, script name, or *)",
 		     parse_scriptname),
 	OPT_STRING('g', "gen-script", &generate_script_lang, "lang",
-		   "generate perf-trace.xx script in specified language"),
+		   "generate perf-script.xx script in specified language"),
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
 	OPT_BOOLEAN('d', "debug-mode", &debug_mode,
@@ -631,7 +631,7 @@ static bool have_cmd(int argc, const char **argv)
 	return argc != 0;
 }
 
-int cmd_trace(int argc, const char **argv, const char *prefix __used)
+int cmd_script(int argc, const char **argv, const char *prefix __used)
 {
 	char *rec_script_path = NULL;
 	char *rep_script_path = NULL;
@@ -643,7 +643,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 
 	setup_scripting();
 
-	argc = parse_options(argc, argv, options, trace_usage,
+	argc = parse_options(argc, argv, options, script_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 
 	if (argc > 1 && !strncmp(argv[0], "rec", strlen("rec"))) {
@@ -657,7 +657,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		if (!rep_script_path) {
 			fprintf(stderr,
 				"Please specify a valid report script"
-				"(see 'perf trace -l' for listing)\n");
+				"(see 'perf script -l' for listing)\n");
 			return -1;
 		}
 	}
@@ -675,8 +675,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 
 		if (!rec_script_path && !rep_script_path) {
 			fprintf(stderr, " Couldn't find script %s\n\n See perf"
-				" trace -l for available scripts.\n", argv[0]);
-			usage_with_options(trace_usage, options);
+				" script -l for available scripts.\n", argv[0]);
+			usage_with_options(script_usage, options);
 		}
 
 		if (is_top_script(argv[0])) {
@@ -688,9 +688,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 			rec_args = (argc - 1) - rep_args;
 			if (rec_args < 0) {
 				fprintf(stderr, " %s script requires options."
-					"\n\n See perf trace -l for available "
+					"\n\n See perf script -l for available "
 					"scripts and options.\n", argv[0]);
-				usage_with_options(trace_usage, options);
+				usage_with_options(script_usage, options);
 			}
 		}
 
@@ -823,7 +823,7 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 			return -1;
 		}
 
-		err = scripting_ops->generate_script("perf-trace");
+		err = scripting_ops->generate_script("perf-script");
 		goto out;
 	}
 
@@ -831,10 +831,10 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		err = scripting_ops->start_script(script_name, argc, argv);
 		if (err)
 			goto out;
-		pr_debug("perf trace started with script %s\n\n", script_name);
+		pr_debug("perf script started with script %s\n\n", script_name);
 	}
 
-	err = __cmd_trace(session);
+	err = __cmd_script(session);
 
 	perf_session__delete(session);
 	cleanup_scripting();

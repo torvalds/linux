@@ -982,9 +982,9 @@ int cmd_lock(int argc, const char **argv, const char *prefix __used)
 				usage_with_options(report_usage, report_options);
 		}
 		__cmd_report();
-	} else if (!strcmp(argv[0], "trace")) {
-		/* Aliased to 'perf trace' */
-		return cmd_trace(argc, argv, prefix);
+	} else if (!strcmp(argv[0], "script")) {
+		/* Aliased to 'perf script' */
+		return cmd_script(argc, argv, prefix);
 	} else if (!strcmp(argv[0], "info")) {
 		if (argc) {
 			argc = parse_options(argc, argv,
