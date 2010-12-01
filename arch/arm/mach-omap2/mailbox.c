@@ -432,9 +432,8 @@ static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 		iounmap(mbox_base);
 		return ret;
 	}
-	return 0;
 
-	return ret;
+	return 0;
 }
 
 static int __devexit omap2_mbox_remove(struct platform_device *pdev)
