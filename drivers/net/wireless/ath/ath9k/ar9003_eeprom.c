@@ -55,6 +55,8 @@
 #define SUB_NUM_CTL_MODES_AT_5G_40 2    /* excluding HT40, EXT-OFDM */
 #define SUB_NUM_CTL_MODES_AT_2G_40 3    /* excluding HT40, EXT-OFDM, EXT-CCK */
 
+#define CTL(_tpower, _flag) ((_tpower) | ((_flag) << 6))
+
 static const struct ar9300_eeprom ar9300_default = {
 	.eepromVersion = 2,
 	.templateVersion = 2,
@@ -290,20 +292,21 @@ static const struct ar9300_eeprom ar9300_default = {
 		}
 	 },
 	.ctlPowerData_2G = {
-		 { { {60, 0}, {60, 1}, {60, 0}, {60, 0} } },
-		 { { {60, 0}, {60, 1}, {60, 0}, {60, 0} } },
-		 { { {60, 1}, {60, 0}, {60, 0}, {60, 1} } },
+		 { { CTL(60, 0), CTL(60, 1), CTL(60, 0), CTL(60, 0) } },
+		 { { CTL(60, 0), CTL(60, 1), CTL(60, 0), CTL(60, 0) } },
+		 { { CTL(60, 1), CTL(60, 0), CTL(60, 0), CTL(60, 1) } },
 
-		 { { {60, 1}, {60, 0}, {0, 0}, {0, 0} } },
-		 { { {60, 0}, {60, 1}, {60, 0}, {60, 0} } },
-		 { { {60, 0}, {60, 1}, {60, 0}, {60, 0} } },
+		 { { CTL(60, 1), CTL(60, 0), CTL(0, 0), CTL(0, 0) } },
+		 { { CTL(60, 0), CTL(60, 1), CTL(60, 0), CTL(60, 0) } },
+		 { { CTL(60, 0), CTL(60, 1), CTL(60, 0), CTL(60, 0) } },
 
-		 { { {60, 0}, {60, 1}, {60, 1}, {60, 0} } },
-		 { { {60, 0}, {60, 1}, {60, 0}, {60, 0} } },
-		 { { {60, 0}, {60, 1}, {60, 0}, {60, 0} } },
+		 { { CTL(60, 0), CTL(60, 1), CTL(60, 1), CTL(60, 0) } },
+		 { { CTL(60, 0), CTL(60, 1), CTL(60, 0), CTL(60, 0) } },
+		 { { CTL(60, 0), CTL(60, 1), CTL(60, 0), CTL(60, 0) } },
 
-		 { { {60, 0}, {60, 1}, {60, 0}, {60, 0} } },
-		 { { {60, 0}, {60, 1}, {60, 1}, {60, 1} } },
+		 { { CTL(60, 0), CTL(60, 1), CTL(60, 0), CTL(60, 0) } },
+		 { { CTL(60, 0), CTL(60, 1), CTL(60, 1), CTL(60, 1) } },
+		 { { CTL(60, 0), CTL(60, 1), CTL(60, 1), CTL(60, 1) } },
 	 },
 	.modalHeader5G = {
 		/* 4 idle,t1,t2,b (4 bits per setting) */
@@ -568,56 +571,56 @@ static const struct ar9300_eeprom ar9300_default = {
 	.ctlPowerData_5G = {
 		{
 			{
-				{60, 1}, {60, 1}, {60, 1}, {60, 1},
-				{60, 1}, {60, 1}, {60, 1}, {60, 0},
+				CTL(60, 1), CTL(60, 1), CTL(60, 1), CTL(60, 1),
+				CTL(60, 1), CTL(60, 1), CTL(60, 1), CTL(60, 0),
 			}
 		},
 		{
 			{
-				{60, 1}, {60, 1}, {60, 1}, {60, 1},
-				{60, 1}, {60, 1}, {60, 1}, {60, 0},
+				CTL(60, 1), CTL(60, 1), CTL(60, 1), CTL(60, 1),
+				CTL(60, 1), CTL(60, 1), CTL(60, 1), CTL(60, 0),
 			}
 		},
 		{
 			{
-				{60, 0}, {60, 1}, {60, 0}, {60, 1},
-				{60, 1}, {60, 1}, {60, 1}, {60, 1},
+				CTL(60, 0), CTL(60, 1), CTL(60, 0), CTL(60, 1),
+				CTL(60, 1), CTL(60, 1), CTL(60, 1), CTL(60, 1),
 			}
 		},
 		{
 			{
-				{60, 0}, {60, 1}, {60, 1}, {60, 0},
-				{60, 1}, {60, 0}, {60, 0}, {60, 0},
+				CTL(60, 0), CTL(60, 1), CTL(60, 1), CTL(60, 0),
+				CTL(60, 1), CTL(60, 0), CTL(60, 0), CTL(60, 0),
 			}
 		},
 		{
 			{
-				{60, 1}, {60, 1}, {60, 1}, {60, 0},
-				{60, 0}, {60, 0}, {60, 0}, {60, 0},
+				CTL(60, 1), CTL(60, 1), CTL(60, 1), CTL(60, 0),
+				CTL(60, 0), CTL(60, 0), CTL(60, 0), CTL(60, 0),
 			}
 		},
 		{
 			{
-				{60, 1}, {60, 1}, {60, 1}, {60, 1},
-				{60, 1}, {60, 0}, {60, 0}, {60, 0},
+				CTL(60, 1), CTL(60, 1), CTL(60, 1), CTL(60, 1),
+				CTL(60, 1), CTL(60, 0), CTL(60, 0), CTL(60, 0),
 			}
 		},
 		{
 			{
-				{60, 1}, {60, 1}, {60, 1}, {60, 1},
-				{60, 1}, {60, 1}, {60, 1}, {60, 1},
+				CTL(60, 1), CTL(60, 1), CTL(60, 1), CTL(60, 1),
+				CTL(60, 1), CTL(60, 1), CTL(60, 1), CTL(60, 1),
 			}
 		},
 		{
 			{
-				{60, 1}, {60, 1}, {60, 0}, {60, 1},
-				{60, 1}, {60, 1}, {60, 1}, {60, 0},
+				CTL(60, 1), CTL(60, 1), CTL(60, 0), CTL(60, 1),
+				CTL(60, 1), CTL(60, 1), CTL(60, 1), CTL(60, 0),
 			}
 		},
 		{
 			{
-				{60, 1}, {60, 0}, {60, 1}, {60, 1},
-				{60, 1}, {60, 1}, {60, 0}, {60, 1},
+				CTL(60, 1), CTL(60, 0), CTL(60, 1), CTL(60, 1),
+				CTL(60, 1), CTL(60, 1), CTL(60, 0), CTL(60, 1),
 			}
 		},
 	 }
@@ -1827,9 +1830,9 @@ static u16 ar9003_hw_get_direct_edge_power(struct ar9300_eeprom *eep,
 	struct cal_ctl_data_5g *ctl_5g = eep->ctlPowerData_5G;
 
 	if (is2GHz)
-		return ctl_2g[idx].ctlEdges[edge].tPower;
+		return CTL_EDGE_TPOWER(ctl_2g[idx].ctlEdges[edge]);
 	else
-		return ctl_5g[idx].ctlEdges[edge].tPower;
+		return CTL_EDGE_TPOWER(ctl_5g[idx].ctlEdges[edge]);
 }
 
 static u16 ar9003_hw_get_indirect_edge_power(struct ar9300_eeprom *eep,
@@ -1847,12 +1850,12 @@ static u16 ar9003_hw_get_indirect_edge_power(struct ar9300_eeprom *eep,
 
 	if (is2GHz) {
 		if (ath9k_hw_fbin2freq(ctl_freqbin[edge - 1], 1) < freq &&
-		    ctl_2g[idx].ctlEdges[edge - 1].flag)
-			return ctl_2g[idx].ctlEdges[edge - 1].tPower;
+		    CTL_EDGE_FLAGS(ctl_2g[idx].ctlEdges[edge - 1]))
+			return CTL_EDGE_TPOWER(ctl_2g[idx].ctlEdges[edge - 1]);
 	} else {
 		if (ath9k_hw_fbin2freq(ctl_freqbin[edge - 1], 0) < freq &&
-		    ctl_5g[idx].ctlEdges[edge - 1].flag)
-			return ctl_5g[idx].ctlEdges[edge - 1].tPower;
+		    CTL_EDGE_FLAGS(ctl_5g[idx].ctlEdges[edge - 1]))
+			return CTL_EDGE_TPOWER(ctl_5g[idx].ctlEdges[edge - 1]);
 	}
 
 	return AR9300_MAX_RATE_POWER;

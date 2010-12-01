@@ -233,6 +233,9 @@
 
 #define AR9287_CHECKSUM_LOCATION (AR9287_EEP_START_LOC + 1)
 
+#define CTL_EDGE_TPOWER(_ctl) ((_ctl) & 0x3f)
+#define CTL_EDGE_FLAGS(_ctl) (((_ctl) >> 6) & 0x03)
+
 enum eeprom_param {
 	EEP_NFTHRESH_5,
 	EEP_NFTHRESH_2,
@@ -535,18 +538,10 @@ struct cal_target_power_ht {
 	u8 tPow2x[8];
 } __packed;
 
-
-#ifdef __BIG_ENDIAN_BITFIELD
 struct cal_ctl_edges {
 	u8 bChannel;
-	u8 flag:2, tPower:6;
+	u8 ctl;
 } __packed;
-#else
-struct cal_ctl_edges {
-	u8 bChannel;
-	u8 tPower:6, flag:2;
-} __packed;
-#endif
 
 struct cal_data_op_loop_ar9287 {
 	u8 pwrPdg[2][5];
