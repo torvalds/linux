@@ -147,9 +147,9 @@ static inline u32 sep_read_reg(struct sep_device *dev, int reg)
 static inline void sep_wait_sram_write(struct sep_device *dev)
 {
 	u32 reg_val;
-	do
+	do {
 		reg_val = sep_read_reg(dev, HW_SRAM_DATA_READY_REG_ADDR);
-	while (!(reg_val & 1));
+	} while (!(reg_val & 1));
 }
 
 

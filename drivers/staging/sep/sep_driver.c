@@ -2587,9 +2587,9 @@ static int sep_start_handler(struct sep_device *sep)
 	dev_dbg(&sep->pdev->dev, "sep_start_handler start\n");
 
 	/* Wait in polling for message from SEP */
-	do
+	do {
 		reg_val = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
-	while (!reg_val);
+	} while (!reg_val);
 
 	/* Check the value */
 	if (reg_val == 0x1)
@@ -2754,9 +2754,9 @@ static int sep_init_handler(struct sep_device *sep, unsigned long arg)
 	/* Wait for acknowledge */
 	dev_dbg(&sep->pdev->dev, "init; waiting for msg response\n");
 
-	do
+	do {
 		reg_val = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
-	while (!(reg_val & 0xFFFFFFFD));
+	} while (!(reg_val & 0xFFFFFFFD));
 
 	if (reg_val == 0x1) {
 		dev_warn(&sep->pdev->dev, "init; device int failed\n");
@@ -2774,9 +2774,9 @@ static int sep_init_handler(struct sep_device *sep, unsigned long arg)
 	/* Wait for response */
 	dev_dbg(&sep->pdev->dev, "init; waiting for zero set response\n");
 
-	do
+	do {
 		reg_val = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR3_REG_ADDR);
-	while (reg_val != 0);
+	} while (reg_val != 0);
 
 end_function:
 	dev_dbg(&sep->pdev->dev, "init is done\n");
