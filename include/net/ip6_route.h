@@ -3,7 +3,6 @@
 
 #define IP6_RT_PRIO_USER	1024
 #define IP6_RT_PRIO_ADDRCONF	256
-#define IP6_RT_PRIO_KERN	512
 
 struct route_info {
 	__u8			type;

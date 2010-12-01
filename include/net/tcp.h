@@ -100,12 +100,6 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define TCP_SYNACK_RETRIES 5	/* number of times to retry passive opening a
 				 * connection: ~180sec is RFC minimum	*/
 
-
-#define TCP_ORPHAN_RETRIES 7	/* number of times to retry on an orphaned
-				 * socket. 7 is ~50sec-16min.
-				 */
-
-
 #define TCP_TIMEWAIT_LEN (60*HZ) /* how long to wait to destroy TIME-WAIT
 				  * state, about 60 seconds	*/
 #define TCP_FIN_TIMEOUT	TCP_TIMEWAIT_LEN

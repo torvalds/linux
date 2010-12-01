@@ -42,9 +42,6 @@ enum {
 #define ND_REACHABLE_TIME		(30*HZ)
 #define ND_RETRANS_TIMER		HZ
 
-#define ND_MIN_RANDOM_FACTOR		(1/2)
-#define ND_MAX_RANDOM_FACTOR		(3/2)
-
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

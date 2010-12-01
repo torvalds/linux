@@ -60,7 +60,6 @@ struct ipstats_mib {
 };
 
 /* ICMP */
-#define ICMP_MIB_DUMMY	__ICMP_MIB_MAX
 #define ICMP_MIB_MAX	__ICMP_MIB_MAX
 struct icmp_mib {
 	unsigned long	mibs[ICMP_MIB_MAX];
