@@ -83,7 +83,7 @@ static inline void phy_off(void)
 
 static int dma_off = 1;
 
-void musb_platform_enable(struct musb *musb)
+static void davinci_musb_enable(struct musb *musb)
 {
 	u32	tmp, old, val;
 
@@ -116,7 +116,7 @@ void musb_platform_enable(struct musb *musb)
 /*
  * Disable the HDRC and flush interrupts
  */
-void musb_platform_disable(struct musb *musb)
+static void davinci_musb_disable(struct musb *musb)
 {
 	/* because we don't set CTRLR.UINT, "important" to:
 	 *  - not read/write INTRUSB/INTRUSBE
@@ -167,7 +167,7 @@ static void evm_deferred_drvvbus(struct work_struct *ignored)
 
 #endif	/* EVM */
 
-static void davinci_source_power(struct musb *musb, int is_on, int immediate)
+static void davinci_musb_source_power(struct musb *musb, int is_on, int immediate)
 {
 #ifdef CONFIG_MACH_DAVINCI_EVM
 	if (is_on)
@@ -190,10 +190,10 @@ static void davinci_source_power(struct musb *musb, int is_on, int immediate)
 #endif
 }
 
-static void davinci_set_vbus(struct musb *musb, int is_on)
+static void davinci_musb_set_vbus(struct musb *musb, int is_on)
 {
 	WARN_ON(is_on && is_peripheral_active(musb));
-	davinci_source_power(musb, is_on, 0);
+	davinci_musb_source_power(musb, is_on, 0);
 }
 
 
@@ -259,7 +259,7 @@ static void otg_timer(unsigned long _musb)
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 
-static irqreturn_t davinci_interrupt(int irq, void *__hci)
+static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 {
 	unsigned long	flags;
 	irqreturn_t	retval = IRQ_NONE;
@@ -345,7 +345,7 @@ static irqreturn_t davinci_interrupt(int irq, void *__hci)
 		/* NOTE:  this must complete poweron within 100 msec
 		 * (OTG_TIME_A_WAIT_VRISE) but we don't check for that.
 		 */
-		davinci_source_power(musb, drvvbus, 0);
+		davinci_musb_source_power(musb, drvvbus, 0);
 		DBG(2, "VBUS %s (%s)%s, devctl %02x\n",
 				drvvbus ? "on" : "off",
 				otg_state_string(musb),
@@ -370,13 +370,13 @@ static irqreturn_t davinci_interrupt(int irq, void *__hci)
 	return retval;
 }
 
-int musb_platform_set_mode(struct musb *musb, u8 mode)
+static int davinci_musb_set_mode(struct musb *musb, u8 mode)
 {
 	/* EVM can't do this (right?) */
 	return -EIO;
 }
 
-int __init musb_platform_init(struct musb *musb)
+static int davinci_musb_init(struct musb *musb)
 {
 	void __iomem	*tibase = musb->ctrl_base;
 	u32		revision;
@@ -398,8 +398,8 @@ int __init musb_platform_init(struct musb *musb)
 	if (is_host_enabled(musb))
 		setup_timer(&otg_workaround, otg_timer, (unsigned long) musb);
 
-	musb->board_set_vbus = davinci_set_vbus;
-	davinci_source_power(musb, 0, 1);
+	musb->board_set_vbus = davinci_musb_set_vbus;
+	davinci_musb_source_power(musb, 0, 1);
 
 	/* dm355 EVM swaps D+/D- for signal integrity, and
 	 * is clocked from the main 24 MHz crystal.
@@ -440,7 +440,7 @@ int __init musb_platform_init(struct musb *musb)
 		revision, __raw_readl(USB_PHY_CTRL),
 		musb_readb(tibase, DAVINCI_USB_CTRL_REG));
 
-	musb->isr = davinci_interrupt;
+	musb->isr = davinci_musb_interrupt;
 	return 0;
 
 fail:
@@ -451,7 +451,7 @@ fail:
 	return -ENODEV;
 }
 
-int musb_platform_exit(struct musb *musb)
+static int davinci_musb_exit(struct musb *musb)
 {
 	if (is_host_enabled(musb))
 		del_timer_sync(&otg_workaround);
@@ -465,7 +465,7 @@ int musb_platform_exit(struct musb *musb)
 		__raw_writel(deepsleep, DM355_DEEPSLEEP);
 	}
 
-	davinci_source_power(musb, 0 /*off*/, 1);
+	davinci_musb_source_power(musb, 0 /*off*/, 1);
 
 	/* delay, to avoid problems with module reload */
 	if (is_host_enabled(musb) && musb->xceiv->default_a) {
@@ -502,3 +502,15 @@ int musb_platform_exit(struct musb *musb)
 
 	return 0;
 }
+
+const struct musb_platform_ops musb_ops = {
+	.init		= davinci_musb_init,
+	.exit		= davinci_musb_exit,
+
+	.enable		= davinci_musb_enable,
+	.disable	= davinci_musb_disable,
+
+	.set_mode	= davinci_musb_set_mode,
+
+	.set_vbus	= davinci_musb_set_vbus,
+};

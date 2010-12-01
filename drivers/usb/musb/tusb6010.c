@@ -24,7 +24,7 @@
 
 #include "musb_core.h"
 
-static void tusb_source_power(struct musb *musb, int is_on);
+static void tusb_musb_set_vbus(struct musb *musb, int is_on);
 
 #define TUSB_REV_MAJOR(reg_val)		((reg_val >> 4) & 0xf)
 #define TUSB_REV_MINOR(reg_val)		(reg_val & 0xf)
@@ -50,7 +50,7 @@ u8 tusb_get_revision(struct musb *musb)
 	return rev;
 }
 
-static int __init tusb_print_revision(struct musb *musb)
+static int tusb_print_revision(struct musb *musb)
 {
 	void __iomem	*tbase = musb->ctrl_base;
 	u8		rev;
@@ -348,7 +348,7 @@ static void tusb_set_clock_source(struct musb *musb, unsigned mode)
  * USB link is not suspended ... and tells us the relevant wakeup
  * events.  SW_EN for voltage is handled separately.
  */
-void tusb_allow_idle(struct musb *musb, u32 wakeup_enables)
+static void tusb_allow_idle(struct musb *musb, u32 wakeup_enables)
 {
 	void __iomem	*tbase = musb->ctrl_base;
 	u32		reg;
@@ -385,7 +385,7 @@ void tusb_allow_idle(struct musb *musb, u32 wakeup_enables)
 /*
  * Updates cable VBUS status. Caller must take care of locking.
  */
-int musb_platform_get_vbus_status(struct musb *musb)
+static int tusb_musb_vbus_status(struct musb *musb)
 {
 	void __iomem	*tbase = musb->ctrl_base;
 	u32		otg_stat, prcm_mngmt;
@@ -431,7 +431,7 @@ static void musb_do_idle(unsigned long _musb)
 		}
 		/* FALLTHROUGH */
 	case OTG_STATE_A_IDLE:
-		tusb_source_power(musb, 0);
+		tusb_musb_set_vbus(musb, 0);
 	default:
 		break;
 	}
@@ -475,7 +475,7 @@ done:
  * we don't want to treat that full speed J as a wakeup event.
  * ... peripherals must draw only suspend current after 10 msec.
  */
-void musb_platform_try_idle(struct musb *musb, unsigned long timeout)
+static void tusb_musb_try_idle(struct musb *musb, unsigned long timeout)
 {
 	unsigned long		default_timeout = jiffies + msecs_to_jiffies(3);
 	static unsigned long	last_timer;
@@ -515,7 +515,7 @@ void musb_platform_try_idle(struct musb *musb, unsigned long timeout)
 				| TUSB_DEV_OTG_TIMER_ENABLE) \
 		: 0)
 
-static void tusb_source_power(struct musb *musb, int is_on)
+static void tusb_musb_set_vbus(struct musb *musb, int is_on)
 {
 	void __iomem	*tbase = musb->ctrl_base;
 	u32		conf, prcm, timer;
@@ -599,7 +599,7 @@ static void tusb_source_power(struct musb *musb, int is_on)
  * and peripheral modes in non-OTG configurations by reconfiguring hardware
  * and then setting musb->board_mode. For now, only support OTG mode.
  */
-int musb_platform_set_mode(struct musb *musb, u8 musb_mode)
+static int tusb_musb_set_mode(struct musb *musb, u8 musb_mode)
 {
 	void __iomem	*tbase = musb->ctrl_base;
 	u32		otg_stat, phy_otg_ctrl, phy_otg_ena, dev_conf;
@@ -677,7 +677,7 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 			default_a = is_host_enabled(musb);
 		DBG(2, "Default-%c\n", default_a ? 'A' : 'B');
 		musb->xceiv->default_a = default_a;
-		tusb_source_power(musb, default_a);
+		tusb_musb_set_vbus(musb, default_a);
 
 		/* Don't allow idling immediately */
 		if (default_a)
@@ -722,7 +722,7 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 			switch (musb->xceiv->state) {
 			case OTG_STATE_A_IDLE:
 				DBG(2, "Got SRP, turning on VBUS\n");
-				musb_set_vbus(musb, 1);
+				musb_platform_set_vbus(musb, 1);
 
 				/* CONNECT can wake if a_wait_bcon is set */
 				if (musb->a_wait_bcon != 0)
@@ -748,11 +748,11 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 				 */
 				if (musb->vbuserr_retry) {
 					musb->vbuserr_retry--;
-					tusb_source_power(musb, 1);
+					tusb_musb_set_vbus(musb, 1);
 				} else {
 					musb->vbuserr_retry
 						= VBUSERR_RETRY_COUNT;
-					tusb_source_power(musb, 0);
+					tusb_musb_set_vbus(musb, 0);
 				}
 				break;
 			default:
@@ -786,7 +786,7 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 			} else {
 				/* REVISIT report overcurrent to hub? */
 				ERR("vbus too slow, devctl %02x\n", devctl);
-				tusb_source_power(musb, 0);
+				tusb_musb_set_vbus(musb, 0);
 			}
 			break;
 		case OTG_STATE_A_WAIT_BCON:
@@ -807,7 +807,7 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 	return idle_timeout;
 }
 
-static irqreturn_t tusb_interrupt(int irq, void *__hci)
+static irqreturn_t tusb_musb_interrupt(int irq, void *__hci)
 {
 	struct musb	*musb = __hci;
 	void __iomem	*tbase = musb->ctrl_base;
@@ -911,7 +911,7 @@ static irqreturn_t tusb_interrupt(int irq, void *__hci)
 	musb_writel(tbase, TUSB_INT_SRC_CLEAR,
 		int_src & ~TUSB_INT_MASK_RESERVED_BITS);
 
-	musb_platform_try_idle(musb, idle_timeout);
+	tusb_musb_try_idle(musb, idle_timeout);
 
 	musb_writel(tbase, TUSB_INT_MASK, int_mask);
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -926,7 +926,7 @@ static int dma_off;
  * REVISIT:
  * - Check what is unnecessary in MGC_HdrcStart()
  */
-void musb_platform_enable(struct musb *musb)
+static void tusb_musb_enable(struct musb *musb)
 {
 	void __iomem	*tbase = musb->ctrl_base;
 
@@ -970,7 +970,7 @@ void musb_platform_enable(struct musb *musb)
 /*
  * Disables TUSB6010. Caller must take care of locking.
  */
-void musb_platform_disable(struct musb *musb)
+static void tusb_musb_disable(struct musb *musb)
 {
 	void __iomem	*tbase = musb->ctrl_base;
 
@@ -995,7 +995,7 @@ void musb_platform_disable(struct musb *musb)
  * Sets up TUSB6010 CPU interface specific signals and registers
  * Note: Settings optimized for OMAP24xx
  */
-static void __init tusb_setup_cpu_interface(struct musb *musb)
+static void tusb_setup_cpu_interface(struct musb *musb)
 {
 	void __iomem	*tbase = musb->ctrl_base;
 
@@ -1022,7 +1022,7 @@ static void __init tusb_setup_cpu_interface(struct musb *musb)
 	musb_writel(tbase, TUSB_WAIT_COUNT, 1);
 }
 
-static int __init tusb_start(struct musb *musb)
+static int tusb_musb_start(struct musb *musb)
 {
 	void __iomem	*tbase = musb->ctrl_base;
 	int		ret = 0;
@@ -1091,7 +1091,7 @@ err:
 	return -ENODEV;
 }
 
-int __init musb_platform_init(struct musb *musb)
+static int tusb_musb_init(struct musb *musb)
 {
 	struct platform_device	*pdev;
 	struct resource		*mem;
@@ -1131,16 +1131,14 @@ int __init musb_platform_init(struct musb *musb)
 	 */
 	musb->mregs += TUSB_BASE_OFFSET;
 
-	ret = tusb_start(musb);
+	ret = tusb_musb_start(musb);
 	if (ret) {
 		printk(KERN_ERR "Could not start tusb6010 (%d)\n",
 				ret);
 		goto done;
 	}
-	musb->isr = tusb_interrupt;
+	musb->isr = tusb_musb_interrupt;
 
-	if (is_host_enabled(musb))
-		musb->board_set_vbus = tusb_source_power;
 	if (is_peripheral_enabled(musb)) {
 		musb->xceiv->set_power = tusb_draw_power;
 		the_musb = musb;
@@ -1159,7 +1157,7 @@ done:
 	return ret;
 }
 
-int musb_platform_exit(struct musb *musb)
+static int tusb_musb_exit(struct musb *musb)
 {
 	del_timer_sync(&musb_idle_timer);
 	the_musb = NULL;
@@ -1173,3 +1171,17 @@ int musb_platform_exit(struct musb *musb)
 	usb_nop_xceiv_unregister();
 	return 0;
 }
+
+const struct musb_platform_ops musb_ops = {
+	.init		= tusb_musb_init,
+	.exit		= tusb_musb_exit,
+
+	.enable		= tusb_musb_enable,
+	.disable	= tusb_musb_disable,
+
+	.set_mode	= tusb_musb_set_mode,
+	.try_idle	= tusb_musb_try_idle,
+
+	.vbus_status	= tusb_musb_vbus_status,
+	.set_vbus	= tusb_musb_set_vbus,
+};

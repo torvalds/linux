@@ -131,9 +131,9 @@ static inline void phy_off(void)
  */
 
 /**
- * musb_platform_enable - enable interrupts
+ * da8xx_musb_enable - enable interrupts
  */
-void musb_platform_enable(struct musb *musb)
+static void da8xx_musb_enable(struct musb *musb)
 {
 	void __iomem *reg_base = musb->ctrl_base;
 	u32 mask;
@@ -151,9 +151,9 @@ void musb_platform_enable(struct musb *musb)
 }
 
 /**
- * musb_platform_disable - disable HDRC and flush interrupts
+ * da8xx_musb_disable - disable HDRC and flush interrupts
  */
-void musb_platform_disable(struct musb *musb)
+static void da8xx_musb_disable(struct musb *musb)
 {
 	void __iomem *reg_base = musb->ctrl_base;
 
@@ -170,7 +170,7 @@ void musb_platform_disable(struct musb *musb)
 #define portstate(stmt)
 #endif
 
-static void da8xx_set_vbus(struct musb *musb, int is_on)
+static void da8xx_musb_set_vbus(struct musb *musb, int is_on)
 {
 	WARN_ON(is_on && is_peripheral_active(musb));
 }
@@ -252,7 +252,7 @@ static void otg_timer(unsigned long _musb)
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 
-void musb_platform_try_idle(struct musb *musb, unsigned long timeout)
+static void da8xx_musb_try_idle(struct musb *musb, unsigned long timeout)
 {
 	static unsigned long last_timer;
 
@@ -282,7 +282,7 @@ void musb_platform_try_idle(struct musb *musb, unsigned long timeout)
 	mod_timer(&otg_workaround, timeout);
 }
 
-static irqreturn_t da8xx_interrupt(int irq, void *hci)
+static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 {
 	struct musb		*musb = hci;
 	void __iomem		*reg_base = musb->ctrl_base;
@@ -380,7 +380,7 @@ static irqreturn_t da8xx_interrupt(int irq, void *hci)
 	return ret;
 }
 
-int musb_platform_set_mode(struct musb *musb, u8 musb_mode)
+static int da8xx_musb_set_mode(struct musb *musb, u8 musb_mode)
 {
 	u32 cfgchip2 = __raw_readl(CFGCHIP2);
 
@@ -409,7 +409,7 @@ int musb_platform_set_mode(struct musb *musb, u8 musb_mode)
 	return 0;
 }
 
-int __init musb_platform_init(struct musb *musb, void *board_data)
+static int da8xx_musb_init(struct musb *musb)
 {
 	void __iomem *reg_base = musb->ctrl_base;
 	u32 rev;
@@ -431,7 +431,7 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 	if (is_host_enabled(musb))
 		setup_timer(&otg_workaround, otg_timer, (unsigned long)musb);
 
-	musb->board_set_vbus = da8xx_set_vbus;
+	musb->board_set_vbus = da8xx_musb_set_vbus;
 
 	/* Reset the controller */
 	musb_writel(reg_base, DA8XX_USB_CTRL_REG, DA8XX_SOFT_RESET_MASK);
@@ -446,14 +446,14 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 		 rev, __raw_readl(CFGCHIP2),
 		 musb_readb(reg_base, DA8XX_USB_CTRL_REG));
 
-	musb->isr = da8xx_interrupt;
+	musb->isr = da8xx_musb_interrupt;
 	return 0;
 fail:
 	clk_disable(musb->clock);
 	return -ENODEV;
 }
 
-int musb_platform_exit(struct musb *musb)
+static int da8xx_musb_exit(struct musb *musb)
 {
 	if (is_host_enabled(musb))
 		del_timer_sync(&otg_workaround);
@@ -467,3 +467,16 @@ int musb_platform_exit(struct musb *musb)
 
 	return 0;
 }
+
+const struct musb_platform_ops musb_ops = {
+	.init		= da8xx_musb_init,
+	.exit		= da8xx_musb_exit,
+
+	.enable		= da8xx_musb_enable,
+	.disable	= da8xx_musb_disable,
+
+	.set_mode	= da8xx_musb_set_mode,
+	.try_idle	= da8xx_musb_try_idle,
+
+	.set_vbus	= da8xx_musb_set_vbus,
+};

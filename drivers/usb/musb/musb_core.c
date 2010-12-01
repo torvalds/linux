@@ -390,7 +390,7 @@ void musb_otg_timer_func(unsigned long data)
 	case OTG_STATE_A_SUSPEND:
 	case OTG_STATE_A_WAIT_BCON:
 		DBG(1, "HNP: %s timeout\n", otg_state_string(musb));
-		musb_set_vbus(musb, 0);
+		musb_platform_set_vbus(musb, 0);
 		musb->xceiv->state = OTG_STATE_A_WAIT_VFALL;
 		break;
 	default:
@@ -570,7 +570,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		musb->ep0_stage = MUSB_EP0_START;
 		musb->xceiv->state = OTG_STATE_A_IDLE;
 		MUSB_HST_MODE(musb);
-		musb_set_vbus(musb, 1);
+		musb_platform_set_vbus(musb, 1);
 
 		handled = IRQ_HANDLED;
 	}
@@ -641,7 +641,7 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 
 		/* go through A_WAIT_VFALL then start a new session */
 		if (!ignore)
-			musb_set_vbus(musb, 0);
+			musb_platform_set_vbus(musb, 0);
 		handled = IRQ_HANDLED;
 	}
 
@@ -1898,6 +1898,8 @@ allocate_instance(struct device *dev,
 	}
 
 	musb->controller = dev;
+	musb->ops = &musb_ops;
+
 	return musb;
 }
 
