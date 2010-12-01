@@ -82,7 +82,7 @@ static pid_t			*all_tids			=  NULL;
 static int			thread_num			=  0;
 static pid_t			child_pid			= -1;
 static bool			null_run			=  false;
-static bool			big_num				=  false;
+static bool			big_num				=  true;
 static const char		*cpu_list;
 
 
