@@ -640,11 +640,6 @@ struct regulator_init_data max8649_regulator_init_data[] = {
 			.max_uV			= 1100000,
 			.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE,
 			.always_on		= 1,
-			.state_mem = {
-				 .uV		= 1000000,
-				 .enabled	= 1,
-				 .disabled	= 0,
-			}
 		},
 		.num_consumer_supplies	= ARRAY_SIZE(max8649_consumers),
 		.consumer_supplies	= max8649_consumers,
