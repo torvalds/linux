@@ -622,10 +622,12 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	 * Currently we rely on an overflow handler to take
 	 * care of single-stepping the breakpoint when it fires.
 	 * In the case of userspace breakpoints on a core with V7 debug,
-	 * we can use the mismatch feature as a poor-man's hardware single-step.
+	 * we can use the mismatch feature as a poor-man's hardware
+	 * single-step, but this only works for per-task breakpoints.
 	 */
 	if (WARN_ONCE(!bp->overflow_handler &&
-		(arch_check_bp_in_kernelspace(bp) || !core_has_mismatch_brps()),
+		(arch_check_bp_in_kernelspace(bp) || !core_has_mismatch_brps()
+		 || !bp->hw.bp_target),
 			"overflow handler required but none found")) {
 		ret = -EINVAL;
 	}
