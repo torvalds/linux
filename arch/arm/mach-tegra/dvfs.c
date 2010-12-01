@@ -395,6 +395,64 @@ static struct notifier_block tegra_dvfs_nb = {
 	.notifier_call = tegra_dvfs_pm_notify,
 };
 
+/* must be called with dvfs lock held */
+static void __tegra_dvfs_rail_disable(struct dvfs_rail *rail)
+{
+	int ret;
+
+	if (!rail->disabled) {
+		ret = dvfs_rail_set_voltage(rail, rail->nominal_millivolts);
+		if (ret)
+			pr_info("dvfs: failed to set regulator %s to disable "
+				"voltage %d\n", rail->reg_id,
+				rail->nominal_millivolts);
+		rail->disabled = true;
+	}
+}
+
+/* must be called with dvfs lock held */
+static void __tegra_dvfs_rail_enable(struct dvfs_rail *rail)
+{
+	if (rail->disabled) {
+		rail->disabled = false;
+		dvfs_rail_update(rail);
+	}
+}
+
+void tegra_dvfs_rail_enable(struct dvfs_rail *rail)
+{
+	mutex_lock(&dvfs_lock);
+	__tegra_dvfs_rail_enable(rail);
+	mutex_unlock(&dvfs_lock);
+}
+
+void tegra_dvfs_rail_disable(struct dvfs_rail *rail)
+{
+	mutex_lock(&dvfs_lock);
+	__tegra_dvfs_rail_disable(rail);
+	mutex_unlock(&dvfs_lock);
+}
+
+int tegra_dvfs_rail_disable_by_name(const char *reg_id)
+{
+	struct dvfs_rail *rail;
+	int ret = 0;
+
+	mutex_lock(&dvfs_lock);
+	list_for_each_entry(rail, &dvfs_rail_list, node) {
+		if (!strcmp(reg_id, rail->reg_id)) {
+			__tegra_dvfs_rail_disable(rail);
+			goto out;
+		}
+	}
+
+	ret = -EINVAL;
+
+out:
+	mutex_unlock(&dvfs_lock);
+	return ret;
+}
+
 /*
  * Iterate through all the dvfs regulators, finding the regulator exported
  * by the regulator api for each one.  Must be called in late init, after

@@ -87,5 +87,7 @@ int dvfs_debugfs_init(struct dentry *clk_debugfs_root);
 int tegra_dvfs_late_init(void);
 int tegra_dvfs_init_rails(struct dvfs_rail *dvfs_rails[], int n);
 void tegra_dvfs_add_relationships(struct dvfs_relationship *rels, int n);
+void tegra_dvfs_rail_enable(struct dvfs_rail *rail);
+void tegra_dvfs_rail_disable(struct dvfs_rail *rail);
 
 #endif

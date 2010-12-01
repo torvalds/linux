@@ -20,10 +20,22 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/module.h>
 
 #include "clock.h"
 #include "dvfs.h"
 #include "fuse.h"
+
+#ifdef CONFIG_TEGRA_CORE_DVFS
+static bool tegra_dvfs_core_disabled;
+#else
+static bool tegra_dvfs_core_disabled = true;
+#endif
+#ifdef CONFIG_TEGRA_CPU_DVFS
+static bool tegra_dvfs_cpu_disabled;
+#else
+static bool tegra_dvfs_cpu_disabled = true;
+#endif
 
 static const int core_millivolts[MAX_DVFS_FREQS] =
 	{950, 1000, 1100, 1200, 1275};
@@ -38,9 +50,6 @@ static struct dvfs_rail tegra2_dvfs_rail_vdd_cpu = {
 	.max_millivolts = 1100,
 	.min_millivolts = 750,
 	.nominal_millivolts = 1100,
-#ifndef CONFIG_TEGRA_CPU_DVFS
-	.disabled = true,
-#endif
 };
 
 static struct dvfs_rail tegra2_dvfs_rail_vdd_core = {
@@ -49,9 +58,6 @@ static struct dvfs_rail tegra2_dvfs_rail_vdd_core = {
 	.min_millivolts = 950,
 	.nominal_millivolts = 1200,
 	.step = 150, /* step vdd_core by 150 mV to allow vdd_aon to follow */
-#ifndef CONFIG_TEGRA_CORE_DVFS
-	.disabled = true,
-#endif
 };
 
 static struct dvfs_rail tegra2_dvfs_rail_vdd_aon = {
@@ -195,6 +201,58 @@ static struct dvfs dvfs_init[] = {
 	CORE_DVFS("NVRM_DEVID_CLK_SRC", 1, MHZ, 480, 600, 800, 1067, 1067),
 };
 
+int tegra_dvfs_disable_core_set(const char *arg, const struct kernel_param *kp)
+{
+	int ret;
+
+	ret = param_set_bool(arg, kp);
+	if (ret)
+		return ret;
+
+	if (tegra_dvfs_core_disabled)
+		tegra_dvfs_rail_disable(&tegra2_dvfs_rail_vdd_core);
+	else
+		tegra_dvfs_rail_enable(&tegra2_dvfs_rail_vdd_core);
+
+	return 0;
+}
+
+int tegra_dvfs_disable_cpu_set(const char *arg, const struct kernel_param *kp)
+{
+	int ret;
+
+	ret = param_set_bool(arg, kp);
+	if (ret)
+		return ret;
+
+	if (tegra_dvfs_cpu_disabled)
+		tegra_dvfs_rail_disable(&tegra2_dvfs_rail_vdd_cpu);
+	else
+		tegra_dvfs_rail_enable(&tegra2_dvfs_rail_vdd_cpu);
+
+	return 0;
+}
+
+int tegra_dvfs_disable_get(char *buffer, const struct kernel_param *kp)
+{
+	return param_get_bool(buffer, kp);
+}
+
+static struct kernel_param_ops tegra_dvfs_disable_core_ops = {
+	.set = tegra_dvfs_disable_core_set,
+	.get = tegra_dvfs_disable_get,
+};
+
+static struct kernel_param_ops tegra_dvfs_disable_cpu_ops = {
+	.set = tegra_dvfs_disable_cpu_set,
+	.get = tegra_dvfs_disable_get,
+};
+
+module_param_cb(disable_core, &tegra_dvfs_disable_core_ops,
+	&tegra_dvfs_core_disabled, 0644);
+module_param_cb(disable_cpu, &tegra_dvfs_disable_cpu_ops,
+	&tegra_dvfs_cpu_disabled, 0644);
+
 void __init tegra2_init_dvfs(void)
 {
 	int i;
@@ -230,4 +288,10 @@ void __init tegra2_init_dvfs(void)
 			pr_err("tegra_dvfs: failed to enable dvfs on %s\n",
 				c->name);
 	}
+
+	if (tegra_dvfs_core_disabled)
+		tegra_dvfs_rail_disable(&tegra2_dvfs_rail_vdd_core);
+
+	if (tegra_dvfs_cpu_disabled)
+		tegra_dvfs_rail_disable(&tegra2_dvfs_rail_vdd_cpu);
 }
