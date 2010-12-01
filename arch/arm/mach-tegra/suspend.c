@@ -127,6 +127,10 @@ static void __iomem *tmrus = IO_ADDRESS(TEGRA_TMRUS_BASE);
 #define FLOW_CTRL_CPU_CSR	0x8
 #define FLOW_CTRL_CPU1_CSR	0x18
 
+#define EMC_MRW_0		0x0e8
+#define EMC_MRW_DEV_SELECTN     30
+#define EMC_MRW_DEV_NONE	(3 << EMC_MRW_DEV_SELECTN)
+
 unsigned long tegra_pgd_phys;  /* pgd used by hotplug & LP2 bootup */
 static pgd_t *tegra_pgd;
 void *tegra_context_area = NULL;
@@ -568,6 +572,7 @@ static int tegra_suspend_enter(suspend_state_t state)
 {
 	struct irq_desc *desc;
 	void __iomem *mc = IO_ADDRESS(TEGRA_MC_BASE);
+	void __iomem *emc = IO_ADDRESS(TEGRA_EMC_BASE);
 	unsigned long flags;
 	u32 mc_data[3] = {0, 0, 0};
 	int irq;
@@ -634,6 +639,9 @@ static int tegra_suspend_enter(suspend_state_t state)
 		writel(mc_data[0], mc + MC_SECURITY_START);
 		writel(mc_data[1], mc + MC_SECURITY_SIZE);
 		writel(mc_data[2], mc + MC_SECURITY_CFG2);
+
+		/* trigger emc mode write */
+		writel(EMC_MRW_DEV_NONE, emc + EMC_MRW_0);
 
 		tegra_clk_resume();
 		tegra_gpio_resume();

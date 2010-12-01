@@ -928,8 +928,8 @@ static void tegra_dc_init(struct tegra_dc *dc)
 	tegra_dc_writel(dc, 0x00000100 | vblank_syncpt, DC_CMD_CONT_SYNCPT_VSYNC);
 	tegra_dc_writel(dc, 0x00004700, DC_CMD_INT_TYPE);
 	tegra_dc_writel(dc, 0x0001c700, DC_CMD_INT_POLARITY);
-	tegra_dc_writel(dc, 0x00000020, DC_DISP_MEM_HIGH_PRIORITY);
-	tegra_dc_writel(dc, 0x00000001, DC_DISP_MEM_HIGH_PRIORITY_TIMER);
+	tegra_dc_writel(dc, 0x00202020, DC_DISP_MEM_HIGH_PRIORITY);
+	tegra_dc_writel(dc, 0x00010101, DC_DISP_MEM_HIGH_PRIORITY_TIMER);
 
 	tegra_dc_writel(dc, 0x00000002, DC_CMD_INT_MASK);
 	tegra_dc_writel(dc, 0x00000000, DC_CMD_INT_ENABLE);

@@ -49,10 +49,21 @@
 #include "trpc.h"
 #include "avp.h"
 
-u32 avp_debug_mask = (AVP_DBG_TRACE_TRPC_CONN |
-		      AVP_DBG_TRACE_XPC_CONN |
-		      AVP_DBG_TRACE_LIB);
+enum {
+	AVP_DBG_TRACE_XPC	= 1U << 0,
+	AVP_DBG_TRACE_XPC_IRQ	= 1U << 1,
+	AVP_DBG_TRACE_XPC_MSG	= 1U << 2,
+	AVP_DBG_TRACE_XPC_CONN	= 1U << 3,
+	AVP_DBG_TRACE_TRPC_MSG	= 1U << 4,
+	AVP_DBG_TRACE_TRPC_CONN	= 1U << 5,
+	AVP_DBG_TRACE_LIB	= 1U << 6,
+};
+
+static u32 avp_debug_mask = 0;
 module_param_named(debug_mask, avp_debug_mask, uint, S_IWUSR | S_IRUGO);
+
+#define DBG(flag, args...) \
+	do { if (unlikely(avp_debug_mask & (flag))) pr_info(args); } while (0)
 
 #define TEGRA_AVP_NAME			"tegra-avp"
 
@@ -1023,6 +1034,7 @@ static void avp_uninit(struct avp_info *avp)
 
 	avp->shutdown = false;
 	smp_wmb();
+	pr_info("%s: avp teardown done\n", __func__);
 }
 
 /* returns the remote lib handle in lib->handle */
@@ -1037,7 +1049,7 @@ static int _load_lib(struct avp_info *avp, struct tegra_avp_lib *lib)
 	unsigned long lib_phys;
 	int ret;
 
-	pr_info("avp_lib: loading library %s\n", lib->name);
+	DBG(AVP_DBG_TRACE_LIB, "avp_lib: loading library '%s'\n", lib->name);
 
 	args = kmalloc(lib->args_len, GFP_KERNEL);
 	if (!args) {
@@ -1109,8 +1121,9 @@ static int _load_lib(struct avp_info *avp, struct tegra_avp_lib *lib)
 	}
 	lib->handle = resp.lib_id;
 	ret = 0;
-	pr_info("avp_lib: Successfully loaded library %s (lib_id=%x)\n",
-		lib->name, resp.lib_id);
+	DBG(AVP_DBG_TRACE_LIB,
+	    "avp_lib: Successfully loaded library %s (lib_id=%x)\n",
+	    lib->name, resp.lib_id);
 
 	/* We free the memory here because by this point the AVP has already
 	 * requested memory for the library for all the sections since it does

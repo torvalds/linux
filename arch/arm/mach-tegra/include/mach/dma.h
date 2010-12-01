@@ -156,6 +156,12 @@ int tegra_dma_cancel(struct tegra_dma_channel *ch);
 
 int __init tegra_dma_init(void);
 
+#else /* !defined(CONFIG_TEGRA_SYSTEM_DMA) */
+static inline int tegra_dma_init(void)
+{
+	return 0;
+}
+
 #endif
 
 #endif

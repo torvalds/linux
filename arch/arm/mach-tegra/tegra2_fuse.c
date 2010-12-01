@@ -63,7 +63,7 @@
 static u32 fuse_pgm_data[NFUSES / 2];
 static u32 fuse_pgm_mask[NFUSES / 2];
 static u32 tmp_fuse_pgm_data[NFUSES / 2];
-static u8 master_enable;
+static u32 master_enable;
 
 DEFINE_MUTEX(fuse_lock);
 
@@ -144,7 +144,7 @@ static struct param_info fuse_info_tbl[] = {
 		.data_offset = 10,
 	},
 	[ODM_RSVD] = {
-		.addr = &fuse_info.odm_rsvd,
+		.addr = fuse_info.odm_rsvd,
 		.sz = sizeof(fuse_info.odm_rsvd),
 		.start_off = 0x16,
 		.start_bit = 4,
