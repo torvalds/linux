@@ -44,6 +44,7 @@ config ARCH_OMAP4
 	select ARM_GIC
 	select PL310_ERRATA_588369
 	select ARM_ERRATA_720789
+	select USB_ARCH_HAS_EHCI
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
