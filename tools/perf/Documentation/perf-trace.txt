@@ -104,6 +104,13 @@ OPTIONS
         normally don't - this option allows the latter to be run in
         system-wide mode.
 
+-i::
+--input=::
+        Input file name.
+
+-d::
+--debug-mode::
+        Do various checks like samples ordering and lost events.
 
 SEE ALSO
 --------
