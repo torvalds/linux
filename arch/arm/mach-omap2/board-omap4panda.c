@@ -377,9 +377,7 @@ static void __init omap4_panda_init(void)
 	/* OMAP4 Panda uses internal transceiver so register nop transceiver */
 	usb_nop_xceiv_register();
 	omap4_ehci_init();
-	/* FIXME: allow multi-omap to boot until musb is updated for omap4 */
-	if (!cpu_is_omap44xx())
-		usb_musb_init(&musb_board_data);
+	usb_musb_init(&musb_board_data);
 }
 
 static void __init omap4_panda_map_io(void)
