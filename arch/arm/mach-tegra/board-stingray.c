@@ -972,6 +972,11 @@ static void __init tegra_stingray_init(void)
 		gpio_export(TEGRA_GPIO_PZ5, false);
 	}
 
+	if (stingray_revision() <= STINGRAY_REVISION_P1) {
+		pr_info("Disabling core dvfs on P1 hardware\n");
+		tegra_dvfs_rail_disable_by_name("vdd_core");
+	}
+
 	stingray_pinmux_init();
 
 	tegra_clk_init_from_table(stingray_clk_init_table);
