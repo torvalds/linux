@@ -725,26 +725,21 @@ static void throtl_process_limit_change(struct throtl_data *td)
 	struct throtl_grp *tg;
 	struct hlist_node *pos, *n;
 
-	/*
-	 * Make sure atomic_inc() effects from
-	 * throtl_update_blkio_group_read_bps(), group of functions are
-	 * visible.
-	 * Is this required or smp_mb__after_atomic_inc() was suffcient
-	 * after the atomic_inc().
-	 */
-	smp_rmb();
 	if (!atomic_read(&td->limits_changed))
 		return;
 
 	throtl_log(td, "limit changed =%d", atomic_read(&td->limits_changed));
 
-	hlist_for_each_entry_safe(tg, pos, n, &td->tg_list, tg_node) {
-		/*
-		 * Do I need an smp_rmb() here to make sure tg->limits_changed
-		 * update is visible. I am relying on smp_rmb() at the
-		 * beginning of function and not putting a new one here.
-		 */
+	/*
+	 * Make sure updates from throtl_update_blkio_group_read_bps() group
+	 * of functions to tg->limits_changed are visible. We do not
+	 * want update td->limits_changed to be visible but update to
+	 * tg->limits_changed not being visible yet on this cpu. Hence
+	 * the read barrier.
+	 */
+	smp_rmb();
 
+	hlist_for_each_entry_safe(tg, pos, n, &td->tg_list, tg_node) {
 		if (throtl_tg_on_rr(tg) && tg->limits_changed) {
 			throtl_log_tg(td, tg, "limit change rbps=%llu wbps=%llu"
 				" riops=%u wiops=%u", tg->bps[READ],
