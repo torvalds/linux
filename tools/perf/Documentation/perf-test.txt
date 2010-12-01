@@ -12,7 +12,7 @@ SYNOPSIS
 
 DESCRIPTION
 -----------
-This command does assorted sanity tests, initially thru linked routines but
+This command does assorted sanity tests, initially through linked routines but
 also will look for a directory with more tests in the form of scripts.
 
 OPTIONS
