@@ -55,11 +55,11 @@ struct sco_conninfo {
 struct sco_conn {
 	struct hci_conn	*hcon;
 
-	bdaddr_t 	*dst;
-	bdaddr_t 	*src;
-	
+	bdaddr_t	*dst;
+	bdaddr_t	*src;
+
 	spinlock_t	lock;
-	struct sock 	*sk;
+	struct sock	*sk;
 
 	unsigned int    mtu;
 };
