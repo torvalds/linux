@@ -231,6 +231,33 @@ void fcoe_ctlr_destroy(struct fcoe_ctlr *fip)
 EXPORT_SYMBOL(fcoe_ctlr_destroy);
 
 /**
+ * fcoe_ctlr_announce() - announce new selection
+ * @fip: The FCoE controller
+ *
+ * Also sets the destination MAC for FCoE and control packets
+ */
+static void fcoe_ctlr_announce(struct fcoe_ctlr *fip)
+{
+	struct fcoe_fcf *sel = fip->sel_fcf;
+
+	if (sel && !compare_ether_addr(sel->fcf_mac, fip->dest_addr))
+		return;
+	if (!is_zero_ether_addr(fip->dest_addr)) {
+		printk(KERN_NOTICE "libfcoe: host%d: "
+		       "FIP Fibre-Channel Forwarder MAC %pM deselected\n",
+		       fip->lp->host->host_no, fip->dest_addr);
+		memset(fip->dest_addr, 0, ETH_ALEN);
+	}
+	if (sel) {
+		printk(KERN_INFO "libfcoe: host%d: FIP selected "
+		       "Fibre-Channel Forwarder MAC %pM\n",
+		       fip->lp->host->host_no, sel->fcf_mac);
+		memcpy(fip->dest_addr, sel->fcf_mac, ETH_ALEN);
+		fip->map_dest = 0;
+	}
+}
+
+/**
  * fcoe_ctlr_fcoe_size() - Return the maximum FCoE size required for VN_Port
  * @fip: The FCoE controller to get the maximum FCoE size from
  *
@@ -1420,24 +1447,15 @@ static void fcoe_ctlr_timer_work(struct work_struct *work)
 
 	if (sel != fcf) {
 		fcf = sel;		/* the old FCF may have been freed */
+		fcoe_ctlr_announce(fip);
 		if (sel) {
-			printk(KERN_INFO "libfcoe: host%d: FIP selected "
-			       "Fibre-Channel Forwarder MAC %pM\n",
-			       fip->lp->host->host_no, sel->fcf_mac);
-			memcpy(fip->dest_addr, sel->fcf_mac, ETH_ALEN);
-			fip->map_dest = 0;
 			fip->port_ka_time = jiffies +
 				msecs_to_jiffies(FIP_VN_KA_PERIOD);
 			fip->ctlr_ka_time = jiffies + sel->fka_period;
 			if (time_after(next_timer, fip->ctlr_ka_time))
 				next_timer = fip->ctlr_ka_time;
-		} else {
-			printk(KERN_NOTICE "libfcoe: host%d: "
-			       "FIP Fibre-Channel Forwarder timed out.	"
-			       "Starting FCF discovery.\n",
-			       fip->lp->host->host_no);
+		} else
 			reset = 1;
-		}
 	}
 
 	if (sel && !sel->fd_flags) {
