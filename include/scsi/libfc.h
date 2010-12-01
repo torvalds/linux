@@ -263,7 +263,6 @@ struct fc_seq_els_data {
  * struct fc_fcp_pkt - FCP request structure (one for each scsi_cmnd request)
  * @lp:              The associated local port
  * @state:           The state of the I/O
- * @tgt_flags:       Target's flags
  * @ref_cnt:         Reference count
  * @scsi_pkt_lock:   Lock to protect the SCSI packet (must be taken before the
  *                   host_lock if both are to be held at the same time)
@@ -298,7 +297,6 @@ struct fc_fcp_pkt {
 	/* Housekeeping information */
 	struct fc_lport   *lp;
 	u16		  state;
-	u16		  tgt_flags;
 	atomic_t	  ref_cnt;
 	spinlock_t	  scsi_pkt_lock;
 
