@@ -52,6 +52,14 @@ config WL12XX_SDIO
 	  If you choose to build a module, it'll be called wl12xx_sdio.
 	  Say N if unsure.
 
+config WL1271_SDIO_TEST
+	tristate "TI wl1271 SDIO testing support"
+	depends on WL1271 && MMC
+	---help---
+	  This module adds support for the SDIO bus testing with the
+	  TI wl1271 chipset.  Select this if your platform is using
+	  the SDIO bus.
+
 config WL12XX_PLATFORM_DATA
 	bool
 	depends on WL12XX_SDIO != n || WL1251_SDIO != n
