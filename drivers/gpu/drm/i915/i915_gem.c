@@ -38,8 +38,7 @@
 
 static uint32_t i915_gem_get_gtt_alignment(struct drm_gem_object *obj);
 
-static int i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj,
-						  bool pipelined);
+static int i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj);
 static void i915_gem_object_flush_gtt_write_domain(struct drm_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_gem_object *obj);
 static int i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj,
@@ -2594,7 +2593,7 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj,
 	if (reg->gpu) {
 		int ret;
 
-		ret = i915_gem_object_flush_gpu_write_domain(obj, true);
+		ret = i915_gem_object_flush_gpu_write_domain(obj);
 		if (ret)
 			return ret;
 
@@ -2742,8 +2741,7 @@ i915_gem_clflush_object(struct drm_gem_object *obj)
 
 /** Flushes any GPU write domain for the object if it's dirty. */
 static int
-i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj,
-				       bool pipelined)
+i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	uint32_t old_write_domain;
@@ -2762,10 +2760,7 @@ i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj,
 					    obj->read_domains,
 					    old_write_domain);
 
-	if (pipelined)
-		return 0;
-
-	return i915_gem_object_wait_rendering(obj, true);
+	return 0;
 }
 
 /** Flushes the GTT write domain for the object if it's dirty. */
@@ -2826,17 +2821,14 @@ i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
 	if (obj_priv->gtt_space == NULL)
 		return -EINVAL;
 
-	ret = i915_gem_object_flush_gpu_write_domain(obj, false);
+	ret = i915_gem_object_flush_gpu_write_domain(obj);
 	if (ret != 0)
+		return ret;
+	ret = i915_gem_object_wait_rendering(obj, true);
+	if (ret)
 		return ret;
 
 	i915_gem_object_flush_cpu_write_domain(obj);
-
-	if (write) {
-		ret = i915_gem_object_wait_rendering(obj, true);
-		if (ret)
-			return ret;
-	}
 
 	old_write_domain = obj->write_domain;
 	old_read_domains = obj->read_domains;
@@ -2875,7 +2867,7 @@ i915_gem_object_set_to_display_plane(struct drm_gem_object *obj,
 	if (obj_priv->gtt_space == NULL)
 		return -EINVAL;
 
-	ret = i915_gem_object_flush_gpu_write_domain(obj, true);
+	ret = i915_gem_object_flush_gpu_write_domain(obj);
 	if (ret)
 		return ret;
 
@@ -2924,8 +2916,11 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
 	uint32_t old_write_domain, old_read_domains;
 	int ret;
 
-	ret = i915_gem_object_flush_gpu_write_domain(obj, false);
+	ret = i915_gem_object_flush_gpu_write_domain(obj);
 	if (ret != 0)
+		return ret;
+	ret = i915_gem_object_wait_rendering(obj, true);
+	if (ret)
 		return ret;
 
 	i915_gem_object_flush_gtt_write_domain(obj);
@@ -2934,12 +2929,6 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
 	 * finish invalidating it and free the per-page flags.
 	 */
 	i915_gem_object_set_to_full_cpu_read_domain(obj);
-
-	if (write) {
-		ret = i915_gem_object_wait_rendering(obj, true);
-		if (ret)
-			return ret;
-	}
 
 	old_write_domain = obj->write_domain;
 	old_read_domains = obj->read_domains;
@@ -3205,9 +3194,13 @@ i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 	if (offset == 0 && size == obj->size)
 		return i915_gem_object_set_to_cpu_domain(obj, 0);
 
-	ret = i915_gem_object_flush_gpu_write_domain(obj, false);
+	ret = i915_gem_object_flush_gpu_write_domain(obj);
 	if (ret != 0)
 		return ret;
+	ret = i915_gem_object_wait_rendering(obj, true);
+	if (ret)
+		return ret;
+
 	i915_gem_object_flush_gtt_write_domain(obj);
 
 	/* If we're already fully in the CPU read domain, we're done. */
