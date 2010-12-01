@@ -16,9 +16,6 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #include <linux/delay.h>
 #include <linux/circ_buf.h>
 #include <linux/miscdevice.h>
-
-#include <mach/spi_fpga.h>
-
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
@@ -54,6 +51,8 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #define CONFIG_SENSOR_Flash         0
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
+
+#define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
 
 #define CONFIG_SENSOR_TR      1
 #define CONFIG_SENSOR_DEBUG	  1
@@ -1179,8 +1178,8 @@ static int sensor_write(struct i2c_client *client, u8 reg, u8 val)
     msg->flags = client->flags;
     msg->buf = buf;
     msg->len = sizeof(buf);
-    msg->scl_rate = 400*1000;                                        /* ddl@rock-chips.com : 100kHz */
-    msg->read_type = I2C_NORMAL;
+    msg->scl_rate = CONFIG_SENSOR_I2C_SPEED;                                        /* ddl@rock-chips.com : 100kHz */
+    msg->read_type = 0;               /* fpga i2c:0==I2C_NORMAL : direct use number not enum for don't want include spi_fpga.h */
 
     cnt = 3;
     err = -EAGAIN;
@@ -1203,34 +1202,38 @@ static int sensor_write(struct i2c_client *client, u8 reg, u8 val)
 static int sensor_read(struct i2c_client *client, u8 reg, u8 *val)
 {
     int err,cnt;
-    u8 buf[1];
-    struct i2c_msg msg[1];
+    u8 buf[2];
+    struct i2c_msg msg[2];
 
-    buf[0] = reg & 0xFF;
+    buf[0] = reg >> 8;
+    buf[1] = reg & 0xFF;
 
-    msg->addr = client->addr;
-    msg->flags = client->flags;
-    msg->buf = buf;
-    msg->len = sizeof(buf);
-    msg->scl_rate = 400*1000;                                        /* ddl@rock-chips.com : 100kHz */
-    i2c_transfer(client->adapter, msg, 1);
-    msg->addr = client->addr;
-    msg->flags = client->flags|I2C_M_RD;
-    msg->buf = buf;
-    msg->len = 1;                                     /* ddl@rock-chips.com : 100kHz */
+    msg[0].addr = client->addr;
+    msg[0].flags = client->flags;
+    msg[0].buf = buf;
+    msg[0].len = sizeof(buf);
+    msg[0].scl_rate = CONFIG_SENSOR_I2C_SPEED;       /* ddl@rock-chips.com : 100kHz */
+    msg[0].read_type = 2;   /* fpga i2c:0==I2C_NO_STOP : direct use number not enum for don't want include spi_fpga.h */
 
-    cnt = 3;
+    msg[1].addr = client->addr;
+    msg[1].flags = client->flags|I2C_M_RD;
+    msg[1].buf = buf;
+    msg[1].len = 1;
+    msg[1].scl_rate = CONFIG_SENSOR_I2C_SPEED;                       /* ddl@rock-chips.com : 100kHz */
+    msg[1].read_type = 2;                             /* fpga i2c:0==I2C_NO_STOP : direct use number not enum for don't want include spi_fpga.h */
+
+    cnt = 1;
     err = -EAGAIN;
     while ((cnt--) && (err < 0)) {                       /* ddl@rock-chips.com :  Transfer again if transent is failed   */
-        err = i2c_transfer(client->adapter, msg, 1);
+        err = i2c_transfer(client->adapter, msg, 2);
 
         if (err >= 0) {
             *val = buf[0];
             return 0;
         } else {
-        	SENSOR_TR("\n %s write reg failed, try to read again!\n",SENSOR_NAME_STRING());
+        	SENSOR_TR("\n %s read reg failed, try to read again! reg:0x%x \n",SENSOR_NAME_STRING(),val);
             udelay(10);
-         }
+        }
     }
 
     return err;
