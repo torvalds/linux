@@ -166,11 +166,9 @@ unsigned int sk_run_filter(struct sk_buff *skb, const struct sock_filter *fentry
 	u32 A = 0;			/* Accumulator */
 	u32 X = 0;			/* Index Register */
 	u32 mem[BPF_MEMWORDS];		/* Scratch Memory Store */
-	unsigned long memvalid = 0;
 	u32 tmp;
 	int k;
 
-	BUILD_BUG_ON(BPF_MEMWORDS > BITS_PER_LONG);
 	/*
 	 * Process array of filter instructions.
 	 */
@@ -318,12 +316,10 @@ load_b:
 			X = K;
 			continue;
 		case BPF_S_LD_MEM:
-			A = (memvalid & (1UL << K)) ?
-				mem[K] : 0;
+			A = mem[K];
 			continue;
 		case BPF_S_LDX_MEM:
-			X = (memvalid & (1UL << K)) ?
-				mem[K] : 0;
+			X = mem[K];
 			continue;
 		case BPF_S_MISC_TAX:
 			X = A;
@@ -336,11 +332,9 @@ load_b:
 		case BPF_S_RET_A:
 			return A;
 		case BPF_S_ST:
-			memvalid |= 1UL << K;
 			mem[K] = A;
 			continue;
 		case BPF_S_STX:
-			memvalid |= 1UL << K;
 			mem[K] = X;
 			continue;
 		default:
@@ -424,6 +418,66 @@ load_b:
 	return 0;
 }
 EXPORT_SYMBOL(sk_run_filter);
+
+/*
+ * Security :
+ * A BPF program is able to use 16 cells of memory to store intermediate
+ * values (check u32 mem[BPF_MEMWORDS] in sk_run_filter())
+ * As we dont want to clear mem[] array for each packet going through
+ * sk_run_filter(), we check that filter loaded by user never try to read
+ * a cell if not previously written, and we check all branches to be sure
+ * a malicious user doesnt try to abuse us.
+ */
+static int check_load_and_stores(struct sock_filter *filter, int flen)
+{
+	u16 *masks, memvalid = 0; /* one bit per cell, 16 cells */
+	int pc, ret = 0;
+
+	BUILD_BUG_ON(BPF_MEMWORDS > 16);
+	masks = kmalloc(flen * sizeof(*masks), GFP_KERNEL);
+	if (!masks)
+		return -ENOMEM;
+	memset(masks, 0xff, flen * sizeof(*masks));
+
+	for (pc = 0; pc < flen; pc++) {
+		memvalid &= masks[pc];
+
+		switch (filter[pc].code) {
+		case BPF_S_ST:
+		case BPF_S_STX:
+			memvalid |= (1 << filter[pc].k);
+			break;
+		case BPF_S_LD_MEM:
+		case BPF_S_LDX_MEM:
+			if (!(memvalid & (1 << filter[pc].k))) {
+				ret = -EINVAL;
+				goto error;
+			}
+			break;
+		case BPF_S_JMP_JA:
+			/* a jump must set masks on target */
+			masks[pc + 1 + filter[pc].k] &= memvalid;
+			memvalid = ~0;
+			break;
+		case BPF_S_JMP_JEQ_K:
+		case BPF_S_JMP_JEQ_X:
+		case BPF_S_JMP_JGE_K:
+		case BPF_S_JMP_JGE_X:
+		case BPF_S_JMP_JGT_K:
+		case BPF_S_JMP_JGT_X:
+		case BPF_S_JMP_JSET_X:
+		case BPF_S_JMP_JSET_K:
+			/* a jump must set masks on targets */
+			masks[pc + 1 + filter[pc].jt] &= memvalid;
+			masks[pc + 1 + filter[pc].jf] &= memvalid;
+			memvalid = ~0;
+			break;
+		}
+	}
+error:
+	kfree(masks);
+	return ret;
+}
 
 /**
  *	sk_chk_filter - verify socket filter code
@@ -553,7 +607,7 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
 	switch (filter[flen - 1].code) {
 	case BPF_S_RET_K:
 	case BPF_S_RET_A:
-		return 0;
+		return check_load_and_stores(filter, flen);
 	}
 	return -EINVAL;
 }
