@@ -38,22 +38,10 @@ typedef struct osl_dmainfo osldma_t;
 typedef unsigned int (*osl_rreg_fn_t) (void *ctx, void *reg, unsigned int size);
 typedef void (*osl_wreg_fn_t) (void *ctx, void *reg, unsigned int val,
 			       unsigned int size);
-#endif
+#endif /* BCMSDIO */
 
 #include <linux_osl.h>
 
-/* --------------------------------------------------------------------------
-** Register manipulation macros.
-*/
-
 #define	SET_REG(osh, r, mask, val)	W_REG((osh), (r), ((R_REG((osh), r) & ~(mask)) | (val)))
 
-#ifndef AND_REG
-#define AND_REG(osh, r, v)		W_REG(osh, (r), R_REG(osh, r) & (v))
-#endif				/* !AND_REG */
-
-#ifndef OR_REG
-#define OR_REG(osh, r, v)		W_REG(osh, (r), R_REG(osh, r) | (v))
-#endif				/* !OR_REG */
-
-#endif				/* _osl_h_ */
+#endif /* _osl_h_ */
