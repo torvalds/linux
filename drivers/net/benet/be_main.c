@@ -911,11 +911,17 @@ static void be_rx_compl_discard(struct be_adapter *adapter,
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
 	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
 
-	for (i = 0; i < num_rcvd; i++) {
-		page_info = get_rx_page_info(adapter, rxo, rxq_idx);
-		put_page(page_info->page);
-		memset(page_info, 0, sizeof(*page_info));
-		index_inc(&rxq_idx, rxq->len);
+	 /* Skip out-of-buffer compl(lancer) or flush compl(BE) */
+	if (likely(rxq_idx != rxo->last_frag_index && num_rcvd != 0)) {
+
+		rxo->last_frag_index = rxq_idx;
+
+		for (i = 0; i < num_rcvd; i++) {
+			page_info = get_rx_page_info(adapter, rxo, rxq_idx);
+			put_page(page_info->page);
+			memset(page_info, 0, sizeof(*page_info));
+			index_inc(&rxq_idx, rxq->len);
+		}
 	}
 }
 
@@ -1016,9 +1022,6 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	u8 vtm;
 
 	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
-	/* Is it a flush compl that has no data */
-	if (unlikely(num_rcvd == 0))
-		return;
 
 	skb = netdev_alloc_skb_ip_align(adapter->netdev, BE_HDR_LEN);
 	if (unlikely(!skb)) {
@@ -1075,10 +1078,6 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	u8 pkt_type;
 
 	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
-	/* Is it a flush compl that has no data */
-	if (unlikely(num_rcvd == 0))
-		return;
-
 	pkt_size = AMAP_GET_BITS(struct amap_eth_rx_compl, pktsize, rxcp);
 	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
@@ -1349,7 +1348,7 @@ static void be_rx_q_clean(struct be_adapter *adapter, struct be_rx_obj *rxo)
 	while ((rxcp = be_rx_compl_get(rxo)) != NULL) {
 		be_rx_compl_discard(adapter, rxo, rxcp);
 		be_rx_compl_reset(rxcp);
-		be_cq_notify(adapter, rx_cq->id, true, 1);
+		be_cq_notify(adapter, rx_cq->id, false, 1);
 	}
 
 	/* Then free posted rx buffer that were not used */
@@ -1576,6 +1575,9 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 	adapter->big_page_size = (1 << get_order(rx_frag_size)) * PAGE_SIZE;
 	for_all_rx_queues(adapter, rxo, i) {
 		rxo->adapter = adapter;
+		/* Init last_frag_index so that the frag index in the first
+		 * completion will never match */
+		rxo->last_frag_index = 0xffff;
 		rxo->rx_eq.max_eqd = BE_MAX_EQD;
 		rxo->rx_eq.enable_aic = true;
 
@@ -1697,10 +1699,9 @@ static irqreturn_t be_msix_tx_mcc(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static inline bool do_gro(struct be_adapter *adapter, struct be_rx_obj *rxo,
-			struct be_eth_rx_compl *rxcp)
+static inline bool do_gro(struct be_rx_obj *rxo,
+			struct be_eth_rx_compl *rxcp, u8 err)
 {
-	int err = AMAP_GET_BITS(struct amap_eth_rx_compl, err, rxcp);
 	int tcp_frame = AMAP_GET_BITS(struct amap_eth_rx_compl, tcpf, rxcp);
 
 	if (err)
@@ -1717,6 +1718,8 @@ static int be_poll_rx(struct napi_struct *napi, int budget)
 	struct be_queue_info *rx_cq = &rxo->cq;
 	struct be_eth_rx_compl *rxcp;
 	u32 work_done;
+	u16 frag_index, num_rcvd;
+	u8 err;
 
 	rxo->stats.rx_polls++;
 	for (work_done = 0; work_done < budget; work_done++) {
@@ -1724,10 +1727,22 @@ static int be_poll_rx(struct napi_struct *napi, int budget)
 		if (!rxcp)
 			break;
 
-		if (do_gro(adapter, rxo, rxcp))
-			be_rx_compl_process_gro(adapter, rxo, rxcp);
-		else
-			be_rx_compl_process(adapter, rxo, rxcp);
+		err = AMAP_GET_BITS(struct amap_eth_rx_compl, err, rxcp);
+		frag_index = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx,
+								rxcp);
+		num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags,
+								rxcp);
+
+		/* Skip out-of-buffer compl(lancer) or flush compl(BE) */
+		if (likely(frag_index != rxo->last_frag_index &&
+				num_rcvd != 0)) {
+			rxo->last_frag_index = frag_index;
+
+			if (do_gro(rxo, rxcp, err))
+				be_rx_compl_process_gro(adapter, rxo, rxcp);
+			else
+				be_rx_compl_process(adapter, rxo, rxcp);
+		}
 
 		be_rx_compl_reset(rxcp);
 	}
