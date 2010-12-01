@@ -1391,6 +1391,13 @@ static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
 			best = fcf;
 	}
 	fip->sel_fcf = best;
+	if (best) {
+		fip->port_ka_time = jiffies +
+			msecs_to_jiffies(FIP_VN_KA_PERIOD);
+		fip->ctlr_ka_time = jiffies + best->fka_period;
+		if (time_before(fip->ctlr_ka_time, fip->timer.expires))
+			mod_timer(&fip->timer, fip->ctlr_ka_time);
+	}
 }
 
 /**
@@ -1449,9 +1456,6 @@ static void fcoe_ctlr_timer_work(struct work_struct *work)
 		fcf = sel;		/* the old FCF may have been freed */
 		fcoe_ctlr_announce(fip);
 		if (sel) {
-			fip->port_ka_time = jiffies +
-				msecs_to_jiffies(FIP_VN_KA_PERIOD);
-			fip->ctlr_ka_time = jiffies + sel->fka_period;
 			if (time_after(next_timer, fip->ctlr_ka_time))
 				next_timer = fip->ctlr_ka_time;
 		} else
