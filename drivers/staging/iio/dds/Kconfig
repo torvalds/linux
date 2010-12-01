@@ -11,11 +11,11 @@ config AD5930
 	  ad5930/ad5932, provides direct access via sysfs.
 
 config AD9832
-	tristate "Analog Devices ad9832/3/4/5 driver"
+	tristate "Analog Devices ad9832/5 driver"
 	depends on SPI
 	help
 	  Say yes here to build support for Analog Devices DDS chip
-	  ad9832/3/4/5, provides direct access via sysfs.
+	  ad9832 and ad9835, provides direct access via sysfs.
 
 config AD9850
 	tristate "Analog Devices ad9850/1 driver"
