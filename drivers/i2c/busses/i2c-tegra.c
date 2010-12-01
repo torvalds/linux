@@ -35,6 +35,7 @@
 #define BYTES_PER_FIFO_WORD 4
 
 #define I2C_CNFG				0x000
+#define I2C_CNFG_DEBOUNCE_CNT_SHIFT		12
 #define I2C_CNFG_PACKET_MODE_EN			(1<<10)
 #define I2C_CNFG_NEW_MASTER_FSM			(1<<11)
 #define I2C_STATUS				0x01C
@@ -312,7 +313,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 	if (i2c_dev->is_dvc)
 		tegra_dvc_init(i2c_dev);
 
-	val = I2C_CNFG_NEW_MASTER_FSM | I2C_CNFG_PACKET_MODE_EN;
+	val = I2C_CNFG_NEW_MASTER_FSM | I2C_CNFG_PACKET_MODE_EN | (0x2 << I2C_CNFG_DEBOUNCE_CNT_SHIFT);
 	i2c_writel(i2c_dev, val, I2C_CNFG);
 	i2c_writel(i2c_dev, 0, I2C_INT_MASK);
 	tegra_i2c_set_clk(i2c_dev, i2c_dev->last_bus_clk);

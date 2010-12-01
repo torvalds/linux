@@ -70,7 +70,7 @@ enum {
 	TRPC_TRACE_PORT	= 1U << 2,
 };
 
-static u32 trpc_debug_mask = TRPC_TRACE_CONN | TRPC_TRACE_PORT;
+static u32 trpc_debug_mask = 0;
 module_param_named(debug_mask, trpc_debug_mask, uint, S_IWUSR | S_IRUGO);
 
 #define DBG(flag, args...) \
