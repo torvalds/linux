@@ -353,6 +353,33 @@ static inline struct usb_request *next_out_request(struct musb_hw_ep *hw_ep)
 #endif
 }
 
+struct musb_csr_regs {
+	/* FIFO registers */
+	u16 txmaxp, txcsr, rxmaxp, rxcsr;
+	u16 rxfifoadd, txfifoadd;
+	u8 txtype, txinterval, rxtype, rxinterval;
+	u8 rxfifosz, txfifosz;
+	u8 txfunaddr, txhubaddr, txhubport;
+	u8 rxfunaddr, rxhubaddr, rxhubport;
+};
+
+struct musb_context_registers {
+
+#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
+    defined(CONFIG_ARCH_OMAP4)
+	u32 otg_sysconfig, otg_forcestandby;
+#endif
+	u8 power;
+	u16 intrtxe, intrrxe;
+	u8 intrusbe;
+	u16 frame;
+	u8 index, testmode;
+
+	u8 devctl, busctl, misc;
+
+	struct musb_csr_regs index_regs[MUSB_C_NUM_EPS];
+};
+
 /*
  * struct musb - Driver instance data.
  */
@@ -363,6 +390,7 @@ struct musb {
 	struct clk		*phy_clock;
 
 	const struct musb_platform_ops *ops;
+	struct musb_context_registers context;
 
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
@@ -582,33 +610,6 @@ extern irqreturn_t musb_interrupt(struct musb *);
 extern void musb_hnp_stop(struct musb *musb);
 
 #ifdef CONFIG_PM
-struct musb_csr_regs {
-	/* FIFO registers */
-	u16 txmaxp, txcsr, rxmaxp, rxcsr;
-	u16 rxfifoadd, txfifoadd;
-	u8 txtype, txinterval, rxtype, rxinterval;
-	u8 rxfifosz, txfifosz;
-	u8 txfunaddr, txhubaddr, txhubport;
-	u8 rxfunaddr, rxhubaddr, rxhubport;
-};
-
-struct musb_context_registers {
-
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
-    defined(CONFIG_ARCH_OMAP4)
-	u32 otg_sysconfig, otg_forcestandby;
-#endif
-	u8 power;
-	u16 intrtxe, intrrxe;
-	u8 intrusbe;
-	u16 frame;
-	u8 index, testmode;
-
-	u8 devctl, busctl, misc;
-
-	struct musb_csr_regs index_regs[MUSB_C_NUM_EPS];
-};
-
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
     defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_BLACKFIN)
 extern void musb_platform_save_context(struct musb *musb,
