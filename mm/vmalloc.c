@@ -2148,10 +2148,6 @@ struct vm_struct *alloc_vm_area(size_t size)
 		return NULL;
 	}
 
-	/* Make sure the pagetables are constructed in process kernel
-	   mappings */
-	vmalloc_sync_all();
-
 	return area;
 }
 EXPORT_SYMBOL_GPL(alloc_vm_area);
