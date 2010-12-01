@@ -34,14 +34,8 @@ static int fsi_ak4642_dai_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 static struct snd_soc_dai_link fsi_dai_link = {
-	/* .name */
-	/* .stream_name */
-	/* .cpu_dai_name */
 	.codec_dai_name	= "ak4642-hifi",
-	/* .platform_name */
-	/* .codec_name */
 	.init		= fsi_ak4642_dai_init,
-	.ops		= NULL,
 };
 
 static struct snd_soc_card fsi_soc_card  = {
