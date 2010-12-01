@@ -2325,10 +2325,12 @@ int usb_add_hcd(struct usb_hcd *hcd,
 
 		snprintf(hcd->irq_descr, sizeof(hcd->irq_descr), "%s:usb%d",
 				hcd->driver->description, hcd->self.busnum);
-		if ((retval = request_irq(irqnum, &usb_hcd_irq, irqflags,
-				hcd->irq_descr, hcd)) != 0) {
+		retval = request_irq(irqnum, &usb_hcd_irq, irqflags,
+				hcd->irq_descr, hcd);
+		if (retval != 0) {
 			dev_err(hcd->self.controller,
-					"request interrupt %d failed\n", irqnum);
+					"request interrupt %d failed\n",
+					irqnum);
 			goto err_request_irq;
 		}
 		hcd->irq = irqnum;
@@ -2345,7 +2347,8 @@ int usb_add_hcd(struct usb_hcd *hcd,
 					(unsigned long long)hcd->rsrc_start);
 	}
 
-	if ((retval = hcd->driver->start(hcd)) < 0) {
+	retval = hcd->driver->start(hcd);
+	if (retval < 0) {
 		dev_err(hcd->self.controller, "startup error %d\n", retval);
 		goto err_hcd_driver_start;
 	}
