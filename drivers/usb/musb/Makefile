@@ -8,21 +8,18 @@ obj-$(CONFIG_USB_MUSB_HDRC) += musb_hdrc.o
 
 musb_hdrc-y := musb_core.o
 
-musb_hdrc-$(CONFIG_ARCH_DAVINCI_DMx)		+= davinci.o
-musb_hdrc-$(CONFIG_ARCH_DAVINCI_DA8XX)		+= da8xx.o
-musb_hdrc-$(CONFIG_USB_TUSB6010)		+= tusb6010.o
-musb_hdrc-$(CONFIG_ARCH_OMAP2430)		+= omap2430.o
-ifeq ($(CONFIG_USB_MUSB_AM35X),y)
-	musb_hdrc-$(CONFIG_ARCH_OMAP3430)	+= am35x.o
-else
-	musb_hdrc-$(CONFIG_ARCH_OMAP3430)	+= omap2430.o
-endif
-musb_hdrc-$(CONFIG_ARCH_OMAP4)			+= omap2430.o
-musb_hdrc-$(CONFIG_BF54x)			+= blackfin.o
-musb_hdrc-$(CONFIG_BF52x)			+= blackfin.o
 musb_hdrc-$(CONFIG_USB_GADGET_MUSB_HDRC)	+= musb_gadget_ep0.o musb_gadget.o
 musb_hdrc-$(CONFIG_USB_MUSB_HDRC_HCD)		+= musb_virthub.o musb_host.o
 musb_hdrc-$(CONFIG_DEBUG_FS)			+= musb_debugfs.o
+
+# Hardware Glue Layer
+
+musb_hdrc-$(CONFIG_USB_MUSB_DAVINCI)		+= davinci.o
+musb_hdrc-$(CONFIG_USB_MUSB_DA8XX)		+= da8xx.o
+musb_hdrc-$(CONFIG_USB_MUSB_TUSB6010)		+= tusb6010.o
+musb_hdrc-$(CONFIG_USB_MUSB_OMAP2PLUS)		+= omap2430.o
+musb_hdrc-$(CONFIG_USB_MUSB_AM35X)		+= am35x.o
+musb_hdrc-$(CONFIG_USB_MUSB_BLACKFIN)		+= blackfin.o
 
 # the kconfig must guarantee that only one of the
 # possible I/O schemes will be enabled at a time ...

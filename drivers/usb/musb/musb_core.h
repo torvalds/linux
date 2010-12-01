@@ -222,7 +222,7 @@ enum musb_g_ep0_state {
 #endif
 
 /* TUSB mapping: "flat" plus ep0 special cases */
-#if	defined(CONFIG_USB_TUSB6010)
+#if	defined(CONFIG_USB_MUSB_TUSB6010)
 #define musb_ep_select(_mbase, _epnum) \
 	musb_writeb((_mbase), MUSB_INDEX, (_epnum))
 #define	MUSB_EP_OFFSET			MUSB_TUSB_OFFSET
@@ -293,7 +293,7 @@ struct musb_hw_ep {
 	void __iomem		*fifo;
 	void __iomem		*regs;
 
-#ifdef CONFIG_USB_TUSB6010
+#ifdef CONFIG_USB_MUSB_TUSB6010
 	void __iomem		*conf;
 #endif
 
@@ -310,7 +310,7 @@ struct musb_hw_ep {
 	struct dma_channel	*tx_channel;
 	struct dma_channel	*rx_channel;
 
-#ifdef CONFIG_USB_TUSB6010
+#ifdef CONFIG_USB_MUSB_TUSB6010
 	/* TUSB has "asynchronous" and "synchronous" dma modes */
 	dma_addr_t		fifo_async;
 	dma_addr_t		fifo_sync;
@@ -432,7 +432,7 @@ struct musb {
 	void __iomem		*ctrl_base;
 	void __iomem		*mregs;
 
-#ifdef CONFIG_USB_TUSB6010
+#ifdef CONFIG_USB_MUSB_TUSB6010
 	dma_addr_t		async;
 	dma_addr_t		sync;
 	void __iomem		*sync_va;

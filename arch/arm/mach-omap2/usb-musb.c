@@ -31,7 +31,7 @@
 #include <mach/am35xx.h>
 #include <plat/usb.h>
 
-#ifdef CONFIG_USB_MUSB_SOC
+#if defined(CONFIG_USB_MUSB_OMAP2PLUS) || defined (CONFIG_USB_MUSB_AM35X)
 
 static struct resource musb_resources[] = {
 	[0] = { /* start and end set dynamically */

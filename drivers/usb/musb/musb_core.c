@@ -230,7 +230,7 @@ static struct otg_io_access_ops musb_ulpi_access = {
 
 /*-------------------------------------------------------------------------*/
 
-#if !defined(CONFIG_USB_TUSB6010) && !defined(CONFIG_BLACKFIN)
+#if !defined(CONFIG_USB_MUSB_TUSB6010) && !defined(CONFIG_USB_MUSB_BLACKFIN)
 
 /*
  * Load an endpoint's FIFO
@@ -1068,9 +1068,8 @@ static void musb_shutdown(struct platform_device *pdev)
  * We don't currently use dynamic fifo setup capability to do anything
  * more than selecting one of a bunch of predefined configurations.
  */
-#if defined(CONFIG_USB_TUSB6010) || \
-	defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) \
-	|| defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_USB_MUSB_TUSB6010) || defined(CONFIG_USB_MUSB_OMAP2PLUS) \
+	|| defined(CONFIG_USB_MUSB_AM35X)
 static ushort __initdata fifo_mode = 4;
 #else
 static ushort __initdata fifo_mode = 2;
@@ -1495,7 +1494,7 @@ static int __init musb_core_init(u16 musb_type, struct musb *musb)
 		struct musb_hw_ep	*hw_ep = musb->endpoints + i;
 
 		hw_ep->fifo = MUSB_FIFO_OFFSET(i) + mbase;
-#ifdef CONFIG_USB_TUSB6010
+#ifdef CONFIG_USB_MUSB_TUSB6010
 		hw_ep->fifo_async = musb->async + 0x400 + MUSB_FIFO_OFFSET(i);
 		hw_ep->fifo_sync = musb->sync + 0x400 + MUSB_FIFO_OFFSET(i);
 		hw_ep->fifo_sync_va =
