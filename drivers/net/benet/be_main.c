@@ -2901,7 +2901,7 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, adapter);
 
 	status = be_dev_family_check(adapter);
-	if (!status)
+	if (status)
 		goto free_netdev;
 
 	adapter->netdev = netdev;
