@@ -1399,22 +1399,24 @@ dhd_watchdog_thread(void *data)
 	/* Run until signal received */
 	while (1) {
 		if (down_interruptible (&dhd->watchdog_sem) == 0) {
-
+			dhd_os_sdlock(&dhd->pub);
 			if (dhd->pub.dongle_reset == FALSE) {
+				DHD_TIMER(("%s:\n", __FUNCTION__));
 				/* Call the bus module watchdog */
 				dhd_bus_watchdog(&dhd->pub);
+
+				/* Count the tick for reference */
+				dhd->pub.tickcnt++;
+
+				/* Reschedule the watchdog */
+				if (dhd->wd_timer_valid)
+					mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
 			}
-			/* Count the tick for reference */
-			dhd->pub.tickcnt++;
-
-			/* Reschedule the watchdog */
-			if (dhd->wd_timer_valid)
-				mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
-
+			dhd_os_sdunlock(&dhd->pub);
 			dhd_os_wake_unlock(&dhd->pub);
-		}
-		else
+		} else {
 			break;
+		}
 	}
 
 	complete_and_exit(&dhd->watchdog_exited, 0);
@@ -1426,11 +1428,17 @@ dhd_watchdog(ulong data)
 	dhd_info_t *dhd = (dhd_info_t *)data;
 
 	dhd_os_wake_lock(&dhd->pub);
+	if (dhd->pub.dongle_reset) {
+		dhd_os_wake_unlock(&dhd->pub);
+		return;
+	}
+
 	if (dhd->watchdog_pid >= 0) {
 		up(&dhd->watchdog_sem);
 		return;
 	}
 
+	dhd_os_sdlock(&dhd->pub);
 	/* Call the bus module watchdog */
 	dhd_bus_watchdog(&dhd->pub);
 
@@ -1440,6 +1448,7 @@ dhd_watchdog(ulong data)
 	/* Reschedule the watchdog */
 	if (dhd->wd_timer_valid)
 		mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
+	dhd_os_sdunlock(&dhd->pub);
 	dhd_os_wake_unlock(&dhd->pub);
 }
 
@@ -2198,8 +2207,8 @@ dhd_bus_start(dhd_pub_t *dhdp)
 #if defined(OOB_INTR_ONLY)
 	/* Host registration for OOB interrupt */
 	if (bcmsdh_register_oob_intr(dhdp)) {
-		del_timer_sync(&dhd->timer);
 		dhd->wd_timer_valid = FALSE;
+		del_timer_sync(&dhd->timer);
 		DHD_ERROR(("%s Host failed to resgister for OOB\n", __FUNCTION__));
 		return -ENODEV;
 	}
@@ -2210,8 +2219,8 @@ dhd_bus_start(dhd_pub_t *dhdp)
 
 	/* If bus is not ready, can't come up */
 	if (dhd->pub.busstate != DHD_BUS_DATA) {
-		del_timer_sync(&dhd->timer);
 		dhd->wd_timer_valid = FALSE;
+		del_timer_sync(&dhd->timer);
 		DHD_ERROR(("%s failed bus is not ready\n", __FUNCTION__));
 		return -ENODEV;
 	}
@@ -2420,8 +2429,8 @@ dhd_bus_detach(dhd_pub_t *dhdp)
 #endif /* defined(OOB_INTR_ONLY) */
 
 			/* Clear the watchdog timer */
-			del_timer_sync(&dhd->timer);
 			dhd->wd_timer_valid = FALSE;
+			del_timer_sync(&dhd->timer);
 		}
 	}
 }
@@ -2687,29 +2696,28 @@ void
 dhd_os_wd_timer(void *bus, uint wdtick)
 {
 	dhd_pub_t *pub = bus;
-	static uint save_dhd_watchdog_ms = 0;
 	dhd_info_t *dhd = (dhd_info_t *)pub->info;
+	unsigned long flags;
+	int del_timer_flag = FALSE;
+
+	flags = dhd_os_spin_lock(pub);
 
 	/* don't start the wd until fw is loaded */
-	if (pub->busstate == DHD_BUS_DOWN)
-		return;
-
-	/* Totally stop the timer */
-	if (!wdtick && dhd->wd_timer_valid == TRUE) {
-		del_timer_sync(&dhd->timer);
-		dhd->wd_timer_valid = FALSE;
-		save_dhd_watchdog_ms = wdtick;
-		return;
+	if (pub->busstate != DHD_BUS_DOWN) {
+		if (wdtick) {
+			dhd_watchdog_ms = (uint)wdtick;
+			dhd->wd_timer_valid = TRUE;
+			/* Re arm the timer, at last watchdog period */
+			mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
+		} else if (dhd->wd_timer_valid == TRUE) {
+			/* Totally stop the timer */
+			dhd->wd_timer_valid = FALSE;
+			del_timer_flag = TRUE;
+		}
 	}
-
-	if (wdtick) {
-		dhd_watchdog_ms = (uint)wdtick;
-
-		/* Re arm the timer, at last watchdog period */
-		mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
-
-		dhd->wd_timer_valid = TRUE;
-		save_dhd_watchdog_ms = wdtick;
+	dhd_os_spin_unlock(pub, flags);
+	if (del_timer_flag) {
+		del_timer_sync(&dhd->timer);
 	}
 }
 
@@ -2927,20 +2935,12 @@ dhd_dev_reset(struct net_device *dev, uint8 flag)
 
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 
-	/* Turning off watchdog */
-	if (flag)
-		dhd_os_wd_timer(&dhd->pub, 0);
-
 	ret = dhd_bus_devreset(&dhd->pub, flag);
 	if (ret) {
 		DHD_ERROR(("%s: dhd_bus_devreset: %d\n", __FUNCTION__, ret));
 		return ret;
 	}
-
-	/* Turning on watchdog back */
-	if (!flag)
-		dhd_os_wd_timer(&dhd->pub, dhd_watchdog_ms);
-	DHD_ERROR(("%s: WLAN OFF DONE\n", __FUNCTION__));
+	DHD_ERROR(("%s: WLAN %s DONE\n", __FUNCTION__, flag ? "OFF" : "ON"));
 
 	return ret;
 }
