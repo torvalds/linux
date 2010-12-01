@@ -131,7 +131,7 @@ static int varbuf_append(varbuf_t *b, const char *fmt, ...)
 	if (s != NULL) {
 		len = (size_t) (s - b->buf);
 		for (s = b->base; s < b->buf;) {
-			if ((bcmp(s, b->buf, len) == 0) && s[len] == '=') {
+			if ((memcmp(s, b->buf, len) == 0) && s[len] == '=') {
 				len = strlen(s) + 1;
 				memmove(s, (s + len),
 					((b->buf + r + 1) - (s + len)));

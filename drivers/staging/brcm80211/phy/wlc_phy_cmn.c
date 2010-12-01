@@ -167,7 +167,7 @@ char *phy_getvar(phy_info_t *pi, const char *name)
 		return NULL;
 
 	for (s = vars; s && *s;) {
-		if ((bcmp(s, name, len) == 0) && (s[len] == '='))
+		if ((memcmp(s, name, len) == 0) && (s[len] == '='))
 			return &s[len + 1];
 
 		while (*s++)

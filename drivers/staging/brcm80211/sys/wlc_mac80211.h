@@ -813,7 +813,7 @@ struct antsel_info {
 		dma_getnexttxp((wlc)->hw->di[(_queue)], HNDDMA_RANGE_TRANSMITTED)
 
 #define WLC_IS_MATCH_SSID(wlc, ssid1, ssid2, len1, len2) \
-	((len1 == len2) && !bcmp(ssid1, ssid2, len1))
+	((len1 == len2) && !memcmp(ssid1, ssid2, len1))
 
 extern void wlc_high_dpc(wlc_info_t *wlc, u32 macintstatus);
 extern void wlc_fatal_error(wlc_info_t *wlc);

@@ -834,7 +834,7 @@ wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 	u16 flags;
 	int evlen;
 
-	if (bcmp(BRCM_OUI, &pvt_data->bcm_hdr.oui[0], DOT11_OUI_LEN)) {
+	if (memcmp(BRCM_OUI, &pvt_data->bcm_hdr.oui[0], DOT11_OUI_LEN)) {
 		DHD_ERROR(("%s: mismatched OUI, bailing\n", __func__));
 		return BCME_ERROR;
 	}

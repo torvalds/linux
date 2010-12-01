@@ -101,7 +101,6 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 #endif
 /* bcopy's: Linux kernel doesn't provide these (anymore) */
 #define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
-#define	bcmp(b1, b2, len)	memcmp((b1), (b2), (len))
 
 /* register access macros */
 #if defined(OSLREGOPS)
@@ -201,7 +200,6 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 #define	OR_REG(osh, r, v)		W_REG(osh, (r), R_REG(osh, r) | (v))
 
 #define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
-#define	bcmp(b1, b2, len)	memcmp((b1), (b2), (len))
 
 /* uncached/cached virtual address */
 #ifdef __mips__

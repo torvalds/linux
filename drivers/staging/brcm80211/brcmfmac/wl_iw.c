@@ -1407,7 +1407,7 @@ static bool ie_is_wpa_ie(u8 **wpaie, u8 **tlvs, int *tlvs_len)
 	u8 *ie = *wpaie;
 
 	if ((ie[1] >= 6) &&
-	    !bcmp((const void *)&ie[2], (const void *)(WPA_OUI "\x01"), 4)) {
+	    !memcmp((const void *)&ie[2], (const void *)(WPA_OUI "\x01"), 4)) {
 		return true;
 	}
 
@@ -1423,7 +1423,7 @@ static bool ie_is_wps_ie(u8 **wpsie, u8 **tlvs, int *tlvs_len)
 	u8 *ie = *wpsie;
 
 	if ((ie[1] >= 4) &&
-	    !bcmp((const void *)&ie[2], (const void *)(WPA_OUI "\x04"), 4)) {
+	    !memcmp((const void *)&ie[2], (const void *)(WPA_OUI "\x04"), 4)) {
 		return true;
 	}
 
@@ -2669,7 +2669,7 @@ wl_iw_set_pmksa(struct net_device *dev,
 		}
 
 		for (i = 0; i < pmkid_list.pmkids.npmkid; i++)
-			if (!bcmp
+			if (!memcmp
 			    (&iwpmksa->bssid.sa_data[0],
 			     &pmkid_list.pmkids.pmkid[i].BSSID, ETHER_ADDR_LEN))
 				break;
@@ -2692,7 +2692,7 @@ wl_iw_set_pmksa(struct net_device *dev,
 
 	else if (iwpmksa->cmd == IW_PMKSA_ADD) {
 		for (i = 0; i < pmkid_list.pmkids.npmkid; i++)
-			if (!bcmp
+			if (!memcmp
 			    (&iwpmksa->bssid.sa_data[0],
 			     &pmkid_list.pmkids.pmkid[i].BSSID, ETHER_ADDR_LEN))
 				break;

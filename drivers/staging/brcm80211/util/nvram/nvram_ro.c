@@ -133,7 +133,7 @@ static char *findvar(char *vars, char *lim, const char *name)
 	len = strlen(name);
 
 	for (s = vars; (s < lim) && *s;) {
-		if ((bcmp(s, name, len) == 0) && (s[len] == '='))
+		if ((memcmp(s, name, len) == 0) && (s[len] == '='))
 			return &s[len + 1];
 
 		while (*s++)
