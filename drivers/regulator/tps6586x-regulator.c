@@ -298,14 +298,14 @@ static inline int tps6586x_regulator_preinit(struct device *parent,
 	if (ret)
 		return ret;
 
-	if (!(val2 & ri->enable_bit[1]))
+	if (!(val2 & (1 << ri->enable_bit[1])))
 		return 0;
 
 	/*
 	 * The regulator is on, but it's enabled with the bit we don't
 	 * want to use, so we switch the enable bits
 	 */
-	if (!(val1 & ri->enable_bit[0])) {
+	if (!(val1 & (1 << ri->enable_bit[0]))) {
 		ret = tps6586x_set_bits(parent, ri->enable_reg[0],
 					1 << ri->enable_bit[0]);
 		if (ret)
