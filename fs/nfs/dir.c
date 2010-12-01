@@ -178,6 +178,7 @@ typedef struct {
 	struct page	*page;
 	unsigned long	page_index;
 	u64		*dir_cookie;
+	u64		last_cookie;
 	loff_t		current_index;
 	decode_dirent_t	decode;
 
@@ -344,6 +345,8 @@ int nfs_readdir_search_array(nfs_readdir_descriptor_t *desc)
 	else
 		status = nfs_readdir_search_for_cookie(array, desc);
 
+	if (status == -EAGAIN)
+		desc->last_cookie = array->last_cookie;
 	nfs_readdir_release_array(desc->page);
 out:
 	return status;
@@ -563,7 +566,7 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 	unsigned int array_size = ARRAY_SIZE(pages);
 
 	entry.prev_cookie = 0;
-	entry.cookie = *desc->dir_cookie;
+	entry.cookie = desc->last_cookie;
 	entry.eof = 0;
 	entry.fh = nfs_alloc_fhandle();
 	entry.fattr = nfs_alloc_fattr();
@@ -672,8 +675,10 @@ int readdir_search_pagecache(nfs_readdir_descriptor_t *desc)
 {
 	int res;
 
-	if (desc->page_index == 0)
+	if (desc->page_index == 0) {
 		desc->current_index = 0;
+		desc->last_cookie = 0;
+	}
 	while (1) {
 		res = find_cache_page(desc);
 		if (res != -EAGAIN)
@@ -764,6 +769,7 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 	}
 
 	desc->page_index = 0;
+	desc->last_cookie = *desc->dir_cookie;
 	desc->page = page;
 
 	status = nfs_readdir_xdr_to_array(desc, page, inode);
