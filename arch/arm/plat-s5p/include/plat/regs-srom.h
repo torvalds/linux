@@ -22,6 +22,8 @@
 #define S5P_SROM_BC1		S5P_SROMREG(0x8)
 #define S5P_SROM_BC2		S5P_SROMREG(0xc)
 #define S5P_SROM_BC3		S5P_SROMREG(0x10)
+#define S5P_SROM_BC4		S5P_SROMREG(0x14)
+#define S5P_SROM_BC5		S5P_SROMREG(0x18)
 
 /* one register BW holds 4 x 4-bit packed settings for NCS0 - NCS3 */
 
