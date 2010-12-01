@@ -75,6 +75,44 @@ static struct rc_map_table rc5_hauppauge_new[] = {
 	{ 0x1e3b, KEY_SELECT },		/* top right button */
 	{ 0x1e3c, KEY_ZOOM },		/* full */
 	{ 0x1e3d, KEY_POWER },		/* system power (green button) */
+
+	/* Keycodes for DSR-0112 remote bundled with Haupauge MiniStick */
+	{ 0x1d00, KEY_0 },
+	{ 0x1d01, KEY_1 },
+	{ 0x1d02, KEY_2 },
+	{ 0x1d03, KEY_3 },
+	{ 0x1d04, KEY_4 },
+	{ 0x1d05, KEY_5 },
+	{ 0x1d06, KEY_6 },
+	{ 0x1d07, KEY_7 },
+	{ 0x1d08, KEY_8 },
+	{ 0x1d09, KEY_9 },
+	{ 0x1d0a, KEY_TEXT },
+	{ 0x1d0d, KEY_MENU },
+	{ 0x1d0f, KEY_MUTE },
+	{ 0x1d10, KEY_VOLUMEUP },
+	{ 0x1d11, KEY_VOLUMEDOWN },
+	{ 0x1d12, KEY_PREVIOUS },        /* Prev.Ch .. ??? */
+	{ 0x1d14, KEY_UP },
+	{ 0x1d15, KEY_DOWN },
+	{ 0x1d16, KEY_LEFT },
+	{ 0x1d17, KEY_RIGHT },
+	{ 0x1d1c, KEY_TV },
+	{ 0x1d1e, KEY_NEXT },           /* >|             */
+	{ 0x1d1f, KEY_EXIT },
+	{ 0x1d20, KEY_CHANNELUP },
+	{ 0x1d21, KEY_CHANNELDOWN },
+	{ 0x1d24, KEY_LAST },           /* <|             */
+	{ 0x1d25, KEY_OK },
+	{ 0x1d30, KEY_PAUSE },
+	{ 0x1d32, KEY_REWIND },
+	{ 0x1d34, KEY_FASTFORWARD },
+	{ 0x1d35, KEY_PLAY },
+	{ 0x1d36, KEY_STOP },
+	{ 0x1d37, KEY_RECORD },
+	{ 0x1d3b, KEY_GOTO },
+	{ 0x1d3d, KEY_POWER },
+	{ 0x1d3f, KEY_HOME },
 };
 
 static struct rc_map_list rc5_hauppauge_new_map = {
