@@ -105,7 +105,6 @@ struct irq_info
 
 static struct irq_info *irq_info;
 static int *pirq_to_irq;
-static int nr_pirqs;
 
 static int *evtchn_to_irq;
 struct cpu_evtchn_s {
@@ -385,12 +384,17 @@ static int get_nr_hw_irqs(void)
 	return ret;
 }
 
-/* callers of this function should make sure that PHYSDEVOP_get_nr_pirqs
- * succeeded otherwise nr_pirqs won't hold the right value */
-static int find_unbound_pirq(void)
+static int find_unbound_pirq(int type)
 {
-	int i;
-	for (i = nr_pirqs-1; i >= 0; i--) {
+	int rc, i;
+	struct physdev_get_free_pirq op_get_free_pirq;
+	op_get_free_pirq.type = type;
+
+	rc = HYPERVISOR_physdev_op(PHYSDEVOP_get_free_pirq, &op_get_free_pirq);
+	if (!rc)
+		return op_get_free_pirq.pirq;
+
+	for (i = 0; i < nr_irqs; i++) {
 		if (pirq_to_irq[i] < 0)
 			return i;
 	}
@@ -611,10 +615,10 @@ int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name)
 
 	spin_lock(&irq_mapping_update_lock);
 
-	if ((pirq > nr_pirqs) || (gsi > nr_irqs)) {
+	if ((pirq > nr_irqs) || (gsi > nr_irqs)) {
 		printk(KERN_WARNING "xen_map_pirq_gsi: %s %s is incorrect!\n",
-			pirq > nr_pirqs ? "nr_pirqs" :"",
-			gsi > nr_irqs ? "nr_irqs" : "");
+			pirq > nr_irqs ? "pirq" :"",
+			gsi > nr_irqs ? "gsi" : "");
 		goto out;
 	}
 
@@ -672,7 +676,7 @@ void xen_allocate_pirq_msi(char *name, int *irq, int *pirq)
 	if (*irq == -1)
 		goto out;
 
-	*pirq = find_unbound_pirq();
+	*pirq = find_unbound_pirq(MAP_PIRQ_TYPE_MSI);
 	if (*pirq == -1)
 		goto out;
 
@@ -1506,26 +1510,17 @@ void xen_callback_vector(void) {}
 
 void __init xen_init_IRQ(void)
 {
-	int i, rc;
-	struct physdev_nr_pirqs op_nr_pirqs;
+	int i;
 
 	cpu_evtchn_mask_p = kcalloc(nr_cpu_ids, sizeof(struct cpu_evtchn_s),
 				    GFP_KERNEL);
 	irq_info = kcalloc(nr_irqs, sizeof(*irq_info), GFP_KERNEL);
 
-	rc = HYPERVISOR_physdev_op(PHYSDEVOP_get_nr_pirqs, &op_nr_pirqs);
-	if (rc < 0) {
-		nr_pirqs = nr_irqs;
-		if (rc != -ENOSYS)
-			printk(KERN_WARNING "PHYSDEVOP_get_nr_pirqs returned rc=%d\n", rc);
-	} else {
-		if (xen_pv_domain() && !xen_initial_domain())
-			nr_pirqs = max((int)op_nr_pirqs.nr_pirqs, nr_irqs);
-		else
-			nr_pirqs = op_nr_pirqs.nr_pirqs;
-	}
-	pirq_to_irq = kcalloc(nr_pirqs, sizeof(*pirq_to_irq), GFP_KERNEL);
-	for (i = 0; i < nr_pirqs; i++)
+	/* We are using nr_irqs as the maximum number of pirq available but
+	 * that number is actually chosen by Xen and we don't know exactly
+	 * what it is. Be careful choosing high pirq numbers. */
+	pirq_to_irq = kcalloc(nr_irqs, sizeof(*pirq_to_irq), GFP_KERNEL);
+	for (i = 0; i < nr_irqs; i++)
 		pirq_to_irq[i] = -1;
 
 	evtchn_to_irq = kcalloc(NR_EVENT_CHANNELS, sizeof(*evtchn_to_irq),
