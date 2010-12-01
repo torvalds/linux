@@ -115,7 +115,7 @@ Each probe argument follows below syntax.
 
 LINE SYNTAX
 -----------
-Line range is descripted by following syntax.
+Line range is described by following syntax.
 
  "FUNC[:RLN[+NUM|-RLN2]]|SRC:ALN[+NUM|-ALN2]"
 
