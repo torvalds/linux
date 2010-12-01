@@ -219,23 +219,6 @@ static int get_num_brps(void)
 	return brps;
 }
 
-int hw_breakpoint_slots(int type)
-{
-	/*
-	 * We can be called early, so don't rely on
-	 * our static variables being initialised.
-	 */
-	switch (type) {
-	case TYPE_INST:
-		return get_num_brps();
-	case TYPE_DATA:
-		return get_num_wrps();
-	default:
-		pr_warning("unknown slot type: %d\n", type);
-		return 0;
-	}
-}
-
 /*
  * In order to access the breakpoint/watchpoint control registers,
  * we must be running in debug monitor mode. Unfortunately, we can
@@ -256,8 +239,12 @@ static int enable_monitor_mode(void)
 		goto out;
 	}
 
+	/* If monitor mode is already enabled, just return. */
+	if (dscr & ARM_DSCR_MDBGEN)
+		goto out;
+
 	/* Write to the corresponding DSCR. */
-	switch (debug_arch) {
+	switch (get_debug_arch()) {
 	case ARM_DEBUG_ARCH_V6:
 	case ARM_DEBUG_ARCH_V6_1:
 		ARM_DBG_WRITE(c1, 0, (dscr | ARM_DSCR_MDBGEN));
@@ -272,13 +259,28 @@ static int enable_monitor_mode(void)
 
 	/* Check that the write made it through. */
 	ARM_DBG_READ(c1, 0, dscr);
-	if (WARN_ONCE(!(dscr & ARM_DSCR_MDBGEN),
-				"failed to enable monitor mode.")) {
+	if (!(dscr & ARM_DSCR_MDBGEN))
 		ret = -EPERM;
-	}
 
 out:
 	return ret;
+}
+
+int hw_breakpoint_slots(int type)
+{
+	/*
+	 * We can be called early, so don't rely on
+	 * our static variables being initialised.
+	 */
+	switch (type) {
+	case TYPE_INST:
+		return get_num_brps();
+	case TYPE_DATA:
+		return get_num_wrps();
+	default:
+		pr_warning("unknown slot type: %d\n", type);
+		return 0;
+	}
 }
 
 /*
@@ -292,9 +294,6 @@ static u8 get_max_wp_len(void)
 	u8 size = 4;
 
 	if (debug_arch < ARM_DEBUG_ARCH_V7_ECP14)
-		goto out;
-
-	if (enable_monitor_mode())
 		goto out;
 
 	memset(&ctrl, 0, sizeof(ctrl));
@@ -879,15 +878,13 @@ static struct notifier_block __cpuinitdata dbg_reset_nb = {
 
 static int __init arch_hw_breakpoint_init(void)
 {
-	int ret = 0;
 	u32 dscr;
 
 	debug_arch = get_debug_arch();
 
 	if (debug_arch > ARM_DEBUG_ARCH_V7_ECP14) {
 		pr_info("debug architecture 0x%x unsupported.\n", debug_arch);
-		ret = -ENODEV;
-		goto out;
+		return 0;
 	}
 
 	/* Determine how many BRPs/WRPs are available. */
@@ -928,8 +925,7 @@ static int __init arch_hw_breakpoint_init(void)
 
 	/* Register hotplug notifier. */
 	register_cpu_notifier(&dbg_reset_nb);
-out:
-	return ret;
+	return 0;
 }
 arch_initcall(arch_hw_breakpoint_init);
 
