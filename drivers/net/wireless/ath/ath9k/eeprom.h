@@ -236,6 +236,15 @@
 #define CTL_EDGE_TPOWER(_ctl) ((_ctl) & 0x3f)
 #define CTL_EDGE_FLAGS(_ctl) (((_ctl) >> 6) & 0x03)
 
+#define LNA_CTL_BUF_MODE	BIT(0)
+#define LNA_CTL_ISEL_LO		BIT(1)
+#define LNA_CTL_ISEL_HI		BIT(2)
+#define LNA_CTL_BUF_IN		BIT(3)
+#define LNA_CTL_FEM_BAND	BIT(4)
+#define LNA_CTL_LOCAL_BIAS	BIT(5)
+#define LNA_CTL_FORCE_XPA	BIT(6)
+#define LNA_CTL_USE_ANT1	BIT(7)
+
 enum eeprom_param {
 	EEP_NFTHRESH_5,
 	EEP_NFTHRESH_2,
@@ -381,10 +390,7 @@ struct modal_eep_header {
 	u8 xatten2Margin[AR5416_MAX_CHAINS];
 	u8 ob_ch1;
 	u8 db_ch1;
-	u8 useAnt1:1,
-	    force_xpaon:1,
-	    local_bias:1,
-	    femBandSelectUsed:1, xlnabufin:1, xlnaisel:2, xlnabufmode:1;
+	u8 lna_ctl;
 	u8 miscBits;
 	u16 xpaBiasLvlFreq[3];
 	u8 futureModal[6];
