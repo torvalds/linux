@@ -222,7 +222,7 @@ static inline struct in_device *in_dev_get(const struct net_device *dev)
 
 static inline struct in_device *__in_dev_get_rtnl(const struct net_device *dev)
 {
-	return rcu_dereference_check(dev->ip_ptr, lockdep_rtnl_is_held());
+	return rtnl_dereference(dev->ip_ptr);
 }
 
 extern void in_dev_finish_destroy(struct in_device *idev);
