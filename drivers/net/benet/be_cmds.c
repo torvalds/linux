@@ -470,25 +470,14 @@ int be_cmd_fw_init(struct be_adapter *adapter)
 	spin_lock(&adapter->mbox_lock);
 
 	wrb = (u8 *)wrb_from_mbox(adapter);
-	if (lancer_chip(adapter)) {
-		*wrb++ = 0xFF;
-		*wrb++ = 0x34;
-		*wrb++ = 0x12;
-		*wrb++ = 0xFF;
-		*wrb++ = 0xFF;
-		*wrb++ = 0x78;
-		*wrb++ = 0x56;
-		*wrb = 0xFF;
-	} else {
-		*wrb++ = 0xFF;
-		*wrb++ = 0x12;
-		*wrb++ = 0x34;
-		*wrb++ = 0xFF;
-		*wrb++ = 0xFF;
-		*wrb++ = 0x56;
-		*wrb++ = 0x78;
-		*wrb = 0xFF;
-	}
+	*wrb++ = 0xFF;
+	*wrb++ = 0x12;
+	*wrb++ = 0x34;
+	*wrb++ = 0xFF;
+	*wrb++ = 0xFF;
+	*wrb++ = 0x56;
+	*wrb++ = 0x78;
+	*wrb = 0xFF;
 
 	status = be_mbox_notify_wait(adapter);
 
