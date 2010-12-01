@@ -302,7 +302,7 @@
 #define MX51_MXC_INT_WDOG1		58
 #define MX51_MXC_INT_WDOG2		59
 #define MX51_MXC_INT_KPP		60
-#define MX51_MXC_INT_PWM1		61
+#define MX51_INT_PWM1			61
 #define MX51_INT_I2C1			62
 #define MX51_INT_I2C2			63
 #define MX51_MXC_INT_HS_I2C		64
@@ -335,7 +335,7 @@
 #define MX51_MXC_INT_SPDIF		91
 #define MX51_MXC_INT_TVE		92
 #define MX51_MXC_INT_FIRI		93
-#define MX51_MXC_INT_PWM2		94
+#define MX51_INT_PWM2			94
 #define MX51_MXC_INT_SLIM_EXP		95
 #define MX51_INT_SSI3			96
 #define MX51_MXC_INT_EMI_BOOT		97

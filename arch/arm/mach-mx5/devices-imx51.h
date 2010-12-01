@@ -47,3 +47,7 @@ extern const struct imx_spi_imx_data imx51_ecspi_data[] __initconst;
 extern const struct imx_imx2_wdt_data imx51_imx2_wdt_data[] __initconst;
 #define imx51_add_imx2_wdt(id, pdata)	\
 	imx_add_imx2_wdt(&imx51_imx2_wdt_data[id])
+
+extern const struct imx_mxc_pwm_data imx51_mxc_pwm_data[] __initconst;
+#define imx51_add_mxc_pwm(id, pdata)	\
+	imx_add_mxc_pwm(&imx51_mxc_pwm_data[id], pdata)
