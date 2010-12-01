@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 #include <wlc_cfg.h>
 #include <qmath.h>
 #include <osl.h>

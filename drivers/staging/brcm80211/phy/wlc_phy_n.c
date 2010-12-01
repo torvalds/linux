@@ -18,6 +18,7 @@
 #include <linux/string.h>
 #include <bcmdefs.h>
 #include <wlc_cfg.h>
+#include <linux/delay.h>
 #include <linux/pci.h>
 #include <osl.h>
 #include <siutils.h>

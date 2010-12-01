@@ -14,6 +14,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/pci.h>
 #include <bcmdefs.h>
