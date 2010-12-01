@@ -650,10 +650,13 @@ static void fc_exch_timeout(struct work_struct *work)
 		if (e_stat & ESB_ST_ABNORMAL)
 			rc = fc_exch_done_locked(ep);
 		spin_unlock_bh(&ep->ex_lock);
-		if (!rc)
-			fc_exch_delete(ep);
 		if (resp)
 			resp(sp, ERR_PTR(-FC_EX_TIMEOUT), arg);
+		if (!rc) {
+			/* delete the exchange if it's already being aborted */
+			fc_exch_delete(ep);
+			return;
+		}
 		fc_seq_exch_abort(sp, 2 * ep->r_a_tov);
 		goto done;
 	}
