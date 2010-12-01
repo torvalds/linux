@@ -337,6 +337,15 @@ A partial list of the supported mount options follows:
   wsize		default write size (default 57344)
 		maximum wsize currently allowed by CIFS is 57344 (fourteen
 		4096 byte pages)
+  actimeo=n	attribute cache timeout in seconds (default 1 second).
+		After this timeout, the cifs client requests fresh attribute
+		information from the server. This option allows to tune the
+		attribute cache timeout to suit the workload needs. Shorter
+		timeouts mean better the cache coherency, but increased number
+		of calls to the server. Longer timeouts mean reduced number
+		of calls to the server at the expense of less stricter cache
+		coherency checks (i.e. incorrect attribute cache for a short
+		period of time).
   rw		mount the network share read-write (note that the
 		server may still consider the share read-only)
   ro		mount network share read-only

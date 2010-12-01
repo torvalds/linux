@@ -105,6 +105,7 @@ struct smb_vol {
 	unsigned int wsize;
 	bool sockopt_tcp_nodelay:1;
 	unsigned short int port;
+	unsigned long actimeo; /* attribute cache timeout (jiffies) */
 	char *prepath;
 	struct sockaddr_storage srcaddr; /* allow binding to a local IP */
 	struct nls_table *local_nls;
@@ -840,6 +841,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 	/* default to using server inode numbers where available */
 	vol->server_ino = 1;
 
+	vol->actimeo = CIFS_DEF_ACTIMEO;
+
 	if (!options)
 		return 1;
 
@@ -1213,6 +1216,16 @@ cifs_parse_mount_options(char *options, const char *devname,
 				if ((i == 15) && (value[i] != 0))
 					printk(KERN_WARNING "CIFS: server net"
 					"biosname longer than 15 truncated.\n");
+			}
+		} else if (strnicmp(data, "actimeo", 7) == 0) {
+			if (value && *value) {
+				vol->actimeo = HZ * simple_strtoul(value,
+								   &value, 0);
+				if (vol->actimeo > CIFS_MAX_ACTIMEO) {
+					cERROR(1, "CIFS: attribute cache"
+							"timeout too large");
+					return 1;
+				}
 			}
 		} else if (strnicmp(data, "credentials", 4) == 0) {
 			/* ignore */
@@ -2570,6 +2583,8 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 	cifs_sb->mnt_dir_mode = pvolume_info->dir_mode;
 	cFYI(1, "file mode: 0x%x  dir mode: 0x%x",
 		cifs_sb->mnt_file_mode, cifs_sb->mnt_dir_mode);
+
+	cifs_sb->actimeo = pvolume_info->actimeo;
 
 	if (pvolume_info->noperm)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_PERM;
