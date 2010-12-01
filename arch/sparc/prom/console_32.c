@@ -43,12 +43,14 @@ static int prom_nbputchar(const char *buf)
 	return i; /* Ugh, we could spin forever on unsupported proms ;( */
 }
 
-/* Blocking version of put character routine above. */
-void prom_putchar(const char *buf)
+void prom_console_write_buf(const char *buf, int len)
 {
-	while (1) {
-		int err = prom_nbputchar(buf);
-		if (!err)
-			break;
+	while (len) {
+		int n = prom_nbputchar(buf);
+		if (n)
+			continue;
+		len--;
+		buf++;
 	}
 }
+
