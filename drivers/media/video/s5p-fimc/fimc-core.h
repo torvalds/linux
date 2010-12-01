@@ -16,7 +16,8 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/videodev2.h>
-#include <media/videobuf-core.h>
+#include <linux/io.h>
+#include <media/videobuf2-core.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-mediabus.h>
@@ -69,13 +70,6 @@ enum fimc_dev_flags {
 
 #define fimc_capture_streaming(dev) \
 	test_bit(ST_CAPT_STREAM, &(dev)->state)
-
-#define fimc_buf_finish(dev, vid_buf) do { \
-	spin_lock(&(dev)->irqlock); \
-	(vid_buf)->vb.state = VIDEOBUF_DONE; \
-	spin_unlock(&(dev)->irqlock); \
-	wake_up(&(vid_buf)->vb.done); \
-} while (0)
 
 enum fimc_datapath {
 	FIMC_CAMERA,
@@ -260,7 +254,8 @@ struct fimc_addr {
  * @index: buffer index for the output DMA engine
  */
 struct fimc_vid_buffer {
-	struct videobuf_buffer	vb;
+	struct vb2_buffer	vb;
+	struct list_head	list;
 	struct fimc_addr	paddr;
 	int			index;
 };
@@ -331,13 +326,14 @@ struct fimc_m2m_device {
  */
 struct fimc_vid_cap {
 	struct fimc_ctx			*ctx;
+	struct vb2_alloc_ctx		*alloc_ctx;
 	struct video_device		*vfd;
 	struct v4l2_device		v4l2_dev;
-	struct v4l2_subdev		*sd;
+	struct v4l2_subdev		*sd;;
 	struct v4l2_mbus_framefmt	fmt;
 	struct list_head		pending_buf_q;
 	struct list_head		active_buf_q;
-	struct videobuf_queue		vbq;
+	struct vb2_queue		vbq;
 	int				active_buf_cnt;
 	int				buf_index;
 	unsigned int			frame_count;
@@ -417,7 +413,6 @@ struct fimc_ctx;
  * @regs:	the mapped hardware registers
  * @regs_res:	the resource claimed for IO registers
  * @irq:	interrupt number of the FIMC subdevice
- * @irqlock:	spinlock protecting videobuffer queue
  * @irq_queue:
  * @m2m:	memory-to-memory V4L2 device information
  * @vid_cap:	camera capture device information
@@ -434,11 +429,11 @@ struct fimc_dev {
 	void __iomem			*regs;
 	struct resource			*regs_res;
 	int				irq;
-	spinlock_t			irqlock;
 	wait_queue_head_t		irq_queue;
 	struct fimc_m2m_device		m2m;
 	struct fimc_vid_cap		vid_cap;
 	unsigned long			state;
+	struct vb2_alloc_ctx		*alloc_ctx;
 };
 
 /**
@@ -481,8 +476,6 @@ struct fimc_ctx {
 	struct fimc_dev		*fimc_dev;
 	struct v4l2_m2m_ctx	*m2m_ctx;
 };
-
-extern struct videobuf_queue_ops fimc_qops;
 
 static inline int tiled_fmt(struct fimc_fmt *fmt)
 {
@@ -622,7 +615,7 @@ struct fimc_fmt *find_mbus_format(struct v4l2_mbus_framefmt *f,
 int fimc_check_scaler_ratio(struct v4l2_rect *r, struct fimc_frame *f);
 int fimc_set_scaler_info(struct fimc_ctx *ctx);
 int fimc_prepare_config(struct fimc_ctx *ctx, u32 flags);
-int fimc_prepare_addr(struct fimc_ctx *ctx, struct fimc_vid_buffer *buf,
+int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
 		      struct fimc_frame *frame, struct fimc_addr *paddr);
 
 /* -----------------------------------------------------*/
@@ -649,28 +642,27 @@ static inline void fimc_deactivate_capture(struct fimc_dev *fimc)
 }
 
 /*
- * Add video buffer to the active buffers queue.
- * The caller holds irqlock spinlock.
+ * Add buf to the capture active buffers queue.
+ * Locking: Need to be called with fimc_dev::slock held.
  */
 static inline void active_queue_add(struct fimc_vid_cap *vid_cap,
-					 struct fimc_vid_buffer *buf)
+				    struct fimc_vid_buffer *buf)
 {
-	buf->vb.state = VIDEOBUF_ACTIVE;
-	list_add_tail(&buf->vb.queue, &vid_cap->active_buf_q);
+	list_add_tail(&buf->list, &vid_cap->active_buf_q);
 	vid_cap->active_buf_cnt++;
 }
 
 /*
  * Pop a video buffer from the capture active buffers queue
- * Locking: Need to be called with dev->slock held.
+ * Locking: Need to be called with fimc_dev::slock held.
  */
 static inline struct fimc_vid_buffer *
 active_queue_pop(struct fimc_vid_cap *vid_cap)
 {
 	struct fimc_vid_buffer *buf;
 	buf = list_entry(vid_cap->active_buf_q.next,
-			 struct fimc_vid_buffer, vb.queue);
-	list_del(&buf->vb.queue);
+			 struct fimc_vid_buffer, list);
+	list_del(&buf->list);
 	vid_cap->active_buf_cnt--;
 	return buf;
 }
@@ -679,8 +671,7 @@ active_queue_pop(struct fimc_vid_cap *vid_cap)
 static inline void fimc_pending_queue_add(struct fimc_vid_cap *vid_cap,
 					  struct fimc_vid_buffer *buf)
 {
-	buf->vb.state = VIDEOBUF_QUEUED;
-	list_add_tail(&buf->vb.queue, &vid_cap->pending_buf_q);
+	list_add_tail(&buf->list, &vid_cap->pending_buf_q);
 }
 
 /* Add video buffer to the capture pending buffers queue */
@@ -689,10 +680,9 @@ pending_queue_pop(struct fimc_vid_cap *vid_cap)
 {
 	struct fimc_vid_buffer *buf;
 	buf = list_entry(vid_cap->pending_buf_q.next,
-			struct fimc_vid_buffer, vb.queue);
-	list_del(&buf->vb.queue);
+			struct fimc_vid_buffer, list);
+	list_del(&buf->list);
 	return buf;
 }
-
 
 #endif /* FIMC_CORE_H_ */
