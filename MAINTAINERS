@@ -2080,7 +2080,7 @@ F:	include/drm/
 
 INTEL DRM DRIVERS (excluding Poulsbo, Moorestown and derivative chipsets)
 M:	Chris Wilson <chris@chris-wilson.co.uk>
-L:	intel-gfx@lists.freedesktop.org
+L:	intel-gfx@lists.freedesktop.org (subscribers-only)
 L:	dri-devel@lists.freedesktop.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ickle/drm-intel.git
 S:	Supported
