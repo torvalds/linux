@@ -34,7 +34,7 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 		memcpy(newregs, oldregs, sizeof(*newregs));
 	} else {
 		__asm__ __volatile__ ("stmia %0, {r0 - r15}"
-				      : : "r" (&newregs->ARM_r0));
+				      : : "r" (&newregs->ARM_r0) : "memory");
 		__asm__ __volatile__ ("mrs %0, cpsr"
 				      : "=r" (newregs->ARM_cpsr));
 	}
