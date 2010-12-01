@@ -1699,7 +1699,7 @@ static int tegra_audio_probe(struct platform_device *pdev)
 {
 	int rc, i;
 	struct resource *res;
-	struct clk *i2s_clk, *audio_sync_clk, *dap_mclk;
+	struct clk *i2s_clk, *dap_mclk;
 	struct audio_driver_state *state;
 
 	pr_info("%s\n", __func__);
@@ -1774,14 +1774,6 @@ static int tegra_audio_probe(struct platform_device *pdev)
 		return -EIO;
 	}
 	clk_enable(dap_mclk);
-
-	audio_sync_clk = tegra_get_clock_by_name(state->pdata->audio_sync_clk);
-	if (!audio_sync_clk) {
-		dev_err(&pdev->dev, "%s: could not get audio_2x clock\n",
-			__func__);
-		return -EIO;
-	}
-	clk_enable(audio_sync_clk);
 
 	rc = i2s_configure(pdev);
 	if (rc < 0)
