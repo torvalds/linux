@@ -259,8 +259,7 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 		b->length    = vb->bsize;
 		break;
 	case V4L2_MEMORY_OVERLAY:
-		//b->m.offset  = vb->boff;
-		b->m.offset = vb->boff - vb->bsize* vb->i;    /* ddl@rock-chips.com : nzy modify V4L2_MEMORY_OVERLAY   */
+		b->m.offset  = vb->boff;
 		b->length    = vb->bsize;
 		break;
 	}
@@ -548,8 +547,7 @@ int videobuf_qbuf(struct videobuf_queue *q,
 		buf->baddr = b->m.userptr;
 		break;
 	case V4L2_MEMORY_OVERLAY:
-		//buf->boff = b->m.offset;
-		buf->boff = b->m.offset + buf->bsize* buf->i;    /* ddl@rock-chips.com : nzy modify V4L2_MEMORY_OVERLAY   */
+		buf->boff = b->m.offset;
 		break;
 	default:
 		dprintk(1, "qbuf: wrong memory type\n");
