@@ -77,20 +77,6 @@ struct htc_config_pipe_msg {
 	u8 credits;
 } __packed;
 
-struct htc_packet {
-	void *pktcontext;
-	u8 *buf;
-	u8 *buf_payload;
-	u32 buflen;
-	u32 payload_len;
-
-	int endpoint;
-	int status;
-
-	void *context;
-	u32 reserved;
-};
-
 struct htc_ep_callbacks {
 	void *priv;
 	void (*tx) (void *, struct sk_buff *, enum htc_endpoint_id, bool txok);
@@ -122,11 +108,6 @@ struct htc_endpoint {
 #define HTC_MAX_CONTROL_MESSAGE_LENGTH 255
 #define HTC_CONTROL_BUFFER_SIZE	\
 	(HTC_MAX_CONTROL_MESSAGE_LENGTH + sizeof(struct htc_frame_hdr))
-
-struct htc_control_buf {
-	struct htc_packet htc_pkt;
-	u8 buf[HTC_CONTROL_BUFFER_SIZE];
-};
 
 #define HTC_OP_START_WAIT           BIT(0)
 #define HTC_OP_CONFIG_PIPE_CREDITS  BIT(1)
