@@ -1000,6 +1000,17 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		fcoe_ctlr_solicit(fip, NULL);
 
 	/*
+	 * Put this FCF at the head of the list for priority among equals.
+	 * This helps in the case of an NPV switch which insists we use
+	 * the FCF that answers multicast solicitations, not the others that
+	 * are sending periodic multicast advertisements.
+	 */
+	if (mtu_valid) {
+		list_del(&fcf->list);
+		list_add(&fcf->list, &fip->fcfs);
+	}
+
+	/*
 	 * If this is the first validated FCF, note the time and
 	 * set a timer to trigger selection.
 	 */
