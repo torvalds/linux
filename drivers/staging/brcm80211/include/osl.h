@@ -56,11 +56,4 @@ typedef void (*osl_wreg_fn_t) (void *ctx, void *reg, unsigned int val,
 #define OR_REG(osh, r, v)		W_REG(osh, (r), R_REG(osh, r) | (v))
 #endif				/* !OR_REG */
 
-#if !defined(OSL_SYSUPTIME)
-#define OSL_SYSUPTIME() (0)
-#define OSL_SYSUPTIME_SUPPORT false
-#else
-#define OSL_SYSUPTIME_SUPPORT true
-#endif				/* OSL_SYSUPTIME */
-
 #endif				/* _osl_h_ */
