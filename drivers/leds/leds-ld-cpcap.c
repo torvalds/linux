@@ -52,15 +52,10 @@ static void cpcap_set(struct led_classdev *led_cdev,
 }
 EXPORT_SYMBOL(cpcap_set);
 
-static int cpcap_led_blink(struct led_classdev *led_cdev,
-			       unsigned long *delay_on,
-			       unsigned long *delay_off)
+static void
+cpcap_led_set_blink(struct cpcap_led_data *info, unsigned long blink)
 {
-	struct cpcap_led_data *info =
-		container_of(led_cdev, struct cpcap_led_data,
-			 cpcap_class_dev);
-
-	info->blink_val = *delay_on;
+	info->blink_val = blink;
 
 	if (info->pdata->blink_able) {
 		if(info->blink_val) {
@@ -70,7 +65,17 @@ static int cpcap_led_blink(struct led_classdev *led_cdev,
 			schedule_work(&info->brightness_work);
 		}
 	}
+}
 
+static int cpcap_led_blink(struct led_classdev *led_cdev,
+			       unsigned long *delay_on,
+			       unsigned long *delay_off)
+{
+	struct cpcap_led_data *info =
+		container_of(led_cdev, struct cpcap_led_data,
+			 cpcap_class_dev);
+
+	cpcap_led_set_blink(info, *delay_on);
 	return 0;
 }
 
@@ -134,6 +139,29 @@ static void cpcap_brightness_work(struct work_struct *work)
 	}
 }
 
+static ssize_t blink_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct cpcap_led_data *info =
+		container_of(led_cdev, struct cpcap_led_data, cpcap_class_dev);
+
+	return sprintf(buf, "%u\n", info->blink_val);
+}
+
+static ssize_t blink_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct cpcap_led_data *info =
+		container_of(led_cdev, struct cpcap_led_data, cpcap_class_dev);
+	unsigned long blink = simple_strtoul(buf, NULL, 10);
+	cpcap_led_set_blink(info, blink);
+	return size;
+}
+
+static DEVICE_ATTR(blink, 0644, blink_show, blink_store);
+
 static int cpcap_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -182,10 +210,22 @@ static int cpcap_probe(struct platform_device *pdev)
 		goto err_reg_button_class_failed;
 	}
 
+	/* Create a device file to control blinking.
+	 * We do this to avoid problems setting permissions on the
+	 * timer trigger delay_on and delay_off files.
+	 */
+	ret = device_create_file(info->cpcap_class_dev.dev, &dev_attr_blink);
+	if (ret < 0) {
+		pr_err("%s:device_create_file failed for blink\n", __func__);
+		goto err_device_create_file_failed;
+	}
+
 	INIT_WORK(&info->brightness_work, cpcap_brightness_work);
 
 	return ret;
 
+err_device_create_file_failed:
+	led_classdev_unregister(&info->cpcap_class_dev);
 err_reg_button_class_failed:
 	if (info->regulator)
 		regulator_put(info->regulator);
@@ -198,6 +238,7 @@ static int cpcap_remove(struct platform_device *pdev)
 {
 	struct cpcap_led_data *info = platform_get_drvdata(pdev);
 
+	device_remove_file(info->cpcap_class_dev.dev, &dev_attr_blink);
 	if (info->regulator)
 		regulator_put(info->regulator);
 	led_classdev_unregister(&info->cpcap_class_dev);
