@@ -14,6 +14,7 @@
 
 struct fsi_ak4642_data {
 	const char *name;
+	const char *card;
 	const char *cpu_dai;
 	const char *codec;
 	const char *platform;
@@ -39,7 +40,6 @@ static struct snd_soc_dai_link fsi_dai_link = {
 };
 
 static struct snd_soc_card fsi_soc_card  = {
-	.name		= "FSI (AK4642)",
 	.dai_link	= &fsi_dai_link,
 	.num_links	= 1,
 };
@@ -69,6 +69,7 @@ static int fsi_ak4642_probe(struct platform_device *pdev)
 	fsi_dai_link.cpu_dai_name	= pdata->cpu_dai;
 	fsi_dai_link.platform_name	= pdata->platform;
 	fsi_dai_link.codec_name		= pdata->codec;
+	fsi_soc_card.name		= pdata->card;
 
 	platform_set_drvdata(fsi_snd_device, &fsi_soc_card);
 	ret = platform_device_add(fsi_snd_device);
@@ -88,6 +89,7 @@ static int fsi_ak4642_remove(struct platform_device *pdev)
 
 static struct fsi_ak4642_data fsi_a_ak4642 = {
 	.name		= "AK4642",
+	.card		= "FSIA (AK4642)",
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi.0",
@@ -95,6 +97,7 @@ static struct fsi_ak4642_data fsi_a_ak4642 = {
 
 static struct fsi_ak4642_data fsi_b_ak4642 = {
 	.name		= "AK4642",
+	.card		= "FSIB (AK4642)",
 	.cpu_dai	= "fsib-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi.0",
@@ -102,6 +105,7 @@ static struct fsi_ak4642_data fsi_b_ak4642 = {
 
 static struct fsi_ak4642_data fsi_a_ak4643 = {
 	.name		= "AK4643",
+	.card		= "FSIA (AK4643)",
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi.0",
@@ -109,6 +113,7 @@ static struct fsi_ak4642_data fsi_a_ak4643 = {
 
 static struct fsi_ak4642_data fsi_b_ak4643 = {
 	.name		= "AK4643",
+	.card		= "FSIB (AK4643)",
 	.cpu_dai	= "fsib-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi.0",
@@ -116,6 +121,7 @@ static struct fsi_ak4642_data fsi_b_ak4643 = {
 
 static struct fsi_ak4642_data fsi2_a_ak4642 = {
 	.name		= "AK4642",
+	.card		= "FSI2A (AK4642)",
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi2",
@@ -123,6 +129,7 @@ static struct fsi_ak4642_data fsi2_a_ak4642 = {
 
 static struct fsi_ak4642_data fsi2_b_ak4642 = {
 	.name		= "AK4642",
+	.card		= "FSI2B (AK4642)",
 	.cpu_dai	= "fsib-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi2",
@@ -130,6 +137,7 @@ static struct fsi_ak4642_data fsi2_b_ak4642 = {
 
 static struct fsi_ak4642_data fsi2_a_ak4643 = {
 	.name		= "AK4643",
+	.card		= "FSI2A (AK4643)",
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi2",
@@ -137,6 +145,7 @@ static struct fsi_ak4642_data fsi2_a_ak4643 = {
 
 static struct fsi_ak4642_data fsi2_b_ak4643 = {
 	.name		= "AK4643",
+	.card		= "FSI2B (AK4643)",
 	.cpu_dai	= "fsib-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi2",
