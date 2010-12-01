@@ -1399,7 +1399,6 @@ static void fc_fcp_rec(struct fc_fcp_pkt *fsp)
 	struct fc_frame *fp;
 	struct fc_rport *rport;
 	struct fc_rport_libfc_priv *rpriv;
-	unsigned int rec_tov;
 
 	lport = fsp->lp;
 	rport = fsp->rport;
@@ -1411,8 +1410,6 @@ static void fc_fcp_rec(struct fc_fcp_pkt *fsp)
 		return;
 	}
 
-	rec_tov = get_fsp_rec_tov(fsp);
-
 	fp = fc_fcp_frame_alloc(lport, sizeof(struct fc_els_rec));
 	if (!fp)
 		goto retry;
@@ -1423,13 +1420,13 @@ static void fc_fcp_rec(struct fc_fcp_pkt *fsp)
 		       FC_FCTL_REQ, 0);
 	if (lport->tt.elsct_send(lport, rport->port_id, fp, ELS_REC,
 				 fc_fcp_rec_resp, fsp,
-				 jiffies_to_msecs(rec_tov))) {
+				 2 * lport->r_a_tov)) {
 		fc_fcp_pkt_hold(fsp);		/* hold while REC outstanding */
 		return;
 	}
 retry:
 	if (fsp->recov_retry++ < FC_MAX_RECOV_RETRY)
-		fc_fcp_timer_set(fsp, rec_tov);
+		fc_fcp_timer_set(fsp, get_fsp_rec_tov(fsp));
 	else
 		fc_fcp_recovery(fsp, FC_TIMED_OUT);
 }
