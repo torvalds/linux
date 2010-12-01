@@ -417,11 +417,11 @@ static inline int l2cap_tx_window_full(struct sock *sk)
 	return sub == pi->remote_tx_win;
 }
 
-#define __get_txseq(ctrl) ((ctrl) & L2CAP_CTRL_TXSEQ) >> 1
-#define __get_reqseq(ctrl) ((ctrl) & L2CAP_CTRL_REQSEQ) >> 8
-#define __is_iframe(ctrl) !((ctrl) & L2CAP_CTRL_FRAME_TYPE)
-#define __is_sframe(ctrl) (ctrl) & L2CAP_CTRL_FRAME_TYPE
-#define __is_sar_start(ctrl) ((ctrl) & L2CAP_CTRL_SAR) == L2CAP_SDU_START
+#define __get_txseq(ctrl)	(((ctrl) & L2CAP_CTRL_TXSEQ) >> 1)
+#define __get_reqseq(ctrl)	(((ctrl) & L2CAP_CTRL_REQSEQ) >> 8)
+#define __is_iframe(ctrl)	(!((ctrl) & L2CAP_CTRL_FRAME_TYPE))
+#define __is_sframe(ctrl)	((ctrl) & L2CAP_CTRL_FRAME_TYPE)
+#define __is_sar_start(ctrl)	(((ctrl) & L2CAP_CTRL_SAR) == L2CAP_SDU_START)
 
 void l2cap_load(void);
 
