@@ -1161,9 +1161,11 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	struct usb_hcd *hcd = xhci_to_hcd(xhci);
 	u32 port_id;
 	u32 temp, temp1;
-	u32 __iomem *addr;
 	int max_ports;
 	int slot_id;
+	unsigned int faked_port_index;
+	u32 __iomem *port_array[15 + USB_MAXCHILDREN];
+	int i;
 
 	/* Port status change events always have a successful completion code */
 	if (GET_COMP_CODE(event->generic.field[2]) != COMP_SUCCESS) {
@@ -1179,8 +1181,16 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		goto cleanup;
 	}
 
-	addr = &xhci->op_regs->port_status_base + NUM_PORT_REGS * (port_id - 1);
-	temp = xhci_readl(xhci, addr);
+	for (i = 0; i < max_ports; i++) {
+		if (i < xhci->num_usb3_ports)
+			port_array[i] = xhci->usb3_ports[i];
+		else
+			port_array[i] =
+				xhci->usb2_ports[i - xhci->num_usb3_ports];
+	}
+
+	faked_port_index = port_id;
+	temp = xhci_readl(xhci, port_array[faked_port_index]);
 	if (hcd->state == HC_STATE_SUSPENDED) {
 		xhci_dbg(xhci, "resume root hub\n");
 		usb_hcd_resume_root_hub(hcd);
@@ -1200,7 +1210,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			temp = xhci_port_state_to_neutral(temp);
 			temp &= ~PORT_PLS_MASK;
 			temp |= PORT_LINK_STROBE | XDEV_U0;
-			xhci_writel(xhci, temp, addr);
+			xhci_writel(xhci, temp, port_array[faked_port_index]);
 			slot_id = xhci_find_slot_id_by_port(xhci, port_id);
 			if (!slot_id) {
 				xhci_dbg(xhci, "slot_id is zero\n");
@@ -1209,10 +1219,10 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			xhci_ring_device(xhci, slot_id);
 			xhci_dbg(xhci, "resume SS port %d finished\n", port_id);
 			/* Clear PORT_PLC */
-			temp = xhci_readl(xhci, addr);
+			temp = xhci_readl(xhci, port_array[faked_port_index]);
 			temp = xhci_port_state_to_neutral(temp);
 			temp |= PORT_PLC;
-			xhci_writel(xhci, temp, addr);
+			xhci_writel(xhci, temp, port_array[faked_port_index]);
 		} else {
 			xhci_dbg(xhci, "resume HS port %d\n", port_id);
 			xhci->resume_done[port_id - 1] = jiffies +
