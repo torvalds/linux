@@ -883,7 +883,7 @@ static int arp_process(struct sk_buff *skb)
 
 			dont_send = arp_ignore(in_dev, sip, tip);
 			if (!dont_send && IN_DEV_ARPFILTER(in_dev))
-				dont_send |= arp_filter(sip, tip, dev);
+				dont_send = arp_filter(sip, tip, dev);
 			if (!dont_send) {
 				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
 				if (n) {
