@@ -434,7 +434,12 @@ struct shared_feat_cfg {				 /* NVRAM Offset */
 #define SHARED_FEAT_CFG_OVERRIDE_PREEMPHASIS_CFG_DISABLED     0x00000000
 #define SHARED_FEAT_CFG_OVERRIDE_PREEMPHASIS_CFG_ENABLED      0x00000002
 
-#define SHARED_FEATURE_MF_MODE_DISABLED 	    0x00000100
+#define SHARED_FEAT_CFG_FORCE_SF_MODE_MASK		      0x00000700
+#define SHARED_FEAT_CFG_FORCE_SF_MODE_SHIFT		      8
+#define SHARED_FEAT_CFG_FORCE_SF_MODE_MF_ALLOWED	      0x00000000
+#define SHARED_FEAT_CFG_FORCE_SF_MODE_FORCED_SF		      0x00000100
+#define SHARED_FEAT_CFG_FORCE_SF_MODE_SPIO4		      0x00000200
+#define SHARED_FEAT_CFG_FORCE_SF_MODE_SWITCH_INDEPT	      0x00000300
 
 };
 
@@ -815,6 +820,9 @@ struct drv_func_mb {
 #define DRV_MSG_CODE_VRFY_SPECIFIC_PHY_OPT_MDL	    0xa1000000
 #define REQ_BC_VER_4_VRFY_SPECIFIC_PHY_OPT_MDL	    0x00050234
 
+#define DRV_MSG_CODE_SET_MF_BW				0xe0000000
+#define REQ_BC_VER_4_SET_MF_BW				0x00060202
+#define DRV_MSG_CODE_SET_MF_BW_ACK			0xe1000000
 #define BIOS_MSG_CODE_LIC_CHALLENGE			0xff010000
 #define BIOS_MSG_CODE_LIC_RESPONSE			0xff020000
 #define BIOS_MSG_CODE_VIRT_MAC_PRIM			0xff030000
@@ -888,6 +896,7 @@ struct drv_func_mb {
 
 	u32 drv_status;
 #define DRV_STATUS_PMF					0x00000001
+#define DRV_STATUS_SET_MF_BW				0x00000004
 
 #define DRV_STATUS_DCC_EVENT_MASK			0x0000ff00
 #define DRV_STATUS_DCC_DISABLE_ENABLE_PF		0x00000100
@@ -988,12 +997,43 @@ struct func_mf_cfg {
 
 };
 
+/* This structure is not applicable and should not be accessed on 57711 */
+struct func_ext_cfg {
+	u32 func_cfg;
+#define MACP_FUNC_CFG_FLAGS_MASK			      0x000000FF
+#define MACP_FUNC_CFG_FLAGS_SHIFT			      0
+#define MACP_FUNC_CFG_FLAGS_ENABLED			      0x00000001
+#define MACP_FUNC_CFG_FLAGS_ETHERNET			      0x00000002
+#define MACP_FUNC_CFG_FLAGS_ISCSI_OFFLOAD		      0x00000004
+#define MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD		      0x00000008
+
+	u32 iscsi_mac_addr_upper;
+	u32 iscsi_mac_addr_lower;
+
+	u32 fcoe_mac_addr_upper;
+	u32 fcoe_mac_addr_lower;
+
+	u32 fcoe_wwn_port_name_upper;
+	u32 fcoe_wwn_port_name_lower;
+
+	u32 fcoe_wwn_node_name_upper;
+	u32 fcoe_wwn_node_name_lower;
+
+	u32 preserve_data;
+#define MF_FUNC_CFG_PRESERVE_L2_MAC			     (1<<0)
+#define MF_FUNC_CFG_PRESERVE_ISCSI_MAC			     (1<<1)
+#define MF_FUNC_CFG_PRESERVE_FCOE_MAC			     (1<<2)
+#define MF_FUNC_CFG_PRESERVE_FCOE_WWN_P			     (1<<3)
+#define MF_FUNC_CFG_PRESERVE_FCOE_WWN_N			     (1<<4)
+};
+
 struct mf_cfg {
 
 	struct shared_mf_cfg	shared_mf_config;
 	struct port_mf_cfg	port_mf_config[PORT_MAX];
 	struct func_mf_cfg	func_mf_config[E1H_FUNC_MAX];
 
+	struct func_ext_cfg func_ext_config[E1H_FUNC_MAX];
 };
 
 

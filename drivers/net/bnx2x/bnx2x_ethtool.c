@@ -45,14 +45,9 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		cmd->speed = bp->link_params.req_line_speed[cfg_idx];
 		cmd->duplex = bp->link_params.req_duplex[cfg_idx];
 	}
-	if (IS_MF(bp)) {
-		u16 vn_max_rate = ((bp->mf_config[BP_VN(bp)] &
-			FUNC_MF_CFG_MAX_BW_MASK) >> FUNC_MF_CFG_MAX_BW_SHIFT) *
-			100;
 
-		if (vn_max_rate < cmd->speed)
-			cmd->speed = vn_max_rate;
-	}
+	if (IS_MF(bp))
+		cmd->speed = bnx2x_get_mf_speed(bp);
 
 	if (bp->port.supported[cfg_idx] & SUPPORTED_TP)
 		cmd->port = PORT_TP;
@@ -87,17 +82,56 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 advertising, cfg_idx, old_multi_phy_config, new_multi_phy_config;
+	u32 speed;
 
-	if (IS_MF(bp))
+	if (IS_MF_SD(bp))
 		return 0;
 
 	DP(NETIF_MSG_LINK, "ethtool_cmd: cmd %d\n"
-	   DP_LEVEL "  supported 0x%x  advertising 0x%x  speed %d\n"
-	   DP_LEVEL "  duplex %d  port %d  phy_address %d  transceiver %d\n"
-	   DP_LEVEL "  autoneg %d  maxtxpkt %d  maxrxpkt %d\n",
+	   "  supported 0x%x  advertising 0x%x  speed %d speed_hi %d\n"
+	   "  duplex %d  port %d  phy_address %d  transceiver %d\n"
+	   "  autoneg %d  maxtxpkt %d  maxrxpkt %d\n",
 	   cmd->cmd, cmd->supported, cmd->advertising, cmd->speed,
+	   cmd->speed_hi,
 	   cmd->duplex, cmd->port, cmd->phy_address, cmd->transceiver,
 	   cmd->autoneg, cmd->maxtxpkt, cmd->maxrxpkt);
+
+	speed = cmd->speed;
+	speed |= (cmd->speed_hi << 16);
+
+	if (IS_MF_SI(bp)) {
+		u32 param = 0;
+		u32 line_speed = bp->link_vars.line_speed;
+
+		/* use 10G if no link detected */
+		if (!line_speed)
+			line_speed = 10000;
+
+		if (bp->common.bc_ver < REQ_BC_VER_4_SET_MF_BW) {
+			BNX2X_DEV_INFO("To set speed BC %X or higher "
+				       "is required, please upgrade BC\n",
+				       REQ_BC_VER_4_SET_MF_BW);
+			return -EINVAL;
+		}
+		if (line_speed < speed) {
+			BNX2X_DEV_INFO("New speed should be less or equal "
+				       "to actual line speed\n");
+			return -EINVAL;
+		}
+		/* load old values */
+		param = bp->mf_config[BP_VN(bp)];
+
+		/* leave only MIN value */
+		param &= FUNC_MF_CFG_MIN_BW_MASK;
+
+		/* set new MAX value */
+		param |= (((speed * 100) / line_speed)
+				 << FUNC_MF_CFG_MAX_BW_SHIFT)
+				  & FUNC_MF_CFG_MAX_BW_MASK;
+
+		bnx2x_fw_command(bp, DRV_MSG_CODE_SET_MF_BW, param);
+		return 0;
+	}
 
 	cfg_idx = bnx2x_get_link_cfg_idx(bp);
 	old_multi_phy_config = bp->link_params.multi_phy_config;
@@ -168,8 +202,6 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	} else { /* forced speed */
 		/* advertise the requested speed and duplex if supported */
-		u32 speed = cmd->speed;
-		speed |= (cmd->speed_hi << 16);
 		switch (speed) {
 		case SPEED_10:
 			if (cmd->duplex == DUPLEX_FULL) {

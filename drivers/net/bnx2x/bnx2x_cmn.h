@@ -73,6 +73,16 @@ void bnx2x__link_status_update(struct bnx2x *bp);
 void bnx2x_link_report(struct bnx2x *bp);
 
 /**
+ * calculates MF speed according to current linespeed and MF
+ * configuration
+ *
+ * @param bp
+ *
+ * @return u16
+ */
+u16 bnx2x_get_mf_speed(struct bnx2x *bp);
+
+/**
  * MSI-X slowpath interrupt handler
  *
  * @param irq

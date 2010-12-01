@@ -20,8 +20,8 @@
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
 
-#define DRV_MODULE_VERSION      "1.60.00-5"
-#define DRV_MODULE_RELDATE      "2010/11/24"
+#define DRV_MODULE_VERSION      "1.60.00-6"
+#define DRV_MODULE_RELDATE      "2010/11/29"
 #define BNX2X_BC_VER            0x040200
 
 #define BNX2X_MULTI_QUEUE
@@ -671,6 +671,10 @@ enum {
 	CAM_ISCSI_ETH_LINE,
 	CAM_MAX_PF_LINE = CAM_ISCSI_ETH_LINE
 };
+/* number of MACs per function in NIG memory - used for SI mode */
+#define NIG_LLH_FUNC_MEM_SIZE		16
+/* number of entries in NIG_REG_LLHX_FUNC_MEM */
+#define NIG_LLH_FUNC_MEM_MAX_OFFSET	8
 
 #define BNX2X_VF_ID_INVALID	0xFF
 
@@ -967,6 +971,8 @@ struct bnx2x {
 	u16			mf_ov;
 	u8			mf_mode;
 #define IS_MF(bp)		(bp->mf_mode != 0)
+#define IS_MF_SI(bp)		(bp->mf_mode == MULTI_FUNCTION_SI)
+#define IS_MF_SD(bp)		(bp->mf_mode == MULTI_FUNCTION_SD)
 
 	u8			wol;
 
@@ -1010,6 +1016,7 @@ struct bnx2x {
 #define BNX2X_ACCEPT_ALL_UNICAST	0x0004
 #define BNX2X_ACCEPT_ALL_MULTICAST	0x0008
 #define BNX2X_ACCEPT_BROADCAST		0x0010
+#define BNX2X_ACCEPT_UNMATCHED_UCAST	0x0020
 #define BNX2X_PROMISCUOUS_MODE		0x10000
 
 	u32			rx_mode;

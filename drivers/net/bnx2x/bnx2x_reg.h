@@ -1774,6 +1774,8 @@
 /* [RW 8] event id for llh0 */
 #define NIG_REG_LLH0_EVENT_ID					 0x10084
 #define NIG_REG_LLH0_FUNC_EN					 0x160fc
+#define NIG_REG_LLH0_FUNC_MEM					 0x16180
+#define NIG_REG_LLH0_FUNC_MEM_ENABLE				 0x16140
 #define NIG_REG_LLH0_FUNC_VLAN_ID				 0x16100
 /* [RW 1] Determine the IP version to look for in
    ~nig_registers_llh0_dest_ip_0.llh0_dest_ip_0. 0 - IPv6; 1-IPv4 */
@@ -1797,6 +1799,9 @@
 #define NIG_REG_LLH1_ERROR_MASK 				 0x10090
 /* [RW 8] event id for llh1 */
 #define NIG_REG_LLH1_EVENT_ID					 0x10088
+#define NIG_REG_LLH1_FUNC_MEM					 0x161c0
+#define NIG_REG_LLH1_FUNC_MEM_ENABLE				 0x16160
+#define NIG_REG_LLH1_FUNC_MEM_SIZE				 16
 /* [RW 8] init credit counter for port1 in LLH */
 #define NIG_REG_LLH1_XCM_INIT_CREDIT				 0x10564
 #define NIG_REG_LLH1_XCM_MASK					 0x10134
