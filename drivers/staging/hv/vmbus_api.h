@@ -115,13 +115,6 @@ struct hv_device {
 	void *Extension;
 };
 
-/* Vmbus driver object */
-struct vmbus_driver {
-	/* !! Must be the 1st field !! */
-	/* FIXME if ^, then someone is doing somthing stupid */
-	struct hv_driver Base;
-};
-
 int VmbusInitialize(struct hv_driver *drv);
 int vmbus_on_isr(struct hv_driver *drv);
 void vmbus_on_msg_dpc(struct hv_driver *drv);

@@ -202,9 +202,8 @@ int vmbus_on_isr(struct hv_driver *drv)
 /*
  * VmbusInitialize - Main entry point
  */
-int VmbusInitialize(struct hv_driver *drv)
+int VmbusInitialize(struct hv_driver *driver)
 {
-	struct vmbus_driver *driver = (struct vmbus_driver *)drv;
 	int ret;
 
 	DPRINT_INFO(VMBUS, "+++++++ HV Driver version = %s +++++++",
@@ -218,20 +217,20 @@ int VmbusInitialize(struct hv_driver *drv)
 			sizeof(struct vmbus_channel_packet_page_buffer),
 			sizeof(struct vmbus_channel_packet_multipage_buffer));
 
-	drv->name = gDriverName;
-	memcpy(&drv->deviceType, &gVmbusDeviceType, sizeof(struct hv_guid));
+	driver->name = gDriverName;
+	memcpy(&driver->deviceType, &gVmbusDeviceType, sizeof(struct hv_guid));
 
 	/* Setup dispatch table */
-	driver->Base.OnDeviceAdd	= VmbusOnDeviceAdd;
-	driver->Base.OnDeviceRemove	= VmbusOnDeviceRemove;
-	driver->Base.OnCleanup		= VmbusOnCleanup;
+	driver->OnDeviceAdd	= VmbusOnDeviceAdd;
+	driver->OnDeviceRemove	= VmbusOnDeviceRemove;
+	driver->OnCleanup	= VmbusOnCleanup;
 
 	/* Hypervisor initialization...setup hypercall page..etc */
 	ret = hv_init();
 	if (ret != 0)
 		DPRINT_ERR(VMBUS, "Unable to initialize the hypervisor - 0x%x",
 				ret);
-	gDriver = drv;
+	gDriver = driver;
 
 	return ret;
 }

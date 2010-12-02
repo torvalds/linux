@@ -46,7 +46,7 @@ struct vmbus_driver_context {
 	/* The driver field is not used in here. Instead, the bus field is */
 	/* used to represent the driver */
 	struct driver_context drv_ctx;
-	struct vmbus_driver drv_obj;
+	struct hv_driver drv_obj;
 
 	struct bus_type bus;
 	struct tasklet_struct msg_dpc;
@@ -285,32 +285,32 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 {
 	struct vmbus_driver_context *vmbus_drv_ctx = &g_vmbus_drv;
-	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
+	struct hv_driver *driver = &g_vmbus_drv.drv_obj;
 	struct vm_device *dev_ctx = &g_vmbus_drv.device_ctx;
 	int ret;
 	unsigned int vector;
 
 	/* Call to bus driver to initialize */
-	ret = drv_init(&vmbus_drv_obj->Base);
+	ret = drv_init(driver);
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS_DRV, "Unable to initialize vmbus (%d)", ret);
 		goto cleanup;
 	}
 
 	/* Sanity checks */
-	if (!vmbus_drv_obj->Base.OnDeviceAdd) {
+	if (!driver->OnDeviceAdd) {
 		DPRINT_ERR(VMBUS_DRV, "OnDeviceAdd() routine not set");
 		ret = -1;
 		goto cleanup;
 	}
 
-	vmbus_drv_ctx->bus.name = vmbus_drv_obj->Base.name;
+	vmbus_drv_ctx->bus.name = driver->name;
 
 	/* Initialize the bus context */
 	tasklet_init(&vmbus_drv_ctx->msg_dpc, vmbus_msg_dpc,
-		     (unsigned long)vmbus_drv_obj);
+		     (unsigned long)driver);
 	tasklet_init(&vmbus_drv_ctx->event_dpc, vmbus_event_dpc,
-		     (unsigned long)vmbus_drv_obj);
+		     (unsigned long)driver);
 
 	/* Now, register the bus driver with LDM */
 	ret = bus_register(&vmbus_drv_ctx->bus);
@@ -321,7 +321,7 @@ static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 
 	/* Get the interrupt resource */
 	ret = request_irq(vmbus_irq, vmbus_isr, IRQF_SAMPLE_RANDOM,
-			  vmbus_drv_obj->Base.name, NULL);
+			  driver->name, NULL);
 
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS_DRV, "ERROR - Unable to request IRQ %d",
@@ -339,7 +339,7 @@ static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 	/* Call to bus driver to add the root device */
 	memset(dev_ctx, 0, sizeof(struct vm_device));
 
-	ret = vmbus_drv_obj->Base.OnDeviceAdd(&dev_ctx->device_obj, &vector);
+	ret = driver->OnDeviceAdd(&dev_ctx->device_obj, &vector);
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS_DRV,
 			   "ERROR - Unable to add vmbus root device");
@@ -393,17 +393,17 @@ cleanup:
  */
 static void vmbus_bus_exit(void)
 {
-	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
+	struct hv_driver *driver = &g_vmbus_drv.drv_obj;
 	struct vmbus_driver_context *vmbus_drv_ctx = &g_vmbus_drv;
 
 	struct vm_device *dev_ctx = &g_vmbus_drv.device_ctx;
 
 	/* Remove the root device */
-	if (vmbus_drv_obj->Base.OnDeviceRemove)
-		vmbus_drv_obj->Base.OnDeviceRemove(&dev_ctx->device_obj);
+	if (driver->OnDeviceRemove)
+		driver->OnDeviceRemove(&dev_ctx->device_obj);
 
-	if (vmbus_drv_obj->Base.OnCleanup)
-		vmbus_drv_obj->Base.OnCleanup(&vmbus_drv_obj->Base);
+	if (driver->OnCleanup)
+		driver->OnCleanup(driver);
 
 	/* Unregister the root bus device */
 	device_unregister(&dev_ctx->device);
@@ -678,7 +678,7 @@ static int vmbus_match(struct device *device, struct device_driver *driver)
 		struct vmbus_driver_context *vmbus_drv_ctx =
 			(struct vmbus_driver_context *)driver_ctx;
 
-		device_ctx->device_obj.Driver = &vmbus_drv_ctx->drv_obj.Base;
+		device_ctx->device_obj.Driver = &vmbus_drv_ctx->drv_obj;
 		DPRINT_INFO(VMBUS_DRV,
 			    "device object (%p) set to driver object (%p)",
 			    &device_ctx->device_obj,
@@ -836,10 +836,10 @@ static void vmbus_device_release(struct device *device)
  */
 static void vmbus_msg_dpc(unsigned long data)
 {
-	struct vmbus_driver *vmbus_drv_obj = (struct vmbus_driver *)data;
+	struct hv_driver *driver = (struct hv_driver *)data;
 
 	/* Call to bus driver to handle interrupt */
-	vmbus_on_msg_dpc(&vmbus_drv_obj->Base);
+	vmbus_on_msg_dpc(driver);
 }
 
 /*
@@ -847,19 +847,19 @@ static void vmbus_msg_dpc(unsigned long data)
  */
 static void vmbus_event_dpc(unsigned long data)
 {
-	struct vmbus_driver *vmbus_drv_obj = (struct vmbus_driver *)data;
+	struct hv_driver *driver = (struct hv_driver *)data;
 
 	/* Call to bus driver to handle interrupt */
-	vmbus_on_event_dpc(&vmbus_drv_obj->Base);
+	vmbus_on_event_dpc(driver);
 }
 
 static irqreturn_t vmbus_isr(int irq, void *dev_id)
 {
-	struct vmbus_driver *vmbus_driver_obj = &g_vmbus_drv.drv_obj;
+	struct hv_driver *driver = &g_vmbus_drv.drv_obj;
 	int ret;
 
 	/* Call to bus driver to handle interrupt */
-	ret = vmbus_on_isr(&vmbus_driver_obj->Base);
+	ret = vmbus_on_isr(driver);
 
 	/* Schedules a dpc if necessary */
 	if (ret > 0) {
