@@ -1550,11 +1550,11 @@ int snd_soc_cache_init(struct snd_soc_codec *codec)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(cache_types); ++i)
-		if (cache_types[i].id == codec->driver->compress_type)
+		if (cache_types[i].id == codec->compress_type)
 			break;
 	if (i == ARRAY_SIZE(cache_types)) {
 		dev_err(codec->dev, "Could not match compress type: %d\n",
-			codec->driver->compress_type);
+			codec->compress_type);
 		return -EINVAL;
 	}
 

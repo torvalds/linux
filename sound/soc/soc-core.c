@@ -3450,6 +3450,11 @@ int snd_soc_register_codec(struct device *dev,
 		return -ENOMEM;
 	}
 
+	if (codec_drv->compress_type)
+		codec->compress_type = codec_drv->compress_type;
+	else
+		codec->compress_type = SND_SOC_FLAT_COMPRESSION;
+
 	INIT_LIST_HEAD(&codec->dapm.widgets);
 	INIT_LIST_HEAD(&codec->dapm.paths);
 	codec->write = codec_drv->write;
