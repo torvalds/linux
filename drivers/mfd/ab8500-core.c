@@ -436,6 +436,26 @@ static struct mfd_cell ab8500_devs[] = {
 	},
 };
 
+static ssize_t show_chip_id(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct ab8500 *ab8500;
+
+	ab8500 = dev_get_drvdata(dev);
+	return sprintf(buf, "%#x\n", ab8500 ? ab8500->chip_id : -EINVAL);
+}
+
+static DEVICE_ATTR(chip_id, S_IRUGO, show_chip_id, NULL);
+
+static struct attribute *ab8500_sysfs_entries[] = {
+	&dev_attr_chip_id.attr,
+	NULL,
+};
+
+static struct attribute_group ab8500_attr_group = {
+	.attrs	= ab8500_sysfs_entries,
+};
+
 int __devinit ab8500_init(struct ab8500 *ab8500)
 {
 	struct ab8500_platform_data *plat = dev_get_platdata(ab8500->dev);
@@ -510,6 +530,10 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 	if (ret)
 		goto out_freeirq;
 
+	ret = sysfs_create_group(&ab8500->dev->kobj, &ab8500_attr_group);
+	if (ret)
+		dev_err(ab8500->dev, "error creating sysfs entries\n");
+
 	return ret;
 
 out_freeirq:
@@ -523,6 +547,7 @@ out_removeirq:
 
 int __devexit ab8500_exit(struct ab8500 *ab8500)
 {
+	sysfs_remove_group(&ab8500->dev->kobj, &ab8500_attr_group);
 	mfd_remove_devices(ab8500->dev);
 	if (ab8500->irq_base) {
 		free_irq(ab8500->irq, ab8500);
