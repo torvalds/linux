@@ -128,13 +128,18 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 	/*
 	 * Find the mac version
 	 */
-	srev = ath5k_hw_reg_read(ah, AR5K_SREV);
+	ath5k_hw_read_srev(ah);
+	srev = ah->ah_mac_srev;
 	if (srev < AR5K_SREV_AR5311)
 		ah->ah_version = AR5K_AR5210;
 	else if (srev < AR5K_SREV_AR5212)
 		ah->ah_version = AR5K_AR5211;
 	else
 		ah->ah_version = AR5K_AR5212;
+
+	/* Get the MAC revision */
+	ah->ah_mac_version = AR5K_REG_MS(srev, AR5K_SREV_VER);
+	ah->ah_mac_revision = AR5K_REG_MS(srev, AR5K_SREV_REV);
 
 	/* Fill the ath5k_hw struct with the needed functions */
 	ret = ath5k_hw_init_desc_functions(ah);
@@ -146,9 +151,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 	if (ret)
 		goto err;
 
-	/* Get MAC, PHY and RADIO revisions */
-	ah->ah_mac_srev = srev;
-	ah->ah_mac_version = AR5K_REG_MS(srev, AR5K_SREV_VER);
+	/* Get PHY and RADIO revisions */
 	ah->ah_phy_revision = ath5k_hw_reg_read(ah, AR5K_PHY_CHIP_ID) &
 			0xffffffff;
 	ah->ah_radio_5ghz_revision = ath5k_hw_radio_revision(ah,

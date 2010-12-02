@@ -1046,6 +1046,7 @@ struct ath5k_hw {
 	u32			ah_phy;
 	u32			ah_mac_srev;
 	u16			ah_mac_version;
+	u16			ah_mac_revision;
 	u16			ah_phy_revision;
 	u16			ah_radio_5ghz_revision;
 	u16			ah_radio_2ghz_revision;
@@ -1156,8 +1157,9 @@ void ath5k_hw_deinit(struct ath5k_hw *ah);
 int ath5k_sysfs_register(struct ath5k_softc *sc);
 void ath5k_sysfs_unregister(struct ath5k_softc *sc);
 
-/*Chip id helper function */
+/*Chip id helper functions */
 const char *ath5k_chip_name(enum ath5k_srev_type type, u_int16_t val);
+int ath5k_hw_read_srev(struct ath5k_hw *ah);
 
 /* LED functions */
 int ath5k_init_leds(struct ath5k_softc *sc);

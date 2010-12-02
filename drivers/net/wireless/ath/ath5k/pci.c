@@ -100,6 +100,12 @@ bool ath5k_pci_eeprom_read(struct ath_common *common, u32 offset, u16 *data)
 	return -ETIMEDOUT;
 }
 
+int ath5k_hw_read_srev(struct ath5k_hw *ah)
+{
+	ah->ah_mac_srev = ath5k_hw_reg_read(ah, AR5K_SREV);
+	return 0;
+}
+
 /* Common ath_bus_opts structure */
 static const struct ath_bus_ops ath_pci_bus_ops = {
 	.ath_bus_type = ATH_PCI,
