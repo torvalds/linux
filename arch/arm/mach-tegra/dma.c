@@ -729,7 +729,7 @@ static void handle_continuous_sngl_dma(struct tegra_dma_channel *ch)
 		 */
 		next_req = list_entry(req->node.next, typeof(*next_req), node);
 		if (next_req->status != TEGRA_DMA_REQ_INFLIGHT) {
-			pr_warning("%s: interrupt during enqueue\n", __func__);
+			pr_debug("%s: interrupt during enqueue\n", __func__);
 			tegra_dma_stop(ch);
 			tegra_dma_update_hw(ch, next_req);
 		} else if (!list_is_last(&next_req->node, &ch->list)) {
