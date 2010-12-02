@@ -455,8 +455,6 @@ struct musb {
 	u8 board_mode;		/* enum musb_mode */
 	int			(*board_set_power)(int state);
 
-	int			(*set_clock)(struct clk *clk, int is_active);
-
 	u8			min_power;	/* vbus for periph, in mA/2 */
 
 	bool			is_host;
