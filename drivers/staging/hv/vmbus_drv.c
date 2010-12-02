@@ -860,10 +860,8 @@ static void vmbus_event_dpc(unsigned long data)
 {
 	struct vmbus_driver *vmbus_drv_obj = (struct vmbus_driver *)data;
 
-	/* ASSERT(vmbus_drv_obj->OnEventDpc != NULL); */
-
 	/* Call to bus driver to handle interrupt */
-	vmbus_drv_obj->OnEventDpc(&vmbus_drv_obj->Base);
+	vmbus_on_event_dpc(&vmbus_drv_obj->Base);
 }
 
 static irqreturn_t vmbus_isr(int irq, void *dev_id)

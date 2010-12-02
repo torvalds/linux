@@ -166,9 +166,9 @@ void vmbus_on_msg_dpc(struct hv_driver *drv)
 }
 
 /*
- * VmbusOnEventDPC - DPC routine to handle events from the hypervisior
+ * vmbus_on_event_dpc - DPC routine to handle events from the hypervisior
  */
-static void VmbusOnEventDPC(struct hv_driver *drv)
+void vmbus_on_event_dpc(struct hv_driver *drv)
 {
 	/* TODO: Process any events */
 	VmbusOnEvents();
@@ -235,7 +235,6 @@ int VmbusInitialize(struct hv_driver *drv)
 	driver->Base.OnDeviceAdd	= VmbusOnDeviceAdd;
 	driver->Base.OnDeviceRemove	= VmbusOnDeviceRemove;
 	driver->Base.OnCleanup		= VmbusOnCleanup;
-	driver->OnEventDpc		= VmbusOnEventDPC;
 	driver->GetChannelOffers	= VmbusGetChannelOffers;
 
 	/* Hypervisor initialization...setup hypercall page..etc */
