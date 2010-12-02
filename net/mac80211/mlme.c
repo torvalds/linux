@@ -1067,8 +1067,7 @@ static void ieee80211_reset_ap_probe(struct ieee80211_sub_if_data *sdata)
 void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_hdr *hdr)
 {
-	if (!ieee80211_is_data(hdr->frame_control) &&
-	    !ieee80211_is_nullfunc(hdr->frame_control))
+	if (!ieee80211_is_data(hdr->frame_control))
 	    return;
 
 	ieee80211_sta_reset_conn_monitor(sdata);
