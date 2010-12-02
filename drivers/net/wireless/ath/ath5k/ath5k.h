@@ -1145,6 +1145,7 @@ struct ath5k_hw {
 /*
  * Prototypes
  */
+extern const struct ieee80211_ops ath5k_hw_ops;
 
 /* Initialization and detach functions */
 int ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops);
@@ -1155,6 +1156,8 @@ void ath5k_hw_deinit(struct ath5k_hw *ah);
 int ath5k_sysfs_register(struct ath5k_softc *sc);
 void ath5k_sysfs_unregister(struct ath5k_softc *sc);
 
+/*Chip id helper function */
+const char *ath5k_chip_name(enum ath5k_srev_type type, u_int16_t val);
 
 /* LED functions */
 int ath5k_init_leds(struct ath5k_softc *sc);
