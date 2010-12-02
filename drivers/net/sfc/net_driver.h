@@ -679,7 +679,6 @@ struct efx_filter_state;
  * @mac_op: MAC interface
  * @mac_address: Permanent MAC address
  * @phy_type: PHY type
- * @mdio_lock: MDIO lock
  * @phy_op: PHY interface
  * @phy_data: PHY private data (including PHY-specific stats)
  * @mdio: PHY MDIO interface
@@ -766,7 +765,6 @@ struct efx_nic {
 	unsigned char mac_address[ETH_ALEN];
 
 	unsigned int phy_type;
-	struct mutex mdio_lock;
 	struct efx_phy_operations *phy_op;
 	void *phy_data;
 	struct mdio_if_info mdio;

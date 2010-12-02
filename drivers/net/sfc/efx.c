@@ -2198,7 +2198,6 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	/* Initialise common structures */
 	memset(efx, 0, sizeof(*efx));
 	spin_lock_init(&efx->biu_lock);
-	mutex_init(&efx->mdio_lock);
 #ifdef CONFIG_SFC_MTD
 	INIT_LIST_HEAD(&efx->mtd_list);
 #endif

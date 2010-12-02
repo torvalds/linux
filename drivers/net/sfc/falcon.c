@@ -717,6 +717,7 @@ static int falcon_mdio_write(struct net_device *net_dev,
 			     int prtad, int devad, u16 addr, u16 value)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	efx_oword_t reg;
 	int rc;
 
@@ -724,7 +725,7 @@ static int falcon_mdio_write(struct net_device *net_dev,
 		   "writing MDIO %d register %d.%d with 0x%04x\n",
 		    prtad, devad, addr, value);
 
-	mutex_lock(&efx->mdio_lock);
+	mutex_lock(&nic_data->mdio_lock);
 
 	/* Check MDIO not currently being accessed */
 	rc = falcon_gmii_wait(efx);
@@ -760,7 +761,7 @@ static int falcon_mdio_write(struct net_device *net_dev,
 	}
 
 out:
-	mutex_unlock(&efx->mdio_lock);
+	mutex_unlock(&nic_data->mdio_lock);
 	return rc;
 }
 
@@ -769,10 +770,11 @@ static int falcon_mdio_read(struct net_device *net_dev,
 			    int prtad, int devad, u16 addr)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	efx_oword_t reg;
 	int rc;
 
-	mutex_lock(&efx->mdio_lock);
+	mutex_lock(&nic_data->mdio_lock);
 
 	/* Check MDIO not currently being accessed */
 	rc = falcon_gmii_wait(efx);
@@ -811,7 +813,7 @@ static int falcon_mdio_read(struct net_device *net_dev,
 	}
 
 out:
-	mutex_unlock(&efx->mdio_lock);
+	mutex_unlock(&nic_data->mdio_lock);
 	return rc;
 }
 
@@ -839,6 +841,7 @@ static int falcon_probe_port(struct efx_nic *efx)
 	}
 
 	/* Fill out MDIO structure and loopback modes */
+	mutex_init(&nic_data->mdio_lock);
 	efx->mdio.mdio_read = falcon_mdio_read;
 	efx->mdio.mdio_write = falcon_mdio_write;
 	rc = efx->phy_op->probe(efx);

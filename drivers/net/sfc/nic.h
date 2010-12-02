@@ -117,6 +117,7 @@ struct falcon_board {
  * @spi_flash: SPI flash device
  * @spi_eeprom: SPI EEPROM device
  * @spi_lock: SPI bus lock
+ * @mdio_lock: MDIO bus lock
  */
 struct falcon_nic_data {
 	struct pci_dev *pci_dev2;
@@ -128,6 +129,7 @@ struct falcon_nic_data {
 	struct efx_spi_device spi_flash;
 	struct efx_spi_device spi_eeprom;
 	struct mutex spi_lock;
+	struct mutex mdio_lock;
 };
 
 static inline struct falcon_board *falcon_board(struct efx_nic *efx)
