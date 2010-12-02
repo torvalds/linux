@@ -1001,21 +1001,6 @@ static int xemaclite_close(struct net_device *dev)
 }
 
 /**
- * xemaclite_get_stats - Get the stats for the net_device
- * @dev:	Pointer to the network device
- *
- * This function returns the address of the 'net_device_stats' structure for the
- * given network device. This structure holds usage statistics for the network
- * device.
- *
- * Return:	Pointer to the net_device_stats structure.
- */
-static struct net_device_stats *xemaclite_get_stats(struct net_device *dev)
-{
-	return &dev->stats;
-}
-
-/**
  * xemaclite_send - Transmit a frame
  * @orig_skb:	Pointer to the socket buffer to be transmitted
  * @dev:	Pointer to the network device
@@ -1285,7 +1270,6 @@ static struct net_device_ops xemaclite_netdev_ops = {
 	.ndo_start_xmit		= xemaclite_send,
 	.ndo_set_mac_address	= xemaclite_set_mac_address,
 	.ndo_tx_timeout		= xemaclite_tx_timeout,
-	.ndo_get_stats		= xemaclite_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = xemaclite_poll_controller,
 #endif
