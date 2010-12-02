@@ -29,16 +29,6 @@
 /* SCU base address */
 static void __iomem *scu_base;
 
-/*
- * Use SCU config register to count number of cores
- */
-static inline unsigned int get_core_count(void)
-{
-	if (scu_base)
-		return scu_get_core_count(scu_base);
-	return 1;
-}
-
 static DEFINE_SPINLOCK(boot_lock);
 
 void __cpuinit platform_secondary_init(unsigned int cpu)
@@ -118,7 +108,7 @@ void __init smp_init_cpus(void)
 	scu_base = ioremap(OMAP44XX_SCU_BASE, SZ_256);
 	BUG_ON(!scu_base);
 
-	ncores = get_core_count();
+	ncores = scu_get_core_count(scu_base);
 
 	/* sanity check */
 	if (ncores > NR_CPUS) {

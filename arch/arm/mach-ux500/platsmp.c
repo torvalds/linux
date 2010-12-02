@@ -28,11 +28,6 @@
  */
 volatile int __cpuinitdata pen_release = -1;
 
-static unsigned int __init get_core_count(void)
-{
-	return scu_get_core_count(__io_address(UX500_SCU_BASE));
-}
-
 static DEFINE_SPINLOCK(boot_lock);
 
 void __cpuinit platform_secondary_init(unsigned int cpu)
@@ -126,7 +121,9 @@ static void __init wakeup_secondary(void)
  */
 void __init smp_init_cpus(void)
 {
-	unsigned int i, ncores = get_core_count();
+	unsigned int i, ncores;
+
+	ncores = scu_get_core_count(__io_address(UX500_SCU_BASE));
 
 	/* sanity check */
 	if (ncores > NR_CPUS) {
