@@ -283,7 +283,7 @@ static void xen_extend_mmu_update(const struct mmu_update *update)
 	*u = *update;
 }
 
-void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
+static void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
 {
 	struct mmu_update u;
 
@@ -303,7 +303,7 @@ void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
 	preempt_enable();
 }
 
-void xen_set_pmd(pmd_t *ptr, pmd_t val)
+static void xen_set_pmd(pmd_t *ptr, pmd_t val)
 {
 	ADD_STATS(pmd_update, 1);
 
@@ -346,7 +346,7 @@ static bool xen_batched_set_pte(pte_t *ptep, pte_t pteval)
 	return true;
 }
 
-void xen_set_pte(pte_t *ptep, pte_t pteval)
+static void xen_set_pte(pte_t *ptep, pte_t pteval)
 {
 	ADD_STATS(pte_update, 1);
 //	ADD_STATS(pte_update_pinned, xen_page_pinned(ptep));
@@ -355,7 +355,7 @@ void xen_set_pte(pte_t *ptep, pte_t pteval)
 		native_set_pte(ptep, pteval);
 }
 
-void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
+static void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		    pte_t *ptep, pte_t pteval)
 {
 	xen_set_pte(ptep, pteval);
@@ -449,7 +449,7 @@ static pteval_t iomap_pte(pteval_t val)
 	return val;
 }
 
-pteval_t xen_pte_val(pte_t pte)
+static pteval_t xen_pte_val(pte_t pte)
 {
 	pteval_t pteval = pte.pte;
 
@@ -466,7 +466,7 @@ pteval_t xen_pte_val(pte_t pte)
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_pte_val);
 
-pgdval_t xen_pgd_val(pgd_t pgd)
+static pgdval_t xen_pgd_val(pgd_t pgd)
 {
 	return pte_mfn_to_pfn(pgd.pgd);
 }
@@ -497,7 +497,7 @@ void xen_set_pat(u64 pat)
 	WARN_ON(pat != 0x0007010600070106ull);
 }
 
-pte_t xen_make_pte(pteval_t pte)
+static pte_t xen_make_pte(pteval_t pte)
 {
 	phys_addr_t addr = (pte & PTE_PFN_MASK);
 
@@ -567,20 +567,20 @@ pte_t xen_make_pte_debug(pteval_t pte)
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pte_debug);
 #endif
 
-pgd_t xen_make_pgd(pgdval_t pgd)
+static pgd_t xen_make_pgd(pgdval_t pgd)
 {
 	pgd = pte_pfn_to_mfn(pgd);
 	return native_make_pgd(pgd);
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pgd);
 
-pmdval_t xen_pmd_val(pmd_t pmd)
+static pmdval_t xen_pmd_val(pmd_t pmd)
 {
 	return pte_mfn_to_pfn(pmd.pmd);
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_pmd_val);
 
-void xen_set_pud_hyper(pud_t *ptr, pud_t val)
+static void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 {
 	struct mmu_update u;
 
@@ -600,7 +600,7 @@ void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 	preempt_enable();
 }
 
-void xen_set_pud(pud_t *ptr, pud_t val)
+static void xen_set_pud(pud_t *ptr, pud_t val)
 {
 	ADD_STATS(pud_update, 1);
 
@@ -617,24 +617,24 @@ void xen_set_pud(pud_t *ptr, pud_t val)
 }
 
 #ifdef CONFIG_X86_PAE
-void xen_set_pte_atomic(pte_t *ptep, pte_t pte)
+static void xen_set_pte_atomic(pte_t *ptep, pte_t pte)
 {
 	set_64bit((u64 *)ptep, native_pte_val(pte));
 }
 
-void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+static void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	if (!xen_batched_set_pte(ptep, native_make_pte(0)))
 		native_pte_clear(mm, addr, ptep);
 }
 
-void xen_pmd_clear(pmd_t *pmdp)
+static void xen_pmd_clear(pmd_t *pmdp)
 {
 	set_pmd(pmdp, __pmd(0));
 }
 #endif	/* CONFIG_X86_PAE */
 
-pmd_t xen_make_pmd(pmdval_t pmd)
+static pmd_t xen_make_pmd(pmdval_t pmd)
 {
 	pmd = pte_pfn_to_mfn(pmd);
 	return native_make_pmd(pmd);
@@ -642,13 +642,13 @@ pmd_t xen_make_pmd(pmdval_t pmd)
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pmd);
 
 #if PAGETABLE_LEVELS == 4
-pudval_t xen_pud_val(pud_t pud)
+static pudval_t xen_pud_val(pud_t pud)
 {
 	return pte_mfn_to_pfn(pud.pud);
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_pud_val);
 
-pud_t xen_make_pud(pudval_t pud)
+static pud_t xen_make_pud(pudval_t pud)
 {
 	pud = pte_pfn_to_mfn(pud);
 
@@ -656,7 +656,7 @@ pud_t xen_make_pud(pudval_t pud)
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_make_pud);
 
-pgd_t *xen_get_user_pgd(pgd_t *pgd)
+static pgd_t *xen_get_user_pgd(pgd_t *pgd)
 {
 	pgd_t *pgd_page = (pgd_t *)(((unsigned long)pgd) & PAGE_MASK);
 	unsigned offset = pgd - pgd_page;
@@ -688,7 +688,7 @@ static void __xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
  *  2. It is always pinned
  *  3. It has no user pagetable attached to it
  */
-void __init xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
+static void __init xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
 {
 	preempt_disable();
 
@@ -701,7 +701,7 @@ void __init xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
 	preempt_enable();
 }
 
-void xen_set_pgd(pgd_t *ptr, pgd_t val)
+static void xen_set_pgd(pgd_t *ptr, pgd_t val)
 {
 	pgd_t *user_ptr = xen_get_user_pgd(ptr);
 
@@ -1122,14 +1122,14 @@ void xen_mm_unpin_all(void)
 	spin_unlock(&pgd_lock);
 }
 
-void xen_activate_mm(struct mm_struct *prev, struct mm_struct *next)
+static void xen_activate_mm(struct mm_struct *prev, struct mm_struct *next)
 {
 	spin_lock(&next->page_table_lock);
 	xen_pgd_pin(next);
 	spin_unlock(&next->page_table_lock);
 }
 
-void xen_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+static void xen_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 {
 	spin_lock(&mm->page_table_lock);
 	xen_pgd_pin(mm);
@@ -1216,7 +1216,7 @@ static void xen_drop_mm_ref(struct mm_struct *mm)
  * pagetable because of lazy tlb flushing.  This means we need need to
  * switch all CPUs off this pagetable before we can unpin it.
  */
-void xen_exit_mmap(struct mm_struct *mm)
+static void xen_exit_mmap(struct mm_struct *mm)
 {
 	get_cpu();		/* make sure we don't move around */
 	xen_drop_mm_ref(mm);
