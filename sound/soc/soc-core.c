@@ -3491,8 +3491,9 @@ static void fixup_codec_formats(struct snd_soc_pcm_stream *stream)
  * @codec: codec to register
  */
 int snd_soc_register_codec(struct device *dev,
-		struct snd_soc_codec_driver *codec_drv,
-		struct snd_soc_dai_driver *dai_drv, int num_dai)
+			   const struct snd_soc_codec_driver *codec_drv,
+			   struct snd_soc_dai_driver *dai_drv,
+			   int num_dai)
 {
 	size_t reg_size;
 	struct snd_soc_codec *codec;

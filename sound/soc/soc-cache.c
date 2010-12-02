@@ -1078,7 +1078,7 @@ static int snd_soc_lzo_decompress_cache_block(struct snd_soc_codec *codec,
 static inline int snd_soc_lzo_get_blkindex(struct snd_soc_codec *codec,
 		unsigned int reg)
 {
-	struct snd_soc_codec_driver *codec_drv;
+	const struct snd_soc_codec_driver *codec_drv;
 	size_t reg_size;
 
 	codec_drv = codec->driver;
@@ -1090,7 +1090,7 @@ static inline int snd_soc_lzo_get_blkindex(struct snd_soc_codec *codec,
 static inline int snd_soc_lzo_get_blkpos(struct snd_soc_codec *codec,
 		unsigned int reg)
 {
-	struct snd_soc_codec_driver *codec_drv;
+	const struct snd_soc_codec_driver *codec_drv;
 	size_t reg_size;
 
 	codec_drv = codec->driver;
@@ -1101,7 +1101,7 @@ static inline int snd_soc_lzo_get_blkpos(struct snd_soc_codec *codec,
 
 static inline int snd_soc_lzo_get_blksize(struct snd_soc_codec *codec)
 {
-	struct snd_soc_codec_driver *codec_drv;
+	const struct snd_soc_codec_driver *codec_drv;
 	size_t reg_size;
 
 	codec_drv = codec->driver;
@@ -1301,7 +1301,7 @@ static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 {
 	struct snd_soc_lzo_ctx **lzo_blocks;
 	size_t reg_size, bmp_size;
-	struct snd_soc_codec_driver *codec_drv;
+	const struct snd_soc_codec_driver *codec_drv;
 	int ret, tofree, i, blksize, blkcount;
 	const char *p, *end;
 	unsigned long *sync_bmp;
@@ -1404,7 +1404,7 @@ static int snd_soc_flat_cache_sync(struct snd_soc_codec *codec)
 {
 	int i;
 	int ret;
-	struct snd_soc_codec_driver *codec_drv;
+	const struct snd_soc_codec_driver *codec_drv;
 	unsigned int val;
 
 	codec_drv = codec->driver;
@@ -1504,7 +1504,7 @@ static int snd_soc_flat_cache_exit(struct snd_soc_codec *codec)
 
 static int snd_soc_flat_cache_init(struct snd_soc_codec *codec)
 {
-	struct snd_soc_codec_driver *codec_drv;
+	const struct snd_soc_codec_driver *codec_drv;
 	size_t reg_size;
 
 	codec_drv = codec->driver;

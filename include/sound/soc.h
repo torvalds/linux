@@ -265,7 +265,7 @@ int snd_soc_register_platform(struct device *dev,
 		struct snd_soc_platform_driver *platform_drv);
 void snd_soc_unregister_platform(struct device *dev);
 int snd_soc_register_codec(struct device *dev,
-		struct snd_soc_codec_driver *codec_drv,
+		const struct snd_soc_codec_driver *codec_drv,
 		struct snd_soc_dai_driver *dai_drv, int num_dai);
 void snd_soc_unregister_codec(struct device *dev);
 int snd_soc_codec_volatile_register(struct snd_soc_codec *codec, int reg);
@@ -453,7 +453,7 @@ struct snd_soc_codec {
 	const char *name_prefix;
 	int id;
 	struct device *dev;
-	struct snd_soc_codec_driver *driver;
+	const struct snd_soc_codec_driver *driver;
 
 	struct mutex mutex;
 	struct snd_soc_card *card;
