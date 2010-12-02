@@ -103,8 +103,12 @@ static const int ab8500_irq_regoffset[AB8500_NUM_IRQ_REGS] = {
 
 static int ab8500_get_chip_id(struct device *dev)
 {
-	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
-	return (int)ab8500->chip_id;
+	struct ab8500 *ab8500;
+
+	if (!dev)
+		return -EINVAL;
+	ab8500 = dev_get_drvdata(dev->parent);
+	return ab8500 ? (int)ab8500->chip_id : -EINVAL;
 }
 
 static int set_register_interruptible(struct ab8500 *ab8500, u8 bank,
