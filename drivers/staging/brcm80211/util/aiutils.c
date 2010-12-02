@@ -31,7 +31,7 @@
 #include <pcicfg.h>
 #include <bcmdevs.h>
 
-#define BCM47162_DMP() ((CHIPID(sih->chip) == BCM47162_CHIP_ID) && \
+#define BCM47162_DMP() ((sih->chip == BCM47162_CHIP_ID) && \
 		(CHIPREV(sih->chiprev) == 0) && \
 		(sii->coreid[sii->curidx] == MIPS74K_CORE_ID))
 

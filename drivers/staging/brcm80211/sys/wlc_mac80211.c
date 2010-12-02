@@ -1991,7 +1991,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	wlc_radio_mpc_upd(wlc);
 
 	if (WLANTSEL_ENAB(wlc)) {
-		if ((CHIPID(wlc->pub->sih->chip)) == BCM43235_CHIP_ID) {
+		if ((wlc->pub->sih->chip) == BCM43235_CHIP_ID) {
 			if ((getintvar(wlc->pub->vars, "aa2g") == 7) ||
 			    (getintvar(wlc->pub->vars, "aa5g") == 7)) {
 				wlc_bmac_antsel_set(wlc->hw, 1);
@@ -2537,7 +2537,7 @@ int wlc_up(wlc_info_t *wlc)
 	}
 
 	if ((wlc->pub->boardflags & BFL_FEM)
-	    && (CHIPID(wlc->pub->sih->chip) == BCM4313_CHIP_ID)) {
+	    && (wlc->pub->sih->chip == BCM4313_CHIP_ID)) {
 		if (wlc->pub->boardrev >= 0x1250
 		    && (wlc->pub->boardflags & BFL_FEM_BT)) {
 			wlc_mhf(wlc, MHF5, MHF5_4313_GPIOCTRL,
@@ -6427,8 +6427,8 @@ void wlc_high_dpc(wlc_info_t *wlc, u32 macintstatus)
 		WL_ERROR(("wl%d: PSM microcode watchdog fired at %d (seconds). Resetting.\n", wlc->pub->unit, wlc->pub->now));
 
 		printk_once("%s : PSM Watchdog, chipid 0x%x, chiprev 0x%x\n",
-			    __func__, CHIPID(wlc->pub->sih->chip),
-			    CHIPREV(wlc->pub->sih->chiprev));
+					__func__, wlc->pub->sih->chip,
+					CHIPREV(wlc->pub->sih->chiprev));
 
 		WLCNTINCR(wlc->pub->_cnt->psmwds);
 

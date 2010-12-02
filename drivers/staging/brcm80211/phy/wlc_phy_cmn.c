@@ -1085,8 +1085,8 @@ wlc_phy_table_addr(phy_info_t *pi, uint tbl_id, uint tbl_offset,
 	pi->tbl_data_hi = tblDataHi;
 	pi->tbl_data_lo = tblDataLo;
 
-	if ((CHIPID(pi->sh->chip) == BCM43224_CHIP_ID ||
-	     CHIPID(pi->sh->chip) == BCM43421_CHIP_ID) &&
+	if ((pi->sh->chip == BCM43224_CHIP_ID ||
+	     pi->sh->chip == BCM43421_CHIP_ID) &&
 	    (pi->sh->chiprev == 1)) {
 		pi->tbl_addr = tblAddr;
 		pi->tbl_save_id = tbl_id;
@@ -1098,8 +1098,8 @@ void wlc_phy_table_data_write(phy_info_t *pi, uint width, u32 val)
 {
 	ASSERT((width == 8) || (width == 16) || (width == 32));
 
-	if ((CHIPID(pi->sh->chip) == BCM43224_CHIP_ID ||
-	     CHIPID(pi->sh->chip) == BCM43421_CHIP_ID) &&
+	if ((pi->sh->chip == BCM43224_CHIP_ID ||
+	     pi->sh->chip == BCM43421_CHIP_ID) &&
 	    (pi->sh->chiprev == 1) &&
 	    (pi->tbl_save_id == NPHY_TBL_ID_ANTSWCTRLLUT)) {
 		read_phy_reg(pi, pi->tbl_data_lo);
@@ -1137,8 +1137,8 @@ wlc_phy_write_table(phy_info_t *pi, const phytbl_info_t *ptbl_info,
 
 	for (idx = 0; idx < ptbl_info->tbl_len; idx++) {
 
-		if ((CHIPID(pi->sh->chip) == BCM43224_CHIP_ID ||
-		     CHIPID(pi->sh->chip) == BCM43421_CHIP_ID) &&
+		if ((pi->sh->chip == BCM43224_CHIP_ID ||
+		     pi->sh->chip == BCM43421_CHIP_ID) &&
 		    (pi->sh->chiprev == 1) &&
 		    (tbl_id == NPHY_TBL_ID_ANTSWCTRLLUT)) {
 			read_phy_reg(pi, tblDataLo);
@@ -1180,8 +1180,8 @@ wlc_phy_read_table(phy_info_t *pi, const phytbl_info_t *ptbl_info,
 
 	for (idx = 0; idx < ptbl_info->tbl_len; idx++) {
 
-		if ((CHIPID(pi->sh->chip) == BCM43224_CHIP_ID ||
-		     CHIPID(pi->sh->chip) == BCM43421_CHIP_ID) &&
+		if ((pi->sh->chip == BCM43224_CHIP_ID ||
+		     pi->sh->chip == BCM43421_CHIP_ID) &&
 		    (pi->sh->chiprev == 1)) {
 			(void)read_phy_reg(pi, tblDataLo);
 
@@ -3330,7 +3330,7 @@ const u8 *wlc_phy_get_ofdm_rate_lookup(void)
 
 void wlc_lcnphy_epa_switch(phy_info_t *pi, bool mode)
 {
-	if ((CHIPID(pi->sh->chip) == BCM4313_CHIP_ID) &&
+	if ((pi->sh->chip == BCM4313_CHIP_ID) &&
 	    (pi->sh->boardflags & BFL_FEM)) {
 		if (mode) {
 			u16 txant = 0;

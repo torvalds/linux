@@ -223,7 +223,7 @@ static int ipxotp_max_rgnsz(si_t *sih, int osizew)
 {
 	int ret = 0;
 
-	switch (CHIPID(sih->chip)) {
+	switch (sih->chip) {
 	case BCM43224_CHIP_ID:
 	case BCM43225_CHIP_ID:
 		ret = osizew * 2 - OTP_SZ_FU_72 - OTP_SZ_CHECKSUM;
@@ -273,8 +273,8 @@ static void _ipxotp_init(otpinfo_t *oi, chipcregs_t *cc)
 	/* Read OTP lock bits and subregion programmed indication bits */
 	oi->status = R_REG(oi->osh, &cc->otpstatus);
 
-	if ((CHIPID(oi->sih->chip) == BCM43224_CHIP_ID)
-	    || (CHIPID(oi->sih->chip) == BCM43225_CHIP_ID)) {
+	if ((oi->sih->chip == BCM43224_CHIP_ID)
+	    || (oi->sih->chip == BCM43225_CHIP_ID)) {
 		u32 p_bits;
 		p_bits =
 		    (ipxotp_otpr(oi, cc, oi->otpgu_base + OTPGU_P_OFF) &

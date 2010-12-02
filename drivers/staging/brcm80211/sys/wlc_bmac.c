@@ -407,8 +407,8 @@ bool BCMFASTPATH wlc_dpc(wlc_info_t *wlc, bool bounded)
 		WL_ERROR(("wl%d: PSM microcode watchdog fired at %d (seconds). Resetting.\n", wlc_hw->unit, wlc_hw->now));
 
 		printk_once("%s : PSM Watchdog, chipid 0x%x, chiprev 0x%x\n",
-			    __func__, CHIPID(wlc_hw->sih->chip),
-			    CHIPREV(wlc_hw->sih->chiprev));
+					__func__, wlc_hw->sih->chip,
+					CHIPREV(wlc_hw->sih->chiprev));
 
 		WLCNTINCR(wlc->pub->_cnt->psmwds);
 
@@ -842,7 +842,7 @@ int wlc_bmac_attach(wlc_info_t *wlc, u16 vendor, u16 device, uint unit,
 	} else
 		wlc_hw->_nbands = 1;
 
-	if ((CHIPID(wlc_hw->sih->chip) == BCM43225_CHIP_ID))
+	if ((wlc_hw->sih->chip == BCM43225_CHIP_ID))
 		wlc_hw->_nbands = 1;
 
 	/* BMAC_NOTE: remove init of pub values when wlc_attach() unconditionally does the
@@ -2224,9 +2224,9 @@ bool wlc_bmac_radio_read_hwdisabled(wlc_hw_info_t *wlc_hw)
 			flags |= SICF_PCLKE;
 
 		/* AI chip doesn't restore bar0win2 on hibernation/resume, need sw fixup */
-		if ((CHIPID(wlc_hw->sih->chip) == BCM43224_CHIP_ID) ||
-		    (CHIPID(wlc_hw->sih->chip) == BCM43225_CHIP_ID) ||
-		    (CHIPID(wlc_hw->sih->chip) == BCM43421_CHIP_ID))
+		if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
+		    (wlc_hw->sih->chip == BCM43225_CHIP_ID) ||
+		    (wlc_hw->sih->chip == BCM43421_CHIP_ID))
 			wlc_hw->regs =
 			    (d11regs_t *) si_setcore(wlc_hw->sih, D11_CORE_ID,
 						     0);
@@ -2266,9 +2266,9 @@ void wlc_bmac_hw_up(wlc_hw_info_t *wlc_hw)
 		si_pci_fixcfg(wlc_hw->sih);
 
 		/* AI chip doesn't restore bar0win2 on hibernation/resume, need sw fixup */
-		if ((CHIPID(wlc_hw->sih->chip) == BCM43224_CHIP_ID) ||
-		    (CHIPID(wlc_hw->sih->chip) == BCM43225_CHIP_ID) ||
-		    (CHIPID(wlc_hw->sih->chip) == BCM43421_CHIP_ID))
+		if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
+		    (wlc_hw->sih->chip == BCM43225_CHIP_ID) ||
+		    (wlc_hw->sih->chip == BCM43421_CHIP_ID))
 			wlc_hw->regs =
 			    (d11regs_t *) si_setcore(wlc_hw->sih, D11_CORE_ID,
 						     0);
@@ -2281,7 +2281,7 @@ void wlc_bmac_hw_up(wlc_hw_info_t *wlc_hw)
 	wlc_hw->wlc->pub->hw_up = true;
 
 	if ((wlc_hw->boardflags & BFL_FEM)
-	    && (CHIPID(wlc_hw->sih->chip) == BCM4313_CHIP_ID)) {
+	    && (wlc_hw->sih->chip == BCM4313_CHIP_ID)) {
 		if (!
 		    (wlc_hw->boardrev >= 0x1250
 		     && (wlc_hw->boardflags & BFL_FEM_BT)))
@@ -2689,8 +2689,8 @@ void wlc_bmac_switch_macfreq(wlc_hw_info_t *wlc_hw, u8 spurmode)
 	regs = wlc_hw->regs;
 	osh = wlc_hw->osh;
 
-	if ((CHIPID(wlc_hw->sih->chip) == BCM43224_CHIP_ID) ||
-	    (CHIPID(wlc_hw->sih->chip) == BCM43225_CHIP_ID)) {
+	if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
+	    (wlc_hw->sih->chip == BCM43225_CHIP_ID)) {
 		if (spurmode == WL_SPURAVOID_ON2) {	/* 126Mhz */
 			W_REG(osh, &regs->tsf_clk_frac_l, 0x2082);
 			W_REG(osh, &regs->tsf_clk_frac_h, 0x8);

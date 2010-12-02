@@ -251,7 +251,7 @@ static uint _sb_scan(si_info_t *sii, u32 sba, void *regs, uint bus, u32 sbba,
 			else {
 				/* Older chips */
 				SI_ERROR(("sb_chip2numcores: unsupported chip "
-					"0x%x\n", CHIPID(sii->pub.chip)));
+						  "0x%x\n", sii->pub.chip));
 				ASSERT(0);
 				numcores = 1;
 			}

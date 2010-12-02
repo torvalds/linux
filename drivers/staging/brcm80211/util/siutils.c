@@ -414,7 +414,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 	sih->chiprev = (w & CID_REV_MASK) >> CID_REV_SHIFT;
 	sih->chippkg = (w & CID_PKG_MASK) >> CID_PKG_SHIFT;
 
-	if ((CHIPID(sih->chip) == BCM4329_CHIP_ID) &&
+	if ((sih->chip == BCM4329_CHIP_ID) &&
 		(sih->chippkg != BCM4329_289PIN_PKG_ID))
 			sih->chippkg = BCM4329_182PIN_PKG_ID;
 
@@ -591,9 +591,9 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 	/* assume current core is CC */
 	if ((sii->pub.ccrev == 0x25)
 	    &&
-	    ((CHIPID(sih->chip) == BCM43236_CHIP_ID
-	      || CHIPID(sih->chip) == BCM43235_CHIP_ID
-	      || CHIPID(sih->chip) == BCM43238_CHIP_ID)
+	    ((sih->chip == BCM43236_CHIP_ID
+	      || sih->chip == BCM43235_CHIP_ID
+	      || sih->chip == BCM43238_CHIP_ID)
 	     && (CHIPREV(sii->pub.chiprev) <= 2))) {
 
 		if ((cc->chipstatus & CST43236_BP_CLK) != 0) {
@@ -650,8 +650,8 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 		pcicore_attach(sii->pch, pvars, SI_DOATTACH);
 	}
 
-	if ((CHIPID(sih->chip) == BCM43224_CHIP_ID) ||
-	    (CHIPID(sih->chip) == BCM43421_CHIP_ID)) {
+	if ((sih->chip == BCM43224_CHIP_ID) ||
+	    (sih->chip == BCM43421_CHIP_ID)) {
 		/* enable 12 mA drive strenth for 43224 and set chipControl register bit 15 */
 		if (CHIPREV(sih->chiprev) == 0) {
 			SI_MSG(("Applying 43224A0 WARs\n"));
@@ -669,14 +669,14 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 		}
 	}
 
-	if (CHIPID(sih->chip) == BCM4313_CHIP_ID) {
+	if (sih->chip == BCM4313_CHIP_ID) {
 		/* enable 12 mA drive strenth for 4313 and set chipControl register bit 1 */
 		SI_MSG(("Applying 4313 WARs\n"));
 		si_pmu_chipcontrol(sih, 0, CCTRL_4313_12MA_LED_DRIVE,
 				   CCTRL_4313_12MA_LED_DRIVE);
 	}
 
-	if (CHIPID(sih->chip) == BCM4331_CHIP_ID) {
+	if (sih->chip == BCM4331_CHIP_ID) {
 		/* Enable Ext PA lines depending on chip package option */
 		si_chipcontrl_epa4331(sih, true);
 	}
@@ -1042,7 +1042,7 @@ void si_watchdog(si_t *sih, uint ticks)
 
 	if (PMUCTL_ENAB(sih)) {
 
-		if ((CHIPID(sih->chip) == BCM4319_CHIP_ID) &&
+		if ((sih->chip == BCM4319_CHIP_ID) &&
 		    (CHIPREV(sih->chiprev) == 0) && (ticks != 0)) {
 			si_corereg(sih, SI_CC_IDX,
 				   offsetof(chipcregs_t, clk_ctl_st), ~0, 0x2);
@@ -1957,7 +1957,7 @@ bool si_is_sprom_available(si_t *sih)
 		return sromctrl & SRC_PRESENT;
 	}
 
-	switch (CHIPID(sih->chip)) {
+	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
 		return (sih->chipst & CST4329_SPROM_SEL) != 0;
 	case BCM4319_CHIP_ID:
@@ -1977,7 +1977,7 @@ bool si_is_sprom_available(si_t *sih)
 
 bool si_is_otp_disabled(si_t *sih)
 {
-	switch (CHIPID(sih->chip)) {
+	switch (sih->chip) {
 	case BCM4329_CHIP_ID:
 		return (sih->chipst & CST4329_SPROM_OTP_SEL_MASK) ==
 		    CST4329_OTP_PWRDN;
