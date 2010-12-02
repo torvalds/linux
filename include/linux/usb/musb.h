@@ -119,7 +119,7 @@ struct musb_hdrc_platform_data {
 	int		(*set_power)(int state);
 
 	/* Turn device clock on or off */
-	int		(*set_clock)(struct clk *clock, int is_on);
+	int		(*set_clock)(struct clk *clock, int is_on) __deprecated;
 
 	/* MUSB configuration-specific details */
 	struct musb_hdrc_config	*config;
