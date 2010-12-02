@@ -319,12 +319,19 @@ struct ath5k_srev_name {
 #define AR5K_SREV_AR5311B	0x30 /* Spirit */
 #define AR5K_SREV_AR5211	0x40 /* Oahu */
 #define AR5K_SREV_AR5212	0x50 /* Venice */
+#define AR5K_SREV_AR5312_R2	0x52 /* AP31 */
 #define AR5K_SREV_AR5212_V4	0x54 /* ??? */
 #define AR5K_SREV_AR5213	0x55 /* ??? */
+#define AR5K_SREV_AR5312_R7	0x57 /* AP30 */
+#define AR5K_SREV_AR2313_R8	0x58 /* AP43 */
 #define AR5K_SREV_AR5213A	0x59 /* Hainan */
 #define AR5K_SREV_AR2413	0x78 /* Griffin lite */
 #define AR5K_SREV_AR2414	0x70 /* Griffin */
+#define AR5K_SREV_AR2315_R6 0x86 /* AP51-Light */
+#define AR5K_SREV_AR2315_R7 0x87 /* AP51-Full */
 #define AR5K_SREV_AR5424	0x90 /* Condor */
+#define AR5K_SREV_AR2317_R1 0x90 /* AP61-Light */
+#define AR5K_SREV_AR2317_R2 0x91 /* AP61-Full */
 #define AR5K_SREV_AR5413	0xa4 /* Eagle lite */
 #define AR5K_SREV_AR5414	0xa0 /* Eagle */
 #define AR5K_SREV_AR2415	0xb0 /* Talon */
@@ -1329,6 +1336,32 @@ static inline struct ath_regulatory *ath5k_hw_regulatory(struct ath5k_hw *ah)
         return &(ath5k_hw_common(ah)->regulatory);
 }
 
+#ifdef CONFIG_ATHEROS_AR231X
+#define AR5K_AR2315_PCI_BASE	((void __iomem *)0xb0100000)
+
+static inline void __iomem *ath5k_ahb_reg(struct ath5k_hw *ah, u16 reg)
+{
+	/* On AR2315 and AR2317 the PCI clock domain registers
+	 * are outside of the WMAC register space */
+	if (unlikely((reg >= 0x4000) && (reg < 0x5000) &&
+		(ah->ah_mac_srev >= AR5K_SREV_AR2315_R6)))
+		return AR5K_AR2315_PCI_BASE + reg;
+
+	return ah->ah_iobase + reg;
+}
+
+static inline u32 ath5k_hw_reg_read(struct ath5k_hw *ah, u16 reg)
+{
+	return __raw_readl(ath5k_ahb_reg(ah, reg));
+}
+
+static inline void ath5k_hw_reg_write(struct ath5k_hw *ah, u32 val, u16 reg)
+{
+	__raw_writel(val, ath5k_ahb_reg(ah, reg));
+}
+
+#else
+
 static inline u32 ath5k_hw_reg_read(struct ath5k_hw *ah, u16 reg)
 {
 	return ioread32(ah->ah_iobase + reg);
@@ -1337,6 +1370,13 @@ static inline u32 ath5k_hw_reg_read(struct ath5k_hw *ah, u16 reg)
 static inline void ath5k_hw_reg_write(struct ath5k_hw *ah, u32 val, u16 reg)
 {
 	iowrite32(val, ah->ah_iobase + reg);
+}
+
+#endif
+
+static inline enum ath_bus_type ath5k_get_bus_type(struct ath5k_hw *ah)
+{
+	return ath5k_hw_common(ah)->bus_ops->ath_bus_type;
 }
 
 static inline void ath5k_read_cachesize(struct ath_common *common, int *csz)
