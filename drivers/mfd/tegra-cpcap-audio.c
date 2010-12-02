@@ -223,7 +223,7 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 
 		switch (out.id) {
 		case CPCAP_AUDIO_OUT_SPEAKER:
-			pr_info("%s: setting output path to speaker\n",
+			pr_debug("%s: setting output path to speaker\n",
 					__func__);
 			if (out.on)
 				tegra_setup_audio_out_speaker_on();
@@ -232,7 +232,7 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			current_output = out;
 			break;
 		case CPCAP_AUDIO_OUT_HEADSET:
-			pr_info("%s: setting output path to headset\n",
+			pr_debug("%s: setting output path to headset\n",
 					__func__);
 			if (out.on)
 				tegra_setup_audio_out_headset_on();
@@ -241,7 +241,7 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			current_output = out;
 			break;
 		case CPCAP_AUDIO_OUT_HEADSET_AND_SPEAKER:
-			pr_info("%s: setting output path to "
+			pr_debug("%s: setting output path to "
 					"headset + speaker\n", __func__);
 			if (out.on)
 				tegra_setup_audio_out_headset_and_speaker_on();
@@ -262,22 +262,22 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 		case CPCAP_AUDIO_OUT_STANDBY:
 			current_output.on = !out.on;
 			if (out.on) {
-				pr_info("%s: standby mode\n", __func__);
+				pr_debug("%s: standby mode\n", __func__);
 				tegra_setup_audio_output_off();
 				break;
 			}
 
 			switch (current_output.id) {
 			case CPCAP_AUDIO_OUT_SPEAKER:
-				pr_info("%s: standby off (speaker)", __func__);
+				pr_debug("%s: standby off (speaker)", __func__);
 				tegra_setup_audio_out_speaker_on();
 				break;
 			case CPCAP_AUDIO_OUT_HEADSET:
-				pr_info("%s: standby off (headset)", __func__);
+				pr_debug("%s: standby off (headset)", __func__);
 				tegra_setup_audio_out_headset_on();
 				break;
 			case CPCAP_AUDIO_OUT_HEADSET_AND_SPEAKER:
-				pr_info("%s: standby off (speaker + headset)",
+				pr_debug("%s: standby off (speaker + headset)",
 					__func__);
 				tegra_setup_audio_out_headset_and_speaker_on();
 				break;
@@ -310,11 +310,11 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 		switch (in.id) {
 		case CPCAP_AUDIO_IN_MIC1:
 			if (in.on) {
-				pr_info("%s: setting input path to on-board mic\n",
+				pr_debug("%s: setting input path to on-board mic\n",
 					__func__);
 				tegra_setup_audio_in_handset_on();
 			} else {
-				pr_info("%s: mute on-board mic\n", __func__);
+				pr_debug("%s: mute on-board mic\n", __func__);
 				tegra_setup_audio_in_mute();
 			}
 
@@ -322,11 +322,11 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			break;
 		case CPCAP_AUDIO_IN_MIC2:
 			if (in.on) {
-				pr_info("%s: setting input path to headset mic\n",
+				pr_debug("%s: setting input path to headset mic\n",
 					__func__);
 				tegra_setup_audio_in_headset_on();
 			} else {
-				pr_info("%s: mute headset mic\n", __func__);
+				pr_debug("%s: mute headset mic\n", __func__);
 				tegra_setup_audio_in_mute();
 			}
 
@@ -335,7 +335,7 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 		case CPCAP_AUDIO_IN_STANDBY:
 			current_input.on = !in.on;
 			if (in.on) {
-				pr_info("%s: microphone in standby mode\n",
+				pr_debug("%s: microphone in standby mode\n",
 					__func__);
 				tegra_setup_audio_in_mute();
 				break;
@@ -404,7 +404,7 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			rc = -EFAULT;
 			goto done;
 		}
-		pr_info("%s: setting output rate to %dHz\n", __func__, rate);
+		pr_debug("%s: setting output rate to %dHz\n", __func__, rate);
 		tegra_setup_audio_out_rate(rate);
 		break;
 	case CPCAP_AUDIO_IN_GET_RATE:
@@ -421,7 +421,7 @@ static long cpcap_audio_ctl_ioctl(struct file *file, unsigned int cmd,
 			rc = -EFAULT;
 			goto done;
 		}
-		pr_info("%s: setting input rate to %dHz\n", __func__, rate);
+		pr_debug("%s: setting input rate to %dHz\n", __func__, rate);
 		tegra_setup_audio_in_rate(rate);
 		break;
 	case CPCAP_AUDIO_SET_BLUETOOTH_BYPASS:
@@ -453,7 +453,7 @@ static int cpcap_audio_probe(struct platform_device *pdev)
 {
 	int rc;
 
-	pr_info("%s\n", __func__);
+	pr_debug("%s\n", __func__);
 
 	cpcap = platform_get_drvdata(pdev);
 	BUG_ON(!cpcap);
