@@ -307,6 +307,7 @@ static int zfcp_qdio_allocate(struct zfcp_qdio *qdio)
 		return -ENOMEM;
 
 	zfcp_qdio_setup_init_data(&init_data, qdio);
+	init_waitqueue_head(&qdio->req_q_wq);
 
 	return qdio_allocate(&init_data);
 }
@@ -391,6 +392,7 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	/* set index of first avalable SBALS / number of available SBALS */
 	qdio->req_q_idx = 0;
 	atomic_set(&qdio->req_q_free, QDIO_MAX_BUFFERS_PER_Q);
+	atomic_set_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &qdio->adapter->status);
 
 	return 0;
 

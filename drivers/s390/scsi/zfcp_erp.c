@@ -644,17 +644,6 @@ static void zfcp_erp_wakeup(struct zfcp_adapter *adapter)
 	read_unlock_irqrestore(&adapter->erp_lock, flags);
 }
 
-static int zfcp_erp_adapter_strategy_open_qdio(struct zfcp_erp_action *act)
-{
-	struct zfcp_qdio *qdio = act->adapter->qdio;
-
-	if (zfcp_qdio_open(qdio))
-		return ZFCP_ERP_FAILED;
-	init_waitqueue_head(&qdio->req_q_wq);
-	atomic_set_mask(ZFCP_STATUS_ADAPTER_QDIOUP, &act->adapter->status);
-	return ZFCP_ERP_SUCCEEDED;
-}
-
 static void zfcp_erp_enqueue_ptp_port(struct zfcp_adapter *adapter)
 {
 	struct zfcp_port *port;
@@ -778,7 +767,7 @@ static int zfcp_erp_adapter_strategy_open(struct zfcp_erp_action *act)
 {
 	struct zfcp_adapter *adapter = act->adapter;
 
-	if (zfcp_erp_adapter_strategy_open_qdio(act)) {
+	if (zfcp_qdio_open(adapter->qdio)) {
 		atomic_clear_mask(ZFCP_STATUS_ADAPTER_XCONFIG_OK |
 				  ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED,
 				  &adapter->status);
