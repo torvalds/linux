@@ -51,6 +51,7 @@
 #include <linux/slab.h>
 #include <linux/swapops.h>
 #include <linux/hugetlb.h>
+#include <linux/memory_hotplug.h>
 #include "internal.h"
 
 int sysctl_memory_failure_early_kill __read_mostly = 0;
@@ -1230,11 +1231,10 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
 		return 1;
 
 	/*
-	 * The lock_system_sleep prevents a race with memory hotplug,
-	 * because the isolation assumes there's only a single user.
+	 * The lock_memory_hotplug prevents a race with memory hotplug.
 	 * This is a big hammer, a better would be nicer.
 	 */
-	lock_system_sleep();
+	lock_memory_hotplug();
 
 	/*
 	 * Isolate the page, so that it doesn't get reallocated if it
@@ -1264,7 +1264,7 @@ static int get_any_page(struct page *p, unsigned long pfn, int flags)
 		ret = 1;
 	}
 	unset_migratetype_isolate(p);
-	unlock_system_sleep();
+	unlock_memory_hotplug();
 	return ret;
 }
 
