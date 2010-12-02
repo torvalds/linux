@@ -143,8 +143,6 @@ source "drivers/staging/cxt1e1/Kconfig"
 
 source "drivers/staging/ti-st/Kconfig"
 
-source "drivers/staging/adis16255/Kconfig"
-
 source "drivers/staging/xgifb/Kconfig"
 
 source "drivers/staging/msm/Kconfig"
