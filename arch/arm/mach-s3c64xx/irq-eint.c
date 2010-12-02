@@ -145,7 +145,7 @@ static struct irq_chip s3c_irq_eint = {
 	.mask_ack	= s3c_irq_eint_maskack,
 	.ack		= s3c_irq_eint_ack,
 	.set_type	= s3c_irq_eint_set_type,
-	.set_wake	= s3c_irqext_wake,
+	.irq_set_wake	= s3c_irqext_wake,
 };
 
 /* s3c_irq_demux_eint

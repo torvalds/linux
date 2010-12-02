@@ -238,7 +238,7 @@ static struct irq_chip s3c_irqext_chip = {
 	.unmask		= s3c_irqext_unmask,
 	.ack		= s3c_irqext_ack,
 	.set_type	= s3c_irqext_type,
-	.set_wake	= s3c_irqext_wake
+	.irq_set_wake	= s3c_irqext_wake
 };
 
 static struct irq_chip s3c_irq_eint0t4 = {
