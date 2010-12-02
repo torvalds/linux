@@ -3,7 +3,7 @@
  * Inventra (Multidrop) Highspeed Dual-Role Controllers:  (M)HDRC.
  *
  * Board initialization should put one of these into dev->platform_data,
- * probably on some platform_device named "musb_hdrc".  It encapsulates
+ * probably on some platform_device named "musb-hdrc".  It encapsulates
  * key configuration differences between boards.
  */
 

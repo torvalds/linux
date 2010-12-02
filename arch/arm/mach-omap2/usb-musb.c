@@ -77,7 +77,7 @@ static struct musb_hdrc_platform_data musb_plat = {
 static u64 musb_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device musb_device = {
-	.name		= "musb_hdrc",
+	.name		= "musb-hdrc",
 	.id		= -1,
 	.dev = {
 		.dma_mask		= &musb_dmamask,

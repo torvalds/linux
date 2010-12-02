@@ -223,7 +223,7 @@ static struct resource tusb_resources[] = {
 static u64 tusb_dmamask = ~(u32)0;
 
 static struct platform_device tusb_device = {
-	.name		= "musb_hdrc",
+	.name		= "musb-hdrc",
 	.id		= -1,
 	.dev = {
 		.dma_mask		= &tusb_dmamask,

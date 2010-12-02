@@ -126,7 +126,7 @@ MODULE_PARM_DESC(debug, "Debug message level. Default = 0");
 
 #define DRIVER_INFO DRIVER_DESC ", v" MUSB_VERSION
 
-#define MUSB_DRIVER_NAME "musb_hdrc"
+#define MUSB_DRIVER_NAME "musb-hdrc"
 const char musb_driver_name[] = MUSB_DRIVER_NAME;
 
 MODULE_DESCRIPTION(DRIVER_INFO);
