@@ -490,7 +490,7 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 	if (no_vsync)
 		tegra_dc_writel(dc, WRITE_MUX_ACTIVE | READ_MUX_ACTIVE, DC_CMD_STATE_ACCESS);
 	else
-		tegra_dc_writel(dc, WRITE_MUX_ASSEMBLY | WRITE_MUX_ASSEMBLY, DC_CMD_STATE_ACCESS);
+		tegra_dc_writel(dc, WRITE_MUX_ASSEMBLY | READ_MUX_ASSEMBLY, DC_CMD_STATE_ACCESS);
 
 	for (i = 0; i < n; i++) {
 		struct tegra_dc_win *win = windows[i];
@@ -823,7 +823,7 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 
 		val = tegra_dc_readl(dc, DC_CMD_STATE_CONTROL);
 		for (i = 0; i < DC_N_WINDOWS; i++) {
-			if (!(val & (WIN_A_ACT_REQ << i))) {
+			if (!(val & (WIN_A_UPDATE << i))) {
 				dc->windows[i].dirty = 0;
 				completed = 1;
 			} else {
