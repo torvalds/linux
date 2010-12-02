@@ -19,6 +19,7 @@
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
+#include <mach/prcmu.h>
 
 #include "clock.h"
 
@@ -58,6 +59,7 @@ void __init ux500_init_irq(void)
 	 * Init clocks here so that they are available for system timer
 	 * initialization.
 	 */
+	prcmu_early_init();
 	clk_init();
 }
 

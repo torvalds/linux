@@ -9,6 +9,7 @@
 #ifndef __MACH_PRCMU_H
 #define __MACH_PRCMU_H
 
+void __init prcmu_early_init(void);
 int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size);
 int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size);
 

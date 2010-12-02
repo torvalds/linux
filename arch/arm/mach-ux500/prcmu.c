@@ -20,10 +20,11 @@
 #include <mach/hardware.h>
 #include <mach/prcmu-regs.h>
 
-#define PRCMU_TCDM_BASE __io_address(U8500_PRCMU_TCDM_BASE)
+/* Global var to runtime determine TCDM base for v2 or v1 */
+static __iomem void *tcdm_base;
 
-#define REQ_MB5 (PRCMU_TCDM_BASE + 0xE44)
-#define ACK_MB5 (PRCMU_TCDM_BASE + 0xDF4)
+#define REQ_MB5 (tcdm_base + 0xE44)
+#define ACK_MB5 (tcdm_base + 0xDF4)
 
 #define REQ_MB5_I2C_SLAVE_OP (REQ_MB5)
 #define REQ_MB5_I2C_HW_BITS (REQ_MB5 + 1)
@@ -33,8 +34,10 @@
 #define ACK_MB5_I2C_STATUS (ACK_MB5 + 1)
 #define ACK_MB5_I2C_VAL (ACK_MB5 + 3)
 
-#define I2C_WRITE(slave) ((slave) << 1)
-#define I2C_READ(slave) (((slave) << 1) | BIT(0))
+#define I2C_WRITE(slave) \
+	(((slave) << 1) | (cpu_is_u8500v2() ? BIT(6) : 0))
+#define I2C_READ(slave) \
+	(((slave) << 1) | (cpu_is_u8500v2() ? BIT(6) : 0) | BIT(0))
 #define I2C_STOP_EN BIT(3)
 
 enum ack_mb5_status {
@@ -215,6 +218,18 @@ static irqreturn_t prcmu_irq_handler(int irq, void *data)
 		}
 	}
 	return IRQ_HANDLED;
+}
+
+void __init prcmu_early_init(void)
+{
+	if (cpu_is_u8500v11() || cpu_is_u8500ed()) {
+		tcdm_base = __io_address(U8500_PRCMU_TCDM_BASE_V1);
+	} else if (cpu_is_u8500v2()) {
+		tcdm_base = __io_address(U8500_PRCMU_TCDM_BASE);
+	} else {
+		pr_err("prcmu: Unsupported chip version\n");
+		BUG();
+	}
 }
 
 static int __init prcmu_init(void)
