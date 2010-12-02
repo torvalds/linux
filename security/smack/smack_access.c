@@ -185,7 +185,7 @@ out_audit:
 int smk_curacc(char *obj_label, u32 mode, struct smk_audit_info *a)
 {
 	int rc;
-	char *sp = current_security();
+	char *sp = smk_of_current();
 
 	rc = smk_access(sp, obj_label, mode, NULL);
 	if (rc == 0)
@@ -196,7 +196,7 @@ int smk_curacc(char *obj_label, u32 mode, struct smk_audit_info *a)
 	 * only one that gets privilege and current does not
 	 * have that label.
 	 */
-	if (smack_onlycap != NULL && smack_onlycap != current->cred->security)
+	if (smack_onlycap != NULL && smack_onlycap != sp)
 		goto out_audit;
 
 	if (capable(CAP_MAC_OVERRIDE))

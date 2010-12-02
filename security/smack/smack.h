@@ -51,8 +51,14 @@ struct socket_smack {
  */
 struct inode_smack {
 	char		*smk_inode;	/* label of the fso */
+	char		*smk_task;	/* label of the task */
 	struct mutex	smk_lock;	/* initialization lock */
 	int		smk_flags;	/* smack inode flags */
+};
+
+struct task_smack {
+	char		*smk_task;	/* label used for access control */
+	char		*smk_forked;	/* label when forked */
 };
 
 #define	SMK_INODE_INSTANT	0x01	/* inode is instantiated */
@@ -240,6 +246,30 @@ static inline char *smk_of_inode(const struct inode *isp)
 {
 	struct inode_smack *sip = isp->i_security;
 	return sip->smk_inode;
+}
+
+/*
+ * Present a pointer to the smack label in an task blob.
+ */
+static inline char *smk_of_task(const struct task_smack *tsp)
+{
+	return tsp->smk_task;
+}
+
+/*
+ * Present a pointer to the forked smack label in an task blob.
+ */
+static inline char *smk_of_forked(const struct task_smack *tsp)
+{
+	return tsp->smk_forked;
+}
+
+/*
+ * Present a pointer to the smack label in the curren task blob.
+ */
+static inline char *smk_of_current(void)
+{
+	return smk_of_task(current_security());
 }
 
 /*
