@@ -16,5 +16,6 @@ void orinoco_add_extscan_result(struct orinoco_private *priv,
 void orinoco_add_hostscan_results(struct orinoco_private *dev,
 				  unsigned char *buf,
 				  size_t len);
+void orinoco_scan_done(struct orinoco_private *priv, bool abort);
 
 #endif /* _ORINOCO_SCAN_H_ */

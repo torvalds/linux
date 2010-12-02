@@ -867,7 +867,7 @@ static int carl9170_tx_prepare(struct ar9170 *ar, struct sk_buff *skb)
 
 	mac_tmp = cpu_to_le16(AR9170_TX_MAC_HW_DURATION |
 			      AR9170_TX_MAC_BACKOFF);
-	mac_tmp |= cpu_to_le16((hw_queue << AR9170_TX_MAC_QOS_S) &&
+	mac_tmp |= cpu_to_le16((hw_queue << AR9170_TX_MAC_QOS_S) &
 			       AR9170_TX_MAC_QOS);
 
 	no_ack = !!(info->flags & IEEE80211_TX_CTL_NO_ACK);

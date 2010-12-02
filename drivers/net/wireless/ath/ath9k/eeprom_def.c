@@ -451,9 +451,10 @@ static void ath9k_hw_def_set_board_values(struct ath_hw *ah,
 		ath9k_hw_analog_shift_rmw(ah, AR_AN_TOP2,
 					  AR_AN_TOP2_LOCALBIAS,
 					  AR_AN_TOP2_LOCALBIAS_S,
-					  pModal->local_bias);
+					  !!(pModal->lna_ctl &
+					     LNA_CTL_LOCAL_BIAS));
 		REG_RMW_FIELD(ah, AR_PHY_XPA_CFG, AR_PHY_FORCE_XPA_CFG,
-			      pModal->force_xpaon);
+			      !!(pModal->lna_ctl & LNA_CTL_FORCE_XPA));
 	}
 
 	REG_RMW_FIELD(ah, AR_PHY_SETTLING, AR_PHY_SETTLING_SWITCH,
@@ -1435,9 +1436,9 @@ static u8 ath9k_hw_def_get_num_ant_config(struct ath_hw *ah,
 
 	num_ant_config = 1;
 
-	if (pBase->version >= 0x0E0D)
-		if (pModal->useAnt1)
-			num_ant_config += 1;
+	if (pBase->version >= 0x0E0D &&
+	    (pModal->lna_ctl & LNA_CTL_USE_ANT1))
+		num_ant_config += 1;
 
 	return num_ant_config;
 }

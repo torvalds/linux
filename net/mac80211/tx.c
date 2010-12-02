@@ -1595,7 +1595,12 @@ static void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 						list) {
 				if (!ieee80211_sdata_running(tmp_sdata))
 					continue;
-				if (tmp_sdata->vif.type != NL80211_IFTYPE_AP)
+				if (tmp_sdata->vif.type ==
+				    NL80211_IFTYPE_MONITOR ||
+				    tmp_sdata->vif.type ==
+				    NL80211_IFTYPE_AP_VLAN ||
+					tmp_sdata->vif.type ==
+				    NL80211_IFTYPE_WDS)
 					continue;
 				if (compare_ether_addr(tmp_sdata->vif.addr,
 						       hdr->addr2) == 0) {

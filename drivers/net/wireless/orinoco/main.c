@@ -1392,10 +1392,9 @@ static void orinoco_process_scan_results(struct work_struct *work)
 				orinoco_add_hostscan_results(priv, buf, len);
 
 			kfree(buf);
-		} else if (priv->scan_request) {
+		} else {
 			/* Either abort or complete the scan */
-			cfg80211_scan_done(priv->scan_request, (len < 0));
-			priv->scan_request = NULL;
+			orinoco_scan_done(priv, (len < 0));
 		}
 
 		spin_lock_irqsave(&priv->scan_lock, flags);
@@ -1684,6 +1683,8 @@ static int __orinoco_down(struct orinoco_private *priv)
 		hermes_write_regn(hw, EVACK, 0xffff);
 	}
 
+	orinoco_scan_done(priv, true);
+
 	/* firmware will have to reassociate */
 	netif_carrier_off(dev);
 	priv->last_linkstatus = 0xffff;
@@ -1762,10 +1763,7 @@ void orinoco_reset(struct work_struct *work)
 	orinoco_unlock(priv, &flags);
 
 	/* Scanning support: Notify scan cancellation */
-	if (priv->scan_request) {
-		cfg80211_scan_done(priv->scan_request, 1);
-		priv->scan_request = NULL;
-	}
+	orinoco_scan_done(priv, true);
 
 	if (priv->hard_reset) {
 		err = (*priv->hard_reset)(priv);
