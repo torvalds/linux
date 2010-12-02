@@ -273,7 +273,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 	/*
 	 * Write PCI-E power save settings
 	 */
-	if ((ah->ah_version == AR5K_AR5212) && (pdev->is_pcie)) {
+	if ((ah->ah_version == AR5K_AR5212) && pdev && (pdev->is_pcie)) {
 		ath5k_hw_reg_write(ah, 0x9248fc00, AR5K_PCIE_SERDES);
 		ath5k_hw_reg_write(ah, 0x24924924, AR5K_PCIE_SERDES);
 
@@ -305,8 +305,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 	/* Get misc capabilities */
 	ret = ath5k_hw_set_capabilities(ah);
 	if (ret) {
-		ATH5K_ERR(sc, "unable to get device capabilities: 0x%04x\n",
-			sc->pdev->device);
+		ATH5K_ERR(sc, "unable to get device capabilities\n");
 		goto err;
 	}
 

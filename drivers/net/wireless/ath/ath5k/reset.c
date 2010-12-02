@@ -471,7 +471,7 @@ int ath5k_hw_on_hold(struct ath5k_hw *ah)
 	 * we ingore that flag for PCI-E cards. On PCI cards
 	 * this flag gets cleared after 64 PCI clocks.
 	 */
-	bus_flags = (pdev->is_pcie) ? 0 : AR5K_RESET_CTL_PCI;
+	bus_flags = (pdev && pdev->is_pcie) ? 0 : AR5K_RESET_CTL_PCI;
 
 	if (ah->ah_version == AR5K_AR5210) {
 		ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
@@ -526,7 +526,7 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 	 * we ingore that flag for PCI-E cards. On PCI cards
 	 * this flag gets cleared after 64 PCI clocks.
 	 */
-	bus_flags = (pdev->is_pcie) ? 0 : AR5K_RESET_CTL_PCI;
+	bus_flags = (pdev && pdev->is_pcie) ? 0 : AR5K_RESET_CTL_PCI;
 
 	if (ah->ah_version == AR5K_AR5210) {
 		ret = ath5k_hw_nic_reset(ah, AR5K_RESET_CTL_PCU |
