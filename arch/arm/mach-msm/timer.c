@@ -55,7 +55,8 @@ enum timer_location {
 #if defined(CONFIG_ARCH_QSD8X50)
 #define DGT_HZ (19200000 / 4) /* 19.2 MHz / 4 by default */
 #define MSM_DGT_SHIFT (0)
-#elif defined(CONFIG_ARCH_MSM7X30) || defined(CONFIG_ARCH_MSM8X60)
+#elif defined(CONFIG_ARCH_MSM7X30) || defined(CONFIG_ARCH_MSM8X60) || \
+				      defined(CONFIG_ARCH_MSM8960)
 #define DGT_HZ (24576000 / 4) /* 24.576 MHz (LPXO) / 4 by default */
 #define MSM_DGT_SHIFT (0)
 #else
@@ -214,7 +215,7 @@ static void __init msm_timer_init(void)
 	} else if (cpu_is_qsd8x50()) {
 		msm_clocks[MSM_CLOCK_GPT].regbase = MSM_CSR_BASE;
 		msm_clocks[MSM_CLOCK_DGT].regbase = MSM_CSR_BASE + 0x10;
-	} else if (cpu_is_msm8x60()) {
+	} else if (cpu_is_msm8x60() || cpu_is_msm8960()) {
 		msm_clocks[MSM_CLOCK_GPT].regbase = MSM_TMR_BASE + 0x04;
 		msm_clocks[MSM_CLOCK_DGT].regbase = MSM_TMR_BASE + 0x24;
 
