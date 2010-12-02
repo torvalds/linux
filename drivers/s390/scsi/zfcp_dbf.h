@@ -1,22 +1,8 @@
 /*
- * This file is part of the zfcp device driver for
- * FCP adapters for IBM System z9 and zSeries.
+ * zfcp device driver
+ * debug feature declarations
  *
- * Copyright IBM Corp. 2008, 2009
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * Copyright IBM Corp. 2008, 2010
  */
 
 #ifndef ZFCP_DBF_H
@@ -136,73 +122,90 @@ struct zfcp_dbf_san {
 	char payload[ZFCP_DBF_SAN_MAX_PAYLOAD];
 } __packed;
 
-struct zfcp_dbf_hba_record_response {
-	u32 fsf_command;
-	u64 fsf_reqid;
-	u32 fsf_seqno;
-	u64 fsf_issued;
-	u32 fsf_prot_status;
+/**
+ * struct zfcp_dbf_hba_res - trace record for hba responses
+ * @req_issued: timestamp when request was issued
+ * @prot_status: protocol status
+ * @prot_status_qual: protocol status qualifier
+ * @fsf_status: fsf status
+ * @fsf_status_qual: fsf status qualifier
+ */
+struct zfcp_dbf_hba_res {
+	u64 req_issued;
+	u32 prot_status;
+	u8  prot_status_qual[FSF_PROT_STATUS_QUAL_SIZE];
 	u32 fsf_status;
-	u8 fsf_prot_status_qual[FSF_PROT_STATUS_QUAL_SIZE];
-	u8 fsf_status_qual[FSF_STATUS_QUALIFIER_SIZE];
-	u32 fsf_req_status;
-	u8 sbal_first;
-	u8 sbal_last;
-	u8 sbal_response;
-	u8 pool;
-	u64 erp_action;
-	union {
-		struct {
-			u64 cmnd;
-			u32 data_dir;
-		} fcp;
-		struct {
-			u64 wwpn;
-			u32 d_id;
-			u32 port_handle;
-		} port;
-		struct {
-			u64 wwpn;
-			u64 fcp_lun;
-			u32 port_handle;
-			u32 lun_handle;
-		} unit;
-		struct {
-			u32 d_id;
-		} els;
-	} u;
-} __attribute__ ((packed));
+	u8  fsf_status_qual[FSF_STATUS_QUALIFIER_SIZE];
+} __packed;
 
-struct zfcp_dbf_hba_record_status {
-	u8 failed;
+/**
+ * struct zfcp_dbf_hba_uss - trace record for unsolicited status
+ * @status_type: type of unsolicited status
+ * @status_subtype: subtype of unsolicited status
+ * @d_id: destination ID
+ * @lun: logical unit number
+ * @queue_designator: queue designator
+ */
+struct zfcp_dbf_hba_uss {
 	u32 status_type;
 	u32 status_subtype;
-	struct fsf_queue_designator
-	 queue_designator;
-	u32 payload_size;
-#define ZFCP_DBF_UNSOL_PAYLOAD				80
-#define ZFCP_DBF_UNSOL_PAYLOAD_SENSE_DATA_AVAIL		32
-#define ZFCP_DBF_UNSOL_PAYLOAD_BIT_ERROR_THRESHOLD	56
-#define ZFCP_DBF_UNSOL_PAYLOAD_FEATURE_UPDATE_ALERT	2 * sizeof(u32)
-	u8 payload[ZFCP_DBF_UNSOL_PAYLOAD];
-} __attribute__ ((packed));
+	u32 d_id;
+	u64 lun;
+	u64 queue_designator;
+} __packed;
 
-struct zfcp_dbf_hba_record_qdio {
-	u32 qdio_error;
-	u8 sbal_index;
-	u8 sbal_count;
-} __attribute__ ((packed));
+/**
+ * enum zfcp_dbf_hba_id - HBA trace record identifier
+ * @ZFCP_DBF_HBA_RES: response trace record
+ * @ZFCP_DBF_HBA_USS: unsolicited status trace record
+ * @ZFCP_DBF_HBA_BIT: bit error trace record
+ */
+enum zfcp_dbf_hba_id {
+	ZFCP_DBF_HBA_RES	= 1,
+	ZFCP_DBF_HBA_USS	= 2,
+	ZFCP_DBF_HBA_BIT	= 3,
+};
 
-struct zfcp_dbf_hba_record {
-	u8 tag[ZFCP_DBF_TAG_SIZE];
-	u8 tag2[ZFCP_DBF_TAG_SIZE];
+/**
+ * struct zfcp_dbf_hba - common trace record for HBA records
+ * @id: unique number of recovery record type
+ * @tag: identifier string specifying the location of initiation
+ * @fsf_req_id: request id for fsf requests
+ * @fsf_req_status: status of fsf request
+ * @fsf_cmd: fsf command
+ * @fsf_seq_no: fsf sequence number
+ * @pl_len: length of payload stored as zfcp_dbf_pay
+ * @u: record type specific data
+ */
+struct zfcp_dbf_hba {
+	u8 id;
+	char tag[ZFCP_DBF_TAG_LEN];
+	u64 fsf_req_id;
+	u32 fsf_req_status;
+	u32 fsf_cmd;
+	u32 fsf_seq_no;
+	u16 pl_len;
 	union {
-		struct zfcp_dbf_hba_record_response response;
-		struct zfcp_dbf_hba_record_status status;
-		struct zfcp_dbf_hba_record_qdio qdio;
-		struct fsf_bit_error_payload berr;
+		struct zfcp_dbf_hba_res res;
+		struct zfcp_dbf_hba_uss uss;
+		struct fsf_bit_error_payload be;
 	} u;
-} __attribute__ ((packed));
+} __packed;
+
+/**
+ * struct zfcp_dbf_pay - trace record for unformatted payload information
+ * @area: area this record is originated from
+ * @counter: ascending record number
+ * @fsf_req_id: request id of fsf request
+ * @data: unformatted data
+ */
+struct zfcp_dbf_pay {
+	char area[ZFCP_DBF_TAG_LEN];
+	char counter;
+	u64 fsf_req_id;
+#define ZFCP_DBF_PAY_MAX_REC 0x100
+	char data[ZFCP_DBF_PAY_MAX_REC];
+} __packed;
 
 struct zfcp_dbf_scsi_record {
 	u8 tag[ZFCP_DBF_TAG_SIZE];
@@ -230,71 +233,57 @@ struct zfcp_dbf_scsi_record {
 } __attribute__ ((packed));
 
 struct zfcp_dbf {
+	debug_info_t			*pay;
 	debug_info_t			*rec;
 	debug_info_t			*hba;
 	debug_info_t			*san;
 	debug_info_t			*scsi;
+	spinlock_t			pay_lock;
 	spinlock_t			rec_lock;
 	spinlock_t			hba_lock;
 	spinlock_t			san_lock;
 	spinlock_t			scsi_lock;
 	struct zfcp_dbf_rec		rec_buf;
-	struct zfcp_dbf_hba_record	hba_buf;
+	struct zfcp_dbf_hba		hba_buf;
 	struct zfcp_dbf_san		san_buf;
 	struct zfcp_dbf_scsi_record	scsi_buf;
+	struct zfcp_dbf_pay		pay_buf;
 	struct zfcp_adapter		*adapter;
 };
 
 static inline
-void zfcp_dbf_hba_fsf_resp(const char *tag2, int level,
-			   struct zfcp_fsf_req *req, struct zfcp_dbf *dbf)
+void zfcp_dbf_hba_fsf_resp(char *tag, int level, struct zfcp_fsf_req *req)
 {
-	if (level <= dbf->hba->level)
-		_zfcp_dbf_hba_fsf_response(tag2, level, req, dbf);
+	if (level <= req->adapter->dbf->hba->level)
+		zfcp_dbf_hba_fsf_res(tag, req);
 }
 
 /**
  * zfcp_dbf_hba_fsf_response - trace event for request completion
  * @fsf_req: request that has been completed
  */
-static inline void zfcp_dbf_hba_fsf_response(struct zfcp_fsf_req *req)
+static inline
+void zfcp_dbf_hba_fsf_response(struct zfcp_fsf_req *req)
 {
-	struct zfcp_dbf *dbf = req->adapter->dbf;
 	struct fsf_qtcb *qtcb = req->qtcb;
 
 	if ((qtcb->prefix.prot_status != FSF_PROT_GOOD) &&
 	    (qtcb->prefix.prot_status != FSF_PROT_FSF_STATUS_PRESENTED)) {
-		zfcp_dbf_hba_fsf_resp("perr", 1, req, dbf);
+		zfcp_dbf_hba_fsf_resp("fs_perr", 1, req);
 
 	} else if (qtcb->header.fsf_status != FSF_GOOD) {
-		zfcp_dbf_hba_fsf_resp("ferr", 1, req, dbf);
+		zfcp_dbf_hba_fsf_resp("fs_ferr", 1, req);
 
 	} else if ((req->fsf_command == FSF_QTCB_OPEN_PORT_WITH_DID) ||
 		   (req->fsf_command == FSF_QTCB_OPEN_LUN)) {
-		zfcp_dbf_hba_fsf_resp("open", 4, req, dbf);
+		zfcp_dbf_hba_fsf_resp("fs_open", 4, req);
 
 	} else if (qtcb->header.log_length) {
-		zfcp_dbf_hba_fsf_resp("qtcb", 5, req, dbf);
+		zfcp_dbf_hba_fsf_resp("fs_qtcb", 5, req);
 
 	} else {
-		zfcp_dbf_hba_fsf_resp("norm", 6, req, dbf);
+		zfcp_dbf_hba_fsf_resp("fs_norm", 6, req);
 	}
- }
-
-/**
- * zfcp_dbf_hba_fsf_unsol - trace event for an unsolicited status buffer
- * @tag: tag indicating which kind of unsolicited status has been received
- * @dbf: reference to dbf structure
- * @status_buffer: buffer containing payload of unsolicited status
- */
-static inline
-void zfcp_dbf_hba_fsf_unsol(const char *tag, struct zfcp_dbf *dbf,
-			    struct fsf_status_read_buffer *buf)
-{
-	int level = 2;
-
-	if (level <= dbf->hba->level)
-		_zfcp_dbf_hba_fsf_unsol(tag, level, dbf, buf);
 }
 
 static inline

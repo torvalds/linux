@@ -49,11 +49,9 @@ extern void zfcp_dbf_adapter_unregister(struct zfcp_dbf *);
 extern void zfcp_dbf_rec_trig(char *, struct zfcp_adapter *,
 			      struct zfcp_port *, struct scsi_device *, u8, u8);
 extern void zfcp_dbf_rec_run(char *, struct zfcp_erp_action *);
-extern void _zfcp_dbf_hba_fsf_response(const char *, int, struct zfcp_fsf_req *,
-				       struct zfcp_dbf *);
-extern void _zfcp_dbf_hba_fsf_unsol(const char *, int level, struct zfcp_dbf *,
-					  struct fsf_status_read_buffer *);
-extern void zfcp_dbf_hba_qdio(struct zfcp_dbf *, unsigned int, int, int);
+extern void zfcp_dbf_hba_fsf_uss(char *, struct zfcp_fsf_req *);
+extern void zfcp_dbf_hba_fsf_res(char *, struct zfcp_fsf_req *);
+extern void zfcp_dbf_hba_bit_err(char *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_hba_berr(struct zfcp_dbf *, struct zfcp_fsf_req *);
 extern void zfcp_dbf_san_req(char *, struct zfcp_fsf_req *, u32);
 extern void zfcp_dbf_san_res(char *, struct zfcp_fsf_req *);
@@ -141,6 +139,8 @@ extern int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *, struct zfcp_qdio_req *,
 extern int zfcp_qdio_open(struct zfcp_qdio *);
 extern void zfcp_qdio_close(struct zfcp_qdio *);
 extern void zfcp_qdio_siosl(struct zfcp_adapter *);
+extern struct zfcp_fsf_req *zfcp_fsf_get_req(struct zfcp_qdio *,
+					     struct qdio_buffer *);
 
 /* zfcp_scsi.c */
 extern struct zfcp_data zfcp_data;

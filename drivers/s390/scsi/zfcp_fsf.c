@@ -211,13 +211,13 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 	struct fsf_status_read_buffer *sr_buf = req->data;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_DISMISSED) {
-		zfcp_dbf_hba_fsf_unsol("dism", adapter->dbf, sr_buf);
+		zfcp_dbf_hba_fsf_uss("fssrh_1", req);
 		mempool_free(sr_buf, adapter->pool.status_read_data);
 		zfcp_fsf_req_free(req);
 		return;
 	}
 
-	zfcp_dbf_hba_fsf_unsol("read", adapter->dbf, sr_buf);
+	zfcp_dbf_hba_fsf_uss("fssrh_2", req);
 
 	switch (sr_buf->status_type) {
 	case FSF_STATUS_READ_PORT_CLOSED:
@@ -232,7 +232,7 @@ static void zfcp_fsf_status_read_handler(struct zfcp_fsf_req *req)
 		dev_warn(&adapter->ccw_device->dev,
 			 "The error threshold for checksum statistics "
 			 "has been exceeded\n");
-		zfcp_dbf_hba_berr(adapter->dbf, req);
+		zfcp_dbf_hba_bit_err("fssrh_3", req);
 		break;
 	case FSF_STATUS_READ_LINK_DOWN:
 		zfcp_fsf_status_read_link_down(req);
@@ -754,10 +754,11 @@ int zfcp_fsf_status_read(struct zfcp_qdio *qdio)
 	goto out;
 
 failed_req_send:
+	req->data = NULL;
 	mempool_free(sr_buf, adapter->pool.status_read_data);
 failed_buf:
+	zfcp_dbf_hba_fsf_uss("fssr__1", req);
 	zfcp_fsf_req_free(req);
-	zfcp_dbf_hba_fsf_unsol("fail", adapter->dbf, NULL);
 out:
 	spin_unlock_irq(&qdio->req_q_lock);
 	return retval;
@@ -2419,4 +2420,13 @@ void zfcp_fsf_reqid_check(struct zfcp_qdio *qdio, int sbal_idx)
 		if (likely(sbale->flags & SBAL_FLAGS_LAST_ENTRY))
 			break;
 	}
+}
+
+struct zfcp_fsf_req *zfcp_fsf_get_req(struct zfcp_qdio *qdio,
+				      struct qdio_buffer *sbal)
+{
+	struct qdio_buffer_element *sbale = &sbal->element[0];
+	u64 req_id = (unsigned long) sbale->addr;
+
+	return zfcp_reqlist_find(qdio->adapter->req_list, req_id);
 }
