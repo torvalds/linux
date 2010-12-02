@@ -475,7 +475,7 @@ static int da8xx_musb_exit(struct musb *musb)
 	return 0;
 }
 
-const struct musb_platform_ops musb_ops = {
+static const struct musb_platform_ops da8xx_ops = {
 	.init		= da8xx_musb_init,
 	.exit		= da8xx_musb_exit,
 
@@ -516,6 +516,8 @@ static int __init da8xx_probe(struct platform_device *pdev)
 
 	glue->dev			= &pdev->dev;
 	glue->musb			= musb;
+
+	pdata->platform_ops		= &da8xx_ops;
 
 	platform_set_drvdata(pdev, glue);
 

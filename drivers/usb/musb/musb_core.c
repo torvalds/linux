@@ -1897,7 +1897,6 @@ allocate_instance(struct device *dev,
 	}
 
 	musb->controller = dev;
-	musb->ops = &musb_ops;
 
 	return musb;
 }
@@ -1997,6 +1996,7 @@ bad_config:
 	musb->board_set_power = plat->set_power;
 	musb->set_clock = plat->set_clock;
 	musb->min_power = plat->min_power;
+	musb->ops = plat->platform_ops;
 
 	/* Clock usage is chip-specific ... functional clock (DaVinci,
 	 * OMAP2430), or PHY ref (some TUSB6010 boards).  All this core

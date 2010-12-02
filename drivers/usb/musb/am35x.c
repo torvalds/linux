@@ -530,7 +530,7 @@ void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 	}
 }
 
-const struct musb_platform_ops musb_ops = {
+static const struct musb_platform_ops am35x_ops = {
 	.init		= am35x_musb_init,
 	.exit		= am35x_musb_exit,
 
@@ -571,6 +571,8 @@ static int __init am35x_probe(struct platform_device *pdev)
 
 	glue->dev			= &pdev->dev;
 	glue->musb			= musb;
+
+	pdata->platform_ops		= &am35x_ops;
 
 	platform_set_drvdata(pdev, glue);
 

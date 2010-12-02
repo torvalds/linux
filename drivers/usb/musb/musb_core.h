@@ -281,8 +281,6 @@ struct musb_platform_ops {
 	void	(*set_vbus)(struct musb *musb, int on);
 };
 
-extern const struct musb_platform_ops musb_ops;
-
 /*
  * struct musb_hw_ep - endpoint hardware (bidirectional)
  *
