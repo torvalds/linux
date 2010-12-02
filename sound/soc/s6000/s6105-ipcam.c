@@ -167,7 +167,7 @@ static int s6105_aic3x_init(struct snd_soc_pcm_runtime *rtd)
 
 	snd_soc_dapm_sync(codec);
 
-	snd_ctl_add(codec->snd_card, snd_ctl_new1(&audio_out_mux, codec));
+	snd_ctl_add(codec->card->snd_card, snd_ctl_new1(&audio_out_mux, codec));
 
 	return 0;
 }
