@@ -463,6 +463,7 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 		if (mcdi->mode == MCDI_MODE_EVENTS) {
 			mcdi->resprc = rc;
 			mcdi->resplen = 0;
+			++mcdi->credits;
 		}
 	} else
 		/* Nobody was waiting for an MCDI request, so trigger a reset */
