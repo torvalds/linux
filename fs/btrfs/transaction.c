@@ -902,6 +902,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root = pending->root;
 	struct btrfs_root *parent_root;
 	struct inode *parent_inode;
+	struct dentry *parent;
 	struct dentry *dentry;
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
@@ -941,7 +942,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	trans->block_rsv = &pending->block_rsv;
 
 	dentry = pending->dentry;
-	parent_inode = dentry->d_parent->d_inode;
+	parent = dget_parent(dentry);
+	parent_inode = parent->d_inode;
 	parent_root = BTRFS_I(parent_inode)->root;
 	record_root_in_trans(trans, parent_root);
 
@@ -989,6 +991,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 				 parent_inode->i_ino, index,
 				 dentry->d_name.name, dentry->d_name.len);
 	BUG_ON(ret);
+	dput(parent);
 
 	key.offset = (u64)-1;
 	pending->snap = btrfs_read_fs_root_no_name(root->fs_info, &key);

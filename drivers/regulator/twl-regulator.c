@@ -219,12 +219,12 @@ static int twlreg_set_mode(struct regulator_dev *rdev, unsigned mode)
 		return -EACCES;
 
 	status = twl_i2c_write_u8(TWL_MODULE_PM_MASTER,
-			message >> 8, 0x15 /* PB_WORD_MSB */ );
-	if (status >= 0)
+			message >> 8, TWL4030_PM_MASTER_PB_WORD_MSB);
+	if (status < 0)
 		return status;
 
 	return twl_i2c_write_u8(TWL_MODULE_PM_MASTER,
-			message, 0x16 /* PB_WORD_LSB */ );
+			message & 0xff, TWL4030_PM_MASTER_PB_WORD_LSB);
 }
 
 /*----------------------------------------------------------------------*/

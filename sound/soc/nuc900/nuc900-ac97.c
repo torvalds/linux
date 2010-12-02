@@ -384,7 +384,6 @@ out0:
 
 static int __devexit nuc900_ac97_drvremove(struct platform_device *pdev)
 {
-
 	snd_soc_unregister_dai(&pdev->dev);
 
 	clk_put(nuc900_ac97_data->clk);
@@ -392,6 +391,7 @@ static int __devexit nuc900_ac97_drvremove(struct platform_device *pdev)
 	release_mem_region(nuc900_ac97_data->res->start,
 				resource_size(nuc900_ac97_data->res));
 
+	kfree(nuc900_ac97_data);
 	nuc900_ac97_data = NULL;
 
 	return 0;

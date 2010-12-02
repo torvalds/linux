@@ -38,7 +38,7 @@ static int set_audio_clock_heirachy(struct platform_device *pdev)
 	}
 
 	mout_epll = clk_get(NULL, "mout_epll");
-	if (IS_ERR(fout_epll)) {
+	if (IS_ERR(mout_epll)) {
 		printk(KERN_WARNING "%s: Cannot find mout_epll.\n",
 				__func__);
 		ret = -EINVAL;
@@ -54,7 +54,7 @@ static int set_audio_clock_heirachy(struct platform_device *pdev)
 	}
 
 	sclk_spdif = clk_get(NULL, "sclk_spdif");
-	if (IS_ERR(fout_epll)) {
+	if (IS_ERR(sclk_spdif)) {
 		printk(KERN_WARNING "%s: Cannot find sclk_spdif.\n",
 				__func__);
 		ret = -EINVAL;

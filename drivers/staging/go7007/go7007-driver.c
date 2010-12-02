@@ -199,7 +199,7 @@ static int init_i2c_module(struct i2c_adapter *adapter, const char *type,
 	struct go7007 *go = i2c_get_adapdata(adapter);
 	struct v4l2_device *v4l2_dev = &go->v4l2_dev;
 
-	if (v4l2_i2c_new_subdev(v4l2_dev, adapter, NULL, type, addr, NULL))
+	if (v4l2_i2c_new_subdev(v4l2_dev, adapter, type, addr, NULL))
 		return 0;
 
 	printk(KERN_INFO "go7007: probing for module i2c:%s failed\n", type);

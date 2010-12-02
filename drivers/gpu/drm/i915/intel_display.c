@@ -2115,9 +2115,11 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		reg = TRANS_DP_CTL(pipe);
 		temp = I915_READ(reg);
 		temp &= ~(TRANS_DP_PORT_SEL_MASK |
-			  TRANS_DP_SYNC_MASK);
+			  TRANS_DP_SYNC_MASK |
+			  TRANS_DP_BPC_MASK);
 		temp |= (TRANS_DP_OUTPUT_ENABLE |
 			 TRANS_DP_ENH_FRAMING);
+		temp |= TRANS_DP_8BPC;
 
 		if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
 			temp |= TRANS_DP_HSYNC_ACTIVE_HIGH;
@@ -5346,9 +5348,14 @@ static void intel_setup_outputs(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
+	bool has_lvds = false;
 
 	if (IS_MOBILE(dev) && !IS_I830(dev))
-		intel_lvds_init(dev);
+		has_lvds = intel_lvds_init(dev);
+	if (!has_lvds && !HAS_PCH_SPLIT(dev)) {
+		/* disable the panel fitter on everything but LVDS */
+		I915_WRITE(PFIT_CONTROL, 0);
+	}
 
 	if (HAS_PCH_SPLIT(dev)) {
 		dpd_is_edp = intel_dpd_is_edp(dev);

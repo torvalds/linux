@@ -251,7 +251,7 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 		   hit-and-miss. */
 		mdelay(10);
 		v4l2_i2c_new_subdev(&usbvision->v4l2_dev,
-				&usbvision->i2c_adap, NULL,
+				&usbvision->i2c_adap,
 				"saa7115_auto", 0, saa711x_addrs);
 		break;
 	}
@@ -261,14 +261,14 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 		struct tuner_setup tun_setup;
 
 		sd = v4l2_i2c_new_subdev(&usbvision->v4l2_dev,
-				&usbvision->i2c_adap, NULL,
+				&usbvision->i2c_adap,
 				"tuner", 0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		/* depending on whether we found a demod or not, select
 		   the tuner type. */
 		type = sd ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
 
 		sd = v4l2_i2c_new_subdev(&usbvision->v4l2_dev,
-				&usbvision->i2c_adap, NULL,
+				&usbvision->i2c_adap,
 				"tuner", 0, v4l2_i2c_tuner_addrs(type));
 
 		if (sd == NULL)

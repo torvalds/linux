@@ -32,6 +32,7 @@
  *	document number 322169-001, 322170-003: 5 Series, 3400 Series (PCH)
  *	document number 320066-003, 320257-008: EP80597 (IICH)
  *	document number TBD                   : Cougar Point (CPT)
+ *	document number TBD                   : Patsburg (PBG)
  */
 
 /*
@@ -146,7 +147,8 @@ enum iTCO_chipsets {
 	TCO_CPT29,	/* Cougar Point */
 	TCO_CPT30,	/* Cougar Point */
 	TCO_CPT31,	/* Cougar Point */
-	TCO_PBG,	/* Patsburg */
+	TCO_PBG1,	/* Patsburg */
+	TCO_PBG2,	/* Patsburg */
 };
 
 static struct {
@@ -234,6 +236,7 @@ static struct {
 	{"Cougar Point", 2},
 	{"Cougar Point", 2},
 	{"Cougar Point", 2},
+	{"Patsburg", 2},
 	{"Patsburg", 2},
 	{NULL, 0}
 };
@@ -350,7 +353,8 @@ static struct pci_device_id iTCO_wdt_pci_tbl[] = {
 	{ ITCO_PCI_DEVICE(0x1c5d,				TCO_CPT29)},
 	{ ITCO_PCI_DEVICE(0x1c5e,				TCO_CPT30)},
 	{ ITCO_PCI_DEVICE(0x1c5f,				TCO_CPT31)},
-	{ ITCO_PCI_DEVICE(0x1d40,				TCO_PBG)},
+	{ ITCO_PCI_DEVICE(0x1d40,				TCO_PBG1)},
+	{ ITCO_PCI_DEVICE(0x1d41,				TCO_PBG2)},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE(pci, iTCO_wdt_pci_tbl);

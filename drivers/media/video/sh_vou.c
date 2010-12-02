@@ -1406,7 +1406,7 @@ static int __devinit sh_vou_probe(struct platform_device *pdev)
 		goto ereset;
 
 	subdev = v4l2_i2c_new_subdev_board(&vou_dev->v4l2_dev, i2c_adap,
-			NULL, vou_pdata->board_info, NULL);
+			vou_pdata->board_info, NULL);
 	if (!subdev) {
 		ret = -ENOMEM;
 		goto ei2cnd;

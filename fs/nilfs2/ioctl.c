@@ -349,8 +349,8 @@ static int nilfs_ioctl_move_blocks(struct super_block *sb,
 		ino = vdesc->vd_ino;
 		cno = vdesc->vd_cno;
 		inode = nilfs_iget_for_gc(sb, ino, cno);
-		if (unlikely(inode == NULL)) {
-			ret = -ENOMEM;
+		if (IS_ERR(inode)) {
+			ret = PTR_ERR(inode);
 			goto failed;
 		}
 		do {

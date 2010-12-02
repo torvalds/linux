@@ -454,6 +454,24 @@ struct xhci_doorbell_array {
 
 
 /**
+ * struct xhci_protocol_caps
+ * @revision:		major revision, minor revision, capability ID,
+ *			and next capability pointer.
+ * @name_string:	Four ASCII characters to say which spec this xHC
+ *			follows, typically "USB ".
+ * @port_info:		Port offset, count, and protocol-defined information.
+ */
+struct xhci_protocol_caps {
+	u32	revision;
+	u32	name_string;
+	u32	port_info;
+};
+
+#define	XHCI_EXT_PORT_MAJOR(x)	(((x) >> 24) & 0xff)
+#define	XHCI_EXT_PORT_OFF(x)	((x) & 0xff)
+#define	XHCI_EXT_PORT_COUNT(x)	(((x) >> 8) & 0xff)
+
+/**
  * struct xhci_container_ctx
  * @type: Type of context.  Used to calculated offsets to contained contexts.
  * @size: Size of the context data
@@ -620,6 +638,11 @@ struct xhci_ep_ctx {
 #define MAX_PACKET(p)	(((p)&0xffff) << 16)
 #define MAX_PACKET_MASK		(0xffff << 16)
 #define MAX_PACKET_DECODED(p)	(((p) >> 16) & 0xffff)
+
+/* Get max packet size from ep desc. Bit 10..0 specify the max packet size.
+ * USB2.0 spec 9.6.6.
+ */
+#define GET_MAX_PACKET(p)	((p) & 0x7ff)
 
 /* tx_info bitmasks */
 #define AVG_TRB_LENGTH_FOR_EP(p)	((p) & 0xffff)
@@ -1235,6 +1258,14 @@ struct xhci_hcd {
 	u32			suspended_ports[8];	/* which ports are
 							   suspended */
 	unsigned long		resume_done[MAX_HC_PORTS];
+	/* Is each xHCI roothub port a USB 3.0, USB 2.0, or USB 1.1 port? */
+	u8			*port_array;
+	/* Array of pointers to USB 3.0 PORTSC registers */
+	u32 __iomem		**usb3_ports;
+	unsigned int		num_usb3_ports;
+	/* Array of pointers to USB 2.0 PORTSC registers */
+	u32 __iomem		**usb2_ports;
+	unsigned int		num_usb2_ports;
 };
 
 /* For testing purposes */

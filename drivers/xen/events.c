@@ -278,17 +278,17 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 	cpumask_copy(irq_to_desc(irq)->affinity, cpumask_of(cpu));
 #endif
 
-	__clear_bit(chn, cpu_evtchn_mask(cpu_from_irq(irq)));
-	__set_bit(chn, cpu_evtchn_mask(cpu));
+	clear_bit(chn, cpu_evtchn_mask(cpu_from_irq(irq)));
+	set_bit(chn, cpu_evtchn_mask(cpu));
 
 	irq_info[irq].cpu = cpu;
 }
 
 static void init_evtchn_cpu_bindings(void)
 {
+	int i;
 #ifdef CONFIG_SMP
 	struct irq_desc *desc;
-	int i;
 
 	/* By default all event channels notify CPU#0. */
 	for_each_irq_desc(i, desc) {
@@ -296,7 +296,10 @@ static void init_evtchn_cpu_bindings(void)
 	}
 #endif
 
-	memset(cpu_evtchn_mask(0), ~0, sizeof(struct cpu_evtchn_s));
+	for_each_possible_cpu(i)
+		memset(cpu_evtchn_mask(i),
+		       (i == 0) ? ~0 : 0, sizeof(struct cpu_evtchn_s));
+
 }
 
 static inline void clear_evtchn(int port)
@@ -752,7 +755,7 @@ int xen_destroy_irq(int irq)
 		goto out;
 
 	if (xen_initial_domain()) {
-		unmap_irq.pirq = info->u.pirq.gsi;
+		unmap_irq.pirq = info->u.pirq.pirq;
 		unmap_irq.domid = DOMID_SELF;
 		rc = HYPERVISOR_physdev_op(PHYSDEVOP_unmap_pirq, &unmap_irq);
 		if (rc) {

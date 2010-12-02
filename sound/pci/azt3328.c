@@ -1129,9 +1129,10 @@ snd_azf3328_codec_setdmaa(struct snd_azf3328 *chip,
 
 		count_areas = size/2;
 		addr_area2 = addr+count_areas;
-		count_areas--; /* max. index */
 		snd_azf3328_dbgcodec("setdma: buffers %08lx[%u] / %08lx[%u]\n",
 				addr, count_areas, addr_area2, count_areas);
+
+		count_areas--; /* max. index */
 
 		/* build combined I/O buffer length word */
 		lengths = (count_areas << 16) | (count_areas);
@@ -1740,11 +1741,15 @@ static const struct snd_pcm_hardware snd_azf3328_hardware =
 	.rate_max =		AZF_FREQ_66200,
 	.channels_min =		1,
 	.channels_max =		2,
-	.buffer_bytes_max =	65536,
-	.period_bytes_min =	64,
-	.period_bytes_max =	65536,
-	.periods_min =		1,
-	.periods_max =		1024,
+	.buffer_bytes_max =	(64*1024),
+	.period_bytes_min =	1024,
+	.period_bytes_max =	(32*1024),
+	/* We simply have two DMA areas (instead of a list of descriptors
+	   such as other cards); I believe that this is a fixed hardware
+	   attribute and there isn't much driver magic to be done to expand it.
+	   Thus indicate that we have at least and at most 2 periods. */
+	.periods_min =		2,
+	.periods_max =		2,
 	/* FIXME: maybe that card actually has a FIFO?
 	 * Hmm, it seems newer revisions do have one, but we still don't know
 	 * its size... */
@@ -1980,8 +1985,13 @@ snd_azf3328_timer_stop(struct snd_timer *timer)
 	chip = snd_timer_chip(timer);
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	/* disable timer countdown and interrupt */
-	/* FIXME: should we write TIMER_IRQ_ACK here? */
-	snd_azf3328_ctrl_outb(chip, IDX_IO_TIMER_VALUE + 3, 0);
+	/* Hmm, should we write TIMER_IRQ_ACK here?
+	   YES indeed, otherwise a rogue timer operation - which prompts
+	   ALSA(?) to call repeated stop() in vain, but NOT start() -
+	   will never end (value 0x03 is kept shown in control byte).
+	   Simply manually poking 0x04 _once_ immediately successfully stops
+	   the hardware/ALSA interrupt activity. */
+	snd_azf3328_ctrl_outb(chip, IDX_IO_TIMER_VALUE + 3, 0x04);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	snd_azf3328_dbgcallleave();
 	return 0;

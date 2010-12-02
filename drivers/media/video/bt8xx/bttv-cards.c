@@ -3529,7 +3529,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		struct v4l2_subdev *sd;
 
 		sd = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-			&btv->c.i2c_adap, NULL, "saa6588", 0, addrs);
+			&btv->c.i2c_adap, "saa6588", 0, addrs);
 		btv->has_saa6588 = (sd != NULL);
 	}
 
@@ -3554,7 +3554,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		};
 
 		btv->sd_msp34xx = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-			&btv->c.i2c_adap, NULL, "msp3400", 0, addrs);
+			&btv->c.i2c_adap, "msp3400", 0, addrs);
 		if (btv->sd_msp34xx)
 			return;
 		goto no_audio;
@@ -3568,7 +3568,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		};
 
 		if (v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, NULL, "tda7432", 0, addrs))
+				&btv->c.i2c_adap, "tda7432", 0, addrs))
 			return;
 		goto no_audio;
 	}
@@ -3576,7 +3576,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	case 3: {
 		/* The user specified that we should probe for tvaudio */
 		btv->sd_tvaudio = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-			&btv->c.i2c_adap, NULL, "tvaudio", 0, tvaudio_addrs());
+			&btv->c.i2c_adap, "tvaudio", 0, tvaudio_addrs());
 		if (btv->sd_tvaudio)
 			return;
 		goto no_audio;
@@ -3596,11 +3596,11 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	   found is really something else (e.g. a tea6300). */
 	if (!bttv_tvcards[btv->c.type].no_msp34xx) {
 		btv->sd_msp34xx = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-			&btv->c.i2c_adap, NULL, "msp3400",
+			&btv->c.i2c_adap, "msp3400",
 			0, I2C_ADDRS(I2C_ADDR_MSP3400 >> 1));
 	} else if (bttv_tvcards[btv->c.type].msp34xx_alt) {
 		btv->sd_msp34xx = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-			&btv->c.i2c_adap, NULL, "msp3400",
+			&btv->c.i2c_adap, "msp3400",
 			0, I2C_ADDRS(I2C_ADDR_MSP3400_ALT >> 1));
 	}
 
@@ -3616,13 +3616,13 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		};
 
 		if (v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, NULL, "tda7432", 0, addrs))
+				&btv->c.i2c_adap, "tda7432", 0, addrs))
 			return;
 	}
 
 	/* Now see if we can find one of the tvaudio devices. */
 	btv->sd_tvaudio = v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-		&btv->c.i2c_adap, NULL, "tvaudio", 0, tvaudio_addrs());
+		&btv->c.i2c_adap, "tvaudio", 0, tvaudio_addrs());
 	if (btv->sd_tvaudio)
 		return;
 
@@ -3646,13 +3646,13 @@ void __devinit bttv_init_tuner(struct bttv *btv)
 		/* Load tuner module before issuing tuner config call! */
 		if (bttv_tvcards[btv->c.type].has_radio)
 			v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, NULL, "tuner",
+				&btv->c.i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_RADIO));
 		v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, NULL, "tuner",
+				&btv->c.i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		v4l2_i2c_new_subdev(&btv->c.v4l2_dev,
-				&btv->c.i2c_adap, NULL, "tuner",
+				&btv->c.i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_TV_WITH_DEMOD));
 
 		tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;

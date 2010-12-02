@@ -1352,6 +1352,11 @@ cifs_parse_mount_options(char *options, const char *devname,
 				"supported. Instead set "
 				"/proc/fs/cifs/LookupCacheEnabled to 0\n");
 		} else if (strnicmp(data, "fsc", 3) == 0) {
+#ifndef CONFIG_CIFS_FSCACHE
+			cERROR(1, "FS-Cache support needs CONFIG_CIFS_FSCACHE"
+				  "kernel config option set");
+			return 1;
+#endif
 			vol->fsc = true;
 		} else if (strnicmp(data, "mfsymlinks", 10) == 0) {
 			vol->mfsymlinks = true;

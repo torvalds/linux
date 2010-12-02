@@ -3076,6 +3076,7 @@
 #define  TRANS_DP_10BPC		(1<<9)
 #define  TRANS_DP_6BPC		(2<<9)
 #define  TRANS_DP_12BPC		(3<<9)
+#define  TRANS_DP_BPC_MASK	(3<<9)
 #define  TRANS_DP_VSYNC_ACTIVE_HIGH	(1<<4)
 #define  TRANS_DP_VSYNC_ACTIVE_LOW	0
 #define  TRANS_DP_HSYNC_ACTIVE_HIGH	(1<<3)

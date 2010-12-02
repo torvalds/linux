@@ -292,8 +292,8 @@ void qdio_shutdown_thinint(struct qdio_irq *irq_ptr)
 		return;
 
 	/* reset adapter interrupt indicators */
-	put_indicator(irq_ptr->dsci);
 	set_subchannel_ind(irq_ptr, 1);
+	put_indicator(irq_ptr->dsci);
 }
 
 void __exit tiqdio_unregister_thinints(void)

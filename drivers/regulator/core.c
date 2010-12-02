@@ -911,7 +911,7 @@ out:
 }
 
 /**
- * set_consumer_device_supply: Bind a regulator to a symbolic supply
+ * set_consumer_device_supply - Bind a regulator to a symbolic supply
  * @rdev:         regulator source
  * @consumer_dev: device the supply applies to
  * @consumer_dev_name: dev_name() string for device supply applies to
@@ -1052,7 +1052,6 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 			printk(KERN_WARNING
 			       "%s: could not add device link %s err %d\n",
 			       __func__, dev->kobj.name, err);
-			device_remove_file(dev, &regulator->dev_attr);
 			goto link_name_err;
 		}
 	}
@@ -1268,13 +1267,17 @@ static int _regulator_enable(struct regulator_dev *rdev)
 {
 	int ret, delay;
 
-	/* do we need to enable the supply regulator first */
-	if (rdev->supply) {
-		ret = _regulator_enable(rdev->supply);
-		if (ret < 0) {
-			printk(KERN_ERR "%s: failed to enable %s: %d\n",
-			       __func__, rdev_get_name(rdev), ret);
-			return ret;
+	if (rdev->use_count == 0) {
+		/* do we need to enable the supply regulator first */
+		if (rdev->supply) {
+			mutex_lock(&rdev->supply->mutex);
+			ret = _regulator_enable(rdev->supply);
+			mutex_unlock(&rdev->supply->mutex);
+			if (ret < 0) {
+				printk(KERN_ERR "%s: failed to enable %s: %d\n",
+				       __func__, rdev_get_name(rdev), ret);
+				return ret;
+			}
 		}
 	}
 
@@ -1313,10 +1316,12 @@ static int _regulator_enable(struct regulator_dev *rdev)
 			if (ret < 0)
 				return ret;
 
-			if (delay >= 1000)
+			if (delay >= 1000) {
 				mdelay(delay / 1000);
-			else if (delay)
+				udelay(delay % 1000);
+			} else if (delay) {
 				udelay(delay);
+			}
 
 		} else if (ret < 0) {
 			printk(KERN_ERR "%s: is_enabled() failed for %s: %d\n",
@@ -1359,6 +1364,7 @@ static int _regulator_disable(struct regulator_dev *rdev,
 		struct regulator_dev **supply_rdev_ptr)
 {
 	int ret = 0;
+	*supply_rdev_ptr = NULL;
 
 	if (WARN(rdev->use_count <= 0,
 			"unbalanced disables for %s\n",
@@ -2346,6 +2352,7 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	if (init_data->supply_regulator && init_data->supply_regulator_dev) {
 		dev_err(dev,
 			"Supply regulator specified by both name and dev\n");
+		ret = -EINVAL;
 		goto scrub;
 	}
 
@@ -2364,6 +2371,7 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 		if (!found) {
 			dev_err(dev, "Failed to find supply %s\n",
 				init_data->supply_regulator);
+			ret = -ENODEV;
 			goto scrub;
 		}
 

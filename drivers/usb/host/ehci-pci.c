@@ -103,6 +103,19 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
+	if ((pdev->vendor == PCI_VENDOR_ID_AMD && pdev->device == 0x7808) ||
+	    (pdev->vendor == PCI_VENDOR_ID_ATI && pdev->device == 0x4396)) {
+		/* EHCI controller on AMD SB700/SB800/Hudson-2/3 platforms may
+		 * read/write memory space which does not belong to it when
+		 * there is NULL pointer with T-bit set to 1 in the frame list
+		 * table. To avoid the issue, the frame list link pointer
+		 * should always contain a valid pointer to a inactive qh.
+		 */
+		ehci->use_dummy_qh = 1;
+		ehci_info(ehci, "applying AMD SB700/SB800/Hudson-2/3 EHCI "
+				"dummy qh workaround\n");
+	}
+
 	/* data structure init */
 	retval = ehci_init(hcd);
 	if (retval)
@@ -147,6 +160,18 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		case 0x0068:
 			if (pdev->revision < 0xa4)
 				ehci->no_selective_suspend = 1;
+			break;
+
+		/* MCP89 chips on the MacBookAir3,1 give EPROTO when
+		 * fetching device descriptors unless LPM is disabled.
+		 * There are also intermittent problems enumerating
+		 * devices with PPCD enabled.
+		 */
+		case 0x0d9d:
+			ehci_info(ehci, "disable lpm/ppcd for nvidia mcp89");
+			ehci->has_lpm = 0;
+			ehci->has_ppcd = 0;
+			ehci->command &= ~CMD_PPCEE;
 			break;
 		}
 		break;

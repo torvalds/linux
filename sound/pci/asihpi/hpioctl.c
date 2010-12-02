@@ -435,7 +435,7 @@ void __devexit asihpi_adapter_remove(struct pci_dev *pci_dev)
 	struct hpi_message hm;
 	struct hpi_response hr;
 	struct hpi_adapter *pa;
-	pa = (struct hpi_adapter *)pci_get_drvdata(pci_dev);
+	pa = pci_get_drvdata(pci_dev);
 
 	hpi_init_message_response(&hm, &hr, HPI_OBJ_SUBSYSTEM,
 		HPI_SUBSYS_DELETE_ADAPTER);

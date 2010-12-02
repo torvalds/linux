@@ -1269,7 +1269,7 @@ finish:
 	dbufs->output_bytes_produced = total_output;
 	str_info->status = str_info->prev;
 	str_info->prev = STREAM_DECODE;
-	str_info->decode_ibuf = NULL;
 	kfree(str_info->decode_ibuf);
+	str_info->decode_ibuf = NULL;
 	return retval;
 }

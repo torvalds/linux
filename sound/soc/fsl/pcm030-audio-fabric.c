@@ -76,6 +76,7 @@ static __init int pcm030_fabric_init(void)
 	rc = platform_device_add(pdev);
 	if (rc) {
 		pr_err("pcm030_fabric_init: platform_device_add() failed\n");
+		platform_device_put(pdev);
 		return -ENODEV;
 	}
 	return 0;

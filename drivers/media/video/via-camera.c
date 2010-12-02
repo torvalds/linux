@@ -1360,7 +1360,7 @@ static __devinit int viacam_probe(struct platform_device *pdev)
 	 */
 	sensor_adapter = viafb_find_i2c_adapter(VIA_PORT_31);
 	cam->sensor = v4l2_i2c_new_subdev(&cam->v4l2_dev, sensor_adapter,
-			"ov7670", "ov7670", 0x42 >> 1, NULL);
+			"ov7670", 0x42 >> 1, NULL);
 	if (cam->sensor == NULL) {
 		dev_err(&pdev->dev, "Unable to find the sensor!\n");
 		ret = -ENODEV;

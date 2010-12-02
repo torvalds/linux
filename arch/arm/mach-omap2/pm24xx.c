@@ -30,6 +30,7 @@
 #include <linux/irq.h>
 #include <linux/time.h>
 #include <linux/gpio.h>
+#include <linux/console.h>
 
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
@@ -118,6 +119,10 @@ static void omap2_enter_full_retention(void)
 	if (omap_irq_pending())
 		goto no_sleep;
 
+	/* Block console output in case it is on one of the OMAP UARTs */
+	if (try_acquire_console_sem())
+		goto no_sleep;
+
 	omap_uart_prepare_idle(0);
 	omap_uart_prepare_idle(1);
 	omap_uart_prepare_idle(2);
@@ -130,6 +135,8 @@ static void omap2_enter_full_retention(void)
 	omap_uart_resume_idle(2);
 	omap_uart_resume_idle(1);
 	omap_uart_resume_idle(0);
+
+	release_console_sem();
 
 no_sleep:
 	if (omap2_pm_debug) {
