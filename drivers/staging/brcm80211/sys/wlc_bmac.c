@@ -408,7 +408,7 @@ bool BCMFASTPATH wlc_dpc(wlc_info_t *wlc, bool bounded)
 
 		printk_once("%s : PSM Watchdog, chipid 0x%x, chiprev 0x%x\n",
 					__func__, wlc_hw->sih->chip,
-					CHIPREV(wlc_hw->sih->chiprev));
+					wlc_hw->sih->chiprev);
 
 		WLCNTINCR(wlc->pub->_cnt->psmwds);
 

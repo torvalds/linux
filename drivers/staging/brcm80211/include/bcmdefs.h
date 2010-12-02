@@ -51,7 +51,6 @@
 #define SPI_BUS			6	/* gSPI target */
 #define RPC_BUS			7	/* RPC target */
 
-#define CHIPREV(rev)	(rev)
 
 /* Defines for DMA Address Width - Shared between OSL and HNDDMA */
 #define DMADDR_MASK_32 0x0	/* Address mask for 32-bits */

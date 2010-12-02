@@ -594,7 +594,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 	    ((sih->chip == BCM43236_CHIP_ID
 	      || sih->chip == BCM43235_CHIP_ID
 	      || sih->chip == BCM43238_CHIP_ID)
-	     && (CHIPREV(sii->pub.chiprev) <= 2))) {
+	     && (sii->pub.chiprev <= 2))) {
 
 		if ((cc->chipstatus & CST43236_BP_CLK) != 0) {
 			uint clkdiv;
@@ -653,7 +653,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 	if ((sih->chip == BCM43224_CHIP_ID) ||
 	    (sih->chip == BCM43421_CHIP_ID)) {
 		/* enable 12 mA drive strenth for 43224 and set chipControl register bit 15 */
-		if (CHIPREV(sih->chiprev) == 0) {
+		if (sih->chiprev == 0) {
 			SI_MSG(("Applying 43224A0 WARs\n"));
 			si_corereg(sih, SI_CC_IDX,
 				   offsetof(chipcregs_t, chipcontrol),
@@ -662,7 +662,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 			si_pmu_chipcontrol(sih, 0, CCTRL_43224A0_12MA_LED_DRIVE,
 					   CCTRL_43224A0_12MA_LED_DRIVE);
 		}
-		if (CHIPREV(sih->chiprev) >= 1) {
+		if (sih->chiprev >= 1) {
 			SI_MSG(("Applying 43224B0+ WARs\n"));
 			si_pmu_chipcontrol(sih, 0, CCTRL_43224B0_12MA_LED_DRIVE,
 					   CCTRL_43224B0_12MA_LED_DRIVE);
@@ -1043,7 +1043,7 @@ void si_watchdog(si_t *sih, uint ticks)
 	if (PMUCTL_ENAB(sih)) {
 
 		if ((sih->chip == BCM4319_CHIP_ID) &&
-		    (CHIPREV(sih->chiprev) == 0) && (ticks != 0)) {
+		    (sih->chiprev == 0) && (ticks != 0)) {
 			si_corereg(sih, SI_CC_IDX,
 				   offsetof(chipcregs_t, clk_ctl_st), ~0, 0x2);
 			si_setcore(sih, USB20D_CORE_ID, 0);

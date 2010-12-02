@@ -1361,7 +1361,7 @@ static void si_pmu1_pllinit0(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
 		si_pmu_set_4330_plldivs(sih);
 
 	if ((sih->chip == BCM4329_CHIP_ID)
-	    && (CHIPREV(sih->chiprev) == 0)) {
+	    && (sih->chiprev == 0)) {
 
 		W_REG(osh, &cc->pllcontrol_addr, PMU1_PLL0_PLLCTL1);
 		tmp = R_REG(osh, &cc->pllcontrol_data);
@@ -1443,7 +1443,7 @@ static void si_pmu1_pllinit0(si_t *sih, struct osl_info *osh, chipcregs_t *cc,
 	    ((xt->xf << PCTL_XTALFREQ_SHIFT) & PCTL_XTALFREQ_MASK);
 
 	if ((sih->chip == BCM4329_CHIP_ID)
-	    && CHIPREV(sih->chiprev) == 0) {
+	    && sih->chiprev == 0) {
 		/* clear the htstretch before clearing HTReqEn */
 		AND_REG(osh, &cc->clkstretch, ~CSTRETCH_HT);
 		tmp &= ~PCTL_HT_REQ_EN;
@@ -1708,7 +1708,7 @@ u32 si_pmu_si_clock(si_t *sih, struct osl_info *osh)
 				  PMU5_MAINPLL_SI);
 		break;
 	case BCM4329_CHIP_ID:
-		if (CHIPREV(sih->chiprev) == 0)
+		if (sih->chiprev == 0)
 			clock = 38400 * 1000;
 		else
 			clock = si_pmu1_cpuclk0(sih, osh, cc);
@@ -2562,7 +2562,7 @@ void si_pmu_swreg_init(si_t *sih, struct osl_info *osh)
 				       0xe);
 		/* Reduce LNLDO1 output voltage to 1.2V */
 		si_pmu_set_ldo_voltage(sih, osh, SET_LDO_VOLTAGE_LNLDO1, 0xe);
-		if (CHIPREV(sih->chiprev) == 0)
+		if (sih->chiprev == 0)
 			si_pmu_regcontrol(sih, 2, 0x400000, 0x400000);
 		break;
 

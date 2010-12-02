@@ -6428,7 +6428,7 @@ void wlc_high_dpc(wlc_info_t *wlc, u32 macintstatus)
 
 		printk_once("%s : PSM Watchdog, chipid 0x%x, chiprev 0x%x\n",
 					__func__, wlc->pub->sih->chip,
-					CHIPREV(wlc->pub->sih->chiprev));
+					wlc->pub->sih->chiprev);
 
 		WLCNTINCR(wlc->pub->_cnt->psmwds);
 
