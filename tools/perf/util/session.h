@@ -46,6 +46,8 @@ struct perf_session {
 	int			fd;
 	bool			fd_pipe;
 	bool			repipe;
+	bool			sample_id_all;
+	u16			id_hdr_size;
 	int			cwdlen;
 	char			*cwd;
 	struct ordered_samples	ordered_samples;
@@ -106,6 +108,7 @@ int perf_session__create_kernel_maps(struct perf_session *self);
 
 int do_read(int fd, void *buf, size_t size);
 void perf_session__update_sample_type(struct perf_session *self);
+void perf_session__set_sample_id_all(struct perf_session *session, bool value);
 void perf_session__set_sample_type(struct perf_session *session, u64 type);
 void perf_session__remove_thread(struct perf_session *self, struct thread *th);
 

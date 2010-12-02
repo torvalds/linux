@@ -49,6 +49,7 @@ static const char		*output_name			= "perf.data";
 static int			group				=      0;
 static int			realtime_prio			=      0;
 static bool			raw_samples			=  false;
+static bool			sample_id_all_avail		=   true;
 static bool			system_wide			=  false;
 static pid_t			target_pid			=     -1;
 static pid_t			target_tid			=     -1;
@@ -61,6 +62,7 @@ static bool			call_graph			=  false;
 static bool			inherit_stat			=  false;
 static bool			no_samples			=  false;
 static bool			sample_address			=  false;
+static bool			sample_time			=  false;
 static bool			no_buildid			=  false;
 static bool			no_buildid_cache		=  false;
 
@@ -283,6 +285,9 @@ static void create_counter(int counter, int cpu)
 	if (system_wide)
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 
+	if (sample_time)
+		attr->sample_type	|= PERF_SAMPLE_TIME;
+
 	if (raw_samples) {
 		attr->sample_type	|= PERF_SAMPLE_TIME;
 		attr->sample_type	|= PERF_SAMPLE_RAW;
@@ -299,6 +304,8 @@ static void create_counter(int counter, int cpu)
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
+retry_sample_id:
+	attr->sample_id_all = sample_id_all_avail ? 1 : 0;
 
 	for (thread_index = 0; thread_index < thread_num; thread_index++) {
 try_again:
@@ -315,6 +322,12 @@ try_again:
 			else if (err ==  ENODEV && cpu_list) {
 				die("No such device - did you specify"
 					" an out-of-range profile CPU?\n");
+			} else if (err == EINVAL && sample_id_all_avail) {
+				/*
+				 * Old kernel, no attr->sample_id_type_all field
+				 */
+				sample_id_all_avail = false;
+				goto retry_sample_id;
 			}
 
 			/*
@@ -661,6 +674,8 @@ static int __cmd_record(int argc, const char **argv)
 
 	post_processing_offset = lseek(output, 0, SEEK_CUR);
 
+	perf_session__set_sample_id_all(session, sample_id_all_avail);
+
 	if (pipe_output) {
 		err = event__synthesize_attrs(&session->header,
 					      process_synthesized_event,
@@ -841,6 +856,7 @@ const struct option record_options[] = {
 		    "per thread counts"),
 	OPT_BOOLEAN('d', "data", &sample_address,
 		    "Sample addresses"),
+	OPT_BOOLEAN('T', "timestamp", &sample_time, "Sample timestamps"),
 	OPT_BOOLEAN('n', "no-samples", &no_samples,
 		    "don't sample"),
 	OPT_BOOLEAN('N', "no-buildid-cache", &no_buildid_cache,

@@ -65,14 +65,49 @@ out_close:
 	return -1;
 }
 
-void perf_session__update_sample_type(struct perf_session *self)
+static void perf_session__id_header_size(struct perf_session *session)
 {
-	self->sample_type = perf_header__sample_type(&self->header);
+       struct sample_data *data;
+       u64 sample_type = session->sample_type;
+       u16 size = 0;
+
+	if (!session->sample_id_all)
+		goto out;
+
+       if (sample_type & PERF_SAMPLE_TID)
+               size += sizeof(data->tid) * 2;
+
+       if (sample_type & PERF_SAMPLE_TIME)
+               size += sizeof(data->time);
+
+       if (sample_type & PERF_SAMPLE_ID)
+               size += sizeof(data->id);
+
+       if (sample_type & PERF_SAMPLE_STREAM_ID)
+               size += sizeof(data->stream_id);
+
+       if (sample_type & PERF_SAMPLE_CPU)
+               size += sizeof(data->cpu) * 2;
+out:
+       session->id_hdr_size = size;
+}
+
+void perf_session__set_sample_id_all(struct perf_session *session, bool value)
+{
+	session->sample_id_all = value;
+	perf_session__id_header_size(session);
 }
 
 void perf_session__set_sample_type(struct perf_session *session, u64 type)
 {
 	session->sample_type = type;
+}
+
+void perf_session__update_sample_type(struct perf_session *self)
+{
+	self->sample_type = perf_header__sample_type(&self->header);
+	self->sample_id_all = perf_header__sample_id_all(&self->header);
+	perf_session__id_header_size(self);
 }
 
 int perf_session__create_kernel_maps(struct perf_session *self)
@@ -443,7 +478,7 @@ static void flush_sample_queue(struct perf_session *s,
 		if (iter->timestamp > limit)
 			break;
 
-		event__parse_sample(iter->event, s->sample_type, &sample);
+		event__parse_sample(iter->event, s, &sample);
 		ops->sample(iter->event, &sample, s);
 
 		os->last_flush = iter->timestamp;
@@ -618,6 +653,23 @@ static void callchain__dump(struct sample_data *sample)
 		printf("..... %2d: %016Lx\n", i, sample->callchain->ips[i]);
 }
 
+static void perf_session__print_tstamp(struct perf_session *session,
+				       event_t *event,
+				       struct sample_data *sample)
+{
+	if (event->header.type != PERF_RECORD_SAMPLE &&
+	    !session->sample_id_all) {
+		fputs("-1 -1 ", stdout);
+		return;
+	}
+
+	if ((session->sample_type & PERF_SAMPLE_CPU))
+		printf("%u ", sample->cpu);
+
+	if (session->sample_type & PERF_SAMPLE_TIME)
+		printf("%Lu ", sample->time);
+}
+
 static int perf_session__process_event(struct perf_session *self,
 				       event_t *event,
 				       struct perf_event_ops *ops,
@@ -630,8 +682,12 @@ static int perf_session__process_event(struct perf_session *self,
 	if (self->header.needs_swap && event__swap_ops[event->header.type])
 		event__swap_ops[event->header.type](event);
 
-	if (event->header.type == PERF_RECORD_SAMPLE)
-		event__parse_sample(event, self->sample_type, &sample);
+	if (event->header.type >= PERF_RECORD_MMAP &&
+	    event->header.type <= PERF_RECORD_SAMPLE) {
+		event__parse_sample(event, self, &sample);
+		if (dump_trace)
+			perf_session__print_tstamp(self, event, &sample);
+	}
 
 	if (event->header.type < PERF_RECORD_HEADER_MAX) {
 		dump_printf("%#Lx [%#x]: PERF_RECORD_%s",

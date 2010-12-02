@@ -108,6 +108,11 @@ OPTIONS
 --data::
 	Sample addresses.
 
+-T::
+--timestamp::
+	Sample timestamps. Use it with 'perf report -D' to see the timestamps,
+	for instance.
+
 -n::
 --no-samples::
 	Don't sample.

@@ -946,6 +946,24 @@ u64 perf_header__sample_type(struct perf_header *header)
 	return type;
 }
 
+bool perf_header__sample_id_all(const struct perf_header *header)
+{
+	bool value = false, first = true;
+	int i;
+
+	for (i = 0; i < header->attrs; i++) {
+		struct perf_header_attr *attr = header->attr[i];
+
+		if (first) {
+			value = attr->attr.sample_id_all;
+			first = false;
+		} else if (value != attr->attr.sample_id_all)
+			die("non matching sample_id_all");
+	}
+
+	return value;
+}
+
 struct perf_event_attr *
 perf_header__find_attr(u64 id, struct perf_header *header)
 {
