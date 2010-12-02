@@ -729,6 +729,12 @@ struct drm_i915_gem_object {
 	unsigned int dirty : 1;
 
 	/**
+	 * This is set if the object has been written to since the last
+	 * GPU flush.
+	 */
+	unsigned int pending_gpu_write : 1;
+
+	/**
 	 * Fence register bits (if any) for this object.  Will be set
 	 * as needed when mapped into the GTT.
 	 * Protected by dev->struct_mutex.

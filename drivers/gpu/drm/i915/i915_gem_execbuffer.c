@@ -775,6 +775,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 		i915_gem_object_move_to_active(obj, ring);
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
+			obj->pending_gpu_write = true;
 			list_move_tail(&obj->gpu_write_list,
 				       &ring->gpu_write_list);
 			intel_mark_busy(ring->dev, obj);

@@ -1643,6 +1643,7 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 	obj->last_fenced_ring = NULL;
 
 	obj->active = 0;
+	obj->pending_gpu_write = false;
 	drm_gem_object_unreference(&obj->base);
 
 	WARN_ON(i915_verify_lists(dev));
@@ -2810,9 +2811,11 @@ i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj, bool write)
 		return -EINVAL;
 
 	i915_gem_object_flush_gpu_write_domain(obj);
-	ret = i915_gem_object_wait_rendering(obj, true);
-	if (ret)
-		return ret;
+	if (obj->pending_gpu_write || write) {
+		ret = i915_gem_object_wait_rendering(obj, true);
+		if (ret)
+			return ret;
+	}
 
 	i915_gem_object_flush_cpu_write_domain(obj);
 
