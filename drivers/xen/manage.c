@@ -291,27 +291,18 @@ static int shutdown_event(struct notifier_block *notifier,
 	return NOTIFY_DONE;
 }
 
-static int __init __setup_shutdown_event(void)
-{
-	/* Delay initialization in the PV on HVM case */
-	if (xen_hvm_domain())
-		return 0;
-
-	if (!xen_pv_domain())
-		return -ENODEV;
-
-	return xen_setup_shutdown_event();
-}
-
 int xen_setup_shutdown_event(void)
 {
 	static struct notifier_block xenstore_notifier = {
 		.notifier_call = shutdown_event
 	};
+
+	if (!xen_domain())
+		return -ENODEV;
 	register_xenstore_notifier(&xenstore_notifier);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xen_setup_shutdown_event);
 
-subsys_initcall(__setup_shutdown_event);
+subsys_initcall(xen_setup_shutdown_event);
