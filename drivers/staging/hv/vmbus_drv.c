@@ -206,7 +206,7 @@ static void VmbusOnCleanup(struct hv_driver *drv)
 /*
  * vmbus_on_msg_dpc - DPC routine to handle messages from the hypervisior
  */
-void vmbus_on_msg_dpc(struct hv_driver *drv)
+static void vmbus_on_msg_dpc(struct hv_driver *drv)
 {
 	int cpu = smp_processor_id();
 	void *page_addr = hv_context.synic_message_page[cpu];
@@ -253,7 +253,7 @@ void vmbus_on_msg_dpc(struct hv_driver *drv)
 /*
  * vmbus_on_event_dpc - DPC routine to handle events from the hypervisior
  */
-void vmbus_on_event_dpc(struct hv_driver *drv)
+static void vmbus_on_event_dpc(struct hv_driver *drv)
 {
 	/* TODO: Process any events */
 	VmbusOnEvents();
@@ -262,7 +262,7 @@ void vmbus_on_event_dpc(struct hv_driver *drv)
 /*
  * vmbus_on_isr - ISR routine
  */
-int vmbus_on_isr(struct hv_driver *drv)
+static int vmbus_on_isr(struct hv_driver *drv)
 {
 	int ret = 0;
 	int cpu = smp_processor_id();
