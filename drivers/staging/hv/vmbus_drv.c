@@ -251,15 +251,6 @@ static void vmbus_on_msg_dpc(struct hv_driver *drv)
 }
 
 /*
- * vmbus_on_event_dpc - DPC routine to handle events from the hypervisior
- */
-static void vmbus_on_event_dpc(struct hv_driver *drv)
-{
-	/* TODO: Process any events */
-	VmbusOnEvents();
-}
-
-/*
  * vmbus_on_isr - ISR routine
  */
 static int vmbus_on_isr(struct hv_driver *drv)
@@ -1039,10 +1030,8 @@ static void vmbus_msg_dpc(unsigned long data)
  */
 static void vmbus_event_dpc(unsigned long data)
 {
-	struct hv_driver *driver = (struct hv_driver *)data;
-
 	/* Call to bus driver to handle interrupt */
-	vmbus_on_event_dpc(driver);
+	VmbusOnEvents();
 }
 
 static irqreturn_t vmbus_isr(int irq, void *dev_id)
