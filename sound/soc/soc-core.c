@@ -1401,11 +1401,11 @@ static void soc_set_name_prefix(struct snd_soc_card *card,
 {
 	int i;
 
-	if (card->prefix_map == NULL)
+	if (card->codec_conf == NULL)
 		return;
 
-	for (i = 0; i < card->num_prefixes; i++) {
-		struct snd_soc_prefix_map *map = &card->prefix_map[i];
+	for (i = 0; i < card->num_configs; i++) {
+		struct snd_soc_codec_conf *map = &card->codec_conf[i];
 		if (map->dev_name && !strcmp(codec->name, map->dev_name)) {
 			codec->name_prefix = map->name_prefix;
 			break;

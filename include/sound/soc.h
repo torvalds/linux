@@ -581,9 +581,20 @@ struct snd_soc_dai_link {
 	struct snd_soc_ops *ops;
 };
 
-struct snd_soc_prefix_map {
+struct snd_soc_codec_conf {
 	const char *dev_name;
+
+	/*
+	 * optional map of kcontrol, widget and path name prefixes that are
+	 * associated per device
+	 */
 	const char *name_prefix;
+
+	/*
+	 * set this to the desired compression type if you want to
+	 * override the one supplied in codec->driver->compress_type
+	 */
+	enum snd_soc_compress_type compress_type;
 };
 
 struct snd_soc_aux_dev {
@@ -628,12 +639,9 @@ struct snd_soc_card {
 	struct snd_soc_pcm_runtime *rtd;
 	int num_rtd;
 
-	/*
-	 * optional map of kcontrol, widget and path name prefixes that are
-	 * associated per device
-	 */
-	struct snd_soc_prefix_map *prefix_map;
-	int num_prefixes;
+	/* optional codec specific configuration */
+	struct snd_soc_codec_conf *codec_conf;
+	int num_configs;
 
 	/*
 	 * optional auxiliary devices such as amplifiers or codecs with DAI
