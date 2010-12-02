@@ -381,7 +381,7 @@ int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
 				  -rc);
 			efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
 		} else
-			netif_err(efx, hw, efx->net_dev,
+			netif_dbg(efx, hw, efx->net_dev,
 				  "MC command 0x%x inlen %d failed rc=%d\n",
 				  cmd, (int)inlen, -rc);
 	}
