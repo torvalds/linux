@@ -87,7 +87,7 @@ extern unsigned int vid_limit;
 
 #define FORMAT_FLAGS_PACKED       0x01
 extern struct cx25821_fmt formats[];
-extern struct cx25821_fmt *format_by_fourcc(unsigned int fourcc);
+extern struct cx25821_fmt *cx25821_format_by_fourcc(unsigned int fourcc);
 extern struct cx25821_data timeout_data[MAX_VID_CHANNEL_NUM];
 
 extern void cx25821_dump_video_queue(struct cx25821_dev *dev,

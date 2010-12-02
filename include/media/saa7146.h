@@ -161,7 +161,7 @@ extern struct list_head saa7146_devices;
 extern struct mutex saa7146_devices_lock;
 int saa7146_register_extension(struct saa7146_extension*);
 int saa7146_unregister_extension(struct saa7146_extension*);
-struct saa7146_format* format_by_fourcc(struct saa7146_dev *dev, int fourcc);
+struct saa7146_format* saa7146_format_by_fourcc(struct saa7146_dev *dev, int fourcc);
 int saa7146_pgtable_alloc(struct pci_dev *pci, struct saa7146_pgtable *pt);
 void saa7146_pgtable_free(struct pci_dev *pci, struct saa7146_pgtable *pt);
 int saa7146_pgtable_build_single(struct pci_dev *pci, struct saa7146_pgtable *pt, struct scatterlist *list, int length );
