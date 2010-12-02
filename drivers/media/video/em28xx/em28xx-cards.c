@@ -2554,39 +2554,39 @@ void em28xx_card_setup(struct em28xx *dev)
 	/* request some modules */
 	if (dev->board.has_msp34xx)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			NULL, "msp3400", 0, msp3400_addrs);
+			"msp3400", 0, msp3400_addrs);
 
 	if (dev->board.decoder == EM28XX_SAA711X)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			NULL, "saa7115_auto", 0, saa711x_addrs);
+			"saa7115_auto", 0, saa711x_addrs);
 
 	if (dev->board.decoder == EM28XX_TVP5150)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			NULL, "tvp5150", 0, tvp5150_addrs);
+			"tvp5150", 0, tvp5150_addrs);
 
 	if (dev->em28xx_sensor == EM28XX_MT9V011) {
 		struct v4l2_subdev *sd;
 
 		sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-			 &dev->i2c_adap, NULL, "mt9v011", 0, mt9v011_addrs);
+			 &dev->i2c_adap, "mt9v011", 0, mt9v011_addrs);
 		v4l2_subdev_call(sd, core, s_config, 0, &dev->sensor_xtal);
 	}
 
 
 	if (dev->board.adecoder == EM28XX_TVAUDIO)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			NULL, "tvaudio", dev->board.tvaudio_addr, NULL);
+			"tvaudio", dev->board.tvaudio_addr, NULL);
 
 	if (dev->board.tuner_type != TUNER_ABSENT) {
 		int has_demod = (dev->tda9887_conf & TDA9887_PRESENT);
 
 		if (dev->board.radio.type)
 			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-				NULL, "tuner", dev->board.radio_addr, NULL);
+				"tuner", dev->board.radio_addr, NULL);
 
 		if (has_demod)
 			v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, NULL, "tuner",
+				&dev->i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (dev->tuner_addr == 0) {
 			enum v4l2_i2c_tuner_type type =
@@ -2594,14 +2594,14 @@ void em28xx_card_setup(struct em28xx *dev)
 			struct v4l2_subdev *sd;
 
 			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, NULL, "tuner",
+				&dev->i2c_adap, "tuner",
 				0, v4l2_i2c_tuner_addrs(type));
 
 			if (sd)
 				dev->tuner_addr = v4l2_i2c_subdev_addr(sd);
 		} else {
 			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-				NULL, "tuner", dev->tuner_addr, NULL);
+				"tuner", dev->tuner_addr, NULL);
 		}
 	}
 

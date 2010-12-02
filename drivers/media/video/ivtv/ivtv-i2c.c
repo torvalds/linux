@@ -239,19 +239,16 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 		return -1;
 	if (hw == IVTV_HW_TUNER) {
 		/* special tuner handling */
-		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
-				adap, NULL, type,
-				0, itv->card_i2c->radio);
+		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev, adap, type, 0,
+				itv->card_i2c->radio);
 		if (sd)
 			sd->grp_id = 1 << idx;
-		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
-				adap, NULL, type,
-				0, itv->card_i2c->demod);
+		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev, adap, type, 0,
+				itv->card_i2c->demod);
 		if (sd)
 			sd->grp_id = 1 << idx;
-		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
-				adap, NULL, type,
-				0, itv->card_i2c->tv);
+		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev, adap, type, 0,
+				itv->card_i2c->tv);
 		if (sd)
 			sd->grp_id = 1 << idx;
 		return sd ? 0 : -1;
@@ -267,17 +264,16 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 	/* It's an I2C device other than an analog tuner or IR chip */
 	if (hw == IVTV_HW_UPD64031A || hw == IVTV_HW_UPD6408X) {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
-				adap, NULL, type, 0, I2C_ADDRS(hw_addrs[idx]));
+				adap, type, 0, I2C_ADDRS(hw_addrs[idx]));
 	} else if (hw == IVTV_HW_CX25840) {
 		struct cx25840_platform_data pdata;
 
 		pdata.pvr150_workaround = itv->pvr150_workaround;
 		sd = v4l2_i2c_new_subdev_cfg(&itv->v4l2_dev,
-				adap, NULL, type, 0, &pdata, hw_addrs[idx],
-				NULL);
+				adap, type, 0, &pdata, hw_addrs[idx], NULL);
 	} else {
 		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
-				adap, NULL, type, hw_addrs[idx], NULL);
+				adap, type, hw_addrs[idx], NULL);
 	}
 	if (sd)
 		sd->grp_id = 1 << idx;
