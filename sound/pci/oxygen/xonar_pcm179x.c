@@ -167,12 +167,14 @@
 #define GPIO_INPUT_ROUTE	0x0100
 
 #define GPIO_HDAV_OUTPUT_ENABLE	0x0001
+#define GPIO_HDAV_MAGIC		0x00c0
 
 #define GPIO_DB_MASK		0x0030
 #define GPIO_DB_H6		0x0000
 
 #define GPIO_ST_OUTPUT_ENABLE	0x0001
 #define GPIO_ST_HP_REAR		0x0002
+#define GPIO_ST_MAGIC		0x0040
 #define GPIO_ST_HP		0x0080
 
 #define I2C_DEVICE_PCM1796(i)	(0x98 + ((i) << 1))	/* 10011, ii, /W=0 */
@@ -350,7 +352,8 @@ static void xonar_hdav_init(struct oxygen *chip)
 
 	pcm1796_init(chip);
 
-	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_INPUT_ROUTE);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
+			  GPIO_HDAV_MAGIC | GPIO_INPUT_ROUTE);
 	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_INPUT_ROUTE);
 
 	xonar_init_cs53x1(chip);
@@ -381,7 +384,8 @@ static void xonar_st_init_common(struct oxygen *chip)
 	pcm1796_init(chip);
 
 	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
-			  GPIO_INPUT_ROUTE | GPIO_ST_HP_REAR | GPIO_ST_HP);
+			  GPIO_INPUT_ROUTE | GPIO_ST_HP_REAR |
+			  GPIO_ST_MAGIC | GPIO_ST_HP);
 	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA,
 			    GPIO_INPUT_ROUTE | GPIO_ST_HP_REAR | GPIO_ST_HP);
 

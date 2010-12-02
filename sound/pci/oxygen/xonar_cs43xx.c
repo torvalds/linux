@@ -63,6 +63,7 @@
 #define GPI_EXT_POWER		0x01
 #define GPIO_D1_OUTPUT_ENABLE	0x0001
 #define GPIO_D1_FRONT_PANEL	0x0002
+#define GPIO_D1_MAGIC		0x00c0
 #define GPIO_D1_INPUT_ROUTE	0x0100
 
 #define I2C_DEVICE_CS4398	0x9e	/* 10011, AD1=1, AD0=1, /W=0 */
@@ -169,7 +170,9 @@ static void xonar_d1_init(struct oxygen *chip)
 	cs43xx_registers_init(chip);
 
 	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
-			  GPIO_D1_FRONT_PANEL | GPIO_D1_INPUT_ROUTE);
+			  GPIO_D1_FRONT_PANEL |
+			  GPIO_D1_MAGIC |
+			  GPIO_D1_INPUT_ROUTE);
 	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA,
 			    GPIO_D1_FRONT_PANEL | GPIO_D1_INPUT_ROUTE);
 
