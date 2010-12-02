@@ -24,7 +24,6 @@
 #include "nic.h"
 #include "regs.h"
 #include "io.h"
-#include "mdio_10g.h"
 #include "phy.h"
 #include "workarounds.h"
 

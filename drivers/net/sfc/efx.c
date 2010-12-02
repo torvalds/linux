@@ -23,7 +23,6 @@
 #include <linux/gfp.h>
 #include "net_driver.h"
 #include "efx.h"
-#include "mdio_10g.h"
 #include "nic.h"
 
 #include "mcdi.h"

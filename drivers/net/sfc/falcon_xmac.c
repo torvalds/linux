@@ -16,7 +16,6 @@
 #include "io.h"
 #include "mac.h"
 #include "mdio_10g.h"
-#include "phy.h"
 #include "workarounds.h"
 
 /**************************************************************************

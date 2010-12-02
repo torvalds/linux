@@ -17,7 +17,6 @@
 #include "efx.h"
 #include "filter.h"
 #include "nic.h"
-#include "mdio_10g.h"
 
 struct ethtool_string {
 	char name[ETH_GSTRING_LEN];

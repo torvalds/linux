@@ -13,8 +13,6 @@
 #include "phy.h"
 #include "efx.h"
 #include "nic.h"
-#include "regs.h"
-#include "io.h"
 #include "workarounds.h"
 
 /* Macros for unpacking the board revision */
