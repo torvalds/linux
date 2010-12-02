@@ -138,14 +138,6 @@ static void omap2430_musb_try_idle(struct musb *musb, unsigned long timeout)
 	mod_timer(&musb_idle_timer, timeout);
 }
 
-static void omap2430_musb_enable(struct musb *musb)
-{
-}
-
-static void omap2430_musb_disable(struct musb *musb)
-{
-}
-
 static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 {
 	u8		devctl;
@@ -324,9 +316,6 @@ static const struct musb_platform_ops omap2430_ops = {
 
 	.suspend	= omap2430_musb_suspend,
 	.resume		= omap2430_musb_resume,
-
-	.enable		= omap2430_musb_enable,
-	.disable	= omap2430_musb_disable,
 
 	.set_mode	= omap2430_musb_set_mode,
 	.try_idle	= omap2430_musb_try_idle,
