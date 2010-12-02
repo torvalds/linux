@@ -35,7 +35,6 @@ struct inet_peer {
 	 * Once inet_peer is queued for deletion (refcnt == -1), following fields
 	 * are not available: rid, ip_id_count, tcp_ts, tcp_ts_stamp
 	 * We can share memory with rcu_head to keep inet_peer small
-	 * (less then 64 bytes)
 	 */
 	union {
 		struct {
