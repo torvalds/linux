@@ -450,12 +450,11 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 
 	/* Create a DMA object for the shared cross-channel sync area. */
 	if (USE_SEMA(dev)) {
-		struct drm_mm_node *mem = dev_priv->fence.bo->bo.mem.mm_node;
+		struct ttm_mem_reg *mem = &dev_priv->fence.bo->bo.mem;
 
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
 					     mem->start << PAGE_SHIFT,
-					     mem->size << PAGE_SHIFT,
-					     NV_MEM_ACCESS_RW,
+					     mem->size, NV_MEM_ACCESS_RW,
 					     NV_MEM_TARGET_VRAM, &obj);
 		if (ret)
 			return ret;
