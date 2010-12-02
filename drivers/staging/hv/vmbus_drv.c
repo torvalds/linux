@@ -849,14 +849,12 @@ static void vmbus_msg_dpc(unsigned long data)
 {
 	struct vmbus_driver *vmbus_drv_obj = (struct vmbus_driver *)data;
 
-	/* ASSERT(vmbus_drv_obj->OnMsgDpc != NULL); */
-
 	/* Call to bus driver to handle interrupt */
-	vmbus_drv_obj->OnMsgDpc(&vmbus_drv_obj->Base);
+	vmbus_on_msg_dpc(&vmbus_drv_obj->Base);
 }
 
 /*
- * vmbus_msg_dpc - Tasklet routine to handle hypervisor events
+ * vmbus_event_dpc - Tasklet routine to handle hypervisor events
  */
 static void vmbus_event_dpc(unsigned long data)
 {

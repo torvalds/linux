@@ -119,9 +119,9 @@ static void VmbusOnCleanup(struct hv_driver *drv)
 }
 
 /*
- * VmbusOnMsgDPC - DPC routine to handle messages from the hypervisior
+ * vmbus_on_msg_dpc - DPC routine to handle messages from the hypervisior
  */
-static void VmbusOnMsgDPC(struct hv_driver *drv)
+void vmbus_on_msg_dpc(struct hv_driver *drv)
 {
 	int cpu = smp_processor_id();
 	void *page_addr = hv_context.synic_message_page[cpu];
@@ -235,7 +235,6 @@ int VmbusInitialize(struct hv_driver *drv)
 	driver->Base.OnDeviceAdd	= VmbusOnDeviceAdd;
 	driver->Base.OnDeviceRemove	= VmbusOnDeviceRemove;
 	driver->Base.OnCleanup		= VmbusOnCleanup;
-	driver->OnMsgDpc		= VmbusOnMsgDPC;
 	driver->OnEventDpc		= VmbusOnEventDPC;
 	driver->GetChannelOffers	= VmbusGetChannelOffers;
 

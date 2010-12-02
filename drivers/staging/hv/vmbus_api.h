@@ -126,12 +126,12 @@ struct vmbus_driver {
 				struct hv_device *ChildDevice);
 
 	/* Set by the callee */
-	void (*OnMsgDpc)(struct hv_driver *driver);
 	void (*OnEventDpc)(struct hv_driver *driver);
 	void (*GetChannelOffers)(void);
 };
 
 int VmbusInitialize(struct hv_driver *drv);
 int vmbus_on_isr(struct hv_driver *drv);
+void vmbus_on_msg_dpc(struct hv_driver *drv);
 
 #endif /* _VMBUS_API_H_ */
