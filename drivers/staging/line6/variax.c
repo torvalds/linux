@@ -549,21 +549,21 @@ static ssize_t variax_set_raw2(struct device *dev,
 #endif
 
 /* Variax workbench special files: */
-static DEVICE_ATTR(model, S_IWUGO | S_IRUGO, variax_get_model,
+static DEVICE_ATTR(model, S_IWUSR | S_IRUGO, variax_get_model,
 		   variax_set_model);
-static DEVICE_ATTR(volume, S_IWUGO | S_IRUGO, variax_get_volume,
+static DEVICE_ATTR(volume, S_IWUSR | S_IRUGO, variax_get_volume,
 		   variax_set_volume);
-static DEVICE_ATTR(tone, S_IWUGO | S_IRUGO, variax_get_tone, variax_set_tone);
+static DEVICE_ATTR(tone, S_IWUSR | S_IRUGO, variax_get_tone, variax_set_tone);
 static DEVICE_ATTR(name, S_IRUGO, variax_get_name, line6_nop_write);
 static DEVICE_ATTR(bank, S_IRUGO, variax_get_bank, line6_nop_write);
 static DEVICE_ATTR(dump, S_IRUGO, variax_get_dump, line6_nop_write);
-static DEVICE_ATTR(active, S_IWUGO | S_IRUGO, variax_get_active,
+static DEVICE_ATTR(active, S_IWUSR | S_IRUGO, variax_get_active,
 		   variax_set_active);
 static DEVICE_ATTR(guitar, S_IRUGO, variax_get_guitar, line6_nop_write);
 
 #ifdef CONFIG_LINE6_USB_RAW
-static DEVICE_ATTR(raw, S_IWUGO, line6_nop_read, line6_set_raw);
-static DEVICE_ATTR(raw2, S_IWUGO, line6_nop_read, variax_set_raw2);
+static DEVICE_ATTR(raw, S_IWUSR, line6_nop_read, line6_set_raw);
+static DEVICE_ATTR(raw2, S_IWUSR, line6_nop_read, variax_set_raw2);
 #endif
 
 /*
