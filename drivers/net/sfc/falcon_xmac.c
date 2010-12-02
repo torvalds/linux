@@ -87,6 +87,7 @@ int falcon_reset_xaui(struct efx_nic *efx)
 
 static void falcon_ack_status_intr(struct efx_nic *efx)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	efx_oword_t reg;
 
 	if ((efx_nic_rev(efx) != EFX_REV_FALCON_B0) || LOOPBACK_INTERNAL(efx))
@@ -98,7 +99,7 @@ static void falcon_ack_status_intr(struct efx_nic *efx)
 
 	/* We can only use this interrupt to signal the negative edge of
 	 * xaui_align [we have to poll the positive edge]. */
-	if (efx->xmac_poll_required)
+	if (nic_data->xmac_poll_required)
 		return;
 
 	efx_reado(efx, &reg, FR_AB_XM_MGT_INT_MSK);
@@ -276,12 +277,14 @@ static bool falcon_xmac_check_fault(struct efx_nic *efx)
 
 static int falcon_reconfigure_xmac(struct efx_nic *efx)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
+
 	falcon_reconfigure_xgxs_core(efx);
 	falcon_reconfigure_xmac_core(efx);
 
 	falcon_reconfigure_mac_wrapper(efx);
 
-	efx->xmac_poll_required = !falcon_xmac_link_ok_retry(efx, 5);
+	nic_data->xmac_poll_required = !falcon_xmac_link_ok_retry(efx, 5);
 	falcon_ack_status_intr(efx);
 
 	return 0;
@@ -349,11 +352,13 @@ static void falcon_update_stats_xmac(struct efx_nic *efx)
 
 void falcon_poll_xmac(struct efx_nic *efx)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
+
 	if (!EFX_WORKAROUND_5147(efx) || !efx->link_state.up ||
-	    !efx->xmac_poll_required)
+	    !nic_data->xmac_poll_required)
 		return;
 
-	efx->xmac_poll_required = !falcon_xmac_link_ok_retry(efx, 1);
+	nic_data->xmac_poll_required = !falcon_xmac_link_ok_retry(efx, 1);
 	falcon_ack_status_intr(efx);
 }
 

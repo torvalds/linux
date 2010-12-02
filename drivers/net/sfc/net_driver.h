@@ -684,7 +684,6 @@ struct efx_filter_state;
  * @mdio: PHY MDIO interface
  * @mdio_bus: PHY MDIO bus ID (only used by Siena)
  * @phy_mode: PHY operating mode. Serialised by @mac_lock.
- * @xmac_poll_required: XMAC link state needs polling
  * @link_advertising: Autonegotiation advertising flags
  * @link_state: Current state of the link
  * @n_link_state_changes: Number of times the link has changed state
@@ -771,7 +770,6 @@ struct efx_nic {
 	unsigned int mdio_bus;
 	enum efx_phy_mode phy_mode;
 
-	bool xmac_poll_required;
 	u32 link_advertising;
 	struct efx_link_state link_state;
 	unsigned int n_link_state_changes;

@@ -415,10 +415,11 @@ static void sfe4001_fini(struct efx_nic *efx)
 
 static int sfe4001_check_hw(struct efx_nic *efx)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	s32 status;
 
 	/* If XAUI link is up then do not monitor */
-	if (EFX_WORKAROUND_7884(efx) && !efx->xmac_poll_required)
+	if (EFX_WORKAROUND_7884(efx) && !nic_data->xmac_poll_required)
 		return 0;
 
 	/* Check the powered status of the PHY. Lack of power implies that

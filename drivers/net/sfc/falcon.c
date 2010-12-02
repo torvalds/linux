@@ -886,6 +886,7 @@ static bool
 falcon_handle_global_event(struct efx_channel *channel, efx_qword_t *event)
 {
 	struct efx_nic *efx = channel->efx;
+	struct falcon_nic_data *nic_data = efx->nic_data;
 
 	if (EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_G_PHY0_INTR) ||
 	    EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_XG_PHY0_INTR) ||
@@ -895,7 +896,7 @@ falcon_handle_global_event(struct efx_channel *channel, efx_qword_t *event)
 
 	if ((efx_nic_rev(efx) == EFX_REV_FALCON_B0) &&
 	    EFX_QWORD_FIELD(*event, FSF_BB_GLB_EV_XG_MGT_INTR)) {
-		efx->xmac_poll_required = true;
+		nic_data->xmac_poll_required = true;
 		return true;
 	}
 
