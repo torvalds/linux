@@ -302,8 +302,6 @@ static void tegra2_super_clk_init(struct clk *c)
 	}
 	BUG_ON(sel->input == NULL);
 	c->parent = sel->input;
-
-	INIT_LIST_HEAD(&c->u.shared_bus.list);
 }
 
 static int tegra2_super_clk_enable(struct clk *c)
@@ -1151,9 +1149,9 @@ static struct clk_ops tegra_cdev_clk_ops = {
 static void tegra_clk_shared_bus_update(struct clk *bus)
 {
 	struct clk *c;
-	unsigned long rate = bus->u.shared_bus.min_rate;
+	unsigned long rate = bus->min_rate;
 
-	list_for_each_entry(c, &bus->u.shared_bus.list,
+	list_for_each_entry(c, &bus->shared_bus_list,
 			u.shared_bus_user.node) {
 		if (c->u.shared_bus_user.enabled)
 			rate = max(c->u.shared_bus_user.rate, rate);
@@ -1170,7 +1168,7 @@ static void tegra_clk_shared_bus_init(struct clk *c)
 	c->set = true;
 
 	list_add_tail(&c->u.shared_bus_user.node,
-		&c->parent->u.shared_bus.list);
+		&c->parent->shared_bus_list);
 }
 
 static int tegra_clk_shared_bus_set_rate(struct clk *c, unsigned long rate)
@@ -1716,9 +1714,7 @@ static struct clk tegra_clk_sclk = {
 	.reg	= 0x28,
 	.ops	= &tegra_super_ops,
 	.max_rate = 240000000,
-	.u.shared_bus = {
-		.min_rate = 120000000,
-	},
+	.min_rate = 120000000,
 };
 
 static struct clk tegra_clk_virtual_cpu = {
@@ -2018,6 +2014,7 @@ struct clk *tegra_ptr_clks[] = {
 static void tegra2_init_one_clock(struct clk *c)
 {
 	clk_init(c);
+	INIT_LIST_HEAD(&c->shared_bus_list);
 	if (!c->lookup.dev_id && !c->lookup.con_id)
 		c->lookup.con_id = c->name;
 	c->lookup.clk = c;
