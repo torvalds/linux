@@ -53,14 +53,6 @@ static struct hv_driver *gDriver; /* vmbus driver object */
 static struct hv_device *gDevice; /* vmbus root device */
 
 /*
- * VmbusGetChannelOffers - Retrieve the channel offers from the parent partition
- */
-static void VmbusGetChannelOffers(void)
-{
-	vmbus_request_offers();
-}
-
-/*
  * VmbusChildDeviceAdd - Registers the child device with the vmbus
  */
 int VmbusChildDeviceAdd(struct hv_device *ChildDevice)
@@ -235,7 +227,6 @@ int VmbusInitialize(struct hv_driver *drv)
 	driver->Base.OnDeviceAdd	= VmbusOnDeviceAdd;
 	driver->Base.OnDeviceRemove	= VmbusOnDeviceRemove;
 	driver->Base.OnCleanup		= VmbusOnCleanup;
-	driver->GetChannelOffers	= VmbusGetChannelOffers;
 
 	/* Hypervisor initialization...setup hypercall page..etc */
 	ret = hv_init();

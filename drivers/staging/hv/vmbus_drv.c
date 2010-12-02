@@ -387,9 +387,7 @@ static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 		goto cleanup;
 	}
 
-
-	vmbus_drv_obj->GetChannelOffers();
-
+	vmbus_request_offers();
 	wait_for_completion(&hv_channel_ready);
 
 cleanup:
@@ -441,7 +439,6 @@ static void vmbus_bus_exit(void)
  */
 int vmbus_child_driver_register(struct driver_context *driver_ctx)
 {
-	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
 	int ret;
 
 	DPRINT_INFO(VMBUS_DRV, "child driver (%p) registering - name %s",
@@ -452,7 +449,7 @@ int vmbus_child_driver_register(struct driver_context *driver_ctx)
 
 	ret = driver_register(&driver_ctx->driver);
 
-	vmbus_drv_obj->GetChannelOffers();
+	vmbus_request_offers();
 
 	return ret;
 }
