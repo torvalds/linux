@@ -1730,9 +1730,36 @@ static void soc_remove_aux_dev(struct snd_soc_card *card, int num)
 	}
 }
 
+static int snd_soc_init_codec_cache(struct snd_soc_codec *codec,
+				    enum snd_soc_compress_type compress_type)
+{
+	int ret;
+
+	if (codec->cache_init)
+		return 0;
+
+	/* override the compress_type if necessary */
+	if (compress_type && codec->compress_type != compress_type)
+		codec->compress_type = compress_type;
+	dev_dbg(codec->dev, "Cache compress_type for %s is %d\n",
+		codec->name, codec->compress_type);
+	ret = snd_soc_cache_init(codec);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to set cache compression type: %d\n",
+			ret);
+		return ret;
+	}
+	codec->cache_init = 1;
+	return 0;
+}
+
+
 static void snd_soc_instantiate_card(struct snd_soc_card *card)
 {
 	struct platform_device *pdev = to_platform_device(card->dev);
+	struct snd_soc_codec *codec;
+	struct snd_soc_codec_conf *codec_conf;
+	enum snd_soc_compress_type compress_type;
 	int ret, i;
 
 	mutex_lock(&card->mutex);
@@ -1750,6 +1777,39 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 	if (card->num_rtd != card->num_links) {
 		mutex_unlock(&card->mutex);
 		return;
+	}
+
+	/* initialize the register cache for each available codec */
+	list_for_each_entry(codec, &codec_list, list) {
+		if (codec->cache_init)
+			continue;
+		/* check to see if we need to override the compress_type */
+		for (i = 0; i < card->num_configs; ++i) {
+			codec_conf = &card->codec_conf[i];
+			if (!strcmp(codec->name, codec_conf->dev_name)) {
+				compress_type = codec_conf->compress_type;
+				if (compress_type && compress_type
+				    != codec->compress_type)
+					break;
+			}
+		}
+		if (i == card->num_configs) {
+			/* no need to override the compress_type so
+			 * go ahead and do the standard thing */
+			ret = snd_soc_init_codec_cache(codec, 0);
+			if (ret < 0) {
+				mutex_unlock(&card->mutex);
+				return;
+			}
+			continue;
+		}
+		/* override the compress_type with the one supplied in
+		 * the machine driver */
+		ret = snd_soc_init_codec_cache(codec, compress_type);
+		if (ret < 0) {
+			mutex_unlock(&card->mutex);
+			return;
+		}
 	}
 
 	/* card bind complete so register a sound card */
@@ -3481,13 +3541,7 @@ int snd_soc_register_codec(struct device *dev,
 					      reg_size, GFP_KERNEL);
 		if (!codec->reg_def_copy) {
 			ret = -ENOMEM;
-			goto error_cache;
-		}
-		ret = snd_soc_cache_init(codec);
-		if (ret < 0) {
-			dev_err(codec->dev, "Failed to set cache compression type: %d\n",
-				ret);
-			goto error_cache;
+			goto fail;
 		}
 	}
 
@@ -3500,7 +3554,7 @@ int snd_soc_register_codec(struct device *dev,
 	if (num_dai) {
 		ret = snd_soc_register_dais(dev, dai_drv, num_dai);
 		if (ret < 0)
-			goto error_dais;
+			goto fail;
 	}
 
 	mutex_lock(&client_mutex);
@@ -3511,9 +3565,7 @@ int snd_soc_register_codec(struct device *dev,
 	pr_debug("Registered codec '%s'\n", codec->name);
 	return 0;
 
-error_dais:
-	snd_soc_cache_exit(codec);
-error_cache:
+fail:
 	kfree(codec->reg_def_copy);
 	codec->reg_def_copy = NULL;
 	kfree(codec->name);

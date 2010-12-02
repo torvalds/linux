@@ -472,6 +472,7 @@ struct snd_soc_codec {
 	unsigned int ac97_registered:1; /* Codec has been AC97 registered */
 	unsigned int ac97_created:1; /* Codec has been created by SoC */
 	unsigned int sysfs_registered:1; /* codec has been sysfs registered */
+	unsigned int cache_init:1; /* codec cache has been initialized */
 
 	/* codec IO */
 	void *control_data; /* codec control (i2c/3wire) data */
