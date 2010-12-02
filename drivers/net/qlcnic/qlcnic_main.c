@@ -3537,9 +3537,12 @@ validate_esw_config(struct qlcnic_adapter *adapter,
 		case QLCNIC_PORT_DEFAULTS:
 			if (QLC_DEV_GET_DRV(op_mode, pci_func) !=
 						QLCNIC_NON_PRIV_FUNC) {
-				esw_cfg[i].mac_anti_spoof = 0;
-				esw_cfg[i].mac_override = 1;
-				esw_cfg[i].promisc_mode = 1;
+				if (esw_cfg[i].mac_anti_spoof != 0)
+					return QL_STATUS_INVALID_PARAM;
+				if (esw_cfg[i].mac_override != 1)
+					return QL_STATUS_INVALID_PARAM;
+				if (esw_cfg[i].promisc_mode != 1)
+					return QL_STATUS_INVALID_PARAM;
 			}
 			break;
 		case QLCNIC_ADD_VLAN:
