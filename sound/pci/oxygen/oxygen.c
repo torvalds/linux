@@ -41,6 +41,7 @@
 #include <sound/ac97_codec.h>
 #include <sound/control.h>
 #include <sound/core.h>
+#include <sound/info.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -518,6 +519,39 @@ static int generic_wm8785_mixer_init(struct oxygen *chip)
 	return 0;
 }
 
+static void dump_ak4396_registers(struct oxygen *chip,
+				  struct snd_info_buffer *buffer)
+{
+	struct generic_data *data = chip->model_data;
+	unsigned int dac, i;
+
+	for (dac = 0; dac < data->dacs; ++dac) {
+		snd_iprintf(buffer, "\nAK4396 %u:", dac + 1);
+		for (i = 0; i < 5; ++i)
+			snd_iprintf(buffer, " %02x", data->ak4396_regs[dac][i]);
+	}
+	snd_iprintf(buffer, "\n");
+}
+
+static void dump_wm8785_registers(struct oxygen *chip,
+				  struct snd_info_buffer *buffer)
+{
+	struct generic_data *data = chip->model_data;
+	unsigned int i;
+
+	snd_iprintf(buffer, "\nWM8785:");
+	for (i = 0; i < 3; ++i)
+		snd_iprintf(buffer, " %03x", data->wm8785_regs[i]);
+	snd_iprintf(buffer, "\n");
+}
+
+static void dump_oxygen_registers(struct oxygen *chip,
+				  struct snd_info_buffer *buffer)
+{
+	dump_ak4396_registers(chip, buffer);
+	dump_wm8785_registers(chip, buffer);
+}
+
 static const DECLARE_TLV_DB_LINEAR(ak4396_db_scale, TLV_DB_GAIN_MUTE, 0);
 
 static const struct oxygen_model model_generic = {
@@ -533,6 +567,7 @@ static const struct oxygen_model model_generic = {
 	.set_adc_params = set_wm8785_params,
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
+	.dump_registers = dump_oxygen_registers,
 	.dac_tlv = ak4396_db_scale,
 	.model_data_size = sizeof(struct generic_data),
 	.device_config = PLAYBACK_0_TO_I2S |
@@ -561,6 +596,7 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 		chip->model.mixer_init = generic_mixer_init;
 		chip->model.resume = meridian_resume;
 		chip->model.set_adc_params = set_ak5385_params;
+		chip->model.dump_registers = dump_ak4396_registers;
 		chip->model.device_config = PLAYBACK_0_TO_I2S |
 					    PLAYBACK_1_TO_SPDIF |
 					    CAPTURE_0_FROM_I2S_2 |
@@ -579,6 +615,7 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 		chip->model.suspend = claro_suspend;
 		chip->model.resume = claro_resume;
 		chip->model.set_adc_params = set_ak5385_params;
+		chip->model.dump_registers = dump_ak4396_registers;
 		chip->model.device_config = PLAYBACK_0_TO_I2S |
 					    PLAYBACK_1_TO_SPDIF |
 					    CAPTURE_0_FROM_I2S_2 |
@@ -595,6 +632,7 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 		chip->model.resume = stereo_resume;
 		chip->model.mixer_init = generic_mixer_init;
 		chip->model.set_adc_params = set_no_params;
+		chip->model.dump_registers = dump_ak4396_registers;
 		chip->model.device_config = PLAYBACK_0_TO_I2S |
 					    PLAYBACK_1_TO_SPDIF;
 		if (id->driver_data == MODEL_FANTASIA)

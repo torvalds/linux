@@ -150,6 +150,7 @@
 #include <sound/ac97_codec.h>
 #include <sound/control.h>
 #include <sound/core.h>
+#include <sound/info.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
@@ -192,7 +193,7 @@ struct xonar_pcm179x {
 	bool hp_active;
 	s8 hp_gain_offset;
 	bool has_cs2000;
-	u8 cs2000_fun_cfg_1;
+	u8 cs2000_regs[0x1f];
 };
 
 struct xonar_hdav {
@@ -251,16 +252,14 @@ static void cs2000_write(struct oxygen *chip, u8 reg, u8 value)
 	struct xonar_pcm179x *data = chip->model_data;
 
 	oxygen_write_i2c(chip, I2C_DEVICE_CS2000, reg, value);
-	if (reg == CS2000_FUN_CFG_1)
-		data->cs2000_fun_cfg_1 = value;
+	data->cs2000_regs[reg] = value;
 }
 
 static void cs2000_write_cached(struct oxygen *chip, u8 reg, u8 value)
 {
 	struct xonar_pcm179x *data = chip->model_data;
 
-	if (reg != CS2000_FUN_CFG_1 ||
-	    value != data->cs2000_fun_cfg_1)
+	if (value != data->cs2000_regs[reg])
 		cs2000_write(chip, reg, value);
 }
 
@@ -414,7 +413,8 @@ static void cs2000_registers_init(struct oxygen *chip)
 	cs2000_write(chip, CS2000_RATIO_0 + 1, 0x10);
 	cs2000_write(chip, CS2000_RATIO_0 + 2, 0x00);
 	cs2000_write(chip, CS2000_RATIO_0 + 3, 0x00);
-	cs2000_write(chip, CS2000_FUN_CFG_1, data->cs2000_fun_cfg_1);
+	cs2000_write(chip, CS2000_FUN_CFG_1,
+		     data->cs2000_regs[CS2000_FUN_CFG_1]);
 	cs2000_write(chip, CS2000_FUN_CFG_2, 0);
 	cs2000_write(chip, CS2000_GLOBAL_CFG, CS2000_EN_DEV_CFG_2);
 }
@@ -425,7 +425,7 @@ static void xonar_st_init(struct oxygen *chip)
 
 	data->generic.anti_pop_delay = 100;
 	data->has_cs2000 = 1;
-	data->cs2000_fun_cfg_1 = CS2000_REF_CLK_DIV_1;
+	data->cs2000_regs[CS2000_FUN_CFG_1] = CS2000_REF_CLK_DIV_1;
 
 	oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
 		       OXYGEN_RATE_48000 | OXYGEN_I2S_FORMAT_I2S |
@@ -997,6 +997,45 @@ static int xonar_st_mixer_init(struct oxygen *chip)
 	return 0;
 }
 
+static void dump_pcm1796_registers(struct oxygen *chip,
+				   struct snd_info_buffer *buffer)
+{
+	struct xonar_pcm179x *data = chip->model_data;
+	unsigned int dac, i;
+
+	for (dac = 0; dac < data->dacs; ++dac) {
+		snd_iprintf(buffer, "\nPCM1796 %u:", dac + 1);
+		for (i = 0; i < 5; ++i)
+			snd_iprintf(buffer, " %02x",
+				    data->pcm1796_regs[dac][i]);
+	}
+	snd_iprintf(buffer, "\n");
+}
+
+static void dump_cs2000_registers(struct oxygen *chip,
+				  struct snd_info_buffer *buffer)
+{
+	struct xonar_pcm179x *data = chip->model_data;
+	unsigned int i;
+
+	if (data->has_cs2000) {
+		snd_iprintf(buffer, "\nCS2000:\n00:   ");
+		for (i = 1; i < 0x10; ++i)
+			snd_iprintf(buffer, " %02x", data->cs2000_regs[i]);
+		snd_iprintf(buffer, "\n10:");
+		for (i = 0x10; i < 0x1f; ++i)
+			snd_iprintf(buffer, " %02x", data->cs2000_regs[i]);
+		snd_iprintf(buffer, "\n");
+	}
+}
+
+static void dump_st_registers(struct oxygen *chip,
+			      struct snd_info_buffer *buffer)
+{
+	dump_pcm1796_registers(chip, buffer);
+	dump_cs2000_registers(chip, buffer);
+}
+
 static const struct oxygen_model model_xonar_d2 = {
 	.longname = "Asus Virtuoso 200",
 	.chip = "AV200",
@@ -1011,6 +1050,7 @@ static const struct oxygen_model model_xonar_d2 = {
 	.set_adc_params = xonar_set_cs53x1_params,
 	.update_dac_volume = update_pcm1796_volume,
 	.update_dac_mute = update_pcm1796_mute,
+	.dump_registers = dump_pcm1796_registers,
 	.dac_tlv = pcm1796_db_scale,
 	.model_data_size = sizeof(struct xonar_pcm179x),
 	.device_config = PLAYBACK_0_TO_I2S |
@@ -1046,6 +1086,7 @@ static const struct oxygen_model model_xonar_hdav = {
 	.update_dac_mute = update_pcm1796_mute,
 	.uart_input = xonar_hdmi_uart_input,
 	.ac97_switch = xonar_line_mic_ac97_switch,
+	.dump_registers = dump_pcm1796_registers,
 	.dac_tlv = pcm1796_db_scale,
 	.model_data_size = sizeof(struct xonar_hdav),
 	.device_config = PLAYBACK_0_TO_I2S |
@@ -1075,6 +1116,7 @@ static const struct oxygen_model model_xonar_st = {
 	.update_dac_volume = update_pcm1796_volume,
 	.update_dac_mute = update_pcm1796_mute,
 	.ac97_switch = xonar_line_mic_ac97_switch,
+	.dump_registers = dump_st_registers,
 	.dac_tlv = pcm1796_db_scale,
 	.model_data_size = sizeof(struct xonar_pcm179x),
 	.device_config = PLAYBACK_0_TO_I2S |

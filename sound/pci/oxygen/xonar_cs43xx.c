@@ -381,6 +381,30 @@ static int xonar_d1_mixer_init(struct oxygen *chip)
 	return 0;
 }
 
+static void dump_cs4362a_registers(struct xonar_cs43xx *data,
+				   struct snd_info_buffer *buffer)
+{
+	unsigned int i;
+
+	snd_iprintf(buffer, "\nCS4362A:");
+	for (i = 1; i <= 14; ++i)
+		snd_iprintf(buffer, " %02x", data->cs4362a_regs[i]);
+	snd_iprintf(buffer, "\n");
+}
+
+static void dump_d1_registers(struct oxygen *chip,
+			      struct snd_info_buffer *buffer)
+{
+	struct xonar_cs43xx *data = chip->model_data;
+	unsigned int i;
+
+	snd_iprintf(buffer, "\nCS4398: 7?");
+	for (i = 2; i <= 8; ++i)
+		snd_iprintf(buffer, " %02x", data->cs4398_regs[i]);
+	snd_iprintf(buffer, "\n");
+	dump_cs4362a_registers(data, buffer);
+}
+
 static const struct oxygen_model model_xonar_d1 = {
 	.longname = "Asus Virtuoso 100",
 	.chip = "AV200",
@@ -396,6 +420,7 @@ static const struct oxygen_model model_xonar_d1 = {
 	.update_dac_mute = update_cs43xx_mute,
 	.update_center_lfe_mix = update_cs43xx_center_lfe_mix,
 	.ac97_switch = xonar_d1_line_mic_ac97_switch,
+	.dump_registers = dump_d1_registers,
 	.dac_tlv = cs4362a_db_scale,
 	.model_data_size = sizeof(struct xonar_cs43xx),
 	.device_config = PLAYBACK_0_TO_I2S |
