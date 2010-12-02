@@ -1569,6 +1569,11 @@ void mmc_rescan(struct work_struct *work)
 				 * Try SDMEM (but not MMC) even if SDIO
 				 * is broken.
 				 */
+				mmc_power_up(host);
+				sdio_reset(host);
+				mmc_go_idle(host);
+				mmc_send_if_cond(host, host->ocr_avail);
+
 				if (mmc_send_app_op_cond(host, 0, &ocr))
 					goto out_fail;
 
