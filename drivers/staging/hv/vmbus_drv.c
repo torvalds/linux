@@ -145,7 +145,6 @@ static const struct hv_guid gVmbusDeviceId = {
 	}
 };
 
-static struct hv_driver *gDriver; /* vmbus driver object */
 static struct hv_device *gDevice; /* vmbus root device */
 
 /*
@@ -326,8 +325,6 @@ static int VmbusInitialize(struct hv_driver *driver)
 	if (ret != 0)
 		DPRINT_ERR(VMBUS, "Unable to initialize the hypervisor - 0x%x",
 				ret);
-	gDriver = driver;
-
 	return ret;
 }
 
