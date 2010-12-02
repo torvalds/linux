@@ -238,7 +238,7 @@ void dpi_set_timings(struct omap_dss_device *dssdev,
 	dssdev->panel.timings = *timings;
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
 		dpi_set_mode(dssdev);
-		dispc_go(OMAP_DSS_CHANNEL_LCD);
+		dispc_go(dssdev->manager->id);
 	}
 }
 EXPORT_SYMBOL(dpi_set_timings);

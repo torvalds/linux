@@ -234,6 +234,17 @@ void dispc_save_context(void)
 	SR(GLOBAL_ALPHA);
 	SR(SIZE_DIG);
 	SR(SIZE_LCD(0));
+	if (dss_has_feature(FEAT_MGR_LCD2)) {
+		SR(CONTROL2);
+		SR(DEFAULT_COLOR(2));
+		SR(TRANS_COLOR(2));
+		SR(SIZE_LCD(2));
+		SR(TIMING_H(2));
+		SR(TIMING_V(2));
+		SR(POL_FREQ(2));
+		SR(DIVISOR(2));
+		SR(CONFIG2);
+	}
 
 	SR(GFX_BA0);
 	SR(GFX_BA1);
@@ -253,6 +264,15 @@ void dispc_save_context(void)
 	SR(CPR_COEF_R(0));
 	SR(CPR_COEF_G(0));
 	SR(CPR_COEF_B(0));
+	if (dss_has_feature(FEAT_MGR_LCD2)) {
+		SR(CPR_COEF_B(2));
+		SR(CPR_COEF_G(2));
+		SR(CPR_COEF_R(2));
+
+		SR(DATA_CYCLE1(2));
+		SR(DATA_CYCLE2(2));
+		SR(DATA_CYCLE3(2));
+	}
 
 	SR(GFX_PRELOAD);
 
@@ -373,6 +393,16 @@ void dispc_restore_context(void)
 	RR(GLOBAL_ALPHA);
 	RR(SIZE_DIG);
 	RR(SIZE_LCD(0));
+	if (dss_has_feature(FEAT_MGR_LCD2)) {
+		RR(DEFAULT_COLOR(2));
+		RR(TRANS_COLOR(2));
+		RR(SIZE_LCD(2));
+		RR(TIMING_H(2));
+		RR(TIMING_V(2));
+		RR(POL_FREQ(2));
+		RR(DIVISOR(2));
+		RR(CONFIG2);
+	}
 
 	RR(GFX_BA0);
 	RR(GFX_BA1);
@@ -392,6 +422,15 @@ void dispc_restore_context(void)
 	RR(CPR_COEF_R(0));
 	RR(CPR_COEF_G(0));
 	RR(CPR_COEF_B(0));
+	if (dss_has_feature(FEAT_MGR_LCD2)) {
+		RR(DATA_CYCLE1(2));
+		RR(DATA_CYCLE2(2));
+		RR(DATA_CYCLE3(2));
+
+		RR(CPR_COEF_B(2));
+		RR(CPR_COEF_G(2));
+		RR(CPR_COEF_R(2));
+	}
 
 	RR(GFX_PRELOAD);
 
@@ -495,7 +534,8 @@ void dispc_restore_context(void)
 
 	/* enable last, because LCD & DIGIT enable are here */
 	RR(CONTROL);
-
+	if (dss_has_feature(FEAT_MGR_LCD2))
+		RR(CONTROL2);
 	/* clear spurious SYNC_LOST_DIGIT interrupts */
 	dispc_write_reg(DISPC_IRQSTATUS, DISPC_IRQ_SYNC_LOST_DIGIT);
 
@@ -521,42 +561,63 @@ bool dispc_go_busy(enum omap_channel channel)
 {
 	int bit;
 
-	if (channel == OMAP_DSS_CHANNEL_LCD)
+	if (channel == OMAP_DSS_CHANNEL_LCD ||
+			channel == OMAP_DSS_CHANNEL_LCD2)
 		bit = 5; /* GOLCD */
 	else
 		bit = 6; /* GODIGIT */
 
-	return REG_GET(DISPC_CONTROL, bit, bit) == 1;
+	if (channel == OMAP_DSS_CHANNEL_LCD2)
+		return REG_GET(DISPC_CONTROL2, bit, bit) == 1;
+	else
+		return REG_GET(DISPC_CONTROL, bit, bit) == 1;
 }
 
 void dispc_go(enum omap_channel channel)
 {
 	int bit;
+	bool enable_bit, go_bit;
 
 	enable_clocks(1);
 
-	if (channel == OMAP_DSS_CHANNEL_LCD)
+	if (channel == OMAP_DSS_CHANNEL_LCD ||
+			channel == OMAP_DSS_CHANNEL_LCD2)
 		bit = 0; /* LCDENABLE */
 	else
 		bit = 1; /* DIGITALENABLE */
 
 	/* if the channel is not enabled, we don't need GO */
-	if (REG_GET(DISPC_CONTROL, bit, bit) == 0)
+	if (channel == OMAP_DSS_CHANNEL_LCD2)
+		enable_bit = REG_GET(DISPC_CONTROL2, bit, bit) == 1;
+	else
+		enable_bit = REG_GET(DISPC_CONTROL, bit, bit) == 1;
+
+	if (!enable_bit)
 		goto end;
 
-	if (channel == OMAP_DSS_CHANNEL_LCD)
+	if (channel == OMAP_DSS_CHANNEL_LCD ||
+			channel == OMAP_DSS_CHANNEL_LCD2)
 		bit = 5; /* GOLCD */
 	else
 		bit = 6; /* GODIGIT */
 
-	if (REG_GET(DISPC_CONTROL, bit, bit) == 1) {
+	if (channel == OMAP_DSS_CHANNEL_LCD2)
+		go_bit = REG_GET(DISPC_CONTROL2, bit, bit) == 1;
+	else
+		go_bit = REG_GET(DISPC_CONTROL, bit, bit) == 1;
+
+	if (go_bit) {
 		DSSERR("GO bit not down for channel %d\n", channel);
 		goto end;
 	}
 
-	DSSDBG("GO %s\n", channel == OMAP_DSS_CHANNEL_LCD ? "LCD" : "DIGIT");
+	DSSDBG("GO %s\n", channel == OMAP_DSS_CHANNEL_LCD ? "LCD" :
+		(channel == OMAP_DSS_CHANNEL_LCD2 ? "LCD2" : "DIGIT"));
 
-	REG_FLD_MOD(DISPC_CONTROL, 1, bit, bit);
+	if (channel == OMAP_DSS_CHANNEL_LCD2)
+		REG_FLD_MOD(DISPC_CONTROL2, 1, bit, bit);
+	else
+		REG_FLD_MOD(DISPC_CONTROL, 1, bit, bit);
 end:
 	enable_clocks(0);
 }
@@ -869,6 +930,7 @@ static void _dispc_set_channel_out(enum omap_plane plane,
 {
 	int shift;
 	u32 val;
+	int chan = 0, chan2 = 0;
 
 	switch (plane) {
 	case OMAP_DSS_GFX:
@@ -884,7 +946,29 @@ static void _dispc_set_channel_out(enum omap_plane plane,
 	}
 
 	val = dispc_read_reg(dispc_reg_att[plane]);
-	val = FLD_MOD(val, channel, shift, shift);
+	if (dss_has_feature(FEAT_MGR_LCD2)) {
+		switch (channel) {
+		case OMAP_DSS_CHANNEL_LCD:
+			chan = 0;
+			chan2 = 0;
+			break;
+		case OMAP_DSS_CHANNEL_DIGIT:
+			chan = 1;
+			chan2 = 0;
+			break;
+		case OMAP_DSS_CHANNEL_LCD2:
+			chan = 0;
+			chan2 = 1;
+			break;
+		default:
+			BUG();
+		}
+
+		val = FLD_MOD(val, chan, shift, shift);
+		val = FLD_MOD(val, chan2, 31, 30);
+	} else {
+		val = FLD_MOD(val, channel, shift, shift);
+	}
 	dispc_write_reg(dispc_reg_att[plane], val);
 }
 
@@ -1688,36 +1772,44 @@ static void dispc_disable_isr(void *data, u32 mask)
 	complete(compl);
 }
 
-static void _enable_lcd_out(bool enable)
+static void _enable_lcd_out(enum omap_channel channel, bool enable)
 {
-	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 0, 0);
+	if (channel == OMAP_DSS_CHANNEL_LCD2)
+		REG_FLD_MOD(DISPC_CONTROL2, enable ? 1 : 0, 0, 0);
+	else
+		REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 0, 0);
 }
 
-static void dispc_enable_lcd_out(bool enable)
+static void dispc_enable_lcd_out(enum omap_channel channel, bool enable)
 {
 	struct completion frame_done_completion;
 	bool is_on;
 	int r;
+	u32 irq;
 
 	enable_clocks(1);
 
 	/* When we disable LCD output, we need to wait until frame is done.
 	 * Otherwise the DSS is still working, and turning off the clocks
 	 * prevents DSS from going to OFF mode */
-	is_on = REG_GET(DISPC_CONTROL, 0, 0);
+	is_on = channel == OMAP_DSS_CHANNEL_LCD2 ?
+			REG_GET(DISPC_CONTROL2, 0, 0) :
+			REG_GET(DISPC_CONTROL, 0, 0);
+
+	irq = channel == OMAP_DSS_CHANNEL_LCD2 ? DISPC_IRQ_FRAMEDONE2 :
+			DISPC_IRQ_FRAMEDONE;
 
 	if (!enable && is_on) {
 		init_completion(&frame_done_completion);
 
 		r = omap_dispc_register_isr(dispc_disable_isr,
-				&frame_done_completion,
-				DISPC_IRQ_FRAMEDONE);
+				&frame_done_completion, irq);
 
 		if (r)
 			DSSERR("failed to register FRAMEDONE isr\n");
 	}
 
-	_enable_lcd_out(enable);
+	_enable_lcd_out(channel, enable);
 
 	if (!enable && is_on) {
 		if (!wait_for_completion_timeout(&frame_done_completion,
@@ -1725,8 +1817,7 @@ static void dispc_enable_lcd_out(bool enable)
 			DSSERR("timeout waiting for FRAME DONE\n");
 
 		r = omap_dispc_unregister_isr(dispc_disable_isr,
-				&frame_done_completion,
-				DISPC_IRQ_FRAMEDONE);
+				&frame_done_completion, irq);
 
 		if (r)
 			DSSERR("failed to unregister FRAMEDONE isr\n");
@@ -1796,6 +1887,8 @@ static void dispc_enable_digit_out(bool enable)
 		unsigned long flags;
 		spin_lock_irqsave(&dispc.irq_lock, flags);
 		dispc.irq_error_mask = DISPC_IRQ_MASK_ERROR;
+		if (dss_has_feature(FEAT_MGR_LCD2))
+			dispc.irq_error_mask |= DISPC_IRQ_SYNC_LOST2;
 		dispc_write_reg(DISPC_IRQSTATUS, DISPC_IRQ_SYNC_LOST_DIGIT);
 		_omap_dispc_set_irqs();
 		spin_unlock_irqrestore(&dispc.irq_lock, flags);
@@ -1810,14 +1903,17 @@ bool dispc_is_channel_enabled(enum omap_channel channel)
 		return !!REG_GET(DISPC_CONTROL, 0, 0);
 	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
 		return !!REG_GET(DISPC_CONTROL, 1, 1);
+	else if (channel == OMAP_DSS_CHANNEL_LCD2)
+		return !!REG_GET(DISPC_CONTROL2, 0, 0);
 	else
 		BUG();
 }
 
 void dispc_enable_channel(enum omap_channel channel, bool enable)
 {
-	if (channel == OMAP_DSS_CHANNEL_LCD)
-		dispc_enable_lcd_out(enable);
+	if (channel == OMAP_DSS_CHANNEL_LCD ||
+			channel == OMAP_DSS_CHANNEL_LCD2)
+		dispc_enable_lcd_out(channel, enable);
 	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
 		dispc_enable_digit_out(enable);
 	else
@@ -1848,7 +1944,10 @@ void dispc_pck_free_enable(bool enable)
 void dispc_enable_fifohandcheck(enum omap_channel channel, bool enable)
 {
 	enable_clocks(1);
-	REG_FLD_MOD(DISPC_CONFIG, enable ? 1 : 0, 16, 16);
+	if (channel == OMAP_DSS_CHANNEL_LCD2)
+		REG_FLD_MOD(DISPC_CONFIG2, enable ? 1 : 0, 16, 16);
+	else
+		REG_FLD_MOD(DISPC_CONFIG, enable ? 1 : 0, 16, 16);
 	enable_clocks(0);
 }
 
@@ -1873,7 +1972,10 @@ void dispc_set_lcd_display_type(enum omap_channel channel,
 	}
 
 	enable_clocks(1);
-	REG_FLD_MOD(DISPC_CONTROL, mode, 3, 3);
+	if (channel == OMAP_DSS_CHANNEL_LCD2)
+		REG_FLD_MOD(DISPC_CONTROL2, mode, 3, 3);
+	else
+		REG_FLD_MOD(DISPC_CONTROL, mode, 3, 3);
 	enable_clocks(0);
 }
 
@@ -1897,7 +1999,8 @@ u32 dispc_get_default_color(enum omap_channel channel)
 	u32 l;
 
 	BUG_ON(channel != OMAP_DSS_CHANNEL_DIGIT &&
-	       channel != OMAP_DSS_CHANNEL_LCD);
+		channel != OMAP_DSS_CHANNEL_LCD &&
+		channel != OMAP_DSS_CHANNEL_LCD2);
 
 	enable_clocks(1);
 	l = dispc_read_reg(DISPC_DEFAULT_COLOR(channel));
@@ -1913,8 +2016,10 @@ void dispc_set_trans_key(enum omap_channel ch,
 	enable_clocks(1);
 	if (ch == OMAP_DSS_CHANNEL_LCD)
 		REG_FLD_MOD(DISPC_CONFIG, type, 11, 11);
-	else /* OMAP_DSS_CHANNEL_DIGIT */
+	else if (ch == OMAP_DSS_CHANNEL_DIGIT)
 		REG_FLD_MOD(DISPC_CONFIG, type, 13, 13);
+	else /* OMAP_DSS_CHANNEL_LCD2 */
+		REG_FLD_MOD(DISPC_CONFIG2, type, 11, 11);
 
 	dispc_write_reg(DISPC_TRANS_COLOR(ch), trans_key);
 	enable_clocks(0);
@@ -1930,6 +2035,8 @@ void dispc_get_trans_key(enum omap_channel ch,
 			*type = REG_GET(DISPC_CONFIG, 11, 11);
 		else if (ch == OMAP_DSS_CHANNEL_DIGIT)
 			*type = REG_GET(DISPC_CONFIG, 13, 13);
+		else if (ch == OMAP_DSS_CHANNEL_LCD2)
+			*type = REG_GET(DISPC_CONFIG2, 11, 11);
 		else
 			BUG();
 	}
@@ -1944,8 +2051,10 @@ void dispc_enable_trans_key(enum omap_channel ch, bool enable)
 	enable_clocks(1);
 	if (ch == OMAP_DSS_CHANNEL_LCD)
 		REG_FLD_MOD(DISPC_CONFIG, enable, 10, 10);
-	else /* OMAP_DSS_CHANNEL_DIGIT */
+	else if (ch == OMAP_DSS_CHANNEL_DIGIT)
 		REG_FLD_MOD(DISPC_CONFIG, enable, 12, 12);
+	else /* OMAP_DSS_CHANNEL_LCD2 */
+		REG_FLD_MOD(DISPC_CONFIG2, enable, 10, 10);
 	enable_clocks(0);
 }
 void dispc_enable_alpha_blending(enum omap_channel ch, bool enable)
@@ -1956,8 +2065,10 @@ void dispc_enable_alpha_blending(enum omap_channel ch, bool enable)
 	enable_clocks(1);
 	if (ch == OMAP_DSS_CHANNEL_LCD)
 		REG_FLD_MOD(DISPC_CONFIG, enable, 18, 18);
-	else /* OMAP_DSS_CHANNEL_DIGIT */
+	else if (ch == OMAP_DSS_CHANNEL_DIGIT)
 		REG_FLD_MOD(DISPC_CONFIG, enable, 19, 19);
+	else /* OMAP_DSS_CHANNEL_LCD2 */
+		REG_FLD_MOD(DISPC_CONFIG2, enable, 18, 18);
 	enable_clocks(0);
 }
 bool dispc_alpha_blending_enabled(enum omap_channel ch)
@@ -1972,6 +2083,8 @@ bool dispc_alpha_blending_enabled(enum omap_channel ch)
 		enabled = REG_GET(DISPC_CONFIG, 18, 18);
 	else if (ch == OMAP_DSS_CHANNEL_DIGIT)
 		enabled = REG_GET(DISPC_CONFIG, 19, 19);
+	else if (ch == OMAP_DSS_CHANNEL_LCD2)
+		enabled = REG_GET(DISPC_CONFIG2, 18, 18);
 	else
 		BUG();
 	enable_clocks(0);
@@ -1989,6 +2102,8 @@ bool dispc_trans_key_enabled(enum omap_channel ch)
 		enabled = REG_GET(DISPC_CONFIG, 10, 10);
 	else if (ch == OMAP_DSS_CHANNEL_DIGIT)
 		enabled = REG_GET(DISPC_CONFIG, 12, 12);
+	else if (ch == OMAP_DSS_CHANNEL_LCD2)
+		enabled = REG_GET(DISPC_CONFIG2, 10, 10);
 	else
 		BUG();
 	enable_clocks(0);
@@ -2020,7 +2135,10 @@ void dispc_set_tft_data_lines(enum omap_channel channel, u8 data_lines)
 	}
 
 	enable_clocks(1);
-	REG_FLD_MOD(DISPC_CONTROL, code, 9, 8);
+	if (channel == OMAP_DSS_CHANNEL_LCD2)
+		REG_FLD_MOD(DISPC_CONTROL2, code, 9, 8);
+	else
+		REG_FLD_MOD(DISPC_CONTROL, code, 9, 8);
 	enable_clocks(0);
 }
 
@@ -2055,15 +2173,17 @@ void dispc_set_parallel_interface_mode(enum omap_channel channel,
 
 	enable_clocks(1);
 
-	l = dispc_read_reg(DISPC_CONTROL);
-
-	l = FLD_MOD(l, stallmode, 11, 11);
-
-	if (channel == OMAP_DSS_CHANNEL_LCD) {
+	if (channel == OMAP_DSS_CHANNEL_LCD2) {
+		l = dispc_read_reg(DISPC_CONTROL2);
+		l = FLD_MOD(l, stallmode, 11, 11);
+		dispc_write_reg(DISPC_CONTROL2, l);
+	} else {
+		l = dispc_read_reg(DISPC_CONTROL);
+		l = FLD_MOD(l, stallmode, 11, 11);
 		l = FLD_MOD(l, gpout0, 15, 15);
 		l = FLD_MOD(l, gpout1, 16, 16);
+		dispc_write_reg(DISPC_CONTROL, l);
 	}
-	dispc_write_reg(DISPC_CONTROL, l);
 
 	enable_clocks(0);
 }
@@ -2148,7 +2268,8 @@ void dispc_set_lcd_timings(enum omap_channel channel,
 	ht = (timings->pixel_clock * 1000) / xtot;
 	vt = (timings->pixel_clock * 1000) / xtot / ytot;
 
-	DSSDBG("xres %u yres %u\n", timings->x_res, timings->y_res);
+	DSSDBG("channel %d xres %u yres %u\n", channel, timings->x_res,
+			timings->y_res);
 	DSSDBG("pck %u\n", timings->pixel_clock);
 	DSSDBG("hsw %d hfp %d hbp %d vsw %d vfp %d vbp %d\n",
 			timings->hsw, timings->hfp, timings->hbp,
@@ -2169,10 +2290,11 @@ static void dispc_set_lcd_divisor(enum omap_channel channel, u16 lck_div,
 	enable_clocks(0);
 }
 
-static void dispc_get_lcd_divisor(int *lck_div, int *pck_div)
+static void dispc_get_lcd_divisor(enum omap_channel channel, int *lck_div,
+		int *pck_div)
 {
 	u32 l;
-	l = dispc_read_reg(DISPC_DIVISOR(OMAP_DSS_CHANNEL_LCD));
+	l = dispc_read_reg(DISPC_DIVISOR(channel));
 	*lck_div = FLD_GET(l, 23, 16);
 	*pck_div = FLD_GET(l, 7, 0);
 }
@@ -2229,8 +2351,6 @@ void dispc_dump_clocks(struct seq_file *s)
 
 	enable_clocks(1);
 
-	dispc_get_lcd_divisor(&lcd, &pcd);
-
 	seq_printf(s, "- DISPC -\n");
 
 	seq_printf(s, "dispc fclk source = %s\n",
@@ -2238,11 +2358,25 @@ void dispc_dump_clocks(struct seq_file *s)
 			"dss1_alwon_fclk" : "dsi1_pll_fclk");
 
 	seq_printf(s, "fck\t\t%-16lu\n", dispc_fclk_rate());
+
+	seq_printf(s, "- LCD1 -\n");
+
+	dispc_get_lcd_divisor(OMAP_DSS_CHANNEL_LCD, &lcd, &pcd);
+
 	seq_printf(s, "lck\t\t%-16lulck div\t%u\n",
 			dispc_lclk_rate(OMAP_DSS_CHANNEL_LCD), lcd);
 	seq_printf(s, "pck\t\t%-16lupck div\t%u\n",
 			dispc_pclk_rate(OMAP_DSS_CHANNEL_LCD), pcd);
+	if (dss_has_feature(FEAT_MGR_LCD2)) {
+		seq_printf(s, "- LCD2 -\n");
 
+		dispc_get_lcd_divisor(OMAP_DSS_CHANNEL_LCD2, &lcd, &pcd);
+
+		seq_printf(s, "lck\t\t%-16lulck div\t%u\n",
+				dispc_lclk_rate(OMAP_DSS_CHANNEL_LCD2), lcd);
+		seq_printf(s, "pck\t\t%-16lupck div\t%u\n",
+				dispc_pclk_rate(OMAP_DSS_CHANNEL_LCD2), pcd);
+	}
 	enable_clocks(0);
 }
 
@@ -2284,6 +2418,12 @@ void dispc_dump_irqs(struct seq_file *s)
 	PIS(SYNC_LOST);
 	PIS(SYNC_LOST_DIGIT);
 	PIS(WAKEUP);
+	if (dss_has_feature(FEAT_MGR_LCD2)) {
+		PIS(FRAMEDONE2);
+		PIS(VSYNC2);
+		PIS(ACBIAS_COUNT_STAT2);
+		PIS(SYNC_LOST2);
+	}
 #undef PIS
 }
 #endif
@@ -2315,6 +2455,17 @@ void dispc_dump_regs(struct seq_file *s)
 	DUMPREG(DISPC_GLOBAL_ALPHA);
 	DUMPREG(DISPC_SIZE_DIG);
 	DUMPREG(DISPC_SIZE_LCD(0));
+	if (dss_has_feature(FEAT_MGR_LCD2)) {
+		DUMPREG(DISPC_CONTROL2);
+		DUMPREG(DISPC_CONFIG2);
+		DUMPREG(DISPC_DEFAULT_COLOR(2));
+		DUMPREG(DISPC_TRANS_COLOR(2));
+		DUMPREG(DISPC_TIMING_H(2));
+		DUMPREG(DISPC_TIMING_V(2));
+		DUMPREG(DISPC_POL_FREQ(2));
+		DUMPREG(DISPC_DIVISOR(2));
+		DUMPREG(DISPC_SIZE_LCD(2));
+	}
 
 	DUMPREG(DISPC_GFX_BA0);
 	DUMPREG(DISPC_GFX_BA1);
@@ -2335,6 +2486,15 @@ void dispc_dump_regs(struct seq_file *s)
 	DUMPREG(DISPC_CPR_COEF_R(0));
 	DUMPREG(DISPC_CPR_COEF_G(0));
 	DUMPREG(DISPC_CPR_COEF_B(0));
+	if (dss_has_feature(FEAT_MGR_LCD2)) {
+		DUMPREG(DISPC_DATA_CYCLE1(2));
+		DUMPREG(DISPC_DATA_CYCLE2(2));
+		DUMPREG(DISPC_DATA_CYCLE3(2));
+
+		DUMPREG(DISPC_CPR_COEF_R(2));
+		DUMPREG(DISPC_CPR_COEF_G(2));
+		DUMPREG(DISPC_CPR_COEF_B(2));
+	}
 
 	DUMPREG(DISPC_GFX_PRELOAD);
 
@@ -2686,6 +2846,8 @@ static void print_irq_status(u32 status)
 	PIS(VID2_FIFO_UNDERFLOW);
 	PIS(SYNC_LOST);
 	PIS(SYNC_LOST_DIGIT);
+	if (dss_has_feature(FEAT_MGR_LCD2))
+		PIS(SYNC_LOST2);
 #undef PIS
 
 	printk("\n");
@@ -2904,6 +3066,45 @@ static void dispc_error_worker(struct work_struct *work)
 		}
 	}
 
+	if (errors & DISPC_IRQ_SYNC_LOST2) {
+		struct omap_overlay_manager *manager = NULL;
+		bool enable = false;
+
+		DSSERR("SYNC_LOST for LCD2, disabling LCD2\n");
+
+		for (i = 0; i < omap_dss_get_num_overlay_managers(); ++i) {
+			struct omap_overlay_manager *mgr;
+			mgr = omap_dss_get_overlay_manager(i);
+
+			if (mgr->id == OMAP_DSS_CHANNEL_LCD2) {
+				manager = mgr;
+				enable = mgr->device->state ==
+						OMAP_DSS_DISPLAY_ACTIVE;
+				mgr->device->driver->disable(mgr->device);
+				break;
+			}
+		}
+
+		if (manager) {
+			struct omap_dss_device *dssdev = manager->device;
+			for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
+				struct omap_overlay *ovl;
+				ovl = omap_dss_get_overlay(i);
+
+				if (!(ovl->caps & OMAP_DSS_OVL_CAP_DISPC))
+					continue;
+
+				if (ovl->id != 0 && ovl->manager == manager)
+					dispc_enable_plane(ovl->id, 0);
+			}
+
+			dispc_go(manager->id);
+			mdelay(50);
+			if (enable)
+				dssdev->driver->enable(dssdev);
+		}
+	}
+
 	if (errors & DISPC_IRQ_OCP_ERR) {
 		DSSERR("OCP_ERR\n");
 		for (i = 0; i < omap_dss_get_num_overlay_managers(); ++i) {
@@ -3011,6 +3212,8 @@ static void _omap_dispc_initialize_irq(void)
 	memset(dispc.registered_isr, 0, sizeof(dispc.registered_isr));
 
 	dispc.irq_error_mask = DISPC_IRQ_MASK_ERROR;
+	if (dss_has_feature(FEAT_MGR_LCD2))
+		dispc.irq_error_mask |= DISPC_IRQ_SYNC_LOST2;
 
 	/* there's SYNC_LOST_DIGIT waiting after enabling the DSS,
 	 * so clear it */
