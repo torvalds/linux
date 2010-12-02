@@ -2685,7 +2685,7 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 	ah->ah_cal_next_full = jiffies;
 	ah->ah_cal_next_ani = jiffies;
 	ah->ah_cal_next_nf = jiffies;
-	ewma_init(&ah->ah_beacon_rssi_avg, 1000, 8);
+	ewma_init(&ah->ah_beacon_rssi_avg, 1024, 8);
 
 	/*
 	 * Change channels and update the h/w rate map if we're switching;
