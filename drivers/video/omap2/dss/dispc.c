@@ -1922,6 +1922,9 @@ void dispc_enable_channel(enum omap_channel channel, bool enable)
 
 void dispc_lcd_enable_signal_polarity(bool act_high)
 {
+	if (!dss_has_feature(FEAT_LCDENABLEPOL))
+		return;
+
 	enable_clocks(1);
 	REG_FLD_MOD(DISPC_CONTROL, act_high ? 1 : 0, 29, 29);
 	enable_clocks(0);
@@ -1929,6 +1932,9 @@ void dispc_lcd_enable_signal_polarity(bool act_high)
 
 void dispc_lcd_enable_signal(bool enable)
 {
+	if (!dss_has_feature(FEAT_LCDENABLESIGNAL))
+		return;
+
 	enable_clocks(1);
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 28, 28);
 	enable_clocks(0);
@@ -1936,6 +1942,9 @@ void dispc_lcd_enable_signal(bool enable)
 
 void dispc_pck_free_enable(bool enable)
 {
+	if (!dss_has_feature(FEAT_PCKFREEENABLE))
+		return;
+
 	enable_clocks(1);
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 27, 27);
 	enable_clocks(0);
@@ -3246,7 +3255,8 @@ static void _omap_dispc_initial_config(void)
 	dispc_write_reg(DISPC_SYSCONFIG, l);
 
 	/* FUNCGATED */
-	REG_FLD_MOD(DISPC_CONFIG, 1, 9, 9);
+	if (dss_has_feature(FEAT_FUNCGATED))
+		REG_FLD_MOD(DISPC_CONFIG, 1, 9, 9);
 
 	/* L3 firewall setting: enable access to OCM RAM */
 	/* XXX this should be somewhere in plat-omap */
