@@ -45,7 +45,7 @@ extern void zfcp_cfdc_adapter_access_changed(struct zfcp_adapter *);
 
 /* zfcp_dbf.c */
 extern int zfcp_dbf_adapter_register(struct zfcp_adapter *);
-extern void zfcp_dbf_adapter_unregister(struct zfcp_dbf *);
+extern void zfcp_dbf_adapter_unregister(struct zfcp_adapter *);
 extern void zfcp_dbf_rec_trig(char *, struct zfcp_adapter *,
 			      struct zfcp_port *, struct scsi_device *, u8, u8);
 extern void zfcp_dbf_rec_run(char *, struct zfcp_erp_action *);
@@ -61,19 +61,17 @@ extern void zfcp_dbf_scsi(char *, struct scsi_cmnd *, struct zfcp_fsf_req *);
 /* zfcp_erp.c */
 extern void zfcp_erp_set_adapter_status(struct zfcp_adapter *, u32);
 extern void zfcp_erp_clear_adapter_status(struct zfcp_adapter *, u32);
-extern void zfcp_erp_adapter_reopen(struct zfcp_adapter *, int, char *, void *);
-extern void zfcp_erp_adapter_shutdown(struct zfcp_adapter *, int, char *,
-				      void *);
+extern void zfcp_erp_adapter_reopen(struct zfcp_adapter *, int, char *);
+extern void zfcp_erp_adapter_shutdown(struct zfcp_adapter *, int, char *);
 extern void zfcp_erp_set_port_status(struct zfcp_port *, u32);
 extern void zfcp_erp_clear_port_status(struct zfcp_port *, u32);
-extern int  zfcp_erp_port_reopen(struct zfcp_port *, int, char *, void *);
-extern void zfcp_erp_port_shutdown(struct zfcp_port *, int, char *, void *);
-extern void zfcp_erp_port_forced_reopen(struct zfcp_port *, int, char *,
-					void *);
+extern int  zfcp_erp_port_reopen(struct zfcp_port *, int, char *);
+extern void zfcp_erp_port_shutdown(struct zfcp_port *, int, char *);
+extern void zfcp_erp_port_forced_reopen(struct zfcp_port *, int, char *);
 extern void zfcp_erp_set_lun_status(struct scsi_device *, u32);
 extern void zfcp_erp_clear_lun_status(struct scsi_device *, u32);
-extern void zfcp_erp_lun_reopen(struct scsi_device *, int, char *, void *);
-extern void zfcp_erp_lun_shutdown(struct scsi_device *, int, char *, void *);
+extern void zfcp_erp_lun_reopen(struct scsi_device *, int, char *);
+extern void zfcp_erp_lun_shutdown(struct scsi_device *, int, char *);
 extern void zfcp_erp_lun_shutdown_wait(struct scsi_device *, char *);
 extern int  zfcp_erp_thread_setup(struct zfcp_adapter *);
 extern void zfcp_erp_thread_kill(struct zfcp_adapter *);

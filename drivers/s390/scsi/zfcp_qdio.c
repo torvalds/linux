@@ -41,7 +41,7 @@ static void zfcp_qdio_handler_error(struct zfcp_qdio *qdio, char *id,
 		zfcp_qdio_siosl(adapter);
 	zfcp_erp_adapter_reopen(adapter,
 				ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
-				ZFCP_STATUS_COMMON_ERP_FAILED, id, NULL);
+				ZFCP_STATUS_COMMON_ERP_FAILED, id);
 }
 
 static void zfcp_qdio_zero_sbals(struct qdio_buffer *sbal[], int first, int cnt)
@@ -114,7 +114,7 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 	 * put SBALs back to response queue
 	 */
 	if (do_QDIO(cdev, QDIO_FLAG_SYNC_INPUT, 0, idx, count))
-		zfcp_erp_adapter_reopen(qdio->adapter, 0, "qdires2", NULL);
+		zfcp_erp_adapter_reopen(qdio->adapter, 0, "qdires2");
 }
 
 static struct qdio_buffer_element *
@@ -234,7 +234,7 @@ int zfcp_qdio_sbal_get(struct zfcp_qdio *qdio)
 	if (!ret) {
 		atomic_inc(&qdio->req_q_full);
 		/* assume hanging outbound queue, try queue recovery */
-		zfcp_erp_adapter_reopen(qdio->adapter, 0, "qdsbg_1", NULL);
+		zfcp_erp_adapter_reopen(qdio->adapter, 0, "qdsbg_1");
 	}
 
 	spin_lock_irq(&qdio->req_q_lock);

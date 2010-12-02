@@ -154,7 +154,7 @@ static int zfcp_scsi_slave_alloc(struct scsi_device *sdev)
 	spin_lock_init(&zfcp_sdev->latencies.lock);
 
 	zfcp_erp_set_lun_status(sdev, ZFCP_STATUS_COMMON_RUNNING);
-	zfcp_erp_lun_reopen(sdev, 0, "scsla_1", NULL);
+	zfcp_erp_lun_reopen(sdev, 0, "scsla_1");
 	zfcp_erp_wait(port->adapter);
 
 	return 0;
@@ -278,7 +278,7 @@ static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 	struct zfcp_adapter *adapter = zfcp_sdev->port->adapter;
 	int ret;
 
-	zfcp_erp_adapter_reopen(adapter, 0, "schrh_1", scpnt);
+	zfcp_erp_adapter_reopen(adapter, 0, "schrh_1");
 	zfcp_erp_wait(adapter);
 	ret = fc_block_scsi_eh(scpnt);
 	if (ret)
@@ -516,7 +516,7 @@ static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 	port = zfcp_get_port_by_wwpn(adapter, rport->port_name);
 
 	if (port) {
-		zfcp_erp_port_forced_reopen(port, 0, "sctrpi1", NULL);
+		zfcp_erp_port_forced_reopen(port, 0, "sctrpi1");
 		put_device(&port->dev);
 	}
 }

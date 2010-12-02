@@ -377,24 +377,35 @@ void zfcp_dbf_scsi(char *tag, struct scsi_cmnd *sc, struct zfcp_fsf_req *fsf)
 		}
 	}
 
-	debug_event(adapter->dbf->scsi, 1, rec, sizeof(*rec));
+	debug_event(dbf->scsi, 1, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->scsi_lock, flags);
 }
 
-static debug_info_t *zfcp_dbf_reg(const char *name, int level,
-				  struct debug_view *view, int size)
+static debug_info_t *zfcp_dbf_reg(const char *name, int size, int rec_size)
 {
 	struct debug_info *d;
 
-	d = debug_register(name, dbfsize, level, size);
+	d = debug_register(name, size, 1, rec_size);
 	if (!d)
 		return NULL;
 
 	debug_register_view(d, &debug_hex_ascii_view);
-	debug_register_view(d, view);
-	debug_set_level(d, level);
+	debug_set_level(d, 3);
 
 	return d;
+}
+
+static void zfcp_dbf_unregister(struct zfcp_dbf *dbf)
+{
+	if (!dbf)
+		return;
+
+	debug_unregister(dbf->scsi);
+	debug_unregister(dbf->san);
+	debug_unregister(dbf->hba);
+	debug_unregister(dbf->pay);
+	debug_unregister(dbf->rec);
+	kfree(dbf);
 }
 
 /**
@@ -404,14 +415,12 @@ static debug_info_t *zfcp_dbf_reg(const char *name, int level,
  */
 int zfcp_dbf_adapter_register(struct zfcp_adapter *adapter)
 {
-	char dbf_name[DEBUG_MAX_NAME_LEN];
+	char name[DEBUG_MAX_NAME_LEN];
 	struct zfcp_dbf *dbf;
 
 	dbf = kzalloc(sizeof(struct zfcp_dbf), GFP_KERNEL);
 	if (!dbf)
 		return -ENOMEM;
-
-	dbf->adapter = adapter;
 
 	spin_lock_init(&dbf->pay_lock);
 	spin_lock_init(&dbf->hba_lock);
@@ -420,59 +429,52 @@ int zfcp_dbf_adapter_register(struct zfcp_adapter *adapter)
 	spin_lock_init(&dbf->rec_lock);
 
 	/* debug feature area which records recovery activity */
-	sprintf(dbf_name, "zfcp_%s_rec", dev_name(&adapter->ccw_device->dev));
-	dbf->rec = zfcp_dbf_reg(dbf_name, 3, NULL, sizeof(struct zfcp_dbf_rec));
+	sprintf(name, "zfcp_%s_rec", dev_name(&adapter->ccw_device->dev));
+	dbf->rec = zfcp_dbf_reg(name, dbfsize, sizeof(struct zfcp_dbf_rec));
 	if (!dbf->rec)
 		goto err_out;
 
 	/* debug feature area which records HBA (FSF and QDIO) conditions */
-	sprintf(dbf_name, "zfcp_%s_hba", dev_name(&adapter->ccw_device->dev));
-	dbf->hba = zfcp_dbf_reg(dbf_name, 3, NULL, sizeof(struct zfcp_dbf_hba));
+	sprintf(name, "zfcp_%s_hba", dev_name(&adapter->ccw_device->dev));
+	dbf->hba = zfcp_dbf_reg(name, dbfsize, sizeof(struct zfcp_dbf_hba));
 	if (!dbf->hba)
 		goto err_out;
 
 	/* debug feature area which records payload info */
-	sprintf(dbf_name, "zfcp_%s_pay", dev_name(&adapter->ccw_device->dev));
-	dbf->pay = zfcp_dbf_reg(dbf_name, 3, NULL,
-				sizeof(struct zfcp_dbf_pay));
+	sprintf(name, "zfcp_%s_pay", dev_name(&adapter->ccw_device->dev));
+	dbf->pay = zfcp_dbf_reg(name, dbfsize * 2, sizeof(struct zfcp_dbf_pay));
 	if (!dbf->pay)
 		goto err_out;
 
 	/* debug feature area which records SAN command failures and recovery */
-	sprintf(dbf_name, "zfcp_%s_san", dev_name(&adapter->ccw_device->dev));
-	dbf->san = zfcp_dbf_reg(dbf_name, 3, NULL, sizeof(struct zfcp_dbf_san));
+	sprintf(name, "zfcp_%s_san", dev_name(&adapter->ccw_device->dev));
+	dbf->san = zfcp_dbf_reg(name, dbfsize, sizeof(struct zfcp_dbf_san));
 	if (!dbf->san)
 		goto err_out;
 
 	/* debug feature area which records SCSI command failures and recovery */
-	sprintf(dbf_name, "zfcp_%s_scsi", dev_name(&adapter->ccw_device->dev));
-	dbf->scsi = zfcp_dbf_reg(dbf_name, 3, NULL,
-				 sizeof(struct zfcp_dbf_scsi));
+	sprintf(name, "zfcp_%s_scsi", dev_name(&adapter->ccw_device->dev));
+	dbf->scsi = zfcp_dbf_reg(name, dbfsize, sizeof(struct zfcp_dbf_scsi));
 	if (!dbf->scsi)
 		goto err_out;
 
 	adapter->dbf = dbf;
-	return 0;
 
+	return 0;
 err_out:
-	zfcp_dbf_adapter_unregister(dbf);
+	zfcp_dbf_unregister(dbf);
 	return -ENOMEM;
 }
 
 /**
  * zfcp_adapter_debug_unregister - unregisters debug feature for an adapter
- * @dbf: pointer to dbf for which debug features should be unregistered
+ * @adapter: pointer to adapter for which debug features should be unregistered
  */
-void zfcp_dbf_adapter_unregister(struct zfcp_dbf *dbf)
+void zfcp_dbf_adapter_unregister(struct zfcp_adapter *adapter)
 {
-	if (!dbf)
-		return;
-	debug_unregister(dbf->scsi);
-	debug_unregister(dbf->san);
-	debug_unregister(dbf->hba);
-	debug_unregister(dbf->pay);
-	debug_unregister(dbf->rec);
-	dbf->adapter->dbf = NULL;
-	kfree(dbf);
+	struct zfcp_dbf *dbf = adapter->dbf;
+
+	adapter->dbf = NULL;
+	zfcp_dbf_unregister(dbf);
 }
 

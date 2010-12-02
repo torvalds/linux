@@ -14,8 +14,6 @@
 #include "zfcp_def.h"
 
 #define ZFCP_DBF_TAG_LEN       7
-#define ZFCP_DBF_TAG_SIZE      4
-#define ZFCP_DBF_ID_SIZE       7
 
 #define ZFCP_DBF_INVALID_LUN	0xFFFFFFFFFFFFFFFFull
 
@@ -233,13 +231,31 @@ struct zfcp_dbf_scsi {
  * @data: unformatted data
  */
 struct zfcp_dbf_pay {
+	u8 counter;
 	char area[ZFCP_DBF_TAG_LEN];
-	char counter;
 	u64 fsf_req_id;
 #define ZFCP_DBF_PAY_MAX_REC 0x100
 	char data[ZFCP_DBF_PAY_MAX_REC];
 } __packed;
 
+/**
+ * struct zfcp_dbf - main dbf trace structure
+ * @pay: reference to payload trace area
+ * @rec: reference to recovery trace area
+ * @hba: reference to hba trace area
+ * @san: reference to san trace area
+ * @scsi: reference to scsi trace area
+ * @pay_lock: lock protecting payload trace buffer
+ * @rec_lock: lock protecting recovery trace buffer
+ * @hba_lock: lock protecting hba trace buffer
+ * @san_lock: lock protecting san trace buffer
+ * @scsi_lock: lock protecting scsi trace buffer
+ * @pay_buf: pre-allocated buffer for payload
+ * @rec_buf: pre-allocated buffer for recovery
+ * @hba_buf: pre-allocated buffer for hba
+ * @san_buf: pre-allocated buffer for san
+ * @scsi_buf: pre-allocated buffer for scsi
+ */
 struct zfcp_dbf {
 	debug_info_t			*pay;
 	debug_info_t			*rec;
@@ -251,12 +267,11 @@ struct zfcp_dbf {
 	spinlock_t			hba_lock;
 	spinlock_t			san_lock;
 	spinlock_t			scsi_lock;
+	struct zfcp_dbf_pay		pay_buf;
 	struct zfcp_dbf_rec		rec_buf;
 	struct zfcp_dbf_hba		hba_buf;
 	struct zfcp_dbf_san		san_buf;
 	struct zfcp_dbf_scsi		scsi_buf;
-	struct zfcp_dbf_pay		pay_buf;
-	struct zfcp_adapter		*adapter;
 };
 
 static inline
