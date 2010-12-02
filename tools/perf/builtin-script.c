@@ -63,22 +63,11 @@ static int cleanup_scripting(void)
 
 static char const		*input_name = "perf.data";
 
-static int process_sample_event(event_t *event, struct perf_session *session)
+static int process_sample_event(event_t *event, struct sample_data *sample,
+				struct perf_session *session)
 {
-	struct sample_data data;
-	struct thread *thread;
+	struct thread *thread = perf_session__findnew(session, event->ip.pid);
 
-	memset(&data, 0, sizeof(data));
-	data.time = -1;
-	data.cpu = -1;
-	data.period = 1;
-
-	event__parse_sample(event, session->sample_type, &data);
-
-	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
-		    data.pid, data.tid, data.ip, data.period);
-
-	thread = perf_session__findnew(session, event->ip.pid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);
@@ -87,13 +76,13 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 	if (session->sample_type & PERF_SAMPLE_RAW) {
 		if (debug_mode) {
-			if (data.time < last_timestamp) {
+			if (sample->time < last_timestamp) {
 				pr_err("Samples misordered, previous: %llu "
 					"this: %llu\n", last_timestamp,
-					data.time);
+					sample->time);
 				nr_unordered++;
 			}
-			last_timestamp = data.time;
+			last_timestamp = sample->time;
 			return 0;
 		}
 		/*
@@ -101,18 +90,19 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		 * field, although it should be the same than this perf
 		 * event pid
 		 */
-		scripting_ops->process_event(data.cpu, data.raw_data,
-					     data.raw_size,
-					     data.time, thread->comm);
+		scripting_ops->process_event(sample->cpu, sample->raw_data,
+					     sample->raw_size,
+					     sample->time, thread->comm);
 	}
 
-	session->hists.stats.total_period += data.period;
+	session->hists.stats.total_period += sample->period;
 	return 0;
 }
 
 static u64 nr_lost;
 
-static int process_lost_event(event_t *event, struct perf_session *session __used)
+static int process_lost_event(event_t *event, struct sample_data *sample __used,
+			      struct perf_session *session __used)
 {
 	nr_lost += event->lost.lost;
 

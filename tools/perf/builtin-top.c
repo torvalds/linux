@@ -1025,6 +1025,8 @@ static void event__process_sample(const event_t *self,
 	if (self->header.misc & PERF_RECORD_MISC_EXACT_IP)
 		exact_samples++;
 
+	event__parse_sample(self, session->sample_type, &data);
+
 	if (event__preprocess_sample(self, session, &al, &data,
 				     symbol_filter) < 0 ||
 	    al.filtered)
@@ -1155,7 +1157,7 @@ static void perf_session__mmap_read_counter(struct perf_session *self,
 		if (event->header.type == PERF_RECORD_SAMPLE)
 			event__process_sample(event, self, md->counter);
 		else
-			event__process(event, self);
+			event__process(event, NULL, self);
 		old += size;
 	}
 

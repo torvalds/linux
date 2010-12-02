@@ -16,8 +16,8 @@
 static char		const *input_name = "-";
 static bool		inject_build_ids;
 
-static int event__repipe(event_t *event __used,
-			 struct perf_session *session __used)
+static int event__repipe_synth(event_t *event,
+			       struct perf_session *session __used)
 {
 	uint32_t size;
 	void *buf = event;
@@ -36,22 +36,30 @@ static int event__repipe(event_t *event __used,
 	return 0;
 }
 
-static int event__repipe_mmap(event_t *self, struct perf_session *session)
+static int event__repipe(event_t *event, struct sample_data *sample __used,
+			 struct perf_session *session)
+{
+	return event__repipe_synth(event, session);
+}
+
+static int event__repipe_mmap(event_t *self, struct sample_data *sample,
+			      struct perf_session *session)
 {
 	int err;
 
-	err = event__process_mmap(self, session);
-	event__repipe(self, session);
+	err = event__process_mmap(self, sample, session);
+	event__repipe(self, sample, session);
 
 	return err;
 }
 
-static int event__repipe_task(event_t *self, struct perf_session *session)
+static int event__repipe_task(event_t *self, struct sample_data *sample,
+			      struct perf_session *session)
 {
 	int err;
 
-	err = event__process_task(self, session);
-	event__repipe(self, session);
+	err = event__process_task(self, sample, session);
+	event__repipe(self, sample, session);
 
 	return err;
 }
@@ -61,7 +69,7 @@ static int event__repipe_tracing_data(event_t *self,
 {
 	int err;
 
-	event__repipe(self, session);
+	event__repipe_synth(self, session);
 	err = event__process_tracing_data(self, session);
 
 	return err;
@@ -111,7 +119,8 @@ static int dso__inject_build_id(struct dso *self, struct perf_session *session)
 	return 0;
 }
 
-static int event__inject_buildid(event_t *event, struct perf_session *session)
+static int event__inject_buildid(event_t *event, struct sample_data *sample,
+				 struct perf_session *session)
 {
 	struct addr_location al;
 	struct thread *thread;
@@ -146,7 +155,7 @@ static int event__inject_buildid(event_t *event, struct perf_session *session)
 	}
 
 repipe:
-	event__repipe(event, session);
+	event__repipe(event, sample, session);
 	return 0;
 }
 
@@ -160,10 +169,10 @@ struct perf_event_ops inject_ops = {
 	.read		= event__repipe,
 	.throttle	= event__repipe,
 	.unthrottle	= event__repipe,
-	.attr		= event__repipe,
-	.event_type 	= event__repipe,
-	.tracing_data 	= event__repipe,
-	.build_id 	= event__repipe,
+	.attr		= event__repipe_synth,
+	.event_type 	= event__repipe_synth,
+	.tracing_data 	= event__repipe_synth,
+	.build_id 	= event__repipe_synth,
 };
 
 extern volatile int session_done;

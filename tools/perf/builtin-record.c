@@ -36,6 +36,7 @@ static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
 
 static u64			user_interval			= ULLONG_MAX;
 static u64			default_interval		=      0;
+static u64			sample_type;
 
 static int			nr_cpus				=      0;
 static unsigned int		page_size;
@@ -129,6 +130,7 @@ static void write_output(void *buf, size_t size)
 }
 
 static int process_synthesized_event(event_t *event,
+				     struct sample_data *sample __used,
 				     struct perf_session *self __used)
 {
 	write_output(event, event->header.size);
@@ -286,6 +288,9 @@ static void create_counter(int counter, int cpu)
 		attr->sample_type	|= PERF_SAMPLE_RAW;
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 	}
+
+	if (!sample_type)
+		sample_type = attr->sample_type;
 
 	attr->mmap		= track;
 	attr->comm		= track;
@@ -641,6 +646,8 @@ static int __cmd_record(int argc, const char **argv)
 		for (i = 0; i < nr_cpus; i++)
 			open_counters(cpumap[i]);
 	}
+
+	perf_session__set_sample_type(session, sample_type);
 
 	if (pipe_output) {
 		err = perf_header__write_pipe(output);

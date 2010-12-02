@@ -834,22 +834,18 @@ static void dump_info(void)
 		die("Unknown type of information\n");
 }
 
-static int process_sample_event(event_t *self, struct perf_session *s)
+static int process_sample_event(event_t *self, struct sample_data *sample,
+				struct perf_session *s)
 {
-	struct sample_data data;
-	struct thread *thread;
+	struct thread *thread = perf_session__findnew(s, sample->tid);
 
-	bzero(&data, sizeof(data));
-	event__parse_sample(self, s->sample_type, &data);
-
-	thread = perf_session__findnew(s, data.tid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			self->header.type);
 		return -1;
 	}
 
-	process_raw_event(data.raw_data, data.cpu, data.time, thread);
+	process_raw_event(sample->raw_data, sample->cpu, sample->time, thread);
 
 	return 0;
 }

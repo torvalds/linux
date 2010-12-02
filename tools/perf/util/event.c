@@ -24,6 +24,15 @@ const char *event__name[] = {
 	[PERF_RECORD_HEADER_BUILD_ID]	 = "BUILD_ID",
 };
 
+static struct sample_data synth_sample = {
+	.pid	   = -1,
+	.tid	   = -1,
+	.time	   = -1,
+	.stream_id = -1,
+	.cpu	   = -1,
+	.period	   = 1,
+};
+
 static pid_t event__synthesize_comm(pid_t pid, int full,
 				    event__handler_t process,
 				    struct perf_session *session)
@@ -75,7 +84,7 @@ out_race:
 	if (!full) {
 		ev.comm.tid = pid;
 
-		process(&ev, session);
+		process(&ev, &synth_sample, session);
 		goto out_fclose;
 	}
 
@@ -93,7 +102,7 @@ out_race:
 
 		ev.comm.tid = pid;
 
-		process(&ev, session);
+		process(&ev, &synth_sample, session);
 	}
 	closedir(tasks);
 
@@ -173,7 +182,7 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 			ev.mmap.pid = tgid;
 			ev.mmap.tid = pid;
 
-			process(&ev, session);
+			process(&ev, &synth_sample, session);
 		}
 	}
 
@@ -219,7 +228,7 @@ int event__synthesize_modules(event__handler_t process,
 
 		memcpy(ev.mmap.filename, pos->dso->long_name,
 		       pos->dso->long_name_len + 1);
-		process(&ev, session);
+		process(&ev, &synth_sample, session);
 	}
 
 	return 0;
@@ -331,7 +340,7 @@ int event__synthesize_kernel_mmap(event__handler_t process,
 	ev.mmap.len   = map->end - ev.mmap.start;
 	ev.mmap.pid   = machine->pid;
 
-	return process(&ev, session);
+	return process(&ev, &synth_sample, session);
 }
 
 static void thread__comm_adjust(struct thread *self, struct hists *hists)
@@ -361,7 +370,8 @@ static int thread__set_comm_adjust(struct thread *self, const char *comm,
 	return 0;
 }
 
-int event__process_comm(event_t *self, struct perf_session *session)
+int event__process_comm(event_t *self, struct sample_data *sample __used,
+			struct perf_session *session)
 {
 	struct thread *thread = perf_session__findnew(session, self->comm.tid);
 
@@ -376,7 +386,8 @@ int event__process_comm(event_t *self, struct perf_session *session)
 	return 0;
 }
 
-int event__process_lost(event_t *self, struct perf_session *session)
+int event__process_lost(event_t *self, struct sample_data *sample __used,
+			struct perf_session *session)
 {
 	dump_printf(": id:%Ld: lost:%Ld\n", self->lost.id, self->lost.lost);
 	session->hists.stats.total_lost += self->lost.lost;
@@ -485,7 +496,8 @@ out_problem:
 	return -1;
 }
 
-int event__process_mmap(event_t *self, struct perf_session *session)
+int event__process_mmap(event_t *self, struct sample_data *sample __used,
+			struct perf_session *session)
 {
 	struct machine *machine;
 	struct thread *thread;
@@ -526,7 +538,8 @@ out_problem:
 	return 0;
 }
 
-int event__process_task(event_t *self, struct perf_session *session)
+int event__process_task(event_t *self, struct sample_data *sample __used,
+			struct perf_session *session)
 {
 	struct thread *thread = perf_session__findnew(session, self->fork.tid);
 	struct thread *parent = perf_session__findnew(session, self->fork.ptid);
@@ -548,18 +561,19 @@ int event__process_task(event_t *self, struct perf_session *session)
 	return 0;
 }
 
-int event__process(event_t *event, struct perf_session *session)
+int event__process(event_t *event, struct sample_data *sample,
+		   struct perf_session *session)
 {
 	switch (event->header.type) {
 	case PERF_RECORD_COMM:
-		event__process_comm(event, session);
+		event__process_comm(event, sample, session);
 		break;
 	case PERF_RECORD_MMAP:
-		event__process_mmap(event, session);
+		event__process_mmap(event, sample, session);
 		break;
 	case PERF_RECORD_FORK:
 	case PERF_RECORD_EXIT:
-		event__process_task(event, session);
+		event__process_task(event, sample, session);
 		break;
 	default:
 		break;
@@ -674,32 +688,8 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 			     symbol_filter_t filter)
 {
 	u8 cpumode = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-	struct thread *thread;
+	struct thread *thread = perf_session__findnew(session, self->ip.pid);
 
-	event__parse_sample(self, session->sample_type, data);
-
-	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld cpu:%d\n",
-		    self->header.misc, data->pid, data->tid, data->ip,
-		    data->period, data->cpu);
-
-	if (session->sample_type & PERF_SAMPLE_CALLCHAIN) {
-		unsigned int i;
-
-		dump_printf("... chain: nr:%Lu\n", data->callchain->nr);
-
-		if (!ip_callchain__valid(data->callchain, self)) {
-			pr_debug("call-chain problem with event, "
-				 "skipping it.\n");
-			goto out_filtered;
-		}
-
-		if (dump_trace) {
-			for (i = 0; i < data->callchain->nr; i++)
-				dump_printf("..... %2d: %016Lx\n",
-					    i, data->callchain->ips[i]);
-		}
-	}
-	thread = perf_session__findnew(session, self->ip.pid);
 	if (thread == NULL)
 		return -1;
 

@@ -135,7 +135,10 @@ void event__print_totals(void);
 
 struct perf_session;
 
-typedef int (*event__handler_t)(event_t *event, struct perf_session *session);
+typedef int (*event__handler_synth_t)(event_t *event, 
+				      struct perf_session *session);
+typedef int (*event__handler_t)(event_t *event, struct sample_data *sample,
+				struct perf_session *session);
 
 int event__synthesize_thread(pid_t pid, event__handler_t process,
 			     struct perf_session *session);
@@ -150,11 +153,16 @@ int event__synthesize_modules(event__handler_t process,
 			      struct perf_session *session,
 			      struct machine *machine);
 
-int event__process_comm(event_t *self, struct perf_session *session);
-int event__process_lost(event_t *self, struct perf_session *session);
-int event__process_mmap(event_t *self, struct perf_session *session);
-int event__process_task(event_t *self, struct perf_session *session);
-int event__process(event_t *event, struct perf_session *session);
+int event__process_comm(event_t *self, struct sample_data *sample,
+			struct perf_session *session);
+int event__process_lost(event_t *self, struct sample_data *sample,
+			struct perf_session *session);
+int event__process_mmap(event_t *self, struct sample_data *sample,
+			struct perf_session *session);
+int event__process_task(event_t *self, struct sample_data *sample,
+			struct perf_session *session);
+int event__process(event_t *event, struct sample_data *sample,
+		   struct perf_session *session);
 
 struct addr_location;
 int event__preprocess_sample(const event_t *self, struct perf_session *session,

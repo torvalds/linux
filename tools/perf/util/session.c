@@ -70,6 +70,11 @@ void perf_session__update_sample_type(struct perf_session *self)
 	self->sample_type = perf_header__sample_type(&self->header);
 }
 
+void perf_session__set_sample_type(struct perf_session *session, u64 type)
+{
+	session->sample_type = type;
+}
+
 int perf_session__create_kernel_maps(struct perf_session *self)
 {
 	int ret = machine__create_kernel_maps(&self->host_machine);
@@ -240,7 +245,15 @@ struct map_symbol *perf_session__resolve_callchain(struct perf_session *self,
 	return syms;
 }
 
+static int process_event_synth_stub(event_t *event __used,
+				    struct perf_session *session __used)
+{
+	dump_printf(": unhandled!\n");
+	return 0;
+}
+
 static int process_event_stub(event_t *event __used,
+			      struct sample_data *sample __used,
 			      struct perf_session *session __used)
 {
 	dump_printf(": unhandled!\n");
@@ -280,13 +293,13 @@ static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 	if (handler->unthrottle == NULL)
 		handler->unthrottle = process_event_stub;
 	if (handler->attr == NULL)
-		handler->attr = process_event_stub;
+		handler->attr = process_event_synth_stub;
 	if (handler->event_type == NULL)
-		handler->event_type = process_event_stub;
+		handler->event_type = process_event_synth_stub;
 	if (handler->tracing_data == NULL)
-		handler->tracing_data = process_event_stub;
+		handler->tracing_data = process_event_synth_stub;
 	if (handler->build_id == NULL)
-		handler->build_id = process_event_stub;
+		handler->build_id = process_event_synth_stub;
 	if (handler->finished_round == NULL) {
 		if (handler->ordered_samples)
 			handler->finished_round = process_finished_round;
@@ -419,6 +432,7 @@ static void flush_sample_queue(struct perf_session *s,
 	struct ordered_samples *os = &s->ordered_samples;
 	struct list_head *head = &os->samples;
 	struct sample_queue *tmp, *iter;
+	struct sample_data sample;
 	u64 limit = os->next_flush;
 	u64 last_ts = os->last_sample ? os->last_sample->timestamp : 0ULL;
 
@@ -429,7 +443,8 @@ static void flush_sample_queue(struct perf_session *s,
 		if (iter->timestamp > limit)
 			break;
 
-		ops->sample(iter->event, s);
+		event__parse_sample(iter->event, s->sample_type, &sample);
+		ops->sample(iter->event, &sample, s);
 
 		os->last_flush = iter->timestamp;
 		list_del(&iter->list);
@@ -578,20 +593,29 @@ static int queue_sample_event(event_t *event, struct sample_data *data,
 	return 0;
 }
 
-static int perf_session__process_sample(event_t *event, struct perf_session *s,
+static int perf_session__process_sample(event_t *event,
+					struct sample_data *sample,
+					struct perf_session *s,
 					struct perf_event_ops *ops)
 {
-	struct sample_data data;
-
 	if (!ops->ordered_samples)
-		return ops->sample(event, s);
+		return ops->sample(event, sample, s);
 
-	bzero(&data, sizeof(struct sample_data));
-	event__parse_sample(event, s->sample_type, &data);
-
-	queue_sample_event(event, &data, s);
-
+	queue_sample_event(event, sample, s);
 	return 0;
+}
+
+static void callchain__dump(struct sample_data *sample)
+{
+	unsigned int i;
+
+	if (!dump_trace)
+		return;
+
+	printf("... chain: nr:%Lu\n", sample->callchain->nr);
+
+	for (i = 0; i < sample->callchain->nr; i++)
+		printf("..... %2d: %016Lx\n", i, sample->callchain->ips[i]);
 }
 
 static int perf_session__process_event(struct perf_session *self,
@@ -599,7 +623,15 @@ static int perf_session__process_event(struct perf_session *self,
 				       struct perf_event_ops *ops,
 				       u64 file_offset)
 {
+	struct sample_data sample;
+
 	trace_event(event);
+
+	if (self->header.needs_swap && event__swap_ops[event->header.type])
+		event__swap_ops[event->header.type](event);
+
+	if (event->header.type == PERF_RECORD_SAMPLE)
+		event__parse_sample(event, self->sample_type, &sample);
 
 	if (event->header.type < PERF_RECORD_HEADER_MAX) {
 		dump_printf("%#Lx [%#x]: PERF_RECORD_%s",
@@ -608,28 +640,41 @@ static int perf_session__process_event(struct perf_session *self,
 		hists__inc_nr_events(&self->hists, event->header.type);
 	}
 
-	if (self->header.needs_swap && event__swap_ops[event->header.type])
-		event__swap_ops[event->header.type](event);
-
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		return perf_session__process_sample(event, self, ops);
+		dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
+			    sample.pid, sample.tid, sample.ip, sample.period);
+
+		if (self->sample_type & PERF_SAMPLE_CALLCHAIN) {
+			if (!ip_callchain__valid(sample.callchain, event)) {
+				pr_debug("call-chain problem with event, "
+					 "skipping it.\n");
+				++self->hists.stats.nr_invalid_chains;
+				self->hists.stats.total_invalid_chains += sample.period;
+				return 0;
+			}
+
+			callchain__dump(&sample);
+		}
+
+		return perf_session__process_sample(event, &sample, self, ops);
+
 	case PERF_RECORD_MMAP:
-		return ops->mmap(event, self);
+		return ops->mmap(event, &sample, self);
 	case PERF_RECORD_COMM:
-		return ops->comm(event, self);
+		return ops->comm(event, &sample, self);
 	case PERF_RECORD_FORK:
-		return ops->fork(event, self);
+		return ops->fork(event, &sample, self);
 	case PERF_RECORD_EXIT:
-		return ops->exit(event, self);
+		return ops->exit(event, &sample, self);
 	case PERF_RECORD_LOST:
-		return ops->lost(event, self);
+		return ops->lost(event, &sample, self);
 	case PERF_RECORD_READ:
-		return ops->read(event, self);
+		return ops->read(event, &sample, self);
 	case PERF_RECORD_THROTTLE:
-		return ops->throttle(event, self);
+		return ops->throttle(event, &sample, self);
 	case PERF_RECORD_UNTHROTTLE:
-		return ops->unthrottle(event, self);
+		return ops->unthrottle(event, &sample, self);
 	case PERF_RECORD_HEADER_ATTR:
 		return ops->attr(event, self);
 	case PERF_RECORD_HEADER_EVENT_TYPE:
@@ -893,6 +938,14 @@ out_err:
 			    "reporting to linux-kernel@vger.kernel.org.\n\n",
 			    session->hists.stats.nr_unknown_events);
 	}
+
+ 	if (session->hists.stats.nr_invalid_chains != 0) {
+ 		ui__warning("Found invalid callchains!\n\n"
+ 			    "%u out of %u events were discarded for this reason.\n\n"
+ 			    "Consider reporting to linux-kernel@vger.kernel.org.\n\n",
+ 			    session->hists.stats.nr_invalid_chains,
+ 			    session->hists.stats.nr_events[PERF_RECORD_SAMPLE]);
+ 	}
 
 	perf_session_free_sample_buffers(session);
 	return err;
