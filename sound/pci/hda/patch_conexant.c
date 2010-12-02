@@ -2116,8 +2116,8 @@ static void cxt5066_update_speaker(struct hda_codec *codec)
 	struct conexant_spec *spec = codec->spec;
 	unsigned int pinctl;
 
-	snd_printdd("CXT5066: update speaker, hp_present=%d\n",
-		spec->hp_present);
+	snd_printdd("CXT5066: update speaker, hp_present=%d, cur_eapd=%d\n",
+		    spec->hp_present, spec->cur_eapd);
 
 	/* Port A (HP) */
 	pinctl = ((spec->hp_present & 1) && spec->cur_eapd) ? PIN_HP : 0;
@@ -2125,11 +2125,20 @@ static void cxt5066_update_speaker(struct hda_codec *codec)
 			pinctl);
 
 	/* Port D (HP/LO) */
-	pinctl = ((spec->hp_present & 2) && spec->cur_eapd)
-		? spec->port_d_mode : 0;
-	/* Mute if Port A is connected on Thinkpad */
-	if (spec->thinkpad && (spec->hp_present & 1))
-		pinctl = 0;
+	if (spec->dell_automute) {
+		/* DELL AIO Port Rule: PortA>  PortD>  IntSpk */
+		pinctl = (!(spec->hp_present & 1) && spec->cur_eapd)
+			? PIN_OUT : 0;
+	} else if (spec->thinkpad) {
+		if (spec->cur_eapd)
+			pinctl = spec->port_d_mode;
+		/* Mute dock line-out if Port A (laptop HP) is present */
+		if (spec->hp_present&  1)
+			pinctl = 0;
+	} else {
+		pinctl = ((spec->hp_present & 2) && spec->cur_eapd)
+			? spec->port_d_mode : 0;
+	}
 	snd_hda_codec_write(codec, 0x1c, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
 			pinctl);
 
@@ -2137,14 +2146,6 @@ static void cxt5066_update_speaker(struct hda_codec *codec)
 	pinctl = (!spec->hp_present && spec->cur_eapd) ? PIN_OUT : 0;
 	snd_hda_codec_write(codec, 0x1f, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
 			pinctl);
-
-	if (spec->dell_automute) {
-		/* DELL AIO Port Rule: PortA > PortD > IntSpk */
-		pinctl = (!(spec->hp_present & 1) && spec->cur_eapd)
-			? PIN_OUT : 0;
-		snd_hda_codec_write(codec, 0x1c, 0,
-			AC_VERB_SET_PIN_WIDGET_CONTROL, pinctl);
-	}
 }
 
 /* turn on/off EAPD (+ mute HP) as a master switch */
