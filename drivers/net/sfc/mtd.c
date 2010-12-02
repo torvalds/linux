@@ -321,14 +321,15 @@ static int falcon_mtd_read(struct mtd_info *mtd, loff_t start,
 	struct efx_mtd *efx_mtd = mtd->priv;
 	const struct efx_spi_device *spi = efx_mtd->spi;
 	struct efx_nic *efx = efx_mtd->efx;
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	int rc;
 
-	rc = mutex_lock_interruptible(&efx->spi_lock);
+	rc = mutex_lock_interruptible(&nic_data->spi_lock);
 	if (rc)
 		return rc;
 	rc = falcon_spi_read(efx, spi, part->offset + start, len,
 			     retlen, buffer);
-	mutex_unlock(&efx->spi_lock);
+	mutex_unlock(&nic_data->spi_lock);
 	return rc;
 }
 
@@ -337,13 +338,14 @@ static int falcon_mtd_erase(struct mtd_info *mtd, loff_t start, size_t len)
 	struct efx_mtd_partition *part = to_efx_mtd_partition(mtd);
 	struct efx_mtd *efx_mtd = mtd->priv;
 	struct efx_nic *efx = efx_mtd->efx;
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	int rc;
 
-	rc = mutex_lock_interruptible(&efx->spi_lock);
+	rc = mutex_lock_interruptible(&nic_data->spi_lock);
 	if (rc)
 		return rc;
 	rc = efx_spi_erase(part, part->offset + start, len);
-	mutex_unlock(&efx->spi_lock);
+	mutex_unlock(&nic_data->spi_lock);
 	return rc;
 }
 
@@ -354,14 +356,15 @@ static int falcon_mtd_write(struct mtd_info *mtd, loff_t start,
 	struct efx_mtd *efx_mtd = mtd->priv;
 	const struct efx_spi_device *spi = efx_mtd->spi;
 	struct efx_nic *efx = efx_mtd->efx;
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	int rc;
 
-	rc = mutex_lock_interruptible(&efx->spi_lock);
+	rc = mutex_lock_interruptible(&nic_data->spi_lock);
 	if (rc)
 		return rc;
 	rc = falcon_spi_write(efx, spi, part->offset + start, len,
 			      retlen, buffer);
-	mutex_unlock(&efx->spi_lock);
+	mutex_unlock(&nic_data->spi_lock);
 	return rc;
 }
 
@@ -370,11 +373,12 @@ static int falcon_mtd_sync(struct mtd_info *mtd)
 	struct efx_mtd_partition *part = to_efx_mtd_partition(mtd);
 	struct efx_mtd *efx_mtd = mtd->priv;
 	struct efx_nic *efx = efx_mtd->efx;
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	int rc;
 
-	mutex_lock(&efx->spi_lock);
+	mutex_lock(&nic_data->spi_lock);
 	rc = efx_spi_slow_wait(part, true);
-	mutex_unlock(&efx->spi_lock);
+	mutex_unlock(&nic_data->spi_lock);
 	return rc;
 }
 
@@ -387,14 +391,15 @@ static struct efx_mtd_ops falcon_mtd_ops = {
 
 static int falcon_mtd_probe(struct efx_nic *efx)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	struct efx_spi_device *spi;
 	struct efx_mtd *efx_mtd;
 	int rc = -ENODEV;
 
 	ASSERT_RTNL();
 
-	spi = efx->spi_flash;
-	if (spi && spi->size > FALCON_FLASH_BOOTCODE_START) {
+	spi = &nic_data->spi_flash;
+	if (efx_spi_present(spi) && spi->size > FALCON_FLASH_BOOTCODE_START) {
 		efx_mtd = kzalloc(sizeof(*efx_mtd) + sizeof(efx_mtd->part[0]),
 				  GFP_KERNEL);
 		if (!efx_mtd)
@@ -419,8 +424,8 @@ static int falcon_mtd_probe(struct efx_nic *efx)
 		}
 	}
 
-	spi = efx->spi_eeprom;
-	if (spi && spi->size > EFX_EEPROM_BOOTCONFIG_START) {
+	spi = &nic_data->spi_eeprom;
+	if (efx_spi_present(spi) && spi->size > EFX_EEPROM_BOOTCONFIG_START) {
 		efx_mtd = kzalloc(sizeof(*efx_mtd) + sizeof(efx_mtd->part[0]),
 				  GFP_KERNEL);
 		if (!efx_mtd)

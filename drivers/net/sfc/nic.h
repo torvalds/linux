@@ -15,6 +15,7 @@
 #include "net_driver.h"
 #include "efx.h"
 #include "mcdi.h"
+#include "spi.h"
 
 /*
  * Falcon hardware control
@@ -113,6 +114,9 @@ struct falcon_board {
  * @stats_pending: Is there a pending DMA of MAC statistics.
  * @stats_timer: A timer for regularly fetching MAC statistics.
  * @stats_dma_done: Pointer to the flag which indicates DMA completion.
+ * @spi_flash: SPI flash device
+ * @spi_eeprom: SPI EEPROM device
+ * @spi_lock: SPI bus lock
  */
 struct falcon_nic_data {
 	struct pci_dev *pci_dev2;
@@ -121,6 +125,9 @@ struct falcon_nic_data {
 	bool stats_pending;
 	struct timer_list stats_timer;
 	u32 *stats_dma_done;
+	struct efx_spi_device spi_flash;
+	struct efx_spi_device spi_eeprom;
+	struct mutex spi_lock;
 };
 
 static inline struct falcon_board *falcon_board(struct efx_nic *efx)

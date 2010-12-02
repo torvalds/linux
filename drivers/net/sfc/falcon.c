@@ -254,7 +254,6 @@ int falcon_spi_cmd(struct efx_nic *efx, const struct efx_spi_device *spi,
 	/* Input validation */
 	if (len > FALCON_SPI_MAX_LEN)
 		return -EINVAL;
-	BUG_ON(!mutex_is_locked(&efx->spi_lock));
 
 	/* Check that previous command is not still running */
 	rc = falcon_spi_poll(efx);
@@ -888,6 +887,7 @@ static void falcon_remove_port(struct efx_nic *efx)
 static int
 falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	struct falcon_nvconfig *nvconfig;
 	struct efx_spi_device *spi;
 	void *region;
@@ -895,8 +895,11 @@ falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
 	__le16 *word, *limit;
 	u32 csum;
 
-	spi = efx->spi_flash ? efx->spi_flash : efx->spi_eeprom;
-	if (!spi)
+	if (efx_spi_present(&nic_data->spi_flash))
+		spi = &nic_data->spi_flash;
+	else if (efx_spi_present(&nic_data->spi_eeprom))
+		spi = &nic_data->spi_eeprom;
+	else
 		return -EINVAL;
 
 	region = kmalloc(FALCON_NVCONFIG_END, GFP_KERNEL);
@@ -904,12 +907,13 @@ falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
 		return -ENOMEM;
 	nvconfig = region + FALCON_NVCONFIG_OFFSET;
 
-	mutex_lock(&efx->spi_lock);
+	mutex_lock(&nic_data->spi_lock);
 	rc = falcon_spi_read(efx, spi, 0, FALCON_NVCONFIG_END, NULL, region);
-	mutex_unlock(&efx->spi_lock);
+	mutex_unlock(&nic_data->spi_lock);
 	if (rc) {
 		netif_err(efx, hw, efx->net_dev, "Failed to read %s\n",
-			  efx->spi_flash ? "flash" : "EEPROM");
+			  efx_spi_present(&nic_data->spi_flash) ?
+			  "flash" : "EEPROM");
 		rc = -EIO;
 		goto out;
 	}
@@ -1011,7 +1015,7 @@ static int falcon_b0_test_registers(struct efx_nic *efx)
 
 /* Resets NIC to known state.  This routine must be called in process
  * context and is allowed to sleep. */
-static int falcon_reset_hw(struct efx_nic *efx, enum reset_type method)
+static int __falcon_reset_hw(struct efx_nic *efx, enum reset_type method)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	efx_oword_t glb_ctl_reg_ker;
@@ -1107,6 +1111,18 @@ fail5:
 	return rc;
 }
 
+static int falcon_reset_hw(struct efx_nic *efx, enum reset_type method)
+{
+	struct falcon_nic_data *nic_data = efx->nic_data;
+	int rc;
+
+	mutex_lock(&nic_data->spi_lock);
+	rc = __falcon_reset_hw(efx, method);
+	mutex_unlock(&nic_data->spi_lock);
+
+	return rc;
+}
+
 static void falcon_monitor(struct efx_nic *efx)
 {
 	bool link_changed;
@@ -1188,16 +1204,11 @@ static int falcon_reset_sram(struct efx_nic *efx)
 	return -ETIMEDOUT;
 }
 
-static int falcon_spi_device_init(struct efx_nic *efx,
-				  struct efx_spi_device **spi_device_ret,
+static void falcon_spi_device_init(struct efx_nic *efx,
+				  struct efx_spi_device *spi_device,
 				  unsigned int device_id, u32 device_type)
 {
-	struct efx_spi_device *spi_device;
-
 	if (device_type != 0) {
-		spi_device = kzalloc(sizeof(*spi_device), GFP_KERNEL);
-		if (!spi_device)
-			return -ENOMEM;
 		spi_device->device_id = device_id;
 		spi_device->size =
 			1 << SPI_DEV_TYPE_FIELD(device_type, SPI_DEV_TYPE_SIZE);
@@ -1214,25 +1225,14 @@ static int falcon_spi_device_init(struct efx_nic *efx,
 			1 << SPI_DEV_TYPE_FIELD(device_type,
 						SPI_DEV_TYPE_BLOCK_SIZE);
 	} else {
-		spi_device = NULL;
+		spi_device->size = 0;
 	}
-
-	kfree(*spi_device_ret);
-	*spi_device_ret = spi_device;
-	return 0;
-}
-
-static void falcon_remove_spi_devices(struct efx_nic *efx)
-{
-	kfree(efx->spi_eeprom);
-	efx->spi_eeprom = NULL;
-	kfree(efx->spi_flash);
-	efx->spi_flash = NULL;
 }
 
 /* Extract non-volatile configuration */
 static int falcon_probe_nvconfig(struct efx_nic *efx)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	struct falcon_nvconfig *nvconfig;
 	int rc;
 
@@ -1242,24 +1242,20 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 
 	rc = falcon_read_nvram(efx, nvconfig);
 	if (rc)
-		goto fail1;
+		goto out;
 
 	efx->phy_type = nvconfig->board_v2.port0_phy_type;
 	efx->mdio.prtad = nvconfig->board_v2.port0_phy_addr;
 
 	if (le16_to_cpu(nvconfig->board_struct_ver) >= 3) {
-		rc = falcon_spi_device_init(
-			efx, &efx->spi_flash, FFE_AB_SPI_DEVICE_FLASH,
+		falcon_spi_device_init(
+			efx, &nic_data->spi_flash, FFE_AB_SPI_DEVICE_FLASH,
 			le32_to_cpu(nvconfig->board_v3
 				    .spi_device_type[FFE_AB_SPI_DEVICE_FLASH]));
-		if (rc)
-			goto fail2;
-		rc = falcon_spi_device_init(
-			efx, &efx->spi_eeprom, FFE_AB_SPI_DEVICE_EEPROM,
+		falcon_spi_device_init(
+			efx, &nic_data->spi_eeprom, FFE_AB_SPI_DEVICE_EEPROM,
 			le32_to_cpu(nvconfig->board_v3
 				    .spi_device_type[FFE_AB_SPI_DEVICE_EEPROM]));
-		if (rc)
-			goto fail2;
 	}
 
 	/* Read the MAC addresses */
@@ -1270,15 +1266,7 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 
 	rc = falcon_probe_board(efx,
 				le16_to_cpu(nvconfig->board_v2.board_revision));
-	if (rc)
-		goto fail2;
-
-	kfree(nvconfig);
-	return 0;
-
- fail2:
-	falcon_remove_spi_devices(efx);
- fail1:
+out:
 	kfree(nvconfig);
 	return rc;
 }
@@ -1286,6 +1274,7 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 /* Probe all SPI devices on the NIC */
 static void falcon_probe_spi_devices(struct efx_nic *efx)
 {
+	struct falcon_nic_data *nic_data = efx->nic_data;
 	efx_oword_t nic_stat, gpio_ctl, ee_vpd_cfg;
 	int boot_dev;
 
@@ -1314,12 +1303,14 @@ static void falcon_probe_spi_devices(struct efx_nic *efx)
 		efx_writeo(efx, &ee_vpd_cfg, FR_AB_EE_VPD_CFG0);
 	}
 
+	mutex_init(&nic_data->spi_lock);
+
 	if (boot_dev == FFE_AB_SPI_DEVICE_FLASH)
-		falcon_spi_device_init(efx, &efx->spi_flash,
+		falcon_spi_device_init(efx, &nic_data->spi_flash,
 				       FFE_AB_SPI_DEVICE_FLASH,
 				       default_flash_type);
 	if (boot_dev == FFE_AB_SPI_DEVICE_EEPROM)
-		falcon_spi_device_init(efx, &efx->spi_eeprom,
+		falcon_spi_device_init(efx, &nic_data->spi_eeprom,
 				       FFE_AB_SPI_DEVICE_EEPROM,
 				       large_eeprom_type);
 }
@@ -1384,7 +1375,7 @@ static int falcon_probe_nic(struct efx_nic *efx)
 	}
 
 	/* Now we can reset the NIC */
-	rc = falcon_reset_hw(efx, RESET_TYPE_ALL);
+	rc = __falcon_reset_hw(efx, RESET_TYPE_ALL);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev, "failed to reset NIC\n");
 		goto fail3;
@@ -1442,7 +1433,6 @@ static int falcon_probe_nic(struct efx_nic *efx)
 	BUG_ON(i2c_del_adapter(&board->i2c_adap));
 	memset(&board->i2c_adap, 0, sizeof(board->i2c_adap));
  fail5:
-	falcon_remove_spi_devices(efx);
 	efx_nic_free_buffer(efx, &efx->irq_status);
  fail4:
  fail3:
@@ -1596,10 +1586,9 @@ static void falcon_remove_nic(struct efx_nic *efx)
 	BUG_ON(rc);
 	memset(&board->i2c_adap, 0, sizeof(board->i2c_adap));
 
-	falcon_remove_spi_devices(efx);
 	efx_nic_free_buffer(efx, &efx->irq_status);
 
-	falcon_reset_hw(efx, RESET_TYPE_ALL);
+	__falcon_reset_hw(efx, RESET_TYPE_ALL);
 
 	/* Release the second function after the reset */
 	if (nic_data->pci_dev2) {

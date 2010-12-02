@@ -657,11 +657,6 @@ struct efx_filter_state;
  *	to verify that an interrupt has occurred.
  * @irq_zero_count: Number of legacy IRQs seen with queue flags == 0
  * @fatal_irq_level: IRQ level (bit number) used for serious errors
- * @spi_flash: SPI flash device
- *	This field will be %NULL if no flash device is present (or for Siena).
- * @spi_eeprom: SPI EEPROM device
- *	This field will be %NULL if no EEPROM device is present (or for Siena).
- * @spi_lock: SPI bus lock
  * @mtd_list: List of MTDs attached to the NIC
  * @n_rx_nodesc_drop_cnt: RX no descriptor drop count
  * @nic_data: Hardware dependant state
@@ -746,9 +741,6 @@ struct efx_nic {
 	unsigned irq_zero_count;
 	unsigned fatal_irq_level;
 
-	struct efx_spi_device *spi_flash;
-	struct efx_spi_device *spi_eeprom;
-	struct mutex spi_lock;
 #ifdef CONFIG_SFC_MTD
 	struct list_head mtd_list;
 #endif

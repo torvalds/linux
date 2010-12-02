@@ -1961,7 +1961,6 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 
 	efx_stop_all(efx);
 	mutex_lock(&efx->mac_lock);
-	mutex_lock(&efx->spi_lock);
 
 	efx_fini_channels(efx);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE)
@@ -2003,7 +2002,6 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	efx_init_channels(efx);
 	efx_restore_filters(efx);
 
-	mutex_unlock(&efx->spi_lock);
 	mutex_unlock(&efx->mac_lock);
 
 	efx_start_all(efx);
@@ -2013,7 +2011,6 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 fail:
 	efx->port_initialized = false;
 
-	mutex_unlock(&efx->spi_lock);
 	mutex_unlock(&efx->mac_lock);
 
 	return rc;
@@ -2202,7 +2199,6 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	memset(efx, 0, sizeof(*efx));
 	spin_lock_init(&efx->biu_lock);
 	mutex_init(&efx->mdio_lock);
-	mutex_init(&efx->spi_lock);
 #ifdef CONFIG_SFC_MTD
 	INIT_LIST_HEAD(&efx->mtd_list);
 #endif
