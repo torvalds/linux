@@ -393,15 +393,18 @@ bool dispc_lcd_timings_ok(struct omap_video_timings *timings);
 void dispc_set_lcd_timings(enum omap_channel channel,
 		struct omap_video_timings *timings);
 unsigned long dispc_fclk_rate(void);
-unsigned long dispc_lclk_rate(void);
-unsigned long dispc_pclk_rate(void);
-void dispc_set_pol_freq(enum omap_panel_config config, u8 acbi, u8 acb);
+unsigned long dispc_lclk_rate(enum omap_channel channel);
+unsigned long dispc_pclk_rate(enum omap_channel channel);
+void dispc_set_pol_freq(enum omap_channel channel,
+		enum omap_panel_config config, u8 acbi, u8 acb);
 void dispc_find_clk_divs(bool is_tft, unsigned long req_pck, unsigned long fck,
 		struct dispc_clock_info *cinfo);
 int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 		struct dispc_clock_info *cinfo);
-int dispc_set_clock_div(struct dispc_clock_info *cinfo);
-int dispc_get_clock_div(struct dispc_clock_info *cinfo);
+int dispc_set_clock_div(enum omap_channel channel,
+		struct dispc_clock_info *cinfo);
+int dispc_get_clock_div(enum omap_channel channel,
+		struct dispc_clock_info *cinfo);
 
 
 /* VENC */

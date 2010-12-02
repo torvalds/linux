@@ -77,15 +77,15 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	/* 15.5.9.1.2 */
 	dssdev->panel.config |= OMAP_DSS_LCD_RF | OMAP_DSS_LCD_ONOFF;
 
-	dispc_set_pol_freq(dssdev->panel.config, dssdev->panel.acbi,
-			dssdev->panel.acb);
+	dispc_set_pol_freq(dssdev->manager->id, dssdev->panel.config,
+			dssdev->panel.acbi, dssdev->panel.acb);
 
 	if (!sdi.skip_init) {
 		r = dss_calc_clock_div(1, t->pixel_clock * 1000,
 				&dss_cinfo, &dispc_cinfo);
 	} else {
 		r = dss_get_clock_div(&dss_cinfo);
-		r = dispc_get_clock_div(&dispc_cinfo);
+		r = dispc_get_clock_div(dssdev->manager->id, &dispc_cinfo);
 	}
 
 	if (r)
@@ -112,7 +112,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err2;
 
-	r = dispc_set_clock_div(&dispc_cinfo);
+	r = dispc_set_clock_div(dssdev->manager->id, &dispc_cinfo);
 	if (r)
 		goto err2;
 

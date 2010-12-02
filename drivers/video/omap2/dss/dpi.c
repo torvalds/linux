@@ -40,8 +40,9 @@ static struct {
 } dpi;
 
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
-static int dpi_set_dsi_clk(bool is_tft, unsigned long pck_req,
-		unsigned long *fck, int *lck_div, int *pck_div)
+static int dpi_set_dsi_clk(struct omap_dss_device *dssdev, bool is_tft,
+		unsigned long pck_req, unsigned long *fck, int *lck_div,
+		int *pck_div)
 {
 	struct dsi_clock_info dsi_cinfo;
 	struct dispc_clock_info dispc_cinfo;
@@ -58,7 +59,7 @@ static int dpi_set_dsi_clk(bool is_tft, unsigned long pck_req,
 
 	dss_select_dispc_clk_source(DSS_SRC_DSI1_PLL_FCLK);
 
-	r = dispc_set_clock_div(&dispc_cinfo);
+	r = dispc_set_clock_div(dssdev->manager->id, &dispc_cinfo);
 	if (r)
 		return r;
 
@@ -69,8 +70,9 @@ static int dpi_set_dsi_clk(bool is_tft, unsigned long pck_req,
 	return 0;
 }
 #else
-static int dpi_set_dispc_clk(bool is_tft, unsigned long pck_req,
-		unsigned long *fck, int *lck_div, int *pck_div)
+static int dpi_set_dispc_clk(struct omap_dss_device *dssdev, bool is_tft,
+		unsigned long pck_req, unsigned long *fck, int *lck_div,
+		int *pck_div)
 {
 	struct dss_clock_info dss_cinfo;
 	struct dispc_clock_info dispc_cinfo;
@@ -84,7 +86,7 @@ static int dpi_set_dispc_clk(bool is_tft, unsigned long pck_req,
 	if (r)
 		return r;
 
-	r = dispc_set_clock_div(&dispc_cinfo);
+	r = dispc_set_clock_div(dssdev->manager->id, &dispc_cinfo);
 	if (r)
 		return r;
 
@@ -107,17 +109,17 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 
 	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
-	dispc_set_pol_freq(dssdev->panel.config, dssdev->panel.acbi,
-			dssdev->panel.acb);
+	dispc_set_pol_freq(dssdev->manager->id, dssdev->panel.config,
+			dssdev->panel.acbi, dssdev->panel.acb);
 
 	is_tft = (dssdev->panel.config & OMAP_DSS_LCD_TFT) != 0;
 
 #ifdef CONFIG_OMAP2_DSS_USE_DSI_PLL
-	r = dpi_set_dsi_clk(is_tft, t->pixel_clock * 1000,
-			&fck, &lck_div, &pck_div);
+	r = dpi_set_dsi_clk(dssdev, is_tft, t->pixel_clock * 1000, &fck,
+			&lck_div, &pck_div);
 #else
-	r = dpi_set_dispc_clk(is_tft, t->pixel_clock * 1000,
-			&fck, &lck_div, &pck_div);
+	r = dpi_set_dispc_clk(dssdev, is_tft, t->pixel_clock * 1000, &fck,
+			&lck_div, &pck_div);
 #endif
 	if (r)
 		goto err0;
