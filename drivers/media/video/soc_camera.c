@@ -24,6 +24,7 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <linux/vmalloc.h>
@@ -42,6 +43,51 @@
 static LIST_HEAD(hosts);
 static LIST_HEAD(devices);
 static DEFINE_MUTEX(list_lock);		/* Protects the list of hosts */
+
+static int soc_camera_power_set(struct soc_camera_device *icd,
+				struct soc_camera_link *icl,
+				int power_on)
+{
+	int ret;
+
+	if (power_on) {
+		ret = regulator_bulk_enable(icl->num_regulators,
+					    icl->regulators);
+		if (ret < 0) {
+			dev_err(&icd->dev, "Cannot enable regulators\n");
+			return ret;
+		}
+
+		if (icl->power)
+			ret = icl->power(icd->pdev, power_on);
+		if (ret < 0) {
+			dev_err(&icd->dev,
+				"Platform failed to power-on the camera.\n");
+
+			regulator_bulk_disable(icl->num_regulators,
+					       icl->regulators);
+			return ret;
+		}
+	} else {
+		ret = 0;
+		if (icl->power)
+			ret = icl->power(icd->pdev, 0);
+		if (ret < 0) {
+			dev_err(&icd->dev,
+				"Platform failed to power-off the camera.\n");
+			return ret;
+		}
+
+		ret = regulator_bulk_disable(icl->num_regulators,
+					     icl->regulators);
+		if (ret < 0) {
+			dev_err(&icd->dev, "Cannot disable regulators\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
 
 const struct soc_camera_format_xlate *soc_camera_xlate_by_fourcc(
 	struct soc_camera_device *icd, unsigned int fourcc)
@@ -369,11 +415,9 @@ static int soc_camera_open(struct file *file)
 			},
 		};
 
-		if (icl->power) {
-			ret = icl->power(icd->pdev, 1);
-			if (ret < 0)
-				goto epower;
-		}
+		ret = soc_camera_power_set(icd, icl, 1);
+		if (ret < 0)
+			goto epower;
 
 		/* The camera could have been already on, try to reset */
 		if (icl->reset)
@@ -417,8 +461,7 @@ esfmt:
 eresume:
 	ici->ops->remove(icd);
 eiciadd:
-	if (icl->power)
-		icl->power(icd->pdev, 0);
+	soc_camera_power_set(icd, icl, 0);
 epower:
 	icd->use_count--;
 	module_put(ici->ops->owner);
@@ -440,8 +483,7 @@ static int soc_camera_close(struct file *file)
 
 		ici->ops->remove(icd);
 
-		if (icl->power)
-			icl->power(icd->pdev, 0);
+		soc_camera_power_set(icd, icl, 0);
 	}
 
 	if (icd->streamer == file)
@@ -908,14 +950,14 @@ static int soc_camera_probe(struct device *dev)
 
 	dev_info(dev, "Probing %s\n", dev_name(dev));
 
-	if (icl->power) {
-		ret = icl->power(icd->pdev, 1);
-		if (ret < 0) {
-			dev_err(dev,
-				"Platform failed to power-on the camera.\n");
-			goto epower;
-		}
-	}
+	ret = regulator_bulk_get(icd->pdev, icl->num_regulators,
+				 icl->regulators);
+	if (ret < 0)
+		goto ereg;
+
+	ret = soc_camera_power_set(icd, icl, 1);
+	if (ret < 0)
+		goto epower;
 
 	/* The camera could have been already on, try to reset */
 	if (icl->reset)
@@ -994,8 +1036,7 @@ static int soc_camera_probe(struct device *dev)
 
 	ici->ops->remove(icd);
 
-	if (icl->power)
-		icl->power(icd->pdev, 0);
+	soc_camera_power_set(icd, icl, 0);
 
 	mutex_unlock(&icd->video_lock);
 
@@ -1017,9 +1058,10 @@ eadddev:
 evdc:
 	ici->ops->remove(icd);
 eadd:
-	if (icl->power)
-		icl->power(icd->pdev, 0);
+	soc_camera_power_set(icd, icl, 0);
 epower:
+	regulator_bulk_free(icl->num_regulators, icl->regulators);
+ereg:
 	return ret;
 }
 
@@ -1051,6 +1093,8 @@ static int soc_camera_remove(struct device *dev)
 		}
 	}
 	soc_camera_free_user_formats(icd);
+
+	regulator_bulk_free(icl->num_regulators, icl->regulators);
 
 	return 0;
 }
