@@ -30,17 +30,28 @@
 #define FALCON_BOARD_SFN4112F 0x52
 
 /* Board temperature is about 15°C above ambient when air flow is
- * limited. */
+ * limited.  The maximum acceptable ambient temperature varies
+ * depending on the PHY specifications but the critical temperature
+ * above which we should shut down to avoid damage is 80°C. */
 #define FALCON_BOARD_TEMP_BIAS	15
+#define FALCON_BOARD_TEMP_CRIT	(80 + FALCON_BOARD_TEMP_BIAS)
 
 /* SFC4000 datasheet says: 'The maximum permitted junction temperature
  * is 125°C; the thermal design of the environment for the SFC4000
  * should aim to keep this well below 100°C.' */
+#define FALCON_JUNC_TEMP_MIN	0
 #define FALCON_JUNC_TEMP_MAX	90
+#define FALCON_JUNC_TEMP_CRIT	125
 
 /*****************************************************************************
  * Support for LM87 sensor chip used on several boards
  */
+#define LM87_REG_TEMP_HW_INT_LOCK	0x13
+#define LM87_REG_TEMP_HW_EXT_LOCK	0x14
+#define LM87_REG_TEMP_HW_INT		0x17
+#define LM87_REG_TEMP_HW_EXT		0x18
+#define LM87_REG_TEMP_EXT1		0x26
+#define LM87_REG_TEMP_INT		0x27
 #define LM87_REG_ALARMS1		0x41
 #define LM87_REG_ALARMS2		0x42
 #define LM87_IN_LIMITS(nr, _min, _max)			\
@@ -57,6 +68,27 @@
 
 #if defined(CONFIG_SENSORS_LM87) || defined(CONFIG_SENSORS_LM87_MODULE)
 
+static int efx_poke_lm87(struct i2c_client *client, const u8 *reg_values)
+{
+	while (*reg_values) {
+		u8 reg = *reg_values++;
+		u8 value = *reg_values++;
+		int rc = i2c_smbus_write_byte_data(client, reg, value);
+		if (rc)
+			return rc;
+	}
+	return 0;
+}
+
+static const u8 falcon_lm87_common_regs[] = {
+	LM87_REG_TEMP_HW_INT_LOCK, FALCON_BOARD_TEMP_CRIT,
+	LM87_REG_TEMP_HW_INT, FALCON_BOARD_TEMP_CRIT,
+	LM87_TEMP_EXT1_LIMITS(FALCON_JUNC_TEMP_MIN, FALCON_JUNC_TEMP_MAX),
+	LM87_REG_TEMP_HW_EXT_LOCK, FALCON_JUNC_TEMP_CRIT,
+	LM87_REG_TEMP_HW_EXT, FALCON_JUNC_TEMP_CRIT,
+	0
+};
+
 static int efx_init_lm87(struct efx_nic *efx, struct i2c_board_info *info,
 			 const u8 *reg_values)
 {
@@ -67,13 +99,12 @@ static int efx_init_lm87(struct efx_nic *efx, struct i2c_board_info *info,
 	if (!client)
 		return -EIO;
 
-	while (*reg_values) {
-		u8 reg = *reg_values++;
-		u8 value = *reg_values++;
-		rc = i2c_smbus_write_byte_data(client, reg, value);
-		if (rc)
-			goto err;
-	}
+	rc = efx_poke_lm87(client, reg_values);
+	if (rc)
+		goto err;
+	rc = efx_poke_lm87(client, falcon_lm87_common_regs);
+	if (rc)
+		goto err;
 
 	board->hwmon_client = client;
 	return 0;
@@ -91,36 +122,56 @@ static void efx_fini_lm87(struct efx_nic *efx)
 static int efx_check_lm87(struct efx_nic *efx, unsigned mask)
 {
 	struct i2c_client *client = falcon_board(efx)->hwmon_client;
-	s32 alarms1, alarms2;
+	bool temp_crit, elec_fault, is_failure;
+	u16 alarms;
+	s32 reg;
 
 	/* If link is up then do not monitor temperature */
 	if (EFX_WORKAROUND_7884(efx) && efx->link_state.up)
 		return 0;
 
-	alarms1 = i2c_smbus_read_byte_data(client, LM87_REG_ALARMS1);
-	alarms2 = i2c_smbus_read_byte_data(client, LM87_REG_ALARMS2);
-	if (alarms1 < 0)
-		return alarms1;
-	if (alarms2 < 0)
-		return alarms2;
-	alarms1 &= mask;
-	alarms2 &= mask >> 8;
-	if (alarms1 || alarms2) {
-		netif_err(efx, hw, efx->net_dev,
-			  "LM87 detected a hardware failure (status %02x:%02x)"
-			  "%s%s%s\n",
-			  alarms1, alarms2,
-			  (alarms1 & LM87_ALARM_TEMP_INT) ?
-			  "; board is overheating" : "",
-			  (alarms1 & LM87_ALARM_TEMP_EXT1) ?
-			  "; controller is overheating" : "",
-			  (alarms1 & ~(LM87_ALARM_TEMP_INT | LM87_ALARM_TEMP_EXT1)
-			   || alarms2) ?
-			  "; electrical fault" : "");
-		return -ERANGE;
-	}
+	reg = i2c_smbus_read_byte_data(client, LM87_REG_ALARMS1);
+	if (reg < 0)
+		return reg;
+	alarms = reg;
+	reg = i2c_smbus_read_byte_data(client, LM87_REG_ALARMS2);
+	if (reg < 0)
+		return reg;
+	alarms |= reg << 8;
+	alarms &= mask;
 
-	return 0;
+	temp_crit = false;
+	if (alarms & LM87_ALARM_TEMP_INT) {
+		reg = i2c_smbus_read_byte_data(client, LM87_REG_TEMP_INT);
+		if (reg < 0)
+			return reg;
+		if (reg > FALCON_BOARD_TEMP_CRIT)
+			temp_crit = true;
+	}
+	if (alarms & LM87_ALARM_TEMP_EXT1) {
+		reg = i2c_smbus_read_byte_data(client, LM87_REG_TEMP_EXT1);
+		if (reg < 0)
+			return reg;
+		if (reg > FALCON_JUNC_TEMP_CRIT)
+			temp_crit = true;
+	}
+	elec_fault = alarms & ~(LM87_ALARM_TEMP_INT | LM87_ALARM_TEMP_EXT1);
+	is_failure = temp_crit || elec_fault;
+
+	if (alarms)
+		netif_err(efx, hw, efx->net_dev,
+			  "LM87 detected a hardware %s (status %02x:%02x)"
+			  "%s%s%s%s\n",
+			  is_failure ? "failure" : "problem",
+			  alarms & 0xff, alarms >> 8,
+			  (alarms & LM87_ALARM_TEMP_INT) ?
+			  "; board is overheating" : "",
+			  (alarms & LM87_ALARM_TEMP_EXT1) ?
+			  "; controller is overheating" : "",
+			  temp_crit ? "; reached critical temperature" : "",
+			  elec_fault ? "; electrical fault" : "");
+
+	return is_failure ? -ERANGE : 0;
 }
 
 #else /* !CONFIG_SENSORS_LM87 */
