@@ -392,7 +392,7 @@ static void claim_cpu_irqs(void)
 	int i;
 	for (i = CPU_IRQ_BASE; i <= CPU_IRQ_MAX; i++) {
 		set_irq_chip_and_handler(i, &cpu_interrupt_type,
-			handle_level_irq);
+					 handle_percpu_irq);
 	}
 
 	set_irq_handler(TIMER_IRQ, handle_percpu_irq);
