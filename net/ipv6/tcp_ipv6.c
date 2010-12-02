@@ -1865,19 +1865,33 @@ do_time_wait:
 
 static struct inet_peer *tcp_v6_get_peer(struct sock *sk, bool *release_it)
 {
-	/* Alas, not yet... */
-	return NULL;
+	struct rt6_info *rt = (struct rt6_info *) __sk_dst_get(sk);
+	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct inet_peer *peer;
+
+	if (!rt ||
+	    !ipv6_addr_equal(&np->daddr, &rt->rt6i_dst.addr)) {
+		peer = inet_getpeer_v6(&np->daddr, 1);
+		*release_it = true;
+	} else {
+		if (!rt->rt6i_peer)
+			rt6_bind_peer(rt, 1);
+		peer = rt->rt6i_peer;
+		*release_it = true;
+	}
+
+	return peer;
 }
 
 static void *tcp_v6_tw_get_peer(struct sock *sk)
 {
+	struct inet6_timewait_sock *tw6 = inet6_twsk(sk);
 	struct inet_timewait_sock *tw = inet_twsk(sk);
 
 	if (tw->tw_family == AF_INET)
 		return tcp_v4_tw_get_peer(sk);
 
-	/* Alas, not yet... */
-	return NULL;
+	return inet_getpeer_v6(&tw6->tw_v6_daddr, 1);
 }
 
 static struct timewait_sock_ops tcp6_timewait_sock_ops = {
