@@ -14,6 +14,8 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/sysdev.h>
+#include <linux/dm9000.h>
+#include <linux/gpio.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -24,6 +26,8 @@
 #include <mach/regs-clock.h>
 
 #include <plat/regs-serial.h>
+#include <plat/regs-srom.h>
+#include <plat/gpio-cfg.h>
 #include <plat/s5pv210.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
@@ -102,6 +106,39 @@ static struct samsung_keypad_platdata smdkv210_keypad_data __initdata = {
 	.cols		= 8,
 };
 
+static struct resource smdkv210_dm9000_resources[] = {
+	[0] = {
+		.start	= S5PV210_PA_SROM_BANK5,
+		.end	= S5PV210_PA_SROM_BANK5,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= S5PV210_PA_SROM_BANK5 + 2,
+		.end	= S5PV210_PA_SROM_BANK5 + 2,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= IRQ_EINT(9),
+		.end	= IRQ_EINT(9),
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	},
+};
+
+static struct dm9000_plat_data smdkv210_dm9000_platdata = {
+	.flags		= DM9000_PLATF_16BITONLY | DM9000_PLATF_NO_EEPROM,
+	.dev_addr	= { 0x00, 0x09, 0xc0, 0xff, 0xec, 0x48 },
+};
+
+struct platform_device smdkv210_dm9000 = {
+	.name		= "dm9000",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(smdkv210_dm9000_resources),
+	.resource	= smdkv210_dm9000_resources,
+	.dev		= {
+		.platform_data	= &smdkv210_dm9000_platdata,
+	},
+};
+
 static struct platform_device *smdkv210_devices[] __initdata = {
 	&s5pv210_device_iis0,
 	&s5pv210_device_ac97,
@@ -119,7 +156,25 @@ static struct platform_device *smdkv210_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_ts,
 	&s3c_device_wdt,
+	&smdkv210_dm9000,
 };
+
+static void __init smdkv210_dm9000_init(void)
+{
+	unsigned int tmp;
+
+	gpio_request(S5PV210_MP01(5), "nCS5");
+	s3c_gpio_cfgpin(S5PV210_MP01(5), S3C_GPIO_SFN(2));
+	gpio_free(S5PV210_MP01(5));
+
+	tmp = (5 << S5P_SROM_BCX__TACC__SHIFT);
+	__raw_writel(tmp, S5P_SROM_BC5);
+
+	tmp = __raw_readl(S5P_SROM_BW);
+	tmp &= (S5P_SROM_BW__CS_MASK << S5P_SROM_BW__NCS5__SHIFT);
+	tmp |= (1 << S5P_SROM_BW__NCS5__SHIFT);
+	__raw_writel(tmp, S5P_SROM_BW);
+}
 
 static struct i2c_board_info smdkv210_i2c_devs0[] __initdata = {
 	{ I2C_BOARD_INFO("24c08", 0x50), },     /* Samsung S524AD0XD1 */
@@ -149,6 +204,8 @@ static void __init smdkv210_map_io(void)
 static void __init smdkv210_machine_init(void)
 {
 	s3c_pm_init();
+
+	smdkv210_dm9000_init();
 
 	samsung_keypad_set_platdata(&smdkv210_keypad_data);
 	s3c24xx_ts_set_platdata(&s3c_ts_platform);

@@ -16,6 +16,8 @@
 #include <plat/map-base.h>
 #include <plat/map-s5p.h>
 
+#define S5PV210_PA_SROM_BANK5	(0xA8000000)
+
 #define S5PC110_PA_ONENAND	(0xB0000000)
 #define S5P_PA_ONENAND		S5PC110_PA_ONENAND
 
