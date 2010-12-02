@@ -10,11 +10,6 @@
  *
  * Nodes are exported via driverfs in the class/node/devices/
  * directory. 
- *
- * Per-node interfaces can be implemented using a struct device_interface. 
- * See the following for how to do this: 
- * - drivers/base/intf.c 
- * - Documentation/driver-model/interface.txt
  */
 #ifndef _LINUX_NODE_H_
 #define _LINUX_NODE_H_
