@@ -17,7 +17,6 @@
 #include "efx.h"
 #include "filter.h"
 #include "nic.h"
-#include "spi.h"
 #include "mdio_10g.h"
 
 struct ethtool_string {
@@ -629,61 +628,6 @@ static u32 efx_ethtool_get_link(struct net_device *net_dev)
 	return efx->link_state.up;
 }
 
-static int efx_ethtool_get_eeprom_len(struct net_device *net_dev)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_spi_device *spi = efx->spi_eeprom;
-
-	if (!spi)
-		return 0;
-	return min(spi->size, EFX_EEPROM_BOOTCONFIG_END) -
-		min(spi->size, EFX_EEPROM_BOOTCONFIG_START);
-}
-
-static int efx_ethtool_get_eeprom(struct net_device *net_dev,
-				  struct ethtool_eeprom *eeprom, u8 *buf)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_spi_device *spi = efx->spi_eeprom;
-	size_t len;
-	int rc;
-
-	rc = mutex_lock_interruptible(&efx->spi_lock);
-	if (rc)
-		return rc;
-	rc = falcon_spi_read(efx, spi,
-			     eeprom->offset + EFX_EEPROM_BOOTCONFIG_START,
-			     eeprom->len, &len, buf);
-	mutex_unlock(&efx->spi_lock);
-
-	eeprom->magic = EFX_ETHTOOL_EEPROM_MAGIC;
-	eeprom->len = len;
-	return rc;
-}
-
-static int efx_ethtool_set_eeprom(struct net_device *net_dev,
-				  struct ethtool_eeprom *eeprom, u8 *buf)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_spi_device *spi = efx->spi_eeprom;
-	size_t len;
-	int rc;
-
-	if (eeprom->magic != EFX_ETHTOOL_EEPROM_MAGIC)
-		return -EINVAL;
-
-	rc = mutex_lock_interruptible(&efx->spi_lock);
-	if (rc)
-		return rc;
-	rc = falcon_spi_write(efx, spi,
-			      eeprom->offset + EFX_EEPROM_BOOTCONFIG_START,
-			      eeprom->len, &len, buf);
-	mutex_unlock(&efx->spi_lock);
-
-	eeprom->len = len;
-	return rc;
-}
-
 static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 				    struct ethtool_coalesce *coalesce)
 {
@@ -1116,9 +1060,6 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.set_msglevel		= efx_ethtool_set_msglevel,
 	.nway_reset		= efx_ethtool_nway_reset,
 	.get_link		= efx_ethtool_get_link,
-	.get_eeprom_len		= efx_ethtool_get_eeprom_len,
-	.get_eeprom		= efx_ethtool_get_eeprom,
-	.set_eeprom		= efx_ethtool_set_eeprom,
 	.get_coalesce		= efx_ethtool_get_coalesce,
 	.set_coalesce		= efx_ethtool_set_coalesce,
 	.get_ringparam		= efx_ethtool_get_ringparam,

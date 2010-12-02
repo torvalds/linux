@@ -387,35 +387,66 @@ static struct efx_mtd_ops falcon_mtd_ops = {
 
 static int falcon_mtd_probe(struct efx_nic *efx)
 {
-	struct efx_spi_device *spi = efx->spi_flash;
+	struct efx_spi_device *spi;
 	struct efx_mtd *efx_mtd;
-	int rc;
+	int rc = -ENODEV;
 
 	ASSERT_RTNL();
 
-	if (!spi || spi->size <= FALCON_FLASH_BOOTCODE_START)
-		return -ENODEV;
+	spi = efx->spi_flash;
+	if (spi && spi->size > FALCON_FLASH_BOOTCODE_START) {
+		efx_mtd = kzalloc(sizeof(*efx_mtd) + sizeof(efx_mtd->part[0]),
+				  GFP_KERNEL);
+		if (!efx_mtd)
+			return -ENOMEM;
 
-	efx_mtd = kzalloc(sizeof(*efx_mtd) + sizeof(efx_mtd->part[0]),
-			  GFP_KERNEL);
-	if (!efx_mtd)
-		return -ENOMEM;
+		efx_mtd->spi = spi;
+		efx_mtd->name = "flash";
+		efx_mtd->ops = &falcon_mtd_ops;
 
-	efx_mtd->spi = spi;
-	efx_mtd->name = "flash";
-	efx_mtd->ops = &falcon_mtd_ops;
+		efx_mtd->n_parts = 1;
+		efx_mtd->part[0].mtd.type = MTD_NORFLASH;
+		efx_mtd->part[0].mtd.flags = MTD_CAP_NORFLASH;
+		efx_mtd->part[0].mtd.size = spi->size - FALCON_FLASH_BOOTCODE_START;
+		efx_mtd->part[0].mtd.erasesize = spi->erase_size;
+		efx_mtd->part[0].offset = FALCON_FLASH_BOOTCODE_START;
+		efx_mtd->part[0].type_name = "sfc_flash_bootrom";
 
-	efx_mtd->n_parts = 1;
-	efx_mtd->part[0].mtd.type = MTD_NORFLASH;
-	efx_mtd->part[0].mtd.flags = MTD_CAP_NORFLASH;
-	efx_mtd->part[0].mtd.size = spi->size - FALCON_FLASH_BOOTCODE_START;
-	efx_mtd->part[0].mtd.erasesize = spi->erase_size;
-	efx_mtd->part[0].offset = FALCON_FLASH_BOOTCODE_START;
-	efx_mtd->part[0].type_name = "sfc_flash_bootrom";
+		rc = efx_mtd_probe_device(efx, efx_mtd);
+		if (rc) {
+			kfree(efx_mtd);
+			return rc;
+		}
+	}
 
-	rc = efx_mtd_probe_device(efx, efx_mtd);
-	if (rc)
-		kfree(efx_mtd);
+	spi = efx->spi_eeprom;
+	if (spi && spi->size > EFX_EEPROM_BOOTCONFIG_START) {
+		efx_mtd = kzalloc(sizeof(*efx_mtd) + sizeof(efx_mtd->part[0]),
+				  GFP_KERNEL);
+		if (!efx_mtd)
+			return -ENOMEM;
+
+		efx_mtd->spi = spi;
+		efx_mtd->name = "EEPROM";
+		efx_mtd->ops = &falcon_mtd_ops;
+
+		efx_mtd->n_parts = 1;
+		efx_mtd->part[0].mtd.type = MTD_RAM;
+		efx_mtd->part[0].mtd.flags = MTD_CAP_RAM;
+		efx_mtd->part[0].mtd.size =
+			min(spi->size, EFX_EEPROM_BOOTCONFIG_END) -
+			EFX_EEPROM_BOOTCONFIG_START;
+		efx_mtd->part[0].mtd.erasesize = spi->erase_size;
+		efx_mtd->part[0].offset = EFX_EEPROM_BOOTCONFIG_START;
+		efx_mtd->part[0].type_name = "sfc_bootconfig";
+
+		rc = efx_mtd_probe_device(efx, efx_mtd);
+		if (rc) {
+			kfree(efx_mtd);
+			return rc;
+		}
+	}
+
 	return rc;
 }
 
