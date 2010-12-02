@@ -1495,6 +1495,29 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool skip_pcu)
 					rf5112_ini_bbgain, skip_pcu);
 			break;
 		case AR5K_RF2317:
+
+			ath5k_hw_ini_mode_registers(ah,
+					ARRAY_SIZE(rf2413_ini_mode_end),
+					rf2413_ini_mode_end, mode);
+
+			ath5k_hw_ini_registers(ah,
+					ARRAY_SIZE(rf2425_ini_common_end),
+					rf2425_ini_common_end, skip_pcu);
+
+			/* Override settings from rf2413_ini_mode_end */
+			ath5k_hw_reg_write(ah, 0x00180a65, AR5K_PHY_GAIN);
+
+			/* Override settings from rf2413_ini_common_end */
+			ath5k_hw_reg_write(ah, 0x00004000, AR5K_PHY_AGC);
+			AR5K_REG_WRITE_BITS(ah, AR5K_PHY_TPC_RG5,
+				AR5K_PHY_TPC_RG5_PD_GAIN_OVERLAP, 0xa);
+			ath5k_hw_reg_write(ah, 0x800000a8, 0x8140);
+			ath5k_hw_reg_write(ah, 0x000000ff, 0x9958);
+
+			ath5k_hw_ini_registers(ah,
+					ARRAY_SIZE(rf5112_ini_bbgain),
+					rf5112_ini_bbgain, skip_pcu);
+			break;
 		case AR5K_RF2425:
 
 			ath5k_hw_ini_mode_registers(ah,
