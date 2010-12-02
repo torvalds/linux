@@ -2415,8 +2415,6 @@ void __init xen_init_mmu_ops(void)
 	x86_init.paging.pagetable_setup_done = xen_pagetable_setup_done;
 	pv_mmu_ops = xen_mmu_ops;
 
-	vmap_lazy_unmap = false;
-
 	memset(dummy_mapping, 0xff, PAGE_SIZE);
 }
 
