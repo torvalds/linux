@@ -821,13 +821,9 @@ static void dma_tx_complete_callback(struct tegra_dma_req *req)
 
 	complete(&aos->comp[req_num]);
 
-	if (stop_playback_if_necessary(aos)) {
-		pr_debug("%s: done (stopped)\n", __func__);
-		if (!completion_done(&aos->stop_completion)) {
-			pr_debug("%s: signalling stop completion\n", __func__);
-			complete(&aos->stop_completion);
-		}
-		return;
+	if (!pending_buffer_requests(aos)) {
+		pr_debug("%s: Playback underflow\n", __func__);
+		complete(&aos->stop_completion);
 	}
 }
 
@@ -845,6 +841,9 @@ static void dma_rx_complete_callback(struct tegra_dma_req *req)
 	BUG_ON(req_num >= ais->num_bufs);
 
 	complete(&ais->comp[req_num]);
+
+	if (!pending_buffer_requests(ais))
+		pr_debug("%s: Capture overflow\n", __func__);
 
 	spin_unlock_irqrestore(&ais->dma_req_lock, flags);
 }
@@ -1083,6 +1082,8 @@ static long tegra_audio_out_ioctl(struct file *file,
 			request_stop_nosync(aos);
 			pr_debug("%s: flushed\n", __func__);
 		}
+		if (stop_playback_if_necessary(aos))
+			pr_debug("%s: done (stopped)\n", __func__);
 		aos->stop = false;
 		break;
 	case TEGRA_AUDIO_OUT_SET_NUM_BUFS: {
@@ -1106,6 +1107,7 @@ static long tegra_audio_out_ioctl(struct file *file,
 		if (rc < 0)
 			break;
 		aos->num_bufs = num;
+		sound_ops->setup(ads);
 	}
 		break;
 	case TEGRA_AUDIO_OUT_GET_NUM_BUFS:
@@ -1260,10 +1262,11 @@ static long tegra_audio_in_ioctl(struct file *file,
 		if (rc < 0)
 			break;
 		ais->num_bufs = num;
+		sound_ops->setup(ads);
 	}
 		break;
 	case TEGRA_AUDIO_IN_GET_NUM_BUFS:
-		if (copy_from_user((void __user *)arg,
+		if (copy_to_user((void __user *)arg,
 				&ais->num_bufs, sizeof(ais->num_bufs)))
 			rc = -EFAULT;
 		break;
@@ -1399,6 +1402,8 @@ static int tegra_audio_out_release(struct inode *inode, struct file *file)
 	mutex_lock(&ads->out.lock);
 	ads->out.opened = 0;
 	request_stop_nosync(&ads->out);
+	if (stop_playback_if_necessary(&ads->out))
+		pr_debug("%s: done (stopped)\n", __func__);
 	allow_suspend(&ads->out);
 	mutex_unlock(&ads->out.lock);
 	pr_debug("%s: done\n", __func__);
