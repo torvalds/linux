@@ -108,6 +108,34 @@ struct zfcp_dbf_rec {
 	} u;
 } __packed;
 
+/**
+ * enum zfcp_dbf_san_id - SAN trace record identifier
+ * @ZFCP_DBF_SAN_REQ: request trace record id
+ * @ZFCP_DBF_SAN_RES: response trace record id
+ * @ZFCP_DBF_SAN_ELS: extended link service record id
+ */
+enum zfcp_dbf_san_id {
+	ZFCP_DBF_SAN_REQ	= 1,
+	ZFCP_DBF_SAN_RES	= 2,
+	ZFCP_DBF_SAN_ELS	= 3,
+};
+
+/** struct zfcp_dbf_san - trace record for SAN requests and responses
+ * @id: unique number of recovery record type
+ * @tag: identifier string specifying the location of initiation
+ * @fsf_req_id: request id for fsf requests
+ * @payload: unformatted information related to request/response
+ * @d_id: destination id
+ */
+struct zfcp_dbf_san {
+	u8 id;
+	char tag[ZFCP_DBF_TAG_LEN];
+	u64 fsf_req_id;
+	u32 d_id;
+#define ZFCP_DBF_SAN_MAX_PAYLOAD (FC_CT_HDR_LEN + 32)
+	char payload[ZFCP_DBF_SAN_MAX_PAYLOAD];
+} __packed;
+
 struct zfcp_dbf_hba_record_response {
 	u32 fsf_command;
 	u64 fsf_reqid;
@@ -176,44 +204,6 @@ struct zfcp_dbf_hba_record {
 	} u;
 } __attribute__ ((packed));
 
-struct zfcp_dbf_san_record_ct_request {
-	u16 cmd_req_code;
-	u8 revision;
-	u8 gs_type;
-	u8 gs_subtype;
-	u8 options;
-	u16 max_res_size;
-	u32 len;
-	u32 d_id;
-} __attribute__ ((packed));
-
-struct zfcp_dbf_san_record_ct_response {
-	u16 cmd_rsp_code;
-	u8 revision;
-	u8 reason_code;
-	u8 expl;
-	u8 vendor_unique;
-	u16 max_res_size;
-	u32 len;
-} __attribute__ ((packed));
-
-struct zfcp_dbf_san_record_els {
-	u32 d_id;
-} __attribute__ ((packed));
-
-struct zfcp_dbf_san_record {
-	u8 tag[ZFCP_DBF_TAG_SIZE];
-	u64 fsf_reqid;
-	u32 fsf_seqno;
-	union {
-		struct zfcp_dbf_san_record_ct_request ct_req;
-		struct zfcp_dbf_san_record_ct_response ct_resp;
-		struct zfcp_dbf_san_record_els els;
-	} u;
-} __attribute__ ((packed));
-
-#define ZFCP_DBF_SAN_MAX_PAYLOAD 1024
-
 struct zfcp_dbf_scsi_record {
 	u8 tag[ZFCP_DBF_TAG_SIZE];
 	u8 tag2[ZFCP_DBF_TAG_SIZE];
@@ -250,7 +240,7 @@ struct zfcp_dbf {
 	spinlock_t			scsi_lock;
 	struct zfcp_dbf_rec		rec_buf;
 	struct zfcp_dbf_hba_record	hba_buf;
-	struct zfcp_dbf_san_record	san_buf;
+	struct zfcp_dbf_san		san_buf;
 	struct zfcp_dbf_scsi_record	scsi_buf;
 	struct zfcp_adapter		*adapter;
 };

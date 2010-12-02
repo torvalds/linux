@@ -882,7 +882,7 @@ static void zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *req)
 
 	switch (header->fsf_status) {
         case FSF_GOOD:
-		zfcp_dbf_san_ct_response(req);
+		zfcp_dbf_san_res("fsscth1", req);
 		ct->status = 0;
 		break;
         case FSF_SERVICE_CLASS_NOT_SUPPORTED:
@@ -1025,7 +1025,7 @@ int zfcp_fsf_send_ct(struct zfcp_fc_wka_port *wka_port,
 	req->qtcb->header.port_handle = wka_port->handle;
 	req->data = ct;
 
-	zfcp_dbf_san_ct_request(req, wka_port->d_id);
+	zfcp_dbf_san_req("fssct_1", req, wka_port->d_id);
 
 	ret = zfcp_fsf_req_send(req);
 	if (ret)
@@ -1053,7 +1053,7 @@ static void zfcp_fsf_send_els_handler(struct zfcp_fsf_req *req)
 
 	switch (header->fsf_status) {
 	case FSF_GOOD:
-		zfcp_dbf_san_els_response(req);
+		zfcp_dbf_san_res("fsselh1", req);
 		send_els->status = 0;
 		break;
 	case FSF_SERVICE_CLASS_NOT_SUPPORTED:
@@ -1127,7 +1127,7 @@ int zfcp_fsf_send_els(struct zfcp_adapter *adapter, u32 d_id,
 	req->handler = zfcp_fsf_send_els_handler;
 	req->data = els;
 
-	zfcp_dbf_san_els_request(req);
+	zfcp_dbf_san_req("fssels1", req, d_id);
 
 	ret = zfcp_fsf_req_send(req);
 	if (ret)

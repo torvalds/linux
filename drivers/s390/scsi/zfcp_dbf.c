@@ -527,182 +527,78 @@ void zfcp_dbf_rec_run(char *tag, struct zfcp_erp_action *erp)
 	spin_unlock_irqrestore(&dbf->rec_lock, flags);
 }
 
-/**
- * zfcp_dbf_san_ct_request - trace event for issued CT request
- * @fsf_req: request containing issued CT data
- * @d_id: destination id where ct request is sent to
- */
-void zfcp_dbf_san_ct_request(struct zfcp_fsf_req *fsf_req, u32 d_id)
+static inline
+void zfcp_dbf_san(char *tag, struct zfcp_dbf *dbf, void *data, u8 id, u16 len,
+		  u64 req_id, u32 d_id)
 {
-	struct zfcp_fsf_ct_els *ct = (struct zfcp_fsf_ct_els *)fsf_req->data;
-	struct zfcp_adapter *adapter = fsf_req->adapter;
-	struct zfcp_dbf *dbf = adapter->dbf;
-	struct fc_ct_hdr *hdr = sg_virt(ct->req);
-	struct zfcp_dbf_san_record *r = &dbf->san_buf;
-	struct zfcp_dbf_san_record_ct_request *oct = &r->u.ct_req;
-	int level = 3;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dbf->san_lock, flags);
-	memset(r, 0, sizeof(*r));
-	strncpy(r->tag, "octc", ZFCP_DBF_TAG_SIZE);
-	r->fsf_reqid = fsf_req->req_id;
-	r->fsf_seqno = fsf_req->seq_no;
-	oct->d_id = d_id;
-	oct->cmd_req_code = hdr->ct_cmd;
-	oct->revision = hdr->ct_rev;
-	oct->gs_type = hdr->ct_fs_type;
-	oct->gs_subtype = hdr->ct_fs_subtype;
-	oct->options = hdr->ct_options;
-	oct->max_res_size = hdr->ct_mr_size;
-	oct->len = min((int)ct->req->length - (int)sizeof(struct fc_ct_hdr),
-		       ZFCP_DBF_SAN_MAX_PAYLOAD);
-	debug_event(dbf->san, level, r, sizeof(*r));
-	zfcp_dbf_hexdump(dbf->san, r, sizeof(*r), level,
-			 (void *)hdr + sizeof(struct fc_ct_hdr), oct->len);
-	spin_unlock_irqrestore(&dbf->san_lock, flags);
-}
-
-/**
- * zfcp_dbf_san_ct_response - trace event for completion of CT request
- * @fsf_req: request containing CT response
- */
-void zfcp_dbf_san_ct_response(struct zfcp_fsf_req *fsf_req)
-{
-	struct zfcp_fsf_ct_els *ct = (struct zfcp_fsf_ct_els *)fsf_req->data;
-	struct zfcp_adapter *adapter = fsf_req->adapter;
-	struct fc_ct_hdr *hdr = sg_virt(ct->resp);
-	struct zfcp_dbf *dbf = adapter->dbf;
-	struct zfcp_dbf_san_record *r = &dbf->san_buf;
-	struct zfcp_dbf_san_record_ct_response *rct = &r->u.ct_resp;
-	int level = 3;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dbf->san_lock, flags);
-	memset(r, 0, sizeof(*r));
-	strncpy(r->tag, "rctc", ZFCP_DBF_TAG_SIZE);
-	r->fsf_reqid = fsf_req->req_id;
-	r->fsf_seqno = fsf_req->seq_no;
-	rct->cmd_rsp_code = hdr->ct_cmd;
-	rct->revision = hdr->ct_rev;
-	rct->reason_code = hdr->ct_reason;
-	rct->expl = hdr->ct_explan;
-	rct->vendor_unique = hdr->ct_vendor;
-	rct->max_res_size = hdr->ct_mr_size;
-	rct->len = min((int)ct->resp->length - (int)sizeof(struct fc_ct_hdr),
-		       ZFCP_DBF_SAN_MAX_PAYLOAD);
-	debug_event(dbf->san, level, r, sizeof(*r));
-	zfcp_dbf_hexdump(dbf->san, r, sizeof(*r), level,
-			 (void *)hdr + sizeof(struct fc_ct_hdr), rct->len);
-	spin_unlock_irqrestore(&dbf->san_lock, flags);
-}
-
-static void zfcp_dbf_san_els(const char *tag, int level,
-			     struct zfcp_fsf_req *fsf_req, u32 d_id,
-			     void *buffer, int buflen)
-{
-	struct zfcp_adapter *adapter = fsf_req->adapter;
-	struct zfcp_dbf *dbf = adapter->dbf;
-	struct zfcp_dbf_san_record *rec = &dbf->san_buf;
+	struct zfcp_dbf_san *rec = &dbf->san_buf;
+	u16 rec_len;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dbf->san_lock, flags);
 	memset(rec, 0, sizeof(*rec));
-	strncpy(rec->tag, tag, ZFCP_DBF_TAG_SIZE);
-	rec->fsf_reqid = fsf_req->req_id;
-	rec->fsf_seqno = fsf_req->seq_no;
-	rec->u.els.d_id = d_id;
-	debug_event(dbf->san, level, rec, sizeof(*rec));
-	zfcp_dbf_hexdump(dbf->san, rec, sizeof(*rec), level,
-			 buffer, min(buflen, ZFCP_DBF_SAN_MAX_PAYLOAD));
+
+	rec->id = id;
+	rec->fsf_req_id = req_id;
+	rec->d_id = d_id;
+	rec_len = min(len, (u16)ZFCP_DBF_SAN_MAX_PAYLOAD);
+	memcpy(rec->payload, data, rec_len);
+	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
+
+	debug_event(dbf->san, 1, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->san_lock, flags);
 }
 
 /**
- * zfcp_dbf_san_els_request - trace event for issued ELS
- * @fsf_req: request containing issued ELS
+ * zfcp_dbf_san_req - trace event for issued SAN request
+ * @tag: indentifier for event
+ * @fsf_req: request containing issued CT data
+ * d_id: destination ID
  */
-void zfcp_dbf_san_els_request(struct zfcp_fsf_req *fsf_req)
+void zfcp_dbf_san_req(char *tag, struct zfcp_fsf_req *fsf, u32 d_id)
 {
-	struct zfcp_fsf_ct_els *els = (struct zfcp_fsf_ct_els *)fsf_req->data;
-	u32 d_id = ntoh24(fsf_req->qtcb->bottom.support.d_id);
+	struct zfcp_dbf *dbf = fsf->adapter->dbf;
+	struct zfcp_fsf_ct_els *ct_els = fsf->data;
+	u16 length;
 
-	zfcp_dbf_san_els("oels", 2, fsf_req, d_id,
-			 sg_virt(els->req), els->req->length);
+	length = (u16)(ct_els->req->length + FC_CT_HDR_LEN);
+	zfcp_dbf_san(tag, dbf, sg_virt(ct_els->req), ZFCP_DBF_SAN_REQ, length,
+		     fsf->req_id, d_id);
 }
 
 /**
- * zfcp_dbf_san_els_response - trace event for completed ELS
- * @fsf_req: request containing ELS response
+ * zfcp_dbf_san_res - trace event for received SAN request
+ * @tag: indentifier for event
+ * @fsf_req: request containing issued CT data
  */
-void zfcp_dbf_san_els_response(struct zfcp_fsf_req *fsf_req)
+void zfcp_dbf_san_res(char *tag, struct zfcp_fsf_req *fsf)
 {
-	struct zfcp_fsf_ct_els *els = (struct zfcp_fsf_ct_els *)fsf_req->data;
-	u32 d_id = ntoh24(fsf_req->qtcb->bottom.support.d_id);
+	struct zfcp_dbf *dbf = fsf->adapter->dbf;
+	struct zfcp_fsf_ct_els *ct_els = fsf->data;
+	u16 length;
 
-	zfcp_dbf_san_els("rels", 2, fsf_req, d_id,
-			       sg_virt(els->resp), els->resp->length);
+	length = (u16)(ct_els->resp->length + FC_CT_HDR_LEN);
+	zfcp_dbf_san(tag, dbf, sg_virt(ct_els->resp), ZFCP_DBF_SAN_RES, length,
+		     fsf->req_id, 0);
 }
 
 /**
- * zfcp_dbf_san_incoming_els - trace event for incomig ELS
- * @fsf_req: request containing unsolicited status buffer with incoming ELS
+ * zfcp_dbf_san_in_els - trace event for incoming ELS
+ * @tag: indentifier for event
+ * @fsf_req: request containing issued CT data
  */
-void zfcp_dbf_san_incoming_els(struct zfcp_fsf_req *fsf_req)
+void zfcp_dbf_san_in_els(char *tag, struct zfcp_fsf_req *fsf)
 {
-	struct fsf_status_read_buffer *buf =
-			(struct fsf_status_read_buffer *)fsf_req->data;
-	int length = (int)buf->length -
-		     (int)((void *)&buf->payload - (void *)buf);
+	struct zfcp_dbf *dbf = fsf->adapter->dbf;
+	struct fsf_status_read_buffer *srb =
+		(struct fsf_status_read_buffer *) fsf->data;
+	u16 length;
 
-	zfcp_dbf_san_els("iels", 1, fsf_req, ntoh24(buf->d_id),
-			       (void *)buf->payload.data, length);
+	length = (u16)(srb->length -
+			offsetof(struct fsf_status_read_buffer, payload));
+	zfcp_dbf_san(tag, dbf, srb->payload.data, ZFCP_DBF_SAN_ELS, length,
+		     fsf->req_id, ntoh24(srb->d_id));
 }
-
-static int zfcp_dbf_san_view_format(debug_info_t *id, struct debug_view *view,
-				    char *out_buf, const char *in_buf)
-{
-	struct zfcp_dbf_san_record *r = (struct zfcp_dbf_san_record *)in_buf;
-	char *p = out_buf;
-
-	if (strncmp(r->tag, "dump", ZFCP_DBF_TAG_SIZE) == 0)
-		return 0;
-
-	zfcp_dbf_tag(&p, "tag", r->tag);
-	zfcp_dbf_out(&p, "fsf_reqid", "0x%0Lx", r->fsf_reqid);
-	zfcp_dbf_out(&p, "fsf_seqno", "0x%08x", r->fsf_seqno);
-
-	if (strncmp(r->tag, "octc", ZFCP_DBF_TAG_SIZE) == 0) {
-		struct zfcp_dbf_san_record_ct_request *ct = &r->u.ct_req;
-		zfcp_dbf_out(&p, "d_id", "0x%06x", ct->d_id);
-		zfcp_dbf_out(&p, "cmd_req_code", "0x%04x", ct->cmd_req_code);
-		zfcp_dbf_out(&p, "revision", "0x%02x", ct->revision);
-		zfcp_dbf_out(&p, "gs_type", "0x%02x", ct->gs_type);
-		zfcp_dbf_out(&p, "gs_subtype", "0x%02x", ct->gs_subtype);
-		zfcp_dbf_out(&p, "options", "0x%02x", ct->options);
-		zfcp_dbf_out(&p, "max_res_size", "0x%04x", ct->max_res_size);
-	} else if (strncmp(r->tag, "rctc", ZFCP_DBF_TAG_SIZE) == 0) {
-		struct zfcp_dbf_san_record_ct_response *ct = &r->u.ct_resp;
-		zfcp_dbf_out(&p, "cmd_rsp_code", "0x%04x", ct->cmd_rsp_code);
-		zfcp_dbf_out(&p, "revision", "0x%02x", ct->revision);
-		zfcp_dbf_out(&p, "reason_code", "0x%02x", ct->reason_code);
-		zfcp_dbf_out(&p, "reason_code_expl", "0x%02x", ct->expl);
-		zfcp_dbf_out(&p, "vendor_unique", "0x%02x", ct->vendor_unique);
-		zfcp_dbf_out(&p, "max_res_size", "0x%04x", ct->max_res_size);
-	} else if (strncmp(r->tag, "oels", ZFCP_DBF_TAG_SIZE) == 0 ||
-		   strncmp(r->tag, "rels", ZFCP_DBF_TAG_SIZE) == 0 ||
-		   strncmp(r->tag, "iels", ZFCP_DBF_TAG_SIZE) == 0) {
-		struct zfcp_dbf_san_record_els *els = &r->u.els;
-		zfcp_dbf_out(&p, "d_id", "0x%06x", els->d_id);
-	}
-	return p - out_buf;
-}
-
-static struct debug_view zfcp_dbf_san_view = {
-	.name = "structured",
-	.header_proc = zfcp_dbf_view_header,
-	.format_proc = zfcp_dbf_san_view_format,
-};
 
 void _zfcp_dbf_scsi(const char *tag, const char *tag2, int level,
 		    struct zfcp_dbf *dbf, struct scsi_cmnd *scsi_cmnd,
@@ -882,8 +778,7 @@ int zfcp_dbf_adapter_register(struct zfcp_adapter *adapter)
 
 	/* debug feature area which records SAN command failures and recovery */
 	sprintf(dbf_name, "zfcp_%s_san", dev_name(&adapter->ccw_device->dev));
-	dbf->san = zfcp_dbf_reg(dbf_name, 6, &zfcp_dbf_san_view,
-				sizeof(struct zfcp_dbf_san_record));
+	dbf->san = zfcp_dbf_reg(dbf_name, 3, NULL, sizeof(struct zfcp_dbf_san));
 	if (!dbf->san)
 		goto err_out;
 

@@ -251,7 +251,7 @@ void zfcp_fc_incoming_els(struct zfcp_fsf_req *fsf_req)
 		(struct fsf_status_read_buffer *) fsf_req->data;
 	unsigned int els_type = status_buffer->payload.data[0];
 
-	zfcp_dbf_san_incoming_els(fsf_req);
+	zfcp_dbf_san_in_els("fciels1", fsf_req);
 	if (els_type == ELS_PLOGI)
 		zfcp_fc_incoming_plogi(fsf_req);
 	else if (els_type == ELS_LOGO)
