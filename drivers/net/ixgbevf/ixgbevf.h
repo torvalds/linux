@@ -275,9 +275,11 @@ enum ixbgevf_state_t {
 
 enum ixgbevf_boards {
 	board_82599_vf,
+	board_X540_vf,
 };
 
-extern struct ixgbevf_info ixgbevf_vf_info;
+extern struct ixgbevf_info ixgbevf_82599_vf_info;
+extern struct ixgbevf_info ixgbevf_X540_vf_info;
 extern struct ixgbe_mac_operations ixgbevf_mbx_ops;
 
 /* needed by ethtool.c */
