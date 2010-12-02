@@ -83,6 +83,7 @@
 struct da8xx_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
+	struct clk		*clk;
 };
 
 /*
@@ -423,8 +424,6 @@ static int da8xx_musb_init(struct musb *musb)
 
 	musb->mregs += DA8XX_MENTOR_CORE_OFFSET;
 
-	clk_enable(musb->clock);
-
 	/* Returns zero if e.g. not clocked */
 	rev = musb_readl(reg_base, DA8XX_USB_REVISION_REG);
 	if (!rev)
@@ -456,7 +455,6 @@ static int da8xx_musb_init(struct musb *musb)
 	musb->isr = da8xx_musb_interrupt;
 	return 0;
 fail:
-	clk_disable(musb->clock);
 	return -ENODEV;
 }
 
@@ -469,8 +467,6 @@ static int da8xx_musb_exit(struct musb *musb)
 
 	otg_put_transceiver(musb->xceiv);
 	usb_nop_xceiv_unregister();
-
-	clk_disable(musb->clock);
 
 	return 0;
 }
@@ -496,6 +492,8 @@ static int __init da8xx_probe(struct platform_device *pdev)
 	struct platform_device		*musb;
 	struct da8xx_glue		*glue;
 
+	struct clk			*clk;
+
 	int				ret = -ENOMEM;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
@@ -510,12 +508,26 @@ static int __init da8xx_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
+	clk = clk_get(&pdev->dev, "usb20");
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "failed to get clock\n");
+		ret = PTR_ERR(clk);
+		goto err2;
+	}
+
+	ret = clk_enable(clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable clock\n");
+		goto err3;
+	}
+
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &da8xx_dmamask;
 	musb->dev.coherent_dma_mask	= da8xx_dmamask;
 
 	glue->dev			= &pdev->dev;
 	glue->musb			= musb;
+	glue->clk			= clk;
 
 	pdata->platform_ops		= &da8xx_ops;
 
@@ -525,22 +537,28 @@ static int __init da8xx_probe(struct platform_device *pdev)
 			pdev->num_resources);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err2;
+		goto err4;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err2;
+		goto err4;
 	}
 
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err2;
+		goto err4;
 	}
 
 	return 0;
+
+err4:
+	clk_disable(clk);
+
+err3:
+	clk_put(clk);
 
 err2:
 	platform_device_put(musb);
@@ -558,6 +576,8 @@ static int __exit da8xx_remove(struct platform_device *pdev)
 
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
+	clk_disable(glue->clk);
+	clk_put(glue->clk);
 	kfree(glue);
 
 	return 0;

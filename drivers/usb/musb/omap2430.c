@@ -40,6 +40,7 @@
 struct omap2430_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
+	struct clk		*clk;
 };
 
 static struct timer_list musb_idle_timer;
@@ -277,9 +278,6 @@ static int omap2430_musb_suspend(struct musb *musb)
 {
 	u32 l;
 
-	if (!musb->clock)
-		return 0;
-
 	/* in any role */
 	l = musb_readl(musb->mregs, OTG_FORCESTDBY);
 	l |= ENABLEFORCE;	/* enable MSTANDBY */
@@ -291,11 +289,6 @@ static int omap2430_musb_suspend(struct musb *musb)
 
 	otg_set_suspend(musb->xceiv, 1);
 
-	if (musb->set_clock)
-		musb->set_clock(musb->clock, 0);
-	else
-		clk_disable(musb->clock);
-
 	return 0;
 }
 
@@ -303,15 +296,7 @@ static int omap2430_musb_resume(struct musb *musb)
 {
 	u32 l;
 
-	if (!musb->clock)
-		return 0;
-
 	otg_set_suspend(musb->xceiv, 0);
-
-	if (musb->set_clock)
-		musb->set_clock(musb->clock, 1);
-	else
-		clk_enable(musb->clock);
 
 	l = musb_readl(musb->mregs, OTG_SYSCONFIG);
 	l &= ~ENABLEWAKEUP;	/* disable wakeup */
@@ -356,6 +341,7 @@ static int __init omap2430_probe(struct platform_device *pdev)
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
 	struct omap2430_glue		*glue;
+	struct clk			*clk;
 
 	int				ret = -ENOMEM;
 
@@ -371,12 +357,26 @@ static int __init omap2430_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
+	clk = clk_get(&pdev->dev, "ick");
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "failed to get clock\n");
+		ret = PTR_ERR(clk);
+		goto err2;
+	}
+
+	ret = clk_enable(clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable clock\n");
+		goto err3;
+	}
+
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &omap2430_dmamask;
 	musb->dev.coherent_dma_mask	= omap2430_dmamask;
 
 	glue->dev			= &pdev->dev;
 	glue->musb			= musb;
+	glue->clk			= clk;
 
 	pdata->platform_ops		= &omap2430_ops;
 
@@ -386,22 +386,28 @@ static int __init omap2430_probe(struct platform_device *pdev)
 			pdev->num_resources);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err2;
+		goto err4;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err2;
+		goto err4;
 	}
 
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err2;
+		goto err4;
 	}
 
 	return 0;
+
+err4:
+	clk_disable(clk);
+
+err3:
+	clk_put(clk);
 
 err2:
 	platform_device_put(musb);
@@ -419,6 +425,8 @@ static int __exit omap2430_remove(struct platform_device *pdev)
 
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
+	clk_disable(glue->clk);
+	clk_put(glue->clk);
 	kfree(glue);
 
 	return 0;

@@ -56,6 +56,7 @@
 struct davinci_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
+	struct clk		*clk;
 };
 
 /* REVISIT (PM) we should be able to keep the PHY in low power mode most
@@ -395,8 +396,6 @@ static int davinci_musb_init(struct musb *musb)
 
 	musb->mregs += DAVINCI_BASE_OFFSET;
 
-	clk_enable(musb->clock);
-
 	/* returns zero if e.g. not clocked */
 	revision = musb_readl(tibase, DAVINCI_USB_VERSION_REG);
 	if (revision == 0)
@@ -451,8 +450,6 @@ static int davinci_musb_init(struct musb *musb)
 	return 0;
 
 fail:
-	clk_disable(musb->clock);
-
 	otg_put_transceiver(musb->xceiv);
 	usb_nop_xceiv_unregister();
 	return -ENODEV;
@@ -502,8 +499,6 @@ static int davinci_musb_exit(struct musb *musb)
 
 	phy_off();
 
-	clk_disable(musb->clock);
-
 	otg_put_transceiver(musb->xceiv);
 	usb_nop_xceiv_unregister();
 
@@ -529,6 +524,7 @@ static int __init davinci_probe(struct platform_device *pdev)
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
 	struct davinci_glue		*glue;
+	struct clk			*clk;
 
 	int				ret = -ENOMEM;
 
@@ -544,12 +540,26 @@ static int __init davinci_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
+	clk = clk_get(&pdev->dev, "usb");
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "failed to get clock\n");
+		ret = PTR_ERR(clk);
+		goto err2;
+	}
+
+	ret = clk_enable(clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to enable clock\n");
+		goto err3;
+	}
+
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &davinci_dmamask;
 	musb->dev.coherent_dma_mask	= davinci_dmamask;
 
 	glue->dev			= &pdev->dev;
 	glue->musb			= musb;
+	glue->clk			= clk;
 
 	pdata->platform_ops		= &davinci_ops;
 
@@ -559,22 +569,28 @@ static int __init davinci_probe(struct platform_device *pdev)
 			pdev->num_resources);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add resources\n");
-		goto err2;
+		goto err4;
 	}
 
 	ret = platform_device_add_data(musb, pdata, sizeof(*pdata));
 	if (ret) {
 		dev_err(&pdev->dev, "failed to add platform_data\n");
-		goto err2;
+		goto err4;
 	}
 
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err2;
+		goto err4;
 	}
 
 	return 0;
+
+err4:
+	clk_disable(clk);
+
+err3:
+	clk_put(clk);
 
 err2:
 	platform_device_put(musb);
@@ -592,6 +608,8 @@ static int __exit davinci_remove(struct platform_device *pdev)
 
 	platform_device_del(glue->musb);
 	platform_device_put(glue->musb);
+	clk_disable(glue->clk);
+	clk_put(glue->clk);
 	kfree(glue);
 
 	return 0;

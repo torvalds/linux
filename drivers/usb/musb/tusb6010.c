@@ -281,17 +281,6 @@ static int tusb_draw_power(struct otg_transceiver *x, unsigned mA)
 	void __iomem	*tbase = musb->ctrl_base;
 	u32		reg;
 
-	/*
-	 * Keep clock active when enabled. Note that this is not tied to
-	 * drawing VBUS, as with OTG mA can be less than musb->min_power.
-	 */
-	if (musb->set_clock) {
-		if (mA)
-			musb->set_clock(musb->clock, 1);
-		else
-			musb->set_clock(musb->clock, 0);
-	}
-
 	/* tps65030 seems to consume max 100mA, with maybe 60mA available
 	 * (measured on one board) for things other than tps and tusb.
 	 *
@@ -537,8 +526,6 @@ static void tusb_musb_set_vbus(struct musb *musb, int is_on)
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 
 	if (is_on) {
-		if (musb->set_clock)
-			musb->set_clock(musb->clock, 1);
 		timer = OTG_TIMER_MS(OTG_TIME_A_WAIT_VRISE);
 		musb->xceiv->default_a = 1;
 		musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
@@ -577,8 +564,6 @@ static void tusb_musb_set_vbus(struct musb *musb, int is_on)
 
 		devctl &= ~MUSB_DEVCTL_SESSION;
 		conf &= ~TUSB_DEV_CONF_USB_HOST_MODE;
-		if (musb->set_clock)
-			musb->set_clock(musb->clock, 0);
 	}
 	prcm &= ~(TUSB_PRCM_MNGMT_15_SW_EN | TUSB_PRCM_MNGMT_33_SW_EN);
 

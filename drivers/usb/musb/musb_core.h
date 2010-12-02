@@ -384,8 +384,6 @@ struct musb_context_registers {
 struct musb {
 	/* device lock */
 	spinlock_t		lock;
-	struct clk		*clock;
-	struct clk		*phy_clock;
 
 	const struct musb_platform_ops *ops;
 	struct musb_context_registers context;
