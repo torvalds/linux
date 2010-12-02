@@ -623,8 +623,9 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct mlx4_ib_dev *mdev = to_mdev(ibqp->device);
 	struct mlx4_ib_qp *mqp = to_mqp(ibqp);
 
-	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw, !!(mqp->flags &
-				    MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK));
+	err = mlx4_multicast_attach(mdev->dev, &mqp->mqp, gid->raw,
+				    !!(mqp->flags & MLX4_IB_QP_BLOCK_MULTICAST_LOOPBACK),
+				    MLX4_PROTOCOL_IB);
 	if (err)
 		return err;
 
@@ -635,7 +636,7 @@ static int mlx4_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	return 0;
 
 err_add:
-	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw);
+	mlx4_multicast_detach(mdev->dev, &mqp->mqp, gid->raw, MLX4_PROTOCOL_IB);
 	return err;
 }
 
@@ -665,7 +666,7 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	struct mlx4_ib_gid_entry *ge;
 
 	err = mlx4_multicast_detach(mdev->dev,
-				    &mqp->mqp, gid->raw);
+				    &mqp->mqp, gid->raw, MLX4_PROTOCOL_IB);
 	if (err)
 		return err;
 
