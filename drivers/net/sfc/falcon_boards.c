@@ -325,7 +325,7 @@ static ssize_t set_phy_flash_cfg(struct device *dev,
 		new_mode = old_mode & ~PHY_MODE_SPECIAL;
 	else
 		new_mode = PHY_MODE_SPECIAL;
-	if (old_mode == new_mode) {
+	if (!((old_mode ^ new_mode) & PHY_MODE_SPECIAL)) {
 		err = 0;
 	} else if (efx->state != STATE_RUNNING || netif_running(efx->net_dev)) {
 		err = -EBUSY;
