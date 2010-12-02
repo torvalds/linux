@@ -27,7 +27,7 @@
 #include "version_info.h"
 #include "vmbus_private.h"
 
-static const char *gDriverName = "vmbus";
+static const char *gDriverName = "hyperv";
 
 /*
  * Windows vmbus does not defined this.
