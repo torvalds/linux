@@ -412,8 +412,16 @@ static int __init balloon_init(void)
 
 	register_balloon(&balloon_sysdev);
 
-	/* Initialise the balloon with excess memory space. */
-	extra_pfn_end = min(e820_end_of_ram_pfn(),
+	/*
+	 * Initialise the balloon with excess memory space.  We need
+	 * to make sure we don't add memory which doesn't exist or
+	 * logically exist.  The E820 map can be trimmed to be smaller
+	 * than the amount of physical memory due to the mem= command
+	 * line parameter.  And if this is a 32-bit non-HIGHMEM kernel
+	 * on a system with memory which requires highmem to access,
+	 * don't try to use it.
+	 */
+	extra_pfn_end = min(min(max_pfn, e820_end_of_ram_pfn()),
 			    (unsigned long)PFN_DOWN(xen_extra_mem_start + xen_extra_mem_size));
 	for (pfn = PFN_UP(xen_extra_mem_start);
 	     pfn < extra_pfn_end;
