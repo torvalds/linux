@@ -90,7 +90,8 @@ static void hardware_disable_all(void);
 
 static void kvm_io_bus_destroy(struct kvm_io_bus *bus);
 
-static bool kvm_rebooting;
+bool kvm_rebooting;
+EXPORT_SYMBOL_GPL(kvm_rebooting);
 
 static bool largepages_enabled = true;
 
@@ -2171,18 +2172,12 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 }
 
 
-asmlinkage void kvm_handle_fault_on_reboot(void)
+asmlinkage void kvm_spurious_fault(void)
 {
-	if (kvm_rebooting) {
-		/* spin while reset goes on */
-		local_irq_enable();
-		while (true)
-			cpu_relax();
-	}
 	/* Fault while not rebooting.  We want the trace. */
 	BUG();
 }
-EXPORT_SYMBOL_GPL(kvm_handle_fault_on_reboot);
+EXPORT_SYMBOL_GPL(kvm_spurious_fault);
 
 static int kvm_reboot(struct notifier_block *notifier, unsigned long val,
 		      void *v)
