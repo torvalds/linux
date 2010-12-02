@@ -202,7 +202,13 @@ static void oxygen_proc_read(struct snd_info_entry *entry,
 	struct oxygen *chip = entry->private_data;
 	int i, j;
 
-	snd_iprintf(buffer, "CMI8788:\n");
+	switch (oxygen_read8(chip, OXYGEN_REVISION) & OXYGEN_PACKAGE_ID_MASK) {
+	case OXYGEN_PACKAGE_ID_8786: i = '6'; break;
+	case OXYGEN_PACKAGE_ID_8787: i = '7'; break;
+	case OXYGEN_PACKAGE_ID_8788: i = '8'; break;
+	default:                     i = '?'; break;
+	}
+	snd_iprintf(buffer, "CMI878%c:\n", i);
 	for (i = 0; i < OXYGEN_IO_SIZE; i += 0x10) {
 		snd_iprintf(buffer, "%02x:", i);
 		for (j = 0; j < 0x10; ++j)
