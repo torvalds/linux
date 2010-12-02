@@ -54,6 +54,38 @@ int inet6_csk_bind_conflict(const struct sock *sk,
 
 EXPORT_SYMBOL_GPL(inet6_csk_bind_conflict);
 
+struct dst_entry *inet6_csk_route_req(struct sock *sk,
+				      const struct request_sock *req)
+{
+	struct inet6_request_sock *treq = inet6_rsk(req);
+	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct in6_addr *final_p, final;
+	struct dst_entry *dst;
+	struct flowi fl;
+
+	memset(&fl, 0, sizeof(fl));
+	fl.proto = IPPROTO_TCP;
+	ipv6_addr_copy(&fl.fl6_dst, &treq->rmt_addr);
+	final_p = fl6_update_dst(&fl, np->opt, &final);
+	ipv6_addr_copy(&fl.fl6_src, &treq->loc_addr);
+	fl.oif = sk->sk_bound_dev_if;
+	fl.mark = sk->sk_mark;
+	fl.fl_ip_dport = inet_rsk(req)->rmt_port;
+	fl.fl_ip_sport = inet_rsk(req)->loc_port;
+	security_req_classify_flow(req, &fl);
+
+	if (ip6_dst_lookup(sk, &dst, &fl))
+		return NULL;
+
+	if (final_p)
+		ipv6_addr_copy(&fl.fl6_dst, final_p);
+
+	if ((xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0)
+		return NULL;
+
+	return dst;
+}
+
 /*
  * request_sock (formerly open request) hash tables.
  */
