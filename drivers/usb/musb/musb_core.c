@@ -2242,7 +2242,7 @@ static int __exit musb_remove(struct platform_device *pdev)
 
 #ifdef	CONFIG_PM
 
-void musb_save_context(struct musb *musb)
+static void musb_save_context(struct musb *musb)
 {
 	int i;
 	void __iomem *musb_base = musb->mregs;
@@ -2310,7 +2310,7 @@ void musb_save_context(struct musb *musb)
 	musb_platform_suspend(musb);
 }
 
-void musb_restore_context(struct musb *musb)
+static void musb_restore_context(struct musb *musb)
 {
 	int i;
 	void __iomem *musb_base = musb->mregs;
