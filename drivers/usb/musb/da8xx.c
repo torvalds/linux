@@ -437,8 +437,6 @@ static int da8xx_musb_init(struct musb *musb)
 	if (is_host_enabled(musb))
 		setup_timer(&otg_workaround, otg_timer, (unsigned long)musb);
 
-	musb->board_set_vbus = da8xx_musb_set_vbus;
-
 	/* Reset the controller */
 	musb_writel(reg_base, DA8XX_USB_CTRL_REG, DA8XX_SOFT_RESET_MASK);
 

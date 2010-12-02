@@ -2000,7 +2000,6 @@ bad_config:
 	 *   - may initialize an integrated tranceiver
 	 *   - initializes musb->xceiv, usually by otg_get_transceiver()
 	 *   - stops powering VBUS
-	 *   - assigns musb->board_set_vbus if host mode is enabled
 	 *
 	 * There are various transciever configurations.  Blackfin,
 	 * DaVinci, TUSB60x0, and others integrate them.  OMAP3 uses

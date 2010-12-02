@@ -412,11 +412,6 @@ struct musb {
 	struct timer_list	otg_timer;
 #endif
 
-	/* called with IRQs blocked; ON/nonzero implies starting a session,
-	 * and waiting at least a_wait_vrise_tmout.
-	 */
-	void			(*board_set_vbus)(struct musb *, int is_on);
-
 	struct dma_controller	*dma_controller;
 
 	struct device		*controller;

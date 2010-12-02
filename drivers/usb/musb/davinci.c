@@ -404,7 +404,6 @@ static int davinci_musb_init(struct musb *musb)
 	if (is_host_enabled(musb))
 		setup_timer(&otg_workaround, otg_timer, (unsigned long) musb);
 
-	musb->board_set_vbus = davinci_musb_set_vbus;
 	davinci_musb_source_power(musb, 0, 1);
 
 	/* dm355 EVM swaps D+/D- for signal integrity, and
