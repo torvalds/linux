@@ -134,6 +134,9 @@ typedef struct xfs_buftarg {
 
 	/* LRU control structures */
 	struct shrinker		bt_shrinker;
+	struct list_head	bt_lru;
+	spinlock_t		bt_lru_lock;
+	unsigned int		bt_lru_nr;
 } xfs_buftarg_t;
 
 /*
@@ -166,9 +169,11 @@ typedef struct xfs_buf {
 	xfs_off_t		b_file_offset;	/* offset in file */
 	size_t			b_buffer_length;/* size of buffer in bytes */
 	atomic_t		b_hold;		/* reference count */
+	atomic_t		b_lru_ref;	/* lru reclaim ref count */
 	xfs_buf_flags_t		b_flags;	/* status flags */
 	struct semaphore	b_sema;		/* semaphore for lockables */
 
+	struct list_head	b_lru;		/* lru list */
 	wait_queue_head_t	b_waiters;	/* unpin waiters */
 	struct list_head	b_list;
 	struct xfs_perag	*b_pag;		/* contains rbtree root */
@@ -266,7 +271,8 @@ extern void xfs_buf_terminate(void);
 #define XFS_BUF_ZEROFLAGS(bp)	((bp)->b_flags &= \
 		~(XBF_READ|XBF_WRITE|XBF_ASYNC|XBF_DELWRI|XBF_ORDERED))
 
-#define XFS_BUF_STALE(bp)	((bp)->b_flags |= XBF_STALE)
+void xfs_buf_stale(struct xfs_buf *bp);
+#define XFS_BUF_STALE(bp)	xfs_buf_stale(bp);
 #define XFS_BUF_UNSTALE(bp)	((bp)->b_flags &= ~XBF_STALE)
 #define XFS_BUF_ISSTALE(bp)	((bp)->b_flags & XBF_STALE)
 #define XFS_BUF_SUPER_STALE(bp)	do {				\
