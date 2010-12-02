@@ -43,7 +43,7 @@
 #include <net/sock.h>
 
 #include <asm/system.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -125,7 +125,8 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 				continue;
 		}
 
-		if (!(nskb = skb_clone(skb, GFP_ATOMIC)))
+		nskb = skb_clone(skb, GFP_ATOMIC);
+		if (!nskb)
 			continue;
 
 		/* Put type byte before the data */
@@ -370,7 +371,8 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 	}
 
 	if (haddr->hci_dev != HCI_DEV_NONE) {
-		if (!(hdev = hci_dev_get(haddr->hci_dev))) {
+		hdev = hci_dev_get(haddr->hci_dev);
+		if (!hdev) {
 			err = -ENODEV;
 			goto done;
 		}
@@ -457,7 +459,8 @@ static int hci_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (sk->sk_state == BT_CLOSED)
 		return 0;
 
-	if (!(skb = skb_recv_datagram(sk, flags, noblock, &err)))
+	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	if (!skb)
 		return err;
 
 	msg->msg_namelen = 0;
@@ -499,7 +502,8 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	lock_sock(sk);
 
-	if (!(hdev = hci_pi(sk)->hdev)) {
+	hdev = hci_pi(sk)->hdev;
+	if (!hdev) {
 		err = -EBADFD;
 		goto done;
 	}
@@ -509,7 +513,8 @@ static int hci_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		goto done;
 	}
 
-	if (!(skb = bt_skb_send_alloc(sk, len, msg->msg_flags & MSG_DONTWAIT, &err)))
+	skb = bt_skb_send_alloc(sk, len, msg->msg_flags & MSG_DONTWAIT, &err);
+	if (!skb)
 		goto done;
 
 	if (memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len)) {

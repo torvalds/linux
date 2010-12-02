@@ -44,15 +44,15 @@ struct inquiry_data {
 };
 
 struct inquiry_entry {
-	struct inquiry_entry 	*next;
+	struct inquiry_entry	*next;
 	__u32			timestamp;
 	struct inquiry_data	data;
 };
 
 struct inquiry_cache {
-	spinlock_t 		lock;
+	spinlock_t		lock;
 	__u32			timestamp;
-	struct inquiry_entry 	*list;
+	struct inquiry_entry	*list;
 };
 
 struct hci_conn_hash {
@@ -141,7 +141,7 @@ struct hci_dev {
 	void			*driver_data;
 	void			*core_data;
 
-	atomic_t 		promisc;
+	atomic_t		promisc;
 
 	struct dentry		*debugfs;
 
@@ -150,7 +150,7 @@ struct hci_dev {
 
 	struct rfkill		*rfkill;
 
-	struct module 		*owner;
+	struct module		*owner;
 
 	int (*open)(struct hci_dev *hdev);
 	int (*close)(struct hci_dev *hdev);
@@ -215,8 +215,8 @@ extern rwlock_t hci_dev_list_lock;
 extern rwlock_t hci_cb_list_lock;
 
 /* ----- Inquiry cache ----- */
-#define INQUIRY_CACHE_AGE_MAX   (HZ*30)   // 30 seconds
-#define INQUIRY_ENTRY_AGE_MAX   (HZ*60)   // 60 seconds
+#define INQUIRY_CACHE_AGE_MAX   (HZ*30)   /* 30 seconds */
+#define INQUIRY_ENTRY_AGE_MAX   (HZ*60)   /* 60 seconds */
 
 #define inquiry_cache_lock(c)		spin_lock(&c->lock)
 #define inquiry_cache_unlock(c)		spin_unlock(&c->lock)
