@@ -45,8 +45,8 @@ static char *init_device;
 module_param_named(device, init_device, charp, 0400);
 MODULE_PARM_DESC(device, "specify initial device");
 
-static struct kmem_cache *zfcp_cache_hw_align(const char *name,
-					      unsigned long size)
+static struct kmem_cache * __init zfcp_cache_hw_align(const char *name,
+						      unsigned long size)
 {
 	return kmem_cache_create(name, size, roundup_pow_of_two(size), 0, NULL);
 }
