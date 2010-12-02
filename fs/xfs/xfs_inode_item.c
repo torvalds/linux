@@ -657,18 +657,37 @@ xfs_inode_item_unlock(
 }
 
 /*
- * This is called to find out where the oldest active copy of the
- * inode log item in the on disk log resides now that the last log
- * write of it completed at the given lsn.  Since we always re-log
- * all dirty data in an inode, the latest copy in the on disk log
- * is the only one that matters.  Therefore, simply return the
- * given lsn.
+ * This is called to find out where the oldest active copy of the inode log
+ * item in the on disk log resides now that the last log write of it completed
+ * at the given lsn.  Since we always re-log all dirty data in an inode, the
+ * latest copy in the on disk log is the only one that matters.  Therefore,
+ * simply return the given lsn.
+ *
+ * If the inode has been marked stale because the cluster is being freed, we
+ * don't want to (re-)insert this inode into the AIL. There is a race condition
+ * where the cluster buffer may be unpinned before the inode is inserted into
+ * the AIL during transaction committed processing. If the buffer is unpinned
+ * before the inode item has been committed and inserted, then it is possible
+ * for the buffer to be written and IO completions before the inode is inserted
+ * into the AIL. In that case, we'd be inserting a clean, stale inode into the
+ * AIL which will never get removed. It will, however, get reclaimed which
+ * triggers an assert in xfs_inode_free() complaining about freein an inode
+ * still in the AIL.
+ *
+ * To avoid this, return a lower LSN than the one passed in so that the
+ * transaction committed code will not move the inode forward in the AIL but
+ * will still unpin it properly.
  */
 STATIC xfs_lsn_t
 xfs_inode_item_committed(
 	struct xfs_log_item	*lip,
 	xfs_lsn_t		lsn)
 {
+	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
+	struct xfs_inode	*ip = iip->ili_inode;
+
+	if (xfs_iflags_test(ip, XFS_ISTALE))
+		return lsn - 1;
 	return lsn;
 }
 
