@@ -317,65 +317,24 @@ static void tpa6130a2_channel_enable(u8 channel, int enable)
 	}
 }
 
-static int tpa6130a2_pga_event(struct snd_soc_dapm_widget *w,
-		struct snd_kcontrol *kcontrol, int event)
-{
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
-		tpa6130a2_channel_enable(w->shift, 1);
-		break;
-	case SND_SOC_DAPM_POST_PMD:
-		tpa6130a2_channel_enable(w->shift, 0);
-		break;
-	}
-	return 0;
-}
-
-static int tpa6130a2_supply_event(struct snd_soc_dapm_widget *w,
-		struct snd_kcontrol *kcontrol, int event)
+int tpa6130a2_stereo_enable(struct snd_soc_codec *codec, int enable)
 {
 	int ret = 0;
-
-	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
+	if (enable) {
 		ret = tpa6130a2_power(1);
-		break;
-	case SND_SOC_DAPM_POST_PMD:
+		if (ret < 0)
+			return ret;
+		tpa6130a2_channel_enable(TPA6130A2_HP_EN_R | TPA6130A2_HP_EN_L,
+					 1);
+	} else {
+		tpa6130a2_channel_enable(TPA6130A2_HP_EN_R | TPA6130A2_HP_EN_L,
+					 0);
 		ret = tpa6130a2_power(0);
-		break;
 	}
+
 	return ret;
 }
-
-static const struct snd_soc_dapm_widget tpa6130a2_dapm_widgets[] = {
-	SND_SOC_DAPM_PGA_E("TPA6130A2 Left", SND_SOC_NOPM,
-			TPA6130A2_HP_EN_L, 0, NULL, 0, tpa6130a2_pga_event,
-			SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_PGA_E("TPA6130A2 Right", SND_SOC_NOPM,
-			TPA6130A2_HP_EN_R, 0, NULL, 0, tpa6130a2_pga_event,
-			SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_PGA_E("TPA6130A2 Stereo", SND_SOC_NOPM,
-			TPA6130A2_HP_EN_L | TPA6130A2_HP_EN_R, 0, NULL, 0,
-			tpa6130a2_pga_event,
-			SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_SUPPLY("TPA6130A2 Enable", SND_SOC_NOPM,
-			0, 0, tpa6130a2_supply_event,
-			SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
-	/* Outputs */
-	SND_SOC_DAPM_OUTPUT("TPA6130A2 Headphone Left"),
-	SND_SOC_DAPM_OUTPUT("TPA6130A2 Headphone Right"),
-	SND_SOC_DAPM_OUTPUT("TPA6130A2 Headphone Stereo"),
-};
-
-static const struct snd_soc_dapm_route audio_map[] = {
-	{"TPA6130A2 Headphone Left", NULL, "TPA6130A2 Left"},
-	{"TPA6130A2 Headphone Right", NULL, "TPA6130A2 Right"},
-	{"TPA6130A2 Headphone Stereo", NULL, "TPA6130A2 Stereo"},
-
-	{"TPA6130A2 Headphone Left", NULL, "TPA6130A2 Enable"},
-	{"TPA6130A2 Headphone Right", NULL, "TPA6130A2 Enable"},
-	{"TPA6130A2 Headphone Stereo", NULL, "TPA6130A2 Enable"},
-};
+EXPORT_SYMBOL_GPL(tpa6130a2_stereo_enable);
 
 int tpa6130a2_add_controls(struct snd_soc_codec *codec)
 {
@@ -387,18 +346,12 @@ int tpa6130a2_add_controls(struct snd_soc_codec *codec)
 
 	data = i2c_get_clientdata(tpa6130a2_client);
 
-	snd_soc_dapm_new_controls(dapm, tpa6130a2_dapm_widgets,
-				ARRAY_SIZE(tpa6130a2_dapm_widgets));
-
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
 	if (data->id == TPA6140A2)
 		return snd_soc_add_controls(codec, tpa6140a2_controls,
 						ARRAY_SIZE(tpa6140a2_controls));
 	else
 		return snd_soc_add_controls(codec, tpa6130a2_controls,
 						ARRAY_SIZE(tpa6130a2_controls));
-
 }
 EXPORT_SYMBOL_GPL(tpa6130a2_add_controls);
 

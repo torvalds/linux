@@ -57,5 +57,6 @@
 #define TPA6130A2_VERSION_MASK		(0x0f)
 
 extern int tpa6130a2_add_controls(struct snd_soc_codec *codec);
+extern int tpa6130a2_stereo_enable(struct snd_soc_codec *codec, int enable);
 
 #endif /* __TPA6130A2_H__ */
