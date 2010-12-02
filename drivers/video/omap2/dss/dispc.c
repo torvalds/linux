@@ -1610,8 +1610,8 @@ static int _dispc_setup_plane(enum omap_plane plane,
 		bool ilace,
 		enum omap_dss_rotation_type rotation_type,
 		u8 rotation, int mirror,
-		u8 global_alpha,
-		u8 pre_mult_alpha)
+		u8 global_alpha, u8 pre_mult_alpha,
+		enum omap_channel channel)
 {
 	const int maxdownscale = cpu_is_omap34xx() ? 4 : 2;
 	bool five_taps = 0;
@@ -1667,8 +1667,8 @@ static int _dispc_setup_plane(enum omap_plane plane,
 		five_taps = height > out_height * 2;
 
 		if (!five_taps) {
-			fclk = calc_fclk(OMAP_DSS_CHANNEL_LCD, width, height,
-					out_width, out_height);
+			fclk = calc_fclk(channel, width, height, out_width,
+					out_height);
 
 			/* Try 5-tap filter if 3-tap fclk is too high */
 			if (cpu_is_omap34xx() && height > out_height &&
@@ -1682,9 +1682,8 @@ static int _dispc_setup_plane(enum omap_plane plane,
 		}
 
 		if (five_taps)
-			fclk = calc_fclk_five_taps(OMAP_DSS_CHANNEL_LCD, width,
-					height, out_width, out_height,
-					color_mode);
+			fclk = calc_fclk_five_taps(channel, width, height,
+					out_width, out_height, color_mode);
 
 		DSSDBG("required fclk rate = %lu Hz\n", fclk);
 		DSSDBG("current fclk rate = %lu Hz\n", dispc_fclk_rate());
@@ -3331,17 +3330,17 @@ int dispc_setup_plane(enum omap_plane plane,
 		       bool ilace,
 		       enum omap_dss_rotation_type rotation_type,
 		       u8 rotation, bool mirror, u8 global_alpha,
-		       u8 pre_mult_alpha)
+		       u8 pre_mult_alpha, enum omap_channel channel)
 {
 	int r = 0;
 
 	DSSDBG("dispc_setup_plane %d, pa %x, sw %d, %d,%d, %dx%d -> "
-	       "%dx%d, ilace %d, cmode %x, rot %d, mir %d\n",
+	       "%dx%d, ilace %d, cmode %x, rot %d, mir %d chan %d\n",
 	       plane, paddr, screen_width, pos_x, pos_y,
 	       width, height,
 	       out_width, out_height,
 	       ilace, color_mode,
-	       rotation, mirror);
+	       rotation, mirror, channel);
 
 	enable_clocks(1);
 
@@ -3354,7 +3353,7 @@ int dispc_setup_plane(enum omap_plane plane,
 			   rotation_type,
 			   rotation, mirror,
 			   global_alpha,
-			   pre_mult_alpha);
+			   pre_mult_alpha, channel);
 
 	enable_clocks(0);
 
