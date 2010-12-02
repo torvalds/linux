@@ -35,12 +35,16 @@ static struct {
 	struct regulator *vdds_sdi_reg;
 } sdi;
 
-static void sdi_basic_init(void)
-{
-	dispc_set_parallel_interface_mode(OMAP_DSS_PARALLELMODE_BYPASS);
+static void sdi_basic_init(struct omap_dss_device *dssdev)
 
-	dispc_set_lcd_display_type(OMAP_DSS_LCD_DISPLAY_TFT);
-	dispc_set_tft_data_lines(24);
+{
+	dispc_set_parallel_interface_mode(dssdev->manager->id,
+			OMAP_DSS_PARALLELMODE_BYPASS);
+
+	dispc_set_lcd_display_type(dssdev->manager->id,
+			OMAP_DSS_LCD_DISPLAY_TFT);
+
+	dispc_set_tft_data_lines(dssdev->manager->id, 24);
 	dispc_lcd_enable_signal_polarity(1);
 }
 
@@ -68,7 +72,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	if (!sdi.skip_init)
 		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
-	sdi_basic_init();
+	sdi_basic_init(dssdev);
 
 	/* 15.5.9.1.2 */
 	dssdev->panel.config |= OMAP_DSS_LCD_RF | OMAP_DSS_LCD_ONOFF;
@@ -102,7 +106,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	}
 
 
-	dispc_set_lcd_timings(t);
+	dispc_set_lcd_timings(dssdev->manager->id, t);
 
 	r = dss_set_clock_div(&dss_cinfo);
 	if (r)
