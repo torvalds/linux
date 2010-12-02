@@ -65,10 +65,46 @@ static void ath5k_pci_read_cachesize(struct ath_common *common, int *csz)
 		*csz = L1_CACHE_BYTES >> 2;   /* Use the default size */
 }
 
+/*
+ * Read from eeprom
+ */
+bool ath5k_pci_eeprom_read(struct ath_common *common, u32 offset, u16 *data)
+{
+	struct ath5k_hw *ah = (struct ath5k_hw *) common->ah;
+	u32 status, timeout;
+
+	/*
+	 * Initialize EEPROM access
+	 */
+	if (ah->ah_version == AR5K_AR5210) {
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PCICFG, AR5K_PCICFG_EEAE);
+		(void)ath5k_hw_reg_read(ah, AR5K_EEPROM_BASE + (4 * offset));
+	} else {
+		ath5k_hw_reg_write(ah, offset, AR5K_EEPROM_BASE);
+		AR5K_REG_ENABLE_BITS(ah, AR5K_EEPROM_CMD,
+				AR5K_EEPROM_CMD_READ);
+	}
+
+	for (timeout = AR5K_TUNE_REGISTER_TIMEOUT; timeout > 0; timeout--) {
+		status = ath5k_hw_reg_read(ah, AR5K_EEPROM_STATUS);
+		if (status & AR5K_EEPROM_STAT_RDDONE) {
+			if (status & AR5K_EEPROM_STAT_RDERR)
+				return -EIO;
+			*data = (u16)(ath5k_hw_reg_read(ah, AR5K_EEPROM_DATA) &
+					0xffff);
+			return 0;
+		}
+		udelay(15);
+	}
+
+	return -ETIMEDOUT;
+}
+
 /* Common ath_bus_opts structure */
 static const struct ath_bus_ops ath_pci_bus_ops = {
 	.ath_bus_type = ATH_PCI,
 	.read_cachesize = ath5k_pci_read_cachesize,
+	.eeprom_read = ath5k_pci_eeprom_read,
 };
 
 /********************\
