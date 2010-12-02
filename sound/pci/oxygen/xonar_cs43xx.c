@@ -28,7 +28,7 @@
  * GPI 0 <- external power present (DX only)
  *
  * GPIO 0 -> enable output to speakers
- * GPIO 1 -> enable front panel I/O
+ * GPIO 1 -> route output to front panel
  * GPIO 2 -> M0 of CS5361
  * GPIO 3 -> M1 of CS5361
  * GPIO 8 -> route input jack to line-in (0) or mic-in (1)
@@ -176,8 +176,6 @@ static void xonar_d1_init(struct oxygen *chip)
 	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA,
 			    GPIO_D1_FRONT_PANEL | GPIO_D1_INPUT_ROUTE);
 
-	oxygen_ac97_set_bits(chip, 0, CM9780_JACK, CM9780_FMIC2MIC);
-
 	xonar_init_cs53x1(chip);
 	xonar_enable_output(chip);
 
@@ -287,7 +285,7 @@ static void update_cs43xx_center_lfe_mix(struct oxygen *chip, bool mixed)
 
 static const struct snd_kcontrol_new front_panel_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "Front Panel Switch",
+	.name = "Front Panel Playback Switch",
 	.info = snd_ctl_boolean_mono_info,
 	.get = xonar_gpio_bit_switch_get,
 	.put = xonar_gpio_bit_switch_put,
@@ -402,7 +400,8 @@ static const struct oxygen_model model_xonar_d1 = {
 	.model_data_size = sizeof(struct xonar_cs43xx),
 	.device_config = PLAYBACK_0_TO_I2S |
 			 PLAYBACK_1_TO_SPDIF |
-			 CAPTURE_0_FROM_I2S_2,
+			 CAPTURE_0_FROM_I2S_2 |
+			 AC97_FMIC_SWITCH,
 	.dac_channels = 8,
 	.dac_volume_min = 127 - 60,
 	.dac_volume_max = 127,

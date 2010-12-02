@@ -35,6 +35,7 @@
 #define MIDI_OUTPUT		0x0800
 #define MIDI_INPUT		0x1000
 #define AC97_CD_INPUT		0x2000
+#define AC97_FMIC_SWITCH	0x4000
 
 enum {
 	CONTROL_SPDIF_PCM,

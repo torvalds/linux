@@ -644,6 +644,51 @@ static int ac97_volume_put(struct snd_kcontrol *ctl,
 	return change;
 }
 
+static int mic_fmic_source_info(struct snd_kcontrol *ctl,
+			   struct snd_ctl_elem_info *info)
+{
+	static const char *const names[] = { "Mic Jack", "Front Panel" };
+
+	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	info->count = 1;
+	info->value.enumerated.items = 2;
+	info->value.enumerated.item &= 1;
+	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
+	return 0;
+}
+
+static int mic_fmic_source_get(struct snd_kcontrol *ctl,
+			       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+
+	mutex_lock(&chip->mutex);
+	value->value.enumerated.item[0] =
+		!!(oxygen_read_ac97(chip, 0, CM9780_JACK) & CM9780_FMIC2MIC);
+	mutex_unlock(&chip->mutex);
+	return 0;
+}
+
+static int mic_fmic_source_put(struct snd_kcontrol *ctl,
+			       struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	u16 oldreg, newreg;
+	int change;
+
+	mutex_lock(&chip->mutex);
+	oldreg = oxygen_read_ac97(chip, 0, CM9780_JACK);
+	if (value->value.enumerated.item[0])
+		newreg = oldreg | CM9780_FMIC2MIC;
+	else
+		newreg = oldreg & ~CM9780_FMIC2MIC;
+	change = newreg != oldreg;
+	if (change)
+		oxygen_write_ac97(chip, 0, CM9780_JACK, newreg);
+	mutex_unlock(&chip->mutex);
+	return change;
+}
+
 static int ac97_fp_rec_volume_info(struct snd_kcontrol *ctl,
 				   struct snd_ctl_elem_info *info)
 {
@@ -908,6 +953,13 @@ static const struct snd_kcontrol_new ac97_controls[] = {
 	AC97_VOLUME("Mic Capture Volume", 0, AC97_MIC, 0),
 	AC97_SWITCH("Mic Capture Switch", 0, AC97_MIC, 15, 1),
 	AC97_SWITCH("Mic Boost (+20dB)", 0, AC97_MIC, 6, 0),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Mic Source Capture Enum",
+		.info = mic_fmic_source_info,
+		.get = mic_fmic_source_get,
+		.put = mic_fmic_source_put,
+	},
 	AC97_SWITCH("Line Capture Switch", 0, AC97_LINE, 15, 1),
 	AC97_VOLUME("CD Capture Volume", 0, AC97_CD, 1),
 	AC97_SWITCH("CD Capture Switch", 0, AC97_CD, 15, 1),
@@ -971,6 +1023,9 @@ static int add_controls(struct oxygen *chip,
 		}
 		if (!strcmp(template.name, "Stereo Upmixing") &&
 		    chip->model.dac_channels == 2)
+			continue;
+		if (!strcmp(template.name, "Mic Source Capture Enum") &&
+		    !(chip->model.device_config & AC97_FMIC_SWITCH))
 			continue;
 		if (!strncmp(template.name, "CD Capture ", 11) &&
 		    !(chip->model.device_config & AC97_CD_INPUT))
