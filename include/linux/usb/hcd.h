@@ -76,6 +76,10 @@ struct usb_hcd {
 	struct kref		kref;		/* reference counter */
 
 	const char		*product_desc;	/* product/vendor string */
+	int			speed;		/* Speed for this roothub.
+						 * May be different from
+						 * hcd->driver->flags & HCD_MASK
+						 */
 	char			irq_descr[24];	/* driver + bus # */
 
 	struct timer_list	rh_timer;	/* drives root-hub polling */

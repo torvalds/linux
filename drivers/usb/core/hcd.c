@@ -507,7 +507,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
 		switch (wValue & 0xff00) {
 		case USB_DT_DEVICE << 8:
-			switch (hcd->driver->flags & HCD_MASK) {
+			switch (hcd->speed) {
 			case HCD_USB3:
 				bufp = usb3_rh_dev_descriptor;
 				break;
@@ -525,7 +525,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 				patch_protocol = 1;
 			break;
 		case USB_DT_CONFIG << 8:
-			switch (hcd->driver->flags & HCD_MASK) {
+			switch (hcd->speed) {
 			case HCD_USB3:
 				bufp = ss_rh_config_descriptor;
 				len = sizeof ss_rh_config_descriptor;
@@ -2216,6 +2216,7 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 #endif
 
 	hcd->driver = driver;
+	hcd->speed = driver->flags & HCD_MASK;
 	hcd->product_desc = (driver->product_desc) ? driver->product_desc :
 			"USB Host Controller";
 	return hcd;
@@ -2325,7 +2326,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	}
 	hcd->self.root_hub = rhdev;
 
-	switch (hcd->driver->flags & HCD_MASK) {
+	switch (hcd->speed) {
 	case HCD_USB11:
 		rhdev->speed = USB_SPEED_FULL;
 		break;
