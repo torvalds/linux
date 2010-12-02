@@ -203,7 +203,7 @@ struct snd_soc_dai_driver {
 	int (*resume)(struct snd_soc_dai *dai);
 
 	/* ops */
-	struct snd_soc_dai_ops *ops;
+	const struct snd_soc_dai_ops *ops;
 
 	/* DAI capabilities */
 	struct snd_soc_pcm_stream capture;
