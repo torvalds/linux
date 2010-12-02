@@ -76,7 +76,7 @@ static struct resource usb_resources[] = {
 static u64 usb_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device usb_dev = {
-	.name           = "musb-hdrc",
+	.name           = "musb-davinci",
 	.id             = -1,
 	.dev = {
 		.platform_data		= &usb_data,
