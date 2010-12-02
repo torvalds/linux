@@ -881,6 +881,40 @@ static void falcon_remove_port(struct efx_nic *efx)
 	efx_nic_free_buffer(efx, &efx->stats_buffer);
 }
 
+/* Global events are basically PHY events */
+static bool
+falcon_handle_global_event(struct efx_channel *channel, efx_qword_t *event)
+{
+	struct efx_nic *efx = channel->efx;
+
+	if (EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_G_PHY0_INTR) ||
+	    EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_XG_PHY0_INTR) ||
+	    EFX_QWORD_FIELD(*event, FSF_AB_GLB_EV_XFP_PHY0_INTR))
+		/* Ignored */
+		return true;
+
+	if ((efx_nic_rev(efx) == EFX_REV_FALCON_B0) &&
+	    EFX_QWORD_FIELD(*event, FSF_BB_GLB_EV_XG_MGT_INTR)) {
+		efx->xmac_poll_required = true;
+		return true;
+	}
+
+	if (efx_nic_rev(efx) <= EFX_REV_FALCON_A1 ?
+	    EFX_QWORD_FIELD(*event, FSF_AA_GLB_EV_RX_RECOVERY) :
+	    EFX_QWORD_FIELD(*event, FSF_BB_GLB_EV_RX_RECOVERY)) {
+		netif_err(efx, rx_err, efx->net_dev,
+			  "channel %d seen global RX_RESET event. Resetting.\n",
+			  channel->channel);
+
+		atomic_inc(&efx->rx_reset);
+		efx_schedule_reset(efx, EFX_WORKAROUND_6555(efx) ?
+				   RESET_TYPE_RX_RECOVERY : RESET_TYPE_DISABLE);
+		return true;
+	}
+
+	return false;
+}
+
 /**************************************************************************
  *
  * Falcon test code
@@ -1702,6 +1736,7 @@ struct efx_nic_type falcon_a1_nic_type = {
 	.reset = falcon_reset_hw,
 	.probe_port = falcon_probe_port,
 	.remove_port = falcon_remove_port,
+	.handle_global_event = falcon_handle_global_event,
 	.prepare_flush = falcon_prepare_flush,
 	.update_stats = falcon_update_nic_stats,
 	.start_stats = falcon_start_nic_stats,
@@ -1742,6 +1777,7 @@ struct efx_nic_type falcon_b0_nic_type = {
 	.reset = falcon_reset_hw,
 	.probe_port = falcon_probe_port,
 	.remove_port = falcon_remove_port,
+	.handle_global_event = falcon_handle_global_event,
 	.prepare_flush = falcon_prepare_flush,
 	.update_stats = falcon_update_nic_stats,
 	.start_stats = falcon_start_nic_stats,
