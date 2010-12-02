@@ -71,7 +71,6 @@ static void vmbus_bus_release(struct device *device);
 
 static int vmbus_child_device_register(struct hv_device *root_device_obj,
 				       struct hv_device *child_device_obj);
-static void vmbus_child_device_unregister(struct hv_device *child_device_obj);
 static ssize_t vmbus_show_device_attr(struct device *dev,
 				      struct device_attribute *dev_attr,
 				      char *buf);
@@ -298,7 +297,6 @@ static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 	 * devices on the bus
 	 */
 	vmbus_drv_obj->OnChildDeviceAdd = vmbus_child_device_register;
-	vmbus_drv_obj->OnChildDeviceRemove = vmbus_child_device_unregister;
 
 	/* Call to bus driver to initialize */
 	ret = drv_init(&vmbus_drv_obj->Base);
@@ -580,7 +578,7 @@ static int vmbus_child_device_register(struct hv_device *root_device_obj,
  * vmbus_child_device_unregister - Remove the specified child device
  * from the vmbus.
  */
-static void vmbus_child_device_unregister(struct hv_device *device_obj)
+void vmbus_child_device_unregister(struct hv_device *device_obj)
 {
 	struct vm_device *device_ctx = to_vm_device(device_obj);
 

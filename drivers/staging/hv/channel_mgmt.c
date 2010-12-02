@@ -413,7 +413,7 @@ static void vmbus_process_rescind_offer(void *context)
 {
 	struct vmbus_channel *channel = context;
 
-	VmbusChildDeviceRemove(channel->device_obj);
+	vmbus_child_device_unregister(channel->device_obj);
 }
 
 /*
@@ -847,7 +847,7 @@ void vmbus_release_unattached_channels(void)
 				    "Releasing unattached device object %p",
 				    channel->device_obj);
 
-			VmbusChildDeviceRemove(channel->device_obj);
+			vmbus_child_device_unregister(channel->device_obj);
 			free_channel(channel);
 		} else {
 			if (!start)

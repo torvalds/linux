@@ -108,7 +108,7 @@ struct hv_device *vmbus_child_device_create(struct hv_guid *deviceType,
 
 int VmbusChildDeviceAdd(struct hv_device *Device);
 
-void VmbusChildDeviceRemove(struct hv_device *Device);
+void vmbus_child_device_unregister(struct hv_device *device_obj);
 
 /* static void */
 /* VmbusChildDeviceDestroy( */

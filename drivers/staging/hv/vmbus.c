@@ -71,16 +71,6 @@ int VmbusChildDeviceAdd(struct hv_device *ChildDevice)
 }
 
 /*
- * VmbusChildDeviceRemove Unregisters the child device from the vmbus
- */
-void VmbusChildDeviceRemove(struct hv_device *ChildDevice)
-{
-	struct vmbus_driver *vmbusDriver = (struct vmbus_driver *)gDriver;
-
-	vmbusDriver->OnChildDeviceRemove(ChildDevice);
-}
-
-/*
  * VmbusOnDeviceAdd - Callback when the root bus device is added
  */
 static int VmbusOnDeviceAdd(struct hv_device *dev, void *AdditionalInfo)
