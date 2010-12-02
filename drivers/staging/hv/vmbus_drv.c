@@ -294,40 +294,6 @@ int vmbus_on_isr(struct hv_driver *drv)
 	return ret;
 }
 
-/*
- * VmbusInitialize - Main entry point
- */
-static int VmbusInitialize(struct hv_driver *driver)
-{
-	int ret;
-
-	DPRINT_INFO(VMBUS, "+++++++ HV Driver version = %s +++++++",
-		    HV_DRV_VERSION);
-	DPRINT_INFO(VMBUS, "+++++++ Vmbus supported version = %d +++++++",
-			VMBUS_REVISION_NUMBER);
-	DPRINT_INFO(VMBUS, "+++++++ Vmbus using SINT %d +++++++",
-			VMBUS_MESSAGE_SINT);
-	DPRINT_DBG(VMBUS, "sizeof(vmbus_channel_packet_page_buffer)=%zd, "
-			"sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER)=%zd",
-			sizeof(struct vmbus_channel_packet_page_buffer),
-			sizeof(struct vmbus_channel_packet_multipage_buffer));
-
-	driver->name = gDriverName;
-	memcpy(&driver->deviceType, &gVmbusDeviceType, sizeof(struct hv_guid));
-
-	/* Setup dispatch table */
-	driver->OnDeviceAdd	= VmbusOnDeviceAdd;
-	driver->OnDeviceRemove	= VmbusOnDeviceRemove;
-	driver->OnCleanup	= VmbusOnCleanup;
-
-	/* Hypervisor initialization...setup hypercall page..etc */
-	ret = hv_init();
-	if (ret != 0)
-		DPRINT_ERR(VMBUS, "Unable to initialize the hypervisor - 0x%x",
-				ret);
-	return ret;
-}
-
 static void get_channel_info(struct hv_device *device,
 			     struct hv_device_info *info)
 {
@@ -496,10 +462,30 @@ static int vmbus_bus_init(void)
 	int ret;
 	unsigned int vector;
 
-	/* Call to bus driver to initialize */
-	ret = VmbusInitialize(driver);
+	DPRINT_INFO(VMBUS, "+++++++ HV Driver version = %s +++++++",
+		    HV_DRV_VERSION);
+	DPRINT_INFO(VMBUS, "+++++++ Vmbus supported version = %d +++++++",
+			VMBUS_REVISION_NUMBER);
+	DPRINT_INFO(VMBUS, "+++++++ Vmbus using SINT %d +++++++",
+			VMBUS_MESSAGE_SINT);
+	DPRINT_DBG(VMBUS, "sizeof(vmbus_channel_packet_page_buffer)=%zd, "
+			"sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER)=%zd",
+			sizeof(struct vmbus_channel_packet_page_buffer),
+			sizeof(struct vmbus_channel_packet_multipage_buffer));
+
+	driver->name = gDriverName;
+	memcpy(&driver->deviceType, &gVmbusDeviceType, sizeof(struct hv_guid));
+
+	/* Setup dispatch table */
+	driver->OnDeviceAdd	= VmbusOnDeviceAdd;
+	driver->OnDeviceRemove	= VmbusOnDeviceRemove;
+	driver->OnCleanup	= VmbusOnCleanup;
+
+	/* Hypervisor initialization...setup hypercall page..etc */
+	ret = hv_init();
 	if (ret != 0) {
-		DPRINT_ERR(VMBUS_DRV, "Unable to initialize vmbus (%d)", ret);
+		DPRINT_ERR(VMBUS, "Unable to initialize the hypervisor - 0x%x",
+				ret);
 		goto cleanup;
 	}
 
