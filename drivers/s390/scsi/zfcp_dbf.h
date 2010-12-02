@@ -27,6 +27,7 @@
 #include "zfcp_fsf.h"
 #include "zfcp_def.h"
 
+#define ZFCP_DBF_TAG_LEN       7
 #define ZFCP_DBF_TAG_SIZE      4
 #define ZFCP_DBF_ID_SIZE       7
 
@@ -40,57 +41,72 @@ struct zfcp_dbf_dump {
 	u8 data[];		/* dump data */
 } __attribute__ ((packed));
 
-struct zfcp_dbf_rec_record_thread {
-	u32 total;
+/**
+ * struct zfcp_dbf_rec_trigger - trace record for triggered recovery action
+ * @ready: number of ready recovery actions
+ * @running: number of running recovery actions
+ * @want: wanted recovery action
+ * @need: needed recovery action
+ */
+struct zfcp_dbf_rec_trigger {
 	u32 ready;
 	u32 running;
-};
-
-struct zfcp_dbf_rec_record_target {
-	u64 ref;
-	u32 status;
-	u32 d_id;
-	u64 wwpn;
-	u64 fcp_lun;
-	u32 erp_count;
-};
-
-struct zfcp_dbf_rec_record_trigger {
 	u8 want;
 	u8 need;
-	u32 as;
-	u32 ps;
-	u32 ls;
-	u64 ref;
-	u64 action;
-	u64 wwpn;
-	u64 fcp_lun;
+} __packed;
+
+/**
+ * struct zfcp_dbf_rec_running - trace record for running recovery
+ * @fsf_req_id: request id for fsf requests
+ * @rec_status: status of the fsf request
+ * @rec_step: current step of the recovery action
+ * rec_count: recovery counter
+ */
+struct zfcp_dbf_rec_running {
+	u64 fsf_req_id;
+	u32 rec_status;
+	u16 rec_step;
+	u8 rec_action;
+	u8 rec_count;
+} __packed;
+
+/**
+ * enum zfcp_dbf_rec_id - recovery trace record id
+ * @ZFCP_DBF_REC_TRIG: triggered recovery identifier
+ * @ZFCP_DBF_REC_RUN: running recovery identifier
+ */
+enum zfcp_dbf_rec_id {
+	ZFCP_DBF_REC_TRIG	= 1,
+	ZFCP_DBF_REC_RUN	= 2,
 };
 
-struct zfcp_dbf_rec_record_action {
-	u32 status;
-	u32 step;
-	u64 action;
-	u64 fsf_req;
-};
-
-struct zfcp_dbf_rec_record {
+/**
+ * struct zfcp_dbf_rec - trace record for error recovery actions
+ * @id: unique number of recovery record type
+ * @tag: identifier string specifying the location of initiation
+ * @lun: logical unit number
+ * @wwpn: word wide port number
+ * @d_id: destination ID
+ * @adapter_status: current status of the adapter
+ * @port_status: current status of the port
+ * @lun_status: current status of the lun
+ * @u.trig: structure zfcp_dbf_rec_trigger
+ * @u.run: structure zfcp_dbf_rec_running
+ */
+struct zfcp_dbf_rec {
 	u8 id;
-	char id2[7];
+	char tag[ZFCP_DBF_TAG_LEN];
+	u64 lun;
+	u64 wwpn;
+	u32 d_id;
+	u32 adapter_status;
+	u32 port_status;
+	u32 lun_status;
 	union {
-		struct zfcp_dbf_rec_record_action action;
-		struct zfcp_dbf_rec_record_thread thread;
-		struct zfcp_dbf_rec_record_target target;
-		struct zfcp_dbf_rec_record_trigger trigger;
+		struct zfcp_dbf_rec_trigger trig;
+		struct zfcp_dbf_rec_running run;
 	} u;
-};
-
-enum {
-	ZFCP_REC_DBF_ID_ACTION,
-	ZFCP_REC_DBF_ID_THREAD,
-	ZFCP_REC_DBF_ID_TARGET,
-	ZFCP_REC_DBF_ID_TRIGGER,
-};
+} __packed;
 
 struct zfcp_dbf_hba_record_response {
 	u32 fsf_command;
@@ -232,7 +248,7 @@ struct zfcp_dbf {
 	spinlock_t			hba_lock;
 	spinlock_t			san_lock;
 	spinlock_t			scsi_lock;
-	struct zfcp_dbf_rec_record	rec_buf;
+	struct zfcp_dbf_rec		rec_buf;
 	struct zfcp_dbf_hba_record	hba_buf;
 	struct zfcp_dbf_san_record	san_buf;
 	struct zfcp_dbf_scsi_record	scsi_buf;

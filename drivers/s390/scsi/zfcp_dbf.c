@@ -50,11 +50,6 @@ static void zfcp_dbf_tag(char **p, const char *label, const char *tag)
 	*p += sprintf(*p, "\n");
 }
 
-static void zfcp_dbf_outs(char **buf, const char *s1, const char *s2)
-{
-	*buf += sprintf(*buf, "%-24s%s\n", s1, s2);
-}
-
 static void zfcp_dbf_out(char **buf, const char *s, const char *format, ...)
 {
 	va_list arg;
@@ -439,241 +434,96 @@ static struct debug_view zfcp_dbf_hba_view = {
 	.format_proc = zfcp_dbf_hba_view_format,
 };
 
-static const char *zfcp_dbf_rec_tags[] = {
-	[ZFCP_REC_DBF_ID_THREAD] = "thread",
-	[ZFCP_REC_DBF_ID_TARGET] = "target",
-	[ZFCP_REC_DBF_ID_TRIGGER] = "trigger",
-	[ZFCP_REC_DBF_ID_ACTION] = "action",
-};
-
-static int zfcp_dbf_rec_view_format(debug_info_t *id, struct debug_view *view,
-				    char *buf, const char *_rec)
+static void zfcp_dbf_set_common(struct zfcp_dbf_rec *rec,
+				struct zfcp_adapter *adapter,
+				struct zfcp_port *port,
+				struct scsi_device *sdev)
 {
-	struct zfcp_dbf_rec_record *r = (struct zfcp_dbf_rec_record *)_rec;
-	char *p = buf;
-	char hint[ZFCP_DBF_ID_SIZE + 1];
-
-	memcpy(hint, r->id2, ZFCP_DBF_ID_SIZE);
-	hint[ZFCP_DBF_ID_SIZE] = 0;
-	zfcp_dbf_outs(&p, "tag", zfcp_dbf_rec_tags[r->id]);
-	zfcp_dbf_outs(&p, "hint", hint);
-	switch (r->id) {
-	case ZFCP_REC_DBF_ID_THREAD:
-		zfcp_dbf_out(&p, "total", "%d", r->u.thread.total);
-		zfcp_dbf_out(&p, "ready", "%d", r->u.thread.ready);
-		zfcp_dbf_out(&p, "running", "%d", r->u.thread.running);
-		break;
-	case ZFCP_REC_DBF_ID_TARGET:
-		zfcp_dbf_out(&p, "reference", "0x%016Lx", r->u.target.ref);
-		zfcp_dbf_out(&p, "status", "0x%08x", r->u.target.status);
-		zfcp_dbf_out(&p, "erp_count", "%d", r->u.target.erp_count);
-		zfcp_dbf_out(&p, "d_id", "0x%06x", r->u.target.d_id);
-		zfcp_dbf_out(&p, "wwpn", "0x%016Lx", r->u.target.wwpn);
-		zfcp_dbf_out(&p, "fcp_lun", "0x%016Lx", r->u.target.fcp_lun);
-		break;
-	case ZFCP_REC_DBF_ID_TRIGGER:
-		zfcp_dbf_out(&p, "reference", "0x%016Lx", r->u.trigger.ref);
-		zfcp_dbf_out(&p, "erp_action", "0x%016Lx", r->u.trigger.action);
-		zfcp_dbf_out(&p, "requested", "%d", r->u.trigger.want);
-		zfcp_dbf_out(&p, "executed", "%d", r->u.trigger.need);
-		zfcp_dbf_out(&p, "wwpn", "0x%016Lx", r->u.trigger.wwpn);
-		zfcp_dbf_out(&p, "fcp_lun", "0x%016Lx", r->u.trigger.fcp_lun);
-		zfcp_dbf_out(&p, "adapter_status", "0x%08x", r->u.trigger.as);
-		zfcp_dbf_out(&p, "port_status", "0x%08x", r->u.trigger.ps);
-		zfcp_dbf_out(&p, "lun_status", "0x%08x", r->u.trigger.ls);
-		break;
-	case ZFCP_REC_DBF_ID_ACTION:
-		zfcp_dbf_out(&p, "erp_action", "0x%016Lx", r->u.action.action);
-		zfcp_dbf_out(&p, "fsf_req", "0x%016Lx", r->u.action.fsf_req);
-		zfcp_dbf_out(&p, "status", "0x%08Lx", r->u.action.status);
-		zfcp_dbf_out(&p, "step", "0x%08Lx", r->u.action.step);
-		break;
+	rec->adapter_status = atomic_read(&adapter->status);
+	if (port) {
+		rec->port_status = atomic_read(&port->status);
+		rec->wwpn = port->wwpn;
+		rec->d_id = port->d_id;
 	}
-	p += sprintf(p, "\n");
-	return p - buf;
-}
-
-static struct debug_view zfcp_dbf_rec_view = {
-	.name = "structured",
-	.header_proc = zfcp_dbf_view_header,
-	.format_proc = zfcp_dbf_rec_view_format,
-};
-
-/**
- * zfcp_dbf_rec_thread - trace event related to recovery thread operation
- * @id2: identifier for event
- * @dbf: reference to dbf structure
- * This function assumes that the caller is holding erp_lock.
- */
-void zfcp_dbf_rec_thread(char *id2, struct zfcp_dbf *dbf)
-{
-	struct zfcp_adapter *adapter = dbf->adapter;
-	struct zfcp_dbf_rec_record *r = &dbf->rec_buf;
-	unsigned long flags = 0;
-	struct list_head *entry;
-	unsigned ready = 0, running = 0, total;
-
-	list_for_each(entry, &adapter->erp_ready_head)
-		ready++;
-	list_for_each(entry, &adapter->erp_running_head)
-		running++;
-	total = adapter->erp_total_count;
-
-	spin_lock_irqsave(&dbf->rec_lock, flags);
-	memset(r, 0, sizeof(*r));
-	r->id = ZFCP_REC_DBF_ID_THREAD;
-	memcpy(r->id2, id2, ZFCP_DBF_ID_SIZE);
-	r->u.thread.total = total;
-	r->u.thread.ready = ready;
-	r->u.thread.running = running;
-	debug_event(dbf->rec, 6, r, sizeof(*r));
-	spin_unlock_irqrestore(&dbf->rec_lock, flags);
+	if (sdev) {
+		rec->lun_status = atomic_read(&sdev_to_zfcp(sdev)->status);
+		rec->lun = zfcp_scsi_dev_lun(sdev);
+	}
 }
 
 /**
- * zfcp_dbf_rec_thread - trace event related to recovery thread operation
- * @id2: identifier for event
- * @adapter: adapter
- * This function assumes that the caller does not hold erp_lock.
+ * zfcp_dbf_rec_trig - trace event related to triggered recovery
+ * @tag: identifier for event
+ * @adapter: adapter on which the erp_action should run
+ * @port: remote port involved in the erp_action
+ * @sdev: scsi device involved in the erp_action
+ * @want: wanted erp_action
+ * @need: required erp_action
+ *
+ * The adapter->erp_lock has to be held.
  */
-void zfcp_dbf_rec_thread_lock(char *id2, struct zfcp_dbf *dbf)
-{
-	struct zfcp_adapter *adapter = dbf->adapter;
-	unsigned long flags;
-
-	read_lock_irqsave(&adapter->erp_lock, flags);
-	zfcp_dbf_rec_thread(id2, dbf);
-	read_unlock_irqrestore(&adapter->erp_lock, flags);
-}
-
-static void zfcp_dbf_rec_target(char *id2, void *ref, struct zfcp_dbf *dbf,
-				atomic_t *status, atomic_t *erp_count, u64 wwpn,
-				u32 d_id, u64 fcp_lun)
-{
-	struct zfcp_dbf_rec_record *r = &dbf->rec_buf;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dbf->rec_lock, flags);
-	memset(r, 0, sizeof(*r));
-	r->id = ZFCP_REC_DBF_ID_TARGET;
-	memcpy(r->id2, id2, ZFCP_DBF_ID_SIZE);
-	r->u.target.ref = (unsigned long)ref;
-	r->u.target.status = atomic_read(status);
-	r->u.target.wwpn = wwpn;
-	r->u.target.d_id = d_id;
-	r->u.target.fcp_lun = fcp_lun;
-	r->u.target.erp_count = atomic_read(erp_count);
-	debug_event(dbf->rec, 3, r, sizeof(*r));
-	spin_unlock_irqrestore(&dbf->rec_lock, flags);
-}
-
-/**
- * zfcp_dbf_rec_adapter - trace event for adapter state change
- * @id: identifier for trigger of state change
- * @ref: additional reference (e.g. request)
- * @dbf: reference to dbf structure
- */
-void zfcp_dbf_rec_adapter(char *id, void *ref, struct zfcp_dbf *dbf)
-{
-	struct zfcp_adapter *adapter = dbf->adapter;
-
-	zfcp_dbf_rec_target(id, ref, dbf, &adapter->status,
-			    &adapter->erp_counter, 0, 0,
-			    ZFCP_DBF_INVALID_LUN);
-}
-
-/**
- * zfcp_dbf_rec_port - trace event for port state change
- * @id: identifier for trigger of state change
- * @ref: additional reference (e.g. request)
- * @port: port
- */
-void zfcp_dbf_rec_port(char *id, void *ref, struct zfcp_port *port)
-{
-	struct zfcp_dbf *dbf = port->adapter->dbf;
-
-	zfcp_dbf_rec_target(id, ref, dbf, &port->status,
-			    &port->erp_counter, port->wwpn, port->d_id,
-			    ZFCP_DBF_INVALID_LUN);
-}
-
-/**
- * zfcp_dbf_rec_lun - trace event for LUN state change
- * @id: identifier for trigger of state change
- * @ref: additional reference (e.g. request)
- * @sdev: SCSI device
- */
-void zfcp_dbf_rec_lun(char *id, void *ref, struct scsi_device *sdev)
-{
-	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
-	struct zfcp_port *port = zfcp_sdev->port;
-	struct zfcp_dbf *dbf = port->adapter->dbf;
-
-	zfcp_dbf_rec_target(id, ref, dbf, &zfcp_sdev->status,
-			    &zfcp_sdev->erp_counter, port->wwpn, port->d_id,
-			    zfcp_scsi_dev_lun(sdev));
-}
-
-/**
- * zfcp_dbf_rec_trigger - trace event for triggered error recovery
- * @id2: identifier for error recovery trigger
- * @ref: additional reference (e.g. request)
- * @want: originally requested error recovery action
- * @need: error recovery action actually initiated
- * @action: address of error recovery action struct
- * @adapter: adapter
- * @port: port
- * @sdev: SCSI device
- */
-void zfcp_dbf_rec_trigger(char *id2, void *ref, u8 want, u8 need, void *action,
-			  struct zfcp_adapter *adapter, struct zfcp_port *port,
-			  struct scsi_device *sdev)
+void zfcp_dbf_rec_trig(char *tag, struct zfcp_adapter *adapter,
+		       struct zfcp_port *port, struct scsi_device *sdev,
+		       u8 want, u8 need)
 {
 	struct zfcp_dbf *dbf = adapter->dbf;
-	struct zfcp_dbf_rec_record *r = &dbf->rec_buf;
+	struct zfcp_dbf_rec *rec = &dbf->rec_buf;
+	struct list_head *entry;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dbf->rec_lock, flags);
-	memset(r, 0, sizeof(*r));
-	r->id = ZFCP_REC_DBF_ID_TRIGGER;
-	memcpy(r->id2, id2, ZFCP_DBF_ID_SIZE);
-	r->u.trigger.ref = (unsigned long)ref;
-	r->u.trigger.want = want;
-	r->u.trigger.need = need;
-	r->u.trigger.action = (unsigned long)action;
-	r->u.trigger.as = atomic_read(&adapter->status);
-	if (port) {
-		r->u.trigger.ps = atomic_read(&port->status);
-		r->u.trigger.wwpn = port->wwpn;
-	}
-	if (sdev)
-		r->u.trigger.ls = atomic_read(&sdev_to_zfcp(sdev)->status);
-	r->u.trigger.fcp_lun = sdev ? zfcp_scsi_dev_lun(sdev) :
-				      ZFCP_DBF_INVALID_LUN;
-	debug_event(dbf->rec, action ? 1 : 4, r, sizeof(*r));
+	memset(rec, 0, sizeof(*rec));
+
+	rec->id = ZFCP_DBF_REC_TRIG;
+	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
+	zfcp_dbf_set_common(rec, adapter, port, sdev);
+
+	list_for_each(entry, &adapter->erp_ready_head)
+		rec->u.trig.ready++;
+
+	list_for_each(entry, &adapter->erp_running_head)
+		rec->u.trig.running++;
+
+	rec->u.trig.want = want;
+	rec->u.trig.need = need;
+
+	debug_event(dbf->rec, 1, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->rec_lock, flags);
 }
 
+
 /**
- * zfcp_dbf_rec_action - trace event showing progress of recovery action
- * @id2: identifier
- * @erp_action: error recovery action struct pointer
+ * zfcp_dbf_rec_run - trace event related to running recovery
+ * @tag: identifier for event
+ * @erp: erp_action running
  */
-void zfcp_dbf_rec_action(char *id2, struct zfcp_erp_action *erp_action)
+void zfcp_dbf_rec_run(char *tag, struct zfcp_erp_action *erp)
 {
-	struct zfcp_dbf *dbf = erp_action->adapter->dbf;
-	struct zfcp_dbf_rec_record *r = &dbf->rec_buf;
+	struct zfcp_dbf *dbf = erp->adapter->dbf;
+	struct zfcp_dbf_rec *rec = &dbf->rec_buf;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dbf->rec_lock, flags);
-	memset(r, 0, sizeof(*r));
-	r->id = ZFCP_REC_DBF_ID_ACTION;
-	memcpy(r->id2, id2, ZFCP_DBF_ID_SIZE);
-	r->u.action.action = (unsigned long)erp_action;
-	r->u.action.status = erp_action->status;
-	r->u.action.step = erp_action->step;
-	r->u.action.fsf_req = erp_action->fsf_req_id;
-	debug_event(dbf->rec, 5, r, sizeof(*r));
+	memset(rec, 0, sizeof(*rec));
+
+	rec->id = ZFCP_DBF_REC_RUN;
+	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
+	zfcp_dbf_set_common(rec, erp->adapter, erp->port, erp->sdev);
+
+	rec->u.run.fsf_req_id = erp->fsf_req_id;
+	rec->u.run.rec_status = erp->status;
+	rec->u.run.rec_step = erp->step;
+	rec->u.run.rec_action = erp->action;
+
+	if (erp->sdev)
+		rec->u.run.rec_count =
+			atomic_read(&sdev_to_zfcp(erp->sdev)->erp_counter);
+	else if (erp->port)
+		rec->u.run.rec_count = atomic_read(&erp->port->erp_counter);
+	else
+		rec->u.run.rec_count = atomic_read(&erp->adapter->erp_counter);
+
+	debug_event(dbf->rec, 1, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->rec_lock, flags);
 }
 
@@ -1019,8 +869,7 @@ int zfcp_dbf_adapter_register(struct zfcp_adapter *adapter)
 
 	/* debug feature area which records recovery activity */
 	sprintf(dbf_name, "zfcp_%s_rec", dev_name(&adapter->ccw_device->dev));
-	dbf->rec = zfcp_dbf_reg(dbf_name, 3, &zfcp_dbf_rec_view,
-				sizeof(struct zfcp_dbf_rec_record));
+	dbf->rec = zfcp_dbf_reg(dbf_name, 3, NULL, sizeof(struct zfcp_dbf_rec));
 	if (!dbf->rec)
 		goto err_out;
 
