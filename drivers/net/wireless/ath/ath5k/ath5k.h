@@ -1146,9 +1146,11 @@ struct ath5k_hw {
  * Prototypes
  */
 
-/* Attach/Detach Functions */
-int ath5k_hw_attach(struct ath5k_softc *sc);
-void ath5k_hw_detach(struct ath5k_hw *ah);
+/* Initialization and detach functions */
+int ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops);
+void ath5k_deinit_softc(struct ath5k_softc *sc);
+int ath5k_hw_init(struct ath5k_softc *sc);
+void ath5k_hw_deinit(struct ath5k_hw *ah);
 
 int ath5k_sysfs_register(struct ath5k_softc *sc);
 void ath5k_sysfs_unregister(struct ath5k_softc *sc);
@@ -1330,6 +1332,11 @@ static inline u32 ath5k_hw_reg_read(struct ath5k_hw *ah, u16 reg)
 static inline void ath5k_hw_reg_write(struct ath5k_hw *ah, u32 val, u16 reg)
 {
 	iowrite32(val, ah->ah_iobase + reg);
+}
+
+static inline void ath5k_read_cachesize(struct ath_common *common, int *csz)
+{
+	common->bus_ops->read_cachesize(common, csz);
 }
 
 static inline u32 ath5k_hw_bitswap(u32 val, unsigned int bits)

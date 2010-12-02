@@ -93,16 +93,16 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
 }
 
 /**
- * ath5k_hw_attach - Check if hw is supported and init the needed structs
+ * ath5k_hw_init - Check if hw is supported and init the needed structs
  *
- * @sc: The &struct ath5k_softc we got from the driver's attach function
+ * @sc: The &struct ath5k_softc we got from the driver's init_softc function
  *
  * Check if the device is supported, perform a POST and initialize the needed
  * structs. Returns -ENOMEM if we don't have memory for the needed structs,
  * -ENODEV if the device is not supported or prints an error msg if something
  * else went wrong.
  */
-int ath5k_hw_attach(struct ath5k_softc *sc)
+int ath5k_hw_init(struct ath5k_softc *sc)
 {
 	struct ath5k_hw *ah = sc->ah;
 	struct ath_common *common = ath5k_hw_common(ah);
@@ -346,11 +346,11 @@ err:
 }
 
 /**
- * ath5k_hw_detach - Free the ath5k_hw struct
+ * ath5k_hw_deinit - Free the ath5k_hw struct
  *
  * @ah: The &struct ath5k_hw
  */
-void ath5k_hw_detach(struct ath5k_hw *ah)
+void ath5k_hw_deinit(struct ath5k_hw *ah)
 {
 	__set_bit(ATH_STAT_INVALID, ah->ah_sc->status);
 

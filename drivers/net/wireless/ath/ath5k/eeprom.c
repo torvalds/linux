@@ -208,7 +208,7 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 	 *
 	 * XXX: Serdes values seem to be fixed so
 	 * no need to read them here, we write them
-	 * during ath5k_hw_attach */
+	 * during ath5k_hw_init */
 	AR5K_EEPROM_READ(AR5K_EEPROM_PCIE_OFFSET, val);
 	ee->ee_serdes = (val == AR5K_EEPROM_PCIE_SERDES_SECTION) ?
 							true : false;
