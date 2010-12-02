@@ -161,8 +161,8 @@ static void unlink_from_unused(struct inet_peer *p)
 	}
 }
 
-static int addr_compare(const inet_peer_address_t *a,
-			const inet_peer_address_t *b)
+static int addr_compare(const struct inetpeer_addr *a,
+			const struct inetpeer_addr *b)
 {
 	int i, n = (a->family == AF_INET ? 1 : 4);
 
@@ -211,7 +211,7 @@ static int addr_compare(const inet_peer_address_t *a,
  * But every pointer we follow is guaranteed to be valid thanks to RCU.
  * We exit from this function if number of links exceeds PEER_MAXDEPTH
  */
-static struct inet_peer *lookup_rcu_bh(const inet_peer_address_t *daddr,
+static struct inet_peer *lookup_rcu_bh(const struct inetpeer_addr *daddr,
 				       struct inet_peer_base *base)
 {
 	struct inet_peer *u = rcu_dereference_bh(base->root);
@@ -472,7 +472,7 @@ static int cleanup_once(unsigned long ttl)
 }
 
 /* Called with or without local BH being disabled. */
-struct inet_peer *inet_getpeer(inet_peer_address_t *daddr, int create)
+struct inet_peer *inet_getpeer(struct inetpeer_addr *daddr, int create)
 {
 	struct inet_peer __rcu **stack[PEER_MAXDEPTH], ***stackptr;
 	struct inet_peer_base *base = family_to_base(AF_INET);
