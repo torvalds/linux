@@ -59,6 +59,15 @@ static inline unsigned int rt6_flags2srcprefs(int flags)
 extern void			rt6_bind_peer(struct rt6_info *rt,
 					      int create);
 
+static inline struct inet_peer *rt6_get_peer(struct rt6_info *rt)
+{
+	if (rt->rt6i_peer)
+		return rt->rt6i_peer;
+
+	rt6_bind_peer(rt, 0);
+	return rt->rt6i_peer;
+}
+
 extern void			ip6_route_input(struct sk_buff *skb);
 
 extern struct dst_entry *	ip6_route_output(struct net *net,
