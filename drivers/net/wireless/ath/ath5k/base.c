@@ -2148,7 +2148,8 @@ ath5k_intr(int irq, void *dev_id)
 	unsigned int counter = 1000;
 
 	if (unlikely(test_bit(ATH_STAT_INVALID, sc->status) ||
-				!ath5k_hw_is_intr_pending(ah)))
+		((ath5k_get_bus_type(ah) != ATH_AHB) &&
+				!ath5k_hw_is_intr_pending(ah))))
 		return IRQ_NONE;
 
 	do {
@@ -2214,6 +2215,10 @@ ath5k_intr(int irq, void *dev_id)
 				tasklet_schedule(&sc->rf_kill.toggleq);
 
 		}
+
+		if (ath5k_get_bus_type(ah) == ATH_AHB)
+			break;
+
 	} while (ath5k_hw_is_intr_pending(ah) && --counter > 0);
 
 	if (unlikely(!counter))
