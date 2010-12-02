@@ -102,7 +102,8 @@ struct vmw_ttm_backend {
 
 static int vmw_ttm_populate(struct ttm_backend *backend,
 			    unsigned long num_pages, struct page **pages,
-			    struct page *dummy_read_page)
+			    struct page *dummy_read_page,
+			    dma_addr_t *dma_addrs)
 {
 	struct vmw_ttm_backend *vmw_be =
 	    container_of(backend, struct vmw_ttm_backend, backend);

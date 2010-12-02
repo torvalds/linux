@@ -655,7 +655,8 @@ struct radeon_ttm_backend {
 static int radeon_ttm_backend_populate(struct ttm_backend *backend,
 				       unsigned long num_pages,
 				       struct page **pages,
-				       struct page *dummy_read_page)
+				       struct page *dummy_read_page,
+				       dma_addr_t *dma_addrs)
 {
 	struct radeon_ttm_backend *gtt;
 

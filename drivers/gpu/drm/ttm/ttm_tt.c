@@ -169,7 +169,7 @@ int ttm_tt_populate(struct ttm_tt *ttm)
 	}
 
 	be->func->populate(be, ttm->num_pages, ttm->pages,
-			   ttm->dummy_read_page);
+			   ttm->dummy_read_page, ttm->dma_address);
 	ttm->state = tt_unbound;
 	return 0;
 }

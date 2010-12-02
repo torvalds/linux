@@ -50,13 +50,15 @@ struct ttm_backend_func {
 	 * @pages: Array of pointers to ttm pages.
 	 * @dummy_read_page: Page to be used instead of NULL pages in the
 	 * array @pages.
+	 * @dma_addrs: Array of DMA (bus) address of the ttm pages.
 	 *
 	 * Populate the backend with ttm pages. Depending on the backend,
 	 * it may or may not copy the @pages array.
 	 */
 	int (*populate) (struct ttm_backend *backend,
 			 unsigned long num_pages, struct page **pages,
-			 struct page *dummy_read_page);
+			 struct page *dummy_read_page,
+			 dma_addr_t *dma_addrs);
 	/**
 	 * struct ttm_backend_func member clear
 	 *

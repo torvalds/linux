@@ -20,7 +20,8 @@ struct nouveau_sgdma_be {
 
 static int
 nouveau_sgdma_populate(struct ttm_backend *be, unsigned long num_pages,
-		       struct page **pages, struct page *dummy_read_page)
+		       struct page **pages, struct page *dummy_read_page,
+		       dma_addr_t *dma_addrs)
 {
 	struct nouveau_sgdma_be *nvbe = (struct nouveau_sgdma_be *)be;
 	struct drm_device *dev = nvbe->dev;
