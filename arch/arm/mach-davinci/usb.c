@@ -123,6 +123,7 @@ int __init da8xx_register_usb20(unsigned mA, unsigned potpgt)
 
 	usb_dev.resource = da8xx_usb20_resources;
 	usb_dev.num_resources = ARRAY_SIZE(da8xx_usb20_resources);
+	usb_dev.name = "musb-da8xx";
 
 	return platform_device_register(&usb_dev);
 }
