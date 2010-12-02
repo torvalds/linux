@@ -61,19 +61,6 @@ static void VmbusGetChannelOffers(void)
 }
 
 /*
- * VmbusCreateChildDevice - Creates the child device on the bus that represents the channel offer
- */
-struct hv_device *VmbusChildDeviceCreate(struct hv_guid *DeviceType,
-					 struct hv_guid *DeviceInstance,
-					 struct vmbus_channel *channel)
-{
-	struct vmbus_driver *vmbusDriver = (struct vmbus_driver *)gDriver;
-
-	return vmbusDriver->OnChildDeviceCreate(DeviceType, DeviceInstance,
-						channel);
-}
-
-/*
  * VmbusChildDeviceAdd - Registers the child device with the vmbus
  */
 int VmbusChildDeviceAdd(struct hv_device *ChildDevice)

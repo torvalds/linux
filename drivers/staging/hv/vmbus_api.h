@@ -122,9 +122,6 @@ struct vmbus_driver {
 	struct hv_driver Base;
 
 	/* Set by the caller */
-	struct hv_device * (*OnChildDeviceCreate)(struct hv_guid *DeviceType,
-						struct hv_guid *DeviceInstance,
-						struct vmbus_channel *channel);
 	void (*OnChildDeviceDestroy)(struct hv_device *device);
 	int (*OnChildDeviceAdd)(struct hv_device *RootDevice,
 				struct hv_device *ChildDevice);

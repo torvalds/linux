@@ -102,7 +102,7 @@ extern struct VMBUS_CONNECTION gVmbusConnection;
 
 /* General vmbus interface */
 
-struct hv_device *VmbusChildDeviceCreate(struct hv_guid *deviceType,
+struct hv_device *vmbus_child_device_create(struct hv_guid *deviceType,
 					 struct hv_guid *deviceInstance,
 					 struct vmbus_channel *channel);
 

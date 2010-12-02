@@ -355,7 +355,7 @@ static void vmbus_process_offer(void *context)
 	 * We need to set the DeviceObject field before calling
 	 * VmbusChildDeviceAdd()
 	 */
-	newchannel->device_obj = VmbusChildDeviceCreate(
+	newchannel->device_obj = vmbus_child_device_create(
 		&newchannel->offermsg.offer.InterfaceType,
 		&newchannel->offermsg.offer.InterfaceInstance,
 		newchannel);
