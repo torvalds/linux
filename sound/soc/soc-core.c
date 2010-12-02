@@ -525,7 +525,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		}
 	}
 
-	/* Check that the codec and cpu DAI's are compatible */
+	/* Check that the codec and cpu DAIs are compatible */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		runtime->hw.rate_min =
 			max(codec_dai_drv->playback.rate_min,
@@ -874,7 +874,7 @@ codec_err:
 }
 
 /*
- * Free's resources allocated by hw_params, can be called multiple times
+ * Frees resources allocated by hw_params, can be called multiple times
  */
 static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 {
@@ -898,7 +898,7 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	if (platform->driver->ops->hw_free)
 		platform->driver->ops->hw_free(substream);
 
-	/* now free hw params for the DAI's  */
+	/* now free hw params for the DAIs  */
 	if (codec_dai->driver->ops->hw_free)
 		codec_dai->driver->ops->hw_free(substream, codec_dai);
 
@@ -1005,7 +1005,7 @@ static int soc_suspend(struct device *dev)
 	/* we're going to block userspace touching us until resume completes */
 	snd_power_change_state(card->snd_card, SNDRV_CTL_POWER_D3hot);
 
-	/* mute any active DAC's */
+	/* mute any active DACs */
 	for (i = 0; i < card->num_rtd; i++) {
 		struct snd_soc_dai *dai = card->rtd[i].codec_dai;
 		struct snd_soc_dai_driver *drv = dai->driver;
