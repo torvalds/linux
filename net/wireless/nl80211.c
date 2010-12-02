@@ -1896,6 +1896,9 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 	if (sinfo->filled & STATION_INFO_SIGNAL)
 		NLA_PUT_U8(msg, NL80211_STA_INFO_SIGNAL,
 			   sinfo->signal);
+	if (sinfo->filled & STATION_INFO_SIGNAL_AVG)
+		NLA_PUT_U8(msg, NL80211_STA_INFO_SIGNAL_AVG,
+			   sinfo->signal_avg);
 	if (sinfo->filled & STATION_INFO_TX_BITRATE) {
 		txrate = nla_nest_start(msg, NL80211_STA_INFO_TX_BITRATE);
 		if (!txrate)
