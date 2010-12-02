@@ -689,7 +689,7 @@ static void armv7pmu_enable_event(struct hw_perf_event *hwc, int idx)
 	 * Enable counter and interrupt, and set the counter to count
 	 * the event that we're interested in.
 	 */
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 
 	/*
 	 * Disable counter
@@ -713,7 +713,7 @@ static void armv7pmu_enable_event(struct hw_perf_event *hwc, int idx)
 	 */
 	armv7_pmnc_enable_counter(idx);
 
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static void armv7pmu_disable_event(struct hw_perf_event *hwc, int idx)
@@ -723,7 +723,7 @@ static void armv7pmu_disable_event(struct hw_perf_event *hwc, int idx)
 	/*
 	 * Disable counter and interrupt
 	 */
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 
 	/*
 	 * Disable counter
@@ -735,7 +735,7 @@ static void armv7pmu_disable_event(struct hw_perf_event *hwc, int idx)
 	 */
 	armv7_pmnc_disable_intens(idx);
 
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev)
@@ -805,20 +805,20 @@ static void armv7pmu_start(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	/* Enable all counters */
 	armv7_pmnc_write(armv7_pmnc_read() | ARMV7_PMNC_E);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static void armv7pmu_stop(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&pmu_lock, flags);
+	raw_spin_lock_irqsave(&pmu_lock, flags);
 	/* Disable all counters */
 	armv7_pmnc_write(armv7_pmnc_read() & ~ARMV7_PMNC_E);
-	spin_unlock_irqrestore(&pmu_lock, flags);
+	raw_spin_unlock_irqrestore(&pmu_lock, flags);
 }
 
 static int armv7pmu_get_event_idx(struct cpu_hw_events *cpuc,

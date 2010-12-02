@@ -32,7 +32,7 @@ static struct platform_device *pmu_device;
  * Hardware lock to serialize accesses to PMU registers. Needed for the
  * read/modify/write sequences.
  */
-static DEFINE_SPINLOCK(pmu_lock);
+static DEFINE_RAW_SPINLOCK(pmu_lock);
 
 /*
  * ARMv6 supports a maximum of 3 events, starting from index 1. If we add
