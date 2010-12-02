@@ -99,6 +99,10 @@ static int efx_init_lm87(struct efx_nic *efx, struct i2c_board_info *info,
 	if (!client)
 		return -EIO;
 
+	/* Read-to-clear alarm/interrupt status */
+	i2c_smbus_read_byte_data(client, LM87_REG_ALARMS1);
+	i2c_smbus_read_byte_data(client, LM87_REG_ALARMS2);
+
 	rc = efx_poke_lm87(client, reg_values);
 	if (rc)
 		goto err;
