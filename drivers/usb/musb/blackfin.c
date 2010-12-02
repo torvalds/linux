@@ -406,9 +406,7 @@ static int bfin_musb_init(struct musb *musb)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-void musb_platform_save_context(struct musb *musb,
-			struct musb_context_registers *musb_context)
+static int bfin_musb_suspend(struct musb *musb)
 {
 	if (is_host_active(musb))
 		/*
@@ -418,14 +416,16 @@ void musb_platform_save_context(struct musb *musb,
 		 * wakeup event.
 		 */
 		gpio_set_value(musb->config->gpio_vrsel, 0);
+
+	return 0;
 }
 
-void musb_platform_restore_context(struct musb *musb,
-			struct musb_context_registers *musb_context)
+static int bfin_musb_resume(struct musb *musb)
 {
 	bfin_musb_reg_init(musb);
+
+	return 0;
 }
-#endif
 
 static int bfin_musb_exit(struct musb *musb)
 {
@@ -445,6 +445,9 @@ static const struct musb_platform_ops bfin_ops = {
 
 	.set_mode	= bfin_musb_set_mode,
 	.try_idle	= bfin_musb_try_idle,
+
+	.suspend	= bfin_musb_suspend,
+	.resume		= bfin_musb_resume,
 
 	.vbus_status	= bfin_musb_vbus_status,
 	.set_vbus	= bfin_musb_set_vbus,

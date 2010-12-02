@@ -603,20 +603,6 @@ extern irqreturn_t musb_interrupt(struct musb *);
 
 extern void musb_hnp_stop(struct musb *musb);
 
-#ifdef CONFIG_PM
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
-    defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_BLACKFIN)
-extern void musb_platform_save_context(struct musb *musb,
-		struct musb_context_registers *musb_context);
-extern void musb_platform_restore_context(struct musb *musb,
-		struct musb_context_registers *musb_context);
-#else
-#define musb_platform_save_context(m, x)	do {} while (0)
-#define musb_platform_restore_context(m, x)	do {} while (0)
-#endif
-
-#endif
-
 static inline void musb_platform_set_vbus(struct musb *musb, int is_on)
 {
 	if (musb->ops->set_vbus)

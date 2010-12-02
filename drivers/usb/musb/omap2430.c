@@ -258,21 +258,17 @@ static int omap2430_musb_init(struct musb *musb)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-void musb_platform_save_context(struct musb *musb,
-		struct musb_context_registers *musb_context)
+static void omap2430_save_context(struct musb *musb)
 {
-	musb_context->otg_sysconfig = musb_readl(musb->mregs, OTG_SYSCONFIG);
-	musb_context->otg_forcestandby = musb_readl(musb->mregs, OTG_FORCESTDBY);
+	musb->context.otg_sysconfig = musb_readl(musb->mregs, OTG_SYSCONFIG);
+	musb->context.otg_forcestandby = musb_readl(musb->mregs, OTG_FORCESTDBY);
 }
 
-void musb_platform_restore_context(struct musb *musb,
-		struct musb_context_registers *musb_context)
+static void omap2430_restore_context(struct musb *musb)
 {
-	musb_writel(musb->mregs, OTG_SYSCONFIG, musb_context->otg_sysconfig);
-	musb_writel(musb->mregs, OTG_FORCESTDBY, musb_context->otg_forcestandby);
+	musb_writel(musb->mregs, OTG_SYSCONFIG, musb->context.otg_sysconfig);
+	musb_writel(musb->mregs, OTG_FORCESTDBY, musb->context.otg_forcestandby);
 }
-#endif
 
 static int omap2430_musb_suspend(struct musb *musb)
 {
@@ -287,6 +283,8 @@ static int omap2430_musb_suspend(struct musb *musb)
 	l |= ENABLEWAKEUP;	/* enable wakeup */
 	musb_writel(musb->mregs, OTG_SYSCONFIG, l);
 
+	omap2430_save_context(musb);
+
 	otg_set_suspend(musb->xceiv, 1);
 
 	return 0;
@@ -297,6 +295,8 @@ static int omap2430_musb_resume(struct musb *musb)
 	u32 l;
 
 	otg_set_suspend(musb->xceiv, 0);
+
+	omap2430_restore_context(musb);
 
 	l = musb_readl(musb->mregs, OTG_SYSCONFIG);
 	l &= ~ENABLEWAKEUP;	/* disable wakeup */
