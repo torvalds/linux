@@ -175,9 +175,9 @@ static void VmbusOnEventDPC(struct hv_driver *drv)
 }
 
 /*
- * VmbusOnISR - ISR routine
+ * vmbus_on_isr - ISR routine
  */
-static int VmbusOnISR(struct hv_driver *drv)
+int vmbus_on_isr(struct hv_driver *drv)
 {
 	int ret = 0;
 	int cpu = smp_processor_id();
@@ -235,7 +235,6 @@ int VmbusInitialize(struct hv_driver *drv)
 	driver->Base.OnDeviceAdd	= VmbusOnDeviceAdd;
 	driver->Base.OnDeviceRemove	= VmbusOnDeviceRemove;
 	driver->Base.OnCleanup		= VmbusOnCleanup;
-	driver->OnIsr			= VmbusOnISR;
 	driver->OnMsgDpc		= VmbusOnMsgDPC;
 	driver->OnEventDpc		= VmbusOnEventDPC;
 	driver->GetChannelOffers	= VmbusGetChannelOffers;

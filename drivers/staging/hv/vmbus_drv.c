@@ -873,10 +873,8 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 	struct vmbus_driver *vmbus_driver_obj = &g_vmbus_drv.drv_obj;
 	int ret;
 
-	/* ASSERT(vmbus_driver_obj->OnIsr != NULL); */
-
 	/* Call to bus driver to handle interrupt */
-	ret = vmbus_driver_obj->OnIsr(&vmbus_driver_obj->Base);
+	ret = vmbus_on_isr(&vmbus_driver_obj->Base);
 
 	/* Schedules a dpc if necessary */
 	if (ret > 0) {
