@@ -8,8 +8,8 @@ perf-stat - Run a command and gather performance counter statistics
 SYNOPSIS
 --------
 [verse]
-'perf stat' [-e <EVENT> | --event=EVENT] [-S] [-a] <command>
-'perf stat' [-e <EVENT> | --event=EVENT] [-S] [-a] -- <command> [<options>]
+'perf stat' [-e <EVENT> | --event=EVENT] [-a] <command>
+'perf stat' [-e <EVENT> | --event=EVENT] [-a] -- <command> [<options>]
 
 DESCRIPTION
 -----------
@@ -35,21 +35,33 @@ OPTIONS
         child tasks do not inherit counters
 -p::
 --pid=<pid>::
-        stat events on existing pid
+        stat events on existing process id
+
+-t::
+--tid=<tid>::
+        stat events on existing thread id
+
 
 -a::
-        system-wide collection
+--all-cpus::
+        system-wide collection from all CPUs
 
 -c::
-        scale counter values
+--scale::
+	scale/normalize counter values
+
+-r::
+--repeat=<n>::
+	repeat command and print average + stddev (max: 100)
 
 -B::
+--big-num::
         print large numbers with thousands' separators according to locale
 
 -C::
 --cpu=::
-Count only on the list of cpus provided. Multiple CPUs can be provided as a
-comma-sperated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+Count only on the list of CPUs provided. Multiple CPUs can be provided as a
+comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
 In per-thread mode, this option is ignored. The -a option is still necessary
 to activate system-wide monitoring. Default is to count on all CPUs.
 
@@ -57,6 +69,19 @@ to activate system-wide monitoring. Default is to count on all CPUs.
 --no-aggr::
 Do not aggregate counts across all monitored CPUs in system-wide mode (-a).
 This option is only valid in system-wide mode.
+
+-n::
+--null::
+        null run - don't start any counters
+
+-v::
+--verbose::
+        be more verbose (show counter open errors, etc)
+
+-x SEP::
+--field-separator SEP::
+print counts using a CSV-style output to make it easy to import directly into
+spreadsheets. Columns are separated by the string specified in SEP.
 
 EXAMPLES
 --------
