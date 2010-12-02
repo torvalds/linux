@@ -121,7 +121,7 @@ static void smk_netlabel_audit_set(struct netlbl_audit *nap)
 {
 	nap->loginuid = audit_get_loginuid(current);
 	nap->sessionid = audit_get_sessionid(current);
-	nap->secid = smack_to_secid(current_security());
+	nap->secid = smack_to_secid(smk_of_current());
 }
 
 /*
@@ -1160,7 +1160,7 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	char in[SMK_LABELLEN];
-	char *sp = current->cred->security;
+	char *sp = smk_of_task(current->cred->security);
 
 	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;
