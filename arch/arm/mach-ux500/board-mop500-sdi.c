@@ -137,12 +137,21 @@ static struct mmci_platform_data mop500_sdi4_data = {
 	.gpio_wp	= -1,
 };
 
-void mop500_sdi_init(void)
+void __init mop500_sdi_init(void)
 {
 	nmk_config_pins(mop500_sdi_pins, ARRAY_SIZE(mop500_sdi_pins));
 
+	/*
+	 * sdi0 will finally be added when the TC35892 initializes and calls
+	 * mop500_sdi_tc35892_init() above.
+	 */
+
+	/* PoP:ed eMMC */
 	if (!cpu_is_u8500ed()) {
 		nmk_config_pins(mop500_sdi2_pins, ARRAY_SIZE(mop500_sdi2_pins));
+		/* POP eMMC on v1.0 has problems with high speed */
+		if (!cpu_is_u8500v10())
+			mop500_sdi2_data.capabilities |= MMC_CAP_MMC_HIGHSPEED;
 		db8500_add_sdi2(&mop500_sdi2_data);
 	}
 
