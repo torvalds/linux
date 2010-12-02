@@ -565,10 +565,10 @@ static inline void ept_sync_individual_addr(u64 eptp, gpa_t gpa)
 
 static unsigned long vmcs_readl(unsigned long field)
 {
-	unsigned long value;
+	unsigned long value = 0;
 
 	asm volatile (__ex(ASM_VMX_VMREAD_RDX_RAX)
-		      : "=a"(value) : "d"(field) : "cc");
+		      : "+a"(value) : "d"(field) : "cc");
 	return value;
 }
 
