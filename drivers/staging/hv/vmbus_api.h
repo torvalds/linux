@@ -115,7 +115,6 @@ struct hv_device {
 	void *Extension;
 };
 
-int VmbusInitialize(struct hv_driver *drv);
 int vmbus_on_isr(struct hv_driver *drv);
 void vmbus_on_msg_dpc(struct hv_driver *drv);
 void vmbus_on_event_dpc(struct hv_driver *drv);

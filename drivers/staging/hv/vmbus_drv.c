@@ -298,7 +298,7 @@ int vmbus_on_isr(struct hv_driver *drv)
 /*
  * VmbusInitialize - Main entry point
  */
-int VmbusInitialize(struct hv_driver *driver)
+static int VmbusInitialize(struct hv_driver *driver)
 {
 	int ret;
 
@@ -491,7 +491,7 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
  *	- setup the vmbus root device
  *	- retrieve the channel offers
  */
-static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
+static int vmbus_bus_init(void)
 {
 	struct vmbus_driver_context *vmbus_drv_ctx = &g_vmbus_drv;
 	struct hv_driver *driver = &g_vmbus_drv.drv_obj;
@@ -500,7 +500,7 @@ static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 	unsigned int vector;
 
 	/* Call to bus driver to initialize */
-	ret = drv_init(driver);
+	ret = VmbusInitialize(driver);
 	if (ret != 0) {
 		DPRINT_ERR(VMBUS_DRV, "Unable to initialize vmbus (%d)", ret);
 		goto cleanup;
@@ -1107,7 +1107,7 @@ static int __init vmbus_init(void)
 	if (!dmi_check_system(microsoft_hv_dmi_table))
 		return -ENODEV;
 
-	return vmbus_bus_init(VmbusInitialize);
+	return vmbus_bus_init();
 }
 
 static void __exit vmbus_exit(void)
