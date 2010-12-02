@@ -357,6 +357,7 @@ struct ieee80211_if_managed {
 	unsigned long beacon_timeout;
 	unsigned long probe_timeout;
 	int probe_send_count;
+	bool nullfunc_failed;
 
 	struct mutex mtx;
 	struct cfg80211_bss *associated;
@@ -1271,7 +1272,7 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_hdr *hdr);
 void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
-			     struct ieee80211_hdr *hdr);
+			     struct ieee80211_hdr *hdr, bool ack);
 void ieee80211_beacon_connection_loss_work(struct work_struct *work);
 
 void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
