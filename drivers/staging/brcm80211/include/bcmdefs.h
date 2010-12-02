@@ -51,7 +51,6 @@
 #define SPI_BUS			6	/* gSPI target */
 #define RPC_BUS			7	/* RPC target */
 
-#define CHIPTYPE(bus) 	(bus)
 #define CHIPID(chip)	(chip)
 #define CHIPREV(rev)	(rev)
 

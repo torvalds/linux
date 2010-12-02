@@ -568,7 +568,7 @@ static si_info_t *si_doattach(si_info_t *sii, uint devid, struct osl_info *osh,
 	sih->issim = IS_SIM(sih->chippkg);
 
 	/* scan for cores */
-	if (CHIPTYPE(sii->pub.socitype) == SOCI_AI) {
+	if (sii->pub.socitype == SOCI_AI) {
 		SI_MSG(("Found chip type AI (0x%08x)\n", w));
 		/* pass chipc address instead of original core base */
 		ai_scan(&sii->pub, (void *)cc, devid);
@@ -765,7 +765,7 @@ void si_deregister_intr_callback(si_t *sih)
 
 uint si_flag(si_t *sih)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_flag(sih);
 	else {
 		ASSERT(0);
@@ -775,7 +775,7 @@ uint si_flag(si_t *sih)
 
 void si_setint(si_t *sih, int siflag)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		ai_setint(sih, siflag);
 	else
 		ASSERT(0);
@@ -807,7 +807,7 @@ bool si_backplane64(si_t *sih)
 #ifndef BCMSDIO
 uint si_corerev(si_t *sih)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_corerev(sih);
 	else {
 		ASSERT(0);
@@ -850,7 +850,7 @@ void *si_setcore(si_t *sih, uint coreid, uint coreunit)
 	if (!GOODIDX(idx))
 		return NULL;
 
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_setcoreidx(sih, idx);
 	else {
 #ifdef BCMSDIO
@@ -865,7 +865,7 @@ void *si_setcore(si_t *sih, uint coreid, uint coreunit)
 #ifndef BCMSDIO
 void *si_setcoreidx(si_t *sih, uint coreidx)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_setcoreidx(sih, coreidx);
 	else {
 		ASSERT(0);
@@ -917,7 +917,7 @@ void si_restore_core(si_t *sih, uint coreid, uint intr_val)
 
 u32 si_core_cflags(si_t *sih, u32 mask, u32 val)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_core_cflags(sih, mask, val);
 	else {
 		ASSERT(0);
@@ -927,7 +927,7 @@ u32 si_core_cflags(si_t *sih, u32 mask, u32 val)
 
 u32 si_core_sflags(si_t *sih, u32 mask, u32 val)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_core_sflags(sih, mask, val);
 	else {
 		ASSERT(0);
@@ -937,7 +937,7 @@ u32 si_core_sflags(si_t *sih, u32 mask, u32 val)
 
 bool si_iscoreup(si_t *sih)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_iscoreup(sih);
 	else {
 #ifdef BCMSDIO
@@ -952,7 +952,7 @@ bool si_iscoreup(si_t *sih)
 void si_write_wrapperreg(si_t *sih, u32 offset, u32 val)
 {
 	/* only for 4319, no requirement for SOCI_SB */
-	if (CHIPTYPE(sih->socitype) == SOCI_AI) {
+	if (sih->socitype == SOCI_AI) {
 		ai_write_wrap_reg(sih, offset, val);
 	}
 }
@@ -960,7 +960,7 @@ void si_write_wrapperreg(si_t *sih, u32 offset, u32 val)
 uint si_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 {
 
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		return ai_corereg(sih, coreidx, regoff, mask, val);
 	else {
 #ifdef BCMSDIO
@@ -975,7 +975,7 @@ uint si_corereg(si_t *sih, uint coreidx, uint regoff, uint mask, uint val)
 void si_core_disable(si_t *sih, u32 bits)
 {
 
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		ai_core_disable(sih, bits);
 #ifdef BCMSDIO
 	else
@@ -985,7 +985,7 @@ void si_core_disable(si_t *sih, u32 bits)
 
 void si_core_reset(si_t *sih, u32 bits, u32 resetbits)
 {
-	if (CHIPTYPE(sih->socitype) == SOCI_AI)
+	if (sih->socitype == SOCI_AI)
 		ai_core_reset(sih, bits, resetbits);
 #ifdef BCMSDIO
 	else
