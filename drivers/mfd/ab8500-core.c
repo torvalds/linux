@@ -519,7 +519,8 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 			return ret;
 
 		ret = request_threaded_irq(ab8500->irq, NULL, ab8500_irq,
-					   IRQF_ONESHOT, "ab8500", ab8500);
+					   IRQF_ONESHOT | IRQF_NO_SUSPEND,
+					   "ab8500", ab8500);
 		if (ret)
 			goto out_removeirq;
 	}
