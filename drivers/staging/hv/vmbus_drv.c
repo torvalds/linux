@@ -69,8 +69,6 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id);
 static void vmbus_device_release(struct device *device);
 static void vmbus_bus_release(struct device *device);
 
-static int vmbus_child_device_register(struct hv_device *root_device_obj,
-				       struct hv_device *child_device_obj);
 static ssize_t vmbus_show_device_attr(struct device *dev,
 				      struct device_attribute *dev_attr,
 				      char *buf);
@@ -291,12 +289,6 @@ static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 	struct vm_device *dev_ctx = &g_vmbus_drv.device_ctx;
 	int ret;
 	unsigned int vector;
-
-	/*
-	 * Set this up to allow lower layer to callback to add/remove child
-	 * devices on the bus
-	 */
-	vmbus_drv_obj->OnChildDeviceAdd = vmbus_child_device_register;
 
 	/* Call to bus driver to initialize */
 	ret = drv_init(&vmbus_drv_obj->Base);
@@ -530,8 +522,8 @@ struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 /*
  * vmbus_child_device_register - Register the child device on the specified bus
  */
-static int vmbus_child_device_register(struct hv_device *root_device_obj,
-				       struct hv_device *child_device_obj)
+int vmbus_child_device_register(struct hv_device *root_device_obj,
+				struct hv_device *child_device_obj)
 {
 	int ret = 0;
 	struct vm_device *root_device_ctx =

@@ -120,10 +120,6 @@ struct vmbus_driver {
 	/* !! Must be the 1st field !! */
 	/* FIXME if ^, then someone is doing somthing stupid */
 	struct hv_driver Base;
-
-	/* Set by the caller */
-	int (*OnChildDeviceAdd)(struct hv_device *RootDevice,
-				struct hv_device *ChildDevice);
 };
 
 int VmbusInitialize(struct hv_driver *drv);

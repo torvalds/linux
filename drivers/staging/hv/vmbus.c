@@ -57,9 +57,7 @@ static struct hv_device *gDevice; /* vmbus root device */
  */
 int VmbusChildDeviceAdd(struct hv_device *ChildDevice)
 {
-	struct vmbus_driver *vmbusDriver = (struct vmbus_driver *)gDriver;
-
-	return vmbusDriver->OnChildDeviceAdd(gDevice, ChildDevice);
+	return vmbus_child_device_register(gDevice, ChildDevice);
 }
 
 /*
