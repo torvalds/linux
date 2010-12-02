@@ -798,7 +798,6 @@ struct qlcnic_nic_intr_coalesce {
 #define QLCNIC_H2C_OPCODE_GET_NET_STATS 		16
 #define QLCNIC_H2C_OPCODE_PROXY_UPDATE_P2V		17
 #define QLCNIC_H2C_OPCODE_CONFIG_IPADDR 		18
-#define QLCNIC_H2C_OPCODE_CONFIG_LOOPBACK		19
 #define QLCNIC_H2C_OPCODE_PROXY_STOP_DONE		20
 #define QLCNIC_H2C_OPCODE_GET_LINKEVENT 		21
 #define QLCNIC_C2C_OPCODE				22
@@ -1314,21 +1313,15 @@ int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable);
 int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter);
 void qlcnic_update_cmd_producer(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_tx_ring *tx_ring);
-void qlcnic_clear_ilb_mode(struct qlcnic_adapter *adapter);
-int qlcnic_set_ilb_mode(struct qlcnic_adapter *adapter);
 void qlcnic_fetch_mac(struct qlcnic_adapter *, u32, u32, u8, u8 *);
 
 /* Functions from qlcnic_main.c */
-int qlcnic_request_quiscent_mode(struct qlcnic_adapter *adapter);
-void qlcnic_clear_quiscent_mode(struct qlcnic_adapter *adapter);
 int qlcnic_reset_context(struct qlcnic_adapter *);
 u32 qlcnic_issue_cmd(struct qlcnic_adapter *adapter,
 	u32 pci_fn, u32 version, u32 arg1, u32 arg2, u32 arg3, u32 cmd);
 void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings);
 int qlcnic_diag_alloc_res(struct net_device *netdev, int test);
-int qlcnic_check_loopback_buff(unsigned char *data);
 netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
-void qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring);
 
 /* Management functions */
 int qlcnic_get_mac_address(struct qlcnic_adapter *, u8*);

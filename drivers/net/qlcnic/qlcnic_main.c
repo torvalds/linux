@@ -2859,61 +2859,6 @@ qlcnic_set_npar_non_operational(struct qlcnic_adapter *adapter)
 	qlcnic_api_unlock(adapter);
 }
 
-/* Caller should held RESETTING bit.
- * This should be call in sync with qlcnic_request_quiscent_mode.
- */
-void qlcnic_clear_quiscent_mode(struct qlcnic_adapter *adapter)
-{
-	qlcnic_clr_drv_state(adapter);
-	qlcnic_api_lock(adapter);
-	QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_READY);
-	qlcnic_api_unlock(adapter);
-}
-
-/* Caller should held RESETTING bit.
- */
-int qlcnic_request_quiscent_mode(struct qlcnic_adapter *adapter)
-{
-	u8 timeo = adapter->dev_init_timeo / 2;
-	u32 state;
-
-	if (qlcnic_api_lock(adapter))
-		return -EIO;
-
-	state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
-	if (state != QLCNIC_DEV_READY)
-		return -EIO;
-
-	QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_NEED_QUISCENT);
-	qlcnic_api_unlock(adapter);
-	QLCDB(adapter, DRV, "NEED QUISCENT state set\n");
-	qlcnic_idc_debug_info(adapter, 0);
-
-	qlcnic_set_drv_state(adapter, QLCNIC_DEV_NEED_QUISCENT);
-
-	do {
-		msleep(2000);
-		state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
-		if (state == QLCNIC_DEV_QUISCENT)
-			return 0;
-		if (!qlcnic_check_drv_state(adapter)) {
-			if (qlcnic_api_lock(adapter))
-				return -EIO;
-			QLCWR32(adapter, QLCNIC_CRB_DEV_STATE,
-							QLCNIC_DEV_QUISCENT);
-			qlcnic_api_unlock(adapter);
-			QLCDB(adapter, DRV, "QUISCENT mode set\n");
-			return 0;
-		}
-	} while (--timeo);
-
-	dev_err(&adapter->pdev->dev, "Failed to quiesce device, DRV_STATE=%08x"
-		" DRV_ACTIVE=%08x\n", QLCRD32(adapter, QLCNIC_CRB_DRV_STATE),
-		QLCRD32(adapter, QLCNIC_CRB_DRV_ACTIVE));
-	qlcnic_clear_quiscent_mode(adapter);
-	return -EIO;
-}
-
 /*Transit to RESET state from READY state only */
 static void
 qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
