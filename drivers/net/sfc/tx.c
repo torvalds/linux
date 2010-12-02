@@ -401,6 +401,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 {
 	unsigned fill_level;
 	struct efx_nic *efx = tx_queue->efx;
+	struct netdev_queue *queue;
 
 	EFX_BUG_ON_PARANOID(index > tx_queue->ptr_mask);
 
@@ -417,12 +418,15 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 
 			/* Do this under netif_tx_lock(), to avoid racing
 			 * with efx_xmit(). */
-			netif_tx_lock(efx->net_dev);
+			queue = netdev_get_tx_queue(
+				efx->net_dev,
+				tx_queue->queue / EFX_TXQ_TYPES);
+			__netif_tx_lock(queue, smp_processor_id());
 			if (tx_queue->stopped) {
 				tx_queue->stopped = 0;
 				efx_wake_queue(tx_queue->channel);
 			}
-			netif_tx_unlock(efx->net_dev);
+			__netif_tx_unlock(queue);
 		}
 	}
 }
