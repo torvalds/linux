@@ -678,7 +678,6 @@ struct efx_filter_state;
  * @stats_buffer: DMA buffer for statistics
  * @stats_lock: Statistics update lock. Serialises statistics fetches
  * @mac_op: MAC interface
- * @mac_address: Permanent MAC address
  * @phy_type: PHY type
  * @phy_op: PHY interface
  * @phy_data: PHY private data (including PHY-specific stats)
@@ -762,7 +761,6 @@ struct efx_nic {
 	spinlock_t stats_lock;
 
 	struct efx_mac_operations *mac_op;
-	unsigned char mac_address[ETH_ALEN];
 
 	unsigned int phy_type;
 	struct efx_phy_operations *phy_op;

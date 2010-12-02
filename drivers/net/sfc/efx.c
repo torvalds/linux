@@ -909,6 +909,7 @@ static void efx_mac_work(struct work_struct *data)
 
 static int efx_probe_port(struct efx_nic *efx)
 {
+	unsigned char *perm_addr;
 	int rc;
 
 	netif_dbg(efx, probe, efx->net_dev, "create port\n");
@@ -922,11 +923,12 @@ static int efx_probe_port(struct efx_nic *efx)
 		return rc;
 
 	/* Sanity check MAC address */
-	if (is_valid_ether_addr(efx->mac_address)) {
-		memcpy(efx->net_dev->dev_addr, efx->mac_address, ETH_ALEN);
+	perm_addr = efx->net_dev->perm_addr;
+	if (is_valid_ether_addr(perm_addr)) {
+		memcpy(efx->net_dev->dev_addr, perm_addr, ETH_ALEN);
 	} else {
 		netif_err(efx, probe, efx->net_dev, "invalid MAC address %pM\n",
-			  efx->mac_address);
+			  perm_addr);
 		if (!allow_bad_hwaddr) {
 			rc = -EINVAL;
 			goto err;

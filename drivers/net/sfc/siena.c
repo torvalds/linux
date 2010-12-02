@@ -194,13 +194,7 @@ static int siena_reset_hw(struct efx_nic *efx, enum reset_type method)
 
 static int siena_probe_nvconfig(struct efx_nic *efx)
 {
-	int rc;
-
-	rc = efx_mcdi_get_board_cfg(efx, efx->mac_address, NULL);
-	if (rc)
-		return rc;
-
-	return 0;
+	return efx_mcdi_get_board_cfg(efx, efx->net_dev->perm_addr, NULL);
 }
 
 static int siena_probe_nic(struct efx_nic *efx)
