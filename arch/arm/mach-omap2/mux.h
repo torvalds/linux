@@ -172,6 +172,8 @@ static inline int omap_mux_init_signal(char *muxname, int val)
 	return 0;
 }
 
+static struct omap_board_mux *board_mux __initdata __maybe_unused;
+
 #endif
 
 /**

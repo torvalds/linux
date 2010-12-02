@@ -218,8 +218,6 @@ static struct omap_usb_config sdp2430_usb_config __initdata = {
 static struct omap_board_mux board_mux[] __initdata = {
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
-#else
-#define board_mux	NULL
 #endif
 
 static void __init omap_2430sdp_init(void)
