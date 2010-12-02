@@ -336,9 +336,15 @@ void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_SIZE(bp)		((bp)->b_buffer_length)
 #define XFS_BUF_SET_SIZE(bp, cnt)	((bp)->b_buffer_length = (cnt))
 
-#define XFS_BUF_SET_VTYPE_REF(bp, type, ref)	do { } while (0)
+static inline void
+xfs_buf_set_ref(
+	struct xfs_buf	*bp,
+	int		lru_ref)
+{
+	atomic_set(&bp->b_lru_ref, lru_ref);
+}
+#define XFS_BUF_SET_VTYPE_REF(bp, type, ref)	xfs_buf_set_ref(bp, ref)
 #define XFS_BUF_SET_VTYPE(bp, type)		do { } while (0)
-#define XFS_BUF_SET_REF(bp, ref)		do { } while (0)
 
 #define XFS_BUF_ISPINNED(bp)	atomic_read(&((bp)->b_pin_count))
 
