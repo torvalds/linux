@@ -19,14 +19,6 @@
 
 #define ZFCP_DBF_INVALID_LUN	0xFFFFFFFFFFFFFFFFull
 
-struct zfcp_dbf_dump {
-	u8 tag[ZFCP_DBF_TAG_SIZE];
-	u32 total_size;		/* size of total dump data */
-	u32 offset;		/* how much data has being already dumped */
-	u32 size;		/* how much data comes with this record */
-	u8 data[];		/* dump data */
-} __attribute__ ((packed));
-
 /**
  * struct zfcp_dbf_rec_trigger - trace record for triggered recovery action
  * @ready: number of ready recovery actions
@@ -193,6 +185,47 @@ struct zfcp_dbf_hba {
 } __packed;
 
 /**
+ * enum zfcp_dbf_scsi_id - scsi trace record identifier
+ * @ZFCP_DBF_SCSI_CMND: scsi command trace record
+ */
+enum zfcp_dbf_scsi_id {
+	ZFCP_DBF_SCSI_CMND	= 1,
+};
+
+/**
+ * struct zfcp_dbf_scsi - common trace record for SCSI records
+ * @id: unique number of recovery record type
+ * @tag: identifier string specifying the location of initiation
+ * @scsi_id: scsi device id
+ * @scsi_lun: scsi device logical unit number
+ * @scsi_result: scsi result
+ * @scsi_retries: current retry number of scsi request
+ * @scsi_allowed: allowed retries
+ * @fcp_rsp_info: FCP response info
+ * @scsi_opcode: scsi opcode
+ * @fsf_req_id: request id of fsf request
+ * @host_scribble: LLD specific data attached to SCSI request
+ * @pl_len: length of paload stored as zfcp_dbf_pay
+ * @fsf_rsp: response for fsf request
+ */
+struct zfcp_dbf_scsi {
+	u8 id;
+	char tag[ZFCP_DBF_TAG_LEN];
+	u32 scsi_id;
+	u32 scsi_lun;
+	u32 scsi_result;
+	u8 scsi_retries;
+	u8 scsi_allowed;
+	u8 fcp_rsp_info;
+#define ZFCP_DBF_SCSI_OPCODE	16
+	u8 scsi_opcode[ZFCP_DBF_SCSI_OPCODE];
+	u64 fsf_req_id;
+	u64 host_scribble;
+	u16 pl_len;
+	struct fcp_resp_with_ext fcp_rsp;
+} __packed;
+
+/**
  * struct zfcp_dbf_pay - trace record for unformatted payload information
  * @area: area this record is originated from
  * @counter: ascending record number
@@ -206,31 +239,6 @@ struct zfcp_dbf_pay {
 #define ZFCP_DBF_PAY_MAX_REC 0x100
 	char data[ZFCP_DBF_PAY_MAX_REC];
 } __packed;
-
-struct zfcp_dbf_scsi_record {
-	u8 tag[ZFCP_DBF_TAG_SIZE];
-	u8 tag2[ZFCP_DBF_TAG_SIZE];
-	u32 scsi_id;
-	u32 scsi_lun;
-	u32 scsi_result;
-	u64 scsi_cmnd;
-#define ZFCP_DBF_SCSI_OPCODE	16
-	u8 scsi_opcode[ZFCP_DBF_SCSI_OPCODE];
-	u8 scsi_retries;
-	u8 scsi_allowed;
-	u64 fsf_reqid;
-	u32 fsf_seqno;
-	u64 fsf_issued;
-	u64 old_fsf_reqid;
-	u8 rsp_validity;
-	u8 rsp_scsi_status;
-	u32 rsp_resid;
-	u8 rsp_code;
-#define ZFCP_DBF_SCSI_FCP_SNS_INFO	16
-#define ZFCP_DBF_SCSI_MAX_FCP_SNS_INFO	256
-	u32 sns_info_len;
-	u8 sns_info[ZFCP_DBF_SCSI_FCP_SNS_INFO];
-} __attribute__ ((packed));
 
 struct zfcp_dbf {
 	debug_info_t			*pay;
@@ -246,7 +254,7 @@ struct zfcp_dbf {
 	struct zfcp_dbf_rec		rec_buf;
 	struct zfcp_dbf_hba		hba_buf;
 	struct zfcp_dbf_san		san_buf;
-	struct zfcp_dbf_scsi_record	scsi_buf;
+	struct zfcp_dbf_scsi		scsi_buf;
 	struct zfcp_dbf_pay		pay_buf;
 	struct zfcp_adapter		*adapter;
 };
@@ -260,7 +268,7 @@ void zfcp_dbf_hba_fsf_resp(char *tag, int level, struct zfcp_fsf_req *req)
 
 /**
  * zfcp_dbf_hba_fsf_response - trace event for request completion
- * @fsf_req: request that has been completed
+ * @req: request that has been completed
  */
 static inline
 void zfcp_dbf_hba_fsf_response(struct zfcp_fsf_req *req)
@@ -287,57 +295,53 @@ void zfcp_dbf_hba_fsf_response(struct zfcp_fsf_req *req)
 }
 
 static inline
-void zfcp_dbf_scsi(const char *tag, const char *tag2, int level,
-		   struct zfcp_dbf *dbf, struct scsi_cmnd *scmd,
-		   struct zfcp_fsf_req *req, unsigned long old_id)
+void _zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *scmd,
+		   struct zfcp_fsf_req *req)
 {
-	if (level <= dbf->scsi->level)
-		_zfcp_dbf_scsi(tag, tag2, level, dbf, scmd, req, old_id);
+	struct zfcp_adapter *adapter = (struct zfcp_adapter *)
+					scmd->device->host->hostdata[0];
+
+	if (level <= adapter->dbf->scsi->level)
+		zfcp_dbf_scsi(tag, scmd, req);
 }
 
 /**
  * zfcp_dbf_scsi_result - trace event for SCSI command completion
- * @dbf: adapter dbf trace
  * @scmd: SCSI command pointer
  * @req: FSF request used to issue SCSI command
  */
 static inline
-void zfcp_dbf_scsi_result(struct zfcp_dbf *dbf, struct scsi_cmnd *scmd,
-			  struct zfcp_fsf_req *req)
+void zfcp_dbf_scsi_result(struct scsi_cmnd *scmd, struct zfcp_fsf_req *req)
 {
 	if (scmd->result != 0)
-		zfcp_dbf_scsi("rslt", "erro", 3, dbf, scmd, req, 0);
+		_zfcp_dbf_scsi("rsl_err", 3, scmd, req);
 	else if (scmd->retries > 0)
-		zfcp_dbf_scsi("rslt", "retr", 4, dbf, scmd, req, 0);
+		_zfcp_dbf_scsi("rsl_ret", 4, scmd, req);
 	else
-		zfcp_dbf_scsi("rslt", "norm", 6, dbf, scmd, req, 0);
+		_zfcp_dbf_scsi("rsl_nor", 6, scmd, req);
 }
 
 /**
  * zfcp_dbf_scsi_fail_send - trace event for failure to send SCSI command
- * @dbf: adapter dbf trace
  * @scmd: SCSI command pointer
  */
 static inline
-void zfcp_dbf_scsi_fail_send(struct zfcp_dbf *dbf, struct scsi_cmnd *scmd)
+void zfcp_dbf_scsi_fail_send(struct scsi_cmnd *scmd)
 {
-	zfcp_dbf_scsi("rslt", "fail", 4, dbf, scmd, NULL, 0);
+	_zfcp_dbf_scsi("rsl_fai", 4, scmd, NULL);
 }
 
 /**
  * zfcp_dbf_scsi_abort - trace event for SCSI command abort
  * @tag: tag indicating success or failure of abort operation
- * @adapter: adapter thas has been used to issue SCSI command to be aborted
  * @scmd: SCSI command to be aborted
- * @new_req: request containing abort (might be NULL)
- * @old_id: identifier of request containg SCSI command to be aborted
+ * @fsf_req: request containing abort (might be NULL)
  */
 static inline
-void zfcp_dbf_scsi_abort(const char *tag, struct zfcp_dbf *dbf,
-			 struct scsi_cmnd *scmd, struct zfcp_fsf_req *new_req,
-			 unsigned long old_id)
+void zfcp_dbf_scsi_abort(char *tag, struct scsi_cmnd *scmd,
+			 struct zfcp_fsf_req *fsf_req)
 {
-	zfcp_dbf_scsi("abrt", tag, 1, dbf, scmd, new_req, old_id);
+	_zfcp_dbf_scsi(tag, 1, scmd, fsf_req);
 }
 
 /**
@@ -347,12 +351,17 @@ void zfcp_dbf_scsi_abort(const char *tag, struct zfcp_dbf *dbf,
  * @flag: indicates type of reset (Target Reset, Logical Unit Reset)
  */
 static inline
-void zfcp_dbf_scsi_devreset(const char *tag, struct scsi_cmnd *scmnd, u8 flag)
+void zfcp_dbf_scsi_devreset(char *tag, struct scsi_cmnd *scmnd, u8 flag)
 {
-	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(scmnd->device);
+	char tmp_tag[ZFCP_DBF_TAG_LEN];
 
-	zfcp_dbf_scsi(flag == FCP_TMF_TGT_RESET ? "trst" : "lrst", tag, 1,
-		      zfcp_sdev->port->adapter->dbf, scmnd, NULL, 0);
+	if (flag == FCP_TMF_TGT_RESET)
+		memcpy(tmp_tag, "tr_", 3);
+	else
+		memcpy(tmp_tag, "lr_", 3);
+
+	memcpy(&tmp_tag[3], tag, 4);
+	_zfcp_dbf_scsi(tmp_tag, 1, scmnd, NULL);
 }
 
 #endif /* ZFCP_DBF_H */

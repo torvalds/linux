@@ -3,7 +3,7 @@
  *
  * Debug traces for zfcp.
  *
- * Copyright IBM Corporation 2002, 2009
+ * Copyright IBM Corporation 2002, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -50,70 +50,6 @@ void zfcp_dbf_pl_write(struct zfcp_dbf *dbf, void *data, u16 length, char *area,
 	}
 
 	spin_unlock(&dbf->pay_lock);
-}
-
-static void zfcp_dbf_tag(char **p, const char *label, const char *tag)
-{
-	int i;
-
-	*p += sprintf(*p, "%-24s", label);
-	for (i = 0; i < ZFCP_DBF_TAG_SIZE; i++)
-		*p += sprintf(*p, "%c", tag[i]);
-	*p += sprintf(*p, "\n");
-}
-
-static void zfcp_dbf_out(char **buf, const char *s, const char *format, ...)
-{
-	va_list arg;
-
-	*buf += sprintf(*buf, "%-24s", s);
-	va_start(arg, format);
-	*buf += vsprintf(*buf, format, arg);
-	va_end(arg);
-	*buf += sprintf(*buf, "\n");
-}
-
-static void zfcp_dbf_outd(char **p, const char *label, char *buffer,
-			  int buflen, int offset, int total_size)
-{
-	if (!offset)
-		*p += sprintf(*p, "%-24s  ", label);
-	while (buflen--) {
-		if (offset > 0) {
-			if ((offset % 32) == 0)
-				*p += sprintf(*p, "\n%-24c  ", ' ');
-			else if ((offset % 4) == 0)
-				*p += sprintf(*p, " ");
-		}
-		*p += sprintf(*p, "%02x", *buffer++);
-		if (++offset == total_size) {
-			*p += sprintf(*p, "\n");
-			break;
-		}
-	}
-	if (!total_size)
-		*p += sprintf(*p, "\n");
-}
-
-static int zfcp_dbf_view_header(debug_info_t *id, struct debug_view *view,
-				int area, debug_entry_t *entry, char *out_buf)
-{
-	struct zfcp_dbf_dump *dump = (struct zfcp_dbf_dump *)DEBUG_DATA(entry);
-	struct timespec t;
-	char *p = out_buf;
-
-	if (strncmp(dump->tag, "dump", ZFCP_DBF_TAG_SIZE) != 0) {
-		stck_to_timespec(entry->id.stck, &t);
-		zfcp_dbf_out(&p, "timestamp", "%011lu:%06lu",
-			     t.tv_sec, t.tv_nsec);
-		zfcp_dbf_out(&p, "cpu", "%02i", entry->id.fields.cpuid);
-	} else	{
-		zfcp_dbf_outd(&p, "", dump->data, dump->size, dump->offset,
-			      dump->total_size);
-		if ((dump->offset + dump->size) == dump->total_size)
-			p += sprintf(p, "\n");
-	}
-	return p - out_buf;
 }
 
 /**
@@ -393,131 +329,57 @@ void zfcp_dbf_san_in_els(char *tag, struct zfcp_fsf_req *fsf)
 		     fsf->req_id, ntoh24(srb->d_id));
 }
 
-void _zfcp_dbf_scsi(const char *tag, const char *tag2, int level,
-		    struct zfcp_dbf *dbf, struct scsi_cmnd *scsi_cmnd,
-		    struct zfcp_fsf_req *fsf_req, unsigned long old_req_id)
+/**
+ * zfcp_dbf_scsi - trace event for scsi commands
+ * @tag: identifier for event
+ * @sc: pointer to struct scsi_cmnd
+ * @fsf: pointer to struct zfcp_fsf_req
+ */
+void zfcp_dbf_scsi(char *tag, struct scsi_cmnd *sc, struct zfcp_fsf_req *fsf)
 {
-	struct zfcp_dbf_scsi_record *rec = &dbf->scsi_buf;
-	struct zfcp_dbf_dump *dump = (struct zfcp_dbf_dump *)rec;
-	unsigned long flags;
+	struct zfcp_adapter *adapter =
+		(struct zfcp_adapter *) sc->device->host->hostdata[0];
+	struct zfcp_dbf *dbf = adapter->dbf;
+	struct zfcp_dbf_scsi *rec = &dbf->scsi_buf;
 	struct fcp_resp_with_ext *fcp_rsp;
-	struct fcp_resp_rsp_info *fcp_rsp_info = NULL;
-	char *fcp_sns_info = NULL;
-	int offset = 0, buflen = 0;
+	struct fcp_resp_rsp_info *fcp_rsp_info;
+	unsigned long flags;
 
 	spin_lock_irqsave(&dbf->scsi_lock, flags);
-	do {
-		memset(rec, 0, sizeof(*rec));
-		if (offset == 0) {
-			strncpy(rec->tag, tag, ZFCP_DBF_TAG_SIZE);
-			strncpy(rec->tag2, tag2, ZFCP_DBF_TAG_SIZE);
-			if (scsi_cmnd != NULL) {
-				if (scsi_cmnd->device) {
-					rec->scsi_id = scsi_cmnd->device->id;
-					rec->scsi_lun = scsi_cmnd->device->lun;
-				}
-				rec->scsi_result = scsi_cmnd->result;
-				rec->scsi_cmnd = (unsigned long)scsi_cmnd;
-				memcpy(rec->scsi_opcode, scsi_cmnd->cmnd,
-					min((int)scsi_cmnd->cmd_len,
-						ZFCP_DBF_SCSI_OPCODE));
-				rec->scsi_retries = scsi_cmnd->retries;
-				rec->scsi_allowed = scsi_cmnd->allowed;
-			}
-			if (fsf_req != NULL) {
-				fcp_rsp = (struct fcp_resp_with_ext *)
-					&(fsf_req->qtcb->bottom.io.fcp_rsp);
-				fcp_rsp_info = (struct fcp_resp_rsp_info *)
-					&fcp_rsp[1];
-				fcp_sns_info = (char *) &fcp_rsp[1];
-				if (fcp_rsp->resp.fr_flags & FCP_RSP_LEN_VAL)
-					fcp_sns_info += fcp_rsp->ext.fr_sns_len;
+	memset(rec, 0, sizeof(*rec));
 
-				rec->rsp_validity = fcp_rsp->resp.fr_flags;
-				rec->rsp_scsi_status = fcp_rsp->resp.fr_status;
-				rec->rsp_resid = fcp_rsp->ext.fr_resid;
-				if (fcp_rsp->resp.fr_flags & FCP_RSP_LEN_VAL)
-					rec->rsp_code = fcp_rsp_info->rsp_code;
-				if (fcp_rsp->resp.fr_flags & FCP_SNS_LEN_VAL) {
-					buflen = min(fcp_rsp->ext.fr_sns_len,
-					   (u32)ZFCP_DBF_SCSI_MAX_FCP_SNS_INFO);
-					rec->sns_info_len = buflen;
-					memcpy(rec->sns_info, fcp_sns_info,
-					       min(buflen,
-						   ZFCP_DBF_SCSI_FCP_SNS_INFO));
-					offset += min(buflen,
-						      ZFCP_DBF_SCSI_FCP_SNS_INFO);
-				}
+	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
+	rec->id = ZFCP_DBF_SCSI_CMND;
+	rec->scsi_result = sc->result;
+	rec->scsi_retries = sc->retries;
+	rec->scsi_allowed = sc->allowed;
+	rec->scsi_id = sc->device->id;
+	rec->scsi_lun = sc->device->lun;
+	rec->host_scribble = (unsigned long)sc->host_scribble;
 
-				rec->fsf_reqid = fsf_req->req_id;
-				rec->fsf_seqno = fsf_req->seq_no;
-				rec->fsf_issued = fsf_req->issued;
-			}
-			rec->old_fsf_reqid = old_req_id;
-		} else {
-			strncpy(dump->tag, "dump", ZFCP_DBF_TAG_SIZE);
-			dump->total_size = buflen;
-			dump->offset = offset;
-			dump->size = min(buflen - offset,
-					 (int)sizeof(struct
-						     zfcp_dbf_scsi_record) -
-					 (int)sizeof(struct zfcp_dbf_dump));
-			memcpy(dump->data, fcp_sns_info + offset, dump->size);
-			offset += dump->size;
+	memcpy(rec->scsi_opcode, sc->cmnd,
+	       min((int)sc->cmd_len, ZFCP_DBF_SCSI_OPCODE));
+
+	if (fsf) {
+		rec->fsf_req_id = fsf->req_id;
+		fcp_rsp = (struct fcp_resp_with_ext *)
+				&(fsf->qtcb->bottom.io.fcp_rsp);
+		memcpy(&rec->fcp_rsp, fcp_rsp, FCP_RESP_WITH_EXT);
+		if (fcp_rsp->resp.fr_flags & FCP_RSP_LEN_VAL) {
+			fcp_rsp_info = (struct fcp_resp_rsp_info *) &fcp_rsp[1];
+			rec->fcp_rsp_info = fcp_rsp_info->rsp_code;
 		}
-		debug_event(dbf->scsi, level, rec, sizeof(*rec));
-	} while (offset < buflen);
+		if (fcp_rsp->resp.fr_flags & FCP_SNS_LEN_VAL) {
+			rec->pl_len = min((u16)SCSI_SENSE_BUFFERSIZE,
+					  (u16)ZFCP_DBF_PAY_MAX_REC);
+			zfcp_dbf_pl_write(dbf, sc->sense_buffer, rec->pl_len,
+					  "fcp_sns", fsf->req_id);
+		}
+	}
+
+	debug_event(adapter->dbf->scsi, 1, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->scsi_lock, flags);
 }
-
-static int zfcp_dbf_scsi_view_format(debug_info_t *id, struct debug_view *view,
-				     char *out_buf, const char *in_buf)
-{
-	struct zfcp_dbf_scsi_record *r = (struct zfcp_dbf_scsi_record *)in_buf;
-	struct timespec t;
-	char *p = out_buf;
-
-	if (strncmp(r->tag, "dump", ZFCP_DBF_TAG_SIZE) == 0)
-		return 0;
-
-	zfcp_dbf_tag(&p, "tag", r->tag);
-	zfcp_dbf_tag(&p, "tag2", r->tag2);
-	zfcp_dbf_out(&p, "scsi_id", "0x%08x", r->scsi_id);
-	zfcp_dbf_out(&p, "scsi_lun", "0x%08x", r->scsi_lun);
-	zfcp_dbf_out(&p, "scsi_result", "0x%08x", r->scsi_result);
-	zfcp_dbf_out(&p, "scsi_cmnd", "0x%0Lx", r->scsi_cmnd);
-	zfcp_dbf_outd(&p, "scsi_opcode", r->scsi_opcode, ZFCP_DBF_SCSI_OPCODE,
-		      0, ZFCP_DBF_SCSI_OPCODE);
-	zfcp_dbf_out(&p, "scsi_retries", "0x%02x", r->scsi_retries);
-	zfcp_dbf_out(&p, "scsi_allowed", "0x%02x", r->scsi_allowed);
-	if (strncmp(r->tag, "abrt", ZFCP_DBF_TAG_SIZE) == 0)
-		zfcp_dbf_out(&p, "old_fsf_reqid", "0x%0Lx", r->old_fsf_reqid);
-	zfcp_dbf_out(&p, "fsf_reqid", "0x%0Lx", r->fsf_reqid);
-	zfcp_dbf_out(&p, "fsf_seqno", "0x%08x", r->fsf_seqno);
-	stck_to_timespec(r->fsf_issued, &t);
-	zfcp_dbf_out(&p, "fsf_issued", "%011lu:%06lu", t.tv_sec, t.tv_nsec);
-
-	if (strncmp(r->tag, "rslt", ZFCP_DBF_TAG_SIZE) == 0) {
-		zfcp_dbf_out(&p, "fcp_rsp_validity", "0x%02x", r->rsp_validity);
-		zfcp_dbf_out(&p, "fcp_rsp_scsi_status", "0x%02x",
-			     r->rsp_scsi_status);
-		zfcp_dbf_out(&p, "fcp_rsp_resid", "0x%08x", r->rsp_resid);
-		zfcp_dbf_out(&p, "fcp_rsp_code", "0x%08x", r->rsp_code);
-		zfcp_dbf_out(&p, "fcp_sns_info_len", "0x%08x", r->sns_info_len);
-		zfcp_dbf_outd(&p, "fcp_sns_info", r->sns_info,
-			      min((int)r->sns_info_len,
-			      ZFCP_DBF_SCSI_FCP_SNS_INFO), 0,
-			      r->sns_info_len);
-	}
-	p += sprintf(p, "\n");
-	return p - out_buf;
-}
-
-static struct debug_view zfcp_dbf_scsi_view = {
-	.name = "structured",
-	.header_proc = zfcp_dbf_view_header,
-	.format_proc = zfcp_dbf_scsi_view_format,
-};
 
 static debug_info_t *zfcp_dbf_reg(const char *name, int level,
 				  struct debug_view *view, int size)
@@ -584,8 +446,8 @@ int zfcp_dbf_adapter_register(struct zfcp_adapter *adapter)
 
 	/* debug feature area which records SCSI command failures and recovery */
 	sprintf(dbf_name, "zfcp_%s_scsi", dev_name(&adapter->ccw_device->dev));
-	dbf->scsi = zfcp_dbf_reg(dbf_name, 3, &zfcp_dbf_scsi_view,
-				 sizeof(struct zfcp_dbf_scsi_record));
+	dbf->scsi = zfcp_dbf_reg(dbf_name, 3, NULL,
+				 sizeof(struct zfcp_dbf_scsi));
 	if (!dbf->scsi)
 		goto err_out;
 

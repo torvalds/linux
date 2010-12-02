@@ -68,11 +68,8 @@ static int zfcp_scsi_slave_configure(struct scsi_device *sdp)
 
 static void zfcp_scsi_command_fail(struct scsi_cmnd *scpnt, int result)
 {
-	struct zfcp_adapter *adapter =
-		(struct zfcp_adapter *) scpnt->device->host->hostdata[0];
-
 	set_host_byte(scpnt, result);
-	zfcp_dbf_scsi_fail_send(adapter->dbf, scpnt);
+	zfcp_dbf_scsi_fail_send(scpnt);
 	scpnt->scsi_done(scpnt);
 }
 
@@ -80,7 +77,6 @@ static
 int zfcp_scsi_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scpnt)
 {
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(scpnt->device);
-	struct zfcp_adapter *adapter = zfcp_sdev->port->adapter;
 	struct fc_rport *rport = starget_to_rport(scsi_target(scpnt->device));
 	int    status, scsi_result, ret;
 
@@ -91,7 +87,7 @@ int zfcp_scsi_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scpnt)
 	scsi_result = fc_remote_port_chkready(rport);
 	if (unlikely(scsi_result)) {
 		scpnt->result = scsi_result;
-		zfcp_dbf_scsi_fail_send(adapter->dbf, scpnt);
+		zfcp_dbf_scsi_fail_send(scpnt);
 		scpnt->scsi_done(scpnt);
 		return 0;
 	}
@@ -182,8 +178,7 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 	old_req = zfcp_reqlist_find(adapter->req_list, old_reqid);
 	if (!old_req) {
 		write_unlock_irqrestore(&adapter->abort_lock, flags);
-		zfcp_dbf_scsi_abort("lte1", adapter->dbf, scpnt, NULL,
-				    old_reqid);
+		zfcp_dbf_scsi_abort("abrt_or", scpnt, NULL);
 		return FAILED; /* completion could be in progress */
 	}
 	old_req->data = NULL;
@@ -198,29 +193,32 @@ static int zfcp_scsi_eh_abort_handler(struct scsi_cmnd *scpnt)
 
 		zfcp_erp_wait(adapter);
 		ret = fc_block_scsi_eh(scpnt);
-		if (ret)
+		if (ret) {
+			zfcp_dbf_scsi_abort("abrt_bl", scpnt, NULL);
 			return ret;
+		}
 		if (!(atomic_read(&adapter->status) &
 		      ZFCP_STATUS_COMMON_RUNNING)) {
-			zfcp_dbf_scsi_abort("nres", adapter->dbf, scpnt, NULL,
-					    old_reqid);
+			zfcp_dbf_scsi_abort("abrt_ru", scpnt, NULL);
 			return SUCCESS;
 		}
 	}
-	if (!abrt_req)
+	if (!abrt_req) {
+		zfcp_dbf_scsi_abort("abrt_ar", scpnt, NULL);
 		return FAILED;
+	}
 
 	wait_for_completion(&abrt_req->completion);
 
 	if (abrt_req->status & ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED)
-		dbf_tag = "okay";
+		dbf_tag = "abrt_ok";
 	else if (abrt_req->status & ZFCP_STATUS_FSFREQ_ABORTNOTNEEDED)
-		dbf_tag = "lte2";
+		dbf_tag = "abrt_nn";
 	else {
-		dbf_tag = "fail";
+		dbf_tag = "abrt_fa";
 		retval = FAILED;
 	}
-	zfcp_dbf_scsi_abort(dbf_tag, adapter->dbf, scpnt, abrt_req, old_reqid);
+	zfcp_dbf_scsi_abort(dbf_tag, scpnt, abrt_req);
 	zfcp_fsf_req_free(abrt_req);
 	return retval;
 }

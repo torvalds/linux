@@ -2105,7 +2105,7 @@ static void zfcp_fsf_fcp_cmnd_handler(struct zfcp_fsf_req *req)
 
 skip_fsfstatus:
 	zfcp_fsf_req_trace(req, scpnt);
-	zfcp_dbf_scsi_result(req->adapter->dbf, scpnt, req);
+	zfcp_dbf_scsi_result(scpnt, req);
 
 	scpnt->host_scribble = NULL;
 	(scpnt->scsi_done) (scpnt);
