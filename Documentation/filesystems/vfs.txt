@@ -660,11 +660,10 @@ struct address_space_operations {
   releasepage: releasepage is called on PagePrivate pages to indicate
         that the page should be freed if possible.  ->releasepage
         should remove any private data from the page and clear the
-        PagePrivate flag.  It may also remove the page from the
-        address_space.  If this fails for some reason, it may indicate
-        failure with a 0 return value.
-	This is used in two distinct though related cases.  The first
-        is when the VM finds a clean page with no active users and
+        PagePrivate flag. If releasepage() fails for some reason, it must
+	indicate failure with a 0 return value.
+	releasepage() is used in two distinct though related cases.  The
+	first is when the VM finds a clean page with no active users and
         wants to make it a free page.  If ->releasepage succeeds, the
         page will be removed from the address_space and become free.
 
