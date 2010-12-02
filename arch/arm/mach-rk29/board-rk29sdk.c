@@ -51,7 +51,7 @@
 
 
 /* Set memory size of pmem */
-#define SDRAM_SIZE          SZ_128M
+#define SDRAM_SIZE          SZ_512M
 #define PMEM_GPU_SIZE       (12 * SZ_1M)
 #define PMEM_UI_SIZE        SZ_16M
 #define PMEM_VPU_SIZE       SZ_32M
