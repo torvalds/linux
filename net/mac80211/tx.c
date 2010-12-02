@@ -1737,14 +1737,12 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	int nh_pos, h_pos;
 	struct sta_info *sta = NULL;
 	u32 sta_flags = 0;
+	struct sk_buff *tmp_skb;
 
 	if (unlikely(skb->len < ETH_HLEN)) {
 		ret = NETDEV_TX_OK;
 		goto fail;
 	}
-
-	nh_pos = skb_network_header(skb) - skb->data;
-	h_pos = skb_transport_header(skb) - skb->data;
 
 	/* convert Ethernet header to proper 802.11 header (based on
 	 * operation mode) */
@@ -1918,6 +1916,20 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		goto fail;
 	}
 
+	/*
+	 * If the skb is shared we need to obtain our own copy.
+	 */
+	if (skb_shared(skb)) {
+		tmp_skb = skb;
+		skb = skb_copy(skb, GFP_ATOMIC);
+		kfree_skb(tmp_skb);
+
+		if (!skb) {
+			ret = NETDEV_TX_OK;
+			goto fail;
+		}
+	}
+
 	hdr.frame_control = fc;
 	hdr.duration_id = 0;
 	hdr.seq_ctrl = 0;
@@ -1935,6 +1947,9 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		encaps_data = NULL;
 		encaps_len = 0;
 	}
+
+	nh_pos = skb_network_header(skb) - skb->data;
+	h_pos = skb_transport_header(skb) - skb->data;
 
 	skb_pull(skb, skip_header_bytes);
 	nh_pos -= skip_header_bytes;
