@@ -1650,8 +1650,9 @@ config SERIAL_IFX6X60
 
 config SERIAL_PCH_UART
 	tristate "Intel EG20T PCH UART"
+	depends on PCI && DMADEVICES
 	select SERIAL_CORE
-	depends on PCI
+	select PCH_DMA
 	help
 	  This driver is for PCH(Platform controller Hub) UART of Intel EG20T
 	  which is an IOH(Input/Output Hub) for x86 embedded processor.
