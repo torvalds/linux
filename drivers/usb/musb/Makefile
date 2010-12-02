@@ -16,11 +16,11 @@ musb_hdrc-$(CONFIG_DEBUG_FS)			+= musb_debugfs.o
 
 musb_hdrc-$(CONFIG_USB_MUSB_DAVINCI)		+= davinci.o
 musb_hdrc-$(CONFIG_USB_MUSB_DA8XX)		+= da8xx.o
-musb_hdrc-$(CONFIG_USB_MUSB_TUSB6010)		+= tusb6010.o
 musb_hdrc-$(CONFIG_USB_MUSB_BLACKFIN)		+= blackfin.o
 
 obj-$(CONFIG_USB_MUSB_OMAP2PLUS)		+= omap2430.o
 obj-$(CONFIG_USB_MUSB_AM35X)			+= am35x.o
+obj-$(CONFIG_USB_MUSB_TUSB6010)			+= tusb6010.o
 
 # the kconfig must guarantee that only one of the
 # possible I/O schemes will be enabled at a time ...
