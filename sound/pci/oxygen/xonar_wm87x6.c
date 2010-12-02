@@ -22,20 +22,41 @@
  *
  * CMI8788:
  *
- * SPI 0 -> WM8766 (surround, center/LFE, back)
- * SPI 1 -> WM8776 (front, input)
+ *   SPI 0 -> WM8766 (surround, center/LFE, back)
+ *   SPI 1 -> WM8776 (front, input)
  *
- * GPIO 4 <- headphone detect, 0 = plugged
- * GPIO 6 -> route input jack to mic-in (0) or line-in (1)
- * GPIO 7 -> enable output to front L/R speaker channels
- * GPIO 8 -> enable output to other speaker channels and front panel headphone
+ *   GPIO 4 <- headphone detect, 0 = plugged
+ *   GPIO 6 -> route input jack to mic-in (0) or line-in (1)
+ *   GPIO 7 -> enable output to front L/R speaker channels
+ *   GPIO 8 -> enable output to other speaker channels and front panel headphone
  *
- * WM8766:
+ * WM8776:
  *
- * input 1 <- line
- * input 2 <- mic
- * input 3 <- front mic
- * input 4 <- aux
+ *   input 1 <- line
+ *   input 2 <- mic
+ *   input 3 <- front mic
+ *   input 4 <- aux
+ */
+
+/*
+ * Xonar HDAV1.3 Slim
+ * ------------------
+ *
+ * CMI8788:
+ *
+ *   I²C <-> WM8776 (addr 0011010)
+ *
+ *   GPIO 0  -> disable HDMI output
+ *   GPIO 1  -> enable HP output
+ *   GPIO 6  -> firmware EEPROM I²C clock
+ *   GPIO 7 <-> firmware EEPROM I²C data
+ *
+ *   UART <-> HDMI controller
+ *
+ * WM8776:
+ *
+ *   input 1 <- mic
+ *   input 2 <- aux
  */
 
 #include <linux/pci.h>

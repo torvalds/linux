@@ -22,29 +22,28 @@
  *
  * CMI8788:
  *
- * I²C <-> CS4398 (front)
- *     <-> CS4362A (surround, center/LFE, back)
+ *   I²C <-> CS4398 (addr 1001111) (front)
+ *       <-> CS4362A (addr 0011000) (surround, center/LFE, back)
  *
- * GPI 0 <- external power present (DX only)
+ *   GPI 0 <- external power present (DX only)
  *
- * GPIO 0 -> enable output to speakers
- * GPIO 1 -> route output to front panel
- * GPIO 2 -> M0 of CS5361
- * GPIO 3 -> M1 of CS5361
- * GPIO 8 -> route input jack to line-in (0) or mic-in (1)
- *
- * CS4398:
- *
- * AD0 <- 1
- * AD1 <- 1
- *
- * CS4362A:
- *
- * AD0 <- 0
+ *   GPIO 0 -> enable output to speakers
+ *   GPIO 1 -> route output to front panel
+ *   GPIO 2 -> M0 of CS5361
+ *   GPIO 3 -> M1 of CS5361
+ *   GPIO 6 -> ?
+ *   GPIO 7 -> ?
+ *   GPIO 8 -> route input jack to line-in (0) or mic-in (1)
  *
  * CM9780:
  *
- * GPO 0 -> route line-in (0) or AC97 output (1) to CS5361 input
+ *   LINE_OUT -> input of ADC
+ *
+ *   AUX_IN  <- aux
+ *   MIC_IN  <- mic
+ *   FMIC_IN <- front mic
+ *
+ *   GPO 0 -> route line-in (0) or AC97 output (1) to CS5361 input
  */
 
 #include <linux/pci.h>
