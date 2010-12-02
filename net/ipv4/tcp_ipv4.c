@@ -1210,12 +1210,6 @@ static const struct tcp_request_sock_ops tcp_request_sock_ipv4_ops = {
 };
 #endif
 
-static struct timewait_sock_ops tcp_timewait_sock_ops = {
-	.twsk_obj_size	= sizeof(struct tcp_timewait_sock),
-	.twsk_unique	= tcp_twsk_unique,
-	.twsk_destructor= tcp_twsk_destructor,
-};
-
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_extend_values tmp_ext;
@@ -1783,25 +1777,20 @@ struct inet_peer *tcp_v4_get_peer(struct sock *sk, bool *release_it)
 }
 EXPORT_SYMBOL(tcp_v4_get_peer);
 
-int tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw)
+void *tcp_v4_tw_get_peer(struct sock *sk)
 {
-	struct inet_peer *peer = inet_getpeer_v4(tw->tw_daddr, 1);
+	struct inet_timewait_sock *tw = inet_twsk(sk);
 
-	if (peer) {
-		const struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);
-
-		if ((s32)(peer->tcp_ts - tcptw->tw_ts_recent) <= 0 ||
-		    ((u32)get_seconds() - peer->tcp_ts_stamp > TCP_PAWS_MSL &&
-		     peer->tcp_ts_stamp <= (u32)tcptw->tw_ts_recent_stamp)) {
-			peer->tcp_ts_stamp = (u32)tcptw->tw_ts_recent_stamp;
-			peer->tcp_ts	   = tcptw->tw_ts_recent;
-		}
-		inet_putpeer(peer);
-		return 1;
-	}
-
-	return 0;
+	return inet_getpeer_v4(tw->tw_daddr, 1);
 }
+EXPORT_SYMBOL(tcp_v4_tw_get_peer);
+
+static struct timewait_sock_ops tcp_timewait_sock_ops = {
+	.twsk_obj_size	= sizeof(struct tcp_timewait_sock),
+	.twsk_unique	= tcp_twsk_unique,
+	.twsk_destructor= tcp_twsk_destructor,
+	.twsk_getpeer	= tcp_v4_tw_get_peer,
+};
 
 const struct inet_connection_sock_af_ops ipv4_specific = {
 	.queue_xmit	   = ip_queue_xmit,

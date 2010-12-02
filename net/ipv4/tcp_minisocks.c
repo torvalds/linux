@@ -78,6 +78,27 @@ static int tcp_remember_stamp(struct sock *sk)
 	return 0;
 }
 
+static int tcp_tw_remember_stamp(struct inet_timewait_sock *tw)
+{
+	struct sock *sk = (struct sock *) tw;
+	struct inet_peer *peer;
+
+	peer = twsk_getpeer(sk);
+	if (peer) {
+		const struct tcp_timewait_sock *tcptw = tcp_twsk(sk);
+
+		if ((s32)(peer->tcp_ts - tcptw->tw_ts_recent) <= 0 ||
+		    ((u32)get_seconds() - peer->tcp_ts_stamp > TCP_PAWS_MSL &&
+		     peer->tcp_ts_stamp <= (u32)tcptw->tw_ts_recent_stamp)) {
+			peer->tcp_ts_stamp = (u32)tcptw->tw_ts_recent_stamp;
+			peer->tcp_ts	   = tcptw->tw_ts_recent;
+		}
+		inet_putpeer(peer);
+		return 1;
+	}
+	return 0;
+}
+
 static __inline__ int tcp_in_window(u32 seq, u32 end_seq, u32 s_win, u32 e_win)
 {
 	if (seq == s_win)
@@ -178,14 +199,9 @@ kill_with_rst:
 			tcptw->tw_ts_recent	  = tmp_opt.rcv_tsval;
 		}
 
-		/* I am shamed, but failed to make it more elegant.
-		 * Yes, it is direct reference to IP, which is impossible
-		 * to generalize to IPv6. Taking into account that IPv6
-		 * do not understand recycling in any case, it not
-		 * a big problem in practice. --ANK */
-		if (tw->tw_family == AF_INET &&
-		    tcp_death_row.sysctl_tw_recycle && tcptw->tw_ts_recent_stamp &&
-		    tcp_v4_tw_remember_stamp(tw))
+		if (tcp_death_row.sysctl_tw_recycle &&
+		    tcptw->tw_ts_recent_stamp &&
+		    tcp_tw_remember_stamp(tw))
 			inet_twsk_schedule(tw, &tcp_death_row, tw->tw_timeout,
 					   TCP_TIMEWAIT_LEN);
 		else

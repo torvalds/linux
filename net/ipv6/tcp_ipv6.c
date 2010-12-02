@@ -906,12 +906,6 @@ static const struct tcp_request_sock_ops tcp_request_sock_ipv6_ops = {
 };
 #endif
 
-static struct timewait_sock_ops tcp6_timewait_sock_ops = {
-	.twsk_obj_size	= sizeof(struct tcp6_timewait_sock),
-	.twsk_unique	= tcp_twsk_unique,
-	.twsk_destructor= tcp_twsk_destructor,
-};
-
 static void __tcp_v6_send_check(struct sk_buff *skb,
 				struct in6_addr *saddr, struct in6_addr *daddr)
 {
@@ -1818,11 +1812,29 @@ do_time_wait:
 	goto discard_it;
 }
 
-struct inet_peer *tcp_v6_get_peer(struct sock *sk, bool *release_it)
+static struct inet_peer *tcp_v6_get_peer(struct sock *sk, bool *release_it)
 {
 	/* Alas, not yet... */
 	return NULL;
 }
+
+static void *tcp_v6_tw_get_peer(struct sock *sk)
+{
+	struct inet_timewait_sock *tw = inet_twsk(sk);
+
+	if (tw->tw_family == AF_INET)
+		return tcp_v4_tw_get_peer(sk);
+
+	/* Alas, not yet... */
+	return NULL;
+}
+
+static struct timewait_sock_ops tcp6_timewait_sock_ops = {
+	.twsk_obj_size	= sizeof(struct tcp6_timewait_sock),
+	.twsk_unique	= tcp_twsk_unique,
+	.twsk_destructor= tcp_twsk_destructor,
+	.twsk_getpeer	= tcp_v6_tw_get_peer,
+};
 
 static const struct inet_connection_sock_af_ops ipv6_specific = {
 	.queue_xmit	   = inet6_csk_xmit,
