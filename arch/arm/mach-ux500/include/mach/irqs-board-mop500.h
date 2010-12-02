@@ -8,7 +8,8 @@
 #ifndef __MACH_IRQS_BOARD_MOP500_H
 #define __MACH_IRQS_BOARD_MOP500_H
 
-#define AB8500_NR_IRQS			104
+/* Number of AB8500 irqs is taken from header file */
+#include <linux/mfd/ab8500.h>
 
 #define MOP500_AB8500_IRQ_BASE		IRQ_BOARD_START
 #define MOP500_AB8500_IRQ_END		(MOP500_AB8500_IRQ_BASE \
