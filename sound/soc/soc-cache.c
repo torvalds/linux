@@ -933,7 +933,7 @@ static int snd_soc_rbtree_cache_init(struct snd_soc_codec *codec)
 	rbtree_ctx = codec->reg_cache;
 	rbtree_ctx->root = RB_ROOT;
 
-	if (!codec->driver->reg_cache_default)
+	if (!codec->reg_def_copy)
 		return 0;
 
 /*
@@ -951,7 +951,7 @@ static int snd_soc_rbtree_cache_init(struct snd_soc_codec *codec)
 	struct snd_soc_rbtree_node *rbtree_node;			\
 									\
 	ret = 0;							\
-	cache = codec->driver->reg_cache_default;			\
+	cache = codec->reg_def_copy;					\
 	for (i = 0; i < codec->driver->reg_cache_size; ++i) {		\
 		if (!cache[i])						\
 			continue;					\
@@ -1316,13 +1316,13 @@ static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 	 * and remember to free it afterwards.
 	 */
 	tofree = 0;
-	if (!codec_drv->reg_cache_default)
+	if (!codec->reg_def_copy)
 		tofree = 1;
 
-	if (!codec_drv->reg_cache_default) {
-		codec_drv->reg_cache_default = kzalloc(reg_size,
+	if (!codec->reg_def_copy) {
+		codec->reg_def_copy = kzalloc(reg_size,
 						       GFP_KERNEL);
-		if (!codec_drv->reg_cache_default)
+		if (!codec->reg_def_copy)
 			return -ENOMEM;
 	}
 
@@ -1368,8 +1368,8 @@ static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 	}
 
 	blksize = snd_soc_lzo_get_blksize(codec);
-	p = codec_drv->reg_cache_default;
-	end = codec_drv->reg_cache_default + reg_size;
+	p = codec->reg_def_copy;
+	end = codec->reg_def_copy + reg_size;
 	/* compress the register map and fill the lzo blocks */
 	for (i = 0; i < blkcount; ++i, p += blksize) {
 		lzo_blocks[i]->src = p;
@@ -1385,14 +1385,18 @@ static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 			lzo_blocks[i]->src_len;
 	}
 
-	if (tofree)
-		kfree(codec_drv->reg_cache_default);
+	if (tofree) {
+		kfree(codec->reg_def_copy);
+		codec->reg_def_copy = NULL;
+	}
 	return 0;
 err:
 	snd_soc_cache_exit(codec);
 err_tofree:
-	if (tofree)
-		kfree(codec_drv->reg_cache_default);
+	if (tofree) {
+		kfree(codec->reg_def_copy);
+		codec->reg_def_copy = NULL;
+	}
 	return ret;
 }
 
@@ -1505,6 +1509,14 @@ static int snd_soc_flat_cache_init(struct snd_soc_codec *codec)
 
 	codec_drv = codec->driver;
 	reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
+
+	/*
+	 * for flat compression, we don't need to keep a copy of the
+	 * original defaults register cache as it will definitely not
+	 * be marked as __devinitconst
+	 */
+	kfree(codec->reg_def_copy);
+	codec->reg_def_copy = NULL;
 
 	if (codec_drv->reg_cache_default)
 		codec->reg_cache = kmemdup(codec_drv->reg_cache_default,

@@ -480,6 +480,7 @@ struct snd_soc_codec {
 	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
 	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
 	void *reg_cache;
+	const void *reg_def_copy;
 	const struct snd_soc_cache_ops *cache_ops;
 	struct mutex cache_rw_mutex;
 

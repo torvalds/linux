@@ -3434,6 +3434,7 @@ int snd_soc_register_codec(struct device *dev,
 		struct snd_soc_codec_driver *codec_drv,
 		struct snd_soc_dai_driver *dai_drv, int num_dai)
 {
+	size_t reg_size;
 	struct snd_soc_codec *codec;
 	int ret, i;
 
@@ -3469,6 +3470,19 @@ int snd_soc_register_codec(struct device *dev,
 
 	/* allocate CODEC register cache */
 	if (codec_drv->reg_cache_size && codec_drv->reg_word_size) {
+		reg_size = codec_drv->reg_cache_size * codec_drv->reg_word_size;
+		/* it is necessary to make a copy of the default register cache
+		 * because in the case of using a compression type that requires
+		 * the default register cache to be marked as __devinitconst the
+		 * kernel might have freed the array by the time we initialize
+		 * the cache.
+		 */
+		codec->reg_def_copy = kmemdup(codec_drv->reg_cache_default,
+					      reg_size, GFP_KERNEL);
+		if (!codec->reg_def_copy) {
+			ret = -ENOMEM;
+			goto error_cache;
+		}
 		ret = snd_soc_cache_init(codec);
 		if (ret < 0) {
 			dev_err(codec->dev, "Failed to set cache compression type: %d\n",
@@ -3500,6 +3514,8 @@ int snd_soc_register_codec(struct device *dev,
 error_dais:
 	snd_soc_cache_exit(codec);
 error_cache:
+	kfree(codec->reg_def_copy);
+	codec->reg_def_copy = NULL;
 	kfree(codec->name);
 	kfree(codec);
 	return ret;
@@ -3534,6 +3550,7 @@ found:
 	pr_debug("Unregistered codec '%s'\n", codec->name);
 
 	snd_soc_cache_exit(codec);
+	kfree(codec->reg_def_copy);
 	kfree(codec->name);
 	kfree(codec);
 }
