@@ -776,6 +776,15 @@ static const struct snd_kcontrol_new os_128_control = {
 	.put = os_128_put,
 };
 
+static const struct snd_kcontrol_new hdav_hdmi_control = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "HDMI Playback Switch",
+	.info = snd_ctl_boolean_mono_info,
+	.get = xonar_gpio_bit_switch_get,
+	.put = xonar_gpio_bit_switch_put,
+	.private_value = GPIO_HDAV_OUTPUT_ENABLE | XONAR_GPIO_BIT_INVERT,
+};
+
 static int st_output_switch_info(struct snd_kcontrol *ctl,
 				 struct snd_ctl_elem_info *info)
 {
@@ -960,7 +969,15 @@ static int xonar_d2_mixer_init(struct oxygen *chip)
 
 static int xonar_hdav_mixer_init(struct oxygen *chip)
 {
-	return add_pcm1796_controls(chip);
+	int err;
+
+	err = snd_ctl_add(chip->card, snd_ctl_new1(&hdav_hdmi_control, chip));
+	if (err < 0)
+		return err;
+	err = add_pcm1796_controls(chip);
+	if (err < 0)
+		return err;
+	return 0;
 }
 
 static int xonar_st_mixer_init(struct oxygen *chip)
