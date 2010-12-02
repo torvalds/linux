@@ -476,6 +476,8 @@ struct snd_soc_codec {
 	void *control_data; /* codec control (i2c/3wire) data */
 	hw_write_t hw_write;
 	unsigned int (*hw_read)(struct snd_soc_codec *, unsigned int);
+	unsigned int (*read)(struct snd_soc_codec *, unsigned int);
+	int (*write)(struct snd_soc_codec *, unsigned int, unsigned int);
 	void *reg_cache;
 	const struct snd_soc_cache_ops *cache_ops;
 	struct mutex cache_rw_mutex;

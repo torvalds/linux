@@ -728,8 +728,8 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 		return -EINVAL;
 	}
 
-	codec->driver->write = io_types[i].write;
-	codec->driver->read = io_types[i].read;
+	codec->write = io_types[i].write;
+	codec->read = io_types[i].read;
 
 	switch (control) {
 	case SND_SOC_CUSTOM:
