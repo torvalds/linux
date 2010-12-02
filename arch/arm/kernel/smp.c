@@ -383,16 +383,10 @@ void __init smp_prepare_boot_cpu(void)
 
 static void send_ipi_message(const struct cpumask *mask, enum ipi_msg_type msg)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
-
 	/*
 	 * Call the platform specific cross-CPU call function.
 	 */
 	smp_cross_call(mask, msg);
-
-	local_irq_restore(flags);
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
