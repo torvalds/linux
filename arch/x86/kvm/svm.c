@@ -190,10 +190,12 @@ enum {
 			    pause filter count */
 	VMCB_PERM_MAP,   /* IOPM Base and MSRPM Base */
 	VMCB_ASID,	 /* ASID */
+	VMCB_INTR,	 /* int_ctl, int_vector */
 	VMCB_DIRTY_MAX,
 };
 
-#define VMCB_ALWAYS_DIRTY_MASK	0U
+/* TPR is always written before VMRUN */
+#define VMCB_ALWAYS_DIRTY_MASK	(1U << VMCB_INTR)
 
 static inline void mark_all_dirty(struct vmcb *vmcb)
 {
@@ -2508,6 +2510,8 @@ static int clgi_interception(struct vcpu_svm *svm)
 	svm_clear_vintr(svm);
 	svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
 
+	mark_dirty(svm->vmcb, VMCB_INTR);
+
 	return 1;
 }
 
@@ -2878,6 +2882,7 @@ static int interrupt_window_interception(struct vcpu_svm *svm)
 	kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
 	svm_clear_vintr(svm);
 	svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
+	mark_dirty(svm->vmcb, VMCB_INTR);
 	/*
 	 * If the user space waits to inject interrupts, exit as soon as
 	 * possible
@@ -3169,6 +3174,7 @@ static inline void svm_inject_irq(struct vcpu_svm *svm, int irq)
 	control->int_ctl &= ~V_INTR_PRIO_MASK;
 	control->int_ctl |= V_IRQ_MASK |
 		((/*control->int_vector >> 4*/ 0xf) << V_INTR_PRIO_SHIFT);
+	mark_dirty(svm->vmcb, VMCB_INTR);
 }
 
 static void svm_set_irq(struct kvm_vcpu *vcpu)
