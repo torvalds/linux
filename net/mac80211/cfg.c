@@ -1024,6 +1024,8 @@ static int ieee80211_set_mesh_params(struct wiphy *wiphy,
 		conf->dot11MeshMaxRetries = nconf->dot11MeshMaxRetries;
 	if (_chg_mesh_attr(NL80211_MESHCONF_TTL, mask))
 		conf->dot11MeshTTL = nconf->dot11MeshTTL;
+	if (_chg_mesh_attr(NL80211_MESHCONF_ELEMENT_TTL, mask))
+		conf->dot11MeshTTL = nconf->element_ttl;
 	if (_chg_mesh_attr(NL80211_MESHCONF_AUTO_OPEN_PLINKS, mask))
 		conf->auto_open_plinks = nconf->auto_open_plinks;
 	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_MAX_PREQ_RETRIES, mask))

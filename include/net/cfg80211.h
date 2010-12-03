@@ -624,6 +624,8 @@ struct mesh_config {
 	u16 dot11MeshMaxPeerLinks;
 	u8  dot11MeshMaxRetries;
 	u8  dot11MeshTTL;
+	/* ttl used in path selection information elements */
+	u8  element_ttl;
 	bool auto_open_plinks;
 	/* HWMP parameters */
 	u8  dot11MeshHWMPmaxPREQretries;

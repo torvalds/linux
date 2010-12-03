@@ -668,6 +668,7 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	ifmsh->mshcfg.dot11MeshHoldingTimeout = MESH_HOLD_T;
 	ifmsh->mshcfg.dot11MeshMaxRetries = MESH_MAX_RETR;
 	ifmsh->mshcfg.dot11MeshTTL = MESH_TTL;
+	ifmsh->mshcfg.element_ttl = MESH_DEFAULT_ELEMENT_TTL;
 	ifmsh->mshcfg.auto_open_plinks = true;
 	ifmsh->mshcfg.dot11MeshMaxPeerLinks =
 		MESH_MAX_ESTAB_PLINKS;

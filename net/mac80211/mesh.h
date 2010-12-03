@@ -216,6 +216,8 @@ struct mesh_rmc {
 #define PERR_RCODE_NO_ROUTE     12
 #define PERR_RCODE_DEST_UNREACH 13
 
+#define MESH_DEFAULT_ELEMENT_TTL 31
+
 /* Public interfaces */
 /* Various */
 int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
