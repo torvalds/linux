@@ -925,7 +925,6 @@ static int alc5623_probe(struct snd_soc_codec *codec)
 	}
 
 	switch (alc5623->id) {
-	default:
 	case 0x21:
 		snd_soc_add_controls(codec, rt5621_vol_snd_controls,
 			ARRAY_SIZE(rt5621_vol_snd_controls));
@@ -938,6 +937,8 @@ static int alc5623_probe(struct snd_soc_codec *codec)
 		snd_soc_add_controls(codec, alc5623_vol_snd_controls,
 			ARRAY_SIZE(alc5623_vol_snd_controls));
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	snd_soc_add_controls(codec, alc5623_snd_controls,
@@ -950,7 +951,6 @@ static int alc5623_probe(struct snd_soc_codec *codec)
 	snd_soc_dapm_add_routes(dapm, intercon, ARRAY_SIZE(intercon));
 
 	switch (alc5623->id) {
-	default:
 	case 0x21:
 	case 0x22:
 		snd_soc_dapm_new_controls(dapm, alc5623_dapm_amp_widgets,
@@ -962,6 +962,8 @@ static int alc5623_probe(struct snd_soc_codec *codec)
 		snd_soc_dapm_add_routes(dapm, intercon_spk,
 					ARRAY_SIZE(intercon_spk));
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	return ret;
@@ -1039,10 +1041,12 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 	case 0x22:
 		alc5623_dai.name = "alc5622-hifi";
 		break;
-	default:
 	case 0x23:
 		alc5623_dai.name = "alc5623-hifi";
 		break;
+	default:
+		kfree(alc5623);
+		return -EINVAL;
 	}
 
 	i2c_set_clientdata(client, alc5623);
