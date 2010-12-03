@@ -33,6 +33,12 @@
 #define REG_MUTE_ST	0x0028
 #define REG_OUT_SEL	0x0030
 
+/* master register */
+#define MST_CLK_RST	0x0210
+#define MST_SOFT_RST	0x0214
+#define MST_FIFO_SZ	0x0218
+
+/* core register (depend on FSI version) */
 #define A_MST_CTLR	0x0180
 #define B_MST_CTLR	0x01A0
 #define CPU_INT_ST	0x01F4
@@ -41,12 +47,6 @@
 #define INT_ST		0x0200
 #define IEMSK		0x0204
 #define IMSK		0x0208
-#define MUTE		0x020C
-#define CLK_RST		0x0210
-#define SOFT_RST	0x0214
-#define FIFO_SZ		0x0218
-#define MREG_START	A_MST_CTLR
-#define MREG_END	FIFO_SZ
 
 /* DO_FMT */
 /* DI_FMT */
@@ -200,16 +200,12 @@ static void __fsi_reg_mask_set(u32 reg, u32 mask, u32 data)
 #define fsi_reg_mask_set(p, r, m, d)\
 	__fsi_reg_mask_set((u32)(p->base + REG_##r), m, d)
 
-static u32 fsi_master_read(struct fsi_master *master, u32 reg)
+#define fsi_master_read(p, r) _fsi_master_read(p, MST_##r)
+#define fsi_core_read(p, r)   _fsi_master_read(p, p->core->r)
+static u32 _fsi_master_read(struct fsi_master *master, u32 reg)
 {
 	u32 ret;
 	unsigned long flags;
-
-	if ((reg < MREG_START) ||
-	    (reg > MREG_END)) {
-		pr_err("fsi: register access err (%s)\n", __func__);
-		return 0;
-	}
 
 	spin_lock_irqsave(&master->lock, flags);
 	ret = __fsi_reg_read((u32)(master->base + reg));
@@ -218,16 +214,12 @@ static u32 fsi_master_read(struct fsi_master *master, u32 reg)
 	return ret;
 }
 
-static void fsi_master_mask_set(struct fsi_master *master,
+#define fsi_master_mask_set(p, r, m, d) _fsi_master_mask_set(p, MST_##r, m, d)
+#define fsi_core_mask_set(p, r, m, d)  _fsi_master_mask_set(p, p->core->r, m, d)
+static void _fsi_master_mask_set(struct fsi_master *master,
 			       u32 reg, u32 mask, u32 data)
 {
 	unsigned long flags;
-
-	if ((reg < MREG_START) ||
-	    (reg > MREG_END)) {
-		pr_err("fsi: register access err (%s)\n", __func__);
-		return;
-	}
 
 	spin_lock_irqsave(&master->lock, flags);
 	__fsi_reg_mask_set((u32)(master->base + reg), mask, data);
@@ -448,8 +440,8 @@ static void fsi_irq_enable(struct fsi_priv *fsi, int is_play)
 	u32 data = AB_IO(1, fsi_get_port_shift(fsi, is_play));
 	struct fsi_master *master = fsi_get_master(fsi);
 
-	fsi_master_mask_set(master, master->core->imsk,  data, data);
-	fsi_master_mask_set(master, master->core->iemsk, data, data);
+	fsi_core_mask_set(master, imsk,  data, data);
+	fsi_core_mask_set(master, iemsk, data, data);
 }
 
 static void fsi_irq_disable(struct fsi_priv *fsi, int is_play)
@@ -457,13 +449,13 @@ static void fsi_irq_disable(struct fsi_priv *fsi, int is_play)
 	u32 data = AB_IO(1, fsi_get_port_shift(fsi, is_play));
 	struct fsi_master *master = fsi_get_master(fsi);
 
-	fsi_master_mask_set(master, master->core->imsk,  data, 0);
-	fsi_master_mask_set(master, master->core->iemsk, data, 0);
+	fsi_core_mask_set(master, imsk,  data, 0);
+	fsi_core_mask_set(master, iemsk, data, 0);
 }
 
 static u32 fsi_irq_get_status(struct fsi_master *master)
 {
-	return fsi_master_read(master, master->core->int_st);
+	return fsi_core_read(master, int_st);
 }
 
 static void fsi_irq_clear_status(struct fsi_priv *fsi)
@@ -475,7 +467,7 @@ static void fsi_irq_clear_status(struct fsi_priv *fsi)
 	data |= AB_IO(1, fsi_get_port_shift(fsi, 1));
 
 	/* clear interrupt factor */
-	fsi_master_mask_set(master, master->core->int_st, data, 0);
+	fsi_core_mask_set(master, int_st, data, 0);
 }
 
 /*
@@ -497,8 +489,8 @@ static void fsi_spdif_clk_ctrl(struct fsi_priv *fsi, int enable)
 	val = enable ? mask : 0;
 
 	fsi_is_port_a(fsi) ?
-		fsi_master_mask_set(master, master->core->a_mclk, mask, val) :
-		fsi_master_mask_set(master, master->core->b_mclk, mask, val);
+		fsi_core_mask_set(master, a_mclk, mask, val) :
+		fsi_core_mask_set(master, b_mclk, mask, val);
 }
 
 /*
