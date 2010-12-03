@@ -19,9 +19,10 @@
 #include "rate.h"
 #include "mesh.h"
 
-static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
-			       enum nl80211_iftype type, u32 *flags,
-			       struct vif_params *params)
+static struct net_device *ieee80211_add_iface(struct wiphy *wiphy, char *name,
+					      enum nl80211_iftype type,
+					      u32 *flags,
+					      struct vif_params *params)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct net_device *dev;
@@ -29,12 +30,15 @@ static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 	int err;
 
 	err = ieee80211_if_add(local, name, &dev, type, params);
-	if (err || type != NL80211_IFTYPE_MONITOR || !flags)
-		return err;
+	if (err)
+		return ERR_PTR(err);
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	sdata->u.mntr_flags = *flags;
-	return 0;
+	if (type == NL80211_IFTYPE_MONITOR && flags) {
+		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+		sdata->u.mntr_flags = *flags;
+	}
+
+	return dev;
 }
 
 static int ieee80211_del_iface(struct wiphy *wiphy, struct net_device *dev)

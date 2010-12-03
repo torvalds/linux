@@ -1033,7 +1033,8 @@ struct cfg80211_pmksa {
  *
  * @add_virtual_intf: create a new virtual interface with the given name,
  *	must set the struct wireless_dev's iftype. Beware: You must create
- *	the new netdev in the wiphy's network namespace!
+ *	the new netdev in the wiphy's network namespace! Returns the netdev,
+ *	or an ERR_PTR.
  *
  * @del_virtual_intf: remove the virtual interface determined by ifindex.
  *
@@ -1168,9 +1169,11 @@ struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy);
 	int	(*resume)(struct wiphy *wiphy);
 
-	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
-				    enum nl80211_iftype type, u32 *flags,
-				    struct vif_params *params);
+	struct net_device * (*add_virtual_intf)(struct wiphy *wiphy,
+						char *name,
+						enum nl80211_iftype type,
+						u32 *flags,
+						struct vif_params *params);
 	int	(*del_virtual_intf)(struct wiphy *wiphy, struct net_device *dev);
 	int	(*change_virtual_intf)(struct wiphy *wiphy,
 				       struct net_device *dev,
