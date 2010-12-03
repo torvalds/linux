@@ -230,8 +230,10 @@ static int cap_prox_read_data(struct cap_prox_data *cp)
 			cap_prox_calibrate(cp);
 		break;
 	default:
-		pr_info("%s: Cap-prox message 0x%x\n", __func__,
-			 msg->status);
+		if (cp_dbg) {
+			pr_info("%s: Cap-prox message 0x%x\n", __func__,
+				msg->status);
+		}
 		break;
 	}
 	status = msg->status;
