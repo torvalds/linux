@@ -98,8 +98,7 @@ struct nested_state {
 	unsigned long vmexit_rax;
 
 	/* cache for intercepts of the guest */
-	u16 intercept_cr_read;
-	u16 intercept_cr_write;
+	u32 intercept_cr;
 	u16 intercept_dr_read;
 	u16 intercept_dr_write;
 	u32 intercept_exceptions;
@@ -204,12 +203,44 @@ static void recalc_intercepts(struct vcpu_svm *svm)
 	h = &svm->nested.hsave->control;
 	g = &svm->nested;
 
-	c->intercept_cr_read = h->intercept_cr_read | g->intercept_cr_read;
-	c->intercept_cr_write = h->intercept_cr_write | g->intercept_cr_write;
+	c->intercept_cr = h->intercept_cr | g->intercept_cr;
 	c->intercept_dr_read = h->intercept_dr_read | g->intercept_dr_read;
 	c->intercept_dr_write = h->intercept_dr_write | g->intercept_dr_write;
 	c->intercept_exceptions = h->intercept_exceptions | g->intercept_exceptions;
 	c->intercept = h->intercept | g->intercept;
+}
+
+static inline struct vmcb *get_host_vmcb(struct vcpu_svm *svm)
+{
+	if (is_guest_mode(&svm->vcpu))
+		return svm->nested.hsave;
+	else
+		return svm->vmcb;
+}
+
+static inline void set_cr_intercept(struct vcpu_svm *svm, int bit)
+{
+	struct vmcb *vmcb = get_host_vmcb(svm);
+
+	vmcb->control.intercept_cr |= (1U << bit);
+
+	recalc_intercepts(svm);
+}
+
+static inline void clr_cr_intercept(struct vcpu_svm *svm, int bit)
+{
+	struct vmcb *vmcb = get_host_vmcb(svm);
+
+	vmcb->control.intercept_cr &= ~(1U << bit);
+
+	recalc_intercepts(svm);
+}
+
+static inline bool is_cr_intercept(struct vcpu_svm *svm, int bit)
+{
+	struct vmcb *vmcb = get_host_vmcb(svm);
+
+	return vmcb->control.intercept_cr & (1U << bit);
 }
 
 static inline void enable_gif(struct vcpu_svm *svm)
@@ -766,15 +797,15 @@ static void init_vmcb(struct vcpu_svm *svm)
 	struct vmcb_save_area *save = &svm->vmcb->save;
 
 	svm->vcpu.fpu_active = 1;
+	svm->vcpu.arch.hflags = 0;
 
-	control->intercept_cr_read =	INTERCEPT_CR0_MASK |
-					INTERCEPT_CR3_MASK |
-					INTERCEPT_CR4_MASK;
-
-	control->intercept_cr_write =	INTERCEPT_CR0_MASK |
-					INTERCEPT_CR3_MASK |
-					INTERCEPT_CR4_MASK |
-					INTERCEPT_CR8_MASK;
+	set_cr_intercept(svm, INTERCEPT_CR0_READ);
+	set_cr_intercept(svm, INTERCEPT_CR3_READ);
+	set_cr_intercept(svm, INTERCEPT_CR4_READ);
+	set_cr_intercept(svm, INTERCEPT_CR0_WRITE);
+	set_cr_intercept(svm, INTERCEPT_CR3_WRITE);
+	set_cr_intercept(svm, INTERCEPT_CR4_WRITE);
+	set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 
 	control->intercept_dr_read =	INTERCEPT_DR0_MASK |
 					INTERCEPT_DR1_MASK |
@@ -875,8 +906,8 @@ static void init_vmcb(struct vcpu_svm *svm)
 		control->intercept &= ~((1ULL << INTERCEPT_TASK_SWITCH) |
 					(1ULL << INTERCEPT_INVLPG));
 		control->intercept_exceptions &= ~(1 << PF_VECTOR);
-		control->intercept_cr_read &= ~INTERCEPT_CR3_MASK;
-		control->intercept_cr_write &= ~INTERCEPT_CR3_MASK;
+		clr_cr_intercept(svm, INTERCEPT_CR3_READ);
+		clr_cr_intercept(svm, INTERCEPT_CR3_WRITE);
 		save->g_pat = 0x0007040600070406ULL;
 		save->cr3 = 0;
 		save->cr4 = 0;
@@ -1210,7 +1241,6 @@ static void svm_decache_cr4_guest_bits(struct kvm_vcpu *vcpu)
 
 static void update_cr0_intercept(struct vcpu_svm *svm)
 {
-	struct vmcb *vmcb = svm->vmcb;
 	ulong gcr0 = svm->vcpu.arch.cr0;
 	u64 *hcr0 = &svm->vmcb->save.cr0;
 
@@ -1222,25 +1252,11 @@ static void update_cr0_intercept(struct vcpu_svm *svm)
 
 
 	if (gcr0 == *hcr0 && svm->vcpu.fpu_active) {
-		vmcb->control.intercept_cr_read &= ~INTERCEPT_CR0_MASK;
-		vmcb->control.intercept_cr_write &= ~INTERCEPT_CR0_MASK;
-		if (is_guest_mode(&svm->vcpu)) {
-			struct vmcb *hsave = svm->nested.hsave;
-
-			hsave->control.intercept_cr_read  &= ~INTERCEPT_CR0_MASK;
-			hsave->control.intercept_cr_write &= ~INTERCEPT_CR0_MASK;
-			vmcb->control.intercept_cr_read  |= svm->nested.intercept_cr_read;
-			vmcb->control.intercept_cr_write |= svm->nested.intercept_cr_write;
-		}
+		clr_cr_intercept(svm, INTERCEPT_CR0_READ);
+		clr_cr_intercept(svm, INTERCEPT_CR0_WRITE);
 	} else {
-		svm->vmcb->control.intercept_cr_read |= INTERCEPT_CR0_MASK;
-		svm->vmcb->control.intercept_cr_write |= INTERCEPT_CR0_MASK;
-		if (is_guest_mode(&svm->vcpu)) {
-			struct vmcb *hsave = svm->nested.hsave;
-
-			hsave->control.intercept_cr_read |= INTERCEPT_CR0_MASK;
-			hsave->control.intercept_cr_write |= INTERCEPT_CR0_MASK;
-		}
+		set_cr_intercept(svm, INTERCEPT_CR0_READ);
+		set_cr_intercept(svm, INTERCEPT_CR0_WRITE);
 	}
 }
 
@@ -1901,15 +1917,9 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
 	case SVM_EXIT_IOIO:
 		vmexit = nested_svm_intercept_ioio(svm);
 		break;
-	case SVM_EXIT_READ_CR0 ... SVM_EXIT_READ_CR8: {
-		u32 cr_bits = 1 << (exit_code - SVM_EXIT_READ_CR0);
-		if (svm->nested.intercept_cr_read & cr_bits)
-			vmexit = NESTED_EXIT_DONE;
-		break;
-	}
-	case SVM_EXIT_WRITE_CR0 ... SVM_EXIT_WRITE_CR8: {
-		u32 cr_bits = 1 << (exit_code - SVM_EXIT_WRITE_CR0);
-		if (svm->nested.intercept_cr_write & cr_bits)
+	case SVM_EXIT_READ_CR0 ... SVM_EXIT_WRITE_CR8: {
+		u32 bit = 1U << (exit_code - SVM_EXIT_READ_CR0);
+		if (svm->nested.intercept_cr & bit)
 			vmexit = NESTED_EXIT_DONE;
 		break;
 	}
@@ -1966,8 +1976,7 @@ static inline void copy_vmcb_control_area(struct vmcb *dst_vmcb, struct vmcb *fr
 	struct vmcb_control_area *dst  = &dst_vmcb->control;
 	struct vmcb_control_area *from = &from_vmcb->control;
 
-	dst->intercept_cr_read    = from->intercept_cr_read;
-	dst->intercept_cr_write   = from->intercept_cr_write;
+	dst->intercept_cr         = from->intercept_cr;
 	dst->intercept_dr_read    = from->intercept_dr_read;
 	dst->intercept_dr_write   = from->intercept_dr_write;
 	dst->intercept_exceptions = from->intercept_exceptions;
@@ -2189,8 +2198,8 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 			       nested_vmcb->control.event_inj,
 			       nested_vmcb->control.nested_ctl);
 
-	trace_kvm_nested_intercepts(nested_vmcb->control.intercept_cr_read,
-				    nested_vmcb->control.intercept_cr_write,
+	trace_kvm_nested_intercepts(nested_vmcb->control.intercept_cr & 0xffff,
+				    nested_vmcb->control.intercept_cr >> 16,
 				    nested_vmcb->control.intercept_exceptions,
 				    nested_vmcb->control.intercept);
 
@@ -2270,8 +2279,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	svm->nested.vmcb_iopm  = nested_vmcb->control.iopm_base_pa  & ~0x0fffULL;
 
 	/* cache intercepts */
-	svm->nested.intercept_cr_read    = nested_vmcb->control.intercept_cr_read;
-	svm->nested.intercept_cr_write   = nested_vmcb->control.intercept_cr_write;
+	svm->nested.intercept_cr         = nested_vmcb->control.intercept_cr;
 	svm->nested.intercept_dr_read    = nested_vmcb->control.intercept_dr_read;
 	svm->nested.intercept_dr_write   = nested_vmcb->control.intercept_dr_write;
 	svm->nested.intercept_exceptions = nested_vmcb->control.intercept_exceptions;
@@ -2286,8 +2294,8 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 
 	if (svm->vcpu.arch.hflags & HF_VINTR_MASK) {
 		/* We only want the cr8 intercept bits of the guest */
-		svm->vmcb->control.intercept_cr_read &= ~INTERCEPT_CR8_MASK;
-		svm->vmcb->control.intercept_cr_write &= ~INTERCEPT_CR8_MASK;
+		clr_cr_intercept(svm, INTERCEPT_CR8_READ);
+		clr_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 	}
 
 	/* We don't want to see VMMCALLs from a nested guest */
@@ -2579,7 +2587,7 @@ static int cr8_write_interception(struct vcpu_svm *svm)
 	/* instruction emulation calls kvm_set_cr8() */
 	emulate_instruction(&svm->vcpu, 0, 0, 0);
 	if (irqchip_in_kernel(svm->vcpu.kvm)) {
-		svm->vmcb->control.intercept_cr_write &= ~INTERCEPT_CR8_MASK;
+		clr_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 		return 1;
 	}
 	if (cr8_prev <= kvm_get_cr8(&svm->vcpu))
@@ -2896,8 +2904,8 @@ void dump_vmcb(struct kvm_vcpu *vcpu)
 	struct vmcb_save_area *save = &svm->vmcb->save;
 
 	pr_err("VMCB Control Area:\n");
-	pr_err("cr_read:            %04x\n", control->intercept_cr_read);
-	pr_err("cr_write:           %04x\n", control->intercept_cr_write);
+	pr_err("cr_read:            %04x\n", control->intercept_cr & 0xffff);
+	pr_err("cr_write:           %04x\n", control->intercept_cr >> 16);
 	pr_err("dr_read:            %04x\n", control->intercept_dr_read);
 	pr_err("dr_write:           %04x\n", control->intercept_dr_write);
 	pr_err("exceptions:         %08x\n", control->intercept_exceptions);
@@ -2998,7 +3006,7 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 
 	trace_kvm_exit(exit_code, vcpu, KVM_ISA_SVM);
 
-	if (!(svm->vmcb->control.intercept_cr_write & INTERCEPT_CR0_MASK))
+	if (!is_cr_intercept(svm, INTERCEPT_CR0_WRITE))
 		vcpu->arch.cr0 = svm->vmcb->save.cr0;
 	if (npt_enabled)
 		vcpu->arch.cr3 = svm->vmcb->save.cr3;
@@ -3124,7 +3132,7 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 		return;
 
 	if (tpr >= irr)
-		svm->vmcb->control.intercept_cr_write |= INTERCEPT_CR8_MASK;
+		set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 }
 
 static int svm_nmi_allowed(struct kvm_vcpu *vcpu)
@@ -3231,7 +3239,7 @@ static inline void sync_cr8_to_lapic(struct kvm_vcpu *vcpu)
 	if (is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK))
 		return;
 
-	if (!(svm->vmcb->control.intercept_cr_write & INTERCEPT_CR8_MASK)) {
+	if (!is_cr_intercept(svm, INTERCEPT_CR8_WRITE)) {
 		int cr8 = svm->vmcb->control.int_ctl & V_TPR_MASK;
 		kvm_set_cr8(vcpu, cr8);
 	}
