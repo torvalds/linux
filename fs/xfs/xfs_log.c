@@ -47,7 +47,7 @@ STATIC xlog_t *  xlog_alloc_log(xfs_mount_t	*mp,
 				xfs_buftarg_t	*log_target,
 				xfs_daddr_t	blk_offset,
 				int		num_bblks);
-STATIC int	 xlog_space_left(struct log *log, int64_t *head);
+STATIC int	 xlog_space_left(struct log *log, atomic64_t *head);
 STATIC int	 xlog_sync(xlog_t *log, xlog_in_core_t *iclog);
 STATIC void	 xlog_dealloc_log(xlog_t *log);
 
@@ -100,7 +100,7 @@ STATIC int	xlog_iclogs_empty(xlog_t *log);
 static void
 xlog_grant_sub_space(
 	struct log	*log,
-	int64_t		*head,
+	atomic64_t	*head,
 	int		bytes)
 {
 	int		cycle, space;
@@ -119,7 +119,7 @@ xlog_grant_sub_space(
 static void
 xlog_grant_add_space(
 	struct log	*log,
-	int64_t		*head,
+	atomic64_t	*head,
 	int		bytes)
 {
 	int		tmp;
@@ -816,7 +816,7 @@ xlog_assign_tail_lsn(
 STATIC int
 xlog_space_left(
 	struct log	*log,
-	int64_t		*head)
+	atomic64_t	*head)
 {
 	int		free_bytes;
 	int		tail_bytes;

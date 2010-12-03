@@ -514,8 +514,8 @@ typedef struct log {
 	spinlock_t		l_grant_lock ____cacheline_aligned_in_smp;
 	struct list_head	l_reserveq;
 	struct list_head	l_writeq;
-	int64_t			l_grant_reserve_head;
-	int64_t			l_grant_write_head;
+	atomic64_t			l_grant_reserve_head;
+	atomic64_t			l_grant_write_head;
 
 	/*
 	 * l_last_sync_lsn and l_tail_lsn are atomics so they can be set and
@@ -596,18 +596,18 @@ xlog_assign_atomic_lsn(atomic64_t *lsn, uint cycle, uint block)
  * will always get consistent component values to work from.
  */
 static inline void
-xlog_crack_grant_head(int64_t *head, int *cycle, int *space)
+xlog_crack_grant_head(atomic64_t *head, int *cycle, int *space)
 {
-	int64_t	val = *head;
+	int64_t	val = atomic64_read(head);
 
 	*cycle = val >> 32;
 	*space = val & 0xffffffff;
 }
 
 static inline void
-xlog_assign_grant_head(int64_t *head, int cycle, int space)
+xlog_assign_grant_head(atomic64_t *head, int cycle, int space)
 {
-	*head = ((int64_t)cycle << 32) | space;
+	atomic64_set(head, ((int64_t)cycle << 32) | space);
 }
 
 /*
