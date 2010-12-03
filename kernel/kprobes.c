@@ -692,6 +692,27 @@ static __kprobes void unoptimize_kprobe(struct kprobe *p, bool force)
 	}
 }
 
+/* Cancel unoptimizing for reusing */
+static void reuse_unused_kprobe(struct kprobe *ap)
+{
+	struct optimized_kprobe *op;
+
+	BUG_ON(!kprobe_unused(ap));
+	/*
+	 * Unused kprobe MUST be on the way of delayed unoptimizing (means
+	 * there is still a relative jump) and disabled.
+	 */
+	op = container_of(ap, struct optimized_kprobe, kp);
+	if (unlikely(list_empty(&op->list)))
+		printk(KERN_WARNING "Warning: found a stray unused "
+			"aggrprobe@%p\n", ap->addr);
+	/* Enable the probe again */
+	ap->flags &= ~KPROBE_FLAG_DISABLED;
+	/* Optimize it again (remove from op->list) */
+	BUG_ON(!kprobe_optready(ap));
+	optimize_kprobe(ap);
+}
+
 /* Remove optimized instructions */
 static void __kprobes kill_optimized_kprobe(struct kprobe *p)
 {
@@ -871,6 +892,13 @@ static void __kprobes __disarm_kprobe(struct kprobe *p, bool reopt)
 #define __disarm_kprobe(p, o)			arch_disarm_kprobe(p)
 #define kprobe_disarmed(p)			kprobe_disabled(p)
 #define wait_for_kprobe_optimizer()		do {} while (0)
+
+/* There should be no unused kprobes can be reused without optimization */
+static void reuse_unused_kprobe(struct kprobe *ap)
+{
+	printk(KERN_ERR "Error: There should be no unused kprobe here.\n");
+	BUG_ON(kprobe_unused(ap));
+}
 
 static __kprobes void free_aggr_kprobe(struct kprobe *p)
 {
@@ -1173,8 +1201,8 @@ static int __kprobes register_aggr_kprobe(struct kprobe *orig_p,
 			return -ENOMEM;
 		init_aggr_kprobe(ap, orig_p);
 	} else if (kprobe_unused(ap))
-		/* Busy to die */
-		return -EBUSY;
+		/* This probe is going to die. Rescue it */
+		reuse_unused_kprobe(ap);
 
 	if (kprobe_gone(ap)) {
 		/*
