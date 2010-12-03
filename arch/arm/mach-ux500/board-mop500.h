@@ -16,5 +16,6 @@
 
 extern void mop500_sdi_init(void);
 extern void mop500_sdi_tc35892_init(void);
+extern void mop500_keypad_init(void);
 
 #endif

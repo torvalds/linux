@@ -128,7 +128,7 @@ struct resource keypad_resources[] = {
 	},
 };
 
-struct platform_device ux500_ske_keypad_device = {
+struct platform_device u8500_ske_keypad_device = {
 	.name = "nmk-ske-keypad",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(keypad_resources),
