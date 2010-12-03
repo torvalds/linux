@@ -517,9 +517,9 @@ static __kprobes void do_unoptimize_kprobes(struct list_head *free_list)
 	/* Ditto to do_optimize_kprobes */
 	get_online_cpus();
 	mutex_lock(&text_mutex);
-	list_for_each_entry_safe(op, tmp, &unoptimizing_list, list) {
-		/* Unoptimize kprobes */
-		arch_unoptimize_kprobe(op);
+	arch_unoptimize_kprobes(&unoptimizing_list, free_list);
+	/* Loop free_list for disarming */
+	list_for_each_entry_safe(op, tmp, free_list, list) {
 		/* Disarm probes if marked disabled */
 		if (kprobe_disabled(&op->kp))
 			arch_disarm_kprobe(&op->kp);
@@ -530,8 +530,6 @@ static __kprobes void do_unoptimize_kprobes(struct list_head *free_list)
 			 * (reclaiming is done by do_free_cleaned_kprobes.)
 			 */
 			hlist_del_rcu(&op->kp.hlist);
-			/* Move only unused probes on free_list */
-			list_move(&op->list, free_list);
 		} else
 			list_del_init(&op->list);
 	}
@@ -592,7 +590,7 @@ static __kprobes void kprobe_optimizer(struct work_struct *work)
 	mutex_unlock(&module_mutex);
 
 	/* Step 5: Kick optimizer again if needed */
-	if (!list_empty(&optimizing_list))
+	if (!list_empty(&optimizing_list) || !list_empty(&unoptimizing_list))
 		kick_kprobe_optimizer();
 	else
 		/* Wake up all waiters */
