@@ -426,11 +426,6 @@ static inline void force_new_asid(struct kvm_vcpu *vcpu)
 	to_svm(vcpu)->asid_generation--;
 }
 
-static inline void flush_guest_tlb(struct kvm_vcpu *vcpu)
-{
-	force_new_asid(vcpu);
-}
-
 static int get_npt_level(void)
 {
 #ifdef CONFIG_X86_64
