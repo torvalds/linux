@@ -2742,6 +2742,7 @@ static int cache_save_setup(struct btrfs_block_group_cache *block_group,
 	struct btrfs_root *root = block_group->fs_info->tree_root;
 	struct inode *inode = NULL;
 	u64 alloc_hint = 0;
+	int dcs = BTRFS_DC_ERROR;
 	int num_pages = 0;
 	int retries = 0;
 	int ret = 0;
@@ -2796,6 +2797,8 @@ again:
 
 	spin_lock(&block_group->lock);
 	if (block_group->cached != BTRFS_CACHE_FINISHED) {
+		/* We're not cached, don't bother trying to write stuff out */
+		dcs = BTRFS_DC_WRITTEN;
 		spin_unlock(&block_group->lock);
 		goto out_put;
 	}
@@ -2822,6 +2825,8 @@ again:
 	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, num_pages,
 					      num_pages, num_pages,
 					      &alloc_hint);
+	if (!ret)
+		dcs = BTRFS_DC_SETUP;
 	btrfs_free_reserved_data_space(inode, num_pages);
 out_put:
 	iput(inode);
@@ -2829,10 +2834,7 @@ out_free:
 	btrfs_release_path(root, path);
 out:
 	spin_lock(&block_group->lock);
-	if (ret)
-		block_group->disk_cache_state = BTRFS_DC_ERROR;
-	else
-		block_group->disk_cache_state = BTRFS_DC_SETUP;
+	block_group->disk_cache_state = dcs;
 	spin_unlock(&block_group->lock);
 
 	return ret;
