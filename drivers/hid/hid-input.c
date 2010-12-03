@@ -174,7 +174,7 @@ static int hidinput_setkeycode(struct input_dev *dev,
 
 		clear_bit(*old_keycode, dev->keybit);
 		set_bit(usage->code, dev->keybit);
-		dbg_hid(KERN_DEBUG "Assigned keycode %d to HID usage code %x\n",
+		dbg_hid("Assigned keycode %d to HID usage code %x\n",
 			usage->code, usage->hid);
 
 		/*
@@ -203,8 +203,8 @@ static int hidinput_setkeycode(struct input_dev *dev,
  *
  * as seen in the HID specification v1.11 6.2.2.7 Global Items.
  *
- * Only exponent 1 length units are processed. Centimeters are converted to
- * inches. Degrees are converted to radians.
+ * Only exponent 1 length units are processed. Centimeters and inches are
+ * converted to millimeters. Degrees are converted to radians.
  */
 static __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code)
 {
@@ -225,13 +225,16 @@ static __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code)
 	 */
 	if (code == ABS_X || code == ABS_Y || code == ABS_Z) {
 		if (field->unit == 0x11) {		/* If centimeters */
-			/* Convert to inches */
-			prev = logical_extents;
-			logical_extents *= 254;
-			if (logical_extents < prev)
+			/* Convert to millimeters */
+			unit_exponent += 1;
+		} else if (field->unit == 0x13) {	/* If inches */
+			/* Convert to millimeters */
+			prev = physical_extents;
+			physical_extents *= 254;
+			if (physical_extents < prev)
 				return 0;
-			unit_exponent += 2;
-		} else if (field->unit != 0x13) {	/* If not inches */
+			unit_exponent -= 1;
+		} else {
 			return 0;
 		}
 	} else if (code == ABS_RX || code == ABS_RY || code == ABS_RZ) {

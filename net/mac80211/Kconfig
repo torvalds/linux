@@ -92,7 +92,7 @@ config MAC80211_MESH
 config MAC80211_LEDS
 	bool "Enable LED triggers"
 	depends on MAC80211
-	select NEW_LEDS
+	depends on LEDS_CLASS
 	select LEDS_TRIGGERS
 	---help---
 	  This option enables a few LED triggers for different

@@ -161,6 +161,9 @@ extern void register_page_bootmem_info_node(struct pglist_data *pgdat);
 extern void put_page_bootmem(struct page *page);
 #endif
 
+void lock_memory_hotplug(void);
+void unlock_memory_hotplug(void);
+
 #else /* ! CONFIG_MEMORY_HOTPLUG */
 /*
  * Stub functions for when hotplug is off
@@ -191,6 +194,9 @@ static inline int mhp_notimplemented(const char *func)
 static inline void register_page_bootmem_info_node(struct pglist_data *pgdat)
 {
 }
+
+static inline void lock_memory_hotplug(void) {}
+static inline void unlock_memory_hotplug(void) {}
 
 #endif /* ! CONFIG_MEMORY_HOTPLUG */
 

@@ -577,7 +577,7 @@ static int x25_asy_open_tty(struct tty_struct *tty)
 	if (err)
 		return err;
 	/* Done.  We have linked the TTY line to a channel. */
-	return sl->dev->base_addr;
+	return 0;
 }
 
 
