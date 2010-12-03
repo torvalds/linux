@@ -117,6 +117,12 @@ void __init smp_init_cpus(void)
 {
 	unsigned int i, ncores = scu_get_core_count(scu_base);
 
+	if (ncores > NR_CPUS) {
+		printk(KERN_ERR "Tegra: no. of cores (%u) greater than configured (%u), clipping\n",
+			ncores, NR_CPUS);
+		ncores = NR_CPUS;
+	}
+
 	for (i = 0; i < ncores; i++)
 		cpu_set(i, cpu_possible_map);
 }

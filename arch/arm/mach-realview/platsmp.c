@@ -161,13 +161,6 @@ void __init smp_init_cpus(void)
 	unsigned int i, ncores = get_core_count();
 
 	/* sanity check */
-	if (ncores == 0) {
-		printk(KERN_ERR
-		       "Realview: strange CM count of 0? Default to 1\n");
-
-		ncores = 1;
-	}
-
 	if (ncores > NR_CPUS) {
 		printk(KERN_WARNING
 		       "Realview: no. of cores (%d) greater than configured "

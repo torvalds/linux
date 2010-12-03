@@ -124,13 +124,6 @@ void __init smp_init_cpus(void)
 	ncores = scu_base ? scu_get_core_count(scu_base) : 1;
 
 	/* sanity check */
-	if (ncores == 0) {
-		printk(KERN_ERR
-		       "vexpress: strange CM count of 0? Default to 1\n");
-
-		ncores = 1;
-	}
-
 	if (ncores > NR_CPUS) {
 		printk(KERN_WARNING
 		       "vexpress: no. of cores (%d) greater than configured "
