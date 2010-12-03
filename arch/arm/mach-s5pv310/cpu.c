@@ -43,6 +43,11 @@ static struct map_desc s5pv310_iodesc[] __initdata = {
 		.length		= SZ_128K,
 		.type		= MT_DEVICE,
 	}, {
+		.virtual	= (unsigned long)S5P_VA_PMU,
+		.pfn		= __phys_to_pfn(S5PV310_PA_PMU),
+		.length		= SZ_64K,
+		.type		= MT_DEVICE,
+	}, {
 		.virtual	= (unsigned long)S5P_VA_COMBINER_BASE,
 		.pfn		= __phys_to_pfn(S5PV310_PA_COMBINER),
 		.length		= SZ_4K,

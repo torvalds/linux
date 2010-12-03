@@ -23,6 +23,7 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/sdhci.h>
+#include <plat/pd.h>
 
 #include <mach/map.h>
 #include <mach/regs-srom.h>
@@ -147,6 +148,13 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_wdt,
 	&smdkv310_smsc911x,
+	&s5pv310_device_pd[PD_MFC],
+	&s5pv310_device_pd[PD_G3D],
+	&s5pv310_device_pd[PD_LCD0],
+	&s5pv310_device_pd[PD_LCD1],
+	&s5pv310_device_pd[PD_CAM],
+	&s5pv310_device_pd[PD_TV],
+	&s5pv310_device_pd[PD_GPS],
 };
 
 static void __init smdkv310_smsc911x_init(void)
