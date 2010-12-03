@@ -1308,7 +1308,7 @@ dma_controller_create(struct musb *musb, void __iomem *mregs)
 	struct cppi		*controller;
 	struct device		*dev = musb->controller;
 	struct platform_device	*pdev = to_platform_device(dev);
-	int			irq = platform_get_irq(pdev, 1);
+	int			irq = platform_get_irq_byname(pdev, "dma");
 
 	controller = kzalloc(sizeof *controller, GFP_KERNEL);
 	if (!controller)

@@ -1072,12 +1072,15 @@ struct usb_request *musb_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	struct musb_request	*request = NULL;
 
 	request = kzalloc(sizeof *request, gfp_flags);
-	if (request) {
-		INIT_LIST_HEAD(&request->request.list);
-		request->request.dma = DMA_ADDR_INVALID;
-		request->epnum = musb_ep->current_epnum;
-		request->ep = musb_ep;
+	if (!request) {
+		DBG(4, "not enough memory\n");
+		return NULL;
 	}
+
+	INIT_LIST_HEAD(&request->request.list);
+	request->request.dma = DMA_ADDR_INVALID;
+	request->epnum = musb_ep->current_epnum;
+	request->ep = musb_ep;
 
 	return &request->request;
 }

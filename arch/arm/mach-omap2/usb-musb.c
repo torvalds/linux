@@ -40,10 +40,12 @@ static struct resource musb_resources[] = {
 	[1] = {	/* general IRQ */
 		.start	= INT_243X_HS_USB_MC,
 		.flags	= IORESOURCE_IRQ,
+		.name	= "mc",
 	},
 	[2] = {	/* DMA IRQ */
 		.start	= INT_243X_HS_USB_DMA,
 		.flags	= IORESOURCE_IRQ,
+		.name	= "dma",
 	},
 };
 
