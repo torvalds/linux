@@ -2618,6 +2618,11 @@ long tty_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return put_user(tty->ldisc->ops->num, (int __user *)p);
 	case TIOCSETD:
 		return tiocsetd(tty, p);
+	case TIOCGDEV:
+	{
+		unsigned int ret = new_encode_dev(tty_devnum(real_tty));
+		return put_user(ret, (unsigned int __user *)p);
+	}
 	/*
 	 * Break handling
 	 */
