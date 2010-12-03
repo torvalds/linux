@@ -96,6 +96,8 @@ static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 {
 	s32 ret_val = 0;
+	u32 reg_anlp1 = 0;
+	u32 i = 0;
 	u16 list_offset, data_offset, data_value;
 
 	if (hw->phy.sfp_type != ixgbe_sfp_type_unknown) {
@@ -122,14 +124,34 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 			IXGBE_WRITE_FLUSH(hw);
 			hw->eeprom.ops.read(hw, ++data_offset, &data_value);
 		}
-		/* Now restart DSP by setting Restart_AN */
-		IXGBE_WRITE_REG(hw, IXGBE_AUTOC,
-		    (IXGBE_READ_REG(hw, IXGBE_AUTOC) | IXGBE_AUTOC_AN_RESTART));
 
 		/* Release the semaphore */
 		ixgbe_release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
 		/* Delay obtaining semaphore again to allow FW access */
 		msleep(hw->eeprom.semaphore_delay);
+
+		/* Now restart DSP by setting Restart_AN and clearing LMS */
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, ((IXGBE_READ_REG(hw,
+		                IXGBE_AUTOC) & ~IXGBE_AUTOC_LMS_MASK) |
+		                IXGBE_AUTOC_AN_RESTART));
+
+		/* Wait for AN to leave state 0 */
+		for (i = 0; i < 10; i++) {
+			msleep(4);
+			reg_anlp1 = IXGBE_READ_REG(hw, IXGBE_ANLP1);
+			if (reg_anlp1 & IXGBE_ANLP1_AN_STATE_MASK)
+				break;
+		}
+		if (!(reg_anlp1 & IXGBE_ANLP1_AN_STATE_MASK)) {
+			hw_dbg(hw, "sfp module setup not complete\n");
+			ret_val = IXGBE_ERR_SFP_SETUP_NOT_COMPLETE;
+			goto setup_sfp_out;
+		}
+
+		/* Restart DSP by setting Restart_AN and return to SFI mode */
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, (IXGBE_READ_REG(hw,
+		                IXGBE_AUTOC) | IXGBE_AUTOC_LMS_10G_SERIAL |
+		                IXGBE_AUTOC_AN_RESTART));
 	}
 
 setup_sfp_out:
