@@ -180,6 +180,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 	u64 now_idle;
 	unsigned int new_freq;
 	unsigned int index;
+	unsigned long flags;
 
 	/*
 	 * Once pcpu->timer_run_time is updated to >= pcpu->idle_exit_time,
@@ -280,18 +281,18 @@ static void cpufreq_interactive_timer(unsigned long data)
 
 	if (new_freq < pcpu->target_freq) {
 		pcpu->target_freq = new_freq;
-		spin_lock(&down_cpumask_lock);
+		spin_lock_irqsave(&down_cpumask_lock, flags);
 		cpumask_set_cpu(data, &down_cpumask);
-		spin_unlock(&down_cpumask_lock);
+		spin_unlock_irqrestore(&down_cpumask_lock, flags);
 		queue_work(down_wq, &freq_scale_down_work);
 	} else {
 		pcpu->target_freq = new_freq;
 #if DEBUG
 		up_request_time = ktime_to_us(ktime_get());
 #endif
-		spin_lock(&up_cpumask_lock);
+		spin_lock_irqsave(&up_cpumask_lock, flags);
 		cpumask_set_cpu(data, &up_cpumask);
-		spin_unlock(&up_cpumask_lock);
+		spin_unlock_irqrestore(&up_cpumask_lock, flags);
 		wake_up_process(up_task);
 	}
 
@@ -423,6 +424,7 @@ static int cpufreq_interactive_up_task(void *data)
 {
 	unsigned int cpu;
 	cpumask_t tmp_mask;
+	unsigned long flags;
 	struct cpufreq_interactive_cpuinfo *pcpu;
 
 #if DEBUG
@@ -433,16 +435,16 @@ static int cpufreq_interactive_up_task(void *data)
 
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		spin_lock(&up_cpumask_lock);
+		spin_lock_irqsave(&up_cpumask_lock, flags);
 
 		if (cpumask_empty(&up_cpumask)) {
-			spin_unlock(&up_cpumask_lock);
+			spin_unlock_irqrestore(&up_cpumask_lock, flags);
 			schedule();
 
 			if (kthread_should_stop())
 				break;
 
-			spin_lock(&up_cpumask_lock);
+			spin_lock_irqsave(&up_cpumask_lock, flags);
 		}
 
 		set_current_state(TASK_RUNNING);
@@ -461,7 +463,7 @@ static int cpufreq_interactive_up_task(void *data)
 
 		tmp_mask = up_cpumask;
 		cpumask_clear(&up_cpumask);
-		spin_unlock(&up_cpumask_lock);
+		spin_unlock_irqrestore(&up_cpumask_lock, flags);
 
 		for_each_cpu(cpu, &tmp_mask) {
 			pcpu = &per_cpu(cpuinfo, cpu);
@@ -488,12 +490,13 @@ static void cpufreq_interactive_freq_down(struct work_struct *work)
 {
 	unsigned int cpu;
 	cpumask_t tmp_mask;
+	unsigned long flags;
 	struct cpufreq_interactive_cpuinfo *pcpu;
 
-	spin_lock(&down_cpumask_lock);
+	spin_lock_irqsave(&down_cpumask_lock, flags);
 	tmp_mask = down_cpumask;
 	cpumask_clear(&down_cpumask);
-	spin_unlock(&down_cpumask_lock);
+	spin_unlock_irqrestore(&down_cpumask_lock, flags);
 
 	for_each_cpu(cpu, &tmp_mask) {
 		pcpu = &per_cpu(cpuinfo, cpu);
