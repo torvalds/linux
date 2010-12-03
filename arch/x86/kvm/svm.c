@@ -192,6 +192,7 @@ enum {
 	VMCB_ASID,	 /* ASID */
 	VMCB_INTR,	 /* int_ctl, int_vector */
 	VMCB_NPT,        /* npt_en, nCR3, gPAT */
+	VMCB_CR,	 /* CR0, CR3, CR4, EFER */
 	VMCB_DIRTY_MAX,
 };
 
@@ -441,6 +442,7 @@ static void svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 		efer &= ~EFER_LME;
 
 	to_svm(vcpu)->vmcb->save.efer = efer | EFER_SVME;
+	mark_dirty(to_svm(vcpu)->vmcb, VMCB_CR);
 }
 
 static int is_external_interrupt(u32 info)
@@ -1338,6 +1340,7 @@ static void update_cr0_intercept(struct vcpu_svm *svm)
 		*hcr0 = (*hcr0 & ~SVM_CR0_SELECTIVE_MASK)
 			| (gcr0 & SVM_CR0_SELECTIVE_MASK);
 
+	mark_dirty(svm->vmcb, VMCB_CR);
 
 	if (gcr0 == *hcr0 && svm->vcpu.fpu_active) {
 		clr_cr_intercept(svm, INTERCEPT_CR0_READ);
@@ -1404,6 +1407,7 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	 */
 	cr0 &= ~(X86_CR0_CD | X86_CR0_NW);
 	svm->vmcb->save.cr0 = cr0;
+	mark_dirty(svm->vmcb, VMCB_CR);
 	update_cr0_intercept(svm);
 }
 
@@ -1420,6 +1424,7 @@ static void svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		cr4 |= X86_CR4_PAE;
 	cr4 |= host_cr4_mce;
 	to_svm(vcpu)->vmcb->save.cr4 = cr4;
+	mark_dirty(to_svm(vcpu)->vmcb, VMCB_CR);
 }
 
 static void svm_set_segment(struct kvm_vcpu *vcpu,
@@ -3549,6 +3554,7 @@ static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	svm->vmcb->save.cr3 = root;
+	mark_dirty(svm->vmcb, VMCB_CR);
 	force_new_asid(vcpu);
 }
 
@@ -3561,6 +3567,7 @@ static void set_tdp_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 
 	/* Also sync guest cr3 here in case we live migrate */
 	svm->vmcb->save.cr3 = vcpu->arch.cr3;
+	mark_dirty(svm->vmcb, VMCB_CR);
 
 	force_new_asid(vcpu);
 }
