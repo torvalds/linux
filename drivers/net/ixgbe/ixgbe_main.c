@@ -3793,8 +3793,11 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	else
 		ixgbe_configure_msi_and_legacy(adapter);
 
-	/* enable the optics */
-	if (hw->phy.multispeed_fiber && hw->mac.ops.enable_tx_laser)
+	/* enable the optics for both mult-speed fiber and 82599 SFP+ fiber */
+	if (hw->mac.ops.enable_tx_laser &&
+	    ((hw->phy.multispeed_fiber) ||
+	     ((hw->phy.type == ixgbe_media_type_fiber) &&
+	      (hw->mac.type == ixgbe_mac_82599EB))))
 		hw->mac.ops.enable_tx_laser(hw);
 
 	clear_bit(__IXGBE_DOWN, &adapter->state);
@@ -4106,15 +4109,19 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 		break;
 	}
 
-	/* power down the optics */
-	if (hw->phy.multispeed_fiber && hw->mac.ops.disable_tx_laser)
-		hw->mac.ops.disable_tx_laser(hw);
-
 	/* clear n-tuple filters that are cached */
 	ethtool_ntuple_flush(netdev);
 
 	if (!pci_channel_offline(adapter->pdev))
 		ixgbe_reset(adapter);
+
+	/* power down the optics for multispeed fiber and 82599 SFP+ fiber */
+	if (hw->mac.ops.disable_tx_laser &&
+	    ((hw->phy.multispeed_fiber) ||
+	     ((hw->phy.type == ixgbe_media_type_fiber) &&
+	      (hw->mac.type == ixgbe_mac_82599EB))))
+		hw->mac.ops.disable_tx_laser(hw);
+
 	ixgbe_clean_all_tx_rings(adapter);
 	ixgbe_clean_all_rx_rings(adapter);
 
@@ -7197,8 +7204,11 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		goto err_eeprom;
 	}
 
-	/* power down the optics */
-	if (hw->phy.multispeed_fiber && hw->mac.ops.disable_tx_laser)
+	/* power down the optics for multispeed fiber and 82599 SFP+ fiber */
+	if (hw->mac.ops.disable_tx_laser &&
+	    ((hw->phy.multispeed_fiber) ||
+	     ((hw->phy.type == ixgbe_media_type_fiber) &&
+	      (hw->mac.type == ixgbe_mac_82599EB))))
 		hw->mac.ops.disable_tx_laser(hw);
 
 	init_timer(&adapter->watchdog_timer);
