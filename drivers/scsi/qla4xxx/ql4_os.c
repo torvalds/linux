@@ -711,15 +711,17 @@ void qla4_8xxx_watchdog(struct scsi_qla_host *ha)
 	    test_bit(DPC_RESET_ACTIVE, &ha->dpc_flags))) {
 		if (dev_state == QLA82XX_DEV_NEED_RESET &&
 		    !test_bit(DPC_RESET_HA, &ha->dpc_flags)) {
-			printk("scsi%ld: %s: HW State: NEED RESET!\n",
-			    ha->host_no, __func__);
-			set_bit(DPC_RESET_HA, &ha->dpc_flags);
-			qla4xxx_wake_dpc(ha);
-			qla4xxx_mailbox_premature_completion(ha);
+			if (!ql4xdontresethba) {
+				ql4_printk(KERN_INFO, ha, "%s: HW State: "
+				    "NEED RESET!\n", __func__);
+				set_bit(DPC_RESET_HA, &ha->dpc_flags);
+				qla4xxx_wake_dpc(ha);
+				qla4xxx_mailbox_premature_completion(ha);
+			}
 		} else if (dev_state == QLA82XX_DEV_NEED_QUIESCENT &&
 		    !test_bit(DPC_HA_NEED_QUIESCENT, &ha->dpc_flags)) {
-			printk("scsi%ld: %s: HW State: NEED QUIES!\n",
-			    ha->host_no, __func__);
+			ql4_printk(KERN_INFO, ha, "%s: HW State: NEED QUIES!\n",
+			    __func__);
 			set_bit(DPC_HA_NEED_QUIESCENT, &ha->dpc_flags);
 			qla4xxx_wake_dpc(ha);
 		} else  {
