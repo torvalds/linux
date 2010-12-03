@@ -4089,13 +4089,13 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			}
 			I915_WRITE(DPLL_MD(pipe), temp);
 		} else {
-			/* write it again -- the BIOS does, after all */
+			/* The pixel multiplier can only be updated once the
+			 * DPLL is enabled and the clocks are stable.
+			 *
+			 * So write it again.
+			 */
 			I915_WRITE(dpll_reg, dpll);
 		}
-
-		/* Wait for the clocks to stabilize. */
-		POSTING_READ(dpll_reg);
-		udelay(150);
 	}
 
 	intel_crtc->lowfreq_avail = false;
