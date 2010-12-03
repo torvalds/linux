@@ -48,11 +48,6 @@ config USB_ARCH_HAS_OHCI
 	# MIPS:
 	default y if MIPS_ALCHEMY
 	default y if MACH_JZ4740
-	# SH:
-	default y if CPU_SUBTYPE_SH7720
-	default y if CPU_SUBTYPE_SH7721
-	default y if CPU_SUBTYPE_SH7763
-	default y if CPU_SUBTYPE_SH7786
 	# more:
 	default PCI
 
