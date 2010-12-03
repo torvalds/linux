@@ -133,7 +133,7 @@ static unsigned long clk_mtu_get_rate(struct clk *clk)
 {
 	void __iomem *addr = __io_address(UX500_PRCMU_BASE)
 		+ PRCM_TCR;
-	u32 tcr = readl(addr);
+	u32 tcr;
 	int mtu = (int) clk->data;
 	/*
 	 * One of these is selected eventually
@@ -144,6 +144,14 @@ static unsigned long clk_mtu_get_rate(struct clk *clk)
 	unsigned long mturate;
 	unsigned long retclk;
 
+	/*
+	 * On a startup, always conifgure the TCR to the doze mode;
+	 * bootloaders do it for us. Do this in the kernel too.
+	 */
+	writel(PRCM_TCR_DOZE_MODE, addr);
+
+	tcr = readl(addr);
+
 	/* Get the rate from the parent as a default */
 	if (clk->parent_periph)
 		mturate = clk_get_rate(clk->parent_periph);
@@ -152,45 +160,6 @@ static unsigned long clk_mtu_get_rate(struct clk *clk)
 	else
 		/* We need to be connected SOMEWHERE */
 		BUG();
-
-	/*
-	 * Are we in doze mode?
-	 * In this mode the parent peripheral or the fixed 32768 Hz
-	 * clock is fed into the block.
-	 */
-	if (!(tcr & PRCM_TCR_DOZE_MODE)) {
-		/*
-		 * Here we're using the clock input from the APE ULP
-		 * clock domain. But first: are the timers stopped?
-		 */
-		if (tcr & PRCM_TCR_STOPPED) {
-			clk32k = 0;
-			mturate = 0;
-		} else {
-			/* Else default mode: 0 and 2.4 MHz */
-			clk32k = 0;
-			if (cpu_is_u5500())
-				/* DB5500 divides by 8 */
-				mturate /= 8;
-			else if (cpu_is_u8500ed()) {
-				/*
-				 * This clocking setting must not be used
-				 * in the ED chip, it is simply not
-				 * connected anywhere!
-				 */
-				mturate = 0;
-				BUG();
-			} else
-				/*
-				 * In this mode the ulp38m4 clock is divided
-				 * by a factor 16, on the DB8500 typically
-				 * 38400000 / 16 ~ 2.4 MHz.
-				 * TODO: Replace the constant with a reference
-				 * to the ULP source once this is modeled.
-				 */
-				mturate = 38400000 / 16;
-		}
-	}
 
 	/* Return the clock selected for this MTU */
 	if (tcr & (1 << mtu))
