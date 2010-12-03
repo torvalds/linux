@@ -36,8 +36,6 @@
 #include <net/pkt_sched.h>
 #include <net/net_namespace.h>
 
-#define TX_TIMEOUT  (2*HZ)
-
 #define TX_Q_LIMIT    32
 struct ifb_private {
 	struct tasklet_struct   ifb_tasklet;
