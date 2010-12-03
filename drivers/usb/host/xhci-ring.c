@@ -2181,6 +2181,8 @@ irqreturn_t xhci_msi_irq(int irq, struct usb_hcd *hcd)
 	irqreturn_t ret;
 
 	set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
+	if (hcd->shared_hcd)
+		set_bit(HCD_FLAG_SAW_IRQ, &hcd->shared_hcd->flags);
 
 	ret = xhci_irq(hcd);
 
