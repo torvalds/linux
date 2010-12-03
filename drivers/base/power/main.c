@@ -1056,7 +1056,7 @@ static int dpm_prepare(pm_message_t state)
 		if (pm_runtime_barrier(dev) && device_may_wakeup(dev))
 			pm_wakeup_event(dev, 0);
 
-		if (!pm_check_wakeup_events()) {
+		if (pm_wakeup_pending()) {
 			pm_runtime_put_sync(dev);
 			error = -EBUSY;
 		} else {

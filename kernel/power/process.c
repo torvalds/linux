@@ -85,7 +85,7 @@ static int try_to_freeze_tasks(bool sig_only)
 		if (!todo || time_after(jiffies, end_time))
 			break;
 
-		if (!pm_check_wakeup_events()) {
+		if (pm_wakeup_pending()) {
 			wakeup = true;
 			break;
 		}

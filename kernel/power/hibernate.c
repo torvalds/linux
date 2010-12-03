@@ -278,7 +278,7 @@ static int create_image(int platform_mode)
 		goto Enable_irqs;
 	}
 
-	if (hibernation_test(TEST_CORE) || !pm_check_wakeup_events())
+	if (hibernation_test(TEST_CORE) || pm_wakeup_pending())
 		goto Power_up;
 
 	in_suspend = 1;
@@ -516,7 +516,7 @@ int hibernation_platform_enter(void)
 
 	local_irq_disable();
 	sysdev_suspend(PMSG_HIBERNATE);
-	if (!pm_check_wakeup_events()) {
+	if (pm_wakeup_pending()) {
 		error = -EAGAIN;
 		goto Power_up;
 	}
