@@ -178,6 +178,9 @@ config MACH_MINI2440
 	bool "MINI2440 development board"
 	select CPU_S3C2440
 	select EEPROM_AT24
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_TRIGGER
 	select LEDS_TRIGGER_BACKLIGHT
 	select S3C_DEV_NAND
 	select S3C_DEV_USB_HOST
