@@ -1012,10 +1012,18 @@ bool intel_lvds_init(struct drm_device *dev)
 out:
 	if (HAS_PCH_SPLIT(dev)) {
 		u32 pwm;
-		/* make sure PWM is enabled */
+
+		pipe = (I915_READ(PCH_LVDS) & LVDS_PIPEB_SELECT) ? 1 : 0;
+
+		/* make sure PWM is enabled and locked to the LVDS pipe */
 		pwm = I915_READ(BLC_PWM_CPU_CTL2);
-		pwm |= (PWM_ENABLE | PWM_PIPE_B);
-		I915_WRITE(BLC_PWM_CPU_CTL2, pwm);
+		if (pipe == 0 && (pwm & PWM_PIPE_B))
+			I915_WRITE(BLC_PWM_CPU_CTL2, pwm & ~PWM_ENABLE);
+		if (pipe)
+			pwm |= PWM_PIPE_B;
+		else
+			pwm &= ~PWM_PIPE_B;
+		I915_WRITE(BLC_PWM_CPU_CTL2, pwm | PWM_ENABLE);
 
 		pwm = I915_READ(BLC_PWM_PCH_CTL1);
 		pwm |= PWM_PCH_ENABLE;
