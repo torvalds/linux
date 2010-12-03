@@ -590,6 +590,10 @@ static int wm9081_set_fll(struct snd_soc_codec *codec, int fll_id,
 	reg5 |= fll_div.fll_clk_ref_div << WM9081_FLL_CLK_REF_DIV_SHIFT;
 	snd_soc_write(codec, WM9081_FLL_CONTROL_5, reg5);
 
+	/* Set gain to the recommended value */
+	snd_soc_update_bits(codec, WM9081_FLL_CONTROL_4,
+			    WM9081_FLL_GAIN_MASK, 0);
+
 	/* Enable the FLL */
 	snd_soc_write(codec, WM9081_FLL_CONTROL_1, reg1 | WM9081_FLL_ENA);
 
