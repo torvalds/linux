@@ -3857,6 +3857,22 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				reduced_clock.m2;
 	}
 
+	/* Enable autotuning of the PLL clock (if permissible) */
+	if (HAS_PCH_SPLIT(dev)) {
+		int factor = 21;
+
+		if (is_lvds) {
+			if ((dev_priv->lvds_use_ssc &&
+			     dev_priv->lvds_ssc_freq == 100) ||
+			    (I915_READ(PCH_LVDS) & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
+				factor = 25;
+		} else if (is_sdvo && is_tv)
+			factor = 20;
+
+		if (clock.m1 < factor * clock.n)
+			fp |= FP_CB_TUNE;
+	}
+
 	dpll = 0;
 	if (!HAS_PCH_SPLIT(dev))
 		dpll = DPLL_VGA_MODE_DIS;
@@ -4071,7 +4087,6 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	if (!has_edp_encoder || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
-		I915_WRITE(fp_reg, fp);
 		I915_WRITE(dpll_reg, dpll);
 
 		/* Wait for the clocks to stabilize. */

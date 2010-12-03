@@ -2712,6 +2712,7 @@
 #define PCH_DPLL(pipe) _PIPE(pipe, PCH_DPLL_A, PCH_DPLL_B)
 
 #define PCH_FPA0                0xc6040
+#define  FP_CB_TUNE		(0x3<<22)
 #define PCH_FPA1                0xc6044
 #define PCH_FPB0                0xc6048
 #define PCH_FPB1                0xc604c
