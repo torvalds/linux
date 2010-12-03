@@ -69,7 +69,9 @@ NL_PACKET(net_conf, 5,
 	NL_BIT(		70,	T_MANDATORY,	dry_run)
 )
 
-NL_PACKET(disconnect, 6, )
+NL_PACKET(disconnect, 6,
+	NL_BIT(		84,	T_MAY_IGNORE,	force)
+)
 
 NL_PACKET(resize, 7,
 	NL_INT64(		29,	T_MAY_IGNORE,	resize_size)

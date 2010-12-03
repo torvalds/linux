@@ -1531,6 +1531,21 @@ static int drbd_nl_disconnect(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 			      struct drbd_nl_cfg_reply *reply)
 {
 	int retcode;
+	struct disconnect dc;
+
+	memset(&dc, 0, sizeof(struct disconnect));
+	if (!disconnect_from_tags(mdev, nlp->tag_list, &dc)) {
+		retcode = ERR_MANDATORY_TAG;
+		goto fail;
+	}
+
+	if (dc.force) {
+		spin_lock_irq(&mdev->req_lock);
+		if (mdev->state.conn >= C_WF_CONNECTION)
+			_drbd_set_state(_NS(mdev, conn, C_DISCONNECTING), CS_HARD, NULL);
+		spin_unlock_irq(&mdev->req_lock);
+		goto done;
+	}
 
 	retcode = _drbd_request_state(mdev, NS(conn, C_DISCONNECTING), CS_ORDERED);
 
