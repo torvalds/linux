@@ -293,34 +293,9 @@ void radeon_bo_list_add_object(struct radeon_bo_list *lobj,
 				struct list_head *head)
 {
 	if (lobj->wdomain) {
-		list_add(&lobj->list, head);
+		list_add(&lobj->tv.head, head);
 	} else {
-		list_add_tail(&lobj->list, head);
-	}
-}
-
-int radeon_bo_list_reserve(struct list_head *head)
-{
-	struct radeon_bo_list *lobj;
-	int r;
-
-	list_for_each_entry(lobj, head, list){
-		r = radeon_bo_reserve(lobj->bo, false);
-		if (unlikely(r != 0))
-			return r;
-		lobj->reserved = true;
-	}
-	return 0;
-}
-
-void radeon_bo_list_unreserve(struct list_head *head)
-{
-	struct radeon_bo_list *lobj;
-
-	list_for_each_entry(lobj, head, list) {
-		/* only unreserve object we successfully reserved */
-		if (lobj->reserved && radeon_bo_is_reserved(lobj->bo))
-			radeon_bo_unreserve(lobj->bo);
+		list_add_tail(&lobj->tv.head, head);
 	}
 }
 
@@ -331,14 +306,11 @@ int radeon_bo_list_validate(struct list_head *head)
 	u32 domain;
 	int r;
 
-	list_for_each_entry(lobj, head, list) {
-		lobj->reserved = false;
-	}
-	r = radeon_bo_list_reserve(head);
+	r = ttm_eu_reserve_buffers(head);
 	if (unlikely(r != 0)) {
 		return r;
 	}
-	list_for_each_entry(lobj, head, list) {
+	list_for_each_entry(lobj, head, tv.head) {
 		bo = lobj->bo;
 		if (!bo->pin_count) {
 			domain = lobj->wdomain ? lobj->wdomain : lobj->rdomain;
@@ -359,25 +331,6 @@ int radeon_bo_list_validate(struct list_head *head)
 		lobj->tiling_flags = bo->tiling_flags;
 	}
 	return 0;
-}
-
-void radeon_bo_list_fence(struct list_head *head, void *fence)
-{
-	struct radeon_bo_list *lobj;
-	struct radeon_bo *bo;
-	struct radeon_fence *old_fence = NULL;
-
-	list_for_each_entry(lobj, head, list) {
-		bo = lobj->bo;
-		spin_lock(&bo->tbo.lock);
-		old_fence = (struct radeon_fence *)bo->tbo.sync_obj;
-		bo->tbo.sync_obj = radeon_fence_ref(fence);
-		bo->tbo.sync_obj_arg = NULL;
-		spin_unlock(&bo->tbo.lock);
-		if (old_fence) {
-			radeon_fence_unref(&old_fence);
-		}
-	}
 }
 
 int radeon_bo_fbdev_mmap(struct radeon_bo *bo,

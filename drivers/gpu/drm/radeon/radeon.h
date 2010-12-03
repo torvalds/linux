@@ -69,6 +69,7 @@
 #include <ttm/ttm_bo_driver.h>
 #include <ttm/ttm_placement.h>
 #include <ttm/ttm_module.h>
+#include <ttm/ttm_execbuf_util.h>
 
 #include "radeon_family.h"
 #include "radeon_mode.h"
@@ -259,13 +260,12 @@ struct radeon_bo {
 };
 
 struct radeon_bo_list {
-	struct list_head	list;
+	struct ttm_validate_buffer tv;
 	struct radeon_bo	*bo;
 	uint64_t		gpu_offset;
 	unsigned		rdomain;
 	unsigned		wdomain;
 	u32			tiling_flags;
-	bool			reserved;
 };
 
 /*
