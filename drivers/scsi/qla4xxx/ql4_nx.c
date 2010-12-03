@@ -942,11 +942,54 @@ qla4_8xxx_pinit_from_rom(struct scsi_qla_host *ha, int verbose)
 
 	/* Halt all the indiviual PEGs and other blocks of the ISP */
 	qla4_8xxx_rom_lock(ha);
+
+	/* mask all niu interrupts */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0x40, 0xff);
+	/* disable xge rx/tx */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0x70000, 0x00);
+	/* disable xg1 rx/tx */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0x80000, 0x00);
+
+	/* halt sre */
+	val = qla4_8xxx_rd_32(ha, QLA82XX_CRB_SRE + 0x1000);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_SRE + 0x1000, val & (~(0x1)));
+
+	/* halt epg */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_EPG + 0x1300, 0x1);
+
+	/* halt timers */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_TIMER + 0x0, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_TIMER + 0x8, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_TIMER + 0x10, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_TIMER + 0x18, 0x0);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_TIMER + 0x100, 0x0);
+
+	/* halt pegs */
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_PEG_NET_0 + 0x3c, 1);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_PEG_NET_1 + 0x3c, 1);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_PEG_NET_2 + 0x3c, 1);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_PEG_NET_3 + 0x3c, 1);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_PEG_NET_4 + 0x3c, 1);
+
+	/* big hammer */
+	msleep(1000);
 	if (test_bit(DPC_RESET_HA, &ha->dpc_flags))
 		/* don't reset CAM block on reset */
 		qla4_8xxx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0xfeffffff);
 	else
 		qla4_8xxx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0xffffffff);
+
+	/* reset ms */
+	val = qla4_8xxx_rd_32(ha, QLA82XX_CRB_QDR_NET + 0xe4);
+	val |= (1 << 1);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_QDR_NET + 0xe4, val);
+
+	msleep(20);
+	/* unreset ms */
+	val = qla4_8xxx_rd_32(ha, QLA82XX_CRB_QDR_NET + 0xe4);
+	val &= ~(1 << 1);
+	qla4_8xxx_wr_32(ha, QLA82XX_CRB_QDR_NET + 0xe4, val);
+	msleep(20);
 
 	qla4_8xxx_rom_unlock(ha);
 
