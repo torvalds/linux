@@ -142,8 +142,6 @@ struct fsi_priv {
 
 	struct fsi_stream playback;
 	struct fsi_stream capture;
-
-	u32 mst_ctrl;
 };
 
 struct fsi_core {
@@ -152,6 +150,8 @@ struct fsi_core {
 	u32 int_st;
 	u32 iemsk;
 	u32 imsk;
+	u32 a_mclk;
+	u32 b_mclk;
 };
 
 struct fsi_master {
@@ -505,17 +505,19 @@ static void fsi_irq_clear_status(struct fsi_priv *fsi)
 static void fsi_spdif_clk_ctrl(struct fsi_priv *fsi, int enable)
 {
 	struct fsi_master *master = fsi_get_master(fsi);
-	u32 val = BP | SE;
+	u32 mask, val;
 
 	if (master->core->ver < 2) {
 		pr_err("fsi: register access err (%s)\n", __func__);
 		return;
 	}
 
-	if (enable)
-		fsi_master_mask_set(master, fsi->mst_ctrl, val, val);
-	else
-		fsi_master_mask_set(master, fsi->mst_ctrl, val, 0);
+	mask = BP | SE;
+	val = enable ? mask : 0;
+
+	fsi_is_port_a(fsi) ?
+		fsi_master_mask_set(master, master->core->a_mclk, mask, val) :
+		fsi_master_mask_set(master, master->core->b_mclk, mask, val);
 }
 
 /*
@@ -1157,12 +1159,10 @@ static int fsi_probe(struct platform_device *pdev)
 	/* FSI A setting */
 	master->fsia.base	= master->base;
 	master->fsia.master	= master;
-	master->fsia.mst_ctrl	= A_MST_CTLR;
 
 	/* FSI B setting */
 	master->fsib.base	= master->base + 0x40;
 	master->fsib.master	= master;
-	master->fsib.mst_ctrl	= B_MST_CTLR;
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_resume(&pdev->dev);
@@ -1249,6 +1249,8 @@ static struct fsi_core fsi2_core = {
 	.int_st	= CPU_INT_ST,
 	.iemsk	= CPU_IEMSK,
 	.imsk	= CPU_IMSK,
+	.a_mclk	= A_MST_CTLR,
+	.b_mclk	= B_MST_CTLR,
 };
 
 static struct platform_device_id fsi_id_table[] = {
