@@ -50,13 +50,20 @@
 
 /* DO_FMT */
 /* DI_FMT */
+#define CR_BWS_24	(0x0 << 20) /* FSI2 */
+#define CR_BWS_16	(0x1 << 20) /* FSI2 */
+#define CR_BWS_20	(0x2 << 20) /* FSI2 */
+
+#define CR_DTMD_PCM		(0x0 << 8) /* FSI2 */
+#define CR_DTMD_SPDIF_PCM	(0x1 << 8) /* FSI2 */
+#define CR_DTMD_SPDIF_STREAM	(0x2 << 8) /* FSI2 */
+
 #define CR_MONO		(0x0 << 4)
 #define CR_MONO_D	(0x1 << 4)
 #define CR_PCM		(0x2 << 4)
 #define CR_I2S		(0x3 << 4)
 #define CR_TDM		(0x4 << 4)
 #define CR_TDM_D	(0x5 << 4)
-#define CR_SPDIF	0x00100120
 
 /* DOFF_CTL */
 /* DIFF_CTL */
@@ -92,6 +99,10 @@
 #define PASR		(1 <<  8) /* Port A Software Reset */
 #define IR		(1 <<  4) /* Interrupt Reset */
 #define FSISR		(1 <<  0) /* Software Reset */
+
+/* OUT_SEL (FSI2) */
+#define DMMD		(1 << 4) /* SPDIF output timing 0: Biphase only */
+				 /*			1: Biphase and serial */
 
 /* FIFO_SZ */
 #define FIFO_SZ_MASK	0x7
@@ -828,10 +839,10 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 			dev_err(dai->dev, "This FSI can not use SPDIF\n");
 			return -EINVAL;
 		}
-		data = CR_SPDIF;
+		data = CR_BWS_16 | CR_DTMD_SPDIF_PCM | CR_PCM;
 		io->chan_num = 2;
 		fsi_spdif_clk_ctrl(fsi, 1);
-		fsi_reg_mask_set(fsi, OUT_SEL, 0x0010, 0x0010);
+		fsi_reg_mask_set(fsi, OUT_SEL, DMMD, DMMD);
 		break;
 	default:
 		dev_err(dai->dev, "unknown format.\n");
