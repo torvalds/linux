@@ -72,6 +72,7 @@ const struct imx_imx_ssi_data imx51_imx_ssi_data[] __initconst = {
 	imx_imx_ssi_data_entry(MX51, _id, _hwid, SZ_4K)
 	imx51_imx_ssi_data_entry(0, 1),
 	imx51_imx_ssi_data_entry(1, 2),
+	imx51_imx_ssi_data_entry(2, 3),
 };
 #endif /* ifdef CONFIG_SOC_IMX51 */
 
