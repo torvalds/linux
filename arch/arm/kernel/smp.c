@@ -317,6 +317,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 
 	cpu_init();
 	preempt_disable();
+	trace_hardirqs_off();
 
 	/*
 	 * Give the platform a chance to do its own initialisation.
