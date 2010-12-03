@@ -1935,6 +1935,11 @@ static int qtouch_ts_resume(struct i2c_client *client)
 		ts->enable_irq_flag = 0;
 		return -EIO;
 	}
+	ret = qtouch_force_calibration(ts);
+	if (ret != 0) {
+		pr_err("%s: Unable to recalibrate after power config\n", __func__);
+		return ret;
+	}
 
 	/* Point the address pointer to the message processor.
 	 * Must do this before enabling interrupts */
