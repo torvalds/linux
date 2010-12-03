@@ -2661,9 +2661,11 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 	synchronize_irq(sc->irq);
 	stop_tasklets(sc);
 
+	/* We are going to empty hw queues
+	 * so we should also free any remaining
+	 * tx buffers */
+	ath5k_drain_tx_buffs(sc);
 	if (chan) {
-		ath5k_drain_tx_buffs(sc);
-
 		sc->curchan = chan;
 		sc->curband = &sc->sbands[chan->band];
 	}
