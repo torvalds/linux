@@ -4089,22 +4089,9 @@ static void ar9003_hw_set_target_power_eeprom(struct ath_hw *ah, u16 freq,
 	    ar9003_hw_eeprom_get_ht40_tgt_pwr(ah, HT_TARGET_RATE_23, freq,
 					      is2GHz) + ht40PowerIncForPdadc;
 
-	while (i < ar9300RateSize) {
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"TPC[%02d] 0x%08x ", i, targetPowerValT2[i]);
-		i++;
-
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"TPC[%02d] 0x%08x ", i, targetPowerValT2[i]);
-		i++;
-
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"TPC[%02d] 0x%08x ", i, targetPowerValT2[i]);
-		i++;
-
+	for (i = 0; i < ar9300RateSize; i++) {
 		ath_dbg(common, ATH_DBG_EEPROM,
 			"TPC[%02d] 0x%08x\n", i, targetPowerValT2[i]);
-		i++;
 	}
 }
 
@@ -4692,17 +4679,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 
 	for (i = 0; i < ar9300RateSize; i++) {
 		ath_dbg(common, ATH_DBG_EEPROM,
-			"TPC[%02d] 0x%08x ", i, targetPowerValT2[i]);
-		i++;
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"TPC[%02d] 0x%08x ", i, targetPowerValT2[i]);
-		i++;
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"TPC[%02d] 0x%08x ", i, targetPowerValT2[i]);
-		i++;
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"TPC[%02d] 0x%08x\n\n", i, targetPowerValT2[i]);
-		i++;
+			"TPC[%02d] 0x%08x\n", i, targetPowerValT2[i]);
 	}
 
 	/*
