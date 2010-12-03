@@ -1609,7 +1609,7 @@ static int soc_probe_aux_dev(struct snd_soc_card *card, int num)
 	struct snd_soc_pcm_runtime *rtd = &card->rtd_aux[num];
 	struct snd_soc_codec *codec;
 	const char *temp;
-	int ret = 0;
+	int ret = -ENODEV;
 
 	/* find CODEC from registered CODECs*/
 	list_for_each_entry(codec, &codec_list, list) {
@@ -1620,10 +1620,14 @@ static int soc_probe_aux_dev(struct snd_soc_card *card, int num)
 				ret = -EBUSY;
 				goto out;
 			}
-			break;
+			goto found;
 		}
 	}
+	/* codec not found */
+	dev_err(card->dev, "asoc: codec %s not found", aux_dev->codec_name);
+	goto out;
 
+found:
 	if (!try_module_get(codec->dev->driver->owner))
 		return -ENODEV;
 
