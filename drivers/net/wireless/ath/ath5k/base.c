@@ -2653,13 +2653,19 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 							bool skip_pcu)
 {
 	struct ath5k_hw *ah = sc->ah;
-	int ret;
+	int ret, ani_mode;
 
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "resetting\n");
 
 	ath5k_hw_set_imr(ah, 0);
 	synchronize_irq(sc->irq);
 	stop_tasklets(sc);
+
+	/* Save ani mode and disable ANI durring
+	 * reset. If we don't we might get false
+	 * PHY error interrupts. */
+	ani_mode = ah->ah_sc->ani_state.ani_mode;
+	ath5k_ani_init(ah, ATH5K_ANI_MODE_OFF);
 
 	/* We are going to empty hw queues
 	 * so we should also free any remaining
@@ -2682,7 +2688,7 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 		goto err;
 	}
 
-	ath5k_ani_init(ah, ah->ah_sc->ani_state.ani_mode);
+	ath5k_ani_init(ah, ani_mode);
 
 	ah->ah_cal_next_full = jiffies;
 	ah->ah_cal_next_ani = jiffies;
