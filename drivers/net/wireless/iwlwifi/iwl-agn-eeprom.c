@@ -203,7 +203,7 @@ static s8 iwl_get_max_txpower_avg(struct iwl_priv *priv,
 {
 	s8 max_txpower_avg = 0; /* (dBm) */
 
-	IWL_DEBUG_INFO(priv, "%d - "
+	IWL_DEBUG_EEPROM(priv, "%d - "
 			"chain_a: %d dB chain_b: %d dB "
 			"chain_c: %d dB mimo2: %d dB mimo3: %d dB\n",
 			element,
