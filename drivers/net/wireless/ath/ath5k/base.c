@@ -2341,8 +2341,9 @@ ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 	/* Initialize driver private data */
 	SET_IEEE80211_DEV(hw, sc->dev);
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-		    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-		    IEEE80211_HW_SIGNAL_DBM;
+			IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
+			IEEE80211_HW_SIGNAL_DBM |
+			IEEE80211_HW_REPORTS_TX_ACK_STATUS;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |
