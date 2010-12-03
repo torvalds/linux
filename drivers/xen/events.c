@@ -423,7 +423,7 @@ static int find_unbound_irq(void)
 	if (irq == start)
 		goto no_irqs;
 
-	res = irq_alloc_desc_at(irq, 0);
+	res = irq_alloc_desc_at(irq, -1);
 
 	if (WARN_ON(res != irq))
 		return -1;
@@ -630,7 +630,7 @@ int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name)
 	if (identity_mapped_irq(gsi) || (!xen_initial_domain() &&
 				xen_pv_domain())) {
 		irq = gsi;
-		irq_alloc_desc_at(irq, 0);
+		irq_alloc_desc_at(irq, -1);
 	} else
 		irq = find_unbound_irq();
 
