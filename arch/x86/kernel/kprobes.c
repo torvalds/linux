@@ -1184,6 +1184,10 @@ static void __kprobes optimized_callback(struct optimized_kprobe *op,
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
+	/* This is possible if op is under delayed unoptimizing */
+	if (kprobe_disabled(&op->kp))
+		return;
+
 	preempt_disable();
 	if (kprobe_running()) {
 		kprobes_inc_nmissed_count(&op->kp);
