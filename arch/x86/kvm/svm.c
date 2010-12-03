@@ -193,6 +193,7 @@ enum {
 	VMCB_INTR,	 /* int_ctl, int_vector */
 	VMCB_NPT,        /* npt_en, nCR3, gPAT */
 	VMCB_CR,	 /* CR0, CR3, CR4, EFER */
+	VMCB_DR,         /* DR6, DR7 */
 	VMCB_DIRTY_MAX,
 };
 
@@ -1484,6 +1485,8 @@ static void svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
 	else
 		svm->vmcb->save.dr7 = vcpu->arch.dr7;
 
+	mark_dirty(svm->vmcb, VMCB_DR);
+
 	update_db_intercept(vcpu);
 }
 
@@ -1506,6 +1509,7 @@ static void svm_set_dr7(struct kvm_vcpu *vcpu, unsigned long value)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	svm->vmcb->save.dr7 = value;
+	mark_dirty(svm->vmcb, VMCB_DR);
 }
 
 static int pf_interception(struct vcpu_svm *svm)
