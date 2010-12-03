@@ -128,7 +128,39 @@ static struct ske_keypad_platform_data ske_keypad_board = {
 	.debounce_ms    = 40,			/* in millisecs */
 };
 
+/*
+ * STMPE1601
+ */
+static struct stmpe_keypad_platform_data stmpe1601_keypad_data = {
+	.debounce_ms    = 64,
+	.scan_count     = 8,
+	.no_autorepeat  = true,
+	.keymap_data    = &mop500_keymap_data,
+};
+
+static struct stmpe_platform_data stmpe1601_data = {
+	.id             = 1,
+	.blocks         = STMPE_BLOCK_KEYPAD,
+	.irq_trigger    = IRQF_TRIGGER_FALLING,
+	.irq_base       = MOP500_STMPE1601_IRQ(0),
+	.keypad         = &stmpe1601_keypad_data,
+	.autosleep      = true,
+	.autosleep_timeout = 1024,
+};
+
+static struct i2c_board_info __initdata mop500_i2c0_devices_stuib[] = {
+	{
+		I2C_BOARD_INFO("stmpe1601", 0x40),
+		.irq = NOMADIK_GPIO_TO_IRQ(218),
+		.platform_data = &stmpe1601_data,
+		.flags = I2C_CLIENT_WAKE,
+	},
+};
+
 void mop500_keypad_init(void)
 {
 	db8500_add_ske_keypad(&ske_keypad_board);
+
+	i2c_register_board_info(0, mop500_i2c0_devices_stuib,
+			ARRAY_SIZE(mop500_i2c0_devices_stuib));
 }

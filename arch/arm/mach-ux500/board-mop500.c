@@ -71,7 +71,11 @@ static pin_cfg_t mop500_pins[] = {
 	GPIO167_KP_O1,
 	GPIO168_KP_O0,
 
-	GPIO217_GPIO,		/* GPIO_EXP_INT */
+	/* GPIO_EXP_INT */
+	GPIO217_GPIO,
+
+	/* STMPE1601 IRQ */
+	GPIO218_GPIO    | PIN_INPUT_PULLUP,
 };
 
 static struct ab8500_platform_data ab8500_platdata = {
