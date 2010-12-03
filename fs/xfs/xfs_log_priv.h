@@ -507,7 +507,6 @@ typedef struct log {
 	spinlock_t		l_icloglock;    /* grab to change iclog state */
 	xfs_lsn_t		l_tail_lsn;     /* lsn of 1st LR with unflushed
 						 * buffers */
-	xfs_lsn_t		l_last_sync_lsn;/* lsn of last LR on disk */
 	int			l_curr_cycle;   /* Cycle number of log writes */
 	int			l_prev_cycle;   /* Cycle number before last
 						 * block increment */
@@ -520,6 +519,14 @@ typedef struct log {
 	struct list_head	l_writeq;
 	int64_t			l_grant_reserve_head;
 	int64_t			l_grant_write_head;
+
+	/*
+	 * l_last_sync_lsn is an atomic so it can be set and read without
+	 * needing to hold specific locks. To avoid operations contending with
+	 * other hot objects, place it on a separate cacheline.
+	 */
+	/* lsn of last LR on disk */
+	atomic64_t		l_last_sync_lsn ____cacheline_aligned_in_smp;
 
 	/* The following field are used for debugging; need to hold icloglock */
 #ifdef DEBUG

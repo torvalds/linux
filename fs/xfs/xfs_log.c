@@ -675,12 +675,8 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return;
 
-	if (tail_lsn == 0) {
-		/* needed since sync_lsn is 64 bits */
-		spin_lock(&log->l_icloglock);
-		tail_lsn = log->l_last_sync_lsn;
-		spin_unlock(&log->l_icloglock);
-	}
+	if (tail_lsn == 0)
+		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
 
 	spin_lock(&log->l_grant_lock);
 
@@ -800,11 +796,9 @@ xlog_assign_tail_lsn(xfs_mount_t *mp)
 
 	tail_lsn = xfs_trans_ail_tail(mp->m_ail);
 	spin_lock(&log->l_grant_lock);
-	if (tail_lsn != 0) {
-		log->l_tail_lsn = tail_lsn;
-	} else {
-		tail_lsn = log->l_tail_lsn = log->l_last_sync_lsn;
-	}
+	if (!tail_lsn)
+		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
+	log->l_tail_lsn = tail_lsn;
 	spin_unlock(&log->l_grant_lock);
 
 	return tail_lsn;
@@ -1014,9 +1008,9 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	log->l_flags	   |= XLOG_ACTIVE_RECOVERY;
 
 	log->l_prev_block  = -1;
-	log->l_tail_lsn	   = xlog_assign_lsn(1, 0);
 	/* log->l_tail_lsn = 0x100000000LL; cycle = 1; current block = 0 */
-	log->l_last_sync_lsn = log->l_tail_lsn;
+	log->l_tail_lsn	   = xlog_assign_lsn(1, 0);
+	atomic64_set(&log->l_last_sync_lsn, xlog_assign_lsn(1, 0));
 	log->l_curr_cycle  = 1;	    /* 0 is bad since this is initial value */
 	xlog_assign_grant_head(&log->l_grant_reserve_head, 1, 0);
 	xlog_assign_grant_head(&log->l_grant_write_head, 1, 0);
@@ -1194,6 +1188,7 @@ xlog_grant_push_ail(
 	int		need_bytes)
 {
 	xfs_lsn_t	threshold_lsn = 0;
+	xfs_lsn_t	last_sync_lsn;
 	xfs_lsn_t	tail_lsn;
 	int		free_blocks;
 	int		free_bytes;
@@ -1228,10 +1223,12 @@ xlog_grant_push_ail(
 					threshold_block);
 	/*
 	 * Don't pass in an lsn greater than the lsn of the last
-	 * log record known to be on disk.
+	 * log record known to be on disk. Use a snapshot of the last sync lsn
+	 * so that it doesn't change between the compare and the set.
 	 */
-	if (XFS_LSN_CMP(threshold_lsn, log->l_last_sync_lsn) > 0)
-		threshold_lsn = log->l_last_sync_lsn;
+	last_sync_lsn = atomic64_read(&log->l_last_sync_lsn);
+	if (XFS_LSN_CMP(threshold_lsn, last_sync_lsn) > 0)
+		threshold_lsn = last_sync_lsn;
 
 	/*
 	 * Get the transaction layer to kick the dirty buffers out to
@@ -2194,7 +2191,7 @@ xlog_state_do_callback(
 				lowest_lsn = xlog_get_lowest_lsn(log);
 				if (lowest_lsn &&
 				    XFS_LSN_CMP(lowest_lsn,
-				    		be64_to_cpu(iclog->ic_header.h_lsn)) < 0) {
+						be64_to_cpu(iclog->ic_header.h_lsn)) < 0) {
 					iclog = iclog->ic_next;
 					continue; /* Leave this iclog for
 						   * another thread */
@@ -2202,23 +2199,21 @@ xlog_state_do_callback(
 
 				iclog->ic_state = XLOG_STATE_CALLBACK;
 
-				spin_unlock(&log->l_icloglock);
 
-				/* l_last_sync_lsn field protected by
-				 * l_grant_lock. Don't worry about iclog's lsn.
-				 * No one else can be here except us.
+				/*
+				 * update the last_sync_lsn before we drop the
+				 * icloglock to ensure we are the only one that
+				 * can update it.
 				 */
-				spin_lock(&log->l_grant_lock);
-				ASSERT(XFS_LSN_CMP(log->l_last_sync_lsn,
-				       be64_to_cpu(iclog->ic_header.h_lsn)) <= 0);
-				log->l_last_sync_lsn =
-					be64_to_cpu(iclog->ic_header.h_lsn);
-				spin_unlock(&log->l_grant_lock);
+				ASSERT(XFS_LSN_CMP(atomic64_read(&log->l_last_sync_lsn),
+					be64_to_cpu(iclog->ic_header.h_lsn)) <= 0);
+				atomic64_set(&log->l_last_sync_lsn,
+					be64_to_cpu(iclog->ic_header.h_lsn));
 
-			} else {
-				spin_unlock(&log->l_icloglock);
+			} else
 				ioerrors++;
-			}
+
+			spin_unlock(&log->l_icloglock);
 
 			/*
 			 * Keep processing entries in the callback list until
