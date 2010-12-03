@@ -133,6 +133,28 @@ static void unclone_ctx(struct perf_event_context *ctx)
 	}
 }
 
+static u32 perf_event_pid(struct perf_event *event, struct task_struct *p)
+{
+	/*
+	 * only top level events have the pid namespace they were created in
+	 */
+	if (event->parent)
+		event = event->parent;
+
+	return task_tgid_nr_ns(p, event->ns);
+}
+
+static u32 perf_event_tid(struct perf_event *event, struct task_struct *p)
+{
+	/*
+	 * only top level events have the pid namespace they were created in
+	 */
+	if (event->parent)
+		event = event->parent;
+
+	return task_pid_nr_ns(p, event->ns);
+}
+
 /*
  * If we inherit events we want to return the parent event id
  * to userspace.
@@ -351,14 +373,29 @@ static void perf_event__header_size(struct perf_event *event)
 	if (sample_type & PERF_SAMPLE_IP)
 		size += sizeof(data->ip);
 
+	if (sample_type & PERF_SAMPLE_ADDR)
+		size += sizeof(data->addr);
+
+	if (sample_type & PERF_SAMPLE_PERIOD)
+		size += sizeof(data->period);
+
+	if (sample_type & PERF_SAMPLE_READ)
+		size += event->read_size;
+
+	event->header_size = size;
+}
+
+static void perf_event__id_header_size(struct perf_event *event)
+{
+	struct perf_sample_data *data;
+	u64 sample_type = event->attr.sample_type;
+	u16 size = 0;
+
 	if (sample_type & PERF_SAMPLE_TID)
 		size += sizeof(data->tid_entry);
 
 	if (sample_type & PERF_SAMPLE_TIME)
 		size += sizeof(data->time);
-
-	if (sample_type & PERF_SAMPLE_ADDR)
-		size += sizeof(data->addr);
 
 	if (sample_type & PERF_SAMPLE_ID)
 		size += sizeof(data->id);
@@ -369,13 +406,7 @@ static void perf_event__header_size(struct perf_event *event)
 	if (sample_type & PERF_SAMPLE_CPU)
 		size += sizeof(data->cpu_entry);
 
-	if (sample_type & PERF_SAMPLE_PERIOD)
-		size += sizeof(data->period);
-
-	if (sample_type & PERF_SAMPLE_READ)
-		size += event->read_size;
-
-	event->header_size = size;
+	event->id_header_size = size;
 }
 
 static void perf_group_attach(struct perf_event *event)
@@ -3357,6 +3388,36 @@ __always_inline void perf_output_copy(struct perf_output_handle *handle,
 	} while (len);
 }
 
+static void perf_event_header__init_id(struct perf_event_header *header,
+				       struct perf_sample_data *data,
+				       struct perf_event *event)
+{
+	u64 sample_type = event->attr.sample_type;
+
+	data->type = sample_type;
+	header->size += event->id_header_size;
+
+	if (sample_type & PERF_SAMPLE_TID) {
+		/* namespace issues */
+		data->tid_entry.pid = perf_event_pid(event, current);
+		data->tid_entry.tid = perf_event_tid(event, current);
+	}
+
+	if (sample_type & PERF_SAMPLE_TIME)
+		data->time = perf_clock();
+
+	if (sample_type & PERF_SAMPLE_ID)
+		data->id = primary_event_id(event);
+
+	if (sample_type & PERF_SAMPLE_STREAM_ID)
+		data->stream_id = event->id;
+
+	if (sample_type & PERF_SAMPLE_CPU) {
+		data->cpu_entry.cpu	 = raw_smp_processor_id();
+		data->cpu_entry.reserved = 0;
+	}
+}
+
 int perf_output_begin(struct perf_output_handle *handle,
 		      struct perf_event *event, unsigned int size,
 		      int nmi, int sample)
@@ -3457,28 +3518,6 @@ void perf_output_end(struct perf_output_handle *handle)
 
 	perf_output_put_handle(handle);
 	rcu_read_unlock();
-}
-
-static u32 perf_event_pid(struct perf_event *event, struct task_struct *p)
-{
-	/*
-	 * only top level events have the pid namespace they were created in
-	 */
-	if (event->parent)
-		event = event->parent;
-
-	return task_tgid_nr_ns(p, event->ns);
-}
-
-static u32 perf_event_tid(struct perf_event *event, struct task_struct *p)
-{
-	/*
-	 * only top level events have the pid namespace they were created in
-	 */
-	if (event->parent)
-		event = event->parent;
-
-	return task_pid_nr_ns(p, event->ns);
 }
 
 static void perf_output_read_one(struct perf_output_handle *handle,
@@ -3655,36 +3694,16 @@ void perf_prepare_sample(struct perf_event_header *header,
 {
 	u64 sample_type = event->attr.sample_type;
 
-	data->type = sample_type;
-
 	header->type = PERF_RECORD_SAMPLE;
 	header->size = sizeof(*header) + event->header_size;
 
 	header->misc = 0;
 	header->misc |= perf_misc_flags(regs);
 
+	perf_event_header__init_id(header, data, event);
+
 	if (sample_type & PERF_SAMPLE_IP)
 		data->ip = perf_instruction_pointer(regs);
-
-	if (sample_type & PERF_SAMPLE_TID) {
-		/* namespace issues */
-		data->tid_entry.pid = perf_event_pid(event, current);
-		data->tid_entry.tid = perf_event_tid(event, current);
-	}
-
-	if (sample_type & PERF_SAMPLE_TIME)
-		data->time = perf_clock();
-
-	if (sample_type & PERF_SAMPLE_ID)
-		data->id = primary_event_id(event);
-
-	if (sample_type & PERF_SAMPLE_STREAM_ID)
-		data->stream_id = event->id;
-
-	if (sample_type & PERF_SAMPLE_CPU) {
-		data->cpu_entry.cpu		= raw_smp_processor_id();
-		data->cpu_entry.reserved	= 0;
-	}
 
 	if (sample_type & PERF_SAMPLE_CALLCHAIN) {
 		int size = 1;
@@ -5745,6 +5764,7 @@ SYSCALL_DEFINE5(perf_event_open,
 	 * Precalculate sample_data sizes
 	 */
 	perf_event__header_size(event);
+	perf_event__id_header_size(event);
 
 	/*
 	 * Drop the reference on the group_event after placing the
@@ -6102,6 +6122,7 @@ inherit_event(struct perf_event *parent_event,
 	 * Precalculate sample_data sizes
 	 */
 	perf_event__header_size(child_event);
+	perf_event__id_header_size(child_event);
 
 	/*
 	 * Link it up in the child's context:

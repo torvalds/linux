@@ -759,6 +759,7 @@ struct perf_event {
 
 	struct perf_event_attr		attr;
 	u16				header_size;
+	u16				id_header_size;
 	u16				read_size;
 	struct hw_perf_event		hw;
 
