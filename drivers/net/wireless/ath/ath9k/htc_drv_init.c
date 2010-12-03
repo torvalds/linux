@@ -288,9 +288,9 @@ static unsigned int ath9k_regread(void *hw_priv, u32 reg_offset)
 			  (u8 *) &val, sizeof(val),
 			  100);
 	if (unlikely(r)) {
-		ath_print(common, ATH_DBG_WMI,
-			  "REGISTER READ FAILED: (0x%04x, %d)\n",
-			   reg_offset, r);
+		ath_dbg(common, ATH_DBG_WMI,
+			"REGISTER READ FAILED: (0x%04x, %d)\n",
+			reg_offset, r);
 		return -EIO;
 	}
 
@@ -313,9 +313,9 @@ static void ath9k_regwrite_single(void *hw_priv, u32 val, u32 reg_offset)
 			  (u8 *) &val, sizeof(val),
 			  100);
 	if (unlikely(r)) {
-		ath_print(common, ATH_DBG_WMI,
-			  "REGISTER WRITE FAILED:(0x%04x, %d)\n",
-			  reg_offset, r);
+		ath_dbg(common, ATH_DBG_WMI,
+			"REGISTER WRITE FAILED:(0x%04x, %d)\n",
+			reg_offset, r);
 	}
 }
 
@@ -345,9 +345,9 @@ static void ath9k_regwrite_buffer(void *hw_priv, u32 val, u32 reg_offset)
 			  (u8 *) &rsp_status, sizeof(rsp_status),
 			  100);
 		if (unlikely(r)) {
-			ath_print(common, ATH_DBG_WMI,
-				  "REGISTER WRITE FAILED, multi len: %d\n",
-				  priv->wmi->multi_write_idx);
+			ath_dbg(common, ATH_DBG_WMI,
+				"REGISTER WRITE FAILED, multi len: %d\n",
+				priv->wmi->multi_write_idx);
 		}
 		priv->wmi->multi_write_idx = 0;
 	}
@@ -395,9 +395,9 @@ static void ath9k_regwrite_flush(void *hw_priv)
 			  (u8 *) &rsp_status, sizeof(rsp_status),
 			  100);
 		if (unlikely(r)) {
-			ath_print(common, ATH_DBG_WMI,
-				  "REGISTER WRITE FAILED, multi len: %d\n",
-				  priv->wmi->multi_write_idx);
+			ath_dbg(common, ATH_DBG_WMI,
+				"REGISTER WRITE FAILED, multi len: %d\n",
+				priv->wmi->multi_write_idx);
 		}
 		priv->wmi->multi_write_idx = 0;
 	}
@@ -469,9 +469,9 @@ static void setup_ht_cap(struct ath9k_htc_priv *priv,
 	tx_streams = ath9k_cmn_count_streams(common->tx_chainmask, 2);
 	rx_streams = ath9k_cmn_count_streams(common->rx_chainmask, 2);
 
-	ath_print(common, ATH_DBG_CONFIG,
-		  "TX streams %d, RX streams: %d\n",
-		  tx_streams, rx_streams);
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"TX streams %d, RX streams: %d\n",
+		tx_streams, rx_streams);
 
 	if (tx_streams != rx_streams) {
 		ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_RX_DIFF;
@@ -537,9 +537,9 @@ static void ath9k_init_crypto(struct ath9k_htc_priv *priv)
 	/* Get the hardware key cache size. */
 	common->keymax = priv->ah->caps.keycache_size;
 	if (common->keymax > ATH_KEYMAX) {
-		ath_print(common, ATH_DBG_ANY,
-			  "Warning, using only %u entries in %u key cache\n",
-			  ATH_KEYMAX, common->keymax);
+		ath_dbg(common, ATH_DBG_ANY,
+			"Warning, using only %u entries in %u key cache\n",
+			ATH_KEYMAX, common->keymax);
 		common->keymax = ATH_KEYMAX;
 	}
 

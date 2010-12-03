@@ -30,7 +30,6 @@
 #include "btcoex.h"
 
 #include "../regd.h"
-#include "../debug.h"
 
 #define ATHEROS_VENDOR_ID	0x168c
 

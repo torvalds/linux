@@ -182,8 +182,8 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 		}
 
 		if (sync_cause & AR_INTR_SYNC_LOCAL_TIMEOUT)
-			ath_print(common, ATH_DBG_INTERRUPT,
-				  "AR_INTR_SYNC_LOCAL_TIMEOUT\n");
+			ath_dbg(common, ATH_DBG_INTERRUPT,
+				"AR_INTR_SYNC_LOCAL_TIMEOUT\n");
 
 		REG_WRITE(ah, AR_INTR_SYNC_CAUSE_CLR, sync_cause);
 		(void) REG_READ(ah, AR_INTR_SYNC_CAUSE_CLR);
@@ -249,8 +249,8 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 
 	if ((MS(ads->ds_info, AR_DescId) != ATHEROS_VENDOR_ID) ||
 	    (MS(ads->ds_info, AR_TxRxDesc) != 1)) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_XMIT,
-			  "Tx Descriptor error %x\n", ads->ds_info);
+		ath_dbg(ath9k_hw_common(ah), ATH_DBG_XMIT,
+			"Tx Descriptor error %x\n", ads->ds_info);
 		memset(ads, 0, sizeof(*ads));
 		return -EIO;
 	}
@@ -658,10 +658,10 @@ void ath9k_hw_reset_txstatus_ring(struct ath_hw *ah)
 	memset((void *) ah->ts_ring, 0,
 		ah->ts_size * sizeof(struct ar9003_txs));
 
-	ath_print(ath9k_hw_common(ah), ATH_DBG_XMIT,
-		  "TS Start 0x%x End 0x%x Virt %p, Size %d\n",
-		   ah->ts_paddr_start, ah->ts_paddr_end,
-		   ah->ts_ring, ah->ts_size);
+	ath_dbg(ath9k_hw_common(ah), ATH_DBG_XMIT,
+		"TS Start 0x%x End 0x%x Virt %p, Size %d\n",
+		ah->ts_paddr_start, ah->ts_paddr_end,
+		ah->ts_ring, ah->ts_size);
 
 	REG_WRITE(ah, AR_Q_STATUS_RING_START, ah->ts_paddr_start);
 	REG_WRITE(ah, AR_Q_STATUS_RING_END, ah->ts_paddr_end);

@@ -20,13 +20,13 @@ static void ath_detect_bt_priority(struct ath9k_htc_priv *priv)
 		priv->op_flags &= ~(OP_BT_PRIORITY_DETECTED | OP_BT_SCAN);
 		/* Detect if colocated bt started scanning */
 		if (btcoex->bt_priority_cnt >= ATH_BT_CNT_SCAN_THRESHOLD) {
-			ath_print(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
-				  "BT scan detected");
+			ath_dbg(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
+				"BT scan detected\n");
 			priv->op_flags |= (OP_BT_SCAN |
 					 OP_BT_PRIORITY_DETECTED);
 		} else if (btcoex->bt_priority_cnt >= ATH_BT_CNT_THRESHOLD) {
-			ath_print(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
-				    "BT priority traffic detected");
+			ath_dbg(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
+				"BT priority traffic detected\n");
 			priv->op_flags |= OP_BT_PRIORITY_DETECTED;
 		}
 
@@ -83,8 +83,8 @@ static void ath_btcoex_duty_cycle_work(struct work_struct *work)
 	struct ath_common *common = ath9k_hw_common(ah);
 	bool is_btscan = priv->op_flags & OP_BT_SCAN;
 
-	ath_print(common, ATH_DBG_BTCOEX,
-		  "time slice work for bt and wlan\n");
+	ath_dbg(common, ATH_DBG_BTCOEX,
+		"time slice work for bt and wlan\n");
 
 	if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_LOW || is_btscan)
 		ath9k_cmn_btcoex_bt_stomp(common, ATH_BTCOEX_STOMP_NONE);
@@ -114,8 +114,7 @@ void ath_htc_resume_btcoex_work(struct ath9k_htc_priv *priv)
 	struct ath_btcoex *btcoex = &priv->btcoex;
 	struct ath_hw *ah = priv->ah;
 
-	ath_print(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
-		  "Starting btcoex work");
+	ath_dbg(ath9k_hw_common(ah), ATH_DBG_BTCOEX, "Starting btcoex work\n");
 
 	btcoex->bt_priority_cnt = 0;
 	btcoex->bt_priority_time = jiffies;

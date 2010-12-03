@@ -60,7 +60,6 @@
 #include "reg.h"
 #include "debug.h"
 #include "ani.h"
-#include "../debug.h"
 
 static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);

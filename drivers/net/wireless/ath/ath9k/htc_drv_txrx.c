@@ -270,8 +270,8 @@ void ath9k_tx_tasklet(unsigned long data)
 	if (priv->tx_queues_stop) {
 		priv->tx_queues_stop = false;
 		spin_unlock_bh(&priv->tx_lock);
-		ath_print(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
-			  "Waking up TX queues\n");
+		ath_dbg(ath9k_hw_common(priv->ah), ATH_DBG_XMIT,
+			"Waking up TX queues\n");
 		ieee80211_wake_queues(priv->hw);
 		return;
 	}
@@ -681,8 +681,8 @@ void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 	spin_unlock(&priv->rx.rxbuflock);
 
 	if (rxbuf == NULL) {
-		ath_print(common, ATH_DBG_ANY,
-			  "No free RX buffer\n");
+		ath_dbg(common, ATH_DBG_ANY,
+			"No free RX buffer\n");
 		goto err;
 	}
 

@@ -125,7 +125,7 @@ void ath9k_wmi_tasklet(unsigned long data)
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 
-	ath_print(common, ATH_DBG_WMI, "SWBA Event received\n");
+	ath_dbg(common, ATH_DBG_WMI, "SWBA Event received\n");
 
 	ath9k_htc_swba(priv, priv->wmi->beacon_pending);
 
@@ -286,9 +286,9 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 
 	time_left = wait_for_completion_timeout(&wmi->cmd_wait, timeout);
 	if (!time_left) {
-		ath_print(common, ATH_DBG_WMI,
-			  "Timeout waiting for WMI command: %s\n",
-			  wmi_cmd_to_name(cmd_id));
+		ath_dbg(common, ATH_DBG_WMI,
+			"Timeout waiting for WMI command: %s\n",
+			wmi_cmd_to_name(cmd_id));
 		mutex_unlock(&wmi->op_mutex);
 		return -ETIMEDOUT;
 	}
@@ -298,8 +298,8 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	return 0;
 
 out:
-	ath_print(common, ATH_DBG_WMI,
-		  "WMI failure for: %s\n", wmi_cmd_to_name(cmd_id));
+	ath_dbg(common, ATH_DBG_WMI,
+		"WMI failure for: %s\n", wmi_cmd_to_name(cmd_id));
 	mutex_unlock(&wmi->op_mutex);
 	kfree_skb(skb);
 
