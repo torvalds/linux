@@ -181,24 +181,21 @@ char * __init xen_memory_setup(void)
 	for (i = 0; i < memmap.nr_entries; i++) {
 		unsigned long long end = map[i].addr + map[i].size;
 
-		if (map[i].type == E820_RAM) {
-			if (map[i].addr < mem_end && end > mem_end) {
-				/* Truncate region to max_mem. */
-				u64 delta = end - mem_end;
+		if (map[i].type == E820_RAM && end > mem_end) {
+			/* RAM off the end - may be partially included */
+			u64 delta = min(map[i].size, end - mem_end);
 
-				map[i].size -= delta;
-				extra_pages += PFN_DOWN(delta);
+			map[i].size -= delta;
+			end -= delta;
 
-				end = mem_end;
-			}
+			extra_pages += PFN_DOWN(delta);
 		}
 
-		if (end > xen_extra_mem_start)
+		if (map[i].size > 0 && end > xen_extra_mem_start)
 			xen_extra_mem_start = end;
 
-		/* If region is non-RAM or below mem_end, add what remains */
-		if ((map[i].type != E820_RAM || map[i].addr < mem_end) &&
-		    map[i].size > 0)
+		/* Add region if any remains */
+		if (map[i].size > 0)
 			e820_add_region(map[i].addr, map[i].size, map[i].type);
 	}
 
@@ -250,20 +247,6 @@ char * __init xen_memory_setup(void)
 	xen_add_extra_mem(extra_pages);
 
 	return "Xen";
-}
-
-static void xen_idle(void)
-{
-	local_irq_disable();
-
-	if (need_resched())
-		local_irq_enable();
-	else {
-		current_thread_info()->status &= ~TS_POLLING;
-		smp_mb__after_clear_bit();
-		safe_halt();
-		current_thread_info()->status |= TS_POLLING;
-	}
 }
 
 /*
@@ -362,7 +345,11 @@ void __init xen_arch_setup(void)
 	       MAX_GUEST_CMDLINE > COMMAND_LINE_SIZE ?
 	       COMMAND_LINE_SIZE : MAX_GUEST_CMDLINE);
 
-	pm_idle = xen_idle;
+	/* Set up idle, making sure it calls safe_halt() pvop */
+#ifdef CONFIG_X86_32
+	boot_cpu_data.hlt_works_ok = 1;
+#endif
+	pm_idle = default_idle;
 
 	fiddle_vdso();
 }
