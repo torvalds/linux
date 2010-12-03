@@ -164,11 +164,13 @@
 #define		SE_SC_BUSY					(1 << 29)
 #define		SE_DB_BUSY					(1 << 30)
 #define		SE_CB_BUSY					(1 << 31)
-
+/* evergreen */
 #define	CG_MULT_THERMAL_STATUS				0x740
 #define		ASIC_T(x)			        ((x) << 16)
 #define		ASIC_T_MASK			        0x7FF0000
 #define		ASIC_T_SHIFT			        16
+/* APU */
+#define	CG_THERMAL_STATUS			        0x678
 
 #define	HDP_HOST_PATH_CNTL				0x2C00
 #define	HDP_NONSURFACE_BASE				0x2C04
@@ -180,6 +182,7 @@
 #define MC_SHARED_CHMAP						0x2004
 #define		NOOFCHAN_SHIFT					12
 #define		NOOFCHAN_MASK					0x00003000
+#define MC_SHARED_CHREMAP					0x2008
 
 #define	MC_ARB_RAMCFG					0x2760
 #define		NOOFBANK_SHIFT					0
@@ -347,6 +350,9 @@
 #define		SYNC_GRADIENT					(1 << 24)
 #define		SYNC_WALKER					(1 << 25)
 #define		SYNC_ALIGNER					(1 << 26)
+
+#define	TCP_CHAN_STEER_LO				0x960c
+#define	TCP_CHAN_STEER_HI				0x9610
 
 #define	VGT_CACHE_INVALIDATION				0x88C4
 #define		CACHE_INVALIDATION(x)				((x) << 0)

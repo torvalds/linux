@@ -138,6 +138,7 @@
 #define MC_SHARED_CHMAP						0x2004
 #define		NOOFCHAN_SHIFT					12
 #define		NOOFCHAN_MASK					0x00003000
+#define MC_SHARED_CHREMAP					0x2008
 
 #define	MC_ARB_RAMCFG					0x2760
 #define		NOOFBANK_SHIFT					0
@@ -157,6 +158,7 @@
 #define	MC_VM_AGP_BOT					0x202C
 #define	MC_VM_AGP_BASE					0x2030
 #define	MC_VM_FB_LOCATION				0x2024
+#define	MC_FUS_VM_FB_OFFSET				0x2898
 #define	MC_VM_MB_L1_TLB0_CNTL				0x2234
 #define	MC_VM_MB_L1_TLB1_CNTL				0x2238
 #define	MC_VM_MB_L1_TLB2_CNTL				0x223C
@@ -303,6 +305,7 @@
 #define		BILINEAR_PRECISION_8_BIT			(1 << 31)
 
 #define	TCP_CNTL					0x9610
+#define	TCP_CHAN_STEER					0x9614
 
 #define	VGT_CACHE_INVALIDATION				0x88C4
 #define		CACHE_INVALIDATION(x)				((x)<<0)

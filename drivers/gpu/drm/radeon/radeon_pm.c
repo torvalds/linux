@@ -449,6 +449,9 @@ static ssize_t radeon_hwmon_show_temp(struct device *dev,
 	case THERMAL_TYPE_EVERGREEN:
 		temp = evergreen_get_temp(rdev);
 		break;
+	case THERMAL_TYPE_SUMO:
+		temp = sumo_get_temp(rdev);
+		break;
 	default:
 		temp = 0;
 		break;
@@ -487,6 +490,7 @@ static int radeon_hwmon_init(struct radeon_device *rdev)
 	case THERMAL_TYPE_RV6XX:
 	case THERMAL_TYPE_RV770:
 	case THERMAL_TYPE_EVERGREEN:
+	case THERMAL_TYPE_SUMO:
 		rdev->pm.int_hwmon_dev = hwmon_device_register(rdev->dev);
 		if (IS_ERR(rdev->pm.int_hwmon_dev)) {
 			err = PTR_ERR(rdev->pm.int_hwmon_dev);

@@ -125,7 +125,7 @@ int radeon_irq_kms_init(struct radeon_device *rdev)
 	 * chips.  Disable MSI on them for now.
 	 */
 	if ((rdev->family >= CHIP_RV380) &&
-	    (!(rdev->flags & RADEON_IS_IGP)) &&
+	    ((!(rdev->flags & RADEON_IS_IGP)) || (rdev->family >= CHIP_PALM)) &&
 	    (!(rdev->flags & RADEON_IS_AGP))) {
 		int ret = pci_enable_msi(rdev->pdev);
 		if (!ret) {

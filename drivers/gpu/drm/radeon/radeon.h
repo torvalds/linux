@@ -181,6 +181,7 @@ void rs690_pm_info(struct radeon_device *rdev);
 extern u32 rv6xx_get_temp(struct radeon_device *rdev);
 extern u32 rv770_get_temp(struct radeon_device *rdev);
 extern u32 evergreen_get_temp(struct radeon_device *rdev);
+extern u32 sumo_get_temp(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -737,6 +738,7 @@ enum radeon_int_thermal_type {
 	THERMAL_TYPE_RV6XX,
 	THERMAL_TYPE_RV770,
 	THERMAL_TYPE_EVERGREEN,
+	THERMAL_TYPE_SUMO,
 };
 
 struct radeon_voltage {
@@ -1323,6 +1325,7 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 #define ASIC_IS_DCE3(rdev) ((rdev->family >= CHIP_RV620))
 #define ASIC_IS_DCE32(rdev) ((rdev->family >= CHIP_RV730))
 #define ASIC_IS_DCE4(rdev) ((rdev->family >= CHIP_CEDAR))
+#define ASIC_IS_DCE41(rdev) ((rdev->family >= CHIP_PALM))
 
 /*
  * BIOS helpers.
@@ -1489,7 +1492,6 @@ extern void rs690_line_buffer_adjust(struct radeon_device *rdev,
 					struct drm_display_mode *mode2);
 
 /* r600, rv610, rv630, rv620, rv635, rv670, rs780, rs880 */
-extern void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern bool r600_card_posted(struct radeon_device *rdev);
 extern void r600_cp_stop(struct radeon_device *rdev);
 extern int r600_cp_start(struct radeon_device *rdev);
@@ -1535,6 +1537,7 @@ extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mo
 extern int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 extern void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
 
+extern void r700_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern void r700_cp_stop(struct radeon_device *rdev);
 extern void r700_cp_fini(struct radeon_device *rdev);
 extern void evergreen_disable_interrupt_state(struct radeon_device *rdev);

@@ -83,6 +83,9 @@ MODULE_FIRMWARE("radeon/JUNIPER_rlc.bin");
 MODULE_FIRMWARE("radeon/CYPRESS_pfp.bin");
 MODULE_FIRMWARE("radeon/CYPRESS_me.bin");
 MODULE_FIRMWARE("radeon/CYPRESS_rlc.bin");
+MODULE_FIRMWARE("radeon/PALM_pfp.bin");
+MODULE_FIRMWARE("radeon/PALM_me.bin");
+MODULE_FIRMWARE("radeon/SUMO_rlc.bin");
 
 int r600_debugfs_mc_info_init(struct radeon_device *rdev);
 
@@ -1161,7 +1164,7 @@ static void r600_mc_program(struct radeon_device *rdev)
  * Note: GTT start, end, size should be initialized before calling this
  * function on AGP platform.
  */
-void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
+static void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 {
 	u64 size_bf, size_af;
 
@@ -1997,6 +2000,10 @@ int r600_init_microcode(struct radeon_device *rdev)
 	case CHIP_HEMLOCK:
 		chip_name = "CYPRESS";
 		rlc_chip_name = "CYPRESS";
+		break;
+	case CHIP_PALM:
+		chip_name = "PALM";
+		rlc_chip_name = "SUMO";
 		break;
 	default: BUG();
 	}

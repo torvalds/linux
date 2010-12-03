@@ -485,7 +485,7 @@ static void radeon_crtc_init(struct drm_device *dev, int index)
 		radeon_legacy_init_crtc(dev, radeon_crtc);
 }
 
-static const char *encoder_names[34] = {
+static const char *encoder_names[36] = {
 	"NONE",
 	"INTERNAL_LVDS",
 	"INTERNAL_TMDS1",
@@ -520,6 +520,8 @@ static const char *encoder_names[34] = {
 	"INTERNAL_KLDSCP_LVTMA",
 	"INTERNAL_UNIPHY1",
 	"INTERNAL_UNIPHY2",
+	"NUTMEG",
+	"TRAVIS",
 };
 
 static const char *connector_names[15] = {
