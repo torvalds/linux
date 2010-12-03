@@ -625,11 +625,12 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 			/*
 			 * Go to full PSM if the user configures a very low
 			 * latency requirement.
-			 * The 2 second value is there for compatibility until
-			 * the PM_QOS_NETWORK_LATENCY is configured with real
-			 * values.
+			 * The 2000 second value is there for compatibility
+			 * until the PM_QOS_NETWORK_LATENCY is configured
+			 * with real values.
 			 */
-			if (latency > 1900000000 && latency != 2000000000)
+			if (latency > (1900 * USEC_PER_MSEC) &&
+			    latency != (2000 * USEC_PER_SEC))
 				timeout = 0;
 			else
 				timeout = 100;
