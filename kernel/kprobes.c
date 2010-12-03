@@ -480,8 +480,6 @@ static DECLARE_COMPLETION(optimizer_comp);
  */
 static __kprobes void do_optimize_kprobes(void)
 {
-	struct optimized_kprobe *op, *tmp;
-
 	/* Optimization never be done when disarmed */
 	if (kprobes_all_disarmed || !kprobes_allow_optimization ||
 	    list_empty(&optimizing_list))
@@ -499,12 +497,7 @@ static __kprobes void do_optimize_kprobes(void)
 	 */
 	get_online_cpus();
 	mutex_lock(&text_mutex);
-	list_for_each_entry_safe(op, tmp, &optimizing_list, list) {
-		WARN_ON(kprobe_disabled(&op->kp));
-		if (arch_optimize_kprobe(op) < 0)
-			op->kp.flags &= ~KPROBE_FLAG_OPTIMIZED;
-		list_del_init(&op->list);
-	}
+	arch_optimize_kprobes(&optimizing_list);
 	mutex_unlock(&text_mutex);
 	put_online_cpus();
 }
@@ -598,8 +591,12 @@ static __kprobes void kprobe_optimizer(struct work_struct *work)
 	mutex_unlock(&kprobe_mutex);
 	mutex_unlock(&module_mutex);
 
-	/* Wake up all waiters */
-	complete_all(&optimizer_comp);
+	/* Step 5: Kick optimizer again if needed */
+	if (!list_empty(&optimizing_list))
+		kick_kprobe_optimizer();
+	else
+		/* Wake up all waiters */
+		complete_all(&optimizer_comp);
 }
 
 /* Wait for completing optimization and unoptimization */
