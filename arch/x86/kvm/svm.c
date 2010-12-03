@@ -3158,7 +3158,6 @@ static void pre_svm_run(struct vcpu_svm *svm)
 
 	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
 
-	svm->vmcb->control.tlb_ctl = TLB_CONTROL_DO_NOTHING;
 	/* FIXME: handle wraparound of asid_generation */
 	if (svm->asid_generation != sd->asid_generation)
 		new_asid(svm, sd);
@@ -3303,7 +3302,12 @@ static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
 
 static void svm_flush_tlb(struct kvm_vcpu *vcpu)
 {
-	to_svm(vcpu)->asid_generation--;
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (static_cpu_has(X86_FEATURE_FLUSHBYASID))
+		svm->vmcb->control.tlb_ctl = TLB_CONTROL_FLUSH_ASID;
+	else
+		svm->asid_generation--;
 }
 
 static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
@@ -3528,6 +3532,8 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	sync_cr8_to_lapic(vcpu);
 
 	svm->next_rip = 0;
+
+	svm->vmcb->control.tlb_ctl = TLB_CONTROL_DO_NOTHING;
 
 	/* if exit due to PF check for async PF */
 	if (svm->vmcb->control.exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR)
