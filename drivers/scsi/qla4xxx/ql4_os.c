@@ -1721,6 +1721,14 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	if (!test_bit(AF_ONLINE, &ha->flags)) {
 		ql4_printk(KERN_WARNING, ha, "Failed to initialize adapter\n");
 
+		if (is_qla8022(ha) && ql4xdontresethba) {
+			/* Put the device in failed state. */
+			DEBUG2(printk(KERN_ERR "HW STATE: FAILED\n"));
+			qla4_8xxx_idc_lock(ha);
+			qla4_8xxx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
+			    QLA82XX_DEV_FAILED);
+			qla4_8xxx_idc_unlock(ha);
+		}
 		ret = -ENODEV;
 		goto probe_failed;
 	}
