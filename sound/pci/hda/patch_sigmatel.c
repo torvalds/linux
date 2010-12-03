@@ -5471,7 +5471,6 @@ again:
 		spec->num_pins = ARRAY_SIZE(stac92hd88xxx_pin_nids);
 		spec->pin_nids = stac92hd88xxx_pin_nids;
 		spec->mono_nid = 0;
-		spec->digbeep_nid = 0;
 		spec->num_pwrs = 0;
 		break;
 	case 0x111d7604:
