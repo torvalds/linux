@@ -1077,7 +1077,7 @@ try_msi:
 	ret = pci_enable_msi(ha->pdev);
 	if (!ret) {
 		ret = request_irq(ha->pdev->irq, qla4_8xxx_msi_handler,
-			IRQF_DISABLED|IRQF_SHARED, DRIVER_NAME, ha);
+			IRQF_SHARED, DRIVER_NAME, ha);
 		if (!ret) {
 			DEBUG2(ql4_printk(KERN_INFO, ha, "MSI: Enabled.\n"));
 			set_bit(AF_MSI_ENABLED, &ha->flags);
@@ -1095,7 +1095,7 @@ try_msi:
 try_intx:
 	/* Trying INTx */
 	ret = request_irq(ha->pdev->irq, ha->isp_ops->intr_handler,
-	    IRQF_DISABLED|IRQF_SHARED, DRIVER_NAME, ha);
+	    IRQF_SHARED, DRIVER_NAME, ha);
 	if (!ret) {
 		DEBUG2(ql4_printk(KERN_INFO, ha, "INTx: Enabled.\n"));
 		set_bit(AF_INTx_ENABLED, &ha->flags);
