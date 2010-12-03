@@ -135,8 +135,8 @@ static ssize_t vme_user_write(struct file *, const char __user *, size_t,
 static loff_t vme_user_llseek(struct file *, loff_t, int);
 static long vme_user_unlocked_ioctl(struct file *, unsigned int, unsigned long);
 
-static int __init vme_user_probe(struct device *, int, int);
-static int __exit vme_user_remove(struct device *, int, int);
+static int __devinit vme_user_probe(struct device *, int, int);
+static int __devexit vme_user_remove(struct device *, int, int);
 
 static struct file_operations vme_user_fops = {
 	.open = vme_user_open,
@@ -596,7 +596,7 @@ static void buf_unalloc(int num)
 static struct vme_driver vme_user_driver = {
 	.name = driver_name,
 	.probe = vme_user_probe,
-	.remove = vme_user_remove,
+	.remove = __devexit_p(vme_user_remove),
 };
 
 
@@ -666,7 +666,8 @@ err_nocard:
  * as practical. We will therefore reserve the buffers and request the images
  * here so that we don't have to do it later.
  */
-static int __init vme_user_probe(struct device *dev, int cur_bus, int cur_slot)
+static int __devinit vme_user_probe(struct device *dev, int cur_bus,
+	int cur_slot)
 {
 	int i, err;
 	char name[12];
@@ -841,7 +842,8 @@ err_dev:
 	return err;
 }
 
-static int __exit vme_user_remove(struct device *dev, int cur_bus, int cur_slot)
+static int __devexit vme_user_remove(struct device *dev, int cur_bus,
+	int cur_slot)
 {
 	int i;
 
