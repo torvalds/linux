@@ -869,6 +869,27 @@ static struct clk clk_emmc = {
 	.clksel_shift	= 18,
 };
 
+static struct clk clk_sdmmc0_ahb = {
+	.name		= "sdmmc0_ahb",
+	.parent		= &hclk_periph,
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_SDMMC0_AHB,
+};
+
+static struct clk clk_sdmmc1_ahb = {
+	.name		= "sdmmc1_ahb",
+	.parent		= &hclk_periph,
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_SDMMC1_AHB,
+};
+
+static struct clk clk_emmc_ahb = {
+	.name		= "emmc_ahb",
+	.parent		= &hclk_periph,
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_EMMC_AHB,
+};
+
 
 static struct clk *clk_ddr_parents[8] = { &ddr_pll_clk, &periph_pll_clk, &codec_pll_clk, &arm_pll_clk };
 
@@ -1439,8 +1460,11 @@ static struct clk_lookup clks[] = {
 
 	CLK1(sdmmc_src),
 	CLK("rk29_sdmmc.0", "sdmmc", &clk_sdmmc0),
+	CLK("rk29_sdmmc.0", "sdmmc_ahb", &clk_sdmmc0_ahb),
 	CLK("rk29_sdmmc.1", "sdmmc", &clk_sdmmc1),
+	CLK("rk29_sdmmc.1", "sdmmc_ahb", &clk_sdmmc1_ahb),
 	CLK1(emmc),
+	CLK1(emmc_ahb),
 	CLK1(ddr),
 
 	CLK1(uart01_src),
