@@ -130,6 +130,9 @@ extern void r100_pm_prepare(struct radeon_device *rdev);
 extern void r100_pm_finish(struct radeon_device *rdev);
 extern void r100_pm_init_profile(struct radeon_device *rdev);
 extern void r100_pm_get_dynpm_state(struct radeon_device *rdev);
+extern void r100_pre_page_flip(struct radeon_device *rdev, int crtc);
+extern u32 r100_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
+extern void r100_post_page_flip(struct radeon_device *rdev, int crtc);
 
 /*
  * r200,rv250,rs300,rv280
@@ -205,6 +208,9 @@ void rs600_hpd_set_polarity(struct radeon_device *rdev,
 extern void rs600_pm_misc(struct radeon_device *rdev);
 extern void rs600_pm_prepare(struct radeon_device *rdev);
 extern void rs600_pm_finish(struct radeon_device *rdev);
+extern void rs600_pre_page_flip(struct radeon_device *rdev, int crtc);
+extern u32 rs600_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
+extern void rs600_post_page_flip(struct radeon_device *rdev, int crtc);
 
 /*
  * rs690,rs740
@@ -287,6 +293,7 @@ void rv770_fini(struct radeon_device *rdev);
 int rv770_suspend(struct radeon_device *rdev);
 int rv770_resume(struct radeon_device *rdev);
 extern void rv770_pm_misc(struct radeon_device *rdev);
+extern u32 rv770_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
 
 /*
  * evergreen
@@ -314,5 +321,8 @@ extern int evergreen_cs_parse(struct radeon_cs_parser *p);
 extern void evergreen_pm_misc(struct radeon_device *rdev);
 extern void evergreen_pm_prepare(struct radeon_device *rdev);
 extern void evergreen_pm_finish(struct radeon_device *rdev);
+extern void evergreen_pre_page_flip(struct radeon_device *rdev, int crtc);
+extern u32 evergreen_page_flip(struct radeon_device *rdev, int crtc, u64 crtc_base);
+extern void evergreen_post_page_flip(struct radeon_device *rdev, int crtc);
 
 #endif

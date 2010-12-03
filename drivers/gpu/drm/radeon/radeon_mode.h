@@ -277,6 +277,9 @@ struct radeon_crtc {
 	fixed20_12 hsc;
 	struct drm_display_mode native_mode;
 	int pll_id;
+	/* page flipping */
+	struct radeon_unpin_work *unpin_work;
+	int deferred_flip_completion;
 };
 
 struct radeon_encoder_primary_dac {
@@ -442,10 +445,6 @@ struct radeon_framebuffer {
 	struct drm_gem_object *obj;
 };
 
-/* radeon_get_crtc_scanoutpos() return flags */
-#define RADEON_SCANOUTPOS_VALID        (1 << 0)
-#define RADEON_SCANOUTPOS_INVBL        (1 << 1)
-#define RADEON_SCANOUTPOS_ACCURATE     (1 << 2)
 
 extern enum radeon_tv_std
 radeon_combios_get_tv_info(struct radeon_device *rdev);
@@ -562,7 +561,8 @@ extern int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 extern int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 				   int x, int y);
 
-extern int radeon_get_crtc_scanoutpos(struct radeon_device *rdev, int crtc, int *vpos, int *hpos);
+extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
+				      int *vpos, int *hpos);
 
 extern bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev);
 extern struct edid *
@@ -662,4 +662,7 @@ int radeon_fbdev_total_size(struct radeon_device *rdev);
 bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj);
 
 void radeon_fb_output_poll_changed(struct radeon_device *rdev);
+
+void radeon_crtc_handle_flip(struct radeon_device *rdev, int crtc_id);
+
 #endif

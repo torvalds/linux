@@ -48,9 +48,10 @@
  * - 2.5.0 - add get accel 2 to work around ddx breakage for evergreen
  * - 2.6.0 - add tiling config query (r6xx+), add initial HiZ support (r300->r500)
  *   2.7.0 - fixups for r600 2D tiling support. (no external ABI change), add eg dyn gpr regs
+ *   2.8.0 - pageflip support
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	7
+#define KMS_DRIVER_MINOR	8
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -66,6 +67,10 @@ int radeon_resume_kms(struct drm_device *dev);
 u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc);
 int radeon_enable_vblank_kms(struct drm_device *dev, int crtc);
 void radeon_disable_vblank_kms(struct drm_device *dev, int crtc);
+int radeon_get_vblank_timestamp_kms(struct drm_device *dev, int crtc,
+				    int *max_error,
+				    struct timeval *vblank_time,
+				    unsigned flags);
 void radeon_driver_irq_preinstall_kms(struct drm_device *dev);
 int radeon_driver_irq_postinstall_kms(struct drm_device *dev);
 void radeon_driver_irq_uninstall_kms(struct drm_device *dev);
@@ -74,6 +79,8 @@ int radeon_dma_ioctl_kms(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 int radeon_gem_object_init(struct drm_gem_object *obj);
 void radeon_gem_object_free(struct drm_gem_object *obj);
+extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
+				      int *vpos, int *hpos);
 extern struct drm_ioctl_desc radeon_ioctls_kms[];
 extern int radeon_max_kms_ioctl;
 int radeon_mmap(struct file *filp, struct vm_area_struct *vma);
@@ -277,6 +284,8 @@ static struct drm_driver kms_driver = {
 	.get_vblank_counter = radeon_get_vblank_counter_kms,
 	.enable_vblank = radeon_enable_vblank_kms,
 	.disable_vblank = radeon_disable_vblank_kms,
+	.get_vblank_timestamp = radeon_get_vblank_timestamp_kms,
+	.get_scanout_position = radeon_get_crtc_scanoutpos,
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = radeon_debugfs_init,
 	.debugfs_cleanup = radeon_debugfs_cleanup,

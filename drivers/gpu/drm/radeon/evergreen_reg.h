@@ -105,6 +105,11 @@
 #define EVERGREEN_GRPH_Y_START                          0x6830
 #define EVERGREEN_GRPH_X_END                            0x6834
 #define EVERGREEN_GRPH_Y_END                            0x6838
+#define EVERGREEN_GRPH_UPDATE                           0x6844
+#       define EVERGREEN_GRPH_SURFACE_UPDATE_PENDING    (1 << 2)
+#       define EVERGREEN_GRPH_UPDATE_LOCK               (1 << 16)
+#define EVERGREEN_GRPH_FLIP_CONTROL                     0x6848
+#       define EVERGREEN_GRPH_SURFACE_UPDATE_H_RETRACE_EN (1 << 0)
 
 /* CUR blocks at 0x6998, 0x7598, 0x10198, 0x10d98, 0x11998, 0x12598 */
 #define EVERGREEN_CUR_CONTROL                           0x6998
@@ -178,6 +183,7 @@
 #       define EVERGREEN_CRTC_DISP_READ_REQUEST_DISABLE (1 << 24)
 #define EVERGREEN_CRTC_STATUS                           0x6e8c
 #define EVERGREEN_CRTC_STATUS_POSITION                  0x6e90
+#define EVERGREEN_MASTER_UPDATE_MODE                    0x6ef8
 #define EVERGREEN_CRTC_UPDATE_LOCK                      0x6ed4
 
 #define EVERGREEN_DC_GPIO_HPD_MASK                      0x64b0

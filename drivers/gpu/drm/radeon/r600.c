@@ -2863,6 +2863,8 @@ static void r600_disable_interrupt_state(struct radeon_device *rdev)
 	WREG32(CP_INT_CNTL, CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
 	WREG32(GRBM_INT_CNTL, 0);
 	WREG32(DxMODE_INT_MASK, 0);
+	WREG32(D1GRPH_INTERRUPT_CONTROL, 0);
+	WREG32(D2GRPH_INTERRUPT_CONTROL, 0);
 	if (ASIC_IS_DCE3(rdev)) {
 		WREG32(DCE3_DACA_AUTODETECT_INT_CONTROL, 0);
 		WREG32(DCE3_DACB_AUTODETECT_INT_CONTROL, 0);
@@ -2987,6 +2989,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 hpd1, hpd2, hpd3, hpd4 = 0, hpd5 = 0, hpd6 = 0;
 	u32 grbm_int_cntl = 0;
 	u32 hdmi1, hdmi2;
+	u32 d1grph = 0, d2grph = 0;
 
 	if (!rdev->irq.installed) {
 		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
@@ -3023,11 +3026,13 @@ int r600_irq_set(struct radeon_device *rdev)
 		cp_int_cntl |= RB_INT_ENABLE;
 		cp_int_cntl |= TIME_STAMP_INT_ENABLE;
 	}
-	if (rdev->irq.crtc_vblank_int[0]) {
+	if (rdev->irq.crtc_vblank_int[0] ||
+	    rdev->irq.pflip[0]) {
 		DRM_DEBUG("r600_irq_set: vblank 0\n");
 		mode_int |= D1MODE_VBLANK_INT_MASK;
 	}
-	if (rdev->irq.crtc_vblank_int[1]) {
+	if (rdev->irq.crtc_vblank_int[1] ||
+	    rdev->irq.pflip[1]) {
 		DRM_DEBUG("r600_irq_set: vblank 1\n");
 		mode_int |= D2MODE_VBLANK_INT_MASK;
 	}
@@ -3070,6 +3075,8 @@ int r600_irq_set(struct radeon_device *rdev)
 
 	WREG32(CP_INT_CNTL, cp_int_cntl);
 	WREG32(DxMODE_INT_MASK, mode_int);
+	WREG32(D1GRPH_INTERRUPT_CONTROL, d1grph);
+	WREG32(D2GRPH_INTERRUPT_CONTROL, d2grph);
 	WREG32(GRBM_INT_CNTL, grbm_int_cntl);
 	WREG32(R600_HDMI_BLOCK1 + R600_HDMI_CNTL, hdmi1);
 	if (ASIC_IS_DCE3(rdev)) {
@@ -3092,32 +3099,35 @@ int r600_irq_set(struct radeon_device *rdev)
 	return 0;
 }
 
-static inline void r600_irq_ack(struct radeon_device *rdev,
-				u32 *disp_int,
-				u32 *disp_int_cont,
-				u32 *disp_int_cont2)
+static inline void r600_irq_ack(struct radeon_device *rdev)
 {
 	u32 tmp;
 
 	if (ASIC_IS_DCE3(rdev)) {
-		*disp_int = RREG32(DCE3_DISP_INTERRUPT_STATUS);
-		*disp_int_cont = RREG32(DCE3_DISP_INTERRUPT_STATUS_CONTINUE);
-		*disp_int_cont2 = RREG32(DCE3_DISP_INTERRUPT_STATUS_CONTINUE2);
+		rdev->irq.stat_regs.r600.disp_int = RREG32(DCE3_DISP_INTERRUPT_STATUS);
+		rdev->irq.stat_regs.r600.disp_int_cont = RREG32(DCE3_DISP_INTERRUPT_STATUS_CONTINUE);
+		rdev->irq.stat_regs.r600.disp_int_cont2 = RREG32(DCE3_DISP_INTERRUPT_STATUS_CONTINUE2);
 	} else {
-		*disp_int = RREG32(DISP_INTERRUPT_STATUS);
-		*disp_int_cont = RREG32(DISP_INTERRUPT_STATUS_CONTINUE);
-		*disp_int_cont2 = 0;
+		rdev->irq.stat_regs.r600.disp_int = RREG32(DISP_INTERRUPT_STATUS);
+		rdev->irq.stat_regs.r600.disp_int_cont = RREG32(DISP_INTERRUPT_STATUS_CONTINUE);
+		rdev->irq.stat_regs.r600.disp_int_cont2 = 0;
 	}
+	rdev->irq.stat_regs.r600.d1grph_int = RREG32(D1GRPH_INTERRUPT_STATUS);
+	rdev->irq.stat_regs.r600.d2grph_int = RREG32(D2GRPH_INTERRUPT_STATUS);
 
-	if (*disp_int & LB_D1_VBLANK_INTERRUPT)
+	if (rdev->irq.stat_regs.r600.d1grph_int & DxGRPH_PFLIP_INT_OCCURRED)
+		WREG32(D1GRPH_INTERRUPT_STATUS, DxGRPH_PFLIP_INT_CLEAR);
+	if (rdev->irq.stat_regs.r600.d2grph_int & DxGRPH_PFLIP_INT_OCCURRED)
+		WREG32(D2GRPH_INTERRUPT_STATUS, DxGRPH_PFLIP_INT_CLEAR);
+	if (rdev->irq.stat_regs.r600.disp_int & LB_D1_VBLANK_INTERRUPT)
 		WREG32(D1MODE_VBLANK_STATUS, DxMODE_VBLANK_ACK);
-	if (*disp_int & LB_D1_VLINE_INTERRUPT)
+	if (rdev->irq.stat_regs.r600.disp_int & LB_D1_VLINE_INTERRUPT)
 		WREG32(D1MODE_VLINE_STATUS, DxMODE_VLINE_ACK);
-	if (*disp_int & LB_D2_VBLANK_INTERRUPT)
+	if (rdev->irq.stat_regs.r600.disp_int & LB_D2_VBLANK_INTERRUPT)
 		WREG32(D2MODE_VBLANK_STATUS, DxMODE_VBLANK_ACK);
-	if (*disp_int & LB_D2_VLINE_INTERRUPT)
+	if (rdev->irq.stat_regs.r600.disp_int & LB_D2_VLINE_INTERRUPT)
 		WREG32(D2MODE_VLINE_STATUS, DxMODE_VLINE_ACK);
-	if (*disp_int & DC_HPD1_INTERRUPT) {
+	if (rdev->irq.stat_regs.r600.disp_int & DC_HPD1_INTERRUPT) {
 		if (ASIC_IS_DCE3(rdev)) {
 			tmp = RREG32(DC_HPD1_INT_CONTROL);
 			tmp |= DC_HPDx_INT_ACK;
@@ -3128,7 +3138,7 @@ static inline void r600_irq_ack(struct radeon_device *rdev,
 			WREG32(DC_HOT_PLUG_DETECT1_INT_CONTROL, tmp);
 		}
 	}
-	if (*disp_int & DC_HPD2_INTERRUPT) {
+	if (rdev->irq.stat_regs.r600.disp_int & DC_HPD2_INTERRUPT) {
 		if (ASIC_IS_DCE3(rdev)) {
 			tmp = RREG32(DC_HPD2_INT_CONTROL);
 			tmp |= DC_HPDx_INT_ACK;
@@ -3139,7 +3149,7 @@ static inline void r600_irq_ack(struct radeon_device *rdev,
 			WREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL, tmp);
 		}
 	}
-	if (*disp_int_cont & DC_HPD3_INTERRUPT) {
+	if (rdev->irq.stat_regs.r600.disp_int_cont & DC_HPD3_INTERRUPT) {
 		if (ASIC_IS_DCE3(rdev)) {
 			tmp = RREG32(DC_HPD3_INT_CONTROL);
 			tmp |= DC_HPDx_INT_ACK;
@@ -3150,18 +3160,18 @@ static inline void r600_irq_ack(struct radeon_device *rdev,
 			WREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL, tmp);
 		}
 	}
-	if (*disp_int_cont & DC_HPD4_INTERRUPT) {
+	if (rdev->irq.stat_regs.r600.disp_int_cont & DC_HPD4_INTERRUPT) {
 		tmp = RREG32(DC_HPD4_INT_CONTROL);
 		tmp |= DC_HPDx_INT_ACK;
 		WREG32(DC_HPD4_INT_CONTROL, tmp);
 	}
 	if (ASIC_IS_DCE32(rdev)) {
-		if (*disp_int_cont2 & DC_HPD5_INTERRUPT) {
+		if (rdev->irq.stat_regs.r600.disp_int_cont2 & DC_HPD5_INTERRUPT) {
 			tmp = RREG32(DC_HPD5_INT_CONTROL);
 			tmp |= DC_HPDx_INT_ACK;
 			WREG32(DC_HPD5_INT_CONTROL, tmp);
 		}
-		if (*disp_int_cont2 & DC_HPD6_INTERRUPT) {
+		if (rdev->irq.stat_regs.r600.disp_int_cont2 & DC_HPD6_INTERRUPT) {
 			tmp = RREG32(DC_HPD5_INT_CONTROL);
 			tmp |= DC_HPDx_INT_ACK;
 			WREG32(DC_HPD6_INT_CONTROL, tmp);
@@ -3183,12 +3193,10 @@ static inline void r600_irq_ack(struct radeon_device *rdev,
 
 void r600_irq_disable(struct radeon_device *rdev)
 {
-	u32 disp_int, disp_int_cont, disp_int_cont2;
-
 	r600_disable_interrupts(rdev);
 	/* Wait and acknowledge irq */
 	mdelay(1);
-	r600_irq_ack(rdev, &disp_int, &disp_int_cont, &disp_int_cont2);
+	r600_irq_ack(rdev);
 	r600_disable_interrupt_state(rdev);
 }
 
@@ -3251,7 +3259,7 @@ int r600_irq_process(struct radeon_device *rdev)
 	u32 wptr = r600_get_ih_wptr(rdev);
 	u32 rptr = rdev->ih.rptr;
 	u32 src_id, src_data;
-	u32 ring_index, disp_int, disp_int_cont, disp_int_cont2;
+	u32 ring_index;
 	unsigned long flags;
 	bool queue_hotplug = false;
 
@@ -3272,7 +3280,7 @@ int r600_irq_process(struct radeon_device *rdev)
 
 restart_ih:
 	/* display interrupts */
-	r600_irq_ack(rdev, &disp_int, &disp_int_cont, &disp_int_cont2);
+	r600_irq_ack(rdev);
 
 	rdev->ih.wptr = wptr;
 	while (rptr != wptr) {
@@ -3285,17 +3293,21 @@ restart_ih:
 		case 1: /* D1 vblank/vline */
 			switch (src_data) {
 			case 0: /* D1 vblank */
-				if (disp_int & LB_D1_VBLANK_INTERRUPT) {
-					drm_handle_vblank(rdev->ddev, 0);
-					rdev->pm.vblank_sync = true;
-					wake_up(&rdev->irq.vblank_queue);
-					disp_int &= ~LB_D1_VBLANK_INTERRUPT;
+				if (rdev->irq.stat_regs.r600.disp_int & LB_D1_VBLANK_INTERRUPT) {
+					if (rdev->irq.crtc_vblank_int[0]) {
+						drm_handle_vblank(rdev->ddev, 0);
+						rdev->pm.vblank_sync = true;
+						wake_up(&rdev->irq.vblank_queue);
+					}
+					if (rdev->irq.pflip[0])
+						radeon_crtc_handle_flip(rdev, 0);
+					rdev->irq.stat_regs.r600.disp_int &= ~LB_D1_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D1 vblank\n");
 				}
 				break;
 			case 1: /* D1 vline */
-				if (disp_int & LB_D1_VLINE_INTERRUPT) {
-					disp_int &= ~LB_D1_VLINE_INTERRUPT;
+				if (rdev->irq.stat_regs.r600.disp_int & LB_D1_VLINE_INTERRUPT) {
+					rdev->irq.stat_regs.r600.disp_int &= ~LB_D1_VLINE_INTERRUPT;
 					DRM_DEBUG("IH: D1 vline\n");
 				}
 				break;
@@ -3307,17 +3319,21 @@ restart_ih:
 		case 5: /* D2 vblank/vline */
 			switch (src_data) {
 			case 0: /* D2 vblank */
-				if (disp_int & LB_D2_VBLANK_INTERRUPT) {
-					drm_handle_vblank(rdev->ddev, 1);
-					rdev->pm.vblank_sync = true;
-					wake_up(&rdev->irq.vblank_queue);
-					disp_int &= ~LB_D2_VBLANK_INTERRUPT;
+				if (rdev->irq.stat_regs.r600.disp_int & LB_D2_VBLANK_INTERRUPT) {
+					if (rdev->irq.crtc_vblank_int[1]) {
+						drm_handle_vblank(rdev->ddev, 1);
+						rdev->pm.vblank_sync = true;
+						wake_up(&rdev->irq.vblank_queue);
+					}
+					if (rdev->irq.pflip[1])
+						radeon_crtc_handle_flip(rdev, 1);
+					rdev->irq.stat_regs.r600.disp_int &= ~LB_D2_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D2 vblank\n");
 				}
 				break;
 			case 1: /* D1 vline */
-				if (disp_int & LB_D2_VLINE_INTERRUPT) {
-					disp_int &= ~LB_D2_VLINE_INTERRUPT;
+				if (rdev->irq.stat_regs.r600.disp_int & LB_D2_VLINE_INTERRUPT) {
+					rdev->irq.stat_regs.r600.disp_int &= ~LB_D2_VLINE_INTERRUPT;
 					DRM_DEBUG("IH: D2 vline\n");
 				}
 				break;
@@ -3329,43 +3345,43 @@ restart_ih:
 		case 19: /* HPD/DAC hotplug */
 			switch (src_data) {
 			case 0:
-				if (disp_int & DC_HPD1_INTERRUPT) {
-					disp_int &= ~DC_HPD1_INTERRUPT;
+				if (rdev->irq.stat_regs.r600.disp_int & DC_HPD1_INTERRUPT) {
+					rdev->irq.stat_regs.r600.disp_int &= ~DC_HPD1_INTERRUPT;
 					queue_hotplug = true;
 					DRM_DEBUG("IH: HPD1\n");
 				}
 				break;
 			case 1:
-				if (disp_int & DC_HPD2_INTERRUPT) {
-					disp_int &= ~DC_HPD2_INTERRUPT;
+				if (rdev->irq.stat_regs.r600.disp_int & DC_HPD2_INTERRUPT) {
+					rdev->irq.stat_regs.r600.disp_int &= ~DC_HPD2_INTERRUPT;
 					queue_hotplug = true;
 					DRM_DEBUG("IH: HPD2\n");
 				}
 				break;
 			case 4:
-				if (disp_int_cont & DC_HPD3_INTERRUPT) {
-					disp_int_cont &= ~DC_HPD3_INTERRUPT;
+				if (rdev->irq.stat_regs.r600.disp_int_cont & DC_HPD3_INTERRUPT) {
+					rdev->irq.stat_regs.r600.disp_int_cont &= ~DC_HPD3_INTERRUPT;
 					queue_hotplug = true;
 					DRM_DEBUG("IH: HPD3\n");
 				}
 				break;
 			case 5:
-				if (disp_int_cont & DC_HPD4_INTERRUPT) {
-					disp_int_cont &= ~DC_HPD4_INTERRUPT;
+				if (rdev->irq.stat_regs.r600.disp_int_cont & DC_HPD4_INTERRUPT) {
+					rdev->irq.stat_regs.r600.disp_int_cont &= ~DC_HPD4_INTERRUPT;
 					queue_hotplug = true;
 					DRM_DEBUG("IH: HPD4\n");
 				}
 				break;
 			case 10:
-				if (disp_int_cont2 & DC_HPD5_INTERRUPT) {
-					disp_int_cont2 &= ~DC_HPD5_INTERRUPT;
+				if (rdev->irq.stat_regs.r600.disp_int_cont2 & DC_HPD5_INTERRUPT) {
+					rdev->irq.stat_regs.r600.disp_int_cont2 &= ~DC_HPD5_INTERRUPT;
 					queue_hotplug = true;
 					DRM_DEBUG("IH: HPD5\n");
 				}
 				break;
 			case 12:
-				if (disp_int_cont2 & DC_HPD6_INTERRUPT) {
-					disp_int_cont2 &= ~DC_HPD6_INTERRUPT;
+				if (rdev->irq.stat_regs.r600.disp_int_cont2 & DC_HPD6_INTERRUPT) {
+					rdev->irq.stat_regs.r600.disp_int_cont2 &= ~DC_HPD6_INTERRUPT;
 					queue_hotplug = true;
 					DRM_DEBUG("IH: HPD6\n");
 				}

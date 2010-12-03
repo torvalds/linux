@@ -422,6 +422,7 @@
 #       define RADEON_CRTC_CSYNC_EN         (1 <<  4)
 #       define RADEON_CRTC_ICON_EN          (1 << 15)
 #       define RADEON_CRTC_CUR_EN           (1 << 16)
+#       define RADEON_CRTC_VSTAT_MODE_MASK  (3 << 17)
 #       define RADEON_CRTC_CUR_MODE_MASK    (7 << 20)
 #       define RADEON_CRTC_CUR_MODE_SHIFT   20
 #       define RADEON_CRTC_CUR_MODE_MONO    0
@@ -509,6 +510,8 @@
 #       define RADEON_CRTC_TILE_EN                      (1 << 15)
 #       define RADEON_CRTC_OFFSET_FLIP_CNTL             (1 << 16)
 #       define RADEON_CRTC_STEREO_OFFSET_EN             (1 << 17)
+#       define RADEON_CRTC_GUI_TRIG_OFFSET_LEFT_EN      (1 << 28)
+#       define RADEON_CRTC_GUI_TRIG_OFFSET_RIGHT_EN     (1 << 29)
 
 #define R300_CRTC_TILE_X0_Y0	            0x0350
 #define R300_CRTC2_TILE_X0_Y0	            0x0358
