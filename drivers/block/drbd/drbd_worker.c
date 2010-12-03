@@ -1499,6 +1499,20 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
 			return;
 		}
+	} else /* C_SYNC_SOURCE */ {
+		r = drbd_khelper(mdev, "before-resync-source");
+		r = (r >> 8) & 0xff;
+		if (r > 0) {
+			if (r == 3) {
+				dev_info(DEV, "before-resync-source handler returned %d, "
+					 "ignoring. Old userland tools?", r);
+			} else {
+				dev_info(DEV, "before-resync-source handler returned %d, "
+					 "dropping connection.\n", r);
+				drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
+				return;
+			}
+		}
 	}
 
 	drbd_state_lock(mdev);
