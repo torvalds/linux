@@ -53,7 +53,7 @@
 
 #include "./display/screen/screen.h"
 
-#if 1
+#if 0
 	#define fbprintk(msg...)	printk(msg);
 #else
 	#define fbprintk(msg...)
