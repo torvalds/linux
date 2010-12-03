@@ -215,20 +215,6 @@ void set_lcd_pin(struct platform_device *pdev, int enable)
         gpio_direction_output(lcd_standby, 0);
 		gpio_set_value(lcd_standby, enable ? lcd_standby_pol : !lcd_standby_pol);
     }
-
- /********* open backlight just for test ***************/
-    rk29_mux_api_set(GPIO1B5_PWM0_NAME, 0);
-    if(0 != gpio_request(RK29_PIN1_PB5, NULL))
-    {
-        gpio_free(RK29_PIN1_PB5);
-        printk(">>>>>> RK29_PIN1_PB5 gpio_request err \n ");
-    }
-    gpio_direction_output(RK29_PIN1_PB5, GPIO_HIGH);
-    gpio_set_value(RK29_PIN1_PB5, GPIO_HIGH);
-    gpio_direction_output(RK29_PIN1_PB5, GPIO_HIGH);
-    printk("P1B5 High \n");
-/************************/
-
 }
 
 int mcu_do_refresh(struct rk29fb_inf *inf)
