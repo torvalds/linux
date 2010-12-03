@@ -6099,6 +6099,11 @@ inherit_event(struct perf_event *parent_event,
 	child_event->overflow_handler = parent_event->overflow_handler;
 
 	/*
+	 * Precalculate sample_data sizes
+	 */
+	perf_event__header_size(child_event);
+
+	/*
 	 * Link it up in the child's context:
 	 */
 	raw_spin_lock_irqsave(&child_ctx->lock, flags);
