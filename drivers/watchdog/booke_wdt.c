@@ -193,8 +193,15 @@ static long booke_wdt_ioctl(struct file *file,
 	return 0;
 }
 
+/* wdt_is_active stores wether or not the /dev/watchdog device is opened */
+static unsigned long wdt_is_active;
+
 static int booke_wdt_open(struct inode *inode, struct file *file)
 {
+	/* /dev/watchdog can only be opened once */
+	if (test_and_set_bit(0, &wdt_is_active))
+		return -EBUSY;
+
 	spin_lock(&booke_wdt_lock);
 	if (booke_wdt_enabled == 0) {
 		booke_wdt_enabled = 1;
@@ -210,8 +217,17 @@ static int booke_wdt_open(struct inode *inode, struct file *file)
 
 static int booke_wdt_release(struct inode *inode, struct file *file)
 {
+#ifndef CONFIG_WATCHDOG_NOWAYOUT
+	/* Normally, the watchdog is disabled when /dev/watchdog is closed, but
+	 * if CONFIG_WATCHDOG_NOWAYOUT is defined, then it means that the
+	 * watchdog should remain enabled.  So we disable it only if
+	 * CONFIG_WATCHDOG_NOWAYOUT is not defined.
+	 */
 	on_each_cpu(__booke_wdt_disable, NULL, 0);
 	booke_wdt_enabled = 0;
+#endif
+
+	clear_bit(0, &wdt_is_active);
 
 	return 0;
 }
