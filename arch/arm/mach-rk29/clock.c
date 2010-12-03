@@ -1209,6 +1209,8 @@ static struct clk *dclk_lcdc_parents[2] = { &dclk_lcdc_div, &extclk };
 
 static struct clk dclk_lcdc = {
 	.name		= "dclk_lcdc",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_LCDC,
 	.clksel_con	= CRU_CLKSEL16_CON,
 	.clksel_parent_mask	= 1,
 	.clksel_parent_shift	= 10,
@@ -1231,6 +1233,8 @@ static struct clk *aclk_lcdc_parents[4] = { &ddr_pll_clk, &codec_pll_clk, &perip
 
 static struct clk aclk_lcdc = {
 	.name		= "aclk_lcdc",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_LCDC_AXI,
 	.recalc		= clksel_recalc_div,
 	.set_rate	= clksel_set_rate_div,
 	.clksel_con	= CRU_CLKSEL16_CON,
@@ -1243,6 +1247,8 @@ static struct clk aclk_lcdc = {
 
 static struct clk hclk_lcdc = {
 	.name		= "hclk_lcdc",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_LCDC_AHB,
 	.parent		= &aclk_lcdc,
 	.clksel_con	= CRU_CLKSEL16_CON,
 	.recalc		= clksel_recalc_shift,
