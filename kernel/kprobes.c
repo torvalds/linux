@@ -427,25 +427,13 @@ static void kprobe_optimizer(struct work_struct *work);
 static DECLARE_DELAYED_WORK(optimizing_work, kprobe_optimizer);
 #define OPTIMIZE_DELAY 5
 
-/* Kprobe jump optimizer */
-static __kprobes void kprobe_optimizer(struct work_struct *work)
+/*
+ * Optimize (replace a breakpoint with a jump) kprobes listed on
+ * optimizing_list.
+ */
+static __kprobes void do_optimize_kprobes(void)
 {
 	struct optimized_kprobe *op, *tmp;
-
-	/* Lock modules while optimizing kprobes */
-	mutex_lock(&module_mutex);
-	mutex_lock(&kprobe_mutex);
-	if (kprobes_all_disarmed || !kprobes_allow_optimization)
-		goto end;
-
-	/*
-	 * Wait for quiesence period to ensure all running interrupts
-	 * are done. Because optprobe may modify multiple instructions
-	 * there is a chance that Nth instruction is interrupted. In that
-	 * case, running interrupt can return to 2nd-Nth byte of jump
-	 * instruction. This wait is for avoiding it.
-	 */
-	synchronize_sched();
 
 	/*
 	 * The optimization/unoptimization refers online_cpus via
@@ -467,6 +455,27 @@ static __kprobes void kprobe_optimizer(struct work_struct *work)
 	}
 	mutex_unlock(&text_mutex);
 	put_online_cpus();
+}
+
+/* Kprobe jump optimizer */
+static __kprobes void kprobe_optimizer(struct work_struct *work)
+{
+	/* Lock modules while optimizing kprobes */
+	mutex_lock(&module_mutex);
+	mutex_lock(&kprobe_mutex);
+	if (kprobes_all_disarmed || !kprobes_allow_optimization)
+		goto end;
+
+	/*
+	 * Wait for quiesence period to ensure all running interrupts
+	 * are done. Because optprobe may modify multiple instructions
+	 * there is a chance that Nth instruction is interrupted. In that
+	 * case, running interrupt can return to 2nd-Nth byte of jump
+	 * instruction. This wait is for avoiding it.
+	 */
+	synchronize_sched();
+
+	do_optimize_kprobes();
 end:
 	mutex_unlock(&kprobe_mutex);
 	mutex_unlock(&module_mutex);
