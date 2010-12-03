@@ -18,7 +18,6 @@
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
-#include <asm/localtimer.h>
 #include <asm/smp_scu.h>
 #include <mach/hardware.h>
 
@@ -138,19 +137,9 @@ void __init smp_init_cpus(void)
 		set_cpu_possible(i, true);
 }
 
-void __init smp_prepare_cpus(unsigned int max_cpus)
+void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 {
-	unsigned int ncores = num_possible_cpus();
-	unsigned int cpu = smp_processor_id();
 	int i;
-
-	smp_store_cpu_info(cpu);
-
-	/*
-	 * are we trying to boot more cores than exist?
-	 */
-	if (max_cpus > ncores)
-		max_cpus = ncores;
 
 	/*
 	 * Initialise the present map, which describes the set of CPUs
@@ -159,13 +148,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	for (i = 0; i < max_cpus; i++)
 		set_cpu_present(i, true);
 
-	if (max_cpus > 1) {
-		/*
-		 * Enable the local timer or broadcast device for the
-		 * boot CPU, but only if we have more than one CPU.
-		 */
-		percpu_timer_setup();
-		scu_enable(__io_address(UX500_SCU_BASE));
-		wakeup_secondary();
-	}
+	scu_enable(__io_address(UX500_SCU_BASE));
+	wakeup_secondary();
 }

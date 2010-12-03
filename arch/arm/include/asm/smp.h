@@ -45,10 +45,6 @@ asmlinkage void do_IPI(int ipinr, struct pt_regs *regs);
  */
 extern void smp_init_cpus(void);
 
-/*
- * Move global data into per-processor storage.
- */
-extern void smp_store_cpu_info(unsigned int cpuid);
 
 /*
  * Raise an IPI cross call on CPUs in callmap.
@@ -71,6 +67,11 @@ asmlinkage void secondary_start_kernel(void);
  * Perform platform specific initialisation of the specified CPU.
  */
 extern void platform_secondary_init(unsigned int cpu);
+
+/*
+ * Initialize cpu_possible map, and enable coherency
+ */
+extern void platform_smp_prepare_cpus(unsigned int);
 
 /*
  * Initial data for bringing up a secondary CPU.

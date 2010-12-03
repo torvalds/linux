@@ -282,6 +282,17 @@ void __ref cpu_die(void)
 #endif /* CONFIG_HOTPLUG_CPU */
 
 /*
+ * Called by both boot and secondaries to move global data into
+ * per-processor storage.
+ */
+static void __cpuinit smp_store_cpu_info(unsigned int cpuid)
+{
+	struct cpuinfo_arm *cpu_info = &per_cpu(cpu_data, cpuid);
+
+	cpu_info->loops_per_jiffy = loops_per_jiffy;
+}
+
+/*
  * This is the secondary CPU boot entry.  We're using this CPUs
  * idle thread stack, but a set of temporary page tables.
  */
@@ -339,17 +350,6 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	cpu_idle();
 }
 
-/*
- * Called by both boot and secondaries to move global data into
- * per-processor storage.
- */
-void __cpuinit smp_store_cpu_info(unsigned int cpuid)
-{
-	struct cpuinfo_arm *cpu_info = &per_cpu(cpu_data, cpuid);
-
-	cpu_info->loops_per_jiffy = loops_per_jiffy;
-}
-
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	int cpu;
@@ -370,6 +370,33 @@ void __init smp_prepare_boot_cpu(void)
 	unsigned int cpu = smp_processor_id();
 
 	per_cpu(cpu_data, cpu).idle = current;
+}
+
+void __init smp_prepare_cpus(unsigned int max_cpus)
+{
+	unsigned int ncores = num_possible_cpus();
+
+	smp_store_cpu_info(smp_processor_id());
+
+	/*
+	 * are we trying to boot more cores than exist?
+	 */
+	if (max_cpus > ncores)
+		max_cpus = ncores;
+
+	if (max_cpus > 1) {
+		/*
+		 * Enable the local timer or broadcast device for the
+		 * boot CPU, but only if we have more than one CPU.
+		 */
+		percpu_timer_setup();
+
+		/*
+		 * Initialise the SCU if there are more than one CPU
+		 * and let them know where to start.
+		 */
+		platform_smp_prepare_cpus(max_cpus);
+	}
 }
 
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
