@@ -120,16 +120,6 @@ void __init smp_init_cpus(void)
 
 	ncores = get_core_count();
 
-	for (i = 0; i < ncores; i++)
-		set_cpu_possible(i, true);
-}
-
-void __init smp_prepare_cpus(unsigned int max_cpus)
-{
-	unsigned int ncores = get_core_count();
-	unsigned int cpu = smp_processor_id();
-	int i;
-
 	/* sanity check */
 	if (ncores == 0) {
 		printk(KERN_ERR
@@ -144,6 +134,17 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		       ncores, NR_CPUS);
 		ncores = NR_CPUS;
 	}
+
+	for (i = 0; i < ncores; i++)
+		set_cpu_possible(i, true);
+}
+
+void __init smp_prepare_cpus(unsigned int max_cpus)
+{
+	unsigned int ncores = num_possible_cpus();
+	unsigned int cpu = smp_processor_id();
+	int i;
+
 	smp_store_cpu_info(cpu);
 
 	/*

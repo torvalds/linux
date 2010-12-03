@@ -128,16 +128,6 @@ void __init smp_init_cpus(void)
 {
 	unsigned int i, ncores = get_core_count();
 
-	for (i = 0; i < ncores; i++)
-		set_cpu_possible(i, true);
-}
-
-void __init smp_prepare_cpus(unsigned int max_cpus)
-{
-	unsigned int ncores = get_core_count();
-	unsigned int cpu = smp_processor_id();
-	int i;
-
 	/* sanity check */
 	if (ncores == 0) {
 		printk(KERN_ERR
@@ -145,13 +135,23 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		ncores = 1;
 	}
 
-	if (ncores > num_possible_cpus())	{
+	if (ncores > NR_CPUS) {
 		printk(KERN_WARNING
 		       "U8500: no. of cores (%d) greater than configured "
 		       "maximum of %d - clipping\n",
-		       ncores, num_possible_cpus());
-		ncores = num_possible_cpus();
+		       ncores, NR_CPUS);
+		ncores = NR_CPUS;
 	}
+
+	for (i = 0; i < ncores; i++)
+		set_cpu_possible(i, true);
+}
+
+void __init smp_prepare_cpus(unsigned int max_cpus)
+{
+	unsigned int ncores = num_possible_cpus();
+	unsigned int cpu = smp_processor_id();
+	int i;
 
 	smp_store_cpu_info(cpu);
 
