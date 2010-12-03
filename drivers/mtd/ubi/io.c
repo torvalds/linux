@@ -480,6 +480,13 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	size_t written;
 	loff_t addr;
 	uint32_t data = 0;
+	/*
+	 * Note, we cannot generally define VID header buffers on stack,
+	 * because of the way we deal with these buffers (see the header
+	 * comment in this file). But we know this is a NOR-specific piece of
+	 * code, so we can do this. But yes, this is error-prone and we should
+	 * (pre-)allocate VID header buffer instead.
+	 */
 	struct ubi_vid_hdr vid_hdr;
 
 	/*
