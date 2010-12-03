@@ -530,6 +530,11 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+
+	ifmsh->mesh_id_len = 0;
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
+	sta_info_flush(local, NULL);
 
 	del_timer_sync(&sdata->u.mesh.housekeeping_timer);
 	del_timer_sync(&sdata->u.mesh.mesh_path_root_timer);
@@ -674,27 +679,6 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 		    ieee80211_mesh_housekeeping_timer,
 		    (unsigned long) sdata);
 
-	ifmsh->mshcfg.dot11MeshRetryTimeout = MESH_RET_T;
-	ifmsh->mshcfg.dot11MeshConfirmTimeout = MESH_CONF_T;
-	ifmsh->mshcfg.dot11MeshHoldingTimeout = MESH_HOLD_T;
-	ifmsh->mshcfg.dot11MeshMaxRetries = MESH_MAX_RETR;
-	ifmsh->mshcfg.dot11MeshTTL = MESH_TTL;
-	ifmsh->mshcfg.element_ttl = MESH_DEFAULT_ELEMENT_TTL;
-	ifmsh->mshcfg.auto_open_plinks = true;
-	ifmsh->mshcfg.dot11MeshMaxPeerLinks =
-		MESH_MAX_ESTAB_PLINKS;
-	ifmsh->mshcfg.dot11MeshHWMPactivePathTimeout =
-		MESH_PATH_TIMEOUT;
-	ifmsh->mshcfg.dot11MeshHWMPpreqMinInterval =
-		MESH_PREQ_MIN_INT;
-	ifmsh->mshcfg.dot11MeshHWMPnetDiameterTraversalTime =
-		MESH_DIAM_TRAVERSAL_TIME;
-	ifmsh->mshcfg.dot11MeshHWMPmaxPREQretries =
-		MESH_MAX_PREQ_RETRIES;
-	ifmsh->mshcfg.path_refresh_time =
-		MESH_PATH_REFRESH_TIME;
-	ifmsh->mshcfg.min_discovery_timeout =
-		MESH_MIN_DISCOVERY_TIMEOUT;
 	ifmsh->accepting_plinks = true;
 	ifmsh->preq_id = 0;
 	ifmsh->sn = 0;

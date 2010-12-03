@@ -246,7 +246,8 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 					!!sdata->u.ibss.presp;
 				break;
 			case NL80211_IFTYPE_MESH_POINT:
-				sdata->vif.bss_conf.enable_beacon = true;
+				sdata->vif.bss_conf.enable_beacon =
+					!!sdata->u.mesh.mesh_id_len;
 				break;
 			default:
 				/* not reached */

@@ -285,6 +285,19 @@ void __cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid);
 int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 			    struct wireless_dev *wdev);
 
+/* mesh */
+extern const struct mesh_config default_mesh_config;
+int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
+			 struct net_device *dev,
+			 const u8 *mesh_id, u8 mesh_id_len,
+			 const struct mesh_config *conf);
+int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
+		       struct net_device *dev,
+		       const u8 *mesh_id, u8 mesh_id_len,
+		       const struct mesh_config *conf);
+int cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
+			struct net_device *dev);
+
 /* MLME */
 int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev,

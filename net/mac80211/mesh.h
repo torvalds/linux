@@ -175,32 +175,9 @@ struct mesh_rmc {
  */
 #define MESH_CFG_CMP_LEN 	(IEEE80211_MESH_CONFIG_LEN - 2)
 
-/* Default values, timeouts in ms */
-#define MESH_TTL 		31
-#define MESH_MAX_RETR	 	3
-#define MESH_RET_T 		100
-#define MESH_CONF_T 		100
-#define MESH_HOLD_T 		100
-
-#define MESH_PATH_TIMEOUT	5000
-/* Minimum interval between two consecutive PREQs originated by the same
- * interface
- */
-#define MESH_PREQ_MIN_INT	10
-#define MESH_DIAM_TRAVERSAL_TIME 50
-/* A path will be refreshed if it is used PATH_REFRESH_TIME milliseconds before
- * timing out.  This way it will remain ACTIVE and no data frames will be
- * unnecesarily held in the pending queue.
- */
-#define MESH_PATH_REFRESH_TIME			1000
-#define MESH_MIN_DISCOVERY_TIMEOUT (2 * MESH_DIAM_TRAVERSAL_TIME)
 #define MESH_DEFAULT_BEACON_INTERVAL		1000 	/* in 1024 us units */
 
-#define MESH_MAX_PREQ_RETRIES 4
 #define MESH_PATH_EXPIRE (600 * HZ)
-
-/* Default maximum number of established plinks per interface */
-#define MESH_MAX_ESTAB_PLINKS	32
 
 /* Default maximum number of plinks per interface */
 #define MESH_MAX_PLINKS		256
@@ -215,8 +192,6 @@ struct mesh_rmc {
 #define PEER_RCODE_UNSPECIFIED  11
 #define PERR_RCODE_NO_ROUTE     12
 #define PERR_RCODE_DEST_UNREACH 13
-
-#define MESH_DEFAULT_ELEMENT_TTL 31
 
 /* Public interfaces */
 /* Various */

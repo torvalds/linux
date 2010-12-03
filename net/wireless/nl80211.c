@@ -661,13 +661,14 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	CMD(add_beacon, NEW_BEACON);
 	CMD(add_station, NEW_STATION);
 	CMD(add_mpath, NEW_MPATH);
-	CMD(set_mesh_params, SET_MESH_PARAMS);
+	CMD(update_mesh_params, SET_MESH_PARAMS);
 	CMD(change_bss, SET_BSS);
 	CMD(auth, AUTHENTICATE);
 	CMD(assoc, ASSOCIATE);
 	CMD(deauth, DEAUTHENTICATE);
 	CMD(disassoc, DISASSOCIATE);
 	CMD(join_ibss, JOIN_IBSS);
+	CMD(join_mesh, JOIN_MESH);
 	CMD(set_pmksa, SET_PMKSA);
 	CMD(del_pmksa, DEL_PMKSA);
 	CMD(flush_pmksa, FLUSH_PMKSA);
@@ -1324,11 +1325,21 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[NL80211_ATTR_MESH_ID]) {
+		struct wireless_dev *wdev = dev->ieee80211_ptr;
+
 		if (ntype != NL80211_IFTYPE_MESH_POINT)
 			return -EINVAL;
-		params.mesh_id = nla_data(info->attrs[NL80211_ATTR_MESH_ID]);
-		params.mesh_id_len = nla_len(info->attrs[NL80211_ATTR_MESH_ID]);
-		change = true;
+		if (netif_running(dev))
+			return -EBUSY;
+
+		wdev_lock(wdev);
+		BUILD_BUG_ON(IEEE80211_MAX_SSID_LEN !=
+			     IEEE80211_MAX_MESH_ID_LEN);
+		wdev->mesh_id_up_len =
+			nla_len(info->attrs[NL80211_ATTR_MESH_ID]);
+		memcpy(wdev->ssid, nla_data(info->attrs[NL80211_ATTR_MESH_ID]),
+		       wdev->mesh_id_up_len);
+		wdev_unlock(wdev);
 	}
 
 	if (info->attrs[NL80211_ATTR_4ADDR]) {
@@ -1388,12 +1399,6 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 	    !(rdev->wiphy.interface_modes & (1 << type)))
 		return -EOPNOTSUPP;
 
-	if (type == NL80211_IFTYPE_MESH_POINT &&
-	    info->attrs[NL80211_ATTR_MESH_ID]) {
-		params.mesh_id = nla_data(info->attrs[NL80211_ATTR_MESH_ID]);
-		params.mesh_id_len = nla_len(info->attrs[NL80211_ATTR_MESH_ID]);
-	}
-
 	if (info->attrs[NL80211_ATTR_4ADDR]) {
 		params.use_4addr = !!nla_get_u8(info->attrs[NL80211_ATTR_4ADDR]);
 		err = nl80211_valid_4addr(rdev, NULL, params.use_4addr, type);
@@ -1409,6 +1414,20 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 		type, err ? NULL : &flags, &params);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
+
+	if (type == NL80211_IFTYPE_MESH_POINT &&
+	    info->attrs[NL80211_ATTR_MESH_ID]) {
+		struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+		wdev_lock(wdev);
+		BUILD_BUG_ON(IEEE80211_MAX_SSID_LEN !=
+			     IEEE80211_MAX_MESH_ID_LEN);
+		wdev->mesh_id_up_len =
+			nla_len(info->attrs[NL80211_ATTR_MESH_ID]);
+		memcpy(wdev->ssid, nla_data(info->attrs[NL80211_ATTR_MESH_ID]),
+		       wdev->mesh_id_up_len);
+		wdev_unlock(wdev);
+	}
 
 	return 0;
 }
@@ -2543,21 +2562,32 @@ static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
 }
 
 static int nl80211_get_mesh_params(struct sk_buff *skb,
-	struct genl_info *info)
+				   struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
-	struct mesh_config cur_params;
-	int err;
 	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct mesh_config cur_params;
+	int err = 0;
 	void *hdr;
 	struct nlattr *pinfoattr;
 	struct sk_buff *msg;
 
+	if (wdev->iftype != NL80211_IFTYPE_MESH_POINT)
+		return -EOPNOTSUPP;
+
 	if (!rdev->ops->get_mesh_params)
 		return -EOPNOTSUPP;
 
-	/* Get the mesh params */
-	err = rdev->ops->get_mesh_params(&rdev->wiphy, dev, &cur_params);
+	wdev_lock(wdev);
+	/* If not connected, get default parameters */
+	if (!wdev->mesh_id_len)
+		memcpy(&cur_params, &default_mesh_config, sizeof(cur_params));
+	else
+		err = rdev->ops->get_mesh_params(&rdev->wiphy, dev,
+						 &cur_params);
+	wdev_unlock(wdev);
+
 	if (err)
 		return err;
 
@@ -2705,23 +2735,37 @@ do {\
 #undef FILL_IN_MESH_PARAM_IF_SET
 }
 
-static int nl80211_set_mesh_params(struct sk_buff *skb, struct genl_info *info)
+static int nl80211_update_mesh_params(struct sk_buff *skb,
+				      struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct mesh_config cfg;
 	u32 mask;
 	int err;
 
-	if (!rdev->ops->set_mesh_params)
+	if (wdev->iftype != NL80211_IFTYPE_MESH_POINT)
+		return -EOPNOTSUPP;
+
+	if (!rdev->ops->update_mesh_params)
 		return -EOPNOTSUPP;
 
 	err = nl80211_parse_mesh_params(info, &cfg, &mask);
 	if (err)
 		return err;
 
-	/* Apply changes */
-	return rdev->ops->set_mesh_params(&rdev->wiphy, dev, &cfg, mask);
+	wdev_lock(wdev);
+	if (!wdev->mesh_id_len)
+		err = -ENOLINK;
+
+	if (!err)
+		err = rdev->ops->update_mesh_params(&rdev->wiphy, dev,
+						    mask, &cfg);
+
+	wdev_unlock(wdev);
+
+	return err;
 }
 
 static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
@@ -4505,6 +4549,41 @@ out:
 	return err;
 }
 
+static int nl80211_join_mesh(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct mesh_config cfg;
+	int err;
+
+	/* start with default */
+	memcpy(&cfg, &default_mesh_config, sizeof(cfg));
+
+	if (info->attrs[NL80211_ATTR_MESH_PARAMS]) {
+		/* and parse parameters if given */
+		err = nl80211_parse_mesh_params(info, &cfg, NULL);
+		if (err)
+			return err;
+	}
+
+	if (!info->attrs[NL80211_ATTR_MESH_ID] ||
+	    !nla_len(info->attrs[NL80211_ATTR_MESH_ID]))
+		return -EINVAL;
+
+	return cfg80211_join_mesh(rdev, dev,
+				  nla_data(info->attrs[NL80211_ATTR_MESH_ID]),
+				  nla_len(info->attrs[NL80211_ATTR_MESH_ID]),
+				  &cfg);
+}
+
+static int nl80211_leave_mesh(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+
+	return cfg80211_leave_mesh(rdev, dev);
+}
+
 #define NL80211_FLAG_NEED_WIPHY		0x01
 #define NL80211_FLAG_NEED_NETDEV	0x02
 #define NL80211_FLAG_NEED_RTNL		0x04
@@ -4769,10 +4848,10 @@ static struct genl_ops nl80211_ops[] = {
 	},
 	{
 		.cmd = NL80211_CMD_SET_MESH_PARAMS,
-		.doit = nl80211_set_mesh_params,
+		.doit = nl80211_update_mesh_params,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -4985,6 +5064,22 @@ static struct genl_ops nl80211_ops[] = {
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+				  NL80211_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL80211_CMD_JOIN_MESH,
+		.doit = nl80211_join_mesh,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
+				  NL80211_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL80211_CMD_LEAVE_MESH,
+		.doit = nl80211_leave_mesh,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 };

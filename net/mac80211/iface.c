@@ -268,9 +268,7 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 				goto err_stop;
 		}
 
-		if (ieee80211_vif_is_mesh(&sdata->vif)) {
-			ieee80211_start_mesh(sdata);
-		} else if (sdata->vif.type == NL80211_IFTYPE_AP) {
+		if (sdata->vif.type == NL80211_IFTYPE_AP) {
 			local->fif_pspoll++;
 			local->fif_probe_req++;
 
@@ -495,10 +493,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		ieee80211_adjust_monitor_flags(sdata, -1);
 		ieee80211_configure_filter(local);
 		break;
-	case NL80211_IFTYPE_MESH_POINT:
-		if (ieee80211_vif_is_mesh(&sdata->vif))
-			ieee80211_stop_mesh(sdata);
-		/* fall through */
 	default:
 		flush_work(&sdata->work);
 		/*
@@ -1187,12 +1181,6 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	ret = register_netdevice(ndev);
 	if (ret)
 		goto fail;
-
-	if (ieee80211_vif_is_mesh(&sdata->vif) &&
-	    params && params->mesh_id_len)
-		ieee80211_sdata_set_mesh_id(sdata,
-					    params->mesh_id_len,
-					    params->mesh_id);
 
 	mutex_lock(&local->iflist_mtx);
 	list_add_tail_rcu(&sdata->list, &local->interfaces);
