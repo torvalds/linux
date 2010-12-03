@@ -53,9 +53,6 @@
 
 #include "./display/screen/screen.h"
 
-
-#define CURSOR_BUF_SIZE         256     //rk29 cursor need 256B buf
-
 #if 1
 	#define fbprintk(msg...)	printk(msg);
 #else
@@ -125,7 +122,8 @@ struct rk29fb_inf {
     struct clk      *dclk;            //lcdc dclk
     struct clk      *dclk_parent;     //lcdc dclk divider frequency source
     struct clk      *dclk_divider;    //lcdc demodulator divider frequency
-    struct clk      *clk_share_mem;   //lcdc share memory frequency
+    struct clk      *aclk;   //lcdc share memory frequency
+    struct clk      *aclk_parent;     //lcdc aclk divider frequency source
     unsigned long	dclk_rate;
 
     /* lcdc reg base address and backup reg */
@@ -208,7 +206,7 @@ void set_lcd_pin(struct platform_device *pdev, int enable)
     // set display_on
 
     if(display_on != INVALID_GPIO)
-        {
+    {
         gpio_direction_output(display_on, 0);
 		gpio_set_value(display_on, enable ? display_on_pol : !display_on_pol);
     }
@@ -217,6 +215,20 @@ void set_lcd_pin(struct platform_device *pdev, int enable)
         gpio_direction_output(lcd_standby, 0);
 		gpio_set_value(lcd_standby, enable ? lcd_standby_pol : !lcd_standby_pol);
     }
+
+ /********* open backlight just for test ***************/
+    rk29_mux_api_set(GPIO1B5_PWM0_NAME, 0);
+    if(0 != gpio_request(RK29_PIN1_PB5, NULL))
+    {
+        gpio_free(RK29_PIN1_PB5);
+        printk(">>>>>> RK29_PIN1_PB5 gpio_request err \n ");
+    }
+    gpio_direction_output(RK29_PIN1_PB5, GPIO_HIGH);
+    gpio_set_value(RK29_PIN1_PB5, GPIO_HIGH);
+    gpio_direction_output(RK29_PIN1_PB5, GPIO_HIGH);
+    printk("P1B5 High \n");
+/************************/
+
 }
 
 int mcu_do_refresh(struct rk29fb_inf *inf)
@@ -424,6 +436,9 @@ void load_screen(struct fb_info *info, bool initscreen)
     u16 x_res = screen->x_res, y_res = screen->y_res;
     u32 clk_rate = 0;
     u32 dclk_rate = 0;
+    u32 aclk_rate = 150000000;
+
+    if(!g_pdev)     return -1;
 
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
@@ -487,34 +502,85 @@ void load_screen(struct fb_info *info, bool initscreen)
 	// let above to take effect
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
 
+    inf->clk = clk_get(&g_pdev->dev, "hclk_lcdc");
+    if (!inf->clk || IS_ERR(inf->clk))
+    {
+        printk(KERN_ERR "failed to get lcdc_hclk source\n");
+        return ;
+    }
+
+    inf->dclk = clk_get(&g_pdev->dev, "dclk_lcdc");
+	if (!inf->dclk || IS_ERR(inf->dclk))
+    {
+		printk(KERN_ERR "failed to get lcd dclock source\n");
+		return ;
+	}
+    inf->dclk_divider= clk_get(&g_pdev->dev, "dclk_lcdc_div");
+    if (!inf->dclk_divider || IS_ERR(inf->dclk_divider))
+    {
+		printk(KERN_ERR "failed to get lcd clock lcdc_divider source \n");
+		return ;
+	}
+
+    if(inf->cur_screen == &inf->lcd_info)    {
+        inf->dclk_parent = clk_get(&g_pdev->dev, "periph_pll");
+    }    else    {
+        inf->dclk_parent = clk_get(&g_pdev->dev, "codec_pll");
+    }
+
+    if (!inf->dclk_parent || IS_ERR(inf->dclk_parent))
+    {
+		printk(KERN_ERR "failed to get lcd dclock parent source\n");
+		return ;
+	}
+
+    inf->aclk = clk_get(&g_pdev->dev, "aclk_lcdc");
+    if (!inf->aclk || IS_ERR(inf->aclk))
+    {
+		printk(KERN_ERR "failed to get lcd clock clk_share_mem source \n");
+		return ;
+	}
+    inf->aclk_parent = clk_get(&g_pdev->dev, "periph_pll");
+    if (!inf->dclk_parent || IS_ERR(inf->dclk_parent))
+    {
+		printk(KERN_ERR "failed to get lcd dclock parent source\n");
+		return ;
+	}
+
     // set lcdc clk
     if(SCREEN_MCU==screen->type)    screen->pixclock = 150; //mcu fix to 150 MHz
 
     clk_set_parent(inf->dclk_divider, inf->dclk_parent);
     clk_set_parent(inf->dclk, inf->dclk_divider);
+    clk_set_parent(inf->aclk, inf->aclk_parent);
 
     dclk_rate = screen->pixclock * 1000000;
 
     fbprintk(">>>>>> set lcdc dclk need %d HZ, clk_parent = %d hz \n ", screen->pixclock, clk_rate);
 
-#if 0
     ret = clk_set_rate(inf->dclk_divider, dclk_rate);
-
     if(ret)
     {
+        printk(KERN_ERR ">>>>>> set lcdc dclk_divider faild \n ");
+    }
+    if(screen->lcdc_aclk){
+        aclk_rate = screen->lcdc_aclk * 1000000;
+    }
+    ret = clk_set_rate(inf->aclk, aclk_rate);
+    if(ret){
         printk(KERN_ERR ">>>>>> set lcdc dclk_divider faild \n ");
     }
 
     clk_enable(inf->dclk);
     clk_enable(inf->clk);
-    clk_enable(inf->clk_share_mem);
-#endif
+    clk_enable(inf->aclk);
 
     // init screen panel
     if(screen->init && initscreen)
     {
     	screen->init();
     }
+
 }
 #ifdef CONFIG_CPU_FREQ
 /*
@@ -1246,7 +1312,6 @@ static int win1fb_set_par(struct fb_info *info)
     struct fb_fix_screeninfo *fix = &info->fix;
     struct rk29fb_screen *screen = inf->cur_screen;
 
-
     u8 format = 0;
     dma_addr_t map_dma;
     u32 offset=0, addr=0, map_size=0, smem_len=0;
@@ -1283,9 +1348,8 @@ static int win1fb_set_par(struct fb_info *info)
         break;
     }
 
-    smem_len = fix->line_length * var->yres_virtual + CURSOR_BUF_SIZE;   //cursor buf also alloc here
+    smem_len = fix->line_length * var->yres_virtual;   //cursor buf also alloc here
     map_size = PAGE_ALIGN(smem_len);
-
 
     if (smem_len != fix->smem_len)     // buffer need realloc
     {
@@ -1315,7 +1379,6 @@ static int win1fb_set_par(struct fb_info *info)
     }
 
     addr = fix->smem_start + offset;
-
 
     LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE|m_W1_FORMAT, v_W1_ENABLE(1)|v_W1_FORMAT(format));
 
@@ -1708,18 +1771,6 @@ static int __init rk29fb_probe (struct platform_device *pdev)
     }
     inf->preg = (LCDC_REG*)inf->reg_vir_base;
 
-    if(0)
-    {
-        struct resource *rtc_mem = NULL;
-        u32 rtc_reg_vir_base = NULL;
-        rtc_mem = request_mem_region(RK29_RTC_PHYS, RK29_RTC_SIZE, NULL);
-        rtc_reg_vir_base = (u32)ioremap(RK29_RTC_PHYS, RK29_RTC_SIZE);
-        u32 rtc_reg = __raw_readl(rtc_reg_vir_base+0x04);
-        __raw_writel( rtc_reg | 0x02, rtc_reg_vir_base+0x04 );
-        rtc_reg = __raw_readl(rtc_reg_vir_base+0x04);
-    }
-
-
     /* Prepare win1 info */
     fbprintk(">> Prepare win1 info \n");
    	inf->win1fb = framebuffer_alloc(sizeof(struct win1_par), &pdev->dev);
@@ -1837,50 +1888,12 @@ static int __init rk29fb_probe (struct platform_device *pdev)
  	/* because after register_framebuffer, the win1fb_check_par and winfb_set_par execute immediately */
  	fbprintk(">> Init all lcdc and lcd before register_framebuffer \n");
     init_lcdc(inf->win1fb);
-#if 0
-    inf->clk = clk_get(&pdev->dev, "lcdc_hclk");
-    if (!inf->clk || IS_ERR(inf->clk))
-    {
-        printk(KERN_ERR "failed to get lcdc_hclk source\n");
-        ret = -ENOENT;
-        goto unregister_win1fb;
-    }
 
-    inf->dclk = clk_get(&pdev->dev, "lcdc");
-	if (!inf->dclk || IS_ERR(inf->dclk))
-    {
-		printk(KERN_ERR "failed to get lcd dclock source\n");
-		ret = -ENOENT;
-		goto unregister_win1fb;
-	}
-    inf->dclk_parent = clk_get(&pdev->dev, "arm_pll");
-    if (!inf->dclk_parent || IS_ERR(inf->dclk_parent))
-    {
-		printk(KERN_ERR "failed to get lcd dclock parent source\n");
-		ret = -ENOENT;
-		goto unregister_win1fb;
-	}
-    inf->dclk_divider= clk_get(&pdev->dev, "lcdc_divider");
-    if (!inf->dclk_divider || IS_ERR(inf->dclk_divider))
-    {
-		printk(KERN_ERR "failed to get lcd clock lcdc_divider source \n");
-		ret = -ENOENT;
-		goto unregister_win1fb;
-	}
-
-    inf->clk_share_mem = clk_get(&pdev->dev, "lcdc_share_memory");
-    if (!inf->clk_share_mem || IS_ERR(inf->clk_share_mem))
-    {
-		dev_err(&pdev->dev,  "failed to get lcd clock clk_share_mem source \n");
-		ret = -ENOENT;
-		goto unregister_win1fb;
-	}
   #ifdef CONFIG_CPU_FREQ
-    inf->freq_transition.notifier_call = rk29fb_freq_transition;
-    cpufreq_register_notifier(&inf->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
+   // inf->freq_transition.notifier_call = rk29fb_freq_transition;
+   // cpufreq_register_notifier(&inf->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
   #endif
 	fbprintk("got clock\n");
-#endif
 
 	if(mach_info)
     {
@@ -1908,7 +1921,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
         mach_info->io_init(&fb_setting);
     }
 
-	//set_lcd_pin(pdev, 1);
+	set_lcd_pin(pdev, 1);
 	mdelay(10);
 	g_pdev = pdev;
 	inf->mcu_usetimer = 1;

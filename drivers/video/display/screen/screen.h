@@ -61,6 +61,7 @@ struct rk29fb_screen {
 	u8 pin_vsync;
 	u8 pin_den;
 	u8 pin_dclk;
+    u8 lcdc_aclk;
 	u8 pin_dispon;
 
 	/* Swap rule */
