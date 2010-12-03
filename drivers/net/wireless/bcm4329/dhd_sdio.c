@@ -2786,23 +2786,24 @@ dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	dhd_timeout_t tmo;
 	uint retries = 0;
 	uint8 ready, enable;
-	int err, ret = 0;
+	int err, ret = BCME_ERROR;
 	uint8 saveclk;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
 	ASSERT(bus->dhd);
 	if (!bus->dhd)
-		return 0;
+		return BCME_OK;
 
 	if (enforce_mutex)
 		dhd_os_sdlock(bus->dhd);
 
 	/* Make sure backplane clock is on, needed to generate F2 interrupt */
-	dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
-	if (bus->clkstate != CLK_AVAIL)
+	err = dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
+	if ((err != BCME_OK) || (bus->clkstate != CLK_AVAIL)) {
+		DHD_ERROR(("%s: Failed to set backplane clock: err %d\n", __FUNCTION__, err));
 		goto exit;
-
+	}
 
 	/* Force clocks on backplane to be sure F2 interrupt propagates */
 	saveclk = bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR, &err);
@@ -2877,6 +2878,7 @@ dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	if (dhdp->busstate != DHD_BUS_DATA)
 		dhdsdio_clkctl(bus, CLK_NONE, FALSE);
 
+	ret = BCME_OK;
 exit:
 	if (enforce_mutex)
 		dhd_os_sdunlock(bus->dhd);
@@ -5840,23 +5842,25 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 					dhdsdio_download_firmware(bus, bus->dhd->osh, bus->sdh)) {
 
 					/* Re-init bus, enable F2 transfer */
-					dhd_bus_init((dhd_pub_t *) bus->dhd, FALSE);
-
+					bcmerror = dhd_bus_init((dhd_pub_t *) bus->dhd, FALSE);
+					if (bcmerror == BCME_OK) {
 #if defined(OOB_INTR_ONLY)
-					dhd_enable_oob_intr(bus, TRUE);
+						dhd_enable_oob_intr(bus, TRUE);
 #endif /* defined(OOB_INTR_ONLY) */
-
-					bus->dhd->dongle_reset = FALSE;
-					bus->dhd->up = TRUE;
-
+						bus->dhd->dongle_reset = FALSE;
+						bus->dhd->up = TRUE;
 #if !defined(IGNORE_ETH0_DOWN)
-					/* Restore flow control  */
-					dhd_txflowcontrol(bus->dhd, 0, OFF);
+						/* Restore flow control  */
+						dhd_txflowcontrol(bus->dhd, 0, OFF);
 #endif
-					/* Turning on watchdog back */
-					dhd_os_wd_timer(dhdp, dhd_watchdog_ms);
+						/* Turning on watchdog back */
+						dhd_os_wd_timer(dhdp, dhd_watchdog_ms);
 
-					DHD_TRACE(("%s: WLAN ON DONE\n", __FUNCTION__));
+						DHD_TRACE(("%s: WLAN ON DONE\n", __FUNCTION__));
+					} else {
+						dhd_bus_stop(bus, FALSE);
+						dhdsdio_release_dongle(bus, bus->dhd->osh);
+					}
 				} else
 					bcmerror = BCME_SDIO_ERROR;
 			} else

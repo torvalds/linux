@@ -1532,13 +1532,13 @@ wl_control_wl_start(struct net_device *dev)
 
 		ret = dhd_dev_reset(dev, 0);
 
+		if (ret == BCME_OK) {
 #if defined(BCMLXSDMMC)
-		sdioh_start(NULL, 1);
+			sdioh_start(NULL, 1);
 #endif
-
-		dhd_dev_init_ioctl(dev);
-
-		g_onoff = G_WLAN_SET_ON;
+			dhd_dev_init_ioctl(dev);
+			g_onoff = G_WLAN_SET_ON;
+		}
 	}
 	WL_TRACE(("Exited %s \n", __FUNCTION__));
 
@@ -1624,10 +1624,10 @@ wl_iw_control_wl_on(
 
 	WL_TRACE(("Enter %s \n", __FUNCTION__));
 
-	if ((ret = wl_control_wl_start(dev)) == BCME_SDIO_ERROR) {
+	if ((ret = wl_control_wl_start(dev)) != BCME_OK) {
 		WL_ERROR(("%s failed first attemp\n", __FUNCTION__));
-		bcm_mdelay(100);
-		if ((ret = wl_control_wl_start(dev)) == BCME_SDIO_ERROR) {
+		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
+		if ((ret = wl_control_wl_start(dev)) != BCME_OK) {
 			WL_ERROR(("%s failed second attemp\n", __FUNCTION__));
 			net_os_send_hang_message(dev);
 			return ret;
