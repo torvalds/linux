@@ -188,6 +188,7 @@ static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 enum {
 	VMCB_INTERCEPTS, /* Intercept vectors, TSC offset,
 			    pause filter count */
+	VMCB_PERM_MAP,   /* IOPM Base and MSRPM Base */
 	VMCB_DIRTY_MAX,
 };
 
