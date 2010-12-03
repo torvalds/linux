@@ -42,16 +42,6 @@
 struct ifb_private {
 	struct tasklet_struct   ifb_tasklet;
 	int     tasklet_pending;
-	/* mostly debug stats leave in for now */
-	unsigned long   st_task_enter; /* tasklet entered */
-	unsigned long   st_txq_refl_try; /* transmit queue refill attempt */
-	unsigned long   st_rxq_enter; /* receive queue entered */
-	unsigned long   st_rx2tx_tran; /* receive to trasmit transfers */
-	unsigned long   st_rxq_notenter; /*receiveQ not entered, resched */
-	unsigned long   st_rx_frm_egr; /* received from egress path */
-	unsigned long   st_rx_frm_ing; /* received from ingress path */
-	unsigned long   st_rxq_check;
-	unsigned long   st_rxq_rsch;
 	struct sk_buff_head     rq;
 	struct sk_buff_head     tq;
 };
@@ -73,19 +63,14 @@ static void ri_tasklet(unsigned long dev)
 	struct sk_buff *skb;
 
 	txq = netdev_get_tx_queue(_dev, 0);
-	dp->st_task_enter++;
 	if ((skb = skb_peek(&dp->tq)) == NULL) {
-		dp->st_txq_refl_try++;
 		if (__netif_tx_trylock(txq)) {
-			dp->st_rxq_enter++;
 			while ((skb = skb_dequeue(&dp->rq)) != NULL) {
 				skb_queue_tail(&dp->tq, skb);
-				dp->st_rx2tx_tran++;
 			}
 			__netif_tx_unlock(txq);
 		} else {
 			/* reschedule */
-			dp->st_rxq_notenter++;
 			goto resched;
 		}
 	}
@@ -112,10 +97,8 @@ static void ri_tasklet(unsigned long dev)
 		skb->skb_iif = _dev->ifindex;
 
 		if (from & AT_EGRESS) {
-			dp->st_rx_frm_egr++;
 			dev_queue_xmit(skb);
 		} else if (from & AT_INGRESS) {
-			dp->st_rx_frm_ing++;
 			skb_pull(skb, skb->dev->hard_header_len);
 			netif_rx(skb);
 		} else
@@ -123,13 +106,11 @@ static void ri_tasklet(unsigned long dev)
 	}
 
 	if (__netif_tx_trylock(txq)) {
-		dp->st_rxq_check++;
 		if ((skb = skb_peek(&dp->rq)) == NULL) {
 			dp->tasklet_pending = 0;
 			if (netif_queue_stopped(_dev))
 				netif_wake_queue(_dev);
 		} else {
-			dp->st_rxq_rsch++;
 			__netif_tx_unlock(txq);
 			goto resched;
 		}
