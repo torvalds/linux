@@ -221,21 +221,6 @@ static void fsi_reg_mask_set(struct fsi_priv *fsi, u32 reg, u32 mask, u32 data)
 	__fsi_reg_mask_set((u32)(fsi->base + reg), mask, data);
 }
 
-static void fsi_master_write(struct fsi_master *master, u32 reg, u32 data)
-{
-	unsigned long flags;
-
-	if ((reg < MREG_START) ||
-	    (reg > MREG_END)) {
-		pr_err("fsi: register access err (%s)\n", __func__);
-		return;
-	}
-
-	spin_lock_irqsave(&master->lock, flags);
-	__fsi_reg_write((u32)(master->base + reg), data);
-	spin_unlock_irqrestore(&master->lock, flags);
-}
-
 static u32 fsi_master_read(struct fsi_master *master, u32 reg)
 {
 	u32 ret;
@@ -500,11 +485,6 @@ static u32 fsi_irq_get_status(struct fsi_master *master)
 	return fsi_master_read(master, master->core->int_st);
 }
 
-static void fsi_irq_clear_all_status(struct fsi_master *master)
-{
-	fsi_master_write(master, master->core->int_st, 0);
-}
-
 static void fsi_irq_clear_status(struct fsi_priv *fsi)
 {
 	u32 data = 0;
@@ -756,7 +736,8 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
 	if (int_st & AB_IO(1, BI_SHIFT))
 		fsi_data_pop(&master->fsib, 0);
 
-	fsi_irq_clear_all_status(master);
+	fsi_irq_clear_status(&master->fsia);
+	fsi_irq_clear_status(&master->fsib);
 
 	return IRQ_HANDLED;
 }
