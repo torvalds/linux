@@ -2111,6 +2111,11 @@ static struct hda_channel_mode cxt5066_modes[1] = {
 	{ 2, NULL },
 };
 
+#define HP_PRESENT_PORT_A	(1 << 0)
+#define HP_PRESENT_PORT_D	(1 << 1)
+#define hp_port_a_present(spec)	((spec)->hp_present & HP_PRESENT_PORT_A)
+#define hp_port_d_present(spec)	((spec)->hp_present & HP_PRESENT_PORT_D)
+
 static void cxt5066_update_speaker(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -2120,24 +2125,20 @@ static void cxt5066_update_speaker(struct hda_codec *codec)
 		    spec->hp_present, spec->cur_eapd);
 
 	/* Port A (HP) */
-	pinctl = ((spec->hp_present & 1) && spec->cur_eapd) ? PIN_HP : 0;
+	pinctl = (hp_port_a_present(spec) && spec->cur_eapd) ? PIN_HP : 0;
 	snd_hda_codec_write(codec, 0x19, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
 			pinctl);
 
 	/* Port D (HP/LO) */
-	if (spec->dell_automute) {
-		/* DELL AIO Port Rule: PortA>  PortD>  IntSpk */
-		pinctl = (!(spec->hp_present & 1) && spec->cur_eapd)
-			? PIN_OUT : 0;
-	} else if (spec->thinkpad) {
-		if (spec->cur_eapd)
-			pinctl = spec->port_d_mode;
-		/* Mute dock line-out if Port A (laptop HP) is present */
-		if (spec->hp_present&  1)
+	pinctl = spec->cur_eapd ? spec->port_d_mode : 0;
+	if (spec->dell_automute || spec->thinkpad) {
+		/* Mute if Port A is connected */
+		if (hp_port_a_present(spec))
 			pinctl = 0;
 	} else {
-		pinctl = ((spec->hp_present & 2) && spec->cur_eapd)
-			? spec->port_d_mode : 0;
+		/* Thinkpad/Dell doesn't give pin-D status */
+		if (!hp_port_d_present(spec))
+			pinctl = 0;
 	}
 	snd_hda_codec_write(codec, 0x1c, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
 			pinctl);
@@ -2379,8 +2380,8 @@ static void cxt5066_hp_automute(struct hda_codec *codec)
 	/* Port D */
 	portD = snd_hda_jack_detect(codec, 0x1c);
 
-	spec->hp_present = !!(portA);
-	spec->hp_present |= portD ? 2 : 0;
+	spec->hp_present = portA ? HP_PRESENT_PORT_A : 0;
+	spec->hp_present |= portD ? HP_PRESENT_PORT_D : 0;
 	snd_printdd("CXT5066: hp automute portA=%x portD=%x present=%d\n",
 		portA, portD, spec->hp_present);
 	cxt5066_update_speaker(codec);
