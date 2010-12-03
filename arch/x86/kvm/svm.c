@@ -195,6 +195,7 @@ enum {
 	VMCB_CR,	 /* CR0, CR3, CR4, EFER */
 	VMCB_DR,         /* DR6, DR7 */
 	VMCB_DT,         /* GDT, IDT */
+	VMCB_SEG,        /* CS, DS, SS, ES, CPL */
 	VMCB_DIRTY_MAX,
 };
 
@@ -1457,6 +1458,7 @@ static void svm_set_segment(struct kvm_vcpu *vcpu,
 			= (svm->vmcb->save.cs.attrib
 			   >> SVM_SELECTOR_DPL_SHIFT) & 3;
 
+	mark_dirty(svm->vmcb, VMCB_SEG);
 }
 
 static void update_db_intercept(struct kvm_vcpu *vcpu)
