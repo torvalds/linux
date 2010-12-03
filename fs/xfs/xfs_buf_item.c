@@ -142,7 +142,7 @@ xfs_buf_item_log_check(
 #endif
 
 STATIC void	xfs_buf_error_relse(xfs_buf_t *bp);
-STATIC void	xfs_buf_do_callbacks(xfs_buf_t *bp, xfs_log_item_t *lip);
+STATIC void	xfs_buf_do_callbacks(struct xfs_buf *bp);
 
 /*
  * This returns the number of log iovecs needed to log the
@@ -450,7 +450,7 @@ xfs_buf_item_unpin(
 		 * xfs_trans_ail_delete() drops the AIL lock.
 		 */
 		if (bip->bli_flags & XFS_BLI_STALE_INODE) {
-			xfs_buf_do_callbacks(bp, (xfs_log_item_t *)bip);
+			xfs_buf_do_callbacks(bp);
 			XFS_BUF_SET_FSPRIVATE(bp, NULL);
 			XFS_BUF_CLR_IODONE_FUNC(bp);
 		} else {
@@ -918,15 +918,26 @@ xfs_buf_attach_iodone(
 	XFS_BUF_SET_IODONE_FUNC(bp, xfs_buf_iodone_callbacks);
 }
 
+/*
+ * We can have many callbacks on a buffer. Running the callbacks individually
+ * can cause a lot of contention on the AIL lock, so we allow for a single
+ * callback to be able to scan the remaining lip->li_bio_list for other items
+ * of the same type and callback to be processed in the first call.
+ *
+ * As a result, the loop walking the callback list below will also modify the
+ * list. it removes the first item from the list and then runs the callback.
+ * The loop then restarts from the new head of the list. This allows the
+ * callback to scan and modify the list attached to the buffer and we don't
+ * have to care about maintaining a next item pointer.
+ */
 STATIC void
 xfs_buf_do_callbacks(
-	xfs_buf_t	*bp,
-	xfs_log_item_t	*lip)
+	struct xfs_buf		*bp)
 {
-	xfs_log_item_t	*nlip;
+	struct xfs_log_item	*lip;
 
-	while (lip != NULL) {
-		nlip = lip->li_bio_list;
+	while ((lip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *)) != NULL) {
+		XFS_BUF_SET_FSPRIVATE(bp, lip->li_bio_list);
 		ASSERT(lip->li_cb != NULL);
 		/*
 		 * Clear the next pointer so we don't have any
@@ -936,7 +947,6 @@ xfs_buf_do_callbacks(
 		 */
 		lip->li_bio_list = NULL;
 		lip->li_cb(bp, lip);
-		lip = nlip;
 	}
 }
 
@@ -970,7 +980,7 @@ xfs_buf_iodone_callbacks(
 			ASSERT(XFS_BUF_TARGET(bp) == mp->m_ddev_targp);
 			XFS_BUF_SUPER_STALE(bp);
 			trace_xfs_buf_item_iodone(bp, _RET_IP_);
-			xfs_buf_do_callbacks(bp, lip);
+			xfs_buf_do_callbacks(bp);
 			XFS_BUF_SET_FSPRIVATE(bp, NULL);
 			XFS_BUF_CLR_IODONE_FUNC(bp);
 			xfs_buf_ioend(bp, 0);
@@ -1029,7 +1039,7 @@ xfs_buf_iodone_callbacks(
 		return;
 	}
 
-	xfs_buf_do_callbacks(bp, lip);
+	xfs_buf_do_callbacks(bp);
 	XFS_BUF_SET_FSPRIVATE(bp, NULL);
 	XFS_BUF_CLR_IODONE_FUNC(bp);
 	xfs_buf_ioend(bp, 0);
@@ -1063,7 +1073,7 @@ xfs_buf_error_relse(
 	 * We have to unpin the pinned buffers so do the
 	 * callbacks.
 	 */
-	xfs_buf_do_callbacks(bp, lip);
+	xfs_buf_do_callbacks(bp);
 	XFS_BUF_SET_FSPRIVATE(bp, NULL);
 	XFS_BUF_CLR_IODONE_FUNC(bp);
 	XFS_BUF_SET_BRELSE_FUNC(bp,NULL);
