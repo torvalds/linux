@@ -338,7 +338,6 @@ out:
 static int wl1271_reg_notify(struct wiphy *wiphy,
 			     struct regulatory_request *request)
 {
-	struct wl1271 *wl = wiphy_to_ieee80211_hw(wiphy)->priv;
 	struct ieee80211_supported_band *band;
 	struct ieee80211_channel *ch;
 	int i;
@@ -348,11 +347,6 @@ static int wl1271_reg_notify(struct wiphy *wiphy,
 		ch = &band->channels[i];
 		if (ch->flags & IEEE80211_CHAN_DISABLED)
 			continue;
-
-		if (!wl->enable_11a) {
-			ch->flags |= IEEE80211_CHAN_DISABLED;
-			continue;
-		}
 
 		if (ch->flags & IEEE80211_CHAN_RADAR)
 			ch->flags |= IEEE80211_CHAN_NO_IBSS |
@@ -1070,6 +1064,16 @@ power_off:
 	wiphy->hw_version = wl->chip.id;
 	strncpy(wiphy->fw_version, wl->chip.fw_ver,
 		sizeof(wiphy->fw_version));
+
+	/*
+	 * Now we know if 11a is supported (info from the NVS), so disable
+	 * 11a channels if not supported
+	 */
+	if (!wl->enable_11a)
+		wiphy->bands[IEEE80211_BAND_5GHZ]->n_channels = 0;
+
+	wl1271_debug(DEBUG_MAC80211, "11a is %ssupported",
+		     wl->enable_11a ? "" : "not ");
 
 out:
 	mutex_unlock(&wl->mutex);
