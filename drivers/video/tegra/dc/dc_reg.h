@@ -89,10 +89,10 @@
 #define  WIN_A_ACT_REQ		(1 << 1)
 #define  WIN_B_ACT_REQ		(1 << 2)
 #define  WIN_C_ACT_REQ		(1 << 3)
-#define  GENERAL_UPDATE		(1 << 0)
-#define  WIN_A_UPDATE		(1 << 1)
-#define  WIN_B_UPDATE		(1 << 2)
-#define  WIN_C_UPDATE		(1 << 3)
+#define  GENERAL_UPDATE		(1 << 8)
+#define  WIN_A_UPDATE		(1 << 9)
+#define  WIN_B_UPDATE		(1 << 10)
+#define  WIN_C_UPDATE		(1 << 11)
 
 #define DC_CMD_DISPLAY_WINDOW_HEADER		0x042
 #define  WINDOW_A_SELECT		(1 << 4)
