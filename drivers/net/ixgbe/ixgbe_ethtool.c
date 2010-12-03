@@ -839,9 +839,10 @@ static void ixgbe_get_drvinfo(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	char firmware_version[32];
 
-	strncpy(drvinfo->driver, ixgbe_driver_name, sizeof(drvinfo->driver));
+	strncpy(drvinfo->driver, ixgbe_driver_name,
+	        sizeof(drvinfo->driver) - 1);
 	strncpy(drvinfo->version, ixgbe_driver_version,
-	        sizeof(drvinfo->version));
+	        sizeof(drvinfo->version) - 1);
 
 	snprintf(firmware_version, sizeof(firmware_version), "%d.%d-%d",
 	         (adapter->eeprom_version & 0xF000) >> 12,

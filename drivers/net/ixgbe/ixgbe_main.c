@@ -2338,14 +2338,14 @@ static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 		handler = SET_HANDLER(q_vector);
 
 		if (handler == &ixgbe_msix_clean_rx) {
-			sprintf(q_vector->name, "%s-%s-%d",
-				netdev->name, "rx", ri++);
+			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
+			         "%s-%s-%d", netdev->name, "rx", ri++);
 		} else if (handler == &ixgbe_msix_clean_tx) {
-			sprintf(q_vector->name, "%s-%s-%d",
-				netdev->name, "tx", ti++);
+			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
+			         "%s-%s-%d", netdev->name, "tx", ti++);
 		} else if (handler == &ixgbe_msix_clean_many) {
-			sprintf(q_vector->name, "%s-%s-%d",
-				netdev->name, "TxRx", ri++);
+			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
+			         "%s-%s-%d", netdev->name, "TxRx", ri++);
 			ti++;
 		} else {
 			/* skip this unused q_vector */
@@ -7047,7 +7047,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	netdev->netdev_ops = &ixgbe_netdev_ops;
 	ixgbe_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
-	strcpy(netdev->name, pci_name(pdev));
+	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 
 	adapter->bd_number = cards_found;
 
@@ -7269,7 +7269,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	err = ixgbe_read_pba_string_generic(hw, part_str, IXGBE_PBANUM_LENGTH);
 	if (err)
-		strcpy(part_str, "Unknown");
+		strncpy(part_str, "Unknown", IXGBE_PBANUM_LENGTH);
 	if (ixgbe_is_sfp(hw) && hw->phy.sfp_type != ixgbe_sfp_type_not_present)
 		e_dev_info("MAC: %d, PHY: %d, SFP+: %d, PBA No: %s\n",
 			   hw->mac.type, hw->phy.type, hw->phy.sfp_type,
