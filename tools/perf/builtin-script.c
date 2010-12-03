@@ -387,10 +387,10 @@ out_delete_desc:
 	return NULL;
 }
 
-static char *ends_with(char *str, const char *suffix)
+static const char *ends_with(const char *str, const char *suffix)
 {
 	size_t suffix_len = strlen(suffix);
-	char *p = str;
+	const char *p = str;
 
 	if (strlen(str) > suffix_len) {
 		p = str + strlen(str) - suffix_len;
@@ -482,7 +482,7 @@ static int list_available_scripts(const struct option *opt __used,
 
 		for_each_script(lang_path, lang_dir, script_dirent, script_next) {
 			script_root = strdup(script_dirent.d_name);
-			str = ends_with(script_root, REPORT_SUFFIX);
+			str = (char *)ends_with(script_root, REPORT_SUFFIX);
 			if (str) {
 				*str = '\0';
 				desc = script_desc__findnew(script_root);
@@ -530,7 +530,7 @@ static char *get_script_path(const char *script_root, const char *suffix)
 
 		for_each_script(lang_path, lang_dir, script_dirent, script_next) {
 			__script_root = strdup(script_dirent.d_name);
-			str = ends_with(__script_root, suffix);
+			str = (char *)ends_with(__script_root, suffix);
 			if (str) {
 				*str = '\0';
 				if (strcmp(__script_root, script_root))
@@ -550,7 +550,7 @@ static char *get_script_path(const char *script_root, const char *suffix)
 
 static bool is_top_script(const char *script_path)
 {
-	return ends_with((char *)script_path, "top") == NULL ? false : true;
+	return ends_with(script_path, "top") == NULL ? false : true;
 }
 
 static int has_required_arg(char *script_path)
