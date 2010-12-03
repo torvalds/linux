@@ -421,11 +421,6 @@ static inline void invlpga(unsigned long addr, u32 asid)
 	asm volatile (__ex(SVM_INVLPGA) : : "a"(addr), "c"(asid));
 }
 
-static inline void force_new_asid(struct kvm_vcpu *vcpu)
-{
-	to_svm(vcpu)->asid_generation--;
-}
-
 static int get_npt_level(void)
 {
 #ifdef CONFIG_X86_64
@@ -999,7 +994,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 		save->cr3 = 0;
 		save->cr4 = 0;
 	}
-	force_new_asid(&svm->vcpu);
+	svm->asid_generation = 0;
 
 	svm->nested.vmcb = 0;
 	svm->vcpu.arch.hflags = 0;
@@ -1419,7 +1414,7 @@ static void svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	unsigned long old_cr4 = to_svm(vcpu)->vmcb->save.cr4;
 
 	if (npt_enabled && ((old_cr4 ^ cr4) & X86_CR4_PGE))
-		force_new_asid(vcpu);
+		svm_flush_tlb(vcpu);
 
 	vcpu->arch.cr4 = cr4;
 	if (!npt_enabled)
@@ -1762,7 +1757,7 @@ static void nested_svm_set_tdp_cr3(struct kvm_vcpu *vcpu,
 
 	svm->vmcb->control.nested_cr3 = root;
 	mark_dirty(svm->vmcb, VMCB_NPT);
-	force_new_asid(vcpu);
+	svm_flush_tlb(vcpu);
 }
 
 static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu,
@@ -2366,7 +2361,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	svm->nested.intercept_exceptions = nested_vmcb->control.intercept_exceptions;
 	svm->nested.intercept            = nested_vmcb->control.intercept;
 
-	force_new_asid(&svm->vcpu);
+	svm_flush_tlb(&svm->vcpu);
 	svm->vmcb->control.int_ctl = nested_vmcb->control.int_ctl | V_INTR_MASKING_MASK;
 	if (nested_vmcb->control.int_ctl & V_INTR_MASKING_MASK)
 		svm->vcpu.arch.hflags |= HF_VINTR_MASK;
@@ -3308,7 +3303,7 @@ static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
 
 static void svm_flush_tlb(struct kvm_vcpu *vcpu)
 {
-	force_new_asid(vcpu);
+	to_svm(vcpu)->asid_generation--;
 }
 
 static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
@@ -3562,7 +3557,7 @@ static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 
 	svm->vmcb->save.cr3 = root;
 	mark_dirty(svm->vmcb, VMCB_CR);
-	force_new_asid(vcpu);
+	svm_flush_tlb(vcpu);
 }
 
 static void set_tdp_cr3(struct kvm_vcpu *vcpu, unsigned long root)
@@ -3576,7 +3571,7 @@ static void set_tdp_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 	svm->vmcb->save.cr3 = vcpu->arch.cr3;
 	mark_dirty(svm->vmcb, VMCB_CR);
 
-	force_new_asid(vcpu);
+	svm_flush_tlb(vcpu);
 }
 
 static int is_disabled(void)
