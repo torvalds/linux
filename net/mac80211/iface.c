@@ -197,11 +197,6 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		sdata->bss = &sdata->u.ap;
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
-		if (!ieee80211_vif_is_mesh(&sdata->vif))
-			break;
-		/* mesh ifaces must set allmulti to forward mcast traffic */
-		atomic_inc(&local->iff_allmultis);
-		break;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_ADHOC:
@@ -274,9 +269,6 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		}
 
 		if (ieee80211_vif_is_mesh(&sdata->vif)) {
-			local->fif_other_bss++;
-			ieee80211_configure_filter(local);
-
 			ieee80211_start_mesh(sdata);
 		} else if (sdata->vif.type == NL80211_IFTYPE_AP) {
 			local->fif_pspoll++;
@@ -504,16 +496,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		ieee80211_configure_filter(local);
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
-		if (ieee80211_vif_is_mesh(&sdata->vif)) {
-			/* other_bss and allmulti are always set on mesh
-			 * ifaces */
-			local->fif_other_bss--;
-			atomic_dec(&local->iff_allmultis);
-
-			ieee80211_configure_filter(local);
-
+		if (ieee80211_vif_is_mesh(&sdata->vif))
 			ieee80211_stop_mesh(sdata);
-		}
 		/* fall through */
 	default:
 		flush_work(&sdata->work);

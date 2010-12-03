@@ -513,6 +513,11 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
 
+	local->fif_other_bss++;
+	/* mesh ifaces must set allmulti to forward mcast traffic */
+	atomic_inc(&local->iff_allmultis);
+	ieee80211_configure_filter(local);
+
 	set_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags);
 	ieee80211_mesh_root_setup(ifmsh);
 	ieee80211_queue_work(&local->hw, &sdata->work);
@@ -524,6 +529,8 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 {
+	struct ieee80211_local *local = sdata->local;
+
 	del_timer_sync(&sdata->u.mesh.housekeeping_timer);
 	del_timer_sync(&sdata->u.mesh.mesh_path_root_timer);
 	/*
@@ -534,6 +541,10 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	 * it no longer is.
 	 */
 	cancel_work_sync(&sdata->work);
+
+	local->fif_other_bss--;
+	atomic_dec(&local->iff_allmultis);
+	ieee80211_configure_filter(local);
 }
 
 static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
