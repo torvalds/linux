@@ -15,26 +15,6 @@
  */
 
 #include "ath.h"
-#include "debug.h"
-
-void ath_print(struct ath_common *common, int dbg_mask, const char *fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-
-	if (likely(!(common->debug_mask & dbg_mask)))
-		return;
-
-	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	printk(KERN_DEBUG "ath: %pV", &vaf);
-
-	va_end(args);
-}
-EXPORT_SYMBOL(ath_print);
 
 const char *ath_opmode_to_string(enum nl80211_iftype opmode)
 {
