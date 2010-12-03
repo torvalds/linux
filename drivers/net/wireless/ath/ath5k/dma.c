@@ -72,7 +72,7 @@ static int ath5k_hw_stop_rx_dma(struct ath5k_hw *ah)
 			i--)
 		udelay(100);
 
-	if (i)
+	if (!i)
 		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_DMA,
 				"failed to stop RX DMA !\n");
 
