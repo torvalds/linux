@@ -186,6 +186,8 @@ static int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 				      bool has_error_code, u32 error_code);
 
 enum {
+	VMCB_INTERCEPTS, /* Intercept vectors, TSC offset,
+			    pause filter count */
 	VMCB_DIRTY_MAX,
 };
 
@@ -216,6 +218,8 @@ static void recalc_intercepts(struct vcpu_svm *svm)
 {
 	struct vmcb_control_area *c, *h;
 	struct nested_state *g;
+
+	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 
 	if (!is_guest_mode(&svm->vcpu))
 		return;
@@ -854,6 +858,8 @@ static void svm_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 	}
 
 	svm->vmcb->control.tsc_offset = offset + g_tsc_offset;
+
+	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 }
 
 static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment)
@@ -863,6 +869,7 @@ static void svm_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment)
 	svm->vmcb->control.tsc_offset += adjustment;
 	if (is_guest_mode(vcpu))
 		svm->nested.hsave->control.tsc_offset += adjustment;
+	mark_dirty(svm->vmcb, VMCB_INTERCEPTS);
 }
 
 static void init_vmcb(struct vcpu_svm *svm)
