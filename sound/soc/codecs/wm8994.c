@@ -1677,6 +1677,7 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 		/* Allow no source specification when stopping */
 		if (freq_out)
 			return -EINVAL;
+		src = wm8994->fll[id].src;
 		break;
 	case WM8994_FLL_SRC_MCLK1:
 	case WM8994_FLL_SRC_MCLK2:
