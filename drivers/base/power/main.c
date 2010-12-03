@@ -877,6 +877,11 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 	if (async_error)
 		goto End;
 
+	if (pm_wakeup_pending()) {
+		async_error = -EBUSY;
+		goto End;
+	}
+
 	if (dev->class) {
 		if (dev->class->pm) {
 			pm_dev_dbg(dev, state, "class ");
