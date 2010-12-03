@@ -29,7 +29,7 @@
 #include "xfs_error.h"
 
 STATIC void xfs_ail_insert(struct xfs_ail *, xfs_log_item_t *);
-STATIC xfs_log_item_t * xfs_ail_delete(struct xfs_ail *, xfs_log_item_t *);
+STATIC void xfs_ail_delete(struct xfs_ail *, xfs_log_item_t *);
 STATIC xfs_log_item_t * xfs_ail_min(struct xfs_ail *);
 STATIC xfs_log_item_t * xfs_ail_next(struct xfs_ail *, xfs_log_item_t *);
 
@@ -468,16 +468,13 @@ xfs_trans_ail_update(
 	xfs_log_item_t	*lip,
 	xfs_lsn_t	lsn) __releases(ailp->xa_lock)
 {
-	xfs_log_item_t		*dlip = NULL;
 	xfs_log_item_t		*mlip;	/* ptr to minimum lip */
 	xfs_lsn_t		tail_lsn;
 
 	mlip = xfs_ail_min(ailp);
 
 	if (lip->li_flags & XFS_LI_IN_AIL) {
-		dlip = xfs_ail_delete(ailp, lip);
-		ASSERT(dlip == lip);
-		xfs_trans_ail_cursor_clear(ailp, dlip);
+		xfs_ail_delete(ailp, lip);
 	} else {
 		lip->li_flags |= XFS_LI_IN_AIL;
 	}
@@ -485,7 +482,7 @@ xfs_trans_ail_update(
 	lip->li_lsn = lsn;
 	xfs_ail_insert(ailp, lip);
 
-	if (mlip == dlip) {
+	if (mlip == lip) {
 		mlip = xfs_ail_min(ailp);
 		/*
 		 * It is not safe to access mlip after the AIL lock is
@@ -524,21 +521,18 @@ xfs_trans_ail_delete(
 	struct xfs_ail	*ailp,
 	xfs_log_item_t	*lip) __releases(ailp->xa_lock)
 {
-	xfs_log_item_t		*dlip;
 	xfs_log_item_t		*mlip;
 	xfs_lsn_t		tail_lsn;
 
 	if (lip->li_flags & XFS_LI_IN_AIL) {
 		mlip = xfs_ail_min(ailp);
-		dlip = xfs_ail_delete(ailp, lip);
-		ASSERT(dlip == lip);
-		xfs_trans_ail_cursor_clear(ailp, dlip);
+		xfs_ail_delete(ailp, lip);
 
 
 		lip->li_flags &= ~XFS_LI_IN_AIL;
 		lip->li_lsn = 0;
 
-		if (mlip == dlip) {
+		if (mlip == lip) {
 			mlip = xfs_ail_min(ailp);
 			/*
 			 * It is not safe to access mlip after the AIL lock
@@ -632,7 +626,6 @@ STATIC void
 xfs_ail_insert(
 	struct xfs_ail	*ailp,
 	xfs_log_item_t	*lip)
-/* ARGSUSED */
 {
 	xfs_log_item_t	*next_lip;
 
@@ -661,18 +654,14 @@ xfs_ail_insert(
 /*
  * Delete the given item from the AIL.  Return a pointer to the item.
  */
-/*ARGSUSED*/
-STATIC xfs_log_item_t *
+STATIC void
 xfs_ail_delete(
 	struct xfs_ail	*ailp,
 	xfs_log_item_t	*lip)
-/* ARGSUSED */
 {
 	xfs_ail_check(ailp, lip);
-
 	list_del(&lip->li_ail);
-
-	return lip;
+	xfs_trans_ail_cursor_clear(ailp, lip);
 }
 
 /*
@@ -682,7 +671,6 @@ xfs_ail_delete(
 STATIC xfs_log_item_t *
 xfs_ail_min(
 	struct xfs_ail	*ailp)
-/* ARGSUSED */
 {
 	if (list_empty(&ailp->xa_ail))
 		return NULL;
@@ -699,7 +687,6 @@ STATIC xfs_log_item_t *
 xfs_ail_next(
 	struct xfs_ail	*ailp,
 	xfs_log_item_t	*lip)
-/* ARGSUSED */
 {
 	if (lip->li_ail.next == &ailp->xa_ail)
 		return NULL;
