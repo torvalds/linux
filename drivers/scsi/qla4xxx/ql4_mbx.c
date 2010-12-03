@@ -934,7 +934,7 @@ int qla4xxx_abort_task(struct scsi_qla_host *ha, struct srb *srb)
 		return status;
 
 	mbox_cmd[0] = MBOX_CMD_ABORT_TASK;
-	mbox_cmd[1] = srb->fw_ddb_index;
+	mbox_cmd[1] = srb->ddb->fw_ddb_index;
 	mbox_cmd[2] = index;
 	/* Immediate Command Enable */
 	mbox_cmd[5] = 0x01;
