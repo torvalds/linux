@@ -197,6 +197,7 @@ enum {
 	VMCB_DT,         /* GDT, IDT */
 	VMCB_SEG,        /* CS, DS, SS, ES, CPL */
 	VMCB_CR2,        /* CR2 only */
+	VMCB_LBR,        /* DBGCTL, BR_FROM, BR_TO, LAST_EX_FROM, LAST_EX_TO */
 	VMCB_DIRTY_MAX,
 };
 
@@ -2847,6 +2848,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 			return 1;
 
 		svm->vmcb->save.dbgctl = data;
+		mark_dirty(svm->vmcb, VMCB_LBR);
 		if (data & (1ULL<<0))
 			svm_enable_lbrv(svm);
 		else
