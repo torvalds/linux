@@ -119,7 +119,7 @@ static void __nmk_gpio_make_output(struct nmk_gpio_chip *nmk_chip,
 }
 
 static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
-			     pin_cfg_t cfg)
+			     pin_cfg_t cfg, bool sleep)
 {
 	static const char *afnames[] = {
 		[NMK_GPIO_ALT_GPIO]	= "GPIO",
@@ -145,10 +145,33 @@ static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
 	int output = PIN_DIR(cfg);
 	int val = PIN_VAL(cfg);
 
-	dev_dbg(nmk_chip->chip.dev, "pin %d: af %s, pull %s, slpm %s (%s%s)\n",
-		pin, afnames[af], pullnames[pull], slpmnames[slpm],
+	dev_dbg(nmk_chip->chip.dev, "pin %d [%#lx]: af %s, pull %s, slpm %s (%s%s)\n",
+		pin, cfg, afnames[af], pullnames[pull], slpmnames[slpm],
 		output ? "output " : "input",
 		output ? (val ? "high" : "low") : "");
+
+	if (sleep) {
+		int slpm_pull = PIN_SLPM_PULL(cfg);
+		int slpm_output = PIN_SLPM_DIR(cfg);
+		int slpm_val = PIN_SLPM_VAL(cfg);
+
+		/*
+		 * The SLPM_* values are normal values + 1 to allow zero to
+		 * mean "same as normal".
+		 */
+		if (slpm_pull)
+			pull = slpm_pull - 1;
+		if (slpm_output)
+			output = slpm_output - 1;
+		if (slpm_val)
+			val = slpm_val - 1;
+
+		dev_dbg(nmk_chip->chip.dev, "pin %d: sleep pull %s, dir %s, val %s\n",
+			pin,
+			slpm_pull ? pullnames[pull] : "same",
+			slpm_output ? (output ? "output" : "input") : "same",
+			slpm_val ? (val ? "high" : "low") : "same");
+	}
 
 	if (output)
 		__nmk_gpio_make_output(nmk_chip, offset, val);
@@ -175,7 +198,7 @@ static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
  * side-effects.  The gpio can be manipulated later using standard GPIO API
  * calls.
  */
-int nmk_config_pin(pin_cfg_t cfg)
+int nmk_config_pin(pin_cfg_t cfg, bool sleep)
 {
 	struct nmk_gpio_chip *nmk_chip;
 	int gpio = PIN_NUM(cfg);
@@ -186,7 +209,7 @@ int nmk_config_pin(pin_cfg_t cfg)
 		return -EINVAL;
 
 	spin_lock_irqsave(&nmk_chip->lock, flags);
-	__nmk_config_pin(nmk_chip, gpio - nmk_chip->chip.base, cfg);
+	__nmk_config_pin(nmk_chip, gpio - nmk_chip->chip.base, cfg, sleep);
 	spin_unlock_irqrestore(&nmk_chip->lock, flags);
 
 	return 0;
@@ -207,7 +230,7 @@ int nmk_config_pins(pin_cfg_t *cfgs, int num)
 	int i;
 
 	for (i = 0; i < num; i++) {
-		int ret = nmk_config_pin(cfgs[i]);
+		ret = nmk_config_pin(cfgs[i], false);
 		if (ret)
 			break;
 	}
@@ -215,6 +238,21 @@ int nmk_config_pins(pin_cfg_t *cfgs, int num)
 	return ret;
 }
 EXPORT_SYMBOL(nmk_config_pins);
+
+int nmk_config_pins_sleep(pin_cfg_t *cfgs, int num)
+{
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < num; i++) {
+		ret = nmk_config_pin(cfgs[i], true);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(nmk_config_pins_sleep);
 
 /**
  * nmk_gpio_set_slpm() - configure the sleep mode of a pin
