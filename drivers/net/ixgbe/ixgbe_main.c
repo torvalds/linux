@@ -3800,7 +3800,7 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	/* enable the optics for both mult-speed fiber and 82599 SFP+ fiber */
 	if (hw->mac.ops.enable_tx_laser &&
 	    ((hw->phy.multispeed_fiber) ||
-	     ((hw->phy.type == ixgbe_media_type_fiber) &&
+	     ((hw->mac.ops.get_media_type(hw) == ixgbe_media_type_fiber) &&
 	      (hw->mac.type == ixgbe_mac_82599EB))))
 		hw->mac.ops.enable_tx_laser(hw);
 
@@ -4122,7 +4122,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	/* power down the optics for multispeed fiber and 82599 SFP+ fiber */
 	if (hw->mac.ops.disable_tx_laser &&
 	    ((hw->phy.multispeed_fiber) ||
-	     ((hw->phy.type == ixgbe_media_type_fiber) &&
+	     ((hw->mac.ops.get_media_type(hw) == ixgbe_media_type_fiber) &&
 	      (hw->mac.type == ixgbe_mac_82599EB))))
 		hw->mac.ops.disable_tx_laser(hw);
 
@@ -7212,7 +7212,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	/* power down the optics for multispeed fiber and 82599 SFP+ fiber */
 	if (hw->mac.ops.disable_tx_laser &&
 	    ((hw->phy.multispeed_fiber) ||
-	     ((hw->phy.type == ixgbe_media_type_fiber) &&
+	     ((hw->mac.ops.get_media_type(hw) == ixgbe_media_type_fiber) &&
 	      (hw->mac.type == ixgbe_mac_82599EB))))
 		hw->mac.ops.disable_tx_laser(hw);
 
