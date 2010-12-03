@@ -196,11 +196,12 @@ enum {
 	VMCB_DR,         /* DR6, DR7 */
 	VMCB_DT,         /* GDT, IDT */
 	VMCB_SEG,        /* CS, DS, SS, ES, CPL */
+	VMCB_CR2,        /* CR2 only */
 	VMCB_DIRTY_MAX,
 };
 
-/* TPR is always written before VMRUN */
-#define VMCB_ALWAYS_DIRTY_MASK	(1U << VMCB_INTR)
+/* TPR and CR2 are always written before VMRUN */
+#define VMCB_ALWAYS_DIRTY_MASK	((1U << VMCB_INTR) | (1U << VMCB_CR2))
 
 static inline void mark_all_dirty(struct vmcb *vmcb)
 {
