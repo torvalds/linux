@@ -434,7 +434,7 @@ static struct snd_soc_dai_driver s6000_i2s_dai = {
 		.rate_max = 1562500,
 	},
 	.ops = &s6000_i2s_dai_ops,
-}
+};
 
 static int __devinit s6000_i2s_probe(struct platform_device *pdev)
 {
