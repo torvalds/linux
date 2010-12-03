@@ -46,8 +46,8 @@ int ath_beaconq_config(struct ath_softc *sc)
 	}
 
 	if (!ath9k_hw_set_txq_props(ah, sc->beacon.beaconq, &qi)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to update h/w beacon queue parameters\n");
+		ath_err(common,
+			"Unable to update h/w beacon queue parameters\n");
 		return 0;
 	} else {
 		ath9k_hw_resettxqueue(ah, sc->beacon.beaconq);
@@ -189,8 +189,7 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 		dev_kfree_skb_any(skb);
 		bf->bf_mpdu = NULL;
 		bf->bf_buf_addr = 0;
-		ath_print(common, ATH_DBG_FATAL,
-			  "dma_mapping_error on beaconing\n");
+		ath_err(common, "dma_mapping_error on beaconing\n");
 		return NULL;
 	}
 
@@ -324,8 +323,7 @@ int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 		dev_kfree_skb_any(skb);
 		bf->bf_mpdu = NULL;
 		bf->bf_buf_addr = 0;
-		ath_print(common, ATH_DBG_FATAL,
-			  "dma_mapping_error on beacon alloc\n");
+		ath_err(common, "dma_mapping_error on beacon alloc\n");
 		return -ENOMEM;
 	}
 
@@ -469,8 +467,8 @@ void ath_beacon_tasklet(unsigned long data)
 		 * are still pending on the queue.
 		 */
 		if (!ath9k_hw_stoptxdma(ah, sc->beacon.beaconq)) {
-			ath_print(common, ATH_DBG_FATAL,
-				"beacon queue %u did not stop?\n", sc->beacon.beaconq);
+			ath_err(common, "beacon queue %u did not stop?\n",
+				sc->beacon.beaconq);
 		}
 
 		/* NB: cabq traffic should already be queued and primed */

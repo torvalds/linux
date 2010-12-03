@@ -204,9 +204,8 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 		wait = wait_time;
 		while (ath9k_hw_numtxpending(ah, q)) {
 			if ((--wait) == 0) {
-				ath_print(common, ATH_DBG_FATAL,
-					  "Failed to stop TX DMA in 100 "
-					  "msec after killing last frame\n");
+				ath_err(common,
+					"Failed to stop TX DMA in 100 msec after killing last frame\n");
 				break;
 			}
 			udelay(ATH9K_TIME_QUANTUM);
@@ -368,14 +367,12 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 			    ATH9K_TX_QUEUE_INACTIVE)
 				break;
 		if (q == pCap->total_queues) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "No available TX queue\n");
+			ath_err(common, "No available TX queue\n");
 			return -1;
 		}
 		break;
 	default:
-		ath_print(common, ATH_DBG_FATAL,
-			  "Invalid TX queue type: %u\n", type);
+		ath_err(common, "Invalid TX queue type: %u\n", type);
 		return -1;
 	}
 
@@ -383,8 +380,7 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 
 	qi = &ah->txq[q];
 	if (qi->tqi_type != ATH9K_TX_QUEUE_INACTIVE) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "TX queue: %u already active\n", q);
+		ath_err(common, "TX queue: %u already active\n", q);
 		return -1;
 	}
 	memset(qi, 0, sizeof(struct ath9k_tx_queue_info));
@@ -735,9 +731,9 @@ bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set)
 				     AR_DIAG_RX_ABORT));
 
 			reg = REG_READ(ah, AR_OBS_BUS_1);
-			ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-				  "RX failed to go idle in 10 ms RXSM=0x%x\n",
-				  reg);
+			ath_err(ath9k_hw_common(ah),
+				"RX failed to go idle in 10 ms RXSM=0x%x\n",
+				reg);
 
 			return false;
 		}
@@ -791,12 +787,11 @@ bool ath9k_hw_stopdmarecv(struct ath_hw *ah)
 	}
 
 	if (i == 0) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "DMA failed to stop in %d ms "
-			  "AR_CR=0x%08x AR_DIAG_SW=0x%08x\n",
-			  AH_RX_STOP_DMA_TIMEOUT / 1000,
-			  REG_READ(ah, AR_CR),
-			  REG_READ(ah, AR_DIAG_SW));
+		ath_err(common,
+			"DMA failed to stop in %d ms AR_CR=0x%08x AR_DIAG_SW=0x%08x\n",
+			AH_RX_STOP_DMA_TIMEOUT / 1000,
+			REG_READ(ah, AR_CR),
+			REG_READ(ah, AR_DIAG_SW));
 		return false;
 	} else {
 		return true;

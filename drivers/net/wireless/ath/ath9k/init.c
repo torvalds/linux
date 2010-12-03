@@ -283,8 +283,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 
 	/* ath_desc must be a multiple of DWORDs */
 	if ((desc_len % 4) != 0) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "ath_desc not DWORD aligned\n");
+		ath_err(common, "ath_desc not DWORD aligned\n");
 		BUG_ON((desc_len % 4) != 0);
 		error = -ENOMEM;
 		goto fail;
@@ -736,8 +735,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 
 	error = ath9k_init_debug(ah);
 	if (error) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to create debugfs files\n");
+		ath_err(common, "Unable to create debugfs files\n");
 		goto error_world;
 	}
 

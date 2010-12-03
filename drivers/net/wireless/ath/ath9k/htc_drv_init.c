@@ -495,37 +495,31 @@ static int ath9k_init_queues(struct ath9k_htc_priv *priv)
 
 	priv->beaconq = ath9k_hw_beaconq_setup(priv->ah);
 	if (priv->beaconq == -1) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup BEACON xmit queue\n");
+		ath_err(common, "Unable to setup BEACON xmit queue\n");
 		goto err;
 	}
 
 	priv->cabq = ath9k_htc_cabq_setup(priv);
 	if (priv->cabq == -1) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup CAB xmit queue\n");
+		ath_err(common, "Unable to setup CAB xmit queue\n");
 		goto err;
 	}
 
 	if (!ath9k_htc_txq_setup(priv, WME_AC_BE)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for BE traffic\n");
+		ath_err(common, "Unable to setup xmit queue for BE traffic\n");
 		goto err;
 	}
 
 	if (!ath9k_htc_txq_setup(priv, WME_AC_BK)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for BK traffic\n");
+		ath_err(common, "Unable to setup xmit queue for BK traffic\n");
 		goto err;
 	}
 	if (!ath9k_htc_txq_setup(priv, WME_AC_VI)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for VI traffic\n");
+		ath_err(common, "Unable to setup xmit queue for VI traffic\n");
 		goto err;
 	}
 	if (!ath9k_htc_txq_setup(priv, WME_AC_VO)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for VO traffic\n");
+		ath_err(common, "Unable to setup xmit queue for VO traffic\n");
 		goto err;
 	}
 
@@ -670,16 +664,15 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 
 	ret = ath9k_hw_init(ah);
 	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to initialize hardware; "
-			  "initialization status: %d\n", ret);
+		ath_err(common,
+			"Unable to initialize hardware; initialization status: %d\n",
+			ret);
 		goto err_hw;
 	}
 
 	ret = ath9k_htc_init_debug(ah);
 	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to create debugfs files\n");
+		ath_err(common, "Unable to create debugfs files\n");
 		goto err_debug;
 	}
 

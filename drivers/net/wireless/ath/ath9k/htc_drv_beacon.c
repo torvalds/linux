@@ -246,8 +246,8 @@ void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
 	qi.tqi_cwmax = qi_be.tqi_cwmax;
 
 	if (!ath9k_hw_set_txq_props(ah, priv->beaconq, &qi)) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "Unable to update beacon queue %u!\n", qnum);
+		ath_err(ath9k_hw_common(ah),
+			"Unable to update beacon queue %u!\n", qnum);
 	} else {
 		ath9k_hw_resettxqueue(ah, priv->beaconq);
 	}

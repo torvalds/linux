@@ -1576,8 +1576,8 @@ static void *ath_rate_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp
 
 	rate_priv = kzalloc(sizeof(struct ath_rate_priv), gfp);
 	if (!rate_priv) {
-		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
-			  "Unable to allocate private rc structure\n");
+		ath_err(ath9k_hw_common(sc->sc_ah),
+			"Unable to allocate private rc structure\n");
 		return NULL;
 	}
 

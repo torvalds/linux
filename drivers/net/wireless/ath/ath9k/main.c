@@ -268,16 +268,14 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 
 	r = ath9k_hw_reset(ah, hchan, caldata, fastcc);
 	if (r) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to reset channel (%u MHz), "
-			  "reset status %d\n",
-			  channel->center_freq, r);
+		ath_err(common,
+			"Unable to reset channel (%u MHz), reset status %d\n",
+			channel->center_freq, r);
 		goto ps_restore;
 	}
 
 	if (ath_startrecv(sc) != 0) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to restart recv logic\n");
+		ath_err(common, "Unable to restart recv logic\n");
 		r = -EIO;
 		goto ps_restore;
 	}
@@ -892,16 +890,14 @@ void ath_radio_enable(struct ath_softc *sc, struct ieee80211_hw *hw)
 
 	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (r) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to reset channel (%u MHz), "
-			  "reset status %d\n",
-			  channel->center_freq, r);
+		ath_err(common,
+			"Unable to reset channel (%u MHz), reset status %d\n",
+			channel->center_freq, r);
 	}
 
 	ath_update_txpow(sc);
 	if (ath_startrecv(sc) != 0) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to restart recv logic\n");
+		ath_err(common, "Unable to restart recv logic\n");
 		spin_unlock_bh(&sc->sc_pcu_lock);
 		return;
 	}
@@ -955,10 +951,9 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 
 	r = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (r) {
-		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
-			  "Unable to reset channel (%u MHz), "
-			  "reset status %d\n",
-			  channel->center_freq, r);
+		ath_err(ath9k_hw_common(sc->sc_ah),
+			"Unable to reset channel (%u MHz), reset status %d\n",
+			channel->center_freq, r);
 	}
 
 	ath9k_hw_phy_disable(ah);
@@ -993,12 +988,11 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 
 	r = ath9k_hw_reset(ah, sc->sc_ah->curchan, ah->caldata, false);
 	if (r)
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to reset hardware; reset status %d\n", r);
+		ath_err(common,
+			"Unable to reset hardware; reset status %d\n", r);
 
 	if (ath_startrecv(sc) != 0)
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to start recv logic\n");
+		ath_err(common, "Unable to start recv logic\n");
 
 	/*
 	 * We may be doing a reset in response to a request
@@ -1116,10 +1110,9 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	spin_lock_bh(&sc->sc_pcu_lock);
 	r = ath9k_hw_reset(ah, init_channel, ah->caldata, false);
 	if (r) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to reset hardware; reset status %d "
-			  "(freq %u MHz)\n", r,
-			  curchan->center_freq);
+		ath_err(common,
+			"Unable to reset hardware; reset status %d (freq %u MHz)\n",
+			r, curchan->center_freq);
 		spin_unlock_bh(&sc->sc_pcu_lock);
 		goto mutex_unlock;
 	}
@@ -1138,8 +1131,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	 * here except setup the interrupt mask.
 	 */
 	if (ath_startrecv(sc) != 0) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to start recv logic\n");
+		ath_err(common, "Unable to start recv logic\n");
 		r = -EIO;
 		spin_unlock_bh(&sc->sc_pcu_lock);
 		goto mutex_unlock;
@@ -1378,8 +1370,8 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 		ic_opmode = vif->type;
 		break;
 	default:
-		ath_print(common, ATH_DBG_FATAL,
-			"Interface type %d not yet supported\n", vif->type);
+		ath_err(common, "Interface type %d not yet supported\n",
+			vif->type);
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
@@ -1650,8 +1642,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		}
 
 		if (ath_set_channel(sc, hw, &sc->sc_ah->channels[pos]) < 0) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "Unable to set channel\n");
+			ath_err(common, "Unable to set channel\n");
 			mutex_unlock(&sc->mutex);
 			return -EINVAL;
 		}
@@ -1775,7 +1766,7 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 	ret = ath_txq_update(sc, txq->axq_qnum, &qi);
 	if (ret)
-		ath_print(common, ATH_DBG_FATAL, "TXQ Update failed\n");
+		ath_err(common, "TXQ Update failed\n");
 
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC)
 		if (queue == WME_AC_BE && !ret)
@@ -2024,8 +2015,7 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 		ath9k_ps_restore(sc);
 		break;
 	default:
-		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
-			  "Unknown AMPDU action\n");
+		ath_err(ath9k_hw_common(sc->sc_ah), "Unknown AMPDU action\n");
 	}
 
 	local_bh_enable();

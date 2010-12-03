@@ -103,8 +103,8 @@ static int ath_register_led(struct ath_softc *sc, struct ath_led *led,
 
 	ret = led_classdev_register(wiphy_dev(sc->hw->wiphy), &led->led_cdev);
 	if (ret)
-		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
-			  "Failed to register led:%s", led->name);
+		ath_err(ath9k_hw_common(sc->sc_ah),
+			"Failed to register led:%s", led->name);
 	else
 		led->registered = 1;
 	return ret;

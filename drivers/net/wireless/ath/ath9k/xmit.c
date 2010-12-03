@@ -985,9 +985,8 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 		return NULL;
 	}
 	if (qnum >= ARRAY_SIZE(sc->tx.txq)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "qnum %u out of range, max %u!\n",
-			  qnum, (unsigned int)ARRAY_SIZE(sc->tx.txq));
+		ath_err(common, "qnum %u out of range, max %zu!\n",
+			qnum, ARRAY_SIZE(sc->tx.txq));
 		ath9k_hw_releasetxqueue(ah, qnum);
 		return NULL;
 	}
@@ -1038,8 +1037,8 @@ int ath_txq_update(struct ath_softc *sc, int qnum,
 	qi.tqi_readyTime = qinfo->tqi_readyTime;
 
 	if (!ath9k_hw_set_txq_props(ah, qnum, &qi)) {
-		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
-			  "Unable to update hardware queue %u!\n", qnum);
+		ath_err(ath9k_hw_common(sc->sc_ah),
+			"Unable to update hardware queue %u!\n", qnum);
 		error = -EIO;
 	} else {
 		ath9k_hw_resettxqueue(ah, qnum);
@@ -1197,14 +1196,13 @@ void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 	if (npend) {
 		int r;
 
-		ath_print(common, ATH_DBG_FATAL,
-			  "Failed to stop TX DMA. Resetting hardware!\n");
+		ath_err(common, "Failed to stop TX DMA. Resetting hardware!\n");
 
 		r = ath9k_hw_reset(ah, sc->sc_ah->curchan, ah->caldata, false);
 		if (r)
-			ath_print(common, ATH_DBG_FATAL,
-				  "Unable to reset hardware; reset status %d\n",
-				  r);
+			ath_err(common,
+				"Unable to reset hardware; reset status %d\n",
+				r);
 	}
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
@@ -1663,8 +1661,8 @@ static struct ath_buf *ath_tx_setup_buffer(struct ieee80211_hw *hw,
 	if (unlikely(dma_mapping_error(sc->dev, bf->bf_buf_addr))) {
 		bf->bf_mpdu = NULL;
 		bf->bf_buf_addr = 0;
-		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
-			  "dma_mapping_error() on TX\n");
+		ath_err(ath9k_hw_common(sc->sc_ah),
+			"dma_mapping_error() on TX\n");
 		ath_tx_return_buffer(sc, bf);
 		return NULL;
 	}
@@ -2260,16 +2258,16 @@ int ath_tx_init(struct ath_softc *sc, int nbufs)
 	error = ath_descdma_setup(sc, &sc->tx.txdma, &sc->tx.txbuf,
 				  "tx", nbufs, 1, 1);
 	if (error != 0) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Failed to allocate tx descriptors: %d\n", error);
+		ath_err(common,
+			"Failed to allocate tx descriptors: %d\n", error);
 		goto err;
 	}
 
 	error = ath_descdma_setup(sc, &sc->beacon.bdma, &sc->beacon.bbuf,
 				  "beacon", ATH_BCBUF, 1, 1);
 	if (error != 0) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Failed to allocate beacon descriptors: %d\n", error);
+		ath_err(common,
+			"Failed to allocate beacon descriptors: %d\n", error);
 		goto err;
 	}
 

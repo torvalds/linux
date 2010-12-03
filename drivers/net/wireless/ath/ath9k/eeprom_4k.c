@@ -69,8 +69,7 @@ static int ath9k_hw_4k_check_eeprom(struct ath_hw *ah)
 	if (!ath9k_hw_use_flash(ah)) {
 		if (!ath9k_hw_nvram_read(common, AR5416_EEPROM_MAGIC_OFFSET,
 					 &magic)) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "Reading Magic # failed\n");
+			ath_err(common, "Reading Magic # failed\n");
 			return false;
 		}
 
@@ -90,9 +89,8 @@ static int ath9k_hw_4k_check_eeprom(struct ath_hw *ah)
 					eepdata++;
 				}
 			} else {
-				ath_print(common, ATH_DBG_FATAL,
-					  "Invalid EEPROM Magic. "
-					  "endianness mismatch.\n");
+				ath_err(common,
+					"Invalid EEPROM Magic. endianness mismatch.\n");
 				return -EINVAL;
 			}
 		}
@@ -163,9 +161,8 @@ static int ath9k_hw_4k_check_eeprom(struct ath_hw *ah)
 
 	if (sum != 0xffff || ah->eep_ops->get_eeprom_ver(ah) != AR5416_EEP_VER ||
 	    ah->eep_ops->get_eeprom_rev(ah) < AR5416_EEP_NO_BACK_VER) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Bad EEPROM checksum 0x%x or revision 0x%04x\n",
-			  sum, ah->eep_ops->get_eeprom_ver(ah));
+		ath_err(common, "Bad EEPROM checksum 0x%x or revision 0x%04x\n",
+			sum, ah->eep_ops->get_eeprom_ver(ah));
 		return -EINVAL;
 	}
 

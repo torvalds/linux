@@ -269,7 +269,7 @@ static int ath_rx_edma_init(struct ath_softc *sc, int nbufs)
 				dev_kfree_skb_any(skb);
 				bf->bf_mpdu = NULL;
 				bf->bf_buf_addr = 0;
-				ath_print(common, ATH_DBG_FATAL,
+				ath_err(common,
 					"dma_mapping_error() on RX init\n");
 				error = -ENOMEM;
 				goto rx_init_fail;
@@ -335,9 +335,9 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 		error = ath_descdma_setup(sc, &sc->rx.rxdma, &sc->rx.rxbuf,
 				"rx", nbufs, 1, 0);
 		if (error != 0) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "failed to allocate rx descriptors: %d\n",
-				  error);
+			ath_err(common,
+				"failed to allocate rx descriptors: %d\n",
+				error);
 			goto err;
 		}
 
@@ -358,8 +358,8 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 				dev_kfree_skb_any(skb);
 				bf->bf_mpdu = NULL;
 				bf->bf_buf_addr = 0;
-				ath_print(common, ATH_DBG_FATAL,
-					  "dma_mapping_error() on RX init\n");
+				ath_err(common,
+					"dma_mapping_error() on RX init\n");
 				error = -ENOMEM;
 				goto err;
 			}
@@ -1725,8 +1725,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			dev_kfree_skb_any(requeue_skb);
 			bf->bf_mpdu = NULL;
 			bf->bf_buf_addr = 0;
-			ath_print(common, ATH_DBG_FATAL,
-				  "dma_mapping_error() on RX\n");
+			ath_err(common, "dma_mapping_error() on RX\n");
 			ath_rx_send_to_mac80211(hw, sc, skb, rxs);
 			break;
 		}

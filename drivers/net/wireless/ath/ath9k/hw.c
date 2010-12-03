@@ -211,8 +211,8 @@ u16 ath9k_hw_computetxtime(struct ath_hw *ah,
 		}
 		break;
 	default:
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "Unknown phy %u (rate ix %u)\n", phy, rateix);
+		ath_err(ath9k_hw_common(ah),
+			"Unknown phy %u (rate ix %u)\n", phy, rateix);
 		txTime = 0;
 		break;
 	}
@@ -331,11 +331,9 @@ static bool ath9k_hw_chip_test(struct ath_hw *ah)
 			REG_WRITE(ah, addr, wrData);
 			rdData = REG_READ(ah, addr);
 			if (rdData != wrData) {
-				ath_print(common, ATH_DBG_FATAL,
-					  "address test failed "
-					  "addr: 0x%08x - wr:0x%08x != "
-					  "rd:0x%08x\n",
-					  addr, wrData, rdData);
+				ath_err(common,
+					"address test failed addr: 0x%08x - wr:0x%08x != rd:0x%08x\n",
+					addr, wrData, rdData);
 				return false;
 			}
 		}
@@ -344,11 +342,9 @@ static bool ath9k_hw_chip_test(struct ath_hw *ah)
 			REG_WRITE(ah, addr, wrData);
 			rdData = REG_READ(ah, addr);
 			if (wrData != rdData) {
-				ath_print(common, ATH_DBG_FATAL,
-					  "address test failed "
-					  "addr: 0x%08x - wr:0x%08x != "
-					  "rd:0x%08x\n",
-					  addr, wrData, rdData);
+				ath_err(common,
+					"address test failed addr: 0x%08x - wr:0x%08x != rd:0x%08x\n",
+					addr, wrData, rdData);
 				return false;
 			}
 		}
@@ -476,9 +472,8 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 
 	ecode = ath9k_hw_rf_alloc_ext_banks(ah);
 	if (ecode) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "Failed allocating banks for "
-			  "external radio\n");
+		ath_err(ath9k_hw_common(ah),
+			"Failed allocating banks for external radio\n");
 		ath9k_hw_rf_free_ext_banks(ah);
 		return ecode;
 	}
@@ -509,8 +504,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		ah->hw_version.macVersion = AR_SREV_VERSION_9100;
 
 	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Couldn't reset chip\n");
+		ath_err(common, "Couldn't reset chip\n");
 		return -EIO;
 	}
 
@@ -520,7 +514,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	ath9k_hw_attach_ops(ah);
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE)) {
-		ath_print(common, ATH_DBG_FATAL, "Couldn't wakeup chip\n");
+		ath_err(common, "Couldn't wakeup chip\n");
 		return -EIO;
 	}
 
@@ -545,10 +539,9 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD;
 
 	if (!ath9k_hw_macversion_supported(ah)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Mac Chip Rev 0x%02x.%x is not supported by "
-			  "this driver\n", ah->hw_version.macVersion,
-			  ah->hw_version.macRev);
+		ath_err(common,
+			"Mac Chip Rev 0x%02x.%x is not supported by this driver\n",
+			ah->hw_version.macVersion, ah->hw_version.macRev);
 		return -EOPNOTSUPP;
 	}
 
@@ -594,8 +587,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 
 	r = ath9k_hw_init_macaddr(ah);
 	if (r) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Failed to initialize MAC address\n");
+		ath_err(common, "Failed to initialize MAC address\n");
 		return r;
 	}
 
@@ -633,17 +625,16 @@ int ath9k_hw_init(struct ath_hw *ah)
 	default:
 		if (common->bus_ops->ath_bus_type == ATH_USB)
 			break;
-		ath_print(common, ATH_DBG_FATAL,
-			  "Hardware device ID 0x%04x not supported\n",
-			  ah->hw_version.devid);
+		ath_err(common, "Hardware device ID 0x%04x not supported\n",
+			ah->hw_version.devid);
 		return -EOPNOTSUPP;
 	}
 
 	ret = __ath9k_hw_init(ah);
 	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to initialize hardware; "
-			  "initialization status: %d\n", ret);
+		ath_err(common,
+			"Unable to initialize hardware; initialization status: %d\n",
+			ret);
 		return ret;
 	}
 
@@ -1145,8 +1136,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	}
 
 	if (!ath9k_hw_rfbus_req(ah)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Could not kill baseband RX\n");
+		ath_err(common, "Could not kill baseband RX\n");
 		return false;
 	}
 
@@ -1154,8 +1144,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 
 	r = ath9k_hw_rf_set_freq(ah, chan);
 	if (r) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Failed to set channel\n");
+		ath_err(common, "Failed to set channel\n");
 		return false;
 	}
 	ath9k_hw_set_clockrate(ah);
@@ -1287,7 +1276,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 
 	if (!ath9k_hw_chip_reset(ah, chan)) {
-		ath_print(common, ATH_DBG_FATAL, "Chip reset failed\n");
+		ath_err(common, "Chip reset failed\n");
 		return -EINVAL;
 	}
 
@@ -1568,9 +1557,9 @@ static bool ath9k_hw_set_power_awake(struct ath_hw *ah, int setChip)
 				    AR_RTC_FORCE_WAKE_EN);
 		}
 		if (i == 0) {
-			ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-				  "Failed to wakeup in %uus\n",
-				  POWER_UP_TIME / 20);
+			ath_err(ath9k_hw_common(ah),
+				"Failed to wakeup in %uus\n",
+				POWER_UP_TIME / 20);
 			return false;
 		}
 	}
@@ -1609,8 +1598,7 @@ bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 		ath9k_set_power_network_sleep(ah, setChip);
 		break;
 	default:
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unknown power mode %u\n", mode);
+		ath_err(common, "Unknown power mode %u\n", mode);
 		return false;
 	}
 	ah->power_mode = mode;
@@ -1801,8 +1789,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_OP_MODE);
 	if ((eeval & (AR5416_OPFLAGS_11G | AR5416_OPFLAGS_11A)) == 0) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "no band has been marked as supported in EEPROM.\n");
+		ath_err(common,
+			"no band has been marked as supported in EEPROM\n");
 		return -EINVAL;
 	}
 
@@ -2348,9 +2336,9 @@ struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,
 	timer = kzalloc(sizeof(struct ath_gen_timer), GFP_KERNEL);
 
 	if (timer == NULL) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "Failed to allocate memory"
-			  "for hw timer[%d]\n", timer_index);
+		ath_err(ath9k_hw_common(ah),
+			"Failed to allocate memory for hw timer[%d]\n",
+			timer_index);
 		return NULL;
 	}
 

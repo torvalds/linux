@@ -152,9 +152,9 @@ static int ath9k_htc_set_channel(struct ath9k_htc_priv *priv,
 	caldata = &priv->caldata[channel->hw_value];
 	ret = ath9k_hw_reset(ah, hchan, caldata, fastcc);
 	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to reset channel (%u Mhz) "
-			  "reset status %d\n", channel->center_freq, ret);
+		ath_err(common,
+			"Unable to reset channel (%u Mhz) reset status %d\n",
+			channel->center_freq, ret);
 		goto err;
 	}
 
@@ -263,8 +263,9 @@ static int ath9k_htc_add_station(struct ath9k_htc_priv *priv,
 	WMI_CMD_BUF(WMI_NODE_CREATE_CMDID, &tsta);
 	if (ret) {
 		if (sta)
-			ath_print(common, ATH_DBG_FATAL,
-			  "Unable to add station entry for: %pM\n", sta->addr);
+			ath_err(common,
+				"Unable to add station entry for: %pM\n",
+				sta->addr);
 		return ret;
 	}
 
@@ -296,9 +297,9 @@ static int ath9k_htc_remove_station(struct ath9k_htc_priv *priv,
 	WMI_CMD_BUF(WMI_NODE_REMOVE_CMDID, &sta_idx);
 	if (ret) {
 		if (sta)
-			ath_print(common, ATH_DBG_FATAL,
-			  "Unable to remove station entry for: %pM\n",
-			  sta->addr);
+			ath_err(common,
+				"Unable to remove station entry for: %pM\n",
+				sta->addr);
 		return ret;
 	}
 
@@ -390,8 +391,8 @@ static int ath9k_htc_send_rate_cmd(struct ath9k_htc_priv *priv,
 
 	WMI_CMD_BUF(WMI_RC_RATE_UPDATE_CMDID, trate);
 	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to initialize Rate information on target\n");
+		ath_err(common,
+			"Unable to initialize Rate information on target\n");
 	}
 
 	return ret;
@@ -895,8 +896,8 @@ static int ath9k_register_led(struct ath9k_htc_priv *priv, struct ath_led *led,
 
 	ret = led_classdev_register(wiphy_dev(priv->hw->wiphy), &led->led_cdev);
 	if (ret)
-		ath_print(ath9k_hw_common(priv->ah), ATH_DBG_FATAL,
-			  "Failed to register led:%s", led->name);
+		ath_err(ath9k_hw_common(priv->ah),
+			"Failed to register led:%s", led->name);
 	else
 		led->registered = 1;
 
@@ -1024,9 +1025,9 @@ static void ath9k_htc_radio_enable(struct ieee80211_hw *hw)
 	/* Reset the HW */
 	ret = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to reset hardware; reset status %d "
-			  "(freq %u MHz)\n", ret, ah->curchan->channel);
+		ath_err(common,
+			"Unable to reset hardware; reset status %d (freq %u MHz)\n",
+			ret, ah->curchan->channel);
 	}
 
 	ath_update_txpow(priv);
@@ -1087,9 +1088,9 @@ static void ath9k_htc_radio_disable(struct ieee80211_hw *hw)
 	/* Reset the HW */
 	ret = ath9k_hw_reset(ah, ah->curchan, ah->caldata, false);
 	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to reset hardware; reset status %d "
-			  "(freq %u MHz)\n", ret, ah->curchan->channel);
+		ath_err(common,
+			"Unable to reset hardware; reset status %d (freq %u MHz)\n",
+			ret, ah->curchan->channel);
 	}
 
 	/* Disable the PHY */
@@ -1175,9 +1176,9 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	ath9k_hw_htc_resetinit(ah);
 	ret = ath9k_hw_reset(ah, init_channel, ah->caldata, false);
 	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to reset hardware; reset status %d "
-			  "(freq %u MHz)\n", ret, curchan->center_freq);
+		ath_err(common,
+			"Unable to reset hardware; reset status %d (freq %u MHz)\n",
+			ret, curchan->center_freq);
 		mutex_unlock(&priv->mutex);
 		return ret;
 	}
@@ -1243,8 +1244,7 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	/* Remove monitor interface here */
 	if (ah->opmode == NL80211_IFTYPE_MONITOR) {
 		if (ath9k_htc_remove_monitor_interface(priv))
-			ath_print(common, ATH_DBG_FATAL,
-				  "Unable to remove monitor interface\n");
+			ath_err(common, "Unable to remove monitor interface\n");
 		else
 			ath_print(common, ATH_DBG_CONFIG,
 				  "Monitor interface removed\n");
@@ -1298,7 +1298,7 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 		hvif.opmode = cpu_to_be32(HTC_M_IBSS);
 		break;
 	default:
-		ath_print(common, ATH_DBG_FATAL,
+		ath_err(common,
 			"Interface type %d not yet supported\n", vif->type);
 		ret = -EOPNOTSUPP;
 		goto out;
@@ -1405,8 +1405,7 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 					  hw->conf.channel_type);
 
 		if (ath9k_htc_set_channel(priv, hw, &priv->ah->channels[pos]) < 0) {
-			ath_print(common, ATH_DBG_FATAL,
-				  "Unable to set channel\n");
+			ath_err(common, "Unable to set channel\n");
 			mutex_unlock(&priv->mutex);
 			return -EINVAL;
 		}
@@ -1426,8 +1425,7 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
 		if (conf->flags & IEEE80211_CONF_MONITOR) {
 			if (ath9k_htc_add_monitor_interface(priv))
-				ath_print(common, ATH_DBG_FATAL,
-					  "Failed to set monitor mode\n");
+				ath_err(common, "Failed to set monitor mode\n");
 			else
 				ath_print(common, ATH_DBG_CONFIG,
 					  "HW opmode set to Monitor mode\n");
@@ -1552,7 +1550,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 	ret = ath_htc_txq_update(priv, qnum, &qi);
 	if (ret) {
-		ath_print(common, ATH_DBG_FATAL, "TXQ Update failed\n");
+		ath_err(common, "TXQ Update failed\n");
 		goto out;
 	}
 
@@ -1764,8 +1762,7 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 		spin_unlock_bh(&priv->tx_lock);
 		break;
 	default:
-		ath_print(ath9k_hw_common(priv->ah), ATH_DBG_FATAL,
-			  "Unknown AMPDU action\n");
+		ath_err(ath9k_hw_common(priv->ah), "Unknown AMPDU action\n");
 	}
 
 	return ret;

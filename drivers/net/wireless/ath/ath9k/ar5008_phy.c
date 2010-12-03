@@ -173,8 +173,7 @@ static int ar5008_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			channelSel = ((freq - 704) * 2 - 3040) / 10;
 			bModeSynth = 1;
 		} else {
-			ath_print(common, ATH_DBG_FATAL,
-				  "Invalid channel %u MHz\n", freq);
+			ath_err(common, "Invalid channel %u MHz\n", freq);
 			return -EINVAL;
 		}
 
@@ -206,8 +205,7 @@ static int ar5008_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 		channelSel = ath9k_hw_reverse_bits((freq - 4800) / 5, 8);
 		aModeRefSel = ath9k_hw_reverse_bits(1, 2);
 	} else {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Invalid channel %u MHz\n", freq);
+		ath_err(common, "Invalid channel %u MHz\n", freq);
 		return -EINVAL;
 	}
 
@@ -448,8 +446,7 @@ static int ar5008_hw_rf_alloc_ext_banks(struct ath_hw *ah)
 #define ATH_ALLOC_BANK(bank, size) do { \
 		bank = kzalloc((sizeof(u32) * size), GFP_KERNEL); \
 		if (!bank) { \
-			ath_print(common, ATH_DBG_FATAL, \
-				  "Cannot allocate RF banks\n"); \
+			ath_err(common, "Cannot allocate RF banks\n"); \
 			return -ENOMEM; \
 		} \
 	} while (0);
@@ -879,8 +876,7 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 
 	/* Write analog registers */
 	if (!ath9k_hw_set_rf_regs(ah, chan, freqIndex)) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
-			  "ar5416SetRfRegs failed\n");
+		ath_err(ath9k_hw_common(ah), "ar5416SetRfRegs failed\n");
 		return -EIO;
 	}
 
