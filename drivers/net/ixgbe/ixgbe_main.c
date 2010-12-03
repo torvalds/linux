@@ -6952,11 +6952,12 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	const struct ixgbe_info *ii = ixgbe_info_tbl[ent->driver_data];
 	static int cards_found;
 	int i, err, pci_using_dac;
+	u8 part_str[IXGBE_PBANUM_LENGTH];
 	unsigned int indices = num_possible_cpus();
 #ifdef IXGBE_FCOE
 	u16 device_caps;
 #endif
-	u32 part_num, eec;
+	u32 eec;
 
 	/* Catch broken hardware that put the wrong VF device ID in
 	 * the PCIe SR-IOV capability.
@@ -7262,16 +7263,17 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		    hw->bus.width == ixgbe_bus_width_pcie_x1 ? "Width x1" :
 		    "Unknown"),
 		   netdev->dev_addr);
-	ixgbe_read_pba_num_generic(hw, &part_num);
+
+	err = ixgbe_read_pba_string_generic(hw, part_str, IXGBE_PBANUM_LENGTH);
+	if (err)
+		strcpy(part_str, "Unknown");
 	if (ixgbe_is_sfp(hw) && hw->phy.sfp_type != ixgbe_sfp_type_not_present)
-		e_dev_info("MAC: %d, PHY: %d, SFP+: %d, "
-			   "PBA No: %06x-%03x\n",
+		e_dev_info("MAC: %d, PHY: %d, SFP+: %d, PBA No: %s\n",
 			   hw->mac.type, hw->phy.type, hw->phy.sfp_type,
-			   (part_num >> 8), (part_num & 0xff));
+		           part_str);
 	else
-		e_dev_info("MAC: %d, PHY: %d, PBA No: %06x-%03x\n",
-			   hw->mac.type, hw->phy.type,
-			   (part_num >> 8), (part_num & 0xff));
+		e_dev_info("MAC: %d, PHY: %d, PBA No: %s\n",
+			   hw->mac.type, hw->phy.type, part_str);
 
 	if (hw->bus.width <= ixgbe_bus_width_pcie_x4) {
 		e_dev_warn("PCI-Express bandwidth available for this card is "
