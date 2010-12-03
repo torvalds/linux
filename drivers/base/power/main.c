@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/async.h>
+#include <linux/suspend.h>
 
 #include "../base.h"
 #include "power.h"
@@ -1052,8 +1053,10 @@ static int dpm_prepare(pm_message_t state)
 		mutex_unlock(&dpm_list_mtx);
 
 		pm_runtime_get_noresume(dev);
-		if (pm_runtime_barrier(dev) && device_may_wakeup(dev)) {
-			/* Wake-up requested during system sleep transition. */
+		if (pm_runtime_barrier(dev) && device_may_wakeup(dev))
+			pm_wakeup_event(dev, 0);
+
+		if (!pm_check_wakeup_events()) {
 			pm_runtime_put_sync(dev);
 			error = -EBUSY;
 		} else {
@@ -1068,8 +1071,8 @@ static int dpm_prepare(pm_message_t state)
 				error = 0;
 				continue;
 			}
-			printk(KERN_ERR "PM: Failed to prepare device %s "
-				"for power transition: error %d\n",
+			printk(KERN_INFO "PM: Device %s not prepared "
+				"for power transition: code %d\n",
 				kobject_name(&dev->kobj), error);
 			put_device(dev);
 			break;
