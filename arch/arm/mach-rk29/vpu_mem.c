@@ -34,8 +34,8 @@
 
 #define VPU_MEM_DEBUG 1
 
-#define VPU_MEM_BITMAP_ERR              (-1)
-#define VPU_MEM_ERR_FREE_REFN_ERR       (-5)
+#define VPU_MEM_SPLIT_ALLOC             0
+#define VPU_MEM_SPLIT_LINK              1
 
 struct vpu_mem_data {
 	/* protects this data field, if the mm_mmap sem will be held at the
@@ -51,22 +51,25 @@ struct vpu_mem_data {
 };
 
 struct vpu_mem_bits {
-	unsigned short pfn;             /* page frame number - vpu_mem space max 256M */
-	signed   refrn:7;               /* reference number */
-	unsigned first:1;               /* 1 if first, 0 if not first */
-	signed   avail:7;               /* available link number */
-	unsigned allocated:1;           /* 1 if allocated, 0 if free */
+	int pfn:16;                 /* page frame number - vpu_mem space max 256M */
+	int refrc:7;                /* reference number */
+	int first:1;                /* 1 if first, 0 if not first */
+	int avail:7;                /* available link number */
+	int last:1;                 /* 1 if last, 0 if no last */
 };
 
 struct vpu_mem_region {
-	unsigned long offset;
-	unsigned long len;
+	int index;
+	int ref_count;
 };
 
 struct vpu_mem_region_node {
 	struct vpu_mem_region region;
 	struct list_head list;
 };
+
+#define NODE_REGION_INDEX(p)     (p->region.index)
+#define NODE_REGION_REFC(p)      (p->region.ref_count)
 
 #define VPU_MEM_DEBUG_MSGS 0
 #if VPU_MEM_DEBUG_MSGS
@@ -122,11 +125,16 @@ struct vpu_mem_info {
 static struct vpu_mem_info vpu_mem;
 static int vpu_mem_count;
 
-#define VPU_MEM_IS_FREE(index) !(vpu_mem.bitmap[index].allocated)
-#define VPU_MEM_IS_FIRST(index) (vpu_mem.bitmap[index].first)
-#define VPU_MEM_BIT(index) &vpu_mem.bitmap[index]
-#define VPU_MEM_PFN(index) vpu_mem.bitmap[index].pfn
+#define VPU_MEM_IS_FREE(index) !(vpu_mem.bitmap[index].avail)
+#define VPU_MEM_FIRST(index) (vpu_mem.bitmap[index].first)
+#define VPU_MEM_LAST(index) (vpu_mem.bitmap[index].last)
+#define VPU_MEM_REFC(index) (vpu_mem.bitmap[index].refrc)
+#define VPU_MEM_AVAIL(index) (vpu_mem.bitmap[index].avail)
+#define VPU_MEM_BIT(index) (&vpu_mem.bitmap[index])
+#define VPU_MEM_PFN(index) (vpu_mem.bitmap[index].pfn)
+#define VPU_MEM_LAST_INDEX(index) (index - VPU_MEM_PFN(index - 1))
 #define VPU_MEM_NEXT_INDEX(index) (index + VPU_MEM_PFN(index))
+#define VPU_MEM_END_INDEX(index) (VPU_MEM_NEXT_INDEX(index) - 1)
 #define VPU_MEM_OFFSET(index) (index * VPU_MEM_MIN_ALLOC)
 #define VPU_MEM_START_ADDR(index) (VPU_MEM_OFFSET(index) + vpu_mem.base)
 #define VPU_MEM_SIZE(index) ((VPU_MEM_PFN(index)) * VPU_MEM_MIN_ALLOC)
@@ -157,93 +165,188 @@ int is_vpu_mem_file(struct file *file)
 	return 1;
 }
 
-
-static void vpu_mem_get_region(struct vpu_mem_data *data,
-                               struct vpu_mem_region_node *region_node,
-                               int index, int pfn)
+static void region_set(int index, int pfn)
 {
-    int curr, next = index + pfn;
-    struct vpu_mem_bits *pbits;
+    WARN(pfn <= 0, "vpu_mem: region_set non-positive pfn\n");
+    if (pfn > 0) {
+        int first = index;
+        int last  = index + pfn - 1;
 
-    if (VPU_MEM_IS_FREE(next)) {
-        pbits        = VPU_MEM_BIT(next);
-        pbits->first = 1;
-        pbits->pfn   = VPU_MEM_PFN(index) - pfn;
-    } else {
-        if (!VPU_MEM_IS_FIRST(next))
-            DLOG("something wrong when get_region pfn %d at index %d\n", pfn, index);
+        DLOG("region_set: first %d, last %d, size %d\n", first, last, pfn);
+
+        VPU_MEM_FIRST(first) = 1;
+        VPU_MEM_PFN(first) = pfn;
+
+        VPU_MEM_LAST(last) = 1;
+        VPU_MEM_PFN(last) = pfn;
     }
-
-    pbits = VPU_MEM_BIT(index);
-
-    pbits->first = 1;
-    pbits->pfn = pfn;
-    pbits->refrn++;
-    pbits->avail++;
-
-    for (curr = 0; curr < pfn; curr++)
-        pbits[curr].allocated = 1;
-
-    region_node->region.offset = index;
-    region_node->region.len = pfn;
-
-    down_write(&data->sem);
-    list_add(&region_node->list, &data->region_list);
-    up_write(&data->sem);
-
-    return ;
 }
 
-static int vpu_mem_put_region_by_index(struct vpu_mem_data *data, int index)
+static void region_unset(int index, int pfn)
 {
-    struct vpu_mem_bits *pbits = VPU_MEM_BIT(index);
-    pbits->refrn--;
-    pbits->avail--;
+    WARN(pfn <= 0, "vpu_mem: region_unset non-positive pfn\n");
+    if (pfn > 0) {
+        int first = index;
+        int last  = index + pfn - 1;
 
-    if (!pbits->avail)
-    {
-        int i;
-        for (i = 0; i < pbits->pfn; i++)
-            pbits[i].allocated = 0;
+        DLOG("region_unset: first %d, last %d, size %d\n", first, last, pfn);
 
-        down_write(&data->sem);
-        {
-            struct vpu_mem_region_node *region_node;
-            struct list_head *elt, *elt2;
-            list_for_each_safe(elt, elt2, &data->region_list) {
-                region_node = list_entry(elt, struct vpu_mem_region_node, list);
-                if (region_node->region.offset == index)
-                {
-                    if (pbits->pfn != region_node->region.len)
-                        DLOG("something wrong when put_region at index %d\n", index);
-                    list_del(elt);
-                    kfree(region_node);
-                    break;
-                }
-            }
-        }
-        up_write(&data->sem);
+        VPU_MEM_FIRST(first) = 0;
+        VPU_MEM_LAST(first) = 0;
+        VPU_MEM_PFN(first) = 0;
+
+        VPU_MEM_FIRST(last) = 0;
+        VPU_MEM_LAST(last) = 0;
+        VPU_MEM_PFN(last) = 0;
     }
+}
+
+static void region_set_ref_count(int index, int ref_count)
+{
+    DLOG("region_set_ref_count: index %d, ref_count %d\n", index, ref_count);
+
+    VPU_MEM_REFC(index) = ref_count;
+    VPU_MEM_REFC(VPU_MEM_END_INDEX(index)) = ref_count;
+}
+
+static void region_set_avail(int index, int avail)
+{
+    DLOG("region_set_avail: index %d, avail %d\n", index, avail);
+
+    VPU_MEM_AVAIL(index) = avail;
+    VPU_MEM_AVAIL(VPU_MEM_END_INDEX(index)) = avail;
+}
+
+static int index_avail(int index)
+{
+    return ((0 <= index) && (index < vpu_mem.num_entries));
+}
+
+static int region_check(int index)
+{
+    int end = VPU_MEM_END_INDEX(index);
+
+    DLOG("region_check: index %d val 0x%.8x, end %d val 0x%.8x\n",
+        index, *((unsigned int *)VPU_MEM_BIT(index)),
+        end, *((unsigned int *)VPU_MEM_BIT(end)));
+
+    WARN(index <  0,
+        "vpu_mem: region_check fail: negative first %d\n", index);
+    WARN(index >= vpu_mem.num_entries,
+        "vpu_mem: region_check fail: too large first %d\n", index);
+    WARN(end   <= 0,
+        "vpu_mem: region_check fail: negative end %d\n", end);
+    WARN(end   >  vpu_mem.num_entries,
+        "vpu_mem: region_check fail: too large end %d\n", end);
+    WARN(!VPU_MEM_FIRST(index),
+        "vpu_mem: region_check fail: index %d is not first\n", index);
+    WARN(!VPU_MEM_LAST(end),
+        "vpu_mem: region_check fail: index %d is not end\n", end);
+    WARN((VPU_MEM_PFN(index) != VPU_MEM_PFN(end)),
+        "vpu_mem: region_check fail: first %d and end %d pfn is not equal\n", index, end);
+    WARN(VPU_MEM_REFC(index) != VPU_MEM_REFC(end),
+        "vpu_mem: region_check fail: first %d and end %d ref count is not equal\n", index, end);
+    WARN(VPU_MEM_AVAIL(index) != VPU_MEM_AVAIL(end),
+        "vpu_mem: region_check fail: first %d and end %d avail count is not equal\n", index, end);
     return 0;
 }
 
-static int vpu_mem_put_region_by_region(struct vpu_mem_region_node *region_node)
+/*
+ * split allocated block from free block
+ * the bitmap_sem and region_list_sem must be hold together
+ * the pnode is a ouput region node
+ */
+static int region_split(struct list_head *region_list, struct vpu_mem_region_node *node, int index, int pfn)
 {
-    int index = region_node->region.offset;
-    struct vpu_mem_bits *pbits = VPU_MEM_BIT(index);
-    pbits->refrn--;
-    pbits->avail--;
-
-    if (!pbits->avail)
-    {
-        int i;
-        for (i = 0; i < pbits->pfn; i++)
-            pbits[i].allocated = 0;
-
-        list_del(&region_node->list);
-        kfree(region_node);
+    int pfn_free = VPU_MEM_PFN(index);
+    // check pfn is smaller then target index region
+    if ((pfn > pfn_free) || (pfn <= 0)) {
+#if VPU_MEM_DEBUG
+        printk(KERN_INFO "unable to split region %d of size %d, while is smaller than %d!", index, pfn_free, pfn);
+#endif
+        return -1;
+    }
+    // check region data coherence
+    if (region_check(index)) {
+#if VPU_MEM_DEBUG
+        printk(KERN_INFO "region %d unable to pass coherence check!", index);
+#endif
+        return -EINVAL;
     }
 
+    if (NULL == node) {
+        struct list_head *last;
+        // check target index region first
+        if (!VPU_MEM_IS_FREE(index)) {
+#if VPU_MEM_DEBUG
+            printk(KERN_INFO "try to split not free region %d!", index);
+#endif
+            return -2;
+        }
+        // malloc vpu_mem_region_node
+        node = kmalloc(sizeof(struct vpu_mem_region_node), GFP_KERNEL);
+        if (NULL == node) {
+#if VPU_MEM_DEBUG
+            printk(KERN_INFO "No space to allocate struct vpu_mem_region_node!");
+#endif
+            return -ENOMEM;
+        }
+
+        // search the last node
+        DLOG("search the last node\n");
+        for (last = region_list; !list_is_last(last, region_list);)
+            last = last->next;
+
+        DLOG("list_add_tail\n");
+        list_add_tail(&node->list, last);
+
+        DLOG("start region_set index %d pfn %u\n", index, pfn);
+        region_set(index,       pfn);
+
+        DLOG("start region_set index %d pfn %u\n", index + pfn, pfn_free - pfn);
+        region_set(index + pfn, pfn_free - pfn);
+
+        region_set_avail(index, VPU_MEM_AVAIL(index) + 1);
+        region_set_ref_count(index, VPU_MEM_REFC(index) + 1);
+        node->region.index = index;
+        node->region.ref_count = 1;
+    } else {
+        region_set_ref_count(index, VPU_MEM_REFC(index) + 1);
+        node->region.ref_count++;
+    }
+
+    return 0;
+}
+
+static int region_merge(struct list_head *node)
+{
+    struct vpu_mem_region_node *pnode = list_entry(node, struct vpu_mem_region_node, list);
+    int index = pnode->region.index;
+    int target;
+
+    if (VPU_MEM_AVAIL(index))
+        return 0;
+    if (region_check(index))
+        return -EINVAL;
+
+    target = VPU_MEM_NEXT_INDEX(index);
+    if (index_avail(target) && VPU_MEM_IS_FREE(target)) {
+        int pfn_target  = VPU_MEM_PFN(target);
+        int pfn_index   = VPU_MEM_PFN(index);
+        int pfn_total   = pfn_target + pfn_index;
+        region_unset(index,  pfn_index);
+        region_unset(target, pfn_target);
+        region_set(index, pfn_total);
+    }
+    target = VPU_MEM_LAST_INDEX(index);
+    if (index_avail(target) && VPU_MEM_IS_FREE(target)) {
+        int pfn_target  = VPU_MEM_PFN(target);
+        int pfn_index   = VPU_MEM_PFN(index);
+        int pfn_total   = pfn_target + pfn_index;
+        region_unset(index,  pfn_index);
+        region_unset(target, pfn_target);
+        region_set(index, pfn_total);
+    }
     return 0;
 }
 
@@ -252,11 +355,9 @@ static long vpu_mem_allocate(struct file *file, unsigned int len)
     /* caller should hold the write lock on vpu_mem_sem! */
 	/* return the corresponding pdata[] entry */
 	int curr = 0;
-	int end = vpu_mem.num_entries;
 	int best_fit = -1;
 	unsigned int pfn = (len + VPU_MEM_MIN_ALLOC - 1)/VPU_MEM_MIN_ALLOC;
     struct vpu_mem_data *data = (struct vpu_mem_data *)file->private_data;
-    struct vpu_mem_region_node *region_node;
 
     if (!is_vpu_mem_file(file)) {
 #if VPU_MEM_DEBUG
@@ -265,22 +366,11 @@ static long vpu_mem_allocate(struct file *file, unsigned int len)
         return -ENODEV;
     }
 
-	DLOG("vpu_mem_allocate pfn %x\n", pfn);
-
-    region_node = kmalloc(sizeof(struct vpu_mem_region_node),
-              GFP_KERNEL);
-    if (!region_node) {
-#if VPU_MEM_DEBUG
-        printk(KERN_INFO "No space to allocate metadata!");
-#endif
-        return -ENOMEM;
-    }
-
 	/* look through the bitmap:
 	 * 	if you find a free slot of the correct order use it
 	 * 	otherwise, use the best fit (smallest with size > order) slot
 	 */
-	while (curr < end) {
+	while (curr < vpu_mem.num_entries) {
 		if (VPU_MEM_IS_FREE(curr)) {
 			if (VPU_MEM_PFN(curr) >= (unsigned char)pfn) {
 				/* set the not free bit and clear others */
@@ -289,28 +379,78 @@ static long vpu_mem_allocate(struct file *file, unsigned int len)
 				break;
 			}
 		}
+#if VPU_MEM_DEBUG
+        printk(KERN_INFO "curr %d\n!", curr);
+#endif
 		curr = VPU_MEM_NEXT_INDEX(curr);
+#if VPU_MEM_DEBUG
+        printk(KERN_INFO "next %d\n!", curr);
+#endif
 	}
 
 	/* if best_fit < 0, there are no suitable slots,
 	 * return an error
 	 */
 	if (best_fit < 0) {
+#if VPU_MEM_DEBUG
 		printk("vpu_mem: no space left to allocate!\n");
+#endif
 		return -1;
 	}
 
 	DLOG("best_fit: %d next: %u\n", best_fit, best_fit + pfn);
 
-    vpu_mem_get_region(data, region_node, best_fit, pfn);
+    down_write(&data->sem);
+    {
+        int ret = region_split(&data->region_list, NULL, best_fit, pfn);
+        if (ret)
+            best_fit = -1;
+    }
+    up_write(&data->sem);
+
+	DLOG("best_fit result: %d next: %u\n", best_fit, best_fit + pfn);
 
 	return best_fit;
+}
+
+static int vpu_mem_free_by_region(struct vpu_mem_region_node *node)
+{
+    int ret = 0;
+    int index = node->region.index;
+    int avail = VPU_MEM_AVAIL(index);
+    int refc  = VPU_MEM_REFC(index);
+
+    WARN((NODE_REGION_REFC(node) <= 0),
+        "vpu_mem: vpu_mem_free: non-positive ref count\n");
+    WARN((!VPU_MEM_FIRST(index)),
+        "vpu_mem: vpu_mem_free: index %d is not first\n", index);
+    WARN((avail <= 0),
+        "vpu_mem: vpu_mem_free: avail of index %d is non-positive\n", index);
+    WARN((refc  <= 0),
+        "vpu_mem: vpu_mem_free: refc of index %d is non-positive\n", index);
+
+    NODE_REGION_REFC(node) -= 1;
+    region_set_avail(index, avail - 1);
+    region_set_ref_count(index, refc - 1);
+    if (0 == NODE_REGION_REFC(node))
+    {
+        avail = VPU_MEM_AVAIL(index);
+        if (0 == avail)
+        {
+            refc  = VPU_MEM_REFC(index);
+            WARN((0 != refc),
+                "vpu_mem: vpu_mem_free: refc of index %d after free is non-zero\n", index);
+            ret = region_merge(&node->list);
+        }
+        list_del(&node->list);
+        kfree(node);
+    }
+    return ret;
 }
 
 static int vpu_mem_free(struct file *file, int index)
 {
     /* caller should hold the write lock on vpu_mem_sem! */
-    struct vpu_mem_bits *pbits = VPU_MEM_BIT(index);
     struct vpu_mem_data *data = (struct vpu_mem_data *)file->private_data;
 
     if (!is_vpu_mem_file(file)) {
@@ -320,26 +460,30 @@ static int vpu_mem_free(struct file *file, int index)
         return -ENODEV;
     }
 
-	DLOG("free index %d\n", index);
+	DLOG("search for index %d\n", index);
 
-    if ((!pbits->first) ||
-        (!pbits->allocated) ||
-        ((pbits->refrn - 1) < 0) ||
-        ((pbits->avail - 1) < 0))
+	down_write(&data->sem);
     {
-        DLOG("VPM ERR: found error in vpu_mem_free :\nvpu_mem.bitmap[%d].first %d, allocated %d, avail %d, refrn %d\n",
-            index, pbits->first, pbits->allocated, pbits->avail, pbits->refrn);
-        return VPU_MEM_BITMAP_ERR;
-    }
+    	struct list_head *list, *tmp;
+        list_for_each_safe(list, tmp, &data->region_list) {
+    		struct vpu_mem_region_node *node = list_entry(list, struct vpu_mem_region_node, list);
+            if (index == NODE_REGION_INDEX(node)) {
+                int ret = vpu_mem_free_by_region(node);
+                up_write(&data->sem);
+                return ret;
+            }
+        }
+	}
+	up_write(&data->sem);
 
-	return vpu_mem_put_region_by_index(data, index);
+	DLOG("no region of index %d searched\n", index);
+
+	return -1;
 }
 
-static long vpu_mem_duplicate(struct file *file, int index)
+static int vpu_mem_duplicate(struct file *file, int index)
 {
 	/* caller should hold the write lock on vpu_mem_sem! */
-    struct vpu_mem_bits *pbits = VPU_MEM_BIT(index);
-
     if (!is_vpu_mem_file(file)) {
 #if VPU_MEM_DEBUG
         printk(KERN_INFO "duplicate vpu_mem data from invalid file.\n");
@@ -349,25 +493,21 @@ static long vpu_mem_duplicate(struct file *file, int index)
 
 	DLOG("duplicate index %d\n", index);
 
-    if ((!pbits->first) ||
-        (!pbits->allocated) ||
-        (!pbits->avail))
-    {
-        DLOG("VPM ERR: found error in vpu_mem_duplicate :\nvpu_mem.bitmap[%d].first %d, allocated %d, avail %d, refrn %d\n",
-            index, pbits->first, pbits->allocated, pbits->avail, pbits->refrn);
-        return VPU_MEM_BITMAP_ERR;
+    if (region_check(index)) {
+#if VPU_MEM_DEBUG
+        printk(KERN_INFO "region %d unable to pass coherence check!", index);
+#endif
+        return -EINVAL;
     }
 
-    pbits->avail++;
+    region_set_avail(index, VPU_MEM_AVAIL(index) + 1);
 
 	return 0;
 }
 
-static long vpu_mem_link(struct file *file, int index)
+static int vpu_mem_link(struct file *file, int index)
 {
-    struct vpu_mem_bits *pbits = VPU_MEM_BIT(index);
     struct vpu_mem_data *data = (struct vpu_mem_data *)file->private_data;
-    struct vpu_mem_region_node *region_node;
 
 	if (!is_vpu_mem_file(file)) {
 #if VPU_MEM_DEBUG
@@ -376,36 +516,31 @@ static long vpu_mem_link(struct file *file, int index)
         return -ENODEV;
 	}
 
-    region_node = kmalloc(sizeof(struct vpu_mem_region_node),
-              GFP_KERNEL);
-    if (!region_node) {
+    if (region_check(index)) {
 #if VPU_MEM_DEBUG
-        printk(KERN_INFO "No space to allocate metadata!");
+        printk(KERN_INFO "region %d unable to pass coherence check!", index);
 #endif
-        return -ENOMEM;
+        return -EINVAL;
     }
 
 	/* caller should hold the write lock on vpu_mem_sem! */
 	DLOG("link index %d\n", index);
 
-    if ((!pbits->first) ||
-        (!pbits->allocated) ||
-        (!pbits->avail) ||
-        (pbits->avail <= pbits->refrn))
-    {
-        DLOG("VPM ERR: found error in vpu_mem_duplicate :\nvpu_mem.bitmap[%d].first %d, allocated %d, avail %d, refrn %d\n",
-            index, pbits->first, pbits->allocated, pbits->avail, pbits->refrn);
-        return VPU_MEM_BITMAP_ERR;
-    }
-
-    pbits->refrn++;
-
-    region_node->region.offset = index;
-    region_node->region.len = pbits->pfn;
-
-    down_write(&data->sem);
-    list_add(&region_node->list, &data->region_list);
-    up_write(&data->sem);
+	down_write(&data->sem);
+    {   // search exists index
+        struct list_head *list, *tmp;
+        list_for_each_safe(list, tmp, &data->region_list) {
+    		struct vpu_mem_region_node *node = list_entry(list, struct vpu_mem_region_node, list);
+            if (index == NODE_REGION_INDEX(node)) {
+                region_split(&data->region_list, node, index, VPU_MEM_PFN(index));
+                up_write(&data->sem);
+                return 0;
+            }
+        }
+        // non-exists index
+        region_split(&data->region_list, NULL, index, VPU_MEM_PFN(index));
+	}
+	up_write(&data->sem);
 
 	return 0;
 }
@@ -469,7 +604,9 @@ static int vpu_mem_open(struct inode *inode, struct file *file)
 		return -1;
 	data = kmalloc(sizeof(struct vpu_mem_data), GFP_KERNEL);
 	if (!data) {
+#if VPU_MEM_DEBUG
 		printk("vpu_mem: unable to allocate memory for vpu_mem metadata.");
+#endif
 		return -1;
 	}
 	data->pid = 0;
@@ -502,7 +639,9 @@ static int vpu_mem_mmap(struct file *file, struct vm_area_struct *vma)
 
 	data = (struct vpu_mem_data *)file->private_data;
 
+#if VPU_MEM_DEBUG
     printk(KERN_ALERT "file->private_data : 0x%x\n", (unsigned int)data);
+#endif
 
 	down_write(&data->sem);
 
@@ -541,11 +680,13 @@ static int vpu_mem_release(struct inode *inode, struct file *file)
 	list_del(&data->list);
 	up(&vpu_mem.data_list_sem);
 
+    // TODO: 最后一个文件 release 的时候
 	down_write(&data->sem);
 	file->private_data = NULL;
 	list_for_each_safe(elt, elt2, &data->region_list) {
-		struct vpu_mem_region_node *region_node = list_entry(elt, struct vpu_mem_region_node, list);
-        vpu_mem_put_region_by_region(region_node);
+		struct vpu_mem_region_node *node = list_entry(elt, struct vpu_mem_region_node, list);
+        if (vpu_mem_free_by_region(node))
+            printk(KERN_INFO "vpu_mem: err on vpu_mem_free_by_region when vpu_mem_release\n");
 	}
 	BUG_ON(!list_empty(&data->region_list));
 	up_write(&data->sem);
@@ -629,18 +770,6 @@ static long vpu_mem_ioctl(struct file *file, unsigned int cmd, unsigned long arg
             up_write(&vpu_mem.bitmap_sem);
 			break;
 		}
-	case VPU_MEM_MAP:
-        DLOG("map\n");
-		break;
-	case VPU_MEM_CONNECT:
-		DLOG("connect\n");
-		break;
-    case VPU_MEM_GET_SIZE:
-        DLOG("get_size\n");
-        break;
-    case VPU_MEM_UNMAP:
-        DLOG("unmap\n");
-        break;
 	default:
 		return -EINVAL;
 	}
@@ -678,9 +807,9 @@ static ssize_t debug_read(struct file *file, char __user *buf, size_t count,
 			region_node = list_entry(elt2, struct vpu_mem_region_node,
 				      list);
 			n += scnprintf(buffer + n, debug_bufmax - n,
-					"(%lx,%lx) ",
-					region_node->region.offset,
-					region_node->region.len);
+					"(%d,%d) ",
+					region_node->region.index,
+					region_node->region.ref_count);
 		}
 		n += scnprintf(buffer + n, debug_bufmax - n, "\n");
 		up_read(&data->sem);
@@ -738,8 +867,7 @@ int vpu_mem_setup(struct vpu_mem_platform_data *pdata)
 	memset(vpu_mem.bitmap, 0, sizeof(struct vpu_mem_bits) *
 					  vpu_mem.num_entries);
 
-    /* record the total page number */
-    vpu_mem.bitmap[0].pfn = vpu_mem.num_entries;
+    region_set(0, vpu_mem.num_entries);
 
 	if (vpu_mem.cached)
 		vpu_mem.vbase = ioremap_cached(vpu_mem.base,
@@ -787,6 +915,10 @@ static int vpu_mem_remove(struct platform_device *pdev)
 		return -1;
 	}
     if (vpu_mem_count) {
+        if (vpu_mem.bitmap) {
+            kfree(vpu_mem.bitmap);
+            vpu_mem.bitmap = NULL;
+        }
 	    misc_deregister(&vpu_mem.dev);
         vpu_mem_count--;
     } else {
