@@ -1539,7 +1539,7 @@ GATE_CLK(ipp_ahb, hclk_cpu, IPP_AHB);
 GATE_CLK(ebook_ahb, hclk_cpu, EBOOK_AHB);
 GATE_CLK(display_matrix_axi, aclk_cpu, DISPLAY_MATRIX_AXI);
 GATE_CLK(display_matrix_ahb, hclk_cpu, DISPLAY_MATRIX_AHB);
-GATE_CLK(ddr_vedu_axi, aclk_cpu, DDR_VEDU_AXI);
+GATE_CLK(ddr_vepu_axi, aclk_cpu, DDR_VEPU_AXI);
 GATE_CLK(ddr_vdpu_axi, aclk_cpu, DDR_VDPU_AXI);
 GATE_CLK(ddr_gpu_axi, aclk_cpu, DDR_GPU_AXI);
 GATE_CLK(gpu_ahb, hclk_cpu, GPU_AHB);
@@ -1721,7 +1721,7 @@ static struct clk_lookup clks[] = {
 	CLK1(ebook_ahb),
 	CLK1(display_matrix_axi),
 	CLK1(display_matrix_ahb),
-	CLK1(ddr_vedu_axi),
+	CLK1(ddr_vepu_axi),
 	CLK1(ddr_vdpu_axi),
 	CLK1(ddr_gpu_axi),
 	CLK1(gpu_ahb),
