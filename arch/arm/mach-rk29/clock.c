@@ -563,6 +563,8 @@ static struct clk pclk_cpu = {
 
 static struct clk aclk_periph = {
 	.name		= "aclk_periph",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_PEIRPH_AXI,
 	.parent		= &periph_pll_clk,
 	.recalc		= clksel_recalc_div,
 	.clksel_con	= CRU_CLKSEL0_CON,
@@ -572,6 +574,8 @@ static struct clk aclk_periph = {
 
 static struct clk pclk_periph = {
 	.name		= "pclk_periph",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_PEIRPH_APB,
 	.parent		= &aclk_periph,
 	.recalc		= clksel_recalc_shift,
 	.clksel_con	= CRU_CLKSEL0_CON,
@@ -582,6 +586,8 @@ static struct clk pclk_periph = {
 
 static struct clk hclk_periph = {
 	.name		= "hclk_periph",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_PEIRPH_AHB,
 	.parent		= &aclk_periph,
 	.recalc		= clksel_recalc_shift,
 	.clksel_con	= CRU_CLKSEL0_CON,
@@ -611,6 +617,8 @@ static struct clk *clk_otgphy_parents[4] = { &xin24m, &clk_12m, &clk_uhost };
 
 static struct clk clk_otgphy0 = {
 	.name		= "otgphy0",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_USBPHY0,
 	.clksel_con	= CRU_CLKSEL1_CON,
 	.clksel_parent_mask	= 3,
 	.clksel_parent_shift	= 9,
@@ -619,6 +627,8 @@ static struct clk clk_otgphy0 = {
 
 static struct clk clk_otgphy1 = {
 	.name		= "otgphy1",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_USBPHY1,
 	.clksel_con	= CRU_CLKSEL1_CON,
 	.clksel_parent_mask	= 3,
 	.clksel_parent_shift	= 11,
@@ -648,6 +658,8 @@ static struct clk *clk_mac_ref_parents[2] = { &clk_mac_ref_div, &rmii_clkin };
 
 static struct clk clk_mac_ref = {
 	.name		= "mac_ref",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_MAC_PHY,
 	.clksel_con	= CRU_CLKSEL1_CON,
 	.clksel_parent_mask	= 1,
 	.clksel_parent_shift	= 28,
@@ -783,6 +795,8 @@ static struct clk *clk_i2s0_parents[4] = { &clk_i2s0_div, &clk_i2s0_frac_div, &c
 
 static struct clk clk_i2s0 = {
 	.name		= "i2s0",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_I2S0,
 	.set_rate	= i2s_set_rate,
 	.clksel_con	= CRU_CLKSEL2_CON,
 	.clksel_parent_mask	= 3,
@@ -794,6 +808,8 @@ static struct clk *clk_i2s1_parents[4] = { &clk_i2s1_div, &clk_i2s1_frac_div, &c
 
 static struct clk clk_i2s1 = {
 	.name		= "i2s1",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_I2S1,
 	.set_rate	= i2s_set_rate,
 	.clksel_con	= CRU_CLKSEL2_CON,
 	.clksel_parent_mask	= 3,
@@ -805,6 +821,8 @@ static struct clk *clk_spdif_parents[4] = { &clk_spdif_div, &clk_spdif_frac_div,
 
 static struct clk clk_spdif = {
 	.name		= "spdif",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_SPDIF,
 	.set_rate	= i2s_set_rate,
 	.clksel_con	= CRU_CLKSEL2_CON,
 	.clksel_parent_mask	= 3,
@@ -950,27 +968,6 @@ static struct clk clk_emmc = {
 	.clksel_con	= CRU_CLKSEL7_CON,
 	.clksel_mask	= 0x3F,
 	.clksel_shift	= 18,
-};
-
-static struct clk clk_sdmmc0_ahb = {
-	.name		= "sdmmc0_ahb",
-	.parent		= &hclk_periph,
-	.mode		= gate_mode,
-	.gate_idx	= CLK_GATE_SDMMC0_AHB,
-};
-
-static struct clk clk_sdmmc1_ahb = {
-	.name		= "sdmmc1_ahb",
-	.parent		= &hclk_periph,
-	.mode		= gate_mode,
-	.gate_idx	= CLK_GATE_SDMMC1_AHB,
-};
-
-static struct clk clk_emmc_ahb = {
-	.name		= "emmc_ahb",
-	.parent		= &hclk_periph,
-	.mode		= gate_mode,
-	.gate_idx	= CLK_GATE_EMMC_AHB,
 };
 
 
@@ -1268,6 +1265,8 @@ static struct clk *clk_hsadc_parents[2] = { &clk_demod, &gpsclk };
 
 static struct clk clk_hsadc = {
 	.name		= "hsadc",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_HSADC,
 	.clksel_con	= CRU_CLKSEL14_CON,
 	.clksel_parent_mask	= 1,
 	.clksel_parent_shift	= 21,
@@ -1330,6 +1329,8 @@ static struct clk dclk_lcdc = {
 
 static struct clk dclk_ebook = {
 	.name		= "dclk_ebook",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_EBOOK,
 	.recalc		= clksel_recalc_div,
 	.set_rate	= clksel_set_rate_div,
 	.clksel_con	= CRU_CLKSEL16_CON,
@@ -1428,6 +1429,8 @@ static struct clk hclk_vdpu = {
 
 static struct clk clk_gpu = {
 	.name		= "gpu",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_GPU,
 	.recalc		= clksel_recalc_div,
 	.set_rate	= clksel_set_rate_div,
 	.clksel_con	= CRU_CLKSEL17_CON,
@@ -1440,6 +1443,8 @@ static struct clk clk_gpu = {
 
 static struct clk aclk_gpu = {
 	.name		= "aclk_gpu",
+	.mode		= gate_mode,
+	.gate_idx	= CLK_GATE_GPU_AXI,
 	.recalc		= clksel_recalc_div,
 	.set_rate	= clksel_set_rate_div,
 	.clksel_con	= CRU_CLKSEL17_CON,
@@ -1484,6 +1489,66 @@ GATE_CLK(gpio3, pclk_periph, GPIO3);
 GATE_CLK(gpio4, pclk_cpu, GPIO4);
 GATE_CLK(gpio5, pclk_periph, GPIO5);
 GATE_CLK(gpio6, pclk_cpu, GPIO6);
+
+GATE_CLK(dma0, aclk_cpu, DMA0);
+GATE_CLK(dma1, aclk_periph, DMA1);
+GATE_CLK(dma2, aclk_periph, DMA2);
+
+GATE_CLK(gic, aclk_cpu, GIC);
+GATE_CLK(imem, aclk_cpu, IMEM);
+GATE_CLK(ebrom, hclk_cpu, EBROM);
+GATE_CLK(ddr_phy, aclk_cpu, DDR_PHY);
+GATE_CLK(ddr_reg, aclk_cpu, DDR_REG);
+GATE_CLK(ddr_cpu, aclk_cpu, DDR_CPU);
+GATE_CLK(efuse, pclk_cpu, EFUSE);
+GATE_CLK(tzpc, pclk_cpu, TZPC);
+GATE_CLK(debug, pclk_cpu, DEBUG);
+GATE_CLK(tpiu, pclk_cpu, TPIU);
+GATE_CLK(rtc, pclk_cpu, RTC);
+GATE_CLK(pmu, pclk_cpu, PMU);
+GATE_CLK(grf, pclk_cpu, GRF);
+
+GATE_CLK(emem, hclk_periph, EMEM);
+GATE_CLK(usb, hclk_periph, USB);
+GATE_CLK(ddr_periph, aclk_periph, DDR_PERIPH);
+GATE_CLK(periph_cpu, aclk_cpu, PERIPH_CPU);
+GATE_CLK(smc_axi, aclk_periph, SMC_AXI);
+GATE_CLK(smc, pclk_periph, SMC);
+GATE_CLK(mac_ahb, hclk_periph, MAC_AHB);
+GATE_CLK(mac_tx, hclk_periph, MAC_TX);
+GATE_CLK(mac_rx, hclk_periph, MAC_RX);
+GATE_CLK(hif, hclk_periph, HIF);
+GATE_CLK(nandc, hclk_periph, NANDC);
+GATE_CLK(hsadc_ahb, hclk_periph, HSADC_AHB);
+GATE_CLK(usbotg0, hclk_periph, USBOTG0);
+GATE_CLK(usbotg1, hclk_periph, USBOTG1);
+GATE_CLK(uhost_ahb, hclk_periph, UHOST_AHB);
+GATE_CLK(pid_filter, hclk_periph, PID_FILTER);
+
+GATE_CLK(vip_slave, hclk_cpu, VIP_SLAVE);
+GATE_CLK(wdt, pclk_periph, WDT);
+GATE_CLK(pwm, pclk_periph, PWM);
+GATE_CLK(vip_bus, aclk_cpu, VIP_BUS);
+GATE_CLK(vip_matrix, hclk_cpu, VIP_MATRIX);
+GATE_CLK(vip_input, hclk_cpu, VIP_INPUT);
+GATE_CLK(jtag, aclk_cpu, JTAG);
+
+GATE_CLK(ddr_lcdc_axi, aclk_cpu, DDR_LCDC_AXI);
+GATE_CLK(ipp_axi, aclk_cpu, IPP_AXI);
+GATE_CLK(ipp_ahb, hclk_cpu, IPP_AHB);
+GATE_CLK(ebook_ahb, hclk_cpu, EBOOK_AHB);
+GATE_CLK(display_matrix_axi, aclk_cpu, DISPLAY_MATRIX_AXI);
+GATE_CLK(display_matrix_ahb, hclk_cpu, DISPLAY_MATRIX_AHB);
+GATE_CLK(ddr_vedu_axi, aclk_cpu, DDR_VEDU_AXI);
+GATE_CLK(ddr_vdpu_axi, aclk_cpu, DDR_VDPU_AXI);
+GATE_CLK(ddr_gpu_axi, aclk_cpu, DDR_GPU_AXI);
+GATE_CLK(gpu_ahb, hclk_cpu, GPU_AHB);
+GATE_CLK(cpu_vcodec_ahb, hclk_cpu, CPU_VCODEC_AHB);
+GATE_CLK(cpu_display_ahb, hclk_cpu, CPU_DISPLAY_AHB);
+
+GATE_CLK(sdmmc0_ahb, hclk_periph, SDMMC0_AHB);
+GATE_CLK(sdmmc1_ahb, hclk_periph, SDMMC1_AHB);
+GATE_CLK(emmc_ahb, hclk_periph, EMMC_AHB);
 
 #define CLK(dev, con, ck) \
 	{ \
@@ -1606,6 +1671,62 @@ static struct clk_lookup clks[] = {
 	CLK1(gpio4),
 	CLK1(gpio5),
 	CLK1(gpio6),
+
+	CLK1(dma0),
+	CLK1(dma1),
+	CLK1(dma2),
+
+	CLK1(gic),
+	CLK1(imem),
+	CLK1(ebrom),
+	CLK1(ddr_phy),
+	CLK1(ddr_reg),
+	CLK1(ddr_cpu),
+	CLK1(efuse),
+	CLK1(tzpc),
+	CLK1(debug),
+	CLK1(tpiu),
+	CLK1(rtc),
+	CLK1(pmu),
+	CLK1(grf),
+
+	CLK1(emem),
+	CLK1(usb),
+	CLK1(ddr_periph),
+	CLK1(periph_cpu),
+	CLK1(smc_axi),
+	CLK1(smc),
+	CLK1(mac_ahb),
+	CLK1(mac_tx),
+	CLK1(mac_rx),
+	CLK1(hif),
+	CLK1(nandc),
+	CLK1(hsadc_ahb),
+	CLK1(usbotg0),
+	CLK1(usbotg1),
+	CLK1(uhost_ahb),
+	CLK1(pid_filter),
+
+	CLK1(vip_slave),
+	CLK1(wdt),
+	CLK1(pwm),
+	CLK1(vip_bus),
+	CLK1(vip_matrix),
+	CLK1(vip_input),
+	CLK1(jtag),
+
+	CLK1(ddr_lcdc_axi),
+	CLK1(ipp_axi),
+	CLK1(ipp_ahb),
+	CLK1(ebook_ahb),
+	CLK1(display_matrix_axi),
+	CLK1(display_matrix_ahb),
+	CLK1(ddr_vedu_axi),
+	CLK1(ddr_vdpu_axi),
+	CLK1(ddr_gpu_axi),
+	CLK1(gpu_ahb),
+	CLK1(cpu_vcodec_ahb),
+	CLK1(cpu_display_ahb),
 };
 
 static LIST_HEAD(clocks);
