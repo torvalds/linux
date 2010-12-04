@@ -710,7 +710,7 @@ void si_detach(si_t *sih)
 	if (sih->bustype == SI_BUS)
 		for (idx = 0; idx < SI_MAXCORES; idx++)
 			if (sii->regs[idx]) {
-				REG_UNMAP(sii->regs[idx]);
+				iounmap(sii->regs[idx]);
 				sii->regs[idx] = NULL;
 			}
 

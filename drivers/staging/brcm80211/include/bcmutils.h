@@ -361,6 +361,14 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 #define CEIL(x, y)		(((x) + ((y)-1)) / (y))
 #define	ISPOWEROF2(x)		((((x)-1)&(x)) == 0)
 
+/* map physical to virtual I/O */
+#if !defined(CONFIG_MMC_MSM7X00A)
+#define REG_MAP(pa, size)       ioremap_nocache((unsigned long)(pa), \
+					(unsigned long)(size))
+#else
+#define REG_MAP(pa, size)       (void *)(0)
+#endif
+
 /* bit map related macros */
 #ifndef setbit
 #ifndef NBBY			/* the BSD family defines NBBY */

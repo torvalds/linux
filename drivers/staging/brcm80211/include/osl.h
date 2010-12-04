@@ -219,29 +219,6 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 
 #define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
 
-/* uncached/cached virtual address */
-#ifdef __mips__
-#include <asm/addrspace.h>
-#define OSL_UNCACHED(va)	((void *)KSEG1ADDR((va)))
-#define OSL_CACHED(va)		((void *)KSEG0ADDR((va)))
-#else
-#define OSL_UNCACHED(va)	((void *)va)
-#define OSL_CACHED(va)		((void *)va)
-#endif				/* mips */
-
-/* map/unmap physical to virtual I/O */
-#if !defined(CONFIG_MMC_MSM7X00A)
-#define	REG_MAP(pa, size)	ioremap_nocache((unsigned long)(pa), \
-					(unsigned long)(size))
-#else
-#define REG_MAP(pa, size)       (void *)(0)
-#endif				/* !defined(CONFIG_MMC_MSM7X00A */
-#define	REG_UNMAP(va)		iounmap((va))
-
-#define	R_SM(r)			(*(r))
-#define	W_SM(r, v)		(*(r) = (v))
-#define	BZERO_SM(r, len)	memset((r), '\0', (len))
-
 /* packet primitives */
 #define	PKTGET(osh, len, send)	osl_pktget((osh), (len))
 #define	PKTFREE(osh, skb, send)	osl_pktfree((osh), (skb), (send))

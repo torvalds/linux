@@ -29,6 +29,10 @@
 #include <sbhnddma.h>
 #include <hnddma.h>
 
+#if defined(__mips__)
+#include <asm/addrspace.h>
+#endif
+
 /* debug/trace */
 #ifdef BCMDBG
 #define	DMA_ERROR(args) \
@@ -68,6 +72,9 @@ static uint dma_msg_level;
 #define	MAXNAMEL	8	/* 8 char names */
 
 #define	DI_INFO(dmah)	((dma_info_t *)dmah)
+
+#define R_SM(r)		(*(r))
+#define W_SM(r, v)	(*(r) = (v))
 
 /* dma engine software state */
 typedef struct dma_info {
@@ -903,7 +910,7 @@ static void _dma_rxinit(dma_info_t *di)
 
 	/* clear rx descriptor ring */
 	if (DMA64_ENAB(di) && DMA64_MODE(di)) {
-		BZERO_SM((void *)di->rxd64,
+		memset((void *)di->rxd64, '\0',
 			 (di->nrxd * sizeof(dma64dd_t)));
 
 		/* DMA engine with out alignment requirement requires table to be inited
@@ -917,7 +924,7 @@ static void _dma_rxinit(dma_info_t *di)
 		if (di->aligndesc_4k)
 			_dma_ddtable_init(di, DMA_RX, di->rxdpa);
 	} else if (DMA32_ENAB(di)) {
-		BZERO_SM((void *)di->rxd32,
+		memset((void *)di->rxd32, '\0',
 			 (di->nrxd * sizeof(dma32dd_t)));
 		_dma_rxenable(di);
 		_dma_ddtable_init(di, DMA_RX, di->rxdpa);
@@ -993,6 +1000,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 	DMA_TRACE(("%s: dma_rx len %d\n", di->name, len));
 
 #if defined(__mips__)
+#define OSL_UNCACHED(va)        ((void *)KSEG1ADDR((va)))
 	if (!len) {
 		while (!(len = *(u16 *) OSL_UNCACHED(head->data)))
 			udelay(1);
@@ -1436,7 +1444,7 @@ static void dma32_txinit(dma_info_t *di)
 	di->hnddma.txavail = di->ntxd - 1;
 
 	/* clear tx descriptor ring */
-	BZERO_SM((void *)di->txd32, (di->ntxd * sizeof(dma32dd_t)));
+	memset((void *)di->txd32, '\0', (di->ntxd * sizeof(dma32dd_t)));
 
 	if ((di->hnddma.dmactrlflags & DMA_CTRL_PEN) == 0)
 		control |= XC_PD;
@@ -1992,7 +2000,7 @@ static void dma64_txinit(dma_info_t *di)
 	di->hnddma.txavail = di->ntxd - 1;
 
 	/* clear tx descriptor ring */
-	BZERO_SM((void *)di->txd64, (di->ntxd * sizeof(dma64dd_t)));
+	memset((void *)di->txd64, '\0', (di->ntxd * sizeof(dma64dd_t)));
 
 	/* DMA engine with out alignment requirement requires table to be inited
 	 * before enabling the engine
