@@ -95,12 +95,11 @@ struct sk_buff *BCMFASTPATH pkt_buf_get_skb(struct osl_info *osh, uint len)
 }
 
 /* Free the driver packet. Free the tag if present */
-void BCMFASTPATH osl_pktfree(struct osl_info *osh, void *p, bool send)
+void BCMFASTPATH pkt_buf_free_skb(struct osl_info *osh, struct sk_buff *skb, bool send)
 {
-	struct sk_buff *skb, *nskb;
+	struct sk_buff *nskb;
 	int nest = 0;
 
-	skb = (struct sk_buff *)p;
 	ASSERT(skb);
 
 	/* perversion: we use skb->next to chain multi-skb packets */

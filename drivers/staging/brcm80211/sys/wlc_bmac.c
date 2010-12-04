@@ -3336,7 +3336,7 @@ static bool wlc_bmac_txstatus_corerev4(wlc_hw_info_t *wlc_hw)
 
 		fatal = wlc_bmac_dotxstatus(wlc_hw, txs, 0);
 
-		PKTFREE(osh, status_p, false);
+		pkt_buf_free_skb(osh, status_p, false);
 	}
 
 	if (fatal)

@@ -198,7 +198,7 @@ void pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir)
 	while (p) {
 		q->head = p->prev;
 		p->prev = NULL;
-		PKTFREE(osh, p, dir);
+		pkt_buf_free_skb(osh, p, dir);
 		q->len--;
 		pq->len--;
 		p = q->head;
@@ -232,7 +232,7 @@ pktq_pflush(struct osl_info *osh, struct pktq *pq, int prec, bool dir,
 			else
 				prev->prev = p->prev;
 			p->prev = NULL;
-			PKTFREE(osh, p, dir);
+			pkt_buf_free_skb(osh, p, dir);
 			q->len--;
 			pq->len--;
 			p = (head ? q->head : prev->prev);

@@ -368,7 +368,7 @@ bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
 			ASSERT(p);
 		}
 
-		PKTFREE(dhdp->osh, p, true);
+		pkt_buf_free_skb(dhdp->osh, p, true);
 	}
 
 	/* Enqueue */

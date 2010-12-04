@@ -1046,7 +1046,7 @@ static void *BCMFASTPATH _dma_rx(dma_info_t *di)
 		if ((di->hnddma.dmactrlflags & DMA_CTRL_RXMULTI) == 0) {
 			DMA_ERROR(("%s: dma_rx: bad frame length (%d)\n",
 				   di->name, len));
-			PKTFREE(di->osh, head, false);
+			pkt_buf_free_skb(di->osh, head, false);
 			di->hnddma.rxgiants++;
 			goto next_frame;
 		}
@@ -1230,15 +1230,10 @@ static void _dma_rxreclaim(dma_info_t *di)
 {
 	void *p;
 
-	/* "unused local" warning suppression for OSLs that
-	 * define PKTFREE() without using the di->osh arg
-	 */
-	di = di;
-
 	DMA_TRACE(("%s: dma_rxreclaim\n", di->name));
 
 	while ((p = _dma_getnextrxp(di, true)))
-		PKTFREE(di->osh, p, false);
+		pkt_buf_free_skb(di->osh, p, false);
 }
 
 static void *BCMFASTPATH _dma_getnextrxp(dma_info_t *di, bool forceall)
@@ -1501,7 +1496,7 @@ static void dma32_txreclaim(dma_info_t *di, txd_range_t range)
 		return;
 
 	while ((p = dma32_getnexttxp(di, range)))
-		PKTFREE(di->osh, p, true);
+		pkt_buf_free_skb(di->osh, p, true);
 }
 
 static bool dma32_txstopped(dma_info_t *di)
@@ -1772,7 +1767,7 @@ static int dma32_txfast(dma_info_t *di, struct sk_buff *p0, bool commit)
 
  outoftxd:
 	DMA_ERROR(("%s: dma_txfast: out of txds\n", di->name));
-	PKTFREE(di->osh, p0, true);
+	pkt_buf_free_skb(di->osh, p0, true);
 	di->hnddma.txavail = 0;
 	di->hnddma.txnobuf++;
 	return -1;
@@ -2071,7 +2066,7 @@ static void BCMFASTPATH dma64_txreclaim(dma_info_t *di, txd_range_t range)
 	while ((p = dma64_getnexttxp(di, range))) {
 		/* For unframed data, we don't have any packets to free */
 		if (!(di->hnddma.dmactrlflags & DMA_CTRL_UNFRAMED))
-			PKTFREE(di->osh, p, true);
+			pkt_buf_free_skb(di->osh, p, true);
 	}
 }
 
@@ -2422,7 +2417,7 @@ static int BCMFASTPATH dma64_txfast(dma_info_t *di, struct sk_buff *p0,
 
  outoftxd:
 	DMA_ERROR(("%s: dma_txfast: out of txds !!!\n", di->name));
-	PKTFREE(di->osh, p0, true);
+	pkt_buf_free_skb(di->osh, p0, true);
 	di->hnddma.txavail = 0;
 	di->hnddma.txnobuf++;
 	return -1;

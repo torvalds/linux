@@ -1057,7 +1057,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		if (!write)
 			bcopy(mypkt->data, buffer, buflen_u);
 
-		PKTFREE(sd->osh, mypkt, write ? true : false);
+		pkt_buf_free_skb(sd->osh, mypkt, write ? true : false);
 	} else if (((u32) (pkt->data) & DMA_ALIGN_MASK) != 0) {
 		/* Case 2: We have a packet, but it is unaligned. */
 
@@ -1084,7 +1084,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 		if (!write)
 			bcopy(mypkt->data, pkt->data, mypkt->len);
 
-		PKTFREE(sd->osh, mypkt, write ? true : false);
+		pkt_buf_free_skb(sd->osh, mypkt, write ? true : false);
 	} else {		/* case 3: We have a packet and
 				 it is aligned. */
 		sd_data(("%s: Aligned %s Packet, direct DMA\n",

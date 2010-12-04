@@ -5052,7 +5052,7 @@ wlc_prec_enq_head(struct wlc_info *wlc, struct pktq *q, struct sk_buff *pkt,
 		}
 
 		ASSERT(0);
-		PKTFREE(wlc->osh, p, true);
+		pkt_buf_free_skb(wlc->osh, p, true);
 		WLCNTINCR(wlc->pub->_cnt->txnobuf);
 	}
 
@@ -5085,7 +5085,7 @@ void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 				  wlc->pub->unit));
 
 		/* ASSERT(9 == 8); *//* XXX we might hit this condtion in case packet flooding from mac80211 stack */
-		PKTFREE(wlc->osh, sdu, true);
+		pkt_buf_free_skb(wlc->osh, sdu, true);
 		WLCNTINCR(wlc->pub->_cnt->txnobuf);
 	}
 
@@ -6671,7 +6671,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
  fatal:
 	ASSERT(0);
 	if (p)
-		PKTFREE(osh, p, true);
+		pkt_buf_free_skb(osh, p, true);
 
 	return true;
 
@@ -7056,7 +7056,7 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	return;
 
  toss:
-	PKTFREE(osh, p, false);
+	pkt_buf_free_skb(osh, p, false);
 }
 
 /* calculate frame duration for Mixed-mode L-SIG spoofing, return
