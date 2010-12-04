@@ -2714,27 +2714,19 @@ fdi_reduce_ratio(u32 *num, u32 *den)
 	}
 }
 
-#define DATA_N 0x800000
-#define LINK_N 0x80000
-
 static void
 ironlake_compute_m_n(int bits_per_pixel, int nlanes, int pixel_clock,
 		     int link_clock, struct fdi_m_n *m_n)
 {
-	u64 temp;
-
 	m_n->tu = 64; /* default size */
 
-	temp = (u64) DATA_N * pixel_clock;
-	temp = div_u64(temp, link_clock);
-	m_n->gmch_m = div_u64(temp * bits_per_pixel, nlanes);
-	m_n->gmch_m >>= 3; /* convert to bytes_per_pixel */
-	m_n->gmch_n = DATA_N;
+	/* BUG_ON(pixel_clock > INT_MAX / 36); */
+	m_n->gmch_m = bits_per_pixel * pixel_clock;
+	m_n->gmch_n = link_clock * nlanes * 8;
 	fdi_reduce_ratio(&m_n->gmch_m, &m_n->gmch_n);
 
-	temp = (u64) LINK_N * pixel_clock;
-	m_n->link_m = div_u64(temp, link_clock);
-	m_n->link_n = LINK_N;
+	m_n->link_m = pixel_clock;
+	m_n->link_n = link_clock;
 	fdi_reduce_ratio(&m_n->link_m, &m_n->link_n);
 }
 
