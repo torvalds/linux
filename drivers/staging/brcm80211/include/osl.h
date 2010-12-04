@@ -275,10 +275,6 @@ osl_pkt_tonative(struct osl_info *osh, void *pkt)
 }
 #define PKTTONATIVE(osh, pkt)	\
 	osl_pkt_tonative((osh), (pkt))
-#else /* !BRCM_FULLMAC */
-#define	PKTSETSKIPCT(osh, skb)
-#define	PKTCLRSKIPCT(osh, skb)
-#define	PKTSKIPCT(osh, skb)
 #endif	/* BRCM_FULLMAC */
 
 #define PKTSUMNEEDED(skb) \
