@@ -79,7 +79,7 @@ void osl_detach(struct osl_info *osh)
 	kfree(osh);
 }
 
-void *BCMFASTPATH osl_pktget(struct osl_info *osh, uint len)
+struct sk_buff *BCMFASTPATH pkt_buf_get_skb(struct osl_info *osh, uint len)
 {
 	struct sk_buff *skb;
 
@@ -91,7 +91,7 @@ void *BCMFASTPATH osl_pktget(struct osl_info *osh, uint len)
 		osh->pktalloced++;
 	}
 
-	return (void *)skb;
+	return skb;
 }
 
 /* Free the driver packet. Free the tag if present */

@@ -208,10 +208,9 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 #define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
 
 /* packet primitives */
-#define	PKTGET(osh, len, send)	osl_pktget((osh), (len))
 #define	PKTFREE(osh, skb, send)	osl_pktfree((osh), (skb), (send))
 
-extern void *osl_pktget(struct osl_info *osh, uint len);
+extern struct sk_buff *pkt_buf_get_skb(struct osl_info *osh, uint len);
 extern void osl_pktfree(struct osl_info *osh, void *skb, bool send);
 
 #endif /* _osl_h_ */

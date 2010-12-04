@@ -1094,7 +1094,7 @@ static bool BCMFASTPATH _dma_rxfill(dma_info_t *di)
 		   size to be allocated
 		 */
 
-		p = osl_pktget(di->osh, di->rxbufsize + extra_offset);
+		p = pkt_buf_get_skb(di->osh, di->rxbufsize + extra_offset);
 
 		if (p == NULL) {
 			DMA_ERROR(("%s: dma_rxfill: out of rxbufs\n",

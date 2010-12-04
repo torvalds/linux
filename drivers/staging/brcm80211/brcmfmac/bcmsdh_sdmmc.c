@@ -1039,9 +1039,9 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 	if (pkt == NULL) {
 		sd_data(("%s: Creating new %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", buflen_u));
-		mypkt = PKTGET(sd->osh, buflen_u, write ? true : false);
+		mypkt = pkt_buf_get_skb(sd->osh, buflen_u);
 		if (!mypkt) {
-			sd_err(("%s: PKTGET failed: len %d\n",
+			sd_err(("%s: pkt_buf_get_skb failed: len %d\n",
 				__func__, buflen_u));
 			return SDIOH_API_RC_FAIL;
 		}
@@ -1066,9 +1066,9 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write,
 
 		sd_data(("%s: Creating aligned %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", pkt->len));
-		mypkt = PKTGET(sd->osh, pkt->len, write ? true : false);
+		mypkt = pkt_buf_get_skb(sd->osh, pkt->len);
 		if (!mypkt) {
-			sd_err(("%s: PKTGET failed: len %d\n",
+			sd_err(("%s: pkt_buf_get_skb failed: len %d\n",
 				__func__, pkt->len));
 			return SDIOH_API_RC_FAIL;
 		}

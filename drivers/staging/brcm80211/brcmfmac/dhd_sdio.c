@@ -936,7 +936,7 @@ static int dhdsdio_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 			DHD_INFO(("%s: insufficient headroom %d for %d pad\n",
 				  __func__, skb_headroom(pkt), pad));
 			bus->dhd->tx_realloc++;
-			new = PKTGET(osh, (pkt->len + DHD_SDALIGN), true);
+			new = pkt_buf_get_skb(osh, (pkt->len + DHD_SDALIGN));
 			if (!new) {
 				DHD_ERROR(("%s: couldn't allocate new %d-byte "
 					"packet\n",
@@ -3240,9 +3240,9 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 			}
 
 			/* Allocate/chain packet for next subframe */
-			pnext = PKTGET(osh, sublen + DHD_SDALIGN, false);
+			pnext = pkt_buf_get_skb(osh, sublen + DHD_SDALIGN);
 			if (pnext == NULL) {
-				DHD_ERROR(("%s: PKTGET failed, num %d len %d\n",
+				DHD_ERROR(("%s: pkt_buf_get_skb failed, num %d len %d\n",
 					   __func__, num, sublen));
 				break;
 			}
@@ -3680,7 +3680,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			 */
 			/* Allocate a packet buffer */
 			dhd_os_sdlock_rxq(bus->dhd);
-			pkt = PKTGET(osh, rdlen + DHD_SDALIGN, false);
+			pkt = pkt_buf_get_skb(osh, rdlen + DHD_SDALIGN);
 			if (!pkt) {
 				if (bus->bus == SPI_BUS) {
 					bus->usebufpool = false;
@@ -3726,7 +3726,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 				} else {
 					/* Give up on data,
 					request rtx of events */
-					DHD_ERROR(("%s (nextlen): PKTGET failed: len %d rdlen %d " "expected rxseq %d\n",
+					DHD_ERROR(("%s (nextlen): pkt_buf_get_skb failed: len %d rdlen %d " "expected rxseq %d\n",
 						__func__, len, rdlen, rxseq));
 					/* Just go try again w/normal
 					header read */
@@ -4091,10 +4091,10 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		}
 
 		dhd_os_sdlock_rxq(bus->dhd);
-		pkt = PKTGET(osh, (rdlen + firstread + DHD_SDALIGN), false);
+		pkt = pkt_buf_get_skb(osh, (rdlen + firstread + DHD_SDALIGN));
 		if (!pkt) {
 			/* Give up on data, request rtx of events */
-			DHD_ERROR(("%s: PKTGET failed: rdlen %d chan %d\n",
+			DHD_ERROR(("%s: pkt_buf_get_skb failed: rdlen %d chan %d\n",
 				   __func__, rdlen, chan));
 			bus->dhd->rx_dropped++;
 			dhd_os_sdunlock_rxq(bus->dhd);
@@ -4663,11 +4663,11 @@ static void dhdsdio_pktgen(dhd_bus_t *bus)
 
 		/* Allocate an appropriate-sized packet */
 		len = bus->pktgen_len;
-		pkt = PKTGET(osh,
+		pkt = pkt_buf_get_skb(osh,
 			(len + SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + DHD_SDALIGN),
 			true);
 		if (!pkt) {
-			DHD_ERROR(("%s: PKTGET failed!\n", __func__));
+			DHD_ERROR(("%s: pkt_buf_get_skb failed!\n", __func__));
 			break;
 		}
 		PKTALIGN(osh, pkt, (len + SDPCM_HDRLEN + SDPCM_TEST_HDRLEN),
@@ -4743,10 +4743,10 @@ static void dhdsdio_sdtest_set(dhd_bus_t *bus, bool start)
 	struct osl_info *osh = bus->dhd->osh;
 
 	/* Allocate the packet */
-	pkt = PKTGET(osh, SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + DHD_SDALIGN,
+	pkt = pkt_buf_get_skb(osh, SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + DHD_SDALIGN,
 			true);
 	if (!pkt) {
-		DHD_ERROR(("%s: PKTGET failed!\n", __func__));
+		DHD_ERROR(("%s: pkt_buf_get_skb failed!\n", __func__));
 		return;
 	}
 	PKTALIGN(osh, pkt, (SDPCM_HDRLEN + SDPCM_TEST_HDRLEN), DHD_SDALIGN);
@@ -5008,7 +5008,7 @@ extern int dhd_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg, uint msglen)
 	/* Bump dongle by sending an empty event pkt.
 	 * sdpcm_sendup (RX) checks for virtual console input.
 	 */
-	pkt = PKTGET(bus->dhd->osh, 4 + SDPCM_RESERVE, true);
+	pkt = pkt_buf_get_skb(bus->dhd->osh, 4 + SDPCM_RESERVE);
 	if ((pkt != NULL) && bus->clkstate == CLK_AVAIL)
 		dhdsdio_txpkt(bus, pkt, SDPCM_EVENT_CHANNEL, true);
 
