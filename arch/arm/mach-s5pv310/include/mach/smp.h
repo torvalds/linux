@@ -9,8 +9,6 @@
 #include <asm/hardware/gic.h>
 #include <asm/smp_mpidr.h>
 
-extern void __iomem *gic_cpu_base_addr;
-
 /*
  * We use IRQ1 as the IPI
  */

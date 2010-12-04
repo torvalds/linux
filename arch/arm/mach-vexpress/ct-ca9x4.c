@@ -60,12 +60,10 @@ static void __init ct_ca9x4_map_io(void)
 	v2m_map_io(ct_ca9x4_io_desc, ARRAY_SIZE(ct_ca9x4_io_desc));
 }
 
-void __iomem *gic_cpu_base_addr;
-
 static void __init ct_ca9x4_init_irq(void)
 {
-	gic_cpu_base_addr = MMIO_P2V(A9_MPCORE_GIC_CPU);
-	gic_init(0, 29, MMIO_P2V(A9_MPCORE_GIC_DIST), gic_cpu_base_addr);
+	gic_init(0, 29, MMIO_P2V(A9_MPCORE_GIC_DIST),
+		 MMIO_P2V(A9_MPCORE_GIC_CPU));
 }
 
 #if 0

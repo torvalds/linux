@@ -313,11 +313,9 @@ static void __init gic_init_irq(void)
 {
 	/* ARM PBX on-board GIC */
 	if (core_tile_pbx11mp() || core_tile_pbxa9mp()) {
-		gic_cpu_base_addr = __io_address(REALVIEW_PBX_TILE_GIC_CPU_BASE);
 		gic_init(0, 29, __io_address(REALVIEW_PBX_TILE_GIC_DIST_BASE),
 			 __io_address(REALVIEW_PBX_TILE_GIC_CPU_BASE));
 	} else {
-		gic_cpu_base_addr = __io_address(REALVIEW_PBX_GIC_CPU_BASE);
 		gic_init(0, IRQ_PBX_GIC_START,
 			 __io_address(REALVIEW_PBX_GIC_DIST_BASE),
 			 __io_address(REALVIEW_PBX_GIC_CPU_BASE));

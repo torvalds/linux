@@ -54,9 +54,6 @@
 
 #include "core.h"
 
-/* used by entry-macro.S and platsmp.c */
-void __iomem *gic_cpu_base_addr;
-
 #ifdef CONFIG_ZONE_DMA
 /*
  * Adjust the zones if there are restrictions for DMA access.

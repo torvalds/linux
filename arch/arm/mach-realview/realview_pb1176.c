@@ -304,10 +304,9 @@ static struct platform_device char_lcd_device = {
 static void __init gic_init_irq(void)
 {
 	/* ARM1176 DevChip GIC, primary */
-	gic_cpu_base_addr = __io_address(REALVIEW_DC1176_GIC_CPU_BASE);
 	gic_init(0, IRQ_DC1176_GIC_START,
 		 __io_address(REALVIEW_DC1176_GIC_DIST_BASE),
-		 gic_cpu_base_addr);
+		 __io_address(REALVIEW_DC1176_GIC_CPU_BASE));
 
 	/* board GIC, secondary */
 	gic_init(1, IRQ_PB1176_GIC_START,

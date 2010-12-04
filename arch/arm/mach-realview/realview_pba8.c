@@ -273,7 +273,6 @@ static struct platform_device pmu_device = {
 static void __init gic_init_irq(void)
 {
 	/* ARM PB-A8 on-board GIC */
-	gic_cpu_base_addr = __io_address(REALVIEW_PBA8_GIC_CPU_BASE);
 	gic_init(0, IRQ_PBA8_GIC_START,
 		 __io_address(REALVIEW_PBA8_GIC_DIST_BASE),
 		 __io_address(REALVIEW_PBA8_GIC_CPU_BASE));

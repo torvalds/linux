@@ -364,9 +364,8 @@ static void __init gic_init_irq(void)
 		writel(0x00000000, __io_address(REALVIEW_SYS_LOCK));
 
 		/* core tile GIC, primary */
-		gic_cpu_base_addr = __io_address(REALVIEW_EB11MP_GIC_CPU_BASE);
 		gic_init(0, 29, __io_address(REALVIEW_EB11MP_GIC_DIST_BASE),
-			 gic_cpu_base_addr);
+			 __io_address(REALVIEW_EB11MP_GIC_CPU_BASE));
 
 #ifndef CONFIG_REALVIEW_EB_ARM11MP_REVB
 		/* board GIC, secondary */
@@ -376,9 +375,8 @@ static void __init gic_init_irq(void)
 #endif
 	} else {
 		/* board GIC, primary */
-		gic_cpu_base_addr = __io_address(REALVIEW_EB_GIC_CPU_BASE);
 		gic_init(0, 29, __io_address(REALVIEW_EB_GIC_DIST_BASE),
-			 gic_cpu_base_addr);
+			 __io_address(REALVIEW_EB_GIC_CPU_BASE));
 	}
 }
 

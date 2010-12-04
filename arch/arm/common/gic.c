@@ -35,6 +35,9 @@
 
 static DEFINE_SPINLOCK(irq_controller_lock);
 
+/* Address of GIC 0 CPU interface */
+void __iomem *gic_cpu_base_addr;
+
 struct gic_chip_data {
 	unsigned int irq_offset;
 	void __iomem *dist_base;
@@ -317,6 +320,8 @@ static void __cpuinit gic_cpu_init(unsigned int gic_nr, void __iomem *base)
 void __init gic_init(unsigned int gic_nr, unsigned int irq_start,
 	void __iomem *dist_base, void __iomem *cpu_base)
 {
+	if (gic_nr == 0)
+		gic_cpu_base_addr = cpu_base;
 	gic_dist_init(gic_nr, dist_base, irq_start);
 	gic_cpu_init(gic_nr, cpu_base);
 }

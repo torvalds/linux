@@ -11,7 +11,6 @@
 #ifndef __CNS3XXX_CORE_H
 #define __CNS3XXX_CORE_H
 
-extern void __iomem *gic_cpu_base_addr;
 extern struct sys_timer cns3xxx_timer;
 
 void __init cns3xxx_map_io(void);
