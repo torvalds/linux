@@ -3456,7 +3456,7 @@ static void ironlake_update_wm(struct drm_device *dev,
 	 * display plane is used.
 	 */
 	tmp = 0;
-	if (enabled == 1 && /* XXX disabled due to buggy implmentation? */ 0) {
+	if (enabled == 1) {
 		unsigned long line_time_us;
 		int small, large, plane_fbc;
 		int sr_clock, entries;
