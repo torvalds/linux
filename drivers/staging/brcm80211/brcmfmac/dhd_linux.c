@@ -1052,6 +1052,32 @@ int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 	return ret;
 }
 
+static inline void *
+osl_pkt_frmnative(struct osl_info *osh, struct sk_buff *skb)
+{
+	struct sk_buff *nskb;
+
+	for (nskb = skb; nskb; nskb = nskb->next)
+		osh->pktalloced++;
+
+	return (void *)skb;
+}
+#define PKTFRMNATIVE(osh, skb)	\
+	osl_pkt_frmnative((osh), (struct sk_buff *)(skb))
+
+static inline struct sk_buff *
+osl_pkt_tonative(struct osl_info *osh, void *pkt)
+{
+	struct sk_buff *nskb;
+
+	for (nskb = (struct sk_buff *)pkt; nskb; nskb = nskb->next)
+		osh->pktalloced--;
+
+	return (struct sk_buff *)pkt;
+}
+#define PKTTONATIVE(osh, pkt)	\
+	osl_pkt_tonative((osh), (pkt))
+
 static int dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 {
 	int ret;

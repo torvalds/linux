@@ -249,43 +249,6 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 extern void *osl_pktget(struct osl_info *osh, uint len);
 extern void osl_pktfree(struct osl_info *osh, void *skb, bool send);
 
-#ifdef BRCM_FULLMAC
-static inline void *
-osl_pkt_frmnative(struct osl_info *osh, struct sk_buff *skb)
-{
-	struct sk_buff *nskb;
-
-	for (nskb = skb; nskb; nskb = nskb->next)
-		osh->pktalloced++;
-
-	return (void *)skb;
-}
-#define PKTFRMNATIVE(osh, skb)	\
-	osl_pkt_frmnative((osh), (struct sk_buff *)(skb))
-
-static inline struct sk_buff *
-osl_pkt_tonative(struct osl_info *osh, void *pkt)
-{
-	struct sk_buff *nskb;
-
-	for (nskb = (struct sk_buff *)pkt; nskb; nskb = nskb->next)
-		osh->pktalloced--;
-
-	return (struct sk_buff *)pkt;
-}
-#define PKTTONATIVE(osh, pkt)	\
-	osl_pkt_tonative((osh), (pkt))
-#endif	/* BRCM_FULLMAC */
-
-#define PKTSUMNEEDED(skb) \
-		(((struct sk_buff *)(skb))->ip_summed == CHECKSUM_PARTIAL)
-#define PKTSETSUMGOOD(skb, x) \
-		(((struct sk_buff *)(skb))->ip_summed = \
-			((x) ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE))
-/* PKTSETSUMNEEDED and PKTSUMGOOD are not possible because
-	skb->ip_summed is overloaded */
-
-
 #define	SET_REG(osh, r, mask, val) \
 		W_REG((osh), (r), ((R_REG((osh), r) & ~(mask)) | (val)))
 
