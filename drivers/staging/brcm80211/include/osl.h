@@ -128,8 +128,6 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 #define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
 
 /* register access macros */
-#if defined(OSLREGOPS)
-#else
 #ifndef IL_BIGENDIAN
 #ifndef __mips__
 #define R_REG(osh, r) (\
@@ -219,8 +217,6 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 		(OSL_WRITE_REG(osh, r, v))); \
 	} while (0)
 #endif				/* IL_BIGENDIAN */
-
-#endif				/* OSLREGOPS */
 
 #define	AND_REG(osh, r, v)		W_REG(osh, (r), R_REG(osh, r) & (v))
 #define	OR_REG(osh, r, v)		W_REG(osh, (r), R_REG(osh, r) | (v))
