@@ -122,7 +122,7 @@
 #define I2S_TX_LRCK_OUT_I2S             (0<<5)
 #define I2S_TX_LRCK_OUT_PCM             (1<<5)
 
-#define I2S_DATA_WIDTH(w)               ((&0x1F)<<0)
+#define I2S_DATA_WIDTH(w)               ((w&0x1F)<<0)
 
 /* */
 

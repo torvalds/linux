@@ -309,6 +309,13 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
+#if defined (CONFIG_SND_SOC_WM8900)
+	{
+		.type    		= "wm8900",
+		.addr           = 0x1A,
+		.flags			= 0,
+	},
+#endif
 #if defined (CONFIG_BATTERY_STC3100)
 	{
 		.type    		= "stc3100-battery",
@@ -321,6 +328,14 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "bq27510-battery",
 		.addr           = 0x55,
 		.flags			= 0,
+	},
+#endif
+#if defined (CONFIG_RTC_HYM8563)
+	{
+		.type    		= "rtc_hym8563",
+		.addr           = 0x51,
+		.flags			= 0,
+		///.irq            = RK2818_PIN_PA4,
 	},
 #endif
 };

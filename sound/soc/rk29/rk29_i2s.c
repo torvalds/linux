@@ -128,12 +128,10 @@ static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
         u32 opr,xfer,fifosts;
     
         I2S_DBG("Enter %s, %d >>>>>>>>>>>\n", __func__, __LINE__);
-        
-        opr  = readl(pheadi2s->I2S_DMACR);
-        xfer = readl(pheadi2s->I2S_XFER);
-        
+        opr  = readl(&(pheadi2s->I2S_DMACR));
+        xfer = readl(&(pheadi2s->I2S_XFER));
         opr  &= ~I2S_TRAN_DMA_ENABLE;
-        xfer &= ~I2S_TX_TRAN_START;        
+        xfer &= ~I2S_TX_TRAN_START;       
         if (on) 
         {                
                 writel(opr, &(pheadi2s->I2S_DMACR));
@@ -149,7 +147,7 @@ static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
         {
                 writel(opr, &(pheadi2s->I2S_DMACR));
                 writel(xfer, &(pheadi2s->I2S_XFER));
-        }  
+        } 
 }
 
 static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
@@ -158,8 +156,8 @@ static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
           
         I2S_DBG("Enter %s, %d >>>>>>>>>>>\n", __func__, __LINE__);
 
-        opr  = readl(pheadi2s->I2S_DMACR);
-        xfer = readl(pheadi2s->I2S_XFER);
+        opr  = readl(&(pheadi2s->I2S_DMACR));
+        xfer = readl(&(pheadi2s->I2S_XFER));
         
         opr  &= ~I2S_RECE_DMA_ENABLE;
         xfer &= ~I2S_RX_TRAN_START;
@@ -450,7 +448,7 @@ static int rk29_i2s_probe(struct platform_device *pdev,
 		base = res->start;
 	}
 
-	i2s->regs = ioremap(base, resource_size(res));
+	i2s->regs = ioremap(base, (res->end - res->start) + 1); ////res));
 	if (i2s->regs == NULL) {
 		dev_err(dev, "cannot ioremap registers\n");
 		return -ENXIO;
