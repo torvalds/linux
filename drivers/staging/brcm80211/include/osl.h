@@ -214,9 +214,6 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 	} while (0)
 #endif				/* IL_BIGENDIAN */
 
-#define	AND_REG(osh, r, v)		W_REG(osh, (r), R_REG(osh, r) & (v))
-#define	OR_REG(osh, r, v)		W_REG(osh, (r), R_REG(osh, r) | (v))
-
 #define	bcopy(src, dst, len)	memcpy((dst), (src), (len))
 
 /* packet primitives */
@@ -225,8 +222,5 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 
 extern void *osl_pktget(struct osl_info *osh, uint len);
 extern void osl_pktfree(struct osl_info *osh, void *skb, bool send);
-
-#define	SET_REG(osh, r, mask, val) \
-		W_REG((osh), (r), ((R_REG((osh), r) & ~(mask)) | (val)))
 
 #endif /* _osl_h_ */

@@ -369,7 +369,13 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 #define REG_MAP(pa, size)       (void *)(0)
 #endif
 
-/* bit map related macros */
+/* Register operations */
+#define AND_REG(osh, r, v)	W_REG(osh, (r), R_REG(osh, r) & (v))
+#define OR_REG(osh, r, v)	W_REG(osh, (r), R_REG(osh, r) | (v))
+
+#define SET_REG(osh, r, mask, val) \
+		W_REG((osh), (r), ((R_REG((osh), r) & ~(mask)) | (val)))
+
 #ifndef setbit
 #ifndef NBBY			/* the BSD family defines NBBY */
 #define	NBBY	8		/* 8 bits per byte */
