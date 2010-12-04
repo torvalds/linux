@@ -714,7 +714,7 @@ static int usbnet_setup(struct usb_function *f,
 			context->iff_flag = IFF_UP;
 			/* schedule a work queue to do this because we
 				 need to be able to sleep */
-			schedule_work(&context->usbnet_config_wq);
+			queue_work(system_nrt_wq, &context->usbnet_config_wq);
 		}
 	}
 
