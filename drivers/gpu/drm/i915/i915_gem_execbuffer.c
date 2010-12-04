@@ -632,23 +632,59 @@ i915_gem_execbuffer_flush(struct drm_device *dev,
 			  uint32_t flush_rings)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	int i;
 
 	if (flush_domains & I915_GEM_DOMAIN_CPU)
 		intel_gtt_chipset_flush();
 
 	if ((flush_domains | invalidate_domains) & I915_GEM_GPU_DOMAINS) {
-		if (flush_rings & RING_RENDER)
-			i915_gem_flush_ring(dev, &dev_priv->render_ring,
-					    invalidate_domains, flush_domains);
-		if (flush_rings & RING_BSD)
-			i915_gem_flush_ring(dev, &dev_priv->bsd_ring,
-					    invalidate_domains, flush_domains);
-		if (flush_rings & RING_BLT)
-			i915_gem_flush_ring(dev, &dev_priv->blt_ring,
-					    invalidate_domains, flush_domains);
+		for (i = 0; i < I915_NUM_RINGS; i++)
+			if (flush_rings & (1 << i))
+				i915_gem_flush_ring(dev, &dev_priv->ring[i],
+						    invalidate_domains,
+						    flush_domains);
 	}
 }
 
+static int
+i915_gem_execbuffer_sync_rings(struct drm_i915_gem_object *obj,
+			       struct intel_ring_buffer *to)
+{
+	struct intel_ring_buffer *from = obj->ring;
+	u32 seqno;
+	int ret, idx;
+
+	if (from == NULL || to == from)
+		return 0;
+
+	if (INTEL_INFO(obj->base.dev)->gen < 6)
+		return i915_gem_object_wait_rendering(obj, true);
+
+	idx = intel_ring_sync_index(from, to);
+
+	seqno = obj->last_rendering_seqno;
+	if (seqno <= from->sync_seqno[idx])
+		return 0;
+
+	if (seqno == from->outstanding_lazy_request) {
+		struct drm_i915_gem_request *request;
+
+		request = kzalloc(sizeof(*request), GFP_KERNEL);
+		if (request == NULL)
+			return -ENOMEM;
+
+		ret = i915_add_request(obj->base.dev, NULL, request, from);
+		if (ret) {
+			kfree(request);
+			return ret;
+		}
+
+		seqno = request->seqno;
+	}
+
+	from->sync_seqno[idx] = seqno;
+	return intel_ring_sync(to, from, seqno - 1);
+}
 
 static int
 i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
@@ -678,12 +714,9 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 	}
 
 	list_for_each_entry(obj, objects, exec_list) {
-		/* XXX replace with semaphores */
-		if (obj->ring && ring != obj->ring) {
-			ret = i915_gem_object_wait_rendering(obj, true);
-			if (ret)
-				return ret;
-		}
+		ret = i915_gem_execbuffer_sync_rings(obj, ring);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -769,7 +802,8 @@ i915_gem_execbuffer_wait_for_flips(struct intel_ring_buffer *ring,
 
 static void
 i915_gem_execbuffer_move_to_active(struct list_head *objects,
-				   struct intel_ring_buffer *ring)
+				   struct intel_ring_buffer *ring,
+				   u32 seqno)
 {
 	struct drm_i915_gem_object *obj;
 
@@ -778,7 +812,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 		obj->base.write_domain = obj->base.pending_write_domain;
 		obj->fenced_gpu_access = obj->pending_fenced_gpu_access;
 
-		i915_gem_object_move_to_active(obj, ring);
+		i915_gem_object_move_to_active(obj, ring, seqno);
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
 			obj->pending_gpu_write = true;
@@ -833,6 +867,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct drm_clip_rect *cliprects = NULL;
 	struct intel_ring_buffer *ring;
 	u32 exec_start, exec_len;
+	u32 seqno;
 	int ret, i;
 
 	if (!i915_gem_check_execbuffer(args)) {
@@ -851,21 +886,21 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	switch (args->flags & I915_EXEC_RING_MASK) {
 	case I915_EXEC_DEFAULT:
 	case I915_EXEC_RENDER:
-		ring = &dev_priv->render_ring;
+		ring = &dev_priv->ring[RCS];
 		break;
 	case I915_EXEC_BSD:
 		if (!HAS_BSD(dev)) {
 			DRM_ERROR("execbuf with invalid ring (BSD)\n");
 			return -EINVAL;
 		}
-		ring = &dev_priv->bsd_ring;
+		ring = &dev_priv->ring[VCS];
 		break;
 	case I915_EXEC_BLT:
 		if (!HAS_BLT(dev)) {
 			DRM_ERROR("execbuf with invalid ring (BLT)\n");
 			return -EINVAL;
 		}
-		ring = &dev_priv->blt_ring;
+		ring = &dev_priv->ring[BCS];
 		break;
 	default:
 		DRM_ERROR("execbuf with unknown ring: %d\n",
@@ -879,7 +914,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	if (args->num_cliprects != 0) {
-		if (ring != &dev_priv->render_ring) {
+		if (ring != &dev_priv->ring[RCS]) {
 			DRM_ERROR("clip rectangles are only valid with the render ring\n");
 			return -EINVAL;
 		}
@@ -972,6 +1007,21 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret)
 		goto err;
 
+	seqno = i915_gem_next_request_seqno(dev, ring);
+	for (i = 0; i < I915_NUM_RINGS-1; i++) {
+		if (seqno < ring->sync_seqno[i]) {
+			/* The GPU can not handle its semaphore value wrapping,
+			 * so every billion or so execbuffers, we need to stall
+			 * the GPU in order to reset the counters.
+			 */
+			ret = i915_gpu_idle(dev);
+			if (ret)
+				goto err;
+
+			BUG_ON(ring->sync_seqno[i]);
+		}
+	}
+
 	exec_start = batch_obj->gtt_offset + args->batch_start_offset;
 	exec_len = args->batch_len;
 	if (cliprects) {
@@ -992,7 +1042,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			goto err;
 	}
 
-	i915_gem_execbuffer_move_to_active(&objects, ring);
+	i915_gem_execbuffer_move_to_active(&objects, ring, seqno);
 	i915_gem_execbuffer_retire_commands(dev, file, ring);
 
 err:

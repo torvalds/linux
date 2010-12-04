@@ -1998,7 +1998,7 @@ static void intel_clear_scanline_wait(struct drm_device *dev)
 		/* Can't break the hang on i8xx */
 		return;
 
-	ring = &dev_priv->render_ring;
+	ring = LP_RING(dev_priv);
 	tmp = I915_READ_CTL(ring);
 	if (tmp & RING_WAIT)
 		I915_WRITE_CTL(ring, tmp);
@@ -5124,7 +5124,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	obj = intel_fb->obj;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = intel_pin_and_fence_fb_obj(dev, obj, &dev_priv->render_ring);
+	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
 	if (ret)
 		goto cleanup_work;
 

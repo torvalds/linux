@@ -269,9 +269,7 @@ typedef struct drm_i915_private {
 	} *gmbus;
 
 	struct pci_dev *bridge_dev;
-	struct intel_ring_buffer render_ring;
-	struct intel_ring_buffer bsd_ring;
-	struct intel_ring_buffer blt_ring;
+	struct intel_ring_buffer ring[I915_NUM_RINGS];
 	uint32_t next_seqno;
 
 	drm_dma_handle_t *status_page_dmah;
@@ -290,19 +288,15 @@ typedef struct drm_i915_private {
 	int page_flipping;
 
 	atomic_t irq_received;
-	/** Protects user_irq_refcount and irq_mask_reg */
-	spinlock_t user_irq_lock;
 	u32 trace_irq_seqno;
+
+	/* protects the irq masks */
+	spinlock_t irq_lock;
 	/** Cached value of IMR to avoid reads in updating the bitfield */
-	u32 irq_mask_reg;
 	u32 pipestat[2];
-	/** splitted irq regs for graphics and display engine on Ironlake,
-	    irq_mask_reg is still used for display irq. */
-	u32 gt_irq_mask_reg;
-	u32 gt_irq_enable_reg;
-	u32 de_irq_enable_reg;
-	u32 pch_irq_mask_reg;
-	u32 pch_irq_enable_reg;
+	u32 irq_mask;
+	u32 gt_irq_mask;
+	u32 pch_irq_mask;
 
 	u32 hotplug_supported_mask;
 	struct work_struct hotplug_work;
@@ -1104,7 +1098,8 @@ int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
 int __must_check i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 						bool interruptible);
 void i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
-				    struct intel_ring_buffer *ring);
+				    struct intel_ring_buffer *ring,
+				    u32 seqno);
 
 /**
  * Returns true if seq1 is later than seq2.
@@ -1272,6 +1267,17 @@ extern void intel_display_print_error_state(struct seq_file *m,
 					    struct intel_display_error_state *error);
 #endif
 
+#define LP_RING(d) (&((struct drm_i915_private *)(d))->ring[RCS])
+
+#define BEGIN_LP_RING(n) \
+	intel_ring_begin(LP_RING(dev_priv), (n))
+
+#define OUT_RING(x) \
+	intel_ring_emit(LP_RING(dev_priv), x)
+
+#define ADVANCE_LP_RING() \
+	intel_ring_advance(LP_RING(dev_priv))
+
 /**
  * Lock test for when it's just for synchronization of ring access.
  *
@@ -1279,8 +1285,7 @@ extern void intel_display_print_error_state(struct seq_file *m,
  * has access to the ring.
  */
 #define RING_LOCK_TEST_WITH_RETURN(dev, file) do {			\
-	if (((drm_i915_private_t *)dev->dev_private)->render_ring.obj \
-			== NULL)					\
+	if (LP_RING(dev->dev_private)->obj == NULL)			\
 		LOCK_TEST_WITH_RETURN(dev, file);			\
 } while (0)
 
@@ -1366,15 +1371,6 @@ i915_write(struct drm_i915_private *dev_priv, u32 reg, u64 val, int len)
        }
 }
 
-#define BEGIN_LP_RING(n) \
-	intel_ring_begin(&dev_priv->render_ring, (n))
-
-#define OUT_RING(x) \
-	intel_ring_emit(&dev_priv->render_ring, x)
-
-#define ADVANCE_LP_RING() \
-	intel_ring_advance(&dev_priv->render_ring)
-
 /**
  * Reads a dword out of the status page, which is written to from the command
  * queue by automatic updates, MI_REPORT_HEAD, MI_STORE_DATA_INDEX, or
@@ -1391,7 +1387,7 @@ i915_write(struct drm_i915_private *dev_priv, u32 reg, u64 val, int len)
  * The area from dword 0x20 to 0x3ff is available for driver usage.
  */
 #define READ_HWSP(dev_priv, reg)  (((volatile u32 *)\
-			(dev_priv->render_ring.status_page.page_addr))[reg])
+			(LP_RING(dev_priv)->status_page.page_addr))[reg])
 #define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
 #define I915_GEM_HWS_INDEX		0x20
 #define I915_BREADCRUMB_INDEX		0x21

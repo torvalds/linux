@@ -49,6 +49,8 @@
 static int i915_init_phys_hws(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring = LP_RING(dev_priv);
+
 	/* Program Hardware Status Page */
 	dev_priv->status_page_dmah =
 		drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE);
@@ -57,11 +59,10 @@ static int i915_init_phys_hws(struct drm_device *dev)
 		DRM_ERROR("Can not allocate hardware status page\n");
 		return -ENOMEM;
 	}
-	dev_priv->render_ring.status_page.page_addr
-		= dev_priv->status_page_dmah->vaddr;
+	ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
 	dev_priv->dma_status_page = dev_priv->status_page_dmah->busaddr;
 
-	memset(dev_priv->render_ring.status_page.page_addr, 0, PAGE_SIZE);
+	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
 
 	if (INTEL_INFO(dev)->gen >= 4)
 		dev_priv->dma_status_page |= (dev_priv->dma_status_page >> 28) &
@@ -79,13 +80,15 @@ static int i915_init_phys_hws(struct drm_device *dev)
 static void i915_free_hws(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring = LP_RING(dev_priv);
+
 	if (dev_priv->status_page_dmah) {
 		drm_pci_free(dev, dev_priv->status_page_dmah);
 		dev_priv->status_page_dmah = NULL;
 	}
 
-	if (dev_priv->render_ring.status_page.gfx_addr) {
-		dev_priv->render_ring.status_page.gfx_addr = 0;
+	if (ring->status_page.gfx_addr) {
+		ring->status_page.gfx_addr = 0;
 		drm_core_ioremapfree(&dev_priv->hws_map, dev);
 	}
 
@@ -97,7 +100,7 @@ void i915_kernel_lost_context(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
-	struct intel_ring_buffer *ring = &dev_priv->render_ring;
+	struct intel_ring_buffer *ring = LP_RING(dev_priv);
 
 	/*
 	 * We should never lose context on the ring with modesetting
@@ -123,6 +126,8 @@ void i915_kernel_lost_context(struct drm_device * dev)
 static int i915_dma_cleanup(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	int i;
+
 	/* Make sure interrupts are disabled here because the uninstall ioctl
 	 * may not have been called from userspace and after dev_private
 	 * is freed, it's too late.
@@ -131,9 +136,8 @@ static int i915_dma_cleanup(struct drm_device * dev)
 		drm_irq_uninstall(dev);
 
 	mutex_lock(&dev->struct_mutex);
-	intel_cleanup_ring_buffer(&dev_priv->render_ring);
-	intel_cleanup_ring_buffer(&dev_priv->bsd_ring);
-	intel_cleanup_ring_buffer(&dev_priv->blt_ring);
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		intel_cleanup_ring_buffer(&dev_priv->ring[i]);
 	mutex_unlock(&dev->struct_mutex);
 
 	/* Clear the HWS virtual address at teardown */
@@ -147,6 +151,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
+	struct intel_ring_buffer *ring = LP_RING(dev_priv);
 
 	master_priv->sarea = drm_getsarea(dev);
 	if (master_priv->sarea) {
@@ -157,24 +162,24 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	}
 
 	if (init->ring_size != 0) {
-		if (dev_priv->render_ring.obj != NULL) {
+		if (ring->obj != NULL) {
 			i915_dma_cleanup(dev);
 			DRM_ERROR("Client tried to initialize ringbuffer in "
 				  "GEM mode\n");
 			return -EINVAL;
 		}
 
-		dev_priv->render_ring.size = init->ring_size;
+		ring->size = init->ring_size;
 
-		dev_priv->render_ring.map.offset = init->ring_start;
-		dev_priv->render_ring.map.size = init->ring_size;
-		dev_priv->render_ring.map.type = 0;
-		dev_priv->render_ring.map.flags = 0;
-		dev_priv->render_ring.map.mtrr = 0;
+		ring->map.offset = init->ring_start;
+		ring->map.size = init->ring_size;
+		ring->map.type = 0;
+		ring->map.flags = 0;
+		ring->map.mtrr = 0;
 
-		drm_core_ioremap_wc(&dev_priv->render_ring.map, dev);
+		drm_core_ioremap_wc(&ring->map, dev);
 
-		if (dev_priv->render_ring.map.handle == NULL) {
+		if (ring->map.handle == NULL) {
 			i915_dma_cleanup(dev);
 			DRM_ERROR("can not ioremap virtual address for"
 				  " ring buffer\n");
@@ -182,7 +187,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 		}
 	}
 
-	dev_priv->render_ring.virtual_start = dev_priv->render_ring.map.handle;
+	ring->virtual_start = ring->map.handle;
 
 	dev_priv->cpp = init->cpp;
 	dev_priv->back_offset = init->back_offset;
@@ -201,11 +206,9 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 static int i915_dma_resume(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	struct intel_ring_buffer *ring = LP_RING(dev_priv);
 
-	struct intel_ring_buffer *ring;
 	DRM_DEBUG_DRIVER("%s\n", __func__);
-
-	ring = &dev_priv->render_ring;
 
 	if (ring->map.handle == NULL) {
 		DRM_ERROR("can not ioremap virtual address for"
@@ -326,7 +329,7 @@ static int i915_emit_cmds(struct drm_device * dev, int *buffer, int dwords)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int i, ret;
 
-	if ((dwords+1) * sizeof(int) >= dev_priv->render_ring.size - 8)
+	if ((dwords+1) * sizeof(int) >= LP_RING(dev_priv)->size - 8)
 		return -EINVAL;
 
 	for (i = 0; i < dwords;) {
@@ -565,13 +568,12 @@ static int i915_dispatch_flip(struct drm_device * dev)
 	return 0;
 }
 
-static int i915_quiescent(struct drm_device * dev)
+static int i915_quiescent(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring = LP_RING(dev->dev_private);
 
 	i915_kernel_lost_context(dev);
-	return intel_wait_ring_buffer(&dev_priv->render_ring,
-				      dev_priv->render_ring.size - 8);
+	return intel_wait_ring_buffer(ring, ring->size - 8);
 }
 
 static int i915_flush_ioctl(struct drm_device *dev, void *data,
@@ -828,7 +830,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_hws_addr_t *hws = data;
-	struct intel_ring_buffer *ring = &dev_priv->render_ring;
+	struct intel_ring_buffer *ring = LP_RING(dev_priv);
 
 	if (!I915_NEED_GFX_HWS(dev))
 		return -EINVAL;
@@ -1978,7 +1980,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!IS_I945G(dev) && !IS_I945GM(dev))
 		pci_enable_msi(dev->pdev);
 
-	spin_lock_init(&dev_priv->user_irq_lock);
+	spin_lock_init(&dev_priv->irq_lock);
 	spin_lock_init(&dev_priv->error_lock);
 	dev_priv->trace_irq_seqno = 0;
 

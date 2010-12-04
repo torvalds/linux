@@ -203,6 +203,7 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 		if (ring->space < 0)
 			ring->space += ring->size;
 	}
+
 	return 0;
 }
 
@@ -281,17 +282,18 @@ cleanup_pipe_control(struct intel_ring_buffer *ring)
 static int init_render_ring(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = init_ring_common(ring);
 
 	if (INTEL_INFO(dev)->gen > 3) {
-		drm_i915_private_t *dev_priv = dev->dev_private;
 		int mode = VS_TIMER_DISPATCH << 16 | VS_TIMER_DISPATCH;
 		if (IS_GEN6(dev))
 			mode |= MI_FLUSH_ENABLE << 16 | MI_FLUSH_ENABLE;
 		I915_WRITE(MI_MODE, mode);
 	}
 
-	if (HAS_PIPE_CONTROL(dev)) {
+	if (INTEL_INFO(dev)->gen >= 6) {
+	} else if (HAS_PIPE_CONTROL(dev)) {
 		ret = init_pipe_control(ring);
 		if (ret)
 			return ret;
@@ -308,6 +310,80 @@ static void render_ring_cleanup(struct intel_ring_buffer *ring)
 	cleanup_pipe_control(ring);
 }
 
+static void
+update_semaphore(struct intel_ring_buffer *ring, int i, u32 seqno)
+{
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int id;
+
+	/*
+	 * cs -> 1 = vcs, 0 = bcs
+	 * vcs -> 1 = bcs, 0 = cs,
+	 * bcs -> 1 = cs, 0 = vcs.
+	 */
+	id = ring - dev_priv->ring;
+	id += 2 - i;
+	id %= 3;
+
+	intel_ring_emit(ring,
+			MI_SEMAPHORE_MBOX |
+			MI_SEMAPHORE_REGISTER |
+			MI_SEMAPHORE_UPDATE);
+	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring,
+			RING_SYNC_0(dev_priv->ring[id].mmio_base) + 4*i);
+}
+
+static int
+gen6_add_request(struct intel_ring_buffer *ring,
+		 u32 *result)
+{
+	u32 seqno;
+	int ret;
+
+	ret = intel_ring_begin(ring, 10);
+	if (ret)
+		return ret;
+
+	seqno = i915_gem_get_seqno(ring->dev);
+	update_semaphore(ring, 0, seqno);
+	update_semaphore(ring, 1, seqno);
+
+	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
+	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
+	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, MI_USER_INTERRUPT);
+	intel_ring_advance(ring);
+
+	*result = seqno;
+	return 0;
+}
+
+int
+intel_ring_sync(struct intel_ring_buffer *ring,
+		struct intel_ring_buffer *to,
+		u32 seqno)
+{
+	int ret;
+
+	ret = intel_ring_begin(ring, 4);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring,
+			MI_SEMAPHORE_MBOX |
+			MI_SEMAPHORE_REGISTER |
+			intel_ring_sync_index(ring, to) << 17 |
+			MI_SEMAPHORE_COMPARE);
+	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
 #define PIPE_CONTROL_FLUSH(ring__, addr__)					\
 do {									\
 	intel_ring_emit(ring__, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |		\
@@ -317,131 +393,128 @@ do {									\
 	intel_ring_emit(ring__, 0);							\
 } while (0)
 
-/**
- * Creates a new sequence number, emitting a write of it to the status page
- * plus an interrupt, which will trigger i915_user_interrupt_handler.
- *
- * Must be called with struct_lock held.
- *
- * Returned sequence numbers are nonzero on success.
- */
+static int
+pc_render_add_request(struct intel_ring_buffer *ring,
+		      u32 *result)
+{
+	struct drm_device *dev = ring->dev;
+	u32 seqno = i915_gem_get_seqno(dev);
+	struct pipe_control *pc = ring->private;
+	u32 scratch_addr = pc->gtt_offset + 128;
+	int ret;
+
+	/*
+	 * Workaround qword write incoherence by flushing the
+	 * PIPE_NOTIFY buffers out to memory before requesting
+	 * an interrupt.
+	 */
+	ret = intel_ring_begin(ring, 32);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
+			PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH);
+	intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
+	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, 0);
+	PIPE_CONTROL_FLUSH(ring, scratch_addr);
+	scratch_addr += 128; /* write to separate cachelines */
+	PIPE_CONTROL_FLUSH(ring, scratch_addr);
+	scratch_addr += 128;
+	PIPE_CONTROL_FLUSH(ring, scratch_addr);
+	scratch_addr += 128;
+	PIPE_CONTROL_FLUSH(ring, scratch_addr);
+	scratch_addr += 128;
+	PIPE_CONTROL_FLUSH(ring, scratch_addr);
+	scratch_addr += 128;
+	PIPE_CONTROL_FLUSH(ring, scratch_addr);
+	intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
+			PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH |
+			PIPE_CONTROL_NOTIFY);
+	intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
+	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, 0);
+	intel_ring_advance(ring);
+
+	*result = seqno;
+	return 0;
+}
+
 static int
 render_ring_add_request(struct intel_ring_buffer *ring,
 			u32 *result)
 {
 	struct drm_device *dev = ring->dev;
 	u32 seqno = i915_gem_get_seqno(dev);
-	struct pipe_control *pc = ring->private;
 	int ret;
 
-	if (IS_GEN6(dev)) {
-		ret = intel_ring_begin(ring, 6);
-		if (ret)
-		    return ret;
+	ret = intel_ring_begin(ring, 4);
+	if (ret)
+		return ret;
 
-		intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | 3);
-		intel_ring_emit(ring, PIPE_CONTROL_QW_WRITE |
-				PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_IS_FLUSH |
-				PIPE_CONTROL_NOTIFY);
-		intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
-		intel_ring_emit(ring, seqno);
-		intel_ring_emit(ring, 0);
-		intel_ring_emit(ring, 0);
-	} else if (HAS_PIPE_CONTROL(dev)) {
-		u32 scratch_addr = pc->gtt_offset + 128;
-
-		/*
-		 * Workaround qword write incoherence by flushing the
-		 * PIPE_NOTIFY buffers out to memory before requesting
-		 * an interrupt.
-		 */
-		ret = intel_ring_begin(ring, 32);
-		if (ret)
-			return ret;
-
-		intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
-				PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH);
-		intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
-		intel_ring_emit(ring, seqno);
-		intel_ring_emit(ring, 0);
-		PIPE_CONTROL_FLUSH(ring, scratch_addr);
-		scratch_addr += 128; /* write to separate cachelines */
-		PIPE_CONTROL_FLUSH(ring, scratch_addr);
-		scratch_addr += 128;
-		PIPE_CONTROL_FLUSH(ring, scratch_addr);
-		scratch_addr += 128;
-		PIPE_CONTROL_FLUSH(ring, scratch_addr);
-		scratch_addr += 128;
-		PIPE_CONTROL_FLUSH(ring, scratch_addr);
-		scratch_addr += 128;
-		PIPE_CONTROL_FLUSH(ring, scratch_addr);
-		intel_ring_emit(ring, GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
-				PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH |
-				PIPE_CONTROL_NOTIFY);
-		intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
-		intel_ring_emit(ring, seqno);
-		intel_ring_emit(ring, 0);
-	} else {
-		ret = intel_ring_begin(ring, 4);
-		if (ret)
-		    return ret;
-
-		intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
-		intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-		intel_ring_emit(ring, seqno);
-
-		intel_ring_emit(ring, MI_USER_INTERRUPT);
-	}
-
+	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
+	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
+	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_advance(ring);
+
 	*result = seqno;
 	return 0;
 }
 
 static u32
-render_ring_get_seqno(struct intel_ring_buffer *ring)
+ring_get_seqno(struct intel_ring_buffer *ring)
 {
-	struct drm_device *dev = ring->dev;
-	if (HAS_PIPE_CONTROL(dev)) {
-		struct pipe_control *pc = ring->private;
-		return pc->cpu_page[0];
-	} else
-		return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
+	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
+}
+
+static u32
+pc_render_get_seqno(struct intel_ring_buffer *ring)
+{
+	struct pipe_control *pc = ring->private;
+	return pc->cpu_page[0];
 }
 
 static void
-render_ring_get_user_irq(struct intel_ring_buffer *ring)
+render_ring_get_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	unsigned long irqflags;
 
-	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-	if (dev->irq_enabled && (++ring->user_irq_refcount == 1)) {
+	if (dev->irq_enabled && ++ring->irq_refcount == 1) {
+		drm_i915_private_t *dev_priv = dev->dev_private;
+		unsigned long irqflags;
+
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+
 		if (HAS_PCH_SPLIT(dev))
-			ironlake_enable_graphics_irq(dev_priv, GT_PIPE_NOTIFY);
+			ironlake_enable_graphics_irq(dev_priv,
+						     GT_PIPE_NOTIFY | GT_USER_INTERRUPT);
 		else
 			i915_enable_irq(dev_priv, I915_USER_INTERRUPT);
+
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
-	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
 static void
-render_ring_put_user_irq(struct intel_ring_buffer *ring)
+render_ring_put_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	unsigned long irqflags;
 
-	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-	BUG_ON(dev->irq_enabled && ring->user_irq_refcount <= 0);
-	if (dev->irq_enabled && (--ring->user_irq_refcount == 0)) {
+	BUG_ON(dev->irq_enabled && ring->irq_refcount == 0);
+	if (dev->irq_enabled && --ring->irq_refcount == 0) {
+		drm_i915_private_t *dev_priv = dev->dev_private;
+		unsigned long irqflags;
+
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 		if (HAS_PCH_SPLIT(dev))
-			ironlake_disable_graphics_irq(dev_priv, GT_PIPE_NOTIFY);
+			ironlake_disable_graphics_irq(dev_priv,
+						      GT_USER_INTERRUPT |
+						      GT_PIPE_NOTIFY);
 		else
 			i915_disable_irq(dev_priv, I915_USER_INTERRUPT);
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
-	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
@@ -459,6 +532,9 @@ bsd_ring_flush(struct intel_ring_buffer *ring,
 	       u32     invalidate_domains,
 	       u32     flush_domains)
 {
+	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
+		return;
+
 	if (intel_ring_begin(ring, 2) == 0) {
 		intel_ring_emit(ring, MI_FLUSH);
 		intel_ring_emit(ring, MI_NOOP);
@@ -491,20 +567,45 @@ ring_add_request(struct intel_ring_buffer *ring,
 }
 
 static void
-bsd_ring_get_user_irq(struct intel_ring_buffer *ring)
+ring_get_irq(struct intel_ring_buffer *ring, u32 flag)
 {
-	/* do nothing */
-}
-static void
-bsd_ring_put_user_irq(struct intel_ring_buffer *ring)
-{
-	/* do nothing */
+	struct drm_device *dev = ring->dev;
+
+	if (dev->irq_enabled && ++ring->irq_refcount == 1) {
+		drm_i915_private_t *dev_priv = dev->dev_private;
+		unsigned long irqflags;
+
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		ironlake_enable_graphics_irq(dev_priv, flag);
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	}
 }
 
-static u32
-ring_status_page_get_seqno(struct intel_ring_buffer *ring)
+static void
+ring_put_irq(struct intel_ring_buffer *ring, u32 flag)
 {
-	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
+	struct drm_device *dev = ring->dev;
+
+	if (dev->irq_enabled && --ring->irq_refcount == 0) {
+		drm_i915_private_t *dev_priv = dev->dev_private;
+		unsigned long irqflags;
+
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		ironlake_disable_graphics_irq(dev_priv, flag);
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+	}
+}
+
+
+static void
+bsd_ring_get_irq(struct intel_ring_buffer *ring)
+{
+    ring_get_irq(ring, GT_BSD_USER_INTERRUPT);
+}
+static void
+bsd_ring_put_irq(struct intel_ring_buffer *ring)
+{
+    ring_put_irq(ring, GT_BSD_USER_INTERRUPT);
 }
 
 static int
@@ -817,9 +918,9 @@ static const struct intel_ring_buffer render_ring = {
 	.write_tail		= ring_write_tail,
 	.flush			= render_ring_flush,
 	.add_request		= render_ring_add_request,
-	.get_seqno		= render_ring_get_seqno,
-	.user_irq_get		= render_ring_get_user_irq,
-	.user_irq_put		= render_ring_put_user_irq,
+	.get_seqno		= ring_get_seqno,
+	.irq_get		= render_ring_get_irq,
+	.irq_put		= render_ring_put_irq,
 	.dispatch_execbuffer	= render_ring_dispatch_execbuffer,
        .cleanup			= render_ring_cleanup,
 };
@@ -835,9 +936,9 @@ static const struct intel_ring_buffer bsd_ring = {
 	.write_tail		= ring_write_tail,
 	.flush			= bsd_ring_flush,
 	.add_request		= ring_add_request,
-	.get_seqno		= ring_status_page_get_seqno,
-	.user_irq_get		= bsd_ring_get_user_irq,
-	.user_irq_put		= bsd_ring_put_user_irq,
+	.get_seqno		= ring_get_seqno,
+	.irq_get		= bsd_ring_get_irq,
+	.irq_put		= bsd_ring_put_irq,
 	.dispatch_execbuffer	= ring_dispatch_execbuffer,
 };
 
@@ -868,6 +969,9 @@ static void gen6_ring_flush(struct intel_ring_buffer *ring,
 			    u32 invalidate_domains,
 			    u32 flush_domains)
 {
+	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
+		return;
+
 	if (intel_ring_begin(ring, 4) == 0) {
 		intel_ring_emit(ring, MI_FLUSH_DW);
 		intel_ring_emit(ring, 0);
@@ -895,33 +999,46 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
        return 0;
 }
 
+static void
+gen6_bsd_ring_get_irq(struct intel_ring_buffer *ring)
+{
+    ring_get_irq(ring, GT_GEN6_BSD_USER_INTERRUPT);
+}
+
+static void
+gen6_bsd_ring_put_irq(struct intel_ring_buffer *ring)
+{
+    ring_put_irq(ring, GT_GEN6_BSD_USER_INTERRUPT);
+}
+
 /* ring buffer for Video Codec for Gen6+ */
 static const struct intel_ring_buffer gen6_bsd_ring = {
-       .name			= "gen6 bsd ring",
-       .id			= RING_BSD,
-       .mmio_base		= GEN6_BSD_RING_BASE,
-       .size			= 32 * PAGE_SIZE,
-       .init			= init_ring_common,
-       .write_tail		= gen6_bsd_ring_write_tail,
-       .flush			= gen6_ring_flush,
-       .add_request		= ring_add_request,
-       .get_seqno		= ring_status_page_get_seqno,
-       .user_irq_get		= bsd_ring_get_user_irq,
-       .user_irq_put		= bsd_ring_put_user_irq,
-       .dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
+	.name			= "gen6 bsd ring",
+	.id			= RING_BSD,
+	.mmio_base		= GEN6_BSD_RING_BASE,
+	.size			= 32 * PAGE_SIZE,
+	.init			= init_ring_common,
+	.write_tail		= gen6_bsd_ring_write_tail,
+	.flush			= gen6_ring_flush,
+	.add_request		= gen6_add_request,
+	.get_seqno		= ring_get_seqno,
+	.irq_get		= gen6_bsd_ring_get_irq,
+	.irq_put		= gen6_bsd_ring_put_irq,
+	.dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
 };
 
 /* Blitter support (SandyBridge+) */
 
 static void
-blt_ring_get_user_irq(struct intel_ring_buffer *ring)
+blt_ring_get_irq(struct intel_ring_buffer *ring)
 {
-	/* do nothing */
+    ring_get_irq(ring, GT_BLT_USER_INTERRUPT);
 }
+
 static void
-blt_ring_put_user_irq(struct intel_ring_buffer *ring)
+blt_ring_put_irq(struct intel_ring_buffer *ring)
 {
-	/* do nothing */
+    ring_put_irq(ring, GT_BLT_USER_INTERRUPT);
 }
 
 
@@ -994,6 +1111,9 @@ static void blt_ring_flush(struct intel_ring_buffer *ring,
 			   u32 invalidate_domains,
 			   u32 flush_domains)
 {
+	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
+		return;
+
 	if (blt_ring_begin(ring, 4) == 0) {
 		intel_ring_emit(ring, MI_FLUSH_DW);
 		intel_ring_emit(ring, 0);
@@ -1001,30 +1121,6 @@ static void blt_ring_flush(struct intel_ring_buffer *ring,
 		intel_ring_emit(ring, 0);
 		intel_ring_advance(ring);
 	}
-}
-
-static int
-blt_ring_add_request(struct intel_ring_buffer *ring,
-		     u32 *result)
-{
-	u32 seqno;
-	int ret;
-
-	ret = blt_ring_begin(ring, 4);
-	if (ret)
-		return ret;
-
-	seqno = i915_gem_get_seqno(ring->dev);
-
-	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
-	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, seqno);
-	intel_ring_emit(ring, MI_USER_INTERRUPT);
-	intel_ring_advance(ring);
-
-	DRM_DEBUG_DRIVER("%s %d\n", ring->name, seqno);
-	*result = seqno;
-	return 0;
 }
 
 static void blt_ring_cleanup(struct intel_ring_buffer *ring)
@@ -1045,10 +1141,10 @@ static const struct intel_ring_buffer gen6_blt_ring = {
        .init			= blt_ring_init,
        .write_tail		= ring_write_tail,
        .flush			= blt_ring_flush,
-       .add_request		= blt_ring_add_request,
-       .get_seqno		= ring_status_page_get_seqno,
-       .user_irq_get		= blt_ring_get_user_irq,
-       .user_irq_put		= blt_ring_put_user_irq,
+       .add_request		= gen6_add_request,
+       .get_seqno		= ring_get_seqno,
+       .irq_get			= blt_ring_get_irq,
+       .irq_put			= blt_ring_put_irq,
        .dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
        .cleanup			= blt_ring_cleanup,
 };
@@ -1056,36 +1152,43 @@ static const struct intel_ring_buffer gen6_blt_ring = {
 int intel_init_render_ring_buffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
 
-	dev_priv->render_ring = render_ring;
-
-	if (!I915_NEED_GFX_HWS(dev)) {
-		dev_priv->render_ring.status_page.page_addr
-			= dev_priv->status_page_dmah->vaddr;
-		memset(dev_priv->render_ring.status_page.page_addr,
-				0, PAGE_SIZE);
+	*ring = render_ring;
+	if (INTEL_INFO(dev)->gen >= 6) {
+		ring->add_request = gen6_add_request;
+	} else if (HAS_PIPE_CONTROL(dev)) {
+		ring->add_request = pc_render_add_request;
+		ring->get_seqno = pc_render_get_seqno;
 	}
 
-	return intel_init_ring_buffer(dev, &dev_priv->render_ring);
+	if (!I915_NEED_GFX_HWS(dev)) {
+		ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
+		memset(ring->status_page.page_addr, 0, PAGE_SIZE);
+	}
+
+	return intel_init_ring_buffer(dev, ring);
 }
 
 int intel_init_bsd_ring_buffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring = &dev_priv->ring[VCS];
 
 	if (IS_GEN6(dev))
-		dev_priv->bsd_ring = gen6_bsd_ring;
+		*ring = gen6_bsd_ring;
 	else
-		dev_priv->bsd_ring = bsd_ring;
+		*ring = bsd_ring;
 
-	return intel_init_ring_buffer(dev, &dev_priv->bsd_ring);
+	return intel_init_ring_buffer(dev, ring);
 }
 
 int intel_init_blt_ring_buffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring = &dev_priv->ring[BCS];
 
-	dev_priv->blt_ring = gen6_blt_ring;
+	*ring = gen6_blt_ring;
 
-	return intel_init_ring_buffer(dev, &dev_priv->blt_ring);
+	return intel_init_ring_buffer(dev, ring);
 }

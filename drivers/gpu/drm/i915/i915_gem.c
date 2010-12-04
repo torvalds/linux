@@ -1561,11 +1561,11 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 
 void
 i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
-			       struct intel_ring_buffer *ring)
+			       struct intel_ring_buffer *ring,
+			       u32 seqno)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t seqno = i915_gem_next_request_seqno(dev, ring);
 
 	BUG_ON(ring == NULL);
 	obj->ring = ring;
@@ -1679,7 +1679,8 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 
 			obj->base.write_domain = 0;
 			list_del_init(&obj->gpu_write_list);
-			i915_gem_object_move_to_active(obj, ring);
+			i915_gem_object_move_to_active(obj, ring,
+						       i915_gem_next_request_seqno(dev, ring));
 
 			trace_i915_gem_object_change_domain(obj,
 							    obj->base.read_domains,
@@ -1804,10 +1805,10 @@ void i915_gem_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
+	int i;
 
-	i915_gem_reset_ring_lists(dev_priv, &dev_priv->render_ring);
-	i915_gem_reset_ring_lists(dev_priv, &dev_priv->bsd_ring);
-	i915_gem_reset_ring_lists(dev_priv, &dev_priv->blt_ring);
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		i915_gem_reset_ring_lists(dev_priv, &dev_priv->ring[i]);
 
 	/* Remove anything from the flushing lists. The GPU cache is likely
 	 * to be lost on reset along with the data, so simply move the
@@ -1846,6 +1847,7 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t seqno;
+	int i;
 
 	if (!ring->status_page.page_addr ||
 	    list_empty(&ring->request_list))
@@ -1854,6 +1856,11 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 	WARN_ON(i915_verify_lists(dev));
 
 	seqno = ring->get_seqno(ring);
+
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		if (seqno >= ring->sync_seqno[i])
+			ring->sync_seqno[i] = 0;
+
 	while (!list_empty(&ring->request_list)) {
 		struct drm_i915_gem_request *request;
 
@@ -1892,7 +1899,7 @@ i915_gem_retire_requests_ring(struct drm_device *dev,
 
 	if (unlikely (dev_priv->trace_irq_seqno &&
 		      i915_seqno_passed(dev_priv->trace_irq_seqno, seqno))) {
-		ring->user_irq_put(ring);
+		ring->irq_put(ring);
 		dev_priv->trace_irq_seqno = 0;
 	}
 
@@ -1903,6 +1910,7 @@ void
 i915_gem_retire_requests(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	int i;
 
 	if (!list_empty(&dev_priv->mm.deferred_free_list)) {
 	    struct drm_i915_gem_object *obj, *next;
@@ -1918,9 +1926,8 @@ i915_gem_retire_requests(struct drm_device *dev)
 		    i915_gem_free_object_tail(obj);
 	}
 
-	i915_gem_retire_requests_ring(dev, &dev_priv->render_ring);
-	i915_gem_retire_requests_ring(dev, &dev_priv->bsd_ring);
-	i915_gem_retire_requests_ring(dev, &dev_priv->blt_ring);
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		i915_gem_retire_requests_ring(dev, &dev_priv->ring[i]);
 }
 
 static void
@@ -1942,9 +1949,9 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	i915_gem_retire_requests(dev);
 
 	if (!dev_priv->mm.suspended &&
-		(!list_empty(&dev_priv->render_ring.request_list) ||
-		 !list_empty(&dev_priv->bsd_ring.request_list) ||
-		 !list_empty(&dev_priv->blt_ring.request_list)))
+		(!list_empty(&dev_priv->ring[RCS].request_list) ||
+		 !list_empty(&dev_priv->ring[VCS].request_list) ||
+		 !list_empty(&dev_priv->ring[BCS].request_list)))
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, HZ);
 	mutex_unlock(&dev->struct_mutex);
 }
@@ -1993,7 +2000,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 		trace_i915_gem_request_wait_begin(dev, seqno);
 
 		ring->waiting_seqno = seqno;
-		ring->user_irq_get(ring);
+		ring->irq_get(ring);
 		if (interruptible)
 			ret = wait_event_interruptible(ring->irq_queue,
 				i915_seqno_passed(ring->get_seqno(ring), seqno)
@@ -2003,7 +2010,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 				i915_seqno_passed(ring->get_seqno(ring), seqno)
 				|| atomic_read(&dev_priv->mm.wedged));
 
-		ring->user_irq_put(ring);
+		ring->irq_put(ring);
 		ring->waiting_seqno = 0;
 
 		trace_i915_gem_request_wait_end(dev, seqno);
@@ -2159,7 +2166,7 @@ i915_gpu_idle(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	bool lists_empty;
-	int ret;
+	int ret, i;
 
 	lists_empty = (list_empty(&dev_priv->mm.flushing_list) &&
 		       list_empty(&dev_priv->mm.active_list));
@@ -2167,17 +2174,11 @@ i915_gpu_idle(struct drm_device *dev)
 		return 0;
 
 	/* Flush everything onto the inactive list. */
-	ret = i915_ring_idle(dev, &dev_priv->render_ring);
-	if (ret)
-		return ret;
-
-	ret = i915_ring_idle(dev, &dev_priv->bsd_ring);
-	if (ret)
-		return ret;
-
-	ret = i915_ring_idle(dev, &dev_priv->blt_ring);
-	if (ret)
-		return ret;
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		ret = i915_ring_idle(dev, &dev_priv->ring[i]);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -3153,11 +3154,11 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 		 * generation is designed to be run atomically and so is
 		 * lockless.
 		 */
-		ring->user_irq_get(ring);
+		ring->irq_get(ring);
 		ret = wait_event_interruptible(ring->irq_queue,
 					       i915_seqno_passed(ring->get_seqno(ring), seqno)
 					       || atomic_read(&dev_priv->mm.wedged));
-		ring->user_irq_put(ring);
+		ring->irq_put(ring);
 
 		if (ret == 0 && atomic_read(&dev_priv->mm.wedged))
 			ret = -EIO;
@@ -3584,9 +3585,9 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	return 0;
 
 cleanup_bsd_ring:
-	intel_cleanup_ring_buffer(&dev_priv->bsd_ring);
+	intel_cleanup_ring_buffer(&dev_priv->ring[VCS]);
 cleanup_render_ring:
-	intel_cleanup_ring_buffer(&dev_priv->render_ring);
+	intel_cleanup_ring_buffer(&dev_priv->ring[RCS]);
 	return ret;
 }
 
@@ -3594,10 +3595,10 @@ void
 i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	int i;
 
-	intel_cleanup_ring_buffer(&dev_priv->render_ring);
-	intel_cleanup_ring_buffer(&dev_priv->bsd_ring);
-	intel_cleanup_ring_buffer(&dev_priv->blt_ring);
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		intel_cleanup_ring_buffer(&dev_priv->ring[i]);
 }
 
 int
@@ -3605,7 +3606,7 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret;
+	int ret, i;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
@@ -3625,14 +3626,12 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	}
 
 	BUG_ON(!list_empty(&dev_priv->mm.active_list));
-	BUG_ON(!list_empty(&dev_priv->render_ring.active_list));
-	BUG_ON(!list_empty(&dev_priv->bsd_ring.active_list));
-	BUG_ON(!list_empty(&dev_priv->blt_ring.active_list));
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
-	BUG_ON(!list_empty(&dev_priv->render_ring.request_list));
-	BUG_ON(!list_empty(&dev_priv->bsd_ring.request_list));
-	BUG_ON(!list_empty(&dev_priv->blt_ring.request_list));
+	for (i = 0; i < I915_NUM_RINGS; i++) {
+		BUG_ON(!list_empty(&dev_priv->ring[i].active_list));
+		BUG_ON(!list_empty(&dev_priv->ring[i].request_list));
+	}
 	mutex_unlock(&dev->struct_mutex);
 
 	ret = drm_irq_install(dev);
@@ -3695,9 +3694,8 @@ i915_gem_load(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 	INIT_LIST_HEAD(&dev_priv->mm.deferred_free_list);
 	INIT_LIST_HEAD(&dev_priv->mm.gtt_list);
-	init_ring_lists(&dev_priv->render_ring);
-	init_ring_lists(&dev_priv->bsd_ring);
-	init_ring_lists(&dev_priv->blt_ring);
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		init_ring_lists(&dev_priv->ring[i]);
 	for (i = 0; i < 16; i++)
 		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,

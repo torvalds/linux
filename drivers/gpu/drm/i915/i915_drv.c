@@ -487,11 +487,11 @@ int i915_reset(struct drm_device *dev, u8 flags)
 			!dev_priv->mm.suspended) {
 		dev_priv->mm.suspended = 0;
 
-		dev_priv->render_ring.init(&dev_priv->render_ring);
+		dev_priv->ring[RCS].init(&dev_priv->ring[RCS]);
 		if (HAS_BSD(dev))
-		    dev_priv->bsd_ring.init(&dev_priv->bsd_ring);
+		    dev_priv->ring[VCS].init(&dev_priv->ring[VCS]);
 		if (HAS_BLT(dev))
-		    dev_priv->blt_ring.init(&dev_priv->blt_ring);
+		    dev_priv->ring[BCS].init(&dev_priv->ring[BCS]);
 
 		mutex_unlock(&dev->struct_mutex);
 		drm_irq_uninstall(dev);

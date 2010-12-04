@@ -176,6 +176,11 @@
 #define   MI_BATCH_NON_SECURE	(1)
 #define   MI_BATCH_NON_SECURE_I965 (1<<8)
 #define MI_BATCH_BUFFER_START	MI_INSTR(0x31, 0)
+#define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6+ */
+#define  MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
+#define  MI_SEMAPHORE_UPDATE	    (1<<21)
+#define  MI_SEMAPHORE_COMPARE	    (1<<20)
+#define  MI_SEMAPHORE_REGISTER	    (1<<18)
 /*
  * 3D instructions used by the kernel
  */
@@ -276,9 +281,12 @@
 #define RING_HEAD(base)		((base)+0x34)
 #define RING_START(base)	((base)+0x38)
 #define RING_CTL(base)		((base)+0x3c)
+#define RING_SYNC_0(base)	((base)+0x40)
+#define RING_SYNC_1(base)	((base)+0x44)
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
 #define RING_ACTHD(base)	((base)+0x74)
+#define RING_NOPID(base)	((base)+0x94)
 #define   TAIL_ADDR		0x001FFFF8
 #define   HEAD_WRAP_COUNT	0xFFE00000
 #define   HEAD_WRAP_ONE		0x00200000
@@ -293,6 +301,7 @@
 #define   RING_INVALID		0x00000000
 #define   RING_WAIT_I8XX	(1<<0) /* gen2, PRBx_HEAD */
 #define   RING_WAIT		(1<<11) /* gen3+, PRBx_CTL */
+#define   RING_WAIT_SEMAPHORE	(1<<10) /* gen6+ */
 #if 0
 #define PRB0_TAIL	0x02030
 #define PRB0_HEAD	0x02034
@@ -346,6 +355,14 @@
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)
 # define MI_FLUSH_ENABLE				(1 << 11)
+
+#define GFX_MODE	0x02520
+#define   GFX_RUN_LIST_ENABLE		(1<<15)
+#define   GFX_TLB_INVALIDATE_ALWAYS	(1<<13)
+#define   GFX_SURFACE_FAULT_ENABLE	(1<<12)
+#define   GFX_REPLAY_MODE		(1<<11)
+#define   GFX_PSMI_GRANULARITY		(1<<10)
+#define   GFX_PPGTT_ENABLE		(1<<9)
 
 #define SCPD0		0x0209c /* 915+ only */
 #define IER		0x020a0
@@ -498,7 +515,7 @@
 #define   GEN6_BSD_SLEEP_PSMI_CONTROL_IDLE_INDICATOR			(1 << 3)
 
 #define GEN6_BSD_IMR			0x120a8
-#define   GEN6_BSD_IMR_USER_INTERRUPT	(1 << 12)
+#define   GEN6_BSD_USER_INTERRUPT	(1 << 12)
 
 #define GEN6_BSD_RNCID			0x12198
 

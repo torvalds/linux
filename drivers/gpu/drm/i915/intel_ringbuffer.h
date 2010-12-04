@@ -1,6 +1,13 @@
 #ifndef _INTEL_RINGBUFFER_H_
 #define _INTEL_RINGBUFFER_H_
 
+enum {
+    RCS = 0x0,
+    VCS,
+    BCS,
+    I915_NUM_RINGS,
+};
+
 struct  intel_hw_status_page {
 	u32	__iomem	*page_addr;
 	unsigned int	gfx_addr;
@@ -21,7 +28,10 @@ struct  intel_hw_status_page {
 #define I915_READ_CTL(ring) I915_RING_READ(RING_CTL(ring->mmio_base))
 #define I915_WRITE_CTL(ring, val) I915_WRITE(RING_CTL(ring->mmio_base), val)
 
-struct drm_i915_gem_execbuffer2;
+#define I915_READ_NOPID(ring) I915_RING_READ(RING_NOPID(ring->mmio_base))
+#define I915_READ_SYNC_0(ring) I915_RING_READ(RING_SYNC_0(ring->mmio_base))
+#define I915_READ_SYNC_1(ring) I915_RING_READ(RING_SYNC_1(ring->mmio_base))
+
 struct  intel_ring_buffer {
 	const char	*name;
 	enum intel_ring_id {
@@ -42,9 +52,10 @@ struct  intel_ring_buffer {
 
 	u32		irq_seqno;		/* last seq seem at irq time */
 	u32		waiting_seqno;
-	int		user_irq_refcount;
-	void		(*user_irq_get)(struct intel_ring_buffer *ring);
-	void		(*user_irq_put)(struct intel_ring_buffer *ring);
+	u32		sync_seqno[I915_NUM_RINGS-1];
+	u32		irq_refcount;
+	void		(*irq_get)(struct intel_ring_buffer *ring);
+	void		(*irq_put)(struct intel_ring_buffer *ring);
 
 	int		(*init)(struct intel_ring_buffer *ring);
 
@@ -99,6 +110,25 @@ struct  intel_ring_buffer {
 };
 
 static inline u32
+intel_ring_sync_index(struct intel_ring_buffer *ring,
+		      struct intel_ring_buffer *other)
+{
+	int idx;
+
+	/*
+	 * cs -> 0 = vcs, 1 = bcs
+	 * vcs -> 0 = bcs, 1 = cs,
+	 * bcs -> 0 = cs, 1 = vcs.
+	 */
+
+	idx = (other - ring) - 1;
+	if (idx < 0)
+		idx += I915_NUM_RINGS;
+
+	return idx;
+}
+
+static inline u32
 intel_read_status_page(struct intel_ring_buffer *ring,
 		       int reg)
 {
@@ -119,6 +149,9 @@ static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 void intel_ring_advance(struct intel_ring_buffer *ring);
 
 u32 intel_ring_get_seqno(struct intel_ring_buffer *ring);
+int intel_ring_sync(struct intel_ring_buffer *ring,
+		    struct intel_ring_buffer *to,
+		    u32 seqno);
 
 int intel_init_render_ring_buffer(struct drm_device *dev);
 int intel_init_bsd_ring_buffer(struct drm_device *dev);
