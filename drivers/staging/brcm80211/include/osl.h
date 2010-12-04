@@ -29,15 +29,6 @@ struct osl_info {
 typedef struct osl_dmainfo osldma_t;
 
 
-#ifdef BCMSDIO
-/* Drivers use REGOPSSET() to register register read/write funcitons */
-typedef unsigned int (*osl_rreg_fn_t) (void *ctx, void *reg, unsigned int size);
-typedef void (*osl_wreg_fn_t) (void *ctx, void *reg, unsigned int val,
-			       unsigned int size);
-#endif /* BCMSDIO */
-
-#include <linux/skbuff.h>
-
 extern struct osl_info *osl_attach(void *pdev, uint bustype);
 extern void osl_detach(struct osl_info *osh);
 
