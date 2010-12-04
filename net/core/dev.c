@@ -5112,11 +5112,21 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 }
 #endif
 
+static void netdev_init_one_queue(struct net_device *dev,
+				  struct netdev_queue *queue, void *_unused)
+{
+	/* Initialize queue lock */
+	spin_lock_init(&queue->_xmit_lock);
+	netdev_set_xmit_lockdep_class(&queue->_xmit_lock, dev->type);
+	queue->xmit_lock_owner = -1;
+	netdev_queue_numa_node_write(queue, -1);
+	queue->dev = dev;
+}
+
 static int netif_alloc_netdev_queues(struct net_device *dev)
 {
 	unsigned int count = dev->num_tx_queues;
 	struct netdev_queue *tx;
-	int i;
 
 	BUG_ON(count < 1);
 
@@ -5128,27 +5138,10 @@ static int netif_alloc_netdev_queues(struct net_device *dev)
 	}
 	dev->_tx = tx;
 
-	for (i = 0; i < count; i++) {
-		netdev_queue_numa_node_write(&tx[i], -1);
-		tx[i].dev = dev;
-	}
-	return 0;
-}
-
-static void netdev_init_one_queue(struct net_device *dev,
-				  struct netdev_queue *queue,
-				  void *_unused)
-{
-	/* Initialize queue lock */
-	spin_lock_init(&queue->_xmit_lock);
-	netdev_set_xmit_lockdep_class(&queue->_xmit_lock, dev->type);
-	queue->xmit_lock_owner = -1;
-}
-
-static void netdev_init_queues(struct net_device *dev)
-{
 	netdev_for_each_tx_queue(dev, netdev_init_one_queue, NULL);
 	spin_lock_init(&dev->tx_global_lock);
+
+	return 0;
 }
 
 /**
@@ -5186,8 +5179,6 @@ int register_netdevice(struct net_device *dev)
 	netdev_set_addr_lockdep_class(dev);
 
 	dev->iflink = -1;
-
-	netdev_init_queues(dev);
 
 	/* Init, if this function is available */
 	if (dev->netdev_ops->ndo_init) {
