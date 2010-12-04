@@ -790,7 +790,7 @@ static void mdm6600_read_bulk_cb(struct urb *u)
 
 	usb_anchor_urb(u, &modem->read.pending);
 
-	schedule_work(&modem->read.work);
+	queue_work(system_nrt_wq, &modem->read.work);
 }
 
 static int mdm6600_suspend(struct usb_interface *intf, pm_message_t message)
