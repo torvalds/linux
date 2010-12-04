@@ -35,12 +35,12 @@ void __init gic_init_irq(void)
 	/* Static mapping, never released */
 	gic_dist_base_addr = ioremap(OMAP44XX_GIC_DIST_BASE, SZ_4K);
 	BUG_ON(!gic_dist_base_addr);
-	gic_dist_init(0, gic_dist_base_addr, 29);
 
 	/* Static mapping, never released */
 	gic_cpu_base_addr = ioremap(OMAP44XX_GIC_CPU_BASE, SZ_512);
 	BUG_ON(!gic_cpu_base_addr);
-	gic_cpu_init(0, gic_cpu_base_addr);
+
+	gic_init(0, 29, gic_dist_base_addr, gic_cpu_base_addr);
 }
 
 #ifdef CONFIG_CACHE_L2X0

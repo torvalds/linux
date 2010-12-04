@@ -65,8 +65,7 @@ void __iomem *gic_cpu_base_addr;
 static void __init ct_ca9x4_init_irq(void)
 {
 	gic_cpu_base_addr = MMIO_P2V(A9_MPCORE_GIC_CPU);
-	gic_dist_init(0, MMIO_P2V(A9_MPCORE_GIC_DIST), 29);
-	gic_cpu_init(0, gic_cpu_base_addr);
+	gic_init(0, 29, MMIO_P2V(A9_MPCORE_GIC_DIST), gic_cpu_base_addr);
 }
 
 #if 0

@@ -61,8 +61,8 @@ void __init ux500_init_devices(void)
 
 void __init ux500_init_irq(void)
 {
-	gic_dist_init(0, __io_address(UX500_GIC_DIST_BASE), 29);
-	gic_cpu_init(0, __io_address(UX500_GIC_CPU_BASE));
+	gic_init(0, 29, __io_address(UX500_GIC_DIST_BASE),
+		 __io_address(UX500_GIC_CPU_BASE));
 
 	/*
 	 * Init clocks here so that they are available for system timer

@@ -123,8 +123,7 @@ void __init s5pv310_init_irq(void)
 	int irq;
 
 	gic_cpu_base_addr = S5P_VA_GIC_CPU;
-	gic_dist_init(0, S5P_VA_GIC_DIST, IRQ_LOCALTIMER);
-	gic_cpu_init(0, S5P_VA_GIC_CPU);
+	gic_init(0, IRQ_LOCALTIMER, S5P_VA_GIC_DIST, S5P_VA_GIC_CPU);
 
 	for (irq = 0; irq < MAX_COMBINER_NR; irq++) {
 		combiner_init(irq, (void __iomem *)S5P_VA_COMBINER(irq),

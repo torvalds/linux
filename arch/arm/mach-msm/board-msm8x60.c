@@ -44,9 +44,8 @@ static void __init msm8x60_init_irq(void)
 {
 	unsigned int i;
 
-	gic_dist_init(0, MSM_QGIC_DIST_BASE, GIC_PPI_START);
 	gic_cpu_base_addr = (void *)MSM_QGIC_CPU_BASE;
-	gic_cpu_init(0, MSM_QGIC_CPU_BASE);
+	gic_init(0, GIC_PPI_START, MSM_QGIC_DIST_BASE, gic_cpu_base_addr);
 
 	/* Edge trigger PPIs except AVS_SVICINT and AVS_SVICINTSWDONE */
 	writel(0xFFFFD7FF, MSM_QGIC_DIST_BASE + GIC_DIST_CONFIG + 4);

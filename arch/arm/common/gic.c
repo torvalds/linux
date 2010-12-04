@@ -213,8 +213,8 @@ void __init gic_cascade_irq(unsigned int gic_nr, unsigned int irq)
 	set_irq_chained_handler(irq, gic_handle_cascade_irq);
 }
 
-void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
-			  unsigned int irq_start)
+static void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
+	unsigned int irq_start)
 {
 	unsigned int gic_irqs, irq_limit, i;
 	u32 cpumask = 1 << smp_processor_id();
@@ -312,6 +312,13 @@ void __cpuinit gic_cpu_init(unsigned int gic_nr, void __iomem *base)
 
 	writel(0xf0, base + GIC_CPU_PRIMASK);
 	writel(1, base + GIC_CPU_CTRL);
+}
+
+void __init gic_init(unsigned int gic_nr, unsigned int irq_start,
+	void __iomem *dist_base, void __iomem *cpu_base)
+{
+	gic_dist_init(gic_nr, dist_base, irq_start);
+	gic_cpu_init(gic_nr, cpu_base);
 }
 
 #ifdef CONFIG_SMP
