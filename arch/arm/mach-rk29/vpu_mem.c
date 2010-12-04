@@ -32,7 +32,7 @@
 #define VPU_MEM_MAX_ORDER 128
 #define VPU_MEM_MIN_ALLOC PAGE_SIZE
 
-#define VPU_MEM_DEBUG 1
+#define VPU_MEM_DEBUG 0
 
 #define VPU_MEM_SPLIT_ALLOC             0
 #define VPU_MEM_SPLIT_LINK              1
@@ -375,16 +375,18 @@ static long vpu_mem_allocate(struct file *file, unsigned int len)
 			if (VPU_MEM_PFN(curr) >= (unsigned char)pfn) {
 				/* set the not free bit and clear others */
 				best_fit = curr;
-                printk("find fit size at index %d\n", curr);
+#if VPU_MEM_DEBUG
+                    printk("vpu_mem: find fit size at index %d\n", curr);
+#endif
 				break;
 			}
 		}
 #if VPU_MEM_DEBUG
-        printk(KERN_INFO "curr %d\n!", curr);
+        printk(KERN_INFO "vpu_mem: search curr %d\n!", curr);
 #endif
 		curr = VPU_MEM_NEXT_INDEX(curr);
 #if VPU_MEM_DEBUG
-        printk(KERN_INFO "next %d\n!", curr);
+        printk(KERN_INFO "vpu_mem: search next %d\n!", curr);
 #endif
 	}
 
@@ -640,7 +642,7 @@ static int vpu_mem_mmap(struct file *file, struct vm_area_struct *vma)
 	data = (struct vpu_mem_data *)file->private_data;
 
 #if VPU_MEM_DEBUG
-    printk(KERN_ALERT "file->private_data : 0x%x\n", (unsigned int)data);
+    printk(KERN_ALERT "vpu_mem: file->private_data : 0x%x\n", (unsigned int)data);
 #endif
 
 	down_write(&data->sem);
