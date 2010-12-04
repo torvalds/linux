@@ -27,6 +27,17 @@ struct soc2030_info {
 	struct soc2030_platform_data *pdata;
 };
 
+/* 10-30fps */
+#define INDEX_30FPS 4
+#define INDEX_24FPS 5
+#define INDEX_20FPS 6
+#define INDEX_17FPS 7
+#define INDEX_15FPS 8
+#define INDEX_13FPS 9
+#define INDEX_12FPS 10
+#define INDEX_11FPS 11
+#define INDEX_10FPS 12
+
 /*
  * SetMode Sequence for 1600X1200/800X600 base settings.
  * Phase 0. Sensor Dependent.
@@ -156,7 +167,7 @@ static struct soc2030_regs refresh_state[] = {
  * SetMode Sequence for context A (800X600, preview).
  * Phase 0. Sensor Dependent.
  * This is usually given by the FAE or the sensor vendor.
- * 800X600 30fps fixed
+ * 800X600 15-30fps
  */
 static struct soc2030_regs mode_800x600[] = {
 	{WRITE_REG_DATA, 0x98C, 0x2703},	/*Output Width (A)*/
@@ -209,9 +220,9 @@ static struct soc2030_regs mode_800x600[] = {
 	{WRITE_REG_DATA, 0x990, 0x00CF},	/*      = 207*/
 	{WRITE_REG_BIT_L, 0x3040, 0x1000},	/* Disable Bin Sum */
 	{WRITE_REG_DATA, 0x098C, 0xA215},	/* Fix FPS */
-	{WRITE_REG_DATA, 0x0990, 0x0003},
+	{WRITE_REG_DATA, 0x0990, INDEX_15FPS},
 	{WRITE_REG_DATA, 0x098C, 0xA20C},	/* AE_MAX_INDEX */
-	{WRITE_REG_DATA, 0x0990, 0x0004},	/* 30 FPS fixed */
+	{WRITE_REG_DATA, 0x0990, INDEX_15FPS},	/* 15-30 FPS */
 	{WRITE_REG_DATA, 0x098C, 0xA115},	/* ISP off in cntx B */
 	{WRITE_REG_DATA, 0x0990, 0x0000},
 	{WRITE_REG_DATA, 0x098C, 0xA103},	/* Context A preview */
@@ -224,13 +235,13 @@ static struct soc2030_regs mode_800x600[] = {
  * SetMode Sequence for context B (1600X1200, capture).
  * Phase 0. Sensor Dependent.
  * This is usually given by the FAE or the sensor vendor.
- * 1600X1200 15fps (Max)
+ * 1600X1200 10-15fps
  */
 static struct soc2030_regs mode_1600x1200[] = {
 	{WRITE_REG_DATA, 0x098C, 0xA215},	/* Fix FPS */
-	{WRITE_REG_DATA, 0x0990, 0x000F},
+	{WRITE_REG_DATA, 0x0990, INDEX_10FPS},
 	{WRITE_REG_DATA, 0x098C, 0xA20C},	/* AE_MAX_INDEX */
-	{WRITE_REG_DATA, 0x0990, 0x0010},	/* 7.5 FPS MIN */
+	{WRITE_REG_DATA, 0x0990, INDEX_10FPS},	/* 10-15 fps */
 	{WRITE_REG_DATA, 0x098C, 0xA115},	/* ISP in Context B */
 	{WRITE_REG_DATA, 0x0990, 0x0072},
 	{WRITE_REG_DATA, 0x098C, 0xA103},	/* Context B full */
@@ -244,7 +255,7 @@ static struct soc2030_regs mode_1600x1200[] = {
  * SetMode Sequence for 720P in context A (1280X720).
  * Phase 0. Sensor Dependent.
  * This is usually given by the FAE or the sensor vendor.
- * 1280X720 30fps (Fixed)
+ * 1280X720 15-30fps
  */
 static struct soc2030_regs mode_1280x720[] = {
 	{WRITE_REG_DATA, 0x98C, 0x2703},	/*Output Width (A)*/
@@ -313,9 +324,9 @@ static struct soc2030_regs mode_1280x720[] = {
 	{WRITE_REG_DATA, 0x990, 0x000A},	/*      = 10*/
 	{WRITE_REG_BIT_H, 0x3040, 0x1000},	/* Enable Bin Summing */
 	{WRITE_REG_DATA, 0x098C, 0xA215},	/* Fix FPS */
-	{WRITE_REG_DATA, 0x0990, 0x0003},
+	{WRITE_REG_DATA, 0x0990, INDEX_15FPS},
 	{WRITE_REG_DATA, 0x098C, 0xA20C},	/* AE_MAX_INDEX */
-	{WRITE_REG_DATA, 0x0990, 0x0004},	/* 30 FPS fixed */
+	{WRITE_REG_DATA, 0x0990, INDEX_15FPS},	/* 15-30 FPS */
 	{WRITE_REG_DATA, 0x098C, 0xA115},	/* ISP off in cntx B */
 	{WRITE_REG_DATA, 0x0990, 0x0000},
 	{WRITE_REG_DATA, 0x098C, 0xA103},	/* Context A preview */
@@ -436,8 +447,10 @@ static struct soc2030_regs SetCCMCommonSequence[] = {
 	{WRITE_REG_DATA, 0x0990, 0x0001},
 	{WRITE_REG_DATA, 0x098c, 0xA20B},	/*AE_MIN_INDEX*/
 	{WRITE_REG_DATA, 0x0990, 0x0000},
-	{WRITE_REG_DATA, 0x098c, 0xA20C},	/*AE_MAX_INDEX*/
-	{WRITE_REG_DATA, 0x0990, 0x0008},
+	{WRITE_REG_DATA, 0x098C, 0xA215},	/* Fix FPS */
+	{WRITE_REG_DATA, 0x0990, INDEX_15FPS},
+	{WRITE_REG_DATA, 0x098C, 0xA20C},	/* AE_MAX_INDEX */
+	{WRITE_REG_DATA, 0x0990, INDEX_15FPS},	/* 15-30 FPS */
 	{REG_TABLE_END, 0x0000, 0x0000}
 
 };
