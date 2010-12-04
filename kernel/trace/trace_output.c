@@ -533,20 +533,30 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
  */
 int trace_print_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
 {
-	int hardirq, softirq;
+	char hardsoft_irq;
+	char need_resched;
+	char irqs_off;
+	int hardirq;
+	int softirq;
 	int ret;
 
 	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
 	softirq = entry->flags & TRACE_FLAG_SOFTIRQ;
 
+	irqs_off =
+		(entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
+		(entry->flags & TRACE_FLAG_IRQS_NOSUPPORT) ? 'X' :
+		'.';
+	need_resched =
+		(entry->flags & TRACE_FLAG_NEED_RESCHED) ? 'N' : '.';
+	hardsoft_irq =
+		(hardirq && softirq) ? 'H' :
+		hardirq ? 'h' :
+		softirq ? 's' :
+		'.';
+
 	if (!trace_seq_printf(s, "%c%c%c",
-			      (entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
-				(entry->flags & TRACE_FLAG_IRQS_NOSUPPORT) ?
-				  'X' : '.',
-			      (entry->flags & TRACE_FLAG_NEED_RESCHED) ?
-				'N' : '.',
-			      (hardirq && softirq) ? 'H' :
-				hardirq ? 'h' : softirq ? 's' : '.'))
+			      irqs_off, need_resched, hardsoft_irq))
 		return 0;
 
 	if (entry->preempt_count)
