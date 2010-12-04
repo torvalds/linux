@@ -50,7 +50,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * core (e.g. timer irq), then they will not have been enabled
 	 * for us: do so
 	 */
-	gic_cpu_init(0, gic_cpu_base_addr);
+	gic_secondary_init(0);
 
 	/*
 	 * Synchronise with the boot thread.

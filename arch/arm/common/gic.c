@@ -284,7 +284,7 @@ static void __init gic_dist_init(unsigned int gic_nr, void __iomem *base,
 	writel(1, base + GIC_DIST_CTRL);
 }
 
-void __cpuinit gic_cpu_init(unsigned int gic_nr, void __iomem *base)
+static void __cpuinit gic_cpu_init(unsigned int gic_nr, void __iomem *base)
 {
 	void __iomem *dist_base;
 	int i;
@@ -319,6 +319,11 @@ void __init gic_init(unsigned int gic_nr, unsigned int irq_start,
 {
 	gic_dist_init(gic_nr, dist_base, irq_start);
 	gic_cpu_init(gic_nr, cpu_base);
+}
+
+void __cpuinit gic_secondary_init(unsigned int gic_nr)
+{
+	gic_cpu_init(gic_nr, gic_data[gic_nr].cpu_base);
 }
 
 #ifdef CONFIG_SMP
