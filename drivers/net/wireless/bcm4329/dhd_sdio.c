@@ -438,7 +438,7 @@ static bool dhdsdio_probe_attach(dhd_bus_t *bus, osl_t *osh, void *sdh,
                                  void * regsva, uint16  devid);
 static bool dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh);
 static bool dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh);
-static void dhdsdio_release_dongle(dhd_bus_t *bus, osl_t *osh);
+static void dhdsdio_release_dongle(dhd_bus_t *bus, osl_t *osh, int reset_flag);
 
 static uint process_nvram_vars(char *varbuf, uint len);
 
@@ -705,6 +705,7 @@ dhdsdio_sdclk(dhd_bus_t *bus, bool on)
 static int
 dhdsdio_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 {
+	int ret = BCME_OK;
 #ifdef DHD_DEBUG
 	uint oldstate = bus->clkstate;
 #endif /* DHD_DEBUG */
@@ -717,7 +718,7 @@ dhdsdio_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 			dhd_os_wd_timer(bus->dhd, dhd_watchdog_ms);
 			bus->activity = TRUE;
 		}
-		return BCME_OK;
+		return ret;
 	}
 
 	switch (target) {
@@ -726,29 +727,32 @@ dhdsdio_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 		if (bus->clkstate == CLK_NONE)
 			dhdsdio_sdclk(bus, TRUE);
 		/* Now request HT Avail on the backplane */
-		dhdsdio_htclk(bus, TRUE, pendok);
-		dhd_os_wd_timer(bus->dhd, dhd_watchdog_ms);
-		bus->activity = TRUE;
+		ret = dhdsdio_htclk(bus, TRUE, pendok);
+		if (ret == BCME_OK) {
+			dhd_os_wd_timer(bus->dhd, dhd_watchdog_ms);
+			bus->activity = TRUE;
+		}
 		break;
 
 	case CLK_SDONLY:
 		/* Remove HT request, or bring up SD clock */
 		if (bus->clkstate == CLK_NONE)
-			dhdsdio_sdclk(bus, TRUE);
+			ret = dhdsdio_sdclk(bus, TRUE);
 		else if (bus->clkstate == CLK_AVAIL)
-			dhdsdio_htclk(bus, FALSE, FALSE);
+			ret = dhdsdio_htclk(bus, FALSE, FALSE);
 		else
 			DHD_ERROR(("dhdsdio_clkctl: request for %d -> %d\n",
 			           bus->clkstate, target));
-		dhd_os_wd_timer(bus->dhd, dhd_watchdog_ms);
+		if (ret == BCME_OK)
+			dhd_os_wd_timer(bus->dhd, dhd_watchdog_ms);
 		break;
 
 	case CLK_NONE:
 		/* Make sure to remove HT request */
 		if (bus->clkstate == CLK_AVAIL)
-			dhdsdio_htclk(bus, FALSE, FALSE);
+			ret = dhdsdio_htclk(bus, FALSE, FALSE);
 		/* Now remove the SD clock */
-		dhdsdio_sdclk(bus, FALSE);
+		ret = dhdsdio_sdclk(bus, FALSE);
 		dhd_os_wd_timer(bus->dhd, 0);
 		break;
 	}
@@ -756,7 +760,7 @@ dhdsdio_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 	DHD_INFO(("dhdsdio_clkctl: %d -> %d\n", oldstate, bus->clkstate));
 #endif /* DHD_DEBUG */
 
-	return BCME_OK;
+	return ret;
 }
 
 int
@@ -2782,23 +2786,24 @@ dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	dhd_timeout_t tmo;
 	uint retries = 0;
 	uint8 ready, enable;
-	int err, ret = 0;
+	int err, ret = BCME_ERROR;
 	uint8 saveclk;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
 	ASSERT(bus->dhd);
 	if (!bus->dhd)
-		return 0;
+		return BCME_OK;
 
 	if (enforce_mutex)
 		dhd_os_sdlock(bus->dhd);
 
 	/* Make sure backplane clock is on, needed to generate F2 interrupt */
-	dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
-	if (bus->clkstate != CLK_AVAIL)
+	err = dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
+	if ((err != BCME_OK) || (bus->clkstate != CLK_AVAIL)) {
+		DHD_ERROR(("%s: Failed to set backplane clock: err %d\n", __FUNCTION__, err));
 		goto exit;
-
+	}
 
 	/* Force clocks on backplane to be sure F2 interrupt propagates */
 	saveclk = bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR, &err);
@@ -2873,6 +2878,7 @@ dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	if (dhdp->busstate != DHD_BUS_DATA)
 		dhdsdio_clkctl(bus, CLK_NONE, FALSE);
 
+	ret = BCME_OK;
 exit:
 	if (enforce_mutex)
 		dhd_os_sdunlock(bus->dhd);
@@ -4631,8 +4637,6 @@ dhd_bus_watchdog(dhd_pub_t *dhdp)
 	if (bus->sleeping)
 		return FALSE;
 
-	dhd_os_sdlock(bus->dhd);
-
 	/* Poll period: check device if appropriate. */
 	if (bus->poll && (++bus->polltick >= bus->pollrate)) {
 		uint32 intstatus = 0;
@@ -4701,8 +4705,6 @@ dhd_bus_watchdog(dhd_pub_t *dhdp)
 			}
 		}
 	}
-
-	dhd_os_sdunlock(bus->dhd);
 
 	return bus->ipend;
 }
@@ -5299,7 +5301,7 @@ dhdsdio_release(dhd_bus_t *bus, osl_t *osh)
 
 		if (bus->dhd) {
 
-			dhdsdio_release_dongle(bus, osh);
+			dhdsdio_release_dongle(bus, osh, TRUE);
 
 			dhd_detach(bus->dhd);
 			bus->dhd = NULL;
@@ -5343,11 +5345,11 @@ dhdsdio_release_malloc(dhd_bus_t *bus, osl_t *osh)
 
 
 static void
-dhdsdio_release_dongle(dhd_bus_t *bus, osl_t *osh)
+dhdsdio_release_dongle(dhd_bus_t *bus, osl_t *osh, int reset_flag)
 {
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
-	if (bus->dhd && bus->dhd->dongle_reset)
+	if ((bus->dhd && bus->dhd->dongle_reset) && reset_flag)
 		return;
 
 	if (bus->sih) {
@@ -5797,17 +5799,19 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 
 	if (flag == TRUE) {
 		if (!bus->dhd->dongle_reset) {
+			dhd_os_sdlock(dhdp);
+			/* Turning off watchdog */
+			dhd_os_wd_timer(dhdp, 0);
 #if !defined(IGNORE_ETH0_DOWN)
 			/* Force flow control as protection when stop come before ifconfig_down */
 			dhd_txflowcontrol(bus->dhd, 0, ON);
 #endif /* !defined(IGNORE_ETH0_DOWN) */
 			/* Expect app to have torn down any connection before calling */
 			/* Stop the bus, disable F2 */
-			dhd_os_sdlock(dhdp);
 			dhd_bus_stop(bus, FALSE);
 
 			/* Clean tx/rx buffer pointers, detach from the dongle */
-			dhdsdio_release_dongle(bus, bus->dhd->osh);
+			dhdsdio_release_dongle(bus, bus->dhd->osh, TRUE);
 
 			bus->dhd->dongle_reset = TRUE;
 			bus->dhd->up = FALSE;
@@ -5838,21 +5842,25 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 					dhdsdio_download_firmware(bus, bus->dhd->osh, bus->sdh)) {
 
 					/* Re-init bus, enable F2 transfer */
-					dhd_bus_init((dhd_pub_t *) bus->dhd, FALSE);
-
+					bcmerror = dhd_bus_init((dhd_pub_t *) bus->dhd, FALSE);
+					if (bcmerror == BCME_OK) {
 #if defined(OOB_INTR_ONLY)
-					dhd_enable_oob_intr(bus, TRUE);
+						dhd_enable_oob_intr(bus, TRUE);
 #endif /* defined(OOB_INTR_ONLY) */
-
-					bus->dhd->dongle_reset = FALSE;
-					bus->dhd->up = TRUE;
-
+						bus->dhd->dongle_reset = FALSE;
+						bus->dhd->up = TRUE;
 #if !defined(IGNORE_ETH0_DOWN)
-					/* Restore flow control  */
-					dhd_txflowcontrol(bus->dhd, 0, OFF);
-#endif 
+						/* Restore flow control  */
+						dhd_txflowcontrol(bus->dhd, 0, OFF);
+#endif
+						/* Turning on watchdog back */
+						dhd_os_wd_timer(dhdp, dhd_watchdog_ms);
 
-					DHD_TRACE(("%s: WLAN ON DONE\n", __FUNCTION__));
+						DHD_TRACE(("%s: WLAN ON DONE\n", __FUNCTION__));
+					} else {
+						dhd_bus_stop(bus, FALSE);
+						dhdsdio_release_dongle(bus, bus->dhd->osh, FALSE);
+					}
 				} else
 					bcmerror = BCME_SDIO_ERROR;
 			} else
