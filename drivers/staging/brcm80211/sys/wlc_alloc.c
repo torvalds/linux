@@ -156,7 +156,7 @@ void wlc_bsscfg_mfree(struct osl_info *osh, wlc_bsscfg_t *cfg)
 	kfree(cfg);
 }
 
-void wlc_bsscfg_ID_assign(wlc_info_t *wlc, wlc_bsscfg_t *bsscfg)
+void wlc_bsscfg_ID_assign(struct wlc_info *wlc, wlc_bsscfg_t *bsscfg)
 {
 	bsscfg->ID = wlc->next_bsscfg_ID;
 	wlc->next_bsscfg_ID++;
@@ -165,12 +165,13 @@ void wlc_bsscfg_ID_assign(wlc_info_t *wlc, wlc_bsscfg_t *bsscfg)
 /*
  * The common driver entry routine. Error codes should be unique
  */
-wlc_info_t *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
+struct wlc_info *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
 			      uint devid)
 {
-	wlc_info_t *wlc;
+	struct wlc_info *wlc;
 
-	wlc = (wlc_info_t *) wlc_calloc(osh, unit, sizeof(wlc_info_t));
+	wlc = (struct wlc_info *) wlc_calloc(osh, unit,
+					     sizeof(struct wlc_info));
 	if (wlc == NULL) {
 		*err = 1002;
 		goto fail;
@@ -301,7 +302,7 @@ wlc_info_t *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
 	return NULL;
 }
 
-void wlc_detach_mfree(wlc_info_t *wlc, struct osl_info *osh)
+void wlc_detach_mfree(struct wlc_info *wlc, struct osl_info *osh)
 {
 	if (wlc == NULL)
 		return;

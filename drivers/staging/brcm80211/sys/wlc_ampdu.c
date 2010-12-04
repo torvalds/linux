@@ -98,7 +98,7 @@ typedef struct wlc_fifo_info {
 
 /* AMPDU module specific state */
 struct ampdu_info {
-	wlc_info_t *wlc;	/* pointer to main wlc structure */
+	struct wlc_info *wlc;	/* pointer to main wlc structure */
 	int scb_handle;		/* scb cubby handle to retrieve data from scb */
 	u8 ini_enable[AMPDU_MAX_SCB_TID];	/* per-tid initiator enable/disable of ampdu */
 	u8 ba_tx_wsize;	/* Tx ba window size (in pdu) */
@@ -131,7 +131,7 @@ struct ampdu_info {
 #define SCB_AMPDU_INI(scb_ampdu, tid) (&(scb_ampdu->ini[tid]))
 
 static void wlc_ffpld_init(ampdu_info_t *ampdu);
-static int wlc_ffpld_check_txfunfl(wlc_info_t *wlc, int f);
+static int wlc_ffpld_check_txfunfl(struct wlc_info *wlc, int f);
 static void wlc_ffpld_calc_mcs2ampdu_table(ampdu_info_t *ampdu, int f);
 
 static scb_ampdu_tid_ini_t *wlc_ampdu_init_tid_ini(ampdu_info_t *ampdu,
@@ -149,7 +149,7 @@ static void wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb,
 					  struct sk_buff *p, tx_status_t *txs,
 					  u32 frmtxstatus, u32 frmtxstatus2);
 
-static inline u16 pkt_txh_seqnum(wlc_info_t *wlc, struct sk_buff *p)
+static inline u16 pkt_txh_seqnum(struct wlc_info *wlc, struct sk_buff *p)
 {
 	d11txh_t *txh;
 	struct dot11_header *h;
@@ -158,7 +158,7 @@ static inline u16 pkt_txh_seqnum(wlc_info_t *wlc, struct sk_buff *p)
 	return ltoh16(h->seq) >> SEQNUM_SHIFT;
 }
 
-ampdu_info_t *wlc_ampdu_attach(wlc_info_t *wlc)
+ampdu_info_t *wlc_ampdu_attach(struct wlc_info *wlc)
 {
 	ampdu_info_t *ampdu;
 	int i;
@@ -317,7 +317,7 @@ static void wlc_ffpld_init(ampdu_info_t *ampdu)
  * Return 1 if pre-loading not active, -1 if not an underflow event,
  * 0 if pre-loading module took care of the event.
  */
-static int wlc_ffpld_check_txfunfl(wlc_info_t *wlc, int fid)
+static int wlc_ffpld_check_txfunfl(struct wlc_info *wlc, int fid)
 {
 	ampdu_info_t *ampdu = wlc->ampdu;
 	u32 phy_rate = MCS_RATE(FFPLD_MAX_MCS, true, false);
@@ -491,7 +491,7 @@ int BCMFASTPATH
 wlc_sendampdu(ampdu_info_t *ampdu, wlc_txq_info_t *qi, struct sk_buff **pdu,
 	      int prec)
 {
-	wlc_info_t *wlc;
+	struct wlc_info *wlc;
 	struct osl_info *osh;
 	struct sk_buff *p, *pkt[AMPDU_MAX_MPDU];
 	u8 tid, ndelim;
@@ -889,7 +889,7 @@ wlc_ampdu_dotxstatus(ampdu_info_t *ampdu, struct scb *scb, struct sk_buff *p,
 		     tx_status_t *txs)
 {
 	scb_ampdu_t *scb_ampdu;
-	wlc_info_t *wlc = ampdu->wlc;
+	struct wlc_info *wlc = ampdu->wlc;
 	scb_ampdu_tid_ini_t *ini;
 	u32 s1 = 0, s2 = 0;
 	struct ieee80211_tx_info *tx_info;
@@ -932,11 +932,8 @@ wlc_ampdu_dotxstatus(ampdu_info_t *ampdu, struct scb *scb, struct sk_buff *p,
 	wlc_ampdu_txflowcontrol(wlc, scb_ampdu, ini);
 }
 
-void rate_status(wlc_info_t *wlc, struct ieee80211_tx_info *tx_info,
-		 tx_status_t *txs, u8 mcs);
-
 void
-rate_status(wlc_info_t *wlc, struct ieee80211_tx_info *tx_info,
+rate_status(struct wlc_info *wlc, struct ieee80211_tx_info *tx_info,
 	    tx_status_t *txs, u8 mcs)
 {
 	struct ieee80211_tx_rate *txrate = tx_info->status.rates;
@@ -957,7 +954,7 @@ wlc_ampdu_dotxstatus_complete(ampdu_info_t *ampdu, struct scb *scb,
 			      u32 s1, u32 s2)
 {
 	scb_ampdu_t *scb_ampdu;
-	wlc_info_t *wlc = ampdu->wlc;
+	struct wlc_info *wlc = ampdu->wlc;
 	scb_ampdu_tid_ini_t *ini;
 	u8 bitmap[8], queue, tid;
 	d11txh_t *txh;
@@ -1226,7 +1223,7 @@ static scb_ampdu_tid_ini_t *wlc_ampdu_init_tid_ini(ampdu_info_t *ampdu,
 
 int wlc_ampdu_set(ampdu_info_t *ampdu, bool on)
 {
-	wlc_info_t *wlc = ampdu->wlc;
+	struct wlc_info *wlc = ampdu->wlc;
 
 	wlc->pub->_ampdu = false;
 
@@ -1313,7 +1310,7 @@ wlc_ampdu_null_delim_cnt(ampdu_info_t *ampdu, struct scb *scb,
 		return 0;
 }
 
-void wlc_ampdu_macaddr_upd(wlc_info_t *wlc)
+void wlc_ampdu_macaddr_upd(struct wlc_info *wlc)
 {
 	char template[T_RAM_ACCESS_SZ * 2];
 
@@ -1324,14 +1321,14 @@ void wlc_ampdu_macaddr_upd(wlc_info_t *wlc)
 			       template);
 }
 
-bool wlc_aggregatable(wlc_info_t *wlc, u8 tid)
+bool wlc_aggregatable(struct wlc_info *wlc, u8 tid)
 {
 	return wlc->ampdu->ini_enable[tid];
 }
 
 void wlc_ampdu_shm_upd(ampdu_info_t *ampdu)
 {
-	wlc_info_t *wlc = ampdu->wlc;
+	struct wlc_info *wlc = ampdu->wlc;
 
 	/* Extend ucode internal watchdog timer to match larger received frames */
 	if ((ampdu->rx_factor & HT_PARAMS_RX_FACTOR_MASK) ==

@@ -19,7 +19,7 @@
 
 /* forward declarations */
 
-typedef struct wlc_info wlc_info_t;
+struct wlc_info;
 typedef struct wlc_hw_info wlc_hw_info_t;
 typedef struct wlc_if wlc_if_t;
 typedef struct wl_if wl_if_t;

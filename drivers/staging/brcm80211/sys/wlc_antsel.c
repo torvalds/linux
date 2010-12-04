@@ -93,7 +93,7 @@ const u8 mimo_2x3_div_antselid_tbl[16] = {
 	0, 0, 0, 0, 0, 0, 0, 0	/* pat to antselid */
 };
 
-antsel_info_t *wlc_antsel_attach(wlc_info_t *wlc, struct osl_info *osh,
+antsel_info_t *wlc_antsel_attach(struct wlc_info *wlc, struct osl_info *osh,
 						  wlc_pub_t *pub,
 						  wlc_hw_info_t *wlc_hw) {
 	antsel_info_t *asi;
@@ -297,7 +297,7 @@ static u16 wlc_antsel_antcfg2antsel(antsel_info_t *asi, u8 ant_cfg)
 /* boardlevel antenna selection: ucode interface control */
 static int wlc_antsel_cfgupd(antsel_info_t *asi, wlc_antselcfg_t *antsel)
 {
-	wlc_info_t *wlc = asi->wlc;
+	struct wlc_info *wlc = asi->wlc;
 	u8 ant_cfg;
 	u16 mimo_antsel;
 

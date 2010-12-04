@@ -16,9 +16,9 @@
 
 extern void *wlc_calloc(struct osl_info *osh, uint unit, uint size);
 
-extern wlc_info_t *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
-				     uint devid);
-extern void wlc_detach_mfree(wlc_info_t *wlc, struct osl_info *osh);
+extern struct wlc_info *wlc_attach_malloc(struct osl_info *osh, uint unit,
+					  uint *err, uint devid);
+extern void wlc_detach_mfree(struct wlc_info *wlc, struct osl_info *osh);
 
 struct wlc_bsscfg;
 extern struct wlc_bsscfg *wlc_bsscfg_malloc(struct osl_info *osh, uint unit);

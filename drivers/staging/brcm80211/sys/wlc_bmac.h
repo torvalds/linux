@@ -57,7 +57,7 @@ typedef struct wlc_bmac_revinfo {
 	} band[MAXBANDS];
 } wlc_bmac_revinfo_t;
 
-/* dup state between BMAC(wlc_hw_info_t) and HIGH(wlc_info_t) driver */
+/* dup state between BMAC(wlc_hw_info_t) and HIGH(struct wlc_info) driver */
 typedef struct wlc_bmac_state {
 	u32 machwcap;	/* mac hw capibility */
 	u32 preamble_ovr;	/* preamble override */
@@ -130,10 +130,10 @@ typedef enum {
 	WLCHW_STATE_LAST
 } wlc_bmac_state_id_t;
 
-extern int wlc_bmac_attach(wlc_info_t *wlc, u16 vendor, u16 device,
+extern int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device,
 			   uint unit, bool piomode, struct osl_info *osh,
 			   void *regsva, uint bustype, void *btparam);
-extern int wlc_bmac_detach(wlc_info_t *wlc);
+extern int wlc_bmac_detach(struct wlc_info *wlc);
 extern void wlc_bmac_watchdog(void *arg);
 extern void wlc_bmac_info_init(wlc_hw_info_t *wlc_hw);
 
