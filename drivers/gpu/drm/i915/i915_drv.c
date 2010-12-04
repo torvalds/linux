@@ -440,7 +440,8 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	bool need_display = true;
 	int ret;
 
-	mutex_lock(&dev->struct_mutex);
+	if (!mutex_trylock(&dev->struct_mutex))
+		return -EBUSY;
 
 	i915_gem_reset(dev);
 
