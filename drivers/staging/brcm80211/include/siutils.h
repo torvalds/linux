@@ -128,7 +128,7 @@ extern uint si_coreid(si_t *sih);
 extern uint si_flag(si_t *sih);
 extern uint si_coreidx(si_t *sih);
 extern uint si_corerev(si_t *sih);
-extern void *si_osh(si_t *sih);
+struct osl_info *si_osh(si_t *sih);
 extern uint si_corereg(si_t *sih, uint coreidx, uint regoff, uint mask,
 		uint val);
 extern void si_write_wrapperreg(si_t *sih, u32 offset, u32 val);

@@ -17,14 +17,10 @@
 #ifndef _osl_h_
 #define _osl_h_
 
-struct osl_pubinfo {
-	uint pktalloced;	/* Number of allocated packet buffers */
-	bool mmbus;		/* Bus supports memory-mapped registers */
-};
-
 /* osl handle type forward declaration */
 struct osl_info {
-	struct osl_pubinfo pub;
+	uint pktalloced;	/* Number of allocated packet buffers */
+	bool mmbus;		/* Bus supports memory-mapped registers */
 	uint magic;
 	void *pdev;
 	uint bustype;
@@ -106,10 +102,10 @@ extern void osl_dma_unmap(struct osl_info *osh, uint pa, uint size,
 
 #if defined(BCMSDIO)
 #define SELECT_BUS_WRITE(osh, mmap_op, bus_op) \
-	if (((struct osl_pubinfo *)(osh))->mmbus) \
+	if ((osh)->mmbus) \
 		mmap_op else bus_op
 #define SELECT_BUS_READ(osh, mmap_op, bus_op) \
-	(((struct osl_pubinfo *)(osh))->mmbus) ?  mmap_op : bus_op
+	((osh)->mmbus) ?  mmap_op : bus_op
 #else
 #define SELECT_BUS_WRITE(osh, mmap_op, bus_op) mmap_op
 #define SELECT_BUS_READ(osh, mmap_op, bus_op) mmap_op
@@ -255,7 +251,7 @@ extern void osl_pktfree(struct osl_info *osh, void *skb, bool send);
 
 #ifdef BRCM_FULLMAC
 static inline void *
-osl_pkt_frmnative(struct osl_pubinfo *osh, struct sk_buff *skb)
+osl_pkt_frmnative(struct osl_info *osh, struct sk_buff *skb)
 {
 	struct sk_buff *nskb;
 
@@ -265,10 +261,10 @@ osl_pkt_frmnative(struct osl_pubinfo *osh, struct sk_buff *skb)
 	return (void *)skb;
 }
 #define PKTFRMNATIVE(osh, skb)	\
-	osl_pkt_frmnative(((struct osl_pubinfo *)osh), (struct sk_buff*)(skb))
+	osl_pkt_frmnative((osh), (struct sk_buff *)(skb))
 
 static inline struct sk_buff *
-osl_pkt_tonative(struct osl_pubinfo *osh, void *pkt)
+osl_pkt_tonative(struct osl_info *osh, void *pkt)
 {
 	struct sk_buff *nskb;
 
@@ -278,7 +274,7 @@ osl_pkt_tonative(struct osl_pubinfo *osh, void *pkt)
 	return (struct sk_buff *)pkt;
 }
 #define PKTTONATIVE(osh, pkt)	\
-	osl_pkt_tonative((struct osl_pubinfo *)(osh), (pkt))
+	osl_pkt_tonative((osh), (pkt))
 #else /* !BRCM_FULLMAC */
 #define	PKTSETSKIPCT(osh, skb)
 #define	PKTCLRSKIPCT(osh, skb)

@@ -729,7 +729,7 @@ void si_detach(si_t *sih)
 		kfree(sii);
 }
 
-void *si_osh(si_t *sih)
+struct osl_info *si_osh(si_t *sih)
 {
 	si_info_t *sii;
 

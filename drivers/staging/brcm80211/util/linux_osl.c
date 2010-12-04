@@ -53,14 +53,14 @@ struct osl_info *osl_attach(void *pdev, uint bustype)
 	case PCI_BUS:
 	case SI_BUS:
 	case PCMCIA_BUS:
-		osh->pub.mmbus = true;
+		osh->mmbus = true;
 		break;
 	case JTAG_BUS:
 	case SDIO_BUS:
 	case USB_BUS:
 	case SPI_BUS:
 	case RPC_BUS:
-		osh->pub.mmbus = false;
+		osh->mmbus = false;
 		break;
 	default:
 		ASSERT(false);
@@ -88,7 +88,7 @@ void *BCMFASTPATH osl_pktget(struct osl_info *osh, uint len)
 		skb_put(skb, len);
 		skb->priority = 0;
 
-		osh->pub.pktalloced++;
+		osh->pktalloced++;
 	}
 
 	return (void *)skb;
@@ -119,7 +119,7 @@ void BCMFASTPATH osl_pktfree(struct osl_info *osh, void *p, bool send)
 			 */
 			dev_kfree_skb(skb);
 
-		osh->pub.pktalloced--;
+		osh->pktalloced--;
 		nest++;
 		skb = nskb;
 	}

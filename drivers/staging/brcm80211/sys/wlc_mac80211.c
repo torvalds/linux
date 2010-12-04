@@ -2733,9 +2733,9 @@ uint wlc_down(wlc_info_t *wlc)
 
 
 	/* Verify all packets are flushed from the driver */
-	if (wlc->osh->pub.pktalloced != 0) {
+	if (wlc->osh->pktalloced != 0) {
 		WL_ERROR(("%d packets not freed at wlc_down!!!!!!\n",
-			  wlc->osh->pub.pktalloced));
+			  wlc->osh->pktalloced));
 	}
 #ifdef BCMDBG
 	/* Since all the packets should have been freed,
@@ -6935,7 +6935,7 @@ wlc_recvctl(wlc_info_t *wlc, struct osl_info *osh, d11rxhdr_t *rxh,
 	ieee80211_rx_irqsafe(wlc->pub->ieee_hw, p);
 
 	WLCNTINCR(wlc->pub->_cnt->ieee_rx);
-	osh->pub.pktalloced--;
+	osh->pktalloced--;
 	return;
 }
 
