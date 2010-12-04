@@ -3710,6 +3710,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* FDI link */
 	if (HAS_PCH_SPLIT(dev)) {
+		int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
 		int lane = 0, link_bw, bpp;
 		/* CPU eDP doesn't require FDI link, so just set DP M/N
 		   according to current link config */
@@ -3793,6 +3794,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 		intel_crtc->fdi_lanes = lane;
 
+		if (pixel_multiplier > 1)
+			link_bw *= pixel_multiplier;
 		ironlake_compute_m_n(bpp, lane, target_clock, link_bw, &m_n);
 	}
 
