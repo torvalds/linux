@@ -5,7 +5,6 @@
  */
 #include <linux/ring_buffer.h>
 #include <linux/trace_clock.h>
-#include <linux/ftrace_irq.h>
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
