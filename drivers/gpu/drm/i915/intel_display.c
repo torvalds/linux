@@ -5864,7 +5864,6 @@ void intel_init_clock_gating(struct drm_device *dev)
 				   _3D_CHICKEN2_WM_READ_PIPELINED << 16 |
 				   _3D_CHICKEN2_WM_READ_PIPELINED);
 		}
-		return;
 	} else if (IS_G4X(dev)) {
 		uint32_t dspclk_gate;
 		I915_WRITE(RENCLK_GATE_D1, 0);
