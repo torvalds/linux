@@ -65,7 +65,7 @@ ENABLE_ARM_L2_CACHE	= 0
 CONFIG_DOVE_GPU = 0
 
 
-ENABLE_GPU_CLOCK_BY_DRIVER = 0
+ENABLE_GPU_CLOCK_BY_DRIVER = 1
 
 
 AQROOT          ?= drivers/staging/rk29/vivante

@@ -441,29 +441,51 @@ static int drv_init(void)
     gckGALDEVICE device;
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
-    struct clk * clk = NULL;
+    struct clk * clk_gpu = NULL;
+    struct clk * clk_aclk_gpu = NULL;
+    struct clk * clk_gpu_ahb = NULL;
 #endif
 
     gcmkTRACE_ZONE(gcvLEVEL_VERBOSE, gcvZONE_DRIVER,
     	    	  "Entering drv_init\n");
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
-    clk = clk_get(NULL, "GCCLK");
-    if (IS_ERR(clk))
+    // clk_gpu_ahb
+    clk_gpu_ahb = clk_get(NULL, "gpu_ahb");
+    if(!IS_ERR(clk_gpu_ahb))    clk_enable(clk_gpu_ahb);
+
+    // clk_aclk_gpu
+    clk_aclk_gpu = clk_get(NULL, "aclk_gpu");
+    if (IS_ERR(clk_aclk_gpu))
     {
-        int retval = PTR_ERR(clk);
-        printk("clk get error: %d\n", retval);
+        int retval = PTR_ERR(clk_aclk_gpu);
+        printk("clk_aclk_gpu get error: %d\n", retval);
         return -ENODEV;
     }
+    if (clk_set_rate(clk_aclk_gpu, 312000000))  //designed on 300M
+    {
+       	gcmkTRACE_ZONE(gcvLEVEL_ERROR, gcvZONE_DRIVER,
+    	    	      "[galcore] Can't set aclk_gpu clock.");
+        return -EAGAIN;
+    }
+    clk_enable(clk_aclk_gpu);    
 
+    // clk_gpu
+    clk_gpu = clk_get(NULL, "gpu");
+    if (IS_ERR(clk_gpu))
+    {
+        int retval = PTR_ERR(clk_gpu);
+        printk("clk_gpu get error: %d\n", retval);
+        return -ENODEV;
+    }
     /* APMU_GC_156M, APMU_GC_624M, APMU_GC_PLL2, APMU_GC_PLL2_DIV2 currently */
-    if (clk_set_rate(clk, 624000000))
+    if (clk_set_rate(clk_gpu, 312000000))  //designed on 500M
     {
        	gcmkTRACE_ZONE(gcvLEVEL_ERROR, gcvZONE_DRIVER,
     	    	      "[galcore] Can't set core clock.");
         return -EAGAIN;
     }
-    clk_enable(clk);
+    clk_enable(clk_gpu);
 #endif
 
 	if (showArgs)
@@ -579,7 +601,9 @@ static void drv_exit(void)
 #endif
 {
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
-    struct clk * clk = NULL;
+    struct clk * clk_gpu = NULL;
+    struct clk * clk_aclk_gpu = NULL;
+    struct clk * clk_gpu_ahb = NULL;
 #endif
     gcmkTRACE_ZONE(gcvLEVEL_VERBOSE, gcvZONE_DRIVER,
     	    	  "[galcore] Entering drv_exit\n");
@@ -598,8 +622,14 @@ static void drv_exit(void)
     gckGALDEVICE_Destroy(galDevice);
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
-    clk = clk_get(NULL, "GCCLK");
-    clk_disable(clk);
+    clk_gpu = clk_get(NULL, "gpu");
+    if(!IS_ERR(clk_gpu))    clk_disable(clk_gpu);
+  
+    clk_aclk_gpu = clk_get(NULL, "aclk_gpu");
+    if(!IS_ERR(clk_aclk_gpu))    clk_disable(clk_aclk_gpu);   
+
+    clk_gpu_ahb = clk_get(NULL, "gpu_ahb");
+    if(!IS_ERR(clk_gpu_ahb))    clk_disable(clk_gpu_ahb);
 #endif
 }
 
