@@ -661,7 +661,7 @@ void wq_worker_waking_up(struct task_struct *task, unsigned int cpu)
 {
 	struct worker *worker = kthread_data(task);
 
-	if (likely(!(worker->flags & WORKER_NOT_RUNNING)))
+	if (!(worker->flags & WORKER_NOT_RUNNING))
 		atomic_inc(get_gcwq_nr_running(cpu));
 }
 
@@ -687,7 +687,7 @@ struct task_struct *wq_worker_sleeping(struct task_struct *task,
 	struct global_cwq *gcwq = get_gcwq(cpu);
 	atomic_t *nr_running = get_gcwq_nr_running(cpu);
 
-	if (unlikely(worker->flags & WORKER_NOT_RUNNING))
+	if (worker->flags & WORKER_NOT_RUNNING)
 		return NULL;
 
 	/* this can only happen on the local cpu */
