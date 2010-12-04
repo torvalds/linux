@@ -458,13 +458,17 @@ static void tegra_suspend_dram(bool do_lp0)
 
 	suspend_cpu_complex();
 	flush_cache_all();
+#ifdef CONFIG_CACHE_L2X0
 	l2x0_shutdown();
+#endif
 
 	__cortex_a9_save(mode);
 	restore_cpu_complex();
 
 	writel(orig, evp_reset);
+#ifdef CONFIG_CACHE_L2X0
 	l2x0_restart();
+#endif
 
 	if (!do_lp0) {
 		memcpy(iram_code, iram_save, iram_save_size);
