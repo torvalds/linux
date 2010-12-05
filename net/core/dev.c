@@ -743,34 +743,31 @@ struct net_device *dev_get_by_index(struct net *net, int ifindex)
 EXPORT_SYMBOL(dev_get_by_index);
 
 /**
- *	dev_getbyhwaddr - find a device by its hardware address
+ *	dev_getbyhwaddr_rcu - find a device by its hardware address
  *	@net: the applicable net namespace
  *	@type: media type of device
  *	@ha: hardware address
  *
  *	Search for an interface by MAC address. Returns NULL if the device
- *	is not found or a pointer to the device. The caller must hold the
- *	rtnl semaphore. The returned device has not had its ref count increased
+ *	is not found or a pointer to the device. The caller must hold RCU
+ *	The returned device has not had its ref count increased
  *	and the caller must therefore be careful about locking
  *
- *	BUGS:
- *	If the API was consistent this would be __dev_get_by_hwaddr
  */
 
-struct net_device *dev_getbyhwaddr(struct net *net, unsigned short type, char *ha)
+struct net_device *dev_getbyhwaddr_rcu(struct net *net, unsigned short type,
+				       const char *ha)
 {
 	struct net_device *dev;
 
-	ASSERT_RTNL();
-
-	for_each_netdev(net, dev)
+	for_each_netdev_rcu(net, dev)
 		if (dev->type == type &&
 		    !memcmp(dev->dev_addr, ha, dev->addr_len))
 			return dev;
 
 	return NULL;
 }
-EXPORT_SYMBOL(dev_getbyhwaddr);
+EXPORT_SYMBOL(dev_getbyhwaddr_rcu);
 
 struct net_device *__dev_getfirstbyhwtype(struct net *net, unsigned short type)
 {

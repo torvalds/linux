@@ -1017,13 +1017,14 @@ static int arp_req_set_proxy(struct net *net, struct net_device *dev, int on)
 		IPV4_DEVCONF_ALL(net, PROXY_ARP) = on;
 		return 0;
 	}
-	if (__in_dev_get_rtnl(dev)) {
-		IN_DEV_CONF_SET(__in_dev_get_rtnl(dev), PROXY_ARP, on);
+	if (__in_dev_get_rcu(dev)) {
+		IN_DEV_CONF_SET(__in_dev_get_rcu(dev), PROXY_ARP, on);
 		return 0;
 	}
 	return -ENXIO;
 }
 
+/* must be called with rcu_read_lock() */
 static int arp_req_set_public(struct net *net, struct arpreq *r,
 		struct net_device *dev)
 {
@@ -1033,7 +1034,7 @@ static int arp_req_set_public(struct net *net, struct arpreq *r,
 	if (mask && mask != htonl(0xFFFFFFFF))
 		return -EINVAL;
 	if (!dev && (r->arp_flags & ATF_COM)) {
-		dev = dev_getbyhwaddr(net, r->arp_ha.sa_family,
+		dev = dev_getbyhwaddr_rcu(net, r->arp_ha.sa_family,
 				      r->arp_ha.sa_data);
 		if (!dev)
 			return -ENODEV;
@@ -1225,10 +1226,10 @@ int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	if (!(r.arp_flags & ATF_NETMASK))
 		((struct sockaddr_in *)&r.arp_netmask)->sin_addr.s_addr =
 							   htonl(0xFFFFFFFFUL);
-	rtnl_lock();
+	rcu_read_lock();
 	if (r.arp_dev[0]) {
 		err = -ENODEV;
-		dev = __dev_get_by_name(net, r.arp_dev);
+		dev = dev_get_by_name_rcu(net, r.arp_dev);
 		if (dev == NULL)
 			goto out;
 
@@ -1252,12 +1253,12 @@ int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 		break;
 	case SIOCGARP:
 		err = arp_req_get(&r, dev);
-		if (!err && copy_to_user(arg, &r, sizeof(r)))
-			err = -EFAULT;
 		break;
 	}
 out:
-	rtnl_unlock();
+	rcu_read_unlock();
+	if (cmd == SIOCGARP && !err && copy_to_user(arg, &r, sizeof(r)))
+		err = -EFAULT;
 	return err;
 }
 
