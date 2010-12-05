@@ -349,7 +349,7 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 				READ_BREADCRUMB(dev_priv);
 	}
 
-	if (gt_iir & (GT_USER_INTERRUPT | GT_PIPE_NOTIFY))
+	if (gt_iir & GT_USER_INTERRUPT)
 		notify_ring(dev, &dev_priv->ring[RCS]);
 	if (gt_iir & bsd_usr_interrupt)
 		notify_ring(dev, &dev_priv->ring[VCS]);
@@ -1556,7 +1556,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 			GT_BLT_USER_INTERRUPT;
 	else
 		render_irqs =
-			GT_PIPE_NOTIFY |
+			GT_USER_INTERRUPT |
 			GT_BSD_USER_INTERRUPT;
 	I915_WRITE(GTIER, render_irqs);
 	POSTING_READ(GTIER);
