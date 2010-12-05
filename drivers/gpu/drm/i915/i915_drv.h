@@ -223,7 +223,6 @@ struct intel_device_info {
 	u8 is_broadwater : 1;
 	u8 is_crestline : 1;
 	u8 has_fbc : 1;
-	u8 has_rc6 : 1;
 	u8 has_pipe_cxsr : 1;
 	u8 has_hotplug : 1;
 	u8 cursor_needs_physical : 1;
@@ -930,7 +929,6 @@ enum intel_chip_family {
 #define HAS_FW_BLC(dev) (INTEL_INFO(dev)->gen > 2)
 #define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
 #define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
-#define I915_HAS_RC6(dev) (INTEL_INFO(dev)->has_rc6)
 
 #define HAS_PCH_SPLIT(dev) (IS_GEN5(dev) || IS_GEN6(dev))
 #define HAS_PIPE_CONTROL(dev) (IS_GEN5(dev) || IS_GEN6(dev))

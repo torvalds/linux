@@ -73,7 +73,6 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	B(is_broadwater);
 	B(is_crestline);
 	B(has_fbc);
-	B(has_rc6);
 	B(has_pipe_cxsr);
 	B(has_hotplug);
 	B(cursor_needs_physical);
