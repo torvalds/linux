@@ -690,12 +690,17 @@ static void request_stop_nosync(struct audio_stream *as)
 	pr_debug("%s\n", __func__);
 	if (!as->stop) {
 		as->stop = true;
-		wait_till_stopped(as);
+		if (pending_buffer_requests(as))
+			wait_till_stopped(as);
 		for (i = 0; i < as->num_bufs; i++) {
 			init_completion(&as->comp[i]);
 			complete(&as->comp[i]);
 		}
 	}
+	if (!tegra_dma_is_empty(as->dma_chan))
+		pr_err("%s: DMA not empty!\n", __func__);
+	/* Stop the DMA then dequeue anything that's in progress. */
+	tegra_dma_cancel(as->dma_chan);
 	as->active = false; /* applies to recording only */
 	pr_debug("%s: done\n", __func__);
 }
