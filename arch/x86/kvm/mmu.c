@@ -3447,7 +3447,7 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 		for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
 			/* avoid RMW */
 			if (is_writable_pte(pt[i]))
-				pt[i] &= ~PT_WRITABLE_MASK;
+				update_spte(&pt[i], pt[i] & ~PT_WRITABLE_MASK);
 	}
 	kvm_flush_remote_tlbs(kvm);
 }
