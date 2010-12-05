@@ -68,10 +68,12 @@ struct kconf_id {
 	enum symbol_type stype;
 };
 
+#ifdef YYDEBUG
+extern int zconfdebug;
+#endif
+
 int zconfparse(void);
 void zconfdump(FILE *out);
-
-extern int zconfdebug;
 void zconf_starthelp(void);
 FILE *zconf_fopen(const char *name);
 void zconf_initscan(const char *name);
