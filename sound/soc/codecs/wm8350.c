@@ -26,6 +26,7 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
+#include <trace/events/asoc.h>
 
 #include "wm8350.h"
 
@@ -1378,10 +1379,12 @@ static irqreturn_t wm8350_hp_jack_handler(int irq, void *data)
 
 	switch (irq - wm8350->irq_base) {
 	case WM8350_IRQ_CODEC_JCK_DET_L:
+		trace_snd_soc_jack_irq("WM8350 HPL");
 		jack = &priv->hpl;
 		break;
 
 	case WM8350_IRQ_CODEC_JCK_DET_R:
+		trace_snd_soc_jack_irq("WM8350 HPR");
 		jack = &priv->hpr;
 		break;
 
@@ -1455,6 +1458,8 @@ static irqreturn_t wm8350_mic_handler(int irq, void *data)
 	struct wm8350 *wm8350 = priv->codec.control_data;
 	u16 reg;
 	int report = 0;
+
+	trace_snd_soc_jack_irq("WM8350 mic");
 
 	reg = wm8350_reg_read(wm8350, WM8350_JACK_PIN_STATUS);
 	if (reg & WM8350_JACK_MICSCD_LVL)

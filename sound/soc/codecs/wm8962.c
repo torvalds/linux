@@ -32,6 +32,7 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <sound/wm8962.h>
+#include <trace/events/asoc.h>
 
 #include "wm8962.h"
 
@@ -3352,6 +3353,8 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 
 	if (active & (WM8962_MICSCD_EINT | WM8962_MICD_EINT)) {
 		dev_dbg(codec->dev, "Microphone event detected\n");
+
+		trace_snd_soc_jack_irq(dev_name(codec->dev));
 
 		pm_wakeup_event(codec->dev, 300);
 
