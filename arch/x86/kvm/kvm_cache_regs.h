@@ -75,6 +75,8 @@ static inline ulong kvm_read_cr4_bits(struct kvm_vcpu *vcpu, ulong mask)
 
 static inline ulong kvm_read_cr3(struct kvm_vcpu *vcpu)
 {
+	if (!test_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail))
+		kvm_x86_ops->decache_cr3(vcpu);
 	return vcpu->arch.cr3;
 }
 
