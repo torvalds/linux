@@ -300,8 +300,8 @@ static void rk29_sdmmc_set_timeout(struct rk29_sdmmc *host,struct mmc_data *data
 	unsigned timeout;
 
 	timeout = ns_to_clocks(host->clock, data->timeout_ns) + data->timeout_clks;
-	rk29_sdmmc_write(host->regs, SDMMC_TMOUT, 0xffffffff);
-	///rk29_sdmmc_write(host->regs, SDMMC_TMOUT, (timeout << 8) | (70));
+	///rk29_sdmmc_write(host->regs, SDMMC_TMOUT, 0xffffffff);
+	rk29_sdmmc_write(host->regs, SDMMC_TMOUT, (timeout << 8) | (70));
 }
 
 static u32 rk29_sdmmc_prepare_command(struct mmc_host *mmc,
@@ -1186,11 +1186,9 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
-
 	mmc = mmc_alloc_host(sizeof(struct rk29_sdmmc), &pdev->dev);
 	if (!mmc)
-		return -ENOMEM;
-		
+		return -ENOMEM;	
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
 	host->pdev = pdev;
@@ -1200,10 +1198,10 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto err_freehost;
 	}
-
+	if(pdata->io_init)
+		pdata->io_init();
 	spin_lock_init(&host->lock);
 	INIT_LIST_HEAD(&host->queue);
-
 	ret = -ENOMEM;
 	host->regs = ioremap(regs->start, regs->end - regs->start);
 	if (!host->regs)
@@ -1222,38 +1220,36 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		rk29_dma_config(host->dma_chn, 16);
 		rk29_dma_set_buffdone_fn(host->dma_chn, rk29_sdmmc_dma_complete);	
 		host->dma_addr = regs->start + SDMMC_DATA;
-	}
-	host->bus_hz = 40000000;  ////cgu_get_clk_freq(CGU_SB_SD_MMC_CCLK_IN_ID); 
+	}	
+	host->clk = clk_get(&pdev->dev, "sdmmc");
+	clk_enable(host->clk);
+	clk_enable(clk_get(&pdev->dev, "sdmmc_ahb"));
+	host->bus_hz = clk_get_rate(host->clk);  ///40000000;  ////cgu_get_clk_freq(CGU_SB_SD_MMC_CCLK_IN_ID); 
 
   	/* reset all blocks */
   	rk29_sdmmc_write(host->regs, SDMMC_CTRL,(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
   	/* wait till resets clear */
   	while (rk29_sdmmc_read(host->regs, SDMMC_CTRL) & (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
-
 	 /* Clear the interrupts for the host controller */
 	rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, 0xFFFFFFFF);
 	rk29_sdmmc_write(host->regs, SDMMC_INTMASK, 0); // disable all mmc interrupt first
-
   	/* Put in max timeout */
   	rk29_sdmmc_write(host->regs, SDMMC_TMOUT, 0xFFFFFFFF);
 
   	/* FIFO threshold settings  */
   	rk29_sdmmc_write(host->regs, SDMMC_FIFOTH, ((0x3 << 28) | (0x0f << 16) | (0x10 << 0))); // RXMark = 15, TXMark = 16, DMA Size = 16
-
 	/* disable clock to CIU */
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA,0);
 	rk29_sdmmc_write(host->regs, SDMMC_CLKSRC,0);
 	rk29_sdmmc_write(host->regs, SDMMC_PWREN, 1);
 	tasklet_init(&host->tasklet, rk29_sdmmc_tasklet_func, (unsigned long)host);
-	
 	ret = request_irq(irq, rk29_sdmmc_interrupt, 0, dev_name(&pdev->dev), host);
 	if (ret)
 	    goto err_dmaunmap;
-
 	platform_set_drvdata(pdev, host); 	
 	mmc->ops = &rk29_sdmmc_ops[pdev->id];
 	mmc->f_min = host->bus_hz/510;
-	mmc->f_max = host->bus_hz/20; //max f is clock to mmc_clk/2
+	mmc->f_max = host->bus_hz/4;  //2;  ///20; //max f is clock to mmc_clk/2
 	mmc->ocr_avail = pdata->host_ocr_avail;
 	mmc->caps = pdata->host_caps;
 	mmc->max_phys_segs = 64;
@@ -1262,7 +1258,6 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	mmc->max_blk_count = 512;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;	
-	
 	/* Assume card is present initially */
 	if(rk29_sdmmc_get_cd(host->mmc))
 		set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
@@ -1270,14 +1265,11 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
 
 	mmc_add_host(mmc);
- 
 #if defined (CONFIG_DEBUG_FS)
 	rk29_sdmmc_init_debugfs(host);
 #endif
-
 	/* Create card detect handler thread  */
 	setup_timer(&host->detect_timer, rk29_sdmmc_detect_change,(unsigned long)host);
-	
 	// enable interrupt for command done, data over, data empty, receive ready and error such as transmit, receive timeout, crc error
 	rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, 0xFFFFFFFF);
 	rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_TXDR | SDMMC_INT_RXDR | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
