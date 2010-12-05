@@ -152,8 +152,6 @@ static struct snd_soc_ops smdk_spdif_ops = {
 	.hw_params = smdk_hw_params,
 };
 
-static struct snd_soc_card smdk;
-
 static struct snd_soc_dai_link smdk_dai = {
 	.name = "S/PDIF",
 	.stream_name = "S/PDIF PCM Playback",
