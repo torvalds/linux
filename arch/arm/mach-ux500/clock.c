@@ -579,6 +579,8 @@ int __init clk_init(void)
 		clk_prcc_ops.enable = clk_prcc_ops.disable = NULL;
 		clk_prcmu_ops.enable = clk_prcmu_ops.disable = NULL;
 		clk_per6clk.rate = 26000000;
+		clk_uartclk.rate = 36360000;
+		clk_sdmmcclk.rate = 99900000;
 	}
 
 	clkdev_add_table(u8500_common_clks, ARRAY_SIZE(u8500_common_clks));

@@ -31,10 +31,11 @@ static void __init u5500_init_machine(void)
 {
 	u5500_init_devices();
 
+	u5500_sdi_init();
 	u5500_uart_init();
 }
 
-MACHINE_START(U8500, "ST-Ericsson U5500 Platform")
+MACHINE_START(U5500, "ST-Ericsson U5500 Platform")
 	.boot_params	= 0x00000100,
 	.map_io		= u5500_map_io,
 	.init_irq	= ux500_init_irq,
