@@ -5973,7 +5973,7 @@ void intel_init_clock_gating(struct drm_device *dev)
 				       "Disable RC6\n");
 	}
 
-	if (I915_HAS_RC6(dev) && drm_core_check_feature(dev, DRIVER_MODESET)) {
+	if (IS_GEN4(dev) && IS_MOBILE(dev)) {
 		if (dev_priv->pwrctx == NULL)
 			dev_priv->pwrctx = intel_alloc_context_page(dev);
 		if (dev_priv->pwrctx) {
