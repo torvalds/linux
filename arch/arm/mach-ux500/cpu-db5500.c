@@ -135,6 +135,8 @@ void __init u5500_map_io(void)
 
 void __init u5500_init_devices(void)
 {
+	db5500_dma_init();
+
 	db5500_add_rtc();
 
 	platform_add_devices(u5500_platform_devs,

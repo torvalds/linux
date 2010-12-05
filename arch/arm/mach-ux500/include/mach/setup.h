@@ -25,6 +25,8 @@ extern void __init ux500_init_irq(void);
 
 extern void __init u5500_sdi_init(void);
 
+extern void __init db5500_dma_init(void);
+
 /* We re-use nomadik_timer for this platform */
 extern void nmdk_timer_init(void);
 
