@@ -1174,7 +1174,7 @@ static void svm_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 	switch (reg) {
 	case VCPU_EXREG_PDPTR:
 		BUG_ON(!npt_enabled);
-		load_pdptrs(vcpu, vcpu->arch.walk_mmu, vcpu->arch.cr3);
+		load_pdptrs(vcpu, vcpu->arch.walk_mmu, kvm_read_cr3(vcpu));
 		break;
 	default:
 		BUG();
@@ -2116,7 +2116,7 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_vmcb->save.idtr   = vmcb->save.idtr;
 	nested_vmcb->save.efer   = svm->vcpu.arch.efer;
 	nested_vmcb->save.cr0    = kvm_read_cr0(&svm->vcpu);
-	nested_vmcb->save.cr3    = svm->vcpu.arch.cr3;
+	nested_vmcb->save.cr3    = kvm_read_cr3(&svm->vcpu);
 	nested_vmcb->save.cr2    = vmcb->save.cr2;
 	nested_vmcb->save.cr4    = svm->vcpu.arch.cr4;
 	nested_vmcb->save.rflags = vmcb->save.rflags;
@@ -2311,7 +2311,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	if (npt_enabled)
 		hsave->save.cr3    = vmcb->save.cr3;
 	else
-		hsave->save.cr3    = svm->vcpu.arch.cr3;
+		hsave->save.cr3    = kvm_read_cr3(&svm->vcpu);
 
 	copy_vmcb_control_area(hsave, vmcb);
 
@@ -2715,7 +2715,7 @@ static int cr_interception(struct vcpu_svm *svm)
 			val = svm->vcpu.arch.cr2;
 			break;
 		case 3:
-			val = svm->vcpu.arch.cr3;
+			val = kvm_read_cr3(&svm->vcpu);
 			break;
 		case 4:
 			val = kvm_read_cr4(&svm->vcpu);
@@ -3693,7 +3693,7 @@ static void set_tdp_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 	mark_dirty(svm->vmcb, VMCB_NPT);
 
 	/* Also sync guest cr3 here in case we live migrate */
-	svm->vmcb->save.cr3 = vcpu->arch.cr3;
+	svm->vmcb->save.cr3 = kvm_read_cr3(vcpu);
 	mark_dirty(svm->vmcb, VMCB_CR);
 
 	svm_flush_tlb(vcpu);

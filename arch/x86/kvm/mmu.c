@@ -2727,13 +2727,13 @@ void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu)
 
 static void paging_new_cr3(struct kvm_vcpu *vcpu)
 {
-	pgprintk("%s: cr3 %lx\n", __func__, vcpu->arch.cr3);
+	pgprintk("%s: cr3 %lx\n", __func__, kvm_read_cr3(vcpu));
 	mmu_free_roots(vcpu);
 }
 
 static unsigned long get_cr3(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.cr3;
+	return kvm_read_cr3(vcpu);
 }
 
 static void inject_page_fault(struct kvm_vcpu *vcpu,
@@ -3637,7 +3637,7 @@ static int kvm_pv_mmu_write(struct kvm_vcpu *vcpu,
 
 static int kvm_pv_mmu_flush_tlb(struct kvm_vcpu *vcpu)
 {
-	(void)kvm_set_cr3(vcpu, vcpu->arch.cr3);
+	(void)kvm_set_cr3(vcpu, kvm_read_cr3(vcpu));
 	return 1;
 }
 
