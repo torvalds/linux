@@ -440,12 +440,11 @@ static void conf_write_string(bool headerfile, const char *name,
 	fputs("\"\n", out);
 }
 
-static void conf_write_symbol(struct symbol *sym, enum symbol_type type,
-                              FILE *out, bool write_no)
+static void conf_write_symbol(struct symbol *sym, FILE *out, bool write_no)
 {
 	const char *str;
 
-	switch (type) {
+	switch (sym->type) {
 	case S_BOOLEAN:
 	case S_TRISTATE:
 		switch (sym_get_tristate_value(sym)) {
@@ -532,7 +531,7 @@ int conf_write_defconfig(const char *filename)
 						goto next_menu;
 				}
 			}
-			conf_write_symbol(sym, sym->type, out, true);
+			conf_write_symbol(sym, out, true);
 		}
 next_menu:
 		if (menu->list != NULL) {
@@ -561,7 +560,6 @@ int conf_write(const char *name)
 	const char *basename;
 	const char *str;
 	char dirname[PATH_MAX+1], tmpname[PATH_MAX+1], newname[PATH_MAX+1];
-	enum symbol_type type;
 	time_t now;
 	int use_timestamp = 1;
 	char *env;
@@ -633,14 +631,8 @@ int conf_write(const char *name)
 			if (!(sym->flags & SYMBOL_WRITE))
 				goto next;
 			sym->flags &= ~SYMBOL_WRITE;
-			type = sym->type;
-			if (type == S_TRISTATE) {
-				sym_calc_value(modules_sym);
-				if (modules_sym->curr.tri == no)
-					type = S_BOOLEAN;
-			}
 			/* Write config symbol to file */
-			conf_write_symbol(sym, type, out, true);
+			conf_write_symbol(sym, out, true);
 		}
 
 next:
@@ -842,7 +834,7 @@ int conf_write_autoconf(void)
 			continue;
 
 		/* write symbol to config file */
-		conf_write_symbol(sym, sym->type, out, false);
+		conf_write_symbol(sym, out, false);
 
 		/* update autoconf and tristate files */
 		switch (sym->type) {
