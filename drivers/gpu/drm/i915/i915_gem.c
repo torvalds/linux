@@ -2484,6 +2484,9 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 	struct drm_i915_fence_reg *reg;
 	int ret;
 
+	/* XXX disable pipelining. There are bugs. Shocking. */
+	pipelined = NULL;
+
 	/* Just update our place in the LRU if our fence is getting reused. */
 	if (obj->fence_reg != I915_FENCE_REG_NONE) {
 		reg = &dev_priv->fence_regs[obj->fence_reg];
@@ -2556,9 +2559,8 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 		if (old->tiling_mode)
 			i915_gem_release_mmap(old);
 
-		/* XXX The pipelined change over appears to be incoherent. */
 		ret = i915_gem_object_flush_fence(old,
-						  NULL, //pipelined,
+						  pipelined,
 						  interruptible);
 		if (ret) {
 			drm_gem_object_unreference(&old->base);
