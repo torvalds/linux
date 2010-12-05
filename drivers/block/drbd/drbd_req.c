@@ -140,9 +140,14 @@ static void _about_to_complete_local_write(struct drbd_conf *mdev,
 	struct hlist_node *n;
 	struct hlist_head *slot;
 
-	/* before we can signal completion to the upper layers,
-	 * we may need to close the current epoch */
-	if (mdev->state.conn >= C_WF_BITMAP_T && mdev->state.conn < C_AHEAD &&
+	/* Before we can signal completion to the upper layers,
+	 * we may need to close the current epoch.
+	 * We can skip this, if this request has not even been sent, because we
+	 * did not have a fully established connection yet/anymore, during
+	 * bitmap exchange, or while we are C_AHEAD due to congestion policy.
+	 */
+	if (mdev->state.conn >= C_CONNECTED &&
+	    (s & RQ_NET_SENT) != 0 &&
 	    req->epoch == mdev->newest_tle->br_number)
 		queue_barrier(mdev);
 
