@@ -833,8 +833,7 @@ int conf_write_autoconf(void)
 		       " * Automatically generated C config: don't edit\n"
 		       " * %s\n"
 		       " * %s"
-		       " */\n"
-		       "#define AUTOCONF_INCLUDED\n",
+		       " */\n",
 		       rootmenu.prompt->text, ctime(&now));
 
 	for_all_symbols(i, sym) {
