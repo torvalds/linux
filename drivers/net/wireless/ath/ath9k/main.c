@@ -244,11 +244,12 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	 * the relevant bits of the h/w.
 	 */
 	ath9k_hw_set_interrupts(ah, 0);
-	ath_drain_all_txq(sc, false);
+	stopped = ath_drain_all_txq(sc, false);
 
 	spin_lock_bh(&sc->rx.pcu_lock);
 
-	stopped = ath_stoprecv(sc);
+	if (!ath_stoprecv(sc))
+		stopped = false;
 
 	/* XXX: do not flush receive queue here. We don't want
 	 * to flush data frames already in queue because of
