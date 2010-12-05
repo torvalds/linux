@@ -820,6 +820,8 @@ int i915_save_state(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev))
 		ironlake_disable_drps(dev);
 
+	intel_disable_clock_gating(dev);
+
 	/* Cache mode state */
 	dev_priv->saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
 
@@ -863,7 +865,7 @@ int i915_restore_state(struct drm_device *dev)
 	}
 
 	/* Clock gating state */
-	intel_init_clock_gating(dev);
+	intel_enable_clock_gating(dev);
 
 	if (HAS_PCH_SPLIT(dev)) {
 		ironlake_enable_drps(dev);

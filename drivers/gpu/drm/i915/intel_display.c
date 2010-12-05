@@ -5828,7 +5828,7 @@ void intel_init_emon(struct drm_device *dev)
 	dev_priv->corr = (lcfuse & LCFUSE_HIV_MASK);
 }
 
-void intel_init_clock_gating(struct drm_device *dev)
+void intel_enable_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -5982,6 +5982,33 @@ void intel_init_clock_gating(struct drm_device *dev)
 			I915_WRITE(MCHBAR_RENDER_STANDBY,
 				   I915_READ(MCHBAR_RENDER_STANDBY) & ~RCX_SW_EXIT);
 		}
+	}
+}
+
+void intel_disable_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->renderctx) {
+		struct drm_i915_gem_object *obj = dev_priv->renderctx;
+
+		I915_WRITE(CCID, 0);
+		POSTING_READ(CCID);
+
+		i915_gem_object_unpin(obj);
+		drm_gem_object_unreference(&obj->base);
+		dev_priv->renderctx = NULL;
+	}
+
+	if (dev_priv->pwrctx) {
+		struct drm_i915_gem_object *obj = dev_priv->pwrctx;
+
+		I915_WRITE(PWRCTXA, 0);
+		POSTING_READ(PWRCTXA);
+
+		i915_gem_object_unpin(obj);
+		drm_gem_object_unreference(&obj->base);
+		dev_priv->pwrctx = NULL;
 	}
 }
 
@@ -6211,7 +6238,7 @@ void intel_modeset_init(struct drm_device *dev)
 
 	intel_setup_outputs(dev);
 
-	intel_init_clock_gating(dev);
+	intel_enable_clock_gating(dev);
 
 	/* Just disable it once at startup */
 	i915_disable_vga(dev);
@@ -6252,30 +6279,10 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	if (dev_priv->display.disable_fbc)
 		dev_priv->display.disable_fbc(dev);
 
-	if (dev_priv->renderctx) {
-		struct drm_i915_gem_object *obj = dev_priv->renderctx;
-
-		I915_WRITE(CCID, obj->gtt_offset &~ CCID_EN);
-		POSTING_READ(CCID);
-
-		i915_gem_object_unpin(obj);
-		drm_gem_object_unreference(&obj->base);
-		dev_priv->renderctx = NULL;
-	}
-
-	if (dev_priv->pwrctx) {
-		struct drm_i915_gem_object *obj = dev_priv->pwrctx;
-
-		I915_WRITE(PWRCTXA, obj->gtt_offset &~ PWRCTX_EN);
-		POSTING_READ(PWRCTXA);
-
-		i915_gem_object_unpin(obj);
-		drm_gem_object_unreference(&obj->base);
-		dev_priv->pwrctx = NULL;
-	}
-
 	if (IS_IRONLAKE_M(dev))
 		ironlake_disable_drps(dev);
+
+	intel_disable_clock_gating(dev);
 
 	mutex_unlock(&dev->struct_mutex);
 
