@@ -22,6 +22,7 @@
 #include <sound/tlv.h>
 #include <sound/initval.h>
 #include <sound/jack.h>
+#include <trace/events/asoc.h>
 
 #include "88pm860x-codec.h"
 
@@ -1261,6 +1262,10 @@ static irqreturn_t pm860x_codec_handler(int irq, void *data)
 	shrt = pm860x_reg_read(pm860x->i2c, REG_SHORTS);
 	mask = pm860x->det.hs_shrt | pm860x->det.hook_det | pm860x->det.lo_shrt
 		| pm860x->det.hp_det;
+
+	if (status & (HEADSET_STATUS | MIC_STATUS | SHORT_HS1 | SHORT_HS2 |
+		      SHORT_LO1 | SHORT_LO2))
+		trace_snd_soc_jack_irq(dev_name(pm860x->codec->dev));
 
 	if ((pm860x->det.hp_det & SND_JACK_HEADPHONE)
 		&& (status & HEADSET_STATUS))
