@@ -28,7 +28,7 @@
 static int set_audio_clock_heirachy(struct platform_device *pdev)
 {
 	struct clk *fout_epll, *mout_epll, *sclk_audio0, *sclk_spdif;
-	int ret;
+	int ret = 0;
 
 	fout_epll = clk_get(NULL, "fout_epll");
 	if (IS_ERR(fout_epll)) {
