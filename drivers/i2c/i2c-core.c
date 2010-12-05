@@ -51,7 +51,11 @@ static int i2c_check_addr(struct i2c_adapter *adapter, int addr);
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
 /* ------------------------------------------------------------------------- */
-
+#ifdef CONFIG_I2C_DEV_RK29
+extern struct completion		i2c_dev_complete;
+extern void i2c_dev_dump_start(struct i2c_adapter *adap, struct i2c_msg *msgs, int num);
+extern void i2c_dev_dump_stop(struct i2c_adapter *adap, struct i2c_msg *msgs, int num, int ret);
+#endif
 static const struct i2c_device_id *i2c_match_id(const struct i2c_device_id *id,
 						const struct i2c_client *client)
 {
@@ -1017,6 +1021,10 @@ static int __init i2c_init(void)
 	retval = i2c_add_driver(&dummy_driver);
 	if (retval)
 		goto class_err;
+#ifdef CONFIG_I2C_DEV_RK29
+		init_completion(&i2c_dev_complete);
+#endif
+
 	return 0;
 
 class_err:
@@ -1107,6 +1115,9 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 
 		/* Retry automatically on arbitration loss */
 		orig_jiffies = jiffies;
+#ifdef CONFIG_I2C_DEV_RK29
+	i2c_dev_dump_start(adap, msgs, num);
+#endif
 		for (ret = 0, try = 0; try <= adap->retries; try++) {
 			ret = adap->algo->master_xfer(adap, msgs, num);
 			if (ret != -EAGAIN)
@@ -1114,6 +1125,9 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			if (time_after(jiffies, orig_jiffies + adap->timeout))
 				break;
 		}
+#ifdef CONFIG_I2C_DEV_RK29
+	i2c_dev_dump_stop(adap, msgs, num ,ret);
+#endif
 		mutex_unlock(&adap->bus_lock);
 
 		return ret;

@@ -65,5 +65,10 @@ if I2C_RK29
 		help
 			This supports the use of the I2C3 interface on rk29 processors.
 endif
-
+config I2C_DEV_RK29
+	tristate "RK29 I2C device interface support"
+		default n
+		depends on I2C_RK29
+		help
+			Nothing
 endmenu

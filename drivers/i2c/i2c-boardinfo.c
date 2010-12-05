@@ -65,7 +65,7 @@ i2c_register_board_info(int busnum,
 	int status;
 
 	down_write(&__i2c_board_lock);
-
+	printk("busnum = %d, len = %d>>>>>>>>>>>>>>>>>>\n", busnum, len);
 	/* dynamic bus numbers will be assigned after the last static one */
 	if (busnum >= __i2c_first_dynamic_bus_num)
 		__i2c_first_dynamic_bus_num = busnum + 1;
@@ -82,6 +82,7 @@ i2c_register_board_info(int busnum,
 
 		devinfo->busnum = busnum;
 		devinfo->board_info = *info;
+		printk("busnum = %d>>>>>>>>>>>>>>>>>>\n", busnum);
 		list_add_tail(&devinfo->list, &__i2c_board_list);
 	}
 
