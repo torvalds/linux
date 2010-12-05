@@ -461,6 +461,11 @@ static void perf_session_free_sample_buffers(struct perf_session *session)
 	}
 }
 
+static int perf_session_deliver_event(struct perf_session *session,
+				      event_t *event,
+				      struct sample_data *sample,
+				      struct perf_event_ops *ops);
+
 static void flush_sample_queue(struct perf_session *s,
 			       struct perf_event_ops *ops)
 {
@@ -479,7 +484,7 @@ static void flush_sample_queue(struct perf_session *s,
 			break;
 
 		event__parse_sample(iter->event, s, &sample);
-		ops->sample(iter->event, &sample, s);
+		perf_session_deliver_event(s, iter->event, &sample, ops);
 
 		os->last_flush = iter->timestamp;
 		list_del(&iter->list);
@@ -544,8 +549,7 @@ static int process_finished_round(event_t *event __used,
 }
 
 /* The queue is ordered by time */
-static void __queue_sample_event(struct sample_queue *new,
-				 struct perf_session *s)
+static void __queue_event(struct sample_queue *new, struct perf_session *s)
 {
 	struct ordered_samples *os = &s->ordered_samples;
 	struct sample_queue *sample = os->last_sample;
@@ -591,13 +595,16 @@ static void __queue_sample_event(struct sample_queue *new,
 
 #define MAX_SAMPLE_BUFFER	(64 * 1024 / sizeof(struct sample_queue))
 
-static int queue_sample_event(event_t *event, struct sample_data *data,
-			      struct perf_session *s)
+static int perf_session_queue_event(struct perf_session *s, event_t *event,
+				    struct sample_data *data)
 {
 	struct ordered_samples *os = &s->ordered_samples;
 	struct list_head *sc = &os->sample_cache;
 	u64 timestamp = data->time;
 	struct sample_queue *new;
+
+	if (!timestamp)
+		return -ETIME;
 
 	if (timestamp < s->ordered_samples.last_flush) {
 		printf("Warning: Timestamp below last timeslice flush\n");
@@ -623,20 +630,8 @@ static int queue_sample_event(event_t *event, struct sample_data *data,
 	new->timestamp = timestamp;
 	new->event = event;
 
-	__queue_sample_event(new, s);
+	__queue_event(new, s);
 
-	return 0;
-}
-
-static int perf_session__process_sample(event_t *event,
-					struct sample_data *sample,
-					struct perf_session *s,
-					struct perf_event_ops *ops)
-{
-	if (!ops->ordered_samples)
-		return ops->sample(event, sample, s);
-
-	queue_sample_event(event, sample, s);
 	return 0;
 }
 
@@ -670,83 +665,107 @@ static void perf_session__print_tstamp(struct perf_session *session,
 		printf("%Lu ", sample->time);
 }
 
-static int perf_session__process_event(struct perf_session *self,
+static int perf_session_deliver_event(struct perf_session *session,
+				      event_t *event,
+				      struct sample_data *sample,
+				      struct perf_event_ops *ops)
+{
+	switch (event->header.type) {
+	case PERF_RECORD_SAMPLE:
+		return ops->sample(event, sample, session);
+	case PERF_RECORD_MMAP:
+		return ops->mmap(event, sample, session);
+	case PERF_RECORD_COMM:
+		return ops->comm(event, sample, session);
+	case PERF_RECORD_FORK:
+		return ops->fork(event, sample, session);
+	case PERF_RECORD_EXIT:
+		return ops->exit(event, sample, session);
+	case PERF_RECORD_LOST:
+		return ops->lost(event, sample, session);
+	case PERF_RECORD_READ:
+		return ops->read(event, sample, session);
+	case PERF_RECORD_THROTTLE:
+		return ops->throttle(event, sample, session);
+	case PERF_RECORD_UNTHROTTLE:
+		return ops->unthrottle(event, sample, session);
+	default:
+		++session->hists.stats.nr_unknown_events;
+		return -1;
+	}
+}
+
+static int perf_session__process_event(struct perf_session *session,
 				       event_t *event,
 				       struct perf_event_ops *ops,
 				       u64 file_offset)
 {
 	struct sample_data sample;
+	int ret;
 
 	trace_event(event);
 
-	if (self->header.needs_swap && event__swap_ops[event->header.type])
+	if (session->header.needs_swap && event__swap_ops[event->header.type])
 		event__swap_ops[event->header.type](event);
 
 	if (event->header.type >= PERF_RECORD_MMAP &&
 	    event->header.type <= PERF_RECORD_SAMPLE) {
-		event__parse_sample(event, self, &sample);
+		event__parse_sample(event, session, &sample);
 		if (dump_trace)
-			perf_session__print_tstamp(self, event, &sample);
+			perf_session__print_tstamp(session, event, &sample);
 	}
 
 	if (event->header.type < PERF_RECORD_HEADER_MAX) {
 		dump_printf("%#Lx [%#x]: PERF_RECORD_%s",
 			    file_offset, event->header.size,
 			    event__name[event->header.type]);
-		hists__inc_nr_events(&self->hists, event->header.type);
+		hists__inc_nr_events(&session->hists, event->header.type);
 	}
 
+	/* These events are processed right away */
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
+		dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n",
+			    event->header.misc,
 			    sample.pid, sample.tid, sample.ip, sample.period);
 
-		if (self->sample_type & PERF_SAMPLE_CALLCHAIN) {
+		if (session->sample_type & PERF_SAMPLE_CALLCHAIN) {
 			if (!ip_callchain__valid(sample.callchain, event)) {
 				pr_debug("call-chain problem with event, "
 					 "skipping it.\n");
-				++self->hists.stats.nr_invalid_chains;
-				self->hists.stats.total_invalid_chains += sample.period;
+				++session->hists.stats.nr_invalid_chains;
+				session->hists.stats.total_invalid_chains +=
+					sample.period;
 				return 0;
 			}
 
 			callchain__dump(&sample);
 		}
+		break;
 
-		return perf_session__process_sample(event, &sample, self, ops);
-
-	case PERF_RECORD_MMAP:
-		return ops->mmap(event, &sample, self);
-	case PERF_RECORD_COMM:
-		return ops->comm(event, &sample, self);
-	case PERF_RECORD_FORK:
-		return ops->fork(event, &sample, self);
-	case PERF_RECORD_EXIT:
-		return ops->exit(event, &sample, self);
-	case PERF_RECORD_LOST:
-		return ops->lost(event, &sample, self);
-	case PERF_RECORD_READ:
-		return ops->read(event, &sample, self);
-	case PERF_RECORD_THROTTLE:
-		return ops->throttle(event, &sample, self);
-	case PERF_RECORD_UNTHROTTLE:
-		return ops->unthrottle(event, &sample, self);
 	case PERF_RECORD_HEADER_ATTR:
-		return ops->attr(event, self);
+		return ops->attr(event, session);
 	case PERF_RECORD_HEADER_EVENT_TYPE:
-		return ops->event_type(event, self);
+		return ops->event_type(event, session);
 	case PERF_RECORD_HEADER_TRACING_DATA:
 		/* setup for reading amidst mmap */
-		lseek(self->fd, file_offset, SEEK_SET);
-		return ops->tracing_data(event, self);
+		lseek(session->fd, file_offset, SEEK_SET);
+		return ops->tracing_data(event, session);
 	case PERF_RECORD_HEADER_BUILD_ID:
-		return ops->build_id(event, self);
+		return ops->build_id(event, session);
 	case PERF_RECORD_FINISHED_ROUND:
-		return ops->finished_round(event, self, ops);
+		return ops->finished_round(event, session, ops);
 	default:
-		++self->hists.stats.nr_unknown_events;
-		return -1;
+		break;
 	}
+
+	if (ops->ordered_samples) {
+		ret = perf_session_queue_event(session, event, &sample);
+		if (ret != -ETIME)
+			return ret;
+	}
+
+	return perf_session_deliver_event(session, event, &sample, ops);
 }
 
 void perf_event_header__bswap(struct perf_event_header *self)
