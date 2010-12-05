@@ -432,6 +432,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 	struct drm_i915_gem_object *obj;
 	struct drm_i915_gem_exec_object2 *entry;
 	int ret, retry;
+	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 
 	/* Attempt to pin all of the buffers into the GTT.
 	 * This is done in 3 phases:
@@ -460,6 +461,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			}
 
 			need_fence =
+				has_fenced_gpu_access &&
 				entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
 				obj->tiling_mode != I915_TILING_NONE;
 			need_mappable =
@@ -484,6 +486,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			bool need_fence;
 
 			need_fence =
+				has_fenced_gpu_access &&
 				entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
 				obj->tiling_mode != I915_TILING_NONE;
 
@@ -498,18 +501,20 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 					break;
 			}
 
-			if (need_fence) {
-				ret = i915_gem_object_get_fence(obj, ring, 1);
-				if (ret)
-					break;
-			} else if (entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
-				   obj->tiling_mode == I915_TILING_NONE) {
-				/* XXX pipelined! */
-				ret = i915_gem_object_put_fence(obj);
-				if (ret)
-					break;
+			if (has_fenced_gpu_access) {
+				if (need_fence) {
+					ret = i915_gem_object_get_fence(obj, ring, 1);
+					if (ret)
+						break;
+				} else if (entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
+					   obj->tiling_mode == I915_TILING_NONE) {
+					/* XXX pipelined! */
+					ret = i915_gem_object_put_fence(obj);
+					if (ret)
+						break;
+				}
+				obj->pending_fenced_gpu_access = need_fence;
 			}
-			obj->pending_fenced_gpu_access = need_fence;
 
 			entry->offset = obj->gtt_offset;
 			entry++;
