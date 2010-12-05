@@ -7,6 +7,7 @@
 #include <linux/ktime.h>
 #include <linux/tracepoint.h>
 
+struct snd_soc_jack;
 struct snd_soc_codec;
 struct snd_soc_card;
 struct snd_soc_dapm_widget;
@@ -168,6 +169,64 @@ DEFINE_EVENT(snd_soc_dapm_widget, snd_soc_dapm_widget_event_done,
 
 	TP_ARGS(w, val)
 
+);
+
+TRACE_EVENT(snd_soc_jack_irq,
+
+	TP_PROTO(const char *name),
+
+	TP_ARGS(name),
+
+	TP_STRUCT__entry(
+		__string(	name,	name		)
+	),
+
+	TP_fast_assign(
+		__assign_str(name, name);
+	),
+
+	TP_printk("%s", __get_str(name))
+);
+
+TRACE_EVENT(snd_soc_jack_report,
+
+	TP_PROTO(struct snd_soc_jack *jack, int mask, int val),
+
+	TP_ARGS(jack, mask, val),
+
+	TP_STRUCT__entry(
+		__string(	name,		jack->jack->name	)
+		__field(	int,		mask			)
+		__field(	int,		val			)
+	),
+
+	TP_fast_assign(
+		__assign_str(name, jack->jack->name);
+		__entry->mask = mask;
+		__entry->val = val;
+	),
+
+	TP_printk("jack=%s %x/%x", __get_str(name), (int)__entry->val,
+		  (int)__entry->mask)
+);
+
+TRACE_EVENT(snd_soc_jack_notify,
+
+	TP_PROTO(struct snd_soc_jack *jack, int val),
+
+	TP_ARGS(jack, val),
+
+	TP_STRUCT__entry(
+		__string(	name,		jack->jack->name	)
+		__field(	int,		val			)
+	),
+
+	TP_fast_assign(
+		__assign_str(name, jack->jack->name);
+		__entry->val = val;
+	),
+
+	TP_printk("jack=%s %x", __get_str(name), (int)__entry->val)
 );
 
 #endif /* _TRACE_ASOC_H */

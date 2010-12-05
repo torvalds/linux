@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
+#include <trace/events/asoc.h>
 
 /**
  * snd_soc_jack_new - Create a new jack
@@ -64,6 +65,8 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	int enable;
 	int oldstatus;
 
+	trace_snd_soc_jack_report(jack, mask, status);
+
 	if (!jack)
 		return;
 
@@ -81,6 +84,8 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	 * However, empty mask means pin synchronization is desired. */
 	if (mask && (jack->status == oldstatus))
 		goto out;
+
+	trace_snd_soc_jack_notify(jack, status);
 
 	list_for_each_entry(pin, &jack->pins, list) {
 		enable = pin->mask & jack->status;
@@ -209,6 +214,8 @@ static irqreturn_t gpio_handler(int irq, void *data)
 {
 	struct snd_soc_jack_gpio *gpio = data;
 	struct device *dev = gpio->jack->codec->card->dev;
+
+	trace_snd_soc_jack_irq(gpio->name);
 
 	if (device_may_wakeup(dev))
 		pm_wakeup_event(dev, gpio->debounce_time + 50);

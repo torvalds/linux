@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <sound/ac97_codec.h>
 #include <sound/core.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
