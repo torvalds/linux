@@ -9,42 +9,55 @@
 
 static struct rk29_keys_button key_button[] = {
 	{
+		.desc	= "menu",
+		.code	= EV_MENU,
+		.gpio	= RK29_PIN6_PA0,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
 		.desc	= "vol+",
 		.code	= KEY_VOLUMEDOWN,
-		.gpio	= RK29_PIN0_PB0,
+		.gpio	= RK29_PIN6_PA1,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
 		.desc	= "vol-",
 		.code	= KEY_VOLUMEUP,
-		.gpio	= RK29_PIN0_PB1,
-		.active_low = PRESS_LEV_LOW,
-	},
-	{
-		.desc	= "menu",
-		.code	= EV_MENU,
-		.gpio	= RK29_PIN0_PB2,
+		.gpio	= RK29_PIN6_PA2,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
 		.desc	= "home",
 		.code	= KEY_HOME,
-		.gpio	= RK29_PIN0_PB3,
+		.gpio	= RK29_PIN6_PA3,
+		.active_low = PRESS_LEV_LOW,
+	},
+	{
+		.desc	= "search",
+		.code	= KEY_RESERVED, //report what???
+		.gpio	= RK29_PIN6_PA4,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
 		.desc	= "esc",
 		.code	= KEY_ESC,
-		.gpio	= RK29_PIN0_PB4,
+		.gpio	= RK29_PIN6_PA5,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
-		.desc	= "iokey6",
-		.code	= KEY_BACK,
-		.code_long_press = EV_ENCALL,
-		.gpio	= RK29_PIN0_PB5,
+		.desc	= "sensor",
+		.code	= KEY_RESERVED, //report what???
+		.gpio	= RK29_PIN6_PA6,
 		.active_low = PRESS_LEV_LOW,
 	},
+	{
+		.desc	= "play",
+		.code	= KEY_BACK,
+		.code_long_press = EV_ENCALL,
+		.gpio	= RK29_PIN6_PA7,
+		.active_low = PRESS_LEV_LOW,
+	},
+#if 0
 	{
 		.desc	= "vol+",
 		.code	= KEY_VOLUMEDOWN,
@@ -83,6 +96,7 @@ static struct rk29_keys_button key_button[] = {
 		.adc_value	= 899,
 		.active_low = PRESS_LEV_LOW,
 	},
+#endif
 };
 struct rk29_keys_platform_data rk29_keys_pdata = {
 	.buttons	= key_button,
