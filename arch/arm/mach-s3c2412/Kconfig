@@ -52,7 +52,7 @@ config MACH_JIVE
 	  Say Y here if you are using the Logitech Jive.
 
 config MACH_JIVE_SHOW_BOOTLOADER
-	bool "Allow access to bootloader partitions in MTD"
+	bool "Allow access to bootloader partitions in MTD (EXPERIMENTAL)"
 	depends on MACH_JIVE && EXPERIMENTAL
 
 config MACH_SMDK2413

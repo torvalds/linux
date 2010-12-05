@@ -1315,7 +1315,7 @@ config HZ
 	default 100
 
 config THUMB2_KERNEL
-	bool "Compile the kernel in Thumb-2 mode"
+	bool "Compile the kernel in Thumb-2 mode (EXPERIMENTAL)"
 	depends on CPU_V7 && EXPERIMENTAL
 	select AEABI
 	select ARM_ASM_UNIFIED
@@ -1529,6 +1529,7 @@ config SECCOMP
 
 config CC_STACKPROTECTOR
 	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
 	help
 	  This option turns on the -fstack-protector GCC feature. This
 	  feature puts, at the beginning of functions, a canary value on
@@ -1712,7 +1713,7 @@ config CPU_FREQ_S3C
 	  Internal configuration node for common cpufreq on Samsung SoC
 
 config CPU_FREQ_S3C24XX
-	bool "CPUfreq driver for Samsung S3C24XX series CPUs"
+	bool "CPUfreq driver for Samsung S3C24XX series CPUs (EXPERIMENTAL)"
 	depends on ARCH_S3C2410 && CPU_FREQ && EXPERIMENTAL
 	select CPU_FREQ_S3C
 	help
@@ -1724,7 +1725,7 @@ config CPU_FREQ_S3C24XX
 	  If in doubt, say N.
 
 config CPU_FREQ_S3C24XX_PLL
-	bool "Support CPUfreq changing of PLL frequency"
+	bool "Support CPUfreq changing of PLL frequency (EXPERIMENTAL)"
 	depends on CPU_FREQ_S3C24XX && EXPERIMENTAL
 	help
 	  Compile in support for changing the PLL frequency from the
