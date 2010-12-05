@@ -937,7 +937,7 @@ static void randomize_choice_values(struct symbol *csym)
 	int cnt, def;
 
 	/*
-	 * If choice is mod then we may have more items slected
+	 * If choice is mod then we may have more items selected
 	 * and if no then no-one.
 	 * In both cases stop.
 	 */
@@ -1033,10 +1033,10 @@ void conf_set_all_new_symbols(enum conf_def_mode mode)
 
 	/*
 	 * We have different type of choice blocks.
-	 * If curr.tri equal to mod then we can select several
+	 * If curr.tri equals to mod then we can select several
 	 * choice symbols in one block.
 	 * In this case we do nothing.
-	 * If curr.tri equal yes then only one symbol can be
+	 * If curr.tri equals yes then only one symbol can be
 	 * selected in a choice block and we set it to yes,
 	 * and the rest to no.
 	 */

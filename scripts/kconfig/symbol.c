@@ -686,7 +686,7 @@ const char *sym_get_string_default(struct symbol *sym)
 		switch (sym->type) {
 		case S_BOOLEAN:
 		case S_TRISTATE:
-			/* The visibility imay limit the value from yes => mod */
+			/* The visibility may limit the value from yes => mod */
 			val = EXPR_AND(expr_calc_value(prop->expr), prop->visible.tri);
 			break;
 		default:
