@@ -16,7 +16,7 @@
 #include <mach/io.h>
 
 #if defined(CONFIG_ARM_GIC)
-
+#define HAVE_GET_IRQNR_PREAMBLE
 #include <asm/hardware/entry-macro-gic.S>
 
 	/* Uses the GIC interrupt controller built into the cpu */

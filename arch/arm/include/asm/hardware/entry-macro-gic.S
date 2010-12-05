@@ -10,6 +10,13 @@
 
 #include <asm/hardware/gic.h>
 
+#ifndef HAVE_GET_IRQNR_PREAMBLE
+	.macro	get_irqnr_preamble, base, tmp
+	ldr	\base, =gic_cpu_base_addr
+	ldr	\base, [\base]
+	.endm
+#endif
+
 /*
  * The interrupt numbering scheme is defined in the
  * interrupt controller spec.  To wit:

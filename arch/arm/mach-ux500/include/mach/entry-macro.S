@@ -11,6 +11,7 @@
  * warranty of any kind, whether express or implied.
  */
 #include <mach/hardware.h>
+#define HAVE_GET_IRQNR_PREAMBLE
 #include <asm/hardware/entry-macro-gic.S>
 
 		.macro	disable_fiq
