@@ -833,6 +833,10 @@ static struct clk kpp_clk = {
 	.id = 0,
 };
 
+static struct clk dummy_clk = {
+	.id = 0,
+};
+
 static struct clk emi_slow_clk = {
 	.parent = &pll2_sw_clk,
 	.enable_reg = MXC_CCM_CCGR5,
@@ -1106,6 +1110,8 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK("sdhci-esdhc-imx.1", NULL, esdhc2_clk)
 	_REGISTER_CLOCK(NULL, "cpu_clk", cpu_clk)
 	_REGISTER_CLOCK(NULL, "iim_clk", iim_clk)
+	_REGISTER_CLOCK("imx-wdt.0", NULL, dummy_clk)
+	_REGISTER_CLOCK("imx-wdt.1", NULL, dummy_clk)
 };
 
 static struct clk_lookup mx53_lookups[] = {
