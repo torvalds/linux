@@ -33,7 +33,6 @@
 #include <linux/input.h>
 #include <linux/backlight.h>
 #include <linux/thermal.h>
-#include <linux/video_output.h>
 #include <linux/sort.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
@@ -172,9 +171,6 @@ struct acpi_video_device_cap {
 	u8 _BQC:1;		/* Get current brightness level */
 	u8 _BCQ:1;		/* Some buggy BIOS uses _BCQ instead of _BQC */
 	u8 _DDC:1;		/*Return the EDID for this device */
-	u8 _DCS:1;		/*Return status of output device */
-	u8 _DGS:1;		/*Query graphics state */
-	u8 _DSS:1;		/*Device state set */
 };
 
 struct acpi_video_brightness_flags {
@@ -202,7 +198,6 @@ struct acpi_video_device {
 	struct acpi_video_device_brightness *brightness;
 	struct backlight_device *backlight;
 	struct thermal_cooling_device *cooling_dev;
-	struct output_device *output_dev;
 };
 
 static const char device_decode[][30] = {
@@ -226,10 +221,6 @@ static int acpi_video_get_next_level(struct acpi_video_device *device,
 				     u32 level_current, u32 event);
 static int acpi_video_switch_brightness(struct acpi_video_device *device,
 					 int event);
-static int acpi_video_device_get_state(struct acpi_video_device *device,
-			    unsigned long long *state);
-static int acpi_video_output_get(struct output_device *od);
-static int acpi_video_device_set_state(struct acpi_video_device *device, int state);
 
 /*backlight device sysfs support*/
 static int acpi_video_get_brightness(struct backlight_device *bd)
@@ -264,30 +255,6 @@ static struct backlight_ops acpi_backlight_ops = {
 	.get_brightness = acpi_video_get_brightness,
 	.update_status  = acpi_video_set_brightness,
 };
-
-/*video output device sysfs support*/
-static int acpi_video_output_get(struct output_device *od)
-{
-	unsigned long long state;
-	struct acpi_video_device *vd =
-		(struct acpi_video_device *)dev_get_drvdata(&od->dev);
-	acpi_video_device_get_state(vd, &state);
-	return (int)state;
-}
-
-static int acpi_video_output_set(struct output_device *od)
-{
-	unsigned long state = od->request_state;
-	struct acpi_video_device *vd=
-		(struct acpi_video_device *)dev_get_drvdata(&od->dev);
-	return acpi_video_device_set_state(vd, state);
-}
-
-static struct output_properties acpi_output_properties = {
-	.set_state = acpi_video_output_set,
-	.get_status = acpi_video_output_get,
-};
-
 
 /* thermal cooling device callbacks */
 static int video_get_max_state(struct thermal_cooling_device *cooling_dev, unsigned
@@ -343,34 +310,6 @@ static struct thermal_cooling_device_ops video_cooling_ops = {
 /* --------------------------------------------------------------------------
                                Video Management
    -------------------------------------------------------------------------- */
-
-/* device */
-
-static int
-acpi_video_device_get_state(struct acpi_video_device *device,
-			    unsigned long long *state)
-{
-	int status;
-
-	status = acpi_evaluate_integer(device->dev->handle, "_DCS", NULL, state);
-
-	return status;
-}
-
-static int
-acpi_video_device_set_state(struct acpi_video_device *device, int state)
-{
-	int status;
-	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
-	struct acpi_object_list args = { 1, &arg0 };
-	unsigned long long ret;
-
-
-	arg0.integer.value = state;
-	status = acpi_evaluate_integer(device->dev->handle, "_DSS", &args, &ret);
-
-	return status;
-}
 
 static int
 acpi_video_device_lcd_query_levels(struct acpi_video_device *device,
@@ -831,15 +770,6 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_DDC", &h_dummy1))) {
 		device->cap._DDC = 1;
 	}
-	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_DCS", &h_dummy1))) {
-		device->cap._DCS = 1;
-	}
-	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_DGS", &h_dummy1))) {
-		device->cap._DGS = 1;
-	}
-	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_DSS", &h_dummy1))) {
-		device->cap._DSS = 1;
-	}
 
 	if (acpi_video_backlight_support()) {
 		struct backlight_properties props;
@@ -903,21 +833,6 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		if (result)
 			printk(KERN_ERR PREFIX "Create sysfs link\n");
 
-	}
-
-	if (acpi_video_display_switch_support()) {
-
-		if (device->cap._DCS && device->cap._DSS) {
-			static int count;
-			char *name;
-			name = kasprintf(GFP_KERNEL, "acpi_video%d", count);
-			if (!name)
-				return;
-			count++;
-			device->output_dev = video_output_register(name,
-					NULL, device, &acpi_output_properties);
-			kfree(name);
-		}
 	}
 }
 
@@ -1452,7 +1367,6 @@ static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 		thermal_cooling_device_unregister(device->cooling_dev);
 		device->cooling_dev = NULL;
 	}
-	video_output_unregister(device->output_dev);
 
 	return 0;
 }
