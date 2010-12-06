@@ -495,7 +495,7 @@ again:
 		add_async_extent(async_cow, start, num_bytes,
 				 total_compressed, pages, nr_pages_ret);
 
-		if (start + num_bytes < end && start + num_bytes < actual_end) {
+		if (start + num_bytes < end) {
 			start += num_bytes;
 			pages = NULL;
 			cond_resched();
