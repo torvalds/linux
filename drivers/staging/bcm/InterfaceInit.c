@@ -21,11 +21,11 @@ static const u32 default_msg =
     | NETIF_MSG_TIMER | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR
     | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN;
 
-static INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER Adapter);
+static int InterfaceAdapterInit(PS_INTERFACE_ADAPTER Adapter);
 
-static VOID InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
+static void InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
 {
-	INT i = 0;
+	int i = 0;
 	// Wake up the wait_queue...
 	if(psIntfAdapter->psAdapter->LEDInfo.led_thread_running & BCM_LED_THREAD_RUNNING_ACTIVELY)
 	{
@@ -70,9 +70,9 @@ static VOID InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
 	AdapterFree(psIntfAdapter->psAdapter);
 }
 
-static VOID ConfigureEndPointTypesThroughEEPROM(PMINI_ADAPTER Adapter)
+static void ConfigureEndPointTypesThroughEEPROM(PMINI_ADAPTER Adapter)
 {
-	ULONG ulReg = 0;
+	unsigned long ulReg = 0;
 
 // Program EP2 MAX_PKT_SIZE
 	ulReg = ntohl(EP2_MPS_REG);
@@ -335,7 +335,7 @@ static int AllocUsbCb(PS_INTERFACE_ADAPTER psIntfAdapter)
 
 static int device_run(PS_INTERFACE_ADAPTER psIntfAdapter)
 {
-	INT value = 0;
+	int value = 0;
 	UINT status = STATUS_SUCCESS;
 
 	status = InitCardAndDownloadFirmware(psIntfAdapter->psAdapter);
@@ -444,14 +444,14 @@ static inline int bcm_usb_endpoint_is_isoc_out(const struct usb_endpoint_descrip
 	return (bcm_usb_endpoint_xfer_isoc(epd) && bcm_usb_endpoint_dir_out(epd));
 }
 
-static INT InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
+static int InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 {
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	size_t buffer_size;
-	ULONG value;
-	INT retval = 0;
-	INT usedIntOutForBulkTransfer = 0 ;
+	unsigned long value;
+	int retval = 0;
+	int usedIntOutForBulkTransfer = 0 ;
 	BOOLEAN bBcm16 = FALSE;
 	UINT uiData = 0;
 
