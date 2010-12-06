@@ -182,7 +182,11 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
 
 	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
-	priv->hw_params.rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
+	if (priv->cfg->rx_with_siso_diversity)
+		priv->hw_params.rx_chains_num = 1;
+	else
+		priv->hw_params.rx_chains_num =
+			num_of_ant(priv->cfg->valid_rx_ant);
 	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
 	priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
 
@@ -841,6 +845,7 @@ struct iwl_cfg iwl130_bgn_cfg = {
 	.adv_pm = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.rx_with_siso_diversity = true,
 };
 
 struct iwl_cfg iwl130_bg_cfg = {
@@ -859,6 +864,7 @@ struct iwl_cfg iwl130_bg_cfg = {
 	.adv_pm = true,
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
+	.rx_with_siso_diversity = true,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));
