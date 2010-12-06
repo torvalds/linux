@@ -18,6 +18,16 @@
 #include "hw-ops.h"
 #include "ar9003_phy.h"
 
+#define MPASS	3
+#define MAX_MEASUREMENT	8
+#define MAX_DIFFERENCE	10
+
+struct coeff {
+	int mag_coeff[AR9300_MAX_CHAINS][MAX_MEASUREMENT][MPASS];
+	int phs_coeff[AR9300_MAX_CHAINS][MAX_MEASUREMENT][MPASS];
+	int iqc_coeff[2];
+};
+
 enum ar9003_cal_types {
 	IQ_MISMATCH_CAL = BIT(0),
 	TEMP_COMP_CAL = BIT(1),
@@ -712,6 +722,229 @@ TX_IQ_CAL_FAILED:
 	ath_dbg(common, ATH_DBG_CALIBRATE, "Tx IQ Cal failed\n");
 }
 
+static bool ar9003_hw_compute_closest_pass_and_avg(int *mp_coeff, int *mp_avg)
+{
+	int diff[MPASS];
+
+	diff[0] = abs(mp_coeff[0] - mp_coeff[1]);
+	diff[1] = abs(mp_coeff[1] - mp_coeff[2]);
+	diff[2] = abs(mp_coeff[2] - mp_coeff[0]);
+
+	if (diff[0] > MAX_MEASUREMENT &&
+	    diff[1] > MAX_MEASUREMENT &&
+	    diff[2] > MAX_MEASUREMENT)
+		return false;
+
+	if (diff[0] <= diff[1] && diff[0] <= diff[2])
+		*mp_avg = (mp_coeff[0] + mp_coeff[1]) / 2;
+	else if (diff[1] <= diff[2])
+		*mp_avg = (mp_coeff[1] + mp_coeff[2]) / 2;
+	else
+		*mp_avg = (mp_coeff[2] + mp_coeff[0]) / 2;
+
+	return true;
+}
+
+static void ar9003_hw_tx_iqcal_load_avg_2_passes(struct ath_hw *ah,
+						 u8 num_chains,
+						 struct coeff *coeff)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	int i, im, nmeasurement;
+	int magnitude, phase;
+	u32 tx_corr_coeff[MAX_MEASUREMENT][AR9300_MAX_CHAINS];
+
+	memset(tx_corr_coeff, 0, sizeof(tx_corr_coeff));
+	for (i = 0; i < MAX_MEASUREMENT / 2; i++) {
+		tx_corr_coeff[i * 2][0] = tx_corr_coeff[(i * 2) + 1][0] =
+					AR_PHY_TX_IQCAL_CORR_COEFF_B0(i);
+		if (!AR_SREV_9485(ah)) {
+			tx_corr_coeff[i * 2][1] =
+			tx_corr_coeff[(i * 2) + 1][1] =
+					AR_PHY_TX_IQCAL_CORR_COEFF_B1(i);
+
+			tx_corr_coeff[i * 2][2] =
+			tx_corr_coeff[(i * 2) + 1][2] =
+					AR_PHY_TX_IQCAL_CORR_COEFF_B2(i);
+		}
+	}
+
+	/* Load the average of 2 passes */
+	for (i = 0; i < num_chains; i++) {
+		if (AR_SREV_9485(ah))
+			nmeasurement = REG_READ_FIELD(ah,
+					AR_PHY_TX_IQCAL_STATUS_B0_9485,
+					AR_PHY_CALIBRATED_GAINS_0);
+		else
+			nmeasurement = REG_READ_FIELD(ah,
+					AR_PHY_TX_IQCAL_STATUS_B0,
+					AR_PHY_CALIBRATED_GAINS_0);
+
+		if (nmeasurement > MAX_MEASUREMENT)
+			nmeasurement = MAX_MEASUREMENT;
+
+		for (im = 0; im < nmeasurement; im++) {
+			/*
+			 * Determine which 2 passes are closest and compute avg
+			 * magnitude
+			 */
+			if (!ar9003_hw_compute_closest_pass_and_avg(coeff->mag_coeff[i][im],
+								    &magnitude))
+				goto disable_txiqcal;
+
+			/*
+			 * Determine which 2 passes are closest and compute avg
+			 * phase
+			 */
+			if (!ar9003_hw_compute_closest_pass_and_avg(coeff->phs_coeff[i][im],
+								    &phase))
+				goto disable_txiqcal;
+
+			coeff->iqc_coeff[0] = (magnitude & 0x7f) |
+					      ((phase & 0x7f) << 7);
+
+			if ((im % 2) == 0)
+				REG_RMW_FIELD(ah, tx_corr_coeff[im][i],
+					AR_PHY_TX_IQCAL_CORR_COEFF_00_COEFF_TABLE,
+					coeff->iqc_coeff[0]);
+			else
+				REG_RMW_FIELD(ah, tx_corr_coeff[im][i],
+					AR_PHY_TX_IQCAL_CORR_COEFF_01_COEFF_TABLE,
+					coeff->iqc_coeff[0]);
+		}
+	}
+
+	REG_RMW_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_3,
+		      AR_PHY_TX_IQCAL_CONTROL_3_IQCORR_EN, 0x1);
+	REG_RMW_FIELD(ah, AR_PHY_RX_IQCAL_CORR_B0,
+		      AR_PHY_RX_IQCAL_CORR_B0_LOOPBACK_IQCORR_EN, 0x1);
+
+	return;
+
+disable_txiqcal:
+	REG_RMW_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_3,
+		      AR_PHY_TX_IQCAL_CONTROL_3_IQCORR_EN, 0x0);
+	REG_RMW_FIELD(ah, AR_PHY_RX_IQCAL_CORR_B0,
+		      AR_PHY_RX_IQCAL_CORR_B0_LOOPBACK_IQCORR_EN, 0x0);
+
+	ath_dbg(common, ATH_DBG_CALIBRATE, "TX IQ Cal disabled\n");
+}
+
+static void ar9003_hw_tx_iq_cal_run(struct ath_hw *ah)
+{
+	u8 tx_gain_forced;
+
+	REG_RMW_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_1_9485,
+		      AR_PHY_TX_IQCAQL_CONTROL_1_IQCORR_I_Q_COFF_DELPT, DELPT);
+	tx_gain_forced = REG_READ_FIELD(ah, AR_PHY_TX_FORCED_GAIN,
+					AR_PHY_TXGAIN_FORCE);
+	if (tx_gain_forced)
+		REG_RMW_FIELD(ah, AR_PHY_TX_FORCED_GAIN,
+			      AR_PHY_TXGAIN_FORCE, 0);
+
+	REG_RMW_FIELD(ah, AR_PHY_TX_IQCAL_START_9485,
+		      AR_PHY_TX_IQCAL_START_DO_CAL_9485, 1);
+}
+
+static void ar9003_hw_tx_iq_cal_post_proc(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	const u32 txiqcal_status[AR9300_MAX_CHAINS] = {
+		AR_PHY_TX_IQCAL_STATUS_B0_9485,
+		AR_PHY_TX_IQCAL_STATUS_B1,
+		AR_PHY_TX_IQCAL_STATUS_B2,
+	};
+	const u_int32_t chan_info_tab[] = {
+		AR_PHY_CHAN_INFO_TAB_0,
+		AR_PHY_CHAN_INFO_TAB_1,
+		AR_PHY_CHAN_INFO_TAB_2,
+	};
+	struct coeff coeff;
+	s32 iq_res[6];
+	u8 num_chains = 0;
+	int i, ip, im, j;
+	int nmeasurement;
+
+	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
+		if (ah->txchainmask & (1 << i))
+			num_chains++;
+	}
+
+	for (ip = 0; ip < MPASS; ip++) {
+		for (i = 0; i < num_chains; i++) {
+			nmeasurement = REG_READ_FIELD(ah,
+					AR_PHY_TX_IQCAL_STATUS_B0_9485,
+					AR_PHY_CALIBRATED_GAINS_0);
+			if (nmeasurement > MAX_MEASUREMENT)
+				nmeasurement = MAX_MEASUREMENT;
+
+			for (im = 0; im < nmeasurement; im++) {
+				ath_dbg(common, ATH_DBG_CALIBRATE,
+					"Doing Tx IQ Cal for chain %d.\n", i);
+
+				if (REG_READ(ah, txiqcal_status[i]) &
+				    AR_PHY_TX_IQCAL_STATUS_FAILED) {
+					ath_dbg(common, ATH_DBG_CALIBRATE,
+					"Tx IQ Cal failed for chain %d.\n", i);
+					goto tx_iqcal_fail;
+				}
+
+				for (j = 0; j < 3; j++) {
+					u32 idx = 2 * j, offset = 4 * (3 * im + j);
+
+					REG_RMW_FIELD(ah,
+						AR_PHY_CHAN_INFO_MEMORY,
+						AR_PHY_CHAN_INFO_TAB_S2_READ,
+						0);
+
+					/* 32 bits */
+					iq_res[idx] = REG_READ(ah,
+							chan_info_tab[i] +
+							offset);
+
+					REG_RMW_FIELD(ah,
+						AR_PHY_CHAN_INFO_MEMORY,
+						AR_PHY_CHAN_INFO_TAB_S2_READ,
+						1);
+
+					/* 16 bits */
+					iq_res[idx + 1] = 0xffff & REG_READ(ah,
+							  chan_info_tab[i] + offset);
+
+					ath_dbg(common, ATH_DBG_CALIBRATE,
+						"IQ RES[%d]=0x%x"
+						"IQ_RES[%d]=0x%x\n",
+						idx, iq_res[idx], idx + 1,
+						iq_res[idx + 1]);
+				}
+
+				if (!ar9003_hw_calc_iq_corr(ah, i, iq_res,
+							    coeff.iqc_coeff)) {
+					ath_dbg(common, ATH_DBG_CALIBRATE,
+					 "Failed in calculation of IQ correction.\n");
+					goto tx_iqcal_fail;
+				}
+
+				coeff.mag_coeff[i][im][ip] =
+						coeff.iqc_coeff[0] & 0x7f;
+				coeff.phs_coeff[i][im][ip] =
+						(coeff.iqc_coeff[0] >> 7) & 0x7f;
+
+				if (coeff.mag_coeff[i][im][ip] > 63)
+					coeff.mag_coeff[i][im][ip] -= 128;
+				if (coeff.phs_coeff[i][im][ip] > 63)
+					coeff.phs_coeff[i][im][ip] -= 128;
+			}
+		}
+	}
+	ar9003_hw_tx_iqcal_load_avg_2_passes(ah, num_chains, &coeff);
+
+	return;
+
+tx_iqcal_fail:
+	ath_dbg(common, ATH_DBG_CALIBRATE, "Tx IQ Cal failed\n");
+	return;
+}
 static bool ar9003_hw_init_cal(struct ath_hw *ah,
 			       struct ath9k_channel *chan)
 {
@@ -733,7 +966,11 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 		ar9003_hw_set_chain_masks(ah, 0x7, 0x7);
 
 	/* Do Tx IQ Calibration */
-	ar9003_hw_tx_iq_cal(ah);
+	if (AR_SREV_9485(ah))
+		ar9003_hw_tx_iq_cal_run(ah);
+	else
+		ar9003_hw_tx_iq_cal(ah);
+
 	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
 	udelay(5);
 	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
@@ -750,6 +987,9 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 			"offset calibration failed to complete in 1ms; noisy environment?\n");
 		return false;
 	}
+
+	if (AR_SREV_9485(ah))
+		ar9003_hw_tx_iq_cal_post_proc(ah);
 
 	/* Revert chainmasks to their original values before NF cal */
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
