@@ -5330,7 +5330,6 @@ gckOS_Broadcast(
         gcmkONERROR(
             gckHARDWARE_SetPowerManagementState(Hardware,
                                                 gcvPOWER_OFF_BROADCAST));
-
         break;
 
     case gcvBROADCAST_GPU_IDLE:
@@ -5340,7 +5339,6 @@ gckOS_Broadcast(
         gcmkONERROR(
             gckHARDWARE_SetPowerManagementState(Hardware,
                                                 gcvPOWER_IDLE_BROADCAST));
-
         break;
 
     case gcvBROADCAST_GPU_COMMIT:

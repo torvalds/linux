@@ -2793,7 +2793,7 @@ gckHARDWARE_SetPowerManagementState(
     IN gceCHIPPOWERSTATE State
     )
 {
-#if 0
+#if 1
 #if !gcdNO_POWER_MANAGEMENT
     gceSTATUS status;
     gckCOMMAND command = gcvNULL;
