@@ -21,9 +21,6 @@
 #define HIZCRC		0xa405015c
 #define DRVCRA		0xa405018a
 
-enum { MMCIF_PROGRESS_ENTER, MMCIF_PROGRESS_INIT,
-       MMCIF_PROGRESS_LOAD, MMCIF_PROGRESS_DONE };
-
 /* SH7724 specific MMCIF loader
  *
  * loads the romImage from an MMC card starting from block 512
