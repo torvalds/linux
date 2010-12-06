@@ -18,6 +18,7 @@
 #include <linux/videodev2.h>
 
 struct vb2_alloc_ctx;
+struct vb2_fileio_data;
 
 /**
  * struct vb2_mem_ops - memory handling/memory allocator operations
@@ -54,6 +55,7 @@ struct vb2_alloc_ctx;
  *
  * Required ops for USERPTR types: get_userptr, put_userptr.
  * Required ops for MMAP types: alloc, put, num_users, mmap.
+ * Required ops for read/write access types: alloc, put, num_users, vaddr
  */
 struct vb2_mem_ops {
 	void		*(*alloc)(void *alloc_ctx, unsigned long size);
@@ -249,6 +251,7 @@ struct vb2_ops {
  * @done_wq:	waitqueue for processes waiting for buffers ready to be dequeued
  * @alloc_ctx:	memory type/allocator-specific contexts for each plane
  * @streaming:	current streaming state
+ * @fileio:	file io emulator internal data, used only if emulator is active
  */
 struct vb2_queue {
 	enum v4l2_buf_type		type;
@@ -275,6 +278,8 @@ struct vb2_queue {
 	void				*alloc_ctx[VIDEO_MAX_PLANES];
 
 	unsigned int			streaming:1;
+
+	struct vb2_fileio_data		*fileio;
 };
 
 void *vb2_plane_vaddr(struct vb2_buffer *vb, unsigned int plane_no);
@@ -298,6 +303,10 @@ int vb2_streamoff(struct vb2_queue *q, enum v4l2_buf_type type);
 
 int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma);
 unsigned int vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait);
+size_t vb2_read(struct vb2_queue *q, char __user *data, size_t count,
+		loff_t *ppos, int nonblock);
+size_t vb2_write(struct vb2_queue *q, char __user *data, size_t count,
+		loff_t *ppos, int nonblock);
 
 /**
  * vb2_is_streaming() - return streaming status of the queue
