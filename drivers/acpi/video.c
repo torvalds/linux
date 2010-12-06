@@ -81,6 +81,13 @@ module_param(brightness_switch_enabled, bool, 0644);
 static int allow_duplicates;
 module_param(allow_duplicates, bool, 0644);
 
+/*
+ * Some BIOSes claim they use minimum backlight at boot,
+ * and this may bring dimming screen after boot
+ */
+static int use_bios_initial_backlight = 1;
+module_param(use_bios_initial_backlight, bool, 0644);
+
 static int register_count = 0;
 static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device, int type);
@@ -766,9 +773,11 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 		 * when invoked for the first time, i.e. level_old is invalid.
 		 * set the backlight to max_level in this case
 		 */
-		for (i = 2; i < br->count; i++)
-			if (level_old == br->levels[i])
-				level = level_old;
+		if (use_bios_initial_backlight) {
+			for (i = 2; i < br->count; i++)
+				if (level_old == br->levels[i])
+					level = level_old;
+		}
 		goto set_level;
 	}
 
