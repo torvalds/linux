@@ -793,7 +793,7 @@ struct platform_device rk29_device_gpu = {
 #ifdef CONFIG_KEYS_RK29
 extern struct rk29_keys_platform_data rk29_keys_pdata;
 static struct platform_device rk29_device_keys = {
-	.name		= "rk29-keys",
+	.name		= "rk29-keypad",
 	.id		= -1,
 	.dev		= {
 		.platform_data	= &rk29_keys_pdata,

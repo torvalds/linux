@@ -34,26 +34,25 @@ static struct rk29_keys_button key_button[] = {
 	},
 	{
 		.desc	= "search",
-		.code	= KEY_RESERVED, //report what???
+		.code	= KEY_SEARCH,
 		.gpio	= RK29_PIN6_PA4,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
 		.desc	= "esc",
-		.code	= KEY_ESC,
+		.code	= KEY_BACK,
 		.gpio	= RK29_PIN6_PA5,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
 		.desc	= "sensor",
-		.code	= KEY_RESERVED, //report what???
+		.code	= KEY_CAMERA,
 		.gpio	= RK29_PIN6_PA6,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
 		.desc	= "play",
-		.code	= KEY_BACK,
-		.code_long_press = EV_ENCALL,
+		.code	= KEY_POWER,
 		.gpio	= RK29_PIN6_PA7,
 		.active_low = PRESS_LEV_LOW,
 	},
