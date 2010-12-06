@@ -95,10 +95,5 @@ void speakup_fake_down_arrow(void)
 	 */
 bool speakup_fake_key_pressed(void)
 {
-	bool is_pressed;
-
-	is_pressed = get_cpu_var(reporting_keystroke);
-	put_cpu_var(reporting_keystroke);
-
-	return is_pressed;
+	return this_cpu_read(reporting_keystroke);
 }
