@@ -40,7 +40,7 @@ static void InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
 	 */
 	while (psIntfAdapter->psAdapter->DeviceAccess) {
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
-			"Device is being Accessed \n");
+			"Device is being accessed.\n");
 		msleep(100);
 	}
 	/* Free interrupt URB */
@@ -96,7 +96,8 @@ static void ConfigureEndPointTypesThroughEEPROM(PMINI_ADAPTER Adapter)
 
 	/* Program TX EP as interrupt(Alternate Setting) */
 	if (rdmalt(Adapter, 0x0F0110F8, (PUINT)&ulReg, 4)) {
-		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "reading of Tx EP is failing");
+		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+			"reading of Tx EP failed\n");
 		return;
 	}
 	ulReg |= 0x6;
@@ -202,7 +203,8 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	psIntfAdapter->interface = intf;
 	usb_set_intfdata(intf, psIntfAdapter);
 
-	BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "psIntfAdapter 0x%p", psIntfAdapter);
+	BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+		"psIntfAdapter 0x%p\n", psIntfAdapter);
 	retval = InterfaceAdapterInit(psIntfAdapter);
 	if (retval) {
 		/* If the Firmware/Cfg File is not present
@@ -210,10 +212,12 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		 * download the files.
 		 */
 		if (-ENOENT == retval) {
-			BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "File Not Found, Use App to Download\n");
+			BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+				"File Not Found.  Use app to download.\n");
 			return STATUS_SUCCESS;
 		}
-		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "InterfaceAdapterInit Failed \n");
+		BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+			"InterfaceAdapterInit failed.\n");
 		usb_set_intfdata(intf, NULL);
 		udev = interface_to_usbdev(intf);
 		usb_put_dev(udev);
@@ -238,7 +242,8 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			usb_enable_autosuspend(udev);
 			device_init_wakeup(&intf->dev, 1);
 			INIT_WORK(&psIntfAdapter->usbSuspendWork, putUsbSuspend);
-			BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Enabling USB Auto-Suspend\n");
+			BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+				"Enabling USB Auto-Suspend\n");
 #endif
 		} else {
 			intf->needs_remote_wakeup = 0;
@@ -278,7 +283,8 @@ static int AllocUsbCb(PS_INTERFACE_ADAPTER psIntfAdapter)
 	for (i = 0; i < MAXIMUM_USB_TCB; i++) {
 		if ((psIntfAdapter->asUsbTcb[i].urb =
 				usb_alloc_urb(0, GFP_KERNEL)) == NULL) {
-			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Cant allocate Tx urb for index %d", i);
+			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0,
+				"Can't allocate Tx urb for index %d\n", i);
 			return -ENOMEM;
 		}
 	}
@@ -286,12 +292,14 @@ static int AllocUsbCb(PS_INTERFACE_ADAPTER psIntfAdapter)
 	for (i = 0; i < MAXIMUM_USB_RCB; i++) {
 		if ((psIntfAdapter->asUsbRcb[i].urb =
 				usb_alloc_urb(0, GFP_KERNEL)) == NULL) {
-			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Cant allocate Rx urb for index %d", i);
+			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0,
+				"Can't allocate Rx urb for index %d\n", i);
 			return -ENOMEM;
 		}
 		if ((psIntfAdapter->asUsbRcb[i].urb->transfer_buffer =
 			kmalloc(MAX_DATA_BUFFER_SIZE, GFP_KERNEL)) == NULL) {
-			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Cant allocate Rx buffer for index %d", i);
+			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0,
+				"Can't allocate Rx buffer for index %d\n", i);
 			return -ENOMEM;
 		}
 		psIntfAdapter->asUsbRcb[i].urb->transfer_buffer_length = MAX_DATA_BUFFER_SIZE;
@@ -311,7 +319,8 @@ static int device_run(PS_INTERFACE_ADAPTER psIntfAdapter)
 	}
 	if (TRUE == psIntfAdapter->psAdapter->fw_download_done) {
 		if (StartInterruptUrb(psIntfAdapter)) {
-			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Cannot send interrupt in URB");
+			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+			"Cannot send interrupt in URB\n");
 		}
 
 		/*
@@ -323,10 +332,10 @@ static int device_run(PS_INTERFACE_ADAPTER psIntfAdapter)
 					psIntfAdapter->psAdapter->waiting_to_fw_download_done, 5*HZ);
 
 		if (value == 0)
-			pr_err(DRV_NAME ": Mailbox Interrupt has not reached to Driver..\n");
+			pr_err(DRV_NAME ": Timeout waiting for mailbox interrupt.\n");
 
 		if (register_control_device_interface(psIntfAdapter->psAdapter) < 0) {
-			pr_err(DRV_NAME ": Register Control Device failed...\n");
+			pr_err(DRV_NAME ": Register Control Device failed.\n");
 			return -EIO;
 		}
 	}
@@ -452,18 +461,21 @@ static int InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 			/* selecting alternate setting one as a default setting for High Speed  modem. */
 			if (psIntfAdapter->bHighSpeedDevice)
 				retval= usb_set_interface(psIntfAdapter->udev, DEFAULT_SETTING_0, ALTERNATE_SETTING_1);
-			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "BCM16 is Applicable on this dongle");
+			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+				"BCM16 is applicable on this dongle\n");
 			if (retval || (psIntfAdapter->bHighSpeedDevice == FALSE)) {
 				usedIntOutForBulkTransfer = EP2 ;
 				endpoint = &iface_desc->endpoint[EP2].desc;
-				BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Interface altsetting  got failed or Moemd is configured to FS.hence will work on default setting 0 \n");
+				BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+					 "Interface altsetting failed or modem is configured to Full Speed, hence will work on default setting 0\n");
 				/*
 				 * If Modem is high speed device EP2 should be INT OUT End point
 				 * If Mode is FS then EP2 should be bulk end point
 				 */
 				if (((psIntfAdapter->bHighSpeedDevice == TRUE) && (bcm_usb_endpoint_is_int_out(endpoint) == FALSE))
 					|| ((psIntfAdapter->bHighSpeedDevice == FALSE) && (bcm_usb_endpoint_is_bulk_out(endpoint) == FALSE))) {
-					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Configuring the EEPROM ");
+					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+						"Configuring the EEPROM\n");
 					/* change the EP2, EP4 to INT OUT end point */
 					ConfigureEndPointTypesThroughEEPROM(psIntfAdapter->psAdapter);
 
@@ -474,7 +486,8 @@ static int InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 					 */
 					retval = usb_reset_device(psIntfAdapter->udev);
 					if (retval) {
-						BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "reset got failed. hence Re-enumerating the device \n");
+						BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+							"reset failed.  Re-enumerating the device.\n");
 						return retval ;
 					}
 
@@ -482,15 +495,18 @@ static int InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 				if ((psIntfAdapter->bHighSpeedDevice == FALSE) && bcm_usb_endpoint_is_bulk_out(endpoint)) {
 					/* Once BULK is selected in FS mode. Revert it back to INT. Else USB_IF will fail. */
 					UINT _uiData = ntohl(EP2_CFG_INT);
-					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Reverting Bulk to INT as it is FS MODE");
+					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, 
+						"Reverting Bulk to INT as it is in Full Speed mode.\n");
 					BeceemEEPROMBulkWrite(psIntfAdapter->psAdapter, (PUCHAR)&_uiData, 0x136, 4, TRUE);
 				}
 			} else {
 				usedIntOutForBulkTransfer = EP4 ;
 				endpoint = &iface_desc->endpoint[EP4].desc;
-				BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Choosing AltSetting as a default setting");
+				BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+					"Choosing AltSetting as a default setting.\n");
 				if (bcm_usb_endpoint_is_int_out(endpoint) == FALSE) {
-					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, " Dongle does not have BCM16 Fix");
+					BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+						"Dongle does not have BCM16 Fix.\n");
 					/* change the EP2, EP4 to INT OUT end point and use EP4 in altsetting */
 					ConfigureEndPointTypesThroughEEPROM(psIntfAdapter->psAdapter);
 
@@ -501,7 +517,8 @@ static int InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 					 */
 					retval = usb_reset_device(psIntfAdapter->udev);
 					if (retval) {
-						BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "reset got failed. hence Re-enumerating the device \n");
+						BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+							"reset failed.  Re-enumerating the device.\n");
 						return retval;
 					}
 
@@ -580,7 +597,8 @@ static int InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 	retval = CreateInterruptUrb(psIntfAdapter);
 
 	if (retval) {
-		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "Cannot create interrupt urb");
+		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0,
+			"Cannot create interrupt urb\n");
 		return retval;
 	}
 
@@ -603,10 +621,12 @@ static int InterfaceSuspend(struct usb_interface *intf, pm_message_t message)
 
 		if (psIntfAdapter->psAdapter->LinkStatus == LINKUP_DONE) {
 			psIntfAdapter->psAdapter->IdleMode = TRUE ;
-			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Host Entered in PMU Idle Mode..");
+			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+				"Host Entered in PMU Idle Mode.\n");
 		} else {
 			psIntfAdapter->psAdapter->bShutStatus = TRUE;
-			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Host Entered in PMU Shutdown Mode..");
+			BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
+				"Host Entered in PMU Shutdown Mode.\n");
 		}
 	}
 	psIntfAdapter->psAdapter->bPreparingForLowPowerMode = FALSE;
