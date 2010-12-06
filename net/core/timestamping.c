@@ -26,7 +26,7 @@ static struct sock_filter ptp_filter[] = {
 	PTP_FILTER
 };
 
-static unsigned int classify(struct sk_buff *skb)
+static unsigned int classify(const struct sk_buff *skb)
 {
 	if (likely(skb->dev &&
 		   skb->dev->phydev &&
