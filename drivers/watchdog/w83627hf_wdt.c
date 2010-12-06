@@ -129,6 +129,8 @@ static void w83627hf_init(void)
 	t = inb_p(WDT_EFDR);      /* read CRF5 */
 	t &= ~0x0C;               /* set second mode & disable keyboard
 				    turning off watchdog */
+	t |= 0x02;		  /* enable the WDTO# output low pulse
+				    to the KBRST# pin (PIN60) */
 	outb_p(t, WDT_EFDR);    /* Write back to CRF5 */
 
 	outb_p(0xF7, WDT_EFER); /* Select CRF7 */
