@@ -1231,6 +1231,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	ret = vga_switcheroo_register_client(dev->pdev,
 					     i915_switcheroo_set_state,
+					     NULL,
 					     i915_switcheroo_can_switch);
 	if (ret)
 		goto cleanup_vga_client;

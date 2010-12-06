@@ -33,6 +33,7 @@ struct vga_switcheroo_client {
 	struct fb_info *fb_info;
 	int pwr_state;
 	void (*set_gpu_state)(struct pci_dev *pdev, enum vga_switcheroo_state);
+	void (*reprobe)(struct pci_dev *pdev);
 	bool (*can_switch)(struct pci_dev *pdev);
 	int id;
 	bool active;
@@ -103,6 +104,7 @@ static void vga_switcheroo_enable(void)
 
 int vga_switcheroo_register_client(struct pci_dev *pdev,
 				   void (*set_gpu_state)(struct pci_dev *pdev, enum vga_switcheroo_state),
+				   void (*reprobe)(struct pci_dev *pdev),
 				   bool (*can_switch)(struct pci_dev *pdev))
 {
 	int index;
@@ -117,6 +119,7 @@ int vga_switcheroo_register_client(struct pci_dev *pdev,
 	vgasr_priv.clients[index].pwr_state = VGA_SWITCHEROO_ON;
 	vgasr_priv.clients[index].pdev = pdev;
 	vgasr_priv.clients[index].set_gpu_state = set_gpu_state;
+	vgasr_priv.clients[index].reprobe = reprobe;
 	vgasr_priv.clients[index].can_switch = can_switch;
 	vgasr_priv.clients[index].id = -1;
 	if (pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW)
@@ -250,6 +253,9 @@ static int vga_switchto(struct vga_switcheroo_client *new_client)
 	ret = vgasr_priv.handler->switchto(new_client->id);
 	if (ret)
 		return ret;
+
+	if (new_client->reprobe)
+		new_client->reprobe(new_client->pdev);
 
 	if (active->pwr_state == VGA_SWITCHEROO_ON)
 		vga_switchoff(active);

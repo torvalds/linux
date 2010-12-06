@@ -779,6 +779,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
 	vga_switcheroo_register_client(rdev->pdev,
 				       radeon_switcheroo_set_state,
+				       NULL,
 				       radeon_switcheroo_can_switch);
 
 	r = radeon_init(rdev);

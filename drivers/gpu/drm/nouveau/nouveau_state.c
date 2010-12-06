@@ -605,6 +605,12 @@ static void nouveau_switcheroo_set_state(struct pci_dev *pdev,
 	}
 }
 
+static void nouveau_switcheroo_reprobe(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	nouveau_fbcon_output_poll_changed(dev);
+}
+
 static bool nouveau_switcheroo_can_switch(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
@@ -625,6 +631,7 @@ nouveau_card_init(struct drm_device *dev)
 
 	vga_client_register(dev->pdev, dev, NULL, nouveau_vga_set_decode);
 	vga_switcheroo_register_client(dev->pdev, nouveau_switcheroo_set_state,
+				       nouveau_switcheroo_reprobe,
 				       nouveau_switcheroo_can_switch);
 
 	/* Initialise internal driver API hooks */
