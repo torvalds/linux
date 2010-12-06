@@ -3319,7 +3319,10 @@ static int ar9300_eeprom_restore_internal(struct ath_hw *ah,
 	memcpy(mptr, &ar9300_default, mdata_size);
 
 	read = ar9300_read_eeprom;
-	cptr = AR9300_BASE_ADDR;
+	if (AR_SREV_9485(ah))
+		cptr = AR9300_BASE_ADDR_4K;
+	else
+		cptr = AR9300_BASE_ADDR;
 	ath_dbg(common, ATH_DBG_EEPROM,
 		"Trying EEPROM accesss at Address 0x%04x\n", cptr);
 	if (ar9300_check_eeprom_header(ah, read, cptr))
@@ -3361,7 +3364,8 @@ found:
 		ath_dbg(common, ATH_DBG_EEPROM,
 			"Found block at %x: code=%d ref=%d length=%d major=%d minor=%d\n",
 			cptr, code, reference, length, major, minor);
-		if (length >= 1024) {
+		if ((!AR_SREV_9485(ah) && length >= 1024) ||
+		    (AR_SREV_9485(ah) && length >= (4 * 1024))) {
 			ath_dbg(common, ATH_DBG_EEPROM,
 				"Skipping bad header\n");
 			cptr -= COMP_HDR_LEN;
