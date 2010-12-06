@@ -226,29 +226,40 @@ static inline void efx_readd_table(struct efx_nic *efx, efx_dword_t *value,
 	((page) * EFX_PAGE_BLOCK_SIZE + (reg))
 
 /* Write the whole of RX_DESC_UPD or TX_DESC_UPD */
-static inline void efx_writeo_page(struct efx_nic *efx, efx_oword_t *value,
-				   unsigned int reg, unsigned int page)
+static inline void _efx_writeo_page(struct efx_nic *efx, efx_oword_t *value,
+				    unsigned int reg, unsigned int page)
 {
 	efx_writeo(efx, value, EFX_PAGED_REG(page, reg));
 }
+#define efx_writeo_page(efx, value, reg, page)				\
+	_efx_writeo_page(efx, value,					\
+			 reg +						\
+			 BUILD_BUG_ON_ZERO((reg) != 0x830 && (reg) != 0xa10), \
+			 page)
 
 /* Write a page-mapped 32-bit CSR (EVQ_RPTR or the high bits of
  * RX_DESC_UPD or TX_DESC_UPD)
  */
-static inline void efx_writed_page(struct efx_nic *efx, efx_dword_t *value,
-				   unsigned int reg, unsigned int page)
+static inline void _efx_writed_page(struct efx_nic *efx, efx_dword_t *value,
+				    unsigned int reg, unsigned int page)
 {
 	efx_writed(efx, value, EFX_PAGED_REG(page, reg));
 }
+#define efx_writed_page(efx, value, reg, page)				\
+	_efx_writed_page(efx, value,					\
+			 reg +						\
+			 BUILD_BUG_ON_ZERO((reg) != 0x400 && (reg) != 0x83c \
+					   && (reg) != 0xa1c),		\
+			 page)
 
 /* Write TIMER_COMMAND.  This is a page-mapped 32-bit CSR, but a bug
  * in the BIU means that writes to TIMER_COMMAND[0] invalidate the
  * collector register.
  */
-static inline void efx_writed_page_locked(struct efx_nic *efx,
-					  efx_dword_t *value,
-					  unsigned int reg,
-					  unsigned int page)
+static inline void _efx_writed_page_locked(struct efx_nic *efx,
+					   efx_dword_t *value,
+					   unsigned int reg,
+					   unsigned int page)
 {
 	unsigned long flags __attribute__ ((unused));
 
@@ -260,5 +271,9 @@ static inline void efx_writed_page_locked(struct efx_nic *efx,
 		efx_writed(efx, value, EFX_PAGED_REG(page, reg));
 	}
 }
+#define efx_writed_page_locked(efx, value, reg, page)			\
+	_efx_writed_page_locked(efx, value,				\
+				reg + BUILD_BUG_ON_ZERO((reg) != 0x420), \
+				page)
 
 #endif /* EFX_IO_H */
