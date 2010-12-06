@@ -152,6 +152,12 @@ struct property *menu_add_prompt(enum prop_type type, char *prompt, struct expr 
 	return menu_add_prop(type, prompt, NULL, dep);
 }
 
+void menu_add_visibility(struct expr *expr)
+{
+	current_entry->visibility = expr_alloc_and(current_entry->visibility,
+	    expr);
+}
+
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep)
 {
 	menu_add_prop(type, NULL, expr, dep);
@@ -409,6 +415,11 @@ bool menu_is_visible(struct menu *menu)
 
 	if (!menu->prompt)
 		return false;
+
+	if (menu->visibility) {
+		if (expr_calc_value(menu->visibility) == no)
+			return no;
+	}
 
 	sym = menu->sym;
 	if (sym) {
