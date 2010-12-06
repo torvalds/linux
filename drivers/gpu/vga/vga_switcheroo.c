@@ -174,7 +174,8 @@ static int vga_switcheroo_show(struct seq_file *m, void *v)
 	int i;
 	mutex_lock(&vgasr_mutex);
 	for (i = 0; i < VGA_SWITCHEROO_MAX_CLIENTS; i++) {
-		seq_printf(m, "%d:%c:%s:%s\n", i,
+		seq_printf(m, "%d:%s:%c:%s:%s\n", i,
+			   vgasr_priv.clients[i].id == VGA_SWITCHEROO_DIS ? "DIS" : "IGD",
 			   vgasr_priv.clients[i].active ? '+' : ' ',
 			   vgasr_priv.clients[i].pwr_state ? "Pwr" : "Off",
 			   pci_name(vgasr_priv.clients[i].pdev));
