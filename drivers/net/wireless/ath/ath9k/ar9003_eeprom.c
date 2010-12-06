@@ -3737,6 +3737,20 @@ static void ar9003_hw_internal_regulator_apply(struct ath_hw *ah)
 
 }
 
+static void ar9003_hw_apply_tuning_caps(struct ath_hw *ah)
+{
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+	u8 tuning_caps_param = eep->baseEepHeader.params_for_tuning_caps[0];
+
+	if (eep->baseEepHeader.featureEnable & 0x40) {
+		tuning_caps_param &= 0x7f;
+		REG_RMW_FIELD(ah, AR_CH0_XTAL, AR_CH0_XTAL_CAPINDAC,
+			      tuning_caps_param);
+		REG_RMW_FIELD(ah, AR_CH0_XTAL, AR_CH0_XTAL_CAPOUTDAC,
+			      tuning_caps_param);
+	}
+}
+
 static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 					     struct ath9k_channel *chan)
 {
@@ -3745,6 +3759,8 @@ static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 	ar9003_hw_drive_strength_apply(ah);
 	ar9003_hw_atten_apply(ah, chan);
 	ar9003_hw_internal_regulator_apply(ah);
+	if (AR_SREV_9485(ah))
+		ar9003_hw_apply_tuning_caps(ah);
 }
 
 static void ath9k_hw_ar9300_set_addac(struct ath_hw *ah,
