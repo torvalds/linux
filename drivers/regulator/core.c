@@ -1379,8 +1379,7 @@ static int _regulator_disable(struct regulator_dev *rdev,
 	*supply_rdev_ptr = NULL;
 
 	if (WARN(rdev->use_count <= 0,
-			"unbalanced disables for %s\n",
-			rdev_get_name(rdev)))
+		 "unbalanced disables for %s\n", rdev_get_name(rdev)))
 		return -EIO;
 
 	/* are we the last user and permitted to disable ? */
