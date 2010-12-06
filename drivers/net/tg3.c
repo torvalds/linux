@@ -32,6 +32,7 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
+#include <linux/mdio.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/brcmphy.h>
@@ -1781,7 +1782,8 @@ static void tg3_phy_eee_adjust(struct tg3 *tp, u32 current_link_up)
 
 		tw32(TG3_CPMU_EEE_CTRL, eeectl);
 
-		tg3_phy_cl45_read(tp, 0x7, TG3_CL45_D7_EEERES_STAT, &val);
+		tg3_phy_cl45_read(tp, MDIO_MMD_AN,
+				  TG3_CL45_D7_EEERES_STAT, &val);
 
 		if (val == TG3_CL45_D7_EEERES_STAT_LP_1000T ||
 		    val == TG3_CL45_D7_EEERES_STAT_LP_100TX)
@@ -2987,16 +2989,14 @@ static void tg3_phy_copper_begin(struct tg3 *tp)
 		if (tp->link_config.autoneg == AUTONEG_ENABLE) {
 			/* Advertise 100-BaseTX EEE ability */
 			if (tp->link_config.advertising &
-			    (ADVERTISED_100baseT_Half |
-			     ADVERTISED_100baseT_Full))
-				val |= TG3_CL45_D7_EEEADV_CAP_100TX;
+			    ADVERTISED_100baseT_Full)
+				val |= MDIO_AN_EEE_ADV_100TX;
 			/* Advertise 1000-BaseT EEE ability */
 			if (tp->link_config.advertising &
-			    (ADVERTISED_1000baseT_Half |
-			     ADVERTISED_1000baseT_Full))
-				val |= TG3_CL45_D7_EEEADV_CAP_1000T;
+			    ADVERTISED_1000baseT_Full)
+				val |= MDIO_AN_EEE_ADV_1000T;
 		}
-		tg3_phy_cl45_write(tp, 0x7, TG3_CL45_D7_EEEADV_CAP, val);
+		tg3_phy_cl45_write(tp, MDIO_MMD_AN, MDIO_AN_EEE_ADV, val);
 
 		/* Turn off SM_DSP clock. */
 		val = MII_TG3_AUXCTL_SHDWSEL_AUXCTL |
