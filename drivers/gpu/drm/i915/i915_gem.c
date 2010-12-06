@@ -2926,7 +2926,7 @@ i915_gem_object_set_to_display_plane(struct drm_i915_gem_object *obj,
 	i915_gem_object_flush_gpu_write_domain(obj);
 
 	/* Currently, we are always called from an non-interruptible context. */
-	if (!pipelined) {
+	if (pipelined != obj->ring) {
 		ret = i915_gem_object_wait_rendering(obj, false);
 		if (ret)
 			return ret;
