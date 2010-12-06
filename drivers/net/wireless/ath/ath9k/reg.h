@@ -1114,6 +1114,8 @@ enum {
 #define AR_RTC_PLL_CONTROL \
 	((AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0014) : 0x7014)
 
+#define AR_RTC_PLL_CONTROL2	0x703c
+
 #define AR_RTC_PLL_DIV          0x0000001f
 #define AR_RTC_PLL_DIV_S        0
 #define AR_RTC_PLL_DIV2         0x00000020
