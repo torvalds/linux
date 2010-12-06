@@ -38,6 +38,7 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #define SENSOR_INIT_WIDTH	640			/* Sensor pixel size for sensor_init_data array */
 #define SENSOR_INIT_HEIGHT  480
 #define SENSOR_INIT_WINSEQADR sensor_vga
+#define SENSOR_INIT_PIXFMT V4L2_PIX_FMT_UYVY
 
 #define CONFIG_SENSOR_WhiteBalance	1
 #define CONFIG_SENSOR_Brightness	0
@@ -57,10 +58,10 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
 
-#define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
+#define CONFIG_SENSOR_I2C_SPEED     400000       /* Hz */
 
 #define CONFIG_SENSOR_TR      1
-#define CONFIG_SENSOR_DEBUG	  0
+#define CONFIG_SENSOR_DEBUG	  1
 
 #define SENSOR_NAME_STRING(a) STR(CONS(SENSOR_NAME, a))
 #define SENSOR_NAME_VARFUN(a) CONS(SENSOR_NAME, a)
@@ -938,6 +939,19 @@ static  struct reginfo ov2655_Sharpness5[] =
 };
 #endif
 
+static  struct reginfo sensor_ClrFmt_YUYV[]=
+{
+    {0x4300, 0x30},
+    {0x0000, 0x00}
+};
+
+static  struct reginfo sensor_ClrFmt_UYVY[]=
+{
+    {0x4300, 0x32},
+    {0x0000, 0x00}
+};
+
+
 #if CONFIG_SENSOR_WhiteBalance
 static  struct reginfo sensor_WhiteB_Auto[]=
 {
@@ -1524,6 +1538,7 @@ typedef struct sensor_info_priv_s
     unsigned char mirror;                                        /* HFLIP */
     unsigned char flip;                                          /* VFLIP */
     unsigned int winseqe_cur_addr;
+	unsigned int pixfmt;
 	unsigned int funmodule_state;
 } sensor_info_priv_t;
 
@@ -1532,7 +1547,6 @@ struct sensor
     struct v4l2_subdev subdev;
     struct i2c_client *client;
     sensor_info_priv_t info_priv;
-    unsigned int pixfmt;
     int model;	/* V4L2_IDENT_OV* codes from v4l2-chip-ident.h */
 };
 
@@ -1835,6 +1849,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     icd->user_width = SENSOR_INIT_WIDTH;
     icd->user_height = SENSOR_INIT_HEIGHT;
     sensor->info_priv.winseqe_cur_addr  = (int)SENSOR_INIT_WINSEQADR;
+	sensor->info_priv.pixfmt = SENSOR_INIT_PIXFMT;
 
     /* sensor sensor information for initialization  */
 	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_DO_WHITE_BALANCE);
@@ -1979,7 +1994,7 @@ static int sensor_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 
     pix->width		= icd->user_width;
     pix->height		= icd->user_height;
-    pix->pixelformat	= sensor->pixfmt;
+    pix->pixelformat	= sensor->info_priv.pixfmt;
     pix->field		= V4L2_FIELD_NONE;
     pix->colorspace		= V4L2_COLORSPACE_JPEG;
 
@@ -1990,8 +2005,34 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     struct i2c_client *client = sd->priv;
     struct sensor *sensor = to_sensor(client);
     struct v4l2_pix_format *pix = &f->fmt.pix;
-    struct reginfo *winseqe_set_addr;
+    struct reginfo *winseqe_set_addr=NULL;
     int ret, set_w,set_h;
+
+	if (sensor->info_priv.pixfmt != pix->pixelformat) {
+		switch (pix->pixelformat)
+		{
+			case V4L2_PIX_FMT_YUYV:
+			{
+				winseqe_set_addr = sensor_ClrFmt_YUYV;
+				break;
+			}
+			case V4L2_PIX_FMT_UYVY:
+			{
+				winseqe_set_addr = sensor_ClrFmt_UYVY;
+				break;
+			}
+			default:
+				break;
+		}
+		if (winseqe_set_addr != NULL) {
+            sensor_write_array(client, winseqe_set_addr);
+			sensor->info_priv.pixfmt = pix->pixelformat;
+
+			SENSOR_DG("%s Pixelformat(0x%x) set success!\n", SENSOR_NAME_STRING(),pix->pixelformat);
+		} else {
+			SENSOR_TR("%s Pixelformat(0x%x) is invalidate!\n", SENSOR_NAME_STRING(),pix->pixelformat);
+		}
+	}
 
     set_w = pix->width;
     set_h = pix->height;

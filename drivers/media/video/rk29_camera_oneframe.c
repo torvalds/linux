@@ -117,7 +117,7 @@
 
 //Configure Macro
 #define CONFIG_RK29CAMERA_TR      1
-#define CONFIG_RK29CAMERA_DEBUG	  0
+#define CONFIG_RK29CAMERA_DEBUG	  1
 #if (CONFIG_RK29CAMERA_TR)
 	#define RK29CAMERA_TR(format, ...)      printk(format, ## __VA_ARGS__)
 	#if (CONFIG_RK29CAMERA_DEBUG)
@@ -500,8 +500,8 @@ static int rk29_camera_activate(struct rk29_camera_dev *pcdev, struct soc_camera
 
 	//write_grf_reg(GRF_SOC_CON0_Reg, read_grf_reg(GRF_SOC_CON0_Reg)|VIP_AHBMASTER);  //VIP Config to AHB
 	write_grf_reg(GRF_SOC_CON0_Reg, read_grf_reg(GRF_SOC_CON0_Reg)&(~VIP_AHBMASTER));  //VIP Config to AXI
-	write_grf_reg(GRF_OS_REG0, read_grf_reg(GRF_OS_REG0)&(~VIP_ACLK_DIV_HCLK_2));   //aclk:hclk = 1:1
-	//write_grf_reg(GRF_OS_REG0, read_grf_reg(GRF_OS_REG0)|VIP_ACLK_DIV_HCLK_2);   //aclk:hclk = 2:1
+	//write_grf_reg(GRF_OS_REG0, read_grf_reg(GRF_OS_REG0)&(~VIP_ACLK_DIV_HCLK_2));   //aclk:hclk = 1:1
+    write_grf_reg(GRF_OS_REG0, read_grf_reg(GRF_OS_REG0)|VIP_ACLK_DIV_HCLK_2);   //aclk:hclk = 2:1
 
     write_vip_reg(RK29_VIP_RESET, 0x76543210);  /* ddl@rock-chips.com : vip software reset */
     udelay(10);
