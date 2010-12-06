@@ -51,12 +51,12 @@ static int BlkVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	 * id. For IDE devices, the device instance id is formatted as
 	 * <bus id> * - <device id> - 8899 - 000000000000.
 	 */
-	deviceInfo->PathId = Device->deviceInstance.data[3] << 24 |
+	deviceInfo->path_id = Device->deviceInstance.data[3] << 24 |
 			     Device->deviceInstance.data[2] << 16 |
 			     Device->deviceInstance.data[1] << 8  |
 			     Device->deviceInstance.data[0];
 
-	deviceInfo->TargetId = Device->deviceInstance.data[5] << 8 |
+	deviceInfo->target_id = Device->deviceInstance.data[5] << 8 |
 			       Device->deviceInstance.data[4];
 
 	return ret;
@@ -75,7 +75,7 @@ int BlkVscInitialize(struct hv_driver *Driver)
 	Driver->name = gBlkDriverName;
 	memcpy(&Driver->deviceType, &gBlkVscDeviceType, sizeof(struct hv_guid));
 
-	storDriver->RequestExtSize = sizeof(struct storvsc_request_extension);
+	storDriver->request_ext_size = sizeof(struct storvsc_request_extension);
 
 	/*
 	 * Divide the ring buffer data size (which is 1 page less than the ring
@@ -83,20 +83,20 @@ int BlkVscInitialize(struct hv_driver *Driver)
 	 * by the max request size (which is
 	 * vmbus_channel_packet_multipage_buffer + struct vstor_packet + u64)
 	 */
-	storDriver->MaxOutstandingRequestsPerChannel =
-		((storDriver->RingBufferSize - PAGE_SIZE) /
+	storDriver->max_outstanding_req_per_channel =
+		((storDriver->ring_buffer_size - PAGE_SIZE) /
 		  ALIGN_UP(MAX_MULTIPAGE_BUFFER_PACKET +
 			   sizeof(struct vstor_packet) + sizeof(u64),
 			   sizeof(u64)));
 
 	DPRINT_INFO(BLKVSC, "max io outstd %u",
-		    storDriver->MaxOutstandingRequestsPerChannel);
+		    storDriver->max_outstanding_req_per_channel);
 
 	/* Setup the dispatch table */
-	storDriver->Base.OnDeviceAdd = BlkVscOnDeviceAdd;
-	storDriver->Base.OnDeviceRemove = StorVscOnDeviceRemove;
-	storDriver->Base.OnCleanup = StorVscOnCleanup;
-	storDriver->OnIORequest	= StorVscOnIORequest;
+	storDriver->base.OnDeviceAdd = BlkVscOnDeviceAdd;
+	storDriver->base.OnDeviceRemove = StorVscOnDeviceRemove;
+	storDriver->base.OnCleanup = StorVscOnCleanup;
+	storDriver->on_io_request = StorVscOnIORequest;
 
 	return ret;
 }

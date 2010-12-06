@@ -141,28 +141,28 @@ static int storvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	struct storvsc_driver_object *storvsc_drv_obj = &g_storvsc_drv.drv_obj;
 	struct driver_context *drv_ctx = &g_storvsc_drv.drv_ctx;
 
-	storvsc_drv_obj->RingBufferSize = storvsc_ringbuffer_size;
+	storvsc_drv_obj->ring_buffer_size = storvsc_ringbuffer_size;
 
 	/* Callback to client driver to complete the initialization */
-	drv_init(&storvsc_drv_obj->Base);
+	drv_init(&storvsc_drv_obj->base);
 
 	DPRINT_INFO(STORVSC_DRV,
 		    "request extension size %u, max outstanding reqs %u",
-		    storvsc_drv_obj->RequestExtSize,
-		    storvsc_drv_obj->MaxOutstandingRequestsPerChannel);
+		    storvsc_drv_obj->request_ext_size,
+		    storvsc_drv_obj->max_outstanding_req_per_channel);
 
-	if (storvsc_drv_obj->MaxOutstandingRequestsPerChannel <
+	if (storvsc_drv_obj->max_outstanding_req_per_channel <
 	    STORVSC_MAX_IO_REQUESTS) {
 		DPRINT_ERR(STORVSC_DRV,
 			   "The number of outstanding io requests (%d) "
 			   "is larger than that supported (%d) internally.",
 			   STORVSC_MAX_IO_REQUESTS,
-			   storvsc_drv_obj->MaxOutstandingRequestsPerChannel);
+			   storvsc_drv_obj->max_outstanding_req_per_channel);
 		return -1;
 	}
 
-	drv_ctx->driver.name = storvsc_drv_obj->Base.name;
-	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->Base.deviceType,
+	drv_ctx->driver.name = storvsc_drv_obj->base.name;
+	memcpy(&drv_ctx->class_id, &storvsc_drv_obj->base.deviceType,
 	       sizeof(struct hv_guid));
 
 	drv_ctx->probe = storvsc_probe;
@@ -207,8 +207,8 @@ static void storvsc_drv_exit(void)
 		device_unregister(current_dev);
 	}
 
-	if (storvsc_drv_obj->Base.OnCleanup)
-		storvsc_drv_obj->Base.OnCleanup(&storvsc_drv_obj->Base);
+	if (storvsc_drv_obj->base.OnCleanup)
+		storvsc_drv_obj->base.OnCleanup(&storvsc_drv_obj->base);
 
 	vmbus_child_driver_unregister(drv_ctx);
 	return;
@@ -232,7 +232,7 @@ static int storvsc_probe(struct device *device)
 	struct host_device_context *host_device_ctx;
 	struct storvsc_device_info device_info;
 
-	if (!storvsc_drv_obj->Base.OnDeviceAdd)
+	if (!storvsc_drv_obj->base.OnDeviceAdd)
 		return -1;
 
 	host = scsi_host_alloc(&scsi_driver,
@@ -253,7 +253,7 @@ static int storvsc_probe(struct device *device)
 	host_device_ctx->request_pool =
 				kmem_cache_create(dev_name(&device_ctx->device),
 					sizeof(struct storvsc_cmd_request) +
-					storvsc_drv_obj->RequestExtSize, 0,
+					storvsc_drv_obj->request_ext_size, 0,
 					SLAB_HWCACHE_ALIGN, NULL);
 
 	if (!host_device_ctx->request_pool) {
@@ -261,9 +261,9 @@ static int storvsc_probe(struct device *device)
 		return -ENOMEM;
 	}
 
-	device_info.PortNumber = host->host_no;
+	device_info.port_number = host->host_no;
 	/* Call to the vsc driver to add the device */
-	ret = storvsc_drv_obj->Base.OnDeviceAdd(device_obj,
+	ret = storvsc_drv_obj->base.OnDeviceAdd(device_obj,
 						(void *)&device_info);
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC_DRV, "unable to add scsi vsc device");
@@ -273,8 +273,8 @@ static int storvsc_probe(struct device *device)
 	}
 
 	/* host_device_ctx->port = device_info.PortNumber; */
-	host_device_ctx->path = device_info.PathId;
-	host_device_ctx->target = device_info.TargetId;
+	host_device_ctx->path = device_info.path_id;
+	host_device_ctx->target = device_info.target_id;
 
 	/* max # of devices per target */
 	host->max_lun = STORVSC_MAX_LUNS_PER_TARGET;
@@ -288,7 +288,7 @@ static int storvsc_probe(struct device *device)
 	if (ret != 0) {
 		DPRINT_ERR(STORVSC_DRV, "unable to add scsi host device");
 
-		storvsc_drv_obj->Base.OnDeviceRemove(device_obj);
+		storvsc_drv_obj->base.OnDeviceRemove(device_obj);
 
 		kmem_cache_destroy(host_device_ctx->request_pool);
 		scsi_host_put(host);
@@ -318,14 +318,14 @@ static int storvsc_remove(struct device *device)
 			(struct host_device_context *)host->hostdata;
 
 
-	if (!storvsc_drv_obj->Base.OnDeviceRemove)
+	if (!storvsc_drv_obj->base.OnDeviceRemove)
 		return -1;
 
 	/*
 	 * Call to the vsc driver to let it know that the device is being
 	 * removed
 	 */
-	ret = storvsc_drv_obj->Base.OnDeviceRemove(device_obj);
+	ret = storvsc_drv_obj->base.OnDeviceRemove(device_obj);
 	if (ret != 0) {
 		/* TODO: */
 		DPRINT_ERR(STORVSC, "unable to remove vsc device (ret %d)",
@@ -351,7 +351,7 @@ static int storvsc_remove(struct device *device)
 static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 {
 	struct storvsc_cmd_request *cmd_request =
-		(struct storvsc_cmd_request *)request->Context;
+		(struct storvsc_cmd_request *)request->context;
 	struct scsi_cmnd *scmnd = cmd_request->cmd;
 	struct host_device_context *host_device_ctx =
 		(struct host_device_context *)scmnd->device->host->hostdata;
@@ -376,16 +376,17 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 				      cmd_request->bounce_sgl_count);
 	}
 
-	scmnd->result = request->Status;
+	scmnd->result = request->status;
 
 	if (scmnd->result) {
 		if (scsi_normalize_sense(scmnd->sense_buffer,
-					 request->SenseBufferSize, &sense_hdr))
+				request->sense_buffer_size, &sense_hdr))
 			scsi_print_sense_hdr("storvsc", &sense_hdr);
 	}
 
-	/* ASSERT(request->BytesXfer <= request->DataBuffer.Length); */
-	scsi_set_resid(scmnd, request->DataBuffer.Length - request->BytesXfer);
+	/* ASSERT(request->BytesXfer <= request->data_buffer.Length); */
+	scsi_set_resid(scmnd,
+		request->data_buffer.Length - request->bytes_xfer);
 
 	scsi_done_fn = scmnd->scsi_done;
 
@@ -658,42 +659,42 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
 
 	request = &cmd_request->request;
 
-	request->Extension =
+	request->extension =
 		(void *)((unsigned long)cmd_request + request_size);
 	DPRINT_DBG(STORVSC_DRV, "req %p size %d ext %d", request, request_size,
-		   storvsc_drv_obj->RequestExtSize);
+		   storvsc_drv_obj->request_ext_size);
 
 	/* Build the SRB */
 	switch (scmnd->sc_data_direction) {
 	case DMA_TO_DEVICE:
-		request->Type = WRITE_TYPE;
+		request->type = WRITE_TYPE;
 		break;
 	case DMA_FROM_DEVICE:
-		request->Type = READ_TYPE;
+		request->type = READ_TYPE;
 		break;
 	default:
-		request->Type = UNKNOWN_TYPE;
+		request->type = UNKNOWN_TYPE;
 		break;
 	}
 
-	request->OnIOCompletion = storvsc_commmand_completion;
-	request->Context = cmd_request;/* scmnd; */
+	request->on_io_completion = storvsc_commmand_completion;
+	request->context = cmd_request;/* scmnd; */
 
 	/* request->PortId = scmnd->device->channel; */
-	request->Host = host_device_ctx->port;
-	request->Bus = scmnd->device->channel;
-	request->TargetId = scmnd->device->id;
-	request->LunId = scmnd->device->lun;
+	request->host = host_device_ctx->port;
+	request->bus = scmnd->device->channel;
+	request->target_id = scmnd->device->id;
+	request->lun_id = scmnd->device->lun;
 
 	/* ASSERT(scmnd->cmd_len <= 16); */
-	request->CdbLen = scmnd->cmd_len;
-	request->Cdb = scmnd->cmnd;
+	request->cdb_len = scmnd->cmd_len;
+	request->cdb = scmnd->cmnd;
 
-	request->SenseBuffer = scmnd->sense_buffer;
-	request->SenseBufferSize = SCSI_SENSE_BUFFERSIZE;
+	request->sense_buffer = scmnd->sense_buffer;
+	request->sense_buffer_size = SCSI_SENSE_BUFFERSIZE;
 
 
-	request->DataBuffer.Length = scsi_bufflen(scmnd);
+	request->data_buffer.Length = scsi_bufflen(scmnd);
 	if (scsi_sg_count(scmnd)) {
 		sgl = (struct scatterlist *)scsi_sglist(scmnd);
 		sg_count = scsi_sg_count(scmnd);
@@ -734,25 +735,25 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
 			sg_count = cmd_request->bounce_sgl_count;
 		}
 
-		request->DataBuffer.Offset = sgl[0].offset;
+		request->data_buffer.Offset = sgl[0].offset;
 
 		for (i = 0; i < sg_count; i++) {
 			DPRINT_DBG(STORVSC_DRV, "sgl[%d] len %d offset %d\n",
 				   i, sgl[i].length, sgl[i].offset);
-			request->DataBuffer.PfnArray[i] =
+			request->data_buffer.PfnArray[i] =
 				page_to_pfn(sg_page((&sgl[i])));
 		}
 	} else if (scsi_sglist(scmnd)) {
 		/* ASSERT(scsi_bufflen(scmnd) <= PAGE_SIZE); */
-		request->DataBuffer.Offset =
+		request->data_buffer.Offset =
 			virt_to_phys(scsi_sglist(scmnd)) & (PAGE_SIZE-1);
-		request->DataBuffer.PfnArray[0] =
+		request->data_buffer.PfnArray[0] =
 			virt_to_phys(scsi_sglist(scmnd)) >> PAGE_SHIFT;
 	}
 
 retry_request:
 	/* Invokes the vsc to start an IO */
-	ret = storvsc_drv_obj->OnIORequest(&device_ctx->device_obj,
+	ret = storvsc_drv_obj->on_io_request(&device_ctx->device_obj,
 					   &cmd_request->request);
 	if (ret == -1) {
 		/* no more space */

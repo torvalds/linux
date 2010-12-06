@@ -370,16 +370,16 @@ static void StorVscOnIOCompletion(struct hv_device *Device,
 	/* ASSERT(request->OnIOCompletion != NULL); */
 
 	/* Copy over the status...etc */
-	request->Status = VStorPacket->vm_srb.scsi_status;
+	request->status = VStorPacket->vm_srb.scsi_status;
 
-	if (request->Status != 0 || VStorPacket->vm_srb.srb_status != 1) {
+	if (request->status != 0 || VStorPacket->vm_srb.srb_status != 1) {
 		DPRINT_WARN(STORVSC,
 			    "cmd 0x%x scsi status 0x%x srb status 0x%x\n",
-			    request->Cdb[0], VStorPacket->vm_srb.scsi_status,
+			    request->cdb[0], VStorPacket->vm_srb.scsi_status,
 			    VStorPacket->vm_srb.srb_status);
 	}
 
-	if ((request->Status & 0xFF) == 0x02) {
+	if ((request->status & 0xFF) == 0x02) {
 		/* CHECK_CONDITION */
 		if (VStorPacket->vm_srb.srb_status & 0x80) {
 			/* autosense data available */
@@ -389,19 +389,19 @@ static void StorVscOnIOCompletion(struct hv_device *Device,
 
 			/* ASSERT(VStorPacket->vm_srb.sense_info_length <= */
 			/* 	request->SenseBufferSize); */
-			memcpy(request->SenseBuffer,
+			memcpy(request->sense_buffer,
 			       VStorPacket->vm_srb.sense_data,
 			       VStorPacket->vm_srb.sense_info_length);
 
-			request->SenseBufferSize =
+			request->sense_buffer_size =
 					VStorPacket->vm_srb.sense_info_length;
 		}
 	}
 
 	/* TODO: */
-	request->BytesXfer = VStorPacket->vm_srb.data_transfer_length;
+	request->bytes_xfer = VStorPacket->vm_srb.data_transfer_length;
 
-	request->OnIOCompletion(request);
+	request->on_io_completion(request);
 
 	atomic_dec(&storDevice->NumOutstandingRequests);
 
@@ -501,7 +501,8 @@ static int StorVscConnectToVsp(struct hv_device *Device)
 
 	/* Open the channel */
 	ret = vmbus_open(Device->channel,
-			 storDriver->RingBufferSize, storDriver->RingBufferSize,
+			 storDriver->ring_buffer_size,
+			 storDriver->ring_buffer_size,
 			 (void *)&props,
 			 sizeof(struct vmstorage_channel_properties),
 			 StorVscOnChannelCallback, Device);
@@ -551,13 +552,13 @@ static int StorVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	storChannel->PathId = props->PathId;
 	storChannel->TargetId = props->TargetId; */
 
-	storDevice->PortNumber = deviceInfo->PortNumber;
+	storDevice->PortNumber = deviceInfo->port_number;
 	/* Send it back up */
 	ret = StorVscConnectToVsp(Device);
 
 	/* deviceInfo->PortNumber = storDevice->PortNumber; */
-	deviceInfo->PathId = storDevice->PathId;
-	deviceInfo->TargetId = storDevice->TargetId;
+	deviceInfo->path_id = storDevice->PathId;
+	deviceInfo->target_id = storDevice->TargetId;
 
 	DPRINT_DBG(STORVSC, "assigned port %u, path %u target %u\n",
 		   storDevice->PortNumber, storDevice->PathId,
@@ -672,7 +673,7 @@ static int StorVscOnIORequest(struct hv_device *Device,
 	int ret = 0;
 
 	requestExtension =
-		(struct storvsc_request_extension *)Request->Extension;
+		(struct storvsc_request_extension *)Request->extension;
 	vstorPacket = &requestExtension->VStorPacket;
 	storDevice = GetStorDevice(Device);
 
@@ -681,8 +682,8 @@ static int StorVscOnIORequest(struct hv_device *Device,
 		   requestExtension);
 
 	DPRINT_DBG(STORVSC, "req %p len %d bus %d, target %d, lun %d cdblen %d",
-		   Request, Request->DataBuffer.Length, Request->Bus,
-		   Request->TargetId, Request->LunId, Request->CdbLen);
+		   Request, Request->data_buffer.Length, Request->bus,
+		   Request->target_id, Request->lun_id, Request->cdb_len);
 
 	if (!storDevice) {
 		DPRINT_ERR(STORVSC, "unable to get stor device..."
@@ -702,19 +703,19 @@ static int StorVscOnIORequest(struct hv_device *Device,
 
 	vstorPacket->vm_srb.length = sizeof(struct vmscsi_request);
 
-	vstorPacket->vm_srb.port_number = Request->Host;
-	vstorPacket->vm_srb.path_id = Request->Bus;
-	vstorPacket->vm_srb.target_id = Request->TargetId;
-	vstorPacket->vm_srb.lun = Request->LunId;
+	vstorPacket->vm_srb.port_number = Request->host;
+	vstorPacket->vm_srb.path_id = Request->bus;
+	vstorPacket->vm_srb.target_id = Request->target_id;
+	vstorPacket->vm_srb.lun = Request->lun_id;
 
 	vstorPacket->vm_srb.sense_info_length = SENSE_BUFFER_SIZE;
 
 	/* Copy over the scsi command descriptor block */
-	vstorPacket->vm_srb.cdb_length = Request->CdbLen;
-	memcpy(&vstorPacket->vm_srb.cdb, Request->Cdb, Request->CdbLen);
+	vstorPacket->vm_srb.cdb_length = Request->cdb_len;
+	memcpy(&vstorPacket->vm_srb.cdb, Request->cdb, Request->cdb_len);
 
-	vstorPacket->vm_srb.data_in = Request->Type;
-	vstorPacket->vm_srb.data_transfer_length = Request->DataBuffer.Length;
+	vstorPacket->vm_srb.data_in = Request->type;
+	vstorPacket->vm_srb.data_transfer_length = Request->data_buffer.Length;
 
 	vstorPacket->operation = VSTOR_OPERATION_EXECUTE_SRB;
 
@@ -728,9 +729,9 @@ static int StorVscOnIORequest(struct hv_device *Device,
 		   vstorPacket->vm_srb.sense_info_length,
 		   vstorPacket->vm_srb.cdb_length);
 
-	if (requestExtension->Request->DataBuffer.Length) {
+	if (requestExtension->Request->data_buffer.Length) {
 		ret = vmbus_sendpacket_multipagebuffer(Device->channel,
-				&requestExtension->Request->DataBuffer,
+				&requestExtension->Request->data_buffer,
 				vstorPacket,
 				sizeof(struct vstor_packet),
 				(unsigned long)requestExtension);
@@ -785,7 +786,7 @@ int StorVscInitialize(struct hv_driver *Driver)
 	memcpy(&Driver->deviceType, &gStorVscDeviceType,
 	       sizeof(struct hv_guid));
 
-	storDriver->RequestExtSize = sizeof(struct storvsc_request_extension);
+	storDriver->request_ext_size = sizeof(struct storvsc_request_extension);
 
 	/*
 	 * Divide the ring buffer data size (which is 1 page less
@@ -793,22 +794,22 @@ int StorVscInitialize(struct hv_driver *Driver)
 	 * the ring buffer indices) by the max request size (which is
 	 * vmbus_channel_packet_multipage_buffer + struct vstor_packet + u64)
 	 */
-	storDriver->MaxOutstandingRequestsPerChannel =
-		((storDriver->RingBufferSize - PAGE_SIZE) /
+	storDriver->max_outstanding_req_per_channel =
+		((storDriver->ring_buffer_size - PAGE_SIZE) /
 		  ALIGN_UP(MAX_MULTIPAGE_BUFFER_PACKET +
 			   sizeof(struct vstor_packet) + sizeof(u64),
 			   sizeof(u64)));
 
 	DPRINT_INFO(STORVSC, "max io %u, currently %u\n",
-		    storDriver->MaxOutstandingRequestsPerChannel,
+		    storDriver->max_outstanding_req_per_channel,
 		    STORVSC_MAX_IO_REQUESTS);
 
 	/* Setup the dispatch table */
-	storDriver->Base.OnDeviceAdd	= StorVscOnDeviceAdd;
-	storDriver->Base.OnDeviceRemove	= StorVscOnDeviceRemove;
-	storDriver->Base.OnCleanup	= StorVscOnCleanup;
+	storDriver->base.OnDeviceAdd	= StorVscOnDeviceAdd;
+	storDriver->base.OnDeviceRemove	= StorVscOnDeviceRemove;
+	storDriver->base.OnCleanup	= StorVscOnCleanup;
 
-	storDriver->OnIORequest		= StorVscOnIORequest;
+	storDriver->on_io_request	= StorVscOnIORequest;
 
 	return 0;
 }

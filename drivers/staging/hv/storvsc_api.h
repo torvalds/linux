@@ -53,58 +53,58 @@ enum storvsc_request_type{
 };
 
 struct hv_storvsc_request {
-	enum storvsc_request_type Type;
-	u32 Host;
-	u32 Bus;
-	u32 TargetId;
-	u32 LunId;
-	u8 *Cdb;
-	u32 CdbLen;
-	u32 Status;
-	u32 BytesXfer;
+	enum storvsc_request_type type;
+	u32 host;
+	u32 bus;
+	u32 target_id;
+	u32 lun_id;
+	u8 *cdb;
+	u32 cdb_len;
+	u32 status;
+	u32 bytes_xfer;
 
-	unsigned char *SenseBuffer;
-	u32 SenseBufferSize;
+	unsigned char *sense_buffer;
+	u32 sense_buffer_size;
 
-	void *Context;
+	void *context;
 
-	void (*OnIOCompletion)(struct hv_storvsc_request *Request);
+	void (*on_io_completion)(struct hv_storvsc_request *request);
 
 	/* This points to the memory after DataBuffer */
-	void *Extension;
+	void *extension;
 
-	struct hv_multipage_buffer DataBuffer;
+	struct hv_multipage_buffer data_buffer;
 };
 
 /* Represents the block vsc driver */
 struct storvsc_driver_object {
 	/* Must be the first field */
 	/* Which is a bug FIXME! */
-	struct hv_driver Base;
+	struct hv_driver base;
 
 	/* Set by caller (in bytes) */
-	u32 RingBufferSize;
+	u32 ring_buffer_size;
 
 	/* Allocate this much private extension for each I/O request */
-	u32 RequestExtSize;
+	u32 request_ext_size;
 
 	/* Maximum # of requests in flight per channel/device */
-	u32 MaxOutstandingRequestsPerChannel;
+	u32 max_outstanding_req_per_channel;
 
 	/* Specific to this driver */
-	int (*OnIORequest)(struct hv_device *Device,
-			   struct hv_storvsc_request *Request);
+	int (*on_io_request)(struct hv_device *device,
+			   struct hv_storvsc_request *request);
 };
 
 struct storvsc_device_info {
-	unsigned int PortNumber;
-	unsigned char PathId;
-	unsigned char TargetId;
+	unsigned int port_number;
+	unsigned char path_id;
+	unsigned char target_id;
 };
 
 /* Interface */
 int StorVscInitialize(struct hv_driver *driver);
-int StorVscOnHostReset(struct hv_device *Device);
+int StorVscOnHostReset(struct hv_device *device);
 int BlkVscInitialize(struct hv_driver *driver);
 
 #endif /* _STORVSC_API_H_ */
