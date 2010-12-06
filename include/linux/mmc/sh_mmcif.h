@@ -162,6 +162,17 @@ static inline int sh_mmcif_boot_do_read(void __iomem *base,
 	unsigned long k;
 	int ret = 0;
 
+	/* In data transfer mode: Set clock to Bus clock/4 (about 20Mhz) */
+	sh_mmcif_writel(base, MMCIF_CE_CLK_CTRL,
+			CLK_ENABLE | CLKDIV_4 | SRSPTO_256 |
+			SRBSYTO_29 | SRWDTO_29 | SCCSTO_29);
+
+	/* CMD9 - Get CSD */
+	sh_mmcif_boot_cmd(base, 0x09806000, 0x00010000);
+
+	/* CMD7 - Select the card */
+	sh_mmcif_boot_cmd(base, 0x07400000, 0x00010000);
+
 	/* CMD16 - Set the block size */
 	sh_mmcif_boot_cmd(base, 0x10400000, SH_MMCIF_BBS);
 
@@ -203,29 +214,6 @@ static inline void sh_mmcif_boot_init(void __iomem *base)
 
 	/* CMD3 - Set card relative address */
 	sh_mmcif_boot_cmd(base, 0x03400040, 0x00010000);
-}
-
-static inline void sh_mmcif_boot_slurp(void __iomem *base,
-				       unsigned char *buf,
-				       unsigned long no_bytes)
-{
-	unsigned long tmp;
-
-	/* In data transfer mode: Set clock to Bus clock/4 (about 20Mhz) */
-	sh_mmcif_writel(base, MMCIF_CE_CLK_CTRL,
-			CLK_ENABLE | CLKDIV_4 | SRSPTO_256 |
-			SRBSYTO_29 | SRWDTO_29 | SCCSTO_29);
-
-	/* CMD9 - Get CSD */
-	sh_mmcif_boot_cmd(base, 0x09806000, 0x00010000);
-
-	/* CMD7 - Select the card */
-	sh_mmcif_boot_cmd(base, 0x07400000, 0x00010000);
-
-	tmp = no_bytes / SH_MMCIF_BBS;
-	tmp += (no_bytes % SH_MMCIF_BBS) ? 1 : 0;
-
-	sh_mmcif_boot_do_read(base, 512, tmp, buf);
 }
 
 #endif /* __SH_MMCIF_H__ */
