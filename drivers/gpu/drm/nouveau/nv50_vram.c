@@ -37,6 +37,16 @@ static int types[0x80] = {
 	1, 0, 2, 0, 1, 0, 2, 0, 1, 1, 2, 2, 1, 1, 0, 0
 };
 
+bool
+nv50_vram_flags_valid(struct drm_device *dev, u32 tile_flags)
+{
+	int type = (tile_flags & NOUVEAU_GEM_TILE_LAYOUT_MASK) >> 8;
+
+	if (likely(type < sizeof(types) && types[type]))
+		return true;
+	return false;
+}
+
 void
 nv50_vram_del(struct drm_device *dev, struct nouveau_vram **pvram)
 {

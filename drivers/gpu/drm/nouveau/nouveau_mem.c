@@ -241,7 +241,7 @@ nouveau_mem_detect_nforce(struct drm_device *dev)
 	return 0;
 }
 
-static int
+int
 nouveau_mem_detect(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -255,24 +255,23 @@ nouveau_mem_detect(struct drm_device *dev)
 	if (dev_priv->card_type < NV_50) {
 		dev_priv->vram_size  = nv_rd32(dev, NV04_PFB_FIFO_DATA);
 		dev_priv->vram_size &= NV10_PFB_FIFO_DATA_RAM_AMOUNT_MB_MASK;
-	} else
-	if (dev_priv->card_type < NV_C0) {
-		if (nv50_vram_init(dev))
-			return -ENOMEM;
 	} else {
 		dev_priv->vram_size  = nv_rd32(dev, 0x10f20c) << 20;
 		dev_priv->vram_size *= nv_rd32(dev, 0x121c74);
 	}
 
-	NV_INFO(dev, "Detected %dMiB VRAM\n", (int)(dev_priv->vram_size >> 20));
-	if (dev_priv->vram_sys_base) {
-		NV_INFO(dev, "Stolen system memory at: 0x%010llx\n",
-			dev_priv->vram_sys_base);
-	}
-
 	if (dev_priv->vram_size)
 		return 0;
 	return -ENOMEM;
+}
+
+bool
+nouveau_mem_flags_valid(struct drm_device *dev, u32 tile_flags)
+{
+	if (!(tile_flags & NOUVEAU_GEM_TILE_LAYOUT_MASK))
+		return true;
+
+	return false;
 }
 
 #if __OS_HAS_AGP
@@ -432,10 +431,15 @@ nouveau_mem_vram_init(struct drm_device *dev)
 	else
 		dev_priv->ramin_rsvd_vram = (512 * 1024);
 
-	/* initialise gpu-specific vram backend */
-	ret = nouveau_mem_detect(dev);
+	ret = dev_priv->engine.vram.init(dev);
 	if (ret)
 		return ret;
+
+	NV_INFO(dev, "Detected %dMiB VRAM\n", (int)(dev_priv->vram_size >> 20));
+	if (dev_priv->vram_sys_base) {
+		NV_INFO(dev, "Stolen system memory at: 0x%010llx\n",
+			dev_priv->vram_sys_base);
+	}
 
 	dev_priv->fb_available_size = dev_priv->vram_size;
 	dev_priv->fb_mappable_pages = dev_priv->fb_available_size;
@@ -698,9 +702,10 @@ nouveau_vram_manager_del(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(man->bdev);
+	struct nouveau_vram_engine *vram = &dev_priv->engine.vram;
 	struct drm_device *dev = dev_priv->dev;
 
-	nv50_vram_del(dev, (struct nouveau_vram **)&mem->mm_node);
+	vram->put(dev, (struct nouveau_vram **)&mem->mm_node);
 }
 
 static int
@@ -710,30 +715,30 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			 struct ttm_mem_reg *mem)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(man->bdev);
+	struct nouveau_vram_engine *vram = &dev_priv->engine.vram;
 	struct drm_device *dev = dev_priv->dev;
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
-	struct nouveau_vram *vram;
+	struct nouveau_vram *node;
 	u32 size_nc = 0;
 	int ret;
 
 	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG)
 		size_nc = 1 << nvbo->vma.node->type;
 
-	ret = nv50_vram_new(dev, mem->num_pages << PAGE_SHIFT,
-			    mem->page_alignment << PAGE_SHIFT, size_nc,
-			    (nvbo->tile_flags >> 8) & 0x7f, &vram);
+	ret = vram->get(dev, mem->num_pages << PAGE_SHIFT,
+			mem->page_alignment << PAGE_SHIFT, size_nc,
+			(nvbo->tile_flags >> 8) & 0xff, &node);
 	if (ret)
 		return ret;
 
-	mem->mm_node = vram;
-	mem->start   = vram->offset >> PAGE_SHIFT;
+	mem->mm_node = node;
+	mem->start   = node->offset >> PAGE_SHIFT;
 	return 0;
 }
 
 void
 nouveau_vram_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 {
-	struct ttm_bo_global *glob = man->bdev->glob;
 	struct nouveau_mm *mm = man->priv;
 	struct nouveau_mm_node *r;
 	u64 total = 0, ttotal[3] = {}, tused[3] = {}, tfree[3] = {};

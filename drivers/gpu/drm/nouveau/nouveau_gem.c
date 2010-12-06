@@ -103,32 +103,6 @@ nouveau_gem_info(struct drm_gem_object *gem, struct drm_nouveau_gem_info *rep)
 	return 0;
 }
 
-static bool
-nouveau_gem_tile_flags_valid(struct drm_device *dev, uint32_t tile_flags)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	if (dev_priv->card_type >= NV_50) {
-		switch (tile_flags & NOUVEAU_GEM_TILE_LAYOUT_MASK) {
-		case 0x0000:
-		case 0x1800:
-		case 0x2800:
-		case 0x4800:
-		case 0x7000:
-		case 0x7400:
-		case 0x7a00:
-		case 0xe000:
-			return true;
-		}
-	} else {
-		if (!(tile_flags & NOUVEAU_GEM_TILE_LAYOUT_MASK))
-			return true;
-	}
-
-	NV_ERROR(dev, "bad page flags: 0x%08x\n", tile_flags);
-	return false;
-}
-
 int
 nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv)
@@ -150,8 +124,10 @@ nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 	if (!flags || req->info.domain & NOUVEAU_GEM_DOMAIN_CPU)
 		flags |= TTM_PL_FLAG_SYSTEM;
 
-	if (!nouveau_gem_tile_flags_valid(dev, req->info.tile_flags))
+	if (!dev_priv->engine.vram.flags_valid(dev, req->info.tile_flags)) {
+		NV_ERROR(dev, "bad page flags: 0x%08x\n", req->info.tile_flags);
 		return -EINVAL;
+	}
 
 	if (req->channel_hint) {
 		chan = nouveau_channel_get(dev, file_priv, req->channel_hint);

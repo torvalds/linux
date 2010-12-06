@@ -501,6 +501,15 @@ struct nouveau_crypt_engine {
 	void (*tlb_flush)(struct drm_device *dev);
 };
 
+struct nouveau_vram_engine {
+	int  (*init)(struct drm_device *);
+	int  (*get)(struct drm_device *, u64, u32 align, u32 size_nc,
+		    u32 type, struct nouveau_vram **);
+	void (*put)(struct drm_device *, struct nouveau_vram **);
+
+	bool (*flags_valid)(struct drm_device *, u32 tile_flags);
+};
+
 struct nouveau_engine {
 	struct nouveau_instmem_engine instmem;
 	struct nouveau_mc_engine      mc;
@@ -512,6 +521,7 @@ struct nouveau_engine {
 	struct nouveau_gpio_engine    gpio;
 	struct nouveau_pm_engine      pm;
 	struct nouveau_crypt_engine   crypt;
+	struct nouveau_vram_engine    vram;
 };
 
 struct nouveau_pll_vals {
@@ -821,6 +831,8 @@ extern void nouveau_mem_gart_fini(struct drm_device *);
 extern int  nouveau_mem_init_agp(struct drm_device *);
 extern int  nouveau_mem_reset_agp(struct drm_device *);
 extern void nouveau_mem_close(struct drm_device *);
+extern int  nouveau_mem_detect(struct drm_device *);
+extern bool nouveau_mem_flags_valid(struct drm_device *, u32 tile_flags);
 extern struct nouveau_tile_reg *nv10_mem_set_tiling(
 	struct drm_device *dev, uint32_t addr, uint32_t size,
 	uint32_t pitch, uint32_t flags);

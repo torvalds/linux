@@ -100,6 +100,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clock_set		= nv04_pm_clock_set;
 		engine->crypt.init		= nouveau_stub_init;
 		engine->crypt.takedown		= nouveau_stub_takedown;
+		engine->vram.init		= nouveau_mem_detect;
+		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;
 	case 0x10:
 		engine->instmem.init		= nv04_instmem_init;
@@ -157,6 +159,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clock_set		= nv04_pm_clock_set;
 		engine->crypt.init		= nouveau_stub_init;
 		engine->crypt.takedown		= nouveau_stub_takedown;
+		engine->vram.init		= nouveau_mem_detect;
+		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;
 	case 0x20:
 		engine->instmem.init		= nv04_instmem_init;
@@ -214,6 +218,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clock_set		= nv04_pm_clock_set;
 		engine->crypt.init		= nouveau_stub_init;
 		engine->crypt.takedown		= nouveau_stub_takedown;
+		engine->vram.init		= nouveau_mem_detect;
+		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;
 	case 0x30:
 		engine->instmem.init		= nv04_instmem_init;
@@ -273,6 +279,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
 		engine->crypt.init		= nouveau_stub_init;
 		engine->crypt.takedown		= nouveau_stub_takedown;
+		engine->vram.init		= nouveau_mem_detect;
+		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;
 	case 0x40:
 	case 0x60:
@@ -334,6 +342,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.temp_get		= nv40_temp_get;
 		engine->crypt.init		= nouveau_stub_init;
 		engine->crypt.takedown		= nouveau_stub_takedown;
+		engine->vram.init		= nouveau_mem_detect;
+		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;
 	case 0x50:
 	case 0x80: /* gotta love NVIDIA's consistency.. */
@@ -444,6 +454,10 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 			engine->crypt.takedown	= nouveau_stub_takedown;
 			break;
 		}
+		engine->vram.init		= nv50_vram_init;
+		engine->vram.get		= nv50_vram_new;
+		engine->vram.put		= nv50_vram_del;
+		engine->vram.flags_valid	= nv50_vram_flags_valid;
 		break;
 	case 0xC0:
 		engine->instmem.init		= nvc0_instmem_init;
@@ -495,6 +509,8 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.irq_enable		= nv50_gpio_irq_enable;
 		engine->crypt.init		= nouveau_stub_init;
 		engine->crypt.takedown		= nouveau_stub_takedown;
+		engine->vram.init		= nouveau_mem_detect;
+		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;
 	default:
 		NV_ERROR(dev, "NV%02x unsupported\n", dev_priv->chipset);
