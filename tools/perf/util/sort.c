@@ -170,7 +170,7 @@ static int hist_entry__dso_snprintf(struct hist_entry *self, char *bf,
 		return repsep_snprintf(bf, size, "%-*s", width, dso_name);
 	}
 
-	return repsep_snprintf(bf, size, "%*Lx", width, self->ip);
+	return repsep_snprintf(bf, size, "%-*s", width, "[unknown]");
 }
 
 /* --sort symbol */
@@ -196,7 +196,7 @@ static int hist_entry__sym_snprintf(struct hist_entry *self, char *bf,
 
 	if (verbose) {
 		char o = self->ms.map ? dso__symtab_origin(self->ms.map->dso) : '!';
-		ret += repsep_snprintf(bf, size, "%*Lx %c ",
+		ret += repsep_snprintf(bf, size, "%-#*llx %c ",
 				       BITS_PER_LONG / 4, self->ip, o);
 	}
 
@@ -205,7 +205,7 @@ static int hist_entry__sym_snprintf(struct hist_entry *self, char *bf,
 		ret += repsep_snprintf(bf + ret, size - ret, "%s",
 				       self->ms.sym->name);
 	else
-		ret += repsep_snprintf(bf + ret, size - ret, "%*Lx",
+		ret += repsep_snprintf(bf + ret, size - ret, "%-#*llx",
 				       BITS_PER_LONG / 4, self->ip);
 
 	return ret;
