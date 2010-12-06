@@ -39,6 +39,9 @@ static struct clk periph_apm_clk;
 static struct clk ahb_clk;
 static struct clk ipg_clk;
 static struct clk usboh3_clk;
+static struct clk emi_fast_clk;
+static struct clk ipu_clk;
+static struct clk mipi_hsc1_clk;
 
 #define MAX_DPLL_WAIT_TRIES	1000 /* 1000 * udelay(1) = 1ms */
 
@@ -688,6 +691,19 @@ static unsigned long clk_emi_slow_get_rate(struct clk *clk)
 	return clk_get_rate(clk->parent) / div;
 }
 
+static unsigned long _clk_ddr_hf_get_rate(struct clk *clk)
+{
+	unsigned long rate;
+	u32 reg, div;
+
+	reg = __raw_readl(MXC_CCM_CBCDR);
+	div = ((reg & MXC_CCM_CBCDR_DDR_PODF_MASK) >>
+		MXC_CCM_CBCDR_DDR_PODF_OFFSET) + 1;
+	rate = clk_get_rate(clk->parent) / div;
+
+	return rate;
+}
+
 /* External high frequency clock */
 static struct clk ckih_clk = {
 	.get_rate = get_high_reference_clock_rate,
@@ -844,6 +860,109 @@ static struct clk emi_slow_clk = {
 	.enable = _clk_ccgr_enable,
 	.disable = _clk_ccgr_disable_inwait,
 	.get_rate = clk_emi_slow_get_rate,
+};
+
+static int clk_ipu_enable(struct clk *clk)
+{
+	u32 reg;
+
+	_clk_ccgr_enable(clk);
+
+	/* Enable handshake with IPU when certain clock rates are changed */
+	reg = __raw_readl(MXC_CCM_CCDR);
+	reg &= ~MXC_CCM_CCDR_IPU_HS_MASK;
+	__raw_writel(reg, MXC_CCM_CCDR);
+
+	/* Enable handshake with IPU when LPM is entered */
+	reg = __raw_readl(MXC_CCM_CLPCR);
+	reg &= ~MXC_CCM_CLPCR_BYPASS_IPU_LPM_HS;
+	__raw_writel(reg, MXC_CCM_CLPCR);
+
+	return 0;
+}
+
+static void clk_ipu_disable(struct clk *clk)
+{
+	u32 reg;
+
+	_clk_ccgr_disable(clk);
+
+	/* Disable handshake with IPU whe dividers are changed */
+	reg = __raw_readl(MXC_CCM_CCDR);
+	reg |= MXC_CCM_CCDR_IPU_HS_MASK;
+	__raw_writel(reg, MXC_CCM_CCDR);
+
+	/* Disable handshake with IPU when LPM is entered */
+	reg = __raw_readl(MXC_CCM_CLPCR);
+	reg |= MXC_CCM_CLPCR_BYPASS_IPU_LPM_HS;
+	__raw_writel(reg, MXC_CCM_CLPCR);
+}
+
+static struct clk ahbmux1_clk = {
+	.parent = &ahb_clk,
+	.secondary = &ahb_max_clk,
+	.enable_reg = MXC_CCM_CCGR0,
+	.enable_shift = MXC_CCM_CCGRx_CG8_OFFSET,
+	.enable = _clk_ccgr_enable,
+	.disable = _clk_ccgr_disable_inwait,
+};
+
+static struct clk ipu_sec_clk = {
+	.parent = &emi_fast_clk,
+	.secondary = &ahbmux1_clk,
+};
+
+static struct clk ddr_hf_clk = {
+	.parent = &pll1_sw_clk,
+	.get_rate = _clk_ddr_hf_get_rate,
+};
+
+static struct clk ddr_clk = {
+	.parent = &ddr_hf_clk,
+};
+
+/* clock definitions for MIPI HSC unit which has been removed
+ * from documentation, but not from hardware
+ */
+static int _clk_hsc_enable(struct clk *clk)
+{
+	u32 reg;
+
+	_clk_ccgr_enable(clk);
+	/* Handshake with IPU when certain clock rates are changed. */
+	reg = __raw_readl(MXC_CCM_CCDR);
+	reg &= ~MXC_CCM_CCDR_HSC_HS_MASK;
+	__raw_writel(reg, MXC_CCM_CCDR);
+
+	reg = __raw_readl(MXC_CCM_CLPCR);
+	reg &= ~MXC_CCM_CLPCR_BYPASS_HSC_LPM_HS;
+	__raw_writel(reg, MXC_CCM_CLPCR);
+
+	return 0;
+}
+
+static void _clk_hsc_disable(struct clk *clk)
+{
+	u32 reg;
+
+	_clk_ccgr_disable(clk);
+	/* No handshake with HSC as its not enabled. */
+	reg = __raw_readl(MXC_CCM_CCDR);
+	reg |= MXC_CCM_CCDR_HSC_HS_MASK;
+	__raw_writel(reg, MXC_CCM_CCDR);
+
+	reg = __raw_readl(MXC_CCM_CLPCR);
+	reg |= MXC_CCM_CLPCR_BYPASS_HSC_LPM_HS;
+	__raw_writel(reg, MXC_CCM_CLPCR);
+}
+
+static struct clk mipi_hsp_clk = {
+	.parent = &ipu_clk,
+	.enable_reg = MXC_CCM_CCGR4,
+	.enable_shift = MXC_CCM_CCGRx_CG6_OFFSET,
+	.enable = _clk_hsc_enable,
+	.disable = _clk_hsc_disable,
+	.secondary = &mipi_hsc1_clk,
 };
 
 #define DEFINE_CLOCK_CCGR(name, i, er, es, pfx, p, s)	\
@@ -1112,6 +1231,23 @@ DEFINE_CLOCK_FULL(esdhc2_ipg_clk, 1, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG2_OFFSET,
 DEFINE_CLOCK_MAX(esdhc2_clk, 1, MXC_CCM_CCGR3, MXC_CCM_CCGRx_CG3_OFFSET,
 	clk_esdhc2, &pll2_sw_clk, &esdhc2_ipg_clk);
 
+DEFINE_CLOCK(mipi_esc_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG5_OFFSET, NULL, NULL, NULL, &pll2_sw_clk);
+DEFINE_CLOCK(mipi_hsc2_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG4_OFFSET, NULL, NULL, &mipi_esc_clk, &pll2_sw_clk);
+DEFINE_CLOCK(mipi_hsc1_clk, 0, MXC_CCM_CCGR4, MXC_CCM_CCGRx_CG3_OFFSET, NULL, NULL, &mipi_hsc2_clk, &pll2_sw_clk);
+
+/* IPU */
+DEFINE_CLOCK_FULL(ipu_clk, 0, MXC_CCM_CCGR5, MXC_CCM_CCGRx_CG5_OFFSET,
+	NULL,  NULL, clk_ipu_enable, clk_ipu_disable, &ahb_clk, &ipu_sec_clk);
+
+DEFINE_CLOCK_FULL(emi_fast_clk, 0, MXC_CCM_CCGR5, MXC_CCM_CCGRx_CG7_OFFSET,
+		NULL, NULL, _clk_ccgr_enable, _clk_ccgr_disable_inwait,
+		&ddr_clk, NULL);
+
+DEFINE_CLOCK(ipu_di0_clk, 0, MXC_CCM_CCGR6, MXC_CCM_CCGRx_CG5_OFFSET,
+		NULL, NULL, &pll3_sw_clk, NULL);
+DEFINE_CLOCK(ipu_di1_clk, 0, MXC_CCM_CCGR6, MXC_CCM_CCGRx_CG6_OFFSET,
+		NULL, NULL, &pll3_sw_clk, NULL);
+
 #define _REGISTER_CLOCK(d, n, c) \
        { \
 		.dev_id = d, \
@@ -1155,6 +1291,10 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK(NULL, "iim_clk", iim_clk)
 	_REGISTER_CLOCK("imx2-wdt.0", NULL, dummy_clk)
 	_REGISTER_CLOCK("imx2-wdt.1", NULL, dummy_clk)
+	_REGISTER_CLOCK(NULL, "mipi_hsp", mipi_hsp_clk)
+	_REGISTER_CLOCK("imx-ipuv3", NULL, ipu_clk)
+	_REGISTER_CLOCK("imx-ipuv3", "di0", ipu_di0_clk)
+	_REGISTER_CLOCK("imx-ipuv3", "di1", ipu_di1_clk)
 };
 
 static struct clk_lookup mx53_lookups[] = {
