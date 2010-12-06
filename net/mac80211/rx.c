@@ -538,6 +538,8 @@ static void ieee80211_release_reorder_frame(struct ieee80211_hw *hw,
 {
 	struct sk_buff *skb = tid_agg_rx->reorder_buf[index];
 
+	lockdep_assert_held(&tid_agg_rx->reorder_lock);
+
 	if (!skb)
 		goto no_frame;
 
@@ -556,6 +558,8 @@ static void ieee80211_release_reorder_frames(struct ieee80211_hw *hw,
 					     struct sk_buff_head *frames)
 {
 	int index;
+
+	lockdep_assert_held(&tid_agg_rx->reorder_lock);
 
 	while (seq_less(tid_agg_rx->head_seq_num, head_seq_num)) {
 		index = seq_sub(tid_agg_rx->head_seq_num, tid_agg_rx->ssn) %
@@ -580,6 +584,8 @@ static void ieee80211_sta_reorder_release(struct ieee80211_hw *hw,
 					  struct sk_buff_head *frames)
 {
 	int index, j;
+
+	lockdep_assert_held(&tid_agg_rx->reorder_lock);
 
 	/* release the buffer until next missing frame */
 	index = seq_sub(tid_agg_rx->head_seq_num, tid_agg_rx->ssn) %
@@ -683,10 +689,11 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 	int index;
 	bool ret = true;
 
+	spin_lock(&tid_agg_rx->reorder_lock);
+
 	buf_size = tid_agg_rx->buf_size;
 	head_seq_num = tid_agg_rx->head_seq_num;
 
-	spin_lock(&tid_agg_rx->reorder_lock);
 	/* frame with out of date sequence number */
 	if (seq_less(mpdu_seq_num, head_seq_num)) {
 		dev_kfree_skb(skb);
@@ -1870,9 +1877,8 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += rx->skb->len;
 
-	if (ieee80211_is_data(hdr->frame_control) &&
-	    !is_multicast_ether_addr(hdr->addr1) &&
-	    local->hw.conf.dynamic_ps_timeout > 0 && local->ps_sdata) {
+	if (local->ps_sdata && local->hw.conf.dynamic_ps_timeout > 0 &&
+	    !is_multicast_ether_addr(((struct ethhdr *)rx->skb->data)->h_dest)) {
 			mod_timer(&local->dynamic_ps_timer, jiffies +
 			 msecs_to_jiffies(local->hw.conf.dynamic_ps_timeout));
 	}
@@ -1921,9 +1927,12 @@ ieee80211_rx_h_ctrl(struct ieee80211_rx_data *rx, struct sk_buff_head *frames)
 			mod_timer(&tid_agg_rx->session_timer,
 				  TU_TO_EXP_TIME(tid_agg_rx->timeout));
 
+		spin_lock(&tid_agg_rx->reorder_lock);
 		/* release stored frames up to start of BAR */
 		ieee80211_release_reorder_frames(hw, tid_agg_rx, start_seq_num,
 						 frames);
+		spin_unlock(&tid_agg_rx->reorder_lock);
+
 		kfree_skb(skb);
 		return RX_QUEUED;
 	}
@@ -2245,6 +2254,10 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 		break;
 	case cpu_to_le16(IEEE80211_STYPE_DEAUTH):
 	case cpu_to_le16(IEEE80211_STYPE_DISASSOC):
+		if (is_multicast_ether_addr(mgmt->da) &&
+		    !is_broadcast_ether_addr(mgmt->da))
+			return RX_DROP_MONITOR;
+
 		/* process only for station */
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)
 			return RX_DROP_MONITOR;
@@ -2515,9 +2528,8 @@ static void ieee80211_invoke_rx_handlers(struct ieee80211_rx_data *rx)
 }
 
 /*
- * This function makes calls into the RX path. Therefore the
- * caller must hold the sta_info->lock and everything has to
- * be under rcu_read_lock protection as well.
+ * This function makes calls into the RX path, therefore
+ * it has to be invoked under RCU read lock.
  */
 void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid)
 {
@@ -2739,6 +2751,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 
 			if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
 				return;
+			goto out;
 		}
 	}
 
@@ -2778,6 +2791,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 			return;
 	}
 
+ out:
 	dev_kfree_skb(skb);
 }
 

@@ -1830,7 +1830,7 @@ err_zd:
 
 static void zd1201_disconnect(struct usb_interface *interface)
 {
-	struct zd1201 *zd=(struct zd1201 *)usb_get_intfdata(interface);
+	struct zd1201 *zd = usb_get_intfdata(interface);
 	struct hlist_node *node, *node2;
 	struct zd1201_frag *frag;
 

@@ -260,6 +260,7 @@ enum ieee80211_work_type {
 	IEEE80211_WORK_ASSOC_BEACON_WAIT,
 	IEEE80211_WORK_ASSOC,
 	IEEE80211_WORK_REMAIN_ON_CHANNEL,
+	IEEE80211_WORK_OFFCHANNEL_TX,
 };
 
 /**
@@ -320,6 +321,10 @@ struct ieee80211_work {
 		struct {
 			u32 duration;
 		} remain;
+		struct {
+			struct sk_buff *frame;
+			u32 wait;
+		} offchan_tx;
 	};
 
 	int ie_len;

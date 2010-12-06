@@ -103,7 +103,8 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 	memset(series, 0, sizeof(struct ath9k_11n_rate_series) * 4);
 	series[0].Tries = 1;
 	series[0].Rate = rate;
-	series[0].ChSel = common->tx_chainmask;
+	series[0].ChSel = ath_txchainmask_reduction(sc,
+			common->tx_chainmask, series[0].Rate);
 	series[0].RateFlags = (ctsrate) ? ATH9K_RATESERIES_RTS_CTS : 0;
 	ath9k_hw_set11n_ratescenario(ah, ds, ds, 0, ctsrate, ctsduration,
 				     series, 4, 0);

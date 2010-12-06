@@ -553,12 +553,10 @@ static struct iwl_bt_params iwl6000_bt_params = {
 };
 
 struct iwl_cfg iwl6000g2a_2agn_cfg = {
-	.name = "6000 Series 2x2 AGN Gen2a",
+	.name = "Intel(R) Centrino(R) Advanced-N 6205 AGN",
 	.fw_name_pre = IWL6000G2A_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000_ops,
@@ -571,12 +569,10 @@ struct iwl_cfg iwl6000g2a_2agn_cfg = {
 };
 
 struct iwl_cfg iwl6000g2a_2abg_cfg = {
-	.name = "6000 Series 2x2 ABG Gen2a",
+	.name = "Intel(R) Centrino(R) Advanced-N 6205 ABG",
 	.fw_name_pre = IWL6000G2A_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000_ops,
@@ -588,12 +584,10 @@ struct iwl_cfg iwl6000g2a_2abg_cfg = {
 };
 
 struct iwl_cfg iwl6000g2a_2bg_cfg = {
-	.name = "6000 Series 2x2 BG Gen2a",
+	.name = "Intel(R) Centrino(R) Advanced-N 6205 BG",
 	.fw_name_pre = IWL6000G2A_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000_ops,
@@ -605,12 +599,10 @@ struct iwl_cfg iwl6000g2a_2bg_cfg = {
 };
 
 struct iwl_cfg iwl6000g2b_2agn_cfg = {
-	.name = "6000 Series 2x2 AGN Gen2b",
+	.name = "Intel(R) Centrino(R) Advanced-N 6230 AGN",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
@@ -627,12 +619,10 @@ struct iwl_cfg iwl6000g2b_2agn_cfg = {
 };
 
 struct iwl_cfg iwl6000g2b_2abg_cfg = {
-	.name = "6000 Series 2x2 ABG Gen2b",
+	.name = "Intel(R) Centrino(R) Advanced-N 6230 ABG",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
@@ -648,12 +638,10 @@ struct iwl_cfg iwl6000g2b_2abg_cfg = {
 };
 
 struct iwl_cfg iwl6000g2b_2bgn_cfg = {
-	.name = "6000 Series 2x2 BGN Gen2b",
+	.name = "Intel(R) Centrino(R) Advanced-N 6230 BGN",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
@@ -670,12 +658,10 @@ struct iwl_cfg iwl6000g2b_2bgn_cfg = {
 };
 
 struct iwl_cfg iwl6000g2b_2bg_cfg = {
-	.name = "6000 Series 2x2 BG Gen2b",
+	.name = "Intel(R) Centrino(R) Advanced-N 6230 BG",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
@@ -691,12 +677,10 @@ struct iwl_cfg iwl6000g2b_2bg_cfg = {
 };
 
 struct iwl_cfg iwl6000g2b_bgn_cfg = {
-	.name = "6000 Series 1x2 BGN Gen2b",
+	.name = "Intel(R) Centrino(R) Wireless-N 1030 BGN",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.valid_tx_ant = ANT_A,
-	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
@@ -713,12 +697,10 @@ struct iwl_cfg iwl6000g2b_bgn_cfg = {
 };
 
 struct iwl_cfg iwl6000g2b_bg_cfg = {
-	.name = "6000 Series 1x2 BG Gen2b",
+	.name = "Intel(R) Centrino(R) Wireless-N 1030 BG",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.valid_tx_ant = ANT_A,
-	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
@@ -741,8 +723,8 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.valid_tx_ant = ANT_BC,
-	.valid_rx_ant = ANT_BC,
+	.valid_tx_ant = ANT_BC,		/* .cfg overwrite */
+	.valid_rx_ant = ANT_BC,		/* .cfg overwrite */
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
 	.ops = &iwl6000_ops,
@@ -758,8 +740,8 @@ struct iwl_cfg iwl6000i_2abg_cfg = {
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.valid_tx_ant = ANT_BC,
-	.valid_rx_ant = ANT_BC,
+	.valid_tx_ant = ANT_BC,		/* .cfg overwrite */
+	.valid_rx_ant = ANT_BC,		/* .cfg overwrite */
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
 	.ops = &iwl6000_ops,
@@ -774,8 +756,8 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.valid_tx_ant = ANT_BC,
-	.valid_rx_ant = ANT_BC,
+	.valid_tx_ant = ANT_BC,		/* .cfg overwrite */
+	.valid_rx_ant = ANT_BC,		/* .cfg overwrite */
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
 	.ops = &iwl6000_ops,
@@ -790,8 +772,6 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.fw_name_pre = IWL6050_FW_PRE,
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
 	.ops = &iwl6050_ops,
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,
@@ -803,12 +783,10 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 };
 
 struct iwl_cfg iwl6050g2_bgn_cfg = {
-	.name = "6050 Series 1x2 BGN Gen2",
+	.name = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BGN",
 	.fw_name_pre = IWL6050_FW_PRE,
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
-	.valid_tx_ant = ANT_A,
-	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6050G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6050G2_TX_POWER_VERSION,
 	.ops = &iwl6050g2_ops,
@@ -824,8 +802,6 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.fw_name_pre = IWL6050_FW_PRE,
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
-	.valid_tx_ant = ANT_AB,
-	.valid_rx_ant = ANT_AB,
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,
 	.ops = &iwl6050_ops,
@@ -840,8 +816,6 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
-	.valid_tx_ant = ANT_ABC,
-	.valid_rx_ant = ANT_ABC,
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
 	.ops = &iwl6000_ops,
@@ -853,12 +827,10 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 };
 
 struct iwl_cfg iwl130_bgn_cfg = {
-	.name = "Intel(R) 130 Series 1x1 BGN",
+	.name = "Intel(R) Centrino(R) Wireless-N 130 BGN",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.valid_tx_ant = ANT_A,
-	.valid_rx_ant = ANT_A,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,
@@ -874,12 +846,10 @@ struct iwl_cfg iwl130_bgn_cfg = {
 };
 
 struct iwl_cfg iwl130_bg_cfg = {
-	.name = "Intel(R) 130 Series 1x2 BG",
+	.name = "Intel(R) Centrino(R) Wireless-N 130 BG",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,
-	.valid_tx_ant = ANT_A,
-	.valid_rx_ant = ANT_A,
 	.eeprom_ver = EEPROM_6000G2_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000G2_TX_POWER_VERSION,
 	.ops = &iwl6000g2b_ops,

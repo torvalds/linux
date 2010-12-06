@@ -379,9 +379,12 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * through a mac80211 library call (RTS/CTS) then we should not
 	 * send the status report back.
 	 */
-	if (!(skbdesc_flags & SKBDESC_NOT_MAC80211))
-		ieee80211_tx_status(rt2x00dev->hw, entry->skb);
-	else
+	if (!(skbdesc_flags & SKBDESC_NOT_MAC80211)) {
+		if (test_bit(DRIVER_REQUIRE_TASKLET_CONTEXT, &rt2x00dev->flags))
+			ieee80211_tx_status(rt2x00dev->hw, entry->skb);
+		else
+			ieee80211_tx_status_ni(rt2x00dev->hw, entry->skb);
+	} else
 		dev_kfree_skb_any(entry->skb);
 
 	/*

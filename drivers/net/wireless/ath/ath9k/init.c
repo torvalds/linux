@@ -15,7 +15,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/pm_qos_params.h>
 
 #include "ath9k.h"
 
@@ -37,6 +36,10 @@ MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
 int led_blink;
 module_param_named(blink, led_blink, int, 0444);
 MODULE_PARM_DESC(blink, "Enable LED blink on activity");
+
+static int ath9k_btcoex_enable;
+module_param_named(btcoex_enable, ath9k_btcoex_enable, int, 0444);
+MODULE_PARM_DESC(btcoex_enable, "Enable wifi-BT coexistence");
 
 /* We use the hw_value as an index into our private channel structure */
 
@@ -179,8 +182,6 @@ static const struct ath_ops ath9k_common_ops = {
 	.read = ath9k_ioread32,
 	.write = ath9k_iowrite32,
 };
-
-struct pm_qos_request_list ath9k_pm_qos_req;
 
 /**************************/
 /*     Initialization     */
@@ -543,6 +544,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	common->hw = sc->hw;
 	common->priv = sc;
 	common->debug_mask = ath9k_debug;
+	common->btcoex_enabled = ath9k_btcoex_enable == 1;
 	spin_lock_init(&common->cc_lock);
 
 	spin_lock_init(&sc->wiphy_lock);
@@ -564,13 +566,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	ret = ath9k_hw_init(ah);
 	if (ret)
 		goto err_hw;
-
-	ret = ath9k_init_debug(ah);
-	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to create debugfs files\n");
-		goto err_debug;
-	}
 
 	ret = ath9k_init_queues(sc);
 	if (ret)
@@ -594,8 +589,6 @@ err_btcoex:
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 err_queues:
-	ath9k_exit_debug(ah);
-err_debug:
 	ath9k_hw_deinit(ah);
 err_hw:
 	tasklet_kill(&sc->intr_tq);
@@ -657,6 +650,8 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
 
 	hw->wiphy->interface_modes =
+		BIT(NL80211_IFTYPE_P2P_GO) |
+		BIT(NL80211_IFTYPE_P2P_CLIENT) |
 		BIT(NL80211_IFTYPE_AP) |
 		BIT(NL80211_IFTYPE_WDS) |
 		BIT(NL80211_IFTYPE_STATION) |
@@ -739,6 +734,13 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 	if (error)
 		goto error_register;
 
+	error = ath9k_init_debug(ah);
+	if (error) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to create debugfs files\n");
+		goto error_world;
+	}
+
 	/* Handle world regulatory */
 	if (!ath_is_world_regd(reg)) {
 		error = regulatory_hint(hw->wiphy, reg->alpha2);
@@ -756,7 +758,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 	ath_init_leds(sc);
 	ath_start_rfkill_poll(sc);
 
-	pm_qos_add_request(&ath9k_pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
+	pm_qos_add_request(&sc->pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
 			   PM_QOS_DEFAULT_VALUE);
 
 	return 0;
@@ -797,7 +799,6 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
-	ath9k_exit_debug(sc->sc_ah);
 	ath9k_hw_deinit(sc->sc_ah);
 
 	tasklet_kill(&sc->intr_tq);
@@ -827,7 +828,7 @@ void ath9k_deinit_device(struct ath_softc *sc)
 	}
 
 	ieee80211_unregister_hw(hw);
-	pm_qos_remove_request(&ath9k_pm_qos_req);
+	pm_qos_remove_request(&sc->pm_qos_req);
 	ath_rx_cleanup(sc);
 	ath_tx_cleanup(sc);
 	ath9k_deinit_softc(sc);
@@ -864,20 +865,12 @@ static int __init ath9k_init(void)
 		goto err_out;
 	}
 
-	error = ath9k_debug_create_root();
-	if (error) {
-		printk(KERN_ERR
-			"ath9k: Unable to create debugfs root: %d\n",
-			error);
-		goto err_rate_unregister;
-	}
-
 	error = ath_pci_init();
 	if (error < 0) {
 		printk(KERN_ERR
 			"ath9k: No PCI devices found, driver not installed.\n");
 		error = -ENODEV;
-		goto err_remove_root;
+		goto err_rate_unregister;
 	}
 
 	error = ath_ahb_init();
@@ -891,8 +884,6 @@ static int __init ath9k_init(void)
  err_pci_exit:
 	ath_pci_exit();
 
- err_remove_root:
-	ath9k_debug_remove_root();
  err_rate_unregister:
 	ath_rate_control_unregister();
  err_out:
@@ -904,7 +895,6 @@ static void __exit ath9k_exit(void)
 {
 	ath_ahb_exit();
 	ath_pci_exit();
-	ath9k_debug_remove_root();
 	ath_rate_control_unregister();
 	printk(KERN_INFO "%s: Driver unloaded\n", dev_info);
 }
