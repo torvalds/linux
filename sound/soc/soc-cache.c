@@ -1533,6 +1533,7 @@ static int snd_soc_flat_cache_init(struct snd_soc_codec *codec)
 static const struct snd_soc_cache_ops cache_types[] = {
 	{
 		.id = SND_SOC_FLAT_COMPRESSION,
+		.name = "flat",
 		.init = snd_soc_flat_cache_init,
 		.exit = snd_soc_flat_cache_exit,
 		.read = snd_soc_flat_cache_read,
@@ -1541,6 +1542,7 @@ static const struct snd_soc_cache_ops cache_types[] = {
 	},
 	{
 		.id = SND_SOC_LZO_COMPRESSION,
+		.name = "LZO",
 		.init = snd_soc_lzo_cache_init,
 		.exit = snd_soc_lzo_cache_exit,
 		.read = snd_soc_lzo_cache_read,
@@ -1549,6 +1551,7 @@ static const struct snd_soc_cache_ops cache_types[] = {
 	},
 	{
 		.id = SND_SOC_RBTREE_COMPRESSION,
+		.name = "rbtree",
 		.init = snd_soc_rbtree_cache_init,
 		.exit = snd_soc_rbtree_cache_exit,
 		.read = snd_soc_rbtree_cache_read,
@@ -1573,8 +1576,12 @@ int snd_soc_cache_init(struct snd_soc_codec *codec)
 	mutex_init(&codec->cache_rw_mutex);
 	codec->cache_ops = &cache_types[i];
 
-	if (codec->cache_ops->init)
+	if (codec->cache_ops->init) {
+		if (codec->cache_ops->name)
+			dev_dbg(codec->dev, "Initializing %s cache for %s codec\n",
+				codec->cache_ops->name, codec->name);
 		return codec->cache_ops->init(codec);
+	}
 	return -EINVAL;
 }
 
@@ -1584,8 +1591,12 @@ int snd_soc_cache_init(struct snd_soc_codec *codec)
  */
 int snd_soc_cache_exit(struct snd_soc_codec *codec)
 {
-	if (codec->cache_ops && codec->cache_ops->exit)
+	if (codec->cache_ops && codec->cache_ops->exit) {
+		if (codec->cache_ops->name)
+			dev_dbg(codec->dev, "Destroying %s cache for %s codec\n",
+				codec->cache_ops->name, codec->name);
 		return codec->cache_ops->exit(codec);
+	}
 	return -EINVAL;
 }
 
@@ -1657,6 +1668,9 @@ int snd_soc_cache_sync(struct snd_soc_codec *codec)
 	}
 
 	if (codec->cache_ops && codec->cache_ops->sync) {
+		if (codec->cache_ops->name)
+			dev_dbg(codec->dev, "Syncing %s cache for %s codec\n",
+				codec->cache_ops->name, codec->name);
 		ret = codec->cache_ops->sync(codec);
 		if (!ret)
 			codec->cache_sync = 0;

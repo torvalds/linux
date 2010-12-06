@@ -437,6 +437,7 @@ struct snd_soc_ops {
 
 /* SoC cache ops */
 struct snd_soc_cache_ops {
+	const char *name;
 	enum snd_soc_compress_type id;
 	int (*init)(struct snd_soc_codec *codec);
 	int (*exit)(struct snd_soc_codec *codec);
