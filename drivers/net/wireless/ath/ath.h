@@ -267,6 +267,7 @@ enum ATH_DEBUG {
 	rtn;							\
 })
 #define ATH_DBG_WARN(foo, arg...) WARN(foo, arg)
+#define ATH_DBG_WARN_ON_ONCE(foo) WARN_ON_ONCE(foo)
 
 #else
 
@@ -277,6 +278,7 @@ ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
 	return 0;
 }
 #define ATH_DBG_WARN(foo, arg...) do {} while (0)
+#define ATH_DBG_WARN_ON_ONCE(foo) do {} while (0)
 
 #endif /* CONFIG_ATH_DEBUG */
 

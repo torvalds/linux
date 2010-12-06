@@ -528,8 +528,12 @@ bool ath_stoprecv(struct ath_softc *sc)
 		sc->rx.rxlink = NULL;
 	spin_unlock_bh(&sc->rx.rxbuflock);
 
-	ATH_DBG_WARN(!stopped, "Could not stop RX, we could be "
-		     "confusing the DMA engine when we start RX up\n");
+	if (unlikely(!stopped)) {
+		ath_err(ath9k_hw_common(sc->sc_ah),
+			"Could not stop RX, we could be "
+			"confusing the DMA engine when we start RX up\n");
+		ATH_DBG_WARN_ON_ONCE(!stopped);
+	}
 	return stopped;
 }
 
