@@ -3034,6 +3034,8 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 		return !!(pBase->featureEnable & BIT(5));
 	case EEP_CHAIN_MASK_REDUCE:
 		return (pBase->miscConfiguration >> 0x3) & 0x1;
+	case EEP_ANT_DIV_CTL1:
+		return le32_to_cpu(eep->base_ext1.ant_div_control);
 	default:
 		return 0;
 	}
@@ -3513,11 +3515,25 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 	value = ar9003_hw_ant_ctrl_chain_get(ah, 0, is2ghz);
 	REG_RMW_FIELD(ah, AR_PHY_SWITCH_CHAIN_0, AR_SWITCH_TABLE_ALL, value);
 
-	value = ar9003_hw_ant_ctrl_chain_get(ah, 1, is2ghz);
-	REG_RMW_FIELD(ah, AR_PHY_SWITCH_CHAIN_1, AR_SWITCH_TABLE_ALL, value);
+	if (!AR_SREV_9485(ah)) {
+		value = ar9003_hw_ant_ctrl_chain_get(ah, 1, is2ghz);
+		REG_RMW_FIELD(ah, AR_PHY_SWITCH_CHAIN_1, AR_SWITCH_TABLE_ALL,
+			      value);
 
-	value = ar9003_hw_ant_ctrl_chain_get(ah, 2, is2ghz);
-	REG_RMW_FIELD(ah, AR_PHY_SWITCH_CHAIN_2, AR_SWITCH_TABLE_ALL, value);
+		value = ar9003_hw_ant_ctrl_chain_get(ah, 2, is2ghz);
+		REG_RMW_FIELD(ah, AR_PHY_SWITCH_CHAIN_2, AR_SWITCH_TABLE_ALL,
+			      value);
+	}
+
+	if (AR_SREV_9485(ah)) {
+		value = ath9k_hw_ar9300_get_eeprom(ah, EEP_ANT_DIV_CTL1);
+		REG_RMW_FIELD(ah, AR_PHY_MC_GAIN_CTRL, AR_ANT_DIV_CTRL_ALL,
+			      value);
+		REG_RMW_FIELD(ah, AR_PHY_MC_GAIN_CTRL, AR_ANT_DIV_ENABLE,
+			      value >> 6);
+		REG_RMW_FIELD(ah, AR_PHY_CCK_DETECT, AR_FAST_DIV_ENABLE,
+			      value >> 7);
+	}
 }
 
 static void ar9003_hw_drive_strength_apply(struct ath_hw *ah)

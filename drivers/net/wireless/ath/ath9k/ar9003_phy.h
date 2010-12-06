@@ -260,7 +260,13 @@
 #define AR_PHY_CCA_0            (AR_AGC_BASE + 0x1c)
 #define AR_PHY_EXT_CCA0         (AR_AGC_BASE + 0x20)
 #define AR_PHY_RESTART          (AR_AGC_BASE + 0x24)
+
 #define AR_PHY_MC_GAIN_CTRL     (AR_AGC_BASE + 0x28)
+#define AR_ANT_DIV_CTRL_ALL	0x7e000000
+#define AR_ANT_DIV_CTRL_ALL_S	25
+#define AR_ANT_DIV_ENABLE	0x1000000
+#define AR_ANT_DIV_ENABLE_S	24
+
 #define AR_PHY_EXTCHN_PWRTHR1   (AR_AGC_BASE + 0x2c)
 #define AR_PHY_EXT_CHN_WIN      (AR_AGC_BASE + 0x30)
 #define AR_PHY_20_40_DET_THR    (AR_AGC_BASE + 0x34)
@@ -271,7 +277,11 @@
 #define AR_PHY_RX_GAIN_BOUNDS_2 (AR_AGC_BASE + 0x48)
 #define AR_PHY_RSSI_0           (AR_AGC_BASE + 0x180)
 #define AR_PHY_SPUR_CCK_REP0    (AR_AGC_BASE + 0x184)
+
 #define AR_PHY_CCK_DETECT       (AR_AGC_BASE + 0x1c0)
+#define AR_FAST_DIV_ENABLE	0x2000
+#define AR_FAST_DIV_ENABLE_S	13
+
 #define AR_PHY_DAG_CTRLCCK      (AR_AGC_BASE + 0x1c4)
 #define AR_PHY_IQCORR_CTRL_CCK  (AR_AGC_BASE + 0x1c8)
 
