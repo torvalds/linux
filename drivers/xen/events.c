@@ -1109,7 +1109,7 @@ static void __xen_evtchn_do_upcall(void)
 
 		vcpu_info->evtchn_upcall_pending = 0;
 
-		if (__get_cpu_var(xed_nesting_count)++)
+		if (__this_cpu_inc_return(xed_nesting_count) - 1)
 			goto out;
 
 #ifndef CONFIG_X86 /* No need for a barrier -- XCHG is a barrier on x86. */
