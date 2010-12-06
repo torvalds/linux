@@ -79,9 +79,7 @@ extern bool is_valid_oplock_break(struct smb_hdr *smb,
 				  struct TCP_Server_Info *);
 extern bool is_size_safe_to_change(struct cifsInodeInfo *, __u64 eof);
 extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *, bool);
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 extern struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *, bool);
-#endif
 extern unsigned int smbCalcSize(struct smb_hdr *ptr);
 extern unsigned int smbCalcSize_LE(struct smb_hdr *ptr);
 extern int decode_negTokenInit(unsigned char *security_blob, int length,
