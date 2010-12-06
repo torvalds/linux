@@ -226,6 +226,53 @@ static struct platform_device rk29_vpu_mem_device = {
 	},
 };
 
+
+/*HANNSTAR_P1003 touch*/
+#if defined (CONFIG_HANNSTAR_P1003)
+#define TOUCH_POWER_PIN RK29_PIN6_PD2
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+
+int p1003_init_platform_hw(void)
+{
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("p1003_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_POWER_PIN,NULL) != 0){
+      gpio_free(TOUCH_POWER_PIN);
+      printk("p1003_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("p1003_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+    gpio_pull_updown(TOUCH_INT_PIN, 1);
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    gpio_direction_output(TOUCH_POWER_PIN, 1);
+    gpio_set_value(TOUCH_POWER_PIN,GPIO_HIGH);
+    mdelay(500);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    mdelay(500);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+  
+    return 0;
+}
+
+
+struct p1003_platform_data p1003_info = {
+  .model= 1003,
+  .init_platform_hw= p1003_init_platform_hw,
+  
+};
+#endif
+
+
 /*****************************************************************************************
  * i2c devices
  * author: kfx@rock-chips.com
@@ -371,6 +418,15 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 
 #ifdef CONFIG_I2C2_RK29
 static struct i2c_board_info __initdata board_i2c2_devices[] = {
+#if defined (CONFIG_HANNSTAR_P1003)
+    {
+      .type           = "p1003_touch",
+      .addr           = 0x04,
+      .flags          = 0,
+      .irq            = RK29_PIN0_PA2,
+      .platform_data  = &p1003_info,
+    },
+#endif
 };
 #endif
 

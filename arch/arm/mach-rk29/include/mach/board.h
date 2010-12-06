@@ -105,6 +105,17 @@ struct rk29_i2s_platform_data {
 	int (*io_deinit)(void);
 };
 
+/*p1003 touch */
+struct p1003_platform_data {
+    u16     model;
+
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*p1003_platform_sleep)(void);
+    int     (*p1003_platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+
 void __init rk29_map_common_io(void);
 void __init rk29_clock_init(void);
 
