@@ -229,7 +229,20 @@ static inline void efx_readd_table(struct efx_nic *efx, efx_dword_t *value,
 static inline void _efx_writeo_page(struct efx_nic *efx, efx_oword_t *value,
 				    unsigned int reg, unsigned int page)
 {
-	efx_writeo(efx, value, EFX_PAGED_REG(page, reg));
+	reg = EFX_PAGED_REG(page, reg);
+
+	netif_vdbg(efx, hw, efx->net_dev,
+		   "writing register %x with " EFX_OWORD_FMT "\n", reg,
+		   EFX_OWORD_VAL(*value));
+
+#ifdef EFX_USE_QWORD_IO
+	_efx_writeq(efx, value->u64[0], reg + 0);
+#else
+	_efx_writed(efx, value->u32[0], reg + 0);
+	_efx_writed(efx, value->u32[1], reg + 4);
+#endif
+	_efx_writed(efx, value->u32[2], reg + 8);
+	_efx_writed(efx, value->u32[3], reg + 12);
 }
 #define efx_writeo_page(efx, value, reg, page)				\
 	_efx_writeo_page(efx, value,					\
