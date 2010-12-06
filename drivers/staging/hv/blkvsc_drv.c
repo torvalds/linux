@@ -1487,7 +1487,7 @@ static int __init blkvsc_init(void)
 
 	DPRINT_INFO(BLKVSC_DRV, "Blkvsc initializing....");
 
-	ret = blkvsc_drv_init(BlkVscInitialize);
+	ret = blkvsc_drv_init(blk_vsc_initialize);
 
 	return ret;
 }

@@ -605,7 +605,7 @@ static int StorVscOnDeviceRemove(struct hv_device *Device)
 	return 0;
 }
 
-int StorVscOnHostReset(struct hv_device *Device)
+int stor_vsc_on_host_reset(struct hv_device *Device)
 {
 	struct storvsc_device *storDevice;
 	struct storvsc_request_extension *request;
@@ -762,9 +762,9 @@ static void StorVscOnCleanup(struct hv_driver *Driver)
 }
 
 /*
- * StorVscInitialize - Main entry point
+ * stor_vsc_initialize - Main entry point
  */
-int StorVscInitialize(struct hv_driver *Driver)
+int stor_vsc_initialize(struct hv_driver *Driver)
 {
 	struct storvsc_driver_object *storDriver;
 

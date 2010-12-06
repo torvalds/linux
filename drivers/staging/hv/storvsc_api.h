@@ -103,8 +103,8 @@ struct storvsc_device_info {
 };
 
 /* Interface */
-int StorVscInitialize(struct hv_driver *driver);
-int StorVscOnHostReset(struct hv_device *device);
-int BlkVscInitialize(struct hv_driver *driver);
+int stor_vsc_initialize(struct hv_driver *driver);
+int stor_vsc_on_host_reset(struct hv_device *device);
+int blk_vsc_initialize(struct hv_driver *driver);
 
 #endif /* _STORVSC_API_H_ */

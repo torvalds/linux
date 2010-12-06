@@ -62,7 +62,7 @@ static int BlkVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	return ret;
 }
 
-int BlkVscInitialize(struct hv_driver *Driver)
+int blk_vsc_initialize(struct hv_driver *Driver)
 {
 	struct storvsc_driver_object *storDriver;
 	int ret = 0;

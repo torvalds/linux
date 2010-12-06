@@ -844,7 +844,7 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 		    scmnd->device, &device_ctx->device_obj);
 
 	/* Invokes the vsc to reset the host/bus */
-	ret = StorVscOnHostReset(&device_ctx->device_obj);
+	ret = stor_vsc_on_host_reset(&device_ctx->device_obj);
 	if (ret != 0)
 		return ret;
 
@@ -939,7 +939,7 @@ static int __init storvsc_init(void)
 	int ret;
 
 	DPRINT_INFO(STORVSC_DRV, "Storvsc initializing....");
-	ret = storvsc_drv_init(StorVscInitialize);
+	ret = storvsc_drv_init(stor_vsc_initialize);
 	return ret;
 }
 
