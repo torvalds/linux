@@ -4,6 +4,8 @@
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/video.h>
+#include <acpi/acpi.h>
+#include <linux/mxm-wmi.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -92,6 +94,7 @@ static int nouveau_dsm(acpi_handle handle, int func, int arg, uint32_t *result)
 
 static int nouveau_dsm_switch_mux(acpi_handle handle, int mux_id)
 {
+	mxm_wmi_call_mxds(mux_id == NOUVEAU_DSM_LED_STAMINA ? MXM_MXDS_ADAPTER_IGD : MXM_MXDS_ADAPTER_0);
 	return nouveau_dsm(handle, NOUVEAU_DSM_LED, mux_id, NULL);
 }
 
@@ -180,6 +183,14 @@ static bool nouveau_dsm_detect(void)
 	struct pci_dev *pdev = NULL;
 	int has_dsm = 0;
 	int vga_count = 0;
+	bool guid_valid;
+
+	/* lookup the GUID */
+	guid_valid = mxm_wmi_supported();
+	if (!guid_valid)
+		return false;
+
+	printk("MXM GUID detected in BIOS\n");
 
 	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev)) != NULL) {
 		vga_count++;
