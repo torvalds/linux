@@ -4260,23 +4260,27 @@ static int ar9003_hw_power_control_override(struct ath_hw *ah,
 	REG_RMW(ah, AR_PHY_TPC_11_B0,
 		(correction[0] << AR_PHY_TPC_OLPC_GAIN_DELTA_S),
 		AR_PHY_TPC_OLPC_GAIN_DELTA);
-	REG_RMW(ah, AR_PHY_TPC_11_B1,
-		(correction[1] << AR_PHY_TPC_OLPC_GAIN_DELTA_S),
-		AR_PHY_TPC_OLPC_GAIN_DELTA);
-	REG_RMW(ah, AR_PHY_TPC_11_B2,
-		(correction[2] << AR_PHY_TPC_OLPC_GAIN_DELTA_S),
-		AR_PHY_TPC_OLPC_GAIN_DELTA);
+	if (ah->caps.tx_chainmask & BIT(1))
+		REG_RMW(ah, AR_PHY_TPC_11_B1,
+			(correction[1] << AR_PHY_TPC_OLPC_GAIN_DELTA_S),
+			AR_PHY_TPC_OLPC_GAIN_DELTA);
+	if (ah->caps.tx_chainmask & BIT(2))
+		REG_RMW(ah, AR_PHY_TPC_11_B2,
+			(correction[2] << AR_PHY_TPC_OLPC_GAIN_DELTA_S),
+			AR_PHY_TPC_OLPC_GAIN_DELTA);
 
 	/* enable open loop power control on chip */
 	REG_RMW(ah, AR_PHY_TPC_6_B0,
 		(3 << AR_PHY_TPC_6_ERROR_EST_MODE_S),
 		AR_PHY_TPC_6_ERROR_EST_MODE);
-	REG_RMW(ah, AR_PHY_TPC_6_B1,
-		(3 << AR_PHY_TPC_6_ERROR_EST_MODE_S),
-		AR_PHY_TPC_6_ERROR_EST_MODE);
-	REG_RMW(ah, AR_PHY_TPC_6_B2,
-		(3 << AR_PHY_TPC_6_ERROR_EST_MODE_S),
-		AR_PHY_TPC_6_ERROR_EST_MODE);
+	if (ah->caps.tx_chainmask & BIT(1))
+		REG_RMW(ah, AR_PHY_TPC_6_B1,
+			(3 << AR_PHY_TPC_6_ERROR_EST_MODE_S),
+			AR_PHY_TPC_6_ERROR_EST_MODE);
+	if (ah->caps.tx_chainmask & BIT(2))
+		REG_RMW(ah, AR_PHY_TPC_6_B2,
+			(3 << AR_PHY_TPC_6_ERROR_EST_MODE_S),
+			AR_PHY_TPC_6_ERROR_EST_MODE);
 
 	/*
 	 * enable temperature compensation
