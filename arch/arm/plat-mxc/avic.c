@@ -24,6 +24,8 @@
 #include <asm/mach/irq.h>
 #include <mach/hardware.h>
 
+#include "irq-common.h"
+
 #define AVIC_INTCNTL		0x00	/* int control reg */
 #define AVIC_NIMASK		0x04	/* int mask reg */
 #define AVIC_INTENNUM		0x08	/* int enable number reg */
@@ -46,9 +48,9 @@
 
 void __iomem *avic_base;
 
-int imx_irq_set_priority(unsigned char irq, unsigned char prio)
-{
 #ifdef CONFIG_MXC_IRQ_PRIOR
+static int avic_irq_set_priority(unsigned char irq, unsigned char prio)
+{
 	unsigned int temp;
 	unsigned int mask = 0x0F << irq % 8 * 4;
 
@@ -62,14 +64,11 @@ int imx_irq_set_priority(unsigned char irq, unsigned char prio)
 	__raw_writel(temp, avic_base + AVIC_NIPRIORITY(irq / 8));
 
 	return 0;
-#else
-	return -ENOSYS;
-#endif
 }
-EXPORT_SYMBOL(imx_irq_set_priority);
+#endif
 
 #ifdef CONFIG_FIQ
-int mxc_set_irq_fiq(unsigned int irq, unsigned int type)
+static int avic_set_irq_fiq(unsigned int irq, unsigned int type)
 {
 	unsigned int irqt;
 
@@ -87,7 +86,6 @@ int mxc_set_irq_fiq(unsigned int irq, unsigned int type)
 
 	return 0;
 }
-EXPORT_SYMBOL(mxc_set_irq_fiq);
 #endif /* CONFIG_FIQ */
 
 /* Disable interrupt number "irq" in the AVIC */
@@ -102,10 +100,18 @@ static void mxc_unmask_irq(unsigned int irq)
 	__raw_writel(irq, avic_base + AVIC_INTENNUM);
 }
 
-static struct irq_chip mxc_avic_chip = {
-	.ack = mxc_mask_irq,
-	.mask = mxc_mask_irq,
-	.unmask = mxc_unmask_irq,
+static struct mxc_irq_chip mxc_avic_chip = {
+	.base = {
+		.ack = mxc_mask_irq,
+		.mask = mxc_mask_irq,
+		.unmask = mxc_unmask_irq,
+	},
+#ifdef CONFIG_MXC_IRQ_PRIOR
+	.set_priority = avic_irq_set_priority,
+#endif
+#ifdef CONFIG_FIQ
+	.set_irq_fiq = avic_set_irq_fiq,
+#endif
 };
 
 /*
@@ -133,7 +139,7 @@ void __init mxc_init_irq(void __iomem *irqbase)
 	__raw_writel(0, avic_base + AVIC_INTTYPEH);
 	__raw_writel(0, avic_base + AVIC_INTTYPEL);
 	for (i = 0; i < MXC_INTERNAL_IRQS; i++) {
-		set_irq_chip(i, &mxc_avic_chip);
+		set_irq_chip(i, &mxc_avic_chip.base);
 		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
