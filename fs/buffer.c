@@ -3201,7 +3201,7 @@ static void recalc_bh_state(void)
 	int i;
 	int tot = 0;
 
-	if (__get_cpu_var(bh_accounting).ratelimit++ < 4096)
+	if (__this_cpu_inc_return(bh_accounting.ratelimit) - 1 < 4096)
 		return;
 	__this_cpu_write(bh_accounting.ratelimit, 0);
 	for_each_online_cpu(i)
