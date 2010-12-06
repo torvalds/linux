@@ -3476,6 +3476,14 @@ static void hub_events(void)
 				clear_port_feature(hdev, i,
 					USB_PORT_FEAT_C_RESET);
 			}
+			if ((portchange & USB_PORT_STAT_C_BH_RESET) &&
+					hub_is_superspeed(hub->hdev)) {
+				dev_dbg(hub_dev,
+					"warm reset change on port %d\n",
+					i);
+				clear_port_feature(hdev, i,
+					USB_PORT_FEAT_C_BH_PORT_RESET);
+			}
 			if (portchange & USB_PORT_STAT_C_LINK_STATE) {
 				clear_port_feature(hub->hdev, i,
 						USB_PORT_FEAT_C_PORT_LINK_STATE);
