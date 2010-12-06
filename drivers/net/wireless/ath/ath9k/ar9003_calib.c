@@ -606,11 +606,6 @@ static void ar9003_hw_tx_iq_cal(struct ath_hw *ah)
 		AR_PHY_TX_IQCAL_STATUS_B1,
 		AR_PHY_TX_IQCAL_STATUS_B2,
 	};
-	static const u32 tx_corr_coeff[AR9300_MAX_CHAINS] = {
-		AR_PHY_TX_IQCAL_CORR_COEFF_01_B0,
-		AR_PHY_TX_IQCAL_CORR_COEFF_01_B1,
-		AR_PHY_TX_IQCAL_CORR_COEFF_01_B2,
-	};
 	static const u32 rx_corr[AR9300_MAX_CHAINS] = {
 		AR_PHY_RX_IQCAL_CORR_B0,
 		AR_PHY_RX_IQCAL_CORR_B1,
@@ -621,10 +616,15 @@ static void ar9003_hw_tx_iq_cal(struct ath_hw *ah)
 		AR_PHY_CHAN_INFO_TAB_1,
 		AR_PHY_CHAN_INFO_TAB_2,
 	};
+	u32 tx_corr_coeff[AR9300_MAX_CHAINS];
 	s32 iq_res[6];
 	s32 iqc_coeff[2];
 	s32 i, j;
 	u32 num_chains = 0;
+
+	tx_corr_coeff[0] = AR_PHY_TX_IQCAL_CORR_COEFF_B0(0);
+	tx_corr_coeff[1] = AR_PHY_TX_IQCAL_CORR_COEFF_B1(0);
+	tx_corr_coeff[2] = AR_PHY_TX_IQCAL_CORR_COEFF_B2(0);
 
 	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
 		if (ah->txchainmask & (1 << i))

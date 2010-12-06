@@ -549,7 +549,9 @@
 #define AR_PHY_TX_IQCAL_CONTROL_1   (AR_SM_BASE + 0x448)
 #define AR_PHY_TX_IQCAL_START       (AR_SM_BASE + 0x440)
 #define AR_PHY_TX_IQCAL_STATUS_B0   (AR_SM_BASE + 0x48c)
-#define AR_PHY_TX_IQCAL_CORR_COEFF_01_B0    (AR_SM_BASE + 0x450)
+#define AR_PHY_TX_IQCAL_CORR_COEFF_B0(_i)    (AR_SM_BASE + \
+					     (AR_SREV_9485(ah) ? \
+					      0x3d0 : 0x450) + ((_i) << 2))
 
 #define AR_PHY_WATCHDOG_STATUS      (AR_SM_BASE + 0x5c0)
 #define AR_PHY_WATCHDOG_CTL_1       (AR_SM_BASE + 0x5c4)
@@ -813,7 +815,7 @@
 #define AR_PHY_TPC_11_B1         (AR_SM1_BASE + 0x220)
 #define AR_PHY_PDADC_TAB_1       (AR_SM1_BASE + 0x240)
 #define AR_PHY_TX_IQCAL_STATUS_B1   (AR_SM1_BASE + 0x48c)
-#define AR_PHY_TX_IQCAL_CORR_COEFF_01_B1    (AR_SM1_BASE + 0x450)
+#define AR_PHY_TX_IQCAL_CORR_COEFF_B1(_i)    (AR_SM_BASE + 0x450 + ((_i) << 2))
 
 /*
  * Channel 2 Register Map
@@ -866,7 +868,7 @@
 #define AR_PHY_TPC_11_B2         (AR_SM2_BASE + 0x220)
 #define AR_PHY_PDADC_TAB_2       (AR_SM2_BASE + 0x240)
 #define AR_PHY_TX_IQCAL_STATUS_B2   (AR_SM2_BASE + 0x48c)
-#define AR_PHY_TX_IQCAL_CORR_COEFF_01_B2    (AR_SM2_BASE + 0x450)
+#define AR_PHY_TX_IQCAL_CORR_COEFF_B2(_i)    (AR_SM2_BASE + 0x450 + ((_i) << 2))
 
 #define AR_PHY_TX_IQCAL_STATUS_B2_FAILED    0x00000001
 
