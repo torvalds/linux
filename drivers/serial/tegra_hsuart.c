@@ -43,6 +43,7 @@
 #include <linux/workqueue.h>
 #include <mach/dma.h>
 #include <mach/clk.h>
+#include <mach/tegra_hsuart.h>
 
 #define TX_EMPTY_STATUS (UART_LSR_TEMT | UART_LSR_THRE)
 
@@ -118,6 +119,10 @@ struct tegra_uart_port {
 
 	bool			rx_timeout;
 	int			rx_in_progress;
+
+	/* optional callback to exit low power mode */
+	void (*exit_lpm_cb)(struct uart_port *);
+
 };
 
 static inline u8 uart_readb(struct tegra_uart_port *t, unsigned long reg)
@@ -237,6 +242,9 @@ static void tegra_start_tx(struct uart_port *u)
 
 	t = container_of(u, struct tegra_uart_port, uport);
 	xmit = &u->state->xmit;
+
+	if (t->exit_lpm_cb)
+		t->exit_lpm_cb(u);
 
 	if (!uart_circ_empty(xmit) && !t->tx_in_progress)
 		tegra_start_next_tx(t);
@@ -1223,6 +1231,7 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	struct tegra_uart_port *t;
 	struct uart_port *u;
 	struct resource *resource;
+	struct tegra_hsuart_platform_data *pdata = pdev->dev.platform_data;
 	int ret;
 	char name[64];
 	if (pdev->id < 0 || pdev->id > tegra_uart_driver.nr) {
@@ -1257,6 +1266,9 @@ static int tegra_uart_probe(struct platform_device *pdev)
 		return -ENXIO;
 
 	u->regshift = 2;
+
+	if (pdata)
+		t->exit_lpm_cb = pdata->exit_lpm_cb;
 
 	t->clk = clk_get(&pdev->dev, NULL);
 	if (!t->clk) {
