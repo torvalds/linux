@@ -42,7 +42,7 @@ static int BlkVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 
 	deviceInfo = (struct storvsc_device_info *)AdditionalInfo;
 
-	ret = StorVscOnDeviceAdd(Device, AdditionalInfo);
+	ret = stor_vsc_on_device_add(Device, AdditionalInfo);
 	if (ret != 0)
 		return ret;
 
@@ -94,9 +94,9 @@ int blk_vsc_initialize(struct hv_driver *Driver)
 
 	/* Setup the dispatch table */
 	storDriver->base.OnDeviceAdd = BlkVscOnDeviceAdd;
-	storDriver->base.OnDeviceRemove = StorVscOnDeviceRemove;
-	storDriver->base.OnCleanup = StorVscOnCleanup;
-	storDriver->on_io_request = StorVscOnIORequest;
+	storDriver->base.OnDeviceRemove = stor_vsc_on_device_remove;
+	storDriver->base.OnCleanup = stor_vsc_on_cleanup;
+	storDriver->on_io_request = stor_vsc_on_io_request;
 
 	return ret;
 }
