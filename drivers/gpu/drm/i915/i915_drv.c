@@ -271,6 +271,8 @@ static int i915_drm_freeze(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	drm_kms_helper_poll_disable(dev);
+
 	pci_save_state(dev->pdev);
 
 	/* If KMS is active, we do the leavevt stuff here */
@@ -307,7 +309,9 @@ int i915_suspend(struct drm_device *dev, pm_message_t state)
 	if (state.event == PM_EVENT_PRETHAW)
 		return 0;
 
-	drm_kms_helper_poll_disable(dev);
+
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+		return 0;
 
 	error = i915_drm_freeze(dev);
 	if (error)
@@ -360,6 +364,9 @@ static int i915_drm_thaw(struct drm_device *dev)
 int i915_resume(struct drm_device *dev)
 {
 	int ret;
+
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+		return 0;
 
 	if (pci_enable_device(dev->pdev))
 		return -EIO;
@@ -568,6 +575,9 @@ static int i915_pm_suspend(struct device *dev)
 		dev_err(dev, "DRM not initialized, aborting suspend.\n");
 		return -ENODEV;
 	}
+
+	if (drm_dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+		return 0;
 
 	error = i915_drm_freeze(drm_dev);
 	if (error)

@@ -1121,8 +1121,12 @@ struct drm_device {
 	spinlock_t object_name_lock;
 	struct idr object_name_idr;
 	/*@} */
-
+	int switch_power_state;
 };
+
+#define DRM_SWITCH_POWER_ON 0
+#define DRM_SWITCH_POWER_OFF 1
+#define DRM_SWITCH_POWER_CHANGING 2
 
 static __inline__ int drm_core_check_feature(struct drm_device *dev,
 					     int feature)

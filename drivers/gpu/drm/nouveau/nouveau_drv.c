@@ -171,6 +171,9 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	if (pm_state.event == PM_EVENT_PRETHAW)
 		return 0;
 
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+		return 0;
+
 	NV_INFO(dev, "Disabling fbcon acceleration...\n");
 	nouveau_fbcon_save_disable_accel(dev);
 
@@ -253,6 +256,9 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	struct nouveau_engine *engine = &dev_priv->engine;
 	struct drm_crtc *crtc;
 	int ret, i;
+
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+		return 0;
 
 	nouveau_fbcon_save_disable_accel(dev);
 

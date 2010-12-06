@@ -1167,7 +1167,6 @@ struct radeon_device {
 	uint8_t			audio_status_bits;
 	uint8_t			audio_category_code;
 
-	bool powered_down;
 	struct notifier_block acpi_nb;
 	/* only one userspace can use Hyperz features at a time */
 	struct drm_file *hyperz_filp;

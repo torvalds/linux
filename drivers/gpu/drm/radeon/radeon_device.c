@@ -642,20 +642,20 @@ void radeon_check_arguments(struct radeon_device *rdev)
 static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
-	struct radeon_device *rdev = dev->dev_private;
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 	if (state == VGA_SWITCHEROO_ON) {
 		printk(KERN_INFO "radeon: switched on\n");
 		/* don't suspend or resume card normally */
-		rdev->powered_down = false;
+		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		radeon_resume_kms(dev);
+		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 		drm_kms_helper_poll_enable(dev);
 	} else {
 		printk(KERN_INFO "radeon: switched off\n");
 		drm_kms_helper_poll_disable(dev);
+		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		radeon_suspend_kms(dev, pmm);
-		/* don't suspend or resume card normally */
-		rdev->powered_down = true;
+		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
 
@@ -842,7 +842,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	}
 	rdev = dev->dev_private;
 
-	if (rdev->powered_down)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
 	/* turn off display hw */
@@ -900,7 +900,7 @@ int radeon_resume_kms(struct drm_device *dev)
 	struct drm_connector *connector;
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (rdev->powered_down)
+	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
 	acquire_console_sem();
