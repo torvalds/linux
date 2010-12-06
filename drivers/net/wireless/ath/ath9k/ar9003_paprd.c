@@ -21,10 +21,12 @@ void ar9003_paprd_enable(struct ath_hw *ah, bool val)
 {
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL0_B0,
 		      AR_PHY_PAPRD_CTRL0_PAPRD_ENABLE, !!val);
-	REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL0_B1,
-		      AR_PHY_PAPRD_CTRL0_PAPRD_ENABLE, !!val);
-	REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL0_B2,
-		      AR_PHY_PAPRD_CTRL0_PAPRD_ENABLE, !!val);
+	if (ah->caps.tx_chainmask & BIT(1))
+		REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL0_B1,
+			      AR_PHY_PAPRD_CTRL0_PAPRD_ENABLE, !!val);
+	if (ah->caps.tx_chainmask & BIT(2))
+		REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL0_B2,
+			      AR_PHY_PAPRD_CTRL0_PAPRD_ENABLE, !!val);
 }
 EXPORT_SYMBOL(ar9003_paprd_enable);
 
@@ -57,7 +59,8 @@ static void ar9003_paprd_setup_single_table(struct ath_hw *ah)
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_AM2PM, AR_PHY_PAPRD_AM2PM_MASK, am_mask);
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_HT40, AR_PHY_PAPRD_HT40_MASK, ht40_mask);
 
-	for (i = 0; i < 3; i++) {
+
+	for (i = 0; i < ah->caps.max_txchains; i++) {
 		REG_RMW_FIELD(ah, ctrl0[i],
 			      AR_PHY_PAPRD_CTRL0_USE_SINGLE_TABLE_MASK, 1);
 		REG_RMW_FIELD(ah, ctrl1[i],
@@ -102,8 +105,14 @@ static void ar9003_paprd_setup_single_table(struct ath_hw *ah)
 		      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_NUM_CORR_STAGES, 7);
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
 		      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_MIN_LOOPBACK_DEL, 1);
-	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
-		      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_QUICK_DROP, -6);
+	if (AR_SREV_9485(ah))
+		REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
+			      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_QUICK_DROP,
+			      -3);
+	else
+		REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
+			      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_QUICK_DROP,
+			      -6);
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_TRAINER_CNTL3,
 		      AR_PHY_PAPRD_TRAINER_CNTL3_CF_PAPRD_ADC_DESIRED_SIZE,
 		      -15);
@@ -620,13 +629,15 @@ void ar9003_paprd_populate_single_table(struct ath_hw *ah,
 		      AR_PHY_PAPRD_CTRL1_PAPRD_POWER_AT_AM2AM_CAL,
 		      training_power);
 
-	REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL1_B1,
-		      AR_PHY_PAPRD_CTRL1_PAPRD_POWER_AT_AM2AM_CAL,
-		      training_power);
+	if (ah->caps.tx_chainmask & BIT(1))
+		REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL1_B1,
+			      AR_PHY_PAPRD_CTRL1_PAPRD_POWER_AT_AM2AM_CAL,
+			      training_power);
 
-	REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL1_B2,
-		      AR_PHY_PAPRD_CTRL1_PAPRD_POWER_AT_AM2AM_CAL,
-		      training_power);
+	if (ah->caps.tx_chainmask & BIT(2))
+		REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL1_B2,
+			      AR_PHY_PAPRD_CTRL1_PAPRD_POWER_AT_AM2AM_CAL,
+			      training_power);
 }
 EXPORT_SYMBOL(ar9003_paprd_populate_single_table);
 
