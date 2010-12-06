@@ -102,13 +102,8 @@ static void write_bulk_callback(struct urb *urb/*, struct pt_regs *regs*/)
 	}
 
 err_exit :
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
- 	usb_buffer_free(urb->dev, urb->transfer_buffer_length,
- 			urb->transfer_buffer, urb->transfer_dma);
-#else
 	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
  			urb->transfer_buffer, urb->transfer_dma);
-#endif
 }
 
 
@@ -139,14 +134,8 @@ static int TransmitTcb(PS_INTERFACE_ADAPTER psIntfAdapter, PUSB_TCB pTcb, PVOID 
 	struct urb *urb = pTcb->urb;
 	int retval = 0;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
- 	urb->transfer_buffer = usb_buffer_alloc(psIntfAdapter->udev, len,
- 						GFP_ATOMIC, &urb->transfer_dma);
-#else
 	urb->transfer_buffer = usb_alloc_coherent(psIntfAdapter->udev, len,
  						GFP_ATOMIC, &urb->transfer_dma);
-#endif
-
 	if (!urb->transfer_buffer)
 	{
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter,DBG_TYPE_PRINTK, 0, 0, "Error allocating memory\n");

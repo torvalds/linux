@@ -35,9 +35,7 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <asm/uaccess.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 #include <linux/kthread.h>
-#endif
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/usb.h>

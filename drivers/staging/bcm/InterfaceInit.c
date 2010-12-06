@@ -235,25 +235,14 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 #ifdef CONFIG_PM
 			udev->autosuspend_delay = 0;
 			intf->needs_remote_wakeup = 1;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
-			udev->autosuspend_disabled = 0;
-#else
 			usb_enable_autosuspend(udev);
-#endif
 			device_init_wakeup(&intf->dev, 1);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
-			usb_autopm_disable(intf);
-#endif
 			INIT_WORK(&psIntfAdapter->usbSuspendWork, putUsbSuspend);
 			BCM_DEBUG_PRINT(psAdapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL, "Enabling USB Auto-Suspend\n");
 #endif
 		} else {
 			intf->needs_remote_wakeup = 0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 35)
-			udev->autosuspend_disabled = 1;
-#else
 			usb_disable_autosuspend(udev);
-#endif
 		}
 	}
 
@@ -633,9 +622,7 @@ static int InterfaceResume(struct usb_interface *intf)
 	PS_INTERFACE_ADAPTER  psIntfAdapter = usb_get_intfdata(intf);
 	printk("=================================\n");
 	mdelay(100);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
-	intf->pm_usage_cnt =1 ;
-#endif
+
 	psIntfAdapter->bSuspended = FALSE;
 
 	StartInterruptUrb(psIntfAdapter);

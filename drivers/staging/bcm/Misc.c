@@ -233,9 +233,7 @@ static int BcmFileDownload(PMINI_ADAPTER Adapter,/**< Logical Adapter */
         goto exit_download;
     }
     oldfs=get_fs();set_fs(get_ds());
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     vfs_llseek(flp, 0, 0);
-#endif
     set_fs(oldfs);
     if(Adapter->bcm_file_readback_from_chip(Adapter->pvInterfaceAdapter,
 										flp, loc))
