@@ -24,6 +24,7 @@ static bool ar9003_hw_macversion_supported(u32 macversion)
 {
 	switch (macversion) {
 	case AR_SREV_VERSION_9300:
+	case AR_SREV_VERSION_9485:
 		return true;
 	default:
 		break;
