@@ -2154,8 +2154,9 @@ static int i915_ring_idle(struct drm_device *dev,
 	if (list_empty(&ring->gpu_write_list) && list_empty(&ring->active_list))
 		return 0;
 
-	i915_gem_flush_ring(dev, ring,
-			    I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
+	if (!list_empty(&ring->gpu_write_list))
+		i915_gem_flush_ring(dev, ring,
+				    I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
 	return i915_wait_request(dev,
 				 i915_gem_next_request_seqno(dev, ring),
 				 ring);
