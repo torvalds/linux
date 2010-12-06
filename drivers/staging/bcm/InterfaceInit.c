@@ -658,9 +658,8 @@ static __init int bcm_init(void)
 
 static __exit void bcm_exit(void)
 {
-	class_destroy(bcm_class);
-
 	usb_deregister(&usbbcm_driver);
+	class_destroy(bcm_class);
 }
 
 module_init(bcm_init);
