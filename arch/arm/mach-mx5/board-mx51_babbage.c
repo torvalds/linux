@@ -387,6 +387,7 @@ static void __init mxc_board_init(void)
 	spi_register_board_info(mx51_babbage_spi_board_info,
 		ARRAY_SIZE(mx51_babbage_spi_board_info));
 	imx51_add_ecspi(0, &mx51_babbage_spi_pdata);
+	imx51_add_imx2_wdt(0, NULL);
 }
 
 static void __init mx51_babbage_timer_init(void)
