@@ -721,7 +721,9 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	val = REG_READ(ah, AR_ENT_OTP);
 	ath_dbg(common, ATH_DBG_CALIBRATE, "ath9k: AR_ENT_OTP 0x%x\n", val);
 
-	if (val & AR_ENT_OTP_CHAIN2_DISABLE)
+	if (AR_SREV_9485(ah))
+		ar9003_hw_set_chain_masks(ah, 0x1, 0x1);
+	else if (val & AR_ENT_OTP_CHAIN2_DISABLE)
 		ar9003_hw_set_chain_masks(ah, 0x3, 0x3);
 	else
 		/*
