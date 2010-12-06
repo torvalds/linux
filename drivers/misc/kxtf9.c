@@ -1209,14 +1209,15 @@ static int __devexit kxtf9_remove(struct i2c_client *client)
 
 static int kxtf9_resume(struct i2c_client *client)
 {
-	int err = -1 ;
+	int err;
 	struct kxtf9_data *tf9 = i2c_get_clientdata(client);
-	if(tf9->enabled_b4_suspend != 0) {
-		err = kxtf9_enable(tf9);
-		if(!err) {
-			err = kxtf9_update_odr(tf9,tf9->pdata->poll_interval);
-		}
-	}
+	if(!tf9->enabled_b4_suspend)
+		return 0;
+
+	err = kxtf9_enable(tf9);
+	if(err)
+		return err;
+	err = kxtf9_update_odr(tf9,tf9->pdata->poll_interval);
 	return err;
 }
 
