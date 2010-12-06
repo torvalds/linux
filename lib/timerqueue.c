@@ -24,6 +24,7 @@
 
 #include <linux/timerqueue.h>
 #include <linux/rbtree.h>
+#include <linux/module.h>
 
 /**
  * timerqueue_add - Adds timer to timerqueue.
@@ -57,6 +58,7 @@ void timerqueue_add(struct timerqueue_head *head, struct timerqueue_node *node)
 	if (!head->next || node->expires.tv64 < head->next->expires.tv64)
 		head->next = node;
 }
+EXPORT_SYMBOL_GPL(timerqueue_add);
 
 /**
  * timerqueue_del - Removes a timer from the timerqueue.
@@ -80,7 +82,7 @@ void timerqueue_del(struct timerqueue_head *head, struct timerqueue_node *node)
 	rb_erase(&node->node, &head->head);
 	RB_CLEAR_NODE(&node->node);
 }
-
+EXPORT_SYMBOL_GPL(timerqueue_del);
 
 /**
  * timerqueue_getnext - Returns the timer with the earlies expiration time
@@ -94,7 +96,7 @@ struct timerqueue_node *timerqueue_getnext(struct timerqueue_head *head)
 {
 	return head->next;
 }
-
+EXPORT_SYMBOL_GPL(timerqueue_getnext);
 
 /**
  * timerqueue_iterate_next - Returns the timer after the provided timer
@@ -116,3 +118,4 @@ struct timerqueue_node *timerqueue_iterate_next(struct timerqueue_node *node)
 		return NULL;
 	return container_of(next, struct timerqueue_node, node);
 }
+EXPORT_SYMBOL_GPL(timerqueue_iterate_next);
