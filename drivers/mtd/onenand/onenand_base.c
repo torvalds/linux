@@ -2492,7 +2492,8 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	/* Grab the lock and see if the device is available */
 	onenand_get_device(mtd, FL_ERASING);
 
-	if (region || instr->len < MB_ERASE_MIN_BLK_COUNT * block_size) {
+	if (ONENAND_IS_4KB_PAGE(this) || region ||
+	    instr->len < MB_ERASE_MIN_BLK_COUNT * block_size) {
 		/* region is set for Flex-OneNAND (no mb erase) */
 		ret = onenand_block_by_block_erase(mtd, instr,
 						   region, block_size);
