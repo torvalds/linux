@@ -75,7 +75,10 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 	freq = centers.synth_center;
 
 	if (freq < 4800) {     /* 2 GHz, fractional mode */
-		channelSel = CHANSEL_2G(freq);
+		if (AR_SREV_9485(ah))
+			channelSel = CHANSEL_2G_9485(freq);
+		else
+			channelSel = CHANSEL_2G(freq);
 		/* Set to 2G mode */
 		bMode = 1;
 	} else {
