@@ -32,7 +32,7 @@
 #define VPU_MEM_MAX_ORDER 128
 #define VPU_MEM_MIN_ALLOC PAGE_SIZE
 
-#define VPU_MEM_DEBUG 0
+#define VPU_MEM_DEBUG 1
 
 #define VPU_MEM_SPLIT_ALLOC             0
 #define VPU_MEM_SPLIT_LINK              1
@@ -71,7 +71,7 @@ struct vpu_mem_region_node {
 #define NODE_REGION_INDEX(p)     (p->region.index)
 #define NODE_REGION_REFC(p)      (p->region.ref_count)
 
-#define VPU_MEM_DEBUG_MSGS 0
+#define VPU_MEM_DEBUG_MSGS 1
 #if VPU_MEM_DEBUG_MSGS
 #define DLOG(fmt,args...) \
 	do { printk(KERN_INFO "[%s:%s:%d] "fmt, __FILE__, __func__, __LINE__, \
@@ -337,15 +337,22 @@ static int region_merge(struct list_head *node)
         region_unset(index,  pfn_index);
         region_unset(target, pfn_target);
         region_set(index, pfn_total);
+    } else {
+        DLOG("region_merge: merge NEXT_INDEX fail index_avail(%d) = %d IS_FREE = %d\n",
+            target, index_avail(target), VPU_MEM_IS_FREE(target));
     }
-    target = VPU_MEM_LAST_INDEX(index);
+    target = index - 1;
     if (index_avail(target) && VPU_MEM_IS_FREE(target)) {
         int pfn_target  = VPU_MEM_PFN(target);
         int pfn_index   = VPU_MEM_PFN(index);
         int pfn_total   = pfn_target + pfn_index;
+        target = VPU_MEM_LAST_INDEX(index);
         region_unset(index,  pfn_index);
         region_unset(target, pfn_target);
-        region_set(index, pfn_total);
+        region_set(target, pfn_total);
+    } else {
+        DLOG("region_merge: merge LAST_INDEX fail index_avail(%d) = %d IS_FREE = %d\n",
+            target, index_avail(target), VPU_MEM_IS_FREE(target));
     }
     return 0;
 }
