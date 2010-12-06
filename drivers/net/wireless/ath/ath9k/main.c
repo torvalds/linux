@@ -1179,6 +1179,9 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	pm_qos_update_request(&sc->pm_qos_req, 55);
 
+	if (ah->caps.pcie_lcr_extsync_en && common->bus_ops->extn_synch_en)
+		common->bus_ops->extn_synch_en(common);
+
 mutex_unlock:
 	mutex_unlock(&sc->mutex);
 

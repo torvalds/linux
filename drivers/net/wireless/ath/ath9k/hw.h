@@ -209,6 +209,8 @@ struct ath9k_hw_capabilities {
 	u8 rx_status_len;
 	u8 tx_desc_len;
 	u8 txs_len;
+	u16 pcie_lcr_offset;
+	bool pcie_lcr_extsync_en;
 };
 
 struct ath9k_ops_config {
