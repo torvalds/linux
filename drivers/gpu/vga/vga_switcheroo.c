@@ -266,6 +266,7 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 	const char *pdev_name;
 	int i, ret;
 	bool delay = false, can_switch;
+	bool just_mux = false;
 	int client_id = -1;
 	struct vga_switcheroo_client *client = NULL;
 
@@ -320,6 +321,15 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 	if (strncmp(usercmd, "DIS", 3) == 0)
 		client_id = VGA_SWITCHEROO_DIS;
 
+	if (strncmp(usercmd, "MIGD", 3) == 0) {
+		just_mux = true;
+		client_id = VGA_SWITCHEROO_IGD;
+	}
+	if (strncmp(usercmd, "MDIS", 3) == 0) {
+		just_mux = true;
+		client_id = VGA_SWITCHEROO_DIS;
+	}
+
 	if (client_id == -1)
 		goto out;
 
@@ -331,6 +341,12 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 	}
 
 	vgasr_priv.delayed_switch_active = false;
+
+	if (just_mux) {
+		ret = vgasr_priv.handler->switchto(client_id);
+		goto out;
+	}
+
 	/* okay we want a switch - test if devices are willing to switch */
 	can_switch = true;
 	for (i = 0; i < VGA_SWITCHEROO_MAX_CLIENTS; i++) {
