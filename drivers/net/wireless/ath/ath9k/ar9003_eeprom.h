@@ -343,4 +343,5 @@ struct ar9300_eeprom {
 s32 ar9003_hw_get_tx_gain_idx(struct ath_hw *ah);
 s32 ar9003_hw_get_rx_gain_idx(struct ath_hw *ah);
 
+u8 *ar9003_get_spur_chan_ptr(struct ath_hw *ah, bool is_2ghz);
 #endif
