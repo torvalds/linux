@@ -134,21 +134,50 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 	static const u32 spur_freq[4] = { 2420, 2440, 2464, 2480 };
 	int cur_bb_spur, negative = 0, cck_spur_freq;
 	int i;
+	int range, max_spur_cnts, synth_freq;
+	u8 *spur_fbin_ptr = NULL;
 
 	/*
 	 * Need to verify range +/- 10 MHz in control channel, otherwise spur
 	 * is out-of-band and can be ignored.
 	 */
 
-	for (i = 0; i < 4; i++) {
+	if (AR_SREV_9485(ah)) {
+		spur_fbin_ptr = ar9003_get_spur_chan_ptr(ah,
+							 IS_CHAN_2GHZ(chan));
+		if (spur_fbin_ptr[0] == 0) /* No spur */
+			return;
+		max_spur_cnts = 5;
+		if (IS_CHAN_HT40(chan)) {
+			range = 19;
+			if (REG_READ_FIELD(ah, AR_PHY_GEN_CTRL,
+					   AR_PHY_GC_DYN2040_PRI_CH) == 0)
+				synth_freq = chan->channel + 10;
+			else
+				synth_freq = chan->channel - 10;
+		} else {
+			range = 10;
+			synth_freq = chan->channel;
+		}
+	} else {
+		range = 10;
+		max_spur_cnts = 4;
+		synth_freq = chan->channel;
+	}
+
+	for (i = 0; i < max_spur_cnts; i++) {
 		negative = 0;
-		cur_bb_spur = spur_freq[i] - chan->channel;
+		if (AR_SREV_9485(ah))
+			cur_bb_spur = FBIN2FREQ(spur_fbin_ptr[i],
+					IS_CHAN_2GHZ(chan)) - synth_freq;
+		else
+			cur_bb_spur = spur_freq[i] - synth_freq;
 
 		if (cur_bb_spur < 0) {
 			negative = 1;
 			cur_bb_spur = -cur_bb_spur;
 		}
-		if (cur_bb_spur < 10) {
+		if (cur_bb_spur < range) {
 			cck_spur_freq = (int)((cur_bb_spur << 19) / 11);
 
 			if (negative == 1)
