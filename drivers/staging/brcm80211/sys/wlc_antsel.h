@@ -19,7 +19,7 @@
 extern antsel_info_t *wlc_antsel_attach(struct wlc_info *wlc,
 					struct osl_info *osh,
 					wlc_pub_t *pub,
-					wlc_hw_info_t *wlc_hw);
+					struct wlc_hw_info *wlc_hw);
 extern void wlc_antsel_detach(antsel_info_t *asi);
 extern void wlc_antsel_init(antsel_info_t *asi);
 extern void wlc_antsel_antcfg_get(antsel_info_t *asi, bool usedef, bool sel,

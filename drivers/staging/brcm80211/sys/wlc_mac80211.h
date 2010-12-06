@@ -512,7 +512,7 @@ struct wlc_info {
 	struct wl_info *wl;	/* pointer to os-specific private state */
 	d11regs_t *regs;	/* pointer to device registers */
 
-	wlc_hw_info_t *hw;	/* HW related state used primarily by BMAC */
+	struct wlc_hw_info *hw;	/* HW related state used primarily by BMAC */
 
 	/* clock */
 	int clkreq_override;	/* setting for clkreq for PCIE : Auto, 0, 1 */
@@ -861,8 +861,8 @@ extern void wlc_print_txdesc(d11txh_t *txh);
 extern void wlc_print_dot11_mac_hdr(u8 *buf, int len);
 #endif
 
-extern void wlc_setxband(wlc_hw_info_t *wlc_hw, uint bandunit);
-extern void wlc_coredisable(wlc_hw_info_t *wlc_hw);
+extern void wlc_setxband(struct wlc_hw_info *wlc_hw, uint bandunit);
+extern void wlc_coredisable(struct wlc_hw_info *wlc_hw);
 
 extern bool wlc_valid_rate(struct wlc_info *wlc, ratespec_t rate, int band,
 			   bool verbose);

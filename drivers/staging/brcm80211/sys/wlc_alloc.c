@@ -187,10 +187,10 @@ struct wlc_info *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
 	}
 	wlc->pub->wlc = wlc;
 
-	/* allocate wlc_hw_info_t state structure */
+	/* allocate struct wlc_hw_info state structure */
 
-	wlc->hw = (wlc_hw_info_t *)wlc_calloc(osh, unit,
-		sizeof(wlc_hw_info_t));
+	wlc->hw = (struct wlc_hw_info *)wlc_calloc(osh, unit,
+		sizeof(struct wlc_hw_info));
 	if (wlc->hw == NULL) {
 		*err = 1005;
 		goto fail;

@@ -59,12 +59,12 @@
 
 /* PHY SHIM module specific state */
 struct wlc_phy_shim_info {
-	wlc_hw_info_t *wlc_hw;	/* pointer to main wlc_hw structure */
+	struct wlc_hw_info *wlc_hw;	/* pointer to main wlc_hw structure */
 	void *wlc;		/* pointer to main wlc structure */
 	void *wl;		/* pointer to os-specific private state */
 };
 
-wlc_phy_shim_info_t *wlc_phy_shim_attach(wlc_hw_info_t *wlc_hw,
+wlc_phy_shim_info_t *wlc_phy_shim_attach(struct wlc_hw_info *wlc_hw,
 						       void *wl, void *wlc) {
 	wlc_phy_shim_info_t *physhim = NULL;
 
