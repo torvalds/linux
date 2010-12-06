@@ -1770,9 +1770,9 @@ static void tg3_phy_eee_adjust(struct tg3 *tp, u32 current_link_up)
 
 	if (tp->link_config.autoneg == AUTONEG_ENABLE &&
 	    current_link_up == 1 &&
-	    (tp->link_config.active_speed == SPEED_1000 ||
-	     (tp->link_config.active_speed == SPEED_100 &&
-	      tp->link_config.active_duplex == DUPLEX_FULL))) {
+	    tp->link_config.active_duplex == DUPLEX_FULL &&
+	    (tp->link_config.active_speed == SPEED_100 ||
+	     tp->link_config.active_speed == SPEED_1000)) {
 		u32 eeectl;
 
 		if (tp->link_config.active_speed == SPEED_1000)
@@ -2969,7 +2969,7 @@ static void tg3_phy_copper_begin(struct tg3 *tp)
 	}
 
 	if (tp->phy_flags & TG3_PHYFLG_EEE_CAP) {
-		u32 val = 0;
+		u32 val;
 
 		tw32(TG3_CPMU_EEE_MODE,
 		     tr32(TG3_CPMU_EEE_MODE) & ~TG3_CPMU_EEEMD_LPI_ENABLE);
@@ -2986,6 +2986,7 @@ static void tg3_phy_copper_begin(struct tg3 *tp)
 			tg3_phydsp_write(tp, MII_TG3_DSP_CH34TP2,
 					 val | MII_TG3_DSP_CH34TP2_HIBW01);
 
+		val = 0;
 		if (tp->link_config.autoneg == AUTONEG_ENABLE) {
 			/* Advertise 100-BaseTX EEE ability */
 			if (tp->link_config.advertising &
@@ -12569,9 +12570,11 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 		}
 	}
 
-	if (tp->pdev->device == TG3PCI_DEVICE_TIGON3_5718 ||
-	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765 &&
-	     tp->pci_chip_rev_id != CHIPREV_ID_57765_A0))
+	if (!(tp->phy_flags & TG3_PHYFLG_ANY_SERDES) &&
+	    ((tp->pdev->device == TG3PCI_DEVICE_TIGON3_5718 &&
+	      tp->pci_chip_rev_id != CHIPREV_ID_5717_A0) ||
+	     (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765 &&
+	      tp->pci_chip_rev_id != CHIPREV_ID_57765_A0)))
 		tp->phy_flags |= TG3_PHYFLG_EEE_CAP;
 
 	if (!(tp->phy_flags & TG3_PHYFLG_ANY_SERDES) &&
