@@ -35,7 +35,7 @@ static const struct hv_guid gBlkVscDeviceType = {
 	}
 };
 
-static int BlkVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
+static int blk_vsc_on_device_add(struct hv_device *Device, void *AdditionalInfo)
 {
 	struct storvsc_device_info *deviceInfo;
 	int ret = 0;
@@ -93,7 +93,7 @@ int blk_vsc_initialize(struct hv_driver *Driver)
 		    storDriver->max_outstanding_req_per_channel);
 
 	/* Setup the dispatch table */
-	storDriver->base.OnDeviceAdd = BlkVscOnDeviceAdd;
+	storDriver->base.OnDeviceAdd = blk_vsc_on_device_add;
 	storDriver->base.OnDeviceRemove = stor_vsc_on_device_remove;
 	storDriver->base.OnCleanup = stor_vsc_on_cleanup;
 	storDriver->on_io_request = stor_vsc_on_io_request;
