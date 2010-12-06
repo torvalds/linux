@@ -191,9 +191,8 @@ static int vga_switcheroo_debugfs_open(struct inode *inode, struct file *file)
 
 static int vga_switchon(struct vga_switcheroo_client *client)
 {
-	int ret;
-
-	ret = vgasr_priv.handler->power_state(client->id, VGA_SWITCHEROO_ON);
+	if (vgasr_priv.handler->power_state)
+		vgasr_priv.handler->power_state(client->id, VGA_SWITCHEROO_ON);
 	/* call the driver callback to turn on device */
 	client->set_gpu_state(client->pdev, VGA_SWITCHEROO_ON);
 	client->pwr_state = VGA_SWITCHEROO_ON;
@@ -204,7 +203,8 @@ static int vga_switchoff(struct vga_switcheroo_client *client)
 {
 	/* call the driver callback to turn off device */
 	client->set_gpu_state(client->pdev, VGA_SWITCHEROO_OFF);
-	vgasr_priv.handler->power_state(client->id, VGA_SWITCHEROO_OFF);
+	if (vgasr_priv.handler->power_state)
+		vgasr_priv.handler->power_state(client->id, VGA_SWITCHEROO_OFF);
 	client->pwr_state = VGA_SWITCHEROO_OFF;
 	return 0;
 }
