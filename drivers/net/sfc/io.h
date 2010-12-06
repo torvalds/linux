@@ -96,13 +96,11 @@ static inline void efx_writeo(struct efx_nic *efx, efx_oword_t *value,
 	spin_lock_irqsave(&efx->biu_lock, flags);
 #ifdef EFX_USE_QWORD_IO
 	_efx_writeq(efx, value->u64[0], reg + 0);
-	wmb();
 	_efx_writeq(efx, value->u64[1], reg + 8);
 #else
 	_efx_writed(efx, value->u32[0], reg + 0);
 	_efx_writed(efx, value->u32[1], reg + 4);
 	_efx_writed(efx, value->u32[2], reg + 8);
-	wmb();
 	_efx_writed(efx, value->u32[3], reg + 12);
 #endif
 	mmiowb();
@@ -125,7 +123,6 @@ static inline void efx_sram_writeq(struct efx_nic *efx, void __iomem *membase,
 	__raw_writeq((__force u64)value->u64[0], membase + addr);
 #else
 	__raw_writel((__force u32)value->u32[0], membase + addr);
-	wmb();
 	__raw_writel((__force u32)value->u32[1], membase + addr + 4);
 #endif
 	mmiowb();
@@ -152,7 +149,6 @@ static inline void efx_reado(struct efx_nic *efx, efx_oword_t *value,
 
 	spin_lock_irqsave(&efx->biu_lock, flags);
 	value->u32[0] = _efx_readd(efx, reg + 0);
-	rmb();
 	value->u32[1] = _efx_readd(efx, reg + 4);
 	value->u32[2] = _efx_readd(efx, reg + 8);
 	value->u32[3] = _efx_readd(efx, reg + 12);
@@ -175,7 +171,6 @@ static inline void efx_sram_readq(struct efx_nic *efx, void __iomem *membase,
 	value->u64[0] = (__force __le64)__raw_readq(membase + addr);
 #else
 	value->u32[0] = (__force __le32)__raw_readl(membase + addr);
-	rmb();
 	value->u32[1] = (__force __le32)__raw_readl(membase + addr + 4);
 #endif
 	spin_unlock_irqrestore(&efx->biu_lock, flags);
