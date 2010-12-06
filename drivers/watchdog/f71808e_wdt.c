@@ -53,6 +53,7 @@
 #define SIO_F71808_ID		0x0901	/* Chipset ID */
 #define SIO_F71858_ID		0x0507	/* Chipset ID */
 #define SIO_F71862_ID		0x0601	/* Chipset ID */
+#define SIO_F71869_ID		0x0814	/* Chipset ID */
 #define SIO_F71882_ID		0x0541	/* Chipset ID */
 #define SIO_F71889_ID		0x0723	/* Chipset ID */
 
@@ -108,12 +109,13 @@ module_param(start_withtimeout, uint, 0);
 MODULE_PARM_DESC(start_withtimeout, "Start watchdog timer on module load with"
 	" given initial timeout. Zero (default) disables this feature.");
 
-enum chips { f71808fg, f71858fg, f71862fg, f71882fg, f71889fg };
+enum chips { f71808fg, f71858fg, f71862fg, f71869, f71882fg, f71889fg };
 
 static const char *f71808e_names[] = {
 	"f71808fg",
 	"f71858fg",
 	"f71862fg",
+	"f71869",
 	"f71882fg",
 	"f71889fg",
 };
@@ -339,6 +341,11 @@ static int watchdog_start(void)
 		err = f71862fg_pin_configure(watchdog.sioaddr);
 		if (err)
 			goto exit_superio;
+		break;
+
+	case f71869:
+		/* GPIO14 --> WDTRST# */
+		superio_clear_bit(watchdog.sioaddr, SIO_REG_MFUNCT1, 4);
 		break;
 
 	case f71882fg:
@@ -752,6 +759,9 @@ static int __init f71808e_find(int sioaddr)
 	case SIO_F71862_ID:
 		watchdog.type = f71862fg;
 		err = f71862fg_pin_configure(0); /* validate module parameter */
+		break;
+	case SIO_F71869_ID:
+		watchdog.type = f71869;
 		break;
 	case SIO_F71882_ID:
 		watchdog.type = f71882fg;
