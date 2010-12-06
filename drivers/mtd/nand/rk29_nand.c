@@ -117,7 +117,7 @@ static void rk29_nand_wait_busy(struct mtd_info *mtd, uint32_t timeout)
 	while (timeout > 0)
 	{
 		timeout--;
-		udelay(10);
+		udelay(1);
 		if ( pRK29NC->FMCTL& FMC_FRDY) 
 			break;
 		
@@ -561,7 +561,7 @@ int rk29_nand_calculate_ecc(struct mtd_info *mtd,const uint8_t *dat,uint8_t *ecc
 	       pRK29NC ->BCHCTL = BCH_RST;
 	       pRK29NC ->FLCTL = (0<<4)|FL_COR_EN|(0x1<<5)|FL_BYPASS|FL_START ; 	
 		wait_op_done(mtd,TROP_US_DELAY,0);   
-		rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;
+		//rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;
           
               memcpy(buf+i*0x400,(u_char *)(pRK29NC->buf),0x400);  //  only use nandc sram0
 	}
@@ -655,7 +655,7 @@ int rk29_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip, int page, i
 	       pRK29NC ->BCHCTL = BCH_RST;
 	       pRK29NC ->FLCTL = (0<<4)|FL_COR_EN|(0x1<<5)|FL_BYPASS|FL_START ; 	
 		wait_op_done(mtd,TROP_US_DELAY,0);   
-		rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;          
+		//rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;
               if(i==0)
                  memcpy((u_char *)(chip->oob_poi+ chip->ops.ooboffs),(u_char *)(pRK29NC->spare),4); 
 	}
@@ -698,7 +698,7 @@ int	rk29_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip, uint8_
 	       pRK29NC ->BCHCTL = BCH_RST;
 	       pRK29NC ->FLCTL = (0<<4)|FL_COR_EN|(0x1<<5)|FL_BYPASS|FL_START ; 	
 		wait_op_done(mtd,TROP_US_DELAY,0);   
-		rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;          
+		//rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;
               memcpy(buf+i*0x400,(u_char *)(pRK29NC->buf),0x400);  //  only use nandc sram0
               if(i==0)
                  memcpy((u_char *)(chip->oob_poi+ chip->ops.ooboffs),(u_char *)(pRK29NC->spare),4); 
@@ -722,41 +722,29 @@ static int rk29_nand_setrate(struct rk29_nand_mtd *info)
 
 	unsigned int ns=0,timingcfg;
 
-       unsigned long flags; 
 
-       //scan nand flash access time
-       if ( info->accesstime ==0x00 )
-              accesstime=50;
-       else if ( info->accesstime==0x80)
-        	accesstime=25;
-    	else if ( info->accesstime==0x08)
-        	accesstime=20;
-    	else
-        	accesstime=60;   //60ns
-#if 0
+
+// some nand flashs have not  timing id and almost all nand flash access time is 25ns, so need to  fix accesstime to 40 ns
+	accesstime = 40;
+
        info->clk_rate = clkrate;
 	clkrate /= 1000000;	/* turn clock into MHz for ease of use */
 	
-       if(clkrate>0 && clkrate<200)
+	if(clkrate>0 && clkrate<=250)
 	   ns= 1000/clkrate; // ns
-	 else
+	else
 	   return -1;
-	   	
-	timingcfg = (accesstime + ns -1)/ns;
 
-	timingcfg = (timingcfg>=3) ? (timingcfg-2) : timingcfg;           //csrw+1, rwcs+1
+	timingcfg=  accesstime/ns + 1 ;
 
-	rwpw = timingcfg-timingcfg/4;
-	csrw = timingcfg/4;
-	rwcs = (timingcfg/4 >=1)?(timingcfg/4):1;
-#else
-	rwpw = 4;
-	csrw = 1;
-	rwcs = 2;
-#endif
+       rwpw = (timingcfg+1)/2;  // rwpw >= timingcfg/2
 
+	csrw = ( timingcfg/4 > 1)?(timingcfg/4):1;  // csrw >=1
+
+	rwcs = ( (timingcfg+3)/4 >1)?((timingcfg+3)/4):1; // rwcs >=1 &&  rwcs >= timingcfg/4
 	RKNAND_LOCK();
 
+	pRK29NC ->FMWAIT &=0xFFFF0800;
 	pRK29NC ->FMWAIT |=  (rwcs<<FMW_RWCS_OFFSET)|(rwpw<<FMW_RWPW_OFFSET)|(csrw<<FMW_CSRW_OFFSET);
 
 	RKNAND_UNLOCK();
