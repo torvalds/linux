@@ -210,7 +210,9 @@ static void setup_ht_cap(struct ath_softc *sc,
 	ht_info->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
 	ht_info->ampdu_density = IEEE80211_HT_MPDU_DENSITY_8;
 
-	if (AR_SREV_9300_20_OR_LATER(ah))
+	if (AR_SREV_9485(ah))
+		max_streams = 1;
+	else if (AR_SREV_9300_20_OR_LATER(ah))
 		max_streams = 3;
 	else
 		max_streams = 2;
