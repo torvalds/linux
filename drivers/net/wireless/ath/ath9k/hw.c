@@ -1764,7 +1764,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
 
 	u16 capField = 0, eeval;
-	u8 ant_div_ctl1;
+	u8 ant_div_ctl1, tx_chainmask, rx_chainmask;
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_REG_0);
 	regulatory->current_rd = eeval;
@@ -1974,6 +1974,18 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	if (AR_SREV_9485_10(ah)) {
 		pCap->pcie_lcr_extsync_en = true;
 		pCap->pcie_lcr_offset = 0x80;
+	}
+
+	tx_chainmask = pCap->tx_chainmask;
+	rx_chainmask = pCap->rx_chainmask;
+	while (tx_chainmask || rx_chainmask) {
+		if (tx_chainmask & BIT(0))
+			pCap->max_txchains++;
+		if (rx_chainmask & BIT(0))
+			pCap->max_rxchains++;
+
+		tx_chainmask >>= 1;
+		rx_chainmask >>= 1;
 	}
 
 	return 0;

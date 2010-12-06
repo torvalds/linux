@@ -199,6 +199,8 @@ struct ath9k_hw_capabilities {
 	u16 rts_aggr_limit;
 	u8 tx_chainmask;
 	u8 rx_chainmask;
+	u8 max_txchains;
+	u8 max_rxchains;
 	u16 tx_triglevel_max;
 	u16 reg_cap;
 	u8 num_gpio_pins;
