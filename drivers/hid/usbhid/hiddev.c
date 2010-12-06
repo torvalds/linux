@@ -586,7 +586,7 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct hiddev_list *list = file->private_data;
 	struct hiddev *hiddev = list->hiddev;
-	struct hid_device *hid = hiddev->hid;
+	struct hid_device *hid;
 	struct usb_device *dev;
 	struct hiddev_collection_info cinfo;
 	struct hiddev_report_info rinfo;
@@ -594,17 +594,15 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct hiddev_devinfo dinfo;
 	struct hid_report *report;
 	struct hid_field *field;
-	struct usbhid_device *usbhid = hid->driver_data;
+	struct usbhid_device *usbhid;
 	void __user *user_arg = (void __user *)arg;
 	int i, r;
-	
+
 	/* Called without BKL by compat methods so no BKL taken */
 
 	/* FIXME: Who or what stop this racing with a disconnect ?? */
-	if (!hiddev->exist || !hid)
+	if (!hiddev->exist)
 		return -EIO;
-
-	dev = hid_to_usb_dev(hid);
 
 	switch (cmd) {
 
@@ -612,8 +610,17 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return put_user(HID_VERSION, (int __user *)arg);
 
 	case HIDIOCAPPLICATION:
-		if (arg < 0 || arg >= hid->maxapplication)
-			return -EINVAL;
+		mutex_lock(&hiddev->existancelock);
+		if (!hiddev->exist) {
+			r = -ENODEV;
+			goto ret_unlock;
+		}
+
+		hid = hiddev->hid;
+		if (arg < 0 || arg >= hid->maxapplication) {
+			r = -EINVAL;
+			goto ret_unlock;
+		}
 
 		for (i = 0; i < hid->maxcollection; i++)
 			if (hid->collection[i].type ==
@@ -621,11 +628,22 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				break;
 
 		if (i == hid->maxcollection)
-			return -EINVAL;
-
-		return hid->collection[i].usage;
+			r = -EINVAL;
+		else
+			r = hid->collection[i].usage;
+		goto ret_unlock;
 
 	case HIDIOCGDEVINFO:
+		mutex_lock(&hiddev->existancelock);
+		if (!hiddev->exist) {
+			r = -ENODEV;
+			goto ret_unlock;
+		}
+
+		hid = hiddev->hid;
+		dev = hid_to_usb_dev(hid);
+		usbhid = hid->driver_data;
+
 		dinfo.bustype = BUS_USB;
 		dinfo.busnum = dev->bus->busnum;
 		dinfo.devnum = dev->devnum;
@@ -634,6 +652,8 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		dinfo.product = le16_to_cpu(dev->descriptor.idProduct);
 		dinfo.version = le16_to_cpu(dev->descriptor.bcdDevice);
 		dinfo.num_applications = hid->maxapplication;
+		mutex_unlock(&hiddev->existancelock);
+
 		if (copy_to_user(user_arg, &dinfo, sizeof(dinfo)))
 			return -EFAULT;
 
@@ -667,6 +687,7 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			r = hiddev_ioctl_string(hiddev, cmd, user_arg);
 		else
 			r = -ENODEV;
+ret_unlock:
 		mutex_unlock(&hiddev->existancelock);
 		return r;
 
@@ -676,6 +697,7 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			mutex_unlock(&hiddev->existancelock);
 			return -ENODEV;
 		}
+		hid = hiddev->hid;
 		usbhid_init_reports(hid);
 		mutex_unlock(&hiddev->existancelock);
 
@@ -688,14 +710,21 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (rinfo.report_type == HID_REPORT_TYPE_OUTPUT)
 			return -EINVAL;
 
-		if ((report = hiddev_lookup_report(hid, &rinfo)) == NULL)
-			return -EINVAL;
-
 		mutex_lock(&hiddev->existancelock);
-		if (hiddev->exist) {
-			usbhid_submit_report(hid, report, USB_DIR_IN);
-			usbhid_wait_io(hid);
+		if (!hiddev->exist) {
+			r = -ENODEV;
+			goto ret_unlock;
 		}
+
+		hid = hiddev->hid;
+		report = hiddev_lookup_report(hid, &rinfo);
+		if (report == NULL) {
+			r = -EINVAL;
+			goto ret_unlock;
+		}
+
+		usbhid_submit_report(hid, report, USB_DIR_IN);
+		usbhid_wait_io(hid);
 		mutex_unlock(&hiddev->existancelock);
 
 		return 0;
@@ -707,14 +736,21 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (rinfo.report_type == HID_REPORT_TYPE_INPUT)
 			return -EINVAL;
 
-		if ((report = hiddev_lookup_report(hid, &rinfo)) == NULL)
-			return -EINVAL;
-
 		mutex_lock(&hiddev->existancelock);
-		if (hiddev->exist) {
-			usbhid_submit_report(hid, report, USB_DIR_OUT);
-			usbhid_wait_io(hid);
+		if (!hiddev->exist) {
+			r = -ENODEV;
+			goto ret_unlock;
 		}
+
+		hid = hiddev->hid;
+		report = hiddev_lookup_report(hid, &rinfo);
+		if (report == NULL) {
+			r = -EINVAL;
+			goto ret_unlock;
+		}
+
+		usbhid_submit_report(hid, report, USB_DIR_OUT);
+		usbhid_wait_io(hid);
 		mutex_unlock(&hiddev->existancelock);
 
 		return 0;
@@ -723,10 +759,21 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&rinfo, user_arg, sizeof(rinfo)))
 			return -EFAULT;
 
-		if ((report = hiddev_lookup_report(hid, &rinfo)) == NULL)
-			return -EINVAL;
+		mutex_lock(&hiddev->existancelock);
+		if (!hiddev->exist) {
+			r = -ENODEV;
+			goto ret_unlock;
+		}
+
+		hid = hiddev->hid;
+		report = hiddev_lookup_report(hid, &rinfo);
+		if (report == NULL) {
+			r = -EINVAL;
+			goto ret_unlock;
+		}
 
 		rinfo.num_fields = report->maxfield;
+		mutex_unlock(&hiddev->existancelock);
 
 		if (copy_to_user(user_arg, &rinfo, sizeof(rinfo)))
 			return -EFAULT;
@@ -738,11 +785,23 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		rinfo.report_type = finfo.report_type;
 		rinfo.report_id = finfo.report_id;
-		if ((report = hiddev_lookup_report(hid, &rinfo)) == NULL)
-			return -EINVAL;
+		mutex_lock(&hiddev->existancelock);
+		if (!hiddev->exist) {
+			r = -ENODEV;
+			goto ret_unlock;
+		}
 
-		if (finfo.field_index >= report->maxfield)
-			return -EINVAL;
+		hid = hiddev->hid;
+		report = hiddev_lookup_report(hid, &rinfo);
+		if (report == NULL) {
+			r = -EINVAL;
+			goto ret_unlock;
+		}
+
+		if (finfo.field_index >= report->maxfield) {
+			r = -EINVAL;
+			goto ret_unlock;
+		}
 
 		field = report->field[finfo.field_index];
 		memset(&finfo, 0, sizeof(finfo));
@@ -760,6 +819,7 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		finfo.physical_maximum = field->physical_maximum;
 		finfo.unit_exponent = field->unit_exponent;
 		finfo.unit = field->unit;
+		mutex_unlock(&hiddev->existancelock);
 
 		if (copy_to_user(user_arg, &finfo, sizeof(finfo)))
 			return -EFAULT;
@@ -785,12 +845,22 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_from_user(&cinfo, user_arg, sizeof(cinfo)))
 			return -EFAULT;
 
-		if (cinfo.index >= hid->maxcollection)
-			return -EINVAL;
+		mutex_lock(&hiddev->existancelock);
+		if (!hiddev->exist) {
+			r = -ENODEV;
+			goto ret_unlock;
+		}
+
+		hid = hiddev->hid;
+		if (cinfo.index >= hid->maxcollection) {
+			r = -EINVAL;
+			goto ret_unlock;
+		}
 
 		cinfo.type = hid->collection[cinfo.index].type;
 		cinfo.usage = hid->collection[cinfo.index].usage;
 		cinfo.level = hid->collection[cinfo.index].level;
+		mutex_lock(&hiddev->existancelock);
 
 		if (copy_to_user(user_arg, &cinfo, sizeof(cinfo)))
 			return -EFAULT;
@@ -803,24 +873,48 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		if (_IOC_NR(cmd) == _IOC_NR(HIDIOCGNAME(0))) {
 			int len;
-			if (!hid->name)
-				return 0;
+
+			mutex_lock(&hiddev->existancelock);
+			if (!hiddev->exist) {
+				r = -ENODEV;
+				goto ret_unlock;
+			}
+
+			hid = hiddev->hid;
+			if (!hid->name) {
+				r = 0;
+				goto ret_unlock;
+			}
+
 			len = strlen(hid->name) + 1;
 			if (len > _IOC_SIZE(cmd))
 				 len = _IOC_SIZE(cmd);
-			return copy_to_user(user_arg, hid->name, len) ?
+			r = copy_to_user(user_arg, hid->name, len) ?
 				-EFAULT : len;
+			goto ret_unlock;
 		}
 
 		if (_IOC_NR(cmd) == _IOC_NR(HIDIOCGPHYS(0))) {
 			int len;
-			if (!hid->phys)
-				return 0;
+
+			mutex_lock(&hiddev->existancelock);
+			if (!hiddev->exist) {
+				r = -ENODEV;
+				goto ret_unlock;
+			}
+
+			hid = hiddev->hid;
+			if (!hid->phys) {
+				r = 0;
+				goto ret_unlock;
+			}
+
 			len = strlen(hid->phys) + 1;
 			if (len > _IOC_SIZE(cmd))
 				len = _IOC_SIZE(cmd);
-			return copy_to_user(user_arg, hid->phys, len) ?
+			r = copy_to_user(user_arg, hid->phys, len) ?
 				-EFAULT : len;
+			goto ret_unlock;
 		}
 	}
 	return -EINVAL;
