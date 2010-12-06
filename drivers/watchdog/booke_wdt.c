@@ -85,6 +85,22 @@ static unsigned int sec_to_period(unsigned int secs)
 	return 0;
 }
 
+static void __booke_wdt_set(void *data)
+{
+	u32 val;
+
+	val = mfspr(SPRN_TCR);
+	val &= ~WDTP_MASK;
+	val |= WDTP(booke_wdt_period);
+
+	mtspr(SPRN_TCR, val);
+}
+
+static void booke_wdt_set(void)
+{
+	on_each_cpu(__booke_wdt_set, NULL, 0);
+}
+
 static void __booke_wdt_ping(void *data)
 {
 	mtspr(SPRN_TSR, TSR_ENW|TSR_WIS);
@@ -181,8 +197,7 @@ static long booke_wdt_ioctl(struct file *file,
 #else
 		booke_wdt_period = tmp;
 #endif
-		mtspr(SPRN_TCR, (mfspr(SPRN_TCR) & ~WDTP_MASK) |
-						WDTP(booke_wdt_period));
+		booke_wdt_set();
 		return 0;
 	case WDIOC_GETTIMEOUT:
 		return put_user(booke_wdt_period, p);
