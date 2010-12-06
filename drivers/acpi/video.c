@@ -1275,6 +1275,9 @@ int acpi_video_get_edid(struct acpi_device *device, int type, int device_id,
 		if (!video_device)
 			continue;
 
+		if (!video_device->cap._DDC)
+			continue;
+
 		if (type) {
 			switch (type) {
 			case ACPI_VIDEO_DISPLAY_CRT:
