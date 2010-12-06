@@ -3175,7 +3175,7 @@ static int snd_soc_unregister_card(struct snd_soc_card *card)
  * Simplify DAI link configuration by removing ".-1" from device names
  * and sanitizing names.
  */
-static inline char *fmt_single_name(struct device *dev, int *id)
+static char *fmt_single_name(struct device *dev, int *id)
 {
 	char *found, name[NAME_SIZE];
 	int id1, id2;
