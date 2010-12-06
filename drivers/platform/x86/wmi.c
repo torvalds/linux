@@ -820,7 +820,7 @@ static acpi_status parse_wdg(acpi_handle handle)
 			retval = wmi_create_device(&gblock[i], wblock, handle);
 			if (retval) {
 				wmi_free_devices();
-				break;
+				goto out_free_pointer;
 			}
 		}
 
