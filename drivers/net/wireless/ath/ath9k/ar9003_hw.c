@@ -175,22 +175,52 @@ static void ar9003_tx_gain_table_apply(struct ath_hw *ah)
 	switch (ar9003_hw_get_tx_gain_idx(ah)) {
 	case 0:
 	default:
-		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			       ar9300Modes_lowest_ob_db_tx_gain_table_2p2,
-			       ARRAY_SIZE(ar9300Modes_lowest_ob_db_tx_gain_table_2p2),
-			       5);
+		if (AR_SREV_9485(ah))
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       ar9485Modes_lowest_ob_db_tx_gain_1_0,
+				       ARRAY_SIZE(ar9485Modes_lowest_ob_db_tx_gain_1_0),
+				       5);
+		else
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       ar9300Modes_lowest_ob_db_tx_gain_table_2p2,
+				       ARRAY_SIZE(ar9300Modes_lowest_ob_db_tx_gain_table_2p2),
+				       5);
 		break;
 	case 1:
-		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			       ar9300Modes_high_ob_db_tx_gain_table_2p2,
-			       ARRAY_SIZE(ar9300Modes_high_ob_db_tx_gain_table_2p2),
-			       5);
+		if (AR_SREV_9485(ah))
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       ar9485Modes_high_ob_db_tx_gain_1_0,
+				       ARRAY_SIZE(ar9485Modes_lowest_ob_db_tx_gain_1_0),
+				       5);
+		else
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       ar9300Modes_high_ob_db_tx_gain_table_2p2,
+				       ARRAY_SIZE(ar9300Modes_high_ob_db_tx_gain_table_2p2),
+				       5);
 		break;
 	case 2:
-		INIT_INI_ARRAY(&ah->iniModesTxGain,
-			       ar9300Modes_low_ob_db_tx_gain_table_2p2,
-			       ARRAY_SIZE(ar9300Modes_low_ob_db_tx_gain_table_2p2),
-			       5);
+		if (AR_SREV_9485(ah))
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       ar9485Modes_low_ob_db_tx_gain_1_0,
+				       ARRAY_SIZE(ar9485Modes_lowest_ob_db_tx_gain_1_0),
+				       5);
+		else
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       ar9300Modes_low_ob_db_tx_gain_table_2p2,
+				       ARRAY_SIZE(ar9300Modes_low_ob_db_tx_gain_table_2p2),
+				       5);
+		break;
+	case 3:
+		if (AR_SREV_9485(ah))
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       ar9485Modes_high_power_tx_gain_1_0,
+				       ARRAY_SIZE(ar9485Modes_high_power_tx_gain_1_0),
+				       5);
+		else
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
+				       ar9300Modes_high_power_tx_gain_table_2p2,
+				       ARRAY_SIZE(ar9300Modes_high_power_tx_gain_table_2p2),
+				       5);
 		break;
 	}
 }
@@ -200,16 +230,28 @@ static void ar9003_rx_gain_table_apply(struct ath_hw *ah)
 	switch (ar9003_hw_get_rx_gain_idx(ah)) {
 	case 0:
 	default:
-		INIT_INI_ARRAY(&ah->iniModesRxGain,
-			       ar9300Common_rx_gain_table_2p2,
-			       ARRAY_SIZE(ar9300Common_rx_gain_table_2p2),
-			       2);
+		if (AR_SREV_9485(ah))
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
+				       ar9485Common_rx_gain_1_0,
+				       ARRAY_SIZE(ar9485Common_rx_gain_1_0),
+				       2);
+		else
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
+				       ar9300Common_rx_gain_table_2p2,
+				       ARRAY_SIZE(ar9300Common_rx_gain_table_2p2),
+				       2);
 		break;
 	case 1:
-		INIT_INI_ARRAY(&ah->iniModesRxGain,
-			       ar9300Common_wo_xlna_rx_gain_table_2p2,
-			       ARRAY_SIZE(ar9300Common_wo_xlna_rx_gain_table_2p2),
-			       2);
+		if (AR_SREV_9485(ah))
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
+				       ar9485Common_wo_xlna_rx_gain_1_0,
+				       ARRAY_SIZE(ar9485Common_wo_xlna_rx_gain_1_0),
+				       2);
+		else
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
+				       ar9300Common_wo_xlna_rx_gain_table_2p2,
+				       ARRAY_SIZE(ar9300Common_wo_xlna_rx_gain_table_2p2),
+				       2);
 		break;
 	}
 }
