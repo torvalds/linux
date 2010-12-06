@@ -657,6 +657,7 @@ static void cmpc_keys_handler(struct acpi_device *dev, u32 event)
 		code = cmpc_keys_codes[event & 0x0F];
 	inputdev = dev_get_drvdata(&dev->dev);
 	input_report_key(inputdev, code, !(event & 0x10));
+	input_sync(inputdev);
 }
 
 static void cmpc_keys_idev_init(struct input_dev *inputdev)
