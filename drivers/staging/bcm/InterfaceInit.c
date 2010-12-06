@@ -45,9 +45,7 @@ static void InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
 	}
 	/* Free interrupt URB */
 	/* psIntfAdapter->psAdapter->device_removed = TRUE; */
-	if (psIntfAdapter->psInterruptUrb) {
-		usb_free_urb(psIntfAdapter->psInterruptUrb);
-	}
+	usb_free_urb(psIntfAdapter->psInterruptUrb);
 
 	/* Free transmit URBs */
 	for (i = 0; i < MAXIMUM_USB_TCB; i++) {
@@ -70,6 +68,7 @@ static void InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
 static void ConfigureEndPointTypesThroughEEPROM(PMINI_ADAPTER Adapter)
 {
 	unsigned long ulReg = 0;
+	int ret;
 
 	/* Program EP2 MAX_PKT_SIZE */
 	ulReg = ntohl(EP2_MPS_REG);
@@ -95,7 +94,8 @@ static void ConfigureEndPointTypesThroughEEPROM(PMINI_ADAPTER Adapter)
 	BeceemEEPROMBulkWrite(Adapter, (PUCHAR)&ulReg, 0x140, 4, TRUE);
 
 	/* Program TX EP as interrupt(Alternate Setting) */
-	if (rdmalt(Adapter, 0x0F0110F8, (PUINT)&ulReg, 4)) {
+	ret = rdmalt(Adapter, 0x0F0110F8, (u32 *)&ulReg, sizeof(u32));
+	if (ret) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
 			"reading of Tx EP failed\n");
 		return;
@@ -227,9 +227,9 @@ usbbcm_device_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	if (psAdapter->chip_id > T3) {
 		uint32_t uiNackZeroLengthInt = 4;
 
-		if (wrmalt(psAdapter, DISABLE_USB_ZERO_LEN_INT, &uiNackZeroLengthInt, sizeof(uiNackZeroLengthInt))) {
-			return -EIO;
-		}
+		retval = wrmalt(psAdapter, DISABLE_USB_ZERO_LEN_INT, &uiNackZeroLengthInt, sizeof(uiNackZeroLengthInt));
+		if (retval)
+			return retval;
 	}
 
 	/* Check whether the USB-Device Supports remote Wake-Up */
@@ -435,9 +435,11 @@ static int InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 	psIntfAdapter->psAdapter->interface_rdm = BcmRDM;
 	psIntfAdapter->psAdapter->interface_wrm = BcmWRM;
 
-	if (rdmalt(psIntfAdapter->psAdapter, CHIP_ID_REG, (PUINT)&(psIntfAdapter->psAdapter->chip_id), sizeof(UINT)) < 0) {
+	retval = rdmalt(psIntfAdapter->psAdapter, CHIP_ID_REG,
+			(u32 *)&(psIntfAdapter->psAdapter->chip_id), sizeof(u32));
+	if (retval) {
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "CHIP ID Read Failed\n");
-		return STATUS_FAILURE;
+		return retval;
 	}
 
 	if (0xbece3200 == (psIntfAdapter->psAdapter->chip_id & ~(0xF0)))
@@ -603,9 +605,8 @@ static int InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 	}
 
 	retval = AllocUsbCb(psIntfAdapter);
-	if (retval) {
+	if (retval)
 		return retval;
-	}
 
 	return device_run(psIntfAdapter);
 }
@@ -640,7 +641,6 @@ static int InterfaceSuspend(struct usb_interface *intf, pm_message_t message)
 static int InterfaceResume(struct usb_interface *intf)
 {
 	PS_INTERFACE_ADAPTER  psIntfAdapter = usb_get_intfdata(intf);
-	printk("=================================\n");
 	mdelay(100);
 
 	psIntfAdapter->bSuspended = FALSE;
