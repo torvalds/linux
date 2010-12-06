@@ -27,6 +27,7 @@ const struct imx_spi_imx_data imx21_cspi_data[] __initconst = {
 	imx_spi_imx_data_entry(MX21, CSPI, "imx21-cspi", _id, _hwid, SZ_4K)
 	imx21_cspi_data_entry(0, 1),
 	imx21_cspi_data_entry(1, 2),
+};
 #endif
 
 #ifdef CONFIG_SOC_IMX25

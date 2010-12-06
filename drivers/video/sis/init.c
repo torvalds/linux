@@ -62,11 +62,11 @@
 
 #include "init.h"
 
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
 #include "300vtbl.h"
 #endif
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 #include "310vtbl.h"
 #endif
 
@@ -78,7 +78,7 @@
 /*         POINTER INITIALIZATION            */
 /*********************************************/
 
-#if defined(SIS300) || defined(SIS315H)
+#if defined(CONFIG_FB_SIS_300) || defined(CONFIG_FB_SIS_315)
 static void
 InitCommonPointer(struct SiS_Private *SiS_Pr)
 {
@@ -160,7 +160,7 @@ InitCommonPointer(struct SiS_Private *SiS_Pr)
 }
 #endif
 
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
 static void
 InitTo300Pointer(struct SiS_Private *SiS_Pr)
 {
@@ -237,7 +237,7 @@ InitTo300Pointer(struct SiS_Private *SiS_Pr)
 }
 #endif
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 static void
 InitTo310Pointer(struct SiS_Private *SiS_Pr)
 {
@@ -321,13 +321,13 @@ bool
 SiSInitPtr(struct SiS_Private *SiS_Pr)
 {
    if(SiS_Pr->ChipType < SIS_315H) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
       InitTo300Pointer(SiS_Pr);
 #else
       return false;
 #endif
    } else {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       InitTo310Pointer(SiS_Pr);
 #else
       return false;
@@ -340,9 +340,7 @@ SiSInitPtr(struct SiS_Private *SiS_Pr)
 /*            HELPER: Get ModeID             */
 /*********************************************/
 
-#ifndef SIS_XORG_XF86
 static
-#endif
 unsigned short
 SiS_GetModeID(int VGAEngine, unsigned int VBFlags, int HDisplay, int VDisplay,
 		int Depth, bool FSTN, int LCDwidth, int LCDheight)
@@ -884,51 +882,51 @@ SiS_GetModeID_VGA2(int VGAEngine, unsigned int VBFlags, int HDisplay, int VDispl
 void
 SiS_SetReg(SISIOADDRESS port, unsigned short index, unsigned short data)
 {
-   OutPortByte(port, index);
-   OutPortByte(port + 1, data);
+	outb((u8)index, port);
+	outb((u8)data, port + 1);
 }
 
 void
 SiS_SetRegByte(SISIOADDRESS port, unsigned short data)
 {
-   OutPortByte(port, data);
+	outb((u8)data, port);
 }
 
 void
 SiS_SetRegShort(SISIOADDRESS port, unsigned short data)
 {
-   OutPortWord(port, data);
+	outw((u16)data, port);
 }
 
 void
 SiS_SetRegLong(SISIOADDRESS port, unsigned int data)
 {
-   OutPortLong(port, data);
+	outl((u32)data, port);
 }
 
 unsigned char
 SiS_GetReg(SISIOADDRESS port, unsigned short index)
 {
-   OutPortByte(port, index);
-   return(InPortByte(port + 1));
+	outb((u8)index, port);
+	return inb(port + 1);
 }
 
 unsigned char
 SiS_GetRegByte(SISIOADDRESS port)
 {
-   return(InPortByte(port));
+	return inb(port);
 }
 
 unsigned short
 SiS_GetRegShort(SISIOADDRESS port)
 {
-   return(InPortWord(port));
+	return inw(port);
 }
 
 unsigned int
 SiS_GetRegLong(SISIOADDRESS port)
 {
-   return(InPortLong(port));
+	return inl(port);
 }
 
 void
@@ -1089,7 +1087,7 @@ static void
 SiSInitPCIetc(struct SiS_Private *SiS_Pr)
 {
    switch(SiS_Pr->ChipType) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
    case SIS_300:
    case SIS_540:
    case SIS_630:
@@ -1108,7 +1106,7 @@ SiSInitPCIetc(struct SiS_Private *SiS_Pr)
       SiS_SetRegOR(SiS_Pr->SiS_P3c4,0x1E,0x5A);
       break;
 #endif
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    case SIS_315H:
    case SIS_315:
    case SIS_315PRO:
@@ -1152,9 +1150,7 @@ SiSInitPCIetc(struct SiS_Private *SiS_Pr)
 /*             HELPER: SetLVDSetc            */
 /*********************************************/
 
-#ifdef SIS_LINUX_KERNEL
 static
-#endif
 void
 SiSSetLVDSetc(struct SiS_Private *SiS_Pr)
 {
@@ -1174,7 +1170,7 @@ SiSSetLVDSetc(struct SiS_Private *SiS_Pr)
    if((temp == 1) || (temp == 2)) return;
 
    switch(SiS_Pr->ChipType) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
    case SIS_540:
    case SIS_630:
    case SIS_730:
@@ -1188,7 +1184,7 @@ SiSSetLVDSetc(struct SiS_Private *SiS_Pr)
 	}
 	break;
 #endif
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    case SIS_550:
    case SIS_650:
    case SIS_740:
@@ -1420,9 +1416,7 @@ SiS_ResetSegmentRegisters(struct SiS_Private *SiS_Pr)
 /*             HELPER: GetVBType             */
 /*********************************************/
 
-#ifdef SIS_LINUX_KERNEL
 static
-#endif
 void
 SiS_GetVBType(struct SiS_Private *SiS_Pr)
 {
@@ -1487,7 +1481,6 @@ SiS_GetVBType(struct SiS_Private *SiS_Pr)
 /*           HELPER: Check RAM size          */
 /*********************************************/
 
-#ifdef SIS_LINUX_KERNEL
 static bool
 SiS_CheckMemorySize(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 		unsigned short ModeIdIndex)
@@ -1501,13 +1494,12 @@ SiS_CheckMemorySize(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    if(AdapterMemSize < memorysize) return false;
    return true;
 }
-#endif
 
 /*********************************************/
 /*           HELPER: Get DRAM type           */
 /*********************************************/
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 static unsigned char
 SiS_Get310DRAMType(struct SiS_Private *SiS_Pr)
 {
@@ -1574,7 +1566,6 @@ SiS_GetMCLK(struct SiS_Private *SiS_Pr)
 /*           HELPER: ClearBuffer             */
 /*********************************************/
 
-#ifdef SIS_LINUX_KERNEL
 static void
 SiS_ClearBuffer(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 {
@@ -1587,7 +1578,7 @@ SiS_ClearBuffer(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
    if(SiS_Pr->SiS_ModeType >= ModeEGA) {
       if(ModeNo > 0x13) {
-	 SiS_SetMemory(memaddr, memsize, 0);
+	 memset_io(memaddr, 0, memsize);
       } else {
 	 pBuffer = (unsigned short SISIOMEMTYPE *)memaddr;
 	 for(i = 0; i < 0x4000; i++) writew(0x0000, &pBuffer[i]);
@@ -1596,10 +1587,9 @@ SiS_ClearBuffer(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
       pBuffer = (unsigned short SISIOMEMTYPE *)memaddr;
       for(i = 0; i < 0x4000; i++) writew(0x0720, &pBuffer[i]);
    } else {
-      SiS_SetMemory(memaddr, 0x8000, 0);
+      memset_io(memaddr, 0, 0x8000);
    }
 }
-#endif
 
 /*********************************************/
 /*           HELPER: SearchModeID            */
@@ -2132,7 +2122,7 @@ SiS_SetCRT1CRTC(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       SiS_SetReg(SiS_Pr->SiS_P3d4,0x14,0x4F);
    }
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    if(SiS_Pr->ChipType == XGI_20) {
       SiS_SetReg(SiS_Pr->SiS_P3d4,0x04,crt1data[4] - 1);
       if(!(temp = crt1data[5] & 0x1f)) {
@@ -2215,7 +2205,7 @@ SiS_SetCRT1VCLK(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    SiS_SetReg(SiS_Pr->SiS_P3c4,0x2c,clkb);
 
    if(SiS_Pr->ChipType >= SIS_315H) {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       SiS_SetReg(SiS_Pr->SiS_P3c4,0x2D,0x01);
       if(SiS_Pr->ChipType == XGI_20) {
          unsigned short mf = SiS_GetModeFlag(SiS_Pr, ModeNo, ModeIdIndex);
@@ -2236,7 +2226,7 @@ SiS_SetCRT1VCLK(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 /*                  FIFO                     */
 /*********************************************/
 
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
 void
 SiS_GetFIFOThresholdIndex300(struct SiS_Private *SiS_Pr, unsigned short *idx1,
 		unsigned short *idx2)
@@ -2506,11 +2496,7 @@ SiS_SetCRT1FIFO_630(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x09,0x80,data);
 
   /* Write foreground and background queue */
-#ifdef SIS_LINUX_KERNEL
    templ = sisfb_read_nbridge_pci_dword(SiS_Pr, 0x50);
-#else
-   templ = pciReadLong(0x00000000, 0x50);
-#endif
 
    if(SiS_Pr->ChipType == SIS_730) {
 
@@ -2530,13 +2516,8 @@ SiS_SetCRT1FIFO_630(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 
    }
 
-#ifdef SIS_LINUX_KERNEL
    sisfb_write_nbridge_pci_dword(SiS_Pr, 0x50, templ);
    templ = sisfb_read_nbridge_pci_dword(SiS_Pr, 0xA0);
-#else
-   pciWriteLong(0x00000000, 0x50, templ);
-   templ = pciReadLong(0x00000000, 0xA0);
-#endif
 
    /* GUI grant timer (PCI config 0xA3) */
    if(SiS_Pr->ChipType == SIS_730) {
@@ -2552,15 +2533,11 @@ SiS_SetCRT1FIFO_630(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 
    }
 
-#ifdef SIS_LINUX_KERNEL
    sisfb_write_nbridge_pci_dword(SiS_Pr, 0xA0, templ);
-#else
-   pciWriteLong(0x00000000, 0xA0, templ);
-#endif
 }
-#endif /* SIS300 */
+#endif /* CONFIG_FB_SIS_300 */
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 static void
 SiS_SetCRT1FIFO_310(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short ModeIdIndex)
 {
@@ -2612,7 +2589,7 @@ SiS_SetVCLKState(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    }
 
    if(SiS_Pr->ChipType < SIS_315H) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
       if(VCLK > 150) data |= 0x80;
       SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x07,0x7B,data);
 
@@ -2621,7 +2598,7 @@ SiS_SetVCLKState(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x32,0xF7,data);
 #endif
    } else if(SiS_Pr->ChipType < XGI_20) {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       if(VCLK >= 166) data |= 0x0c;
       SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x32,0xf3,data);
 
@@ -2630,7 +2607,7 @@ SiS_SetVCLKState(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       }
 #endif
    } else {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       if(VCLK >= 200) data |= 0x0c;
       if(SiS_Pr->ChipType == XGI_20) data &= ~0x04;
       SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x32,0xf3,data);
@@ -2675,7 +2652,7 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 		unsigned short ModeIdIndex, unsigned short RRTI)
 {
    unsigned short data, infoflag = 0, modeflag, resindex;
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    unsigned char  *ROMAddr  = SiS_Pr->VirtualRomBase;
    unsigned short data2, data3;
 #endif
@@ -2736,7 +2713,7 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x0F,0xB7,data);
    }
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    if(SiS_Pr->ChipType >= SIS_315H) {
       SiS_SetRegAND(SiS_Pr->SiS_P3c4,0x31,0xfb);
    }
@@ -2826,7 +2803,7 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 
    SiS_SetVCLKState(SiS_Pr, ModeNo, RRTI, ModeIdIndex);
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    if(((SiS_Pr->ChipType >= SIS_315H) && (SiS_Pr->ChipType < SIS_661)) ||
        (SiS_Pr->ChipType == XGI_40)) {
       if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x31) & 0x40) {
@@ -2845,7 +2822,7 @@ SiS_SetCRT1ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 #endif
 }
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 static void
 SiS_SetupDualChip(struct SiS_Private *SiS_Pr)
 {
@@ -2999,11 +2976,6 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
    SiS_Pr->SiS_SelectCRT2Rate = 0;
    SiS_Pr->SiS_SetFlag &= (~ProgrammingCRT2);
 
-#ifdef SIS_XORG_XF86
-   xf86DrvMsgVerb(0, X_PROBED, 4, "(init: VBType=0x%04x, VBInfo=0x%04x)\n",
-                    SiS_Pr->SiS_VBType, SiS_Pr->SiS_VBInfo);
-#endif
-
    if(SiS_Pr->SiS_VBInfo & SetSimuScanMode) {
       if(SiS_Pr->SiS_VBInfo & SetInSlaveMode) {
          SiS_Pr->SiS_SetFlag |= ProgrammingCRT2;
@@ -3028,7 +3000,7 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
    }
 
    switch(SiS_Pr->ChipType) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
    case SIS_300:
       SiS_SetCRT1FIFO_300(SiS_Pr, ModeNo, RefreshRateTableIndex);
       break;
@@ -3039,7 +3011,7 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
       break;
 #endif
    default:
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       if(SiS_Pr->ChipType == XGI_20) {
          unsigned char sr2b = 0, sr2c = 0;
          switch(ModeNo) {
@@ -3062,7 +3034,7 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
 
    SiS_SetCRT1ModeRegs(SiS_Pr, ModeNo, ModeIdIndex, RefreshRateTableIndex);
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    if(SiS_Pr->ChipType == XGI_40) {
       SiS_SetupDualChip(SiS_Pr);
    }
@@ -3070,11 +3042,9 @@ SiS_SetCRT1Group(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sho
 
    SiS_LoadDAC(SiS_Pr, ModeNo, ModeIdIndex);
 
-#ifdef SIS_LINUX_KERNEL
    if(SiS_Pr->SiS_flag_clearbuffer) {
       SiS_ClearBuffer(SiS_Pr, ModeNo);
    }
-#endif
 
    if(!(SiS_Pr->SiS_VBInfo & (SetSimuScanMode | SwitchCRT2 | SetCRT2ToLCDA))) {
       SiS_WaitRetrace1(SiS_Pr);
@@ -3104,7 +3074,7 @@ SiS_InitVB(struct SiS_Private *SiS_Pr)
 static void
 SiS_ResetVB(struct SiS_Private *SiS_Pr)
 {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    unsigned char  *ROMAddr = SiS_Pr->VirtualRomBase;
    unsigned short temp;
 
@@ -3139,7 +3109,7 @@ SiS_StrangeStuff(struct SiS_Private *SiS_Pr)
     * which locks CRT2 in some way to CRT1 timing. Disable
     * this here.
     */
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    if((IS_SIS651) || (IS_SISM650) ||
       SiS_Pr->ChipType == SIS_340 ||
       SiS_Pr->ChipType == XGI_40) {
@@ -3160,7 +3130,7 @@ SiS_StrangeStuff(struct SiS_Private *SiS_Pr)
 static void
 SiS_Handle760(struct SiS_Private *SiS_Pr)
 {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    unsigned int somebase;
    unsigned char temp1, temp2, temp3;
 
@@ -3170,11 +3140,7 @@ SiS_Handle760(struct SiS_Private *SiS_Pr)
        (!(SiS_Pr->SiS_SysFlags & SF_760UMA)) )
       return;
 
-#ifdef SIS_LINUX_KERNEL
    somebase = sisfb_read_mio_pci_word(SiS_Pr, 0x74);
-#else
-   somebase = pciReadWord(0x00001000, 0x74);
-#endif
    somebase &= 0xffff;
 
    if(somebase == 0) return;
@@ -3190,105 +3156,34 @@ SiS_Handle760(struct SiS_Private *SiS_Pr)
       temp2 = 0x0b;
    }
 
-#ifdef SIS_LINUX_KERNEL
    sisfb_write_nbridge_pci_byte(SiS_Pr, 0x7e, temp1);
    sisfb_write_nbridge_pci_byte(SiS_Pr, 0x8d, temp2);
-#else
-   pciWriteByte(0x00000000, 0x7e, temp1);
-   pciWriteByte(0x00000000, 0x8d, temp2);
-#endif
 
    SiS_SetRegByte((somebase + 0x85), temp3);
 #endif
 }
 
 /*********************************************/
-/*      X.org/XFree86: SET SCREEN PITCH      */
-/*********************************************/
-
-#ifdef SIS_XORG_XF86
-static void
-SiS_SetPitchCRT1(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn)
-{
-   SISPtr pSiS = SISPTR(pScrn);
-   unsigned short HDisplay = pSiS->scrnPitch >> 3;
-
-   SiS_SetReg(SiS_Pr->SiS_P3d4,0x13,(HDisplay & 0xFF));
-   SiS_SetRegANDOR(SiS_Pr->SiS_P3c4,0x0E,0xF0,(HDisplay >> 8));
-}
-
-static void
-SiS_SetPitchCRT2(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn)
-{
-   SISPtr pSiS = SISPTR(pScrn);
-   unsigned short HDisplay = pSiS->scrnPitch2 >> 3;
-
-    /* Unlock CRT2 */
-   if(pSiS->VGAEngine == SIS_315_VGA)
-      SiS_SetRegOR(SiS_Pr->SiS_Part1Port,0x2F, 0x01);
-   else
-      SiS_SetRegOR(SiS_Pr->SiS_Part1Port,0x24, 0x01);
-
-   SiS_SetReg(SiS_Pr->SiS_Part1Port,0x07,(HDisplay & 0xFF));
-   SiS_SetRegANDOR(SiS_Pr->SiS_Part1Port,0x09,0xF0,(HDisplay >> 8));
-}
-
-static void
-SiS_SetPitch(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn)
-{
-   SISPtr pSiS = SISPTR(pScrn);
-   bool isslavemode = false;
-
-   if( (pSiS->VBFlags2 & VB2_VIDEOBRIDGE) &&
-       ( ((pSiS->VGAEngine == SIS_300_VGA) &&
-	  (SiS_GetReg(SiS_Pr->SiS_Part1Port,0x00) & 0xa0) == 0x20) ||
-	 ((pSiS->VGAEngine == SIS_315_VGA) &&
-	  (SiS_GetReg(SiS_Pr->SiS_Part1Port,0x00) & 0x50) == 0x10) ) ) {
-      isslavemode = true;
-   }
-
-   /* We need to set pitch for CRT1 if bridge is in slave mode, too */
-   if((pSiS->VBFlags & DISPTYPE_DISP1) || (isslavemode)) {
-      SiS_SetPitchCRT1(SiS_Pr, pScrn);
-   }
-   /* We must not set the pitch for CRT2 if bridge is in slave mode */
-   if((pSiS->VBFlags & DISPTYPE_DISP2) && (!isslavemode)) {
-      SiS_SetPitchCRT2(SiS_Pr, pScrn);
-   }
-}
-#endif
-
-/*********************************************/
 /*                 SiSSetMode()              */
 /*********************************************/
 
-#ifdef SIS_XORG_XF86
-/* We need pScrn for setting the pitch correctly */
-bool
-SiSSetMode(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn, unsigned short ModeNo, bool dosetpitch)
-#else
 bool
 SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
-#endif
 {
    SISIOADDRESS BaseAddr = SiS_Pr->IOAddress;
    unsigned short RealModeNo, ModeIdIndex;
    unsigned char  backupreg = 0;
-#ifdef SIS_LINUX_KERNEL
    unsigned short KeepLockReg;
 
    SiS_Pr->UseCustomMode = false;
    SiS_Pr->CRT1UsesCustomMode = false;
-#endif
 
    SiS_Pr->SiS_flag_clearbuffer = 0;
 
    if(SiS_Pr->UseCustomMode) {
       ModeNo = 0xfe;
    } else {
-#ifdef SIS_LINUX_KERNEL
       if(!(ModeNo & 0x80)) SiS_Pr->SiS_flag_clearbuffer = 1;
-#endif
       ModeNo &= 0x7f;
    }
 
@@ -3301,13 +3196,8 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    SiS_GetSysFlags(SiS_Pr);
 
    SiS_Pr->SiS_VGAINFO = 0x11;
-#if defined(SIS_XORG_XF86) && (defined(i386) || defined(__i386) || defined(__i386__) || defined(__AMD64__) || defined(__amd64__) || defined(__x86_64__))
-   if(pScrn) SiS_Pr->SiS_VGAINFO = SiS_GetSetBIOSScratch(pScrn, 0x489, 0xff);
-#endif
 
-#ifdef SIS_LINUX_KERNEL
    KeepLockReg = SiS_GetReg(SiS_Pr->SiS_P3c4,0x05);
-#endif
    SiS_SetReg(SiS_Pr->SiS_P3c4,0x05,0x86);
 
    SiSInitPCIetc(SiS_Pr);
@@ -3344,12 +3234,10 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    SiS_GetLCDResInfo(SiS_Pr, ModeNo, ModeIdIndex);
    SiS_SetLowModeTest(SiS_Pr, ModeNo);
 
-#ifdef SIS_LINUX_KERNEL
    /* Check memory size (kernel framebuffer driver only) */
    if(!SiS_CheckMemorySize(SiS_Pr, ModeNo, ModeIdIndex)) {
       return false;
    }
-#endif
 
    SiS_OpenCRTC(SiS_Pr);
 
@@ -3384,7 +3272,7 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
    SiS_DisplayOn(SiS_Pr);
    SiS_SetRegByte(SiS_Pr->SiS_P3c6,0xFF);
 
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
    if(SiS_Pr->ChipType >= SIS_315H) {
       if(SiS_Pr->SiS_IF_DEF_LVDS == 1) {
 	 if(!(SiS_IsDualEdge(SiS_Pr))) {
@@ -3396,7 +3284,7 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
    if(SiS_Pr->SiS_VBType & VB_SIS30xBLV) {
       if(SiS_Pr->ChipType >= SIS_315H) {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
 	 if(!SiS_Pr->SiS_ROMNew) {
 	    if(SiS_IsVAMode(SiS_Pr)) {
 	       SiS_SetRegOR(SiS_Pr->SiS_P3d4,0x35,0x01);
@@ -3424,423 +3312,15 @@ SiSSetMode(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
       }
    }
 
-#ifdef SIS_XORG_XF86
-   if(pScrn) {
-      /* SetPitch: Adapt to virtual size & position */
-      if((ModeNo > 0x13) && (dosetpitch)) {
-	 SiS_SetPitch(SiS_Pr, pScrn);
-      }
-
-      /* Backup/Set ModeNo in BIOS scratch area */
-      SiS_GetSetModeID(pScrn, ModeNo);
-   }
-#endif
-
    SiS_CloseCRTC(SiS_Pr);
 
    SiS_Handle760(SiS_Pr);
 
-#ifdef SIS_LINUX_KERNEL
    /* We never lock registers in XF86 */
    if(KeepLockReg != 0xA1) SiS_SetReg(SiS_Pr->SiS_P3c4,0x05,0x00);
-#endif
 
    return true;
 }
-
-/*********************************************/
-/*       X.org/XFree86: SiSBIOSSetMode()     */
-/*           for non-Dual-Head mode          */
-/*********************************************/
-
-#ifdef SIS_XORG_XF86
-bool
-SiSBIOSSetMode(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn,
-               DisplayModePtr mode, bool IsCustom)
-{
-   SISPtr pSiS = SISPTR(pScrn);
-   unsigned short ModeNo = 0;
-
-   SiS_Pr->UseCustomMode = false;
-
-   if((IsCustom) && (SiS_CheckBuildCustomMode(pScrn, mode, pSiS->VBFlags))) {
-
-      xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 3, "Setting custom mode %dx%d\n",
-		SiS_Pr->CHDisplay,
-		(mode->Flags & V_INTERLACE ? SiS_Pr->CVDisplay * 2 :
-		   (mode->Flags & V_DBLSCAN ? SiS_Pr->CVDisplay / 2 :
-		      SiS_Pr->CVDisplay)));
-
-   } else {
-
-      /* Don't need vbflags here; checks done earlier */
-      ModeNo = SiS_GetModeNumber(pScrn, mode, pSiS->VBFlags);
-      if(!ModeNo) return false;
-
-      xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 3, "Setting standard mode 0x%x\n", ModeNo);
-
-   }
-
-   return(SiSSetMode(SiS_Pr, pScrn, ModeNo, true));
-}
-
-/*********************************************/
-/*    X.org/XFree86: SiSBIOSSetModeCRT2()    */
-/*           for Dual-Head modes             */
-/*********************************************/
-
-bool
-SiSBIOSSetModeCRT2(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn,
-               DisplayModePtr mode, bool IsCustom)
-{
-   SISIOADDRESS BaseAddr = SiS_Pr->IOAddress;
-   SISPtr  pSiS = SISPTR(pScrn);
-#ifdef SISDUALHEAD
-   SISEntPtr pSiSEnt = pSiS->entityPrivate;
-#endif
-   unsigned short ModeIdIndex;
-   unsigned short ModeNo = 0;
-   unsigned char  backupreg = 0;
-
-   SiS_Pr->UseCustomMode = false;
-
-   /* Remember: Custom modes for CRT2 are ONLY supported
-    *     -) on the 30x/B/C, and
-    *     -) if CRT2 is LCD or VGA, or CRT1 is LCDA
-    */
-
-   if((IsCustom) && (SiS_CheckBuildCustomMode(pScrn, mode, pSiS->VBFlags))) {
-
-	 ModeNo = 0xfe;
-
-   } else {
-
-	 ModeNo = SiS_GetModeNumber(pScrn, mode, pSiS->VBFlags);
-	 if(!ModeNo) return false;
-
-   }
-
-   SiSRegInit(SiS_Pr, BaseAddr);
-   SiSInitPtr(SiS_Pr);
-   SiS_GetSysFlags(SiS_Pr);
-#if defined(i386) || defined(__i386) || defined(__i386__) || defined(__AMD64__) || defined(__amd64__) || defined(__x86_64__)
-   SiS_Pr->SiS_VGAINFO = SiS_GetSetBIOSScratch(pScrn, 0x489, 0xff);
-#else
-   SiS_Pr->SiS_VGAINFO = 0x11;
-#endif
-
-   SiS_SetReg(SiS_Pr->SiS_P3c4,0x05,0x86);
-
-   SiSInitPCIetc(SiS_Pr);
-   SiSSetLVDSetc(SiS_Pr);
-   SiSDetermineROMUsage(SiS_Pr);
-
-   /* Save mode info so we can set it from within SetMode for CRT1 */
-#ifdef SISDUALHEAD
-   if(pSiS->DualHeadMode) {
-      pSiSEnt->CRT2ModeNo = ModeNo;
-      pSiSEnt->CRT2DMode = mode;
-      pSiSEnt->CRT2IsCustom = IsCustom;
-      pSiSEnt->CRT2CR30 = SiS_GetReg(SiS_Pr->SiS_P3d4,0x30);
-      pSiSEnt->CRT2CR31 = SiS_GetReg(SiS_Pr->SiS_P3d4,0x31);
-      pSiSEnt->CRT2CR35 = SiS_GetReg(SiS_Pr->SiS_P3d4,0x35);
-      pSiSEnt->CRT2CR38 = SiS_GetReg(SiS_Pr->SiS_P3d4,0x38);
-#if 0
-      /* We can't set CRT2 mode before CRT1 mode is set - says who...? */
-      if(pSiSEnt->CRT1ModeNo == -1) {
-	 xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 3,
-		"Setting CRT2 mode delayed until after setting CRT1 mode\n");
-	 return true;
-      }
-#endif
-      pSiSEnt->CRT2ModeSet = true;
-   }
-#endif
-
-   if(SiS_Pr->UseCustomMode) {
-
-      unsigned short temptemp = SiS_Pr->CVDisplay;
-
-      if(SiS_Pr->CModeFlag & DoubleScanMode)     temptemp >>= 1;
-      else if(SiS_Pr->CInfoFlag & InterlaceMode) temptemp <<= 1;
-
-      xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 3,
-	  "Setting custom mode %dx%d on CRT2\n",
-	  SiS_Pr->CHDisplay, temptemp);
-
-   } else {
-
-      xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 3,
-	  "Setting standard mode 0x%x on CRT2\n", ModeNo);
-
-   }
-
-   SiS_UnLockCRT2(SiS_Pr);
-
-   if(!SiS_Pr->UseCustomMode) {
-      if(!(SiS_SearchModeID(SiS_Pr, &ModeNo, &ModeIdIndex))) return false;
-   } else {
-      ModeIdIndex = 0;
-   }
-
-   SiS_GetVBType(SiS_Pr);
-
-   SiS_InitVB(SiS_Pr);
-   if(SiS_Pr->SiS_VBType & VB_SIS30xBLV) {
-      if(SiS_Pr->ChipType >= SIS_315H) {
-	 SiS_ResetVB(SiS_Pr);
-	 SiS_SetRegOR(SiS_Pr->SiS_P3c4,0x32,0x10);
-	 SiS_SetRegOR(SiS_Pr->SiS_Part2Port,0x00,0x0c);
-	 backupreg = SiS_GetReg(SiS_Pr->SiS_P3d4,0x38);
-      } else {
-	 backupreg = SiS_GetReg(SiS_Pr->SiS_P3d4,0x35);
-      }
-   }
-
-   /* Get VB information (connectors, connected devices) */
-   if(!SiS_Pr->UseCustomMode) {
-      SiS_GetVBInfo(SiS_Pr, ModeNo, ModeIdIndex, 1);
-   } else {
-      /* If this is a custom mode, we don't check the modeflag for CRT2Mode */
-      SiS_GetVBInfo(SiS_Pr, ModeNo, ModeIdIndex, 0);
-   }
-   SiS_SetYPbPr(SiS_Pr);
-   SiS_SetTVMode(SiS_Pr, ModeNo, ModeIdIndex);
-   SiS_GetLCDResInfo(SiS_Pr, ModeNo, ModeIdIndex);
-   SiS_SetLowModeTest(SiS_Pr, ModeNo);
-
-   SiS_ResetSegmentRegisters(SiS_Pr);
-
-   /* Set mode on CRT2 */
-   if( (SiS_Pr->SiS_VBType & VB_SISVB)    ||
-       (SiS_Pr->SiS_IF_DEF_LVDS     == 1) ||
-       (SiS_Pr->SiS_IF_DEF_CH70xx   != 0) ||
-       (SiS_Pr->SiS_IF_DEF_TRUMPION != 0) ) {
-      SiS_SetCRT2Group(SiS_Pr, ModeNo);
-   }
-
-   SiS_StrangeStuff(SiS_Pr);
-
-   SiS_DisplayOn(SiS_Pr);
-   SiS_SetRegByte(SiS_Pr->SiS_P3c6,0xFF);
-
-   if(SiS_Pr->ChipType >= SIS_315H) {
-      if(SiS_Pr->SiS_IF_DEF_LVDS == 1) {
-	 if(!(SiS_IsDualEdge(SiS_Pr))) {
-	    SiS_SetRegAND(SiS_Pr->SiS_Part1Port,0x13,0xfb);
-	 }
-      }
-   }
-
-   if(SiS_Pr->SiS_VBType & VB_SIS30xBLV) {
-      if(SiS_Pr->ChipType >= SIS_315H) {
-	 if(!SiS_Pr->SiS_ROMNew) {
-	    if(SiS_IsVAMode(SiS_Pr)) {
-	       SiS_SetRegOR(SiS_Pr->SiS_P3d4,0x35,0x01);
-	    } else {
-	       SiS_SetRegAND(SiS_Pr->SiS_P3d4,0x35,0xFE);
-	    }
-	 }
-
-	 SiS_SetReg(SiS_Pr->SiS_P3d4,0x38,backupreg);
-
-	 if(SiS_GetReg(SiS_Pr->SiS_P3d4,0x30) & SetCRT2ToLCD) {
-	    SiS_SetRegAND(SiS_Pr->SiS_P3d4,0x38,0xfc);
-	 }
-      } else if((SiS_Pr->ChipType == SIS_630) ||
-	        (SiS_Pr->ChipType == SIS_730)) {
-         SiS_SetReg(SiS_Pr->SiS_P3d4,0x35,backupreg);
-      }
-   }
-
-   /* SetPitch: Adapt to virtual size & position */
-   SiS_SetPitchCRT2(SiS_Pr, pScrn);
-
-   SiS_Handle760(SiS_Pr);
-
-   return true;
-}
-
-/*********************************************/
-/*    X.org/XFree86: SiSBIOSSetModeCRT1()    */
-/*           for Dual-Head modes             */
-/*********************************************/
-
-bool
-SiSBIOSSetModeCRT1(struct SiS_Private *SiS_Pr, ScrnInfoPtr pScrn,
-                   DisplayModePtr mode, bool IsCustom)
-{
-   SISIOADDRESS BaseAddr = SiS_Pr->IOAddress;
-   SISPtr  pSiS = SISPTR(pScrn);
-   unsigned short ModeIdIndex, ModeNo = 0;
-   unsigned char  backupreg = 0;
-#ifdef SISDUALHEAD
-   SISEntPtr pSiSEnt = pSiS->entityPrivate;
-   unsigned char  backupcr30, backupcr31, backupcr38, backupcr35, backupp40d=0;
-   bool backupcustom;
-#endif
-
-   SiS_Pr->UseCustomMode = false;
-
-   if((IsCustom) && (SiS_CheckBuildCustomMode(pScrn, mode, pSiS->VBFlags))) {
-
-	 unsigned short temptemp = SiS_Pr->CVDisplay;
-
-	 if(SiS_Pr->CModeFlag & DoubleScanMode)     temptemp >>= 1;
-	 else if(SiS_Pr->CInfoFlag & InterlaceMode) temptemp <<= 1;
-
-	 xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 3,
-	 	"Setting custom mode %dx%d on CRT1\n",
-	 	SiS_Pr->CHDisplay, temptemp);
-	 ModeNo = 0xfe;
-
-   } else {
-
-	 ModeNo = SiS_GetModeNumber(pScrn, mode, 0); /* don't give VBFlags */
-	 if(!ModeNo) return false;
-
-	 xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 3,
-	 	"Setting standard mode 0x%x on CRT1\n", ModeNo);
-   }
-
-   SiSInitPtr(SiS_Pr);
-   SiSRegInit(SiS_Pr, BaseAddr);
-   SiS_GetSysFlags(SiS_Pr);
-#if defined(i386) || defined(__i386) || defined(__i386__) || defined(__AMD64__) || defined(__amd64__) || defined(__x86_64__)
-   SiS_Pr->SiS_VGAINFO = SiS_GetSetBIOSScratch(pScrn, 0x489, 0xff);
-#else
-   SiS_Pr->SiS_VGAINFO = 0x11;
-#endif
-
-   SiS_SetReg(SiS_Pr->SiS_P3c4,0x05,0x86);
-
-   SiSInitPCIetc(SiS_Pr);
-   SiSSetLVDSetc(SiS_Pr);
-   SiSDetermineROMUsage(SiS_Pr);
-
-   SiS_UnLockCRT2(SiS_Pr);
-
-   if(!SiS_Pr->UseCustomMode) {
-      if(!(SiS_SearchModeID(SiS_Pr, &ModeNo, &ModeIdIndex))) return false;
-   } else {
-      ModeIdIndex = 0;
-   }
-
-   /* Determine VBType */
-   SiS_GetVBType(SiS_Pr);
-
-   SiS_InitVB(SiS_Pr);
-   if(SiS_Pr->SiS_VBType & VB_SIS30xBLV) {
-      if(SiS_Pr->ChipType >= SIS_315H) {
-         backupreg = SiS_GetReg(SiS_Pr->SiS_P3d4,0x38);
-      } else {
-         backupreg = SiS_GetReg(SiS_Pr->SiS_P3d4,0x35);
-      }
-   }
-
-   /* Get VB information (connectors, connected devices) */
-   /* (We don't care if the current mode is a CRT2 mode) */
-   SiS_GetVBInfo(SiS_Pr, ModeNo, ModeIdIndex, 0);
-   SiS_SetYPbPr(SiS_Pr);
-   SiS_SetTVMode(SiS_Pr, ModeNo, ModeIdIndex);
-   SiS_GetLCDResInfo(SiS_Pr, ModeNo, ModeIdIndex);
-   SiS_SetLowModeTest(SiS_Pr, ModeNo);
-
-   SiS_OpenCRTC(SiS_Pr);
-
-   /* Set mode on CRT1 */
-   SiS_SetCRT1Group(SiS_Pr, ModeNo, ModeIdIndex);
-   if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA) {
-      SiS_SetCRT2Group(SiS_Pr, ModeNo);
-   }
-
-   /* SetPitch: Adapt to virtual size & position */
-   SiS_SetPitchCRT1(SiS_Pr, pScrn);
-
-   SiS_HandleCRT1(SiS_Pr);
-
-   SiS_StrangeStuff(SiS_Pr);
-
-   SiS_CloseCRTC(SiS_Pr);
-
-#ifdef SISDUALHEAD
-   if(pSiS->DualHeadMode) {
-      pSiSEnt->CRT1ModeNo = ModeNo;
-      pSiSEnt->CRT1DMode = mode;
-   }
-#endif
-
-   if(SiS_Pr->UseCustomMode) {
-      SiS_Pr->CRT1UsesCustomMode = true;
-      SiS_Pr->CSRClock_CRT1 = SiS_Pr->CSRClock;
-      SiS_Pr->CModeFlag_CRT1 = SiS_Pr->CModeFlag;
-   } else {
-      SiS_Pr->CRT1UsesCustomMode = false;
-   }
-
-   /* Reset CRT2 if changing mode on CRT1 */
-#ifdef SISDUALHEAD
-   if(pSiS->DualHeadMode) {
-      if(pSiSEnt->CRT2ModeNo != -1) {
-	 xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, 3,
-				"(Re-)Setting mode for CRT2\n");
-	 backupcustom = SiS_Pr->UseCustomMode;
-	 backupcr30 = SiS_GetReg(SiS_Pr->SiS_P3d4,0x30);
-	 backupcr31 = SiS_GetReg(SiS_Pr->SiS_P3d4,0x31);
-	 backupcr35 = SiS_GetReg(SiS_Pr->SiS_P3d4,0x35);
-	 backupcr38 = SiS_GetReg(SiS_Pr->SiS_P3d4,0x38);
-	 if(SiS_Pr->SiS_VBType & VB_SISVB) {
-	    /* Backup LUT-enable */
-	    if(pSiSEnt->CRT2ModeSet) {
-	       backupp40d = SiS_GetReg(SiS_Pr->SiS_Part4Port,0x0d) & 0x08;
-	    }
-	 }
-	 if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCDA) {
-	    SiS_SetReg(SiS_Pr->SiS_P3d4,0x30,pSiSEnt->CRT2CR30);
-	    SiS_SetReg(SiS_Pr->SiS_P3d4,0x31,pSiSEnt->CRT2CR31);
-	    SiS_SetReg(SiS_Pr->SiS_P3d4,0x35,pSiSEnt->CRT2CR35);
-	    SiS_SetReg(SiS_Pr->SiS_P3d4,0x38,pSiSEnt->CRT2CR38);
-	 }
-
-	 SiSBIOSSetModeCRT2(SiS_Pr, pSiSEnt->pScrn_1,
-			    pSiSEnt->CRT2DMode, pSiSEnt->CRT2IsCustom);
-
-	 SiS_SetReg(SiS_Pr->SiS_P3d4,0x30,backupcr30);
-	 SiS_SetReg(SiS_Pr->SiS_P3d4,0x31,backupcr31);
-	 SiS_SetReg(SiS_Pr->SiS_P3d4,0x35,backupcr35);
-	 SiS_SetReg(SiS_Pr->SiS_P3d4,0x38,backupcr38);
-	 if(SiS_Pr->SiS_VBType & VB_SISVB) {
-	    SiS_SetRegANDOR(SiS_Pr->SiS_Part4Port,0x0d, ~0x08, backupp40d);
-	 }
-	 SiS_Pr->UseCustomMode = backupcustom;
-      }
-   }
-#endif
-
-   /* Warning: From here, the custom mode entries in SiS_Pr are
-    * possibly overwritten
-    */
-
-   SiS_DisplayOn(SiS_Pr);
-   SiS_SetRegByte(SiS_Pr->SiS_P3c6,0xFF);
-
-   if(SiS_Pr->SiS_VBType & VB_SIS30xBLV) {
-      if(SiS_Pr->ChipType >= SIS_315H) {
-	 SiS_SetReg(SiS_Pr->SiS_P3d4,0x38,backupreg);
-      } else if((SiS_Pr->ChipType == SIS_630) ||
-                (SiS_Pr->ChipType == SIS_730)) {
-         SiS_SetReg(SiS_Pr->SiS_P3d4,0x35,backupreg);
-      }
-   }
-
-   SiS_Handle760(SiS_Pr);
-
-   /* Backup/Set ModeNo in BIOS scratch area */
-   SiS_GetSetModeID(pScrn,ModeNo);
-
-   return true;
-}
-#endif /* Linux_XF86 */
 
 #ifndef GETBITSTR
 #define BITMASK(h,l)    	(((unsigned)(1U << ((h)-(l)+1))-1)<<(l))
@@ -3927,7 +3407,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    SiS_Pr->CVBlankStart = SiS_Pr->SiS_VGAVDE;
 
    if(SiS_Pr->ChipType < SIS_315H) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
       tempbx = SiS_Pr->SiS_VGAHT;
       if(SiS_Pr->SiS_LCDInfo & DontExpandLCD) {
          tempbx = SiS_Pr->PanelHT;
@@ -3936,7 +3416,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       remaining = tempbx % 8;
 #endif
    } else {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       /* OK for LCDA, LVDS */
       tempbx = SiS_Pr->PanelHT - SiS_Pr->PanelXRes;
       tempax = SiS_Pr->SiS_VGAHDE;  /* not /2 ! */
@@ -3950,7 +3430,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    SiS_Pr->CHTotal = SiS_Pr->CHBlankEnd = tempbx;
 
    if(SiS_Pr->ChipType < SIS_315H) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
       if(SiS_Pr->SiS_VGAHDE == SiS_Pr->PanelXRes) {
 	 SiS_Pr->CHSyncStart = SiS_Pr->SiS_VGAHDE + ((SiS_Pr->PanelHRS + 1) & ~1);
 	 SiS_Pr->CHSyncEnd = SiS_Pr->CHSyncStart + SiS_Pr->PanelHRE;
@@ -3982,7 +3462,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
       }
 #endif
    } else {
-#ifdef SIS315H
+#ifdef CONFIG_FB_SIS_315
       tempax = VGAHDE;
       if(SiS_Pr->SiS_LCDInfo & DontExpandLCD) {
 	 tempbx = SiS_Pr->PanelXRes;
@@ -4001,7 +3481,7 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    if(SiS_Pr->SiS_LCDInfo & DontExpandLCD) {
       tempax = SiS_Pr->PanelYRes;
    } else if(SiS_Pr->ChipType < SIS_315H) {
-#ifdef SIS300
+#ifdef CONFIG_FB_SIS_300
       /* Stupid hack for 640x400/320x200 */
       if(SiS_Pr->SiS_LCDResInfo == Panel_1024x768) {
 	 if((tempax + tempbx) == 438) tempbx += 16;
@@ -4054,36 +3534,12 @@ SiS_CalcLCDACRT1Timing(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
    if(modeflag & DoubleScanMode) tempax |= 0x80;
    SiS_SetRegANDOR(SiS_Pr->SiS_P3d4,0x09,0x5F,tempax);
 
-#ifdef SIS_XORG_XF86
-#ifdef TWDEBUG
-   xf86DrvMsg(0, X_INFO, "%d %d %d %d  %d %d %d %d  (%d %d %d %d)\n",
-	SiS_Pr->CHDisplay, SiS_Pr->CHSyncStart, SiS_Pr->CHSyncEnd, SiS_Pr->CHTotal,
-	SiS_Pr->CVDisplay, SiS_Pr->CVSyncStart, SiS_Pr->CVSyncEnd, SiS_Pr->CVTotal,
-	SiS_Pr->CHBlankStart, SiS_Pr->CHBlankEnd, SiS_Pr->CVBlankStart, SiS_Pr->CVBlankEnd);
-   xf86DrvMsg(0, X_INFO, " {{0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,\n",
-	SiS_Pr->CCRT1CRTC[0], SiS_Pr->CCRT1CRTC[1],
-	SiS_Pr->CCRT1CRTC[2], SiS_Pr->CCRT1CRTC[3],
-	SiS_Pr->CCRT1CRTC[4], SiS_Pr->CCRT1CRTC[5],
-	SiS_Pr->CCRT1CRTC[6], SiS_Pr->CCRT1CRTC[7]);
-   xf86DrvMsg(0, X_INFO, "   0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,\n",
-	SiS_Pr->CCRT1CRTC[8], SiS_Pr->CCRT1CRTC[9],
-	SiS_Pr->CCRT1CRTC[10], SiS_Pr->CCRT1CRTC[11],
-	SiS_Pr->CCRT1CRTC[12], SiS_Pr->CCRT1CRTC[13],
-	SiS_Pr->CCRT1CRTC[14], SiS_Pr->CCRT1CRTC[15]);
-   xf86DrvMsg(0, X_INFO, "   0x%02x}},\n", SiS_Pr->CCRT1CRTC[16]);
-#endif
-#endif
 }
 
 void
 SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata,
 			int xres, int yres,
-#ifdef SIS_XORG_XF86
-			DisplayModePtr current
-#endif
-#ifdef SIS_LINUX_KERNEL
 			struct fb_var_screeninfo *var, bool writeres
-#endif
 )
 {
    unsigned short HRE, HBE, HRS, HBS, HDE, HT;
@@ -4127,25 +3583,10 @@ SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata,
 
    D = B - F - C;
 
-#ifdef SIS_XORG_XF86
-   current->HDisplay   = (E * 8);
-   current->HSyncStart = (E * 8) + (F * 8);
-   current->HSyncEnd   = (E * 8) + (F * 8) + (C * 8);
-   current->HTotal     = (E * 8) + (F * 8) + (C * 8) + (D * 8);
-#ifdef TWDEBUG
-   xf86DrvMsg(0, X_INFO,
-		"H: A %d B %d C %d D %d E %d F %d  HT %d HDE %d HRS %d HBS %d HBE %d HRE %d\n",
-		A, B, C, D, E, F, HT, HDE, HRS, HBS, HBE, HRE);
-#else
-   (void)VBS;  (void)HBS;  (void)A;
-#endif
-#endif
-#ifdef SIS_LINUX_KERNEL
    if(writeres) var->xres = xres = E * 8;
    var->left_margin = D * 8;
    var->right_margin = F * 8;
    var->hsync_len = C * 8;
-#endif
 
    /* Vertical */
    sr_data = crdata[13];
@@ -4192,30 +3633,10 @@ SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata,
 
    D = B - F - C;
 
-#ifdef SIS_XORG_XF86
-   current->VDisplay   = VDE + 1;
-   current->VSyncStart = VRS + 1;
-   current->VSyncEnd   = ((VRS & ~0x1f) | VRE) + 1;
-   if(VRE <= (VRS & 0x1f)) current->VSyncEnd += 32;
-   current->VTotal     = E + D + C + F;
-#if 0
-   current->VDisplay   = E;
-   current->VSyncStart = E + D;
-   current->VSyncEnd   = E + D + C;
-   current->VTotal     = E + D + C + F;
-#endif
-#ifdef TWDEBUG
-   xf86DrvMsg(0, X_INFO,
-	"V: A %d B %d C %d D %d E %d F %d  VT %d VDE %d VRS %d VBS %d VBE %d VRE %d\n",
-	A, B, C, D, E, F, VT, VDE, VRS, VBS, VBE, VRE);
-#endif
-#endif
-#ifdef SIS_LINUX_KERNEL
    if(writeres) var->yres = yres = E;
    var->upper_margin = D;
    var->lower_margin = F;
    var->vsync_len = C;
-#endif
 
    if((xres == 320) && ((yres == 200) || (yres == 240))) {
 	/* Terrible hack, but correct CRTC data for
@@ -4224,17 +3645,9 @@ SiS_Generic_ConvertCRData(struct SiS_Private *SiS_Pr, unsigned char *crdata,
 	 * a negative D. The CRT controller does not
 	 * seem to like correcting HRE to 50)
 	 */
-#ifdef SIS_XORG_XF86
-      current->HDisplay   = 320;
-      current->HSyncStart = 328;
-      current->HSyncEnd   = 376;
-      current->HTotal     = 400;
-#endif
-#ifdef SIS_LINUX_KERNEL
       var->left_margin = (400 - 376);
       var->right_margin = (328 - 320);
       var->hsync_len = (376 - 328);
-#endif
 
    }
 

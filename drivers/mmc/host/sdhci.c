@@ -1185,17 +1185,31 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (host->ops->platform_send_init_74_clocks)
 		host->ops->platform_send_init_74_clocks(host, ios->power_mode);
 
+	/*
+	 * If your platform has 8-bit width support but is not a v3 controller,
+	 * or if it requires special setup code, you should implement that in
+	 * platform_8bit_width().
+	 */
+	if (host->ops->platform_8bit_width)
+		host->ops->platform_8bit_width(host, ios->bus_width);
+	else {
+		ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
+		if (ios->bus_width == MMC_BUS_WIDTH_8) {
+			ctrl &= ~SDHCI_CTRL_4BITBUS;
+			if (host->version >= SDHCI_SPEC_300)
+				ctrl |= SDHCI_CTRL_8BITBUS;
+		} else {
+			if (host->version >= SDHCI_SPEC_300)
+				ctrl &= ~SDHCI_CTRL_8BITBUS;
+			if (ios->bus_width == MMC_BUS_WIDTH_4)
+				ctrl |= SDHCI_CTRL_4BITBUS;
+			else
+				ctrl &= ~SDHCI_CTRL_4BITBUS;
+		}
+		sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+	}
+
 	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
-
-	if (ios->bus_width == MMC_BUS_WIDTH_8)
-		ctrl |= SDHCI_CTRL_8BITBUS;
-	else
-		ctrl &= ~SDHCI_CTRL_8BITBUS;
-
-	if (ios->bus_width == MMC_BUS_WIDTH_4)
-		ctrl |= SDHCI_CTRL_4BITBUS;
-	else
-		ctrl &= ~SDHCI_CTRL_4BITBUS;
 
 	if ((ios->timing == MMC_TIMING_SD_HS ||
 	     ios->timing == MMC_TIMING_MMC_HS)
@@ -1681,6 +1695,16 @@ int sdhci_resume_host(struct sdhci_host *host)
 
 EXPORT_SYMBOL_GPL(sdhci_resume_host);
 
+void sdhci_enable_irq_wakeups(struct sdhci_host *host)
+{
+	u8 val;
+	val = sdhci_readb(host, SDHCI_WAKE_UP_CONTROL);
+	val |= SDHCI_WAKE_ON_INT;
+	sdhci_writeb(host, val, SDHCI_WAKE_UP_CONTROL);
+}
+
+EXPORT_SYMBOL_GPL(sdhci_enable_irq_wakeups);
+
 #endif /* CONFIG_PM */
 
 /*****************************************************************************\
@@ -1845,11 +1869,19 @@ int sdhci_add_host(struct sdhci_host *host)
 		mmc->f_min = host->max_clk / SDHCI_MAX_DIV_SPEC_300;
 	else
 		mmc->f_min = host->max_clk / SDHCI_MAX_DIV_SPEC_200;
+
 	mmc->f_max = host->max_clk;
 	mmc->caps |= MMC_CAP_SDIO_IRQ;
 
+	/*
+	 * A controller may support 8-bit width, but the board itself
+	 * might not have the pins brought out.  Boards that support
+	 * 8-bit width must set "mmc->caps |= MMC_CAP_8_BIT_DATA;" in
+	 * their platform code before calling sdhci_add_host(), and we
+	 * won't assume 8-bit width for hosts without that CAP.
+	 */
 	if (!(host->quirks & SDHCI_QUIRK_FORCE_1_BIT_DATA))
-		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
+		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
 	if (caps & SDHCI_CAN_DO_HISPD)
 		mmc->caps |= MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;

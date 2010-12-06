@@ -247,9 +247,6 @@ static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-#if defined(CONFIG_TOUCHSCREEN_ADS7846) \
-	|| defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
-
 #define ADS7846_PENDOWN (GPIO_PORTD | 25)
 
 static void ads7846_dev_init(void)
@@ -270,9 +267,7 @@ static struct ads7846_platform_data ads7846_config __initdata = {
 	.get_pendown_state	= ads7846_get_pendown_state,
 	.keep_vref_on		= 1,
 };
-#endif
 
-#if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
 static struct spi_board_info eukrea_mbimx27_spi_board_info[] __initdata = {
 	[0] = {
 		.modalias	= "ads7846",
@@ -291,7 +286,6 @@ static const struct spi_imx_master eukrea_mbimx27_spi0_data __initconst = {
 	.chipselect	= eukrea_mbimx27_spi_cs,
 	.num_chipselect = ARRAY_SIZE(eukrea_mbimx27_spi_cs),
 };
-#endif
 
 static struct i2c_board_info eukrea_mbimx27_i2c_devices[] = {
 	{
