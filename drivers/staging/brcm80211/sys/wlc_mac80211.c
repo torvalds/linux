@@ -8384,7 +8384,7 @@ static void
 wlc_txflowcontrol_signal(struct wlc_info *wlc, wlc_txq_info_t *qi, bool on,
 			 int prio)
 {
-	wlc_if_t *wlcif;
+	struct wlc_if *wlcif;
 
 	for (wlcif = wlc->wlcif_list; wlcif != NULL; wlcif = wlcif->next) {
 		if (wlcif->qi == qi && wlcif->flags & WLC_IF_LINKED)

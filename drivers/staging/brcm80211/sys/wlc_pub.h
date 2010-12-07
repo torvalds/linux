@@ -510,8 +510,8 @@ extern void wlc_intrsrestore(struct wlc_info *wlc, u32 macintmask);
 extern bool wlc_intrsupd(struct wlc_info *wlc);
 extern bool wlc_isr(struct wlc_info *wlc, bool *wantdpc);
 extern bool wlc_dpc(struct wlc_info *wlc, bool bounded);
-extern bool wlc_send80211_raw(struct wlc_info *wlc, wlc_if_t *wlcif, void *p,
-			      uint ac);
+extern bool wlc_send80211_raw(struct wlc_info *wlc, struct wlc_if *wlcif,
+			      void *p, uint ac);
 extern bool wlc_sendpkt_mac80211(struct wlc_info *wlc, struct sk_buff *sdu,
 				 struct ieee80211_hw *hw);
 extern int wlc_iovar_op(struct wlc_info *wlc, const char *name, void *params,

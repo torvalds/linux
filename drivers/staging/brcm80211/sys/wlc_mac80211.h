@@ -383,7 +383,7 @@ typedef struct dumpcb_s {
 
 /* virtual interface */
 struct wlc_if {
-	wlc_if_t *next;
+	struct wlc_if *next;
 	u8 type;		/* WLC_IFTYPE_BSS or WLC_IFTYPE_WDS */
 	u8 index;		/* assigned in wl_add_if(), index of the wlif if any,
 				 * not necessarily corresponding to bsscfg._idx or
@@ -768,7 +768,7 @@ struct wlc_info {
 
 	u16 next_bsscfg_ID;
 
-	wlc_if_t *wlcif_list;	/* linked list of wlc_if structs */
+	struct wlc_if *wlcif_list;	/* linked list of wlc_if structs */
 	wlc_txq_info_t *active_queue;	/* txq for the currently active transmit context */
 	u32 mpc_dur;		/* total time (ms) in mpc mode except for the
 				 * portion since radio is turned off last time
@@ -946,7 +946,7 @@ extern const bcm_iovar_t wlc_iovars[];
 
 extern int wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 		       const char *name, void *params, uint p_len, void *arg,
-		       int len, int val_size, wlc_if_t *wlcif);
+		       int len, int val_size, struct wlc_if *wlcif);
 
 #if defined(BCMDBG)
 extern void wlc_print_ies(struct wlc_info *wlc, u8 *ies, uint ies_len);
