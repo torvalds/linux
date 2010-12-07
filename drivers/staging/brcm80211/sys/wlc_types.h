@@ -25,7 +25,7 @@ struct wlc_if;
 typedef struct wl_if wl_if_t;
 struct ampdu_info;
 struct wlc_ap_info;
-typedef struct antsel_info antsel_info_t;
+struct antsel_info;
 typedef struct bmac_pmq bmac_pmq_t;
 
 struct d11init;

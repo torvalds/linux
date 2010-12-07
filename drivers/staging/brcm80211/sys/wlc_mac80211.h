@@ -487,7 +487,10 @@ struct wlc_hw_info {
 	u8 antsel_type;	/* Type of boardlevel mimo antenna switch-logic
 				 * 0 = N/A, 1 = 2x4 board, 2 = 2x3 CB2 board
 				 */
-	u32 antsel_avail;	/* put antsel_info_t here if more info is needed */
+	u32 antsel_avail;	/*
+				 * put struct antsel_info here if more info is
+				 * needed
+				 */
 };
 
 /* TX Queue information
@@ -549,7 +552,7 @@ struct wlc_info {
 
 
 	struct ampdu_info *ampdu;	/* ampdu module handler */
-	antsel_info_t *asi;	/* antsel module handler */
+	struct antsel_info *asi;	/* antsel module handler */
 	wlc_cm_info_t *cmi;	/* channel manager module handler */
 
 	void *btparam;		/* bus type specific cookie */
