@@ -61,6 +61,7 @@ extern void adc_free_host(struct adc_host *adc);
 extern void adc_core_irq_handle(struct adc_host *adc);
 
 
+#ifdef CONFIG_ADC
 extern struct adc_client *adc_register(int chn,
 				void (*callback)(struct adc_client *, void *, int), 
 				void *callback_param);
@@ -68,6 +69,17 @@ extern void adc_unregister(struct adc_client *client);
 
 extern int adc_sync_read(struct adc_client *client);
 extern int adc_async_read(struct adc_client *client);
+#else
+static inline struct adc_client *adc_register(int chn,
+				void (*callback)(struct adc_client *, void *, int),
+				void *callback_param)
+{
+	return NULL;
+}
+static inline void adc_unregister(struct adc_client *client) {}
+static inline int adc_sync_read(struct adc_client *client) { return -EINVAL; }
+static inline int adc_async_read(struct adc_client *client) { return -EINVAL; }
+#endif
 
 #endif
 

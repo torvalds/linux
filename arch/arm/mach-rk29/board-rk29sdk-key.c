@@ -100,6 +100,6 @@ static struct rk29_keys_button key_button[] = {
 struct rk29_keys_platform_data rk29_keys_pdata = {
 	.buttons	= key_button,
 	.nbuttons	= ARRAY_SIZE(key_button),
-	.chn	= 1,  //chn: 0-7, if do not use ADC,set 'chn' -1
+	.chn	= -1,  //chn: 0-7, if do not use ADC,set 'chn' -1
 };
 
