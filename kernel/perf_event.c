@@ -3824,6 +3824,8 @@ static void perf_event_task_event(struct perf_task_event *task_event)
 	rcu_read_lock();
 	list_for_each_entry_rcu(pmu, &pmus, entry) {
 		cpuctx = get_cpu_ptr(pmu->pmu_cpu_context);
+		if (cpuctx->active_pmu != pmu)
+			goto next;
 		perf_event_task_ctx(&cpuctx->ctx, task_event);
 
 		ctx = task_event->task_ctx;
@@ -3959,6 +3961,8 @@ static void perf_event_comm_event(struct perf_comm_event *comm_event)
 	rcu_read_lock();
 	list_for_each_entry_rcu(pmu, &pmus, entry) {
 		cpuctx = get_cpu_ptr(pmu->pmu_cpu_context);
+		if (cpuctx->active_pmu != pmu)
+			goto next;
 		perf_event_comm_ctx(&cpuctx->ctx, comm_event);
 
 		ctxn = pmu->task_ctx_nr;
@@ -4144,6 +4148,8 @@ got_name:
 	rcu_read_lock();
 	list_for_each_entry_rcu(pmu, &pmus, entry) {
 		cpuctx = get_cpu_ptr(pmu->pmu_cpu_context);
+		if (cpuctx->active_pmu != pmu)
+			goto next;
 		perf_event_mmap_ctx(&cpuctx->ctx, mmap_event,
 					vma->vm_flags & VM_EXEC);
 
@@ -5145,20 +5151,36 @@ static void *find_pmu_context(int ctxn)
 	return NULL;
 }
 
-static void free_pmu_context(void * __percpu cpu_context)
+static void update_pmu_context(struct pmu *pmu, struct pmu *old_pmu)
 {
-	struct pmu *pmu;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct perf_cpu_context *cpuctx;
+
+		cpuctx = per_cpu_ptr(pmu->pmu_cpu_context, cpu);
+
+		if (cpuctx->active_pmu == old_pmu)
+			cpuctx->active_pmu = pmu;
+	}
+}
+
+static void free_pmu_context(struct pmu *pmu)
+{
+	struct pmu *i;
 
 	mutex_lock(&pmus_lock);
 	/*
 	 * Like a real lame refcount.
 	 */
-	list_for_each_entry(pmu, &pmus, entry) {
-		if (pmu->pmu_cpu_context == cpu_context)
+	list_for_each_entry(i, &pmus, entry) {
+		if (i->pmu_cpu_context == pmu->pmu_cpu_context) {
+			update_pmu_context(i, pmu);
 			goto out;
+		}
 	}
 
-	free_percpu(cpu_context);
+	free_percpu(pmu->pmu_cpu_context);
 out:
 	mutex_unlock(&pmus_lock);
 }
@@ -5190,6 +5212,7 @@ int perf_pmu_register(struct pmu *pmu)
 		cpuctx->ctx.pmu = pmu;
 		cpuctx->jiffies_interval = 1;
 		INIT_LIST_HEAD(&cpuctx->rotation_list);
+		cpuctx->active_pmu = pmu;
 	}
 
 got_cpu_context:
@@ -5241,7 +5264,7 @@ void perf_pmu_unregister(struct pmu *pmu)
 	synchronize_rcu();
 
 	free_percpu(pmu->pmu_disable_count);
-	free_pmu_context(pmu->pmu_cpu_context);
+	free_pmu_context(pmu);
 }
 
 struct pmu *perf_init_event(struct perf_event *event)
