@@ -548,7 +548,7 @@ struct wlc_info {
 	u8 txpwr_local_constraint;	/* local power contraint in dB */
 
 
-	ampdu_info_t *ampdu;	/* ampdu module handler */
+	struct ampdu_info *ampdu;	/* ampdu module handler */
 	antsel_info_t *asi;	/* antsel module handler */
 	wlc_cm_info_t *cmi;	/* channel manager module handler */
 
