@@ -97,10 +97,15 @@ static inline int omap1_i2c_add_bus(int bus_id)
 {
 	struct platform_device *pdev;
 	struct omap_i2c_bus_platform_data *pdata;
+	struct resource *res;
 
 	omap1_i2c_mux_pins(bus_id);
 
 	pdev = &omap_i2c_devices[bus_id - 1];
+	res = pdev->resource;
+	res[0].start = OMAP1_I2C_BASE;
+	res[0].end = res[0].start + OMAP_I2C_SIZE;
+	res[1].start = INT_I2C;
 	pdata = &i2c_pdata[bus_id - 1];
 
 	return platform_device_register(pdev);
