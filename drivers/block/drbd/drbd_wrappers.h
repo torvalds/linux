@@ -39,7 +39,7 @@ static inline void drbd_generic_make_request(struct drbd_conf *mdev,
 		return;
 	}
 
-	if (FAULT_ACTIVE(mdev, fault_type))
+	if (drbd_insert_fault(mdev, fault_type))
 		bio_endio(bio, -EIO);
 	else
 		generic_make_request(bio);

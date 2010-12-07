@@ -92,7 +92,7 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 	bio->bi_end_io = drbd_md_io_complete;
 	bio->bi_rw = rw;
 
-	if (FAULT_ACTIVE(mdev, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
+	if (drbd_insert_fault(mdev, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
 		bio_endio(bio, -EIO);
 	else
 		submit_bio(rw, bio);
@@ -685,7 +685,7 @@ void drbd_al_to_on_disk_bm(struct drbd_conf *mdev)
 	for (i = 0; i < nr_elements; i++) {
 		if (bios[i] == NULL)
 			break;
-		if (FAULT_ACTIVE(mdev, DRBD_FAULT_MD_WR)) {
+		if (drbd_insert_fault(mdev, DRBD_FAULT_MD_WR)) {
 			bios[i]->bi_rw = WRITE;
 			bio_endio(bios[i], -EIO);
 		} else {

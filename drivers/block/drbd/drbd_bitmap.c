@@ -502,7 +502,7 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 		D_ASSERT(b->bm_pages != NULL);
 		npages = b->bm_pages;
 	} else {
-		if (FAULT_ACTIVE(mdev, DRBD_FAULT_BM_ALLOC))
+		if (drbd_insert_fault(mdev, DRBD_FAULT_BM_ALLOC))
 			npages = NULL;
 		else
 			npages = bm_realloc_pages(b, want);
@@ -768,7 +768,7 @@ static void bm_page_io_async(struct drbd_conf *mdev, struct drbd_bitmap *b, int 
 	bio->bi_private = b;
 	bio->bi_end_io = bm_async_io_complete;
 
-	if (FAULT_ACTIVE(mdev, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
+	if (drbd_insert_fault(mdev, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD)) {
 		bio->bi_rw |= rw;
 		bio_endio(bio, -EIO);
 	} else {

@@ -319,7 +319,7 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
 	struct page *page;
 	unsigned nr_pages = (data_size + PAGE_SIZE -1) >> PAGE_SHIFT;
 
-	if (FAULT_ACTIVE(mdev, DRBD_FAULT_AL_EE))
+	if (drbd_insert_fault(mdev, DRBD_FAULT_AL_EE))
 		return NULL;
 
 	e = mempool_alloc(drbd_ee_mempool, gfp_mask & ~__GFP_HIGHMEM);
@@ -1264,7 +1264,7 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __
 		unsigned len = min_t(int, ds, PAGE_SIZE);
 		data = kmap(page);
 		rr = drbd_recv(mdev, data, len);
-		if (FAULT_ACTIVE(mdev, DRBD_FAULT_RECEIVE)) {
+		if (drbd_insert_fault(mdev, DRBD_FAULT_RECEIVE)) {
 			dev_err(DEV, "Fault injection: Corrupting data on receive\n");
 			data[0] = data[0] ^ (unsigned long)-1;
 		}

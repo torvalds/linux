@@ -1020,9 +1020,9 @@ allocate_barrier:
 		 * stable storage, and this is a WRITE, we may not even submit
 		 * this bio. */
 		if (get_ldev(mdev)) {
-			if (FAULT_ACTIVE(mdev, rw == WRITE ? DRBD_FAULT_DT_WR
-					     : rw == READ  ? DRBD_FAULT_DT_RD
-					     :               DRBD_FAULT_DT_RA))
+			if (drbd_insert_fault(mdev,   rw == WRITE ? DRBD_FAULT_DT_WR
+						    : rw == READ  ? DRBD_FAULT_DT_RD
+						    :               DRBD_FAULT_DT_RA))
 				bio_endio(req->private_bio, -EIO);
 			else
 				generic_make_request(req->private_bio);
