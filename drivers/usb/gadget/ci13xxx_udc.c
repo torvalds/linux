@@ -1626,7 +1626,7 @@ __acquires(udc->lock)
 	spin_unlock(udc->lock);
 	retval = usb_ep_enable(&mEp->ep, &ctrl_endpt_desc);
 	if (!retval) {
-		mEp->status = usb_ep_alloc_request(&mEp->ep, GFP_KERNEL);
+		mEp->status = usb_ep_alloc_request(&mEp->ep, GFP_ATOMIC);
 		if (mEp->status == NULL) {
 			usb_ep_disable(&mEp->ep);
 			retval = -ENOMEM;
@@ -2055,7 +2055,6 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 {
 	struct ci13xxx_ep  *mEp  = container_of(ep, struct ci13xxx_ep, ep);
 	struct ci13xxx_req *mReq = NULL;
-	unsigned long flags;
 
 	trace("%p, %i", ep, gfp_flags);
 
@@ -2063,8 +2062,6 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 		err("EINVAL");
 		return NULL;
 	}
-
-	spin_lock_irqsave(mEp->lock, flags);
 
 	mReq = kzalloc(sizeof(struct ci13xxx_req), gfp_flags);
 	if (mReq != NULL) {
@@ -2079,8 +2076,6 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	}
 
 	dbg_event(_usb_addr(mEp), "ALLOC", mReq == NULL);
-
-	spin_unlock_irqrestore(mEp->lock, flags);
 
 	return (mReq == NULL) ? NULL : &mReq->req;
 }
@@ -2404,9 +2399,11 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		/* this allocation cannot be random */
 		for (k = RX; k <= TX; k++) {
 			INIT_LIST_HEAD(&mEp->qh[k].queue);
+			spin_unlock_irqrestore(udc->lock, flags);
 			mEp->qh[k].ptr = dma_pool_alloc(udc->qh_pool,
 							GFP_KERNEL,
 							&mEp->qh[k].dma);
+			spin_lock_irqsave(udc->lock, flags);
 			if (mEp->qh[k].ptr == NULL)
 				retval = -ENOMEM;
 			else
