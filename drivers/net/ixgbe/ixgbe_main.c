@@ -6889,7 +6889,7 @@ static void __devinit ixgbe_probe_vf(struct ixgbe_adapter *adapter,
 	struct ixgbe_hw *hw = &adapter->hw;
 	int err;
 
-	if (hw->mac.type != ixgbe_mac_82599EB || !max_vfs)
+	if (hw->mac.type == ixgbe_mac_82598EB || !max_vfs)
 		return;
 
 	/* The 82599 supports up to 64 VFs per physical function
