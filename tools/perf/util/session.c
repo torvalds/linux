@@ -603,7 +603,7 @@ static int perf_session_queue_event(struct perf_session *s, event_t *event,
 	u64 timestamp = data->time;
 	struct sample_queue *new;
 
-	if (!timestamp)
+	if (!timestamp || timestamp == ~0ULL)
 		return -ETIME;
 
 	if (timestamp < s->ordered_samples.last_flush) {
