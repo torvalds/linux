@@ -2150,7 +2150,10 @@ static void pch_udc_svc_control_out(struct pch_udc_dev *dev)
 			pch_udc_set_dma(dev, DMA_DIR_RX);
 		} else {
 			/* control write */
-			pch_udc_svc_data_out(dev, UDC_EP0OUT_IDX);
+			/* next function will pickuo an clear the status */
+			ep->epsts = stat;
+
+			pch_udc_svc_data_out(dev, 0);
 			/* re-program desc. pointer for possible ZLPs */
 			pch_udc_ep_set_ddptr(ep, ep->td_data_phys);
 			pch_udc_set_dma(dev, DMA_DIR_RX);
