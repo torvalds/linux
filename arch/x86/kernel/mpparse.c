@@ -289,16 +289,12 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 #ifdef CONFIG_X86_32
 	generic_mps_oem_check(mpc, oem, str);
 #endif
-	/* save the local APIC address, it might be non-default */
-	if (!acpi_lapic)
-		mp_lapic_addr = mpc->lapic;
-
-	if (early)
-		return 1;
-
 	/* Initialize the lapic mapping */
 	if (!acpi_lapic)
 		register_lapic_address(mpc->lapic);
+
+	if (early)
+		return 1;
 
 	if (mpc->oemptr)
 		x86_init.mpparse.smp_read_mpc_oem(mpc);
