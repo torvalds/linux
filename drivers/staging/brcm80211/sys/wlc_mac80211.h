@@ -390,7 +390,7 @@ struct wlc_if {
 				 * AID2PVBMAP(scb).
 				 */
 	u8 flags;		/* flags for the interface */
-	wl_if_t *wlif;		/* pointer to wlif */
+	struct wl_if *wlif;		/* pointer to wlif */
 	struct wlc_txq_info *qi;	/* pointer to associated tx queue */
 	union {
 		struct scb *scb;	/* pointer to scb if WLC_IFTYPE_WDS */

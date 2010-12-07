@@ -98,7 +98,7 @@ struct ieee80211_tkip_data {
 	u8 rx_hdr[16], tx_hdr[16];
 };
 
-#define WL_DEV_IF(dev)		((wl_if_t *)netdev_priv(dev))
+#define WL_DEV_IF(dev)		((struct wl_if *)netdev_priv(dev))
 #define	WL_INFO(dev)		((struct wl_info *)(WL_DEV_IF(dev)->wl))
 static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev);
 static void wl_release_fw(struct wl_info *wl);

@@ -22,7 +22,7 @@
 struct wlc_info;
 struct wlc_hw_info;
 struct wlc_if;
-typedef struct wl_if wl_if_t;
+struct wl_if;
 struct ampdu_info;
 struct wlc_ap_info;
 struct antsel_info;
