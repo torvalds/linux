@@ -271,8 +271,13 @@ archclean:
 bp:;	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/bootpImage
 i zi:;	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $@
 
+PHONY += kernel.img
+kernel.img: Image FORCE
+	$(Q)$(srctree)/mkkrnlimg $(obj)/arch/arm/boot/Image $(obj)/kernel.img
+	@echo '  Image:  $@ is ready'
 
 define archhelp
+  echo  '  kernel.img    - Rockchip kernel image'
   echo  '* zImage        - Compressed kernel image (arch/$(ARCH)/boot/zImage)'
   echo  '  Image         - Uncompressed kernel image (arch/$(ARCH)/boot/Image)'
   echo  '* xipImage      - XIP kernel image, if configured (arch/$(ARCH)/boot/xipImage)'
