@@ -1054,6 +1054,7 @@ err_out:
 
 void nouveau_lastclose(struct drm_device *dev)
 {
+	vga_switcheroo_process_delayed_switch();
 }
 
 int nouveau_unload(struct drm_device *dev)
