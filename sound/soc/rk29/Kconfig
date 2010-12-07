@@ -18,7 +18,7 @@ config SND_RK29_SOC_I2S_2CH
 
 config SND_RK29_SOC_I2S_8CH
         bool "Soc RK29 I2S 8 Channel support"
-        default y
+        default n
 	depends on SND_RK29_SOC_I2S
 	help
                 This supports the use of the 8 Channel I2S interface on rk29 processors.

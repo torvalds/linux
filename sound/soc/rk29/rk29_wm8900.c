@@ -33,47 +33,54 @@
 static int rk29_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-    struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	int ret;
-	  
-    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
-	/*by Vincent Hsiung for EQ Vol Change*/
-	#define HW_PARAMS_FLAG_EQVOL_ON 0x21
-	#define HW_PARAMS_FLAG_EQVOL_OFF 0x22
-    if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
-    {
-    	ret = codec_dai->ops->hw_params(substream, params, codec_dai); //by Vincent
-    	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-    }
-    else
-    {
-	    /* set codec DAI configuration */
-	    #if defined (CONFIG_SND_CODEC_SOC_SLAVE) 
-	    ret = codec_dai->ops->set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS); 
-	    #endif	
-	    #if defined (CONFIG_SND_CODEC_SOC_MASTER) 
-	    ret = codec_dai->ops->set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM ); 
-	    #endif
-	    if (ret < 0)
-	    	  return ret; 
-	    /* set cpu DAI configuration */
-	    #if defined (CONFIG_SND_CODEC_SOC_SLAVE) 
-	    ret = cpu_dai->ops->set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	    #endif	
-	    #if defined (CONFIG_SND_CODEC_SOC_MASTER) 
-	    ret = cpu_dai->ops->set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
-	    #endif		
-	    if (ret < 0)
-	    	  return ret;
-	  }
-    
-	  return 0;
+        struct snd_soc_pcm_runtime *rtd = substream->private_data;
+        struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+        struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+        int ret;
+          
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
+        /*by Vincent Hsiung for EQ Vol Change*/
+        #define HW_PARAMS_FLAG_EQVOL_ON 0x21
+        #define HW_PARAMS_FLAG_EQVOL_OFF 0x22
+        if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
+        {
+        	ret = codec_dai->ops->hw_params(substream, params, codec_dai); //by Vincent
+        	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        }
+        else
+        {
+                
+                /* set codec DAI configuration */
+                #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+                ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+                                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+                #endif	
+                #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+                ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+                                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM ); 
+                #endif
+                if (ret < 0)
+                  return ret; 
+                #if 0
+                /* set cpu DAI configuration */
+                #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+                ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+                                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
+                #endif	
+                #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+                ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+                                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
+                #endif		
+                if (ret < 0)
+                  return ret;
+                #endif
+        }
+
+        snd_soc_dai_set_clkdiv(codec_dai, WM8900_BCLK_DIV, WM8900_BCLK_DIV_4);
+        snd_soc_dai_set_clkdiv(codec_dai, WM8900_LRCLK_MODE, 0x400);
+        snd_soc_dai_set_clkdiv(codec_dai, WM8900_DAC_LRCLK,0x40);
+
+        return 0;
 }
 
 static const struct snd_soc_dapm_widget wm8900_dapm_widgets[] = {
@@ -85,8 +92,8 @@ static const struct snd_soc_dapm_widget wm8900_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route audio_map[]= {
 	
-	{"Audio Out", NULL, "LOUT1"},
-	{"Audio Out", NULL, "ROUT1"},
+	{"Audio Out", NULL, "HP_L"},
+	{"Audio Out", NULL, "HP_R"},
 	{"Line in", NULL, "RINPUT1"},
 	{"Line in", NULL, "LINPUT1"},
 	{"Micn", NULL, "RINPUT2"},
@@ -101,27 +108,22 @@ static int rk29_wm8900_init(struct snd_soc_codec *codec)
 	struct snd_soc_dai *codec_dai = &codec->dai[0];
 	int ret;
 	  
-    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-    
-    ret = snd_soc_dai_set_sysclk(codec_dai, 0,
-		12000000, SND_SOC_CLOCK_IN);
-	if (ret < 0) {
-		printk(KERN_ERR "Failed to set WM8900 SYSCLK: %d\n", ret);
-		return ret;
-	}
-	
-    /* Add specific widgets */
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+
+        /* Add specific widgets */
 	snd_soc_dapm_new_controls(codec, wm8900_dapm_widgets,
 				  ARRAY_SIZE(wm8900_dapm_widgets));
-  	snd_soc_dapm_nc_pin(codec, "LOUT1");
-	snd_soc_dapm_nc_pin(codec, "ROUT1");
-	
-    /* Set up specific audio path audio_mapnects */
-    snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
-       
-    snd_soc_dapm_sync(codec);
- 
-    return 0;
+	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        /* Set up specific audio path audio_mapnects */
+        snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        snd_soc_dapm_nc_pin(codec, "HP_L");
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+	snd_soc_dapm_nc_pin(codec, "HP_R");
+	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        snd_soc_dapm_sync(codec);
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        return 0;
 }
 
 static struct snd_soc_ops rk29_ops = {
@@ -131,7 +133,7 @@ static struct snd_soc_ops rk29_ops = {
 static struct snd_soc_dai_link rk29_dai = {
 	  .name = "WM8900",
 	  .stream_name = "WM8900 PCM",
-	  .cpu_dai = &rk29_i2s_dai,
+	  .cpu_dai = &rk29_i2s_dai[1],
 	  .codec_dai = &wm8900_dai,
 	  .init = rk29_wm8900_init,
 	  .ops = &rk29_ops,
@@ -155,7 +157,7 @@ static struct platform_device *rk29_snd_device;
 static int __init audio_card_init(void)
 {
 	int ret =0;	
-    DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	rk29_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!rk29_snd_device) {
 		  DBG("platform device allocation failed\n");
@@ -166,8 +168,8 @@ static int __init audio_card_init(void)
 	rk29_snd_devdata.dev = &rk29_snd_device->dev;
 	ret = platform_device_add(rk29_snd_device);
 	if (ret) {
-	    DBG("platform device add failed\n");
-	    platform_device_put(rk29_snd_device);
+	        DBG("platform device add failed\n");
+	        platform_device_put(rk29_snd_device);
 	}
 	return ret;
 }

@@ -34,6 +34,13 @@
 
 #include "wm8900.h"
 
+
+#if 0
+#define	WM8900_DBG(x...)	printk(KERN_INFO x)
+#else
+#define	WM8900_DBG(x...)
+#endif
+
 /* WM8900 register space */
 #define WM8900_REG_RESET	0x0
 #define WM8900_REG_ID		0x0
@@ -196,6 +203,7 @@ static int wm8900_volatile_register(unsigned int reg)
 
 static void wm8900_reset(struct snd_soc_codec *codec)
 {
+        WM8900_DBG("Enter:%s, %d, codec=0x%8X \n", __FUNCTION__, __LINE__,codec);
 	snd_soc_write(codec, WM8900_REG_RESET, 0);
 
 	memcpy(codec->reg_cache, wm8900_reg_defaults,
@@ -207,6 +215,8 @@ static int wm8900_hp_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	u16 hpctl1 = snd_soc_read(codec, WM8900_REG_HPCTL1);
+	
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -214,6 +224,7 @@ static int wm8900_hp_event(struct snd_soc_dapm_widget *w,
 		hpctl1 = WM8900_REG_HPCTL1_HP_CLAMP_IP |
 			WM8900_REG_HPCTL1_HP_CLAMP_OP;
 		snd_soc_write(codec, WM8900_REG_HPCTL1, hpctl1);
+		WM8900_DBG("Enter:%s, %d, HPCTL=0x%04X \n", __FUNCTION__, __LINE__, hpctl1);
 		break;
 
 	case SND_SOC_DAPM_POST_PMU:
@@ -236,6 +247,7 @@ static int wm8900_hp_event(struct snd_soc_dapm_widget *w,
 		snd_soc_write(codec, WM8900_REG_HPCTL1, hpctl1);
 		hpctl1 &= ~WM8900_REG_HPCTL1_HP_SHORT;
 		snd_soc_write(codec, WM8900_REG_HPCTL1, hpctl1);
+		WM8900_DBG("Enter:%s, %d, HPCTL=0x%04X \n", __FUNCTION__, __LINE__, hpctl1);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
@@ -252,11 +264,13 @@ static int wm8900_hp_event(struct snd_soc_dapm_widget *w,
 			WM8900_REG_HPCTL1_HP_CLAMP_OP;
 		hpctl1 &= ~WM8900_REG_HPCTL1_HP_IPSTAGE_ENA;
 		snd_soc_write(codec, WM8900_REG_HPCTL1, hpctl1);
+		WM8900_DBG("Enter:%s, %d, HPCTL=0x%04X \n", __FUNCTION__, __LINE__, hpctl1);
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
 		/* Disable everything */
 		snd_soc_write(codec, WM8900_REG_HPCTL1, 0);
+		WM8900_DBG("Enter:%s, %d, HPCTL=0x%04X \n", __FUNCTION__, __LINE__, hpctl1);
 		break;
 
 	default:
@@ -613,11 +627,13 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int wm8900_add_widgets(struct snd_soc_codec *codec)
 {
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+        
 	snd_soc_dapm_new_controls(codec, wm8900_dapm_widgets,
 				  ARRAY_SIZE(wm8900_dapm_widgets));
-
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
-
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 	snd_soc_dapm_new_widgets(codec);
 
 	return 0;
@@ -631,6 +647,8 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
 	u16 reg;
+
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
 	reg = snd_soc_read(codec, WM8900_REG_AUDIO1) & ~0x60;
 
@@ -661,6 +679,14 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
 			reg &= ~WM8900_REG_DACCTRL_DAC_SB_FILT;
 
 		snd_soc_write(codec, WM8900_REG_DACCTRL, reg);
+		
+        	snd_soc_write(codec, WM8900_REG_POWER3, 0xEF);
+        	
+        	snd_soc_write(codec, WM8900_REG_LOUTMIXCTL1, 0x150);
+        	snd_soc_write(codec, WM8900_REG_ROUTMIXCTL1, 0x150);
+        	snd_soc_write(codec, WM8900_REG_LOUT2CTL, 0x126);
+        	snd_soc_write(codec, WM8900_REG_ROUT2CTL, 0x126);
+        	snd_soc_write(codec, WM8900_REG_HPCTL1, 0xC0);		
 	}
 
 	return 0;
@@ -687,7 +713,9 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	unsigned int div;
 
 	BUG_ON(!Fout);
-
+	
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+        
 	/* The FLL must run at 90-100MHz which is then scaled down to
 	 * the output value by FLLCLK_DIV. */
 	target = Fout;
@@ -749,6 +777,8 @@ static int wm8900_set_fll(struct snd_soc_codec *codec,
 	struct wm8900_priv *wm8900 = codec->private_data;
 	struct _fll_div fll_div;
 	unsigned int reg;
+
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
 	if (wm8900->fll_in == freq_in && wm8900->fll_out == freq_out)
 		return 0;
@@ -817,6 +847,7 @@ reenable:
 static int wm8900_set_dai_pll(struct snd_soc_dai *codec_dai,
 		int pll_id, unsigned int freq_in, unsigned int freq_out)
 {
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 	return wm8900_set_fll(codec_dai->codec, pll_id, freq_in, freq_out);
 }
 
@@ -825,6 +856,7 @@ static int wm8900_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	unsigned int reg;
+        WM8900_DBG("Enter:%s, %d, div_id=%d, div=%d \n", __FUNCTION__, __LINE__, div_id, div);
 
 	switch (div_id) {
 	case WM8900_BCLK_DIV:
@@ -875,6 +907,8 @@ static int wm8900_set_dai_fmt(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	unsigned int clocking1, aif1, aif3, aif4;
+
+        WM8900_DBG("Enter:%s, %d, fmt=0x%08X \n", __FUNCTION__, __LINE__, fmt);
 
 	clocking1 = snd_soc_read(codec, WM8900_REG_CLOCKING1);
 	aif1 = snd_soc_read(codec, WM8900_REG_AUDIO1);
@@ -987,6 +1021,7 @@ static int wm8900_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	u16 reg;
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 
 	reg = snd_soc_read(codec, WM8900_REG_DACCTRL);
 
@@ -1040,6 +1075,8 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
 	u16 reg;
+
+        WM8900_DBG("Enter:%s, %d, level=0x%08X \n", __FUNCTION__, __LINE__, level);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -1125,6 +1162,8 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 			     WM8900_REG_POWER2_SYSCLK_ENA);
 		break;
 	}
+
+	
 	codec->bias_level = level;
 	return 0;
 }
@@ -1134,6 +1173,9 @@ static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8900_priv *wm8900 = codec->private_data;
+
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+	
 	int fll_out = wm8900->fll_out;
 	int fll_in  = wm8900->fll_in;
 	int ret;
@@ -1202,6 +1244,8 @@ static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 	unsigned int reg;
 	int ret;
 
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+        
 	wm8900 = kzalloc(sizeof(struct wm8900_priv), GFP_KERNEL);
 	if (wm8900 == NULL)
 		return -ENOMEM;
@@ -1269,6 +1313,13 @@ static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 	snd_soc_write(codec, WM8900_REG_RADC_DV,
 		      snd_soc_read(codec, WM8900_REG_RADC_DV) | 0x100);
 
+        /* For Fzf Test */
+        #if 1
+	snd_soc_write(codec, WM8900_REG_LDAC_DV,
+		      (snd_soc_read(codec, WM8900_REG_LDAC_DV)&0xFF00) | 0xB0);
+	snd_soc_write(codec, WM8900_REG_RDAC_DV,
+		      (snd_soc_read(codec, WM8900_REG_RDAC_DV)&0xFF00) | 0xB0);
+        #endif
 	/* Set the DAC and mixer output bias */
 	snd_soc_write(codec, WM8900_REG_OUTBIASCTL, 0x81);
 
@@ -1300,6 +1351,8 @@ err:
 
 static __devexit int wm8900_i2c_remove(struct i2c_client *client)
 {
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+        
 	snd_soc_unregister_dai(&wm8900_dai);
 	snd_soc_unregister_codec(wm8900_codec);
 
@@ -1315,6 +1368,7 @@ static __devexit int wm8900_i2c_remove(struct i2c_client *client)
 #ifdef CONFIG_PM
 static int wm8900_i2c_suspend(struct i2c_client *client, pm_message_t msg)
 {
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
 	return snd_soc_suspend_device(&client->dev);
 }
 
@@ -1351,6 +1405,8 @@ static int wm8900_probe(struct platform_device *pdev)
 	struct snd_soc_codec *codec;
 	int ret = 0;
 
+        WM8900_DBG("Enter:%s, %d \n", __FUNCTION__, __LINE__);
+        
 	if (!wm8900_codec) {
 		dev_err(&pdev->dev, "I2C client not yet instantiated\n");
 		return -ENODEV;

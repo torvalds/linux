@@ -30,7 +30,7 @@
 #include <mach/board.h>
 #include <mach/rk29_iomap.h>
 #include <mach/rk29-dma-pl330.h>
-
+#include <mach/iomux.h>
 
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
@@ -257,13 +257,22 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 	iismod = readl(&(pheadi2s->I2S_TXCR));
         //iismod &= (~((1<<5)-1));
 	switch (params_format(params)) {
-	  case SNDRV_PCM_FORMAT_S8:
-	  	iismod |= SAMPLE_DATA_8bit;
-	  	break;
-	  case SNDRV_PCM_FORMAT_S16_LE:
-	  	iismod |= I2S_DATA_WIDTH(15);
-	  	break;
-        } 
+        case SNDRV_PCM_FORMAT_S8:
+        	iismod |= SAMPLE_DATA_8bit;
+        	break;
+        case SNDRV_PCM_FORMAT_S16_LE:
+        	iismod |= I2S_DATA_WIDTH(15);
+        	break;
+        case SNDRV_PCM_FORMAT_S20_3LE:
+                iismod |= I2S_DATA_WIDTH(19);
+                break;
+        case SNDRV_PCM_FORMAT_S24_LE:
+                iismod |= I2S_DATA_WIDTH(23);
+                break;
+        case SNDRV_PCM_FORMAT_S32_LE:
+                iismod |= I2S_DATA_WIDTH(31);
+                break;
+        }
 
         iismod |= I2S_SLAVE_MODE;
 
@@ -411,7 +420,33 @@ static struct snd_soc_dai_ops rockchip_i2s_dai_ops = {
 static int rockchip_i2s_dai_probe(struct platform_device *pdev, struct snd_soc_dai *dai)
 {	
 	I2S_DBG("Enter %s, %d >>>>>>>>>>>\n", __func__, __LINE__);
-    
+
+        switch(dai->id) {
+        case 0:
+                rk29_mux_api_set(GPIO2D0_I2S0CLK_MIIRXCLKIN_NAME, GPIO2H_I2S0_CLK);                
+                rk29_mux_api_set(GPIO2D1_I2S0SCLK_MIICRS_NAME, GPIO2H_I2S0_SCLK);
+                rk29_mux_api_set(GPIO2D2_I2S0LRCKRX_MIITXERR_NAME, GPIO2H_I2S0_LRCK_RX);
+                rk29_mux_api_set(GPIO2D3_I2S0SDI_MIICOL_NAME, GPIO2H_I2S0_SDI);
+                rk29_mux_api_set(GPIO2D4_I2S0SDO0_MIIRXD2_NAME, GPIO2H_I2S0_SDO0);
+                rk29_mux_api_set(GPIO2D5_I2S0SDO1_MIIRXD3_NAME, GPIO2H_I2S0_SDO1);
+                rk29_mux_api_set(GPIO2D6_I2S0SDO2_MIITXD2_NAME, GPIO2H_I2S0_SDO2);
+                rk29_mux_api_set(GPIO2D7_I2S0SDO3_MIITXD3_NAME, GPIO2H_I2S0_SDO3);
+                
+                rk29_mux_api_set(GPIO4D6_I2S0LRCKTX0_NAME, GPIO4H_I2S0_LRCK_TX0);
+                rk29_mux_api_set(GPIO4D7_I2S0LRCKTX1_NAME, GPIO4H_I2S0_LRCK_TX1);
+                break;
+        case 1:
+                rk29_mux_api_set(GPIO3A0_I2S1CLK_NAME, GPIO3L_I2S1_CLK);
+                rk29_mux_api_set(GPIO3A1_I2S1SCLK_NAME, GPIO3L_I2S1_SCLK);
+                rk29_mux_api_set(GPIO3A2_I2S1LRCKRX_NAME, GPIO3L_I2S1_LRCK_RX);
+                rk29_mux_api_set(GPIO3A3_I2S1SDI_NAME, GPIO3L_I2S1_SDI);
+                rk29_mux_api_set(GPIO3A4_I2S1SDO_NAME, GPIO3L_I2S1_SDO);
+                rk29_mux_api_set(GPIO3A5_I2S1LRCKTX_NAME, GPIO3L_I2S1_LRCK_TX);
+                break;
+        default:
+                I2S_DBG("Enter:%s, %d, Error For DevId!!!", __FUNCTION__, __LINE__);
+                return -EINVAL;
+        }
         return 0;
 }
 
@@ -546,6 +581,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	i2s->dma_playback->dma_size = 4;
 
 	i2s->iis_clk = clk_get(&pdev->dev, "i2s");
+	I2S_DBG("Enter:%s, %d, iis_clk=%d\n", __FUNCTION__, __LINE__, i2s->iis_clk);
 	if (IS_ERR(i2s->iis_clk)) {
 		dev_err(&pdev->dev, "failed to get i2s clk\n");
 		ret = PTR_ERR(i2s->iis_clk);
@@ -553,7 +589,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	}
 
 	clk_enable(i2s->iis_clk);
-
+        clk_set_rate(i2s->iis_clk, 12000000);
 	ret = rk29_i2s_probe(pdev, dai, i2s, 0);
 	if (ret)
 		goto err_clk;
