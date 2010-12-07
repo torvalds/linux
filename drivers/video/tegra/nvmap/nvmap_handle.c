@@ -379,6 +379,9 @@ void nvmap_free_handle_id(struct nvmap_client *client, unsigned long id)
 	while (pins--)
 		nvmap_unpin_handles(client, &ref->handle, 1);
 
+	if (h->owner == client)
+		h->owner = NULL;
+
 	kfree(ref);
 
 out:
