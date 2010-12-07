@@ -782,6 +782,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
 	.led_mode = IWL_LED_BLINK,
+	.internal_wimax_coex = true,
 };
 
 struct iwl_cfg iwl6150_bgn_cfg = {
@@ -797,6 +798,7 @@ struct iwl_cfg iwl6150_bgn_cfg = {
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,
 	.led_mode = IWL_LED_RF_STATE,
+	.internal_wimax_coex = true,
 };
 
 struct iwl_cfg iwl6050_2abg_cfg = {
@@ -811,6 +813,7 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.base_params = &iwl6050_base_params,
 	.need_dc_calib = true,
 	.led_mode = IWL_LED_BLINK,
+	.internal_wimax_coex = true,
 };
 
 struct iwl_cfg iwl6000_3agn_cfg = {
