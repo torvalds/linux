@@ -1520,8 +1520,6 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	struct ath_softc *sc = aphy->sc;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
-	bool bs_valid = false;
-	int i;
 
 	ath_print(common, ATH_DBG_CONFIG, "Detach Interface\n");
 
@@ -1535,26 +1533,21 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	if ((sc->sc_ah->opmode == NL80211_IFTYPE_AP) ||
 	    (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC) ||
 	    (sc->sc_ah->opmode == NL80211_IFTYPE_MESH_POINT)) {
+		/* Disable SWBA interrupt */
+		sc->sc_ah->imask &= ~ATH9K_INT_SWBA;
 		ath9k_ps_wakeup(sc);
+		ath9k_hw_set_interrupts(sc->sc_ah, sc->sc_ah->imask);
 		ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
 		ath9k_ps_restore(sc);
+		tasklet_kill(&sc->bcon_tasklet);
 	}
 
 	ath_beacon_return(sc, avp);
 	sc->sc_flags &= ~SC_OP_BEACONS;
 
-	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++) {
-		if (sc->beacon.bslot[i] == vif) {
-			printk(KERN_DEBUG "%s: vif had allocated beacon "
-			       "slot\n", __func__);
-			sc->beacon.bslot[i] = NULL;
-			sc->beacon.bslot_aphy[i] = NULL;
-		} else if (sc->beacon.bslot[i])
-			bs_valid = true;
-	}
-	if (!bs_valid && (sc->sc_ah->imask & ATH9K_INT_SWBA)) {
-		/* Disable SWBA interrupt */
-		sc->sc_ah->imask &= ~ATH9K_INT_SWBA;
+	if (sc->nbcnvifs) {
+		/* Re-enable SWBA interrupt */
+		sc->sc_ah->imask |= ATH9K_INT_SWBA;
 		ath9k_ps_wakeup(sc);
 		ath9k_hw_set_interrupts(sc->sc_ah, sc->sc_ah->imask);
 		ath9k_ps_restore(sc);
