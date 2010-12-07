@@ -559,7 +559,6 @@ typedef struct wl_led_info {
 	u8 activehi;
 } wl_led_info_t;
 
-
 /* R_REG and W_REG struct passed through ioctl */
 typedef struct {
 	u32 byteoff;		/* byte offset of the field in d11regs_t */

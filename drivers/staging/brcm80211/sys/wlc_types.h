@@ -23,17 +23,8 @@ struct wlc_info;
 struct wlc_hw_info;
 typedef struct wlc_if wlc_if_t;
 typedef struct wl_if wl_if_t;
-typedef struct led_info led_info_t;
-typedef struct bmac_led bmac_led_t;
-typedef struct bmac_led_info bmac_led_info_t;
-typedef struct scb_module scb_module_t;
-typedef struct ba_info ba_info_t;
 typedef struct ampdu_info ampdu_info_t;
-typedef struct ratesel_info ratesel_info_t;
 typedef struct wlc_ap_info wlc_ap_info_t;
-typedef struct wlc_auth_info wlc_auth_info_t;
-typedef struct supplicant supplicant_t;
-typedef struct authenticator authenticator_t;
 typedef struct antsel_info antsel_info_t;
 typedef struct bmac_pmq bmac_pmq_t;
 
