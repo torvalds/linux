@@ -32,7 +32,7 @@ struct d11init;
 
 #ifndef _hnddma_pub_
 #define _hnddma_pub_
-typedef const struct hnddma_pub hnddma_t;
+struct hnddma_pub;
 #endif				/* _hnddma_pub_ */
 
 #endif				/* _wlc_types_h_ */

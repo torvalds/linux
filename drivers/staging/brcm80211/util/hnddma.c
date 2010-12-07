@@ -78,9 +78,7 @@ static uint dma_msg_level;
 
 /* dma engine software state */
 typedef struct dma_info {
-	struct hnddma_pub hnddma;	/* exported structure, don't use hnddma_t,
-					 * which could be const
-					 */
+	struct hnddma_pub hnddma; /* exported structure */
 	uint *msg_level;	/* message level pointer */
 	char name[MAXNAMEL];	/* callers name for diag msgs */
 
@@ -376,7 +374,7 @@ static const di_fcn_t dma32proc = {
 	39
 };
 
-hnddma_t *dma_attach(struct osl_info *osh, char *name, si_t *sih,
+struct hnddma_pub *dma_attach(struct osl_info *osh, char *name, si_t *sih,
 		     void *dmaregstx, void *dmaregsrx, uint ntxd,
 		     uint nrxd, uint rxbufsize, int rxextheadroom,
 		     uint nrxpost, uint rxoffset, uint *msg_level)
@@ -578,7 +576,7 @@ hnddma_t *dma_attach(struct osl_info *osh, char *name, si_t *sih,
 		}
 	}
 
-	return (hnddma_t *) di;
+	return (struct hnddma_pub *) di;
 
  fail:
 	_dma_detach(di);

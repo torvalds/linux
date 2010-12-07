@@ -424,7 +424,7 @@ struct wlc_hw_info {
 	struct wlc_info *wlc;
 
 	/* fifo */
-	hnddma_t *di[NFIFO];	/* hnddma handles, per fifo */
+	struct hnddma_pub *di[NFIFO];	/* hnddma handles, per fifo */
 
 	uint unit;		/* device instance number */
 

@@ -6467,7 +6467,7 @@ void wlc_high_dpc(struct wlc_info *wlc, u32 macintstatus)
 
 static void *wlc_15420war(struct wlc_info *wlc, uint queue)
 {
-	hnddma_t *di;
+	struct hnddma_pub *di;
 	void *p;
 
 	ASSERT(queue < NFIFO);
