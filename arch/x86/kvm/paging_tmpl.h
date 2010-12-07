@@ -438,7 +438,8 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			 struct guest_walker *gw,
 			 int user_fault, int write_fault, int hlevel,
-			 int *ptwrite, pfn_t pfn, bool map_writable)
+			 int *ptwrite, pfn_t pfn, bool map_writable,
+			 bool prefault)
 {
 	unsigned access = gw->pt_access;
 	struct kvm_mmu_page *sp = NULL;
@@ -512,7 +513,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 
 	mmu_set_spte(vcpu, it.sptep, access, gw->pte_access & access,
 		     user_fault, write_fault, dirty, ptwrite, it.level,
-		     gw->gfn, pfn, false, map_writable);
+		     gw->gfn, pfn, prefault, map_writable);
 	FNAME(pte_prefetch)(vcpu, gw, it.sptep);
 
 	return it.sptep;
@@ -568,8 +569,11 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	 */
 	if (!r) {
 		pgprintk("%s: guest page fault\n", __func__);
-		inject_page_fault(vcpu, &walker.fault);
-		vcpu->arch.last_pt_write_count = 0; /* reset fork detector */
+		if (!prefault) {
+			inject_page_fault(vcpu, &walker.fault);
+			/* reset fork detector */
+			vcpu->arch.last_pt_write_count = 0;
+		}
 		return 0;
 	}
 
@@ -599,7 +603,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_PAGE_FAULT);
 	kvm_mmu_free_some_pages(vcpu);
 	sptep = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
-			     level, &write_pt, pfn, map_writable);
+			     level, &write_pt, pfn, map_writable, prefault);
 	(void)sptep;
 	pgprintk("%s: shadow pte %p %llx ptwrite %d\n", __func__,
 		 sptep, *sptep, write_pt);

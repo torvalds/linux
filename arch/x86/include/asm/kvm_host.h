@@ -593,6 +593,7 @@ struct kvm_x86_ops {
 struct kvm_arch_async_pf {
 	u32 token;
 	gfn_t gfn;
+	unsigned long cr3;
 	bool direct_map;
 };
 
