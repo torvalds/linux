@@ -117,7 +117,7 @@ static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf)
 			 * the register being volatile and the device being
 			 * powered off.
 			 */
-			ret = codec->driver->read(codec, i);
+			ret = snd_soc_read(codec, i);
 			if (ret >= 0)
 				count += snprintf(buf + count,
 						  PAGE_SIZE - count,
@@ -228,7 +228,7 @@ static ssize_t codec_reg_write_file(struct file *file,
 		start++;
 	if (strict_strtoul(start, 16, &value))
 		return -EINVAL;
-	codec->driver->write(codec, reg, value);
+	snd_soc_write(codec, reg, value);
 	return buf_size;
 }
 
