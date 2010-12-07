@@ -447,6 +447,7 @@ void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
 	}
 	*pbackground = background;
 	*pdirty = dirty;
+	trace_global_dirty_state(background, dirty);
 }
 
 /**
