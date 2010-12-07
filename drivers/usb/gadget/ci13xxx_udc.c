@@ -2624,6 +2624,7 @@ static int udc_probe(struct device *dev, void __iomem *regs, const char *name)
 
 	dev_set_name(&udc->gadget.dev, "gadget");
 	udc->gadget.dev.dma_mask = dev->dma_mask;
+	udc->gadget.dev.coherent_dma_mask = dev->coherent_dma_mask;
 	udc->gadget.dev.parent   = dev;
 	udc->gadget.dev.release  = udc_release;
 
