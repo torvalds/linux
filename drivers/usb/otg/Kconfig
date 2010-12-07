@@ -81,4 +81,14 @@ config USB_LANGWELL_OTG
 	  To compile this driver as a module, choose M here: the
 	  module will be called langwell_otg.
 
+config USB_MSM_OTG_72K
+	tristate "OTG support for Qualcomm on-chip USB controller"
+	depends on (USB || USB_GADGET) && ARCH_MSM
+	select USB_OTG_UTILS
+	help
+	  Enable this to support the USB OTG transceiver on MSM chips. It
+	  handles PHY initialization, clock management, and workarounds
+	  required after resetting the hardware. This driver is required
+	  even for peripheral only or host only mode configuration.
+
 endif # USB || OTG
