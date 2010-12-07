@@ -2872,7 +2872,7 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 		sc->bslot[avf->bslot] = vif;
 		if (avf->opmode == NL80211_IFTYPE_AP)
 			sc->num_ap_vifs++;
-		else
+		else if (avf->opmode == NL80211_IFTYPE_ADHOC)
 			sc->num_adhoc_vifs++;
 	}
 
