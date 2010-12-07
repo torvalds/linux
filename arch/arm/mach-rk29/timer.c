@@ -56,9 +56,11 @@
 
 static int rk29_timer_set_next_event(unsigned long cycles, struct clock_event_device *evt)
 {
-	RK_TIMER_DISABLE(TIMER_CLKEVT);
-	RK_TIMER_SETCOUNT(TIMER_CLKEVT, cycles);
-	RK_TIMER_ENABLE(TIMER_CLKEVT);
+	do {
+		RK_TIMER_DISABLE(TIMER_CLKEVT);
+		RK_TIMER_SETCOUNT(TIMER_CLKEVT, cycles);
+		RK_TIMER_ENABLE(TIMER_CLKEVT);
+	} while (RK_TIMER_READVALUE(TIMER_CLKEVT) > cycles);
 	return 0;
 }
 
@@ -81,7 +83,7 @@ static void rk29_timer_set_mode(enum clock_event_mode mode, struct clock_event_d
 
 static struct clock_event_device rk29_timer_clockevent = {
 	.name           = TIMER_CLKEVT_NAME,
-	.features       = CLOCK_EVT_FEAT_PERIODIC /*| CLOCK_EVT_FEAT_ONESHOT*/,
+	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.shift          = 32,
 	.rating         = 200,
 	.set_next_event = rk29_timer_set_next_event,
