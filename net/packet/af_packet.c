@@ -2409,7 +2409,6 @@ out:
 
 out_free_pgvec:
 	free_pg_vec(pg_vec, order, block_nr);
-	kfree(pg_vec);
 	pg_vec = NULL;
 	goto out;
 }
