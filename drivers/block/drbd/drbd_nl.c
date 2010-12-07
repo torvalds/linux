@@ -288,10 +288,11 @@ void drbd_try_outdate_peer_async(struct drbd_conf *mdev)
 		dev_err(DEV, "out of mem, failed to invoke fence-peer helper\n");
 }
 
-int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
+enum drbd_state_rv
+drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 {
 	const int max_tries = 4;
-	int r = 0;
+	enum drbd_state_rv rv = SS_UNKNOWN_ERROR;
 	int try = 0;
 	int forced = 0;
 	union drbd_state mask, val;
@@ -306,17 +307,17 @@ int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 	val.i  = 0; val.role  = new_role;
 
 	while (try++ < max_tries) {
-		r = _drbd_request_state(mdev, mask, val, CS_WAIT_COMPLETE);
+		rv = _drbd_request_state(mdev, mask, val, CS_WAIT_COMPLETE);
 
 		/* in case we first succeeded to outdate,
 		 * but now suddenly could establish a connection */
-		if (r == SS_CW_FAILED_BY_PEER && mask.pdsk != 0) {
+		if (rv == SS_CW_FAILED_BY_PEER && mask.pdsk != 0) {
 			val.pdsk = 0;
 			mask.pdsk = 0;
 			continue;
 		}
 
-		if (r == SS_NO_UP_TO_DATE_DISK && force &&
+		if (rv == SS_NO_UP_TO_DATE_DISK && force &&
 		    (mdev->state.disk < D_UP_TO_DATE &&
 		     mdev->state.disk >= D_INCONSISTENT)) {
 			mask.disk = D_MASK;
@@ -325,7 +326,7 @@ int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 			continue;
 		}
 
-		if (r == SS_NO_UP_TO_DATE_DISK &&
+		if (rv == SS_NO_UP_TO_DATE_DISK &&
 		    mdev->state.disk == D_CONSISTENT && mask.pdsk == 0) {
 			D_ASSERT(mdev->state.pdsk == D_UNKNOWN);
 			nps = drbd_try_outdate_peer(mdev);
@@ -341,9 +342,9 @@ int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 			continue;
 		}
 
-		if (r == SS_NOTHING_TO_DO)
+		if (rv == SS_NOTHING_TO_DO)
 			goto fail;
-		if (r == SS_PRIMARY_NOP && mask.pdsk == 0) {
+		if (rv == SS_PRIMARY_NOP && mask.pdsk == 0) {
 			nps = drbd_try_outdate_peer(mdev);
 
 			if (force && nps > D_OUTDATED) {
@@ -356,7 +357,7 @@ int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 
 			continue;
 		}
-		if (r == SS_TWO_PRIMARIES) {
+		if (rv == SS_TWO_PRIMARIES) {
 			/* Maybe the peer is detected as dead very soon...
 			   retry at most once more in this case. */
 			__set_current_state(TASK_INTERRUPTIBLE);
@@ -365,16 +366,16 @@ int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 				try = max_tries - 1;
 			continue;
 		}
-		if (r < SS_SUCCESS) {
-			r = _drbd_request_state(mdev, mask, val,
+		if (rv < SS_SUCCESS) {
+			rv = _drbd_request_state(mdev, mask, val,
 						CS_VERBOSE + CS_WAIT_COMPLETE);
-			if (r < SS_SUCCESS)
+			if (rv < SS_SUCCESS)
 				goto fail;
 		}
 		break;
 	}
 
-	if (r < SS_SUCCESS)
+	if (rv < SS_SUCCESS)
 		goto fail;
 
 	if (forced)
@@ -423,7 +424,7 @@ int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 	kobject_uevent(&disk_to_dev(mdev->vdisk)->kobj, KOBJ_CHANGE);
  fail:
 	mutex_unlock(&mdev->state_mutex);
-	return r;
+	return rv;
 }
 
 static struct drbd_conf *ensure_mdev(int minor, int create)

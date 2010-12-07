@@ -1174,14 +1174,19 @@ enum dds_flags {
 };
 
 extern void drbd_init_set_defaults(struct drbd_conf *mdev);
-extern int drbd_change_state(struct drbd_conf *mdev, enum chg_state_flags f,
-			union drbd_state mask, union drbd_state val);
+extern enum drbd_state_rv drbd_change_state(struct drbd_conf *mdev,
+					    enum chg_state_flags f,
+					    union drbd_state mask,
+					    union drbd_state val);
 extern void drbd_force_state(struct drbd_conf *, union drbd_state,
 			union drbd_state);
-extern int _drbd_request_state(struct drbd_conf *, union drbd_state,
-			union drbd_state, enum chg_state_flags);
-extern int __drbd_set_state(struct drbd_conf *, union drbd_state,
-			    enum chg_state_flags, struct completion *done);
+extern enum drbd_state_rv _drbd_request_state(struct drbd_conf *,
+					      union drbd_state,
+					      union drbd_state,
+					      enum chg_state_flags);
+extern enum drbd_state_rv __drbd_set_state(struct drbd_conf *, union drbd_state,
+					   enum chg_state_flags,
+					   struct completion *done);
 extern void print_st_err(struct drbd_conf *, union drbd_state,
 			union drbd_state, int);
 extern int  drbd_thread_start(struct drbd_thread *thi);
@@ -1245,7 +1250,7 @@ extern int drbd_send_ov_request(struct drbd_conf *mdev,sector_t sector,int size)
 
 extern int drbd_send_bitmap(struct drbd_conf *mdev);
 extern int _drbd_send_bitmap(struct drbd_conf *mdev);
-extern int drbd_send_sr_reply(struct drbd_conf *mdev, int retcode);
+extern int drbd_send_sr_reply(struct drbd_conf *mdev, enum drbd_state_rv retcode);
 extern void drbd_free_bc(struct drbd_backing_dev *ldev);
 extern void drbd_mdev_cleanup(struct drbd_conf *mdev);
 
@@ -1493,8 +1498,9 @@ enum determine_dev_size { dev_size_error = -1, unchanged = 0, shrunk = 1, grew =
 extern enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *, enum dds_flags) __must_hold(local);
 extern void resync_after_online_grow(struct drbd_conf *);
 extern void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int) __must_hold(local);
-extern int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role,
-		int force);
+extern enum drbd_state_rv drbd_set_role(struct drbd_conf *mdev,
+					enum drbd_role new_role,
+					int force);
 extern enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev);
 extern void drbd_try_outdate_peer_async(struct drbd_conf *mdev);
 extern int drbd_khelper(struct drbd_conf *mdev, char *cmd);
@@ -1761,11 +1767,11 @@ static inline void drbd_state_unlock(struct drbd_conf *mdev)
 	wake_up(&mdev->misc_wait);
 }
 
-static inline int _drbd_set_state(struct drbd_conf *mdev,
-				   union drbd_state ns, enum chg_state_flags flags,
-				   struct completion *done)
+static inline enum drbd_state_rv
+_drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
+		enum chg_state_flags flags, struct completion *done)
 {
-	int rv;
+	enum drbd_state_rv rv;
 
 	read_lock(&global_state_lock);
 	rv = __drbd_set_state(mdev, ns, flags, done);

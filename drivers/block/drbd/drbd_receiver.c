@@ -3112,7 +3112,7 @@ static int receive_req_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
 {
 	struct p_req_state *p = &mdev->data.rbuf.req_state;
 	union drbd_state mask, val;
-	int rv;
+	enum drbd_state_rv rv;
 
 	mask.i = be32_to_cpu(p->mask);
 	val.i = be32_to_cpu(p->val);
