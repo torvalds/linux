@@ -310,6 +310,19 @@ static const char *sidetone_hpf_text[] = {
 static const struct soc_enum sidetone_hpf =
 	SOC_ENUM_SINGLE(WM8994_SIDETONE, 7, 7, sidetone_hpf_text);
 
+static const char *adc_hpf_text[] = {
+	"HiFi", "Voice 1", "Voice 2", "Voice 3"
+};
+
+static const struct soc_enum aif1adc1_hpf =
+	SOC_ENUM_SINGLE(WM8994_AIF1_ADC1_FILTERS, 13, 4, adc_hpf_text);
+
+static const struct soc_enum aif1adc2_hpf =
+	SOC_ENUM_SINGLE(WM8994_AIF1_ADC2_FILTERS, 13, 4, adc_hpf_text);
+
+static const struct soc_enum aif2adc_hpf =
+	SOC_ENUM_SINGLE(WM8994_AIF2_ADC_FILTERS, 13, 4, adc_hpf_text);
+
 static const DECLARE_TLV_DB_SCALE(aif_tlv, 0, 600, 0);
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -7200, 75, 1);
 static const DECLARE_TLV_DB_SCALE(st_tlv, -3600, 300, 0);
@@ -811,6 +824,15 @@ SOC_SINGLE_TLV("DAC2 Left Sidetone Volume", WM8994_DAC2_MIXER_VOLUMES,
 	       0, 12, 0, st_tlv),
 SOC_ENUM("Sidetone HPF Mux", sidetone_hpf),
 SOC_SINGLE("Sidetone HPF Switch", WM8994_SIDETONE, 6, 1, 0),
+
+SOC_ENUM("AIF1ADC1 HPF Mode", aif1adc1_hpf),
+SOC_DOUBLE("AIF1ADC1 HPF Switch", WM8994_AIF1_ADC1_FILTERS, 12, 11, 1, 0),
+
+SOC_ENUM("AIF1ADC2 HPF Mode", aif1adc2_hpf),
+SOC_DOUBLE("AIF1ADC2 HPF Switch", WM8994_AIF1_ADC2_FILTERS, 12, 11, 1, 0),
+
+SOC_ENUM("AIF2ADC HPF Mode", aif2adc_hpf),
+SOC_DOUBLE("AIF2ADC HPF Switch", WM8994_AIF2_ADC_FILTERS, 12, 11, 1, 0),
 
 SOC_DOUBLE_R_TLV("DAC1 Volume", WM8994_DAC1_LEFT_VOLUME,
 		 WM8994_DAC1_RIGHT_VOLUME, 1, 96, 0, digital_tlv),
