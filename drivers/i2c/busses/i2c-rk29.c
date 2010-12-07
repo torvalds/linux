@@ -35,7 +35,7 @@
 #define RK2818_I2C_TIMEOUT		(msecs_to_jiffies(500))
 #define RK2818_DELAY_TIME		2
 
-#if 1
+#if 0
 #define i2c_dbg(dev, format, arg...)		\
 	dev_printk(KERN_INFO , dev , format , ## arg)
 #else
