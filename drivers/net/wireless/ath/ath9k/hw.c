@@ -1608,6 +1608,13 @@ bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 	}
 	ah->power_mode = mode;
 
+	/*
+	 * XXX: If this warning never comes up after a while then
+	 * simply keep the ATH_DBG_WARN_ON_ONCE() but make
+	 * ath9k_hw_setpower() return type void.
+	 */
+	ATH_DBG_WARN_ON_ONCE(!status);
+
 	return status;
 }
 EXPORT_SYMBOL(ath9k_hw_setpower);
