@@ -45,6 +45,7 @@ static DEFINE_PCI_DEVICE_TABLE(ath5k_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x001d) }, /* 2417 Nala */
 	{ 0 }
 };
+MODULE_DEVICE_TABLE(pci, ath5k_pci_id_table);
 
 /* return bus cachesize in 4B word units */
 static void ath5k_pci_read_cachesize(struct ath_common *common, int *csz)
