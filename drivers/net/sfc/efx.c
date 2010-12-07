@@ -197,7 +197,9 @@ MODULE_PARM_DESC(debug, "Bitmapped debugging message enable value");
 
 static void efx_remove_channels(struct efx_nic *efx);
 static void efx_remove_port(struct efx_nic *efx);
+static void efx_init_napi(struct efx_nic *efx);
 static void efx_fini_napi(struct efx_nic *efx);
+static void efx_fini_napi_channel(struct efx_channel *channel);
 static void efx_fini_struct(struct efx_nic *efx);
 static void efx_start_all(struct efx_nic *efx);
 static void efx_stop_all(struct efx_nic *efx);
@@ -430,6 +432,7 @@ efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
 
 		*channel = *old_channel;
 
+		channel->napi_dev = NULL;
 		memset(&channel->eventq, 0, sizeof(channel->eventq));
 
 		rx_queue = &channel->rx_queue;
@@ -740,9 +743,13 @@ efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries)
 	if (rc)
 		goto rollback;
 
+	efx_init_napi(efx);
+
 	/* Destroy old channels */
-	for (i = 0; i < efx->n_channels; i++)
+	for (i = 0; i < efx->n_channels; i++) {
+		efx_fini_napi_channel(other_channel[i]);
 		efx_remove_channel(other_channel[i]);
+	}
 out:
 	/* Free unused channel structures */
 	for (i = 0; i < efx->n_channels; i++)
@@ -1601,7 +1608,7 @@ static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
  *
  **************************************************************************/
 
-static int efx_init_napi(struct efx_nic *efx)
+static void efx_init_napi(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
@@ -1610,18 +1617,21 @@ static int efx_init_napi(struct efx_nic *efx)
 		netif_napi_add(channel->napi_dev, &channel->napi_str,
 			       efx_poll, napi_weight);
 	}
-	return 0;
+}
+
+static void efx_fini_napi_channel(struct efx_channel *channel)
+{
+	if (channel->napi_dev)
+		netif_napi_del(&channel->napi_str);
+	channel->napi_dev = NULL;
 }
 
 static void efx_fini_napi(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
 
-	efx_for_each_channel(channel, efx) {
-		if (channel->napi_dev)
-			netif_napi_del(&channel->napi_str);
-		channel->napi_dev = NULL;
-	}
+	efx_for_each_channel(channel, efx)
+		efx_fini_napi_channel(channel);
 }
 
 /**************************************************************************
@@ -2343,9 +2353,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	if (rc)
 		goto fail1;
 
-	rc = efx_init_napi(efx);
-	if (rc)
-		goto fail2;
+	efx_init_napi(efx);
 
 	rc = efx->type->init(efx);
 	if (rc) {
@@ -2376,7 +2384,6 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	efx->type->fini(efx);
  fail3:
 	efx_fini_napi(efx);
- fail2:
 	efx_remove_all(efx);
  fail1:
 	return rc;
