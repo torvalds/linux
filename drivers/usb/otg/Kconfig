@@ -92,4 +92,13 @@ config USB_MSM_OTG_72K
 	  This driver is required even for peripheral only or host only
 	  mode configurations.
 
+config AB8500_USB
+        tristate "AB8500 USB Transceiver Driver"
+        depends on AB8500_CORE
+        select USB_OTG_UTILS
+        help
+          Enable this to support the USB OTG transceiver in AB8500 chip.
+          This transceiver supports high and full speed devices plus,
+          in host mode, low speed.
+
 endif # USB || OTG
