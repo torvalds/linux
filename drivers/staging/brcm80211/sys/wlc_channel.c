@@ -44,7 +44,7 @@ typedef struct wlc_cm_band {
 } wlc_cm_band_t;
 
 struct wlc_cm_info {
-	wlc_pub_t *pub;
+	struct wlc_pub *pub;
 	struct wlc_info *wlc;
 	char srom_ccode[WLC_CNTRY_BUF_SZ];	/* Country Code in SROM */
 	uint srom_regrev;	/* Regulatory Rev for the SROM ccode */
@@ -611,7 +611,7 @@ wlc_cm_info_t *wlc_channel_mgr_attach(struct wlc_info *wlc)
 	wlc_cm_info_t *wlc_cm;
 	char country_abbrev[WLC_CNTRY_BUF_SZ];
 	const country_info_t *country;
-	wlc_pub_t *pub = wlc->pub;
+	struct wlc_pub *pub = wlc->pub;
 	char *ccode;
 
 	WL_TRACE(("wl%d: wlc_channel_mgr_attach\n", wlc->pub->unit));

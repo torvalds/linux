@@ -32,9 +32,9 @@
 #include <wlc_alloc.h>
 #include <wl_dbg.h>
 
-static wlc_pub_t *wlc_pub_malloc(struct osl_info *osh, uint unit, uint *err,
-				 uint devid);
-static void wlc_pub_mfree(struct osl_info *osh, wlc_pub_t *pub);
+static struct wlc_pub *wlc_pub_malloc(struct osl_info *osh, uint unit,
+				      uint *err, uint devid);
+static void wlc_pub_mfree(struct osl_info *osh, struct wlc_pub *pub);
 static void wlc_tunables_init(wlc_tunables_t *tunables, uint devid);
 
 void *wlc_calloc(struct osl_info *osh, uint unit, uint size)
@@ -65,12 +65,12 @@ void wlc_tunables_init(wlc_tunables_t *tunables, uint devid)
 	tunables->txsbnd = TXSBND;
 }
 
-static wlc_pub_t *wlc_pub_malloc(struct osl_info *osh, uint unit, uint *err,
-				 uint devid)
+static struct wlc_pub *wlc_pub_malloc(struct osl_info *osh, uint unit,
+				      uint *err, uint devid)
 {
-	wlc_pub_t *pub;
+	struct wlc_pub *pub;
 
-	pub = (wlc_pub_t *) wlc_calloc(osh, unit, sizeof(wlc_pub_t));
+	pub = (struct wlc_pub *) wlc_calloc(osh, unit, sizeof(struct wlc_pub));
 	if (pub == NULL) {
 		*err = 1001;
 		goto fail;
@@ -100,7 +100,7 @@ static wlc_pub_t *wlc_pub_malloc(struct osl_info *osh, uint unit, uint *err,
 	return NULL;
 }
 
-static void wlc_pub_mfree(struct osl_info *osh, wlc_pub_t *pub)
+static void wlc_pub_mfree(struct osl_info *osh, struct wlc_pub *pub)
 {
 	if (pub == NULL)
 		return;
@@ -179,7 +179,7 @@ struct wlc_info *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
 
 	wlc->hwrxoff = WL_HWRXOFF;
 
-	/* allocate wlc_pub_t state structure */
+	/* allocate struct wlc_pub state structure */
 	wlc->pub = wlc_pub_malloc(osh, unit, err, devid);
 	if (wlc->pub == NULL) {
 		*err = 1003;

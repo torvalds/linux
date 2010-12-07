@@ -1697,7 +1697,7 @@ static uint wlc_attach_module(struct wlc_info *wlc)
 	return err;
 }
 
-wlc_pub_t *wlc_pub(void *wlc)
+struct wlc_pub *wlc_pub(void *wlc)
 {
 	return ((struct wlc_info *) wlc)->pub;
 }
@@ -1714,7 +1714,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	struct wlc_info *wlc;
 	uint err = 0;
 	uint j;
-	wlc_pub_t *pub;
+	struct wlc_pub *pub;
 	wlc_txq_info_t *qi;
 	uint n_disabled;
 
@@ -4309,7 +4309,7 @@ int wlc_iovar_gets8(struct wlc_info *wlc, const char *name, s8 *arg)
  * calling function must keep 'iovars' until wlc_module_unregister is called.
  * 'iovar' must have the last entry's name field being NULL as terminator.
  */
-int wlc_module_register(wlc_pub_t *pub, const bcm_iovar_t *iovars,
+int wlc_module_register(struct wlc_pub *pub, const bcm_iovar_t *iovars,
 			const char *name, void *hdl, iovar_fn_t i_fn,
 			watchdog_fn_t w_fn, down_fn_t d_fn)
 {
@@ -4339,7 +4339,7 @@ int wlc_module_register(wlc_pub_t *pub, const bcm_iovar_t *iovars,
 }
 
 /* unregister module callbacks */
-int wlc_module_unregister(wlc_pub_t *pub, const char *name, void *hdl)
+int wlc_module_unregister(struct wlc_pub *pub, const char *name, void *hdl)
 {
 	struct wlc_info *wlc = (struct wlc_info *) pub->wlc;
 	int i;
@@ -4455,7 +4455,7 @@ wlc_iovar_op(struct wlc_info *wlc, const char *name,
 }
 
 int
-wlc_iovar_check(wlc_pub_t *pub, const bcm_iovar_t *vi, void *arg, int len,
+wlc_iovar_check(struct wlc_pub *pub, const bcm_iovar_t *vi, void *arg, int len,
 		bool set)
 {
 	struct wlc_info *wlc = (struct wlc_info *) pub->wlc;

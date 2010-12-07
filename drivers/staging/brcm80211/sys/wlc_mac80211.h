@@ -510,7 +510,7 @@ typedef struct wlc_txq_info {
  * Principal common (os-independent) software data structure.
  */
 struct wlc_info {
-	wlc_pub_t *pub;		/* pointer to wlc public state */
+	struct wlc_pub *pub;		/* pointer to wlc public state */
 	struct osl_info *osh;		/* pointer to os handle */
 	struct wl_info *wl;	/* pointer to os-specific private state */
 	d11regs_t *regs;	/* pointer to device registers */
@@ -787,7 +787,7 @@ struct wlc_info {
 /* antsel module specific state */
 struct antsel_info {
 	struct wlc_info *wlc;	/* pointer to main wlc structure */
-	wlc_pub_t *pub;		/* pointer to public fn */
+	struct wlc_pub *pub;		/* pointer to public fn */
 	u8 antsel_type;	/* Type of boardlevel mimo antenna switch-logic
 				 * 0 = N/A, 1 = 2x4 board, 2 = 2x3 CB2 board
 				 */

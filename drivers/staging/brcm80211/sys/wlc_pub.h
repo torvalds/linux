@@ -251,7 +251,7 @@ typedef int (*iovar_fn_t) (void *handle, const bcm_iovar_t *vi,
  * Public portion of "common" os-independent state structure.
  * The wlc handle points at this.
  */
-typedef struct wlc_pub {
+struct wlc_pub {
 	void *wlc;
 
 	struct ieee80211_hw *ieee_hw;
@@ -330,7 +330,7 @@ typedef struct wlc_pub {
 	bool _lmacproto;	/* lmac protocol module included and enabled */
 	bool phy_11ncapable;	/* the PHY/HW is capable of 802.11N */
 	bool _ampdumac;		/* mac assist ampdu enabled or not */
-} wlc_pub_t;
+};
 
 /* wl_monitor rx status per packet */
 typedef struct wl_rxsts {
@@ -528,7 +528,7 @@ extern void wlc_set_addrmatch(struct wlc_info *wlc, int match_reg_offset,
 extern void wlc_wme_setparams(struct wlc_info *wlc, u16 aci, void *arg,
 			      bool suspend);
 
-extern wlc_pub_t *wlc_pub(void *wlc);
+extern struct wlc_pub *wlc_pub(void *wlc);
 
 /* common functions for every port */
 extern int wlc_bmac_up_prep(struct wlc_hw_info *wlc_hw);
@@ -554,13 +554,15 @@ extern void wlc_scb_ratesel_init_all(struct wlc_info *wlc);
 /* ioctl */
 extern int wlc_iovar_gets8(struct wlc_info *wlc, const char *name,
 			     s8 *arg);
-extern int wlc_iovar_check(wlc_pub_t *pub, const bcm_iovar_t *vi, void *arg,
+extern int wlc_iovar_check(struct wlc_pub *pub, const bcm_iovar_t *vi,
+			   void *arg,
 			   int len, bool set);
 
-extern int wlc_module_register(wlc_pub_t *pub, const bcm_iovar_t *iovars,
+extern int wlc_module_register(struct wlc_pub *pub, const bcm_iovar_t *iovars,
 			       const char *name, void *hdl, iovar_fn_t iovar_fn,
 			       watchdog_fn_t watchdog_fn, down_fn_t down_fn);
-extern int wlc_module_unregister(wlc_pub_t *pub, const char *name, void *hdl);
+extern int wlc_module_unregister(struct wlc_pub *pub, const char *name,
+				 void *hdl);
 extern void wlc_event_if(struct wlc_info *wlc, struct wlc_bsscfg *cfg,
 			 wlc_event_t *e, const struct ether_addr *addr);
 extern void wlc_suspend_mac_and_wait(struct wlc_info *wlc);

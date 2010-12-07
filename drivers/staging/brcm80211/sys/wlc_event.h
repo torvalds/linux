@@ -21,7 +21,8 @@ typedef struct wlc_eventq wlc_eventq_t;
 
 typedef void (*wlc_eventq_cb_t) (void *arg);
 
-extern wlc_eventq_t *wlc_eventq_attach(wlc_pub_t *pub, struct wlc_info *wlc,
+extern wlc_eventq_t *wlc_eventq_attach(struct wlc_pub *pub,
+				       struct wlc_info *wlc,
 				       void *wl, wlc_eventq_cb_t cb);
 extern int wlc_eventq_detach(wlc_eventq_t *eq);
 extern int wlc_eventq_down(wlc_eventq_t *eq);

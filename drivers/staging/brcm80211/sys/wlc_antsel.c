@@ -96,8 +96,8 @@ const u8 mimo_2x3_div_antselid_tbl[16] = {
 
 struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc,
 				      struct osl_info *osh,
-						  wlc_pub_t *pub,
-						  struct wlc_hw_info *wlc_hw) {
+				      struct wlc_pub *pub,
+				      struct wlc_hw_info *wlc_hw) {
 	struct antsel_info *asi;
 
 	asi = kzalloc(sizeof(struct antsel_info), GFP_ATOMIC);

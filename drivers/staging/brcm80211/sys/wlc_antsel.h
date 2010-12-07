@@ -18,7 +18,7 @@
 #define _wlc_antsel_h_
 extern struct antsel_info *wlc_antsel_attach(struct wlc_info *wlc,
 					struct osl_info *osh,
-					wlc_pub_t *pub,
+					struct wlc_pub *pub,
 					struct wlc_hw_info *wlc_hw);
 extern void wlc_antsel_detach(struct antsel_info *asi);
 extern void wlc_antsel_init(struct antsel_info *asi);

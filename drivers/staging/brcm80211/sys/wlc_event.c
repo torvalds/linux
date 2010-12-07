@@ -47,7 +47,7 @@ struct wlc_eventq {
 	wlc_event_t *tail;
 	struct wlc_info *wlc;
 	void *wl;
-	wlc_pub_t *pub;
+	struct wlc_pub *pub;
 	bool tpending;
 	bool workpending;
 	struct wl_timer *timer;
@@ -58,7 +58,8 @@ struct wlc_eventq {
 /*
  * Export functions
  */
-wlc_eventq_t *wlc_eventq_attach(wlc_pub_t *pub, struct wlc_info *wlc, void *wl,
+wlc_eventq_t *wlc_eventq_attach(struct wlc_pub *pub, struct wlc_info *wlc,
+				void *wl,
 				wlc_eventq_cb_t cb)
 {
 	wlc_eventq_t *eq;
