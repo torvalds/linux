@@ -1150,6 +1150,12 @@ void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
 
 	flags |= B43_TMSLOW_PHYCLKEN;
 	flags |= B43_TMSLOW_PHYRESET;
+	if (dev->phy.type == B43_PHYTYPE_N) {
+		if (b43_channel_type_is_40mhz(dev->phy.channel_type))
+			flags |= B43_TMSLOW_PHYCLKSPEED_160MHZ;
+		else
+			flags |= B43_TMSLOW_PHYCLKSPEED_80MHZ;
+	}
 	ssb_device_enable(dev->dev, flags);
 	msleep(2);		/* Wait for the PLL to turn on. */
 

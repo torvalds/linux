@@ -88,13 +88,6 @@ static void b43_nphy_rf_control_override(struct b43_wldev *dev, u16 field,
 static void b43_nphy_rf_control_intc_override(struct b43_wldev *dev, u8 field,
 						u16 value, u8 core);
 
-static inline bool b43_channel_type_is_40mhz(
-					enum nl80211_channel_type channel_type)
-{
-	return (channel_type == NL80211_CHAN_HT40MINUS ||
-		channel_type == NL80211_CHAN_HT40PLUS);
-}
-
 void b43_nphy_set_rxantenna(struct b43_wldev *dev, int antenna)
 {//TODO
 }

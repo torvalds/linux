@@ -429,6 +429,13 @@ void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on)
 	b43_write16(dev, B43_MMIO_PHY0, on ? 0 : 0xF4);
 }
 
+
+bool b43_channel_type_is_40mhz(enum nl80211_channel_type channel_type)
+{
+	return (channel_type == NL80211_CHAN_HT40MINUS ||
+		channel_type == NL80211_CHAN_HT40PLUS);
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/Cordic */
 struct b43_c32 b43_cordic(int theta)
 {
