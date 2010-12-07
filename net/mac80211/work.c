@@ -458,8 +458,9 @@ ieee80211_direct_probe(struct ieee80211_work *wk)
 		return WORK_ACT_TIMEOUT;
 	}
 
-	printk(KERN_DEBUG "%s: direct probe to %pM (try %d)\n",
-			sdata->name, wk->filter_ta, wk->probe_auth.tries);
+	printk(KERN_DEBUG "%s: direct probe to %pM (try %d/%i)\n",
+	       sdata->name, wk->filter_ta, wk->probe_auth.tries,
+	       IEEE80211_AUTH_MAX_TRIES);
 
 	/*
 	 * Direct probe is sent to broadcast address as some APs
