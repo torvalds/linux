@@ -44,6 +44,9 @@
 #define ULPI_DATA(n)          ((n) & 255)
 #define ULPI_DATA_READ(n)     (((n) >> 8) & 255)
 
+#define ASYNC_INTR_CTRL         (1 << 29) /* Enable async interrupt */
+#define ULPI_STP_CTRL           (1 << 30) /* Block communication with PHY */
+
 /* OTG definitions */
 #define OTGSC_INTSTS_MASK	(0x7f << 16)
 #define OTGSC_ID		(1 << 8)

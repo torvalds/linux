@@ -29,6 +29,7 @@
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/usb.h>
 #include <linux/usb/otg.h>
@@ -251,6 +252,154 @@ static int msm_otg_reset(struct otg_transceiver *otg)
 	return 0;
 }
 
+#define PHY_SUSPEND_TIMEOUT_USEC	(500 * 1000)
+static int msm_otg_suspend(struct msm_otg *motg)
+{
+	struct otg_transceiver *otg = &motg->otg;
+	struct usb_bus *bus = otg->host;
+	struct msm_otg_platform_data *pdata = motg->pdata;
+	int cnt = 0;
+
+	if (atomic_read(&motg->in_lpm))
+		return 0;
+
+	disable_irq(motg->irq);
+	/*
+	 * Interrupt Latch Register auto-clear feature is not present
+	 * in all PHY versions. Latch register is clear on read type.
+	 * Clear latch register to avoid spurious wakeup from
+	 * low power mode (LPM).
+	 */
+	ulpi_read(otg, 0x14);
+
+	/*
+	 * PHY comparators are disabled when PHY enters into low power
+	 * mode (LPM). Keep PHY comparators ON in LPM only when we expect
+	 * VBUS/Id notifications from USB PHY. Otherwise turn off USB
+	 * PHY comparators. This save significant amount of power.
+	 */
+	if (pdata->otg_control == OTG_PHY_CONTROL)
+		ulpi_write(otg, 0x01, 0x30);
+
+	/*
+	 * PLL is not turned off when PHY enters into low power mode (LPM).
+	 * Disable PLL for maximum power savings.
+	 */
+	ulpi_write(otg, 0x08, 0x09);
+
+	/*
+	 * PHY may take some time or even fail to enter into low power
+	 * mode (LPM). Hence poll for 500 msec and reset the PHY and link
+	 * in failure case.
+	 */
+	writel(readl(USB_PORTSC) | PORTSC_PHCD, USB_PORTSC);
+	while (cnt < PHY_SUSPEND_TIMEOUT_USEC) {
+		if (readl(USB_PORTSC) & PORTSC_PHCD)
+			break;
+		udelay(1);
+		cnt++;
+	}
+
+	if (cnt >= PHY_SUSPEND_TIMEOUT_USEC) {
+		dev_err(otg->dev, "Unable to suspend PHY\n");
+		msm_otg_reset(otg);
+		enable_irq(motg->irq);
+		return -ETIMEDOUT;
+	}
+
+	/*
+	 * PHY has capability to generate interrupt asynchronously in low
+	 * power mode (LPM). This interrupt is level triggered. So USB IRQ
+	 * line must be disabled till async interrupt enable bit is cleared
+	 * in USBCMD register. Assert STP (ULPI interface STOP signal) to
+	 * block data communication from PHY.
+	 */
+	writel(readl(USB_USBCMD) | ASYNC_INTR_CTRL | ULPI_STP_CTRL, USB_USBCMD);
+
+	clk_disable(motg->pclk);
+	clk_disable(motg->clk);
+	if (motg->core_clk)
+		clk_disable(motg->core_clk);
+
+	if (device_may_wakeup(otg->dev))
+		enable_irq_wake(motg->irq);
+	if (bus)
+		clear_bit(HCD_FLAG_HW_ACCESSIBLE, &(bus_to_hcd(bus))->flags);
+
+	atomic_set(&motg->in_lpm, 1);
+	enable_irq(motg->irq);
+
+	dev_info(otg->dev, "USB in low power mode\n");
+
+	return 0;
+}
+
+#define PHY_RESUME_TIMEOUT_USEC	(100 * 1000)
+static int msm_otg_resume(struct msm_otg *motg)
+{
+	struct otg_transceiver *otg = &motg->otg;
+	struct usb_bus *bus = otg->host;
+	int cnt = 0;
+	unsigned temp;
+
+	if (!atomic_read(&motg->in_lpm))
+		return 0;
+
+	clk_enable(motg->pclk);
+	clk_enable(motg->clk);
+	if (motg->core_clk)
+		clk_enable(motg->core_clk);
+
+	temp = readl(USB_USBCMD);
+	temp &= ~ASYNC_INTR_CTRL;
+	temp &= ~ULPI_STP_CTRL;
+	writel(temp, USB_USBCMD);
+
+	/*
+	 * PHY comes out of low power mode (LPM) in case of wakeup
+	 * from asynchronous interrupt.
+	 */
+	if (!(readl(USB_PORTSC) & PORTSC_PHCD))
+		goto skip_phy_resume;
+
+	writel(readl(USB_PORTSC) & ~PORTSC_PHCD, USB_PORTSC);
+	while (cnt < PHY_RESUME_TIMEOUT_USEC) {
+		if (!(readl(USB_PORTSC) & PORTSC_PHCD))
+			break;
+		udelay(1);
+		cnt++;
+	}
+
+	if (cnt >= PHY_RESUME_TIMEOUT_USEC) {
+		/*
+		 * This is a fatal error. Reset the link and
+		 * PHY. USB state can not be restored. Re-insertion
+		 * of USB cable is the only way to get USB working.
+		 */
+		dev_err(otg->dev, "Unable to resume USB."
+				"Re-plugin the cable\n");
+		msm_otg_reset(otg);
+	}
+
+skip_phy_resume:
+	if (device_may_wakeup(otg->dev))
+		disable_irq_wake(motg->irq);
+	if (bus)
+		set_bit(HCD_FLAG_HW_ACCESSIBLE, &(bus_to_hcd(bus))->flags);
+
+	if (motg->async_int) {
+		motg->async_int = 0;
+		pm_runtime_put(otg->dev);
+		enable_irq(motg->irq);
+	}
+
+	atomic_set(&motg->in_lpm, 0);
+
+	dev_info(otg->dev, "USB exited from low power mode\n");
+
+	return 0;
+}
+
 static void msm_otg_start_host(struct otg_transceiver *otg, int on)
 {
 	struct msm_otg *motg = container_of(otg, struct msm_otg, otg);
@@ -306,6 +455,7 @@ static int msm_otg_set_host(struct otg_transceiver *otg, struct usb_bus *host)
 
 	if (!host) {
 		if (otg->state == OTG_STATE_A_HOST) {
+			pm_runtime_get_sync(otg->dev);
 			msm_otg_start_host(otg, 0);
 			otg->host = NULL;
 			otg->state = OTG_STATE_UNDEFINED;
@@ -327,8 +477,10 @@ static int msm_otg_set_host(struct otg_transceiver *otg, struct usb_bus *host)
 	 * Kick the state machine work, if peripheral is not supported
 	 * or peripheral is already registered with us.
 	 */
-	if (motg->pdata->mode == USB_HOST || otg->gadget)
+	if (motg->pdata->mode == USB_HOST || otg->gadget) {
+		pm_runtime_get_sync(otg->dev);
 		schedule_work(&motg->sm_work);
+	}
 
 	return 0;
 }
@@ -376,6 +528,7 @@ static int msm_otg_set_peripheral(struct otg_transceiver *otg,
 
 	if (!gadget) {
 		if (otg->state == OTG_STATE_B_PERIPHERAL) {
+			pm_runtime_get_sync(otg->dev);
 			msm_otg_start_peripheral(otg, 0);
 			otg->gadget = NULL;
 			otg->state = OTG_STATE_UNDEFINED;
@@ -393,8 +546,10 @@ static int msm_otg_set_peripheral(struct otg_transceiver *otg,
 	 * Kick the state machine work, if host is not supported
 	 * or host is already registered with us.
 	 */
-	if (motg->pdata->mode == USB_PERIPHERAL || otg->host)
+	if (motg->pdata->mode == USB_PERIPHERAL || otg->host) {
+		pm_runtime_get_sync(otg->dev);
 		schedule_work(&motg->sm_work);
+	}
 
 	return 0;
 }
@@ -473,6 +628,7 @@ static void msm_otg_sm_work(struct work_struct *w)
 			msm_otg_start_peripheral(otg, 1);
 			otg->state = OTG_STATE_B_PERIPHERAL;
 		}
+		pm_runtime_put_sync(otg->dev);
 		break;
 	case OTG_STATE_B_PERIPHERAL:
 		dev_dbg(otg->dev, "OTG_STATE_B_PERIPHERAL state\n");
@@ -504,6 +660,13 @@ static irqreturn_t msm_otg_irq(int irq, void *data)
 	struct otg_transceiver *otg = &motg->otg;
 	u32 otgsc = 0;
 
+	if (atomic_read(&motg->in_lpm)) {
+		disable_irq_nosync(irq);
+		motg->async_int = 1;
+		pm_runtime_get(otg->dev);
+		return IRQ_HANDLED;
+	}
+
 	otgsc = readl(USB_OTGSC);
 	if (!(otgsc & (OTGSC_IDIS | OTGSC_BSVIS)))
 		return IRQ_NONE;
@@ -514,12 +677,14 @@ static irqreturn_t msm_otg_irq(int irq, void *data)
 		else
 			clear_bit(ID, &motg->inputs);
 		dev_dbg(otg->dev, "ID set/clear\n");
+		pm_runtime_get_noresume(otg->dev);
 	} else if ((otgsc & OTGSC_BSVIS) && (otgsc & OTGSC_BSVIE)) {
 		if (otgsc & OTGSC_BSV)
 			set_bit(B_SESS_VLD, &motg->inputs);
 		else
 			clear_bit(B_SESS_VLD, &motg->inputs);
 		dev_dbg(otg->dev, "BSV set/clear\n");
+		pm_runtime_get_noresume(otg->dev);
 	}
 
 	writel(otgsc, USB_OTGSC);
@@ -616,6 +781,7 @@ static ssize_t msm_otg_mode_write(struct file *file, const char __user *ubuf,
 		goto out;
 	}
 
+	pm_runtime_get_sync(otg->dev);
 	schedule_work(&motg->sm_work);
 out:
 	return status;
@@ -770,8 +936,10 @@ static int __init msm_otg_probe(struct platform_device *pdev)
 					"not available\n");
 	}
 
-	return 0;
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
 
+	return 0;
 free_irq:
 	free_irq(motg->irq, motg);
 disable_clks:
@@ -796,16 +964,37 @@ static int __devexit msm_otg_remove(struct platform_device *pdev)
 {
 	struct msm_otg *motg = platform_get_drvdata(pdev);
 	struct otg_transceiver *otg = &motg->otg;
+	int cnt = 0;
 
 	if (otg->host || otg->gadget)
 		return -EBUSY;
 
 	msm_otg_debugfs_cleanup();
 	cancel_work_sync(&motg->sm_work);
-	device_init_wakeup(&pdev->dev, 0);
-	otg_set_transceiver(NULL);
 
+	msm_otg_resume(motg);
+
+	device_init_wakeup(&pdev->dev, 0);
+	pm_runtime_disable(&pdev->dev);
+
+	otg_set_transceiver(NULL);
 	free_irq(motg->irq, motg);
+
+	/*
+	 * Put PHY in low power mode.
+	 */
+	ulpi_read(otg, 0x14);
+	ulpi_write(otg, 0x08, 0x09);
+
+	writel(readl(USB_PORTSC) | PORTSC_PHCD, USB_PORTSC);
+	while (cnt < PHY_SUSPEND_TIMEOUT_USEC) {
+		if (readl(USB_PORTSC) & PORTSC_PHCD)
+			break;
+		udelay(1);
+		cnt++;
+	}
+	if (cnt >= PHY_SUSPEND_TIMEOUT_USEC)
+		dev_err(otg->dev, "Unable to suspend PHY\n");
 
 	clk_disable(motg->pclk);
 	clk_disable(motg->clk);
@@ -813,6 +1002,7 @@ static int __devexit msm_otg_remove(struct platform_device *pdev)
 		clk_disable(motg->core_clk);
 
 	iounmap(motg->regs);
+	pm_runtime_set_suspended(&pdev->dev);
 
 	clk_put(motg->phy_reset_clk);
 	clk_put(motg->pclk);
@@ -825,11 +1015,96 @@ static int __devexit msm_otg_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_RUNTIME
+static int msm_otg_runtime_idle(struct device *dev)
+{
+	struct msm_otg *motg = dev_get_drvdata(dev);
+	struct otg_transceiver *otg = &motg->otg;
+
+	dev_dbg(dev, "OTG runtime idle\n");
+
+	/*
+	 * It is observed some times that a spurious interrupt
+	 * comes when PHY is put into LPM immediately after PHY reset.
+	 * This 1 sec delay also prevents entering into LPM immediately
+	 * after asynchronous interrupt.
+	 */
+	if (otg->state != OTG_STATE_UNDEFINED)
+		pm_schedule_suspend(dev, 1000);
+
+	return -EAGAIN;
+}
+
+static int msm_otg_runtime_suspend(struct device *dev)
+{
+	struct msm_otg *motg = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "OTG runtime suspend\n");
+	return msm_otg_suspend(motg);
+}
+
+static int msm_otg_runtime_resume(struct device *dev)
+{
+	struct msm_otg *motg = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "OTG runtime resume\n");
+	return msm_otg_resume(motg);
+}
+#else
+#define msm_otg_runtime_idle	NULL
+#define msm_otg_runtime_suspend	NULL
+#define msm_otg_runtime_resume	NULL
+#endif
+
+#ifdef CONFIG_PM
+static int msm_otg_pm_suspend(struct device *dev)
+{
+	struct msm_otg *motg = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "OTG PM suspend\n");
+	return msm_otg_suspend(motg);
+}
+
+static int msm_otg_pm_resume(struct device *dev)
+{
+	struct msm_otg *motg = dev_get_drvdata(dev);
+	int ret;
+
+	dev_dbg(dev, "OTG PM resume\n");
+
+	ret = msm_otg_resume(motg);
+	if (ret)
+		return ret;
+
+	/*
+	 * Runtime PM Documentation recommends bringing the
+	 * device to full powered state upon resume.
+	 */
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
+	return 0;
+}
+#else
+#define msm_otg_pm_suspend	NULL
+#define msm_otg_pm_resume	NULL
+#endif
+
+static const struct dev_pm_ops msm_otg_dev_pm_ops = {
+	.runtime_suspend = msm_otg_runtime_suspend,
+	.runtime_resume  = msm_otg_runtime_resume,
+	.runtime_idle    = msm_otg_runtime_idle,
+	.suspend         = msm_otg_pm_suspend,
+	.resume          = msm_otg_pm_resume,
+};
+
 static struct platform_driver msm_otg_driver = {
 	.remove = __devexit_p(msm_otg_remove),
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
+		.pm = &msm_otg_dev_pm_ops,
 	},
 };
 

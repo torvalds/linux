@@ -88,6 +88,8 @@ struct msm_otg_platform_data {
  * @regs: ioremapped register base address.
  * @inputs: OTG state machine inputs(Id, SessValid etc).
  * @sm_work: OTG state machine work.
+ * @in_lpm: indicates low power mode (LPM) state.
+ * @async_int: Async interrupt arrived.
  *
  */
 struct msm_otg {
@@ -103,6 +105,8 @@ struct msm_otg {
 #define B_SESS_VLD	1
 	unsigned long inputs;
 	struct work_struct sm_work;
+	atomic_t in_lpm;
+	int async_int;
 };
 
 #endif

@@ -88,7 +88,8 @@ config USB_MSM_OTG_72K
 	help
 	  Enable this to support the USB OTG transceiver on MSM chips. It
 	  handles PHY initialization, clock management, and workarounds
-	  required after resetting the hardware. This driver is required
-	  even for peripheral only or host only mode configuration.
+	  required after resetting the hardware and power management.
+	  This driver is required even for peripheral only or host only
+	  mode configurations.
 
 endif # USB || OTG
