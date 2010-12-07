@@ -3515,7 +3515,6 @@ int b43_phy_initn(struct b43_wldev *dev)
 	if (phy->rev >= 3)
 		b43_nphy_spur_workaround(dev);
 
-	b43err(dev->wl, "IEEE 802.11n devices are not supported, yet.\n");
 	return 0;
 }
 
