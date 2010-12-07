@@ -665,6 +665,35 @@ static void perf_session__print_tstamp(struct perf_session *session,
 		printf("%Lu ", sample->time);
 }
 
+static void dump_event(struct perf_session *session, event_t *event,
+		       u64 file_offset, struct sample_data *sample)
+{
+	if (!dump_trace)
+		return;
+
+	dump_printf("\n%#Lx [%#x]: event: %d\n", file_offset,
+		    event->header.size, event->header.type);
+
+	trace_event(event);
+
+	if (sample)
+		perf_session__print_tstamp(session, event, sample);
+
+	dump_printf("%#Lx [%#x]: PERF_RECORD_%s",
+		    file_offset, event->header.size,
+		    event__get_event_name(event->header.type));
+}
+
+static void dump_sample(struct perf_session *session, event_t *event,
+			struct sample_data *sample)
+{
+	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
+		    sample->pid, sample->tid, sample->ip, sample->period);
+
+	if (session->sample_type & PERF_SAMPLE_CALLCHAIN)
+		callchain__dump(sample);
+}
+
 static int perf_session_deliver_event(struct perf_session *session,
 				      event_t *event,
 				      struct sample_data *sample,
@@ -703,32 +732,24 @@ static int perf_session__process_event(struct perf_session *session,
 	struct sample_data sample;
 	int ret;
 
-	trace_event(event);
-
 	if (session->header.needs_swap && event__swap_ops[event->header.type])
 		event__swap_ops[event->header.type](event);
 
-	if (event->header.type >= PERF_RECORD_MMAP &&
-	    event->header.type <= PERF_RECORD_SAMPLE) {
-		event__parse_sample(event, session, &sample);
-		if (dump_trace)
-			perf_session__print_tstamp(session, event, &sample);
-	}
+	if (event->header.type >= PERF_RECORD_HEADER_MAX)
+		return -EINVAL;
 
-	if (event->header.type < PERF_RECORD_HEADER_MAX) {
-		dump_printf("%#Lx [%#x]: PERF_RECORD_%s",
-			    file_offset, event->header.size,
-			    event__get_event_name(event->header.type));
-		hists__inc_nr_events(&session->hists, event->header.type);
+	hists__inc_nr_events(&session->hists, event->header.type);
+
+	if (event->header.type >= PERF_RECORD_USER_TYPE_START)
+		dump_event(session, event, file_offset, NULL);
+	else {
+		event__parse_sample(event, session, &sample);
+		dump_event(session, event, file_offset, &sample);
 	}
 
 	/* These events are processed right away */
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
-		dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n",
-			    event->header.misc,
-			    sample.pid, sample.tid, sample.ip, sample.period);
-
 		if (session->sample_type & PERF_SAMPLE_CALLCHAIN) {
 			if (!ip_callchain__valid(sample.callchain, event)) {
 				pr_debug("call-chain problem with event, "
@@ -738,9 +759,8 @@ static int perf_session__process_event(struct perf_session *session,
 					sample.period;
 				return 0;
 			}
-
-			callchain__dump(&sample);
 		}
+		dump_sample(session, event, &sample);
 		break;
 
 	case PERF_RECORD_HEADER_ATTR:
@@ -870,9 +890,6 @@ more:
 
 	head += size;
 
-	dump_printf("\n%#Lx [%#x]: event: %d\n",
-		    head, event.header.size, event.header.type);
-
 	if (skip > 0)
 		head += skip;
 
@@ -960,9 +977,6 @@ more:
 	}
 
 	size = event->header.size;
-
-	dump_printf("\n%#Lx [%#x]: event: %d\n",
-		    file_pos, event->header.size, event->header.type);
 
 	if (size == 0 ||
 	    perf_session__process_event(session, event, ops, file_pos) < 0) {
