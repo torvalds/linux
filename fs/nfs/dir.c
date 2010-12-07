@@ -316,8 +316,9 @@ int nfs_readdir_search_for_cookie(struct nfs_cache_array *array, nfs_readdir_des
 		}
 	}
 	if (i == array->eof_index) {
-		desc->eof = 1;
 		status = -EBADCOOKIE;
+		if (*desc->dir_cookie == array->last_cookie)
+			desc->eof = 1;
 	}
 out:
 	return status;
