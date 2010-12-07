@@ -2214,7 +2214,8 @@ static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
 }
 
 static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
-			int map_writable, int level, gfn_t gfn, pfn_t pfn)
+			int map_writable, int level, gfn_t gfn, pfn_t pfn,
+			bool prefault)
 {
 	struct kvm_shadow_walk_iterator iterator;
 	struct kvm_mmu_page *sp;
@@ -2229,7 +2230,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 				pte_access &= ~ACC_WRITE_MASK;
 			mmu_set_spte(vcpu, iterator.sptep, ACC_ALL, pte_access,
 				     0, write, 1, &pt_write,
-				     level, gfn, pfn, false, map_writable);
+				     level, gfn, pfn, prefault, map_writable);
 			direct_pte_prefetch(vcpu, iterator.sptep);
 			++vcpu->stat.pf_fixed;
 			break;
@@ -2321,7 +2322,8 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn,
 	if (mmu_notifier_retry(vcpu, mmu_seq))
 		goto out_unlock;
 	kvm_mmu_free_some_pages(vcpu);
-	r = __direct_map(vcpu, v, write, map_writable, level, gfn, pfn);
+	r = __direct_map(vcpu, v, write, map_writable, level, gfn, pfn,
+			 prefault);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
 
@@ -2685,7 +2687,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 		goto out_unlock;
 	kvm_mmu_free_some_pages(vcpu);
 	r = __direct_map(vcpu, gpa, write, map_writable,
-			 level, gfn, pfn);
+			 level, gfn, pfn, prefault);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
 	return r;
