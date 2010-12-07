@@ -33,9 +33,10 @@ __div64_32:
 	cntlzw	r0,r5		# we are shifting the dividend right
 	li	r10,-1		# to make it < 2^32, and shifting
 	srw	r10,r10,r0	# the divisor right the same amount,
-	add	r9,r4,r10	# rounding up (so the estimate cannot
+	addc	r9,r4,r10	# rounding up (so the estimate cannot
 	andc	r11,r6,r10	# ever be too large, only too small)
 	andc	r9,r9,r10
+	addze	r9,r9
 	or	r11,r5,r11
 	rotlw	r9,r9,r0
 	rotlw	r11,r11,r0

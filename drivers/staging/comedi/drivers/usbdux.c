@@ -2295,8 +2295,8 @@ static void tidy_up(struct usbduxsub *usbduxsub_tmp)
 	usbduxsub_tmp->inBuffer = NULL;
 	kfree(usbduxsub_tmp->insnBuffer);
 	usbduxsub_tmp->insnBuffer = NULL;
-	kfree(usbduxsub_tmp->inBuffer);
-	usbduxsub_tmp->inBuffer = NULL;
+	kfree(usbduxsub_tmp->outBuffer);
+	usbduxsub_tmp->outBuffer = NULL;
 	kfree(usbduxsub_tmp->dac_commands);
 	usbduxsub_tmp->dac_commands = NULL;
 	kfree(usbduxsub_tmp->dux_commands);

@@ -1197,7 +1197,6 @@ static const struct super_operations ext4_sops = {
 	.quota_write	= ext4_quota_write,
 #endif
 	.bdev_try_to_free_page = bdev_try_to_free_page,
-	.trim_fs	= ext4_trim_fs
 };
 
 static const struct super_operations ext4_nojournal_sops = {
@@ -2799,9 +2798,6 @@ static void ext4_clear_request_list(void)
 	struct ext4_li_request *elr;
 
 	mutex_lock(&ext4_li_info->li_list_mtx);
-	if (list_empty(&ext4_li_info->li_request_list))
-		return;
-
 	list_for_each_safe(pos, n, &ext4_li_info->li_request_list) {
 		elr = list_entry(pos, struct ext4_li_request,
 				 lr_request);
@@ -3268,13 +3264,14 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	 * Test whether we have more sectors than will fit in sector_t,
 	 * and whether the max offset is addressable by the page cache.
 	 */
-	ret = generic_check_addressable(sb->s_blocksize_bits,
+	err = generic_check_addressable(sb->s_blocksize_bits,
 					ext4_blocks_count(es));
-	if (ret) {
+	if (err) {
 		ext4_msg(sb, KERN_ERR, "filesystem"
 			 " too large to mount safely on this system");
 		if (sizeof(sector_t) < 8)
 			ext4_msg(sb, KERN_WARNING, "CONFIG_LBDAF not enabled");
+		ret = err;
 		goto failed_mount;
 	}
 

@@ -773,17 +773,15 @@ static int scsi_send_eh_cmnd(struct scsi_cmnd *scmd, unsigned char *cmnd,
 	struct Scsi_Host *shost = sdev->host;
 	DECLARE_COMPLETION_ONSTACK(done);
 	unsigned long timeleft;
-	unsigned long flags;
 	struct scsi_eh_save ses;
 	int rtn;
 
 	scsi_eh_prep_cmnd(scmd, &ses, cmnd, cmnd_size, sense_bytes);
 	shost->eh_action = &done;
 
-	spin_lock_irqsave(shost->host_lock, flags);
 	scsi_log_send(scmd);
-	shost->hostt->queuecommand(scmd, scsi_eh_done);
-	spin_unlock_irqrestore(shost->host_lock, flags);
+	scmd->scsi_done = scsi_eh_done;
+	shost->hostt->queuecommand(shost, scmd);
 
 	timeleft = wait_for_completion_timeout(&done, timeout);
 

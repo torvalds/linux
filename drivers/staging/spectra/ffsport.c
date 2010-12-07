@@ -657,7 +657,7 @@ static int SBD_setup_device(struct spectra_nand_dev *dev, int which)
 	/* Here we force report 512 byte hardware sector size to Kernel */
 	blk_queue_logical_block_size(dev->queue, 512);
 
-	blk_queue_ordered(dev->queue, QUEUE_ORDERED_DRAIN_FLUSH);
+	blk_queue_flush(dev->queue, REQ_FLUSH);
 
 	dev->thread = kthread_run(spectra_trans_thread, dev, "nand_thd");
 	if (IS_ERR(dev->thread)) {

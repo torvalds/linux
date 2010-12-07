@@ -50,7 +50,6 @@ static unsigned int rates[] = {
 	16000,
 	44100,
 	48000,
-	88200,
 };
 
 static struct snd_pcm_hw_constraint_list hw_rates = {
@@ -130,7 +129,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 };
 
 static struct platform_device *s3c24xx_snd_device;
-static struct clk *xtal;
 
 static int rx1950_startup(struct snd_pcm_substream *substream)
 {
@@ -179,10 +177,8 @@ static int rx1950_hw_params(struct snd_pcm_substream *substream,
 	case 44100:
 	case 88200:
 		clk_source = S3C24XX_CLKSRC_MPLL;
-		fs_mode = S3C2410_IISMOD_256FS;
-		div = clk_get_rate(xtal) / (256 * rate);
-		if (clk_get_rate(xtal) % (256 * rate) > (128 * rate))
-			div++;
+		fs_mode = S3C2410_IISMOD_384FS;
+		div = 1;
 		break;
 	default:
 		printk(KERN_ERR "%s: rate %d is not supported\n",
@@ -210,7 +206,7 @@ static int rx1950_hw_params(struct snd_pcm_substream *substream,
 
 	/* set MCLK division for sample rate */
 	ret = snd_soc_dai_set_clkdiv(cpu_dai, S3C24XX_DIV_MCLK,
-		S3C2410_IISMOD_384FS);
+		fs_mode);
 	if (ret < 0)
 		return ret;
 
@@ -295,17 +291,8 @@ static int __init rx1950_init(void)
 		goto err_plat_add;
 	}
 
-	xtal = clk_get(&s3c24xx_snd_device->dev, "xtal");
-
-	if (IS_ERR(xtal)) {
-		ret = PTR_ERR(xtal);
-		platform_device_unregister(s3c24xx_snd_device);
-		goto err_clk;
-	}
-
 	return 0;
 
-err_clk:
 err_plat_add:
 err_plat_alloc:
 err_gpio_conf:
@@ -320,7 +307,6 @@ static void __exit rx1950_exit(void)
 	platform_device_unregister(s3c24xx_snd_device);
 	snd_soc_jack_free_gpios(&hp_jack, ARRAY_SIZE(hp_jack_gpios),
 		hp_jack_gpios);
-	clk_put(xtal);
 	gpio_free(S3C2410_GPA(1));
 }
 

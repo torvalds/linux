@@ -589,7 +589,7 @@ int sk_chk_filter(struct sock_filter *filter, int flen)
 EXPORT_SYMBOL(sk_chk_filter);
 
 /**
- * 	sk_filter_rcu_release: Release a socket filter by rcu_head
+ * 	sk_filter_rcu_release - Release a socket filter by rcu_head
  *	@rcu: rcu_head that contains the sk_filter to free
  */
 static void sk_filter_rcu_release(struct rcu_head *rcu)

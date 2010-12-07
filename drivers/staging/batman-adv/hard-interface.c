@@ -469,6 +469,7 @@ static void hardif_remove_interface(struct batman_if *batman_if)
 		return;
 
 	batman_if->if_status = IF_TO_BE_REMOVED;
+	synchronize_rcu();
 	sysfs_del_hardif(&batman_if->hardif_obj);
 	call_rcu(&batman_if->rcu, hardif_free_rcu);
 }

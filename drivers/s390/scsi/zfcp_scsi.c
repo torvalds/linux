@@ -76,7 +76,7 @@ static void zfcp_scsi_command_fail(struct scsi_cmnd *scpnt, int result)
 	scpnt->scsi_done(scpnt);
 }
 
-static int zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
+static int zfcp_scsi_queuecommand_lck(struct scsi_cmnd *scpnt,
 				  void (*done) (struct scsi_cmnd *))
 {
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(scpnt->device);
@@ -126,6 +126,8 @@ static int zfcp_scsi_queuecommand(struct scsi_cmnd *scpnt,
 
 	return ret;
 }
+
+static DEF_SCSI_QCMD(zfcp_scsi_queuecommand)
 
 static int zfcp_scsi_slave_alloc(struct scsi_device *sdev)
 {

@@ -817,8 +817,6 @@ void ath9k_deinit_device(struct ath_softc *sc)
 
 	ath9k_ps_wakeup(sc);
 
-	pm_qos_remove_request(&ath9k_pm_qos_req);
-
 	wiphy_rfkill_stop_polling(sc->hw->wiphy);
 	ath_deinit_leds(sc);
 
@@ -832,6 +830,7 @@ void ath9k_deinit_device(struct ath_softc *sc)
 	}
 
 	ieee80211_unregister_hw(hw);
+	pm_qos_remove_request(&ath9k_pm_qos_req);
 	ath_rx_cleanup(sc);
 	ath_tx_cleanup(sc);
 	ath9k_deinit_softc(sc);

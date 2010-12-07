@@ -188,6 +188,16 @@ struct physdev_nr_pirqs {
     uint32_t nr_pirqs;
 };
 
+/* type is MAP_PIRQ_TYPE_GSI or MAP_PIRQ_TYPE_MSI
+ * the hypercall returns a free pirq */
+#define PHYSDEVOP_get_free_pirq    23
+struct physdev_get_free_pirq {
+    /* IN */ 
+    int type;
+    /* OUT */
+    uint32_t pirq;
+};
+
 /*
  * Notify that some PIRQ-bound event channels have been unmasked.
  * ** This command is obsolete since interface version 0x00030202 and is **

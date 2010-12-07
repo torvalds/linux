@@ -37,7 +37,6 @@
 #include <linux/firmware.h>
 #include <linux/pm_runtime.h>
 #include <linux/ioctl.h>
-#include <linux/smp_lock.h>
 #ifdef CONFIG_MRST_RAR_HANDLER
 #include <linux/rar_register.h>
 #include "../../../drivers/staging/memrar/memrar.h"
