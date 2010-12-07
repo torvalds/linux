@@ -477,46 +477,46 @@ static void kvm_mmu_page_set_gfn(struct kvm_mmu_page *sp, int index, gfn_t gfn)
 }
 
 /*
- * Return the pointer to the largepage write count for a given
- * gfn, handling slots that are not large page aligned.
+ * Return the pointer to the large page information for a given gfn,
+ * handling slots that are not large page aligned.
  */
-static int *slot_largepage_idx(gfn_t gfn,
-			       struct kvm_memory_slot *slot,
-			       int level)
+static struct kvm_lpage_info *lpage_info_slot(gfn_t gfn,
+					      struct kvm_memory_slot *slot,
+					      int level)
 {
 	unsigned long idx;
 
 	idx = (gfn >> KVM_HPAGE_GFN_SHIFT(level)) -
 	      (slot->base_gfn >> KVM_HPAGE_GFN_SHIFT(level));
-	return &slot->lpage_info[level - 2][idx].write_count;
+	return &slot->lpage_info[level - 2][idx];
 }
 
 static void account_shadowed(struct kvm *kvm, gfn_t gfn)
 {
 	struct kvm_memory_slot *slot;
-	int *write_count;
+	struct kvm_lpage_info *linfo;
 	int i;
 
 	slot = gfn_to_memslot(kvm, gfn);
 	for (i = PT_DIRECTORY_LEVEL;
 	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
-		write_count   = slot_largepage_idx(gfn, slot, i);
-		*write_count += 1;
+		linfo = lpage_info_slot(gfn, slot, i);
+		linfo->write_count += 1;
 	}
 }
 
 static void unaccount_shadowed(struct kvm *kvm, gfn_t gfn)
 {
 	struct kvm_memory_slot *slot;
-	int *write_count;
+	struct kvm_lpage_info *linfo;
 	int i;
 
 	slot = gfn_to_memslot(kvm, gfn);
 	for (i = PT_DIRECTORY_LEVEL;
 	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
-		write_count   = slot_largepage_idx(gfn, slot, i);
-		*write_count -= 1;
-		WARN_ON(*write_count < 0);
+		linfo = lpage_info_slot(gfn, slot, i);
+		linfo->write_count -= 1;
+		WARN_ON(linfo->write_count < 0);
 	}
 }
 
@@ -525,12 +525,12 @@ static int has_wrprotected_page(struct kvm *kvm,
 				int level)
 {
 	struct kvm_memory_slot *slot;
-	int *largepage_idx;
+	struct kvm_lpage_info *linfo;
 
 	slot = gfn_to_memslot(kvm, gfn);
 	if (slot) {
-		largepage_idx = slot_largepage_idx(gfn, slot, level);
-		return *largepage_idx;
+		linfo = lpage_info_slot(gfn, slot, level);
+		return linfo->write_count;
 	}
 
 	return 1;
@@ -585,16 +585,15 @@ static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
 static unsigned long *gfn_to_rmap(struct kvm *kvm, gfn_t gfn, int level)
 {
 	struct kvm_memory_slot *slot;
-	unsigned long idx;
+	struct kvm_lpage_info *linfo;
 
 	slot = gfn_to_memslot(kvm, gfn);
 	if (likely(level == PT_PAGE_TABLE_LEVEL))
 		return &slot->rmap[gfn - slot->base_gfn];
 
-	idx = (gfn >> KVM_HPAGE_GFN_SHIFT(level)) -
-		(slot->base_gfn >> KVM_HPAGE_GFN_SHIFT(level));
+	linfo = lpage_info_slot(gfn, slot, level);
 
-	return &slot->lpage_info[level - 2][idx].rmap_pde;
+	return &linfo->rmap_pde;
 }
 
 /*
@@ -882,19 +881,16 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 		end = start + (memslot->npages << PAGE_SHIFT);
 		if (hva >= start && hva < end) {
 			gfn_t gfn_offset = (hva - start) >> PAGE_SHIFT;
+			gfn_t gfn = memslot->base_gfn + gfn_offset;
 
 			ret = handler(kvm, &memslot->rmap[gfn_offset], data);
 
 			for (j = 0; j < KVM_NR_PAGE_SIZES - 1; ++j) {
-				unsigned long idx;
-				int sh;
+				struct kvm_lpage_info *linfo;
 
-				sh = KVM_HPAGE_GFN_SHIFT(PT_DIRECTORY_LEVEL+j);
-				idx = ((memslot->base_gfn+gfn_offset) >> sh) -
-					(memslot->base_gfn >> sh);
-				ret |= handler(kvm,
-					&memslot->lpage_info[j][idx].rmap_pde,
-					data);
+				linfo = lpage_info_slot(gfn, memslot,
+							PT_DIRECTORY_LEVEL + j);
+				ret |= handler(kvm, &linfo->rmap_pde, data);
 			}
 			trace_kvm_age_page(hva, memslot, ret);
 			retval |= ret;

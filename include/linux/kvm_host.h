@@ -146,6 +146,11 @@ struct kvm_vcpu {
  */
 #define KVM_MEM_MAX_NR_PAGES ((1UL << 31) - 1)
 
+struct kvm_lpage_info {
+	unsigned long rmap_pde;
+	int write_count;
+};
+
 struct kvm_memory_slot {
 	gfn_t base_gfn;
 	unsigned long npages;
@@ -153,10 +158,7 @@ struct kvm_memory_slot {
 	unsigned long *rmap;
 	unsigned long *dirty_bitmap;
 	unsigned long *dirty_bitmap_head;
-	struct {
-		unsigned long rmap_pde;
-		int write_count;
-	} *lpage_info[KVM_NR_PAGE_SIZES - 1];
+	struct kvm_lpage_info *lpage_info[KVM_NR_PAGE_SIZES - 1];
 	unsigned long userspace_addr;
 	int user_alloc;
 	int id;
