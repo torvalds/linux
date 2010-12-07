@@ -92,18 +92,17 @@ static void p1003_report_single_event(struct ts_p1003 *ts,struct multitouch_even
     int cid;
 
     cid = tc->contactid;
+    if (ts->status) {
+        input_report_abs(input, ABS_X, tc->point_data[cid].x);
+        input_report_abs(input, ABS_Y, tc->point_data[cid].y);
+        input_sync(input);
+    }
     if(ts->pendown != ts->status){
         ts->pendown = ts->status;
         input_report_key(input, BTN_TOUCH, ts->status);
         input_sync(input);
         sakura_dbg_report_key_msg("%s x =0x%x,y = 0x%x \n",ts->status?"down":"up",tc->point_data[cid].x,tc->point_data[cid].y);
     }
-    if(ts->pendown){
-        input_report_abs(input, ABS_X, tc->point_data[cid].x);
-        input_report_abs(input, ABS_Y, tc->point_data[cid].y);
-        input_sync(input);
-    }
-    
 }
 static inline int p1003_read_values(struct ts_p1003 *ts, struct multitouch_event *tc)
 {
@@ -223,8 +222,11 @@ static int __devinit p1003_probe(struct i2c_client *client,
 	input_dev->id.bustype = BUS_I2C;
 
 #if Singltouch_Mode
-	input_dev->evbit[0] = BIT_MASK(EV_ABS)|BIT_MASK(EV_KEY);
-	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+	set_bit(EV_SYN, input_dev->evbit);
+	set_bit(EV_KEY, input_dev->evbit);
+	set_bit(BTN_TOUCH, input_dev->keybit);
+	set_bit(BTN_2, input_dev->keybit);
+	set_bit(EV_ABS, input_dev->evbit);
 	input_set_abs_params(input_dev,ABS_X,0,1087,0,0);
 	input_set_abs_params(input_dev,ABS_Y,0,800,0,0);
 #else
