@@ -108,7 +108,7 @@ static struct usb_device_descriptor device_desc = {
 };
 
 static struct list_head _functions = LIST_HEAD_INIT(_functions);
-static int _registered_function_count = 0;
+static bool _are_functions_bound;
 
 static struct android_usb_function *get_function(const char *name)
 {
@@ -118,6 +118,50 @@ static struct android_usb_function *get_function(const char *name)
 			return f;
 	}
 	return 0;
+}
+
+static bool are_functions_registered(struct android_dev *dev)
+{
+	char **functions = dev->functions;
+	int i;
+
+	/* Look only for functions required by the board config */
+	for (i = 0; i < dev->num_functions; i++) {
+		char *name = *functions++;
+		bool is_match = false;
+		/* Could reuse get_function() here, but a reverse search
+		 * should yield less comparisons overall */
+		struct android_usb_function *f;
+		list_for_each_entry_reverse(f, &_functions, list) {
+			if (!strcmp(name, f->name)) {
+				is_match = true;
+				break;
+			}
+		}
+		if (is_match)
+			continue;
+		else
+			return false;
+	}
+
+	return true;
+}
+
+static bool should_bind_functions(struct android_dev *dev)
+{
+	/* Don't waste time if the main driver hasn't bound */
+	if (!dev->config)
+		return false;
+
+	/* Don't waste time if we've already bound the functions */
+	if (_are_functions_bound)
+		return false;
+
+	/* This call is the most costly, so call it last */
+	if (!are_functions_registered(dev))
+		return false;
+
+	return true;
 }
 
 static void bind_functions(struct android_dev *dev)
@@ -134,6 +178,8 @@ static void bind_functions(struct android_dev *dev)
 		else
 			printk(KERN_ERR "function %s not found in bind_functions\n", name);
 	}
+
+	_are_functions_bound = true;
 }
 
 static int android_bind_config(struct usb_configuration *c)
@@ -143,8 +189,7 @@ static int android_bind_config(struct usb_configuration *c)
 	printk(KERN_DEBUG "android_bind_config\n");
 	dev->config = c;
 
-	/* bind our functions if they have all registered */
-	if (_registered_function_count == dev->num_functions)
+	if (should_bind_functions(dev))
 		bind_functions(dev);
 
 	return 0;
@@ -188,7 +233,13 @@ static int product_has_function(struct android_usb_product *p,
 	int i;
 
 	for (i = 0; i < count; i++) {
-		if (!strcmp(name, *functions++))
+		/* For functions with multiple instances, usb_function.name
+		 * will have an index appended to the core name (ex: acm0),
+		 * while android_usb_product.functions[i] will only have the
+		 * core name (ex: acm). So, only compare up to the length of
+		 * android_usb_product.functions[i].
+		 */
+		if (!strncmp(name, functions[i], strlen(functions[i])))
 			return 1;
 	}
 	return 0;
@@ -295,12 +346,8 @@ void android_register_function(struct android_usb_function *f)
 
 	printk(KERN_INFO "android_register_function %s\n", f->name);
 	list_add_tail(&f->list, &_functions);
-	_registered_function_count++;
 
-	/* bind our functions if they have all registered
-	 * and the main driver has bound.
-	 */
-	if (dev && dev->config && _registered_function_count == dev->num_functions)
+	if (dev && should_bind_functions(dev))
 		bind_functions(dev);
 }
 
