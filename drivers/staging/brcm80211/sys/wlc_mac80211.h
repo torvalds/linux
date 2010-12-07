@@ -302,7 +302,7 @@ typedef struct wlc_stf {
 /*
  * core state (mac)
  */
-typedef struct wlccore {
+struct wlccore {
 	uint coreidx;		/* # sb enumerated core */
 
 	/* fifo */
@@ -310,7 +310,7 @@ typedef struct wlccore {
 	s16 txpktpend[NFIFO];	/* tx admission control */
 
 	macstat_t *macstat_snapshot;	/* mac hw prev read values */
-} wlccore_t;
+};
 
 /*
  * band state (phy+ana+radio)
@@ -532,9 +532,9 @@ struct wlc_info {
 	bool clk;		/* core is out of reset and has clock */
 
 	/* multiband */
-	wlccore_t *core;	/* pointer to active io core */
+	struct wlccore *core;	/* pointer to active io core */
 	struct wlcband *band;	/* pointer to active per-band state */
-	wlccore_t *corestate;	/* per-core state (one per hw core) */
+	struct wlccore *corestate;	/* per-core state (one per hw core) */
 	/* per-band state (one per phy/radio): */
 	struct wlcband *bandstate[MAXBANDS];
 

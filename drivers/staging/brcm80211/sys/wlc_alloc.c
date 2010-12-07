@@ -282,7 +282,8 @@ struct wlc_info *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
 		}
 	}
 
-	wlc->corestate = (wlccore_t *)wlc_calloc(osh, unit, sizeof(wlccore_t));
+	wlc->corestate = (struct wlccore *)wlc_calloc(osh, unit,
+						      sizeof(struct wlccore));
 	if (wlc->corestate == NULL) {
 		*err = 1026;
 		goto fail;
