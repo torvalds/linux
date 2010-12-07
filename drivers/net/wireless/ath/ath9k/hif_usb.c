@@ -28,16 +28,7 @@ MODULE_FIRMWARE(FIRMWARE_AR9271);
 static struct usb_device_id ath9k_hif_usb_ids[] = {
 	{ USB_DEVICE(0x0cf3, 0x9271) }, /* Atheros */
 	{ USB_DEVICE(0x0cf3, 0x1006) }, /* Atheros */
-	{ USB_DEVICE(0x0cf3, 0x7010),
-		.driver_info = AR7010_DEVICE },
-					/* Atheros */
-	{ USB_DEVICE(0x0cf3, 0x7015),
-		.driver_info = AR7010_DEVICE | AR9287_DEVICE },
-					/* Atheros */
 	{ USB_DEVICE(0x0846, 0x9030) }, /* Netgear N150 */
-	{ USB_DEVICE(0x0846, 0x9018),
-		.driver_info = AR7010_DEVICE },
-					/* Netgear WNDA3200 */
 	{ USB_DEVICE(0x07D1, 0x3A10) }, /* Dlink Wireless 150 */
 	{ USB_DEVICE(0x13D3, 0x3327) }, /* Azurewave */
 	{ USB_DEVICE(0x13D3, 0x3328) }, /* Azurewave */
@@ -46,13 +37,20 @@ static struct usb_device_id ath9k_hif_usb_ids[] = {
 	{ USB_DEVICE(0x13D3, 0x3349) }, /* Azurewave */
 	{ USB_DEVICE(0x13D3, 0x3350) }, /* Azurewave */
 	{ USB_DEVICE(0x04CA, 0x4605) }, /* Liteon */
-	{ USB_DEVICE(0x083A, 0xA704),
-		.driver_info = AR7010_DEVICE },
-					/* SMC Networks */
 	{ USB_DEVICE(0x040D, 0x3801) }, /* VIA */
+
+	{ USB_DEVICE(0x0cf3, 0x7015),
+	  .driver_info = AR9287_USB },  /* Atheros */
 	{ USB_DEVICE(0x1668, 0x1200),
-		.driver_info = AR7010_DEVICE | AR9287_DEVICE },
-					/* Verizon */
+	  .driver_info = AR9287_USB },  /* Verizon */
+
+	{ USB_DEVICE(0x0cf3, 0x7010),
+	  .driver_info = AR9280_USB },  /* Atheros */
+	{ USB_DEVICE(0x0846, 0x9018),
+	  .driver_info = AR9280_USB },  /* Netgear WNDA3200 */
+	{ USB_DEVICE(0x083A, 0xA704),
+	  .driver_info = AR9280_USB },  /* SMC Networks */
+
 	{ },
 };
 
@@ -818,7 +816,7 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev,
 	}
 	kfree(buf);
 
-	if (drv_info & AR7010_DEVICE)
+	if (IS_AR7010_DEVICE(drv_info))
 		firm_offset = AR7010_FIRMWARE_TEXT;
 	else
 		firm_offset = AR9271_FIRMWARE_TEXT;
@@ -934,7 +932,7 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 
 	/* Find out which firmware to load */
 
-	if (id->driver_info & AR7010_DEVICE)
+	if (IS_AR7010_DEVICE(id->driver_info))
 		if (le16_to_cpu(udev->descriptor.bcdDevice) == 0x0202)
 			hif_dev->fw_name = FIRMWARE_AR7010_1_1;
 		else
@@ -1034,7 +1032,7 @@ static int ath9k_hif_usb_resume(struct usb_interface *interface)
 
 	if (hif_dev->firmware) {
 		ret = ath9k_hif_usb_download_fw(hif_dev,
-				htc_handle->drv_priv->ah->common.driver_info);
+				htc_handle->drv_priv->ah->hw_version.usbdev);
 		if (ret)
 			goto fail_resume;
 	} else {

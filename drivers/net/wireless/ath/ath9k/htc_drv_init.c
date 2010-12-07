@@ -246,7 +246,7 @@ static int ath9k_init_htc_services(struct ath9k_htc_priv *priv, u16 devid,
 	 * the HIF layer, shouldn't matter much.
 	 */
 
-	if (drv_info & AR7010_DEVICE)
+	if (IS_AR7010_DEVICE(drv_info))
 		priv->htc->credits = 45;
 	else
 		priv->htc->credits = 33;
@@ -630,6 +630,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 
 	ah->hw_version.devid = devid;
 	ah->hw_version.subsysid = 0; /* FIXME */
+	ah->hw_version.usbdev = drv_info;
 	ah->ah_flags |= AH_USE_EEPROM;
 	priv->ah = ah;
 
@@ -640,7 +641,6 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	common->hw = priv->hw;
 	common->priv = priv;
 	common->debug_mask = ath9k_debug;
-	common->driver_info = drv_info;
 
 	spin_lock_init(&priv->wmi->wmi_lock);
 	spin_lock_init(&priv->beacon_lock);
@@ -891,7 +891,7 @@ int ath9k_htc_resume(struct htc_target *htc_handle)
 		return ret;
 
 	ret = ath9k_init_htc_services(priv, priv->ah->hw_version.devid,
-				      priv->ah->common.driver_info);
+				      priv->ah->hw_version.usbdev);
 	return ret;
 }
 #endif

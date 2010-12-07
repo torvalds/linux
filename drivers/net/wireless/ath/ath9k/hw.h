@@ -446,6 +446,7 @@ struct ath9k_hw_version {
 	u16 analog5GhzRev;
 	u16 analog2GhzRev;
 	u16 subsysid;
+	enum ath_usb_dev usbdev;
 };
 
 /* Generic TSF timer definitions */

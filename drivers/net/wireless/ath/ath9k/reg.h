@@ -871,8 +871,14 @@
     (AR_SREV_9285_12_OR_LATER(_ah) && \
      ((REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
 
+enum ath_usb_dev {
+	AR9280_USB = 1, /* AR7010 + AR9280, UB94 */
+	AR9287_USB = 2, /* AR7010 + AR9287, UB95 */
+};
+
 #define AR_DEVID_7010(_ah) \
-	((_ah)->common.driver_info & AR7010_DEVICE)
+	(((_ah)->hw_version.usbdev == AR9280_USB) || \
+	 ((_ah)->hw_version.usbdev == AR9287_USB))
 
 #define AR_RADIO_SREV_MAJOR                   0xf0
 #define AR_RAD5133_SREV_MAJOR                 0xc0
