@@ -420,6 +420,16 @@ static struct i2c_board_info i2c0_devices[] = {
 	},
 };
 
+#define IRQ21 evt2irq(0x32a0)
+
+static struct i2c_board_info i2c1_devices[] = {
+	/* Accelerometer */
+	{
+		I2C_BOARD_INFO("adxl34x", 0x53),
+		.irq = IRQ21,
+	},
+};
+
 static struct map_desc mackerel_io_desc[] __initdata = {
 	/* create a 1:1 entity map for 0xe6xxxxxx
 	 * used by CPGA, INTC and PFC.
@@ -515,9 +525,14 @@ static void __init mackerel_init(void)
 
 	intc_set_priority(IRQ_FSI, 3); /* irq priority FSI(3) > SMSC911X(2) */
 
+	/* enable Accelerometer */
+	gpio_request(GPIO_FN_IRQ21,	NULL);
+	set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
 
 	i2c_register_board_info(0, i2c0_devices,
 				ARRAY_SIZE(i2c0_devices));
+	i2c_register_board_info(1, i2c1_devices,
+				ARRAY_SIZE(i2c1_devices));
 
 	sh7372_add_standard_devices();
 
