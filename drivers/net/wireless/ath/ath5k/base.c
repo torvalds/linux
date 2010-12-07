@@ -2797,33 +2797,46 @@ ath5k_init(struct ieee80211_hw *hw)
 		goto err_bhal;
 	}
 
-	/* This order matches mac80211's queue priority, so we can
-	 * directly use the mac80211 queue number without any mapping */
-	txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_VO);
-	if (IS_ERR(txq)) {
-		ATH5K_ERR(sc, "can't setup xmit queue\n");
-		ret = PTR_ERR(txq);
-		goto err_queues;
+	/* 5211 and 5212 usually support 10 queues but we better rely on the
+	 * capability information */
+	if (ah->ah_capabilities.cap_queues.q_tx_num >= 6) {
+		/* This order matches mac80211's queue priority, so we can
+		* directly use the mac80211 queue number without any mapping */
+		txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_VO);
+		if (IS_ERR(txq)) {
+			ATH5K_ERR(sc, "can't setup xmit queue\n");
+			ret = PTR_ERR(txq);
+			goto err_queues;
+		}
+		txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_VI);
+		if (IS_ERR(txq)) {
+			ATH5K_ERR(sc, "can't setup xmit queue\n");
+			ret = PTR_ERR(txq);
+			goto err_queues;
+		}
+		txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_BE);
+		if (IS_ERR(txq)) {
+			ATH5K_ERR(sc, "can't setup xmit queue\n");
+			ret = PTR_ERR(txq);
+			goto err_queues;
+		}
+		txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_BK);
+		if (IS_ERR(txq)) {
+			ATH5K_ERR(sc, "can't setup xmit queue\n");
+			ret = PTR_ERR(txq);
+			goto err_queues;
+		}
+		hw->queues = 4;
+	} else {
+		/* older hardware (5210) can only support one data queue */
+		txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_BE);
+		if (IS_ERR(txq)) {
+			ATH5K_ERR(sc, "can't setup xmit queue\n");
+			ret = PTR_ERR(txq);
+			goto err_queues;
+		}
+		hw->queues = 1;
 	}
-	txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_VI);
-	if (IS_ERR(txq)) {
-		ATH5K_ERR(sc, "can't setup xmit queue\n");
-		ret = PTR_ERR(txq);
-		goto err_queues;
-	}
-	txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_BE);
-	if (IS_ERR(txq)) {
-		ATH5K_ERR(sc, "can't setup xmit queue\n");
-		ret = PTR_ERR(txq);
-		goto err_queues;
-	}
-	txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_BK);
-	if (IS_ERR(txq)) {
-		ATH5K_ERR(sc, "can't setup xmit queue\n");
-		ret = PTR_ERR(txq);
-		goto err_queues;
-	}
-	hw->queues = 4;
 
 	tasklet_init(&sc->rxtq, ath5k_tasklet_rx, (unsigned long)sc);
 	tasklet_init(&sc->txtq, ath5k_tasklet_tx, (unsigned long)sc);
