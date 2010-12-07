@@ -427,8 +427,8 @@ config USB_FSL_QE
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
-config USB_GADGET_CI13XXX
-	boolean "MIPS USB CI13xxx"
+config USB_GADGET_CI13XXX_PCI
+	boolean "MIPS USB CI13xxx PCI UDC"
 	depends on PCI
 	select USB_GADGET_DUALSPEED
 	help
@@ -439,9 +439,9 @@ config USB_GADGET_CI13XXX
 	  dynamically linked module called "ci13xxx_udc" and force all
 	  gadget drivers to also be dynamically linked.
 
-config USB_CI13XXX
+config USB_CI13XXX_PCI
 	tristate
-	depends on USB_GADGET_CI13XXX
+	depends on USB_GADGET_CI13XXX_PCI
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
