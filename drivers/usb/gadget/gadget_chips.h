@@ -148,6 +148,12 @@
 #define	gadget_is_pch(g)	0
 #endif
 
+#ifdef CONFIG_USB_GADGET_CI13XXX_MSM
+#define gadget_is_ci13xxx_msm(g)	(!strcmp("ci13xxx_msm", (g)->name))
+#else
+#define gadget_is_ci13xxx_msm(g)	0
+#endif
+
 /**
  * usb_gadget_controller_number - support bcdDevice id convention
  * @gadget: the controller being driven
@@ -207,6 +213,8 @@ static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
 		return 0x26;
 	else if (gadget_is_pch(gadget))
 		return 0x27;
+	else if (gadget_is_ci13xxx_msm(gadget))
+		return 0x28;
 	return -ENOENT;
 }
 

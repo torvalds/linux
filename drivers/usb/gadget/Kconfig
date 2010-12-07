@@ -531,6 +531,27 @@ config USB_EG20T
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_CI13XXX_MSM
+	boolean "MIPS USB CI13xxx for MSM"
+	depends on ARCH_MSM
+	select USB_GADGET_DUALSPEED
+	select USB_MSM_OTG_72K
+	help
+	  MSM SoC has chipidea USB controller.  This driver uses
+	  ci13xxx_udc core.
+	  This driver depends on OTG driver for PHY initialization,
+	  clock management, powering up VBUS, and power management.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "ci13xxx_msm" and force all
+	  gadget drivers to also be dynamically linked.
+
+config USB_CI13XXX_MSM
+	tristate
+	depends on USB_GADGET_CI13XXX_MSM
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 #
 # LAST -- dummy/emulated controller
 #
