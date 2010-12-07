@@ -354,8 +354,9 @@ static const struct arm_pll_set arm_pll[] = {
 	// clk_mhz = 24 * NF / (NR * NO)
 	//      mhz  NR NF NO adiv hdiv pdiv
 //	ARM_PLL(600, 1, 50, 2, 21, 21, 41),
-//	ARM_PLL(624, 1, 52, 2, 21, 21, 41),
-	ARM_PLL(720, 1, 60, 2, 21, 21, 41),
+	ARM_PLL(624, 1, 52, 2, 21, 21, 41),
+//	ARM_PLL(720, 1, 60, 2, 21, 21, 41),
+//	ARM_PLL(1008, 1, 42, 1, 31, 21, 41),
 	// last item, pll power down.
 	ARM_PLL( 24, 1, 64, 8, 21, 21, 41),
 };
@@ -2109,9 +2110,9 @@ void __init rk29_clock_init(void)
 
 	rk29_clock_common_init();
 
-	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/ppll/core/aclk/hclk/pclk): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz\n",
-	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, periph_pll_clk.rate / MHZ,
-	       clk_core.rate / MHZ, aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ);
+	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/ppll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz\n",
+	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, periph_pll_clk.rate / MHZ, clk_core.rate / MHZ,
+	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
 
 	/*
 	 * Only enable those clocks we will need, let the drivers

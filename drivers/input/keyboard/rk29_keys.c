@@ -397,7 +397,7 @@ static struct platform_driver keys_device_driver = {
 	.probe		= keys_probe,
 	.remove		= __devexit_p(keys_remove),
 	.driver		= {
-		.name	= "rk29-keys",
+		.name	= "rk29-keypad",
 		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &keys_pm_ops,

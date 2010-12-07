@@ -575,5 +575,11 @@ config TOUCHSCREEN_PCAP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcap_ts.
-	  
+
+config HANNSTAR_P1003
+	tristate "Hannstar P1003 touchscreen"
+	depends on I2C2_RK29
+	help
+	  RK29 hannstar touch
+
 endif

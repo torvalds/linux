@@ -53,13 +53,15 @@
 /* Set memory size of pmem */
 #define SDRAM_SIZE          SZ_512M
 #define PMEM_GPU_SIZE       SZ_32M
-#define PMEM_UI_SIZE        SZ_16M
+#define PMEM_UI_SIZE        SZ_32M
 #define PMEM_VPU_SIZE       SZ_32M
+#define PMEM_CAM_SIZE       SZ_16M
 
 #define PMEM_GPU_BASE       ((u32)RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
 #define PMEM_UI_BASE        (PMEM_GPU_BASE - PMEM_UI_SIZE)
 #define PMEM_VPU_BASE       (PMEM_UI_BASE - PMEM_VPU_SIZE)
-#define LINUX_SIZE          (PMEM_VPU_BASE - RK29_SDRAM_PHYS)
+#define PMEM_CAM_BASE       (PMEM_VPU_BASE - PMEM_CAM_SIZE)
+#define LINUX_SIZE          (PMEM_CAM_BASE - RK29_SDRAM_PHYS)
 
 extern struct sys_timer rk29_timer;
 
@@ -211,6 +213,23 @@ static struct platform_device android_pmem_device = {
 };
 
 
+static struct android_pmem_platform_data android_pmem_cam_pdata = {
+	.name		= "pmem_cam",
+	.start		= PMEM_CAM_BASE,
+	.size		= PMEM_CAM_SIZE,
+	.no_allocator	= 0,
+	.cached		= 1,
+};
+
+static struct platform_device android_pmem_cam_device = {
+	.name		= "android_pmem",
+	.id		= 1,
+	.dev		= {
+		.platform_data = &android_pmem_cam_pdata,
+	},
+};
+
+
 static struct vpu_mem_platform_data vpu_mem_pdata = {
 	.name		= "vpu_mem",
 	.start		= PMEM_VPU_BASE,
@@ -225,6 +244,53 @@ static struct platform_device rk29_vpu_mem_device = {
 	.platform_data = &vpu_mem_pdata,
 	},
 };
+
+
+/*HANNSTAR_P1003 touch*/
+#if defined (CONFIG_HANNSTAR_P1003)
+#define TOUCH_POWER_PIN RK29_PIN6_PD2
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+
+int p1003_init_platform_hw(void)
+{
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("p1003_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_POWER_PIN,NULL) != 0){
+      gpio_free(TOUCH_POWER_PIN);
+      printk("p1003_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("p1003_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+    gpio_pull_updown(TOUCH_INT_PIN, 1);
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    gpio_direction_output(TOUCH_POWER_PIN, 1);
+    gpio_set_value(TOUCH_POWER_PIN,GPIO_HIGH);
+    mdelay(500);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    mdelay(500);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+  
+    return 0;
+}
+
+
+struct p1003_platform_data p1003_info = {
+  .model= 1003,
+  .init_platform_hw= p1003_init_platform_hw,
+  
+};
+#endif
+
 
 /*****************************************************************************************
  * i2c devices
@@ -371,6 +437,15 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 
 #ifdef CONFIG_I2C2_RK29
 static struct i2c_board_info __initdata board_i2c2_devices[] = {
+#if defined (CONFIG_HANNSTAR_P1003)
+    {
+      .type           = "p1003_touch",
+      .addr           = 0x04,
+      .flags          = 0,
+      .irq            = RK29_PIN0_PA2,
+      .platform_data  = &p1003_info,
+    },
+#endif
 };
 #endif
 
@@ -384,11 +459,11 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  * author: ddl@rock-chips.com
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK29
-#define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_OV2655			/* back camera sensor */
-#define SENSOR_IIC_ADDR_0 	    0x60
+#define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_OV5642			/* back camera sensor */
+#define SENSOR_IIC_ADDR_0 	    0x78
 #define SENSOR_IIC_ADAPTER_ID_0    1
-#define SENSOR_POWER_PIN_0         INVALID_GPIO
-#define SENSOR_RESET_PIN_0         RK29_PIN0_PA2
+#define SENSOR_POWER_PIN_0         RK29_PIN5_PD7
+#define SENSOR_RESET_PIN_0         INVALID_GPIO
 #define SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_L
 #define SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
 
@@ -396,7 +471,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
 #define SENSOR_NAME_1 RK29_CAM_SENSOR_NAME_OV2659			/* front camera sensor */
 #define SENSOR_IIC_ADDR_1 	    0x60
 #define SENSOR_IIC_ADAPTER_ID_1    1
-#define SENSOR_POWER_PIN_1         INVALID_GPIO
+#define SENSOR_POWER_PIN_1         RK29_PIN5_PD7
 #define SENSOR_RESET_PIN_1         INVALID_GPIO
 #define SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_L
 #define SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
@@ -661,7 +736,7 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	return 0;
 }
 
-//#define CONFIG_SDMMC0_USE_DMA
+#define CONFIG_SDMMC0_USE_DMA
 struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 	.host_ocr_avail = (MMC_VDD_25_26|MMC_VDD_26_27|MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|
 					   MMC_VDD_30_31|MMC_VDD_31_32|MMC_VDD_32_33|
@@ -737,7 +812,7 @@ struct platform_device rk29_device_gpu = {
 #ifdef CONFIG_KEYS_RK29
 extern struct rk29_keys_platform_data rk29_keys_pdata;
 static struct platform_device rk29_device_keys = {
-	.name		= "rk29-keys",
+	.name		= "rk29-keypad",
 	.id		= -1,
 	.dev		= {
 		.platform_data	= &rk29_keys_pdata,
@@ -848,6 +923,7 @@ static struct platform_device *devices[] __initdata = {
  	&rk29_device_camera,      /* ddl@rock-chips.com : camera support  */
  	&rk29_soc_camera_pdrv_0,
  	&rk29_soc_camera_pdrv_1,
+ 	&android_pmem_cam_device,
 #endif
 	&android_pmem_device,
 	&rk29_vpu_mem_device,
@@ -1058,10 +1134,14 @@ static void __init machine_rk29_init_irq(void)
 	rk29_gpio_init(rk29_gpiobankinit, MAX_BANK);
 	rk29_gpio_irq_setup();
 }
-
+#define POWER_ON_PIN RK29_PIN4_PA4
 static void __init machine_rk29_board_init(void)
 {
         rk29_board_iomux_init();
+
+		gpio_set_value(POWER_ON_PIN, 1);
+		gpio_direction_output(POWER_ON_PIN, 1);
+
 		platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
 	i2c_register_board_info(default_i2c0_data.bus_num, board_i2c0_devices,
