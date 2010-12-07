@@ -582,6 +582,9 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 		goto fail1;
 	}
 
+	netif_info(efx, drv, efx->net_dev, "starting %sline testing\n",
+		   (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
+
 	/* We need rx buffers and interrupts. */
 	already_up = (efx->net_dev->flags & IFF_UP);
 	if (!already_up) {
@@ -600,9 +603,9 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 	if (!already_up)
 		dev_close(efx->net_dev);
 
-	netif_dbg(efx, drv, efx->net_dev, "%s %sline self-tests\n",
-		  rc == 0 ? "passed" : "failed",
-		  (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
+	netif_info(efx, drv, efx->net_dev, "%s %sline self-tests\n",
+		   rc == 0 ? "passed" : "failed",
+		   (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
 
  fail2:
  fail1:
