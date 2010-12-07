@@ -1740,7 +1740,10 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	int frmlen = skb->len + FCS_LEN;
 	int q;
 
-	txctl->an = (struct ath_node *)sta->drv_priv;
+	/* NOTE:  sta can be NULL according to net/mac80211.h */
+	if (sta)
+		txctl->an = (struct ath_node *)sta->drv_priv;
+
 	if (info->control.hw_key)
 		frmlen += info->control.hw_key->icv_len;
 
