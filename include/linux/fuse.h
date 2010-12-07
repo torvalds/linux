@@ -44,6 +44,9 @@
  *
  * 7.16
  *  - add BATCH_FORGET request
+ *  - FUSE_IOCTL_UNRESTRICTED shall now return with array of 'struct
+ *    fuse_ioctl_iovec' instead of ambiguous 'struct iovec'
+ *  - add FUSE_IOCTL_32BIT flag
  */
 
 #ifndef _LINUX_FUSE_H
@@ -203,12 +206,14 @@ struct fuse_file_lock {
  * FUSE_IOCTL_COMPAT: 32bit compat ioctl on 64bit machine
  * FUSE_IOCTL_UNRESTRICTED: not restricted to well-formed ioctls, retry allowed
  * FUSE_IOCTL_RETRY: retry with new iovecs
+ * FUSE_IOCTL_32BIT: 32bit ioctl
  *
  * FUSE_IOCTL_MAX_IOV: maximum of in_iovecs + out_iovecs
  */
 #define FUSE_IOCTL_COMPAT	(1 << 0)
 #define FUSE_IOCTL_UNRESTRICTED	(1 << 1)
 #define FUSE_IOCTL_RETRY	(1 << 2)
+#define FUSE_IOCTL_32BIT	(1 << 3)
 
 #define FUSE_IOCTL_MAX_IOV	256
 
@@ -522,6 +527,11 @@ struct fuse_ioctl_in {
 	__u64	arg;
 	__u32	in_size;
 	__u32	out_size;
+};
+
+struct fuse_ioctl_iovec {
+	__u64	base;
+	__u64	len;
 };
 
 struct fuse_ioctl_out {

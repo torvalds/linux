@@ -1634,9 +1634,9 @@ static int fuse_ioctl_copy_user(struct page **pages, struct iovec *iov,
  * and 64bit.  Fortunately we can determine which structure the server
  * used from the size of the reply.
  */
-static int fuse_copy_ioctl_iovec(struct iovec *dst, void *src,
-				 size_t transferred, unsigned count,
-				 bool is_compat)
+static int fuse_copy_ioctl_iovec_old(struct iovec *dst, void *src,
+				     size_t transferred, unsigned count,
+				     bool is_compat)
 {
 #ifdef CONFIG_COMPAT
 	if (count * sizeof(struct compat_iovec) == transferred) {
@@ -1679,6 +1679,42 @@ static int fuse_verify_ioctl_iov(struct iovec *iov, size_t count)
 	}
 	return 0;
 }
+
+static int fuse_copy_ioctl_iovec(struct fuse_conn *fc, struct iovec *dst,
+				 void *src, size_t transferred, unsigned count,
+				 bool is_compat)
+{
+	unsigned i;
+	struct fuse_ioctl_iovec *fiov = src;
+
+	if (fc->minor < 16) {
+		return fuse_copy_ioctl_iovec_old(dst, src, transferred,
+						 count, is_compat);
+	}
+
+	if (count * sizeof(struct fuse_ioctl_iovec) != transferred)
+		return -EIO;
+
+	for (i = 0; i < count; i++) {
+		/* Did the server supply an inappropriate value? */
+		if (fiov[i].base != (unsigned long) fiov[i].base ||
+		    fiov[i].len != (unsigned long) fiov[i].len)
+			return -EIO;
+
+		dst[i].iov_base = (void __user *) (unsigned long) fiov[i].base;
+		dst[i].iov_len = (size_t) fiov[i].len;
+
+#ifdef CONFIG_COMPAT
+		if (is_compat &&
+		    (ptr_to_compat(dst[i].iov_base) != fiov[i].base ||
+		     (compat_size_t) dst[i].iov_len != fiov[i].len))
+			return -EIO;
+#endif
+	}
+
+	return 0;
+}
+
 
 /*
  * For ioctls, there is no generic way to determine how much memory
@@ -1746,8 +1782,15 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	size_t in_size, out_size, transferred;
 	int err;
 
+#if BITS_PER_LONG == 32
+	inarg.flags |= FUSE_IOCTL_32BIT;
+#else
+	if (flags & FUSE_IOCTL_COMPAT)
+		inarg.flags |= FUSE_IOCTL_32BIT;
+#endif
+
 	/* assume all the iovs returned by client always fits in a page */
-	BUILD_BUG_ON(sizeof(struct iovec) * FUSE_IOCTL_MAX_IOV > PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(struct fuse_ioctl_iovec) * FUSE_IOCTL_MAX_IOV > PAGE_SIZE);
 
 	err = -ENOMEM;
 	pages = kzalloc(sizeof(pages[0]) * FUSE_MAX_PAGES_PER_REQ, GFP_KERNEL);
@@ -1862,7 +1905,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 			goto out;
 
 		vaddr = kmap_atomic(pages[0], KM_USER0);
-		err = fuse_copy_ioctl_iovec(iov_page, vaddr,
+		err = fuse_copy_ioctl_iovec(fc, iov_page, vaddr,
 					    transferred, in_iovs + out_iovs,
 					    (flags & FUSE_IOCTL_COMPAT) != 0);
 		kunmap_atomic(vaddr, KM_USER0);
