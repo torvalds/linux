@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/usb/otg.h>
 #include <linux/usb/msm_hsusb_hw.h>
@@ -239,7 +240,8 @@ static int ehci_msm_probe(struct platform_device *pdev)
 
 	/*
 	 * OTG driver takes care of PHY initialization, clock management,
-	 * powering up VBUS and mapping of registers address space.
+	 * powering up VBUS, mapping of registers address space and power
+	 * management.
 	 */
 	otg = otg_get_transceiver();
 	if (!otg) {
@@ -255,6 +257,13 @@ static int ehci_msm_probe(struct platform_device *pdev)
 	}
 
 	device_init_wakeup(&pdev->dev, 1);
+	/*
+	 * OTG device parent of HCD takes care of putting
+	 * hardware into low power mode.
+	 */
+	pm_runtime_no_callbacks(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
 	return 0;
 
 put_transceiver:
@@ -272,6 +281,8 @@ static int __devexit ehci_msm_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	device_init_wakeup(&pdev->dev, 0);
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_set_suspended(&pdev->dev);
 
 	otg_set_host(otg, NULL);
 	otg_put_transceiver(otg);
@@ -281,10 +292,54 @@ static int __devexit ehci_msm_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int ehci_msm_pm_suspend(struct device *dev)
+{
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
+	bool wakeup = device_may_wakeup(dev);
+
+	dev_dbg(dev, "ehci-msm PM suspend\n");
+
+	/*
+	 * EHCI helper function has also the same check before manipulating
+	 * port wakeup flags.  We do check here the same condition before
+	 * calling the same helper function to avoid bringing hardware
+	 * from Low power mode when there is no need for adjusting port
+	 * wakeup flags.
+	 */
+	if (hcd->self.root_hub->do_remote_wakeup && !wakeup) {
+		pm_runtime_resume(dev);
+		ehci_prepare_ports_for_controller_suspend(hcd_to_ehci(hcd),
+				wakeup);
+	}
+
+	return 0;
+}
+
+static int ehci_msm_pm_resume(struct device *dev)
+{
+	struct usb_hcd *hcd = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "ehci-msm PM resume\n");
+	ehci_prepare_ports_for_controller_resume(hcd_to_ehci(hcd));
+
+	return 0;
+}
+#else
+#define ehci_msm_pm_suspend	NULL
+#define ehci_msm_pm_resume	NULL
+#endif
+
+static const struct dev_pm_ops ehci_msm_dev_pm_ops = {
+	.suspend         = ehci_msm_pm_suspend,
+	.resume          = ehci_msm_pm_resume,
+};
+
 static struct platform_driver ehci_msm_driver = {
 	.probe	= ehci_msm_probe,
 	.remove	= __devexit_p(ehci_msm_remove),
 	.driver = {
 		   .name = "msm_hsusb_host",
+		   .pm = &ehci_msm_dev_pm_ops,
 	},
 };

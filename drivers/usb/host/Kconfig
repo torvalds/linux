@@ -150,7 +150,7 @@ config USB_EHCI_MSM
 	  Enables support for the USB Host controller present on the
 	  Qualcomm chipsets. Root Hub has inbuilt TT.
 	  This driver depends on OTG driver for PHY initialization,
-	  clock management, powering up VBUS.
+	  clock management, powering up VBUS, and power management.
 
 config USB_EHCI_HCD_PPC_OF
 	bool "EHCI support for PPC USB controller on OF platform bus"
