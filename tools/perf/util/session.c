@@ -465,7 +465,8 @@ static void perf_session_free_sample_buffers(struct perf_session *session)
 static int perf_session_deliver_event(struct perf_session *session,
 				      event_t *event,
 				      struct sample_data *sample,
-				      struct perf_event_ops *ops);
+				      struct perf_event_ops *ops,
+				      u64 file_offset);
 
 static void flush_sample_queue(struct perf_session *s,
 			       struct perf_event_ops *ops)
@@ -485,7 +486,8 @@ static void flush_sample_queue(struct perf_session *s,
 			break;
 
 		event__parse_sample(iter->event, s, &sample);
-		perf_session_deliver_event(s, iter->event, &sample, ops);
+		perf_session_deliver_event(s, iter->event, &sample, ops,
+					   iter->file_offset);
 
 		os->last_flush = iter->timestamp;
 		list_del(&iter->list);
@@ -699,7 +701,8 @@ static void dump_sample(struct perf_session *session, event_t *event,
 static int perf_session_deliver_event(struct perf_session *session,
 				      event_t *event,
 				      struct sample_data *sample,
-				      struct perf_event_ops *ops)
+				      struct perf_event_ops *ops,
+				      u64 file_offset __used)
 {
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
@@ -788,7 +791,8 @@ static int perf_session__process_event(struct perf_session *session,
 			return ret;
 	}
 
-	return perf_session_deliver_event(session, event, &sample, ops);
+	return perf_session_deliver_event(session, event, &sample, ops,
+					  file_offset);
 }
 
 void perf_event_header__bswap(struct perf_event_header *self)
