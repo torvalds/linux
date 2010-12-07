@@ -4052,7 +4052,7 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		if (phy_rev > 9)
 			unsupported = 1;
 		break;
-#ifdef CONFIG_B43_NPHY
+#ifdef CONFIG_B43_PHY_N
 	case B43_PHYTYPE_N:
 		if (phy_rev > 2)
 			unsupported = 1;
@@ -5097,7 +5097,7 @@ static void b43_print_driverinfo(void)
 #ifdef CONFIG_B43_PCMCIA
 	feat_pcmcia = "M";
 #endif
-#ifdef CONFIG_B43_NPHY
+#ifdef CONFIG_B43_PHY_N
 	feat_nphy = "N";
 #endif
 #ifdef CONFIG_B43_LEDS
