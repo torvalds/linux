@@ -127,6 +127,7 @@ static void __init mx27pdk_init(void)
 	imx27_add_fec(NULL);
 	imx27_add_imx_keypad(&mx27_3ds_keymap_data);
 	imx27_add_mxc_mmc(0, &sdhc1_pdata);
+	imx27_add_imx2_wdt(NULL);
 }
 
 static void __init mx27pdk_timer_init(void)
