@@ -223,7 +223,7 @@ struct packet_skb_cb {
 
 #define PACKET_SKB_CB(__skb)	((struct packet_skb_cb *)((__skb)->cb))
 
-static inline struct page *pgv_to_page(void *addr)
+static inline __pure struct page *pgv_to_page(void *addr)
 {
 	if (is_vmalloc_addr(addr))
 		return vmalloc_to_page(addr);
@@ -806,6 +806,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	__packet_set_status(po, h.raw, status);
 	smp_mb();
+#if ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE == 1
 	{
 		u8 *start, *end;
 
@@ -813,6 +814,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		for (start = h.raw; start < end; start += PAGE_SIZE)
 			flush_dcache_page(pgv_to_page(start));
 	}
+#endif
 
 	sk->sk_data_ready(sk, 0);
 
