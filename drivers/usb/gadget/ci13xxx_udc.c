@@ -60,6 +60,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
@@ -2348,6 +2349,7 @@ static int ci13xxx_vbus_session(struct usb_gadget *_gadget, int is_active)
 
 	if (gadget_ready) {
 		if (is_active) {
+			pm_runtime_get_sync(&_gadget->dev);
 			hw_device_reset(udc);
 			hw_device_state(udc->ci13xxx_ep[0].qh[RX].dma);
 		} else {
@@ -2356,6 +2358,7 @@ static int ci13xxx_vbus_session(struct usb_gadget *_gadget, int is_active)
 				udc->udc_driver->notify_event(udc,
 				CI13XXX_CONTROLLER_STOPPED_EVENT);
 			_gadget_stop_activity(&udc->gadget);
+			pm_runtime_put_sync(&_gadget->dev);
 		}
 	}
 
@@ -2473,16 +2476,20 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		goto done;
 	}
 
+	pm_runtime_get_sync(&udc->gadget.dev);
 	if (udc->udc_driver->flags & CI13XXX_PULLUP_ON_VBUS) {
 		if (udc->vbus_active) {
 			if (udc->udc_driver->flags & CI13XXX_REGS_SHARED)
 				hw_device_reset(udc);
 		} else {
+			pm_runtime_put_sync(&udc->gadget.dev);
 			goto done;
 		}
 	}
 
 	retval = hw_device_state(udc->ci13xxx_ep[0].qh[RX].dma);
+	if (retval)
+		pm_runtime_put_sync(&udc->gadget.dev);
 
  done:
 	spin_unlock_irqrestore(udc->lock, flags);
@@ -2522,6 +2529,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 			udc->udc_driver->notify_event(udc,
 			CI13XXX_CONTROLLER_STOPPED_EVENT);
 		_gadget_stop_activity(&udc->gadget);
+		pm_runtime_put(&udc->gadget.dev);
 	}
 
 	/* unbind gadget */
@@ -2723,6 +2731,8 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 		if (retval)
 			goto remove_dbg;
 	}
+	pm_runtime_no_callbacks(&udc->gadget.dev);
+	pm_runtime_enable(&udc->gadget.dev);
 
 	_udc = udc;
 	return retval;
