@@ -601,13 +601,10 @@ void hdmi_eld_update_pcm_info(struct hdmi_eld *eld, struct hda_pcm_stream *pcm,
 	pcm->rates = 0;
 	pcm->formats = 0;
 	pcm->maxbps = 0;
-	pcm->channels_min = -1;
 	pcm->channels_max = 0;
 	for (i = 0; i < eld->sad_count; i++) {
 		struct cea_sad *a = &eld->sad[i];
 		pcm->rates |= a->rates;
-		if (a->channels < pcm->channels_min)
-			pcm->channels_min = a->channels;
 		if (a->channels > pcm->channels_max)
 			pcm->channels_max = a->channels;
 		if (a->format == AUDIO_CODING_TYPE_LPCM) {
@@ -635,7 +632,6 @@ void hdmi_eld_update_pcm_info(struct hdmi_eld *eld, struct hda_pcm_stream *pcm,
 	/* restrict the parameters by the values the codec provides */
 	pcm->rates &= codec_pars->rates;
 	pcm->formats &= codec_pars->formats;
-	pcm->channels_min = max(pcm->channels_min, codec_pars->channels_min);
 	pcm->channels_max = min(pcm->channels_max, codec_pars->channels_max);
 	pcm->maxbps = min(pcm->maxbps, codec_pars->maxbps);
 }
