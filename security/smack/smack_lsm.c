@@ -3,12 +3,14 @@
  *
  *  This file contains the smack hook function implementations.
  *
- *  Author:
+ *  Authors:
  *	Casey Schaufler <casey@schaufler-ca.com>
+ *	Jarkko Sakkinen <ext-jarkko.2.sakkinen@nokia.com>
  *
  *  Copyright (C) 2007 Casey Schaufler <casey@schaufler-ca.com>
  *  Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  *                Paul Moore <paul.moore@hp.com>
+ *  Copyright (C) 2010 Nokia Corporation
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License version 2,
@@ -34,6 +36,9 @@
 #include "smack.h"
 
 #define task_security(task)	(task_cred_xxx((task), security))
+
+#define TRANS_TRUE	"TRUE"
+#define TRANS_TRUE_SIZE	4
 
 /**
  * smk_fetch - Fetch the smack label from a file.
@@ -468,6 +473,8 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 				     char **name, void **value, size_t *len)
 {
 	char *isp = smk_of_inode(inode);
+	char *dsp = smk_of_inode(dir);
+	u32 may;
 
 	if (name) {
 		*name = kstrdup(XATTR_SMACK_SUFFIX, GFP_KERNEL);
@@ -476,6 +483,16 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 	}
 
 	if (value) {
+		may = smk_access_entry(smk_of_current(), dsp);
+
+		/*
+		 * If the access rule allows transmutation and
+		 * the directory requests transmutation then
+		 * by all means transmute.
+		 */
+		if (((may & MAY_TRANSMUTE) != 0) && smk_inode_transmutable(dir))
+			isp = dsp;
+
 		*value = kstrdup(isp, GFP_KERNEL);
 		if (*value == NULL)
 			return -ENOMEM;
@@ -709,6 +726,12 @@ static int smack_inode_setxattr(struct dentry *dentry, const char *name,
 		if (size == 0 || size >= SMK_LABELLEN ||
 		    smk_import(value, size) == NULL)
 			rc = -EINVAL;
+	} else if (strcmp(name, XATTR_NAME_SMACKTRANSMUTE) == 0) {
+		if (!capable(CAP_MAC_ADMIN))
+			rc = -EPERM;
+		if (size != TRANS_TRUE_SIZE ||
+		    strncmp(value, TRANS_TRUE, TRANS_TRUE_SIZE) != 0)
+			rc = -EINVAL;
 	} else
 		rc = cap_inode_setxattr(dentry, name, value, size, flags);
 
@@ -735,35 +758,23 @@ static int smack_inode_setxattr(struct dentry *dentry, const char *name,
 static void smack_inode_post_setxattr(struct dentry *dentry, const char *name,
 				      const void *value, size_t size, int flags)
 {
-	struct inode_smack *isp;
 	char *nsp;
-
-	/*
-	 * Not SMACK or SMACKEXEC
-	 */
-	if (strcmp(name, XATTR_NAME_SMACK) &&
-	    strcmp(name, XATTR_NAME_SMACKEXEC))
-		return;
-
-	isp = dentry->d_inode->i_security;
-
-	/*
-	 * No locking is done here. This is a pointer
-	 * assignment.
-	 */
-	nsp = smk_import(value, size);
+	struct inode_smack *isp = dentry->d_inode->i_security;
 
 	if (strcmp(name, XATTR_NAME_SMACK) == 0) {
+		nsp = smk_import(value, size);
 		if (nsp != NULL)
 			isp->smk_inode = nsp;
 		else
 			isp->smk_inode = smack_known_invalid.smk_known;
-	} else {
+	} else if (strcmp(name, XATTR_NAME_SMACKEXEC) == 0) {
+		nsp = smk_import(value, size);
 		if (nsp != NULL)
 			isp->smk_task = nsp;
 		else
 			isp->smk_task = smack_known_invalid.smk_known;
-	}
+	} else if (strcmp(name, XATTR_NAME_SMACKTRANSMUTE) == 0)
+		isp->smk_flags |= SMK_INODE_TRANSMUTE;
 
 	return;
 }
@@ -803,7 +814,8 @@ static int smack_inode_removexattr(struct dentry *dentry, const char *name)
 	if (strcmp(name, XATTR_NAME_SMACK) == 0 ||
 	    strcmp(name, XATTR_NAME_SMACKIPIN) == 0 ||
 	    strcmp(name, XATTR_NAME_SMACKIPOUT) == 0 ||
-	    strcmp(name, XATTR_NAME_SMACKEXEC) == 0) {
+	    strcmp(name, XATTR_NAME_SMACKEXEC) == 0 ||
+	    strcmp(name, XATTR_NAME_SMACKTRANSMUTE) == 0) {
 		if (!capable(CAP_MAC_ADMIN))
 			rc = -EPERM;
 	} else
@@ -2274,6 +2286,8 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 	char *csp = smk_of_current();
 	char *fetched;
 	char *final;
+	char trattr[TRANS_TRUE_SIZE];
+	int transflag = 0;
 	struct dentry *dp;
 
 	if (inode == NULL)
@@ -2392,10 +2406,19 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		 */
 		dp = dget(opt_dentry);
 		fetched = smk_fetch(XATTR_NAME_SMACK, inode, dp);
-		if (fetched != NULL)
+		if (fetched != NULL) {
 			final = fetched;
-		isp->smk_task = smk_fetch(XATTR_NAME_SMACKEXEC, inode,
-					  dp);
+			if (S_ISDIR(inode->i_mode)) {
+				trattr[0] = '\0';
+				inode->i_op->getxattr(dp,
+					XATTR_NAME_SMACKTRANSMUTE,
+					trattr, TRANS_TRUE_SIZE);
+				if (strncmp(trattr, TRANS_TRUE,
+					    TRANS_TRUE_SIZE) == 0)
+					transflag = SMK_INODE_TRANSMUTE;
+			}
+		}
+		isp->smk_task = smk_fetch(XATTR_NAME_SMACKEXEC, inode, dp);
 
 		dput(dp);
 		break;
@@ -2406,7 +2429,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 	else
 		isp->smk_inode = final;
 
-	isp->smk_flags |= SMK_INODE_INSTANT;
+	isp->smk_flags |= (SMK_INODE_INSTANT | transflag);
 
 unlockandout:
 	mutex_unlock(&isp->smk_lock);
@@ -2456,6 +2479,7 @@ static int smack_setprocattr(struct task_struct *p, char *name,
 			     void *value, size_t size)
 {
 	struct task_smack *tsp;
+	struct task_smack *oldtsp;
 	struct cred *new;
 	char *newsmack;
 
@@ -2485,6 +2509,7 @@ static int smack_setprocattr(struct task_struct *p, char *name,
 	if (newsmack == smack_known_web.smk_known)
 		return -EPERM;
 
+	oldtsp = p->cred->security;
 	new = prepare_creds();
 	if (new == NULL)
 		return -ENOMEM;
@@ -2494,6 +2519,7 @@ static int smack_setprocattr(struct task_struct *p, char *name,
 		return -ENOMEM;
 	}
 	tsp->smk_task = newsmack;
+	tsp->smk_forked = oldtsp->smk_forked;
 	new->security = tsp;
 	commit_creds(new);
 	return size;
