@@ -29,6 +29,6 @@ obj-$(CONFIG_MTD_OOPS)		+= mtdoops.o
 nftl-objs		:= nftlcore.o nftlmount.o
 inftl-objs		:= inftlcore.o inftlmount.o
 
-obj-y		+= chips/ lpddr/ maps/ devices/ nand/ onenand/ tests/
+obj-y		+= chips/ lpddr/ maps/ devices/ nand/ onenand/ tests/  rknand/
 
 obj-$(CONFIG_MTD_UBI)		+= ubi/

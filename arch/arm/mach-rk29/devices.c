@@ -434,6 +434,29 @@ struct platform_device rk29_device_fb = {
 	}
 };
 #endif
+
+#if defined(CONFIG_MTD_NAND_RK29XX)  
+static struct resource rk29xxnand_resources[] = {
+	{
+		.start	= RK29_NANDC_PHYS,
+		.end	= 	RK29_NANDC_PHYS+RK29_NANDC_SIZE -1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+struct platform_device rk29xx_device_nand = {
+	.name	= "rk29xxnand", 
+	.id		=  -1, 
+	.resource	= rk29xxnand_resources,
+	.num_resources= ARRAY_SIZE(rk29xxnand_resources),
+	.dev	= {
+		.platform_data= &rk29_nand_data,
+	},
+	
+};
+#endif
+
+
 #if defined(CONFIG_MTD_NAND_RK29)  
 static struct resource nand_resources[] = {
 	{

@@ -906,6 +906,11 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SDMMC1_RK29
 	&rk29_device_sdmmc1,
 #endif
+
+#ifdef CONFIG_MTD_NAND_RK29XX
+	&rk29xx_device_nand,
+#endif
+
 #ifdef CONFIG_MTD_NAND_RK29
 	&rk29_device_nand,
 #endif

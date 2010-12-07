@@ -1,0 +1,41 @@
+# 
+# linux/drivers/mtd/rknand/Kconfig 
+# 
+ 
+config MTD_RKNAND 
+	tristate "RK NAND Device Support" 
+	depends on MTD 
+	select MTD_RK_NAND_IDS 
+	help 
+	  RK NAND Device Support 
+if MTD_RKNAND 
+ 
+config MTD_NAND_RK29XX 
+	tristate "RK29 on-chip NAND Flash Controller driver with FTL" 
+	depends on MTD_RKNAND 
+    default y 
+	help 
+	  This enables the RK28xx on-chip NAND flash controller and NFTL driver. 
+ 
+config RKFTL_PAGECACHE_SIZE 
+	int "config page remap mtd part size(MB),MAX is 128MB,this mtd part will mount in /data/data" 
+	depends on MTD_RKNAND 
+	default "64" 
+	help 
+	  default size is 64MB,and "swap" size is (128 - 64)MB.if you config this size up to 128MB,then "swap" funtion will disable. 
+ 
+config MTD_NAND_RK29XX_DEBUG 
+	tristate "RK29 Nand driver debug enables" 
+	depends on MTD_RKNAND 
+    default n 
+	help 
+	 
+config MTD_NAND_RK29XX_DEBUG_VERBOSE 
+	int "Debugging verbosity (0 = quiet, 3 = noisy)" 
+	depends on MTD_NAND_RK29XX_DEBUG 
+	default "0" 
+	help 
+	  Determines the verbosity level of the MTD NAND debugging messages. 
+	   
+endif # MTD_RKNAND 
+ 
