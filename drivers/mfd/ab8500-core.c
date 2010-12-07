@@ -52,6 +52,7 @@
 #define AB8500_IT_LATCH8_REG		0x27
 #define AB8500_IT_LATCH9_REG		0x28
 #define AB8500_IT_LATCH10_REG		0x29
+#define AB8500_IT_LATCH12_REG		0x2B
 #define AB8500_IT_LATCH19_REG		0x32
 #define AB8500_IT_LATCH20_REG		0x33
 #define AB8500_IT_LATCH21_REG		0x34
@@ -98,7 +99,7 @@
  * offset 0.
  */
 static const int ab8500_irq_regoffset[AB8500_NUM_IRQ_REGS] = {
-	0, 1, 2, 3, 4, 6, 7, 8, 9, 18, 19, 20, 21,
+	0, 1, 2, 3, 4, 6, 7, 8, 9, 11, 18, 19, 20, 21,
 };
 
 static int ab8500_get_chip_id(struct device *dev)
@@ -252,6 +253,10 @@ static void ab8500_irq_sync_unlock(struct irq_data *data)
 		if (new == old)
 			continue;
 
+		/* Interrupt register 12 does'nt exist prior to version 0x20 */
+		if (ab8500_irq_regoffset[i] == 11 && ab8500->chip_id < 0x20)
+			continue;
+
 		ab8500->oldmask[i] = new;
 
 		reg = AB8500_IT_MASK1_REG + ab8500_irq_regoffset[i];
@@ -300,6 +305,10 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 		int regoffset = ab8500_irq_regoffset[i];
 		int status;
 		u8 value;
+
+		/* Interrupt register 12 does'nt exist prior to version 0x20 */
+		if (regoffset == 11 && ab8500->chip_id < 0x20)
+			continue;
 
 		status = get_register_interruptible(ab8500, AB8500_INTERRUPT,
 			AB8500_IT_LATCH1_REG + regoffset, &value);
@@ -554,6 +563,12 @@ static struct resource ab8500_usb_resources[] = {
 		.end = AB8500_INT_VBUS_DET_R,
 		.flags = IORESOURCE_IRQ,
 	},
+	{
+		.name = "USB_LINK_STATUS",
+		.start = AB8500_INT_USB_LINK_STATUS,
+		.end = AB8500_INT_USB_LINK_STATUS,
+		.flags = IORESOURCE_IRQ,
+	},
 };
 
 static struct resource ab8500_temp_resources[] = {
@@ -670,8 +685,9 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 	 * 0x0 - Early Drop
 	 * 0x10 - Cut 1.0
 	 * 0x11 - Cut 1.1
+	 * 0x20 - Cut 2.0
 	 */
-	if (value == 0x0 || value == 0x10 || value == 0x11) {
+	if (value == 0x0 || value == 0x10 || value == 0x11 || value == 0x20) {
 		ab8500->revision = value;
 		dev_info(ab8500->dev, "detected chip, revision: %#x\n", value);
 	} else {
@@ -684,18 +700,16 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 		plat->init(ab8500);
 
 	/* Clear and mask all interrupts */
-	for (i = 0; i < 10; i++) {
-		get_register_interruptible(ab8500, AB8500_INTERRUPT,
-			AB8500_IT_LATCH1_REG + i, &value);
-		set_register_interruptible(ab8500, AB8500_INTERRUPT,
-			AB8500_IT_MASK1_REG + i, 0xff);
-	}
+	for (i = 0; i < AB8500_NUM_IRQ_REGS; i++) {
+		/* Interrupt register 12 does'nt exist prior to version 0x20 */
+		if (ab8500_irq_regoffset[i] == 11 && ab8500->chip_id < 0x20)
+			continue;
 
-	for (i = 18; i < 24; i++) {
 		get_register_interruptible(ab8500, AB8500_INTERRUPT,
-			AB8500_IT_LATCH1_REG + i, &value);
+			AB8500_IT_LATCH1_REG + ab8500_irq_regoffset[i],
+			&value);
 		set_register_interruptible(ab8500, AB8500_INTERRUPT,
-			AB8500_IT_MASK1_REG + i, 0xff);
+			AB8500_IT_MASK1_REG + ab8500_irq_regoffset[i], 0xff);
 	}
 
 	ret = abx500_register_ops(ab8500->dev, &ab8500_ops);
