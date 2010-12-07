@@ -444,6 +444,7 @@ static event__swap_op event__swap_ops[] = {
 
 struct sample_queue {
 	u64			timestamp;
+	u64			file_offset;
 	event_t			*event;
 	struct list_head	list;
 };
@@ -596,7 +597,7 @@ static void __queue_event(struct sample_queue *new, struct perf_session *s)
 #define MAX_SAMPLE_BUFFER	(64 * 1024 / sizeof(struct sample_queue))
 
 static int perf_session_queue_event(struct perf_session *s, event_t *event,
-				    struct sample_data *data)
+				    struct sample_data *data, u64 file_offset)
 {
 	struct ordered_samples *os = &s->ordered_samples;
 	struct list_head *sc = &os->sample_cache;
@@ -628,6 +629,7 @@ static int perf_session_queue_event(struct perf_session *s, event_t *event,
 	}
 
 	new->timestamp = timestamp;
+	new->file_offset = file_offset;
 	new->event = event;
 
 	__queue_event(new, s);
@@ -780,7 +782,8 @@ static int perf_session__process_event(struct perf_session *session,
 	}
 
 	if (ops->ordered_samples) {
-		ret = perf_session_queue_event(session, event, &sample);
+		ret = perf_session_queue_event(session, event, &sample,
+					       file_offset);
 		if (ret != -ETIME)
 			return ret;
 	}
