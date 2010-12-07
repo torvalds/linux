@@ -702,10 +702,13 @@ static int perf_session_deliver_event(struct perf_session *session,
 				      event_t *event,
 				      struct sample_data *sample,
 				      struct perf_event_ops *ops,
-				      u64 file_offset __used)
+				      u64 file_offset)
 {
+	dump_event(session, event, file_offset, sample);
+
 	switch (event->header.type) {
 	case PERF_RECORD_SAMPLE:
+		dump_sample(session, event, sample);
 		return ops->sample(event, sample, session);
 	case PERF_RECORD_MMAP:
 		return ops->mmap(event, sample, session);
@@ -747,10 +750,8 @@ static int perf_session__process_event(struct perf_session *session,
 
 	if (event->header.type >= PERF_RECORD_USER_TYPE_START)
 		dump_event(session, event, file_offset, NULL);
-	else {
+	else
 		event__parse_sample(event, session, &sample);
-		dump_event(session, event, file_offset, &sample);
-	}
 
 	/* These events are processed right away */
 	switch (event->header.type) {
@@ -765,7 +766,6 @@ static int perf_session__process_event(struct perf_session *session,
 				return 0;
 			}
 		}
-		dump_sample(session, event, &sample);
 		break;
 
 	case PERF_RECORD_HEADER_ATTR:
