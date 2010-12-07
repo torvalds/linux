@@ -1411,6 +1411,7 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 		}
 
 	}
+
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
 		if (conf->flags & IEEE80211_CONF_PS) {
 			ath9k_htc_setpower(priv, ATH9K_PM_NETWORK_SLEEP);
@@ -1420,6 +1421,11 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 			cancel_work_sync(&priv->ps_work);
 			ath9k_htc_setpower(priv, ATH9K_PM_AWAKE);
 		}
+	}
+
+	if (changed & IEEE80211_CONF_CHANGE_POWER) {
+		priv->txpowlimit = 2 * conf->power_level;
+		ath_update_txpow(priv);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
