@@ -2833,7 +2833,7 @@ remote_path_check:
 	/* check if a whole path (including prepath) is not remote */
 	if (!rc && cifs_sb->prepathlen && tcon) {
 		/* build_path_to_root works only when we have a valid tcon */
-		full_path = cifs_build_path_to_root(cifs_sb);
+		full_path = cifs_build_path_to_root(cifs_sb, tcon);
 		if (full_path == NULL) {
 			rc = -ENOMEM;
 			goto mount_fail_check;
