@@ -104,6 +104,12 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 		if (skb->sk == sk)
 			continue;
 
+		if (bt_cb(skb)->channel != hci_pi(sk)->channel)
+			continue;
+
+		if (bt_cb(skb)->channel == HCI_CHANNEL_CONTROL)
+			goto clone;
+
 		/* Apply filter */
 		flt = &hci_pi(sk)->filter;
 
@@ -127,12 +133,14 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 				continue;
 		}
 
+clone:
 		nskb = skb_clone(skb, GFP_ATOMIC);
 		if (!nskb)
 			continue;
 
 		/* Put type byte before the data */
-		memcpy(skb_push(nskb, 1), &bt_cb(nskb)->pkt_type, 1);
+		if (bt_cb(skb)->channel == HCI_CHANNEL_RAW)
+			memcpy(skb_push(nskb, 1), &bt_cb(nskb)->pkt_type, 1);
 
 		if (sock_queue_rcv_skb(sk, nskb))
 			kfree_skb(nskb);
