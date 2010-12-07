@@ -732,6 +732,22 @@ static int perf_session_deliver_event(struct perf_session *session,
 	}
 }
 
+static int perf_session__preprocess_sample(struct perf_session *session,
+					   event_t *event, struct sample_data *sample)
+{
+	if (event->header.type != PERF_RECORD_SAMPLE ||
+	    !(session->sample_type & PERF_SAMPLE_CALLCHAIN))
+		return 0;
+
+	if (!ip_callchain__valid(sample->callchain, event)) {
+		pr_debug("call-chain problem with event, skipping it.\n");
+		++session->hists.stats.nr_invalid_chains;
+		session->hists.stats.total_invalid_chains += sample->period;
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int perf_session__process_event(struct perf_session *session,
 				       event_t *event,
 				       struct perf_event_ops *ops,
@@ -750,24 +766,9 @@ static int perf_session__process_event(struct perf_session *session,
 
 	if (event->header.type >= PERF_RECORD_USER_TYPE_START)
 		dump_event(session, event, file_offset, NULL);
-	else
-		event__parse_sample(event, session, &sample);
 
 	/* These events are processed right away */
 	switch (event->header.type) {
-	case PERF_RECORD_SAMPLE:
-		if (session->sample_type & PERF_SAMPLE_CALLCHAIN) {
-			if (!ip_callchain__valid(sample.callchain, event)) {
-				pr_debug("call-chain problem with event, "
-					 "skipping it.\n");
-				++session->hists.stats.nr_invalid_chains;
-				session->hists.stats.total_invalid_chains +=
-					sample.period;
-				return 0;
-			}
-		}
-		break;
-
 	case PERF_RECORD_HEADER_ATTR:
 		return ops->attr(event, session);
 	case PERF_RECORD_HEADER_EVENT_TYPE:
@@ -783,6 +784,15 @@ static int perf_session__process_event(struct perf_session *session,
 	default:
 		break;
 	}
+
+	/*
+	 * For all kernel events we get the sample data
+	 */
+	event__parse_sample(event, session, &sample);
+
+	/* Preprocess sample records - precheck callchains */
+	if (perf_session__preprocess_sample(session, event, &sample))
+		return 0;
 
 	if (ops->ordered_samples) {
 		ret = perf_session_queue_event(session, event, &sample,
