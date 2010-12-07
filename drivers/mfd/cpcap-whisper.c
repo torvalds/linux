@@ -33,6 +33,7 @@
 #include <linux/spi/cpcap-regbits.h>
 #include <linux/spi/spi.h>
 
+void tegra_cpcap_audio_dock_state(bool connected);
 
 #define SENSE_USB_CLIENT    (CPCAP_BIT_ID_FLOAT_S  | \
 			     CPCAP_BIT_VBUSVLD_S   | \
@@ -336,6 +337,7 @@ static void whisper_notify(struct cpcap_whisper_data *di, enum cpcap_accy accy)
 		switch_set_state(&di->csdev, 0);
 		memset(di->dock_id, 0, CPCAP_WHISPER_ID_SIZE);
 		memset(di->dock_prop, 0, CPCAP_WHISPER_PROP_SIZE);
+		tegra_cpcap_audio_dock_state(false);
 	}
 }
 
@@ -372,6 +374,7 @@ static void whisper_audio_check(struct cpcap_whisper_data *di)
 
 	audio = (req.result[CPCAP_ADC_USB_ID] > ADC_AUDIO_THRES) ? 1 : 0;
 	switch_set_state(&di->asdev, audio);
+	tegra_cpcap_audio_dock_state(!!audio);
 
 	pr_info("%s: Audio cable %s present\n", __func__,
 		(audio ? "is" : "not"));

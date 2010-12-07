@@ -43,6 +43,7 @@ static struct cpcap_audio_stream current_input = {
 };
 static int codec_rate;
 static int stdac_rate;
+static bool dock_connected;
 
 static int cpcap_audio_ctl_open(struct inode *inode, struct file *file)
 {
@@ -448,6 +449,21 @@ static struct miscdevice cpcap_audio_ctl = {
 	.minor = MISC_DYNAMIC_MINOR,
 	.fops = &cpcap_audio_ctl_fops,
 };
+
+/* Couple the CPCAP and Dock audio state, to avoid pops */
+void tegra_cpcap_audio_dock_state(bool connected)
+{
+	pr_debug("%s: %s", __func__, connected ? "connected" : "disconnected");
+
+	mutex_lock(&cpcap_lock);
+	dock_connected = connected;
+	/* Borrow (unused) "ext output" to keep dock speaker amplifier on. */
+	pdata->state->ext_primary_speaker = dock_connected ?
+			CPCAP_AUDIO_OUT_EMU_STEREO : CPCAP_AUDIO_OUT_NONE;
+	cpcap_audio_set_audio_state(pdata->state);
+	mutex_unlock(&cpcap_lock);
+}
+EXPORT_SYMBOL(tegra_cpcap_audio_dock_state);
 
 static int cpcap_audio_probe(struct platform_device *pdev)
 {
