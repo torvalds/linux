@@ -272,19 +272,22 @@ static int cpus_cstate_state[MAX_CPUS];
 static u64 cpus_pstate_start_times[MAX_CPUS];
 static u64 cpus_pstate_state[MAX_CPUS];
 
-static int process_comm_event(event_t *event, struct perf_session *session __used)
+static int process_comm_event(event_t *event, struct sample_data *sample __used,
+			      struct perf_session *session __used)
 {
 	pid_set_comm(event->comm.tid, event->comm.comm);
 	return 0;
 }
 
-static int process_fork_event(event_t *event, struct perf_session *session __used)
+static int process_fork_event(event_t *event, struct sample_data *sample __used,
+			      struct perf_session *session __used)
 {
 	pid_fork(event->fork.pid, event->fork.ppid, event->fork.time);
 	return 0;
 }
 
-static int process_exit_event(event_t *event, struct perf_session *session __used)
+static int process_exit_event(event_t *event, struct sample_data *sample __used,
+			      struct perf_session *session __used)
 {
 	pid_exit(event->fork.pid, event->fork.time);
 	return 0;
@@ -470,24 +473,21 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 }
 
 
-static int process_sample_event(event_t *event, struct perf_session *session)
+static int process_sample_event(event_t *event __used,
+				struct sample_data *sample,
+				struct perf_session *session)
 {
-	struct sample_data data;
 	struct trace_entry *te;
 
-	memset(&data, 0, sizeof(data));
-
-	event__parse_sample(event, session->sample_type, &data);
-
 	if (session->sample_type & PERF_SAMPLE_TIME) {
-		if (!first_time || first_time > data.time)
-			first_time = data.time;
-		if (last_time < data.time)
-			last_time = data.time;
+		if (!first_time || first_time > sample->time)
+			first_time = sample->time;
+		if (last_time < sample->time)
+			last_time = sample->time;
 	}
 
-	te = (void *)data.raw_data;
-	if (session->sample_type & PERF_SAMPLE_RAW && data.raw_size > 0) {
+	te = (void *)sample->raw_data;
+	if (session->sample_type & PERF_SAMPLE_RAW && sample->raw_size > 0) {
 		char *event_str;
 		struct power_entry *pe;
 
@@ -499,19 +499,19 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 			return 0;
 
 		if (strcmp(event_str, "power:power_start") == 0)
-			c_state_start(pe->cpu_id, data.time, pe->value);
+			c_state_start(pe->cpu_id, sample->time, pe->value);
 
 		if (strcmp(event_str, "power:power_end") == 0)
-			c_state_end(pe->cpu_id, data.time);
+			c_state_end(pe->cpu_id, sample->time);
 
 		if (strcmp(event_str, "power:power_frequency") == 0)
-			p_state_change(pe->cpu_id, data.time, pe->value);
+			p_state_change(pe->cpu_id, sample->time, pe->value);
 
 		if (strcmp(event_str, "sched:sched_wakeup") == 0)
-			sched_wakeup(data.cpu, data.time, data.pid, te);
+			sched_wakeup(sample->cpu, sample->time, sample->pid, te);
 
 		if (strcmp(event_str, "sched:sched_switch") == 0)
-			sched_switch(data.cpu, data.time, te);
+			sched_switch(sample->cpu, sample->time, te);
 	}
 	return 0;
 }
@@ -988,6 +988,9 @@ static int __cmd_record(int argc, const char **argv)
 
 	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
+
+	if (rec_argv == NULL)
+		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(record_args); i++)
 		rec_argv[i] = strdup(record_args[i]);

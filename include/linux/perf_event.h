@@ -215,8 +215,9 @@ struct perf_event_attr {
 				 */
 				precise_ip     :  2, /* skid constraint       */
 				mmap_data      :  1, /* non-exec mmap data    */
+				sample_id_all  :  1, /* sample_type all events */
 
-				__reserved_1   : 46;
+				__reserved_1   : 45;
 
 	union {
 		__u32		wakeup_events;	  /* wakeup every n events */
@@ -327,6 +328,15 @@ struct perf_event_header {
 enum perf_event_type {
 
 	/*
+	 * If perf_event_attr.sample_id_all is set then all event types will
+	 * have the sample_type selected fields related to where/when
+	 * (identity) an event took place (TID, TIME, ID, CPU, STREAM_ID)
+	 * described in PERF_RECORD_SAMPLE below, it will be stashed just after
+	 * the perf_event_header and the fields already present for the existing
+	 * fields, i.e. at the end of the payload. That way a newer perf.data
+	 * file will be supported by older perf tools, with these new optional
+	 * fields being ignored.
+	 *
 	 * The MMAP events record the PROT_EXEC mappings so that we can
 	 * correlate userspace IPs to code. They have the following structure:
 	 *
@@ -759,6 +769,7 @@ struct perf_event {
 
 	struct perf_event_attr		attr;
 	u16				header_size;
+	u16				id_header_size;
 	u16				read_size;
 	struct hw_perf_event		hw;
 

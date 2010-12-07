@@ -977,12 +977,12 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 }
 
 static void event__process_sample(const event_t *self,
-				 struct perf_session *session, int counter)
+				  struct sample_data *sample,
+				  struct perf_session *session, int counter)
 {
 	u64 ip = self->ip.ip;
 	struct sym_entry *syme;
 	struct addr_location al;
-	struct sample_data data;
 	struct machine *machine;
 	u8 origin = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
@@ -1025,7 +1025,7 @@ static void event__process_sample(const event_t *self,
 	if (self->header.misc & PERF_RECORD_MISC_EXACT_IP)
 		exact_samples++;
 
-	if (event__preprocess_sample(self, session, &al, &data,
+	if (event__preprocess_sample(self, session, &al, sample,
 				     symbol_filter) < 0 ||
 	    al.filtered)
 		return;
@@ -1105,6 +1105,7 @@ static void perf_session__mmap_read_counter(struct perf_session *self,
 	unsigned int head = mmap_read_head(md);
 	unsigned int old = md->prev;
 	unsigned char *data = md->base + page_size;
+	struct sample_data sample;
 	int diff;
 
 	/*
@@ -1152,10 +1153,11 @@ static void perf_session__mmap_read_counter(struct perf_session *self,
 			event = &event_copy;
 		}
 
+		event__parse_sample(event, self, &sample);
 		if (event->header.type == PERF_RECORD_SAMPLE)
-			event__process_sample(event, self, md->counter);
+			event__process_sample(event, &sample, self, md->counter);
 		else
-			event__process(event, self);
+			event__process(event, &sample, self);
 		old += size;
 	}
 

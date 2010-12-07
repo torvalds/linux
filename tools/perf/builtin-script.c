@@ -63,22 +63,11 @@ static int cleanup_scripting(void)
 
 static char const		*input_name = "perf.data";
 
-static int process_sample_event(event_t *event, struct perf_session *session)
+static int process_sample_event(event_t *event, struct sample_data *sample,
+				struct perf_session *session)
 {
-	struct sample_data data;
-	struct thread *thread;
+	struct thread *thread = perf_session__findnew(session, event->ip.pid);
 
-	memset(&data, 0, sizeof(data));
-	data.time = -1;
-	data.cpu = -1;
-	data.period = 1;
-
-	event__parse_sample(event, session->sample_type, &data);
-
-	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
-		    data.pid, data.tid, data.ip, data.period);
-
-	thread = perf_session__findnew(session, event->ip.pid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);
@@ -87,13 +76,13 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 	if (session->sample_type & PERF_SAMPLE_RAW) {
 		if (debug_mode) {
-			if (data.time < last_timestamp) {
+			if (sample->time < last_timestamp) {
 				pr_err("Samples misordered, previous: %llu "
 					"this: %llu\n", last_timestamp,
-					data.time);
+					sample->time);
 				nr_unordered++;
 			}
-			last_timestamp = data.time;
+			last_timestamp = sample->time;
 			return 0;
 		}
 		/*
@@ -101,18 +90,19 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		 * field, although it should be the same than this perf
 		 * event pid
 		 */
-		scripting_ops->process_event(data.cpu, data.raw_data,
-					     data.raw_size,
-					     data.time, thread->comm);
+		scripting_ops->process_event(sample->cpu, sample->raw_data,
+					     sample->raw_size,
+					     sample->time, thread->comm);
 	}
 
-	session->hists.stats.total_period += data.period;
+	session->hists.stats.total_period += sample->period;
 	return 0;
 }
 
 static u64 nr_lost;
 
-static int process_lost_event(event_t *event, struct perf_session *session __used)
+static int process_lost_event(event_t *event, struct sample_data *sample __used,
+			      struct perf_session *session __used)
 {
 	nr_lost += event->lost.lost;
 
@@ -397,10 +387,10 @@ out_delete_desc:
 	return NULL;
 }
 
-static char *ends_with(char *str, const char *suffix)
+static const char *ends_with(const char *str, const char *suffix)
 {
 	size_t suffix_len = strlen(suffix);
-	char *p = str;
+	const char *p = str;
 
 	if (strlen(str) > suffix_len) {
 		p = str + strlen(str) - suffix_len;
@@ -492,7 +482,7 @@ static int list_available_scripts(const struct option *opt __used,
 
 		for_each_script(lang_path, lang_dir, script_dirent, script_next) {
 			script_root = strdup(script_dirent.d_name);
-			str = ends_with(script_root, REPORT_SUFFIX);
+			str = (char *)ends_with(script_root, REPORT_SUFFIX);
 			if (str) {
 				*str = '\0';
 				desc = script_desc__findnew(script_root);
@@ -540,7 +530,7 @@ static char *get_script_path(const char *script_root, const char *suffix)
 
 		for_each_script(lang_path, lang_dir, script_dirent, script_next) {
 			__script_root = strdup(script_dirent.d_name);
-			str = ends_with(__script_root, suffix);
+			str = (char *)ends_with(__script_root, suffix);
 			if (str) {
 				*str = '\0';
 				if (strcmp(__script_root, script_root))
@@ -560,7 +550,7 @@ static char *get_script_path(const char *script_root, const char *suffix)
 
 static bool is_top_script(const char *script_path)
 {
-	return ends_with((char *)script_path, "top") == NULL ? false : true;
+	return ends_with(script_path, "top") == NULL ? false : true;
 }
 
 static int has_required_arg(char *script_path)

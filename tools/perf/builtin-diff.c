@@ -30,12 +30,13 @@ static int hists__add_entry(struct hists *self,
 	return -ENOMEM;
 }
 
-static int diff__process_sample_event(event_t *event, struct perf_session *session)
+static int diff__process_sample_event(event_t *event,
+				      struct sample_data *sample,
+				      struct perf_session *session)
 {
 	struct addr_location al;
-	struct sample_data data = { .period = 1, };
 
-	if (event__preprocess_sample(event, session, &al, &data, NULL) < 0) {
+	if (event__preprocess_sample(event, session, &al, sample, NULL) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -44,12 +45,12 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 	if (al.filtered || al.sym == NULL)
 		return 0;
 
-	if (hists__add_entry(&session->hists, &al, data.period)) {
+	if (hists__add_entry(&session->hists, &al, sample->period)) {
 		pr_warning("problem incrementing symbol period, skipping event\n");
 		return -1;
 	}
 
-	session->hists.stats.total_period += data.period;
+	session->hists.stats.total_period += sample->period;
 	return 0;
 }
 

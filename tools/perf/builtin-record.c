@@ -36,6 +36,7 @@ static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
 
 static u64			user_interval			= ULLONG_MAX;
 static u64			default_interval		=      0;
+static u64			sample_type;
 
 static int			nr_cpus				=      0;
 static unsigned int		page_size;
@@ -48,6 +49,7 @@ static const char		*output_name			= "perf.data";
 static int			group				=      0;
 static int			realtime_prio			=      0;
 static bool			raw_samples			=  false;
+static bool			sample_id_all_avail		=   true;
 static bool			system_wide			=  false;
 static pid_t			target_pid			=     -1;
 static pid_t			target_tid			=     -1;
@@ -60,6 +62,7 @@ static bool			call_graph			=  false;
 static bool			inherit_stat			=  false;
 static bool			no_samples			=  false;
 static bool			sample_address			=  false;
+static bool			sample_time			=  false;
 static bool			no_buildid			=  false;
 static bool			no_buildid_cache		=  false;
 
@@ -129,6 +132,7 @@ static void write_output(void *buf, size_t size)
 }
 
 static int process_synthesized_event(event_t *event,
+				     struct sample_data *sample __used,
 				     struct perf_session *self __used)
 {
 	write_output(event, event->header.size);
@@ -281,11 +285,17 @@ static void create_counter(int counter, int cpu)
 	if (system_wide)
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 
+	if (sample_time)
+		attr->sample_type	|= PERF_SAMPLE_TIME;
+
 	if (raw_samples) {
 		attr->sample_type	|= PERF_SAMPLE_TIME;
 		attr->sample_type	|= PERF_SAMPLE_RAW;
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 	}
+
+	if (!sample_type)
+		sample_type = attr->sample_type;
 
 	attr->mmap		= track;
 	attr->comm		= track;
@@ -294,6 +304,8 @@ static void create_counter(int counter, int cpu)
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
+retry_sample_id:
+	attr->sample_id_all = sample_id_all_avail ? 1 : 0;
 
 	for (thread_index = 0; thread_index < thread_num; thread_index++) {
 try_again:
@@ -310,6 +322,12 @@ try_again:
 			else if (err ==  ENODEV && cpu_list) {
 				die("No such device - did you specify"
 					" an out-of-range profile CPU?\n");
+			} else if (err == EINVAL && sample_id_all_avail) {
+				/*
+				 * Old kernel, no attr->sample_id_type_all field
+				 */
+				sample_id_all_avail = false;
+				goto retry_sample_id;
 			}
 
 			/*
@@ -642,6 +660,8 @@ static int __cmd_record(int argc, const char **argv)
 			open_counters(cpumap[i]);
 	}
 
+	perf_session__set_sample_type(session, sample_type);
+
 	if (pipe_output) {
 		err = perf_header__write_pipe(output);
 		if (err < 0)
@@ -653,6 +673,8 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	post_processing_offset = lseek(output, 0, SEEK_CUR);
+
+	perf_session__set_sample_id_all(session, sample_id_all_avail);
 
 	if (pipe_output) {
 		err = event__synthesize_attrs(&session->header,
@@ -834,6 +856,7 @@ const struct option record_options[] = {
 		    "per thread counts"),
 	OPT_BOOLEAN('d', "data", &sample_address,
 		    "Sample addresses"),
+	OPT_BOOLEAN('T', "timestamp", &sample_time, "Sample timestamps"),
 	OPT_BOOLEAN('n', "no-samples", &no_samples,
 		    "don't sample"),
 	OPT_BOOLEAN('N', "no-buildid-cache", &no_buildid_cache,

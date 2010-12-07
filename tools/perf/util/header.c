@@ -946,6 +946,24 @@ u64 perf_header__sample_type(struct perf_header *header)
 	return type;
 }
 
+bool perf_header__sample_id_all(const struct perf_header *header)
+{
+	bool value = false, first = true;
+	int i;
+
+	for (i = 0; i < header->attrs; i++) {
+		struct perf_header_attr *attr = header->attr[i];
+
+		if (first) {
+			value = attr->attr.sample_id_all;
+			first = false;
+		} else if (value != attr->attr.sample_id_all)
+			die("non matching sample_id_all");
+	}
+
+	return value;
+}
+
 struct perf_event_attr *
 perf_header__find_attr(u64 id, struct perf_header *header)
 {
@@ -987,21 +1005,23 @@ int event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
 
 	ev = malloc(size);
 
+	if (ev == NULL)
+		return -ENOMEM;
+
 	ev->attr.attr = *attr;
 	memcpy(ev->attr.id, id, ids * sizeof(u64));
 
 	ev->attr.header.type = PERF_RECORD_HEADER_ATTR;
 	ev->attr.header.size = size;
 
-	err = process(ev, session);
+	err = process(ev, NULL, session);
 
 	free(ev);
 
 	return err;
 }
 
-int event__synthesize_attrs(struct perf_header *self,
-			    event__handler_t process,
+int event__synthesize_attrs(struct perf_header *self, event__handler_t process,
 			    struct perf_session *session)
 {
 	struct perf_header_attr	*attr;
@@ -1071,7 +1091,7 @@ int event__synthesize_event_type(u64 event_id, char *name,
 	ev.event_type.header.size = sizeof(ev.event_type) -
 		(sizeof(ev.event_type.event_type.name) - size);
 
-	err = process(&ev, session);
+	err = process(&ev, NULL, session);
 
 	return err;
 }
@@ -1126,7 +1146,7 @@ int event__synthesize_tracing_data(int fd, struct perf_event_attr *pattrs,
 	ev.tracing_data.header.size = sizeof(ev.tracing_data);
 	ev.tracing_data.size = aligned_size;
 
-	process(&ev, session);
+	process(&ev, NULL, session);
 
 	err = read_tracing_data(fd, pattrs, nb_events);
 	write_padded(fd, NULL, 0, padding);
@@ -1186,7 +1206,7 @@ int event__synthesize_build_id(struct dso *pos, u16 misc,
 	ev.build_id.header.size = sizeof(ev.build_id) + len;
 	memcpy(&ev.build_id.filename, pos->long_name, pos->long_name_len);
 
-	err = process(&ev, session);
+	err = process(&ev, NULL, session);
 
 	return err;
 }
