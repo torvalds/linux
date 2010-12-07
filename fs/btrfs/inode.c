@@ -5712,9 +5712,9 @@ static void btrfs_end_dio_bio(struct bio *bio, int err)
 
 	if (err) {
 		printk(KERN_ERR "btrfs direct IO failed ino %lu rw %lu "
-		      "disk_bytenr %lu len %u err no %d\n",
-		      dip->inode->i_ino, bio->bi_rw, bio->bi_sector,
-		      bio->bi_size, err);
+		      "sector %#Lx len %u err no %d\n",
+		      dip->inode->i_ino, bio->bi_rw,
+		      (unsigned long long)bio->bi_sector, bio->bi_size, err);
 		dip->errors = 1;
 
 		/*
