@@ -584,6 +584,7 @@ static int lme2510_int_service(struct dvb_usb_adapter *adap)
 	ret = lme2510_int_read(adap);
 	if (ret < 0) {
 		rc_unregister_device(rc);
+		info("INT Unable to start Interupt Service");
 		return -ENODEV;
 	}
 
@@ -674,7 +675,7 @@ static void lme_coldreset(struct usb_device *dev)
 	return;
 }
 
-static void lme_firmware_switch(struct usb_device *udev, int cold)
+static int lme_firmware_switch(struct usb_device *udev, int cold)
 {
 	const struct firmware *fw = NULL;
 	char lme2510c_s7395[] = "dvb-usb-lme2510c-s7395.fw";
@@ -685,7 +686,7 @@ static void lme_firmware_switch(struct usb_device *udev, int cold)
 	cold = (cold > 0) ? (cold & 1) : 0;
 
 	if (udev->descriptor.idProduct == 0x1122)
-		return;
+		return 0;
 
 	switch (dvb_usb_lme2510_firmware) {
 	case 0:
@@ -715,10 +716,12 @@ static void lme_firmware_switch(struct usb_device *udev, int cold)
 
 	release_firmware(fw);
 
-	if (cold)
+	if (cold) {
 		lme_coldreset(udev);
+		return -ENODEV;
+	}
 
-	return;
+	return ret;
 }
 
 static int lme2510_kill_urb(struct usb_data_stream *stream)
@@ -786,45 +789,43 @@ static int dm04_lme2510_set_voltage(struct dvb_frontend *fe,
 	return (ret < 0) ? -ENODEV : 0;
 }
 
+static int lme_name(struct dvb_usb_adapter *adap)
+{
+	struct lme2510_state *st = adap->dev->priv;
+	const char *desc = adap->dev->desc->name;
+	char *fe_name[] = {"", " LG TDQY-P001F", " SHARP:BS2F7HZ7395"};
+	char *name = adap->fe->ops.info.name;
+
+	strlcpy(name, desc, 128);
+	strlcat(name, fe_name[st->tuner_config], 128);
+
+	return 0;
+}
+
 static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	int ret = 0;
 	struct lme2510_state *st = adap->dev->priv;
 
-	/* Interupt Start  */
-	ret = lme2510_int_service(adap);
-	if (ret < 0) {
-		info("INT Unable to start Interupt Service");
-		return -ENODEV;
-	}
+	int ret = 0;
 
 	st->i2c_talk_onoff = 1;
-	st->i2c_gate = 4;
 
+	st->i2c_gate = 4;
 	adap->fe = dvb_attach(tda10086_attach, &tda10086_config,
 		&adap->dev->i2c_adap);
 
 	if (adap->fe) {
 		info("TUN Found Frontend TDA10086");
-		memcpy(&adap->fe->ops.info.name,
-				&"DM04_LG_TDQY-P001F DVB-S", 24);
-		adap->fe->ops.set_voltage = dm04_lme2510_set_voltage;
 		st->i2c_tuner_gate_w = 4;
 		st->i2c_tuner_gate_r = 4;
 		st->i2c_tuner_addr = 0xc0;
-		if (dvb_attach(tda826x_attach, adap->fe, 0xc0,
-			&adap->dev->i2c_adap, 1)) {
-			info("TUN TDA8263 Found");
-			st->tuner_config = TUNER_LG;
-			if (dvb_usb_lme2510_firmware != 1) {
-				dvb_usb_lme2510_firmware = 1;
-				lme_firmware_switch(adap->dev->udev, 1);
-			} else /*stops LG/Sharp multi tuner problems*/
-				dvb_usb_lme2510_firmware = 0;
-			return 0;
-		}
-		kfree(adap->fe);
-		adap->fe = NULL;
+		st->tuner_config = TUNER_LG;
+		if (dvb_usb_lme2510_firmware != 1) {
+			dvb_usb_lme2510_firmware = 1;
+			ret = lme_firmware_switch(adap->dev->udev, 1);
+		} else /*stops LG/Sharp multi tuner problems*/
+			dvb_usb_lme2510_firmware = 0;
+		goto end;
 	}
 
 	st->i2c_gate = 5;
@@ -833,28 +834,64 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 
 	if (adap->fe) {
 		info("FE Found Stv0288");
-		memcpy(&adap->fe->ops.info.name,
-				&"DM04_SHARP:BS2F7HZ7395", 22);
-		adap->fe->ops.set_voltage = dm04_lme2510_set_voltage;
 		st->i2c_tuner_gate_w = 4;
 		st->i2c_tuner_gate_r = 5;
 		st->i2c_tuner_addr = 0xc0;
-		if (dvb_attach(ix2505v_attach , adap->fe, &lme_tuner,
-					&adap->dev->i2c_adap)) {
-			st->tuner_config = TUNER_S7395;
-			info("TUN Sharp IX2505V silicon tuner");
-			if (dvb_usb_lme2510_firmware != 0) {
-				dvb_usb_lme2510_firmware = 0;
-				lme_firmware_switch(adap->dev->udev, 1);
-			}
-			return 0;
+		st->tuner_config = TUNER_S7395;
+		if (dvb_usb_lme2510_firmware != 0) {
+			dvb_usb_lme2510_firmware = 0;
+			ret = lme_firmware_switch(adap->dev->udev, 1);
 		}
-		kfree(adap->fe);
-		adap->fe = NULL;
+	} else {
+		info("DM04 Not Supported");
+		return -ENODEV;
 	}
 
-	info("DM04 Not Supported");
-	return -ENODEV;
+end:	if (ret) {
+		kfree(adap->fe);
+		adap->fe = NULL;
+		return -ENODEV;
+	}
+
+	adap->fe->ops.set_voltage = dm04_lme2510_set_voltage;
+	ret = lme_name(adap);
+
+	return ret;
+}
+
+static int dm04_lme2510_tuner(struct dvb_usb_adapter *adap)
+{
+	struct lme2510_state *st = adap->dev->priv;
+	char *tun_msg[] = {"", "TDA8263", "IX2505V"};
+	int ret = 0;
+
+	switch (st->tuner_config) {
+	case TUNER_LG:
+		if (dvb_attach(tda826x_attach, adap->fe, 0xc0,
+			&adap->dev->i2c_adap, 1))
+			ret = st->tuner_config;
+		break;
+	case TUNER_S7395:
+		if (dvb_attach(ix2505v_attach , adap->fe, &lme_tuner,
+			&adap->dev->i2c_adap))
+			ret = st->tuner_config;
+		break;
+	default:
+		break;
+	}
+
+	if (ret)
+		info("TUN Found %s tuner", tun_msg[ret]);
+	else {
+		info("TUN No tuner found --- reseting device");
+		lme_coldreset(adap->dev->udev);
+		return -ENODEV;
+	}
+
+	/* Start the Interupt & Remote*/
+	ret = lme2510_int_service(adap);
+
+	return ret;
 }
 
 static int lme2510_powerup(struct dvb_usb_device *d, int onoff)
@@ -937,6 +974,7 @@ static struct dvb_usb_device_properties lme2510_properties = {
 		{
 			.streaming_ctrl   = lme2510_streaming_ctrl,
 			.frontend_attach  = dm04_lme2510_frontend_attach,
+			.tuner_attach = dm04_lme2510_tuner,
 			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
@@ -957,7 +995,7 @@ static struct dvb_usb_device_properties lme2510_properties = {
 	.generic_bulk_ctrl_endpoint = 0,
 	.num_device_descs = 1,
 	.devices = {
-		{   "DM04 LME2510 DVB-S USB 2.0",
+		{   "DM04_LME2510_DVB-S",
 			{ &lme2510_table[0], NULL },
 			},
 
@@ -975,6 +1013,7 @@ static struct dvb_usb_device_properties lme2510c_properties = {
 		{
 			.streaming_ctrl   = lme2510_streaming_ctrl,
 			.frontend_attach  = dm04_lme2510_frontend_attach,
+			.tuner_attach = dm04_lme2510_tuner,
 			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
@@ -995,7 +1034,7 @@ static struct dvb_usb_device_properties lme2510c_properties = {
 	.generic_bulk_ctrl_endpoint = 0,
 	.num_device_descs = 1,
 	.devices = {
-		{   "DM04 LME2510C USB2.0",
+		{   "DM04_LME2510C_DVB-S",
 			{ &lme2510_table[1], NULL },
 			},
 	}
@@ -1041,7 +1080,7 @@ void lme2510_exit(struct usb_interface *intf)
 }
 
 static struct usb_driver lme2510_driver = {
-	.name		= "LME2510C_DVBS",
+	.name		= "LME2510C_DVB-S",
 	.probe		= lme2510_probe,
 	.disconnect	= lme2510_exit,
 	.id_table	= lme2510_table,
@@ -1069,6 +1108,6 @@ module_init(lme2510_module_init);
 module_exit(lme2510_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
-MODULE_DESCRIPTION("LM2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.71");
+MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
+MODULE_VERSION("1.74");
 MODULE_LICENSE("GPL");
