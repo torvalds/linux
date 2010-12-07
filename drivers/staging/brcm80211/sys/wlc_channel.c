@@ -905,7 +905,7 @@ wlc_channels_init(wlc_cm_info_t *wlc_cm, const country_info_t *country)
 {
 	struct wlc_info *wlc = wlc_cm->wlc;
 	uint i, j;
-	wlcband_t *band;
+	struct wlcband *band;
 	const locale_info_t *li;
 	chanvec_t sup_chan;
 	const locale_mimo_info_t *li_mimo;
@@ -1005,7 +1005,7 @@ void wlc_quiet_channels_reset(wlc_cm_info_t *wlc_cm)
 {
 	struct wlc_info *wlc = wlc_cm->wlc;
 	uint i, j;
-	wlcband_t *band;
+	struct wlcband *band;
 	const chanvec_t *chanvec;
 
 	memset(&wlc_cm->quiet_channels, 0, sizeof(chanvec_t));
@@ -1310,7 +1310,7 @@ wlc_channel_reg_limits(wlc_cm_info_t *wlc_cm, chanspec_t chanspec,
 	int maxpwr;
 	int delta;
 	const country_info_t *country;
-	wlcband_t *band;
+	struct wlcband *band;
 	const locale_info_t *li;
 	int conducted_max;
 	int conducted_ofdm_max;

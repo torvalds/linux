@@ -315,7 +315,7 @@ typedef struct wlccore {
 /*
  * band state (phy+ana+radio)
  */
-typedef struct wlcband {
+struct wlcband {
 	int bandtype;		/* WLC_BAND_2G, WLC_BAND_5G */
 	uint bandunit;		/* bandstate[] index */
 
@@ -344,7 +344,7 @@ typedef struct wlcband {
 	u16 CWmin;		/* The minimum size of contention window, in unit of aSlotTime */
 	u16 CWmax;		/* The maximum size of contention window, in unit of aSlotTime */
 	u16 bcntsfoff;	/* beacon tsf offset */
-} wlcband_t;
+};
 
 /* generic function callback takes just one arg */
 typedef void (*cb_fn_t) (void *);
@@ -533,9 +533,10 @@ struct wlc_info {
 
 	/* multiband */
 	wlccore_t *core;	/* pointer to active io core */
-	wlcband_t *band;	/* pointer to active per-band state */
+	struct wlcband *band;	/* pointer to active per-band state */
 	wlccore_t *corestate;	/* per-core state (one per hw core) */
-	wlcband_t *bandstate[MAXBANDS];	/* per-band state (one per phy/radio) */
+	/* per-band state (one per phy/radio): */
+	struct wlcband *bandstate[MAXBANDS];
 
 	bool war16165;		/* PCI slow clock 16165 war flag */
 

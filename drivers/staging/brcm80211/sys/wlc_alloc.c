@@ -267,8 +267,8 @@ struct wlc_info *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
 		goto fail;
 	}
 
-	wlc->bandstate[0] = (wlcband_t *)wlc_calloc(osh, unit,
-				(sizeof(wlcband_t) * MAXBANDS));
+	wlc->bandstate[0] = (struct wlcband *)wlc_calloc(osh, unit,
+				(sizeof(struct wlcband)*MAXBANDS));
 	if (wlc->bandstate[0] == NULL) {
 		*err = 1025;
 		goto fail;
@@ -277,8 +277,8 @@ struct wlc_info *wlc_attach_malloc(struct osl_info *osh, uint unit, uint *err,
 
 		for (i = 1; i < MAXBANDS; i++) {
 			wlc->bandstate[i] =
-			    (wlcband_t *) ((unsigned long)wlc->bandstate[0] +
-					   (sizeof(wlcband_t) * i));
+			    (struct wlcband *) ((unsigned long)wlc->bandstate[0]
+			    + (sizeof(struct wlcband)*i));
 		}
 	}
 

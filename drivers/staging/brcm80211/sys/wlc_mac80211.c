@@ -233,7 +233,7 @@ static u16 BCMFASTPATH wlc_d11hdrs_mac80211(struct wlc_info *wlc,
 static void wlc_bss_default_init(struct wlc_info *wlc);
 static void wlc_ucode_mac_upd(struct wlc_info *wlc);
 static ratespec_t mac80211_wlc_set_nrate(struct wlc_info *wlc,
-					 wlcband_t *cur_band, u32 int_val);
+					 struct wlcband *cur_band, u32 int_val);
 static void wlc_tx_prec_map_init(struct wlc_info *wlc);
 static void wlc_watchdog(void *arg);
 static void wlc_watchdog_by_timer(void *arg);
@@ -2764,7 +2764,7 @@ int wlc_set_gmode(struct wlc_info *wlc, u8 gmode, bool config)
 	bool preamble_restrict = false;	/* Restrict association to stations that support short
 					 * preambles
 					 */
-	wlcband_t *band;
+	struct wlcband *band;
 
 	/* if N-support is enabled, allow Gmode set as long as requested
 	 * Gmode is not GMODE_LEGACY_B
@@ -7480,7 +7480,7 @@ bool wlc_valid_rate(struct wlc_info *wlc, ratespec_t rspec, int band,
 static void wlc_update_mimo_band_bwcap(struct wlc_info *wlc, u8 bwcap)
 {
 	uint i;
-	wlcband_t *band;
+	struct wlcband *band;
 
 	for (i = 0; i < NBANDS(wlc); i++) {
 		if (IS_SINGLEBAND_5G(wlc->deviceid))
@@ -7901,7 +7901,7 @@ void wlc_default_rateset(struct wlc_info *wlc, wlc_rateset_t *rs)
 static void wlc_bss_default_init(struct wlc_info *wlc)
 {
 	chanspec_t chanspec;
-	wlcband_t *band;
+	struct wlcband *band;
 	wlc_bss_info_t *bi = wlc->default_bss;
 
 	/* init default and target BSS with some sane initial values */
@@ -7962,7 +7962,8 @@ wlc_uint64_sub(u32 *a_high, u32 *a_low, u32 b_high, u32 b_low)
 }
 
 static ratespec_t
-mac80211_wlc_set_nrate(struct wlc_info *wlc, wlcband_t *cur_band, u32 int_val)
+mac80211_wlc_set_nrate(struct wlc_info *wlc, struct wlcband *cur_band,
+		       u32 int_val)
 {
 	u8 stf = (int_val & NRATE_STF_MASK) >> NRATE_STF_SHIFT;
 	u8 rate = int_val & NRATE_RATE_MASK;

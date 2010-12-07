@@ -371,7 +371,7 @@ int wlc_stf_rxchain_set(struct wlc_info *wlc, s32 int_val)
 }
 
 /* update wlc->stf->ss_opmode which represents the operational stf_ss mode we're using */
-int wlc_stf_ss_update(struct wlc_info *wlc, wlcband_t *band)
+int wlc_stf_ss_update(struct wlc_info *wlc, struct wlcband *band)
 {
 	int ret_code = 0;
 	u8 prev_stf_ss;
