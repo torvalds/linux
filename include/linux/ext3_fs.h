@@ -724,21 +724,30 @@ struct ext3_dir_entry_2 {
 					 ~EXT3_DIR_ROUND)
 #define EXT3_MAX_REC_LEN		((1<<16)-1)
 
+/*
+ * Tests against MAX_REC_LEN etc were put in place for 64k block
+ * sizes; if that is not possible on this arch, we can skip
+ * those tests and speed things up.
+ */
 static inline unsigned ext3_rec_len_from_disk(__le16 dlen)
 {
 	unsigned len = le16_to_cpu(dlen);
 
+#if (PAGE_CACHE_SIZE >= 65536)
 	if (len == EXT3_MAX_REC_LEN)
 		return 1 << 16;
+#endif
 	return len;
 }
 
 static inline __le16 ext3_rec_len_to_disk(unsigned len)
 {
+#if (PAGE_CACHE_SIZE >= 65536)
 	if (len == (1 << 16))
 		return cpu_to_le16(EXT3_MAX_REC_LEN);
 	else if (len > (1 << 16))
 		BUG();
+#endif
 	return cpu_to_le16(len);
 }
 
