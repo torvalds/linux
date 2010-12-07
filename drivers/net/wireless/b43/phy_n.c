@@ -258,7 +258,8 @@ static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 
 	for (i = 0; i < 2; i++) {
 		if (dev->phy.rev >= 3) {
-			/* TODO */
+			/* FIXME: support 5GHz */
+			txgain = b43_ntab_tx_gain_rev3plus_2ghz[txpi[i]];
 			radio_gain = (txgain >> 16) & 0x1FFFF;
 		} else {
 			txgain = b43_ntab_tx_gain_rev0_1_2[txpi[i]];
@@ -613,6 +614,8 @@ static void b43_nphy_rx_iq_coeffs(struct b43_wldev *dev, bool write,
 	}
 }
 
+#if 0
+/* Ready but not used anywhere */
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCalPhyCleanup */
 static void b43_nphy_rx_cal_phy_cleanup(struct b43_wldev *dev, u8 core)
 {
@@ -694,6 +697,7 @@ static void b43_nphy_rx_cal_phy_setup(struct b43_wldev *dev, u8 core)
 	b43_nphy_rf_control_intc_override(dev, 1, rxval, (core + 1));
 	b43_nphy_rf_control_intc_override(dev, 1, txval, (2 - core));
 }
+#endif
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CalcRxIqComp */
 static void b43_nphy_calc_rx_iq_comp(struct b43_wldev *dev, u8 mask)
@@ -3088,7 +3092,7 @@ static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 	u8 rfctl[2];
 	u8 afectl_core;
 	u16 tmp[6];
-	u16 cur_hpf1, cur_hpf2, cur_lna;
+	u16 uninitialized_var(cur_hpf1), uninitialized_var(cur_hpf2), cur_lna;
 	u32 real, imag;
 	enum ieee80211_band band;
 
