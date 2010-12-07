@@ -335,8 +335,10 @@ void efx_process_channel_now(struct efx_channel *channel)
 
 	/* Disable interrupts and wait for ISRs to complete */
 	efx_nic_disable_interrupts(efx);
-	if (efx->legacy_irq)
+	if (efx->legacy_irq) {
 		synchronize_irq(efx->legacy_irq);
+		efx->legacy_irq_enabled = false;
+	}
 	if (channel->irq)
 		synchronize_irq(channel->irq);
 
@@ -351,6 +353,8 @@ void efx_process_channel_now(struct efx_channel *channel)
 	efx_channel_processed(channel);
 
 	napi_enable(&channel->napi_str);
+	if (efx->legacy_irq)
+		efx->legacy_irq_enabled = true;
 	efx_nic_enable_interrupts(efx);
 }
 
@@ -1400,6 +1404,8 @@ static void efx_start_all(struct efx_nic *efx)
 		efx_start_channel(channel);
 	}
 
+	if (efx->legacy_irq)
+		efx->legacy_irq_enabled = true;
 	efx_nic_enable_interrupts(efx);
 
 	/* Switch to event based MCDI completions after enabling interrupts.
@@ -1460,8 +1466,10 @@ static void efx_stop_all(struct efx_nic *efx)
 
 	/* Disable interrupts and wait for ISR to complete */
 	efx_nic_disable_interrupts(efx);
-	if (efx->legacy_irq)
+	if (efx->legacy_irq) {
 		synchronize_irq(efx->legacy_irq);
+		efx->legacy_irq_enabled = false;
+	}
 	efx_for_each_channel(channel, efx) {
 		if (channel->irq)
 			synchronize_irq(channel->irq);
