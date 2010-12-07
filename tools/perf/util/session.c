@@ -748,6 +748,30 @@ static int perf_session__preprocess_sample(struct perf_session *session,
 	return 0;
 }
 
+static int perf_session__process_user_event(struct perf_session *session, event_t *event,
+					    struct perf_event_ops *ops, u64 file_offset)
+{
+	dump_event(session, event, file_offset, NULL);
+
+	/* These events are processed right away */
+	switch (event->header.type) {
+	case PERF_RECORD_HEADER_ATTR:
+		return ops->attr(event, session);
+	case PERF_RECORD_HEADER_EVENT_TYPE:
+		return ops->event_type(event, session);
+	case PERF_RECORD_HEADER_TRACING_DATA:
+		/* setup for reading amidst mmap */
+		lseek(session->fd, file_offset, SEEK_SET);
+		return ops->tracing_data(event, session);
+	case PERF_RECORD_HEADER_BUILD_ID:
+		return ops->build_id(event, session);
+	case PERF_RECORD_FINISHED_ROUND:
+		return ops->finished_round(event, session, ops);
+	default:
+		return -EINVAL;
+	}
+}
+
 static int perf_session__process_event(struct perf_session *session,
 				       event_t *event,
 				       struct perf_event_ops *ops,
@@ -765,25 +789,7 @@ static int perf_session__process_event(struct perf_session *session,
 	hists__inc_nr_events(&session->hists, event->header.type);
 
 	if (event->header.type >= PERF_RECORD_USER_TYPE_START)
-		dump_event(session, event, file_offset, NULL);
-
-	/* These events are processed right away */
-	switch (event->header.type) {
-	case PERF_RECORD_HEADER_ATTR:
-		return ops->attr(event, session);
-	case PERF_RECORD_HEADER_EVENT_TYPE:
-		return ops->event_type(event, session);
-	case PERF_RECORD_HEADER_TRACING_DATA:
-		/* setup for reading amidst mmap */
-		lseek(session->fd, file_offset, SEEK_SET);
-		return ops->tracing_data(event, session);
-	case PERF_RECORD_HEADER_BUILD_ID:
-		return ops->build_id(event, session);
-	case PERF_RECORD_FINISHED_ROUND:
-		return ops->finished_round(event, session, ops);
-	default:
-		break;
-	}
+		return perf_session__process_user_event(session, event, ops, file_offset);
 
 	/*
 	 * For all kernel events we get the sample data
