@@ -3705,6 +3705,15 @@ static void b43_nphy_op_write(struct b43_wldev *dev, u16 reg, u16 value)
 	b43_write16(dev, B43_MMIO_PHY_DATA, value);
 }
 
+static void b43_nphy_op_maskset(struct b43_wldev *dev, u16 reg, u16 mask,
+				 u16 set)
+{
+	check_phyreg(dev, reg);
+	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
+	b43_write16(dev, B43_MMIO_PHY_DATA,
+		    (b43_read16(dev, B43_MMIO_PHY_DATA) & mask) | set);
+}
+
 static u16 b43_nphy_op_radio_read(struct b43_wldev *dev, u16 reg)
 {
 	/* Register 1 is a 32-bit register. */
@@ -3799,6 +3808,7 @@ const struct b43_phy_operations b43_phyops_n = {
 	.init			= b43_nphy_op_init,
 	.phy_read		= b43_nphy_op_read,
 	.phy_write		= b43_nphy_op_write,
+	.phy_maskset		= b43_nphy_op_maskset,
 	.radio_read		= b43_nphy_op_radio_read,
 	.radio_write		= b43_nphy_op_radio_write,
 	.software_rfkill	= b43_nphy_op_software_rfkill,
