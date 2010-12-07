@@ -8,9 +8,9 @@ __kernel_vsyscall:
 	 * fill out .eh_frame -- PFM. */
 .LEND_vsyscall:
 	.size __kernel_vsyscall,.-.LSTART_vsyscall
-	.previous
 
 	.section .eh_frame,"a",@progbits
+	.previous
 .LCIE:
 	.ualong	.LCIE_end - .LCIE_start
 .LCIE_start:

@@ -160,5 +160,6 @@ void generic_pipe_buf_release(struct pipe_inode_info *, struct pipe_buffer *);
 
 /* for F_SETPIPE_SZ and F_GETPIPE_SZ */
 long pipe_fcntl(struct file *, unsigned int, unsigned long arg);
+struct pipe_inode_info *get_pipe_info(struct file *file);
 
 #endif
