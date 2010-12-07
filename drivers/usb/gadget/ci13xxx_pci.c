@@ -38,6 +38,10 @@ static irqreturn_t ci13xxx_pci_irq(int irq, void *pdev)
 	return udc_irq();
 }
 
+static struct ci13xxx_udc_driver ci13xxx_pci_udc_driver = {
+	.name		= UDC_DRIVER_NAME,
+};
+
 /**
  * ci13xxx_pci_probe: PCI probe
  * @pdev: USB device controller being probed
@@ -82,7 +86,7 @@ static int __devinit ci13xxx_pci_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
-	retval = udc_probe(&pdev->dev, regs, UDC_DRIVER_NAME);
+	retval = udc_probe(&ci13xxx_pci_udc_driver, &pdev->dev, regs);
 	if (retval)
 		goto iounmap;
 

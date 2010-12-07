@@ -97,9 +97,24 @@ struct ci13xxx_ep {
 	struct dma_pool                       *td_pool;
 };
 
+struct ci13xxx;
+struct ci13xxx_udc_driver {
+	const char	*name;
+	unsigned long	 flags;
+#define CI13XXX_REGS_SHARED		BIT(0)
+#define CI13XXX_REQUIRE_TRANSCEIVER	BIT(1)
+#define CI13XXX_PULLUP_ON_VBUS		BIT(2)
+#define CI13XXX_DISABLE_STREAMING	BIT(3)
+
+#define CI13XXX_CONTROLLER_RESET_EVENT		0
+#define CI13XXX_CONTROLLER_STOPPED_EVENT	1
+	void	(*notify_event) (struct ci13xxx *udc, unsigned event);
+};
+
 /* CI13XXX UDC descriptor & global resources */
 struct ci13xxx {
 	spinlock_t		  *lock;      /* ctrl register bank access */
+	void __iomem              *regs;      /* registers address space */
 
 	struct dma_pool           *qh_pool;   /* DMA pool for queue heads */
 	struct dma_pool           *td_pool;   /* DMA pool for transfer descs */
@@ -108,6 +123,9 @@ struct ci13xxx {
 	struct ci13xxx_ep          ci13xxx_ep[ENDPT_MAX]; /* extended endpts */
 
 	struct usb_gadget_driver  *driver;     /* 3rd party gadget driver */
+	struct ci13xxx_udc_driver *udc_driver; /* device controller driver */
+	int                        vbus_active; /* is VBUS active */
+	struct otg_transceiver    *transceiver; /* Transceiver struct */
 };
 
 /******************************************************************************
@@ -157,6 +175,7 @@ struct ci13xxx {
 #define    USBMODE_CM_DEVICE  (0x02UL <<  0)
 #define    USBMODE_CM_HOST    (0x03UL <<  0)
 #define USBMODE_SLOM          BIT(3)
+#define USBMODE_SDIS          BIT(4)
 
 /* ENDPTCTRL */
 #define ENDPTCTRL_RXS         BIT(0)
