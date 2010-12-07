@@ -116,6 +116,7 @@ static int fill_event_metadata(struct fsnotify_group *group,
 		 group, metadata, event);
 
 	metadata->event_len = FAN_EVENT_METADATA_LEN;
+	metadata->metadata_len = FAN_EVENT_METADATA_LEN;
 	metadata->vers = FANOTIFY_METADATA_VERSION;
 	metadata->mask = event->mask & FAN_ALL_OUTGOING_EVENTS;
 	metadata->pid = pid_vnr(event->tgid);
@@ -275,10 +276,11 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 		goto out_close_fd;
 
 	ret = -EFAULT;
-	if (copy_to_user(buf, &fanotify_event_metadata, FAN_EVENT_METADATA_LEN))
+	if (copy_to_user(buf, &fanotify_event_metadata,
+			 fanotify_event_metadata.event_len))
 		goto out_kill_access_response;
 
-	return FAN_EVENT_METADATA_LEN;
+	return fanotify_event_metadata.event_len;
 
 out_kill_access_response:
 	remove_access_response(group, event, fd);
