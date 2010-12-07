@@ -584,7 +584,7 @@
 #define GPIO2D2_I2S0LRCKRX_MIITXERR_NAME			"gpio2d2_i2s0lrckrx_miitxerr_name"
 #define GPIO2D1_I2S0SCLK_MIICRS_NAME				"gpio2d1_i2s0sclk_miicrs_name"
 #define GPIO2D0_I2S0CLK_MIIRXCLKIN_NAME				"gpio2d0_i2s0clk_miirxclkin_name"
-#define GPIO2C7_SPI1TXD_NAME						"gpio2c7_spi1txd_name"
+#define GPIO2C7_SPI1RXD_NAME						"gpio2c7_spi1rxd_name"
 #define GPIO2C6_SPI1TXD_NAME						"gpio2c6_spi1txd_name"
 #define GPIO2C5_SPI1CSN0_NAME						"gpio2c5_spi1csn0_name"
 #define GPIO2C4_SPI1CLK_NAME						"gpio2c4_spi1clk_name"

@@ -775,6 +775,18 @@ static void __init rk29_board_iomux_init(void)
 	rk29_mux_api_set(GPIO2B4_UART3CTSN_I2C3SDA_NAME, GPIO2L_UART3_CTS_N);
 	#endif
 	#endif
+	#ifdef CONFIG_SPIM0_RK29
+    rk29_mux_api_set(GPIO2C0_SPI0CLK_NAME, GPIO2H_SPI0_CLK);
+	rk29_mux_api_set(GPIO2C1_SPI0CSN0_NAME, GPIO2H_SPI0_CSN0);
+	rk29_mux_api_set(GPIO2C2_SPI0TXD_NAME, GPIO2H_SPI0_TXD);
+	rk29_mux_api_set(GPIO2C3_SPI0RXD_NAME, GPIO2H_SPI0_RXD);
+    #endif
+    #ifdef CONFIG_SPIM1_RK29
+    rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME, GPIO2H_SPI1_CLK);
+	rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME, GPIO2H_SPI1_CSN0);
+	rk29_mux_api_set(GPIO2C6_SPI1TXD_NAME, GPIO2H_SPI1_TXD);
+	rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME, GPIO2H_SPI1_RXD);
+    #endif
 }
 
 static struct platform_device *devices[] __initdata = {
@@ -870,13 +882,13 @@ struct spi_cs_gpio rk29xx_spi1_cs_gpios[SPI_CHIPSELECT_NUM] = {
 		.name = "spi1 cs1",
 		.cs_gpio = RK29_PIN1_PA3,
 		.cs_iomux_name = GPIO1A3_EMMCDETECTN_SPI1CS1_NAME,//if no iomux,set it NULL
-		.cs_iomux_mode = GPIO1L_SPI0_CSN1,
+		.cs_iomux_mode = GPIO1L_SPI1_CSN1,
 	}
 };
 
 static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
 {
-#if 0
+#if 1
 	int i,j,ret;
 
 	//cs
@@ -901,7 +913,7 @@ static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
 
 static int spi_io_deinit(struct spi_cs_gpio *cs_gpios, int cs_num)
 {
-#if 0
+#if 1
 	int i;
 
 	if (cs_gpios) {
