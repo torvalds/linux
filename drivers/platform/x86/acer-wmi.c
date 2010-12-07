@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/dmi.h>
 
 #include <acpi/acpi_drivers.h>
 
@@ -124,7 +125,9 @@ struct event_return_value {
 /*
  * GUID3 Get Device Status device flags
  */
+#define ACER_WMID3_GDS_WIRELESS		(1<<0)	/* WiFi */
 #define ACER_WMID3_GDS_THREEG		(1<<6)	/* 3G */
+#define ACER_WMID3_GDS_BLUETOOTH	(1<<11)	/* BT */
 
 struct wmid3_gds_input_param {	/* Get Device Status input parameter */
 	u8 function_num;	/* Function Number */
@@ -137,6 +140,13 @@ struct wmid3_gds_return_value {	/* Get Device Status return value*/
 	u8 ec_return_value;	/* EC Return Value */
 	u16 devices;		/* Current Device Status */
 	u32 reserved;
+} __attribute__((packed));
+
+struct hotkey_function_type_aa {
+	u8 type;
+	u8 length;
+	u16 handle;
+	u16 commun_func_bitmap;
 } __attribute__((packed));
 
 /*
@@ -169,6 +179,7 @@ static int mailled = -1;
 static int brightness = -1;
 static int threeg = -1;
 static int force_series;
+static bool has_type_aa;
 
 module_param(mailled, int, 0444);
 module_param(brightness, int, 0444);
@@ -807,6 +818,28 @@ static acpi_status WMID_set_u32(u32 value, u32 cap, struct wmi_interface *iface)
 	return WMI_execute_u32(method_id, (u32)value, NULL);
 }
 
+static void type_aa_dmi_decode(const struct dmi_header *header, void *dummy)
+{
+	struct hotkey_function_type_aa *type_aa;
+
+	/* We are looking for OEM-specific Type AAh */
+	if (header->type != 0xAA)
+		return;
+
+	has_type_aa = true;
+	type_aa = (struct hotkey_function_type_aa *) header;
+
+	printk(ACER_INFO "Function bitmap for Communication Button: 0x%x\n",
+		type_aa->commun_func_bitmap);
+
+	if (type_aa->commun_func_bitmap & ACER_WMID3_GDS_WIRELESS)
+		interface->capability |= ACER_CAP_WIRELESS;
+	if (type_aa->commun_func_bitmap & ACER_WMID3_GDS_THREEG)
+		interface->capability |= ACER_CAP_THREEG;
+	if (type_aa->commun_func_bitmap & ACER_WMID3_GDS_BLUETOOTH)
+		interface->capability |= ACER_CAP_BLUETOOTH;
+}
+
 static acpi_status WMID_set_capabilities(void)
 {
 	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
@@ -827,15 +860,16 @@ static acpi_status WMID_set_capabilities(void)
 		return AE_ERROR;
 	}
 
-	/* Not sure on the meaning of the relevant bits yet to detect these */
-	interface->capability |= ACER_CAP_WIRELESS;
-	interface->capability |= ACER_CAP_THREEG;
+	dmi_walk(type_aa_dmi_decode, NULL);
+	if (!has_type_aa) {
+		interface->capability |= ACER_CAP_WIRELESS;
+		interface->capability |= ACER_CAP_THREEG;
+		if (devices & 0x10)
+			interface->capability |= ACER_CAP_BLUETOOTH;
+	}
 
 	/* WMID always provides brightness methods */
 	interface->capability |= ACER_CAP_BRIGHTNESS;
-
-	if (devices & 0x10)
-		interface->capability |= ACER_CAP_BLUETOOTH;
 
 	if (!(devices & 0x20))
 		max_brightness = 0x9;
@@ -915,7 +949,8 @@ static void __init acer_commandline_init(void)
 	 * capability isn't available on the given interface
 	 */
 	set_u32(mailled, ACER_CAP_MAILLED);
-	set_u32(threeg, ACER_CAP_THREEG);
+	if (!has_type_aa)
+		set_u32(threeg, ACER_CAP_THREEG);
 	set_u32(brightness, ACER_CAP_BRIGHTNESS);
 }
 
