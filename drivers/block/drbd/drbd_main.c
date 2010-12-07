@@ -674,21 +674,6 @@ void print_st_err(struct drbd_conf *mdev,
 }
 
 
-#define drbd_peer_str drbd_role_str
-#define drbd_pdsk_str drbd_disk_str
-
-#define drbd_susp_str(A)     ((A) ? "1" : "0")
-#define drbd_aftr_isp_str(A) ((A) ? "1" : "0")
-#define drbd_peer_isp_str(A) ((A) ? "1" : "0")
-#define drbd_user_isp_str(A) ((A) ? "1" : "0")
-
-#define PSC(A) \
-	({ if (ns.A != os.A) { \
-		pbp += sprintf(pbp, #A "( %s -> %s ) ", \
-			      drbd_##A##_str(os.A), \
-			      drbd_##A##_str(ns.A)); \
-	} })
-
 /**
  * is_valid_state() - Returns an SS_ error code if ns is not valid
  * @mdev:	DRBD device.
@@ -1084,22 +1069,46 @@ int __drbd_set_state(struct drbd_conf *mdev,
 		dev_warn(DEV, "%s aborted.\n", warn_sync_abort);
 
 	{
-		char *pbp, pb[300];
-		pbp = pb;
-		*pbp = 0;
-		PSC(role);
-		PSC(peer);
-		PSC(conn);
-		PSC(disk);
-		PSC(pdsk);
-		if (is_susp(ns) != is_susp(os))
-			pbp += sprintf(pbp, "susp( %s -> %s ) ",
-				       drbd_susp_str(is_susp(os)),
-				       drbd_susp_str(is_susp(ns)));
-		PSC(aftr_isp);
-		PSC(peer_isp);
-		PSC(user_isp);
-		dev_info(DEV, "%s\n", pb);
+	char *pbp, pb[300];
+	pbp = pb;
+	*pbp = 0;
+	if (ns.role != os.role)
+		pbp += sprintf(pbp, "role( %s -> %s ) ",
+			       drbd_role_str(os.role),
+			       drbd_role_str(ns.role));
+	if (ns.peer != os.peer)
+		pbp += sprintf(pbp, "peer( %s -> %s ) ",
+			       drbd_role_str(os.peer),
+			       drbd_role_str(ns.peer));
+	if (ns.conn != os.conn)
+		pbp += sprintf(pbp, "conn( %s -> %s ) ",
+			       drbd_conn_str(os.conn),
+			       drbd_conn_str(ns.conn));
+	if (ns.disk != os.disk)
+		pbp += sprintf(pbp, "disk( %s -> %s ) ",
+			       drbd_disk_str(os.disk),
+			       drbd_disk_str(ns.disk));
+	if (ns.pdsk != os.pdsk)
+		pbp += sprintf(pbp, "pdsk( %s -> %s ) ",
+			       drbd_disk_str(os.pdsk),
+			       drbd_disk_str(ns.pdsk));
+	if (is_susp(ns) != is_susp(os))
+		pbp += sprintf(pbp, "susp( %d -> %d ) ",
+			       is_susp(os),
+			       is_susp(ns));
+	if (ns.aftr_isp != os.aftr_isp)
+		pbp += sprintf(pbp, "aftr_isp( %d -> %d ) ",
+			       os.aftr_isp,
+			       ns.aftr_isp);
+	if (ns.peer_isp != os.peer_isp)
+		pbp += sprintf(pbp, "peer_isp( %d -> %d ) ",
+			       os.peer_isp,
+			       ns.peer_isp);
+	if (ns.user_isp != os.user_isp)
+		pbp += sprintf(pbp, "user_isp( %d -> %d ) ",
+			       os.user_isp,
+			       ns.user_isp);
+	dev_info(DEV, "%s\n", pb);
 	}
 
 	/* solve the race between becoming unconfigured,
