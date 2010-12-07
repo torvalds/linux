@@ -668,6 +668,7 @@ struct hci_pinfo {
 	struct hci_dev    *hdev;
 	struct hci_filter filter;
 	__u32             cmsg_mask;
+	unsigned short   channel;
 };
 
 /* HCI security filter */
