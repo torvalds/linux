@@ -736,7 +736,7 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	return 0;
 }
 
-//#define CONFIG_SDMMC0_USE_DMA
+#define CONFIG_SDMMC0_USE_DMA
 struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 	.host_ocr_avail = (MMC_VDD_25_26|MMC_VDD_26_27|MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|
 					   MMC_VDD_30_31|MMC_VDD_31_32|MMC_VDD_32_33|

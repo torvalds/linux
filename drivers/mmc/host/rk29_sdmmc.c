@@ -438,9 +438,9 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 		direction = RK29_DMASRC_MEM;  		
 					
     rk29_dma_devconfig(host->dma_chn, direction, (unsigned long )(host->dma_addr));
-   		
+   	rk29_dma_ctrl(host->dma_chn, RK29_DMAOP_FLUSH);	
 	dma_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, 
-			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);			                ;	   
+			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);			                	   
 	for (i = 0; i < dma_len; i++) {                             
     	rk29_dma_enqueue(host->dma_chn, host, sg_dma_address(&data->sg[i]),sg_dma_len(&data->sg[i]));  // data->sg->dma_address, data->sg->length);	    
 	}
@@ -1125,6 +1125,9 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 		  	rk29_sdmmc_write(host->regs, SDMMC_CTRL, (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
 		  	/* wait till resets clear */
 			while (rk29_sdmmc_read(host->regs, SDMMC_CTRL) & (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
+			/* FIFO threshold settings  */
+  			rk29_sdmmc_write(host->regs, SDMMC_FIFOTH, ((0x3 << 28) | (0x0f << 16) | (0x10 << 0))); // RXMark = 15, TXMark = 16, DMA Size = 16
+  			rk29_sdmmc_write(host->regs, SDMMC_PWREN, 1);
 			rk29_sdmmc_write(host->regs, SDMMC_CTRL, SDMMC_CTRL_INT_ENABLE);
 			host->data = NULL;
 			host->cmd = NULL;
@@ -1221,6 +1224,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		rk29_dma_set_buffdone_fn(host->dma_chn, rk29_sdmmc_dma_complete);	
 		host->dma_addr = regs->start + SDMMC_DATA;
 	}	
+	clk_set_rate(host->clk,52000000);
 	host->clk = clk_get(&pdev->dev, "sdmmc");
 	clk_enable(host->clk);
 	clk_enable(clk_get(&pdev->dev, "sdmmc_ahb"));
@@ -1249,7 +1253,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host); 	
 	mmc->ops = &rk29_sdmmc_ops[pdev->id];
 	mmc->f_min = host->bus_hz/510;
-	mmc->f_max = host->bus_hz/4;  //2;  ///20; //max f is clock to mmc_clk/2
+	mmc->f_max = host->bus_hz/10;  //2;  ///20; //max f is clock to mmc_clk/2
 	mmc->ocr_avail = pdata->host_ocr_avail;
 	mmc->caps = pdata->host_caps;
 	mmc->max_phys_segs = 64;
