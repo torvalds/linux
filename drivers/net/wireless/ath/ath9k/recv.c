@@ -662,8 +662,7 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 }
 
 static void ath_rx_send_to_mac80211(struct ieee80211_hw *hw,
-				    struct ath_softc *sc, struct sk_buff *skb,
-				    struct ieee80211_rx_status *rxs)
+				    struct ath_softc *sc, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr;
 
@@ -1621,7 +1620,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 	/*
-	 * The hw can techncically differ from common->hw when using ath9k
+	 * The hw can technically differ from common->hw when using ath9k
 	 * virtual wiphy so to account for that we iterate over the active
 	 * wiphys and find the appropriate wiphy and therefore hw.
 	 */
@@ -1729,7 +1728,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			bf->bf_mpdu = NULL;
 			bf->bf_buf_addr = 0;
 			ath_err(common, "dma_mapping_error() on RX\n");
-			ath_rx_send_to_mac80211(hw, sc, skb, rxs);
+			ath_rx_send_to_mac80211(hw, sc, skb);
 			break;
 		}
 
@@ -1756,7 +1755,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)
 			ath_ant_comb_scan(sc, &rs);
 
-		ath_rx_send_to_mac80211(hw, sc, skb, rxs);
+		ath_rx_send_to_mac80211(hw, sc, skb);
 
 requeue:
 		if (edma) {
