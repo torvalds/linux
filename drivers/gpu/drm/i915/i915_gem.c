@@ -3356,9 +3356,24 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		 * use this buffer rather sooner than later, so issuing the required
 		 * flush earlier is beneficial.
 		 */
-		if (obj->base.write_domain & I915_GEM_GPU_DOMAINS)
+		if (obj->base.write_domain & I915_GEM_GPU_DOMAINS) {
 			i915_gem_flush_ring(dev, obj->ring,
 					    0, obj->base.write_domain);
+		} else if (obj->ring->outstanding_lazy_request ==
+			   obj->last_rendering_seqno) {
+			struct drm_i915_gem_request *request;
+
+			/* This ring is not being cleared by active usage,
+			 * so emit a request to do so.
+			 */
+			request = kzalloc(sizeof(*request), GFP_KERNEL);
+			if (request)
+				ret = i915_add_request(dev,
+						       NULL, request,
+						       obj->ring);
+			else
+				ret = -ENOMEM;
+		}
 
 		/* Update the active list for the hardware's current position.
 		 * Otherwise this only updates on a delayed timer or when irqs
