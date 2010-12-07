@@ -2356,7 +2356,7 @@ static void __exit specialix_exit_module(void)
 	func_exit();
 }
 
-static struct pci_device_id specialx_pci_tbl[] __devinitdata = {
+static struct pci_device_id specialx_pci_tbl[] __devinitdata __used = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SPECIALIX, PCI_DEVICE_ID_SPECIALIX_IO8) },
 	{ }
 };
