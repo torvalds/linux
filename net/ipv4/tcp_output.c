@@ -385,27 +385,30 @@ struct tcp_out_options {
  */
 static u8 tcp_cookie_size_check(u8 desired)
 {
-	if (desired > 0) {
+	int cookie_size;
+
+	if (desired > 0)
 		/* previously specified */
 		return desired;
-	}
-	if (sysctl_tcp_cookie_size <= 0) {
+
+	cookie_size = ACCESS_ONCE(sysctl_tcp_cookie_size);
+	if (cookie_size <= 0)
 		/* no default specified */
 		return 0;
-	}
-	if (sysctl_tcp_cookie_size <= TCP_COOKIE_MIN) {
+
+	if (cookie_size <= TCP_COOKIE_MIN)
 		/* value too small, specify minimum */
 		return TCP_COOKIE_MIN;
-	}
-	if (sysctl_tcp_cookie_size >= TCP_COOKIE_MAX) {
+
+	if (cookie_size >= TCP_COOKIE_MAX)
 		/* value too large, specify maximum */
 		return TCP_COOKIE_MAX;
-	}
-	if (0x1 & sysctl_tcp_cookie_size) {
+
+	if (cookie_size & 1)
 		/* 8-bit multiple, illegal, fix it */
-		return (u8)(sysctl_tcp_cookie_size + 0x1);
-	}
-	return (u8)sysctl_tcp_cookie_size;
+		cookie_size++;
+
+	return (u8)cookie_size;
 }
 
 /* Write previously computed TCP options to the packet.
