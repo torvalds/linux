@@ -2839,7 +2839,7 @@ remote_path_check:
 			goto mount_fail_check;
 		}
 		rc = is_path_accessible(xid, tcon, cifs_sb, full_path);
-		if (rc != -EREMOTE) {
+		if (rc != 0 && rc != -EREMOTE) {
 			kfree(full_path);
 			goto mount_fail_check;
 		}
