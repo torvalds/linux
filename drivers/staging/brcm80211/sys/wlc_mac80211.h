@@ -476,7 +476,7 @@ struct wlc_hw_info {
 	bool forcefastclk;	/* true if the h/w is forcing the use of fast clk */
 	bool clk;		/* core is out of reset and has clock */
 	bool sbclk;		/* sb has clock */
-	bmac_pmq_t *bmac_pmq;	/*  bmac PM states derived from ucode PMQ */
+	struct bmac_pmq *bmac_pmq; /*  bmac PM states derived from ucode PMQ */
 	bool phyclk;		/* phy is out of reset and has clock */
 	bool dma_lpbk;		/* core is in DMA loopback */
 
