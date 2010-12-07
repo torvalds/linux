@@ -70,6 +70,10 @@ struct omap_musb_board_data {
 	u8	mode;
 	u16	power;
 	unsigned extvbus:1;
+	void	(*set_phy_power)(u8 on);
+	void	(*clear_irq)(void);
+	void	(*set_mode)(u8 mode);
+	void	(*reset)(void);
 };
 
 enum musb_interface    {MUSB_INTERFACE_ULPI, MUSB_INTERFACE_UTMI};

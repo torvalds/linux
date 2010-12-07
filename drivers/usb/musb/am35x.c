@@ -32,7 +32,6 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
-#include <plat/control.h>
 #include <plat/usb.h>
 
 #include "musb_core.h"
@@ -89,47 +88,6 @@ struct am35x_glue {
 	struct clk		*clk;
 };
 #define glue_to_musb(g)		platform_get_drvdata(g->musb)
-
-static inline void phy_on(void)
-{
-	unsigned long timeout = jiffies + msecs_to_jiffies(100);
-	u32 devconf2;
-
-	/*
-	 * Start the on-chip PHY and its PLL.
-	 */
-	devconf2 = omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2);
-
-	devconf2 &= ~(CONF2_RESET | CONF2_PHYPWRDN | CONF2_OTGPWRDN);
-	devconf2 |= CONF2_PHY_PLLON;
-
-	omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
-
-	DBG(1, "Waiting for PHY clock good...\n");
-	while (!(omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2)
-			& CONF2_PHYCLKGD)) {
-		cpu_relax();
-
-		if (time_after(jiffies, timeout)) {
-			DBG(1, "musb PHY clock good timed out\n");
-			break;
-		}
-	}
-}
-
-static inline void phy_off(void)
-{
-	u32 devconf2;
-
-	/*
-	 * Power down the on-chip PHY.
-	 */
-	devconf2 = omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2);
-
-	devconf2 &= ~CONF2_PHY_PLLON;
-	devconf2 |=  CONF2_PHYPWRDN | CONF2_OTGPWRDN;
-	omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
-}
 
 /*
  * am35x_musb_enable - enable interrupts
@@ -265,9 +223,12 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 {
 	struct musb  *musb = hci;
 	void __iomem *reg_base = musb->ctrl_base;
+	struct device *dev = musb->controller;
+	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct omap_musb_board_data *data = plat->board_data;
 	unsigned long flags;
 	irqreturn_t ret = IRQ_NONE;
-	u32 epintr, usbintr, lvl_intr;
+	u32 epintr, usbintr;
 
 	spin_lock_irqsave(&musb->lock, flags);
 
@@ -356,9 +317,8 @@ eoi:
 	/* EOI needs to be written for the IRQ to be re-asserted. */
 	if (ret == IRQ_HANDLED || epintr || usbintr) {
 		/* clear level interrupt */
-		lvl_intr = omap_ctrl_readl(AM35XX_CONTROL_LVL_INTR_CLEAR);
-		lvl_intr |= AM35XX_USBOTGSS_INT_CLR;
-		omap_ctrl_writel(lvl_intr, AM35XX_CONTROL_LVL_INTR_CLEAR);
+		if (data->clear_irq)
+			data->clear_irq();
 		/* write EOI */
 		musb_writel(reg_base, USB_END_OF_INTR_REG, 0);
 	}
@@ -374,37 +334,26 @@ eoi:
 
 static int am35x_musb_set_mode(struct musb *musb, u8 musb_mode)
 {
-	u32 devconf2 = omap_ctrl_readl(AM35XX_CONTROL_DEVCONF2);
+	struct device *dev = musb->controller;
+	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct omap_musb_board_data *data = plat->board_data;
+	int     retval = 0;
 
-	devconf2 &= ~CONF2_OTGMODE;
-	switch (musb_mode) {
-#ifdef	CONFIG_USB_MUSB_HDRC_HCD
-	case MUSB_HOST:		/* Force VBUS valid, ID = 0 */
-		devconf2 |= CONF2_FORCE_HOST;
-		break;
-#endif
-#ifdef	CONFIG_USB_GADGET_MUSB_HDRC
-	case MUSB_PERIPHERAL:	/* Force VBUS valid, ID = 1 */
-		devconf2 |= CONF2_FORCE_DEVICE;
-		break;
-#endif
-#ifdef	CONFIG_USB_MUSB_OTG
-	case MUSB_OTG:		/* Don't override the VBUS/ID comparators */
-		devconf2 |= CONF2_NO_OVERRIDE;
-		break;
-#endif
-	default:
-		DBG(2, "Trying to set unsupported mode %u\n", musb_mode);
-	}
+	if (data->set_mode)
+		data->set_mode(musb_mode);
+	else
+		retval = -EIO;
 
-	omap_ctrl_writel(devconf2, AM35XX_CONTROL_DEVCONF2);
-	return 0;
+	return retval;
 }
 
 static int am35x_musb_init(struct musb *musb)
 {
+	struct device *dev = musb->controller;
+	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct omap_musb_board_data *data = plat->board_data;
 	void __iomem *reg_base = musb->ctrl_base;
-	u32 rev, lvl_intr, sw_reset;
+	u32 rev;
 
 	musb->mregs += USB_MENTOR_CORE_OFFSET;
 
@@ -421,39 +370,40 @@ static int am35x_musb_init(struct musb *musb)
 	if (is_host_enabled(musb))
 		setup_timer(&otg_workaround, otg_timer, (unsigned long) musb);
 
-	/* Global reset */
-	sw_reset = omap_ctrl_readl(AM35XX_CONTROL_IP_SW_RESET);
-
-	sw_reset |= AM35XX_USBOTGSS_SW_RST;
-	omap_ctrl_writel(sw_reset, AM35XX_CONTROL_IP_SW_RESET);
-
-	sw_reset &= ~AM35XX_USBOTGSS_SW_RST;
-	omap_ctrl_writel(sw_reset, AM35XX_CONTROL_IP_SW_RESET);
+	/* Reset the musb */
+	if (data->reset)
+		data->reset();
 
 	/* Reset the controller */
 	musb_writel(reg_base, USB_CTRL_REG, AM35X_SOFT_RESET_MASK);
 
 	/* Start the on-chip PHY and its PLL. */
-	phy_on();
+	if (data->set_phy_power)
+		data->set_phy_power(1);
 
 	msleep(5);
 
 	musb->isr = am35x_musb_interrupt;
 
 	/* clear level interrupt */
-	lvl_intr = omap_ctrl_readl(AM35XX_CONTROL_LVL_INTR_CLEAR);
-	lvl_intr |= AM35XX_USBOTGSS_INT_CLR;
-	omap_ctrl_writel(lvl_intr, AM35XX_CONTROL_LVL_INTR_CLEAR);
+	if (data->clear_irq)
+		data->clear_irq();
 
 	return 0;
 }
 
 static int am35x_musb_exit(struct musb *musb)
 {
+	struct device *dev = musb->controller;
+	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct omap_musb_board_data *data = plat->board_data;
+
 	if (is_host_enabled(musb))
 		del_timer_sync(&otg_workaround);
 
-	phy_off();
+	/* Shutdown the on-chip PHY and its PLL. */
+	if (data->set_phy_power)
+		data->set_phy_power(0);
 
 	otg_put_transceiver(musb->xceiv);
 	usb_nop_xceiv_unregister();
@@ -630,8 +580,13 @@ static int __exit am35x_remove(struct platform_device *pdev)
 static int am35x_suspend(struct device *dev)
 {
 	struct am35x_glue	*glue = dev_get_drvdata(dev);
+	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct omap_musb_board_data *data = plat->board_data;
 
-	phy_off();
+	/* Shutdown the on-chip PHY and its PLL. */
+	if (data->set_phy_power)
+		data->set_phy_power(0);
+
 	clk_disable(glue->phy_clk);
 	clk_disable(glue->clk);
 
@@ -641,9 +596,14 @@ static int am35x_suspend(struct device *dev)
 static int am35x_resume(struct device *dev)
 {
 	struct am35x_glue	*glue = dev_get_drvdata(dev);
+	struct musb_hdrc_platform_data *plat = dev->platform_data;
+	struct omap_musb_board_data *data = plat->board_data;
 	int			ret;
 
-	phy_on();
+	/* Start the on-chip PHY and its PLL. */
+	if (data->set_phy_power)
+		data->set_phy_power(1);
+
 	ret = clk_enable(glue->phy_clk);
 	if (ret) {
 		dev_err(dev, "failed to enable PHY clock\n");
