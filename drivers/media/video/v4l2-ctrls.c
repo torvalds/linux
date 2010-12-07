@@ -1352,7 +1352,7 @@ int v4l2_queryctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_queryctrl *qc)
 	qc->minimum = ctrl->minimum;
 	qc->maximum = ctrl->maximum;
 	qc->default_value = ctrl->default_value;
-	if (qc->type == V4L2_CTRL_TYPE_MENU)
+	if (ctrl->type == V4L2_CTRL_TYPE_MENU)
 		qc->step = 1;
 	else
 		qc->step = ctrl->step;
