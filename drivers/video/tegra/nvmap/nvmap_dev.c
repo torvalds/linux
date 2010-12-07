@@ -50,7 +50,7 @@ struct nvmap_carveout_node {
 	struct nvmap_heap	*carveout;
 	int			index;
 	struct list_head	clients;
-	struct mutex		clients_mutex;
+	spinlock_t 		clients_lock;
 };
 
 struct nvmap_device {
@@ -277,8 +277,10 @@ void nvmap_carveout_commit_add(struct nvmap_client *client,
 			       struct nvmap_carveout_node *node,
 			       size_t len)
 {
-	mutex_lock(&node->clients_mutex);
+	unsigned long flags;
 
+	nvmap_ref_lock(client);
+	spin_lock_irqsave(&node->clients_lock, flags);
 	BUG_ON(list_empty(&client->carveout_commit[node->index].list) &&
 	       client->carveout_commit[node->index].commit != 0);
 
@@ -289,23 +291,26 @@ void nvmap_carveout_commit_add(struct nvmap_client *client,
 		list_add(&client->carveout_commit[node->index].list,
 			 &node->clients);
 	}
-	mutex_unlock(&node->clients_mutex);
+	spin_unlock_irqrestore(&node->clients_lock, flags);
+	nvmap_ref_unlock(client);
 }
 
 void nvmap_carveout_commit_subtract(struct nvmap_client *client,
 				    struct nvmap_carveout_node *node,
 				    size_t len)
 {
+	unsigned long flags;
+
 	if (!client)
 		return;
 
-	mutex_lock(&node->clients_mutex);
+	spin_lock_irqsave(&node->clients_lock, flags);
 	client->carveout_commit[node->index].commit -= len;
 	BUG_ON(client->carveout_commit[node->index].commit < 0);
 	/* if no more allocation in this carveout for this node, delete it */
 	if (!client->carveout_commit[node->index].commit)
 		list_del_init(&client->carveout_commit[node->index].list);
-	mutex_unlock(&node->clients_mutex);
+	spin_unlock_irqrestore(&node->clients_lock, flags);
 }
 
 static struct nvmap_client* get_client_from_carveout_commit(
@@ -315,7 +320,6 @@ static struct nvmap_client* get_client_from_carveout_commit(
 	return (void *)first_commit - offsetof(struct nvmap_client,
 					       carveout_commit);
 }
-
 
 struct nvmap_heap_block *nvmap_carveout_alloc(struct nvmap_client *client,
 					      size_t len, size_t align,
@@ -341,10 +345,8 @@ struct nvmap_heap_block *nvmap_carveout_alloc(struct nvmap_client *client,
 			if (nvmap_flush_heap_block(client, block, len)) {
 				nvmap_heap_free(block);
 				return NULL;
-			} else {
-				nvmap_carveout_commit_add(client, co_heap, len);
+			} else
 				return block;
-			}
 		}
 	}
 
@@ -764,32 +766,36 @@ static void client_stringify(struct nvmap_client *client, struct seq_file *s)
 static void allocations_stringify(struct nvmap_client *client,
 				  struct seq_file *s)
 {
-	struct rb_node *n = client->handle_refs.rb_node;
+	struct rb_node *n = rb_first(&client->handle_refs);
+	unsigned long long total = 0;
 
 	for (; n != NULL; n = rb_next(n)) {
 		struct nvmap_handle_ref *ref =
 			rb_entry(n, struct nvmap_handle_ref, node);
 		struct nvmap_handle *handle = ref->handle;
-		if (!handle->heap_pgalloc)
+		if (handle->alloc && !handle->heap_pgalloc) {
 			seq_printf(s, " %8u@%8lx ", handle->size,
 				   handle->carveout->base);
+			total += handle->size;
+		}
 	}
-	seq_printf(s, "\n");
+	seq_printf(s, " total: %llu\n", total);
 }
 
 static int nvmap_debug_allocations_show(struct seq_file *s, void *unused)
 {
 	struct nvmap_carveout_node *node = s->private;
 	struct nvmap_carveout_commit *commit;
+	unsigned long flags;
 
-	mutex_lock(&node->clients_mutex);
+	spin_lock_irqsave(&node->clients_lock, flags);
 	list_for_each_entry(commit, &node->clients, list) {
 		struct nvmap_client *client =
 			get_client_from_carveout_commit(node, commit);
 		client_stringify(client, s);
 		allocations_stringify(client, s);
 	}
-	mutex_unlock(&node->clients_mutex);
+	spin_unlock_irqrestore(&node->clients_lock, flags);
 
 	return 0;
 }
@@ -811,15 +817,16 @@ static int nvmap_debug_clients_show(struct seq_file *s, void *unused)
 {
 	struct nvmap_carveout_node *node = s->private;
 	struct nvmap_carveout_commit *commit;
+	unsigned long flags;
 
-	mutex_lock(&node->clients_mutex);
+	spin_lock_irqsave(&node->clients_lock, flags);
 	list_for_each_entry(commit, &node->clients, list) {
 		struct nvmap_client *client =
 			get_client_from_carveout_commit(node, commit);
 		client_stringify(client, s);
 		seq_printf(s, " %8u\n", commit->commit);
 	}
-	mutex_unlock(&node->clients_mutex);
+	spin_unlock_irqrestore(&node->clients_lock, flags);
 
 	return 0;
 }
@@ -965,7 +972,7 @@ static int nvmap_probe(struct platform_device *pdev)
 			goto fail_heaps;
 		}
 		dev->nr_carveouts++;
-		mutex_init(&node->clients_mutex);
+		spin_lock_init(&node->clients_lock);
 		node->index = i;
 		INIT_LIST_HEAD(&node->clients);
 		node->heap_bit = co->usage_mask;
