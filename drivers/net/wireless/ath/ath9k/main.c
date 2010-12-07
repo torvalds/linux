@@ -765,6 +765,8 @@ irqreturn_t ath_isr(int irq, void *dev)
 
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP))
 		if (status & ATH9K_INT_TIM_TIMER) {
+			if (ATH_DBG_WARN_ON_ONCE(sc->ps_idle))
+				goto chip_reset;
 			/* Clear RxAbort bit so that we can
 			 * receive frames */
 			ath9k_setpower(sc, ATH9K_PM_AWAKE);
