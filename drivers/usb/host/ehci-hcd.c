@@ -114,6 +114,9 @@ MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us\n");
 
 #define	INTR_MASK (STS_IAA | STS_FATAL | STS_PCD | STS_ERR | STS_INT)
 
+/* for ASPM quirk of ISOC on AMD SB800 */
+static struct pci_dev *amd_nb_dev;
+
 /*-------------------------------------------------------------------------*/
 
 #include "ehci.h"
@@ -528,6 +531,11 @@ static void ehci_stop (struct usb_hcd *hcd)
 		ehci_work (ehci);
 	spin_unlock_irq (&ehci->lock);
 	ehci_mem_cleanup (ehci);
+
+	if (amd_nb_dev) {
+		pci_dev_put(amd_nb_dev);
+		amd_nb_dev = NULL;
+	}
 
 #ifdef	EHCI_STATS
 	ehci_dbg (ehci, "irq normal %ld err %ld reclaim %ld (lost %ld)\n",
