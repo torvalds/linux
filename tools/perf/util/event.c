@@ -7,7 +7,7 @@
 #include "strlist.h"
 #include "thread.h"
 
-const char *event__name[] = {
+static const char *event__name[] = {
 	[0]			 = "TOTAL",
 	[PERF_RECORD_MMAP]	 = "MMAP",
 	[PERF_RECORD_LOST]	 = "LOST",
@@ -22,7 +22,17 @@ const char *event__name[] = {
 	[PERF_RECORD_HEADER_EVENT_TYPE]	 = "EVENT_TYPE",
 	[PERF_RECORD_HEADER_TRACING_DATA]	 = "TRACING_DATA",
 	[PERF_RECORD_HEADER_BUILD_ID]	 = "BUILD_ID",
+	[PERF_RECORD_FINISHED_ROUND]	 = "FINISHED_ROUND",
 };
+
+const char *event__get_event_name(unsigned int id)
+{
+	if (id >= ARRAY_SIZE(event__name))
+		return "INVALID";
+	if (!event__name[id])
+		return "UNKNOWN";
+	return event__name[id];
+}
 
 static struct sample_data synth_sample = {
 	.pid	   = -1,

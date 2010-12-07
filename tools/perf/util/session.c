@@ -718,7 +718,7 @@ static int perf_session__process_event(struct perf_session *session,
 	if (event->header.type < PERF_RECORD_HEADER_MAX) {
 		dump_printf("%#Lx [%#x]: PERF_RECORD_%s",
 			    file_offset, event->header.size,
-			    event__name[event->header.type]);
+			    event__get_event_name(event->header.type));
 		hists__inc_nr_events(&session->hists, event->header.type);
 	}
 

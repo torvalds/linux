@@ -171,6 +171,6 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 int event__parse_sample(const event_t *event, struct perf_session *session,
 			struct sample_data *sample);
 
-extern const char *event__name[];
+const char *event__get_event_name(unsigned int id);
 
 #endif /* __PERF_RECORD_H */
