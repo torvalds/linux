@@ -33,6 +33,14 @@ MODULE_LICENSE("GPL");
 
 #define MODULE_NAME "sn9c20x"
 
+/*
+ * Pixel format private data
+ */
+#define SCALE_MASK	0x0f
+#define SCALE_160x120	0
+#define SCALE_320x240	1
+#define SCALE_640x480	2
+#define SCALE_1280x1024	3
 #define MODE_RAW	0x10
 #define MODE_JPEG	0x20
 #define MODE_SXGA	0x80
@@ -348,47 +356,47 @@ static const struct v4l2_pix_format vga_mode[] = {
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
-		.priv = 0 | MODE_JPEG},
+		.priv = SCALE_160x120 | MODE_JPEG},
 	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0 | MODE_RAW},
+		.priv = SCALE_160x120 | MODE_RAW},
 	{160, 120, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 240 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0},
+		.priv = SCALE_160x120},
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
-		.priv = 1 | MODE_JPEG},
+		.priv = SCALE_320x240 | MODE_JPEG},
 	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 ,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1 | MODE_RAW},
+		.priv = SCALE_320x240 | MODE_RAW},
 	{320, 240, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 480 * 240 ,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1},
+		.priv = SCALE_320x240},
 	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
-		.priv = 2 | MODE_JPEG},
+		.priv = SCALE_640x480 | MODE_JPEG},
 	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 2 | MODE_RAW},
+		.priv = SCALE_640x480 | MODE_RAW},
 	{640, 480, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
 		.bytesperline = 640,
 		.sizeimage = 960 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 2},
+		.priv = SCALE_640x480},
 };
 
 static const struct v4l2_pix_format sxga_mode[] = {
@@ -396,52 +404,52 @@ static const struct v4l2_pix_format sxga_mode[] = {
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
-		.priv = 0 | MODE_JPEG},
+		.priv = SCALE_160x120 | MODE_JPEG},
 	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0 | MODE_RAW},
+		.priv = SCALE_160x120 | MODE_RAW},
 	{160, 120, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 240 * 120,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0},
+		.priv = SCALE_160x120},
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
-		.priv = 1 | MODE_JPEG},
+		.priv = SCALE_320x240 | MODE_JPEG},
 	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 ,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1 | MODE_RAW},
+		.priv = SCALE_320x240 | MODE_RAW},
 	{320, 240, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 480 * 240 ,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1},
+		.priv = SCALE_320x240},
 	{640, 480, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
-		.priv = 2 | MODE_JPEG},
+		.priv = SCALE_640x480 | MODE_JPEG},
 	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 2 | MODE_RAW},
+		.priv = SCALE_640x480 | MODE_RAW},
 	{640, 480, V4L2_PIX_FMT_SN9C20X_I420, V4L2_FIELD_NONE,
 		.bytesperline = 640,
 		.sizeimage = 960 * 480,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 2},
+		.priv = SCALE_640x480},
 	{1280, 1024, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 1280,
 		.sizeimage = 1280 * 1024,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 3 | MODE_RAW | MODE_SXGA},
+		.priv = SCALE_1280x1024 | MODE_RAW | MODE_SXGA},
 };
 
 static const s16 hsv_red_x[] = {
@@ -2182,22 +2190,22 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	else if (mode & MODE_JPEG)
 		fmt = 0x2c;
 	else
-		fmt = 0x2f;
+		fmt = 0x2f;	/* YUV 420 */
 
-	switch (mode & 0x0f) {
-	case 3:
+	switch (mode & SCALE_MASK) {
+	case SCALE_1280x1024:
 		scale = 0xc0;
 		info("Set 1280x1024");
 		break;
-	case 2:
+	case SCALE_640x480:
 		scale = 0x80;
 		info("Set 640x480");
 		break;
-	case 1:
+	case SCALE_320x240:
 		scale = 0x90;
 		info("Set 320x240");
 		break;
-	case 0:
+	case SCALE_160x120:
 		scale = 0xa0;
 		info("Set 160x120");
 		break;
