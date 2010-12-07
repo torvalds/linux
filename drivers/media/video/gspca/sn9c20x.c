@@ -452,6 +452,29 @@ static const struct v4l2_pix_format sxga_mode[] = {
 		.priv = SCALE_1280x1024 | MODE_RAW | MODE_SXGA},
 };
 
+static const struct v4l2_pix_format mono_mode[] = {
+	{160, 120, V4L2_PIX_FMT_GREY, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = SCALE_160x120 | MODE_RAW},
+	{320, 240, V4L2_PIX_FMT_GREY, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240 ,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = SCALE_320x240 | MODE_RAW},
+	{640, 480, V4L2_PIX_FMT_GREY, V4L2_FIELD_NONE,
+		.bytesperline = 640,
+		.sizeimage = 640 * 480,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = SCALE_640x480 | MODE_RAW},
+	{1280, 1024, V4L2_PIX_FMT_GREY, V4L2_FIELD_NONE,
+		.bytesperline = 1280,
+		.sizeimage = 1280 * 1024,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = SCALE_1280x1024 | MODE_RAW | MODE_SXGA},
+};
+
 static const s16 hsv_red_x[] = {
 	41,  44,  46,  48,  50,  52,  54,  56,
 	58,  60,  62,  64,  66,  68,  70,  72,
@@ -1037,16 +1060,19 @@ static struct i2c_reg_u16 mt9v011_init[] = {
 };
 
 static struct i2c_reg_u16 mt9m001_init[] = {
-	{0x0d, 0x0001}, {0x0d, 0x0000}, {0x01, 0x000e},
-	{0x02, 0x0014}, {0x03, 0x03c1}, {0x04, 0x0501},
-	{0x05, 0x0083}, {0x06, 0x0006}, {0x0d, 0x0002},
-	{0x0a, 0x0000}, {0x0c, 0x0000}, {0x11, 0x0000},
-	{0x1e, 0x8000}, {0x5f, 0x8904}, {0x60, 0x0000},
-	{0x61, 0x0000}, {0x62, 0x0498}, {0x63, 0x0000},
-	{0x64, 0x0000}, {0x20, 0x111d}, {0x06, 0x00f2},
-	{0x05, 0x0013}, {0x09, 0x10f2}, {0x07, 0x0003},
-	{0x2b, 0x002a}, {0x2d, 0x002a}, {0x2c, 0x002a},
-	{0x2e, 0x0029}, {0x07, 0x0002},
+	{0x0d, 0x0001},
+	{0x0d, 0x0000},
+	{0x04, 0x0500},		/* hres = 1280 */
+	{0x03, 0x0400},		/* vres = 1024 */
+	{0x20, 0x1100},
+	{0x06, 0x0010},
+	{0x2b, 0x0024},
+	{0x2e, 0x0024},
+	{0x35, 0x0024},
+	{0x2d, 0x0020},
+	{0x2c, 0x0020},
+	{0x09, 0x0ad4},
+	{0x35, 0x0057},
 };
 
 static struct i2c_reg_u16 mt9m111_init[] = {
@@ -1442,6 +1468,25 @@ static int mt9m001_init_sensor(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
+	u16 id;
+
+	if (i2c_r2(gspca_dev, 0x00, &id) < 0)
+		return -EINVAL;
+
+	/* must be 0x8411 or 0x8421 for colour sensor and 8431 for bw */
+	switch (id) {
+	case 0x8411:
+	case 0x8421:
+		info("MT9M001 color sensor detected");
+		break;
+	case 0x8431:
+		info("MT9M001 mono sensor detected");
+		break;
+	default:
+		err("No MT9M001 chip detected, ID = %x\n", id);
+		return -ENODEV;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(mt9m001_init); i++) {
 		if (i2c_w2(gspca_dev, mt9m001_init[i].reg,
 				mt9m001_init[i].val) < 0) {
@@ -1451,8 +1496,8 @@ static int mt9m001_init_sensor(struct gspca_dev *gspca_dev)
 	}
 	/* disable hflip and vflip */
 	gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX);
-	sd->hstart = 2;
-	sd->vstart = 2;
+	sd->hstart = 1;
+	sd->vstart = 1;
 	return 0;
 }
 
@@ -1994,6 +2039,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->cam_mode = sxga_mode;
 		cam->nmodes = ARRAY_SIZE(sxga_mode);
 		break;
+	case SENSOR_MT9M001:
+		cam->cam_mode = mono_mode;
+		cam->nmodes = ARRAY_SIZE(mono_mode);
+		break;
 	default:
 		cam->cam_mode = vga_mode;
 		cam->nmodes = ARRAY_SIZE(vga_mode);
@@ -2092,7 +2141,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	case SENSOR_MT9M001:
 		if (mt9m001_init_sensor(gspca_dev) < 0)
 			return -ENODEV;
-		info("MT9M001 sensor detected");
 		break;
 	case SENSOR_HV7131R:
 		if (hv7131r_init_sensor(gspca_dev) < 0)
