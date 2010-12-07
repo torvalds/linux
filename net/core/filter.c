@@ -88,7 +88,7 @@ enum {
 };
 
 /* No hurry in this branch */
-static void *__load_pointer(const struct sk_buff *skb, int k)
+static void *__load_pointer(const struct sk_buff *skb, int k, unsigned int size)
 {
 	u8 *ptr = NULL;
 
@@ -97,7 +97,7 @@ static void *__load_pointer(const struct sk_buff *skb, int k)
 	else if (k >= SKF_LL_OFF)
 		ptr = skb_mac_header(skb) + k - SKF_LL_OFF;
 
-	if (ptr >= skb->head && ptr < skb_tail_pointer(skb))
+	if (ptr >= skb->head && ptr + size <= skb_tail_pointer(skb))
 		return ptr;
 	return NULL;
 }
@@ -110,7 +110,7 @@ static inline void *load_pointer(const struct sk_buff *skb, int k,
 	else {
 		if (k >= SKF_AD_OFF)
 			return NULL;
-		return __load_pointer(skb, k);
+		return __load_pointer(skb, k, size);
 	}
 }
 
