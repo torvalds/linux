@@ -1110,8 +1110,8 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK("sdhci-esdhc-imx.1", NULL, esdhc2_clk)
 	_REGISTER_CLOCK(NULL, "cpu_clk", cpu_clk)
 	_REGISTER_CLOCK(NULL, "iim_clk", iim_clk)
-	_REGISTER_CLOCK("imx-wdt.0", NULL, dummy_clk)
-	_REGISTER_CLOCK("imx-wdt.1", NULL, dummy_clk)
+	_REGISTER_CLOCK("imx2-wdt.0", NULL, dummy_clk)
+	_REGISTER_CLOCK("imx2-wdt.1", NULL, dummy_clk)
 };
 
 static struct clk_lookup mx53_lookups[] = {

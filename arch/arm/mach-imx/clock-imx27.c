@@ -667,7 +667,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "sahara2", sahara2_clk)
 	_REGISTER_CLOCK(NULL, "ata", ata_clk)
 	_REGISTER_CLOCK(NULL, "mstick", mstick_clk)
-	_REGISTER_CLOCK("imx-wdt.0", NULL, wdog_clk)
+	_REGISTER_CLOCK("imx2-wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK(NULL, "gpio", gpio_clk)
 	_REGISTER_CLOCK("imx-i2c.0", NULL, i2c1_clk)
 	_REGISTER_CLOCK("imx-i2c.1", NULL, i2c2_clk)

@@ -55,7 +55,7 @@ void arch_reset(char mode, const char *cmd)
 	} else {
 		struct clk *clk;
 
-		clk = clk_get_sys("imx-wdt.0", NULL);
+		clk = clk_get_sys("imx2-wdt.0", NULL);
 		if (!IS_ERR(clk))
 			clk_enable(clk);
 		wcr_enable = (1 << 2);
