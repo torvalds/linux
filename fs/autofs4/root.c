@@ -980,19 +980,11 @@ static int autofs4_root_ioctl_unlocked(struct inode *inode, struct file *filp,
 	}
 }
 
-static DEFINE_MUTEX(autofs4_ioctl_mutex);
-
 static long autofs4_root_ioctl(struct file *filp,
 			       unsigned int cmd, unsigned long arg)
 {
-	long ret;
 	struct inode *inode = filp->f_dentry->d_inode;
-
-	mutex_lock(&autofs4_ioctl_mutex);
-	ret = autofs4_root_ioctl_unlocked(inode, filp, cmd, arg);
-	mutex_unlock(&autofs4_ioctl_mutex);
-
-	return ret;
+	return autofs4_root_ioctl_unlocked(inode, filp, cmd, arg);
 }
 
 #ifdef CONFIG_COMPAT
@@ -1002,13 +994,11 @@ static long autofs4_root_compat_ioctl(struct file *filp,
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	int ret;
 
-	mutex_lock(&autofs4_ioctl_mutex);
 	if (cmd == AUTOFS_IOC_READY || cmd == AUTOFS_IOC_FAIL)
 		ret = autofs4_root_ioctl_unlocked(inode, filp, cmd, arg);
 	else
 		ret = autofs4_root_ioctl_unlocked(inode, filp, cmd,
 			(unsigned long)compat_ptr(arg));
-	mutex_unlock(&autofs4_ioctl_mutex);
 
 	return ret;
 }
