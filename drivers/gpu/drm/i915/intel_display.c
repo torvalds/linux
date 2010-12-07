@@ -5952,7 +5952,7 @@ void intel_enable_clock_gating(struct drm_device *dev)
 	 * GPU can automatically power down the render unit if given a page
 	 * to save state.
 	 */
-	if (IS_IRONLAKE_M(dev)) {
+	if (IS_IRONLAKE_M(dev) && 0) { /* XXX causes a failure during suspend */
 		if (dev_priv->renderctx == NULL)
 			dev_priv->renderctx = intel_alloc_context_page(dev);
 		if (dev_priv->renderctx) {
