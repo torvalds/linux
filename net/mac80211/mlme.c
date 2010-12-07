@@ -1982,8 +1982,7 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 				wiphy_debug(local->hw.wiphy,
 					    "%s: No ack for nullfunc frame to"
 					    " AP %pM, disconnecting.\n",
-					    sdata->name, bssid,
-					    ifmgd->probe_send_count);
+					    sdata->name, bssid);
 #endif
 				ieee80211_sta_connection_lost(sdata, bssid);
 			}
