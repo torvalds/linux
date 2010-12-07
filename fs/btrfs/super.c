@@ -685,9 +685,9 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 		mutex_unlock(&root->d_inode->i_mutex);
 
 		if (IS_ERR(new_root)) {
+			dput(root);
 			deactivate_locked_super(s);
 			error = PTR_ERR(new_root);
-			dput(root);
 			goto error_free_subvol_name;
 		}
 		if (!new_root->d_inode) {
