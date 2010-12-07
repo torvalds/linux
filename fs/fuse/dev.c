@@ -251,6 +251,20 @@ static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
 }
 
+void fuse_queue_forget(struct fuse_conn *fc, struct fuse_forget_link *forget,
+		       u64 nodeid, u64 nlookup)
+{
+	forget->nodeid = nodeid;
+	forget->nlookup = nlookup;
+
+	spin_lock(&fc->lock);
+	fc->forget_list_tail->next = forget;
+	fc->forget_list_tail = forget;
+	wake_up(&fc->waitq);
+	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
+	spin_unlock(&fc->lock);
+}
+
 static void flush_bg_queue(struct fuse_conn *fc)
 {
 	while (fc->active_background < fc->max_background &&
@@ -436,12 +450,6 @@ static void fuse_request_send_nowait(struct fuse_conn *fc, struct fuse_req *req)
 		req->out.h.error = -ENOTCONN;
 		request_end(fc, req);
 	}
-}
-
-void fuse_request_send_noreply(struct fuse_conn *fc, struct fuse_req *req)
-{
-	req->isreply = 0;
-	fuse_request_send_nowait(fc, req);
 }
 
 void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req)
@@ -896,9 +904,15 @@ static int fuse_copy_args(struct fuse_copy_state *cs, unsigned numargs,
 	return err;
 }
 
+static int forget_pending(struct fuse_conn *fc)
+{
+	return fc->forget_list_head.next != NULL;
+}
+
 static int request_pending(struct fuse_conn *fc)
 {
-	return !list_empty(&fc->pending) || !list_empty(&fc->interrupts);
+	return !list_empty(&fc->pending) || !list_empty(&fc->interrupts) ||
+		forget_pending(fc);
 }
 
 /* Wait until a request is available on the pending list */
@@ -960,6 +974,50 @@ __releases(fc->lock)
 	return err ? err : reqsize;
 }
 
+static struct fuse_forget_link *dequeue_forget(struct fuse_conn *fc)
+{
+	struct fuse_forget_link *forget = fc->forget_list_head.next;
+
+	fc->forget_list_head.next = forget->next;
+	if (fc->forget_list_head.next == NULL)
+		fc->forget_list_tail = &fc->forget_list_head;
+
+	return forget;
+}
+
+static int fuse_read_single_forget(struct fuse_conn *fc,
+				   struct fuse_copy_state *cs,
+				   size_t nbytes)
+__releases(fc->lock)
+{
+	int err;
+	struct fuse_forget_link *forget = dequeue_forget(fc);
+	struct fuse_forget_in arg = {
+		.nlookup = forget->nlookup,
+	};
+	struct fuse_in_header ih = {
+		.opcode = FUSE_FORGET,
+		.nodeid = forget->nodeid,
+		.unique = fuse_get_unique(fc),
+		.len = sizeof(ih) + sizeof(arg),
+	};
+
+	spin_unlock(&fc->lock);
+	kfree(forget);
+	if (nbytes < ih.len)
+		return -EINVAL;
+
+	err = fuse_copy_one(cs, &ih, sizeof(ih));
+	if (!err)
+		err = fuse_copy_one(cs, &arg, sizeof(arg));
+	fuse_copy_finish(cs);
+
+	if (err)
+		return err;
+
+	return ih.len;
+}
+
 /*
  * Read a single request into the userspace filesystem's buffer.  This
  * function waits until a request is available, then removes it from
@@ -996,6 +1054,14 @@ static ssize_t fuse_dev_do_read(struct fuse_conn *fc, struct file *file,
 		req = list_entry(fc->interrupts.next, struct fuse_req,
 				 intr_entry);
 		return fuse_read_interrupt(fc, cs, nbytes, req);
+	}
+
+	if (forget_pending(fc)) {
+		if (list_empty(&fc->pending) || fc->forget_batch-- > 0)
+			return fuse_read_single_forget(fc, cs, nbytes);
+
+		if (fc->forget_batch <= -8)
+			fc->forget_batch = 16;
 	}
 
 	req = list_entry(fc->pending.next, struct fuse_req, list);
@@ -1090,7 +1156,7 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 	if (!fc)
 		return -EPERM;
 
-	bufs = kmalloc(pipe->buffers * sizeof (struct pipe_buffer), GFP_KERNEL);
+	bufs = kmalloc(pipe->buffers * sizeof(struct pipe_buffer), GFP_KERNEL);
 	if (!bufs)
 		return -ENOMEM;
 
@@ -1626,7 +1692,7 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 	if (!fc)
 		return -EPERM;
 
-	bufs = kmalloc(pipe->buffers * sizeof (struct pipe_buffer), GFP_KERNEL);
+	bufs = kmalloc(pipe->buffers * sizeof(struct pipe_buffer), GFP_KERNEL);
 	if (!bufs)
 		return -ENOMEM;
 
@@ -1770,6 +1836,8 @@ __acquires(fc->lock)
 	flush_bg_queue(fc);
 	end_requests(fc, &fc->pending);
 	end_requests(fc, &fc->processing);
+	while (forget_pending(fc))
+		kfree(dequeue_forget(fc));
 }
 
 /*

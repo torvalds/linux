@@ -10,9 +10,9 @@
 
 #include <linux/pagemap.h>
 #include <linux/file.h>
-#include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/namei.h>
+#include <linux/slab.h>
 
 #if BITS_PER_LONG >= 64
 static inline void fuse_dentry_settime(struct dentry *entry, u64 time)
@@ -165,7 +165,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		struct fuse_entry_out outarg;
 		struct fuse_conn *fc;
 		struct fuse_req *req;
-		struct fuse_req *forget_req;
+		struct fuse_forget_link *forget;
 		struct dentry *parent;
 		u64 attr_version;
 
@@ -178,8 +178,8 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		if (IS_ERR(req))
 			return 0;
 
-		forget_req = fuse_get_req(fc);
-		if (IS_ERR(forget_req)) {
+		forget = fuse_alloc_forget();
+		if (!forget) {
 			fuse_put_request(fc, req);
 			return 0;
 		}
@@ -199,15 +199,14 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 		if (!err) {
 			struct fuse_inode *fi = get_fuse_inode(inode);
 			if (outarg.nodeid != get_node_id(inode)) {
-				fuse_send_forget(fc, forget_req,
-						 outarg.nodeid, 1);
+				fuse_queue_forget(fc, forget, outarg.nodeid, 1);
 				return 0;
 			}
 			spin_lock(&fc->lock);
 			fi->nlookup++;
 			spin_unlock(&fc->lock);
 		}
-		fuse_put_request(fc, forget_req);
+		kfree(forget);
 		if (err || (outarg.attr.mode ^ inode->i_mode) & S_IFMT)
 			return 0;
 
@@ -259,7 +258,7 @@ int fuse_lookup_name(struct super_block *sb, u64 nodeid, struct qstr *name,
 {
 	struct fuse_conn *fc = get_fuse_conn_super(sb);
 	struct fuse_req *req;
-	struct fuse_req *forget_req;
+	struct fuse_forget_link *forget;
 	u64 attr_version;
 	int err;
 
@@ -273,9 +272,9 @@ int fuse_lookup_name(struct super_block *sb, u64 nodeid, struct qstr *name,
 	if (IS_ERR(req))
 		goto out;
 
-	forget_req = fuse_get_req(fc);
-	err = PTR_ERR(forget_req);
-	if (IS_ERR(forget_req)) {
+	forget = fuse_alloc_forget();
+	err = -ENOMEM;
+	if (!forget) {
 		fuse_put_request(fc, req);
 		goto out;
 	}
@@ -301,13 +300,13 @@ int fuse_lookup_name(struct super_block *sb, u64 nodeid, struct qstr *name,
 			   attr_version);
 	err = -ENOMEM;
 	if (!*inode) {
-		fuse_send_forget(fc, forget_req, outarg->nodeid, 1);
+		fuse_queue_forget(fc, forget, outarg->nodeid, 1);
 		goto out;
 	}
 	err = 0;
 
  out_put_forget:
-	fuse_put_request(fc, forget_req);
+	kfree(forget);
  out:
 	return err;
 }
@@ -374,7 +373,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	struct inode *inode;
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	struct fuse_req *req;
-	struct fuse_req *forget_req;
+	struct fuse_forget_link *forget;
 	struct fuse_create_in inarg;
 	struct fuse_open_out outopen;
 	struct fuse_entry_out outentry;
@@ -388,9 +387,9 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	if (flags & O_DIRECT)
 		return -EINVAL;
 
-	forget_req = fuse_get_req(fc);
-	if (IS_ERR(forget_req))
-		return PTR_ERR(forget_req);
+	forget = fuse_alloc_forget();
+	if (!forget)
+		return -ENOMEM;
 
 	req = fuse_get_req(fc);
 	err = PTR_ERR(req);
@@ -448,10 +447,10 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	if (!inode) {
 		flags &= ~(O_CREAT | O_EXCL | O_TRUNC);
 		fuse_sync_release(ff, flags);
-		fuse_send_forget(fc, forget_req, outentry.nodeid, 1);
+		fuse_queue_forget(fc, forget, outentry.nodeid, 1);
 		return -ENOMEM;
 	}
-	fuse_put_request(fc, forget_req);
+	kfree(forget);
 	d_instantiate(entry, inode);
 	fuse_change_entry_timeout(entry, &outentry);
 	fuse_invalidate_attr(dir);
@@ -469,7 +468,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
  out_put_request:
 	fuse_put_request(fc, req);
  out_put_forget_req:
-	fuse_put_request(fc, forget_req);
+	kfree(forget);
 	return err;
 }
 
@@ -483,12 +482,12 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 	struct fuse_entry_out outarg;
 	struct inode *inode;
 	int err;
-	struct fuse_req *forget_req;
+	struct fuse_forget_link *forget;
 
-	forget_req = fuse_get_req(fc);
-	if (IS_ERR(forget_req)) {
+	forget = fuse_alloc_forget();
+	if (!forget) {
 		fuse_put_request(fc, req);
-		return PTR_ERR(forget_req);
+		return -ENOMEM;
 	}
 
 	memset(&outarg, 0, sizeof(outarg));
@@ -515,10 +514,10 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 	inode = fuse_iget(dir->i_sb, outarg.nodeid, outarg.generation,
 			  &outarg.attr, entry_attr_timeout(&outarg), 0);
 	if (!inode) {
-		fuse_send_forget(fc, forget_req, outarg.nodeid, 1);
+		fuse_queue_forget(fc, forget, outarg.nodeid, 1);
 		return -ENOMEM;
 	}
-	fuse_put_request(fc, forget_req);
+	kfree(forget);
 
 	if (S_ISDIR(inode->i_mode)) {
 		struct dentry *alias;
@@ -541,7 +540,7 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_req *req,
 	return 0;
 
  out_put_forget_req:
-	fuse_put_request(fc, forget_req);
+	kfree(forget);
 	return err;
 }
 
