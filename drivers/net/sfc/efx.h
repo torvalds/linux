@@ -74,9 +74,8 @@ extern int efx_filter_insert_filter(struct efx_nic *efx,
 				    bool replace);
 extern int efx_filter_remove_filter(struct efx_nic *efx,
 				    struct efx_filter_spec *spec);
-extern void efx_filter_table_clear(struct efx_nic *efx,
-				   enum efx_filter_table_id table_id,
-				   enum efx_filter_priority priority);
+extern void efx_filter_clear_rx(struct efx_nic *efx,
+				enum efx_filter_priority priority);
 
 /* Channels */
 extern void efx_process_channel_now(struct efx_channel *channel);

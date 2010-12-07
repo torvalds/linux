@@ -12,12 +12,6 @@
 
 #include <linux/types.h>
 
-enum efx_filter_table_id {
-	EFX_FILTER_TABLE_RX_IP = 0,
-	EFX_FILTER_TABLE_RX_MAC,
-	EFX_FILTER_TABLE_COUNT,
-};
-
 /**
  * enum efx_filter_type - type of hardware filter
  * @EFX_FILTER_RX_TCP_FULL: RX, matching TCP/IPv4 4-tuple

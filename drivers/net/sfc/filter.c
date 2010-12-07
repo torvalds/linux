@@ -26,6 +26,12 @@
  */
 #define FILTER_CTL_SRCH_MAX 200
 
+enum efx_filter_table_id {
+	EFX_FILTER_TABLE_RX_IP = 0,
+	EFX_FILTER_TABLE_RX_MAC,
+	EFX_FILTER_TABLE_COUNT,
+};
+
 struct efx_filter_table {
 	u32		offset;		/* address of table relative to BAR */
 	unsigned	size;		/* number of entries */
@@ -206,6 +212,14 @@ found:
 	return filter_idx;
 }
 
+/* Construct/deconstruct external filter IDs */
+
+static inline int
+efx_filter_make_id(enum efx_filter_table_id table_id, unsigned index)
+{
+	return table_id << 16 | index;
+}
+
 /**
  * efx_filter_insert_filter - add or replace a filter
  * @efx: NIC in which to insert the filter
@@ -213,7 +227,7 @@ found:
  * @replace: Flag for whether the specified filter may replace a filter
  *	with an identical match expression and equal or lower priority
  *
- * On success, return the filter index within its table.
+ * On success, return the filter ID.
  * On failure, return a negative error code.
  */
 int efx_filter_insert_filter(struct efx_nic *efx, struct efx_filter_spec *spec,
@@ -273,6 +287,7 @@ int efx_filter_insert_filter(struct efx_nic *efx, struct efx_filter_spec *spec,
 	netif_vdbg(efx, hw, efx->net_dev,
 		   "%s: filter type %d index %d rxq %u set",
 		   __func__, spec->type, filter_idx, spec->dmaq_id);
+	rc = efx_filter_make_id(table_id, filter_idx);
 
 out:
 	spin_unlock_bh(&state->lock);
@@ -340,15 +355,9 @@ out:
 	return rc;
 }
 
-/**
- * efx_filter_table_clear - remove filters from a table by priority
- * @efx: NIC from which to remove the filters
- * @table_id: Table from which to remove the filters
- * @priority: Maximum priority to remove
- */
-void efx_filter_table_clear(struct efx_nic *efx,
-			    enum efx_filter_table_id table_id,
-			    enum efx_filter_priority priority)
+static void efx_filter_table_clear(struct efx_nic *efx,
+				   enum efx_filter_table_id table_id,
+				   enum efx_filter_priority priority)
 {
 	struct efx_filter_state *state = efx->filter_state;
 	struct efx_filter_table *table = &state->table[table_id];
@@ -363,6 +372,17 @@ void efx_filter_table_clear(struct efx_nic *efx,
 		efx_filter_table_reset_search_depth(state, table_id);
 
 	spin_unlock_bh(&state->lock);
+}
+
+/**
+ * efx_filter_clear_rx - remove RX filters by priority
+ * @efx: NIC from which to remove the filters
+ * @priority: Maximum priority to remove
+ */
+void efx_filter_clear_rx(struct efx_nic *efx, enum efx_filter_priority priority)
+{
+	efx_filter_table_clear(efx, EFX_FILTER_TABLE_RX_IP, priority);
+	efx_filter_table_clear(efx, EFX_FILTER_TABLE_RX_MAC, priority);
 }
 
 /* Restore filter stater after reset */

@@ -558,12 +558,8 @@ static int efx_ethtool_set_flags(struct net_device *net_dev, u32 data)
 	if (rc)
 		return rc;
 
-	if (!(data & ETH_FLAG_NTUPLE)) {
-		efx_filter_table_clear(efx, EFX_FILTER_TABLE_RX_IP,
-				       EFX_FILTER_PRI_MANUAL);
-		efx_filter_table_clear(efx, EFX_FILTER_TABLE_RX_MAC,
-				       EFX_FILTER_PRI_MANUAL);
-	}
+	if (!(data & ETH_FLAG_NTUPLE))
+		efx_filter_clear_rx(efx, EFX_FILTER_PRI_MANUAL);
 
 	return 0;
 }
