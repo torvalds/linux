@@ -267,19 +267,15 @@ nouveau_sgdma_takedown(struct drm_device *dev)
 	nouveau_vm_put(&dev_priv->gart_info.vma);
 }
 
-int
-nouveau_sgdma_get_page(struct drm_device *dev, uint32_t offset, uint32_t *page)
+uint32_t
+nouveau_sgdma_get_physical(struct drm_device *dev, uint32_t offset)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *gpuobj = dev_priv->gart_info.sg_ctxdma;
-	int pte;
+	int pte = (offset >> NV_CTXDMA_PAGE_SHIFT) + 2;
 
-	pte = (offset >> NV_CTXDMA_PAGE_SHIFT) << 2;
-	if (dev_priv->card_type < NV_50) {
-		*page = nv_ro32(gpuobj, (pte + 8)) & ~NV_CTXDMA_PAGE_MASK;
-		return 0;
-	}
+	BUG_ON(dev_priv->card_type >= NV_50);
 
-	NV_ERROR(dev, "Unimplemented on NV50\n");
-	return -EINVAL;
+	return (nv_ro32(gpuobj, 4 * pte) & ~NV_CTXDMA_PAGE_MASK) |
+		(offset & NV_CTXDMA_PAGE_MASK);
 }

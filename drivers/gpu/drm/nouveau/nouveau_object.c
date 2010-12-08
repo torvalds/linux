@@ -478,7 +478,7 @@ nouveau_gpuobj_dma_new(struct nouveau_channel *chan, int class, u64 base,
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct drm_device *dev = chan->dev;
 	struct nouveau_gpuobj *obj;
-	u32 page_addr, flags0, flags2;
+	u32 flags0, flags2;
 	int ret;
 
 	if (dev_priv->card_type >= NV_50) {
@@ -495,12 +495,8 @@ nouveau_gpuobj_dma_new(struct nouveau_channel *chan, int class, u64 base,
 			base  += dev_priv->gart_info.aper_base;
 		} else
 		if (base != 0) {
-			ret = nouveau_sgdma_get_page(dev, base, &page_addr);
-			if (ret)
-				return ret;
-
+			base = nouveau_sgdma_get_physical(dev, base);
 			target = NV_MEM_TARGET_PCI;
-			base   = page_addr;
 		} else {
 			nouveau_gpuobj_ref(dev_priv->gart_info.sg_ctxdma, pobj);
 			return 0;
