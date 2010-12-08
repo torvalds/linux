@@ -179,6 +179,7 @@ void __init u8500_init_devices(void)
 	db8500_add_rtc();
 	db8500_add_gpios();
 
+	platform_device_register_simple("cpufreq-u8500", -1, NULL, 0);
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
 	return ;

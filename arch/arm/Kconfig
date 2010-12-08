@@ -797,6 +797,7 @@ config ARCH_U8500
 	select GENERIC_CLOCKEVENTS
 	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_HAS_CPUFREQ
 	help
 	  Support for ST-Ericsson's Ux500 architecture
 
