@@ -1517,6 +1517,8 @@ static int stmmac_probe(struct net_device *dev)
 		pr_warning("\tno valid MAC address;"
 			"please, use ifconfig or nwhwconfig!\n");
 
+	spin_lock_init(&priv->lock);
+
 	ret = register_netdev(dev);
 	if (ret) {
 		pr_err("%s: ERROR %i registering the device\n",
@@ -1527,8 +1529,6 @@ static int stmmac_probe(struct net_device *dev)
 	DBG(probe, DEBUG, "%s: Scatter/Gather: %s - HW checksums: %s\n",
 	    dev->name, (dev->features & NETIF_F_SG) ? "on" : "off",
 	    (dev->features & NETIF_F_IP_CSUM) ? "on" : "off");
-
-	spin_lock_init(&priv->lock);
 
 	return ret;
 }

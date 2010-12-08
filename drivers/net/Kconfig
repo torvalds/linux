@@ -2543,10 +2543,10 @@ config PCH_GBE
 	depends on PCI
 	select MII
 	---help---
-	  This is a gigabit ethernet driver for Topcliff PCH.
-	  Topcliff PCH is the platform controller hub that is used in Intel's
+	  This is a gigabit ethernet driver for EG20T PCH.
+	  EG20T PCH is the platform controller hub that is used in Intel's
 	  general embedded platform.
-	  Topcliff PCH has Gigabit Ethernet interface.
+	  EG20T PCH has Gigabit Ethernet interface.
 	  Using this interface, it is able to access system devices connected
 	  to Gigabit Ethernet.
 	  This driver enables Gigabit Ethernet function.

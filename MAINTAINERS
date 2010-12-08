@@ -1359,7 +1359,7 @@ F:	include/net/bluetooth/
 
 BONDING DRIVER
 M:	Jay Vosburgh <fubar@us.ibm.com>
-L:	bonding-devel@lists.sourceforge.net
+L:	netdev@vger.kernel.org
 W:	http://sourceforge.net/projects/bonding/
 S:	Supported
 F:	drivers/net/bonding/

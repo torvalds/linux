@@ -621,6 +621,7 @@ struct efx_filter_state;
  * @pci_dev: The PCI device
  * @type: Controller type attributes
  * @legacy_irq: IRQ number
+ * @legacy_irq_enabled: Are IRQs enabled on NIC (INT_EN_KER register)?
  * @workqueue: Workqueue for port reconfigures and the HW monitor.
  *	Work items do not hold and must not acquire RTNL.
  * @workqueue_name: Name of workqueue
@@ -702,6 +703,7 @@ struct efx_nic {
 	struct pci_dev *pci_dev;
 	const struct efx_nic_type *type;
 	int legacy_irq;
+	bool legacy_irq_enabled;
 	struct workqueue_struct *workqueue;
 	char workqueue_name[16];
 	struct work_struct reset_work;

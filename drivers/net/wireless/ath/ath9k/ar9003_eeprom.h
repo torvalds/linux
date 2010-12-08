@@ -270,17 +270,12 @@ struct cal_tgt_pow_ht {
 	u8 tPow2x[14];
 } __packed;
 
-struct cal_ctl_edge_pwr {
-	u8 tPower:6,
-	   flag:2;
-} __packed;
-
 struct cal_ctl_data_2g {
-	struct cal_ctl_edge_pwr ctlEdges[AR9300_NUM_BAND_EDGES_2G];
+	u8 ctlEdges[AR9300_NUM_BAND_EDGES_2G];
 } __packed;
 
 struct cal_ctl_data_5g {
-	struct cal_ctl_edge_pwr ctlEdges[AR9300_NUM_BAND_EDGES_5G];
+	u8 ctlEdges[AR9300_NUM_BAND_EDGES_5G];
 } __packed;
 
 struct ar9300_BaseExtension_1 {
