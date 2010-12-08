@@ -72,6 +72,7 @@ struct symbol_conf {
 			show_cpu_utilization,
 			initialized;
 	const char	*vmlinux_name,
+			*kallsyms_name,
 			*source_prefix,
 			*field_sep;
 	const char	*default_guest_vmlinux_name,

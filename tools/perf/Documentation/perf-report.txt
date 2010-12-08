@@ -104,6 +104,9 @@ OPTIONS
 --vmlinux=<file>::
         vmlinux pathname
 
+--kallsyms=<file>::
+        kallsyms pathname
+
 -m::
 --modules::
         Load module symbols. WARNING: This should only be used with -k and
