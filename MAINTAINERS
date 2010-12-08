@@ -1394,7 +1394,9 @@ F:	drivers/net/tg3.*
 BROADCOM BRCM80211 IEEE802.11n WIRELESS DRIVER
 M:	Brett Rudley <brudley@broadcom.com>
 M:	Henry Ptasinski <henryp@broadcom.com>
-M:	Nohee Ko <noheek@broadcom.com>
+M:	Dowan Kim <dowan@broadcom.com>
+M:	Roland Vossen <rvossen@broadcom.com>
+M:	Arend van Spriel <arend@broadcom.com>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
 F:	drivers/staging/brcm80211/
