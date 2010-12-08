@@ -165,32 +165,6 @@ static void scsi_cd_put(struct scsi_cd *cd)
 	mutex_unlock(&sr_ref_mutex);
 }
 
-/* identical to scsi_test_unit_ready except that it doesn't
- * eat the NOT_READY returns for removable media */
-int sr_test_unit_ready(struct scsi_device *sdev, struct scsi_sense_hdr *sshdr)
-{
-	int retries = MAX_RETRIES;
-	int the_result;
-	u8 cmd[] = {TEST_UNIT_READY, 0, 0, 0, 0, 0 };
-
-	/* issue TEST_UNIT_READY until the initial startup UNIT_ATTENTION
-	 * conditions are gone, or a timeout happens
-	 */
-	do {
-		the_result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL,
-					      0, sshdr, SR_TIMEOUT,
-					      retries--, NULL);
-		if (scsi_sense_valid(sshdr) &&
-		    sshdr->sense_key == UNIT_ATTENTION)
-			sdev->changed = 1;
-
-	} while (retries > 0 &&
-		 (!scsi_status_is_good(the_result) ||
-		  (scsi_sense_valid(sshdr) &&
-		   sshdr->sense_key == UNIT_ATTENTION)));
-	return the_result;
-}
-
 /*
  * This function checks to see if the media has been changed in the
  * CDROM drive.  It is possible that we have already sensed a change,
@@ -213,7 +187,8 @@ static int sr_media_change(struct cdrom_device_info *cdi, int slot)
 	}
 
 	sshdr =  kzalloc(sizeof(*sshdr), GFP_KERNEL);
-	retval = sr_test_unit_ready(cd->device, sshdr);
+	retval = scsi_test_unit_ready(cd->device, SR_TIMEOUT, MAX_RETRIES,
+				      sshdr);
 	/*
 	 * Media is considered to be present if TUR succeeds or fails with
 	 * sense data indicating something other than media-not-present
@@ -784,7 +759,7 @@ static void get_capabilities(struct scsi_cd *cd)
 	}
 
 	/* eat unit attentions */
-	sr_test_unit_ready(cd->device, &sshdr);
+	scsi_test_unit_ready(cd->device, SR_TIMEOUT, MAX_RETRIES, &sshdr);
 
 	/* ask for mode page 0x2a */
 	rc = scsi_mode_sense(cd->device, 0, 0x2a, buffer, 128,
