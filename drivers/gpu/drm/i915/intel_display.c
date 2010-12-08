@@ -4758,8 +4758,14 @@ static void intel_gpu_idle_timer(unsigned long arg)
 	struct drm_device *dev = (struct drm_device *)arg;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	dev_priv->busy = false;
+	if (!list_empty(&dev_priv->mm.active_list)) {
+		/* Still processing requests, so just re-arm the timer. */
+		mod_timer(&dev_priv->idle_timer, jiffies +
+			  msecs_to_jiffies(GPU_IDLE_TIMEOUT));
+		return;
+	}
 
+	dev_priv->busy = false;
 	queue_work(dev_priv->wq, &dev_priv->idle_work);
 }
 
@@ -4770,9 +4776,17 @@ static void intel_crtc_idle_timer(unsigned long arg)
 	struct intel_crtc *intel_crtc = (struct intel_crtc *)arg;
 	struct drm_crtc *crtc = &intel_crtc->base;
 	drm_i915_private_t *dev_priv = crtc->dev->dev_private;
+	struct intel_framebuffer *intel_fb;
+
+	intel_fb = to_intel_framebuffer(crtc->fb);
+	if (intel_fb && intel_fb->obj->active) {
+		/* The framebuffer is still being accessed by the GPU. */
+		mod_timer(&intel_crtc->idle_timer, jiffies +
+			  msecs_to_jiffies(CRTC_IDLE_TIMEOUT));
+		return;
+	}
 
 	intel_crtc->busy = false;
-
 	queue_work(dev_priv->wq, &dev_priv->idle_work);
 }
 
