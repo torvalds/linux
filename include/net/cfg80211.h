@@ -1468,6 +1468,9 @@ struct ieee80211_txrx_stypes {
  * @mgmt_stypes: bitmasks of frame subtypes that can be subscribed to or
  *	transmitted through nl80211, points to an array indexed by interface
  *	type
+ *
+ * @available_antennas: bitmap of antennas which are available to configure.
+ *	antenna configuration commands will be rejected unless this is set.
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -1506,6 +1509,8 @@ struct wiphy {
 	u32 hw_version;
 
 	u8 max_num_pmkids;
+
+	u32 available_antennas;
 
 	/* If multiple wiphys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee80211_ptr, you won't
