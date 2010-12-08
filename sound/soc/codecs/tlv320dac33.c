@@ -599,9 +599,9 @@ static const struct snd_soc_dapm_widget dac33_dapm_widgets[] = {
 	SND_SOC_DAPM_SWITCH("Analog Right Bypass", SND_SOC_NOPM, 0, 0,
 				&dac33_dapm_abypassr_control),
 
-	SND_SOC_DAPM_REG(snd_soc_dapm_mixer, "Output Left Amp Power",
+	SND_SOC_DAPM_REG(snd_soc_dapm_mixer, "Output Left Amplifier",
 			 DAC33_OUT_AMP_PWR_CTRL, 6, 3, 3, 0),
-	SND_SOC_DAPM_REG(snd_soc_dapm_mixer, "Output Right Amp Power",
+	SND_SOC_DAPM_REG(snd_soc_dapm_mixer, "Output Right Amplifier",
 			 DAC33_OUT_AMP_PWR_CTRL, 4, 3, 3, 0),
 
 	SND_SOC_DAPM_PRE("Prepare Playback", playback_event),
@@ -612,15 +612,15 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Analog Left Bypass", "Switch", "LINEL"},
 	{"Analog Right Bypass", "Switch", "LINER"},
 
-	{"Output Left Amp Power", NULL, "DACL"},
-	{"Output Right Amp Power", NULL, "DACR"},
+	{"Output Left Amplifier", NULL, "DACL"},
+	{"Output Right Amplifier", NULL, "DACR"},
 
-	{"Output Left Amp Power", NULL, "Analog Left Bypass"},
-	{"Output Right Amp Power", NULL, "Analog Right Bypass"},
+	{"Output Left Amplifier", NULL, "Analog Left Bypass"},
+	{"Output Right Amplifier", NULL, "Analog Right Bypass"},
 
 	/* output */
-	{"LEFT_LO", NULL, "Output Left Amp Power"},
-	{"RIGHT_LO", NULL, "Output Right Amp Power"},
+	{"LEFT_LO", NULL, "Output Left Amplifier"},
+	{"RIGHT_LO", NULL, "Output Right Amplifier"},
 };
 
 static int dac33_add_widgets(struct snd_soc_codec *codec)
