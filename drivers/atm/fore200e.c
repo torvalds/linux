@@ -2567,14 +2567,14 @@ release:
 
 
 static int __devinit
-fore200e_register(struct fore200e* fore200e)
+fore200e_register(struct fore200e* fore200e, struct device *parent)
 {
     struct atm_dev* atm_dev;
 
     DPRINTK(2, "device %s being registered\n", fore200e->name);
 
-    atm_dev = atm_dev_register(fore200e->bus->proc_name, &fore200e_ops, -1,
-      NULL); 
+    atm_dev = atm_dev_register(fore200e->bus->proc_name, parent, &fore200e_ops,
+                               -1, NULL);
     if (atm_dev == NULL) {
 	printk(FORE200E "unable to register device %s\n", fore200e->name);
 	return -ENODEV;
@@ -2594,9 +2594,9 @@ fore200e_register(struct fore200e* fore200e)
 
 
 static int __devinit
-fore200e_init(struct fore200e* fore200e)
+fore200e_init(struct fore200e* fore200e, struct device *parent)
 {
-    if (fore200e_register(fore200e) < 0)
+    if (fore200e_register(fore200e, parent) < 0)
 	return -ENODEV;
     
     if (fore200e->bus->configure(fore200e) < 0)
@@ -2662,7 +2662,7 @@ static int __devinit fore200e_sba_probe(struct platform_device *op,
 
 	sprintf(fore200e->name, "%s-%d", bus->model_name, index);
 
-	err = fore200e_init(fore200e);
+	err = fore200e_init(fore200e, &op->dev);
 	if (err < 0) {
 		fore200e_shutdown(fore200e);
 		kfree(fore200e);
@@ -2740,7 +2740,7 @@ fore200e_pca_detect(struct pci_dev *pci_dev, const struct pci_device_id *pci_ent
 
     sprintf(fore200e->name, "%s-%d", bus->model_name, index);
 
-    err = fore200e_init(fore200e);
+    err = fore200e_init(fore200e, &pci_dev->dev);
     if (err < 0) {
 	fore200e_shutdown(fore200e);
 	goto out_free;
