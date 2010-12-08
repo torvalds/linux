@@ -2635,7 +2635,7 @@ static int picolcd_probe(struct hid_device *hdev,
 		goto err_cleanup_data;
 	}
 
-	error = hdev->ll_driver->open(hdev);
+	error = hid_hw_open(hdev);
 	if (error) {
 		dev_err(&hdev->dev, "failed to open input interrupt pipe for key and IR events\n");
 		goto err_cleanup_hid_hw;
@@ -2668,7 +2668,7 @@ err_cleanup_sysfs2:
 err_cleanup_sysfs1:
 	device_remove_file(&hdev->dev, &dev_attr_operation_mode_delay);
 err_cleanup_hid_ll:
-	hdev->ll_driver->close(hdev);
+	hid_hw_close(hdev);
 err_cleanup_hid_hw:
 	hid_hw_stop(hdev);
 err_cleanup_data:
@@ -2699,7 +2699,7 @@ static void picolcd_remove(struct hid_device *hdev)
 	picolcd_exit_devfs(data);
 	device_remove_file(&hdev->dev, &dev_attr_operation_mode);
 	device_remove_file(&hdev->dev, &dev_attr_operation_mode_delay);
-	hdev->ll_driver->close(hdev);
+	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 	hid_set_drvdata(hdev, NULL);
 

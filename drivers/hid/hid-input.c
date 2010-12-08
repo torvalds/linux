@@ -772,14 +772,14 @@ static int hidinput_open(struct input_dev *dev)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 
-	return hid->ll_driver->open(hid);
+	return hid_hw_open(hid);
 }
 
 static void hidinput_close(struct input_dev *dev)
 {
 	struct hid_device *hid = input_get_drvdata(dev);
 
-	hid->ll_driver->close(hid);
+	hid_hw_close(hid);
 }
 
 /*

@@ -173,19 +173,15 @@ static int roccat_open(struct inode *inode, struct file *file)
 
 	if (!device->open++) {
 		/* power on device on adding first reader */
-		if (device->hid->ll_driver->power) {
-			error = device->hid->ll_driver->power(device->hid,
-					PM_HINT_FULLON);
-			if (error < 0) {
-				--device->open;
-				goto exit_err;
-			}
-		}
-		error = device->hid->ll_driver->open(device->hid);
+		error = hid_hw_power(device->hid, PM_HINT_FULLON);
 		if (error < 0) {
-			if (device->hid->ll_driver->power)
-				device->hid->ll_driver->power(device->hid,
-						PM_HINT_NORMAL);
+			--device->open;
+			goto exit_err;
+		}
+
+		error = hid_hw_open(device->hid);
+		if (error < 0) {
+			hid_hw_power(device->hid, PM_HINT_NORMAL);
 			--device->open;
 			goto exit_err;
 		}
@@ -231,10 +227,8 @@ static int roccat_release(struct inode *inode, struct file *file)
 	if (!--device->open) {
 		/* removing last reader */
 		if (device->exist) {
-			if (device->hid->ll_driver->power)
-				device->hid->ll_driver->power(device->hid,
-						PM_HINT_NORMAL);
-			device->hid->ll_driver->close(device->hid);
+			hid_hw_power(device->hid, PM_HINT_NORMAL);
+			hid_hw_close(device->hid);
 		} else {
 			kfree(device);
 		}
@@ -370,7 +364,7 @@ void roccat_disconnect(int minor)
 	device_destroy(roccat_class, MKDEV(roccat_major, minor));
 
 	if (device->open) {
-		device->hid->ll_driver->close(device->hid);
+		hid_hw_close(device->hid);
 		wake_up_interruptible(&device->wait);
 	} else {
 		kfree(device);
