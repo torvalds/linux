@@ -123,6 +123,7 @@ static struct rk29_gpio_bank rk29_gpiobankinit[] = {
 #define FB_ID                       0
 #define FB_DISPLAY_ON_PIN           RK29_PIN6_PD0
 #define FB_LCD_STANDBY_PIN          RK29_PIN6_PD1
+#define FB_LCD_CABC_EN_PIN          RK29_PIN6_PD2
 #define FB_MCU_FMK_PIN              INVALID_GPIO
 
 #define FB_DISPLAY_ON_VALUE         GPIO_HIGH
@@ -182,6 +183,19 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
             printk(">>>>>> FB_LCD_STANDBY_PIN gpio_request err \n ");
         }
     }
+
+    if(FB_LCD_CABC_EN_PIN != INVALID_GPIO)
+    {
+        ret = gpio_request(FB_LCD_CABC_EN_PIN, NULL);
+        if(ret != 0)
+        {
+            gpio_free(FB_LCD_CABC_EN_PIN);
+            printk(">>>>>> FB_LCD_CABC_EN_PIN gpio_request err \n ");
+        }
+        gpio_direction_output(FB_LCD_CABC_EN_PIN, 0);
+        gpio_set_value(FB_LCD_CABC_EN_PIN, GPIO_LOW);
+    }
+    
     return ret;
 }
 
@@ -248,7 +262,6 @@ static struct platform_device rk29_vpu_mem_device = {
 
 /*HANNSTAR_P1003 touch*/
 #if defined (CONFIG_HANNSTAR_P1003)
-#define TOUCH_POWER_PIN RK29_PIN6_PD2
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN0_PA2
 
@@ -260,12 +273,6 @@ int p1003_init_platform_hw(void)
       return -EIO;
     }
 
-    if(gpio_request(TOUCH_POWER_PIN,NULL) != 0){
-      gpio_free(TOUCH_POWER_PIN);
-      printk("p1003_init_platform_hw gpio_request error\n");
-      return -EIO;
-    }
-
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
       printk("p1003_init_platform_hw gpio_request error\n");
@@ -273,8 +280,6 @@ int p1003_init_platform_hw(void)
     }
     gpio_pull_updown(TOUCH_INT_PIN, 1);
     gpio_direction_output(TOUCH_RESET_PIN, 0);
-    gpio_direction_output(TOUCH_POWER_PIN, 1);
-    gpio_set_value(TOUCH_POWER_PIN,GPIO_HIGH);
     mdelay(500);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
     mdelay(500);
