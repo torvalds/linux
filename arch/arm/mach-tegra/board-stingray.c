@@ -897,6 +897,7 @@ static void __init tegra_stingray_init(void)
 
 	tegra_common_init();
 	tegra_init_suspend(&stingray_suspend);
+	stingray_init_emc();
 
 	/* Stingray has a USB switch that disconnects the usb port from the T20
 	   unless a factory cable is used, the factory jumper is set, or the
