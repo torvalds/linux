@@ -79,6 +79,11 @@
 #define METHOD_GPIO_24XX	5
 #define METHOD_GPIO_44XX	6
 
+struct omap_gpio_dev_attr {
+	int bank_width;		/* GPIO bank width */
+	bool dbck_flag;		/* dbck required or not - True for OMAP3&4 */
+};
+
 struct omap_gpio_platform_data {
 	u16 virtual_irq_start;
 	int bank_type;
