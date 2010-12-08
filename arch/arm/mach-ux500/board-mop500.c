@@ -98,9 +98,9 @@ static struct ab8500_platform_data ab8500_platdata = {
 
 static struct resource ab8500_resources[] = {
 	[0] = {
-		.start = IRQ_AB8500,
-		.end = IRQ_AB8500,
-		.flags = IORESOURCE_IRQ
+		.start	= IRQ_DB8500_AB8500,
+		.end	= IRQ_DB8500_AB8500,
+		.flags	= IORESOURCE_IRQ
 	}
 };
 

@@ -240,7 +240,8 @@ static int __init prcmu_init(void)
 	/* Clean up the mailbox interrupts after pre-kernel code. */
 	writel((MBOX_BIT(NUM_MBOX) - 1), PRCM_ARM_IT1_CLEAR);
 
-	return request_irq(IRQ_PRCMU, prcmu_irq_handler, 0, "prcmu", NULL);
+	return request_irq(IRQ_DB8500_PRCMU1, prcmu_irq_handler, 0,
+			   "prcmu", NULL);
 }
 
 arch_initcall(prcmu_init);
