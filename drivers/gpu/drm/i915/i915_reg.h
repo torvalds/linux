@@ -3115,4 +3115,5 @@
 #define  EDP_LINK_TRAIN_VOL_EMP_MASK_SNB	(0x3f<<22)
 
 #define  FORCEWAKE				0xA18C
+#define  FORCEWAKE_ACK				0x130090
 #endif /* _I915_REG_H_ */

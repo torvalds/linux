@@ -1341,17 +1341,20 @@ __i915_write(64, q)
  * must be set to prevent GT core from power down and stale values being
  * returned.
  */
+void __gen6_force_wake_get(struct drm_i915_private *dev_priv);
+void __gen6_force_wake_put (struct drm_i915_private *dev_priv);
 static inline u32 i915_safe_read(struct drm_i915_private *dev_priv, u32 reg)
 {
-	if (IS_GEN6(dev_priv->dev)) {
-		I915_WRITE_NOTRACE(FORCEWAKE, 1);
-		POSTING_READ(FORCEWAKE);
-		/* XXX How long do we really need to wait here?
-		 * Will different registers/engines require different periods?
-		 */
-		udelay(100);
-	}
-	return I915_READ(reg);
+	u32 val;
+
+	if (dev_priv->info->gen >= 6) {
+		__gen6_force_wake_get(dev_priv);
+		val = I915_READ(reg);
+		__gen6_force_wake_put(dev_priv);
+	} else
+		val = I915_READ(reg);
+
+	return val;
 }
 
 static inline void
