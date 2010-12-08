@@ -2963,7 +2963,6 @@ static int receive_sizes(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 		}
 		put_ldev(mdev);
 	}
-#undef min_not_zero
 
 	ddsf = be16_to_cpu(p->dds_flags);
 	if (get_ldev(mdev)) {
