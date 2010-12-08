@@ -834,7 +834,6 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 			return -ENODEV;
 	} else {
 		/* fallback to the codec default */
-		hinfo->channels_min = codec_pars->channels_min;
 		hinfo->channels_max = codec_pars->channels_max;
 		hinfo->rates = codec_pars->rates;
 		hinfo->formats = codec_pars->formats;
