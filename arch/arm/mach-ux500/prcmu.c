@@ -1,10 +1,14 @@
 /*
- * Copyright (C) ST Ericsson SA 2010
+ * Copyright (C) STMicroelectronics 2009
+ * Copyright (C) ST-Ericsson SA 2010
  *
  * License Terms: GNU General Public License v2
+ * Author: Kumar Sanghvi <kumar.sanghvi@stericsson.com>
+ * Author: Sundar Iyer <sundar.iyer@stericsson.com>
  * Author: Mattias Nilsson <mattias.i.nilsson@stericsson.com>
  *
- * U8500 PRCMU driver.
+ * U8500 PRCM Unit interface driver
+ *
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -19,12 +23,26 @@
 
 #include <mach/hardware.h>
 #include <mach/prcmu-regs.h>
+#include <mach/prcmu-defs.h>
 
 /* Global var to runtime determine TCDM base for v2 or v1 */
 static __iomem void *tcdm_base;
 
+#define _MBOX_HEADER		(tcdm_base + 0xFE8)
+#define MBOX_HEADER_REQ_MB0	(_MBOX_HEADER + 0x0)
+
+#define REQ_MB1 (tcdm_base + 0xFD0)
 #define REQ_MB5 (tcdm_base + 0xE44)
+
+#define REQ_MB1_ARMOPP		(REQ_MB1 + 0x0)
+#define REQ_MB1_APEOPP		(REQ_MB1 + 0x1)
+#define REQ_MB1_BOOSTOPP	(REQ_MB1 + 0x2)
+
+#define ACK_MB1 (tcdm_base + 0xE04)
 #define ACK_MB5 (tcdm_base + 0xDF4)
+
+#define ACK_MB1_CURR_ARMOPP		(ACK_MB1 + 0x0)
+#define ACK_MB1_CURR_APEOPP		(ACK_MB1 + 0x1)
 
 #define REQ_MB5_I2C_SLAVE_OP (REQ_MB5)
 #define REQ_MB5_I2C_HW_BITS (REQ_MB5 + 1)
@@ -34,11 +52,32 @@ static __iomem void *tcdm_base;
 #define ACK_MB5_I2C_STATUS (ACK_MB5 + 1)
 #define ACK_MB5_I2C_VAL (ACK_MB5 + 3)
 
+#define PRCM_AVS_VARM_MAX_OPP		(tcdm_base + 0x2E4)
+#define PRCM_AVS_ISMODEENABLE		7
+#define PRCM_AVS_ISMODEENABLE_MASK	(1 << PRCM_AVS_ISMODEENABLE)
+
 #define I2C_WRITE(slave) \
 	(((slave) << 1) | (cpu_is_u8500v2() ? BIT(6) : 0))
 #define I2C_READ(slave) \
 	(((slave) << 1) | (cpu_is_u8500v2() ? BIT(6) : 0) | BIT(0))
 #define I2C_STOP_EN BIT(3)
+
+enum mb1_h {
+	MB1H_ARM_OPP = 1,
+	MB1H_APE_OPP,
+	MB1H_ARM_APE_OPP,
+};
+
+static struct {
+	struct mutex lock;
+	struct completion work;
+	struct {
+		u8 arm_opp;
+		u8 ape_opp;
+		u8 arm_status;
+		u8 ape_status;
+	} ack;
+} mb1_transfer;
 
 enum ack_mb5_status {
 	I2C_WR_OK = 0x01,
@@ -148,6 +187,104 @@ unlock_and_return:
 }
 EXPORT_SYMBOL(prcmu_abb_write);
 
+static int set_ape_cpu_opps(u8 header, enum prcmu_ape_opp ape_opp,
+			    enum prcmu_cpu_opp cpu_opp)
+{
+	bool do_ape;
+	bool do_arm;
+	int err = 0;
+
+	do_ape = ((header == MB1H_APE_OPP) || (header == MB1H_ARM_APE_OPP));
+	do_arm = ((header == MB1H_ARM_OPP) || (header == MB1H_ARM_APE_OPP));
+
+	mutex_lock(&mb1_transfer.lock);
+
+	while (readl(PRCM_MBOX_CPU_VAL) & MBOX_BIT(1))
+		cpu_relax();
+
+	writeb(0, MBOX_HEADER_REQ_MB0);
+	writeb(cpu_opp, REQ_MB1_ARMOPP);
+	writeb(ape_opp, REQ_MB1_APEOPP);
+	writeb(0, REQ_MB1_BOOSTOPP);
+	writel(MBOX_BIT(1), PRCM_MBOX_CPU_SET);
+	wait_for_completion(&mb1_transfer.work);
+	if ((do_ape) && (mb1_transfer.ack.ape_status != 0))
+		err = -EIO;
+	if ((do_arm) && (mb1_transfer.ack.arm_status != 0))
+		err = -EIO;
+
+	mutex_unlock(&mb1_transfer.lock);
+
+	return err;
+}
+
+/**
+ * prcmu_set_ape_opp() - Set the OPP of the APE.
+ * @opp:	The OPP to set.
+ *
+ * This function sets the OPP of the APE.
+ */
+int prcmu_set_ape_opp(enum prcmu_ape_opp opp)
+{
+	return set_ape_cpu_opps(MB1H_APE_OPP, opp, APE_OPP_NO_CHANGE);
+}
+EXPORT_SYMBOL(prcmu_set_ape_opp);
+
+/**
+ * prcmu_set_cpu_opp() - Set the OPP of the CPU.
+ * @opp:	The OPP to set.
+ *
+ * This function sets the OPP of the CPU.
+ */
+int prcmu_set_cpu_opp(enum prcmu_cpu_opp opp)
+{
+	return set_ape_cpu_opps(MB1H_ARM_OPP, CPU_OPP_NO_CHANGE, opp);
+}
+EXPORT_SYMBOL(prcmu_set_cpu_opp);
+
+/**
+ * prcmu_set_ape_cpu_opps() - Set the OPPs of the APE and the CPU.
+ * @ape_opp:	The APE OPP to set.
+ * @cpu_opp:	The CPU OPP to set.
+ *
+ * This function sets the OPPs of the APE and the CPU.
+ */
+int prcmu_set_ape_cpu_opps(enum prcmu_ape_opp ape_opp,
+			   enum prcmu_cpu_opp cpu_opp)
+{
+	return set_ape_cpu_opps(MB1H_ARM_APE_OPP, ape_opp, cpu_opp);
+}
+EXPORT_SYMBOL(prcmu_set_ape_cpu_opps);
+
+/**
+ * prcmu_get_ape_opp() - Get the OPP of the APE.
+ *
+ * This function gets the OPP of the APE.
+ */
+enum prcmu_ape_opp prcmu_get_ape_opp(void)
+{
+	return readb(ACK_MB1_CURR_APEOPP);
+}
+EXPORT_SYMBOL(prcmu_get_ape_opp);
+
+/**
+ * prcmu_get_cpu_opp() - Get the OPP of the CPU.
+ *
+ * This function gets the OPP of the CPU. The OPP is specified in %%.
+ * PRCMU_OPP_EXT is a special OPP value, not specified in %%.
+ */
+int prcmu_get_cpu_opp(void)
+{
+	return readb(ACK_MB1_CURR_ARMOPP);
+}
+EXPORT_SYMBOL(prcmu_get_cpu_opp);
+
+bool prcmu_has_arm_maxopp(void)
+{
+	return (readb(PRCM_AVS_VARM_MAX_OPP) & PRCM_AVS_ISMODEENABLE_MASK)
+		== PRCM_AVS_ISMODEENABLE_MASK;
+}
+
 static void read_mailbox_0(void)
 {
 	writel(MBOX_BIT(0), PRCM_ARM_IT1_CLEAR);
@@ -155,6 +292,9 @@ static void read_mailbox_0(void)
 
 static void read_mailbox_1(void)
 {
+	mb1_transfer.ack.arm_opp = readb(ACK_MB1_CURR_ARMOPP);
+	mb1_transfer.ack.ape_opp = readb(ACK_MB1_CURR_APEOPP);
+	complete(&mb1_transfer.work);
 	writel(MBOX_BIT(1), PRCM_ARM_IT1_CLEAR);
 }
 
@@ -234,6 +374,13 @@ void __init prcmu_early_init(void)
 
 static int __init prcmu_init(void)
 {
+	if (cpu_is_u8500ed()) {
+		pr_err("prcmu: Unsupported chip version\n");
+		return 0;
+	}
+
+	mutex_init(&mb1_transfer.lock);
+	init_completion(&mb1_transfer.work);
 	mutex_init(&mb5_transfer.lock);
 	init_completion(&mb5_transfer.work);
 
