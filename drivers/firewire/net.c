@@ -178,6 +178,7 @@ struct fwnet_device {
 
 	/* Number of tx datagrams that have been queued but not yet acked */
 	int queued_datagrams;
+	int peer_count;
 
 	struct list_head peer_list;
 	struct fw_card *card;
@@ -1405,6 +1406,10 @@ static int fwnet_change_mtu(struct net_device *net, int new_mtu)
 	return 0;
 }
 
+static const struct ethtool_ops fwnet_ethtool_ops = {
+	.get_link	= ethtool_op_get_link,
+};
+
 static const struct net_device_ops fwnet_netdev_ops = {
 	.ndo_open       = fwnet_open,
 	.ndo_stop	= fwnet_stop,
@@ -1423,6 +1428,8 @@ static void fwnet_init_dev(struct net_device *net)
 	net->hard_header_len	= FWNET_HLEN;
 	net->type		= ARPHRD_IEEE1394;
 	net->tx_queue_len	= FWNET_TX_QUEUE_LEN;
+	net->ethtool_ops	= &fwnet_ethtool_ops;
+
 }
 
 /* caller must hold fwnet_device_mutex */
@@ -1463,6 +1470,7 @@ static int fwnet_add_peer(struct fwnet_device *dev,
 
 	spin_lock_irq(&dev->lock);
 	list_add_tail(&peer->peer_link, &dev->peer_list);
+	dev->peer_count++;
 	spin_unlock_irq(&dev->lock);
 
 	return 0;
@@ -1534,6 +1542,9 @@ static int fwnet_probe(struct device *_dev)
 		unregister_netdev(net);
 		list_del(&dev->dev_link);
 	}
+
+	if (dev->peer_count > 1)
+		netif_carrier_on(net);
  out:
 	if (ret && allocated_netdev)
 		free_netdev(net);
@@ -1549,6 +1560,7 @@ static void fwnet_remove_peer(struct fwnet_peer *peer)
 
 	spin_lock_irq(&peer->dev->lock);
 	list_del(&peer->peer_link);
+	peer->dev->peer_count--;
 	spin_unlock_irq(&peer->dev->lock);
 
 	list_for_each_entry_safe(pd, pd_next, &peer->pd_list, pd_link)
@@ -1567,6 +1579,11 @@ static int fwnet_remove(struct device *_dev)
 	mutex_lock(&fwnet_device_mutex);
 
 	fwnet_remove_peer(peer);
+
+	/* If we serve just one node, that means we lost link
+		with outer world */
+	if (dev->peer_count == 1)
+		netif_carrier_off(dev->netdev);
 
 	if (list_empty(&dev->peer_list)) {
 		net = dev->netdev;
