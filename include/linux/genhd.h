@@ -127,6 +127,11 @@ struct hd_struct {
 #define GENHD_FL_EXT_DEVT			64 /* allow extended devt */
 #define GENHD_FL_NATIVE_CAPACITY		128
 
+enum {
+	DISK_EVENT_MEDIA_CHANGE			= 1 << 0, /* media changed */
+	DISK_EVENT_EJECT_REQUEST		= 1 << 1, /* eject requested */
+};
+
 #define BLK_SCSI_MAX_CMDS	(256)
 #define BLK_SCSI_CMD_PER_LONG	(BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
 
@@ -143,6 +148,8 @@ struct disk_part_tbl {
 	struct hd_struct __rcu *part[];
 };
 
+struct disk_events;
+
 struct gendisk {
 	/* major, first_minor and minors are input parameters only,
 	 * don't use directly.  Use disk_devt() and disk_max_parts().
@@ -154,6 +161,10 @@ struct gendisk {
 
 	char disk_name[DISK_NAME_LEN];	/* name of major driver */
 	char *(*devnode)(struct gendisk *gd, mode_t *mode);
+
+	unsigned int events;		/* supported events */
+	unsigned int async_events;	/* async events, subset of all */
+
 	/* Array of pointers to partitions indexed by partno.
 	 * Protected with matching bdev lock but stat and other
 	 * non-critical accesses use RCU.  Always access through
@@ -171,8 +182,8 @@ struct gendisk {
 	struct kobject *slave_dir;
 
 	struct timer_rand_state *random;
-
 	atomic_t sync_io;		/* RAID */
+	struct disk_events *ev;
 #ifdef  CONFIG_BLK_DEV_INTEGRITY
 	struct blk_integrity *integrity;
 #endif
@@ -404,6 +415,11 @@ static inline int get_disk_ro(struct gendisk *disk)
 {
 	return disk->part0.policy;
 }
+
+extern void disk_block_events(struct gendisk *disk);
+extern void disk_unblock_events(struct gendisk *disk);
+extern void disk_check_events(struct gendisk *disk);
+extern unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask);
 
 /* drivers/char/random.c */
 extern void add_disk_randomness(struct gendisk *disk);
