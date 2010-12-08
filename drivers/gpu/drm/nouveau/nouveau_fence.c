@@ -77,14 +77,17 @@ nouveau_fence_update(struct nouveau_channel *chan)
 
 	spin_lock(&chan->fence.lock);
 
-	if (USE_REFCNT(dev))
-		sequence = nvchan_rd32(chan, 0x48);
-	else
-		sequence = atomic_read(&chan->fence.last_sequence_irq);
+	/* Fetch the last sequence if the channel is still up and running */
+	if (likely(!list_empty(&chan->fence.pending))) {
+		if (USE_REFCNT(dev))
+			sequence = nvchan_rd32(chan, 0x48);
+		else
+			sequence = atomic_read(&chan->fence.last_sequence_irq);
 
-	if (chan->fence.sequence_ack == sequence)
-		goto out;
-	chan->fence.sequence_ack = sequence;
+		if (chan->fence.sequence_ack == sequence)
+			goto out;
+		chan->fence.sequence_ack = sequence;
+	}
 
 	list_for_each_entry_safe(fence, tmp, &chan->fence.pending, entry) {
 		sequence = fence->sequence;
