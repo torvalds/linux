@@ -1836,17 +1836,11 @@ static int __devexit omap_mcbsp_remove(struct platform_device *pdev)
 
 		omap34xx_device_exit(mcbsp);
 
-		clk_disable(mcbsp->fclk);
-		clk_disable(mcbsp->iclk);
 		clk_put(mcbsp->fclk);
 		clk_put(mcbsp->iclk);
 
 		iounmap(mcbsp->io_base);
-
-		mcbsp->fclk = NULL;
-		mcbsp->iclk = NULL;
-		mcbsp->free = 0;
-		mcbsp->dev = NULL;
+		kfree(mcbsp);
 	}
 
 	return 0;
