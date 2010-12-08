@@ -24,7 +24,6 @@ struct wlc_hw_info;
 struct wlc_if;
 struct wl_if;
 struct ampdu_info;
-struct wlc_ap_info;
 struct antsel_info;
 struct bmac_pmq;
 

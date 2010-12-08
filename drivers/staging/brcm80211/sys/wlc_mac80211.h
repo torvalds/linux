@@ -753,8 +753,6 @@ struct wlc_info {
 	ac_bitmap_t apsd_trigger_ac;	/* Permissible Acess Category in which APSD Null
 					 * Trigger frames can be send
 					 */
-	struct wlc_ap_info *ap;
-
 	u8 htphy_membership;	/* HT PHY membership */
 
 	bool _regulatory_domain;	/* 802.11d enabled? */
