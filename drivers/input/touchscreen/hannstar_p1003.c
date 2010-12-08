@@ -72,11 +72,12 @@ int p1003_get_pendown_state(void)
 static void p1003_report_event(struct ts_p1003 *ts,struct multitouch_event *tc)
 {
 	struct input_dev *input = ts->input;
-    int i;
+    int i,pandown = 0;
 	dev_dbg(&ts->client->dev, "UP\n");
 		
     for(i=0; i<MAX_SUPPORT_POINT;i++){			
-        if(tc->point_data[i].status >= 0){				
+        if(tc->point_data[i].status >= 0){
+            pandown |= tc->point_data[i].status;
             input_report_abs(input, ABS_MT_TRACKING_ID, i);							
             input_report_abs(input, ABS_MT_TOUCH_MAJOR, tc->point_data[i].status);				
             input_report_abs(input, ABS_MT_WIDTH_MAJOR, 0);	
@@ -92,6 +93,7 @@ static void p1003_report_event(struct ts_p1003 *ts,struct multitouch_event *tc)
         }
         
     }	
+    ts->pendown = pandown;
     input_sync(input);
 }
 static void p1003_report_single_event(struct ts_p1003 *ts,struct multitouch_event *tc)
@@ -160,6 +162,7 @@ static void p1003_work(struct work_struct *work)
 	if (ts->pendown)
 		schedule_delayed_work(&ts->work,
 				      msecs_to_jiffies(10));
+	    
 	else
 		enable_irq(ts->irq);
 }
@@ -167,7 +170,6 @@ static void p1003_work(struct work_struct *work)
 static irqreturn_t p1003_irq(int irq, void *handle)
 {
 	struct ts_p1003 *ts = handle;
-	
 #if 1
 	if (!ts->get_pendown_state || likely(ts->get_pendown_state())) {
 		disable_irq_nosync(ts->irq);
