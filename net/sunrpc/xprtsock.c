@@ -2359,6 +2359,15 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 	struct svc_sock *bc_sock;
 	struct rpc_xprt *ret;
 
+	if (args->bc_xprt->xpt_bc_xprt) {
+		/*
+		 * This server connection already has a backchannel
+		 * export; we can't create a new one, as we wouldn't be
+		 * able to match replies based on xid any more.  So,
+		 * reuse the already-existing one:
+		 */
+		 return args->bc_xprt->xpt_bc_xprt;
+	}
 	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries);
 	if (IS_ERR(xprt))
 		return xprt;
@@ -2396,15 +2405,6 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 			xprt->address_strings[RPC_DISPLAY_PORT],
 			xprt->address_strings[RPC_DISPLAY_PROTO]);
 
-	/*
-	 * The backchannel uses the same socket connection as the
-	 * forechannel
-	 */
-	if (args->bc_xprt->xpt_bc_xprt) {
-		/* XXX: actually, want to catch this case... */
-		ret = ERR_PTR(-EINVAL);
-		goto out_err;
-	}
 	/*
 	 * Once we've associated a backchannel xprt with a connection,
 	 * we want to keep it around as long as long as the connection
