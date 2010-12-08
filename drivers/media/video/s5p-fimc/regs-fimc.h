@@ -210,7 +210,7 @@
 
 /* Input DMA control */
 #define S5P_MSCTRL			0xfc
-#define S5P_MSCTRL_IN_BURST_COUNT_MASK	(3 << 24)
+#define S5P_MSCTRL_IN_BURST_COUNT_MASK	(0xF << 24)
 #define S5P_MSCTRL_2P_IN_ORDER_MASK	(3 << 16)
 #define S5P_MSCTRL_2P_IN_ORDER_SHIFT	16
 #define S5P_MSCTRL_C_INT_IN_3PLANE	(0 << 15)
@@ -237,7 +237,7 @@
 #define S5P_MSCTRL_INFORMAT_RGB		(3 << 1)
 #define S5P_MSCTRL_INFORMAT_MASK	(3 << 1)
 #define S5P_MSCTRL_ENVID		(1 << 0)
-#define S5P_MSCTRL_FRAME_COUNT(x)	((x) << 24)
+#define S5P_MSCTRL_IN_BURST_COUNT(x)	((x) << 24)
 
 /* Output DMA Y/Cb/Cr offset */
 #define S5P_CIOYOFF			0x168

@@ -417,12 +417,10 @@ void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
 		| S5P_MSCTRL_C_INT_IN_MASK
 		| S5P_MSCTRL_2P_IN_ORDER_MASK);
 
-	cfg |= (S5P_MSCTRL_FRAME_COUNT(1) | S5P_MSCTRL_INPUT_MEMORY);
+	cfg |= S5P_MSCTRL_IN_BURST_COUNT(4) | S5P_MSCTRL_INPUT_MEMORY;
 
 	switch (frame->fmt->color) {
-	case S5P_FIMC_RGB565:
-	case S5P_FIMC_RGB666:
-	case S5P_FIMC_RGB888:
+	case S5P_FIMC_RGB565...S5P_FIMC_RGB888:
 		cfg |= S5P_MSCTRL_INFORMAT_RGB;
 		break;
 	case S5P_FIMC_YCBCR420:
@@ -434,10 +432,7 @@ void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
 			cfg |= S5P_MSCTRL_C_INT_IN_3PLANE;
 
 		break;
-	case S5P_FIMC_YCBYCR422:
-	case S5P_FIMC_YCRYCB422:
-	case S5P_FIMC_CBYCRY422:
-	case S5P_FIMC_CRYCBY422:
+	case S5P_FIMC_YCBYCR422...S5P_FIMC_CRYCBY422:
 		if (frame->fmt->colplanes == 1) {
 			cfg |= ctx->in_order_1p
 				| S5P_MSCTRL_INFORMAT_YCBCR422_1P;
