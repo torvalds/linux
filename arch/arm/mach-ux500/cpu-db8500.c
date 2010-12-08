@@ -25,15 +25,6 @@
 #include "devices-db8500.h"
 
 static struct platform_device *platform_devs[] __initdata = {
-	&u8500_gpio_devs[0],
-	&u8500_gpio_devs[1],
-	&u8500_gpio_devs[2],
-	&u8500_gpio_devs[3],
-	&u8500_gpio_devs[4],
-	&u8500_gpio_devs[5],
-	&u8500_gpio_devs[6],
-	&u8500_gpio_devs[7],
-	&u8500_gpio_devs[8],
 	&u8500_dma40_device,
 };
 
@@ -141,6 +132,28 @@ void __init u8500_map_io(void)
 	get_db8500_asic_id();
 }
 
+static resource_size_t __initdata db8500_gpio_base[] = {
+	U8500_GPIOBANK0_BASE,
+	U8500_GPIOBANK1_BASE,
+	U8500_GPIOBANK2_BASE,
+	U8500_GPIOBANK3_BASE,
+	U8500_GPIOBANK4_BASE,
+	U8500_GPIOBANK5_BASE,
+	U8500_GPIOBANK6_BASE,
+	U8500_GPIOBANK7_BASE,
+	U8500_GPIOBANK8_BASE,
+};
+
+static void __init db8500_add_gpios(void)
+{
+	struct nmk_gpio_platform_data pdata = {
+		/* No custom data yet */
+	};
+
+	dbx500_add_gpios(ARRAY_AND_SIZE(db8500_gpio_base),
+			 IRQ_DB8500_GPIO0, &pdata);
+}
+
 /*
  * This function is called from the board init
  */
@@ -164,6 +177,7 @@ void __init u8500_init_devices(void)
 		dma40_u8500ed_fixup();
 
 	db8500_add_rtc();
+	db8500_add_gpios();
 
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 

@@ -74,4 +74,9 @@ dbx500_add_rtc(resource_size_t base, int irq)
 	return dbx500_add_amba_device("rtc-pl031", base, irq, NULL, 0);
 }
 
+struct nmk_gpio_platform_data;
+
+void dbx500_add_gpios(resource_size_t *base, int num, int irq,
+		      struct nmk_gpio_platform_data *pdata);
+
 #endif
