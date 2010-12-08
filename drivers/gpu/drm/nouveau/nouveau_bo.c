@@ -120,9 +120,6 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	align >>= PAGE_SHIFT;
 
 	if (!nvbo->no_vm && dev_priv->chan_vm) {
-		if (dev_priv->card_type == NV_C0)
-			page_shift = 12;
-
 		ret = nouveau_vm_get(dev_priv->chan_vm, size, page_shift,
 				     NV_MEM_ACCESS_RW, &nvbo->vma);
 		if (ret) {

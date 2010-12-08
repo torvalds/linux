@@ -115,15 +115,16 @@ nv50_crtc_blank(struct nouveau_crtc *nv_crtc, bool blanked)
 		OUT_RING(evo, 0);
 		BEGIN_RING(evo, 0, NV50_EVO_CRTC(index, FB_DMA), 1);
 		if (dev_priv->chipset != 0x50)
-			if (nv_crtc->fb.tile_flags == 0x7a00)
+			if (nv_crtc->fb.tile_flags == 0x7a00 ||
+			    nv_crtc->fb.tile_flags == 0xfe00)
 				OUT_RING(evo, NvEvoFB32);
 			else
 			if (nv_crtc->fb.tile_flags == 0x7000)
 				OUT_RING(evo, NvEvoFB16);
 			else
-				OUT_RING(evo, NvEvoVRAM);
+				OUT_RING(evo, NvEvoVRAM_LP);
 		else
-			OUT_RING(evo, NvEvoVRAM);
+			OUT_RING(evo, NvEvoVRAM_LP);
 	}
 
 	nv_crtc->fb.blanked = blanked;
@@ -555,13 +556,14 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 			return ret;
 
 		BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, FB_DMA), 1);
-		if (nv_crtc->fb.tile_flags == 0x7a00)
+		if (nv_crtc->fb.tile_flags == 0x7a00 ||
+		    nv_crtc->fb.tile_flags == 0xfe00)
 			OUT_RING(evo, NvEvoFB32);
 		else
 		if (nv_crtc->fb.tile_flags == 0x7000)
 			OUT_RING(evo, NvEvoFB16);
 		else
-			OUT_RING(evo, NvEvoVRAM);
+			OUT_RING(evo, NvEvoVRAM_LP);
 	}
 
 	ret = RING_SPACE(evo, 12);
@@ -575,8 +577,10 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	if (!nv_crtc->fb.tile_flags) {
 		OUT_RING(evo, drm_fb->pitch | (1 << 20));
 	} else {
-		OUT_RING(evo, ((drm_fb->pitch / 4) << 4) |
-				  fb->nvbo->tile_mode);
+		u32 tile_mode = fb->nvbo->tile_mode;
+		if (dev_priv->card_type >= NV_C0)
+			tile_mode >>= 4;
+		OUT_RING(evo, ((drm_fb->pitch / 4) << 4) | tile_mode);
 	}
 	if (dev_priv->chipset == 0x50)
 		OUT_RING(evo, (nv_crtc->fb.tile_flags << 8) | format);

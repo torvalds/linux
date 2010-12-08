@@ -53,7 +53,8 @@ nv50_evo_channel_del(struct nouveau_channel **pevo)
 
 int
 nv50_evo_dmaobj_new(struct nouveau_channel *evo, u32 class, u32 name,
-		    u32 tile_flags, u32 magic_flags, u32 offset, u32 limit)
+		    u32 tile_flags, u32 magic_flags, u32 offset, u32 limit,
+		    u32 flags5)
 {
 	struct drm_nouveau_private *dev_priv = evo->dev->dev_private;
 	struct drm_device *dev = evo->dev;
@@ -70,10 +71,7 @@ nv50_evo_dmaobj_new(struct nouveau_channel *evo, u32 class, u32 name,
 	nv_wo32(obj,  8, offset);
 	nv_wo32(obj, 12, 0x00000000);
 	nv_wo32(obj, 16, 0x00000000);
-	if (dev_priv->card_type < NV_C0)
-		nv_wo32(obj, 20, 0x00010000);
-	else
-		nv_wo32(obj, 20, 0x00020000);
+	nv_wo32(obj, 20, flags5);
 	dev_priv->engine.instmem.flush(dev);
 
 	ret = nouveau_ramht_insert(evo, name, obj);
@@ -264,9 +262,31 @@ nv50_evo_create(struct drm_device *dev)
 	}
 
 	/* create some default objects for the scanout memtypes we support */
+	if (dev_priv->card_type >= NV_C0) {
+		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoFB32, 0xfe, 0x19,
+					  0, 0xffffffff, 0x00000000);
+		if (ret) {
+			nv50_evo_channel_del(&dev_priv->evo);
+			return ret;
+		}
+
+		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoVRAM, 0, 0x19,
+					  0, dev_priv->vram_size, 0x00020000);
+		if (ret) {
+			nv50_evo_channel_del(&dev_priv->evo);
+			return ret;
+		}
+
+		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoVRAM_LP, 0, 0x19,
+					  0, dev_priv->vram_size, 0x00000000);
+		if (ret) {
+			nv50_evo_channel_del(&dev_priv->evo);
+			return ret;
+		}
+	} else
 	if (dev_priv->chipset != 0x50) {
 		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoFB16, 0x70, 0x19,
-					  0, 0xffffffff);
+					  0, 0xffffffff, 0x00010000);
 		if (ret) {
 			nv50_evo_channel_del(&dev_priv->evo);
 			return ret;
@@ -274,18 +294,25 @@ nv50_evo_create(struct drm_device *dev)
 
 
 		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoFB32, 0x7a, 0x19,
-					  0, 0xffffffff);
+					  0, 0xffffffff, 0x00010000);
 		if (ret) {
 			nv50_evo_channel_del(&dev_priv->evo);
 			return ret;
 		}
-	}
 
-	ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoVRAM, 0, 0x19,
-				  0, dev_priv->vram_size);
-	if (ret) {
-		nv50_evo_channel_del(&dev_priv->evo);
-		return ret;
+		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoVRAM, 0, 0x19,
+					  0, dev_priv->vram_size, 0x00010000);
+		if (ret) {
+			nv50_evo_channel_del(&dev_priv->evo);
+			return ret;
+		}
+
+		ret = nv50_evo_dmaobj_new(evo, 0x3d, NvEvoVRAM_LP, 0, 0x19,
+					  0, dev_priv->vram_size, 0x00010000);
+		if (ret) {
+			nv50_evo_channel_del(&dev_priv->evo);
+			return ret;
+		}
 	}
 
 	return 0;

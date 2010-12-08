@@ -29,8 +29,16 @@
 bool
 nvc0_vram_flags_valid(struct drm_device *dev, u32 tile_flags)
 {
-	if (likely(!(tile_flags & NOUVEAU_GEM_TILE_LAYOUT_MASK)))
+	switch (tile_flags & NOUVEAU_GEM_TILE_LAYOUT_MASK) {
+	case 0x0000:
+	case 0xfe00:
+	case 0xdb00:
+	case 0x1100:
 		return true;
+	default:
+		break;
+	}
+
 	return false;
 }
 
