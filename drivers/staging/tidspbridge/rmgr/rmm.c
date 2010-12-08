@@ -144,7 +144,7 @@ int rmm_alloc(struct rmm_target_obj *target, u32 segid, u32 size,
 			new_sect->addr = addr;
 			new_sect->size = size;
 			new_sect->page = segid;
-			if (list_is_last(sect, &target->ovly_list))
+			if (list_is_last(&sect->list_elem, &target->ovly_list))
 				/* Put new section at the end of the list */
 				list_add_tail(&new_sect->list_elem,
 						&target->ovly_list);
