@@ -130,6 +130,7 @@ static struct omap_device_pm_latency omap_i2c_latency[] = {
 	},
 };
 
+#ifdef CONFIG_ARCH_OMAP2PLUS
 static inline int omap2_i2c_add_bus(int bus_id)
 {
 	int l;
@@ -166,6 +167,12 @@ static inline int omap2_i2c_add_bus(int bus_id)
 
 	return PTR_ERR(od);
 }
+#else
+static inline int omap2_i2c_add_bus(int bus_id)
+{
+	return 0;
+}
+#endif
 
 static int __init omap_i2c_add_bus(int bus_id)
 {
