@@ -651,7 +651,8 @@ static int ov9640_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
 static int ov9640_video_probe(struct soc_camera_device *icd,
 				struct i2c_client *client)
 {
-	struct ov9640_priv *priv = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 	u8		pid, ver, midh, midl;
 	const char	*devname;
 	int		ret = 0;
@@ -788,7 +789,8 @@ static int ov9640_probe(struct i2c_client *client,
 
 static int ov9640_remove(struct i2c_client *client)
 {
-	struct ov9640_priv *priv = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov9640_priv *priv = to_ov9640_sensor(sd);
 
 	kfree(priv);
 	return 0;
