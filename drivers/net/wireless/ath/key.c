@@ -58,6 +58,8 @@ bool ath_hw_keyreset(struct ath_common *common, u16 entry)
 		REG_WRITE(ah, AR_KEYTABLE_KEY1(micentry), 0);
 		REG_WRITE(ah, AR_KEYTABLE_KEY2(micentry), 0);
 		REG_WRITE(ah, AR_KEYTABLE_KEY3(micentry), 0);
+		if (common->crypt_caps & ATH_CRYPT_CAP_MIC_COMBINED)
+			REG_WRITE(ah, AR_KEYTABLE_KEY4(micentry), 0);
 
 	}
 
