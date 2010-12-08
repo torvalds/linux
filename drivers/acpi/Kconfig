@@ -209,6 +209,17 @@ config ACPI_PROCESSOR
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called processor.
+config ACPI_IPMI
+	tristate "IPMI"
+	depends on EXPERIMENTAL && IPMI_SI && IPMI_HANDLER
+	default n
+	help
+	  This driver enables the ACPI to access the BMC controller. And it
+	  uses the IPMI request/response message to communicate with BMC
+	  controller, which can be found on on the server.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called as acpi_ipmi.
 
 config ACPI_HOTPLUG_CPU
 	bool
