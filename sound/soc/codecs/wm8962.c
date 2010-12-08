@@ -3339,7 +3339,7 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 	int mask;
 	int active;
 
-	mask = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2);
+	mask = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2_MASK);
 
 	active = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2);
 	active &= ~mask;
