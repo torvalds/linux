@@ -1694,16 +1694,16 @@ static struct clk * gpio5_fck;
 static struct clk *gpio_iclks[OMAP34XX_NR_GPIOS];
 #endif
 
-static void __init omap_gpio_show_rev(void)
+static void __init omap_gpio_show_rev(struct gpio_bank *bank)
 {
 	u32 rev;
 
-	if (cpu_is_omap16xx())
-		rev = __raw_readw(gpio_bank[1].base + OMAP1610_GPIO_REVISION);
+	if (cpu_is_omap16xx() && !(bank->method != METHOD_MPUIO))
+		rev = __raw_readw(bank->base + OMAP1610_GPIO_REVISION);
 	else if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		rev = __raw_readl(gpio_bank[0].base + OMAP24XX_GPIO_REVISION);
+		rev = __raw_readl(bank->base + OMAP24XX_GPIO_REVISION);
 	else if (cpu_is_omap44xx())
-		rev = __raw_readl(gpio_bank[0].base + OMAP4_GPIO_REVISION);
+		rev = __raw_readl(bank->base + OMAP4_GPIO_REVISION);
 	else
 		return;
 
@@ -1963,7 +1963,7 @@ static int __init _omap_gpio_init(void)
 		}
 	}
 
-	omap_gpio_show_rev();
+	omap_gpio_show_rev(bank);
 
 	return 0;
 }
