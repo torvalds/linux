@@ -27,10 +27,6 @@
 static void __iomem *l2x0_base;
 #endif
 
-void __init ux500_map_io(void)
-{
-}
-
 void __init ux500_init_irq(void)
 {
 	void __iomem *dist_base;
