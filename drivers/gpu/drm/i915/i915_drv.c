@@ -304,13 +304,18 @@ static int i915_drm_thaw(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int error = 0;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		mutex_lock(&dev->struct_mutex);
+		i915_gem_restore_gtt_mappings(dev);
+		mutex_unlock(&dev->struct_mutex);
+	}
+
 	i915_restore_state(dev);
 	intel_opregion_setup(dev);
 
 	/* KMS EnterVT equivalent */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		mutex_lock(&dev->struct_mutex);
-		i915_gem_restore_gtt_mappings(dev);
 		dev_priv->mm.suspended = 0;
 
 		error = i915_gem_init_ringbuffer(dev);
