@@ -5252,7 +5252,8 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 }
 
 static void do_intel_finish_page_flip(struct drm_device *dev,
-				      struct drm_crtc *crtc)
+				      struct drm_crtc *crtc,
+				      int called_before_vblirq)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -5274,18 +5275,32 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	}
 
 	intel_crtc->unpin_work = NULL;
-	drm_vblank_put(dev, intel_crtc->pipe);
 
 	if (work->event) {
 		e = work->event;
-		do_gettimeofday(&now);
-		e->event.sequence = drm_vblank_count(dev, intel_crtc->pipe);
+		e->event.sequence = drm_vblank_count_and_time(dev, intel_crtc->pipe, &now);
+
+		/* Called before vblank count and timestamps have
+		 * been updated for the vblank interval of flip
+		 * completion? Need to increment vblank count and
+		 * add one videorefresh duration to returned timestamp
+		 * to account for this.
+		 */
+		if (called_before_vblirq) {
+			e->event.sequence++;
+			now = ns_to_timeval(timeval_to_ns(&now) +
+					    crtc->framedur_ns);
+		}
+
 		e->event.tv_sec = now.tv_sec;
 		e->event.tv_usec = now.tv_usec;
+
 		list_add_tail(&e->base.link,
 			      &e->base.file_priv->event_list);
 		wake_up_interruptible(&e->base.file_priv->event_wait);
 	}
+
+	drm_vblank_put(dev, intel_crtc->pipe);
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
@@ -5306,7 +5321,8 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 
-	do_intel_finish_page_flip(dev, crtc);
+	/* Called after drm_handle_vblank has run for finish vblank. */
+	do_intel_finish_page_flip(dev, crtc, 0);
 }
 
 void intel_finish_page_flip_plane(struct drm_device *dev, int plane)
@@ -5314,7 +5330,8 @@ void intel_finish_page_flip_plane(struct drm_device *dev, int plane)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->plane_to_crtc_mapping[plane];
 
-	do_intel_finish_page_flip(dev, crtc);
+	/* Called before drm_handle_vblank has run for finish vblank. */
+	do_intel_finish_page_flip(dev, crtc, 1);
 }
 
 void intel_prepare_page_flip(struct drm_device *dev, int plane)

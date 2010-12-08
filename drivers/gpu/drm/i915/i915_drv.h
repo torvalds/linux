@@ -1019,6 +1019,13 @@ void
 i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
 
 void intel_enable_asle (struct drm_device *dev);
+int i915_get_vblank_timestamp(struct drm_device *dev, int crtc,
+			      int *max_error,
+			      struct timeval *vblank_time,
+			      unsigned flags);
+
+int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
+			     int *vpos, int *hpos);
 
 #ifdef CONFIG_DEBUG_FS
 extern void i915_destroy_error_state(struct drm_device *dev);

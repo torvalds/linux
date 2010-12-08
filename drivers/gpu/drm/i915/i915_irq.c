@@ -248,6 +248,92 @@ u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
 	return I915_READ(reg);
 }
 
+int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
+			     int *vpos, int *hpos)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32 vbl = 0, position = 0;
+	int vbl_start, vbl_end, htotal, vtotal;
+	bool in_vbl = true;
+	int ret = 0;
+
+	if (!i915_pipe_enabled(dev, pipe)) {
+		DRM_DEBUG_DRIVER("trying to get scanoutpos for disabled "
+					"pipe %d\n", pipe);
+		return 0;
+	}
+
+	/* Get vtotal. */
+	vtotal = 1 + ((I915_READ(VTOTAL(pipe)) >> 16) & 0x1fff);
+
+	if (INTEL_INFO(dev)->gen >= 4) {
+		/* No obvious pixelcount register. Only query vertical
+		 * scanout position from Display scan line register.
+		 */
+		position = I915_READ(PIPEDSL(pipe));
+
+		/* Decode into vertical scanout position. Don't have
+		 * horizontal scanout position.
+		 */
+		*vpos = position & 0x1fff;
+		*hpos = 0;
+	} else {
+		/* Have access to pixelcount since start of frame.
+		 * We can split this into vertical and horizontal
+		 * scanout position.
+		 */
+		position = (I915_READ(PIPEFRAMEPIXEL(pipe)) & PIPE_PIXEL_MASK) >> PIPE_PIXEL_SHIFT;
+
+		htotal = 1 + ((I915_READ(HTOTAL(pipe)) >> 16) & 0x1fff);
+		*vpos = position / htotal;
+		*hpos = position - (*vpos * htotal);
+	}
+
+	/* Query vblank area. */
+	vbl = I915_READ(VBLANK(pipe));
+
+	/* Test position against vblank region. */
+	vbl_start = vbl & 0x1fff;
+	vbl_end = (vbl >> 16) & 0x1fff;
+
+	if ((*vpos < vbl_start) || (*vpos > vbl_end))
+		in_vbl = false;
+
+	/* Inside "upper part" of vblank area? Apply corrective offset: */
+	if (in_vbl && (*vpos >= vbl_start))
+		*vpos = *vpos - vtotal;
+
+	/* Readouts valid? */
+	if (vbl > 0)
+		ret |= DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE;
+
+	/* In vblank? */
+	if (in_vbl)
+		ret |= DRM_SCANOUTPOS_INVBL;
+
+	return ret;
+}
+
+int i915_get_vblank_timestamp(struct drm_device *dev, int crtc,
+			      int *max_error,
+			      struct timeval *vblank_time,
+			      unsigned flags)
+{
+	struct drm_crtc *drmcrtc;
+
+	if (crtc < 0 || crtc >= dev->num_crtcs) {
+		DRM_ERROR("Invalid crtc %d\n", crtc);
+		return -EINVAL;
+	}
+
+	/* Get drm_crtc to timestamp: */
+	drmcrtc = intel_get_crtc_for_pipe(dev, crtc);
+
+	/* Helper routine in DRM core does all the work: */
+	return drm_calc_vbltimestamp_from_scanoutpos(dev, crtc, max_error,
+						     vblank_time, flags, drmcrtc);
+}
+
 /*
  * Handle hotplug events outside the interrupt handler proper.
  */
