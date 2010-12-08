@@ -21,6 +21,7 @@
 #include <linux/dcache.h>
 #include <linux/percpu.h>
 #include <linux/ptrace.h>
+#include <linux/reboot.h>
 #include <linux/vmstat.h>
 #include <linux/vmalloc.h>
 #include <linux/hardirq.h>
@@ -6429,7 +6430,7 @@ static void __cpuinit perf_event_init_cpu(int cpu)
 	mutex_unlock(&swhash->hlist_mutex);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
+#if defined CONFIG_HOTPLUG_CPU || defined CONFIG_KEXEC
 static void perf_pmu_rotate_stop(struct pmu *pmu)
 {
 	struct perf_cpu_context *cpuctx = this_cpu_ptr(pmu->pmu_cpu_context);
@@ -6483,6 +6484,26 @@ static void perf_event_exit_cpu(int cpu)
 static inline void perf_event_exit_cpu(int cpu) { }
 #endif
 
+static int
+perf_reboot(struct notifier_block *notifier, unsigned long val, void *v)
+{
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		perf_event_exit_cpu(cpu);
+
+	return NOTIFY_OK;
+}
+
+/*
+ * Run the perf reboot notifier at the very last possible moment so that
+ * the generic watchdog code runs as long as possible.
+ */
+static struct notifier_block perf_reboot_notifier = {
+	.notifier_call = perf_reboot,
+	.priority = INT_MIN,
+};
+
 static int __cpuinit
 perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 {
@@ -6518,6 +6539,7 @@ void __init perf_event_init(void)
 	perf_pmu_register(&perf_task_clock);
 	perf_tp_register();
 	perf_cpu_notifier(perf_cpu_notify);
+	register_reboot_notifier(&perf_reboot_notifier);
 
 	ret = init_hw_breakpoint();
 	WARN(ret, "hw_breakpoint initialization failed with: %d", ret);
