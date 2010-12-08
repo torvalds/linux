@@ -62,6 +62,10 @@ struct gether {
 
 	/* hooks for added framing, as needed for RNDIS and EEM. */
 	u32				header_len;
+	/* NCM requires fixed size bundles */
+	bool				is_fixed;
+	u32				fixed_out_len;
+	u32				fixed_in_len;
 	struct sk_buff			*(*wrap)(struct gether *port,
 						struct sk_buff *skb);
 	int				(*unwrap)(struct gether *port,
