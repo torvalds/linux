@@ -284,8 +284,6 @@ static void __init osk_init_irq(void)
 	omap1_init_common_hw();
 	omap_init_irq();
 	omap_gpio_init();
-	osk_init_smc91x();
-	osk_init_cf();
 }
 
 static struct omap_usb_config osk_usb_config __initdata = {
@@ -540,6 +538,9 @@ static void __init osk_mistral_init(void) { }
 static void __init osk_init(void)
 {
 	u32 l;
+
+	osk_init_smc91x();
+	osk_init_cf();
 
 	/* Workaround for wrong CS3 (NOR flash) timing
 	 * There are some U-Boot versions out there which configure

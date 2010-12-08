@@ -281,7 +281,6 @@ static void __init omap_apollon_init_irq(void)
 	omap2_init_common_hw(NULL, NULL);
 	omap_init_irq();
 	omap_gpio_init();
-	apollon_init_smc91x();
 }
 
 static void __init apollon_led_init(void)
@@ -324,6 +323,7 @@ static void __init omap_apollon_init(void)
 
 	omap2420_mux_init(board_mux, OMAP_PACKAGE_ZAC);
 
+	apollon_init_smc91x();
 	apollon_led_init();
 	apollon_flash_init();
 	apollon_usb_init();

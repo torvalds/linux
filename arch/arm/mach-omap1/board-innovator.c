@@ -296,7 +296,6 @@ static void __init innovator_init_irq(void)
 		omap1510_fpga_init_irq();
 	}
 #endif
-	innovator_init_smc91x();
 }
 
 #ifdef CONFIG_ARCH_OMAP15XX
@@ -387,6 +386,8 @@ static struct omap_board_config_kernel innovator_config[] = {
 
 static void __init innovator_init(void)
 {
+	innovator_init_smc91x();
+
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		unsigned char reg;
