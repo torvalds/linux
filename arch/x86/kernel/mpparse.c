@@ -118,21 +118,8 @@ static void __init MP_bus_info(struct mpc_bus *m)
 
 static void __init MP_ioapic_info(struct mpc_ioapic *m)
 {
-	if (!(m->flags & MPC_APIC_USABLE))
-		return;
-
-	printk(KERN_INFO "I/O APIC #%d Version %d at 0x%X.\n",
-	       m->apicid, m->apicver, m->apicaddr);
-
-	mp_register_ioapic(m->apicid, m->apicaddr, gsi_top);
-}
-
-static void print_MP_intsrc_info(struct mpc_intsrc *m)
-{
-	apic_printk(APIC_VERBOSE, "Int: type %d, pol %d, trig %d, bus %02x,"
-		" IRQ %02x, APIC ID %x, APIC INT %02x\n",
-		m->irqtype, m->irqflag & 3, (m->irqflag >> 2) & 3, m->srcbus,
-		m->srcbusirq, m->dstapic, m->dstirq);
+	if (m->flags & MPC_APIC_USABLE)
+		mp_register_ioapic(m->apicid, m->apicaddr, gsi_top);
 }
 
 static void __init print_mp_irq_info(struct mpc_intsrc *mp_irq)
@@ -144,22 +131,10 @@ static void __init print_mp_irq_info(struct mpc_intsrc *mp_irq)
 		mp_irq->srcbusirq, mp_irq->dstapic, mp_irq->dstirq);
 }
 
-static void __init assign_to_mpc_intsrc(struct mpc_intsrc *mp_irq,
-					struct mpc_intsrc *m)
-{
-	m->dstapic = mp_irq->dstapic;
-	m->type = mp_irq->type;
-	m->irqtype = mp_irq->irqtype;
-	m->irqflag = mp_irq->irqflag;
-	m->srcbus = mp_irq->srcbus;
-	m->srcbusirq = mp_irq->srcbusirq;
-	m->dstirq = mp_irq->dstirq;
-}
 #else /* CONFIG_X86_IO_APIC */
 static inline void __init MP_bus_info(struct mpc_bus *m) {}
 static inline void __init MP_ioapic_info(struct mpc_ioapic *m) {}
 #endif /* CONFIG_X86_IO_APIC */
-
 
 static void __init MP_lintsrc_info(struct mpc_lintsrc *m)
 {
@@ -172,7 +147,6 @@ static void __init MP_lintsrc_info(struct mpc_lintsrc *m)
 /*
  * Read/parse the MPC
  */
-
 static int __init smp_check_mpc(struct mpc_table *mpc, char *oem, char *str)
 {
 
@@ -718,11 +692,11 @@ static void __init check_irq_src(struct mpc_intsrc *m, int *nr_m_spare)
 	int i;
 
 	apic_printk(APIC_VERBOSE, "OLD ");
-	print_MP_intsrc_info(m);
+	print_mp_irq_info(m);
 
 	i = get_MP_intsrc_index(m);
 	if (i > 0) {
-		assign_to_mpc_intsrc(&mp_irqs[i], m);
+		memcpy(m, &mp_irqs[i], sizeof(*m));
 		apic_printk(APIC_VERBOSE, "NEW ");
 		print_mp_irq_info(&mp_irqs[i]);
 		return;
@@ -809,14 +783,14 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 		if (nr_m_spare > 0) {
 			apic_printk(APIC_VERBOSE, "*NEW* found\n");
 			nr_m_spare--;
-			assign_to_mpc_intsrc(&mp_irqs[i], m_spare[nr_m_spare]);
+			memcpy(m_spare[nr_m_spare], &mp_irqs[i], sizeof(mp_irqs[i]));
 			m_spare[nr_m_spare] = NULL;
 		} else {
 			struct mpc_intsrc *m = (struct mpc_intsrc *)mpt;
 			count += sizeof(struct mpc_intsrc);
 			if (check_slot(mpc_new_phys, mpc_new_length, count) < 0)
 				goto out;
-			assign_to_mpc_intsrc(&mp_irqs[i], m);
+			memcpy(m, &mp_irqs[i], sizeof(*m));
 			mpc->length = count;
 			mpt += sizeof(struct mpc_intsrc);
 		}
