@@ -280,7 +280,6 @@ static void __init omap_apollon_init_irq(void)
 	omap_board_config_size = ARRAY_SIZE(apollon_config);
 	omap2_init_common_hw(NULL, NULL);
 	omap_init_irq();
-	omap_gpio_init();
 }
 
 static void __init apollon_led_init(void)

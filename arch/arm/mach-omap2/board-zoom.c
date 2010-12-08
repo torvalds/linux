@@ -43,7 +43,6 @@ static void __init omap_zoom_init_irq(void)
 				h8mbx00u0mer0em_sdrc_params);
 
 	omap_init_irq();
-	omap_gpio_init();
 }
 
 #ifdef CONFIG_OMAP_MUX

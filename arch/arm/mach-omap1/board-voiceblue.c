@@ -158,7 +158,6 @@ static void __init voiceblue_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
 }
 
 static void __init voiceblue_init(void)
