@@ -44,6 +44,7 @@
 #include <mach/mmc.h>
 #include <mach/msm_iomap.h>
 #include <mach/dma.h>
+#include <mach/clk.h>
 
 #include "msm_sdcc.h"
 
@@ -125,6 +126,40 @@ msmsdcc_writel(struct msmsdcc_host *host, u32 data, unsigned int reg)
 static void
 msmsdcc_start_command(struct msmsdcc_host *host, struct mmc_command *cmd,
 		      u32 c);
+
+static void msmsdcc_reset_and_restore(struct msmsdcc_host *host)
+{
+	u32	mci_clk = 0;
+	u32	mci_mask0 = 0;
+	int	ret = 0;
+
+	/* Save the controller state */
+	mci_clk = readl(host->base + MMCICLOCK);
+	mci_mask0 = readl(host->base + MMCIMASK0);
+
+	/* Reset the controller */
+	ret = clk_reset(host->clk, CLK_RESET_ASSERT);
+	if (ret)
+		pr_err("%s: Clock assert failed at %u Hz with err %d\n",
+				mmc_hostname(host->mmc), host->clk_rate, ret);
+
+	ret = clk_reset(host->clk, CLK_RESET_DEASSERT);
+	if (ret)
+		pr_err("%s: Clock deassert failed at %u Hz with err %d\n",
+				mmc_hostname(host->mmc), host->clk_rate, ret);
+
+	pr_info("%s: Controller has been re-initialiazed\n",
+			mmc_hostname(host->mmc));
+
+	/* Restore the contoller state */
+	writel(host->pwr, host->base + MMCIPOWER);
+	writel(mci_clk, host->base + MMCICLOCK);
+	writel(mci_mask0, host->base + MMCIMASK0);
+	ret = clk_set_rate(host->clk, host->clk_rate);
+	if (ret)
+		pr_err("%s: Failed to set clk rate %u Hz (%d)\n",
+				mmc_hostname(host->mmc), host->clk_rate, ret);
+}
 
 static void
 msmsdcc_request_end(struct msmsdcc_host *host, struct mmc_request *mrq)
@@ -223,6 +258,8 @@ msmsdcc_dma_complete_tlet(unsigned long data)
 		pr_err("Flush data: %.8x %.8x %.8x %.8x %.8x %.8x\n",
 		       err.flush[0], err.flush[1], err.flush[2],
 		       err.flush[3], err.flush[4], err.flush[5]);
+
+		msmsdcc_reset_and_restore(host);
 		if (!mrq->data->error)
 			mrq->data->error = -EIO;
 	}
@@ -723,6 +760,7 @@ static void msmsdcc_do_cmdirq(struct msmsdcc_host *host, uint32_t status)
 			msm_dmov_stop_cmd(host->dma.channel,
 					  &host->dma.hdr, 0);
 		else if (host->curr.data) { /* Non DMA */
+			msmsdcc_reset_and_restore(host);
 			msmsdcc_stop_data(host);
 			msmsdcc_request_end(host, cmd->mrq);
 		} else { /* host->data == NULL */
@@ -771,6 +809,7 @@ msmsdcc_handle_irq_data(struct msmsdcc_host *host, u32 status,
 			msm_dmov_stop_cmd(host->dma.channel,
 					  &host->dma.hdr, 0);
 		else {
+			msmsdcc_reset_and_restore(host);
 			if (host->curr.data)
 				msmsdcc_stop_data(host);
 			if (!data->stop)
