@@ -35,6 +35,8 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	struct drm_i915_gem_object *obj;
 
 	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
+		i915_gem_clflush_object(obj);
+
 		if (dev_priv->mm.gtt->needs_dmar) {
 			BUG_ON(!obj->sg_list);
 
@@ -51,7 +53,6 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 					       obj->agp_type);
 	}
 
-	/* Be paranoid and flush the chipset cache. */
 	intel_gtt_chipset_flush();
 }
 
