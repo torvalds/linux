@@ -211,10 +211,12 @@ static int find_grant_ptes(pte_t *pte, pgtable_t token,
 	BUG_ON(pgnr >= map->count);
 	pte_maddr  = (u64)pfn_to_mfn(page_to_pfn(token)) << PAGE_SHIFT;
 	pte_maddr += (unsigned long)pte & ~PAGE_MASK;
-	gnttab_set_map_op(&map->map_ops[pgnr], pte_maddr, map->flags,
+	gnttab_set_map_op(&map->map_ops[pgnr], pte_maddr,
+			  GNTMAP_contains_pte | map->flags,
 			  map->grants[pgnr].ref,
 			  map->grants[pgnr].domid);
-	gnttab_set_unmap_op(&map->unmap_ops[pgnr], pte_maddr, map->flags,
+	gnttab_set_unmap_op(&map->unmap_ops[pgnr], pte_maddr,
+			    GNTMAP_contains_pte | map->flags,
 			    0 /* handle */);
 	return 0;
 }
@@ -569,7 +571,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 	vma->vm_private_data = map;
 	map->vma = vma;
 
-	map->flags = GNTMAP_host_map | GNTMAP_application_map | GNTMAP_contains_pte;
+	map->flags = GNTMAP_host_map | GNTMAP_application_map;
 	if (!(vma->vm_flags & VM_WRITE))
 		map->flags |= GNTMAP_readonly;
 
