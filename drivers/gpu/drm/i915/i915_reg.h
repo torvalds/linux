@@ -283,6 +283,7 @@
 #define RING_CTL(base)		((base)+0x3c)
 #define RING_SYNC_0(base)	((base)+0x40)
 #define RING_SYNC_1(base)	((base)+0x44)
+#define RING_MAX_IDLE(base)	((base)+0x54)
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
 #define RING_ACTHD(base)	((base)+0x74)
@@ -3116,4 +3117,62 @@
 
 #define  FORCEWAKE				0xA18C
 #define  FORCEWAKE_ACK				0x130090
+
+#define GEN6_RC_NORMAL_FREQ			0xA008
+#define   GEN6_TURBO_DISABLE			(1<<31)
+#define   GEN6_FREQUENCY(x)			((x)<<25)
+#define   GEN6_OFFSET(x)			((x)<<19)
+#define   GEN6_AGGRESSIVE_TURBO			(0<<15)
+#define GEN6_RC_VIDEO_FREQ			0xA00C
+#define GEN6_RC_CONTROL				0xA090
+#define   GEN6_RC_CTL_RC6pp_ENABLE		(1<<16)
+#define   GEN6_RC_CTL_RC6p_ENABLE		(1<<17)
+#define   GEN6_RC_CTL_RC6_ENABLE		(1<<18)
+#define   GEN6_RC_CTL_RC1e_ENABLE		(1<<20)
+#define   GEN6_RC_CTL_RC7_ENABLE		(1<<22)
+#define   GEN6_RC_CTL_EI_MODE(x)		((x)<<27)
+#define   GEN6_RC_CTL_HW_ENABLE			(1<<31)
+#define GEN6_RP_DOWN_TIMEOUT			0xA010
+#define GEN6_RP_INTERRUPT_LIMITS		0xA014
+#define GEN6_RP_CONTROL				0xA024
+#define   GEN6_RP_MEDIA_TURBO			(1<<11)
+#define   GEN6_RP_USE_NORMAL_FREQ		(1<<9)
+#define   GEN6_RP_MEDIA_IS_GFX			(1<<8)
+#define   GEN6_RP_ENABLE			(1<<7)
+#define   GEN6_RP_UP_BUSY_MAX			(0x2<<3)
+#define   GEN6_RP_DOWN_BUSY_MIN			(0x2<<0)
+#define GEN6_RP_UP_THRESHOLD			0xA02C
+#define GEN6_RP_DOWN_THRESHOLD			0xA030
+#define GEN6_RP_UP_EI				0xA068
+#define GEN6_RP_DOWN_EI				0xA06C
+#define GEN6_RP_IDLE_HYSTERSIS			0xA070
+#define GEN6_RC_STATE				0xA094
+#define GEN6_RC1_WAKE_RATE_LIMIT		0xA098
+#define GEN6_RC6_WAKE_RATE_LIMIT		0xA09C
+#define GEN6_RC6pp_WAKE_RATE_LIMIT		0xA0A0
+#define GEN6_RC_EVALUATION_INTERVAL		0xA0A8
+#define GEN6_RC_IDLE_HYSTERSIS			0xA0AC
+#define GEN6_RC_SLEEP				0xA0B0
+#define GEN6_RC1e_THRESHOLD			0xA0B4
+#define GEN6_RC6_THRESHOLD			0xA0B8
+#define GEN6_RC6p_THRESHOLD			0xA0BC
+#define GEN6_RC6pp_THRESHOLD			0xA0C0
+
+#define GEN6_PMISR				0x44020
+#define GEN6_PMIMR				0x44024
+#define GEN6_PMIIR				0x44028
+#define GEN6_PMIER				0x4402C
+#define  GEN6_PM_MBOX_EVENT			(1<<25)
+#define  GEN6_PM_THERMAL_EVENT			(1<<24)
+#define  GEN6_PM_RP_DOWN_TIMEOUT		(1<<6)
+#define  GEN6_PM_RP_UP_THRESHOLD		(1<<5)
+#define  GEN6_PM_RP_DOWN_THRESHOLD		(1<<4)
+#define  GEN6_PM_RP_UP_EI_EXPIRED		(1<<2)
+#define  GEN6_PM_RP_DOWN_EI_EXPIRED		(1<<1)
+
+#define GEN6_PCODE_MAILBOX			0x138124
+#define   GEN6_PCODE_READY			(1<<31)
+#define   GEN6_PCODE_WRITE_MIN_FREQ_TABLE	0x9
+#define GEN6_PCODE_DATA				0x138128
+
 #endif /* _I915_REG_H_ */
