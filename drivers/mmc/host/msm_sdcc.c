@@ -189,42 +189,40 @@ msmsdcc_dma_exec_func(struct msm_dmov_cmd *cmd)
 }
 
 static void
-msmsdcc_dma_complete_func(struct msm_dmov_cmd *cmd,
-			  unsigned int result,
-			  struct msm_dmov_errdata *err)
+msmsdcc_dma_complete_tlet(unsigned long data)
 {
-	struct msmsdcc_dma_data	*dma_data =
-		container_of(cmd, struct msmsdcc_dma_data, hdr);
-	struct msmsdcc_host	*host = dma_data->host;
+	struct msmsdcc_host *host = (struct msmsdcc_host *)data;
 	unsigned long		flags;
 	struct mmc_request	*mrq;
+	struct msm_dmov_errdata err;
 
 	spin_lock_irqsave(&host->lock, flags);
 	host->dma.active = 0;
 
+	err = host->dma.err;
 	mrq = host->curr.mrq;
 	BUG_ON(!mrq);
 	WARN_ON(!mrq->data);
 
-	if (!(result & DMOV_RSLT_VALID)) {
+	if (!(host->dma.result & DMOV_RSLT_VALID)) {
 		pr_err("msmsdcc: Invalid DataMover result\n");
 		goto out;
 	}
 
-	if (result & DMOV_RSLT_DONE) {
+	if (host->dma.result & DMOV_RSLT_DONE) {
 		host->curr.data_xfered = host->curr.xfer_size;
 	} else {
 		/* Error or flush  */
-		if (result & DMOV_RSLT_ERROR)
+		if (host->dma.result & DMOV_RSLT_ERROR)
 			pr_err("%s: DMA error (0x%.8x)\n",
-			       mmc_hostname(host->mmc), result);
-		if (result & DMOV_RSLT_FLUSH)
+			       mmc_hostname(host->mmc), host->dma.result);
+		if (host->dma.result & DMOV_RSLT_FLUSH)
 			pr_err("%s: DMA channel flushed (0x%.8x)\n",
-			       mmc_hostname(host->mmc), result);
-		if (err)
-			pr_err("Flush data: %.8x %.8x %.8x %.8x %.8x %.8x\n",
-			       err->flush[0], err->flush[1], err->flush[2],
-			       err->flush[3], err->flush[4], err->flush[5]);
+			       mmc_hostname(host->mmc), host->dma.result);
+
+		pr_err("Flush data: %.8x %.8x %.8x %.8x %.8x %.8x\n",
+		       err.flush[0], err.flush[1], err.flush[2],
+		       err.flush[3], err.flush[4], err.flush[5]);
 		if (!mrq->data->error)
 			mrq->data->error = -EIO;
 	}
@@ -271,6 +269,22 @@ msmsdcc_dma_complete_func(struct msm_dmov_cmd *cmd,
 out:
 	spin_unlock_irqrestore(&host->lock, flags);
 	return;
+}
+
+static void
+msmsdcc_dma_complete_func(struct msm_dmov_cmd *cmd,
+			  unsigned int result,
+			  struct msm_dmov_errdata *err)
+{
+	struct msmsdcc_dma_data	*dma_data =
+		container_of(cmd, struct msmsdcc_dma_data, hdr);
+	struct msmsdcc_host *host = dma_data->host;
+
+	dma_data->result = result;
+	if (err)
+		memcpy(&dma_data->err, err, sizeof(struct msm_dmov_errdata));
+
+	tasklet_schedule(&host->dma_tlet);
 }
 
 static int validate_dma(struct msmsdcc_host *host, struct mmc_data *data)
@@ -1117,6 +1131,9 @@ msmsdcc_probe(struct platform_device *pdev)
 	host->memres = memres;
 	host->dmares = dmares;
 	spin_lock_init(&host->lock);
+
+	tasklet_init(&host->dma_tlet, msmsdcc_dma_complete_tlet,
+			(unsigned long)host);
 
 	/*
 	 * Setup DMA
