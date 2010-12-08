@@ -2329,6 +2329,9 @@ static void __devinit nvbridge_check_legacy_irq_routing(struct pci_dev *dev)
 {
 	u32 cfg;
 
+	if (!pci_find_capability(dev, PCI_CAP_ID_HT))
+		return;
+
 	pci_read_config_dword(dev, 0x74, &cfg);
 
 	if (cfg & ((1 << 2) | (1 << 15))) {
