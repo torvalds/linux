@@ -6309,9 +6309,13 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 					   NULL, NULL);
 		BUG_ON(ret < 0);
 		if (ret > 0) {
-			ret = btrfs_del_orphan_item(trans, tree_root,
-						    root->root_key.objectid);
-			BUG_ON(ret);
+			/* if we fail to delete the orphan item this time
+			 * around, it'll get picked up the next time.
+			 *
+			 * The most common failure here is just -ENOENT.
+			 */
+			btrfs_del_orphan_item(trans, tree_root,
+					      root->root_key.objectid);
 		}
 	}
 
