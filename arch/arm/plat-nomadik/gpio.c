@@ -672,7 +672,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 
 	chip = &nmk_chip->chip;
 	chip->base = pdata->first_gpio;
-	chip->label = pdata->name;
+	chip->label = pdata->name ?: dev_name(&dev->dev);
 	chip->dev = &dev->dev;
 	chip->owner = THIS_MODULE;
 
