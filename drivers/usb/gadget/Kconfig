@@ -741,6 +741,19 @@ config USB_ETH_EEM
          If you say "y" here, the Ethernet gadget driver will use the EEM
          protocol rather than ECM.  If unsure, say "n".
 
+config USB_G_NCM
+	tristate "Network Control Model (NCM) support"
+	depends on NET
+	select CRC32
+	help
+	  This driver implements USB CDC NCM subclass standard. NCM is
+	  an advanced protocol for Ethernet encapsulation, allows grouping
+	  of several ethernet frames into one USB transfer and diffferent
+	  alignment possibilities.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_ncm".
+
 config USB_GADGETFS
 	tristate "Gadget Filesystem (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
