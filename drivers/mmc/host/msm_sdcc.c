@@ -613,6 +613,9 @@ msmsdcc_pio_read(struct msmsdcc_host *host, char *buffer, unsigned int remain)
 	uint32_t	*ptr = (uint32_t *) buffer;
 	int		count = 0;
 
+	if (remain % 4)
+		remain = ((remain >> 2) + 1) << 2;
+
 	while (msmsdcc_readl(host, MMCISTATUS) & MCI_RXDATAAVLBL) {
 		*ptr = msmsdcc_readl(host, MMCIFIFO + (count % MCI_FIFOSIZE));
 		ptr++;
@@ -633,13 +636,14 @@ msmsdcc_pio_write(struct msmsdcc_host *host, char *buffer,
 	char *ptr = buffer;
 
 	do {
-		unsigned int count, maxcnt;
+		unsigned int count, maxcnt, sz;
 
 		maxcnt = status & MCI_TXFIFOEMPTY ? MCI_FIFOSIZE :
 						    MCI_FIFOHALFSIZE;
 		count = min(remain, maxcnt);
 
-		writesl(base + MMCIFIFO, ptr, count >> 2);
+		sz = count % 4 ? (count >> 2) + 1 : (count >> 2);
+		writesl(base + MMCIFIFO, ptr, sz);
 		ptr += count;
 		remain -= count;
 
