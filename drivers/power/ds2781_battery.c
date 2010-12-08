@@ -68,7 +68,7 @@ struct battery_status {
  * THRES_BATT (when battery powered) or THRES_CHRG (when on a charger), the
  * ACR will be reset to a reasonable value.
  */
-#define THRES_PERCENT   5
+#define THRES_PERCENT   3
 #define THRES_BATT      7500000
 #define THRES_CHRG      7750000
 
