@@ -103,7 +103,7 @@ enum drbd_on_congestion {
 };
 
 /* KEEP the order, do not delete or insert. Only append. */
-enum drbd_ret_codes {
+enum drbd_ret_code {
 	ERR_CODE_BASE		= 100,
 	NO_ERROR		= 101,
 	ERR_LOCAL_ADDR		= 102,

@@ -3570,7 +3570,7 @@ void drbd_md_sync(struct drbd_conf *mdev)
  * @mdev:	DRBD device.
  * @bdev:	Device from which the meta data should be read in.
  *
- * Return 0 (NO_ERROR) on success, and an enum drbd_ret_codes in case
+ * Return 0 (NO_ERROR) on success, and an enum drbd_ret_code in case
  * something goes wrong.  Currently only: ERR_IO_MD_DISK, ERR_MD_INVALID.
  */
 int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
