@@ -209,8 +209,8 @@ static int find_grant_ptes(pte_t *pte, pgtable_t token,
 	u64 pte_maddr;
 
 	BUG_ON(pgnr >= map->count);
-	pte_maddr  = (u64)pfn_to_mfn(page_to_pfn(token)) << PAGE_SHIFT;
-	pte_maddr += (unsigned long)pte & ~PAGE_MASK;
+	pte_maddr = arbitrary_virt_to_machine(pte).maddr;
+
 	gnttab_set_map_op(&map->map_ops[pgnr], pte_maddr,
 			  GNTMAP_contains_pte | map->flags,
 			  map->grants[pgnr].ref,
