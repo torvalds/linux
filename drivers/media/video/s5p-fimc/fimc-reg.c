@@ -143,7 +143,7 @@ void fimc_hw_set_target_format(struct fimc_ctx *ctx)
 	case S5P_FIMC_YCRYCB422:
 	case S5P_FIMC_CBYCRY422:
 	case S5P_FIMC_CRYCBY422:
-		if (frame->fmt->planes_cnt == 1)
+		if (frame->fmt->colplanes == 1)
 			cfg |= S5P_CITRGFMT_YCBCR422_1P;
 		else
 			cfg |= S5P_CITRGFMT_YCBCR422;
@@ -219,11 +219,11 @@ void fimc_hw_set_out_dma(struct fimc_ctx *ctx)
 	cfg &= ~(S5P_CIOCTRL_ORDER2P_MASK | S5P_CIOCTRL_ORDER422_MASK |
 		 S5P_CIOCTRL_YCBCR_PLANE_MASK);
 
-	if (frame->fmt->planes_cnt == 1)
+	if (frame->fmt->colplanes == 1)
 		cfg |= ctx->out_order_1p;
-	else if (frame->fmt->planes_cnt == 2)
+	else if (frame->fmt->colplanes == 2)
 		cfg |= ctx->out_order_2p | S5P_CIOCTRL_YCBCR_2PLANE;
-	else if (frame->fmt->planes_cnt == 3)
+	else if (frame->fmt->colplanes == 3)
 		cfg |= S5P_CIOCTRL_YCBCR_3PLANE;
 
 	writel(cfg, dev->regs + S5P_CIOCTRL);
@@ -428,7 +428,7 @@ void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
 	case S5P_FIMC_YCBCR420:
 		cfg |= S5P_MSCTRL_INFORMAT_YCBCR420;
 
-		if (frame->fmt->planes_cnt == 2)
+		if (frame->fmt->colplanes == 2)
 			cfg |= ctx->in_order_2p | S5P_MSCTRL_C_INT_IN_2PLANE;
 		else
 			cfg |= S5P_MSCTRL_C_INT_IN_3PLANE;
@@ -438,13 +438,13 @@ void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
 	case S5P_FIMC_YCRYCB422:
 	case S5P_FIMC_CBYCRY422:
 	case S5P_FIMC_CRYCBY422:
-		if (frame->fmt->planes_cnt == 1) {
+		if (frame->fmt->colplanes == 1) {
 			cfg |= ctx->in_order_1p
 				| S5P_MSCTRL_INFORMAT_YCBCR422_1P;
 		} else {
 			cfg |= S5P_MSCTRL_INFORMAT_YCBCR422;
 
-			if (frame->fmt->planes_cnt == 2)
+			if (frame->fmt->colplanes == 2)
 				cfg |= ctx->in_order_2p
 					| S5P_MSCTRL_C_INT_IN_2PLANE;
 			else

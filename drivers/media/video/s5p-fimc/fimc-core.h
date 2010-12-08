@@ -84,7 +84,6 @@ enum fimc_color_fmt {
 	S5P_FIMC_RGB888,
 	S5P_FIMC_RGB30_LOCAL,
 	S5P_FIMC_YCBCR420 = 0x20,
-	S5P_FIMC_YCBCR422,
 	S5P_FIMC_YCBYCR422,
 	S5P_FIMC_YCRYCB422,
 	S5P_FIMC_CBYCRY422,
@@ -151,18 +150,18 @@ enum fimc_color_fmt {
  * @name: format description
  * @fourcc: the fourcc code for this format, 0 if not applicable
  * @color: the corresponding fimc_color_fmt
- * @depth: driver's private 'number of bits per pixel'
- * @buff_cnt: number of physically non-contiguous data planes
- * @planes_cnt: number of physically contiguous data planes
+ * @depth: per plane driver's private 'number of bits per pixel'
+ * @memplanes: number of physically non-contiguous data planes
+ * @colplanes: number of physically contiguous data planes
  */
 struct fimc_fmt {
 	enum v4l2_mbus_pixelcode mbus_code;
 	char	*name;
 	u32	fourcc;
 	u32	color;
-	u16	buff_cnt;
-	u16	planes_cnt;
-	u16	depth;
+	u16	memplanes;
+	u16	colplanes;
+	u8	depth[VIDEO_MAX_PLANES];
 	u16	flags;
 #define FMT_FLAGS_CAM	(1 << 0)
 #define FMT_FLAGS_M2M	(1 << 1)
@@ -272,7 +271,7 @@ struct fimc_vid_buffer {
  * @height:	image pixel weight
  * @paddr:	image frame buffer physical addresses
  * @buf_cnt:	number of buffers depending on a color format
- * @size:	image size in bytes
+ * @payload:	image size in bytes (w x h x bpp)
  * @color:	color format
  * @dma_offset:	DMA offset in bytes
  */
@@ -285,7 +284,7 @@ struct fimc_frame {
 	u32	offs_v;
 	u32	width;
 	u32	height;
-	u32	size;
+	unsigned long		payload[VIDEO_MAX_PLANES];
 	struct fimc_addr	paddr;
 	struct fimc_dma_offset	dma_offset;
 	struct fimc_fmt		*fmt;
@@ -479,7 +478,7 @@ struct fimc_ctx {
 
 static inline int tiled_fmt(struct fimc_fmt *fmt)
 {
-	return 0;
+	return fmt->fourcc == V4L2_PIX_FMT_NV12MT;
 }
 
 static inline void fimc_hw_clear_irq(struct fimc_dev *dev)
@@ -535,12 +534,12 @@ static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
 {
 	struct fimc_frame *frame;
 
-	if (V4L2_BUF_TYPE_VIDEO_OUTPUT == type) {
+	if (V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE == type) {
 		if (ctx->state & FIMC_CTX_M2M)
 			frame = &ctx->s_frame;
 		else
 			return ERR_PTR(-EINVAL);
-	} else if (V4L2_BUF_TYPE_VIDEO_CAPTURE == type) {
+	} else if (V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE == type) {
 		frame = &ctx->d_frame;
 	} else {
 		v4l2_err(&ctx->fimc_dev->m2m.v4l2_dev,
@@ -582,7 +581,7 @@ void fimc_hw_set_input_path(struct fimc_ctx *ctx);
 void fimc_hw_set_output_path(struct fimc_ctx *ctx);
 void fimc_hw_set_input_addr(struct fimc_dev *fimc, struct fimc_addr *paddr);
 void fimc_hw_set_output_addr(struct fimc_dev *fimc, struct fimc_addr *paddr,
-			      int index);
+			     int index);
 int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 			      struct s3c_fimc_isp_info *cam);
 int fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f);
@@ -593,12 +592,12 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 
 /* -----------------------------------------------------*/
 /* fimc-core.c */
-int fimc_vidioc_enum_fmt(struct file *file, void *priv,
-		      struct v4l2_fmtdesc *f);
-int fimc_vidioc_g_fmt(struct file *file, void *priv,
-		      struct v4l2_format *f);
-int fimc_vidioc_try_fmt(struct file *file, void *priv,
-			struct v4l2_format *f);
+int fimc_vidioc_enum_fmt_mplane(struct file *file, void *priv,
+				struct v4l2_fmtdesc *f);
+int fimc_vidioc_g_fmt_mplane(struct file *file, void *priv,
+			     struct v4l2_format *f);
+int fimc_vidioc_try_fmt_mplane(struct file *file, void *priv,
+			       struct v4l2_format *f);
 int fimc_vidioc_queryctrl(struct file *file, void *priv,
 			  struct v4l2_queryctrl *qc);
 int fimc_vidioc_g_ctrl(struct file *file, void *priv,

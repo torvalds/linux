@@ -280,34 +280,16 @@ static int stop_streaming(struct vb2_queue *q)
 	return fimc_stop_capture(fimc);
 }
 
-static unsigned int get_plane_size(struct fimc_frame *frame, unsigned int plane)
+static unsigned int get_plane_size(struct fimc_frame *fr, unsigned int plane)
 {
-	unsigned long size = 0;
-
-	if (!frame || plane > frame->fmt->buff_cnt - 1)
+	if (!fr || plane >= fr->fmt->memplanes)
 		return 0;
 
-	if (1 == frame->fmt->planes_cnt) {
-		size = (frame->width * frame->height * frame->fmt->depth) >> 3;
-	} else if (frame->fmt->planes_cnt <= 3) {
-		switch (plane) {
-		case 0:
-			size = frame->width * frame->height;
-			break;
-		case 1:
-		case 2:
-			if (S5P_FIMC_YCBCR420 == frame->fmt->color
-				&& 2 != frame->fmt->planes_cnt)
-				size = (frame->width * frame->height) >> 2;
-			else /* 422 */
-				size = (frame->width * frame->height) >> 1;
-			break;
-		}
-	} else {
-		size = 0;
-	}
+	dbg("%s: w: %d. h: %d. depth[%d]: %d",
+	    __func__, fr->width, fr->height, plane, fr->fmt->depth[plane]);
 
-	return size;
+	return fr->f_width * fr->f_height * fr->fmt->depth[plane] / 8;
+
 }
 
 static int queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
@@ -315,25 +297,24 @@ static int queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 		       void *allocators[])
 {
 	struct fimc_ctx *ctx = vq->drv_priv;
-	struct fimc_fmt *fmt =	fmt = ctx->d_frame.fmt;
-	struct fimc_frame *frame;
+	struct fimc_fmt *fmt = ctx->d_frame.fmt;
+	int i;
 
 	if (!fmt)
 		return -EINVAL;
 
-	*num_planes = fmt->buff_cnt;
+	*num_planes = fmt->memplanes;
 
 	dbg("%s, buffer count=%d, plane count=%d",
 	    __func__, *num_buffers, *num_planes);
-	
-	frame = ctx_get_frame(ctx, vq->type);
-	if (IS_ERR(frame))
-		return PTR_ERR(frame);
 
-	sizes[0] = get_plane_size(frame, 0);
-	allocators[0] = ctx->fimc_dev->alloc_ctx;
+	for (i = 0; i < fmt->memplanes; i++) {
+		sizes[i] = get_plane_size(&ctx->d_frame, i);
+		dbg("plane: %u, plane_size: %lu", i, sizes[i]);
+		allocators[i] = ctx->fimc_dev->alloc_ctx;
+	}
 
-	return -EINVAL;
+	return 0;
 }
 
 static int buffer_init(struct vb2_buffer *vb)
@@ -347,16 +328,13 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct fimc_ctx *ctx = vq->drv_priv;
 	struct v4l2_device *v4l2_dev = &ctx->fimc_dev->m2m.v4l2_dev;
-	struct fimc_frame *frame;
-	unsigned long size;
 	int i;
 
-	frame = ctx_get_frame(ctx, vq->type);
-	if (IS_ERR(frame))
-		return PTR_ERR(frame);
+	if (!ctx->d_frame.fmt || vq->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return -EINVAL;
 
-	for (i = 0; i < frame->fmt->buff_cnt; i++) {
-		size = get_plane_size(frame, i);
+	for (i = 0; i < ctx->d_frame.fmt->memplanes; i++) {
+		unsigned long size = get_plane_size(&ctx->d_frame, i);
 
 		if (vb2_plane_size(vb, i) < size) {
 			v4l2_err(v4l2_dev, "User buffer too small (%ld < %ld)\n",
@@ -451,7 +429,6 @@ static int fimc_capture_close(struct file *file)
 
 	if (mutex_lock_interruptible(&fimc->lock))
 		return -ERESTARTSYS;
-
 	dbg("pid: %d, state: 0x%lx", task_pid_nr(current), fimc->state);
 
 	if (--fimc->vid_cap.refcnt == 0) {
@@ -519,7 +496,8 @@ static int fimc_vidioc_querycap_capture(struct file *file, void *priv,
 	strncpy(cap->card, fimc->pdev->name, sizeof(cap->card) - 1);
 	cap->bus_info[0] = 0;
 	cap->version = KERNEL_VERSION(1, 0, 0);
-	cap->capabilities = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE;
+	cap->capabilities = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE |
+			    V4L2_CAP_VIDEO_CAPTURE_MPLANE;
 
 	return 0;
 }
@@ -560,19 +538,20 @@ static int sync_capture_fmt(struct fimc_ctx *ctx)
 	return 0;
 }
 
-static int fimc_cap_s_fmt(struct file *file, void *priv,
-			     struct v4l2_format *f)
+static int fimc_cap_s_fmt_mplane(struct file *file, void *priv,
+				 struct v4l2_format *f)
 {
 	struct fimc_ctx *ctx = priv;
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	struct fimc_frame *frame;
-	struct v4l2_pix_format *pix;
+	struct v4l2_pix_format_mplane *pix;
 	int ret;
+	int i;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		return -EINVAL;
 
-	ret = fimc_vidioc_try_fmt(file, priv, f);
+	ret = fimc_vidioc_try_fmt_mplane(file, priv, f);
 	if (ret)
 		return ret;
 
@@ -583,10 +562,12 @@ static int fimc_cap_s_fmt(struct file *file, void *priv,
 		ret = -EBUSY;
 		goto sf_unlock;
 	}
+	if (vb2_is_streaming(&fimc->vid_cap.vbq) || fimc_capture_active(fimc))
+		return -EBUSY;
 
 	frame = &ctx->d_frame;
 
-	pix = &f->fmt.pix;
+	pix = &f->fmt.pix_mp;
 	frame->fmt = find_format(f, FMT_FLAGS_M2M | FMT_FLAGS_CAM);
 	if (!frame->fmt) {
 		err("fimc target format not found\n");
@@ -594,14 +575,17 @@ static int fimc_cap_s_fmt(struct file *file, void *priv,
 		goto sf_unlock;
 	}
 
+	for (i = 0; i < frame->fmt->colplanes; i++)
+		frame->payload[i] = pix->plane_fmt[i].bytesperline * pix->height;
+
 	/* Output DMA frame pixel size and offsets. */
-	frame->f_width	= pix->bytesperline * 8 / frame->fmt->depth;
+	frame->f_width = pix->plane_fmt[0].bytesperline * 8
+			/ frame->fmt->depth[0];
 	frame->f_height = pix->height;
 	frame->width	= pix->width;
 	frame->height	= pix->height;
 	frame->o_width	= pix->width;
 	frame->o_height = pix->height;
-	frame->size	= (pix->width * pix->height * frame->fmt->depth) >> 3;
 	frame->offs_h	= 0;
 	frame->offs_v	= 0;
 
@@ -769,7 +753,7 @@ static int fimc_cap_streamoff(struct file *file, void *priv,
 }
 
 static int fimc_cap_reqbufs(struct file *file, void *priv,
-			  struct v4l2_requestbuffers *reqbufs)
+			    struct v4l2_requestbuffers *reqbufs)
 {
 	struct fimc_ctx *ctx = priv;
 	struct fimc_dev *fimc = ctx->fimc_dev;
@@ -870,13 +854,13 @@ static int fimc_cap_cropcap(struct file *file, void *fh,
 	struct fimc_ctx *ctx = fh;
 	struct fimc_dev *fimc = ctx->fimc_dev;
 
-	if (cr->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (cr->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		return -EINVAL;
 
 	if (mutex_lock_interruptible(&fimc->lock))
 		return -ERESTARTSYS;
-
 	f = &ctx->s_frame;
+
 	cr->bounds.left		= 0;
 	cr->bounds.top		= 0;
 	cr->bounds.width	= f->o_width;
@@ -953,10 +937,10 @@ sc_unlock:
 static const struct v4l2_ioctl_ops fimc_capture_ioctl_ops = {
 	.vidioc_querycap		= fimc_vidioc_querycap_capture,
 
-	.vidioc_enum_fmt_vid_cap	= fimc_vidioc_enum_fmt,
-	.vidioc_try_fmt_vid_cap		= fimc_vidioc_try_fmt,
-	.vidioc_s_fmt_vid_cap		= fimc_cap_s_fmt,
-	.vidioc_g_fmt_vid_cap		= fimc_vidioc_g_fmt,
+	.vidioc_enum_fmt_vid_cap_mplane	= fimc_vidioc_enum_fmt_mplane,
+	.vidioc_try_fmt_vid_cap_mplane	= fimc_vidioc_try_fmt_mplane,
+	.vidioc_s_fmt_vid_cap_mplane	= fimc_cap_s_fmt_mplane,
+	.vidioc_g_fmt_vid_cap_mplane	= fimc_vidioc_g_fmt_mplane,
 
 	.vidioc_reqbufs			= fimc_cap_reqbufs,
 	.vidioc_querybuf		= fimc_cap_querybuf,
@@ -980,6 +964,7 @@ static const struct v4l2_ioctl_ops fimc_capture_ioctl_ops = {
 	.vidioc_g_input			= fimc_cap_g_input,
 };
 
+/* fimc->lock must be already initialized */
 int fimc_register_capture_device(struct fimc_dev *fimc)
 {
 	struct v4l2_device *v4l2_dev = &fimc->vid_cap.v4l2_dev;
@@ -987,6 +972,7 @@ int fimc_register_capture_device(struct fimc_dev *fimc)
 	struct fimc_vid_cap *vid_cap;
 	struct fimc_ctx *ctx;
 	struct v4l2_format f;
+	struct fimc_frame *fr;
 	struct vb2_queue *q;
 	int ret;
 
@@ -999,8 +985,12 @@ int fimc_register_capture_device(struct fimc_dev *fimc)
 	ctx->out_path	 = FIMC_DMA;
 	ctx->state	 = FIMC_CTX_CAP;
 
-	f.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB24;
-	ctx->d_frame.fmt = find_format(&f, FMT_FLAGS_M2M);
+	/* Default format of the output frames */
+	f.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB32;
+	fr = &ctx->d_frame;
+	fr->fmt = find_format(&f, FMT_FLAGS_M2M);
+	fr->width = fr->f_width = fr->o_width = 640;
+	fr->height = fr->f_height = fr->o_height = 480;
 
 	if (!v4l2_dev->name[0])
 		snprintf(v4l2_dev->name, sizeof(v4l2_dev->name),
@@ -1030,7 +1020,7 @@ int fimc_register_capture_device(struct fimc_dev *fimc)
 	vid_cap->active_buf_cnt = 0;
 	vid_cap->reqbufs_count  = 0;
 	vid_cap->refcnt = 0;
-	/* The default color format for image sensor. */
+	/* Default color format for image sensor */
 	vid_cap->fmt.code = V4L2_MBUS_FMT_YUYV8_2X8;
 
 	INIT_LIST_HEAD(&vid_cap->pending_buf_q);
@@ -1040,7 +1030,7 @@ int fimc_register_capture_device(struct fimc_dev *fimc)
 
 	q = &fimc->vid_cap.vbq;
 	memset(q, 0, sizeof(*q));
-	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	q->io_modes = VB2_MMAP | VB2_USERPTR;
 	q->drv_priv = fimc->vid_cap.ctx;
 	q->ops = &fimc_capture_qops;
