@@ -700,11 +700,6 @@ static int __init i915_init(void)
 		driver.driver_features &= ~DRIVER_MODESET;
 #endif
 
-	if (!(driver.driver_features & DRIVER_MODESET)) {
-		driver.suspend = i915_suspend;
-		driver.resume = i915_resume;
-	}
-
 	return drm_init(&driver);
 }
 
