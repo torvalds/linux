@@ -43,6 +43,7 @@ static struct __initdata omap_gpio_platform_data omap7xx_mpu_gpio_config = {
 	.virtual_irq_start	= IH_MPUIO_BASE,
 	.bank_type		= METHOD_MPUIO,
 	.bank_width		= 32,
+	.bank_stride		= 2,
 };
 
 static struct __initdata platform_device omap7xx_mpu_gpio = {

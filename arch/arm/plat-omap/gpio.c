@@ -159,6 +159,7 @@ struct gpio_bank {
 	u32 dbck_enable_mask;
 	struct device *dev;
 	bool dbck_flag;
+	int stride;
 };
 
 #ifdef CONFIG_ARCH_OMAP3
@@ -267,7 +268,7 @@ static void _set_gpio_direction(struct gpio_bank *bank, int gpio, int is_input)
 	switch (bank->method) {
 #ifdef CONFIG_ARCH_OMAP1
 	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_IO_CNTL;
+		reg += OMAP_MPUIO_IO_CNTL / bank->stride;
 		break;
 #endif
 #ifdef CONFIG_ARCH_OMAP15XX
@@ -315,7 +316,7 @@ static void _set_gpio_dataout(struct gpio_bank *bank, int gpio, int enable)
 	switch (bank->method) {
 #ifdef CONFIG_ARCH_OMAP1
 	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_OUTPUT;
+		reg += OMAP_MPUIO_OUTPUT / bank->stride;
 		l = __raw_readl(reg);
 		if (enable)
 			l |= 1 << gpio;
@@ -387,7 +388,7 @@ static int _get_gpio_datain(struct gpio_bank *bank, int gpio)
 	switch (bank->method) {
 #ifdef CONFIG_ARCH_OMAP1
 	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_INPUT_LATCH;
+		reg += OMAP_MPUIO_INPUT_LATCH / bank->stride;
 		break;
 #endif
 #ifdef CONFIG_ARCH_OMAP15XX
@@ -433,7 +434,7 @@ static int _get_gpio_dataout(struct gpio_bank *bank, int gpio)
 	switch (bank->method) {
 #ifdef CONFIG_ARCH_OMAP1
 	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_OUTPUT;
+		reg += OMAP_MPUIO_OUTPUT / bank->stride;
 		break;
 #endif
 #ifdef CONFIG_ARCH_OMAP15XX
@@ -620,7 +621,7 @@ static void _toggle_gpio_edge_triggering(struct gpio_bank *bank, int gpio)
 
 	switch (bank->method) {
 	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_GPIO_INT_EDGE;
+		reg += OMAP_MPUIO_GPIO_INT_EDGE / bank->stride;
 		break;
 #ifdef CONFIG_ARCH_OMAP15XX
 	case METHOD_GPIO_1510:
@@ -654,7 +655,7 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 	switch (bank->method) {
 #ifdef CONFIG_ARCH_OMAP1
 	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_GPIO_INT_EDGE;
+		reg += OMAP_MPUIO_GPIO_INT_EDGE / bank->stride;
 		l = __raw_readl(reg);
 		if ((trigger & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH)
 			bank->toggle_mask |= 1 << gpio;
@@ -840,7 +841,7 @@ static u32 _get_gpio_irqbank_mask(struct gpio_bank *bank)
 	switch (bank->method) {
 #ifdef CONFIG_ARCH_OMAP1
 	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_GPIO_MASKIT;
+		reg += OMAP_MPUIO_GPIO_MASKIT / bank->stride;
 		mask = 0xffff;
 		inv = 1;
 		break;
@@ -897,7 +898,7 @@ static void _enable_gpio_irqbank(struct gpio_bank *bank, int gpio_mask, int enab
 	switch (bank->method) {
 #ifdef CONFIG_ARCH_OMAP1
 	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_GPIO_MASKIT;
+		reg += OMAP_MPUIO_GPIO_MASKIT / bank->stride;
 		l = __raw_readl(reg);
 		if (enable)
 			l &= ~(gpio_mask);
@@ -1147,7 +1148,8 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	bank = get_irq_data(irq);
 #ifdef CONFIG_ARCH_OMAP1
 	if (bank->method == METHOD_MPUIO)
-		isr_reg = bank->base + OMAP_MPUIO_GPIO_INT;
+		isr_reg = bank->base +
+				OMAP_MPUIO_GPIO_INT / bank->stride;
 #endif
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (bank->method == METHOD_GPIO_1510)
@@ -1345,7 +1347,8 @@ static int omap_mpuio_suspend_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct gpio_bank	*bank = platform_get_drvdata(pdev);
-	void __iomem		*mask_reg = bank->base + OMAP_MPUIO_GPIO_MASKIT;
+	void __iomem		*mask_reg = bank->base +
+					OMAP_MPUIO_GPIO_MASKIT / bank->stride;
 	unsigned long		flags;
 
 	spin_lock_irqsave(&bank->lock, flags);
@@ -1360,7 +1363,8 @@ static int omap_mpuio_resume_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct gpio_bank	*bank = platform_get_drvdata(pdev);
-	void __iomem		*mask_reg = bank->base + OMAP_MPUIO_GPIO_MASKIT;
+	void __iomem		*mask_reg = bank->base +
+					OMAP_MPUIO_GPIO_MASKIT / bank->stride;
 	unsigned long		flags;
 
 	spin_lock_irqsave(&bank->lock, flags);
@@ -1440,7 +1444,7 @@ static int gpio_is_input(struct gpio_bank *bank, int mask)
 
 	switch (bank->method) {
 	case METHOD_MPUIO:
-		reg += OMAP_MPUIO_IO_CNTL;
+		reg += OMAP_MPUIO_IO_CNTL / bank->stride;
 		break;
 	case METHOD_GPIO_1510:
 		reg += OMAP1510_GPIO_DIR_CONTROL;
@@ -1601,8 +1605,8 @@ static void omap_gpio_mod_init(struct gpio_bank *bank, int id)
 		}
 	} else if (cpu_class_is_omap1()) {
 		if (bank_is_mpuio(bank))
-			__raw_writew(0xffff, bank->base
-						+ OMAP_MPUIO_GPIO_MASKIT);
+			__raw_writew(0xffff, bank->base +
+				OMAP_MPUIO_GPIO_MASKIT / bank->stride);
 		if (cpu_is_omap15xx() && bank->method == METHOD_GPIO_1510) {
 			__raw_writew(0xffff, bank->base
 						+ OMAP1510_GPIO_INT_MASK);
@@ -1716,6 +1720,7 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 	bank->method = pdata->bank_type;
 	bank->dev = &pdev->dev;
 	bank->dbck_flag = pdata->dbck_flag;
+	bank->stride = pdata->bank_stride;
 	bank_width = pdata->bank_width;
 
 	spin_lock_init(&bank->lock);

@@ -32,22 +32,10 @@
 
 #define OMAP1_MPUIO_BASE			0xfffb5000
 
-#if (defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850))
-
-#define OMAP_MPUIO_INPUT_LATCH		0x00
-#define OMAP_MPUIO_OUTPUT		0x02
-#define OMAP_MPUIO_IO_CNTL		0x04
-#define OMAP_MPUIO_KBR_LATCH		0x08
-#define OMAP_MPUIO_KBC			0x0a
-#define OMAP_MPUIO_GPIO_EVENT_MODE	0x0c
-#define OMAP_MPUIO_GPIO_INT_EDGE	0x0e
-#define OMAP_MPUIO_KBD_INT		0x10
-#define OMAP_MPUIO_GPIO_INT		0x12
-#define OMAP_MPUIO_KBD_MASKIT		0x14
-#define OMAP_MPUIO_GPIO_MASKIT		0x16
-#define OMAP_MPUIO_GPIO_DEBOUNCING	0x18
-#define OMAP_MPUIO_LATCH		0x1a
-#else
+/*
+ * These are the omap15xx/16xx offsets. The omap7xx offset are
+ * OMAP_MPUIO_ / 2 offsets below.
+ */
 #define OMAP_MPUIO_INPUT_LATCH		0x00
 #define OMAP_MPUIO_OUTPUT		0x04
 #define OMAP_MPUIO_IO_CNTL		0x08
@@ -61,7 +49,6 @@
 #define OMAP_MPUIO_GPIO_MASKIT		0x2c
 #define OMAP_MPUIO_GPIO_DEBOUNCING	0x30
 #define OMAP_MPUIO_LATCH		0x34
-#endif
 
 #define OMAP34XX_NR_GPIOS		6
 
@@ -88,6 +75,7 @@ struct omap_gpio_platform_data {
 	u16 virtual_irq_start;
 	int bank_type;
 	int bank_width;		/* GPIO bank width */
+	int bank_stride;	/* Only needed for omap1 MPUIO */
 	bool dbck_flag;		/* dbck required or not - True for OMAP3&4 */
 };
 
