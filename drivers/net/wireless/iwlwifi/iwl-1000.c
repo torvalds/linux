@@ -276,60 +276,49 @@ static struct iwl_ht_params iwl1000_ht_params = {
 	.use_rts_for_aggregation = true, /* use rts/cts protection */
 };
 
+#define IWL_DEVICE_1000						\
+	.fw_name_pre = IWL1000_FW_PRE,				\
+	.ucode_api_max = IWL1000_UCODE_API_MAX,			\
+	.ucode_api_min = IWL1000_UCODE_API_MIN,			\
+	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
+	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
+	.ops = &iwl1000_ops,					\
+	.mod_params = &iwlagn_mod_params,			\
+	.base_params = &iwl1000_base_params,			\
+	.led_mode = IWL_LED_BLINK
+
 struct iwl_cfg iwl1000_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 1000 BGN",
-	.fw_name_pre = IWL1000_FW_PRE,
-	.ucode_api_max = IWL1000_UCODE_API_MAX,
-	.ucode_api_min = IWL1000_UCODE_API_MIN,
-	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,
-	.ops = &iwl1000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl1000_base_params,
+	IWL_DEVICE_1000,
 	.ht_params = &iwl1000_ht_params,
-	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl1000_bg_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 1000 BG",
-	.fw_name_pre = IWL1000_FW_PRE,
-	.ucode_api_max = IWL1000_UCODE_API_MAX,
-	.ucode_api_min = IWL1000_UCODE_API_MIN,
-	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,
-	.ops = &iwl1000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl1000_base_params,
-	.led_mode = IWL_LED_BLINK,
+	IWL_DEVICE_1000,
 };
+
+#define IWL_DEVICE_100						\
+	.fw_name_pre = IWL100_FW_PRE,				\
+	.ucode_api_max = IWL100_UCODE_API_MAX,			\
+	.ucode_api_min = IWL100_UCODE_API_MIN,			\
+	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
+	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
+	.ops = &iwl1000_ops,					\
+	.mod_params = &iwlagn_mod_params,			\
+	.base_params = &iwl1000_base_params,			\
+	.led_mode = IWL_LED_RF_STATE,				\
+	.rx_with_siso_diversity = true
 
 struct iwl_cfg iwl100_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 100 BGN",
-	.fw_name_pre = IWL100_FW_PRE,
-	.ucode_api_max = IWL100_UCODE_API_MAX,
-	.ucode_api_min = IWL100_UCODE_API_MIN,
-	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,
-	.ops = &iwl1000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl1000_base_params,
+	IWL_DEVICE_100,
 	.ht_params = &iwl1000_ht_params,
-	.led_mode = IWL_LED_RF_STATE,
-	.rx_with_siso_diversity = true,
 };
 
 struct iwl_cfg iwl100_bg_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 100 BG",
-	.fw_name_pre = IWL100_FW_PRE,
-	.ucode_api_max = IWL100_UCODE_API_MAX,
-	.ucode_api_min = IWL100_UCODE_API_MIN,
-	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,
-	.ops = &iwl1000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl1000_base_params,
-	.led_mode = IWL_LED_RF_STATE,
-	.rx_with_siso_diversity = true,
+	IWL_DEVICE_100,
 };
 
 MODULE_FIRMWARE(IWL1000_MODULE_FIRMWARE(IWL1000_UCODE_API_MAX));

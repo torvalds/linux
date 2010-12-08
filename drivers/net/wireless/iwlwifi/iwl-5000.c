@@ -520,65 +520,44 @@ static struct iwl_ht_params iwl5000_ht_params = {
 	.use_rts_for_aggregation = true, /* use rts/cts protection */
 };
 
+#define IWL_DEVICE_5000						\
+	.fw_name_pre = IWL5000_FW_PRE,				\
+	.ucode_api_max = IWL5000_UCODE_API_MAX,			\
+	.ucode_api_min = IWL5000_UCODE_API_MIN,			\
+	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,		\
+	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,	\
+	.ops = &iwl5000_ops,					\
+	.mod_params = &iwlagn_mod_params,			\
+	.base_params = &iwl5000_base_params,			\
+	.led_mode = IWL_LED_BLINK
+
 struct iwl_cfg iwl5300_agn_cfg = {
 	.name = "Intel(R) Ultimate N WiFi Link 5300 AGN",
-	.fw_name_pre = IWL5000_FW_PRE,
-	.ucode_api_max = IWL5000_UCODE_API_MAX,
-	.ucode_api_min = IWL5000_UCODE_API_MIN,
-	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.ops = &iwl5000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl5000_base_params,
+	IWL_DEVICE_5000,
 	.ht_params = &iwl5000_ht_params,
-	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl5100_bgn_cfg = {
 	.name = "Intel(R) WiFi Link 5100 BGN",
-	.fw_name_pre = IWL5000_FW_PRE,
-	.ucode_api_max = IWL5000_UCODE_API_MAX,
-	.ucode_api_min = IWL5000_UCODE_API_MIN,
+	IWL_DEVICE_5000,
 	.valid_tx_ant = ANT_B,		/* .cfg overwrite */
 	.valid_rx_ant = ANT_AB,		/* .cfg overwrite */
-	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.ops = &iwl5000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl5000_base_params,
 	.ht_params = &iwl5000_ht_params,
-	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl5100_abg_cfg = {
 	.name = "Intel(R) WiFi Link 5100 ABG",
-	.fw_name_pre = IWL5000_FW_PRE,
-	.ucode_api_max = IWL5000_UCODE_API_MAX,
-	.ucode_api_min = IWL5000_UCODE_API_MIN,
+	IWL_DEVICE_5000,
 	.valid_tx_ant = ANT_B,		/* .cfg overwrite */
 	.valid_rx_ant = ANT_AB,		/* .cfg overwrite */
-	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.ops = &iwl5000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl5000_base_params,
-	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl5100_agn_cfg = {
 	.name = "Intel(R) WiFi Link 5100 AGN",
-	.fw_name_pre = IWL5000_FW_PRE,
-	.ucode_api_max = IWL5000_UCODE_API_MAX,
-	.ucode_api_min = IWL5000_UCODE_API_MIN,
+	IWL_DEVICE_5000,
 	.valid_tx_ant = ANT_B,		/* .cfg overwrite */
 	.valid_rx_ant = ANT_AB,		/* .cfg overwrite */
-	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.ops = &iwl5000_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl5000_base_params,
 	.ht_params = &iwl5000_ht_params,
-	.led_mode = IWL_LED_BLINK,
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
@@ -596,35 +575,29 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.internal_wimax_coex = true,
 };
 
+#define IWL_DEVICE_5150						\
+	.fw_name_pre = IWL5150_FW_PRE,				\
+	.ucode_api_max = IWL5150_UCODE_API_MAX,			\
+	.ucode_api_min = IWL5150_UCODE_API_MIN,			\
+	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,		\
+	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,	\
+	.ops = &iwl5150_ops,					\
+	.mod_params = &iwlagn_mod_params,			\
+	.base_params = &iwl5000_base_params,			\
+	.need_dc_calib = true,					\
+	.led_mode = IWL_LED_BLINK,				\
+	.internal_wimax_coex = true
+
 struct iwl_cfg iwl5150_agn_cfg = {
 	.name = "Intel(R) WiMAX/WiFi Link 5150 AGN",
-	.fw_name_pre = IWL5150_FW_PRE,
-	.ucode_api_max = IWL5150_UCODE_API_MAX,
-	.ucode_api_min = IWL5150_UCODE_API_MIN,
-	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
-	.ops = &iwl5150_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl5000_base_params,
+	IWL_DEVICE_5150,
 	.ht_params = &iwl5000_ht_params,
-	.need_dc_calib = true,
-	.led_mode = IWL_LED_BLINK,
-	.internal_wimax_coex = true,
+
 };
 
 struct iwl_cfg iwl5150_abg_cfg = {
 	.name = "Intel(R) WiMAX/WiFi Link 5150 ABG",
-	.fw_name_pre = IWL5150_FW_PRE,
-	.ucode_api_max = IWL5150_UCODE_API_MAX,
-	.ucode_api_min = IWL5150_UCODE_API_MIN,
-	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
-	.ops = &iwl5150_ops,
-	.mod_params = &iwlagn_mod_params,
-	.base_params = &iwl5000_base_params,
-	.need_dc_calib = true,
-	.led_mode = IWL_LED_BLINK,
-	.internal_wimax_coex = true,
+	IWL_DEVICE_5150,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));
