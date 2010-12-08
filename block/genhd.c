@@ -1110,29 +1110,6 @@ static int __init proc_genhd_init(void)
 module_init(proc_genhd_init);
 #endif /* CONFIG_PROC_FS */
 
-static void media_change_notify_thread(struct work_struct *work)
-{
-	struct gendisk *gd = container_of(work, struct gendisk, async_notify);
-	char event[] = "MEDIA_CHANGE=1";
-	char *envp[] = { event, NULL };
-
-	/*
-	 * set enviroment vars to indicate which event this is for
-	 * so that user space will know to go check the media status.
-	 */
-	kobject_uevent_env(&disk_to_dev(gd)->kobj, KOBJ_CHANGE, envp);
-	put_device(gd->driverfs_dev);
-}
-
-#if 0
-void genhd_media_change_notify(struct gendisk *disk)
-{
-	get_device(disk->driverfs_dev);
-	schedule_work(&disk->async_notify);
-}
-EXPORT_SYMBOL_GPL(genhd_media_change_notify);
-#endif  /*  0  */
-
 dev_t blk_lookup_devt(const char *name, int partno)
 {
 	dev_t devt = MKDEV(0, 0);
@@ -1198,8 +1175,6 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 		disk_to_dev(disk)->class = &block_class;
 		disk_to_dev(disk)->type = &disk_type;
 		device_initialize(disk_to_dev(disk));
-		INIT_WORK(&disk->async_notify,
-			media_change_notify_thread);
 	}
 	return disk;
 }
