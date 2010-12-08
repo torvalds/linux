@@ -134,7 +134,6 @@ config MACH_DEVKIT8000
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CUS
-	select OMAP_MUX
 
 config MACH_OMAP_LDP
 	bool "OMAP3 LDP board"
@@ -250,14 +249,12 @@ config MACH_CM_T35
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CUS
-	select OMAP_MUX
 
 config MACH_CM_T3517
 	bool "CompuLab CM-T3517 module"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
-	select OMAP_MUX
 
 config MACH_IGEP0020
 	bool "IGEP v2 board"
@@ -276,7 +273,6 @@ config MACH_SBC3530
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CUS
-	select OMAP_MUX
 
 config MACH_OMAP_3630SDP
 	bool "OMAP3630 SDP board"
