@@ -69,7 +69,7 @@ static void __unhash_process(struct task_struct *p, bool group_dead)
 
 		list_del_rcu(&p->tasks);
 		list_del_init(&p->sibling);
-		__get_cpu_var(process_counts)--;
+		__this_cpu_dec(process_counts);
 	}
 	list_del_rcu(&p->thread_group);
 }

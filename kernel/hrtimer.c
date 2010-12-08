@@ -497,7 +497,7 @@ static inline int hrtimer_is_hres_enabled(void)
  */
 static inline int hrtimer_hres_active(void)
 {
-	return __get_cpu_var(hrtimer_bases).hres_active;
+	return __this_cpu_read(hrtimer_bases.hres_active);
 }
 
 /*
