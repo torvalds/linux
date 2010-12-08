@@ -235,8 +235,7 @@ static void lp8550_brightness_write(struct lp8550_data *led_data)
 
 	if (brightness == LED_OFF) {
 		if (lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
-				(led_data->led_pdata->dev_ctrl_config &
-				LD_LP8550_ON_OFF_MASK))) {
+				LP8550_BRT_MODE_BRIGHT)) {
 			pr_err("%s:writing failed while setting brightness:%d\n",
 				__func__, error);
 		}
@@ -261,8 +260,9 @@ static void lp8550_brightness_write(struct lp8550_data *led_data)
 
 		if (led_data->led_pdata->dev_ctrl_config ==
 			 LP8550_BRT_MODE_PWM) {
+			//scale the brightness to prevent more than 19mA per LED
 			if (lp8550_write_reg(led_data, LP8550_EEPROM_A0,
-				 brightness))
+				 (brightness * 625) / 1000))
 				pr_err("%s:Failed to set brightness:%d\n",
 				__func__, error);
 		}
