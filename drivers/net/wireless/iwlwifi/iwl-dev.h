@@ -1468,6 +1468,7 @@ struct iwl_priv {
 	};
 
 	/* bt coex */
+	u8 bt_enable_flag;
 	u8 bt_status;
 	u8 bt_traffic_load, last_bt_traffic_load;
 	bool bt_ch_announce;

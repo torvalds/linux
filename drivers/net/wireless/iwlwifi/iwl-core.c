@@ -1223,6 +1223,7 @@ void iwl_send_bt_config(struct iwl_priv *priv)
 	else
 		bt_cmd.flags = BT_COEX_ENABLE;
 
+	priv->bt_enable_flag = bt_cmd.flags;
 	IWL_DEBUG_INFO(priv, "BT coex %s\n",
 		(bt_cmd.flags == BT_COEX_DISABLE) ? "disable" : "active");
 
