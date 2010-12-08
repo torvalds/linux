@@ -3115,7 +3115,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				skb_pull(new_skb, ETH_HLEN);
 		}
 
-		if (ipv == 6 && card->vlangrp &&
+		if (ipv != 4 && card->vlangrp &&
 				vlan_tx_tag_present(new_skb)) {
 			skb_push(new_skb, VLAN_HLEN);
 			skb_copy_to_linear_data(new_skb, new_skb->data + 4, 4);
