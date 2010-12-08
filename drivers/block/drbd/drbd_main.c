@@ -510,8 +510,9 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 int drbd_send_state_req(struct drbd_conf *,
 			union drbd_state, union drbd_state);
 
-static enum drbd_state_ret_codes _req_st_cond(struct drbd_conf *mdev,
-				    union drbd_state mask, union drbd_state val)
+static enum drbd_state_rv
+_req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
+	     union drbd_state val)
 {
 	union drbd_state os, ns;
 	unsigned long flags;
