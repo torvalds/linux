@@ -20,7 +20,9 @@
 #include <mach/board.h>
 
 #define MAX_SUPPORT_POINT	2// //  4
-#define Singltouch_Mode     1
+//#define Singltouch_Mode
+#define SAKURA_DBG                  0
+#if SAKURA_DBG 
 #define sakura_dbg_msg(fmt,...)       do {                                      \
                                    printk("sakura dbg msg------>"                       \
                                           " (func-->%s ; line-->%d) " fmt, __func__, __LINE__ , ##__VA_ARGS__); \
@@ -28,7 +30,10 @@
 #define sakura_dbg_report_key_msg(fmt,...)      do{                                                     \
                                                     printk("sakura report " fmt,##__VA_ARGS__);          \
                                                 }while(0)
-
+#else
+#define sakura_dbg_msg(fmt,...)       do {} while(0)
+#define sakura_dbg_report_key_msg(fmt,...)      do{}while(0)
+#endif
 struct point_data {	
 	short status;	
 	short x;	
@@ -79,12 +84,15 @@ static void p1003_report_event(struct ts_p1003 *ts,struct multitouch_event *tc)
             input_report_abs(input, ABS_MT_POSITION_Y, tc->point_data[i].y);				
             input_mt_sync(input);	
 
-            printk("\n");
+            sakura_dbg_report_key_msg("ABS_MT_TRACKING_ID = %x, ABS_MT_TOUCH_MAJOR = %x\n",
+                " ABS_MT_POSITION_X = %x, ABS_MT_POSITION_Y = %x\n",i,tc->point_data[i].status,tc->point_data[i].x,tc->point_data[i].y);
+
             if(tc->point_data[i].status == 0)					
             	tc->point_data[i].status--;			
         }
+        
     }	
-
+    input_sync(input);
 }
 static void p1003_report_single_event(struct ts_p1003 *ts,struct multitouch_event *tc)
 {
@@ -142,8 +150,11 @@ static void p1003_work(struct work_struct *work)
     
     if(rt < 0)
         goto out;
-
+#if defined (Singltouch_Mode)
     p1003_report_single_event(ts,tc);
+#else
+    p1003_report_event(ts,tc);
+#endif
     
  out:
 	if (ts->pendown)
@@ -221,7 +232,7 @@ static int __devinit p1003_probe(struct i2c_client *client,
 	input_dev->phys = ts->phys;
 	input_dev->id.bustype = BUS_I2C;
 
-#if Singltouch_Mode
+#if defined (Singltouch_Mode)
 	set_bit(EV_SYN, input_dev->evbit);
 	set_bit(EV_KEY, input_dev->evbit);
 	set_bit(BTN_TOUCH, input_dev->keybit);
