@@ -1231,6 +1231,23 @@ static int enic_dev_init_done(struct enic *enic, int *done, int *error)
 	return err;
 }
 
+static int enic_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
+{
+	struct enic *enic = netdev_priv(netdev);
+
+	if (vf != PORT_SELF_VF)
+		return -EOPNOTSUPP;
+
+	/* Ignore the vf argument for now. We can assume the request
+	 * is coming on a vf.
+	 */
+	if (is_valid_ether_addr(mac)) {
+		memcpy(enic->pp.vf_mac, mac, ETH_ALEN);
+		return 0;
+	} else
+		return -EINVAL;
+}
+
 static int enic_set_port_profile(struct enic *enic, u8 *mac)
 {
 	struct vic_provinfo *vp;
@@ -2411,6 +2428,9 @@ static const struct net_device_ops enic_netdev_dynamic_ops = {
 	.ndo_tx_timeout		= enic_tx_timeout,
 	.ndo_set_vf_port	= enic_set_vf_port,
 	.ndo_get_vf_port	= enic_get_vf_port,
+#ifdef IFLA_VF_MAX
+	.ndo_set_vf_mac		= enic_set_vf_mac,
+#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= enic_poll_controller,
 #endif
