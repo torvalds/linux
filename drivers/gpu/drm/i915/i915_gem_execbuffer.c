@@ -301,14 +301,14 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	/* The target buffer should have appeared before us in the
 	 * exec_object list, so it should have a GTT space bound by now.
 	 */
-	if (target_offset == 0) {
+	if (unlikely(target_offset == 0)) {
 		DRM_ERROR("No GTT space found for object %d\n",
 			  reloc->target_handle);
 		return ret;
 	}
 
 	/* Validate that the target is in a valid r/w GPU domain */
-	if (reloc->write_domain & (reloc->write_domain - 1)) {
+	if (unlikely(reloc->write_domain & (reloc->write_domain - 1))) {
 		DRM_ERROR("reloc with multiple write domains: "
 			  "obj %p target %d offset %d "
 			  "read %08x write %08x",
@@ -318,8 +318,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 			  reloc->write_domain);
 		return ret;
 	}
-	if (reloc->write_domain & I915_GEM_DOMAIN_CPU ||
-	    reloc->read_domains & I915_GEM_DOMAIN_CPU) {
+	if (unlikely((reloc->write_domain | reloc->read_domains) & I915_GEM_DOMAIN_CPU)) {
 		DRM_ERROR("reloc with read/write CPU domains: "
 			  "obj %p target %d offset %d "
 			  "read %08x write %08x",
@@ -329,8 +328,8 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 			  reloc->write_domain);
 		return ret;
 	}
-	if (reloc->write_domain && target_obj->pending_write_domain &&
-	    reloc->write_domain != target_obj->pending_write_domain) {
+	if (unlikely(reloc->write_domain && target_obj->pending_write_domain &&
+		     reloc->write_domain != target_obj->pending_write_domain)) {
 		DRM_ERROR("Write domain conflict: "
 			  "obj %p target %d offset %d "
 			  "new %08x old %08x\n",
@@ -351,7 +350,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		return 0;
 
 	/* Check that the relocation address is valid... */
-	if (reloc->offset > obj->base.size - 4) {
+	if (unlikely(reloc->offset > obj->base.size - 4)) {
 		DRM_ERROR("Relocation beyond object bounds: "
 			  "obj %p target %d offset %d size %d.\n",
 			  obj, reloc->target_handle,
@@ -359,7 +358,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 			  (int) obj->base.size);
 		return ret;
 	}
-	if (reloc->offset & 3) {
+	if (unlikely(reloc->offset & 3)) {
 		DRM_ERROR("Relocation not 4-byte aligned: "
 			  "obj %p target %d offset %d.\n",
 			  obj, reloc->target_handle,
@@ -368,7 +367,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	}
 
 	/* and points to somewhere within the target object. */
-	if (reloc->delta >= target_obj->size) {
+	if (unlikely(reloc->delta >= target_obj->size)) {
 		DRM_ERROR("Relocation beyond target object bounds: "
 			  "obj %p target %d delta %d size %d.\n",
 			  obj, reloc->target_handle,
