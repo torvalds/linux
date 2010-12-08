@@ -14,7 +14,6 @@
 #include <asm/mach/time.h>
 #include <linux/init.h>
 
-extern void __init ux500_map_io(void);
 extern void __init u5500_map_io(void);
 extern void __init u8500_map_io(void);
 

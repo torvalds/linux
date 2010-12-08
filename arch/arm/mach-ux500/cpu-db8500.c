@@ -30,6 +30,22 @@ static struct platform_device *platform_devs[] __initdata = {
 
 /* minimum static i/o mapping required to boot U8500 platforms */
 static struct map_desc u8500_io_desc[] __initdata = {
+	__IO_DEV_DESC(U8500_UART0_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_UART2_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_GIC_CPU_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_GIC_DIST_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_L2CC_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_TWD_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_MTU0_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_SCU_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_BACKUPRAM0_BASE, SZ_8K),
+
+	__IO_DEV_DESC(U8500_CLKRST1_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_CLKRST2_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_CLKRST3_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_CLKRST5_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_CLKRST6_BASE, SZ_4K),
+
 	__IO_DEV_DESC(U8500_PRCMU_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO0_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GPIO1_BASE, SZ_4K),
@@ -117,8 +133,6 @@ bool cpu_is_u8500v20(void)
 
 void __init u8500_map_io(void)
 {
-	ux500_map_io();
-
 	iotable_init(u8500_io_desc, ARRAY_SIZE(u8500_io_desc));
 
 	if (cpu_is_u8500ed())
