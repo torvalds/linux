@@ -454,6 +454,11 @@ x494] <- /root/a.out[+0x4a8] <- /lib/libc-2.7.so[+0x1e1a6]
                    latencies, as described in "Latency
                    trace format".
 
+  overwrite - This controls what happens when the trace buffer is
+              full. If "1" (default), the oldest events are
+              discarded and overwritten. If "0", then the newest
+              events are discarded.
+
 ftrace_enabled
 --------------
 

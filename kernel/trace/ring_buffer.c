@@ -1429,6 +1429,17 @@ int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size)
 }
 EXPORT_SYMBOL_GPL(ring_buffer_resize);
 
+void ring_buffer_change_overwrite(struct ring_buffer *buffer, int val)
+{
+	mutex_lock(&buffer->mutex);
+	if (val)
+		buffer->flags |= RB_FL_OVERWRITE;
+	else
+		buffer->flags &= ~RB_FL_OVERWRITE;
+	mutex_unlock(&buffer->mutex);
+}
+EXPORT_SYMBOL_GPL(ring_buffer_change_overwrite);
+
 static inline void *
 __rb_data_page_index(struct buffer_data_page *bpage, unsigned index)
 {
