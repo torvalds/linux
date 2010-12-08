@@ -789,6 +789,12 @@ struct drm_i915_gem_object {
 	int num_sg;
 
 	/**
+	 * Used for performing relocations during execbuffer insertion.
+	 */
+	struct hlist_node exec_node;
+	unsigned long exec_handle;
+
+	/**
 	 * Current offset of the object in GTT space.
 	 *
 	 * This is the same as gtt_space->start
