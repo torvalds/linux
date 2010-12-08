@@ -62,6 +62,7 @@ struct enic_port_profile {
 	u8 instance_uuid[PORT_UUID_MAX];
 	u8 host_uuid[PORT_UUID_MAX];
 	u8 vf_mac[ETH_ALEN];
+	u8 mac_addr[ETH_ALEN];
 };
 
 /* Per-instance private data structure */

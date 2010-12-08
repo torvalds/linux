@@ -1278,9 +1278,14 @@ static int enic_set_port_profile(struct enic *enic, u8 *mac)
 			VIC_LINUX_PROV_TLV_PORT_PROFILE_NAME_STR,
 			strlen(enic->pp.name) + 1, enic->pp.name);
 
-		vic_provinfo_add_tlv(vp,
-			VIC_LINUX_PROV_TLV_CLIENT_MAC_ADDR,
-			ETH_ALEN, mac);
+		if (!is_zero_ether_addr(enic->pp.mac_addr))
+			vic_provinfo_add_tlv(vp,
+				VIC_LINUX_PROV_TLV_CLIENT_MAC_ADDR,
+				ETH_ALEN, enic->pp.mac_addr);
+		else
+			vic_provinfo_add_tlv(vp,
+				VIC_LINUX_PROV_TLV_CLIENT_MAC_ADDR,
+				ETH_ALEN, mac);
 
 		if (enic->pp.set & ENIC_SET_INSTANCE) {
 			sprintf(uuid_str, "%pUB", enic->pp.instance_uuid);
@@ -1300,16 +1305,18 @@ static int enic_set_port_profile(struct enic *enic, u8 *mac)
 		vic_provinfo_free(vp);
 		if (err)
 			return err;
+
+		enic->pp.set |= ENIC_SET_APPLIED;
 		break;
 
 	case PORT_REQUEST_DISASSOCIATE:
+		enic->pp.set &= ~ENIC_SET_APPLIED;
 		break;
 
 	default:
 		return -EINVAL;
 	}
 
-	enic->pp.set |= ENIC_SET_APPLIED;
 	return 0;
 }
 
@@ -1317,29 +1324,31 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 	struct nlattr *port[])
 {
 	struct enic *enic = netdev_priv(netdev);
+	struct enic_port_profile new_pp;
+	int err = 0;
 
-	memset(&enic->pp, 0, sizeof(enic->pp));
+	memset(&new_pp, 0, sizeof(new_pp));
 
 	if (port[IFLA_PORT_REQUEST]) {
-		enic->pp.set |= ENIC_SET_REQUEST;
-		enic->pp.request = nla_get_u8(port[IFLA_PORT_REQUEST]);
+		new_pp.set |= ENIC_SET_REQUEST;
+		new_pp.request = nla_get_u8(port[IFLA_PORT_REQUEST]);
 	}
 
 	if (port[IFLA_PORT_PROFILE]) {
-		enic->pp.set |= ENIC_SET_NAME;
-		memcpy(enic->pp.name, nla_data(port[IFLA_PORT_PROFILE]),
+		new_pp.set |= ENIC_SET_NAME;
+		memcpy(new_pp.name, nla_data(port[IFLA_PORT_PROFILE]),
 			PORT_PROFILE_MAX);
 	}
 
 	if (port[IFLA_PORT_INSTANCE_UUID]) {
-		enic->pp.set |= ENIC_SET_INSTANCE;
-		memcpy(enic->pp.instance_uuid,
+		new_pp.set |= ENIC_SET_INSTANCE;
+		memcpy(new_pp.instance_uuid,
 			nla_data(port[IFLA_PORT_INSTANCE_UUID]), PORT_UUID_MAX);
 	}
 
 	if (port[IFLA_PORT_HOST_UUID]) {
-		enic->pp.set |= ENIC_SET_HOST;
-		memcpy(enic->pp.host_uuid,
+		new_pp.set |= ENIC_SET_HOST;
+		memcpy(new_pp.host_uuid,
 			nla_data(port[IFLA_PORT_HOST_UUID]), PORT_UUID_MAX);
 	}
 
@@ -1347,21 +1356,39 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 	if (vf != PORT_SELF_VF)
 		return -EOPNOTSUPP;
 
-	if (!(enic->pp.set & ENIC_SET_REQUEST))
+	if (!(new_pp.set & ENIC_SET_REQUEST))
 		return -EOPNOTSUPP;
 
-	if (enic->pp.request == PORT_REQUEST_ASSOCIATE) {
-
-		/* If the interface mac addr hasn't been assigned,
-		 * assign a random mac addr before setting port-
-		 * profile.
-		 */
+	if (new_pp.request == PORT_REQUEST_ASSOCIATE) {
+		/* Special case handling */
+		if (!is_zero_ether_addr(enic->pp.vf_mac))
+			memcpy(new_pp.mac_addr, enic->pp.vf_mac, ETH_ALEN);
 
 		if (is_zero_ether_addr(netdev->dev_addr))
 			random_ether_addr(netdev->dev_addr);
+	} else if (new_pp.request == PORT_REQUEST_DISASSOCIATE) {
+		if (!is_zero_ether_addr(enic->pp.mac_addr))
+			enic_dev_del_addr(enic, enic->pp.mac_addr);
 	}
 
-	return enic_set_port_profile(enic, netdev->dev_addr);
+	memcpy(&enic->pp, &new_pp, sizeof(struct enic_port_profile));
+
+	err = enic_set_port_profile(enic, netdev->dev_addr);
+	if (err)
+		goto set_port_profile_cleanup;
+
+	if (!is_zero_ether_addr(enic->pp.mac_addr))
+		enic_dev_add_addr(enic, enic->pp.mac_addr);
+
+set_port_profile_cleanup:
+	memset(enic->pp.vf_mac, 0, ETH_ALEN);
+
+	if (err || enic->pp.request == PORT_REQUEST_DISASSOCIATE) {
+		memset(netdev->dev_addr, 0, ETH_ALEN);
+		memset(enic->pp.mac_addr, 0, ETH_ALEN);
+	}
+
+	return err;
 }
 
 static int enic_get_vf_port(struct net_device *netdev, int vf,
@@ -1941,7 +1968,10 @@ static int enic_open(struct net_device *netdev)
 	for (i = 0; i < enic->rq_count; i++)
 		vnic_rq_enable(&enic->rq[i]);
 
-	enic_dev_add_station_addr(enic);
+	if (enic_is_dynamic(enic) && !is_zero_ether_addr(enic->pp.mac_addr))
+		enic_dev_add_addr(enic, enic->pp.mac_addr);
+	else
+		enic_dev_add_station_addr(enic);
 	enic_set_rx_mode(netdev);
 
 	netif_wake_queue(netdev);
@@ -1989,7 +2019,10 @@ static int enic_stop(struct net_device *netdev)
 
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
-	enic_dev_del_station_addr(enic);
+	if (enic_is_dynamic(enic) && !is_zero_ether_addr(enic->pp.mac_addr))
+		enic_dev_del_addr(enic, enic->pp.mac_addr);
+	else
+		enic_dev_del_station_addr(enic);
 
 	for (i = 0; i < enic->wq_count; i++) {
 		err = vnic_wq_disable(&enic->wq[i]);
