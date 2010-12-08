@@ -36,8 +36,8 @@ USE_PROFILER    ?= 0
 USE_SW_FB       ?= 0
 USE_3D_VG		=1
 ABI             ?= 0
-ANDROID         ?= 0
-EGL_API_ANDROID ?= 0
+ANDROID         ?= 1
+EGL_API_ANDROID ?= 1
 ENUM_WORKAROUND ?= 0
 ENDIANNESS		?=
 QNX             ?= 0
@@ -58,7 +58,7 @@ NO_DMA_COHERENT ?= 0
 ################################################################
 # Set this value to 1 if you are using ARM L2 cache.
 
-ENABLE_ARM_L2_CACHE	= 0
+ENABLE_ARM_L2_CACHE	= 1
 
 ################################################################
 # Set this value to 1 if you are using DOVE board.
