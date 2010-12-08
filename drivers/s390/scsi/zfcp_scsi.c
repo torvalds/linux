@@ -30,6 +30,10 @@ module_param_named(dif, enable_dif, bool, 0600);
 MODULE_PARM_DESC(dif, "Enable DIF/DIX data integrity support");
 #endif
 
+static bool allow_lun_scan = 1;
+module_param(allow_lun_scan, bool, 0600);
+MODULE_PARM_DESC(allow_lun_scan, "For NPIV, scan and attach all storage LUNs");
+
 static int zfcp_scsi_change_queue_depth(struct scsi_device *sdev, int depth,
 					int reason)
 {
@@ -130,6 +134,7 @@ static int zfcp_scsi_slave_alloc(struct scsi_device *sdev)
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(sdev);
 	struct zfcp_port *port;
 	struct zfcp_unit *unit;
+	int npiv = adapter->connection_features & FSF_FEATURE_NPIV_MODE;
 
 	port = zfcp_get_port_by_wwpn(adapter, rport->port_name);
 	if (!port)
@@ -139,7 +144,7 @@ static int zfcp_scsi_slave_alloc(struct scsi_device *sdev)
 	if (unit)
 		put_device(&unit->dev);
 
-	if (!unit && !(adapter->connection_features & FSF_FEATURE_NPIV_MODE)) {
+	if (!unit && !(allow_lun_scan && npiv)) {
 		put_device(&port->dev);
 		return -ENXIO;
 	}
