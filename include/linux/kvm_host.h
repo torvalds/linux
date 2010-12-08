@@ -256,8 +256,8 @@ struct kvm {
 	struct mmu_notifier mmu_notifier;
 	unsigned long mmu_notifier_seq;
 	long mmu_notifier_count;
-	long tlbs_dirty;
 #endif
+	long tlbs_dirty;
 };
 
 /* The guest did something we don't support. */
