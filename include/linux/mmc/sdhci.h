@@ -139,6 +139,10 @@ struct sdhci_host {
 
 	unsigned int caps;	/* Alternative capabilities */
 
+	unsigned int            ocr_avail_sdio;	/* OCR bit masks */
+	unsigned int            ocr_avail_sd;
+	unsigned int            ocr_avail_mmc;
+
 	unsigned long private[0] ____cacheline_aligned;
 };
 #endif /* __SDHCI_H */

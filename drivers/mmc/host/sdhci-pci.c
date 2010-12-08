@@ -272,6 +272,7 @@ static int jmicron_pmos(struct sdhci_pci_chip *chip, int on)
 static int jmicron_probe(struct sdhci_pci_chip *chip)
 {
 	int ret;
+	u16 mmcdev = 0;
 
 	if (chip->pdev->revision == 0) {
 		chip->quirks |= SDHCI_QUIRK_32BIT_DMA_ADDR |
@@ -293,12 +294,17 @@ static int jmicron_probe(struct sdhci_pci_chip *chip)
 	 * 2. The MMC interface has a lower subfunction number
 	 *    than the SD interface.
 	 */
-	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_SD) {
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_SD)
+		mmcdev = PCI_DEVICE_ID_JMICRON_JMB38X_MMC;
+	else if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_SD)
+		mmcdev = PCI_DEVICE_ID_JMICRON_JMB388_ESD;
+
+	if (mmcdev) {
 		struct pci_dev *sd_dev;
 
 		sd_dev = NULL;
 		while ((sd_dev = pci_get_device(PCI_VENDOR_ID_JMICRON,
-			PCI_DEVICE_ID_JMICRON_JMB38X_MMC, sd_dev)) != NULL) {
+						mmcdev, sd_dev)) != NULL) {
 			if ((PCI_SLOT(chip->pdev->devfn) ==
 				PCI_SLOT(sd_dev->devfn)) &&
 				(chip->pdev->bus == sd_dev->bus))
@@ -358,11 +364,21 @@ static int jmicron_probe_slot(struct sdhci_pci_slot *slot)
 			slot->host->quirks |= SDHCI_QUIRK_BROKEN_ADMA;
 	}
 
+	/* JM388 MMC doesn't support 1.8V while SD supports it */
+	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD) {
+		slot->host->ocr_avail_sd = MMC_VDD_32_33 | MMC_VDD_33_34 |
+			MMC_VDD_29_30 | MMC_VDD_30_31 |
+			MMC_VDD_165_195; /* allow 1.8V */
+		slot->host->ocr_avail_mmc = MMC_VDD_32_33 | MMC_VDD_33_34 |
+			MMC_VDD_29_30 | MMC_VDD_30_31; /* no 1.8V for MMC */
+	}
+
 	/*
 	 * The secondary interface requires a bit set to get the
 	 * interrupts.
 	 */
-	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC)
+	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
+	    slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD)
 		jmicron_enable_mmc(slot->host, 1);
 
 	return 0;
@@ -373,7 +389,8 @@ static void jmicron_remove_slot(struct sdhci_pci_slot *slot, int dead)
 	if (dead)
 		return;
 
-	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC)
+	if (slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
+	    slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD)
 		jmicron_enable_mmc(slot->host, 0);
 }
 
@@ -381,7 +398,8 @@ static int jmicron_suspend(struct sdhci_pci_chip *chip, pm_message_t state)
 {
 	int i;
 
-	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC) {
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
+	    chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD) {
 		for (i = 0;i < chip->num_slots;i++)
 			jmicron_enable_mmc(chip->slots[i]->host, 0);
 	}
@@ -393,7 +411,8 @@ static int jmicron_resume(struct sdhci_pci_chip *chip)
 {
 	int ret, i;
 
-	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC) {
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
+	    chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD) {
 		for (i = 0;i < chip->num_slots;i++)
 			jmicron_enable_mmc(chip->slots[i]->host, 1);
 	}
@@ -576,6 +595,22 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
 		.vendor		= PCI_VENDOR_ID_JMICRON,
 		.device		= PCI_DEVICE_ID_JMICRON_JMB38X_MMC,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_JMICRON,
+		.device		= PCI_DEVICE_ID_JMICRON_JMB388_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_JMICRON,
+		.device		= PCI_DEVICE_ID_JMICRON_JMB388_ESD,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (kernel_ulong_t)&sdhci_jmicron,

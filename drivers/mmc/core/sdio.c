@@ -700,6 +700,8 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	WARN_ON(!host->claimed);
 
 	mmc_attach_bus(host, &mmc_sdio_ops);
+	if (host->ocr_avail_sdio)
+		host->ocr_avail = host->ocr_avail_sdio;
 
 	/*
 	 * Sanity check the voltages that the card claims to

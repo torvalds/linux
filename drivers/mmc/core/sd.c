@@ -772,6 +772,8 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 	WARN_ON(!host->claimed);
 
 	mmc_sd_attach_bus_ops(host);
+	if (host->ocr_avail_sd)
+		host->ocr_avail = host->ocr_avail_sd;
 
 	/*
 	 * We need to get OCR a different way for SPI.
@@ -795,7 +797,8 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 		ocr &= ~0x7F;
 	}
 
-	if (ocr & MMC_VDD_165_195) {
+	if ((ocr & MMC_VDD_165_195) &&
+	    !(host->ocr_avail_sd & MMC_VDD_165_195)) {
 		printk(KERN_WARNING "%s: SD card claims to support the "
 		       "incompletely defined 'low voltage range'. This "
 		       "will be ignored.\n", mmc_hostname(host));

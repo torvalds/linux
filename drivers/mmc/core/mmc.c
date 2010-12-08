@@ -745,6 +745,8 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 	WARN_ON(!host->claimed);
 
 	mmc_attach_bus_ops(host);
+	if (host->ocr_avail_mmc)
+		host->ocr_avail = host->ocr_avail_mmc;
 
 	/*
 	 * We need to get OCR a different way for SPI.

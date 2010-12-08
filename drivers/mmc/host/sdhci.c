@@ -1739,7 +1739,7 @@ EXPORT_SYMBOL_GPL(sdhci_alloc_host);
 int sdhci_add_host(struct sdhci_host *host)
 {
 	struct mmc_host *mmc;
-	unsigned int caps;
+	unsigned int caps, ocr_avail;
 	int ret;
 
 	WARN_ON(host == NULL);
@@ -1893,13 +1893,26 @@ int sdhci_add_host(struct sdhci_host *host)
 	    mmc_card_is_removable(mmc))
 		mmc->caps |= MMC_CAP_NEEDS_POLL;
 
-	mmc->ocr_avail = 0;
+	ocr_avail = 0;
 	if (caps & SDHCI_CAN_VDD_330)
-		mmc->ocr_avail |= MMC_VDD_32_33|MMC_VDD_33_34;
+		ocr_avail |= MMC_VDD_32_33 | MMC_VDD_33_34;
 	if (caps & SDHCI_CAN_VDD_300)
-		mmc->ocr_avail |= MMC_VDD_29_30|MMC_VDD_30_31;
+		ocr_avail |= MMC_VDD_29_30 | MMC_VDD_30_31;
 	if (caps & SDHCI_CAN_VDD_180)
-		mmc->ocr_avail |= MMC_VDD_165_195;
+		ocr_avail |= MMC_VDD_165_195;
+
+	mmc->ocr_avail = ocr_avail;
+	mmc->ocr_avail_sdio = ocr_avail;
+	if (host->ocr_avail_sdio)
+		mmc->ocr_avail_sdio &= host->ocr_avail_sdio;
+	mmc->ocr_avail_sd = ocr_avail;
+	if (host->ocr_avail_sd)
+		mmc->ocr_avail_sd &= host->ocr_avail_sd;
+	else /* normal SD controllers don't support 1.8V */
+		mmc->ocr_avail_sd &= ~MMC_VDD_165_195;
+	mmc->ocr_avail_mmc = ocr_avail;
+	if (host->ocr_avail_mmc)
+		mmc->ocr_avail_mmc &= host->ocr_avail_mmc;
 
 	if (mmc->ocr_avail == 0) {
 		printk(KERN_ERR "%s: Hardware doesn't report any "

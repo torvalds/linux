@@ -131,6 +131,9 @@ struct mmc_host {
 	unsigned int		f_max;
 	unsigned int		f_init;
 	u32			ocr_avail;
+	u32			ocr_avail_sdio;	/* SDIO-specific OCR */
+	u32			ocr_avail_sd;	/* SD-specific OCR */
+	u32			ocr_avail_mmc;	/* MMC-specific OCR */
 	struct notifier_block	pm_notify;
 
 #define MMC_VDD_165_195		0x00000080	/* VDD voltage 1.65 - 1.95 */
