@@ -2660,6 +2660,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
 	}
+	prefetchw(skb->data);
 
 	skb_reserve(skb, datalen);
 
@@ -3007,6 +3008,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 		sprintf(pkt_dev->result, "No memory");
 		return NULL;
 	}
+	prefetchw(skb->data);
 
 	skb_reserve(skb, 16);
 
