@@ -54,7 +54,7 @@ struct rt_reg_pair RT30xx_RFRegTable[] = {
 	,
 	{RF_R06, 0x02}
 	,
-	{RF_R07, 0x70}
+	{RF_R07, 0x60}
 	,
 	{RF_R09, 0x0F}
 	,
