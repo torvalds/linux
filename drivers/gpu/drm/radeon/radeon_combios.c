@@ -729,7 +729,7 @@ void radeon_combios_i2c_init(struct radeon_device *rdev)
 					clk = RBIOS8(offset + 3 + (i * 5) + 3);
 					data = RBIOS8(offset + 3 + (i * 5) + 4);
 					i2c = combios_setup_i2c_bus(rdev, DDC_MONID,
-								    clk, data);
+								    (1 << clk), (1 << data));
 					rdev->i2c_bus[4] = radeon_i2c_create(dev, &i2c, "GPIOPAD_MASK");
 					break;
 				}

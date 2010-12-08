@@ -28,6 +28,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/console.h>
 
 #include <plat/sram.h>
 #include <plat/clockdomain.h>
@@ -385,6 +386,12 @@ void omap_sram_idle(void)
 		omap3_enable_io_chain();
 	}
 
+	/* Block console output in case it is on one of the OMAP UARTs */
+	if (per_next_state < PWRDM_POWER_ON ||
+	    core_next_state < PWRDM_POWER_ON)
+		if (try_acquire_console_sem())
+			goto console_still_active;
+
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
 		omap_uart_prepare_idle(2);
@@ -463,6 +470,9 @@ void omap_sram_idle(void)
 		omap_uart_resume_idle(3);
 	}
 
+	release_console_sem();
+
+console_still_active:
 	/* Disable IO-PAD and IO-CHAIN wakeup */
 	if (omap3_has_io_wakeup() &&
 	    (per_next_state < PWRDM_POWER_ON ||
