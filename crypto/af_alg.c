@@ -242,6 +242,7 @@ int af_alg_accept(struct sock *sk, struct socket *newsock)
 		goto unlock;
 
 	sock_init_data(newsock, sk2);
+	sock_graft(sk2, newsock);
 
 	err = type->accept(ask->private, sk2);
 	if (err) {
