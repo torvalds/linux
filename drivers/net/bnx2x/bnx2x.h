@@ -1336,7 +1336,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 
 #define BNX2X_ILT_ZALLOC(x, y, size) \
 	do { \
-		x = pci_alloc_consistent(bp->pdev, size, y); \
+		x = dma_alloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
 		if (x) \
 			memset(x, 0, size); \
 	} while (0)
@@ -1344,7 +1344,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define BNX2X_ILT_FREE(x, y, size) \
 	do { \
 		if (x) { \
-			pci_free_consistent(bp->pdev, size, x, y); \
+			dma_free_coherent(&bp->pdev->dev, size, x, y); \
 			x = NULL; \
 			y = 0; \
 		} \
