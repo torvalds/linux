@@ -19332,9 +19332,21 @@ static void alc662_auto_init(struct hda_codec *codec)
 		alc_inithook(codec);
 }
 
+static void alc272_fixup_mario(struct hda_codec *codec,
+			       const struct alc_fixup *fix, int pre_init) {
+	if (snd_hda_override_amp_caps(codec, 0x2, HDA_OUTPUT,
+				      (0x3b << AC_AMPCAP_OFFSET_SHIFT) |
+				      (0x3b << AC_AMPCAP_NUM_STEPS_SHIFT) |
+				      (0x03 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+				      (0 << AC_AMPCAP_MUTE_SHIFT)))
+		printk(KERN_WARNING
+		       "hda_codec: failed to override amp caps for NID 0x2\n");
+}
+
 enum {
 	ALC662_FIXUP_ASPIRE,
 	ALC662_FIXUP_IDEAPAD,
+	ALC272_FIXUP_MARIO,
 };
 
 static const struct alc_fixup alc662_fixups[] = {
@@ -19350,6 +19362,9 @@ static const struct alc_fixup alc662_fixups[] = {
 			{ }
 		}
 	},
+	[ALC272_FIXUP_MARIO] = {
+		.func = alc272_fixup_mario,
+	}
 };
 
 static struct snd_pci_quirk alc662_fixup_tbl[] = {
@@ -19360,6 +19375,10 @@ static struct snd_pci_quirk alc662_fixup_tbl[] = {
 	{}
 };
 
+static const struct alc_model_fixup alc662_fixup_models[] = {
+	{.id = ALC272_FIXUP_MARIO, .name = "mario"},
+	{}
+};
 
 
 static int patch_alc662(struct hda_codec *codec)
@@ -19459,7 +19478,8 @@ static int patch_alc662(struct hda_codec *codec)
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC662_AUTO) {
 		spec->init_hook = alc662_auto_init;
-		alc_pick_fixup(codec, alc662_fixup_tbl, alc662_fixups, 0);
+		alc_pick_fixup_model(codec, alc662_fixup_models,
+				     alc662_fixup_tbl, alc662_fixups, 0);
 	}
 
 	alc_init_jacks(codec);
