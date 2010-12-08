@@ -18,6 +18,7 @@
 /* Optional platform device data for tegra_hsuart driver. */
 struct tegra_hsuart_platform_data {
 	void (*exit_lpm_cb)(struct uart_port *);
+	void (*rx_done_cb)(struct uart_port *);
 };
 
 #endif

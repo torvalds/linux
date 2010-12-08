@@ -122,6 +122,8 @@ struct tegra_uart_port {
 
 	/* optional callback to exit low power mode */
 	void (*exit_lpm_cb)(struct uart_port *);
+	/* optional callback to indicate rx is done */
+	void (*rx_done_cb)(struct uart_port *);
 
 };
 
@@ -309,6 +311,9 @@ static void tegra_rx_dma_complete_callback(struct tegra_dma_req *req)
 
 	spin_unlock(&u->lock);
 	tty_flip_buffer_push(u->state->port.tty);
+
+	if (t->rx_done_cb)
+		t->rx_done_cb(u);
 	spin_lock(&u->lock);
 }
 
@@ -320,6 +325,8 @@ static void do_handle_rx_dma(struct tegra_uart_port *t)
 		set_rts(t, false);
 	tegra_dma_dequeue(t->rx_dma);
 	tty_flip_buffer_push(u->state->port.tty);
+	if (t->rx_done_cb)
+		t->rx_done_cb(u);
 	/* enqueue the request again */
 	tegra_start_dma_rx(t);
 	if (t->rts_active)
@@ -525,6 +532,8 @@ static irqreturn_t tegra_uart_isr(int irq, void *data)
 
 				spin_unlock_irqrestore(&u->lock, flags);
 				tty_flip_buffer_push(u->state->port.tty);
+				if (t->rx_done_cb)
+					t->rx_done_cb(u);
 				spin_lock_irqsave(&u->lock, flags);
 			}
 			break;
@@ -559,6 +568,8 @@ static void tegra_stop_rx(struct uart_port *u)
 	if (t->use_rx_dma && t->rx_dma) {
 		tegra_dma_dequeue(t->rx_dma);
 		tty_flip_buffer_push(u->state->port.tty);
+		if (t->rx_done_cb)
+			t->rx_done_cb(u);
 	}
 
 	return;
@@ -1267,8 +1278,10 @@ static int tegra_uart_probe(struct platform_device *pdev)
 
 	u->regshift = 2;
 
-	if (pdata)
+	if (pdata) {
 		t->exit_lpm_cb = pdata->exit_lpm_cb;
+		t->rx_done_cb = pdata->rx_done_cb;
+	}
 
 	t->clk = clk_get(&pdev->dev, NULL);
 	if (!t->clk) {
