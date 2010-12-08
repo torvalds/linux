@@ -2375,16 +2375,6 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 	xprt->reestablish_timeout = 0;
 	xprt->idle_timeout = 0;
 
-	/*
-	 * The backchannel uses the same socket connection as the
-	 * forechannel
-	 */
-	args->bc_xprt->xpt_bc_xprt = xprt;
-	xprt->bc_xprt = args->bc_xprt;
-	bc_sock = container_of(args->bc_xprt, struct svc_sock, sk_xprt);
-	transport->sock = bc_sock->sk_sock;
-	transport->inet = bc_sock->sk_sk;
-
 	xprt->ops = &bc_tcp_ops;
 
 	switch (addr->sa_family) {
@@ -2407,6 +2397,29 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 			xprt->address_strings[RPC_DISPLAY_PROTO]);
 
 	/*
+	 * The backchannel uses the same socket connection as the
+	 * forechannel
+	 */
+	if (args->bc_xprt->xpt_bc_xprt) {
+		/* XXX: actually, want to catch this case... */
+		ret = ERR_PTR(-EINVAL);
+		goto out_err;
+	}
+	/*
+	 * Once we've associated a backchannel xprt with a connection,
+	 * we want to keep it around as long as long as the connection
+	 * lasts, in case we need to start using it for a backchannel
+	 * again; this reference won't be dropped until bc_xprt is
+	 * destroyed.
+	 */
+	xprt_get(xprt);
+	args->bc_xprt->xpt_bc_xprt = xprt;
+	xprt->bc_xprt = args->bc_xprt;
+	bc_sock = container_of(args->bc_xprt, struct svc_sock, sk_xprt);
+	transport->sock = bc_sock->sk_sock;
+	transport->inet = bc_sock->sk_sk;
+
+	/*
 	 * Since we don't want connections for the backchannel, we set
 	 * the xprt status to connected
 	 */
@@ -2415,6 +2428,7 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 
 	if (try_module_get(THIS_MODULE))
 		return xprt;
+	xprt_put(xprt);
 	ret = ERR_PTR(-EINVAL);
 out_err:
 	xprt_free(xprt);

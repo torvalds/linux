@@ -13,6 +13,7 @@
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/svc_xprt.h>
 #include <linux/sunrpc/svcsock.h>
+#include <linux/sunrpc/xprt.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
@@ -128,6 +129,9 @@ static void svc_xprt_free(struct kref *kref)
 	if (test_bit(XPT_CACHE_AUTH, &xprt->xpt_flags))
 		svcauth_unix_info_release(xprt);
 	put_net(xprt->xpt_net);
+	/* See comment on corresponding get in xs_setup_bc_tcp(): */
+	if (xprt->xpt_bc_xprt)
+		xprt_put(xprt->xpt_bc_xprt);
 	xprt->xpt_ops->xpo_free(xprt);
 	module_put(owner);
 }

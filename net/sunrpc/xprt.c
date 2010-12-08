@@ -965,6 +965,7 @@ struct rpc_xprt *xprt_alloc(struct net *net, int size, int max_req)
 	xprt = kzalloc(size, GFP_KERNEL);
 	if (xprt == NULL)
 		goto out;
+	kref_init(&xprt->kref);
 
 	xprt->max_reqs = max_req;
 	xprt->slot = kcalloc(max_req, sizeof(struct rpc_rqst), GFP_KERNEL);
@@ -1102,7 +1103,6 @@ found:
 		return xprt;
 	}
 
-	kref_init(&xprt->kref);
 	spin_lock_init(&xprt->transport_lock);
 	spin_lock_init(&xprt->reserve_lock);
 
