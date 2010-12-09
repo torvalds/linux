@@ -859,15 +859,7 @@ static int win0fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
         var->yoffset = (var->yoffset) & (~0x1);
         var->nonstd &= ~0xc0;   //not support I2P in this format
         break;
-    case 4: // yuv420m
-        var->xres_virtual = (var->xres_virtual + 0x7) & (~0x7);
-        var->yres_virtual = (var->yres_virtual + 0x1) & (~0x1);
-        var->xres = (var->xres + 0x7) & (~0x7);
-        var->yres = (var->yres + 0x1) & (~0x1);
-        var->xoffset = (var->xoffset) & (~0x7);
-        var->yoffset = (var->yoffset) & (~0x1);
-        var->nonstd &= ~0xc0;   //not support I2P in this format
-        break;
+    case 4: // none
     case 5: // yuv444
         var->xres_virtual = (var->xres_virtual + 0x3) & (~0x3);
         var->xres = (var->xres + 0x3) & (~0x3);
@@ -975,14 +967,9 @@ static int win0fb_set_par(struct fb_info *info)
         par->uv_offset = (yact_st/2)*xvir + xact_st;
         cblen = crlen = (xvir*yvir)/4;
         break;
-    case 4: // yuv420m
-        format = 5;
-        fix->line_length = xvir;
-        par->y_offset = (yact_st/2)*3*xvir + (xact_st)*3;
-        cblen = crlen = (xvir*yvir)/4;
-        break;
+    case 4: // none
     case 5: // yuv444
-        format = 6;
+        format = 5;
         fix->line_length = xvir;
         par->y_offset = yact_st*xvir + xact_st;
         par->uv_offset = yact_st*2*xvir + xact_st*2;
@@ -1025,10 +1012,10 @@ static int win0fb_set_par(struct fb_info *info)
            break;
        case 2: // yuv4200
        case 3: // yuv4201
-       case 4: // yuv420m
            ScaleCbrX= CalScaleW0(xact/2, xsize);
            ScaleCbrY =  CalScaleW0(yact/2, ysize);
            break;
+       case 4: // none
        case 5:// yuv444
            ScaleCbrX= CalScaleW0(xact, xsize);
            ScaleCbrY =  CalScaleW0(yact, ysize);
