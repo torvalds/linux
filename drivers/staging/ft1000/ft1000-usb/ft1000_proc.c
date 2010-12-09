@@ -1,3 +1,24 @@
+/*
+ * ft1000_proc.c - ft1000 proc interface
+ *
+ * Copyright	(C) 2009-2010 Quintec
+ *		(C) 2010 Open-nandra
+ *      <marek.belisko@open-nandra.com>
+ *
+ * This file is subject to the terms and conditions of the GNU General
+ * Public License. See the file "COPYING" in the main directory of this
+ * archive for more details.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
