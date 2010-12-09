@@ -246,7 +246,7 @@ void nfs_umount(const struct nfs_mount_request *info)
 		args.flags |= RPC_CLNT_CREATE_NONPRIVPORT;
 
 	clnt = rpc_create(&args);
-	if (unlikely(IS_ERR(clnt)))
+	if (IS_ERR(clnt))
 		goto out_clnt_err;
 
 	dprintk("NFS: sending UMNT request for %s:%s\n",
