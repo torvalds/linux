@@ -33,7 +33,6 @@
 #define SEP_DRIVER_HW_DEFS__H
 
 /* PCI ID's */
-#define MRST_PCI_DEVICE_ID 0x080c
 #define MFLD_PCI_DEVICE_ID 0x0826
 
 /*----------------------- */
