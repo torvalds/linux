@@ -526,7 +526,7 @@ static int wm8731_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8731_RINVOL, 0x100, 0);
 
 	/* Disable bypass path by default */
-	snd_soc_update_bits(codec, WM8731_APANA, 0x4, 0);
+	snd_soc_update_bits(codec, WM8731_APANA, 0x8, 0);
 
 	snd_soc_add_controls(codec, wm8731_snd_controls,
 			     ARRAY_SIZE(wm8731_snd_controls));

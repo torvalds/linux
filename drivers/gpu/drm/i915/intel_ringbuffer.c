@@ -696,20 +696,17 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 	unsigned long end;
 	u32 head;
 
-	head = intel_read_status_page(ring, 4);
-	if (head) {
-		ring->head = head & HEAD_ADDR;
-		ring->space = ring->head - (ring->tail + 8);
-		if (ring->space < 0)
-			ring->space += ring->size;
-		if (ring->space >= n)
-			return 0;
-	}
-
 	trace_i915_ring_wait_begin (dev);
 	end = jiffies + 3 * HZ;
 	do {
-		ring->head = I915_READ_HEAD(ring) & HEAD_ADDR;
+		/* If the reported head position has wrapped or hasn't advanced,
+		 * fallback to the slow and accurate path.
+		 */
+		head = intel_read_status_page(ring, 4);
+		if (head < ring->actual_head)
+			head = I915_READ_HEAD(ring);
+		ring->actual_head = head;
+		ring->head = head & HEAD_ADDR;
 		ring->space = ring->head - (ring->tail + 8);
 		if (ring->space < 0)
 			ring->space += ring->size;
