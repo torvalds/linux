@@ -85,6 +85,7 @@ struct build_id_event {
 };
 
 enum perf_user_event_type { /* above any possible kernel type */
+	PERF_RECORD_USER_TYPE_START		= 64,
 	PERF_RECORD_HEADER_ATTR			= 64,
 	PERF_RECORD_HEADER_EVENT_TYPE		= 65,
 	PERF_RECORD_HEADER_TRACING_DATA		= 66,
@@ -171,6 +172,6 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 int event__parse_sample(const event_t *event, struct perf_session *session,
 			struct sample_data *sample);
 
-extern const char *event__name[];
+const char *event__get_event_name(unsigned int id);
 
 #endif /* __PERF_RECORD_H */
