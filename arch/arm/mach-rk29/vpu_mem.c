@@ -234,9 +234,9 @@ static int region_check(int index)
         "vpu_mem: region_check fail: negative first %d\n", index);
     WARN(index >= vpu_mem.num_entries,
         "vpu_mem: region_check fail: too large first %d\n", index);
-    WARN(end   <= 0,
+    WARN(end   <  0,
         "vpu_mem: region_check fail: negative end %d\n", end);
-    WARN(end   >  vpu_mem.num_entries,
+    WARN(end   >= vpu_mem.num_entries,
         "vpu_mem: region_check fail: too large end %d\n", end);
     WARN(!VPU_MEM_FIRST(index),
         "vpu_mem: region_check fail: index %d is not first\n", index);
