@@ -3196,7 +3196,7 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 	}
 	WL_DBG(("func %p\n", wl_cfg80211_get_sdio_func()));
 	wdev = wl_alloc_wdev(sizeof(struct wl_iface), &wl_cfg80211_get_sdio_func()->dev);
-	if (unlikely(IS_ERR(wdev)))
+	if (IS_ERR(wdev))
 		return -ENOMEM;
 
 	wdev->iftype = wl_mode_to_nl80211_iftype(WL_MODE_BSS);
