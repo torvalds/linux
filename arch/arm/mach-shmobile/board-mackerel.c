@@ -36,6 +36,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/smsc911x.h>
 #include <linux/sh_intc.h>
+#include <linux/tca6416_keypad.h>
 #include <linux/usb/r8a66597.h>
 
 #include <video/sh_mobile_lcdc.h>
@@ -413,10 +414,43 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&fsi_ak4643_device,
 };
 
+/* Keypad Initialization */
+#define KEYPAD_BUTTON(ev_type, ev_code, act_low) \
+{								\
+	.type		= ev_type,				\
+	.code		= ev_code,				\
+	.active_low	= act_low,				\
+}
+
+#define KEYPAD_BUTTON_LOW(event_code) KEYPAD_BUTTON(EV_KEY, event_code, 1)
+
+static struct tca6416_button mackerel_gpio_keys[] = {
+	KEYPAD_BUTTON_LOW(KEY_HOME),
+	KEYPAD_BUTTON_LOW(KEY_MENU),
+	KEYPAD_BUTTON_LOW(KEY_BACK),
+	KEYPAD_BUTTON_LOW(KEY_POWER),
+};
+
+static struct tca6416_keys_platform_data mackerel_tca6416_keys_info = {
+	.buttons	= mackerel_gpio_keys,
+	.nbuttons	= ARRAY_SIZE(mackerel_gpio_keys),
+	.rep		= 1,
+	.use_polling	= 0,
+	.pinmask	= 0x000F,
+};
+
 /* I2C */
+#define IRQ9 evt2irq(0x0320)
+
 static struct i2c_board_info i2c0_devices[] = {
 	{
 		I2C_BOARD_INFO("ak4643", 0x13),
+	},
+	/* Keypad */
+	{
+		I2C_BOARD_INFO("tca6408-keys", 0x20),
+		.platform_data = &mackerel_tca6416_keys_info,
+		.irq = IRQ9,
 	},
 };
 
@@ -524,6 +558,10 @@ static void __init mackerel_init(void)
 	gpio_no_direction(GPIO_PORT10CR); /* FSIAOLR needs no direction */
 
 	intc_set_priority(IRQ_FSI, 3); /* irq priority FSI(3) > SMSC911X(2) */
+
+	/* enable Keypad */
+	gpio_request(GPIO_FN_IRQ9_42,	NULL);
+	set_irq_type(IRQ9, IRQ_TYPE_LEVEL_HIGH);
 
 	/* enable Accelerometer */
 	gpio_request(GPIO_FN_IRQ21,	NULL);
