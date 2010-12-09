@@ -46,7 +46,7 @@ static int geoid;
 
 static char driver_name[] = "vme_tsi148";
 
-static const struct pci_device_id tsi148_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(tsi148_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_TUNDRA, PCI_DEVICE_ID_TUNDRA_TSI148) },
 	{ },
 };
