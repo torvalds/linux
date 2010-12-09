@@ -121,43 +121,48 @@ gcsPROFILER_COUNTERS;
 /* HAL profile information. */
 typedef struct _gcsPROFILER
 {
-    gctFILE         		file;
+    gctUINT32       enable;
+
+    gctBOOL         useSocket;
+    gctINT          sockFd;
+
+    gctFILE         file;
 
     /* Aggregate Information */
 
     /* Clock Info */
-    gctUINT64       		frameStart;
-    gctUINT64       		frameEnd;
+    gctUINT64       frameStart;
+    gctUINT64       frameEnd;
 
     /* Current frame information */
-    gctUINT32       		frameNumber;
-    gctUINT64       		frameStartTimeusec;
-    gctUINT64       		frameEndTimeusec;
-    gctUINT64       		frameStartCPUTimeusec;
-    gctUINT64       		frameEndCPUTimeusec;
+    gctUINT32       frameNumber;
+    gctUINT64       frameStartTimeusec;
+    gctUINT64       frameEndTimeusec;
+    gctUINT64       frameStartCPUTimeusec;
+    gctUINT64       frameEndCPUTimeusec;
 
 #if PROFILE_HAL_COUNTERS
-    gctUINT32       		vertexBufferTotalBytesAlloc;
-    gctUINT32       		vertexBufferNewBytesAlloc;
-    int             		vertexBufferTotalObjectsAlloc;
-    int             		vertexBufferNewObjectsAlloc;
+    gctUINT32       vertexBufferTotalBytesAlloc;
+    gctUINT32       vertexBufferNewBytesAlloc;
+    int             vertexBufferTotalObjectsAlloc;
+    int             vertexBufferNewObjectsAlloc;
 
-    gctUINT32       		indexBufferTotalBytesAlloc;
-    gctUINT32       		indexBufferNewBytesAlloc;
-    int             		indexBufferTotalObjectsAlloc;
-    int             		indexBufferNewObjectsAlloc;
+    gctUINT32       indexBufferTotalBytesAlloc;
+    gctUINT32       indexBufferNewBytesAlloc;
+    int             indexBufferTotalObjectsAlloc;
+    int             indexBufferNewObjectsAlloc;
 
-    gctUINT32       		textureBufferTotalBytesAlloc;
-    gctUINT32       		textureBufferNewBytesAlloc;
-    int             		textureBufferTotalObjectsAlloc;
-    int             		textureBufferNewObjectsAlloc;
+    gctUINT32       textureBufferTotalBytesAlloc;
+    gctUINT32       textureBufferNewBytesAlloc;
+    int             textureBufferTotalObjectsAlloc;
+    int             textureBufferNewObjectsAlloc;
 
-    gctUINT32       		numCommits;
-    gctUINT32       		drawPointCount;
-    gctUINT32       		drawLineCount;
-    gctUINT32       		drawTriangleCount;
-    gctUINT32       		drawVertexCount;
-    gctUINT32       		redundantStateChangeCalls;
+    gctUINT32       numCommits;
+    gctUINT32       drawPointCount;
+    gctUINT32       drawLineCount;
+    gctUINT32       drawTriangleCount;
+    gctUINT32       drawVertexCount;
+    gctUINT32       redundantStateChangeCalls;
 #endif
 }
 gcsPROFILER;
@@ -187,13 +192,26 @@ struct _gcsSHADER_PROFILER
 /* Initialize the gcsProfiler. */
 gceSTATUS
 gcoPROFILER_Initialize(
-    IN gcoHAL Hal,
-    IN gctFILE File
+    IN gcoHAL Hal
     );
 
 /* Destroy the gcProfiler. */
 gceSTATUS
 gcoPROFILER_Destroy(
+    IN gcoHAL Hal
+    );
+
+/* Write data to profiler. */
+gceSTATUS
+gcoPROFILER_Write(
+    IN gcoHAL Hal,
+    IN gctSIZE_T ByteCount,
+    IN gctCONST_POINTER Data
+    );
+
+/* Flush data out. */
+gceSTATUS
+gcoPROFILER_Flush(
     IN gcoHAL Hal
     );
 
@@ -203,6 +221,7 @@ gcoPROFILER_EndFrame(
     IN gcoHAL Hal
     );
 
+/* Increase profile counter Enum by Value. */
 gceSTATUS
 gcoPROFILER_Count(
 	IN gcoHAL Hal,

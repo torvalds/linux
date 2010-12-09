@@ -367,6 +367,15 @@ gcoINDEX_Load(
 	IN gctPOINTER IndexBuffer
 	);
 
+/* Bind an index object to the hardware, for neocore hacking*/
+gceSTATUS
+gcoINDEX_LoadHack(
+	IN gcoINDEX Index,
+	IN gceINDEX_TYPE IndexType,
+	IN gctUINT32 IndexCount,
+	IN gctPOINTER IndexBuffer
+	);
+
 /* Bind an index object to the hardware. */
 gceSTATUS
 gcoINDEX_Bind(
@@ -1130,6 +1139,29 @@ typedef enum _gceTEXTURE_FACE
 }
 gceTEXTURE_FACE;
 
+typedef struct _gcsTEXTURE
+{
+    /* Addressing modes. */
+    gceTEXTURE_ADDRESSING       s;
+    gceTEXTURE_ADDRESSING       t;
+    gceTEXTURE_ADDRESSING       r;
+
+    /* Border color. */
+    gctUINT8                    border[4];
+
+    /* Filters. */
+    gceTEXTURE_FILTER           minFilter;
+    gceTEXTURE_FILTER           magFilter;
+    gceTEXTURE_FILTER           mipFilter;
+
+    /* Level of detail. */
+    gctFIXED_POINT              lodBias;
+    gctFIXED_POINT              lodMin;
+    gctFIXED_POINT              lodMax;
+}
+gcsTEXTURE, * gcsTEXTURE_PTR;
+
+
 /* Construct a new gcoTEXTURE object. */
 gceSTATUS
 gcoTEXTURE_Construct(
@@ -1356,6 +1388,7 @@ gcoTEXTURE_Flush(
 
 gceSTATUS
 gcoTEXTURE_QueryCaps(
+	IN	gcoHAL	  Hal,
 	OUT gctUINT * MaxWidth,
 	OUT gctUINT * MaxHeight,
 	OUT gctUINT * MaxDepth,
@@ -1389,6 +1422,13 @@ gcoTEXTURE_IsComplete(
 	IN gcoTEXTURE Texture,
 	IN gctINT MaxLevel
 	);
+
+gceSTATUS
+gcoTEXTURE_BindTexture(
+    IN gcoTEXTURE Texture,
+    IN gctINT Sampler,
+    IN gcsTEXTURE_PTR Info
+    );
 
 /******************************************************************************\
 ******************************* gcoSTREAM Object ******************************
@@ -1539,6 +1579,14 @@ gceSTATUS
 gcoVERTEX_Bind(
 	IN gcoVERTEX Vertex
 	);
+
+gceSTATUS
+gcoVERTEX_BindHack(
+	IN gctUINT32 ActiveAttributeCount,
+	IN gctUINT32 TotalStride,
+    IN gcoVERTEX Vertex,
+	IN gctUINT32 Address
+    );
 
 #ifdef __cplusplus
 }

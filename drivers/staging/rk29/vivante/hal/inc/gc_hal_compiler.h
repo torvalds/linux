@@ -381,6 +381,25 @@ gcSHADER_Save(
 	);
 
 /*******************************************************************************
+**  gcSHADER_ReallocateAttributes
+**
+**  Reallocate an array of pointers to gcATTRIBUTE objects.
+**
+**  INPUT:
+**
+**      gcSHADER Shader
+**          Pointer to a gcSHADER object.
+**
+**      gctSIZE_T Count
+**          Array count to reallocate.  'Count' must be at least 1.
+*/
+gceSTATUS
+gcSHADER_ReallocateAttributes(
+    IN gcSHADER Shader,
+    IN gctSIZE_T Count
+    );
+
+/*******************************************************************************
 **							  gcSHADER_AddAttribute
 ********************************************************************************
 **
@@ -495,6 +514,25 @@ gcSHADER_GetPositionAttribute(
 	);
 
 /*******************************************************************************
+**  gcSHADER_ReallocateUniforms
+**
+**  Reallocate an array of pointers to gcUNIFORM objects.
+**
+**  INPUT:
+**
+**      gcSHADER Shader
+**          Pointer to a gcSHADER object.
+**
+**      gctSIZE_T Count
+**          Array count to reallocate.  'Count' must be at least 1.
+*/
+gceSTATUS
+gcSHADER_ReallocateUniforms(
+    IN gcSHADER Shader,
+    IN gctSIZE_T Count
+    );
+
+/*******************************************************************************
 **							   gcSHADER_AddUniform
 ********************************************************************************
 **
@@ -575,6 +613,25 @@ gcSHADER_GetUniform(
 	IN gctUINT Index,
 	OUT gcUNIFORM * Uniform
 	);
+
+/*******************************************************************************
+**  gcSHADER_ReallocateOutputs
+**
+**  Reallocate an array of pointers to gcOUTPUT objects.
+**
+**  INPUT:
+**
+**      gcSHADER Shader
+**          Pointer to a gcSHADER object.
+**
+**      gctSIZE_T Count
+**          Array count to reallocate.  'Count' must be at least 1.
+*/
+gceSTATUS
+gcSHADER_ReallocateOutputs(
+    IN gcSHADER Shader,
+    IN gctSIZE_T Count
+    );
 
 /*******************************************************************************
 **							   gcSHADER_AddOutput
@@ -667,6 +724,25 @@ gcSHADER_GetOutput(
 	IN gctUINT Index,
 	OUT gcOUTPUT * Output
 	);
+
+/*******************************************************************************
+**  gcSHADER_ReallocateVariables
+**
+**  Reallocate an array of pointers to gcVARIABLE objects.
+**
+**  INPUT:
+**
+**      gcSHADER Shader
+**          Pointer to a gcSHADER object.
+**
+**      gctSIZE_T Count
+**          Array count to reallocate.  'Count' must be at least 1.
+*/
+gceSTATUS
+gcSHADER_ReallocateVariables(
+    IN gcSHADER Shader,
+    IN gctSIZE_T Count
+    );
 
 /*******************************************************************************
 **							   gcSHADER_AddVariable
@@ -1218,6 +1294,25 @@ gcSHADER_SetOptimizationOption(
 	IN gctUINT OptimizationOption
 	);
 
+/*******************************************************************************
+**  gcSHADER_ReallocateFunctions
+**
+**  Reallocate an array of pointers to gcFUNCTION objects.
+**
+**  INPUT:
+**
+**      gcSHADER Shader
+**          Pointer to a gcSHADER object.
+**
+**      gctSIZE_T Count
+**          Array count to reallocate.  'Count' must be at least 1.
+*/
+gceSTATUS
+gcSHADER_ReallocateFunctions(
+    IN gcSHADER Shader,
+    IN gctSIZE_T Count
+    );
+
 gceSTATUS
 gcSHADER_AddFunction(
 	IN gcSHADER Shader,
@@ -1570,6 +1665,25 @@ gcOUTPUT_GetName(
 /*******************************************************************************
 *********************************************************** F U N C T I O N S **
 *******************************************************************************/
+
+/*******************************************************************************
+**  gcFUNCTION_ReallocateArguments
+**
+**  Reallocate an array of gcsFUNCTION_ARGUMENT objects.
+**
+**  INPUT:
+**
+**      gcFUNCTION Function
+**          Pointer to a gcFUNCTION object.
+**
+**      gctSIZE_T Count
+**          Array count to reallocate.  'Count' must be at least 1.
+*/
+gceSTATUS
+gcFUNCTION_ReallocateArguments(
+    IN gcFUNCTION Function,
+    IN gctSIZE_T Count
+    );
 
 gceSTATUS
 gcFUNCTION_AddArgument(

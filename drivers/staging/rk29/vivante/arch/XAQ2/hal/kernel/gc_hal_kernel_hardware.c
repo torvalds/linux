@@ -126,6 +126,8 @@ _IdentifyHardware(
 
         /* Disable fast clear flush on some specific cores. */
         if (((*ChipModel == gcv600) && (*ChipRevision == 0x4302))
+/*        ||  ((*ChipModel == gcv530) && (*ChipRevision == 0x4303))
+		||	((*ChipModel == gcv800) && (*ChipRevision == 0x4301)) */
         )
         {
             *ChipMinorFeatures0 = ((((gctUINT32) (*ChipMinorFeatures0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 6:6) - (0 ? 6:6) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 6:6) - (0 ? 6:6) + 1))))))) << (0 ? 6:6))) | (((gctUINT32) (0x0 & ((gctUINT32) ((((1 ? 6:6) - (0 ? 6:6) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 6:6) - (0 ? 6:6) + 1))))))) << (0 ? 6:6)));
@@ -316,6 +318,10 @@ gckHARDWARE_Construct(
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Os, gcvOBJ_OS);
     gcmkVERIFY_ARGUMENT(Hardware != gcvNULL);
+
+    /* Enable the GPU. */
+    gcmkONERROR(gckOS_SetGPUPower(Os, gcvTRUE, gcvTRUE));
+    gcmkONERROR(gckOS_WriteRegister(Os, 0x00000, 0));
 
     /* Identify the hardware. */
     gcmkONERROR(_IdentifyHardware(Os,

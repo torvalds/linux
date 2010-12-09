@@ -28,6 +28,7 @@
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <asm/atomic.h>
 #ifdef NO_DMA_COHERENT
 #include <linux/dma-mapping.h>
@@ -56,6 +57,18 @@
 
 #define MEMORY_MAP_UNLOCK(os) \
     gcmkVERIFY_OK(gckOS_ReleaseMutex((os), (os)->memoryMapLock))
+
+#if gcdkREPORT_VIDMEM_USAGE
+static gctUINT64  AllocatedSurfaceTotal[12] = {0};
+/*
+ * AllocatedSurfaceMax[12]: Current total memory
+ * AllocatedSurfaceMax[13]: Current total memory in history
+ */
+static gctUINT64  AllocatedSurfaceMax[12 + 2] = {0};
+static char *pszSurfaceType[12] = {"UNKNOWN", "INDEX", "VERTEX", "TEXTURE", "RENDER_TARGET", \
+                                "DEPTH", "BITMAP", "TILE_STATUS", "MASK", "SCISSOR", "HIERARCHICAL_DEPTH", \
+                                "NUM_TYPES"};
+#endif
 
 /******************************************************************************\
 ********************************** Structures **********************************
@@ -133,6 +146,7 @@ typedef struct _gcsPageInfo
     gctUINT32_PTR pageTable;
 }
 gcsPageInfo;
+
 
 static PLINUX_MDL
 _CreateMdl(
@@ -779,6 +793,93 @@ gckOS_FreeMemory(
 
     /* Free the memory from the OS pool. */
     kfree(Memory);
+
+    /* Success. */
+    gcmkFOOTER_NO();
+    return gcvSTATUS_OK;
+}
+
+/*******************************************************************************
+**
+**  gckOS_AllocateVirtualMemory
+**
+**  Allocate virtual memory wrapper.
+**
+**  INPUT:
+**
+**      gctSIZE_T Bytes
+**          Number of bytes to allocate.
+**
+**  OUTPUT:
+**
+**      gctPOINTER * Memory
+**          Pointer to a variable that will hold the allocated memory location.
+*/
+gceSTATUS
+gckOS_AllocateVirtualMemory(
+    IN gckOS Os,
+    IN gctSIZE_T Bytes,
+    OUT gctPOINTER * Memory
+    )
+{
+    gctPOINTER memory;
+    gceSTATUS status;
+
+    gcmkHEADER_ARG("Os=0x%x Bytes=%lu", Os, Bytes);
+
+    /* Verify the arguments. */
+    gcmkVERIFY_ARGUMENT(Bytes > 0);
+    gcmkVERIFY_ARGUMENT(Memory != NULL);
+
+    memory = (gctPOINTER) vmalloc(Bytes);
+
+    if (memory == NULL)
+    {
+        /* Out of memory. */
+        gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
+    }
+
+    /* Return pointer to the memory allocation. */
+    *Memory = memory;
+
+    /* Success. */
+    gcmkFOOTER_ARG("*Memory=%p", *Memory);
+    return gcvSTATUS_OK;
+
+OnError:
+    /* Return the status. */
+    gcmkFOOTER();
+    return status;
+}
+
+/*******************************************************************************
+**
+**  gckOS_FreeVirtualMemory
+**
+**  Free allocated virtual memory wrapper.
+**
+**  INPUT:
+**
+**      gctPOINTER Memory
+**          Pointer to memory allocation to free.
+**
+**  OUTPUT:
+**
+**      Nothing.
+*/
+gceSTATUS
+gckOS_FreeVirtualMemory(
+    IN gckOS Os,
+    IN gctPOINTER Memory
+    )
+{
+    gcmkHEADER_ARG("Memory=%p", Memory);
+
+    /* Verify the arguments. */
+    gcmkVERIFY_ARGUMENT(Memory != NULL);
+
+    /* Free the memory from the OS pool. */
+    vfree(Memory);
 
     /* Success. */
     gcmkFOOTER_NO();
@@ -4434,9 +4535,8 @@ OnError:
 }
 
 gceSTATUS
-gckOS_CleanProcessSignal(
-    gckOS Os,
-    gctHANDLE Process
+gckOS_DestroyAllUserSignals(
+    IN gckOS Os
     )
 {
     gctINT signal;
@@ -4460,7 +4560,7 @@ gckOS_CleanProcessSignal(
     for (signal = 0; signal < Os->signal.tableLen; signal++)
     {
         if (Os->signal.table[signal] != gcvNULL &&
-            ((gcsSIGNAL_PTR)Os->signal.table[signal])->process == Process)
+            ((gcsSIGNAL_PTR)Os->signal.table[signal])->process == (gctHANDLE) current->tgid)
         {
             gckOS_DestroySignal(Os, Os->signal.table[signal]);
 
@@ -5062,7 +5162,9 @@ MEMORY_RECORD_PTR
 CreateMemoryRecord(
     gckOS Os,
     MEMORY_RECORD_PTR List,
-    gcuVIDMEM_NODE_PTR Node
+    gcuVIDMEM_NODE_PTR Node,
+    gceSURF_TYPE Type,
+    gctSIZE_T Bytes
     )
 {
     MEMORY_RECORD_PTR   mr;
@@ -5073,6 +5175,19 @@ CreateMemoryRecord(
     MEMORY_LOCK(Os);
 
     mr->node            = Node;
+    mr->type            = Type;
+    mr->bytes           = Bytes;
+
+#if gcdkREPORT_VIDMEM_USAGE
+    AllocatedSurfaceTotal[Type] += Bytes;
+    AllocatedSurfaceMax[Type] = (AllocatedSurfaceMax[Type] > AllocatedSurfaceTotal[Type])
+                       ? AllocatedSurfaceMax[Type] : AllocatedSurfaceTotal[Type];
+    AllocatedSurfaceMax[12] += Bytes;
+    if(AllocatedSurfaceMax[12] > AllocatedSurfaceMax[13])
+    {
+        AllocatedSurfaceMax[13] = AllocatedSurfaceMax[12];
+    }
+#endif
 
     mr->prev            = List->prev;
     mr->next            = List;
@@ -5091,6 +5206,11 @@ DestoryMemoryRecord(
     )
 {
     MEMORY_LOCK(Os);
+
+#if gcdkREPORT_VIDMEM_USAGE
+    AllocatedSurfaceTotal[Mr->type] -= Mr->bytes;
+    AllocatedSurfaceMax[12] -= Mr->bytes;
+#endif
 
     Mr->prev->next      = Mr->next;
     Mr->next->prev      = Mr->prev;
@@ -5140,6 +5260,21 @@ FreeAllMemoryRecord(
     gctUINT i = 0;
 
     MEMORY_LOCK(Os);
+
+#if gcdkREPORT_VIDMEM_USAGE
+    for (; i < 12; i++) {
+        printk("AllocatedSurfaceTotal[%s]:\t %12lluK, AllocatedSurfaceMax[%s]:\t %12lluK\n",
+                pszSurfaceType[i], AllocatedSurfaceTotal[i]/1024,
+                pszSurfaceType[i], AllocatedSurfaceMax[i]/1024);
+
+        AllocatedSurfaceTotal[i] = 0;
+        AllocatedSurfaceMax[i] = 0;
+    }
+    printk("AllocatedSurfaceMax[unfreed]:\t %12lluK\n", AllocatedSurfaceMax[12]/1024);
+    printk("AllocatedSurfaceMax[total]:\t %12lluK\n", AllocatedSurfaceMax[13]/1024);
+    AllocatedSurfaceMax[12] = AllocatedSurfaceMax[13] = 0;
+    i = 0;
+#endif
 
     while (List->next != List)
     {
@@ -5310,6 +5445,9 @@ gckOS_Broadcast(
 {
     gceSTATUS status;
     gctUINT32 idle = 0, dma = 0, axi = 0, read0 = 0, read1 = 0, write = 0;
+    gctUINT32 debugState = 0, memoryDebug = 0;
+    gctUINT32 debugCmdLow = 0, debugCmdHi = 0;
+    gctUINT32 i, debugSignalsPe, debugSignalsMc;
 
     gcmkHEADER_ARG("Os=0x%x Hardware=0x%x Reason=%d", Os, Hardware, Reason);
 
@@ -5364,6 +5502,39 @@ gckOS_Broadcast(
             gcmkPRINT("  read0=0x%08X read1=0x%08X write=0x%08X",
                       read0, read1, write);
         }
+
+        gcmkONERROR(gckOS_ReadRegister(Os, 0x660, &debugState));
+        gcmkONERROR(gckOS_ReadRegister(Os, 0x414, &memoryDebug));
+        gcmkPRINT("  debugState(0x660)=0x%08X memoryDebug(0x414)=0x%08X",
+                  debugState, memoryDebug);
+
+        gcmkONERROR(gckOS_ReadRegister(Os, 0x668, &debugCmdLow));
+        gcmkONERROR(gckOS_ReadRegister(Os, 0x66C, &debugCmdHi));
+        gcmkPRINT("  debugCmdLow(0x668)=0x%08X debugCmdHi(0x66C)=0x%08X",
+                  debugCmdLow, debugCmdHi);
+
+        for (i = 0; i < 16; i++)
+        {
+            gcmkONERROR(gckOS_WriteRegister(Os, 0x470, i << 16));
+            gcmkPRINT("%d: Write 0x%08X to DebugControl0(0x470)", i, i << 16);
+
+            gcmkONERROR(gckOS_ReadRegister(Os, 0x454, &debugSignalsPe));
+            gcmkPRINT("%d: debugSignalsPe(0x454)=0x%08X", i, debugSignalsPe);
+
+            gcmkPRINT("");
+        }
+
+        for (i = 0; i < 16; i++)
+        {
+            gcmkONERROR(gckOS_WriteRegister(Os, 0x478, i));
+            gcmkPRINT("%d: Write 0x%08X to DebugControl2(0x478)", i, i);
+
+            gcmkONERROR(gckOS_ReadRegister(Os, 0x468, &debugSignalsMc));
+            gcmkPRINT("%d: debugSignalsMc(0x468)=0x%08X", i, debugSignalsMc);
+
+            gcmkPRINT("");
+        }
+
 
         gcmkONERROR(gckKERNEL_Recovery(Hardware->kernel));
         break;

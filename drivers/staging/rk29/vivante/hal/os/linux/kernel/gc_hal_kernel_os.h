@@ -67,19 +67,20 @@ typedef struct _DRIVER_ARGS
 }
 DRIVER_ARGS;
 
-/* Cleanup the signal table. */
+/* Destroy all user signals of the current process */
 gceSTATUS
-gckOS_CleanProcessSignal(
-	gckOS Os,
-	gctHANDLE Process
-	);
+gckOS_DestroyAllUserSignals(
+     IN gckOS Os
+     );
 
 #ifdef gcdkUSE_MEMORY_RECORD
 MEMORY_RECORD_PTR
 CreateMemoryRecord(
 	gckOS Os,
 	MEMORY_RECORD_PTR List,
-	gcuVIDMEM_NODE_PTR Node
+	gcuVIDMEM_NODE_PTR Node,
+	gceSURF_TYPE Type,
+	gctSIZE_T Bytes
 	);
 
 void

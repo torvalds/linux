@@ -26,7 +26,7 @@
 
 #define _GC_OBJ_ZONE    gcvZONE_EVENT
 
-#define gcdEVENT_ALLOCATION_COUNT       (4096 / gcmSIZEOF(gcsHAL_INTERFACE))
+#define gcdEVENT_ALLOCATION_COUNT       (4096 / gcmSIZEOF(gcsEVENT))
 #define gcdEVENT_MIN_THRESHOLD          4
 
 /******************************************************************************\
@@ -431,10 +431,16 @@ gckEVENT_AllocateRecord(
     /* Acquire the mutex. */
     gcmkONERROR(gckOS_AcquireMutex(Event->os, Event->freeMutex, gcvINFINITE));
     acquired = gcvTRUE;
-
-    *Record           = Event->freeList;
-    Event->freeList   = Event->freeList->next;
-    Event->freeCount -= 1;
+    if (Event->freeCount == 0)
+    {
+        gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
+    }
+    else
+    {
+        *Record           = Event->freeList;
+        Event->freeList   = Event->freeList->next;
+        Event->freeCount -= 1;
+    }
 
     /* Release the mutex. */
     gcmkONERROR(gckOS_ReleaseMutex(Event->os, Event->freeMutex));
@@ -526,21 +532,8 @@ gckEVENT_AddList(
         &&  (Event->list.source != FromWhere)
         )
         {
-            /* No match - auto-submit the list. */
-            status = gckEVENT_Submit(Event, gcvFALSE);
-
-            if (status == gcvSTATUS_OUT_OF_RESOURCES)
-            {
-                /* When we are out of resources, just convert to submit from
-                ** PIXEL. */
-                Event->list.source = FromWhere = gcvKERNEL_PIXEL;
-            }
-
-            else
-            {
-                /* Check for error. */
-                gcmkONERROR(status);
-            }
+            /* Just convert to submit from PIXEL. */
+            Event->list.source = FromWhere = gcvKERNEL_PIXEL;
         }
         break;
 

@@ -26,6 +26,10 @@
 
 #define gcdkUSE_MEMORY_RECORD		1
 
+#ifndef gcdkREPORT_VIDMEM_USAGE
+#define gcdkREPORT_VIDMEM_USAGE		0
+#endif
+
 #ifdef ANDROID
 #define gcdkREPORT_VIDMEM_LEAK		0
 #else
@@ -83,6 +87,8 @@ typedef struct _gckGALDEVICE
 typedef struct MEMORY_RECORD
 {
 	gcuVIDMEM_NODE_PTR		node;
+	gceSURF_TYPE            type;
+	gctSIZE_T				bytes;
 
 	struct MEMORY_RECORD *	prev;
 	struct MEMORY_RECORD *	next;

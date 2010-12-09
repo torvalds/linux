@@ -50,22 +50,17 @@ else
 ABI             ?= aapcs-linux
 endif
 
-################################################################
 # Force to use dma_coherent_* stuff.
+NO_DMA_COHERENT ?= 1
 
-NO_DMA_COHERENT ?= 0
+# Enable to start GPU clock in drver.
+ENABLE_GPU_CLOCK_BY_DRIVER = 1
 
-################################################################
 # Set this value to 1 if you are using ARM L2 cache.
-
 ENABLE_ARM_L2_CACHE	= 1
 
-################################################################
 # Set this value to 1 if you are using DOVE board.
 CONFIG_DOVE_GPU = 0
-
-
-ENABLE_GPU_CLOCK_BY_DRIVER = 1
 
 
 AQROOT          ?= drivers/staging/rk29/vivante
@@ -189,6 +184,12 @@ ifeq ($(NO_USER_DIRECT_ACCESS_FROM_KERNEL), 1)
 EXTRA_CFLAGS += -DNO_USER_DIRECT_ACCESS_FROM_KERNEL=1
 else
 EXTRA_CFLAGS += -DNO_USER_DIRECT_ACCESS_FROM_KERNEL=0
+endif
+
+ifeq ($(gcdkREPORT_VIDMEM_USAGE), 1)
+EXTRA_CFLAGS += -DgcdkREPORT_VIDMEM_USAGE=1
+else
+EXTRA_CFLAGS += -DgcdkREPORT_VIDMEM_USAGE=0
 endif
 
 EXTRA_CFLAGS += -I$(AQROOT)/hal/inc

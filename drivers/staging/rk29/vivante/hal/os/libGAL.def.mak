@@ -10,7 +10,7 @@
 #  
 ##############################################################################
 #  
-#    Auto-generated file on 10/12/2010. Do not edit!!!
+#    Auto-generated file on 12/8/2010. Do not edit!!!
 #  
 ##############################################################################
 
@@ -212,6 +212,7 @@ EXPORTS
 	gcoINDEX_Lock
 	gcoINDEX_Unlock
 	gcoINDEX_Load
+	gcoINDEX_LoadHack
 	gcoINDEX_Bind
 	gcoINDEX_BindOffset
 	gcoINDEX_Free
@@ -394,6 +395,7 @@ EXPORTS
 	gcoTEXTURE_RenderIntoMipMap
 	gcoTEXTURE_IsRenderable
 	gcoTEXTURE_IsComplete
+	gcoTEXTURE_BindTexture
 !ENDIF
 
 	; gcsRECT
@@ -501,6 +503,7 @@ EXPORTS
 	gcoVERTEX_EnableAttribute
 	gcoVERTEX_DisableAttribute
 	gcoVERTEX_Bind
+	gcoVERTEX_BindHack
 !ENDIF
 
 !IFNDEF VIVANTE_NO_3D

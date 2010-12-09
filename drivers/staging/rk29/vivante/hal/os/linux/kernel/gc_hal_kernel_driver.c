@@ -23,6 +23,7 @@
 
 #include <linux/device.h>
 #include <linux/miscdevice.h>
+#include <linux/slab.h>
 
 
 #include "gc_hal_kernel_linux.h"
@@ -43,7 +44,7 @@ static gckGALDEVICE galDevice;
 static int major = 199;
 module_param(major, int, 0644);
 
-int irqLine = 0;
+int irqLine = -1;
 module_param(irqLine, int, 0644);
 
 long registerMemBase = 0x80000000;
@@ -75,6 +76,11 @@ module_param(baseAddress, ulong, 0644);
 
 int showArgs = 0;
 module_param(showArgs, int, 0644);
+
+#if ENABLE_GPU_CLOCK_BY_DRIVER
+unsigned long coreClock = 156000000;
+module_param(coreClock, ulong, 0644);
+#endif
 
 static int drv_open(struct inode *inode, struct file *filp);
 static int drv_release(struct inode *inode, struct file *filp);
@@ -143,6 +149,9 @@ int drv_release(struct inode* inode, struct file* filp)
 
     gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_DRIVER,
     	    	  "Entering drv_close\n");
+
+    gcmkVERIFY_OK(
+		gckOS_DestroyAllUserSignals(galDevice->os));
 
     private = filp->private_data;
     gcmkASSERT(private != gcvNULL);
@@ -337,15 +346,25 @@ int drv_ioctl(struct inode *inode,
 #if gcdkUSE_MEMORY_RECORD
 	else if (iface.command == gcvHAL_ALLOCATE_VIDEO_MEMORY)
 	{
+		gctSIZE_T bytes = (iface.u.AllocateVideoMemory.node->VidMem.memory->object.type == gcvOBJ_VIDMEM)
+						? iface.u.AllocateVideoMemory.node->VidMem.bytes
+						: iface.u.AllocateVideoMemory.node->Virtual.bytes;
 		CreateMemoryRecord(device->os,
 							&private->memoryRecordList,
-							iface.u.AllocateVideoMemory.node);
+							iface.u.AllocateVideoMemory.node,
+							iface.u.AllocateVideoMemory.type & 0xFF,
+							bytes);
 	}
 	else if (iface.command == gcvHAL_ALLOCATE_LINEAR_VIDEO_MEMORY)
 	{
+		gctSIZE_T bytes = (iface.u.AllocateLinearVideoMemory.node->VidMem.memory->object.type == gcvOBJ_VIDMEM)
+						? iface.u.AllocateLinearVideoMemory.node->VidMem.bytes
+						: iface.u.AllocateLinearVideoMemory.node->Virtual.bytes;
 		CreateMemoryRecord(device->os,
 							&private->memoryRecordList,
-							iface.u.AllocateLinearVideoMemory.node);
+							iface.u.AllocateLinearVideoMemory.node,
+							iface.u.AllocateLinearVideoMemory.type & 0xFF,
+							bytes);
 	}
 	else if (iface.command == gcvHAL_FREE_VIDEO_MEMORY)
 	{

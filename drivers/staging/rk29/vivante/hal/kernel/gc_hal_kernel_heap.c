@@ -281,7 +281,7 @@ _CompactKernelHeap(
 			gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_HEAP,
 						   "Freeing heap 0x%x (%lu bytes)",
 						   heap, heap->size + gcmSIZEOF(gcskHEAP));
-			gcmkVERIFY_OK(gckOS_FreeMemory(Heap->os, heap));
+			gcmkVERIFY_OK(gckOS_FreeVirtualMemory(Heap->os, heap));
 		}
 
 		/* Acquire the mutex again. */
@@ -422,7 +422,7 @@ gckHEAP_Destroy(
 #endif
 
 		/* Free the heap. */
-		gcmkVERIFY_OK(gckOS_FreeMemory(Heap->os, heap));
+		gcmkVERIFY_OK(gckOS_FreeVirtualMemory(Heap->os, heap));
 	}
 
 	/* Free the mutex. */
@@ -578,9 +578,9 @@ gckHEAP_Allocate(
 
 	/* Allocate a new heap. */
 	gcmkONERROR(
-		gckOS_AllocateMemory(Heap->os,
-							 Heap->allocationSize,
-							 &memory));
+		gckOS_AllocateVirtualMemory(Heap->os,
+							        Heap->allocationSize,
+							        &memory));
 
 	gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_HEAP,
 				   "Allocated heap 0x%x (%lu bytes)",
@@ -727,7 +727,7 @@ OnError:
 	if (memory != gcvNULL)
 	{
 		/* Free the heap memory. */
-		gckOS_FreeMemory(Heap->os, memory);
+		gckOS_FreeVirtualMemory(Heap->os, memory);
 	}
 
 	/* Return the status. */

@@ -489,6 +489,72 @@ gcoOS_Write(
     IN gctCONST_POINTER Data
     );
 
+/* Flush data to a file. */
+gceSTATUS
+gcoOS_Flush(
+    IN gcoOS Os,
+    IN gctFILE File
+    );
+
+/* Create an endpoint for communication. */
+gceSTATUS
+gcoOS_Socket(
+    IN gcoOS Os,
+    IN gctINT Domain,
+    IN gctINT Type,
+    IN gctINT Protocol,
+    OUT gctINT *SockFd
+    );
+
+/* Close a socket. */
+gceSTATUS
+gcoOS_CloseSocket(
+    IN gcoOS Os,
+    IN gctINT SockFd
+    );
+
+/* Initiate a connection on a socket. */
+gceSTATUS
+gcoOS_Connect(
+    IN gcoOS Os,
+    IN gctINT SockFd,
+    IN gctCONST_POINTER HostName,
+    IN gctUINT Port);
+
+/* Shut down part of connection on a socket. */
+gceSTATUS
+gcoOS_Shutdown(
+    IN gcoOS Os,
+    IN gctINT SockFd,
+    IN gctINT How
+    );
+
+/* Send a message on a socket. */
+gceSTATUS
+gcoOS_Send(
+    IN gcoOS Os,
+    IN gctINT SockFd,
+    IN gctSIZE_T ByteCount,
+    IN gctCONST_POINTER Data,
+    IN gctINT Flags
+    );
+
+/* Initiate a connection on a socket. */
+gceSTATUS
+gcoOS_WaitForSend(
+    IN gcoOS Os,
+    IN gctINT SockFd,
+    IN gctINT Seconds,
+    IN gctINT MicroSeconds);
+
+/* Get environment variable value. */
+gceSTATUS
+gcoOS_GetEnv(
+    IN gcoOS Os,
+    IN gctCONST_STRING VarName,
+    OUT gctSTRING * Value
+    );
+
 typedef enum _gceFILE_WHENCE
 {
     gcvFILE_SEEK_SET,
@@ -1846,6 +1912,7 @@ gcoOS_DebugTraceZone(
 
 #define gcmOPT_VALUE(ptr)           (((ptr) == gcvNULL) ? 0 : *(ptr))
 #define gcmOPT_POINTER(ptr)         (((ptr) == gcvNULL) ? gcvNULL : *(ptr))
+#define gcmOPT_STRING(ptr)          (((ptr) == gcvNULL) ? "(nil)" : (ptr))
 
 void
 gcoOS_Print(

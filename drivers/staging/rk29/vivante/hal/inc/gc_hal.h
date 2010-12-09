@@ -233,6 +233,21 @@ gckOS_FreeMemory(
 
 /* Allocate paged memory. */
 gceSTATUS
+gckOS_AllocateVirtualMemory(
+    IN gckOS Os,
+    IN gctSIZE_T Bytes,
+    OUT gctPOINTER * Memory
+    );
+
+/* Wrapper for freeing virtual memory. */
+gceSTATUS
+gckOS_FreeVirtualMemory(
+    IN gckOS Os,
+    IN gctPOINTER Memory
+    );
+
+/* Allocate paged memory. */
+gceSTATUS
 gckOS_AllocatePagedMemory(
     IN gckOS Os,
     IN gctSIZE_T Bytes,

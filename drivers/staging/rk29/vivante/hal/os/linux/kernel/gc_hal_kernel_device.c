@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
+#include <linux/slab.h>
 
 #define _GC_OBJ_ZONE    gcvZONE_DEVICE
 
@@ -176,7 +177,7 @@ gckGALDEVICE_Setup_ISR(
 
     gcmkVERIFY_ARGUMENT(Device != NULL);
 
-    if (Device->irqLine == 0)
+    if (Device->irqLine < 0)
     {
         return gcvSTATUS_GENERIC_IO;
     }
