@@ -371,10 +371,14 @@ static void md_end_flush(struct bio *bio, int err)
 	bio_put(bio);
 }
 
+static void md_submit_flush_data(struct work_struct *ws);
+
 static void submit_flushes(mddev_t *mddev)
 {
 	mdk_rdev_t *rdev;
 
+	INIT_WORK(&mddev->flush_work, md_submit_flush_data);
+	atomic_set(&mddev->flush_pending, 1);
 	rcu_read_lock();
 	list_for_each_entry_rcu(rdev, &mddev->disks, same_set)
 		if (rdev->raid_disk >= 0 &&
@@ -397,6 +401,8 @@ static void submit_flushes(mddev_t *mddev)
 			rdev_dec_pending(rdev, mddev);
 		}
 	rcu_read_unlock();
+	if (atomic_dec_and_test(&mddev->flush_pending))
+		queue_work(md_wq, &mddev->flush_work);
 }
 
 static void md_submit_flush_data(struct work_struct *ws)
@@ -426,13 +432,7 @@ void md_flush_request(mddev_t *mddev, struct bio *bio)
 	mddev->flush_bio = bio;
 	spin_unlock_irq(&mddev->write_lock);
 
-	atomic_set(&mddev->flush_pending, 1);
-	INIT_WORK(&mddev->flush_work, md_submit_flush_data);
-
 	submit_flushes(mddev);
-
-	if (atomic_dec_and_test(&mddev->flush_pending))
-		queue_work(md_wq, &mddev->flush_work);
 }
 EXPORT_SYMBOL(md_flush_request);
 
