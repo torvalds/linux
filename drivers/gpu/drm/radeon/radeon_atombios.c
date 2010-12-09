@@ -1500,6 +1500,9 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 		if (misc & ATOM_DOUBLE_CLOCK_MODE)
 			lvds->native_mode.flags |= DRM_MODE_FLAG_DBLSCAN;
 
+		lvds->native_mode.width_mm = lvds_info->info.sLCDTiming.usImageHSize;
+		lvds->native_mode.height_mm = lvds_info->info.sLCDTiming.usImageVSize;
+
 		/* set crtc values */
 		drm_mode_set_crtcinfo(&lvds->native_mode, CRTC_INTERLACE_HALVE_V);
 

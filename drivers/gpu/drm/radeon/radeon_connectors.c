@@ -472,6 +472,9 @@ static int radeon_lvds_get_modes(struct drm_connector *connector)
 	if (mode) {
 		ret = 1;
 		drm_mode_probed_add(connector, mode);
+		/* add the width/height from vbios tables if available */
+		connector->display_info.width_mm = mode->width_mm;
+		connector->display_info.height_mm = mode->height_mm;
 		/* add scaled modes */
 		radeon_add_common_modes(encoder, connector);
 	}
