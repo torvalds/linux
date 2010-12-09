@@ -815,7 +815,7 @@ F:	drivers/mmc/host/msm_sdcc.c
 F:	drivers/mmc/host/msm_sdcc.h
 F:	drivers/serial/msm_serial.h
 F:	drivers/serial/msm_serial.c
-T:	git git://codeaurora.org/quic/kernel/dwalker/linux-msm.git
+T:	git git://codeaurora.org/quic/kernel/davidb/linux-msm.git
 S:	Maintained
 
 ARM/TOSA MACHINE SUPPORT
