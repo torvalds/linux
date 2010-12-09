@@ -190,6 +190,9 @@ endchoice
 config GPIO_PCA953X
 	default MACH_DAVINCI_DA850_EVM
 
+config KEYBOARD_GPIO_POLLED
+	default MACH_DAVINCI_DA850_EVM
+
 config MACH_TNETV107X
 	bool "TI TNETV107X Reference Platform"
 	default ARCH_DAVINCI_TNETV107X
