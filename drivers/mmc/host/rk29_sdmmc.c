@@ -396,10 +396,9 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 		return;
 	dev_vdbg(&host->pdev->dev, "DMA complete\n");
 	if(result != RK29_RES_OK)
-		printk("%s: sdio dma complete err\n",__FUNCTION__);
+		printk("%s: sdio dma complete err\n",__FUNCTION__);	
 	spin_lock(&host->lock);
 	rk29_sdmmc_dma_cleanup(host);
-
 	/*
 	 * If the card was removed, data will be NULL. No point trying
 	 * to send the stop command or waiting for NBUSY in this case.
@@ -521,8 +520,31 @@ static void rk29_sdmmc_start_request(struct rk29_sdmmc *host)
 	struct mmc_command	*cmd;
 	struct mmc_data		*data;
 	u32			cmdflags;
-
+	int time_out =60;
+	unsigned long flags;
+	
 	mrq = host->mrq;
+	/*等待前面传输处理完成*/
+	while(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_DATA_BUSY)) {
+		mdelay(5);
+		time_out --;		
+		if(!time_out){
+			time_out =60;
+			local_irq_save(flags);  
+			rk29_sdmmc_write( host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | ( SDMMC_CTRL_FIFO_RESET ));
+			 /* wait till resets clear */
+			while (rk29_sdmmc_read(host->regs, SDMMC_CTRL) & ( SDMMC_CTRL_FIFO_RESET));
+			local_irq_restore(flags);
+		}
+	}
+	/*检查FIFO,如果不为空，清空*/
+	if(!(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_FIFO_EMPTY)) {
+		local_irq_save(flags);  
+		rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | ( SDMMC_CTRL_FIFO_RESET ));
+		 /* wait till resets clear */
+		while (readl(host->regs + SDMMC_CTRL) & ( SDMMC_CTRL_FIFO_RESET));
+		local_irq_restore(flags);
+	}
 	/* Slot specific timing and width adjustment */
 	rk29_sdmmc_setup_bus(host);
 	host->curr_mrq = mrq;
@@ -663,10 +685,33 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_request *
 	__acquires(&host->lock)
 {
 	struct mmc_host		*prev_mmc = host->mmc;
+	unsigned long flags;
+	int time_out =60;
 	
 	WARN_ON(host->cmd || host->data);
 	host->curr_mrq = NULL;
 	host->mrq = NULL;
+	/*等待前面传输处理完成*/
+	while(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_DATA_BUSY)) {
+		mdelay(5);
+		time_out --;		
+		if(!time_out){
+			time_out =60;
+			local_irq_save(flags);  
+			rk29_sdmmc_write( host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | ( SDMMC_CTRL_FIFO_RESET ));
+			 /* wait till resets clear */
+			while (rk29_sdmmc_read(host->regs, SDMMC_CTRL) & ( SDMMC_CTRL_FIFO_RESET));
+			local_irq_restore(flags);
+		}
+	}
+	/*检查FIFO,如果不为空，清空*/
+	if(!(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_FIFO_EMPTY)) {
+		local_irq_save(flags);  
+		rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | ( SDMMC_CTRL_FIFO_RESET ));
+		 /* wait till resets clear */
+		while (readl(host->regs + SDMMC_CTRL) & ( SDMMC_CTRL_FIFO_RESET));
+		local_irq_restore(flags);
+	}
 	if (!list_empty(&host->queue)) {
 		host = list_entry(host->queue.next,
 				struct rk29_sdmmc, queue_node);
@@ -1312,7 +1357,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host); 	
 	mmc->ops = &rk29_sdmmc_ops[pdev->id];
 	mmc->f_min = host->bus_hz/510;
-	mmc->f_max = host->bus_hz/4;  //2;  ///20; //max f is clock to mmc_clk/2
+	mmc->f_max = host->bus_hz/2;  //2;  ///20; //max f is clock to mmc_clk/2
 	mmc->ocr_avail = pdata->host_ocr_avail;
 	mmc->caps = pdata->host_caps;
 	mmc->max_phys_segs = 64;
@@ -1339,7 +1384,6 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_TXDR | SDMMC_INT_RXDR | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
 	rk29_sdmmc_write(host->regs, SDMMC_CTRL,SDMMC_CTRL_INT_ENABLE); // enable mci interrupt
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA,1);
-	///rk29_sdmmc_write(host->regs, SDMMC_CLKDIV,2);
 	dev_info(&pdev->dev, "RK29 SDMMC controller at irq %d\n", irq);
 	return 0;
 err_dmaunmap:

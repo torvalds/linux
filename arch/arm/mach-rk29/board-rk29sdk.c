@@ -740,13 +740,13 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);	
 	rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
 	gpio_request(RK29_PIN5_PD5,"sdmmc");
-	//gpio_set_value(RK29_PIN5_PD5,GPIO_HIGH);
-	//mdelay(100);
+	gpio_set_value(RK29_PIN5_PD5,GPIO_HIGH);
+	mdelay(100);
 	gpio_set_value(RK29_PIN5_PD5,GPIO_LOW);
 	return 0;
 }
 
-//#define CONFIG_SDMMC0_USE_DMA
+#define CONFIG_SDMMC0_USE_DMA
 struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 	.host_ocr_avail = (MMC_VDD_25_26|MMC_VDD_26_27|MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|
 					   MMC_VDD_30_31|MMC_VDD_31_32|MMC_VDD_32_33|
@@ -1294,7 +1294,7 @@ static void __init machine_rk29_init_irq(void)
 static void __init machine_rk29_board_init(void)
 {
         rk29_board_iomux_init();
-
+	gpio_request(POWER_ON_PIN,"poweronpin");	
 		gpio_set_value(POWER_ON_PIN, 1);
 		gpio_direction_output(POWER_ON_PIN, 1);
 
