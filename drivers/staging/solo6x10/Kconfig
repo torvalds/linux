@@ -1,6 +1,6 @@
 config SOLO6X10
 	tristate "Softlogic 6x10 MPEG codec cards"
-	depends on PCI && VIDEO_DEV && SND
+	depends on PCI && VIDEO_DEV && SND && I2C
 	select VIDEOBUF_DMA_SG
 	---help---
 	  This driver supports the Softlogic based MPEG-4 and h.264 codec
