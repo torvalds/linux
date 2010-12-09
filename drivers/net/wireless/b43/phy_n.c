@@ -3278,9 +3278,9 @@ static void b43_nphy_mac_phy_clock_set(struct b43_wldev *dev, bool on)
 {
 	u32 tmslow = ssb_read32(dev->dev, SSB_TMSLOW);
 	if (on)
-		tmslow |= SSB_TMSLOW_PHYCLK;
+		tmslow |= B43_TMSLOW_MACPHYCLKEN;
 	else
-		tmslow &= ~SSB_TMSLOW_PHYCLK;
+		tmslow &= ~B43_TMSLOW_MACPHYCLKEN;
 	ssb_write32(dev->dev, SSB_TMSLOW, tmslow);
 }
 
