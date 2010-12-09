@@ -2499,7 +2499,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 		return C_MASK;
 	}
 	if (hg == -1001) {
-		dev_alert(DEV, "To resolve this both sides have to support at least protocol\n");
+		dev_alert(DEV, "To resolve this both sides have to support at least protocol 91\n");
 		return C_MASK;
 	}
 
