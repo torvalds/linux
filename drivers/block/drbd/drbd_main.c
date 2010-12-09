@@ -1703,7 +1703,7 @@ int drbd_send(struct drbd_tconn *tconn, struct socket *sock,
 	int rv, sent = 0;
 
 	if (!sock)
-		return -1000;
+		return -EBADR;
 
 	/* THINK  if (signal_pending) return ... ? */
 
