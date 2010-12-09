@@ -173,6 +173,7 @@ static void __init mxc_board_init(void)
 
 	imx51_add_sdhci_esdhc_imx(0, NULL);
 	mxc_init_keypad();
+	imx51_add_imx2_wdt(0, NULL);
 }
 
 static void __init mx51_3ds_timer_init(void)
