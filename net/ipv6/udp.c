@@ -602,7 +602,7 @@ static void flush_stack(struct sock **stack, unsigned int count,
 
 		sk = stack[i];
 		if (skb1) {
-			if (sk_rcvqueues_full(sk, skb)) {
+			if (sk_rcvqueues_full(sk, skb1)) {
 				kfree_skb(skb1);
 				goto drop;
 			}
