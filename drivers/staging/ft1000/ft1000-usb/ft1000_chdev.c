@@ -347,11 +347,14 @@ void ft1000_DestroyDevice(struct net_device *dev)
 static int ft1000_ChOpen (struct inode *Inode, struct file *File)
 {
 	struct ft1000_info *info;
+	struct ft1000_device *dev = (struct ft1000_device *)Inode->i_private;
     int i,num;
 
     DEBUG("ft1000_ChOpen called\n");
     num = (MINOR(Inode->i_rdev) & 0xf);
     DEBUG("ft1000_ChOpen: minor number=%d\n", num);
+
+	info = File->private_data = netdev_priv(dev->net);
 
     for (i=0; i<5; i++)
         DEBUG("pdevobj[%d]=%p\n", i, pdevobj[i]); //aelias [+] reason: down
@@ -392,8 +395,6 @@ static int ft1000_ChOpen (struct inode *Inode, struct file *File)
     info->app_info[i].nRxMsg = 0;
     info->app_info[i].nTxMsgReject = 0;
     info->app_info[i].nRxMsgMiss = 0;
-
-    File->private_data = pdevobj[num]->net;
 
 	nonseekable_open(Inode, File);
     return 0;
