@@ -1,7 +1,7 @@
 /*
- *  Generic Timer-list
+ *  Generic Timer-queue
  *
- *  Manages a simple list of timers, ordered by expiration time.
+ *  Manages a simple queue of timers, ordered by expiration time.
  *  Uses rbtrees for quick list adds and expiration.
  *
  *  NOTE: All of the following functions need to be serialized
@@ -22,30 +22,30 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/timerlist.h>
+#include <linux/timerqueue.h>
 #include <linux/rbtree.h>
 
 /**
- * timerlist_add - Adds timer to timerlist.
+ * timerqueue_add - Adds timer to timerqueue.
  *
- * @head: head of timerlist
+ * @head: head of timerqueue
  * @node: timer node to be added
  *
- * Adds the timer node to the timerlist, sorted by the
+ * Adds the timer node to the timerqueue, sorted by the
  * node's expires value.
  */
-void timerlist_add(struct timerlist_head *head, struct timerlist_node *node)
+void timerqueue_add(struct timerqueue_head *head, struct timerqueue_node *node)
 {
 	struct rb_node **p = &head->head.rb_node;
 	struct rb_node *parent = NULL;
-	struct timerlist_node  *ptr;
+	struct timerqueue_node  *ptr;
 
 	/* Make sure we don't add nodes that are already added */
 	WARN_ON_ONCE(!RB_EMPTY_NODE(&node->node));
 
 	while (*p) {
 		parent = *p;
-		ptr = rb_entry(parent, struct timerlist_node, node);
+		ptr = rb_entry(parent, struct timerqueue_node, node);
 		if (node->expires.tv64 < ptr->expires.tv64)
 			p = &(*p)->rb_left;
 		else
@@ -59,14 +59,14 @@ void timerlist_add(struct timerlist_head *head, struct timerlist_node *node)
 }
 
 /**
- * timerlist_del - Removes a timer from the timerlist.
+ * timerqueue_del - Removes a timer from the timerqueue.
  *
- * @head: head of timerlist
+ * @head: head of timerqueue
  * @node: timer node to be removed
  *
- * Removes the timer node from the timerlist.
+ * Removes the timer node from the timerqueue.
  */
-void timerlist_del(struct timerlist_head *head, struct timerlist_node *node)
+void timerqueue_del(struct timerqueue_head *head, struct timerqueue_node *node)
 {
 	WARN_ON_ONCE(RB_EMPTY_NODE(&node->node));
 
@@ -75,7 +75,7 @@ void timerlist_del(struct timerlist_head *head, struct timerlist_node *node)
 		struct rb_node *rbn = rb_next(&node->node);
 
 		head->next = rbn ?
-			rb_entry(rbn, struct timerlist_node, node) : NULL;
+			rb_entry(rbn, struct timerqueue_node, node) : NULL;
 	}
 	rb_erase(&node->node, &head->head);
 	RB_CLEAR_NODE(&node->node);
@@ -83,21 +83,21 @@ void timerlist_del(struct timerlist_head *head, struct timerlist_node *node)
 
 
 /**
- * timerlist_getnext - Returns the timer with the earlies expiration time
+ * timerqueue_getnext - Returns the timer with the earlies expiration time
  *
- * @head: head of timerlist
+ * @head: head of timerqueue
  *
  * Returns a pointer to the timer node that has the
  * earliest expiration time.
  */
-struct timerlist_node *timerlist_getnext(struct timerlist_head *head)
+struct timerqueue_node *timerqueue_getnext(struct timerqueue_head *head)
 {
 	return head->next;
 }
 
 
 /**
- * timerlist_iterate_next - Returns the timer after the provided timer
+ * timerqueue_iterate_next - Returns the timer after the provided timer
  *
  * @node: Pointer to a timer.
  *
@@ -105,7 +105,7 @@ struct timerlist_node *timerlist_getnext(struct timerlist_head *head)
  * necessary, to iterate through the list of timers in a timer list
  * without modifying the list.
  */
-struct timerlist_node *timerlist_iterate_next(struct timerlist_node *node)
+struct timerqueue_node *timerqueue_iterate_next(struct timerqueue_node *node)
 {
 	struct rb_node *next;
 
@@ -114,5 +114,5 @@ struct timerlist_node *timerlist_iterate_next(struct timerlist_node *node)
 	next = rb_next(&node->node);
 	if (!next)
 		return NULL;
-	return container_of(next, struct timerlist_node, node);
+	return container_of(next, struct timerqueue_node, node);
 }
