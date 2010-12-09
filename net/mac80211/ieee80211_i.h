@@ -557,7 +557,7 @@ struct ieee80211_sub_if_data {
 	unsigned int fragment_next;
 
 	struct ieee80211_key *keys[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
-	struct ieee80211_key *default_key;
+	struct ieee80211_key *default_unicast_key, *default_multicast_key;
 	struct ieee80211_key *default_mgmt_key;
 
 	u16 sequence_number;
@@ -595,7 +595,8 @@ struct ieee80211_sub_if_data {
 	struct {
 		struct dentry *dir;
 		struct dentry *subdir_stations;
-		struct dentry *default_key;
+		struct dentry *default_unicast_key;
+		struct dentry *default_multicast_key;
 		struct dentry *default_mgmt_key;
 	} debugfs;
 #endif
