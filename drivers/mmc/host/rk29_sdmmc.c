@@ -413,6 +413,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	struct scatterlist		*sg;
 	unsigned int			i,direction;
 	int dma_len=0;
+	
 	if(host->use_dma == 0)
 		return -ENOSYS;
 	/* If we don't have a channel, we can't do DMA */
@@ -435,8 +436,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	if (data->flags & MMC_DATA_READ)
 		direction = RK29_DMASRC_HW; 
 	else
-		direction = RK29_DMASRC_MEM;  		
-					
+		direction = RK29_DMASRC_MEM;  						
     rk29_dma_devconfig(host->dma_chn, direction, (unsigned long )(host->dma_addr));
    	rk29_dma_ctrl(host->dma_chn, RK29_DMAOP_FLUSH);	
 	dma_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, 
@@ -754,7 +754,7 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 		case STATE_IDLE:
 			break;
 
-		case STATE_SENDING_CMD:
+		case STATE_SENDING_CMD:			
 			if (!rk29_sdmmc_test_and_clear_pending(host,
 						EVENT_CMD_COMPLETE))
 				break;
@@ -1128,7 +1128,7 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 			/* FIFO threshold settings  */
   			rk29_sdmmc_write(host->regs, SDMMC_FIFOTH, ((0x3 << 28) | (0x0f << 16) | (0x10 << 0))); // RXMark = 15, TXMark = 16, DMA Size = 16
   			rk29_sdmmc_write(host->regs, SDMMC_PWREN, 1);
-			rk29_sdmmc_write(host->regs, SDMMC_CTRL, SDMMC_CTRL_INT_ENABLE);
+			rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | SDMMC_CTRL_INT_ENABLE);
 			host->data = NULL;
 			host->cmd = NULL;
  
@@ -1223,12 +1223,13 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		rk29_dma_config(host->dma_chn, 16);
 		rk29_dma_set_buffdone_fn(host->dma_chn, rk29_sdmmc_dma_complete);	
 		host->dma_addr = regs->start + SDMMC_DATA;
-	}	
-	clk_set_rate(host->clk,52000000);
+	}		
 	host->clk = clk_get(&pdev->dev, "sdmmc");
+	clk_set_rate(host->clk,52000000);
 	clk_enable(host->clk);
 	clk_enable(clk_get(&pdev->dev, "sdmmc_ahb"));
 	host->bus_hz = clk_get_rate(host->clk);  ///40000000;  ////cgu_get_clk_freq(CGU_SB_SD_MMC_CCLK_IN_ID); 
+	printk("Enter:%s %d host->bus_hz =%d\n",__FUNCTION__,__LINE__,host->bus_hz);
 
   	/* reset all blocks */
   	rk29_sdmmc_write(host->regs, SDMMC_CTRL,(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
@@ -1253,7 +1254,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host); 	
 	mmc->ops = &rk29_sdmmc_ops[pdev->id];
 	mmc->f_min = host->bus_hz/510;
-	mmc->f_max = host->bus_hz/10;  //2;  ///20; //max f is clock to mmc_clk/2
+	mmc->f_max = host->bus_hz/2;  //2;  ///20; //max f is clock to mmc_clk/2
 	mmc->ocr_avail = pdata->host_ocr_avail;
 	mmc->caps = pdata->host_caps;
 	mmc->max_phys_segs = 64;
