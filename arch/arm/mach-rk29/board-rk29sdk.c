@@ -770,9 +770,14 @@ static int rk29_sdmmc1_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1C4_SDMMC1DATA1_NAME, GPIO1H_SDMMC1_DATA1);
 	rk29_mux_api_set(GPIO1C5_SDMMC1DATA2_NAME, GPIO1H_SDMMC1_DATA2);
 	rk29_mux_api_set(GPIO1C6_SDMMC1DATA3_NAME, GPIO1H_SDMMC1_DATA3);
-	rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_SDMMC1_DETECT_N);
+	//rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_SDMMC1_DETECT_N);
 	return 0;
 }
+
+static int rk29sdk_wifi_status(struct device *dev);
+static int rk29sdk_wifi_status_register(void (*callback)(int card_presend, void *dev_id), void *dev_id);
+
+#define RK29SDK_WIFI_SDIO_CARD_DETECT_N    RK29_PIN1_PD6
 
 struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 	.host_ocr_avail = (MMC_VDD_25_26|MMC_VDD_26_27|MMC_VDD_27_28|MMC_VDD_28_29|
@@ -787,6 +792,123 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 #else
 	.use_dma = 0,
 #endif
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+        .status = rk29sdk_wifi_status,
+        .register_status_notify = rk29sdk_wifi_status_register,
+#endif
+        .detect_irq = RK29SDK_WIFI_SDIO_CARD_DETECT_N,
+};
+#endif
+
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+#define RK29SDK_WIFI_BT_GPIO_POWER_N       RK29_PIN5_PD6
+#define RK29SDK_WIFI_GPIO_RESET_N          RK29_PIN6_PC0
+#define RK29SDK_BT_GPIO_RESET_N            RK29_PIN6_PC4
+
+static int rk29sdk_wifi_cd = 0;   /* wifi virtual 'card detect' status */
+static void (*wifi_status_cb)(int card_present, void *dev_id);
+static void *wifi_status_cb_devid;
+int rk29sdk_wifi_power_state = 0;
+int rk29sdk_bt_power_state = 0;
+
+static int rk29sdk_wifi_status(struct device *dev)
+{
+        return rk29sdk_wifi_cd;
+}
+
+static int rk29sdk_wifi_status_register(void (*callback)(int card_present, void *dev_id), void *dev_id)
+{
+        if(wifi_status_cb)
+                return -EAGAIN;
+        wifi_status_cb = callback;
+        wifi_status_cb_devid = dev_id;
+        return 0;
+}
+
+static int rk29sdk_wifi_bt_gpio_control_init(void)
+{
+    if (gpio_request(RK29SDK_WIFI_BT_GPIO_POWER_N, "wifi_bt_power")) {
+           pr_info("%s: request wifi_bt power gpio failed\n", __func__);
+           return -1; 
+    }
+   
+    if (gpio_request(RK29SDK_WIFI_GPIO_RESET_N, "wifi reset")) {
+           pr_info("%s: request wifi reset gpio failed\n", __func__);
+           gpio_free(RK29SDK_WIFI_BT_GPIO_POWER_N);
+           return -1;
+    }
+   
+    if (gpio_request(RK29SDK_BT_GPIO_RESET_N, "bt reset")) {
+          pr_info("%s: request bt reset gpio failed\n", __func__);
+          gpio_free(RK29SDK_WIFI_GPIO_RESET_N);
+          return -1;
+    }
+   
+    gpio_direction_output(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
+    gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
+    gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW); 
+    
+    pr_info("%s: init finished\n",__func__);
+   
+    return 0;
+}
+
+static int rk29sdk_wifi_power(int on)
+{
+        pr_info("%s: %d\n", __func__, on);
+        if (on){
+                gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, on);
+                mdelay(100);
+                pr_info("wifi turn on power\n");
+        }else{
+                if (!rk29sdk_bt_power_state){
+                        gpio_set_value(RK29SDK_WIFI_BT_GPIO_POWER_N, on);
+                        mdelay(100);
+                        pr_info("wifi shut off power\n");
+                }else
+                {
+                        pr_info("wifi shouldn't shut off power, bt is using it!\n");
+                }
+
+        }
+
+        rk29sdk_wifi_power_state = on;
+        return 0;
+}
+
+static int rk29sdk_wifi_reset_state;
+static int rk29sdk_wifi_reset(int on)
+{
+        pr_info("%s: %d\n", __func__, on);
+        gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, on);
+        mdelay(100);
+        rk29sdk_wifi_reset_state = on;
+        return 0;
+}
+
+static int rk29sdk_wifi_set_carddetect(int val)
+{
+        pr_info("%s:%d\n", __func__, val);
+        rk29sdk_wifi_cd = val;
+        if (wifi_status_cb){
+                wifi_status_cb(val, wifi_status_cb_devid);
+        }else {
+                pr_warning("%s, nobody to notify\n", __func__);
+        }
+        return 0;
+}
+
+static struct wifi_platform_data rk29sdk_wifi_control = {
+        .set_power = rk29sdk_wifi_power,
+        .set_reset = rk29sdk_wifi_reset,
+        .set_carddetect = rk29sdk_wifi_set_carddetect,
+};
+static struct platform_device rk29sdk_wifi_device = {
+        .name = "bcm4329_wlan",
+        .id = 1,
+        .dev = {
+                .platform_data = &rk29sdk_wifi_control,
+         },
 };
 #endif
 
@@ -920,6 +1042,9 @@ static struct platform_device *devices[] __initdata = {
 	&rk29xx_device_nand,
 #endif
 
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+        &rk29sdk_wifi_device,
+#endif
 #ifdef CONFIG_MTD_NAND_RK29
 	&rk29_device_nand,
 #endif
@@ -1155,6 +1280,8 @@ static void __init machine_rk29_board_init(void)
 
 		gpio_set_value(POWER_ON_PIN, 1);
 		gpio_direction_output(POWER_ON_PIN, 1);
+
+                rk29sdk_wifi_bt_gpio_control_init();
 
 		platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29

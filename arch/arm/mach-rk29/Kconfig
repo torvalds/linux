@@ -6,6 +6,11 @@ config MACH_RK29SDK
         help
 	  Support for the ROCKCHIP Board For Rk29 Sdk.
 
+config WIFI_CONTROL_FUNC
+        bool "Enable WiFi control function abstraction"
+        help
+          Enables Power/Reset/Carddetect function abstraction
+
 menu "RK29 VPU (Video Processing Unit) support"
 
 config RK29_VPU

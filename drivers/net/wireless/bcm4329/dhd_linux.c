@@ -2387,7 +2387,7 @@ dhd_detach(dhd_pub_t *dhdp)
 	}
 }
 }
-static void 
+static void __exit
 dhd_module_cleanup(void)
 {
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
@@ -2401,7 +2401,7 @@ dhd_module_cleanup(void)
 }
 
 
-static int 
+static int __init
 dhd_module_init(void)
 {
 	int error;
@@ -2474,21 +2474,8 @@ faild:
 	return -EINVAL;
 }
 
-//module_init(dhd_module_init);
-//module_exit(dhd_module_cleanup);
-
-int if_sdio_init_module2(void)
-{
-    return dhd_module_init();
-}
-
-void if_sdio_exit_module(void)
-{
-   dhd_module_cleanup();
-}
-
-EXPORT_SYMBOL(if_sdio_init_module2);
-EXPORT_SYMBOL(if_sdio_exit_module);
+module_init(dhd_module_init);
+module_exit(dhd_module_cleanup);
 
 /*
  * OS specific functions required to implement DHD driver in OS independent way

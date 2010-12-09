@@ -48,8 +48,10 @@ int wifi_set_power(int on, unsigned long msec);
 int wifi_get_irq_number(unsigned long *irq_flags_ptr);
 #endif
 
+#if defined(CONFIG_WIFI_CONTROL_FUNC)
 int wifi_set_power(int on, unsigned long msec);
 int wifi_set_reset(int on, unsigned long msec);
+#endif
 
 #if defined(OOB_INTR_ONLY)
 
@@ -117,8 +119,10 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 #ifdef CUSTOMER_HW2
 			wifi_set_power(0, 0);
 #endif
+#if defined(CONFIG_WIFI_CONTROL_FUNC)
 			wifi_set_power(0, 0);
                         wifi_set_reset(0, 0);
+#endif
 			WL_ERROR(("=========== WLAN placed in RESET ========\n"));
 		break;
 
@@ -131,8 +135,10 @@ dhd_customer_gpio_wlan_ctrl(int onoff)
 #ifdef CUSTOMER_HW2
 			wifi_set_power(1, 0);
 #endif
+#if defined(CONFIG_WIFI_CONTROL_FUNC)
 			wifi_set_power(1, 0);
                         wifi_set_reset(1, 0);
+#endif
 			WL_ERROR(("=========== WLAN going back to live  ========\n"));
 		break;
 

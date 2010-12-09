@@ -1021,6 +1021,42 @@ static void rk29_sdmmc_cmd_interrupt(struct rk29_sdmmc *host, u32 status)
 	tasklet_schedule(&host->tasklet);
 }
 
+static int rk29_sdmmc1_card_get_cd(struct mmc_host *mmc)
+{
+        struct rk29_sdmmc *host = mmc_priv(mmc);
+        struct rk29_sdmmc_platform_data *pdata = host->pdev->dev.platform_data;
+        return gpio_get_value(pdata->detect_irq);
+}
+
+static int rk29_sdmmc1_card_change_cd_trigger_type(struct mmc_host *mmc, unsigned int type)
+{
+       struct rk29_sdmmc *host = mmc_priv(mmc);
+       struct rk29_sdmmc_platform_data *pdata = host->pdev->dev.platform_data;
+       return set_irq_type(gpio_to_irq(pdata->detect_irq), type);
+}
+
+
+static irqreturn_t rk29_sdmmc1_card_detect_interrupt(int irq, void *dev_id)
+{
+       struct rk29_sdmmc *host = dev_id;
+       bool present, present_old; 
+       
+       present = rk29_sdmmc1_card_get_cd(host->mmc);
+       present_old = test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+       if (present != present_old) {
+             if (present != 0) {
+                  set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+             } else {
+                  clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+             }
+             mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(200));
+       }
+       rk29_sdmmc1_card_change_cd_trigger_type(host->mmc, (present ? IRQF_TRIGGER_FALLING: IRQF_TRIGGER_RISING)); 
+   
+       return IRQ_HANDLED;
+
+}
+
 static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 {
 	struct rk29_sdmmc	*host = dev_id;
@@ -1096,6 +1132,10 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 		    rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_CMD_DONE);  //  clear interrupt
 		    rk29_sdmmc_cmd_interrupt(host, status);
 		}
+		if(pending & SDMMC_INT_SDIO) {
+				rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_SDIO);
+				mmc_signal_sdio_irq(host->mmc);
+		}
 	} while (pass_count++ < 5);
 	
 	spin_unlock(&host->lock);
@@ -1112,7 +1152,7 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 {
 	struct mmc_request *mrq;
 	struct rk29_sdmmc *host = (struct rk29_sdmmc *)data;;
-
+   
 	smp_rmb();
 	if (test_bit(RK29_SDMMC_SHUTDOWN, &host->flags))
 		return;		
@@ -1229,7 +1269,6 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	clk_enable(host->clk);
 	clk_enable(clk_get(&pdev->dev, "sdmmc_ahb"));
 	host->bus_hz = clk_get_rate(host->clk);  ///40000000;  ////cgu_get_clk_freq(CGU_SB_SD_MMC_CCLK_IN_ID); 
-	printk("Enter:%s %d host->bus_hz =%d\n",__FUNCTION__,__LINE__,host->bus_hz);
 
   	/* reset all blocks */
   	rk29_sdmmc_write(host->regs, SDMMC_CTRL,(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
@@ -1251,6 +1290,22 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	ret = request_irq(irq, rk29_sdmmc_interrupt, 0, dev_name(&pdev->dev), host);
 	if (ret)
 	    goto err_dmaunmap;
+        
+        /* register sdmmc1 card detect interrupt route */ 
+        if ((pdev->id == 1) && (pdata->detect_irq != 0)) {
+            irq = gpio_to_irq(pdata->detect_irq);
+            if (irq < 0)  {
+               printk("%s: request gpio irq failed\n", __FUNCTION__);
+               goto err_dmaunmap;
+            }
+            
+            ret = request_irq(irq, rk29_sdmmc1_card_detect_interrupt, IRQF_TRIGGER_RISING, dev_name(&pdev->dev), host);
+            if (ret) {
+               printk("%s: sdmmc1 request detect interrupt failed\n", __FUNCTION__);
+               goto err_dmaunmap;
+            }
+             
+        }
 	platform_set_drvdata(pdev, host); 	
 	mmc->ops = &rk29_sdmmc_ops[pdev->id];
 	mmc->f_min = host->bus_hz/510;
@@ -1268,6 +1323,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
 	else
 		clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+        
 
 	mmc_add_host(mmc);
 #if defined (CONFIG_DEBUG_FS)

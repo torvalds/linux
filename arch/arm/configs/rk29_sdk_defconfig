@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.9
-# Wed Dec  8 09:41:39 2010
+# Thu Dec  9 14:06:05 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -194,6 +194,7 @@ CONFIG_MMU=y
 # CONFIG_ARCH_BCMRING is not set
 # CONFIG_ARCH_RK2818 is not set
 CONFIG_ARCH_RK29=y
+CONFIG_WIFI_CONTROL_FUNC=y
 CONFIG_MACH_RK29SDK=y
 
 #
@@ -412,7 +413,17 @@ CONFIG_ANDROID_PARANOID_NETWORK=y
 # CONFIG_IRDA is not set
 # CONFIG_BT is not set
 # CONFIG_AF_RXRPC is not set
-# CONFIG_WIRELESS is not set
+CONFIG_WIRELESS=y
+# CONFIG_CFG80211 is not set
+CONFIG_CFG80211_DEFAULT_PS_VALUE=0
+# CONFIG_WIRELESS_OLD_REGULATORY is not set
+CONFIG_WIRELESS_EXT=y
+CONFIG_WIRELESS_EXT_SYSFS=y
+# CONFIG_LIB80211 is not set
+
+#
+# CFG80211 needs to be enabled for MAC80211
+#
 # CONFIG_WIMAX is not set
 # CONFIG_RFKILL is not set
 # CONFIG_NET_9P is not set
@@ -565,7 +576,14 @@ CONFIG_NETDEVICES=y
 # CONFIG_NET_ETHERNET is not set
 # CONFIG_NETDEV_1000 is not set
 # CONFIG_NETDEV_10000 is not set
-# CONFIG_WLAN is not set
+CONFIG_WLAN=y
+# CONFIG_WLAN_PRE80211 is not set
+CONFIG_WLAN_80211=y
+# CONFIG_LIBERTAS is not set
+# CONFIG_HOSTAP is not set
+CONFIG_BCM4329=m
+CONFIG_BCM4329_FW_PATH="/etc/firmware/fw_bcm4329.bin"
+CONFIG_BCM4329_NVRAM_PATH="/etc/firmware/nvram_bcm4329_B23.txt"
 
 #
 # Enable WiMAX (Networking options) to see the WiMAX drivers
