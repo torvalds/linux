@@ -32,7 +32,7 @@
 #define VPU_MEM_MAX_ORDER 128
 #define VPU_MEM_MIN_ALLOC PAGE_SIZE
 
-#define VPU_MEM_DEBUG 1
+#define VPU_MEM_DEBUG 0
 
 #define VPU_MEM_SPLIT_ALLOC             0
 #define VPU_MEM_SPLIT_LINK              1
@@ -71,7 +71,7 @@ struct vpu_mem_region_node {
 #define NODE_REGION_INDEX(p)     (p->region.index)
 #define NODE_REGION_REFC(p)      (p->region.ref_count)
 
-#define VPU_MEM_DEBUG_MSGS 1
+#define VPU_MEM_DEBUG_MSGS 0
 #if VPU_MEM_DEBUG_MSGS
 #define DLOG(fmt,args...) \
 	do { printk(KERN_INFO "[%s:%s:%d] "fmt, __FILE__, __func__, __LINE__, \
