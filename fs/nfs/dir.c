@@ -1352,8 +1352,7 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 	if (nd->flags & LOOKUP_CREATE) {
 		attr.ia_mode = nd->intent.open.create_mode;
 		attr.ia_valid = ATTR_MODE;
-		if (!IS_POSIXACL(dir))
-			attr.ia_mode &= ~current_umask();
+		attr.ia_mode &= ~current_umask();
 	} else {
 		open_flags &= ~(O_EXCL | O_CREAT);
 		attr.ia_valid = 0;

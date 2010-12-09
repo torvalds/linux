@@ -2486,6 +2486,7 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		path = &ctx->path;
 		fmode = ctx->mode;
 	}
+	sattr->ia_mode &= ~current_umask();
 	state = nfs4_do_open(dir, path, fmode, flags, sattr, cred);
 	d_drop(dentry);
 	if (IS_ERR(state)) {
@@ -2816,6 +2817,8 @@ static int nfs4_proc_mkdir(struct inode *dir, struct dentry *dentry,
 {
 	struct nfs4_exception exception = { };
 	int err;
+
+	sattr->ia_mode &= ~current_umask();
 	do {
 		err = nfs4_handle_exception(NFS_SERVER(dir),
 				_nfs4_proc_mkdir(dir, dentry, sattr),
@@ -2916,6 +2919,8 @@ static int nfs4_proc_mknod(struct inode *dir, struct dentry *dentry,
 {
 	struct nfs4_exception exception = { };
 	int err;
+
+	sattr->ia_mode &= ~current_umask();
 	do {
 		err = nfs4_handle_exception(NFS_SERVER(dir),
 				_nfs4_proc_mknod(dir, dentry, sattr, rdev),

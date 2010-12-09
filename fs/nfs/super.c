@@ -2496,6 +2496,11 @@ static void nfs4_clone_super(struct super_block *sb,
 	sb->s_maxbytes = old_sb->s_maxbytes;
 	sb->s_time_gran = 1;
 	sb->s_op = old_sb->s_op;
+	/*
+	 * The VFS shouldn't apply the umask to mode bits. We will do
+	 * so ourselves when necessary.
+	 */
+	sb->s_flags  |= MS_POSIXACL;
  	nfs_initialise_sb(sb);
 }
 
@@ -2506,6 +2511,11 @@ static void nfs4_fill_super(struct super_block *sb)
 {
 	sb->s_time_gran = 1;
 	sb->s_op = &nfs4_sops;
+	/*
+	 * The VFS shouldn't apply the umask to mode bits. We will do
+	 * so ourselves when necessary.
+	 */
+	sb->s_flags  |= MS_POSIXACL;
 	nfs_initialise_sb(sb);
 }
 
