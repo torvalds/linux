@@ -20,6 +20,9 @@
 #define V_VD			800
 #define V_FP			1
 
+#define LCD_WIDTH       480    //need modify
+#define LCD_HEIGHT      800
+
 #define P_WR            27
 #define USE_FMARK       0 //2               //是否使用FMK (0:不支持 1:横屏支持 2:横竖屏都支持)
 #define FRMRATE         60              //MCU屏的刷新率 (FMK有效时用)
@@ -387,6 +390,9 @@ void set_lcd_info(struct rk29fb_screen *screen)
     /* Screen size */
     screen->x_res = H_VD;
     screen->y_res = V_VD;
+
+    screen->width = LCD_WIDTH;
+    screen->height = LCD_HEIGHT;
 
     /* Timing */
 	screen->left_margin = H_BP;

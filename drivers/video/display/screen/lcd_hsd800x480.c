@@ -28,6 +28,9 @@
 #define DCLK_POL		1
 #define SWAP_RB			0
 
+#define LCD_WIDTH       800    //need modify
+#define LCD_HEIGHT      480
+
 #define TXD_PORT        gLcd_info->txd_pin
 #define CLK_PORT        gLcd_info->clk_pin
 #define CS_PORT         gLcd_info->cs_pin
@@ -58,6 +61,9 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
     /* Screen size */
     screen->x_res = H_VD;
     screen->y_res = V_VD;
+
+    screen->width = LCD_WIDTH;
+    screen->height = LCD_HEIGHT;
 
     /* Timing */
     screen->pixclock = OUT_CLK;

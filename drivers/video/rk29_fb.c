@@ -1792,8 +1792,8 @@ static int __init rk29fb_probe (struct platform_device *pdev)
     inf->win1fb->var.bits_per_pixel = 16;
     inf->win1fb->var.xres_virtual = screen->x_res;
     inf->win1fb->var.yres_virtual = screen->y_res;
-    inf->win1fb->var.width = screen->x_res;
-    inf->win1fb->var.height = screen->y_res;
+    inf->win1fb->var.width = screen->width;
+    inf->win1fb->var.height = screen->height;
     inf->win1fb->var.pixclock = screen->pixclock;
     inf->win1fb->var.left_margin = screen->left_margin;
     inf->win1fb->var.right_margin = screen->right_margin;
@@ -1850,8 +1850,8 @@ static int __init rk29fb_probe (struct platform_device *pdev)
     inf->win0fb->var.bits_per_pixel = 16;
     inf->win0fb->var.xres_virtual = screen->x_res;
     inf->win0fb->var.yres_virtual = screen->y_res;
-    inf->win0fb->var.width = screen->x_res;
-    inf->win0fb->var.height = screen->y_res;
+    inf->win0fb->var.width = screen->width;
+    inf->win0fb->var.height = screen->height;
     inf->win0fb->var.pixclock = screen->pixclock;
     inf->win0fb->var.left_margin = screen->left_margin;
     inf->win0fb->var.right_margin = screen->right_margin;

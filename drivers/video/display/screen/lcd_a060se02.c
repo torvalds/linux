@@ -26,6 +26,8 @@
 #define DCLK_POL		0
 #define SWAP_RB			0
 
+#define LCD_WIDTH       600    //need modify
+#define LCD_HEIGHT      800
 
 
 int lcd_init(void)
@@ -126,6 +128,9 @@ void set_lcd_info(struct rk29fb_screen *screen)
     /* Screen size */
     screen->x_res = H_VD;
     screen->y_res = V_VD;
+
+    screen->width = LCD_WIDTH;
+    screen->height = LCD_HEIGHT;
 
     /* Timing */
 	screen->left_margin = H_BP;

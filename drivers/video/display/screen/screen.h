@@ -41,9 +41,11 @@ struct rk29fb_screen {
 	/* Screen size */
 	u16 x_res;
 	u16 y_res;
+    u16 width;
+    u16 height;
 
     /* Timing */
-	u16 pixclock;
+	u32 pixclock;
 	u16 left_margin;
 	u16 right_margin;
 	u16 hsync_len;
@@ -61,7 +63,7 @@ struct rk29fb_screen {
 	u8 pin_vsync;
 	u8 pin_den;
 	u8 pin_dclk;
-    u8 lcdc_aclk;
+    u32 lcdc_aclk;
 	u8 pin_dispon;
 
 	/* Swap rule */

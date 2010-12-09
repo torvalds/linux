@@ -23,6 +23,9 @@
 #define V_VD			800
 #define V_FP			2
 
+#define LCD_WIDTH       480    //need modify
+#define LCD_HEIGHT      800
+
 /* Other */
 #define DCLK_POL		0
 #define SWAP_RB			0
@@ -431,6 +434,9 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk2918lcd_info *lcd_info 
     /* Screen size */
     screen->x_res = H_VD;
     screen->y_res = V_VD;
+
+    screen->width = LCD_WIDTH;
+    screen->height = LCD_HEIGHT;
 
     /* Timing */
     screen->pixclock = OUT_CLK;
