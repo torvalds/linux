@@ -196,12 +196,12 @@ static struct notifier_block ft1000_netdev_notifier = {
 int ft1000InitProc(struct net_device *dev)
 {
 	struct ft1000_info *info;
-  struct proc_dir_entry *ft1000_proc_file;
+	struct proc_dir_entry *ft1000_proc_file;
 	int ret = 0;
 
 	info = netdev_priv(dev);
 
-  info->ft1000_proc_dir = proc_mkdir (FT1000_PROC_DIR, FTNET_PROC);
+	info->ft1000_proc_dir = proc_mkdir(FT1000_PROC_DIR, FTNET_PROC);
 	if (info->ft1000_proc_dir == NULL) {
 		printk(KERN_WARNING "Unable to create %s dir.\n",
 			FT1000_PROC_DIR);
@@ -209,16 +209,18 @@ int ft1000InitProc(struct net_device *dev)
 		goto fail;
 	}
 
-  ft1000_proc_file =
-    create_proc_read_entry (dev->name, 0644, info->ft1000_proc_dir,
-			    ft1000ReadProc, dev);
+	ft1000_proc_file =
+		create_proc_read_entry(dev->name, 0644,
+			info->ft1000_proc_dir, ft1000ReadProc, dev);
+
 	if (ft1000_proc_file == NULL) {
 		printk(KERN_WARNING "Unable to create /proc entry.\n");
 		ret = -EINVAL;
 		goto fail_entry;
 	}
 
-  snprintf (info->netdevname, IFNAMSIZ, "%s", dev->name);
+	snprintf(info->netdevname, IFNAMSIZ, "%s", dev->name);
+
 	ret = register_netdevice_notifier(&ft1000_netdev_notifier);
 	if (ret)
 		goto fail_notif;
@@ -233,12 +235,9 @@ fail:
 	return ret;
 }
 
-void
-ft1000CleanupProc(struct ft1000_info *info)
+void ft1000CleanupProc(struct ft1000_info *info)
 {
-  remove_proc_entry (info->netdevname, info->ft1000_proc_dir);
-  remove_proc_entry (FT1000_PROC_DIR, FTNET_PROC);
-  unregister_netdevice_notifier (&ft1000_netdev_notifier);
-
-  return;
+	remove_proc_entry(info->netdevname, info->ft1000_proc_dir);
+	remove_proc_entry(FT1000_PROC_DIR, FTNET_PROC);
+	unregister_netdevice_notifier(&ft1000_netdev_notifier);
 }
