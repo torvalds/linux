@@ -44,7 +44,7 @@ static int geoid;
 
 static char driver_name[] = "vme_ca91cx42";
 
-static const struct pci_device_id ca91cx42_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(ca91cx42_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_TUNDRA, PCI_DEVICE_ID_TUNDRA_CA91C142) },
 	{ },
 };
