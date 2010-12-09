@@ -170,7 +170,6 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
 
     // register the device
     DEBUG("ft1000_CreateDevice: \"%s\" device registration\n", info->DeviceName);
-    info->DeviceMajor = 0;
 
 	tmp = kmalloc(sizeof(struct ft1000_debug_dirs), GFP_KERNEL);
 	if (tmp == NULL) {

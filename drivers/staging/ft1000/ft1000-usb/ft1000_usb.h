@@ -514,7 +514,6 @@ struct ft1000_info {
     int NetDevRegDone;
     u8 CardNumber;
     u8 DeviceName[15];
-    int DeviceMajor;
     struct ft1000_debug_dirs nodes;
     int registered;
     int mediastate;

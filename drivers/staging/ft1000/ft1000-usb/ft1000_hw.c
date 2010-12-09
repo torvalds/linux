@@ -835,7 +835,6 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
     pInfo->mediastate = 0;
     pInfo->fifo_cnt = 0;
     pInfo->DeviceCreated = FALSE;
-    pInfo->DeviceMajor = 0;
     pInfo->CurrentInterruptEnableMask = ISR_DEFAULT_MASK;
     pInfo->InterruptsEnabled = FALSE;
     pInfo->CardReady = 0;
