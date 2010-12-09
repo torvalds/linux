@@ -150,6 +150,7 @@ static struct dvfs dvfs_init[] = {
 	CPU_DVFS("cpu", 3, MHZ, 730, 760, 845, 845, 1000),
 
 	/* Core voltages (mV):       950,    1000,   1100,   1200,   1275 */
+	CORE_DVFS("emc",     1, KHZ, 57000,  333000, 333000, 666000, 666000),
 
 #if 0
 	/*

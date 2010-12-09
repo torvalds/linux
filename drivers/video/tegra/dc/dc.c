@@ -967,6 +967,7 @@ static bool _tegra_dc_enable(struct tegra_dc *dc)
 	tegra_dc_setup_clk(dc, dc->clk);
 
 	clk_enable(dc->clk);
+	clk_enable(dc->emc_clk);
 	enable_irq(dc->irq);
 
 	tegra_dc_init(dc);
@@ -997,6 +998,7 @@ static void _tegra_dc_disable(struct tegra_dc *dc)
 	if (dc->out_ops && dc->out_ops->disable)
 		dc->out_ops->disable(dc);
 
+	clk_disable(dc->emc_clk);
 	clk_disable(dc->clk);
 	tegra_dvfs_set_rate(dc->clk, 0);
 
@@ -1029,6 +1031,7 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 {
 	struct tegra_dc *dc;
 	struct clk *clk;
+	struct clk *emc_clk;
 	struct resource	*res;
 	struct resource *base_res;
 	struct resource *fb_mem = NULL;
@@ -1085,7 +1088,22 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 		goto err_iounmap_reg;
 	}
 
+	emc_clk = clk_get(&ndev->dev, "emc");
+	if (IS_ERR_OR_NULL(emc_clk)) {
+		dev_err(&ndev->dev, "can't get emc clock\n");
+		ret = -ENOENT;
+		goto err_put_clk;
+	}
+
+	/*
+	 * The emc is a shared clock, it will be set to the highest
+	 * requested rate from any user.  Set the rate to ULONG_MAX to
+	 * always request the max rate whenever this request is enabled
+	 */
+	clk_set_rate(emc_clk, ULONG_MAX);
+
 	dc->clk = clk;
+	dc->emc_clk = emc_clk;
 	dc->base_res = base_res;
 	dc->base = base;
 	dc->irq = irq;
@@ -1108,7 +1126,7 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 			dev_name(&ndev->dev), dc)) {
 		dev_err(&ndev->dev, "request_irq %d failed\n", irq);
 		ret = -EBUSY;
-		goto err_put_clk;
+		goto err_put_emc_clk;
 	}
 
 	/* hack to ballence enable_irq calls in _tegra_dc_enable() */
@@ -1158,6 +1176,8 @@ static int tegra_dc_probe(struct nvhost_device *ndev)
 
 err_free_irq:
 	free_irq(irq, dc);
+err_put_emc_clk:
+	clk_put(emc_clk);
 err_put_clk:
 	clk_put(clk);
 err_iounmap_reg:
@@ -1187,6 +1207,7 @@ static int tegra_dc_remove(struct nvhost_device *ndev)
 		_tegra_dc_disable(dc);
 
 	free_irq(dc->irq, dc);
+	clk_put(dc->emc_clk);
 	clk_put(dc->clk);
 	iounmap(dc->base);
 	if (dc->fb_mem)
