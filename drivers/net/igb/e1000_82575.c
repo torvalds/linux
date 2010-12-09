@@ -134,6 +134,8 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	case E1000_DEV_ID_82580_COPPER_DUAL:
 	case E1000_DEV_ID_DH89XXCC_SGMII:
 	case E1000_DEV_ID_DH89XXCC_SERDES:
+	case E1000_DEV_ID_DH89XXCC_BACKPLANE:
+	case E1000_DEV_ID_DH89XXCC_SFP:
 		mac->type = e1000_82580;
 		break;
 	case E1000_DEV_ID_I350_COPPER:
@@ -1578,7 +1580,7 @@ static s32 igb_reset_mdicnfg_82580(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
 	u32 mdicnfg;
-	u16 nvm_data;
+	u16 nvm_data = 0;
 
 	if (hw->mac.type != e1000_82580)
 		goto out;
