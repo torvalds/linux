@@ -1971,7 +1971,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	init_completion(&xhci->addr_dev);
 	for (i = 0; i < MAX_HC_SLOTS; ++i)
 		xhci->devs[i] = NULL;
-	for (i = 0; i < MAX_HC_PORTS; ++i)
+	for (i = 0; i < USB_MAXCHILDREN; ++i)
 		xhci->resume_done[i] = 0;
 
 	if (scratchpad_alloc(xhci, flags))

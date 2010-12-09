@@ -347,20 +347,15 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					goto error;
 				}
 				xhci_ring_device(xhci, slot_id);
-				xhci->port_c_suspend[wIndex >> 5] |=
-						1 << (wIndex & 31);
-				xhci->suspended_ports[wIndex >> 5] &=
-						~(1 << (wIndex & 31));
+				xhci->port_c_suspend |= 1 << wIndex;
+				xhci->suspended_ports &= ~(1 << wIndex);
 			}
 		}
 		if ((temp & PORT_PLS_MASK) == XDEV_U0
 			&& (temp & PORT_POWER)
-			&& (xhci->suspended_ports[wIndex >> 5] &
-			    (1 << (wIndex & 31)))) {
-			xhci->suspended_ports[wIndex >> 5] &=
-					~(1 << (wIndex & 31));
-			xhci->port_c_suspend[wIndex >> 5] |=
-					1 << (wIndex & 31);
+			&& (xhci->suspended_ports & (1 << wIndex))) {
+			xhci->suspended_ports &= ~(1 << wIndex);
+			xhci->port_c_suspend |= 1 << wIndex;
 		}
 		if (temp & PORT_CONNECT) {
 			status |= USB_PORT_STAT_CONNECTION;
@@ -374,7 +369,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			status |= USB_PORT_STAT_RESET;
 		if (temp & PORT_POWER)
 			status |= USB_PORT_STAT_POWER;
-		if (xhci->port_c_suspend[wIndex >> 5] & (1 << (wIndex & 31)))
+		if (xhci->port_c_suspend & (1 << wIndex))
 			status |= 1 << USB_PORT_FEAT_C_SUSPEND;
 		xhci_dbg(xhci, "Get port status returned 0x%x\n", status);
 		put_unaligned(cpu_to_le32(status), (__le32 *) buf);
@@ -421,8 +416,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			spin_lock_irqsave(&xhci->lock, flags);
 
 			temp = xhci_readl(xhci, addr);
-			xhci->suspended_ports[wIndex >> 5] |=
-					1 << (wIndex & (31));
+			xhci->suspended_ports |= 1 << wIndex;
 			break;
 		case USB_PORT_FEAT_POWER:
 			/*
@@ -489,8 +483,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					temp |= PORT_LINK_STROBE | XDEV_U0;
 					xhci_writel(xhci, temp, addr);
 				}
-				xhci->port_c_suspend[wIndex >> 5] |=
-						1 << (wIndex & 31);
+				xhci->port_c_suspend |= 1 << wIndex;
 			}
 
 			slot_id = xhci_find_slot_id_by_port(xhci, wIndex + 1);
@@ -501,8 +494,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			xhci_ring_device(xhci, slot_id);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
-			xhci->port_c_suspend[wIndex >> 5] &=
-					~(1 << (wIndex & 31));
+			xhci->port_c_suspend &= ~(1 << wIndex);
 		case USB_PORT_FEAT_C_RESET:
 		case USB_PORT_FEAT_C_CONNECTION:
 		case USB_PORT_FEAT_C_OVER_CURRENT:
@@ -560,7 +552,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 			NUM_PORT_REGS*i;
 		temp = xhci_readl(xhci, addr);
 		if ((temp & mask) != 0 ||
-			(xhci->port_c_suspend[i >> 5] &	1 << (i & 31)) ||
+			(xhci->port_c_suspend & 1 << i) ||
 			(xhci->resume_done[i] && time_after_eq(
 			    jiffies, xhci->resume_done[i]))) {
 			buf[(i + 1) / 8] |= 1 << (i + 1) % 8;

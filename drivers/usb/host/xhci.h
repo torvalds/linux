@@ -1248,10 +1248,11 @@ struct xhci_hcd {
 #define	XHCI_LINK_TRB_QUIRK	(1 << 0)
 #define XHCI_RESET_EP_QUIRK	(1 << 1)
 #define XHCI_NEC_HOST		(1 << 2)
-	u32			port_c_suspend[8];	/* port suspend change*/
-	u32			suspended_ports[8];	/* which ports are
-							   suspended */
-	unsigned long		resume_done[MAX_HC_PORTS];
+	/* port suspend change*/
+	u32			port_c_suspend;
+	/* which ports are suspended */
+	u32			suspended_ports;
+	unsigned long		resume_done[USB_MAXCHILDREN];
 	/* Is each xHCI roothub port a USB 3.0, USB 2.0, or USB 1.1 port? */
 	u8			*port_array;
 	/* Array of pointers to USB 3.0 PORTSC registers */
