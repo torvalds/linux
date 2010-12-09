@@ -46,6 +46,8 @@ config ARCH_OMAP4
 	select ARM_GIC
 	select PL310_ERRATA_588369
 	select ARM_ERRATA_720789
+	select ARCH_HAS_OPP
+	select PM_OPP if PM
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2

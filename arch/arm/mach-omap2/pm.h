@@ -22,8 +22,13 @@ extern int omap3_idle_init(void);
 
 #if defined(CONFIG_PM_OPP)
 extern int omap3_opp_init(void);
+extern int omap4_opp_init(void);
 #else
 static inline int omap3_opp_init(void)
+{
+	return -EINVAL;
+}
+static inline int omap4_opp_init(void)
 {
 	return -EINVAL;
 }
