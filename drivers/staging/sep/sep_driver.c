@@ -3538,6 +3538,11 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	/* Set the IMR register - open only GPR 2 */
 	sep_write_reg(sep, HW_HOST_IMR_REG_ADDR, (~(0x1 << 13)));
 
+	/* Read send/receive counters from SEP */
+	sep->reply_ct = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR2_REG_ADDR);
+	sep->reply_ct &= 0x3FFFFFFF;
+	sep->send_ct = sep->reply_ct;
+
 	dev_dbg(&sep->pdev->dev, "about to call request_irq\n");
 	/* Get the interrupt line */
 	error = request_irq(pdev->irq, sep_inthandler, IRQF_SHARED,
