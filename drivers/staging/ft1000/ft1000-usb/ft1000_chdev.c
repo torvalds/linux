@@ -51,10 +51,6 @@ static long ft1000_ChIoctl(struct file *File, unsigned int Command,
                            unsigned long Argument);
 static int ft1000_ChRelease (struct inode *Inode, struct file *File);
 
-// Global pointer to device object
-static struct ft1000_device *pdevobj[MAX_NUM_CARDS + 2];
-//static devfs_handle_t ft1000Handle[MAX_NUM_CARDS];
-
 // List to free receive command buffer pool
 struct list_head freercvpool;
 
@@ -164,11 +160,6 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
 
     DEBUG("ft1000_CreateDevice: number of instance = %d\n", ft1000_flarion_cnt);
     DEBUG("DeviceCreated = %x\n", info->DeviceCreated);
-
-    //save the device info to global array
-    pdevobj[info->CardNumber] = dev;
-
-    DEBUG("ft1000_CreateDevice: ******SAVED pdevobj[%d]=%p\n", info->CardNumber, pdevobj[info->CardNumber]);	//aelias [+] reason:up
 
     if (info->DeviceCreated)
     {
@@ -327,8 +318,6 @@ void ft1000_DestroyDevice(struct net_device *dev)
 //        devfs_unregister(ft1000Handle[info->CardNumber]);
 
 		info->DeviceCreated = FALSE;
-
-		pdevobj[info->CardNumber] = NULL;
 	}
 
 
@@ -355,18 +344,6 @@ static int ft1000_ChOpen (struct inode *Inode, struct file *File)
     DEBUG("ft1000_ChOpen: minor number=%d\n", num);
 
 	info = File->private_data = netdev_priv(dev->net);
-
-    for (i=0; i<5; i++)
-        DEBUG("pdevobj[%d]=%p\n", i, pdevobj[i]); //aelias [+] reason: down
-
-    if ( pdevobj[num] != NULL )
-        //info = (struct ft1000_info *)(pdevobj[num]->net->priv);
-		info = netdev_priv(pdevobj[num]->net);
-    else
-    {
-        DEBUG("ft1000_ChOpen: can not find device object %d\n", num);
-        return -1;
-    }
 
     DEBUG("f_owner = %p number of application = %d\n", (&File->f_owner), info->appcnt );
 
