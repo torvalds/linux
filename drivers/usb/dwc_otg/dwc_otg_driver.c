@@ -59,7 +59,6 @@
 
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <mach/rk2818_iomap.h>
 
 #include "linux/dwc_otg_plat.h"
 #include <linux/platform_device.h>
@@ -1024,11 +1023,10 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	dwc_otg_device_t *dwc_otg_device;
 	int32_t snpsid;
 	int irq;
-	uint32_t otgreg;
 	/*
 	 *Enable usb phy
 	 */
-    unsigned int * otg_phy_con1 = (unsigned int*)(RK2818_REGFILE_BASE+0x3c);
+    unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
     
     *otg_phy_con1 |= (0x01<<2);
     *otg_phy_con1 |= (0x01<<3);    // exit suspend.
@@ -1064,7 +1062,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 		goto fail;
 
 	dwc_otg_device->base =
-		ioremap(res_base->start,RK2818_USBOTG_SIZE);
+		ioremap(res_base->start,USBOTG_SIZE);
 	if (dwc_otg_device->base == NULL)
 	{
 		dev_err(dev, "ioremap() failed\n");
@@ -1269,7 +1267,6 @@ static int dwc_otg_driver_resume(struct platform_device *_dev )
     if(core_if->usb_wakeup)
     {
         core_if->usb_wakeup = 0;
-//            rk28_send_wakeup_key(); /* exit wake up */
     }
     return 0;
 }
@@ -1320,8 +1317,8 @@ static struct platform_driver dwc_otg_driver = {
 
 void rk28_host11_driver_enable(dwc_otg_core_if_t *core_if)
 {
-    unsigned int * otg_phy_con1 = (unsigned int*)(RK2818_REGFILE_BASE+0x3c);
-    unsigned int * scu_clkgate1_con = (unsigned int*)(RK2818_SCU_BASE+0x20);
+    unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
+    unsigned int * scu_clkgate1_con = (unsigned int*)(USB_CLKGATE_CON);
 	/*
 	 * enable usb phy & clockgate host controller
 	 */
@@ -1342,8 +1339,8 @@ void rk28_host11_driver_enable(dwc_otg_core_if_t *core_if)
 
 void rk28_host11_driver_disable(dwc_otg_core_if_t *core_if)
 {
-    unsigned int * otg_phy_con1 = (unsigned int*)(RK2818_REGFILE_BASE+0x3c);
-    unsigned int * scu_clkgate1_con = (unsigned int*)(RK2818_SCU_BASE+0x20);
+    unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
+    unsigned int * scu_clkgate1_con = (unsigned int*)(USB_CLKGATE_CON);
     dwc_otg_disable_global_interrupts( core_if );
     hub_disconnect_device(g_root_hub11);
     if (core_if->hcd_cb && core_if->hcd_cb->stop) {
@@ -1502,7 +1499,7 @@ static __devinit int rk28_host11_driver_probe(struct platform_device *pdev)
 	/*
 	 *Enable usb phy
 	 */
-    unsigned int * otg_phy_con1 = (unsigned int*)(RK2818_REGFILE_BASE+0x3c);
+    unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
     *otg_phy_con1 &= ~(0x01<<31);    // exit suspend.
     #if 0
     *otg_phy_con1 |= (0x01<<2);
@@ -1535,7 +1532,7 @@ static __devinit int rk28_host11_driver_probe(struct platform_device *pdev)
 		goto fail;
 
 	dwc_otg_device->base =
-		ioremap(res_base->start,RK2818_USBHOST_SIZE);
+		ioremap(res_base->start,USBOTG_SIZE);
     printk("%s host1.1 reg addr: 0x%x remap:0x%x\n",__func__,
     		(unsigned)res_base->start, (unsigned)dwc_otg_device->base);
 	if (dwc_otg_device->base == NULL)

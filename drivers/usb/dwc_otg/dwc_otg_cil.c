@@ -62,11 +62,9 @@
 #endif
 
 #include "linux/dwc_otg_plat.h"
-#include <mach/rk2818_iomap.h>
 #include "dwc_otg_regs.h"
 #include "dwc_otg_driver.h"
 #include "dwc_otg_cil.h"
-#define SCU_BASE_ADDR_VA RK2818_SCU_BASE
 static dwc_otg_core_if_t * dwc_core_if = NULL;
 /** 
  * This function is called to initialize the DWC_otg CSR data
@@ -723,11 +721,11 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *_core_if)
     dwc_write_reg32( &_core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
 	
 	/* Configure data FIFO sizes */
-    dwc_write_reg32( &global_regs->grxfsiz, 0x00000400 );
-    dwc_write_reg32( &global_regs->gnptxfsiz, 0x00200400 );				//ep0 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[0], 0x01000420 );	//ep1 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[1], 0x00200520 );	//ep3 tx fifo
-    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x01800540 );	//ep5 tx fifo
+    dwc_write_reg32( &global_regs->grxfsiz, 0x00000210 );
+    dwc_write_reg32( &global_regs->gnptxfsiz, 0x00100210 );				//ep0 tx fifo
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[0], 0x01000220 );	//ep1 tx fifo
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[1], 0x00100320 );	//ep3 tx fifo
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x00800330 );	//ep5 tx fifo
     
 	if(_core_if->en_multiple_tx_fifo && _core_if->dma_enable)
 	{
@@ -2894,6 +2892,7 @@ void dwc_otg_core_reset(dwc_otg_core_if_t *_core_if)
 	volatile grstctl_t greset = { .d32 = 0};
 	volatile gusbcfg_data_t usbcfg = { .d32 = 0 };
 	volatile gintsts_data_t gintsts =  { .d32 = 0 };
+    volatile dctl_data_t dctl = {.d32 = 0};
 	int count = 0;
 	DWC_DEBUGPL(DBG_CILV, "%s\n", __func__);
 	/* Wait for AHB master IDLE state. */
@@ -2909,7 +2908,7 @@ void dwc_otg_core_reset(dwc_otg_core_if_t *_core_if)
 		}
 	} 
 	while (greset.b.ahbidle == 0);
-		
+#if 1
 	/* Core Soft Reset */
 	count = 0;
 	greset.b.csftrst = 1;
@@ -2926,6 +2925,10 @@ void dwc_otg_core_reset(dwc_otg_core_if_t *_core_if)
 	} 
 	while (greset.b.csftrst == 1);		  
 
+    dctl.d32 = dwc_read_reg32( &_core_if->dev_if->dev_global_regs->dctl );
+    dctl.b.sftdiscon = 1;
+    dwc_write_reg32( &_core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+#endif
 	usbcfg.d32 = dwc_read_reg32( &global_regs->gusbcfg);
 	if(_core_if->usb_mode == USB_MODE_FORCE_HOST)
 	{
@@ -2945,7 +2948,7 @@ void dwc_otg_core_reset(dwc_otg_core_if_t *_core_if)
     dwc_write_reg32( &global_regs->gusbcfg, usbcfg.d32 );
 	/* Wait for 3 PHY Clocks*/
 	//DWC_PRINT("100ms\n");
-	mdelay(10);
+	mdelay(100);
 	count = 0;
 	if(usbcfg.b.force_hst_mode)
 	do 
@@ -3299,19 +3302,17 @@ void dump_scu_regs(void)
 	printk("SCU_CLKGATE2_CON: 0x%08x\n",regvalue);
 	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x28));
 	printk("SCU_SOFTRST_CON:  0x%08x\n",regvalue);
-	regvalue = dwc_read_reg32((uint32_t *)(RK2818_REGFILE_BASE+0x3c));
+	regvalue = dwc_read_reg32((uint32_t *)(USB_GRF_CON));
 	printk("USB_PHY_CON1:     0x%08x\n",regvalue);
 }
-extern void dwc_otg_dump_pcd_flags(void);
 void dwc_otg_dump_flags(dwc_otg_core_if_t *_core_if)
 {
     printk("_______________________dwc_otg flags_______________________________\n");
 	printk("core_if->op_state = %x\n",_core_if->op_state);
 	printk("core_if->usb_mode = %x\n",_core_if->usb_mode);
 	printk("core_if->usb_wakeup = %x\n",_core_if->usb_wakeup);
-	dwc_otg_dump_pcd_flags();
 }
-extern int rk28_msc_switch(int action);
+int dwc_step = 0;
 int dwc_debug(int flag)
 {
 	dwc_otg_core_if_t *core_if = dwc_core_if;
@@ -3339,10 +3340,9 @@ int dwc_debug(int flag)
 			break;
 		case 7:
 			dwc_otg_dump_flags(core_if);
-			rk28_msc_switch(2);
 			break;
 		case 8:
-			rk28_msc_switch(2);
+		    dwc_step = 0;
 			break;
 		case 9:
 			dwc_otg_dump_flags(core_if);

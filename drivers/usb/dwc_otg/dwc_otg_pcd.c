@@ -79,8 +79,6 @@
 #include <linux/usb/gadget.h>
 #include <linux/platform_device.h>
 
-#include <mach/rk2818_iomap.h>
-
 #include "dwc_otg_driver.h"
 #include "dwc_otg_pcd.h"
 #include "dwc_otg_regs.h"
@@ -1520,7 +1518,6 @@ static void dwc_otg_pcd_gadget_release(struct device *_dev)
 	DWC_DEBUGPL(DBG_PCDV,"%s(%p)\n", __func__, _dev);
 }
 
-extern void rk28_send_wakeup_key( void ) ;
 int dwc_pcd_reset(dwc_otg_pcd_t *pcd)
 {
         dwc_otg_core_if_t *core_if = GET_CORE_IF(pcd);
@@ -1543,7 +1540,7 @@ int rk28_usb_suspend( int exitsuspend )
 {
 	dwc_otg_pcd_t *pcd = s_pcd;
 
-        unsigned int * otg_phy_con1 = (unsigned int*)(RK2818_REGFILE_BASE+0x3c);
+        unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
 //        unsigned int * usb_core_ctrl_reg = (unsigned int*)(USB_OTG_BASE_ADDR_VA);
         if(exitsuspend && (pcd->phy_suspend == 1)) {
                 pcd->phy_suspend = 0;
@@ -1608,7 +1605,7 @@ void dwc_otg_msc_unlock(void)
 	android_unlock_suspend(&usb_msc_lock);
 #endif
 }
-
+extern int dwc_step;
 static void dwc_phy_reconnect(struct work_struct *work)
 {
         dwc_otg_pcd_t *pcd;
@@ -1628,6 +1625,12 @@ static void dwc_phy_reconnect(struct work_struct *work)
 		 * Enable the global interrupt after all the interrupt
 		 * handlers are installed.
 		 */
+		#if 0
+		printk("debug while 1, please enter command to continue!\n");
+		dwc_step = 1;
+        while(dwc_step)
+            mdelay(5);
+        #endif
         dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
         dctl.b.sftdiscon = 0;
         dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );	   
@@ -1722,12 +1725,6 @@ int dwc_vbus_status( void )
 {
     dwc_otg_pcd_t *pcd = s_pcd;
     return pcd->vbus_status ;
-}
-int dwc_otg_set_vbus_status(uint8_t status)
-{
-    dwc_otg_pcd_t *pcd = s_pcd;
-    pcd->vbus_status = status;
-    return pcd->vbus_status;
 }
 int dwc_otg_set_phy_status(uint8_t status)
 {
@@ -1977,25 +1974,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *_driver)
 	return 0;
 }
 EXPORT_SYMBOL(usb_gadget_unregister_driver);
-void dwc_otg_dump_pcd_flags(void)
-{
-	dwc_otg_pcd_t *pcd = s_pcd;
-	if(pcd)
-	{
-		printk("pcd->phy_suspend = %x\n",pcd->phy_suspend);
-		printk("pcd->vbus_status = %x\n",pcd->vbus_status);
-		printk("pcd->conn_status = %x\n",pcd->conn_status);
-	}
-}
-int rk28_msc_switch(int action)
-{
-	return 0;
-}
 #else
-int dwc_otg_set_vbus_status(int status)
-{
-    return 0;
-}
 int rk28_usb_suspend( int exitsuspend )
 {
 	return 0;
@@ -2007,14 +1986,6 @@ int dwc_vbus_status( void )
 int get_msc_connect_flag( void )
 {
     return 0;
-}
-void dwc_otg_dump_pcd_flags(void)
-{
-	return;
-}
-int rk28_msc_switch(int action)
-{
-	return 0;
 }
 
 #endif /* DWC_HOST_ONLY */

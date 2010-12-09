@@ -23,6 +23,7 @@
 #include <linux/spi/spi.h>
 #include <linux/mmc/host.h>
 #include <linux/android_pmem.h>
+#include <linux/usb/android_composite.h>
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
@@ -952,6 +953,13 @@ static struct platform_device rk29_device_keys = {
 	},
 };
 #endif
+/********************usb*********************/
+struct usb_mass_storage_platform_data mass_storage_pdata = {
+	.nluns		= 1,
+	.vendor		= "RockChip",
+	.product	= "rk9 sdk",
+	.release	= 0x0100,
+};
 
 static void __init rk29_board_iomux_init(void)
 {
@@ -1068,6 +1076,13 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&android_pmem_device,
 	&rk29_vpu_mem_device,
+#ifdef CONFIG_DWC_OTG
+	&rk29_device_dwc_otg,
+#endif
+#ifdef CONFIG_USB_ANDROID
+	&android_usb_device,
+	&usb_mass_storage_device,
+#endif
 };
 
 /*****************************************************************************************

@@ -40,6 +40,17 @@
 #include <linux/delay.h>
 #include <asm/io.h>
 
+#include <mach/rk29_iomap.h>
+#define GRF_REG_BASE	RK29_GRF_BASE	
+#define USB20_OTG0_BASE	RK29_USBOTG0_PHYS
+#define USB20_OTG1_BASE	RK29_USBOTG1_PHYS
+#define USB11_HOST_BASE	RK29_USBHOST_PHYS
+#define USBOTG_SIZE	RK29_USBOTG0_SIZE
+#define USB_GRF_CON	(GRF_REG_BASE+0X9C)
+#define USB_CLKGATE_CON	(RK29_CRU_BASE+0X60)
+#ifndef SCU_BASE_ADDR_VA
+#define SCU_BASE_ADDR_VA RK29_CRU_BASE
+#endif
 /**
  * @file 
  *

@@ -735,6 +735,29 @@ static ssize_t wr_reg_test_show( struct device *_dev,
 }
 
 DEVICE_ATTR(wr_reg_test, S_IRUGO|S_IWUSR, wr_reg_test_show, 0);
+extern int dwc_debug(int flag);
+static ssize_t debug_show( struct device *_dev, 
+								struct device_attribute *attr, char *buf) 
+{
+    dwc_otg_device_t *otg_dev = _dev->platform_data;
+    dwc_otg_dump_global_registers( otg_dev->core_if);
+    if (dwc_otg_is_host_mode(otg_dev->core_if)) {
+            dwc_otg_dump_host_registers( otg_dev->core_if);
+    } else {
+            dwc_otg_dump_dev_registers( otg_dev->core_if);
+    }
+   	return sprintf( buf, "Register Dump\n" );
+}
+static ssize_t debug_store( struct device *_dev,
+								struct device_attribute *attr, 
+								const char *buf, size_t count ) 
+{
+	uint32_t val = simple_strtoul(buf, NULL, 16);
+    dwc_debug(val);
+   	return count;
+}
+
+DEVICE_ATTR(step, S_IRUGO|S_IWUSR, debug_show, debug_store);
 /**@}*/
 
 /**
@@ -771,6 +794,7 @@ void dwc_otg_attr_create (struct device *dev)
 	error |= device_create_file(dev, &dev_attr_hcd_frrem);
 	error |= device_create_file(dev, &dev_attr_rd_reg_test);
 	error |= device_create_file(dev, &dev_attr_wr_reg_test);
+	error |= device_create_file(dev, &dev_attr_step);
 	if (error)
 		pr_err("DWC_OTG: Creating some device files failed\n");
 }
@@ -808,4 +832,5 @@ void dwc_otg_attr_remove (struct device *dev)
 	device_remove_file(dev, &dev_attr_hcd_frrem);
 	device_remove_file(dev, &dev_attr_rd_reg_test);
 	device_remove_file(dev, &dev_attr_wr_reg_test);
+	device_remove_file(dev, &dev_attr_step);
 }

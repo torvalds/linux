@@ -16,6 +16,7 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/usb/android_composite.h>
 #include <linux/delay.h>
 #include <mach/irqs.h>
 #include <mach/rk29_iomap.h>
@@ -537,5 +538,132 @@ struct platform_device rk29_device_iis_8ch = {
         .id             = 0,
         .num_resources  = ARRAY_SIZE(rk29_iis_8ch_resource),
         .resource       = rk29_iis_8ch_resource,
+};
+#endif
+#ifdef CONFIG_DWC_OTG
+/*DWC_OTG*/
+static struct resource dwc_otg_resource[] = {
+	{
+		.start = IRQ_USB_OTG0,
+		.end   = IRQ_USB_OTG0,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = RK29_USBOTG0_PHYS,
+		.end   = RK29_USBOTG0_PHYS + RK29_USBOTG0_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+
+};
+
+struct platform_device rk29_device_dwc_otg = {
+	.name		  = "dwc_otg",
+	.id		  = -1,
+	.num_resources	  = ARRAY_SIZE(dwc_otg_resource),
+	.resource	  = dwc_otg_resource,
+};
+
+static char *usb_functions_rockchip[] = {
+	"usb_mass_storage",
+};
+
+static char *usb_functions_rockchip_adb[] = {
+	"usb_mass_storage",
+	"adb",
+};
+
+static char *usb_functions_rndis_rockchip[] = {
+	"rndis",
+	"usb_mass_storage",
+};
+
+static char *usb_functions_rndis_rockchip_adb[] = {
+	"rndis",
+	"usb_mass_storage",
+	"adb",
+};
+
+#ifdef CONFIG_USB_ANDROID_DIAG
+static char *usb_functions_adb_diag[] = {
+	"usb_mass_storage",
+	"adb",
+	"diag",
+};
+#endif
+
+static char *usb_functions_all[] = {
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	"rndis",
+#endif
+	"usb_mass_storage",
+#ifdef CONFIG_USB_ANDROID_ADB
+	"adb",
+#endif
+#ifdef CONFIG_USB_ANDROID_ACM
+	"acm",
+#endif
+#ifdef CONFIG_USB_ANDROID_DIAG
+	"diag",
+#endif
+};
+
+static struct android_usb_product usb_products[] = {
+	{
+		.product_id	= 0x2810,//0x0c02,//0x4e11,
+		.num_functions	= ARRAY_SIZE(usb_functions_rockchip),
+		.functions	= usb_functions_rockchip,
+	},
+	{
+		.product_id	= 0x4e12,
+		.num_functions	= ARRAY_SIZE(usb_functions_rockchip_adb),
+		.functions	= usb_functions_rockchip_adb,
+	},
+	{
+		.product_id	= 0x4e13,
+		.num_functions	= ARRAY_SIZE(usb_functions_rndis_rockchip),
+		.functions	= usb_functions_rndis_rockchip,
+	},
+	{
+		.product_id	= 0x4e14,
+		.num_functions	= ARRAY_SIZE(usb_functions_rndis_rockchip_adb),
+		.functions	= usb_functions_rndis_rockchip_adb,
+	},
+#ifdef CONFIG_USB_ANDROID_DIAG
+	{
+		.product_id	= 0x4e17,
+		.num_functions	= ARRAY_SIZE(usb_functions_adb_diag),
+		.functions	= usb_functions_adb_diag,
+	},
+#endif
+};
+
+static struct android_usb_platform_data android_usb_pdata = {
+	.vendor_id	= 0x2207,//0x0bb4,//0x18d1,
+	.product_id	= 0x2810,//0x4e11,
+	.version	= 0x0100,
+	.product_name		= "rk2818 sdk",
+	.manufacturer_name	= "RockChip",
+	.num_products = ARRAY_SIZE(usb_products),
+	.products = usb_products,
+	.num_functions = ARRAY_SIZE(usb_functions_all),
+	.functions = usb_functions_all,
+};
+
+//static 
+struct platform_device android_usb_device = {
+	.name	= "android_usb",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &android_usb_pdata,
+	},
+};
+
+//static 
+struct platform_device usb_mass_storage_device = {
+	.name	= "usb_mass_storage",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &mass_storage_pdata,
+	},
 };
 #endif

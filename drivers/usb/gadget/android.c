@@ -55,7 +55,7 @@ static const char longname[] = "Gadget Android";
 
 /* Default vendor and product IDs, overridden by platform data */
 #define VENDOR_ID		0x2207//0x18D1
-#define PRODUCT_ID		0x2810
+#define PRODUCT_ID		0x2910
 
 struct android_dev {
 	struct usb_composite_dev *cdev;

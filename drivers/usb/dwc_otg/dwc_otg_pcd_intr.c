@@ -37,7 +37,7 @@
 #include "dwc_otg_pcd.h"
 
 
-//#define DEBUG_EP0
+#define DEBUG_EP0
 
 /* request functions defined in "dwc_otg_pcd.c" */
 extern void request_done( dwc_otg_pcd_ep_t *_ep, dwc_otg_pcd_request_t *_req, 
