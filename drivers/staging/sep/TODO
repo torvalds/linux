@@ -1,12 +1,5 @@
 Todo's so far (from Alan Cox)
-- Fix firmware loading - Done 09/10 M. Allyn
-- Get firmware into firmware git tree - Firmware is non open source
-- Review and tidy each algorithm function - Done 09/10 M. Allyn
 - Check whether it can be plugged into any of the kernel crypto API
   interfaces - Crypto API 'glue' is still not ready to submit
-- Do something about the magic shared memory interface and replace it
-  with something saner (in Linux terms) - Done 09/10 M. Allyn
 - Clean up unused ioctls - Needs vendor help
 - Clean up unused fields in ioctl structures - Needs vendor help
-- 64 bit size to be used for all user space addresses passed
-  to ioctl - Done 10/10 M. Allyn
