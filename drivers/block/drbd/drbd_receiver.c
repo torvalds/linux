@@ -2179,10 +2179,7 @@ static int drbd_asb_recover_0p(struct drbd_conf *mdev) __must_hold(local)
 
 static int drbd_asb_recover_1p(struct drbd_conf *mdev) __must_hold(local)
 {
-	int self, peer, hg, rv = -100;
-
-	self = mdev->ldev->md.uuid[UI_BITMAP] & 1;
-	peer = mdev->p_uuid[UI_BITMAP] & 1;
+	int hg, rv = -100;
 
 	switch (mdev->net_conf->after_sb_1p) {
 	case ASB_DISCARD_YOUNGER_PRI:
@@ -2231,10 +2228,7 @@ static int drbd_asb_recover_1p(struct drbd_conf *mdev) __must_hold(local)
 
 static int drbd_asb_recover_2p(struct drbd_conf *mdev) __must_hold(local)
 {
-	int self, peer, hg, rv = -100;
-
-	self = mdev->ldev->md.uuid[UI_BITMAP] & 1;
-	peer = mdev->p_uuid[UI_BITMAP] & 1;
+	int hg, rv = -100;
 
 	switch (mdev->net_conf->after_sb_2p) {
 	case ASB_DISCARD_YOUNGER_PRI:
