@@ -53,6 +53,7 @@
 #include <asm/cacheflush.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/rar_register.h>
 
 #include "../memrar/memrar.h"
@@ -3244,6 +3245,9 @@ static int sep_reconfig_shared_area(struct sep_device *sep)
 {
 	int ret_val;
 
+	/* use to limit waiting for SEP */
+	unsigned long end_time;
+
 	dev_dbg(&sep->pdev->dev, "reconfig shared area start\n");
 
 	/* Send the new SHARED MESSAGE AREA to the SEP */
@@ -3255,7 +3259,10 @@ static int sep_reconfig_shared_area(struct sep_device *sep)
 	/* Poll for SEP response */
 	ret_val = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR1_REG_ADDR);
 
-	while (ret_val != 0xffffffff && ret_val != sep->shared_bus)
+	end_time = jiffies + (WAIT_TIME * HZ);
+
+	while ((time_before(jiffies, end_time)) && (ret_val != 0xffffffff) &&
+		(ret_val != sep->shared_bus))
 		ret_val = sep_read_reg(sep, HW_HOST_SEP_HOST_GPR1_REG_ADDR);
 
 	/* Check the return value (register) */

@@ -230,5 +230,7 @@ held by the proccess (struct file) */
 /* the token that defines the data pool pointers address */
 #define SEP_EXT_CACHE_ADDR_VAL_TOKEN                          0xBABABABA
 
+/* Time limit for SEP to finish */
+#define WAIT_TIME 10
 
 #endif /* SEP DRIVER CONFIG */
