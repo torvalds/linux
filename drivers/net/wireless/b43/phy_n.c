@@ -1209,29 +1209,18 @@ static void b43_nphy_workarounds(struct b43_wldev *dev)
 			b43_radio_set(dev, B2055_C2_TX_RF_SPARE, 0x8);
 		}
 
-		/* TODO: convert to b43_ntab_write? */
-		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x2000);
-		b43_phy_write(dev, B43_NPHY_TABLE_DATALO, 0x000A);
-		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x2010);
-		b43_phy_write(dev, B43_NPHY_TABLE_DATALO, 0x000A);
-		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x2002);
-		b43_phy_write(dev, B43_NPHY_TABLE_DATALO, 0xCDAA);
-		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x2012);
-		b43_phy_write(dev, B43_NPHY_TABLE_DATALO, 0xCDAA);
+		b43_ntab_write(dev, B43_NTAB16(8, 0x00), 0x000A);
+		b43_ntab_write(dev, B43_NTAB16(8, 0x10), 0x000A);
+		b43_ntab_write(dev, B43_NTAB16(8, 0x02), 0xCDAA);
+		b43_ntab_write(dev, B43_NTAB16(8, 0x12), 0xCDAA);
 
 		if (dev->phy.rev < 2) {
-			b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x2008);
-			b43_phy_write(dev, B43_NPHY_TABLE_DATALO, 0x0000);
-			b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x2018);
-			b43_phy_write(dev, B43_NPHY_TABLE_DATALO, 0x0000);
-			b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x2007);
-			b43_phy_write(dev, B43_NPHY_TABLE_DATALO, 0x7AAB);
-			b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x2017);
-			b43_phy_write(dev, B43_NPHY_TABLE_DATALO, 0x7AAB);
-			b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x2006);
-			b43_phy_write(dev, B43_NPHY_TABLE_DATALO, 0x0800);
-			b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x2016);
-			b43_phy_write(dev, B43_NPHY_TABLE_DATALO, 0x0800);
+			b43_ntab_write(dev, B43_NTAB16(8, 0x08), 0x0000);
+			b43_ntab_write(dev, B43_NTAB16(8, 0x18), 0x0000);
+			b43_ntab_write(dev, B43_NTAB16(8, 0x07), 0x7AAB);
+			b43_ntab_write(dev, B43_NTAB16(8, 0x17), 0x7AAB);
+			b43_ntab_write(dev, B43_NTAB16(8, 0x06), 0x0800);
+			b43_ntab_write(dev, B43_NTAB16(8, 0x16), 0x0800);
 		}
 
 		b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_LO1, 0x2D8);
