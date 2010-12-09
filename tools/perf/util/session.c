@@ -639,12 +639,9 @@ static int perf_session_queue_event(struct perf_session *s, event_t *event,
 	return 0;
 }
 
-static void callchain__dump(struct sample_data *sample)
+static void callchain__printf(struct sample_data *sample)
 {
 	unsigned int i;
-
-	if (!dump_trace)
-		return;
 
 	printf("... chain: nr:%Lu\n", sample->callchain->nr);
 
@@ -675,27 +672,29 @@ static void dump_event(struct perf_session *session, event_t *event,
 	if (!dump_trace)
 		return;
 
-	dump_printf("\n%#Lx [%#x]: event: %d\n", file_offset,
-		    event->header.size, event->header.type);
+	printf("\n%#Lx [%#x]: event: %d\n", file_offset, event->header.size,
+	       event->header.type);
 
 	trace_event(event);
 
 	if (sample)
 		perf_session__print_tstamp(session, event, sample);
 
-	dump_printf("%#Lx [%#x]: PERF_RECORD_%s",
-		    file_offset, event->header.size,
-		    event__get_event_name(event->header.type));
+	printf("%#Lx [%#x]: PERF_RECORD_%s", file_offset, event->header.size,
+	       event__get_event_name(event->header.type));
 }
 
 static void dump_sample(struct perf_session *session, event_t *event,
 			struct sample_data *sample)
 {
-	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
-		    sample->pid, sample->tid, sample->ip, sample->period);
+	if (!dump_trace)
+		return;
+
+	printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
+	       sample->pid, sample->tid, sample->ip, sample->period);
 
 	if (session->sample_type & PERF_SAMPLE_CALLCHAIN)
-		callchain__dump(sample);
+		callchain__printf(sample);
 }
 
 static int perf_session_deliver_event(struct perf_session *session,
