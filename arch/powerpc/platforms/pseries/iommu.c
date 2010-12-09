@@ -323,14 +323,13 @@ static void iommu_table_setparms(struct pci_controller *phb,
 static void iommu_table_setparms_lpar(struct pci_controller *phb,
 				      struct device_node *dn,
 				      struct iommu_table *tbl,
-				      const void *dma_window,
-				      int bussubno)
+				      const void *dma_window)
 {
 	unsigned long offset, size;
 
-	tbl->it_busno  = bussubno;
 	of_parse_dma_window(dn, dma_window, &tbl->it_index, &offset, &size);
 
+	tbl->it_busno = phb->bus->number;
 	tbl->it_base   = 0;
 	tbl->it_blocksize  = 16;
 	tbl->it_type = TCE_PCI;
@@ -450,8 +449,7 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 	if (!ppci->iommu_table) {
 		tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
 				   ppci->phb->node);
-		iommu_table_setparms_lpar(ppci->phb, pdn, tbl, dma_window,
-			bus->number);
+		iommu_table_setparms_lpar(ppci->phb, pdn, tbl, dma_window);
 		ppci->iommu_table = iommu_init_table(tbl, ppci->phb->node);
 		pr_debug("  created table: %p\n", ppci->iommu_table);
 	}
@@ -534,8 +532,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 	if (!pci->iommu_table) {
 		tbl = kzalloc_node(sizeof(struct iommu_table), GFP_KERNEL,
 				   pci->phb->node);
-		iommu_table_setparms_lpar(pci->phb, pdn, tbl, dma_window,
-			pci->phb->bus->number);
+		iommu_table_setparms_lpar(pci->phb, pdn, tbl, dma_window);
 		pci->iommu_table = iommu_init_table(tbl, pci->phb->node);
 		pr_debug("  created table: %p\n", pci->iommu_table);
 	} else {
