@@ -629,7 +629,7 @@ static int snd_cx25821_pcm(struct cx25821_audio_dev *chip, int device,
  * Only boards with eeprom and byte 1 at eeprom=1 have it
  */
 
-static const struct pci_device_id cx25821_audio_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(cx25821_audio_pci_tbl) = {
 	{0x14f1, 0x0920, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0,}
 };
