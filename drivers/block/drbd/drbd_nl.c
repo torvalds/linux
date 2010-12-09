@@ -385,7 +385,7 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 	wait_event(mdev->misc_wait, atomic_read(&mdev->ap_pending_cnt) == 0);
 
 	if (new_role == R_SECONDARY) {
-		set_disk_ro(mdev->vdisk, TRUE);
+		set_disk_ro(mdev->vdisk, true);
 		if (get_ldev(mdev)) {
 			mdev->ldev->md.uuid[UI_CURRENT] &= ~(u64)1;
 			put_ldev(mdev);
@@ -395,7 +395,7 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 			mdev->net_conf->want_lose = 0;
 			put_net_conf(mdev);
 		}
-		set_disk_ro(mdev->vdisk, FALSE);
+		set_disk_ro(mdev->vdisk, false);
 		if (get_ldev(mdev)) {
 			if (((mdev->state.conn < C_CONNECTED ||
 			       mdev->state.pdsk <= D_FAILED)

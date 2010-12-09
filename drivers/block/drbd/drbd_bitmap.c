@@ -844,7 +844,7 @@ static int bm_rw(struct drbd_conf *mdev, int rw) __must_hold(local)
 
 	if (test_bit(BM_MD_IO_ERROR, &b->bm_flags)) {
 		dev_alert(DEV, "we had at least one MD IO ERROR during bitmap IO\n");
-		drbd_chk_io_error(mdev, 1, TRUE);
+		drbd_chk_io_error(mdev, 1, true);
 		err = -EIO;
 	}
 
@@ -916,7 +916,7 @@ int drbd_bm_write_sect(struct drbd_conf *mdev, unsigned long enr) __must_hold(lo
 		dev_err(DEV, "IO ERROR writing bitmap sector %lu "
 		    "(meta-disk sector %llus)\n",
 		    enr, (unsigned long long)on_disk_sector);
-		drbd_chk_io_error(mdev, 1, TRUE);
+		drbd_chk_io_error(mdev, 1, true);
 		for (i = 0; i < AL_EXT_PER_BM_SECT; i++)
 			drbd_bm_ALe_set_all(mdev, enr*AL_EXT_PER_BM_SECT+i);
 	}

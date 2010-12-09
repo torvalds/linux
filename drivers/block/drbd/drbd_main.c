@@ -456,7 +456,7 @@ void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 }
 
 /**
- * cl_wide_st_chg() - TRUE if the state change is a cluster wide one
+ * cl_wide_st_chg() - true if the state change is a cluster wide one
  * @mdev:	DRBD device.
  * @os:		old (current) state.
  * @ns:		new (wanted) state.
@@ -1623,7 +1623,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 		if (!try_module_get(THIS_MODULE)) {
 			dev_err(DEV, "Failed to get module reference in drbd_thread_start\n");
 			spin_unlock_irqrestore(&thi->t_lock, flags);
-			return FALSE;
+			return false;
 		}
 
 		init_completion(&thi->stop);
@@ -1640,7 +1640,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 			dev_err(DEV, "Couldn't start thread\n");
 
 			module_put(THIS_MODULE);
-			return FALSE;
+			return false;
 		}
 		spin_lock_irqsave(&thi->t_lock, flags);
 		thi->task = nt;
@@ -1660,7 +1660,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 		break;
 	}
 
-	return TRUE;
+	return true;
 }
 
 
@@ -1758,8 +1758,8 @@ int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
 {
 	int sent, ok;
 
-	ERR_IF(!h) return FALSE;
-	ERR_IF(!size) return FALSE;
+	ERR_IF(!h) return false;
+	ERR_IF(!size) return false;
 
 	h->magic   = BE_DRBD_MAGIC;
 	h->command = cpu_to_be16(cmd);
@@ -2196,14 +2196,14 @@ int _drbd_send_bitmap(struct drbd_conf *mdev)
 	struct p_header80 *p;
 	int ret;
 
-	ERR_IF(!mdev->bitmap) return FALSE;
+	ERR_IF(!mdev->bitmap) return false;
 
 	/* maybe we should use some per thread scratch page,
 	 * and allocate that during initial device creation? */
 	p = (struct p_header80 *) __get_free_page(GFP_NOIO);
 	if (!p) {
 		dev_err(DEV, "failed to allocate one page buffer in %s\n", __func__);
-		return FALSE;
+		return false;
 	}
 
 	if (get_ldev(mdev)) {
@@ -2256,7 +2256,7 @@ int drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr, u32 set_size)
 	p.set_size = cpu_to_be32(set_size);
 
 	if (mdev->state.conn < C_CONNECTED)
-		return FALSE;
+		return false;
 	ok = drbd_send_cmd(mdev, USE_META_SOCKET, P_BARRIER_ACK,
 			(struct p_header80 *)&p, sizeof(p));
 	return ok;
@@ -2284,7 +2284,7 @@ static int _drbd_send_ack(struct drbd_conf *mdev, enum drbd_packets cmd,
 	p.seq_num  = cpu_to_be32(atomic_add_return(1, &mdev->packet_seq));
 
 	if (!mdev->meta.socket || mdev->state.conn < C_CONNECTED)
-		return FALSE;
+		return false;
 	ok = drbd_send_cmd(mdev, USE_META_SOCKET, cmd,
 				(struct p_header80 *)&p, sizeof(p));
 	return ok;
@@ -2390,8 +2390,8 @@ int drbd_send_ov_request(struct drbd_conf *mdev, sector_t sector, int size)
 }
 
 /* called on sndtimeo
- * returns FALSE if we should retry,
- * TRUE if we think connection is dead
+ * returns false if we should retry,
+ * true if we think connection is dead
  */
 static int we_should_drop_the_connection(struct drbd_conf *mdev, struct socket *sock)
 {
@@ -2404,7 +2404,7 @@ static int we_should_drop_the_connection(struct drbd_conf *mdev, struct socket *
 		|| mdev->state.conn < C_CONNECTED;
 
 	if (drop_it)
-		return TRUE;
+		return true;
 
 	drop_it = !--mdev->ko_count;
 	if (!drop_it) {
@@ -3283,7 +3283,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 		goto out_no_disk;
 	mdev->vdisk = disk;
 
-	set_disk_ro(disk, TRUE);
+	set_disk_ro(disk, true);
 
 	disk->queue = q;
 	disk->major = DRBD_MAJOR;
@@ -3560,7 +3560,7 @@ void drbd_md_sync(struct drbd_conf *mdev)
 	if (!drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
 		/* this was a try anyways ... */
 		dev_err(DEV, "meta data update failed!\n");
-		drbd_chk_io_error(mdev, 1, TRUE);
+		drbd_chk_io_error(mdev, 1, true);
 	}
 
 	/* Update mdev->ldev->md.la_size_sect,

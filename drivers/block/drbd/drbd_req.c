@@ -445,7 +445,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
-		__drbd_chk_io_error(mdev, FALSE);
+		__drbd_chk_io_error(mdev, false);
 		_req_may_be_done_not_susp(req, m);
 		put_ldev(mdev);
 		break;
@@ -466,7 +466,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
 
-		__drbd_chk_io_error(mdev, FALSE);
+		__drbd_chk_io_error(mdev, false);
 		put_ldev(mdev);
 
 		/* no point in retrying if there is no good remote data,

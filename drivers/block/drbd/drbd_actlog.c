@@ -338,7 +338,7 @@ w_al_write_transaction(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 		+ mdev->ldev->md.al_offset + mdev->al_tr_pos;
 
 	if (!drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE))
-		drbd_chk_io_error(mdev, 1, TRUE);
+		drbd_chk_io_error(mdev, 1, true);
 
 	if (++mdev->al_tr_pos >
 	    div_ceil(mdev->act_log->nr_elements, AL_EXTENTS_PT))
@@ -528,7 +528,7 @@ static void atodb_endio(struct bio *bio, int error)
 	if (!error && !uptodate)
 		error = -EIO;
 
-	drbd_chk_io_error(mdev, error, TRUE);
+	drbd_chk_io_error(mdev, error, true);
 	if (error && wc->error == 0)
 		wc->error = error;
 
@@ -991,7 +991,7 @@ void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector, int size,
 	if (count && get_ldev(mdev)) {
 		drbd_advance_rs_marks(mdev, drbd_bm_total_weight(mdev));
 		spin_lock_irqsave(&mdev->al_lock, flags);
-		drbd_try_clear_on_disk_bm(mdev, sector, count, TRUE);
+		drbd_try_clear_on_disk_bm(mdev, sector, count, true);
 		spin_unlock_irqrestore(&mdev->al_lock, flags);
 
 		/* just wake_up unconditional now, various lc_chaged(),
@@ -1441,7 +1441,7 @@ void drbd_rs_failed_io(struct drbd_conf *mdev, sector_t sector, int size)
 		mdev->rs_failed += count;
 
 		if (get_ldev(mdev)) {
-			drbd_try_clear_on_disk_bm(mdev, sector, count, FALSE);
+			drbd_try_clear_on_disk_bm(mdev, sector, count, false);
 			put_ldev(mdev);
 		}
 
