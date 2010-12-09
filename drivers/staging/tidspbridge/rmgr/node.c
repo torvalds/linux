@@ -236,9 +236,9 @@ struct node_object {
 
 /* Default buffer attributes */
 static struct dsp_bufferattr node_dfltbufattrs = {
-	0,			/* cb_struct */
-	1,			/* segment_id */
-	0,			/* buf_alignment */
+	.cb_struct = 0,
+	.segment_id = 1,
+	.buf_alignment = 0,
 };
 
 static void delete_node(struct node_object *hnode,
@@ -284,8 +284,7 @@ enum node_state node_get_state(void *hnode)
 	struct node_object *pnode = (struct node_object *)hnode;
 	if (!pnode)
 		return -1;
-	else
-		return pnode->node_state;
+	return pnode->node_state;
 }
 
 /*
@@ -844,6 +843,7 @@ int node_connect(struct node_object *node1, u32 stream1,
 	char *pstr_dev_name = NULL;
 	enum node_type node1_type = NODE_TASK;
 	enum node_type node2_type = NODE_TASK;
+	enum dsp_strmmode strm_mode;
 	struct node_strmdef *pstrm_def;
 	struct node_strmdef *input = NULL;
 	struct node_strmdef *output = NULL;
@@ -857,60 +857,49 @@ int node_connect(struct node_object *node1, u32 stream1,
 	int status = 0;
 	DBC_REQUIRE(refs > 0);
 
-	if ((node1 != (struct node_object *)DSP_HGPPNODE && !node1) ||
-	    (node2 != (struct node_object *)DSP_HGPPNODE && !node2))
-		status = -EFAULT;
+	if (!node1 || !node2)
+		return -EFAULT;
 
-	if (!status) {
-		/* The two nodes must be on the same processor */
-		if (node1 != (struct node_object *)DSP_HGPPNODE &&
-		    node2 != (struct node_object *)DSP_HGPPNODE &&
-		    node1->hnode_mgr != node2->hnode_mgr)
-			status = -EPERM;
-		/* Cannot connect a node to itself */
-		if (node1 == node2)
-			status = -EPERM;
+	/* The two nodes must be on the same processor */
+	if (node1 != (struct node_object *)DSP_HGPPNODE &&
+			node2 != (struct node_object *)DSP_HGPPNODE &&
+			node1->hnode_mgr != node2->hnode_mgr)
+		return -EPERM;
 
-	}
-	if (!status) {
-		/* node_get_type() will return NODE_GPP if hnode =
-		 * DSP_HGPPNODE. */
-		node1_type = node_get_type(node1);
-		node2_type = node_get_type(node2);
-		/* Check stream indices ranges */
-		if ((node1_type != NODE_GPP && node1_type != NODE_DEVICE &&
-		     stream1 >= MAX_OUTPUTS(node1)) || (node2_type != NODE_GPP
-							  && node2_type !=
-							  NODE_DEVICE
-							  && stream2 >=
-							  MAX_INPUTS(node2)))
-			status = -EINVAL;
-	}
-	if (!status) {
-		/*
-		 *  Only the following types of connections are allowed:
-		 *      task/dais socket < == > task/dais socket
-		 *      task/dais socket < == > device
-		 *      task/dais socket < == > GPP
-		 *
-		 *  ie, no message nodes, and at least one task or dais
-		 *  socket node.
-		 */
-		if (node1_type == NODE_MESSAGE || node2_type == NODE_MESSAGE ||
-		    (node1_type != NODE_TASK && node1_type != NODE_DAISSOCKET &&
-		     node2_type != NODE_TASK && node2_type != NODE_DAISSOCKET))
-			status = -EPERM;
-	}
+	/* Cannot connect a node to itself */
+	if (node1 == node2)
+		return -EPERM;
+
+	/* node_get_type() will return NODE_GPP if hnode =  DSP_HGPPNODE. */
+	node1_type = node_get_type(node1);
+	node2_type = node_get_type(node2);
+	/* Check stream indices ranges */
+	if ((node1_type != NODE_GPP && node1_type != NODE_DEVICE &&
+				stream1 >= MAX_OUTPUTS(node1)) ||
+			(node2_type != NODE_GPP && node2_type != NODE_DEVICE &&
+			 stream2 >= MAX_INPUTS(node2)))
+		return -EINVAL;
+
+	/*
+	 *  Only the following types of connections are allowed:
+	 *      task/dais socket < == > task/dais socket
+	 *      task/dais socket < == > device
+	 *      task/dais socket < == > GPP
+	 *
+	 *  ie, no message nodes, and at least one task or dais
+	 *  socket node.
+	 */
+	if (node1_type == NODE_MESSAGE || node2_type == NODE_MESSAGE ||
+			(node1_type != NODE_TASK &&
+			 node1_type != NODE_DAISSOCKET &&
+			 node2_type != NODE_TASK &&
+			 node2_type != NODE_DAISSOCKET))
+		return -EPERM;
 	/*
 	 * Check stream mode. Default is STRMMODE_PROCCOPY.
 	 */
-	if (!status && pattrs) {
-		if (pattrs->strm_mode != STRMMODE_PROCCOPY)
-			status = -EPERM;	/* illegal stream mode */
-
-	}
-	if (status)
-		goto func_end;
+	if (pattrs && pattrs->strm_mode != STRMMODE_PROCCOPY)
+		return -EPERM;	/* illegal stream mode */
 
 	if (node1_type != NODE_GPP) {
 		hnode_mgr = node1->hnode_mgr;
@@ -918,170 +907,145 @@ int node_connect(struct node_object *node1, u32 stream1,
 		DBC_ASSERT(node2 != (struct node_object *)DSP_HGPPNODE);
 		hnode_mgr = node2->hnode_mgr;
 	}
+
 	/* Enter critical section */
 	mutex_lock(&hnode_mgr->node_mgr_lock);
 
 	/* Nodes must be in the allocated state */
-	if (node1_type != NODE_GPP && node_get_state(node1) != NODE_ALLOCATED)
+	if (node1_type != NODE_GPP &&
+			node_get_state(node1) != NODE_ALLOCATED) {
 		status = -EBADR;
+		goto out_unlock;
+	}
 
-	if (node2_type != NODE_GPP && node_get_state(node2) != NODE_ALLOCATED)
+	if (node2_type != NODE_GPP &&
+			node_get_state(node2) != NODE_ALLOCATED) {
 		status = -EBADR;
+		goto out_unlock;
+	}
 
-	if (!status) {
-		/*  Check that stream indices for task and dais socket nodes
-		 *  are not already be used. (Device nodes checked later) */
-		if (node1_type == NODE_TASK || node1_type == NODE_DAISSOCKET) {
-			output =
-			    &(node1->create_args.asa.
-			      task_arg_obj.strm_out_def[stream1]);
-			if (output->sz_device != NULL)
-				status = -EISCONN;
-
+	/*
+	 *  Check that stream indices for task and dais socket nodes
+	 *  are not already be used. (Device nodes checked later)
+	 */
+	if (node1_type == NODE_TASK || node1_type == NODE_DAISSOCKET) {
+		output = &(node1->create_args.asa.
+				task_arg_obj.strm_out_def[stream1]);
+		if (output->sz_device) {
+			status = -EISCONN;
+			goto out_unlock;
 		}
-		if (node2_type == NODE_TASK || node2_type == NODE_DAISSOCKET) {
-			input =
-			    &(node2->create_args.asa.
-			      task_arg_obj.strm_in_def[stream2]);
-			if (input->sz_device != NULL)
-				status = -EISCONN;
 
+	}
+	if (node2_type == NODE_TASK || node2_type == NODE_DAISSOCKET) {
+		input = &(node2->create_args.asa.
+				task_arg_obj.strm_in_def[stream2]);
+		if (input->sz_device) {
+			status = -EISCONN;
+			goto out_unlock;
 		}
+
 	}
 	/* Connecting two task nodes? */
-	if (!status && ((node1_type == NODE_TASK ||
-				       node1_type == NODE_DAISSOCKET)
-				      && (node2_type == NODE_TASK
-					  || node2_type == NODE_DAISSOCKET))) {
+	if ((node1_type == NODE_TASK || node1_type == NODE_DAISSOCKET) &&
+				(node2_type == NODE_TASK ||
+				 node2_type == NODE_DAISSOCKET)) {
 		/* Find available pipe */
 		pipe_id = find_first_zero_bit(hnode_mgr->pipe_map, MAXPIPES);
 		if (pipe_id == MAXPIPES) {
 			status = -ECONNREFUSED;
-		} else {
-			set_bit(pipe_id, hnode_mgr->pipe_map);
-			node1->outputs[stream1].type = NODECONNECT;
-			node2->inputs[stream2].type = NODECONNECT;
-			node1->outputs[stream1].dev_id = pipe_id;
-			node2->inputs[stream2].dev_id = pipe_id;
-			output->sz_device = kzalloc(PIPENAMELEN + 1,
-							GFP_KERNEL);
-			input->sz_device = kzalloc(PIPENAMELEN + 1, GFP_KERNEL);
-			if (output->sz_device == NULL ||
-			    input->sz_device == NULL) {
-				/* Undo the connection */
-				kfree(output->sz_device);
-
-				kfree(input->sz_device);
-
-				output->sz_device = NULL;
-				input->sz_device = NULL;
-				clear_bit(pipe_id, hnode_mgr->pipe_map);
-				status = -ENOMEM;
-			} else {
-				/* Copy "/dbpipe<pipId>" name to device names */
-				sprintf(output->sz_device, "%s%d",
-					PIPEPREFIX, pipe_id);
-				strcpy(input->sz_device, output->sz_device);
-			}
+			goto out_unlock;
 		}
+		set_bit(pipe_id, hnode_mgr->pipe_map);
+		node1->outputs[stream1].type = NODECONNECT;
+		node2->inputs[stream2].type = NODECONNECT;
+		node1->outputs[stream1].dev_id = pipe_id;
+		node2->inputs[stream2].dev_id = pipe_id;
+		output->sz_device = kzalloc(PIPENAMELEN + 1, GFP_KERNEL);
+		input->sz_device = kzalloc(PIPENAMELEN + 1, GFP_KERNEL);
+		if (!output->sz_device || !input->sz_device) {
+			/* Undo the connection */
+			kfree(output->sz_device);
+			kfree(input->sz_device);
+			clear_bit(pipe_id, hnode_mgr->pipe_map);
+			status = -ENOMEM;
+			goto out_unlock;
+		}
+		/* Copy "/dbpipe<pipId>" name to device names */
+		sprintf(output->sz_device, "%s%d", PIPEPREFIX, pipe_id);
+		strcpy(input->sz_device, output->sz_device);
 	}
 	/* Connecting task node to host? */
-	if (!status && (node1_type == NODE_GPP ||
-				      node2_type == NODE_GPP)) {
-		if (node1_type == NODE_GPP) {
-			chnl_mode = CHNL_MODETODSP;
-		} else {
-			DBC_ASSERT(node2_type == NODE_GPP);
-			chnl_mode = CHNL_MODEFROMDSP;
+	if (node1_type == NODE_GPP || node2_type == NODE_GPP) {
+		pstr_dev_name = kzalloc(HOSTNAMELEN + 1, GFP_KERNEL);
+		if (!pstr_dev_name) {
+			status = -ENOMEM;
+			goto out_unlock;
 		}
-		/*  Reserve a channel id. We need to put the name "/host<id>"
+
+		DBC_ASSERT((node1_type == NODE_GPP) ||
+				(node2_type == NODE_GPP));
+
+		chnl_mode = (node1_type == NODE_GPP) ?
+			CHNL_MODETODSP : CHNL_MODEFROMDSP;
+
+		/*
+		 *  Reserve a channel id. We need to put the name "/host<id>"
 		 *  in the node's create_args, but the host
 		 *  side channel will not be opened until DSPStream_Open is
-		 *  called for this node. */
-		if (pattrs) {
-			if (pattrs->strm_mode == STRMMODE_RDMA) {
-				chnl_id = find_first_zero_bit(
-						hnode_mgr->dma_chnl_map,
-						CHNL_MAXCHANNELS);
+		 *  called for this node.
+		 */
+		strm_mode = pattrs ? pattrs->strm_mode : STRMMODE_PROCCOPY;
+		switch (strm_mode) {
+		case STRMMODE_RDMA:
+			chnl_id = find_first_zero_bit(hnode_mgr->dma_chnl_map,
+					CHNL_MAXCHANNELS);
+			if (chnl_id < CHNL_MAXCHANNELS) {
+				set_bit(chnl_id, hnode_mgr->dma_chnl_map);
 				/* dma chans are 2nd transport chnl set
 				 * ids(e.g. 16-31) */
-				if (chnl_id != CHNL_MAXCHANNELS) {
-					set_bit(chnl_id,
-						hnode_mgr->dma_chnl_map);
-					chnl_id = chnl_id +
-						hnode_mgr->ul_num_chnls;
-				}
-			} else if (pattrs->strm_mode == STRMMODE_ZEROCOPY) {
-				chnl_id = find_first_zero_bit(
-						hnode_mgr->zc_chnl_map,
-						CHNL_MAXCHANNELS);
+				chnl_id = chnl_id + hnode_mgr->ul_num_chnls;
+			}
+			break;
+		case STRMMODE_ZEROCOPY:
+			chnl_id = find_first_zero_bit(hnode_mgr->zc_chnl_map,
+					CHNL_MAXCHANNELS);
+			if (chnl_id < CHNL_MAXCHANNELS) {
+				set_bit(chnl_id, hnode_mgr->zc_chnl_map);
 				/* zero-copy chans are 3nd transport set
 				 * (e.g. 32-47) */
-				if (chnl_id != CHNL_MAXCHANNELS) {
-					set_bit(chnl_id,
-						hnode_mgr->zc_chnl_map);
-					chnl_id = chnl_id +
-						(2 * hnode_mgr->ul_num_chnls);
-				}
-			} else {	/* must be PROCCOPY */
-				DBC_ASSERT(pattrs->strm_mode ==
-					   STRMMODE_PROCCOPY);
-				chnl_id = find_first_zero_bit(
-						hnode_mgr->chnl_map,
-						CHNL_MAXCHANNELS);
-				/* e.g. 0-15 */
-				if (chnl_id != CHNL_MAXCHANNELS)
-					set_bit(chnl_id, hnode_mgr->chnl_map);
+				chnl_id = chnl_id +
+					(2 * hnode_mgr->ul_num_chnls);
 			}
-		} else {
-			/* default to PROCCOPY */
+			break;
+		case STRMMODE_PROCCOPY:
 			chnl_id = find_first_zero_bit(hnode_mgr->chnl_map,
 					CHNL_MAXCHANNELS);
-			if (chnl_id != CHNL_MAXCHANNELS)
+			if (chnl_id < CHNL_MAXCHANNELS)
 				set_bit(chnl_id, hnode_mgr->chnl_map);
+			break;
+		default:
+			status = -EINVAL;
+			goto out_unlock;
 		}
 		if (chnl_id == CHNL_MAXCHANNELS) {
 			status = -ECONNREFUSED;
-			goto func_cont2;
+			goto out_unlock;
 		}
-		pstr_dev_name = kzalloc(HOSTNAMELEN + 1, GFP_KERNEL);
-		if (pstr_dev_name != NULL)
-			goto func_cont2;
 
-		if (pattrs) {
-			if (pattrs->strm_mode == STRMMODE_RDMA) {
-				clear_bit(chnl_id - hnode_mgr->ul_num_chnls,
-						hnode_mgr->dma_chnl_map);
-			} else if (pattrs->strm_mode == STRMMODE_ZEROCOPY) {
-				clear_bit(chnl_id -
-						(2 * hnode_mgr->ul_num_chnls),
-						hnode_mgr->zc_chnl_map);
-			} else {
-				DBC_ASSERT(pattrs->strm_mode ==
-					   STRMMODE_PROCCOPY);
-				clear_bit(chnl_id, hnode_mgr->chnl_map);
-			}
+		if (node1 == (struct node_object *)DSP_HGPPNODE) {
+			node2->inputs[stream2].type = HOSTCONNECT;
+			node2->inputs[stream2].dev_id = chnl_id;
+			input->sz_device = pstr_dev_name;
 		} else {
-			clear_bit(chnl_id, hnode_mgr->chnl_map);
+			node1->outputs[stream1].type = HOSTCONNECT;
+			node1->outputs[stream1].dev_id = chnl_id;
+			output->sz_device = pstr_dev_name;
 		}
-		status = -ENOMEM;
-func_cont2:
-		if (!status) {
-			if (node1 == (struct node_object *)DSP_HGPPNODE) {
-				node2->inputs[stream2].type = HOSTCONNECT;
-				node2->inputs[stream2].dev_id = chnl_id;
-				input->sz_device = pstr_dev_name;
-			} else {
-				node1->outputs[stream1].type = HOSTCONNECT;
-				node1->outputs[stream1].dev_id = chnl_id;
-				output->sz_device = pstr_dev_name;
-			}
-			sprintf(pstr_dev_name, "%s%d", HOSTPREFIX, chnl_id);
-		}
+		sprintf(pstr_dev_name, "%s%d", HOSTPREFIX, chnl_id);
 	}
 	/* Connecting task node to device node? */
-	if (!status && ((node1_type == NODE_DEVICE) ||
-				      (node2_type == NODE_DEVICE))) {
+	if ((node1_type == NODE_DEVICE) || (node2_type == NODE_DEVICE)) {
 		if (node2_type == NODE_DEVICE) {
 			/* node1 == > device */
 			dev_node_obj = node2;
@@ -1098,60 +1062,58 @@ func_cont2:
 		/* Set up create args */
 		pstream->type = DEVICECONNECT;
 		dw_length = strlen(dev_node_obj->pstr_dev_name);
-		if (conn_param != NULL) {
+		if (conn_param)
 			pstrm_def->sz_device = kzalloc(dw_length + 1 +
-							conn_param->cb_data,
-							GFP_KERNEL);
-		} else {
+					conn_param->cb_data,
+					GFP_KERNEL);
+		else
 			pstrm_def->sz_device = kzalloc(dw_length + 1,
-							GFP_KERNEL);
-		}
-		if (pstrm_def->sz_device == NULL) {
+					GFP_KERNEL);
+		if (!pstrm_def->sz_device) {
 			status = -ENOMEM;
-		} else {
-			/* Copy device name */
-			strncpy(pstrm_def->sz_device,
+			goto out_unlock;
+		}
+		/* Copy device name */
+		strncpy(pstrm_def->sz_device,
 				dev_node_obj->pstr_dev_name, dw_length);
-			if (conn_param != NULL) {
-				strncat(pstrm_def->sz_device,
+		if (conn_param)
+			strncat(pstrm_def->sz_device,
 					(char *)conn_param->node_data,
 					(u32) conn_param->cb_data);
-			}
-			dev_node_obj->device_owner = hnode;
-		}
+		dev_node_obj->device_owner = hnode;
 	}
-	if (!status) {
-		/* Fill in create args */
-		if (node1_type == NODE_TASK || node1_type == NODE_DAISSOCKET) {
-			node1->create_args.asa.task_arg_obj.num_outputs++;
-			fill_stream_def(node1, output, pattrs);
-		}
-		if (node2_type == NODE_TASK || node2_type == NODE_DAISSOCKET) {
-			node2->create_args.asa.task_arg_obj.num_inputs++;
-			fill_stream_def(node2, input, pattrs);
-		}
-		/* Update node1 and node2 stream_connect */
-		if (node1_type != NODE_GPP && node1_type != NODE_DEVICE) {
-			node1->num_outputs++;
-			if (stream1 > node1->max_output_index)
-				node1->max_output_index = stream1;
-
-		}
-		if (node2_type != NODE_GPP && node2_type != NODE_DEVICE) {
-			node2->num_inputs++;
-			if (stream2 > node2->max_input_index)
-				node2->max_input_index = stream2;
-
-		}
-		fill_stream_connect(node1, node2, stream1, stream2);
+	/* Fill in create args */
+	if (node1_type == NODE_TASK || node1_type == NODE_DAISSOCKET) {
+		node1->create_args.asa.task_arg_obj.num_outputs++;
+		fill_stream_def(node1, output, pattrs);
 	}
+	if (node2_type == NODE_TASK || node2_type == NODE_DAISSOCKET) {
+		node2->create_args.asa.task_arg_obj.num_inputs++;
+		fill_stream_def(node2, input, pattrs);
+	}
+	/* Update node1 and node2 stream_connect */
+	if (node1_type != NODE_GPP && node1_type != NODE_DEVICE) {
+		node1->num_outputs++;
+		if (stream1 > node1->max_output_index)
+			node1->max_output_index = stream1;
+
+	}
+	if (node2_type != NODE_GPP && node2_type != NODE_DEVICE) {
+		node2->num_inputs++;
+		if (stream2 > node2->max_input_index)
+			node2->max_input_index = stream2;
+
+	}
+	fill_stream_connect(node1, node2, stream1, stream2);
 	/* end of sync_enter_cs */
 	/* Exit critical section */
+out_unlock:
+	if (status && pstr_dev_name)
+		kfree(pstr_dev_name);
 	mutex_unlock(&hnode_mgr->node_mgr_lock);
-func_end:
 	dev_dbg(bridge, "%s: node1: %p stream1: %d node2: %p stream2: %d"
-		"pattrs: %p status: 0x%x\n", __func__, node1,
-		stream1, node2, stream2, pattrs, status);
+			"pattrs: %p status: 0x%x\n", __func__, node1,
+			stream1, node2, stream2, pattrs, status);
 	return status;
 }
 
@@ -1329,6 +1291,7 @@ int node_create_mgr(struct node_mgr **node_man,
 	struct nldr_attrs nldr_attrs_obj;
 	int status = 0;
 	u8 dev_type;
+
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(node_man != NULL);
 	DBC_REQUIRE(hdev_obj != NULL);
@@ -1336,89 +1299,88 @@ int node_create_mgr(struct node_mgr **node_man,
 	*node_man = NULL;
 	/* Allocate Node manager object */
 	node_mgr_obj = kzalloc(sizeof(struct node_mgr), GFP_KERNEL);
-	if (node_mgr_obj) {
-		node_mgr_obj->hdev_obj = hdev_obj;
-		INIT_LIST_HEAD(&node_mgr_obj->node_list);
-		node_mgr_obj->ntfy_obj = kmalloc(
-				sizeof(struct ntfy_object), GFP_KERNEL);
-		if (node_mgr_obj->ntfy_obj)
-			ntfy_init(node_mgr_obj->ntfy_obj);
-		else
-			status = -ENOMEM;
-		node_mgr_obj->num_created = 0;
-	} else {
+	if (!node_mgr_obj)
+		return -ENOMEM;
+
+	node_mgr_obj->hdev_obj = hdev_obj;
+
+	node_mgr_obj->ntfy_obj = kmalloc(sizeof(struct ntfy_object),
+			GFP_KERNEL);
+	if (!node_mgr_obj->ntfy_obj) {
 		status = -ENOMEM;
+		goto out_err;
 	}
-	/* get devNodeType */
-	if (!status)
-		status = dev_get_dev_type(hdev_obj, &dev_type);
+	ntfy_init(node_mgr_obj->ntfy_obj);
 
-	/* Create the DCD Manager */
-	if (!status) {
-		status =
-		    dcd_create_manager(sz_zl_file, &node_mgr_obj->hdcd_mgr);
-		if (!status)
-			status = get_proc_props(node_mgr_obj, hdev_obj);
+	INIT_LIST_HEAD(&node_mgr_obj->node_list);
 
-	}
+	dev_get_dev_type(hdev_obj, &dev_type);
+
+	status = dcd_create_manager(sz_zl_file, &node_mgr_obj->hdcd_mgr);
+	if (status)
+		goto out_err;
+
+	status = get_proc_props(node_mgr_obj, hdev_obj);
+	if (status)
+		goto out_err;
+
 	/* Create NODE Dispatcher */
-	if (!status) {
-		disp_attr_obj.ul_chnl_offset = node_mgr_obj->ul_chnl_offset;
-		disp_attr_obj.ul_chnl_buf_size = node_mgr_obj->ul_chnl_buf_size;
-		disp_attr_obj.proc_family = node_mgr_obj->proc_family;
-		disp_attr_obj.proc_type = node_mgr_obj->proc_type;
-		status =
-		    disp_create(&node_mgr_obj->disp_obj, hdev_obj,
-				&disp_attr_obj);
-	}
+	disp_attr_obj.ul_chnl_offset = node_mgr_obj->ul_chnl_offset;
+	disp_attr_obj.ul_chnl_buf_size = node_mgr_obj->ul_chnl_buf_size;
+	disp_attr_obj.proc_family = node_mgr_obj->proc_family;
+	disp_attr_obj.proc_type = node_mgr_obj->proc_type;
+
+	status = disp_create(&node_mgr_obj->disp_obj, hdev_obj, &disp_attr_obj);
+	if (status)
+		goto out_err;
+
 	/* Create a STRM Manager */
-	if (!status)
-		status = strm_create(&node_mgr_obj->strm_mgr_obj, hdev_obj);
+	status = strm_create(&node_mgr_obj->strm_mgr_obj, hdev_obj);
+	if (status)
+		goto out_err;
 
-	if (!status) {
-		dev_get_intf_fxns(hdev_obj, &node_mgr_obj->intf_fxns);
-		/* Get msg_ctrl queue manager */
-		dev_get_msg_mgr(hdev_obj, &node_mgr_obj->msg_mgr_obj);
-		mutex_init(&node_mgr_obj->node_mgr_lock);
-		/* Block out reserved channels */
-		for (i = 0; i < node_mgr_obj->ul_chnl_offset; i++)
-			set_bit(i, node_mgr_obj->chnl_map);
+	dev_get_intf_fxns(hdev_obj, &node_mgr_obj->intf_fxns);
+	/* Get msg_ctrl queue manager */
+	dev_get_msg_mgr(hdev_obj, &node_mgr_obj->msg_mgr_obj);
+	mutex_init(&node_mgr_obj->node_mgr_lock);
 
-		/* Block out channels reserved for RMS */
-		set_bit(node_mgr_obj->ul_chnl_offset, node_mgr_obj->chnl_map);
-		set_bit(node_mgr_obj->ul_chnl_offset + 1,
-				node_mgr_obj->chnl_map);
-	}
-	if (!status) {
-		/* NO RM Server on the IVA */
-		if (dev_type != IVA_UNIT) {
-			/* Get addresses of any RMS functions loaded */
-			status = get_rms_fxns(node_mgr_obj);
-		}
+	/* Block out reserved channels */
+	for (i = 0; i < node_mgr_obj->ul_chnl_offset; i++)
+		set_bit(i, node_mgr_obj->chnl_map);
+
+	/* Block out channels reserved for RMS */
+	set_bit(node_mgr_obj->ul_chnl_offset, node_mgr_obj->chnl_map);
+	set_bit(node_mgr_obj->ul_chnl_offset + 1, node_mgr_obj->chnl_map);
+
+	/* NO RM Server on the IVA */
+	if (dev_type != IVA_UNIT) {
+		/* Get addresses of any RMS functions loaded */
+		status = get_rms_fxns(node_mgr_obj);
+		if (status)
+			goto out_err;
 	}
 
 	/* Get loader functions and create loader */
-	if (!status)
-		node_mgr_obj->nldr_fxns = nldr_fxns;	/* Dyn loader funcs */
+	node_mgr_obj->nldr_fxns = nldr_fxns;	/* Dyn loader funcs */
 
-	if (!status) {
-		nldr_attrs_obj.pfn_ovly = ovly;
-		nldr_attrs_obj.pfn_write = mem_write;
-		nldr_attrs_obj.us_dsp_word_size = node_mgr_obj->udsp_word_size;
-		nldr_attrs_obj.us_dsp_mau_size = node_mgr_obj->udsp_mau_size;
-		node_mgr_obj->loader_init = node_mgr_obj->nldr_fxns.pfn_init();
-		status =
-		    node_mgr_obj->nldr_fxns.pfn_create(&node_mgr_obj->nldr_obj,
-						       hdev_obj,
-						       &nldr_attrs_obj);
-	}
-	if (!status)
-		*node_man = node_mgr_obj;
-	else
-		delete_node_mgr(node_mgr_obj);
+	nldr_attrs_obj.pfn_ovly = ovly;
+	nldr_attrs_obj.pfn_write = mem_write;
+	nldr_attrs_obj.us_dsp_word_size = node_mgr_obj->udsp_word_size;
+	nldr_attrs_obj.us_dsp_mau_size = node_mgr_obj->udsp_mau_size;
+	node_mgr_obj->loader_init = node_mgr_obj->nldr_fxns.pfn_init();
+	status = node_mgr_obj->nldr_fxns.pfn_create(&node_mgr_obj->nldr_obj,
+			hdev_obj,
+			&nldr_attrs_obj);
+	if (status)
+		goto out_err;
+
+	*node_man = node_mgr_obj;
 
 	DBC_ENSURE((status && *node_man == NULL) || (!status && *node_man));
 
+	return status;
+out_err:
+	delete_node_mgr(node_mgr_obj);
 	return status;
 }
 
@@ -1593,16 +1555,14 @@ func_end:
  */
 int node_delete_mgr(struct node_mgr *hnode_mgr)
 {
-	int status = 0;
-
 	DBC_REQUIRE(refs > 0);
 
-	if (hnode_mgr)
-		delete_node_mgr(hnode_mgr);
-	else
-		status = -EFAULT;
+	if (!hnode_mgr)
+		return -EFAULT;
 
-	return status;
+	delete_node_mgr(hnode_mgr);
+
+	return 0;
 }
 
 /*
@@ -1710,38 +1670,37 @@ int node_get_attr(struct node_object *hnode,
 			 struct dsp_nodeattr *pattr, u32 attr_size)
 {
 	struct node_mgr *hnode_mgr;
-	int status = 0;
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(pattr != NULL);
 	DBC_REQUIRE(attr_size >= sizeof(struct dsp_nodeattr));
 
-	if (!hnode) {
-		status = -EFAULT;
-	} else {
-		hnode_mgr = hnode->hnode_mgr;
-		/* Enter hnode_mgr critical section (since we're accessing
-		 * data that could be changed by node_change_priority() and
-		 * node_connect(). */
-		mutex_lock(&hnode_mgr->node_mgr_lock);
-		pattr->cb_struct = sizeof(struct dsp_nodeattr);
-		/* dsp_nodeattrin */
-		pattr->in_node_attr_in.cb_struct =
-				 sizeof(struct dsp_nodeattrin);
-		pattr->in_node_attr_in.prio = hnode->prio;
-		pattr->in_node_attr_in.utimeout = hnode->utimeout;
-		pattr->in_node_attr_in.heap_size =
-			hnode->create_args.asa.task_arg_obj.heap_size;
-		pattr->in_node_attr_in.pgpp_virt_addr = (void *)
-			hnode->create_args.asa.task_arg_obj.ugpp_heap_addr;
-		pattr->node_attr_inputs = hnode->num_gpp_inputs;
-		pattr->node_attr_outputs = hnode->num_gpp_outputs;
-		/* dsp_nodeinfo */
-		get_node_info(hnode, &(pattr->node_info));
-		/* end of sync_enter_cs */
-		/* Exit critical section */
-		mutex_unlock(&hnode_mgr->node_mgr_lock);
-	}
-	return status;
+	if (!hnode)
+		return -EFAULT;
+
+	hnode_mgr = hnode->hnode_mgr;
+	/* Enter hnode_mgr critical section (since we're accessing
+	 * data that could be changed by node_change_priority() and
+	 * node_connect(). */
+	mutex_lock(&hnode_mgr->node_mgr_lock);
+	pattr->cb_struct = sizeof(struct dsp_nodeattr);
+	/* dsp_nodeattrin */
+	pattr->in_node_attr_in.cb_struct =
+		sizeof(struct dsp_nodeattrin);
+	pattr->in_node_attr_in.prio = hnode->prio;
+	pattr->in_node_attr_in.utimeout = hnode->utimeout;
+	pattr->in_node_attr_in.heap_size =
+		hnode->create_args.asa.task_arg_obj.heap_size;
+	pattr->in_node_attr_in.pgpp_virt_addr = (void *)
+		hnode->create_args.asa.task_arg_obj.ugpp_heap_addr;
+	pattr->node_attr_inputs = hnode->num_gpp_inputs;
+	pattr->node_attr_outputs = hnode->num_gpp_outputs;
+	/* dsp_nodeinfo */
+	get_node_info(hnode, &(pattr->node_info));
+	/* end of sync_enter_cs */
+	/* Exit critical section */
+	mutex_unlock(&hnode_mgr->node_mgr_lock);
+
+	return 0;
 }
 
 /*
