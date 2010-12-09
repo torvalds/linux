@@ -54,7 +54,9 @@
 #include <mach/suspend.h>
 #include <mach/system.h>
 #include <mach/tegra_fiq_debugger.h>
+#include <mach/tegra_hsuart.h>
 #include <mach/nvmap.h>
+#include <mach/bcm_bt_lpm.h>
 
 #include <linux/usb/android_composite.h>
 
@@ -453,8 +455,8 @@ static struct platform_device tegra_gart_dev = {
     .resource = tegra_gart_resources
 };
 
-static struct platform_device bcm4329_rfkill = {
-	.name = "bcm4329_rfkill",
+static struct platform_device bcm4329_bluetooth_device = {
+	.name = "bcm4329_bluetooth",
 	.id = -1,
 };
 
@@ -528,10 +530,15 @@ static struct platform_device stingray_nvmap_device = {
 	},
 };
 
+static struct tegra_hsuart_platform_data tegra_uartc_pdata = {
+	.exit_lpm_cb	= bcm_bt_lpm_exit_lpm_locked,
+	.rx_done_cb	= bcm_bt_rx_done_locked,
+};
+
 static struct platform_device *stingray_devices[] __initdata = {
 	&cpcap_otg,
 	&bq24617_device,
-	&bcm4329_rfkill,
+	&bcm4329_bluetooth_device,
 	&tegra_uarta_device,
 	&tegra_uartc_device,
 	&tegra_uartd_device,
@@ -992,6 +999,7 @@ static void __init tegra_stingray_init(void)
 	tegra_spdif_device.dev.platform_data = &tegra_spdif_pdata;
 
 	tegra_ehci1_device.dev.platform_data = &tegra_ehci_pdata[0];
+	tegra_uartc_device.dev.platform_data = &tegra_uartc_pdata;
 
 	res = platform_get_resource(&ram_console_device, IORESOURCE_MEM, 0);
 	res->start = ramconsole_start;
