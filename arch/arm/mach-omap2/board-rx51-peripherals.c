@@ -817,25 +817,15 @@ static struct mtd_partition onenand_partitions[] = {
 	},
 };
 
-static struct omap_onenand_platform_data board_onenand_data = {
-	.cs		= 0,
-	.gpio_irq	= 65,
-	.parts		= onenand_partitions,
-	.nr_parts	= ARRAY_SIZE(onenand_partitions),
-	.flags		= ONENAND_SYNC_READWRITE,
+static struct omap_onenand_platform_data board_onenand_data[] = {
+	{
+		.cs		= 0,
+		.gpio_irq	= 65,
+		.parts		= onenand_partitions,
+		.nr_parts	= ARRAY_SIZE(onenand_partitions),
+		.flags		= ONENAND_SYNC_READWRITE,
+	}
 };
-
-static void __init board_onenand_init(void)
-{
-	gpmc_onenand_init(&board_onenand_data);
-}
-
-#else
-
-static inline void board_onenand_init(void)
-{
-}
-
 #endif
 
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
@@ -918,7 +908,7 @@ error:
 void __init rx51_peripherals_init(void)
 {
 	rx51_i2c_init();
-	board_onenand_init();
+	gpmc_onenand_init(board_onenand_data);
 	board_smc91x_init();
 	rx51_add_gpio_keys();
 	rx51_init_wl1251();

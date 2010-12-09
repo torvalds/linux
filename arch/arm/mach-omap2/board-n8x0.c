@@ -184,23 +184,15 @@ static struct mtd_partition onenand_partitions[] = {
 	},
 };
 
-static struct omap_onenand_platform_data board_onenand_data = {
-	.cs		= 0,
-	.gpio_irq	= 26,
-	.parts		= onenand_partitions,
-	.nr_parts	= ARRAY_SIZE(onenand_partitions),
-	.flags		= ONENAND_SYNC_READ,
+static struct omap_onenand_platform_data board_onenand_data[] = {
+	{
+		.cs		= 0,
+		.gpio_irq	= 26,
+		.parts		= onenand_partitions,
+		.nr_parts	= ARRAY_SIZE(onenand_partitions),
+		.flags		= ONENAND_SYNC_READ,
+	}
 };
-
-static void __init n8x0_onenand_init(void)
-{
-	gpmc_onenand_init(&board_onenand_data);
-}
-
-#else
-
-static void __init n8x0_onenand_init(void) {}
-
 #endif
 
 #if defined(CONFIG_MENELAUS) &&						\
@@ -653,8 +645,6 @@ static struct omap_board_mux board_mux[] __initdata = {
 	OMAP2420_MUX(EAC_AC_DOUT, OMAP_MUX_MODE1 | OMAP_PIN_OUTPUT),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
-#else
-#define board_mux	NULL
 #endif
 
 static void __init n8x0_init_machine(void)
@@ -671,7 +661,7 @@ static void __init n8x0_init_machine(void)
 					ARRAY_SIZE(n810_i2c_board_info_2));
 
 	omap_serial_init();
-	n8x0_onenand_init();
+	gpmc_onenand_init(board_onenand_data);
 	n8x0_mmc_init();
 	n8x0_usb_init();
 }
