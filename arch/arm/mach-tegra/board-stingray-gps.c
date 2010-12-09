@@ -29,13 +29,13 @@
 
 static void stingray_gps_reset_gpio(unsigned int gpio_val)
 {
-	pr_info("%s: setting GPS Reset GPIO to %d", __func__, gpio_val);
+	pr_info("%s: setting GPS Reset GPIO to %d\n", __func__, gpio_val);
 	gpio_set_value(STINGRAY_GPS_RESET, gpio_val);
 }
 
 static void stingray_gps_standby_gpio(unsigned int gpio_val)
 {
-	pr_info("%s: setting GPS standby GPIO to %d", __func__, gpio_val);
+	pr_info("%s: setting GPS standby GPIO to %d\n", __func__, gpio_val);
 	gpio_set_value(STINGRAY_GPS_STANDBY, gpio_val);
 }
 
