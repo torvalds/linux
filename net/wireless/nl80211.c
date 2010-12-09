@@ -171,6 +171,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_WIPHY_ANTENNA_RX] = { .type = NLA_U32 },
 	[NL80211_ATTR_MCAST_RATE] = { .type = NLA_U32 },
 	[NL80211_ATTR_OFFCHANNEL_TX_OK] = { .type = NLA_FLAG },
+	[NL80211_ATTR_KEY_DEFAULT_TYPES] = { .type = NLA_NESTED },
 };
 
 /* policy for the key attributes */
@@ -182,6 +183,14 @@ static const struct nla_policy nl80211_key_policy[NL80211_KEY_MAX + 1] = {
 	[NL80211_KEY_DEFAULT] = { .type = NLA_FLAG },
 	[NL80211_KEY_DEFAULT_MGMT] = { .type = NLA_FLAG },
 	[NL80211_KEY_TYPE] = { .type = NLA_U32 },
+	[NL80211_KEY_DEFAULT_TYPES] = { .type = NLA_NESTED },
+};
+
+/* policy for the key default flags */
+static const struct nla_policy
+nl80211_key_default_policy[NUM_NL80211_KEY_DEFAULT_TYPES] = {
+	[NL80211_KEY_DEFAULT_TYPE_UNICAST] = { .type = NLA_FLAG },
+	[NL80211_KEY_DEFAULT_TYPE_MULTICAST] = { .type = NLA_FLAG },
 };
 
 /* ifidx get helper */
@@ -314,6 +323,7 @@ struct key_parse {
 	int idx;
 	int type;
 	bool def, defmgmt;
+	bool def_uni, def_multi;
 };
 
 static int nl80211_parse_key_new(struct nlattr *key, struct key_parse *k)
@@ -326,6 +336,13 @@ static int nl80211_parse_key_new(struct nlattr *key, struct key_parse *k)
 
 	k->def = !!tb[NL80211_KEY_DEFAULT];
 	k->defmgmt = !!tb[NL80211_KEY_DEFAULT_MGMT];
+
+	if (k->def) {
+		k->def_uni = true;
+		k->def_multi = true;
+	}
+	if (k->defmgmt)
+		k->def_multi = true;
 
 	if (tb[NL80211_KEY_IDX])
 		k->idx = nla_get_u8(tb[NL80211_KEY_IDX]);
@@ -347,6 +364,19 @@ static int nl80211_parse_key_new(struct nlattr *key, struct key_parse *k)
 		k->type = nla_get_u32(tb[NL80211_KEY_TYPE]);
 		if (k->type < 0 || k->type >= NUM_NL80211_KEYTYPES)
 			return -EINVAL;
+	}
+
+	if (tb[NL80211_KEY_DEFAULT_TYPES]) {
+		struct nlattr *kdt[NUM_NL80211_KEY_DEFAULT_TYPES];
+		int err = nla_parse_nested(kdt,
+					   NUM_NL80211_KEY_DEFAULT_TYPES - 1,
+					   tb[NL80211_KEY_DEFAULT_TYPES],
+					   nl80211_key_default_policy);
+		if (err)
+			return err;
+
+		k->def_uni = kdt[NL80211_KEY_DEFAULT_TYPE_UNICAST];
+		k->def_multi = kdt[NL80211_KEY_DEFAULT_TYPE_MULTICAST];
 	}
 
 	return 0;
@@ -373,10 +403,30 @@ static int nl80211_parse_key_old(struct genl_info *info, struct key_parse *k)
 	k->def = !!info->attrs[NL80211_ATTR_KEY_DEFAULT];
 	k->defmgmt = !!info->attrs[NL80211_ATTR_KEY_DEFAULT_MGMT];
 
+	if (k->def) {
+		k->def_uni = true;
+		k->def_multi = true;
+	}
+	if (k->defmgmt)
+		k->def_multi = true;
+
 	if (info->attrs[NL80211_ATTR_KEY_TYPE]) {
 		k->type = nla_get_u32(info->attrs[NL80211_ATTR_KEY_TYPE]);
 		if (k->type < 0 || k->type >= NUM_NL80211_KEYTYPES)
 			return -EINVAL;
+	}
+
+	if (info->attrs[NL80211_ATTR_KEY_DEFAULT_TYPES]) {
+		struct nlattr *kdt[NUM_NL80211_KEY_DEFAULT_TYPES];
+		int err = nla_parse_nested(
+				kdt, NUM_NL80211_KEY_DEFAULT_TYPES - 1,
+				info->attrs[NL80211_ATTR_KEY_DEFAULT_TYPES],
+				nl80211_key_default_policy);
+		if (err)
+			return err;
+
+		k->def_uni = kdt[NL80211_KEY_DEFAULT_TYPE_UNICAST];
+		k->def_multi = kdt[NL80211_KEY_DEFAULT_TYPE_MULTICAST];
 	}
 
 	return 0;
@@ -400,6 +450,11 @@ static int nl80211_parse_key(struct genl_info *info, struct key_parse *k)
 
 	if (k->def && k->defmgmt)
 		return -EINVAL;
+
+	if (k->defmgmt) {
+		if (k->def_uni || !k->def_multi)
+			return -EINVAL;
+	}
 
 	if (k->idx != -1) {
 		if (k->defmgmt) {
@@ -450,6 +505,8 @@ nl80211_parse_connkeys(struct cfg80211_registered_device *rdev,
 				goto error;
 			def = 1;
 			result->def = parse.idx;
+			if (!parse.def_uni || !parse.def_multi)
+				goto error;
 		} else if (parse.defmgmt)
 			goto error;
 		err = cfg80211_validate_key_settings(rdev, &parse.p,
@@ -1586,8 +1643,6 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 	struct key_parse key;
 	int err;
 	struct net_device *dev = info->user_ptr[1];
-	int (*func)(struct wiphy *wiphy, struct net_device *netdev,
-		    u8 key_index);
 
 	err = nl80211_parse_key(info, &key);
 	if (err)
@@ -1600,27 +1655,61 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 	if (!key.def && !key.defmgmt)
 		return -EINVAL;
 
-	if (key.def)
-		func = rdev->ops->set_default_key;
-	else
-		func = rdev->ops->set_default_mgmt_key;
-
-	if (!func)
-		return -EOPNOTSUPP;
-
 	wdev_lock(dev->ieee80211_ptr);
-	err = nl80211_key_allowed(dev->ieee80211_ptr);
-	if (!err)
-		err = func(&rdev->wiphy, dev, key.idx);
+
+	if (key.def) {
+		if (!rdev->ops->set_default_key) {
+			err = -EOPNOTSUPP;
+			goto out;
+		}
+
+		err = nl80211_key_allowed(dev->ieee80211_ptr);
+		if (err)
+			goto out;
+
+		if (!(rdev->wiphy.flags &
+				WIPHY_FLAG_SUPPORTS_SEPARATE_DEFAULT_KEYS)) {
+			if (!key.def_uni || !key.def_multi) {
+				err = -EOPNOTSUPP;
+				goto out;
+			}
+		}
+
+		err = rdev->ops->set_default_key(&rdev->wiphy, dev, key.idx,
+						 key.def_uni, key.def_multi);
+
+		if (err)
+			goto out;
 
 #ifdef CONFIG_CFG80211_WEXT
-	if (!err) {
-		if (func == rdev->ops->set_default_key)
-			dev->ieee80211_ptr->wext.default_key = key.idx;
-		else
-			dev->ieee80211_ptr->wext.default_mgmt_key = key.idx;
-	}
+		dev->ieee80211_ptr->wext.default_key = key.idx;
 #endif
+	} else {
+		if (key.def_uni || !key.def_multi) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		if (!rdev->ops->set_default_mgmt_key) {
+			err = -EOPNOTSUPP;
+			goto out;
+		}
+
+		err = nl80211_key_allowed(dev->ieee80211_ptr);
+		if (err)
+			goto out;
+
+		err = rdev->ops->set_default_mgmt_key(&rdev->wiphy,
+						      dev, key.idx);
+		if (err)
+			goto out;
+
+#ifdef CONFIG_CFG80211_WEXT
+		dev->ieee80211_ptr->wext.default_mgmt_key = key.idx;
+#endif
+	}
+
+ out:
 	wdev_unlock(dev->ieee80211_ptr);
 
 	return err;
