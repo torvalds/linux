@@ -580,12 +580,14 @@ static void rk29_camera_remove_device(struct soc_camera_device *icd)
 {
     struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk29_camera_dev *pcdev = ici->priv;
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 
     BUG_ON(icd != pcdev->icd);
 
     dev_info(&icd->dev, "RK29 Camera driver detached from camera %d\n",
              icd->devnum);
 
+    v4l2_subdev_call(sd, core, ioctl, RK29_CAM_SUBDEV_DEACTIVATE,NULL);
 	rk29_camera_deactivate(pcdev);
 
 	/* ddl@rock-chips.com: Call videobuf_mmap_free here for free the struct video_buffer which malloc in videobuf_alloc */

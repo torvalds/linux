@@ -42,6 +42,10 @@
 #define RK29_CAM_RESETACTIVE_H	(0x01<<RK29_CAM_RESETACTIVE_BITPOS)
 #define RK29_CAM_RESETACTIVE_L  (0x00<<RK29_CAM_RESETACTIVE_BITPOS)
 
+/* v4l2_subdev_core_ops.ioctl  ioctl_cmd macro */
+#define RK29_CAM_SUBDEV_ACTIVATE            0x00
+#define RK29_CAM_SUBDEV_DEACTIVATE          0x01
+
 struct rk29camera_gpio_res {
     unsigned int gpio_reset;
     unsigned int gpio_power;

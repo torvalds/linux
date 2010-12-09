@@ -19,6 +19,7 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
+#include <mach/rk29_camera.h>
 
 #define _CONS(a,b) a##b
 #define CONS(a,b) _CONS(a,b)
@@ -53,7 +54,7 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
 
-#define CONFIG_SENSOR_I2C_SPEED     400000       /* Hz */
+#define CONFIG_SENSOR_I2C_SPEED     300000       /* Hz */
 
 #define CONFIG_SENSOR_TR      1
 #define CONFIG_SENSOR_DEBUG	  1
@@ -1293,6 +1294,23 @@ sensor_INIT_ERR:
     return ret;
 }
 
+static int sensor_deactivate(struct v4l2_subdev *sd)
+{
+	struct i2c_client *client = sd->priv;
+	u8 reg_val;
+
+	SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
+
+	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
+	sensor_read(client,0x3000,&reg_val);
+    sensor_write(client, 0x3000, reg_val&0xfc);
+	sensor_write(client, 0x3001, 0x00);
+	sensor_read(client,0x3002,&reg_val);
+	sensor_write(client, 0x3002, reg_val&0x1f);
+
+	return 0;
+}
+
 static  struct reginfo sensor_power_down_sequence[]=
 {
     {0x30ab, 0x00},
@@ -2248,6 +2266,24 @@ sensor_video_probe_err:
     return ret;
 }
 
+static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
+	switch (cmd)
+	{
+		case RK29_CAM_SUBDEV_DEACTIVATE:
+		{
+			sensor_deactivate(sd);
+			break;
+		}
+		default:
+			break;
+	}
+
+	return 0;
+
+}
+
 static struct v4l2_subdev_core_ops sensor_subdev_core_ops = {
 	.init		= sensor_init,
 	.g_ctrl		= sensor_g_control,
@@ -2255,6 +2291,7 @@ static struct v4l2_subdev_core_ops sensor_subdev_core_ops = {
 	.g_ext_ctrls          = sensor_g_ext_controls,
 	.s_ext_ctrls          = sensor_s_ext_controls,
 	.g_chip_ident	= sensor_g_chip_ident,
+	.ioctl = sensor_ioctl,
 };
 
 static struct v4l2_subdev_video_ops sensor_subdev_video_ops = {
