@@ -15,12 +15,6 @@
 #include <linux/types.h>
 
 /*
- * Binary data structures used for hardware communication must have no padding.
- */
-#pragma pack(push)
-#pragma pack(1)
-
-/*
  * case 1: writes request 80 and reads value 1
  *
  */
@@ -32,7 +26,7 @@ struct koneplus_control {
 	 */
 	uint8_t value;
 	uint8_t request;
-};
+} __attribute__ ((__packed__));
 
 enum koneplus_control_requests {
 	KONEPLUS_CONTROL_REQUEST_STATUS = 0x00,
@@ -50,7 +44,7 @@ struct koneplus_startup_profile {
 	uint8_t command; /* KONEPLUS_COMMAND_STARTUP_PROFILE */
 	uint8_t size; /* always 3 */
 	uint8_t startup_profile; /* Range 0-4! */
-};
+} __attribute__ ((__packed__));
 
 struct koneplus_profile_settings {
 	uint8_t command; /* KONEPLUS_COMMAND_PROFILE_SETTINGS */
@@ -72,7 +66,7 @@ struct koneplus_profile_settings {
 	uint8_t light_effect_speed;
 	uint8_t lights[16];
 	uint16_t checksum;
-};
+} __attribute__ ((__packed__));
 
 struct koneplus_profile_buttons {
 	uint8_t command; /* KONEPLUS_COMMAND_PROFILE_BUTTONS */
@@ -80,7 +74,7 @@ struct koneplus_profile_buttons {
 	uint8_t number; /* range 0-4 */
 	uint8_t data[72];
 	uint16_t checksum;
-};
+} __attribute__ ((__packed__));
 
 struct koneplus_macro {
 	uint8_t command; /* KONEPLUS_COMMAND_MACRO */
@@ -89,31 +83,31 @@ struct koneplus_macro {
 	uint8_t button; /* range 0-23 */
 	uint8_t data[2075];
 	uint16_t checksum;
-};
+} __attribute__ ((__packed__));
 
 struct koneplus_info {
 	uint8_t command; /* KONEPLUS_COMMAND_INFO */
 	uint8_t size; /* always 6 */
 	uint8_t firmware_version;
 	uint8_t unknown[3];
-};
+} __attribute__ ((__packed__));
 
 struct koneplus_e {
 	uint8_t command; /* KONEPLUS_COMMAND_E */
 	uint8_t size; /* always 3 */
 	uint8_t unknown; /* TODO 1; 0 before firmware update */
-};
+} __attribute__ ((__packed__));
 
 struct koneplus_sensor {
 	uint8_t command;  /* KONEPLUS_COMMAND_SENSOR */
 	uint8_t size; /* always 6 */
 	uint8_t data[4];
-};
+} __attribute__ ((__packed__));
 
 struct koneplus_firmware_write {
 	uint8_t command; /* KONEPLUS_COMMAND_FIRMWARE_WRITE */
 	uint8_t unknown[1025];
-};
+} __attribute__ ((__packed__));
 
 struct koneplus_firmware_write_control {
 	uint8_t command; /* KONEPLUS_COMMAND_FIRMWARE_WRITE_CONTROL */
@@ -123,18 +117,18 @@ struct koneplus_firmware_write_control {
 	 */
 	uint8_t value;
 	uint8_t unknown; /* always 0x75 */
-};
+} __attribute__ ((__packed__));
 
 struct koneplus_tcu {
 	uint16_t usb_command; /* KONEPLUS_USB_COMMAND_TCU */
 	uint8_t data[2];
-};
+} __attribute__ ((__packed__));
 
 struct koneplus_tcu_image {
 	uint16_t usb_command; /* KONEPLUS_USB_COMMAND_TCU */
 	uint8_t data[1024];
 	uint16_t checksum;
-};
+} __attribute__ ((__packed__));
 
 enum koneplus_commands {
 	KONEPLUS_COMMAND_CONTROL = 0x4,
@@ -177,7 +171,7 @@ struct koneplus_mouse_report_button {
 	uint8_t data2;
 	uint8_t zero2;
 	uint8_t unknown[2];
-};
+} __attribute__ ((__packed__));
 
 enum koneplus_mouse_report_button_types {
 	/* data1 = new profile range 1-5 */
@@ -211,9 +205,7 @@ struct koneplus_roccat_report {
 	uint8_t data1;
 	uint8_t data2;
 	uint8_t profile;
-};
-
-#pragma pack(pop)
+} __attribute__ ((__packed__));
 
 struct koneplus_device {
 	int actual_profile;

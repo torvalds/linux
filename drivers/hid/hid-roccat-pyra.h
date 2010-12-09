@@ -14,17 +14,11 @@
 
 #include <linux/types.h>
 
-/*
- * Binary data structures used for hardware communication must have no padding.
- */
-#pragma pack(push)
-#pragma pack(1)
-
 struct pyra_b {
 	uint8_t command; /* PYRA_COMMAND_B */
 	uint8_t size; /* always 3 */
 	uint8_t unknown; /* 1 */
-};
+} __attribute__ ((__packed__));
 
 struct pyra_control {
 	uint8_t command; /* PYRA_COMMAND_CONTROL */
@@ -34,7 +28,7 @@ struct pyra_control {
 	 */
 	uint8_t value; /* Range 0-4 */
 	uint8_t request;
-};
+} __attribute__ ((__packed__));
 
 enum pyra_control_requests {
 	PYRA_CONTROL_REQUEST_STATUS = 0x00,
@@ -46,7 +40,7 @@ struct pyra_settings {
 	uint8_t command; /* PYRA_COMMAND_SETTINGS */
 	uint8_t size; /* always 3 */
 	uint8_t startup_profile; /* Range 0-4! */
-};
+} __attribute__ ((__packed__));
 
 struct pyra_profile_settings {
 	uint8_t command; /* PYRA_COMMAND_PROFILE_SETTINGS */
@@ -61,7 +55,7 @@ struct pyra_profile_settings {
 	uint8_t light_effect;
 	uint8_t handedness;
 	uint16_t checksum; /* byte sum */
-};
+} __attribute__ ((__packed__));
 
 struct pyra_profile_buttons {
 	uint8_t command; /* PYRA_COMMAND_PROFILE_BUTTONS */
@@ -69,7 +63,7 @@ struct pyra_profile_buttons {
 	uint8_t number; /* Range 0-4 */
 	uint8_t buttons[14];
 	uint16_t checksum; /* byte sum */
-};
+} __attribute__ ((__packed__));
 
 struct pyra_info {
 	uint8_t command; /* PYRA_COMMAND_INFO */
@@ -78,7 +72,7 @@ struct pyra_info {
 	uint8_t unknown1; /* always 0 */
 	uint8_t unknown2; /* always 1 */
 	uint8_t unknown3; /* always 0 */
-};
+} __attribute__ ((__packed__));
 
 enum pyra_commands {
 	PYRA_COMMAND_CONTROL = 0x4,
@@ -110,13 +104,13 @@ struct pyra_mouse_event_button {
 	uint8_t type;
 	uint8_t data1;
 	uint8_t data2;
-};
+} __attribute__ ((__packed__));
 
 struct pyra_mouse_event_audio {
 	uint8_t report_number; /* always 2 */
 	uint8_t type;
 	uint8_t unused; /* always 0 */
-};
+} __attribute__ ((__packed__));
 
 /* hid audio controls */
 enum pyra_mouse_event_audio_types {
@@ -170,9 +164,7 @@ struct pyra_roccat_report {
 	uint8_t type;
 	uint8_t value;
 	uint8_t key;
-};
-
-#pragma pack(pop)
+} __attribute__ ((__packed__));
 
 struct pyra_device {
 	int actual_profile;

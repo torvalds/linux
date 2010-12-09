@@ -14,17 +14,11 @@
 
 #include <linux/types.h>
 
-/*
- * Binary data structures used for hardware communication must have no padding.
- */
-#pragma pack(push)
-#pragma pack(1)
-
 struct kone_keystroke {
 	uint8_t key;
 	uint8_t action;
 	uint16_t period; /* in milliseconds */
-};
+} __attribute__ ((__packed__));
 
 enum kone_keystroke_buttons {
 	kone_keystroke_button_1 = 0xf0, /* left mouse button */
@@ -47,7 +41,7 @@ struct kone_button_info {
 	uint8_t macro_name[16]; /* can be max 15 chars long */
 	uint8_t count;
 	struct kone_keystroke keystrokes[20];
-};
+} __attribute__ ((__packed__));
 
 enum kone_button_info_types {
 	/* valid button types until firmware 1.32 */
@@ -98,7 +92,7 @@ struct kone_light_info {
 	uint8_t red;   /* range 0x00-0xff */
 	uint8_t green; /* range 0x00-0xff */
 	uint8_t blue;  /* range 0x00-0xff */
-};
+} __attribute__ ((__packed__));
 
 struct kone_profile {
 	uint16_t size; /* always 975 */
@@ -133,7 +127,7 @@ struct kone_profile {
 	struct kone_button_info button_infos[8];
 
 	uint16_t checksum; /* \brief holds checksum of struct */
-};
+} __attribute__ ((__packed__));
 
 enum kone_polling_rates {
 	kone_polling_rate_125 = 1,
@@ -150,7 +144,7 @@ struct kone_settings {
 	uint8_t  calibration_data[4];
 	uint8_t  unknown3[2];
 	uint16_t checksum;
-};
+} __attribute__ ((__packed__));
 
 /*
  * 12 byte mouse event read by interrupt_read
@@ -166,7 +160,7 @@ struct kone_mouse_event {
 	uint8_t event;
 	uint8_t value; /* press = 0, release = 1 */
 	uint8_t macro_key; /* 0 to 8 */
-};
+} __attribute__ ((__packed__));
 
 enum kone_mouse_events {
 	/* osd events are thought to be display on screen */
@@ -194,9 +188,7 @@ struct kone_roccat_report {
 	uint8_t event;
 	uint8_t value; /* holds dpi or profile value */
 	uint8_t key; /* macro key on overlong macro execution */
-};
-
-#pragma pack(pop)
+} __attribute__ ((__packed__));
 
 struct kone_device {
 	/*
