@@ -46,6 +46,12 @@ static const struct squashfs_decompressor squashfs_lzo_unsupported_comp_ops = {
 };
 #endif
 
+#ifndef CONFIG_SQUASHFS_XZ
+static const struct squashfs_decompressor squashfs_xz_comp_ops = {
+	NULL, NULL, NULL, XZ_COMPRESSION, "xz", 0
+};
+#endif
+
 static const struct squashfs_decompressor squashfs_unknown_comp_ops = {
 	NULL, NULL, NULL, 0, "unknown", 0
 };
@@ -58,6 +64,7 @@ static const struct squashfs_decompressor *decompressor[] = {
 #else
 	&squashfs_lzo_unsupported_comp_ops,
 #endif
+	&squashfs_xz_comp_ops,
 	&squashfs_unknown_comp_ops
 };
 

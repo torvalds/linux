@@ -53,6 +53,21 @@ config SQUASHFS_LZO
 
 	  If unsure, say N.
 
+config SQUASHFS_XZ
+	bool "Include support for XZ compressed file systems"
+	depends on SQUASHFS
+	select XZ_DEC
+	help
+	  Saying Y here includes support for reading Squashfs file systems
+	  compressed with XZ compresssion.  XZ gives better compression than
+	  the default zlib compression, at the expense of greater CPU and
+	  memory overhead.
+
+	  XZ is not the standard compression used in Squashfs and so most
+	  file systems will be readable without selecting this option.
+
+	  If unsure, say N.
+
 config SQUASHFS_EMBEDDED
 	bool "Additional option for memory-constrained systems"
 	depends on SQUASHFS
