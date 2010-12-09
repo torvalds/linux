@@ -40,7 +40,7 @@
 #define OMAP_I2C_SIZE		0x3f
 #define OMAP1_I2C_BASE		0xfffb3800
 
-static const char name[] = "i2c_omap";
+static const char name[] = "omap_i2c";
 
 #define I2C_RESOURCE_BUILDER(base, irq)			\
 	{						\
