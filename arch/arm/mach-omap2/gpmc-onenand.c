@@ -174,7 +174,7 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 
 	switch (freq) {
 	case 83:
-		min_gpmc_clk_period = 12; /* 83 MHz */
+		min_gpmc_clk_period = 12000; /* 83 MHz */
 		t_ces   = 5;
 		t_avds  = 4;
 		t_avdh  = 2;
@@ -183,7 +183,7 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 		t_rdyo  = 9;
 		break;
 	case 66:
-		min_gpmc_clk_period = 15; /* 66 MHz */
+		min_gpmc_clk_period = 15000; /* 66 MHz */
 		t_ces   = 6;
 		t_avds  = 5;
 		t_avdh  = 2;
@@ -192,7 +192,7 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 		t_rdyo  = 11;
 		break;
 	default:
-		min_gpmc_clk_period = 18; /* 54 MHz */
+		min_gpmc_clk_period = 18500; /* 54 MHz */
 		t_ces   = 7;
 		t_avds  = 7;
 		t_avdh  = 7;
@@ -271,8 +271,8 @@ static int omap2_onenand_set_sync_mode(struct omap_onenand_platform_data *cfg,
 		t.wr_cycle  = t.rd_cycle;
 		if (cpu_is_omap34xx()) {
 			t.wr_data_mux_bus = gpmc_ticks_to_ns(fclk_offset +
-					gpmc_ns_to_ticks(min_gpmc_clk_period +
-					t_rdyo));
+					gpmc_ps_to_ticks(min_gpmc_clk_period +
+					t_rdyo * 1000));
 			t.wr_access = t.access;
 		}
 	} else {
