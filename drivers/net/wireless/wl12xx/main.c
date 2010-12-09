@@ -2110,10 +2110,26 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 		__be32 addr = bss_conf->arp_addr_list[0];
 		WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
 
-		if (bss_conf->arp_addr_cnt == 1 && bss_conf->arp_filter_enabled)
-			ret = wl1271_acx_arp_ip_filter(wl, true, addr);
-		else
-			ret = wl1271_acx_arp_ip_filter(wl, false, addr);
+		if (bss_conf->arp_addr_cnt == 1 &&
+		    bss_conf->arp_filter_enabled) {
+			/*
+			 * The template should have been configured only upon
+			 * association. however, it seems that the correct ip
+			 * isn't being set (when sending), so we have to
+			 * reconfigure the template upon every ip change.
+			 */
+			ret = wl1271_cmd_build_arp_rsp(wl, addr);
+			if (ret < 0) {
+				wl1271_warning("build arp rsp failed: %d", ret);
+				goto out_sleep;
+			}
+
+			ret = wl1271_acx_arp_ip_filter(wl,
+				(ACX_ARP_FILTER_ARP_FILTERING |
+				 ACX_ARP_FILTER_AUTO_ARP),
+				addr);
+		} else
+			ret = wl1271_acx_arp_ip_filter(wl, 0, addr);
 
 		if (ret < 0)
 			goto out_sleep;

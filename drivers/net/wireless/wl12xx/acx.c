@@ -1041,7 +1041,7 @@ out:
 	return ret;
 }
 
-int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, __be32 address)
+int wl1271_acx_arp_ip_filter(struct wl1271 *wl, u8 enable, __be32 address)
 {
 	struct wl1271_acx_arp_filter *acx;
 	int ret;
@@ -1057,7 +1057,7 @@ int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, __be32 address)
 	acx->version = ACX_IPV4_VERSION;
 	acx->enable = enable;
 
-	if (enable == true)
+	if (enable)
 		memcpy(acx->address, &address, ACX_IPV4_ADDR_SIZE);
 
 	ret = wl1271_cmd_configure(wl, ACX_ARP_IP_FILTER,

@@ -51,6 +51,7 @@ int wl1271_cmd_build_probe_req(struct wl1271 *wl,
 			       const u8 *ie, size_t ie_len, u8 band);
 struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 					      struct sk_buff *skb);
+int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, __be32 ip_addr);
 int wl1271_build_qos_null_data(struct wl1271 *wl);
 int wl1271_cmd_build_klv_null_data(struct wl1271 *wl);
 int wl1271_cmd_set_default_wep_key(struct wl1271 *wl, u8 id);
@@ -124,6 +125,7 @@ enum cmd_templ {
 	CMD_TEMPL_CTS,           /*
 				  * For CTS-to-self (FastCTS) mechanism
 				  * for BT/WLAN coexistence (SoftGemini). */
+	CMD_TEMPL_ARP_RSP,
 	CMD_TEMPL_MAX = 0xff
 };
 

@@ -868,10 +868,15 @@ struct wl1271_acx_bet_enable {
 #define ACX_IPV4_VERSION 4
 #define ACX_IPV6_VERSION 6
 #define ACX_IPV4_ADDR_SIZE 4
+
+/* bitmap of enabled arp_filter features */
+#define ACX_ARP_FILTER_ARP_FILTERING	BIT(0)
+#define ACX_ARP_FILTER_AUTO_ARP		BIT(1)
+
 struct wl1271_acx_arp_filter {
 	struct acx_header header;
 	u8 version;         /* ACX_IPV4_VERSION, ACX_IPV6_VERSION */
-	u8 enable;          /* 1 to enable ARP filtering, 0 to disable */
+	u8 enable;          /* bitmap of enabled ARP filtering features */
 	u8 padding[2];
 	u8 address[16];     /* The configured device IP address - all ARP
 			       requests directed to this IP address will pass
@@ -1168,7 +1173,7 @@ int wl1271_acx_init_mem_config(struct wl1271 *wl);
 int wl1271_acx_init_rx_interrupt(struct wl1271 *wl);
 int wl1271_acx_smart_reflex(struct wl1271 *wl);
 int wl1271_acx_bet_enable(struct wl1271 *wl, bool enable);
-int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, __be32 address);
+int wl1271_acx_arp_ip_filter(struct wl1271 *wl, u8 enable, __be32 address);
 int wl1271_acx_pm_config(struct wl1271 *wl);
 int wl1271_acx_keep_alive_mode(struct wl1271 *wl, bool enable);
 int wl1271_acx_keep_alive_config(struct wl1271 *wl, u8 index, u8 tpl_valid);
