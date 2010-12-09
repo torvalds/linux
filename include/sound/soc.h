@@ -222,10 +222,8 @@ enum snd_soc_bias_level {
 
 struct snd_jack;
 struct snd_soc_card;
-struct snd_soc_device;
 struct snd_soc_pcm_stream;
 struct snd_soc_ops;
-struct snd_soc_dai_mode;
 struct snd_soc_pcm_runtime;
 struct snd_soc_dai;
 struct snd_soc_dai_driver;
@@ -235,7 +233,6 @@ struct snd_soc_platform_driver;
 struct snd_soc_codec;
 struct snd_soc_codec_driver;
 struct soc_enum;
-struct snd_soc_ac97_ops;
 struct snd_soc_jack;
 struct snd_soc_jack_pin;
 struct snd_soc_cache_ops;
