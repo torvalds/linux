@@ -110,9 +110,6 @@ struct acpi_ioremap {
 static LIST_HEAD(acpi_ioremaps);
 static DEFINE_SPINLOCK(acpi_ioremap_lock);
 
-#define	OSI_STRING_LENGTH_MAX 64	/* arbitrary */
-static char osi_setup_string[OSI_STRING_LENGTH_MAX];
-
 static void __init acpi_osi_setup_late(void);
 
 /*
@@ -1054,16 +1051,47 @@ static int __init acpi_os_name_setup(char *str)
 
 __setup("acpi_os_name=", acpi_os_name_setup);
 
+#define	OSI_STRING_LENGTH_MAX 64	/* arbitrary */
+#define	OSI_STRING_ENTRIES_MAX 16	/* arbitrary */
+
+struct osi_setup_entry {
+	char string[OSI_STRING_LENGTH_MAX];
+	bool enable;
+};
+
+static struct osi_setup_entry __initdata osi_setup_entries[OSI_STRING_ENTRIES_MAX];
+
 void __init acpi_osi_setup(char *str)
 {
+	struct osi_setup_entry *osi;
+	bool enable = true;
+	int i;
+
 	if (!acpi_gbl_create_osi_method)
 		return;
 
 	if (str == NULL || *str == '\0') {
 		printk(KERN_INFO PREFIX "_OSI method disabled\n");
 		acpi_gbl_create_osi_method = FALSE;
-	} else
-		strncpy(osi_setup_string, str, OSI_STRING_LENGTH_MAX);
+		return;
+	}
+
+	if (*str == '!') {
+		str++;
+		enable = false;
+	}
+
+	for (i = 0; i < OSI_STRING_ENTRIES_MAX; i++) {
+		osi = &osi_setup_entries[i];
+		if (!strcmp(osi->string, str)) {
+			osi->enable = enable;
+			break;
+		} else if (osi->string[0] == '\0') {
+			osi->enable = enable;
+			strncpy(osi->string, str, OSI_STRING_LENGTH_MAX);
+			break;
+		}
+	}
 }
 
 static void __init set_osi_linux(unsigned int enable)
@@ -1110,22 +1138,28 @@ void __init acpi_dmi_osi_linux(int enable, const struct dmi_system_id *d)
  */
 static void __init acpi_osi_setup_late(void)
 {
-	char *str = osi_setup_string;
+	struct osi_setup_entry *osi;
+	char *str;
+	int i;
 	acpi_status status;
 
-	if (*str == '\0')
-		return;
+	for (i = 0; i < OSI_STRING_ENTRIES_MAX; i++) {
+		osi = &osi_setup_entries[i];
+		str = osi->string;
 
-	if (*str == '!') {
-		status = acpi_remove_interface(++str);
+		if (*str == '\0')
+			break;
+		if (osi->enable) {
+			status = acpi_install_interface(str);
 
-		if (ACPI_SUCCESS(status))
-			printk(KERN_INFO PREFIX "Deleted _OSI(%s)\n", str);
-	} else {
-		status = acpi_install_interface(str);
+			if (ACPI_SUCCESS(status))
+				printk(KERN_INFO PREFIX "Added _OSI(%s)\n", str);
+		} else {
+			status = acpi_remove_interface(str);
 
-		if (ACPI_SUCCESS(status))
-			printk(KERN_INFO PREFIX "Added _OSI(%s)\n", str);
+			if (ACPI_SUCCESS(status))
+				printk(KERN_INFO PREFIX "Deleted _OSI(%s)\n", str);
+		}
 	}
 }
 
