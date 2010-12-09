@@ -259,6 +259,10 @@ struct bonding {
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	struct   in6_addr master_ipv6;
 #endif
+#ifdef CONFIG_DEBUG_FS
+	/* debugging suport via debugfs */
+	struct	 dentry *debug_dir;
+#endif /* CONFIG_DEBUG_FS */
 };
 
 /**
@@ -380,6 +384,11 @@ void bond_select_active_slave(struct bonding *bond);
 void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
 void bond_register_arp(struct bonding *);
 void bond_unregister_arp(struct bonding *);
+void bond_create_debugfs(void);
+void bond_destroy_debugfs(void);
+void bond_debug_register(struct bonding *bond);
+void bond_debug_unregister(struct bonding *bond);
+void bond_debug_reregister(struct bonding *bond);
 
 struct bond_net {
 	struct net *		net;	/* Associated network namespace */
