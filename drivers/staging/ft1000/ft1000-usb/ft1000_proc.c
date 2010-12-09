@@ -14,21 +14,17 @@
 
 #define PUTX_TO_PAGE(len,page,message,size,var) \
 	len += snprintf(page+len, PAGE_SIZE - len, message); \
-	for(i = 0; i < (size - 1); i++) \
-	{ \
+	for (i = 0; i < (size - 1); i++) {\
 		len += snprintf(page+len, PAGE_SIZE - len, "%02x:", var[i]); \
 	} \
 	len += snprintf(page+len, PAGE_SIZE - len, "%02x\n", var[i])
 
 #define PUTD_TO_PAGE(len,page,message,size,var) \
 	len += snprintf(page+len, PAGE_SIZE - len, message); \
-	for(i = 0; i < (size - 1); i++) \
-	{ \
+	for (i = 0; i < (size - 1); i++) {\
 		len += snprintf(page+len, PAGE_SIZE - len, "%d.", var[i]); \
 	} \
 	len += snprintf(page+len, PAGE_SIZE - len, "%d\n", var[i])
-
-
 
 
 //#ifdef INIT_NET_NS
