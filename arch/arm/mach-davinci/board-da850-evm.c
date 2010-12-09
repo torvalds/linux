@@ -430,11 +430,194 @@ static int da850_evm_ui_expander_teardown(struct i2c_client *client,
 	return 0;
 }
 
+/* assign the baseboard expander's GPIOs after the UI board's */
+#define DA850_UI_EXPANDER_N_GPIOS ARRAY_SIZE(da850_evm_ui_exp)
+#define DA850_BB_EXPANDER_GPIO_BASE (DAVINCI_N_GPIO + DA850_UI_EXPANDER_N_GPIOS)
+
+enum da850_evm_bb_exp_pins {
+	DA850_EVM_BB_EXP_DEEP_SLEEP_EN = 0,
+	DA850_EVM_BB_EXP_SW_RST,
+	DA850_EVM_BB_EXP_TP_23,
+	DA850_EVM_BB_EXP_TP_22,
+	DA850_EVM_BB_EXP_TP_21,
+	DA850_EVM_BB_EXP_USER_PB1,
+	DA850_EVM_BB_EXP_USER_LED2,
+	DA850_EVM_BB_EXP_USER_LED1,
+	DA850_EVM_BB_EXP_USER_SW1,
+	DA850_EVM_BB_EXP_USER_SW2,
+	DA850_EVM_BB_EXP_USER_SW3,
+	DA850_EVM_BB_EXP_USER_SW4,
+	DA850_EVM_BB_EXP_USER_SW5,
+	DA850_EVM_BB_EXP_USER_SW6,
+	DA850_EVM_BB_EXP_USER_SW7,
+	DA850_EVM_BB_EXP_USER_SW8
+};
+
+static const char const *da850_evm_bb_exp[] = {
+	[DA850_EVM_BB_EXP_DEEP_SLEEP_EN]	= "deep_sleep_en",
+	[DA850_EVM_BB_EXP_SW_RST]		= "sw_rst",
+	[DA850_EVM_BB_EXP_TP_23]		= "tp_23",
+	[DA850_EVM_BB_EXP_TP_22]		= "tp_22",
+	[DA850_EVM_BB_EXP_TP_21]		= "tp_21",
+	[DA850_EVM_BB_EXP_USER_PB1]		= "user_pb1",
+	[DA850_EVM_BB_EXP_USER_LED2]		= "user_led2",
+	[DA850_EVM_BB_EXP_USER_LED1]		= "user_led1",
+	[DA850_EVM_BB_EXP_USER_SW1]		= "user_sw1",
+	[DA850_EVM_BB_EXP_USER_SW2]		= "user_sw2",
+	[DA850_EVM_BB_EXP_USER_SW3]		= "user_sw3",
+	[DA850_EVM_BB_EXP_USER_SW4]		= "user_sw4",
+	[DA850_EVM_BB_EXP_USER_SW5]		= "user_sw5",
+	[DA850_EVM_BB_EXP_USER_SW6]		= "user_sw6",
+	[DA850_EVM_BB_EXP_USER_SW7]		= "user_sw7",
+	[DA850_EVM_BB_EXP_USER_SW8]		= "user_sw8",
+};
+
+#define DA850_N_BB_USER_SW	8
+
+static struct gpio_keys_button da850_evm_bb_keys[] = {
+	[0] = {
+		.type			= EV_KEY,
+		.active_low		= 1,
+		.wakeup			= 0,
+		.debounce_interval	= DA850_KEYS_DEBOUNCE_MS,
+		.code			= KEY_PROG1,
+		.desc			= NULL, /* assigned at runtime */
+		.gpio			= -1, /* assigned at runtime */
+	},
+	[1 ... DA850_N_BB_USER_SW] = {
+		.type			= EV_SW,
+		.active_low		= 1,
+		.wakeup			= 0,
+		.debounce_interval	= DA850_KEYS_DEBOUNCE_MS,
+		.code			= -1, /* assigned at runtime */
+		.desc			= NULL, /* assigned at runtime */
+		.gpio			= -1, /* assigned at runtime */
+	},
+};
+
+static struct gpio_keys_platform_data da850_evm_bb_keys_pdata = {
+	.buttons = da850_evm_bb_keys,
+	.nbuttons = ARRAY_SIZE(da850_evm_bb_keys),
+	.poll_interval = DA850_GPIO_KEYS_POLL_MS,
+};
+
+static struct platform_device da850_evm_bb_keys_device = {
+	.name = "gpio-keys-polled",
+	.id = 1,
+	.dev = {
+		.platform_data = &da850_evm_bb_keys_pdata
+	},
+};
+
+static void da850_evm_bb_keys_init(unsigned gpio)
+{
+	int i;
+	struct gpio_keys_button *button;
+
+	button = &da850_evm_bb_keys[0];
+	button->desc = (char *)
+		da850_evm_bb_exp[DA850_EVM_BB_EXP_USER_PB1];
+	button->gpio = gpio + DA850_EVM_BB_EXP_USER_PB1;
+
+	for (i = 0; i < DA850_N_BB_USER_SW; i++) {
+		button = &da850_evm_bb_keys[i + 1];
+		button->code = SW_LID + i;
+		button->desc = (char *)
+				da850_evm_bb_exp[DA850_EVM_BB_EXP_USER_SW1 + i];
+		button->gpio = gpio + DA850_EVM_BB_EXP_USER_SW1 + i;
+	}
+}
+
+#define DA850_N_BB_USER_LED	2
+
+static struct gpio_led da850_evm_bb_leds[] = {
+	[0 ... DA850_N_BB_USER_LED - 1] = {
+		.active_low = 1,
+		.gpio = -1, /* assigned at runtime */
+		.name = NULL, /* assigned at runtime */
+	},
+};
+
+static struct gpio_led_platform_data da850_evm_bb_leds_pdata = {
+	.leds = da850_evm_bb_leds,
+	.num_leds = ARRAY_SIZE(da850_evm_bb_leds),
+};
+
+static struct platform_device da850_evm_bb_leds_device = {
+	.name		= "leds-gpio",
+	.id		= -1,
+	.dev = {
+		.platform_data = &da850_evm_bb_leds_pdata
+	}
+};
+
+static void da850_evm_bb_leds_init(unsigned gpio)
+{
+	int i;
+	struct gpio_led *led;
+
+	for (i = 0; i < DA850_N_BB_USER_LED; i++) {
+		led = &da850_evm_bb_leds[i];
+
+		led->gpio = gpio + DA850_EVM_BB_EXP_USER_LED2 + i;
+		led->name =
+			da850_evm_bb_exp[DA850_EVM_BB_EXP_USER_LED2 + i];
+	}
+}
+
+static int da850_evm_bb_expander_setup(struct i2c_client *client,
+						unsigned gpio, unsigned ngpio,
+						void *c)
+{
+	int ret;
+
+	/*
+	 * Register the switches and pushbutton on the baseboard as a gpio-keys
+	 * device.
+	 */
+	da850_evm_bb_keys_init(gpio);
+	ret = platform_device_register(&da850_evm_bb_keys_device);
+	if (ret) {
+		pr_warning("Could not register baseboard GPIO expander keys");
+		goto io_exp_setup_sw_fail;
+	}
+
+	da850_evm_bb_leds_init(gpio);
+	ret = platform_device_register(&da850_evm_bb_leds_device);
+	if (ret) {
+		pr_warning("Could not register baseboard GPIO expander LEDS");
+		goto io_exp_setup_leds_fail;
+	}
+
+	return 0;
+
+io_exp_setup_leds_fail:
+	platform_device_unregister(&da850_evm_bb_keys_device);
+io_exp_setup_sw_fail:
+	return ret;
+}
+
+static int da850_evm_bb_expander_teardown(struct i2c_client *client,
+					unsigned gpio, unsigned ngpio, void *c)
+{
+	platform_device_unregister(&da850_evm_bb_leds_device);
+	platform_device_unregister(&da850_evm_bb_keys_device);
+
+	return 0;
+}
+
 static struct pca953x_platform_data da850_evm_ui_expander_info = {
 	.gpio_base	= DAVINCI_N_GPIO,
 	.setup		= da850_evm_ui_expander_setup,
 	.teardown	= da850_evm_ui_expander_teardown,
 	.names		= da850_evm_ui_exp,
+};
+
+static struct pca953x_platform_data da850_evm_bb_expander_info = {
+	.gpio_base	= DA850_BB_EXPANDER_GPIO_BASE,
+	.setup		= da850_evm_bb_expander_setup,
+	.teardown	= da850_evm_bb_expander_teardown,
+	.names		= da850_evm_bb_exp,
 };
 
 static struct i2c_board_info __initdata da850_evm_i2c_devices[] = {
@@ -444,6 +627,10 @@ static struct i2c_board_info __initdata da850_evm_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("tca6416", 0x20),
 		.platform_data = &da850_evm_ui_expander_info,
+	},
+	{
+		I2C_BOARD_INFO("tca6416", 0x21),
+		.platform_data = &da850_evm_bb_expander_info,
 	},
 };
 
