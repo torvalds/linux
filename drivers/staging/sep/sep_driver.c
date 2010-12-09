@@ -275,7 +275,7 @@ end_function:
  *	@filp: file handle to SEP device
  *
  *	Open method for the SEP device. Called when userspace opens
- *	the SEP device node. 
+ *	the SEP device node.
  *
  *	Returns zero on success otherwise an error code.
  */
@@ -1811,7 +1811,7 @@ static int sep_prepare_input_dma_table(struct sep_device *sep,
 			info_entry_ptr->bus_address =
 				sep_shared_area_virt_to_bus(sep,
 							in_lli_table_ptr);
-			info_entry_ptr->block_size = 
+			info_entry_ptr->block_size =
 				((num_entries_in_table) << 24) |
 				(table_data_size);
 		}
@@ -2164,7 +2164,7 @@ static int sep_prepare_input_output_dma_table(struct sep_device *sep,
 		error = sep_lock_user_pages(sep, app_virt_in_addr,
 				data_size, &lli_in_array, SEP_DRIVER_IN_FLAG);
 		if (error) {
-			dev_warn(&sep->pdev->dev, 
+			dev_warn(&sep->pdev->dev,
 				"sep_lock_user_pages for input virtual buffer failed\n");
 			goto end_function;
 		}
@@ -2808,7 +2808,7 @@ static int sep_end_transaction_handler(struct sep_device *sep)
 }
 
 /**
- *	sep_prepare_dcb_handler - prepare a control block 
+ *	sep_prepare_dcb_handler - prepare a control block
  *	@sep: pointer to struct sep_device
  *	@arg: pointer to user parameters
  *
@@ -2873,7 +2873,7 @@ static int sep_free_dcb_handler(struct sep_device *sep)
 }
 
 /**
- *	sep_rar_prepare_output_msg_handler - prepare an output message 
+ *	sep_rar_prepare_output_msg_handler - prepare an output message
  *	@sep: pointer to struct sep_device
  *	@arg: pointer to user parameters
  *
@@ -3557,7 +3557,7 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	if (error == 0)
 		/* Success */
 		return 0;
-		
+
 end_function_free_irq:
 	free_irq(pdev->irq, sep);
 
@@ -3626,7 +3626,7 @@ static int __init sep_init(void)
 
 
 /**
- *	sep_exit - called to unload driver 
+ *	sep_exit - called to unload driver
  *
  *	Drop the misc devices then remove and unmap the various resources
  *	that are not released by the driver remove method.
