@@ -5926,7 +5926,6 @@ F:	include/linux/tty.h
 
 TULIP NETWORK DRIVERS
 M:	Grant Grundler <grundler@parisc-linux.org>
-M:	Kyle McMartin <kyle@mcmartin.ca>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/tulip/
