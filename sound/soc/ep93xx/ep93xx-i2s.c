@@ -352,13 +352,13 @@ static struct snd_soc_dai_driver ep93xx_i2s_dai = {
 	.playback	= {
 		.channels_min	= 2,
 		.channels_max	= 2,
-		.rates		= SNDRV_PCM_RATE_8000_48000,
+		.rates		= SNDRV_PCM_RATE_8000_96000,
 		.formats	= EP93XX_I2S_FORMATS,
 	},
 	.capture	= {
 		 .channels_min	= 2,
 		 .channels_max	= 2,
-		 .rates		= SNDRV_PCM_RATE_8000_48000,
+		 .rates		= SNDRV_PCM_RATE_8000_96000,
 		 .formats	= EP93XX_I2S_FORMATS,
 	},
 	.ops		= &ep93xx_i2s_dai_ops,
