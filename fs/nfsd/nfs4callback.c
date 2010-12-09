@@ -589,6 +589,12 @@ void nfsd4_probe_callback(struct nfs4_client *clp)
 	do_probe_callback(clp);
 }
 
+void nfsd4_probe_callback_sync(struct nfs4_client *clp)
+{
+	nfsd4_probe_callback(clp);
+	flush_workqueue(callback_wq);
+}
+
 void nfsd4_change_callback(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 {
 	clp->cl_cb_state = NFSD4_CB_UNKNOWN;

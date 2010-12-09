@@ -1686,8 +1686,7 @@ nfsd4_destroy_session(struct svc_rqst *r,
 	spin_unlock(&client_lock);
 
 	nfs4_lock_state();
-	/* wait for callbacks */
-	nfsd4_shutdown_callback(ses->se_client);
+	nfsd4_probe_callback_sync(ses->se_client);
 	nfs4_unlock_state();
 
 	nfsd4_del_conns(ses);
