@@ -12,6 +12,7 @@
  */
 
 #include <linux/i2c.h>
+#include <linux/irq.h>
 #include <linux/of.h>
 #include <linux/of_i2c.h>
 #include <linux/of_irq.h>

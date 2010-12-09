@@ -16,7 +16,7 @@ extern char prom_version[];
 /* Root node of the prom device tree, this stays constant after
  * initialization is complete.
  */
-extern int prom_root_node;
+extern phandle prom_root_node;
 
 /* PROM stdin and stdout */
 extern int prom_stdin, prom_stdout;
@@ -24,7 +24,7 @@ extern int prom_stdin, prom_stdout;
 /* /chosen node of the prom device tree, this stays constant after
  * initialization is complete.
  */
-extern int prom_chosen_node;
+extern phandle prom_chosen_node;
 
 /* Helper values and strings in arch/sparc64/kernel/head.S */
 extern const char prom_peer_name[];
@@ -218,68 +218,69 @@ extern void prom_unmap(unsigned long size, unsigned long vaddr);
 /* PROM device tree traversal functions... */
 
 /* Get the child node of the given node, or zero if no child exists. */
-extern int prom_getchild(int parent_node);
+extern phandle prom_getchild(phandle parent_node);
 
 /* Get the next sibling node of the given node, or zero if no further
  * siblings exist.
  */
-extern int prom_getsibling(int node);
+extern phandle prom_getsibling(phandle node);
 
 /* Get the length, at the passed node, of the given property type.
  * Returns -1 on error (ie. no such property at this node).
  */
-extern int prom_getproplen(int thisnode, const char *property);
+extern int prom_getproplen(phandle thisnode, const char *property);
 
 /* Fetch the requested property using the given buffer.  Returns
  * the number of bytes the prom put into your buffer or -1 on error.
  */
-extern int prom_getproperty(int thisnode, const char *property,
+extern int prom_getproperty(phandle thisnode, const char *property,
 			    char *prop_buffer, int propbuf_size);
 
 /* Acquire an integer property. */
-extern int prom_getint(int node, const char *property);
+extern int prom_getint(phandle node, const char *property);
 
 /* Acquire an integer property, with a default value. */
-extern int prom_getintdefault(int node, const char *property, int defval);
+extern int prom_getintdefault(phandle node, const char *property, int defval);
 
 /* Acquire a boolean property, 0=FALSE 1=TRUE. */
-extern int prom_getbool(int node, const char *prop);
+extern int prom_getbool(phandle node, const char *prop);
 
 /* Acquire a string property, null string on error. */
-extern void prom_getstring(int node, const char *prop, char *buf, int bufsize);
+extern void prom_getstring(phandle node, const char *prop, char *buf,
+			   int bufsize);
 
 /* Does the passed node have the given "name"? YES=1 NO=0 */
-extern int prom_nodematch(int thisnode, const char *name);
+extern int prom_nodematch(phandle thisnode, const char *name);
 
 /* Search all siblings starting at the passed node for "name" matching
  * the given string.  Returns the node on success, zero on failure.
  */
-extern int prom_searchsiblings(int node_start, const char *name);
+extern phandle prom_searchsiblings(phandle node_start, const char *name);
 
 /* Return the first property type, as a string, for the given node.
  * Returns a null string on error. Buffer should be at least 32B long.
  */
-extern char *prom_firstprop(int node, char *buffer);
+extern char *prom_firstprop(phandle node, char *buffer);
 
 /* Returns the next property after the passed property for the given
  * node.  Returns null string on failure. Buffer should be at least 32B long.
  */
-extern char *prom_nextprop(int node, const char *prev_property, char *buffer);
+extern char *prom_nextprop(phandle node, const char *prev_property, char *buf);
 
 /* Returns 1 if the specified node has given property. */
-extern int prom_node_has_property(int node, const char *property);
+extern int prom_node_has_property(phandle node, const char *property);
 
 /* Returns phandle of the path specified */
-extern int prom_finddevice(const char *name);
+extern phandle prom_finddevice(const char *name);
 
 /* Set the indicated property at the given node with the passed value.
  * Returns the number of bytes of your value that the prom took.
  */
-extern int prom_setprop(int node, const char *prop_name, char *prop_value,
+extern int prom_setprop(phandle node, const char *prop_name, char *prop_value,
 			int value_size);
 
-extern int prom_pathtoinode(const char *path);
-extern int prom_inst2pkg(int);
+extern phandle prom_pathtoinode(const char *path);
+extern phandle prom_inst2pkg(int);
 extern int prom_service_exists(const char *service_name);
 extern void prom_sun4v_guest_soft_state(void);
 

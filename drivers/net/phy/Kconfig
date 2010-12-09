@@ -58,7 +58,6 @@ config BROADCOM_PHY
 
 config BCM63XX_PHY
 	tristate "Drivers for Broadcom 63xx SOCs internal PHY"
-	depends on BCM63XX
 	---help---
 	  Currently supports the 6348 and 6358 PHYs.
 

@@ -28,6 +28,8 @@
    
 ======================================================================*/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define DRV_NAME	"fmvj18x_cs"
 #define DRV_VERSION	"2.9"
 
@@ -289,7 +291,7 @@ static int mfc_try_io_port(struct pcmcia_device *link)
 	link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 	if (link->resource[1]->start == 0) {
 	    link->resource[1]->end = 0;
-	    printk(KERN_NOTICE "fmvj18x_cs: out of resource for serial\n");
+	    pr_notice("out of resource for serial\n");
 	}
 	ret = pcmcia_request_io(link);
 	if (ret == 0)
@@ -497,7 +499,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     case XXX10304:
 	/* Read MACID from Buggy CIS */
 	if (fmvj18x_get_hwinfo(link, buggybuf) == -1) {
-	    printk(KERN_NOTICE "fmvj18x_cs: unable to read hardware net address.\n");
+	    pr_notice("unable to read hardware net address\n");
 	    goto failed;
 	}
 	for (i = 0 ; i < 6; i++) {
@@ -518,15 +520,14 @@ static int fmvj18x_config(struct pcmcia_device *link)
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
-	printk(KERN_NOTICE "fmvj18x_cs: register_netdev() failed\n");
+	pr_notice("register_netdev() failed\n");
 	goto failed;
     }
 
     /* print current configuration */
-    printk(KERN_INFO "%s: %s, sram %s, port %#3lx, irq %d, "
-	   "hw_addr %pM\n",
-	   dev->name, card_name, sram_config == 0 ? "4K TX*2" : "8K TX*2", 
-	   dev->base_addr, dev->irq, dev->dev_addr);
+    netdev_info(dev, "%s, sram %s, port %#3lx, irq %d, hw_addr %pM\n",
+		card_name, sram_config == 0 ? "4K TX*2" : "8K TX*2",
+		dev->base_addr, dev->irq, dev->dev_addr);
 
     return 0;
     
@@ -597,7 +598,7 @@ static int fmvj18x_setup_mfc(struct pcmcia_device *link)
     lp->base = ioremap(link->resource[3]->start,
 		       resource_size(link->resource[3]));
     if (lp->base == NULL) {
-	printk(KERN_NOTICE "fmvj18x_cs: ioremap failed\n");
+	netdev_notice(dev, "ioremap failed\n");
 	return -1;
     }
 
@@ -787,17 +788,16 @@ static void fjn_tx_timeout(struct net_device *dev)
     struct local_info_t *lp = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
 
-    printk(KERN_NOTICE "%s: transmit timed out with status %04x, %s?\n",
-	   dev->name, htons(inw(ioaddr + TX_STATUS)),
-	   inb(ioaddr + TX_STATUS) & F_TMT_RDY
-	   ? "IRQ conflict" : "network cable problem");
-    printk(KERN_NOTICE "%s: timeout registers: %04x %04x %04x "
-	   "%04x %04x %04x %04x %04x.\n",
-	   dev->name, htons(inw(ioaddr + 0)),
-	   htons(inw(ioaddr + 2)), htons(inw(ioaddr + 4)),
-	   htons(inw(ioaddr + 6)), htons(inw(ioaddr + 8)),
-	   htons(inw(ioaddr +10)), htons(inw(ioaddr +12)),
-	   htons(inw(ioaddr +14)));
+    netdev_notice(dev, "transmit timed out with status %04x, %s?\n",
+		  htons(inw(ioaddr + TX_STATUS)),
+		  inb(ioaddr + TX_STATUS) & F_TMT_RDY
+		  ? "IRQ conflict" : "network cable problem");
+    netdev_notice(dev, "timeout registers: %04x %04x %04x "
+		  "%04x %04x %04x %04x %04x.\n",
+		  htons(inw(ioaddr + 0)), htons(inw(ioaddr + 2)),
+		  htons(inw(ioaddr + 4)), htons(inw(ioaddr + 6)),
+		  htons(inw(ioaddr + 8)), htons(inw(ioaddr + 10)),
+		  htons(inw(ioaddr + 12)), htons(inw(ioaddr + 14)));
     dev->stats.tx_errors++;
     /* ToDo: We should try to restart the adaptor... */
     local_irq_disable();
@@ -832,13 +832,13 @@ static netdev_tx_t fjn_start_xmit(struct sk_buff *skb,
 	unsigned char *buf = skb->data;
 
 	if (length > ETH_FRAME_LEN) {
-	    printk(KERN_NOTICE "%s: Attempting to send a large packet"
-		   " (%d bytes).\n", dev->name, length);
+	    netdev_notice(dev, "Attempting to send a large packet (%d bytes)\n",
+			  length);
 	    return NETDEV_TX_BUSY;
 	}
 
-	pr_debug("%s: Transmitting a packet of length %lu.\n",
-	      dev->name, (unsigned long)skb->len);
+	netdev_dbg(dev, "Transmitting a packet of length %lu\n",
+		   (unsigned long)skb->len);
 	dev->stats.tx_bytes += skb->len;
 
 	/* Disable both interrupts. */
@@ -891,7 +891,7 @@ static void fjn_reset(struct net_device *dev)
     unsigned int ioaddr = dev->base_addr;
     int i;
 
-    pr_debug("fjn_reset(%s) called.\n",dev->name);
+    netdev_dbg(dev, "fjn_reset() called\n");
 
     /* Reset controller */
     if( sram_config == 0 ) 
@@ -975,8 +975,8 @@ static void fjn_rx(struct net_device *dev)
     while ((inb(ioaddr + RX_MODE) & F_BUF_EMP) == 0) {
 	u_short status = inw(ioaddr + DATAPORT);
 
-	pr_debug("%s: Rxing packet mode %02x status %04x.\n",
-	      dev->name, inb(ioaddr + RX_MODE), status);
+	netdev_dbg(dev, "Rxing packet mode %02x status %04x.\n",
+		   inb(ioaddr + RX_MODE), status);
 #ifndef final_version
 	if (status == 0) {
 	    outb(F_SKP_PKT, ioaddr + RX_SKIP);
@@ -995,16 +995,16 @@ static void fjn_rx(struct net_device *dev)
 	    struct sk_buff *skb;
 
 	    if (pkt_len > 1550) {
-		printk(KERN_NOTICE "%s: The FMV-18x claimed a very "
-		       "large packet, size %d.\n", dev->name, pkt_len);
+		netdev_notice(dev, "The FMV-18x claimed a very large packet, size %d\n",
+			      pkt_len);
 		outb(F_SKP_PKT, ioaddr + RX_SKIP);
 		dev->stats.rx_errors++;
 		break;
 	    }
 	    skb = dev_alloc_skb(pkt_len+2);
 	    if (skb == NULL) {
-		printk(KERN_NOTICE "%s: Memory squeeze, dropping "
-		       "packet (len %d).\n", dev->name, pkt_len);
+		netdev_notice(dev, "Memory squeeze, dropping packet (len %d)\n",
+			      pkt_len);
 		outb(F_SKP_PKT, ioaddr + RX_SKIP);
 		dev->stats.rx_dropped++;
 		break;

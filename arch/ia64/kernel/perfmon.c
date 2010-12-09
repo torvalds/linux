@@ -618,16 +618,15 @@ pfm_get_unmapped_area(struct file *file, unsigned long addr, unsigned long len, 
 }
 
 
-static int
-pfmfs_get_sb(struct file_system_type *fs_type, int flags, const char *dev_name, void *data,
-	     struct vfsmount *mnt)
+static struct dentry *
+pfmfs_mount(struct file_system_type *fs_type, int flags, const char *dev_name, void *data)
 {
-	return get_sb_pseudo(fs_type, "pfm:", NULL, PFMFS_MAGIC, mnt);
+	return mount_pseudo(fs_type, "pfm:", NULL, PFMFS_MAGIC);
 }
 
 static struct file_system_type pfm_fs_type = {
 	.name     = "pfmfs",
-	.get_sb   = pfmfs_get_sb,
+	.mount    = pfmfs_mount,
 	.kill_sb  = kill_anon_super,
 };
 

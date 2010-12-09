@@ -487,7 +487,7 @@ static void ov534_reg_write(struct gspca_dev *gspca_dev, u16 reg, u8 val)
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      0x00, reg, gspca_dev->usb_buf, 1, CTRL_TIMEOUT);
 	if (ret < 0)
-		PDEBUG(D_ERR, "write failed");
+		err("write failed %d", ret);
 }
 
 static u8 ov534_reg_read(struct gspca_dev *gspca_dev, u16 reg)
@@ -502,7 +502,7 @@ static u8 ov534_reg_read(struct gspca_dev *gspca_dev, u16 reg)
 			      0x00, reg, gspca_dev->usb_buf, 1, CTRL_TIMEOUT);
 	PDEBUG(D_USBI, "reg=0x%04x, data=0x%02x", reg, gspca_dev->usb_buf[0]);
 	if (ret < 0)
-		PDEBUG(D_ERR, "read failed");
+		err("read failed %d", ret);
 	return gspca_dev->usb_buf[0];
 }
 
@@ -564,7 +564,7 @@ static void sccb_reg_write(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 	ov534_reg_write(gspca_dev, OV534_REG_OPERATION, OV534_OP_WRITE_3);
 
 	if (!sccb_check_status(gspca_dev))
-		PDEBUG(D_ERR, "sccb_reg_write failed");
+		err("sccb_reg_write failed");
 }
 
 static u8 sccb_reg_read(struct gspca_dev *gspca_dev, u16 reg)
@@ -572,11 +572,11 @@ static u8 sccb_reg_read(struct gspca_dev *gspca_dev, u16 reg)
 	ov534_reg_write(gspca_dev, OV534_REG_SUBADDR, reg);
 	ov534_reg_write(gspca_dev, OV534_REG_OPERATION, OV534_OP_WRITE_2);
 	if (!sccb_check_status(gspca_dev))
-		PDEBUG(D_ERR, "sccb_reg_read failed 1");
+		err("sccb_reg_read failed 1");
 
 	ov534_reg_write(gspca_dev, OV534_REG_OPERATION, OV534_OP_READ_2);
 	if (!sccb_check_status(gspca_dev))
-		PDEBUG(D_ERR, "sccb_reg_read failed 2");
+		err("sccb_reg_read failed 2");
 
 	return ov534_reg_read(gspca_dev, OV534_REG_READ);
 }
@@ -1327,19 +1327,12 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

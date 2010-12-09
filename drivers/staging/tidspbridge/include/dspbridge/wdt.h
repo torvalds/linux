@@ -44,7 +44,7 @@ struct dsp_wdt_setting {
 /**
  * dsp_wdt_init() - initialize wdt3 module.
  *
- * This function initilize to wdt3 module, so that
+ * This function initialize to wdt3 module, so that
  * other wdt3 function can be used.
  */
 int dsp_wdt_init(void);

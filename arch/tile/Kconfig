@@ -58,6 +58,9 @@ config ARCH_SUPPORTS_OPTIMIZED_INLINING
 config ARCH_PHYS_ADDR_T_64BIT
 	def_bool y
 
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool y
+
 config LOCKDEP_SUPPORT
 	def_bool y
 
@@ -96,6 +99,7 @@ config HVC_TILE
 
 config TILE
 	def_bool y
+	select HAVE_KVM if !TILEGX
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_FIND_NEXT_BIT
 	select USE_GENERIC_SMP_HELPERS
@@ -112,8 +116,6 @@ config TILE
 #       config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 #       config HUGETLB_PAGE_SIZE_VARIABLE
 
-
-mainmenu "Linux/TILE Kernel Configuration"
 
 # Please note: TILE-Gx support is not yet finalized; this is
 # the preliminary support.  TILE-Gx drivers are only provided
@@ -236,9 +238,9 @@ choice
 	  If you are not absolutely sure what you are doing, leave this
 	  option alone!
 
-	config VMSPLIT_375G
+	config VMSPLIT_3_75G
 		bool "3.75G/0.25G user/kernel split (no kernel networking)"
-	config VMSPLIT_35G
+	config VMSPLIT_3_5G
 		bool "3.5G/0.5G user/kernel split"
 	config VMSPLIT_3G
 		bool "3G/1G user/kernel split"
@@ -252,8 +254,8 @@ endchoice
 
 config PAGE_OFFSET
 	hex
-	default 0xF0000000 if VMSPLIT_375G
-	default 0xE0000000 if VMSPLIT_35G
+	default 0xF0000000 if VMSPLIT_3_75G
+	default 0xE0000000 if VMSPLIT_3_5G
 	default 0xB0000000 if VMSPLIT_3G_OPT
 	default 0x80000000 if VMSPLIT_2G
 	default 0x40000000 if VMSPLIT_1G
@@ -314,6 +316,15 @@ config HARDWALL
 	bool "Hardwall support to allow access to user dynamic network"
 	default y
 
+config KERNEL_PL
+	int "Processor protection level for kernel"
+	range 1 2
+	default "1"
+	---help---
+	  This setting determines the processor protection level the
+	  kernel will be built to run at.  Generally you should use
+	  the default value here.
+
 endmenu  # Tilera-specific configuration
 
 menu "Bus options"
@@ -354,3 +365,5 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
+
+source "arch/tile/kvm/Kconfig"

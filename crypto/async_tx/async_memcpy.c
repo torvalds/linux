@@ -83,8 +83,8 @@ async_memcpy(struct page *dest, struct page *src, unsigned int dest_offset,
 
 		memcpy(dest_buf, src_buf, len);
 
-		kunmap_atomic(dest_buf, KM_USER0);
 		kunmap_atomic(src_buf, KM_USER1);
+		kunmap_atomic(dest_buf, KM_USER0);
 
 		async_tx_sync_epilog(submit);
 	}

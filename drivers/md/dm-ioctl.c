@@ -1596,6 +1596,7 @@ static const struct file_operations _ctl_fops = {
 	.unlocked_ioctl	 = dm_ctl_ioctl,
 	.compat_ioctl = dm_compat_ctl_ioctl,
 	.owner	 = THIS_MODULE,
+	.llseek  = noop_llseek,
 };
 
 static struct miscdevice _dm_misc = {

@@ -69,7 +69,7 @@ const BYTE abyOUI05[4] = { 0x00, 0x50, 0xf2, 0x05 };
 -*/
 
 void
-WPA_ClearRSN (
+WPA_ClearRSN(
      PKnownBSS        pBSSList
     )
 {
@@ -105,7 +105,7 @@ WPA_ClearRSN (
  *
 -*/
 void
-WPA_ParseRSN (
+WPA_ParseRSN(
      PKnownBSS        pBSSList,
      PWLAN_IE_RSN_EXT pRSN
     )
@@ -240,7 +240,7 @@ WPA_ParseRSN (
  *
 -*/
 BOOL
-WPA_SearchRSN (
+WPA_SearchRSN(
     BYTE                byCmd,
     BYTE                byEncrypt,
      PKnownBSS        pBSSList
@@ -300,7 +300,7 @@ WPA_SearchRSN (
  *
 -*/
 BOOL
-WPAb_Is_RSN (
+WPAb_Is_RSN(
      PWLAN_IE_RSN_EXT pRSN
     )
 {

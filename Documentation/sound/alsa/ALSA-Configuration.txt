@@ -300,6 +300,74 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
            control correctly. If you have problems regarding this, try
            another ALSA compliant mixer (alsamixer works).
 
+  Module snd-azt1605
+  ------------------
+
+    Module for Aztech Sound Galaxy soundcards based on the Aztech AZT1605
+    chipset.
+
+    port	- port # for BASE (0x220,0x240,0x260,0x280)
+    wss_port	- port # for WSS (0x530,0x604,0xe80,0xf40)
+    irq		- IRQ # for WSS (7,9,10,11)
+    dma1	- DMA # for WSS playback (0,1,3)
+    dma2	- DMA # for WSS capture (0,1), -1 = disabled (default)
+    mpu_port	- port # for MPU-401 UART (0x300,0x330), -1 = disabled (default)
+    mpu_irq	- IRQ # for MPU-401 UART (3,5,7,9), -1 = disabled (default)
+    fm_port	- port # for OPL3 (0x388), -1 = disabled (default)
+
+    This module supports multiple cards. It does not support autoprobe: port,
+    wss_port, irq and dma1 have to be specified. The other values are
+    optional.
+
+    "port" needs to match the BASE ADDRESS jumper on the card (0x220 or 0x240)
+    or the value stored in the card's EEPROM for cards that have an EEPROM and
+    their "CONFIG MODE" jumper set to "EEPROM SETTING". The other values can
+    be choosen freely from the options enumerated above.
+
+    If dma2 is specified and different from dma1, the card will operate in
+    full-duplex mode. When dma1=3, only dma2=0 is valid and the only way to
+    enable capture since only channels 0 and 1 are available for capture.
+
+    Generic settings are "port=0x220 wss_port=0x530 irq=10 dma1=1 dma2=0
+    mpu_port=0x330 mpu_irq=9 fm_port=0x388".
+
+    Whatever IRQ and DMA channels you pick, be sure to reserve them for
+    legacy ISA in your BIOS.
+
+  Module snd-azt2316
+  ------------------
+
+    Module for Aztech Sound Galaxy soundcards based on the Aztech AZT2316
+    chipset.
+
+    port	- port # for BASE (0x220,0x240,0x260,0x280)
+    wss_port	- port # for WSS (0x530,0x604,0xe80,0xf40)
+    irq		- IRQ # for WSS (7,9,10,11)
+    dma1	- DMA # for WSS playback (0,1,3)
+    dma2	- DMA # for WSS capture (0,1), -1 = disabled (default)
+    mpu_port	- port # for MPU-401 UART (0x300,0x330), -1 = disabled (default)
+    mpu_irq	- IRQ # for MPU-401 UART (5,7,9,10), -1 = disabled (default)
+    fm_port	- port # for OPL3 (0x388), -1 = disabled (default)
+
+    This module supports multiple cards. It does not support autoprobe: port,
+    wss_port, irq and dma1 have to be specified. The other values are
+    optional.
+
+    "port" needs to match the BASE ADDRESS jumper on the card (0x220 or 0x240)
+    or the value stored in the card's EEPROM for cards that have an EEPROM and
+    their "CONFIG MODE" jumper set to "EEPROM SETTING". The other values can
+    be choosen freely from the options enumerated above.
+
+    If dma2 is specified and different from dma1, the card will operate in
+    full-duplex mode. When dma1=3, only dma2=0 is valid and the only way to
+    enable capture since only channels 0 and 1 are available for capture.
+
+    Generic settings are "port=0x220 wss_port=0x530 irq=10 dma1=1 dma2=0
+    mpu_port=0x330 mpu_irq=9 fm_port=0x388".
+
+    Whatever IRQ and DMA channels you pick, be sure to reserve them for
+    legacy ISA in your BIOS.
+
   Module snd-aw2
   --------------
 
@@ -1640,20 +1708,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     This module supports multiple cards.
 
     This card is also known as Audio Excel DSP 16 or Zoltrix AV302.
-
-  Module snd-sgalaxy
-  ------------------
-
-    Module for Aztech Sound Galaxy sound card.
-
-    sbport	- Port # for SB16 interface (0x220,0x240)
-    wssport	- Port # for WSS interface (0x530,0xe80,0xf40,0x604)
-    irq		- IRQ # (7,9,10,11)
-    dma1	- DMA #
-
-    This module supports multiple cards.
-
-    The power-management is supported.
 
   Module snd-sscape
   -----------------

@@ -986,12 +986,14 @@ int max3107_probe(struct spi_device *spi, struct max3107_plat *pdata)
 	s->rxbuf = kzalloc(sizeof(u16) * (MAX3107_RX_FIFO_SIZE+2), GFP_KERNEL);
 	if (!s->rxbuf) {
 		pr_err("Allocating RX buffer failed\n");
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err_free4;
 	}
 	s->rxstr = kzalloc(sizeof(u8) * MAX3107_RX_FIFO_SIZE, GFP_KERNEL);
 	if (!s->rxstr) {
 		pr_err("Allocating RX buffer failed\n");
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err_free3;
 	}
 	/* SPI Tx buffer
 	 * SPI transfer buffer
@@ -1002,7 +1004,8 @@ int max3107_probe(struct spi_device *spi, struct max3107_plat *pdata)
 	s->txbuf = kzalloc(sizeof(u16) * MAX3107_TX_FIFO_SIZE + 3, GFP_KERNEL);
 	if (!s->txbuf) {
 		pr_err("Allocating TX buffer failed\n");
-		return -ENOMEM;
+		retval = -ENOMEM;
+		goto err_free2;
 	}
 	/* Initialize shared data lock */
 	spin_lock_init(&s->data_lock);
@@ -1021,13 +1024,15 @@ int max3107_probe(struct spi_device *spi, struct max3107_plat *pdata)
 	buf[0] = MAX3107_REVID_REG;
 	if (max3107_rw(s, (u8 *)buf, (u8 *)buf, 2)) {
 		dev_err(&s->spi->dev, "SPI transfer for REVID read failed\n");
-		return -EIO;
+		retval = -EIO;
+		goto err_free1;
 	}
 	if ((buf[0] & MAX3107_SPI_RX_DATA_MASK) != MAX3107_REVID1 &&
 		(buf[0] & MAX3107_SPI_RX_DATA_MASK) != MAX3107_REVID2) {
 		dev_err(&s->spi->dev, "REVID %x does not match\n",
 				(buf[0] & MAX3107_SPI_RX_DATA_MASK));
-		return -ENODEV;
+		retval = -ENODEV;
+		goto err_free1;
 	}
 
 	/* Disable all interrupts */
@@ -1047,7 +1052,8 @@ int max3107_probe(struct spi_device *spi, struct max3107_plat *pdata)
 	/* Perform SPI transfer */
 	if (max3107_rw(s, (u8 *)buf, NULL, 4)) {
 		dev_err(&s->spi->dev, "SPI transfer for init failed\n");
-		return -EIO;
+		retval = -EIO;
+		goto err_free1;
 	}
 
 	/* Register UART driver */
@@ -1055,7 +1061,7 @@ int max3107_probe(struct spi_device *spi, struct max3107_plat *pdata)
 		retval = uart_register_driver(&max3107_uart_driver);
 		if (retval) {
 			dev_err(&s->spi->dev, "Registering UART driver failed\n");
-			return retval;
+			goto err_free1;
 		}
 		driver_registered = 1;
 	}
@@ -1074,13 +1080,13 @@ int max3107_probe(struct spi_device *spi, struct max3107_plat *pdata)
 	retval = uart_add_one_port(&max3107_uart_driver, &s->port);
 	if (retval < 0) {
 		dev_err(&s->spi->dev, "Adding UART port failed\n");
-		return retval;
+		goto err_free1;
 	}
 
 	if (pdata->configure) {
 		retval = pdata->configure(s);
 		if (retval < 0)
-			return retval;
+			goto err_free1;
 	}
 
 	/* Go to suspend mode */
@@ -1088,6 +1094,16 @@ int max3107_probe(struct spi_device *spi, struct max3107_plat *pdata)
 		pdata->hw_suspend(s, 1);
 
 	return 0;
+
+err_free1:
+	kfree(s->txbuf);
+err_free2:
+	kfree(s->rxstr);
+err_free3:
+	kfree(s->rxbuf);
+err_free4:
+	kfree(s);
+	return retval;
 }
 EXPORT_SYMBOL_GPL(max3107_probe);
 

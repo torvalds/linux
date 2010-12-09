@@ -171,7 +171,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 	PDEBUG(D_USBI, "GET %02x 0000 %04x %02x", req, index,
 			 gspca_dev->usb_buf[0]);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_r err %d", ret);
+		err("reg_r err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -193,7 +193,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			value, index,
 			NULL, 0, 500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w err %d", ret);
+		err("reg_w err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -217,7 +217,7 @@ static void reg_wb(struct gspca_dev *gspca_dev,
 			value, index,
 			gspca_dev->usb_buf, 1, 500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w err %d", ret);
+		err("reg_w err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -587,18 +587,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	info("registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	info("deregistered");
 }
 
 module_init(sd_mod_init);

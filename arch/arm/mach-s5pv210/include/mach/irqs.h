@@ -55,8 +55,8 @@
 #define IRQ_SPI1		S5P_IRQ_VIC1(16)
 #define IRQ_SPI2		S5P_IRQ_VIC1(17)
 #define IRQ_IRDA		S5P_IRQ_VIC1(18)
-#define IRQ_CAN0		S5P_IRQ_VIC1(19)
-#define IRQ_CAN1		S5P_IRQ_VIC1(20)
+#define IRQ_IIC2		S5P_IRQ_VIC1(19)
+#define IRQ_IIC3		S5P_IRQ_VIC1(20)
 #define IRQ_HSIRX		S5P_IRQ_VIC1(21)
 #define IRQ_HSITX		S5P_IRQ_VIC1(22)
 #define IRQ_UHOST		S5P_IRQ_VIC1(23)
@@ -109,7 +109,7 @@
 
 #define IRQ_IPC			S5P_IRQ_VIC3(0)
 #define IRQ_HOSTIF		S5P_IRQ_VIC3(1)
-#define IRQ_MMC3		S5P_IRQ_VIC3(2)
+#define IRQ_HSMMC3		S5P_IRQ_VIC3(2)
 #define IRQ_CEC			S5P_IRQ_VIC3(3)
 #define IRQ_TSI			S5P_IRQ_VIC3(4)
 #define IRQ_MDNIE0		S5P_IRQ_VIC3(5)
@@ -121,8 +121,12 @@
 #define S5P_EINT_BASE1		(S5P_IRQ_VIC0(0))
 #define S5P_EINT_BASE2		(IRQ_VIC_END + 1)
 
+/* GPIO interrupt */
+#define S5P_GPIOINT_BASE	(IRQ_EINT(31) + 1)
+#define S5P_GPIOINT_GROUP_MAXNR	22
+
 /* Set the default NR_IRQS */
-#define NR_IRQS			(IRQ_EINT(31) + 1)
+#define NR_IRQS			(IRQ_EINT(31) + S5P_GPIOINT_COUNT + 1)
 
 /* Compatibility */
 #define IRQ_LCD_FIFO		IRQ_LCD0

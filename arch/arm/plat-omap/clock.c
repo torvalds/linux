@@ -60,7 +60,7 @@ void clk_disable(struct clk *clk)
 
 	spin_lock_irqsave(&clockfw_lock, flags);
 	if (clk->usecount == 0) {
-		printk(KERN_ERR "Trying disable clock %s with 0 usecount\n",
+		pr_err("Trying disable clock %s with 0 usecount\n",
 		       clk->name);
 		WARN_ON(1);
 		goto out;
@@ -397,6 +397,7 @@ static int __init clk_disable_unused(void)
 	struct clk *ck;
 	unsigned long flags;
 
+	pr_info("clock: disabling unused clocks to save power\n");
 	list_for_each_entry(ck, &clocks, node) {
 		if (ck->ops == &clkops_null)
 			continue;
@@ -418,7 +419,7 @@ late_initcall(clk_disable_unused);
 int __init clk_init(struct clk_functions * custom_clocks)
 {
 	if (!custom_clocks) {
-		printk(KERN_ERR "No custom clock functions registered\n");
+		pr_err("No custom clock functions registered\n");
 		BUG();
 	}
 

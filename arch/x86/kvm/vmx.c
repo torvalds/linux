@@ -5,7 +5,7 @@
  * machines without emulation or binary translation.
  *
  * Copyright (C) 2006 Qumranet, Inc.
- * Copyright 2010 Red Hat, Inc. and/or its affilates.
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Authors:
  *   Avi Kivity   <avi@qumranet.com>
@@ -125,6 +125,7 @@ struct vcpu_vmx {
 	unsigned long         host_rsp;
 	int                   launched;
 	u8                    fail;
+	u32                   exit_intr_info;
 	u32                   idt_vectoring_info;
 	struct shared_msr_entry *guest_msrs;
 	int                   nmsrs;
@@ -154,11 +155,6 @@ struct vcpu_vmx {
 			u32 limit;
 			u32 ar;
 		} tr, es, ds, fs, gs;
-		struct {
-			bool pending;
-			u8 vector;
-			unsigned rip;
-		} irq;
 	} rmode;
 	int vpid;
 	bool emulation_required;
@@ -505,7 +501,6 @@ static void __vcpu_clear(void *arg)
 		vmcs_clear(vmx->vmcs);
 	if (per_cpu(current_vmcs, cpu) == vmx->vmcs)
 		per_cpu(current_vmcs, cpu) = NULL;
-	rdtscll(vmx->vcpu.arch.host_tsc);
 	list_del(&vmx->local_vcpus_link);
 	vmx->vcpu.cpu = -1;
 	vmx->launched = 0;
@@ -706,11 +701,10 @@ static void reload_tss(void)
 	/*
 	 * VT restores TR but not its size.  Useless.
 	 */
-	struct desc_ptr gdt;
+	struct desc_ptr *gdt = &__get_cpu_var(host_gdt);
 	struct desc_struct *descs;
 
-	native_store_gdt(&gdt);
-	descs = (void *)gdt.address;
+	descs = (void *)gdt->address;
 	descs[GDT_ENTRY_TSS].type = 9; /* available TSS */
 	load_TR_desc();
 }
@@ -753,7 +747,7 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 
 static unsigned long segment_base(u16 selector)
 {
-	struct desc_ptr gdt;
+	struct desc_ptr *gdt = &__get_cpu_var(host_gdt);
 	struct desc_struct *d;
 	unsigned long table_base;
 	unsigned long v;
@@ -761,8 +755,7 @@ static unsigned long segment_base(u16 selector)
 	if (!(selector & ~3))
 		return 0;
 
-	native_store_gdt(&gdt);
-	table_base = gdt.address;
+	table_base = gdt->address;
 
 	if (selector & 4) {           /* from ldt */
 		u16 ldt_selector = kvm_read_ldt();
@@ -883,7 +876,6 @@ static void vmx_load_host_state(struct vcpu_vmx *vmx)
 static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u64 tsc_this, delta, new_offset;
 	u64 phys_addr = __pa(per_cpu(vmxarea, cpu));
 
 	if (!vmm_exclusive)
@@ -897,37 +889,24 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	}
 
 	if (vcpu->cpu != cpu) {
-		struct desc_ptr dt;
+		struct desc_ptr *gdt = &__get_cpu_var(host_gdt);
 		unsigned long sysenter_esp;
 
-		kvm_migrate_timers(vcpu);
 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
 		local_irq_disable();
 		list_add(&vmx->local_vcpus_link,
 			 &per_cpu(vcpus_on_cpu, cpu));
 		local_irq_enable();
 
-		vcpu->cpu = cpu;
 		/*
 		 * Linux uses per-cpu TSS and GDT, so set these when switching
 		 * processors.
 		 */
 		vmcs_writel(HOST_TR_BASE, kvm_read_tr_base()); /* 22.2.4 */
-		native_store_gdt(&dt);
-		vmcs_writel(HOST_GDTR_BASE, dt.address);   /* 22.2.4 */
+		vmcs_writel(HOST_GDTR_BASE, gdt->address);   /* 22.2.4 */
 
 		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);
 		vmcs_writel(HOST_IA32_SYSENTER_ESP, sysenter_esp); /* 22.2.3 */
-
-		/*
-		 * Make sure the time stamp counter is monotonous.
-		 */
-		rdtscll(tsc_this);
-		if (tsc_this < vcpu->arch.host_tsc) {
-			delta = vcpu->arch.host_tsc - tsc_this;
-			new_offset = vmcs_read64(TSC_OFFSET) + delta;
-			vmcs_write64(TSC_OFFSET, new_offset);
-		}
 	}
 }
 
@@ -1044,16 +1023,8 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 	}
 
 	if (vmx->rmode.vm86_active) {
-		vmx->rmode.irq.pending = true;
-		vmx->rmode.irq.vector = nr;
-		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
-		if (kvm_exception_is_soft(nr))
-			vmx->rmode.irq.rip +=
-				vmx->vcpu.arch.event_exit_inst_len;
-		intr_info |= INTR_TYPE_SOFT_INTR;
-		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, intr_info);
-		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
-		kvm_rip_write(vcpu, vmx->rmode.irq.rip - 1);
+		if (kvm_inject_realmode_interrupt(vcpu, nr) != EMULATE_DONE)
+			kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 		return;
 	}
 
@@ -1149,12 +1120,17 @@ static u64 guest_read_tsc(void)
 }
 
 /*
- * writes 'guest_tsc' into guest's timestamp counter "register"
- * guest_tsc = host_tsc + tsc_offset ==> tsc_offset = guest_tsc - host_tsc
+ * writes 'offset' into guest's timestamp counter offset register
  */
-static void guest_write_tsc(u64 guest_tsc, u64 host_tsc)
+static void vmx_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 {
-	vmcs_write64(TSC_OFFSET, guest_tsc - host_tsc);
+	vmcs_write64(TSC_OFFSET, offset);
+}
+
+static void vmx_adjust_tsc_offset(struct kvm_vcpu *vcpu, s64 adjustment)
+{
+	u64 offset = vmcs_read64(TSC_OFFSET);
+	vmcs_write64(TSC_OFFSET, offset + adjustment);
 }
 
 /*
@@ -1227,7 +1203,6 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct shared_msr_entry *msr;
-	u64 host_tsc;
 	int ret = 0;
 
 	switch (msr_index) {
@@ -1257,8 +1232,7 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		vmcs_writel(GUEST_SYSENTER_ESP, data);
 		break;
 	case MSR_IA32_TSC:
-		rdtscll(host_tsc);
-		guest_write_tsc(data, host_tsc);
+		kvm_write_tsc(vcpu, data);
 		break;
 	case MSR_IA32_CR_PAT:
 		if (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PAT) {
@@ -1856,20 +1830,20 @@ static void ept_load_pdptrs(struct kvm_vcpu *vcpu)
 		return;
 
 	if (is_paging(vcpu) && is_pae(vcpu) && !is_long_mode(vcpu)) {
-		vmcs_write64(GUEST_PDPTR0, vcpu->arch.pdptrs[0]);
-		vmcs_write64(GUEST_PDPTR1, vcpu->arch.pdptrs[1]);
-		vmcs_write64(GUEST_PDPTR2, vcpu->arch.pdptrs[2]);
-		vmcs_write64(GUEST_PDPTR3, vcpu->arch.pdptrs[3]);
+		vmcs_write64(GUEST_PDPTR0, vcpu->arch.mmu.pdptrs[0]);
+		vmcs_write64(GUEST_PDPTR1, vcpu->arch.mmu.pdptrs[1]);
+		vmcs_write64(GUEST_PDPTR2, vcpu->arch.mmu.pdptrs[2]);
+		vmcs_write64(GUEST_PDPTR3, vcpu->arch.mmu.pdptrs[3]);
 	}
 }
 
 static void ept_save_pdptrs(struct kvm_vcpu *vcpu)
 {
 	if (is_paging(vcpu) && is_pae(vcpu) && !is_long_mode(vcpu)) {
-		vcpu->arch.pdptrs[0] = vmcs_read64(GUEST_PDPTR0);
-		vcpu->arch.pdptrs[1] = vmcs_read64(GUEST_PDPTR1);
-		vcpu->arch.pdptrs[2] = vmcs_read64(GUEST_PDPTR2);
-		vcpu->arch.pdptrs[3] = vmcs_read64(GUEST_PDPTR3);
+		vcpu->arch.mmu.pdptrs[0] = vmcs_read64(GUEST_PDPTR0);
+		vcpu->arch.mmu.pdptrs[1] = vmcs_read64(GUEST_PDPTR1);
+		vcpu->arch.mmu.pdptrs[2] = vmcs_read64(GUEST_PDPTR2);
+		vcpu->arch.mmu.pdptrs[3] = vmcs_read64(GUEST_PDPTR3);
 	}
 
 	__set_bit(VCPU_EXREG_PDPTR,
@@ -2515,7 +2489,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 {
 	u32 host_sysenter_cs, msr_low, msr_high;
 	u32 junk;
-	u64 host_pat, tsc_this, tsc_base;
+	u64 host_pat;
 	unsigned long a;
 	struct desc_ptr dt;
 	int i;
@@ -2656,12 +2630,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		vmx->vcpu.arch.cr4_guest_owned_bits |= X86_CR4_PGE;
 	vmcs_writel(CR4_GUEST_HOST_MASK, ~vmx->vcpu.arch.cr4_guest_owned_bits);
 
-	tsc_base = vmx->vcpu.kvm->arch.vm_init_tsc;
-	rdtscll(tsc_this);
-	if (tsc_this < vmx->vcpu.kvm->arch.vm_init_tsc)
-		tsc_base = tsc_this;
-
-	guest_write_tsc(0, tsc_base);
+	kvm_write_tsc(&vmx->vcpu, 0);
 
 	return 0;
 }
@@ -2834,16 +2803,8 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu)
 
 	++vcpu->stat.irq_injections;
 	if (vmx->rmode.vm86_active) {
-		vmx->rmode.irq.pending = true;
-		vmx->rmode.irq.vector = irq;
-		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
-		if (vcpu->arch.interrupt.soft)
-			vmx->rmode.irq.rip +=
-				vmx->vcpu.arch.event_exit_inst_len;
-		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
-			     irq | INTR_TYPE_SOFT_INTR | INTR_INFO_VALID_MASK);
-		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
-		kvm_rip_write(vcpu, vmx->rmode.irq.rip - 1);
+		if (kvm_inject_realmode_interrupt(vcpu, irq) != EMULATE_DONE)
+			kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 		return;
 	}
 	intr = irq | INTR_INFO_VALID_MASK;
@@ -2875,14 +2836,8 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 
 	++vcpu->stat.nmi_injections;
 	if (vmx->rmode.vm86_active) {
-		vmx->rmode.irq.pending = true;
-		vmx->rmode.irq.vector = NMI_VECTOR;
-		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
-		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
-			     NMI_VECTOR | INTR_TYPE_SOFT_INTR |
-			     INTR_INFO_VALID_MASK);
-		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
-		kvm_rip_write(vcpu, vmx->rmode.irq.rip - 1);
+		if (kvm_inject_realmode_interrupt(vcpu, NMI_VECTOR) != EMULATE_DONE)
+			kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 		return;
 	}
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
@@ -3346,6 +3301,7 @@ static int handle_wrmsr(struct kvm_vcpu *vcpu)
 
 static int handle_tpr_below_threshold(struct kvm_vcpu *vcpu)
 {
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	return 1;
 }
 
@@ -3357,6 +3313,8 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu)
 	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
 	cpu_based_vm_exec_control &= ~CPU_BASED_VIRTUAL_INTR_PENDING;
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
+
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
 	++vcpu->stat.irq_window_exits;
 
@@ -3614,6 +3572,7 @@ static int handle_nmi_window(struct kvm_vcpu *vcpu)
 	cpu_based_vm_exec_control &= ~CPU_BASED_VIRTUAL_NMI_PENDING;
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
 	++vcpu->stat.nmi_window_exits;
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
 	return 1;
 }
@@ -3623,8 +3582,17 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	enum emulation_result err = EMULATE_DONE;
 	int ret = 1;
+	u32 cpu_exec_ctrl;
+	bool intr_window_requested;
+
+	cpu_exec_ctrl = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
+	intr_window_requested = cpu_exec_ctrl & CPU_BASED_VIRTUAL_INTR_PENDING;
 
 	while (!guest_state_valid(vcpu)) {
+		if (intr_window_requested
+		    && (kvm_get_rflags(&vmx->vcpu) & X86_EFLAGS_IF))
+			return handle_interrupt_window(&vmx->vcpu);
+
 		err = emulate_instruction(vcpu, 0, 0, 0);
 
 		if (err == EMULATE_DO_MMIO) {
@@ -3790,18 +3758,9 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 	vmcs_write32(TPR_THRESHOLD, irr);
 }
 
-static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
+static void vmx_complete_atomic_exit(struct vcpu_vmx *vmx)
 {
-	u32 exit_intr_info;
-	u32 idt_vectoring_info = vmx->idt_vectoring_info;
-	bool unblock_nmi;
-	u8 vector;
-	int type;
-	bool idtv_info_valid;
-
-	exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
-
-	vmx->exit_reason = vmcs_read32(VM_EXIT_REASON);
+	u32 exit_intr_info = vmx->exit_intr_info;
 
 	/* Handle machine checks before interrupts are enabled */
 	if ((vmx->exit_reason == EXIT_REASON_MCE_DURING_VMENTRY)
@@ -3816,8 +3775,16 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 		asm("int $2");
 		kvm_after_handle_nmi(&vmx->vcpu);
 	}
+}
 
-	idtv_info_valid = idt_vectoring_info & VECTORING_INFO_VALID_MASK;
+static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
+{
+	u32 exit_intr_info = vmx->exit_intr_info;
+	bool unblock_nmi;
+	u8 vector;
+	bool idtv_info_valid;
+
+	idtv_info_valid = vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 
 	if (cpu_has_virtual_nmis()) {
 		unblock_nmi = (exit_intr_info & INTR_INFO_UNBLOCK_NMI) != 0;
@@ -3839,6 +3806,18 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 	} else if (unlikely(vmx->soft_vnmi_blocked))
 		vmx->vnmi_blocked_time +=
 			ktime_to_ns(ktime_sub(ktime_get(), vmx->entry_time));
+}
+
+static void __vmx_complete_interrupts(struct vcpu_vmx *vmx,
+				      u32 idt_vectoring_info,
+				      int instr_len_field,
+				      int error_code_field)
+{
+	u8 vector;
+	int type;
+	bool idtv_info_valid;
+
+	idtv_info_valid = idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 
 	vmx->vcpu.arch.nmi_injected = false;
 	kvm_clear_exception_queue(&vmx->vcpu);
@@ -3846,6 +3825,8 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 
 	if (!idtv_info_valid)
 		return;
+
+	kvm_make_request(KVM_REQ_EVENT, &vmx->vcpu);
 
 	vector = idt_vectoring_info & VECTORING_INFO_VECTOR_MASK;
 	type = idt_vectoring_info & VECTORING_INFO_TYPE_MASK;
@@ -3863,18 +3844,18 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 		break;
 	case INTR_TYPE_SOFT_EXCEPTION:
 		vmx->vcpu.arch.event_exit_inst_len =
-			vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
+			vmcs_read32(instr_len_field);
 		/* fall through */
 	case INTR_TYPE_HARD_EXCEPTION:
 		if (idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK) {
-			u32 err = vmcs_read32(IDT_VECTORING_ERROR_CODE);
+			u32 err = vmcs_read32(error_code_field);
 			kvm_queue_exception_e(&vmx->vcpu, vector, err);
 		} else
 			kvm_queue_exception(&vmx->vcpu, vector);
 		break;
 	case INTR_TYPE_SOFT_INTR:
 		vmx->vcpu.arch.event_exit_inst_len =
-			vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
+			vmcs_read32(instr_len_field);
 		/* fall through */
 	case INTR_TYPE_EXT_INTR:
 		kvm_queue_interrupt(&vmx->vcpu, vector,
@@ -3885,27 +3866,21 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 	}
 }
 
-/*
- * Failure to inject an interrupt should give us the information
- * in IDT_VECTORING_INFO_FIELD.  However, if the failure occurs
- * when fetching the interrupt redirection bitmap in the real-mode
- * tss, this doesn't happen.  So we do it ourselves.
- */
-static void fixup_rmode_irq(struct vcpu_vmx *vmx)
+static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 {
-	vmx->rmode.irq.pending = 0;
-	if (kvm_rip_read(&vmx->vcpu) + 1 != vmx->rmode.irq.rip)
-		return;
-	kvm_rip_write(&vmx->vcpu, vmx->rmode.irq.rip);
-	if (vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK) {
-		vmx->idt_vectoring_info &= ~VECTORING_INFO_TYPE_MASK;
-		vmx->idt_vectoring_info |= INTR_TYPE_EXT_INTR;
-		return;
-	}
-	vmx->idt_vectoring_info =
-		VECTORING_INFO_VALID_MASK
-		| INTR_TYPE_EXT_INTR
-		| vmx->rmode.irq.vector;
+	__vmx_complete_interrupts(vmx, vmx->idt_vectoring_info,
+				  VM_EXIT_INSTRUCTION_LEN,
+				  IDT_VECTORING_ERROR_CODE);
+}
+
+static void vmx_cancel_injection(struct kvm_vcpu *vcpu)
+{
+	__vmx_complete_interrupts(to_vmx(vcpu),
+				  vmcs_read32(VM_ENTRY_INTR_INFO_FIELD),
+				  VM_ENTRY_INSTRUCTION_LEN,
+				  VM_ENTRY_EXCEPTION_ERROR_CODE);
+
+	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, 0);
 }
 
 #ifdef CONFIG_X86_64
@@ -4032,7 +4007,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 #endif
 		[cr2]"i"(offsetof(struct vcpu_vmx, vcpu.arch.cr2))
 	      : "cc", "memory"
-		, R"bx", R"di", R"si"
+		, R"ax", R"bx", R"di", R"si"
 #ifdef CONFIG_X86_64
 		, "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
 #endif
@@ -4043,12 +4018,15 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs_dirty = 0;
 
 	vmx->idt_vectoring_info = vmcs_read32(IDT_VECTORING_INFO_FIELD);
-	if (vmx->rmode.irq.pending)
-		fixup_rmode_irq(vmx);
 
 	asm("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
 	vmx->launched = 1;
 
+	vmx->exit_reason = vmcs_read32(VM_EXIT_REASON);
+	vmx->exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+
+	vmx_complete_atomic_exit(vmx);
+	vmx_recover_nmi_blocking(vmx);
 	vmx_complete_interrupts(vmx);
 }
 
@@ -4119,6 +4097,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 
 	cpu = get_cpu();
 	vmx_vcpu_load(&vmx->vcpu, cpu);
+	vmx->vcpu.cpu = cpu;
 	err = vmx_vcpu_setup(vmx);
 	vmx_vcpu_put(&vmx->vcpu);
 	put_cpu();
@@ -4334,6 +4313,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.set_irq = vmx_inject_irq,
 	.set_nmi = vmx_inject_nmi,
 	.queue_exception = vmx_queue_exception,
+	.cancel_injection = vmx_cancel_injection,
 	.interrupt_allowed = vmx_interrupt_allowed,
 	.nmi_allowed = vmx_nmi_allowed,
 	.get_nmi_mask = vmx_get_nmi_mask,
@@ -4356,6 +4336,11 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.set_supported_cpuid = vmx_set_supported_cpuid,
 
 	.has_wbinvd_exit = cpu_has_vmx_wbinvd_exit,
+
+	.write_tsc_offset = vmx_write_tsc_offset,
+	.adjust_tsc_offset = vmx_adjust_tsc_offset,
+
+	.set_tdp_cr3 = vmx_set_cr3,
 };
 
 static int __init vmx_init(void)

@@ -23,7 +23,7 @@
 #include "sysfs.h"
 
 
-static struct vfsmount *sysfs_mount;
+static struct vfsmount *sysfs_mnt;
 struct kmem_cache *sysfs_dir_cachep;
 
 static const struct super_operations sysfs_ops = {
@@ -95,18 +95,17 @@ static int sysfs_set_super(struct super_block *sb, void *data)
 	return error;
 }
 
-static int sysfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *sysfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
 	struct sysfs_super_info *info;
 	enum kobj_ns_type type;
 	struct super_block *sb;
 	int error;
 
-	error = -ENOMEM;
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		goto out;
+		return ERR_PTR(-ENOMEM);
 
 	for (type = KOBJ_NS_TYPE_NONE; type < KOBJ_NS_TYPES; type++)
 		info->ns[type] = kobj_ns_current(type);
@@ -114,24 +113,19 @@ static int sysfs_get_sb(struct file_system_type *fs_type,
 	sb = sget(fs_type, sysfs_test_super, sysfs_set_super, info);
 	if (IS_ERR(sb) || sb->s_fs_info != info)
 		kfree(info);
-	if (IS_ERR(sb)) {
-		error = PTR_ERR(sb);
-		goto out;
-	}
+	if (IS_ERR(sb))
+		return ERR_CAST(sb);
 	if (!sb->s_root) {
 		sb->s_flags = flags;
 		error = sysfs_fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
 		if (error) {
 			deactivate_locked_super(sb);
-			goto out;
+			return ERR_PTR(error);
 		}
 		sb->s_flags |= MS_ACTIVE;
 	}
 
-	simple_set_mnt(mnt, sb);
-	error = 0;
-out:
-	return error;
+	return dget(sb->s_root);
 }
 
 static void sysfs_kill_sb(struct super_block *sb)
@@ -147,7 +141,7 @@ static void sysfs_kill_sb(struct super_block *sb)
 
 static struct file_system_type sysfs_fs_type = {
 	.name		= "sysfs",
-	.get_sb		= sysfs_get_sb,
+	.mount		= sysfs_mount,
 	.kill_sb	= sysfs_kill_sb,
 };
 
@@ -189,11 +183,11 @@ int __init sysfs_init(void)
 
 	err = register_filesystem(&sysfs_fs_type);
 	if (!err) {
-		sysfs_mount = kern_mount(&sysfs_fs_type);
-		if (IS_ERR(sysfs_mount)) {
+		sysfs_mnt = kern_mount(&sysfs_fs_type);
+		if (IS_ERR(sysfs_mnt)) {
 			printk(KERN_ERR "sysfs: could not mount!\n");
-			err = PTR_ERR(sysfs_mount);
-			sysfs_mount = NULL;
+			err = PTR_ERR(sysfs_mnt);
+			sysfs_mnt = NULL;
 			unregister_filesystem(&sysfs_fs_type);
 			goto out_err;
 		}

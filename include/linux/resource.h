@@ -2,6 +2,7 @@
 #define _LINUX_RESOURCE_H
 
 #include <linux/time.h>
+#include <linux/types.h>
 
 /*
  * Resource control/accounting header file for linux

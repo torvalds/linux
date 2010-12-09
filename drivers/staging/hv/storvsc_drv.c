@@ -141,8 +141,6 @@ static int storvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	struct storvsc_driver_object *storvsc_drv_obj = &g_storvsc_drv.drv_obj;
 	struct driver_context *drv_ctx = &g_storvsc_drv.drv_ctx;
 
-	vmbus_get_interface(&storvsc_drv_obj->Base.VmbusChannelInterface);
-
 	storvsc_drv_obj->RingBufferSize = storvsc_ringbuffer_size;
 
 	/* Callback to client driver to complete the initialization */

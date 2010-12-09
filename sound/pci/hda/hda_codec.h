@@ -850,6 +850,7 @@ struct hda_codec {
 	unsigned int pin_amp_workaround:1; /* pin out-amp takes index
 					    * (e.g. Conexant codecs)
 					    */
+	unsigned int no_sticky_stream:1; /* no sticky-PCM stream assignment */
 	unsigned int pins_shutup:1;	/* pins are shut up */
 	unsigned int no_trigger_sense:1; /* don't trigger at pin-sensing */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -987,6 +988,18 @@ void snd_hda_bus_reboot_notify(struct hda_bus *bus);
 #ifdef CONFIG_PM
 int snd_hda_suspend(struct hda_bus *bus);
 int snd_hda_resume(struct hda_bus *bus);
+#endif
+
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static inline
+int hda_call_check_power_status(struct hda_codec *codec, hda_nid_t nid)
+{
+	if (codec->patch_ops.check_power_status)
+		return codec->patch_ops.check_power_status(codec, nid);
+	return 0;
+}
+#else	
+#define hda_call_check_power_status(codec, nid)		0
 #endif
 
 /*

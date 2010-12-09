@@ -1004,7 +1004,7 @@ static int hamachi_open(struct net_device *dev)
 	init_timer(&hmp->timer);
 	hmp->timer.expires = RUN_AT((24*HZ)/10);			/* 2.4 sec. */
 	hmp->timer.data = (unsigned long)dev;
-	hmp->timer.function = &hamachi_timer;				/* timer handler */
+	hmp->timer.function = hamachi_timer;				/* timer handler */
 	add_timer(&hmp->timer);
 
 	return 0;

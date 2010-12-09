@@ -41,6 +41,7 @@ struct s3c_sdhci_platdata s3c_hsmmc0_def_platdata = {
 	.max_width	= 4,
 	.host_caps	= (MMC_CAP_4_BIT_DATA |
 			   MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
+	.clk_type	= S3C_SDHCI_CLK_DIV_INTERNAL,
 };
 
 struct platform_device s3c_device_hsmmc0 = {
@@ -59,17 +60,20 @@ void s3c_sdhci0_set_platdata(struct s3c_sdhci_platdata *pd)
 {
 	struct s3c_sdhci_platdata *set = &s3c_hsmmc0_def_platdata;
 
-	set->max_width = pd->max_width;
 	set->cd_type = pd->cd_type;
 	set->ext_cd_init = pd->ext_cd_init;
 	set->ext_cd_cleanup = pd->ext_cd_cleanup;
 	set->ext_cd_gpio = pd->ext_cd_gpio;
 	set->ext_cd_gpio_invert = pd->ext_cd_gpio_invert;
 
+	if (pd->max_width)
+		set->max_width = pd->max_width;
 	if (pd->cfg_gpio)
 		set->cfg_gpio = pd->cfg_gpio;
 	if (pd->cfg_card)
 		set->cfg_card = pd->cfg_card;
 	if (pd->host_caps)
-		set->host_caps = pd->host_caps;
+		set->host_caps |= pd->host_caps;
+	if (pd->clk_type)
+		set->clk_type = pd->clk_type;
 }

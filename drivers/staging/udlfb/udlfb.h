@@ -19,6 +19,7 @@ struct dloarea {
 struct urb_node {
 	struct list_head entry;
 	struct dlfb_data *dev;
+	struct delayed_work release_urb_work;
 	struct urb *urb;
 };
 
@@ -38,13 +39,13 @@ struct dlfb_data {
 	struct urb_list urbs;
 	struct kref kref;
 	char *backing_buffer;
-	struct delayed_work deferred_work;
-	struct mutex fb_open_lock;
 	int fb_count;
+	bool virtualized; /* true when physical usb device not present */
+	struct delayed_work free_framebuffer_work;
 	atomic_t usb_active; /* 0 = update virtual buffer, but no usb traffic */
 	atomic_t lost_pixels; /* 1 = a render op failed. Need screen refresh */
-	atomic_t use_defio; /* 0 = rely on ioctls and blit/copy/fill rects */
-	char edid[128];
+	char *edid; /* null until we read edid from hw or get from sysfs */
+	size_t edid_size;
 	int sku_pixel_limit;
 	int base16;
 	int base8;
@@ -54,12 +55,6 @@ struct dlfb_data {
 	atomic_t bytes_identical; /* saved effort with backbuffer comparison */
 	atomic_t bytes_sent; /* to usb, after compression including overhead */
 	atomic_t cpu_kcycles_used; /* transpired during pixel processing */
-	/* interface usage metrics. Clients can call driver via several */
-	atomic_t blit_count;
-	atomic_t copy_count;
-	atomic_t fill_count;
-	atomic_t damage_count;
-	atomic_t defio_fault_count;
 };
 
 #define NR_USB_REQUEST_I2C_SUB_IO 0x02
@@ -69,6 +64,11 @@ struct dlfb_data {
 #define BULK_SIZE 512
 #define MAX_TRANSFER (PAGE_SIZE*16 - BULK_SIZE)
 #define WRITES_IN_FLIGHT (4)
+
+#define MIN_EDID_SIZE 128
+#define MAX_EDID_SIZE 128
+
+#define MAX_VENDOR_DESCRIPTOR_SIZE 256
 
 #define GET_URB_TIMEOUT	HZ
 #define FREE_URB_TIMEOUT (HZ*2)
@@ -88,6 +88,9 @@ struct dlfb_data {
 #define MIN_RAW_PIX_BYTES	2
 #define MIN_RAW_CMD_BYTES	(RAW_HEADER_BYTES + MIN_RAW_PIX_BYTES)
 
+#define DL_DEFIO_WRITE_DELAY    5 /* fb_deferred_io.delay in jiffies */
+#define DL_DEFIO_WRITE_DISABLE  (HZ*60) /* "disable" with long delay */
+
 /* remove these once align.h patch is taken into kernel */
 #define DL_ALIGN_UP(x, a) ALIGN(x, a)
 #define DL_ALIGN_DOWN(x, a) ALIGN(x-(a-1), a)
@@ -95,12 +98,20 @@ struct dlfb_data {
 /* remove once this gets added to sysfs.h */
 #define __ATTR_RW(attr) __ATTR(attr, 0644, attr##_show, attr##_store)
 
+/*
+ * udlfb is both a usb device, and a framebuffer device.
+ * They may exist at the same time, but during various stages
+ * inactivity, teardown, or "virtual" operation, only one or the
+ * other will exist (one will outlive the other).  So we can't
+ * call the dev_*() macros, because we don't have a stable dev object.
+ */
 #define dl_err(format, arg...) \
-	dev_err(dev->gdev, "dlfb: " format, ## arg)
+	pr_err("udlfb: " format, ## arg)
 #define dl_warn(format, arg...) \
-	dev_warn(dev->gdev, "dlfb: " format, ## arg)
+	pr_warning("udlfb: " format, ## arg)
 #define dl_notice(format, arg...) \
-	dev_notice(dev->gdev, "dlfb: " format, ## arg)
+	pr_notice("udlfb: " format, ## arg)
 #define dl_info(format, arg...) \
-	dev_info(dev->gdev, "dlfb: " format, ## arg)
+	pr_info("udlfb: " format, ## arg)
+
 #endif

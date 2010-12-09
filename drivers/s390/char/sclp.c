@@ -395,16 +395,16 @@ __sclp_find_req(u32 sccb)
 /* Handler for external interruption. Perform request post-processing.
  * Prepare read event data request if necessary. Start processing of next
  * request on queue. */
-static void
-sclp_interrupt_handler(__u16 code)
+static void sclp_interrupt_handler(unsigned int ext_int_code,
+				   unsigned int param32, unsigned long param64)
 {
 	struct sclp_req *req;
 	u32 finished_sccb;
 	u32 evbuf_pending;
 
 	spin_lock(&sclp_lock);
-	finished_sccb = S390_lowcore.ext_params & 0xfffffff8;
-	evbuf_pending = S390_lowcore.ext_params & 0x3;
+	finished_sccb = param32 & 0xfffffff8;
+	evbuf_pending = param32 & 0x3;
 	if (finished_sccb) {
 		del_timer(&sclp_request_timer);
 		sclp_running_state = sclp_running_state_reset_pending;
@@ -819,12 +819,12 @@ EXPORT_SYMBOL(sclp_reactivate);
 
 /* Handler for external interruption used during initialization. Modify
  * request state to done. */
-static void
-sclp_check_handler(__u16 code)
+static void sclp_check_handler(unsigned int ext_int_code,
+			       unsigned int param32, unsigned long param64)
 {
 	u32 finished_sccb;
 
-	finished_sccb = S390_lowcore.ext_params & 0xfffffff8;
+	finished_sccb = param32 & 0xfffffff8;
 	/* Is this the interrupt we are waiting for? */
 	if (finished_sccb == 0)
 		return;

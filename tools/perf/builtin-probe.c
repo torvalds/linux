@@ -50,13 +50,16 @@ static struct {
 	bool list_events;
 	bool force_add;
 	bool show_lines;
+	bool show_vars;
+	bool show_ext_vars;
+	bool mod_events;
 	int nevents;
 	struct perf_probe_event events[MAX_PROBES];
 	struct strlist *dellist;
 	struct line_range line_range;
+	const char *target_module;
 	int max_probe_points;
 } params;
-
 
 /* Parse an event definition. Note that any error must die. */
 static int parse_probe_event(const char *str)
@@ -92,6 +95,7 @@ static int parse_probe_event_argv(int argc, const char **argv)
 	len = 0;
 	for (i = 0; i < argc; i++)
 		len += sprintf(&buf[len], "%s ", argv[i]);
+	params.mod_events = true;
 	ret = parse_probe_event(buf);
 	free(buf);
 	return ret;
@@ -100,9 +104,10 @@ static int parse_probe_event_argv(int argc, const char **argv)
 static int opt_add_probe_event(const struct option *opt __used,
 			      const char *str, int unset __used)
 {
-	if (str)
+	if (str) {
+		params.mod_events = true;
 		return parse_probe_event(str);
-	else
+	} else
 		return 0;
 }
 
@@ -110,6 +115,7 @@ static int opt_del_probe_event(const struct option *opt __used,
 			       const char *str, int unset __used)
 {
 	if (str) {
+		params.mod_events = true;
 		if (!params.dellist)
 			params.dellist = strlist__new(true, NULL);
 		strlist__add(params.dellist, str);
@@ -130,6 +136,25 @@ static int opt_show_lines(const struct option *opt __used,
 
 	return ret;
 }
+
+static int opt_show_vars(const struct option *opt __used,
+			 const char *str, int unset __used)
+{
+	struct perf_probe_event *pev = &params.events[params.nevents];
+	int ret;
+
+	if (!str)
+		return 0;
+
+	ret = parse_probe_event(str);
+	if (!ret && pev->nargs != 0) {
+		pr_err("  Error: '--vars' doesn't accept arguments.\n");
+		return -EINVAL;
+	}
+	params.show_vars = true;
+
+	return ret;
+}
 #endif
 
 static const char * const probe_usage[] = {
@@ -138,7 +163,8 @@ static const char * const probe_usage[] = {
 	"perf probe [<options>] --del '[GROUP:]EVENT' ...",
 	"perf probe --list",
 #ifdef DWARF_SUPPORT
-	"perf probe --line 'LINEDESC'",
+	"perf probe [<options>] --line 'LINEDESC'",
+	"perf probe [<options>] --vars 'PROBEPOINT'",
 #endif
 	NULL
 };
@@ -180,10 +206,17 @@ static const struct option options[] = {
 	OPT_CALLBACK('L', "line", NULL,
 		     "FUNC[:RLN[+NUM|-RLN2]]|SRC:ALN[+NUM|-ALN2]",
 		     "Show source code lines.", opt_show_lines),
+	OPT_CALLBACK('V', "vars", NULL,
+		     "FUNC[@SRC][+OFF|%return|:RL|;PT]|SRC:AL|SRC;PT",
+		     "Show accessible variables on PROBEDEF", opt_show_vars),
+	OPT_BOOLEAN('\0', "externs", &params.show_ext_vars,
+		    "Show external variables too (with --vars only)"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_STRING('s', "source", &symbol_conf.source_prefix,
 		   "directory", "path to kernel source"),
+	OPT_STRING('m', "module", &params.target_module,
+		   "modname", "target module name"),
 #endif
 	OPT__DRY_RUN(&probe_event_dry_run),
 	OPT_INTEGER('\0', "max-probes", &params.max_probe_points,
@@ -217,12 +250,16 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		usage_with_options(probe_usage, options);
 
 	if (params.list_events) {
-		if (params.nevents != 0 || params.dellist) {
+		if (params.mod_events) {
 			pr_err("  Error: Don't use --list with --add/--del.\n");
 			usage_with_options(probe_usage, options);
 		}
 		if (params.show_lines) {
 			pr_err("  Error: Don't use --list with --line.\n");
+			usage_with_options(probe_usage, options);
+		}
+		if (params.show_vars) {
+			pr_err(" Error: Don't use --list with --vars.\n");
 			usage_with_options(probe_usage, options);
 		}
 		ret = show_perf_probe_events();
@@ -234,15 +271,33 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 
 #ifdef DWARF_SUPPORT
 	if (params.show_lines) {
-		if (params.nevents != 0 || params.dellist) {
-			pr_warning("  Error: Don't use --line with"
-				   " --add/--del.\n");
+		if (params.mod_events) {
+			pr_err("  Error: Don't use --line with"
+			       " --add/--del.\n");
+			usage_with_options(probe_usage, options);
+		}
+		if (params.show_vars) {
+			pr_err(" Error: Don't use --line with --vars.\n");
 			usage_with_options(probe_usage, options);
 		}
 
-		ret = show_line_range(&params.line_range);
+		ret = show_line_range(&params.line_range, params.target_module);
 		if (ret < 0)
 			pr_err("  Error: Failed to show lines. (%d)\n", ret);
+		return ret;
+	}
+	if (params.show_vars) {
+		if (params.mod_events) {
+			pr_err("  Error: Don't use --vars with"
+			       " --add/--del.\n");
+			usage_with_options(probe_usage, options);
+		}
+		ret = show_available_vars(params.events, params.nevents,
+					  params.max_probe_points,
+					  params.target_module,
+					  params.show_ext_vars);
+		if (ret < 0)
+			pr_err("  Error: Failed to show vars. (%d)\n", ret);
 		return ret;
 	}
 #endif
@@ -258,8 +313,9 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 
 	if (params.nevents) {
 		ret = add_perf_probe_events(params.events, params.nevents,
-					    params.force_add,
-					    params.max_probe_points);
+					    params.max_probe_points,
+					    params.target_module,
+					    params.force_add);
 		if (ret < 0) {
 			pr_err("  Error: Failed to add events. (%d)\n", ret);
 			return ret;

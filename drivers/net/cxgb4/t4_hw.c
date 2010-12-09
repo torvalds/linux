@@ -120,30 +120,6 @@ static void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
 	}
 }
 
-#if 0
-/**
- *	t4_write_indirect - write indirectly addressed registers
- *	@adap: the adapter
- *	@addr_reg: register holding the indirect addresses
- *	@data_reg: register holding the value for the indirect registers
- *	@vals: values to write
- *	@nregs: how many indirect registers to write
- *	@start_idx: address of first indirect register to write
- *
- *	Writes a sequential block of registers that are accessed indirectly
- *	through an address/data register pair.
- */
-static void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
-			      unsigned int data_reg, const u32 *vals,
-			      unsigned int nregs, unsigned int start_idx)
-{
-	while (nregs--) {
-		t4_write_reg(adap, addr_reg, start_idx++);
-		t4_write_reg(adap, data_reg, *vals++);
-	}
-}
-#endif
-
 /*
  * Get the reply to a mailbox command and store it in @rpl in big-endian order.
  */
@@ -1560,44 +1536,6 @@ void t4_intr_disable(struct adapter *adapter)
 }
 
 /**
- *	t4_intr_clear - clear all interrupts
- *	@adapter: the adapter whose interrupts should be cleared
- *
- *	Clears all interrupts.  The caller must be a PCI function managing
- *	global interrupts.
- */
-void t4_intr_clear(struct adapter *adapter)
-{
-	static const unsigned int cause_reg[] = {
-		SGE_INT_CAUSE1, SGE_INT_CAUSE2, SGE_INT_CAUSE3,
-		PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS,
-		PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS,
-		PCIE_NONFAT_ERR, PCIE_INT_CAUSE,
-		MC_INT_CAUSE,
-		MA_INT_WRAP_STATUS, MA_PARITY_ERROR_STATUS, MA_INT_CAUSE,
-		EDC_INT_CAUSE, EDC_REG(EDC_INT_CAUSE, 1),
-		CIM_HOST_INT_CAUSE, CIM_HOST_UPACC_INT_CAUSE,
-		MYPF_REG(CIM_PF_HOST_INT_CAUSE),
-		TP_INT_CAUSE,
-		ULP_RX_INT_CAUSE, ULP_TX_INT_CAUSE,
-		PM_RX_INT_CAUSE, PM_TX_INT_CAUSE,
-		MPS_RX_PERR_INT_CAUSE,
-		CPL_INTR_CAUSE,
-		MYPF_REG(PL_PF_INT_CAUSE),
-		PL_PL_INT_CAUSE,
-		LE_DB_INT_CAUSE,
-	};
-
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(cause_reg); ++i)
-		t4_write_reg(adapter, cause_reg[i], 0xffffffff);
-
-	t4_write_reg(adapter, PL_INT_CAUSE, GLBL_INTR_MASK);
-	(void) t4_read_reg(adapter, PL_INT_CAUSE);          /* flush */
-}
-
-/**
  *	hash_mac_addr - return the hash value of a MAC address
  *	@addr: the 48-bit Ethernet MAC address
  *
@@ -1709,36 +1647,6 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 	return t4_wr_mbox(adapter, mbox, &c, sizeof(c), NULL);
 }
 
-/* Read an RSS table row */
-static int rd_rss_row(struct adapter *adap, int row, u32 *val)
-{
-	t4_write_reg(adap, TP_RSS_LKP_TABLE, 0xfff00000 | row);
-	return t4_wait_op_done_val(adap, TP_RSS_LKP_TABLE, LKPTBLROWVLD, 1,
-				   5, 0, val);
-}
-
-/**
- *	t4_read_rss - read the contents of the RSS mapping table
- *	@adapter: the adapter
- *	@map: holds the contents of the RSS mapping table
- *
- *	Reads the contents of the RSS hash->queue mapping table.
- */
-int t4_read_rss(struct adapter *adapter, u16 *map)
-{
-	u32 val;
-	int i, ret;
-
-	for (i = 0; i < RSS_NENTRIES / 2; ++i) {
-		ret = rd_rss_row(adapter, i, &val);
-		if (ret)
-			return ret;
-		*map++ = LKPTBLQUEUE0_GET(val);
-		*map++ = LKPTBLQUEUE1_GET(val);
-	}
-	return 0;
-}
-
 /**
  *	t4_tp_get_tcp_stats - read TP's TCP MIB counters
  *	@adap: the adapter
@@ -1776,29 +1684,6 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 #undef STAT64
 #undef STAT
 #undef STAT_IDX
-}
-
-/**
- *	t4_tp_get_err_stats - read TP's error MIB counters
- *	@adap: the adapter
- *	@st: holds the counter values
- *
- *	Returns the values of TP's error counters.
- */
-void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
-{
-	t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, st->macInErrs,
-			 12, TP_MIB_MAC_IN_ERR_0);
-	t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, st->tnlCongDrops,
-			 8, TP_MIB_TNL_CNG_DROP_0);
-	t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, st->tnlTxDrops,
-			 4, TP_MIB_TNL_DROP_0);
-	t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, st->ofldVlanDrops,
-			 4, TP_MIB_OFD_VLN_DROP_0);
-	t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, st->tcp6InErrs,
-			 4, TP_MIB_TCP_V6IN_ERR_0);
-	t4_read_indirect(adap, TP_MIB_INDEX, TP_MIB_DATA, &st->ofldNoNeigh,
-			 2, TP_MIB_OFD_ARP_DROP);
 }
 
 /**
@@ -1916,122 +1801,6 @@ void t4_load_mtus(struct adapter *adap, const unsigned short *mtus,
 }
 
 /**
- *	t4_set_trace_filter - configure one of the tracing filters
- *	@adap: the adapter
- *	@tp: the desired trace filter parameters
- *	@idx: which filter to configure
- *	@enable: whether to enable or disable the filter
- *
- *	Configures one of the tracing filters available in HW.  If @enable is
- *	%0 @tp is not examined and may be %NULL.
- */
-int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
-			int idx, int enable)
-{
-	int i, ofst = idx * 4;
-	u32 data_reg, mask_reg, cfg;
-	u32 multitrc = TRCMULTIFILTER;
-
-	if (!enable) {
-		t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + ofst, 0);
-		goto out;
-	}
-
-	if (tp->port > 11 || tp->invert > 1 || tp->skip_len > 0x1f ||
-	    tp->skip_ofst > 0x1f || tp->min_len > 0x1ff ||
-	    tp->snap_len > 9600 || (idx && tp->snap_len > 256))
-		return -EINVAL;
-
-	if (tp->snap_len > 256) {            /* must be tracer 0 */
-		if ((t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + 4) |
-		     t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + 8) |
-		     t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + 12)) & TFEN)
-			return -EINVAL;  /* other tracers are enabled */
-		multitrc = 0;
-	} else if (idx) {
-		i = t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_B);
-		if (TFCAPTUREMAX_GET(i) > 256 &&
-		    (t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A) & TFEN))
-			return -EINVAL;
-	}
-
-	/* stop the tracer we'll be changing */
-	t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + ofst, 0);
-
-	/* disable tracing globally if running in the wrong single/multi mode */
-	cfg = t4_read_reg(adap, MPS_TRC_CFG);
-	if ((cfg & TRCEN) && multitrc != (cfg & TRCMULTIFILTER)) {
-		t4_write_reg(adap, MPS_TRC_CFG, cfg ^ TRCEN);
-		t4_read_reg(adap, MPS_TRC_CFG);                  /* flush */
-		msleep(1);
-		if (!(t4_read_reg(adap, MPS_TRC_CFG) & TRCFIFOEMPTY))
-			return -ETIMEDOUT;
-	}
-	/*
-	 * At this point either the tracing is enabled and in the right mode or
-	 * disabled.
-	 */
-
-	idx *= (MPS_TRC_FILTER1_MATCH - MPS_TRC_FILTER0_MATCH);
-	data_reg = MPS_TRC_FILTER0_MATCH + idx;
-	mask_reg = MPS_TRC_FILTER0_DONT_CARE + idx;
-
-	for (i = 0; i < TRACE_LEN / 4; i++, data_reg += 4, mask_reg += 4) {
-		t4_write_reg(adap, data_reg, tp->data[i]);
-		t4_write_reg(adap, mask_reg, ~tp->mask[i]);
-	}
-	t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_B + ofst,
-		     TFCAPTUREMAX(tp->snap_len) |
-		     TFMINPKTSIZE(tp->min_len));
-	t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + ofst,
-		     TFOFFSET(tp->skip_ofst) | TFLENGTH(tp->skip_len) |
-		     TFPORT(tp->port) | TFEN |
-		     (tp->invert ? TFINVERTMATCH : 0));
-
-	cfg &= ~TRCMULTIFILTER;
-	t4_write_reg(adap, MPS_TRC_CFG, cfg | TRCEN | multitrc);
-out:	t4_read_reg(adap, MPS_TRC_CFG);  /* flush */
-	return 0;
-}
-
-/**
- *	t4_get_trace_filter - query one of the tracing filters
- *	@adap: the adapter
- *	@tp: the current trace filter parameters
- *	@idx: which trace filter to query
- *	@enabled: non-zero if the filter is enabled
- *
- *	Returns the current settings of one of the HW tracing filters.
- */
-void t4_get_trace_filter(struct adapter *adap, struct trace_params *tp, int idx,
-			 int *enabled)
-{
-	u32 ctla, ctlb;
-	int i, ofst = idx * 4;
-	u32 data_reg, mask_reg;
-
-	ctla = t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A + ofst);
-	ctlb = t4_read_reg(adap, MPS_TRC_FILTER_MATCH_CTL_B + ofst);
-
-	*enabled = !!(ctla & TFEN);
-	tp->snap_len = TFCAPTUREMAX_GET(ctlb);
-	tp->min_len = TFMINPKTSIZE_GET(ctlb);
-	tp->skip_ofst = TFOFFSET_GET(ctla);
-	tp->skip_len = TFLENGTH_GET(ctla);
-	tp->invert = !!(ctla & TFINVERTMATCH);
-	tp->port = TFPORT_GET(ctla);
-
-	ofst = (MPS_TRC_FILTER1_MATCH - MPS_TRC_FILTER0_MATCH) * idx;
-	data_reg = MPS_TRC_FILTER0_MATCH + ofst;
-	mask_reg = MPS_TRC_FILTER0_DONT_CARE + ofst;
-
-	for (i = 0; i < TRACE_LEN / 4; i++, data_reg += 4, mask_reg += 4) {
-		tp->mask[i] = ~t4_read_reg(adap, mask_reg);
-		tp->data[i] = t4_read_reg(adap, data_reg) & tp->mask[i];
-	}
-}
-
-/**
  *	get_mps_bg_map - return the buffer groups associated with a port
  *	@adap: the adapter
  *	@idx: the port index
@@ -2127,52 +1896,6 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->rx_trunc1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_MAC_TRUNC_FRAME) : 0;
 	p->rx_trunc2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_MAC_TRUNC_FRAME) : 0;
 	p->rx_trunc3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_MAC_TRUNC_FRAME) : 0;
-
-#undef GET_STAT
-#undef GET_STAT_COM
-}
-
-/**
- *	t4_get_lb_stats - collect loopback port statistics
- *	@adap: the adapter
- *	@idx: the loopback port index
- *	@p: the stats structure to fill
- *
- *	Return HW statistics for the given loopback port.
- */
-void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p)
-{
-	u32 bgmap = get_mps_bg_map(adap, idx);
-
-#define GET_STAT(name) \
-	t4_read_reg64(adap, PORT_REG(idx, MPS_PORT_STAT_LB_PORT_##name##_L))
-#define GET_STAT_COM(name) t4_read_reg64(adap, MPS_STAT_##name##_L)
-
-	p->octets           = GET_STAT(BYTES);
-	p->frames           = GET_STAT(FRAMES);
-	p->bcast_frames     = GET_STAT(BCAST);
-	p->mcast_frames     = GET_STAT(MCAST);
-	p->ucast_frames     = GET_STAT(UCAST);
-	p->error_frames     = GET_STAT(ERROR);
-
-	p->frames_64        = GET_STAT(64B);
-	p->frames_65_127    = GET_STAT(65B_127B);
-	p->frames_128_255   = GET_STAT(128B_255B);
-	p->frames_256_511   = GET_STAT(256B_511B);
-	p->frames_512_1023  = GET_STAT(512B_1023B);
-	p->frames_1024_1518 = GET_STAT(1024B_1518B);
-	p->frames_1519_max  = GET_STAT(1519B_MAX);
-	p->drop             = t4_read_reg(adap, PORT_REG(idx,
-					  MPS_PORT_STAT_LB_PORT_DROP_FRAMES));
-
-	p->ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_LB_DROP_FRAME) : 0;
-	p->ovflow1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_LB_DROP_FRAME) : 0;
-	p->ovflow2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_LB_DROP_FRAME) : 0;
-	p->ovflow3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_LB_DROP_FRAME) : 0;
-	p->trunc0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_LB_TRUNC_FRAME) : 0;
-	p->trunc1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_LB_TRUNC_FRAME) : 0;
-	p->trunc2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_LB_TRUNC_FRAME) : 0;
-	p->trunc3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_LB_TRUNC_FRAME) : 0;
 
 #undef GET_STAT
 #undef GET_STAT_COM
@@ -2584,30 +2307,6 @@ int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 }
 
 /**
- *	t4_free_vi - free a virtual interface
- *	@adap: the adapter
- *	@mbox: mailbox to use for the FW command
- *	@pf: the PF owning the VI
- *	@vf: the VF owning the VI
- *	@viid: virtual interface identifiler
- *
- *	Free a previously allocated virtual interface.
- */
-int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
-	       unsigned int vf, unsigned int viid)
-{
-	struct fw_vi_cmd c;
-
-	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(FW_CMD_OP(FW_VI_CMD) | FW_CMD_REQUEST |
-			    FW_CMD_EXEC | FW_VI_CMD_PFN(pf) |
-			    FW_VI_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(FW_VI_CMD_FREE | FW_LEN16(c));
-	c.type_viid = htons(FW_VI_CMD_VIID(viid));
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
-}
-
-/**
  *	t4_set_rxmode - set Rx properties of a virtual interface
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -2829,37 +2528,6 @@ int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 			     FW_CMD_EXEC | FW_VI_ENABLE_CMD_VIID(viid));
 	c.ien_to_len16 = htonl(FW_VI_ENABLE_CMD_LED | FW_LEN16(c));
 	c.blinkdur = htons(nblinks);
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
-}
-
-/**
- *	t4_iq_start_stop - enable/disable an ingress queue and its FLs
- *	@adap: the adapter
- *	@mbox: mailbox to use for the FW command
- *	@start: %true to enable the queues, %false to disable them
- *	@pf: the PF owning the queues
- *	@vf: the VF owning the queues
- *	@iqid: ingress queue id
- *	@fl0id: FL0 queue id or 0xffff if no attached FL0
- *	@fl1id: FL1 queue id or 0xffff if no attached FL1
- *
- *	Starts or stops an ingress queue and its associated FLs, if any.
- */
-int t4_iq_start_stop(struct adapter *adap, unsigned int mbox, bool start,
-		     unsigned int pf, unsigned int vf, unsigned int iqid,
-		     unsigned int fl0id, unsigned int fl1id)
-{
-	struct fw_iq_cmd c;
-
-	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = htonl(FW_CMD_OP(FW_IQ_CMD) | FW_CMD_REQUEST |
-			    FW_CMD_EXEC | FW_IQ_CMD_PFN(pf) |
-			    FW_IQ_CMD_VFN(vf));
-	c.alloc_to_len16 = htonl(FW_IQ_CMD_IQSTART(start) |
-				 FW_IQ_CMD_IQSTOP(!start) | FW_LEN16(c));
-	c.iqid = htons(iqid);
-	c.fl0id = htons(fl0id);
-	c.fl1id = htons(fl1id);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 

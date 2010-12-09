@@ -915,14 +915,14 @@ static int netdev_open(struct net_device *dev)
 	init_timer(&np->timer);
 	np->timer.expires = RUN_AT(3 * HZ);
 	np->timer.data = (unsigned long) dev;
-	np->timer.function = &netdev_timer;
+	np->timer.function = netdev_timer;
 
 	/* timer handler */
 	add_timer(&np->timer);
 
 	init_timer(&np->reset_timer);
 	np->reset_timer.data = (unsigned long) dev;
-	np->reset_timer.function = &reset_timer;
+	np->reset_timer.function = reset_timer;
 	np->reset_timer_armed = 0;
 
 	return 0;

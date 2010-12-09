@@ -37,49 +37,49 @@ nv20_graph_context_init(struct drm_device *dev, struct nouveau_gpuobj *ctx)
 {
 	int i;
 
-	nv_wo32(dev, ctx, 0x033c/4, 0xffff0000);
-	nv_wo32(dev, ctx, 0x03a0/4, 0x0fff0000);
-	nv_wo32(dev, ctx, 0x03a4/4, 0x0fff0000);
-	nv_wo32(dev, ctx, 0x047c/4, 0x00000101);
-	nv_wo32(dev, ctx, 0x0490/4, 0x00000111);
-	nv_wo32(dev, ctx, 0x04a8/4, 0x44400000);
+	nv_wo32(ctx, 0x033c, 0xffff0000);
+	nv_wo32(ctx, 0x03a0, 0x0fff0000);
+	nv_wo32(ctx, 0x03a4, 0x0fff0000);
+	nv_wo32(ctx, 0x047c, 0x00000101);
+	nv_wo32(ctx, 0x0490, 0x00000111);
+	nv_wo32(ctx, 0x04a8, 0x44400000);
 	for (i = 0x04d4; i <= 0x04e0; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00030303);
+		nv_wo32(ctx, i, 0x00030303);
 	for (i = 0x04f4; i <= 0x0500; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00080000);
+		nv_wo32(ctx, i, 0x00080000);
 	for (i = 0x050c; i <= 0x0518; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x01012000);
+		nv_wo32(ctx, i, 0x01012000);
 	for (i = 0x051c; i <= 0x0528; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x000105b8);
+		nv_wo32(ctx, i, 0x000105b8);
 	for (i = 0x052c; i <= 0x0538; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00080008);
+		nv_wo32(ctx, i, 0x00080008);
 	for (i = 0x055c; i <= 0x0598; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x07ff0000);
-	nv_wo32(dev, ctx, 0x05a4/4, 0x4b7fffff);
-	nv_wo32(dev, ctx, 0x05fc/4, 0x00000001);
-	nv_wo32(dev, ctx, 0x0604/4, 0x00004000);
-	nv_wo32(dev, ctx, 0x0610/4, 0x00000001);
-	nv_wo32(dev, ctx, 0x0618/4, 0x00040000);
-	nv_wo32(dev, ctx, 0x061c/4, 0x00010000);
+		nv_wo32(ctx, i, 0x07ff0000);
+	nv_wo32(ctx, 0x05a4, 0x4b7fffff);
+	nv_wo32(ctx, 0x05fc, 0x00000001);
+	nv_wo32(ctx, 0x0604, 0x00004000);
+	nv_wo32(ctx, 0x0610, 0x00000001);
+	nv_wo32(ctx, 0x0618, 0x00040000);
+	nv_wo32(ctx, 0x061c, 0x00010000);
 	for (i = 0x1c1c; i <= 0x248c; i += 16) {
-		nv_wo32(dev, ctx, (i + 0)/4, 0x10700ff9);
-		nv_wo32(dev, ctx, (i + 4)/4, 0x0436086c);
-		nv_wo32(dev, ctx, (i + 8)/4, 0x000c001b);
+		nv_wo32(ctx, (i + 0), 0x10700ff9);
+		nv_wo32(ctx, (i + 4), 0x0436086c);
+		nv_wo32(ctx, (i + 8), 0x000c001b);
 	}
-	nv_wo32(dev, ctx, 0x281c/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x2830/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x285c/4, 0x40000000);
-	nv_wo32(dev, ctx, 0x2860/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x2864/4, 0x3f000000);
-	nv_wo32(dev, ctx, 0x286c/4, 0x40000000);
-	nv_wo32(dev, ctx, 0x2870/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x2878/4, 0xbf800000);
-	nv_wo32(dev, ctx, 0x2880/4, 0xbf800000);
-	nv_wo32(dev, ctx, 0x34a4/4, 0x000fe000);
-	nv_wo32(dev, ctx, 0x3530/4, 0x000003f8);
-	nv_wo32(dev, ctx, 0x3540/4, 0x002fe000);
+	nv_wo32(ctx, 0x281c, 0x3f800000);
+	nv_wo32(ctx, 0x2830, 0x3f800000);
+	nv_wo32(ctx, 0x285c, 0x40000000);
+	nv_wo32(ctx, 0x2860, 0x3f800000);
+	nv_wo32(ctx, 0x2864, 0x3f000000);
+	nv_wo32(ctx, 0x286c, 0x40000000);
+	nv_wo32(ctx, 0x2870, 0x3f800000);
+	nv_wo32(ctx, 0x2878, 0xbf800000);
+	nv_wo32(ctx, 0x2880, 0xbf800000);
+	nv_wo32(ctx, 0x34a4, 0x000fe000);
+	nv_wo32(ctx, 0x3530, 0x000003f8);
+	nv_wo32(ctx, 0x3540, 0x002fe000);
 	for (i = 0x355c; i <= 0x3578; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x001c527c);
+		nv_wo32(ctx, i, 0x001c527c);
 }
 
 static void
@@ -87,58 +87,58 @@ nv25_graph_context_init(struct drm_device *dev, struct nouveau_gpuobj *ctx)
 {
 	int i;
 
-	nv_wo32(dev, ctx, 0x035c/4, 0xffff0000);
-	nv_wo32(dev, ctx, 0x03c0/4, 0x0fff0000);
-	nv_wo32(dev, ctx, 0x03c4/4, 0x0fff0000);
-	nv_wo32(dev, ctx, 0x049c/4, 0x00000101);
-	nv_wo32(dev, ctx, 0x04b0/4, 0x00000111);
-	nv_wo32(dev, ctx, 0x04c8/4, 0x00000080);
-	nv_wo32(dev, ctx, 0x04cc/4, 0xffff0000);
-	nv_wo32(dev, ctx, 0x04d0/4, 0x00000001);
-	nv_wo32(dev, ctx, 0x04e4/4, 0x44400000);
-	nv_wo32(dev, ctx, 0x04fc/4, 0x4b800000);
+	nv_wo32(ctx, 0x035c, 0xffff0000);
+	nv_wo32(ctx, 0x03c0, 0x0fff0000);
+	nv_wo32(ctx, 0x03c4, 0x0fff0000);
+	nv_wo32(ctx, 0x049c, 0x00000101);
+	nv_wo32(ctx, 0x04b0, 0x00000111);
+	nv_wo32(ctx, 0x04c8, 0x00000080);
+	nv_wo32(ctx, 0x04cc, 0xffff0000);
+	nv_wo32(ctx, 0x04d0, 0x00000001);
+	nv_wo32(ctx, 0x04e4, 0x44400000);
+	nv_wo32(ctx, 0x04fc, 0x4b800000);
 	for (i = 0x0510; i <= 0x051c; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00030303);
+		nv_wo32(ctx, i, 0x00030303);
 	for (i = 0x0530; i <= 0x053c; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00080000);
+		nv_wo32(ctx, i, 0x00080000);
 	for (i = 0x0548; i <= 0x0554; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x01012000);
+		nv_wo32(ctx, i, 0x01012000);
 	for (i = 0x0558; i <= 0x0564; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x000105b8);
+		nv_wo32(ctx, i, 0x000105b8);
 	for (i = 0x0568; i <= 0x0574; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00080008);
+		nv_wo32(ctx, i, 0x00080008);
 	for (i = 0x0598; i <= 0x05d4; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x07ff0000);
-	nv_wo32(dev, ctx, 0x05e0/4, 0x4b7fffff);
-	nv_wo32(dev, ctx, 0x0620/4, 0x00000080);
-	nv_wo32(dev, ctx, 0x0624/4, 0x30201000);
-	nv_wo32(dev, ctx, 0x0628/4, 0x70605040);
-	nv_wo32(dev, ctx, 0x062c/4, 0xb0a09080);
-	nv_wo32(dev, ctx, 0x0630/4, 0xf0e0d0c0);
-	nv_wo32(dev, ctx, 0x0664/4, 0x00000001);
-	nv_wo32(dev, ctx, 0x066c/4, 0x00004000);
-	nv_wo32(dev, ctx, 0x0678/4, 0x00000001);
-	nv_wo32(dev, ctx, 0x0680/4, 0x00040000);
-	nv_wo32(dev, ctx, 0x0684/4, 0x00010000);
+		nv_wo32(ctx, i, 0x07ff0000);
+	nv_wo32(ctx, 0x05e0, 0x4b7fffff);
+	nv_wo32(ctx, 0x0620, 0x00000080);
+	nv_wo32(ctx, 0x0624, 0x30201000);
+	nv_wo32(ctx, 0x0628, 0x70605040);
+	nv_wo32(ctx, 0x062c, 0xb0a09080);
+	nv_wo32(ctx, 0x0630, 0xf0e0d0c0);
+	nv_wo32(ctx, 0x0664, 0x00000001);
+	nv_wo32(ctx, 0x066c, 0x00004000);
+	nv_wo32(ctx, 0x0678, 0x00000001);
+	nv_wo32(ctx, 0x0680, 0x00040000);
+	nv_wo32(ctx, 0x0684, 0x00010000);
 	for (i = 0x1b04; i <= 0x2374; i += 16) {
-		nv_wo32(dev, ctx, (i + 0)/4, 0x10700ff9);
-		nv_wo32(dev, ctx, (i + 4)/4, 0x0436086c);
-		nv_wo32(dev, ctx, (i + 8)/4, 0x000c001b);
+		nv_wo32(ctx, (i + 0), 0x10700ff9);
+		nv_wo32(ctx, (i + 4), 0x0436086c);
+		nv_wo32(ctx, (i + 8), 0x000c001b);
 	}
-	nv_wo32(dev, ctx, 0x2704/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x2718/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x2744/4, 0x40000000);
-	nv_wo32(dev, ctx, 0x2748/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x274c/4, 0x3f000000);
-	nv_wo32(dev, ctx, 0x2754/4, 0x40000000);
-	nv_wo32(dev, ctx, 0x2758/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x2760/4, 0xbf800000);
-	nv_wo32(dev, ctx, 0x2768/4, 0xbf800000);
-	nv_wo32(dev, ctx, 0x308c/4, 0x000fe000);
-	nv_wo32(dev, ctx, 0x3108/4, 0x000003f8);
-	nv_wo32(dev, ctx, 0x3468/4, 0x002fe000);
+	nv_wo32(ctx, 0x2704, 0x3f800000);
+	nv_wo32(ctx, 0x2718, 0x3f800000);
+	nv_wo32(ctx, 0x2744, 0x40000000);
+	nv_wo32(ctx, 0x2748, 0x3f800000);
+	nv_wo32(ctx, 0x274c, 0x3f000000);
+	nv_wo32(ctx, 0x2754, 0x40000000);
+	nv_wo32(ctx, 0x2758, 0x3f800000);
+	nv_wo32(ctx, 0x2760, 0xbf800000);
+	nv_wo32(ctx, 0x2768, 0xbf800000);
+	nv_wo32(ctx, 0x308c, 0x000fe000);
+	nv_wo32(ctx, 0x3108, 0x000003f8);
+	nv_wo32(ctx, 0x3468, 0x002fe000);
 	for (i = 0x3484; i <= 0x34a0; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x001c527c);
+		nv_wo32(ctx, i, 0x001c527c);
 }
 
 static void
@@ -146,49 +146,49 @@ nv2a_graph_context_init(struct drm_device *dev, struct nouveau_gpuobj *ctx)
 {
 	int i;
 
-	nv_wo32(dev, ctx, 0x033c/4, 0xffff0000);
-	nv_wo32(dev, ctx, 0x03a0/4, 0x0fff0000);
-	nv_wo32(dev, ctx, 0x03a4/4, 0x0fff0000);
-	nv_wo32(dev, ctx, 0x047c/4, 0x00000101);
-	nv_wo32(dev, ctx, 0x0490/4, 0x00000111);
-	nv_wo32(dev, ctx, 0x04a8/4, 0x44400000);
+	nv_wo32(ctx, 0x033c, 0xffff0000);
+	nv_wo32(ctx, 0x03a0, 0x0fff0000);
+	nv_wo32(ctx, 0x03a4, 0x0fff0000);
+	nv_wo32(ctx, 0x047c, 0x00000101);
+	nv_wo32(ctx, 0x0490, 0x00000111);
+	nv_wo32(ctx, 0x04a8, 0x44400000);
 	for (i = 0x04d4; i <= 0x04e0; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00030303);
+		nv_wo32(ctx, i, 0x00030303);
 	for (i = 0x04f4; i <= 0x0500; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00080000);
+		nv_wo32(ctx, i, 0x00080000);
 	for (i = 0x050c; i <= 0x0518; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x01012000);
+		nv_wo32(ctx, i, 0x01012000);
 	for (i = 0x051c; i <= 0x0528; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x000105b8);
+		nv_wo32(ctx, i, 0x000105b8);
 	for (i = 0x052c; i <= 0x0538; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00080008);
+		nv_wo32(ctx, i, 0x00080008);
 	for (i = 0x055c; i <= 0x0598; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x07ff0000);
-	nv_wo32(dev, ctx, 0x05a4/4, 0x4b7fffff);
-	nv_wo32(dev, ctx, 0x05fc/4, 0x00000001);
-	nv_wo32(dev, ctx, 0x0604/4, 0x00004000);
-	nv_wo32(dev, ctx, 0x0610/4, 0x00000001);
-	nv_wo32(dev, ctx, 0x0618/4, 0x00040000);
-	nv_wo32(dev, ctx, 0x061c/4, 0x00010000);
+		nv_wo32(ctx, i, 0x07ff0000);
+	nv_wo32(ctx, 0x05a4, 0x4b7fffff);
+	nv_wo32(ctx, 0x05fc, 0x00000001);
+	nv_wo32(ctx, 0x0604, 0x00004000);
+	nv_wo32(ctx, 0x0610, 0x00000001);
+	nv_wo32(ctx, 0x0618, 0x00040000);
+	nv_wo32(ctx, 0x061c, 0x00010000);
 	for (i = 0x1a9c; i <= 0x22fc; i += 16) { /*XXX: check!! */
-		nv_wo32(dev, ctx, (i + 0)/4, 0x10700ff9);
-		nv_wo32(dev, ctx, (i + 4)/4, 0x0436086c);
-		nv_wo32(dev, ctx, (i + 8)/4, 0x000c001b);
+		nv_wo32(ctx, (i + 0), 0x10700ff9);
+		nv_wo32(ctx, (i + 4), 0x0436086c);
+		nv_wo32(ctx, (i + 8), 0x000c001b);
 	}
-	nv_wo32(dev, ctx, 0x269c/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x26b0/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x26dc/4, 0x40000000);
-	nv_wo32(dev, ctx, 0x26e0/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x26e4/4, 0x3f000000);
-	nv_wo32(dev, ctx, 0x26ec/4, 0x40000000);
-	nv_wo32(dev, ctx, 0x26f0/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x26f8/4, 0xbf800000);
-	nv_wo32(dev, ctx, 0x2700/4, 0xbf800000);
-	nv_wo32(dev, ctx, 0x3024/4, 0x000fe000);
-	nv_wo32(dev, ctx, 0x30a0/4, 0x000003f8);
-	nv_wo32(dev, ctx, 0x33fc/4, 0x002fe000);
+	nv_wo32(ctx, 0x269c, 0x3f800000);
+	nv_wo32(ctx, 0x26b0, 0x3f800000);
+	nv_wo32(ctx, 0x26dc, 0x40000000);
+	nv_wo32(ctx, 0x26e0, 0x3f800000);
+	nv_wo32(ctx, 0x26e4, 0x3f000000);
+	nv_wo32(ctx, 0x26ec, 0x40000000);
+	nv_wo32(ctx, 0x26f0, 0x3f800000);
+	nv_wo32(ctx, 0x26f8, 0xbf800000);
+	nv_wo32(ctx, 0x2700, 0xbf800000);
+	nv_wo32(ctx, 0x3024, 0x000fe000);
+	nv_wo32(ctx, 0x30a0, 0x000003f8);
+	nv_wo32(ctx, 0x33fc, 0x002fe000);
 	for (i = 0x341c; i <= 0x3438; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x001c527c);
+		nv_wo32(ctx, i, 0x001c527c);
 }
 
 static void
@@ -196,57 +196,57 @@ nv30_31_graph_context_init(struct drm_device *dev, struct nouveau_gpuobj *ctx)
 {
 	int i;
 
-	nv_wo32(dev, ctx, 0x0410/4, 0x00000101);
-	nv_wo32(dev, ctx, 0x0424/4, 0x00000111);
-	nv_wo32(dev, ctx, 0x0428/4, 0x00000060);
-	nv_wo32(dev, ctx, 0x0444/4, 0x00000080);
-	nv_wo32(dev, ctx, 0x0448/4, 0xffff0000);
-	nv_wo32(dev, ctx, 0x044c/4, 0x00000001);
-	nv_wo32(dev, ctx, 0x0460/4, 0x44400000);
-	nv_wo32(dev, ctx, 0x048c/4, 0xffff0000);
+	nv_wo32(ctx, 0x0410, 0x00000101);
+	nv_wo32(ctx, 0x0424, 0x00000111);
+	nv_wo32(ctx, 0x0428, 0x00000060);
+	nv_wo32(ctx, 0x0444, 0x00000080);
+	nv_wo32(ctx, 0x0448, 0xffff0000);
+	nv_wo32(ctx, 0x044c, 0x00000001);
+	nv_wo32(ctx, 0x0460, 0x44400000);
+	nv_wo32(ctx, 0x048c, 0xffff0000);
 	for (i = 0x04e0; i < 0x04e8; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x0fff0000);
-	nv_wo32(dev, ctx, 0x04ec/4, 0x00011100);
+		nv_wo32(ctx, i, 0x0fff0000);
+	nv_wo32(ctx, 0x04ec, 0x00011100);
 	for (i = 0x0508; i < 0x0548; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x07ff0000);
-	nv_wo32(dev, ctx, 0x0550/4, 0x4b7fffff);
-	nv_wo32(dev, ctx, 0x058c/4, 0x00000080);
-	nv_wo32(dev, ctx, 0x0590/4, 0x30201000);
-	nv_wo32(dev, ctx, 0x0594/4, 0x70605040);
-	nv_wo32(dev, ctx, 0x0598/4, 0xb8a89888);
-	nv_wo32(dev, ctx, 0x059c/4, 0xf8e8d8c8);
-	nv_wo32(dev, ctx, 0x05b0/4, 0xb0000000);
+		nv_wo32(ctx, i, 0x07ff0000);
+	nv_wo32(ctx, 0x0550, 0x4b7fffff);
+	nv_wo32(ctx, 0x058c, 0x00000080);
+	nv_wo32(ctx, 0x0590, 0x30201000);
+	nv_wo32(ctx, 0x0594, 0x70605040);
+	nv_wo32(ctx, 0x0598, 0xb8a89888);
+	nv_wo32(ctx, 0x059c, 0xf8e8d8c8);
+	nv_wo32(ctx, 0x05b0, 0xb0000000);
 	for (i = 0x0600; i < 0x0640; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00010588);
+		nv_wo32(ctx, i, 0x00010588);
 	for (i = 0x0640; i < 0x0680; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00030303);
+		nv_wo32(ctx, i, 0x00030303);
 	for (i = 0x06c0; i < 0x0700; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x0008aae4);
+		nv_wo32(ctx, i, 0x0008aae4);
 	for (i = 0x0700; i < 0x0740; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x01012000);
+		nv_wo32(ctx, i, 0x01012000);
 	for (i = 0x0740; i < 0x0780; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00080008);
-	nv_wo32(dev, ctx, 0x085c/4, 0x00040000);
-	nv_wo32(dev, ctx, 0x0860/4, 0x00010000);
+		nv_wo32(ctx, i, 0x00080008);
+	nv_wo32(ctx, 0x085c, 0x00040000);
+	nv_wo32(ctx, 0x0860, 0x00010000);
 	for (i = 0x0864; i < 0x0874; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00040004);
+		nv_wo32(ctx, i, 0x00040004);
 	for (i = 0x1f18; i <= 0x3088 ; i += 16) {
-		nv_wo32(dev, ctx, i/4 + 0, 0x10700ff9);
-		nv_wo32(dev, ctx, i/4 + 1, 0x0436086c);
-		nv_wo32(dev, ctx, i/4 + 2, 0x000c001b);
+		nv_wo32(ctx, i + 0, 0x10700ff9);
+		nv_wo32(ctx, i + 1, 0x0436086c);
+		nv_wo32(ctx, i + 2, 0x000c001b);
 	}
 	for (i = 0x30b8; i < 0x30c8; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x0000ffff);
-	nv_wo32(dev, ctx, 0x344c/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x3808/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x381c/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x3848/4, 0x40000000);
-	nv_wo32(dev, ctx, 0x384c/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x3850/4, 0x3f000000);
-	nv_wo32(dev, ctx, 0x3858/4, 0x40000000);
-	nv_wo32(dev, ctx, 0x385c/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x3864/4, 0xbf800000);
-	nv_wo32(dev, ctx, 0x386c/4, 0xbf800000);
+		nv_wo32(ctx, i, 0x0000ffff);
+	nv_wo32(ctx, 0x344c, 0x3f800000);
+	nv_wo32(ctx, 0x3808, 0x3f800000);
+	nv_wo32(ctx, 0x381c, 0x3f800000);
+	nv_wo32(ctx, 0x3848, 0x40000000);
+	nv_wo32(ctx, 0x384c, 0x3f800000);
+	nv_wo32(ctx, 0x3850, 0x3f000000);
+	nv_wo32(ctx, 0x3858, 0x40000000);
+	nv_wo32(ctx, 0x385c, 0x3f800000);
+	nv_wo32(ctx, 0x3864, 0xbf800000);
+	nv_wo32(ctx, 0x386c, 0xbf800000);
 }
 
 static void
@@ -254,57 +254,57 @@ nv34_graph_context_init(struct drm_device *dev, struct nouveau_gpuobj *ctx)
 {
 	int i;
 
-	nv_wo32(dev, ctx, 0x040c/4, 0x01000101);
-	nv_wo32(dev, ctx, 0x0420/4, 0x00000111);
-	nv_wo32(dev, ctx, 0x0424/4, 0x00000060);
-	nv_wo32(dev, ctx, 0x0440/4, 0x00000080);
-	nv_wo32(dev, ctx, 0x0444/4, 0xffff0000);
-	nv_wo32(dev, ctx, 0x0448/4, 0x00000001);
-	nv_wo32(dev, ctx, 0x045c/4, 0x44400000);
-	nv_wo32(dev, ctx, 0x0480/4, 0xffff0000);
+	nv_wo32(ctx, 0x040c, 0x01000101);
+	nv_wo32(ctx, 0x0420, 0x00000111);
+	nv_wo32(ctx, 0x0424, 0x00000060);
+	nv_wo32(ctx, 0x0440, 0x00000080);
+	nv_wo32(ctx, 0x0444, 0xffff0000);
+	nv_wo32(ctx, 0x0448, 0x00000001);
+	nv_wo32(ctx, 0x045c, 0x44400000);
+	nv_wo32(ctx, 0x0480, 0xffff0000);
 	for (i = 0x04d4; i < 0x04dc; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x0fff0000);
-	nv_wo32(dev, ctx, 0x04e0/4, 0x00011100);
+		nv_wo32(ctx, i, 0x0fff0000);
+	nv_wo32(ctx, 0x04e0, 0x00011100);
 	for (i = 0x04fc; i < 0x053c; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x07ff0000);
-	nv_wo32(dev, ctx, 0x0544/4, 0x4b7fffff);
-	nv_wo32(dev, ctx, 0x057c/4, 0x00000080);
-	nv_wo32(dev, ctx, 0x0580/4, 0x30201000);
-	nv_wo32(dev, ctx, 0x0584/4, 0x70605040);
-	nv_wo32(dev, ctx, 0x0588/4, 0xb8a89888);
-	nv_wo32(dev, ctx, 0x058c/4, 0xf8e8d8c8);
-	nv_wo32(dev, ctx, 0x05a0/4, 0xb0000000);
+		nv_wo32(ctx, i, 0x07ff0000);
+	nv_wo32(ctx, 0x0544, 0x4b7fffff);
+	nv_wo32(ctx, 0x057c, 0x00000080);
+	nv_wo32(ctx, 0x0580, 0x30201000);
+	nv_wo32(ctx, 0x0584, 0x70605040);
+	nv_wo32(ctx, 0x0588, 0xb8a89888);
+	nv_wo32(ctx, 0x058c, 0xf8e8d8c8);
+	nv_wo32(ctx, 0x05a0, 0xb0000000);
 	for (i = 0x05f0; i < 0x0630; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00010588);
+		nv_wo32(ctx, i, 0x00010588);
 	for (i = 0x0630; i < 0x0670; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00030303);
+		nv_wo32(ctx, i, 0x00030303);
 	for (i = 0x06b0; i < 0x06f0; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x0008aae4);
+		nv_wo32(ctx, i, 0x0008aae4);
 	for (i = 0x06f0; i < 0x0730; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x01012000);
+		nv_wo32(ctx, i, 0x01012000);
 	for (i = 0x0730; i < 0x0770; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00080008);
-	nv_wo32(dev, ctx, 0x0850/4, 0x00040000);
-	nv_wo32(dev, ctx, 0x0854/4, 0x00010000);
+		nv_wo32(ctx, i, 0x00080008);
+	nv_wo32(ctx, 0x0850, 0x00040000);
+	nv_wo32(ctx, 0x0854, 0x00010000);
 	for (i = 0x0858; i < 0x0868; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00040004);
+		nv_wo32(ctx, i, 0x00040004);
 	for (i = 0x15ac; i <= 0x271c ; i += 16) {
-		nv_wo32(dev, ctx, i/4 + 0, 0x10700ff9);
-		nv_wo32(dev, ctx, i/4 + 1, 0x0436086c);
-		nv_wo32(dev, ctx, i/4 + 2, 0x000c001b);
+		nv_wo32(ctx, i + 0, 0x10700ff9);
+		nv_wo32(ctx, i + 1, 0x0436086c);
+		nv_wo32(ctx, i + 2, 0x000c001b);
 	}
 	for (i = 0x274c; i < 0x275c; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x0000ffff);
-	nv_wo32(dev, ctx, 0x2ae0/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x2e9c/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x2eb0/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x2edc/4, 0x40000000);
-	nv_wo32(dev, ctx, 0x2ee0/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x2ee4/4, 0x3f000000);
-	nv_wo32(dev, ctx, 0x2eec/4, 0x40000000);
-	nv_wo32(dev, ctx, 0x2ef0/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x2ef8/4, 0xbf800000);
-	nv_wo32(dev, ctx, 0x2f00/4, 0xbf800000);
+		nv_wo32(ctx, i, 0x0000ffff);
+	nv_wo32(ctx, 0x2ae0, 0x3f800000);
+	nv_wo32(ctx, 0x2e9c, 0x3f800000);
+	nv_wo32(ctx, 0x2eb0, 0x3f800000);
+	nv_wo32(ctx, 0x2edc, 0x40000000);
+	nv_wo32(ctx, 0x2ee0, 0x3f800000);
+	nv_wo32(ctx, 0x2ee4, 0x3f000000);
+	nv_wo32(ctx, 0x2eec, 0x40000000);
+	nv_wo32(ctx, 0x2ef0, 0x3f800000);
+	nv_wo32(ctx, 0x2ef8, 0xbf800000);
+	nv_wo32(ctx, 0x2f00, 0xbf800000);
 }
 
 static void
@@ -312,57 +312,57 @@ nv35_36_graph_context_init(struct drm_device *dev, struct nouveau_gpuobj *ctx)
 {
 	int i;
 
-	nv_wo32(dev, ctx, 0x040c/4, 0x00000101);
-	nv_wo32(dev, ctx, 0x0420/4, 0x00000111);
-	nv_wo32(dev, ctx, 0x0424/4, 0x00000060);
-	nv_wo32(dev, ctx, 0x0440/4, 0x00000080);
-	nv_wo32(dev, ctx, 0x0444/4, 0xffff0000);
-	nv_wo32(dev, ctx, 0x0448/4, 0x00000001);
-	nv_wo32(dev, ctx, 0x045c/4, 0x44400000);
-	nv_wo32(dev, ctx, 0x0488/4, 0xffff0000);
+	nv_wo32(ctx, 0x040c, 0x00000101);
+	nv_wo32(ctx, 0x0420, 0x00000111);
+	nv_wo32(ctx, 0x0424, 0x00000060);
+	nv_wo32(ctx, 0x0440, 0x00000080);
+	nv_wo32(ctx, 0x0444, 0xffff0000);
+	nv_wo32(ctx, 0x0448, 0x00000001);
+	nv_wo32(ctx, 0x045c, 0x44400000);
+	nv_wo32(ctx, 0x0488, 0xffff0000);
 	for (i = 0x04dc; i < 0x04e4; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x0fff0000);
-	nv_wo32(dev, ctx, 0x04e8/4, 0x00011100);
+		nv_wo32(ctx, i, 0x0fff0000);
+	nv_wo32(ctx, 0x04e8, 0x00011100);
 	for (i = 0x0504; i < 0x0544; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x07ff0000);
-	nv_wo32(dev, ctx, 0x054c/4, 0x4b7fffff);
-	nv_wo32(dev, ctx, 0x0588/4, 0x00000080);
-	nv_wo32(dev, ctx, 0x058c/4, 0x30201000);
-	nv_wo32(dev, ctx, 0x0590/4, 0x70605040);
-	nv_wo32(dev, ctx, 0x0594/4, 0xb8a89888);
-	nv_wo32(dev, ctx, 0x0598/4, 0xf8e8d8c8);
-	nv_wo32(dev, ctx, 0x05ac/4, 0xb0000000);
+		nv_wo32(ctx, i, 0x07ff0000);
+	nv_wo32(ctx, 0x054c, 0x4b7fffff);
+	nv_wo32(ctx, 0x0588, 0x00000080);
+	nv_wo32(ctx, 0x058c, 0x30201000);
+	nv_wo32(ctx, 0x0590, 0x70605040);
+	nv_wo32(ctx, 0x0594, 0xb8a89888);
+	nv_wo32(ctx, 0x0598, 0xf8e8d8c8);
+	nv_wo32(ctx, 0x05ac, 0xb0000000);
 	for (i = 0x0604; i < 0x0644; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00010588);
+		nv_wo32(ctx, i, 0x00010588);
 	for (i = 0x0644; i < 0x0684; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00030303);
+		nv_wo32(ctx, i, 0x00030303);
 	for (i = 0x06c4; i < 0x0704; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x0008aae4);
+		nv_wo32(ctx, i, 0x0008aae4);
 	for (i = 0x0704; i < 0x0744; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x01012000);
+		nv_wo32(ctx, i, 0x01012000);
 	for (i = 0x0744; i < 0x0784; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00080008);
-	nv_wo32(dev, ctx, 0x0860/4, 0x00040000);
-	nv_wo32(dev, ctx, 0x0864/4, 0x00010000);
+		nv_wo32(ctx, i, 0x00080008);
+	nv_wo32(ctx, 0x0860, 0x00040000);
+	nv_wo32(ctx, 0x0864, 0x00010000);
 	for (i = 0x0868; i < 0x0878; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x00040004);
+		nv_wo32(ctx, i, 0x00040004);
 	for (i = 0x1f1c; i <= 0x308c ; i += 16) {
-		nv_wo32(dev, ctx, i/4 + 0, 0x10700ff9);
-		nv_wo32(dev, ctx, i/4 + 1, 0x0436086c);
-		nv_wo32(dev, ctx, i/4 + 2, 0x000c001b);
+		nv_wo32(ctx, i + 0, 0x10700ff9);
+		nv_wo32(ctx, i + 4, 0x0436086c);
+		nv_wo32(ctx, i + 8, 0x000c001b);
 	}
 	for (i = 0x30bc; i < 0x30cc; i += 4)
-		nv_wo32(dev, ctx, i/4, 0x0000ffff);
-	nv_wo32(dev, ctx, 0x3450/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x380c/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x3820/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x384c/4, 0x40000000);
-	nv_wo32(dev, ctx, 0x3850/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x3854/4, 0x3f000000);
-	nv_wo32(dev, ctx, 0x385c/4, 0x40000000);
-	nv_wo32(dev, ctx, 0x3860/4, 0x3f800000);
-	nv_wo32(dev, ctx, 0x3868/4, 0xbf800000);
-	nv_wo32(dev, ctx, 0x3870/4, 0xbf800000);
+		nv_wo32(ctx, i, 0x0000ffff);
+	nv_wo32(ctx, 0x3450, 0x3f800000);
+	nv_wo32(ctx, 0x380c, 0x3f800000);
+	nv_wo32(ctx, 0x3820, 0x3f800000);
+	nv_wo32(ctx, 0x384c, 0x40000000);
+	nv_wo32(ctx, 0x3850, 0x3f800000);
+	nv_wo32(ctx, 0x3854, 0x3f000000);
+	nv_wo32(ctx, 0x385c, 0x40000000);
+	nv_wo32(ctx, 0x3860, 0x3f800000);
+	nv_wo32(ctx, 0x3868, 0xbf800000);
+	nv_wo32(ctx, 0x3870, 0xbf800000);
 }
 
 int
@@ -372,7 +372,7 @@ nv20_graph_create_context(struct nouveau_channel *chan)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	void (*ctx_init)(struct drm_device *, struct nouveau_gpuobj *);
-	unsigned int idoffs = 0x28/4;
+	unsigned int idoffs = 0x28;
 	int ret;
 
 	switch (dev_priv->chipset) {
@@ -403,21 +403,19 @@ nv20_graph_create_context(struct nouveau_channel *chan)
 		BUG_ON(1);
 	}
 
-	ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, pgraph->grctx_size,
-				     16, NVOBJ_FLAG_ZERO_ALLOC,
-				     &chan->ramin_grctx);
+	ret = nouveau_gpuobj_new(dev, chan, pgraph->grctx_size, 16,
+				 NVOBJ_FLAG_ZERO_ALLOC, &chan->ramin_grctx);
 	if (ret)
 		return ret;
 
 	/* Initialise default context values */
-	ctx_init(dev, chan->ramin_grctx->gpuobj);
+	ctx_init(dev, chan->ramin_grctx);
 
 	/* nv20: nv_wo32(dev, chan->ramin_grctx->gpuobj, 10, chan->id<<24); */
-	nv_wo32(dev, chan->ramin_grctx->gpuobj, idoffs,
-					(chan->id << 24) | 0x1); /* CTX_USER */
+	nv_wo32(chan->ramin_grctx, idoffs,
+		(chan->id << 24) | 0x1); /* CTX_USER */
 
-	nv_wo32(dev, pgraph->ctx_table->gpuobj, chan->id,
-		     chan->ramin_grctx->instance >> 4);
+	nv_wo32(pgraph->ctx_table, chan->id * 4, chan->ramin_grctx->pinst >> 4);
 	return 0;
 }
 
@@ -428,10 +426,8 @@ nv20_graph_destroy_context(struct nouveau_channel *chan)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 
-	if (chan->ramin_grctx)
-		nouveau_gpuobj_ref_del(dev, &chan->ramin_grctx);
-
-	nv_wo32(dev, pgraph->ctx_table->gpuobj, chan->id, 0);
+	nouveau_gpuobj_ref(NULL, &chan->ramin_grctx);
+	nv_wo32(pgraph->ctx_table, chan->id * 4, 0);
 }
 
 int
@@ -442,7 +438,7 @@ nv20_graph_load_context(struct nouveau_channel *chan)
 
 	if (!chan->ramin_grctx)
 		return -EINVAL;
-	inst = chan->ramin_grctx->instance >> 4;
+	inst = chan->ramin_grctx->pinst >> 4;
 
 	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_POINTER, inst);
 	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_XFER,
@@ -465,7 +461,7 @@ nv20_graph_unload_context(struct drm_device *dev)
 	chan = pgraph->channel(dev);
 	if (!chan)
 		return 0;
-	inst = chan->ramin_grctx->instance >> 4;
+	inst = chan->ramin_grctx->pinst >> 4;
 
 	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_POINTER, inst);
 	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_XFER,
@@ -552,15 +548,15 @@ nv20_graph_init(struct drm_device *dev)
 
 	if (!pgraph->ctx_table) {
 		/* Create Context Pointer Table */
-		ret = nouveau_gpuobj_new_ref(dev, NULL, NULL, 0, 32 * 4, 16,
-						  NVOBJ_FLAG_ZERO_ALLOC,
-						  &pgraph->ctx_table);
+		ret = nouveau_gpuobj_new(dev, NULL, 32 * 4, 16,
+					 NVOBJ_FLAG_ZERO_ALLOC,
+					 &pgraph->ctx_table);
 		if (ret)
 			return ret;
 	}
 
 	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_TABLE,
-		     pgraph->ctx_table->instance >> 4);
+		     pgraph->ctx_table->pinst >> 4);
 
 	nv20_graph_rdi(dev);
 
@@ -646,7 +642,7 @@ nv20_graph_takedown(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 
-	nouveau_gpuobj_ref_del(dev, &pgraph->ctx_table);
+	nouveau_gpuobj_ref(NULL, &pgraph->ctx_table);
 }
 
 int
@@ -681,15 +677,15 @@ nv30_graph_init(struct drm_device *dev)
 
 	if (!pgraph->ctx_table) {
 		/* Create Context Pointer Table */
-		ret = nouveau_gpuobj_new_ref(dev, NULL, NULL, 0, 32 * 4, 16,
-						  NVOBJ_FLAG_ZERO_ALLOC,
-						  &pgraph->ctx_table);
+		ret = nouveau_gpuobj_new(dev, NULL, 32 * 4, 16,
+					 NVOBJ_FLAG_ZERO_ALLOC,
+					 &pgraph->ctx_table);
 		if (ret)
 			return ret;
 	}
 
 	nv_wr32(dev, NV20_PGRAPH_CHANNEL_CTX_TABLE,
-		     pgraph->ctx_table->instance >> 4);
+		     pgraph->ctx_table->pinst >> 4);
 
 	nv_wr32(dev, NV03_PGRAPH_INTR   , 0xFFFFFFFF);
 	nv_wr32(dev, NV03_PGRAPH_INTR_EN, 0xFFFFFFFF);

@@ -882,12 +882,8 @@ static struct inode *pohmelfs_alloc_inode(struct super_block *sb)
 static int pohmelfs_fsync(struct file *file, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = 0,	/* sys_fsync did this */
-	};
 
-	return sync_inode(inode, &wbc);
+	return sync_inode_metadata(inode, 1);
 }
 
 ssize_t pohmelfs_write(struct file *file, const char __user *buf,
@@ -1941,11 +1937,10 @@ err_out_exit:
 /*
  * Some VFS magic here...
  */
-static int pohmelfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *pohmelfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, pohmelfs_fill_super,
-				mnt);
+	return mount_nodev(fs_type, flags, data, pohmelfs_fill_super);
 }
 
 /*
@@ -1962,7 +1957,7 @@ static void pohmelfs_kill_super(struct super_block *sb)
 static struct file_system_type pohmel_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "pohmel",
-	.get_sb		= pohmelfs_get_sb,
+	.mount		= pohmelfs_mount,
 	.kill_sb 	= pohmelfs_kill_super,
 };
 

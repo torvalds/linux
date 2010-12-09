@@ -21,6 +21,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/ab8500.h>
+#include <linux/mfd/abx500.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/ab8500.h>
@@ -33,9 +34,11 @@
  * @max_uV: maximum voltage (for variable voltage supplies)
  * @min_uV: minimum voltage (for variable voltage supplies)
  * @fixed_uV: typical voltage (for fixed voltage supplies)
+ * @update_bank: bank to control on/off
  * @update_reg: register to control on/off
  * @mask: mask to enable/disable regulator
  * @enable: bits to enable the regulator in normal(high power) mode
+ * @voltage_bank: bank to control regulator voltage
  * @voltage_reg: register to control regulator voltage
  * @voltage_mask: mask to control regulator voltage
  * @supported_voltages: supported voltage table
@@ -49,11 +52,13 @@ struct ab8500_regulator_info {
 	int max_uV;
 	int min_uV;
 	int fixed_uV;
-	int update_reg;
-	int mask;
-	int enable;
-	int voltage_reg;
-	int voltage_mask;
+	u8 update_bank;
+	u8 update_reg;
+	u8 mask;
+	u8 enable;
+	u8 voltage_bank;
+	u8 voltage_reg;
+	u8 voltage_mask;
 	int const *supported_voltages;
 	int voltages_len;
 };
@@ -97,8 +102,8 @@ static int ab8500_regulator_enable(struct regulator_dev *rdev)
 	if (regulator_id >= AB8500_NUM_REGULATORS)
 		return -EINVAL;
 
-	ret = ab8500_set_bits(info->ab8500, info->update_reg,
-			info->mask, info->enable);
+	ret = abx500_mask_and_set_register_interruptible(info->dev,
+		info->update_bank, info->update_reg, info->mask, info->enable);
 	if (ret < 0)
 		dev_err(rdev_get_dev(rdev),
 			"couldn't set enable bits for regulator\n");
@@ -114,8 +119,8 @@ static int ab8500_regulator_disable(struct regulator_dev *rdev)
 	if (regulator_id >= AB8500_NUM_REGULATORS)
 		return -EINVAL;
 
-	ret = ab8500_set_bits(info->ab8500, info->update_reg,
-			info->mask, 0x0);
+	ret = abx500_mask_and_set_register_interruptible(info->dev,
+		info->update_bank, info->update_reg, info->mask, 0x0);
 	if (ret < 0)
 		dev_err(rdev_get_dev(rdev),
 			"couldn't set disable bits for regulator\n");
@@ -126,19 +131,21 @@ static int ab8500_regulator_is_enabled(struct regulator_dev *rdev)
 {
 	int regulator_id, ret;
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
+	u8 value;
 
 	regulator_id = rdev_get_id(rdev);
 	if (regulator_id >= AB8500_NUM_REGULATORS)
 		return -EINVAL;
 
-	ret = ab8500_read(info->ab8500, info->update_reg);
+	ret = abx500_get_register_interruptible(info->dev,
+		info->update_bank, info->update_reg, &value);
 	if (ret < 0) {
 		dev_err(rdev_get_dev(rdev),
 			"couldn't read 0x%x register\n", info->update_reg);
 		return ret;
 	}
 
-	if (ret & info->mask)
+	if (value & info->mask)
 		return true;
 	else
 		return false;
@@ -165,14 +172,16 @@ static int ab8500_list_voltage(struct regulator_dev *rdev, unsigned selector)
 
 static int ab8500_regulator_get_voltage(struct regulator_dev *rdev)
 {
-	int regulator_id, ret, val;
+	int regulator_id, ret;
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
+	u8 value;
 
 	regulator_id = rdev_get_id(rdev);
 	if (regulator_id >= AB8500_NUM_REGULATORS)
 		return -EINVAL;
 
-	ret = ab8500_read(info->ab8500, info->voltage_reg);
+	ret = abx500_get_register_interruptible(info->dev, info->voltage_bank,
+		info->voltage_reg, &value);
 	if (ret < 0) {
 		dev_err(rdev_get_dev(rdev),
 			"couldn't read voltage reg for regulator\n");
@@ -180,11 +189,11 @@ static int ab8500_regulator_get_voltage(struct regulator_dev *rdev)
 	}
 
 	/* vintcore has a different layout */
-	val = ret & info->voltage_mask;
+	value &= info->voltage_mask;
 	if (regulator_id == AB8500_LDO_INTCORE)
-		ret = info->supported_voltages[val >> 0x3];
+		ret = info->supported_voltages[value >> 0x3];
 	else
-		ret = info->supported_voltages[val];
+		ret = info->supported_voltages[value];
 
 	return ret;
 }
@@ -224,8 +233,9 @@ static int ab8500_regulator_set_voltage(struct regulator_dev *rdev,
 	}
 
 	/* set the registers for the request */
-	ret = ab8500_set_bits(info->ab8500, info->voltage_reg,
-				info->voltage_mask, ret);
+	ret = abx500_mask_and_set_register_interruptible(info->dev,
+		info->voltage_bank, info->voltage_reg,
+		info->voltage_mask, (u8)ret);
 	if (ret < 0)
 		dev_err(rdev_get_dev(rdev),
 		"couldn't set voltage reg for regulator\n");
@@ -262,9 +272,9 @@ static struct regulator_ops ab8500_ldo_fixed_ops = {
 	.list_voltage	= ab8500_list_voltage,
 };
 
-#define AB8500_LDO(_id, min, max, reg, reg_mask, reg_enable,	\
-		volt_reg, volt_mask, voltages,			\
-			len_volts)				\
+#define AB8500_LDO(_id, min, max, bank, reg, reg_mask,		\
+		reg_enable, volt_bank, volt_reg, volt_mask,	\
+		voltages, len_volts)				\
 {								\
 	.desc	= {						\
 		.name	= "LDO-" #_id,				\
@@ -275,9 +285,11 @@ static struct regulator_ops ab8500_ldo_fixed_ops = {
 	},							\
 	.min_uV		= (min) * 1000,				\
 	.max_uV		= (max) * 1000,				\
+	.update_bank	= bank,					\
 	.update_reg	= reg,					\
 	.mask		= reg_mask,				\
 	.enable		= reg_enable,				\
+	.voltage_bank	= volt_bank,				\
 	.voltage_reg	= volt_reg,				\
 	.voltage_mask	= volt_mask,				\
 	.supported_voltages = voltages,				\
@@ -285,8 +297,8 @@ static struct regulator_ops ab8500_ldo_fixed_ops = {
 	.fixed_uV	= 0,					\
 }
 
-#define AB8500_FIXED_LDO(_id, fixed, reg, reg_mask,	\
-				reg_enable)		\
+#define AB8500_FIXED_LDO(_id, fixed, bank, reg,		\
+			reg_mask, reg_enable)		\
 {							\
 	.desc	= {					\
 		.name	= "LDO-" #_id,			\
@@ -296,6 +308,7 @@ static struct regulator_ops ab8500_ldo_fixed_ops = {
 		.owner	= THIS_MODULE,			\
 	},						\
 	.fixed_uV	= fixed * 1000,			\
+	.update_bank	= bank,				\
 	.update_reg	= reg,				\
 	.mask		= reg_mask,			\
 	.enable		= reg_enable,			\
@@ -304,28 +317,29 @@ static struct regulator_ops ab8500_ldo_fixed_ops = {
 static struct ab8500_regulator_info ab8500_regulator_info[] = {
 	/*
 	 * Variable Voltage LDOs
-	 * name, min uV, max uV, ctrl reg, reg mask, enable mask,
-	 *	volt ctrl reg, volt ctrl mask, volt table, num supported volts
+	 * name, min uV, max uV, ctrl bank, ctrl reg, reg mask, enable mask,
+	 *      volt ctrl bank, volt ctrl reg, volt ctrl mask, volt table,
+	 *      num supported volts
 	 */
-	AB8500_LDO(AUX1, 1100, 3300, 0x0409, 0x3, 0x1, 0x041f, 0xf,
+	AB8500_LDO(AUX1, 1100, 3300, 0x04, 0x09, 0x3, 0x1, 0x04, 0x1f, 0xf,
 			ldo_vauxn_voltages, ARRAY_SIZE(ldo_vauxn_voltages)),
-	AB8500_LDO(AUX2, 1100, 3300, 0x0409, 0xc, 0x4, 0x0420, 0xf,
+	AB8500_LDO(AUX2, 1100, 3300, 0x04, 0x09, 0xc, 0x4, 0x04, 0x20, 0xf,
 			ldo_vauxn_voltages, ARRAY_SIZE(ldo_vauxn_voltages)),
-	AB8500_LDO(AUX3, 1100, 3300, 0x040a, 0x3, 0x1, 0x0421, 0xf,
+	AB8500_LDO(AUX3, 1100, 3300, 0x04, 0x0a, 0x3, 0x1, 0x04, 0x21, 0xf,
 			ldo_vauxn_voltages, ARRAY_SIZE(ldo_vauxn_voltages)),
-	AB8500_LDO(INTCORE, 1100, 3300, 0x0380, 0x4, 0x4, 0x0380, 0x38,
+	AB8500_LDO(INTCORE, 1100, 3300, 0x03, 0x80, 0x4, 0x4, 0x03, 0x80, 0x38,
 		ldo_vintcore_voltages, ARRAY_SIZE(ldo_vintcore_voltages)),
 
 	/*
 	 * Fixed Voltage LDOs
-	 *		 name,	o/p uV, ctrl reg, enable, disable
+	 *		 name,	o/p uV, ctrl bank, ctrl reg, enable, disable
 	 */
-	AB8500_FIXED_LDO(TVOUT,	  2000,   0x0380,   0x2,    0x2),
-	AB8500_FIXED_LDO(AUDIO,   2000,   0x0383,   0x2,    0x2),
-	AB8500_FIXED_LDO(ANAMIC1, 2050,   0x0383,   0x4,    0x4),
-	AB8500_FIXED_LDO(ANAMIC2, 2050,   0x0383,   0x8,    0x8),
-	AB8500_FIXED_LDO(DMIC,    1800,   0x0383,   0x10,   0x10),
-	AB8500_FIXED_LDO(ANA,     1200,   0x0383,   0xc,    0x4),
+	AB8500_FIXED_LDO(TVOUT,	  2000, 0x03,      0x80,     0x2,    0x2),
+	AB8500_FIXED_LDO(AUDIO,   2000, 0x03,      0x83,     0x2,    0x2),
+	AB8500_FIXED_LDO(ANAMIC1, 2050, 0x03,      0x83,     0x4,    0x4),
+	AB8500_FIXED_LDO(ANAMIC2, 2050, 0x03,      0x83,     0x8,    0x8),
+	AB8500_FIXED_LDO(DMIC,    1800, 0x03,      0x83,     0x10,   0x10),
+	AB8500_FIXED_LDO(ANA,     1200, 0x03,      0x83,     0xc,    0x4),
 };
 
 static inline struct ab8500_regulator_info *find_regulator_info(int id)

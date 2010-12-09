@@ -47,6 +47,20 @@
 #ifdef CONFIG_SMP
 #define __percpu_arg(x)		"%%"__stringify(__percpu_seg)":%P" #x
 #define __my_cpu_offset		percpu_read(this_cpu_off)
+
+/*
+ * Compared to the generic __my_cpu_offset version, the following
+ * saves one instruction and avoids clobbering a temp register.
+ */
+#define __this_cpu_ptr(ptr)				\
+({							\
+	unsigned long tcp_ptr__;			\
+	__verify_pcpu_ptr(ptr);				\
+	asm volatile("add " __percpu_arg(1) ", %0"	\
+		     : "=r" (tcp_ptr__)			\
+		     : "m" (this_cpu_off), "0" (ptr));	\
+	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;	\
+})
 #else
 #define __percpu_arg(x)		"%P" #x
 #endif

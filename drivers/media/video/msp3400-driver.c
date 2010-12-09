@@ -56,7 +56,6 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/msp3400.h>
 #include <media/tvaudio.h>
 #include "msp3400-driver.h"
@@ -382,7 +381,12 @@ static int msp_s_ctrl(struct v4l2_ctrl *ctrl)
 
 void msp_update_volume(struct msp_state *state)
 {
-	v4l2_ctrl_s_ctrl(state->volume, v4l2_ctrl_g_ctrl(state->volume));
+	/* Force an update of the volume/mute cluster */
+	v4l2_ctrl_lock(state->volume);
+	state->volume->val = state->volume->cur.val;
+	state->muted->val = state->muted->cur.val;
+	msp_s_ctrl(state->volume);
+	v4l2_ctrl_unlock(state->volume);
 }
 
 /* --- v4l2 ioctls --- */
@@ -843,14 +847,30 @@ static const struct i2c_device_id msp_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, msp_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "msp3400",
-	.probe = msp_probe,
-	.remove = msp_remove,
-	.suspend = msp_suspend,
-	.resume = msp_resume,
-	.id_table = msp_id,
+static struct i2c_driver msp_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "msp3400",
+	},
+	.probe		= msp_probe,
+	.remove		= msp_remove,
+	.suspend	= msp_suspend,
+	.resume		= msp_resume,
+	.id_table	= msp_id,
 };
+
+static __init int init_msp(void)
+{
+	return i2c_add_driver(&msp_driver);
+}
+
+static __exit void exit_msp(void)
+{
+	i2c_del_driver(&msp_driver);
+}
+
+module_init(init_msp);
+module_exit(exit_msp);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

@@ -38,7 +38,6 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include <linux/smp_lock.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
@@ -50,6 +49,7 @@
 #include <linux/kref.h>
 
 /* Addresses to scan */
+static DEFINE_MUTEX(watchdog_mutex);
 static const unsigned short normal_i2c[] = { 0x73, I2C_CLIENT_END };
 
 /* Insmod parameters */
@@ -858,7 +858,7 @@ static long watchdog_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 	int i, ret = 0;
 	struct fschmd_data *data = filp->private_data;
 
-	lock_kernel();
+	mutex_lock(&watchdog_mutex);
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
 		ident.firmware_version = data->revision;
@@ -915,7 +915,7 @@ static long watchdog_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 	default:
 		ret = -ENOTTY;
 	}
-	unlock_kernel();
+	mutex_unlock(&watchdog_mutex);
 	return ret;
 }
 

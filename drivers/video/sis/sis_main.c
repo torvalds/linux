@@ -4181,6 +4181,9 @@ static void __devinit
 sisfb_post_map_vram(struct sis_video_info *ivideo, unsigned int *mapsize,
 			unsigned int min)
 {
+	if (*mapsize < (min << 20))
+		return;
+
 	ivideo->video_vbase = ioremap(ivideo->video_base, (*mapsize));
 
 	if(!ivideo->video_vbase) {
@@ -4514,7 +4517,7 @@ sisfb_post_sis300(struct pci_dev *pdev)
 	} else {
 #endif
 		/* Need to map max FB size for finding out about RAM size */
-		mapsize = 64 << 20;
+		mapsize = ivideo->video_size;
 		sisfb_post_map_vram(ivideo, &mapsize, 4);
 
 		if(ivideo->video_vbase) {
@@ -4680,7 +4683,7 @@ sisfb_post_xgi_ramsize(struct sis_video_info *ivideo)
 	orSISIDXREG(SISSR, 0x20, (0x80 | 0x04));
 
 	/* Need to map max FB size for finding out about RAM size */
-	mapsize = 256 << 20;
+	mapsize = ivideo->video_size;
 	sisfb_post_map_vram(ivideo, &mapsize, 32);
 
 	if(!ivideo->video_vbase) {
@@ -5936,6 +5939,7 @@ sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	ivideo->video_base = pci_resource_start(pdev, 0);
+	ivideo->video_size = pci_resource_len(pdev, 0);
 	ivideo->mmio_base  = pci_resource_start(pdev, 1);
 	ivideo->mmio_size  = pci_resource_len(pdev, 1);
 	ivideo->SiS_Pr.RelIO = pci_resource_start(pdev, 2) + 0x30;

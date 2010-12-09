@@ -326,6 +326,25 @@ int __devinit t4vf_port_init(struct adapter *adapter, int pidx)
 }
 
 /**
+ *      t4vf_fw_reset - issue a reset to FW
+ *      @adapter: the adapter
+ *
+ *	Issues a reset command to FW.  For a Physical Function this would
+ *	result in the Firmware reseting all of its state.  For a Virtual
+ *	Function this just resets the state associated with the VF.
+ */
+int t4vf_fw_reset(struct adapter *adapter)
+{
+	struct fw_reset_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_write = cpu_to_be32(FW_CMD_OP(FW_RESET_CMD) |
+				      FW_CMD_WRITE);
+	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
+	return t4vf_wr_mbox(adapter, &cmd, sizeof(cmd), NULL);
+}
+
+/**
  *	t4vf_query_params - query FW or device parameters
  *	@adapter: the adapter
  *	@nparams: the number of parameters

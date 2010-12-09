@@ -212,6 +212,11 @@ static int br_set_tx_csum(struct net_device *dev, u32 data)
 	return 0;
 }
 
+static int br_set_flags(struct net_device *netdev, u32 data)
+{
+	return ethtool_op_set_flags(netdev, data, ETH_FLAG_TXVLAN);
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void br_poll_controller(struct net_device *br_dev)
 {
@@ -304,6 +309,7 @@ static const struct ethtool_ops br_ethtool_ops = {
 	.get_ufo	= ethtool_op_get_ufo,
 	.set_ufo	= ethtool_op_set_ufo,
 	.get_flags	= ethtool_op_get_flags,
+	.set_flags	= br_set_flags,
 };
 
 static const struct net_device_ops br_netdev_ops = {
@@ -343,5 +349,5 @@ void br_dev_setup(struct net_device *dev)
 
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
 			NETIF_F_GSO_MASK | NETIF_F_NO_CSUM | NETIF_F_LLTX |
-			NETIF_F_NETNS_LOCAL | NETIF_F_GSO;
+			NETIF_F_NETNS_LOCAL | NETIF_F_GSO | NETIF_F_HW_VLAN_TX;
 }

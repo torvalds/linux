@@ -243,7 +243,6 @@ struct ixgbevf_adapter {
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	struct net_device_stats net_stats;
 
 	/* structs defined in ixgbe_vf.h */
 	struct ixgbe_hw hw;

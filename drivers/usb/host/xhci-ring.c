@@ -68,6 +68,10 @@
 #include <linux/slab.h>
 #include "xhci.h"
 
+static int handle_cmd_in_cmd_wait_list(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		struct xhci_event_cmd *event);
+
 /*
  * Returns zero if the TRB isn't in this segment, otherwise it returns the DMA
  * address of the TRB.
@@ -313,7 +317,7 @@ void xhci_ring_cmd_db(struct xhci_hcd *xhci)
 	xhci_readl(xhci, &xhci->dba->doorbell[0]);
 }
 
-static void ring_ep_doorbell(struct xhci_hcd *xhci,
+void xhci_ring_ep_doorbell(struct xhci_hcd *xhci,
 		unsigned int slot_id,
 		unsigned int ep_index,
 		unsigned int stream_id)
@@ -353,7 +357,7 @@ static void ring_doorbell_for_active_rings(struct xhci_hcd *xhci,
 	/* A ring has pending URBs if its TD list is not empty */
 	if (!(ep->ep_state & EP_HAS_STREAMS)) {
 		if (!(list_empty(&ep->ring->td_list)))
-			ring_ep_doorbell(xhci, slot_id, ep_index, 0);
+			xhci_ring_ep_doorbell(xhci, slot_id, ep_index, 0);
 		return;
 	}
 
@@ -361,7 +365,8 @@ static void ring_doorbell_for_active_rings(struct xhci_hcd *xhci,
 			stream_id++) {
 		struct xhci_stream_info *stream_info = ep->stream_info;
 		if (!list_empty(&stream_info->stream_rings[stream_id]->td_list))
-			ring_ep_doorbell(xhci, slot_id, ep_index, stream_id);
+			xhci_ring_ep_doorbell(xhci, slot_id, ep_index,
+						stream_id);
 	}
 }
 
@@ -626,10 +631,11 @@ static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
  *     bit cleared) so that the HW will skip over them.
  */
 static void handle_stopped_endpoint(struct xhci_hcd *xhci,
-		union xhci_trb *trb)
+		union xhci_trb *trb, struct xhci_event_cmd *event)
 {
 	unsigned int slot_id;
 	unsigned int ep_index;
+	struct xhci_virt_device *virt_dev;
 	struct xhci_ring *ep_ring;
 	struct xhci_virt_ep *ep;
 	struct list_head *entry;
@@ -637,6 +643,21 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 	struct xhci_td *last_unlinked_td;
 
 	struct xhci_dequeue_state deq_state;
+
+	if (unlikely(TRB_TO_SUSPEND_PORT(
+			xhci->cmd_ring->dequeue->generic.field[3]))) {
+		slot_id = TRB_TO_SLOT_ID(
+			xhci->cmd_ring->dequeue->generic.field[3]);
+		virt_dev = xhci->devs[slot_id];
+		if (virt_dev)
+			handle_cmd_in_cmd_wait_list(xhci, virt_dev,
+				event);
+		else
+			xhci_warn(xhci, "Stop endpoint command "
+				"completion for disabled slot %u\n",
+				slot_id);
+		return;
+	}
 
 	memset(&deq_state, 0, sizeof(deq_state));
 	slot_id = TRB_TO_SLOT_ID(trb->generic.field[3]);
@@ -1091,7 +1112,7 @@ bandwidth_change:
 		complete(&xhci->addr_dev);
 		break;
 	case TRB_TYPE(TRB_STOP_RING):
-		handle_stopped_endpoint(xhci, xhci->cmd_ring->dequeue);
+		handle_stopped_endpoint(xhci, xhci->cmd_ring->dequeue, event);
 		break;
 	case TRB_TYPE(TRB_SET_DEQ):
 		handle_set_deq_completion(xhci, event, xhci->cmd_ring->dequeue);
@@ -1144,17 +1165,72 @@ static void handle_vendor_event(struct xhci_hcd *xhci,
 static void handle_port_status(struct xhci_hcd *xhci,
 		union xhci_trb *event)
 {
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
 	u32 port_id;
+	u32 temp, temp1;
+	u32 __iomem *addr;
+	int ports;
+	int slot_id;
 
 	/* Port status change events always have a successful completion code */
 	if (GET_COMP_CODE(event->generic.field[2]) != COMP_SUCCESS) {
 		xhci_warn(xhci, "WARN: xHC returned failed port status event\n");
 		xhci->error_bitmask |= 1 << 8;
 	}
-	/* FIXME: core doesn't care about all port link state changes yet */
 	port_id = GET_PORT_ID(event->generic.field[0]);
 	xhci_dbg(xhci, "Port Status Change Event for port %d\n", port_id);
 
+	ports = HCS_MAX_PORTS(xhci->hcs_params1);
+	if ((port_id <= 0) || (port_id > ports)) {
+		xhci_warn(xhci, "Invalid port id %d\n", port_id);
+		goto cleanup;
+	}
+
+	addr = &xhci->op_regs->port_status_base + NUM_PORT_REGS * (port_id - 1);
+	temp = xhci_readl(xhci, addr);
+	if ((temp & PORT_CONNECT) && (hcd->state == HC_STATE_SUSPENDED)) {
+		xhci_dbg(xhci, "resume root hub\n");
+		usb_hcd_resume_root_hub(hcd);
+	}
+
+	if ((temp & PORT_PLC) && (temp & PORT_PLS_MASK) == XDEV_RESUME) {
+		xhci_dbg(xhci, "port resume event for port %d\n", port_id);
+
+		temp1 = xhci_readl(xhci, &xhci->op_regs->command);
+		if (!(temp1 & CMD_RUN)) {
+			xhci_warn(xhci, "xHC is not running.\n");
+			goto cleanup;
+		}
+
+		if (DEV_SUPERSPEED(temp)) {
+			xhci_dbg(xhci, "resume SS port %d\n", port_id);
+			temp = xhci_port_state_to_neutral(temp);
+			temp &= ~PORT_PLS_MASK;
+			temp |= PORT_LINK_STROBE | XDEV_U0;
+			xhci_writel(xhci, temp, addr);
+			slot_id = xhci_find_slot_id_by_port(xhci, port_id);
+			if (!slot_id) {
+				xhci_dbg(xhci, "slot_id is zero\n");
+				goto cleanup;
+			}
+			xhci_ring_device(xhci, slot_id);
+			xhci_dbg(xhci, "resume SS port %d finished\n", port_id);
+			/* Clear PORT_PLC */
+			temp = xhci_readl(xhci, addr);
+			temp = xhci_port_state_to_neutral(temp);
+			temp |= PORT_PLC;
+			xhci_writel(xhci, temp, addr);
+		} else {
+			xhci_dbg(xhci, "resume HS port %d\n", port_id);
+			xhci->resume_done[port_id - 1] = jiffies +
+				msecs_to_jiffies(20);
+			mod_timer(&hcd->rh_timer,
+				  xhci->resume_done[port_id - 1]);
+			/* Do the rest in GetPortStatus */
+		}
+	}
+
+cleanup:
 	/* Update event ring dequeue pointer before dropping the lock */
 	inc_deq(xhci, xhci->event_ring, true);
 
@@ -2347,7 +2423,7 @@ static void giveback_first_trb(struct xhci_hcd *xhci, int slot_id,
 	 */
 	wmb();
 	start_trb->field[3] |= start_cycle;
-	ring_ep_doorbell(xhci, slot_id, ep_index, stream_id);
+	xhci_ring_ep_doorbell(xhci, slot_id, ep_index, stream_id);
 }
 
 /*
@@ -2931,7 +3007,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	wmb();
 	start_trb->field[3] |= start_cycle;
 
-	ring_ep_doorbell(xhci, slot_id, ep_index, urb->stream_id);
+	xhci_ring_ep_doorbell(xhci, slot_id, ep_index, urb->stream_id);
 	return 0;
 }
 
@@ -3108,15 +3184,20 @@ int xhci_queue_evaluate_context(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 			false);
 }
 
+/*
+ * Suspend is set to indicate "Stop Endpoint Command" is being issued to stop
+ * activity on an endpoint that is about to be suspended.
+ */
 int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
-		unsigned int ep_index)
+		unsigned int ep_index, int suspend)
 {
 	u32 trb_slot_id = SLOT_ID_FOR_TRB(slot_id);
 	u32 trb_ep_index = EP_ID_FOR_TRB(ep_index);
 	u32 type = TRB_TYPE(TRB_STOP_RING);
+	u32 trb_suspend = SUSPEND_PORT_FOR_TRB(suspend);
 
 	return queue_command(xhci, 0, 0, 0,
-			trb_slot_id | trb_ep_index | type, false);
+			trb_slot_id | trb_ep_index | type | trb_suspend, false);
 }
 
 /* Set Transfer Ring Dequeue Pointer command.

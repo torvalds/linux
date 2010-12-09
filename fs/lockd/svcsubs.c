@@ -170,6 +170,7 @@ nlm_traverse_locks(struct nlm_host *host, struct nlm_file *file,
 
 again:
 	file->f_locks = 0;
+	lock_flocks(); /* protects i_flock list */
 	for (fl = inode->i_flock; fl; fl = fl->fl_next) {
 		if (fl->fl_lmops != &nlmsvc_lock_operations)
 			continue;
@@ -181,6 +182,7 @@ again:
 		if (match(lockhost, host)) {
 			struct file_lock lock = *fl;
 
+			unlock_flocks();
 			lock.fl_type  = F_UNLCK;
 			lock.fl_start = 0;
 			lock.fl_end   = OFFSET_MAX;
@@ -192,6 +194,7 @@ again:
 			goto again;
 		}
 	}
+	unlock_flocks();
 
 	return 0;
 }
@@ -226,10 +229,14 @@ nlm_file_inuse(struct nlm_file *file)
 	if (file->f_count || !list_empty(&file->f_blocks) || file->f_shares)
 		return 1;
 
+	lock_flocks();
 	for (fl = inode->i_flock; fl; fl = fl->fl_next) {
-		if (fl->fl_lmops == &nlmsvc_lock_operations)
+		if (fl->fl_lmops == &nlmsvc_lock_operations) {
+			unlock_flocks();
 			return 1;
+		}
 	}
+	unlock_flocks();
 	file->f_locks = 0;
 	return 0;
 }

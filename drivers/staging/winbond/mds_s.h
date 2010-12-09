@@ -7,7 +7,6 @@
 
 #include "localpara.h"
 #include "mac_structures.h"
-#include "scan_s.h"
 
 /* Preamble_Type, see <SFS-802.11G-MIB-203> */
 enum {

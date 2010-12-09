@@ -134,6 +134,56 @@ static ssize_t store_bond(struct kobject *kobj, struct attribute *attr,
 	return count;
 }
 
+static ssize_t show_frag(struct kobject *kobj, struct attribute *attr,
+			     char *buff)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct bat_priv *bat_priv = netdev_priv(to_net_dev(dev));
+	int frag_status = atomic_read(&bat_priv->frag_enabled);
+
+	return sprintf(buff, "%s\n",
+		       frag_status == 0 ? "disabled" : "enabled");
+}
+
+static ssize_t store_frag(struct kobject *kobj, struct attribute *attr,
+			  char *buff, size_t count)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct net_device *net_dev = to_net_dev(dev);
+	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	int frag_enabled_tmp = -1;
+
+	if (((count == 2) && (buff[0] == '1')) ||
+	    (strncmp(buff, "enable", 6) == 0))
+		frag_enabled_tmp = 1;
+
+	if (((count == 2) && (buff[0] == '0')) ||
+	    (strncmp(buff, "disable", 7) == 0))
+		frag_enabled_tmp = 0;
+
+	if (frag_enabled_tmp < 0) {
+		if (buff[count - 1] == '\n')
+			buff[count - 1] = '\0';
+
+		bat_err(net_dev,
+			"Invalid parameter for 'fragmentation' setting on mesh"
+			"received: %s\n", buff);
+		return -EINVAL;
+	}
+
+	if (atomic_read(&bat_priv->frag_enabled) == frag_enabled_tmp)
+		return count;
+
+	bat_info(net_dev, "Changing fragmentation from: %s to: %s\n",
+		 atomic_read(&bat_priv->frag_enabled) == 1 ?
+		 "enabled" : "disabled",
+		 frag_enabled_tmp == 1 ? "enabled" : "disabled");
+
+	atomic_set(&bat_priv->frag_enabled, (unsigned)frag_enabled_tmp);
+	update_min_mtu(net_dev);
+	return count;
+}
+
 static ssize_t show_vis_mode(struct kobject *kobj, struct attribute *attr,
 			     char *buff)
 {
@@ -279,6 +329,7 @@ static ssize_t store_log_level(struct kobject *kobj, struct attribute *attr,
 static BAT_ATTR(aggregated_ogms, S_IRUGO | S_IWUSR,
 		show_aggr_ogms, store_aggr_ogms);
 static BAT_ATTR(bonding, S_IRUGO | S_IWUSR, show_bond, store_bond);
+static BAT_ATTR(fragmentation, S_IRUGO | S_IWUSR, show_frag, store_frag);
 static BAT_ATTR(vis_mode, S_IRUGO | S_IWUSR, show_vis_mode, store_vis_mode);
 static BAT_ATTR(orig_interval, S_IRUGO | S_IWUSR,
 		show_orig_interval, store_orig_interval);
@@ -289,6 +340,7 @@ static BAT_ATTR(log_level, S_IRUGO | S_IWUSR, show_log_level, store_log_level);
 static struct bat_attribute *mesh_attrs[] = {
 	&bat_attr_aggregated_ogms,
 	&bat_attr_bonding,
+	&bat_attr_fragmentation,
 	&bat_attr_vis_mode,
 	&bat_attr_orig_interval,
 #ifdef CONFIG_BATMAN_ADV_DEBUG
@@ -303,17 +355,6 @@ int sysfs_add_meshif(struct net_device *dev)
 	struct bat_priv *bat_priv = netdev_priv(dev);
 	struct bat_attribute **bat_attr;
 	int err;
-
-	/* FIXME: should be done in the general mesh setup
-		  routine as soon as we have it */
-	atomic_set(&bat_priv->aggregation_enabled, 1);
-	atomic_set(&bat_priv->bonding_enabled, 0);
-	atomic_set(&bat_priv->vis_mode, VIS_TYPE_CLIENT_UPDATE);
-	atomic_set(&bat_priv->orig_interval, 1000);
-	atomic_set(&bat_priv->log_level, 0);
-
-	bat_priv->primary_if = NULL;
-	bat_priv->num_ifaces = 0;
 
 	bat_priv->mesh_obj = kobject_create_and_add(SYSFS_IF_MESH_SUBDIR,
 						    batif_kobject);
@@ -364,13 +405,17 @@ static ssize_t show_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	struct device *dev = to_dev(kobj->parent);
 	struct net_device *net_dev = to_net_dev(dev);
 	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+	ssize_t length;
 
 	if (!batman_if)
 		return 0;
 
-	return sprintf(buff, "%s\n",
-		       batman_if->if_status == IF_NOT_IN_USE ?
-							"none" : "bat0");
+	length = sprintf(buff, "%s\n", batman_if->if_status == IF_NOT_IN_USE ?
+			 "none" : batman_if->soft_iface->name);
+
+	hardif_put(batman_if);
+
+	return length;
 }
 
 static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
@@ -380,36 +425,51 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	struct net_device *net_dev = to_net_dev(dev);
 	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
 	int status_tmp = -1;
+	int ret;
 
 	if (!batman_if)
 		return count;
 
-	if (strncmp(buff, "none", 4) == 0)
-		status_tmp = IF_NOT_IN_USE;
+	if (buff[count - 1] == '\n')
+		buff[count - 1] = '\0';
 
-	if (strncmp(buff, "bat0", 4) == 0)
-		status_tmp = IF_I_WANT_YOU;
-
-	if (status_tmp < 0) {
-		if (buff[count - 1] == '\n')
-			buff[count - 1] = '\0';
-
+	if (strlen(buff) >= IFNAMSIZ) {
 		pr_err("Invalid parameter for 'mesh_iface' setting received: "
-		       "%s\n", buff);
+		       "interface name too long '%s'\n", buff);
+		hardif_put(batman_if);
 		return -EINVAL;
 	}
 
-	if ((batman_if->if_status == status_tmp) ||
-	    ((status_tmp == IF_I_WANT_YOU) &&
-	     (batman_if->if_status != IF_NOT_IN_USE)))
-		return count;
-
-	if (status_tmp == IF_I_WANT_YOU)
-		status_tmp = hardif_enable_interface(batman_if);
+	if (strncmp(buff, "none", 4) == 0)
+		status_tmp = IF_NOT_IN_USE;
 	else
-		hardif_disable_interface(batman_if);
+		status_tmp = IF_I_WANT_YOU;
 
-	return (status_tmp < 0 ? status_tmp : count);
+	if ((batman_if->if_status == status_tmp) || ((batman_if->soft_iface) &&
+	    (strncmp(batman_if->soft_iface->name, buff, IFNAMSIZ) == 0))) {
+		hardif_put(batman_if);
+		return count;
+	}
+
+	if (status_tmp == IF_NOT_IN_USE) {
+		rtnl_lock();
+		hardif_disable_interface(batman_if);
+		rtnl_unlock();
+		hardif_put(batman_if);
+		return count;
+	}
+
+	/* if the interface already is in use */
+	if (batman_if->if_status != IF_NOT_IN_USE) {
+		rtnl_lock();
+		hardif_disable_interface(batman_if);
+		rtnl_unlock();
+	}
+
+	ret = hardif_enable_interface(batman_if, buff);
+	hardif_put(batman_if);
+
+	return ret;
 }
 
 static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
@@ -418,23 +478,33 @@ static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
 	struct device *dev = to_dev(kobj->parent);
 	struct net_device *net_dev = to_net_dev(dev);
 	struct batman_if *batman_if = get_batman_if_by_netdev(net_dev);
+	ssize_t length;
 
 	if (!batman_if)
 		return 0;
 
 	switch (batman_if->if_status) {
 	case IF_TO_BE_REMOVED:
-		return sprintf(buff, "disabling\n");
+		length = sprintf(buff, "disabling\n");
+		break;
 	case IF_INACTIVE:
-		return sprintf(buff, "inactive\n");
+		length = sprintf(buff, "inactive\n");
+		break;
 	case IF_ACTIVE:
-		return sprintf(buff, "active\n");
+		length = sprintf(buff, "active\n");
+		break;
 	case IF_TO_BE_ACTIVATED:
-		return sprintf(buff, "enabling\n");
+		length = sprintf(buff, "enabling\n");
+		break;
 	case IF_NOT_IN_USE:
 	default:
-		return sprintf(buff, "not in use\n");
+		length = sprintf(buff, "not in use\n");
+		break;
 	}
+
+	hardif_put(batman_if);
+
+	return length;
 }
 
 static BAT_ATTR(mesh_iface, S_IRUGO | S_IWUSR,

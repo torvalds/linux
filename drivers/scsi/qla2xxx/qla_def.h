@@ -706,6 +706,11 @@ typedef struct {
 #define MBC_SET_PORT_CONFIG		0x122	/* Set port configuration */
 #define MBC_GET_PORT_CONFIG		0x123	/* Get port configuration */
 
+/*
+ * ISP81xx mailbox commands
+ */
+#define MBC_WRITE_MPI_REGISTER		0x01    /* Write MPI Register. */
+
 /* Firmware return data sizes */
 #define FCAL_MAP_SIZE	128
 
@@ -1695,9 +1700,7 @@ typedef struct fc_port {
 	atomic_t state;
 	uint32_t flags;
 
-	int port_login_retry_count;
 	int login_retry;
-	atomic_t port_down_timer;
 
 	struct fc_rport *rport, *drport;
 	u32 supported_classes;
@@ -2860,6 +2863,7 @@ typedef struct scsi_qla_host {
 #define NPIV_CONFIG_NEEDED	16
 #define ISP_UNRECOVERABLE	17
 #define FCOE_CTX_RESET_NEEDED	18	/* Initiate FCoE context reset */
+#define MPI_RESET_NEEDED	19	/* Initiate MPI FW reset */
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0
@@ -3002,6 +3006,8 @@ typedef struct scsi_qla_host {
 #define	QLA_DSDS_PER_IOCB	37
 
 #define CMD_SP(Cmnd)		((Cmnd)->SCp.ptr)
+
+#define QLA_SG_ALL	1024
 
 enum nexus_wait_type {
 	WAIT_HOST = 0,

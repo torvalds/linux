@@ -304,7 +304,8 @@ static struct linux_prom_registers fd_regs[2];
 static int sun_floppy_init(void)
 {
 	char state[128];
-	int tnode, fd_node, num_regs;
+	phandle tnode, fd_node;
+	int num_regs;
 	struct resource r;
 
 	use_virtual_dma = 1;

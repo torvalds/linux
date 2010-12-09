@@ -51,6 +51,10 @@ source "drivers/staging/cx25821/Kconfig"
 
 source "drivers/staging/tm6000/Kconfig"
 
+source "drivers/staging/cpia/Kconfig"
+
+source "drivers/staging/stradis/Kconfig"
+
 source "drivers/staging/usbip/Kconfig"
 
 source "drivers/staging/winbond/Kconfig"
@@ -59,7 +63,7 @@ source "drivers/staging/wlan-ng/Kconfig"
 
 source "drivers/staging/echo/Kconfig"
 
-source "drivers/staging/otus/Kconfig"
+source "drivers/staging/brcm80211/Kconfig"
 
 source "drivers/staging/rt2860/Kconfig"
 
@@ -67,23 +71,25 @@ source "drivers/staging/rt2870/Kconfig"
 
 source "drivers/staging/comedi/Kconfig"
 
+source "drivers/staging/olpc_dcon/Kconfig"
+
 source "drivers/staging/asus_oled/Kconfig"
 
 source "drivers/staging/panel/Kconfig"
 
 source "drivers/staging/rtl8187se/Kconfig"
 
-source "drivers/staging/rtl8192su/Kconfig"
-
 source "drivers/staging/rtl8192u/Kconfig"
 
 source "drivers/staging/rtl8192e/Kconfig"
 
+source "drivers/staging/rtl8712/Kconfig"
+
 source "drivers/staging/frontier/Kconfig"
 
-source "drivers/staging/dream/Kconfig"
-
 source "drivers/staging/pohmelfs/Kconfig"
+
+source "drivers/staging/autofs/Kconfig"
 
 source "drivers/staging/phison/Kconfig"
 
@@ -139,11 +145,11 @@ source "drivers/staging/adis16255/Kconfig"
 
 source "drivers/staging/xgifb/Kconfig"
 
-source "drivers/staging/mrst-touchscreen/Kconfig"
-
 source "drivers/staging/msm/Kconfig"
 
 source "drivers/staging/lirc/Kconfig"
+
+source "drivers/staging/smbfs/Kconfig"
 
 source "drivers/staging/easycap/Kconfig"
 
@@ -152,6 +158,22 @@ source "drivers/staging/solo6x10/Kconfig"
 source "drivers/staging/tidspbridge/Kconfig"
 
 source "drivers/staging/quickstart/Kconfig"
+
+source "drivers/staging/westbridge/Kconfig"
+
+source "drivers/staging/sbe-2t3e3/Kconfig"
+
+source "drivers/staging/ath6kl/Kconfig"
+
+source "drivers/staging/keucr/Kconfig"
+
+source "drivers/staging/bcm/Kconfig"
+
+source "drivers/staging/ft1000/Kconfig"
+
+source "drivers/staging/intel_sst/Kconfig"
+
+source "drivers/staging/speakup/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

@@ -21,6 +21,8 @@
 #include <linux/io.h>
 #include <asm/div64.h>
 
+#include <mach/regs-clock.h>
+
 #include <plat/clock.h>
 #include <plat/clock-clksrc.h>
 #include <plat/s5p-clock.h>
@@ -88,14 +90,6 @@ struct clk clk_fout_vpll = {
 	.ctrlbit	= (1 << 31),
 };
 
-/* ARM clock */
-struct clk clk_arm = {
-	.name		= "armclk",
-	.id		= -1,
-	.rate		= 0,
-	.ctrlbit	= 0,
-};
-
 /* Possible clock sources for APLL Mux */
 static struct clk *clk_src_apll_list[] = {
 	[0] = &clk_fin_apll,
@@ -156,6 +150,24 @@ int s5p_gatectrl(void __iomem *reg, struct clk *clk, int enable)
 	return 0;
 }
 
+int s5p_epll_enable(struct clk *clk, int enable)
+{
+	unsigned int ctrlbit = clk->ctrlbit;
+	unsigned int epll_con = __raw_readl(S5P_EPLL_CON) & ~ctrlbit;
+
+	if (enable)
+		__raw_writel(epll_con | ctrlbit, S5P_EPLL_CON);
+	else
+		__raw_writel(epll_con, S5P_EPLL_CON);
+
+	return 0;
+}
+
+unsigned long s5p_epll_get_rate(struct clk *clk)
+{
+	return clk->rate;
+}
+
 static struct clk *s5p_clks[] __initdata = {
 	&clk_ext_xtal_mux,
 	&clk_48m,
@@ -165,7 +177,6 @@ static struct clk *s5p_clks[] __initdata = {
 	&clk_fout_epll,
 	&clk_fout_dpll,
 	&clk_fout_vpll,
-	&clk_arm,
 	&clk_vpll,
 	&clk_xusbxti,
 };

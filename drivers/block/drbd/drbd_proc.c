@@ -57,6 +57,7 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 	unsigned long db, dt, dbdt, rt, rs_left;
 	unsigned int res;
 	int i, x, y;
+	int stalled = 0;
 
 	drbd_get_syncer_progress(mdev, &rs_left, &res);
 
@@ -90,18 +91,17 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 	 * db: blocks written from mark until now
 	 * rt: remaining time
 	 */
-	dt = (jiffies - mdev->rs_mark_time) / HZ;
-
-	if (dt > 20) {
-		/* if we made no update to rs_mark_time for too long,
-		 * we are stalled. show that. */
-		seq_printf(seq, "stalled\n");
-		return;
-	}
+	/* Rolling marks. last_mark+1 may just now be modified.  last_mark+2 is
+	 * at least (DRBD_SYNC_MARKS-2)*DRBD_SYNC_MARK_STEP old, and has at
+	 * least DRBD_SYNC_MARK_STEP time before it will be modified. */
+	i = (mdev->rs_last_mark + 2) % DRBD_SYNC_MARKS;
+	dt = (jiffies - mdev->rs_mark_time[i]) / HZ;
+	if (dt > (DRBD_SYNC_MARK_STEP * DRBD_SYNC_MARKS))
+		stalled = 1;
 
 	if (!dt)
 		dt++;
-	db = mdev->rs_mark_left - rs_left;
+	db = mdev->rs_mark_left[i] - rs_left;
 	rt = (dt * (rs_left / (db/100+1)))/100; /* seconds */
 
 	seq_printf(seq, "finish: %lu:%02lu:%02lu",
@@ -118,7 +118,7 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 	/* mean speed since syncer started
 	 * we do account for PausedSync periods */
 	dt = (jiffies - mdev->rs_start - mdev->rs_paused) / HZ;
-	if (dt <= 0)
+	if (dt == 0)
 		dt = 1;
 	db = mdev->rs_total - rs_left;
 	dbdt = Bit2KB(db/dt);
@@ -128,7 +128,14 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 	else
 		seq_printf(seq, " (%ld)", dbdt);
 
-	seq_printf(seq, " K/sec\n");
+	if (mdev->state.conn == C_SYNC_TARGET) {
+		if (mdev->c_sync_rate > 1000)
+			seq_printf(seq, " want: %d,%03d",
+				   mdev->c_sync_rate / 1000, mdev->c_sync_rate % 1000);
+		else
+			seq_printf(seq, " want: %d", mdev->c_sync_rate);
+	}
+	seq_printf(seq, " K/sec%s\n", stalled ? " (stalled)" : "");
 }
 
 static void resync_dump_detail(struct seq_file *seq, struct lc_element *e)
@@ -151,7 +158,6 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 		[WO_none] = 'n',
 		[WO_drain_io] = 'd',
 		[WO_bdev_flush] = 'f',
-		[WO_bio_barrier] = 'b',
 	};
 
 	seq_printf(seq, "version: " REL_VERSION " (api:%d/proto:%d-%d)\n%s\n",
@@ -196,7 +202,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			seq_printf(seq, "%2d: cs:Unconfigured\n", i);
 		} else {
 			seq_printf(seq,
-			   "%2d: cs:%s ro:%s/%s ds:%s/%s %c %c%c%c%c%c\n"
+			   "%2d: cs:%s ro:%s/%s ds:%s/%s %c %c%c%c%c%c%c\n"
 			   "    ns:%u nr:%u dw:%u dr:%u al:%u bm:%u "
 			   "lo:%d pe:%d ua:%d ap:%d ep:%d wo:%c",
 			   i, sn,
@@ -206,11 +212,12 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			   drbd_disk_str(mdev->state.pdsk),
 			   (mdev->net_conf == NULL ? ' ' :
 			    (mdev->net_conf->wire_protocol - DRBD_PROT_A+'A')),
-			   mdev->state.susp ? 's' : 'r',
+			   is_susp(mdev->state) ? 's' : 'r',
 			   mdev->state.aftr_isp ? 'a' : '-',
 			   mdev->state.peer_isp ? 'p' : '-',
 			   mdev->state.user_isp ? 'u' : '-',
 			   mdev->congestion_reason ?: '-',
+			   test_bit(AL_SUSPENDED, &mdev->flags) ? 's' : '-',
 			   mdev->send_cnt/2,
 			   mdev->recv_cnt/2,
 			   mdev->writ_cnt/2,

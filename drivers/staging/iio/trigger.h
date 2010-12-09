@@ -152,7 +152,7 @@ int iio_alloc_pollfunc(struct iio_dev *indio_dev,
 
 /*
  * Two functions for common case where all that happens is a pollfunc
- * is attached and detached form a trigger
+ * is attached and detached from a trigger
  */
 int iio_triggered_ring_postenable(struct iio_dev *indio_dev);
 int iio_triggered_ring_predisable(struct iio_dev *indio_dev);
@@ -161,8 +161,4 @@ struct iio_trigger *iio_allocate_trigger(void);
 
 void iio_free_trigger(struct iio_trigger *trig);
 
-
-struct iio_simple_trigger {
-	struct iio_trigger trig;
-};
 #endif /* _IIO_TRIGGER_H_ */

@@ -43,9 +43,6 @@
 #define BIOSLOG(sip, fmt, arg...) NV_DEBUG(sip->dev, fmt, ##arg)
 #define LOG_OLD_VALUE(x)
 
-#define ROM16(x) le16_to_cpu(*(uint16_t *)&(x))
-#define ROM32(x) le32_to_cpu(*(uint32_t *)&(x))
-
 struct init_exec {
 	bool execute;
 	bool repeat;
@@ -270,12 +267,6 @@ struct init_tbl_entry {
 	 *  < 0: failure, table parsing will be aborted
 	 */
 	int (*handler)(struct nvbios *, uint16_t, struct init_exec *);
-};
-
-struct bit_entry {
-	uint8_t id[2];
-	uint16_t length;
-	uint16_t offset;
 };
 
 static int parse_init_table(struct nvbios *, unsigned int, struct init_exec *);
@@ -1231,7 +1222,7 @@ init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 			return 3;
 		}
 
-		if (cond & 1)
+		if (!(cond & 1))
 			iexec->execute = false;
 	}
 		break;
@@ -2167,11 +2158,11 @@ peek_fb(struct drm_device *dev, struct io_mapping *fb,
 
 	if (off < pci_resource_len(dev->pdev, 1)) {
 		uint8_t __iomem *p =
-			io_mapping_map_atomic_wc(fb, off & PAGE_MASK, KM_USER0);
+			io_mapping_map_atomic_wc(fb, off & PAGE_MASK);
 
 		val = ioread32(p + (off & ~PAGE_MASK));
 
-		io_mapping_unmap_atomic(p, KM_USER0);
+		io_mapping_unmap_atomic(p);
 	}
 
 	return val;
@@ -2183,12 +2174,12 @@ poke_fb(struct drm_device *dev, struct io_mapping *fb,
 {
 	if (off < pci_resource_len(dev->pdev, 1)) {
 		uint8_t __iomem *p =
-			io_mapping_map_atomic_wc(fb, off & PAGE_MASK, KM_USER0);
+			io_mapping_map_atomic_wc(fb, off & PAGE_MASK);
 
 		iowrite32(val, p + (off & ~PAGE_MASK));
 		wmb();
 
-		io_mapping_unmap_atomic(p, KM_USER0);
+		io_mapping_unmap_atomic(p);
 	}
 }
 
@@ -4675,6 +4666,92 @@ int run_tmds_table(struct drm_device *dev, struct dcb_entry *dcbent, int head, i
 	return 0;
 }
 
+struct pll_mapping {
+	u8  type;
+	u32 reg;
+};
+
+static struct pll_mapping nv04_pll_mapping[] = {
+	{ PLL_CORE  , NV_PRAMDAC_NVPLL_COEFF },
+	{ PLL_MEMORY, NV_PRAMDAC_MPLL_COEFF },
+	{ PLL_VPLL0 , NV_PRAMDAC_VPLL_COEFF },
+	{ PLL_VPLL1 , NV_RAMDAC_VPLL2 },
+	{}
+};
+
+static struct pll_mapping nv40_pll_mapping[] = {
+	{ PLL_CORE  , 0x004000 },
+	{ PLL_MEMORY, 0x004020 },
+	{ PLL_VPLL0 , NV_PRAMDAC_VPLL_COEFF },
+	{ PLL_VPLL1 , NV_RAMDAC_VPLL2 },
+	{}
+};
+
+static struct pll_mapping nv50_pll_mapping[] = {
+	{ PLL_CORE  , 0x004028 },
+	{ PLL_SHADER, 0x004020 },
+	{ PLL_UNK03 , 0x004000 },
+	{ PLL_MEMORY, 0x004008 },
+	{ PLL_UNK40 , 0x00e810 },
+	{ PLL_UNK41 , 0x00e818 },
+	{ PLL_UNK42 , 0x00e824 },
+	{ PLL_VPLL0 , 0x614100 },
+	{ PLL_VPLL1 , 0x614900 },
+	{}
+};
+
+static struct pll_mapping nv84_pll_mapping[] = {
+	{ PLL_CORE  , 0x004028 },
+	{ PLL_SHADER, 0x004020 },
+	{ PLL_MEMORY, 0x004008 },
+	{ PLL_UNK05 , 0x004030 },
+	{ PLL_UNK41 , 0x00e818 },
+	{ PLL_VPLL0 , 0x614100 },
+	{ PLL_VPLL1 , 0x614900 },
+	{}
+};
+
+u32
+get_pll_register(struct drm_device *dev, enum pll_types type)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->vbios;
+	struct pll_mapping *map;
+	int i;
+
+	if (dev_priv->card_type < NV_40)
+		map = nv04_pll_mapping;
+	else
+	if (dev_priv->card_type < NV_50)
+		map = nv40_pll_mapping;
+	else {
+		u8 *plim = &bios->data[bios->pll_limit_tbl_ptr];
+
+		if (plim[0] >= 0x30) {
+			u8 *entry = plim + plim[1];
+			for (i = 0; i < plim[3]; i++, entry += plim[2]) {
+				if (entry[0] == type)
+					return ROM32(entry[3]);
+			}
+
+			return 0;
+		}
+
+		if (dev_priv->chipset == 0x50)
+			map = nv50_pll_mapping;
+		else
+			map = nv84_pll_mapping;
+	}
+
+	while (map->reg) {
+		if (map->type == type)
+			return map->reg;
+		map++;
+	}
+
+	return 0;
+}
+
 int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims *pll_lim)
 {
 	/*
@@ -4750,6 +4827,17 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 	/* initialize all members to zero */
 	memset(pll_lim, 0, sizeof(struct pll_lims));
 
+	/* if we were passed a type rather than a register, figure
+	 * out the register and store it
+	 */
+	if (limit_match > PLL_MAX)
+		pll_lim->reg = limit_match;
+	else {
+		pll_lim->reg = get_pll_register(dev, limit_match);
+		if (!pll_lim->reg)
+			return -ENOENT;
+	}
+
 	if (pll_lim_ver == 0x10 || pll_lim_ver == 0x11) {
 		uint8_t *pll_rec = &bios->data[bios->pll_limit_tbl_ptr + headerlen + recordlen * pllindex];
 
@@ -4785,7 +4873,6 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 		pll_lim->max_usable_log2p = 0x6;
 	} else if (pll_lim_ver == 0x20 || pll_lim_ver == 0x21) {
 		uint16_t plloffs = bios->pll_limit_tbl_ptr + headerlen;
-		uint32_t reg = 0; /* default match */
 		uint8_t *pll_rec;
 		int i;
 
@@ -4797,37 +4884,22 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 			NV_WARN(dev, "Default PLL limit entry has non-zero "
 				       "register field\n");
 
-		if (limit_match > MAX_PLL_TYPES)
-			/* we've been passed a reg as the match */
-			reg = limit_match;
-		else /* limit match is a pll type */
-			for (i = 1; i < entries && !reg; i++) {
-				uint32_t cmpreg = ROM32(bios->data[plloffs + recordlen * i]);
-
-				if (limit_match == NVPLL &&
-				    (cmpreg == NV_PRAMDAC_NVPLL_COEFF || cmpreg == 0x4000))
-					reg = cmpreg;
-				if (limit_match == MPLL &&
-				    (cmpreg == NV_PRAMDAC_MPLL_COEFF || cmpreg == 0x4020))
-					reg = cmpreg;
-				if (limit_match == VPLL1 &&
-				    (cmpreg == NV_PRAMDAC_VPLL_COEFF || cmpreg == 0x4010))
-					reg = cmpreg;
-				if (limit_match == VPLL2 &&
-				    (cmpreg == NV_RAMDAC_VPLL2 || cmpreg == 0x4018))
-					reg = cmpreg;
-			}
-
 		for (i = 1; i < entries; i++)
-			if (ROM32(bios->data[plloffs + recordlen * i]) == reg) {
+			if (ROM32(bios->data[plloffs + recordlen * i]) == pll_lim->reg) {
 				pllindex = i;
 				break;
 			}
 
+		if ((dev_priv->card_type >= NV_50) && (pllindex == 0)) {
+			NV_ERROR(dev, "Register 0x%08x not found in PLL "
+				 "limits table", pll_lim->reg);
+			return -ENOENT;
+		}
+
 		pll_rec = &bios->data[plloffs + recordlen * pllindex];
 
 		BIOSLOG(bios, "Loading PLL limits for reg 0x%08x\n",
-			pllindex ? reg : 0);
+			pllindex ? pll_lim->reg : 0);
 
 		/*
 		 * Frequencies are stored in tables in MHz, kHz are more
@@ -4877,8 +4949,8 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 		if (cv == 0x51 && !pll_lim->refclk) {
 			uint32_t sel_clk = bios_rd32(bios, NV_PRAMDAC_SEL_CLK);
 
-			if (((limit_match == NV_PRAMDAC_VPLL_COEFF || limit_match == VPLL1) && sel_clk & 0x20) ||
-			    ((limit_match == NV_RAMDAC_VPLL2 || limit_match == VPLL2) && sel_clk & 0x80)) {
+			if ((pll_lim->reg == NV_PRAMDAC_VPLL_COEFF && sel_clk & 0x20) ||
+			    (pll_lim->reg == NV_RAMDAC_VPLL2 && sel_clk & 0x80)) {
 				if (bios_idxprt_rd(bios, NV_CIO_CRX__COLOR, NV_CIO_CRE_CHIP_ID_INDEX) < 0xa3)
 					pll_lim->refclk = 200000;
 				else
@@ -4891,10 +4963,10 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 		int i;
 
 		BIOSLOG(bios, "Loading PLL limits for register 0x%08x\n",
-			limit_match);
+			pll_lim->reg);
 
 		for (i = 0; i < entries; i++, entry += recordlen) {
-			if (ROM32(entry[3]) == limit_match) {
+			if (ROM32(entry[3]) == pll_lim->reg) {
 				record = &bios->data[ROM16(entry[1])];
 				break;
 			}
@@ -4902,7 +4974,7 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 
 		if (!record) {
 			NV_ERROR(dev, "Register 0x%08x not found in PLL "
-				 "limits table", limit_match);
+				 "limits table", pll_lim->reg);
 			return -ENOENT;
 		}
 
@@ -4931,10 +5003,10 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 		int i;
 
 		BIOSLOG(bios, "Loading PLL limits for register 0x%08x\n",
-			limit_match);
+			pll_lim->reg);
 
 		for (i = 0; i < entries; i++, entry += recordlen) {
-			if (ROM32(entry[3]) == limit_match) {
+			if (ROM32(entry[3]) == pll_lim->reg) {
 				record = &bios->data[ROM16(entry[1])];
 				break;
 			}
@@ -4942,7 +5014,7 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 
 		if (!record) {
 			NV_ERROR(dev, "Register 0x%08x not found in PLL "
-				 "limits table", limit_match);
+				 "limits table", pll_lim->reg);
 			return -ENOENT;
 		}
 
@@ -5293,7 +5365,7 @@ parse_bit_M_tbl_entry(struct drm_device *dev, struct nvbios *bios,
 	if (bitentry->length < 0x5)
 		return 0;
 
-	if (bitentry->id[1] < 2) {
+	if (bitentry->version < 2) {
 		bios->ram_restrict_group_count = bios->data[bitentry->offset + 2];
 		bios->ram_restrict_tbl_ptr = ROM16(bios->data[bitentry->offset + 3]);
 	} else {
@@ -5403,27 +5475,40 @@ struct bit_table {
 
 #define BIT_TABLE(id, funcid) ((struct bit_table){ id, parse_bit_##funcid##_tbl_entry })
 
+int
+bit_table(struct drm_device *dev, u8 id, struct bit_entry *bit)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->vbios;
+	u8 entries, *entry;
+
+	entries = bios->data[bios->offset + 10];
+	entry   = &bios->data[bios->offset + 12];
+	while (entries--) {
+		if (entry[0] == id) {
+			bit->id = entry[0];
+			bit->version = entry[1];
+			bit->length = ROM16(entry[2]);
+			bit->offset = ROM16(entry[4]);
+			bit->data = ROMPTR(bios, entry[4]);
+			return 0;
+		}
+
+		entry += bios->data[bios->offset + 9];
+	}
+
+	return -ENOENT;
+}
+
 static int
 parse_bit_table(struct nvbios *bios, const uint16_t bitoffset,
 		struct bit_table *table)
 {
 	struct drm_device *dev = bios->dev;
-	uint8_t maxentries = bios->data[bitoffset + 4];
-	int i, offset;
 	struct bit_entry bitentry;
 
-	for (i = 0, offset = bitoffset + 6; i < maxentries; i++, offset += 6) {
-		bitentry.id[0] = bios->data[offset];
-
-		if (bitentry.id[0] != table->id)
-			continue;
-
-		bitentry.id[1] = bios->data[offset + 1];
-		bitentry.length = ROM16(bios->data[offset + 2]);
-		bitentry.offset = ROM16(bios->data[offset + 4]);
-
+	if (bit_table(dev, table->id, &bitentry) == 0)
 		return table->parse_fn(dev, bios, &bitentry);
-	}
 
 	NV_INFO(dev, "BIT table '%c' not found\n", table->id);
 	return -ENOSYS;
@@ -5683,7 +5768,13 @@ static uint16_t findstr(uint8_t *data, int n, const uint8_t *str, int len)
 static struct dcb_gpio_entry *
 new_gpio_entry(struct nvbios *bios)
 {
+	struct drm_device *dev = bios->dev;
 	struct dcb_gpio_table *gpio = &bios->dcb.gpio;
+
+	if (gpio->entries >= DCB_MAX_NUM_GPIO_ENTRIES) {
+		NV_ERROR(dev, "exceeded maximum number of gpio entries!!\n");
+		return NULL;
+	}
 
 	return &gpio->entry[gpio->entries++];
 }
@@ -5706,113 +5797,90 @@ nouveau_bios_gpio_entry(struct drm_device *dev, enum dcb_gpio_tag tag)
 }
 
 static void
-parse_dcb30_gpio_entry(struct nvbios *bios, uint16_t offset)
-{
-	struct dcb_gpio_entry *gpio;
-	uint16_t ent = ROM16(bios->data[offset]);
-	uint8_t line = ent & 0x1f,
-		tag = ent >> 5 & 0x3f,
-		flags = ent >> 11 & 0x1f;
-
-	if (tag == 0x3f)
-		return;
-
-	gpio = new_gpio_entry(bios);
-
-	gpio->tag = tag;
-	gpio->line = line;
-	gpio->invert = flags != 4;
-	gpio->entry = ent;
-}
-
-static void
-parse_dcb40_gpio_entry(struct nvbios *bios, uint16_t offset)
-{
-	uint32_t entry = ROM32(bios->data[offset]);
-	struct dcb_gpio_entry *gpio;
-
-	if ((entry & 0x0000ff00) == 0x0000ff00)
-		return;
-
-	gpio = new_gpio_entry(bios);
-	gpio->tag = (entry & 0x0000ff00) >> 8;
-	gpio->line = (entry & 0x0000001f) >> 0;
-	gpio->state_default = (entry & 0x01000000) >> 24;
-	gpio->state[0] = (entry & 0x18000000) >> 27;
-	gpio->state[1] = (entry & 0x60000000) >> 29;
-	gpio->entry = entry;
-}
-
-static void
 parse_dcb_gpio_table(struct nvbios *bios)
 {
 	struct drm_device *dev = bios->dev;
-	uint16_t gpio_table_ptr = bios->dcb.gpio_table_ptr;
-	uint8_t *gpio_table = &bios->data[gpio_table_ptr];
-	int header_len = gpio_table[1],
-	    entries = gpio_table[2],
-	    entry_len = gpio_table[3];
-	void (*parse_entry)(struct nvbios *, uint16_t) = NULL;
+	struct dcb_gpio_entry *e;
+	u8 headerlen, entries, recordlen;
+	u8 *dcb, *gpio = NULL, *entry;
 	int i;
 
-	if (bios->dcb.version >= 0x40) {
-		if (gpio_table_ptr && entry_len != 4) {
-			NV_WARN(dev, "Invalid DCB GPIO table entry length.\n");
-			return;
-		}
+	dcb = ROMPTR(bios, bios->data[0x36]);
+	if (dcb[0] >= 0x30) {
+		gpio = ROMPTR(bios, dcb[10]);
+		if (!gpio)
+			goto no_table;
 
-		parse_entry = parse_dcb40_gpio_entry;
+		headerlen = gpio[1];
+		entries   = gpio[2];
+		recordlen = gpio[3];
+	} else
+	if (dcb[0] >= 0x22 && dcb[-1] >= 0x13) {
+		gpio = ROMPTR(bios, dcb[-15]);
+		if (!gpio)
+			goto no_table;
 
-	} else if (bios->dcb.version >= 0x30) {
-		if (gpio_table_ptr && entry_len != 2) {
-			NV_WARN(dev, "Invalid DCB GPIO table entry length.\n");
-			return;
-		}
-
-		parse_entry = parse_dcb30_gpio_entry;
-
-	} else if (bios->dcb.version >= 0x22) {
-		/*
-		 * DCBs older than v3.0 don't really have a GPIO
-		 * table, instead they keep some GPIO info at fixed
-		 * locations.
-		 */
-		uint16_t dcbptr = ROM16(bios->data[0x36]);
-		uint8_t *tvdac_gpio = &bios->data[dcbptr - 5];
+		headerlen = 3;
+		entries   = gpio[2];
+		recordlen = gpio[1];
+	} else
+	if (dcb[0] >= 0x22) {
+		/* No GPIO table present, parse the TVDAC GPIO data. */
+		uint8_t *tvdac_gpio = &dcb[-5];
 
 		if (tvdac_gpio[0] & 1) {
-			struct dcb_gpio_entry *gpio = new_gpio_entry(bios);
-
-			gpio->tag = DCB_GPIO_TVDAC0;
-			gpio->line = tvdac_gpio[1] >> 4;
-			gpio->invert = tvdac_gpio[0] & 2;
+			e = new_gpio_entry(bios);
+			e->tag = DCB_GPIO_TVDAC0;
+			e->line = tvdac_gpio[1] >> 4;
+			e->invert = tvdac_gpio[0] & 2;
 		}
+
+		goto no_table;
 	} else {
-		/*
-		 * No systematic way to store GPIO info on pre-v2.2
-		 * DCBs, try to match the PCI device IDs.
-		 */
+		NV_DEBUG(dev, "no/unknown gpio table on DCB 0x%02x\n", dcb[0]);
+		goto no_table;
+	}
 
-		/* Apple iMac G4 NV18 */
-		if (nv_match_device(dev, 0x0189, 0x10de, 0x0010)) {
-			struct dcb_gpio_entry *gpio = new_gpio_entry(bios);
+	entry = gpio + headerlen;
+	for (i = 0; i < entries; i++, entry += recordlen) {
+		e = new_gpio_entry(bios);
+		if (!e)
+			break;
 
-			gpio->tag = DCB_GPIO_TVDAC0;
-			gpio->line = 4;
+		if (gpio[0] < 0x40) {
+			e->entry = ROM16(entry[0]);
+			e->tag = (e->entry & 0x07e0) >> 5;
+			if (e->tag == 0x3f) {
+				bios->dcb.gpio.entries--;
+				continue;
+			}
+
+			e->line = (e->entry & 0x001f);
+			e->invert = ((e->entry & 0xf800) >> 11) != 4;
+		} else {
+			e->entry = ROM32(entry[0]);
+			e->tag = (e->entry & 0x0000ff00) >> 8;
+			if (e->tag == 0xff) {
+				bios->dcb.gpio.entries--;
+				continue;
+			}
+
+			e->line = (e->entry & 0x0000001f) >> 0;
+			e->state_default = (e->entry & 0x01000000) >> 24;
+			e->state[0] = (e->entry & 0x18000000) >> 27;
+			e->state[1] = (e->entry & 0x60000000) >> 29;
 		}
-
 	}
 
-	if (!gpio_table_ptr)
-		return;
-
-	if (entries > DCB_MAX_NUM_GPIO_ENTRIES) {
-		NV_WARN(dev, "Too many entries in the DCB GPIO table.\n");
-		entries = DCB_MAX_NUM_GPIO_ENTRIES;
+no_table:
+	/* Apple iMac G4 NV18 */
+	if (nv_match_device(dev, 0x0189, 0x10de, 0x0010)) {
+		e = new_gpio_entry(bios);
+		if (e) {
+			e->tag = DCB_GPIO_TVDAC0;
+			e->line = 4;
+		}
 	}
-
-	for (i = 0; i < entries; i++)
-		parse_entry(bios, gpio_table_ptr + header_len + entry_len * i);
 }
 
 struct dcb_connector_table_entry *
@@ -6680,6 +6748,8 @@ static int nouveau_parse_vbios_struct(struct drm_device *dev)
 					bit_signature, sizeof(bit_signature));
 	if (offset) {
 		NV_TRACE(dev, "BIT BIOS found\n");
+		bios->type = NVBIOS_BIT;
+		bios->offset = offset;
 		return parse_bit_structure(bios, offset + 6);
 	}
 
@@ -6687,6 +6757,8 @@ static int nouveau_parse_vbios_struct(struct drm_device *dev)
 					bmp_signature, sizeof(bmp_signature));
 	if (offset) {
 		NV_TRACE(dev, "BMP BIOS found\n");
+		bios->type = NVBIOS_BMP;
+		bios->offset = offset;
 		return parse_bmp_structure(dev, bios, offset);
 	}
 
@@ -6806,6 +6878,8 @@ nouveau_bios_init(struct drm_device *dev)
 			"running VBIOS init tables.\n");
 		bios->execute = true;
 	}
+	if (nouveau_force_post)
+		bios->execute = true;
 
 	ret = nouveau_run_vbios_init(dev);
 	if (ret)

@@ -18,6 +18,7 @@
 #include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/vt_kern.h>
+#include <linux/input.h>
 
 #define MAX_CONFIG_LEN		40
 
@@ -37,6 +38,61 @@ static struct tty_driver	*kgdb_tty_driver;
 static int			kgdb_tty_line;
 
 #ifdef CONFIG_KDB_KEYBOARD
+static int kgdboc_reset_connect(struct input_handler *handler,
+				struct input_dev *dev,
+				const struct input_device_id *id)
+{
+	input_reset_device(dev);
+
+	/* Retrun an error - we do not want to bind, just to reset */
+	return -ENODEV;
+}
+
+static void kgdboc_reset_disconnect(struct input_handle *handle)
+{
+	/* We do not expect anyone to actually bind to us */
+	BUG();
+}
+
+static const struct input_device_id kgdboc_reset_ids[] = {
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT,
+		.evbit = { BIT_MASK(EV_KEY) },
+	},
+	{ }
+};
+
+static struct input_handler kgdboc_reset_handler = {
+	.connect	= kgdboc_reset_connect,
+	.disconnect	= kgdboc_reset_disconnect,
+	.name		= "kgdboc_reset",
+	.id_table	= kgdboc_reset_ids,
+};
+
+static DEFINE_MUTEX(kgdboc_reset_mutex);
+
+static void kgdboc_restore_input_helper(struct work_struct *dummy)
+{
+	/*
+	 * We need to take a mutex to prevent several instances of
+	 * this work running on different CPUs so they don't try
+	 * to register again already registered handler.
+	 */
+	mutex_lock(&kgdboc_reset_mutex);
+
+	if (input_register_handler(&kgdboc_reset_handler) == 0)
+		input_unregister_handler(&kgdboc_reset_handler);
+
+	mutex_unlock(&kgdboc_reset_mutex);
+}
+
+static DECLARE_WORK(kgdboc_restore_input_work, kgdboc_restore_input_helper);
+
+static void kgdboc_restore_input(void)
+{
+	schedule_work(&kgdboc_restore_input_work);
+}
+
 static int kgdboc_register_kbd(char **cptr)
 {
 	if (strncmp(*cptr, "kbd", 3) == 0) {
@@ -64,10 +120,12 @@ static void kgdboc_unregister_kbd(void)
 			i--;
 		}
 	}
+	flush_work_sync(&kgdboc_restore_input_work);
 }
 #else /* ! CONFIG_KDB_KEYBOARD */
 #define kgdboc_register_kbd(x) 0
 #define kgdboc_unregister_kbd()
+#define kgdboc_restore_input()
 #endif /* ! CONFIG_KDB_KEYBOARD */
 
 static int kgdboc_option_setup(char *opt)
@@ -231,6 +289,7 @@ static void kgdboc_post_exp_handler(void)
 		dbg_restore_graphics = 0;
 		con_debug_leave();
 	}
+	kgdboc_restore_input();
 }
 
 static struct kgdb_io kgdboc_io_ops = {
@@ -243,7 +302,7 @@ static struct kgdb_io kgdboc_io_ops = {
 
 #ifdef CONFIG_KGDB_SERIAL_CONSOLE
 /* This is only available if kgdboc is a built in for early debugging */
-int __init kgdboc_early_init(char *opt)
+static int __init kgdboc_early_init(char *opt)
 {
 	/* save the first character of the config string because the
 	 * init routine can destroy it.

@@ -31,7 +31,7 @@
 
 static inline unsigned long nilfs_sufile_get_nsegments(struct inode *sufile)
 {
-	return NILFS_MDT(sufile)->mi_nilfs->ns_nsegments;
+	return NILFS_I_NILFS(sufile)->ns_nsegments;
 }
 
 unsigned long nilfs_sufile_get_ncleansegs(struct inode *sufile);
@@ -61,8 +61,8 @@ void nilfs_sufile_do_cancel_free(struct inode *, __u64, struct buffer_head *,
 void nilfs_sufile_do_set_error(struct inode *, __u64, struct buffer_head *,
 			       struct buffer_head *);
 
-int nilfs_sufile_read(struct inode *sufile, struct nilfs_inode *raw_inode);
-struct inode *nilfs_sufile_new(struct the_nilfs *nilfs, size_t susize);
+int nilfs_sufile_read(struct super_block *sb, size_t susize,
+		      struct nilfs_inode *raw_inode, struct inode **inodep);
 
 /**
  * nilfs_sufile_scrap - make a segment garbage

@@ -455,7 +455,7 @@ void ieee80211_softmac_scan_syncro(struct ieee80211_device *ieee)
 		}while(!ieee->channel_map[ch]);
 #endif
 
-		/* this fuction can be called in two situations
+		/* this function can be called in two situations
 		 * 1- We have switched to ad-hoc mode and we are
 		 *    performing a complete syncro scan before conclude
 		 *    there are no interesting cell and to create a
@@ -527,16 +527,16 @@ void ieee80211_softmac_scan_wq(struct work_struct *work)
 	do{
 		ieee->current_network.channel =
 			(ieee->current_network.channel + 1) % MAX_CHANNEL_NUMBER;
-		if (watchdog++ > MAX_CHANNEL_NUMBER)
-		{
-		//if current channel is not in channel map, set to default channel.
-		#ifdef ENABLE_DOT11D
-      			if (!channel_map[ieee->current_network.channel]);
-		#else
-			if (!ieee->channel_map[ieee->current_network.channel]);
-		#endif
+		if (watchdog++ > MAX_CHANNEL_NUMBER) {
+			/* if current channel is not in channel map, set to default channel. */
+#ifdef ENABLE_DOT11D
+			if (!channel_map[ieee->current_network.channel]) {
+#else
+			if (!ieee->channel_map[ieee->current_network.channel]) {
+#endif
 				ieee->current_network.channel = 6;
 				goto out; /* no good chans */
+			}
 		}
 #ifdef ENABLE_DOT11D
         }while(!channel_map[ieee->current_network.channel]);

@@ -259,6 +259,8 @@ void pcmcia_disable_device(struct pcmcia_device *p_dev);
 #define CONF_ENABLE_SPKR        0x0002
 #define CONF_ENABLE_PULSE_IRQ   0x0004
 #define CONF_ENABLE_ESR         0x0008
+#define CONF_ENABLE_IOCARD	0x0010 /* auto-enabled if IO resources or IRQ
+					* (CONF_ENABLE_IRQ) in use */
 
 /* flags used by pcmcia_loop_config() autoconfiguration */
 #define CONF_AUTO_CHECK_VCC	0x0100 /* check for matching Vcc? */

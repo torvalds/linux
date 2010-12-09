@@ -261,6 +261,7 @@ static const struct file_operations tb0219_fops = {
 	.write		= tanbac_tb0219_write,
 	.open		= tanbac_tb0219_open,
 	.release	= tanbac_tb0219_release,
+	.llseek		= no_llseek,
 };
 
 static void tb0219_restart(char *command)

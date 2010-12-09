@@ -9,14 +9,14 @@
  * is Copyright (C) 2009 Theodore Kilgore <kilgota@auburn.edu>
  *
  * Support for the control settings for the CIF cameras is
- * Copyright (C) 2009 Hans de Goede <hdgoede@redhat.com> and
+ * Copyright (C) 2009 Hans de Goede <hdegoede@redhat.com> and
  * Thomas Kaiser <thomas@kaiser-linux.li>
  *
  * Support for the control settings for the VGA cameras is
  * Copyright (C) 2009 Theodore Kilgore <kilgota@auburn.edu>
  *
  * Several previously unsupported cameras are owned and have been tested by
- * Hans de Goede <hdgoede@redhat.com> and
+ * Hans de Goede <hdegoede@redhat.com> and
  * Thomas Kaiser <thomas@kaiser-linux.li> and
  * Theodore Kilgore <kilgota@auburn.edu> and
  * Edmond Rodriguez <erodrig_97@yahoo.com> and
@@ -267,7 +267,7 @@ static int mr_write(struct gspca_dev *gspca_dev, int len)
 			  usb_sndbulkpipe(gspca_dev->dev, 4),
 			  gspca_dev->usb_buf, len, NULL, 500);
 	if (rc < 0)
-		PDEBUG(D_ERR, "reg write [%02x] error %d",
+		err("reg write [%02x] error %d",
 		       gspca_dev->usb_buf[0], rc);
 	return rc;
 }
@@ -281,7 +281,7 @@ static int mr_read(struct gspca_dev *gspca_dev, int len)
 			  usb_rcvbulkpipe(gspca_dev->dev, 3),
 			  gspca_dev->usb_buf, len, NULL, 500);
 	if (rc < 0)
-		PDEBUG(D_ERR, "reg read [%02x] error %d",
+		err("reg read [%02x] error %d",
 		       gspca_dev->usb_buf[0], rc);
 	return rc;
 }
@@ -540,7 +540,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor_type = 1;
 			break;
 		default:
-			PDEBUG(D_ERR, "Unknown CIF Sensor id : %02x",
+			err("Unknown CIF Sensor id : %02x",
 			       gspca_dev->usb_buf[1]);
 			return -ENODEV;
 		}
@@ -575,10 +575,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor_type = 2;
 		} else if ((gspca_dev->usb_buf[0] != 0x03) &&
 					(gspca_dev->usb_buf[0] != 0x04)) {
-			PDEBUG(D_ERR, "Unknown VGA Sensor id Byte 0: %02x",
+			err("Unknown VGA Sensor id Byte 0: %02x",
 					gspca_dev->usb_buf[0]);
-			PDEBUG(D_ERR, "Defaults assumed, may not work");
-			PDEBUG(D_ERR, "Please report this");
+			err("Defaults assumed, may not work");
+			err("Please report this");
 		}
 		/* Sakar Digital color needs to be adjusted. */
 		if ((gspca_dev->usb_buf[0] == 0x03) &&
@@ -595,12 +595,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 				/* Nothing to do here. */
 				break;
 			default:
-				PDEBUG(D_ERR,
-					"Unknown VGA Sensor id Byte 1: %02x",
+				err("Unknown VGA Sensor id Byte 1: %02x",
 					gspca_dev->usb_buf[1]);
-				PDEBUG(D_ERR,
-					"Defaults assumed, may not work");
-				PDEBUG(D_ERR, "Please report this");
+				err("Defaults assumed, may not work");
+				err("Please report this");
 			}
 		}
 		PDEBUG(D_PROBE, "MR97310A VGA camera detected, sensor: %d",
@@ -675,7 +673,7 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 *data = gspca_dev->usb_buf;
 	int err_code;
-	const __u8 startup_string[] = {
+	static const __u8 startup_string[] = {
 		0x00,
 		0x0d,
 		0x01,
@@ -721,7 +719,7 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 		return err_code;
 
 	if (!sd->sensor_type) {
-		const struct sensor_w_data cif_sensor0_init_data[] = {
+		static const struct sensor_w_data cif_sensor0_init_data[] = {
 			{0x02, 0x00, {0x03, 0x5a, 0xb5, 0x01,
 				      0x0f, 0x14, 0x0f, 0x10}, 8},
 			{0x0c, 0x00, {0x04, 0x01, 0x01, 0x00, 0x1f}, 5},
@@ -742,7 +740,7 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 		err_code = sensor_write_regs(gspca_dev, cif_sensor0_init_data,
 					 ARRAY_SIZE(cif_sensor0_init_data));
 	} else {	/* sd->sensor_type = 1 */
-		const struct sensor_w_data cif_sensor1_init_data[] = {
+		static const struct sensor_w_data cif_sensor1_init_data[] = {
 			/* Reg 3,4, 7,8 get set by the controls */
 			{0x02, 0x00, {0x10}, 1},
 			{0x05, 0x01, {0x22}, 1}, /* 5/6 also seen as 65h/32h */
@@ -777,8 +775,9 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 *data = gspca_dev->usb_buf;
 	int err_code;
-	const __u8 startup_string[] = {0x00, 0x0d, 0x01, 0x00, 0x00, 0x2b,
-				       0x00, 0x00, 0x00, 0x50, 0xc0};
+	static const __u8 startup_string[] =
+		{0x00, 0x0d, 0x01, 0x00, 0x00, 0x2b, 0x00, 0x00,
+		 0x00, 0x50, 0xc0};
 	/* What some of these mean is explained in start_cif_cam(), above */
 
 	memcpy(data, startup_string, 11);
@@ -830,7 +829,7 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 		return err_code;
 
 	if (!sd->sensor_type) {
-		const struct sensor_w_data vga_sensor0_init_data[] = {
+		static const struct sensor_w_data vga_sensor0_init_data[] = {
 			{0x01, 0x00, {0x0c, 0x00, 0x04}, 3},
 			{0x14, 0x00, {0x01, 0xe4, 0x02, 0x84}, 4},
 			{0x20, 0x00, {0x00, 0x80, 0x00, 0x08}, 4},
@@ -841,20 +840,20 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 		err_code = sensor_write_regs(gspca_dev, vga_sensor0_init_data,
 					 ARRAY_SIZE(vga_sensor0_init_data));
 	} else if (sd->sensor_type == 1) {
-		const struct sensor_w_data color_adj[] = {
+		static const struct sensor_w_data color_adj[] = {
 			{0x02, 0x00, {0x06, 0x59, 0x0c, 0x16, 0x00,
 				/* adjusted blue, green, red gain correct
 				   too much blue from the Sakar Digital */
 				0x05, 0x01, 0x04}, 8}
 		};
 
-		const struct sensor_w_data color_no_adj[] = {
+		static const struct sensor_w_data color_no_adj[] = {
 			{0x02, 0x00, {0x06, 0x59, 0x0c, 0x16, 0x00,
 				/* default blue, green, red gain settings */
 				0x07, 0x00, 0x01}, 8}
 		};
 
-		const struct sensor_w_data vga_sensor1_init_data[] = {
+		static const struct sensor_w_data vga_sensor1_init_data[] = {
 			{0x11, 0x04, {0x01}, 1},
 			{0x0a, 0x00, {0x00, 0x01, 0x00, 0x00, 0x01,
 			/* These settings may be better for some cameras */
@@ -879,7 +878,7 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 		err_code = sensor_write_regs(gspca_dev, vga_sensor1_init_data,
 					 ARRAY_SIZE(vga_sensor1_init_data));
 	} else {	/* sensor type == 2 */
-		const struct sensor_w_data vga_sensor2_init_data[] = {
+		static const struct sensor_w_data vga_sensor2_init_data[] = {
 
 			{0x01, 0x00, {0x48}, 1},
 			{0x02, 0x00, {0x22}, 1},
@@ -976,7 +975,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	u8 val;
 	u8 sign_reg = 7;  /* This reg and the next one used on CIF cams. */
 	u8 value_reg = 8; /* VGA cams seem to use regs 0x0b and 0x0c */
-	const u8 quick_clix_table[] =
+	static const u8 quick_clix_table[] =
 	/*	  0  1  2   3  4  5  6  7  8  9  10  11  12  13  14  15 */
 		{ 0, 4, 8, 12, 1, 2, 3, 5, 6, 9,  7, 10, 13, 11, 14, 15};
 	/*
@@ -1261,18 +1260,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

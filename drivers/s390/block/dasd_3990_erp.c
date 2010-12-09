@@ -221,6 +221,7 @@ dasd_3990_erp_DCTL(struct dasd_ccw_req * erp, char modifier)
 	ccw->cmd_code = CCW_CMD_DCTL;
 	ccw->count = 4;
 	ccw->cda = (__u32)(addr_t) DCTL_data;
+	dctl_cqr->flags = erp->flags;
 	dctl_cqr->function = dasd_3990_erp_DCTL;
 	dctl_cqr->refers = erp;
 	dctl_cqr->startdev = device;
@@ -1710,6 +1711,7 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
 	ccw->cda = cpa;
 
 	/* fill erp related fields */
+	erp->flags = default_erp->flags;
 	erp->function = dasd_3990_erp_action_1B_32;
 	erp->refers = default_erp->refers;
 	erp->startdev = device;
@@ -2197,7 +2199,7 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 
 /*
  *****************************************************************************
- * main ERP control fuctions (24 and 32 byte sense)
+ * main ERP control functions (24 and 32 byte sense)
  *****************************************************************************
  */
 
@@ -2354,6 +2356,7 @@ static struct dasd_ccw_req *dasd_3990_erp_add_erp(struct dasd_ccw_req *cqr)
 		ccw->cda      = (long)(cqr->cpaddr);
 	}
 
+	erp->flags = cqr->flags;
 	erp->function = dasd_3990_erp_add_erp;
 	erp->refers   = cqr;
 	erp->startdev = device;

@@ -382,20 +382,20 @@ sysenter_past_esp:
 	 * enough kernel state to call TRACE_IRQS_OFF can be called - but
 	 * we immediately enable interrupts at that point anyway.
 	 */
-	pushl_cfi $(__USER_DS)
+	pushl_cfi $__USER_DS
 	/*CFI_REL_OFFSET ss, 0*/
 	pushl_cfi %ebp
 	CFI_REL_OFFSET esp, 0
 	pushfl_cfi
 	orl $X86_EFLAGS_IF, (%esp)
-	pushl_cfi $(__USER_CS)
+	pushl_cfi $__USER_CS
 	/*CFI_REL_OFFSET cs, 0*/
 	/*
 	 * Push current_thread_info()->sysenter_return to the stack.
 	 * A tiny bit of offset fixup is necessary - 4*4 means the 4 words
 	 * pushed above; +8 corresponds to copy_thread's esp0 setting.
 	 */
-	pushl_cfi (TI_sysenter_return-THREAD_SIZE+8+4*4)(%esp)
+	pushl_cfi (TI_sysenter_return-THREAD_SIZE_asm+8+4*4)(%esp)
 	CFI_REL_OFFSET eip, 0
 
 	pushl_cfi %eax

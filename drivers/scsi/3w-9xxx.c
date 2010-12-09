@@ -92,7 +92,6 @@
 #include <linux/pci.h>
 #include <linux/time.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -105,6 +104,7 @@
 
 /* Globals */
 #define TW_DRIVER_VERSION "2.26.02.014"
+static DEFINE_MUTEX(twa_chrdev_mutex);
 static TW_Device_Extension *twa_device_extension_list[TW_MAX_SLOT];
 static unsigned int twa_device_extension_count;
 static int twa_major = -1;
@@ -222,7 +222,8 @@ static const struct file_operations twa_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= twa_chrdev_ioctl,
 	.open		= twa_chrdev_open,
-	.release	= NULL
+	.release	= NULL,
+	.llseek		= noop_llseek,
 };
 
 /* This function will complete an aen request from the isr */
@@ -658,7 +659,7 @@ static long twa_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long 
 	int retval = TW_IOCTL_ERROR_OS_EFAULT;
 	void __user *argp = (void __user *)arg;
 
-	lock_kernel();
+	mutex_lock(&twa_chrdev_mutex);
 
 	/* Only let one of these through at a time */
 	if (mutex_lock_interruptible(&tw_dev->ioctl_lock)) {
@@ -879,7 +880,7 @@ out3:
 out2:
 	mutex_unlock(&tw_dev->ioctl_lock);
 out:
-	unlock_kernel();
+	mutex_unlock(&twa_chrdev_mutex);
 	return retval;
 } /* End twa_chrdev_ioctl() */
 
@@ -890,7 +891,6 @@ static int twa_chrdev_open(struct inode *inode, struct file *file)
 	unsigned int minor_number;
 	int retval = TW_IOCTL_ERROR_OS_ENODEV;
 
-	cycle_kernel_lock();
 	minor_number = iminor(inode);
 	if (minor_number >= twa_device_extension_count)
 		goto out;

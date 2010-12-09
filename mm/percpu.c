@@ -31,7 +31,7 @@
  * as small as 4 bytes.  The allocator organizes chunks into lists
  * according to free size and tries to allocate from the fullest one.
  * Each chunk keeps the maximum contiguous area size hint which is
- * guaranteed to be eqaul to or larger than the maximum contiguous
+ * guaranteed to be equal to or larger than the maximum contiguous
  * area in the chunk.  This helps the allocator not to iterate the
  * chunk maps unnecessarily.
  *
@@ -76,6 +76,7 @@
 #define PCPU_SLOT_BASE_SHIFT		5	/* 1-31 shares the same slot */
 #define PCPU_DFL_MAP_ALLOC		16	/* start a map with 16 ents */
 
+#ifdef CONFIG_SMP
 /* default addr <-> pcpu_ptr mapping, override in asm/percpu.h if necessary */
 #ifndef __addr_to_pcpu_ptr
 #define __addr_to_pcpu_ptr(addr)					\
@@ -89,6 +90,11 @@
 			 (unsigned long)pcpu_base_addr -		\
 			 (unsigned long)__per_cpu_start)
 #endif
+#else	/* CONFIG_SMP */
+/* on UP, it's always identity mapped */
+#define __addr_to_pcpu_ptr(addr)	(void __percpu *)(addr)
+#define __pcpu_ptr_to_addr(ptr)		(void __force *)(ptr)
+#endif	/* CONFIG_SMP */
 
 struct pcpu_chunk {
 	struct list_head	list;		/* linked to pcpu_slot lists */
@@ -820,8 +826,8 @@ fail_unlock_mutex:
  * @size: size of area to allocate in bytes
  * @align: alignment of area (max PAGE_SIZE)
  *
- * Allocate percpu area of @size bytes aligned at @align.  Might
- * sleep.  Might trigger writeouts.
+ * Allocate zero-filled percpu area of @size bytes aligned at @align.
+ * Might sleep.  Might trigger writeouts.
  *
  * CONTEXT:
  * Does GFP_KERNEL allocation.
@@ -840,9 +846,10 @@ EXPORT_SYMBOL_GPL(__alloc_percpu);
  * @size: size of area to allocate in bytes
  * @align: alignment of area (max PAGE_SIZE)
  *
- * Allocate percpu area of @size bytes aligned at @align from reserved
- * percpu area if arch has set it up; otherwise, allocation is served
- * from the same dynamic area.  Might sleep.  Might trigger writeouts.
+ * Allocate zero-filled percpu area of @size bytes aligned at @align
+ * from reserved percpu area if arch has set it up; otherwise,
+ * allocation is served from the same dynamic area.  Might sleep.
+ * Might trigger writeouts.
  *
  * CONTEXT:
  * Does GFP_KERNEL allocation.
@@ -949,6 +956,7 @@ EXPORT_SYMBOL_GPL(free_percpu);
  */
 bool is_kernel_percpu_address(unsigned long addr)
 {
+#ifdef CONFIG_SMP
 	const size_t static_size = __per_cpu_end - __per_cpu_start;
 	void __percpu *base = __addr_to_pcpu_ptr(pcpu_base_addr);
 	unsigned int cpu;
@@ -959,6 +967,8 @@ bool is_kernel_percpu_address(unsigned long addr)
 		if ((void *)addr >= start && (void *)addr < start + static_size)
 			return true;
         }
+#endif
+	/* on UP, can't distinguish from other static vars, always false */
 	return false;
 }
 
@@ -1066,6 +1076,321 @@ void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai)
 	free_bootmem(__pa(ai), ai->__ai_size);
 }
 
+/**
+ * pcpu_dump_alloc_info - print out information about pcpu_alloc_info
+ * @lvl: loglevel
+ * @ai: allocation info to dump
+ *
+ * Print out information about @ai using loglevel @lvl.
+ */
+static void pcpu_dump_alloc_info(const char *lvl,
+				 const struct pcpu_alloc_info *ai)
+{
+	int group_width = 1, cpu_width = 1, width;
+	char empty_str[] = "--------";
+	int alloc = 0, alloc_end = 0;
+	int group, v;
+	int upa, apl;	/* units per alloc, allocs per line */
+
+	v = ai->nr_groups;
+	while (v /= 10)
+		group_width++;
+
+	v = num_possible_cpus();
+	while (v /= 10)
+		cpu_width++;
+	empty_str[min_t(int, cpu_width, sizeof(empty_str) - 1)] = '\0';
+
+	upa = ai->alloc_size / ai->unit_size;
+	width = upa * (cpu_width + 1) + group_width + 3;
+	apl = rounddown_pow_of_two(max(60 / width, 1));
+
+	printk("%spcpu-alloc: s%zu r%zu d%zu u%zu alloc=%zu*%zu",
+	       lvl, ai->static_size, ai->reserved_size, ai->dyn_size,
+	       ai->unit_size, ai->alloc_size / ai->atom_size, ai->atom_size);
+
+	for (group = 0; group < ai->nr_groups; group++) {
+		const struct pcpu_group_info *gi = &ai->groups[group];
+		int unit = 0, unit_end = 0;
+
+		BUG_ON(gi->nr_units % upa);
+		for (alloc_end += gi->nr_units / upa;
+		     alloc < alloc_end; alloc++) {
+			if (!(alloc % apl)) {
+				printk("\n");
+				printk("%spcpu-alloc: ", lvl);
+			}
+			printk("[%0*d] ", group_width, group);
+
+			for (unit_end += upa; unit < unit_end; unit++)
+				if (gi->cpu_map[unit] != NR_CPUS)
+					printk("%0*d ", cpu_width,
+					       gi->cpu_map[unit]);
+				else
+					printk("%s ", empty_str);
+		}
+	}
+	printk("\n");
+}
+
+/**
+ * pcpu_setup_first_chunk - initialize the first percpu chunk
+ * @ai: pcpu_alloc_info describing how to percpu area is shaped
+ * @base_addr: mapped address
+ *
+ * Initialize the first percpu chunk which contains the kernel static
+ * perpcu area.  This function is to be called from arch percpu area
+ * setup path.
+ *
+ * @ai contains all information necessary to initialize the first
+ * chunk and prime the dynamic percpu allocator.
+ *
+ * @ai->static_size is the size of static percpu area.
+ *
+ * @ai->reserved_size, if non-zero, specifies the amount of bytes to
+ * reserve after the static area in the first chunk.  This reserves
+ * the first chunk such that it's available only through reserved
+ * percpu allocation.  This is primarily used to serve module percpu
+ * static areas on architectures where the addressing model has
+ * limited offset range for symbol relocations to guarantee module
+ * percpu symbols fall inside the relocatable range.
+ *
+ * @ai->dyn_size determines the number of bytes available for dynamic
+ * allocation in the first chunk.  The area between @ai->static_size +
+ * @ai->reserved_size + @ai->dyn_size and @ai->unit_size is unused.
+ *
+ * @ai->unit_size specifies unit size and must be aligned to PAGE_SIZE
+ * and equal to or larger than @ai->static_size + @ai->reserved_size +
+ * @ai->dyn_size.
+ *
+ * @ai->atom_size is the allocation atom size and used as alignment
+ * for vm areas.
+ *
+ * @ai->alloc_size is the allocation size and always multiple of
+ * @ai->atom_size.  This is larger than @ai->atom_size if
+ * @ai->unit_size is larger than @ai->atom_size.
+ *
+ * @ai->nr_groups and @ai->groups describe virtual memory layout of
+ * percpu areas.  Units which should be colocated are put into the
+ * same group.  Dynamic VM areas will be allocated according to these
+ * groupings.  If @ai->nr_groups is zero, a single group containing
+ * all units is assumed.
+ *
+ * The caller should have mapped the first chunk at @base_addr and
+ * copied static data to each unit.
+ *
+ * If the first chunk ends up with both reserved and dynamic areas, it
+ * is served by two chunks - one to serve the core static and reserved
+ * areas and the other for the dynamic area.  They share the same vm
+ * and page map but uses different area allocation map to stay away
+ * from each other.  The latter chunk is circulated in the chunk slots
+ * and available for dynamic allocation like any other chunks.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
+ */
+int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
+				  void *base_addr)
+{
+	static char cpus_buf[4096] __initdata;
+	static int smap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
+	static int dmap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
+	size_t dyn_size = ai->dyn_size;
+	size_t size_sum = ai->static_size + ai->reserved_size + dyn_size;
+	struct pcpu_chunk *schunk, *dchunk = NULL;
+	unsigned long *group_offsets;
+	size_t *group_sizes;
+	unsigned long *unit_off;
+	unsigned int cpu;
+	int *unit_map;
+	int group, unit, i;
+
+	cpumask_scnprintf(cpus_buf, sizeof(cpus_buf), cpu_possible_mask);
+
+#define PCPU_SETUP_BUG_ON(cond)	do {					\
+	if (unlikely(cond)) {						\
+		pr_emerg("PERCPU: failed to initialize, %s", #cond);	\
+		pr_emerg("PERCPU: cpu_possible_mask=%s\n", cpus_buf);	\
+		pcpu_dump_alloc_info(KERN_EMERG, ai);			\
+		BUG();							\
+	}								\
+} while (0)
+
+	/* sanity checks */
+	PCPU_SETUP_BUG_ON(ai->nr_groups <= 0);
+#ifdef CONFIG_SMP
+	PCPU_SETUP_BUG_ON(!ai->static_size);
+#endif
+	PCPU_SETUP_BUG_ON(!base_addr);
+	PCPU_SETUP_BUG_ON(ai->unit_size < size_sum);
+	PCPU_SETUP_BUG_ON(ai->unit_size & ~PAGE_MASK);
+	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
+	PCPU_SETUP_BUG_ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
+	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
+
+	/* process group information and build config tables accordingly */
+	group_offsets = alloc_bootmem(ai->nr_groups * sizeof(group_offsets[0]));
+	group_sizes = alloc_bootmem(ai->nr_groups * sizeof(group_sizes[0]));
+	unit_map = alloc_bootmem(nr_cpu_ids * sizeof(unit_map[0]));
+	unit_off = alloc_bootmem(nr_cpu_ids * sizeof(unit_off[0]));
+
+	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
+		unit_map[cpu] = UINT_MAX;
+	pcpu_first_unit_cpu = NR_CPUS;
+
+	for (group = 0, unit = 0; group < ai->nr_groups; group++, unit += i) {
+		const struct pcpu_group_info *gi = &ai->groups[group];
+
+		group_offsets[group] = gi->base_offset;
+		group_sizes[group] = gi->nr_units * ai->unit_size;
+
+		for (i = 0; i < gi->nr_units; i++) {
+			cpu = gi->cpu_map[i];
+			if (cpu == NR_CPUS)
+				continue;
+
+			PCPU_SETUP_BUG_ON(cpu > nr_cpu_ids);
+			PCPU_SETUP_BUG_ON(!cpu_possible(cpu));
+			PCPU_SETUP_BUG_ON(unit_map[cpu] != UINT_MAX);
+
+			unit_map[cpu] = unit + i;
+			unit_off[cpu] = gi->base_offset + i * ai->unit_size;
+
+			if (pcpu_first_unit_cpu == NR_CPUS)
+				pcpu_first_unit_cpu = cpu;
+			pcpu_last_unit_cpu = cpu;
+		}
+	}
+	pcpu_nr_units = unit;
+
+	for_each_possible_cpu(cpu)
+		PCPU_SETUP_BUG_ON(unit_map[cpu] == UINT_MAX);
+
+	/* we're done parsing the input, undefine BUG macro and dump config */
+#undef PCPU_SETUP_BUG_ON
+	pcpu_dump_alloc_info(KERN_INFO, ai);
+
+	pcpu_nr_groups = ai->nr_groups;
+	pcpu_group_offsets = group_offsets;
+	pcpu_group_sizes = group_sizes;
+	pcpu_unit_map = unit_map;
+	pcpu_unit_offsets = unit_off;
+
+	/* determine basic parameters */
+	pcpu_unit_pages = ai->unit_size >> PAGE_SHIFT;
+	pcpu_unit_size = pcpu_unit_pages << PAGE_SHIFT;
+	pcpu_atom_size = ai->atom_size;
+	pcpu_chunk_struct_size = sizeof(struct pcpu_chunk) +
+		BITS_TO_LONGS(pcpu_unit_pages) * sizeof(unsigned long);
+
+	/*
+	 * Allocate chunk slots.  The additional last slot is for
+	 * empty chunks.
+	 */
+	pcpu_nr_slots = __pcpu_size_to_slot(pcpu_unit_size) + 2;
+	pcpu_slot = alloc_bootmem(pcpu_nr_slots * sizeof(pcpu_slot[0]));
+	for (i = 0; i < pcpu_nr_slots; i++)
+		INIT_LIST_HEAD(&pcpu_slot[i]);
+
+	/*
+	 * Initialize static chunk.  If reserved_size is zero, the
+	 * static chunk covers static area + dynamic allocation area
+	 * in the first chunk.  If reserved_size is not zero, it
+	 * covers static area + reserved area (mostly used for module
+	 * static percpu allocation).
+	 */
+	schunk = alloc_bootmem(pcpu_chunk_struct_size);
+	INIT_LIST_HEAD(&schunk->list);
+	schunk->base_addr = base_addr;
+	schunk->map = smap;
+	schunk->map_alloc = ARRAY_SIZE(smap);
+	schunk->immutable = true;
+	bitmap_fill(schunk->populated, pcpu_unit_pages);
+
+	if (ai->reserved_size) {
+		schunk->free_size = ai->reserved_size;
+		pcpu_reserved_chunk = schunk;
+		pcpu_reserved_chunk_limit = ai->static_size + ai->reserved_size;
+	} else {
+		schunk->free_size = dyn_size;
+		dyn_size = 0;			/* dynamic area covered */
+	}
+	schunk->contig_hint = schunk->free_size;
+
+	schunk->map[schunk->map_used++] = -ai->static_size;
+	if (schunk->free_size)
+		schunk->map[schunk->map_used++] = schunk->free_size;
+
+	/* init dynamic chunk if necessary */
+	if (dyn_size) {
+		dchunk = alloc_bootmem(pcpu_chunk_struct_size);
+		INIT_LIST_HEAD(&dchunk->list);
+		dchunk->base_addr = base_addr;
+		dchunk->map = dmap;
+		dchunk->map_alloc = ARRAY_SIZE(dmap);
+		dchunk->immutable = true;
+		bitmap_fill(dchunk->populated, pcpu_unit_pages);
+
+		dchunk->contig_hint = dchunk->free_size = dyn_size;
+		dchunk->map[dchunk->map_used++] = -pcpu_reserved_chunk_limit;
+		dchunk->map[dchunk->map_used++] = dchunk->free_size;
+	}
+
+	/* link the first chunk in */
+	pcpu_first_chunk = dchunk ?: schunk;
+	pcpu_chunk_relocate(pcpu_first_chunk, -1);
+
+	/* we're done */
+	pcpu_base_addr = base_addr;
+	return 0;
+}
+
+#ifdef CONFIG_SMP
+
+const char *pcpu_fc_names[PCPU_FC_NR] __initdata = {
+	[PCPU_FC_AUTO]	= "auto",
+	[PCPU_FC_EMBED]	= "embed",
+	[PCPU_FC_PAGE]	= "page",
+};
+
+enum pcpu_fc pcpu_chosen_fc __initdata = PCPU_FC_AUTO;
+
+static int __init percpu_alloc_setup(char *str)
+{
+	if (0)
+		/* nada */;
+#ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK
+	else if (!strcmp(str, "embed"))
+		pcpu_chosen_fc = PCPU_FC_EMBED;
+#endif
+#ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
+	else if (!strcmp(str, "page"))
+		pcpu_chosen_fc = PCPU_FC_PAGE;
+#endif
+	else
+		pr_warning("PERCPU: unknown allocator %s specified\n", str);
+
+	return 0;
+}
+early_param("percpu_alloc", percpu_alloc_setup);
+
+/*
+ * pcpu_embed_first_chunk() is used by the generic percpu setup.
+ * Build it if needed by the arch config or the generic setup is going
+ * to be used.
+ */
+#if defined(CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK) || \
+	!defined(CONFIG_HAVE_SETUP_PER_CPU_AREA)
+#define BUILD_EMBED_FIRST_CHUNK
+#endif
+
+/* build pcpu_page_first_chunk() iff needed by the arch config */
+#if defined(CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK)
+#define BUILD_PAGE_FIRST_CHUNK
+#endif
+
+/* pcpu_build_alloc_info() is used by both embed and page first chunk */
+#if defined(BUILD_EMBED_FIRST_CHUNK) || defined(BUILD_PAGE_FIRST_CHUNK)
 /**
  * pcpu_build_alloc_info - build alloc_info considering distances between CPUs
  * @reserved_size: the size of reserved percpu area in bytes
@@ -1220,303 +1545,9 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 
 	return ai;
 }
+#endif /* BUILD_EMBED_FIRST_CHUNK || BUILD_PAGE_FIRST_CHUNK */
 
-/**
- * pcpu_dump_alloc_info - print out information about pcpu_alloc_info
- * @lvl: loglevel
- * @ai: allocation info to dump
- *
- * Print out information about @ai using loglevel @lvl.
- */
-static void pcpu_dump_alloc_info(const char *lvl,
-				 const struct pcpu_alloc_info *ai)
-{
-	int group_width = 1, cpu_width = 1, width;
-	char empty_str[] = "--------";
-	int alloc = 0, alloc_end = 0;
-	int group, v;
-	int upa, apl;	/* units per alloc, allocs per line */
-
-	v = ai->nr_groups;
-	while (v /= 10)
-		group_width++;
-
-	v = num_possible_cpus();
-	while (v /= 10)
-		cpu_width++;
-	empty_str[min_t(int, cpu_width, sizeof(empty_str) - 1)] = '\0';
-
-	upa = ai->alloc_size / ai->unit_size;
-	width = upa * (cpu_width + 1) + group_width + 3;
-	apl = rounddown_pow_of_two(max(60 / width, 1));
-
-	printk("%spcpu-alloc: s%zu r%zu d%zu u%zu alloc=%zu*%zu",
-	       lvl, ai->static_size, ai->reserved_size, ai->dyn_size,
-	       ai->unit_size, ai->alloc_size / ai->atom_size, ai->atom_size);
-
-	for (group = 0; group < ai->nr_groups; group++) {
-		const struct pcpu_group_info *gi = &ai->groups[group];
-		int unit = 0, unit_end = 0;
-
-		BUG_ON(gi->nr_units % upa);
-		for (alloc_end += gi->nr_units / upa;
-		     alloc < alloc_end; alloc++) {
-			if (!(alloc % apl)) {
-				printk("\n");
-				printk("%spcpu-alloc: ", lvl);
-			}
-			printk("[%0*d] ", group_width, group);
-
-			for (unit_end += upa; unit < unit_end; unit++)
-				if (gi->cpu_map[unit] != NR_CPUS)
-					printk("%0*d ", cpu_width,
-					       gi->cpu_map[unit]);
-				else
-					printk("%s ", empty_str);
-		}
-	}
-	printk("\n");
-}
-
-/**
- * pcpu_setup_first_chunk - initialize the first percpu chunk
- * @ai: pcpu_alloc_info describing how to percpu area is shaped
- * @base_addr: mapped address
- *
- * Initialize the first percpu chunk which contains the kernel static
- * perpcu area.  This function is to be called from arch percpu area
- * setup path.
- *
- * @ai contains all information necessary to initialize the first
- * chunk and prime the dynamic percpu allocator.
- *
- * @ai->static_size is the size of static percpu area.
- *
- * @ai->reserved_size, if non-zero, specifies the amount of bytes to
- * reserve after the static area in the first chunk.  This reserves
- * the first chunk such that it's available only through reserved
- * percpu allocation.  This is primarily used to serve module percpu
- * static areas on architectures where the addressing model has
- * limited offset range for symbol relocations to guarantee module
- * percpu symbols fall inside the relocatable range.
- *
- * @ai->dyn_size determines the number of bytes available for dynamic
- * allocation in the first chunk.  The area between @ai->static_size +
- * @ai->reserved_size + @ai->dyn_size and @ai->unit_size is unused.
- *
- * @ai->unit_size specifies unit size and must be aligned to PAGE_SIZE
- * and equal to or larger than @ai->static_size + @ai->reserved_size +
- * @ai->dyn_size.
- *
- * @ai->atom_size is the allocation atom size and used as alignment
- * for vm areas.
- *
- * @ai->alloc_size is the allocation size and always multiple of
- * @ai->atom_size.  This is larger than @ai->atom_size if
- * @ai->unit_size is larger than @ai->atom_size.
- *
- * @ai->nr_groups and @ai->groups describe virtual memory layout of
- * percpu areas.  Units which should be colocated are put into the
- * same group.  Dynamic VM areas will be allocated according to these
- * groupings.  If @ai->nr_groups is zero, a single group containing
- * all units is assumed.
- *
- * The caller should have mapped the first chunk at @base_addr and
- * copied static data to each unit.
- *
- * If the first chunk ends up with both reserved and dynamic areas, it
- * is served by two chunks - one to serve the core static and reserved
- * areas and the other for the dynamic area.  They share the same vm
- * and page map but uses different area allocation map to stay away
- * from each other.  The latter chunk is circulated in the chunk slots
- * and available for dynamic allocation like any other chunks.
- *
- * RETURNS:
- * 0 on success, -errno on failure.
- */
-int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
-				  void *base_addr)
-{
-	static char cpus_buf[4096] __initdata;
-	static int smap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
-	static int dmap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
-	size_t dyn_size = ai->dyn_size;
-	size_t size_sum = ai->static_size + ai->reserved_size + dyn_size;
-	struct pcpu_chunk *schunk, *dchunk = NULL;
-	unsigned long *group_offsets;
-	size_t *group_sizes;
-	unsigned long *unit_off;
-	unsigned int cpu;
-	int *unit_map;
-	int group, unit, i;
-
-	cpumask_scnprintf(cpus_buf, sizeof(cpus_buf), cpu_possible_mask);
-
-#define PCPU_SETUP_BUG_ON(cond)	do {					\
-	if (unlikely(cond)) {						\
-		pr_emerg("PERCPU: failed to initialize, %s", #cond);	\
-		pr_emerg("PERCPU: cpu_possible_mask=%s\n", cpus_buf);	\
-		pcpu_dump_alloc_info(KERN_EMERG, ai);			\
-		BUG();							\
-	}								\
-} while (0)
-
-	/* sanity checks */
-	PCPU_SETUP_BUG_ON(ai->nr_groups <= 0);
-	PCPU_SETUP_BUG_ON(!ai->static_size);
-	PCPU_SETUP_BUG_ON(!base_addr);
-	PCPU_SETUP_BUG_ON(ai->unit_size < size_sum);
-	PCPU_SETUP_BUG_ON(ai->unit_size & ~PAGE_MASK);
-	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
-	PCPU_SETUP_BUG_ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
-	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
-
-	/* process group information and build config tables accordingly */
-	group_offsets = alloc_bootmem(ai->nr_groups * sizeof(group_offsets[0]));
-	group_sizes = alloc_bootmem(ai->nr_groups * sizeof(group_sizes[0]));
-	unit_map = alloc_bootmem(nr_cpu_ids * sizeof(unit_map[0]));
-	unit_off = alloc_bootmem(nr_cpu_ids * sizeof(unit_off[0]));
-
-	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
-		unit_map[cpu] = UINT_MAX;
-	pcpu_first_unit_cpu = NR_CPUS;
-
-	for (group = 0, unit = 0; group < ai->nr_groups; group++, unit += i) {
-		const struct pcpu_group_info *gi = &ai->groups[group];
-
-		group_offsets[group] = gi->base_offset;
-		group_sizes[group] = gi->nr_units * ai->unit_size;
-
-		for (i = 0; i < gi->nr_units; i++) {
-			cpu = gi->cpu_map[i];
-			if (cpu == NR_CPUS)
-				continue;
-
-			PCPU_SETUP_BUG_ON(cpu > nr_cpu_ids);
-			PCPU_SETUP_BUG_ON(!cpu_possible(cpu));
-			PCPU_SETUP_BUG_ON(unit_map[cpu] != UINT_MAX);
-
-			unit_map[cpu] = unit + i;
-			unit_off[cpu] = gi->base_offset + i * ai->unit_size;
-
-			if (pcpu_first_unit_cpu == NR_CPUS)
-				pcpu_first_unit_cpu = cpu;
-			pcpu_last_unit_cpu = cpu;
-		}
-	}
-	pcpu_nr_units = unit;
-
-	for_each_possible_cpu(cpu)
-		PCPU_SETUP_BUG_ON(unit_map[cpu] == UINT_MAX);
-
-	/* we're done parsing the input, undefine BUG macro and dump config */
-#undef PCPU_SETUP_BUG_ON
-	pcpu_dump_alloc_info(KERN_INFO, ai);
-
-	pcpu_nr_groups = ai->nr_groups;
-	pcpu_group_offsets = group_offsets;
-	pcpu_group_sizes = group_sizes;
-	pcpu_unit_map = unit_map;
-	pcpu_unit_offsets = unit_off;
-
-	/* determine basic parameters */
-	pcpu_unit_pages = ai->unit_size >> PAGE_SHIFT;
-	pcpu_unit_size = pcpu_unit_pages << PAGE_SHIFT;
-	pcpu_atom_size = ai->atom_size;
-	pcpu_chunk_struct_size = sizeof(struct pcpu_chunk) +
-		BITS_TO_LONGS(pcpu_unit_pages) * sizeof(unsigned long);
-
-	/*
-	 * Allocate chunk slots.  The additional last slot is for
-	 * empty chunks.
-	 */
-	pcpu_nr_slots = __pcpu_size_to_slot(pcpu_unit_size) + 2;
-	pcpu_slot = alloc_bootmem(pcpu_nr_slots * sizeof(pcpu_slot[0]));
-	for (i = 0; i < pcpu_nr_slots; i++)
-		INIT_LIST_HEAD(&pcpu_slot[i]);
-
-	/*
-	 * Initialize static chunk.  If reserved_size is zero, the
-	 * static chunk covers static area + dynamic allocation area
-	 * in the first chunk.  If reserved_size is not zero, it
-	 * covers static area + reserved area (mostly used for module
-	 * static percpu allocation).
-	 */
-	schunk = alloc_bootmem(pcpu_chunk_struct_size);
-	INIT_LIST_HEAD(&schunk->list);
-	schunk->base_addr = base_addr;
-	schunk->map = smap;
-	schunk->map_alloc = ARRAY_SIZE(smap);
-	schunk->immutable = true;
-	bitmap_fill(schunk->populated, pcpu_unit_pages);
-
-	if (ai->reserved_size) {
-		schunk->free_size = ai->reserved_size;
-		pcpu_reserved_chunk = schunk;
-		pcpu_reserved_chunk_limit = ai->static_size + ai->reserved_size;
-	} else {
-		schunk->free_size = dyn_size;
-		dyn_size = 0;			/* dynamic area covered */
-	}
-	schunk->contig_hint = schunk->free_size;
-
-	schunk->map[schunk->map_used++] = -ai->static_size;
-	if (schunk->free_size)
-		schunk->map[schunk->map_used++] = schunk->free_size;
-
-	/* init dynamic chunk if necessary */
-	if (dyn_size) {
-		dchunk = alloc_bootmem(pcpu_chunk_struct_size);
-		INIT_LIST_HEAD(&dchunk->list);
-		dchunk->base_addr = base_addr;
-		dchunk->map = dmap;
-		dchunk->map_alloc = ARRAY_SIZE(dmap);
-		dchunk->immutable = true;
-		bitmap_fill(dchunk->populated, pcpu_unit_pages);
-
-		dchunk->contig_hint = dchunk->free_size = dyn_size;
-		dchunk->map[dchunk->map_used++] = -pcpu_reserved_chunk_limit;
-		dchunk->map[dchunk->map_used++] = dchunk->free_size;
-	}
-
-	/* link the first chunk in */
-	pcpu_first_chunk = dchunk ?: schunk;
-	pcpu_chunk_relocate(pcpu_first_chunk, -1);
-
-	/* we're done */
-	pcpu_base_addr = base_addr;
-	return 0;
-}
-
-const char *pcpu_fc_names[PCPU_FC_NR] __initdata = {
-	[PCPU_FC_AUTO]	= "auto",
-	[PCPU_FC_EMBED]	= "embed",
-	[PCPU_FC_PAGE]	= "page",
-};
-
-enum pcpu_fc pcpu_chosen_fc __initdata = PCPU_FC_AUTO;
-
-static int __init percpu_alloc_setup(char *str)
-{
-	if (0)
-		/* nada */;
-#ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK
-	else if (!strcmp(str, "embed"))
-		pcpu_chosen_fc = PCPU_FC_EMBED;
-#endif
-#ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
-	else if (!strcmp(str, "page"))
-		pcpu_chosen_fc = PCPU_FC_PAGE;
-#endif
-	else
-		pr_warning("PERCPU: unknown allocator %s specified\n", str);
-
-	return 0;
-}
-early_param("percpu_alloc", percpu_alloc_setup);
-
-#if defined(CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK) || \
-	!defined(CONFIG_HAVE_SETUP_PER_CPU_AREA)
+#if defined(BUILD_EMBED_FIRST_CHUNK)
 /**
  * pcpu_embed_first_chunk - embed the first percpu chunk into bootmem
  * @reserved_size: the size of reserved percpu area in bytes
@@ -1645,10 +1676,9 @@ out_free:
 		free_bootmem(__pa(areas), areas_size);
 	return rc;
 }
-#endif /* CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK ||
-	  !CONFIG_HAVE_SETUP_PER_CPU_AREA */
+#endif /* BUILD_EMBED_FIRST_CHUNK */
 
-#ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
+#ifdef BUILD_PAGE_FIRST_CHUNK
 /**
  * pcpu_page_first_chunk - map the first chunk using PAGE_SIZE pages
  * @reserved_size: the size of reserved percpu area in bytes
@@ -1756,10 +1786,11 @@ out_free_ar:
 	pcpu_free_alloc_info(ai);
 	return rc;
 }
-#endif /* CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK */
+#endif /* BUILD_PAGE_FIRST_CHUNK */
 
+#ifndef	CONFIG_HAVE_SETUP_PER_CPU_AREA
 /*
- * Generic percpu area setup.
+ * Generic SMP percpu area setup.
  *
  * The embedding helper is used because its behavior closely resembles
  * the original non-dynamic generic percpu area setup.  This is
@@ -1770,7 +1801,6 @@ out_free_ar:
  * on the physical linear memory mapping which uses large page
  * mappings on applicable archs.
  */
-#ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(__per_cpu_offset);
 
@@ -1799,13 +1829,48 @@ void __init setup_per_cpu_areas(void)
 				    PERCPU_DYNAMIC_RESERVE, PAGE_SIZE, NULL,
 				    pcpu_dfl_fc_alloc, pcpu_dfl_fc_free);
 	if (rc < 0)
-		panic("Failed to initialized percpu areas.");
+		panic("Failed to initialize percpu areas.");
 
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
 	for_each_possible_cpu(cpu)
 		__per_cpu_offset[cpu] = delta + pcpu_unit_offsets[cpu];
 }
-#endif /* CONFIG_HAVE_SETUP_PER_CPU_AREA */
+#endif	/* CONFIG_HAVE_SETUP_PER_CPU_AREA */
+
+#else	/* CONFIG_SMP */
+
+/*
+ * UP percpu area setup.
+ *
+ * UP always uses km-based percpu allocator with identity mapping.
+ * Static percpu variables are indistinguishable from the usual static
+ * variables and don't require any special preparation.
+ */
+void __init setup_per_cpu_areas(void)
+{
+	const size_t unit_size =
+		roundup_pow_of_two(max_t(size_t, PCPU_MIN_UNIT_SIZE,
+					 PERCPU_DYNAMIC_RESERVE));
+	struct pcpu_alloc_info *ai;
+	void *fc;
+
+	ai = pcpu_alloc_alloc_info(1, 1);
+	fc = __alloc_bootmem(unit_size, PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+	if (!ai || !fc)
+		panic("Failed to allocate memory for percpu areas.");
+
+	ai->dyn_size = unit_size;
+	ai->unit_size = unit_size;
+	ai->atom_size = unit_size;
+	ai->alloc_size = unit_size;
+	ai->groups[0].nr_units = 1;
+	ai->groups[0].cpu_map[0] = 0;
+
+	if (pcpu_setup_first_chunk(ai, fc) < 0)
+		panic("Failed to initialize percpu areas.");
+}
+
+#endif	/* CONFIG_SMP */
 
 /*
  * First and reserved chunks are initialized with temporary allocation

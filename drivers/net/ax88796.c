@@ -864,6 +864,7 @@ static int ax_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "no IRQ specified\n");
+		ret = -ENXIO;
 		goto exit_mem;
 	}
 

@@ -15,10 +15,12 @@
 #include <asm/mach/irq.h>
 
 #include <asm/proc-fns.h>
+#include <asm/hardware/cache-l2x0.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
 #include <plat/s5pv310.h>
+#include <plat/sdhci.h>
 
 #include <mach/regs-irq.h>
 
@@ -56,14 +58,29 @@ static struct map_desc s5pv310_iodesc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= (unsigned long)S5P_VA_GPIO,
+		.virtual	= (unsigned long)S5P_VA_GPIO1,
 		.pfn		= __phys_to_pfn(S5PV310_PA_GPIO1),
 		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_GPIO2,
+		.pfn		= __phys_to_pfn(S5PV310_PA_GPIO2),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_GPIO3,
+		.pfn		= __phys_to_pfn(S5PV310_PA_GPIO3),
+		.length		= SZ_256,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S3C_VA_UART,
 		.pfn		= __phys_to_pfn(S3C_PA_UART),
 		.length		= SZ_512K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_SROMC,
+		.pfn		= __phys_to_pfn(S5PV310_PA_SROMC),
+		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	},
 };
@@ -83,6 +100,12 @@ static void s5pv310_idle(void)
 void __init s5pv310_map_io(void)
 {
 	iotable_init(s5pv310_iodesc, ARRAY_SIZE(s5pv310_iodesc));
+
+	/* initialize device information early */
+	s5pv310_default_sdhci0();
+	s5pv310_default_sdhci1();
+	s5pv310_default_sdhci2();
+	s5pv310_default_sdhci3();
 }
 
 void __init s5pv310_init_clocks(int xtal)
@@ -130,6 +153,28 @@ static int __init s5pv310_core_init(void)
 }
 
 core_initcall(s5pv310_core_init);
+
+#ifdef CONFIG_CACHE_L2X0
+static int __init s5pv310_l2x0_cache_init(void)
+{
+	/* TAG, Data Latency Control: 2cycle */
+	__raw_writel(0x110, S5P_VA_L2CC + L2X0_TAG_LATENCY_CTRL);
+	__raw_writel(0x110, S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
+
+	/* L2X0 Prefetch Control */
+	__raw_writel(0x30000007, S5P_VA_L2CC + L2X0_PREFETCH_CTRL);
+
+	/* L2X0 Power Control */
+	__raw_writel(L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN,
+		     S5P_VA_L2CC + L2X0_POWER_CTRL);
+
+	l2x0_init(S5P_VA_L2CC, 0x7C070001, 0xC200ffff);
+
+	return 0;
+}
+
+early_initcall(s5pv310_l2x0_cache_init);
+#endif
 
 int __init s5pv310_init(void)
 {

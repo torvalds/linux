@@ -314,6 +314,8 @@ config DVB_USB_AF9015
 	select MEDIA_TUNER_TDA18271 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MC44S803 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_TDA18218 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_MXL5007T if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the Afatech AF9015 based DVB-T USB2.0 receiver
 
@@ -346,3 +348,13 @@ config DVB_USB_AZ6027
 	select DVB_STB6100 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the AZ6027 device
+
+config DVB_USB_LME2510
+	tristate "LME DM04/QQBOX DVB-S USB2.0 support"
+	depends on DVB_USB
+	select DVB_TDA10086 if !DVB_FE_CUSTOMISE
+	select DVB_TDA826X if !DVB_FE_CUSTOMISE
+	select DVB_STV0288 if !DVB_FE_CUSTOMISE
+	select DVB_IX2505V if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the LME DM04/QQBOX DVB-S USB2.0 .

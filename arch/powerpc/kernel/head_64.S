@@ -166,12 +166,6 @@ exception_marker:
 #include "exceptions-64s.S"
 #endif
 
-/* KVM trampoline code needs to be close to the interrupt handlers */
-
-#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
-#include "../kvm/book3s_rmhandlers.S"
-#endif
-
 _GLOBAL(generic_secondary_thread_init)
 	mr	r24,r3
 

@@ -29,7 +29,7 @@
  * objects which are kept in volume RB-tree with root at the @volumes field.
  * The RB-tree is indexed by the volume ID.
  *
- * Found logical eraseblocks are represented by &struct ubi_scan_leb objects.
+ * Scanned logical eraseblocks are represented by &struct ubi_scan_leb objects.
  * These objects are kept in per-volume RB-trees with the root at the
  * corresponding &struct ubi_scan_volume object. To put it differently, we keep
  * an RB-tree of per-volume objects and each of these objects is the root of
@@ -38,6 +38,33 @@
  * Corrupted physical eraseblocks are put to the @corr list, free physical
  * eraseblocks are put to the @free list and the physical eraseblock to be
  * erased are put to the @erase list.
+ *
+ * UBI tries to distinguish between 2 types of corruptions.
+ * 1. Corruptions caused by power cuts. These are harmless and expected
+ *    corruptions and UBI tries to handle them gracefully, without printing too
+ *    many warnings and error messages. The idea is that we do not lose
+ *    important data in these case - we may lose only the data which was being
+ *    written to the media just before the power cut happened, and the upper
+ *    layers (e.g., UBIFS) are supposed to handle these situations. UBI puts
+ *    these PEBs to the head of the @erase list and they are scheduled for
+ *    erasure.
+ *
+ * 2. Unexpected corruptions which are not caused by power cuts. During
+ *    scanning, such PEBs are put to the @corr list and UBI preserves them.
+ *    Obviously, this lessens the amount of available PEBs, and if at some
+ *    point UBI runs out of free PEBs, it switches to R/O mode. UBI also loudly
+ *    informs about such PEBs every time the MTD device is attached.
+ *
+ * However, it is difficult to reliably distinguish between these types of
+ * corruptions and UBI's strategy is as follows. UBI assumes (2.) if the VID
+ * header is corrupted and the data area does not contain all 0xFFs, and there
+ * were not bit-flips or integrity errors while reading the data area. Otherwise
+ * UBI assumes (1.). The assumptions are:
+ *   o if the data area contains only 0xFFs, there is no data, and it is safe
+ *     to just erase this PEB.
+ *   o if the data area has bit-flips and data integrity errors (ECC errors on
+ *     NAND), it is probably a PEB which was being erased when power cut
+ *     happened.
  */
 
 #include <linux/err.h>
@@ -62,26 +89,26 @@ static struct ubi_vid_hdr *vidh;
  * @si: scanning information
  * @pnum: physical eraseblock number to add
  * @ec: erase counter of the physical eraseblock
+ * @to_head: if not zero, add to the head of the list
  * @list: the list to add to
  *
- * This function adds physical eraseblock @pnum to free, erase, corrupted or
- * alien lists. Returns zero in case of success and a negative error code in
- * case of failure.
+ * This function adds physical eraseblock @pnum to free, erase, or alien lists.
+ * If @to_head is not zero, PEB will be added to the head of the list, which
+ * basically means it will be processed first later. E.g., we add corrupted
+ * PEBs (corrupted due to power cuts) to the head of the erase list to make
+ * sure we erase them first and get rid of corruptions ASAP. This function
+ * returns zero in case of success and a negative error code in case of
+ * failure.
  */
-static int add_to_list(struct ubi_scan_info *si, int pnum, int ec,
+static int add_to_list(struct ubi_scan_info *si, int pnum, int ec, int to_head,
 		       struct list_head *list)
 {
 	struct ubi_scan_leb *seb;
 
 	if (list == &si->free) {
 		dbg_bld("add to free: PEB %d, EC %d", pnum, ec);
-		si->free_peb_count += 1;
 	} else if (list == &si->erase) {
 		dbg_bld("add to erase: PEB %d, EC %d", pnum, ec);
-		si->erase_peb_count += 1;
-	} else if (list == &si->corr) {
-		dbg_bld("add to corrupted: PEB %d, EC %d", pnum, ec);
-		si->corr_peb_count += 1;
 	} else if (list == &si->alien) {
 		dbg_bld("add to alien: PEB %d, EC %d", pnum, ec);
 		si->alien_peb_count += 1;
@@ -94,7 +121,37 @@ static int add_to_list(struct ubi_scan_info *si, int pnum, int ec,
 
 	seb->pnum = pnum;
 	seb->ec = ec;
-	list_add_tail(&seb->u.list, list);
+	if (to_head)
+		list_add(&seb->u.list, list);
+	else
+		list_add_tail(&seb->u.list, list);
+	return 0;
+}
+
+/**
+ * add_corrupted - add a corrupted physical eraseblock.
+ * @si: scanning information
+ * @pnum: physical eraseblock number to add
+ * @ec: erase counter of the physical eraseblock
+ *
+ * This function adds corrupted physical eraseblock @pnum to the 'corr' list.
+ * The corruption was presumably not caused by a power cut. Returns zero in
+ * case of success and a negative error code in case of failure.
+ */
+static int add_corrupted(struct ubi_scan_info *si, int pnum, int ec)
+{
+	struct ubi_scan_leb *seb;
+
+	dbg_bld("add to corrupted: PEB %d, EC %d", pnum, ec);
+
+	seb = kmalloc(sizeof(struct ubi_scan_leb), GFP_KERNEL);
+	if (!seb)
+		return -ENOMEM;
+
+	si->corr_peb_count += 1;
+	seb->pnum = pnum;
+	seb->ec = ec;
+	list_add(&seb->u.list, &si->corr);
 	return 0;
 }
 
@@ -258,8 +315,8 @@ static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
 		 * created before sequence numbers support has been added. At
 		 * that times we used 32-bit LEB versions stored in logical
 		 * eraseblocks. That was before UBI got into mainline. We do not
-		 * support these images anymore. Well, those images will work
-		 * still work, but only if no unclean reboots happened.
+		 * support these images anymore. Well, those images still work,
+		 * but only if no unclean reboots happened.
 		 */
 		ubi_err("unsupported on-flash UBI format\n");
 		return -EINVAL;
@@ -285,32 +342,30 @@ static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
 			return 1;
 		}
 	} else {
-		pnum = seb->pnum;
+		if (!seb->copy_flag) {
+			/* It is not a copy, so it is newer */
+			dbg_bld("first PEB %d is newer, copy_flag is unset",
+				pnum);
+			return bitflips << 1;
+		}
 
 		vh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
 		if (!vh)
 			return -ENOMEM;
 
+		pnum = seb->pnum;
 		err = ubi_io_read_vid_hdr(ubi, pnum, vh, 0);
 		if (err) {
 			if (err == UBI_IO_BITFLIPS)
 				bitflips = 1;
 			else {
 				dbg_err("VID of PEB %d header is bad, but it "
-					"was OK earlier", pnum);
+					"was OK earlier, err %d", pnum, err);
 				if (err > 0)
 					err = -EIO;
 
 				goto out_free_vidh;
 			}
-		}
-
-		if (!vh->copy_flag) {
-			/* It is not a copy, so it is newer */
-			dbg_bld("first PEB %d is newer, copy_flag is unset",
-				pnum);
-			err = bitflips << 1;
-			goto out_free_vidh;
 		}
 
 		vid_hdr = vh;
@@ -463,18 +518,15 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 			if (err)
 				return err;
 
-			if (cmp_res & 4)
-				err = add_to_list(si, seb->pnum, seb->ec,
-						  &si->corr);
-			else
-				err = add_to_list(si, seb->pnum, seb->ec,
-						  &si->erase);
+			err = add_to_list(si, seb->pnum, seb->ec, cmp_res & 4,
+					  &si->erase);
 			if (err)
 				return err;
 
 			seb->ec = ec;
 			seb->pnum = pnum;
 			seb->scrub = ((cmp_res & 2) || bitflips);
+			seb->copy_flag = vid_hdr->copy_flag;
 			seb->sqnum = sqnum;
 
 			if (sv->highest_lnum == lnum)
@@ -487,10 +539,8 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 			 * This logical eraseblock is older than the one found
 			 * previously.
 			 */
-			if (cmp_res & 4)
-				return add_to_list(si, pnum, ec, &si->corr);
-			else
-				return add_to_list(si, pnum, ec, &si->erase);
+			return add_to_list(si, pnum, ec, cmp_res & 4,
+					   &si->erase);
 		}
 	}
 
@@ -510,8 +560,9 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 	seb->ec = ec;
 	seb->pnum = pnum;
 	seb->lnum = lnum;
-	seb->sqnum = sqnum;
 	seb->scrub = bitflips;
+	seb->copy_flag = vid_hdr->copy_flag;
+	seb->sqnum = sqnum;
 
 	if (sv->highest_lnum <= lnum) {
 		sv->highest_lnum = lnum;
@@ -521,7 +572,6 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 	sv->leb_count += 1;
 	rb_link_node(&seb->u.rb, parent, p);
 	rb_insert_color(&seb->u.rb, &sv->root);
-	si->used_peb_count += 1;
 	return 0;
 }
 
@@ -668,8 +718,8 @@ out_free:
 struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 					   struct ubi_scan_info *si)
 {
-	int err = 0, i;
-	struct ubi_scan_leb *seb;
+	int err = 0;
+	struct ubi_scan_leb *seb, *tmp_seb;
 
 	if (!list_empty(&si->free)) {
 		seb = list_entry(si->free.next, struct ubi_scan_leb, u.list);
@@ -678,38 +728,86 @@ struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 		return seb;
 	}
 
-	for (i = 0; i < 2; i++) {
-		struct list_head *head;
-		struct ubi_scan_leb *tmp_seb;
+	/*
+	 * We try to erase the first physical eraseblock from the erase list
+	 * and pick it if we succeed, or try to erase the next one if not. And
+	 * so forth. We don't want to take care about bad eraseblocks here -
+	 * they'll be handled later.
+	 */
+	list_for_each_entry_safe(seb, tmp_seb, &si->erase, u.list) {
+		if (seb->ec == UBI_SCAN_UNKNOWN_EC)
+			seb->ec = si->mean_ec;
 
-		if (i == 0)
-			head = &si->erase;
-		else
-			head = &si->corr;
+		err = ubi_scan_erase_peb(ubi, si, seb->pnum, seb->ec+1);
+		if (err)
+			continue;
 
-		/*
-		 * We try to erase the first physical eraseblock from the @head
-		 * list and pick it if we succeed, or try to erase the
-		 * next one if not. And so forth. We don't want to take care
-		 * about bad eraseblocks here - they'll be handled later.
-		 */
-		list_for_each_entry_safe(seb, tmp_seb, head, u.list) {
-			if (seb->ec == UBI_SCAN_UNKNOWN_EC)
-				seb->ec = si->mean_ec;
-
-			err = ubi_scan_erase_peb(ubi, si, seb->pnum, seb->ec+1);
-			if (err)
-				continue;
-
-			seb->ec += 1;
-			list_del(&seb->u.list);
-			dbg_bld("return PEB %d, EC %d", seb->pnum, seb->ec);
-			return seb;
-		}
+		seb->ec += 1;
+		list_del(&seb->u.list);
+		dbg_bld("return PEB %d, EC %d", seb->pnum, seb->ec);
+		return seb;
 	}
 
-	ubi_err("no eraseblocks found");
+	ubi_err("no free eraseblocks");
 	return ERR_PTR(-ENOSPC);
+}
+
+/**
+ * check_corruption - check the data area of PEB.
+ * @ubi: UBI device description object
+ * @vid_hrd: the (corrupted) VID header of this PEB
+ * @pnum: the physical eraseblock number to check
+ *
+ * This is a helper function which is used to distinguish between VID header
+ * corruptions caused by power cuts and other reasons. If the PEB contains only
+ * 0xFF bytes in the data area, the VID header is most probably corrupted
+ * because of a power cut (%0 is returned in this case). Otherwise, it was
+ * probably corrupted for some other reasons (%1 is returned in this case). A
+ * negative error code is returned if a read error occurred.
+ *
+ * If the corruption reason was a power cut, UBI can safely erase this PEB.
+ * Otherwise, it should preserve it to avoid possibly destroying important
+ * information.
+ */
+static int check_corruption(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
+			    int pnum)
+{
+	int err;
+
+	mutex_lock(&ubi->buf_mutex);
+	memset(ubi->peb_buf1, 0x00, ubi->leb_size);
+
+	err = ubi_io_read(ubi, ubi->peb_buf1, pnum, ubi->leb_start,
+			  ubi->leb_size);
+	if (err == UBI_IO_BITFLIPS || err == -EBADMSG) {
+		/*
+		 * Bit-flips or integrity errors while reading the data area.
+		 * It is difficult to say for sure what type of corruption is
+		 * this, but presumably a power cut happened while this PEB was
+		 * erased, so it became unstable and corrupted, and should be
+		 * erased.
+		 */
+		return 0;
+	}
+
+	if (err)
+		return err;
+
+	if (ubi_check_pattern(ubi->peb_buf1, 0xFF, ubi->leb_size)) {
+		mutex_unlock(&ubi->buf_mutex);
+		return 0;
+	}
+
+	ubi_err("PEB %d contains corrupted VID header, and the data does not "
+		"contain all 0xFF, this may be a non-UBI PEB or a severe VID "
+		"header corruption which requires manual inspection", pnum);
+	ubi_dbg_dump_vid_hdr(vid_hdr);
+	dbg_msg("hexdump of PEB %d offset %d, length %d",
+		pnum, ubi->leb_start, ubi->leb_size);
+	ubi_dbg_print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+			       ubi->peb_buf1, ubi->leb_size, 1);
+	mutex_unlock(&ubi->buf_mutex);
+	return 1;
 }
 
 /**
@@ -725,7 +823,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		      int pnum)
 {
 	long long uninitialized_var(ec);
-	int err, bitflips = 0, vol_id, ec_corr = 0;
+	int err, bitflips = 0, vol_id, ec_err = 0;
 
 	dbg_bld("scan PEB %d", pnum);
 
@@ -746,22 +844,37 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 	err = ubi_io_read_ec_hdr(ubi, pnum, ech, 0);
 	if (err < 0)
 		return err;
-	else if (err == UBI_IO_BITFLIPS)
+	switch (err) {
+	case 0:
+		break;
+	case UBI_IO_BITFLIPS:
 		bitflips = 1;
-	else if (err == UBI_IO_PEB_EMPTY)
-		return add_to_list(si, pnum, UBI_SCAN_UNKNOWN_EC, &si->erase);
-	else if (err == UBI_IO_BAD_HDR_READ || err == UBI_IO_BAD_HDR) {
+		break;
+	case UBI_IO_FF:
+		si->empty_peb_count += 1;
+		return add_to_list(si, pnum, UBI_SCAN_UNKNOWN_EC, 0,
+				   &si->erase);
+	case UBI_IO_FF_BITFLIPS:
+		si->empty_peb_count += 1;
+		return add_to_list(si, pnum, UBI_SCAN_UNKNOWN_EC, 1,
+				   &si->erase);
+	case UBI_IO_BAD_HDR_EBADMSG:
+	case UBI_IO_BAD_HDR:
 		/*
 		 * We have to also look at the VID header, possibly it is not
 		 * corrupted. Set %bitflips flag in order to make this PEB be
 		 * moved and EC be re-created.
 		 */
-		ec_corr = err;
+		ec_err = err;
 		ec = UBI_SCAN_UNKNOWN_EC;
 		bitflips = 1;
+		break;
+	default:
+		ubi_err("'ubi_io_read_ec_hdr()' returned unknown code %d", err);
+		return -EINVAL;
 	}
 
-	if (!ec_corr) {
+	if (!ec_err) {
 		int image_seq;
 
 		/* Make sure UBI version is OK */
@@ -814,24 +927,67 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 	err = ubi_io_read_vid_hdr(ubi, pnum, vidh, 0);
 	if (err < 0)
 		return err;
-	else if (err == UBI_IO_BITFLIPS)
+	switch (err) {
+	case 0:
+		break;
+	case UBI_IO_BITFLIPS:
 		bitflips = 1;
-	else if (err == UBI_IO_BAD_HDR_READ || err == UBI_IO_BAD_HDR ||
-		 (err == UBI_IO_PEB_FREE && ec_corr)) {
-		/* VID header is corrupted */
-		if (err == UBI_IO_BAD_HDR_READ ||
-		    ec_corr == UBI_IO_BAD_HDR_READ)
-			si->read_err_count += 1;
-		err = add_to_list(si, pnum, ec, &si->corr);
+		break;
+	case UBI_IO_BAD_HDR_EBADMSG:
+		if (ec_err == UBI_IO_BAD_HDR_EBADMSG)
+			/*
+			 * Both EC and VID headers are corrupted and were read
+			 * with data integrity error, probably this is a bad
+			 * PEB, bit it is not marked as bad yet. This may also
+			 * be a result of power cut during erasure.
+			 */
+			si->maybe_bad_peb_count += 1;
+	case UBI_IO_BAD_HDR:
+		if (ec_err)
+			/*
+			 * Both headers are corrupted. There is a possibility
+			 * that this a valid UBI PEB which has corresponding
+			 * LEB, but the headers are corrupted. However, it is
+			 * impossible to distinguish it from a PEB which just
+			 * contains garbage because of a power cut during erase
+			 * operation. So we just schedule this PEB for erasure.
+			 */
+			err = 0;
+		else
+			/*
+			 * The EC was OK, but the VID header is corrupted. We
+			 * have to check what is in the data area.
+			 */
+			err = check_corruption(ubi, vidh, pnum);
+
+		if (err < 0)
+			return err;
+		else if (!err)
+			/* This corruption is caused by a power cut */
+			err = add_to_list(si, pnum, ec, 1, &si->erase);
+		else
+			/* This is an unexpected corruption */
+			err = add_corrupted(si, pnum, ec);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
-	} else if (err == UBI_IO_PEB_FREE) {
-		/* No VID header - the physical eraseblock is free */
-		err = add_to_list(si, pnum, ec, &si->free);
+	case UBI_IO_FF_BITFLIPS:
+		err = add_to_list(si, pnum, ec, 1, &si->erase);
 		if (err)
 			return err;
 		goto adjust_mean_ec;
+	case UBI_IO_FF:
+		if (ec_err)
+			err = add_to_list(si, pnum, ec, 1, &si->erase);
+		else
+			err = add_to_list(si, pnum, ec, 0, &si->free);
+		if (err)
+			return err;
+		goto adjust_mean_ec;
+	default:
+		ubi_err("'ubi_io_read_vid_hdr()' returned unknown code %d",
+			err);
+		return -EINVAL;
 	}
 
 	vol_id = be32_to_cpu(vidh->vol_id);
@@ -843,7 +999,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		case UBI_COMPAT_DELETE:
 			ubi_msg("\"delete\" compatible internal volume %d:%d"
 				" found, will remove it", vol_id, lnum);
-			err = add_to_list(si, pnum, ec, &si->erase);
+			err = add_to_list(si, pnum, ec, 1, &si->erase);
 			if (err)
 				return err;
 			return 0;
@@ -858,7 +1014,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		case UBI_COMPAT_PRESERVE:
 			ubi_msg("\"preserve\" compatible internal volume %d:%d"
 				" found", vol_id, lnum);
-			err = add_to_list(si, pnum, ec, &si->alien);
+			err = add_to_list(si, pnum, ec, 0, &si->alien);
 			if (err)
 				return err;
 			return 0;
@@ -870,7 +1026,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		}
 	}
 
-	if (ec_corr)
+	if (ec_err)
 		ubi_warn("valid VID header but corrupted EC header at PEB %d",
 			 pnum);
 	err = ubi_scan_add_used(ubi, si, pnum, ec, vidh, bitflips);
@@ -878,7 +1034,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		return err;
 
 adjust_mean_ec:
-	if (!ec_corr) {
+	if (!ec_err) {
 		si->ec_sum += ec;
 		si->ec_count += 1;
 		if (ec > si->max_ec)
@@ -904,19 +1060,20 @@ adjust_mean_ec:
 static int check_what_we_have(struct ubi_device *ubi, struct ubi_scan_info *si)
 {
 	struct ubi_scan_leb *seb;
-	int max_corr;
+	int max_corr, peb_count;
 
-	max_corr = ubi->peb_count - si->bad_peb_count - si->alien_peb_count;
-	max_corr = max_corr / 20 ?: 8;
+	peb_count = ubi->peb_count - si->bad_peb_count - si->alien_peb_count;
+	max_corr = peb_count / 20 ?: 8;
 
 	/*
-	 * Few corrupted PEBs are not a problem and may be just a result of
+	 * Few corrupted PEBs is not a problem and may be just a result of
 	 * unclean reboots. However, many of them may indicate some problems
 	 * with the flash HW or driver.
 	 */
-	if (si->corr_peb_count >= 8) {
-		ubi_warn("%d PEBs are corrupted", si->corr_peb_count);
-		printk(KERN_WARNING "corrupted PEBs are:");
+	if (si->corr_peb_count) {
+		ubi_err("%d PEBs are corrupted and preserved",
+			si->corr_peb_count);
+		printk(KERN_ERR "Corrupted PEBs are:");
 		list_for_each_entry(seb, &si->corr, u.list)
 			printk(KERN_CONT " %d", seb->pnum);
 		printk(KERN_CONT "\n");
@@ -931,41 +1088,35 @@ static int check_what_we_have(struct ubi_device *ubi, struct ubi_scan_info *si)
 		}
 	}
 
-	if (si->free_peb_count + si->used_peb_count +
-	    si->alien_peb_count == 0) {
-		/* No UBI-formatted eraseblocks were found */
-		if (si->corr_peb_count == si->read_err_count &&
-		    si->corr_peb_count < 8) {
-			/* No or just few corrupted PEBs, and all of them had a
-			 * read error. We assume that those are bad PEBs, which
-			 * were just not marked as bad so far.
-			 *
-			 * This piece of code basically tries to distinguish
-			 * between the following 2 situations:
-			 *
-			 * 1. Flash is empty, but there are few bad PEBs, which
-			 *    are not marked as bad so far, and which were read
-			 *    with error. We want to go ahead and format this
-			 *    flash. While formating, the faulty PEBs will
-			 *    probably be marked as bad.
-			 *
-			 * 2. Flash probably contains non-UBI data and we do
-			 * not want to format it and destroy possibly needed
-			 * data (e.g., consider the case when the bootloader
-			 * MTD partition was accidentally fed to UBI).
-			 */
+	if (si->empty_peb_count + si->maybe_bad_peb_count == peb_count) {
+		/*
+		 * All PEBs are empty, or almost all - a couple PEBs look like
+		 * they may be bad PEBs which were not marked as bad yet.
+		 *
+		 * This piece of code basically tries to distinguish between
+		 * the following situations:
+		 *
+		 * 1. Flash is empty, but there are few bad PEBs, which are not
+		 *    marked as bad so far, and which were read with error. We
+		 *    want to go ahead and format this flash. While formatting,
+		 *    the faulty PEBs will probably be marked as bad.
+		 *
+		 * 2. Flash contains non-UBI data and we do not want to format
+		 *    it and destroy possibly important information.
+		 */
+		if (si->maybe_bad_peb_count <= 2) {
 			si->is_empty = 1;
 			ubi_msg("empty MTD device detected");
-			get_random_bytes(&ubi->image_seq, sizeof(ubi->image_seq));
+			get_random_bytes(&ubi->image_seq,
+					 sizeof(ubi->image_seq));
 		} else {
-			ubi_err("MTD device possibly contains non-UBI data, "
-				"refusing it");
+			ubi_err("MTD device is not UBI-formatted and possibly "
+				"contains non-UBI data - refusing it");
 			return -EINVAL;
 		}
+
 	}
 
-	if (si->corr_peb_count > 0)
-		ubi_msg("corrupted PEBs will be formatted");
 	return 0;
 }
 

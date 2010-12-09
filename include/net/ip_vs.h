@@ -25,7 +25,9 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>			/* for struct ipv6hdr */
 #include <net/ipv6.h>			/* for ipv6_addr_copy */
-
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+#include <net/netfilter/nf_conntrack.h>
+#endif
 
 /* Connections' size value needed by ip_vs_ctl.c */
 extern int ip_vs_conn_tab_size;
@@ -134,24 +136,24 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 		if (net_ratelimit())					\
 			printk(KERN_DEBUG pr_fmt(msg), ##__VA_ARGS__);	\
 	} while (0)
-#define IP_VS_DBG_PKT(level, pp, skb, ofs, msg)				\
+#define IP_VS_DBG_PKT(level, af, pp, skb, ofs, msg)			\
 	do {								\
 		if (level <= ip_vs_get_debug_level())			\
-			pp->debug_packet(pp, skb, ofs, msg);		\
+			pp->debug_packet(af, pp, skb, ofs, msg);	\
 	} while (0)
-#define IP_VS_DBG_RL_PKT(level, pp, skb, ofs, msg)			\
+#define IP_VS_DBG_RL_PKT(level, af, pp, skb, ofs, msg)			\
 	do {								\
 		if (level <= ip_vs_get_debug_level() &&			\
 		    net_ratelimit())					\
-			pp->debug_packet(pp, skb, ofs, msg);		\
+			pp->debug_packet(af, pp, skb, ofs, msg);	\
 	} while (0)
 #else	/* NO DEBUGGING at ALL */
 #define IP_VS_DBG_BUF(level, msg...)  do {} while (0)
 #define IP_VS_ERR_BUF(msg...)  do {} while (0)
 #define IP_VS_DBG(level, msg...)  do {} while (0)
 #define IP_VS_DBG_RL(msg...)  do {} while (0)
-#define IP_VS_DBG_PKT(level, pp, skb, ofs, msg)		do {} while (0)
-#define IP_VS_DBG_RL_PKT(level, pp, skb, ofs, msg)	do {} while (0)
+#define IP_VS_DBG_PKT(level, af, pp, skb, ofs, msg)	do {} while (0)
+#define IP_VS_DBG_RL_PKT(level, af, pp, skb, ofs, msg)	do {} while (0)
 #endif
 
 #define IP_VS_BUG() BUG()
@@ -343,7 +345,7 @@ struct ip_vs_protocol {
 
 	int (*app_conn_bind)(struct ip_vs_conn *cp);
 
-	void (*debug_packet)(struct ip_vs_protocol *pp,
+	void (*debug_packet)(int af, struct ip_vs_protocol *pp,
 			     const struct sk_buff *skb,
 			     int offset,
 			     const char *msg);
@@ -354,6 +356,19 @@ struct ip_vs_protocol {
 };
 
 extern struct ip_vs_protocol * ip_vs_proto_get(unsigned short proto);
+
+struct ip_vs_conn_param {
+	const union nf_inet_addr	*caddr;
+	const union nf_inet_addr	*vaddr;
+	__be16				cport;
+	__be16				vport;
+	__u16				protocol;
+	u16				af;
+
+	const struct ip_vs_pe		*pe;
+	char				*pe_data;
+	__u8				pe_data_len;
+};
 
 /*
  *	IP_VS structure allocated for each dynamically scheduled connection
@@ -366,6 +381,7 @@ struct ip_vs_conn {
 	union nf_inet_addr       caddr;          /* client address */
 	union nf_inet_addr       vaddr;          /* virtual address */
 	union nf_inet_addr       daddr;          /* destination address */
+	volatile __u32           flags;          /* status flags */
 	__be16                   cport;
 	__be16                   vport;
 	__be16                   dport;
@@ -378,7 +394,6 @@ struct ip_vs_conn {
 
 	/* Flags and state transition */
 	spinlock_t              lock;           /* lock for state transition */
-	volatile __u16          flags;          /* status flags */
 	volatile __u16          state;          /* state info */
 	volatile __u16          old_state;      /* old state, to be used for
 						 * state transition triggerd
@@ -394,6 +409,7 @@ struct ip_vs_conn {
 	/* packet transmitter for different forwarding methods.  If it
 	   mangles the packet, it must return NF_DROP or better NF_STOLEN,
 	   otherwise this must be changed to a sk_buff **.
+	   NF_ACCEPT can be returned when destination is local.
 	 */
 	int (*packet_xmit)(struct sk_buff *skb, struct ip_vs_conn *cp,
 			   struct ip_vs_protocol *pp);
@@ -405,6 +421,9 @@ struct ip_vs_conn {
 	void                    *app_data;      /* Application private data */
 	struct ip_vs_seq        in_seq;         /* incoming seq. struct */
 	struct ip_vs_seq        out_seq;        /* outgoing seq. struct */
+
+	char			*pe_data;
+	__u8			pe_data_len;
 };
 
 
@@ -426,6 +445,7 @@ struct ip_vs_service_user_kern {
 
 	/* virtual service options */
 	char			*sched_name;
+	char			*pe_name;
 	unsigned		flags;		/* virtual service flags */
 	unsigned		timeout;	/* persistent timeout in sec */
 	u32			netmask;	/* persistent netmask */
@@ -475,6 +495,9 @@ struct ip_vs_service {
 	struct ip_vs_scheduler	*scheduler;    /* bound scheduler object */
 	rwlock_t		sched_lock;    /* lock sched_data */
 	void			*sched_data;   /* scheduler application data */
+
+	/* alternate persistence engine */
+	struct ip_vs_pe		*pe;
 };
 
 
@@ -507,6 +530,10 @@ struct ip_vs_dest {
 	spinlock_t		dst_lock;	/* lock of dst_cache */
 	struct dst_entry	*dst_cache;	/* destination cache entry */
 	u32			dst_rtos;	/* RT_TOS(tos) for dst */
+	u32			dst_cookie;
+#ifdef CONFIG_IP_VS_IPV6
+	struct in6_addr		dst_saddr;
+#endif
 
 	/* for virtual service */
 	struct ip_vs_service	*svc;		/* service it belongs to */
@@ -538,6 +565,21 @@ struct ip_vs_scheduler {
 				       const struct sk_buff *skb);
 };
 
+/* The persistence engine object */
+struct ip_vs_pe {
+	struct list_head	n_list;		/* d-linked list head */
+	char			*name;		/* scheduler name */
+	atomic_t		refcnt;		/* reference counter */
+	struct module		*module;	/* THIS_MODULE/NULL */
+
+	/* get the connection template, if any */
+	int (*fill_param)(struct ip_vs_conn_param *p, struct sk_buff *skb);
+	bool (*ct_match)(const struct ip_vs_conn_param *p,
+			 struct ip_vs_conn *ct);
+	u32 (*hashkey_raw)(const struct ip_vs_conn_param *p, u32 initval,
+			   bool inverse);
+	int (*show_pe_data)(const struct ip_vs_conn *cp, char *buf);
+};
 
 /*
  *	The application module object (a.k.a. app incarnation)
@@ -556,11 +598,19 @@ struct ip_vs_app {
 	__be16			port;		/* port number in net order */
 	atomic_t		usecnt;		/* usage counter */
 
-	/* output hook: return false if can't linearize. diff set for TCP.  */
+	/*
+	 * output hook: Process packet in inout direction, diff set for TCP.
+	 * Return: 0=Error, 1=Payload Not Mangled/Mangled but checksum is ok,
+	 *	   2=Mangled but checksum was not updated
+	 */
 	int (*pkt_out)(struct ip_vs_app *, struct ip_vs_conn *,
 		       struct sk_buff *, int *diff);
 
-	/* input hook: return false if can't linearize. diff set for TCP. */
+	/*
+	 * input hook: Process packet in outin direction, diff set for TCP.
+	 * Return: 0=Error, 1=Payload Not Mangled/Mangled but checksum is ok,
+	 *	   2=Mangled but checksum was not updated
+	 */
 	int (*pkt_in)(struct ip_vs_app *, struct ip_vs_conn *,
 		      struct sk_buff *, int *diff);
 
@@ -624,13 +674,25 @@ enum {
 	IP_VS_DIR_LAST,
 };
 
-extern struct ip_vs_conn *ip_vs_conn_in_get
-(int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
- const union nf_inet_addr *d_addr, __be16 d_port);
+static inline void ip_vs_conn_fill_param(int af, int protocol,
+					 const union nf_inet_addr *caddr,
+					 __be16 cport,
+					 const union nf_inet_addr *vaddr,
+					 __be16 vport,
+					 struct ip_vs_conn_param *p)
+{
+	p->af = af;
+	p->protocol = protocol;
+	p->caddr = caddr;
+	p->cport = cport;
+	p->vaddr = vaddr;
+	p->vport = vport;
+	p->pe = NULL;
+	p->pe_data = NULL;
+}
 
-extern struct ip_vs_conn *ip_vs_ct_in_get
-(int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
- const union nf_inet_addr *d_addr, __be16 d_port);
+struct ip_vs_conn *ip_vs_conn_in_get(const struct ip_vs_conn_param *p);
+struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p);
 
 struct ip_vs_conn * ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
 					    struct ip_vs_protocol *pp,
@@ -638,9 +700,7 @@ struct ip_vs_conn * ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
 					    unsigned int proto_off,
 					    int inverse);
 
-extern struct ip_vs_conn *ip_vs_conn_out_get
-(int af, int protocol, const union nf_inet_addr *s_addr, __be16 s_port,
- const union nf_inet_addr *d_addr, __be16 d_port);
+struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p);
 
 struct ip_vs_conn * ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
 					     struct ip_vs_protocol *pp,
@@ -656,11 +716,10 @@ static inline void __ip_vs_conn_put(struct ip_vs_conn *cp)
 extern void ip_vs_conn_put(struct ip_vs_conn *cp);
 extern void ip_vs_conn_fill_cport(struct ip_vs_conn *cp, __be16 cport);
 
-extern struct ip_vs_conn *
-ip_vs_conn_new(int af, int proto, const union nf_inet_addr *caddr, __be16 cport,
-	       const union nf_inet_addr *vaddr, __be16 vport,
-	       const union nf_inet_addr *daddr, __be16 dport, unsigned flags,
-	       struct ip_vs_dest *dest);
+struct ip_vs_conn *ip_vs_conn_new(const struct ip_vs_conn_param *p,
+				  const union nf_inet_addr *daddr,
+				  __be16 dport, unsigned flags,
+				  struct ip_vs_dest *dest);
 extern void ip_vs_conn_expire_now(struct ip_vs_conn *cp);
 
 extern const char * ip_vs_state_name(__u16 proto, int state);
@@ -751,6 +810,12 @@ extern int ip_vs_app_pkt_in(struct ip_vs_conn *, struct sk_buff *skb);
 extern int ip_vs_app_init(void);
 extern void ip_vs_app_cleanup(void);
 
+void ip_vs_bind_pe(struct ip_vs_service *svc, struct ip_vs_pe *pe);
+void ip_vs_unbind_pe(struct ip_vs_service *svc);
+int register_ip_vs_pe(struct ip_vs_pe *pe);
+int unregister_ip_vs_pe(struct ip_vs_pe *pe);
+extern struct ip_vs_pe *ip_vs_pe_get(const char *name);
+extern void ip_vs_pe_put(struct ip_vs_pe *pe);
 
 /*
  *	IPVS protocol functions (from ip_vs_proto.c)
@@ -763,7 +828,8 @@ extern int
 ip_vs_set_state_timeout(int *table, int num, const char *const *names,
 			const char *name, int to);
 extern void
-ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp, const struct sk_buff *skb,
+ip_vs_tcpudp_debug_packet(int af, struct ip_vs_protocol *pp,
+			  const struct sk_buff *skb,
 			  int offset, const char *msg);
 
 extern struct ip_vs_protocol ip_vs_protocol_tcp;
@@ -785,7 +851,8 @@ extern int ip_vs_unbind_scheduler(struct ip_vs_service *svc);
 extern struct ip_vs_scheduler *ip_vs_scheduler_get(const char *sched_name);
 extern void ip_vs_scheduler_put(struct ip_vs_scheduler *scheduler);
 extern struct ip_vs_conn *
-ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb);
+ip_vs_schedule(struct ip_vs_service *svc, struct sk_buff *skb,
+	       struct ip_vs_protocol *pp, int *ignored);
 extern int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 			struct ip_vs_protocol *pp);
 
@@ -798,6 +865,8 @@ extern int sysctl_ip_vs_expire_nodest_conn;
 extern int sysctl_ip_vs_expire_quiescent_template;
 extern int sysctl_ip_vs_sync_threshold[2];
 extern int sysctl_ip_vs_nat_icmp_send;
+extern int sysctl_ip_vs_conntrack;
+extern int sysctl_ip_vs_snat_reroute;
 extern struct ip_vs_stats ip_vs_stats;
 extern const struct ctl_path net_vs_ctl_path[];
 
@@ -955,8 +1024,65 @@ static inline __wsum ip_vs_check_diff2(__be16 old, __be16 new, __wsum oldsum)
 	return csum_partial(diff, sizeof(diff), oldsum);
 }
 
+/*
+ * Forget current conntrack (unconfirmed) and attach notrack entry
+ */
+static inline void ip_vs_notrack(struct sk_buff *skb)
+{
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn *ct = ct = nf_ct_get(skb, &ctinfo);
+
+	if (!ct || !nf_ct_is_untracked(ct)) {
+		nf_reset(skb);
+		skb->nfct = &nf_ct_untracked_get()->ct_general;
+		skb->nfctinfo = IP_CT_NEW;
+		nf_conntrack_get(skb->nfct);
+	}
+#endif
+}
+
+#ifdef CONFIG_IP_VS_NFCT
+/*
+ *      Netfilter connection tracking
+ *      (from ip_vs_nfct.c)
+ */
+static inline int ip_vs_conntrack_enabled(void)
+{
+	return sysctl_ip_vs_conntrack;
+}
+
 extern void ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp,
 				   int outin);
+extern int ip_vs_confirm_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp);
+extern void ip_vs_nfct_expect_related(struct sk_buff *skb, struct nf_conn *ct,
+				      struct ip_vs_conn *cp, u_int8_t proto,
+				      const __be16 port, int from_rs);
+extern void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp);
+
+#else
+
+static inline int ip_vs_conntrack_enabled(void)
+{
+	return 0;
+}
+
+static inline void ip_vs_update_conntrack(struct sk_buff *skb,
+					  struct ip_vs_conn *cp, int outin)
+{
+}
+
+static inline int ip_vs_confirm_conntrack(struct sk_buff *skb,
+					  struct ip_vs_conn *cp)
+{
+	return NF_ACCEPT;
+}
+
+static inline void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp)
+{
+}
+/* CONFIG_IP_VS_NFCT */
+#endif
 
 #endif /* __KERNEL__ */
 

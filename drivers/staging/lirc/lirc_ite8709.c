@@ -102,8 +102,8 @@ struct ite8709_device {
 	int io;
 	int irq;
 	spinlock_t hardware_lock;
-	unsigned long long acc_pulse;
-	unsigned long long acc_space;
+	__u64 acc_pulse;
+	__u64 acc_space;
 	char lastbit;
 	struct timeval last_tv;
 	struct lirc_driver driver;
@@ -220,7 +220,7 @@ static void ite8709_set_use_dec(void *data)
 }
 
 static void ite8709_add_read_queue(struct ite8709_device *dev, int flag,
-					unsigned long long val)
+				   __u64 val)
 {
 	int value;
 

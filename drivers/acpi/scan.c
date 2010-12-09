@@ -26,6 +26,8 @@ extern struct acpi_device *acpi_root;
 
 #define ACPI_IS_ROOT_DEVICE(device)    (!(device)->parent)
 
+static const char *dummy_hid = "device";
+
 static LIST_HEAD(acpi_device_list);
 static LIST_HEAD(acpi_bus_id_list);
 DEFINE_MUTEX(acpi_device_lock);
@@ -48,6 +50,9 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 	int len;
 	int count;
 	struct acpi_hardware_id *id;
+
+	if (list_empty(&acpi_dev->pnp.ids))
+		return 0;
 
 	len = snprintf(modalias, size, "acpi:");
 	size -= len;
@@ -202,13 +207,15 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 			goto end;
 	}
 
-	result = device_create_file(&dev->dev, &dev_attr_hid);
-	if (result)
-		goto end;
+	if (!list_empty(&dev->pnp.ids)) {
+		result = device_create_file(&dev->dev, &dev_attr_hid);
+		if (result)
+			goto end;
 
-	result = device_create_file(&dev->dev, &dev_attr_modalias);
-	if (result)
-		goto end;
+		result = device_create_file(&dev->dev, &dev_attr_modalias);
+		if (result)
+			goto end;
+	}
 
         /*
          * If device has _EJ0, 'eject' file is created that is used to trigger
@@ -315,6 +322,9 @@ static int acpi_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	int len;
+
+	if (list_empty(&acpi_dev->pnp.ids))
+		return 0;
 
 	if (add_uevent_var(env, "MODALIAS="))
 		return -ENOMEM;
@@ -1010,9 +1020,12 @@ static int acpi_dock_match(struct acpi_device *device)
 	return acpi_get_handle(device->handle, "_DCK", &tmp);
 }
 
-char *acpi_device_hid(struct acpi_device *device)
+const char *acpi_device_hid(struct acpi_device *device)
 {
 	struct acpi_hardware_id *hid;
+
+	if (list_empty(&device->pnp.ids))
+		return dummy_hid;
 
 	hid = list_first_entry(&device->pnp.ids, struct acpi_hardware_id, list);
 	return hid->id;
@@ -1142,16 +1155,6 @@ static void acpi_device_set_id(struct acpi_device *device)
 		acpi_add_id(device, ACPI_BUTTON_HID_SLEEPF);
 		break;
 	}
-
-	/*
-	 * We build acpi_devices for some objects that don't have _HID or _CID,
-	 * e.g., PCI bridges and slots.  Drivers can't bind to these objects,
-	 * but we do use them indirectly by traversing the acpi_device tree.
-	 * This generic ID isn't useful for driver binding, but it provides
-	 * the useful property that "every acpi_device has an ID."
-	 */
-	if (list_empty(&device->pnp.ids))
-		acpi_add_id(device, "device");
 }
 
 static int acpi_device_set_context(struct acpi_device *device)
@@ -1431,6 +1434,7 @@ EXPORT_SYMBOL(acpi_bus_add);
 int acpi_bus_start(struct acpi_device *device)
 {
 	struct acpi_bus_ops ops;
+	int result;
 
 	if (!device)
 		return -EINVAL;
@@ -1438,7 +1442,11 @@ int acpi_bus_start(struct acpi_device *device)
 	memset(&ops, 0, sizeof(ops));
 	ops.acpi_op_start = 1;
 
-	return acpi_bus_scan(device->handle, &ops, NULL);
+	result = acpi_bus_scan(device->handle, &ops, NULL);
+
+	acpi_update_gpes();
+
+	return result;
 }
 EXPORT_SYMBOL(acpi_bus_start);
 
@@ -1552,6 +1560,8 @@ int __init acpi_scan_init(void)
 
 	if (result)
 		acpi_device_unregister(acpi_root, ACPI_BUS_REMOVAL_NORMAL);
+	else
+		acpi_update_gpes();
 
 	return result;
 }

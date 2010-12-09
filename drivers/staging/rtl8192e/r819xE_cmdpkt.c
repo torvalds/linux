@@ -24,41 +24,14 @@
 #include "r8192E.h"
 #include "r8192E_hw.h"
 #include "r819xE_cmdpkt.h"
-/*---------------------------Define Local Constant---------------------------*/
-/* Debug constant*/
-#define		CMPK_DEBOUNCE_CNT			1
-/* 2007/10/24 MH Add for printing a range of data. */
-#define		CMPK_PRINT(Address)\
-{\
-	unsigned char	i;\
-	u32	temp[10];\
-	\
-	memcpy(temp, Address, 40);\
-	for (i = 0; i <40; i+=4)\
-		printk("\r\n %08x", temp[i]);\
-}\
 
-/*---------------------------Define functions---------------------------------*/
-/*-----------------------------------------------------------------------------
- * Function:	cmpk_message_handle_tx()
- *
- * Overview:	Driver internal module can call the API to send message to
- *				firmware side. For example, you can send a debug command packet.
- *				Or you can send a request for FW to modify RLX4181 LBUS HW bank.
- *				Otherwise, you can change MAC/PHT/RF register by firmware at
- *				run time. We do not support message more than one segment now.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/06/2008	amy		porting from windows code.
- *
- *---------------------------------------------------------------------------*/
+/*
+ * Driver internal module can call the API to send message to
+ * firmware side. For example, you can send a debug command packet.
+ * Or you can send a request for FW to modify RLX4181 LBUS HW bank.
+ * Otherwise, you can change MAC/PHT/RF register by firmware at
+ * run time. We do not support message more than one segment now.
+ */
 RT_STATUS cmpk_message_handle_tx(
 	struct net_device *dev,
 	u8*	code_virtual_address,
@@ -156,26 +129,9 @@ Failed:
 
 
 #endif
-}	/* CMPK_Message_Handle_Tx */
+}
 
-/*-----------------------------------------------------------------------------
- * Function:    cmpk_counttxstatistic()
- *
- * Overview:
- *
- * Input:       PADAPTER 	pAdapter		-	.
- *				CMPK_TXFB_T *psTx_FB	-	.
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- *  When		Who		Remark
- *  05/12/2008	amy 	Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-static	void
+static void
 cmpk_count_txstatistic(
 	struct net_device *dev,
 	cmpk_txfb_t	*pstx_fb)
@@ -250,32 +206,18 @@ cmpk_count_txstatistic(
 	priv->stats.txretrycount += pstx_fb->retry_cnt;
 	priv->stats.txfeedbackretry += pstx_fb->retry_cnt;
 
-}	/* cmpk_CountTxStatistic */
+}
 
 
 
-/*-----------------------------------------------------------------------------
- * Function:    cmpk_handle_tx_feedback()
- *
- * Overview:	The function is responsible for extract the message inside TX
- *				feedbck message from firmware. It will contain dedicated info in
- *				ws-06-0063-rtl8190-command-packet-specification. Please
- *				refer to chapter "TX Feedback Element". We have to read 20 bytes
- *				in the command packet.
- *
- * Input:       struct net_device *    dev
- *				u8 	*	pmsg		-	Msg Ptr of the command packet.
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- *  When		Who		Remark
- *  05/08/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
-static	void
+/*
+ * The function is responsible for extract the message inside TX
+ * feedbck message from firmware. It will contain dedicated info in
+ * ws-06-0063-rtl8190-command-packet-specification. Please
+ * refer to chapter "TX Feedback Element". We have to read 20 bytes
+ * in the command packet.
+ */
+static void
 cmpk_handle_tx_feedback(
 	struct net_device *dev,
 	u8	*	pmsg)
@@ -334,58 +276,15 @@ cmpk_handle_tx_feedback(
 	   or multicast. */
 	//CountTxStatistics( pAdapter, &tcb );
 
-}	/* cmpk_Handle_Tx_Feedback */
-
-static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	u16 tx_rate;
-	{
-		//
-		// 070117, rcnjko: 87B have to S/W beacon for DTM encryption_cmn.
-		//
-		if((priv->ieee80211->current_network.mode == IEEE_A)  ||
-			(priv->ieee80211->current_network.mode == IEEE_N_5G) ||
-			((priv->ieee80211->current_network.mode == IEEE_N_24G)  && (!priv->ieee80211->pHTInfo->bCurSuppCCK)))
-		{
-			tx_rate = 60;
-			DMESG("send beacon frame  tx rate is 6Mbpm\n");
-		}
-		else
-		{
-			tx_rate =10;
-			DMESG("send beacon frame  tx rate is 1Mbpm\n");
-		}
-
-		//rtl819xusb_beacon_tx(dev,tx_rate); // HW Beacon
-
-	}
-
 }
 
 
-
-
-/*-----------------------------------------------------------------------------
- * Function:    cmpk_handle_interrupt_status()
- *
- * Overview:    The function is responsible for extract the message from
- *				firmware. It will contain dedicated info in
- *				ws-07-0063-v06-rtl819x-command-packet-specification-070315.doc.
- * 				Please refer to chapter "Interrupt Status Element".
- *
- * Input:       struct net_device *dev,
- *			u8*	pmsg		-	Message Pointer of the command packet.
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- *  When			Who			Remark
- *  05/12/2008	amy		Add this for rtl8192 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
+/*
+ * The function is responsible for extract the message from
+ * firmware. It will contain dedicated info in
+ * ws-07-0063-v06-rtl819x-command-packet-specification-070315.doc.
+ * Please refer to chapter "Interrupt Status Element".
+ */
 static	void
 cmpk_handle_interrupt_status(
 	struct net_device *dev,
@@ -432,12 +331,6 @@ cmpk_handle_interrupt_status(
 			priv->ieee80211->bibsscoordinator = false;
 			priv->stats.txbeaconerr++;
 		}
-
-		if (rx_intr_status.interrupt_status & ISR_BcnTimerIntr)
-		{
-			cmdpkt_beacontimerinterrupt_819xusb(dev);
-		}
-
 	}
 
 	 // Other informations in interrupt status we need?
@@ -445,28 +338,15 @@ cmpk_handle_interrupt_status(
 
 	DMESG("<---- cmpk_handle_interrupt_status()\n");
 
-}	/* cmpk_handle_interrupt_status */
+}
 
 
-/*-----------------------------------------------------------------------------
- * Function:    cmpk_handle_query_config_rx()
- *
- * Overview:    The function is responsible for extract the message from
- *				firmware. It will contain dedicated info in
- *				ws-06-0063-rtl8190-command-packet-specification. Please
- *				refer to chapter "Beacon State Element".
- *
- * Input:       u8 *  pmsg	-	Message Pointer of the command packet.
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- *  When		Who		Remark
- *  05/12/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
+/*
+ * The function is responsible for extract the message from
+ * firmware. It will contain dedicated info in
+ * ws-06-0063-rtl8190-command-packet-specification. Please
+ * refer to chapter "Beacon State Element".
+ */
 static	void
 cmpk_handle_query_config_rx(
 	struct net_device *dev,
@@ -493,26 +373,13 @@ cmpk_handle_query_config_rx(
 	rx_query_cfg.mask 			= (pmsg[12] << 24) | (pmsg[13] << 16) |
 								  (pmsg[14] << 8) | (pmsg[15] << 0);
 
-}	/* cmpk_Handle_Query_Config_Rx */
+}
 
 
-/*-----------------------------------------------------------------------------
- * Function:	cmpk_count_tx_status()
- *
- * Overview:	Count aggregated tx status from firmwar of one type rx command
- *				packet element id = RX_TX_STATUS.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/12/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
+/*
+ * Count aggregated tx status from firmwar of one type rx command
+ * packet element id = RX_TX_STATUS.
+ */
 static	void	cmpk_count_tx_status(	struct net_device *dev,
 									cmpk_tx_status_t 	*pstx_status)
 {
@@ -559,27 +426,14 @@ static	void	cmpk_count_tx_status(	struct net_device *dev,
 	priv->stats.txbytesunicast		+= pstx_status->txuclength;
 
 	priv->stats.last_packet_rate		= pstx_status->rate;
-}	/* cmpk_CountTxStatus */
+}
 
 
 
-/*-----------------------------------------------------------------------------
- * Function:	cmpk_handle_tx_status()
- *
- * Overview:	Firmware add a new tx feedback status to reduce rx command
- *				packet buffer operation load.
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/12/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
+/*
+ * Firmware add a new tx feedback status to reduce rx command
+ * packet buffer operation load.
+ */
 static	void
 cmpk_handle_tx_status(
 	struct net_device *dev,
@@ -591,25 +445,10 @@ cmpk_handle_tx_status(
 	/* 2. Use tx feedback info to count TX statistics. */
 	cmpk_count_tx_status(dev, &rx_tx_sts);
 
-}	/* cmpk_Handle_Tx_Status */
+}
 
 
-/*-----------------------------------------------------------------------------
- * Function:	cmpk_handle_tx_rate_history()
- *
- * Overview:	Firmware add a new tx rate history
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/12/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
+/* Firmware add a new tx rate history */
 static	void
 cmpk_handle_tx_rate_history(
 	struct net_device *dev,
@@ -671,29 +510,16 @@ cmpk_handle_tx_rate_history(
 			priv->stats.txrate.ht_mcs[j][i] += ptxrate->ht_mcs[j][i];
 	}
 
-}	/* cmpk_Handle_Tx_Rate_History */
+}
 
 
-/*-----------------------------------------------------------------------------
- * Function:    cmpk_message_handle_rx()
- *
- * Overview:    In the function, we will capture different RX command packet
- *				info. Every RX command packet element has different message
- *				length and meaning in content. We only support three type of RX
- *				command packet now. Please refer to document
- *				ws-06-0063-rtl8190-command-packet-specification.
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- *  When		Who		Remark
- *  05/06/2008	amy		Create Version 0 porting from windows code.
- *
- *---------------------------------------------------------------------------*/
+/*
+ * In the function, we will capture different RX command packet
+ * info. Every RX command packet element has different message
+ * length and meaning in content. We only support three type of RX
+ * command packet now. Please refer to document
+ * ws-06-0063-rtl8190-command-packet-specification.
+ */
 u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *pstats)
 {
 //	u32			debug_level = DBG_LOUD;
@@ -801,4 +627,4 @@ u32 cmpk_message_handle_rx(struct net_device *dev, struct ieee80211_rx_stats *ps
 	return	1;	/* This is a command packet. */
 
 	RT_TRACE(COMP_EVENTS, "<----cmpk_message_handle_rx()\n");
-}	/* CMPK_Message_Handle_Rx */
+}

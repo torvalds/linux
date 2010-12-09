@@ -1093,8 +1093,8 @@ int efx_mcdi_reset_mc(struct efx_nic *efx)
 	return rc;
 }
 
-int efx_mcdi_wol_filter_set(struct efx_nic *efx, u32 type,
-			    const u8 *mac, int *id_out)
+static int efx_mcdi_wol_filter_set(struct efx_nic *efx, u32 type,
+				   const u8 *mac, int *id_out)
 {
 	u8 inbuf[MC_CMD_WOL_FILTER_SET_IN_LEN];
 	u8 outbuf[MC_CMD_WOL_FILTER_SET_OUT_LEN];

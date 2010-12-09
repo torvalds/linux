@@ -1,7 +1,7 @@
 /*
  * STV0680 USB Camera Driver
  *
- * Copyright (C) 2009 Hans de Goede <hdgoede@redhat.com>
+ * Copyright (C) 2009 Hans de Goede <hdegoede@redhat.com>
  *
  * This module is adapted from the in kernel v4l1 stv680 driver:
  *
@@ -31,7 +31,7 @@
 
 #include "gspca.h"
 
-MODULE_AUTHOR("Hans de Goede <hdgoede@redhat.com>");
+MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_DESCRIPTION("STV0680 USB Camera Driver");
 MODULE_LICENSE("GPL");
 
@@ -79,8 +79,7 @@ static int stv_sndctrl(struct gspca_dev *gspca_dev, int set, u8 req, u16 val,
 			      val, 0, gspca_dev->usb_buf, size, 500);
 
 	if ((ret < 0) && (req != 0x0a))
-		PDEBUG(D_ERR,
-		       "usb_control_msg error %i, request = 0x%x, error = %i",
+		err("usb_control_msg error %i, request = 0x%x, error = %i",
 		       set, req, ret);
 
 	return ret;
@@ -237,7 +236,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	if (stv_sndctrl(gspca_dev, 2, 0x06, 0x0100, 0x12) != 0x12 ||
 	    gspca_dev->usb_buf[8] != 0x53 || gspca_dev->usb_buf[9] != 0x05) {
-		PDEBUG(D_ERR, "Could not get descriptor 0100.");
+		err("Could not get descriptor 0100.");
 		return stv0680_handle_error(gspca_dev, -EIO);
 	}
 
@@ -357,17 +356,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	PDEBUG(D_PROBE, "registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	PDEBUG(D_PROBE, "deregistered");
 }
 
 module_init(sd_mod_init);

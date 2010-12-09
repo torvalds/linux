@@ -244,7 +244,7 @@ int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 
 			/* Force channel idle high */
 			AR5K_REG_ENABLE_BITS(ah, AR5K_DIAG_SW_5211,
-					AR5K_DIAG_SW_CHANEL_IDLE_HIGH);
+					AR5K_DIAG_SW_CHANNEL_IDLE_HIGH);
 
 			/* Wait a while and disable mechanism */
 			udelay(200);
@@ -261,7 +261,7 @@ int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 			} while (--i && pending);
 
 			AR5K_REG_DISABLE_BITS(ah, AR5K_DIAG_SW_5211,
-					AR5K_DIAG_SW_CHANEL_IDLE_HIGH);
+					AR5K_DIAG_SW_CHANNEL_IDLE_HIGH);
 		}
 
 		/* Clear register */
@@ -377,11 +377,11 @@ int ath5k_hw_set_txdp(struct ath5k_hw *ah, unsigned int queue, u32 phys_addr)
  *
  * This function increases/decreases the tx trigger level for the tx fifo
  * buffer (aka FIFO threshold) that is used to indicate when PCU flushes
- * the buffer and transmits it's data. Lowering this results sending small
+ * the buffer and transmits its data. Lowering this results sending small
  * frames more quickly but can lead to tx underruns, raising it a lot can
  * result other problems (i think bmiss is related). Right now we start with
  * the lowest possible (64Bytes) and if we get tx underrun we increase it using
- * the increase flag. Returns -EIO if we have have reached maximum/minimum.
+ * the increase flag. Returns -EIO if we have reached maximum/minimum.
  *
  * XXX: Link this with tx DMA size ?
  * XXX: Use it to save interrupts ?

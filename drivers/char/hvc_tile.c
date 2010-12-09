@@ -61,7 +61,8 @@ console_initcall(hvc_tile_console_init);
 
 static int __init hvc_tile_init(void)
 {
-	hvc_alloc(0, 0, &hvc_tile_get_put_ops, 128);
-	return 0;
+	struct hvc_struct *s;
+	s = hvc_alloc(0, 0, &hvc_tile_get_put_ops, 128);
+	return IS_ERR(s) ? PTR_ERR(s) : 0;
 }
 device_initcall(hvc_tile_init);

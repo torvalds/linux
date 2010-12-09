@@ -980,6 +980,7 @@ ffs_sb_make_inode(struct super_block *sb, void *data,
 	if (likely(inode)) {
 		struct timespec current_time = CURRENT_TIME;
 
+		inode->i_ino	 = get_next_ino();
 		inode->i_mode    = perms->mode;
 		inode->i_uid     = perms->uid;
 		inode->i_gid     = perms->gid;
@@ -1175,9 +1176,9 @@ invalid:
 
 /* "mount -t functionfs dev_name /dev/function" ends up here */
 
-static int
-ffs_fs_get_sb(struct file_system_type *t, int flags,
-	      const char *dev_name, void *opts, struct vfsmount *mnt)
+static struct dentry *
+ffs_fs_mount(struct file_system_type *t, int flags,
+	      const char *dev_name, void *opts)
 {
 	struct ffs_sb_fill_data data = {
 		.perms = {
@@ -1193,14 +1194,14 @@ ffs_fs_get_sb(struct file_system_type *t, int flags,
 
 	ret = functionfs_check_dev_callback(dev_name);
 	if (unlikely(ret < 0))
-		return ret;
+		return ERR_PTR(ret);
 
 	ret = ffs_fs_parse_opts(&data, opts);
 	if (unlikely(ret < 0))
-		return ret;
+		return ERR_PTR(ret);
 
 	data.dev_name = dev_name;
-	return get_sb_single(t, flags, &data, ffs_sb_fill, mnt);
+	return mount_single(t, flags, &data, ffs_sb_fill);
 }
 
 static void
@@ -1219,7 +1220,7 @@ ffs_fs_kill_sb(struct super_block *sb)
 static struct file_system_type ffs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "functionfs",
-	.get_sb		= ffs_fs_get_sb,
+	.mount		= ffs_fs_mount,
 	.kill_sb	= ffs_fs_kill_sb,
 };
 

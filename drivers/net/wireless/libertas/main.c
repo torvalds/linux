@@ -104,6 +104,7 @@ static int lbs_dev_open(struct net_device *dev)
 	lbs_deb_enter(LBS_DEB_NET);
 
 	spin_lock_irq(&priv->driver_lock);
+	priv->stopping = false;
 
 	if (priv->connect_status == LBS_CONNECTED)
 		netif_carrier_on(dev);
@@ -131,10 +132,16 @@ static int lbs_eth_stop(struct net_device *dev)
 	lbs_deb_enter(LBS_DEB_NET);
 
 	spin_lock_irq(&priv->driver_lock);
+	priv->stopping = true;
 	netif_stop_queue(dev);
 	spin_unlock_irq(&priv->driver_lock);
 
 	schedule_work(&priv->mcast_work);
+	cancel_delayed_work_sync(&priv->scan_work);
+	if (priv->scan_req) {
+		cfg80211_scan_done(priv->scan_req, false);
+		priv->scan_req = NULL;
+	}
 
 	lbs_deb_leave(LBS_DEB_NET);
 	return 0;
@@ -1046,6 +1053,111 @@ void lbs_notify_command_response(struct lbs_private *priv, u8 resp_idx)
 	lbs_deb_leave(LBS_DEB_THREAD);
 }
 EXPORT_SYMBOL_GPL(lbs_notify_command_response);
+
+/**
+ *  @brief Retrieves two-stage firmware
+ *
+ *  @param dev     	A pointer to device structure
+ *  @param user_helper	User-defined helper firmware file
+ *  @param user_mainfw	User-defined main firmware file
+ *  @param card_model	Bus-specific card model ID used to filter firmware table
+ *                         elements
+ *  @param fw_table	Table of firmware file names and device model numbers
+ *                         terminated by an entry with a NULL helper name
+ *  @param helper	On success, the helper firmware; caller must free
+ *  @param mainfw	On success, the main firmware; caller must free
+ *
+ *  @return		0 on success, non-zero on failure
+ */
+int lbs_get_firmware(struct device *dev, const char *user_helper,
+			const char *user_mainfw, u32 card_model,
+			const struct lbs_fw_table *fw_table,
+			const struct firmware **helper,
+			const struct firmware **mainfw)
+{
+	const struct lbs_fw_table *iter;
+	int ret;
+
+	BUG_ON(helper == NULL);
+	BUG_ON(mainfw == NULL);
+
+	/* Try user-specified firmware first */
+	if (user_helper) {
+		ret = request_firmware(helper, user_helper, dev);
+		if (ret) {
+			lbs_pr_err("couldn't find helper firmware %s",
+					user_helper);
+			goto fail;
+		}
+	}
+	if (user_mainfw) {
+		ret = request_firmware(mainfw, user_mainfw, dev);
+		if (ret) {
+			lbs_pr_err("couldn't find main firmware %s",
+					user_mainfw);
+			goto fail;
+		}
+	}
+
+	if (*helper && *mainfw)
+		return 0;
+
+	/* Otherwise search for firmware to use.  If neither the helper or
+	 * the main firmware were specified by the user, then we need to
+	 * make sure that found helper & main are from the same entry in
+	 * fw_table.
+	 */
+	iter = fw_table;
+	while (iter && iter->helper) {
+		if (iter->model != card_model)
+			goto next;
+
+		if (*helper == NULL) {
+			ret = request_firmware(helper, iter->helper, dev);
+			if (ret)
+				goto next;
+
+			/* If the device has one-stage firmware (ie cf8305) and
+			 * we've got it then we don't need to bother with the
+			 * main firmware.
+			 */
+			if (iter->fwname == NULL)
+				return 0;
+		}
+
+		if (*mainfw == NULL) {
+			ret = request_firmware(mainfw, iter->fwname, dev);
+			if (ret && !user_helper) {
+				/* Clear the helper if it wasn't user-specified
+				 * and the main firmware load failed, to ensure
+				 * we don't have mismatched firmware pairs.
+				 */
+				release_firmware(*helper);
+				*helper = NULL;
+			}
+		}
+
+		if (*helper && *mainfw)
+			return 0;
+
+  next:
+		iter++;
+	}
+
+  fail:
+	/* Failed */
+	if (*helper) {
+		release_firmware(*helper);
+		*helper = NULL;
+	}
+	if (*mainfw) {
+		release_firmware(*mainfw);
+		*mainfw = NULL;
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL_GPL(lbs_get_firmware);
 
 static int __init lbs_init_module(void)
 {

@@ -110,7 +110,8 @@ void user_enable_block_step(struct task_struct *task)
 	pa_psw(task)->l = 0;
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	unsigned long tmp;
 	long ret = -EIO;
@@ -120,11 +121,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	/* Read the word at location addr in the USER area.  For ptraced
 	   processes, the kernel saves all regs on a syscall. */
 	case PTRACE_PEEKUSR:
-		if ((addr & (sizeof(long)-1)) ||
-		    (unsigned long) addr >= sizeof(struct pt_regs))
+		if ((addr & (sizeof(unsigned long)-1)) ||
+		     addr >= sizeof(struct pt_regs))
 			break;
 		tmp = *(unsigned long *) ((char *) task_regs(child) + addr);
-		ret = put_user(tmp, (unsigned long *) data);
+		ret = put_user(tmp, (unsigned long __user *) data);
 		break;
 
 	/* Write the word at location addr in the USER area.  This will need
@@ -151,8 +152,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 		}
 
-		if ((addr & (sizeof(long)-1)) ||
-		    (unsigned long) addr >= sizeof(struct pt_regs))
+		if ((addr & (sizeof(unsigned long)-1)) ||
+		     addr >= sizeof(struct pt_regs))
 			break;
 		if ((addr >= PT_GR1 && addr <= PT_GR31) ||
 				addr == PT_IAOQ0 || addr == PT_IAOQ1 ||

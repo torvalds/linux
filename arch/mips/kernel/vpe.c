@@ -1192,7 +1192,8 @@ static const struct file_operations vpe_fops = {
 	.owner = THIS_MODULE,
 	.open = vpe_open,
 	.release = vpe_release,
-	.write = vpe_write
+	.write = vpe_write,
+	.llseek = noop_llseek,
 };
 
 /* module wrapper entry points */

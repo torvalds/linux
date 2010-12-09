@@ -54,7 +54,6 @@ struct aoi_display_offset {
 };
 
 #define MFB_SET_CHROMA_KEY	_IOW('M', 1, struct mfb_chroma_key)
-#define MFB_WAIT_FOR_VSYNC	_IOW('F', 0x20, u_int32_t)
 #define MFB_SET_BRIGHTNESS	_IOW('M', 3, __u8)
 
 #define MFB_SET_ALPHA		0x80014d00

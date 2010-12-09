@@ -630,8 +630,6 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 	u32 tmp;
 
-	lock_kernel();
-
 	if (!ocfs2_parse_options(sb, data, &parsed_options, 1) ||
 	    !ocfs2_check_set_options(sb, &parsed_options)) {
 		ret = -EINVAL;
@@ -739,7 +737,6 @@ unlock_osb:
 							MS_POSIXACL : 0);
 	}
 out:
-	unlock_kernel();
 	return ret;
 }
 
@@ -1239,14 +1236,12 @@ read_super_error:
 	return status;
 }
 
-static int ocfs2_get_sb(struct file_system_type *fs_type,
+static struct dentry *ocfs2_mount(struct file_system_type *fs_type,
 			int flags,
 			const char *dev_name,
-			void *data,
-			struct vfsmount *mnt)
+			void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, ocfs2_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, ocfs2_fill_super);
 }
 
 static void ocfs2_kill_sb(struct super_block *sb)
@@ -1270,8 +1265,7 @@ out:
 static struct file_system_type ocfs2_fs_type = {
 	.owner          = THIS_MODULE,
 	.name           = "ocfs2",
-	.get_sb         = ocfs2_get_sb, /* is this called when we mount
-					* the fs? */
+	.mount          = ocfs2_mount,
 	.kill_sb        = ocfs2_kill_sb,
 
 	.fs_flags       = FS_REQUIRES_DEV|FS_RENAME_DOES_D_MOVE,
@@ -1696,12 +1690,8 @@ static void ocfs2_put_super(struct super_block *sb)
 {
 	mlog_entry("(0x%p)\n", sb);
 
-	lock_kernel();
-
 	ocfs2_sync_blockdev(sb);
 	ocfs2_dismount_volume(sb, 0);
-
-	unlock_kernel();
 
 	mlog_exit_void();
 }

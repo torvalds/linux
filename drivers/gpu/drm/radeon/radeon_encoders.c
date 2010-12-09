@@ -529,9 +529,9 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 				args.v1.ucMisc |= PANEL_ENCODER_MISC_HDMI_TYPE;
 			args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
-				if (dig->lvds_misc & ATOM_PANEL_MISC_DUAL)
+				if (dig->lcd_misc & ATOM_PANEL_MISC_DUAL)
 					args.v1.ucMisc |= PANEL_ENCODER_MISC_DUAL;
-				if (dig->lvds_misc & ATOM_PANEL_MISC_888RGB)
+				if (dig->lcd_misc & ATOM_PANEL_MISC_888RGB)
 					args.v1.ucMisc |= (1 << 1);
 			} else {
 				if (dig->linkb)
@@ -558,18 +558,18 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 			args.v2.ucTemporal = 0;
 			args.v2.ucFRC = 0;
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
-				if (dig->lvds_misc & ATOM_PANEL_MISC_DUAL)
+				if (dig->lcd_misc & ATOM_PANEL_MISC_DUAL)
 					args.v2.ucMisc |= PANEL_ENCODER_MISC_DUAL;
-				if (dig->lvds_misc & ATOM_PANEL_MISC_SPATIAL) {
+				if (dig->lcd_misc & ATOM_PANEL_MISC_SPATIAL) {
 					args.v2.ucSpatial = PANEL_ENCODER_SPATIAL_DITHER_EN;
-					if (dig->lvds_misc & ATOM_PANEL_MISC_888RGB)
+					if (dig->lcd_misc & ATOM_PANEL_MISC_888RGB)
 						args.v2.ucSpatial |= PANEL_ENCODER_SPATIAL_DITHER_DEPTH;
 				}
-				if (dig->lvds_misc & ATOM_PANEL_MISC_TEMPORAL) {
+				if (dig->lcd_misc & ATOM_PANEL_MISC_TEMPORAL) {
 					args.v2.ucTemporal = PANEL_ENCODER_TEMPORAL_DITHER_EN;
-					if (dig->lvds_misc & ATOM_PANEL_MISC_888RGB)
+					if (dig->lcd_misc & ATOM_PANEL_MISC_888RGB)
 						args.v2.ucTemporal |= PANEL_ENCODER_TEMPORAL_DITHER_DEPTH;
-					if (((dig->lvds_misc >> ATOM_PANEL_MISC_GREY_LEVEL_SHIFT) & 0x3) == 2)
+					if (((dig->lcd_misc >> ATOM_PANEL_MISC_GREY_LEVEL_SHIFT) & 0x3) == 2)
 						args.v2.ucTemporal |= PANEL_ENCODER_TEMPORAL_LEVEL_4;
 				}
 			} else {
@@ -1520,6 +1520,7 @@ radeon_atom_dac_detect(struct drm_encoder *encoder, struct drm_connector *connec
 static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_connector *connector = radeon_get_connector_for_encoder(encoder);
 
 	if (radeon_encoder->active_device &
 	    (ATOM_DEVICE_DFP_SUPPORT | ATOM_DEVICE_LCD_SUPPORT)) {
@@ -1530,6 +1531,13 @@ static void radeon_atom_encoder_prepare(struct drm_encoder *encoder)
 
 	radeon_atom_output_lock(encoder, true);
 	radeon_atom_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
+
+	/* select the clock/data port if it uses a router */
+	if (connector) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		if (radeon_connector->router.cd_valid)
+			radeon_router_select_cd_port(radeon_connector);
+	}
 
 	/* this is needed for the pll/ss setup to work correctly in some cases */
 	atombios_set_encoder_crtc_source(encoder);
@@ -1547,6 +1555,23 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig;
+
+	/* check for pre-DCE3 cards with shared encoders;
+	 * can't really use the links individually, so don't disable
+	 * the encoder if it's in use by another connector
+	 */
+	if (!ASIC_IS_DCE3(rdev)) {
+		struct drm_encoder *other_encoder;
+		struct radeon_encoder *other_radeon_encoder;
+
+		list_for_each_entry(other_encoder, &dev->mode_config.encoder_list, head) {
+			other_radeon_encoder = to_radeon_encoder(other_encoder);
+			if ((radeon_encoder->encoder_id == other_radeon_encoder->encoder_id) &&
+			    drm_helper_encoder_in_use(other_encoder))
+				goto disable_done;
+		}
+	}
+
 	radeon_atom_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
 
 	switch (radeon_encoder->encoder_id) {
@@ -1586,6 +1611,7 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 		break;
 	}
 
+disable_done:
 	if (radeon_encoder_is_digital(encoder)) {
 		if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI)
 			r600_hdmi_disable(encoder);

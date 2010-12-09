@@ -889,6 +889,66 @@ ENTRY(_ret_from_exception)
 	rts;
 ENDPROC(_ret_from_exception)
 
+#if defined(CONFIG_PREEMPT)
+
+ENTRY(_up_to_irq14)
+#if ANOMALY_05000281 || ANOMALY_05000461
+	r0.l = lo(SAFE_USER_INSTRUCTION);
+	r0.h = hi(SAFE_USER_INSTRUCTION);
+	reti = r0;
+#endif
+
+#ifdef CONFIG_DEBUG_HWERR
+	/* enable irq14 & hwerr interrupt, until we transition to _evt_evt14 */
+	r0 = (EVT_IVG14 | EVT_IVHW | EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
+#else
+	/* Only enable irq14 interrupt, until we transition to _evt_evt14 */
+	r0 = (EVT_IVG14 | EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
+#endif
+	sti r0;
+
+	p0.l = lo(EVT14);
+	p0.h = hi(EVT14);
+	p1.l = _evt_up_evt14;
+	p1.h = _evt_up_evt14;
+	[p0] = p1;
+	csync;
+
+	raise 14;
+1:
+	jump 1b;
+ENDPROC(_up_to_irq14)
+
+ENTRY(_evt_up_evt14)
+#ifdef CONFIG_DEBUG_HWERR
+	r0 = (EVT_IVHW | EVT_IRPTEN | EVT_EVX | EVT_NMI | EVT_RST | EVT_EMU);
+	sti r0;
+#else
+	cli r0;
+#endif
+#ifdef CONFIG_TRACE_IRQFLAGS
+	[--sp] = rets;
+	sp += -12;
+	call _trace_hardirqs_off;
+	sp += 12;
+	rets = [sp++];
+#endif
+	[--sp] = RETI;
+	SP += 4;
+
+	/* restore normal evt14 */
+	p0.l = lo(EVT14);
+	p0.h = hi(EVT14);
+	p1.l = _evt_evt14;
+	p1.h = _evt_evt14;
+	[p0] = p1;
+	csync;
+
+	rts;
+ENDPROC(_evt_up_evt14)
+
+#endif
+
 #ifdef CONFIG_IPIPE
 
 _resume_kernel_from_int:
@@ -902,8 +962,54 @@ _resume_kernel_from_int:
 	( r7:4, p5:3 ) = [sp++];
 	rets = [sp++];
 	rts
+#elif defined(CONFIG_PREEMPT)
+
+_resume_kernel_from_int:
+	/* check preempt_count */
+	r7 = sp;
+	r4.l = lo(ALIGN_PAGE_MASK);
+	r4.h = hi(ALIGN_PAGE_MASK);
+	r7 = r7 & r4;
+	p5 = r7;
+	r7 = [p5 + TI_PREEMPT];
+	cc = r7 == 0x0;
+	if !cc jump .Lreturn_to_kernel;
+.Lneed_schedule:
+	r7 = [p5 + TI_FLAGS];
+	r4.l = lo(_TIF_WORK_MASK);
+	r4.h = hi(_TIF_WORK_MASK);
+	r7 =  r7 & r4;
+	cc = BITTST(r7, TIF_NEED_RESCHED);
+	if !cc jump .Lreturn_to_kernel;
+	/*
+	 * let schedule done at level 15, otherwise sheduled process will run
+	 * at high level and block low level interrupt
+	 */
+	r6 = reti;  /* save reti */
+	r5.l = .Lkernel_schedule;
+	r5.h = .Lkernel_schedule;
+	reti = r5;
+	rti;
+.Lkernel_schedule:
+	[--sp] = rets;
+	sp += -12;
+	pseudo_long_call _preempt_schedule_irq, p4;
+	sp += 12;
+	rets = [sp++];
+
+	[--sp] = rets;
+	sp += -12;
+	/* up to irq14 so that reti after restore_all can return to irq15(kernel) */
+	pseudo_long_call _up_to_irq14, p4;
+	sp += 12;
+	rets = [sp++];
+
+	reti = r6; /* restore reti so that origin process can return to interrupted point */
+
+	jump .Lneed_schedule;
 #else
-#define _resume_kernel_from_int	 2f
+
+#define _resume_kernel_from_int	.Lreturn_to_kernel
 #endif
 
 ENTRY(_return_from_int)
@@ -913,7 +1019,7 @@ ENTRY(_return_from_int)
 	p2.h = hi(ILAT);
 	r0 = [p2];
 	cc = bittst (r0, EVT_IVG15_P);
-	if cc jump 2f;
+	if cc jump .Lreturn_to_kernel;
 
 	/* if not return to user mode, get out */
 	p2.l = lo(IPEND);
@@ -945,7 +1051,7 @@ ENTRY(_return_from_int)
 	STI r0;
 	raise 15;	/* raise evt15 to do signal or reschedule */
 	rti;
-2:
+.Lreturn_to_kernel:
 	rts;
 ENDPROC(_return_from_int)
 
@@ -1631,6 +1737,7 @@ ENTRY(_sys_call_table)
 	.long _sys_fanotify_init
 	.long _sys_fanotify_mark
 	.long _sys_prlimit64
+	.long _sys_cacheflush
 
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall

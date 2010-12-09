@@ -16,7 +16,9 @@
 #define BNX2X_INIT_OPS_H
 
 static int bnx2x_gunzip(struct bnx2x *bp, const u8 *zbuf, int len);
-
+static void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val);
+static void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
+				      u32 addr, u32 len);
 
 static void bnx2x_init_str_wr(struct bnx2x *bp, u32 addr, const u32 *data,
 			      u32 len)
@@ -149,6 +151,15 @@ static void bnx2x_init_wr_wb(struct bnx2x *bp, u32 addr, const u32 *data,
 			VIRT_WR_DMAE_LEN(bp, data, addr, len, 0);
 	} else
 		bnx2x_init_ind_wr(bp, addr, data, len);
+}
+
+static void bnx2x_wr_64(struct bnx2x *bp, u32 reg, u32 val_lo, u32 val_hi)
+{
+	u32 wb_write[2];
+
+	wb_write[0] = val_lo;
+	wb_write[1] = val_hi;
+	REG_WR_DMAE_LEN(bp, reg, wb_write, 2);
 }
 
 static void bnx2x_init_wr_zp(struct bnx2x *bp, u32 addr, u32 len, u32 blob_off)
@@ -477,18 +488,30 @@ static void bnx2x_init_pxp_arb(struct bnx2x *bp, int r_order, int w_order)
 	REG_WR(bp, PXP2_REG_RQ_RD_MBS0, r_order);
 	REG_WR(bp, PXP2_REG_RQ_RD_MBS1, r_order);
 
-	if (r_order == MAX_RD_ORD)
+	if ((CHIP_IS_E1(bp) || CHIP_IS_E1H(bp)) && (r_order == MAX_RD_ORD))
 		REG_WR(bp, PXP2_REG_RQ_PDR_LIMIT, 0xe00);
 
-	REG_WR(bp, PXP2_REG_WR_USDMDP_TH, (0x18 << w_order));
+	if (CHIP_IS_E2(bp))
+		REG_WR(bp, PXP2_REG_WR_USDMDP_TH, (0x8 << w_order));
+	else
+		REG_WR(bp, PXP2_REG_WR_USDMDP_TH, (0x18 << w_order));
 
-	if (CHIP_IS_E1H(bp)) {
+	if (CHIP_IS_E1H(bp) || CHIP_IS_E2(bp)) {
 		/*    MPS      w_order     optimal TH      presently TH
 		 *    128         0             0               2
 		 *    256         1             1               3
 		 *    >=512       2             2               3
 		 */
-		val = ((w_order == 0) ? 2 : 3);
+		/* DMAE is special */
+		if (CHIP_IS_E2(bp)) {
+			/* E2 can use optimal TH */
+			val = w_order;
+			REG_WR(bp, PXP2_REG_WR_DMAE_MPS, val);
+		} else {
+			val = ((w_order == 0) ? 2 : 3);
+			REG_WR(bp, PXP2_REG_WR_DMAE_MPS, 2);
+		}
+
 		REG_WR(bp, PXP2_REG_WR_HC_MPS, val);
 		REG_WR(bp, PXP2_REG_WR_USDM_MPS, val);
 		REG_WR(bp, PXP2_REG_WR_CSDM_MPS, val);
@@ -498,9 +521,346 @@ static void bnx2x_init_pxp_arb(struct bnx2x *bp, int r_order, int w_order)
 		REG_WR(bp, PXP2_REG_WR_TM_MPS, val);
 		REG_WR(bp, PXP2_REG_WR_SRC_MPS, val);
 		REG_WR(bp, PXP2_REG_WR_DBG_MPS, val);
-		REG_WR(bp, PXP2_REG_WR_DMAE_MPS, 2); /* DMAE is special */
 		REG_WR(bp, PXP2_REG_WR_CDU_MPS, val);
 	}
+
+	/* Validate number of tags suppoted by device */
+#define PCIE_REG_PCIER_TL_HDR_FC_ST		0x2980
+	val = REG_RD(bp, PCIE_REG_PCIER_TL_HDR_FC_ST);
+	val &= 0xFF;
+	if (val <= 0x20)
+		REG_WR(bp, PXP2_REG_PGL_TAGS_LIMIT, 0x20);
+}
+
+/****************************************************************************
+* ILT management
+****************************************************************************/
+/*
+ * This codes hides the low level HW interaction for ILT management and
+ * configuration. The API consists of a shadow ILT table which is set by the
+ * driver and a set of routines to use it to configure the HW.
+ *
+ */
+
+/* ILT HW init operations */
+
+/* ILT memory management operations */
+#define ILT_MEMOP_ALLOC		0
+#define ILT_MEMOP_FREE		1
+
+/* the phys address is shifted right 12 bits and has an added
+ * 1=valid bit added to the 53rd bit
+ * then since this is a wide register(TM)
+ * we split it into two 32 bit writes
+ */
+#define ILT_ADDR1(x)		((u32)(((u64)x >> 12) & 0xFFFFFFFF))
+#define ILT_ADDR2(x)		((u32)((1 << 20) | ((u64)x >> 44)))
+#define ILT_RANGE(f, l)		(((l) << 10) | f)
+
+static int bnx2x_ilt_line_mem_op(struct bnx2x *bp, struct ilt_line *line,
+				 u32 size, u8 memop)
+{
+	if (memop == ILT_MEMOP_FREE) {
+		BNX2X_ILT_FREE(line->page, line->page_mapping, line->size);
+		return 0;
+	}
+	BNX2X_ILT_ZALLOC(line->page, &line->page_mapping, size);
+	if (!line->page)
+		return -1;
+	line->size = size;
+	return 0;
+}
+
+
+static int bnx2x_ilt_client_mem_op(struct bnx2x *bp, int cli_num, u8 memop)
+{
+	int i, rc;
+	struct bnx2x_ilt *ilt = BP_ILT(bp);
+	struct ilt_client_info *ilt_cli = &ilt->clients[cli_num];
+
+	if (!ilt || !ilt->lines)
+		return -1;
+
+	if (ilt_cli->flags & (ILT_CLIENT_SKIP_INIT | ILT_CLIENT_SKIP_MEM))
+		return 0;
+
+	for (rc = 0, i = ilt_cli->start; i <= ilt_cli->end && !rc; i++) {
+		rc = bnx2x_ilt_line_mem_op(bp, &ilt->lines[i],
+					   ilt_cli->page_size, memop);
+	}
+	return rc;
+}
+
+static int bnx2x_ilt_mem_op(struct bnx2x *bp, u8 memop)
+{
+	int rc = bnx2x_ilt_client_mem_op(bp, ILT_CLIENT_CDU, memop);
+	if (!rc)
+		rc = bnx2x_ilt_client_mem_op(bp, ILT_CLIENT_QM, memop);
+	if (!rc)
+		rc = bnx2x_ilt_client_mem_op(bp, ILT_CLIENT_SRC, memop);
+	if (!rc)
+		rc = bnx2x_ilt_client_mem_op(bp, ILT_CLIENT_TM, memop);
+
+	return rc;
+}
+
+static void bnx2x_ilt_line_wr(struct bnx2x *bp, int abs_idx,
+			      dma_addr_t page_mapping)
+{
+	u32 reg;
+
+	if (CHIP_IS_E1(bp))
+		reg = PXP2_REG_RQ_ONCHIP_AT + abs_idx*8;
+	else
+		reg = PXP2_REG_RQ_ONCHIP_AT_B0 + abs_idx*8;
+
+	bnx2x_wr_64(bp, reg, ILT_ADDR1(page_mapping), ILT_ADDR2(page_mapping));
+}
+
+static void bnx2x_ilt_line_init_op(struct bnx2x *bp, struct bnx2x_ilt *ilt,
+				   int idx, u8 initop)
+{
+	dma_addr_t	null_mapping;
+	int abs_idx = ilt->start_line + idx;
+
+
+	switch (initop) {
+	case INITOP_INIT:
+		/* set in the init-value array */
+	case INITOP_SET:
+		bnx2x_ilt_line_wr(bp, abs_idx, ilt->lines[idx].page_mapping);
+		break;
+	case INITOP_CLEAR:
+		null_mapping = 0;
+		bnx2x_ilt_line_wr(bp, abs_idx, null_mapping);
+		break;
+	}
+}
+
+static void bnx2x_ilt_boundry_init_op(struct bnx2x *bp,
+				      struct ilt_client_info *ilt_cli,
+				      u32 ilt_start, u8 initop)
+{
+	u32 start_reg = 0;
+	u32 end_reg = 0;
+
+	/* The boundary is either SET or INIT,
+	   CLEAR => SET and for now SET ~~ INIT */
+
+	/* find the appropriate regs */
+	if (CHIP_IS_E1(bp)) {
+		switch (ilt_cli->client_num) {
+		case ILT_CLIENT_CDU:
+			start_reg = PXP2_REG_PSWRQ_CDU0_L2P;
+			break;
+		case ILT_CLIENT_QM:
+			start_reg = PXP2_REG_PSWRQ_QM0_L2P;
+			break;
+		case ILT_CLIENT_SRC:
+			start_reg = PXP2_REG_PSWRQ_SRC0_L2P;
+			break;
+		case ILT_CLIENT_TM:
+			start_reg = PXP2_REG_PSWRQ_TM0_L2P;
+			break;
+		}
+		REG_WR(bp, start_reg + BP_FUNC(bp)*4,
+		       ILT_RANGE((ilt_start + ilt_cli->start),
+				 (ilt_start + ilt_cli->end)));
+	} else {
+		switch (ilt_cli->client_num) {
+		case ILT_CLIENT_CDU:
+			start_reg = PXP2_REG_RQ_CDU_FIRST_ILT;
+			end_reg = PXP2_REG_RQ_CDU_LAST_ILT;
+			break;
+		case ILT_CLIENT_QM:
+			start_reg = PXP2_REG_RQ_QM_FIRST_ILT;
+			end_reg = PXP2_REG_RQ_QM_LAST_ILT;
+			break;
+		case ILT_CLIENT_SRC:
+			start_reg = PXP2_REG_RQ_SRC_FIRST_ILT;
+			end_reg = PXP2_REG_RQ_SRC_LAST_ILT;
+			break;
+		case ILT_CLIENT_TM:
+			start_reg = PXP2_REG_RQ_TM_FIRST_ILT;
+			end_reg = PXP2_REG_RQ_TM_LAST_ILT;
+			break;
+		}
+		REG_WR(bp, start_reg, (ilt_start + ilt_cli->start));
+		REG_WR(bp, end_reg, (ilt_start + ilt_cli->end));
+	}
+}
+
+static void bnx2x_ilt_client_init_op_ilt(struct bnx2x *bp,
+					 struct bnx2x_ilt *ilt,
+					 struct ilt_client_info *ilt_cli,
+					 u8 initop)
+{
+	int i;
+
+	if (ilt_cli->flags & ILT_CLIENT_SKIP_INIT)
+		return;
+
+	for (i = ilt_cli->start; i <= ilt_cli->end; i++)
+		bnx2x_ilt_line_init_op(bp, ilt, i, initop);
+
+	/* init/clear the ILT boundries */
+	bnx2x_ilt_boundry_init_op(bp, ilt_cli, ilt->start_line, initop);
+}
+
+static void bnx2x_ilt_client_init_op(struct bnx2x *bp,
+				     struct ilt_client_info *ilt_cli, u8 initop)
+{
+	struct bnx2x_ilt *ilt = BP_ILT(bp);
+
+	bnx2x_ilt_client_init_op_ilt(bp, ilt, ilt_cli, initop);
+}
+
+static void bnx2x_ilt_client_id_init_op(struct bnx2x *bp,
+					int cli_num, u8 initop)
+{
+	struct bnx2x_ilt *ilt = BP_ILT(bp);
+	struct ilt_client_info *ilt_cli = &ilt->clients[cli_num];
+
+	bnx2x_ilt_client_init_op(bp, ilt_cli, initop);
+}
+
+static void bnx2x_ilt_init_op(struct bnx2x *bp, u8 initop)
+{
+	bnx2x_ilt_client_id_init_op(bp, ILT_CLIENT_CDU, initop);
+	bnx2x_ilt_client_id_init_op(bp, ILT_CLIENT_QM, initop);
+	bnx2x_ilt_client_id_init_op(bp, ILT_CLIENT_SRC, initop);
+	bnx2x_ilt_client_id_init_op(bp, ILT_CLIENT_TM, initop);
+}
+
+static void bnx2x_ilt_init_client_psz(struct bnx2x *bp, int cli_num,
+					    u32 psz_reg, u8 initop)
+{
+	struct bnx2x_ilt *ilt = BP_ILT(bp);
+	struct ilt_client_info *ilt_cli = &ilt->clients[cli_num];
+
+	if (ilt_cli->flags & ILT_CLIENT_SKIP_INIT)
+		return;
+
+	switch (initop) {
+	case INITOP_INIT:
+		/* set in the init-value array */
+	case INITOP_SET:
+		REG_WR(bp, psz_reg, ILOG2(ilt_cli->page_size >> 12));
+		break;
+	case INITOP_CLEAR:
+		break;
+	}
+}
+
+/*
+ * called during init common stage, ilt clients should be initialized
+ * prioir to calling this function
+ */
+static void bnx2x_ilt_init_page_size(struct bnx2x *bp, u8 initop)
+{
+	bnx2x_ilt_init_client_psz(bp, ILT_CLIENT_CDU,
+				  PXP2_REG_RQ_CDU_P_SIZE, initop);
+	bnx2x_ilt_init_client_psz(bp, ILT_CLIENT_QM,
+				  PXP2_REG_RQ_QM_P_SIZE, initop);
+	bnx2x_ilt_init_client_psz(bp, ILT_CLIENT_SRC,
+				  PXP2_REG_RQ_SRC_P_SIZE, initop);
+	bnx2x_ilt_init_client_psz(bp, ILT_CLIENT_TM,
+				  PXP2_REG_RQ_TM_P_SIZE, initop);
+}
+
+/****************************************************************************
+* QM initializations
+****************************************************************************/
+#define QM_QUEUES_PER_FUNC	16 /* E1 has 32, but only 16 are used */
+#define QM_INIT_MIN_CID_COUNT	31
+#define QM_INIT(cid_cnt)	(cid_cnt > QM_INIT_MIN_CID_COUNT)
+
+/* called during init port stage */
+static void bnx2x_qm_init_cid_count(struct bnx2x *bp, int qm_cid_count,
+				    u8 initop)
+{
+	int port = BP_PORT(bp);
+
+	if (QM_INIT(qm_cid_count)) {
+		switch (initop) {
+		case INITOP_INIT:
+			/* set in the init-value array */
+		case INITOP_SET:
+			REG_WR(bp, QM_REG_CONNNUM_0 + port*4,
+			       qm_cid_count/16 - 1);
+			break;
+		case INITOP_CLEAR:
+			break;
+		}
+	}
+}
+
+static void bnx2x_qm_set_ptr_table(struct bnx2x *bp, int qm_cid_count)
+{
+	int i;
+	u32 wb_data[2];
+
+	wb_data[0] = wb_data[1] = 0;
+
+	for (i = 0; i < 4 * QM_QUEUES_PER_FUNC; i++) {
+		REG_WR(bp, QM_REG_BASEADDR + i*4,
+		       qm_cid_count * 4 * (i % QM_QUEUES_PER_FUNC));
+		bnx2x_init_ind_wr(bp, QM_REG_PTRTBL + i*8,
+				  wb_data, 2);
+
+		if (CHIP_IS_E1H(bp)) {
+			REG_WR(bp, QM_REG_BASEADDR_EXT_A + i*4,
+			       qm_cid_count * 4 * (i % QM_QUEUES_PER_FUNC));
+			bnx2x_init_ind_wr(bp, QM_REG_PTRTBL_EXT_A + i*8,
+					  wb_data, 2);
+		}
+	}
+}
+
+/* called during init common stage */
+static void bnx2x_qm_init_ptr_table(struct bnx2x *bp, int qm_cid_count,
+				    u8 initop)
+{
+	if (!QM_INIT(qm_cid_count))
+		return;
+
+	switch (initop) {
+	case INITOP_INIT:
+		/* set in the init-value array */
+	case INITOP_SET:
+		bnx2x_qm_set_ptr_table(bp, qm_cid_count);
+		break;
+	case INITOP_CLEAR:
+		break;
+	}
+}
+
+/****************************************************************************
+* SRC initializations
+****************************************************************************/
+
+/* called during init func stage */
+static void bnx2x_src_init_t2(struct bnx2x *bp, struct src_ent *t2,
+			      dma_addr_t t2_mapping, int src_cid_count)
+{
+	int i;
+	int port = BP_PORT(bp);
+
+	/* Initialize T2 */
+	for (i = 0; i < src_cid_count-1; i++)
+		t2[i].next = (u64)(t2_mapping + (i+1)*sizeof(struct src_ent));
+
+	/* tell the searcher where the T2 table is */
+	REG_WR(bp, SRC_REG_COUNTFREE0 + port*4, src_cid_count);
+
+	bnx2x_wr_64(bp, SRC_REG_FIRSTFREE0 + port*16,
+		    U64_LO(t2_mapping), U64_HI(t2_mapping));
+
+	bnx2x_wr_64(bp, SRC_REG_LASTFREE0 + port*16,
+		    U64_LO((u64)t2_mapping +
+			   (src_cid_count-1) * sizeof(struct src_ent)),
+		    U64_HI((u64)t2_mapping +
+			   (src_cid_count-1) * sizeof(struct src_ent)));
 }
 
 #endif /* BNX2X_INIT_OPS_H */

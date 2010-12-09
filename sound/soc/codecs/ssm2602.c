@@ -45,11 +45,11 @@
 
 #define SSM2602_VERSION "0.1"
 
-struct snd_soc_codec_device soc_codec_dev_ssm2602;
-
 /* codec private data */
 struct ssm2602_priv {
 	unsigned int sysclk;
+	enum snd_soc_control_type control_type;
+	void *control_data;
 	struct snd_pcm_substream *master_substream;
 	struct snd_pcm_substream *slave_substream;
 };
@@ -276,8 +276,7 @@ static int ssm2602_hw_params(struct snd_pcm_substream *substream,
 {
 	u16 srate;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = codec->control_data;
 	u16 iface = ssm2602_read_reg_cache(codec, SSM2602_IFACE) & 0xfff3;
@@ -321,8 +320,7 @@ static int ssm2602_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = codec->control_data;
 	struct snd_pcm_runtime *master_runtime;
@@ -360,8 +358,7 @@ static int ssm2602_pcm_prepare(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 	/* set active */
 	ssm2602_write(codec, SSM2602_ACTIVE, ACTIVE_ACTIVATE_CODEC);
 
@@ -372,8 +369,7 @@ static void ssm2602_shutdown(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 
 	/* deactivate */
@@ -518,8 +514,8 @@ static struct snd_soc_dai_ops ssm2602_dai_ops = {
 	.set_fmt	= ssm2602_set_dai_fmt,
 };
 
-struct snd_soc_dai ssm2602_dai = {
-	.name = "SSM2602",
+static struct snd_soc_dai_driver ssm2602_dai = {
+	.name = "ssm2602-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
@@ -534,21 +530,15 @@ struct snd_soc_dai ssm2602_dai = {
 		.formats = SSM2602_FORMATS,},
 	.ops = &ssm2602_dai_ops,
 };
-EXPORT_SYMBOL_GPL(ssm2602_dai);
 
-static int ssm2602_suspend(struct platform_device *pdev, pm_message_t state)
+static int ssm2602_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
 	ssm2602_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
-static int ssm2602_resume(struct platform_device *pdev)
+static int ssm2602_resume(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
 	int i;
 	u8 data[2];
 	u16 *cache = codec->reg_cache;
@@ -563,36 +553,17 @@ static int ssm2602_resume(struct platform_device *pdev)
 	return 0;
 }
 
-/*
- * initialise the ssm2602 driver
- * register the mixer and dsp interfaces with the kernel
- */
-static int ssm2602_init(struct snd_soc_device *socdev)
+static int ssm2602_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_codec *codec = socdev->card->codec;
-	int reg, ret = 0;
+	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
+	int ret = 0, reg;
 
-	codec->name = "SSM2602";
-	codec->owner = THIS_MODULE;
-	codec->read = ssm2602_read_reg_cache;
-	codec->write = ssm2602_write;
-	codec->set_bias_level = ssm2602_set_bias_level;
-	codec->dai = &ssm2602_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = sizeof(ssm2602_reg);
-	codec->reg_cache = kmemdup(ssm2602_reg, sizeof(ssm2602_reg),
-					GFP_KERNEL);
-	if (codec->reg_cache == NULL)
-		return -ENOMEM;
+	pr_info("ssm2602 Audio Codec %s", SSM2602_VERSION);
+
+	codec->control_data = ssm2602->control_data;
 
 	ssm2602_reset(codec);
 
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		pr_err("ssm2602: failed to create pcms\n");
-		goto pcm_err;
-	}
 	/*power on device*/
 	ssm2602_write(codec, SSM2602_ACTIVE, 0);
 	/* set the update bits */
@@ -614,13 +585,27 @@ static int ssm2602_init(struct snd_soc_device *socdev)
 	ssm2602_add_widgets(codec);
 
 	return ret;
-
-pcm_err:
-	kfree(codec->reg_cache);
-	return ret;
 }
 
-static struct snd_soc_device *ssm2602_socdev;
+/* remove everything here */
+static int ssm2602_remove(struct snd_soc_codec *codec)
+{
+	ssm2602_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	return 0;
+}
+
+static struct snd_soc_codec_driver soc_codec_dev_ssm2602 = {
+	.probe =	ssm2602_probe,
+	.remove =	ssm2602_remove,
+	.suspend =	ssm2602_suspend,
+	.resume =	ssm2602_resume,
+	.read = ssm2602_read_reg_cache,
+	.write = ssm2602_write,
+	.set_bias_level = ssm2602_set_bias_level,
+	.reg_cache_size = sizeof(ssm2602_reg),
+	.reg_word_size = sizeof(u16),
+	.reg_cache_default = ssm2602_reg,
+};
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 /*
@@ -632,24 +617,28 @@ static struct snd_soc_device *ssm2602_socdev;
 static int ssm2602_i2c_probe(struct i2c_client *i2c,
 			     const struct i2c_device_id *id)
 {
-	struct snd_soc_device *socdev = ssm2602_socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct ssm2602_priv *ssm2602;
 	int ret;
 
-	i2c_set_clientdata(i2c, codec);
-	codec->control_data = i2c;
+	ssm2602 = kzalloc(sizeof(struct ssm2602_priv), GFP_KERNEL);
+	if (ssm2602 == NULL)
+		return -ENOMEM;
 
-	ret = ssm2602_init(socdev);
+	i2c_set_clientdata(i2c, ssm2602);
+	ssm2602->control_data = i2c;
+	ssm2602->control_type = SND_SOC_I2C;
+
+	ret = snd_soc_register_codec(&i2c->dev,
+			&soc_codec_dev_ssm2602, &ssm2602_dai, 1);
 	if (ret < 0)
-		pr_err("failed to initialise SSM2602\n");
-
+		kfree(ssm2602);
 	return ret;
 }
 
 static int ssm2602_i2c_remove(struct i2c_client *client)
 {
-	struct snd_soc_codec *codec = i2c_get_clientdata(client);
-	kfree(codec->reg_cache);
+	snd_soc_unregister_codec(&client->dev);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
@@ -658,130 +647,39 @@ static const struct i2c_device_id ssm2602_i2c_id[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ssm2602_i2c_id);
+
 /* corgi i2c codec control layer */
 static struct i2c_driver ssm2602_i2c_driver = {
 	.driver = {
-		.name = "SSM2602 I2C Codec",
+		.name = "ssm2602-codec",
 		.owner = THIS_MODULE,
 	},
 	.probe = ssm2602_i2c_probe,
 	.remove = ssm2602_i2c_remove,
 	.id_table = ssm2602_i2c_id,
 };
-
-static int ssm2602_add_i2c_device(struct platform_device *pdev,
-				  const struct ssm2602_setup_data *setup)
-{
-	struct i2c_board_info info;
-	struct i2c_adapter *adapter;
-	struct i2c_client *client;
-	int ret;
-
-	ret = i2c_add_driver(&ssm2602_i2c_driver);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "can't add i2c driver\n");
-		return ret;
-	}
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	info.addr = setup->i2c_address;
-	strlcpy(info.type, "ssm2602", I2C_NAME_SIZE);
-	adapter = i2c_get_adapter(setup->i2c_bus);
-	if (!adapter) {
-		dev_err(&pdev->dev, "can't get i2c adapter %d\n",
-		setup->i2c_bus);
-		goto err_driver;
-	}
-	client = i2c_new_device(adapter, &info);
-	i2c_put_adapter(adapter);
-	if (!client) {
-		dev_err(&pdev->dev, "can't add i2c device at 0x%x\n",
-		(unsigned int)info.addr);
-		goto err_driver;
-	}
-	return 0;
-err_driver:
-	i2c_del_driver(&ssm2602_i2c_driver);
-	return -ENODEV;
-}
 #endif
 
-static int ssm2602_probe(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct ssm2602_setup_data *setup;
-	struct snd_soc_codec *codec;
-	struct ssm2602_priv *ssm2602;
-	int ret = 0;
-
-	pr_info("ssm2602 Audio Codec %s", SSM2602_VERSION);
-
-	setup = socdev->codec_data;
-	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (codec == NULL)
-		return -ENOMEM;
-
-	ssm2602 = kzalloc(sizeof(struct ssm2602_priv), GFP_KERNEL);
-	if (ssm2602 == NULL) {
-		kfree(codec);
-		return -ENOMEM;
-	}
-
-	snd_soc_codec_set_drvdata(codec, ssm2602);
-	socdev->card->codec = codec;
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	ssm2602_socdev = socdev;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	if (setup->i2c_address) {
-		codec->hw_write = (hw_write_t)i2c_master_send;
-		ret = ssm2602_add_i2c_device(pdev, setup);
-	}
-#else
-	/* other interfaces */
-#endif
-	return ret;
-}
-
-/* remove everything here */
-static int ssm2602_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	if (codec->control_data)
-		ssm2602_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-	i2c_unregister_device(codec->control_data);
-	i2c_del_driver(&ssm2602_i2c_driver);
-#endif
-	kfree(snd_soc_codec_get_drvdata(codec));
-	kfree(codec);
-
-	return 0;
-}
-
-struct snd_soc_codec_device soc_codec_dev_ssm2602 = {
-	.probe = 	ssm2602_probe,
-	.remove = 	ssm2602_remove,
-	.suspend = 	ssm2602_suspend,
-	.resume =	ssm2602_resume,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_ssm2602);
 
 static int __init ssm2602_modinit(void)
 {
-	return snd_soc_register_dai(&ssm2602_dai);
+	int ret = 0;
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	ret = i2c_add_driver(&ssm2602_i2c_driver);
+	if (ret != 0) {
+		printk(KERN_ERR "Failed to register SSM2602 I2C driver: %d\n",
+		       ret);
+	}
+#endif
+	return ret;
 }
 module_init(ssm2602_modinit);
 
 static void __exit ssm2602_exit(void)
 {
-	snd_soc_unregister_dai(&ssm2602_dai);
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+	i2c_del_driver(&ssm2602_i2c_driver);
+#endif
 }
 module_exit(ssm2602_exit);
 

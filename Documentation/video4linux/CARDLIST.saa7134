@@ -126,7 +126,7 @@
 125 -> Beholder BeholdTV 409                    [0000:4090]
 126 -> Beholder BeholdTV 505 FM                 [5ace:5050]
 127 -> Beholder BeholdTV 507 FM / BeholdTV 509 FM [5ace:5070,5ace:5090]
-128 -> Beholder BeholdTV Columbus TVFM          [0000:5201]
+128 -> Beholder BeholdTV Columbus TV/FM         [0000:5201]
 129 -> Beholder BeholdTV 607 FM                 [5ace:6070]
 130 -> Beholder BeholdTV M6                     [5ace:6190]
 131 -> Twinhan Hybrid DTV-DVB 3056 PCI          [1822:0022]

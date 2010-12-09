@@ -51,7 +51,6 @@ typedef enum {
 #define XBF_DONE	(1 << 5) /* all pages in the buffer uptodate */
 #define XBF_DELWRI	(1 << 6) /* buffer has dirty pages */
 #define XBF_STALE	(1 << 7) /* buffer has been staled, do not find it */
-#define XBF_FS_MANAGED	(1 << 8) /* filesystem controls freeing memory */
 #define XBF_ORDERED	(1 << 11)/* use ordered writes */
 #define XBF_READ_AHEAD	(1 << 12)/* asynchronous read-ahead */
 #define XBF_LOG_BUFFER	(1 << 13)/* this is a buffer used for the log */
@@ -86,14 +85,6 @@ typedef enum {
  */
 #define _XBF_PAGE_LOCKED	(1 << 22)
 
-/*
- * If we try a barrier write, but it fails we have to communicate
- * this to the upper layers.  Unfortunately b_error gets overwritten
- * when the buffer is re-issued so we have to add another flag to
- * keep this information.
- */
-#define _XFS_BARRIER_FAILED	(1 << 23)
-
 typedef unsigned int xfs_buf_flags_t;
 
 #define XFS_BUF_FLAGS \
@@ -104,7 +95,6 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_DONE,		"DONE" }, \
 	{ XBF_DELWRI,		"DELWRI" }, \
 	{ XBF_STALE,		"STALE" }, \
-	{ XBF_FS_MANAGED,	"FS_MANAGED" }, \
 	{ XBF_ORDERED,		"ORDERED" }, \
 	{ XBF_READ_AHEAD,	"READ_AHEAD" }, \
 	{ XBF_LOCK,		"LOCK" },  	/* should never be set */\
@@ -114,8 +104,7 @@ typedef unsigned int xfs_buf_flags_t;
 	{ _XBF_PAGES,		"PAGES" }, \
 	{ _XBF_RUN_QUEUES,	"RUN_QUEUES" }, \
 	{ _XBF_DELWRI_Q,	"DELWRI_Q" }, \
-	{ _XBF_PAGE_LOCKED,	"PAGE_LOCKED" }, \
-	{ _XFS_BARRIER_FAILED,	"BARRIER_FAILED" }
+	{ _XBF_PAGE_LOCKED,	"PAGE_LOCKED" }
 
 
 typedef enum {
@@ -132,13 +121,10 @@ typedef struct xfs_buftarg {
 	dev_t			bt_dev;
 	struct block_device	*bt_bdev;
 	struct address_space	*bt_mapping;
+	struct xfs_mount	*bt_mount;
 	unsigned int		bt_bsize;
 	unsigned int		bt_sshift;
 	size_t			bt_smask;
-
-	/* per device buffer hash table */
-	uint			bt_hashshift;
-	xfs_bufhash_t		*bt_hash;
 
 	/* per device delwri queue */
 	struct task_struct	*bt_task;
@@ -167,34 +153,41 @@ typedef int (*xfs_buf_bdstrat_t)(struct xfs_buf *);
 #define XB_PAGES	2
 
 typedef struct xfs_buf {
-	struct semaphore	b_sema;		/* semaphore for lockables */
-	unsigned long		b_queuetime;	/* time buffer was queued */
-	atomic_t		b_pin_count;	/* pin count */
-	wait_queue_head_t	b_waiters;	/* unpin waiters */
-	struct list_head	b_list;
-	xfs_buf_flags_t		b_flags;	/* status flags */
-	struct list_head	b_hash_list;	/* hash table list */
-	xfs_bufhash_t		*b_hash;	/* hash table list start */
-	xfs_buftarg_t		*b_target;	/* buffer target (device) */
-	atomic_t		b_hold;		/* reference count */
-	xfs_daddr_t		b_bn;		/* block number for I/O */
+	/*
+	 * first cacheline holds all the fields needed for an uncontended cache
+	 * hit to be fully processed. The semaphore straddles the cacheline
+	 * boundary, but the counter and lock sits on the first cacheline,
+	 * which is the only bit that is touched if we hit the semaphore
+	 * fast-path on locking.
+	 */
+	struct rb_node		b_rbnode;	/* rbtree node */
 	xfs_off_t		b_file_offset;	/* offset in file */
 	size_t			b_buffer_length;/* size of buffer in bytes */
+	atomic_t		b_hold;		/* reference count */
+	xfs_buf_flags_t		b_flags;	/* status flags */
+	struct semaphore	b_sema;		/* semaphore for lockables */
+
+	wait_queue_head_t	b_waiters;	/* unpin waiters */
+	struct list_head	b_list;
+	struct xfs_perag	*b_pag;		/* contains rbtree root */
+	xfs_buftarg_t		*b_target;	/* buffer target (device) */
+	xfs_daddr_t		b_bn;		/* block number for I/O */
 	size_t			b_count_desired;/* desired transfer size */
 	void			*b_addr;	/* virtual address of buffer */
 	struct work_struct	b_iodone_work;
-	atomic_t		b_io_remaining;	/* #outstanding I/O requests */
 	xfs_buf_iodone_t	b_iodone;	/* I/O completion function */
 	xfs_buf_relse_t		b_relse;	/* releasing function */
 	struct completion	b_iowait;	/* queue for I/O waiters */
 	void			*b_fspriv;
 	void			*b_fspriv2;
-	struct xfs_mount	*b_mount;
-	unsigned short		b_error;	/* error code on I/O */
-	unsigned int		b_page_count;	/* size of page array */
-	unsigned int		b_offset;	/* page offset in first page */
 	struct page		**b_pages;	/* array of page pointers */
 	struct page		*b_page_array[XB_PAGES]; /* inline pages */
+	unsigned long		b_queuetime;	/* time buffer was queued */
+	atomic_t		b_pin_count;	/* pin count */
+	atomic_t		b_io_remaining;	/* #outstanding I/O requests */
+	unsigned int		b_page_count;	/* size of page array */
+	unsigned int		b_offset;	/* page offset in first page */
+	unsigned short		b_error;	/* error code on I/O */
 #ifdef XFS_BUF_LOCK_TRACKING
 	int			b_last_holder;
 #endif
@@ -213,11 +206,13 @@ extern xfs_buf_t *xfs_buf_read(xfs_buftarg_t *, xfs_off_t, size_t,
 				xfs_buf_flags_t);
 
 extern xfs_buf_t *xfs_buf_get_empty(size_t, xfs_buftarg_t *);
-extern xfs_buf_t *xfs_buf_get_noaddr(size_t, xfs_buftarg_t *);
+extern xfs_buf_t *xfs_buf_get_uncached(struct xfs_buftarg *, size_t, int);
 extern int xfs_buf_associate_memory(xfs_buf_t *, void *, size_t);
 extern void xfs_buf_hold(xfs_buf_t *);
-extern void xfs_buf_readahead(xfs_buftarg_t *, xfs_off_t, size_t,
-				xfs_buf_flags_t);
+extern void xfs_buf_readahead(xfs_buftarg_t *, xfs_off_t, size_t);
+struct xfs_buf *xfs_buf_read_uncached(struct xfs_mount *mp,
+				struct xfs_buftarg *target,
+				xfs_daddr_t daddr, size_t length, int flags);
 
 /* Releasing Buffers */
 extern void xfs_buf_free(xfs_buf_t *);
@@ -242,6 +237,8 @@ extern int xfs_buf_iorequest(xfs_buf_t *);
 extern int xfs_buf_iowait(xfs_buf_t *);
 extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
 				xfs_buf_rw_t);
+#define xfs_buf_zero(bp, off, len) \
+	    xfs_buf_iomove((bp), (off), (len), NULL, XBRW_ZERO)
 
 static inline int xfs_buf_geterror(xfs_buf_t *bp)
 {
@@ -275,8 +272,6 @@ extern void xfs_buf_terminate(void);
 					xfs_buf_delwri_dequeue(bp);	\
 					XFS_BUF_DONE(bp);	\
 				} while (0)
-
-#define XFS_BUF_UNMANAGE(bp)	((bp)->b_flags &= ~XBF_FS_MANAGED)
 
 #define XFS_BUF_DELAYWRITE(bp)		((bp)->b_flags |= XBF_DELWRI)
 #define XFS_BUF_UNDELAYWRITE(bp)	xfs_buf_delwri_dequeue(bp)
@@ -356,25 +351,11 @@ static inline void xfs_buf_relse(xfs_buf_t *bp)
 	xfs_buf_rele(bp);
 }
 
-#define xfs_biodone(bp)		xfs_buf_ioend(bp, 0)
-
-#define xfs_biomove(bp, off, len, data, rw) \
-	    xfs_buf_iomove((bp), (off), (len), (data), \
-		((rw) == XBF_WRITE) ? XBRW_WRITE : XBRW_READ)
-
-#define xfs_biozero(bp, off, len) \
-	    xfs_buf_iomove((bp), (off), (len), NULL, XBRW_ZERO)
-
-#define xfs_iowait(bp)	xfs_buf_iowait(bp)
-
-#define xfs_baread(target, rablkno, ralen)  \
-	xfs_buf_readahead((target), (rablkno), (ralen), XBF_DONT_BLOCK)
-
-
 /*
  *	Handling of buftargs.
  */
-extern xfs_buftarg_t *xfs_alloc_buftarg(struct block_device *, int, const char *);
+extern xfs_buftarg_t *xfs_alloc_buftarg(struct xfs_mount *,
+			struct block_device *, int, const char *);
 extern void xfs_free_buftarg(struct xfs_mount *, struct xfs_buftarg *);
 extern void xfs_wait_buftarg(xfs_buftarg_t *);
 extern int xfs_setsize_buftarg(xfs_buftarg_t *, unsigned int, unsigned int);

@@ -1,18 +1,20 @@
 DCCP protocol
-============
+=============
 
 
 Contents
 ========
-
 - Introduction
 - Missing features
 - Socket options
+- Sysctl variables
+- IOCTLs
+- Other tunables
 - Notes
+
 
 Introduction
 ============
-
 Datagram Congestion Control Protocol (DCCP) is an unreliable, connection
 oriented protocol designed to solve issues present in UDP and TCP, particularly
 for real-time and multimedia (streaming) traffic.
@@ -29,9 +31,9 @@ It has a base protocol and pluggable congestion control IDs (CCIDs).
 DCCP is a Proposed Standard (RFC 2026), and the homepage for DCCP as a protocol
 is at http://www.ietf.org/html.charters/dccp-charter.html
 
+
 Missing features
 ================
-
 The Linux DCCP implementation does not currently support all the features that are
 specified in RFCs 4340...42.
 
@@ -45,7 +47,6 @@ http://linux-net.osdl.org/index.php/DCCP_Testing#Experimental_DCCP_source_tree
 
 Socket options
 ==============
-
 DCCP_SOCKOPT_SERVICE sets the service. The specification mandates use of
 service codes (RFC 4340, sec. 8.1.2); if this socket option is not set,
 the socket will fall back to 0 (which means that no meaningful service code
@@ -112,6 +113,7 @@ DCCP_SOCKOPT_CCID_TX_INFO
 On unidirectional connections it is useful to close the unused half-connection
 via shutdown (SHUT_WR or SHUT_RD): this will reduce per-packet processing costs.
 
+
 Sysctl variables
 ================
 Several DCCP default parameters can be managed by the following sysctls
@@ -155,15 +157,30 @@ sync_ratelimit = 125 ms
 	sequence-invalid packets on the same socket (RFC 4340, 7.5.4). The unit
 	of this parameter is milliseconds; a value of 0 disables rate-limiting.
 
+
 IOCTLS
 ======
 FIONREAD
 	Works as in udp(7): returns in the `int' argument pointer the size of
 	the next pending datagram in bytes, or 0 when no datagram is pending.
 
+
+Other tunables
+==============
+Per-route rto_min support
+	CCID-2 supports the RTAX_RTO_MIN per-route setting for the minimum value
+	of the RTO timer. This setting can be modified via the 'rto_min' option
+	of iproute2; for example:
+		> ip route change 10.0.0.0/24   rto_min 250j dev wlan0
+		> ip route add    10.0.0.254/32 rto_min 800j dev wlan0
+		> ip route show dev wlan0
+	CCID-3 also supports the rto_min setting: it is used to define the lower
+	bound for the expiry of the nofeedback timer. This can be useful on LANs
+	with very low RTTs (e.g., loopback, Gbit ethernet).
+
+
 Notes
 =====
-
 DCCP does not travel through NAT successfully at present on many boxes. This is
 because the checksum covers the pseudo-header as per TCP and UDP. Linux NAT
 support for DCCP has been added.

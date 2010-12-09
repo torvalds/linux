@@ -10,6 +10,7 @@
 
 #define RECLAIM_WB_ANON		0x0001u
 #define RECLAIM_WB_FILE		0x0002u
+#define RECLAIM_WB_MIXED	0x0010u
 #define RECLAIM_WB_SYNC		0x0004u
 #define RECLAIM_WB_ASYNC	0x0008u
 
@@ -17,13 +18,20 @@
 	(flags) ? __print_flags(flags, "|",			\
 		{RECLAIM_WB_ANON,	"RECLAIM_WB_ANON"},	\
 		{RECLAIM_WB_FILE,	"RECLAIM_WB_FILE"},	\
+		{RECLAIM_WB_MIXED,	"RECLAIM_WB_MIXED"},	\
 		{RECLAIM_WB_SYNC,	"RECLAIM_WB_SYNC"},	\
 		{RECLAIM_WB_ASYNC,	"RECLAIM_WB_ASYNC"}	\
 		) : "RECLAIM_WB_NONE"
 
 #define trace_reclaim_flags(page, sync) ( \
 	(page_is_file_cache(page) ? RECLAIM_WB_FILE : RECLAIM_WB_ANON) | \
-	(sync == PAGEOUT_IO_SYNC ? RECLAIM_WB_SYNC : RECLAIM_WB_ASYNC)   \
+	(sync == LUMPY_MODE_SYNC ? RECLAIM_WB_SYNC : RECLAIM_WB_ASYNC)   \
+	)
+
+#define trace_shrink_flags(file, sync) ( \
+	(sync == LUMPY_MODE_SYNC ? RECLAIM_WB_MIXED : \
+			(file ? RECLAIM_WB_FILE : RECLAIM_WB_ANON)) |  \
+	(sync == LUMPY_MODE_SYNC ? RECLAIM_WB_SYNC : RECLAIM_WB_ASYNC) \
 	)
 
 TRACE_EVENT(mm_vmscan_kswapd_sleep,
@@ -268,6 +276,40 @@ TRACE_EVENT(mm_vmscan_writepage,
 		page_to_pfn(__entry->page),
 		show_reclaim_flags(__entry->reclaim_flags))
 );
+
+TRACE_EVENT(mm_vmscan_lru_shrink_inactive,
+
+	TP_PROTO(int nid, int zid,
+			unsigned long nr_scanned, unsigned long nr_reclaimed,
+			int priority, int reclaim_flags),
+
+	TP_ARGS(nid, zid, nr_scanned, nr_reclaimed, priority, reclaim_flags),
+
+	TP_STRUCT__entry(
+		__field(int, nid)
+		__field(int, zid)
+		__field(unsigned long, nr_scanned)
+		__field(unsigned long, nr_reclaimed)
+		__field(int, priority)
+		__field(int, reclaim_flags)
+	),
+
+	TP_fast_assign(
+		__entry->nid = nid;
+		__entry->zid = zid;
+		__entry->nr_scanned = nr_scanned;
+		__entry->nr_reclaimed = nr_reclaimed;
+		__entry->priority = priority;
+		__entry->reclaim_flags = reclaim_flags;
+	),
+
+	TP_printk("nid=%d zid=%d nr_scanned=%ld nr_reclaimed=%ld priority=%d flags=%s",
+		__entry->nid, __entry->zid,
+		__entry->nr_scanned, __entry->nr_reclaimed,
+		__entry->priority,
+		show_reclaim_flags(__entry->reclaim_flags))
+);
+
 
 #endif /* _TRACE_VMSCAN_H */
 

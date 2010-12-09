@@ -30,9 +30,6 @@
 
 #include "wm8955.h"
 
-static struct snd_soc_codec *wm8955_codec;
-struct snd_soc_codec_device soc_codec_dev_wm8955;
-
 #define WM8955_NUM_SUPPLIES 4
 static const char *wm8955_supply_names[WM8955_NUM_SUPPLIES] = {
 	"DCVDD",
@@ -43,7 +40,8 @@ static const char *wm8955_supply_names[WM8955_NUM_SUPPLIES] = {
 
 /* codec private data */
 struct wm8955_priv {
-	struct snd_soc_codec codec;
+	enum snd_soc_control_type control_type;
+
 	u16 reg_cache[WM8955_MAX_REGISTER + 1];
 
 	unsigned int mclk_rate;
@@ -52,8 +50,6 @@ struct wm8955_priv {
 	int fs;
 
 	struct regulator_bulk_data supplies[WM8955_NUM_SUPPLIES];
-
-	struct wm8955_pdata *pdata;
 };
 
 static const u16 wm8955_reg[WM8955_MAX_REGISTER + 1] = {
@@ -870,8 +866,8 @@ static struct snd_soc_dai_ops wm8955_dai_ops = {
 	.digital_mute = wm8955_digital_mute,
 };
 
-struct snd_soc_dai wm8955_dai = {
-	.name = "WM8955",
+static struct snd_soc_dai_driver wm8955_dai = {
+	.name = "wm8955-hifi",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
@@ -881,24 +877,17 @@ struct snd_soc_dai wm8955_dai = {
 	},
 	.ops = &wm8955_dai_ops,
 };
-EXPORT_SYMBOL_GPL(wm8955_dai);
 
 #ifdef CONFIG_PM
-static int wm8955_suspend(struct platform_device *pdev, pm_message_t state)
+static int wm8955_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
 	wm8955_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
 
-static int wm8955_resume(struct platform_device *pdev)
+static int wm8955_resume(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
 	wm8955_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
@@ -908,86 +897,16 @@ static int wm8955_resume(struct platform_device *pdev)
 #define wm8955_resume NULL
 #endif
 
-static int wm8955_probe(struct platform_device *pdev)
+static int wm8955_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	int ret = 0;
+	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
+	struct wm8955_pdata *pdata = dev_get_platdata(codec->dev);
+	int ret, i;
 
-	if (wm8955_codec == NULL) {
-		dev_err(&pdev->dev, "Codec device not registered\n");
-		return -ENODEV;
-	}
-
-	socdev->card->codec = wm8955_codec;
-	codec = wm8955_codec;
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to create pcms: %d\n", ret);
-		goto pcm_err;
-	}
-
-	wm8955_add_widgets(codec);
-
-	return ret;
-
-pcm_err:
-	return ret;
-}
-
-static int wm8955_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-
-	return 0;
-}
-
-struct snd_soc_codec_device soc_codec_dev_wm8955 = {
-	.probe = 	wm8955_probe,
-	.remove = 	wm8955_remove,
-	.suspend = 	wm8955_suspend,
-	.resume =	wm8955_resume,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_wm8955);
-
-static int wm8955_register(struct wm8955_priv *wm8955,
-			   enum snd_soc_control_type control)
-{
-	int ret;
-	struct snd_soc_codec *codec = &wm8955->codec;
-	int i;
-
-	if (wm8955_codec) {
-		dev_err(codec->dev, "Another WM8955 is registered\n");
-		ret = -EINVAL;
-		goto err;
-	}
-
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	snd_soc_codec_set_drvdata(codec, wm8955);
-	codec->name = "WM8955";
-	codec->owner = THIS_MODULE;
-	codec->bias_level = SND_SOC_BIAS_OFF;
-	codec->set_bias_level = wm8955_set_bias_level;
-	codec->dai = &wm8955_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = WM8955_MAX_REGISTER;
-	codec->reg_cache = &wm8955->reg_cache;
-
-	memcpy(codec->reg_cache, wm8955_reg, sizeof(wm8955_reg));
-
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, control);
+	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8955->control_type);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm8955->supplies); i++)
@@ -997,7 +916,7 @@ static int wm8955_register(struct wm8955_priv *wm8955,
 				 wm8955->supplies);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8955->supplies),
@@ -1013,8 +932,6 @@ static int wm8955_register(struct wm8955_priv *wm8955,
 		goto err_enable;
 	}
 
-	wm8955_dai.dev = codec->dev;
-
 	/* Change some default settings - latch VU and enable ZC */
 	wm8955->reg_cache[WM8955_LEFT_DAC_VOLUME] |= WM8955_LDVU;
 	wm8955->reg_cache[WM8955_RIGHT_DAC_VOLUME] |= WM8955_RDVU;
@@ -1028,12 +945,12 @@ static int wm8955_register(struct wm8955_priv *wm8955,
 	wm8955->reg_cache[WM8955_BASS_CONTROL] |= WM8955_BB;
 
 	/* Set platform data values */
-	if (wm8955->pdata) {
-		if (wm8955->pdata->out2_speaker)
+	if (pdata) {
+		if (pdata->out2_speaker)
 			wm8955->reg_cache[WM8955_ADDITIONAL_CONTROL_2]
 				|= WM8955_ROUT2INV;
 
-		if (wm8955->pdata->monoin_diff)
+		if (pdata->monoin_diff)
 			wm8955->reg_cache[WM8955_MONO_OUT_MIX_1]
 				|= WM8955_DMEN;
 	}
@@ -1043,70 +960,60 @@ static int wm8955_register(struct wm8955_priv *wm8955,
 	/* Bias level configuration will have done an extra enable */
 	regulator_bulk_disable(ARRAY_SIZE(wm8955->supplies), wm8955->supplies);
 
-	wm8955_codec = codec;
-
-	ret = snd_soc_register_codec(codec);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-		goto err_enable;
-	}
-
-	ret = snd_soc_register_dai(&wm8955_dai);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		goto err_codec;
-	}
-
+	wm8955_add_widgets(codec);
 	return 0;
 
-err_codec:
-	snd_soc_unregister_codec(codec);
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8955->supplies), wm8955->supplies);
 err_get:
 	regulator_bulk_free(ARRAY_SIZE(wm8955->supplies), wm8955->supplies);
-err:
-	kfree(wm8955);
 	return ret;
 }
 
-static void wm8955_unregister(struct wm8955_priv *wm8955)
+static int wm8955_remove(struct snd_soc_codec *codec)
 {
-	wm8955_set_bias_level(&wm8955->codec, SND_SOC_BIAS_OFF);
+	struct wm8955_priv *wm8955 = snd_soc_codec_get_drvdata(codec);
+
+	wm8955_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	regulator_bulk_free(ARRAY_SIZE(wm8955->supplies), wm8955->supplies);
-	snd_soc_unregister_dai(&wm8955_dai);
-	snd_soc_unregister_codec(&wm8955->codec);
-	kfree(wm8955);
-	wm8955_codec = NULL;
+	return 0;
 }
+
+static struct snd_soc_codec_driver soc_codec_dev_wm8955 = {
+	.probe =	wm8955_probe,
+	.remove =	wm8955_remove,
+	.suspend =	wm8955_suspend,
+	.resume =	wm8955_resume,
+	.set_bias_level = wm8955_set_bias_level,
+	.reg_cache_size = ARRAY_SIZE(wm8955_reg),
+	.reg_word_size = sizeof(u16),
+	.reg_cache_default = wm8955_reg,
+};
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8955_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8955_priv *wm8955;
-	struct snd_soc_codec *codec;
+	int ret;
 
 	wm8955 = kzalloc(sizeof(struct wm8955_priv), GFP_KERNEL);
 	if (wm8955 == NULL)
 		return -ENOMEM;
 
-	codec = &wm8955->codec;
-	codec->hw_write = (hw_write_t)i2c_master_send;
-
 	i2c_set_clientdata(i2c, wm8955);
-	codec->control_data = i2c;
-	wm8955->pdata = i2c->dev.platform_data;
 
-	codec->dev = &i2c->dev;
-
-	return wm8955_register(wm8955, SND_SOC_I2C);
+	ret = snd_soc_register_codec(&i2c->dev,
+			&soc_codec_dev_wm8955, &wm8955_dai, 1);
+	if (ret < 0)
+		kfree(wm8955);
+	return ret;
 }
 
 static __devexit int wm8955_i2c_remove(struct i2c_client *client)
 {
-	struct wm8955_priv *wm8955 = i2c_get_clientdata(client);
-	wm8955_unregister(wm8955);
+	snd_soc_unregister_codec(&client->dev);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
@@ -1118,7 +1025,7 @@ MODULE_DEVICE_TABLE(i2c, wm8955_i2c_id);
 
 static struct i2c_driver wm8955_i2c_driver = {
 	.driver = {
-		.name = "wm8955",
+		.name = "wm8955-codec",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8955_i2c_probe,
@@ -1129,7 +1036,7 @@ static struct i2c_driver wm8955_i2c_driver = {
 
 static int __init wm8955_modinit(void)
 {
-	int ret;
+	int ret = 0;
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&wm8955_i2c_driver);
 	if (ret != 0) {
@@ -1137,7 +1044,7 @@ static int __init wm8955_modinit(void)
 		       ret);
 	}
 #endif
-	return 0;
+	return ret;
 }
 module_init(wm8955_modinit);
 

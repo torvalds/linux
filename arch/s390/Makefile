@@ -40,6 +40,7 @@ cflags-$(CONFIG_MARCH_Z900) += $(call cc-option,-march=z900)
 cflags-$(CONFIG_MARCH_Z990) += $(call cc-option,-march=z990)
 cflags-$(CONFIG_MARCH_Z9_109) += $(call cc-option,-march=z9-109)
 cflags-$(CONFIG_MARCH_Z10) += $(call cc-option,-march=z10)
+cflags-$(CONFIG_MARCH_Z196) += $(call cc-option,-march=z196)
 
 #KBUILD_IMAGE is necessary for make rpm
 KBUILD_IMAGE	:=arch/s390/boot/image
@@ -94,8 +95,8 @@ head-y		:= arch/s390/kernel/head.o
 head-y		+= arch/s390/kernel/$(if $(CONFIG_64BIT),head64.o,head31.o)
 head-y		+= arch/s390/kernel/init_task.o
 
-core-y		+= arch/s390/mm/ arch/s390/kernel/ arch/s390/crypto/ \
-		   arch/s390/appldata/ arch/s390/hypfs/ arch/s390/kvm/
+# See arch/s390/Kbuild for content of core part of the kernel
+core-y		+= arch/s390/
 
 libs-y		+= arch/s390/lib/
 drivers-y	+= drivers/s390/

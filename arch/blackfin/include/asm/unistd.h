@@ -392,8 +392,9 @@
 #define __NR_fanotify_init	371
 #define __NR_fanotify_mark	372
 #define __NR_prlimit64		373
+#define __NR_cacheflush		374
 
-#define __NR_syscall		374
+#define __NR_syscall		375
 #define NR_syscalls		__NR_syscall
 
 /* Old optional stuff no one actually uses */

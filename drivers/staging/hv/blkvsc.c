@@ -81,7 +81,7 @@ int BlkVscInitialize(struct hv_driver *Driver)
 	 * Divide the ring buffer data size (which is 1 page less than the ring
 	 * buffer size since that page is reserved for the ring buffer indices)
 	 * by the max request size (which is
-	 * VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER + struct vstor_packet + u64)
+	 * vmbus_channel_packet_multipage_buffer + struct vstor_packet + u64)
 	 */
 	storDriver->MaxOutstandingRequestsPerChannel =
 		((storDriver->RingBufferSize - PAGE_SIZE) /

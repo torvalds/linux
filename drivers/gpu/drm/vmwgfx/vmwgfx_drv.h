@@ -39,15 +39,18 @@
 #include "ttm/ttm_execbuf_util.h"
 #include "ttm/ttm_module.h"
 
-#define VMWGFX_DRIVER_DATE "20100209"
+#define VMWGFX_DRIVER_DATE "20100927"
 #define VMWGFX_DRIVER_MAJOR 1
-#define VMWGFX_DRIVER_MINOR 2
+#define VMWGFX_DRIVER_MINOR 4
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
 #define VMWGFX_MAX_GMRS 2048
 #define VMWGFX_MAX_DISPLAYS 16
+
+#define VMW_PL_GMR TTM_PL_PRIV0
+#define VMW_PL_FLAG_GMR TTM_PL_FLAG_PRIV0
 
 struct vmw_fpriv {
 	struct drm_master *locked_master;
@@ -57,8 +60,6 @@ struct vmw_fpriv {
 struct vmw_dma_buffer {
 	struct ttm_buffer_object base;
 	struct list_head validate_list;
-	struct list_head gmr_lru;
-	uint32_t gmr_id;
 	bool gmr_bound;
 	uint32_t cur_validate_node;
 	bool on_validate_list;
@@ -151,6 +152,8 @@ struct vmw_overlay;
 
 struct vmw_master {
 	struct ttm_lock lock;
+	struct mutex fb_surf_mutex;
+	struct list_head fb_surf;
 };
 
 struct vmw_vga_topology_state {
@@ -182,6 +185,7 @@ struct vmw_private {
 	uint32_t capabilities;
 	uint32_t max_gmr_descriptors;
 	uint32_t max_gmr_ids;
+	bool has_gmr;
 	struct mutex hw_mutex;
 
 	/*
@@ -264,14 +268,6 @@ struct vmw_private {
 	struct mutex cmdbuf_mutex;
 
 	/**
-	 * GMR management. Protected by the lru spinlock.
-	 */
-
-	struct ida gmr_ida;
-	struct list_head gmr_lru;
-
-
-	/**
 	 * Operating mode.
 	 */
 
@@ -286,6 +282,7 @@ struct vmw_private {
 	struct vmw_master *active_master;
 	struct vmw_master fbdev_master;
 	struct notifier_block pm_nb;
+	bool suspended;
 
 	struct mutex release_mutex;
 	uint32_t num_3d_resources;
@@ -331,7 +328,9 @@ void vmw_3d_resource_dec(struct vmw_private *dev_priv);
  */
 
 extern int vmw_gmr_bind(struct vmw_private *dev_priv,
-			struct ttm_buffer_object *bo);
+			struct page *pages[],
+			unsigned long num_pages,
+			int gmr_id);
 extern void vmw_gmr_unbind(struct vmw_private *dev_priv, int gmr_id);
 
 /**
@@ -380,14 +379,10 @@ extern uint32_t vmw_dmabuf_validate_node(struct ttm_buffer_object *bo,
 extern void vmw_dmabuf_validate_clear(struct ttm_buffer_object *bo);
 extern int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
 				  uint32_t id, struct vmw_dma_buffer **out);
-extern uint32_t vmw_dmabuf_gmr(struct ttm_buffer_object *bo);
-extern void vmw_dmabuf_set_gmr(struct ttm_buffer_object *bo, uint32_t id);
-extern int vmw_gmr_id_alloc(struct vmw_private *dev_priv, uint32_t *p_id);
 extern int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
 				       struct vmw_dma_buffer *bo);
 extern int vmw_dmabuf_from_vram(struct vmw_private *vmw_priv,
 				struct vmw_dma_buffer *bo);
-extern void vmw_dmabuf_gmr_unbind(struct ttm_buffer_object *bo);
 extern int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
@@ -439,6 +434,7 @@ extern int vmw_mmap(struct file *filp, struct vm_area_struct *vma);
 extern struct ttm_placement vmw_vram_placement;
 extern struct ttm_placement vmw_vram_ne_placement;
 extern struct ttm_placement vmw_vram_sys_placement;
+extern struct ttm_placement vmw_vram_gmr_placement;
 extern struct ttm_placement vmw_sys_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
 extern int vmw_dma_quiescent(struct drm_device *dev);
@@ -518,6 +514,10 @@ void vmw_kms_write_svga(struct vmw_private *vmw_priv,
 			unsigned bbp, unsigned depth);
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
+void vmw_kms_idle_workqueues(struct vmw_master *vmaster);
+bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
+				uint32_t pitch,
+				uint32_t height);
 u32 vmw_get_vblank_counter(struct drm_device *dev, int crtc);
 
 /**
@@ -535,6 +535,12 @@ int vmw_overlay_claim(struct vmw_private *dev_priv, uint32_t *out);
 int vmw_overlay_unref(struct vmw_private *dev_priv, uint32_t stream_id);
 int vmw_overlay_num_overlays(struct vmw_private *dev_priv);
 int vmw_overlay_num_free_overlays(struct vmw_private *dev_priv);
+
+/**
+ * GMR Id manager
+ */
+
+extern const struct ttm_mem_type_manager_func vmw_gmrid_manager_func;
 
 /**
  * Inline helper functions

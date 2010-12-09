@@ -299,7 +299,10 @@ nouveau_probe_i2c_addr(struct nouveau_i2c_chan *i2c, int addr)
 
 int
 nouveau_i2c_identify(struct drm_device *dev, const char *what,
-		     struct i2c_board_info *info, int index)
+		     struct i2c_board_info *info,
+		     bool (*match)(struct nouveau_i2c_chan *,
+				   struct i2c_board_info *),
+		     int index)
 {
 	struct nouveau_i2c_chan *i2c = nouveau_i2c_find(dev, index);
 	int i;
@@ -307,7 +310,8 @@ nouveau_i2c_identify(struct drm_device *dev, const char *what,
 	NV_DEBUG(dev, "Probing %ss on I2C bus: %d\n", what, index);
 
 	for (i = 0; info[i].addr; i++) {
-		if (nouveau_probe_i2c_addr(i2c, info[i].addr)) {
+		if (nouveau_probe_i2c_addr(i2c, info[i].addr) &&
+		    (!match || match(i2c, &info[i]))) {
 			NV_INFO(dev, "Detected %s: %s\n", what, info[i].type);
 			return i;
 		}

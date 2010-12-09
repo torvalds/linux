@@ -124,8 +124,6 @@ struct ixgbe_hw {
 	void *back;
 
 	u8 __iomem *hw_addr;
-	u8 *flash_address;
-	unsigned long io_base;
 
 	struct ixgbe_mac_info mac;
 	struct ixgbe_mbx_info mbx;

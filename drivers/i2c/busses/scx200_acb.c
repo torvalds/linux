@@ -560,7 +560,8 @@ static const struct pci_device_id scx200_pci[] __initconst = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_CS5535_ISA),
 	  .driver_data = 1 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_ISA),
-	  .driver_data = 2 }
+	  .driver_data = 2 },
+	{ 0, }
 };
 
 static struct {

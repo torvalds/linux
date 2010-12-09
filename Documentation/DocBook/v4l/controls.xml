@@ -312,10 +312,17 @@ minimum value disables backlight compensation.</entry>
 	    information and bits 24-31 must be zero.</entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_CID_ILLUMINATORS_1</constant>
+		<constant>V4L2_CID_ILLUMINATORS_2</constant></entry>
+	    <entry>boolean</entry>
+	    <entry>Switch on or off the illuminator 1 or 2 of the device
+		(usually a microscope).</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_CID_LASTP1</constant></entry>
 	    <entry></entry>
 	    <entry>End of the predefined control IDs (currently
-<constant>V4L2_CID_BG_COLOR</constant> + 1).</entry>
+<constant>V4L2_CID_ILLUMINATORS_2</constant> + 1).</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CID_PRIVATE_BASE</constant></entry>
@@ -357,9 +364,6 @@ enumerate_menu (void)
 	      querymenu.index++) {
 		if (0 == ioctl (fd, &VIDIOC-QUERYMENU;, &amp;querymenu)) {
 			printf ("  %s\n", querymenu.name);
-		} else {
-			perror ("VIDIOC_QUERYMENU");
-			exit (EXIT_FAILURE);
 		}
 	}
 }

@@ -14,6 +14,8 @@
 #include <linux/list.h>
 #include <linux/rio.h>
 
+#define RIO_MAX_CHK_RETRY	3
+
 /* Functions internal to the RIO core code */
 
 extern u32 rio_mport_get_feature(struct rio_mport *mport, int local, u16 destid,
@@ -22,6 +24,8 @@ extern u32 rio_mport_get_physefb(struct rio_mport *port, int local,
 				 u16 destid, u8 hopcount);
 extern u32 rio_mport_get_efb(struct rio_mport *port, int local, u16 destid,
 			     u8 hopcount, u32 from);
+extern int rio_mport_chk_dev_access(struct rio_mport *mport, u16 destid,
+				    u8 hopcount);
 extern int rio_create_sysfs_dev_files(struct rio_dev *rdev);
 extern int rio_enum_mport(struct rio_mport *mport);
 extern int rio_disc_mport(struct rio_mport *mport);
@@ -34,6 +38,7 @@ extern int rio_std_route_get_entry(struct rio_mport *mport, u16 destid,
 extern int rio_std_route_clr_table(struct rio_mport *mport, u16 destid,
 				   u8 hopcount, u16 table);
 extern int rio_set_port_lockout(struct rio_dev *rdev, u32 pnum, int lock);
+extern struct rio_dev *rio_get_comptag(u32 comp_tag, struct rio_dev *from);
 
 /* Structures internal to the RIO core code */
 extern struct device_attribute rio_dev_attrs[];

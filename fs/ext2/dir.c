@@ -98,7 +98,7 @@ static int ext2_commit_chunk(struct page *page, loff_t pos, unsigned len)
 	if (IS_DIRSYNC(dir)) {
 		err = write_one_page(page, 1);
 		if (!err)
-			err = ext2_sync_inode(dir);
+			err = sync_inode_metadata(dir, 1);
 	} else {
 		unlock_page(page);
 	}

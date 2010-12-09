@@ -110,6 +110,15 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 #define sys_sync_file_range sys_sync_file_range2
 #endif
 
+/* Call the trampolines to manage pt_regs where necessary. */
+#define sys_execve _sys_execve
+#define sys_sigaltstack _sys_sigaltstack
+#define sys_rt_sigreturn _sys_rt_sigreturn
+#define sys_clone _sys_clone
+#ifndef __tilegx__
+#define sys_cmpxchg_badaddr _sys_cmpxchg_badaddr
+#endif
+
 /*
  * Note that we can't include <linux/unistd.h> here since the header
  * guard will defeat us; <asm/unistd.h> checks for __SYSCALL as well.

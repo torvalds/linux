@@ -255,19 +255,6 @@ out_free_rq:
 }
 
 static void
-nx_fw_cmd_reset_ctx(struct netxen_adapter *adapter)
-{
-
-	netxen_issue_cmd(adapter, adapter->ahw.pci_func, NXHAL_VERSION,
-			adapter->ahw.pci_func, NX_DESTROY_CTX_RESET, 0,
-			NX_CDRP_CMD_DESTROY_RX_CTX);
-
-	netxen_issue_cmd(adapter, adapter->ahw.pci_func, NXHAL_VERSION,
-			adapter->ahw.pci_func, NX_DESTROY_CTX_RESET, 0,
-			NX_CDRP_CMD_DESTROY_TX_CTX);
-}
-
-static void
 nx_fw_cmd_destroy_rx_ctx(struct netxen_adapter *adapter)
 {
 	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
@@ -698,8 +685,6 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		if (test_and_set_bit(__NX_FW_ATTACHED, &adapter->state))
 			goto done;
-		if (reset_devices)
-			nx_fw_cmd_reset_ctx(adapter);
 		err = nx_fw_cmd_create_rx_ctx(adapter);
 		if (err)
 			goto err_out_free;

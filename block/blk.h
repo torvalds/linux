@@ -51,6 +51,8 @@ static inline void blk_clear_rq_complete(struct request *rq)
  */
 #define ELV_ON_HASH(rq)		(!hlist_unhashed(&(rq)->hash))
 
+struct request *blk_do_flush(struct request_queue *q, struct request *rq);
+
 static inline struct request *__elv_next_request(struct request_queue *q)
 {
 	struct request *rq;
@@ -58,7 +60,11 @@ static inline struct request *__elv_next_request(struct request_queue *q)
 	while (1) {
 		while (!list_empty(&q->queue_head)) {
 			rq = list_entry_rq(q->queue_head.next);
-			if (blk_do_ordered(q, &rq))
+			if (!(rq->cmd_flags & (REQ_FLUSH | REQ_FUA)) ||
+			    rq == &q->flush_rq)
+				return rq;
+			rq = blk_do_flush(q, rq);
+			if (rq)
 				return rq;
 		}
 
@@ -131,14 +137,6 @@ static inline int queue_congestion_off_threshold(struct request_queue *q)
 {
 	return q->nr_congestion_off;
 }
-
-#if defined(CONFIG_BLK_DEV_INTEGRITY)
-
-#define rq_for_each_integrity_segment(bvl, _rq, _iter)		\
-	__rq_for_each_bio(_iter.bio, _rq)			\
-		bip_for_each_vec(bvl, _iter.bio->bi_integrity, _iter.i)
-
-#endif /* BLK_DEV_INTEGRITY */
 
 static inline int blk_cpu_to_group(int cpu)
 {

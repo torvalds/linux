@@ -345,7 +345,7 @@ static irqreturn_t pca953x_irq_handler(int irq, void *devid)
 
 	do {
 		level = __ffs(pending);
-		handle_nested_irq(level + chip->irq_base);
+		generic_handle_irq(level + chip->irq_base);
 
 		pending &= ~(1 << level);
 	} while (pending);
@@ -360,7 +360,8 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 	struct pca953x_platform_data *pdata = client->dev.platform_data;
 	int ret;
 
-	if (pdata->irq_base && (id->driver_data & PCA953X_INT)) {
+	if (pdata->irq_base != -1
+			&& (id->driver_data & PCA953X_INT)) {
 		int lvl;
 
 		ret = pca953x_read_reg(chip, PCA953X_INPUT,
@@ -383,7 +384,6 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 			set_irq_chip_data(irq, chip);
 			set_irq_chip_and_handler(irq, &pca953x_irq_chip,
 						 handle_edge_irq);
-			set_irq_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 			set_irq_flags(irq, IRQF_VALID);
 #else
@@ -394,6 +394,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 		ret = request_threaded_irq(client->irq,
 					   NULL,
 					   pca953x_irq_handler,
+					   IRQF_TRIGGER_RISING |
 					   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 					   dev_name(&client->dev), chip);
 		if (ret) {
@@ -408,13 +409,13 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 	return 0;
 
 out_failed:
-	chip->irq_base = 0;
+	chip->irq_base = -1;
 	return ret;
 }
 
 static void pca953x_irq_teardown(struct pca953x_chip *chip)
 {
-	if (chip->irq_base)
+	if (chip->irq_base != -1)
 		free_irq(chip->client->irq, chip);
 }
 #else /* CONFIG_GPIO_PCA953X_IRQ */
@@ -424,7 +425,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 	struct i2c_client *client = chip->client;
 	struct pca953x_platform_data *pdata = client->dev.platform_data;
 
-	if (pdata->irq_base && (id->driver_data & PCA953X_INT))
+	if (pdata->irq_base != -1 && (id->driver_data & PCA953X_INT))
 		dev_warn(&client->dev, "interrupt support not compiled in\n");
 
 	return 0;

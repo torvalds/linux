@@ -49,7 +49,7 @@ int pcie_port_acpi_setup(struct pci_dev *port, int *srv_mask)
 		| OSC_PCI_EXPRESS_PME_CONTROL;
 
 	if (pci_aer_available()) {
-		if (pcie_aer_get_firmware_first(port))
+		if (aer_acpi_firmware_first())
 			dev_dbg(&port->dev, "PCIe errors handled by BIOS.\n");
 		else
 			flags |= OSC_PCI_EXPRESS_AER_CONTROL;

@@ -186,6 +186,7 @@ static const struct file_operations briq_panel_fops = {
 	.write		= briq_panel_write,
 	.open		= briq_panel_open,
 	.release	= briq_panel_release,
+	.llseek		= noop_llseek,
 };
 
 static struct miscdevice briq_panel_miscdev = {

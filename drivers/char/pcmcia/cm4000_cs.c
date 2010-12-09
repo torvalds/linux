@@ -30,7 +30,7 @@
 #include <linux/fs.h>
 #include <linux/delay.h>
 #include <linux/bitrev.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 
@@ -53,6 +53,8 @@
 		dev_dbg(reader_to_dev(rdr), "%s:" x, 	\
 			   __func__ , ## args);		\
 	} while (0)
+
+static DEFINE_MUTEX(cmm_mutex);
 
 #define	T_1SEC		(HZ)
 #define	T_10MSEC	msecs_to_jiffies(10)
@@ -977,8 +979,9 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 		if (dev->flags0 & 1) {
 			set_bit(IS_CMM_ABSENT, &dev->flags);
 			rc = -ENODEV;
+		} else {
+			rc = -EIO;
 		}
-		rc = -EIO;
 		goto release_io;
 	}
 
@@ -1415,7 +1418,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	       iminor(inode), ioctl_names[_IOC_NR(cmd)]);
 #endif
 
-	lock_kernel();
+	mutex_lock(&cmm_mutex);
 	rc = -ENODEV;
 	link = dev_table[iminor(inode)];
 	if (!pcmcia_dev_present(link)) {
@@ -1623,7 +1626,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		rc = -ENOTTY;
 	}
 out:
-	unlock_kernel();
+	mutex_unlock(&cmm_mutex);
 	return rc;
 }
 
@@ -1637,7 +1640,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	if (minor >= CM4000_MAX_DEV)
 		return -ENODEV;
 
-	lock_kernel();
+	mutex_lock(&cmm_mutex);
 	link = dev_table[minor];
 	if (link == NULL || !pcmcia_dev_present(link)) {
 		ret = -ENODEV;
@@ -1664,7 +1667,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	/* opening will always block since the
 	 * monitor will be started by open, which
 	 * means we have to wait for ATR becoming
-	 * vaild = block until valid (or card
+	 * valid = block until valid (or card
 	 * inserted)
 	 */
 	if (filp->f_flags & O_NONBLOCK) {
@@ -1682,7 +1685,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	DEBUGP(2, dev, "<- cmm_open\n");
 	ret = nonseekable_open(inode, filp);
 out:
-	unlock_kernel();
+	mutex_unlock(&cmm_mutex);
 	return ret;
 }
 
@@ -1864,6 +1867,7 @@ static const struct file_operations cm4000_fops = {
 	.unlocked_ioctl	= cmm_ioctl,
 	.open	= cmm_open,
 	.release= cmm_close,
+	.llseek = no_llseek,
 };
 
 static struct pcmcia_device_id cm4000_ids[] = {

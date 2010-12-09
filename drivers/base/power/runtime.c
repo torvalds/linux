@@ -143,7 +143,7 @@ static int rpm_check_suspend_allowed(struct device *dev)
 
 	/* Pending resume requests take precedence over suspends. */
 	else if ((dev->power.deferred_resume
-			&& dev->power.status == RPM_SUSPENDING)
+			&& dev->power.runtime_status == RPM_SUSPENDING)
 	    || (dev->power.request_pending
 			&& dev->power.request == RPM_REQ_RESUME))
 		retval = -EAGAIN;
@@ -503,7 +503,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	 * the resume will actually succeed.
 	 */
 	if (dev->power.no_callbacks && !parent && dev->parent) {
-		spin_lock(&dev->parent->power.lock);
+		spin_lock_nested(&dev->parent->power.lock, SINGLE_DEPTH_NESTING);
 		if (dev->parent->power.disable_depth > 0
 		    || dev->parent->power.ignore_children
 		    || dev->parent->power.runtime_status == RPM_ACTIVE) {

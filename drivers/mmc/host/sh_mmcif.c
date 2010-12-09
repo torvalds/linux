@@ -710,9 +710,21 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	host->bus_width = ios->bus_width;
 }
 
+static int sh_mmcif_get_cd(struct mmc_host *mmc)
+{
+	struct sh_mmcif_host *host = mmc_priv(mmc);
+	struct sh_mmcif_plat_data *p = host->pd->dev.platform_data;
+
+	if (!p->get_cd)
+		return -ENOSYS;
+	else
+		return p->get_cd(host->pd);
+}
+
 static struct mmc_host_ops sh_mmcif_ops = {
 	.request	= sh_mmcif_request,
 	.set_ios	= sh_mmcif_set_ios,
+	.get_cd		= sh_mmcif_get_cd,
 };
 
 static void sh_mmcif_detect(struct mmc_host *mmc)
@@ -846,8 +858,7 @@ static int __devinit sh_mmcif_probe(struct platform_device *pdev)
 	mmc->caps = MMC_CAP_MMC_HIGHSPEED;
 	if (pd->caps)
 		mmc->caps |= pd->caps;
-	mmc->max_phys_segs = 128;
-	mmc->max_hw_segs = 128;
+	mmc->max_segs = 128;
 	mmc->max_blk_size = 512;
 	mmc->max_blk_count = 65535;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;

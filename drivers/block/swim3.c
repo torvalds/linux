@@ -25,7 +25,7 @@
 #include <linux/ioctl.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <asm/io.h>
@@ -36,6 +36,7 @@
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 
+static DEFINE_MUTEX(swim3_mutex);
 static struct request_queue *swim3_queue;
 static struct gendisk *disks[2];
 static struct request *fd_req;
@@ -873,9 +874,9 @@ static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&swim3_mutex);
 	ret = floppy_locked_ioctl(bdev, mode, cmd, param);
-	unlock_kernel();
+	mutex_unlock(&swim3_mutex);
 
 	return ret;
 }
@@ -953,9 +954,9 @@ static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&swim3_mutex);
 	ret = floppy_open(bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&swim3_mutex);
 
 	return ret;
 }
@@ -964,13 +965,13 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	struct floppy_state *fs = disk->private_data;
 	struct swim3 __iomem *sw = fs->swim3;
-	lock_kernel();
+	mutex_lock(&swim3_mutex);
 	if (fs->ref_count > 0 && --fs->ref_count == 0) {
 		swim3_action(fs, MOTOR_OFF);
 		out_8(&sw->control_bic, 0xff);
 		swim3_select(fs, RELAX);
 	}
-	unlock_kernel();
+	mutex_unlock(&swim3_mutex);
 	return 0;
 }
 

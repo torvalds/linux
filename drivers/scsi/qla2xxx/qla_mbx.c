@@ -3828,8 +3828,6 @@ qla2x00_loopback_test(scsi_qla_host_t *vha, struct msg_echo_lb *mreq,
 
 	/* Copy mailbox information */
 	memcpy( mresp, mcp->mb, 64);
-	mresp[3] = mcp->mb[18];
-	mresp[4] = mcp->mb[19];
 	return rval;
 }
 
@@ -3890,9 +3888,10 @@ qla2x00_echo_test(scsi_qla_host_t *vha, struct msg_echo_lb *mreq,
 	}
 
 	/* Copy mailbox information */
-	memcpy( mresp, mcp->mb, 32);
+	memcpy(mresp, mcp->mb, 64);
 	return rval;
 }
+
 int
 qla84xx_reset_chip(scsi_qla_host_t *ha, uint16_t enable_diagnostic)
 {
@@ -3952,6 +3951,67 @@ qla2x00_write_ram_word(scsi_qla_host_t *vha, uint32_t risc_addr, uint32_t data)
 	return rval;
 }
 
+int
+qla81xx_write_mpi_register(scsi_qla_host_t *vha, uint16_t *mb)
+{
+	int rval;
+	uint32_t stat, timer;
+	uint16_t mb0 = 0;
+	struct qla_hw_data *ha = vha->hw;
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	rval = QLA_SUCCESS;
+
+	DEBUG11(qla_printk(KERN_INFO, ha,
+	    "%s(%ld): entered.\n", __func__, vha->host_no));
+
+	clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
+
+	/* Write the MBC data to the registers */
+	WRT_REG_WORD(&reg->mailbox0, MBC_WRITE_MPI_REGISTER);
+	WRT_REG_WORD(&reg->mailbox1, mb[0]);
+	WRT_REG_WORD(&reg->mailbox2, mb[1]);
+	WRT_REG_WORD(&reg->mailbox3, mb[2]);
+	WRT_REG_WORD(&reg->mailbox4, mb[3]);
+
+	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_HOST_INT);
+
+	/* Poll for MBC interrupt */
+	for (timer = 6000000; timer; timer--) {
+		/* Check for pending interrupts. */
+		stat = RD_REG_DWORD(&reg->host_status);
+		if (stat & HSRX_RISC_INT) {
+			stat &= 0xff;
+
+			if (stat == 0x1 || stat == 0x2 ||
+			    stat == 0x10 || stat == 0x11) {
+				set_bit(MBX_INTERRUPT,
+				    &ha->mbx_cmd_flags);
+				mb0 = RD_REG_WORD(&reg->mailbox0);
+				WRT_REG_DWORD(&reg->hccr,
+				    HCCRX_CLR_RISC_INT);
+				RD_REG_DWORD(&reg->hccr);
+				break;
+			}
+		}
+		udelay(5);
+	}
+
+	if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags))
+		rval = mb0 & MBS_MASK;
+	else
+		rval = QLA_FUNCTION_FAILED;
+
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk(KERN_INFO "%s(%ld): failed=%x mb[0]=%x.\n",
+		    __func__, vha->host_no, rval, mb[0]));
+	} else {
+		DEBUG11(printk(KERN_INFO
+		    "%s(%ld): done.\n", __func__, vha->host_no));
+	}
+
+	return rval;
+}
 int
 qla2x00_get_data_rate(scsi_qla_host_t *vha)
 {

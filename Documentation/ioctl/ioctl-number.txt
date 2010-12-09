@@ -259,7 +259,7 @@ Code  Seq#(hex)	Include File		Comments
 't'	00-7F	linux/if_ppp.h
 't'	80-8F	linux/isdn_ppp.h
 't'	90	linux/toshiba.h
-'u'	00-1F	linux/smb_fs.h
+'u'	00-1F	linux/smb_fs.h		gone
 'v'	all	linux/videodev.h	conflict!
 'v'	00-1F	linux/ext2_fs.h		conflict!
 'v'	00-1F	linux/fs.h		conflict!
@@ -278,7 +278,6 @@ Code  Seq#(hex)	Include File		Comments
 					<mailto:oe@port.de>
 'z'	10-4F	drivers/s390/crypto/zcrypt_api.h	conflict!
 0x80	00-1F	linux/fb.h
-0x81	00-1F	linux/videotext.h
 0x88	00-3F	media/ovcamchip.h
 0x89	00-06	arch/x86/include/asm/sockios.h
 0x89	0B-DF	linux/sockios.h

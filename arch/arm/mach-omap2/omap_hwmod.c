@@ -13,10 +13,102 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * This code manages "OMAP modules" (on-chip devices) and their
- * integration with Linux device driver and bus code.
+ * Introduction
+ * ------------
+ * One way to view an OMAP SoC is as a collection of largely unrelated
+ * IP blocks connected by interconnects.  The IP blocks include
+ * devices such as ARM processors, audio serial interfaces, UARTs,
+ * etc.  Some of these devices, like the DSP, are created by TI;
+ * others, like the SGX, largely originate from external vendors.  In
+ * TI's documentation, on-chip devices are referred to as "OMAP
+ * modules."  Some of these IP blocks are identical across several
+ * OMAP versions.  Others are revised frequently.
  *
- * References:
+ * These OMAP modules are tied together by various interconnects.
+ * Most of the address and data flow between modules is via OCP-based
+ * interconnects such as the L3 and L4 buses; but there are other
+ * interconnects that distribute the hardware clock tree, handle idle
+ * and reset signaling, supply power, and connect the modules to
+ * various pads or balls on the OMAP package.
+ *
+ * OMAP hwmod provides a consistent way to describe the on-chip
+ * hardware blocks and their integration into the rest of the chip.
+ * This description can be automatically generated from the TI
+ * hardware database.  OMAP hwmod provides a standard, consistent API
+ * to reset, enable, idle, and disable these hardware blocks.  And
+ * hwmod provides a way for other core code, such as the Linux device
+ * code or the OMAP power management and address space mapping code,
+ * to query the hardware database.
+ *
+ * Using hwmod
+ * -----------
+ * Drivers won't call hwmod functions directly.  That is done by the
+ * omap_device code, and in rare occasions, by custom integration code
+ * in arch/arm/ *omap*.  The omap_device code includes functions to
+ * build a struct platform_device using omap_hwmod data, and that is
+ * currently how hwmod data is communicated to drivers and to the
+ * Linux driver model.  Most drivers will call omap_hwmod functions only
+ * indirectly, via pm_runtime*() functions.
+ *
+ * From a layering perspective, here is where the OMAP hwmod code
+ * fits into the kernel software stack:
+ *
+ *            +-------------------------------+
+ *            |      Device driver code       |
+ *            |      (e.g., drivers/)         |
+ *            +-------------------------------+
+ *            |      Linux driver model       |
+ *            |     (platform_device /        |
+ *            |  platform_driver data/code)   |
+ *            +-------------------------------+
+ *            | OMAP core-driver integration  |
+ *            |(arch/arm/mach-omap2/devices.c)|
+ *            +-------------------------------+
+ *            |      omap_device code         |
+ *            | (../plat-omap/omap_device.c)  |
+ *            +-------------------------------+
+ *   ---->    |    omap_hwmod code/data       |    <-----
+ *            | (../mach-omap2/omap_hwmod*)   |
+ *            +-------------------------------+
+ *            | OMAP clock/PRCM/register fns  |
+ *            | (__raw_{read,write}l, clk*)   |
+ *            +-------------------------------+
+ *
+ * Device drivers should not contain any OMAP-specific code or data in
+ * them.  They should only contain code to operate the IP block that
+ * the driver is responsible for.  This is because these IP blocks can
+ * also appear in other SoCs, either from TI (such as DaVinci) or from
+ * other manufacturers; and drivers should be reusable across other
+ * platforms.
+ *
+ * The OMAP hwmod code also will attempt to reset and idle all on-chip
+ * devices upon boot.  The goal here is for the kernel to be
+ * completely self-reliant and independent from bootloaders.  This is
+ * to ensure a repeatable configuration, both to ensure consistent
+ * runtime behavior, and to make it easier for others to reproduce
+ * bugs.
+ *
+ * OMAP module activity states
+ * ---------------------------
+ * The hwmod code considers modules to be in one of several activity
+ * states.  IP blocks start out in an UNKNOWN state, then once they
+ * are registered via the hwmod code, proceed to the REGISTERED state.
+ * Once their clock names are resolved to clock pointers, the module
+ * enters the CLKS_INITED state; and finally, once the module has been
+ * reset and the integration registers programmed, the INITIALIZED state
+ * is entered.  The hwmod code will then place the module into either
+ * the IDLE state to save power, or in the case of a critical system
+ * module, the ENABLED state.
+ *
+ * OMAP core integration code can then call omap_hwmod*() functions
+ * directly to move the module between the IDLE, ENABLED, and DISABLED
+ * states, as needed.  This is done during both the PM idle loop, and
+ * in the OMAP core integration code's implementation of the PM runtime
+ * functions.
+ *
+ * References
+ * ----------
+ * This is a partial list.
  * - OMAP2420 Multimedia Processor Silicon Revision 2.1.1, 2.2 (SWPU064)
  * - OMAP2430 Multimedia Device POP Silicon Revision 2.1 (SWPU090)
  * - OMAP34xx Multimedia Device Silicon Revision 3.1 (SWPU108)
@@ -50,11 +142,13 @@
 #include <plat/powerdomain.h>
 #include <plat/clock.h>
 #include <plat/omap_hwmod.h>
+#include <plat/prcm.h>
 
 #include "cm.h"
+#include "prm.h"
 
-/* Maximum microseconds to wait for OMAP module to reset */
-#define MAX_MODULE_RESET_WAIT		10000
+/* Maximum microseconds to wait for OMAP module to softreset */
+#define MAX_MODULE_SOFTRESET_WAIT	10000
 
 /* Name of the OMAP hwmod for the MPU */
 #define MPU_INITIATOR_NAME		"mpu"
@@ -90,7 +184,7 @@ static int _update_sysc_cache(struct omap_hwmod *oh)
 
 	/* XXX ensure module interface clock is up */
 
-	oh->_sysc_cache = omap_hwmod_readl(oh, oh->class->sysc->sysc_offs);
+	oh->_sysc_cache = omap_hwmod_read(oh, oh->class->sysc->sysc_offs);
 
 	if (!(oh->class->sysc->sysc_flags & SYSC_NO_CACHE))
 		oh->_int_flags |= _HWMOD_SYSCONFIG_LOADED;
@@ -117,7 +211,7 @@ static void _write_sysconfig(u32 v, struct omap_hwmod *oh)
 
 	if (oh->_sysc_cache != v) {
 		oh->_sysc_cache = v;
-		omap_hwmod_writel(v, oh, oh->class->sysc->sysc_offs);
+		omap_hwmod_write(v, oh, oh->class->sysc->sysc_offs);
 	}
 }
 
@@ -544,6 +638,36 @@ static int _disable_clocks(struct omap_hwmod *oh)
 	return 0;
 }
 
+static void _enable_optional_clocks(struct omap_hwmod *oh)
+{
+	struct omap_hwmod_opt_clk *oc;
+	int i;
+
+	pr_debug("omap_hwmod: %s: enabling optional clocks\n", oh->name);
+
+	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++)
+		if (oc->_clk) {
+			pr_debug("omap_hwmod: enable %s:%s\n", oc->role,
+				 oc->_clk->name);
+			clk_enable(oc->_clk);
+		}
+}
+
+static void _disable_optional_clocks(struct omap_hwmod *oh)
+{
+	struct omap_hwmod_opt_clk *oc;
+	int i;
+
+	pr_debug("omap_hwmod: %s: disabling optional clocks\n", oh->name);
+
+	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++)
+		if (oc->_clk) {
+			pr_debug("omap_hwmod: disable %s:%s\n", oc->role,
+				 oc->_clk->name);
+			clk_disable(oc->_clk);
+		}
+}
+
 /**
  * _find_mpu_port_index - find hwmod OCP slave port ID intended for MPU use
  * @oh: struct omap_hwmod *
@@ -622,7 +746,7 @@ static void __iomem *_find_mpu_rt_base(struct omap_hwmod *oh, u8 index)
 }
 
 /**
- * _sysc_enable - try to bring a module out of idle via OCP_SYSCONFIG
+ * _enable_sysc - try to bring a module out of idle via OCP_SYSCONFIG
  * @oh: struct omap_hwmod *
  *
  * If module is marked as SWSUP_SIDLE, force the module out of slave
@@ -630,7 +754,7 @@ static void __iomem *_find_mpu_rt_base(struct omap_hwmod *oh, u8 index)
  * as SWSUP_MSUSPEND, force the module out of master standby;
  * otherwise, configure it for smart-standby.  No return value.
  */
-static void _sysc_enable(struct omap_hwmod *oh)
+static void _enable_sysc(struct omap_hwmod *oh)
 {
 	u8 idlemode, sf;
 	u32 v;
@@ -652,14 +776,6 @@ static void _sysc_enable(struct omap_hwmod *oh)
 			HWMOD_IDLEMODE_NO : HWMOD_IDLEMODE_SMART;
 		_set_master_standbymode(oh, idlemode, &v);
 	}
-
-	if (sf & SYSC_HAS_AUTOIDLE) {
-		idlemode = (oh->flags & HWMOD_NO_OCP_AUTOIDLE) ?
-			0 : 1;
-		_set_module_autoidle(oh, idlemode, &v);
-	}
-
-	/* XXX OCP ENAWAKEUP bit? */
 
 	/*
 	 * XXX The clock framework should handle this, by
@@ -671,10 +787,25 @@ static void _sysc_enable(struct omap_hwmod *oh)
 		_set_clockactivity(oh, oh->class->sysc->clockact, &v);
 
 	_write_sysconfig(v, oh);
+
+	/* If slave is in SMARTIDLE, also enable wakeup */
+	if ((sf & SYSC_HAS_SIDLEMODE) && !(oh->flags & HWMOD_SWSUP_SIDLE))
+		_enable_wakeup(oh);
+
+	/*
+	 * Set the autoidle bit only after setting the smartidle bit
+	 * Setting this will not have any impact on the other modules.
+	 */
+	if (sf & SYSC_HAS_AUTOIDLE) {
+		idlemode = (oh->flags & HWMOD_NO_OCP_AUTOIDLE) ?
+			0 : 1;
+		_set_module_autoidle(oh, idlemode, &v);
+		_write_sysconfig(v, oh);
+	}
 }
 
 /**
- * _sysc_idle - try to put a module into idle via OCP_SYSCONFIG
+ * _idle_sysc - try to put a module into idle via OCP_SYSCONFIG
  * @oh: struct omap_hwmod *
  *
  * If module is marked as SWSUP_SIDLE, force the module into slave
@@ -682,7 +813,7 @@ static void _sysc_enable(struct omap_hwmod *oh)
  * as SWSUP_MSUSPEND, force the module into master standby; otherwise,
  * configure it for smart-standby.  No return value.
  */
-static void _sysc_idle(struct omap_hwmod *oh)
+static void _idle_sysc(struct omap_hwmod *oh)
 {
 	u8 idlemode, sf;
 	u32 v;
@@ -709,13 +840,13 @@ static void _sysc_idle(struct omap_hwmod *oh)
 }
 
 /**
- * _sysc_shutdown - force a module into idle via OCP_SYSCONFIG
+ * _shutdown_sysc - force a module into idle via OCP_SYSCONFIG
  * @oh: struct omap_hwmod *
  *
  * Force the module into slave idle and master suspend. No return
  * value.
  */
-static void _sysc_shutdown(struct omap_hwmod *oh)
+static void _shutdown_sysc(struct omap_hwmod *oh)
 {
 	u32 v;
 	u8 sf;
@@ -767,10 +898,10 @@ static struct omap_hwmod *_lookup(const char *name)
  * @data: not used; pass NULL
  *
  * Called by omap_hwmod_late_init() (after omap2_clk_init()).
- * Resolves all clock names embedded in the hwmod.  Must be called
- * with omap_hwmod_mutex held.  Returns -EINVAL if the omap_hwmod
- * has not yet been registered or if the clocks have already been
- * initialized, 0 on success, or a non-zero error on failure.
+ * Resolves all clock names embedded in the hwmod.  Returns -EINVAL if
+ * the omap_hwmod has not yet been registered or if the clocks have
+ * already been initialized, 0 on success, or a non-zero error on
+ * failure.
  */
 static int _init_clocks(struct omap_hwmod *oh, void *data)
 {
@@ -834,56 +965,202 @@ static int _wait_target_ready(struct omap_hwmod *oh)
 }
 
 /**
+ * _lookup_hardreset - return the register bit shift for this hwmod/reset line
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line in the context of this hwmod
+ *
+ * Return the bit position of the reset line that match the
+ * input name. Return -ENOENT if not found.
+ */
+static u8 _lookup_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	int i;
+
+	for (i = 0; i < oh->rst_lines_cnt; i++) {
+		const char *rst_line = oh->rst_lines[i].name;
+		if (!strcmp(rst_line, name)) {
+			u8 shift = oh->rst_lines[i].rst_shift;
+			pr_debug("omap_hwmod: %s: _lookup_hardreset: %s: %d\n",
+				 oh->name, rst_line, shift);
+
+			return shift;
+		}
+	}
+
+	return -ENOENT;
+}
+
+/**
+ * _assert_hardreset - assert the HW reset line of submodules
+ * contained in the hwmod module.
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to lookup and assert
+ *
+ * Some IP like dsp, ipu or iva contain processor that require
+ * an HW reset line to be assert / deassert in order to enable fully
+ * the IP.
+ */
+static int _assert_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	u8 shift;
+
+	if (!oh)
+		return -EINVAL;
+
+	shift = _lookup_hardreset(oh, name);
+	if (IS_ERR_VALUE(shift))
+		return shift;
+
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		return omap2_prm_assert_hardreset(oh->prcm.omap2.module_offs,
+						  shift);
+	else if (cpu_is_omap44xx())
+		return omap4_prm_assert_hardreset(oh->prcm.omap4.rstctrl_reg,
+						  shift);
+	else
+		return -EINVAL;
+}
+
+/**
+ * _deassert_hardreset - deassert the HW reset line of submodules contained
+ * in the hwmod module.
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to look up and deassert
+ *
+ * Some IP like dsp, ipu or iva contain processor that require
+ * an HW reset line to be assert / deassert in order to enable fully
+ * the IP.
+ */
+static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	u8 shift;
+	int r;
+
+	if (!oh)
+		return -EINVAL;
+
+	shift = _lookup_hardreset(oh, name);
+	if (IS_ERR_VALUE(shift))
+		return shift;
+
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		r = omap2_prm_deassert_hardreset(oh->prcm.omap2.module_offs,
+						 shift);
+	else if (cpu_is_omap44xx())
+		r = omap4_prm_deassert_hardreset(oh->prcm.omap4.rstctrl_reg,
+						 shift);
+	else
+		return -EINVAL;
+
+	if (r == -EBUSY)
+		pr_warning("omap_hwmod: %s: failed to hardreset\n", oh->name);
+
+	return r;
+}
+
+/**
+ * _read_hardreset - read the HW reset line state of submodules
+ * contained in the hwmod module
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to look up and read
+ *
+ * Return the state of the reset line.
+ */
+static int _read_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	u8 shift;
+
+	if (!oh)
+		return -EINVAL;
+
+	shift = _lookup_hardreset(oh, name);
+	if (IS_ERR_VALUE(shift))
+		return shift;
+
+	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
+		return omap2_prm_is_hardreset_asserted(oh->prcm.omap2.module_offs,
+						       shift);
+	} else if (cpu_is_omap44xx()) {
+		return omap4_prm_is_hardreset_asserted(oh->prcm.omap4.rstctrl_reg,
+						       shift);
+	} else {
+		return -EINVAL;
+	}
+}
+
+/**
  * _reset - reset an omap_hwmod
  * @oh: struct omap_hwmod *
  *
  * Resets an omap_hwmod @oh via the OCP_SYSCONFIG bit.  hwmod must be
- * enabled for this to work.  Must be called with omap_hwmod_mutex
- * held.  Returns -EINVAL if the hwmod cannot be reset this way or if
- * the hwmod is in the wrong state, -ETIMEDOUT if the module did not
- * reset in time, or 0 upon success.
+ * enabled for this to work.  Returns -EINVAL if the hwmod cannot be
+ * reset this way or if the hwmod is in the wrong state, -ETIMEDOUT if
+ * the module did not reset in time, or 0 upon success.
+ *
+ * In OMAP3 a specific SYSSTATUS register is used to get the reset status.
+ * Starting in OMAP4, some IPs does not have SYSSTATUS register and instead
+ * use the SYSCONFIG softreset bit to provide the status.
+ *
+ * Note that some IP like McBSP does have a reset control but no reset status.
  */
 static int _reset(struct omap_hwmod *oh)
 {
-	u32 r, v;
+	u32 v;
 	int c = 0;
+	int ret = 0;
 
 	if (!oh->class->sysc ||
-	    !(oh->class->sysc->sysc_flags & SYSC_HAS_SOFTRESET) ||
-	    (oh->class->sysc->sysc_flags & SYSS_MISSING))
+	    !(oh->class->sysc->sysc_flags & SYSC_HAS_SOFTRESET))
 		return -EINVAL;
 
 	/* clocks must be on for this operation */
 	if (oh->_state != _HWMOD_STATE_ENABLED) {
-		WARN(1, "omap_hwmod: %s: reset can only be entered from "
-		     "enabled state\n", oh->name);
+		pr_warning("omap_hwmod: %s: reset can only be entered from "
+			   "enabled state\n", oh->name);
 		return -EINVAL;
 	}
+
+	/* For some modules, all optionnal clocks need to be enabled as well */
+	if (oh->flags & HWMOD_CONTROL_OPT_CLKS_IN_RESET)
+		_enable_optional_clocks(oh);
 
 	pr_debug("omap_hwmod: %s: resetting\n", oh->name);
 
 	v = oh->_sysc_cache;
-	r = _set_softreset(oh, &v);
-	if (r)
-		return r;
+	ret = _set_softreset(oh, &v);
+	if (ret)
+		goto dis_opt_clks;
 	_write_sysconfig(v, oh);
 
-	omap_test_timeout((omap_hwmod_readl(oh, oh->class->sysc->syss_offs) &
-			   SYSS_RESETDONE_MASK),
-			  MAX_MODULE_RESET_WAIT, c);
+	if (oh->class->sysc->sysc_flags & SYSS_HAS_RESET_STATUS)
+		omap_test_timeout((omap_hwmod_read(oh,
+						    oh->class->sysc->syss_offs)
+				   & SYSS_RESETDONE_MASK),
+				  MAX_MODULE_SOFTRESET_WAIT, c);
+	else if (oh->class->sysc->sysc_flags & SYSC_HAS_RESET_STATUS)
+		omap_test_timeout(!(omap_hwmod_read(oh,
+						     oh->class->sysc->sysc_offs)
+				   & SYSC_TYPE2_SOFTRESET_MASK),
+				  MAX_MODULE_SOFTRESET_WAIT, c);
 
-	if (c == MAX_MODULE_RESET_WAIT)
-		WARN(1, "omap_hwmod: %s: failed to reset in %d usec\n",
-		     oh->name, MAX_MODULE_RESET_WAIT);
+	if (c == MAX_MODULE_SOFTRESET_WAIT)
+		pr_warning("omap_hwmod: %s: softreset failed (waited %d usec)\n",
+			   oh->name, MAX_MODULE_SOFTRESET_WAIT);
 	else
-		pr_debug("omap_hwmod: %s: reset in %d usec\n", oh->name, c);
+		pr_debug("omap_hwmod: %s: softreset in %d usec\n", oh->name, c);
 
 	/*
 	 * XXX add _HWMOD_STATE_WEDGED for modules that don't come back from
 	 * _wait_target_ready() or _reset()
 	 */
 
-	return (c == MAX_MODULE_RESET_WAIT) ? -ETIMEDOUT : 0;
+	ret = (c == MAX_MODULE_SOFTRESET_WAIT) ? -ETIMEDOUT : 0;
+
+dis_opt_clks:
+	if (oh->flags & HWMOD_CONTROL_OPT_CLKS_IN_RESET)
+		_disable_optional_clocks(oh);
+
+	return ret;
 }
 
 /**
@@ -891,9 +1168,11 @@ static int _reset(struct omap_hwmod *oh)
  * @oh: struct omap_hwmod *
  *
  * Enables an omap_hwmod @oh such that the MPU can access the hwmod's
- * register target.  Must be called with omap_hwmod_mutex held.
- * Returns -EINVAL if the hwmod is in the wrong state or passes along
- * the return value of _wait_target_ready().
+ * register target.  (This function has a full name --
+ * _omap_hwmod_enable() rather than simply _enable() -- because it is
+ * currently required by the pm34xx.c idle loop.)  Returns -EINVAL if
+ * the hwmod is in the wrong state or passes along the return value of
+ * _wait_target_ready().
  */
 int _omap_hwmod_enable(struct omap_hwmod *oh)
 {
@@ -909,6 +1188,15 @@ int _omap_hwmod_enable(struct omap_hwmod *oh)
 
 	pr_debug("omap_hwmod: %s: enabling\n", oh->name);
 
+	/*
+	 * If an IP contains only one HW reset line, then de-assert it in order
+	 * to allow to enable the clocks. Otherwise the PRCM will return
+	 * Intransition status, and the init will failed.
+	 */
+	if ((oh->_state == _HWMOD_STATE_INITIALIZED ||
+	     oh->_state == _HWMOD_STATE_DISABLED) && oh->rst_lines_cnt == 1)
+		_deassert_hardreset(oh, oh->rst_lines[0].name);
+
 	/* XXX mux balls */
 
 	_add_initiator_dep(oh, mpu_oh);
@@ -922,7 +1210,7 @@ int _omap_hwmod_enable(struct omap_hwmod *oh)
 		if (oh->class->sysc) {
 			if (!(oh->_int_flags & _HWMOD_SYSCONFIG_LOADED))
 				_update_sysc_cache(oh);
-			_sysc_enable(oh);
+			_enable_sysc(oh);
 		}
 	} else {
 		pr_debug("omap_hwmod: %s: _wait_target_ready: %d\n",
@@ -933,12 +1221,14 @@ int _omap_hwmod_enable(struct omap_hwmod *oh)
 }
 
 /**
- * _idle - idle an omap_hwmod
+ * _omap_hwmod_idle - idle an omap_hwmod
  * @oh: struct omap_hwmod *
  *
  * Idles an omap_hwmod @oh.  This should be called once the hwmod has
- * no further work.  Returns -EINVAL if the hwmod is in the wrong
- * state or returns 0.
+ * no further work.  (This function has a full name --
+ * _omap_hwmod_idle() rather than simply _idle() -- because it is
+ * currently required by the pm34xx.c idle loop.)  Returns -EINVAL if
+ * the hwmod is in the wrong state or returns 0.
  */
 int _omap_hwmod_idle(struct omap_hwmod *oh)
 {
@@ -951,7 +1241,7 @@ int _omap_hwmod_idle(struct omap_hwmod *oh)
 	pr_debug("omap_hwmod: %s: idling\n", oh->name);
 
 	if (oh->class->sysc)
-		_sysc_idle(oh);
+		_idle_sysc(oh);
 	_del_initiator_dep(oh, mpu_oh);
 	_disable_clocks(oh);
 
@@ -981,10 +1271,21 @@ static int _shutdown(struct omap_hwmod *oh)
 	pr_debug("omap_hwmod: %s: disabling\n", oh->name);
 
 	if (oh->class->sysc)
-		_sysc_shutdown(oh);
-	_del_initiator_dep(oh, mpu_oh);
-	/* XXX what about the other system initiators here? DMA, tesla, d2d */
-	_disable_clocks(oh);
+		_shutdown_sysc(oh);
+
+	/*
+	 * If an IP contains only one HW reset line, then assert it
+	 * before disabling the clocks and shutting down the IP.
+	 */
+	if (oh->rst_lines_cnt == 1)
+		_assert_hardreset(oh, oh->rst_lines[0].name);
+
+	/* clocks and deps are already disabled in idle */
+	if (oh->_state == _HWMOD_STATE_ENABLED) {
+		_del_initiator_dep(oh, mpu_oh);
+		/* XXX what about the other system initiators here? dma, dsp */
+		_disable_clocks(oh);
+	}
 	/* XXX Should this code also force-disable the optional clocks? */
 
 	/* XXX mux any associated balls to safe mode */
@@ -1000,11 +1301,10 @@ static int _shutdown(struct omap_hwmod *oh)
  * @skip_setup_idle_p: do not idle hwmods at the end of the fn if 1
  *
  * Writes the CLOCKACTIVITY bits @clockact to the hwmod @oh
- * OCP_SYSCONFIG register.  Must be called with omap_hwmod_mutex held.
- * @skip_setup_idle is intended to be used on a system that will not
- * call omap_hwmod_enable() to enable devices (e.g., a system without
- * PM runtime).  Returns -EINVAL if the hwmod is in the wrong state or
- * returns 0.
+ * OCP_SYSCONFIG register.  @skip_setup_idle is intended to be used on
+ * a system that will not call omap_hwmod_enable() to enable devices
+ * (e.g., a system without PM runtime).  Returns -EINVAL if the hwmod
+ * is in the wrong state or returns 0.
  */
 static int _setup(struct omap_hwmod *oh, void *data)
 {
@@ -1034,7 +1334,18 @@ static int _setup(struct omap_hwmod *oh, void *data)
 		}
 	}
 
+	mutex_init(&oh->_mutex);
 	oh->_state = _HWMOD_STATE_INITIALIZED;
+
+	/*
+	 * In the case of hwmod with hardreset that should not be
+	 * de-assert at boot time, we have to keep the module
+	 * initialized, because we cannot enable it properly with the
+	 * reset asserted. Exit without warning because that behavior is
+	 * expected.
+	 */
+	if ((oh->flags & HWMOD_INIT_NO_RESET) && oh->rst_lines_cnt == 1)
+		return 0;
 
 	r = _omap_hwmod_enable(oh);
 	if (r) {
@@ -1044,16 +1355,16 @@ static int _setup(struct omap_hwmod *oh, void *data)
 	}
 
 	if (!(oh->flags & HWMOD_INIT_NO_RESET)) {
+		_reset(oh);
+
 		/*
-		 * XXX Do the OCP_SYSCONFIG bits need to be
-		 * reprogrammed after a reset?  If not, then this can
-		 * be removed.  If they do, then probably the
-		 * _omap_hwmod_enable() function should be split to avoid the
-		 * rewrite of the OCP_SYSCONFIG register.
+		 * OCP_SYSCONFIG bits need to be reprogrammed after a softreset.
+		 * The _omap_hwmod_enable() function should be split to
+		 * avoid the rewrite of the OCP_SYSCONFIG register.
 		 */
 		if (oh->class->sysc) {
 			_update_sysc_cache(oh);
-			_sysc_enable(oh);
+			_enable_sysc(oh);
 		}
 	}
 
@@ -1067,14 +1378,20 @@ static int _setup(struct omap_hwmod *oh, void *data)
 
 /* Public functions */
 
-u32 omap_hwmod_readl(struct omap_hwmod *oh, u16 reg_offs)
+u32 omap_hwmod_read(struct omap_hwmod *oh, u16 reg_offs)
 {
-	return __raw_readl(oh->_mpu_rt_va + reg_offs);
+	if (oh->flags & HWMOD_16BIT_REG)
+		return __raw_readw(oh->_mpu_rt_va + reg_offs);
+	else
+		return __raw_readl(oh->_mpu_rt_va + reg_offs);
 }
 
-void omap_hwmod_writel(u32 v, struct omap_hwmod *oh, u16 reg_offs)
+void omap_hwmod_write(u32 v, struct omap_hwmod *oh, u16 reg_offs)
 {
-	__raw_writel(v, oh->_mpu_rt_va + reg_offs);
+	if (oh->flags & HWMOD_16BIT_REG)
+		__raw_writew(v, oh->_mpu_rt_va + reg_offs);
+	else
+		__raw_writel(v, oh->_mpu_rt_va + reg_offs);
 }
 
 /**
@@ -1309,7 +1626,7 @@ int omap_hwmod_unregister(struct omap_hwmod *oh)
  * omap_hwmod_enable - enable an omap_hwmod
  * @oh: struct omap_hwmod *
  *
- * Enable an omap_hwomd @oh.  Intended to be called by omap_device_enable().
+ * Enable an omap_hwmod @oh.  Intended to be called by omap_device_enable().
  * Returns -EINVAL on error or passes along the return value from _enable().
  */
 int omap_hwmod_enable(struct omap_hwmod *oh)
@@ -1319,9 +1636,9 @@ int omap_hwmod_enable(struct omap_hwmod *oh)
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	r = _omap_hwmod_enable(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return r;
 }
@@ -1331,7 +1648,7 @@ int omap_hwmod_enable(struct omap_hwmod *oh)
  * omap_hwmod_idle - idle an omap_hwmod
  * @oh: struct omap_hwmod *
  *
- * Idle an omap_hwomd @oh.  Intended to be called by omap_device_idle().
+ * Idle an omap_hwmod @oh.  Intended to be called by omap_device_idle().
  * Returns -EINVAL on error or passes along the return value from _idle().
  */
 int omap_hwmod_idle(struct omap_hwmod *oh)
@@ -1339,9 +1656,9 @@ int omap_hwmod_idle(struct omap_hwmod *oh)
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	_omap_hwmod_idle(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return 0;
 }
@@ -1350,7 +1667,7 @@ int omap_hwmod_idle(struct omap_hwmod *oh)
  * omap_hwmod_shutdown - shutdown an omap_hwmod
  * @oh: struct omap_hwmod *
  *
- * Shutdown an omap_hwomd @oh.  Intended to be called by
+ * Shutdown an omap_hwmod @oh.  Intended to be called by
  * omap_device_shutdown().  Returns -EINVAL on error or passes along
  * the return value from _shutdown().
  */
@@ -1359,9 +1676,9 @@ int omap_hwmod_shutdown(struct omap_hwmod *oh)
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	_shutdown(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return 0;
 }
@@ -1374,9 +1691,9 @@ int omap_hwmod_shutdown(struct omap_hwmod *oh)
  */
 int omap_hwmod_enable_clocks(struct omap_hwmod *oh)
 {
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	_enable_clocks(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return 0;
 }
@@ -1389,9 +1706,9 @@ int omap_hwmod_enable_clocks(struct omap_hwmod *oh)
  */
 int omap_hwmod_disable_clocks(struct omap_hwmod *oh)
 {
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	_disable_clocks(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return 0;
 }
@@ -1421,7 +1738,7 @@ void omap_hwmod_ocp_barrier(struct omap_hwmod *oh)
 	 * Forces posted writes to complete on the OCP thread handling
 	 * register writes
 	 */
-	omap_hwmod_readl(oh, oh->class->sysc->sysc_offs);
+	omap_hwmod_read(oh, oh->class->sysc->sysc_offs);
 }
 
 /**
@@ -1430,20 +1747,18 @@ void omap_hwmod_ocp_barrier(struct omap_hwmod *oh)
  *
  * Under some conditions, a driver may wish to reset the entire device.
  * Called from omap_device code.  Returns -EINVAL on error or passes along
- * the return value from _reset()/_enable().
+ * the return value from _reset().
  */
 int omap_hwmod_reset(struct omap_hwmod *oh)
 {
 	int r;
 
-	if (!oh || !(oh->_state & _HWMOD_STATE_ENABLED))
+	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	r = _reset(oh);
-	if (!r)
-		r = _omap_hwmod_enable(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return r;
 }
@@ -1468,7 +1783,7 @@ int omap_hwmod_count_resources(struct omap_hwmod *oh)
 {
 	int ret, i;
 
-	ret = oh->mpu_irqs_cnt + oh->sdma_chs_cnt;
+	ret = oh->mpu_irqs_cnt + oh->sdma_reqs_cnt;
 
 	for (i = 0; i < oh->slaves_cnt; i++)
 		ret += oh->slaves[i]->addr_cnt;
@@ -1501,10 +1816,10 @@ int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 		r++;
 	}
 
-	for (i = 0; i < oh->sdma_chs_cnt; i++) {
-		(res + r)->name = (oh->sdma_chs + i)->name;
-		(res + r)->start = (oh->sdma_chs + i)->dma_ch;
-		(res + r)->end = (oh->sdma_chs + i)->dma_ch;
+	for (i = 0; i < oh->sdma_reqs_cnt; i++) {
+		(res + r)->name = (oh->sdma_reqs + i)->name;
+		(res + r)->start = (oh->sdma_reqs + i)->dma_req;
+		(res + r)->end = (oh->sdma_reqs + i)->dma_req;
 		(res + r)->flags = IORESOURCE_DMA;
 		r++;
 	}
@@ -1644,9 +1959,9 @@ int omap_hwmod_enable_wakeup(struct omap_hwmod *oh)
 	    !(oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP))
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	_enable_wakeup(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return 0;
 }
@@ -1669,12 +1984,90 @@ int omap_hwmod_disable_wakeup(struct omap_hwmod *oh)
 	    !(oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP))
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
+	mutex_lock(&oh->_mutex);
 	_disable_wakeup(oh);
-	mutex_unlock(&omap_hwmod_mutex);
+	mutex_unlock(&oh->_mutex);
 
 	return 0;
 }
+
+/**
+ * omap_hwmod_assert_hardreset - assert the HW reset line of submodules
+ * contained in the hwmod module.
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to lookup and assert
+ *
+ * Some IP like dsp, ipu or iva contain processor that require
+ * an HW reset line to be assert / deassert in order to enable fully
+ * the IP.  Returns -EINVAL if @oh is null or if the operation is not
+ * yet supported on this OMAP; otherwise, passes along the return value
+ * from _assert_hardreset().
+ */
+int omap_hwmod_assert_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	int ret;
+
+	if (!oh)
+		return -EINVAL;
+
+	mutex_lock(&oh->_mutex);
+	ret = _assert_hardreset(oh, name);
+	mutex_unlock(&oh->_mutex);
+
+	return ret;
+}
+
+/**
+ * omap_hwmod_deassert_hardreset - deassert the HW reset line of submodules
+ * contained in the hwmod module.
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to look up and deassert
+ *
+ * Some IP like dsp, ipu or iva contain processor that require
+ * an HW reset line to be assert / deassert in order to enable fully
+ * the IP.  Returns -EINVAL if @oh is null or if the operation is not
+ * yet supported on this OMAP; otherwise, passes along the return value
+ * from _deassert_hardreset().
+ */
+int omap_hwmod_deassert_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	int ret;
+
+	if (!oh)
+		return -EINVAL;
+
+	mutex_lock(&oh->_mutex);
+	ret = _deassert_hardreset(oh, name);
+	mutex_unlock(&oh->_mutex);
+
+	return ret;
+}
+
+/**
+ * omap_hwmod_read_hardreset - read the HW reset line state of submodules
+ * contained in the hwmod module
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to look up and read
+ *
+ * Return the current state of the hwmod @oh's reset line named @name:
+ * returns -EINVAL upon parameter error or if this operation
+ * is unsupported on the current OMAP; otherwise, passes along the return
+ * value from _read_hardreset().
+ */
+int omap_hwmod_read_hardreset(struct omap_hwmod *oh, const char *name)
+{
+	int ret;
+
+	if (!oh)
+		return -EINVAL;
+
+	mutex_lock(&oh->_mutex);
+	ret = _read_hardreset(oh, name);
+	mutex_unlock(&oh->_mutex);
+
+	return ret;
+}
+
 
 /**
  * omap_hwmod_for_each_by_class - call @fn for each hwmod of class @classname

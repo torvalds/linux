@@ -17,8 +17,9 @@
 /* This belongs in cpu specific */
 #define INTC_ICR1 0xA4140010UL
 
-static void hd64461_mask_irq(unsigned int irq)
+static void hd64461_mask_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	unsigned short nimr;
 	unsigned short mask = 1 << (irq - HD64461_IRQBASE);
 
@@ -27,8 +28,9 @@ static void hd64461_mask_irq(unsigned int irq)
 	__raw_writew(nimr, HD64461_NIMR);
 }
 
-static void hd64461_unmask_irq(unsigned int irq)
+static void hd64461_unmask_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	unsigned short nimr;
 	unsigned short mask = 1 << (irq - HD64461_IRQBASE);
 
@@ -37,20 +39,21 @@ static void hd64461_unmask_irq(unsigned int irq)
 	__raw_writew(nimr, HD64461_NIMR);
 }
 
-static void hd64461_mask_and_ack_irq(unsigned int irq)
+static void hd64461_mask_and_ack_irq(struct irq_data *data)
 {
-	hd64461_mask_irq(irq);
+	hd64461_mask_irq(data);
+
 #ifdef CONFIG_HD64461_ENABLER
-	if (irq == HD64461_IRQBASE + 13)
+	if (data->irq == HD64461_IRQBASE + 13)
 		__raw_writeb(0x00, HD64461_PCC1CSCR);
 #endif
 }
 
 static struct irq_chip hd64461_irq_chip = {
 	.name		= "HD64461-IRQ",
-	.mask		= hd64461_mask_irq,
-	.mask_ack	= hd64461_mask_and_ack_irq,
-	.unmask		= hd64461_unmask_irq,
+	.irq_mask	= hd64461_mask_irq,
+	.irq_mask_ack	= hd64461_mask_and_ack_irq,
+	.irq_unmask	= hd64461_unmask_irq,
 };
 
 static void hd64461_irq_demux(unsigned int irq, struct irq_desc *desc)

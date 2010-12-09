@@ -1,6 +1,6 @@
 /* bnx2x_reg.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2009 Broadcom Corporation
+ * Copyright (c) 2007-2010 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,7 +19,20 @@
  *
  */
 
-
+#define ATC_ATC_INT_STS_REG_ADDRESS_ERROR			 (0x1<<0)
+#define ATC_ATC_INT_STS_REG_ATC_GPA_MULTIPLE_HITS		 (0x1<<2)
+#define ATC_ATC_INT_STS_REG_ATC_IREQ_LESS_THAN_STU		 (0x1<<5)
+#define ATC_ATC_INT_STS_REG_ATC_RCPL_TO_EMPTY_CNT		 (0x1<<3)
+#define ATC_ATC_INT_STS_REG_ATC_TCPL_ERROR			 (0x1<<4)
+#define ATC_ATC_INT_STS_REG_ATC_TCPL_TO_NOT_PEND		 (0x1<<1)
+/* [RW 1] Initiate the ATC array - reset all the valid bits */
+#define ATC_REG_ATC_INIT_ARRAY					 0x1100b8
+/* [R 1] ATC initalization done */
+#define ATC_REG_ATC_INIT_DONE					 0x1100bc
+/* [RC 6] Interrupt register #0 read clear */
+#define ATC_REG_ATC_INT_STS_CLR				 0x1101c0
+/* [RW 19] Interrupt mask register #0 read/write */
+#define BRB1_REG_BRB1_INT_MASK					 0x60128
 /* [R 19] Interrupt register #0 read */
 #define BRB1_REG_BRB1_INT_STS					 0x6011c
 /* [RW 4] Parity mask register #0 read/write */
@@ -27,9 +40,31 @@
 /* [R 4] Parity register #0 read */
 #define BRB1_REG_BRB1_PRTY_STS					 0x6012c
 /* [RW 10] At address BRB1_IND_FREE_LIST_PRS_CRDT initialize free head. At
-   address BRB1_IND_FREE_LIST_PRS_CRDT+1 initialize free tail. At address
-   BRB1_IND_FREE_LIST_PRS_CRDT+2 initialize parser initial credit. */
+ * address BRB1_IND_FREE_LIST_PRS_CRDT+1 initialize free tail. At address
+ * BRB1_IND_FREE_LIST_PRS_CRDT+2 initialize parser initial credit. Warning -
+ * following reset the first rbc access to this reg must be write; there can
+ * be no more rbc writes after the first one; there can be any number of rbc
+ * read following the first write; rbc access not following these rules will
+ * result in hang condition. */
 #define BRB1_REG_FREE_LIST_PRS_CRDT				 0x60200
+/* [RW 10] The number of free blocks below which the full signal to class 0
+ * is asserted */
+#define BRB1_REG_FULL_0_XOFF_THRESHOLD_0			 0x601d0
+/* [RW 10] The number of free blocks above which the full signal to class 0
+ * is de-asserted */
+#define BRB1_REG_FULL_0_XON_THRESHOLD_0				 0x601d4
+/* [RW 10] The number of free blocks below which the full signal to class 1
+ * is asserted */
+#define BRB1_REG_FULL_1_XOFF_THRESHOLD_0			 0x601d8
+/* [RW 10] The number of free blocks above which the full signal to class 1
+ * is de-asserted */
+#define BRB1_REG_FULL_1_XON_THRESHOLD_0				 0x601dc
+/* [RW 10] The number of free blocks below which the full signal to the LB
+ * port is asserted */
+#define BRB1_REG_FULL_LB_XOFF_THRESHOLD				 0x601e0
+/* [RW 10] The number of free blocks above which the full signal to the LB
+ * port is de-asserted */
+#define BRB1_REG_FULL_LB_XON_THRESHOLD				 0x601e4
 /* [RW 10] The number of free blocks above which the High_llfc signal to
    interface #n is de-asserted. */
 #define BRB1_REG_HIGH_LLFC_HIGH_THRESHOLD_0			 0x6014c
@@ -44,6 +79,9 @@
 /* [RW 10] The number of free blocks below which the Low_llfc signal to
    interface #n is asserted. */
 #define BRB1_REG_LOW_LLFC_LOW_THRESHOLD_0			 0x6015c
+/* [RW 10] The number of blocks guarantied for the MAC port */
+#define BRB1_REG_MAC_GUARANTIED_0				 0x601e8
+#define BRB1_REG_MAC_GUARANTIED_1				 0x60240
 /* [R 24] The number of full blocks. */
 #define BRB1_REG_NUM_OF_FULL_BLOCKS				 0x60090
 /* [ST 32] The number of cycles that the write_full signal towards MAC #0
@@ -55,7 +93,19 @@
    asserted. */
 #define BRB1_REG_NUM_OF_PAUSE_CYCLES_0				 0x600b8
 #define BRB1_REG_NUM_OF_PAUSE_CYCLES_1				 0x600bc
-/* [RW 10] Write client 0: De-assert pause threshold. */
+/* [RW 10] The number of free blocks below which the pause signal to class 0
+ * is asserted */
+#define BRB1_REG_PAUSE_0_XOFF_THRESHOLD_0			 0x601c0
+/* [RW 10] The number of free blocks above which the pause signal to class 0
+ * is de-asserted */
+#define BRB1_REG_PAUSE_0_XON_THRESHOLD_0			 0x601c4
+/* [RW 10] The number of free blocks below which the pause signal to class 1
+ * is asserted */
+#define BRB1_REG_PAUSE_1_XOFF_THRESHOLD_0			 0x601c8
+/* [RW 10] The number of free blocks above which the pause signal to class 1
+ * is de-asserted */
+#define BRB1_REG_PAUSE_1_XON_THRESHOLD_0			 0x601cc
+/* [RW 10] Write client 0: De-assert pause threshold. Not Functional */
 #define BRB1_REG_PAUSE_HIGH_THRESHOLD_0 			 0x60078
 #define BRB1_REG_PAUSE_HIGH_THRESHOLD_1 			 0x6007c
 /* [RW 10] Write client 0: Assert pause threshold. */
@@ -362,6 +412,7 @@
 #define CFC_REG_NUM_LCIDS_ARRIVING				 0x104004
 /* [R 9] Number of Leaving LCIDs in Link List Block */
 #define CFC_REG_NUM_LCIDS_LEAVING				 0x104018
+#define CFC_REG_WEAK_ENABLE_PF					 0x104124
 /* [RW 8] The event id for aggregated interrupt 0 */
 #define CSDM_REG_AGG_INT_EVENT_0				 0xc2038
 #define CSDM_REG_AGG_INT_EVENT_10				 0xc2060
@@ -590,10 +641,17 @@
 #define CSEM_REG_TS_8_AS					 0x200058
 /* [RW 3] The arbitration scheme of time_slot 9 */
 #define CSEM_REG_TS_9_AS					 0x20005c
+/* [W 7] VF or PF ID for reset error bit. Values 0-63 reset error bit for 64
+ * VF; values 64-67 reset error for 4 PF; values 68-127 are not valid. */
+#define CSEM_REG_VFPF_ERR_NUM					 0x200380
 /* [RW 1] Parity mask register #0 read/write */
 #define DBG_REG_DBG_PRTY_MASK					 0xc0a8
 /* [R 1] Parity register #0 read */
 #define DBG_REG_DBG_PRTY_STS					 0xc09c
+/* [RW 1] When set the DMAE will process the commands as in E1.5. 1.The
+ * function that is used is always SRC-PCI; 2.VF_Valid = 0; 3.VFID=0;
+ * 4.Completion function=0; 5.Error handling=0 */
+#define DMAE_REG_BACKWARD_COMP_EN				 0x10207c
 /* [RW 32] Commands memory. The address to command X; row Y is to calculated
    as 14*X+Y. */
 #define DMAE_REG_CMD_MEM					 0x102400
@@ -742,9 +800,13 @@
 #define HC_REG_HC_PRTY_MASK					 0x1080a0
 /* [R 3] Parity register #0 read */
 #define HC_REG_HC_PRTY_STS					 0x108094
-#define HC_REG_INT_MASK 					 0x108108
+/* [RC 3] Parity register #0 read clear */
+#define HC_REG_HC_PRTY_STS_CLR					 0x108098
+#define HC_REG_INT_MASK						 0x108108
 #define HC_REG_LEADING_EDGE_0					 0x108040
 #define HC_REG_LEADING_EDGE_1					 0x108048
+#define HC_REG_MAIN_MEMORY					 0x108800
+#define HC_REG_MAIN_MEMORY_SIZE					 152
 #define HC_REG_P0_PROD_CONS					 0x108200
 #define HC_REG_P1_PROD_CONS					 0x108400
 #define HC_REG_PBA_COMMAND					 0x108140
@@ -758,6 +820,92 @@
 #define HC_REG_USTORM_ADDR_FOR_COALESCE 			 0x108068
 #define HC_REG_VQID_0						 0x108008
 #define HC_REG_VQID_1						 0x10800c
+#define IGU_BLOCK_CONFIGURATION_REG_BACKWARD_COMP_EN		 (0x1<<1)
+#define IGU_REG_ATTENTION_ACK_BITS				 0x130108
+/* [R 4] Debug: attn_fsm */
+#define IGU_REG_ATTN_FSM					 0x130054
+#define IGU_REG_ATTN_MSG_ADDR_H				 0x13011c
+#define IGU_REG_ATTN_MSG_ADDR_L				 0x130120
+/* [R 4] Debug: [3] - attention write done message is pending (0-no pending;
+ * 1-pending). [2:0] = PFID. Pending means attention message was sent; but
+ * write done didnt receive. */
+#define IGU_REG_ATTN_WRITE_DONE_PENDING			 0x130030
+#define IGU_REG_BLOCK_CONFIGURATION				 0x130000
+#define IGU_REG_COMMAND_REG_32LSB_DATA				 0x130124
+#define IGU_REG_COMMAND_REG_CTRL				 0x13012c
+/* [WB_R 32] Cleanup bit status per SB. 1 = cleanup is set. 0 = cleanup bit
+ * is clear. The bits in this registers are set and clear via the producer
+ * command. Data valid only in addresses 0-4. all the rest are zero. */
+#define IGU_REG_CSTORM_TYPE_0_SB_CLEANUP			 0x130200
+/* [R 5] Debug: ctrl_fsm */
+#define IGU_REG_CTRL_FSM					 0x130064
+/* [R 1] data availble for error memory. If this bit is clear do not red
+ * from error_handling_memory. */
+#define IGU_REG_ERROR_HANDLING_DATA_VALID			 0x130130
+/* [R 11] Parity register #0 read */
+#define IGU_REG_IGU_PRTY_STS					 0x13009c
+/* [R 4] Debug: int_handle_fsm */
+#define IGU_REG_INT_HANDLE_FSM					 0x130050
+#define IGU_REG_LEADING_EDGE_LATCH				 0x130134
+/* [RW 14] mapping CAM; relevant for E2 operating mode only. [0] - valid.
+ * [6:1] - vector number; [13:7] - FID (if VF - [13] = 0; [12:7] = VF
+ * number; if PF - [13] = 1; [12:10] = 0; [9:7] = PF number); */
+#define IGU_REG_MAPPING_MEMORY					 0x131000
+#define IGU_REG_MAPPING_MEMORY_SIZE				 136
+#define IGU_REG_PBA_STATUS_LSB					 0x130138
+#define IGU_REG_PBA_STATUS_MSB					 0x13013c
+#define IGU_REG_PCI_PF_MSI_EN					 0x130140
+#define IGU_REG_PCI_PF_MSIX_EN					 0x130144
+#define IGU_REG_PCI_PF_MSIX_FUNC_MASK				 0x130148
+/* [WB_R 32] Each bit represent the pending bits status for that SB. 0 = no
+ * pending; 1 = pending. Pendings means interrupt was asserted; and write
+ * done was not received. Data valid only in addresses 0-4. all the rest are
+ * zero. */
+#define IGU_REG_PENDING_BITS_STATUS				 0x130300
+#define IGU_REG_PF_CONFIGURATION				 0x130154
+/* [RW 20] producers only. E2 mode: address 0-135 match to the mapping
+ * memory; 136 - PF0 default prod; 137 PF1 default prod; 138 - PF2 default
+ * prod; 139 PF3 default prod; 140 - PF0 - ATTN prod; 141 - PF1 - ATTN prod;
+ * 142 - PF2 - ATTN prod; 143 - PF3 - ATTN prod; 144-147 reserved. E1.5 mode
+ * - In backward compatible mode; for non default SB; each even line in the
+ * memory holds the U producer and each odd line hold the C producer. The
+ * first 128 producer are for NDSB (PF0 - 0-31; PF1 - 32-63 and so on). The
+ * last 20 producers are for the DSB for each PF. each PF has five segments
+ * (the order inside each segment is PF0; PF1; PF2; PF3) - 128-131 U prods;
+ * 132-135 C prods; 136-139 X prods; 140-143 T prods; 144-147 ATTN prods; */
+#define IGU_REG_PROD_CONS_MEMORY				 0x132000
+/* [R 3] Debug: pxp_arb_fsm */
+#define IGU_REG_PXP_ARB_FSM					 0x130068
+/* [RW 6] Write one for each bit will reset the appropriate memory. When the
+ * memory reset finished the appropriate bit will be clear. Bit 0 - mapping
+ * memory; Bit 1 - SB memory; Bit 2 - SB interrupt and mask register; Bit 3
+ * - MSIX memory; Bit 4 - PBA memory; Bit 5 - statistics; */
+#define IGU_REG_RESET_MEMORIES					 0x130158
+/* [R 4] Debug: sb_ctrl_fsm */
+#define IGU_REG_SB_CTRL_FSM					 0x13004c
+#define IGU_REG_SB_INT_BEFORE_MASK_LSB				 0x13015c
+#define IGU_REG_SB_INT_BEFORE_MASK_MSB				 0x130160
+#define IGU_REG_SB_MASK_LSB					 0x130164
+#define IGU_REG_SB_MASK_MSB					 0x130168
+/* [RW 16] Number of command that were dropped without causing an interrupt
+ * due to: read access for WO BAR address; or write access for RO BAR
+ * address or any access for reserved address or PCI function error is set
+ * and address is not MSIX; PBA or cleanup */
+#define IGU_REG_SILENT_DROP					 0x13016c
+/* [RW 10] Number of MSI/MSIX/ATTN messages sent for the function: 0-63 -
+ * number of MSIX messages per VF; 64-67 - number of MSI/MSIX messages per
+ * PF; 68-71 number of ATTN messages per PF */
+#define IGU_REG_STATISTIC_NUM_MESSAGE_SENT			 0x130800
+/* [RW 32] Number of cycles the timer mask masking the IGU interrupt when a
+ * timer mask command arrives. Value must be bigger than 100. */
+#define IGU_REG_TIMER_MASKING_VALUE				 0x13003c
+#define IGU_REG_TRAILING_EDGE_LATCH				 0x130104
+#define IGU_REG_VF_CONFIGURATION				 0x130170
+/* [WB_R 32] Each bit represent write done pending bits status for that SB
+ * (MSI/MSIX message was sent and write done was not received yet). 0 =
+ * clear; 1 = set. Data valid only in addresses 0-4. all the rest are zero. */
+#define IGU_REG_WRITE_DONE_PENDING				 0x130480
+#define MCP_A_REG_MCPR_SCRATCH					 0x3a0000
 #define MCP_REG_MCPR_NVM_ACCESS_ENABLE				 0x86424
 #define MCP_REG_MCPR_NVM_ADDR					 0x8640c
 #define MCP_REG_MCPR_NVM_CFG4					 0x8642c
@@ -880,6 +1028,11 @@
    rom_parity; [29] MCP Latched ump_rx_parity; [30] MCP Latched
    ump_tx_parity; [31] MCP Latched scpad_parity; */
 #define MISC_REG_AEU_AFTER_INVERT_4_MCP 			 0xa458
+/* [R 32] Read fifth 32 bit after inversion of function 0. Mapped as
+ * follows: [0] PGLUE config_space; [1] PGLUE misc_flr; [2] PGLUE B RBC
+ * attention [3] PGLUE B RBC parity; [4] ATC attention; [5] ATC parity; [6]
+ * CNIG attention (reserved); [7] CNIG parity (reserved); [31-8] Reserved; */
+#define MISC_REG_AEU_AFTER_INVERT_5_FUNC_0			 0xa700
 /* [W 14] write to this register results with the clear of the latched
    signals; one in d0 clears RBCR latch; one in d1 clears RBCT latch; one in
    d2 clears RBCN latch; one in d3 clears RBCU latch; one in d4 clears RBCP
@@ -1251,6 +1404,7 @@
 #define MISC_REG_E1HMF_MODE					 0xa5f8
 /* [RW 32] Debug only: spare RW register reset by core reset */
 #define MISC_REG_GENERIC_CR_0					 0xa460
+#define MISC_REG_GENERIC_CR_1					 0xa464
 /* [RW 32] Debug only: spare RW register reset by por reset */
 #define MISC_REG_GENERIC_POR_1					 0xa474
 /* [RW 32] GPIO. [31-28] FLOAT port 0; [27-24] FLOAT port 0; When any of
@@ -1373,6 +1527,14 @@
 #define MISC_REG_PLL_STORM_CTRL_2				 0xa298
 #define MISC_REG_PLL_STORM_CTRL_3				 0xa29c
 #define MISC_REG_PLL_STORM_CTRL_4				 0xa2a0
+/* [R 1] Status of 4 port mode enable input pin. */
+#define MISC_REG_PORT4MODE_EN					 0xa750
+/* [RW 2] 4 port mode enable overwrite.[0] - Overwrite control; if it is 0 -
+ * the port4mode_en output is equal to 4 port mode input pin; if it is 1 -
+ * the port4mode_en output is equal to bit[1] of this register; [1] -
+ * Overwrite value. If bit[0] of this register is 1 this is the value that
+ * receives the port4mode_en output . */
+#define MISC_REG_PORT4MODE_EN_OVWR				 0xa720
 /* [RW 32] reset reg#2; rite/read one = the specific block is out of reset;
    write/read zero = the specific block is in reset; addr 0-wr- the write
    value will be written to the register; addr 1-set - one will be written
@@ -1656,8 +1818,91 @@
 /* [R 32] Interrupt register #0 read */
 #define NIG_REG_NIG_INT_STS_0					 0x103b0
 #define NIG_REG_NIG_INT_STS_1					 0x103c0
-/* [R 32] Parity register #0 read */
+/* [R 32] Legacy E1 and E1H location for parity error status register. */
 #define NIG_REG_NIG_PRTY_STS					 0x103d0
+/* [R 32] Parity register #0 read */
+#define NIG_REG_NIG_PRTY_STS_0					 0x183bc
+#define NIG_REG_NIG_PRTY_STS_1					 0x183cc
+/* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
+ * Ethernet header. */
+#define NIG_REG_P0_HDRS_AFTER_BASIC				 0x18038
+/* [RW 1] HW PFC enable bit. Set this bit to enable the PFC functionality in
+ * the NIG. Other flow control modes such as PAUSE and SAFC/LLFC should be
+ * disabled when this bit is set. */
+#define NIG_REG_P0_HWPFC_ENABLE				 0x18078
+#define NIG_REG_P0_LLH_FUNC_MEM2				 0x18480
+#define NIG_REG_P0_LLH_FUNC_MEM2_ENABLE			 0x18440
+/* [RW 32] Eight 4-bit configurations for specifying which COS (0-15 for
+ * future expansion) each priorty is to be mapped to. Bits 3:0 specify the
+ * COS for priority 0. Bits 31:28 specify the COS for priority 7. The 3-bit
+ * priority field is extracted from the outer-most VLAN in receive packet.
+ * Only COS 0 and COS 1 are supported in E2. */
+#define NIG_REG_P0_PKT_PRIORITY_TO_COS				 0x18054
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 0. A
+ * priority is mapped to COS 0 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P0_RX_COS0_PRIORITY_MASK			 0x18058
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 1. A
+ * priority is mapped to COS 1 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P0_RX_COS1_PRIORITY_MASK			 0x1805c
+/* [RW 15] Specify which of the credit registers the client is to be mapped
+ * to. Bits[2:0] are for client 0; bits [14:12] are for client 4. For
+ * clients that are not subject to WFQ credit blocking - their
+ * specifications here are not used. */
+#define NIG_REG_P0_TX_ARB_CLIENT_CREDIT_MAP			 0x180f0
+/* [RW 5] Specify whether the client competes directly in the strict
+ * priority arbiter. The bits are mapped according to client ID (client IDs
+ * are defined in tx_arb_priority_client). Default value is set to enable
+ * strict priorities for clients 0-2 -- management and debug traffic. */
+#define NIG_REG_P0_TX_ARB_CLIENT_IS_STRICT			 0x180e8
+/* [RW 5] Specify whether the client is subject to WFQ credit blocking. The
+ * bits are mapped according to client ID (client IDs are defined in
+ * tx_arb_priority_client). Default value is 0 for not using WFQ credit
+ * blocking. */
+#define NIG_REG_P0_TX_ARB_CLIENT_IS_SUBJECT2WFQ		 0x180ec
+/* [RW 32] Specify the upper bound that credit register 0 is allowed to
+ * reach. */
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_0			 0x1810c
+#define NIG_REG_P0_TX_ARB_CREDIT_UPPER_BOUND_1			 0x18110
+/* [RW 32] Specify the weight (in bytes) to be added to credit register 0
+ * when it is time to increment. */
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_0			 0x180f8
+#define NIG_REG_P0_TX_ARB_CREDIT_WEIGHT_1			 0x180fc
+/* [RW 12] Specify the number of strict priority arbitration slots between
+ * two round-robin arbitration slots to avoid starvation. A value of 0 means
+ * no strict priority cycles - the strict priority with anti-starvation
+ * arbiter becomes a round-robin arbiter. */
+#define NIG_REG_P0_TX_ARB_NUM_STRICT_ARB_SLOTS			 0x180f4
+/* [RW 15] Specify the client number to be assigned to each priority of the
+ * strict priority arbiter. Priority 0 is the highest priority. Bits [2:0]
+ * are for priority 0 client; bits [14:12] are for priority 4 client. The
+ * clients are assigned the following IDs: 0-management; 1-debug traffic
+ * from this port; 2-debug traffic from other port; 3-COS0 traffic; 4-COS1
+ * traffic. The reset value[14:0] is set to 0x4688 (15'b100_011_010_001_000)
+ * for management at priority 0; debug traffic at priorities 1 and 2; COS0
+ * traffic at priority 3; and COS1 traffic at priority 4. */
+#define NIG_REG_P0_TX_ARB_PRIORITY_CLIENT			 0x180e4
+#define NIG_REG_P1_LLH_FUNC_MEM2				 0x184c0
+#define NIG_REG_P1_LLH_FUNC_MEM2_ENABLE			 0x18460
+/* [RW 32] Eight 4-bit configurations for specifying which COS (0-15 for
+ * future expansion) each priorty is to be mapped to. Bits 3:0 specify the
+ * COS for priority 0. Bits 31:28 specify the COS for priority 7. The 3-bit
+ * priority field is extracted from the outer-most VLAN in receive packet.
+ * Only COS 0 and COS 1 are supported in E2. */
+#define NIG_REG_P1_PKT_PRIORITY_TO_COS				 0x181a8
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 0. A
+ * priority is mapped to COS 0 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P1_RX_COS0_PRIORITY_MASK			 0x181ac
+/* [RW 16] Bit-map indicating which SAFC/PFC priorities to map to COS 1. A
+ * priority is mapped to COS 1 when the corresponding mask bit is 1. More
+ * than one bit may be set; allowing multiple priorities to be mapped to one
+ * COS. */
+#define NIG_REG_P1_RX_COS1_PRIORITY_MASK			 0x181b0
 /* [RW 1] Pause enable for port0. This register may get 1 only when
    ~safc_enable.safc_enable = 0 and ppp_enable.ppp_enable =0 for the same
    port */
@@ -1742,6 +1987,10 @@
 /* [RW 1] Disable processing further tasks from port 4 (after ending the
    current task in process). */
 #define PBF_REG_DISABLE_NEW_TASK_PROC_P4			 0x14006c
+#define PBF_REG_DISABLE_PF					 0x1402e8
+/* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
+ * Ethernet header. */
+#define PBF_REG_HDRS_AFTER_BASIC				 0x15c0a8
 #define PBF_REG_IF_ENABLE_REG					 0x140044
 /* [RW 1] Init bit. When set the initial credits are copied to the credit
    registers (except the port credits). Should be set and then reset after
@@ -1765,6 +2014,8 @@
 #define PBF_REG_MAC_IF1_ENABLE					 0x140034
 /* [RW 1] Enable for the loopback interface. */
 #define PBF_REG_MAC_LB_ENABLE					 0x140040
+/* [RW 6] Bit-map indicating which headers must appear in the packet */
+#define PBF_REG_MUST_HAVE_HDRS					 0x15c0c4
 /* [RW 10] Port 0 threshold used by arbiter in 16 byte lines used when pause
    not suppoterd. */
 #define PBF_REG_P0_ARB_THRSH					 0x1400e4
@@ -1804,6 +2055,259 @@
 #define PB_REG_PB_PRTY_MASK					 0x38
 /* [R 4] Parity register #0 read */
 #define PB_REG_PB_PRTY_STS					 0x2c
+#define PGLUE_B_PGLUE_B_INT_STS_REG_ADDRESS_ERROR		 (0x1<<0)
+#define PGLUE_B_PGLUE_B_INT_STS_REG_CSSNOOP_FIFO_OVERFLOW	 (0x1<<8)
+#define PGLUE_B_PGLUE_B_INT_STS_REG_INCORRECT_RCV_BEHAVIOR	 (0x1<<1)
+#define PGLUE_B_PGLUE_B_INT_STS_REG_TCPL_ERROR_ATTN		 (0x1<<6)
+#define PGLUE_B_PGLUE_B_INT_STS_REG_TCPL_IN_TWO_RCBS_ATTN	 (0x1<<7)
+#define PGLUE_B_PGLUE_B_INT_STS_REG_VF_GRC_SPACE_VIOLATION_ATTN  (0x1<<4)
+#define PGLUE_B_PGLUE_B_INT_STS_REG_VF_LENGTH_VIOLATION_ATTN	 (0x1<<3)
+#define PGLUE_B_PGLUE_B_INT_STS_REG_VF_MSIX_BAR_VIOLATION_ATTN	 (0x1<<5)
+#define PGLUE_B_PGLUE_B_INT_STS_REG_WAS_ERROR_ATTN		 (0x1<<2)
+/* [R 8] Config space A attention dirty bits. Each bit indicates that the
+ * corresponding PF generates config space A attention. Set by PXP. Reset by
+ * MCP writing 1 to icfg_space_a_request_clr. Note: register contains bits
+ * from both paths. */
+#define PGLUE_B_REG_CFG_SPACE_A_REQUEST			 0x9010
+/* [R 8] Config space B attention dirty bits. Each bit indicates that the
+ * corresponding PF generates config space B attention. Set by PXP. Reset by
+ * MCP writing 1 to icfg_space_b_request_clr. Note: register contains bits
+ * from both paths. */
+#define PGLUE_B_REG_CFG_SPACE_B_REQUEST			 0x9014
+/* [RW 1] Type A PF enable inbound interrupt table for CSDM. 0 - disable; 1
+ * - enable. */
+#define PGLUE_B_REG_CSDM_INB_INT_A_PF_ENABLE			 0x9194
+/* [RW 18] Type B VF inbound interrupt table for CSDM: bits[17:9]-mask;
+ * its[8:0]-address. Bits [1:0] must be zero (DW resolution address). */
+#define PGLUE_B_REG_CSDM_INB_INT_B_VF				 0x916c
+/* [RW 1] Type B VF enable inbound interrupt table for CSDM. 0 - disable; 1
+ * - enable. */
+#define PGLUE_B_REG_CSDM_INB_INT_B_VF_ENABLE			 0x919c
+/* [RW 16] Start offset of CSDM zone A (queue zone) in the internal RAM */
+#define PGLUE_B_REG_CSDM_START_OFFSET_A			 0x9100
+/* [RW 16] Start offset of CSDM zone B (legacy zone) in the internal RAM */
+#define PGLUE_B_REG_CSDM_START_OFFSET_B			 0x9108
+/* [RW 5] VF Shift of CSDM zone B (legacy zone) in the internal RAM */
+#define PGLUE_B_REG_CSDM_VF_SHIFT_B				 0x9110
+/* [RW 1] 0 - Zone A size is 136x32B; 1 - Zone A size is 152x32B. */
+#define PGLUE_B_REG_CSDM_ZONE_A_SIZE_PF			 0x91ac
+/* [R 8] FLR request attention dirty bits for PFs 0 to 7. Each bit indicates
+ * that the FLR register of the corresponding PF was set. Set by PXP. Reset
+ * by MCP writing 1 to flr_request_pf_7_0_clr. Note: register contains bits
+ * from both paths. */
+#define PGLUE_B_REG_FLR_REQUEST_PF_7_0				 0x9028
+/* [W 8] FLR request attention dirty bits clear for PFs 0 to 7. MCP writes 1
+ * to a bit in this register in order to clear the corresponding bit in
+ * flr_request_pf_7_0 register. Note: register contains bits from both
+ * paths. */
+#define PGLUE_B_REG_FLR_REQUEST_PF_7_0_CLR			 0x9418
+/* [R 32] FLR request attention dirty bits for VFs 96 to 127. Each bit
+ * indicates that the FLR register of the corresponding VF was set. Set by
+ * PXP. Reset by MCP writing 1 to flr_request_vf_127_96_clr. */
+#define PGLUE_B_REG_FLR_REQUEST_VF_127_96			 0x9024
+/* [R 32] FLR request attention dirty bits for VFs 0 to 31. Each bit
+ * indicates that the FLR register of the corresponding VF was set. Set by
+ * PXP. Reset by MCP writing 1 to flr_request_vf_31_0_clr. */
+#define PGLUE_B_REG_FLR_REQUEST_VF_31_0			 0x9018
+/* [R 32] FLR request attention dirty bits for VFs 32 to 63. Each bit
+ * indicates that the FLR register of the corresponding VF was set. Set by
+ * PXP. Reset by MCP writing 1 to flr_request_vf_63_32_clr. */
+#define PGLUE_B_REG_FLR_REQUEST_VF_63_32			 0x901c
+/* [R 32] FLR request attention dirty bits for VFs 64 to 95. Each bit
+ * indicates that the FLR register of the corresponding VF was set. Set by
+ * PXP. Reset by MCP writing 1 to flr_request_vf_95_64_clr. */
+#define PGLUE_B_REG_FLR_REQUEST_VF_95_64			 0x9020
+/* [R 8] Each bit indicates an incorrect behavior in user RX interface. Bit
+ * 0 - Target memory read arrived with a correctable error. Bit 1 - Target
+ * memory read arrived with an uncorrectable error. Bit 2 - Configuration RW
+ * arrived with a correctable error. Bit 3 - Configuration RW arrived with
+ * an uncorrectable error. Bit 4 - Completion with Configuration Request
+ * Retry Status. Bit 5 - Expansion ROM access received with a write request.
+ * Bit 6 - Completion with pcie_rx_err of 0000; CMPL_STATUS of non-zero; and
+ * pcie_rx_last not asserted. Bit 7 - Completion with pcie_rx_err of 1010;
+ * and pcie_rx_last not asserted. */
+#define PGLUE_B_REG_INCORRECT_RCV_DETAILS			 0x9068
+#define PGLUE_B_REG_INTERNAL_PFID_ENABLE_MASTER		 0x942c
+#define PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_READ		 0x9430
+#define PGLUE_B_REG_INTERNAL_PFID_ENABLE_TARGET_WRITE		 0x9434
+#define PGLUE_B_REG_INTERNAL_VFID_ENABLE			 0x9438
+/* [R 9] Interrupt register #0 read */
+#define PGLUE_B_REG_PGLUE_B_INT_STS				 0x9298
+/* [RC 9] Interrupt register #0 read clear */
+#define PGLUE_B_REG_PGLUE_B_INT_STS_CLR			 0x929c
+/* [R 2] Parity register #0 read */
+#define PGLUE_B_REG_PGLUE_B_PRTY_STS				 0x92a8
+/* [R 13] Details of first request received with error. [2:0] - PFID. [3] -
+ * VF_VALID. [9:4] - VFID. [11:10] - Error Code - 0 - Indicates Completion
+ * Timeout of a User Tx non-posted request. 1 - unsupported request. 2 -
+ * completer abort. 3 - Illegal value for this field. [12] valid - indicates
+ * if there was a completion error since the last time this register was
+ * cleared. */
+#define PGLUE_B_REG_RX_ERR_DETAILS				 0x9080
+/* [R 18] Details of first ATS Translation Completion request received with
+ * error. [2:0] - PFID. [3] - VF_VALID. [9:4] - VFID. [11:10] - Error Code -
+ * 0 - Indicates Completion Timeout of a User Tx non-posted request. 1 -
+ * unsupported request. 2 - completer abort. 3 - Illegal value for this
+ * field. [16:12] - ATC OTB EntryID. [17] valid - indicates if there was a
+ * completion error since the last time this register was cleared. */
+#define PGLUE_B_REG_RX_TCPL_ERR_DETAILS			 0x9084
+/* [W 8] Debug only - Shadow BME bits clear for PFs 0 to 7. MCP writes 1 to
+ * a bit in this register in order to clear the corresponding bit in
+ * shadow_bme_pf_7_0 register. MCP should never use this unless a
+ * work-around is needed. Note: register contains bits from both paths. */
+#define PGLUE_B_REG_SHADOW_BME_PF_7_0_CLR			 0x9458
+/* [R 8] SR IOV disabled attention dirty bits. Each bit indicates that the
+ * VF enable register of the corresponding PF is written to 0 and was
+ * previously 1. Set by PXP. Reset by MCP writing 1 to
+ * sr_iov_disabled_request_clr. Note: register contains bits from both
+ * paths. */
+#define PGLUE_B_REG_SR_IOV_DISABLED_REQUEST			 0x9030
+/* [R 32] Indicates the status of tags 32-63. 0 - tags is used - read
+ * completion did not return yet. 1 - tag is unused. Same functionality as
+ * pxp2_registers_pgl_exp_rom_data2 for tags 0-31. */
+#define PGLUE_B_REG_TAGS_63_32					 0x9244
+/* [RW 1] Type A PF enable inbound interrupt table for TSDM. 0 - disable; 1
+ * - enable. */
+#define PGLUE_B_REG_TSDM_INB_INT_A_PF_ENABLE			 0x9170
+/* [RW 16] Start offset of TSDM zone A (queue zone) in the internal RAM */
+#define PGLUE_B_REG_TSDM_START_OFFSET_A			 0x90c4
+/* [RW 16] Start offset of TSDM zone B (legacy zone) in the internal RAM */
+#define PGLUE_B_REG_TSDM_START_OFFSET_B			 0x90cc
+/* [RW 5] VF Shift of TSDM zone B (legacy zone) in the internal RAM */
+#define PGLUE_B_REG_TSDM_VF_SHIFT_B				 0x90d4
+/* [RW 1] 0 - Zone A size is 136x32B; 1 - Zone A size is 152x32B. */
+#define PGLUE_B_REG_TSDM_ZONE_A_SIZE_PF			 0x91a0
+/* [R 32] Address [31:0] of first read request not submitted due to error */
+#define PGLUE_B_REG_TX_ERR_RD_ADD_31_0				 0x9098
+/* [R 32] Address [63:32] of first read request not submitted due to error */
+#define PGLUE_B_REG_TX_ERR_RD_ADD_63_32			 0x909c
+/* [R 31] Details of first read request not submitted due to error. [4:0]
+ * VQID. [5] TREQ. 1 - Indicates the request is a Translation Request.
+ * [20:8] - Length in bytes. [23:21] - PFID. [24] - VF_VALID. [30:25] -
+ * VFID. */
+#define PGLUE_B_REG_TX_ERR_RD_DETAILS				 0x90a0
+/* [R 26] Details of first read request not submitted due to error. [15:0]
+ * Request ID. [19:16] client ID. [20] - last SR. [24:21] - Error type -
+ * [21] - Indicates was_error was set; [22] - Indicates BME was cleared;
+ * [23] - Indicates FID_enable was cleared; [24] - Indicates VF with parent
+ * PF FLR_request or IOV_disable_request dirty bit is set. [25] valid -
+ * indicates if there was a request not submitted due to error since the
+ * last time this register was cleared. */
+#define PGLUE_B_REG_TX_ERR_RD_DETAILS2				 0x90a4
+/* [R 32] Address [31:0] of first write request not submitted due to error */
+#define PGLUE_B_REG_TX_ERR_WR_ADD_31_0				 0x9088
+/* [R 32] Address [63:32] of first write request not submitted due to error */
+#define PGLUE_B_REG_TX_ERR_WR_ADD_63_32			 0x908c
+/* [R 31] Details of first write request not submitted due to error. [4:0]
+ * VQID. [20:8] - Length in bytes. [23:21] - PFID. [24] - VF_VALID. [30:25]
+ * - VFID. */
+#define PGLUE_B_REG_TX_ERR_WR_DETAILS				 0x9090
+/* [R 26] Details of first write request not submitted due to error. [15:0]
+ * Request ID. [19:16] client ID. [20] - last SR. [24:21] - Error type -
+ * [21] - Indicates was_error was set; [22] - Indicates BME was cleared;
+ * [23] - Indicates FID_enable was cleared; [24] - Indicates VF with parent
+ * PF FLR_request or IOV_disable_request dirty bit is set. [25] valid -
+ * indicates if there was a request not submitted due to error since the
+ * last time this register was cleared. */
+#define PGLUE_B_REG_TX_ERR_WR_DETAILS2				 0x9094
+/* [RW 10] Type A PF/VF inbound interrupt table for USDM: bits[9:5]-mask;
+ * its[4:0]-address relative to start_offset_a. Bits [1:0] can have any
+ * value (Byte resolution address). */
+#define PGLUE_B_REG_USDM_INB_INT_A_0				 0x9128
+#define PGLUE_B_REG_USDM_INB_INT_A_1				 0x912c
+#define PGLUE_B_REG_USDM_INB_INT_A_2				 0x9130
+#define PGLUE_B_REG_USDM_INB_INT_A_3				 0x9134
+#define PGLUE_B_REG_USDM_INB_INT_A_4				 0x9138
+#define PGLUE_B_REG_USDM_INB_INT_A_5				 0x913c
+#define PGLUE_B_REG_USDM_INB_INT_A_6				 0x9140
+/* [RW 1] Type A PF enable inbound interrupt table for USDM. 0 - disable; 1
+ * - enable. */
+#define PGLUE_B_REG_USDM_INB_INT_A_PF_ENABLE			 0x917c
+/* [RW 1] Type A VF enable inbound interrupt table for USDM. 0 - disable; 1
+ * - enable. */
+#define PGLUE_B_REG_USDM_INB_INT_A_VF_ENABLE			 0x9180
+/* [RW 1] Type B VF enable inbound interrupt table for USDM. 0 - disable; 1
+ * - enable. */
+#define PGLUE_B_REG_USDM_INB_INT_B_VF_ENABLE			 0x9184
+/* [RW 16] Start offset of USDM zone A (queue zone) in the internal RAM */
+#define PGLUE_B_REG_USDM_START_OFFSET_A			 0x90d8
+/* [RW 16] Start offset of USDM zone B (legacy zone) in the internal RAM */
+#define PGLUE_B_REG_USDM_START_OFFSET_B			 0x90e0
+/* [RW 5] VF Shift of USDM zone B (legacy zone) in the internal RAM */
+#define PGLUE_B_REG_USDM_VF_SHIFT_B				 0x90e8
+/* [RW 1] 0 - Zone A size is 136x32B; 1 - Zone A size is 152x32B. */
+#define PGLUE_B_REG_USDM_ZONE_A_SIZE_PF			 0x91a4
+/* [R 26] Details of first target VF request accessing VF GRC space that
+ * failed permission check. [14:0] Address. [15] w_nr: 0 - Read; 1 - Write.
+ * [21:16] VFID. [24:22] - PFID. [25] valid - indicates if there was a
+ * request accessing VF GRC space that failed permission check since the
+ * last time this register was cleared. Permission checks are: function
+ * permission; R/W permission; address range permission. */
+#define PGLUE_B_REG_VF_GRC_SPACE_VIOLATION_DETAILS		 0x9234
+/* [R 31] Details of first target VF request with length violation (too many
+ * DWs) accessing BAR0. [12:0] Address in DWs (bits [14:2] of byte address).
+ * [14:13] BAR. [20:15] VFID. [23:21] - PFID. [29:24] - Length in DWs. [30]
+ * valid - indicates if there was a request with length violation since the
+ * last time this register was cleared. Length violations: length of more
+ * than 2DWs; length of 2DWs and address not QW aligned; window is GRC and
+ * length is more than 1 DW. */
+#define PGLUE_B_REG_VF_LENGTH_VIOLATION_DETAILS		 0x9230
+/* [R 8] Was_error indication dirty bits for PFs 0 to 7. Each bit indicates
+ * that there was a completion with uncorrectable error for the
+ * corresponding PF. Set by PXP. Reset by MCP writing 1 to
+ * was_error_pf_7_0_clr. */
+#define PGLUE_B_REG_WAS_ERROR_PF_7_0				 0x907c
+/* [W 8] Was_error indication dirty bits clear for PFs 0 to 7. MCP writes 1
+ * to a bit in this register in order to clear the corresponding bit in
+ * flr_request_pf_7_0 register. */
+#define PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR			 0x9470
+/* [R 32] Was_error indication dirty bits for VFs 96 to 127. Each bit
+ * indicates that there was a completion with uncorrectable error for the
+ * corresponding VF. Set by PXP. Reset by MCP writing 1 to
+ * was_error_vf_127_96_clr. */
+#define PGLUE_B_REG_WAS_ERROR_VF_127_96			 0x9078
+/* [W 32] Was_error indication dirty bits clear for VFs 96 to 127. MCP
+ * writes 1 to a bit in this register in order to clear the corresponding
+ * bit in was_error_vf_127_96 register. */
+#define PGLUE_B_REG_WAS_ERROR_VF_127_96_CLR			 0x9474
+/* [R 32] Was_error indication dirty bits for VFs 0 to 31. Each bit
+ * indicates that there was a completion with uncorrectable error for the
+ * corresponding VF. Set by PXP. Reset by MCP writing 1 to
+ * was_error_vf_31_0_clr. */
+#define PGLUE_B_REG_WAS_ERROR_VF_31_0				 0x906c
+/* [W 32] Was_error indication dirty bits clear for VFs 0 to 31. MCP writes
+ * 1 to a bit in this register in order to clear the corresponding bit in
+ * was_error_vf_31_0 register. */
+#define PGLUE_B_REG_WAS_ERROR_VF_31_0_CLR			 0x9478
+/* [R 32] Was_error indication dirty bits for VFs 32 to 63. Each bit
+ * indicates that there was a completion with uncorrectable error for the
+ * corresponding VF. Set by PXP. Reset by MCP writing 1 to
+ * was_error_vf_63_32_clr. */
+#define PGLUE_B_REG_WAS_ERROR_VF_63_32				 0x9070
+/* [W 32] Was_error indication dirty bits clear for VFs 32 to 63. MCP writes
+ * 1 to a bit in this register in order to clear the corresponding bit in
+ * was_error_vf_63_32 register. */
+#define PGLUE_B_REG_WAS_ERROR_VF_63_32_CLR			 0x947c
+/* [R 32] Was_error indication dirty bits for VFs 64 to 95. Each bit
+ * indicates that there was a completion with uncorrectable error for the
+ * corresponding VF. Set by PXP. Reset by MCP writing 1 to
+ * was_error_vf_95_64_clr. */
+#define PGLUE_B_REG_WAS_ERROR_VF_95_64				 0x9074
+/* [W 32] Was_error indication dirty bits clear for VFs 64 to 95. MCP writes
+ * 1 to a bit in this register in order to clear the corresponding bit in
+ * was_error_vf_95_64 register. */
+#define PGLUE_B_REG_WAS_ERROR_VF_95_64_CLR			 0x9480
+/* [RW 1] Type A PF enable inbound interrupt table for XSDM. 0 - disable; 1
+ * - enable. */
+#define PGLUE_B_REG_XSDM_INB_INT_A_PF_ENABLE			 0x9188
+/* [RW 16] Start offset of XSDM zone A (queue zone) in the internal RAM */
+#define PGLUE_B_REG_XSDM_START_OFFSET_A			 0x90ec
+/* [RW 16] Start offset of XSDM zone B (legacy zone) in the internal RAM */
+#define PGLUE_B_REG_XSDM_START_OFFSET_B			 0x90f4
+/* [RW 5] VF Shift of XSDM zone B (legacy zone) in the internal RAM */
+#define PGLUE_B_REG_XSDM_VF_SHIFT_B				 0x90fc
+/* [RW 1] 0 - Zone A size is 136x32B; 1 - Zone A size is 152x32B. */
+#define PGLUE_B_REG_XSDM_ZONE_A_SIZE_PF			 0x91a8
 #define PRS_REG_A_PRSU_20					 0x40134
 /* [R 8] debug only: CFC load request current credit. Transaction based. */
 #define PRS_REG_CFC_LD_CURRENT_CREDIT				 0x40164
@@ -1866,9 +2370,13 @@
 #define PRS_REG_FLUSH_REGIONS_TYPE_5				 0x40018
 #define PRS_REG_FLUSH_REGIONS_TYPE_6				 0x4001c
 #define PRS_REG_FLUSH_REGIONS_TYPE_7				 0x40020
+/* [RW 6] Bit-map indicating which L2 hdrs may appear after the basic
+ * Ethernet header. */
+#define PRS_REG_HDRS_AFTER_BASIC				 0x40238
 /* [RW 4] The increment value to send in the CFC load request message */
 #define PRS_REG_INC_VALUE					 0x40048
-/* [RW 1] If set indicates not to send messages to CFC on received packets */
+/* [RW 6] Bit-map indicating which headers must appear in the packet */
+#define PRS_REG_MUST_HAVE_HDRS					 0x40254
 #define PRS_REG_NIC_MODE					 0x40138
 /* [RW 8] The 8-bit event ID for cases where there is no match on the
    connection. Used in packet start message to TCM. */
@@ -1919,6 +2427,13 @@
 #define PRS_REG_TCM_CURRENT_CREDIT				 0x40160
 /* [R 8] debug only: TSDM current credit. Transaction based. */
 #define PRS_REG_TSDM_CURRENT_CREDIT				 0x4015c
+#define PXP2_PXP2_INT_MASK_0_REG_PGL_CPL_AFT			 (0x1<<19)
+#define PXP2_PXP2_INT_MASK_0_REG_PGL_CPL_OF			 (0x1<<20)
+#define PXP2_PXP2_INT_MASK_0_REG_PGL_PCIE_ATTN			 (0x1<<22)
+#define PXP2_PXP2_INT_MASK_0_REG_PGL_READ_BLOCKED		 (0x1<<23)
+#define PXP2_PXP2_INT_MASK_0_REG_PGL_WRITE_BLOCKED		 (0x1<<24)
+#define PXP2_PXP2_INT_STS_0_REG_WR_PGLUE_EOP_ERROR		 (0x1<<7)
+#define PXP2_PXP2_INT_STS_CLR_0_REG_WR_PGLUE_EOP_ERROR		 (0x1<<7)
 /* [R 6] Debug only: Number of used entries in the data FIFO */
 #define PXP2_REG_HST_DATA_FIFO_STATUS				 0x12047c
 /* [R 7] Debug only: Number of used entries in the header FIFO */
@@ -2244,8 +2759,17 @@
 /* [RW 1] When '1'; requests will enter input buffers but wont get out
    towards the glue */
 #define PXP2_REG_RQ_DISABLE_INPUTS				 0x120330
-/* [RW 1] 1 - SR will be aligned by 64B; 0 - SR will be aligned by 8B */
+/* [RW 4] Determines alignment of write SRs when a request is split into
+ * several SRs. 0 - 8B aligned. 1 - 64B aligned. 2 - 128B aligned. 3 - 256B
+ * aligned. 4 - 512B aligned. */
 #define PXP2_REG_RQ_DRAM_ALIGN					 0x1205b0
+/* [RW 4] Determines alignment of read SRs when a request is split into
+ * several SRs. 0 - 8B aligned. 1 - 64B aligned. 2 - 128B aligned. 3 - 256B
+ * aligned. 4 - 512B aligned. */
+#define PXP2_REG_RQ_DRAM_ALIGN_RD				 0x12092c
+/* [RW 1] when set the new alignment method (E2) will be applied; when reset
+ * the original alignment method (E1 E1H) will be applied */
+#define PXP2_REG_RQ_DRAM_ALIGN_SEL				 0x120930
 /* [RW 1] If 1 ILT failiue will not result in ELT access; An interrupt will
    be asserted */
 #define PXP2_REG_RQ_ELT_DISABLE 				 0x12066c
@@ -2436,7 +2960,8 @@
 #define PXP_REG_PXP_INT_STS_1					 0x103078
 /* [RC 32] Interrupt register #0 read clear */
 #define PXP_REG_PXP_INT_STS_CLR_0				 0x10306c
-/* [RW 26] Parity mask register #0 read/write */
+#define PXP_REG_PXP_INT_STS_CLR_1				 0x10307c
+/* [RW 27] Parity mask register #0 read/write */
 #define PXP_REG_PXP_PRTY_MASK					 0x103094
 /* [R 26] Parity register #0 read */
 #define PXP_REG_PXP_PRTY_STS					 0x103088
@@ -2566,6 +3091,7 @@
 #define QM_REG_PAUSESTATE7					 0x16e698
 /* [RW 2] The PCI attributes field used in the PCI request. */
 #define QM_REG_PCIREQAT 					 0x168054
+#define QM_REG_PF_EN						 0x16e70c
 /* [R 16] The byte credit of port 0 */
 #define QM_REG_PORT0BYTECRD					 0x168300
 /* [R 16] The byte credit of port 1 */
@@ -3402,6 +3928,14 @@
 /* [R 32] Parity register #0 read */
 #define TSEM_REG_TSEM_PRTY_STS_0				 0x180114
 #define TSEM_REG_TSEM_PRTY_STS_1				 0x180124
+/* [W 7] VF or PF ID for reset error bit. Values 0-63 reset error bit for 64
+ * VF; values 64-67 reset error for 4 PF; values 68-127 are not valid. */
+#define TSEM_REG_VFPF_ERR_NUM					 0x180380
+/* [RW 32] Indirect access to AG context with 32-bits granularity. The bits
+ * [10:8] of the address should be the offset within the accessed LCID
+ * context; the bits [7:0] are the accessed LCID.Example: to write to REG10
+ * LCID100. The RBC address should be 12'ha64. */
+#define UCM_REG_AG_CTX						 0xe2000
 /* [R 5] Used to read the XX protection CAM occupancy counter. */
 #define UCM_REG_CAM_OCCUP					 0xe0170
 /* [RW 1] CDU AG read Interface enable. If 0 - the request input is
@@ -3851,6 +4385,17 @@
 /* [R 32] Parity register #0 read */
 #define USEM_REG_USEM_PRTY_STS_0				 0x300124
 #define USEM_REG_USEM_PRTY_STS_1				 0x300134
+/* [W 7] VF or PF ID for reset error bit. Values 0-63 reset error bit for 64
+ * VF; values 64-67 reset error for 4 PF; values 68-127 are not valid. */
+#define USEM_REG_VFPF_ERR_NUM					 0x300380
+#define VFC_MEMORIES_RST_REG_CAM_RST				 (0x1<<0)
+#define VFC_MEMORIES_RST_REG_RAM_RST				 (0x1<<1)
+#define VFC_REG_MEMORIES_RST					 0x1943c
+/* [RW 32] Indirect access to AG context with 32-bits granularity. The bits
+ * [12:8] of the address should be the offset within the accessed LCID
+ * context; the bits [7:0] are the accessed LCID.Example: to write to REG10
+ * LCID100. The RBC address should be 13'ha64. */
+#define XCM_REG_AG_CTX						 0x28000
 /* [RW 2] The queue index for registration on Aux1 counter flag. */
 #define XCM_REG_AUX1_Q						 0x20134
 /* [RW 2] Per each decision rule the queue index to register to. */
@@ -4333,6 +4878,9 @@
 #define XSEM_REG_TS_8_AS					 0x280058
 /* [RW 3] The arbitration scheme of time_slot 9 */
 #define XSEM_REG_TS_9_AS					 0x28005c
+/* [W 7] VF or PF ID for reset error bit. Values 0-63 reset error bit for 64
+ * VF; values 64-67 reset error for 4 PF; values 68-127 are not valid. */
+#define XSEM_REG_VFPF_ERR_NUM					 0x280380
 /* [RW 32] Interrupt mask register #0 read/write */
 #define XSEM_REG_XSEM_INT_MASK_0				 0x280110
 #define XSEM_REG_XSEM_INT_MASK_1				 0x280120
@@ -4371,6 +4919,23 @@
 #define BIGMAC_REGISTER_TX_SOURCE_ADDR				 (0x08<<3)
 #define BIGMAC_REGISTER_TX_STAT_GTBYT				 (0x20<<3)
 #define BIGMAC_REGISTER_TX_STAT_GTPKT				 (0x0C<<3)
+#define BIGMAC2_REGISTER_BMAC_CONTROL				 (0x00<<3)
+#define BIGMAC2_REGISTER_BMAC_XGXS_CONTROL			 (0x01<<3)
+#define BIGMAC2_REGISTER_CNT_MAX_SIZE				 (0x05<<3)
+#define BIGMAC2_REGISTER_PFC_CONTROL				 (0x06<<3)
+#define BIGMAC2_REGISTER_RX_CONTROL				 (0x3A<<3)
+#define BIGMAC2_REGISTER_RX_LLFC_MSG_FLDS			 (0x62<<3)
+#define BIGMAC2_REGISTER_RX_MAX_SIZE				 (0x3C<<3)
+#define BIGMAC2_REGISTER_RX_STAT_GR64				 (0x40<<3)
+#define BIGMAC2_REGISTER_RX_STAT_GRIPJ				 (0x5f<<3)
+#define BIGMAC2_REGISTER_RX_STAT_GRPP				 (0x51<<3)
+#define BIGMAC2_REGISTER_TX_CONTROL				 (0x1C<<3)
+#define BIGMAC2_REGISTER_TX_MAX_SIZE				 (0x1E<<3)
+#define BIGMAC2_REGISTER_TX_PAUSE_CONTROL			 (0x20<<3)
+#define BIGMAC2_REGISTER_TX_SOURCE_ADDR			 (0x1D<<3)
+#define BIGMAC2_REGISTER_TX_STAT_GTBYT				 (0x39<<3)
+#define BIGMAC2_REGISTER_TX_STAT_GTPOK				 (0x22<<3)
+#define BIGMAC2_REGISTER_TX_STAT_GTPP				 (0x24<<3)
 #define EMAC_LED_1000MB_OVERRIDE				 (1L<<1)
 #define EMAC_LED_100MB_OVERRIDE 				 (1L<<2)
 #define EMAC_LED_10MB_OVERRIDE					 (1L<<3)
@@ -4478,6 +5043,8 @@
 #define HW_LOCK_RESOURCE_SPIO					 2
 #define HW_LOCK_RESOURCE_UNDI					 5
 #define PRS_FLAG_OVERETH_IPV4					 1
+#define AEU_INPUTS_ATTN_BITS_ATC_HW_INTERRUPT		      (0x1<<4)
+#define AEU_INPUTS_ATTN_BITS_ATC_PARITY_ERROR		      (0x1<<5)
 #define AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR		      (1<<18)
 #define AEU_INPUTS_ATTN_BITS_CCM_HW_INTERRUPT		      (1<<31)
 #define AEU_INPUTS_ATTN_BITS_CDU_HW_INTERRUPT		      (1<<9)
@@ -4504,6 +5071,8 @@
 #define AEU_INPUTS_ATTN_BITS_PARSER_PARITY_ERROR	      (1<<20)
 #define AEU_INPUTS_ATTN_BITS_PBCLIENT_PARITY_ERROR	      (1<<0)
 #define AEU_INPUTS_ATTN_BITS_PBF_HW_INTERRUPT		      (1<<31)
+#define AEU_INPUTS_ATTN_BITS_PGLUE_HW_INTERRUPT	      (0x1<<2)
+#define AEU_INPUTS_ATTN_BITS_PGLUE_PARITY_ERROR	      (0x1<<3)
 #define AEU_INPUTS_ATTN_BITS_PXP_HW_INTERRUPT		      (1<<3)
 #define AEU_INPUTS_ATTN_BITS_PXP_PARITY_ERROR		      (1<<2)
 #define AEU_INPUTS_ATTN_BITS_PXPPCICLOCKCLIENT_HW_INTERRUPT   (1<<5)
@@ -4796,6 +5365,253 @@
 #define PCI_ID_VAL1					0x434
 #define PCI_ID_VAL2					0x438
 
+#define PXPCS_TL_CONTROL_5		    0x814
+#define PXPCS_TL_CONTROL_5_UNKNOWNTYPE_ERR_ATTN    (1 << 29) /*WC*/
+#define PXPCS_TL_CONTROL_5_BOUNDARY4K_ERR_ATTN	   (1 << 28)   /*WC*/
+#define PXPCS_TL_CONTROL_5_MRRS_ERR_ATTN   (1 << 27)   /*WC*/
+#define PXPCS_TL_CONTROL_5_MPS_ERR_ATTN    (1 << 26)   /*WC*/
+#define PXPCS_TL_CONTROL_5_TTX_BRIDGE_FORWARD_ERR  (1 << 25)   /*WC*/
+#define PXPCS_TL_CONTROL_5_TTX_TXINTF_OVERFLOW	   (1 << 24)   /*WC*/
+#define PXPCS_TL_CONTROL_5_PHY_ERR_ATTN    (1 << 23)   /*RO*/
+#define PXPCS_TL_CONTROL_5_DL_ERR_ATTN	   (1 << 22)   /*RO*/
+#define PXPCS_TL_CONTROL_5_TTX_ERR_NP_TAG_IN_USE   (1 << 21)   /*WC*/
+#define PXPCS_TL_CONTROL_5_TRX_ERR_UNEXP_RTAG  (1 << 20)   /*WC*/
+#define PXPCS_TL_CONTROL_5_PRI_SIG_TARGET_ABORT1   (1 << 19)   /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_UNSPPORT1   (1 << 18)   /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_ECRC1   (1 << 17)   /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_MALF_TLP1   (1 << 16)   /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_RX_OFLOW1   (1 << 15)   /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_UNEXP_CPL1  (1 << 14)   /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_MASTER_ABRT1    (1 << 13)   /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_CPL_TIMEOUT1    (1 << 12)   /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_FC_PRTL1    (1 << 11)   /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_PSND_TLP1   (1 << 10)   /*WC*/
+#define PXPCS_TL_CONTROL_5_PRI_SIG_TARGET_ABORT    (1 << 9)    /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_UNSPPORT    (1 << 8)    /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_ECRC    (1 << 7)    /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_MALF_TLP    (1 << 6)    /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_RX_OFLOW    (1 << 5)    /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_UNEXP_CPL   (1 << 4)    /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_MASTER_ABRT     (1 << 3)    /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_CPL_TIMEOUT     (1 << 2)    /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_FC_PRTL	   (1 << 1)    /*WC*/
+#define PXPCS_TL_CONTROL_5_ERR_PSND_TLP    (1 << 0)    /*WC*/
+
+
+#define PXPCS_TL_FUNC345_STAT	   0x854
+#define PXPCS_TL_FUNC345_STAT_PRI_SIG_TARGET_ABORT4    (1 << 29)   /* WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_UNSPPORT4\
+	(1 << 28) /* Unsupported Request Error Status in function4, if \
+	set, generate pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_ECRC4\
+	(1 << 27) /* ECRC Error TLP Status Status in function 4, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_MALF_TLP4\
+	(1 << 26) /* Malformed TLP Status Status in function 4, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_RX_OFLOW4\
+	(1 << 25) /* Receiver Overflow Status Status in function 4, if \
+	set, generate pcie_err_attn output when this error is seen.. WC \
+	*/
+#define PXPCS_TL_FUNC345_STAT_ERR_UNEXP_CPL4\
+	(1 << 24) /* Unexpected Completion Status Status in function 4, \
+	if set, generate pcie_err_attn output when this error is seen. WC \
+	*/
+#define PXPCS_TL_FUNC345_STAT_ERR_MASTER_ABRT4\
+	(1 << 23) /* Receive UR Statusin function 4. If set, generate \
+	pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_CPL_TIMEOUT4\
+	(1 << 22) /* Completer Timeout Status Status in function 4, if \
+	set, generate pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_FC_PRTL4\
+	(1 << 21) /* Flow Control Protocol Error Status Status in \
+	function 4, if set, generate pcie_err_attn output when this error \
+	is seen. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_PSND_TLP4\
+	(1 << 20) /* Poisoned Error Status Status in function 4, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC345_STAT_PRI_SIG_TARGET_ABORT3    (1 << 19)   /* WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_UNSPPORT3\
+	(1 << 18) /* Unsupported Request Error Status in function3, if \
+	set, generate pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_ECRC3\
+	(1 << 17) /* ECRC Error TLP Status Status in function 3, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_MALF_TLP3\
+	(1 << 16) /* Malformed TLP Status Status in function 3, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_RX_OFLOW3\
+	(1 << 15) /* Receiver Overflow Status Status in function 3, if \
+	set, generate pcie_err_attn output when this error is seen.. WC \
+	*/
+#define PXPCS_TL_FUNC345_STAT_ERR_UNEXP_CPL3\
+	(1 << 14) /* Unexpected Completion Status Status in function 3, \
+	if set, generate pcie_err_attn output when this error is seen. WC \
+	*/
+#define PXPCS_TL_FUNC345_STAT_ERR_MASTER_ABRT3\
+	(1 << 13) /* Receive UR Statusin function 3. If set, generate \
+	pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_CPL_TIMEOUT3\
+	(1 << 12) /* Completer Timeout Status Status in function 3, if \
+	set, generate pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_FC_PRTL3\
+	(1 << 11) /* Flow Control Protocol Error Status Status in \
+	function 3, if set, generate pcie_err_attn output when this error \
+	is seen. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_PSND_TLP3\
+	(1 << 10) /* Poisoned Error Status Status in function 3, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC345_STAT_PRI_SIG_TARGET_ABORT2    (1 << 9)    /* WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_UNSPPORT2\
+	(1 << 8) /* Unsupported Request Error Status for Function 2, if \
+	set, generate pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_ECRC2\
+	(1 << 7) /* ECRC Error TLP Status Status for Function 2, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_MALF_TLP2\
+	(1 << 6) /* Malformed TLP Status Status for Function 2, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_RX_OFLOW2\
+	(1 << 5) /* Receiver Overflow Status Status for Function 2, if \
+	set, generate pcie_err_attn output when this error is seen.. WC \
+	*/
+#define PXPCS_TL_FUNC345_STAT_ERR_UNEXP_CPL2\
+	(1 << 4) /* Unexpected Completion Status Status for Function 2, \
+	if set, generate pcie_err_attn output when this error is seen. WC \
+	*/
+#define PXPCS_TL_FUNC345_STAT_ERR_MASTER_ABRT2\
+	(1 << 3) /* Receive UR Statusfor Function 2. If set, generate \
+	pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_CPL_TIMEOUT2\
+	(1 << 2) /* Completer Timeout Status Status for Function 2, if \
+	set, generate pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_FC_PRTL2\
+	(1 << 1) /* Flow Control Protocol Error Status Status for \
+	Function 2, if set, generate pcie_err_attn output when this error \
+	is seen. WC */
+#define PXPCS_TL_FUNC345_STAT_ERR_PSND_TLP2\
+	(1 << 0) /* Poisoned Error Status Status for Function 2, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+
+
+#define PXPCS_TL_FUNC678_STAT  0x85C
+#define PXPCS_TL_FUNC678_STAT_PRI_SIG_TARGET_ABORT7    (1 << 29)   /*	 WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_UNSPPORT7\
+	(1 << 28) /* Unsupported Request Error Status in function7, if \
+	set, generate pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_ECRC7\
+	(1 << 27) /* ECRC Error TLP Status Status in function 7, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_MALF_TLP7\
+	(1 << 26) /* Malformed TLP Status Status in function 7, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_RX_OFLOW7\
+	(1 << 25) /* Receiver Overflow Status Status in function 7, if \
+	set, generate pcie_err_attn output when this error is seen.. WC \
+	*/
+#define PXPCS_TL_FUNC678_STAT_ERR_UNEXP_CPL7\
+	(1 << 24) /* Unexpected Completion Status Status in function 7, \
+	if set, generate pcie_err_attn output when this error is seen. WC \
+	*/
+#define PXPCS_TL_FUNC678_STAT_ERR_MASTER_ABRT7\
+	(1 << 23) /* Receive UR Statusin function 7. If set, generate \
+	pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_CPL_TIMEOUT7\
+	(1 << 22) /* Completer Timeout Status Status in function 7, if \
+	set, generate pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_FC_PRTL7\
+	(1 << 21) /* Flow Control Protocol Error Status Status in \
+	function 7, if set, generate pcie_err_attn output when this error \
+	is seen. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_PSND_TLP7\
+	(1 << 20) /* Poisoned Error Status Status in function 7, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC678_STAT_PRI_SIG_TARGET_ABORT6    (1 << 19)    /*	  WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_UNSPPORT6\
+	(1 << 18) /* Unsupported Request Error Status in function6, if \
+	set, generate pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_ECRC6\
+	(1 << 17) /* ECRC Error TLP Status Status in function 6, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_MALF_TLP6\
+	(1 << 16) /* Malformed TLP Status Status in function 6, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_RX_OFLOW6\
+	(1 << 15) /* Receiver Overflow Status Status in function 6, if \
+	set, generate pcie_err_attn output when this error is seen.. WC \
+	*/
+#define PXPCS_TL_FUNC678_STAT_ERR_UNEXP_CPL6\
+	(1 << 14) /* Unexpected Completion Status Status in function 6, \
+	if set, generate pcie_err_attn output when this error is seen. WC \
+	*/
+#define PXPCS_TL_FUNC678_STAT_ERR_MASTER_ABRT6\
+	(1 << 13) /* Receive UR Statusin function 6. If set, generate \
+	pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_CPL_TIMEOUT6\
+	(1 << 12) /* Completer Timeout Status Status in function 6, if \
+	set, generate pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_FC_PRTL6\
+	(1 << 11) /* Flow Control Protocol Error Status Status in \
+	function 6, if set, generate pcie_err_attn output when this error \
+	is seen. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_PSND_TLP6\
+	(1 << 10) /* Poisoned Error Status Status in function 6, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC678_STAT_PRI_SIG_TARGET_ABORT5    (1 << 9) /*    WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_UNSPPORT5\
+	(1 << 8) /* Unsupported Request Error Status for Function 5, if \
+	set, generate pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_ECRC5\
+	(1 << 7) /* ECRC Error TLP Status Status for Function 5, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_MALF_TLP5\
+	(1 << 6) /* Malformed TLP Status Status for Function 5, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_RX_OFLOW5\
+	(1 << 5) /* Receiver Overflow Status Status for Function 5, if \
+	set, generate pcie_err_attn output when this error is seen.. WC \
+	*/
+#define PXPCS_TL_FUNC678_STAT_ERR_UNEXP_CPL5\
+	(1 << 4) /* Unexpected Completion Status Status for Function 5, \
+	if set, generate pcie_err_attn output when this error is seen. WC \
+	*/
+#define PXPCS_TL_FUNC678_STAT_ERR_MASTER_ABRT5\
+	(1 << 3) /* Receive UR Statusfor Function 5. If set, generate \
+	pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_CPL_TIMEOUT5\
+	(1 << 2) /* Completer Timeout Status Status for Function 5, if \
+	set, generate pcie_err_attn output when this error is seen. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_FC_PRTL5\
+	(1 << 1) /* Flow Control Protocol Error Status Status for \
+	Function 5, if set, generate pcie_err_attn output when this error \
+	is seen. WC */
+#define PXPCS_TL_FUNC678_STAT_ERR_PSND_TLP5\
+	(1 << 0) /* Poisoned Error Status Status for Function 5, if set, \
+	generate pcie_err_attn output when this error is seen.. WC */
+
+
+#define BAR_USTRORM_INTMEM				0x400000
+#define BAR_CSTRORM_INTMEM				0x410000
+#define BAR_XSTRORM_INTMEM				0x420000
+#define BAR_TSTRORM_INTMEM				0x430000
+
+/* for accessing the IGU in case of status block ACK */
+#define BAR_IGU_INTMEM					0x440000
+
+#define BAR_DOORBELL_OFFSET				0x800000
+
+#define BAR_ME_REGISTER				0x450000
+#define ME_REG_PF_NUM_SHIFT		0
+#define ME_REG_PF_NUM\
+	(7L<<ME_REG_PF_NUM_SHIFT) /* Relative PF Num */
+#define ME_REG_VF_VALID		(1<<8)
+#define ME_REG_VF_NUM_SHIFT		9
+#define ME_REG_VF_NUM_MASK		(0x3f<<ME_REG_VF_NUM_SHIFT)
+#define ME_REG_VF_ERR			(0x1<<3)
+#define ME_REG_ABS_PF_NUM_SHIFT	16
+#define ME_REG_ABS_PF_NUM\
+	(7L<<ME_REG_ABS_PF_NUM_SHIFT) /* Absolute PF Num */
+
 
 #define MDIO_REG_BANK_CL73_IEEEB0	0x0
 #define MDIO_CL73_IEEEB0_CL73_AN_CONTROL	0x0
@@ -4964,6 +5780,8 @@
 #define MDIO_SERDES_DIGITAL_A_1000X_CONTROL2_PRL_DT_EN			0x0001
 #define MDIO_SERDES_DIGITAL_A_1000X_CONTROL2_AN_FST_TMR 		0x0040
 #define MDIO_SERDES_DIGITAL_A_1000X_STATUS1			0x14
+#define MDIO_SERDES_DIGITAL_A_1000X_STATUS1_SGMII			0x0001
+#define MDIO_SERDES_DIGITAL_A_1000X_STATUS1_LINK			0x0002
 #define MDIO_SERDES_DIGITAL_A_1000X_STATUS1_DUPLEX			0x0004
 #define MDIO_SERDES_DIGITAL_A_1000X_STATUS1_SPEED_MASK			0x0018
 #define MDIO_SERDES_DIGITAL_A_1000X_STATUS1_SPEED_SHIFT 		3
@@ -5135,28 +5953,35 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_8727_TWO_WIRE_SLAVE_ADDR	0x8005
 #define MDIO_PMA_REG_8727_TWO_WIRE_DATA_BUF	0x8007
 #define MDIO_PMA_REG_8727_TWO_WIRE_DATA_MASK 0xff
-#define MDIO_PMA_REG_8727_MISC_CTRL		0x8309
 #define MDIO_PMA_REG_8727_TX_CTRL1		0xca02
 #define MDIO_PMA_REG_8727_TX_CTRL2		0xca05
 #define MDIO_PMA_REG_8727_PCS_OPT_CTRL		0xc808
 #define MDIO_PMA_REG_8727_GPIO_CTRL		0xc80e
+#define MDIO_PMA_REG_8727_PCS_GP		0xc842
+
+#define MDIO_AN_REG_8727_MISC_CTRL		0x8309
 
 #define MDIO_PMA_REG_8073_CHIP_REV			0xc801
 #define MDIO_PMA_REG_8073_SPEED_LINK_STATUS		0xc820
 #define MDIO_PMA_REG_8073_XAUI_WA			0xc841
+#define MDIO_PMA_REG_8073_OPT_DIGITAL_CTRL		0xcd08
 
 #define MDIO_PMA_REG_7101_RESET 	0xc000
 #define MDIO_PMA_REG_7107_LED_CNTL	0xc007
+#define MDIO_PMA_REG_7107_LINK_LED_CNTL 0xc009
 #define MDIO_PMA_REG_7101_VER1		0xc026
 #define MDIO_PMA_REG_7101_VER2		0xc027
 
-#define MDIO_PMA_REG_8481_PMD_SIGNAL	0xa811
-#define MDIO_PMA_REG_8481_LED1_MASK	0xa82c
-#define MDIO_PMA_REG_8481_LED2_MASK	0xa82f
-#define MDIO_PMA_REG_8481_LED3_MASK	0xa832
-#define MDIO_PMA_REG_8481_LED3_BLINK	0xa834
-#define MDIO_PMA_REG_8481_SIGNAL_MASK	0xa835
-#define MDIO_PMA_REG_8481_LINK_SIGNAL	0xa83b
+#define MDIO_PMA_REG_8481_PMD_SIGNAL			0xa811
+#define MDIO_PMA_REG_8481_LED1_MASK			0xa82c
+#define MDIO_PMA_REG_8481_LED2_MASK			0xa82f
+#define MDIO_PMA_REG_8481_LED3_MASK			0xa832
+#define MDIO_PMA_REG_8481_LED3_BLINK			0xa834
+#define MDIO_PMA_REG_8481_LED5_MASK			0xa838
+#define MDIO_PMA_REG_8481_SIGNAL_MASK			0xa835
+#define MDIO_PMA_REG_8481_LINK_SIGNAL			0xa83b
+#define MDIO_PMA_REG_8481_LINK_SIGNAL_LED4_ENABLE_MASK	0x800
+#define MDIO_PMA_REG_8481_LINK_SIGNAL_LED4_ENABLE_SHIFT 11
 
 
 #define MDIO_WIS_DEVAD			0x2
@@ -5188,6 +6013,8 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_XS_8706_REG_BANK_RX3	0x80ec
 #define MDIO_XS_8706_REG_BANK_RXA	0x80fc
 
+#define MDIO_XS_REG_8073_RX_CTRL_PCIE	0x80FA
+
 #define MDIO_AN_DEVAD			0x7
 /*ieee*/
 #define MDIO_AN_REG_CTRL		0x0000
@@ -5210,13 +6037,39 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_AN_REG_CL37_FC_LP		0xffe5
 
 #define MDIO_AN_REG_8073_2_5G		0x8329
+#define MDIO_AN_REG_8073_BAM		0x8350
 
+#define MDIO_AN_REG_8481_10GBASE_T_AN_CTRL	0x0020
 #define MDIO_AN_REG_8481_LEGACY_MII_CTRL	0xffe0
+#define MDIO_AN_REG_8481_LEGACY_MII_STATUS	0xffe1
 #define MDIO_AN_REG_8481_LEGACY_AN_ADV		0xffe4
+#define MDIO_AN_REG_8481_LEGACY_AN_EXPANSION	0xffe6
 #define MDIO_AN_REG_8481_1000T_CTRL		0xffe9
 #define MDIO_AN_REG_8481_EXPANSION_REG_RD_RW	0xfff5
 #define MDIO_AN_REG_8481_EXPANSION_REG_ACCESS	0xfff7
+#define MDIO_AN_REG_8481_AUX_CTRL		0xfff8
 #define MDIO_AN_REG_8481_LEGACY_SHADOW		0xfffc
+
+/* BCM84823 only */
+#define MDIO_CTL_DEVAD			0x1e
+#define MDIO_CTL_REG_84823_MEDIA		0x401a
+#define MDIO_CTL_REG_84823_MEDIA_MAC_MASK		0x0018
+	/* These pins configure the BCM84823 interface to MAC after reset. */
+#define MDIO_CTL_REG_84823_CTRL_MAC_XFI			0x0008
+#define MDIO_CTL_REG_84823_MEDIA_MAC_XAUI_M		0x0010
+	/* These pins configure the BCM84823 interface to Line after reset. */
+#define MDIO_CTL_REG_84823_MEDIA_LINE_MASK		0x0060
+#define MDIO_CTL_REG_84823_MEDIA_LINE_XAUI_L		0x0020
+#define MDIO_CTL_REG_84823_MEDIA_LINE_XFI		0x0040
+	/* When this pin is active high during reset, 10GBASE-T core is power
+	 * down, When it is active low the 10GBASE-T is power up
+	 */
+#define MDIO_CTL_REG_84823_MEDIA_COPPER_CORE_DOWN	0x0080
+#define MDIO_CTL_REG_84823_MEDIA_PRIORITY_MASK		0x0100
+#define MDIO_CTL_REG_84823_MEDIA_PRIORITY_COPPER	0x0000
+#define MDIO_CTL_REG_84823_MEDIA_PRIORITY_FIBER		0x0100
+#define MDIO_CTL_REG_84823_MEDIA_FIBER_1G			0x1000
+
 
 #define IGU_FUNC_BASE			0x0400
 
@@ -5238,6 +6091,11 @@ Theotherbitsarereservedandshouldbezero*/
 #define IGU_INT_DISABLE 		1
 #define IGU_INT_NOP				2
 #define IGU_INT_NOP2			3
+
+#define IGU_USE_REGISTER_ustorm_type_0_sb_cleanup  0
+#define IGU_USE_REGISTER_ustorm_type_1_sb_cleanup  1
+#define IGU_USE_REGISTER_cstorm_type_0_sb_cleanup  2
+#define IGU_USE_REGISTER_cstorm_type_1_sb_cleanup  3
 
 #define COMMAND_REG_INT_ACK	    0x0
 #define COMMAND_REG_PROD_UPD	    0x4
@@ -5281,6 +6139,50 @@ Theotherbitsarereservedandshouldbezero*/
 #define IGU_REG_SISR_MDPC_WOMASK_UPPER		0x05a6
 
 #define IGU_REG_RESERVED_UPPER				0x05ff
+/* Fields of IGU PF CONFIGRATION REGISTER */
+#define IGU_PF_CONF_FUNC_EN	  (0x1<<0)  /* function enable	      */
+#define IGU_PF_CONF_MSI_MSIX_EN   (0x1<<1)  /* MSI/MSIX enable	      */
+#define IGU_PF_CONF_INT_LINE_EN   (0x1<<2)  /* INT enable	      */
+#define IGU_PF_CONF_ATTN_BIT_EN   (0x1<<3)  /* attention enable       */
+#define IGU_PF_CONF_SINGLE_ISR_EN (0x1<<4)  /* single ISR mode enable */
+#define IGU_PF_CONF_SIMD_MODE	  (0x1<<5)  /* simd all ones mode     */
+
+/* Fields of IGU VF CONFIGRATION REGISTER */
+#define IGU_VF_CONF_FUNC_EN	   (0x1<<0)  /* function enable        */
+#define IGU_VF_CONF_MSI_MSIX_EN    (0x1<<1)  /* MSI/MSIX enable        */
+#define IGU_VF_CONF_PARENT_MASK    (0x3<<2)  /* Parent PF	       */
+#define IGU_VF_CONF_PARENT_SHIFT   2	     /* Parent PF	       */
+#define IGU_VF_CONF_SINGLE_ISR_EN  (0x1<<4)  /* single ISR mode enable */
+
+
+#define IGU_BC_DSB_NUM_SEGS    5
+#define IGU_BC_NDSB_NUM_SEGS   2
+#define IGU_NORM_DSB_NUM_SEGS  2
+#define IGU_NORM_NDSB_NUM_SEGS 1
+#define IGU_BC_BASE_DSB_PROD   128
+#define IGU_NORM_BASE_DSB_PROD 136
+
+#define IGU_CTRL_CMD_TYPE_WR\
+	1
+#define IGU_CTRL_CMD_TYPE_RD\
+	0
+
+#define IGU_SEG_ACCESS_NORM   0
+#define IGU_SEG_ACCESS_DEF    1
+#define IGU_SEG_ACCESS_ATTN   2
+
+	/* FID (if VF - [6] = 0; [5:0] = VF number; if PF - [6] = 1; \
+	[5:2] = 0; [1:0] = PF number) */
+#define IGU_FID_ENCODE_IS_PF	    (0x1<<6)
+#define IGU_FID_ENCODE_IS_PF_SHIFT  6
+#define IGU_FID_VF_NUM_MASK	    (0x3f)
+#define IGU_FID_PF_NUM_MASK	    (0x7)
+
+#define IGU_REG_MAPPING_MEMORY_VALID		(1<<0)
+#define IGU_REG_MAPPING_MEMORY_VECTOR_MASK	(0x3F<<1)
+#define IGU_REG_MAPPING_MEMORY_VECTOR_SHIFT	1
+#define IGU_REG_MAPPING_MEMORY_FID_MASK	(0x7F<<7)
+#define IGU_REG_MAPPING_MEMORY_FID_SHIFT	7
 
 
 #define CDU_REGION_NUMBER_XCM_AG 2

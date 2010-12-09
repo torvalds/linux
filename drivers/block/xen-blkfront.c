@@ -41,7 +41,7 @@
 #include <linux/cdrom.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/scatterlist.h>
 
 #include <xen/xen.h>
@@ -69,6 +69,7 @@ struct blk_shadow {
 	unsigned long frame[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 };
 
+static DEFINE_MUTEX(blkfront_mutex);
 static const struct block_device_operations xlvbd_block_fops;
 
 #define BLK_RING_SIZE __RING_SIZE((struct blkif_sring *)0, PAGE_SIZE)
@@ -95,7 +96,7 @@ struct blkfront_info
 	struct gnttab_free_callback callback;
 	struct blk_shadow shadow[BLK_RING_SIZE];
 	unsigned long shadow_free;
-	int feature_barrier;
+	unsigned int feature_flush;
 	int is_ready;
 };
 
@@ -288,8 +289,6 @@ static int blkif_queue_request(struct request *req)
 
 	ring_req->operation = rq_data_dir(req) ?
 		BLKIF_OP_WRITE : BLKIF_OP_READ;
-	if (req->cmd_flags & REQ_HARDBARRIER)
-		ring_req->operation = BLKIF_OP_WRITE_BARRIER;
 
 	ring_req->nr_segments = blk_rq_map_sg(req->q, req, info->sg);
 	BUG_ON(ring_req->nr_segments > BLKIF_MAX_SEGMENTS_PER_REQUEST);
@@ -418,26 +417,12 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 }
 
 
-static int xlvbd_barrier(struct blkfront_info *info)
+static void xlvbd_flush(struct blkfront_info *info)
 {
-	int err;
-	const char *barrier;
-
-	switch (info->feature_barrier) {
-	case QUEUE_ORDERED_DRAIN:	barrier = "enabled (drain)"; break;
-	case QUEUE_ORDERED_TAG:		barrier = "enabled (tag)"; break;
-	case QUEUE_ORDERED_NONE:	barrier = "disabled"; break;
-	default:			return -EINVAL;
-	}
-
-	err = blk_queue_ordered(info->rq, info->feature_barrier);
-
-	if (err)
-		return err;
-
+	blk_queue_flush(info->rq, info->feature_flush);
 	printk(KERN_INFO "blkfront: %s: barriers %s\n",
-	       info->gd->disk_name, barrier);
-	return 0;
+	       info->gd->disk_name,
+	       info->feature_flush ? "enabled" : "disabled");
 }
 
 
@@ -516,7 +501,7 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 	info->rq = gd->queue;
 	info->gd = gd;
 
-	xlvbd_barrier(info);
+	xlvbd_flush(info);
 
 	if (vdisk_info & VDISK_READONLY)
 		set_disk_ro(gd, 1);
@@ -662,8 +647,8 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				printk(KERN_WARNING "blkfront: %s: write barrier op failed\n",
 				       info->gd->disk_name);
 				error = -EOPNOTSUPP;
-				info->feature_barrier = QUEUE_ORDERED_NONE;
-				xlvbd_barrier(info);
+				info->feature_flush = 0;
+				xlvbd_flush(info);
 			}
 			/* fall through */
 		case BLKIF_OP_READ:
@@ -1076,20 +1061,20 @@ static void blkfront_connect(struct blkfront_info *info)
 	/*
 	 * If there's no "feature-barrier" defined, then it means
 	 * we're dealing with a very old backend which writes
-	 * synchronously; draining will do what needs to get done.
+	 * synchronously; nothing to do.
 	 *
-	 * If there are barriers, then we can do full queued writes
-	 * with tagged barriers.
-	 *
-	 * If barriers are not supported, then there's no much we can
-	 * do, so just set ordering to NONE.
+	 * If there are barriers, then we use flush.
 	 */
-	if (err)
-		info->feature_barrier = QUEUE_ORDERED_DRAIN;
-	else if (barrier)
-		info->feature_barrier = QUEUE_ORDERED_TAG;
-	else
-		info->feature_barrier = QUEUE_ORDERED_NONE;
+	info->feature_flush = 0;
+
+	/*
+	 * The driver doesn't properly handled empty flushes, so
+	 * lets disable barrier support for now.
+	 */
+#if 0
+	if (!err && barrier)
+		info->feature_flush = REQ_FLUSH;
+#endif
 
 	err = xlvbd_alloc_gendisk(sectors, info, binfo, sector_size);
 	if (err) {
@@ -1125,6 +1110,8 @@ static void blkback_changed(struct xenbus_device *dev,
 	case XenbusStateInitialising:
 	case XenbusStateInitWait:
 	case XenbusStateInitialised:
+	case XenbusStateReconfiguring:
+	case XenbusStateReconfigured:
 	case XenbusStateUnknown:
 	case XenbusStateClosed:
 		break;
@@ -1201,7 +1188,7 @@ static int blkif_open(struct block_device *bdev, fmode_t mode)
 	struct blkfront_info *info;
 	int err = 0;
 
-	lock_kernel();
+	mutex_lock(&blkfront_mutex);
 
 	info = disk->private_data;
 	if (!info) {
@@ -1219,7 +1206,7 @@ static int blkif_open(struct block_device *bdev, fmode_t mode)
 	mutex_unlock(&info->mutex);
 
 out:
-	unlock_kernel();
+	mutex_unlock(&blkfront_mutex);
 	return err;
 }
 
@@ -1229,7 +1216,7 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 	struct block_device *bdev;
 	struct xenbus_device *xbdev;
 
-	lock_kernel();
+	mutex_lock(&blkfront_mutex);
 
 	bdev = bdget_disk(disk, 0);
 	bdput(bdev);
@@ -1263,7 +1250,7 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 	}
 
 out:
-	unlock_kernel();
+	mutex_unlock(&blkfront_mutex);
 	return 0;
 }
 

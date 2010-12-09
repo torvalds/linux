@@ -183,13 +183,13 @@ radeon_connector_analog_encoder_conflict_solve(struct drm_connector *connector,
 					continue;
 
 				if (priority == true) {
-					DRM_INFO("1: conflicting encoders switching off %s\n", drm_get_connector_name(conflict));
-					DRM_INFO("in favor of %s\n", drm_get_connector_name(connector));
+					DRM_DEBUG_KMS("1: conflicting encoders switching off %s\n", drm_get_connector_name(conflict));
+					DRM_DEBUG_KMS("in favor of %s\n", drm_get_connector_name(connector));
 					conflict->status = connector_status_disconnected;
 					radeon_connector_update_scratch_regs(conflict, connector_status_disconnected);
 				} else {
-					DRM_INFO("2: conflicting encoders switching off %s\n", drm_get_connector_name(connector));
-					DRM_INFO("in favor of %s\n", drm_get_connector_name(conflict));
+					DRM_DEBUG_KMS("2: conflicting encoders switching off %s\n", drm_get_connector_name(connector));
+					DRM_DEBUG_KMS("in favor of %s\n", drm_get_connector_name(conflict));
 					current_status = connector_status_disconnected;
 				}
 				break;
@@ -326,6 +326,34 @@ int radeon_connector_set_property(struct drm_connector *connector, struct drm_pr
 		}
 	}
 
+	if (property == rdev->mode_info.underscan_hborder_property) {
+		/* need to find digital encoder on connector */
+		encoder = radeon_find_encoder(connector, DRM_MODE_ENCODER_TMDS);
+		if (!encoder)
+			return 0;
+
+		radeon_encoder = to_radeon_encoder(encoder);
+
+		if (radeon_encoder->underscan_hborder != val) {
+			radeon_encoder->underscan_hborder = val;
+			radeon_property_change_mode(&radeon_encoder->base);
+		}
+	}
+
+	if (property == rdev->mode_info.underscan_vborder_property) {
+		/* need to find digital encoder on connector */
+		encoder = radeon_find_encoder(connector, DRM_MODE_ENCODER_TMDS);
+		if (!encoder)
+			return 0;
+
+		radeon_encoder = to_radeon_encoder(encoder);
+
+		if (radeon_encoder->underscan_vborder != val) {
+			radeon_encoder->underscan_vborder = val;
+			radeon_property_change_mode(&radeon_encoder->base);
+		}
+	}
+
 	if (property == rdev->mode_info.tv_std_property) {
 		encoder = radeon_find_encoder(connector, DRM_MODE_ENCODER_TVDAC);
 		if (!encoder) {
@@ -404,13 +432,13 @@ static void radeon_fixup_lvds_native_mode(struct drm_encoder *encoder,
 			    mode->vdisplay == native_mode->vdisplay) {
 				*native_mode = *mode;
 				drm_mode_set_crtcinfo(native_mode, CRTC_INTERLACE_HALVE_V);
-				DRM_INFO("Determined LVDS native mode details from EDID\n");
+				DRM_DEBUG_KMS("Determined LVDS native mode details from EDID\n");
 				break;
 			}
 		}
 	}
 	if (!native_mode->clock) {
-		DRM_INFO("No LVDS native mode details, disabling RMX\n");
+		DRM_DEBUG_KMS("No LVDS native mode details, disabling RMX\n");
 		radeon_encoder->rmx_type = RMX_OFF;
 	}
 }
@@ -635,6 +663,11 @@ radeon_vga_detect(struct drm_connector *connector, bool force)
 				ret = connector_status_connected;
 		}
 	} else {
+
+		/* if we aren't forcing don't do destructive polling */
+		if (!force)
+			return connector->status;
+
 		if (radeon_connector->dac_load_detect && encoder) {
 			encoder_funcs = encoder->helper_private;
 			ret = encoder_funcs->detect(encoder, connector);
@@ -821,6 +854,11 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 
 	if ((ret == connector_status_connected) && (radeon_connector->use_digital == true))
 		goto out;
+
+	if (!force) {
+		ret = connector->status;
+		goto out;
+	}
 
 	/* find analog encoder */
 	if (radeon_connector->dac_load_detect) {
@@ -1078,7 +1116,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 				radeon_connector->shared_ddc = true;
 				shared_ddc = true;
 			}
-			if (radeon_connector->router_bus && router->valid &&
+			if (radeon_connector->router_bus && router->ddc_valid &&
 			    (radeon_connector->router.router_id == router->router_id)) {
 				radeon_connector->shared_ddc = false;
 				shared_ddc = false;
@@ -1098,7 +1136,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 	radeon_connector->connector_object_id = connector_object_id;
 	radeon_connector->hpd = *hpd;
 	radeon_connector->router = *router;
-	if (router->valid) {
+	if (router->ddc_valid || router->cd_valid) {
 		radeon_connector->router_bus = radeon_i2c_lookup(rdev, &router->i2c_info);
 		if (!radeon_connector->router_bus)
 			goto failed;
@@ -1153,10 +1191,17 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
-		if (ASIC_IS_AVIVO(rdev))
+		if (ASIC_IS_AVIVO(rdev)) {
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.underscan_property,
 						      UNDERSCAN_AUTO);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_hborder_property,
+						      0);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_vborder_property,
+						      0);
+		}
 		if (connector_type == DRM_MODE_CONNECTOR_DVII) {
 			radeon_connector->dac_load_detect = true;
 			drm_connector_attach_property(&radeon_connector->base,
@@ -1181,10 +1226,17 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
-		if (ASIC_IS_AVIVO(rdev))
+		if (ASIC_IS_AVIVO(rdev)) {
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.underscan_property,
 						      UNDERSCAN_AUTO);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_hborder_property,
+						      0);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_vborder_property,
+						      0);
+		}
 		subpixel_order = SubPixelHorizontalRGB;
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
@@ -1212,10 +1264,17 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.coherent_mode_property,
 					      1);
-		if (ASIC_IS_AVIVO(rdev))
+		if (ASIC_IS_AVIVO(rdev)) {
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.underscan_property,
 						      UNDERSCAN_AUTO);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_hborder_property,
+						      0);
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.underscan_vborder_property,
+						      0);
+		}
 		break;
 	case DRM_MODE_CONNECTOR_SVIDEO:
 	case DRM_MODE_CONNECTOR_Composite:

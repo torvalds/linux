@@ -58,7 +58,9 @@
 
 #define	ATH_RXBUF	40		/* number of RX buffers */
 #define	ATH_TXBUF	200		/* number of TX buffers */
-#define ATH_BCBUF	1		/* number of beacon buffers */
+#define ATH_BCBUF	4		/* number of beacon buffers */
+#define ATH5K_TXQ_LEN_MAX	(ATH_TXBUF / 4)		/* bufs per queue */
+#define ATH5K_TXQ_LEN_LOW	(ATH5K_TXQ_LEN_MAX / 2)	/* low mark */
 
 struct ath5k_buf {
 	struct list_head	list;
@@ -83,6 +85,9 @@ struct ath5k_txq {
 	struct list_head	q;	/* transmit queue */
 	spinlock_t		lock;	/* lock on q and link */
 	bool			setup;
+	int			txq_len; /* number of queued buffers */
+	bool			txq_poll_mark;
+	unsigned int		txq_stuck;	/* informational counter */
 };
 
 #define ATH5K_LED_MAX_NAME_LEN 31
@@ -116,6 +121,13 @@ struct ath5k_statistics {
 	/* frame errors */
 	unsigned int rx_all_count;	/* all RX frames, including errors */
 	unsigned int tx_all_count;	/* all TX frames, including errors */
+	unsigned int rx_bytes_count;	/* all RX bytes, including errored pks
+					 * and the MAC headers for each packet
+					 */
+	unsigned int tx_bytes_count;	/* all TX bytes, including errored pkts
+					 * and the MAC headers and padding for
+					 * each packet.
+					 */
 	unsigned int rxerr_crc;
 	unsigned int rxerr_phy;
 	unsigned int rxerr_phy_code[32];
@@ -145,6 +157,14 @@ struct ath5k_statistics {
 #else
 #define ATH_CHAN_MAX	(14+14+14+252+20)
 #endif
+
+struct ath5k_vif {
+	bool			assoc; /* are we associated or not */
+	enum nl80211_iftype	opmode;
+	int			bslot;
+	struct ath5k_buf	*bbuf; /* beacon buffer */
+	u8			lladdr[ETH_ALEN];
+};
 
 /* Software Carrier, keeps track of the driver state
  * associated with an instance of a device */
@@ -182,10 +202,11 @@ struct ath5k_softc {
 	unsigned int		curmode;	/* current phy mode */
 	struct ieee80211_channel *curchan;	/* current h/w channel */
 
-	struct ieee80211_vif *vif;
+	u16			nvifs;
 
 	enum ath5k_int		imask;		/* interrupt mask copy */
 
+	u8			lladdr[ETH_ALEN];
 	u8			bssidmask[ETH_ALEN];
 
 	unsigned int		led_pin,	/* GPIO pin for driving LED */
@@ -204,7 +225,6 @@ struct ath5k_softc {
 	spinlock_t		txbuflock;
 	unsigned int		txbuf_len;	/* buf count in txbuf list */
 	struct ath5k_txq	txqs[AR5K_NUM_TX_QUEUES];	/* tx queues */
-	struct ath5k_txq	*txq;		/* main tx queue */
 	struct tasklet_struct	txtq;		/* tx intr tasklet */
 	struct ath5k_led	tx_led;		/* tx led */
 
@@ -214,7 +234,10 @@ struct ath5k_softc {
 
 	spinlock_t		block;		/* protects beacon */
 	struct tasklet_struct	beacontq;	/* beacon intr tasklet */
-	struct ath5k_buf	*bbuf;		/* beacon buffer */
+	struct list_head	bcbuf;		/* beacon buffer */
+	struct ieee80211_vif	*bslot[ATH_BCBUF];
+	u16			num_ap_vifs;
+	u16			num_adhoc_vifs;
 	unsigned int		bhalq,		/* SW q for outgoing beacons */
 				bmisscount,	/* missed beacon transmits */
 				bintval,	/* beacon interval in TU */
@@ -230,6 +253,8 @@ struct ath5k_softc {
 
 	struct ath5k_ani_state	ani_state;
 	struct tasklet_struct	ani_tasklet;	/* ANI calibration */
+
+	struct delayed_work	tx_complete_work;
 };
 
 #define ath5k_hw_hasbssidmask(_ah) \

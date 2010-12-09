@@ -232,7 +232,7 @@ static struct resource isp1362_hcd_resources[] = {
 	},{
 		.start = IRQ_PF11,
 		.end   = IRQ_PF11,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
 

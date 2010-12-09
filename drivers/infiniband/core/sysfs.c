@@ -222,6 +222,19 @@ static ssize_t phys_state_show(struct ib_port *p, struct port_attribute *unused,
 	}
 }
 
+static ssize_t link_layer_show(struct ib_port *p, struct port_attribute *unused,
+			       char *buf)
+{
+	switch (rdma_port_get_link_layer(p->ibdev, p->port_num)) {
+	case IB_LINK_LAYER_INFINIBAND:
+		return sprintf(buf, "%s\n", "InfiniBand");
+	case IB_LINK_LAYER_ETHERNET:
+		return sprintf(buf, "%s\n", "Ethernet");
+	default:
+		return sprintf(buf, "%s\n", "Unknown");
+	}
+}
+
 static PORT_ATTR_RO(state);
 static PORT_ATTR_RO(lid);
 static PORT_ATTR_RO(lid_mask_count);
@@ -230,6 +243,7 @@ static PORT_ATTR_RO(sm_sl);
 static PORT_ATTR_RO(cap_mask);
 static PORT_ATTR_RO(rate);
 static PORT_ATTR_RO(phys_state);
+static PORT_ATTR_RO(link_layer);
 
 static struct attribute *port_default_attrs[] = {
 	&port_attr_state.attr,
@@ -240,6 +254,7 @@ static struct attribute *port_default_attrs[] = {
 	&port_attr_cap_mask.attr,
 	&port_attr_rate.attr,
 	&port_attr_phys_state.attr,
+	&port_attr_link_layer.attr,
 	NULL
 };
 

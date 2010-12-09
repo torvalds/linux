@@ -27,7 +27,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
@@ -67,6 +67,8 @@
 #define JSF_NPART	 3	/* 3 minors per flash device */
 #define JSF_PART_BITS	 2	/* 2 bits of minors to cover JSF_NPART */
 #define JSF_PART_MASK	 0x3	/* 2 bits mask */
+
+static DEFINE_MUTEX(jsf_mutex);
 
 /*
  * Access functions.
@@ -225,7 +227,7 @@ static loff_t jsf_lseek(struct file * file, loff_t offset, int orig)
 {
 	loff_t ret;
 
-	lock_kernel();
+	mutex_lock(&jsf_mutex);
 	switch (orig) {
 		case 0:
 			file->f_pos = offset;
@@ -238,7 +240,7 @@ static loff_t jsf_lseek(struct file * file, loff_t offset, int orig)
 		default:
 			ret = -EINVAL;
 	}
-	unlock_kernel();
+	mutex_unlock(&jsf_mutex);
 	return ret;
 }
 
@@ -384,18 +386,18 @@ static int jsf_ioctl_program(void __user *arg)
 
 static long jsf_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 {
-	lock_kernel();
+	mutex_lock(&jsf_mutex);
 	int error = -ENOTTY;
 	void __user *argp = (void __user *)arg;
 
 	if (!capable(CAP_SYS_ADMIN)) {
-		unlock_kernel();
+		mutex_unlock(&jsf_mutex);
 		return -EPERM;
 	}
 	switch (cmd) {
 	case JSFLASH_IDENT:
 		if (copy_to_user(argp, &jsf0.id, JSFIDSZ)) {
-			unlock_kernel();
+			mutex_unlock(&jsf_mutex);
 			return -EFAULT;
 		}
 		break;
@@ -407,7 +409,7 @@ static long jsf_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
-	unlock_kernel();
+	mutex_unlock(&jsf_mutex);
 	return error;
 }
 
@@ -418,17 +420,17 @@ static int jsf_mmap(struct file * file, struct vm_area_struct * vma)
 
 static int jsf_open(struct inode * inode, struct file * filp)
 {
-	lock_kernel();
+	mutex_lock(&jsf_mutex);
 	if (jsf0.base == 0) {
-		unlock_kernel();
+		mutex_unlock(&jsf_mutex);
 		return -ENXIO;
 	}
 	if (test_and_set_bit(0, (void *)&jsf0.busy) != 0) {
-		unlock_kernel();
+		mutex_unlock(&jsf_mutex);
 		return -EBUSY;
 	}
 
-	unlock_kernel();
+	mutex_unlock(&jsf_mutex);
 	return 0;	/* XXX What security? */
 }
 
@@ -459,7 +461,7 @@ static int jsflash_init(void)
 {
 	int rc;
 	struct jsflash *jsf;
-	int node;
+	phandle node;
 	char banner[128];
 	struct linux_prom_registers reg0;
 

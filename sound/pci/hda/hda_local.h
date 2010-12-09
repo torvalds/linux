@@ -38,10 +38,11 @@
  */
 #define HDA_COMPOSE_AMP_VAL_OFS(nid,chs,idx,dir,ofs)		\
 	((nid) | ((chs)<<16) | ((dir)<<18) | ((idx)<<19) | ((ofs)<<23))
+#define HDA_AMP_VAL_MIN_MUTE (1<<29)
 #define HDA_COMPOSE_AMP_VAL(nid,chs,idx,dir) \
 	HDA_COMPOSE_AMP_VAL_OFS(nid, chs, idx, dir, 0)
 /* mono volume with index (index=0,1,...) (channel=1,2) */
-#define HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
+#define HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, channel, xindex, dir, flags) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx,  \
 	  .subdevice = HDA_SUBDEV_AMP_FLAG, \
 	  .access = SNDRV_CTL_ELEM_ACCESS_READWRITE | \
@@ -51,16 +52,20 @@
 	  .get = snd_hda_mixer_amp_volume_get, \
 	  .put = snd_hda_mixer_amp_volume_put, \
 	  .tlv = { .c = snd_hda_mixer_amp_tlv },		\
-	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, xindex, direction) }
+	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, xindex, dir) | flags }
 /* stereo volume with index */
 #define HDA_CODEC_VOLUME_IDX(xname, xcidx, nid, xindex, direction) \
-	HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, 3, xindex, direction)
+	HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, 3, xindex, direction, 0)
 /* mono volume */
 #define HDA_CODEC_VOLUME_MONO(xname, nid, channel, xindex, direction) \
-	HDA_CODEC_VOLUME_MONO_IDX(xname, 0, nid, channel, xindex, direction)
+	HDA_CODEC_VOLUME_MONO_IDX(xname, 0, nid, channel, xindex, direction, 0)
 /* stereo volume */
 #define HDA_CODEC_VOLUME(xname, nid, xindex, direction) \
 	HDA_CODEC_VOLUME_MONO(xname, nid, 3, xindex, direction)
+/* stereo volume with min=mute */
+#define HDA_CODEC_VOLUME_MIN_MUTE(xname, nid, xindex, direction) \
+	HDA_CODEC_VOLUME_MONO_IDX(xname, 0, nid, 3, xindex, direction, \
+				  HDA_AMP_VAL_MIN_MUTE)
 /* mono mute switch with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_MUTE_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx, \
@@ -215,7 +220,7 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid);
  */
 #define HDA_MAX_NUM_INPUTS	16
 struct hda_input_mux_item {
-	const char *label;
+	char label[32];
 	unsigned int index;
 };
 struct hda_input_mux {
@@ -366,9 +371,7 @@ struct hda_bus_unsolicited {
 
 enum {
 	AUTO_PIN_MIC,
-	AUTO_PIN_FRONT_MIC,
-	AUTO_PIN_LINE,
-	AUTO_PIN_FRONT_LINE,
+	AUTO_PIN_LINE_IN,
 	AUTO_PIN_CD,
 	AUTO_PIN_AUX,
 	AUTO_PIN_LAST
@@ -380,9 +383,33 @@ enum {
 	AUTO_PIN_HP_OUT
 };
 
-extern const char *auto_pin_cfg_labels[AUTO_PIN_LAST];
-
 #define AUTO_CFG_MAX_OUTS	5
+#define AUTO_CFG_MAX_INS	8
+
+struct auto_pin_cfg_item {
+	hda_nid_t pin;
+	int type;
+};
+
+struct auto_pin_cfg;
+const char *hda_get_input_pin_label(struct hda_codec *codec, hda_nid_t pin,
+				    int check_location);
+const char *hda_get_autocfg_input_label(struct hda_codec *codec,
+					const struct auto_pin_cfg *cfg,
+					int input);
+int snd_hda_add_imux_item(struct hda_input_mux *imux, const char *label,
+			  int index, int *type_index_ret);
+
+enum {
+	INPUT_PIN_ATTR_UNUSED,	/* pin not connected */
+	INPUT_PIN_ATTR_INT,	/* internal mic/line-in */
+	INPUT_PIN_ATTR_DOCK,	/* docking mic/line-in */
+	INPUT_PIN_ATTR_NORMAL,	/* mic/line-in jack */
+	INPUT_PIN_ATTR_FRONT,	/* mic/line-in jack in front */
+	INPUT_PIN_ATTR_REAR,	/* mic/line-in jack in rear */
+};
+
+int snd_hda_get_input_pin_attr(unsigned int def_conf);
 
 struct auto_pin_cfg {
 	int line_outs;
@@ -393,7 +420,8 @@ struct auto_pin_cfg {
 	int hp_outs;
 	int line_out_type;	/* AUTO_PIN_XXX_OUT */
 	hda_nid_t hp_pins[AUTO_CFG_MAX_OUTS];
-	hda_nid_t input_pins[AUTO_PIN_LAST];
+	int num_inputs;
+	struct auto_pin_cfg_item inputs[AUTO_CFG_MAX_INS];
 	int dig_outs;
 	hda_nid_t dig_out_pins[2];
 	hda_nid_t dig_in_pin;
@@ -558,6 +586,7 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 #define get_amp_direction(kc)	(((kc)->private_value >> 18) & 0x1)
 #define get_amp_index(kc)	(((kc)->private_value >> 19) & 0xf)
 #define get_amp_offset(kc)	(((kc)->private_value >> 23) & 0x3f)
+#define get_amp_min_mute(kc)	(((kc)->private_value >> 29) & 0x1)
 
 /*
  * CEA Short Audio Descriptor data

@@ -38,8 +38,6 @@
  * Tx descriptors that can be associated with each corresponding FIFO.
  * intr_type: This defines the type of interrupt. The values can be 0(INTA),
  *     2(MSI_X). Default value is '2(MSI_X)'
- * lro: Specifies whether to enable Large Receive Offload (LRO) or not.
- *     Possible values '1' for enable '0' for disable. Default is '0'
  * lro_max_pkts: This parameter defines maximum number of packets can be
  *     aggregated as a single large packet
  * napi: This parameter used to enable/disable NAPI (polling Rx)
@@ -90,7 +88,7 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "2.0.26.26"
+#define DRV_VERSION "2.0.26.27"
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
@@ -496,8 +494,6 @@ S2IO_PARM_INT(rxsync_frequency, 3);
 /* Interrupt type. Values can be 0(INTA), 2(MSI_X) */
 S2IO_PARM_INT(intr_type, 2);
 /* Large receive offload feature */
-static unsigned int lro_enable = 1;
-module_param_named(lro, lro_enable, uint, 0);
 
 /* Max pkts to be aggregated by LRO at one time. If not specified,
  * aggregation happens until we hit max IP pkt size(64K)
@@ -4105,7 +4101,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	queue = 0;
-	if (sp->vlgrp && vlan_tx_tag_present(skb))
+	if (vlan_tx_tag_present(skb))
 		vlan_tag = vlan_tx_tag_get(skb);
 	if (sp->config.tx_steering_type == TX_DEFAULT_STEERING) {
 		if (skb->protocol == htons(ETH_P_IP)) {
@@ -5124,8 +5120,6 @@ static void s2io_set_multicast(struct net_device *dev)
 		/* Create the new Rx filter list and update the same in H/W. */
 		i = 0;
 		netdev_for_each_mc_addr(ha, dev) {
-			memcpy(sp->usr_addrs[i].addr, ha->addr,
-			       ETH_ALEN);
 			mac_addr = 0;
 			for (j = 0; j < ETH_ALEN; j++) {
 				mac_addr |= ha->addr[j];
@@ -6735,13 +6729,10 @@ static int s2io_ethtool_set_flags(struct net_device *dev, u32 data)
 		return -EINVAL;
 
 	if (data & ETH_FLAG_LRO) {
-		if (lro_enable) {
-			if (!(dev->features & NETIF_F_LRO)) {
-				dev->features |= NETIF_F_LRO;
-				changed = 1;
-			}
-		} else
-			rc = -EINVAL;
+		if (!(dev->features & NETIF_F_LRO)) {
+			dev->features |= NETIF_F_LRO;
+			changed = 1;
+		}
 	} else if (dev->features & NETIF_F_LRO) {
 		dev->features &= ~NETIF_F_LRO;
 		changed = 1;
@@ -6750,7 +6741,6 @@ static int s2io_ethtool_set_flags(struct net_device *dev, u32 data)
 	if (changed && netif_running(dev)) {
 		s2io_stop_all_tx_queue(sp);
 		s2io_card_down(sp);
-		sp->lro = !!(dev->features & NETIF_F_LRO);
 		rc = s2io_card_up(sp);
 		if (rc)
 			s2io_reset(sp);
@@ -7307,7 +7297,7 @@ static int s2io_card_up(struct s2io_nic *sp)
 		struct ring_info *ring = &mac_control->rings[i];
 
 		ring->mtu = dev->mtu;
-		ring->lro = sp->lro;
+		ring->lro = !!(dev->features & NETIF_F_LRO);
 		ret = fill_rx_buffers(sp, ring, 1);
 		if (ret) {
 			DBG_PRINT(ERR_DBG, "%s: Out of memory in Open\n",
@@ -7341,7 +7331,7 @@ static int s2io_card_up(struct s2io_nic *sp)
 	/* Setting its receive mode */
 	s2io_set_multicast(dev);
 
-	if (sp->lro) {
+	if (dev->features & NETIF_F_LRO) {
 		/* Initialize max aggregatable pkts per session based on MTU */
 		sp->lro_max_aggr_per_sess = ((1<<16) - 1) / dev->mtu;
 		/* Check if we can use (if specified) user provided value */
@@ -7613,10 +7603,10 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 			 * Packet with erroneous checksum, let the
 			 * upper layers deal with it.
 			 */
-			skb->ip_summed = CHECKSUM_NONE;
+			skb_checksum_none_assert(skb);
 		}
 	} else
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 
 	swstats->mem_freed += skb->truesize;
 send_up:
@@ -7911,7 +7901,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	else
 		sp->device_type = XFRAME_I_DEVICE;
 
-	sp->lro = lro_enable;
 
 	/* Initialize some PCI/PCI-X fields of the NIC. */
 	s2io_init_pci(sp);
@@ -8047,8 +8036,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	dev->netdev_ops = &s2io_netdev_ops;
 	SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	if (lro_enable)
-		dev->features |= NETIF_F_LRO;
+	dev->features |= NETIF_F_LRO;
 	dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
 	if (sp->high_dma_flag == true)
 		dev->features |= NETIF_F_HIGHDMA;
@@ -8283,9 +8271,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 			  dev->name);
 	}
 
-	if (sp->lro)
-		DBG_PRINT(ERR_DBG, "%s: Large receive offload enabled\n",
-			  dev->name);
+	DBG_PRINT(ERR_DBG, "%s: Large receive offload enabled\n",
+		  dev->name);
 	if (ufo)
 		DBG_PRINT(ERR_DBG,
 			  "%s: UDP Fragmentation Offload(UFO) enabled\n",

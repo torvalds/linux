@@ -59,7 +59,7 @@
 #define cpu_has_veic		0
 #define cpu_hwrena_impl_bits	0xc0000000
 
-#define kernel_uses_smartmips_rixi (cpu_data[0].cputype == CPU_CAVIUM_OCTEON_PLUS)
+#define kernel_uses_smartmips_rixi (cpu_data[0].cputype != CPU_CAVIUM_OCTEON)
 
 #define ARCH_HAS_IRQ_PER_CPU	1
 #define ARCH_HAS_SPINLOCK_PREFETCH 1
@@ -80,5 +80,11 @@ static inline int octeon_has_saa(void)
 	asm volatile ("mfc0 %0, $15,0" : "=r" (id));
 	return id >= 0x000d0300;
 }
+
+/*
+ * The last 256MB are reserved for device to device mappings and the
+ * BAR1 hole.
+ */
+#define MAX_DMA32_PFN (((1ULL << 32) - (1ULL << 28)) >> PAGE_SHIFT)
 
 #endif

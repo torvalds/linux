@@ -1,7 +1,7 @@
 /*
  * driver for channel subsystem
  *
- * Copyright IBM Corp. 2002, 2009
+ * Copyright IBM Corp. 2002, 2010
  *
  * Author(s): Arnd Bergmann (arndb@de.ibm.com)
  *	      Cornelia Huck (cornelia.huck@de.ibm.com)
@@ -577,7 +577,7 @@ static int __unset_registered(struct device *dev, void *data)
 	return 0;
 }
 
-void css_schedule_eval_all_unreg(void)
+static void css_schedule_eval_all_unreg(void)
 {
 	unsigned long flags;
 	struct idset *unreg_set;
@@ -790,7 +790,6 @@ static struct notifier_block css_reboot_notifier = {
 static int css_power_event(struct notifier_block *this, unsigned long event,
 			   void *ptr)
 {
-	void *secm_area;
 	int ret, i;
 
 	switch (event) {
@@ -806,15 +805,8 @@ static int css_power_event(struct notifier_block *this, unsigned long event,
 				mutex_unlock(&css->mutex);
 				continue;
 			}
-			secm_area = (void *)get_zeroed_page(GFP_KERNEL |
-							    GFP_DMA);
-			if (secm_area) {
-				if (__chsc_do_secm(css, 0, secm_area))
-					ret = NOTIFY_BAD;
-				free_page((unsigned long)secm_area);
-			} else
+			if (__chsc_do_secm(css, 0))
 				ret = NOTIFY_BAD;
-
 			mutex_unlock(&css->mutex);
 		}
 		break;
@@ -830,15 +822,8 @@ static int css_power_event(struct notifier_block *this, unsigned long event,
 				mutex_unlock(&css->mutex);
 				continue;
 			}
-			secm_area = (void *)get_zeroed_page(GFP_KERNEL |
-							    GFP_DMA);
-			if (secm_area) {
-				if (__chsc_do_secm(css, 1, secm_area))
-					ret = NOTIFY_BAD;
-				free_page((unsigned long)secm_area);
-			} else
+			if (__chsc_do_secm(css, 1))
 				ret = NOTIFY_BAD;
-
 			mutex_unlock(&css->mutex);
 		}
 		/* search for subchannels, which appeared during hibernation */
@@ -863,14 +848,11 @@ static int __init css_bus_init(void)
 {
 	int ret, i;
 
-	ret = chsc_determine_css_characteristics();
-	if (ret == -ENOMEM)
-		goto out;
-
-	ret = chsc_alloc_sei_area();
+	ret = chsc_init();
 	if (ret)
-		goto out;
+		return ret;
 
+	chsc_determine_css_characteristics();
 	/* Try to enable MSS. */
 	ret = chsc_enable_facility(CHSC_SDA_OC_MSS);
 	if (ret)
@@ -956,9 +938,9 @@ out_unregister:
 	}
 	bus_unregister(&css_bus_type);
 out:
-	crw_unregister_handler(CRW_RSC_CSS);
-	chsc_free_sei_area();
+	crw_unregister_handler(CRW_RSC_SCH);
 	idset_free(slow_subchannel_set);
+	chsc_init_cleanup();
 	pr_alert("The CSS device driver initialization failed with "
 		 "errno=%d\n", ret);
 	return ret;
@@ -978,9 +960,9 @@ static void __init css_bus_cleanup(void)
 		device_unregister(&css->device);
 	}
 	bus_unregister(&css_bus_type);
-	crw_unregister_handler(CRW_RSC_CSS);
-	chsc_free_sei_area();
+	crw_unregister_handler(CRW_RSC_SCH);
 	idset_free(slow_subchannel_set);
+	chsc_init_cleanup();
 	isc_unregister(IO_SCH_ISC);
 }
 
@@ -1048,7 +1030,16 @@ subsys_initcall_sync(channel_subsystem_init_sync);
 
 void channel_subsystem_reinit(void)
 {
+	struct channel_path *chp;
+	struct chp_id chpid;
+
 	chsc_enable_facility(CHSC_SDA_OC_MSS);
+	chp_id_for_each(&chpid) {
+		chp = chpid_to_chp(chpid);
+		if (!chp)
+			continue;
+		chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+	}
 }
 
 #ifdef CONFIG_PROC_FS
@@ -1067,6 +1058,7 @@ static ssize_t cio_settle_write(struct file *file, const char __user *buf,
 static const struct file_operations cio_settle_proc_fops = {
 	.open = nonseekable_open,
 	.write = cio_settle_write,
+	.llseek = no_llseek,
 };
 
 static int __init cio_settle_init(void)
@@ -1199,6 +1191,7 @@ static int css_pm_restore(struct device *dev)
 	struct subchannel *sch = to_subchannel(dev);
 	struct css_driver *drv;
 
+	css_update_ssd_info(sch);
 	if (!sch->dev.driver)
 		return 0;
 	drv = to_cssdriver(sch->dev.driver);

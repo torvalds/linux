@@ -98,6 +98,16 @@ static inline struct capi_ctr *get_capi_ctr_by_nr(u16 contr)
 	return capi_controller[contr - 1];
 }
 
+static inline struct capi20_appl *__get_capi_appl_by_nr(u16 applid)
+{
+	lockdep_assert_held(&capi_controller_lock);
+
+	if (applid - 1 >= CAPI_MAXAPPL)
+		return NULL;
+
+	return capi_applications[applid - 1];
+}
+
 static inline struct capi20_appl *get_capi_appl_by_nr(u16 applid)
 {
 	if (applid - 1 >= CAPI_MAXAPPL)
@@ -185,10 +195,9 @@ static void notify_up(u32 contr)
 		ctr->state = CAPI_CTR_RUNNING;
 
 		for (applid = 1; applid <= CAPI_MAXAPPL; applid++) {
-			ap = get_capi_appl_by_nr(applid);
-			if (!ap)
-				continue;
-			register_appl(ctr, applid, &ap->rparam);
+			ap = __get_capi_appl_by_nr(applid);
+			if (ap)
+				register_appl(ctr, applid, &ap->rparam);
 		}
 
 		wake_up_interruptible_all(&ctr->state_wait_queue);
@@ -215,7 +224,7 @@ static void ctr_down(struct capi_ctr *ctr, int new_state)
 	memset(ctr->serial, 0, sizeof(ctr->serial));
 
 	for (applid = 1; applid <= CAPI_MAXAPPL; applid++) {
-		ap = get_capi_appl_by_nr(applid);
+		ap = __get_capi_appl_by_nr(applid);
 		if (ap)
 			capi_ctr_put(ctr);
 	}

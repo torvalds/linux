@@ -193,25 +193,51 @@ int tda18271_write_regs(struct dvb_frontend *fe, int idx, int len)
 	unsigned char *regs = priv->tda18271_regs;
 	unsigned char buf[TDA18271_NUM_REGS + 1];
 	struct i2c_msg msg = { .addr = priv->i2c_props.addr, .flags = 0,
-			       .buf = buf, .len = len + 1 };
-	int i, ret;
+			       .buf = buf };
+	int i, ret = 1, max;
 
 	BUG_ON((len == 0) || (idx + len > sizeof(buf)));
 
-	buf[0] = idx;
-	for (i = 1; i <= len; i++)
-		buf[i] = regs[idx - 1 + i];
+
+	switch (priv->small_i2c) {
+	case TDA18271_03_BYTE_CHUNK_INIT:
+		max = 3;
+		break;
+	case TDA18271_08_BYTE_CHUNK_INIT:
+		max = 8;
+		break;
+	case TDA18271_16_BYTE_CHUNK_INIT:
+		max = 16;
+		break;
+	case TDA18271_39_BYTE_CHUNK_INIT:
+	default:
+		max = 39;
+	}
 
 	tda18271_i2c_gate_ctrl(fe, 1);
+	while (len) {
+		if (max > len)
+			max = len;
 
-	/* write registers */
-	ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
+		buf[0] = idx;
+		for (i = 1; i <= max; i++)
+			buf[i] = regs[idx - 1 + i];
 
+		msg.len = max + 1;
+
+		/* write registers */
+		ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
+		if (ret != 1)
+			break;
+
+		idx += max;
+		len -= max;
+	}
 	tda18271_i2c_gate_ctrl(fe, 0);
 
 	if (ret != 1)
 		tda_err("ERROR: idx = 0x%x, len = %d, "
-			"i2c_transfer returned: %d\n", idx, len, ret);
+			"i2c_transfer returned: %d\n", idx, max, ret);
 
 	return (ret == 1 ? 0 : ret);
 }
@@ -326,24 +352,7 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	regs[R_EB22] = 0x48;
 	regs[R_EB23] = 0xb0;
 
-	switch (priv->small_i2c) {
-	case TDA18271_08_BYTE_CHUNK_INIT:
-		tda18271_write_regs(fe, 0x00, 0x08);
-		tda18271_write_regs(fe, 0x08, 0x08);
-		tda18271_write_regs(fe, 0x10, 0x08);
-		tda18271_write_regs(fe, 0x18, 0x08);
-		tda18271_write_regs(fe, 0x20, 0x07);
-		break;
-	case TDA18271_16_BYTE_CHUNK_INIT:
-		tda18271_write_regs(fe, 0x00, 0x10);
-		tda18271_write_regs(fe, 0x10, 0x10);
-		tda18271_write_regs(fe, 0x20, 0x07);
-		break;
-	case TDA18271_39_BYTE_CHUNK_INIT:
-	default:
-		tda18271_write_regs(fe, 0x00, TDA18271_NUM_REGS);
-		break;
-	}
+	tda18271_write_regs(fe, 0x00, TDA18271_NUM_REGS);
 
 	/* setup agc1 gain */
 	regs[R_EB17] = 0x00;

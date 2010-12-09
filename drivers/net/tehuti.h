@@ -269,7 +269,6 @@ struct bdx_priv {
 	u32 msg_enable;
 	int stats_flag;
 	struct bdx_stats hw_stats;
-	struct net_device_stats net_stats;
 	struct pci_dev *pdev;
 
 	struct pci_nic *nic;

@@ -26,15 +26,25 @@
 
 #define MESSAGE_HEADER_LEN	4
 
-static char *lbs_fw_name = "usb8388.bin";
+static char *lbs_fw_name = NULL;
 module_param_named(fw_name, lbs_fw_name, charp, 0644);
 
+MODULE_FIRMWARE("libertas/usb8388_v9.bin");
+MODULE_FIRMWARE("libertas/usb8388_v5.bin");
+MODULE_FIRMWARE("libertas/usb8388.bin");
+MODULE_FIRMWARE("libertas/usb8682.bin");
 MODULE_FIRMWARE("usb8388.bin");
+
+enum {
+	MODEL_UNKNOWN = 0x0,
+	MODEL_8388 = 0x1,
+	MODEL_8682 = 0x2
+};
 
 static struct usb_device_id if_usb_table[] = {
 	/* Enter the device signature inside */
-	{ USB_DEVICE(0x1286, 0x2001) },
-	{ USB_DEVICE(0x05a3, 0x8388) },
+	{ USB_DEVICE(0x1286, 0x2001), .driver_info = MODEL_8388 },
+	{ USB_DEVICE(0x05a3, 0x8388), .driver_info = MODEL_8388 },
 	{}	/* Terminating entry */
 };
 
@@ -66,6 +76,8 @@ static ssize_t if_usb_firmware_set(struct device *dev,
 	struct if_usb_card *cardp = priv->card;
 	int ret;
 
+	BUG_ON(buf == NULL);
+
 	ret = if_usb_prog_firmware(cardp, buf, BOOT_CMD_UPDATE_FW);
 	if (ret == 0)
 		return count;
@@ -90,6 +102,8 @@ static ssize_t if_usb_boot2_set(struct device *dev,
 	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	struct if_usb_card *cardp = priv->card;
 	int ret;
+
+	BUG_ON(buf == NULL);
 
 	ret = if_usb_prog_firmware(cardp, buf, BOOT_CMD_UPDATE_BOOT2);
 	if (ret == 0)
@@ -244,6 +258,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	init_waitqueue_head(&cardp->fw_wq);
 
 	cardp->udev = udev;
+	cardp->model = (uint32_t) id->driver_info;
 	iface_desc = intf->cur_altsetting;
 
 	lbs_deb_usbd(&udev->dev, "bcdUSB = 0x%X bDeviceClass = 0x%X"
@@ -472,11 +487,12 @@ static int if_usb_reset_device(struct if_usb_card *cardp)
  */
 static int usb_tx_block(struct if_usb_card *cardp, uint8_t *payload, uint16_t nb)
 {
-	int ret = -1;
+	int ret;
 
 	/* check if device is removed */
 	if (cardp->surprise_removed) {
 		lbs_deb_usbd(&cardp->udev->dev, "Device removed\n");
+		ret = -ENODEV;
 		goto tx_ret;
 	}
 
@@ -489,7 +505,6 @@ static int usb_tx_block(struct if_usb_card *cardp, uint8_t *payload, uint16_t nb
 
 	if ((ret = usb_submit_urb(cardp->tx_urb, GFP_ATOMIC))) {
 		lbs_deb_usbd(&cardp->udev->dev, "usb_submit_urb failed: %d\n", ret);
-		ret = -1;
 	} else {
 		lbs_deb_usb2(&cardp->udev->dev, "usb_submit_urb success\n");
 		ret = 0;
@@ -924,6 +939,38 @@ static int if_usb_prog_firmware(struct if_usb_card *cardp,
 	return ret;
 }
 
+/* table of firmware file names */
+static const struct {
+	u32 model;
+	const char *fwname;
+} fw_table[] = {
+	{ MODEL_8388, "libertas/usb8388_v9.bin" },
+	{ MODEL_8388, "libertas/usb8388_v5.bin" },
+	{ MODEL_8388, "libertas/usb8388.bin" },
+	{ MODEL_8388, "usb8388.bin" },
+	{ MODEL_8682, "libertas/usb8682.bin" }
+};
+
+static int get_fw(struct if_usb_card *cardp, const char *fwname)
+{
+	int i;
+
+	/* Try user-specified firmware first */
+	if (fwname)
+		return request_firmware(&cardp->fw, fwname, &cardp->udev->dev);
+
+	/* Otherwise search for firmware to use */
+	for (i = 0; i < ARRAY_SIZE(fw_table); i++) {
+		if (fw_table[i].model != cardp->model)
+			continue;
+		if (request_firmware(&cardp->fw, fw_table[i].fwname,
+					&cardp->udev->dev) == 0)
+			return 0;
+	}
+
+	return -ENOENT;
+}
+
 static int __if_usb_prog_firmware(struct if_usb_card *cardp,
 					const char *fwname, int cmd)
 {
@@ -933,10 +980,9 @@ static int __if_usb_prog_firmware(struct if_usb_card *cardp,
 
 	lbs_deb_enter(LBS_DEB_USB);
 
-	ret = request_firmware(&cardp->fw, fwname, &cardp->udev->dev);
-	if (ret < 0) {
-		lbs_pr_err("request_firmware() failed with %#x\n", ret);
-		lbs_pr_err("firmware %s not found\n", fwname);
+	ret = get_fw(cardp, fwname);
+	if (ret) {
+		lbs_pr_err("failed to find firmware (%d)\n", ret);
 		goto done;
 	}
 

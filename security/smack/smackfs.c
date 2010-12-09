@@ -968,6 +968,7 @@ static ssize_t smk_write_doi(struct file *file, const char __user *buf,
 static const struct file_operations smk_doi_ops = {
 	.read		= smk_read_doi,
 	.write		= smk_write_doi,
+	.llseek		= default_llseek,
 };
 
 /**
@@ -1031,6 +1032,7 @@ static ssize_t smk_write_direct(struct file *file, const char __user *buf,
 static const struct file_operations smk_direct_ops = {
 	.read		= smk_read_direct,
 	.write		= smk_write_direct,
+	.llseek		= default_llseek,
 };
 
 /**
@@ -1112,6 +1114,7 @@ static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 static const struct file_operations smk_ambient_ops = {
 	.read		= smk_read_ambient,
 	.write		= smk_write_ambient,
+	.llseek		= default_llseek,
 };
 
 /**
@@ -1191,6 +1194,7 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 static const struct file_operations smk_onlycap_ops = {
 	.read		= smk_read_onlycap,
 	.write		= smk_write_onlycap,
+	.llseek		= default_llseek,
 };
 
 /**
@@ -1255,6 +1259,7 @@ static ssize_t smk_write_logging(struct file *file, const char __user *buf,
 static const struct file_operations smk_logging_ops = {
 	.read		= smk_read_logging,
 	.write		= smk_write_logging,
+	.llseek		= default_llseek,
 };
 /**
  * smk_fill_super - fill the /smackfs superblock
@@ -1305,27 +1310,25 @@ static int smk_fill_super(struct super_block *sb, void *data, int silent)
 }
 
 /**
- * smk_get_sb - get the smackfs superblock
+ * smk_mount - get the smackfs superblock
  * @fs_type: passed along without comment
  * @flags: passed along without comment
  * @dev_name: passed along without comment
  * @data: passed along without comment
- * @mnt: passed along without comment
  *
  * Just passes everything along.
  *
  * Returns what the lower level code does.
  */
-static int smk_get_sb(struct file_system_type *fs_type,
-		      int flags, const char *dev_name, void *data,
-		      struct vfsmount *mnt)
+static struct dentry *smk_mount(struct file_system_type *fs_type,
+		      int flags, const char *dev_name, void *data)
 {
-	return get_sb_single(fs_type, flags, data, smk_fill_super, mnt);
+	return mount_single(fs_type, flags, data, smk_fill_super);
 }
 
 static struct file_system_type smk_fs_type = {
 	.name		= "smackfs",
-	.get_sb		= smk_get_sb,
+	.mount		= smk_mount,
 	.kill_sb	= kill_litter_super,
 };
 

@@ -192,13 +192,12 @@ static int i2cdev_check(struct device *dev, void *addrp)
 /* walk up mux tree */
 static int i2cdev_check_mux_parents(struct i2c_adapter *adapter, int addr)
 {
+	struct i2c_adapter *parent = i2c_parent_is_i2c_adapter(adapter);
 	int result;
 
 	result = device_for_each_child(&adapter->dev, &addr, i2cdev_check);
-
-	if (!result && i2c_parent_is_i2c_adapter(adapter))
-		result = i2cdev_check_mux_parents(
-				    to_i2c_adapter(adapter->dev.parent), addr);
+	if (!result && parent)
+		result = i2cdev_check_mux_parents(parent, addr);
 
 	return result;
 }
@@ -222,11 +221,11 @@ static int i2cdev_check_mux_children(struct device *dev, void *addrp)
    driver bound to it, as NOT busy. */
 static int i2cdev_check_addr(struct i2c_adapter *adapter, unsigned int addr)
 {
+	struct i2c_adapter *parent = i2c_parent_is_i2c_adapter(adapter);
 	int result = 0;
 
-	if (i2c_parent_is_i2c_adapter(adapter))
-		result = i2cdev_check_mux_parents(
-				    to_i2c_adapter(adapter->dev.parent), addr);
+	if (parent)
+		result = i2cdev_check_mux_parents(parent, addr);
 
 	if (!result)
 		result = device_for_each_child(&adapter->dev, &addr,

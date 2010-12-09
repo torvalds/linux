@@ -256,7 +256,7 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 		dev_priv->saveFPA1 = I915_READ(FPA1);
 		dev_priv->saveDPLL_A = I915_READ(DPLL_A);
 	}
-	if (IS_I965G(dev) && !HAS_PCH_SPLIT(dev))
+	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev))
 		dev_priv->saveDPLL_A_MD = I915_READ(DPLL_A_MD);
 	dev_priv->saveHTOTAL_A = I915_READ(HTOTAL_A);
 	dev_priv->saveHBLANK_A = I915_READ(HBLANK_A);
@@ -294,7 +294,7 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 	dev_priv->saveDSPASIZE = I915_READ(DSPASIZE);
 	dev_priv->saveDSPAPOS = I915_READ(DSPAPOS);
 	dev_priv->saveDSPAADDR = I915_READ(DSPAADDR);
-	if (IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		dev_priv->saveDSPASURF = I915_READ(DSPASURF);
 		dev_priv->saveDSPATILEOFF = I915_READ(DSPATILEOFF);
 	}
@@ -313,7 +313,7 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 		dev_priv->saveFPB1 = I915_READ(FPB1);
 		dev_priv->saveDPLL_B = I915_READ(DPLL_B);
 	}
-	if (IS_I965G(dev) && !HAS_PCH_SPLIT(dev))
+	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev))
 		dev_priv->saveDPLL_B_MD = I915_READ(DPLL_B_MD);
 	dev_priv->saveHTOTAL_B = I915_READ(HTOTAL_B);
 	dev_priv->saveHBLANK_B = I915_READ(HBLANK_B);
@@ -351,7 +351,7 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 	dev_priv->saveDSPBSIZE = I915_READ(DSPBSIZE);
 	dev_priv->saveDSPBPOS = I915_READ(DSPBPOS);
 	dev_priv->saveDSPBADDR = I915_READ(DSPBADDR);
-	if (IS_I965GM(dev) || IS_GM45(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		dev_priv->saveDSPBSURF = I915_READ(DSPBSURF);
 		dev_priv->saveDSPBTILEOFF = I915_READ(DSPBTILEOFF);
 	}
@@ -404,7 +404,7 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	I915_WRITE(dpll_a_reg, dev_priv->saveDPLL_A);
 	POSTING_READ(dpll_a_reg);
 	udelay(150);
-	if (IS_I965G(dev) && !HAS_PCH_SPLIT(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(DPLL_A_MD, dev_priv->saveDPLL_A_MD);
 		POSTING_READ(DPLL_A_MD);
 	}
@@ -448,7 +448,7 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	I915_WRITE(PIPEASRC, dev_priv->savePIPEASRC);
 	I915_WRITE(DSPAADDR, dev_priv->saveDSPAADDR);
 	I915_WRITE(DSPASTRIDE, dev_priv->saveDSPASTRIDE);
-	if (IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		I915_WRITE(DSPASURF, dev_priv->saveDSPASURF);
 		I915_WRITE(DSPATILEOFF, dev_priv->saveDSPATILEOFF);
 	}
@@ -473,7 +473,7 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	I915_WRITE(dpll_b_reg, dev_priv->saveDPLL_B);
 	POSTING_READ(dpll_b_reg);
 	udelay(150);
-	if (IS_I965G(dev) && !HAS_PCH_SPLIT(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(DPLL_B_MD, dev_priv->saveDPLL_B_MD);
 		POSTING_READ(DPLL_B_MD);
 	}
@@ -517,7 +517,7 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	I915_WRITE(PIPEBSRC, dev_priv->savePIPEBSRC);
 	I915_WRITE(DSPBADDR, dev_priv->saveDSPBADDR);
 	I915_WRITE(DSPBSTRIDE, dev_priv->saveDSPBSTRIDE);
-	if (IS_I965G(dev)) {
+	if (INTEL_INFO(dev)->gen >= 4) {
 		I915_WRITE(DSPBSURF, dev_priv->saveDSPBSURF);
 		I915_WRITE(DSPBTILEOFF, dev_priv->saveDSPBTILEOFF);
 	}
@@ -550,7 +550,7 @@ void i915_save_display(struct drm_device *dev)
 	dev_priv->saveCURBCNTR = I915_READ(CURBCNTR);
 	dev_priv->saveCURBPOS = I915_READ(CURBPOS);
 	dev_priv->saveCURBBASE = I915_READ(CURBBASE);
-	if (!IS_I9XX(dev))
+	if (IS_GEN2(dev))
 		dev_priv->saveCURSIZE = I915_READ(CURSIZE);
 
 	/* CRT state */
@@ -573,7 +573,7 @@ void i915_save_display(struct drm_device *dev)
 		dev_priv->savePFIT_PGM_RATIOS = I915_READ(PFIT_PGM_RATIOS);
 		dev_priv->saveBLC_PWM_CTL = I915_READ(BLC_PWM_CTL);
 		dev_priv->saveBLC_HIST_CTL = I915_READ(BLC_HIST_CTL);
-		if (IS_I965G(dev))
+		if (INTEL_INFO(dev)->gen >= 4)
 			dev_priv->saveBLC_PWM_CTL2 = I915_READ(BLC_PWM_CTL2);
 		if (IS_MOBILE(dev) && !IS_I830(dev))
 			dev_priv->saveLVDS = I915_READ(LVDS);
@@ -664,7 +664,7 @@ void i915_restore_display(struct drm_device *dev)
 	I915_WRITE(CURBPOS, dev_priv->saveCURBPOS);
 	I915_WRITE(CURBCNTR, dev_priv->saveCURBCNTR);
 	I915_WRITE(CURBBASE, dev_priv->saveCURBBASE);
-	if (!IS_I9XX(dev))
+	if (IS_GEN2(dev))
 		I915_WRITE(CURSIZE, dev_priv->saveCURSIZE);
 
 	/* CRT state */
@@ -674,7 +674,7 @@ void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(ADPA, dev_priv->saveADPA);
 
 	/* LVDS state */
-	if (IS_I965G(dev) && !HAS_PCH_SPLIT(dev))
+	if (INTEL_INFO(dev)->gen >= 4 && !HAS_PCH_SPLIT(dev))
 		I915_WRITE(BLC_PWM_CTL2, dev_priv->saveBLC_PWM_CTL2);
 
 	if (HAS_PCH_SPLIT(dev)) {
@@ -862,8 +862,10 @@ int i915_restore_state(struct drm_device *dev)
 	/* Clock gating state */
 	intel_init_clock_gating(dev);
 
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_SPLIT(dev)) {
 		ironlake_enable_drps(dev);
+		intel_init_emon(dev);
+	}
 
 	/* Cache mode state */
 	I915_WRITE (CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);
@@ -878,9 +880,7 @@ int i915_restore_state(struct drm_device *dev)
 	for (i = 0; i < 3; i++)
 		I915_WRITE(SWF30 + (i << 2), dev_priv->saveSWF2[i]);
 
-	/* I2C state */
-	intel_i2c_reset_gmbus(dev);
+	intel_i2c_reset(dev);
 
 	return 0;
 }
-

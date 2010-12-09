@@ -67,7 +67,8 @@ void set_pageblock_flags_group(struct page *page, unsigned long flags,
 
 #define get_pageblock_flags(page) \
 			get_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
-#define set_pageblock_flags(page) \
-			set_pageblock_flags_group(page, 0, NR_PAGEBLOCK_BITS-1)
+#define set_pageblock_flags(page, flags) \
+			set_pageblock_flags_group(page, flags,	\
+						  0, NR_PAGEBLOCK_BITS-1)
 
 #endif	/* PAGEBLOCK_FLAGS_H */

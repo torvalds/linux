@@ -80,6 +80,7 @@ int blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
 	DECLARE_COMPLETION_ONSTACK(wait);
 	char sense[SCSI_SENSE_BUFFERSIZE];
 	int err = 0;
+	unsigned long hang_check;
 
 	/*
 	 * we need an extra reference to the request, so we can look at
@@ -95,7 +96,13 @@ int blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
 
 	rq->end_io_data = &wait;
 	blk_execute_rq_nowait(q, bd_disk, rq, at_head, blk_end_sync_rq);
-	wait_for_completion(&wait);
+
+	/* Prevent hang_check timer from firing at us during very long I/O */
+	hang_check = sysctl_hung_task_timeout_secs;
+	if (hang_check)
+		while (!wait_for_completion_timeout(&wait, hang_check * (HZ/2)));
+	else
+		wait_for_completion(&wait);
 
 	if (rq->errors)
 		err = -EIO;

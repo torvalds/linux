@@ -51,7 +51,6 @@
 #include <asm/numa.h>
 #include <asm/cacheflush.h>
 #include <asm/init.h>
-#include <linux/bootmem.h>
 
 static int __init parse_direct_gbpages_off(char *arg)
 {

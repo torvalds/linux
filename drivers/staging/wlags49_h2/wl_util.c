@@ -315,42 +315,6 @@ void key_string2key( char *ks, KEY_STRCT *key )
 
 
 
-#if DBG
-/*******************************************************************************
- *	DbgHwAddr()
- *******************************************************************************
- *
- *  DESCRIPTION:
- *
- *      Convert a hardware ethernet address to a character string
- *
- *  PARAMETERS:
- *
- *      hwAddr  - an ethernet address
- *
- *  RETURNS:
- *
- *      a pointer to a string representing the ethernet address
- *
- ******************************************************************************/
-const char *DbgHwAddr(unsigned char *hwAddr)
-{
-    static char     buffer[18];
-    /*------------------------------------------------------------------------*/
-
-
-    sprintf( buffer, "%02X:%02X:%02X:%02X:%02X:%02X",
-             hwAddr[0], hwAddr[1], hwAddr[2], hwAddr[3], hwAddr[4], hwAddr[5] );
-
-    return buffer;
-} // DbgHwAddr
-/*============================================================================*/
-
-#endif /* DBG */
-
-
-
-
 /*******************************************************************************
  *	wl_has_wep()
  *******************************************************************************
@@ -1134,29 +1098,29 @@ void wl_process_probe_response( struct wl_private *lp )
             DBG_TRACE( DbgInfo, "(%s) durID       : 0x%04x.\n", lp->dev->name,
                     probe_rsp->durID );
 
-            DBG_TRACE( DbgInfo, "(%s) address1    : %s\n", lp->dev->name,
-                    DbgHwAddr( probe_rsp->address1 ));
+		DBG_TRACE(DbgInfo, "(%s) address1    : %pM\n", lp->dev->name,
+			probe_rsp->address1);
 
-            DBG_TRACE( DbgInfo, "(%s) address2    : %s\n", lp->dev->name,
-                    DbgHwAddr( probe_rsp->address2 ));
+		DBG_TRACE(DbgInfo, "(%s) address2    : %pM\n", lp->dev->name,
+			probe_rsp->address2);
 
-            DBG_TRACE( DbgInfo, "(%s) BSSID       : %s\n", lp->dev->name,
-                    DbgHwAddr( probe_rsp->BSSID ));
+		DBG_TRACE(DbgInfo, "(%s) BSSID       : %pM\n", lp->dev->name,
+			probe_rsp->BSSID);
 
             DBG_TRACE( DbgInfo, "(%s) sequence    : 0x%04x.\n", lp->dev->name,
                     probe_rsp->sequence );
 
-            DBG_TRACE( DbgInfo, "(%s) address4    : %s\n", lp->dev->name,
-                    DbgHwAddr( probe_rsp->address4 ));
+		DBG_TRACE(DbgInfo, "(%s) address4    : %pM\n", lp->dev->name,
+			probe_rsp->address4);
 
             DBG_TRACE( DbgInfo, "(%s) datalength  : 0x%04x.\n", lp->dev->name,
                     probe_rsp->dataLength );
 
-            DBG_TRACE( DbgInfo, "(%s) DA          : %s\n", lp->dev->name,
-                    DbgHwAddr( probe_rsp->DA ));
+		DBG_TRACE(DbgInfo, "(%s) DA          : %pM\n", lp->dev->name,
+			probe_rsp->DA);
 
-            DBG_TRACE( DbgInfo, "(%s) SA          : %s\n", lp->dev->name,
-                    DbgHwAddr( probe_rsp->SA ));
+		DBG_TRACE(DbgInfo, "(%s) SA          : %pM\n", lp->dev->name,
+			probe_rsp->SA);
 
 #ifdef WARP
 
@@ -1384,12 +1348,11 @@ void wl_process_assoc_status( struct wl_private *lp )
             break;
         }
 
-        DBG_TRACE( DbgInfo, "STA Address        : %s\n",
-                    DbgHwAddr( assoc_stat->staAddr ));
+	DBG_TRACE(DbgInfo, "STA Address        : %pM\n", assoc_stat->staAddr);
 
         if(( assoc_stat->assocStatus == 2 )  && ( assoc_stat->len == 8 )) {
-            DBG_TRACE( DbgInfo, "Old AP Address     : %s\n",
-                        DbgHwAddr( assoc_stat->oldApAddr ));
+		DBG_TRACE(DbgInfo, "Old AP Address     : %pM\n",
+			assoc_stat->oldApAddr);
         }
     }
 
@@ -1460,9 +1423,8 @@ void wl_process_security_status( struct wl_private *lp )
             break;
         }
 
-        DBG_TRACE( DbgInfo, "STA Address     : %s\n",
-                   DbgHwAddr( sec_stat->staAddr ));
-        DBG_TRACE( DbgInfo, "Reason          : 0x%04x \n", sec_stat->reason );
+	DBG_TRACE(DbgInfo, "STA Address     : %pM\n", sec_stat->staAddr);
+	DBG_TRACE(DbgInfo, "Reason          : 0x%04x\n", sec_stat->reason);
 
     }
 

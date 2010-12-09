@@ -745,7 +745,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 
 	err = ubi_io_read_vid_hdr(ubi, e1->pnum, vid_hdr, 0);
 	if (err && err != UBI_IO_BITFLIPS) {
-		if (err == UBI_IO_PEB_FREE) {
+		if (err == UBI_IO_FF) {
 			/*
 			 * We are trying to move PEB without a VID header. UBI
 			 * always write VID headers shortly after the PEB was
@@ -758,6 +758,16 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			 */
 			dbg_wl("PEB %d has no VID header", e1->pnum);
 			protect = 1;
+			goto out_not_moved;
+		} else if (err == UBI_IO_FF_BITFLIPS) {
+			/*
+			 * The same situation as %UBI_IO_FF, but bit-flips were
+			 * detected. It is better to schedule this PEB for
+			 * scrubbing.
+			 */
+			dbg_wl("PEB %d has no VID header but has bit-flips",
+			       e1->pnum);
+			scrubbing = 1;
 			goto out_not_moved;
 		}
 
@@ -1468,22 +1478,6 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 		ubi->lookuptbl[e->pnum] = e;
 	}
 
-	list_for_each_entry(seb, &si->corr, u.list) {
-		cond_resched();
-
-		e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
-		if (!e)
-			goto out_free;
-
-		e->pnum = seb->pnum;
-		e->ec = seb->ec;
-		ubi->lookuptbl[e->pnum] = e;
-		if (schedule_erase(ubi, e, 0)) {
-			kmem_cache_free(ubi_wl_entry_slab, e);
-			goto out_free;
-		}
-	}
-
 	ubi_rb_for_each_entry(rb1, sv, &si->volumes, rb) {
 		ubi_rb_for_each_entry(rb2, seb, &sv->root, u.rb) {
 			cond_resched();
@@ -1510,6 +1504,9 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	if (ubi->avail_pebs < WL_RESERVED_PEBS) {
 		ubi_err("no enough physical eraseblocks (%d, need %d)",
 			ubi->avail_pebs, WL_RESERVED_PEBS);
+		if (ubi->corr_peb_count)
+			ubi_err("%d PEBs are corrupted and not used",
+				ubi->corr_peb_count);
 		goto out_free;
 	}
 	ubi->avail_pebs -= WL_RESERVED_PEBS;

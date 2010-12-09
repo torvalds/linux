@@ -57,5 +57,6 @@
 
 #define DEVPTS_SUPER_MAGIC	0x1cd1
 #define SOCKFS_MAGIC		0x534F434B
+#define V9FS_MAGIC		0x01021997
 
 #endif /* __LINUX_MAGIC_H__ */

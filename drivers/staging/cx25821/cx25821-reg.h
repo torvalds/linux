@@ -163,8 +163,8 @@
 #define  FLD_VID_DST_RISC2         0x00000010
 #define  FLD_VID_SRC_RISC1         0x00000002
 #define  FLD_VID_DST_RISC1         0x00000001
-#define  FLD_VID_SRC_ERRORS		FLD_VID_SRC_OPC_ERR | FLD_VID_SRC_SYNC | FLD_VID_SRC_UF
-#define  FLD_VID_DST_ERRORS		FLD_VID_DST_OPC_ERR | FLD_VID_DST_SYNC | FLD_VID_DST_OF
+#define  FLD_VID_SRC_ERRORS		(FLD_VID_SRC_OPC_ERR | FLD_VID_SRC_SYNC | FLD_VID_SRC_UF)
+#define  FLD_VID_DST_ERRORS		(FLD_VID_DST_OPC_ERR | FLD_VID_DST_SYNC | FLD_VID_DST_OF)
 
 /* ***************************************************************************** */
 #define  AUD_A_INT_MSK             0x0400C0	/* Audio Int interrupt mask */

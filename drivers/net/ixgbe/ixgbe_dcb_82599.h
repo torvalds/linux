@@ -95,30 +95,15 @@
 
 #define IXGBE_TXPBTHRESH_DCB    0xA        /* THRESH value for DCB mode */
 
+/* SECTXMINIFG DCB */
+#define IXGBE_SECTX_DCB		0x00001F00 /* DCB TX Buffer IFG */
+
 
 /* DCB hardware-specific driver APIs */
 
 /* DCB PFC functions */
 s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw,
                                struct ixgbe_dcb_config *dcb_config);
-s32 ixgbe_dcb_get_pfc_stats_82599(struct ixgbe_hw *hw,
-                                  struct ixgbe_hw_stats *stats,
-                                  u8 tc_count);
-
-/* DCB traffic class stats */
-s32 ixgbe_dcb_config_tc_stats_82599(struct ixgbe_hw *hw);
-s32 ixgbe_dcb_get_tc_stats_82599(struct ixgbe_hw *hw,
-                                 struct ixgbe_hw_stats *stats,
-                                 u8 tc_count);
-
-/* DCB config arbiters */
-s32 ixgbe_dcb_config_tx_desc_arbiter_82599(struct ixgbe_hw *hw,
-                                           struct ixgbe_dcb_config *dcb_config);
-s32 ixgbe_dcb_config_tx_data_arbiter_82599(struct ixgbe_hw *hw,
-                                           struct ixgbe_dcb_config *dcb_config);
-s32 ixgbe_dcb_config_rx_arbiter_82599(struct ixgbe_hw *hw,
-                                      struct ixgbe_dcb_config *dcb_config);
-
 
 /* DCB hw initialization */
 s32 ixgbe_dcb_hw_config_82599(struct ixgbe_hw *hw,

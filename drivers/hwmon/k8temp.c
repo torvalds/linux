@@ -191,37 +191,30 @@ static int __devinit k8temp_probe(struct pci_dev *pdev,
 	model = boot_cpu_data.x86_model;
 	stepping = boot_cpu_data.x86_mask;
 
-	switch (boot_cpu_data.x86) {
-	case 0xf:
-		/* feature available since SH-C0, exclude older revisions */
-		if (((model == 4) && (stepping == 0)) ||
-		    ((model == 5) && (stepping <= 1))) {
-			err = -ENODEV;
-			goto exit_free;
-		}
-
-		/*
-		 * AMD NPT family 0fh, i.e. RevF and RevG:
-		 * meaning of SEL_CORE bit is inverted
-		 */
-		if (model >= 0x40) {
-			data->swap_core_select = 1;
-			dev_warn(&pdev->dev, "Temperature readouts might be "
-				 "wrong - check erratum #141\n");
-		}
-
-		if (is_rev_g_desktop(model)) {
-			/*
-			 * RevG desktop CPUs (i.e. no socket S1G1 or
-			 * ASB1 parts) need additional offset,
-			 * otherwise reported temperature is below
-			 * ambient temperature
-			 */
-			data->temp_offset = 21000;
-		}
-
-		break;
+	/* feature available since SH-C0, exclude older revisions */
+	if (((model == 4) && (stepping == 0)) ||
+	    ((model == 5) && (stepping <= 1))) {
+		err = -ENODEV;
+		goto exit_free;
 	}
+
+	/*
+	 * AMD NPT family 0fh, i.e. RevF and RevG:
+	 * meaning of SEL_CORE bit is inverted
+	 */
+	if (model >= 0x40) {
+		data->swap_core_select = 1;
+		dev_warn(&pdev->dev, "Temperature readouts might be wrong - "
+			 "check erratum #141\n");
+	}
+
+	/*
+	 * RevG desktop CPUs (i.e. no socket S1G1 or ASB1 parts) need
+	 * additional offset, otherwise reported temperature is below
+	 * ambient temperature
+	 */
+	if (is_rev_g_desktop(model))
+		data->temp_offset = 21000;
 
 	pci_read_config_byte(pdev, REG_TEMP, &scfg);
 	scfg &= ~(SEL_PLACE | SEL_CORE);		/* Select sensor 0, core0 */

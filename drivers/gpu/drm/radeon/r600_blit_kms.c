@@ -472,9 +472,10 @@ int r600_blit_init(struct radeon_device *rdev)
 	u32 packet2s[16];
 	int num_packet2s = 0;
 
-	/* don't reinitialize blit */
+	/* pin copy shader into vram if already initialized */
 	if (rdev->r600_blit.shader_obj)
-		return 0;
+		goto done;
+
 	mutex_init(&rdev->r600_blit.mutex);
 	rdev->r600_blit.state_offset = 0;
 
@@ -532,6 +533,18 @@ int r600_blit_init(struct radeon_device *rdev)
 	memcpy(ptr + rdev->r600_blit.ps_offset, r6xx_ps, r6xx_ps_size * 4);
 	radeon_bo_kunmap(rdev->r600_blit.shader_obj);
 	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+
+done:
+	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+	if (unlikely(r != 0))
+		return r;
+	r = radeon_bo_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
+			  &rdev->r600_blit.shader_gpu_addr);
+	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+	if (r) {
+		dev_err(rdev->dev, "(%d) pin blit object failed\n", r);
+		return r;
+	}
 	rdev->mc.active_vram_size = rdev->mc.real_vram_size;
 	return 0;
 }
@@ -554,7 +567,7 @@ void r600_blit_fini(struct radeon_device *rdev)
 	radeon_bo_unref(&rdev->r600_blit.shader_obj);
 }
 
-int r600_vb_ib_get(struct radeon_device *rdev)
+static int r600_vb_ib_get(struct radeon_device *rdev)
 {
 	int r;
 	r = radeon_ib_get(rdev, &rdev->r600_blit.vb_ib);
@@ -568,7 +581,7 @@ int r600_vb_ib_get(struct radeon_device *rdev)
 	return 0;
 }
 
-void r600_vb_ib_put(struct radeon_device *rdev)
+static void r600_vb_ib_put(struct radeon_device *rdev)
 {
 	radeon_fence_emit(rdev, rdev->r600_blit.vb_ib->fence);
 	radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
@@ -650,8 +663,8 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 			int src_x = src_gpu_addr & 255;
 			int dst_x = dst_gpu_addr & 255;
 			int h = 1;
-			src_gpu_addr = src_gpu_addr & ~255;
-			dst_gpu_addr = dst_gpu_addr & ~255;
+			src_gpu_addr = src_gpu_addr & ~255ULL;
+			dst_gpu_addr = dst_gpu_addr & ~255ULL;
 
 			if (!src_x && !dst_x) {
 				h = (cur_size / max_bytes);
@@ -672,17 +685,6 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 
 			if ((rdev->r600_blit.vb_used + 48) > rdev->r600_blit.vb_total) {
 				WARN_ON(1);
-
-#if 0
-				r600_vb_ib_put(rdev);
-
-				r600_nomm_put_vb(dev);
-				r600_nomm_get_vb(dev);
-				if (!dev_priv->blit_vb)
-					return;
-				set_shaders(dev);
-				vb = r600_nomm_get_vb_ptr(dev);
-#endif
 			}
 
 			vb[0] = i2f(dst_x);
@@ -744,8 +746,8 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 			int src_x = (src_gpu_addr & 255);
 			int dst_x = (dst_gpu_addr & 255);
 			int h = 1;
-			src_gpu_addr = src_gpu_addr & ~255;
-			dst_gpu_addr = dst_gpu_addr & ~255;
+			src_gpu_addr = src_gpu_addr & ~255ULL;
+			dst_gpu_addr = dst_gpu_addr & ~255ULL;
 
 			if (!src_x && !dst_x) {
 				h = (cur_size / max_bytes);
@@ -767,17 +769,6 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 			if ((rdev->r600_blit.vb_used + 48) > rdev->r600_blit.vb_total) {
 				WARN_ON(1);
 			}
-#if 0
-			if ((rdev->blit_vb->used + 48) > rdev->blit_vb->total) {
-				r600_nomm_put_vb(dev);
-				r600_nomm_get_vb(dev);
-				if (!rdev->blit_vb)
-					return;
-
-				set_shaders(dev);
-				vb = r600_nomm_get_vb_ptr(dev);
-			}
-#endif
 
 			vb[0] = i2f(dst_x / 4);
 			vb[1] = 0;

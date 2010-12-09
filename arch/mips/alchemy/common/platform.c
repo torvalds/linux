@@ -24,6 +24,33 @@
 
 #include <prom.h>
 
+static void alchemy_8250_pm(struct uart_port *port, unsigned int state,
+			    unsigned int old_state)
+{
+	switch (state) {
+	case 0:
+		if ((__raw_readl(port->membase + UART_MOD_CNTRL) & 3) != 3) {
+			/* power-on sequence as suggested in the databooks */
+			__raw_writel(0, port->membase + UART_MOD_CNTRL);
+			wmb();
+			__raw_writel(1, port->membase + UART_MOD_CNTRL);
+			wmb();
+		}
+		__raw_writel(3, port->membase + UART_MOD_CNTRL); /* full on */
+		wmb();
+		serial8250_do_pm(port, state, old_state);
+		break;
+	case 3:		/* power off */
+		serial8250_do_pm(port, state, old_state);
+		__raw_writel(0, port->membase + UART_MOD_CNTRL);
+		wmb();
+		break;
+	default:
+		serial8250_do_pm(port, state, old_state);
+		break;
+	}
+}
+
 #define PORT(_base, _irq)					\
 	{							\
 		.mapbase	= _base,			\
@@ -33,6 +60,7 @@
 		.flags		= UPF_SKIP_TEST | UPF_IOREMAP |	\
 				  UPF_FIXED_TYPE,		\
 		.type		= PORT_16550A,			\
+		.pm		= alchemy_8250_pm,		\
 	}
 
 static struct plat_serial8250_port au1x00_uart_data[] = {

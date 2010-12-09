@@ -590,6 +590,7 @@ out_unlock:
 static const struct file_operations filter_fops = {
 	.read  = filter_read,
 	.write = filter_write,
+	.llseek = default_llseek,
 };
 
 static int dma_debug_fs_init(void)

@@ -313,6 +313,7 @@ static const struct i2c_device_id wis_tw9903_id[] = {
 	{ "wis_tw9903", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, wis_tw9903_id);
 
 static struct i2c_driver wis_tw9903_driver = {
 	.driver = {

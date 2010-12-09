@@ -45,9 +45,6 @@ struct nf_nat_protocol {
 extern int nf_nat_protocol_register(const struct nf_nat_protocol *proto);
 extern void nf_nat_protocol_unregister(const struct nf_nat_protocol *proto);
 
-extern const struct nf_nat_protocol *nf_nat_proto_find_get(u_int8_t protocol);
-extern void nf_nat_proto_put(const struct nf_nat_protocol *proto);
-
 /* Built-in protocols. */
 extern const struct nf_nat_protocol nf_nat_protocol_tcp;
 extern const struct nf_nat_protocol nf_nat_protocol_udp;

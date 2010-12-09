@@ -11,9 +11,9 @@ if ARCH_S5PV210
 
 config CPU_S5PV210
 	bool
-	select PLAT_S5P
 	select S3C_PL330_DMA
 	select S5P_EXT_INT
+	select S5PV210_PM if PM
 	help
 	  Enable S5PV210 CPU support
 
@@ -58,7 +58,6 @@ menu "S5PC110 Machines"
 config MACH_AQUILA
 	bool "Aquila"
 	select CPU_S5PV210
-	select ARCH_SPARSEMEM_ENABLE
 	select S3C_DEV_FB
 	select S5P_DEV_FIMC0
 	select S5P_DEV_FIMC1
@@ -75,7 +74,7 @@ config MACH_AQUILA
 config MACH_GONI
 	bool "GONI"
 	select CPU_S5PV210
-	select ARCH_SPARSEMEM_ENABLE
+	select S5P_GPIO_INT
 	select S3C_DEV_FB
 	select S5P_DEV_FIMC0
 	select S5P_DEV_FIMC1
@@ -83,8 +82,15 @@ config MACH_GONI
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
+	select S3C_DEV_I2C1
+	select S3C_DEV_I2C2
+	select S3C_DEV_USB_HSOTG
 	select S5P_DEV_ONENAND
+	select SAMSUNG_DEV_KEYPAD
 	select S5PV210_SETUP_FB_24BPP
+	select S5PV210_SETUP_I2C1
+	select S5PV210_SETUP_I2C2
+	select S5PV210_SETUP_KEYPAD
 	select S5PV210_SETUP_SDHCI
 	help
 	  Machine support for Samsung GONI board
@@ -93,7 +99,6 @@ config MACH_GONI
 config MACH_SMDKC110
 	bool "SMDKC110"
 	select CPU_S5PV210
-	select ARCH_SPARSEMEM_ENABLE
 	select S3C_DEV_I2C1
 	select S3C_DEV_I2C2
 	select S3C_DEV_RTC
@@ -113,7 +118,6 @@ menu "S5PV210 Machines"
 config MACH_SMDKV210
 	bool "SMDKV210"
 	select CPU_S5PV210
-	select ARCH_SPARSEMEM_ENABLE
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
@@ -134,6 +138,29 @@ config MACH_SMDKV210
 	help
 	  Machine support for Samsung SMDKV210
 
+config MACH_TORBRECK
+	bool "Torbreck"
+	select CPU_S5PV210
+	select ARCH_SPARSEMEM_ENABLE
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S3C_DEV_I2C1
+	select S3C_DEV_I2C2
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S5PV210_SETUP_I2C1
+	select S5PV210_SETUP_I2C2
+	select S5PV210_SETUP_SDHCI
+	help
+	  Machine support for aESOP Torbreck
+
 endmenu
+
+config S5PV210_PM
+	bool
+	help
+	  Power Management code common to S5PV210
 
 endif

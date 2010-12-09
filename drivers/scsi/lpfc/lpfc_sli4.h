@@ -19,9 +19,15 @@
  *******************************************************************/
 
 #define LPFC_ACTIVE_MBOX_WAIT_CNT               100
+#define LPFC_XRI_EXCH_BUSY_WAIT_TMO		10000
+#define LPFC_XRI_EXCH_BUSY_WAIT_T1   		10
+#define LPFC_XRI_EXCH_BUSY_WAIT_T2              30000
 #define LPFC_RELEASE_NOTIFICATION_INTERVAL	32
 #define LPFC_GET_QE_REL_INT			32
 #define LPFC_RPI_LOW_WATER_MARK			10
+
+#define LPFC_UNREG_FCF                          1
+#define LPFC_SKIP_UNREG_FCF                     0
 
 /* Amount of time in seconds for waiting FCF rediscovery to complete */
 #define LPFC_FCF_REDISCOVER_WAIT_TMO		2000 /* msec */
@@ -163,9 +169,8 @@ struct lpfc_fcf {
 #define FCF_REDISC_PEND	0x80 /* FCF rediscovery pending */
 #define FCF_REDISC_EVT	0x100 /* FCF rediscovery event to worker thread */
 #define FCF_REDISC_FOV	0x200 /* Post FCF rediscovery fast failover */
-#define FCF_REDISC_RRU	0x400 /* Roundrobin bitmap updated */
+#define FCF_REDISC_PROG (FCF_REDISC_PEND | FCF_REDISC_EVT)
 	uint32_t addr_mode;
-	uint16_t fcf_rr_init_indx;
 	uint32_t eligible_fcf_cnt;
 	struct lpfc_fcf_rec current_rec;
 	struct lpfc_fcf_rec failover_rec;
@@ -481,7 +486,6 @@ struct lpfc_rpi_hdr {
  */
 int lpfc_pci_function_reset(struct lpfc_hba *);
 int lpfc_sli4_hba_setup(struct lpfc_hba *);
-int lpfc_sli4_hba_down(struct lpfc_hba *);
 int lpfc_sli4_config(struct lpfc_hba *, struct lpfcMboxq *, uint8_t,
 		     uint8_t, uint32_t, bool);
 void lpfc_sli4_mbox_cmd_free(struct lpfc_hba *, struct lpfcMboxq *);
@@ -514,7 +518,6 @@ int lpfc_sli4_queue_setup(struct lpfc_hba *);
 void lpfc_sli4_queue_unset(struct lpfc_hba *);
 int lpfc_sli4_post_sgl(struct lpfc_hba *, dma_addr_t, dma_addr_t, uint16_t);
 int lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *);
-int lpfc_sli4_remove_all_sgl_pages(struct lpfc_hba *);
 uint16_t lpfc_sli4_next_xritag(struct lpfc_hba *);
 int lpfc_sli4_post_async_mbox(struct lpfc_hba *);
 int lpfc_sli4_post_sgl_list(struct lpfc_hba *phba);

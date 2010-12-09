@@ -72,23 +72,6 @@ static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)
 	return netdev_priv(dev);
 }
 
-#define VLAN_GRP_HASH_SHIFT	5
-#define VLAN_GRP_HASH_SIZE	(1 << VLAN_GRP_HASH_SHIFT)
-#define VLAN_GRP_HASH_MASK	(VLAN_GRP_HASH_SIZE - 1)
-
-/*  Find a VLAN device by the MAC address of its Ethernet device, and
- *  it's VLAN ID.  The default configuration is to have VLAN's scope
- *  to be box-wide, so the MAC will be ignored.  The mac will only be
- *  looked at if we are configured to have a separate set of VLANs per
- *  each MAC addressable interface.  Note that this latter option does
- *  NOT follow the spec for VLANs, but may be useful for doing very
- *  large quantities of VLAN MUX/DEMUX onto FrameRelay or ATM PVCs.
- *
- *  Must be invoked with rcu_read_lock (ie preempt disabled)
- *  or with RTNL.
- */
-struct net_device *__find_vlan_dev(struct net_device *real_dev, u16 vlan_id);
-
 /* found in vlan_dev.c */
 int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		  struct packet_type *ptype, struct net_device *orig_dev);

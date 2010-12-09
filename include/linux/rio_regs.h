@@ -33,6 +33,7 @@
 #define  RIO_PEF_MEMORY			0x40000000	/* [I] MMIO */
 #define  RIO_PEF_PROCESSOR		0x20000000	/* [I] Processor */
 #define  RIO_PEF_SWITCH			0x10000000	/* [I] Switch */
+#define  RIO_PEF_MULTIPORT		0x08000000	/* [VI, 2.1] Multiport */
 #define  RIO_PEF_INB_MBOX		0x00f00000	/* [II] Mailboxes */
 #define  RIO_PEF_INB_MBOX0		0x00800000	/* [II] Mailbox 0 */
 #define  RIO_PEF_INB_MBOX1		0x00400000	/* [II] Mailbox 1 */
@@ -51,6 +52,7 @@
 #define  RIO_SWP_INFO_PORT_TOTAL_MASK	0x0000ff00	/* [I] Total number of ports */
 #define  RIO_SWP_INFO_PORT_NUM_MASK	0x000000ff	/* [I] Maintenance transaction port number */
 #define  RIO_GET_TOTAL_PORTS(x)		((x & RIO_SWP_INFO_PORT_TOTAL_MASK) >> 8)
+#define  RIO_GET_PORT_NUM(x)		(x & RIO_SWP_INFO_PORT_NUM_MASK)
 
 #define RIO_SRC_OPS_CAR		0x18	/* [I] Source Operations CAR */
 #define  RIO_SRC_OPS_READ		0x00008000	/* [I] Read op */
@@ -159,6 +161,7 @@
 #define RIO_COMPONENT_TAG_CSR	0x6c	/* [III] Component Tag CSR */
 
 #define RIO_STD_RTE_CONF_DESTID_SEL_CSR	0x70
+#define  RIO_STD_RTE_CONF_EXTCFGEN		0x80000000
 #define RIO_STD_RTE_CONF_PORT_SEL_CSR	0x74
 #define RIO_STD_RTE_DEFAULT_PORT	0x78
 
@@ -222,15 +225,17 @@
 #define  RIO_PORT_GEN_MASTER		0x40000000
 #define  RIO_PORT_GEN_DISCOVERED	0x20000000
 #define RIO_PORT_N_MNT_REQ_CSR(x)	(0x0040 + x*0x20)	/* 0x0002 */
+#define  RIO_MNT_REQ_CMD_RD		0x03	/* Reset-device command */
+#define  RIO_MNT_REQ_CMD_IS		0x04	/* Input-status command */
 #define RIO_PORT_N_MNT_RSP_CSR(x)	(0x0044 + x*0x20)	/* 0x0002 */
 #define  RIO_PORT_N_MNT_RSP_RVAL	0x80000000 /* Response Valid */
-#define  RIO_PORT_N_MNT_RSP_ASTAT	0x000003e0 /* ackID Status */
+#define  RIO_PORT_N_MNT_RSP_ASTAT	0x000007e0 /* ackID Status */
 #define  RIO_PORT_N_MNT_RSP_LSTAT	0x0000001f /* Link Status */
 #define RIO_PORT_N_ACK_STS_CSR(x)	(0x0048 + x*0x20)	/* 0x0002 */
 #define  RIO_PORT_N_ACK_CLEAR		0x80000000
-#define  RIO_PORT_N_ACK_INBOUND		0x1f000000
-#define  RIO_PORT_N_ACK_OUTSTAND	0x00001f00
-#define  RIO_PORT_N_ACK_OUTBOUND	0x0000001f
+#define  RIO_PORT_N_ACK_INBOUND		0x3f000000
+#define  RIO_PORT_N_ACK_OUTSTAND	0x00003f00
+#define  RIO_PORT_N_ACK_OUTBOUND	0x0000003f
 #define RIO_PORT_N_ERR_STS_CSR(x)	(0x0058 + x*0x20)
 #define  RIO_PORT_N_ERR_STS_PW_OUT_ES	0x00010000 /* Output Error-stopped */
 #define  RIO_PORT_N_ERR_STS_PW_INP_ES	0x00000100 /* Input Error-stopped */
@@ -238,7 +243,6 @@
 #define  RIO_PORT_N_ERR_STS_PORT_ERR	0x00000004
 #define  RIO_PORT_N_ERR_STS_PORT_OK	0x00000002
 #define  RIO_PORT_N_ERR_STS_PORT_UNINIT	0x00000001
-#define  RIO_PORT_N_ERR_STS_CLR_MASK	0x07120204
 #define RIO_PORT_N_CTL_CSR(x)		(0x005c + x*0x20)
 #define  RIO_PORT_N_CTL_PWIDTH		0xc0000000
 #define  RIO_PORT_N_CTL_PWIDTH_1	0x00000000
@@ -261,6 +265,10 @@
 #define RIO_EM_EFB_HEADER	0x000	/* Error Management Extensions Block Header */
 #define RIO_EM_LTL_ERR_DETECT	0x008	/* Logical/Transport Layer Error Detect CSR */
 #define RIO_EM_LTL_ERR_EN	0x00c	/* Logical/Transport Layer Error Enable CSR */
+#define  REM_LTL_ERR_ILLTRAN		0x08000000 /* Illegal Transaction decode */
+#define  REM_LTL_ERR_UNSOLR		0x00800000 /* Unsolicited Response */
+#define  REM_LTL_ERR_UNSUPTR		0x00400000 /* Unsupported Transaction */
+#define  REM_LTL_ERR_IMPSPEC		0x000000ff /* Implementation Specific */
 #define RIO_EM_LTL_HIADDR_CAP	0x010	/* Logical/Transport Layer High Address Capture CSR */
 #define RIO_EM_LTL_ADDR_CAP	0x014	/* Logical/Transport Layer Address Capture CSR */
 #define RIO_EM_LTL_DEVID_CAP	0x018	/* Logical/Transport Layer Device ID Capture CSR */

@@ -86,40 +86,6 @@ out:
 	return ret;
 }
 
-int wl1271_acx_fw_version(struct wl1271 *wl, char *buf, size_t len)
-{
-	struct acx_revision *rev;
-	int ret;
-
-	wl1271_debug(DEBUG_ACX, "acx fw rev");
-
-	rev = kzalloc(sizeof(*rev), GFP_KERNEL);
-	if (!rev) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = wl1271_cmd_interrogate(wl, ACX_FW_REV, rev, sizeof(*rev));
-	if (ret < 0) {
-		wl1271_warning("ACX_FW_REV interrogate failed");
-		goto out;
-	}
-
-	/* be careful with the buffer sizes */
-	strncpy(buf, rev->fw_version, min(len, sizeof(rev->fw_version)));
-
-	/*
-	 * if the firmware version string is exactly
-	 * sizeof(rev->fw_version) long or fw_len is less than
-	 * sizeof(rev->fw_version) it won't be null terminated
-	 */
-	buf[min(len, sizeof(rev->fw_version)) - 1] = '\0';
-
-out:
-	kfree(rev);
-	return ret;
-}
-
 int wl1271_acx_tx_power(struct wl1271 *wl, int power)
 {
 	struct acx_current_tx_power *acx;
@@ -269,7 +235,7 @@ int wl1271_acx_pd_threshold(struct wl1271 *wl)
 
 out:
 	kfree(pd);
-	return 0;
+	return ret;
 }
 
 int wl1271_acx_slot(struct wl1271 *wl, enum acx_slot_type slot_time)

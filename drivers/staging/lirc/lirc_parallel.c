@@ -24,10 +24,6 @@
 
 /*** Includes ***/
 
-#ifdef CONFIG_SMP
-#error "--- Sorry, this driver is not SMP safe. ---"
-#endif
-
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
@@ -40,7 +36,6 @@
 #include <linux/delay.h>
 
 #include <linux/io.h>
-#include <linux/signal.h>
 #include <linux/irq.h>
 #include <linux/uaccess.h>
 #include <asm/div64.h>
@@ -301,9 +296,9 @@ static void irq_handler(void *blah)
 
 	if (signal != 0) {
 		/* ajust value to usecs */
-		unsigned long long helper;
+		__u64 helper;
 
-		helper = ((unsigned long long) signal)*1000000;
+		helper = ((__u64) signal)*1000000;
 		do_div(helper, timer);
 		signal = (long) helper;
 
@@ -404,9 +399,9 @@ static ssize_t lirc_write(struct file *filep, const char *buf, size_t n,
 
 	/* adjust values from usecs */
 	for (i = 0; i < count; i++) {
-		unsigned long long helper;
+		__u64 helper;
 
-		helper = ((unsigned long long) wbuf[i])*timer;
+		helper = ((__u64) wbuf[i])*timer;
 		do_div(helper, 1000000);
 		wbuf[i] = (int) helper;
 	}
@@ -464,48 +459,48 @@ static unsigned int lirc_poll(struct file *file, poll_table *wait)
 static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	int result;
-	unsigned long features = LIRC_CAN_SET_TRANSMITTER_MASK |
-				 LIRC_CAN_SEND_PULSE | LIRC_CAN_REC_MODE2;
-	unsigned long mode;
-	unsigned int ivalue;
+	__u32 features = LIRC_CAN_SET_TRANSMITTER_MASK |
+			 LIRC_CAN_SEND_PULSE | LIRC_CAN_REC_MODE2;
+	__u32 mode;
+	__u32 value;
 
 	switch (cmd) {
 	case LIRC_GET_FEATURES:
-		result = put_user(features, (unsigned long *) arg);
+		result = put_user(features, (__u32 *) arg);
 		if (result)
 			return result;
 		break;
 	case LIRC_GET_SEND_MODE:
-		result = put_user(LIRC_MODE_PULSE, (unsigned long *) arg);
+		result = put_user(LIRC_MODE_PULSE, (__u32 *) arg);
 		if (result)
 			return result;
 		break;
 	case LIRC_GET_REC_MODE:
-		result = put_user(LIRC_MODE_MODE2, (unsigned long *) arg);
+		result = put_user(LIRC_MODE_MODE2, (__u32 *) arg);
 		if (result)
 			return result;
 		break;
 	case LIRC_SET_SEND_MODE:
-		result = get_user(mode, (unsigned long *) arg);
+		result = get_user(mode, (__u32 *) arg);
 		if (result)
 			return result;
 		if (mode != LIRC_MODE_PULSE)
 			return -EINVAL;
 		break;
 	case LIRC_SET_REC_MODE:
-		result = get_user(mode, (unsigned long *) arg);
+		result = get_user(mode, (__u32 *) arg);
 		if (result)
 			return result;
 		if (mode != LIRC_MODE_MODE2)
 			return -ENOSYS;
 		break;
 	case LIRC_SET_TRANSMITTER_MASK:
-		result = get_user(ivalue, (unsigned int *) arg);
+		result = get_user(value, (__u32 *) arg);
 		if (result)
 			return result;
-		if ((ivalue & LIRC_PARALLEL_TRANSMITTER_MASK) != ivalue)
+		if ((value & LIRC_PARALLEL_TRANSMITTER_MASK) != value)
 			return LIRC_PARALLEL_MAX_TRANSMITTERS;
-		tx_mask = ivalue;
+		tx_mask = value;
 		break;
 	default:
 		return -ENOIOCTLCMD;
@@ -546,6 +541,9 @@ static const struct file_operations lirc_fops = {
 	.write		= lirc_write,
 	.poll		= lirc_poll,
 	.unlocked_ioctl	= lirc_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= lirc_ioctl,
+#endif
 	.open		= lirc_open,
 	.release	= lirc_close
 };
@@ -575,28 +573,6 @@ static struct lirc_driver driver = {
 
 static int pf(void *handle);
 static void kf(void *handle);
-
-static struct timer_list poll_timer;
-static void poll_state(unsigned long ignored);
-
-static void poll_state(unsigned long ignored)
-{
-	printk(KERN_NOTICE "%s: time\n",
-	       LIRC_DRIVER_NAME);
-	del_timer(&poll_timer);
-	if (is_claimed)
-		return;
-	kf(NULL);
-	if (!is_claimed) {
-		printk(KERN_NOTICE "%s: could not claim port, giving up\n",
-		       LIRC_DRIVER_NAME);
-		init_timer(&poll_timer);
-		poll_timer.expires = jiffies + HZ;
-		poll_timer.data = (unsigned long)current;
-		poll_timer.function = poll_state;
-		add_timer(&poll_timer);
-	}
-}
 
 static int pf(void *handle)
 {

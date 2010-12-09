@@ -765,28 +765,11 @@ static size_t vmw_dmabuf_acc_size(struct ttm_bo_global *glob,
 	return bo_user_size + page_array_size;
 }
 
-void vmw_dmabuf_gmr_unbind(struct ttm_buffer_object *bo)
-{
-	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
-	struct ttm_bo_global *glob = bo->glob;
-	struct vmw_private *dev_priv =
-		container_of(bo->bdev, struct vmw_private, bdev);
-
-	if (vmw_bo->gmr_bound) {
-		vmw_gmr_unbind(dev_priv, vmw_bo->gmr_id);
-		spin_lock(&glob->lru_lock);
-		ida_remove(&dev_priv->gmr_ida, vmw_bo->gmr_id);
-		spin_unlock(&glob->lru_lock);
-		vmw_bo->gmr_bound = false;
-	}
-}
-
 void vmw_dmabuf_bo_free(struct ttm_buffer_object *bo)
 {
 	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
 	struct ttm_bo_global *glob = bo->glob;
 
-	vmw_dmabuf_gmr_unbind(bo);
 	ttm_mem_global_free(glob->mem_glob, bo->acc_size);
 	kfree(vmw_bo);
 }
@@ -818,10 +801,7 @@ int vmw_dmabuf_init(struct vmw_private *dev_priv,
 
 	memset(vmw_bo, 0, sizeof(*vmw_bo));
 
-	INIT_LIST_HEAD(&vmw_bo->gmr_lru);
 	INIT_LIST_HEAD(&vmw_bo->validate_list);
-	vmw_bo->gmr_id = 0;
-	vmw_bo->gmr_bound = false;
 
 	ret = ttm_bo_init(bdev, &vmw_bo->base, size,
 			  ttm_bo_type_device, placement,
@@ -835,7 +815,6 @@ static void vmw_user_dmabuf_destroy(struct ttm_buffer_object *bo)
 	struct vmw_user_dma_buffer *vmw_user_bo = vmw_user_dma_buffer(bo);
 	struct ttm_bo_global *glob = bo->glob;
 
-	vmw_dmabuf_gmr_unbind(bo);
 	ttm_mem_global_free(glob->mem_glob, bo->acc_size);
 	kfree(vmw_user_bo);
 }
@@ -938,25 +917,6 @@ void vmw_dmabuf_validate_clear(struct ttm_buffer_object *bo)
 	vmw_bo->on_validate_list = false;
 }
 
-uint32_t vmw_dmabuf_gmr(struct ttm_buffer_object *bo)
-{
-	struct vmw_dma_buffer *vmw_bo;
-
-	if (bo->mem.mem_type == TTM_PL_VRAM)
-		return SVGA_GMR_FRAMEBUFFER;
-
-	vmw_bo = vmw_dma_buffer(bo);
-
-	return (vmw_bo->gmr_bound) ? vmw_bo->gmr_id : SVGA_GMR_NULL;
-}
-
-void vmw_dmabuf_set_gmr(struct ttm_buffer_object *bo, uint32_t id)
-{
-	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
-	vmw_bo->gmr_bound = true;
-	vmw_bo->gmr_id = id;
-}
-
 int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
 			   uint32_t handle, struct vmw_dma_buffer **out)
 {
@@ -982,41 +942,6 @@ int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
 	ttm_base_object_unref(&base);
 	*out = &vmw_user_bo->dma;
 
-	return 0;
-}
-
-/**
- * TODO: Implement a gmr id eviction mechanism. Currently we just fail
- * when we're out of ids, causing GMR space to be allocated
- * out of VRAM.
- */
-
-int vmw_gmr_id_alloc(struct vmw_private *dev_priv, uint32_t *p_id)
-{
-	struct ttm_bo_global *glob = dev_priv->bdev.glob;
-	int id;
-	int ret;
-
-	do {
-		if (unlikely(ida_pre_get(&dev_priv->gmr_ida, GFP_KERNEL) == 0))
-			return -ENOMEM;
-
-		spin_lock(&glob->lru_lock);
-		ret = ida_get_new(&dev_priv->gmr_ida, &id);
-		spin_unlock(&glob->lru_lock);
-	} while (ret == -EAGAIN);
-
-	if (unlikely(ret != 0))
-		return ret;
-
-	if (unlikely(id >= dev_priv->max_gmr_ids)) {
-		spin_lock(&glob->lru_lock);
-		ida_remove(&dev_priv->gmr_ida, id);
-		spin_unlock(&glob->lru_lock);
-		return -EBUSY;
-	}
-
-	*p_id = (uint32_t) id;
 	return 0;
 }
 

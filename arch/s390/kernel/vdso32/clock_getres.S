@@ -19,9 +19,9 @@
 	.type  __kernel_clock_getres,@function
 __kernel_clock_getres:
 	.cfi_startproc
-	chi	%r2,CLOCK_REALTIME
+	chi	%r2,__CLOCK_REALTIME
 	je	0f
-	chi	%r2,CLOCK_MONOTONIC
+	chi	%r2,__CLOCK_MONOTONIC
 	jne	3f
 0:	ltr	%r3,%r3
 	jz	2f				/* res == NULL */
@@ -34,6 +34,6 @@ __kernel_clock_getres:
 3:	lhi	%r1,__NR_clock_getres		/* fallback to svc */
 	svc	0
 	br	%r14
-4:	.long	CLOCK_REALTIME_RES
+4:	.long	__CLOCK_REALTIME_RES
 	.cfi_endproc
 	.size	__kernel_clock_getres,.-__kernel_clock_getres

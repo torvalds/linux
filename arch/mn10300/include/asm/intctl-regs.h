@@ -15,24 +15,19 @@
 
 #ifdef __KERNEL__
 
-/* interrupt controller registers */
-#define GxICR(X)		__SYSREG(0xd4000000 + (X) * 4, u16)	/* group irq ctrl regs */
+/*
+ * Interrupt controller registers
+ * - Registers 64-191 are at addresses offset from the main array
+ */
+#define GxICR(X)						\
+	__SYSREG(0xd4000000 + (X) * 4 +				\
+		 (((X) >= 64) && ((X) < 192)) * 0xf00, u16)
 
-#define IAGR			__SYSREG(0xd4000100, u16)	/* intr acceptance group reg */
-#define IAGR_GN			0x00fc		/* group number register
-						 * (documentation _has_ to be wrong)
-						 */
+#define GxICR_u8(X)							\
+	__SYSREG(0xd4000000 + (X) * 4 +					\
+		 (((X) >= 64) && ((X) < 192)) * 0xf00, u8)
 
-#define EXTMD			__SYSREG(0xd4000200, u16)	/* external pin intr spec reg */
-#define GET_XIRQ_TRIGGER(X) ((EXTMD >> ((X) * 2)) & 3)
-
-#define SET_XIRQ_TRIGGER(X,Y)			\
-do {						\
-	u16 x = EXTMD;				\
-	x &= ~(3 << ((X) * 2));			\
-	x |= ((Y) & 3) << ((X) * 2);		\
-	EXTMD = x;				\
-} while (0)
+#include <proc/intctl-regs.h>
 
 #define XIRQ_TRIGGER_LOWLEVEL	0
 #define XIRQ_TRIGGER_HILEVEL	1
@@ -59,10 +54,18 @@ do {						\
 #define GxICR_LEVEL_5		0x5000		/* - level 5 */
 #define GxICR_LEVEL_6		0x6000		/* - level 6 */
 #define GxICR_LEVEL_SHIFT	12
+#define GxICR_NMI		0x8000		/* nmi request flag */
+
+#define NUM2GxICR_LEVEL(num)	((num) << GxICR_LEVEL_SHIFT)
 
 #ifndef __ASSEMBLY__
 extern void set_intr_level(int irq, u16 level);
-extern void set_intr_postackable(int irq);
+extern void mn10300_intc_set_level(unsigned int irq, unsigned int level);
+extern void mn10300_intc_clear(unsigned int irq);
+extern void mn10300_intc_set(unsigned int irq);
+extern void mn10300_intc_enable(unsigned int irq);
+extern void mn10300_intc_disable(unsigned int irq);
+extern void mn10300_set_lateack_irq_type(int irq);
 #endif
 
 /* external interrupts */

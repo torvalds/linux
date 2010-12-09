@@ -66,7 +66,7 @@ static void __init octeon_uart_set_common(struct plat_serial8250_port *p)
 		/* Make simulator output fast*/
 		p->uartclk = 115200 * 16;
 	else
-		p->uartclk = mips_hpt_frequency;
+		p->uartclk = octeon_get_io_clock_rate();
 	p->serial_in = octeon_serial_in;
 	p->serial_out = octeon_serial_out;
 }

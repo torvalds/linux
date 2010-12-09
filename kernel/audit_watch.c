@@ -60,7 +60,7 @@ struct audit_parent {
 };
 
 /* fsnotify handle. */
-struct fsnotify_group *audit_watch_group;
+static struct fsnotify_group *audit_watch_group;
 
 /* fsnotify events we care about. */
 #define AUDIT_FS_WATCH (FS_MOVE | FS_CREATE | FS_DELETE | FS_DELETE_SELF |\
@@ -123,7 +123,7 @@ void audit_put_watch(struct audit_watch *watch)
 	}
 }
 
-void audit_remove_watch(struct audit_watch *watch)
+static void audit_remove_watch(struct audit_watch *watch)
 {
 	list_del(&watch->wlist);
 	audit_put_parent(watch->parent);

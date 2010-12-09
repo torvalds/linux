@@ -1071,8 +1071,7 @@ void wl_multicast( struct net_device *dev )
         DBG_PRINT( "  mc_count: %d\n", netdev_mc_count(dev));
 
 	netdev_for_each_mc_addr(ha, dev)
-            DBG_PRINT("    %s (%d)\n", DbgHwAddr(ha->addr),
-		      dev->addr_len);
+	DBG_PRINT("    %pM (%d)\n", ha->addr, dev->addr_len);
     }
 #endif /* DBG */
 
@@ -1586,7 +1585,7 @@ void wl_wds_device_dealloc( struct wl_private *lp )
                 dev_wds->flags &= ~( IFF_UP | IFF_RUNNING );
             }
 
-            kfree( dev_wds );
+            free_netdev(dev_wds);
             lp->wds_port[count].dev = NULL;
         }
     }

@@ -1132,18 +1132,6 @@ u8 _rx_iq_calibration_loop_winbond(struct hw_data *phw_data, u16 factor, u32 fre
 	PHY_DEBUG(("[CAL] -> [5]_rx_iq_calibration_loop()\n"));
 	PHY_DEBUG(("[CAL] ** factor = %d\n", factor));
 
-
-/* RF Control Override */
-	hw_get_cxx_reg(phw_data, 0x80, &val);
-	val |= BIT(19);
-	hw_set_cxx_reg(phw_data, 0x80, val);
-
-/* RF_Ctrl */
-	hw_get_cxx_reg(phw_data, 0xE4, &val);
-	val |= BIT(0);
-	hw_set_cxx_reg(phw_data, 0xE4, val);
-	PHY_DEBUG(("[CAL] ** RF_CTRL(0xE4) = 0x%08X", val));
-
 	hw_set_dxx_reg(phw_data, 0x58, 0x44444444); /* IQ_Alpha */
 
 	/* b. */
@@ -1461,12 +1449,7 @@ void phy_calibration_winbond(struct hw_data *phw_data, u32 frequency)
 
 	PHY_DEBUG(("[CAL] -> phy_calibration_winbond()\n"));
 
-	/* 20040701 1.1.25.1000 kevin */
-	hw_get_cxx_reg(phw_data, 0x80, &mac_ctrl);
-	hw_get_cxx_reg(phw_data, 0xE4, &rf_ctrl);
 	hw_get_dxx_reg(phw_data, 0x58, &iq_alpha);
-
-
 
 	_rxadc_dc_offset_cancellation_winbond(phw_data, frequency);
 	/* _txidac_dc_offset_cancellation_winbond(phw_data); */
@@ -1482,10 +1465,7 @@ void phy_calibration_winbond(struct hw_data *phw_data, u32 frequency)
 	PHY_DEBUG(("[CAL]    MODE_CTRL (write) = 0x%08X\n", reg_mode_ctrl));
 
 	/* i. Set RFIC to "Normal mode" */
-	hw_set_cxx_reg(phw_data, 0x80, mac_ctrl);
-	hw_set_cxx_reg(phw_data, 0xE4, rf_ctrl);
 	hw_set_dxx_reg(phw_data, 0x58, iq_alpha);
-
 
 	/*********************************************************************/
 	phy_init_rf(phw_data);

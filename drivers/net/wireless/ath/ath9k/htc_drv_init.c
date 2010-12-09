@@ -41,6 +41,8 @@ MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
 	.max_power = 20, \
 }
 
+#define ATH_HTC_BTCOEX_PRODUCT_ID "wb193"
+
 static struct ieee80211_channel ath9k_2ghz_channels[] = {
 	CHAN2G(2412, 0), /* Channel 1 */
 	CHAN2G(2417, 1), /* Channel 2 */
@@ -378,15 +380,6 @@ static void ath9k_enable_regwrite_buffer(void *hw_priv)
 	atomic_inc(&priv->wmi->mwrite_cnt);
 }
 
-static void ath9k_disable_regwrite_buffer(void *hw_priv)
-{
-	struct ath_hw *ah = (struct ath_hw *) hw_priv;
-	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
-
-	atomic_dec(&priv->wmi->mwrite_cnt);
-}
-
 static void ath9k_regwrite_flush(void *hw_priv)
 {
 	struct ath_hw *ah = (struct ath_hw *) hw_priv;
@@ -394,6 +387,8 @@ static void ath9k_regwrite_flush(void *hw_priv)
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
 	u32 rsp_status;
 	int r;
+
+	atomic_dec(&priv->wmi->mwrite_cnt);
 
 	mutex_lock(&priv->wmi->multi_write_mutex);
 
@@ -418,7 +413,6 @@ static const struct ath_ops ath9k_common_ops = {
 	.read = ath9k_regread,
 	.write = ath9k_regwrite,
 	.enable_write_buffer = ath9k_enable_regwrite_buffer,
-	.disable_write_buffer = ath9k_disable_regwrite_buffer,
 	.write_flush = ath9k_regwrite_flush,
 };
 
@@ -559,17 +553,20 @@ static void ath9k_init_crypto(struct ath9k_htc_priv *priv)
 		common->keymax = ATH_KEYMAX;
 	}
 
+	if (priv->ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA)
+		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
+
 	/*
 	 * Reset the key cache since some parts do not
 	 * reset the contents on initial power up.
 	 */
 	for (i = 0; i < common->keymax; i++)
-		ath9k_hw_keyreset(priv->ah, (u16) i);
+		ath_hw_keyreset(common, (u16) i);
 }
 
 static void ath9k_init_channels_rates(struct ath9k_htc_priv *priv)
 {
-	if (test_bit(ATH9K_MODE_11G, priv->ah->caps.wireless_modes)) {
+	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ) {
 		priv->sbands[IEEE80211_BAND_2GHZ].channels =
 			ath9k_2ghz_channels;
 		priv->sbands[IEEE80211_BAND_2GHZ].band = IEEE80211_BAND_2GHZ;
@@ -580,7 +577,7 @@ static void ath9k_init_channels_rates(struct ath9k_htc_priv *priv)
 			ARRAY_SIZE(ath9k_legacy_rates);
 	}
 
-	if (test_bit(ATH9K_MODE_11A, priv->ah->caps.wireless_modes)) {
+	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ) {
 		priv->sbands[IEEE80211_BAND_5GHZ].channels = ath9k_5ghz_channels;
 		priv->sbands[IEEE80211_BAND_5GHZ].band = IEEE80211_BAND_5GHZ;
 		priv->sbands[IEEE80211_BAND_5GHZ].n_channels =
@@ -599,13 +596,36 @@ static void ath9k_init_misc(struct ath9k_htc_priv *priv)
 	common->tx_chainmask = priv->ah->caps.tx_chainmask;
 	common->rx_chainmask = priv->ah->caps.rx_chainmask;
 
-	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
+	memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
 
 	priv->ah->opmode = NL80211_IFTYPE_STATION;
 }
 
-static int ath9k_init_priv(struct ath9k_htc_priv *priv, u16 devid)
+static void ath9k_init_btcoex(struct ath9k_htc_priv *priv)
+{
+	int qnum;
+
+	switch (priv->ah->btcoex_hw.scheme) {
+	case ATH_BTCOEX_CFG_NONE:
+		break;
+	case ATH_BTCOEX_CFG_3WIRE:
+		priv->ah->btcoex_hw.btactive_gpio = 7;
+		priv->ah->btcoex_hw.btpriority_gpio = 6;
+		priv->ah->btcoex_hw.wlanactive_gpio = 8;
+		priv->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
+		ath9k_hw_btcoex_init_3wire(priv->ah);
+		ath_htc_init_btcoex_work(priv);
+		qnum = priv->hwq_map[WME_AC_BE];
+		ath9k_hw_init_btcoex_hw(priv->ah, qnum);
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+}
+
+static int ath9k_init_priv(struct ath9k_htc_priv *priv,
+			   u16 devid, char *product)
 {
 	struct ath_hw *ah = NULL;
 	struct ath_common *common;
@@ -672,6 +692,11 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv, u16 devid)
 	ath9k_init_channels_rates(priv);
 	ath9k_init_misc(priv);
 
+	if (product && strncmp(product, ATH_HTC_BTCOEX_PRODUCT_ID, 5) == 0) {
+		ah->btcoex_hw.scheme = ATH_BTCOEX_CFG_3WIRE;
+		ath9k_init_btcoex(priv);
+	}
+
 	return 0;
 
 err_queues:
@@ -715,18 +740,18 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 	hw->extra_tx_headroom = sizeof(struct tx_frame_hdr) +
 		sizeof(struct htc_frame_hdr) + 4;
 
-	if (test_bit(ATH9K_MODE_11G, priv->ah->caps.wireless_modes))
+	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 			&priv->sbands[IEEE80211_BAND_2GHZ];
-	if (test_bit(ATH9K_MODE_11A, priv->ah->caps.wireless_modes))
+	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&priv->sbands[IEEE80211_BAND_5GHZ];
 
 	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
-		if (test_bit(ATH9K_MODE_11G, priv->ah->caps.wireless_modes))
+		if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
 			setup_ht_cap(priv,
 				     &priv->sbands[IEEE80211_BAND_2GHZ].ht_cap);
-		if (test_bit(ATH9K_MODE_11A, priv->ah->caps.wireless_modes))
+		if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
 			setup_ht_cap(priv,
 				     &priv->sbands[IEEE80211_BAND_5GHZ].ht_cap);
 	}
@@ -734,7 +759,8 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
 }
 
-static int ath9k_init_device(struct ath9k_htc_priv *priv, u16 devid)
+static int ath9k_init_device(struct ath9k_htc_priv *priv,
+			     u16 devid, char *product)
 {
 	struct ieee80211_hw *hw = priv->hw;
 	struct ath_common *common;
@@ -743,7 +769,7 @@ static int ath9k_init_device(struct ath9k_htc_priv *priv, u16 devid)
 	struct ath_regulatory *reg;
 
 	/* Bring up device */
-	error = ath9k_init_priv(priv, devid);
+	error = ath9k_init_priv(priv, devid, product);
 	if (error != 0)
 		goto err_init;
 
@@ -801,7 +827,7 @@ err_init:
 }
 
 int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
-			   u16 devid)
+			   u16 devid, char *product)
 {
 	struct ieee80211_hw *hw;
 	struct ath9k_htc_priv *priv;
@@ -835,7 +861,7 @@ int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
 	/* The device may have been unplugged earlier. */
 	priv->op_flags &= ~OP_UNPLUGGED;
 
-	ret = ath9k_init_device(priv, devid);
+	ret = ath9k_init_device(priv, devid, product);
 	if (ret)
 		goto err_init;
 

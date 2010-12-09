@@ -25,6 +25,8 @@
 #include <linux/time.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/platform_device.h>
+#include <linux/ramoops.h>
 
 #define RAMOOPS_KERNMSG_HDR "===="
 #define RAMOOPS_HEADER_SIZE   (5 + sizeof(struct timeval))
@@ -91,10 +93,16 @@ static void ramoops_do_dump(struct kmsg_dumper *dumper,
 	cxt->count = (cxt->count + 1) % cxt->max_count;
 }
 
-static int __init ramoops_init(void)
+static int __init ramoops_probe(struct platform_device *pdev)
 {
+	struct ramoops_platform_data *pdata = pdev->dev.platform_data;
 	struct ramoops_context *cxt = &oops_cxt;
 	int err = -EINVAL;
+
+	if (pdata) {
+		mem_size = pdata->mem_size;
+		mem_address = pdata->mem_address;
+	}
 
 	if (!mem_size) {
 		printk(KERN_ERR "ramoops: invalid size specification");
@@ -142,7 +150,7 @@ fail3:
 	return err;
 }
 
-static void __exit ramoops_exit(void)
+static int __exit ramoops_remove(struct platform_device *pdev)
 {
 	struct ramoops_context *cxt = &oops_cxt;
 
@@ -151,8 +159,26 @@ static void __exit ramoops_exit(void)
 
 	iounmap(cxt->virt_addr);
 	release_mem_region(cxt->phys_addr, cxt->size);
+	return 0;
 }
 
+static struct platform_driver ramoops_driver = {
+	.remove		= __exit_p(ramoops_remove),
+	.driver		= {
+		.name	= "ramoops",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static int __init ramoops_init(void)
+{
+	return platform_driver_probe(&ramoops_driver, ramoops_probe);
+}
+
+static void __exit ramoops_exit(void)
+{
+	platform_driver_unregister(&ramoops_driver);
+}
 
 module_init(ramoops_init);
 module_exit(ramoops_exit);

@@ -2917,7 +2917,7 @@ static int __init amd64_edac_init(void)
 
 	opstate_init();
 
-	if (cache_k8_northbridges() < 0)
+	if (amd_cache_northbridges() < 0)
 		goto err_ret;
 
 	msrs = msrs_alloc();
@@ -2934,7 +2934,7 @@ static int __init amd64_edac_init(void)
 	 * to finish initialization of the MC instances.
 	 */
 	err = -ENODEV;
-	for (nb = 0; nb < k8_northbridges.num; nb++) {
+	for (nb = 0; nb < amd_nb_num(); nb++) {
 		if (!pvt_lookup[nb])
 			continue;
 

@@ -49,8 +49,8 @@ static struct i2c_board_info nv04_tv_encoder_info[] = {
 
 int nv04_tv_identify(struct drm_device *dev, int i2c_index)
 {
-	return nouveau_i2c_identify(dev, "TV encoder",
-				    nv04_tv_encoder_info, i2c_index);
+	return nouveau_i2c_identify(dev, "TV encoder", nv04_tv_encoder_info,
+				    NULL, i2c_index);
 }
 
 
@@ -99,12 +99,10 @@ static void nv04_tv_bind(struct drm_device *dev, int head, bool bind)
 
 	state->tv_setup = 0;
 
-	if (bind) {
-		state->CRTC[NV_CIO_CRE_LCD__INDEX] = 0;
+	if (bind)
 		state->CRTC[NV_CIO_CRE_49] |= 0x10;
-	} else {
+	else
 		state->CRTC[NV_CIO_CRE_49] &= ~0x10;
-	}
 
 	NVWriteVgaCrtc(dev, head, NV_CIO_CRE_LCD__INDEX,
 		       state->CRTC[NV_CIO_CRE_LCD__INDEX]);

@@ -57,24 +57,7 @@ static struct hv_device *gDevice; /* vmbus root device */
  */
 static void VmbusGetChannelOffers(void)
 {
-	VmbusChannelRequestOffers();
-}
-
-/*
- * VmbusGetChannelInterface - Get the channel interface
- */
-static void VmbusGetChannelInterface(struct vmbus_channel_interface *Interface)
-{
-	GetChannelInterface(Interface);
-}
-
-/*
- * VmbusGetChannelInfo - Get the device info for the specified device object
- */
-static void VmbusGetChannelInfo(struct hv_device *DeviceObject,
-				struct hv_device_info *DeviceInfo)
-{
-	GetChannelInfo(DeviceObject, DeviceInfo);
+	vmbus_request_offers();
 }
 
 /*
@@ -82,12 +65,12 @@ static void VmbusGetChannelInfo(struct hv_device *DeviceObject,
  */
 struct hv_device *VmbusChildDeviceCreate(struct hv_guid *DeviceType,
 					 struct hv_guid *DeviceInstance,
-					 void *Context)
+					 struct vmbus_channel *channel)
 {
 	struct vmbus_driver *vmbusDriver = (struct vmbus_driver *)gDriver;
 
 	return vmbusDriver->OnChildDeviceCreate(DeviceType, DeviceInstance,
-						Context);
+						channel);
 }
 
 /*
@@ -142,7 +125,7 @@ static int VmbusOnDeviceRemove(struct hv_device *dev)
 {
 	int ret = 0;
 
-	VmbusChannelReleaseUnattachedChannels();
+	vmbus_release_unattached_channels();
 	VmbusDisconnect();
 	on_each_cpu(HvSynicCleanup, NULL, 1);
 	return ret;
@@ -179,7 +162,7 @@ static void VmbusOnMsgDPC(struct hv_driver *drv)
 				continue;
 
 			osd_schedule_callback(gVmbusConnection.WorkQueue,
-					      VmbusOnChannelMessage,
+					      vmbus_onmessage,
 					      (void *)copied);
 		}
 
@@ -263,10 +246,10 @@ int VmbusInitialize(struct hv_driver *drv)
 			VMBUS_REVISION_NUMBER);
 	DPRINT_INFO(VMBUS, "+++++++ Vmbus using SINT %d +++++++",
 			VMBUS_MESSAGE_SINT);
-	DPRINT_DBG(VMBUS, "sizeof(VMBUS_CHANNEL_PACKET_PAGE_BUFFER)=%zd, "
+	DPRINT_DBG(VMBUS, "sizeof(vmbus_channel_packet_page_buffer)=%zd, "
 			"sizeof(VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER)=%zd",
-			sizeof(struct VMBUS_CHANNEL_PACKET_PAGE_BUFFER),
-			sizeof(struct VMBUS_CHANNEL_PACKET_MULITPAGE_BUFFER));
+			sizeof(struct vmbus_channel_packet_page_buffer),
+			sizeof(struct vmbus_channel_packet_multipage_buffer));
 
 	drv->name = gDriverName;
 	memcpy(&drv->deviceType, &gVmbusDeviceType, sizeof(struct hv_guid));
@@ -279,8 +262,6 @@ int VmbusInitialize(struct hv_driver *drv)
 	driver->OnMsgDpc		= VmbusOnMsgDPC;
 	driver->OnEventDpc		= VmbusOnEventDPC;
 	driver->GetChannelOffers	= VmbusGetChannelOffers;
-	driver->GetChannelInterface	= VmbusGetChannelInterface;
-	driver->GetChannelInfo		= VmbusGetChannelInfo;
 
 	/* Hypervisor initialization...setup hypercall page..etc */
 	ret = HvInit();

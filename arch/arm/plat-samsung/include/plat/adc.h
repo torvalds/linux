@@ -1,7 +1,7 @@
 /* arch/arm/plat-samsung/include/plat/adc.h
  *
  * Copyright (c) 2008 Simtec Electronics
- *	http://armlinux.simnte.co.uk/
+ *	http://armlinux.simtec.co.uk/	
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C ADC driver information

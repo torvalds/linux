@@ -27,8 +27,8 @@
   *    * 32 transfer descriptors (called ETDs)
   *    * 4Kb of Data memory
   *
-  * The data memory is shared between the host and fuction controlers
-  * (but this driver only supports the host controler)
+  * The data memory is shared between the host and function controllers
+  * (but this driver only supports the host controller)
   *
   * So setting up a transfer involves:
   *    * Allocating a ETD
@@ -57,6 +57,7 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/dma-mapping.h>
 
 #include "imx21-hcd.h"
 
@@ -136,8 +137,17 @@ static int imx21_hc_get_frame(struct usb_hcd *hcd)
 	return wrap_frame(readl(imx21->regs + USBH_FRMNUB));
 }
 
+static inline bool unsuitable_for_dma(dma_addr_t addr)
+{
+	return (addr & 3) != 0;
+}
 
 #include "imx21-dbg.c"
+
+static void nonisoc_urb_completed_for_etd(
+	struct imx21 *imx21, struct etd_priv *etd, int status);
+static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb);
+static void free_dmem(struct imx21 *imx21, struct etd_priv *etd);
 
 /* =========================================== */
 /* ETD management				*/
@@ -185,7 +195,8 @@ static void reset_etd(struct imx21 *imx21, int num)
 		etd_writel(imx21, num, i, 0);
 	etd->urb = NULL;
 	etd->ep = NULL;
-	etd->td = NULL;;
+	etd->td = NULL;
+	etd->bounce_buffer = NULL;
 }
 
 static void free_etd(struct imx21 *imx21, int num)
@@ -221,26 +232,94 @@ static void setup_etd_dword0(struct imx21 *imx21,
 		((u32) maxpacket << DW0_MAXPKTSIZ));
 }
 
-static void activate_etd(struct imx21 *imx21,
-	int etd_num, dma_addr_t dma, u8 dir)
+/**
+ * Copy buffer to data controller data memory.
+ * We cannot use memcpy_toio() because the hardware requires 32bit writes
+ */
+static void copy_to_dmem(
+	struct imx21 *imx21, int dmem_offset, void *src, int count)
+{
+	void __iomem *dmem = imx21->regs + USBOTG_DMEM + dmem_offset;
+	u32 word = 0;
+	u8 *p = src;
+	int byte = 0;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		byte = i % 4;
+		word += (*p++ << (byte * 8));
+		if (byte == 3) {
+			writel(word, dmem);
+			dmem += 4;
+			word = 0;
+		}
+	}
+
+	if (count && byte != 3)
+		writel(word, dmem);
+}
+
+static void activate_etd(struct imx21 *imx21, int etd_num, u8 dir)
 {
 	u32 etd_mask = 1 << etd_num;
 	struct etd_priv *etd = &imx21->etd[etd_num];
+
+	if (etd->dma_handle && unsuitable_for_dma(etd->dma_handle)) {
+		/* For non aligned isoc the condition below is always true */
+		if (etd->len <= etd->dmem_size) {
+			/* Fits into data memory, use PIO */
+			if (dir != TD_DIR_IN) {
+				copy_to_dmem(imx21,
+						etd->dmem_offset,
+						etd->cpu_buffer, etd->len);
+			}
+			etd->dma_handle = 0;
+
+		} else {
+			/* Too big for data memory, use bounce buffer */
+			enum dma_data_direction dmadir;
+
+			if (dir == TD_DIR_IN) {
+				dmadir = DMA_FROM_DEVICE;
+				etd->bounce_buffer = kmalloc(etd->len,
+								GFP_ATOMIC);
+			} else {
+				dmadir = DMA_TO_DEVICE;
+				etd->bounce_buffer = kmemdup(etd->cpu_buffer,
+								etd->len,
+								GFP_ATOMIC);
+			}
+			if (!etd->bounce_buffer) {
+				dev_err(imx21->dev, "failed bounce alloc\n");
+				goto err_bounce_alloc;
+			}
+
+			etd->dma_handle =
+				dma_map_single(imx21->dev,
+						etd->bounce_buffer,
+						etd->len,
+						dmadir);
+			if (dma_mapping_error(imx21->dev, etd->dma_handle)) {
+				dev_err(imx21->dev, "failed bounce map\n");
+				goto err_bounce_map;
+			}
+		}
+	}
 
 	clear_toggle_bit(imx21, USBH_ETDDONESTAT, etd_mask);
 	set_register_bits(imx21, USBH_ETDDONEEN, etd_mask);
 	clear_toggle_bit(imx21, USBH_XFILLSTAT, etd_mask);
 	clear_toggle_bit(imx21, USBH_YFILLSTAT, etd_mask);
 
-	if (dma) {
+	if (etd->dma_handle) {
 		set_register_bits(imx21, USB_ETDDMACHANLCLR, etd_mask);
 		clear_toggle_bit(imx21, USBH_XBUFSTAT, etd_mask);
 		clear_toggle_bit(imx21, USBH_YBUFSTAT, etd_mask);
-		writel(dma, imx21->regs + USB_ETDSMSA(etd_num));
+		writel(etd->dma_handle, imx21->regs + USB_ETDSMSA(etd_num));
 		set_register_bits(imx21, USB_ETDDMAEN, etd_mask);
 	} else {
 		if (dir != TD_DIR_IN) {
-			/* need to set for ZLP */
+			/* need to set for ZLP and PIO */
 			set_toggle_bit(imx21, USBH_XFILLSTAT, etd_mask);
 			set_toggle_bit(imx21, USBH_YFILLSTAT, etd_mask);
 		}
@@ -263,6 +342,14 @@ static void activate_etd(struct imx21 *imx21,
 
 	etd->active_count = 1;
 	writel(etd_mask, imx21->regs + USBH_ETDENSET);
+	return;
+
+err_bounce_map:
+	kfree(etd->bounce_buffer);
+
+err_bounce_alloc:
+	free_dmem(imx21, etd);
+	nonisoc_urb_completed_for_etd(imx21, etd, -ENOMEM);
 }
 
 /* ===========================================	*/
@@ -323,16 +410,23 @@ static void activate_queued_etd(struct imx21 *imx21,
 	etd_writel(imx21, etd_num, 1,
 	    ((dmem_offset + maxpacket) << DW1_YBUFSRTAD) | dmem_offset);
 
+	etd->dmem_offset = dmem_offset;
 	urb_priv->active = 1;
-	activate_etd(imx21, etd_num, etd->dma_handle, dir);
+	activate_etd(imx21, etd_num, dir);
 }
 
-static void free_dmem(struct imx21 *imx21, int offset)
+static void free_dmem(struct imx21 *imx21, struct etd_priv *etd)
 {
 	struct imx21_dmem_area *area;
-	struct etd_priv *etd, *tmp;
+	struct etd_priv *tmp;
 	int found = 0;
+	int offset;
 
+	if (!etd->dmem_size)
+		return;
+	etd->dmem_size = 0;
+
+	offset = etd->dmem_offset;
 	list_for_each_entry(area, &imx21->dmem_list, list) {
 		if (area->offset == offset) {
 			debug_dmem_freed(imx21, area->size);
@@ -378,20 +472,23 @@ static void free_epdmem(struct imx21 *imx21, struct usb_host_endpoint *ep)
 /* ===========================================	*/
 /* End handling 				*/
 /* ===========================================	*/
-static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb);
 
 /* Endpoint now idle - release it's ETD(s) or asssign to queued request */
 static void ep_idle(struct imx21 *imx21, struct ep_priv *ep_priv)
 {
-	int etd_num;
 	int i;
 
 	for (i = 0; i < NUM_ISO_ETDS; i++) {
-		etd_num = ep_priv->etd[i];
+		int etd_num = ep_priv->etd[i];
+		struct etd_priv *etd;
 		if (etd_num < 0)
 			continue;
 
+		etd = &imx21->etd[etd_num];
 		ep_priv->etd[i] = -1;
+
+		free_dmem(imx21, etd); /* for isoc */
+
 		if (list_empty(&imx21->queue_for_etd)) {
 			free_etd(imx21, etd_num);
 			continue;
@@ -436,6 +533,24 @@ __acquires(imx21->lock)
 	if (list_empty(&ep_priv->ep->urb_list))
 		ep_idle(imx21, ep_priv);
 }
+
+static void nonisoc_urb_completed_for_etd(
+	struct imx21 *imx21, struct etd_priv *etd, int status)
+{
+	struct usb_host_endpoint *ep = etd->ep;
+
+	urb_done(imx21->hcd, etd->urb, status);
+	etd->urb = NULL;
+
+	if (!list_empty(&ep->urb_list)) {
+		struct urb *urb = list_first_entry(
+					&ep->urb_list, struct urb, urb_list);
+
+		dev_vdbg(imx21->dev, "next URB %p\n", urb);
+		schedule_nonisoc_etd(imx21, urb);
+	}
+}
+
 
 /* ===========================================	*/
 /* ISOC Handling ... 				*/
@@ -489,6 +604,8 @@ too_late:
 		etd->ep = td->ep;
 		etd->urb = td->urb;
 		etd->len = td->len;
+		etd->dma_handle = td->dma_handle;
+		etd->cpu_buffer = td->cpu_buffer;
 
 		debug_isoc_submitted(imx21, cur_frame, td);
 
@@ -502,16 +619,17 @@ too_late:
 			(TD_NOTACCESSED << DW3_COMPCODE0) |
 			(td->len << DW3_PKTLEN0));
 
-		activate_etd(imx21, etd_num, td->data, dir);
+		activate_etd(imx21, etd_num, dir);
 	}
 }
 
-static void isoc_etd_done(struct usb_hcd *hcd, struct urb *urb, int etd_num)
+static void isoc_etd_done(struct usb_hcd *hcd, int etd_num)
 {
 	struct imx21 *imx21 = hcd_to_imx21(hcd);
 	int etd_mask = 1 << etd_num;
-	struct urb_priv *urb_priv = urb->hcpriv;
 	struct etd_priv *etd = imx21->etd + etd_num;
+	struct urb *urb = etd->urb;
+	struct urb_priv *urb_priv = urb->hcpriv;
 	struct td *td = etd->td;
 	struct usb_host_endpoint *ep = etd->ep;
 	int isoc_index = td->isoc_index;
@@ -545,8 +663,13 @@ static void isoc_etd_done(struct usb_hcd *hcd, struct urb *urb, int etd_num)
 			bytes_xfrd, td->len, urb, etd_num, isoc_index);
 	}
 
-	if (dir_in)
+	if (dir_in) {
 		clear_toggle_bit(imx21, USBH_XFILLSTAT, etd_mask);
+		if (!etd->dma_handle)
+			memcpy_fromio(etd->cpu_buffer,
+				imx21->regs + USBOTG_DMEM + etd->dmem_offset,
+				bytes_xfrd);
+	}
 
 	urb->actual_length += bytes_xfrd;
 	urb->iso_frame_desc[isoc_index].actual_length = bytes_xfrd;
@@ -569,30 +692,43 @@ static struct ep_priv *alloc_isoc_ep(
 	int i;
 
 	ep_priv = kzalloc(sizeof(struct ep_priv), GFP_ATOMIC);
-	if (ep_priv == NULL)
+	if (!ep_priv)
 		return NULL;
 
-	/* Allocate the ETDs */
-	for (i = 0; i < NUM_ISO_ETDS; i++) {
-		ep_priv->etd[i] = alloc_etd(imx21);
-		if (ep_priv->etd[i] < 0) {
-			int j;
-			dev_err(imx21->dev, "isoc: Couldn't allocate etd\n");
-			for (j = 0; j < i; j++)
-				free_etd(imx21, ep_priv->etd[j]);
-			goto alloc_etd_failed;
-		}
-		imx21->etd[ep_priv->etd[i]].ep = ep;
-	}
+	for (i = 0; i < NUM_ISO_ETDS; i++)
+		ep_priv->etd[i] = -1;
 
 	INIT_LIST_HEAD(&ep_priv->td_list);
 	ep_priv->ep = ep;
 	ep->hcpriv = ep_priv;
 	return ep_priv;
+}
+
+static int alloc_isoc_etds(struct imx21 *imx21, struct ep_priv *ep_priv)
+{
+	int i, j;
+	int etd_num;
+
+	/* Allocate the ETDs if required */
+	for (i = 0; i < NUM_ISO_ETDS; i++) {
+		if (ep_priv->etd[i] < 0) {
+			etd_num = alloc_etd(imx21);
+			if (etd_num < 0)
+				goto alloc_etd_failed;
+
+			ep_priv->etd[i] = etd_num;
+			imx21->etd[etd_num].ep = ep_priv->ep;
+		}
+	}
+	return 0;
 
 alloc_etd_failed:
-	kfree(ep_priv);
-	return NULL;
+	dev_err(imx21->dev, "isoc: Couldn't allocate etd\n");
+	for (j = 0; j < i; j++) {
+		free_etd(imx21, ep_priv->etd[j]);
+		ep_priv->etd[j] = -1;
+	}
+	return -ENOMEM;
 }
 
 static int imx21_hc_urb_enqueue_isoc(struct usb_hcd *hcd,
@@ -631,6 +767,10 @@ static int imx21_hc_urb_enqueue_isoc(struct usb_hcd *hcd,
 	} else {
 		ep_priv = ep->hcpriv;
 	}
+
+	ret = alloc_isoc_etds(imx21, ep_priv);
+	if (ret)
+		goto alloc_etd_failed;
 
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (ret)
@@ -688,12 +828,14 @@ static int imx21_hc_urb_enqueue_isoc(struct usb_hcd *hcd,
 	/* set up transfers */
 	td = urb_priv->isoc_td;
 	for (i = 0; i < urb->number_of_packets; i++, td++) {
+		unsigned int offset = urb->iso_frame_desc[i].offset;
 		td->ep = ep;
 		td->urb = urb;
 		td->len = urb->iso_frame_desc[i].length;
 		td->isoc_index = i;
 		td->frame = wrap_frame(urb->start_frame + urb->interval * i);
-		td->data = urb->transfer_dma + urb->iso_frame_desc[i].offset;
+		td->dma_handle = urb->transfer_dma + offset;
+		td->cpu_buffer = urb->transfer_buffer + offset;
 		list_add_tail(&td->list, &ep_priv->td_list);
 	}
 
@@ -711,6 +853,7 @@ alloc_dmem_failed:
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
 
 link_failed:
+alloc_etd_failed:
 alloc_ep_failed:
 	spin_unlock_irqrestore(&imx21->lock, flags);
 	kfree(urb_priv->isoc_td);
@@ -734,9 +877,7 @@ static void dequeue_isoc_urb(struct imx21 *imx21,
 				struct etd_priv *etd = imx21->etd + etd_num;
 
 				reset_etd(imx21, etd_num);
-				if (etd->dmem_size)
-					free_dmem(imx21, etd->dmem_offset);
-				etd->dmem_size = 0;
+				free_dmem(imx21, etd);
 			}
 		}
 	}
@@ -761,7 +902,6 @@ static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb)
 	int state = urb_priv->state;
 	int etd_num = ep_priv->etd[0];
 	struct etd_priv *etd;
-	int dmem_offset;
 	u32 count;
 	u16 etd_buf_size;
 	u16 maxpacket;
@@ -786,13 +926,15 @@ static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb)
 	if (usb_pipecontrol(pipe) && (state != US_CTRL_DATA)) {
 		if (state == US_CTRL_SETUP) {
 			dir = TD_DIR_SETUP;
+			if (unsuitable_for_dma(urb->setup_dma))
+				unmap_urb_setup_for_dma(imx21->hcd, urb);
 			etd->dma_handle = urb->setup_dma;
+			etd->cpu_buffer = urb->setup_packet;
 			bufround = 0;
 			count = 8;
 			datatoggle = TD_TOGGLE_DATA0;
 		} else {	/* US_CTRL_ACK */
 			dir = usb_pipeout(pipe) ? TD_DIR_IN : TD_DIR_OUT;
-			etd->dma_handle = urb->transfer_dma;
 			bufround = 0;
 			count = 0;
 			datatoggle = TD_TOGGLE_DATA1;
@@ -800,7 +942,11 @@ static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb)
 	} else {
 		dir = usb_pipeout(pipe) ? TD_DIR_OUT : TD_DIR_IN;
 		bufround = (dir == TD_DIR_IN) ? 1 : 0;
+		if (unsuitable_for_dma(urb->transfer_dma))
+			unmap_urb_for_dma(imx21->hcd, urb);
+
 		etd->dma_handle = urb->transfer_dma;
+		etd->cpu_buffer = urb->transfer_buffer;
 		if (usb_pipebulk(pipe) && (state == US_BULK0))
 			count = 0;
 		else
@@ -855,8 +1001,8 @@ static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb)
 
 	/* allocate x and y buffer space at once */
 	etd->dmem_size = (count > maxpacket) ? maxpacket * 2 : maxpacket;
-	dmem_offset = alloc_dmem(imx21, etd->dmem_size, urb_priv->ep);
-	if (dmem_offset < 0) {
+	etd->dmem_offset = alloc_dmem(imx21, etd->dmem_size, urb_priv->ep);
+	if (etd->dmem_offset < 0) {
 		/* Setup everything we can in HW and update when we get DMEM */
 		etd_writel(imx21, etd_num, 1, (u32)maxpacket << 16);
 
@@ -867,26 +1013,26 @@ static void schedule_nonisoc_etd(struct imx21 *imx21, struct urb *urb)
 	}
 
 	etd_writel(imx21, etd_num, 1,
-		(((u32) dmem_offset + (u32) maxpacket) << DW1_YBUFSRTAD) |
-		(u32) dmem_offset);
+		(((u32) etd->dmem_offset + (u32) maxpacket) << DW1_YBUFSRTAD) |
+		(u32) etd->dmem_offset);
 
 	urb_priv->active = 1;
 
 	/* enable the ETD to kick off transfer */
 	dev_vdbg(imx21->dev, "Activating etd %d for %d bytes %s\n",
 		etd_num, count, dir != TD_DIR_IN ? "out" : "in");
-	activate_etd(imx21, etd_num, etd->dma_handle, dir);
+	activate_etd(imx21, etd_num, dir);
 
 }
 
-static void nonisoc_etd_done(struct usb_hcd *hcd, struct urb *urb, int etd_num)
+static void nonisoc_etd_done(struct usb_hcd *hcd, int etd_num)
 {
 	struct imx21 *imx21 = hcd_to_imx21(hcd);
 	struct etd_priv *etd = &imx21->etd[etd_num];
+	struct urb *urb = etd->urb;
 	u32 etd_mask = 1 << etd_num;
 	struct urb_priv *urb_priv = urb->hcpriv;
 	int dir;
-	u16 xbufaddr;
 	int cc;
 	u32 bytes_xfrd;
 	int etd_done;
@@ -894,7 +1040,6 @@ static void nonisoc_etd_done(struct usb_hcd *hcd, struct urb *urb, int etd_num)
 	disactivate_etd(imx21, etd_num);
 
 	dir = (etd_readl(imx21, etd_num, 0) >> DW0_DIRECT) & 0x3;
-	xbufaddr = etd_readl(imx21, etd_num, 1) & 0xffff;
 	cc = (etd_readl(imx21, etd_num, 2) >> DW2_COMPCODE) & 0xf;
 	bytes_xfrd = etd->len - (etd_readl(imx21, etd_num, 3) & 0x1fffff);
 
@@ -906,8 +1051,21 @@ static void nonisoc_etd_done(struct usb_hcd *hcd, struct urb *urb, int etd_num)
 	if (dir == TD_DIR_IN) {
 		clear_toggle_bit(imx21, USBH_XFILLSTAT, etd_mask);
 		clear_toggle_bit(imx21, USBH_YFILLSTAT, etd_mask);
+
+		if (etd->bounce_buffer) {
+			memcpy(etd->cpu_buffer, etd->bounce_buffer, bytes_xfrd);
+			dma_unmap_single(imx21->dev,
+				etd->dma_handle, etd->len, DMA_FROM_DEVICE);
+		} else if (!etd->dma_handle && bytes_xfrd) {/* PIO */
+			memcpy_fromio(etd->cpu_buffer,
+				imx21->regs + USBOTG_DMEM + etd->dmem_offset,
+				bytes_xfrd);
+		}
 	}
-	free_dmem(imx21, xbufaddr);
+
+	kfree(etd->bounce_buffer);
+	etd->bounce_buffer = NULL;
+	free_dmem(imx21, etd);
 
 	urb->error_count = 0;
 	if (!(urb->transfer_flags & URB_SHORT_NOT_OK)
@@ -964,23 +1122,14 @@ static void nonisoc_etd_done(struct usb_hcd *hcd, struct urb *urb, int etd_num)
 		break;
 	}
 
-	if (!etd_done) {
+	if (etd_done)
+		nonisoc_urb_completed_for_etd(imx21, etd, cc_to_error[cc]);
+	else {
 		dev_vdbg(imx21->dev, "next state=%d\n", urb_priv->state);
 		schedule_nonisoc_etd(imx21, urb);
-	} else {
-		struct usb_host_endpoint *ep = urb->ep;
-
-		urb_done(hcd, urb, cc_to_error[cc]);
-		etd->urb = NULL;
-
-		if (!list_empty(&ep->urb_list)) {
-			urb = list_first_entry(&ep->urb_list,
-				struct urb, urb_list);
-			dev_vdbg(imx21->dev, "next URB %p\n", urb);
-			schedule_nonisoc_etd(imx21, urb);
-		}
 	}
 }
+
 
 static struct ep_priv *alloc_ep(void)
 {
@@ -1007,7 +1156,6 @@ static int imx21_hc_urb_enqueue(struct usb_hcd *hcd,
 	struct etd_priv *etd;
 	int ret;
 	unsigned long flags;
-	int new_ep = 0;
 
 	dev_vdbg(imx21->dev,
 		"enqueue urb=%p ep=%p len=%d "
@@ -1035,7 +1183,6 @@ static int imx21_hc_urb_enqueue(struct usb_hcd *hcd,
 		}
 		ep->hcpriv = ep_priv;
 		ep_priv->ep = ep;
-		new_ep = 1;
 	}
 
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
@@ -1124,9 +1271,13 @@ static int imx21_hc_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 	} else if (urb_priv->active) {
 		int etd_num = ep_priv->etd[0];
 		if (etd_num != -1) {
+			struct etd_priv *etd = &imx21->etd[etd_num];
+
 			disactivate_etd(imx21, etd_num);
-			free_dmem(imx21, etd_readl(imx21, etd_num, 1) & 0xffff);
-			imx21->etd[etd_num].urb = NULL;
+			free_dmem(imx21, etd);
+			etd->urb = NULL;
+			kfree(etd->bounce_buffer);
+			etd->bounce_buffer = NULL;
 		}
 	}
 
@@ -1226,9 +1377,9 @@ static void process_etds(struct usb_hcd *hcd, struct imx21 *imx21, int sof)
 		}
 
 		if (usb_pipeisoc(etd->urb->pipe))
-			isoc_etd_done(hcd, etd->urb, etd_num);
+			isoc_etd_done(hcd, etd_num);
 		else
-			nonisoc_etd_done(hcd, etd->urb, etd_num);
+			nonisoc_etd_done(hcd, etd_num);
 	}
 
 	/* only enable SOF interrupt if it may be needed for the kludge */
@@ -1696,6 +1847,7 @@ static int imx21_probe(struct platform_device *pdev)
 	}
 
 	imx21 = hcd_to_imx21(hcd);
+	imx21->hcd = hcd;
 	imx21->dev = &pdev->dev;
 	imx21->pdata = pdev->dev.platform_data;
 	if (!imx21->pdata)
@@ -1754,7 +1906,7 @@ failed_clock_set:
 failed_clock_get:
 	iounmap(imx21->regs);
 failed_ioremap:
-	release_mem_region(res->start, res->end - res->start);
+	release_mem_region(res->start, resource_size(res));
 failed_request_mem:
 	remove_debug_files(imx21);
 	usb_put_hcd(hcd);

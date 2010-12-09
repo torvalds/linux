@@ -24,4 +24,14 @@ config BFIN526_EZBRD
 	help
 	  BF526-EZBRD/EZKIT Lite board support.
 
+config BFIN527_AD7160EVAL
+	bool "BF527-AD7160-EVAL"
+	help
+	  BF527-AD7160-EVAL board support.
+
+config BFIN527_TLL6527M
+	bool "The Learning Labs TLL6527M"
+	help
+	  TLL6527M V1.0 platform support
+
 endchoice

@@ -51,7 +51,7 @@ static int migor_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
 	unsigned int rate = params_rate(params);
 
@@ -69,7 +69,7 @@ static int migor_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_fmt(rtd->dai->cpu_dai, SND_SOC_DAIFMT_NB_IF |
+	ret = snd_soc_dai_set_fmt(rtd->cpu_dai, SND_SOC_DAIFMT_NB_IF |
 				  SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
 		return ret;
@@ -82,7 +82,7 @@ static int migor_hw_params(struct snd_pcm_substream *substream,
 	clk_set_rate(&siumckb_clk, codec_freq);
 	dev_dbg(codec_dai->dev, "%s: configure %luHz\n", __func__, codec_freq);
 
-	ret = snd_soc_dai_set_sysclk(rtd->dai->cpu_dai, SIU_CLKB_EXT,
+	ret = snd_soc_dai_set_sysclk(rtd->cpu_dai, SIU_CLKB_EXT,
 				     codec_freq / 2, SND_SOC_CLOCK_IN);
 
 	if (!ret)
@@ -94,7 +94,7 @@ static int migor_hw_params(struct snd_pcm_substream *substream,
 static int migor_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 
 	if (use_count) {
 		use_count--;
@@ -137,8 +137,10 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{ "Mic Bias", NULL, "External Microphone" },
 };
 
-static int migor_dai_init(struct snd_soc_codec *codec)
+static int migor_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
+
 	snd_soc_dapm_new_controls(codec, migor_dapm_widgets,
 				  ARRAY_SIZE(migor_dapm_widgets));
 
@@ -151,8 +153,10 @@ static int migor_dai_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link migor_dai = {
 	.name = "wm8978",
 	.stream_name = "WM8978",
-	.cpu_dai = &siu_i2s_dai,
-	.codec_dai = &wm8978_dai,
+	.cpu_dai_name = "siu-i2s-dai",
+	.codec_dai_name = "wm8978-hifi",
+	.platform_name = "siu-pcm-audio",
+	.codec_name = "wm8978.0-001a",
 	.ops = &migor_dai_ops,
 	.init = migor_dai_init,
 };
@@ -160,15 +164,8 @@ static struct snd_soc_dai_link migor_dai = {
 /* migor audio machine driver */
 static struct snd_soc_card snd_soc_migor = {
 	.name = "Migo-R",
-	.platform = &siu_platform,
 	.dai_link = &migor_dai,
 	.num_links = 1,
-};
-
-/* migor audio subsystem */
-static struct snd_soc_device migor_snd_devdata = {
-	.card = &snd_soc_migor,
-	.codec_dev = &soc_codec_dev_wm8978,
 };
 
 static struct platform_device *migor_snd_device;
@@ -195,9 +192,7 @@ static int __init migor_init(void)
 		goto epdevalloc;
 	}
 
-	platform_set_drvdata(migor_snd_device, &migor_snd_devdata);
-
-	migor_snd_devdata.dev = &migor_snd_device->dev;
+	platform_set_drvdata(migor_snd_device, &snd_soc_migor);
 
 	ret = platform_device_add(migor_snd_device);
 	if (ret)

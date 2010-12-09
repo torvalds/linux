@@ -58,6 +58,62 @@ static int __init readwrite(char *str)
 __setup("ro", readonly);
 __setup("rw", readwrite);
 
+#ifdef CONFIG_BLOCK
+/**
+ * match_dev_by_uuid - callback for finding a partition using its uuid
+ * @dev:	device passed in by the caller
+ * @data:	opaque pointer to a 36 byte char array with a UUID
+ *
+ * Returns 1 if the device matches, and 0 otherwise.
+ */
+static int match_dev_by_uuid(struct device *dev, void *data)
+{
+	u8 *uuid = data;
+	struct hd_struct *part = dev_to_part(dev);
+
+	if (!part->info)
+		goto no_match;
+
+	if (memcmp(uuid, part->info->uuid, sizeof(part->info->uuid)))
+			goto no_match;
+
+	return 1;
+no_match:
+	return 0;
+}
+
+
+/**
+ * devt_from_partuuid - looks up the dev_t of a partition by its UUID
+ * @uuid:	36 byte char array containing a hex ascii UUID
+ *
+ * The function will return the first partition which contains a matching
+ * UUID value in its partition_meta_info struct.  This does not search
+ * by filesystem UUIDs.
+ *
+ * Returns the matching dev_t on success or 0 on failure.
+ */
+static dev_t __init devt_from_partuuid(char *uuid_str)
+{
+	dev_t res = 0;
+	struct device *dev = NULL;
+	u8 uuid[16];
+
+	/* Pack the requested UUID in the expected format. */
+	part_pack_uuid(uuid_str, uuid);
+
+	dev = class_find_device(&block_class, NULL, uuid, &match_dev_by_uuid);
+	if (!dev)
+		goto done;
+
+	res = dev->devt;
+	put_device(dev);
+
+done:
+	return res;
+}
+#endif
+
 /*
  *	Convert a name into device number.  We accept the following variants:
  *
@@ -68,6 +124,8 @@ __setup("rw", readwrite);
  *         of partition - device number of disk plus the partition number
  *	5) /dev/<disk_name>p<decimal> - same as the above, that form is
  *	   used when disk name of partitioned disk ends on a digit.
+ *	6) PARTUUID=00112233-4455-6677-8899-AABBCCDDEEFF representing the
+ *	   unique id of a partition if the partition table provides it.
  *
  *	If name doesn't have fall into the categories above, we return (0,0).
  *	block_class is used to check if something is a disk name. If the disk
@@ -81,6 +139,18 @@ dev_t name_to_dev_t(char *name)
 	char *p;
 	dev_t res = 0;
 	int part;
+
+#ifdef CONFIG_BLOCK
+	if (strncmp(name, "PARTUUID=", 9) == 0) {
+		name += 9;
+		if (strlen(name) != 36)
+			goto fail;
+		res = devt_from_partuuid(name);
+		if (!res)
+			goto fail;
+		goto done;
+	}
+#endif
 
 	if (strncmp(name, "/dev/", 5) != 0) {
 		unsigned maj, min;
@@ -221,7 +291,7 @@ static int __init do_mount_root(char *name, char *fs, int flags, void *data)
 	if (err)
 		return err;
 
-	sys_chdir("/root");
+	sys_chdir((const char __user __force *)"/root");
 	ROOT_DEV = current->fs->pwd.mnt->mnt_sb->s_dev;
 	printk("VFS: Mounted root (%s filesystem)%s on device %u:%u.\n",
 	       current->fs->pwd.mnt->mnt_sb->s_type->name,
@@ -291,13 +361,13 @@ out:
 #ifdef CONFIG_ROOT_NFS
 static int __init mount_nfs_root(void)
 {
-	void *data = nfs_root_data();
+	char *root_dev, *root_data;
 
-	create_dev("/dev/root", ROOT_DEV);
-	if (data &&
-	    do_mount_root("/dev/root", "nfs", root_mountflags, data) == 0)
-		return 1;
-	return 0;
+	if (nfs_root_data(&root_dev, &root_data) != 0)
+		return 0;
+	if (do_mount_root(root_dev, "nfs", root_mountflags, root_data) != 0)
+		return 0;
+	return 1;
 }
 #endif
 
@@ -418,5 +488,5 @@ void __init prepare_namespace(void)
 out:
 	devtmpfs_mount("dev");
 	sys_mount(".", "/", NULL, MS_MOVE, NULL);
-	sys_chroot(".");
+	sys_chroot((const char __user __force *)".");
 }

@@ -25,6 +25,8 @@
 #include <linux/mm.h>
 #include <linux/i8042.h>
 #include <linux/slab.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 #include "../../firmware/dcdbas.h"
 
 #define BRIGHTNESS_TOKEN 0x7d
@@ -325,6 +327,75 @@ static const struct rfkill_ops dell_rfkill_ops = {
 	.query = dell_rfkill_query,
 };
 
+static struct dentry *dell_laptop_dir;
+
+static int dell_debugfs_show(struct seq_file *s, void *data)
+{
+	int status;
+
+	get_buffer();
+	dell_send_request(buffer, 17, 11);
+	status = buffer->output[1];
+	release_buffer();
+
+	seq_printf(s, "status:\t0x%X\n", status);
+	seq_printf(s, "Bit 0 : Hardware switch supported:   %lu\n",
+		   status & BIT(0));
+	seq_printf(s, "Bit 1 : Wifi locator supported:      %lu\n",
+		  (status & BIT(1)) >> 1);
+	seq_printf(s, "Bit 2 : Wifi is supported:           %lu\n",
+		  (status & BIT(2)) >> 2);
+	seq_printf(s, "Bit 3 : Bluetooth is supported:      %lu\n",
+		  (status & BIT(3)) >> 3);
+	seq_printf(s, "Bit 4 : WWAN is supported:           %lu\n",
+		  (status & BIT(4)) >> 4);
+	seq_printf(s, "Bit 5 : Wireless keyboard supported: %lu\n",
+		  (status & BIT(5)) >> 5);
+	seq_printf(s, "Bit 8 : Wifi is installed:           %lu\n",
+		  (status & BIT(8)) >> 8);
+	seq_printf(s, "Bit 9 : Bluetooth is installed:      %lu\n",
+		  (status & BIT(9)) >> 9);
+	seq_printf(s, "Bit 10: WWAN is installed:           %lu\n",
+		  (status & BIT(10)) >> 10);
+	seq_printf(s, "Bit 16: Hardware switch is on:       %lu\n",
+		  (status & BIT(16)) >> 16);
+	seq_printf(s, "Bit 17: Wifi is blocked:             %lu\n",
+		  (status & BIT(17)) >> 17);
+	seq_printf(s, "Bit 18: Bluetooth is blocked:        %lu\n",
+		  (status & BIT(18)) >> 18);
+	seq_printf(s, "Bit 19: WWAN is blocked:             %lu\n",
+		  (status & BIT(19)) >> 19);
+
+	seq_printf(s, "\nhwswitch_state:\t0x%X\n", hwswitch_state);
+	seq_printf(s, "Bit 0 : Wifi controlled by switch:      %lu\n",
+		   hwswitch_state & BIT(0));
+	seq_printf(s, "Bit 1 : Bluetooth controlled by switch: %lu\n",
+		   (hwswitch_state & BIT(1)) >> 1);
+	seq_printf(s, "Bit 2 : WWAN controlled by switch:      %lu\n",
+		   (hwswitch_state & BIT(2)) >> 2);
+	seq_printf(s, "Bit 7 : Wireless switch config locked:  %lu\n",
+		   (hwswitch_state & BIT(7)) >> 7);
+	seq_printf(s, "Bit 8 : Wifi locator enabled:           %lu\n",
+		   (hwswitch_state & BIT(8)) >> 8);
+	seq_printf(s, "Bit 15: Wifi locator setting locked:    %lu\n",
+		   (hwswitch_state & BIT(15)) >> 15);
+
+	return 0;
+}
+
+static int dell_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dell_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations dell_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.open = dell_debugfs_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static void dell_update_rfkill(struct work_struct *ignored)
 {
 	if (wifi_rfkill)
@@ -556,6 +627,11 @@ static int __init dell_init(void)
 		goto fail_filter;
 	}
 
+	dell_laptop_dir = debugfs_create_dir("dell_laptop", NULL);
+	if (dell_laptop_dir != NULL)
+		debugfs_create_file("rfkill", 0444, dell_laptop_dir, NULL,
+				    &dell_debugfs_fops);
+
 #ifdef CONFIG_ACPI
 	/* In the event of an ACPI backlight being available, don't
 	 * register the platform controller.
@@ -615,6 +691,7 @@ fail_platform_driver:
 
 static void __exit dell_exit(void)
 {
+	debugfs_remove_recursive(dell_laptop_dir);
 	i8042_remove_filter(dell_laptop_i8042_filter);
 	cancel_delayed_work_sync(&dell_rfkill_work);
 	backlight_device_unregister(dell_backlight_device);

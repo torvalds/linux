@@ -120,6 +120,8 @@
 /* additional LOM specific iSCSI license not installed */
 #define ISCSI_KCQE_COMPLETION_STATUS_LOM_ISCSI_NOT_ENABLED              (0x51)
 
+#define ISCSI_KCQE_COMPLETION_STATUS_CID_BUSY				(0x80)
+
 /* SQ/RQ/CQ DB structure sizes */
 #define ISCSI_SQ_DB_SIZE    (16)
 #define ISCSI_RQ_DB_SIZE    (16)

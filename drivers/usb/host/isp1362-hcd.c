@@ -1676,13 +1676,6 @@ static int isp1362_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
 			_DBG(0, "USB_PORT_FEAT_SUSPEND\n");
-#ifdef	CONFIG_USB_OTG
-			if (ohci->hcd.self.otg_port == (wIndex + 1) &&
-			    ohci->hcd.self.b_hnp_enable) {
-				start_hnp(ohci);
-				break;
-			}
-#endif
 			spin_lock_irqsave(&isp1362_hcd->lock, flags);
 			isp1362_write_reg32(isp1362_hcd, HCRHPORT1 + wIndex, RH_PS_PSS);
 			isp1362_hcd->rhport[wIndex] =
@@ -2656,8 +2649,6 @@ static struct hc_driver isp1362_hc_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-#define resource_len(r) (((r)->end - (r)->start) + 1)
-
 static int __devexit isp1362_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
@@ -2679,12 +2670,12 @@ static int __devexit isp1362_remove(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	DBG(0, "%s: release mem_region: %08lx\n", __func__, (long unsigned int)res->start);
 	if (res)
-		release_mem_region(res->start, resource_len(res));
+		release_mem_region(res->start, resource_size(res));
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	DBG(0, "%s: release mem_region: %08lx\n", __func__, (long unsigned int)res->start);
 	if (res)
-		release_mem_region(res->start, resource_len(res));
+		release_mem_region(res->start, resource_size(res));
 
 	DBG(0, "%s: put_hcd\n", __func__);
 	usb_put_hcd(hcd);
@@ -2730,21 +2721,21 @@ static int __init isp1362_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	if (!request_mem_region(addr->start, resource_len(addr), hcd_name)) {
+	if (!request_mem_region(addr->start, resource_size(addr), hcd_name)) {
 		retval = -EBUSY;
 		goto err1;
 	}
-	addr_reg = ioremap(addr->start, resource_len(addr));
+	addr_reg = ioremap(addr->start, resource_size(addr));
 	if (addr_reg == NULL) {
 		retval = -ENOMEM;
 		goto err2;
 	}
 
-	if (!request_mem_region(data->start, resource_len(data), hcd_name)) {
+	if (!request_mem_region(data->start, resource_size(data), hcd_name)) {
 		retval = -EBUSY;
 		goto err3;
 	}
-	data_reg = ioremap(data->start, resource_len(data));
+	data_reg = ioremap(data->start, resource_size(data));
 	if (data_reg == NULL) {
 		retval = -ENOMEM;
 		goto err4;
@@ -2802,13 +2793,13 @@ static int __init isp1362_probe(struct platform_device *pdev)
 	iounmap(data_reg);
  err4:
 	DBG(0, "%s: Releasing mem region %08lx\n", __func__, (long unsigned int)data->start);
-	release_mem_region(data->start, resource_len(data));
+	release_mem_region(data->start, resource_size(data));
  err3:
 	DBG(0, "%s: Unmapping addr_reg @ %p\n", __func__, addr_reg);
 	iounmap(addr_reg);
  err2:
 	DBG(0, "%s: Releasing mem region %08lx\n", __func__, (long unsigned int)addr->start);
-	release_mem_region(addr->start, resource_len(addr));
+	release_mem_region(addr->start, resource_size(addr));
  err1:
 	pr_err("%s: init error, %d\n", __func__, retval);
 

@@ -275,6 +275,7 @@ static const struct file_operations dbfs_d2fc_ops = {
 	.open		= dbfs_d2fc_open,
 	.read		= dbfs_d2fc_read,
 	.release	= dbfs_d2fc_release,
+	.llseek		= no_llseek,
 };
 
 int hypfs_vm_init(void)
