@@ -60,6 +60,10 @@ config USB_MUSB_BLACKFIN
 	bool "Blackfin"
 	depends on (BF54x && !BF544) || (BF52x && ! BF522 && !BF523)
 
+config USB_MUSB_UX500
+	bool "U8500 and U5500"
+	depends on (ARCH_U8500 && AB8500_USB) || (ARCH_U5500)
+
 endchoice
 
 choice

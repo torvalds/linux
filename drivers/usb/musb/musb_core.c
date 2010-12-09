@@ -1069,6 +1069,8 @@ static void musb_shutdown(struct platform_device *pdev)
 #if defined(CONFIG_USB_MUSB_TUSB6010) || defined(CONFIG_USB_MUSB_OMAP2PLUS) \
 	|| defined(CONFIG_USB_MUSB_AM35X)
 static ushort __initdata fifo_mode = 4;
+#elif defined(CONFIG_USB_MUSB_UX500)
+static ushort __initdata fifo_mode = 5;
 #else
 static ushort __initdata fifo_mode = 2;
 #endif
@@ -1539,7 +1541,8 @@ static int __init musb_core_init(u16 musb_type, struct musb *musb)
 /*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3430) || \
-	defined(CONFIG_ARCH_OMAP4)
+	defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_ARCH_U8500) || \
+	defined(CONFIG_ARCH_U5500)
 
 static irqreturn_t generic_interrupt(int irq, void *__hci)
 {
