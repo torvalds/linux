@@ -2501,7 +2501,8 @@ static void nfs4_clone_super(struct super_block *sb,
 	 * so ourselves when necessary.
 	 */
 	sb->s_flags  |= MS_POSIXACL;
- 	nfs_initialise_sb(sb);
+	sb->s_xattr  = old_sb->s_xattr;
+	nfs_initialise_sb(sb);
 }
 
 /*
@@ -2516,6 +2517,7 @@ static void nfs4_fill_super(struct super_block *sb)
 	 * so ourselves when necessary.
 	 */
 	sb->s_flags  |= MS_POSIXACL;
+	sb->s_xattr = nfs4_xattr_handlers;
 	nfs_initialise_sb(sb);
 }
 
