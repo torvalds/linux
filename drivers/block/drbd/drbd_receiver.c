@@ -2209,12 +2209,14 @@ static int drbd_asb_recover_1p(struct drbd_conf *mdev) __must_hold(local)
 	case ASB_CALL_HELPER:
 		hg = drbd_asb_recover_0p(mdev);
 		if (hg == -1 && mdev->state.role == R_PRIMARY) {
-			self = drbd_set_role(mdev, R_SECONDARY, 0);
+			enum drbd_state_rv rv2;
+
+			drbd_set_role(mdev, R_SECONDARY, 0);
 			 /* drbd_change_state() does not sleep while in SS_IN_TRANSIENT_STATE,
 			  * we might be here in C_WF_REPORT_PARAMS which is transient.
 			  * we do not need to wait for the after state change work either. */
-			self = drbd_change_state(mdev, CS_VERBOSE, NS(role, R_SECONDARY));
-			if (self != SS_SUCCESS) {
+			rv2 = drbd_change_state(mdev, CS_VERBOSE, NS(role, R_SECONDARY));
+			if (rv2 != SS_SUCCESS) {
 				drbd_khelper(mdev, "pri-lost-after-sb");
 			} else {
 				dev_warn(DEV, "Successfully gave up primary role.\n");
@@ -2252,11 +2254,13 @@ static int drbd_asb_recover_2p(struct drbd_conf *mdev) __must_hold(local)
 	case ASB_CALL_HELPER:
 		hg = drbd_asb_recover_0p(mdev);
 		if (hg == -1) {
+			enum drbd_state_rv rv2;
+
 			 /* drbd_change_state() does not sleep while in SS_IN_TRANSIENT_STATE,
 			  * we might be here in C_WF_REPORT_PARAMS which is transient.
 			  * we do not need to wait for the after state change work either. */
-			self = drbd_change_state(mdev, CS_VERBOSE, NS(role, R_SECONDARY));
-			if (self != SS_SUCCESS) {
+			rv2 = drbd_change_state(mdev, CS_VERBOSE, NS(role, R_SECONDARY));
+			if (rv2 != SS_SUCCESS) {
 				drbd_khelper(mdev, "pri-lost-after-sb");
 			} else {
 				dev_warn(DEV, "Successfully gave up primary role.\n");
