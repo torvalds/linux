@@ -32,3 +32,15 @@ struct mxs_duart_data {
 };
 struct platform_device *__init mxs_add_duart(
 		const struct mxs_duart_data *data);
+
+/* fec */
+#include <linux/fec.h>
+struct mxs_fec_data {
+	int id;
+	resource_size_t iobase;
+	resource_size_t iosize;
+	resource_size_t irq;
+};
+struct platform_device *__init mxs_add_fec(
+		const struct mxs_fec_data *data,
+		const struct fec_platform_data *pdata);

@@ -14,3 +14,7 @@
 extern const struct mxs_duart_data mx28_duart_data __initconst;
 #define mx28_add_duart() \
 	mxs_add_duart(&mx28_duart_data)
+
+extern const struct mxs_fec_data mx28_fec_data[] __initconst;
+#define mx28_add_fec(id, pdata) \
+	mxs_add_fec(&mx28_fec_data[id], pdata)
