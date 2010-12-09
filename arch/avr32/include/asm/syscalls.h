@@ -15,11 +15,6 @@
 #include <linux/types.h>
 #include <linux/signal.h>
 
-/* kernel/process.c */
-asmlinkage int sys_clone(unsigned long, unsigned long,
-			 unsigned long, unsigned long,
-			 struct pt_regs *);
-
 /* mm/cache.c */
 asmlinkage int sys_cacheflush(int, void __user *, size_t);
 
