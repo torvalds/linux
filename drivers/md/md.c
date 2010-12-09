@@ -404,8 +404,6 @@ static void md_submit_flush_data(struct work_struct *ws)
 	mddev_t *mddev = container_of(ws, mddev_t, flush_work);
 	struct bio *bio = mddev->flush_bio;
 
-	atomic_set(&mddev->flush_pending, 1);
-
 	if (bio->bi_size == 0)
 		/* an empty barrier - all done */
 		bio_endio(bio, 0);
@@ -414,10 +412,9 @@ static void md_submit_flush_data(struct work_struct *ws)
 		if (mddev->pers->make_request(mddev, bio))
 			generic_make_request(bio);
 	}
-	if (atomic_dec_and_test(&mddev->flush_pending)) {
-		mddev->flush_bio = NULL;
-		wake_up(&mddev->sb_wait);
-	}
+
+	mddev->flush_bio = NULL;
+	wake_up(&mddev->sb_wait);
 }
 
 void md_flush_request(mddev_t *mddev, struct bio *bio)
