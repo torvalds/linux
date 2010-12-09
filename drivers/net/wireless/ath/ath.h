@@ -272,7 +272,10 @@ ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
 	return 0;
 }
 #define ATH_DBG_WARN(foo, arg...) do {} while (0)
-#define ATH_DBG_WARN_ON_ONCE(foo) do {} while (0)
+#define ATH_DBG_WARN_ON_ONCE(foo) ({				\
+	int __ret_warn_once = !!(foo);				\
+	unlikely(__ret_warn_once);				\
+})
 
 #endif /* CONFIG_ATH_DEBUG */
 
