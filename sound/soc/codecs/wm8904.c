@@ -817,7 +817,8 @@ static int wm8904_get_deemph(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 
-	return wm8904->deemph;
+	ucontrol->value.enumerated.item[0] = wm8904->deemph;
+	return 0;
 }
 
 static int wm8904_put_deemph(struct snd_kcontrol *kcontrol,

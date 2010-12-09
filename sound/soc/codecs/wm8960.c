@@ -137,7 +137,8 @@ static int wm8960_get_deemph(struct snd_kcontrol *kcontrol,
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
 
-	return wm8960->deemph;
+	ucontrol->value.enumerated.item[0] = wm8960->deemph;
+	return 0;
 }
 
 static int wm8960_put_deemph(struct snd_kcontrol *kcontrol,
