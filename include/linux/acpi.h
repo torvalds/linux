@@ -219,7 +219,7 @@ static inline int acpi_video_display_switch_support(void)
 
 extern int acpi_blacklisted(void);
 extern void acpi_dmi_osi_linux(int enable, const struct dmi_system_id *d);
-extern int acpi_osi_setup(char *str);
+extern void acpi_osi_setup(char *str);
 
 #ifdef CONFIG_ACPI_NUMA
 int acpi_get_pxm(acpi_handle handle);
