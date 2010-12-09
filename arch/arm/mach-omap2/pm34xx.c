@@ -529,12 +529,6 @@ out:
 }
 
 #ifdef CONFIG_SUSPEND
-static int omap3_pm_prepare(void)
-{
-	disable_hlt();
-	return 0;
-}
-
 static int omap3_pm_suspend(void)
 {
 	struct power_state *pwrst;
@@ -597,14 +591,10 @@ static int omap3_pm_enter(suspend_state_t unused)
 	return ret;
 }
 
-static void omap3_pm_finish(void)
-{
-	enable_hlt();
-}
-
 /* Hooks to enable / disable UART interrupts during suspend */
 static int omap3_pm_begin(suspend_state_t state)
 {
+	disable_hlt();
 	suspend_state = state;
 	omap_uart_enable_irqs(0);
 	return 0;
@@ -614,15 +604,14 @@ static void omap3_pm_end(void)
 {
 	suspend_state = PM_SUSPEND_ON;
 	omap_uart_enable_irqs(1);
+	enable_hlt();
 	return;
 }
 
 static struct platform_suspend_ops omap_pm_ops = {
 	.begin		= omap3_pm_begin,
 	.end		= omap3_pm_end,
-	.prepare	= omap3_pm_prepare,
 	.enter		= omap3_pm_enter,
-	.finish		= omap3_pm_finish,
 	.valid		= suspend_valid_only_mem,
 };
 #endif /* CONFIG_SUSPEND */
