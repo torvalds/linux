@@ -897,6 +897,7 @@ end_function:
 static int sep_set_current_caller_id(struct sep_device *sep)
 {
 	int i;
+	u32 *hash_buf_ptr;
 
 	dev_dbg(&sep->pdev->dev, "sep_set_current_caller_id start\n");
 	dev_dbg(&sep->pdev->dev, "current process is %d\n", current->pid);
@@ -915,6 +916,13 @@ static int sep_set_current_caller_id(struct sep_device *sep)
 			break;
 		}
 	}
+	/* Ensure data is in little endian */
+	hash_buf_ptr = (u32 *)sep->shared_addr +
+		SEP_CALLER_ID_OFFSET_BYTES;
+
+	for (i = 0; i < SEP_CALLER_ID_HASH_SIZE_IN_WORDS; i++)
+		hash_buf_ptr[i] = cpu_to_le32(hash_buf_ptr[i]);
+
 	dev_dbg(&sep->pdev->dev, "sep_set_current_caller_id end\n");
 	return 0;
 }

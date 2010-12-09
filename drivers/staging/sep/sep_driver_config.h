@@ -201,6 +201,9 @@ held by the proccess (struct file) */
 /* size of the caller id hash (sha2) */
 #define SEP_CALLER_ID_HASH_SIZE_IN_BYTES                      32
 
+/* size of the caller id hash (sha2) in 32 bit words */
+#define SEP_CALLER_ID_HASH_SIZE_IN_WORDS                8
+
 /* maximum number of entries in the caller id table */
 #define SEP_CALLER_ID_TABLE_NUM_ENTRIES                       20
 
