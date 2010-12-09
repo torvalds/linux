@@ -166,30 +166,29 @@ ft1000ReadProc (char *page, char **start, off_t off, int count, int *eof,
 }
 
 static int
-ft1000NotifyProc (struct notifier_block *this, unsigned long event, void *ptr)
+ft1000NotifyProc(struct notifier_block *this, unsigned long event, void *ptr)
 {
-  struct net_device *dev = ptr;
+	struct net_device *dev = ptr;
 	struct ft1000_info *info;
-  struct proc_dir_entry *ft1000_proc_file;
+	struct proc_dir_entry *ft1000_proc_file;
 
-info = netdev_priv(dev);
+	info = netdev_priv(dev);
 
+	switch (event) {
+	case NETDEV_CHANGENAME:
+		remove_proc_entry(info->netdevname, info->ft1000_proc_dir);
+		ft1000_proc_file = create_proc_read_entry(dev->name, 0644,
+					info->ft1000_proc_dir,
+					ft1000ReadProc, dev);
+		snprintf(info->netdevname, IFNAMSIZ, "%s", dev->name);
+		break;
+	}
 
-  switch (event)
-    {
-    case NETDEV_CHANGENAME:
-      remove_proc_entry (info->netdevname, info->ft1000_proc_dir);
-      ft1000_proc_file = create_proc_read_entry (dev->name, 0644,
-						 info->ft1000_proc_dir,
-						 ft1000ReadProc, dev);
-      snprintf (info->netdevname, IFNAMSIZ, "%s", dev->name);
-      break;
-    }
-  return NOTIFY_DONE;
+	return NOTIFY_DONE;
 }
 
 static struct notifier_block ft1000_netdev_notifier = {
-  .notifier_call = ft1000NotifyProc
+	.notifier_call = ft1000NotifyProc,
 };
 
 
