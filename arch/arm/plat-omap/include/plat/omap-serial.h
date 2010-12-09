@@ -22,7 +22,7 @@
 
 #include <plat/mux.h>
 
-#define DRIVER_NAME	"omap-hsuart"
+#define DRIVER_NAME	"omap_uart"
 
 /*
  * Use tty device name as ttyO, [O -> OMAP]
