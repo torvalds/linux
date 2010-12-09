@@ -114,18 +114,6 @@ struct bld_syn_tab_struct {
 
 };
 
-/*
- * command struct for static pool addresses
- * Please note that this is a kernel virtual
- * address; this will be removed at the next
- * release of the Discretix middleware
- */
-struct stat_pool_addr_struct {
-	/* virtual address of the static pool */
-	aligned_u64 static_virt_address;
-};
-
-
 /* command struct for getting caller id value and address */
 struct caller_id_struct {
 	/* pid of the process */
@@ -275,7 +263,7 @@ struct sep_lli_entry {
 
 /* get the static pool area addersses (physical and virtual) */
 #define SEP_IOCGETSTATICPOOLADDR	\
-	_IOR(SEP_IOC_MAGIC_NUMBER, 8, struct stat_pool_addr_struct)
+	_IO(SEP_IOC_MAGIC_NUMBER, 8)
 
 /* start sep command */
 #define SEP_IOCSEPSTART	 \

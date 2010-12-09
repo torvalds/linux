@@ -2541,12 +2541,9 @@ static int sep_free_dma_tables_and_dcb(struct sep_device *sep, bool isapplet,
  *	This function sets the bus and virtual addresses of the static pool
  *	and returns the virtual address
  */
-static int sep_get_static_pool_addr_handler(struct sep_device *sep,
-	unsigned long arg)
+static int sep_get_static_pool_addr_handler(struct sep_device *sep)
 {
-	struct stat_pool_addr_struct command_args;
 	u32 *static_pool_addr = NULL;
-	unsigned long addr_hold;
 
 	dev_dbg(&sep->pdev->dev, "sep_get_static_pool_addr_handler start\n");
 
@@ -2554,21 +2551,11 @@ static int sep_get_static_pool_addr_handler(struct sep_device *sep,
 		SEP_DRIVER_SYSTEM_RAR_MEMORY_OFFSET_IN_BYTES);
 
 	static_pool_addr[0] = SEP_STATIC_POOL_VAL_TOKEN;
-	static_pool_addr[1] = sep->shared_bus +
+	static_pool_addr[1] = (u32)sep->shared_bus +
 		SEP_DRIVER_STATIC_AREA_OFFSET_IN_BYTES;
 
-	addr_hold = (unsigned long)
-		(sep->shared_addr + SEP_DRIVER_STATIC_AREA_OFFSET_IN_BYTES);
-	command_args.static_virt_address = (aligned_u64)addr_hold;
-
-	dev_dbg(&sep->pdev->dev, "static pool: physical %x virtual %x\n",
-		(u32)static_pool_addr[1],
-		(u32)command_args.static_virt_address);
-
-	/* Send the parameters to user application */
-	if (copy_to_user((void __user *) arg, &command_args,
-		sizeof(struct stat_pool_addr_struct)))
-		return -EFAULT;
+	dev_dbg(&sep->pdev->dev, "static pool: physical %x\n",
+		(u32)static_pool_addr[1]);
 
 	dev_dbg(&sep->pdev->dev, "sep_get_static_pool_addr_handler end\n");
 
@@ -3064,7 +3051,7 @@ static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	case SEP_IOCGETSTATICPOOLADDR:
 		/* Get the physical and virtual addresses of the static pool */
-		error = sep_get_static_pool_addr_handler(sep, arg);
+		error = sep_get_static_pool_addr_handler(sep);
 		break;
 	case SEP_IOCENDTRANSACTION:
 		error = sep_end_transaction_handler(sep);
