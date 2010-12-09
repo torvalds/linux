@@ -774,8 +774,10 @@ static int rk29_sdmmc1_cfg_gpio(void)
 	return 0;
 }
 
+#ifdef CONFIG_WIFI_CONTROL_FUNC 
 static int rk29sdk_wifi_status(struct device *dev);
 static int rk29sdk_wifi_status_register(void (*callback)(int card_presend, void *dev_id), void *dev_id);
+#endif
 
 #define RK29SDK_WIFI_SDIO_CARD_DETECT_N    RK29_PIN1_PD6
 
@@ -1281,7 +1283,9 @@ static void __init machine_rk29_board_init(void)
 		gpio_set_value(POWER_ON_PIN, 1);
 		gpio_direction_output(POWER_ON_PIN, 1);
 
+#ifdef CONFIG_WIFI_CONTROL_FUNC
                 rk29sdk_wifi_bt_gpio_control_init();
+#endif
 
 		platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
