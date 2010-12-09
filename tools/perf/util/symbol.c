@@ -41,6 +41,7 @@ struct symbol_conf symbol_conf = {
 	.exclude_other	  = true,
 	.use_modules	  = true,
 	.try_vmlinux_path = true,
+	.symfs            = "",
 };
 
 int dso__name_len(const struct dso *self)
@@ -839,8 +840,11 @@ static int dso__synthesize_plt_symbols(struct  dso *self, struct map *map,
 	char sympltname[1024];
 	Elf *elf;
 	int nr = 0, symidx, fd, err = 0;
+	char name[PATH_MAX];
 
-	fd = open(self->long_name, O_RDONLY);
+	snprintf(name, sizeof(name), "%s%s",
+		 symbol_conf.symfs, self->long_name);
+	fd = open(name, O_RDONLY);
 	if (fd < 0)
 		goto out;
 
@@ -1452,16 +1456,19 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 	     self->origin++) {
 		switch (self->origin) {
 		case DSO__ORIG_BUILD_ID_CACHE:
-			if (dso__build_id_filename(self, name, size) == NULL)
+			/* skip the locally configured cache if a symfs is given */
+			if (symbol_conf.symfs[0] ||
+			    (dso__build_id_filename(self, name, size) == NULL)) {
 				continue;
+			}
 			break;
 		case DSO__ORIG_FEDORA:
-			snprintf(name, size, "/usr/lib/debug%s.debug",
-				 self->long_name);
+			snprintf(name, size, "%s/usr/lib/debug%s.debug",
+				 symbol_conf.symfs, self->long_name);
 			break;
 		case DSO__ORIG_UBUNTU:
-			snprintf(name, size, "/usr/lib/debug%s",
-				 self->long_name);
+			snprintf(name, size, "%s/usr/lib/debug%s",
+				 symbol_conf.symfs, self->long_name);
 			break;
 		case DSO__ORIG_BUILDID: {
 			char build_id_hex[BUILD_ID_SIZE * 2 + 1];
@@ -1473,19 +1480,26 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 					  sizeof(self->build_id),
 					  build_id_hex);
 			snprintf(name, size,
-				 "/usr/lib/debug/.build-id/%.2s/%s.debug",
-				 build_id_hex, build_id_hex + 2);
+				 "%s/usr/lib/debug/.build-id/%.2s/%s.debug",
+				 symbol_conf.symfs, build_id_hex, build_id_hex + 2);
 			}
 			break;
 		case DSO__ORIG_DSO:
-			snprintf(name, size, "%s", self->long_name);
+			snprintf(name, size, "%s%s",
+			     symbol_conf.symfs, self->long_name);
 			break;
 		case DSO__ORIG_GUEST_KMODULE:
 			if (map->groups && map->groups->machine)
 				root_dir = map->groups->machine->root_dir;
 			else
 				root_dir = "";
-			snprintf(name, size, "%s%s", root_dir, self->long_name);
+			snprintf(name, size, "%s%s%s", symbol_conf.symfs,
+				 root_dir, self->long_name);
+			break;
+
+		case DSO__ORIG_KMODULE:
+			snprintf(name, size, "%s%s", symbol_conf.symfs,
+				 self->long_name);
 			break;
 
 		default:
@@ -1784,17 +1798,20 @@ static int dso__load_vmlinux(struct dso *self, struct map *map,
 			     const char *vmlinux, symbol_filter_t filter)
 {
 	int err = -1, fd;
+	char symfs_vmlinux[PATH_MAX];
 
-	fd = open(vmlinux, O_RDONLY);
+	snprintf(symfs_vmlinux, sizeof(symfs_vmlinux), "%s/%s",
+		 symbol_conf.symfs, vmlinux);
+	fd = open(symfs_vmlinux, O_RDONLY);
 	if (fd < 0)
 		return -1;
 
 	dso__set_loaded(self, map->type);
-	err = dso__load_sym(self, map, vmlinux, fd, filter, 0, 0);
+	err = dso__load_sym(self, map, symfs_vmlinux, fd, filter, 0, 0);
 	close(fd);
 
 	if (err > 0)
-		pr_debug("Using %s for symbols\n", vmlinux);
+		pr_debug("Using %s for symbols\n", symfs_vmlinux);
 
 	return err;
 }
@@ -1871,6 +1888,10 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 		if (err > 0)
 			goto out_fixup;
 	}
+
+	/* do not try local files if a symfs was given */
+	if (symbol_conf.symfs[0] != 0)
+		return -1;
 
 	/*
 	 * Say the kernel DSO was created when processing the build-id header table,
@@ -2262,9 +2283,6 @@ static int vmlinux_path__init(void)
 	struct utsname uts;
 	char bf[PATH_MAX];
 
-	if (uname(&uts) < 0)
-		return -1;
-
 	vmlinux_path = malloc(sizeof(char *) * 5);
 	if (vmlinux_path == NULL)
 		return -1;
@@ -2277,6 +2295,14 @@ static int vmlinux_path__init(void)
 	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
 		goto out_fail;
 	++vmlinux_path__nr_entries;
+
+	/* only try running kernel version if no symfs was given */
+	if (symbol_conf.symfs[0] != 0)
+		return 0;
+
+	if (uname(&uts) < 0)
+		return -1;
+
 	snprintf(bf, sizeof(bf), "/boot/vmlinux-%s", uts.release);
 	vmlinux_path[vmlinux_path__nr_entries] = strdup(bf);
 	if (vmlinux_path[vmlinux_path__nr_entries] == NULL)
@@ -2336,6 +2362,8 @@ static int setup_list(struct strlist **list, const char *list_str,
 
 int symbol__init(void)
 {
+	const char *symfs;
+
 	if (symbol_conf.initialized)
 		return 0;
 
@@ -2363,6 +2391,18 @@ int symbol__init(void)
 	if (setup_list(&symbol_conf.sym_list,
 		       symbol_conf.sym_list_str, "symbol") < 0)
 		goto out_free_comm_list;
+
+	/*
+	 * A path to symbols of "/" is identical to ""
+	 * reset here for simplicity.
+	 */
+	symfs = realpath(symbol_conf.symfs, NULL);
+	if (symfs == NULL)
+		symfs = symbol_conf.symfs;
+	if (strcmp(symfs, "/") == 0)
+		symbol_conf.symfs = "";
+	if (symfs != symbol_conf.symfs)
+		free((void *)symfs);
 
 	symbol_conf.initialized = true;
 	return 0;

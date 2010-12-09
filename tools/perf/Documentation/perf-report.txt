@@ -116,6 +116,9 @@ OPTIONS
 --force::
         Don't complain, do it.
 
+--symfs=<directory>::
+        Look for files with symbols relative to this directory.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1]
