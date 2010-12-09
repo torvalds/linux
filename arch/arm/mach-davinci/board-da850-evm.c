@@ -360,23 +360,23 @@ static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
 {
 	int sel_a, sel_b, sel_c, ret;
 
-	sel_a = gpio + 7;
-	sel_b = gpio + 6;
-	sel_c = gpio + 5;
+	sel_a = gpio + DA850_EVM_UI_EXP_SEL_A;
+	sel_b = gpio + DA850_EVM_UI_EXP_SEL_B;
+	sel_c = gpio + DA850_EVM_UI_EXP_SEL_C;
 
-	ret = gpio_request(sel_a, "sel_a");
+	ret = gpio_request(sel_a, da850_evm_ui_exp[DA850_EVM_UI_EXP_SEL_A]);
 	if (ret) {
 		pr_warning("Cannot open UI expander pin %d\n", sel_a);
 		goto exp_setup_sela_fail;
 	}
 
-	ret = gpio_request(sel_b, "sel_b");
+	ret = gpio_request(sel_b, da850_evm_ui_exp[DA850_EVM_UI_EXP_SEL_B]);
 	if (ret) {
 		pr_warning("Cannot open UI expander pin %d\n", sel_b);
 		goto exp_setup_selb_fail;
 	}
 
-	ret = gpio_request(sel_c, "sel_c");
+	ret = gpio_request(sel_c, da850_evm_ui_exp[DA850_EVM_UI_EXP_SEL_C]);
 	if (ret) {
 		pr_warning("Cannot open UI expander pin %d\n", sel_c);
 		goto exp_setup_selc_fail;
@@ -419,13 +419,13 @@ static int da850_evm_ui_expander_teardown(struct i2c_client *client,
 	platform_device_unregister(&da850_evm_ui_keys_device);
 
 	/* deselect all functionalities */
-	gpio_set_value_cansleep(gpio + 5, 1);
-	gpio_set_value_cansleep(gpio + 6, 1);
-	gpio_set_value_cansleep(gpio + 7, 1);
+	gpio_set_value_cansleep(gpio + DA850_EVM_UI_EXP_SEL_C, 1);
+	gpio_set_value_cansleep(gpio + DA850_EVM_UI_EXP_SEL_B, 1);
+	gpio_set_value_cansleep(gpio + DA850_EVM_UI_EXP_SEL_A, 1);
 
-	gpio_free(gpio + 5);
-	gpio_free(gpio + 6);
-	gpio_free(gpio + 7);
+	gpio_free(gpio + DA850_EVM_UI_EXP_SEL_C);
+	gpio_free(gpio + DA850_EVM_UI_EXP_SEL_B);
+	gpio_free(gpio + DA850_EVM_UI_EXP_SEL_A);
 
 	return 0;
 }
