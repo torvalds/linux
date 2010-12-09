@@ -38,41 +38,27 @@
  */
 
 #ifdef MULTI_OMAP2
-		.pushsection .data
-omap_irq_base:	.word	0
-		.popsection
 
-		/* Configure the interrupt base on the first interrupt */
+/*
+ * We use __glue to avoid errors with multiple definitions of
+ * .globl omap_irq_base as it's included from entry-armv.S but not
+ * from entry-common.S.
+ */
+#ifdef __glue
+		.pushsection .data
+		.globl	omap_irq_base
+omap_irq_base:
+		.word	0
+		.popsection
+#endif
+
+		/*
+		 * Configure the interrupt base on the first interrupt.
+		 * See also omap_irq_base_init for setting omap_irq_base.
+		 */
 		.macro  get_irqnr_preamble, base, tmp
-9:
 		ldr	\base, =omap_irq_base	@ irq base address
 		ldr	\base, [\base, #0]	@ irq base value
-		cmp	\base, #0		@ already configured?
-		bne	9997f			@ nothing to do
-
-		mrc	p15, 0, \tmp, c0, c0, 0	@ get processor revision
-		and	\tmp, \tmp, #0x000f0000	@ only check architecture
-		cmp	\tmp, #0x00070000	@ is v6?
-		beq	2400f			@ found v6 so it's omap24xx
-		mrc	p15, 0, \tmp, c0, c0, 0	@ get processor revision
-		and	\tmp, \tmp, #0x000000f0	@ check cortex 8 or 9
-		cmp	\tmp, #0x00000080	@ cortex A-8?
-		beq	3400f			@ found A-8 so it's omap34xx
-		cmp	\tmp, #0x00000090	@ cortex A-9?
-		beq	4400f			@ found A-9 so it's omap44xx
-2400:		ldr	\base, =OMAP2_IRQ_BASE
-		ldr	\tmp, =omap_irq_base
-		str	\base, [\tmp, #0]
-		b	9b
-3400:		ldr	\base, =OMAP3_IRQ_BASE
-		ldr	\tmp, =omap_irq_base
-		str	\base, [\tmp, #0]
-		b	9b
-4400:		ldr	\base, =OMAP4_IRQ_BASE
-		ldr	\tmp, =omap_irq_base
-		str	\base, [\tmp, #0]
-		b	9b
-9997:
 		.endm
 
 		/* Check the pending interrupts. Note that base already set */
