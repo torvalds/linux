@@ -566,7 +566,7 @@ extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
 
 extern bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev);
 extern struct edid *
-radeon_combios_get_hardcoded_edid(struct radeon_device *rdev);
+radeon_bios_get_hardcoded_edid(struct radeon_device *rdev);
 extern bool radeon_atom_get_clock_info(struct drm_device *dev);
 extern bool radeon_combios_get_clock_info(struct drm_device *dev);
 extern struct radeon_encoder_atom_dig *

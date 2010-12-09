@@ -679,9 +679,17 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 	if (!radeon_connector->edid) {
 		radeon_connector->edid = drm_get_edid(&radeon_connector->base, &radeon_connector->ddc_bus->adapter);
 	}
-	/* some servers provide a hardcoded edid in rom for KVMs */
-	if (!radeon_connector->edid)
-		radeon_connector->edid = radeon_combios_get_hardcoded_edid(rdev);
+
+	if (!radeon_connector->edid) {
+		if (rdev->is_atom_bios) {
+			/* some laptops provide a hardcoded edid in rom for LCDs */
+			if (((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_LVDS) ||
+			     (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)))
+				radeon_connector->edid = radeon_bios_get_hardcoded_edid(rdev);
+		} else
+			/* some servers provide a hardcoded edid in rom for KVMs */
+			radeon_connector->edid = radeon_bios_get_hardcoded_edid(rdev);
+	}
 	if (radeon_connector->edid) {
 		drm_mode_connector_update_edid_property(&radeon_connector->base, radeon_connector->edid);
 		ret = drm_add_edid_modes(&radeon_connector->base, radeon_connector->edid);

@@ -471,8 +471,9 @@ bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev)
 	return true;
 }
 
+/* this is used for atom LCDs as well */
 struct edid *
-radeon_combios_get_hardcoded_edid(struct radeon_device *rdev)
+radeon_bios_get_hardcoded_edid(struct radeon_device *rdev)
 {
 	if (rdev->mode_info.bios_hardcoded_edid)
 		return rdev->mode_info.bios_hardcoded_edid;

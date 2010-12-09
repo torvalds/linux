@@ -1515,6 +1515,59 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 		else
 			lvds->linkb = false;
 
+		/* parse the lcd record table */
+		if (lvds_info->info.usModePatchTableOffset) {
+			ATOM_FAKE_EDID_PATCH_RECORD *fake_edid_record;
+			ATOM_PANEL_RESOLUTION_PATCH_RECORD *panel_res_record;
+			bool bad_record = false;
+			u8 *record = (u8 *)(mode_info->atom_context->bios +
+					    data_offset +
+					    lvds_info->info.usModePatchTableOffset);
+			while (*record != ATOM_RECORD_END_TYPE) {
+				switch (*record) {
+				case LCD_MODE_PATCH_RECORD_MODE_TYPE:
+					record += sizeof(ATOM_PATCH_RECORD_MODE);
+					break;
+				case LCD_RTS_RECORD_TYPE:
+					record += sizeof(ATOM_LCD_RTS_RECORD);
+					break;
+				case LCD_CAP_RECORD_TYPE:
+					record += sizeof(ATOM_LCD_MODE_CONTROL_CAP);
+					break;
+				case LCD_FAKE_EDID_PATCH_RECORD_TYPE:
+					fake_edid_record = (ATOM_FAKE_EDID_PATCH_RECORD *)record;
+					if (fake_edid_record->ucFakeEDIDLength) {
+						struct edid *edid;
+						int edid_size =
+							max((int)EDID_LENGTH, (int)fake_edid_record->ucFakeEDIDLength);
+						edid = kmalloc(edid_size, GFP_KERNEL);
+						if (edid) {
+							memcpy((u8 *)edid, (u8 *)&fake_edid_record->ucFakeEDIDString[0],
+							       fake_edid_record->ucFakeEDIDLength);
+
+							if (drm_edid_is_valid(edid))
+								rdev->mode_info.bios_hardcoded_edid = edid;
+							else
+								kfree(edid);
+						}
+					}
+					record += sizeof(ATOM_FAKE_EDID_PATCH_RECORD);
+					break;
+				case LCD_PANEL_RESOLUTION_RECORD_TYPE:
+					panel_res_record = (ATOM_PANEL_RESOLUTION_PATCH_RECORD *)record;
+					lvds->native_mode.width_mm = panel_res_record->usHSize;
+					lvds->native_mode.height_mm = panel_res_record->usVSize;
+					record += sizeof(ATOM_PANEL_RESOLUTION_PATCH_RECORD);
+					break;
+				default:
+					DRM_ERROR("Bad LCD record %d\n", *record);
+					bad_record = true;
+					break;
+				}
+				if (bad_record)
+					break;
+			}
+		}
 	}
 	return lvds;
 }
