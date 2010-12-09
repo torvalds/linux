@@ -214,13 +214,17 @@ static int sr_media_change(struct cdrom_device_info *cdi, int slot)
 
 	sshdr =  kzalloc(sizeof(*sshdr), GFP_KERNEL);
 	retval = sr_test_unit_ready(cd->device, sshdr);
-	if (retval || (scsi_sense_valid(sshdr) &&
-		       /* 0x3a is medium not present */
-		       sshdr->asc == 0x3a)) {
-		/* Media not present or unable to test, unit probably not
-		 * ready. This usually means there is no disc in the drive.
-		 * Mark as changed, and we will figure it out later once
-		 * the drive is available again.
+	/*
+	 * Media is considered to be present if TUR succeeds or fails with
+	 * sense data indicating something other than media-not-present
+	 * (ASC 0x3a).
+	 */
+	if (!scsi_status_is_good(retval) &&
+	    (!scsi_sense_valid(sshdr) || sshdr->asc == 0x3a)) {
+		/*
+		 * Probably no media in the device.  Mark as changed, and
+		 * we will figure it out later once the drive is available
+		 * again.
 		 */
 		cd->device->changed = 1;
 		/* This will force a flush, if called from check_disk_change */
