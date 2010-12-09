@@ -1433,7 +1433,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 		}
 
 		xdst->route = dst;
-		memcpy(&dst1->metrics, &dst->metrics, sizeof(dst->metrics));
+		dst_copy_metrics(dst1, dst);
 
 		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
 			family = xfrm[i]->props.family;
@@ -2271,7 +2271,7 @@ static void xfrm_init_pmtu(struct dst_entry *dst)
 		if (pmtu > route_mtu_cached)
 			pmtu = route_mtu_cached;
 
-		dst->metrics[RTAX_MTU-1] = pmtu;
+		dst_metric_set(dst, RTAX_MTU, pmtu);
 	} while ((dst = dst->next));
 }
 
@@ -2349,7 +2349,7 @@ static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 		mtu = xfrm_state_mtu(dst->xfrm, mtu);
 		if (mtu > last->route_mtu_cached)
 			mtu = last->route_mtu_cached;
-		dst->metrics[RTAX_MTU-1] = mtu;
+		dst_metric_set(dst, RTAX_MTU, mtu);
 
 		if (last == first)
 			break;

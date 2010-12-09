@@ -70,7 +70,7 @@ struct dst_entry {
 
 	struct  dst_ops	        *ops;
 
-	u32			metrics[RTAX_MAX];
+	u32			_metrics[RTAX_MAX];
 
 #ifdef CONFIG_NET_CLS_ROUTE
 	__u32			tclassid;
@@ -106,7 +106,27 @@ struct dst_entry {
 static inline u32
 dst_metric(const struct dst_entry *dst, int metric)
 {
-	return dst->metrics[metric-1];
+	return dst->_metrics[metric-1];
+}
+
+static inline void dst_metric_set(struct dst_entry *dst, int metric, u32 val)
+{
+	dst->_metrics[metric-1] = val;
+}
+
+static inline void dst_import_metrics(struct dst_entry *dst, const u32 *src_metrics)
+{
+	memcpy(dst->_metrics, src_metrics, RTAX_MAX * sizeof(u32));
+}
+
+static inline void dst_copy_metrics(struct dst_entry *dest, const struct dst_entry *src)
+{
+	dst_import_metrics(dest, src->_metrics);
+}
+
+static inline u32 *dst_metrics_ptr(struct dst_entry *dst)
+{
+	return dst->_metrics;
 }
 
 static inline u32
@@ -134,7 +154,7 @@ static inline unsigned long dst_metric_rtt(const struct dst_entry *dst, int metr
 static inline void set_dst_metric_rtt(struct dst_entry *dst, int metric,
 				      unsigned long rtt)
 {
-	dst->metrics[metric-1] = jiffies_to_msecs(rtt);
+	dst_metric_set(dst, metric, jiffies_to_msecs(rtt));
 }
 
 static inline u32

@@ -1259,7 +1259,8 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	if (ra_msg->icmph.icmp6_hop_limit) {
 		in6_dev->cnf.hop_limit = ra_msg->icmph.icmp6_hop_limit;
 		if (rt)
-			rt->dst.metrics[RTAX_HOPLIMIT-1] = ra_msg->icmph.icmp6_hop_limit;
+			dst_metric_set(&rt->dst, RTAX_HOPLIMIT,
+				       ra_msg->icmph.icmp6_hop_limit);
 	}
 
 skip_defrtr:
@@ -1377,7 +1378,7 @@ skip_linkparms:
 			in6_dev->cnf.mtu6 = mtu;
 
 			if (rt)
-				rt->dst.metrics[RTAX_MTU-1] = mtu;
+				dst_metric_set(&rt->dst, RTAX_MTU, mtu);
 
 			rt6_mtu_change(skb->dev, mtu);
 		}

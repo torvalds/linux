@@ -240,13 +240,13 @@ static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu)
 
 	if (dst_metric(dst, RTAX_MTU) > mtu && mtu >= min_mtu) {
 		if (!(dst_metric_locked(dst, RTAX_MTU))) {
-			dst->metrics[RTAX_MTU-1] = mtu;
+			dst_metric_set(dst, RTAX_MTU, mtu);
 			dst_set_expires(dst, dn_rt_mtu_expires);
 		}
 		if (!(dst_metric_locked(dst, RTAX_ADVMSS))) {
 			u32 mss = mtu - DN_MAX_NSP_DATA_HEADER;
 			if (dst_metric(dst, RTAX_ADVMSS) > mss)
-				dst->metrics[RTAX_ADVMSS-1] = mss;
+				dst_metric_set(dst, RTAX_ADVMSS, mss);
 		}
 	}
 }
@@ -806,8 +806,7 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 		if (DN_FIB_RES_GW(*res) &&
 		    DN_FIB_RES_NH(*res).nh_scope == RT_SCOPE_LINK)
 			rt->rt_gateway = DN_FIB_RES_GW(*res);
-		memcpy(rt->dst.metrics, fi->fib_metrics,
-		       sizeof(rt->dst.metrics));
+		dst_import_metrics(&rt->dst, fi->fib_metrics);
 	}
 	rt->rt_type = res->type;
 
@@ -820,11 +819,11 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 
 	if (dst_metric(&rt->dst, RTAX_MTU) == 0 ||
 	    dst_metric(&rt->dst, RTAX_MTU) > rt->dst.dev->mtu)
-		rt->dst.metrics[RTAX_MTU-1] = rt->dst.dev->mtu;
+		dst_metric_set(&rt->dst, RTAX_MTU, rt->dst.dev->mtu);
 	mss = dn_mss_from_pmtu(dev, dst_mtu(&rt->dst));
 	if (dst_metric(&rt->dst, RTAX_ADVMSS) == 0 ||
 	    dst_metric(&rt->dst, RTAX_ADVMSS) > mss)
-		rt->dst.metrics[RTAX_ADVMSS-1] = mss;
+		dst_metric_set(&rt->dst, RTAX_ADVMSS, mss);
 	return 0;
 }
 
@@ -1502,7 +1501,7 @@ static int dn_rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	RTA_PUT(skb, RTA_PREFSRC, 2, &rt->rt_local_src);
 	if (rt->rt_daddr != rt->rt_gateway)
 		RTA_PUT(skb, RTA_GATEWAY, 2, &rt->rt_gateway);
-	if (rtnetlink_put_metrics(skb, rt->dst.metrics) < 0)
+	if (rtnetlink_put_metrics(skb, dst_metrics_ptr(&rt->dst)) < 0)
 		goto rtattr_failure;
 	expires = rt->dst.expires ? rt->dst.expires - jiffies : 0;
 	if (rtnl_put_cacheinfo(skb, &rt->dst, 0, 0, 0, expires,

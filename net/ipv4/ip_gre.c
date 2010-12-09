@@ -818,7 +818,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			     !ipv4_is_multicast(tunnel->parms.iph.daddr)) ||
 			    rt6->rt6i_dst.plen == 128) {
 				rt6->rt6i_flags |= RTF_MODIFIED;
-				skb_dst(skb)->metrics[RTAX_MTU-1] = mtu;
+				dst_metric_set(skb_dst(skb), RTAX_MTU, mtu);
 			}
 		}
 

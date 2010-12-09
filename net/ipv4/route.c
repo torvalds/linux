@@ -1686,11 +1686,14 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 					if (mtu < dst_mtu(&rth->dst)) {
 						dst_confirm(&rth->dst);
 						if (mtu < ip_rt_min_pmtu) {
+							u32 lock = dst_metric(&rth->dst,
+									      RTAX_LOCK);
 							mtu = ip_rt_min_pmtu;
-							rth->dst.metrics[RTAX_LOCK-1] |=
-								(1 << RTAX_MTU);
+							lock |= (1 << RTAX_MTU);
+							dst_metric_set(&rth->dst, RTAX_LOCK,
+								       lock);
 						}
-						rth->dst.metrics[RTAX_MTU-1] = mtu;
+						dst_metric_set(&rth->dst, RTAX_MTU, mtu);
 						dst_set_expires(&rth->dst,
 							ip_rt_mtu_expires);
 					}
@@ -1708,10 +1711,11 @@ static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 	if (dst_mtu(dst) > mtu && mtu >= 68 &&
 	    !(dst_metric_locked(dst, RTAX_MTU))) {
 		if (mtu < ip_rt_min_pmtu) {
+			u32 lock = dst_metric(dst, RTAX_LOCK);
 			mtu = ip_rt_min_pmtu;
-			dst->metrics[RTAX_LOCK-1] |= (1 << RTAX_MTU);
+			dst_metric_set(dst, RTAX_LOCK, lock | (1 << RTAX_MTU));
 		}
-		dst->metrics[RTAX_MTU-1] = mtu;
+		dst_metric_set(dst, RTAX_MTU, mtu);
 		dst_set_expires(dst, ip_rt_mtu_expires);
 		call_netevent_notifiers(NETEVENT_PMTU_UPDATE, dst);
 	}
@@ -1796,36 +1800,37 @@ static void set_class_tag(struct rtable *rt, u32 tag)
 
 static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 {
+	struct dst_entry *dst = &rt->dst;
 	struct fib_info *fi = res->fi;
 
 	if (fi) {
 		if (FIB_RES_GW(*res) &&
 		    FIB_RES_NH(*res).nh_scope == RT_SCOPE_LINK)
 			rt->rt_gateway = FIB_RES_GW(*res);
-		memcpy(rt->dst.metrics, fi->fib_metrics,
-		       sizeof(rt->dst.metrics));
+		dst_import_metrics(dst, fi->fib_metrics);
 		if (fi->fib_mtu == 0) {
-			rt->dst.metrics[RTAX_MTU-1] = rt->dst.dev->mtu;
-			if (dst_metric_locked(&rt->dst, RTAX_MTU) &&
+			dst_metric_set(dst, RTAX_MTU, dst->dev->mtu);
+			if (dst_metric_locked(dst, RTAX_MTU) &&
 			    rt->rt_gateway != rt->rt_dst &&
-			    rt->dst.dev->mtu > 576)
-				rt->dst.metrics[RTAX_MTU-1] = 576;
+			    dst->dev->mtu > 576)
+				dst_metric_set(dst, RTAX_MTU, 576);
 		}
 #ifdef CONFIG_NET_CLS_ROUTE
-		rt->dst.tclassid = FIB_RES_NH(*res).nh_tclassid;
+		dst->tclassid = FIB_RES_NH(*res).nh_tclassid;
 #endif
 	} else
-		rt->dst.metrics[RTAX_MTU-1]= rt->dst.dev->mtu;
+		dst_metric_set(dst, RTAX_MTU, dst->dev->mtu);
 
-	if (dst_metric(&rt->dst, RTAX_HOPLIMIT) == 0)
-		rt->dst.metrics[RTAX_HOPLIMIT-1] = sysctl_ip_default_ttl;
-	if (dst_mtu(&rt->dst) > IP_MAX_MTU)
-		rt->dst.metrics[RTAX_MTU-1] = IP_MAX_MTU;
-	if (dst_metric(&rt->dst, RTAX_ADVMSS) == 0)
-		rt->dst.metrics[RTAX_ADVMSS-1] = max_t(unsigned int, rt->dst.dev->mtu - 40,
-				       ip_rt_min_advmss);
-	if (dst_metric(&rt->dst, RTAX_ADVMSS) > 65535 - 40)
-		rt->dst.metrics[RTAX_ADVMSS-1] = 65535 - 40;
+	if (dst_metric(dst, RTAX_HOPLIMIT) == 0)
+		dst_metric_set(dst, RTAX_HOPLIMIT, sysctl_ip_default_ttl);
+	if (dst_mtu(dst) > IP_MAX_MTU)
+		dst_metric_set(dst, RTAX_MTU, IP_MAX_MTU);
+	if (dst_metric(dst, RTAX_ADVMSS) == 0)
+		dst_metric_set(dst, RTAX_ADVMSS,
+			       max_t(unsigned int, dst->dev->mtu - 40,
+				     ip_rt_min_advmss));
+	if (dst_metric(dst, RTAX_ADVMSS) > 65535 - 40)
+		dst_metric_set(dst, RTAX_ADVMSS, 65535 - 40);
 
 #ifdef CONFIG_NET_CLS_ROUTE
 #ifdef CONFIG_IP_MULTIPLE_TABLES
@@ -2720,7 +2725,7 @@ static int ipv4_dst_blackhole(struct net *net, struct rtable **rp, struct flowi 
 		new->__use = 1;
 		new->input = dst_discard;
 		new->output = dst_discard;
-		memcpy(new->metrics, ort->dst.metrics, RTAX_MAX*sizeof(u32));
+		dst_copy_metrics(new, &ort->dst);
 
 		new->dev = ort->dst.dev;
 		if (new->dev)
@@ -2827,7 +2832,7 @@ static int rt_fill_info(struct net *net,
 	if (rt->rt_dst != rt->rt_gateway)
 		NLA_PUT_BE32(skb, RTA_GATEWAY, rt->rt_gateway);
 
-	if (rtnetlink_put_metrics(skb, rt->dst.metrics) < 0)
+	if (rtnetlink_put_metrics(skb, dst_metrics_ptr(&rt->dst)) < 0)
 		goto nla_put_failure;
 
 	if (rt->fl.mark)

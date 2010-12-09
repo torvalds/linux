@@ -734,7 +734,7 @@ void tcp_update_metrics(struct sock *sk)
 			 * Reset our results.
 			 */
 			if (!(dst_metric_locked(dst, RTAX_RTT)))
-				dst->metrics[RTAX_RTT - 1] = 0;
+				dst_metric_set(dst, RTAX_RTT, 0);
 			return;
 		}
 
@@ -776,34 +776,38 @@ void tcp_update_metrics(struct sock *sk)
 			if (dst_metric(dst, RTAX_SSTHRESH) &&
 			    !dst_metric_locked(dst, RTAX_SSTHRESH) &&
 			    (tp->snd_cwnd >> 1) > dst_metric(dst, RTAX_SSTHRESH))
-				dst->metrics[RTAX_SSTHRESH-1] = tp->snd_cwnd >> 1;
+				dst_metric_set(dst, RTAX_SSTHRESH, tp->snd_cwnd >> 1);
 			if (!dst_metric_locked(dst, RTAX_CWND) &&
 			    tp->snd_cwnd > dst_metric(dst, RTAX_CWND))
-				dst->metrics[RTAX_CWND - 1] = tp->snd_cwnd;
+				dst_metric_set(dst, RTAX_CWND, tp->snd_cwnd);
 		} else if (tp->snd_cwnd > tp->snd_ssthresh &&
 			   icsk->icsk_ca_state == TCP_CA_Open) {
 			/* Cong. avoidance phase, cwnd is reliable. */
 			if (!dst_metric_locked(dst, RTAX_SSTHRESH))
-				dst->metrics[RTAX_SSTHRESH-1] =
-					max(tp->snd_cwnd >> 1, tp->snd_ssthresh);
+				dst_metric_set(dst, RTAX_SSTHRESH,
+					       max(tp->snd_cwnd >> 1, tp->snd_ssthresh));
 			if (!dst_metric_locked(dst, RTAX_CWND))
-				dst->metrics[RTAX_CWND-1] = (dst_metric(dst, RTAX_CWND) + tp->snd_cwnd) >> 1;
+				dst_metric_set(dst, RTAX_CWND,
+					       (dst_metric(dst, RTAX_CWND) +
+						tp->snd_cwnd) >> 1);
 		} else {
 			/* Else slow start did not finish, cwnd is non-sense,
 			   ssthresh may be also invalid.
 			 */
 			if (!dst_metric_locked(dst, RTAX_CWND))
-				dst->metrics[RTAX_CWND-1] = (dst_metric(dst, RTAX_CWND) + tp->snd_ssthresh) >> 1;
+				dst_metric_set(dst, RTAX_CWND,
+					       (dst_metric(dst, RTAX_CWND) +
+						tp->snd_ssthresh) >> 1);
 			if (dst_metric(dst, RTAX_SSTHRESH) &&
 			    !dst_metric_locked(dst, RTAX_SSTHRESH) &&
 			    tp->snd_ssthresh > dst_metric(dst, RTAX_SSTHRESH))
-				dst->metrics[RTAX_SSTHRESH-1] = tp->snd_ssthresh;
+				dst_metric_set(dst, RTAX_SSTHRESH, tp->snd_ssthresh);
 		}
 
 		if (!dst_metric_locked(dst, RTAX_REORDERING)) {
 			if (dst_metric(dst, RTAX_REORDERING) < tp->reordering &&
 			    tp->reordering != sysctl_tcp_reordering)
-				dst->metrics[RTAX_REORDERING-1] = tp->reordering;
+				dst_metric_set(dst, RTAX_REORDERING, tp->reordering);
 		}
 	}
 }
