@@ -515,6 +515,58 @@ nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
 }
 
 static int
+nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
+		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+{
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	u64 src_offset = old_mem->start << PAGE_SHIFT;
+	u64 dst_offset = new_mem->start << PAGE_SHIFT;
+	u32 page_count = new_mem->num_pages;
+	int ret;
+
+	if (!nvbo->no_vm) {
+		if (old_mem->mem_type == TTM_PL_VRAM)
+			src_offset  = nvbo->vma.offset;
+		else
+			src_offset += dev_priv->gart_info.aper_base;
+
+		if (new_mem->mem_type == TTM_PL_VRAM)
+			dst_offset  = nvbo->vma.offset;
+		else
+			dst_offset += dev_priv->gart_info.aper_base;
+	}
+
+	page_count = new_mem->num_pages;
+	while (page_count) {
+		int line_count = (page_count > 2047) ? 2047 : page_count;
+
+		ret = RING_SPACE(chan, 12);
+		if (ret)
+			return ret;
+
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0238, 2);
+		OUT_RING  (chan, upper_32_bits(dst_offset));
+		OUT_RING  (chan, lower_32_bits(dst_offset));
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x030c, 6);
+		OUT_RING  (chan, upper_32_bits(src_offset));
+		OUT_RING  (chan, lower_32_bits(src_offset));
+		OUT_RING  (chan, PAGE_SIZE); /* src_pitch */
+		OUT_RING  (chan, PAGE_SIZE); /* dst_pitch */
+		OUT_RING  (chan, PAGE_SIZE); /* line_length */
+		OUT_RING  (chan, line_count);
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0300, 1);
+		OUT_RING  (chan, 0x00100110);
+
+		page_count -= line_count;
+		src_offset += (PAGE_SIZE * line_count);
+		dst_offset += (PAGE_SIZE * line_count);
+	}
+
+	return 0;
+}
+
+static int
 nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
 {
@@ -690,7 +742,10 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	if (dev_priv->card_type < NV_50)
 		ret = nv04_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
 	else
+	if (dev_priv->card_type < NV_C0)
 		ret = nv50_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
+	else
+		ret = nvc0_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
 	if (ret == 0) {
 		ret = nouveau_bo_move_accel_cleanup(chan, nvbo, evict,
 						    no_wait_reserve,
@@ -836,7 +891,7 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict, bool intr,
 	}
 
 	/* Software copy if the card isn't up and running yet. */
-	if (!dev_priv->channel || dev_priv->card_type == NV_C0) {
+	if (!dev_priv->channel) {
 		ret = ttm_bo_move_memcpy(bo, evict, no_wait_reserve, no_wait_gpu, new_mem);
 		goto out;
 	}
