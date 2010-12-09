@@ -97,6 +97,7 @@ struct igbvf_adapter;
 
 enum igbvf_boards {
 	board_vf,
+	board_i350_vf,
 };
 
 struct igbvf_queue_stats {

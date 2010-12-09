@@ -64,8 +64,16 @@ static struct igbvf_info igbvf_vf_info = {
 	.init_ops               = e1000_init_function_pointers_vf,
 };
 
+static struct igbvf_info igbvf_i350_vf_info = {
+	.mac			= e1000_vfadapt_i350,
+	.flags			= 0,
+	.pba			= 10,
+	.init_ops		= e1000_init_function_pointers_vf,
+};
+
 static const struct igbvf_info *igbvf_info_tbl[] = {
 	[board_vf]              = &igbvf_vf_info,
+	[board_i350_vf]		= &igbvf_i350_vf_info,
 };
 
 /**
@@ -2865,6 +2873,7 @@ static struct pci_error_handlers igbvf_err_handler = {
 
 static DEFINE_PCI_DEVICE_TABLE(igbvf_pci_tbl) = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_VF), board_vf },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_I350_VF), board_i350_vf },
 	{ } /* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, igbvf_pci_tbl);
