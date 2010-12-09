@@ -5252,20 +5252,21 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 }
 
 static void do_intel_finish_page_flip(struct drm_device *dev,
-				      struct drm_crtc *crtc,
-				      int called_before_vblirq)
+				      struct drm_crtc *crtc)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
 	struct drm_i915_gem_object *obj;
 	struct drm_pending_vblank_event *e;
-	struct timeval now;
+	struct timeval tnow, tvbl;
 	unsigned long flags;
 
 	/* Ignore early vblank irqs */
 	if (intel_crtc == NULL)
 		return;
+
+	do_gettimeofday(&tnow);
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	work = intel_crtc->unpin_work;
@@ -5278,22 +5279,29 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 	if (work->event) {
 		e = work->event;
-		e->event.sequence = drm_vblank_count_and_time(dev, intel_crtc->pipe, &now);
+		e->event.sequence = drm_vblank_count_and_time(dev, intel_crtc->pipe, &tvbl);
 
 		/* Called before vblank count and timestamps have
 		 * been updated for the vblank interval of flip
 		 * completion? Need to increment vblank count and
 		 * add one videorefresh duration to returned timestamp
-		 * to account for this.
+		 * to account for this. We assume this happened if we
+		 * get called over 0.9 frame durations after the last
+		 * timestamped vblank.
+		 *
+		 * This calculation can not be used with vrefresh rates
+		 * below 5Hz (10Hz to be on the safe side) without
+		 * promoting to 64 integers.
 		 */
-		if (called_before_vblirq) {
+		if (10 * (timeval_to_ns(&tnow) - timeval_to_ns(&tvbl)) >
+		    9 * crtc->framedur_ns) {
 			e->event.sequence++;
-			now = ns_to_timeval(timeval_to_ns(&now) +
-					    crtc->framedur_ns);
+			tvbl = ns_to_timeval(timeval_to_ns(&tvbl) +
+					     crtc->framedur_ns);
 		}
 
-		e->event.tv_sec = now.tv_sec;
-		e->event.tv_usec = now.tv_usec;
+		e->event.tv_sec = tvbl.tv_sec;
+		e->event.tv_usec = tvbl.tv_usec;
 
 		list_add_tail(&e->base.link,
 			      &e->base.file_priv->event_list);
@@ -5321,8 +5329,7 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 
-	/* Called after drm_handle_vblank has run for finish vblank. */
-	do_intel_finish_page_flip(dev, crtc, 0);
+	do_intel_finish_page_flip(dev, crtc);
 }
 
 void intel_finish_page_flip_plane(struct drm_device *dev, int plane)
@@ -5330,8 +5337,7 @@ void intel_finish_page_flip_plane(struct drm_device *dev, int plane)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = dev_priv->plane_to_crtc_mapping[plane];
 
-	/* Called before drm_handle_vblank has run for finish vblank. */
-	do_intel_finish_page_flip(dev, crtc, 1);
+	do_intel_finish_page_flip(dev, crtc);
 }
 
 void intel_prepare_page_flip(struct drm_device *dev, int plane)
