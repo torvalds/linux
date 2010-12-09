@@ -677,7 +677,7 @@ extern struct platform_device rk29_device_camera;
 #define PWM_MUX_NAME      GPIO1B5_PWM0_NAME
 #define PWM_MUX_MODE      GPIO1L_PWM0
 #define PWM_MUX_MODE_GPIO GPIO1L_GPIO1B5
-#define PWM_EFFECT_VALUE  0
+#define PWM_EFFECT_VALUE  1
 
 //#define LCD_DISP_ON_PIN
 
