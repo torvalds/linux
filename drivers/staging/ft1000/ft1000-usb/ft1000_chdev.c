@@ -148,18 +148,18 @@ int ft1000_create_dev(struct ft1000_device *dev)
     // make a new device name
     sprintf(info->DeviceName, "%s%d", "FT1000_", info->CardNumber);
 
-    DEBUG("ft1000_CreateDevice: number of instance = %d\n", ft1000_flarion_cnt);
+    DEBUG("%s: number of instance = %d\n", __func__, ft1000_flarion_cnt);
     DEBUG("DeviceCreated = %x\n", info->DeviceCreated);
 
     if (info->DeviceCreated)
     {
-	DEBUG("ft1000_CreateDevice: \"%s\" already registered\n", info->DeviceName);
+	DEBUG("%s: \"%s\" already registered\n", __func__, info->DeviceName);
 	return -EIO;
     }
 
 
     // register the device
-    DEBUG("ft1000_CreateDevice: \"%s\" device registration\n", info->DeviceName);
+    DEBUG("%s: \"%s\" debugfs device registration\n", __func__, info->DeviceName);
 
 	tmp = kmalloc(sizeof(struct ft1000_debug_dirs), GFP_KERNEL);
 	if (tmp == NULL) {
@@ -185,7 +185,7 @@ int ft1000_create_dev(struct ft1000_device *dev)
 	tmp->int_number = info->CardNumber;
 	list_add(&(tmp->list), &(info->nodes.list));
 
-    DEBUG("ft1000_CreateDevice: registered char device \"%s\"\n", info->DeviceName);
+    DEBUG("%s: registered debugfs directory \"%s\"\n", __func__, info->DeviceName);
 
     // initialize application information
     info->appcnt = 0;
@@ -234,7 +234,7 @@ void ft1000_destroy_dev(struct net_device *dev)
 	struct list_head *pos, *q;
 	struct ft1000_debug_dirs *dir;
 
-    DEBUG("ft1000_chdev:ft1000_DestroyDevice called\n");
+    DEBUG("%s called\n", __func__);
 
 
 
@@ -250,7 +250,7 @@ void ft1000_destroy_dev(struct net_device *dev)
 				kfree(dir);
 			}
 		}
-		DEBUG("ft1000_DestroyDevice: unregistered device \"%s\"\n",
+		DEBUG("%s: unregistered device \"%s\"\n", __func__,
 					   info->DeviceName);
 
         // Make sure we free any memory reserve for slow Queue
@@ -295,7 +295,7 @@ static int ft1000_open (struct inode *inode, struct file *file)
 	struct ft1000_device *dev = (struct ft1000_device *)inode->i_private;
     int i,num;
 
-    DEBUG("ft1000_open called\n");
+    DEBUG("%s called\n", __func__);
     num = (MINOR(inode->i_rdev) & 0xf);
     DEBUG("ft1000_open: minor number=%d\n", num);
 
