@@ -339,7 +339,8 @@ static struct clk abe_24m_fclk = {
 	.name		= "abe_24m_fclk",
 	.parent		= &dpll_abe_m2x2_ck,
 	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
+	.fixed_div	= 8,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 static const struct clksel_rate div3_1to4_rates[] = {
@@ -505,7 +506,8 @@ static struct clk ddrphy_ck = {
 	.name		= "ddrphy_ck",
 	.parent		= &dpll_core_m2_ck,
 	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
+	.fixed_div	= 2,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 static struct clk dpll_core_m5x2_ck = {
@@ -590,7 +592,8 @@ static struct clk dll_clk_div_ck = {
 	.name		= "dll_clk_div_ck",
 	.parent		= &dpll_core_m4x2_ck,
 	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
+	.fixed_div	= 2,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 static const struct clksel dpll_abe_m2_div[] = {
@@ -772,7 +775,8 @@ static struct clk per_hs_clk_div_ck = {
 	.name		= "per_hs_clk_div_ck",
 	.parent		= &dpll_abe_m3x2_ck,
 	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
+	.fixed_div	= 2,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 static const struct clksel per_hsd_byp_clk_mux_sel[] = {
@@ -986,7 +990,8 @@ static struct clk usb_hs_clk_div_ck = {
 	.name		= "usb_hs_clk_div_ck",
 	.parent		= &dpll_abe_m3x2_ck,
 	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
+	.fixed_div	= 3,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 /* DPLL_USB */
@@ -1066,21 +1071,24 @@ static struct clk func_12m_fclk = {
 	.name		= "func_12m_fclk",
 	.parent		= &dpll_per_m2x2_ck,
 	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
+	.fixed_div	= 16,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 static struct clk func_24m_clk = {
 	.name		= "func_24m_clk",
 	.parent		= &dpll_per_m2_ck,
 	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
+	.fixed_div	= 4,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 static struct clk func_24mc_fclk = {
 	.name		= "func_24mc_fclk",
 	.parent		= &dpll_per_m2x2_ck,
 	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
+	.fixed_div	= 8,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 static const struct clksel_rate div2_4to8_rates[] = {
@@ -1110,7 +1118,8 @@ static struct clk func_48mc_fclk = {
 	.name		= "func_48mc_fclk",
 	.parent		= &dpll_per_m2x2_ck,
 	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
+	.fixed_div	= 4,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 static const struct clksel_rate div2_2to4_rates[] = {
@@ -1227,7 +1236,8 @@ static struct clk lp_clk_div_ck = {
 	.name		= "lp_clk_div_ck",
 	.parent		= &dpll_abe_m2x2_ck,
 	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
+	.fixed_div	= 16,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 static const struct clksel l4_wkup_clk_mux_sel[] = {
@@ -1295,7 +1305,8 @@ static struct clk per_abe_24m_fclk = {
 	.name		= "per_abe_24m_fclk",
 	.parent		= &dpll_abe_m2_ck,
 	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
+	.fixed_div	= 4,
+	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 static const struct clksel pmd_stm_clock_mux_sel[] = {
