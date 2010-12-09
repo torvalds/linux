@@ -3442,7 +3442,7 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	}
 
 	sep->rar_size = FAKE_RAR_SIZE;
-	sep->rar_addr = dma_alloc_coherent(NULL,
+	sep->rar_addr = dma_alloc_coherent(&sep->pdev->dev,
 		sep->rar_size, &sep->rar_bus, GFP_KERNEL);
 	if (sep->rar_addr == NULL) {
 		dev_warn(&sep->pdev->dev, "can't allocate mfld rar\n");
