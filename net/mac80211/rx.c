@@ -955,12 +955,31 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		 * have been expected.
 		 */
 		struct ieee80211_key *key = NULL;
+		struct ieee80211_sub_if_data *sdata = rx->sdata;
+		int i;
+
 		if (ieee80211_is_mgmt(fc) &&
 		    is_multicast_ether_addr(hdr->addr1) &&
 		    (key = rcu_dereference(rx->sdata->default_mgmt_key)))
 			rx->key = key;
-		else if ((key = rcu_dereference(rx->sdata->default_key)))
-			rx->key = key;
+		else {
+			if (rx->sta) {
+				for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
+					key = rcu_dereference(rx->sta->gtk[i]);
+					if (key)
+						break;
+				}
+			}
+			if (!key) {
+				for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
+					key = rcu_dereference(sdata->keys[i]);
+					if (key)
+						break;
+				}
+			}
+			if (key)
+				rx->key = key;
+		}
 		return RX_CONTINUE;
 	} else {
 		u8 keyid;
