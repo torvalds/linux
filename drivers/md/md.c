@@ -373,8 +373,9 @@ static void md_end_flush(struct bio *bio, int err)
 
 static void md_submit_flush_data(struct work_struct *ws);
 
-static void submit_flushes(mddev_t *mddev)
+static void submit_flushes(struct work_struct *ws)
 {
+	mddev_t *mddev = container_of(ws, mddev_t, flush_work);
 	mdk_rdev_t *rdev;
 
 	INIT_WORK(&mddev->flush_work, md_submit_flush_data);
@@ -432,7 +433,8 @@ void md_flush_request(mddev_t *mddev, struct bio *bio)
 	mddev->flush_bio = bio;
 	spin_unlock_irq(&mddev->write_lock);
 
-	submit_flushes(mddev);
+	INIT_WORK(&mddev->flush_work, submit_flushes);
+	queue_work(md_wq, &mddev->flush_work);
 }
 EXPORT_SYMBOL(md_flush_request);
 
