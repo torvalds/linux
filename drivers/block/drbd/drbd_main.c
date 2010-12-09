@@ -2580,7 +2580,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	if (ok && dgs) {
 		dgb = mdev->int_dig_out;
 		drbd_csum_bio(mdev, mdev->integrity_w_tfm, req->master_bio, dgb);
-		ok = drbd_send(mdev, mdev->data.socket, dgb, dgs, 0);
+		ok = dgs == drbd_send(mdev, mdev->data.socket, dgb, dgs, 0);
 	}
 	if (ok) {
 		/* For protocol A, we have to memcpy the payload into
@@ -2662,7 +2662,7 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 	if (ok && dgs) {
 		dgb = mdev->int_dig_out;
 		drbd_csum_ee(mdev, mdev->integrity_w_tfm, e, dgb);
-		ok = drbd_send(mdev, mdev->data.socket, dgb, dgs, 0);
+		ok = dgs == drbd_send(mdev, mdev->data.socket, dgb, dgs, 0);
 	}
 	if (ok)
 		ok = _drbd_send_zc_ee(mdev, e);
