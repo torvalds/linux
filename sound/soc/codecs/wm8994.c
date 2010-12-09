@@ -558,6 +558,16 @@ static const struct soc_enum aif2dacl_src =
 static const struct soc_enum aif2dacr_src =
 	SOC_ENUM_SINGLE(WM8994_AIF2_CONTROL_2, 14, 2, aif_chan_src_text);
 
+static const char *osr_text[] = {
+	"Low Power", "High Performance",
+};
+
+static const struct soc_enum dac_osr =
+	SOC_ENUM_SINGLE(WM8994_OVERSAMPLING, 0, 2, osr_text);
+
+static const struct soc_enum adc_osr =
+	SOC_ENUM_SINGLE(WM8994_OVERSAMPLING, 1, 2, osr_text);
+
 static void wm8958_mbc_apply(struct snd_soc_codec *codec, int mbc, int start)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
@@ -833,6 +843,9 @@ SOC_DOUBLE("AIF1ADC2 HPF Switch", WM8994_AIF1_ADC2_FILTERS, 12, 11, 1, 0),
 
 SOC_ENUM("AIF2ADC HPF Mode", aif2adc_hpf),
 SOC_DOUBLE("AIF2ADC HPF Switch", WM8994_AIF2_ADC_FILTERS, 12, 11, 1, 0),
+
+SOC_ENUM("ADC OSR", adc_osr),
+SOC_ENUM("DAC OSR", dac_osr),
 
 SOC_DOUBLE_R_TLV("DAC1 Volume", WM8994_DAC1_LEFT_VOLUME,
 		 WM8994_DAC1_RIGHT_VOLUME, 1, 96, 0, digital_tlv),
