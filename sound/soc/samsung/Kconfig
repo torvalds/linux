@@ -116,6 +116,14 @@ config ASOC_SAMSUNG_SIMTEC_HERMES
 	select SND_SOC_TLV320AIC3X
 	select ASOC_SAMSUNG_SIMTEC
 
+config ASOC_SAMSUNG_H1940_UDA1380
+	tristate "Audio support for the HP iPAQ H1940"
+	depends on ASOC_SAMSUNG && ARCH_H1940
+	select SND_S3C24XX_I2S
+	select SND_SOC_UDA1380
+	help
+	  This driver provides audio support for HP iPAQ h1940 PDA.
+
 config ASOC_SAMSUNG_RX1950_UDA1380
 	tristate "Audio support for the HP iPAQ RX1950"
 	depends on ASOC_SAMSUNG && MACH_RX1950
