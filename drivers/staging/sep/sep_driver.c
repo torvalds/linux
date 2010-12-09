@@ -3437,7 +3437,8 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	if (sep_dev == NULL) {
 		dev_warn(&pdev->dev,
 			"can't kmalloc the sep_device structure\n");
-		return -ENOMEM;
+		error = -ENOMEM;
+		goto end_function_disable_device;
 	}
 
 	/*
@@ -3448,7 +3449,7 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	 */
 	sep = sep_dev;
 
-	sep->pdev = pdev;
+	sep->pdev = pci_dev_get(pdev);
 
 	init_waitqueue_head(&sep->event);
 	init_waitqueue_head(&sep->event_request_daemon);
@@ -3466,23 +3467,23 @@ static int __devinit sep_probe(struct pci_dev *pdev,
 	sep->reg_physical_addr = pci_resource_start(sep->pdev, 0);
 	if (!sep->reg_physical_addr) {
 		dev_warn(&sep->pdev->dev, "Error getting register start\n");
-		pci_dev_put(sep->pdev);
-		return -ENODEV;
+		error = -ENODEV;
+		goto end_function_free_sep_dev;
 	}
 
 	sep->reg_physical_end = pci_resource_end(sep->pdev, 0);
 	if (!sep->reg_physical_end) {
 		dev_warn(&sep->pdev->dev, "Error getting register end\n");
-		pci_dev_put(sep->pdev);
-		return -ENODEV;
+		error = -ENODEV;
+		goto end_function_free_sep_dev;
 	}
 
 	sep->reg_addr = ioremap_nocache(sep->reg_physical_addr,
 		(size_t)(sep->reg_physical_end - sep->reg_physical_addr + 1));
 	if (!sep->reg_addr) {
 		dev_warn(&sep->pdev->dev, "Error getting register virtual\n");
-		pci_dev_put(sep->pdev);
-		return -ENODEV;
+		error = -ENODEV;
+		goto end_function_free_sep_dev;
 	}
 
 	dev_dbg(&sep->pdev->dev,
@@ -3573,8 +3574,14 @@ end_function_deallocate_sep_shared_area:
 
 end_function_error:
 	iounmap(sep->reg_addr);
+
+end_function_free_sep_dev:
+	pci_dev_put(sep_dev->pdev);
 	kfree(sep_dev);
 	sep_dev = NULL;
+
+end_function_disable_device:
+	pci_disable_device(pdev);
 
 end_function:
 	return error;
