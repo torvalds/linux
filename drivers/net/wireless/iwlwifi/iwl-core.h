@@ -414,7 +414,6 @@ struct iwl_cfg {
 	enum iwl_led_mode led_mode;
 	const bool adv_pm;
 	const bool rx_with_siso_diversity;
-	const bool use_new_eeprom_reading; /* temporary, remove later */
 };
 
 /***************************
