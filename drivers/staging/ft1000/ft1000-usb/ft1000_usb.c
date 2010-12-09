@@ -231,7 +231,7 @@ static void ft1000_disconnect(struct usb_interface *interface)
 
 		if (pft1000info->pFt1000Dev->net) {
 			DEBUG("ft1000_disconnect: destroy char driver\n");
-			ft1000_DestroyDevice(pft1000info->pFt1000Dev->net);
+			ft1000_destroy_dev(pft1000info->pFt1000Dev->net);
 			unregister_netdev(pft1000info->pFt1000Dev->net);
 			DEBUG
 			    ("ft1000_disconnect: network device unregisterd\n");

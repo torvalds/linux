@@ -952,7 +952,7 @@ int reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *int
 
 
     //Create character device, implemented by Jim
-    ft1000_CreateDevice(ft1000dev);
+    ft1000_create_dev(ft1000dev);
 
     DEBUG ("reg_ft1000_netdev returned\n");
 
