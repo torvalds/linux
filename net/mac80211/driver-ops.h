@@ -367,7 +367,7 @@ static inline void drv_reset_tsf(struct ieee80211_local *local)
 
 static inline int drv_tx_last_beacon(struct ieee80211_local *local)
 {
-	int ret = 1;
+	int ret = 0; /* default unsuported op for less congestion */
 
 	might_sleep();
 
