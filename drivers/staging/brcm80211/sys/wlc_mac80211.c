@@ -2177,13 +2177,6 @@ uint wlc_detach(struct wlc_info *wlc)
 	/* Detach from iovar manager */
 	wlc_module_unregister(wlc->pub, "wlc_iovars", wlc);
 
-	/*
-	   if (wlc->ap) {
-	   wlc_ap_detach(wlc->ap);
-	   wlc->ap = NULL;
-	   }
-	 */
-
 	while (wlc->tx_queues != NULL) {
 		wlc_txq_free(wlc, wlc->osh, wlc->tx_queues);
 	}
