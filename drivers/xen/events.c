@@ -405,15 +405,21 @@ static int find_unbound_irq(void)
 {
 	struct irq_data *data;
 	int irq, res;
-	int start = get_nr_hw_irqs();
+	int bottom = get_nr_hw_irqs();
+	int top = nr_irqs-1;
 
-	if (start == nr_irqs)
+	if (bottom == nr_irqs)
 		goto no_irqs;
 
-	/* nr_irqs is a magic value. Must not use it.*/
-	for (irq = nr_irqs-1; irq > start; irq--) {
+	/* This loop starts from the top of IRQ space and goes down.
+	 * We need this b/c if we have a PCI device in a Xen PV guest
+	 * we do not have an IO-APIC (though the backend might have them)
+	 * mapped in. To not have a collision of physical IRQs with the Xen
+	 * event channels start at the top of the IRQ space for virtual IRQs.
+	 */
+	for (irq = top; irq > bottom; irq--) {
 		data = irq_get_irq_data(irq);
-		/* only 0->15 have init'd desc; handle irq > 16 */
+		/* only 15->0 have init'd desc; handle irq > 16 */
 		if (!data)
 			break;
 		if (data->chip == &no_irq_chip)
@@ -424,7 +430,7 @@ static int find_unbound_irq(void)
 			return irq;
 	}
 
-	if (irq == start)
+	if (irq == bottom)
 		goto no_irqs;
 
 	res = irq_alloc_desc_at(irq, -1);
