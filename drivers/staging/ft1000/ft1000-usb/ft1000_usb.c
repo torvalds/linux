@@ -198,12 +198,17 @@ static int ft1000_probe(struct usb_interface *interface,
 	if (ret)
 		goto err_thread;
 
-	pft1000info->NetDevRegDone = 1;
+	ret = ft1000InitProc(ft1000dev->net);
+	if (ret)
+		goto err_proc;
 
-	ft1000InitProc(ft1000dev->net);
+	pft1000info->NetDevRegDone = 1;
 
 	return 0;
 
+err_proc:
+	unregister_netdev(ft1000dev->net);
+	free_netdev(ft1000dev->net);
 err_thread:
 	kthread_stop(pft1000info->pPollThread);
 err_load:
