@@ -17,8 +17,10 @@
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/input.h>
 #include <linux/mfd/tps6507x.h>
 #include <linux/gpio.h>
+#include <linux/gpio_keys.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -272,6 +274,87 @@ static inline void da850_evm_setup_emac_rmii(int rmii_sel)
 static inline void da850_evm_setup_emac_rmii(int rmii_sel) { }
 #endif
 
+
+#define DA850_KEYS_DEBOUNCE_MS	10
+/*
+ * At 200ms polling interval it is possible to miss an
+ * event by tapping very lightly on the push button but most
+ * pushes do result in an event; longer intervals require the
+ * user to hold the button whereas shorter intervals require
+ * more CPU time for polling.
+ */
+#define DA850_GPIO_KEYS_POLL_MS	200
+
+enum da850_evm_ui_exp_pins {
+	DA850_EVM_UI_EXP_SEL_C = 5,
+	DA850_EVM_UI_EXP_SEL_B,
+	DA850_EVM_UI_EXP_SEL_A,
+	DA850_EVM_UI_EXP_PB8,
+	DA850_EVM_UI_EXP_PB7,
+	DA850_EVM_UI_EXP_PB6,
+	DA850_EVM_UI_EXP_PB5,
+	DA850_EVM_UI_EXP_PB4,
+	DA850_EVM_UI_EXP_PB3,
+	DA850_EVM_UI_EXP_PB2,
+	DA850_EVM_UI_EXP_PB1,
+};
+
+static const char const *da850_evm_ui_exp[] = {
+	[DA850_EVM_UI_EXP_SEL_C]        = "sel_c",
+	[DA850_EVM_UI_EXP_SEL_B]        = "sel_b",
+	[DA850_EVM_UI_EXP_SEL_A]        = "sel_a",
+	[DA850_EVM_UI_EXP_PB8]          = "pb8",
+	[DA850_EVM_UI_EXP_PB7]          = "pb7",
+	[DA850_EVM_UI_EXP_PB6]          = "pb6",
+	[DA850_EVM_UI_EXP_PB5]          = "pb5",
+	[DA850_EVM_UI_EXP_PB4]          = "pb4",
+	[DA850_EVM_UI_EXP_PB3]          = "pb3",
+	[DA850_EVM_UI_EXP_PB2]          = "pb2",
+	[DA850_EVM_UI_EXP_PB1]          = "pb1",
+};
+
+#define DA850_N_UI_PB		8
+
+static struct gpio_keys_button da850_evm_ui_keys[] = {
+	[0 ... DA850_N_UI_PB - 1] = {
+		.type			= EV_KEY,
+		.active_low		= 1,
+		.wakeup			= 0,
+		.debounce_interval	= DA850_KEYS_DEBOUNCE_MS,
+		.code			= -1, /* assigned at runtime */
+		.gpio			= -1, /* assigned at runtime */
+		.desc			= NULL, /* assigned at runtime */
+	},
+};
+
+static struct gpio_keys_platform_data da850_evm_ui_keys_pdata = {
+	.buttons = da850_evm_ui_keys,
+	.nbuttons = ARRAY_SIZE(da850_evm_ui_keys),
+	.poll_interval = DA850_GPIO_KEYS_POLL_MS,
+};
+
+static struct platform_device da850_evm_ui_keys_device = {
+	.name = "gpio-keys-polled",
+	.id = 0,
+	.dev = {
+		.platform_data = &da850_evm_ui_keys_pdata
+	},
+};
+
+static void da850_evm_ui_keys_init(unsigned gpio)
+{
+	int i;
+	struct gpio_keys_button *button;
+
+	for (i = 0; i < DA850_N_UI_PB; i++) {
+		button = &da850_evm_ui_keys[i];
+		button->code = KEY_F8 - i;
+		button->desc = (char *)
+				da850_evm_ui_exp[DA850_EVM_UI_EXP_PB8 + i];
+		button->gpio = gpio + DA850_EVM_UI_EXP_PB8 + i;
+	}
+}
+
 static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
 						unsigned ngpio, void *c)
 {
@@ -304,6 +387,13 @@ static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
 	gpio_direction_output(sel_b, 1);
 	gpio_direction_output(sel_c, 1);
 
+	da850_evm_ui_keys_init(gpio);
+	ret = platform_device_register(&da850_evm_ui_keys_device);
+	if (ret) {
+		pr_warning("Could not register UI GPIO expander push-buttons");
+		goto exp_setup_keys_fail;
+	}
+
 	ui_card_detected = 1;
 	pr_info("DA850/OMAP-L138 EVM UI card detected\n");
 
@@ -313,6 +403,8 @@ static int da850_evm_ui_expander_setup(struct i2c_client *client, unsigned gpio,
 
 	return 0;
 
+exp_setup_keys_fail:
+	gpio_free(sel_c);
 exp_setup_selc_fail:
 	gpio_free(sel_b);
 exp_setup_selb_fail:
@@ -324,6 +416,8 @@ exp_setup_sela_fail:
 static int da850_evm_ui_expander_teardown(struct i2c_client *client,
 					unsigned gpio, unsigned ngpio, void *c)
 {
+	platform_device_unregister(&da850_evm_ui_keys_device);
+
 	/* deselect all functionalities */
 	gpio_set_value_cansleep(gpio + 5, 1);
 	gpio_set_value_cansleep(gpio + 6, 1);
@@ -340,6 +434,7 @@ static struct pca953x_platform_data da850_evm_ui_expander_info = {
 	.gpio_base	= DAVINCI_N_GPIO,
 	.setup		= da850_evm_ui_expander_setup,
 	.teardown	= da850_evm_ui_expander_teardown,
+	.names		= da850_evm_ui_exp,
 };
 
 static struct i2c_board_info __initdata da850_evm_i2c_devices[] = {
