@@ -851,6 +851,7 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 
     INIT_LIST_HEAD(&pInfo->prov_list);
 
+	INIT_LIST_HEAD(&pInfo->nodes.list);
 //mbelian
 #ifdef HAVE_NET_DEVICE_OPS
 	netdev->netdev_ops = &ftnet_ops;

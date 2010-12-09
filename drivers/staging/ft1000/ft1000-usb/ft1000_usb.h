@@ -473,6 +473,13 @@ struct ft1000_device
 //	struct net_device_stats stats; //mbelian
 } __attribute__ ((packed));
 
+struct ft1000_debug_dirs {
+	struct list_head list;
+	struct dentry *dent;
+	struct dentry *file;
+	int int_number;
+};
+
 struct ft1000_info {
     struct ft1000_device *pFt1000Dev;
     struct net_device_stats stats;
@@ -508,6 +515,7 @@ struct ft1000_info {
     u8 CardNumber;
     u8 DeviceName[15];
     int DeviceMajor;
+    struct ft1000_debug_dirs nodes;
     int registered;
     int mediastate;
     int dhcpflg;

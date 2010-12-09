@@ -37,7 +37,7 @@
 #include <linux/kmod.h>
 #include <linux/ioctl.h>
 #include <linux/unistd.h>
-
+#include <linux/debugfs.h>
 #include "ft1000_usb.h"
 //#include "ft1000_ioctl.h"
 
@@ -156,9 +156,11 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
 	struct ft1000_info *info = netdev_priv(dev->net);
     int result;
     int i;
+	struct dentry *dir, *file;
+	struct ft1000_debug_dirs *tmp;
 
     // make a new device name
-    sprintf(info->DeviceName, "%s%d", "FT100", info->CardNumber);
+    sprintf(info->DeviceName, "%s%d", "FT1000_", info->CardNumber);
 
     DEBUG("ft1000_CreateDevice: number of instance = %d\n", ft1000_flarion_cnt);
     DEBUG("DeviceCreated = %x\n", info->DeviceCreated);
@@ -179,21 +181,31 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
     DEBUG("ft1000_CreateDevice: \"%s\" device registration\n", info->DeviceName);
     info->DeviceMajor = 0;
 
-    result = register_chrdev(info->DeviceMajor, info->DeviceName, &ft1000fops);
-    if (result < 0)
-    {
-	DEBUG("ft1000_CreateDevice: unable to get major %d\n", info->DeviceMajor);
-	return result;
-    }
+	tmp = kmalloc(sizeof(struct ft1000_debug_dirs), GFP_KERNEL);
+	if (tmp == NULL) {
+		result = -1;
+		goto fail;
+	}
+
+	dir = debugfs_create_dir(info->DeviceName, 0);
+	if (IS_ERR(dir)) {
+		result = PTR_ERR(dir);
+		goto debug_dir_fail;
+	}
+
+	file = debugfs_create_file("device", S_IRUGO | S_IWUGO, dir,
+					NULL, &ft1000fops);
+	if (IS_ERR(file)) {
+		result = PTR_ERR(file);
+		goto debug_file_fail;
+	}
+
+	tmp->dent = dir;
+	tmp->file = file;
+	tmp->int_number = info->CardNumber;
+	list_add(&(tmp->list), &(info->nodes.list));
 
     DEBUG("ft1000_CreateDevice: registered char device \"%s\"\n", info->DeviceName);
-
-    // save a dynamic device major number
-    if (info->DeviceMajor == 0)
-    {
-	info->DeviceMajor = result;
-	DEBUG("ft1000_PcdCreateDevice: device major = %d\n", info->DeviceMajor);
-    }
 
     // initialize application information
 
@@ -243,7 +255,14 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
     info->DeviceCreated = TRUE;
     ft1000_flarion_cnt++;
 
-    return result;
+	return 0;
+
+debug_file_fail:
+	debugfs_remove(dir);
+debug_dir_fail:
+	kfree(tmp);
+fail:
+	return result;
 }
 
 //---------------------------------------------------------------------------
@@ -259,10 +278,11 @@ int ft1000_CreateDevice(struct ft1000_device *dev)
 void ft1000_DestroyDevice(struct net_device *dev)
 {
 	struct ft1000_info *info = netdev_priv(dev);
-    int result = 0;
 		int i;
 	struct dpram_blk *pdpram_blk;
 	struct dpram_blk *ptr;
+	struct list_head *pos, *q;
+	struct ft1000_debug_dirs *dir;
 
     DEBUG("ft1000_chdev:ft1000_DestroyDevice called\n");
 
@@ -271,9 +291,17 @@ void ft1000_DestroyDevice(struct net_device *dev)
     if (info->DeviceCreated)
 	{
         ft1000_flarion_cnt--;
-		unregister_chrdev(info->DeviceMajor, info->DeviceName);
-		DEBUG("ft1000_DestroyDevice: unregistered device \"%s\", result = %d\n",
-					   info->DeviceName, result);
+		list_for_each_safe(pos, q, &info->nodes.list) {
+			dir = list_entry(pos, struct ft1000_debug_dirs, list);
+			if (dir->int_number == info->CardNumber) {
+				debugfs_remove(dir->file);
+				debugfs_remove(dir->dent);
+				list_del(pos);
+				kfree(dir);
+			}
+		}
+		DEBUG("ft1000_DestroyDevice: unregistered device \"%s\"\n",
+					   info->DeviceName);
 
         // Make sure we free any memory reserve for slow Queue
         for (i=0; i<MAX_NUM_APP; i++) {
