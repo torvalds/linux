@@ -278,7 +278,7 @@ static s32 ixgbe_read_eerd_X540(struct ixgbe_hw *hw, u16 offset, u16 *data)
 {
 	s32 status;
 
-	if (ixgbe_acquire_swfw_sync_X540(hw, IXGBE_GSSR_EEP_SM))
+	if (ixgbe_acquire_swfw_sync_X540(hw, IXGBE_GSSR_EEP_SM) == 0)
 		status = ixgbe_read_eerd_generic(hw, offset, data);
 	else
 		status = IXGBE_ERR_SWFW_SYNC;
@@ -311,7 +311,7 @@ static s32 ixgbe_write_eewr_X540(struct ixgbe_hw *hw, u16 offset, u16 data)
 	       (data << IXGBE_EEPROM_RW_REG_DATA) |
 	       IXGBE_EEPROM_RW_REG_START;
 
-	if (ixgbe_acquire_swfw_sync_X540(hw, IXGBE_GSSR_EEP_SM)) {
+	if (ixgbe_acquire_swfw_sync_X540(hw, IXGBE_GSSR_EEP_SM) == 0) {
 		status = ixgbe_poll_eerd_eewr_done(hw, IXGBE_NVM_POLL_WRITE);
 		if (status != 0) {
 			hw_dbg(hw, "Eeprom write EEWR timed out\n");

@@ -118,7 +118,7 @@ static DEFINE_PCI_DEVICE_TABLE(ixgbe_pci_tbl) = {
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_COMBO_BACKPLANE),
 	 board_82599 },
 	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540T),
-	 board_82599 },
+	 board_X540 },
 
 	/* required last entry */
 	{0, }
@@ -1897,6 +1897,13 @@ static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
+		ixgbe_check_sfp_event(adapter, eicr);
+		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
+		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
+			adapter->interrupt_event = eicr;
+			schedule_work(&adapter->check_overtemp_task);
+		}
+		/* now fallthrough to handle Flow Director */
 	case ixgbe_mac_X540:
 		/* Handle Flow Director Full threshold interrupt */
 		if (eicr & IXGBE_EICR_FLOW_DIR) {
@@ -1911,12 +1918,6 @@ static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
 						       &tx_ring->state))
 					schedule_work(&adapter->fdir_reinit_task);
 			}
-		}
-		ixgbe_check_sfp_event(adapter, eicr);
-		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
-		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
-			adapter->interrupt_event = eicr;
-			schedule_work(&adapter->check_overtemp_task);
 		}
 		break;
 	default:
@@ -2508,7 +2509,6 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
 		ixgbe_check_sfp_event(adapter, eicr);
 		if ((adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE) &&
 		    ((eicr & IXGBE_EICR_GPI_SDP0) || (eicr & IXGBE_EICR_LSC))) {
