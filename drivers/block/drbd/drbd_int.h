@@ -1236,8 +1236,6 @@ extern int drbd_send_oos(struct drbd_conf *mdev, struct drbd_request *req);
 extern int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 			   struct drbd_epoch_entry *e);
 extern int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req);
-extern int _drbd_send_barrier(struct drbd_conf *mdev,
-			struct drbd_tl_epoch *barrier);
 extern int drbd_send_drequest(struct drbd_conf *mdev, int cmd,
 			      sector_t sector, int size, u64 block_id);
 extern int drbd_send_drequest_csum(struct drbd_conf *mdev,
