@@ -27,16 +27,12 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/signal.h>
 #include <linux/errno.h>
 #include <linux/poll.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
 
-#include <linux/fs.h>
-#include <linux/kmod.h>
 #include <linux/ioctl.h>
-#include <linux/unistd.h>
 #include <linux/debugfs.h>
 #include "ft1000_usb.h"
 
