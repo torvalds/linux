@@ -495,7 +495,7 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info **psbi,
 		}
 
 		od = osduld_info_lookup(&odi);
-		if (unlikely(IS_ERR(od))) {
+		if (IS_ERR(od)) {
 			ret = PTR_ERR(od);
 			EXOFS_ERR("ERROR: device requested is not found "
 				  "osd_name-%s =>%d\n", odi.osdname, ret);
