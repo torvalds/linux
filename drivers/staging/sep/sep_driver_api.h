@@ -61,7 +61,7 @@ struct init_struct {
 	u32   message_size_in_words;
 
 	/* offset of the init message in the sep sram */
-	aligned_u64   sep_sram_addr;
+	u32   sep_sram_addr;
 
 	/* -not used- resident size in bytes*/
 	u32   unused_resident_size_in_bytes;
