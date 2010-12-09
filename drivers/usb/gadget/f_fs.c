@@ -427,7 +427,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 		}
 
 		data = ffs_prepare_buffer(buf, len);
-		if (unlikely(IS_ERR(data))) {
+		if (IS_ERR(data)) {
 			ret = PTR_ERR(data);
 			break;
 		}
@@ -500,7 +500,7 @@ static ssize_t ffs_ep0_write(struct file *file, const char __user *buf,
 		spin_unlock_irq(&ffs->ev.waitq.lock);
 
 		data = ffs_prepare_buffer(buf, len);
-		if (unlikely(IS_ERR(data))) {
+		if (IS_ERR(data)) {
 			ret = PTR_ERR(data);
 			break;
 		}
