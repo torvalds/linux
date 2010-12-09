@@ -134,13 +134,6 @@ struct wl12xx_qos_null_data_template {
 	__le16 qos_ctl;
 } __packed;
 
-struct wl12xx_probe_req_template {
-	struct ieee80211_header header;
-	struct wl12xx_ie_ssid ssid;
-	struct wl12xx_ie_rates rates;
-	struct wl12xx_ie_rates ext_rates;
-} __packed;
-
 struct wl12xx_arp_rsp_template {
 	struct ieee80211_hdr_3addr hdr;
 
