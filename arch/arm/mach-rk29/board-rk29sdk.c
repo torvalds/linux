@@ -284,7 +284,7 @@ int p1003_init_platform_hw(void)
     gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
     mdelay(500);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
-  
+
     return 0;
 }
 
@@ -292,7 +292,7 @@ int p1003_init_platform_hw(void)
 struct p1003_platform_data p1003_info = {
   .model= 1003,
   .init_platform_hw= p1003_init_platform_hw,
-  
+
 };
 #endif
 
@@ -467,7 +467,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
 #define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_OV5642			/* back camera sensor */
 #define SENSOR_IIC_ADDR_0 	    0x78
 #define SENSOR_IIC_ADAPTER_ID_0    1
-#define SENSOR_POWER_PIN_0         RK29_PIN5_PD7
+#define SENSOR_POWER_PIN_0         RK29_PIN6_PB7
 #define SENSOR_RESET_PIN_0         INVALID_GPIO
 #define SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_L
 #define SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
