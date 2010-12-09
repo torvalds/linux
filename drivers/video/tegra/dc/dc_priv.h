@@ -60,6 +60,7 @@ struct tegra_dc {
 	int				irq;
 
 	struct clk			*clk;
+	struct clk			*emc_clk;
 
 	bool				enabled;
 

@@ -75,6 +75,10 @@ config TEGRA_FIQ_DEBUGGER
 
 endif
 
+config TEGRA_EMC_SCALING_ENABLE
+	bool "Enable scaling the memory frequency"
+	default n
+
 config TEGRA_CPU_DVFS
 	bool "Enable voltage scaling on Tegra CPU"
 	default y
