@@ -104,9 +104,6 @@ bfa_msix_all(struct bfa_s *bfa, int vec)
 	bfa_intx(bfa);
 }
 
-/*
- *  hal_intr_api
- */
 bfa_boolean_t
 bfa_intx(struct bfa_s *bfa)
 {
@@ -148,18 +145,6 @@ bfa_intx(struct bfa_s *bfa)
 	bfa_msix_lpu_err(bfa, intr);
 
 	return BFA_TRUE;
-}
-
-void
-bfa_intx_enable(struct bfa_s *bfa)
-{
-	writel(bfa->iocfc.intr_mask, bfa->iocfc.bfa_regs.intr_mask);
-}
-
-void
-bfa_intx_disable(struct bfa_s *bfa)
-{
-	writel(-1L, bfa->iocfc.bfa_regs.intr_mask);
 }
 
 void
@@ -317,18 +302,12 @@ bfa_msix_lpu_err(struct bfa_s *bfa, int vec)
 	}
 }
 
-void
-bfa_isr_bind(enum bfi_mclass mc, bfa_isr_func_t isr_func)
-{
-	bfa_isrs[mc] = isr_func;
-}
-
 /*
  * BFA IOC FC related functions
  */
 
 /*
- *  hal_ioc_pvt BFA IOC private functions
+ *  BFA IOC private functions
  */
 
 static void
@@ -735,9 +714,6 @@ bfa_iocfc_reset_cbfn(void *bfa_arg)
 	bfa_isr_enable(bfa);
 }
 
-/*
- *  hal_ioc_public
- */
 
 /*
  * Query IOC memory requirement information.
@@ -854,18 +830,6 @@ bfa_iocfc_isr(void *bfaarg, struct bfi_mbmsg_s *m)
 	default:
 		bfa_assert(0);
 	}
-}
-
-void
-bfa_adapter_get_attr(struct bfa_s *bfa, struct bfa_adapter_attr_s *ad_attr)
-{
-	bfa_ioc_get_adapter_attr(&bfa->ioc, ad_attr);
-}
-
-u64
-bfa_adapter_get_id(struct bfa_s *bfa)
-{
-	return bfa_ioc_get_adid(&bfa->ioc);
 }
 
 void
@@ -998,9 +962,6 @@ bfa_iocfc_get_pbc_vports(struct bfa_s *bfa, struct bfi_pbc_vport_s *pbc_vport)
 	return cfgrsp->pbc_cfg.nvports;
 }
 
-/*
- *  hal_api
- */
 
 /*
  * Use this function query the memory requirement of the BFA library.
@@ -1338,15 +1299,6 @@ bfa_debug_fwsave(struct bfa_s *bfa, void *trcdata, int *trclen)
 }
 
 /*
- * Clear the saved firmware trace information of an IOC.
- */
-void
-bfa_debug_fwsave_clear(struct bfa_s *bfa)
-{
-	bfa_ioc_debug_fwsave_clear(&bfa->ioc);
-}
-
-/*
  * Fetch firmware trace data.
  *
  * @param[in]		bfa			BFA instance
@@ -1377,33 +1329,4 @@ bfa_status_t
 bfa_debug_fwcore(struct bfa_s *bfa, void *buf, u32 *offset, int *buflen)
 {
 	return bfa_ioc_debug_fwcore(&bfa->ioc, buf, offset, buflen);
-}
-/*
- * Reset hw semaphore & usage cnt regs and initialize.
- */
-void
-bfa_chip_reset(struct bfa_s *bfa)
-{
-	bfa_ioc_ownership_reset(&bfa->ioc);
-	bfa_ioc_pll_init(&bfa->ioc);
-}
-
-/*
- * Fetch firmware statistics data.
- *
- * @param[in]		bfa		BFA instance
- * @param[out]		data		Firmware stats buffer
- *
- * @retval BFA_STATUS_OK		Firmware trace is fetched.
- */
-bfa_status_t
-bfa_fw_stats_get(struct bfa_s *bfa, void *data)
-{
-	return bfa_ioc_fw_stats_get(&bfa->ioc, data);
-}
-
-bfa_status_t
-bfa_fw_stats_clear(struct bfa_s *bfa)
-{
-	return bfa_ioc_fw_stats_clear(&bfa->ioc);
 }

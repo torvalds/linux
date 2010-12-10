@@ -101,9 +101,6 @@ static void bfa_ioc_pf_disabled(struct bfa_ioc_s *ioc);
 static void bfa_ioc_pf_failed(struct bfa_ioc_s *ioc);
 static void bfa_ioc_pf_fwmismatch(struct bfa_ioc_s *ioc);
 
-/*
- *  hal_ioc_sm
- */
 
 /*
  * IOC state machine definitions/declarations
@@ -1101,7 +1098,7 @@ bfa_iocpf_sm_fail(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 
 
 /*
- *  hal_ioc_pvt BFA IOC private functions
+ *  BFA IOC private functions
  */
 
 static void
@@ -1819,11 +1816,6 @@ bfa_ioc_pf_fwmismatch(struct bfa_ioc_s *ioc)
 }
 
 
-
-/*
- *  hal_ioc_public
- */
-
 bfa_status_t
 bfa_ioc_pll_init(struct bfa_ioc_s *ioc)
 {
@@ -2456,9 +2448,6 @@ bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr)
 	bfa_ioc_get_pci_chip_rev(ioc, ioc_attr->pci_attr.chip_rev);
 }
 
-/*
- *  hal_wwn_public
- */
 wwn_t
 bfa_ioc_get_pwwn(struct bfa_ioc_s *ioc)
 {
@@ -2542,14 +2531,6 @@ bfa_ioc_debug_fwsave(struct bfa_ioc_s *ioc, void *trcdata, int *trclen)
 	return BFA_STATUS_OK;
 }
 
-/*
- * Clear saved firmware trace
- */
-void
-bfa_ioc_debug_fwsave_clear(struct bfa_ioc_s *ioc)
-{
-	ioc->dbg_fwsave_once = BFA_TRUE;
-}
 
 /*
  * Retrieve saved firmware trace from a prior IOC failure.
@@ -2735,7 +2716,7 @@ bfa_ioc_check_attr_wwns(struct bfa_ioc_s *ioc)
 }
 
 /*
- *  hal_iocpf_pvt BFA IOC PF private functions
+ *  BFA IOC PF private functions
  */
 
 static void

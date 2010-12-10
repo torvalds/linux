@@ -33,7 +33,6 @@ typedef void    (*bfa_cb_cbfn_t) (void *cbarg, bfa_boolean_t complete);
  * Interrupt message handlers
  */
 void bfa_isr_unhandled(struct bfa_s *bfa, struct bfi_msg_s *m);
-void bfa_isr_bind(enum bfi_mclass mc, bfa_isr_func_t isr_func);
 
 /*
  * Request and response queue related defines
@@ -397,8 +396,6 @@ void bfa_cb_init(void *bfad, bfa_status_t status);
 void bfa_cb_updateq(void *bfad, bfa_status_t status);
 
 bfa_boolean_t bfa_intx(struct bfa_s *bfa);
-void bfa_intx_disable(struct bfa_s *bfa);
-void bfa_intx_enable(struct bfa_s *bfa);
 void bfa_isr_enable(struct bfa_s *bfa);
 void bfa_isr_disable(struct bfa_s *bfa);
 
@@ -410,16 +407,12 @@ typedef void (*bfa_cb_ioc_t) (void *cbarg, enum bfa_status status);
 void bfa_iocfc_get_attr(struct bfa_s *bfa, struct bfa_iocfc_attr_s *attr);
 void bfa_get_attr(struct bfa_s *bfa, struct bfa_ioc_attr_s *ioc_attr);
 
-void bfa_adapter_get_attr(struct bfa_s *bfa,
-			  struct bfa_adapter_attr_s *ad_attr);
-u64 bfa_adapter_get_id(struct bfa_s *bfa);
 
 bfa_status_t bfa_iocfc_israttr_set(struct bfa_s *bfa,
 				   struct bfa_iocfc_intr_attr_s *attr);
 
 void bfa_iocfc_enable(struct bfa_s *bfa);
 void bfa_iocfc_disable(struct bfa_s *bfa);
-void bfa_chip_reset(struct bfa_s *bfa);
 void bfa_timer_tick(struct bfa_s *bfa);
 #define bfa_timer_start(_bfa, _timer, _timercb, _arg, _timeout)		\
 	bfa_timer_begin(&(_bfa)->timer_mod, _timer, _timercb, _arg, _timeout)
@@ -431,8 +424,5 @@ bfa_status_t bfa_debug_fwtrc(struct bfa_s *bfa, void *trcdata, int *trclen);
 bfa_status_t bfa_debug_fwsave(struct bfa_s *bfa, void *trcdata, int *trclen);
 bfa_status_t bfa_debug_fwcore(struct bfa_s *bfa, void *buf,
 			      u32 *offset, int *buflen);
-void bfa_debug_fwsave_clear(struct bfa_s *bfa);
-bfa_status_t bfa_fw_stats_get(struct bfa_s *bfa, void *data);
-bfa_status_t bfa_fw_stats_clear(struct bfa_s *bfa);
 
 #endif /* __BFA_H__ */

@@ -457,17 +457,3 @@ bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 
 	bfa_trc(port, 0);
 }
-
-/*
- * bfa_port_detach()
- *
- *
- * @param[in] port - Pointer to the Port module data structure
- *
- * @return void
- */
-void
-bfa_port_detach(struct bfa_port_s *port)
-{
-	bfa_trc(port, 0);
-}

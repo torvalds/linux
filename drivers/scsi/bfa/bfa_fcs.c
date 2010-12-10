@@ -1038,14 +1038,6 @@ bfa_fcs_fabric_modstart(struct bfa_fcs_s *fcs)
 	bfa_sm_send_event(fabric, BFA_FCS_FABRIC_SM_START);
 }
 
-/*
- *   Suspend fabric activity as part of driver suspend.
- */
-void
-bfa_fcs_fabric_modsusp(struct bfa_fcs_s *fcs)
-{
-}
-
 bfa_boolean_t
 bfa_fcs_fabric_is_loopback(struct bfa_fcs_fabric_s *fabric)
 {
@@ -1144,18 +1136,6 @@ int
 bfa_fcs_fabric_is_online(struct bfa_fcs_fabric_s *fabric)
 {
 	return bfa_sm_cmp_state(fabric, bfa_fcs_fabric_sm_online);
-}
-
-/*
- *	brief
- *
- */
-bfa_status_t
-bfa_fcs_fabric_addvf(struct bfa_fcs_fabric_s *vf, struct bfa_fcs_s *fcs,
-		     struct bfa_lport_cfg_s *port_cfg, struct bfad_vf_s *vf_drv)
-{
-	bfa_sm_set_state(vf, bfa_fcs_fabric_sm_uninit);
-	return BFA_STATUS_OK;
 }
 
 /*

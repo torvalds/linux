@@ -220,7 +220,6 @@ bfa_ioim_get_iotag(struct bfa_ioim_s *ioim)
  */
 void	bfa_ioim_attach(struct bfa_fcpim_mod_s *fcpim,
 					struct bfa_meminfo_s *minfo);
-void	bfa_ioim_detach(struct bfa_fcpim_mod_s *fcpim);
 void	bfa_ioim_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 void	bfa_ioim_good_comp_isr(struct bfa_s *bfa,
 					struct bfi_msg_s *msg);
@@ -232,7 +231,6 @@ void	bfa_ioim_tov(struct bfa_ioim_s *ioim);
 
 void	bfa_tskim_attach(struct bfa_fcpim_mod_s *fcpim,
 					struct bfa_meminfo_s *minfo);
-void	bfa_tskim_detach(struct bfa_fcpim_mod_s *fcpim);
 void	bfa_tskim_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 void	bfa_tskim_iodone(struct bfa_tskim_s *tskim);
 void	bfa_tskim_iocdisable(struct bfa_tskim_s *tskim);
@@ -296,8 +294,6 @@ void		bfa_itnim_delete(struct bfa_itnim_s *itnim);
 void		bfa_itnim_online(struct bfa_itnim_s *itnim,
 				 bfa_boolean_t seq_rec);
 void		bfa_itnim_offline(struct bfa_itnim_s *itnim);
-void		bfa_itnim_get_stats(struct bfa_itnim_s *itnim,
-			struct bfa_itnim_iostats_s *stats);
 void		bfa_itnim_clear_stats(struct bfa_itnim_s *itnim);
 bfa_status_t	bfa_itnim_get_ioprofile(struct bfa_itnim_s *itnim,
 		struct bfa_itnim_ioprofile_s *ioprofile);

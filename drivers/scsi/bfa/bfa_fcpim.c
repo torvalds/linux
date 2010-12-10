@@ -107,9 +107,6 @@ enum bfa_itnim_event {
 	if ((__fcpim)->profile_start)					\
 		(__fcpim)->profile_start(__ioim);			\
 } while (0)
-/*
- *  hal_ioim_sm
- */
 
 /*
  * IO state machine events
@@ -295,7 +292,7 @@ static void     bfa_tskim_sm_hcb(struct bfa_tskim_s *tskim,
 					enum bfa_tskim_event event);
 
 /*
- *  hal_fcpim_mod BFA FCP Initiator Mode module
+ *  BFA FCP Initiator Mode module
  */
 
 /*
@@ -357,10 +354,6 @@ bfa_fcpim_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 static void
 bfa_fcpim_detach(struct bfa_s *bfa)
 {
-	struct bfa_fcpim_mod_s *fcpim = BFA_FCPIM_MOD(bfa);
-
-	bfa_ioim_detach(fcpim);
-	bfa_tskim_detach(fcpim);
 }
 
 static void
@@ -1587,13 +1580,6 @@ bfa_itnim_get_ioprofile(struct bfa_itnim_s *itnim,
 }
 
 void
-bfa_itnim_get_stats(struct bfa_itnim_s *itnim,
-	struct bfa_itnim_iostats_s *stats)
-{
-	*stats = itnim->stats;
-}
-
-void
 bfa_itnim_clear_stats(struct bfa_itnim_s *itnim)
 {
 	int j;
@@ -2213,11 +2199,6 @@ bfa_ioim_sm_resfree(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 }
 
 
-
-/*
- *  hal_ioim_private
- */
-
 static void
 __bfa_cb_ioim_good_comp(void *cbarg, bfa_boolean_t complete)
 {
@@ -2420,25 +2401,6 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	if (itnim->seq_rec ||
 	    (bfa_cb_ioim_get_size(ioim->dio) & (sizeof(u32) - 1)))
 		bfi_h2i_set(m->mh, BFI_MC_IOIM_IO, 0, bfa_lpuid(ioim->bfa));
-
-#ifdef IOIM_ADVANCED
-	m->cmnd.crn = bfa_cb_ioim_get_crn(ioim->dio);
-	m->cmnd.priority = bfa_cb_ioim_get_priority(ioim->dio);
-	m->cmnd.taskattr = bfa_cb_ioim_get_taskattr(ioim->dio);
-
-	/*
-	 * Handle large CDB (>16 bytes).
-	 */
-	m->cmnd.addl_cdb_len = (bfa_cb_ioim_get_cdblen(ioim->dio) -
-					FCP_CMND_CDB_LEN) / sizeof(u32);
-	if (m->cmnd.addl_cdb_len) {
-		memcpy(&m->cmnd.cdb + 1, (scsi_cdb_t *)
-				bfa_cb_ioim_get_cdb(ioim->dio) + 1,
-				m->cmnd.addl_cdb_len * sizeof(u32));
-		fcp_cmnd_fcpdl(&m->cmnd) =
-				cpu_to_be32(bfa_cb_ioim_get_size(ioim->dio));
-	}
-#endif
 
 	/*
 	 * queue I/O message to firmware
@@ -2653,11 +2615,6 @@ bfa_ioim_delayed_comp(struct bfa_ioim_s *ioim, bfa_boolean_t iotov)
 }
 
 
-
-/*
- *  hal_ioim_friend
- */
-
 /*
  * Memory allocation and initialization.
  */
@@ -2720,14 +2677,6 @@ bfa_ioim_attach(struct bfa_fcpim_mod_s *fcpim, struct bfa_meminfo_s *minfo)
 
 		list_add_tail(&ioim->qe, &fcpim->ioim_free_q);
 	}
-}
-
-/*
- * Driver detach time call.
- */
-void
-bfa_ioim_detach(struct bfa_fcpim_mod_s *fcpim)
-{
 }
 
 void
@@ -2902,11 +2851,6 @@ bfa_ioim_tov(struct bfa_ioim_s *ioim)
 	bfa_sm_send_event(ioim, BFA_IOIM_SM_IOTOV);
 }
 
-
-
-/*
- *  hal_ioim_api
- */
 
 /*
  * Allocate IOIM resource for initiator mode I/O request.
@@ -3234,11 +3178,6 @@ bfa_tskim_sm_hcb(struct bfa_tskim_s *tskim, enum bfa_tskim_event event)
 }
 
 
-
-/*
- *  hal_tskim_private
- */
-
 static void
 __bfa_cb_tskim_done(void *cbarg, bfa_boolean_t complete)
 {
@@ -3452,11 +3391,6 @@ bfa_tskim_iocdisable_ios(struct bfa_tskim_s *tskim)
 }
 
 
-
-/*
- *  hal_tskim_friend
- */
-
 /*
  * Notification on completions from related ioim.
  */
@@ -3522,14 +3456,6 @@ bfa_tskim_attach(struct bfa_fcpim_mod_s *fcpim, struct bfa_meminfo_s *minfo)
 }
 
 void
-bfa_tskim_detach(struct bfa_fcpim_mod_s *fcpim)
-{
-	/*
-	* @todo
-	*/
-}
-
-void
 bfa_tskim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 {
 	struct bfa_fcpim_mod_s *fcpim = BFA_FCPIM_MOD(bfa);
@@ -3554,12 +3480,6 @@ bfa_tskim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 		bfa_sm_send_event(tskim, BFA_TSKIM_SM_DONE);
 	}
 }
-
-
-
-/*
- *  hal_tskim_api
- */
 
 
 struct bfa_tskim_s *

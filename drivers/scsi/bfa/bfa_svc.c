@@ -437,23 +437,6 @@ bfa_plog_fchdr_and_pl(struct bfa_plog_s *plog, enum bfa_plog_mid mid,
 	}
 }
 
-void
-bfa_plog_clear(struct bfa_plog_s *plog)
-{
-	plog->head = plog->tail = 0;
-}
-
-void
-bfa_plog_enable(struct bfa_plog_s *plog)
-{
-	plog->plog_enabled = 1;
-}
-
-void
-bfa_plog_disable(struct bfa_plog_s *plog)
-{
-	plog->plog_enabled = 0;
-}
 
 bfa_boolean_t
 bfa_plog_get_setting(struct bfa_plog_s *plog)
@@ -1853,14 +1836,6 @@ bfa_lps_fdisc(struct bfa_lps_s *lps, void *uarg, u16 pdusz, wwn_t pwwn,
 	bfa_sm_send_event(lps, BFA_LPS_SM_LOGIN);
 }
 
-/*
- * Initiate a lport logout (flogi).
- */
-void
-bfa_lps_flogo(struct bfa_lps_s *lps)
-{
-	bfa_sm_send_event(lps, BFA_LPS_SM_LOGOUT);
-}
 
 /*
  * Initiate a lport FDSIC logout.
@@ -3818,89 +3793,6 @@ bfa_fcport_clear_stats(struct bfa_s *bfa, bfa_cb_port_t cbfn, void *cbarg)
 	return BFA_STATUS_OK;
 }
 
-/*
- * Fetch FCQoS port statistics
- */
-bfa_status_t
-bfa_fcport_get_qos_stats(struct bfa_s *bfa, union bfa_fcport_stats_u *stats,
-	bfa_cb_port_t cbfn, void *cbarg)
-{
-	/* Meaningful only for FC mode */
-	bfa_assert(bfa_ioc_get_fcmode(&bfa->ioc));
-
-	return bfa_fcport_get_stats(bfa, stats, cbfn, cbarg);
-}
-
-/*
- * Reset FCoE port statistics
- */
-bfa_status_t
-bfa_fcport_clear_qos_stats(struct bfa_s *bfa, bfa_cb_port_t cbfn, void *cbarg)
-{
-	/* Meaningful only for FC mode */
-	bfa_assert(bfa_ioc_get_fcmode(&bfa->ioc));
-
-	return bfa_fcport_clear_stats(bfa, cbfn, cbarg);
-}
-
-/*
- * Fetch FCQoS port statistics
- */
-bfa_status_t
-bfa_fcport_get_fcoe_stats(struct bfa_s *bfa, union bfa_fcport_stats_u *stats,
-	bfa_cb_port_t cbfn, void *cbarg)
-{
-	/* Meaningful only for FCoE mode */
-	bfa_assert(!bfa_ioc_get_fcmode(&bfa->ioc));
-
-	return bfa_fcport_get_stats(bfa, stats, cbfn, cbarg);
-}
-
-/*
- * Reset FCoE port statistics
- */
-bfa_status_t
-bfa_fcport_clear_fcoe_stats(struct bfa_s *bfa, bfa_cb_port_t cbfn, void *cbarg)
-{
-	/* Meaningful only for FCoE mode */
-	bfa_assert(!bfa_ioc_get_fcmode(&bfa->ioc));
-
-	return bfa_fcport_clear_stats(bfa, cbfn, cbarg);
-}
-
-void
-bfa_fcport_qos_get_attr(struct bfa_s *bfa, struct bfa_qos_attr_s *qos_attr)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-
-	qos_attr->state = fcport->qos_attr.state;
-	qos_attr->total_bb_cr = be32_to_cpu(fcport->qos_attr.total_bb_cr);
-}
-
-void
-bfa_fcport_qos_get_vc_attr(struct bfa_s *bfa,
-	struct bfa_qos_vc_attr_s *qos_vc_attr)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-	struct bfa_qos_vc_attr_s *bfa_vc_attr = &fcport->qos_vc_attr;
-	u32 i = 0;
-
-	qos_vc_attr->total_vc_count = be16_to_cpu(bfa_vc_attr->total_vc_count);
-	qos_vc_attr->shared_credit  = be16_to_cpu(bfa_vc_attr->shared_credit);
-	qos_vc_attr->elp_opmode_flags  =
-			be32_to_cpu(bfa_vc_attr->elp_opmode_flags);
-
-	/* Individual VC info */
-	while (i < qos_vc_attr->total_vc_count) {
-		qos_vc_attr->vc_info[i].vc_credit	=
-				bfa_vc_attr->vc_info[i].vc_credit;
-		qos_vc_attr->vc_info[i].borrow_credit	=
-				bfa_vc_attr->vc_info[i].borrow_credit;
-		qos_vc_attr->vc_info[i].priority	=
-				bfa_vc_attr->vc_info[i].priority;
-		++i;
-	}
-}
 
 /*
  * Fetch port attributes.
@@ -3924,59 +3816,6 @@ bfa_fcport_is_ratelim(struct bfa_s *bfa)
 
 }
 
-void
-bfa_fcport_cfg_qos(struct bfa_s *bfa, bfa_boolean_t on_off)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-	enum bfa_ioc_type_e ioc_type = bfa_get_type(bfa);
-
-	bfa_trc(bfa, on_off);
-	bfa_trc(bfa, fcport->cfg.qos_enabled);
-
-	bfa_trc(bfa, ioc_type);
-
-	if (ioc_type == BFA_IOC_TYPE_FC) {
-		fcport->cfg.qos_enabled = on_off;
-		/*
-		 * Notify fcpim of the change in QoS state
-		 */
-		bfa_fcpim_update_ioredirect(bfa);
-	}
-}
-
-void
-bfa_fcport_cfg_ratelim(struct bfa_s *bfa, bfa_boolean_t on_off)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-
-	bfa_trc(bfa, on_off);
-	bfa_trc(bfa, fcport->cfg.ratelimit);
-
-	fcport->cfg.ratelimit = on_off;
-	if (fcport->cfg.trl_def_speed == BFA_PORT_SPEED_UNKNOWN)
-		fcport->cfg.trl_def_speed = BFA_PORT_SPEED_1GBPS;
-}
-
-/*
- * Configure default minimum ratelim speed
- */
-bfa_status_t
-bfa_fcport_cfg_ratelim_speed(struct bfa_s *bfa, enum bfa_port_speed speed)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-
-	bfa_trc(bfa, speed);
-
-	/* Auto and speeds greater than the supported speed, are invalid */
-	if ((speed == BFA_PORT_SPEED_AUTO) || (speed > fcport->speed_sup)) {
-		bfa_trc(bfa, fcport->speed_sup);
-		return BFA_STATUS_UNSUPP_SPEED;
-	}
-
-	fcport->cfg.trl_def_speed = speed;
-
-	return BFA_STATUS_OK;
-}
 
 /*
  * Get default minimum ratelim speed
@@ -3989,32 +3828,6 @@ bfa_fcport_get_ratelim_speed(struct bfa_s *bfa)
 	bfa_trc(bfa, fcport->cfg.trl_def_speed);
 	return fcport->cfg.trl_def_speed;
 
-}
-void
-bfa_fcport_busy(struct bfa_s *bfa, bfa_boolean_t status)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-
-	bfa_trc(bfa, status);
-	bfa_trc(bfa, fcport->diag_busy);
-
-	fcport->diag_busy = status;
-}
-
-void
-bfa_fcport_beacon(void *dev, bfa_boolean_t beacon,
-	bfa_boolean_t link_e2e_beacon)
-{
-	struct bfa_s *bfa = dev;
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-
-	bfa_trc(bfa, beacon);
-	bfa_trc(bfa, link_e2e_beacon);
-	bfa_trc(bfa, fcport->beacon);
-	bfa_trc(bfa, fcport->link_e2e_beacon);
-
-	fcport->beacon = beacon;
-	fcport->link_e2e_beacon = link_e2e_beacon;
 }
 
 bfa_boolean_t
@@ -4035,63 +3848,6 @@ bfa_fcport_is_qos_enabled(struct bfa_s *bfa)
 
 	return fcport->cfg.qos_enabled;
 }
-
-bfa_status_t
-bfa_trunk_get_attr(struct bfa_s *bfa, struct bfa_trunk_attr_s *attr)
-
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-	struct bfa_fcport_trunk_s *trunk = &fcport->trunk;
-
-	bfa_trc(bfa, fcport->cfg.trunked);
-	bfa_trc(bfa, trunk->attr.state);
-	*attr = trunk->attr;
-	attr->port_id = bfa_lps_get_base_pid(bfa);
-
-	return BFA_STATUS_OK;
-}
-
-void
-bfa_trunk_enable_cfg(struct bfa_s *bfa)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-	struct bfa_fcport_trunk_s *trunk = &fcport->trunk;
-
-	bfa_trc(bfa, 1);
-	trunk->attr.state = BFA_TRUNK_OFFLINE;
-	fcport->cfg.trunked = BFA_TRUE;
-}
-
-bfa_status_t
-bfa_trunk_enable(struct bfa_s *bfa)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-	struct bfa_fcport_trunk_s *trunk = &fcport->trunk;
-
-	bfa_trc(bfa, 1);
-
-	trunk->attr.state   = BFA_TRUNK_OFFLINE;
-	bfa_fcport_disable(bfa);
-	fcport->cfg.trunked = BFA_TRUE;
-	bfa_fcport_enable(bfa);
-
-	return BFA_STATUS_OK;
-}
-
-bfa_status_t
-bfa_trunk_disable(struct bfa_s *bfa)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-	struct bfa_fcport_trunk_s *trunk = &fcport->trunk;
-
-	bfa_trc(bfa, 0);
-	trunk->attr.state   = BFA_TRUNK_DISABLED;
-	bfa_fcport_disable(bfa);
-	fcport->cfg.trunked = BFA_FALSE;
-	bfa_fcport_enable(bfa);
-	return BFA_STATUS_OK;
-}
-
 
 /*
  * Rport State machine functions
@@ -4874,22 +4630,6 @@ bfa_rport_speed(struct bfa_rport_s *rport, enum bfa_port_speed speed)
 
 	rport->rport_info.speed = speed;
 	bfa_sm_send_event(rport, BFA_RPORT_SM_SET_SPEED);
-}
-
-void
-bfa_rport_get_stats(struct bfa_rport_s *rport,
-	struct bfa_rport_hal_stats_s *stats)
-{
-	*stats = rport->stats;
-}
-
-void
-bfa_rport_get_qos_attr(struct bfa_rport_s *rport,
-					struct bfa_rport_qos_attr_s *qos_attr)
-{
-	qos_attr->qos_priority  = rport->qos_attr.qos_priority;
-	qos_attr->qos_flow_id  = be32_to_cpu(rport->qos_attr.qos_flow_id);
-
 }
 
 void

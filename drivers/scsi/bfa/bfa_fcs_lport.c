@@ -589,28 +589,6 @@ bfa_fcs_lport_deleted(struct bfa_fcs_lport_s *port)
 }
 
 
-
-/*
- *  fcs_lport_api BFA FCS port API
- */
-/*
- *   Module initialization
- */
-void
-bfa_fcs_lport_modinit(struct bfa_fcs_s *fcs)
-{
-
-}
-
-/*
- *   Module cleanup
- */
-void
-bfa_fcs_lport_modexit(struct bfa_fcs_s *fcs)
-{
-	bfa_fcs_modexit_comp(fcs);
-}
-
 /*
  * Unsolicited frame receive handling.
  */
@@ -5620,33 +5598,6 @@ bfa_fcs_vport_get_attr(struct bfa_fcs_vport_s *vport,
 	attr->vport_state = bfa_sm_to_state(vport_sm_table, vport->sm);
 }
 
-/*
- *	Use this function to get vport's statistics.
- *
- *	param[in]	vport	pointer to bfa_fcs_vport_t.
- *	param[out]	stats	pointer to return vport statistics in
- *
- *	return None
- */
-void
-bfa_fcs_vport_get_stats(struct bfa_fcs_vport_s *vport,
-			struct bfa_vport_stats_s *stats)
-{
-	*stats = vport->vport_stats;
-}
-
-/*
- *	Use this function to clear vport's statistics.
- *
- *	param[in]	vport	pointer to bfa_fcs_vport_t.
- *
- *	return None
- */
-void
-bfa_fcs_vport_clr_stats(struct bfa_fcs_vport_s *vport)
-{
-	memset(&vport->vport_stats, 0, sizeof(struct bfa_vport_stats_s));
-}
 
 /*
  *	Lookup a virtual port. Excludes base port from lookup.

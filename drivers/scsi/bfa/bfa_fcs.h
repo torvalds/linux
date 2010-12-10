@@ -316,8 +316,6 @@ void            bfa_fcs_lport_add_rport(struct bfa_fcs_lport_s *port,
 				       struct bfa_fcs_rport_s *rport);
 void            bfa_fcs_lport_del_rport(struct bfa_fcs_lport_s *port,
 				       struct bfa_fcs_rport_s *rport);
-void bfa_fcs_lport_modinit(struct bfa_fcs_s *fcs);
-void bfa_fcs_lport_modexit(struct bfa_fcs_s *fcs);
 void            bfa_fcs_lport_ns_init(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_ns_offline(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_ns_online(struct bfa_fcs_lport_s *vport);
@@ -359,9 +357,6 @@ bfa_status_t bfa_fcs_vport_start(struct bfa_fcs_vport_s *vport);
 bfa_status_t bfa_fcs_vport_stop(struct bfa_fcs_vport_s *vport);
 void bfa_fcs_vport_get_attr(struct bfa_fcs_vport_s *vport,
 			    struct bfa_vport_attr_s *vport_attr);
-void bfa_fcs_vport_get_stats(struct bfa_fcs_vport_s *vport,
-			     struct bfa_vport_stats_s *vport_stats);
-void bfa_fcs_vport_clr_stats(struct bfa_fcs_vport_s *vport);
 struct bfa_fcs_vport_s *bfa_fcs_vport_lookup(struct bfa_fcs_s *fcs,
 					     u16 vf_id, wwn_t vpwwn);
 void bfa_fcs_vport_cleanup(struct bfa_fcs_vport_s *vport);
@@ -437,23 +432,12 @@ bfa_fcs_rport_get_halrport(struct bfa_fcs_rport_s *rport)
 /*
  * bfa fcs rport API functions
  */
-bfa_status_t bfa_fcs_rport_add(struct bfa_fcs_lport_s *port, wwn_t *pwwn,
-			       struct bfa_fcs_rport_s *rport,
-			       struct bfad_rport_s *rport_drv);
-bfa_status_t bfa_fcs_rport_remove(struct bfa_fcs_rport_s *rport);
-void bfa_fcs_rport_get_attr(struct bfa_fcs_rport_s *rport,
-			    struct bfa_rport_attr_s *attr);
-void bfa_fcs_rport_get_stats(struct bfa_fcs_rport_s *rport,
-			     struct bfa_rport_stats_s *stats);
-void bfa_fcs_rport_clear_stats(struct bfa_fcs_rport_s *rport);
 struct bfa_fcs_rport_s *bfa_fcs_rport_lookup(struct bfa_fcs_lport_s *port,
 					     wwn_t rpwwn);
 struct bfa_fcs_rport_s *bfa_fcs_rport_lookup_by_nwwn(
 	struct bfa_fcs_lport_s *port, wwn_t rnwwn);
 void bfa_fcs_rport_set_del_timeout(u8 rport_tmo);
 
-void bfa_fcs_rport_set_speed(struct bfa_fcs_rport_s *rport,
-			     enum bfa_port_speed speed);
 void bfa_fcs_rport_uf_recv(struct bfa_fcs_rport_s *rport,
 	 struct fchs_s *fchs, u16 len);
 void bfa_fcs_rport_scn(struct bfa_fcs_rport_s *rport);
@@ -689,7 +673,6 @@ u16 bfa_fcs_fabric_vport_count(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_fabric_attach(struct bfa_fcs_s *fcs);
 void bfa_fcs_fabric_modinit(struct bfa_fcs_s *fcs);
 void bfa_fcs_fabric_modexit(struct bfa_fcs_s *fcs);
-void bfa_fcs_fabric_modsusp(struct bfa_fcs_s *fcs);
 void bfa_fcs_fabric_link_up(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_fabric_link_down(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_fabric_addvport(struct bfa_fcs_fabric_s *fabric,
@@ -707,9 +690,6 @@ bfa_boolean_t	bfa_fcs_fabric_is_auth_failed(struct bfa_fcs_fabric_s *fabric);
 enum bfa_port_type bfa_fcs_fabric_port_type(struct bfa_fcs_fabric_s *fabric);
 void	bfa_fcs_fabric_psymb_init(struct bfa_fcs_fabric_s *fabric);
 void	bfa_fcs_fabric_port_delete_comp(struct bfa_fcs_fabric_s *fabric);
-bfa_status_t	bfa_fcs_fabric_addvf(struct bfa_fcs_fabric_s *vf,
-			struct bfa_fcs_s *fcs, struct bfa_lport_cfg_s *port_cfg,
-			struct bfad_vf_s *vf_drv);
 void bfa_fcs_fabric_set_fabric_name(struct bfa_fcs_fabric_s *fabric,
 	       wwn_t fabric_name);
 u16 bfa_fcs_fabric_get_switch_oui(struct bfa_fcs_fabric_s *fabric);
