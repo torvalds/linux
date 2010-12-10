@@ -11,6 +11,7 @@
 /* Base */
 #define OUT_TYPE		SCREEN_MCU
 #define OUT_FACE		OUT_P16BPP4
+#define LCDC_ACLK       150000000     //29 lcdc axi DMA ÆµÂÊ
 
 /* Timing */
 #define H_PW			1
@@ -321,6 +322,7 @@ void set_lcd_info(struct rk28fb_screen *screen)
     screen->height = LCD_HEIGHT;
 
     /* Timing */
+    screen->lcdc_aclk = LCDC_ACLK;
 	screen->left_margin = H_BP;
 	screen->right_margin = H_FP;
 	screen->hsync_len = H_PW;

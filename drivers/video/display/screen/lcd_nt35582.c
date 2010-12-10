@@ -23,6 +23,8 @@
 #define LCD_WIDTH       480    //need modify
 #define LCD_HEIGHT      800
 
+#define LCDC_ACLK       150000000     //29 lcdc axi DMA 频率
+
 #define P_WR            27
 #define USE_FMARK       0 //2               //是否使用FMK (0:不支持 1:横屏支持 2:横竖屏都支持)
 #define FRMRATE         60              //MCU屏的刷新率 (FMK有效时用)
@@ -395,6 +397,7 @@ void set_lcd_info(struct rk29fb_screen *screen)
     screen->height = LCD_HEIGHT;
 
     /* Timing */
+    screen->lcdc_aclk = LCDC_ACLK;
 	screen->left_margin = H_BP;
 	screen->right_margin = H_FP;
 	screen->hsync_len = H_PW;

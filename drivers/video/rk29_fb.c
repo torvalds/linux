@@ -401,7 +401,6 @@ int init_lcdc(struct fb_info *info)
     LcdMskReg(inf, WIN0_COLOR_KEY_CTRL, m_COLORKEY_EN, v_COLORKEY_EN(0));
     LcdMskReg(inf, WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN, v_COLORKEY_EN(0));
 
-    LcdWrReg(inf, DSP_CTRL0, 0);
     LcdWrReg(inf, DSP_CTRL1, 0);
 
     // initialize all interrupt
@@ -422,15 +421,17 @@ void load_screen(struct fb_info *info, bool initscreen)
     int ret = -EINVAL;
     struct rk29fb_inf *inf = dev_get_drvdata(info->device);
     struct rk29fb_screen *screen = inf->cur_screen;
-    u16 face = screen->face;
+    u16 face;
     u16 mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend;
     u16 right_margin = screen->right_margin, lower_margin = screen->lower_margin;
     u16 x_res = screen->x_res, y_res = screen->y_res;
     u32 clk_rate = 0;
-    u32 dclk_rate = 0;
     u32 aclk_rate = 150000000;
 
-    if(!g_pdev)     return -1;
+    if(!g_pdev){
+        printk(">>>>>> %s : %s no g_pdev\n", __FILE__, __FUNCTION__);
+        return;
+    }
 
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
@@ -458,6 +459,33 @@ void load_screen(struct fb_info *info, bool initscreen)
            );
 
 	// set synchronous pin polarity and data pin swap rule
+	switch (screen->face)
+	{
+        case OUT_P565:
+            face = OUT_P565;
+            LcdMskReg(inf, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(0));
+            break;
+        case OUT_P666:
+            face = OUT_P666;
+            LcdMskReg(inf, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(1));
+            break;
+        case OUT_D888_P565:
+            face = OUT_P888;
+            LcdMskReg(inf, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(0));
+            break;
+        case OUT_D888_P666:
+            face = OUT_P888;
+            LcdMskReg(inf, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(1));
+            break;
+        case OUT_P888:
+            face = OUT_P888;
+            LcdMskReg(inf, DSP_CTRL0, m_DITHER_UP_EN, v_DITHER_UP_EN(1));
+            break;
+        default:
+            face = screen->face;
+            break;
+    }
+
      LcdMskReg(inf, DSP_CTRL0,
         m_DISPLAY_FORMAT | m_HSYNC_POLARITY | m_VSYNC_POLARITY | m_DEN_POLARITY |
         m_DCLK_POLARITY | m_COLOR_SPACE_CONVERSION,
@@ -540,23 +568,22 @@ void load_screen(struct fb_info *info, bool initscreen)
 	}
 
     // set lcdc clk
-    if(SCREEN_MCU==screen->type)    screen->pixclock = 150; //mcu fix to 150 MHz
+    if(SCREEN_MCU==screen->type)    screen->pixclock = 150000000; //mcu fix to 150 MHz
 
     clk_set_parent(inf->dclk_divider, inf->dclk_parent);
     clk_set_parent(inf->dclk, inf->dclk_divider);
     clk_set_parent(inf->aclk, inf->aclk_parent);
 
-    dclk_rate = screen->pixclock * 1000000;
-
     fbprintk(">>>>>> set lcdc dclk need %d HZ, clk_parent = %d hz \n ", screen->pixclock, clk_rate);
 
-    ret = clk_set_rate(inf->dclk_divider, dclk_rate);
+    ret = clk_set_rate(inf->dclk_divider, screen->pixclock);
     if(ret)
     {
         printk(KERN_ERR ">>>>>> set lcdc dclk_divider faild \n ");
     }
+
     if(screen->lcdc_aclk){
-        aclk_rate = screen->lcdc_aclk * 1000000;
+        aclk_rate = screen->lcdc_aclk;
     }
     ret = clk_set_rate(inf->aclk, aclk_rate);
     if(ret){
@@ -1408,7 +1435,7 @@ static int win1fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
     struct rk29fb_inf *inf = dev_get_drvdata(info->device);
     struct fb_var_screeninfo *var1 = &info->var;
     struct fb_fix_screeninfo *fix1 = &info->fix;
-    int i;
+
     u32 offset = 0, addr = 0;
 
 	//fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
@@ -1449,6 +1476,7 @@ static int win1fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 #endif
 
 #if 0
+    int i;
     for(i=0;i<=(0xc0/4);i+=4)
     {
         fbprintk("0x%02X: 0x%08X 0x%08X 0x%08X 0x%08X \n", i*4,
@@ -1687,7 +1715,7 @@ void resume(struct early_suspend *h)
 	}
     msleep(100);
     set_lcd_pin(g_pdev, 1);
-	memcpy(inf->preg, &inf->regbak, 0xa4);  //resume reg
+	memcpy((u8*)inf->preg, (u8*)&inf->regbak, 0xa4);  //resume reg
 }
 
 struct suspend_info suspend_info = {

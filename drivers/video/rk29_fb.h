@@ -21,14 +21,15 @@
 ********************************************************************/
 /* 输往屏的数据格式 */
 #define OUT_P888            0
-#define OUT_P666            1
-#define OUT_P565            2
+#define OUT_P666            1    //666的屏, 接DATA0-17
+#define OUT_P565            2    //565的屏, 接DATA0-15
 #define OUT_S888x           4
 #define OUT_CCIR656         6
 #define OUT_S888            8
 #define OUT_S888DUMY        12
 #define OUT_P16BPP4         24  //模拟方式,控制器并不支持
-
+#define OUT_D888_P666       0x21  //666的屏, 接DATA2-7, DATA10-15, DATA17-22
+#define OUT_D888_P565       0x22  //565的屏, 接DATA3-7, DATA10-15, DATA18-22
 
 /* SYS_CONFIG */
 #define m_W2_FORMAT          (3<<0)

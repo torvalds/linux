@@ -9,9 +9,9 @@
 
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
-#define OUT_FACE		OUT_P888
-#define OUT_CLK			65
-#define LCDC_ACLK        150           //29 lcdc axi DMA ÆµÂÊ
+#define OUT_FACE		OUT_D888_P666
+#define OUT_CLK			 65000000
+#define LCDC_ACLK       150000000     //29 lcdc axi DMA ÆµÂÊ
 
 /* Timing */
 #define H_PW			10
@@ -45,6 +45,7 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
     screen->height = LCD_HEIGHT;
 
     /* Timing */
+    screen->lcdc_aclk = LCDC_ACLK;
     screen->pixclock = OUT_CLK;
 	screen->left_margin = H_BP;
 	screen->right_margin = H_FP;
@@ -58,7 +59,6 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	screen->pin_vsync = 0;
 	screen->pin_den = 0;
 	screen->pin_dclk = DCLK_POL;
-    screen->lcdc_aclk = LCDC_ACLK;
 
 	/* Swap rule */
     screen->swap_rb = SWAP_RB;
