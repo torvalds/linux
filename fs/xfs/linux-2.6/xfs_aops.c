@@ -380,26 +380,18 @@ xfs_submit_ioend_bio(
 
 	submit_bio(wbc->sync_mode == WB_SYNC_ALL ?
 		   WRITE_SYNC_PLUG : WRITE, bio);
-	ASSERT(!bio_flagged(bio, BIO_EOPNOTSUPP));
-	bio_put(bio);
 }
 
 STATIC struct bio *
 xfs_alloc_ioend_bio(
 	struct buffer_head	*bh)
 {
-	struct bio		*bio;
 	int			nvecs = bio_get_nr_vecs(bh->b_bdev);
-
-	do {
-		bio = bio_alloc(GFP_NOIO, nvecs);
-		nvecs >>= 1;
-	} while (!bio);
+	struct bio		*bio = bio_alloc(GFP_NOIO, nvecs);
 
 	ASSERT(bio->bi_private == NULL);
 	bio->bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio->bi_bdev = bh->b_bdev;
-	bio_get(bio);
 	return bio;
 }
 
@@ -470,9 +462,8 @@ xfs_submit_ioend(
 	/* Pass 1 - start writeback */
 	do {
 		next = ioend->io_list;
-		for (bh = ioend->io_buffer_head; bh; bh = bh->b_private) {
+		for (bh = ioend->io_buffer_head; bh; bh = bh->b_private)
 			xfs_start_buffer_writeback(bh);
-		}
 	} while ((ioend = next) != NULL);
 
 	/* Pass 2 - submit I/O */
