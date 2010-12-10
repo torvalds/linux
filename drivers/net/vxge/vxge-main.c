@@ -1606,11 +1606,15 @@ static int do_vxge_reset(struct vxgedev *vdev, int event)
 	}
 
 	if (event == VXGE_LL_FULL_RESET) {
+		netif_carrier_off(vdev->ndev);
+
 		/* wait for all the vpath reset to complete */
 		for (vp_id = 0; vp_id < vdev->no_of_vpath; vp_id++) {
 			while (test_bit(vp_id, &vdev->vp_reset))
 				msleep(50);
 		}
+
+		netif_carrier_on(vdev->ndev);
 
 		/* if execution mode is set to debug, don't reset the adapter */
 		if (unlikely(vdev->exec_mode)) {
@@ -1765,9 +1769,14 @@ out:
  *
  * driver may reset the chip on events of serr, eccerr, etc
  */
-static int vxge_reset(struct vxgedev *vdev)
+static void vxge_reset(struct work_struct *work)
 {
-	return do_vxge_reset(vdev, VXGE_LL_FULL_RESET);
+	struct vxgedev *vdev = container_of(work, struct vxgedev, reset_task);
+
+	if (!netif_running(vdev->ndev))
+		return;
+
+	do_vxge_reset(vdev, VXGE_LL_FULL_RESET);
 }
 
 /**
@@ -3111,8 +3120,7 @@ static int vxge_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
  * This function is triggered if the Tx Queue is stopped
  * for a pre-defined amount of time when the Interface is still up.
  */
-static void
-vxge_tx_watchdog(struct net_device *dev)
+static void vxge_tx_watchdog(struct net_device *dev)
 {
 	struct vxgedev *vdev;
 
@@ -3122,7 +3130,7 @@ vxge_tx_watchdog(struct net_device *dev)
 
 	vdev->cric_err_event = VXGE_HW_EVENT_RESET_START;
 
-	vxge_reset(vdev);
+	schedule_work(&vdev->reset_task);
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s:%d  Exiting...", __func__, __LINE__);
 }
@@ -3324,6 +3332,7 @@ static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 	ndev->netdev_ops = &vxge_netdev_ops;
 
 	ndev->watchdog_timeo = VXGE_LL_WATCH_DOG_TIMEOUT;
+	INIT_WORK(&vdev->reset_task, vxge_reset);
 
 	vxge_initialize_ethtool_ops(ndev);
 

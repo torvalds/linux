@@ -395,6 +395,7 @@ struct vxgedev {
 	u32 		level_err;
 	u32 		level_trace;
 	char		fw_version[VXGE_HW_FW_STRLEN];
+	struct work_struct reset_task;
 };
 
 struct vxge_rx_priv {
