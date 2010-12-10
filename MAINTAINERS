@@ -6585,6 +6585,15 @@ F:	include/linux/mfd/wm8400*
 F:	include/sound/wm????.h
 F:	sound/soc/codecs/wm*
 
+WORKQUEUE
+M:	Tejun Heo <tj@kernel.org>
+L:	linux-kernel@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/wq.git
+S:	Maintained
+F:	include/linux/workqueue.h
+F:	kernel/workqueue.c
+F:	Documentation/workqueue.txt
+
 X.25 NETWORK LAYER
 M:	Andrew Hendry <andrew.hendry@gmail.com>
 L:	linux-x25@vger.kernel.org
