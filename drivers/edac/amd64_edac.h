@@ -184,18 +184,13 @@
 #define dram_dst_node(pvt, i)		(pvt->ranges[i].lim.lo & 0x7)
 
 #define DHAR				0xf0
-#define DHAR_VALID			BIT(0)
-#define DRAM_MEM_HOIST_VALID		BIT(1)
+#define dhar_valid(pvt)			((pvt)->dhar & BIT(0))
+#define dhar_mem_hoist_valid(pvt)	((pvt)->dhar & BIT(1))
+#define dhar_base(pvt)			((pvt)->dhar & 0xff000000)
+#define k8_dhar_offset(pvt)		(((pvt)->dhar & 0x0000ff00) << 16)
 
-#define DHAR_BASE_MASK			0xff000000
-#define dhar_base(pvt)			((pvt)->dhar & DHAR_BASE_MASK)
-
-#define K8_DHAR_OFFSET_MASK		0x0000ff00
-#define k8_dhar_offset(pvt)		(((pvt)->dhar & K8_DHAR_OFFSET_MASK) << 16)
-
-#define F10_DHAR_OFFSET_MASK		0x0000ff80
 					/* NOTE: Extra mask bit vs K8 */
-#define f10_dhar_offset(pvt)		(((pvt)->dhar & F10_DHAR_OFFSET_MASK) << 16)
+#define f10_dhar_offset(pvt)		(((pvt)->dhar & 0x0000ff80) << 16)
 
 #define DCT_CFG_SEL			0x10C
 
