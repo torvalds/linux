@@ -28,45 +28,16 @@
 #include "debug.h"
 #include "base.h"
 
-/*
- * Read from eeprom
- */
-static int ath5k_hw_eeprom_read(struct ath5k_hw *ah, u32 offset, u16 *data)
-{
-	u32 status, timeout;
 
-	/*
-	 * Initialize EEPROM access
-	 */
-	if (ah->ah_version == AR5K_AR5210) {
-		AR5K_REG_ENABLE_BITS(ah, AR5K_PCICFG, AR5K_PCICFG_EEAE);
-		(void)ath5k_hw_reg_read(ah, AR5K_EEPROM_BASE + (4 * offset));
-	} else {
-		ath5k_hw_reg_write(ah, offset, AR5K_EEPROM_BASE);
-		AR5K_REG_ENABLE_BITS(ah, AR5K_EEPROM_CMD,
-				AR5K_EEPROM_CMD_READ);
-	}
-
-	for (timeout = AR5K_TUNE_REGISTER_TIMEOUT; timeout > 0; timeout--) {
-		status = ath5k_hw_reg_read(ah, AR5K_EEPROM_STATUS);
-		if (status & AR5K_EEPROM_STAT_RDDONE) {
-			if (status & AR5K_EEPROM_STAT_RDERR)
-				return -EIO;
-			*data = (u16)(ath5k_hw_reg_read(ah, AR5K_EEPROM_DATA) &
-					0xffff);
-			return 0;
-		}
-		udelay(15);
-	}
-
-	return -ETIMEDOUT;
-}
+/******************\
+* Helper functions *
+\******************/
 
 /*
  * Translate binary channel representation in EEPROM to frequency
  */
 static u16 ath5k_eeprom_bin2freq(struct ath5k_eeprom_info *ee, u16 bin,
-                                 unsigned int mode)
+							unsigned int mode)
 {
 	u16 val;
 
@@ -88,6 +59,11 @@ static u16 ath5k_eeprom_bin2freq(struct ath5k_eeprom_info *ee, u16 bin,
 
 	return val;
 }
+
+
+/*********\
+* Parsers *
+\*********/
 
 /*
  * Initialize eeprom & capabilities structs
@@ -198,7 +174,7 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 	 *
 	 * XXX: Serdes values seem to be fixed so
 	 * no need to read them here, we write them
-	 * during ath5k_hw_attach */
+	 * during ath5k_hw_init */
 	AR5K_EEPROM_READ(AR5K_EEPROM_PCIE_OFFSET, val);
 	ee->ee_serdes = (val == AR5K_EEPROM_PCIE_SERDES_SECTION) ?
 							true : false;
@@ -646,6 +622,7 @@ ath5k_eeprom_init_11bg_2413(struct ath5k_hw *ah, unsigned int mode, int offset)
 
 	return 0;
 }
+
 
 /*
  * Read power calibration for RF5111 chips
@@ -1514,6 +1491,7 @@ ath5k_eeprom_read_target_rate_pwr_info(struct ath5k_hw *ah, unsigned int mode)
 	return 0;
 }
 
+
 /*
  * Read per channel calibration info from EEPROM
  *
@@ -1605,15 +1583,6 @@ ath5k_eeprom_free_pcal_info(struct ath5k_hw *ah, int mode)
 	}
 
 	return 0;
-}
-
-void
-ath5k_eeprom_detach(struct ath5k_hw *ah)
-{
-	u8 mode;
-
-	for (mode = AR5K_EEPROM_MODE_11A; mode <= AR5K_EEPROM_MODE_11G; mode++)
-		ath5k_eeprom_free_pcal_info(ah, mode);
 }
 
 /* Read conformance test limits used for regulatory control */
@@ -1757,6 +1726,44 @@ ath5k_eeprom_read_spur_chans(struct ath5k_hw *ah)
 }
 
 /*
+ * Read the MAC address from eeprom
+ */
+int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
+{
+	u8 mac_d[ETH_ALEN] = {};
+	u32 total, offset;
+	u16 data;
+	int octet, ret;
+
+	ret = ath5k_hw_nvram_read(ah, 0x20, &data);
+	if (ret)
+		return ret;
+
+	for (offset = 0x1f, octet = 0, total = 0; offset >= 0x1d; offset--) {
+		ret = ath5k_hw_nvram_read(ah, offset, &data);
+		if (ret)
+			return ret;
+
+		total += data;
+		mac_d[octet + 1] = data & 0xff;
+		mac_d[octet] = data >> 8;
+		octet += 2;
+	}
+
+	if (!total || total == 3 * 0xffff)
+		return -EINVAL;
+
+	memcpy(mac, mac_d, ETH_ALEN);
+
+	return 0;
+}
+
+
+/***********************\
+* Init/Detach functions *
+\***********************/
+
+/*
  * Initialize eeprom data structure
  */
 int
@@ -1787,35 +1794,11 @@ ath5k_eeprom_init(struct ath5k_hw *ah)
 	return 0;
 }
 
-/*
- * Read the MAC address from eeprom
- */
-int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
+void
+ath5k_eeprom_detach(struct ath5k_hw *ah)
 {
-	u8 mac_d[ETH_ALEN] = {};
-	u32 total, offset;
-	u16 data;
-	int octet, ret;
+	u8 mode;
 
-	ret = ath5k_hw_eeprom_read(ah, 0x20, &data);
-	if (ret)
-		return ret;
-
-	for (offset = 0x1f, octet = 0, total = 0; offset >= 0x1d; offset--) {
-		ret = ath5k_hw_eeprom_read(ah, offset, &data);
-		if (ret)
-			return ret;
-
-		total += data;
-		mac_d[octet + 1] = data & 0xff;
-		mac_d[octet] = data >> 8;
-		octet += 2;
-	}
-
-	if (!total || total == 3 * 0xffff)
-		return -EINVAL;
-
-	memcpy(mac, mac_d, ETH_ALEN);
-
-	return 0;
+	for (mode = AR5K_EEPROM_MODE_11A; mode <= AR5K_EEPROM_MODE_11G; mode++)
+		ath5k_eeprom_free_pcal_info(ah, mode);
 }

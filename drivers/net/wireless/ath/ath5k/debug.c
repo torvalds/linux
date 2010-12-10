@@ -312,6 +312,7 @@ static const struct {
 	{ ATH5K_DEBUG_DUMP_RX,	"dumprx",	"print received skb content" },
 	{ ATH5K_DEBUG_DUMP_TX,	"dumptx",	"print transmit skb content" },
 	{ ATH5K_DEBUG_DUMPBANDS, "dumpbands",	"dump bands" },
+	{ ATH5K_DEBUG_DMA,	"dma",		"dma start/stop" },
 	{ ATH5K_DEBUG_ANI,	"ani",		"adaptive noise immunity" },
 	{ ATH5K_DEBUG_DESC,	"desc",		"descriptor chains" },
 	{ ATH5K_DEBUG_ANY,	"all",		"show all debug levels" },

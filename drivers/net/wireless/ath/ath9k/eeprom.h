@@ -280,6 +280,7 @@ enum eeprom_param {
 	EEP_PAPRD,
 	EEP_MODAL_VER,
 	EEP_ANT_DIV_CTL1,
+	EEP_CHAIN_MASK_REDUCE
 };
 
 enum ar5416_rates {

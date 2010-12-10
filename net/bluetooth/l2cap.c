@@ -57,7 +57,7 @@
 
 #define VERSION "2.15"
 
-static int disable_ertm = 0;
+static int disable_ertm;
 
 static u32 l2cap_feat_mask = L2CAP_FEAT_FIXED_CHAN;
 static u8 l2cap_fixed_chan[8] = { 0x02, };
@@ -83,6 +83,18 @@ static struct sk_buff *l2cap_build_cmd(struct l2cap_conn *conn,
 static int l2cap_ertm_data_rcv(struct sock *sk, struct sk_buff *skb);
 
 /* ---- L2CAP timers ---- */
+static void l2cap_sock_set_timer(struct sock *sk, long timeout)
+{
+	BT_DBG("sk %p state %d timeout %ld", sk, sk->sk_state, timeout);
+	sk_reset_timer(sk, &sk->sk_timer, jiffies + timeout);
+}
+
+static void l2cap_sock_clear_timer(struct sock *sk)
+{
+	BT_DBG("sock %p state %d", sk, sk->sk_state);
+	sk_stop_timer(sk, &sk->sk_timer);
+}
+
 static void l2cap_sock_timeout(unsigned long arg)
 {
 	struct sock *sk = (struct sock *) arg;
@@ -91,6 +103,14 @@ static void l2cap_sock_timeout(unsigned long arg)
 	BT_DBG("sock %p state %d", sk, sk->sk_state);
 
 	bh_lock_sock(sk);
+
+	if (sock_owned_by_user(sk)) {
+		/* sk is owned by user. Try again later */
+		l2cap_sock_set_timer(sk, HZ / 5);
+		bh_unlock_sock(sk);
+		sock_put(sk);
+		return;
+	}
 
 	if (sk->sk_state == BT_CONNECTED || sk->sk_state == BT_CONFIG)
 		reason = ECONNREFUSED;
@@ -106,18 +126,6 @@ static void l2cap_sock_timeout(unsigned long arg)
 
 	l2cap_sock_kill(sk);
 	sock_put(sk);
-}
-
-static void l2cap_sock_set_timer(struct sock *sk, long timeout)
-{
-	BT_DBG("sk %p state %d timeout %ld", sk, sk->sk_state, timeout);
-	sk_reset_timer(sk, &sk->sk_timer, jiffies + timeout);
-}
-
-static void l2cap_sock_clear_timer(struct sock *sk)
-{
-	BT_DBG("sock %p state %d", sk, sk->sk_state);
-	sk_stop_timer(sk, &sk->sk_timer);
 }
 
 /* ---- L2CAP channels ---- */
@@ -743,10 +751,12 @@ found:
 /* Find socket with psm and source bdaddr.
  * Returns closest match.
  */
-static struct sock *__l2cap_get_sock_by_psm(int state, __le16 psm, bdaddr_t *src)
+static struct sock *l2cap_get_sock_by_psm(int state, __le16 psm, bdaddr_t *src)
 {
 	struct sock *sk = NULL, *sk1 = NULL;
 	struct hlist_node *node;
+
+	read_lock(&l2cap_sk_list.lock);
 
 	sk_for_each(sk, node, &l2cap_sk_list.head) {
 		if (state && sk->sk_state != state)
@@ -762,20 +772,10 @@ static struct sock *__l2cap_get_sock_by_psm(int state, __le16 psm, bdaddr_t *src
 				sk1 = sk;
 		}
 	}
-	return node ? sk : sk1;
-}
 
-/* Find socket with given address (psm, src).
- * Returns locked socket */
-static inline struct sock *l2cap_get_sock_by_psm(int state, __le16 psm, bdaddr_t *src)
-{
-	struct sock *s;
-	read_lock(&l2cap_sk_list.lock);
-	s = __l2cap_get_sock_by_psm(state, psm, src);
-	if (s)
-		bh_lock_sock(s);
 	read_unlock(&l2cap_sk_list.lock);
-	return s;
+
+	return node ? sk : sk1;
 }
 
 static void l2cap_sock_destruct(struct sock *sk)
@@ -2926,6 +2926,8 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 		goto sendresp;
 	}
 
+	bh_lock_sock(parent);
+
 	/* Check if the ACL is secure enough (if not SDP) */
 	if (psm != cpu_to_le16(0x0001) &&
 				!hci_conn_check_link_mode(conn->hcon)) {
@@ -3078,6 +3080,14 @@ static inline int l2cap_connect_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hd
 		break;
 
 	default:
+		/* don't delete l2cap channel if sk is owned by user */
+		if (sock_owned_by_user(sk)) {
+			sk->sk_state = BT_DISCONN;
+			l2cap_sock_clear_timer(sk);
+			l2cap_sock_set_timer(sk, HZ / 5);
+			break;
+		}
+
 		l2cap_chan_del(sk, ECONNREFUSED);
 		break;
 	}
@@ -3283,6 +3293,15 @@ static inline int l2cap_disconnect_req(struct l2cap_conn *conn, struct l2cap_cmd
 
 	sk->sk_shutdown = SHUTDOWN_MASK;
 
+	/* don't delete l2cap channel if sk is owned by user */
+	if (sock_owned_by_user(sk)) {
+		sk->sk_state = BT_DISCONN;
+		l2cap_sock_clear_timer(sk);
+		l2cap_sock_set_timer(sk, HZ / 5);
+		bh_unlock_sock(sk);
+		return 0;
+	}
+
 	l2cap_chan_del(sk, ECONNRESET);
 	bh_unlock_sock(sk);
 
@@ -3304,6 +3323,15 @@ static inline int l2cap_disconnect_rsp(struct l2cap_conn *conn, struct l2cap_cmd
 	sk = l2cap_get_chan_by_scid(&conn->chan_list, scid);
 	if (!sk)
 		return 0;
+
+	/* don't delete l2cap channel if sk is owned by user */
+	if (sock_owned_by_user(sk)) {
+		sk->sk_state = BT_DISCONN;
+		l2cap_sock_clear_timer(sk);
+		l2cap_sock_set_timer(sk, HZ / 5);
+		bh_unlock_sock(sk);
+		return 0;
+	}
 
 	l2cap_chan_del(sk, 0);
 	bh_unlock_sock(sk);
@@ -4134,11 +4162,10 @@ static inline void l2cap_data_channel_rrframe(struct sock *sk, u16 rx_control)
 			__mod_retrans_timer();
 
 		pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
-		if (pi->conn_state & L2CAP_CONN_SREJ_SENT) {
+		if (pi->conn_state & L2CAP_CONN_SREJ_SENT)
 			l2cap_send_ack(pi);
-		} else {
+		else
 			l2cap_ertm_send(sk);
-		}
 	}
 }
 
@@ -4429,6 +4456,8 @@ static inline int l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm, str
 	sk = l2cap_get_sock_by_psm(0, psm, conn->src);
 	if (!sk)
 		goto drop;
+
+	bh_lock_sock(sk);
 
 	BT_DBG("sk %p, len %d", sk, skb->len);
 
@@ -4841,8 +4870,10 @@ static int __init l2cap_init(void)
 		return err;
 
 	_busy_wq = create_singlethread_workqueue("l2cap");
-	if (!_busy_wq)
-		goto error;
+	if (!_busy_wq) {
+		proto_unregister(&l2cap_proto);
+		return -ENOMEM;
+	}
 
 	err = bt_sock_register(BTPROTO_L2CAP, &l2cap_sock_family_ops);
 	if (err < 0) {
@@ -4870,6 +4901,7 @@ static int __init l2cap_init(void)
 	return 0;
 
 error:
+	destroy_workqueue(_busy_wq);
 	proto_unregister(&l2cap_proto);
 	return err;
 }

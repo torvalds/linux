@@ -545,6 +545,7 @@ struct ath_ant_comb {
 #define SC_OP_BT_PRIORITY_DETECTED   BIT(12)
 #define SC_OP_BT_SCAN		     BIT(13)
 #define SC_OP_ANI_RUN		     BIT(14)
+#define SC_OP_ENABLE_APM	     BIT(15)
 
 /* Powersave flags */
 #define PS_WAIT_FOR_BEACON        BIT(0)
@@ -696,6 +697,8 @@ static inline void ath_ahb_exit(void) {};
 
 void ath9k_ps_wakeup(struct ath_softc *sc);
 void ath9k_ps_restore(struct ath_softc *sc);
+
+u8 ath_txchainmask_reduction(struct ath_softc *sc, u8 chainmask, u32 rate);
 
 void ath9k_set_bssid_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 int ath9k_wiphy_add(struct ath_softc *sc);

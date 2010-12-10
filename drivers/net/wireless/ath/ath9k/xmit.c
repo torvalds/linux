@@ -250,11 +250,11 @@ static void ath_tid_drain(struct ath_softc *sc, struct ath_txq *txq,
 static void ath_tx_set_retry(struct ath_softc *sc, struct ath_txq *txq,
 			     struct sk_buff *skb)
 {
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ath_frame_info *fi = get_frame_info(skb);
 	struct ieee80211_hdr *hdr;
 
 	TX_STAT_INC(txq->axq_qnum, a_retries);
-	if (tx_info->control.rates[4].count++ > 0)
+	if (fi->retries++ > 0)
 		return;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -1506,6 +1506,18 @@ static u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, int pktlen,
 	return duration;
 }
 
+u8 ath_txchainmask_reduction(struct ath_softc *sc, u8 chainmask, u32 rate)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_channel *curchan = ah->curchan;
+	if ((sc->sc_flags & SC_OP_ENABLE_APM) &&
+			(curchan->channelFlags & CHANNEL_5GHZ) &&
+			(chainmask == 0x7) && (rate < 0x90))
+		return 0x3;
+	else
+		return chainmask;
+}
+
 static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf, int len)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -1546,7 +1558,6 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf, int len)
 
 		rix = rates[i].idx;
 		series[i].Tries = rates[i].count;
-		series[i].ChSel = common->tx_chainmask;
 
 		if ((sc->config.ath_aggr_prot && bf_isaggr(bf)) ||
 		    (rates[i].flags & IEEE80211_TX_RC_USE_RTS_CTS)) {
@@ -1569,6 +1580,8 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf, int len)
 		if (rates[i].flags & IEEE80211_TX_RC_MCS) {
 			/* MCS rates */
 			series[i].Rate = rix | 0x80;
+			series[i].ChSel = ath_txchainmask_reduction(sc,
+					common->tx_chainmask, series[i].Rate);
 			series[i].PktDuration = ath_pkt_duration(sc, rix, len,
 				 is_40, is_sgi, is_sp);
 			if (rix < 8 && (tx_info->flags & IEEE80211_TX_CTL_STBC))
@@ -1576,7 +1589,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf, int len)
 			continue;
 		}
 
-		/* legcay rates */
+		/* legacy rates */
 		if ((tx_info->band == IEEE80211_BAND_2GHZ) &&
 		    !(rate->flags & IEEE80211_RATE_ERP_G))
 			phy = WLAN_RC_PHY_CCK;
@@ -1591,6 +1604,12 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf, int len)
 		} else {
 			is_sp = false;
 		}
+
+		if (bf->bf_state.bfs_paprd)
+			series[i].ChSel = common->tx_chainmask;
+		else
+			series[i].ChSel = ath_txchainmask_reduction(sc,
+					common->tx_chainmask, series[i].Rate);
 
 		series[i].PktDuration = ath9k_hw_computetxtime(sc->sc_ah,
 			phy, rate->bitrate * 100, len, rix, is_sp);

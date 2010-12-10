@@ -406,6 +406,46 @@ static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 	out->antenna_gain.ghz5.a3 = gain;
 }
 
+/* Revs 4 5 and 8 have partially shared layout */
+static void sprom_extract_r458(struct ssb_sprom *out, const u16 *in)
+{
+	SPEX(txpid2g[0], SSB_SPROM4_TXPID2G01,
+	     SSB_SPROM4_TXPID2G0, SSB_SPROM4_TXPID2G0_SHIFT);
+	SPEX(txpid2g[1], SSB_SPROM4_TXPID2G01,
+	     SSB_SPROM4_TXPID2G1, SSB_SPROM4_TXPID2G1_SHIFT);
+	SPEX(txpid2g[2], SSB_SPROM4_TXPID2G23,
+	     SSB_SPROM4_TXPID2G2, SSB_SPROM4_TXPID2G2_SHIFT);
+	SPEX(txpid2g[3], SSB_SPROM4_TXPID2G23,
+	     SSB_SPROM4_TXPID2G3, SSB_SPROM4_TXPID2G3_SHIFT);
+
+	SPEX(txpid5gl[0], SSB_SPROM4_TXPID5GL01,
+	     SSB_SPROM4_TXPID5GL0, SSB_SPROM4_TXPID5GL0_SHIFT);
+	SPEX(txpid5gl[1], SSB_SPROM4_TXPID5GL01,
+	     SSB_SPROM4_TXPID5GL1, SSB_SPROM4_TXPID5GL1_SHIFT);
+	SPEX(txpid5gl[2], SSB_SPROM4_TXPID5GL23,
+	     SSB_SPROM4_TXPID5GL2, SSB_SPROM4_TXPID5GL2_SHIFT);
+	SPEX(txpid5gl[3], SSB_SPROM4_TXPID5GL23,
+	     SSB_SPROM4_TXPID5GL3, SSB_SPROM4_TXPID5GL3_SHIFT);
+
+	SPEX(txpid5g[0], SSB_SPROM4_TXPID5G01,
+	     SSB_SPROM4_TXPID5G0, SSB_SPROM4_TXPID5G0_SHIFT);
+	SPEX(txpid5g[1], SSB_SPROM4_TXPID5G01,
+	     SSB_SPROM4_TXPID5G1, SSB_SPROM4_TXPID5G1_SHIFT);
+	SPEX(txpid5g[2], SSB_SPROM4_TXPID5G23,
+	     SSB_SPROM4_TXPID5G2, SSB_SPROM4_TXPID5G2_SHIFT);
+	SPEX(txpid5g[3], SSB_SPROM4_TXPID5G23,
+	     SSB_SPROM4_TXPID5G3, SSB_SPROM4_TXPID5G3_SHIFT);
+
+	SPEX(txpid5gh[0], SSB_SPROM4_TXPID5GH01,
+	     SSB_SPROM4_TXPID5GH0, SSB_SPROM4_TXPID5GH0_SHIFT);
+	SPEX(txpid5gh[1], SSB_SPROM4_TXPID5GH01,
+	     SSB_SPROM4_TXPID5GH1, SSB_SPROM4_TXPID5GH1_SHIFT);
+	SPEX(txpid5gh[2], SSB_SPROM4_TXPID5GH23,
+	     SSB_SPROM4_TXPID5GH2, SSB_SPROM4_TXPID5GH2_SHIFT);
+	SPEX(txpid5gh[3], SSB_SPROM4_TXPID5GH23,
+	     SSB_SPROM4_TXPID5GH3, SSB_SPROM4_TXPID5GH3_SHIFT);
+}
+
 static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 {
 	int i;
@@ -470,6 +510,8 @@ static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 	     SSB_SPROM4_AGAIN3, SSB_SPROM4_AGAIN3_SHIFT);
 	memcpy(&out->antenna_gain.ghz5, &out->antenna_gain.ghz24,
 	       sizeof(out->antenna_gain.ghz5));
+
+	sprom_extract_r458(out, in);
 
 	/* TODO - get remaining rev 4 stuff needed */
 }
@@ -560,6 +602,8 @@ static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 	     SSB_SPROM8_AGAIN3, SSB_SPROM8_AGAIN3_SHIFT);
 	memcpy(&out->antenna_gain.ghz5, &out->antenna_gain.ghz24,
 	       sizeof(out->antenna_gain.ghz5));
+
+	sprom_extract_r458(out, in);
 
 	/* TODO - get remaining rev 8 stuff needed */
 }

@@ -146,6 +146,7 @@
 !Finclude/net/cfg80211.h cfg80211_rx_mgmt
 !Finclude/net/cfg80211.h cfg80211_mgmt_tx_status
 !Finclude/net/cfg80211.h cfg80211_cqm_rssi_notify
+!Finclude/net/cfg80211.h cfg80211_cqm_pktloss_notify
 !Finclude/net/cfg80211.h cfg80211_michael_mic_failure
       </chapter>
       <chapter>
@@ -332,10 +333,16 @@
           <title>functions/definitions</title>
 !Finclude/net/mac80211.h ieee80211_rx_status
 !Finclude/net/mac80211.h mac80211_rx_flags
+!Finclude/net/mac80211.h mac80211_tx_control_flags
+!Finclude/net/mac80211.h mac80211_rate_control_flags
+!Finclude/net/mac80211.h ieee80211_tx_rate
 !Finclude/net/mac80211.h ieee80211_tx_info
+!Finclude/net/mac80211.h ieee80211_tx_info_clear_status
 !Finclude/net/mac80211.h ieee80211_rx
+!Finclude/net/mac80211.h ieee80211_rx_ni
 !Finclude/net/mac80211.h ieee80211_rx_irqsafe
 !Finclude/net/mac80211.h ieee80211_tx_status
+!Finclude/net/mac80211.h ieee80211_tx_status_ni
 !Finclude/net/mac80211.h ieee80211_tx_status_irqsafe
 !Finclude/net/mac80211.h ieee80211_rts_get
 !Finclude/net/mac80211.h ieee80211_rts_duration
@@ -346,6 +353,7 @@
 !Finclude/net/mac80211.h ieee80211_stop_queue
 !Finclude/net/mac80211.h ieee80211_wake_queues
 !Finclude/net/mac80211.h ieee80211_stop_queues
+!Finclude/net/mac80211.h ieee80211_queue_stopped
         </sect1>
       </chapter>
 
@@ -353,6 +361,13 @@
         <title>Frame filtering</title>
 !Pinclude/net/mac80211.h Frame filtering
 !Finclude/net/mac80211.h ieee80211_filter_flags
+      </chapter>
+
+      <chapter id="workqueue">
+        <title>The mac80211 workqueue</title>
+!Pinclude/net/mac80211.h mac80211 workqueue
+!Finclude/net/mac80211.h ieee80211_queue_work
+!Finclude/net/mac80211.h ieee80211_queue_delayed_work
       </chapter>
     </part>
 
@@ -374,6 +389,9 @@
 !Finclude/net/mac80211.h set_key_cmd
 !Finclude/net/mac80211.h ieee80211_key_conf
 !Finclude/net/mac80211.h ieee80211_key_flags
+!Finclude/net/mac80211.h ieee80211_tkip_key_type
+!Finclude/net/mac80211.h ieee80211_get_tkip_key
+!Finclude/net/mac80211.h ieee80211_key_removed
       </chapter>
 
       <chapter id="powersave">
@@ -417,12 +435,46 @@
           supported by mac80211, add notes about supporting hw crypto
           with it.
         </para>
+!Finclude/net/mac80211.h ieee80211_iterate_active_interfaces
+!Finclude/net/mac80211.h ieee80211_iterate_active_interfaces_atomic
+      </chapter>
+
+      <chapter id="station-handling">
+        <title>Station handling</title>
+        <para>TODO</para>
+!Finclude/net/mac80211.h ieee80211_sta
+!Finclude/net/mac80211.h sta_notify_cmd
+!Finclude/net/mac80211.h ieee80211_find_sta
+!Finclude/net/mac80211.h ieee80211_find_sta_by_ifaddr
+!Finclude/net/mac80211.h ieee80211_sta_block_awake
       </chapter>
 
       <chapter id="hardware-scan-offload">
         <title>Hardware scan offload</title>
         <para>TBD</para>
 !Finclude/net/mac80211.h ieee80211_scan_completed
+      </chapter>
+
+      <chapter id="aggregation">
+        <title>Aggregation</title>
+        <sect1>
+          <title>TX A-MPDU aggregation</title>
+!Pnet/mac80211/agg-tx.c TX A-MPDU aggregation
+!Cnet/mac80211/agg-tx.c
+        </sect1>
+        <sect1>
+          <title>RX A-MPDU aggregation</title>
+!Pnet/mac80211/agg-rx.c RX A-MPDU aggregation
+!Cnet/mac80211/agg-rx.c
+        </sect1>
+!Finclude/net/mac80211.h ieee80211_ampdu_mlme_action
+      </chapter>
+
+      <chapter id="smps">
+        <title>Spatial Multiplexing Powersave (SMPS)</title>
+!Pinclude/net/mac80211.h Spatial multiplexing power save
+!Finclude/net/mac80211.h ieee80211_request_smps
+!Finclude/net/mac80211.h ieee80211_smps_mode
       </chapter>
     </part>
 
@@ -435,9 +487,16 @@
          interface and how it relates to mac80211 and drivers.
         </para>
       </partintro>
-      <chapter id="dummy">
-        <title>dummy chapter</title>
+      <chapter id="ratecontrol-api">
+        <title>Rate Control API</title>
         <para>TBD</para>
+!Finclude/net/mac80211.h ieee80211_start_tx_ba_session
+!Finclude/net/mac80211.h ieee80211_start_tx_ba_cb_irqsafe
+!Finclude/net/mac80211.h ieee80211_stop_tx_ba_session
+!Finclude/net/mac80211.h ieee80211_stop_tx_ba_cb_irqsafe
+!Finclude/net/mac80211.h rate_control_changed
+!Finclude/net/mac80211.h ieee80211_tx_rate_control
+!Finclude/net/mac80211.h rate_control_send_low
       </chapter>
     </part>
 
@@ -483,6 +542,13 @@
           <title>STA information lifetime rules</title>
 !Pnet/mac80211/sta_info.c STA information lifetime rules
         </sect1>
+      </chapter>
+
+      <chapter id="aggregation-internals">
+        <title>Aggregation</title>
+!Fnet/mac80211/sta_info.h sta_ampdu_mlme
+!Fnet/mac80211/sta_info.h tid_ampdu_tx
+!Fnet/mac80211/sta_info.h tid_ampdu_rx
       </chapter>
 
       <chapter id="synchronisation">

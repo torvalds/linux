@@ -57,10 +57,11 @@
 #define SUB_NUM_CTL_MODES_AT_5G_40 2    /* excluding HT40, EXT-OFDM */
 #define SUB_NUM_CTL_MODES_AT_2G_40 3    /* excluding HT40, EXT-OFDM, EXT-CCK */
 
+#define CTL(_tpower, _flag) ((_tpower) | ((_flag) << 6))
+
 static int ar9003_hw_power_interpolate(int32_t x,
 				       int32_t *px, int32_t *py, u_int16_t np);
 
-#define CTL(_tpower, _flag) ((_tpower) | ((_flag) << 6))
 
 static const struct ar9300_eeprom ar9300_default = {
 	.eepromVersion = 2,
@@ -3032,6 +3033,8 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 		return le32_to_cpu(pBase->swreg);
 	case EEP_PAPRD:
 		return !!(pBase->featureEnable & BIT(5));
+	case EEP_CHAIN_MASK_REDUCE:
+		return (pBase->miscConfiguration >> 0x3) & 0x1;
 	default:
 		return 0;
 	}
