@@ -330,19 +330,19 @@ static struct ab8500_regulator_info ab8500_regulator_info[] = {
 			ldo_vauxn_voltages, ARRAY_SIZE(ldo_vauxn_voltages)),
 	AB8500_LDO(AUX3, 1100, 3300, 0x04, 0x0a, 0x3, 0x1, 0x04, 0x21, 0xf,
 			ldo_vauxn_voltages, ARRAY_SIZE(ldo_vauxn_voltages)),
-	AB8500_LDO(INTCORE, 1100, 3300, 0x03, 0x80, 0x4, 0x4, 0x03, 0x80, 0x38,
+	AB8500_LDO(INTCORE, 1100, 3300, 0x03, 0x80, 0x44, 0x4, 0x03, 0x80, 0x38,
 		ldo_vintcore_voltages, ARRAY_SIZE(ldo_vintcore_voltages)),
 
 	/*
 	 * Fixed Voltage LDOs
 	 *		 name,	o/p uV, ctrl bank, ctrl reg, enable, disable
 	 */
-	AB8500_FIXED_LDO(TVOUT,	  2000, 0x03,      0x80,     0x2,    0x2),
+	AB8500_FIXED_LDO(TVOUT,	  2000, 0x03,      0x80,     0x82,    0x2),
 	AB8500_FIXED_LDO(AUDIO,   2000, 0x03,      0x83,     0x2,    0x2),
-	AB8500_FIXED_LDO(ANAMIC1, 2050, 0x03,      0x83,     0x4,    0x4),
-	AB8500_FIXED_LDO(ANAMIC2, 2050, 0x03,      0x83,     0x8,    0x8),
-	AB8500_FIXED_LDO(DMIC,    1800, 0x03,      0x83,     0x10,   0x10),
-	AB8500_FIXED_LDO(ANA,     1200, 0x03,      0x83,     0xc,    0x4),
+	AB8500_FIXED_LDO(ANAMIC1, 2050, 0x03,      0x83,     0x08,    0x08),
+	AB8500_FIXED_LDO(ANAMIC2, 2050, 0x03,      0x83,     0x10,    0x10),
+	AB8500_FIXED_LDO(DMIC,    1800, 0x03,      0x83,     0x04,   0x04),
+	AB8500_FIXED_LDO(ANA,     1200, 0x04,      0x06,     0xc,    0x4),
 };
 
 static inline struct ab8500_regulator_info *find_regulator_info(int id)
