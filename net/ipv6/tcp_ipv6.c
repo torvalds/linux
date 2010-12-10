@@ -1877,7 +1877,7 @@ static struct inet_peer *tcp_v6_get_peer(struct sock *sk, bool *release_it)
 		if (!rt->rt6i_peer)
 			rt6_bind_peer(rt, 1);
 		peer = rt->rt6i_peer;
-		*release_it = true;
+		*release_it = false;
 	}
 
 	return peer;
