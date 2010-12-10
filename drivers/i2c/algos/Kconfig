@@ -3,7 +3,7 @@
 #
 
 menu "I2C Algorithms"
-	depends on !I2C_HELPER_AUTO
+	visible if !I2C_HELPER_AUTO
 
 config I2C_ALGOBIT
 	tristate "I2C bit-banging interfaces"
@@ -15,15 +15,3 @@ config I2C_ALGOPCA
 	tristate "I2C PCA 9564 interfaces"
 
 endmenu
-
-# In automatic configuration mode, we still have to define the
-# symbols to avoid unmet dependencies.
-
-if I2C_HELPER_AUTO
-config I2C_ALGOBIT
-	tristate
-config I2C_ALGOPCF
-	tristate
-config I2C_ALGOPCA
-	tristate
-endif
