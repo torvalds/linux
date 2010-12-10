@@ -1252,7 +1252,10 @@ static int enic_set_port_profile(struct enic *enic, u8 *mac)
 {
 	struct vic_provinfo *vp;
 	u8 oui[3] = VIC_PROVINFO_CISCO_OUI;
+	u16 os_type = VIC_GENERIC_PROV_OS_TYPE_LINUX;
 	char uuid_str[38];
+	char client_mac_str[18];
+	u8 *client_mac;
 	int err;
 
 	err = enic_vnic_dev_deinit(enic);
@@ -1270,36 +1273,46 @@ static int enic_set_port_profile(struct enic *enic, u8 *mac)
 			return -EADDRNOTAVAIL;
 
 		vp = vic_provinfo_alloc(GFP_KERNEL, oui,
-			VIC_PROVINFO_LINUX_TYPE);
+			VIC_PROVINFO_GENERIC_TYPE);
 		if (!vp)
 			return -ENOMEM;
 
 		vic_provinfo_add_tlv(vp,
-			VIC_LINUX_PROV_TLV_PORT_PROFILE_NAME_STR,
+			VIC_GENERIC_PROV_TLV_PORT_PROFILE_NAME_STR,
 			strlen(enic->pp.name) + 1, enic->pp.name);
 
 		if (!is_zero_ether_addr(enic->pp.mac_addr))
-			vic_provinfo_add_tlv(vp,
-				VIC_LINUX_PROV_TLV_CLIENT_MAC_ADDR,
-				ETH_ALEN, enic->pp.mac_addr);
+			client_mac = enic->pp.mac_addr;
 		else
-			vic_provinfo_add_tlv(vp,
-				VIC_LINUX_PROV_TLV_CLIENT_MAC_ADDR,
-				ETH_ALEN, mac);
+			client_mac = mac;
+
+		vic_provinfo_add_tlv(vp,
+			VIC_GENERIC_PROV_TLV_CLIENT_MAC_ADDR,
+			ETH_ALEN, client_mac);
+
+		sprintf(client_mac_str, "%pM", client_mac);
+		vic_provinfo_add_tlv(vp,
+			VIC_GENERIC_PROV_TLV_CLUSTER_PORT_UUID_STR,
+			sizeof(client_mac_str), client_mac_str);
 
 		if (enic->pp.set & ENIC_SET_INSTANCE) {
 			sprintf(uuid_str, "%pUB", enic->pp.instance_uuid);
 			vic_provinfo_add_tlv(vp,
-				VIC_LINUX_PROV_TLV_CLIENT_UUID_STR,
+				VIC_GENERIC_PROV_TLV_CLIENT_UUID_STR,
 				sizeof(uuid_str), uuid_str);
 		}
 
 		if (enic->pp.set & ENIC_SET_HOST) {
 			sprintf(uuid_str, "%pUB", enic->pp.host_uuid);
 			vic_provinfo_add_tlv(vp,
-				VIC_LINUX_PROV_TLV_HOST_UUID_STR,
+				VIC_GENERIC_PROV_TLV_HOST_UUID_STR,
 				sizeof(uuid_str), uuid_str);
 		}
+
+		os_type = htons(os_type);
+		vic_provinfo_add_tlv(vp,
+			VIC_GENERIC_PROV_TLV_OS_TYPE,
+			sizeof(os_type), &os_type);
 
 		err = enic_dev_init_prov(enic, vp);
 		vic_provinfo_free(vp);
