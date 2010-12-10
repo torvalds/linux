@@ -682,8 +682,7 @@ xfs_convert_page(
 	loff_t			tindex,
 	struct xfs_bmbt_irec	*imap,
 	xfs_ioend_t		**ioendp,
-	struct writeback_control *wbc,
-	int			all_bh)
+	struct writeback_control *wbc)
 {
 	struct buffer_head	*bh, *head;
 	xfs_off_t		end_offset;
@@ -738,11 +737,14 @@ xfs_convert_page(
 			continue;
 		}
 
-		if (buffer_unwritten(bh) || buffer_delay(bh)) {
+		if (buffer_unwritten(bh) || buffer_delay(bh) ||
+		    buffer_mapped(bh)) {
 			if (buffer_unwritten(bh))
 				type = IO_UNWRITTEN;
-			else
+			else if (buffer_delay(bh))
 				type = IO_DELALLOC;
+			else
+				type = IO_OVERWRITE;
 
 			if (!xfs_imap_valid(inode, imap, offset)) {
 				done = 1;
@@ -752,23 +754,17 @@ xfs_convert_page(
 			ASSERT(imap->br_startblock != HOLESTARTBLOCK);
 			ASSERT(imap->br_startblock != DELAYSTARTBLOCK);
 
-			xfs_map_at_offset(inode, bh, imap, offset);
+			if (type == IO_OVERWRITE)
+				lock_buffer(bh);
+			else
+				xfs_map_at_offset(inode, bh, imap, offset);
 			xfs_add_to_ioend(inode, bh, offset, type,
 					 ioendp, done);
 
 			page_dirty--;
 			count++;
 		} else {
-			type = IO_OVERWRITE;
-			if (buffer_mapped(bh) && all_bh) {
-				lock_buffer(bh);
-				xfs_add_to_ioend(inode, bh, offset,
-						type, ioendp, done);
-				count++;
-				page_dirty--;
-			} else {
-				done = 1;
-			}
+			done = 1;
 		}
 	} while (offset += len, (bh = bh->b_this_page) != head);
 
@@ -800,7 +796,6 @@ xfs_cluster_write(
 	struct xfs_bmbt_irec	*imap,
 	xfs_ioend_t		**ioendp,
 	struct writeback_control *wbc,
-	int			all_bh,
 	pgoff_t			tlast)
 {
 	struct pagevec		pvec;
@@ -815,7 +810,7 @@ xfs_cluster_write(
 
 		for (i = 0; i < pagevec_count(&pvec); i++) {
 			done = xfs_convert_page(inode, pvec.pages[i], tindex++,
-					imap, ioendp, wbc, all_bh);
+					imap, ioendp, wbc);
 			if (done)
 				break;
 		}
@@ -929,7 +924,6 @@ xfs_vm_writepage(
 	ssize_t			len;
 	int			err, imap_valid = 0, uptodate = 1;
 	int			count = 0;
-	int			all_bh = 0;
 	int			nonblocking = 0;
 
 	trace_xfs_writepage(inode, page, 0);
@@ -1065,7 +1059,6 @@ xfs_vm_writepage(
 			}
 
 			if (imap_valid) {
-				all_bh = 1;
 				lock_buffer(bh);
 				xfs_add_to_ioend(inode, bh, offset, type,
 						&ioend, new_ioend);
@@ -1102,7 +1095,7 @@ xfs_vm_writepage(
 			end_index = last_index;
 
 		xfs_cluster_write(inode, page->index + 1, &imap, &ioend,
-					wbc, all_bh, end_index);
+				  wbc, end_index);
 	}
 
 	if (iohead)
