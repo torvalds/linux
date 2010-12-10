@@ -999,74 +999,55 @@ xfs_vm_writepage(
 			continue;
 		}
 
-		if (imap_valid)
-			imap_valid = xfs_imap_valid(inode, &imap, offset);
-
-		if (buffer_unwritten(bh) || buffer_delay(bh)) {
-			if (buffer_unwritten(bh)) {
-				if (type != IO_UNWRITTEN) {
-					type = IO_UNWRITTEN;
-					imap_valid = 0;
-				}
-			} else if (buffer_delay(bh)) {
-				if (type != IO_DELALLOC) {
-					type = IO_DELALLOC;
-					imap_valid = 0;
-				}
+		if (buffer_unwritten(bh)) {
+			if (type != IO_UNWRITTEN) {
+				type = IO_UNWRITTEN;
+				imap_valid = 0;
 			}
-
-			if (!imap_valid) {
-				/*
-				 * If we didn't have a valid mapping then we
-				 * need to ensure that we put the new mapping
-				 * in a new ioend structure. This needs to be
-				 * done to ensure that the ioends correctly
-				 * reflect the block mappings at io completion
-				 * for unwritten extent conversion.
-				 */
-				new_ioend = 1;
-				err = xfs_map_blocks(inode, offset, &imap,
-						     type, nonblocking);
-				if (err)
-					goto error;
-				imap_valid = xfs_imap_valid(inode, &imap,
-							    offset);
-			}
-			if (imap_valid) {
-				xfs_map_at_offset(inode, bh, &imap, offset);
-				xfs_add_to_ioend(inode, bh, offset, type,
-						 &ioend, new_ioend);
-				count++;
+		} else if (buffer_delay(bh)) {
+			if (type != IO_DELALLOC) {
+				type = IO_DELALLOC;
+				imap_valid = 0;
 			}
 		} else if (buffer_uptodate(bh)) {
-			/*
-			 * we got here because the buffer is already mapped.
-			 * That means it must already have extents allocated
-			 * underneath it. Map the extent by reading it.
-			 */
 			if (type != IO_OVERWRITE) {
 				type = IO_OVERWRITE;
 				imap_valid = 0;
 			}
-			if (!imap_valid) {
-				new_ioend = 1;
-				err = xfs_map_blocks(inode, offset,
-						&imap, type, nonblocking);
-				if (err)
-					goto error;
-				imap_valid = xfs_imap_valid(inode, &imap,
-							    offset);
+		} else {
+			if (PageUptodate(page)) {
+				ASSERT(buffer_mapped(bh));
+				imap_valid = 0;
 			}
+			continue;
+		}
 
-			if (imap_valid) {
+		if (imap_valid)
+			imap_valid = xfs_imap_valid(inode, &imap, offset);
+		if (!imap_valid) {
+			/*
+			 * If we didn't have a valid mapping then we need to
+			 * put the new mapping into a separate ioend structure.
+			 * This ensures non-contiguous extents always have
+			 * separate ioends, which is particularly important
+			 * for unwritten extent conversion at I/O completion
+			 * time.
+			 */
+			new_ioend = 1;
+			err = xfs_map_blocks(inode, offset, &imap, type,
+					     nonblocking);
+			if (err)
+				goto error;
+			imap_valid = xfs_imap_valid(inode, &imap, offset);
+		}
+		if (imap_valid) {
+			if (type == IO_OVERWRITE)
 				lock_buffer(bh);
-				xfs_add_to_ioend(inode, bh, offset, type,
-						&ioend, new_ioend);
-				count++;
-			}
-		} else if (PageUptodate(page)) {
-			ASSERT(buffer_mapped(bh));
-			imap_valid = 0;
+			else
+				xfs_map_at_offset(inode, bh, &imap, offset);
+			xfs_add_to_ioend(inode, bh, offset, type, &ioend,
+					 new_ioend);
+			count++;
 		}
 
 		if (!iohead)
