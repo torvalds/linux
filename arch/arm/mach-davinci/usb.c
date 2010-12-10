@@ -112,6 +112,7 @@ static struct resource da8xx_usb20_resources[] = {
 	{
 		.start		= IRQ_DA8XX_USB_INT,
 		.flags		= IORESOURCE_IRQ,
+		.name		= "mc",
 	},
 };
 
