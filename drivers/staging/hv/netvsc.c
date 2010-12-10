@@ -202,7 +202,7 @@ int netvsc_initialize(struct hv_driver *drv)
 
 	driver->OnSend			= netvsc_send;
 
-	RndisFilterInit(driver);
+	rndis_filter_init(driver);
 	return 0;
 }
 

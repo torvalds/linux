@@ -81,7 +81,7 @@ static int netvsc_open(struct net_device *net)
 
 	if (netif_carrier_ok(net)) {
 		/* Open up the device */
-		ret = RndisFilterOnOpen(device_obj);
+		ret = rndis_filter_open(device_obj);
 		if (ret != 0) {
 			DPRINT_ERR(NETVSC_DRV,
 				   "unable to open device (ret %d).", ret);
@@ -104,7 +104,7 @@ static int netvsc_close(struct net_device *net)
 
 	netif_stop_queue(net);
 
-	ret = RndisFilterOnClose(device_obj);
+	ret = rndis_filter_close(device_obj);
 	if (ret != 0)
 		DPRINT_ERR(NETVSC_DRV, "unable to close device (ret %d).", ret);
 
