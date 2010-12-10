@@ -186,7 +186,7 @@ enum {
  * struct i2400m_poke_table - Hardware poke table for the Intel 2400m
  *
  * This structure will be used to create a device specific poke table
- * to put the device in a consistant state at boot time.
+ * to put the device in a consistent state at boot time.
  *
  * @address: The device address to poke
  *

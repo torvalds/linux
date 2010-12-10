@@ -251,7 +251,7 @@ repeat:
 	 * the committing transaction.  Really, we only need to give it
 	 * committing_transaction->t_outstanding_credits plus "enough" for
 	 * the log control blocks.
-	 * Also, this test is inconsitent with the matching one in
+	 * Also, this test is inconsistent with the matching one in
 	 * jbd2_journal_extend().
 	 */
 	if (__jbd2_log_space_left(journal) < jbd_space_needed(journal)) {
