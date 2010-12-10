@@ -32,10 +32,15 @@
 #include <mach/cpcap_audio.h>
 
 #define SLEEP_ACTIVATE_POWER_DELAY_MS	2
-#define STM_STDAC_ACTIVATE_RAMP_TIME	60
+#define STM_STDAC_ACTIVATE_RAMP_TIME	1
 #define CLOCK_TREE_RESET_DELAY_MS	1
 
 #define CPCAP_AUDIO_SPI_READBACK	1
+
+#define STM_STDAC_EN_TEST_PRE		0x090C
+#define STM_STDAC_EN_TEST_POST		0x0000
+#define STM_STDAC_EN_ST_TEST1_PRE	0x2400
+#define STM_STDAC_EN_ST_TEST1_POST	0x0400
 
 #define E(args...)  pr_err("cpcap-audio: " args)
 
@@ -765,11 +770,25 @@ static void cpcap_audio_configure_stdac(struct cpcap_audio_state *state,
 		stdac_changes.mask = stdac_changes.value | prev_stdac_data;
 		prev_stdac_data = stdac_changes.value;
 
+		if ((stdac_changes.value | CPCAP_BIT_ST_DAC_EN) &&
+		    (state->cpcap->vendor == CPCAP_VENDOR_ST)) {
+			logged_cpcap_write(state->cpcap, CPCAP_REG_TEST,
+					   STM_STDAC_EN_TEST_PRE, 0xFFFF);
+			logged_cpcap_write(state->cpcap, CPCAP_REG_ST_TEST1,
+					   STM_STDAC_EN_ST_TEST1_PRE, 0xFFFF);
+		}
+
 		logged_cpcap_write(state->cpcap, CPCAP_REG_SDAC,
 			stdac_changes.value, stdac_changes.mask);
+
 		if ((stdac_changes.value | CPCAP_BIT_ST_DAC_EN) &&
-		    (state->cpcap->vendor == CPCAP_VENDOR_ST))
+		    (state->cpcap->vendor == CPCAP_VENDOR_ST)) {
 			msleep(STM_STDAC_ACTIVATE_RAMP_TIME);
+			logged_cpcap_write(state->cpcap, CPCAP_REG_ST_TEST1,
+					   STM_STDAC_EN_ST_TEST1_POST, 0xFFFF);
+			logged_cpcap_write(state->cpcap, CPCAP_REG_TEST,
+					   STM_STDAC_EN_TEST_POST, 0xFFFF);
+		}
 	}
 }
 

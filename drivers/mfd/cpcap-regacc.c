@@ -242,6 +242,8 @@ static const struct {
 	[CPCAP_REG_LGDET]     = {1181, 0xFF00, 0xFFFF},
 	[CPCAP_REG_LMISC]     = {1182, 0xFF07, 0xFFFF},
 	[CPCAP_REG_LMACE]     = {1183, 0xFFF8, 0xFFFF},
+	[CPCAP_REG_TEST]      = {7936, 0x0000, 0xFFFF},
+	[CPCAP_REG_ST_TEST1]  = {8002, 0x0000, 0xFFFF},
 };
 
 static int cpcap_spi_access(struct spi_device *spi, u8 *buf,
