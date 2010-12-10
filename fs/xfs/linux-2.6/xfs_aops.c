@@ -1082,17 +1082,17 @@ xfs_vm_writepage(
 		if (buffer_unwritten(bh) || buffer_delay(bh)) {
 			int new_ioend = 0;
 
-			/*
-			 * Make sure we don't use a read-only iomap
-			 */
-			if (flags == BMAPI_READ)
-				imap_valid = 0;
-
 			if (buffer_unwritten(bh)) {
-				type = IO_UNWRITTEN;
+				if (type != IO_UNWRITTEN) {
+					type = IO_UNWRITTEN;
+					imap_valid = 0;
+				}
 				flags = BMAPI_WRITE | BMAPI_IGNSTATE;
 			} else if (buffer_delay(bh)) {
-				type = IO_DELAY;
+				if (type != IO_DELAY) {
+					type = IO_DELAY;
+					imap_valid = 0;
+				}
 				flags = BMAPI_ALLOCATE;
 
 				if (wbc->sync_mode == WB_SYNC_NONE)
@@ -1128,8 +1128,11 @@ xfs_vm_writepage(
 			 * That means it must already have extents allocated
 			 * underneath it. Map the extent by reading it.
 			 */
-			if (!imap_valid || flags != BMAPI_READ) {
+			if (flags != BMAPI_READ) {
 				flags = BMAPI_READ;
+				imap_valid = 0;
+			}
+			if (!imap_valid) {
 				size = xfs_probe_cluster(inode, page, bh, head);
 				err = xfs_map_blocks(inode, offset, size,
 						&imap, flags);
