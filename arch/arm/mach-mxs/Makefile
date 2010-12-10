@@ -9,5 +9,7 @@ obj-$(CONFIG_SOC_IMX28) += clock-mx28.o mm-mx28.o
 
 obj-$(CONFIG_MACH_MX23EVK) += mach-mx23evk.o
 obj-$(CONFIG_MACH_MX28EVK) += mach-mx28evk.o
+obj-$(CONFIG_MODULE_TX28) += module-tx28.o
+obj-$(CONFIG_MACH_TX28)    += mach-tx28.o
 
 obj-y += devices/
