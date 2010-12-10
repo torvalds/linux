@@ -739,8 +739,8 @@ static u32 s32ton(__s32 value, unsigned n)
  * Search linux-kernel and linux-usb-devel archives for "hid-core extract".
  */
 
-static __inline__ __u32 extract(const struct hid_device *hid, __u8 *report,
-				unsigned offset, unsigned n)
+static __u32 extract(const struct hid_device *hid, __u8 *report,
+		     unsigned offset, unsigned n)
 {
 	u64 x;
 
@@ -763,8 +763,8 @@ static __inline__ __u32 extract(const struct hid_device *hid, __u8 *report,
  * endianness of register values by considering a register
  * a "cached" copy of the little endiad bit stream.
  */
-static __inline__ void implement(const struct hid_device *hid, __u8 *report,
-				 unsigned offset, unsigned n, __u32 value)
+static void implement(const struct hid_device *hid, __u8 *report,
+		      unsigned offset, unsigned n, __u32 value)
 {
 	u64 x;
 	u64 m = (1ULL << n) - 1;
@@ -792,7 +792,7 @@ static __inline__ void implement(const struct hid_device *hid, __u8 *report,
  * Search an array for a value.
  */
 
-static __inline__ int search(__s32 *array, __s32 value, unsigned n)
+static int search(__s32 *array, __s32 value, unsigned n)
 {
 	while (n--) {
 		if (*array++ == value)
