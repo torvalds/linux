@@ -58,7 +58,9 @@ Additional Configurations
   Ethtool
   -------
   The driver utilizes the ethtool interface for driver configuration and
-  diagnostics, as well as displaying statistical information.
+  diagnostics, as well as displaying statistical information.  Ethtool
+  version 3.0 or later is required for this functionality, although we
+  strongly recommend downloading the latest version at:
 
   http://sourceforge.net/projects/gkernel.
 
