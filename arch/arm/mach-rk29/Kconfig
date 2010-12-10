@@ -6,6 +6,11 @@ config MACH_RK29SDK
         help
 	  Support for the ROCKCHIP Board For Rk29 Sdk.
 
+config MACH_RK29SDK_MEM_SIZE_M
+	int "Memory size (in MiB)"
+	depends on MACH_RK29SDK
+	default 512
+
 config WIFI_CONTROL_FUNC
         bool "Enable WiFi control function abstraction"
         help
