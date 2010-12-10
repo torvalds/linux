@@ -456,7 +456,7 @@ fc_logo_build(struct fchs_s *fchs, struct fc_logo_s *logo, u32 d_id, u32 s_id,
 	return sizeof(struct fc_logo_s);
 }
 
-static          u16
+static u16
 fc_adisc_x_build(struct fchs_s *fchs, struct fc_adisc_s *adisc, u32 d_id,
 		 u32 s_id, __be16 ox_id, wwn_t port_name,
 		 wwn_t node_name, u8 els_code)
@@ -806,11 +806,6 @@ fc_rpsc_acc_build(struct fchs_s *fchs, struct fc_rpsc_acc_s *rpsc_acc,
 
 	return sizeof(struct fc_rpsc_acc_s);
 }
-
-/*
- * TBD -
- * . get rid of unnecessary memsets
- */
 
 u16
 fc_logo_rsp_parse(struct fchs_s *fchs, int len)

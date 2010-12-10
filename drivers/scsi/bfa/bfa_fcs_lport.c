@@ -883,7 +883,8 @@ bfa_fcs_lport_get_attr(
 
 	if (port->fabric) {
 		port_attr->port_type = port->fabric->oper_type;
-		port_attr->loopback = bfa_sm_cmp_state(port->fabric, bfa_fcs_fabric_sm_loopback);
+		port_attr->loopback = bfa_sm_cmp_state(port->fabric,
+				bfa_fcs_fabric_sm_loopback);
 		port_attr->authfail =
 			bfa_sm_cmp_state(port->fabric,
 				bfa_fcs_fabric_sm_auth_failed);

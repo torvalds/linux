@@ -52,7 +52,6 @@ BFA_MODULE(uf);
 	((bfa_fcport_is_disabled(bfa) == BFA_TRUE) || \
 	(bfa_ioc_is_disabled(&bfa->ioc) == BFA_TRUE))
 
-
 /*
  * BFA port state machine events
  */
@@ -917,10 +916,6 @@ bfa_fcxp_queue(struct bfa_fcxp_s *fcxp, struct bfi_fcxp_send_req_s *send_req)
 }
 
 /*
- *  hal_fcxp_api BFA FCXP API
- */
-
-/*
  * Allocate an FCXP instance to send a response or to send a request
  * that has a response. Request/response buffers are allocated by caller.
  *
@@ -1014,7 +1009,7 @@ bfa_fcxp_get_rspbuf(struct bfa_fcxp_s *fcxp)
 }
 
 /*
- *		Free the BFA FCXP
+ * Free the BFA FCXP
  *
  * @param[in]	fcxp			BFA fcxp pointer
  *
@@ -1160,12 +1155,6 @@ bfa_fcxp_discard(struct bfa_fcxp_s *fcxp)
 
 	fcxp->send_cbfn = bfa_fcxp_null_comp;
 }
-
-
-
-/*
- *  hal_fcxp_public BFA FCXP public functions
- */
 
 void
 bfa_fcxp_isr(struct bfa_s *bfa, struct bfi_msg_s *msg)
@@ -2636,12 +2625,6 @@ bfa_fcport_ln_sm_up_dn_up_nf(struct bfa_fcport_ln_s *ln,
 	}
 }
 
-
-
-/*
- *  hal_port_private
- */
-
 static void
 __bfa_cb_fcport_event(void *cbarg, bfa_boolean_t complete)
 {
@@ -3229,12 +3212,6 @@ bfa_trunk_iocdisable(struct bfa_s *bfa)
 	}
 }
 
-
-
-/*
- *  hal_port_public
- */
-
 /*
  * Called to initialize port attributes
  */
@@ -3335,12 +3312,6 @@ bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg)
 	break;
 	}
 }
-
-
-
-/*
- *  hal_port_api
- */
 
 /*
  * Registered callback for port events.
@@ -3673,7 +3644,6 @@ bfa_fcport_is_ratelim(struct bfa_s *bfa)
 	return fcport->cfg.ratelimit ? BFA_TRUE : BFA_FALSE;
 
 }
-
 
 /*
  * Get default minimum ratelim speed
@@ -4572,12 +4542,6 @@ static void
 bfa_sgpg_iocdisable(struct bfa_s *bfa)
 {
 }
-
-
-
-/*
- *  hal_sgpg_public BFA SGPG public functions
- */
 
 bfa_status_t
 bfa_sgpg_malloc(struct bfa_s *bfa, struct list_head *sgpg_q, int nsgpgs)

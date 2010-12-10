@@ -1974,7 +1974,8 @@ bfa_fcs_rport_alloc(struct bfa_fcs_lport_s *port, wwn_t pwwn, u32 rpid)
 		rport->itnim = bfa_fcs_itnim_create(rport);
 		if (!rport->itnim) {
 			bfa_trc(fcs, rpid);
-			bfa_sm_send_event(rport->bfa_rport, BFA_RPORT_SM_DELETE);
+			bfa_sm_send_event(rport->bfa_rport,
+						BFA_RPORT_SM_DELETE);
 			kfree(rport_drv);
 			return NULL;
 		}

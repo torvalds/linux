@@ -586,12 +586,9 @@ bfa_ioc_sm_fail(struct bfa_ioc_s *ioc, enum ioc_event event)
 	}
 }
 
-
-
 /*
  * IOCPF State Machine
  */
-
 
 /*
  * Reset entry actions -- initialize state machine
@@ -754,7 +751,6 @@ bfa_iocpf_sm_semwait(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 	}
 }
 
-
 static void
 bfa_iocpf_sm_hwinit_entry(struct bfa_iocpf_s *iocpf)
 {
@@ -810,7 +806,6 @@ bfa_iocpf_sm_hwinit(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 		bfa_sm_fault(ioc, event);
 	}
 }
-
 
 static void
 bfa_iocpf_sm_enabling_entry(struct bfa_iocpf_s *iocpf)
@@ -873,8 +868,6 @@ bfa_iocpf_sm_enabling(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 	}
 }
 
-
-
 static void
 bfa_iocpf_sm_ready_entry(struct bfa_iocpf_s *iocpf)
 {
@@ -914,7 +907,6 @@ bfa_iocpf_sm_ready(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 		bfa_sm_fault(ioc, event);
 	}
 }
-
 
 static void
 bfa_iocpf_sm_disabling_entry(struct bfa_iocpf_s *iocpf)
@@ -990,7 +982,6 @@ bfa_iocpf_sm_disabled(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 	}
 }
 
-
 static void
 bfa_iocpf_sm_initfail_entry(struct bfa_iocpf_s *iocpf)
 {
@@ -1027,7 +1018,6 @@ bfa_iocpf_sm_initfail(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 		bfa_sm_fault(ioc, event);
 	}
 }
-
 
 static void
 bfa_iocpf_sm_fail_entry(struct bfa_iocpf_s *iocpf)
@@ -1078,8 +1068,6 @@ bfa_iocpf_sm_fail(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 	}
 }
 
-
-
 /*
  *  BFA IOC private functions
  */
@@ -1122,7 +1110,6 @@ bfa_ioc_sem_get(void __iomem *sem_reg)
 	bfa_assert(cnt < BFA_SEM_SPINCNT);
 	return BFA_FALSE;
 }
-
 
 static void
 bfa_ioc_hw_sem_get(struct bfa_ioc_s *ioc)
@@ -1304,7 +1291,6 @@ bfa_ioc_msgflush(struct bfa_ioc_s *ioc)
 	if (r32)
 		writel(1, ioc->ioc_regs.lpu_mbox_cmd);
 }
-
 
 static void
 bfa_ioc_hwinit(struct bfa_ioc_s *ioc, bfa_boolean_t force)
@@ -1738,7 +1724,6 @@ bfa_ioc_smem_clr(struct bfa_ioc_s *ioc, u32 soff, u32 sz)
 	return BFA_STATUS_OK;
 }
 
-
 static void
 bfa_ioc_pf_fwmismatch(struct bfa_ioc_s *ioc)
 {
@@ -1751,7 +1736,6 @@ bfa_ioc_pf_fwmismatch(struct bfa_ioc_s *ioc)
 		"Running firmware version is incompatible "
 		"with the driver version\n");
 }
-
 
 bfa_status_t
 bfa_ioc_pll_init(struct bfa_ioc_s *ioc)

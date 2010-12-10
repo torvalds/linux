@@ -342,7 +342,7 @@ bfa_msix_lpu_err(struct bfa_s *bfa, int vec)
 	intr = readl(bfa->iocfc.bfa_regs.intr_status);
 
 	if (intr & (__HFN_INT_MBOX_LPU0 | __HFN_INT_MBOX_LPU1))
-		 bfa_ioc_mbox_isr(&bfa->ioc);
+		bfa_ioc_mbox_isr(&bfa->ioc);
 
 	intr &= (__HFN_INT_ERR_EMC | __HFN_INT_ERR_LPU0 |
 		__HFN_INT_ERR_LPU1 | __HFN_INT_ERR_PSS | __HFN_INT_LL_HALT);
