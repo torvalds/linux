@@ -3522,12 +3522,14 @@ static int receive_bitmap(struct drbd_conf *mdev, enum drbd_packets cmd, unsigne
 	INFO_bm_xfer_stats(mdev, "receive", &c);
 
 	if (mdev->state.conn == C_WF_BITMAP_T) {
+		enum drbd_state_rv rv;
+
 		ok = !drbd_send_bitmap(mdev);
 		if (!ok)
 			goto out;
 		/* Omit CS_ORDERED with this state transition to avoid deadlocks. */
-		ok = _drbd_request_state(mdev, NS(conn, C_WF_SYNC_UUID), CS_VERBOSE);
-		D_ASSERT(ok == SS_SUCCESS);
+		rv = _drbd_request_state(mdev, NS(conn, C_WF_SYNC_UUID), CS_VERBOSE);
+		D_ASSERT(rv == SS_SUCCESS);
 	} else if (mdev->state.conn != C_WF_BITMAP_S) {
 		/* admin may have requested C_DISCONNECTING,
 		 * other threads may have noticed network errors */
