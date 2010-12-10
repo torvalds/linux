@@ -136,10 +136,10 @@ static void hid_reset(struct work_struct *work)
 			hid_io_error(hid);
 		break;
 	default:
-		err_hid("can't reset device, %s-%s/input%d, status %d",
-				hid_to_usb_dev(hid)->bus->bus_name,
-				hid_to_usb_dev(hid)->devpath,
-				usbhid->ifnum, rc);
+		hid_err(hid, "can't reset device, %s-%s/input%d, status %d\n",
+			hid_to_usb_dev(hid)->bus->bus_name,
+			hid_to_usb_dev(hid)->devpath,
+			usbhid->ifnum, rc);
 		/* FALLTHROUGH */
 	case -EHOSTUNREACH:
 	case -ENODEV:
@@ -278,18 +278,18 @@ static void hid_irq_in(struct urb *urb)
 		hid_io_error(hid);
 		return;
 	default:		/* error */
-		dev_warn(&urb->dev->dev, "input irq status %d  "
-				"received\n", urb->status);
+		hid_warn(urb->dev, "input irq status %d received\n",
+			 urb->status);
 	}
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status) {
 		clear_bit(HID_IN_RUNNING, &usbhid->iofl);
 		if (status != -EPERM) {
-			err_hid("can't resubmit intr, %s-%s/input%d, status %d",
-					hid_to_usb_dev(hid)->bus->bus_name,
-					hid_to_usb_dev(hid)->devpath,
-					usbhid->ifnum, status);
+			hid_err(hid, "can't resubmit intr, %s-%s/input%d, status %d\n",
+				hid_to_usb_dev(hid)->bus->bus_name,
+				hid_to_usb_dev(hid)->devpath,
+				usbhid->ifnum, status);
 			hid_io_error(hid);
 		}
 	}
@@ -313,7 +313,7 @@ static int hid_submit_out(struct hid_device *hid)
 		dbg_hid("submitting out urb\n");
 
 		if (usb_submit_urb(usbhid->urbout, GFP_ATOMIC)) {
-			err_hid("usb_submit_urb(out) failed");
+			hid_err(hid, "usb_submit_urb(out) failed\n");
 			return -1;
 		}
 		usbhid->last_out = jiffies;
@@ -375,7 +375,7 @@ static int hid_submit_ctrl(struct hid_device *hid)
 			usbhid->cr->wValue, usbhid->cr->wIndex, usbhid->cr->wLength);
 
 		if (usb_submit_urb(usbhid->urbctrl, GFP_ATOMIC)) {
-			err_hid("usb_submit_urb(ctrl) failed");
+			hid_err(hid, "usb_submit_urb(ctrl) failed\n");
 			return -1;
 		}
 		usbhid->last_ctrl = jiffies;
@@ -413,8 +413,8 @@ static void hid_irq_out(struct urb *urb)
 	case -ENOENT:
 		break;
 	default:		/* error */
-		dev_warn(&urb->dev->dev, "output irq status %d "
-				"received\n", urb->status);
+		hid_warn(urb->dev, "output irq status %d received\n",
+			 urb->status);
 	}
 
 	spin_lock_irqsave(&usbhid->lock, flags);
@@ -466,8 +466,7 @@ static void hid_ctrl(struct urb *urb)
 	case -EPIPE:		/* report not available */
 		break;
 	default:		/* error */
-		dev_warn(&urb->dev->dev, "ctrl urb status %d "
-				"received\n", status);
+		hid_warn(urb->dev, "ctrl urb status %d received\n", status);
 	}
 
 	if (unplug)
@@ -501,13 +500,13 @@ static void __usbhid_submit_report(struct hid_device *hid, struct hid_report *re
 
 	if (usbhid->urbout && dir == USB_DIR_OUT && report->type == HID_OUTPUT_REPORT) {
 		if ((head = (usbhid->outhead + 1) & (HID_OUTPUT_FIFO_SIZE - 1)) == usbhid->outtail) {
-			dev_warn(&hid->dev, "output queue full\n");
+			hid_warn(hid, "output queue full\n");
 			return;
 		}
 
 		usbhid->out[usbhid->outhead].raw_report = kmalloc(len, GFP_ATOMIC);
 		if (!usbhid->out[usbhid->outhead].raw_report) {
-			dev_warn(&hid->dev, "output queueing failed\n");
+			hid_warn(hid, "output queueing failed\n");
 			return;
 		}
 		hid_output_report(report, usbhid->out[usbhid->outhead].raw_report);
@@ -532,14 +531,14 @@ static void __usbhid_submit_report(struct hid_device *hid, struct hid_report *re
 	}
 
 	if ((head = (usbhid->ctrlhead + 1) & (HID_CONTROL_FIFO_SIZE - 1)) == usbhid->ctrltail) {
-		dev_warn(&hid->dev, "control queue full\n");
+		hid_warn(hid, "control queue full\n");
 		return;
 	}
 
 	if (dir == USB_DIR_OUT) {
 		usbhid->ctrl[usbhid->ctrlhead].raw_report = kmalloc(len, GFP_ATOMIC);
 		if (!usbhid->ctrl[usbhid->ctrlhead].raw_report) {
-			dev_warn(&hid->dev, "control queueing failed\n");
+			hid_warn(hid, "control queueing failed\n");
 			return;
 		}
 		hid_output_report(report, usbhid->ctrl[usbhid->ctrlhead].raw_report);
@@ -590,7 +589,7 @@ static int usb_hidinput_input_event(struct input_dev *dev, unsigned int type, un
 		return -1;
 
 	if ((offset = hidinput_find_field(hid, type, code, &field)) == -1) {
-		dev_warn(&dev->dev, "event field not found\n");
+		hid_warn(dev, "event field not found\n");
 		return -1;
 	}
 
@@ -722,7 +721,7 @@ void usbhid_init_reports(struct hid_device *hid)
 	}
 
 	if (err)
-		dev_warn(&hid->dev, "timeout initializing reports\n");
+		hid_warn(hid, "timeout initializing reports\n");
 }
 
 /*
@@ -1140,8 +1139,7 @@ static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *
 		if (usb_endpoint_is_int_in(&interface->endpoint[n].desc))
 			has_in++;
 	if (!has_in) {
-		dev_err(&intf->dev, "couldn't find an input interrupt "
-				"endpoint\n");
+		hid_err(intf, "couldn't find an input interrupt endpoint\n");
 		return -ENODEV;
 	}
 
@@ -1213,7 +1211,7 @@ static int usbhid_probe(struct usb_interface *intf, const struct usb_device_id *
 	ret = hid_add_device(hid);
 	if (ret) {
 		if (ret != -ENODEV)
-			dev_err(&intf->dev, "can't add hid device: %d\n", ret);
+			hid_err(intf, "can't add hid device: %d\n", ret);
 		goto err_free;
 	}
 

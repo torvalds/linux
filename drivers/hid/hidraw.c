@@ -19,6 +19,8 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -123,15 +125,15 @@ static ssize_t hidraw_write(struct file *file, const char __user *buffer, size_t
 	}
 
 	if (count > HID_MAX_BUFFER_SIZE) {
-		printk(KERN_WARNING "hidraw: pid %d passed too large report\n",
-				task_pid_nr(current));
+		hid_warn(dev, "pid %d passed too large report\n",
+			 task_pid_nr(current));
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (count < 2) {
-		printk(KERN_WARNING "hidraw: pid %d passed too short report\n",
-				task_pid_nr(current));
+		hid_warn(dev, "pid %d passed too short report\n",
+			 task_pid_nr(current));
 		ret = -EINVAL;
 		goto out;
 	}
@@ -450,7 +452,7 @@ int __init hidraw_init(void)
 	hidraw_major = MAJOR(dev_id);
 
 	if (result < 0) {
-		printk(KERN_WARNING "hidraw: can't get major number\n");
+		pr_warn("can't get major number\n");
 		result = 0;
 		goto out;
 	}

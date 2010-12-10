@@ -16,6 +16,8 @@
  * any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/usb.h>
@@ -285,11 +287,11 @@ static int pcmidi_get_output_report(struct pcmidi_snd *pm)
 			continue;
 
 		if (report->maxfield < 1) {
-			dev_err(&hdev->dev, "output report is empty\n");
+			hid_err(hdev, "output report is empty\n");
 			break;
 		}
 		if (report->field[0]->report_count != 2) {
-			dev_err(&hdev->dev, "field count too low\n");
+			hid_err(hdev, "field count too low\n");
 			break;
 		}
 		pm->pcmidi_report6 = report;
@@ -746,8 +748,8 @@ static __u8 *pk_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	if (*rsize == 178 &&
 	      rdesc[111] == 0x06 && rdesc[112] == 0x00 &&
 	      rdesc[113] == 0xff) {
-		dev_info(&hdev->dev, "fixing up pc-midi keyboard report "
-			"descriptor\n");
+		hid_info(hdev,
+			 "fixing up pc-midi keyboard report descriptor\n");
 
 		rdesc[144] = 0x18; /* report 4: was 0x10 report count */
 	}
@@ -805,7 +807,7 @@ static int pk_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	pk = kzalloc(sizeof(*pk), GFP_KERNEL);
 	if (pk == NULL) {
-		dev_err(&hdev->dev, "prodikeys: can't alloc descriptor\n");
+		hid_err(hdev, "can't alloc descriptor\n");
 		return -ENOMEM;
 	}
 
@@ -813,8 +815,7 @@ static int pk_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	pm = kzalloc(sizeof(*pm), GFP_KERNEL);
 	if (pm == NULL) {
-		dev_err(&hdev->dev,
-			"prodikeys: can't alloc descriptor\n");
+		hid_err(hdev, "can't alloc descriptor\n");
 		ret = -ENOMEM;
 		goto err_free;
 	}
@@ -827,7 +828,7 @@ static int pk_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "prodikeys: hid parse failed\n");
+		hid_err(hdev, "hid parse failed\n");
 		goto err_free;
 	}
 
@@ -837,7 +838,7 @@ static int pk_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (ret) {
-		dev_err(&hdev->dev, "prodikeys: hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err_free;
 	}
 
@@ -896,7 +897,7 @@ static int pk_init(void)
 
 	ret = hid_register_driver(&pk_driver);
 	if (ret)
-		printk(KERN_ERR "can't register prodikeys driver\n");
+		pr_err("can't register prodikeys driver\n");
 
 	return ret;
 }

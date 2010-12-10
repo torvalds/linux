@@ -21,6 +21,8 @@
  * It is inspired by hidraw, but uses only one circular buffer for all readers.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/cdev.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
@@ -165,8 +167,7 @@ static int roccat_open(struct inode *inode, struct file *file)
 	mutex_lock(&device->readers_lock);
 
 	if (!device) {
-		printk(KERN_EMERG "roccat device with minor %d doesn't exist\n",
-				minor);
+		pr_emerg("roccat device with minor %d doesn't exist\n", minor);
 		error = -ENODEV;
 		goto exit_err;
 	}
@@ -214,8 +215,7 @@ static int roccat_release(struct inode *inode, struct file *file)
 	device = devices[minor];
 	if (!device) {
 		mutex_unlock(&devices_lock);
-		printk(KERN_EMERG "roccat device with minor %d doesn't exist\n",
-				minor);
+		pr_emerg("roccat device with minor %d doesn't exist\n", minor);
 		return -ENODEV;
 	}
 
@@ -392,7 +392,7 @@ static int __init roccat_init(void)
 	roccat_major = MAJOR(dev_id);
 
 	if (retval < 0) {
-		printk(KERN_WARNING "roccat: can't get major number\n");
+		pr_warn("can't get major number\n");
 		return retval;
 	}
 

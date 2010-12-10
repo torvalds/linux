@@ -87,9 +87,8 @@ static int pyra_receive_control_status(struct usb_device *usb_dev)
 			control.value == 1)
 			return 0;
 	else {
-		dev_err(&usb_dev->dev, "receive control status: "
-				"unknown response 0x%x 0x%x\n",
-				control.request, control.value);
+		hid_err(usb_dev, "receive control status: unknown response 0x%x 0x%x\n",
+			control.request, control.value);
 		return -EINVAL;
 	}
 }
@@ -770,21 +769,20 @@ static int pyra_init_specials(struct hid_device *hdev)
 
 		pyra = kzalloc(sizeof(*pyra), GFP_KERNEL);
 		if (!pyra) {
-			dev_err(&hdev->dev, "can't alloc device descriptor\n");
+			hid_err(hdev, "can't alloc device descriptor\n");
 			return -ENOMEM;
 		}
 		hid_set_drvdata(hdev, pyra);
 
 		retval = pyra_init_pyra_device_struct(usb_dev, pyra);
 		if (retval) {
-			dev_err(&hdev->dev,
-					"couldn't init struct pyra_device\n");
+			hid_err(hdev, "couldn't init struct pyra_device\n");
 			goto exit_free;
 		}
 
 		retval = roccat_connect(hdev);
 		if (retval < 0) {
-			dev_err(&hdev->dev, "couldn't init char dev\n");
+			hid_err(hdev, "couldn't init char dev\n");
 		} else {
 			pyra->chrdev_minor = retval;
 			pyra->roccat_claimed = 1;
@@ -792,7 +790,7 @@ static int pyra_init_specials(struct hid_device *hdev)
 
 		retval = pyra_create_sysfs_attributes(intf);
 		if (retval) {
-			dev_err(&hdev->dev, "cannot create sysfs files\n");
+			hid_err(hdev, "cannot create sysfs files\n");
 			goto exit_free;
 		}
 	} else {
@@ -826,19 +824,19 @@ static int pyra_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	retval = hid_parse(hdev);
 	if (retval) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto exit;
 	}
 
 	retval = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (retval) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto exit;
 	}
 
 	retval = pyra_init_specials(hdev);
 	if (retval) {
-		dev_err(&hdev->dev, "couldn't install mouse\n");
+		hid_err(hdev, "couldn't install mouse\n");
 		goto exit_stop;
 	}
 	return 0;

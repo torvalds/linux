@@ -90,8 +90,7 @@ static int kone_check_write(struct usb_device *usb_dev)
 		kfree(data);
 		return 0;
 	} else { /* unknown answer */
-		dev_err(&usb_dev->dev, "got retval %d when checking write\n",
-				*data);
+		hid_err(usb_dev, "got retval %d when checking write\n", *data);
 		kfree(data);
 		return -EIO;
 	}
@@ -556,7 +555,7 @@ static ssize_t kone_sysfs_set_tcu(struct device *dev,
 
 		retval = kone_set_settings(usb_dev, &kone->settings);
 		if (retval) {
-			dev_err(&usb_dev->dev, "couldn't set tcu state\n");
+			hid_err(usb_dev, "couldn't set tcu state\n");
 			/*
 			 * try to reread valid settings into buffer overwriting
 			 * first error code
@@ -570,7 +569,7 @@ static ssize_t kone_sysfs_set_tcu(struct device *dev,
 
 	retval = size;
 exit_no_settings:
-	dev_err(&usb_dev->dev, "couldn't read settings\n");
+	hid_err(usb_dev, "couldn't read settings\n");
 exit_unlock:
 	mutex_unlock(&kone->kone_lock);
 	return retval;
@@ -818,21 +817,20 @@ static int kone_init_specials(struct hid_device *hdev)
 
 		kone = kzalloc(sizeof(*kone), GFP_KERNEL);
 		if (!kone) {
-			dev_err(&hdev->dev, "can't alloc device descriptor\n");
+			hid_err(hdev, "can't alloc device descriptor\n");
 			return -ENOMEM;
 		}
 		hid_set_drvdata(hdev, kone);
 
 		retval = kone_init_kone_device_struct(usb_dev, kone);
 		if (retval) {
-			dev_err(&hdev->dev,
-					"couldn't init struct kone_device\n");
+			hid_err(hdev, "couldn't init struct kone_device\n");
 			goto exit_free;
 		}
 
 		retval = roccat_connect(hdev);
 		if (retval < 0) {
-			dev_err(&hdev->dev, "couldn't init char dev\n");
+			hid_err(hdev, "couldn't init char dev\n");
 			/* be tolerant about not getting chrdev */
 		} else {
 			kone->roccat_claimed = 1;
@@ -841,7 +839,7 @@ static int kone_init_specials(struct hid_device *hdev)
 
 		retval = kone_create_sysfs_attributes(intf);
 		if (retval) {
-			dev_err(&hdev->dev, "cannot create sysfs files\n");
+			hid_err(hdev, "cannot create sysfs files\n");
 			goto exit_free;
 		}
 	} else {
@@ -876,19 +874,19 @@ static int kone_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	retval = hid_parse(hdev);
 	if (retval) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto exit;
 	}
 
 	retval = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	if (retval) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto exit;
 	}
 
 	retval = kone_init_specials(hdev);
 	if (retval) {
-		dev_err(&hdev->dev, "couldn't install mouse\n");
+		hid_err(hdev, "couldn't install mouse\n");
 		goto exit_stop;
 	}
 

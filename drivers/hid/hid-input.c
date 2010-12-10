@@ -826,7 +826,7 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 				if (!hidinput || !input_dev) {
 					kfree(hidinput);
 					input_free_device(input_dev);
-					err_hid("Out of memory during hid input probe");
+					hid_err(hid, "Out of memory during hid input probe\n");
 					goto out_unwind;
 				}
 

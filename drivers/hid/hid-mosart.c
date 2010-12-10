@@ -199,7 +199,7 @@ static int mosart_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	td = kmalloc(sizeof(struct mosart_data), GFP_KERNEL);
 	if (!td) {
-		dev_err(&hdev->dev, "cannot allocate MosArt data\n");
+		hid_err(hdev, "cannot allocate MosArt data\n");
 		return -ENOMEM;
 	}
 	td->valid = false;

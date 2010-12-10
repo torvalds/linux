@@ -881,12 +881,32 @@ int hid_pidff_init(struct hid_device *hid);
 #define hid_pidff_init NULL
 #endif
 
-#define dbg_hid(format, arg...) if (hid_debug) \
-				printk(KERN_DEBUG "%s: " format ,\
-				__FILE__ , ## arg)
-#define err_hid(format, arg...) printk(KERN_ERR "%s: " format "\n" , \
-		__FILE__ , ## arg)
-#endif /* HID_FF */
+#define dbg_hid(format, arg...)						\
+do {									\
+	if (hid_debug)							\
+		printk(KERN_DEBUG "%s: " format, __FILE__, ##arg);	\
+} while (0)
+
+#define hid_printk(level, hid, fmt, arg...)		\
+	dev_printk(level, &(hid)->dev, fmt, ##arg)
+#define hid_emerg(hid, fmt, arg...)			\
+	dev_emerg(&(hid)->dev, fmt, ##arg)
+#define hid_crit(hid, fmt, arg...)			\
+	dev_crit(&(hid)->dev, fmt, ##arg)
+#define hid_alert(hid, fmt, arg...)			\
+	dev_alert(&(hid)->dev, fmt, ##arg)
+#define hid_err(hid, fmt, arg...)			\
+	dev_err(&(hid)->dev, fmt, ##arg)
+#define hid_notice(hid, fmt, arg...)			\
+	dev_notice(&(hid)->dev, fmt, ##arg)
+#define hid_warn(hid, fmt, arg...)			\
+	dev_warn(&(hid)->dev, fmt, ##arg)
+#define hid_info(hid, fmt, arg...)			\
+	dev_info(&(hid)->dev, fmt, ##arg)
+#define hid_dbg(hid, fmt, arg...)			\
+	dev_dbg(&(hid)->dev, fmt, ##arg)
+
+#endif /* __KERNEL__ */
 
 #endif
 

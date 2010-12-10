@@ -906,7 +906,7 @@ int hiddev_connect(struct hid_device *hid, unsigned int force)
 	hiddev->exist = 1;
 	retval = usb_register_dev(usbhid->intf, &hiddev_class);
 	if (retval) {
-		err_hid("Not able to get a minor for this device.");
+		hid_err(hid, "Not able to get a minor for this device\n");
 		hid->hiddev = NULL;
 		kfree(hiddev);
 		return -1;

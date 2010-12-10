@@ -14,6 +14,8 @@
  * any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -672,7 +674,8 @@ int hid_parse_report(struct hid_device *device, __u8 *start,
 
 		if (dispatch_type[item.type](parser, &item)) {
 			dbg_hid("item %u %u %u %u parsing failed\n",
-				item.format, (unsigned)item.size, (unsigned)item.type, (unsigned)item.tag);
+				item.format, (unsigned)item.size,
+				(unsigned)item.type, (unsigned)item.tag);
 			goto err;
 		}
 
@@ -737,13 +740,14 @@ static u32 s32ton(__s32 value, unsigned n)
  * Search linux-kernel and linux-usb-devel archives for "hid-core extract".
  */
 
-static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
+static __inline__ __u32 extract(const struct hid_device *hid, __u8 *report,
+				unsigned offset, unsigned n)
 {
 	u64 x;
 
 	if (n > 32)
-		printk(KERN_WARNING "HID: extract() called with n (%d) > 32! (%s)\n",
-				n, current->comm);
+		hid_warn(hid, "extract() called with n (%d) > 32! (%s)\n",
+			 n, current->comm);
 
 	report += offset >> 3;  /* adjust byte index */
 	offset &= 7;            /* now only need bit offset into one byte */
@@ -760,18 +764,19 @@ static __inline__ __u32 extract(__u8 *report, unsigned offset, unsigned n)
  * endianness of register values by considering a register
  * a "cached" copy of the little endiad bit stream.
  */
-static __inline__ void implement(__u8 *report, unsigned offset, unsigned n, __u32 value)
+static __inline__ void implement(const struct hid_device *hid, __u8 *report,
+				 unsigned offset, unsigned n, __u32 value)
 {
 	u64 x;
 	u64 m = (1ULL << n) - 1;
 
 	if (n > 32)
-		printk(KERN_WARNING "HID: implement() called with n (%d) > 32! (%s)\n",
-				n, current->comm);
+		hid_warn(hid, "%s() called with n (%d) > 32! (%s)\n",
+			 __func__, n, current->comm);
 
 	if (value > m)
-		printk(KERN_WARNING "HID: implement() called with too large value %d! (%s)\n",
-				value, current->comm);
+		hid_warn(hid, "%s() called with too large value %d! (%s)\n",
+			 __func__, value, current->comm);
 	WARN_ON(value > m);
 	value &= m;
 
@@ -892,13 +897,16 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 
 	for (n = 0; n < count; n++) {
 
-			value[n] = min < 0 ? snto32(extract(data, offset + n * size, size), size) :
-						    extract(data, offset + n * size, size);
+		value[n] = min < 0 ?
+			snto32(extract(hid, data, offset + n * size, size),
+			       size) :
+			extract(hid, data, offset + n * size, size);
 
-			if (!(field->flags & HID_MAIN_ITEM_VARIABLE) /* Ignore report if ErrorRollOver */
-			    && value[n] >= min && value[n] <= max
-			    && field->usage[value[n] - min].hid == HID_UP_KEYBOARD + 1)
-				goto exit;
+		/* Ignore report if ErrorRollOver */
+		if (!(field->flags & HID_MAIN_ITEM_VARIABLE) &&
+		    value[n] >= min && value[n] <= max &&
+		    field->usage[value[n] - min].hid == HID_UP_KEYBOARD + 1)
+			goto exit;
 	}
 
 	for (n = 0; n < count; n++) {
@@ -928,7 +936,8 @@ exit:
  * Output the field into the report.
  */
 
-static void hid_output_field(struct hid_field *field, __u8 *data)
+static void hid_output_field(const struct hid_device *hid,
+			     struct hid_field *field, __u8 *data)
 {
 	unsigned count = field->report_count;
 	unsigned offset = field->report_offset;
@@ -937,9 +946,11 @@ static void hid_output_field(struct hid_field *field, __u8 *data)
 
 	for (n = 0; n < count; n++) {
 		if (field->logical_minimum < 0)	/* signed values */
-			implement(data, offset + n * size, size, s32ton(field->value[n], size));
+			implement(hid, data, offset + n * size, size,
+				  s32ton(field->value[n], size));
 		else				/* unsigned values */
-			implement(data, offset + n * size, size, field->value[n]);
+			implement(hid, data, offset + n * size, size,
+				  field->value[n]);
 	}
 }
 
@@ -956,7 +967,7 @@ void hid_output_report(struct hid_report *report, __u8 *data)
 
 	memset(data, 0, ((report->size - 1) >> 3) + 1);
 	for (n = 0; n < report->maxfield; n++)
-		hid_output_field(report->field[n], data);
+		hid_output_field(report->device, report->field[n], data);
 }
 EXPORT_SYMBOL_GPL(hid_output_report);
 
@@ -1169,8 +1180,7 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 		hdev->claimed |= HID_CLAIMED_HIDRAW;
 
 	if (!hdev->claimed) {
-		dev_err(&hdev->dev, "claimed by neither input, hiddev nor "
-				"hidraw\n");
+		hid_err(hdev, "claimed by neither input, hiddev nor hidraw\n");
 		return -ENODEV;
 	}
 
@@ -1210,9 +1220,9 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 		bus = "<UNKNOWN>";
 	}
 
-	dev_info(&hdev->dev, "%s: %s HID v%x.%02x %s [%s] on %s\n",
-			buf, bus, hdev->version >> 8, hdev->version & 0xff,
-			type, hdev->name, hdev->phys);
+	hid_info(hdev, "%s: %s HID v%x.%02x %s [%s] on %s\n",
+		 buf, bus, hdev->version >> 8, hdev->version & 0xff,
+		 type, hdev->name, hdev->phys);
 
 	return 0;
 }
@@ -1956,12 +1966,12 @@ static int __init hid_init(void)
 	int ret;
 
 	if (hid_debug)
-		printk(KERN_WARNING "HID: hid_debug is now used solely for parser and driver debugging.\n"
-				"HID: debugfs is now used for inspecting the device (report descriptor, reports)\n");
+		pr_warn("hid_debug is now used solely for parser and driver debugging.\n"
+			"debugfs is now used for inspecting the device (report descriptor, reports)\n");
 
 	ret = bus_register(&hid_bus_type);
 	if (ret) {
-		printk(KERN_ERR "HID: can't register hid bus\n");
+		pr_err("can't register hid bus\n");
 		goto err;
 	}
 

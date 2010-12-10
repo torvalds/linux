@@ -16,6 +16,8 @@
  * any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
@@ -280,8 +282,8 @@ static __u8 *apple_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 	if ((asc->quirks & APPLE_RDESC_JIS) && *rsize >= 60 &&
 			rdesc[53] == 0x65 && rdesc[59] == 0x65) {
-		dev_info(&hdev->dev, "fixing up MacBook JIS keyboard report "
-				"descriptor\n");
+		hid_info(hdev,
+			 "fixing up MacBook JIS keyboard report descriptor\n");
 		rdesc[53] = rdesc[59] = 0xe7;
 	}
 	return rdesc;
@@ -351,7 +353,7 @@ static int apple_probe(struct hid_device *hdev,
 
 	asc = kzalloc(sizeof(*asc), GFP_KERNEL);
 	if (asc == NULL) {
-		dev_err(&hdev->dev, "can't alloc apple descriptor\n");
+		hid_err(hdev, "can't alloc apple descriptor\n");
 		return -ENOMEM;
 	}
 
@@ -361,7 +363,7 @@ static int apple_probe(struct hid_device *hdev,
 
 	ret = hid_parse(hdev);
 	if (ret) {
-		dev_err(&hdev->dev, "parse failed\n");
+		hid_err(hdev, "parse failed\n");
 		goto err_free;
 	}
 
@@ -372,7 +374,7 @@ static int apple_probe(struct hid_device *hdev,
 
 	ret = hid_hw_start(hdev, connect_mask);
 	if (ret) {
-		dev_err(&hdev->dev, "hw start failed\n");
+		hid_err(hdev, "hw start failed\n");
 		goto err_free;
 	}
 
@@ -512,7 +514,7 @@ static int __init apple_init(void)
 
 	ret = hid_register_driver(&apple_driver);
 	if (ret)
-		printk(KERN_ERR "can't register apple driver\n");
+		pr_err("can't register apple driver\n");
 
 	return ret;
 }
