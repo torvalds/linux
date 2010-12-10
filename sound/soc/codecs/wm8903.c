@@ -218,6 +218,9 @@ struct wm8903_priv {
 	int sysclk;
 	int irq;
 
+	int fs;
+	int deemph;
+
 	/* Reference count */
 	int class_w_users;
 
@@ -457,6 +460,72 @@ static int wm8903_class_w_put(struct snd_kcontrol *kcontrol,
 	.private_value =  SOC_SINGLE_VALUE(reg, shift, max, invert) }
 
 
+static int wm8903_deemph[] = { 0, 32000, 44100, 48000 };
+
+static int wm8903_set_deemph(struct snd_soc_codec *codec)
+{
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+	int val, i, best;
+
+	/* If we're using deemphasis select the nearest available sample
+	 * rate.
+	 */
+	if (wm8903->deemph) {
+		best = 1;
+		for (i = 2; i < ARRAY_SIZE(wm8903_deemph); i++) {
+			if (abs(wm8903_deemph[i] - wm8903->fs) <
+			    abs(wm8903_deemph[best] - wm8903->fs))
+				best = i;
+		}
+
+		val = best << WM8903_DEEMPH_SHIFT;
+	} else {
+		best = 0;
+		val = 0;
+	}
+
+	dev_dbg(codec->dev, "Set deemphasis %d (%dHz)\n",
+		best, wm8903_deemph[best]);
+
+	return snd_soc_update_bits(codec, WM8903_DAC_DIGITAL_1,
+				   WM8903_DEEMPH_MASK, val);
+}
+
+static int wm8903_get_deemph(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = wm8903->deemph;
+
+	return 0;
+}
+
+static int wm8903_put_deemph(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+	int deemph = ucontrol->value.enumerated.item[0];
+	int ret = 0;
+
+	if (deemph > 1)
+		return -EINVAL;
+
+	mutex_lock(&codec->mutex);
+	if (wm8903->deemph != deemph) {
+		wm8903->deemph = deemph;
+
+		wm8903_set_deemph(codec);
+
+		ret = 1;
+	}
+	mutex_unlock(&codec->mutex);
+
+	return ret;
+}
+
 /* ALSA can only do steps of .01dB */
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -7200, 75, 1);
 
@@ -547,13 +616,6 @@ static const char *mute_mode_text[] = {
 
 static const struct soc_enum mute_mode =
 	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_1, 9, 2, mute_mode_text);
-
-static const char *dac_deemphasis_text[] = {
-	"Disabled", "32kHz", "44.1kHz", "48kHz"
-};
-
-static const struct soc_enum dac_deemphasis =
-	SOC_ENUM_SINGLE(WM8903_DAC_DIGITAL_1, 1, 4, dac_deemphasis_text);
 
 static const char *companding_text[] = {
 	"ulaw", "alaw"
@@ -662,9 +724,10 @@ SOC_DOUBLE_R_TLV("Digital Playback Volume", WM8903_DAC_DIGITAL_VOLUME_LEFT,
 SOC_ENUM("DAC Soft Mute Rate", soft_mute),
 SOC_ENUM("DAC Mute Mode", mute_mode),
 SOC_SINGLE("DAC Mono Switch", WM8903_DAC_DIGITAL_1, 12, 1, 0),
-SOC_ENUM("DAC De-emphasis", dac_deemphasis),
 SOC_ENUM("DAC Companding Mode", dac_companding),
 SOC_SINGLE("DAC Companding Switch", WM8903_AUDIO_INTERFACE_0, 1, 1, 0),
+SOC_SINGLE_BOOL_EXT("Playback Deemphasis Switch", 0,
+		    wm8903_get_deemph, wm8903_put_deemph),
 
 /* Headphones */
 SOC_DOUBLE_R("Headphone Switch",
@@ -1373,6 +1436,9 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 
 	aif2 |= bclk_divs[bclk_div].div;
 	aif3 |= bclk / fs;
+
+	wm8903->fs = params_rate(params);
+	wm8903_set_deemph(codec);
 
 	snd_soc_write(codec, WM8903_CLOCK_RATES_0, clock0);
 	snd_soc_write(codec, WM8903_CLOCK_RATES_1, clock1);
