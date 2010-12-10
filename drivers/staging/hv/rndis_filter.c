@@ -266,7 +266,7 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 		rndis_filter_send_request_completion;
 	packet->completion.send.send_completion_tid = (unsigned long)dev;
 
-	ret = rndis_filter.inner_drv.send(dev->net_dev->Device, packet);
+	ret = rndis_filter.inner_drv.send(dev->net_dev->dev, packet);
 	return ret;
 }
 
@@ -338,10 +338,10 @@ static void rndis_filter_receive_indicate_status(struct rndis_device *dev,
 
 	if (indicate->Status == RNDIS_STATUS_MEDIA_CONNECT) {
 		rndis_filter.inner_drv.link_status_change(
-			dev->net_dev->Device, 1);
+			dev->net_dev->dev, 1);
 	} else if (indicate->Status == RNDIS_STATUS_MEDIA_DISCONNECT) {
 		rndis_filter.inner_drv.link_status_change(
-			dev->net_dev->Device, 0);
+			dev->net_dev->dev, 0);
 	} else {
 		/*
 		 * TODO:
@@ -376,7 +376,7 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 
 	pkt->is_data_pkt = true;
 
-	rndis_filter.inner_drv.recv_cb(dev->net_dev->Device,
+	rndis_filter.inner_drv.recv_cb(dev->net_dev->dev,
 						   pkt);
 }
 
@@ -392,13 +392,13 @@ static int rndis_filter_receive(struct hv_device *dev,
 		return -EINVAL;
 
 	/* Make sure the rndis device state is initialized */
-	if (!net_dev->Extension) {
+	if (!net_dev->extension) {
 		DPRINT_ERR(NETVSC, "got rndis message but no rndis device..."
 			  "dropping this message!");
 		return -1;
 	}
 
-	rndis_dev = (struct rndis_device *)net_dev->Extension;
+	rndis_dev = (struct rndis_device *)net_dev->extension;
 	if (rndis_dev->state == RNDIS_DEV_UNINITIALIZED) {
 		DPRINT_ERR(NETVSC, "got rndis message but rndis device "
 			   "uninitialized...dropping this message!");
@@ -782,7 +782,7 @@ static int rndis_filte_device_add(struct hv_device *dev,
 	/* ASSERT(netDevice); */
 	/* ASSERT(netDevice->Device); */
 
-	netDevice->Extension = rndisDevice;
+	netDevice->extension = rndisDevice;
 	rndisDevice->net_dev = netDevice;
 
 	/* Send the rndis initialization message */
@@ -819,13 +819,13 @@ static int rndis_filte_device_add(struct hv_device *dev,
 static int rndis_filter_device_remove(struct hv_device *dev)
 {
 	struct netvsc_device *net_dev = dev->Extension;
-	struct rndis_device *rndis_dev = net_dev->Extension;
+	struct rndis_device *rndis_dev = net_dev->extension;
 
 	/* Halt and release the rndis device */
 	rndis_filter_halt_device(rndis_dev);
 
 	kfree(rndis_dev);
-	net_dev->Extension = NULL;
+	net_dev->extension = NULL;
 
 	/* Pass control to inner driver to remove the device */
 	rndis_filter.inner_drv.base.OnDeviceRemove(dev);
@@ -844,7 +844,7 @@ int rndis_filter_open(struct hv_device *dev)
 	if (!netDevice)
 		return -EINVAL;
 
-	return rndis_filter_open_device(netDevice->Extension);
+	return rndis_filter_open_device(netDevice->extension);
 }
 
 int rndis_filter_close(struct hv_device *dev)
@@ -854,7 +854,7 @@ int rndis_filter_close(struct hv_device *dev)
 	if (!netDevice)
 		return -EINVAL;
 
-	return rndis_filter_close_device(netDevice->Extension);
+	return rndis_filter_close_device(netDevice->extension);
 }
 
 static int rndis_filter_send(struct hv_device *dev,

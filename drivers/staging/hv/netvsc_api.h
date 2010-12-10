@@ -95,7 +95,7 @@ struct netvsc_driver {
 	 */
 	int (*recv_cb)(struct hv_device *dev,
 				 struct hv_netvsc_packet *packet);
-	void (*link_status_change)(struct hv_device *dev, u32 Status);
+	void (*link_status_change)(struct hv_device *dev, u32 status);
 
 	/* Specific to this driver */
 	int (*send)(struct hv_device *dev, struct hv_netvsc_packet *packet);
