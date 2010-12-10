@@ -238,7 +238,7 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 
 static struct omap_musb_board_data musb_board_data = {
 	.interface_type		= MUSB_INTERFACE_UTMI,
-	.mode			= MUSB_PERIPHERAL,
+	.mode			= MUSB_OTG,
 	.power			= 100,
 };
 
