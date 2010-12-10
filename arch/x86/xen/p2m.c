@@ -407,8 +407,11 @@ static unsigned long mfn_hash(unsigned long mfn)
 void m2p_add_override(unsigned long mfn, struct page *page)
 {
 	unsigned long flags;
+	unsigned long pfn = page_to_pfn(page);
 	page->private = mfn;
+	page->index = pfn_to_mfn(pfn);
 
+	__set_phys_to_machine(pfn, FOREIGN_FRAME(mfn));
 	spin_lock_irqsave(&m2p_override_lock, flags);
 	list_add(&page->lru,  &m2p_overrides[mfn_hash(mfn)]);
 	spin_unlock_irqrestore(&m2p_override_lock, flags);
@@ -417,9 +420,18 @@ void m2p_add_override(unsigned long mfn, struct page *page)
 void m2p_remove_override(struct page *page)
 {
 	unsigned long flags;
+	unsigned long mfn;
+	unsigned long pfn;
+
+	pfn = page_to_pfn(page);
+	mfn = get_phys_to_machine(pfn);
+	if (mfn == INVALID_P2M_ENTRY || !(mfn & FOREIGN_FRAME_BIT))
+		return;
+
 	spin_lock_irqsave(&m2p_override_lock, flags);
 	list_del(&page->lru);
 	spin_unlock_irqrestore(&m2p_override_lock, flags);
+	__set_phys_to_machine(pfn, page->index);
 }
 
 struct page *m2p_find_override(unsigned long mfn)
