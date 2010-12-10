@@ -57,12 +57,8 @@ static void musb_do_idle(unsigned long _musb)
 
 	spin_lock_irqsave(&musb->lock, flags);
 
-	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
-
 	switch (musb->xceiv->state) {
 	case OTG_STATE_A_WAIT_BCON:
-		devctl &= ~MUSB_DEVCTL_SESSION;
-		musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
 
 		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 		if (devctl & MUSB_DEVCTL_BDEVICE) {
@@ -142,6 +138,8 @@ static void omap2430_musb_try_idle(struct musb *musb, unsigned long timeout)
 static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 {
 	u8		devctl;
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
+	int ret = 1;
 	/* HDRC controls CPEN, but beware current surges during device
 	 * connect.  They can trigger transient overcurrent conditions
 	 * that must be ignored.
@@ -150,12 +148,35 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 	devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
 
 	if (is_on) {
-		musb->is_active = 1;
-		musb->xceiv->default_a = 1;
-		musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
-		devctl |= MUSB_DEVCTL_SESSION;
+		if (musb->xceiv->state == OTG_STATE_A_IDLE) {
+			/* start the session */
+			devctl |= MUSB_DEVCTL_SESSION;
+			musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
+			/*
+			 * Wait for the musb to set as A device to enable the
+			 * VBUS
+			 */
+			while (musb_readb(musb->mregs, MUSB_DEVCTL) & 0x80) {
 
-		MUSB_HST_MODE(musb);
+				cpu_relax();
+
+				if (time_after(jiffies, timeout)) {
+					dev_err(musb->controller,
+					"configured as A device timeout");
+					ret = -EINVAL;
+					break;
+				}
+			}
+
+			if (ret && musb->xceiv->set_vbus)
+				otg_set_vbus(musb->xceiv, 1);
+		} else {
+			musb->is_active = 1;
+			musb->xceiv->default_a = 1;
+			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
+			devctl |= MUSB_DEVCTL_SESSION;
+			MUSB_HST_MODE(musb);
+		}
 	} else {
 		musb->is_active = 0;
 
@@ -214,9 +235,64 @@ static inline void omap2430_low_level_init(struct musb *musb)
 	musb_writel(musb->mregs, OTG_FORCESTDBY, l);
 }
 
+/* blocking notifier support */
+static int musb_otg_notifications(struct notifier_block *nb,
+		unsigned long event, void *unused)
+{
+	struct musb	*musb = container_of(nb, struct musb, nb);
+	struct device *dev = musb->controller;
+	struct musb_hdrc_platform_data *pdata = dev->platform_data;
+	struct omap_musb_board_data *data = pdata->board_data;
+
+	switch (event) {
+	case USB_EVENT_ID:
+		DBG(4, "ID GND\n");
+
+		if (is_otg_enabled(musb)) {
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
+			if (musb->gadget_driver) {
+				otg_init(musb->xceiv);
+
+				if (data->interface_type ==
+						MUSB_INTERFACE_UTMI)
+					omap2430_musb_set_vbus(musb, 1);
+
+			}
+#endif
+		} else {
+			otg_init(musb->xceiv);
+			if (data->interface_type ==
+					MUSB_INTERFACE_UTMI)
+				omap2430_musb_set_vbus(musb, 1);
+		}
+		break;
+
+	case USB_EVENT_VBUS:
+		DBG(4, "VBUS Connect\n");
+
+		otg_init(musb->xceiv);
+		break;
+
+	case USB_EVENT_NONE:
+		DBG(4, "VBUS Disconnect\n");
+
+		if (data->interface_type == MUSB_INTERFACE_UTMI) {
+			if (musb->xceiv->set_vbus)
+				otg_set_vbus(musb->xceiv, 0);
+		}
+		otg_shutdown(musb->xceiv);
+		break;
+	default:
+		DBG(4, "ID float\n");
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
 static int omap2430_musb_init(struct musb *musb)
 {
-	u32 l;
+	u32 l, status = 0;
 	struct device *dev = musb->controller;
 	struct musb_hdrc_platform_data *plat = dev->platform_data;
 	struct omap_musb_board_data *data = plat->board_data;
@@ -267,6 +343,17 @@ static int omap2430_musb_init(struct musb *musb)
 			musb_readl(musb->mregs, OTG_SYSSTATUS),
 			musb_readl(musb->mregs, OTG_INTERFSEL),
 			musb_readl(musb->mregs, OTG_SIMENABLE));
+
+	musb->nb.notifier_call = musb_otg_notifications;
+	status = otg_register_notifier(musb->xceiv, &musb->nb);
+
+	if (status)
+		DBG(1, "notification register failed\n");
+
+	/* check whether cable is already connected */
+	if (musb->xceiv->state ==OTG_STATE_B_IDLE)
+		musb_otg_notifications(&musb->nb, 1,
+					musb->xceiv->gadget);
 
 	setup_timer(&musb_idle_timer, musb_do_idle, (unsigned long) musb);
 

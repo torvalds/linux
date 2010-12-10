@@ -411,6 +411,7 @@ struct musb {
 
 	struct timer_list	otg_timer;
 #endif
+	struct notifier_block	nb;
 
 	struct dma_controller	*dma_controller;
 
