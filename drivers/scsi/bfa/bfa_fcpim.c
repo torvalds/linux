@@ -16,7 +16,7 @@
  */
 
 #include "bfa_modules.h"
-#include "bfa_cb_ioim.h"
+#include "bfa_os_inc.h"
 
 BFA_TRC_FILE(HAL, FCPIM);
 BFA_MODULE(fcpim);
@@ -263,7 +263,7 @@ static void	bfa_ioim_sm_cmnd_retry(struct bfa_ioim_s *ioim,
 static void     __bfa_cb_tskim_done(void *cbarg, bfa_boolean_t complete);
 static void     __bfa_cb_tskim_failed(void *cbarg, bfa_boolean_t complete);
 static bfa_boolean_t bfa_tskim_match_scope(struct bfa_tskim_s *tskim,
-					lun_t lun);
+					struct scsi_lun lun);
 static void     bfa_tskim_gather_ios(struct bfa_tskim_s *tskim);
 static void     bfa_tskim_cleanp_comp(void *tskim_cbarg);
 static void     bfa_tskim_cleanup_ios(struct bfa_tskim_s *tskim);
@@ -2315,7 +2315,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 {
 	struct bfa_itnim_s *itnim = ioim->itnim;
 	struct bfi_ioim_req_s *m;
-	static struct fcp_cmnd_s cmnd_z0 = { 0 };
+	static struct fcp_cmnd_s cmnd_z0 = {{{0}}};
 	struct bfi_sge_s *sge, *sgpge;
 	u32	pgdlen = 0;
 	u32	fcp_dl;
@@ -2324,6 +2324,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	struct bfa_sgpg_s *sgpg;
 	struct scsi_cmnd *cmnd = (struct scsi_cmnd *) ioim->dio;
 	u32 i, sge_id, pgcumsz;
+	enum dma_data_direction dmadir;
 
 	/*
 	 * check for room in queue to send request now
@@ -2341,7 +2342,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	 */
 	m->io_tag = cpu_to_be16(ioim->iotag);
 	m->rport_hdl = ioim->itnim->rport->fw_handle;
-	m->io_timeout = bfa_cb_ioim_get_timeout(ioim->dio);
+	m->io_timeout = 0;
 
 	sge = &m->sges[0];
 	sgpg = ioim->sgpg;
@@ -2412,10 +2413,17 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	 * set up I/O command parameters
 	 */
 	m->cmnd = cmnd_z0;
-	m->cmnd.lun = bfa_cb_ioim_get_lun(ioim->dio);
-	m->cmnd.iodir = bfa_cb_ioim_get_iodir(ioim->dio);
-	m->cmnd.cdb = *(scsi_cdb_t *)bfa_cb_ioim_get_cdb(ioim->dio);
-	fcp_dl = bfa_cb_ioim_get_size(ioim->dio);
+	int_to_scsilun(cmnd->device->lun, &m->cmnd.lun);
+	dmadir = cmnd->sc_data_direction;
+	if (dmadir == DMA_TO_DEVICE)
+		m->cmnd.iodir = FCP_IODIR_WRITE;
+	else if (dmadir == DMA_FROM_DEVICE)
+		m->cmnd.iodir = FCP_IODIR_READ;
+	else
+		m->cmnd.iodir = FCP_IODIR_NONE;
+
+	m->cmnd.cdb = *(scsi_cdb_t *) cmnd->cmnd;
+	fcp_dl = scsi_bufflen(cmnd);
 	m->cmnd.fcp_dl = cpu_to_be32(fcp_dl);
 
 	/*
@@ -2439,7 +2447,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 		bfi_h2i_set(m->mh, BFI_MC_IOIM_IO, 0, bfa_lpuid(ioim->bfa));
 	}
 	if (itnim->seq_rec ||
-	    (bfa_cb_ioim_get_size(ioim->dio) & (sizeof(u32) - 1)))
+	    (scsi_bufflen(cmnd) & (sizeof(u32) - 1)))
 		bfi_h2i_set(m->mh, BFI_MC_IOIM_IO, 0, bfa_lpuid(ioim->bfa));
 
 	/*
@@ -2769,7 +2777,8 @@ bfa_ioim_profile_start(struct bfa_ioim_s *ioim)
 void
 bfa_ioim_profile_comp(struct bfa_ioim_s *ioim)
 {
-	u32 fcp_dl = bfa_cb_ioim_get_size(ioim->dio);
+	struct scsi_cmnd *cmnd = (struct scsi_cmnd *) ioim->dio;
+	u32 fcp_dl = scsi_bufflen(cmnd);
 	u32 index = bfa_ioim_get_index(fcp_dl);
 	u64 end_time = jiffies;
 	struct bfa_itnim_latency_s *io_lat =
@@ -2895,8 +2904,7 @@ bfa_ioim_start(struct bfa_ioim_s *ioim)
 	 * Obtain the queue over which this request has to be issued
 	 */
 	ioim->reqq = bfa_fcpim_ioredirect_enabled(ioim->bfa) ?
-			bfa_cb_ioim_get_reqq(ioim->dio) :
-			bfa_itnim_get_reqq(ioim);
+			BFA_FALSE : bfa_itnim_get_reqq(ioim);
 
 	bfa_sm_send_event(ioim, BFA_IOIM_SM_START);
 }
@@ -3186,7 +3194,7 @@ __bfa_cb_tskim_failed(void *cbarg, bfa_boolean_t complete)
 }
 
 static	bfa_boolean_t
-bfa_tskim_match_scope(struct bfa_tskim_s *tskim, lun_t lun)
+bfa_tskim_match_scope(struct bfa_tskim_s *tskim, struct scsi_lun lun)
 {
 	switch (tskim->tm_cmnd) {
 	case FCP_TM_TARGET_RESET:
@@ -3196,7 +3204,7 @@ bfa_tskim_match_scope(struct bfa_tskim_s *tskim, lun_t lun)
 	case FCP_TM_CLEAR_TASK_SET:
 	case FCP_TM_LUN_RESET:
 	case FCP_TM_CLEAR_ACA:
-		return (tskim->lun == lun);
+		return (!memcmp(&tskim->lun, &lun, sizeof(lun)));
 
 	default:
 		bfa_assert(0);
@@ -3213,7 +3221,9 @@ bfa_tskim_gather_ios(struct bfa_tskim_s *tskim)
 {
 	struct bfa_itnim_s *itnim = tskim->itnim;
 	struct bfa_ioim_s *ioim;
-	struct list_head	*qe, *qen;
+	struct list_head *qe, *qen;
+	struct scsi_cmnd *cmnd;
+	struct scsi_lun scsilun;
 
 	INIT_LIST_HEAD(&tskim->io_q);
 
@@ -3222,8 +3232,9 @@ bfa_tskim_gather_ios(struct bfa_tskim_s *tskim)
 	 */
 	list_for_each_safe(qe, qen, &itnim->io_q) {
 		ioim = (struct bfa_ioim_s *) qe;
-		if (bfa_tskim_match_scope
-			(tskim, bfa_cb_ioim_get_lun(ioim->dio))) {
+		cmnd = (struct scsi_cmnd *) ioim->dio;
+		int_to_scsilun(cmnd->device->lun, &scsilun);
+		if (bfa_tskim_match_scope(tskim, scsilun)) {
 			list_del(&ioim->qe);
 			list_add_tail(&ioim->qe, &tskim->io_q);
 		}
@@ -3234,8 +3245,9 @@ bfa_tskim_gather_ios(struct bfa_tskim_s *tskim)
 	 */
 	list_for_each_safe(qe, qen, &itnim->pending_q) {
 		ioim = (struct bfa_ioim_s *) qe;
-		if (bfa_tskim_match_scope
-			(tskim, bfa_cb_ioim_get_lun(ioim->dio))) {
+		cmnd = (struct scsi_cmnd *) ioim->dio;
+		int_to_scsilun(cmnd->device->lun, &scsilun);
+		if (bfa_tskim_match_scope(tskim, scsilun)) {
 			list_del(&ioim->qe);
 			list_add_tail(&ioim->qe, &ioim->fcpim->ioim_comp_q);
 			bfa_ioim_tov(ioim);
@@ -3494,7 +3506,8 @@ bfa_tskim_free(struct bfa_tskim_s *tskim)
  * @return None.
  */
 void
-bfa_tskim_start(struct bfa_tskim_s *tskim, struct bfa_itnim_s *itnim, lun_t lun,
+bfa_tskim_start(struct bfa_tskim_s *tskim, struct bfa_itnim_s *itnim,
+			struct scsi_lun lun,
 			enum fcp_tm_cmnd tm_cmnd, u8 tsecs)
 {
 	tskim->itnim	= itnim;

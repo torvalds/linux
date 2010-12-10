@@ -21,7 +21,6 @@
 #include "bfa_os_inc.h"
 
 typedef u64 wwn_t;
-typedef u64 lun_t;
 
 #define WWN_NULL	(0)
 #define FC_SYMNAME_MAX	256	/*  max name server symbolic name size */
@@ -1176,8 +1175,8 @@ struct fc_srr_s {
 #define FCP_CMND_LUN_LEN    8
 
 struct fcp_cmnd_s {
-	lun_t           lun;		/* 64-bit LU number */
-	u8         crn;		/* command reference number */
+	struct scsi_lun		lun;	/* 64-bit LU number */
+	u8			crn;	/* command reference number */
 #ifdef __BIGENDIAN
 	u8         resvd:1,
 			priority:4,	/* FCP-3: SAM-3 priority */

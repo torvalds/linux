@@ -725,7 +725,7 @@ struct bfi_tskim_req_s {
 	struct bfi_mhdr_s  mh;	/*  Common msg header	*/
 	__be16	tsk_tag;	/*  task management tag	*/
 	u16	itn_fhdl;	/*  itn firmware handle	*/
-	lun_t	lun;	/*  LU number	*/
+	struct 	scsi_lun lun;	/*  LU number	*/
 	u8	tm_flags;	/*  see enum fcp_tm_cmnd	*/
 	u8	t_secs;	/*  Timeout value in seconds	*/
 	u8	rsvd[2];

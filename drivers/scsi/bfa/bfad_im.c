@@ -21,7 +21,6 @@
 
 #include "bfad_drv.h"
 #include "bfad_im.h"
-#include "bfa_cb_ioim.h"
 #include "bfa_fcs.h"
 
 BFA_TRC_FILE(LDRV, IM);
@@ -258,6 +257,7 @@ bfad_im_target_reset_send(struct bfad_s *bfad, struct scsi_cmnd *cmnd,
 	struct bfa_tskim_s *tskim;
 	struct bfa_itnim_s *bfa_itnim;
 	bfa_status_t    rc = BFA_STATUS_OK;
+	struct scsi_lun scsilun;
 
 	tskim = bfa_tskim_alloc(&bfad->bfa, (struct bfad_tskim_s *) cmnd);
 	if (!tskim) {
@@ -274,7 +274,8 @@ bfad_im_target_reset_send(struct bfad_s *bfad, struct scsi_cmnd *cmnd,
 	cmnd->host_scribble = NULL;
 	cmnd->SCp.Status = 0;
 	bfa_itnim = bfa_fcs_itnim_get_halitn(&itnim->fcs_itnim);
-	bfa_tskim_start(tskim, bfa_itnim, (lun_t)0,
+	memset(&scsilun, 0, sizeof(scsilun));
+	bfa_tskim_start(tskim, bfa_itnim, scsilun,
 			    FCP_TM_TARGET_RESET, BFAD_TARGET_RESET_TMO);
 out:
 	return rc;
@@ -301,6 +302,7 @@ bfad_im_reset_lun_handler(struct scsi_cmnd *cmnd)
 	int             rc = SUCCESS;
 	unsigned long   flags;
 	enum bfi_tskim_status task_status;
+	struct scsi_lun scsilun;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	itnim = itnim_data->itnim;
@@ -327,8 +329,8 @@ bfad_im_reset_lun_handler(struct scsi_cmnd *cmnd)
 	cmnd->SCp.ptr = (char *)&wq;
 	cmnd->SCp.Status = 0;
 	bfa_itnim = bfa_fcs_itnim_get_halitn(&itnim->fcs_itnim);
-	bfa_tskim_start(tskim, bfa_itnim,
-			    bfad_int_to_lun(cmnd->device->lun),
+	int_to_scsilun(cmnd->device->lun, &scsilun);
+	bfa_tskim_start(tskim, bfa_itnim, scsilun,
 			    FCP_TM_LUN_RESET, BFAD_LUN_RESET_TMO);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 

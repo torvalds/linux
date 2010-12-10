@@ -146,9 +146,9 @@ struct bfa_tskim_s {
 	struct bfa_s	*bfa;	/*  BFA module  */
 	struct bfa_fcpim_mod_s  *fcpim;	/*  parent fcpim module	*/
 	struct bfa_itnim_s	*itnim;	/*  i-t-n nexus for this IO  */
-	struct bfad_tskim_s	*dtsk;   /*  driver task mgmt cmnd	*/
-	bfa_boolean_t	notify;	/*  notify itnim on TM comp  */
-	lun_t	lun;	/*  lun if applicable	*/
+	struct bfad_tskim_s	*dtsk;  /*  driver task mgmt cmnd	*/
+	bfa_boolean_t	notify;		/*  notify itnim on TM comp  */
+	struct scsi_lun		lun;	/*  lun if applicable	*/
 	enum fcp_tm_cmnd	tm_cmnd;	/*  task management command  */
 	u16	tsk_tag;	/*  FWI IO tag	*/
 	u8	tsecs;	/*  timeout in seconds	*/
@@ -389,7 +389,7 @@ struct bfa_tskim_s	*bfa_tskim_alloc(struct bfa_s *bfa,
 					struct bfad_tskim_s *dtsk);
 void		bfa_tskim_free(struct bfa_tskim_s *tskim);
 void		bfa_tskim_start(struct bfa_tskim_s *tskim,
-				struct bfa_itnim_s *itnim, lun_t lun,
+				struct bfa_itnim_s *itnim, struct scsi_lun lun,
 				enum fcp_tm_cmnd tm, u8 t_secs);
 void		bfa_cb_tskim_done(void *bfad, struct bfad_tskim_s *dtsk,
 				  enum bfi_tskim_status tsk_status);

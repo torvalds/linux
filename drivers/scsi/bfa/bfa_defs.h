@@ -446,8 +446,8 @@ enum bfa_boot_bootopt {
  * Boot lun information.
  */
 struct bfa_boot_bootlun_s {
-	wwn_t   pwwn;   /*  port wwn of target */
-	lun_t   lun;    /*  64-bit lun */
+	wwn_t   pwwn;		/*  port wwn of target */
+	struct scsi_lun   lun;  /*  64-bit lun */
 };
 #pragma pack()
 

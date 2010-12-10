@@ -399,7 +399,7 @@ union bfi_ioc_i2h_msg_u {
  */
 struct bfi_pbc_blun_s {
 	wwn_t		tgt_pwwn;
-	lun_t		tgt_lun;
+	struct scsi_lun	tgt_lun;
 };
 
 /*
