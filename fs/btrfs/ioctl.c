@@ -964,6 +964,15 @@ static noinline int btrfs_ioctl_snap_create(struct file *file,
 		name = async_vol_args->name;
 		fd = async_vol_args->fd;
 		async_vol_args->name[BTRFS_SNAPSHOT_NAME_MAX] = '\0';
+
+		ret = btrfs_ioctl_snap_create_transid(file, name, fd,
+						      subvol, &transid);
+
+		if (ret == 0 &&
+		    copy_to_user(arg +
+				 offsetof(struct btrfs_ioctl_async_vol_args,
+					  transid), &transid, sizeof(transid)))
+			ret = -EFAULT;
 	} else {
 		vol_args = memdup_user(arg, sizeof(*vol_args));
 		if (IS_ERR(vol_args))
@@ -971,16 +980,9 @@ static noinline int btrfs_ioctl_snap_create(struct file *file,
 		name = vol_args->name;
 		fd = vol_args->fd;
 		vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
-	}
 
-	ret = btrfs_ioctl_snap_create_transid(file, name, fd,
-					      subvol, &transid);
-
-	if (!ret && async) {
-		if (copy_to_user(arg +
-				offsetof(struct btrfs_ioctl_async_vol_args,
-				transid), &transid, sizeof(transid)))
-			return -EFAULT;
+		ret = btrfs_ioctl_snap_create_transid(file, name, fd,
+						      subvol, NULL);
 	}
 
 	kfree(vol_args);
