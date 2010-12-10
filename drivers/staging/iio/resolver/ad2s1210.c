@@ -661,19 +661,19 @@ error_ret:
 static IIO_CONST_ATTR(description,
 	"Variable Resolution, 10-Bit to 16Bit R/D\n\
 Converter with Reference Oscillator");
-static IIO_DEVICE_ATTR(raw_io, S_IRUGO | S_IWUGO,
+static IIO_DEVICE_ATTR(raw_io, S_IRUGO | S_IWUSR,
 		ad2s1210_show_raw, ad2s1210_store_raw, 0);
-static IIO_DEVICE_ATTR(reset, S_IWUGO,
+static IIO_DEVICE_ATTR(reset, S_IWUSR,
 		NULL, ad2s1210_store_softreset, 0);
-static IIO_DEVICE_ATTR(fclkin, S_IRUGO | S_IWUGO,
+static IIO_DEVICE_ATTR(fclkin, S_IRUGO | S_IWUSR,
 		ad2s1210_show_fclkin, ad2s1210_store_fclkin, 0);
-static IIO_DEVICE_ATTR(fexcit, S_IRUGO | S_IWUGO,
+static IIO_DEVICE_ATTR(fexcit, S_IRUGO | S_IWUSR,
 		ad2s1210_show_fexcit,	ad2s1210_store_fexcit, 0);
-static IIO_DEVICE_ATTR(control, S_IRUGO | S_IWUGO,
+static IIO_DEVICE_ATTR(control, S_IRUGO | S_IWUSR,
 		ad2s1210_show_control, ad2s1210_store_control, 0);
-static IIO_DEVICE_ATTR(bits, S_IRUGO | S_IWUGO,
+static IIO_DEVICE_ATTR(bits, S_IRUGO | S_IWUSR,
 		ad2s1210_show_resolution, ad2s1210_store_resolution, 0);
-static IIO_DEVICE_ATTR(fault, S_IRUGO | S_IWUGO,
+static IIO_DEVICE_ATTR(fault, S_IRUGO | S_IWUSR,
 		ad2s1210_show_fault, ad2s1210_clear_fault, 0);
 static IIO_DEVICE_ATTR(pos, S_IRUGO,
 		ad2s1210_show_pos, NULL, 0);
@@ -681,19 +681,19 @@ static IIO_DEVICE_ATTR(vel, S_IRUGO,
 		ad2s1210_show_vel, NULL, 0);
 static IIO_DEVICE_ATTR(pos_vel, S_IRUGO,
 		ad2s1210_show_pos_vel, NULL, 0);
-static IIO_DEVICE_ATTR(los_thrd, S_IRUGO | S_IWUGO,
+static IIO_DEVICE_ATTR(los_thrd, S_IRUGO | S_IWUSR,
 		ad2s1210_show_reg, ad2s1210_store_reg, REG_LOS_THRD);
-static IIO_DEVICE_ATTR(dos_ovr_thrd, S_IRUGO | S_IWUGO,
+static IIO_DEVICE_ATTR(dos_ovr_thrd, S_IRUGO | S_IWUSR,
 		ad2s1210_show_reg, ad2s1210_store_reg, REG_DOS_OVR_THRD);
-static IIO_DEVICE_ATTR(dos_mis_thrd, S_IRUGO | S_IWUGO,
+static IIO_DEVICE_ATTR(dos_mis_thrd, S_IRUGO | S_IWUSR,
 		ad2s1210_show_reg, ad2s1210_store_reg, REG_DOS_MIS_THRD);
-static IIO_DEVICE_ATTR(dos_rst_max_thrd, S_IRUGO | S_IWUGO,
+static IIO_DEVICE_ATTR(dos_rst_max_thrd, S_IRUGO | S_IWUSR,
 		ad2s1210_show_reg, ad2s1210_store_reg, REG_DOS_RST_MAX_THRD);
-static IIO_DEVICE_ATTR(dos_rst_min_thrd, S_IRUGO | S_IWUGO,
+static IIO_DEVICE_ATTR(dos_rst_min_thrd, S_IRUGO | S_IWUSR,
 		ad2s1210_show_reg, ad2s1210_store_reg, REG_DOS_RST_MIN_THRD);
-static IIO_DEVICE_ATTR(lot_high_thrd, S_IRUGO | S_IWUGO,
+static IIO_DEVICE_ATTR(lot_high_thrd, S_IRUGO | S_IWUSR,
 		ad2s1210_show_reg, ad2s1210_store_reg, REG_LOT_HIGH_THRD);
-static IIO_DEVICE_ATTR(lot_low_thrd, S_IRUGO | S_IWUGO,
+static IIO_DEVICE_ATTR(lot_low_thrd, S_IRUGO | S_IWUSR,
 		ad2s1210_show_reg, ad2s1210_store_reg, REG_LOT_LOW_THRD);
 
 static struct attribute *ad2s1210_attributes[] = {
