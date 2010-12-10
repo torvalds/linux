@@ -678,6 +678,14 @@ __rcu_process_gp_end(struct rcu_state *rsp, struct rcu_node *rnp, struct rcu_dat
 
 		/* Remember that we saw this grace-period completion. */
 		rdp->completed = rnp->completed;
+
+		/*
+		 * If another CPU handled our extended quiescent states and
+		 * we have no more grace period to complete yet, then stop
+		 * chasing quiescent states.
+		 */
+		if (rdp->completed == rnp->gpnum)
+			rdp->qs_pending = 0;
 	}
 }
 
