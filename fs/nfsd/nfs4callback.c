@@ -560,6 +560,11 @@ int set_callback_cred(void)
 
 static struct workqueue_struct *callback_wq;
 
+static void run_nfsd4_cb(struct nfsd4_callback *cb)
+{
+	queue_work(callback_wq, &cb->cb_work);
+}
+
 static void do_probe_callback(struct nfs4_client *clp)
 {
 	struct nfsd4_callback *cb = &clp->cl_cb_null;
@@ -574,7 +579,7 @@ static void do_probe_callback(struct nfs4_client *clp)
 
 	cb->cb_ops = &nfsd4_cb_probe_ops;
 
-	queue_work(callback_wq, &cb->cb_work);
+	run_nfsd4_cb(cb);
 }
 
 /*
@@ -859,5 +864,5 @@ void nfsd4_cb_recall(struct nfs4_delegation *dp)
 	cb->cb_ops = &nfsd4_cb_recall_ops;
 	dp->dl_retries = 1;
 
-	queue_work(callback_wq, &dp->dl_recall.cb_work);
+	run_nfsd4_cb(&dp->dl_recall);
 }
