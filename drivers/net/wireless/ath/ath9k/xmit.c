@@ -1120,7 +1120,7 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 	}
 }
 
-void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
+bool ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 {
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
@@ -1128,7 +1128,7 @@ void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 	int i, npend = 0;
 
 	if (sc->sc_flags & SC_OP_INVALID)
-		return;
+		return true;
 
 	/* Stop beacon queue */
 	ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
@@ -1142,25 +1142,15 @@ void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 		}
 	}
 
-	if (npend) {
-		int r;
-
-		ath_print(common, ATH_DBG_FATAL,
-			  "Failed to stop TX DMA. Resetting hardware!\n");
-
-		spin_lock_bh(&sc->sc_resetlock);
-		r = ath9k_hw_reset(ah, sc->sc_ah->curchan, ah->caldata, false);
-		if (r)
-			ath_print(common, ATH_DBG_FATAL,
-				  "Unable to reset hardware; reset status %d\n",
-				  r);
-		spin_unlock_bh(&sc->sc_resetlock);
-	}
+	if (npend)
+		ath_print(common, ATH_DBG_FATAL, "Failed to stop TX DMA!\n");
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
 		if (ATH_TXQ_SETUP(sc, i))
 			ath_draintxq(sc, &sc->tx.txq[i], retry_tx);
 	}
+
+	return !npend;
 }
 
 void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq)
