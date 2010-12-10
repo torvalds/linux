@@ -539,7 +539,7 @@ static int __init netvsc_init(void)
 	if (!dmi_check_system(hv_netvsc_dmi_table))
 		return -ENODEV;
 
-	return netvsc_drv_init(NetVscInitialize);
+	return netvsc_drv_init(netvsc_initialize);
 }
 
 static void __exit netvsc_exit(void)
