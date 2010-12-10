@@ -386,7 +386,7 @@ static int msm_iommu_map(struct iommu_domain *domain, unsigned long va,
 	/* Need a 2nd level table */
 	if ((len == SZ_4K || len == SZ_64K) && (*fl_pte) == 0) {
 		unsigned long *sl;
-		sl = (unsigned long *) __get_free_pages(GFP_KERNEL,
+		sl = (unsigned long *) __get_free_pages(GFP_ATOMIC,
 							get_order(SZ_4K));
 
 		if (!sl) {
