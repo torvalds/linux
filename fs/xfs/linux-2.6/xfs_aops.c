@@ -313,81 +313,54 @@ xfs_map_blocks(
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		offset_fsb, end_fsb;
 	int			error = 0;
-	int			lockmode = 0;
 	int			bmapi_flags = XFS_BMAPI_ENTIRE;
 	int			nimaps = 1;
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -XFS_ERROR(EIO);
 
-	switch (type) {
-	case IO_OVERWRITE:
-		lockmode = xfs_ilock_map_shared(ip);
-		break;
-	case IO_UNWRITTEN:
-		lockmode = XFS_ILOCK_EXCL;
+	if (type == IO_UNWRITTEN)
 		bmapi_flags |= XFS_BMAPI_IGSTATE;
-		xfs_ilock(ip, lockmode);
-		break;
-	case IO_DELALLOC:
-		lockmode = XFS_ILOCK_SHARED;
 
-		if (!xfs_ilock_nowait(ip, lockmode)) {
-			if (nonblocking)
-				return -XFS_ERROR(EAGAIN);
-			xfs_ilock(ip, lockmode);
-		}
-		break;
+	if (!xfs_ilock_nowait(ip, XFS_ILOCK_SHARED)) {
+		if (nonblocking)
+			return -XFS_ERROR(EAGAIN);
+		xfs_ilock(ip, XFS_ILOCK_SHARED);
 	}
 
+	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
+	       (ip->i_df.if_flags & XFS_IFEXTENTS));
 	ASSERT(offset <= mp->m_maxioffset);
+
 	if (offset + count > mp->m_maxioffset)
 		count = mp->m_maxioffset - offset;
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
-
 	error = xfs_bmapi(NULL, ip, offset_fsb, end_fsb - offset_fsb,
 			  bmapi_flags,  NULL, 0, imap, &nimaps, NULL);
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
+
 	if (error)
-		goto out;
+		return -XFS_ERROR(error);
 
-	switch (type) {
-	case IO_UNWRITTEN:
-		/* If we found an extent, return it */
-		if (nimaps &&
-		    (imap->br_startblock != HOLESTARTBLOCK) &&
-		    (imap->br_startblock != DELAYSTARTBLOCK)) {
-			trace_xfs_map_blocks_found(ip, offset, count, type, imap);
-			break;
-		}
-
-		error = xfs_iomap_write_delay(ip, offset, count, imap);
-		if (!error)
-			trace_xfs_map_blocks_alloc(ip, offset, count, type, imap);
-		break;
-	case IO_DELALLOC:
-		/* If we found an extent, return it */
-		xfs_iunlock(ip, lockmode);
-		lockmode = 0;
-
-		if (nimaps && !isnullstartblock(imap->br_startblock)) {
-			trace_xfs_map_blocks_found(ip, offset, count, type, imap);
-			break;
-		}
-
+	if (type == IO_DELALLOC &&
+	    (!nimaps || isnullstartblock(imap->br_startblock))) {
 		error = xfs_iomap_write_allocate(ip, offset, count, imap);
 		if (!error)
 			trace_xfs_map_blocks_alloc(ip, offset, count, type, imap);
-		break;
-	default:
-		if (nimaps)
-			trace_xfs_map_blocks_found(ip, offset, count, type, imap);
+		return -XFS_ERROR(error);
 	}
 
-out:
-	if (lockmode)
-		xfs_iunlock(ip, lockmode);
-	return -XFS_ERROR(error);
+#ifdef DEBUG
+	if (type == IO_UNWRITTEN) {
+		ASSERT(nimaps);
+		ASSERT(imap->br_startblock != HOLESTARTBLOCK);
+		ASSERT(imap->br_startblock != DELAYSTARTBLOCK);
+	}
+#endif
+	if (nimaps)
+		trace_xfs_map_blocks_found(ip, offset, count, type, imap);
+	return 0;
 }
 
 STATIC int
