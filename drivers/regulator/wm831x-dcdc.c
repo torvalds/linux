@@ -377,14 +377,14 @@ static int wm831x_buckv_set_suspend_voltage(struct regulator_dev *rdev,
 	return wm831x_set_bits(wm831x, reg, WM831X_DC1_SLP_VSEL_MASK, vsel);
 }
 
-static int wm831x_buckv_get_voltage(struct regulator_dev *rdev)
+static int wm831x_buckv_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
 
 	if (dcdc->dvs_gpio && dcdc->dvs_gpio_state)
-		return wm831x_buckv_list_voltage(rdev, dcdc->dvs_vsel);
+		return dcdc->dvs_vsel;
 	else
-		return wm831x_buckv_list_voltage(rdev, dcdc->on_vsel);
+		return dcdc->on_vsel;
 }
 
 /* Current limit options */
@@ -426,7 +426,7 @@ static int wm831x_buckv_get_current_limit(struct regulator_dev *rdev)
 
 static struct regulator_ops wm831x_buckv_ops = {
 	.set_voltage = wm831x_buckv_set_voltage,
-	.get_voltage = wm831x_buckv_get_voltage,
+	.get_voltage_sel = wm831x_buckv_get_voltage_sel,
 	.list_voltage = wm831x_buckv_list_voltage,
 	.set_suspend_voltage = wm831x_buckv_set_suspend_voltage,
 	.set_current_limit = wm831x_buckv_set_current_limit,
@@ -678,7 +678,7 @@ static int wm831x_buckp_set_suspend_voltage(struct regulator_dev *rdev,
 	return wm831x_buckp_set_voltage_int(rdev, reg, uV, uV, &selector);
 }
 
-static int wm831x_buckp_get_voltage(struct regulator_dev *rdev)
+static int wm831x_buckp_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
 	struct wm831x *wm831x = dcdc->wm831x;
@@ -689,12 +689,12 @@ static int wm831x_buckp_get_voltage(struct regulator_dev *rdev)
 	if (val < 0)
 		return val;
 
-	return wm831x_buckp_list_voltage(rdev, val & WM831X_DC3_ON_VSEL_MASK);
+	return val & WM831X_DC3_ON_VSEL_MASK;
 }
 
 static struct regulator_ops wm831x_buckp_ops = {
 	.set_voltage = wm831x_buckp_set_voltage,
-	.get_voltage = wm831x_buckp_get_voltage,
+	.get_voltage_sel = wm831x_buckp_get_voltage_sel,
 	.list_voltage = wm831x_buckp_list_voltage,
 	.set_suspend_voltage = wm831x_buckp_set_suspend_voltage,
 
