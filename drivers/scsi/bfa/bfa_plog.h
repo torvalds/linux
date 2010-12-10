@@ -151,6 +151,5 @@ void bfa_plog_fchdr(struct bfa_plog_s *plog, enum bfa_plog_mid mid,
 void bfa_plog_fchdr_and_pl(struct bfa_plog_s *plog, enum bfa_plog_mid mid,
 			enum bfa_plog_eid event, u16 misc,
 			struct fchs_s *fchdr, u32 pld_w0);
-bfa_boolean_t	bfa_plog_get_setting(struct bfa_plog_s *plog);
 
 #endif /* __BFA_PORTLOG_H__ */

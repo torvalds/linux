@@ -2567,7 +2567,7 @@ bfa_ioim_notify_cleanup(struct bfa_ioim_s *ioim)
 		}
 		bfa_itnim_iodone(ioim->itnim);
 	} else
-		bfa_tskim_iodone(ioim->iosp->tskim);
+		bfa_wc_down(&ioim->iosp->tskim->wc);
 }
 
 static bfa_boolean_t

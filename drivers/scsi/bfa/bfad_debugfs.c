@@ -90,7 +90,7 @@ bfad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 	memset(fw_debug->debug_buffer, 0, fw_debug->buffer_len);
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	rc = bfa_debug_fwtrc(&bfad->bfa,
+	rc = bfa_ioc_debug_fwtrc(&bfad->bfa.ioc,
 			fw_debug->debug_buffer,
 			&fw_debug->buffer_len);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -134,7 +134,7 @@ bfad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 	memset(fw_debug->debug_buffer, 0, fw_debug->buffer_len);
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	rc = bfa_debug_fwsave(&bfad->bfa,
+	rc = bfa_ioc_debug_fwsave(&bfad->bfa.ioc,
 			fw_debug->debug_buffer,
 			&fw_debug->buffer_len);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);

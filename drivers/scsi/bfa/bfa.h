@@ -296,7 +296,6 @@ void bfa_iocfc_attach(struct bfa_s *bfa, void *bfad,
 		      struct bfa_iocfc_cfg_s *cfg,
 		      struct bfa_meminfo_s *meminfo,
 		      struct bfa_pcidev_s *pcidev);
-void bfa_iocfc_detach(struct bfa_s *bfa);
 void bfa_iocfc_init(struct bfa_s *bfa);
 void bfa_iocfc_start(struct bfa_s *bfa);
 void bfa_iocfc_stop(struct bfa_s *bfa);
@@ -385,13 +384,7 @@ void bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg,
 void bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		struct bfa_meminfo_s *meminfo,
 		struct bfa_pcidev_s *pcidev);
-void bfa_init_trc(struct bfa_s *bfa, struct bfa_trc_mod_s *trcmod);
-void bfa_init_plog(struct bfa_s *bfa, struct bfa_plog_s *plog);
 void bfa_detach(struct bfa_s *bfa);
-void bfa_init(struct bfa_s *bfa);
-void bfa_start(struct bfa_s *bfa);
-void bfa_stop(struct bfa_s *bfa);
-void bfa_attach_fcs(struct bfa_s *bfa);
 void bfa_cb_init(void *bfad, bfa_status_t status);
 void bfa_cb_updateq(void *bfad, bfa_status_t status);
 
@@ -405,7 +398,6 @@ void bfa_comp_free(struct bfa_s *bfa, struct list_head *comp_q);
 
 typedef void (*bfa_cb_ioc_t) (void *cbarg, enum bfa_status status);
 void bfa_iocfc_get_attr(struct bfa_s *bfa, struct bfa_iocfc_attr_s *attr);
-void bfa_get_attr(struct bfa_s *bfa, struct bfa_ioc_attr_s *ioc_attr);
 
 
 bfa_status_t bfa_iocfc_israttr_set(struct bfa_s *bfa,
@@ -413,16 +405,7 @@ bfa_status_t bfa_iocfc_israttr_set(struct bfa_s *bfa,
 
 void bfa_iocfc_enable(struct bfa_s *bfa);
 void bfa_iocfc_disable(struct bfa_s *bfa);
-void bfa_timer_tick(struct bfa_s *bfa);
 #define bfa_timer_start(_bfa, _timer, _timercb, _arg, _timeout)		\
 	bfa_timer_begin(&(_bfa)->timer_mod, _timer, _timercb, _arg, _timeout)
-
-/*
- * BFA debug API functions
- */
-bfa_status_t bfa_debug_fwtrc(struct bfa_s *bfa, void *trcdata, int *trclen);
-bfa_status_t bfa_debug_fwsave(struct bfa_s *bfa, void *trcdata, int *trclen);
-bfa_status_t bfa_debug_fwcore(struct bfa_s *bfa, void *buf,
-			      u32 *offset, int *buflen);
 
 #endif /* __BFA_H__ */

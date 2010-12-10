@@ -27,6 +27,21 @@
 #define BFA_FCS_OS_STR_LEN		64
 
 /*
+ *  lps_pvt BFA LPS private functions
+ */
+
+enum bfa_lps_event {
+	BFA_LPS_SM_LOGIN	= 1,	/* login request from user      */
+	BFA_LPS_SM_LOGOUT	= 2,	/* logout request from user     */
+	BFA_LPS_SM_FWRSP	= 3,	/* f/w response to login/logout */
+	BFA_LPS_SM_RESUME	= 4,	/* space present in reqq queue  */
+	BFA_LPS_SM_DELETE	= 5,	/* lps delete from user         */
+	BFA_LPS_SM_OFFLINE	= 6,	/* Link is offline              */
+	BFA_LPS_SM_RX_CVL	= 7,	/* Rx clear virtual link        */
+};
+
+
+/*
  * !!! Only append to the enums defined here to avoid any versioning
  * !!! needed between trace utility and driver version
  */
@@ -41,7 +56,6 @@ enum {
 struct bfa_fcs_s;
 
 #define __fcs_min_cfg(__fcs)       ((__fcs)->min_cfg)
-void bfa_fcs_modexit_comp(struct bfa_fcs_s *fcs);
 
 #define BFA_FCS_BRCD_SWITCH_OUI  0x051e
 #define N2N_LOCAL_PID	    0x010000
@@ -444,9 +458,6 @@ void bfa_fcs_rport_scn(struct bfa_fcs_rport_s *rport);
 
 struct bfa_fcs_rport_s *bfa_fcs_rport_create(struct bfa_fcs_lport_s *port,
 	 u32 pid);
-void bfa_fcs_rport_delete(struct bfa_fcs_rport_s *rport);
-void bfa_fcs_rport_online(struct bfa_fcs_rport_s *rport);
-void bfa_fcs_rport_offline(struct bfa_fcs_rport_s *rport);
 void bfa_fcs_rport_start(struct bfa_fcs_lport_s *port, struct fchs_s *rx_fchs,
 			 struct fc_logi_s *plogi_rsp);
 void bfa_fcs_rport_plogi_create(struct bfa_fcs_lport_s *port,
@@ -454,10 +465,8 @@ void bfa_fcs_rport_plogi_create(struct bfa_fcs_lport_s *port,
 				struct fc_logi_s *plogi);
 void bfa_fcs_rport_plogi(struct bfa_fcs_rport_s *rport, struct fchs_s *fchs,
 			 struct fc_logi_s *plogi);
-void bfa_fcs_rport_logo_imp(struct bfa_fcs_rport_s *rport);
 void bfa_fcs_rport_prlo(struct bfa_fcs_rport_s *rport, __be16 ox_id);
 
-void bfa_fcs_rport_itnim_ack(struct bfa_fcs_rport_s *rport);
 void bfa_fcs_rport_itntm_ack(struct bfa_fcs_rport_s *rport);
 void bfa_fcs_rport_fcptm_offline_done(struct bfa_fcs_rport_s *rport);
 int  bfa_fcs_rport_get_state(struct bfa_fcs_rport_s *rport);
@@ -648,6 +657,57 @@ struct bfa_fcs_s {
 };
 
 /*
+ *  fcs_fabric_sm fabric state machine functions
+ */
+
+/*
+ * Fabric state machine events
+ */
+enum bfa_fcs_fabric_event {
+	BFA_FCS_FABRIC_SM_CREATE        = 1,    /*  create from driver        */
+	BFA_FCS_FABRIC_SM_DELETE        = 2,    /*  delete from driver        */
+	BFA_FCS_FABRIC_SM_LINK_DOWN     = 3,    /*  link down from port      */
+	BFA_FCS_FABRIC_SM_LINK_UP       = 4,    /*  link up from port         */
+	BFA_FCS_FABRIC_SM_CONT_OP       = 5,    /*  flogi/auth continue op   */
+	BFA_FCS_FABRIC_SM_RETRY_OP      = 6,    /*  flogi/auth retry op      */
+	BFA_FCS_FABRIC_SM_NO_FABRIC     = 7,    /*  from flogi/auth           */
+	BFA_FCS_FABRIC_SM_PERF_EVFP     = 8,    /*  from flogi/auth           */
+	BFA_FCS_FABRIC_SM_ISOLATE       = 9,    /*  from EVFP processing     */
+	BFA_FCS_FABRIC_SM_NO_TAGGING    = 10,   /*  no VFT tagging from EVFP */
+	BFA_FCS_FABRIC_SM_DELAYED       = 11,   /*  timeout delay event      */
+	BFA_FCS_FABRIC_SM_AUTH_FAILED   = 12,   /*  auth failed       */
+	BFA_FCS_FABRIC_SM_AUTH_SUCCESS  = 13,   /*  auth successful           */
+	BFA_FCS_FABRIC_SM_DELCOMP       = 14,   /*  all vports deleted event */
+	BFA_FCS_FABRIC_SM_LOOPBACK      = 15,   /*  Received our own FLOGI   */
+	BFA_FCS_FABRIC_SM_START         = 16,   /*  from driver       */
+};
+
+/*
+ *  fcs_rport_sm FCS rport state machine events
+ */
+
+enum rport_event {
+	RPSM_EVENT_PLOGI_SEND   = 1,    /*  new rport; start with PLOGI */
+	RPSM_EVENT_PLOGI_RCVD   = 2,    /*  Inbound PLOGI from remote port */
+	RPSM_EVENT_PLOGI_COMP   = 3,    /*  PLOGI completed to rport    */
+	RPSM_EVENT_LOGO_RCVD    = 4,    /*  LOGO from remote device     */
+	RPSM_EVENT_LOGO_IMP     = 5,    /*  implicit logo for SLER      */
+	RPSM_EVENT_FCXP_SENT    = 6,    /*  Frame from has been sent    */
+	RPSM_EVENT_DELETE       = 7,    /*  RPORT delete request        */
+	RPSM_EVENT_SCN          = 8,    /*  state change notification   */
+	RPSM_EVENT_ACCEPTED     = 9,    /*  Good response from remote device */
+	RPSM_EVENT_FAILED       = 10,   /*  Request to rport failed.    */
+	RPSM_EVENT_TIMEOUT      = 11,   /*  Rport SM timeout event      */
+	RPSM_EVENT_HCB_ONLINE  = 12,    /*  BFA rport online callback   */
+	RPSM_EVENT_HCB_OFFLINE = 13,    /*  BFA rport offline callback  */
+	RPSM_EVENT_FC4_OFFLINE = 14,    /*  FC-4 offline complete       */
+	RPSM_EVENT_ADDRESS_CHANGE = 15, /*  Rport's PID has changed     */
+	RPSM_EVENT_ADDRESS_DISC = 16,   /*  Need to Discover rport's PID */
+	RPSM_EVENT_PRLO_RCVD   = 17,    /*  PRLO from remote device     */
+	RPSM_EVENT_PLOGI_RETRY = 18,    /*  Retry PLOGI continously */
+};
+
+/*
  * bfa fcs API functions
  */
 void bfa_fcs_attach(struct bfa_fcs_s *fcs, struct bfa_s *bfa,
@@ -656,16 +716,12 @@ void bfa_fcs_attach(struct bfa_fcs_s *fcs, struct bfa_s *bfa,
 void bfa_fcs_init(struct bfa_fcs_s *fcs);
 void bfa_fcs_driver_info_init(struct bfa_fcs_s *fcs,
 			      struct bfa_fcs_driver_info_s *driver_info);
-void bfa_fcs_set_fdmi_param(struct bfa_fcs_s *fcs, bfa_boolean_t fdmi_enable);
 void bfa_fcs_exit(struct bfa_fcs_s *fcs);
-void bfa_fcs_trc_init(struct bfa_fcs_s *fcs, struct bfa_trc_mod_s *trcmod);
-void		bfa_fcs_start(struct bfa_fcs_s *fcs);
 
 /*
  * bfa fcs vf public functions
  */
 bfa_fcs_vf_t *bfa_fcs_vf_lookup(struct bfa_fcs_s *fcs, u16 vf_id);
-u16 bfa_fcs_fabric_vport_count(struct bfa_fcs_fabric_s *fabric);
 
 /*
  * fabric protected interface functions
@@ -679,22 +735,23 @@ void bfa_fcs_fabric_addvport(struct bfa_fcs_fabric_s *fabric,
 	struct bfa_fcs_vport_s *vport);
 void bfa_fcs_fabric_delvport(struct bfa_fcs_fabric_s *fabric,
 	struct bfa_fcs_vport_s *vport);
-int bfa_fcs_fabric_is_online(struct bfa_fcs_fabric_s *fabric);
 struct bfa_fcs_vport_s *bfa_fcs_fabric_vport_lookup(
 		struct bfa_fcs_fabric_s *fabric, wwn_t pwwn);
 void bfa_fcs_fabric_modstart(struct bfa_fcs_s *fcs);
 void bfa_fcs_fabric_uf_recv(struct bfa_fcs_fabric_s *fabric,
 		struct fchs_s *fchs, u16 len);
-bfa_boolean_t	bfa_fcs_fabric_is_loopback(struct bfa_fcs_fabric_s *fabric);
-bfa_boolean_t	bfa_fcs_fabric_is_auth_failed(struct bfa_fcs_fabric_s *fabric);
-enum bfa_port_type bfa_fcs_fabric_port_type(struct bfa_fcs_fabric_s *fabric);
 void	bfa_fcs_fabric_psymb_init(struct bfa_fcs_fabric_s *fabric);
-void	bfa_fcs_fabric_port_delete_comp(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_fabric_set_fabric_name(struct bfa_fcs_fabric_s *fabric,
 	       wwn_t fabric_name);
 u16 bfa_fcs_fabric_get_switch_oui(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_uf_attach(struct bfa_fcs_s *fcs);
 void bfa_fcs_port_attach(struct bfa_fcs_s *fcs);
+void bfa_fcs_fabric_sm_online(struct bfa_fcs_fabric_s *fabric,
+			enum bfa_fcs_fabric_event event);
+void bfa_fcs_fabric_sm_loopback(struct bfa_fcs_fabric_s *fabric,
+			enum bfa_fcs_fabric_event event);
+void bfa_fcs_fabric_sm_auth_failed(struct bfa_fcs_fabric_s *fabric,
+			enum bfa_fcs_fabric_event event);
 
 /*
  * BFA FCS callback interfaces

@@ -181,7 +181,7 @@ bfa_ioc_cb_ownership_reset(struct bfa_ioc_s *ioc)
 	 * will lock it instead of clearing it.
 	 */
 	readl(ioc->ioc_regs.ioc_sem_reg);
-	bfa_ioc_hw_sem_release(ioc);
+	writel(1, ioc->ioc_regs.ioc_sem_reg);
 }
 
 

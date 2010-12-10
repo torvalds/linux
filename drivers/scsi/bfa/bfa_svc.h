@@ -220,6 +220,18 @@ void	bfa_fcxp_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 /*
  * RPORT related defines
  */
+enum bfa_rport_event {
+	BFA_RPORT_SM_CREATE	= 1,	/*  rport create event          */
+	BFA_RPORT_SM_DELETE	= 2,	/*  deleting an existing rport  */
+	BFA_RPORT_SM_ONLINE	= 3,	/*  rport is online             */
+	BFA_RPORT_SM_OFFLINE	= 4,	/*  rport is offline            */
+	BFA_RPORT_SM_FWRSP	= 5,	/*  firmware response           */
+	BFA_RPORT_SM_HWFAIL	= 6,	/*  IOC h/w failure             */
+	BFA_RPORT_SM_QOS_SCN	= 7,	/*  QoS SCN from firmware       */
+	BFA_RPORT_SM_SET_SPEED	= 8,	/*  Set Rport Speed             */
+	BFA_RPORT_SM_QRESUME	= 9,	/*  space in requeue queue      */
+};
+
 #define BFA_RPORT_MIN	4
 
 struct bfa_rport_mod_s {
@@ -516,12 +528,9 @@ bfa_boolean_t bfa_fcport_is_qos_enabled(struct bfa_s *bfa);
  * bfa rport API functions
  */
 struct bfa_rport_s *bfa_rport_create(struct bfa_s *bfa, void *rport_drv);
-void bfa_rport_delete(struct bfa_rport_s *rport);
 void bfa_rport_online(struct bfa_rport_s *rport,
 		      struct bfa_rport_info_s *rport_info);
-void bfa_rport_offline(struct bfa_rport_s *rport);
 void bfa_rport_speed(struct bfa_rport_s *rport, enum bfa_port_speed speed);
-void bfa_rport_clear_stats(struct bfa_rport_s *rport);
 void bfa_cb_rport_online(void *rport);
 void bfa_cb_rport_offline(void *rport);
 void bfa_cb_rport_qos_scn_flowid(void *rport,
@@ -594,28 +603,14 @@ void bfa_uf_free(struct bfa_uf_s *uf);
 u32 bfa_lps_get_max_vport(struct bfa_s *bfa);
 struct bfa_lps_s *bfa_lps_alloc(struct bfa_s *bfa);
 void bfa_lps_delete(struct bfa_lps_s *lps);
-void bfa_lps_discard(struct bfa_lps_s *lps);
 void bfa_lps_flogi(struct bfa_lps_s *lps, void *uarg, u8 alpa,
 		   u16 pdusz, wwn_t pwwn, wwn_t nwwn,
 		   bfa_boolean_t auth_en);
 void bfa_lps_fdisc(struct bfa_lps_s *lps, void *uarg, u16 pdusz,
 		   wwn_t pwwn, wwn_t nwwn);
 void bfa_lps_fdisclogo(struct bfa_lps_s *lps);
-u8 bfa_lps_get_tag(struct bfa_lps_s *lps);
-bfa_boolean_t bfa_lps_is_npiv_en(struct bfa_lps_s *lps);
-bfa_boolean_t bfa_lps_is_fport(struct bfa_lps_s *lps);
-bfa_boolean_t bfa_lps_is_brcd_fabric(struct bfa_lps_s *lps);
-bfa_boolean_t bfa_lps_is_authreq(struct bfa_lps_s *lps);
-bfa_eproto_status_t bfa_lps_get_extstatus(struct bfa_lps_s *lps);
-u32 bfa_lps_get_pid(struct bfa_lps_s *lps);
 u32 bfa_lps_get_base_pid(struct bfa_s *bfa);
 u8 bfa_lps_get_tag_from_pid(struct bfa_s *bfa, u32 pid);
-u16 bfa_lps_get_peer_bbcredit(struct bfa_lps_s *lps);
-wwn_t bfa_lps_get_peer_pwwn(struct bfa_lps_s *lps);
-wwn_t bfa_lps_get_peer_nwwn(struct bfa_lps_s *lps);
-u8 bfa_lps_get_lsrjt_rsn(struct bfa_lps_s *lps);
-u8 bfa_lps_get_lsrjt_expl(struct bfa_lps_s *lps);
-mac_t bfa_lps_get_lp_mac(struct bfa_lps_s *lps);
 void bfa_cb_lps_flogi_comp(void *bfad, void *uarg, bfa_status_t status);
 void bfa_cb_lps_fdisc_comp(void *bfad, void *uarg, bfa_status_t status);
 void bfa_cb_lps_fdisclogo_comp(void *bfad, void *uarg);

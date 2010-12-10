@@ -67,18 +67,6 @@ static struct bfa_ioc_cbfn_s bfa_iocfc_cbfn;
  * BFA Interrupt handling functions
  */
 static void
-bfa_msix_errint(struct bfa_s *bfa, u32 intr)
-{
-	bfa_ioc_error_isr(&bfa->ioc);
-}
-
-static void
-bfa_msix_lpu(struct bfa_s *bfa)
-{
-	bfa_ioc_mbox_isr(&bfa->ioc);
-}
-
-static void
 bfa_reqq_resume(struct bfa_s *bfa, int qid)
 {
 	struct list_head *waitq, *qe, *qen;
@@ -267,7 +255,7 @@ bfa_msix_lpu_err(struct bfa_s *bfa, int vec)
 	intr = readl(bfa->iocfc.bfa_regs.intr_status);
 
 	if (intr & (__HFN_INT_MBOX_LPU0 | __HFN_INT_MBOX_LPU1))
-		bfa_msix_lpu(bfa);
+		 bfa_ioc_mbox_isr(&bfa->ioc);
 
 	intr &= (__HFN_INT_ERR_EMC | __HFN_INT_ERR_LPU0 |
 		__HFN_INT_ERR_LPU1 | __HFN_INT_ERR_PSS | __HFN_INT_LL_HALT);
@@ -298,7 +286,7 @@ bfa_msix_lpu_err(struct bfa_s *bfa, int vec)
 		}
 
 		writel(intr, bfa->iocfc.bfa_regs.intr_status);
-		bfa_msix_errint(bfa, intr);
+		bfa_ioc_error_isr(&bfa->ioc);
 	}
 }
 
@@ -467,8 +455,8 @@ bfa_iocfc_mem_claim(struct bfa_s *bfa, struct bfa_iocfc_cfg_s *cfg,
 	 * First allocate dma memory for IOC.
 	 */
 	bfa_ioc_mem_claim(&bfa->ioc, dm_kva, dm_pa);
-	dm_kva += bfa_ioc_meminfo();
-	dm_pa  += bfa_ioc_meminfo();
+	dm_kva += BFA_ROUNDUP(sizeof(struct bfi_ioc_attr_s), BFA_DMA_ALIGN_SZ);
+	dm_pa  += BFA_ROUNDUP(sizeof(struct bfi_ioc_attr_s), BFA_DMA_ALIGN_SZ);
 
 	/*
 	 * Claim DMA-able memory for the request/response queues and for shadow
@@ -531,7 +519,7 @@ bfa_iocfc_mem_claim(struct bfa_s *bfa, struct bfa_iocfc_cfg_s *cfg,
 	bfa_meminfo_dma_virt(meminfo) = dm_kva;
 	bfa_meminfo_dma_phys(meminfo) = dm_pa;
 
-	dbgsz = bfa_ioc_debug_trcsz(bfa_auto_recover);
+	dbgsz = (bfa_auto_recover) ? BFA_DBG_FWTRC_LEN : 0;
 	if (dbgsz > 0) {
 		bfa_ioc_debug_memclaim(&bfa->ioc, bfa_meminfo_kva(meminfo));
 		bfa_meminfo_kva(meminfo) += dbgsz;
@@ -723,11 +711,11 @@ bfa_iocfc_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *km_len,
 		  u32 *dm_len)
 {
 	/* dma memory for IOC */
-	*dm_len += bfa_ioc_meminfo();
+	*dm_len += BFA_ROUNDUP(sizeof(struct bfi_ioc_attr_s), BFA_DMA_ALIGN_SZ);
 
 	bfa_iocfc_fw_cfg_sz(cfg, dm_len);
 	bfa_iocfc_cqs_sz(cfg, dm_len);
-	*km_len += bfa_ioc_debug_trcsz(bfa_auto_recover);
+	*km_len += (bfa_auto_recover) ? BFA_DBG_FWTRC_LEN : 0;
 }
 
 /*
@@ -759,20 +747,11 @@ bfa_iocfc_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 
 	bfa_iocfc_init_mem(bfa, bfad, cfg, pcidev);
 	bfa_iocfc_mem_claim(bfa, cfg, meminfo);
-	bfa_timer_init(&bfa->timer_mod);
+	INIT_LIST_HEAD(&bfa->timer_mod.timer_q);
 
 	INIT_LIST_HEAD(&bfa->comp_q);
 	for (i = 0; i < BFI_IOC_MAX_CQS; i++)
 		INIT_LIST_HEAD(&bfa->reqq_waitq[i]);
-}
-
-/*
- * Query IOC memory requirement information.
- */
-void
-bfa_iocfc_detach(struct bfa_s *bfa)
-{
-	bfa_ioc_detach(&bfa->ioc);
 }
 
 /*
@@ -1090,79 +1069,7 @@ bfa_detach(struct bfa_s *bfa)
 
 	for (i = 0; hal_mods[i]; i++)
 		hal_mods[i]->detach(bfa);
-
-	bfa_iocfc_detach(bfa);
-}
-
-
-void
-bfa_init_trc(struct bfa_s *bfa, struct bfa_trc_mod_s *trcmod)
-{
-	bfa->trcmod = trcmod;
-}
-
-void
-bfa_init_plog(struct bfa_s *bfa, struct bfa_plog_s *plog)
-{
-	bfa->plog = plog;
-}
-
-/*
- * Initialize IOC.
- *
- * This function will return immediately, when the IOC initialization is
- * completed, the bfa_cb_init() will be called.
- *
- * @param[in]	bfa	instance
- *
- * @return void
- *
- * Special Considerations:
- *
- * @note
- * When this function returns, the driver should register the interrupt service
- * routine(s) and enable the device interrupts. If this is not done,
- * bfa_cb_init() will never get called
- */
-void
-bfa_init(struct bfa_s *bfa)
-{
-	bfa_iocfc_init(bfa);
-}
-
-/*
- * Use this function initiate the IOC configuration setup. This function
- * will return immediately.
- *
- * @param[in]	bfa	instance
- *
- * @return None
- */
-void
-bfa_start(struct bfa_s *bfa)
-{
-	bfa_iocfc_start(bfa);
-}
-
-/*
- * Use this function quiese the IOC. This function will return immediately,
- * when the IOC is actually stopped, the bfad->comp will be set.
- *
- * @param[in]bfa - pointer to bfa_t.
- *
- * @return None
- *
- * Special Considerations:
- * bfad->comp can be set before or after bfa_stop() returns.
- *
- * @note
- * In case of any failure, we could handle it automatically by doing a
- * reset and then succeed the bfa_stop() call.
- */
-void
-bfa_stop(struct bfa_s *bfa)
-{
-	bfa_iocfc_stop(bfa);
+	bfa_ioc_detach(&bfa->ioc);
 }
 
 void
@@ -1198,20 +1105,6 @@ bfa_comp_free(struct bfa_s *bfa, struct list_head *comp_q)
 	}
 }
 
-void
-bfa_attach_fcs(struct bfa_s *bfa)
-{
-	bfa->fcs = BFA_TRUE;
-}
-
-/*
- * Periodic timer heart beat from driver
- */
-void
-bfa_timer_tick(struct bfa_s *bfa)
-{
-	bfa_timer_beat(&bfa->timer_mod);
-}
 
 /*
  * Return the list of PCI vendor/device id lists supported by this
@@ -1281,52 +1174,4 @@ bfa_cfg_get_min(struct bfa_iocfc_cfg_s *cfg)
 	cfg->drvcfg.num_reqq_elems = BFA_REQQ_NELEMS_MIN;
 	cfg->drvcfg.num_rspq_elems = BFA_RSPQ_NELEMS_MIN;
 	cfg->drvcfg.min_cfg	   = BFA_TRUE;
-}
-
-void
-bfa_get_attr(struct bfa_s *bfa, struct bfa_ioc_attr_s *ioc_attr)
-{
-	bfa_ioc_get_attr(&bfa->ioc, ioc_attr);
-}
-
-/*
- * Retrieve firmware trace information on IOC failure.
- */
-bfa_status_t
-bfa_debug_fwsave(struct bfa_s *bfa, void *trcdata, int *trclen)
-{
-	return bfa_ioc_debug_fwsave(&bfa->ioc, trcdata, trclen);
-}
-
-/*
- * Fetch firmware trace data.
- *
- * @param[in]		bfa			BFA instance
- * @param[out]		trcdata		Firmware trace buffer
- * @param[in,out]	trclen		Firmware trace buffer len
- *
- * @retval BFA_STATUS_OK			Firmware trace is fetched.
- * @retval BFA_STATUS_INPROGRESS	Firmware trace fetch is in progress.
- */
-bfa_status_t
-bfa_debug_fwtrc(struct bfa_s *bfa, void *trcdata, int *trclen)
-{
-	return bfa_ioc_debug_fwtrc(&bfa->ioc, trcdata, trclen);
-}
-
-/*
- * Dump firmware memory.
- *
- * @param[in]		bfa		BFA instance
- * @param[out]		buf		buffer for dump
- * @param[in,out]	offset		smem offset to start read
- * @param[in,out]	buflen		length of buffer
- *
- * @retval BFA_STATUS_OK		Firmware memory is dumped.
- * @retval BFA_STATUS_INPROGRESS	Firmware memory dump is in progress.
- */
-bfa_status_t
-bfa_debug_fwcore(struct bfa_s *bfa, void *buf, u32 *offset, int *buflen)
-{
-	return bfa_ioc_debug_fwcore(&bfa->ioc, buf, offset, buflen);
 }

@@ -22,6 +22,11 @@
 #include "bfa_cs.h"
 #include "bfi.h"
 
+#define BFA_DBG_FWTRC_ENTS	(BFI_IOC_TRC_ENTS)
+#define BFA_DBG_FWTRC_LEN					\
+	(BFA_DBG_FWTRC_ENTS * sizeof(struct bfa_trc_s) +	\
+	(sizeof(struct bfa_trc_mod_s) -				\
+	BFA_TRC_MAX * sizeof(struct bfa_trc_s)))
 /*
  * BFA timer declarations
  */
@@ -47,7 +52,6 @@ struct bfa_timer_mod_s {
 #define BFA_TIMER_FREQ 200 /* specified in millisecs */
 
 void bfa_timer_beat(struct bfa_timer_mod_s *mod);
-void bfa_timer_init(struct bfa_timer_mod_s *mod);
 void bfa_timer_begin(struct bfa_timer_mod_s *mod, struct bfa_timer_s *timer,
 			bfa_timer_cbfn_t timercb, void *arg,
 			unsigned int timeout);
@@ -325,7 +329,6 @@ void bfa_ioc_auto_recover(bfa_boolean_t auto_recover);
 void bfa_ioc_detach(struct bfa_ioc_s *ioc);
 void bfa_ioc_pci_init(struct bfa_ioc_s *ioc, struct bfa_pcidev_s *pcidev,
 		enum bfi_mclass mc);
-u32 bfa_ioc_meminfo(void);
 void bfa_ioc_mem_claim(struct bfa_ioc_s *ioc,  u8 *dm_kva, u64 dm_pa);
 void bfa_ioc_enable(struct bfa_ioc_s *ioc);
 void bfa_ioc_disable(struct bfa_ioc_s *ioc);
@@ -353,7 +356,6 @@ enum bfa_ioc_state bfa_ioc_get_state(struct bfa_ioc_s *ioc);
 void bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr);
 void bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 		struct bfa_adapter_attr_s *ad_attr);
-int bfa_ioc_debug_trcsz(bfa_boolean_t auto_recover);
 void bfa_ioc_debug_memclaim(struct bfa_ioc_s *ioc, void *dbg_fwsave);
 bfa_status_t bfa_ioc_debug_fwsave(struct bfa_ioc_s *ioc, void *trcdata,
 		int *trclen);
@@ -361,15 +363,9 @@ bfa_status_t bfa_ioc_debug_fwtrc(struct bfa_ioc_s *ioc, void *trcdata,
 				 int *trclen);
 bfa_status_t bfa_ioc_debug_fwcore(struct bfa_ioc_s *ioc, void *buf,
 	u32 *offset, int *buflen);
-u32 bfa_ioc_smem_pgnum(struct bfa_ioc_s *ioc, u32 fmaddr);
-u32 bfa_ioc_smem_pgoff(struct bfa_ioc_s *ioc, u32 fmaddr);
 void bfa_ioc_set_fcmode(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_get_fcmode(struct bfa_ioc_s *ioc);
-void bfa_ioc_hbfail_register(struct bfa_ioc_s *ioc,
-	struct bfa_ioc_hbfail_notify_s *notify);
 bfa_boolean_t bfa_ioc_sem_get(void __iomem *sem_reg);
-void bfa_ioc_sem_release(void __iomem *sem_reg);
-void bfa_ioc_hw_sem_release(struct bfa_ioc_s *ioc);
 void bfa_ioc_fwver_get(struct bfa_ioc_s *ioc,
 			struct bfi_ioc_image_hdr_s *fwhdr);
 bfa_boolean_t bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc,
@@ -380,13 +376,8 @@ bfa_status_t bfa_ioc_fw_stats_clear(struct bfa_ioc_s *ioc);
 /*
  * bfa mfg wwn API functions
  */
-wwn_t bfa_ioc_get_pwwn(struct bfa_ioc_s *ioc);
-wwn_t bfa_ioc_get_nwwn(struct bfa_ioc_s *ioc);
 mac_t bfa_ioc_get_mac(struct bfa_ioc_s *ioc);
-wwn_t bfa_ioc_get_mfg_pwwn(struct bfa_ioc_s *ioc);
-wwn_t bfa_ioc_get_mfg_nwwn(struct bfa_ioc_s *ioc);
 mac_t bfa_ioc_get_mfg_mac(struct bfa_ioc_s *ioc);
-u64 bfa_ioc_get_adid(struct bfa_ioc_s *ioc);
 
 /*
  * F/W Image Size & Chunk

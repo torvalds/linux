@@ -41,19 +41,6 @@ BFA_MODULE(uf);
 #define BFA_LPS_MAX_VPORTS_SUPP_CB  255
 #define BFA_LPS_MAX_VPORTS_SUPP_CT  190
 
-/*
- *  lps_pvt BFA LPS private functions
- */
-
-enum bfa_lps_event {
-	BFA_LPS_SM_LOGIN	= 1,	/* login request from user	*/
-	BFA_LPS_SM_LOGOUT	= 2,	/* logout request from user	*/
-	BFA_LPS_SM_FWRSP	= 3,	/* f/w response to login/logout	*/
-	BFA_LPS_SM_RESUME	= 4,	/* space present in reqq queue	*/
-	BFA_LPS_SM_DELETE	= 5,	/* lps delete from user		*/
-	BFA_LPS_SM_OFFLINE	= 6,	/* Link is offline		*/
-	BFA_LPS_SM_RX_CVL	= 7,	/* Rx clear virtual link	*/
-};
 
 /*
  * FC PORT related definitions
@@ -112,19 +99,6 @@ enum bfa_fcport_ln_sm_event {
 				  __bfa_cb_rport_online, (__rp));      \
 		}							\
 } while (0)
-
-
-enum bfa_rport_event {
-	BFA_RPORT_SM_CREATE	= 1,	/*  rport create event		*/
-	BFA_RPORT_SM_DELETE	= 2,	/*  deleting an existing rport	*/
-	BFA_RPORT_SM_ONLINE	= 3,	/*  rport is online		*/
-	BFA_RPORT_SM_OFFLINE	= 4,	/*  rport is offline		*/
-	BFA_RPORT_SM_FWRSP	= 5,	/*  firmware response		*/
-	BFA_RPORT_SM_HWFAIL	= 6,	/*  IOC h/w failure		*/
-	BFA_RPORT_SM_QOS_SCN	= 7,	/*  QoS SCN from firmware	*/
-	BFA_RPORT_SM_SET_SPEED	= 8,	/*  Set Rport Speed		*/
-	BFA_RPORT_SM_QRESUME	= 9,	/*  space in requeue queue	*/
-};
 
 /*
  * forward declarations FCXP related functions
@@ -437,12 +411,6 @@ bfa_plog_fchdr_and_pl(struct bfa_plog_s *plog, enum bfa_plog_mid mid,
 	}
 }
 
-
-bfa_boolean_t
-bfa_plog_get_setting(struct bfa_plog_s *plog)
-{
-	return (bfa_boolean_t)plog->plog_enabled;
-}
 
 /*
  *  fcxp_pvt BFA FCXP private functions
@@ -1846,24 +1814,6 @@ bfa_lps_fdisclogo(struct bfa_lps_s *lps)
 	bfa_sm_send_event(lps, BFA_LPS_SM_LOGOUT);
 }
 
-/*
- * Discard a pending login request -- should be called only for
- * link down handling.
- */
-void
-bfa_lps_discard(struct bfa_lps_s *lps)
-{
-	bfa_sm_send_event(lps, BFA_LPS_SM_OFFLINE);
-}
-
-/*
- * Return lport services tag
- */
-u8
-bfa_lps_get_tag(struct bfa_lps_s *lps)
-{
-	return lps->lp_tag;
-}
 
 /*
  * Return lport services tag given the pid
@@ -1884,55 +1834,6 @@ bfa_lps_get_tag_from_pid(struct bfa_s *bfa, u32 pid)
 	return 0;
 }
 
-/*
- * return if fabric login indicates support for NPIV
- */
-bfa_boolean_t
-bfa_lps_is_npiv_en(struct bfa_lps_s *lps)
-{
-	return lps->npiv_en;
-}
-
-/*
- * Return TRUE if attached to F-Port, else return FALSE
- */
-bfa_boolean_t
-bfa_lps_is_fport(struct bfa_lps_s *lps)
-{
-	return lps->fport;
-}
-
-/*
- * Return TRUE if attached to a Brocade Fabric
- */
-bfa_boolean_t
-bfa_lps_is_brcd_fabric(struct bfa_lps_s *lps)
-{
-	return lps->brcd_switch;
-}
-/*
- * return TRUE if authentication is required
- */
-bfa_boolean_t
-bfa_lps_is_authreq(struct bfa_lps_s *lps)
-{
-	return lps->auth_req;
-}
-
-bfa_eproto_status_t
-bfa_lps_get_extstatus(struct bfa_lps_s *lps)
-{
-	return lps->ext_status;
-}
-
-/*
- * return port id assigned to the lport
- */
-u32
-bfa_lps_get_pid(struct bfa_lps_s *lps)
-{
-	return lps->lp_pid;
-}
 
 /*
  * return port id assigned to the base lport
@@ -1943,60 +1844,6 @@ bfa_lps_get_base_pid(struct bfa_s *bfa)
 	struct bfa_lps_mod_s	*mod = BFA_LPS_MOD(bfa);
 
 	return BFA_LPS_FROM_TAG(mod, 0)->lp_pid;
-}
-
-/*
- * Return bb_credit assigned in FLOGI response
- */
-u16
-bfa_lps_get_peer_bbcredit(struct bfa_lps_s *lps)
-{
-	return lps->pr_bbcred;
-}
-
-/*
- * Return peer port name
- */
-wwn_t
-bfa_lps_get_peer_pwwn(struct bfa_lps_s *lps)
-{
-	return lps->pr_pwwn;
-}
-
-/*
- * Return peer node name
- */
-wwn_t
-bfa_lps_get_peer_nwwn(struct bfa_lps_s *lps)
-{
-	return lps->pr_nwwn;
-}
-
-/*
- * return reason code if login request is rejected
- */
-u8
-bfa_lps_get_lsrjt_rsn(struct bfa_lps_s *lps)
-{
-	return lps->lsrjt_rsn;
-}
-
-/*
- * return explanation code if login request is rejected
- */
-u8
-bfa_lps_get_lsrjt_expl(struct bfa_lps_s *lps)
-{
-	return lps->lsrjt_expl;
-}
-
-/*
- * Return fpma/spma MAC for lport
- */
-mac_t
-bfa_lps_get_lp_mac(struct bfa_lps_s *lps)
-{
-	return lps->lp_mac;
 }
 
 /*
@@ -3064,8 +2911,8 @@ bfa_fcport_send_disable(struct bfa_fcport_s *fcport)
 static void
 bfa_fcport_set_wwns(struct bfa_fcport_s *fcport)
 {
-	fcport->pwwn = bfa_ioc_get_pwwn(&fcport->bfa->ioc);
-	fcport->nwwn = bfa_ioc_get_nwwn(&fcport->bfa->ioc);
+	fcport->pwwn = fcport->bfa->ioc.attr->pwwn;
+	fcport->nwwn = fcport->bfa->ioc.attr->nwwn;
 
 	bfa_trc(fcport->bfa, fcport->pwwn);
 	bfa_trc(fcport->bfa, fcport->nwwn);
@@ -3707,8 +3554,8 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_port_attr_s *attr)
 	attr->nwwn = fcport->nwwn;
 	attr->pwwn = fcport->pwwn;
 
-	attr->factorypwwn =  bfa_ioc_get_mfg_pwwn(&bfa->ioc);
-	attr->factorynwwn =  bfa_ioc_get_mfg_nwwn(&bfa->ioc);
+	attr->factorypwwn =  bfa->ioc.attr->mfg_pwwn;
+	attr->factorynwwn =  bfa->ioc.attr->mfg_nwwn;
 
 	memcpy(&attr->pport_cfg, &fcport->cfg,
 		sizeof(struct bfa_port_cfg_s));
@@ -3726,7 +3573,7 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_port_attr_s *attr)
 	/* beacon attributes */
 	attr->beacon = fcport->beacon;
 	attr->link_e2e_beacon = fcport->link_e2e_beacon;
-	attr->plog_enabled = bfa_plog_get_setting(fcport->bfa->plog);
+	attr->plog_enabled = (bfa_boolean_t)fcport->bfa->plog->plog_enabled;
 	attr->io_profile = bfa_fcpim_get_io_profile(fcport->bfa);
 
 	attr->pport_cfg.path_tov  = bfa_fcpim_path_tov_get(bfa);
@@ -4584,18 +4431,12 @@ bfa_rport_create(struct bfa_s *bfa, void *rport_drv)
 
 	rp->bfa = bfa;
 	rp->rport_drv = rport_drv;
-	bfa_rport_clear_stats(rp);
+	memset(&rp->stats, 0, sizeof(rp->stats));
 
 	bfa_assert(bfa_sm_cmp_state(rp, bfa_rport_sm_uninit));
 	bfa_sm_send_event(rp, BFA_RPORT_SM_CREATE);
 
 	return rp;
-}
-
-void
-bfa_rport_delete(struct bfa_rport_s *rport)
-{
-	bfa_sm_send_event(rport, BFA_RPORT_SM_DELETE);
 }
 
 void
@@ -4617,12 +4458,6 @@ bfa_rport_online(struct bfa_rport_s *rport, struct bfa_rport_info_s *rport_info)
 }
 
 void
-bfa_rport_offline(struct bfa_rport_s *rport)
-{
-	bfa_sm_send_event(rport, BFA_RPORT_SM_OFFLINE);
-}
-
-void
 bfa_rport_speed(struct bfa_rport_s *rport, enum bfa_port_speed speed)
 {
 	bfa_assert(speed != 0);
@@ -4630,12 +4465,6 @@ bfa_rport_speed(struct bfa_rport_s *rport, enum bfa_port_speed speed)
 
 	rport->rport_info.speed = speed;
 	bfa_sm_send_event(rport, BFA_RPORT_SM_SET_SPEED);
-}
-
-void
-bfa_rport_clear_stats(struct bfa_rport_s *rport)
-{
-	memset(&rport->stats, 0, sizeof(rport->stats));
 }
 
 
@@ -5100,8 +4929,6 @@ bfa_uf_start(struct bfa_s *bfa)
 {
 	bfa_uf_post_all(BFA_UF_MOD(bfa));
 }
-
-
 
 /*
  *  hal_uf_api

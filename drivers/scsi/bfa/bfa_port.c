@@ -447,7 +447,7 @@ bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 
 	bfa_ioc_mbox_regisr(port->ioc, BFI_MC_PORT, bfa_port_isr, port);
 	bfa_ioc_hbfail_init(&port->hbfail, bfa_port_hbfail, port);
-	bfa_ioc_hbfail_register(port->ioc, &port->hbfail);
+	list_add_tail(&port->hbfail.qe, &port->ioc->hb_notify_q);
 
 	/*
 	 * initialize time stamp for stats reset

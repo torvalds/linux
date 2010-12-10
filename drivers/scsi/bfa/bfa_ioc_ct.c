@@ -83,7 +83,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	 */
 	if (usecnt == 0) {
 		writel(1, ioc->ioc_regs.ioc_usage_reg);
-		bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+		writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 		bfa_trc(ioc, usecnt);
 		return BFA_TRUE;
 	}
@@ -101,7 +101,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	 */
 	bfa_ioc_fwver_get(ioc, &fwhdr);
 	if (!bfa_ioc_fwver_cmp(ioc, &fwhdr)) {
-		bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+		writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 		bfa_trc(ioc, usecnt);
 		return BFA_FALSE;
 	}
@@ -111,7 +111,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 	 */
 	usecnt++;
 	writel(usecnt, ioc->ioc_regs.ioc_usage_reg);
-	bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+	writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 	bfa_trc(ioc, usecnt);
 	return BFA_TRUE;
 }
@@ -145,7 +145,7 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 	writel(usecnt, ioc->ioc_regs.ioc_usage_reg);
 	bfa_trc(ioc, usecnt);
 
-	bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+	writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 }
 
 /*
@@ -313,7 +313,7 @@ bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc)
 	if (ioc->cna) {
 		bfa_ioc_sem_get(ioc->ioc_regs.ioc_usage_sem_reg);
 		writel(0, ioc->ioc_regs.ioc_usage_reg);
-		bfa_ioc_sem_release(ioc->ioc_regs.ioc_usage_sem_reg);
+		writel(1, ioc->ioc_regs.ioc_usage_sem_reg);
 	}
 
 	/*
@@ -322,7 +322,7 @@ bfa_ioc_ct_ownership_reset(struct bfa_ioc_s *ioc)
 	 * will lock it instead of clearing it.
 	 */
 	readl(ioc->ioc_regs.ioc_sem_reg);
-	bfa_ioc_hw_sem_release(ioc);
+	writel(1, ioc->ioc_regs.ioc_sem_reg);
 }
 
 
