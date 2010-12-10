@@ -136,6 +136,7 @@ struct efx_tx_buffer {
  * @efx: The associated Efx NIC
  * @queue: DMA queue number
  * @channel: The associated channel
+ * @core_txq: The networking core TX queue structure
  * @buffer: The software buffer ring
  * @txd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
@@ -148,8 +149,6 @@ struct efx_tx_buffer {
  *	variable indicates that the queue is empty.  This is to
  *	avoid cache-line ping-pong between the xmit path and the
  *	completion path.
- * @stopped: Stopped count.
- *	Set if this TX queue is currently stopping its port.
  * @insert_count: Current insert pointer
  *	This is the number of buffers that have been added to the
  *	software ring.
@@ -179,6 +178,7 @@ struct efx_tx_queue {
 	struct efx_nic *efx ____cacheline_aligned_in_smp;
 	unsigned queue;
 	struct efx_channel *channel;
+	struct netdev_queue *core_txq;
 	struct efx_tx_buffer *buffer;
 	struct efx_special_buffer txd;
 	unsigned int ptr_mask;
@@ -187,7 +187,6 @@ struct efx_tx_queue {
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
 	unsigned int old_write_count;
-	int stopped;
 
 	/* Members used only on the xmit path */
 	unsigned int insert_count ____cacheline_aligned_in_smp;
@@ -340,8 +339,6 @@ enum efx_rx_alloc_method {
  * @n_rx_overlength: Count of RX_OVERLENGTH errors
  * @n_skbuff_leaks: Count of skbuffs leaked due to RX overrun
  * @rx_queue: RX queue for this channel
- * @tx_stop_count: Core TX queue stop count
- * @tx_stop_lock: Core TX queue stop lock
  * @tx_queue: TX queues for this channel
  */
 struct efx_channel {
@@ -380,10 +377,6 @@ struct efx_channel {
 	bool rx_pkt_csummed;
 
 	struct efx_rx_queue rx_queue;
-
-	atomic_t tx_stop_count;
-	spinlock_t tx_stop_lock;
-
 	struct efx_tx_queue tx_queue[2];
 };
 
