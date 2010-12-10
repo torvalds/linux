@@ -84,6 +84,11 @@ extern void usb_ehci_init(const struct ehci_hcd_omap_platform_data *pdata);
 
 extern void usb_ohci_init(const struct ohci_hcd_omap_platform_data *pdata);
 
+extern int omap4430_phy_power(struct device *dev, int ID, int on);
+extern int omap4430_phy_set_clk(struct device *dev, int on);
+extern int omap4430_phy_init(struct device *dev);
+extern int omap4430_phy_exit(struct device *dev);
+
 #endif
 
 
