@@ -71,6 +71,7 @@ struct grant_map {
 	struct ioctl_gntdev_grant_ref *grants;
 	struct gnttab_map_grant_ref   *map_ops;
 	struct gnttab_unmap_grant_ref *unmap_ops;
+	struct page **pages;
 };
 
 /* ------------------------------------------------------------------ */
@@ -94,6 +95,7 @@ static void gntdev_print_maps(struct gntdev_priv *priv,
 static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 {
 	struct grant_map *add;
+	int i;
 
 	add = kzalloc(sizeof(struct grant_map), GFP_KERNEL);
 	if (NULL == add)
@@ -102,10 +104,18 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 	add->grants    = kzalloc(sizeof(add->grants[0])    * count, GFP_KERNEL);
 	add->map_ops   = kzalloc(sizeof(add->map_ops[0])   * count, GFP_KERNEL);
 	add->unmap_ops = kzalloc(sizeof(add->unmap_ops[0]) * count, GFP_KERNEL);
-	if (NULL == add->grants  ||
-	    NULL == add->map_ops ||
-	    NULL == add->unmap_ops)
+	add->pages     = kzalloc(sizeof(add->pages[0])     * count, GFP_KERNEL);
+	if (NULL == add->grants    ||
+	    NULL == add->map_ops   ||
+	    NULL == add->unmap_ops ||
+	    NULL == add->pages)
 		goto err;
+
+	for (i = 0; i < count; i++) {
+		add->pages[i] = alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
+		if (add->pages[i] == NULL)
+			goto err;
+	}
 
 	add->index = 0;
 	add->count = count;
@@ -117,6 +127,12 @@ static struct grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count)
 	return add;
 
 err:
+	if (add->pages)
+		for (i = 0; i < count; i++) {
+			if (add->pages[i])
+				__free_page(add->pages[i]);
+		}
+	kfree(add->pages);
 	kfree(add->grants);
 	kfree(add->map_ops);
 	kfree(add->unmap_ops);
@@ -191,8 +207,17 @@ static int gntdev_del_map(struct grant_map *map)
 
 static void gntdev_free_map(struct grant_map *map)
 {
+	int i;
+
 	if (!map)
 		return;
+
+	if (map->pages)
+		for (i = 0; i < map->count; i++) {
+			if (map->pages[i])
+				__free_page(map->pages[i]);
+		}
+	kfree(map->pages);
 	kfree(map->grants);
 	kfree(map->map_ops);
 	kfree(map->unmap_ops);
@@ -226,8 +251,7 @@ static int map_grant_pages(struct grant_map *map)
 	int i, err = 0;
 
 	pr_debug("map %d+%d\n", map->index, map->count);
-	err = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref,
-					map->map_ops, map->count);
+	err = gnttab_map_refs(map->map_ops, map->pages, map->count);
 	if (err)
 		return err;
 
@@ -244,8 +268,7 @@ static int unmap_grant_pages(struct grant_map *map, int offset, int pages)
 	int i, err = 0;
 
 	pr_debug("map %d+%d [%d+%d]\n", map->index, map->count, offset, pages);
-	err = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref,
-					map->unmap_ops + offset, pages);
+	err = gnttab_unmap_refs(map->unmap_ops + offset, map->pages, pages);
 	if (err)
 		return err;
 
