@@ -331,7 +331,6 @@ void bfa_hwct_msix_getvecs(struct bfa_s *bfa, u32 *vecmap, u32 *nvecs,
 			   u32 *maxvec);
 void bfa_hwct_msix_get_rme_range(struct bfa_s *bfa, u32 *start,
 				 u32 *end);
-void bfa_com_port_attach(struct bfa_s *bfa, struct bfa_meminfo_s *mi);
 void bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t *wwns);
 wwn_t bfa_iocfc_get_pwwn(struct bfa_s *bfa);
 wwn_t bfa_iocfc_get_nwwn(struct bfa_s *bfa);
