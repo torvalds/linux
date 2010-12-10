@@ -1987,7 +1987,9 @@ static u64 ath9k_get_tsf(struct ieee80211_hw *hw)
 	struct ath_softc *sc = aphy->sc;
 
 	mutex_lock(&sc->mutex);
+	ath9k_ps_wakeup(sc);
 	tsf = ath9k_hw_gettsf64(sc->sc_ah);
+	ath9k_ps_restore(sc);
 	mutex_unlock(&sc->mutex);
 
 	return tsf;
@@ -1999,7 +2001,9 @@ static void ath9k_set_tsf(struct ieee80211_hw *hw, u64 tsf)
 	struct ath_softc *sc = aphy->sc;
 
 	mutex_lock(&sc->mutex);
+	ath9k_ps_wakeup(sc);
 	ath9k_hw_settsf64(sc->sc_ah, tsf);
+	ath9k_ps_restore(sc);
 	mutex_unlock(&sc->mutex);
 }
 
