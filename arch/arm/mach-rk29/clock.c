@@ -320,9 +320,9 @@ static unsigned long arm_pll_clk_recalc(struct clk *clk)
 }
 
 struct arm_pll_set {
-	u32	clk_hz;
-	u32	pll_con;
-	u32	clksel0_con;
+	unsigned long rate;
+	u32 apll_con;
+	u32 clksel0_con;
 };
 
 #define CORE_ACLK_11	(0 << 5)
@@ -343,22 +343,23 @@ struct arm_pll_set {
 #define ACLK_PCLK_81	(3 << 10)
 #define ACLK_PCLK_MASK	(3 << 10)
 
-#define ARM_PLL(_clk_mhz, nr, nf, no, _axi_div, _ahb_div, _apb_div) \
+#define ARM_PLL(_mhz, nr, nf, no, _axi_div, _ahb_div, _apb_div) \
 { \
-	.clk_hz		= _clk_mhz * MHZ, \
-	.pll_con	= PLL_CLKR(nr) | PLL_CLKF(nf >> 1) | PLL_NO_##no, \
+	.rate		= _mhz * MHZ, \
+	.apll_con	= PLL_CLKR(nr) | PLL_CLKF(nf >> 1) | PLL_NO_##no, \
 	.clksel0_con	= CORE_ACLK_##_axi_div | ACLK_HCLK_##_ahb_div | ACLK_PCLK_##_apb_div, \
 }
 
 static const struct arm_pll_set arm_pll[] = {
-	// clk_mhz = 24 * NF / (NR * NO)
-	//      mhz  NR NF NO adiv hdiv pdiv
-//	ARM_PLL(600, 1, 50, 2, 21, 21, 41),
-	ARM_PLL(624, 1, 52, 2, 21, 21, 41),
-//	ARM_PLL(720, 1, 60, 2, 21, 21, 41),
-//	ARM_PLL(1008, 1, 42, 1, 31, 21, 41),
+	// rate = 24 * NF / (NR * NO)
+	//      rate NR  NF NO adiv hdiv pdiv
+	ARM_PLL(1008, 1, 42, 1, 31, 21, 81),
+	ARM_PLL( 960, 1, 40, 1, 31, 21, 81),
+	ARM_PLL( 912, 1, 38, 1, 31, 21, 41),
+	ARM_PLL( 888, 2, 74, 1, 31, 21, 41),
+	ARM_PLL( 624, 1, 52, 2, 21, 21, 41),
 	// last item, pll power down.
-	ARM_PLL( 24, 1, 64, 8, 21, 21, 41),
+	ARM_PLL(  24, 1, 64, 8, 21, 21, 41),
 };
 
 #define CORE_PARENT_MASK	(3 << 23)
@@ -367,7 +368,23 @@ static const struct arm_pll_set arm_pll[] = {
 
 static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	u32 v = arm_pll[0].pll_con;
+	const struct arm_pll_set *ps, *pt;
+	int i;
+
+	/* find the arm_pll we want. */
+	ps = pt = &arm_pll[0];
+	while (1) {
+		if (pt->rate == rate) {
+			ps = pt;
+			break;
+		}
+		// we are sorted, and ps->rate > pt->rate.
+		if ((pt->rate > rate || (rate - pt->rate < ps->rate - rate)))
+			ps = pt;
+		if (pt->rate < rate || pt->rate == 24 * MHZ)
+			break;
+		pt++;
+	}
 
 	/* make aclk safe & reparent to periph pll */
 	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK)) | CORE_PARENT_PERIPH_PLL | CORE_ACLK_21, CRU_CLKSEL0_CON);
@@ -375,27 +392,27 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	/* enter slow mode */
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_SLOW, CRU_MODE_CON);
 
-	pll_wait_lock(ARM_PLL_IDX, 2400000);
-
 	/* power down */
 	cru_writel(cru_readl(CRU_APLL_CON) | PLL_PD, CRU_APLL_CON);
 
 	delay_500ns();
 
-	cru_writel(v | PLL_PD, CRU_APLL_CON);
+	cru_writel(ps->apll_con | PLL_PD, CRU_APLL_CON);
 
 	delay_500ns();
 
 	/* power up */
-	cru_writel(v, CRU_APLL_CON);
+	cru_writel(ps->apll_con, CRU_APLL_CON);
 
+	for (i = 0; i < 600; i++)
+		delay_500ns();
 	pll_wait_lock(ARM_PLL_IDX, 2400000);
 
 	/* enter normal mode */
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_NORMAL, CRU_MODE_CON);
 
 	/* reparent to arm pll & set aclk/hclk/pclk */
-	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK | ACLK_HCLK_MASK | ACLK_PCLK_MASK)) | CORE_PARENT_ARM_PLL | arm_pll[0].clksel0_con, CRU_CLKSEL0_CON);
+	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK | ACLK_HCLK_MASK | ACLK_PCLK_MASK)) | CORE_PARENT_ARM_PLL | ps->clksel0_con, CRU_CLKSEL0_CON);
 
 	return 0;
 }
@@ -477,13 +494,12 @@ static unsigned long periph_pll_clk_recalc(struct clk *clk)
 
 static int periph_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 {
+	int i;
 	/* 624M: high-band, NR=1, NF=26, NO=1 */
 	u32 v = PLL_HIGH_BAND | PLL_CLKR(1) | PLL_CLKF(26) | PLL_NO_1;
 
 	/* enter slow mode */
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_PERIPH_MODE_MASK) | CRU_PERIPH_MODE_SLOW, CRU_MODE_CON);
-
-	pll_wait_lock(PERIPH_PLL_IDX, 2400000);
 
 	/* power down */
 	cru_writel(cru_readl(CRU_PPLL_CON) | PLL_PD, CRU_PPLL_CON);
@@ -497,6 +513,8 @@ static int periph_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	/* power up */
 	cru_writel(v, CRU_PPLL_CON);
 
+	for (i = 0; i < 600; i++)
+		delay_500ns();
 	pll_wait_lock(PERIPH_PLL_IDX, 2400000);
 
 	/* enter normal mode */
@@ -512,6 +530,7 @@ static struct clk periph_pll_clk = {
 	.set_rate	= periph_pll_clk_set_rate,
 };
 
+static struct clk *clk_core_parents[4] = { &arm_pll_clk, &periph_pll_clk, &codec_pll_clk, &ddr_pll_clk };
 
 static struct clk clk_core = {
 	.name		= "core",
@@ -520,6 +539,9 @@ static struct clk clk_core = {
 	.clksel_con	= CRU_CLKSEL0_CON,
 	.clksel_mask	= 0x1F,
 	.clksel_shift	= 0,
+	.clksel_parent_mask	= 3,
+	.clksel_parent_shift	= 23,
+	.parents	= clk_core_parents,
 };
 
 static unsigned long aclk_cpu_recalc(struct clk *clk)
@@ -564,16 +586,20 @@ static struct clk pclk_cpu = {
 	.clksel_maxdiv	= 8,
 };
 
+static struct clk *aclk_periph_parents[4] = { &periph_pll_clk, &arm_pll_clk, &ddr_pll_clk, &codec_pll_clk };
+
 static struct clk aclk_periph = {
 	.name		= "aclk_periph",
 	.mode		= gate_mode,
 	.gate_idx	= CLK_GATE_PEIRPH_AXI,
-	.parent		= &periph_pll_clk,
 	.recalc		= clksel_recalc_div,
 	.set_rate	= clksel_set_rate_div,
 	.clksel_con	= CRU_CLKSEL0_CON,
 	.clksel_mask	= 0x1F,
 	.clksel_shift	= 14,
+	.clksel_parent_mask	= 3,
+	.clksel_parent_shift	= 12,
+	.parents	= aclk_periph_parents,
 };
 
 static struct clk pclk_periph = {
@@ -2068,30 +2094,30 @@ static void rk29_clock_common_init(void)
 {
 	/* periph pll */
 	clk_set_rate_nolock(&periph_pll_clk, 624 * MHZ);
-	clk_set_parent_nolock(&aclk_periph, &periph_pll_clk);	// default
-	clk_set_rate_nolock(&aclk_periph, 312 * MHZ);	// default
-	clk_set_rate_nolock(&hclk_periph, 156 * MHZ);	// default
-	clk_set_rate_nolock(&pclk_periph, 78 * MHZ);	// default
-	clk_set_parent_nolock(&clk_uhost, &periph_pll_clk);	// default
+	clk_set_parent_nolock(&aclk_periph, &periph_pll_clk);
+	clk_set_rate_nolock(&aclk_periph, 312 * MHZ);
+	clk_set_rate_nolock(&hclk_periph, 156 * MHZ);
+	clk_set_rate_nolock(&pclk_periph, 78 * MHZ);
+	clk_set_parent_nolock(&clk_uhost, &periph_pll_clk);
 	clk_set_rate_nolock(&clk_uhost, 48 * MHZ);
-	clk_set_parent_nolock(&clk_i2s0_div, &periph_pll_clk);	// default
-	clk_set_parent_nolock(&clk_i2s1_div, &periph_pll_clk);	// default
-	clk_set_parent_nolock(&clk_spdif_div, &periph_pll_clk);	// default
-	clk_set_parent_nolock(&clk_spi_src, &periph_pll_clk);	// default
+	clk_set_parent_nolock(&clk_i2s0_div, &periph_pll_clk);
+	clk_set_parent_nolock(&clk_i2s1_div, &periph_pll_clk);
+	clk_set_parent_nolock(&clk_spdif_div, &periph_pll_clk);
+	clk_set_parent_nolock(&clk_spi_src, &periph_pll_clk);
 	clk_set_parent_nolock(&clk_sdmmc_src, &periph_pll_clk);
-	clk_set_parent_nolock(&clk_uart01_src, &periph_pll_clk);	// default
-	clk_set_parent_nolock(&clk_uart23_src, &periph_pll_clk);	// default
+	clk_set_parent_nolock(&clk_uart01_src, &periph_pll_clk);
+	clk_set_parent_nolock(&clk_uart23_src, &periph_pll_clk);
 	clk_set_parent_nolock(&dclk_lcdc_div, &periph_pll_clk);
 	clk_set_parent_nolock(&aclk_lcdc, &periph_pll_clk);
-	clk_set_parent_nolock(&aclk_vepu, &periph_pll_clk);	// default
-	clk_set_parent_nolock(&aclk_vdpu, &periph_pll_clk);	// default
-	clk_set_parent_nolock(&clk_gpu, &periph_pll_clk);	// default
-	clk_set_parent_nolock(&aclk_gpu, &periph_pll_clk);	// default
+	clk_set_parent_nolock(&aclk_vepu, &periph_pll_clk);
+	clk_set_parent_nolock(&aclk_vdpu, &periph_pll_clk);
+	clk_set_parent_nolock(&clk_gpu, &periph_pll_clk);
+	clk_set_parent_nolock(&aclk_gpu, &periph_pll_clk);
 	clk_set_parent_nolock(&clk_mac_ref_div, &periph_pll_clk);
 	clk_set_parent_nolock(&clk_hsadc_div, &periph_pll_clk);
 
 	/* arm pll */
-	clk_set_rate_nolock(&arm_pll_clk, 600 * MHZ);
+	clk_set_rate_nolock(&arm_pll_clk, 624 * MHZ);
 }
 
 void __init rk29_clock_init(void)
