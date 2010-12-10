@@ -2545,10 +2545,8 @@ static int sep_free_dma_tables_and_dcb(struct sep_device *sep, bool isapplet,
 /**
  *	sep_get_static_pool_addr_handler - get static pool address
  *	@sep: pointer to struct sep_device
- *	@arg: parameters from user space application
  *
  *	This function sets the bus and virtual addresses of the static pool
- *	and returns the virtual address
  */
 static int sep_get_static_pool_addr_handler(struct sep_device *sep)
 {
@@ -3036,7 +3034,7 @@ static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			error = -EPERM; /* Not permitted on new chip */
 		break;
 	case SEP_IOCGETSTATICPOOLADDR:
-		/* Get the physical and virtual addresses of the static pool */
+		/* Inform the SEP the bus address of the static pool */
 		error = sep_get_static_pool_addr_handler(sep);
 		break;
 	case SEP_IOCENDTRANSACTION:
