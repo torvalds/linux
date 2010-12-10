@@ -351,6 +351,47 @@ void android_register_function(struct android_usb_function *f)
 		bind_functions(dev);
 }
 
+void update_dev_desc(struct android_dev *dev)
+{
+	struct usb_function *f;
+	struct usb_function *last_enabled_f = NULL;
+	int num_enabled = 0;
+	int has_iad = 0;
+
+	dev->cdev->desc.bDeviceClass = USB_CLASS_PER_INTERFACE;
+	dev->cdev->desc.bDeviceSubClass = 0x00;
+	dev->cdev->desc.bDeviceProtocol = 0x00;
+
+	list_for_each_entry(f, &android_config_driver.functions, list) {
+		if (!f->disabled) {
+			num_enabled++;
+			last_enabled_f = f;
+			if (f->descriptors[0]->bDescriptorType ==
+					USB_DT_INTERFACE_ASSOCIATION)
+				has_iad = 1;
+		}
+		if (num_enabled > 1 && has_iad) {
+			dev->cdev->desc.bDeviceClass = USB_CLASS_MISC;
+			dev->cdev->desc.bDeviceSubClass = 0x02;
+			dev->cdev->desc.bDeviceProtocol = 0x01;
+			break;
+		}
+	}
+
+	if (num_enabled == 1) {
+#ifdef CONFIG_USB_ANDROID_RNDIS
+		if (!strcmp(last_enabled_f->name, "rndis")) {
+#ifdef CONFIG_USB_ANDROID_RNDIS_WCEIS
+			dev->cdev->desc.bDeviceClass =
+					USB_CLASS_WIRELESS_CONTROLLER;
+#else
+			dev->cdev->desc.bDeviceClass = USB_CLASS_COMM;
+#endif
+		}
+#endif
+	}
+}
+
 void android_enable_function(struct usb_function *f, int enable)
 {
 	struct android_dev *dev = _android_dev;
@@ -363,19 +404,6 @@ void android_enable_function(struct usb_function *f, int enable)
 #ifdef CONFIG_USB_ANDROID_RNDIS
 		if (!strcmp(f->name, "rndis")) {
 			struct usb_function		*func;
-
-			/* We need to specify the COMM class in the device descriptor
-			 * if we are using RNDIS.
-			 */
-			if (enable)
-#ifdef CONFIG_USB_ANDROID_RNDIS_WCEIS
-				dev->cdev->desc.bDeviceClass = USB_CLASS_WIRELESS_CONTROLLER;
-#else
-				dev->cdev->desc.bDeviceClass = USB_CLASS_COMM;
-#endif
-			else
-				dev->cdev->desc.bDeviceClass = USB_CLASS_PER_INTERFACE;
-
 			/* Windows does not support other interfaces when RNDIS is enabled,
 			 * so we disable UMS and MTP when RNDIS is on.
 			 */
@@ -387,6 +415,8 @@ void android_enable_function(struct usb_function *f, int enable)
 			}
 		}
 #endif
+
+		update_dev_desc(dev);
 
 		product_id = get_product_id(dev);
 		device_desc.idProduct = __constant_cpu_to_le16(product_id);
