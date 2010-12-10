@@ -509,9 +509,10 @@ void ieee80211_softmac_scan_wq(struct work_struct *work)
 		if (watchdog++ > MAX_CHANNEL_NUMBER)
 		{
 		//if current channel is not in channel map, set to default channel.
-			if (!channel_map[ieee->current_network.channel]);
+			if (!channel_map[ieee->current_network.channel]) {
 				ieee->current_network.channel = 6;
 				goto out; /* no good chans */
+			}
 		}
 	}while(!channel_map[ieee->current_network.channel]);
 	if (ieee->scanning == 0 )
