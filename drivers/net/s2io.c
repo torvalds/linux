@@ -91,11 +91,11 @@
 #define DRV_VERSION "2.0.26.27"
 
 /* S2io Driver name & version. */
-static char s2io_driver_name[] = "Neterion";
-static char s2io_driver_version[] = DRV_VERSION;
+static const char s2io_driver_name[] = "Neterion";
+static const char s2io_driver_version[] = DRV_VERSION;
 
-static int rxd_size[2] = {32, 48};
-static int rxd_count[2] = {127, 85};
+static const int rxd_size[2] = {32, 48};
+static const int rxd_count[2] = {127, 85};
 
 static inline int RXD_IS_UP2DT(struct RxD_t *rxdp)
 {
