@@ -365,7 +365,7 @@ static int v9fs_xattr_set_acl(struct dentry *dentry, const char *name,
 	case ACL_TYPE_DEFAULT:
 		name = POSIX_ACL_XATTR_DEFAULT;
 		if (!S_ISDIR(inode->i_mode)) {
-			retval = -EINVAL;
+			retval = acl ? -EINVAL : 0;
 			goto err_out;
 		}
 		break;
