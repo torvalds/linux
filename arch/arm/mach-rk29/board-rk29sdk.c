@@ -52,7 +52,11 @@
 
 
 /* Set memory size of pmem */
+#ifdef CONFIG_MACH_RK29SDK_MEM_SIZE_M
+#define SDRAM_SIZE          (CONFIG_MACH_RK29SDK_MEM_SIZE_M * SZ_1M)
+#else
 #define SDRAM_SIZE          SZ_512M
+#endif
 #define PMEM_GPU_SIZE       SZ_48M
 #define PMEM_UI_SIZE        SZ_32M
 #define PMEM_VPU_SIZE       SZ_32M
