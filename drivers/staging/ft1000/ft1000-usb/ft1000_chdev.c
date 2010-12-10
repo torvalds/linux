@@ -173,7 +173,7 @@ int ft1000_create_dev(struct ft1000_device *dev)
 		goto debug_dir_fail;
 	}
 
-	file = debugfs_create_file("device", S_IRUGO | S_IWUGO, dir,
+	file = debugfs_create_file("device", S_IRUGO | S_IWUSR, dir,
 					NULL, &ft1000fops);
 	if (IS_ERR(file)) {
 		result = PTR_ERR(file);
