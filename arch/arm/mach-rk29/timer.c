@@ -34,6 +34,30 @@
 #define TIMER_ENABLE			3
 #define TIMER_ENABLE_FREE_RUNNING	1
 
+#if 1	/* by default, use periph sync timer */
+
+#define RK_TIMER_ENABLE(n)		writel(TIMER_ENABLE, RK29_TIMER2_BASE + 0x4000 * (n - 2) + TIMER_CONTROL_REG)
+#define RK_TIMER_ENABLE_FREE_RUNNING(n)	writel(TIMER_ENABLE_FREE_RUNNING, RK29_TIMER2_BASE + 0x4000 * (n - 2) + TIMER_CONTROL_REG)
+#define RK_TIMER_DISABLE(n)		writel(TIMER_DISABLE, RK29_TIMER2_BASE + 0x4000 * (n - 2) + TIMER_CONTROL_REG)
+
+#define RK_TIMER_SETCOUNT(n, count)	writel(count, RK29_TIMER2_BASE + 0x4000 * (n - 2) + TIMER_LOAD_COUNT)
+#define RK_TIMER_GETCOUNT(n)		readl(RK29_TIMER2_BASE + 0x4000 * (n - 2) + TIMER_LOAD_COUNT)
+
+#define RK_TIMER_READVALUE(n)		readl(RK29_TIMER2_BASE + 0x4000 * (n - 2) + TIMER_CUR_VALUE)
+#define RK_TIMER_INT_CLEAR(n)		readl(RK29_TIMER2_BASE + 0x4000 * (n - 2) + TIMER_EOI)
+
+#define RK_TIMER_INT_STATUS(n)		readl(RK29_TIMER2_BASE + 0x4000 * (n - 2) + TIMER_INT_STATUS)
+
+#define TIMER_CLKEVT			2	/* timer2 */
+#define IRQ_NR_TIMER_CLKEVT		IRQ_TIMER2
+#define TIMER_CLKEVT_NAME		"timer2"
+
+#define TIMER_CLKSRC			3	/* timer3 */
+#define IRQ_NR_TIMER_CLKSRC		IRQ_TIMER3
+#define TIMER_CLKSRC_NAME		"timer3"
+
+#else
+
 #define RK_TIMER_ENABLE(n)		writel(TIMER_ENABLE, RK29_TIMER0_BASE + 0x2000 * n + TIMER_CONTROL_REG)
 #define RK_TIMER_ENABLE_FREE_RUNNING(n)	writel(TIMER_ENABLE_FREE_RUNNING, RK29_TIMER0_BASE + 0x2000 * n + TIMER_CONTROL_REG)
 #define RK_TIMER_DISABLE(n)		writel(TIMER_DISABLE, RK29_TIMER0_BASE + 0x2000 * n + TIMER_CONTROL_REG)
@@ -53,6 +77,8 @@
 #define TIMER_CLKSRC			1	/* timer1 */
 #define IRQ_NR_TIMER_CLKSRC		IRQ_TIMER1
 #define TIMER_CLKSRC_NAME		"timer1"
+
+#endif
 
 static int rk29_timer_set_next_event(unsigned long cycles, struct clock_event_device *evt)
 {
