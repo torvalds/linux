@@ -859,7 +859,7 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	struct lru_cache *resync_lru = NULL;
 	union drbd_state ns, os;
 	unsigned int max_bio_size;
-	int rv;
+	enum drbd_state_rv rv;
 	int cp_discovered = 0;
 	int logical_block_size;
 
@@ -1005,9 +1005,10 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	/* and for any other previously queued work */
 	drbd_flush_workqueue(mdev);
 
-	retcode = _drbd_request_state(mdev, NS(disk, D_ATTACHING), CS_VERBOSE);
+	rv = _drbd_request_state(mdev, NS(disk, D_ATTACHING), CS_VERBOSE);
+	retcode = rv;  /* FIXME: Type mismatch. */
 	drbd_resume_io(mdev);
-	if (retcode < SS_SUCCESS)
+	if (rv < SS_SUCCESS)
 		goto fail;
 
 	if (!get_ldev_if_state(mdev, D_ATTACHING))
