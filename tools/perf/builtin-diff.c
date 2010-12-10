@@ -142,8 +142,8 @@ static int __cmd_diff(void)
 	int ret, i;
 	struct perf_session *session[2];
 
-	session[0] = perf_session__new(input_old, O_RDONLY, force, false);
-	session[1] = perf_session__new(input_new, O_RDONLY, force, false);
+	session[0] = perf_session__new(input_old, O_RDONLY, force, false, &event_ops);
+	session[1] = perf_session__new(input_new, O_RDONLY, force, false, &event_ops);
 	if (session[0] == NULL || session[1] == NULL)
 		return -ENOMEM;
 

@@ -125,7 +125,9 @@ static void perf_session__destroy_kernel_maps(struct perf_session *self)
 	machines__destroy_guest_kernel_maps(&self->machines);
 }
 
-struct perf_session *perf_session__new(const char *filename, int mode, bool force, bool repipe)
+struct perf_session *perf_session__new(const char *filename, int mode,
+				       bool force, bool repipe,
+				       struct perf_event_ops *ops)
 {
 	size_t len = filename ? strlen(filename) + 1 : 0;
 	struct perf_session *self = zalloc(sizeof(*self) + len);
@@ -170,6 +172,13 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	}
 
 	perf_session__update_sample_type(self);
+
+	if (ops && ops->ordering_requires_timestamps &&
+	    ops->ordered_samples && !self->sample_id_all) {
+		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
+		ops->ordered_samples = false;
+	}
+
 out:
 	return self;
 out_free:

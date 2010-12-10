@@ -196,7 +196,7 @@ static int __cmd_inject(void)
 		inject_ops.tracing_data	= event__repipe_tracing_data;
 	}
 
-	session = perf_session__new(input_name, O_RDONLY, false, true);
+	session = perf_session__new(input_name, O_RDONLY, false, true, &inject_ops);
 	if (session == NULL)
 		return -ENOMEM;
 
