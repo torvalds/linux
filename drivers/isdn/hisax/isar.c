@@ -212,9 +212,9 @@ isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 	cs->debug &= ~(L1_DEB_HSCX | L1_DEB_HSCX_FIFO);
 #endif
 	
-	if ((ret = copy_from_user(&size, p, sizeof(int)))) {
+	if (copy_from_user(&size, p, sizeof(int))) {
 		printk(KERN_ERR"isar_load_firmware copy_from_user ret %d\n", ret);
-		return ret;
+		return -EFAULT;
 	}
 	p += sizeof(int);
 	printk(KERN_DEBUG"isar_load_firmware size: %d\n", size);
