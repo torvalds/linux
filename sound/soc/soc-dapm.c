@@ -982,7 +982,7 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 			sys_power = 1;
 			break;
 		case SND_SOC_DAPM_STREAM_STOP:
-			sys_power = !!codec->active;
+			sys_power = !!dapm->codec->active;
 			break;
 		case SND_SOC_DAPM_STREAM_SUSPEND:
 			sys_power = 0;
