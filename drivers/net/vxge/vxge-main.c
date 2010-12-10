@@ -84,15 +84,6 @@ module_param_array(bw_percentage, uint, NULL, 0);
 
 static struct vxge_drv_config *driver_config;
 
-static enum vxge_hw_status vxge_add_mac_addr(struct vxgedev *vdev,
-					     struct macInfo *mac);
-static enum vxge_hw_status vxge_del_mac_addr(struct vxgedev *vdev,
-					     struct macInfo *mac);
-static int vxge_mac_list_add(struct vxge_vpath *vpath, struct macInfo *mac);
-static int vxge_mac_list_del(struct vxge_vpath *vpath, struct macInfo *mac);
-static enum vxge_hw_status vxge_restore_vpath_vid_table(struct vxge_vpath *vpath);
-static enum vxge_hw_status vxge_restore_vpath_mac_addr(struct vxge_vpath *vpath);
-
 static inline int is_vxge_card_up(struct vxgedev *vdev)
 {
 	return test_bit(__VXGE_STATE_CARD_UP, &vdev->state);
@@ -149,8 +140,7 @@ static inline void VXGE_COMPLETE_ALL_RX(struct vxgedev *vdev)
  * This function is called during interrupt context to notify link up state
  * change.
  */
-static void
-vxge_callback_link_up(struct __vxge_hw_device *hldev)
+static void vxge_callback_link_up(struct __vxge_hw_device *hldev)
 {
 	struct net_device *dev = hldev->ndev;
 	struct vxgedev *vdev = netdev_priv(dev);
@@ -173,8 +163,7 @@ vxge_callback_link_up(struct __vxge_hw_device *hldev)
  * This function is called during interrupt context to notify link down state
  * change.
  */
-static void
-vxge_callback_link_down(struct __vxge_hw_device *hldev)
+static void vxge_callback_link_down(struct __vxge_hw_device *hldev)
 {
 	struct net_device *dev = hldev->ndev;
 	struct vxgedev *vdev = netdev_priv(dev);
@@ -196,7 +185,7 @@ vxge_callback_link_down(struct __vxge_hw_device *hldev)
  *
  * Allocate SKB.
  */
-static struct sk_buff*
+static struct sk_buff *
 vxge_rx_alloc(void *dtrh, struct vxge_ring *ring, const int skb_size)
 {
 	struct net_device    *dev;
@@ -414,7 +403,6 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 
 		prefetch((char *)skb + L1_CACHE_BYTES);
 		if (unlikely(t_code)) {
-
 			if (vxge_hw_ring_handle_tcode(ringh, dtr, t_code) !=
 				VXGE_HW_OK) {
 
@@ -437,9 +425,7 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 		}
 
 		if (pkt_length > VXGE_LL_RX_COPY_THRESHOLD) {
-
 			if (vxge_rx_alloc(dtr, ring, data_size) != NULL) {
-
 				if (!vxge_rx_map(dtr, ring)) {
 					skb_put(skb, pkt_length);
 
@@ -676,6 +662,65 @@ static enum vxge_hw_status vxge_search_mac_addr_in_list(
 			return TRUE;
 	}
 	return FALSE;
+}
+
+static int vxge_mac_list_add(struct vxge_vpath *vpath, struct macInfo *mac)
+{
+	struct vxge_mac_addrs *new_mac_entry;
+	u8 *mac_address = NULL;
+
+	if (vpath->mac_addr_cnt >= VXGE_MAX_LEARN_MAC_ADDR_CNT)
+		return TRUE;
+
+	new_mac_entry = kzalloc(sizeof(struct vxge_mac_addrs), GFP_ATOMIC);
+	if (!new_mac_entry) {
+		vxge_debug_mem(VXGE_ERR,
+			"%s: memory allocation failed",
+			VXGE_DRIVER_NAME);
+		return FALSE;
+	}
+
+	list_add(&new_mac_entry->item, &vpath->mac_addr_list);
+
+	/* Copy the new mac address to the list */
+	mac_address = (u8 *)&new_mac_entry->macaddr;
+	memcpy(mac_address, mac->macaddr, ETH_ALEN);
+
+	new_mac_entry->state = mac->state;
+	vpath->mac_addr_cnt++;
+
+	/* Is this a multicast address */
+	if (0x01 & mac->macaddr[0])
+		vpath->mcast_addr_cnt++;
+
+	return TRUE;
+}
+
+/* Add a mac address to DA table */
+static enum vxge_hw_status
+vxge_add_mac_addr(struct vxgedev *vdev, struct macInfo *mac)
+{
+	enum vxge_hw_status status = VXGE_HW_OK;
+	struct vxge_vpath *vpath;
+	enum vxge_hw_vpath_mac_addr_add_mode duplicate_mode;
+
+	if (0x01 & mac->macaddr[0]) /* multicast address */
+		duplicate_mode = VXGE_HW_VPATH_MAC_ADDR_ADD_DUPLICATE;
+	else
+		duplicate_mode = VXGE_HW_VPATH_MAC_ADDR_REPLACE_DUPLICATE;
+
+	vpath = &vdev->vpaths[mac->vpath_no];
+	status = vxge_hw_vpath_mac_addr_add(vpath->handle, mac->macaddr,
+						mac->macmask, duplicate_mode);
+	if (status != VXGE_HW_OK) {
+		vxge_debug_init(VXGE_ERR,
+			"DA config add entry failed for vpath:%d",
+			vpath->device_id);
+	} else
+		if (FALSE == vxge_mac_list_add(vpath, mac))
+			status = -EPERM;
+
+	return status;
 }
 
 static int vxge_learn_mac(struct vxgedev *vdev, u8 *mac_header)
@@ -1023,6 +1068,50 @@ vxge_tx_term(void *dtrh, enum vxge_hw_txdl_state state, void *userdata)
 		"%s:%d  Exiting...", __func__, __LINE__);
 }
 
+static int vxge_mac_list_del(struct vxge_vpath *vpath, struct macInfo *mac)
+{
+	struct list_head *entry, *next;
+	u64 del_mac = 0;
+	u8 *mac_address = (u8 *) (&del_mac);
+
+	/* Copy the mac address to delete from the list */
+	memcpy(mac_address, mac->macaddr, ETH_ALEN);
+
+	list_for_each_safe(entry, next, &vpath->mac_addr_list) {
+		if (((struct vxge_mac_addrs *)entry)->macaddr == del_mac) {
+			list_del(entry);
+			kfree((struct vxge_mac_addrs *)entry);
+			vpath->mac_addr_cnt--;
+
+			/* Is this a multicast address */
+			if (0x01 & mac->macaddr[0])
+				vpath->mcast_addr_cnt--;
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
+/* delete a mac address from DA table */
+static enum vxge_hw_status
+vxge_del_mac_addr(struct vxgedev *vdev, struct macInfo *mac)
+{
+	enum vxge_hw_status status = VXGE_HW_OK;
+	struct vxge_vpath *vpath;
+
+	vpath = &vdev->vpaths[mac->vpath_no];
+	status = vxge_hw_vpath_mac_addr_delete(vpath->handle, mac->macaddr,
+						mac->macmask);
+	if (status != VXGE_HW_OK) {
+		vxge_debug_init(VXGE_ERR,
+			"DA config delete entry failed for vpath:%d",
+			vpath->device_id);
+	} else
+		vxge_mac_list_del(vpath, mac);
+	return status;
+}
+
 /**
  * vxge_set_multicast
  * @dev: pointer to the device structure
@@ -1331,6 +1420,95 @@ static void vxge_vpath_intr_disable(struct vxgedev *vdev, int vp_id)
 			VXGE_HW_VPATH_MSIX_ACTIVE) + VXGE_ALARM_MSIX_ID;
 		vxge_hw_vpath_msix_mask(vpath->handle, msix_id);
 	}
+}
+
+/* list all mac addresses from DA table */
+static enum vxge_hw_status
+vxge_search_mac_addr_in_da_table(struct vxge_vpath *vpath, struct macInfo *mac)
+{
+	enum vxge_hw_status status = VXGE_HW_OK;
+	unsigned char macmask[ETH_ALEN];
+	unsigned char macaddr[ETH_ALEN];
+
+	status = vxge_hw_vpath_mac_addr_get(vpath->handle,
+				macaddr, macmask);
+	if (status != VXGE_HW_OK) {
+		vxge_debug_init(VXGE_ERR,
+			"DA config list entry failed for vpath:%d",
+			vpath->device_id);
+		return status;
+	}
+
+	while (memcmp(mac->macaddr, macaddr, ETH_ALEN)) {
+		status = vxge_hw_vpath_mac_addr_get_next(vpath->handle,
+				macaddr, macmask);
+		if (status != VXGE_HW_OK)
+			break;
+	}
+
+	return status;
+}
+
+/* Store all mac addresses from the list to the DA table */
+static enum vxge_hw_status vxge_restore_vpath_mac_addr(struct vxge_vpath *vpath)
+{
+	enum vxge_hw_status status = VXGE_HW_OK;
+	struct macInfo mac_info;
+	u8 *mac_address = NULL;
+	struct list_head *entry, *next;
+
+	memset(&mac_info, 0, sizeof(struct macInfo));
+
+	if (vpath->is_open) {
+		list_for_each_safe(entry, next, &vpath->mac_addr_list) {
+			mac_address =
+				(u8 *)&
+				((struct vxge_mac_addrs *)entry)->macaddr;
+			memcpy(mac_info.macaddr, mac_address, ETH_ALEN);
+			((struct vxge_mac_addrs *)entry)->state =
+				VXGE_LL_MAC_ADDR_IN_DA_TABLE;
+			/* does this mac address already exist in da table? */
+			status = vxge_search_mac_addr_in_da_table(vpath,
+				&mac_info);
+			if (status != VXGE_HW_OK) {
+				/* Add this mac address to the DA table */
+				status = vxge_hw_vpath_mac_addr_add(
+					vpath->handle, mac_info.macaddr,
+					mac_info.macmask,
+				    VXGE_HW_VPATH_MAC_ADDR_ADD_DUPLICATE);
+				if (status != VXGE_HW_OK) {
+					vxge_debug_init(VXGE_ERR,
+					    "DA add entry failed for vpath:%d",
+					    vpath->device_id);
+					((struct vxge_mac_addrs *)entry)->state
+						= VXGE_LL_MAC_ADDR_IN_LIST;
+				}
+			}
+		}
+	}
+
+	return status;
+}
+
+/* Store all vlan ids from the list to the vid table */
+static enum vxge_hw_status
+vxge_restore_vpath_vid_table(struct vxge_vpath *vpath)
+{
+	enum vxge_hw_status status = VXGE_HW_OK;
+	struct vxgedev *vdev = vpath->vdev;
+	u16 vid;
+
+	if (vdev->vlgrp && vpath->is_open) {
+
+		for (vid = 0; vid < VLAN_N_VID; vid++) {
+			if (!vlan_group_get_device(vdev->vlgrp, vid))
+				continue;
+			/* Add these vlan to the vid table */
+			status = vxge_hw_vpath_vid_add(vpath->handle, vid);
+		}
+	}
+
+	return status;
 }
 
 /*
@@ -1745,7 +1923,6 @@ static enum vxge_hw_status vxge_rth_configure(struct vxgedev *vdev)
 				vdev->config.rth_algorithm,
 				&hash_types,
 				vdev->config.rth_bkt_sz);
-
 		 if (status != VXGE_HW_OK) {
 			vxge_debug_init(VXGE_ERR,
 				"RTH configuration failed for vpath:%d",
@@ -1753,199 +1930,6 @@ static enum vxge_hw_status vxge_rth_configure(struct vxgedev *vdev)
 			return status;
 		 }
 	 }
-
-	return status;
-}
-
-static int vxge_mac_list_add(struct vxge_vpath *vpath, struct macInfo *mac)
-{
-	struct vxge_mac_addrs *new_mac_entry;
-	u8 *mac_address = NULL;
-
-	if (vpath->mac_addr_cnt >= VXGE_MAX_LEARN_MAC_ADDR_CNT)
-		return TRUE;
-
-	new_mac_entry = kzalloc(sizeof(struct vxge_mac_addrs), GFP_ATOMIC);
-	if (!new_mac_entry) {
-		vxge_debug_mem(VXGE_ERR,
-			"%s: memory allocation failed",
-			VXGE_DRIVER_NAME);
-		return FALSE;
-	}
-
-	list_add(&new_mac_entry->item, &vpath->mac_addr_list);
-
-	/* Copy the new mac address to the list */
-	mac_address = (u8 *)&new_mac_entry->macaddr;
-	memcpy(mac_address, mac->macaddr, ETH_ALEN);
-
-	new_mac_entry->state = mac->state;
-	vpath->mac_addr_cnt++;
-
-	/* Is this a multicast address */
-	if (0x01 & mac->macaddr[0])
-		vpath->mcast_addr_cnt++;
-
-	return TRUE;
-}
-
-/* Add a mac address to DA table */
-static enum vxge_hw_status vxge_add_mac_addr(struct vxgedev *vdev,
-					     struct macInfo *mac)
-{
-	enum vxge_hw_status status = VXGE_HW_OK;
-	struct vxge_vpath *vpath;
-	enum vxge_hw_vpath_mac_addr_add_mode duplicate_mode;
-
-	if (0x01 & mac->macaddr[0]) /* multicast address */
-		duplicate_mode = VXGE_HW_VPATH_MAC_ADDR_ADD_DUPLICATE;
-	else
-		duplicate_mode = VXGE_HW_VPATH_MAC_ADDR_REPLACE_DUPLICATE;
-
-	vpath = &vdev->vpaths[mac->vpath_no];
-	status = vxge_hw_vpath_mac_addr_add(vpath->handle, mac->macaddr,
-						mac->macmask, duplicate_mode);
-	if (status != VXGE_HW_OK) {
-		vxge_debug_init(VXGE_ERR,
-			"DA config add entry failed for vpath:%d",
-			vpath->device_id);
-	} else
-		if (FALSE == vxge_mac_list_add(vpath, mac))
-			status = -EPERM;
-
-	return status;
-}
-
-static int vxge_mac_list_del(struct vxge_vpath *vpath, struct macInfo *mac)
-{
-	struct list_head *entry, *next;
-	u64 del_mac = 0;
-	u8 *mac_address = (u8 *)(&del_mac);
-
-	/* Copy the mac address to delete from the list */
-	memcpy(mac_address, mac->macaddr, ETH_ALEN);
-
-	list_for_each_safe(entry, next, &vpath->mac_addr_list) {
-		if (((struct vxge_mac_addrs *)entry)->macaddr == del_mac) {
-			list_del(entry);
-			kfree((struct vxge_mac_addrs *)entry);
-			vpath->mac_addr_cnt--;
-
-			/* Is this a multicast address */
-			if (0x01 & mac->macaddr[0])
-				vpath->mcast_addr_cnt--;
-			return TRUE;
-		}
-	}
-
-	return FALSE;
-}
-/* delete a mac address from DA table */
-static enum vxge_hw_status vxge_del_mac_addr(struct vxgedev *vdev,
-					     struct macInfo *mac)
-{
-	enum vxge_hw_status status = VXGE_HW_OK;
-	struct vxge_vpath *vpath;
-
-	vpath = &vdev->vpaths[mac->vpath_no];
-	status = vxge_hw_vpath_mac_addr_delete(vpath->handle, mac->macaddr,
-						mac->macmask);
-	if (status != VXGE_HW_OK) {
-		vxge_debug_init(VXGE_ERR,
-			"DA config delete entry failed for vpath:%d",
-			vpath->device_id);
-	} else
-		vxge_mac_list_del(vpath, mac);
-	return status;
-}
-
-/* list all mac addresses from DA table */
-enum vxge_hw_status
-static vxge_search_mac_addr_in_da_table(struct vxge_vpath *vpath,
-					struct macInfo *mac)
-{
-	enum vxge_hw_status status = VXGE_HW_OK;
-	unsigned char macmask[ETH_ALEN];
-	unsigned char macaddr[ETH_ALEN];
-
-	status = vxge_hw_vpath_mac_addr_get(vpath->handle,
-				macaddr, macmask);
-	if (status != VXGE_HW_OK) {
-		vxge_debug_init(VXGE_ERR,
-			"DA config list entry failed for vpath:%d",
-			vpath->device_id);
-		return status;
-	}
-
-	while (memcmp(mac->macaddr, macaddr, ETH_ALEN)) {
-
-		status = vxge_hw_vpath_mac_addr_get_next(vpath->handle,
-				macaddr, macmask);
-		if (status != VXGE_HW_OK)
-			break;
-	}
-
-	return status;
-}
-
-/* Store all vlan ids from the list to the vid table */
-static enum vxge_hw_status vxge_restore_vpath_vid_table(struct vxge_vpath *vpath)
-{
-	enum vxge_hw_status status = VXGE_HW_OK;
-	struct vxgedev *vdev = vpath->vdev;
-	u16 vid;
-
-	if (vdev->vlgrp && vpath->is_open) {
-
-		for (vid = 0; vid < VLAN_N_VID; vid++) {
-			if (!vlan_group_get_device(vdev->vlgrp, vid))
-				continue;
-			/* Add these vlan to the vid table */
-			status = vxge_hw_vpath_vid_add(vpath->handle, vid);
-		}
-	}
-
-	return status;
-}
-
-/* Store all mac addresses from the list to the DA table */
-static enum vxge_hw_status vxge_restore_vpath_mac_addr(struct vxge_vpath *vpath)
-{
-	enum vxge_hw_status status = VXGE_HW_OK;
-	struct macInfo mac_info;
-	u8 *mac_address = NULL;
-	struct list_head *entry, *next;
-
-	memset(&mac_info, 0, sizeof(struct macInfo));
-
-	if (vpath->is_open) {
-
-		list_for_each_safe(entry, next, &vpath->mac_addr_list) {
-			mac_address =
-				(u8 *)&
-				((struct vxge_mac_addrs *)entry)->macaddr;
-			memcpy(mac_info.macaddr, mac_address, ETH_ALEN);
-			((struct vxge_mac_addrs *)entry)->state =
-				VXGE_LL_MAC_ADDR_IN_DA_TABLE;
-			/* does this mac address already exist in da table? */
-			status = vxge_search_mac_addr_in_da_table(vpath,
-				&mac_info);
-			if (status != VXGE_HW_OK) {
-				/* Add this mac address to the DA table */
-				status = vxge_hw_vpath_mac_addr_add(
-					vpath->handle, mac_info.macaddr,
-					mac_info.macmask,
-				    VXGE_HW_VPATH_MAC_ADDR_ADD_DUPLICATE);
-				if (status != VXGE_HW_OK) {
-					vxge_debug_init(VXGE_ERR,
-					    "DA add entry failed for vpath:%d",
-					    vpath->device_id);
-					((struct vxge_mac_addrs *)entry)->state
-						= VXGE_LL_MAC_ADDR_IN_LIST;
-				}
-			}
-		}
-	}
 
 	return status;
 }
@@ -2042,6 +2026,7 @@ static int vxge_open_vpaths(struct vxgedev *vdev)
 
 		vpath->ring.ndev = vdev->ndev;
 		vpath->ring.pdev = vdev->pdev;
+
 		status = vxge_hw_vpath_open(vdev->devh, &attr, &vpath->handle);
 		if (status == VXGE_HW_OK) {
 			vpath->fifo.handle =
@@ -2070,11 +2055,10 @@ static int vxge_open_vpaths(struct vxgedev *vdev)
 			vdev->stats.vpaths_open++;
 		} else {
 			vdev->stats.vpath_open_fail++;
-			vxge_debug_init(VXGE_ERR,
-				"%s: vpath: %d failed to open "
-				"with status: %d",
-			    vdev->ndev->name, vpath->device_id,
-				status);
+			vxge_debug_init(VXGE_ERR, "%s: vpath: %d failed to "
+					"open with status: %d",
+					vdev->ndev->name, vpath->device_id,
+					status);
 			vxge_close_vpaths(vdev, 0);
 			return -EPERM;
 		}
@@ -2082,6 +2066,7 @@ static int vxge_open_vpaths(struct vxgedev *vdev)
 		vp_id = vpath->handle->vpath->vp_id;
 		vdev->vpaths_deployed |= vxge_mBIT(vp_id);
 	}
+
 	return VXGE_HW_OK;
 }
 
@@ -2114,8 +2099,7 @@ static irqreturn_t vxge_isr_napi(int irq, void *dev_id)
 	if (unlikely(!is_vxge_card_up(vdev)))
 		return IRQ_HANDLED;
 
-	status = vxge_hw_device_begin_irq(hldev, vdev->exec_mode,
-			&reason);
+	status = vxge_hw_device_begin_irq(hldev, vdev->exec_mode, &reason);
 	if (status == VXGE_HW_OK) {
 		vxge_hw_device_mask_all(hldev);
 
@@ -2568,8 +2552,7 @@ static void vxge_poll_vp_lockup(unsigned long data)
  * Return value: '0' on success and an appropriate (-)ve integer as
  * defined in errno.h file on failure.
  */
-static int
-vxge_open(struct net_device *dev)
+static int vxge_open(struct net_device *dev)
 {
 	enum vxge_hw_status status;
 	struct vxgedev *vdev;
@@ -2578,6 +2561,7 @@ vxge_open(struct net_device *dev)
 	int ret = 0;
 	int i;
 	u64 val64, function_mode;
+
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s: %s:%d", dev->name, __func__, __LINE__);
 
@@ -2830,7 +2814,6 @@ static int do_vxge_close(struct net_device *dev, int do_io)
 					struct vxge_hw_mrpcim_reg,
 					rts_mgr_cbasin_cfg),
 				&val64);
-
 		if (status == VXGE_HW_OK) {
 			val64 &= ~vpath_vector;
 			status = vxge_hw_mgmt_reg_write(vdev->devh,
@@ -2914,8 +2897,7 @@ static int do_vxge_close(struct net_device *dev, int do_io)
  * Return value: '0' on success and an appropriate (-)ve integer as
  * defined in errno.h file on failure.
  */
-static int
-vxge_close(struct net_device *dev)
+static int vxge_close(struct net_device *dev)
 {
 	do_vxge_close(dev, 1);
 	return 0;
@@ -2989,9 +2971,7 @@ vxge_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 		net_stats->rx_bytes += vdev->vpaths[k].ring.stats.rx_bytes;
 		net_stats->rx_errors += vdev->vpaths[k].ring.stats.rx_errors;
 		net_stats->multicast += vdev->vpaths[k].ring.stats.rx_mcast;
-		net_stats->rx_dropped +=
-			vdev->vpaths[k].ring.stats.rx_dropped;
-
+		net_stats->rx_dropped += vdev->vpaths[k].ring.stats.rx_dropped;
 		net_stats->tx_packets += vdev->vpaths[k].fifo.stats.tx_frms;
 		net_stats->tx_bytes += vdev->vpaths[k].fifo.stats.tx_bytes;
 		net_stats->tx_errors += vdev->vpaths[k].fifo.stats.tx_errors;
@@ -3264,15 +3244,12 @@ static const struct net_device_ops vxge_netdev_ops = {
 	.ndo_start_xmit         = vxge_xmit,
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_multicast_list = vxge_set_multicast,
-
 	.ndo_do_ioctl           = vxge_ioctl,
-
 	.ndo_set_mac_address    = vxge_set_mac_addr,
 	.ndo_change_mtu         = vxge_change_mtu,
 	.ndo_vlan_rx_register   = vxge_vlan_rx_register,
 	.ndo_vlan_rx_kill_vid   = vxge_vlan_rx_kill_vid,
 	.ndo_vlan_rx_add_vid	= vxge_vlan_rx_add_vid,
-
 	.ndo_tx_timeout         = vxge_tx_watchdog,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller    = vxge_netpoll,
@@ -3698,9 +3675,9 @@ static int __devinit vxge_config_vpaths(
 		device_config->vp_config[i].tti.timer_ac_en =
 				VXGE_HW_TIM_TIMER_AC_ENABLE;
 
-		/* For msi-x with napi (each vector
-		has a handler of its own) -
-		Set CI to OFF for all vpaths */
+		/* For msi-x with napi (each vector has a handler of its own) -
+		 * Set CI to OFF for all vpaths
+		 */
 		device_config->vp_config[i].tti.timer_ci_en =
 			VXGE_HW_TIM_TIMER_CI_DISABLE;
 
@@ -3730,10 +3707,13 @@ static int __devinit vxge_config_vpaths(
 
 		device_config->vp_config[i].ring.ring_blocks  =
 						VXGE_HW_DEF_RING_BLOCKS;
+
 		device_config->vp_config[i].ring.buffer_mode =
 			VXGE_HW_RING_RXD_BUFFER_MODE_1;
+
 		device_config->vp_config[i].ring.rxds_limit  =
 				VXGE_HW_DEF_RING_RXDS_LIMIT;
+
 		device_config->vp_config[i].ring.scatter_mode =
 					VXGE_HW_RING_SCATTER_MODE_A;
 
@@ -3813,6 +3793,7 @@ static void __devinit vxge_device_config_init(
 		device_config->intr_mode = VXGE_HW_INTR_MODE_MSIX;
 		break;
 	}
+
 	/* Timer period between device poll */
 	device_config->device_poll_millis = VXGE_TIMER_DELAY;
 
@@ -3824,16 +3805,10 @@ static void __devinit vxge_device_config_init(
 
 	vxge_debug_ll_config(VXGE_TRACE, "%s : Device Config Params ",
 			__func__);
-	vxge_debug_ll_config(VXGE_TRACE, "dma_blockpool_initial : %d",
-			device_config->dma_blockpool_initial);
-	vxge_debug_ll_config(VXGE_TRACE, "dma_blockpool_max : %d",
-			device_config->dma_blockpool_max);
 	vxge_debug_ll_config(VXGE_TRACE, "intr_mode : %d",
 			device_config->intr_mode);
 	vxge_debug_ll_config(VXGE_TRACE, "device_poll_millis : %d",
 			device_config->device_poll_millis);
-	vxge_debug_ll_config(VXGE_TRACE, "rts_mac_en : %d",
-			device_config->rts_mac_en);
 	vxge_debug_ll_config(VXGE_TRACE, "rth_en : %d",
 			device_config->rth_en);
 	vxge_debug_ll_config(VXGE_TRACE, "rth_it_type : %d",
@@ -4013,7 +3988,7 @@ static pci_ers_result_t vxge_io_slot_reset(struct pci_dev *pdev)
 	}
 
 	pci_set_master(pdev);
-	vxge_reset(vdev);
+	do_vxge_reset(vdev, VXGE_LL_FULL_RESET);
 
 	return PCI_ERS_RESULT_RECOVERED;
 }
@@ -4244,9 +4219,10 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 	attr.pdev = pdev;
 
 	/* In SRIOV-17 mode, functions of the same adapter
-	 * can be deployed on different buses */
-	if ((!pdev->is_virtfn) && ((bus != pdev->bus->number) ||
-		(device != PCI_SLOT(pdev->devfn))))
+	 * can be deployed on different buses
+	 */
+	if (((bus != pdev->bus->number) || (device != PCI_SLOT(pdev->devfn))) &&
+	    !pdev->is_virtfn)
 		new_device = 1;
 
 	bus = pdev->bus->number;
@@ -4264,6 +4240,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		driver_config->config_dev_cnt = 0;
 		driver_config->total_dev_cnt = 0;
 	}
+
 	/* Now making the CPU based no of vpath calculation
 	 * applicable for individual functions as well.
 	 */
@@ -4286,11 +4263,11 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto _exit0;
 	}
 
-	ll_config = kzalloc(sizeof(*ll_config), GFP_KERNEL);
+	ll_config = kzalloc(sizeof(struct vxge_config), GFP_KERNEL);
 	if (!ll_config) {
 		ret = -ENOMEM;
 		vxge_debug_init(VXGE_ERR,
-			"ll_config : malloc failed %s %d",
+			"device_config : malloc failed %s %d",
 			__FILE__, __LINE__);
 		goto _exit0;
 	}
@@ -4746,6 +4723,10 @@ vxge_starter(void)
 		return -ENOMEM;
 
 	ret = pci_register_driver(&vxge_driver);
+	if (ret) {
+		kfree(driver_config);
+		goto err;
+	}
 
 	if (driver_config->config_dev_cnt &&
 	   (driver_config->config_dev_cnt != driver_config->total_dev_cnt))
@@ -4753,10 +4734,7 @@ vxge_starter(void)
 			"%s: Configured %d of %d devices",
 			VXGE_DRIVER_NAME, driver_config->config_dev_cnt,
 			driver_config->total_dev_cnt);
-
-	if (ret)
-		kfree(driver_config);
-
+err:
 	return ret;
 }
 

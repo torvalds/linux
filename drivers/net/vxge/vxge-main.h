@@ -305,8 +305,8 @@ struct vxge_vpath {
 	int is_configured;
 	int is_open;
 	struct vxgedev *vdev;
-	u8 (macaddr)[ETH_ALEN];
-	u8 (macmask)[ETH_ALEN];
+	u8 macaddr[ETH_ALEN];
+	u8 macmask[ETH_ALEN];
 
 #define VXGE_MAX_LEARN_MAC_ADDR_CNT	2048
 	/* mac addresses currently programmed into NIC */
@@ -420,10 +420,8 @@ struct vxge_tx_priv {
 		mod_timer(&timer, (jiffies + exp)); \
 	} while (0);
 
-extern void vxge_initialize_ethtool_ops(struct net_device *ndev);
-
+void vxge_initialize_ethtool_ops(struct net_device *ndev);
 enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
-
 int vxge_fw_upgrade(struct vxgedev *vdev, char *fw_name, int override);
 
 /**
