@@ -2,6 +2,7 @@ config SND_S3C24XX_SOC
 	tristate "SoC Audio for the Samsung S3CXXXX chips"
 	depends on ARCH_S3C2410 || ARCH_S3C64XX || ARCH_S5PC100 || ARCH_S5PV210
 	select S3C64XX_DMA if ARCH_S3C64XX
+	select S3C2410_DMA if ARCH_S3C2410
 	help
 	  Say Y or M if you want to add support for codecs attached to
 	  the S3C24XX AC97 or I2S interfaces. You will also need to
@@ -35,6 +36,10 @@ config SND_S3C_SOC_PCM
 config SND_S3C_SOC_AC97
 	tristate
 	select SND_SOC_AC97_BUS
+
+config SND_S5P_SOC_SPDIF
+	tristate
+	select SND_SOC_SPDIF
 
 config SND_S3C24XX_SOC_NEO1973_WM8753
 	tristate "SoC I2S Audio support for NEO1973 - WM8753"
@@ -118,6 +123,14 @@ config SND_S3C24XX_SOC_SIMTEC_HERMES
 	select SND_SOC_TLV320AIC3X
 	select SND_S3C24XX_SOC_SIMTEC
 
+config SND_S3C24XX_SOC_RX1950_UDA1380
+	tristate "Audio support for the HP iPAQ RX1950"
+	depends on SND_S3C24XX_SOC && MACH_RX1950
+	select SND_S3C24XX_SOC_I2S
+	select SND_SOC_UDA1380
+	help
+	  This driver provides audio support for HP iPAQ RX1950 PDA.
+
 config SND_SOC_SMDK_WM9713
 	tristate "SoC AC97 Audio support for SMDK with WM9713"
 	depends on SND_S3C24XX_SOC && (MACH_SMDK6410 || MACH_SMDKC100 || MACH_SMDKV210 || MACH_SMDKC110)
@@ -131,3 +144,28 @@ config SND_S3C64XX_SOC_SMARTQ
 	depends on SND_S3C24XX_SOC && MACH_SMARTQ
 	select SND_S3C64XX_SOC_I2S
 	select SND_SOC_WM8750
+
+config SND_S5PC110_SOC_AQUILA_WM8994
+	tristate "SoC I2S Audio support for AQUILA - WM8994"
+	depends on SND_S3C24XX_SOC && MACH_AQUILA
+	select SND_S3C64XX_SOC_I2S_V4
+	select SND_SOC_WM8994
+	help
+	  Say Y if you want to add support for SoC audio on aquila
+	  with the WM8994.
+
+config SND_S5PV210_SOC_GONI_WM8994
+	tristate "SoC I2S Audio support for GONI - WM8994"
+	depends on SND_S3C24XX_SOC && MACH_GONI
+	select SND_S3C64XX_SOC_I2S_V4
+	select SND_SOC_WM8994
+	help
+	  Say Y if you want to add support for SoC audio on goni
+	  with the WM8994.
+
+config SND_SOC_SMDK_SPDIF
+	tristate "SoC S/PDIF Audio support for SMDK"
+	depends on SND_S3C24XX_SOC && (MACH_SMDKC100 || MACH_SMDKC110 || MACH_SMDKV210)
+	select SND_S5P_SOC_SPDIF
+	help
+	  Say Y if you want to add support for SoC S/PDIF audio on the SMDK.

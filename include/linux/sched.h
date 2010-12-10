@@ -626,6 +626,10 @@ struct signal_struct {
 
 	int oom_adj;		/* OOM kill score adjustment (bit shift) */
 	int oom_score_adj;	/* OOM kill score adjustment */
+
+	struct mutex cred_guard_mutex;	/* guard against foreign influences on
+					 * credential calculations
+					 * (notably. ptrace) */
 };
 
 /* Context switch must be unlocked if interrupts are to be enabled */
@@ -667,6 +671,9 @@ struct user_struct {
 #ifdef CONFIG_INOTIFY_USER
 	atomic_t inotify_watches; /* How many inotify watches does this user have? */
 	atomic_t inotify_devs;	/* How many inotify devs does this user have opened? */
+#endif
+#ifdef CONFIG_FANOTIFY
+	atomic_t fanotify_listeners;
 #endif
 #ifdef CONFIG_EPOLL
 	atomic_t epoll_watches;	/* The number of file descriptors currently watched */
@@ -855,6 +862,7 @@ struct sched_group {
 	 * single CPU.
 	 */
 	unsigned int cpu_power, cpu_power_orig;
+	unsigned int group_weight;
 
 	/*
 	 * The CPUs this group covers.
@@ -1076,7 +1084,7 @@ struct sched_class {
 					 struct task_struct *task);
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
-	void (*moved_group) (struct task_struct *p, int on_rq);
+	void (*task_move_group) (struct task_struct *p, int on_rq);
 #endif
 };
 
@@ -1305,9 +1313,6 @@ struct task_struct {
 					 * credentials (COW) */
 	const struct cred __rcu *cred;	/* effective (overridable) subjective task
 					 * credentials (COW) */
-	struct mutex cred_guard_mutex;	/* guard against foreign influences on
-					 * credential calculations
-					 * (notably. ptrace) */
 	struct cred *replacement_session_keyring; /* for KEYCTL_SESSION_TO_PARENT */
 
 	char comm[TASK_COMM_LEN]; /* executable name excluding path
@@ -1706,7 +1711,6 @@ extern void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *
 #define PF_DUMPCORE	0x00000200	/* dumped core */
 #define PF_SIGNALED	0x00000400	/* killed by a signal */
 #define PF_MEMALLOC	0x00000800	/* Allocating memory */
-#define PF_FLUSHER	0x00001000	/* responsible for disk writeback */
 #define PF_USED_MATH	0x00002000	/* if unset the fpu must be initialized before use */
 #define PF_FREEZING	0x00004000	/* freeze in progress. do not account to load */
 #define PF_NOFREEZE	0x00008000	/* this thread should not be frozen */
@@ -2237,8 +2241,15 @@ static inline void task_unlock(struct task_struct *p)
 	spin_unlock(&p->alloc_lock);
 }
 
-extern struct sighand_struct *lock_task_sighand(struct task_struct *tsk,
+extern struct sighand_struct *__lock_task_sighand(struct task_struct *tsk,
 							unsigned long *flags);
+
+#define lock_task_sighand(tsk, flags)					\
+({	struct sighand_struct *__ss;					\
+	__cond_lock(&(tsk)->sighand->siglock,				\
+		    (__ss = __lock_task_sighand(tsk, flags)));		\
+	__ss;								\
+})									\
 
 static inline void unlock_task_sighand(struct task_struct *tsk,
 						unsigned long *flags)

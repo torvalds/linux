@@ -311,19 +311,25 @@ int mlx4_ib_mad_init(struct mlx4_ib_dev *dev)
 	struct ib_mad_agent *agent;
 	int p, q;
 	int ret;
+	enum rdma_link_layer ll;
 
-	for (p = 0; p < dev->num_ports; ++p)
+	for (p = 0; p < dev->num_ports; ++p) {
+		ll = rdma_port_get_link_layer(&dev->ib_dev, p + 1);
 		for (q = 0; q <= 1; ++q) {
-			agent = ib_register_mad_agent(&dev->ib_dev, p + 1,
-						      q ? IB_QPT_GSI : IB_QPT_SMI,
-						      NULL, 0, send_handler,
-						      NULL, NULL);
-			if (IS_ERR(agent)) {
-				ret = PTR_ERR(agent);
-				goto err;
-			}
-			dev->send_agent[p][q] = agent;
+			if (ll == IB_LINK_LAYER_INFINIBAND) {
+				agent = ib_register_mad_agent(&dev->ib_dev, p + 1,
+							      q ? IB_QPT_GSI : IB_QPT_SMI,
+							      NULL, 0, send_handler,
+							      NULL, NULL);
+				if (IS_ERR(agent)) {
+					ret = PTR_ERR(agent);
+					goto err;
+				}
+				dev->send_agent[p][q] = agent;
+			} else
+				dev->send_agent[p][q] = NULL;
 		}
+	}
 
 	return 0;
 
@@ -344,8 +350,10 @@ void mlx4_ib_mad_cleanup(struct mlx4_ib_dev *dev)
 	for (p = 0; p < dev->num_ports; ++p) {
 		for (q = 0; q <= 1; ++q) {
 			agent = dev->send_agent[p][q];
-			dev->send_agent[p][q] = NULL;
-			ib_unregister_mad_agent(agent);
+			if (agent) {
+				dev->send_agent[p][q] = NULL;
+				ib_unregister_mad_agent(agent);
+			}
 		}
 
 		if (dev->sm_ah[p])

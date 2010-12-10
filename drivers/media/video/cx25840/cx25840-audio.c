@@ -437,41 +437,45 @@ void cx25840_audio_set_path(struct i2c_client *client)
 {
 	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 
-	/* assert soft reset */
-	cx25840_and_or(client, 0x810, ~0x1, 0x01);
+	if (!is_cx2583x(state)) {
+		/* assert soft reset */
+		cx25840_and_or(client, 0x810, ~0x1, 0x01);
 
-	/* stop microcontroller */
-	cx25840_and_or(client, 0x803, ~0x10, 0);
+		/* stop microcontroller */
+		cx25840_and_or(client, 0x803, ~0x10, 0);
 
-	/* Mute everything to prevent the PFFT! */
-	cx25840_write(client, 0x8d3, 0x1f);
+		/* Mute everything to prevent the PFFT! */
+		cx25840_write(client, 0x8d3, 0x1f);
 
-	if (state->aud_input == CX25840_AUDIO_SERIAL) {
-		/* Set Path1 to Serial Audio Input */
-		cx25840_write4(client, 0x8d0, 0x01011012);
+		if (state->aud_input == CX25840_AUDIO_SERIAL) {
+			/* Set Path1 to Serial Audio Input */
+			cx25840_write4(client, 0x8d0, 0x01011012);
 
-		/* The microcontroller should not be started for the
-		 * non-tuner inputs: autodetection is specific for
-		 * TV audio. */
-	} else {
-		/* Set Path1 to Analog Demod Main Channel */
-		cx25840_write4(client, 0x8d0, 0x1f063870);
+			/* The microcontroller should not be started for the
+			 * non-tuner inputs: autodetection is specific for
+			 * TV audio. */
+		} else {
+			/* Set Path1 to Analog Demod Main Channel */
+			cx25840_write4(client, 0x8d0, 0x1f063870);
+		}
 	}
 
 	set_audclk_freq(client, state->audclk_freq);
 
-	if (state->aud_input != CX25840_AUDIO_SERIAL) {
-		/* When the microcontroller detects the
-		 * audio format, it will unmute the lines */
-		cx25840_and_or(client, 0x803, ~0x10, 0x10);
+	if (!is_cx2583x(state)) {
+		if (state->aud_input != CX25840_AUDIO_SERIAL) {
+			/* When the microcontroller detects the
+			 * audio format, it will unmute the lines */
+			cx25840_and_or(client, 0x803, ~0x10, 0x10);
+		}
+
+		/* deassert soft reset */
+		cx25840_and_or(client, 0x810, ~0x1, 0x00);
+
+		/* Ensure the controller is running when we exit */
+		if (is_cx2388x(state) || is_cx231xx(state))
+			cx25840_and_or(client, 0x803, ~0x10, 0x10);
 	}
-
-	/* deassert soft reset */
-	cx25840_and_or(client, 0x810, ~0x1, 0x00);
-
-	/* Ensure the controller is running when we exit */
-	if (is_cx2388x(state) || is_cx231xx(state))
-		cx25840_and_or(client, 0x803, ~0x10, 0x10);
 }
 
 static void set_volume(struct i2c_client *client, int volume)

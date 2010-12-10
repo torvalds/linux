@@ -2796,6 +2796,7 @@ static const struct tty_operations mgslpc_ops = {
 	.hangup = mgslpc_hangup,
 	.tiocmget = tiocmget,
 	.tiocmset = tiocmset,
+	.get_icount = mgslpc_get_icount,
 	.proc_fops = &mgslpc_proc_fops,
 };
 

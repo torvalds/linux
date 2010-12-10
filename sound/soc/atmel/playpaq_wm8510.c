@@ -83,7 +83,7 @@ static struct ssc_clock_data playpaq_wm8510_calc_ssc_clock(
 	struct snd_pcm_hw_params *params,
 	struct snd_soc_dai *cpu_dai)
 {
-	struct at32_ssc_info *ssc_p = cpu_dai->private_data;
+	struct at32_ssc_info *ssc_p = snd_soc_dai_get_drvdata(cpu_dai);
 	struct ssc_device *ssc = ssc_p->ssc;
 	struct ssc_clock_data cd;
 	unsigned int rate, width_bits, channels;
@@ -131,9 +131,9 @@ static int playpaq_wm8510_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct at32_ssc_info *ssc_p = cpu_dai->private_data;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct at32_ssc_info *ssc_p = snd_soc_dai_get_drvdata(cpu_dai);
 	struct ssc_device *ssc = ssc_p->ssc;
 	unsigned int pll_out = 0, bclk = 0, mclk_div = 0;
 	int ret;
@@ -315,8 +315,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 
 
-static int playpaq_wm8510_init(struct snd_soc_codec *codec)
+static int playpaq_wm8510_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
 	int i;
 
 	/*
@@ -342,7 +343,7 @@ static int playpaq_wm8510_init(struct snd_soc_codec *codec)
 
 
 	/* Make CSB show PLL rate */
-	snd_soc_dai_set_clkdiv(codec->dai, WM8510_OPCLKDIV,
+	snd_soc_dai_set_clkdiv(rtd->codec_dai, WM8510_OPCLKDIV,
 				       WM8510_OPCLKDIV_1 | 4);
 
 	return 0;
@@ -353,8 +354,10 @@ static int playpaq_wm8510_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link playpaq_wm8510_dai = {
 	.name = "WM8510",
 	.stream_name = "WM8510 PCM",
-	.cpu_dai = &at32_ssc_dai[0],
-	.codec_dai = &wm8510_dai,
+	.cpu_dai_name= "atmel-ssc-dai.0",
+	.platform_name = "atmel-pcm-audio",
+	.codec_name = "wm8510-codec.0-0x1a",
+	.codec_dai_name = "wm8510-hifi",
 	.init = playpaq_wm8510_init,
 	.ops = &playpaq_wm8510_ops,
 };
@@ -363,24 +366,8 @@ static struct snd_soc_dai_link playpaq_wm8510_dai = {
 
 static struct snd_soc_card snd_soc_playpaq = {
 	.name = "LRS_PlayPaq_WM8510",
-	.platform = &at32_soc_platform,
 	.dai_link = &playpaq_wm8510_dai,
 	.num_links = 1,
-};
-
-
-
-static struct wm8510_setup_data playpaq_wm8510_setup = {
-	.i2c_bus = 0,
-	.i2c_address = 0x1a,
-};
-
-
-
-static struct snd_soc_device playpaq_wm8510_snd_devdata = {
-	.card = &snd_soc_playpaq,
-	.codec_dev = &soc_codec_dev_wm8510,
-	.codec_data = &playpaq_wm8510_setup,
 };
 
 static struct platform_device *playpaq_snd_device;
@@ -389,20 +376,6 @@ static struct platform_device *playpaq_snd_device;
 static int __init playpaq_asoc_init(void)
 {
 	int ret = 0;
-	struct at32_ssc_info *ssc_p = playpaq_wm8510_dai.cpu_dai->private_data;
-	struct ssc_device *ssc = NULL;
-
-
-	/*
-	 * Request SSC device
-	 */
-	ssc = ssc_request(0);
-	if (IS_ERR(ssc)) {
-		ret = PTR_ERR(ssc);
-		goto err_ssc;
-	}
-	ssc_p->ssc = ssc;
-
 
 	/*
 	 * Configure MCLK for WM8510
@@ -439,8 +412,7 @@ static int __init playpaq_asoc_init(void)
 		goto err_device_alloc;
 	}
 
-	platform_set_drvdata(playpaq_snd_device, &playpaq_wm8510_snd_devdata);
-	playpaq_wm8510_snd_devdata.dev = &playpaq_snd_device->dev;
+	platform_set_drvdata(playpaq_snd_device, &snd_soc_playpaq);
 
 	ret = platform_device_add(playpaq_snd_device);
 	if (ret) {
@@ -468,25 +440,12 @@ err_pll0:
 		clk_put(_gclk0);
 		_gclk0 = NULL;
 	}
-err_gclk0:
-	ssc_free(ssc);
-err_ssc:
 	return ret;
 }
 
 
 static void __exit playpaq_asoc_exit(void)
 {
-	struct at32_ssc_info *ssc_p = playpaq_wm8510_dai.cpu_dai->private_data;
-	struct ssc_device *ssc;
-
-	if (ssc_p != NULL) {
-		ssc = ssc_p->ssc;
-		if (ssc != NULL)
-			ssc_free(ssc);
-		ssc_p->ssc = NULL;
-	}
-
 	if (_gclk0 != NULL) {
 		clk_put(_gclk0);
 		_gclk0 = NULL;

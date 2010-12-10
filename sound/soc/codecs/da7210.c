@@ -25,8 +25,6 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
-#include "da7210.h"
-
 /* DA7210 register space */
 #define DA7210_STATUS			0x02
 #define DA7210_STARTUP1			0x03
@@ -162,10 +160,9 @@ static const struct snd_kcontrol_new da7210_snd_controls[] = {
 
 /* Codec private data */
 struct da7210_priv {
-	struct snd_soc_codec codec;
+	enum snd_soc_control_type control_type;
+	void *control_data;
 };
-
-static struct snd_soc_codec *da7210_codec;
 
 /*
  * Register cache
@@ -209,12 +206,12 @@ static int da7210_write(struct snd_soc_codec *codec, u32 reg, u32 value)
 	u8 *cache = codec->reg_cache;
 	u8 data[2];
 
-	BUG_ON(codec->volatile_register);
+	BUG_ON(codec->driver->volatile_register);
 
 	data[0] = reg & 0xff;
 	data[1] = value & 0xff;
 
-	if (reg >= codec->reg_cache_size)
+	if (reg >= codec->driver->reg_cache_size)
 		return -EIO;
 
 	if (2 != codec->hw_write(codec->control_data, data, 2))
@@ -267,8 +264,7 @@ static int da7210_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct snd_soc_codec *codec = rtd->codec;
 	u32 dai_cfg1;
 	u32 hpf_reg, hpf_mask, hpf_value;
 	u32 fs, bypass;
@@ -430,9 +426,8 @@ static struct snd_soc_dai_ops da7210_dai_ops = {
 	.set_fmt	= da7210_set_dai_fmt,
 };
 
-struct snd_soc_dai da7210_dai = {
-	.name = "DA7210 IIS",
-	.id = 0,
+static struct snd_soc_dai_driver da7210_dai = {
+	.name = "da7210-hifi",
 	/* playback capabilities */
 	.playback = {
 		.stream_name = "Playback",
@@ -452,55 +447,15 @@ struct snd_soc_dai da7210_dai = {
 	.ops = &da7210_dai_ops,
 	.symmetric_rates = 1,
 };
-EXPORT_SYMBOL_GPL(da7210_dai);
 
-/*
- * Initialize the DA7210 driver
- * register the mixer and dsp interfaces with the kernel
- */
-static int da7210_init(struct da7210_priv *da7210)
+static int da7210_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_codec *codec = &da7210->codec;
-	int ret = 0;
+	struct da7210_priv *da7210 = snd_soc_codec_get_drvdata(codec);
 
-	if (da7210_codec) {
-		dev_err(codec->dev, "Another da7210 is registered\n");
-		return -EINVAL;
-	}
+	dev_info(codec->dev, "DA7210 Audio Codec %s\n", DA7210_VERSION);
 
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	snd_soc_codec_set_drvdata(codec, da7210);
-	codec->name		= "DA7210";
-	codec->owner		= THIS_MODULE;
-	codec->read		= da7210_read;
-	codec->write		= da7210_write;
-	codec->dai		= &da7210_dai;
-	codec->num_dai		= 1;
+	codec->control_data	= da7210->control_data;
 	codec->hw_write		= (hw_write_t)i2c_master_send;
-	codec->reg_cache_size	= ARRAY_SIZE(da7210_reg);
-	codec->reg_cache	= kmemdup(da7210_reg,
-					  sizeof(da7210_reg), GFP_KERNEL);
-
-	if (!codec->reg_cache)
-		return -ENOMEM;
-
-	da7210_dai.dev = codec->dev;
-	da7210_codec = codec;
-
-	ret = snd_soc_register_codec(codec);
-	if (ret) {
-		dev_err(codec->dev, "Failed to register CODEC: %d\n", ret);
-		goto init_err;
-	}
-
-	ret = snd_soc_register_dai(&da7210_dai);
-	if (ret) {
-		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		goto codec_err;
-	}
 
 	/* FIXME
 	 *
@@ -583,54 +538,50 @@ static int da7210_init(struct da7210_priv *da7210)
 	/* Activate all enabled subsystem */
 	da7210_write(codec, DA7210_STARTUP1, DA7210_SC_MST_EN);
 
-	return ret;
+	snd_soc_add_controls(codec, da7210_snd_controls,
+			     ARRAY_SIZE(da7210_snd_controls));
 
-codec_err:
-	snd_soc_unregister_codec(codec);
-init_err:
-	kfree(codec->reg_cache);
-	codec->reg_cache = NULL;
+	dev_info(codec->dev, "DA7210 Audio Codec %s\n", DA7210_VERSION);
 
-	return ret;
-
+	return 0;
 }
+
+static struct snd_soc_codec_driver soc_codec_dev_da7210 = {
+	.probe			= da7210_probe,
+	.read			= da7210_read,
+	.write			= da7210_write,
+	.reg_cache_size		= ARRAY_SIZE(da7210_reg),
+	.reg_word_size		= sizeof(u8),
+	.reg_cache_default	= da7210_reg,
+};
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static int __devinit da7210_i2c_probe(struct i2c_client *i2c,
 			   	      const struct i2c_device_id *id)
 {
 	struct da7210_priv *da7210;
-	struct snd_soc_codec *codec;
 	int ret;
 
 	da7210 = kzalloc(sizeof(struct da7210_priv), GFP_KERNEL);
 	if (!da7210)
 		return -ENOMEM;
 
-	codec = &da7210->codec;
-	codec->dev = &i2c->dev;
-
 	i2c_set_clientdata(i2c, da7210);
-	codec->control_data = i2c;
+	da7210->control_data = i2c;
+	da7210->control_type = SND_SOC_I2C;
 
-	ret = da7210_init(da7210);
-	if (ret < 0) {
-		pr_err("Failed to initialise da7210 audio codec\n");
+	ret =  snd_soc_register_codec(&i2c->dev,
+			&soc_codec_dev_da7210, &da7210_dai, 1);
+	if (ret < 0)
 		kfree(da7210);
-	}
 
 	return ret;
 }
 
 static int __devexit da7210_i2c_remove(struct i2c_client *client)
 {
-	struct da7210_priv *da7210 = i2c_get_clientdata(client);
-
-	snd_soc_unregister_dai(&da7210_dai);
-	kfree(da7210->codec.reg_cache);
-	kfree(da7210);
-	da7210_codec = NULL;
-
+	snd_soc_unregister_codec(&client->dev);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
@@ -643,58 +594,14 @@ MODULE_DEVICE_TABLE(i2c, da7210_i2c_id);
 /* I2C codec control layer */
 static struct i2c_driver da7210_i2c_driver = {
 	.driver = {
-		.name = "DA7210 I2C Codec",
+		.name = "da7210-codec",
 		.owner = THIS_MODULE,
 	},
-	.probe = da7210_i2c_probe,
-	.remove =  __devexit_p(da7210_i2c_remove),
-	.id_table = da7210_i2c_id,
+	.probe		= da7210_i2c_probe,
+	.remove		= __devexit_p(da7210_i2c_remove),
+	.id_table	= da7210_i2c_id,
 };
 #endif
-
-static int da7210_probe(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
-	int ret;
-
-	if (!da7210_codec) {
-		dev_err(&pdev->dev, "Codec device not registered\n");
-		return -ENODEV;
-	}
-
-	socdev->card->codec = da7210_codec;
-	codec = da7210_codec;
-
-	/* Register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0)
-		goto pcm_err;
-
-	snd_soc_add_controls(da7210_codec, da7210_snd_controls,
-			     ARRAY_SIZE(da7210_snd_controls));
-
-	dev_info(&pdev->dev, "DA7210 Audio Codec %s\n", DA7210_VERSION);
-
-pcm_err:
-	return ret;
-}
-
-static int da7210_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-
-	return 0;
-}
-
-struct snd_soc_codec_device soc_codec_dev_da7210 = {
-	.probe =	da7210_probe,
-	.remove =	da7210_remove,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_da7210);
 
 static int __init da7210_modinit(void)
 {

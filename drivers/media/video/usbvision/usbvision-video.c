@@ -50,7 +50,6 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/vmalloc.h>
@@ -357,7 +356,7 @@ static int usbvision_v4l2_open(struct file *file)
 
 	PDEBUG(DBG_IO, "open");
 
-	lock_kernel();
+	mutex_lock(&usbvision->lock);
 	usbvision_reset_powerOffTimer(usbvision);
 
 	if (usbvision->user)
@@ -379,7 +378,6 @@ static int usbvision_v4l2_open(struct file *file)
 
 	/* If so far no errors then we shall start the camera */
 	if (!errCode) {
-		mutex_lock(&usbvision->lock);
 		if (usbvision->power == 0) {
 			usbvision_power_on(usbvision);
 			usbvision_i2c_register(usbvision);
@@ -408,14 +406,13 @@ static int usbvision_v4l2_open(struct file *file)
 				usbvision->initialized = 0;
 			}
 		}
-		mutex_unlock(&usbvision->lock);
 	}
 
 	/* prepare queues */
 	usbvision_empty_framequeues(usbvision);
 
 	PDEBUG(DBG_IO, "success");
-	unlock_kernel();
+	mutex_unlock(&usbvision->lock);
 	return errCode;
 }
 
@@ -1645,8 +1642,8 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 	usbvision->usb_bandwidth = 0;
 	usbvision->user = 0;
 	usbvision->streaming = Stream_Off;
-	usbvision_register_video(usbvision);
 	usbvision_configure_video(usbvision);
+	usbvision_register_video(usbvision);
 	mutex_unlock(&usbvision->lock);
 
 	usbvision_create_sysfs(usbvision->vdev);

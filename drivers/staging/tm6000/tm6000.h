@@ -1,23 +1,23 @@
 /*
-   tm6000.h - driver for TM5600/TM6000/TM6010 USB video capture devices
-
-   Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
-
-   Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
-	- DVB-T support
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation version 2
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  tm6000.h - driver for TM5600/TM6000/TM6010 USB video capture devices
+ *
+ *  Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *
+ *  Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
+ *	- DVB-T support
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation version 2
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /* Use the tm6000-hack, instead of the proper initialization code i*/
@@ -54,8 +54,9 @@ enum tm6000_devtype {
 };
 
 /* ------------------------------------------------------------------
-	Basic structures
-   ------------------------------------------------------------------*/
+ *	Basic structures
+ * ------------------------------------------------------------------
+ */
 
 struct tm6000_fmt {
 	char  *name;
@@ -189,7 +190,9 @@ struct tm6000_core {
 	int				users;
 
 	/* various device info */
-	unsigned int			resources;
+	struct tm6000_fh		*resources;	/* Points to fh that is streaming */
+	bool				is_res_read;
+
 	struct video_device		*vfd;
 	struct tm6000_dmaqueue		vidq;
 	struct v4l2_device		v4l2_dev;
@@ -205,6 +208,9 @@ struct tm6000_core {
 
 	/* audio support */
 	struct snd_tm6000_card		*adev;
+	struct work_struct		wq_trigger;   /* Trigger to start/stop audio for alsa module */
+	atomic_t			stream_started;  /* stream should be running if true */
+
 
 	struct tm6000_IR		*ir;
 
@@ -251,9 +257,9 @@ struct tm6000_fh {
 	enum v4l2_buf_type           type;
 };
 
-#define TM6000_STD	V4L2_STD_PAL|V4L2_STD_PAL_N|V4L2_STD_PAL_Nc|    \
+#define TM6000_STD	(V4L2_STD_PAL|V4L2_STD_PAL_N|V4L2_STD_PAL_Nc|    \
 			V4L2_STD_PAL_M|V4L2_STD_PAL_60|V4L2_STD_NTSC_M| \
-			V4L2_STD_NTSC_M_JP|V4L2_STD_SECAM
+			V4L2_STD_NTSC_M_JP|V4L2_STD_SECAM)
 
 /* In tm6000-cards.c */
 

@@ -17,7 +17,6 @@
 #include <linux/mount.h>
 #include <linux/slab.h>
 #include <linux/highuid.h>
-#include <linux/smp_lock.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
 

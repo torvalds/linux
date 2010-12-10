@@ -80,8 +80,10 @@ static void do_z2_request(struct request_queue *q)
 		int err = 0;
 
 		if (start + len > z2ram_size) {
-			printk( KERN_ERR DEVICE_NAME ": bad access: block=%lu, count=%u\n",
-				blk_rq_pos(req), blk_rq_cur_sectors(req));
+			pr_err(DEVICE_NAME ": bad access: block=%llu, "
+			       "count=%u\n",
+			       (unsigned long long)blk_rq_pos(req),
+			       blk_rq_cur_sectors(req));
 			err = -EIO;
 			goto done;
 		}

@@ -370,6 +370,7 @@ static int dst_dev_event(struct notifier_block *this, unsigned long event,
 
 static struct notifier_block dst_dev_notifier = {
 	.notifier_call	= dst_dev_event,
+	.priority = -10, /* must be called after other network notifiers */
 };
 
 void __init dst_init(void)

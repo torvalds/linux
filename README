@@ -166,6 +166,7 @@ CONFIGURING the kernel:
  - Alternate configuration commands are:
 	"make config"      Plain text interface.
 	"make menuconfig"  Text based color menus, radiolists & dialogs.
+	"make nconfig"     Enhanced text based color menus.
 	"make xconfig"     X windows (Qt) based configuration tool.
 	"make gconfig"     X windows (Gtk) based configuration tool.
 	"make oldconfig"   Default all questions based on the contents of

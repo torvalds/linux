@@ -15,7 +15,7 @@
  * General Public License for more details.
  */
 
-/**
+/*
  *  bfad_im.c Linux driver IM module.
  */
 
@@ -30,8 +30,7 @@ DEFINE_IDR(bfad_im_port_index);
 struct scsi_transport_template *bfad_im_scsi_transport_template;
 struct scsi_transport_template *bfad_im_scsi_vport_transport_template;
 static void bfad_im_itnim_work_handler(struct work_struct *work);
-static int bfad_im_queuecommand(struct scsi_cmnd *cmnd,
-				void (*done)(struct scsi_cmnd *));
+static int bfad_im_queuecommand(struct Scsi_Host *h, struct scsi_cmnd *cmnd);
 static int bfad_im_slave_alloc(struct scsi_device *sdev);
 static void bfad_im_fc_rport_add(struct bfad_im_port_s  *im_port,
 				struct bfad_itnim_s *itnim);
@@ -164,10 +163,10 @@ bfa_cb_tskim_done(void *bfad, struct bfad_tskim_s *dtsk,
 		wake_up(wq);
 }
 
-/**
+/*
  *  Scsi_Host_template SCSI host template
  */
-/**
+/*
  * Scsi_Host template entry, returns BFAD PCI info.
  */
 static const char *
@@ -196,7 +195,7 @@ bfad_im_info(struct Scsi_Host *shost)
 	return bfa_buf;
 }
 
-/**
+/*
  * Scsi_Host template entry, aborts the specified SCSI command.
  *
  * Returns: SUCCESS or FAILED.
@@ -280,7 +279,7 @@ out:
 	return rc;
 }
 
-/**
+/*
  * Scsi_Host template entry, resets a LUN and abort its all commands.
  *
  * Returns: SUCCESS or FAILED.
@@ -319,7 +318,7 @@ bfad_im_reset_lun_handler(struct scsi_cmnd *cmnd)
 		goto out;
 	}
 
-	/**
+	/*
 	 * Set host_scribble to NULL to avoid aborting a task command
 	 * if happens.
 	 */
@@ -346,7 +345,7 @@ out:
 	return rc;
 }
 
-/**
+/*
  * Scsi_Host template entry, resets the bus and abort all commands.
  */
 static int
@@ -396,7 +395,7 @@ bfad_im_reset_bus_handler(struct scsi_cmnd *cmnd)
 	return SUCCESS;
 }
 
-/**
+/*
  * Scsi_Host template entry slave_destroy.
  */
 static void
@@ -406,11 +405,11 @@ bfad_im_slave_destroy(struct scsi_device *sdev)
 	return;
 }
 
-/**
+/*
  *  BFA FCS itnim callbacks
  */
 
-/**
+/*
  * BFA FCS itnim alloc callback, after successful PRLI
  * Context: Interrupt
  */
@@ -433,7 +432,7 @@ bfa_fcb_itnim_alloc(struct bfad_s *bfad, struct bfa_fcs_itnim_s **itnim,
 	bfad->bfad_flags |= BFAD_RPORT_ONLINE;
 }
 
-/**
+/*
  * BFA FCS itnim free callback.
  * Context: Interrupt. bfad_lock is held
  */
@@ -471,7 +470,7 @@ bfa_fcb_itnim_free(struct bfad_s *bfad, struct bfad_itnim_s *itnim_drv)
 		queue_work(im->drv_workq, &itnim_drv->itnim_work);
 }
 
-/**
+/*
  * BFA FCS itnim online callback.
  * Context: Interrupt. bfad_lock is held
  */
@@ -492,7 +491,7 @@ bfa_fcb_itnim_online(struct bfad_itnim_s *itnim_drv)
 		queue_work(im->drv_workq, &itnim_drv->itnim_work);
 }
 
-/**
+/*
  * BFA FCS itnim offline callback.
  * Context: Interrupt. bfad_lock is held
  */
@@ -519,7 +518,7 @@ bfa_fcb_itnim_offline(struct bfad_itnim_s *itnim_drv)
 		queue_work(im->drv_workq, &itnim_drv->itnim_work);
 }
 
-/**
+/*
  * Allocate a Scsi_Host for a port.
  */
 int
@@ -751,7 +750,7 @@ bfad_os_thread_workq(struct bfad_s *bfad)
 	return BFA_STATUS_OK;
 }
 
-/**
+/*
  * Scsi_Host template entry.
  *
  * Description:
@@ -896,7 +895,7 @@ bfad_os_get_itnim(struct bfad_im_port_s *im_port, int id)
 	return NULL;
 }
 
-/**
+/*
  * Scsi_Host template entry slave_alloc
  */
 static int
@@ -915,12 +914,16 @@ bfad_im_slave_alloc(struct scsi_device *sdev)
 static u32
 bfad_im_supported_speeds(struct bfa_s *bfa)
 {
-	struct bfa_ioc_attr_s ioc_attr;
+	struct bfa_ioc_attr_s *ioc_attr;
 	u32 supported_speed = 0;
 
-	bfa_get_attr(bfa, &ioc_attr);
-	if (ioc_attr.adapter_attr.max_speed == BFA_PORT_SPEED_8GBPS) {
-		if (ioc_attr.adapter_attr.is_mezz) {
+	ioc_attr = kzalloc(sizeof(struct bfa_ioc_attr_s), GFP_KERNEL);
+	if (!ioc_attr)
+		return 0;
+
+	bfa_get_attr(bfa, ioc_attr);
+	if (ioc_attr->adapter_attr.max_speed == BFA_PORT_SPEED_8GBPS) {
+		if (ioc_attr->adapter_attr.is_mezz) {
 			supported_speed |= FC_PORTSPEED_8GBIT |
 				FC_PORTSPEED_4GBIT |
 				FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
@@ -929,12 +932,13 @@ bfad_im_supported_speeds(struct bfa_s *bfa)
 				FC_PORTSPEED_4GBIT |
 				FC_PORTSPEED_2GBIT;
 		}
-	} else if (ioc_attr.adapter_attr.max_speed == BFA_PORT_SPEED_4GBPS) {
+	} else if (ioc_attr->adapter_attr.max_speed == BFA_PORT_SPEED_4GBPS) {
 		supported_speed |=  FC_PORTSPEED_4GBIT | FC_PORTSPEED_2GBIT |
 				FC_PORTSPEED_1GBIT;
-	} else if (ioc_attr.adapter_attr.max_speed == BFA_PORT_SPEED_10GBPS) {
+	} else if (ioc_attr->adapter_attr.max_speed == BFA_PORT_SPEED_10GBPS) {
 		supported_speed |= FC_PORTSPEED_10GBIT;
 	}
+	kfree(ioc_attr);
 	return supported_speed;
 }
 
@@ -944,14 +948,13 @@ bfad_os_fc_host_init(struct bfad_im_port_s *im_port)
 	struct Scsi_Host *host = im_port->shost;
 	struct bfad_s         *bfad = im_port->bfad;
 	struct bfad_port_s    *port = im_port->port;
-	struct bfa_port_attr_s pattr;
-	struct bfa_lport_attr_s port_attr;
 	char symname[BFA_SYMNAME_MAXLEN];
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(&bfad->bfa);
 
 	fc_host_node_name(host) =
-		bfa_os_htonll((bfa_fcs_lport_get_nwwn(port->fcs_port)));
+		cpu_to_be64((bfa_fcs_lport_get_nwwn(port->fcs_port)));
 	fc_host_port_name(host) =
-		bfa_os_htonll((bfa_fcs_lport_get_pwwn(port->fcs_port)));
+		cpu_to_be64((bfa_fcs_lport_get_pwwn(port->fcs_port)));
 	fc_host_max_npiv_vports(host) = bfa_lps_get_max_vport(&bfad->bfa);
 
 	fc_host_supported_classes(host) = FC_COS_CLASS3;
@@ -964,15 +967,12 @@ bfad_os_fc_host_init(struct bfad_im_port_s *im_port)
 	/* For fibre channel services type 0x20 */
 	fc_host_supported_fc4s(host)[7] = 1;
 
-	bfa_fcs_lport_get_attr(&bfad->bfa_fcs.fabric.bport, &port_attr);
-	strncpy(symname, port_attr.port_cfg.sym_name.symname,
+	strncpy(symname, bfad->bfa_fcs.fabric.bport.port_cfg.sym_name.symname,
 		BFA_SYMNAME_MAXLEN);
 	sprintf(fc_host_symbolic_name(host), "%s", symname);
 
 	fc_host_supported_speeds(host) = bfad_im_supported_speeds(&bfad->bfa);
-
-	bfa_fcport_get_attr(&bfad->bfa, &pattr);
-	fc_host_maxframe_size(host) = pattr.pport_cfg.maxfrsize;
+	fc_host_maxframe_size(host) = fcport->cfg.maxfrsize;
 }
 
 static void
@@ -983,9 +983,9 @@ bfad_im_fc_rport_add(struct bfad_im_port_s *im_port, struct bfad_itnim_s *itnim)
 	struct bfad_itnim_data_s *itnim_data;
 
 	rport_ids.node_name =
-		bfa_os_htonll(bfa_fcs_itnim_get_nwwn(&itnim->fcs_itnim));
+		cpu_to_be64(bfa_fcs_itnim_get_nwwn(&itnim->fcs_itnim));
 	rport_ids.port_name =
-		bfa_os_htonll(bfa_fcs_itnim_get_pwwn(&itnim->fcs_itnim));
+		cpu_to_be64(bfa_fcs_itnim_get_pwwn(&itnim->fcs_itnim));
 	rport_ids.port_id =
 		bfa_os_hton3b(bfa_fcs_itnim_get_fcid(&itnim->fcs_itnim));
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
@@ -1015,7 +1015,7 @@ bfad_im_fc_rport_add(struct bfad_im_port_s *im_port, struct bfad_itnim_s *itnim)
 	return;
 }
 
-/**
+/*
  * Work queue handler using FC transport service
 * Context: kernel
  */
@@ -1115,11 +1115,11 @@ bfad_im_itnim_work_handler(struct work_struct *work)
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 }
 
-/**
+/*
  * Scsi_Host template entry, queue a SCSI command to the BFAD.
  */
 static int
-bfad_im_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
+bfad_im_queuecommand_lck(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 {
 	struct bfad_im_port_s *im_port =
 		(struct bfad_im_port_s *) cmnd->device->host->hostdata[0];
@@ -1185,6 +1185,8 @@ out_fail_cmd:
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(bfad_im_queuecommand)
 
 void
 bfad_os_rport_online_wait(struct bfad_s *bfad)

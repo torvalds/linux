@@ -31,8 +31,6 @@
 #include <asm/tlbflush.h>
 #include <asm/shmparam.h>
 
-bool vmap_lazy_unmap __read_mostly = true;
-
 /*** Page table manipulation functions ***/
 
 static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end)
@@ -293,13 +291,13 @@ static void __insert_vmap_area(struct vmap_area *va)
 	struct rb_node *tmp;
 
 	while (*p) {
-		struct vmap_area *tmp;
+		struct vmap_area *tmp_va;
 
 		parent = *p;
-		tmp = rb_entry(parent, struct vmap_area, rb_node);
-		if (va->va_start < tmp->va_end)
+		tmp_va = rb_entry(parent, struct vmap_area, rb_node);
+		if (va->va_start < tmp_va->va_end)
 			p = &(*p)->rb_left;
-		else if (va->va_end > tmp->va_start)
+		else if (va->va_end > tmp_va->va_start)
 			p = &(*p)->rb_right;
 		else
 			BUG();
@@ -503,9 +501,6 @@ static unsigned long lazy_max_pages(void)
 {
 	unsigned int log;
 
-	if (!vmap_lazy_unmap)
-		return 0;
-
 	log = fls(num_online_cpus());
 
 	return log * (32UL * 1024 * 1024 / PAGE_SIZE);
@@ -566,7 +561,6 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
 			if (va->va_end > *end)
 				*end = va->va_end;
 			nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
-			unmap_vmap_area(va);
 			list_add_tail(&va->purge_list, &valist);
 			va->flags |= VM_LAZY_FREEING;
 			va->flags &= ~VM_LAZY_FREE;
@@ -611,15 +605,26 @@ static void purge_vmap_area_lazy(void)
 }
 
 /*
- * Free and unmap a vmap area, caller ensuring flush_cache_vunmap had been
- * called for the correct range previously.
+ * Free a vmap area, caller ensuring that the area has been unmapped
+ * and flush_cache_vunmap had been called for the correct range
+ * previously.
  */
-static void free_unmap_vmap_area_noflush(struct vmap_area *va)
+static void free_vmap_area_noflush(struct vmap_area *va)
 {
 	va->flags |= VM_LAZY_FREE;
 	atomic_add((va->va_end - va->va_start) >> PAGE_SHIFT, &vmap_lazy_nr);
 	if (unlikely(atomic_read(&vmap_lazy_nr) > lazy_max_pages()))
 		try_purge_vmap_area_lazy();
+}
+
+/*
+ * Free and unmap a vmap area, caller ensuring flush_cache_vunmap had been
+ * called for the correct range previously.
+ */
+static void free_unmap_vmap_area_noflush(struct vmap_area *va)
+{
+	unmap_vmap_area(va);
+	free_vmap_area_noflush(va);
 }
 
 /*
@@ -798,7 +803,7 @@ static void free_vmap_block(struct vmap_block *vb)
 	spin_unlock(&vmap_block_tree_lock);
 	BUG_ON(tmp != vb);
 
-	free_unmap_vmap_area_noflush(vb->va);
+	free_vmap_area_noflush(vb->va);
 	call_rcu(&vb->rcu_head, rcu_free_vb);
 }
 
@@ -936,6 +941,8 @@ static void vb_free(const void *addr, unsigned long size)
 	rcu_read_unlock();
 	BUG_ON(!vb);
 
+	vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
+
 	spin_lock(&vb->lock);
 	BUG_ON(bitmap_allocate_region(vb->dirty_map, offset >> PAGE_SHIFT, order));
 
@@ -988,7 +995,6 @@ void vm_unmap_aliases(void)
 
 				s = vb->va->va_start + (i << PAGE_SHIFT);
 				e = vb->va->va_start + (j << PAGE_SHIFT);
-				vunmap_page_range(s, e);
 				flush = 1;
 
 				if (s < start)
@@ -1596,6 +1602,13 @@ void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
 }
 EXPORT_SYMBOL(__vmalloc);
 
+static inline void *__vmalloc_node_flags(unsigned long size,
+					int node, gfp_t flags)
+{
+	return __vmalloc_node(size, 1, flags, PAGE_KERNEL,
+					node, __builtin_return_address(0));
+}
+
 /**
  *	vmalloc  -  allocate virtually contiguous memory
  *	@size:		allocation size
@@ -1607,10 +1620,26 @@ EXPORT_SYMBOL(__vmalloc);
  */
 void *vmalloc(unsigned long size)
 {
-	return __vmalloc_node(size, 1, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL,
-					-1, __builtin_return_address(0));
+	return __vmalloc_node_flags(size, -1, GFP_KERNEL | __GFP_HIGHMEM);
 }
 EXPORT_SYMBOL(vmalloc);
+
+/**
+ *	vzalloc - allocate virtually contiguous memory with zero fill
+ *	@size:	allocation size
+ *	Allocate enough pages to cover @size from the page level
+ *	allocator and map them into contiguous kernel virtual space.
+ *	The memory allocated is set to zero.
+ *
+ *	For tight control over page level allocator and protection flags
+ *	use __vmalloc() instead.
+ */
+void *vzalloc(unsigned long size)
+{
+	return __vmalloc_node_flags(size, -1,
+				GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO);
+}
+EXPORT_SYMBOL(vzalloc);
 
 /**
  * vmalloc_user - allocate zeroed virtually contiguous memory for userspace
@@ -1652,6 +1681,25 @@ void *vmalloc_node(unsigned long size, int node)
 					node, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(vmalloc_node);
+
+/**
+ * vzalloc_node - allocate memory on a specific node with zero fill
+ * @size:	allocation size
+ * @node:	numa node
+ *
+ * Allocate enough pages to cover @size from the page level
+ * allocator and map them into contiguous kernel virtual space.
+ * The memory allocated is set to zero.
+ *
+ * For tight control over page level allocator and protection flags
+ * use __vmalloc_node() instead.
+ */
+void *vzalloc_node(unsigned long size, int node)
+{
+	return __vmalloc_node_flags(size, node,
+			 GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO);
+}
+EXPORT_SYMBOL(vzalloc_node);
 
 #ifndef PAGE_KERNEL_EXEC
 # define PAGE_KERNEL_EXEC PAGE_KERNEL
@@ -2350,6 +2398,7 @@ void pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
 
 #ifdef CONFIG_PROC_FS
 static void *s_start(struct seq_file *m, loff_t *pos)
+	__acquires(&vmlist_lock)
 {
 	loff_t n = *pos;
 	struct vm_struct *v;
@@ -2376,6 +2425,7 @@ static void *s_next(struct seq_file *m, void *p, loff_t *pos)
 }
 
 static void s_stop(struct seq_file *m, void *p)
+	__releases(&vmlist_lock)
 {
 	read_unlock(&vmlist_lock);
 }

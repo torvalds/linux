@@ -30,7 +30,7 @@ extern unsigned int prom_rev, prom_prev;
 /* Root node of the prom device tree, this stays constant after
  * initialization is complete.
  */
-extern int prom_root_node;
+extern phandle prom_root_node;
 
 /* Pointer to prom structure containing the device tree traversal
  * and usage utility functions.  Only prom-lib should use these,
@@ -178,68 +178,68 @@ extern void prom_putsegment(int context, unsigned long virt_addr,
 /* PROM device tree traversal functions... */
 
 /* Get the child node of the given node, or zero if no child exists. */
-extern int prom_getchild(int parent_node);
+extern phandle prom_getchild(phandle parent_node);
 
 /* Get the next sibling node of the given node, or zero if no further
  * siblings exist.
  */
-extern int prom_getsibling(int node);
+extern phandle prom_getsibling(phandle node);
 
 /* Get the length, at the passed node, of the given property type.
  * Returns -1 on error (ie. no such property at this node).
  */
-extern int prom_getproplen(int thisnode, const char *property);
+extern int prom_getproplen(phandle thisnode, const char *property);
 
 /* Fetch the requested property using the given buffer.  Returns
  * the number of bytes the prom put into your buffer or -1 on error.
  */
-extern int __must_check prom_getproperty(int thisnode, const char *property,
+extern int __must_check prom_getproperty(phandle thisnode, const char *property,
 					 char *prop_buffer, int propbuf_size);
 
 /* Acquire an integer property. */
-extern int prom_getint(int node, char *property);
+extern int prom_getint(phandle node, char *property);
 
 /* Acquire an integer property, with a default value. */
-extern int prom_getintdefault(int node, char *property, int defval);
+extern int prom_getintdefault(phandle node, char *property, int defval);
 
 /* Acquire a boolean property, 0=FALSE 1=TRUE. */
-extern int prom_getbool(int node, char *prop);
+extern int prom_getbool(phandle node, char *prop);
 
 /* Acquire a string property, null string on error. */
-extern void prom_getstring(int node, char *prop, char *buf, int bufsize);
+extern void prom_getstring(phandle node, char *prop, char *buf, int bufsize);
 
 /* Does the passed node have the given "name"? YES=1 NO=0 */
-extern int prom_nodematch(int thisnode, char *name);
+extern int prom_nodematch(phandle thisnode, char *name);
 
 /* Search all siblings starting at the passed node for "name" matching
  * the given string.  Returns the node on success, zero on failure.
  */
-extern int prom_searchsiblings(int node_start, char *name);
+extern phandle prom_searchsiblings(phandle node_start, char *name);
 
 /* Return the first property type, as a string, for the given node.
  * Returns a null string on error.
  */
-extern char *prom_firstprop(int node, char *buffer);
+extern char *prom_firstprop(phandle node, char *buffer);
 
 /* Returns the next property after the passed property for the given
  * node.  Returns null string on failure.
  */
-extern char *prom_nextprop(int node, char *prev_property, char *buffer);
+extern char *prom_nextprop(phandle node, char *prev_property, char *buffer);
 
 /* Returns phandle of the path specified */
-extern int prom_finddevice(char *name);
+extern phandle prom_finddevice(char *name);
 
 /* Returns 1 if the specified node has given property. */
-extern int prom_node_has_property(int node, char *property);
+extern int prom_node_has_property(phandle node, char *property);
 
 /* Set the indicated property at the given node with the passed value.
  * Returns the number of bytes of your value that the prom took.
  */
-extern int prom_setprop(int node, const char *prop_name, char *prop_value,
+extern int prom_setprop(phandle node, const char *prop_name, char *prop_value,
 			int value_size);
 
-extern int prom_pathtoinode(char *path);
-extern int prom_inst2pkg(int);
+extern phandle prom_pathtoinode(char *path);
+extern phandle prom_inst2pkg(int);
 
 /* Dorking with Bus ranges... */
 
@@ -247,13 +247,13 @@ extern int prom_inst2pkg(int);
 extern void prom_apply_obio_ranges(struct linux_prom_registers *obioregs, int nregs);
 
 /* Apply ranges of any prom node (and optionally parent node as well) to registers. */
-extern void prom_apply_generic_ranges(int node, int parent,
+extern void prom_apply_generic_ranges(phandle node, phandle parent,
 				      struct linux_prom_registers *sbusregs, int nregs);
 
 /* CPU probing helpers.  */
-int cpu_find_by_instance(int instance, int *prom_node, int *mid);
-int cpu_find_by_mid(int mid, int *prom_node);
-int cpu_get_hwmid(int prom_node);
+int cpu_find_by_instance(int instance, phandle *prom_node, int *mid);
+int cpu_find_by_mid(int mid, phandle *prom_node);
+int cpu_get_hwmid(phandle prom_node);
 
 extern spinlock_t prom_lock;
 

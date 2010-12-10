@@ -26,7 +26,6 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/vfs.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
@@ -1020,16 +1019,16 @@ out:
 	return result;
 }
 
-static int ncp_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *ncp_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, ncp_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, ncp_fill_super);
 }
 
 static struct file_system_type ncp_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ncpfs",
-	.get_sb		= ncp_get_sb,
+	.mount		= ncp_mount,
 	.kill_sb	= kill_anon_super,
 	.fs_flags	= FS_BINARY_MOUNTDATA,
 };

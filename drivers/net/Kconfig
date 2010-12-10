@@ -883,14 +883,6 @@ config BFIN_RX_DESC_NUM
 	help
 	  Set the number of buffer packets used in driver.
 
-config BFIN_MAC_RMII
-	bool "RMII PHY Interface"
-	depends on BFIN_MAC
-	default y if BFIN527_EZKIT
-	default n if BFIN537_STAMP
-	help
-	  Use Reduced PHY MII Interface
-
 config BFIN_MAC_USE_HWSTAMP
 	bool "Use IEEE 1588 hwstamp"
 	depends on BFIN_MAC && BF518
@@ -954,12 +946,33 @@ config NET_NETX
 config TI_DAVINCI_EMAC
 	tristate "TI DaVinci EMAC Support"
 	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 )
+	select TI_DAVINCI_MDIO
+	select TI_DAVINCI_CPDMA
 	select PHYLIB
 	help
 	  This driver supports TI's DaVinci Ethernet .
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called davinci_emac_driver.  This is recommended.
+
+config TI_DAVINCI_MDIO
+	tristate "TI DaVinci MDIO Support"
+	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 )
+	select PHYLIB
+	help
+	  This driver supports TI's DaVinci MDIO module.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called davinci_mdio.  This is recommended.
+
+config TI_DAVINCI_CPDMA
+	tristate "TI DaVinci CPDMA Support"
+	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 )
+	help
+	  This driver supports TI's DaVinci CPDMA dma engine.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called davinci_cpdma.  This is recommended.
 
 config DM9000
 	tristate "DM9000 support"
@@ -1028,7 +1041,7 @@ config SMC911X
 	tristate "SMSC LAN911[5678] support"
 	select CRC32
 	select MII
-	depends on ARM || SUPERH
+	depends on ARM || SUPERH || MN10300
 	help
 	  This is a driver for SMSC's LAN911x series of Ethernet chipsets
 	  including the new LAN9115, LAN9116, LAN9117, and LAN9118.
@@ -1042,7 +1055,7 @@ config SMC911X
 
 config SMSC911X
 	tristate "SMSC LAN911x/LAN921x families embedded ethernet support"
-	depends on ARM || SUPERH || BLACKFIN || MIPS
+	depends on ARM || SUPERH || BLACKFIN || MIPS || MN10300
 	select CRC32
 	select MII
 	select PHYLIB
@@ -1053,6 +1066,14 @@ config SMSC911X
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/networking/net-modules.txt>. The module
 	  will be called smsc911x.
+
+config SMSC911X_ARCH_HOOKS
+	def_bool n
+	depends on SMSC911X
+	help
+	  If the arch enables this, it allows the arch to implement various
+	  hooks for more comprehensive interrupt control and also to override
+	  the source of the MAC address.
 
 config NET_VENDOR_RACAL
 	bool "Racal-Interlan (Micom) NI cards"
@@ -2520,11 +2541,12 @@ source "drivers/net/stmmac/Kconfig"
 config PCH_GBE
 	tristate "PCH Gigabit Ethernet"
 	depends on PCI
+	select MII
 	---help---
-	  This is a gigabit ethernet driver for Topcliff PCH.
-	  Topcliff PCH is the platform controller hub that is used in Intel's
+	  This is a gigabit ethernet driver for EG20T PCH.
+	  EG20T PCH is the platform controller hub that is used in Intel's
 	  general embedded platform.
-	  Topcliff PCH has Gigabit Ethernet interface.
+	  EG20T PCH has Gigabit Ethernet interface.
 	  Using this interface, it is able to access system devices connected
 	  to Gigabit Ethernet.
 	  This driver enables Gigabit Ethernet function.
@@ -2922,6 +2944,18 @@ source "drivers/ieee802154/Kconfig"
 source "drivers/s390/net/Kconfig"
 
 source "drivers/net/caif/Kconfig"
+
+config TILE_NET
+	tristate "Tilera GBE/XGBE network driver support"
+	depends on TILE
+	default y
+	select CRC32
+	help
+	  This is a standard Linux network device driver for the
+	  on-chip Tilera Gigabit Ethernet and XAUI interfaces.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called tile_net.
 
 config XEN_NETDEV_FRONTEND
 	tristate "Xen network device frontend driver"

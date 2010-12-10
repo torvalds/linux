@@ -291,19 +291,19 @@ static int radio_si4713_pdriver_probe(struct platform_device *pdev)
 		goto unregister_v4l2_dev;
 	}
 
-	sd = v4l2_i2c_new_subdev_board(&rsdev->v4l2_dev, adapter, "si4713_i2c",
+	sd = v4l2_i2c_new_subdev_board(&rsdev->v4l2_dev, adapter,
 					pdata->subdev_board_info, NULL);
 	if (!sd) {
 		dev_err(&pdev->dev, "Cannot get v4l2 subdevice\n");
 		rval = -ENODEV;
-		goto unregister_v4l2_dev;
+		goto put_adapter;
 	}
 
 	rsdev->radio_dev = video_device_alloc();
 	if (!rsdev->radio_dev) {
 		dev_err(&pdev->dev, "Failed to alloc video device.\n");
 		rval = -ENOMEM;
-		goto unregister_v4l2_dev;
+		goto put_adapter;
 	}
 
 	memcpy(rsdev->radio_dev, &radio_si4713_vdev_template,
@@ -320,6 +320,8 @@ static int radio_si4713_pdriver_probe(struct platform_device *pdev)
 
 free_vdev:
 	video_device_release(rsdev->radio_dev);
+put_adapter:
+	i2c_put_adapter(adapter);
 unregister_v4l2_dev:
 	v4l2_device_unregister(&rsdev->v4l2_dev);
 free_rsdev:
@@ -335,8 +337,12 @@ static int __exit radio_si4713_pdriver_remove(struct platform_device *pdev)
 	struct radio_si4713_device *rsdev = container_of(v4l2_dev,
 						struct radio_si4713_device,
 						v4l2_dev);
+	struct v4l2_subdev *sd = list_entry(v4l2_dev->subdevs.next,
+					    struct v4l2_subdev, list);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	video_unregister_device(rsdev->radio_dev);
+	i2c_put_adapter(client->adapter);
 	v4l2_device_unregister(&rsdev->v4l2_dev);
 	kfree(rsdev);
 

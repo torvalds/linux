@@ -13,7 +13,6 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_ldisc.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 
 #include <asm/system.h>
 
@@ -50,6 +49,7 @@
 #define N_V253		19	/* Codec control over voice modem */
 #define N_CAIF		20      /* CAIF protocol for talking to modems */
 #define N_GSM0710	21	/* GSM 0710 Mux */
+#define N_TI_WL		22	/* for TI's WL BT, FM, GPS combo chips */
 
 /*
  * This character is the same as _POSIX_VDISABLE: it cannot be used as
@@ -366,6 +366,7 @@ struct tty_file_private {
 #define TTY_HUPPED 		18	/* Post driver->hangup() */
 #define TTY_FLUSHING		19	/* Flushing to ldisc in progress */
 #define TTY_FLUSHPENDING	20	/* Queued buffer flush pending */
+#define TTY_HUPPING 		21	/* ->hangup() in progress */
 
 #define TTY_WRITE_FLUSH(tty) tty_write_flush((tty))
 
@@ -540,8 +541,8 @@ extern void tty_audit_exit(void);
 extern void tty_audit_fork(struct signal_struct *sig);
 extern void tty_audit_tiocsti(struct tty_struct *tty, char ch);
 extern void tty_audit_push(struct tty_struct *tty);
-extern void tty_audit_push_task(struct task_struct *tsk,
-					uid_t loginuid, u32 sessionid);
+extern int tty_audit_push_task(struct task_struct *tsk,
+			       uid_t loginuid, u32 sessionid);
 #else
 static inline void tty_audit_add_data(struct tty_struct *tty,
 				      unsigned char *data, size_t size)
@@ -559,9 +560,10 @@ static inline void tty_audit_fork(struct signal_struct *sig)
 static inline void tty_audit_push(struct tty_struct *tty)
 {
 }
-static inline void tty_audit_push_task(struct task_struct *tsk,
-					uid_t loginuid, u32 sessionid)
+static inline int tty_audit_push_task(struct task_struct *tsk,
+				      uid_t loginuid, u32 sessionid)
 {
+	return 0;
 }
 #endif
 

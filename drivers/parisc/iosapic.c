@@ -615,17 +615,10 @@ iosapic_set_irt_data( struct vector_info *vi, u32 *dp0, u32 *dp1)
 }
 
 
-static struct vector_info *iosapic_get_vector(unsigned int irq)
-{
-	struct irq_desc *desc = irq_to_desc(irq);
-
-	return desc->chip_data;
-}
-
-static void iosapic_disable_irq(unsigned int irq)
+static void iosapic_mask_irq(unsigned int irq)
 {
 	unsigned long flags;
-	struct vector_info *vi = iosapic_get_vector(irq);
+	struct vector_info *vi = get_irq_chip_data(irq);
 	u32 d0, d1;
 
 	spin_lock_irqsave(&iosapic_lock, flags);
@@ -635,9 +628,9 @@ static void iosapic_disable_irq(unsigned int irq)
 	spin_unlock_irqrestore(&iosapic_lock, flags);
 }
 
-static void iosapic_enable_irq(unsigned int irq)
+static void iosapic_unmask_irq(unsigned int irq)
 {
-	struct vector_info *vi = iosapic_get_vector(irq);
+	struct vector_info *vi = get_irq_chip_data(irq);
 	u32 d0, d1;
 
 	/* data is initialized by fixup_irq */
@@ -678,34 +671,19 @@ printk("\n");
 	iosapic_eoi(vi->eoi_addr, vi->eoi_data);
 }
 
-/*
- * PARISC only supports PCI devices below I/O SAPIC.
- * PCI only supports level triggered in order to share IRQ lines.
- * ergo I/O SAPIC must always issue EOI on parisc.
- *
- * i386/ia64 support ISA devices and have to deal with
- * edge-triggered interrupts too.
- */
-static void iosapic_end_irq(unsigned int irq)
+static void iosapic_eoi_irq(unsigned int irq)
 {
-	struct vector_info *vi = iosapic_get_vector(irq);
-	DBG(KERN_DEBUG "end_irq(%d): eoi(%p, 0x%x)\n", irq,
-			vi->eoi_addr, vi->eoi_data);
-	iosapic_eoi(vi->eoi_addr, vi->eoi_data);
-	cpu_end_irq(irq);
-}
+	struct vector_info *vi = get_irq_chip_data(irq);
 
-static unsigned int iosapic_startup_irq(unsigned int irq)
-{
-	iosapic_enable_irq(irq);
-	return 0;
+	iosapic_eoi(vi->eoi_addr, vi->eoi_data);
+	cpu_eoi_irq(irq);
 }
 
 #ifdef CONFIG_SMP
 static int iosapic_set_affinity_irq(unsigned int irq,
 				     const struct cpumask *dest)
 {
-	struct vector_info *vi = iosapic_get_vector(irq);
+	struct vector_info *vi = get_irq_chip_data(irq);
 	u32 d0, d1, dummy_d0;
 	unsigned long flags;
 	int dest_cpu;
@@ -730,13 +708,11 @@ static int iosapic_set_affinity_irq(unsigned int irq,
 #endif
 
 static struct irq_chip iosapic_interrupt_type = {
-	.name	 =	"IO-SAPIC-level",
-	.startup =	iosapic_startup_irq,
-	.shutdown =	iosapic_disable_irq,
-	.enable =	iosapic_enable_irq,
-	.disable =	iosapic_disable_irq,
-	.ack =		cpu_ack_irq,
-	.end =		iosapic_end_irq,
+	.name	=	"IO-SAPIC-level",
+	.unmask	=	iosapic_unmask_irq,
+	.mask	=	iosapic_mask_irq,
+	.ack	=	cpu_ack_irq,
+	.eoi	=	iosapic_eoi_irq,
 #ifdef CONFIG_SMP
 	.set_affinity =	iosapic_set_affinity_irq,
 #endif
@@ -891,8 +867,8 @@ void *iosapic_register(unsigned long hpa)
 	isi->isi_version = iosapic_rd_version(isi);
 	isi->isi_num_vectors = IOSAPIC_IRDT_MAX_ENTRY(isi->isi_version) + 1;
 
-	vip = isi->isi_vector = (struct vector_info *)
-		kzalloc(sizeof(struct vector_info) * isi->isi_num_vectors, GFP_KERNEL);
+	vip = isi->isi_vector = kcalloc(isi->isi_num_vectors,
+					sizeof(struct vector_info), GFP_KERNEL);
 	if (vip == NULL) {
 		kfree(isi);
 		return NULL;

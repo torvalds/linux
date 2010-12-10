@@ -34,6 +34,7 @@
 #include "drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
+#include "nouveau_ramht.h"
 
 /* NVidia uses context objects to drive drawing operations.
 
@@ -65,137 +66,6 @@
    The key into the hash table depends on the object handle and channel id and
    is given as:
 */
-static uint32_t
-nouveau_ramht_hash_handle(struct drm_device *dev, int channel, uint32_t handle)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t hash = 0;
-	int i;
-
-	NV_DEBUG(dev, "ch%d handle=0x%08x\n", channel, handle);
-
-	for (i = 32; i > 0; i -= dev_priv->ramht_bits) {
-		hash ^= (handle & ((1 << dev_priv->ramht_bits) - 1));
-		handle >>= dev_priv->ramht_bits;
-	}
-
-	if (dev_priv->card_type < NV_50)
-		hash ^= channel << (dev_priv->ramht_bits - 4);
-	hash <<= 3;
-
-	NV_DEBUG(dev, "hash=0x%08x\n", hash);
-	return hash;
-}
-
-static int
-nouveau_ramht_entry_valid(struct drm_device *dev, struct nouveau_gpuobj *ramht,
-			  uint32_t offset)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t ctx = nv_ro32(dev, ramht, (offset + 4)/4);
-
-	if (dev_priv->card_type < NV_40)
-		return ((ctx & NV_RAMHT_CONTEXT_VALID) != 0);
-	return (ctx != 0);
-}
-
-static int
-nouveau_ramht_insert(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_instmem_engine *instmem = &dev_priv->engine.instmem;
-	struct nouveau_channel *chan = ref->channel;
-	struct nouveau_gpuobj *ramht = chan->ramht ? chan->ramht->gpuobj : NULL;
-	uint32_t ctx, co, ho;
-
-	if (!ramht) {
-		NV_ERROR(dev, "No hash table!\n");
-		return -EINVAL;
-	}
-
-	if (dev_priv->card_type < NV_40) {
-		ctx = NV_RAMHT_CONTEXT_VALID | (ref->instance >> 4) |
-		      (chan->id << NV_RAMHT_CONTEXT_CHANNEL_SHIFT) |
-		      (ref->gpuobj->engine << NV_RAMHT_CONTEXT_ENGINE_SHIFT);
-	} else
-	if (dev_priv->card_type < NV_50) {
-		ctx = (ref->instance >> 4) |
-		      (chan->id << NV40_RAMHT_CONTEXT_CHANNEL_SHIFT) |
-		      (ref->gpuobj->engine << NV40_RAMHT_CONTEXT_ENGINE_SHIFT);
-	} else {
-		if (ref->gpuobj->engine == NVOBJ_ENGINE_DISPLAY) {
-			ctx = (ref->instance << 10) | 2;
-		} else {
-			ctx = (ref->instance >> 4) |
-			      ((ref->gpuobj->engine <<
-				NV40_RAMHT_CONTEXT_ENGINE_SHIFT));
-		}
-	}
-
-	co = ho = nouveau_ramht_hash_handle(dev, chan->id, ref->handle);
-	do {
-		if (!nouveau_ramht_entry_valid(dev, ramht, co)) {
-			NV_DEBUG(dev,
-				 "insert ch%d 0x%08x: h=0x%08x, c=0x%08x\n",
-				 chan->id, co, ref->handle, ctx);
-			nv_wo32(dev, ramht, (co + 0)/4, ref->handle);
-			nv_wo32(dev, ramht, (co + 4)/4, ctx);
-
-			list_add_tail(&ref->list, &chan->ramht_refs);
-			instmem->flush(dev);
-			return 0;
-		}
-		NV_DEBUG(dev, "collision ch%d 0x%08x: h=0x%08x\n",
-			 chan->id, co, nv_ro32(dev, ramht, co/4));
-
-		co += 8;
-		if (co >= dev_priv->ramht_size)
-			co = 0;
-	} while (co != ho);
-
-	NV_ERROR(dev, "RAMHT space exhausted. ch=%d\n", chan->id);
-	return -ENOMEM;
-}
-
-static void
-nouveau_ramht_remove(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_instmem_engine *instmem = &dev_priv->engine.instmem;
-	struct nouveau_channel *chan = ref->channel;
-	struct nouveau_gpuobj *ramht = chan->ramht ? chan->ramht->gpuobj : NULL;
-	uint32_t co, ho;
-
-	if (!ramht) {
-		NV_ERROR(dev, "No hash table!\n");
-		return;
-	}
-
-	co = ho = nouveau_ramht_hash_handle(dev, chan->id, ref->handle);
-	do {
-		if (nouveau_ramht_entry_valid(dev, ramht, co) &&
-		    (ref->handle == nv_ro32(dev, ramht, (co/4)))) {
-			NV_DEBUG(dev,
-				 "remove ch%d 0x%08x: h=0x%08x, c=0x%08x\n",
-				 chan->id, co, ref->handle,
-				 nv_ro32(dev, ramht, (co + 4)));
-			nv_wo32(dev, ramht, (co + 0)/4, 0x00000000);
-			nv_wo32(dev, ramht, (co + 4)/4, 0x00000000);
-
-			list_del(&ref->list);
-			instmem->flush(dev);
-			return;
-		}
-
-		co += 8;
-		if (co >= dev_priv->ramht_size)
-			co = 0;
-	} while (co != ho);
-	list_del(&ref->list);
-
-	NV_ERROR(dev, "RAMHT entry not found. ch=%d, handle=0x%08x\n",
-		 chan->id, ref->handle);
-}
 
 int
 nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
@@ -205,7 +75,7 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_engine *engine = &dev_priv->engine;
 	struct nouveau_gpuobj *gpuobj;
-	struct drm_mm *pramin = NULL;
+	struct drm_mm_node *ramin = NULL;
 	int ret;
 
 	NV_DEBUG(dev, "ch%d size=%u align=%d flags=0x%08x\n",
@@ -218,69 +88,102 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 	if (!gpuobj)
 		return -ENOMEM;
 	NV_DEBUG(dev, "gpuobj %p\n", gpuobj);
+	gpuobj->dev = dev;
 	gpuobj->flags = flags;
-	gpuobj->im_channel = chan;
+	kref_init(&gpuobj->refcount);
+	gpuobj->size = size;
 
+	spin_lock(&dev_priv->ramin_lock);
 	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
+	spin_unlock(&dev_priv->ramin_lock);
 
-	/* Choose between global instmem heap, and per-channel private
-	 * instmem heap.  On <NV50 allow requests for private instmem
-	 * to be satisfied from global heap if no per-channel area
-	 * available.
-	 */
 	if (chan) {
 		NV_DEBUG(dev, "channel heap\n");
-		pramin = &chan->ramin_heap;
+
+		ramin = drm_mm_search_free(&chan->ramin_heap, size, align, 0);
+		if (ramin)
+			ramin = drm_mm_get_block(ramin, size, align);
+
+		if (!ramin) {
+			nouveau_gpuobj_ref(NULL, &gpuobj);
+			return -ENOMEM;
+		}
 	} else {
 		NV_DEBUG(dev, "global heap\n");
-		pramin = &dev_priv->ramin_heap;
 
+		/* allocate backing pages, sets vinst */
 		ret = engine->instmem.populate(dev, gpuobj, &size);
 		if (ret) {
-			nouveau_gpuobj_del(dev, &gpuobj);
+			nouveau_gpuobj_ref(NULL, &gpuobj);
 			return ret;
+		}
+
+		/* try and get aperture space */
+		do {
+			if (drm_mm_pre_get(&dev_priv->ramin_heap))
+				return -ENOMEM;
+
+			spin_lock(&dev_priv->ramin_lock);
+			ramin = drm_mm_search_free(&dev_priv->ramin_heap, size,
+						   align, 0);
+			if (ramin == NULL) {
+				spin_unlock(&dev_priv->ramin_lock);
+				nouveau_gpuobj_ref(NULL, &gpuobj);
+				return -ENOMEM;
+			}
+
+			ramin = drm_mm_get_block_atomic(ramin, size, align);
+			spin_unlock(&dev_priv->ramin_lock);
+		} while (ramin == NULL);
+
+		/* on nv50 it's ok to fail, we have a fallback path */
+		if (!ramin && dev_priv->card_type < NV_50) {
+			nouveau_gpuobj_ref(NULL, &gpuobj);
+			return -ENOMEM;
 		}
 	}
 
-	/* Allocate a chunk of the PRAMIN aperture */
-	gpuobj->im_pramin = drm_mm_search_free(pramin, size, align, 0);
-	if (gpuobj->im_pramin)
-		gpuobj->im_pramin = drm_mm_get_block(gpuobj->im_pramin, size, align);
-
-	if (!gpuobj->im_pramin) {
-		nouveau_gpuobj_del(dev, &gpuobj);
-		return -ENOMEM;
-	}
-
-	if (!chan) {
+	/* if we got a chunk of the aperture, map pages into it */
+	gpuobj->im_pramin = ramin;
+	if (!chan && gpuobj->im_pramin && dev_priv->ramin_available) {
 		ret = engine->instmem.bind(dev, gpuobj);
 		if (ret) {
-			nouveau_gpuobj_del(dev, &gpuobj);
+			nouveau_gpuobj_ref(NULL, &gpuobj);
 			return ret;
 		}
+	}
+
+	/* calculate the various different addresses for the object */
+	if (chan) {
+		gpuobj->pinst = chan->ramin->pinst;
+		if (gpuobj->pinst != ~0)
+			gpuobj->pinst += gpuobj->im_pramin->start;
+
+		if (dev_priv->card_type < NV_50) {
+			gpuobj->cinst = gpuobj->pinst;
+		} else {
+			gpuobj->cinst = gpuobj->im_pramin->start;
+			gpuobj->vinst = gpuobj->im_pramin->start +
+					chan->ramin->vinst;
+		}
+	} else {
+		if (gpuobj->im_pramin)
+			gpuobj->pinst = gpuobj->im_pramin->start;
+		else
+			gpuobj->pinst = ~0;
+		gpuobj->cinst = 0xdeadbeef;
 	}
 
 	if (gpuobj->flags & NVOBJ_FLAG_ZERO_ALLOC) {
 		int i;
 
-		for (i = 0; i < gpuobj->im_pramin->size; i += 4)
-			nv_wo32(dev, gpuobj, i/4, 0);
+		for (i = 0; i < gpuobj->size; i += 4)
+			nv_wo32(gpuobj, i, 0);
 		engine->instmem.flush(dev);
 	}
 
+
 	*gpuobj_ret = gpuobj;
-	return 0;
-}
-
-int
-nouveau_gpuobj_early_init(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	NV_DEBUG(dev, "\n");
-
-	INIT_LIST_HEAD(&dev_priv->gpuobj_list);
-
 	return 0;
 }
 
@@ -288,18 +191,12 @@ int
 nouveau_gpuobj_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int ret;
 
 	NV_DEBUG(dev, "\n");
 
-	if (dev_priv->card_type < NV_50) {
-		ret = nouveau_gpuobj_new_fake(dev,
-			dev_priv->ramht_offset, ~0, dev_priv->ramht_size,
-			NVOBJ_FLAG_ZERO_ALLOC | NVOBJ_FLAG_ALLOW_NO_REFS,
-						&dev_priv->ramht, NULL);
-		if (ret)
-			return ret;
-	}
+	INIT_LIST_HEAD(&dev_priv->gpuobj_list);
+	spin_lock_init(&dev_priv->ramin_lock);
+	dev_priv->ramin_base = ~0;
 
 	return 0;
 }
@@ -311,297 +208,89 @@ nouveau_gpuobj_takedown(struct drm_device *dev)
 
 	NV_DEBUG(dev, "\n");
 
-	nouveau_gpuobj_del(dev, &dev_priv->ramht);
+	BUG_ON(!list_empty(&dev_priv->gpuobj_list));
 }
 
-void
-nouveau_gpuobj_late_takedown(struct drm_device *dev)
+
+static void
+nouveau_gpuobj_del(struct kref *ref)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *gpuobj = NULL;
-	struct list_head *entry, *tmp;
-
-	NV_DEBUG(dev, "\n");
-
-	list_for_each_safe(entry, tmp, &dev_priv->gpuobj_list) {
-		gpuobj = list_entry(entry, struct nouveau_gpuobj, list);
-
-		NV_ERROR(dev, "gpuobj %p still exists at takedown, refs=%d\n",
-			 gpuobj, gpuobj->refcount);
-		gpuobj->refcount = 0;
-		nouveau_gpuobj_del(dev, &gpuobj);
-	}
-}
-
-int
-nouveau_gpuobj_del(struct drm_device *dev, struct nouveau_gpuobj **pgpuobj)
-{
+	struct nouveau_gpuobj *gpuobj =
+		container_of(ref, struct nouveau_gpuobj, refcount);
+	struct drm_device *dev = gpuobj->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_engine *engine = &dev_priv->engine;
-	struct nouveau_gpuobj *gpuobj;
 	int i;
 
-	NV_DEBUG(dev, "gpuobj %p\n", pgpuobj ? *pgpuobj : NULL);
-
-	if (!dev_priv || !pgpuobj || !(*pgpuobj))
-		return -EINVAL;
-	gpuobj = *pgpuobj;
-
-	if (gpuobj->refcount != 0) {
-		NV_ERROR(dev, "gpuobj refcount is %d\n", gpuobj->refcount);
-		return -EINVAL;
-	}
+	NV_DEBUG(dev, "gpuobj %p\n", gpuobj);
 
 	if (gpuobj->im_pramin && (gpuobj->flags & NVOBJ_FLAG_ZERO_FREE)) {
-		for (i = 0; i < gpuobj->im_pramin->size; i += 4)
-			nv_wo32(dev, gpuobj, i/4, 0);
+		for (i = 0; i < gpuobj->size; i += 4)
+			nv_wo32(gpuobj, i, 0);
 		engine->instmem.flush(dev);
 	}
 
 	if (gpuobj->dtor)
 		gpuobj->dtor(dev, gpuobj);
 
-	if (gpuobj->im_backing && !(gpuobj->flags & NVOBJ_FLAG_FAKE))
+	if (gpuobj->im_backing)
 		engine->instmem.clear(dev, gpuobj);
 
-	if (gpuobj->im_pramin) {
-		if (gpuobj->flags & NVOBJ_FLAG_FAKE)
-			kfree(gpuobj->im_pramin);
-		else
-			drm_mm_put_block(gpuobj->im_pramin);
-	}
-
+	spin_lock(&dev_priv->ramin_lock);
+	if (gpuobj->im_pramin)
+		drm_mm_put_block(gpuobj->im_pramin);
 	list_del(&gpuobj->list);
+	spin_unlock(&dev_priv->ramin_lock);
 
-	*pgpuobj = NULL;
 	kfree(gpuobj);
-	return 0;
 }
 
-static int
-nouveau_gpuobj_instance_get(struct drm_device *dev,
-			    struct nouveau_channel *chan,
-			    struct nouveau_gpuobj *gpuobj, uint32_t *inst)
+void
+nouveau_gpuobj_ref(struct nouveau_gpuobj *ref, struct nouveau_gpuobj **ptr)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *cpramin;
+	if (ref)
+		kref_get(&ref->refcount);
 
-	/* <NV50 use PRAMIN address everywhere */
-	if (dev_priv->card_type < NV_50) {
-		*inst = gpuobj->im_pramin->start;
-		return 0;
-	}
+	if (*ptr)
+		kref_put(&(*ptr)->refcount, nouveau_gpuobj_del);
 
-	if (chan && gpuobj->im_channel != chan) {
-		NV_ERROR(dev, "Channel mismatch: obj %d, ref %d\n",
-			 gpuobj->im_channel->id, chan->id);
-		return -EINVAL;
-	}
-
-	/* NV50 channel-local instance */
-	if (chan) {
-		cpramin = chan->ramin->gpuobj;
-		*inst = gpuobj->im_pramin->start - cpramin->im_pramin->start;
-		return 0;
-	}
-
-	/* NV50 global (VRAM) instance */
-	if (!gpuobj->im_channel) {
-		/* ...from global heap */
-		if (!gpuobj->im_backing) {
-			NV_ERROR(dev, "AII, no VRAM backing gpuobj\n");
-			return -EINVAL;
-		}
-		*inst = gpuobj->im_backing_start;
-		return 0;
-	} else {
-		/* ...from local heap */
-		cpramin = gpuobj->im_channel->ramin->gpuobj;
-		*inst = cpramin->im_backing_start +
-			(gpuobj->im_pramin->start - cpramin->im_pramin->start);
-		return 0;
-	}
-
-	return -EINVAL;
+	*ptr = ref;
 }
 
 int
-nouveau_gpuobj_ref_add(struct drm_device *dev, struct nouveau_channel *chan,
-		       uint32_t handle, struct nouveau_gpuobj *gpuobj,
-		       struct nouveau_gpuobj_ref **ref_ret)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj_ref *ref;
-	uint32_t instance;
-	int ret;
-
-	NV_DEBUG(dev, "ch%d h=0x%08x gpuobj=%p\n",
-		 chan ? chan->id : -1, handle, gpuobj);
-
-	if (!dev_priv || !gpuobj || (ref_ret && *ref_ret != NULL))
-		return -EINVAL;
-
-	if (!chan && !ref_ret)
-		return -EINVAL;
-
-	if (gpuobj->engine == NVOBJ_ENGINE_SW && !gpuobj->im_pramin) {
-		/* sw object */
-		instance = 0x40;
-	} else {
-		ret = nouveau_gpuobj_instance_get(dev, chan, gpuobj, &instance);
-		if (ret)
-			return ret;
-	}
-
-	ref = kzalloc(sizeof(*ref), GFP_KERNEL);
-	if (!ref)
-		return -ENOMEM;
-	INIT_LIST_HEAD(&ref->list);
-	ref->gpuobj   = gpuobj;
-	ref->channel  = chan;
-	ref->instance = instance;
-
-	if (!ref_ret) {
-		ref->handle = handle;
-
-		ret = nouveau_ramht_insert(dev, ref);
-		if (ret) {
-			kfree(ref);
-			return ret;
-		}
-	} else {
-		ref->handle = ~0;
-		*ref_ret = ref;
-	}
-
-	ref->gpuobj->refcount++;
-	return 0;
-}
-
-int nouveau_gpuobj_ref_del(struct drm_device *dev, struct nouveau_gpuobj_ref **pref)
-{
-	struct nouveau_gpuobj_ref *ref;
-
-	NV_DEBUG(dev, "ref %p\n", pref ? *pref : NULL);
-
-	if (!dev || !pref || *pref == NULL)
-		return -EINVAL;
-	ref = *pref;
-
-	if (ref->handle != ~0)
-		nouveau_ramht_remove(dev, ref);
-
-	if (ref->gpuobj) {
-		ref->gpuobj->refcount--;
-
-		if (ref->gpuobj->refcount == 0) {
-			if (!(ref->gpuobj->flags & NVOBJ_FLAG_ALLOW_NO_REFS))
-				nouveau_gpuobj_del(dev, &ref->gpuobj);
-		}
-	}
-
-	*pref = NULL;
-	kfree(ref);
-	return 0;
-}
-
-int
-nouveau_gpuobj_new_ref(struct drm_device *dev,
-		       struct nouveau_channel *oc, struct nouveau_channel *rc,
-		       uint32_t handle, uint32_t size, int align,
-		       uint32_t flags, struct nouveau_gpuobj_ref **ref)
-{
-	struct nouveau_gpuobj *gpuobj = NULL;
-	int ret;
-
-	ret = nouveau_gpuobj_new(dev, oc, size, align, flags, &gpuobj);
-	if (ret)
-		return ret;
-
-	ret = nouveau_gpuobj_ref_add(dev, rc, handle, gpuobj, ref);
-	if (ret) {
-		nouveau_gpuobj_del(dev, &gpuobj);
-		return ret;
-	}
-
-	return 0;
-}
-
-int
-nouveau_gpuobj_ref_find(struct nouveau_channel *chan, uint32_t handle,
-			struct nouveau_gpuobj_ref **ref_ret)
-{
-	struct nouveau_gpuobj_ref *ref;
-	struct list_head *entry, *tmp;
-
-	list_for_each_safe(entry, tmp, &chan->ramht_refs) {
-		ref = list_entry(entry, struct nouveau_gpuobj_ref, list);
-
-		if (ref->handle == handle) {
-			if (ref_ret)
-				*ref_ret = ref;
-			return 0;
-		}
-	}
-
-	return -EINVAL;
-}
-
-int
-nouveau_gpuobj_new_fake(struct drm_device *dev, uint32_t p_offset,
-			uint32_t b_offset, uint32_t size,
-			uint32_t flags, struct nouveau_gpuobj **pgpuobj,
-			struct nouveau_gpuobj_ref **pref)
+nouveau_gpuobj_new_fake(struct drm_device *dev, u32 pinst, u64 vinst,
+			u32 size, u32 flags, struct nouveau_gpuobj **pgpuobj)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *gpuobj = NULL;
 	int i;
 
 	NV_DEBUG(dev,
-		 "p_offset=0x%08x b_offset=0x%08x size=0x%08x flags=0x%08x\n",
-		 p_offset, b_offset, size, flags);
+		 "pinst=0x%08x vinst=0x%010llx size=0x%08x flags=0x%08x\n",
+		 pinst, vinst, size, flags);
 
 	gpuobj = kzalloc(sizeof(*gpuobj), GFP_KERNEL);
 	if (!gpuobj)
 		return -ENOMEM;
 	NV_DEBUG(dev, "gpuobj %p\n", gpuobj);
-	gpuobj->im_channel = NULL;
-	gpuobj->flags      = flags | NVOBJ_FLAG_FAKE;
-
-	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
-
-	if (p_offset != ~0) {
-		gpuobj->im_pramin = kzalloc(sizeof(struct drm_mm_node),
-					    GFP_KERNEL);
-		if (!gpuobj->im_pramin) {
-			nouveau_gpuobj_del(dev, &gpuobj);
-			return -ENOMEM;
-		}
-		gpuobj->im_pramin->start = p_offset;
-		gpuobj->im_pramin->size  = size;
-	}
-
-	if (b_offset != ~0) {
-		gpuobj->im_backing = (struct nouveau_bo *)-1;
-		gpuobj->im_backing_start = b_offset;
-	}
+	gpuobj->dev = dev;
+	gpuobj->flags = flags;
+	kref_init(&gpuobj->refcount);
+	gpuobj->size  = size;
+	gpuobj->pinst = pinst;
+	gpuobj->cinst = 0xdeadbeef;
+	gpuobj->vinst = vinst;
 
 	if (gpuobj->flags & NVOBJ_FLAG_ZERO_ALLOC) {
-		for (i = 0; i < gpuobj->im_pramin->size; i += 4)
-			nv_wo32(dev, gpuobj, i/4, 0);
+		for (i = 0; i < gpuobj->size; i += 4)
+			nv_wo32(gpuobj, i, 0);
 		dev_priv->engine.instmem.flush(dev);
 	}
 
-	if (pref) {
-		i = nouveau_gpuobj_ref_add(dev, NULL, 0, gpuobj, pref);
-		if (i) {
-			nouveau_gpuobj_del(dev, &gpuobj);
-			return i;
-		}
-	}
-
-	if (pgpuobj)
-		*pgpuobj = gpuobj;
+	spin_lock(&dev_priv->ramin_lock);
+	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
+	spin_unlock(&dev_priv->ramin_lock);
+	*pgpuobj = gpuobj;
 	return 0;
 }
 
@@ -685,14 +374,12 @@ nouveau_gpuobj_dma_new(struct nouveau_channel *chan, int class,
 		adjust = offset &  0x00000fff;
 		frame  = offset & ~0x00000fff;
 
-		nv_wo32(dev, *gpuobj, 0, ((1<<12) | (1<<13) |
-				(adjust << 20) |
-				 (access << 14) |
-				 (target << 16) |
-				  class));
-		nv_wo32(dev, *gpuobj, 1, size - 1);
-		nv_wo32(dev, *gpuobj, 2, frame | pte_flags);
-		nv_wo32(dev, *gpuobj, 3, frame | pte_flags);
+		nv_wo32(*gpuobj,  0, ((1<<12) | (1<<13) | (adjust << 20) |
+				      (access << 14) | (target << 16) |
+				      class));
+		nv_wo32(*gpuobj,  4, size - 1);
+		nv_wo32(*gpuobj,  8, frame | pte_flags);
+		nv_wo32(*gpuobj, 12, frame | pte_flags);
 	} else {
 		uint64_t limit = offset + size - 1;
 		uint32_t flags0, flags5;
@@ -705,12 +392,12 @@ nouveau_gpuobj_dma_new(struct nouveau_channel *chan, int class,
 			flags5 = 0x00080000;
 		}
 
-		nv_wo32(dev, *gpuobj, 0, flags0 | class);
-		nv_wo32(dev, *gpuobj, 1, lower_32_bits(limit));
-		nv_wo32(dev, *gpuobj, 2, lower_32_bits(offset));
-		nv_wo32(dev, *gpuobj, 3, ((upper_32_bits(limit) & 0xff) << 24) |
-					(upper_32_bits(offset) & 0xff));
-		nv_wo32(dev, *gpuobj, 5, flags5);
+		nv_wo32(*gpuobj,  0, flags0 | class);
+		nv_wo32(*gpuobj,  4, lower_32_bits(limit));
+		nv_wo32(*gpuobj,  8, lower_32_bits(offset));
+		nv_wo32(*gpuobj, 12, ((upper_32_bits(limit) & 0xff) << 24) |
+				      (upper_32_bits(offset) & 0xff));
+		nv_wo32(*gpuobj, 20, flags5);
 	}
 
 	instmem->flush(dev);
@@ -741,7 +428,7 @@ nouveau_gpuobj_gart_dma_new(struct nouveau_channel *chan,
 			*o_ret = 0;
 	} else
 	if (dev_priv->gart_info.type == NOUVEAU_GART_SGDMA) {
-		*gpuobj = dev_priv->gart_info.sg_ctxdma;
+		nouveau_gpuobj_ref(dev_priv->gart_info.sg_ctxdma, gpuobj);
 		if (offset & ~0xffffffffULL) {
 			NV_ERROR(dev, "obj offset exceeds 32-bits\n");
 			return -EINVAL;
@@ -829,25 +516,25 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, int class,
 	}
 
 	if (dev_priv->card_type >= NV_50) {
-		nv_wo32(dev, *gpuobj, 0, class);
-		nv_wo32(dev, *gpuobj, 5, 0x00010000);
+		nv_wo32(*gpuobj,  0, class);
+		nv_wo32(*gpuobj, 20, 0x00010000);
 	} else {
 		switch (class) {
 		case NV_CLASS_NULL:
-			nv_wo32(dev, *gpuobj, 0, 0x00001030);
-			nv_wo32(dev, *gpuobj, 1, 0xFFFFFFFF);
+			nv_wo32(*gpuobj, 0, 0x00001030);
+			nv_wo32(*gpuobj, 4, 0xFFFFFFFF);
 			break;
 		default:
 			if (dev_priv->card_type >= NV_40) {
-				nv_wo32(dev, *gpuobj, 0, class);
+				nv_wo32(*gpuobj, 0, class);
 #ifdef __BIG_ENDIAN
-				nv_wo32(dev, *gpuobj, 2, 0x01000000);
+				nv_wo32(*gpuobj, 8, 0x01000000);
 #endif
 			} else {
 #ifdef __BIG_ENDIAN
-				nv_wo32(dev, *gpuobj, 0, class | 0x00080000);
+				nv_wo32(*gpuobj, 0, class | 0x00080000);
 #else
-				nv_wo32(dev, *gpuobj, 0, class);
+				nv_wo32(*gpuobj, 0, class);
 #endif
 			}
 		}
@@ -873,10 +560,15 @@ nouveau_gpuobj_sw_new(struct nouveau_channel *chan, int class,
 	gpuobj = kzalloc(sizeof(*gpuobj), GFP_KERNEL);
 	if (!gpuobj)
 		return -ENOMEM;
+	gpuobj->dev = chan->dev;
 	gpuobj->engine = NVOBJ_ENGINE_SW;
 	gpuobj->class = class;
+	kref_init(&gpuobj->refcount);
+	gpuobj->cinst = 0x40;
 
+	spin_lock(&dev_priv->ramin_lock);
 	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
+	spin_unlock(&dev_priv->ramin_lock);
 	*gpuobj_ret = gpuobj;
 	return 0;
 }
@@ -886,7 +578,6 @@ nouveau_gpuobj_channel_init_pramin(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *pramin = NULL;
 	uint32_t size;
 	uint32_t base;
 	int ret;
@@ -911,18 +602,16 @@ nouveau_gpuobj_channel_init_pramin(struct nouveau_channel *chan)
 		size += 0x1000;
 	}
 
-	ret = nouveau_gpuobj_new_ref(dev, NULL, NULL, 0, size, 0x1000, 0,
-				     &chan->ramin);
+	ret = nouveau_gpuobj_new(dev, NULL, size, 0x1000, 0, &chan->ramin);
 	if (ret) {
 		NV_ERROR(dev, "Error allocating channel PRAMIN: %d\n", ret);
 		return ret;
 	}
-	pramin = chan->ramin->gpuobj;
 
-	ret = drm_mm_init(&chan->ramin_heap, pramin->im_pramin->start + base, size);
+	ret = drm_mm_init(&chan->ramin_heap, base, size);
 	if (ret) {
 		NV_ERROR(dev, "Error creating PRAMIN heap: %d\n", ret);
-		nouveau_gpuobj_ref_del(dev, &chan->ramin);
+		nouveau_gpuobj_ref(NULL, &chan->ramin);
 		return ret;
 	}
 
@@ -939,8 +628,6 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	struct nouveau_gpuobj *vram = NULL, *tt = NULL;
 	int ret, i;
 
-	INIT_LIST_HEAD(&chan->ramht_refs);
-
 	NV_DEBUG(dev, "ch%d vram=0x%08x tt=0x%08x\n", chan->id, vram_h, tt_h);
 
 	/* Allocate a chunk of memory for per-channel object storage */
@@ -956,41 +643,38 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	 *    locations determined during init.
 	 */
 	if (dev_priv->card_type >= NV_50) {
-		uint32_t vm_offset, pde;
+		u32 pgd_offs = (dev_priv->chipset == 0x50) ? 0x1400 : 0x0200;
+		u64 vm_vinst = chan->ramin->vinst + pgd_offs;
+		u32 vm_pinst = chan->ramin->pinst;
+		u32 pde;
 
-		vm_offset = (dev_priv->chipset & 0xf0) == 0x50 ? 0x1400 : 0x200;
-		vm_offset += chan->ramin->gpuobj->im_pramin->start;
+		if (vm_pinst != ~0)
+			vm_pinst += pgd_offs;
 
-		ret = nouveau_gpuobj_new_fake(dev, vm_offset, ~0, 0x4000,
-							0, &chan->vm_pd, NULL);
+		ret = nouveau_gpuobj_new_fake(dev, vm_pinst, vm_vinst, 0x4000,
+					      0, &chan->vm_pd);
 		if (ret)
 			return ret;
 		for (i = 0; i < 0x4000; i += 8) {
-			nv_wo32(dev, chan->vm_pd, (i+0)/4, 0x00000000);
-			nv_wo32(dev, chan->vm_pd, (i+4)/4, 0xdeadcafe);
+			nv_wo32(chan->vm_pd, i + 0, 0x00000000);
+			nv_wo32(chan->vm_pd, i + 4, 0xdeadcafe);
 		}
 
-		pde = (dev_priv->vm_gart_base / (512*1024*1024)) * 2;
-		ret = nouveau_gpuobj_ref_add(dev, NULL, 0,
-					     dev_priv->gart_info.sg_ctxdma,
-					     &chan->vm_gart_pt);
-		if (ret)
-			return ret;
-		nv_wo32(dev, chan->vm_pd, pde++,
-			    chan->vm_gart_pt->instance | 0x03);
-		nv_wo32(dev, chan->vm_pd, pde++, 0x00000000);
+		nouveau_gpuobj_ref(dev_priv->gart_info.sg_ctxdma,
+				   &chan->vm_gart_pt);
+		pde = (dev_priv->vm_gart_base / (512*1024*1024)) * 8;
+		nv_wo32(chan->vm_pd, pde + 0, chan->vm_gart_pt->vinst | 3);
+		nv_wo32(chan->vm_pd, pde + 4, 0x00000000);
 
-		pde = (dev_priv->vm_vram_base / (512*1024*1024)) * 2;
+		pde = (dev_priv->vm_vram_base / (512*1024*1024)) * 8;
 		for (i = 0; i < dev_priv->vm_vram_pt_nr; i++) {
-			ret = nouveau_gpuobj_ref_add(dev, NULL, 0,
-						     dev_priv->vm_vram_pt[i],
-						     &chan->vm_vram_pt[i]);
-			if (ret)
-				return ret;
+			nouveau_gpuobj_ref(dev_priv->vm_vram_pt[i],
+					   &chan->vm_vram_pt[i]);
 
-			nv_wo32(dev, chan->vm_pd, pde++,
-				    chan->vm_vram_pt[i]->instance | 0x61);
-			nv_wo32(dev, chan->vm_pd, pde++, 0x00000000);
+			nv_wo32(chan->vm_pd, pde + 0,
+				chan->vm_vram_pt[i]->vinst | 0x61);
+			nv_wo32(chan->vm_pd, pde + 4, 0x00000000);
+			pde += 8;
 		}
 
 		instmem->flush(dev);
@@ -998,15 +682,17 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 
 	/* RAMHT */
 	if (dev_priv->card_type < NV_50) {
-		ret = nouveau_gpuobj_ref_add(dev, NULL, 0, dev_priv->ramht,
-					     &chan->ramht);
+		nouveau_ramht_ref(dev_priv->ramht, &chan->ramht, NULL);
+	} else {
+		struct nouveau_gpuobj *ramht = NULL;
+
+		ret = nouveau_gpuobj_new(dev, chan, 0x8000, 16,
+					 NVOBJ_FLAG_ZERO_ALLOC, &ramht);
 		if (ret)
 			return ret;
-	} else {
-		ret = nouveau_gpuobj_new_ref(dev, chan, chan, 0,
-					     0x8000, 16,
-					     NVOBJ_FLAG_ZERO_ALLOC,
-					     &chan->ramht);
+
+		ret = nouveau_ramht_new(dev, ramht, &chan->ramht);
+		nouveau_gpuobj_ref(NULL, &ramht);
 		if (ret)
 			return ret;
 	}
@@ -1023,24 +709,32 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 		}
 	} else {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
-						0, dev_priv->fb_available_size,
-						NV_DMA_ACCESS_RW,
-						NV_DMA_TARGET_VIDMEM, &vram);
+					     0, dev_priv->fb_available_size,
+					     NV_DMA_ACCESS_RW,
+					     NV_DMA_TARGET_VIDMEM, &vram);
 		if (ret) {
 			NV_ERROR(dev, "Error creating VRAM ctxdma: %d\n", ret);
 			return ret;
 		}
 	}
 
-	ret = nouveau_gpuobj_ref_add(dev, chan, vram_h, vram, NULL);
+	ret = nouveau_ramht_insert(chan, vram_h, vram);
+	nouveau_gpuobj_ref(NULL, &vram);
 	if (ret) {
-		NV_ERROR(dev, "Error referencing VRAM ctxdma: %d\n", ret);
+		NV_ERROR(dev, "Error adding VRAM ctxdma to RAMHT: %d\n", ret);
 		return ret;
 	}
 
 	/* TT memory ctxdma */
 	if (dev_priv->card_type >= NV_50) {
-		tt = vram;
+		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
+					     0, dev_priv->vm_end,
+					     NV_DMA_ACCESS_RW,
+					     NV_DMA_TARGET_AGP, &tt);
+		if (ret) {
+			NV_ERROR(dev, "Error creating VRAM ctxdma: %d\n", ret);
+			return ret;
+		}
 	} else
 	if (dev_priv->gart_info.type != NOUVEAU_GART_NONE) {
 		ret = nouveau_gpuobj_gart_dma_new(chan, 0,
@@ -1056,9 +750,10 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 		return ret;
 	}
 
-	ret = nouveau_gpuobj_ref_add(dev, chan, tt_h, tt, NULL);
+	ret = nouveau_ramht_insert(chan, tt_h, tt);
+	nouveau_gpuobj_ref(NULL, &tt);
 	if (ret) {
-		NV_ERROR(dev, "Error referencing TT ctxdma: %d\n", ret);
+		NV_ERROR(dev, "Error adding TT ctxdma to RAMHT: %d\n", ret);
 		return ret;
 	}
 
@@ -1070,33 +765,23 @@ nouveau_gpuobj_channel_takedown(struct nouveau_channel *chan)
 {
 	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct drm_device *dev = chan->dev;
-	struct list_head *entry, *tmp;
-	struct nouveau_gpuobj_ref *ref;
 	int i;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
-	if (!chan->ramht_refs.next)
+	if (!chan->ramht)
 		return;
 
-	list_for_each_safe(entry, tmp, &chan->ramht_refs) {
-		ref = list_entry(entry, struct nouveau_gpuobj_ref, list);
+	nouveau_ramht_ref(NULL, &chan->ramht, chan);
 
-		nouveau_gpuobj_ref_del(dev, &ref);
-	}
-
-	nouveau_gpuobj_ref_del(dev, &chan->ramht);
-
-	nouveau_gpuobj_del(dev, &chan->vm_pd);
-	nouveau_gpuobj_ref_del(dev, &chan->vm_gart_pt);
+	nouveau_gpuobj_ref(NULL, &chan->vm_pd);
+	nouveau_gpuobj_ref(NULL, &chan->vm_gart_pt);
 	for (i = 0; i < dev_priv->vm_vram_pt_nr; i++)
-		nouveau_gpuobj_ref_del(dev, &chan->vm_vram_pt[i]);
+		nouveau_gpuobj_ref(NULL, &chan->vm_vram_pt[i]);
 
 	if (chan->ramin_heap.free_stack.next)
 		drm_mm_takedown(&chan->ramin_heap);
-	if (chan->ramin)
-		nouveau_gpuobj_ref_del(dev, &chan->ramin);
-
+	nouveau_gpuobj_ref(NULL, &chan->ramin);
 }
 
 int
@@ -1117,17 +802,17 @@ nouveau_gpuobj_suspend(struct drm_device *dev)
 	}
 
 	list_for_each_entry(gpuobj, &dev_priv->gpuobj_list, list) {
-		if (!gpuobj->im_backing || (gpuobj->flags & NVOBJ_FLAG_FAKE))
+		if (!gpuobj->im_backing)
 			continue;
 
-		gpuobj->im_backing_suspend = vmalloc(gpuobj->im_pramin->size);
+		gpuobj->im_backing_suspend = vmalloc(gpuobj->size);
 		if (!gpuobj->im_backing_suspend) {
 			nouveau_gpuobj_resume(dev);
 			return -ENOMEM;
 		}
 
-		for (i = 0; i < gpuobj->im_pramin->size / 4; i++)
-			gpuobj->im_backing_suspend[i] = nv_ro32(dev, gpuobj, i);
+		for (i = 0; i < gpuobj->size; i += 4)
+			gpuobj->im_backing_suspend[i/4] = nv_ro32(gpuobj, i);
 	}
 
 	return 0;
@@ -1172,8 +857,8 @@ nouveau_gpuobj_resume(struct drm_device *dev)
 		if (!gpuobj->im_backing_suspend)
 			continue;
 
-		for (i = 0; i < gpuobj->im_pramin->size / 4; i++)
-			nv_wo32(dev, gpuobj, i, gpuobj->im_backing_suspend[i]);
+		for (i = 0; i < gpuobj->size; i += 4)
+			nv_wo32(gpuobj, i, gpuobj->im_backing_suspend[i/4]);
 		dev_priv->engine.instmem.flush(dev);
 	}
 
@@ -1208,25 +893,24 @@ int nouveau_ioctl_grobj_alloc(struct drm_device *dev, void *data,
 		return -EPERM;
 	}
 
-	if (nouveau_gpuobj_ref_find(chan, init->handle, NULL) == 0)
+	if (nouveau_ramht_find(chan, init->handle))
 		return -EEXIST;
 
 	if (!grc->software)
 		ret = nouveau_gpuobj_gr_new(chan, grc->id, &gr);
 	else
 		ret = nouveau_gpuobj_sw_new(chan, grc->id, &gr);
-
 	if (ret) {
 		NV_ERROR(dev, "Error creating object: %d (%d/0x%08x)\n",
 			 ret, init->channel, init->handle);
 		return ret;
 	}
 
-	ret = nouveau_gpuobj_ref_add(dev, chan, init->handle, gr, NULL);
+	ret = nouveau_ramht_insert(chan, init->handle, gr);
+	nouveau_gpuobj_ref(NULL, &gr);
 	if (ret) {
 		NV_ERROR(dev, "Error referencing object: %d (%d/0x%08x)\n",
 			 ret, init->channel, init->handle);
-		nouveau_gpuobj_del(dev, &gr);
 		return ret;
 	}
 
@@ -1237,16 +921,62 @@ int nouveau_ioctl_gpuobj_free(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
 	struct drm_nouveau_gpuobj_free *objfree = data;
-	struct nouveau_gpuobj_ref *ref;
+	struct nouveau_gpuobj *gpuobj;
 	struct nouveau_channel *chan;
-	int ret;
 
 	NOUVEAU_GET_USER_CHANNEL_WITH_RETURN(objfree->channel, file_priv, chan);
 
-	ret = nouveau_gpuobj_ref_find(chan, objfree->handle, &ref);
-	if (ret)
-		return ret;
-	nouveau_gpuobj_ref_del(dev, &ref);
+	gpuobj = nouveau_ramht_find(chan, objfree->handle);
+	if (!gpuobj)
+		return -ENOENT;
 
+	nouveau_ramht_remove(chan, objfree->handle);
 	return 0;
+}
+
+u32
+nv_ro32(struct nouveau_gpuobj *gpuobj, u32 offset)
+{
+	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
+	struct drm_device *dev = gpuobj->dev;
+
+	if (gpuobj->pinst == ~0 || !dev_priv->ramin_available) {
+		u64  ptr = gpuobj->vinst + offset;
+		u32 base = ptr >> 16;
+		u32  val;
+
+		spin_lock(&dev_priv->ramin_lock);
+		if (dev_priv->ramin_base != base) {
+			dev_priv->ramin_base = base;
+			nv_wr32(dev, 0x001700, dev_priv->ramin_base);
+		}
+		val = nv_rd32(dev, 0x700000 + (ptr & 0xffff));
+		spin_unlock(&dev_priv->ramin_lock);
+		return val;
+	}
+
+	return nv_ri32(dev, gpuobj->pinst + offset);
+}
+
+void
+nv_wo32(struct nouveau_gpuobj *gpuobj, u32 offset, u32 val)
+{
+	struct drm_nouveau_private *dev_priv = gpuobj->dev->dev_private;
+	struct drm_device *dev = gpuobj->dev;
+
+	if (gpuobj->pinst == ~0 || !dev_priv->ramin_available) {
+		u64  ptr = gpuobj->vinst + offset;
+		u32 base = ptr >> 16;
+
+		spin_lock(&dev_priv->ramin_lock);
+		if (dev_priv->ramin_base != base) {
+			dev_priv->ramin_base = base;
+			nv_wr32(dev, 0x001700, dev_priv->ramin_base);
+		}
+		nv_wr32(dev, 0x700000 + (ptr & 0xffff), val);
+		spin_unlock(&dev_priv->ramin_lock);
+		return;
+	}
+
+	nv_wi32(dev, gpuobj->pinst + offset, val);
 }

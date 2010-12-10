@@ -104,6 +104,8 @@ static struct fb_ops nouveau_fbcon_ops = {
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
+	.fb_debug_enter = drm_fb_helper_debug_enter,
+	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
 static struct fb_ops nv04_fbcon_ops = {
@@ -117,6 +119,8 @@ static struct fb_ops nv04_fbcon_ops = {
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
+	.fb_debug_enter = drm_fb_helper_debug_enter,
+	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
 static struct fb_ops nv50_fbcon_ops = {
@@ -130,6 +134,8 @@ static struct fb_ops nv50_fbcon_ops = {
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
+	.fb_debug_enter = drm_fb_helper_debug_enter,
+	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
 static void nouveau_fbcon_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,

@@ -92,7 +92,7 @@ prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state)
 }
 EXPORT_SYMBOL(prepare_to_wait_exclusive);
 
-/*
+/**
  * finish_wait - clean up after waiting in a queue
  * @q: waitqueue waited on
  * @wait: wait descriptor
@@ -127,11 +127,11 @@ void finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
 }
 EXPORT_SYMBOL(finish_wait);
 
-/*
+/**
  * abort_exclusive_wait - abort exclusive waiting in a queue
  * @q: waitqueue waited on
  * @wait: wait descriptor
- * @state: runstate of the waiter to be woken
+ * @mode: runstate of the waiter to be woken
  * @key: key to identify a wait bit queue or %NULL
  *
  * Sets current thread back to running state and removes

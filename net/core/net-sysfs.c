@@ -598,7 +598,8 @@ static ssize_t store_rps_map(struct netdev_rx_queue *queue,
 	}
 
 	spin_lock(&rps_map_lock);
-	old_map = queue->rps_map;
+	old_map = rcu_dereference_protected(queue->rps_map,
+					    lockdep_is_held(&rps_map_lock));
 	rcu_assign_pointer(queue->rps_map, map);
 	spin_unlock(&rps_map_lock);
 
@@ -677,7 +678,8 @@ static ssize_t store_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
 		table = NULL;
 
 	spin_lock(&rps_dev_flow_lock);
-	old_table = queue->rps_flow_table;
+	old_table = rcu_dereference_protected(queue->rps_flow_table,
+					      lockdep_is_held(&rps_dev_flow_lock));
 	rcu_assign_pointer(queue->rps_flow_table, table);
 	spin_unlock(&rps_dev_flow_lock);
 
@@ -705,16 +707,26 @@ static void rx_queue_release(struct kobject *kobj)
 {
 	struct netdev_rx_queue *queue = to_rx_queue(kobj);
 	struct netdev_rx_queue *first = queue->first;
+	struct rps_map *map;
+	struct rps_dev_flow_table *flow_table;
 
-	if (queue->rps_map)
-		call_rcu(&queue->rps_map->rcu, rps_map_release);
 
-	if (queue->rps_flow_table)
-		call_rcu(&queue->rps_flow_table->rcu,
-		    rps_dev_flow_table_release);
+	map = rcu_dereference_raw(queue->rps_map);
+	if (map) {
+		RCU_INIT_POINTER(queue->rps_map, NULL);
+		call_rcu(&map->rcu, rps_map_release);
+	}
+
+	flow_table = rcu_dereference_raw(queue->rps_flow_table);
+	if (flow_table) {
+		RCU_INIT_POINTER(queue->rps_flow_table, NULL);
+		call_rcu(&flow_table->rcu, rps_dev_flow_table_release);
+	}
 
 	if (atomic_dec_and_test(&first->count))
 		kfree(first);
+	else
+		memset(kobj, 0, sizeof(*kobj));
 }
 
 static struct kobj_type rx_queue_ktype = {

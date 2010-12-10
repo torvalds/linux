@@ -39,14 +39,7 @@
 
 void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
 {
-	struct ttm_mem_reg *old_mem = &bo->mem;
-
-	if (old_mem->mm_node) {
-		spin_lock(&bo->glob->lru_lock);
-		drm_mm_put_block(old_mem->mm_node);
-		spin_unlock(&bo->glob->lru_lock);
-	}
-	old_mem->mm_node = NULL;
+	ttm_bo_mem_put(bo, &bo->mem);
 }
 
 int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
@@ -170,7 +163,7 @@ static int ttm_copy_io_ttm_page(struct ttm_tt *ttm, void *src,
 	src = (void *)((unsigned long)src + (page << PAGE_SHIFT));
 
 #ifdef CONFIG_X86
-	dst = kmap_atomic_prot(d, KM_USER0, prot);
+	dst = kmap_atomic_prot(d, prot);
 #else
 	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL))
 		dst = vmap(&d, 1, 0, prot);
@@ -183,7 +176,7 @@ static int ttm_copy_io_ttm_page(struct ttm_tt *ttm, void *src,
 	memcpy_fromio(dst, src, PAGE_SIZE);
 
 #ifdef CONFIG_X86
-	kunmap_atomic(dst, KM_USER0);
+	kunmap_atomic(dst);
 #else
 	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL))
 		vunmap(dst);
@@ -206,7 +199,7 @@ static int ttm_copy_ttm_io_page(struct ttm_tt *ttm, void *dst,
 
 	dst = (void *)((unsigned long)dst + (page << PAGE_SHIFT));
 #ifdef CONFIG_X86
-	src = kmap_atomic_prot(s, KM_USER0, prot);
+	src = kmap_atomic_prot(s, prot);
 #else
 	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL))
 		src = vmap(&s, 1, 0, prot);
@@ -219,7 +212,7 @@ static int ttm_copy_ttm_io_page(struct ttm_tt *ttm, void *dst,
 	memcpy_toio(dst, src, PAGE_SIZE);
 
 #ifdef CONFIG_X86
-	kunmap_atomic(src, KM_USER0);
+	kunmap_atomic(src);
 #else
 	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL))
 		vunmap(src);
@@ -263,8 +256,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	dir = 1;
 
 	if ((old_mem->mem_type == new_mem->mem_type) &&
-	    (new_mem->mm_node->start <
-	     old_mem->mm_node->start + old_mem->mm_node->size)) {
+	    (new_mem->start < old_mem->start + old_mem->size)) {
 		dir = -1;
 		add = new_mem->num_pages - 1;
 	}

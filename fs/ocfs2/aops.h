@@ -22,9 +22,6 @@
 #ifndef OCFS2_AOPS_H
 #define OCFS2_AOPS_H
 
-int ocfs2_prepare_write_nolock(struct inode *inode, struct page *page,
-			       unsigned from, unsigned to);
-
 handle_t *ocfs2_start_walk_page_trans(struct inode *inode,
 							 struct page *page,
 							 unsigned from,

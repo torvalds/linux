@@ -29,8 +29,6 @@
 #include <linux/vfs.h>
 #include <linux/ioctl.h>
 #include <linux/init.h>
-#include <linux/smb.h>
-#include <linux/smb_mount.h>
 #include <linux/ncp_mount.h>
 #include <linux/nfs4_mount.h>
 #include <linux/syscalls.h>
@@ -51,6 +49,7 @@
 #include <linux/eventpoll.h>
 #include <linux/fs_struct.h>
 #include <linux/slab.h>
+#include <linux/pagemap.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -608,14 +607,14 @@ ssize_t compat_rw_copy_check_uvector(int type,
 	/*
 	 * Single unix specification:
 	 * We should -EINVAL if an element length is not >= 0 and fitting an
-	 * ssize_t.  The total length is fitting an ssize_t
+	 * ssize_t.
 	 *
-	 * Be careful here because iov_len is a size_t not an ssize_t
+	 * In Linux, the total length is limited to MAX_RW_COUNT, there is
+	 * no overflow possibility.
 	 */
 	tot_len = 0;
 	ret = -EINVAL;
 	for (seg = 0; seg < nr_segs; seg++) {
-		compat_ssize_t tmp = tot_len;
 		compat_uptr_t buf;
 		compat_ssize_t len;
 
@@ -626,13 +625,13 @@ ssize_t compat_rw_copy_check_uvector(int type,
 		}
 		if (len < 0)	/* size_t not fitting in compat_ssize_t .. */
 			goto out;
-		tot_len += len;
-		if (tot_len < tmp) /* maths overflow on the compat_ssize_t */
-			goto out;
 		if (!access_ok(vrfy_dir(type), compat_ptr(buf), len)) {
 			ret = -EFAULT;
 			goto out;
 		}
+		if (len > MAX_RW_COUNT - tot_len)
+			len = MAX_RW_COUNT - tot_len;
+		tot_len += len;
 		iov->iov_base = compat_ptr(buf);
 		iov->iov_len = (compat_size_t) len;
 		uvector++;
@@ -745,30 +744,6 @@ static void *do_ncp_super_data_conv(void *raw_data)
 	return raw_data;
 }
 
-struct compat_smb_mount_data {
-	compat_int_t version;
-	__compat_uid_t mounted_uid;
-	__compat_uid_t uid;
-	__compat_gid_t gid;
-	compat_mode_t file_mode;
-	compat_mode_t dir_mode;
-};
-
-static void *do_smb_super_data_conv(void *raw_data)
-{
-	struct smb_mount_data *s = raw_data;
-	struct compat_smb_mount_data *c_s = raw_data;
-
-	if (c_s->version != SMB_MOUNT_OLDVERSION)
-		goto out;
-	s->dir_mode = c_s->dir_mode;
-	s->file_mode = c_s->file_mode;
-	s->gid = c_s->gid;
-	s->uid = c_s->uid;
-	s->mounted_uid = c_s->mounted_uid;
- out:
-	return raw_data;
-}
 
 struct compat_nfs_string {
 	compat_uint_t len;
@@ -835,7 +810,6 @@ static int do_nfs4_super_data_conv(void *raw_data)
 	return 0;
 }
 
-#define SMBFS_NAME      "smbfs"
 #define NCPFS_NAME      "ncpfs"
 #define NFS4_NAME	"nfs4"
 
@@ -870,9 +844,7 @@ asmlinkage long compat_sys_mount(const char __user * dev_name,
 	retval = -EINVAL;
 
 	if (kernel_type && data_page) {
-		if (!strcmp(kernel_type, SMBFS_NAME)) {
-			do_smb_super_data_conv((void *)data_page);
-		} else if (!strcmp(kernel_type, NCPFS_NAME)) {
+		if (!strcmp(kernel_type, NCPFS_NAME)) {
 			do_ncp_super_data_conv((void *)data_page);
 		} else if (!strcmp(kernel_type, NFS4_NAME)) {
 			if (do_nfs4_super_data_conv((void *) data_page))
@@ -1378,6 +1350,10 @@ static int compat_count(compat_uptr_t __user *argv, int max)
 			argv++;
 			if (i++ >= max)
 				return -E2BIG;
+
+			if (fatal_signal_pending(current))
+				return -ERESTARTNOHAND;
+			cond_resched();
 		}
 	}
 	return i;
@@ -1419,6 +1395,12 @@ static int compat_copy_strings(int argc, compat_uptr_t __user *argv,
 		while (len > 0) {
 			int offset, bytes_to_copy;
 
+			if (fatal_signal_pending(current)) {
+				ret = -ERESTARTNOHAND;
+				goto out;
+			}
+			cond_resched();
+
 			offset = pos % PAGE_SIZE;
 			if (offset == 0)
 				offset = PAGE_SIZE;
@@ -1435,18 +1417,8 @@ static int compat_copy_strings(int argc, compat_uptr_t __user *argv,
 			if (!kmapped_page || kpos != (pos & PAGE_MASK)) {
 				struct page *page;
 
-#ifdef CONFIG_STACK_GROWSUP
-				ret = expand_stack_downwards(bprm->vma, pos);
-				if (ret < 0) {
-					/* We've exceed the stack rlimit. */
-					ret = -E2BIG;
-					goto out;
-				}
-#endif
-				ret = get_user_pages(current, bprm->mm, pos,
-						     1, 1, 1, &page, NULL);
-				if (ret <= 0) {
-					/* We've exceed the stack rlimit. */
+				page = get_arg_page(bprm, pos, 1);
+				if (!page) {
 					ret = -E2BIG;
 					goto out;
 				}
@@ -1567,8 +1539,10 @@ int compat_do_execve(char * filename,
 	return retval;
 
 out:
-	if (bprm->mm)
+	if (bprm->mm) {
+		acct_arg_size(bprm, 0);
 		mmput(bprm->mm);
+	}
 
 out_file:
 	if (bprm->file) {
@@ -1963,7 +1937,7 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 }
 #endif /* HAVE_SET_RESTORE_SIGMASK */
 
-#if defined(CONFIG_NFSD) || defined(CONFIG_NFSD_MODULE)
+#if (defined(CONFIG_NFSD) || defined(CONFIG_NFSD_MODULE)) && !defined(CONFIG_NFSD_DEPRECATED)
 /* Stuff for NFS server syscalls... */
 struct compat_nfsctl_svc {
 	u16			svc32_port;

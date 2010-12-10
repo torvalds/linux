@@ -347,6 +347,10 @@ static bool create_pa_curve(u32 *data_L, u32 *data_U, u32 *pa_table, u16 *gain)
 	    (((Y[6] - Y[3]) * 1 << scale_factor) +
 	     (x_est[6] - x_est[3])) / (x_est[6] - x_est[3]);
 
+	/* prevent division by zero */
+	if (G_fxp == 0)
+		return false;
+
 	Y_intercept =
 	    (G_fxp * (x_est[0] - x_est[3]) +
 	     (1 << scale_factor)) / (1 << scale_factor) + Y[3];
@@ -356,13 +360,11 @@ static bool create_pa_curve(u32 *data_L, u32 *data_U, u32 *pa_table, u16 *gain)
 
 	for (i = 0; i <= 3; i++) {
 		y_est[i] = i * 32;
-
-		/* prevent division by zero */
-		if (G_fxp == 0)
-			return false;
-
 		x_est[i] = ((y_est[i] * 1 << scale_factor) + G_fxp) / G_fxp;
 	}
+
+	if (y_est[max_index] == 0)
+		return false;
 
 	x_est_fxp1_nonlin =
 	    x_est[max_index] - ((1 << scale_factor) * y_est[max_index] +
@@ -457,6 +459,8 @@ static bool create_pa_curve(u32 *data_L, u32 *data_U, u32 *pa_table, u16 *gain)
 
 	Q_scale_B = find_proper_scale(find_expn(abs(scale_B)), 10);
 	scale_B = scale_B / (1 << Q_scale_B);
+	if (scale_B == 0)
+		return false;
 	Q_beta = find_proper_scale(find_expn(abs(beta_raw)), 10);
 	Q_alpha = find_proper_scale(find_expn(abs(alpha_raw)), 10);
 	beta_raw = beta_raw / (1 << Q_beta);

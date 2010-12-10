@@ -45,7 +45,7 @@
 #define FS_ACCESS_PERM		0x00020000	/* access event in a permissions hook */
 
 #define FS_EXCL_UNLINK		0x04000000	/* do not send events if object is unlinked */
-#define FS_IN_ISDIR		0x40000000	/* event occurred against dir */
+#define FS_ISDIR		0x40000000	/* event occurred against dir */
 #define FS_IN_ONESHOT		0x80000000	/* only send event once */
 
 #define FS_DN_RENAME		0x10000000	/* file renamed */
@@ -64,13 +64,15 @@
 
 #define FS_MOVE			(FS_MOVED_FROM | FS_MOVED_TO)
 
+#define ALL_FSNOTIFY_PERM_EVENTS (FS_OPEN_PERM | FS_ACCESS_PERM)
+
 #define ALL_FSNOTIFY_EVENTS (FS_ACCESS | FS_MODIFY | FS_ATTRIB | \
 			     FS_CLOSE_WRITE | FS_CLOSE_NOWRITE | FS_OPEN | \
 			     FS_MOVED_FROM | FS_MOVED_TO | FS_CREATE | \
 			     FS_DELETE | FS_DELETE_SELF | FS_MOVE_SELF | \
 			     FS_UNMOUNT | FS_Q_OVERFLOW | FS_IN_IGNORED | \
 			     FS_OPEN_PERM | FS_ACCESS_PERM | FS_EXCL_UNLINK | \
-			     FS_IN_ISDIR | FS_IN_ONESHOT | FS_DN_RENAME | \
+			     FS_ISDIR | FS_IN_ONESHOT | FS_DN_RENAME | \
 			     FS_DN_MULTISHOT | FS_EVENT_ON_CHILD)
 
 struct fsnotify_group;
@@ -129,6 +131,14 @@ struct fsnotify_group {
 	wait_queue_head_t notification_waitq;	/* read() on the notification file blocks on this waitq */
 	unsigned int q_len;			/* events on the queue */
 	unsigned int max_events;		/* maximum events allowed on the list */
+	/*
+	 * Valid fsnotify group priorities.  Events are send in order from highest
+	 * priority to lowest priority.  We default to the lowest priority.
+	 */
+	#define FS_PRIO_0	0 /* normal notifiers, no permissions */
+	#define FS_PRIO_1	1 /* fanotify content based access control */
+	#define FS_PRIO_2	2 /* fanotify pre-content access */
+	unsigned int priority;
 
 	/* stores all fastpath marks assoc with this group so they can be cleaned on unregister */
 	spinlock_t mark_lock;		/* protect marks_list */
@@ -159,6 +169,8 @@ struct fsnotify_group {
 			bool bypass_perm; /* protected by access_mutex */
 #endif /* CONFIG_FANOTIFY_ACCESS_PERMISSIONS */
 			int f_flags;
+			unsigned int max_marks;
+			struct user_struct *user;
 		} fanotify_data;
 #endif /* CONFIG_FANOTIFY */
 	};
@@ -275,8 +287,8 @@ struct fsnotify_mark {
 		struct fsnotify_inode_mark i;
 		struct fsnotify_vfsmount_mark m;
 	};
-	__u32 ignored_mask;		/* events types to ignore */
 	struct list_head free_g_list;	/* tmp list used when freeing this mark */
+	__u32 ignored_mask;		/* events types to ignore */
 #define FSNOTIFY_MARK_FLAG_INODE		0x01
 #define FSNOTIFY_MARK_FLAG_VFSMOUNT		0x02
 #define FSNOTIFY_MARK_FLAG_OBJECT_PINNED	0x04
@@ -294,7 +306,7 @@ struct fsnotify_mark {
 /* main fsnotify call to send events */
 extern int fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
 		    const unsigned char *name, u32 cookie);
-extern void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask);
+extern int __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask);
 extern void __fsnotify_inode_delete(struct inode *inode);
 extern void __fsnotify_vfsmount_delete(struct vfsmount *mnt);
 extern u32 fsnotify_get_cookie(void);
@@ -423,8 +435,10 @@ static inline int fsnotify(struct inode *to_tell, __u32 mask, void *data, int da
 	return 0;
 }
 
-static inline void __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
-{}
+static inline int __fsnotify_parent(struct path *path, struct dentry *dentry, __u32 mask)
+{
+	return 0;
+}
 
 static inline void __fsnotify_inode_delete(struct inode *inode)
 {}

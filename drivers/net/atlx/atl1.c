@@ -91,6 +91,8 @@ MODULE_VERSION(ATLX_DRIVER_VERSION);
 /* Temporary hack for merging atl1 and atl2 */
 #include "atlx.c"
 
+static const struct ethtool_ops atl1_ethtool_ops;
+
 /*
  * This is the only thing that needs to be changed to adjust the
  * maximum number of ports that the driver can manage.
@@ -353,7 +355,7 @@ static bool atl1_read_eeprom(struct atl1_hw *hw, u32 offset, u32 *p_value)
  * hw - Struct containing variables accessed by shared code
  * reg_addr - address of the PHY register to read
  */
-s32 atl1_read_phy_reg(struct atl1_hw *hw, u16 reg_addr, u16 *phy_data)
+static s32 atl1_read_phy_reg(struct atl1_hw *hw, u16 reg_addr, u16 *phy_data)
 {
 	u32 val;
 	int i;
@@ -553,7 +555,7 @@ static s32 atl1_read_mac_addr(struct atl1_hw *hw)
  *          1. calcu 32bit CRC for multicast address
  *          2. reverse crc with MSB to LSB
  */
-u32 atl1_hash_mc_addr(struct atl1_hw *hw, u8 *mc_addr)
+static u32 atl1_hash_mc_addr(struct atl1_hw *hw, u8 *mc_addr)
 {
 	u32 crc32, value = 0;
 	int i;
@@ -570,7 +572,7 @@ u32 atl1_hash_mc_addr(struct atl1_hw *hw, u8 *mc_addr)
  * hw - Struct containing variables accessed by shared code
  * hash_value - Multicast address hash value
  */
-void atl1_hash_set(struct atl1_hw *hw, u32 hash_value)
+static void atl1_hash_set(struct atl1_hw *hw, u32 hash_value)
 {
 	u32 hash_bit, hash_reg;
 	u32 mta;
@@ -914,7 +916,7 @@ static s32 atl1_get_speed_and_duplex(struct atl1_hw *hw, u16 *speed, u16 *duplex
 	return 0;
 }
 
-void atl1_set_mac_addr(struct atl1_hw *hw)
+static void atl1_set_mac_addr(struct atl1_hw *hw)
 {
 	u32 value;
 	/*
@@ -3041,7 +3043,6 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	atl1_pcie_patch(adapter);
 	/* assume we have no link for now */
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
 
 	setup_timer(&adapter->phy_config_timer, atl1_phy_config,
 		    (unsigned long)adapter);
@@ -3658,7 +3659,7 @@ static int atl1_nway_reset(struct net_device *netdev)
 	return 0;
 }
 
-const struct ethtool_ops atl1_ethtool_ops = {
+static const struct ethtool_ops atl1_ethtool_ops = {
 	.get_settings		= atl1_get_settings,
 	.set_settings		= atl1_set_settings,
 	.get_drvinfo		= atl1_get_drvinfo,

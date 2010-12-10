@@ -1203,7 +1203,7 @@ static int ext2_setsize(struct inode *inode, loff_t newsize)
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
 	if (inode_needs_sync(inode)) {
 		sync_mapping_buffers(inode->i_mapping);
-		ext2_sync_inode (inode);
+		sync_inode_metadata(inode, 1);
 	} else {
 		mark_inode_dirty(inode);
 	}
@@ -1521,15 +1521,6 @@ static int __ext2_write_inode(struct inode *inode, int do_sync)
 int ext2_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	return __ext2_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
-}
-
-int ext2_sync_inode(struct inode *inode)
-{
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = 0,	/* sys_fsync did this */
-	};
-	return sync_inode(inode, &wbc);
 }
 
 int ext2_setattr(struct dentry *dentry, struct iattr *iattr)

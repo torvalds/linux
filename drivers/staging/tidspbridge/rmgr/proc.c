@@ -29,7 +29,6 @@
 #include <dspbridge/dbc.h>
 
 /*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
 #include <dspbridge/list.h>
 #include <dspbridge/ntfy.h>
 #include <dspbridge/sync.h>
@@ -280,6 +279,7 @@ proc_attach(u32 processor_id,
 	struct proc_object *p_proc_object = NULL;
 	struct mgr_object *hmgr_obj = NULL;
 	struct drv_object *hdrv_obj = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 	u8 dev_type;
 
 	DBC_REQUIRE(refs > 0);
@@ -291,9 +291,13 @@ proc_attach(u32 processor_id,
 	}
 
 	/* Get the Driver and Manager Object Handles */
-	status = cfg_get_object((u32 *) &hdrv_obj, REG_DRV_OBJECT);
-	if (!status)
-		status = cfg_get_object((u32 *) &hmgr_obj, REG_MGR_OBJECT);
+	if (!drv_datap || !drv_datap->drv_object || !drv_datap->mgr_object) {
+		status = -ENODATA;
+		pr_err("%s: Failed to get object handles\n", __func__);
+	} else {
+		hdrv_obj = drv_datap->drv_object;
+		hmgr_obj = drv_datap->mgr_object;
+	}
 
 	if (!status) {
 		/* Get the Device Object */
@@ -393,18 +397,29 @@ static int get_exec_file(struct cfg_devnode *dev_node_obj,
 {
 	u8 dev_type;
 	s32 len;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
 	dev_get_dev_type(hdev_obj, (u8 *) &dev_type);
+
+	if (!exec_file)
+		return -EFAULT;
+
 	if (dev_type == DSP_UNIT) {
-		return cfg_get_exec_file(dev_node_obj, size, exec_file);
-	} else if (dev_type == IVA_UNIT) {
-		if (iva_img) {
-			len = strlen(iva_img);
-			strncpy(exec_file, iva_img, len + 1);
-			return 0;
-		}
+		if (!drv_datap || !drv_datap->base_img)
+			return -EFAULT;
+
+		if (strlen(drv_datap->base_img) > size)
+			return -EINVAL;
+
+		strcpy(exec_file, drv_datap->base_img);
+	} else if (dev_type == IVA_UNIT && iva_img) {
+		len = strlen(iva_img);
+		strncpy(exec_file, iva_img, len + 1);
+	} else {
+		return -ENOENT;
 	}
-	return -ENOENT;
+
+	return 0;
 }
 
 /*
@@ -429,6 +444,7 @@ int proc_auto_start(struct cfg_devnode *dev_node_obj,
 	char sz_exec_file[MAXCMDLINELEN];
 	char *argv[2];
 	struct mgr_object *hmgr_obj = NULL;
+	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 	u8 dev_type;
 
 	DBC_REQUIRE(refs > 0);
@@ -436,9 +452,13 @@ int proc_auto_start(struct cfg_devnode *dev_node_obj,
 	DBC_REQUIRE(hdev_obj != NULL);
 
 	/* Create a Dummy PROC Object */
-	status = cfg_get_object((u32 *) &hmgr_obj, REG_MGR_OBJECT);
-	if (status)
+	if (!drv_datap || !drv_datap->mgr_object) {
+		status = -ENODATA;
+		pr_err("%s: Failed to retrieve the object handle\n", __func__);
 		goto func_end;
+	} else {
+		hmgr_obj = drv_datap->mgr_object;
+	}
 
 	p_proc_object = kzalloc(sizeof(struct proc_object), GFP_KERNEL);
 	if (p_proc_object == NULL) {

@@ -91,7 +91,6 @@ extern int rename_file(char *from, char *to);
 extern int do_statfs(char *root, long *bsize_out, long long *blocks_out,
 		     long long *bfree_out, long long *bavail_out,
 		     long long *files_out, long long *ffree_out,
-		     void *fsid_out, int fsid_size, long *namelen_out,
-		     long *spare_out);
+		     void *fsid_out, int fsid_size, long *namelen_out);
 
 #endif

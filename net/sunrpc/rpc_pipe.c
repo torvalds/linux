@@ -28,7 +28,7 @@
 #include <linux/sunrpc/rpc_pipe_fs.h>
 #include <linux/sunrpc/cache.h>
 
-static struct vfsmount *rpc_mount __read_mostly;
+static struct vfsmount *rpc_mnt __read_mostly;
 static int rpc_mount_count;
 
 static struct file_system_type rpc_pipe_fs_type;
@@ -417,16 +417,16 @@ struct vfsmount *rpc_get_mount(void)
 {
 	int err;
 
-	err = simple_pin_fs(&rpc_pipe_fs_type, &rpc_mount, &rpc_mount_count);
+	err = simple_pin_fs(&rpc_pipe_fs_type, &rpc_mnt, &rpc_mount_count);
 	if (err != 0)
 		return ERR_PTR(err);
-	return rpc_mount;
+	return rpc_mnt;
 }
 EXPORT_SYMBOL_GPL(rpc_get_mount);
 
 void rpc_put_mount(void)
 {
-	simple_release_fs(&rpc_mount, &rpc_mount_count);
+	simple_release_fs(&rpc_mnt, &rpc_mount_count);
 }
 EXPORT_SYMBOL_GPL(rpc_put_mount);
 
@@ -445,6 +445,7 @@ rpc_get_inode(struct super_block *sb, umode_t mode)
 	struct inode *inode = new_inode(sb);
 	if (!inode)
 		return NULL;
+	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	switch(mode & S_IFMT) {
@@ -1017,17 +1018,17 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static int
-rpc_get_sb(struct file_system_type *fs_type,
-		int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *
+rpc_mount(struct file_system_type *fs_type,
+		int flags, const char *dev_name, void *data)
 {
-	return get_sb_single(fs_type, flags, data, rpc_fill_super, mnt);
+	return mount_single(fs_type, flags, data, rpc_fill_super);
 }
 
 static struct file_system_type rpc_pipe_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "rpc_pipefs",
-	.get_sb		= rpc_get_sb,
+	.mount		= rpc_mount,
 	.kill_sb	= kill_litter_super,
 };
 

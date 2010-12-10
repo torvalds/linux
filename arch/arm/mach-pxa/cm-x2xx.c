@@ -476,8 +476,6 @@ static void __init cmx2xx_init(void)
 
 static void __init cmx2xx_init_irq(void)
 {
-	pxa27x_init_irq();
-
 	if (cpu_is_pxa25x()) {
 		pxa25x_init_irq();
 		cmx2xx_pci_init_irq(CMX255_GPIO_IT8152_IRQ);

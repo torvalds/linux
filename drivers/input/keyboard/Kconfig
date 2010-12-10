@@ -179,6 +179,22 @@ config KEYBOARD_GPIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio_keys.
 
+config KEYBOARD_GPIO_POLLED
+	tristate "Polled GPIO buttons"
+	depends on GENERIC_GPIO
+	select INPUT_POLLDEV
+	help
+	  This driver implements support for buttons connected
+	  to GPIO pins that are not capable of generating interrupts.
+
+	  Say Y here if your device has buttons connected
+	  directly to such GPIO pins.  Your board-specific
+	  setup logic must also provide a platform device,
+	  with configuration data saying which GPIOs are used.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gpio_keys_polled.
+
 config KEYBOARD_TCA6416
 	tristate "TCA6416 Keypad Support"
 	depends on I2C
@@ -327,6 +343,16 @@ config KEYBOARD_NEWTON
 	  To compile this driver as a module, choose M here: the
 	  module will be called newtonkbd.
 
+config KEYBOARD_NOMADIK
+	tristate "ST-Ericsson Nomadik SKE keyboard"
+	depends on PLAT_NOMADIK
+	help
+	  Say Y here if you want to use a keypad provided on the SKE controller
+	  used on the Ux500 and Nomadik platforms
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nmk-ske-keypad.
+
 config KEYBOARD_OPENCORES
 	tristate "OpenCores Keyboard Controller"
 	help
@@ -423,6 +449,24 @@ config KEYBOARD_OMAP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called omap-keypad.
+
+config KEYBOARD_OMAP4
+	tristate "TI OMAP4 keypad support"
+	depends on ARCH_OMAP4
+	help
+	  Say Y here if you want to use the OMAP4 keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called omap4-keypad.
+
+config KEYBOARD_TNETV107X
+	tristate "TI TNETV107X keypad support"
+	depends on ARCH_DAVINCI_TNETV107X
+	help
+	  Say Y here if you want to use the TNETV107X keypad.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tnetv107x-keypad.
 
 config KEYBOARD_TWL4030
 	tristate "TI TWL4030/TWL5030/TPS659x0 keypad support"

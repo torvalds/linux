@@ -19,7 +19,6 @@ comment "Multimedia core support"
 
 config VIDEO_DEV
 	tristate "Video For Linux"
-	depends on BKL # used in many drivers for ioctl handling, need to kill
 	---help---
 	  V4L core support for video capture and overlay devices, webcams and
 	  AM/FM radio cards.

@@ -403,7 +403,7 @@ static inline void storm_memset_hc_disable(struct bnx2x *bp, u8 port,
 /* used only at init
  * locking is done by mcp
  */
-void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val)
+static void bnx2x_reg_wr_ind(struct bnx2x *bp, u32 addr, u32 val)
 {
 	pci_write_config_dword(bp->pdev, PCICFG_GRC_ADDRESS, addr);
 	pci_write_config_dword(bp->pdev, PCICFG_GRC_DATA, val);
@@ -429,7 +429,8 @@ static u32 bnx2x_reg_rd_ind(struct bnx2x *bp, u32 addr)
 #define DMAE_DP_DST_PCI		"pci dst_addr [%x:%08x]"
 #define DMAE_DP_DST_NONE	"dst_addr [none]"
 
-void bnx2x_dp_dmae(struct bnx2x *bp, struct dmae_command *dmae, int msglvl)
+static void bnx2x_dp_dmae(struct bnx2x *bp, struct dmae_command *dmae,
+			  int msglvl)
 {
 	u32 src_type = dmae->opcode & DMAE_COMMAND_SRC;
 
@@ -551,8 +552,9 @@ u32 bnx2x_dmae_opcode(struct bnx2x *bp, u8 src_type, u8 dst_type,
 	return opcode;
 }
 
-void bnx2x_prep_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae,
-			       u8 src_type, u8 dst_type)
+static void bnx2x_prep_dmae_with_comp(struct bnx2x *bp,
+				      struct dmae_command *dmae,
+				      u8 src_type, u8 dst_type)
 {
 	memset(dmae, 0, sizeof(struct dmae_command));
 
@@ -567,7 +569,8 @@ void bnx2x_prep_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae,
 }
 
 /* issue a dmae command over the init-channel and wailt for completion */
-int bnx2x_issue_dmae_with_comp(struct bnx2x *bp, struct dmae_command *dmae)
+static int bnx2x_issue_dmae_with_comp(struct bnx2x *bp,
+				      struct dmae_command *dmae)
 {
 	u32 *wb_comp = bnx2x_sp(bp, wb_comp);
 	int cnt = CHIP_REV_IS_SLOW(bp) ? (400000) : 40;
@@ -674,8 +677,8 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 	bnx2x_issue_dmae_with_comp(bp, &dmae);
 }
 
-void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
-			       u32 addr, u32 len)
+static void bnx2x_write_dmae_phys_len(struct bnx2x *bp, dma_addr_t phys_addr,
+				      u32 addr, u32 len)
 {
 	int dmae_wr_max = DMAE_LEN32_WR_MAX(bp);
 	int offset = 0;
@@ -1267,7 +1270,7 @@ static void bnx2x_igu_int_disable(struct bnx2x *bp)
 		BNX2X_ERR("BUG! proper val not read from IGU!\n");
 }
 
-void bnx2x_int_disable(struct bnx2x *bp)
+static void bnx2x_int_disable(struct bnx2x *bp)
 {
 	if (bp->common.int_block == INT_BLOCK_HC)
 		bnx2x_hc_int_disable(bp);
@@ -2236,7 +2239,7 @@ u32 bnx2x_fw_command(struct bnx2x *bp, u32 command, u32 param)
 }
 
 /* must be called under rtnl_lock */
-void bnx2x_rxq_set_mac_filters(struct bnx2x *bp, u16 cl_id, u32 filters)
+static void bnx2x_rxq_set_mac_filters(struct bnx2x *bp, u16 cl_id, u32 filters)
 {
 	u32 mask = (1 << cl_id);
 
@@ -2303,7 +2306,7 @@ void bnx2x_rxq_set_mac_filters(struct bnx2x *bp, u16 cl_id, u32 filters)
 		bp->mac_filters.unmatched_unicast & ~mask;
 }
 
-void bnx2x_func_init(struct bnx2x *bp, struct bnx2x_func_init_params *p)
+static void bnx2x_func_init(struct bnx2x *bp, struct bnx2x_func_init_params *p)
 {
 	struct tstorm_eth_function_common_config tcfg = {0};
 	u16 rss_flgs;
@@ -2460,7 +2463,7 @@ static void bnx2x_pf_tx_cl_prep(struct bnx2x *bp,
 	txq_init->hc_rate = bp->tx_ticks ? (1000000 / bp->tx_ticks) : 0;
 }
 
-void bnx2x_pf_init(struct bnx2x *bp)
+static void bnx2x_pf_init(struct bnx2x *bp)
 {
 	struct bnx2x_func_init_params func_init = {0};
 	struct bnx2x_rss_params rss = {0};
@@ -3928,7 +3931,7 @@ void bnx2x_setup_ndsb_state_machine(struct hc_status_block_sm *hc_sm,
 	hc_sm->time_to_expire = 0xFFFFFFFF;
 }
 
-void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
+static void bnx2x_init_sb(struct bnx2x *bp, dma_addr_t mapping, int vfid,
 			  u8 vf_valid, int fw_sb_id, int igu_sb_id)
 {
 	int igu_seg_id;
@@ -6021,6 +6024,9 @@ alloc_mem_err:
 /*
  * Init service functions
  */
+static int bnx2x_wait_ramrod(struct bnx2x *bp, int state, int idx,
+			     int *state_p, int flags);
+
 int bnx2x_func_start(struct bnx2x *bp)
 {
 	bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_FUNCTION_START, 0, 0, 0, 1);
@@ -6030,7 +6036,7 @@ int bnx2x_func_start(struct bnx2x *bp)
 				 WAIT_RAMROD_COMMON);
 }
 
-int bnx2x_func_stop(struct bnx2x *bp)
+static int bnx2x_func_stop(struct bnx2x *bp)
 {
 	bnx2x_sp_post(bp, RAMROD_CMD_ID_COMMON_FUNCTION_STOP, 0, 0, 0, 1);
 
@@ -6103,8 +6109,8 @@ static void bnx2x_set_mac_addr_gen(struct bnx2x *bp, int set, u8 *mac,
 	bnx2x_wait_ramrod(bp, 0, 0, &bp->set_mac_pending, ramrod_flags);
 }
 
-int bnx2x_wait_ramrod(struct bnx2x *bp, int state, int idx,
-		      int *state_p, int flags)
+static int bnx2x_wait_ramrod(struct bnx2x *bp, int state, int idx,
+			     int *state_p, int flags)
 {
 	/* can take a while if any port is running */
 	int cnt = 5000;
@@ -6154,7 +6160,7 @@ int bnx2x_wait_ramrod(struct bnx2x *bp, int state, int idx,
 	return -EBUSY;
 }
 
-u8 bnx2x_e1h_cam_offset(struct bnx2x *bp, u8 rel_offset)
+static u8 bnx2x_e1h_cam_offset(struct bnx2x *bp, u8 rel_offset)
 {
 	if (CHIP_IS_E1H(bp))
 		return E1H_FUNC_MAX * rel_offset + BP_FUNC(bp);
@@ -6273,7 +6279,7 @@ static void bnx2x_invlidate_e1_mc_list(struct bnx2x *bp)
  *
  * @return 0 if cussess, -ENODEV if ramrod doesn't return.
  */
-int bnx2x_set_iscsi_eth_mac_addr(struct bnx2x *bp, int set)
+static int bnx2x_set_iscsi_eth_mac_addr(struct bnx2x *bp, int set)
 {
 	u8 cam_offset = (CHIP_IS_E1(bp) ? ((BP_PORT(bp) ? 32 : 0) + 2) :
 			 bnx2x_e1h_cam_offset(bp, CAM_ISCSI_ETH_LINE));
@@ -6383,11 +6389,11 @@ static inline void bnx2x_set_ctx_validation(struct eth_context *cxt, u32 cid)
 				       ETH_CONNECTION_TYPE);
 }
 
-int bnx2x_setup_fw_client(struct bnx2x *bp,
-			  struct bnx2x_client_init_params *params,
-			  u8 activate,
-			  struct client_init_ramrod_data *data,
-			  dma_addr_t data_mapping)
+static int bnx2x_setup_fw_client(struct bnx2x *bp,
+				 struct bnx2x_client_init_params *params,
+				 u8 activate,
+				 struct client_init_ramrod_data *data,
+				 dma_addr_t data_mapping)
 {
 	u16 hc_usec;
 	int ramrod = RAMROD_CMD_ID_ETH_CLIENT_SETUP;
@@ -6633,7 +6639,8 @@ int bnx2x_setup_client(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	return rc;
 }
 
-int bnx2x_stop_fw_client(struct bnx2x *bp, struct bnx2x_client_ramrod_params *p)
+static int bnx2x_stop_fw_client(struct bnx2x *bp,
+				struct bnx2x_client_ramrod_params *p)
 {
 	int rc;
 
@@ -7440,7 +7447,7 @@ reset_task_exit:
  * Init service functions
  */
 
-u32 bnx2x_get_pretend_reg(struct bnx2x *bp)
+static u32 bnx2x_get_pretend_reg(struct bnx2x *bp)
 {
 	u32 base = PXP2_REG_PGL_PRETEND_FUNC_F0;
 	u32 stride = PXP2_REG_PGL_PRETEND_FUNC_F1 - base;
@@ -9057,7 +9064,7 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	default:
 		pr_err("Unknown board_type (%ld), aborting\n",
 			   ent->driver_data);
-		return ENODEV;
+		return -ENODEV;
 	}
 
 	cid_count += CNIC_CONTEXT_USE;

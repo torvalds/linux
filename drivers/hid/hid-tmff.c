@@ -249,6 +249,8 @@ static const struct hid_device_id tm_devices[] = {
 		.driver_data = (unsigned long)ff_joystick },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb654),	/* FGT Force Feedback Wheel */
 		.driver_data = (unsigned long)ff_joystick },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_THRUSTMASTER, 0xb65a),	/* F430 Force Feedback Wheel */
+		.driver_data = (unsigned long)ff_joystick },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, tm_devices);

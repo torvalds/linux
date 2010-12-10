@@ -62,15 +62,15 @@ static const u32 default_msg =
 /* NETIF_MSG_PKTDATA | */
     NETIF_MSG_HW | NETIF_MSG_WOL | 0;
 
-static int debug = 0x00007fff;	/* defaults above */
-module_param(debug, int, 0);
+static int debug = -1;	/* defaults above */
+module_param(debug, int, 0664);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 #define MSIX_IRQ 0
 #define MSI_IRQ 1
 #define LEG_IRQ 2
 static int qlge_irq_type = MSIX_IRQ;
-module_param(qlge_irq_type, int, MSIX_IRQ);
+module_param(qlge_irq_type, int, 0664);
 MODULE_PARM_DESC(qlge_irq_type, "0 = MSI-X, 1 = MSI, 2 = Legacy.");
 
 static int qlge_mpi_coredump;
@@ -93,6 +93,9 @@ static DEFINE_PCI_DEVICE_TABLE(qlge_pci_tbl) = {
 };
 
 MODULE_DEVICE_TABLE(pci, qlge_pci_tbl);
+
+static int ql_wol(struct ql_adapter *qdev);
+static void qlge_set_multicast_list(struct net_device *ndev);
 
 /* This hardware semaphore causes exclusive access to
  * resources shared between the NIC driver, MPI firmware,
@@ -2382,6 +2385,20 @@ static void qlge_vlan_rx_kill_vid(struct net_device *ndev, u16 vid)
 
 }
 
+static void qlge_restore_vlan(struct ql_adapter *qdev)
+{
+	qlge_vlan_rx_register(qdev->ndev, qdev->vlgrp);
+
+	if (qdev->vlgrp) {
+		u16 vid;
+		for (vid = 0; vid < VLAN_N_VID; vid++) {
+			if (!vlan_group_get_device(qdev->vlgrp, vid))
+				continue;
+			qlge_vlan_rx_add_vid(qdev->ndev, vid);
+		}
+	}
+}
+
 /* MSI-X Multiple Vector Interrupt Handler for inbound completions. */
 static irqreturn_t qlge_msix_rx_isr(int irq, void *dev_id)
 {
@@ -3842,7 +3859,7 @@ static void ql_display_dev_info(struct net_device *ndev)
 		   "MAC address %pM\n", ndev->dev_addr);
 }
 
-int ql_wol(struct ql_adapter *qdev)
+static int ql_wol(struct ql_adapter *qdev)
 {
 	int status = 0;
 	u32 wol = MB_WOL_DISABLE;
@@ -3956,6 +3973,9 @@ static int ql_adapter_up(struct ql_adapter *qdev)
 	clear_bit(QL_ALLMULTI, &qdev->flags);
 	clear_bit(QL_PROMISCUOUS, &qdev->flags);
 	qlge_set_multicast_list(qdev->ndev);
+
+	/* Restore vlan setting. */
+	qlge_restore_vlan(qdev);
 
 	ql_enable_interrupts(qdev);
 	ql_enable_all_completion_interrupts(qdev);
@@ -4242,7 +4262,7 @@ static struct net_device_stats *qlge_get_stats(struct net_device
 	return &ndev->stats;
 }
 
-void qlge_set_multicast_list(struct net_device *ndev)
+static void qlge_set_multicast_list(struct net_device *ndev)
 {
 	struct ql_adapter *qdev = (struct ql_adapter *)netdev_priv(ndev);
 	struct netdev_hw_addr *ha;

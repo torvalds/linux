@@ -31,7 +31,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/control.h>
 #include <mach/gpio.h>
 #include <plat/usb.h>
 #include <plat/board.h>
@@ -42,6 +41,7 @@
 #include <plat/gpmc.h>
 
 #include "mux.h"
+#include "control.h"
 
 #define H4_FLASH_CS	0
 #define H4_SMC91X_CS	1

@@ -32,7 +32,6 @@
 #include "tea6415c.h"
 #include "tea6420.h"
 
-#define	I2C_SAA5246A  0x11
 #define I2C_SAA7111A  0x24
 #define	I2C_TDA9840   0x42
 #define	I2C_TEA6415C  0x43
@@ -186,21 +185,17 @@ static int mxb_probe(struct saa7146_dev *dev)
 	}
 
 	mxb->saa7111a = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"saa7115", "saa7111", I2C_SAA7111A, NULL);
+			"saa7111", I2C_SAA7111A, NULL);
 	mxb->tea6420_1 = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"tea6420", "tea6420", I2C_TEA6420_1, NULL);
+			"tea6420", I2C_TEA6420_1, NULL);
 	mxb->tea6420_2 = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"tea6420", "tea6420", I2C_TEA6420_2, NULL);
+			"tea6420", I2C_TEA6420_2, NULL);
 	mxb->tea6415c = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"tea6415c", "tea6415c", I2C_TEA6415C, NULL);
+			"tea6415c", I2C_TEA6415C, NULL);
 	mxb->tda9840 = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"tda9840", "tda9840", I2C_TDA9840, NULL);
+			"tda9840", I2C_TDA9840, NULL);
 	mxb->tuner = v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"tuner", "tuner", I2C_TUNER, NULL);
-	if (v4l2_i2c_new_subdev(&dev->v4l2_dev, &mxb->i2c_adapter,
-			"saa5246a", "saa5246a", I2C_SAA5246A, NULL)) {
-		printk(KERN_INFO "mxb: found teletext decoder\n");
-	}
+			"tuner", I2C_TUNER, NULL);
 
 	/* check if all devices are present */
 	if (!mxb->tea6420_1 || !mxb->tea6420_2 || !mxb->tea6415c ||

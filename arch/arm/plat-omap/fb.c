@@ -36,6 +36,8 @@
 #include <plat/board.h>
 #include <plat/sram.h>
 
+#include "fb.h"
+
 #if defined(CONFIG_FB_OMAP) || defined(CONFIG_FB_OMAP_MODULE)
 
 static struct omapfb_platform_data omapfb_config;
@@ -94,7 +96,7 @@ static int fbmem_region_reserved(unsigned long start, size_t size)
  * Get the region_idx`th region from board config/ATAG and convert it to
  * our internal format.
  */
-static int get_fbmem_region(int region_idx, struct omapfb_mem_region *rg)
+static int __init get_fbmem_region(int region_idx, struct omapfb_mem_region *rg)
 {
 	const struct omap_fbmem_config	*conf;
 	u32				paddr;
@@ -126,7 +128,7 @@ static int set_fbmem_region_type(struct omapfb_mem_region *rg, int mem_type,
 	 * type = 0 && paddr = 0, a default don't care case maps to
 	 * the SDRAM type.
 	 */
-	if (rg->type || (!rg->type && !rg->paddr))
+	if (rg->type || !rg->paddr)
 		return 0;
 	if (ranges_overlap(rg->paddr, rg->size, mem_start, mem_size)) {
 		rg->type = mem_type;
@@ -258,7 +260,7 @@ void __init omapfb_reserve_sdram_memblock(void)
  * this point, since the driver built as a module would have problem with
  * freeing / reallocating the regions.
  */
-unsigned long omapfb_reserve_sram(unsigned long sram_pstart,
+unsigned long __init omapfb_reserve_sram(unsigned long sram_pstart,
 				  unsigned long sram_vstart,
 				  unsigned long sram_size,
 				  unsigned long pstart_avail,
@@ -332,7 +334,7 @@ void omapfb_set_ctrl_platform_data(void *data)
 	omapfb_config.ctrl_platform_data = data;
 }
 
-static inline int omap_init_fb(void)
+static int __init omap_init_fb(void)
 {
 	const struct omap_lcd_config *conf;
 
@@ -377,7 +379,7 @@ void omapfb_set_platform_data(struct omapfb_platform_data *data)
 	omapfb_config = *data;
 }
 
-static inline int omap_init_fb(void)
+static int __init omap_init_fb(void)
 {
 	return platform_device_register(&omap_fb_device);
 }
@@ -388,7 +390,7 @@ void omapfb_reserve_sdram_memblock(void)
 {
 }
 
-unsigned long omapfb_reserve_sram(unsigned long sram_pstart,
+unsigned long __init omapfb_reserve_sram(unsigned long sram_pstart,
 				  unsigned long sram_vstart,
 				  unsigned long sram_size,
 				  unsigned long start_avail,
@@ -407,7 +409,7 @@ void omapfb_reserve_sdram_memblock(void)
 {
 }
 
-unsigned long omapfb_reserve_sram(unsigned long sram_pstart,
+unsigned long __init omapfb_reserve_sram(unsigned long sram_pstart,
 				  unsigned long sram_vstart,
 				  unsigned long sram_size,
 				  unsigned long start_avail,

@@ -1247,7 +1247,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_LEADTEK_WINFAST_PXTV1200:
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[2].i2c_adap,
-				"cx25840", "cx25840", 0x88 >> 1, NULL);
+				"cx25840", 0x88 >> 1, NULL);
 		if (dev->sd_cx25840) {
 			dev->sd_cx25840->grp_id = CX23885_HW_AV_CORE;
 			v4l2_subdev_call(dev->sd_cx25840, core, load_fw);

@@ -62,7 +62,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			0,
 			500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "reg_w err %d", ret);
+		err("reg_w err %d", ret);
 		gspca_dev->usb_err = ret;
 	}
 }
@@ -152,7 +152,8 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x003c, 0x0005);
 	reg_w(gspca_dev, 0x003c, 0x0006);
 	reg_w(gspca_dev, 0x003c, 0x0007);
-	usb_set_interface(gspca_dev->dev, gspca_dev->iface, gspca_dev->nbalt - 1);
+	usb_set_interface(gspca_dev->dev, gspca_dev->iface,
+					gspca_dev->nbalt - 1);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -180,7 +181,7 @@ static void sd_isoc_irq(struct urb *urb)
 		if (gspca_dev->frozen)
 			return;
 #endif
-		PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
+		err("urb status: %d", urb->status);
 		return;
 	}
 
@@ -208,8 +209,7 @@ static void sd_isoc_irq(struct urb *urb)
 		if (st == 0)
 			st = urb->iso_frame_desc[i].status;
 		if (st) {
-			PDEBUG(D_ERR,
-				"ISOC data error: [%d] status=%d",
+			err("ISOC data error: [%d] status=%d",
 				i, st);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
@@ -256,10 +256,10 @@ static void sd_isoc_irq(struct urb *urb)
 	/* resubmit the URBs */
 	st = usb_submit_urb(urb0, GFP_ATOMIC);
 	if (st < 0)
-		PDEBUG(D_ERR|D_PACK, "usb_submit_urb(0) ret %d", st);
+		err("usb_submit_urb(0) ret %d", st);
 	st = usb_submit_urb(urb, GFP_ATOMIC);
 	if (st < 0)
-		PDEBUG(D_ERR|D_PACK, "usb_submit_urb() ret %d", st);
+		err("usb_submit_urb() ret %d", st);
 }
 
 /* sub-driver description */
@@ -304,18 +304,11 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	int ret;
-
-	ret = usb_register(&sd_driver);
-	if (ret < 0)
-		return ret;
-	info("registered");
-	return 0;
+	return usb_register(&sd_driver);
 }
 static void __exit sd_mod_exit(void)
 {
 	usb_deregister(&sd_driver);
-	info("deregistered");
 }
 
 module_init(sd_mod_init);

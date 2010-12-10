@@ -119,7 +119,7 @@ static int __devexit ab8500_spi_remove(struct spi_device *spi)
 
 static struct spi_driver ab8500_spi_driver = {
 	.driver = {
-		.name = "ab8500",
+		.name = "ab8500-spi",
 		.owner = THIS_MODULE,
 	},
 	.probe	= ab8500_spi_probe,

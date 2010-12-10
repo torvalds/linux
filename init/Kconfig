@@ -518,7 +518,6 @@ if CGROUPS
 
 config CGROUP_DEBUG
 	bool "Example debug cgroup subsystem"
-	depends on CGROUPS
 	default n
 	help
 	  This option enables a simple cgroup subsystem that
@@ -529,7 +528,6 @@ config CGROUP_DEBUG
 
 config CGROUP_NS
 	bool "Namespace cgroup subsystem"
-	depends on CGROUPS
 	help
 	  Provides a simple namespace cgroup subsystem to
 	  provide hierarchical naming of sets of namespaces,
@@ -538,21 +536,18 @@ config CGROUP_NS
 
 config CGROUP_FREEZER
 	bool "Freezer cgroup subsystem"
-	depends on CGROUPS
 	help
 	  Provides a way to freeze and unfreeze all tasks in a
 	  cgroup.
 
 config CGROUP_DEVICE
 	bool "Device controller for cgroups"
-	depends on CGROUPS && EXPERIMENTAL
 	help
 	  Provides a cgroup implementing whitelists for devices which
 	  a process in the cgroup can mknod or open.
 
 config CPUSETS
 	bool "Cpuset support"
-	depends on CGROUPS
 	help
 	  This option will let you create and manage CPUSETs which
 	  allow dynamically partitioning a system into sets of CPUs and
@@ -568,7 +563,6 @@ config PROC_PID_CPUSET
 
 config CGROUP_CPUACCT
 	bool "Simple CPU accounting cgroup subsystem"
-	depends on CGROUPS
 	help
 	  Provides a simple Resource Controller for monitoring the
 	  total CPU consumed by the tasks in a cgroup.
@@ -578,11 +572,10 @@ config RESOURCE_COUNTERS
 	help
 	  This option enables controller independent resource accounting
 	  infrastructure that works with cgroups.
-	depends on CGROUPS
 
 config CGROUP_MEM_RES_CTLR
 	bool "Memory Resource Controller for Control Groups"
-	depends on CGROUPS && RESOURCE_COUNTERS
+	depends on RESOURCE_COUNTERS
 	select MM_OWNER
 	help
 	  Provides a memory resource controller that manages both anonymous
@@ -620,10 +613,23 @@ config CGROUP_MEM_RES_CTLR_SWAP
 	  if boot option "noswapaccount" is set, swap will not be accounted.
 	  Now, memory usage of swap_cgroup is 2 bytes per entry. If swap page
 	  size is 4096bytes, 512k per 1Gbytes of swap.
+config CGROUP_MEM_RES_CTLR_SWAP_ENABLED
+	bool "Memory Resource Controller Swap Extension enabled by default"
+	depends on CGROUP_MEM_RES_CTLR_SWAP
+	default y
+	help
+	  Memory Resource Controller Swap Extension comes with its price in
+	  a bigger memory consumption. General purpose distribution kernels
+	  which want to enable the feautre but keep it disabled by default
+	  and let the user enable it by swapaccount boot command line
+	  parameter should have this option unselected.
+	  For those who want to have the feature enabled by default should
+	  select this option (if, for some reason, they need to disable it
+	  then noswapaccount does the trick).
 
 menuconfig CGROUP_SCHED
 	bool "Group CPU scheduler"
-	depends on EXPERIMENTAL && CGROUPS
+	depends on EXPERIMENTAL
 	default n
 	help
 	  This feature lets CPU scheduler recognize task groups and control CPU
@@ -652,7 +658,7 @@ endif #CGROUP_SCHED
 
 config BLK_CGROUP
 	tristate "Block IO controller"
-	depends on CGROUPS && BLOCK
+	depends on BLOCK
 	default n
 	---help---
 	Generic block IO controller cgroup interface. This is the common
@@ -681,6 +687,59 @@ config DEBUG_BLK_CGROUP
 	files in a cgroup which can be useful for debugging.
 
 endif # CGROUPS
+
+menuconfig NAMESPACES
+	bool "Namespaces support" if EMBEDDED
+	default !EMBEDDED
+	help
+	  Provides the way to make tasks work with different objects using
+	  the same id. For example same IPC id may refer to different objects
+	  or same user id or pid may refer to different tasks when used in
+	  different namespaces.
+
+if NAMESPACES
+
+config UTS_NS
+	bool "UTS namespace"
+	default y
+	help
+	  In this namespace tasks see different info provided with the
+	  uname() system call
+
+config IPC_NS
+	bool "IPC namespace"
+	depends on (SYSVIPC || POSIX_MQUEUE)
+	default y
+	help
+	  In this namespace tasks work with IPC ids which correspond to
+	  different IPC objects in different namespaces.
+
+config USER_NS
+	bool "User namespace (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	default y
+	help
+	  This allows containers, i.e. vservers, to use user namespaces
+	  to provide different user info for different servers.
+	  If unsure, say N.
+
+config PID_NS
+	bool "PID Namespaces"
+	default y
+	help
+	  Support process id namespaces.  This allows having multiple
+	  processes with the same pid as long as they are in different
+	  pid namespaces.  This is a building block of containers.
+
+config NET_NS
+	bool "Network namespace"
+	depends on NET
+	default y
+	help
+	  Allow user space to create what appear to be multiple instances
+	  of the network stack.
+
+endif # NAMESPACES
 
 config MM_OWNER
 	bool
@@ -733,57 +792,6 @@ config RELAY
 	  user space.
 
 	  If unsure, say N.
-
-config NAMESPACES
-	bool "Namespaces support" if EMBEDDED
-	default !EMBEDDED
-	help
-	  Provides the way to make tasks work with different objects using
-	  the same id. For example same IPC id may refer to different objects
-	  or same user id or pid may refer to different tasks when used in
-	  different namespaces.
-
-config UTS_NS
-	bool "UTS namespace"
-	depends on NAMESPACES
-	help
-	  In this namespace tasks see different info provided with the
-	  uname() system call
-
-config IPC_NS
-	bool "IPC namespace"
-	depends on NAMESPACES && (SYSVIPC || POSIX_MQUEUE)
-	help
-	  In this namespace tasks work with IPC ids which correspond to
-	  different IPC objects in different namespaces.
-
-config USER_NS
-	bool "User namespace (EXPERIMENTAL)"
-	depends on NAMESPACES && EXPERIMENTAL
-	help
-	  This allows containers, i.e. vservers, to use user namespaces
-	  to provide different user info for different servers.
-	  If unsure, say N.
-
-config PID_NS
-	bool "PID Namespaces (EXPERIMENTAL)"
-	default n
-	depends on NAMESPACES && EXPERIMENTAL
-	help
-	  Support process id namespaces.  This allows having multiple
-	  processes with the same pid as long as they are in different
-	  pid namespaces.  This is a building block of containers.
-
-	  Unless you want to work with an experimental feature
-	  say N here.
-
-config NET_NS
-	bool "Network namespace"
-	default n
-	depends on NAMESPACES && EXPERIMENTAL && NET
-	help
-	  Allow user space to create what appear to be multiple instances
-	  of the network stack.
 
 config BLK_DEV_INITRD
 	bool "Initial RAM filesystem and RAM disk (initramfs/initrd) support"

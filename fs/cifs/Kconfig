@@ -2,6 +2,10 @@ config CIFS
 	tristate "CIFS support (advanced network filesystem, SMBFS successor)"
 	depends on INET
 	select NLS
+	select CRYPTO
+	select CRYPTO_MD5
+	select CRYPTO_HMAC
+	select CRYPTO_ARC4
 	help
 	  This is the client VFS module for the Common Internet File System
 	  (CIFS) protocol which is the successor to the Server Message Block
@@ -139,6 +143,13 @@ config CIFS_FSCACHE
 	    Makes CIFS FS-Cache capable. Say Y here if you want your CIFS data
 	    to be cached locally on disk through the general filesystem cache
 	    manager. If unsure, say N.
+
+config CIFS_ACL
+	  bool "Provide CIFS ACL support (EXPERIMENTAL)"
+	  depends on EXPERIMENTAL && CIFS_XATTR
+	  help
+	    Allows to fetch CIFS/NTFS ACL from the server.  The DACL blob
+	    is handed over to the application/caller.
 
 config CIFS_EXPERIMENTAL
 	  bool "CIFS Experimental Features (EXPERIMENTAL)"

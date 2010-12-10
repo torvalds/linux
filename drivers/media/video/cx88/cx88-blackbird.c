@@ -33,7 +33,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
-#include <linux/smp_lock.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/cx2341x.h>
@@ -1057,7 +1056,7 @@ static int mpeg_open(struct file *file)
 
 	dprintk( 1, "%s\n", __func__);
 
-	lock_kernel();
+	mutex_lock(&dev->core->lock);
 
 	/* Make sure we can acquire the hardware */
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);
@@ -1065,7 +1064,7 @@ static int mpeg_open(struct file *file)
 		err = drv->request_acquire(drv);
 		if(err != 0) {
 			dprintk(1,"%s: Unable to acquire hardware, %d\n", __func__, err);
-			unlock_kernel();
+			mutex_unlock(&dev->core->lock);;
 			return err;
 		}
 	}
@@ -1073,7 +1072,7 @@ static int mpeg_open(struct file *file)
 	if (!atomic_read(&dev->core->mpeg_users) && blackbird_initialize_codec(dev) < 0) {
 		if (drv)
 			drv->request_release(drv);
-		unlock_kernel();
+		mutex_unlock(&dev->core->lock);
 		return -EINVAL;
 	}
 	dprintk(1, "open dev=%s\n", video_device_node_name(vdev));
@@ -1083,7 +1082,7 @@ static int mpeg_open(struct file *file)
 	if (NULL == fh) {
 		if (drv)
 			drv->request_release(drv);
-		unlock_kernel();
+		mutex_unlock(&dev->core->lock);
 		return -ENOMEM;
 	}
 	file->private_data = fh;
@@ -1094,15 +1093,14 @@ static int mpeg_open(struct file *file)
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx88_buffer),
-			    fh);
+			    fh, NULL);
 
 	/* FIXME: locking against other video device */
 	cx88_set_scale(dev->core, dev->width, dev->height,
 			fh->mpegq.field);
-	unlock_kernel();
 
 	atomic_inc(&dev->core->mpeg_users);
-
+	mutex_unlock(&dev->core->lock);
 	return 0;
 }
 
@@ -1120,8 +1118,11 @@ static int mpeg_release(struct file *file)
 	videobuf_stop(&fh->mpegq);
 
 	videobuf_mmap_free(&fh->mpegq);
+
+	mutex_lock(&dev->core->lock);
 	file->private_data = NULL;
 	kfree(fh);
+	mutex_unlock(&dev->core->lock);
 
 	/* Make sure we release the hardware */
 	drv = cx8802_get_driver(dev, CX88_MPEG_BLACKBIRD);

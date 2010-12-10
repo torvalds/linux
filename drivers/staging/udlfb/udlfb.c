@@ -25,6 +25,7 @@
 #include <linux/fb.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 
 #include "udlfb.h"
 
@@ -57,19 +58,9 @@ static struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-#ifndef CONFIG_FB_DEFERRED_IO
-#warning Please set CONFIG_FB_DEFFERRED_IO option to support generic fbdev apps
-#endif
-
-#ifndef CONFIG_FB_SYS_IMAGEBLIT
-#ifndef CONFIG_FB_SYS_IMAGEBLIT_MODULE
-#warning Please set CONFIG_FB_SYS_IMAGEBLIT option to support fb console
-#endif
-#endif
-
-#ifndef CONFIG_FB_MODE_HELPERS
-#warning CONFIG_FB_MODE_HELPERS required. Expect build break
-#endif
+/* module options */
+static int console;   /* Optionally allow fbcon to consume first framebuffer */
+static int fb_defio;  /* Optionally enable experimental fb_defio mmap support */
 
 /* dlfb keeps a list of urbs for efficient bulk transfers */
 static void dlfb_urb_completion(struct urb *urb);
@@ -77,11 +68,6 @@ static struct urb *dlfb_get_urb(struct dlfb_data *dev);
 static int dlfb_submit_urb(struct dlfb_data *dev, struct urb * urb, size_t len);
 static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size);
 static void dlfb_free_urb_list(struct dlfb_data *dev);
-
-/* other symbols with dependents */
-#ifdef CONFIG_FB_DEFERRED_IO
-static struct fb_deferred_io dlfb_defio;
-#endif
 
 /*
  * All DisplayLink bulk operations start with 0xAF, followed by specific code
@@ -108,13 +94,16 @@ static char *dlfb_vidreg_unlock(char *buf)
 
 /*
  * On/Off for driving the DisplayLink framebuffer to the display
+ *  0x00 H and V sync on
+ *  0x01 H and V sync off (screen blank but powered)
+ *  0x07 DPMS powerdown (requires modeset to come back)
  */
 static char *dlfb_enable_hvsync(char *buf, bool enable)
 {
 	if (enable)
 		return dlfb_set_register(buf, 0x1F, 0x00);
 	else
-		return dlfb_set_register(buf, 0x1F, 0x01);
+		return dlfb_set_register(buf, 0x1F, 0x07);
 }
 
 static char *dlfb_set_color_depth(char *buf, u8 selection)
@@ -266,6 +255,7 @@ static int dlfb_set_video_mode(struct dlfb_data *dev,
 	urb = dlfb_get_urb(dev);
 	if (!urb)
 		return -ENOMEM;
+
 	buf = (char *) urb->transfer_buffer;
 
 	/*
@@ -297,14 +287,14 @@ static int dlfb_ops_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	unsigned long size = vma->vm_end - vma->vm_start;
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
 	unsigned long page, pos;
-	struct dlfb_data *dev = info->par;
-
-	dl_notice("MMAP: %lu %u\n", offset + size, info->fix.smem_len);
 
 	if (offset + size > info->fix.smem_len)
 		return -EINVAL;
 
 	pos = (unsigned long)info->fix.smem_start + offset;
+
+	dl_notice("mmap() framebuffer addr:%lu size:%lu\n",
+		  pos, size);
 
 	while (size > 0) {
 		page = vmalloc_to_pfn((void *)pos);
@@ -321,7 +311,6 @@ static int dlfb_ops_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 	vma->vm_flags |= VM_RESERVED;	/* avoid to swap out this VMA */
 	return 0;
-
 }
 
 /*
@@ -383,13 +372,13 @@ static int dlfb_trim_hline(const u8 *bback, const u8 **bfront, int *width_bytes)
  * A single command can transmit a maximum of 256 pixels,
  * regardless of the compression ratio (protocol design limit).
  * To the hardware, 0 for a size byte means 256
- * 
+ *
  * Rather than 256 pixel commands which are either rl or raw encoded,
  * the rlx command simply assumes alternating raw and rl spans within one cmd.
  * This has a slightly larger header overhead, but produces more even results.
  * It also processes all data (read and write) in a single pass.
  * Performance benchmarks of common cases show it having just slightly better
- * compression than 256 pixel raw -or- rle commands, with similar CPU consumpion.
+ * compression than 256 pixel raw or rle commands, with similar CPU consumpion.
  * But for very rl friendly data, will compress not quite as well.
  */
 static void dlfb_compress_hline(
@@ -410,15 +399,14 @@ static void dlfb_compress_hline(
 		uint8_t *cmd_pixels_count_byte = 0;
 		const uint16_t *raw_pixel_start = 0;
 		const uint16_t *cmd_pixel_start, *cmd_pixel_end = 0;
-		const uint32_t be_dev_addr = cpu_to_be32(dev_addr);
 
 		prefetchw((void *) cmd); /* pull in one cache line at least */
 
 		*cmd++ = 0xAF;
 		*cmd++ = 0x6B;
-		*cmd++ = (uint8_t) ((be_dev_addr >> 8) & 0xFF);
-		*cmd++ = (uint8_t) ((be_dev_addr >> 16) & 0xFF);
-		*cmd++ = (uint8_t) ((be_dev_addr >> 24) & 0xFF);
+		*cmd++ = (uint8_t) ((dev_addr >> 16) & 0xFF);
+		*cmd++ = (uint8_t) ((dev_addr >> 8) & 0xFF);
+		*cmd++ = (uint8_t) ((dev_addr) & 0xFF);
 
 		cmd_pixels_count_byte = cmd++; /*  we'll know this later */
 		cmd_pixel_start = pixel;
@@ -488,7 +476,7 @@ static void dlfb_compress_hline(
  * (that we can only write to, slowly, and can never read), and (optionally)
  * our shadow copy that tracks what's been sent to that hardware buffer.
  */
-static void dlfb_render_hline(struct dlfb_data *dev, struct urb **urb_ptr,
+static int dlfb_render_hline(struct dlfb_data *dev, struct urb **urb_ptr,
 			      const char *front, char **urb_buf_ptr,
 			      u32 byte_offset, u32 byte_width,
 			      int *ident_ptr, int *sent_ptr)
@@ -530,11 +518,11 @@ static void dlfb_render_hline(struct dlfb_data *dev, struct urb **urb_ptr,
 		if (cmd >= cmd_end) {
 			int len = cmd - (u8 *) urb->transfer_buffer;
 			if (dlfb_submit_urb(dev, urb, len))
-				return; /* lost pixels is set */
+				return 1; /* lost pixels is set */
 			*sent_ptr += len;
 			urb = dlfb_get_urb(dev);
 			if (!urb)
-				return; /* lost_pixels is set */
+				return 1; /* lost_pixels is set */
 			*urb_ptr = urb;
 			cmd = urb->transfer_buffer;
 			cmd_end = &cmd[urb->transfer_buffer_length];
@@ -542,6 +530,8 @@ static void dlfb_render_hline(struct dlfb_data *dev, struct urb **urb_ptr,
 	}
 
 	*urb_buf_ptr = cmd;
+
+	return 0;
 }
 
 int dlfb_handle_damage(struct dlfb_data *dev, int x, int y,
@@ -578,9 +568,11 @@ int dlfb_handle_damage(struct dlfb_data *dev, int x, int y,
 		const int line_offset = dev->info->fix.line_length * i;
 		const int byte_offset = line_offset + (x * BPP);
 
-		dlfb_render_hline(dev, &urb, (char *) dev->info->fix.smem_start,
-				  &cmd, byte_offset, width * BPP,
-				  &bytes_identical, &bytes_sent);
+		if (dlfb_render_hline(dev, &urb,
+				      (char *) dev->info->fix.smem_start,
+				      &cmd, byte_offset, width * BPP,
+				      &bytes_identical, &bytes_sent))
+			goto error;
 	}
 
 	if (cmd > (char *) urb->transfer_buffer) {
@@ -591,6 +583,7 @@ int dlfb_handle_damage(struct dlfb_data *dev, int x, int y,
 	} else
 		dlfb_urb_completion(urb);
 
+error:
 	atomic_add(bytes_sent, &dev->bytes_sent);
 	atomic_add(bytes_identical, &dev->bytes_identical);
 	atomic_add(width*height*2, &dev->bytes_rendered);
@@ -600,6 +593,48 @@ int dlfb_handle_damage(struct dlfb_data *dev, int x, int y,
 		   &dev->cpu_kcycles_used);
 
 	return 0;
+}
+
+static ssize_t dlfb_ops_read(struct fb_info *info, char __user *buf,
+			 size_t count, loff_t *ppos)
+{
+	ssize_t result = -ENOSYS;
+
+#if defined CONFIG_FB_SYS_FOPS || defined CONFIG_FB_SYS_FOPS_MODULE
+	result = fb_sys_read(info, buf, count, ppos);
+#endif
+
+	return result;
+}
+
+/*
+ * Path triggered by usermode clients who write to filesystem
+ * e.g. cat filename > /dev/fb1
+ * Not used by X Windows or text-mode console. But useful for testing.
+ * Slow because of extra copy and we must assume all pixels dirty.
+ */
+static ssize_t dlfb_ops_write(struct fb_info *info, const char __user *buf,
+			  size_t count, loff_t *ppos)
+{
+	ssize_t result = -ENOSYS;
+	struct dlfb_data *dev = info->par;
+	u32 offset = (u32) *ppos;
+
+#if defined CONFIG_FB_SYS_FOPS || defined CONFIG_FB_SYS_FOPS_MODULE
+
+	result = fb_sys_write(info, buf, count, ppos);
+
+	if (result > 0) {
+		int start = max((int)(offset / info->fix.line_length) - 1, 0);
+		int lines = min((u32)((result / info->fix.line_length) + 1),
+				(u32)info->var.yres);
+
+		dlfb_handle_damage(dev, 0, start, info->var.xres,
+			lines, info->screen_base);
+	}
+#endif
+
+	return result;
 }
 
 /* hardware has native COPY command (see libdlo), but not worth it for fbcon */
@@ -616,7 +651,6 @@ static void dlfb_ops_copyarea(struct fb_info *info,
 	dlfb_handle_damage(dev, area->dx, area->dy,
 			area->width, area->height, info->screen_base);
 #endif
-	atomic_inc(&dev->copy_count);
 
 }
 
@@ -634,7 +668,6 @@ static void dlfb_ops_imageblit(struct fb_info *info,
 
 #endif
 
-	atomic_inc(&dev->blit_count);
 }
 
 static void dlfb_ops_fillrect(struct fb_info *info,
@@ -650,23 +683,98 @@ static void dlfb_ops_fillrect(struct fb_info *info,
 			      rect->height, info->screen_base);
 #endif
 
-	atomic_inc(&dev->fill_count);
-
 }
 
-static void dlfb_get_edid(struct dlfb_data *dev)
+#ifdef CONFIG_FB_DEFERRED_IO
+/*
+ * NOTE: fb_defio.c is holding info->fbdefio.mutex
+ *   Touching ANY framebuffer memory that triggers a page fault
+ *   in fb_defio will cause a deadlock, when it also tries to
+ *   grab the same mutex.
+ */
+static void dlfb_dpy_deferred_io(struct fb_info *info,
+				struct list_head *pagelist)
+{
+	struct page *cur;
+	struct fb_deferred_io *fbdefio = info->fbdefio;
+	struct dlfb_data *dev = info->par;
+	struct urb *urb;
+	char *cmd;
+	cycles_t start_cycles, end_cycles;
+	int bytes_sent = 0;
+	int bytes_identical = 0;
+	int bytes_rendered = 0;
+
+	if (!fb_defio)
+		return;
+
+	if (!atomic_read(&dev->usb_active))
+		return;
+
+	start_cycles = get_cycles();
+
+	urb = dlfb_get_urb(dev);
+	if (!urb)
+		return;
+
+	cmd = urb->transfer_buffer;
+
+	/* walk the written page list and render each to device */
+	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
+
+		if (dlfb_render_hline(dev, &urb, (char *) info->fix.smem_start,
+				  &cmd, cur->index << PAGE_SHIFT,
+				  PAGE_SIZE, &bytes_identical, &bytes_sent))
+			goto error;
+		bytes_rendered += PAGE_SIZE;
+	}
+
+	if (cmd > (char *) urb->transfer_buffer) {
+		/* Send partial buffer remaining before exiting */
+		int len = cmd - (char *) urb->transfer_buffer;
+		dlfb_submit_urb(dev, urb, len);
+		bytes_sent += len;
+	} else
+		dlfb_urb_completion(urb);
+
+error:
+	atomic_add(bytes_sent, &dev->bytes_sent);
+	atomic_add(bytes_identical, &dev->bytes_identical);
+	atomic_add(bytes_rendered, &dev->bytes_rendered);
+	end_cycles = get_cycles();
+	atomic_add(((unsigned int) ((end_cycles - start_cycles)
+		    >> 10)), /* Kcycles */
+		   &dev->cpu_kcycles_used);
+}
+
+#endif
+
+static int dlfb_get_edid(struct dlfb_data *dev, char *edid, int len)
 {
 	int i;
 	int ret;
-	char rbuf[2];
+	char *rbuf;
 
-	for (i = 0; i < sizeof(dev->edid); i++) {
+	rbuf = kmalloc(2, GFP_KERNEL);
+	if (!rbuf)
+		return 0;
+
+	for (i = 0; i < len; i++) {
 		ret = usb_control_msg(dev->udev,
 				    usb_rcvctrlpipe(dev->udev, 0), (0x02),
 				    (0x80 | (0x02 << 5)), i << 8, 0xA1, rbuf, 2,
-				    0);
-		dev->edid[i] = rbuf[1];
+				    HZ);
+		if (ret < 1) {
+			dl_err("Read EDID byte %d failed err %x\n", i, ret);
+			i--;
+			break;
+		}
+		edid[i] = rbuf[1];
 	}
+
+	kfree(rbuf);
+
+	return i;
 }
 
 static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
@@ -682,14 +790,23 @@ static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
 	/* TODO: Update X server to get this from sysfs instead */
 	if (cmd == DLFB_IOCTL_RETURN_EDID) {
 		char *edid = (char *)arg;
-		dlfb_get_edid(dev);
-		if (copy_to_user(edid, dev->edid, sizeof(dev->edid)))
+		if (copy_to_user(edid, dev->edid, dev->edid_size))
 			return -EFAULT;
 		return 0;
 	}
 
 	/* TODO: Help propose a standard fb.h ioctl to report mmap damage */
 	if (cmd == DLFB_IOCTL_REPORT_DAMAGE) {
+
+		/*
+		 * If we have a damage-aware client, turn fb_defio "off"
+		 * To avoid perf imact of unecessary page fault handling.
+		 * Done by resetting the delay for this fb_info to a very
+		 * long period. Pages will become writable and stay that way.
+		 * Reset to normal value when all clients have closed this fb.
+		 */
+		if (info->fbdefio)
+			info->fbdefio->delay = DL_DEFIO_WRITE_DISABLE;
 
 		area = (struct dloarea *)arg;
 
@@ -705,11 +822,8 @@ static int dlfb_ops_ioctl(struct fb_info *info, unsigned int cmd,
 		if (area->y > info->var.yres)
 			area->y = info->var.yres;
 
-		atomic_set(&dev->use_defio, 0);
-
 		dlfb_handle_damage(dev, area->x, area->y, area->w, area->h,
 			   info->screen_base);
-		atomic_inc(&dev->damage_count);
 	}
 
 	return 0;
@@ -745,55 +859,48 @@ dlfb_ops_setcolreg(unsigned regno, unsigned red, unsigned green,
 /*
  * It's common for several clients to have framebuffer open simultaneously.
  * e.g. both fbcon and X. Makes things interesting.
+ * Assumes caller is holding info->lock (for open and release at least)
  */
 static int dlfb_ops_open(struct fb_info *info, int user)
 {
 	struct dlfb_data *dev = info->par;
 
-/*	if (user == 0)
- *		We could special case kernel mode clients (fbcon) here
- */
+	/*
+	 * fbcon aggressively connects to first framebuffer it finds,
+	 * preventing other clients (X) from working properly. Usually
+	 * not what the user wants. Fail by default with option to enable.
+	 */
+	if ((user == 0) & (!console))
+		return -EBUSY;
 
-	mutex_lock(&dev->fb_open_lock);
+	/* If the USB device is gone, we don't accept new opens */
+	if (dev->virtualized)
+		return -ENODEV;
 
 	dev->fb_count++;
 
+	kref_get(&dev->kref);
+
 #ifdef CONFIG_FB_DEFERRED_IO
-	if ((atomic_read(&dev->use_defio)) && (info->fbdefio == NULL)) {
-		/* enable defio */
-		info->fbdefio = &dlfb_defio;
+	if (fb_defio && (info->fbdefio == NULL)) {
+		/* enable defio at last moment if not disabled by client */
+
+		struct fb_deferred_io *fbdefio;
+
+		fbdefio = kmalloc(sizeof(struct fb_deferred_io), GFP_KERNEL);
+
+		if (fbdefio) {
+			fbdefio->delay = DL_DEFIO_WRITE_DELAY;
+			fbdefio->deferred_io = dlfb_dpy_deferred_io;
+		}
+
+		info->fbdefio = fbdefio;
 		fb_deferred_io_init(info);
 	}
 #endif
 
 	dl_notice("open /dev/fb%d user=%d fb_info=%p count=%d\n",
 	    info->node, user, info, dev->fb_count);
-
-	mutex_unlock(&dev->fb_open_lock);
-
-	return 0;
-}
-
-static int dlfb_ops_release(struct fb_info *info, int user)
-{
-	struct dlfb_data *dev = info->par;
-
-	mutex_lock(&dev->fb_open_lock);
-
-	dev->fb_count--;
-
-#ifdef CONFIG_FB_DEFERRED_IO
-	if ((dev->fb_count == 0) && (info->fbdefio)) {
-		fb_deferred_io_cleanup(info);
-		info->fbdefio = NULL;
-		info->fbops->fb_mmap = dlfb_ops_mmap;
-	}
-#endif
-
-	dl_notice("release /dev/fb%d user=%d count=%d\n",
-		  info->node, user, dev->fb_count);
-
-	mutex_unlock(&dev->fb_open_lock);
 
 	return 0;
 }
@@ -803,25 +910,40 @@ static int dlfb_ops_release(struct fb_info *info, int user)
  * and all references to our device instance (dlfb_data) are released.
  * Every transaction must have a reference, so we know are fully spun down
  */
-static void dlfb_delete(struct kref *kref)
+static void dlfb_free(struct kref *kref)
 {
 	struct dlfb_data *dev = container_of(kref, struct dlfb_data, kref);
+
+	/* this function will wait for all in-flight urbs to complete */
+	if (dev->urbs.count > 0)
+		dlfb_free_urb_list(dev);
 
 	if (dev->backing_buffer)
 		vfree(dev->backing_buffer);
 
-	mutex_destroy(&dev->fb_open_lock);
+	kfree(dev->edid);
+
+	dl_warn("freeing dlfb_data %p\n", dev);
 
 	kfree(dev);
 }
 
-/*
- * Called by fbdev as last part of unregister_framebuffer() process
- * No new clients can open connections. Deallocate everything fb_info.
- */
-static void dlfb_ops_destroy(struct fb_info *info)
+static void dlfb_release_urb_work(struct work_struct *work)
 {
-	struct dlfb_data *dev = info->par;
+	struct urb_node *unode = container_of(work, struct urb_node,
+					      release_urb_work.work);
+
+	up(&unode->dev->urbs.limit_sem);
+}
+
+static void dlfb_free_framebuffer_work(struct work_struct *work)
+{
+	struct dlfb_data *dev = container_of(work, struct dlfb_data,
+					     free_framebuffer_work.work);
+	struct fb_info *info = dev->info;
+	int node = info->node;
+
+	unregister_framebuffer(info);
 
 	if (info->cmap.len != 0)
 		fb_dealloc_cmap(&info->cmap);
@@ -832,10 +954,45 @@ static void dlfb_ops_destroy(struct fb_info *info)
 
 	fb_destroy_modelist(&info->modelist);
 
+	dev->info = 0;
+
+	/* Assume info structure is freed after this point */
 	framebuffer_release(info);
 
-	/* ref taken before register_framebuffer() for dlfb_data clients */
-	kref_put(&dev->kref, dlfb_delete);
+	dl_warn("fb_info for /dev/fb%d has been freed\n", node);
+
+	/* ref taken in probe() as part of registering framebfufer */
+	kref_put(&dev->kref, dlfb_free);
+}
+
+/*
+ * Assumes caller is holding info->lock mutex (for open and release at least)
+ */
+static int dlfb_ops_release(struct fb_info *info, int user)
+{
+	struct dlfb_data *dev = info->par;
+
+	dev->fb_count--;
+
+	/* We can't free fb_info here - fbmem will touch it when we return */
+	if (dev->virtualized && (dev->fb_count == 0))
+		schedule_delayed_work(&dev->free_framebuffer_work, HZ);
+
+#ifdef CONFIG_FB_DEFERRED_IO
+	if ((dev->fb_count == 0) && (info->fbdefio)) {
+		fb_deferred_io_cleanup(info);
+		kfree(info->fbdefio);
+		info->fbdefio = NULL;
+		info->fbops->fb_mmap = dlfb_ops_mmap;
+	}
+#endif
+
+	dl_warn("released /dev/fb%d user=%d count=%d\n",
+		  info->node, user, dev->fb_count);
+
+	kref_put(&dev->kref, dlfb_free);
+
+	return 0;
 }
 
 /*
@@ -847,8 +1004,13 @@ static int dlfb_is_valid_mode(struct fb_videomode *mode,
 {
 	struct dlfb_data *dev = info->par;
 
-	if (mode->xres * mode->yres > dev->sku_pixel_limit)
+	if (mode->xres * mode->yres > dev->sku_pixel_limit) {
+		dl_warn("%dx%d beyond chip capabilities\n",
+		       mode->xres, mode->yres);
 		return 0;
+	}
+
+	dl_info("%dx%d valid mode\n", mode->xres, mode->yres);
 
 	return 1;
 }
@@ -888,42 +1050,62 @@ static int dlfb_ops_check_var(struct fb_var_screeninfo *var,
 static int dlfb_ops_set_par(struct fb_info *info)
 {
 	struct dlfb_data *dev = info->par;
+	int result;
+	u16 *pix_framebuffer;
+	int i;
 
 	dl_notice("set_par mode %dx%d\n", info->var.xres, info->var.yres);
 
-	return dlfb_set_video_mode(dev, &info->var);
+	result = dlfb_set_video_mode(dev, &info->var);
+
+	if ((result == 0) && (dev->fb_count == 0)) {
+
+		/* paint greenscreen */
+
+		pix_framebuffer = (u16 *) info->screen_base;
+		for (i = 0; i < info->fix.smem_len / 2; i++)
+			pix_framebuffer[i] = 0x37e6;
+
+		dlfb_handle_damage(dev, 0, 0, info->var.xres, info->var.yres,
+				   info->screen_base);
+	}
+
+	return result;
 }
 
+/*
+ * In order to come back from full DPMS off, we need to set the mode again
+ */
 static int dlfb_ops_blank(int blank_mode, struct fb_info *info)
 {
 	struct dlfb_data *dev = info->par;
-	char *bufptr;
-	struct urb *urb;
 
-	urb = dlfb_get_urb(dev);
-	if (!urb)
-		return 0;
-	bufptr = (char *) urb->transfer_buffer;
-
-	/* overloading usb_active.  UNBLANK can conflict with teardown */
-
-	bufptr = dlfb_vidreg_lock(bufptr);
 	if (blank_mode != FB_BLANK_UNBLANK) {
-		atomic_set(&dev->usb_active, 0);
-		bufptr = dlfb_enable_hvsync(bufptr, false);
-	} else {
-		atomic_set(&dev->usb_active, 1);
-		bufptr = dlfb_enable_hvsync(bufptr, true);
-	}
-	bufptr = dlfb_vidreg_unlock(bufptr);
+		char *bufptr;
+		struct urb *urb;
 
-	dlfb_submit_urb(dev, urb, bufptr - (char *) urb->transfer_buffer);
+		urb = dlfb_get_urb(dev);
+		if (!urb)
+			return 0;
+
+		bufptr = (char *) urb->transfer_buffer;
+		bufptr = dlfb_vidreg_lock(bufptr);
+		bufptr = dlfb_enable_hvsync(bufptr, false);
+		bufptr = dlfb_vidreg_unlock(bufptr);
+
+		dlfb_submit_urb(dev, urb, bufptr -
+				(char *) urb->transfer_buffer);
+	} else {
+		dlfb_set_video_mode(dev, &info->var);
+	}
 
 	return 0;
 }
 
 static struct fb_ops dlfb_ops = {
 	.owner = THIS_MODULE,
+	.fb_read = dlfb_ops_read,
+	.fb_write = dlfb_ops_write,
 	.fb_setcolreg = dlfb_ops_setcolreg,
 	.fb_fillrect = dlfb_ops_fillrect,
 	.fb_copyarea = dlfb_ops_copyarea,
@@ -937,46 +1119,166 @@ static struct fb_ops dlfb_ops = {
 	.fb_set_par = dlfb_ops_set_par,
 };
 
+
 /*
- * Calls dlfb_get_edid() to query the EDID of attached monitor via usb cmds
- * Then parses EDID into three places used by various parts of fbdev:
+ * Assumes &info->lock held by caller
+ * Assumes no active clients have framebuffer open
+ */
+static int dlfb_realloc_framebuffer(struct dlfb_data *dev, struct fb_info *info)
+{
+	int retval = -ENOMEM;
+	int old_len = info->fix.smem_len;
+	int new_len;
+	unsigned char *old_fb = info->screen_base;
+	unsigned char *new_fb;
+	unsigned char *new_back;
+
+	dl_warn("Reallocating framebuffer. Addresses will change!\n");
+
+	new_len = info->fix.line_length * info->var.yres;
+
+	if (PAGE_ALIGN(new_len) > old_len) {
+		/*
+		 * Alloc system memory for virtual framebuffer
+		 */
+		new_fb = vmalloc(new_len);
+		if (!new_fb) {
+			dl_err("Virtual framebuffer alloc failed\n");
+			goto error;
+		}
+
+		if (info->screen_base) {
+			memcpy(new_fb, old_fb, old_len);
+			vfree(info->screen_base);
+		}
+
+		info->screen_base = new_fb;
+		info->fix.smem_len = PAGE_ALIGN(new_len);
+		info->fix.smem_start = (unsigned long) new_fb;
+		info->flags = udlfb_info_flags;
+
+		/*
+		 * Second framebuffer copy to mirror the framebuffer state
+		 * on the physical USB device. We can function without this.
+		 * But with imperfect damage info we may send pixels over USB
+		 * that were, in fact, unchanged - wasting limited USB bandwidth
+		 */
+		new_back = vmalloc(new_len);
+		if (!new_back)
+			dl_info("No shadow/backing buffer allcoated\n");
+		else {
+			if (dev->backing_buffer)
+				vfree(dev->backing_buffer);
+			dev->backing_buffer = new_back;
+			memset(dev->backing_buffer, 0, new_len);
+		}
+	}
+
+	retval = 0;
+
+error:
+	return retval;
+}
+
+/*
+ * 1) Get EDID from hw, or use sw default
+ * 2) Parse into various fb_info structs
+ * 3) Allocate virtual framebuffer memory to back highest res mode
+ *
+ * Parses EDID into three places used by various parts of fbdev:
  * fb_var_screeninfo contains the timing of the monitor's preferred mode
  * fb_info.monspecs is full parsed EDID info, including monspecs.modedb
  * fb_info.modelist is a linked list of all monitor & VESA modes which work
  *
  * If EDID is not readable/valid, then modelist is all VESA modes,
  * monspecs is NULL, and fb_var_screeninfo is set to safe VESA mode
- * Returns 0 if EDID parses successfully
+ * Returns 0 if successful
  */
-static int dlfb_parse_edid(struct dlfb_data *dev,
-			    struct fb_var_screeninfo *var,
-			    struct fb_info *info)
+static int dlfb_setup_modes(struct dlfb_data *dev,
+			   struct fb_info *info,
+			   char *default_edid, size_t default_edid_size)
 {
 	int i;
 	const struct fb_videomode *default_vmode = NULL;
 	int result = 0;
+	char *edid;
+	int tries = 3;
+
+	if (info->dev) /* only use mutex if info has been registered */
+		mutex_lock(&info->lock);
+
+	edid = kmalloc(MAX_EDID_SIZE, GFP_KERNEL);
+	if (!edid) {
+		result = -ENOMEM;
+		goto error;
+	}
 
 	fb_destroy_modelist(&info->modelist);
 	memset(&info->monspecs, 0, sizeof(info->monspecs));
 
-	dlfb_get_edid(dev);
-	fb_edid_to_monspecs(dev->edid, &info->monspecs);
+	/*
+	 * Try to (re)read EDID from hardware first
+	 * EDID data may return, but not parse as valid
+	 * Try again a few times, in case of e.g. analog cable noise
+	 */
+	while (tries--) {
 
+		i = dlfb_get_edid(dev, edid, MAX_EDID_SIZE);
+
+		if (i >= MIN_EDID_SIZE)
+			fb_edid_to_monspecs(edid, &info->monspecs);
+
+		if (info->monspecs.modedb_len > 0) {
+			dev->edid = edid;
+			dev->edid_size = i;
+			break;
+		}
+	}
+
+	/* If that fails, use a previously returned EDID if available */
+	if (info->monspecs.modedb_len == 0) {
+
+		dl_err("Unable to get valid EDID from device/display\n");
+
+		if (dev->edid) {
+			fb_edid_to_monspecs(dev->edid, &info->monspecs);
+			if (info->monspecs.modedb_len > 0)
+				dl_err("Using previously queried EDID\n");
+		}
+	}
+
+	/* If that fails, use the default EDID we were handed */
+	if (info->monspecs.modedb_len == 0) {
+		if (default_edid_size >= MIN_EDID_SIZE) {
+			fb_edid_to_monspecs(default_edid, &info->monspecs);
+			if (info->monspecs.modedb_len > 0) {
+				memcpy(edid, default_edid, default_edid_size);
+				dev->edid = edid;
+				dev->edid_size = default_edid_size;
+				dl_err("Using default/backup EDID\n");
+			}
+		}
+	}
+
+	/* If we've got modes, let's pick a best default mode */
 	if (info->monspecs.modedb_len > 0) {
 
 		for (i = 0; i < info->monspecs.modedb_len; i++) {
 			if (dlfb_is_valid_mode(&info->monspecs.modedb[i], info))
 				fb_add_videomode(&info->monspecs.modedb[i],
 					&info->modelist);
+			else /* if we've removed top/best mode */
+				info->monspecs.misc &= ~FB_MISC_1ST_DETAIL;
 		}
 
 		default_vmode = fb_find_best_display(&info->monspecs,
 						     &info->modelist);
-	} else {
-		struct fb_videomode fb_vmode = {0};
+	}
 
-		dl_err("Unable to get valid EDID from device/display\n");
-		result = 1;
+	/* If everything else has failed, fall back to safe default mode */
+	if (default_vmode == NULL) {
+
+		struct fb_videomode fb_vmode = {0};
 
 		/*
 		 * Add the standard VESA modes to our modelist
@@ -1002,8 +1304,30 @@ static int dlfb_parse_edid(struct dlfb_data *dev,
 						     &info->modelist);
 	}
 
-	fb_videomode_to_var(var, default_vmode);
-	dlfb_var_color_format(var);
+	/* If we have good mode and no active clients*/
+	if ((default_vmode != NULL) && (dev->fb_count == 0)) {
+
+		fb_videomode_to_var(&info->var, default_vmode);
+		dlfb_var_color_format(&info->var);
+
+		/*
+		 * with mode size info, we can now alloc our framebuffer.
+		 */
+		memcpy(&info->fix, &dlfb_fix, sizeof(dlfb_fix));
+		info->fix.line_length = info->var.xres *
+			(info->var.bits_per_pixel / 8);
+
+		result = dlfb_realloc_framebuffer(dev, info);
+
+	} else
+		result = -EINVAL;
+
+error:
+	if (edid && (dev->edid != edid))
+		kfree(edid);
+
+	if (info->dev)
+		mutex_unlock(&info->lock);
 
 	return result;
 }
@@ -1040,51 +1364,54 @@ static ssize_t metrics_cpu_kcycles_used_show(struct device *fbdev,
 			atomic_read(&dev->cpu_kcycles_used));
 }
 
-static ssize_t metrics_misc_show(struct device *fbdev,
-				   struct device_attribute *a, char *buf) {
-	struct fb_info *fb_info = dev_get_drvdata(fbdev);
-	struct dlfb_data *dev = fb_info->par;
-	return snprintf(buf, PAGE_SIZE,
-			"Calls to\ndamage: %u\nblit: %u\n"
-			"defio faults: %u\ncopy: %u\n"
-			"fill: %u\n\n"
-			"active framebuffer clients: %d\n"
-			"urbs available %d(%d)\n"
-			"Shadow framebuffer in use? %s\n"
-			"Any lost pixels? %s\n",
-			atomic_read(&dev->damage_count),
-			atomic_read(&dev->blit_count),
-			atomic_read(&dev->defio_fault_count),
-			atomic_read(&dev->copy_count),
-			atomic_read(&dev->fill_count),
-			dev->fb_count,
-			dev->urbs.available, dev->urbs.limit_sem.count,
-			(dev->backing_buffer) ? "yes" : "no",
-			atomic_read(&dev->lost_pixels) ? "yes" : "no");
-}
-
-static ssize_t edid_show(struct file *filp, struct kobject *kobj,
-			 struct bin_attribute *a,
+static ssize_t edid_show(
+			struct file *filp,
+			struct kobject *kobj, struct bin_attribute *a,
 			 char *buf, loff_t off, size_t count) {
 	struct device *fbdev = container_of(kobj, struct device, kobj);
 	struct fb_info *fb_info = dev_get_drvdata(fbdev);
 	struct dlfb_data *dev = fb_info->par;
-	char *edid = &dev->edid[0];
-	const size_t size = sizeof(dev->edid);
 
-	if (dlfb_parse_edid(dev, &fb_info->var, fb_info))
+	if (dev->edid == NULL)
 		return 0;
 
-	if (off >= size)
+	if ((off >= dev->edid_size) || (count > dev->edid_size))
 		return 0;
 
-	if (off + count > size)
-		count = size - off;
-	memcpy(buf, edid + off, count);
+	if (off + count > dev->edid_size)
+		count = dev->edid_size - off;
+
+	dl_info("sysfs edid copy %p to %p, %d bytes\n",
+		dev->edid, buf, (int) count);
+
+	memcpy(buf, dev->edid, count);
 
 	return count;
 }
 
+static ssize_t edid_store(
+			struct file *filp,
+			struct kobject *kobj, struct bin_attribute *a,
+			char *src, loff_t src_off, size_t src_size) {
+	struct device *fbdev = container_of(kobj, struct device, kobj);
+	struct fb_info *fb_info = dev_get_drvdata(fbdev);
+	struct dlfb_data *dev = fb_info->par;
+
+	/* We only support write of entire EDID at once, no offset*/
+	if ((src_size < MIN_EDID_SIZE) ||
+	    (src_size > MAX_EDID_SIZE) ||
+	    (src_off != 0))
+		return 0;
+
+	dlfb_setup_modes(dev, fb_info, src, src_size);
+
+	if (dev->edid && (memcmp(src, dev->edid, src_size) == 0)) {
+		dl_info("sysfs written EDID is new default\n");
+		dlfb_ops_set_par(fb_info);
+		return src_size;
+	} else
+		return 0;
+}
 
 static ssize_t metrics_reset_store(struct device *fbdev,
 			   struct device_attribute *attr,
@@ -1097,44 +1424,16 @@ static ssize_t metrics_reset_store(struct device *fbdev,
 	atomic_set(&dev->bytes_identical, 0);
 	atomic_set(&dev->bytes_sent, 0);
 	atomic_set(&dev->cpu_kcycles_used, 0);
-	atomic_set(&dev->blit_count, 0);
-	atomic_set(&dev->copy_count, 0);
-	atomic_set(&dev->fill_count, 0);
-	atomic_set(&dev->defio_fault_count, 0);
-	atomic_set(&dev->damage_count, 0);
 
-	return count;
-}
-
-static ssize_t use_defio_show(struct device *fbdev,
-				   struct device_attribute *a, char *buf) {
-	struct fb_info *fb_info = dev_get_drvdata(fbdev);
-	struct dlfb_data *dev = fb_info->par;
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-			atomic_read(&dev->use_defio));
-}
-
-static ssize_t use_defio_store(struct device *fbdev,
-			   struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	struct fb_info *fb_info = dev_get_drvdata(fbdev);
-	struct dlfb_data *dev = fb_info->par;
-
-	if (count > 0) {
-		if (buf[0] == '0')
-			atomic_set(&dev->use_defio, 0);
-		if (buf[0] == '1')
-			atomic_set(&dev->use_defio, 1);
-	}
 	return count;
 }
 
 static struct bin_attribute edid_attr = {
 	.attr.name = "edid",
-	.attr.mode = 0444,
-	.size = 128,
+	.attr.mode = 0666,
+	.size = MAX_EDID_SIZE,
 	.read = edid_show,
+	.write = edid_store
 };
 
 static struct device_attribute fb_device_attrs[] = {
@@ -1142,72 +1441,8 @@ static struct device_attribute fb_device_attrs[] = {
 	__ATTR_RO(metrics_bytes_identical),
 	__ATTR_RO(metrics_bytes_sent),
 	__ATTR_RO(metrics_cpu_kcycles_used),
-	__ATTR_RO(metrics_misc),
-	__ATTR(metrics_reset, S_IWUGO, NULL, metrics_reset_store),
-	__ATTR_RW(use_defio),
+	__ATTR(metrics_reset, S_IWUSR, NULL, metrics_reset_store),
 };
-
-#ifdef CONFIG_FB_DEFERRED_IO
-static void dlfb_dpy_deferred_io(struct fb_info *info,
-				struct list_head *pagelist)
-{
-	struct page *cur;
-	struct fb_deferred_io *fbdefio = info->fbdefio;
-	struct dlfb_data *dev = info->par;
-	struct urb *urb;
-	char *cmd;
-	cycles_t start_cycles, end_cycles;
-	int bytes_sent = 0;
-	int bytes_identical = 0;
-	int bytes_rendered = 0;
-	int fault_count = 0;
-
-	if (!atomic_read(&dev->use_defio))
-		return;
-
-	if (!atomic_read(&dev->usb_active))
-		return;
-
-	start_cycles = get_cycles();
-
-	urb = dlfb_get_urb(dev);
-	if (!urb)
-		return;
-	cmd = urb->transfer_buffer;
-
-	/* walk the written page list and render each to device */
-	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
-		dlfb_render_hline(dev, &urb, (char *) info->fix.smem_start,
-				  &cmd, cur->index << PAGE_SHIFT,
-				  PAGE_SIZE, &bytes_identical, &bytes_sent);
-		bytes_rendered += PAGE_SIZE;
-		fault_count++;
-	}
-
-	if (cmd > (char *) urb->transfer_buffer) {
-		/* Send partial buffer remaining before exiting */
-		int len = cmd - (char *) urb->transfer_buffer;
-		dlfb_submit_urb(dev, urb, len);
-		bytes_sent += len;
-	} else
-		dlfb_urb_completion(urb);
-
-	atomic_add(fault_count, &dev->defio_fault_count);
-	atomic_add(bytes_sent, &dev->bytes_sent);
-	atomic_add(bytes_identical, &dev->bytes_identical);
-	atomic_add(bytes_rendered, &dev->bytes_rendered);
-	end_cycles = get_cycles();
-	atomic_add(((unsigned int) ((end_cycles - start_cycles)
-		    >> 10)), /* Kcycles */
-		   &dev->cpu_kcycles_used);
-}
-
-static struct fb_deferred_io dlfb_defio = {
-	.delay          = 5,
-	.deferred_io    = dlfb_dpy_deferred_io,
-};
-
-#endif
 
 /*
  * This is necessary before we can communicate with the display controller.
@@ -1227,20 +1462,82 @@ static int dlfb_select_std_channel(struct dlfb_data *dev)
 	return ret;
 }
 
+static int dlfb_parse_vendor_descriptor(struct dlfb_data *dev,
+					struct usb_device *usbdev)
+{
+	char *desc;
+	char *buf;
+	char *desc_end;
 
+	u8 total_len = 0;
+
+	buf = kzalloc(MAX_VENDOR_DESCRIPTOR_SIZE, GFP_KERNEL);
+	if (!buf)
+		return false;
+	desc = buf;
+
+	total_len = usb_get_descriptor(usbdev, 0x5f, /* vendor specific */
+				    0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
+	if (total_len > 5) {
+		dl_info("vendor descriptor length:%x data:%02x %02x %02x %02x" \
+			"%02x %02x %02x %02x %02x %02x %02x\n",
+			total_len, desc[0],
+			desc[1], desc[2], desc[3], desc[4], desc[5], desc[6],
+			desc[7], desc[8], desc[9], desc[10]);
+
+		if ((desc[0] != total_len) || /* descriptor length */
+		    (desc[1] != 0x5f) ||   /* vendor descriptor type */
+		    (desc[2] != 0x01) ||   /* version (2 bytes) */
+		    (desc[3] != 0x00) ||
+		    (desc[4] != total_len - 2)) /* length after type */
+			goto unrecognized;
+
+		desc_end = desc + total_len;
+		desc += 5; /* the fixed header we've already parsed */
+
+		while (desc < desc_end) {
+			u8 length;
+			u16 key;
+
+			key = *((u16 *) desc);
+			desc += sizeof(u16);
+			length = *desc;
+			desc++;
+
+			switch (key) {
+			case 0x0200: { /* max_area */
+				u32 max_area;
+				max_area = le32_to_cpu(*((u32 *)desc));
+				dl_warn("DL chip limited to %d pixel modes\n",
+					max_area);
+				dev->sku_pixel_limit = max_area;
+				break;
+			}
+			default:
+				break;
+			}
+			desc += length;
+		}
+	}
+
+	goto success;
+
+unrecognized:
+	/* allow udlfb to load for now even if firmware unrecognized */
+	dl_err("Unrecognized vendor firmware descriptor\n");
+
+success:
+	kfree(buf);
+	return true;
+}
 static int dlfb_usb_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
 {
 	struct usb_device *usbdev;
-	struct dlfb_data *dev;
-	struct fb_info *info;
-	int videomemorysize;
-	int i;
-	unsigned char *videomemory;
+	struct dlfb_data *dev = 0;
+	struct fb_info *info = 0;
 	int retval = -ENOMEM;
-	struct fb_var_screeninfo *var;
-	int registered = 0;
-	u16 *pix_framebuffer;
+	int i;
 
 	/* usb initialization */
 
@@ -1254,19 +1551,32 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 
 	/* we need to wait for both usb and fbdev to spin down on disconnect */
 	kref_init(&dev->kref); /* matching kref_put in usb .disconnect fn */
-	kref_get(&dev->kref); /* matching kref_put in .fb_destroy function*/
+	kref_get(&dev->kref); /* matching kref_put in free_framebuffer_work */
 
 	dev->udev = usbdev;
 	dev->gdev = &usbdev->dev; /* our generic struct device * */
 	usb_set_intfdata(interface, dev);
+
+	dl_info("%s %s - serial #%s\n",
+		usbdev->manufacturer, usbdev->product, usbdev->serial);
+	dl_info("vid_%04x&pid_%04x&rev_%04x driver's dlfb_data struct at %p\n",
+		usbdev->descriptor.idVendor, usbdev->descriptor.idProduct,
+		usbdev->descriptor.bcdDevice, dev);
+	dl_info("console enable=%d\n", console);
+	dl_info("fb_defio enable=%d\n", fb_defio);
+
+	dev->sku_pixel_limit = 2048 * 1152; /* default to maximum */
+
+	if (!dlfb_parse_vendor_descriptor(dev, usbdev)) {
+		dl_err("firmware not recognized. Assume incompatible device\n");
+		goto error;
+	}
 
 	if (!dlfb_alloc_urb_list(dev, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
 		retval = -ENOMEM;
 		dl_err("dlfb_alloc_urb_list failed\n");
 		goto error;
 	}
-
-	mutex_init(&dev->fb_open_lock);
 
 	/* We don't register a new USB class. Our client interface is fbdev */
 
@@ -1277,54 +1587,11 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 		dl_err("framebuffer_alloc failed\n");
 		goto error;
 	}
+
 	dev->info = info;
 	info->par = dev;
 	info->pseudo_palette = dev->pseudo_palette;
 	info->fbops = &dlfb_ops;
-
-	var = &info->var;
-
-	/* TODO set limit based on actual SKU detection */
-	dev->sku_pixel_limit = 2048 * 1152;
-
-	INIT_LIST_HEAD(&info->modelist);
-	dlfb_parse_edid(dev, var, info);
-
-	/*
-	 * ok, now that we've got the size info, we can alloc our framebuffer.
-	 */
-	info->fix = dlfb_fix;
-	info->fix.line_length = var->xres * (var->bits_per_pixel / 8);
-	videomemorysize = info->fix.line_length * var->yres;
-
-	/*
-	 * The big chunk of system memory we use as a virtual framebuffer.
-	 * TODO: Handle fbcon cursor code calling blit in interrupt context
-	 */
-	videomemory = vmalloc(videomemorysize);
-	if (!videomemory) {
-		retval = -ENOMEM;
-		dl_err("Virtual framebuffer alloc failed\n");
-		goto error;
-	}
-
-	info->screen_base = videomemory;
-	info->fix.smem_len = PAGE_ALIGN(videomemorysize);
-	info->fix.smem_start = (unsigned long) videomemory;
-	info->flags = udlfb_info_flags;
-
-
-	/*
-	 * Second framebuffer copy, mirroring the state of the framebuffer
-	 * on the physical USB device. We can function without this.
-	 * But with imperfect damage info we may end up sending pixels over USB
-	 * that were, in fact, unchanged -- wasting limited USB bandwidth
-	 */
-	dev->backing_buffer = vmalloc(videomemorysize);
-	if (!dev->backing_buffer)
-		dl_warn("No shadow/backing buffer allcoated\n");
-	else
-		memset(dev->backing_buffer, 0, videomemorysize);
 
 	retval = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (retval < 0) {
@@ -1332,55 +1599,64 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 		goto error;
 	}
 
+	INIT_DELAYED_WORK(&dev->free_framebuffer_work,
+			  dlfb_free_framebuffer_work);
+
+	INIT_LIST_HEAD(&info->modelist);
+
+	retval = dlfb_setup_modes(dev, info, NULL, 0);
+	if (retval != 0) {
+		dl_err("unable to find common mode for display and adapter\n");
+		goto error;
+	}
+
 	/* ready to begin using device */
 
-#ifdef CONFIG_FB_DEFERRED_IO
-	atomic_set(&dev->use_defio, 1);
-#endif
 	atomic_set(&dev->usb_active, 1);
 	dlfb_select_std_channel(dev);
 
-	dlfb_ops_check_var(var, info);
+	dlfb_ops_check_var(&info->var, info);
 	dlfb_ops_set_par(info);
-
-	/* paint greenscreen */
-	pix_framebuffer = (u16 *) videomemory;
-	for (i = 0; i < videomemorysize / 2; i++)
-		pix_framebuffer[i] = 0x37e6;
-
-	dlfb_handle_damage(dev, 0, 0, info->var.xres, info->var.yres,
-				videomemory);
 
 	retval = register_framebuffer(info);
 	if (retval < 0) {
 		dl_err("register_framebuffer failed %d\n", retval);
 		goto error;
 	}
-	registered = 1;
 
 	for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
 		device_create_file(info->dev, &fb_device_attrs[i]);
 
 	device_create_bin_file(info->dev, &edid_attr);
 
-	dl_err("DisplayLink USB device /dev/fb%d attached. %dx%d resolution."
+	dl_info("DisplayLink USB device /dev/fb%d attached. %dx%d resolution."
 			" Using %dK framebuffer memory\n", info->node,
-			var->xres, var->yres,
+			info->var.xres, info->var.yres,
 			((dev->backing_buffer) ?
-			videomemorysize * 2 : videomemorysize) >> 10);
+			info->fix.smem_len * 2 : info->fix.smem_len) >> 10);
 	return 0;
 
 error:
 	if (dev) {
-		if (registered) {
-			unregister_framebuffer(info);
-			dlfb_ops_destroy(info);
-		} else
-			kref_put(&dev->kref, dlfb_delete);
 
-		if (dev->urbs.count > 0)
-			dlfb_free_urb_list(dev);
-		kref_put(&dev->kref, dlfb_delete); /* last ref from kref_init */
+		if (info) {
+			if (info->cmap.len != 0)
+				fb_dealloc_cmap(&info->cmap);
+			if (info->monspecs.modedb)
+				fb_destroy_modedb(info->monspecs.modedb);
+			if (info->screen_base)
+				vfree(info->screen_base);
+
+			fb_destroy_modelist(&info->modelist);
+
+			framebuffer_release(info);
+		}
+
+		if (dev->backing_buffer)
+			vfree(dev->backing_buffer);
+
+		kref_put(&dev->kref, dlfb_free); /* ref for framebuffer */
+		kref_put(&dev->kref, dlfb_free); /* last ref from kref_init */
 
 		/* dev has been deallocated. Do not dereference */
 	}
@@ -1397,27 +1673,27 @@ static void dlfb_usb_disconnect(struct usb_interface *interface)
 	dev = usb_get_intfdata(interface);
 	info = dev->info;
 
-	/* when non-active we'll update virtual framebuffer, but no new urbs */
+	dl_info("USB disconnect starting\n");
+
+	/* we virtualize until all fb clients release. Then we free */
+	dev->virtualized = true;
+
+	/* When non-active we'll update virtual framebuffer, but no new urbs */
 	atomic_set(&dev->usb_active, 0);
+
+	/* remove udlfb's sysfs interfaces */
+	for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
+		device_remove_file(info->dev, &fb_device_attrs[i]);
+	device_remove_bin_file(info->dev, &edid_attr);
 
 	usb_set_intfdata(interface, NULL);
 
-	for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
-		device_remove_file(info->dev, &fb_device_attrs[i]);
-
-	device_remove_bin_file(info->dev, &edid_attr);
-
-	/* this function will wait for all in-flight urbs to complete */
-	dlfb_free_urb_list(dev);
-
-	if (info) {
-		dl_notice("Detaching /dev/fb%d\n", info->node);
-		unregister_framebuffer(info);
-		dlfb_ops_destroy(info);
-	}
+	/* if clients still have us open, will be freed on last close */
+	if (dev->fb_count == 0)
+		schedule_delayed_work(&dev->free_framebuffer_work, 0);
 
 	/* release reference taken by kref_init in probe() */
-	kref_put(&dev->kref, dlfb_delete);
+	kref_put(&dev->kref, dlfb_free);
 
 	/* consider dlfb_data freed */
 
@@ -1438,8 +1714,6 @@ static int __init dlfb_module_init(void)
 	res = usb_register(&dlfb_driver);
 	if (res)
 		err("usb_register failed. Error number %d", res);
-
-	printk(KERN_INFO "VMODES initialized\n");
 
 	return res;
 }
@@ -1476,7 +1750,14 @@ static void dlfb_urb_completion(struct urb *urb)
 	dev->urbs.available++;
 	spin_unlock_irqrestore(&dev->urbs.lock, flags);
 
-	up(&dev->urbs.limit_sem);
+	/*
+	 * When using fb_defio, we deadlock if up() is called
+	 * while another is waiting. So queue to another process.
+	 */
+	if (fb_defio)
+		schedule_delayed_work(&unode->release_urb_work, 0);
+	else
+		up(&dev->urbs.limit_sem);
 }
 
 static void dlfb_free_urb_list(struct dlfb_data *dev)
@@ -1492,12 +1773,12 @@ static void dlfb_free_urb_list(struct dlfb_data *dev)
 
 	/* keep waiting and freeing, until we've got 'em all */
 	while (count--) {
-		/* Timeout means a memory leak and/or fault */
-		ret = down_timeout(&dev->urbs.limit_sem, FREE_URB_TIMEOUT);
-		if (ret) {
-			BUG_ON(ret);
+
+		/* Getting interrupted means a leak, but ok at shutdown*/
+		ret = down_interruptible(&dev->urbs.limit_sem);
+		if (ret)
 			break;
-		}
+
 		spin_lock_irqsave(&dev->urbs.lock, flags);
 
 		node = dev->urbs.list.next; /* have reserved one with sem */
@@ -1514,8 +1795,6 @@ static void dlfb_free_urb_list(struct dlfb_data *dev)
 		usb_free_urb(urb);
 		kfree(node);
 	}
-
-	kref_put(&dev->kref, dlfb_delete);
 
 }
 
@@ -1536,6 +1815,9 @@ static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size)
 		if (!unode)
 			break;
 		unode->dev = dev;
+
+		INIT_DELAYED_WORK(&unode->release_urb_work,
+			  dlfb_release_urb_work);
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
@@ -1566,8 +1848,6 @@ static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size)
 	dev->urbs.count = i;
 	dev->urbs.available = i;
 
-	kref_get(&dev->kref); /* released in free_render_urbs() */
-
 	dl_notice("allocated %d %d byte urbs\n", i, (int) size);
 
 	return i;
@@ -1585,7 +1865,8 @@ static struct urb *dlfb_get_urb(struct dlfb_data *dev)
 	ret = down_timeout(&dev->urbs.limit_sem, GET_URB_TIMEOUT);
 	if (ret) {
 		atomic_set(&dev->lost_pixels, 1);
-		dl_err("wait for urb interrupted: %x\n", ret);
+		dl_warn("wait for urb interrupted: %x available: %d\n",
+		       ret, dev->urbs.available);
 		goto error;
 	}
 
@@ -1620,6 +1901,12 @@ static int dlfb_submit_urb(struct dlfb_data *dev, struct urb *urb, size_t len)
 	}
 	return ret;
 }
+
+module_param(console, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(console, "Allow fbcon to consume first framebuffer found");
+
+module_param(fb_defio, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(fb_defio, "Enable fb_defio mmap support. *Experimental*");
 
 MODULE_AUTHOR("Roberto De Ioris <roberto@unbit.it>, "
 	      "Jaya Kumar <jayakumar.lkml@gmail.com>, "

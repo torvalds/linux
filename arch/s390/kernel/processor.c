@@ -42,7 +42,7 @@ void __cpuinit print_cpu_info(void)
 	struct cpuid *id = &per_cpu(cpu_id, smp_processor_id());
 
 	pr_info("Processor %d started, address %d, identification %06X\n",
-		S390_lowcore.cpu_nr, S390_lowcore.cpu_addr, id->ident);
+		S390_lowcore.cpu_nr, stap(), id->ident);
 }
 
 /*

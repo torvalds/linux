@@ -24,6 +24,7 @@
 #include "clock.h"
 
 #define DA8XX_TPCC_BASE			0x01c00000
+#define DA850_MMCSD1_BASE		0x01e1b000
 #define DA850_TPCC1_BASE		0x01e30000
 #define DA8XX_TPTC0_BASE		0x01c08000
 #define DA8XX_TPTC1_BASE		0x01c08400
@@ -41,7 +42,6 @@
 #define DA8XX_EMAC_CTRL_REG_OFFSET	0x3000
 #define DA8XX_EMAC_MOD_REG_OFFSET	0x2000
 #define DA8XX_EMAC_RAM_OFFSET		0x0000
-#define DA8XX_MDIO_REG_OFFSET		0x4000
 #define DA8XX_EMAC_CTRL_RAM_SIZE	SZ_8K
 
 void __iomem *da8xx_syscfg0_base;
@@ -351,7 +351,7 @@ int __init da8xx_register_watchdog(void)
 static struct resource da8xx_emac_resources[] = {
 	{
 		.start	= DA8XX_EMAC_CPPI_PORT_BASE,
-		.end	= DA8XX_EMAC_CPPI_PORT_BASE + 0x5000 - 1,
+		.end	= DA8XX_EMAC_CPPI_PORT_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -380,7 +380,6 @@ struct emac_platform_data da8xx_emac_pdata = {
 	.ctrl_reg_offset	= DA8XX_EMAC_CTRL_REG_OFFSET,
 	.ctrl_mod_reg_offset	= DA8XX_EMAC_MOD_REG_OFFSET,
 	.ctrl_ram_offset	= DA8XX_EMAC_RAM_OFFSET,
-	.mdio_reg_offset	= DA8XX_MDIO_REG_OFFSET,
 	.ctrl_ram_size		= DA8XX_EMAC_CTRL_RAM_SIZE,
 	.version		= EMAC_VERSION_2,
 };
@@ -395,9 +394,34 @@ static struct platform_device da8xx_emac_device = {
 	.resource	= da8xx_emac_resources,
 };
 
+static struct resource da8xx_mdio_resources[] = {
+	{
+		.start	= DA8XX_EMAC_MDIO_BASE,
+		.end	= DA8XX_EMAC_MDIO_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device da8xx_mdio_device = {
+	.name		= "davinci_mdio",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(da8xx_mdio_resources),
+	.resource	= da8xx_mdio_resources,
+};
+
 int __init da8xx_register_emac(void)
 {
-	return platform_device_register(&da8xx_emac_device);
+	int ret;
+
+	ret = platform_device_register(&da8xx_mdio_device);
+	if (ret < 0)
+		return ret;
+	ret = platform_device_register(&da8xx_emac_device);
+	if (ret < 0)
+		return ret;
+	ret = clk_add_alias(NULL, dev_name(&da8xx_mdio_device.dev),
+			    NULL, &da8xx_emac_device.dev);
+	return ret;
 }
 
 static struct resource da830_mcasp1_resources[] = {
@@ -565,6 +589,44 @@ int __init da8xx_register_mmcsd0(struct davinci_mmc_config *config)
 	da8xx_mmcsd0_device.dev.platform_data = config;
 	return platform_device_register(&da8xx_mmcsd0_device);
 }
+
+#ifdef CONFIG_ARCH_DAVINCI_DA850
+static struct resource da850_mmcsd1_resources[] = {
+	{		/* registers */
+		.start	= DA850_MMCSD1_BASE,
+		.end	= DA850_MMCSD1_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{		/* interrupt */
+		.start	= IRQ_DA850_MMCSDINT0_1,
+		.end	= IRQ_DA850_MMCSDINT0_1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{		/* DMA RX */
+		.start	= EDMA_CTLR_CHAN(1, 28),
+		.end	= EDMA_CTLR_CHAN(1, 28),
+		.flags	= IORESOURCE_DMA,
+	},
+	{		/* DMA TX */
+		.start	= EDMA_CTLR_CHAN(1, 29),
+		.end	= EDMA_CTLR_CHAN(1, 29),
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device da850_mmcsd1_device = {
+	.name		= "davinci_mmc",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(da850_mmcsd1_resources),
+	.resource	= da850_mmcsd1_resources,
+};
+
+int __init da850_register_mmcsd1(struct davinci_mmc_config *config)
+{
+	da850_mmcsd1_device.dev.platform_data = config;
+	return platform_device_register(&da850_mmcsd1_device);
+}
+#endif
 
 static struct resource da8xx_rtc_resources[] = {
 	{

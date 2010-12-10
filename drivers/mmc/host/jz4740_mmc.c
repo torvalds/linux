@@ -876,8 +876,7 @@ static int __devinit jz4740_mmc_probe(struct platform_device* pdev)
 	mmc->max_blk_count = (1 << 15) - 1;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 
-	mmc->max_phys_segs = 128;
-	mmc->max_hw_segs = 128;
+	mmc->max_segs = 128;
 	mmc->max_seg_size = mmc->max_req_size;
 
 	host->mmc = mmc;

@@ -577,11 +577,10 @@ static int gfar_parse_group(struct device_node *np,
 			irq_of_parse_and_map(np, 1);
 		priv->gfargrp[priv->num_grps].interruptError =
 			irq_of_parse_and_map(np,2);
-		if (priv->gfargrp[priv->num_grps].interruptTransmit < 0 ||
-			priv->gfargrp[priv->num_grps].interruptReceive < 0 ||
-			priv->gfargrp[priv->num_grps].interruptError < 0) {
+		if (priv->gfargrp[priv->num_grps].interruptTransmit == NO_IRQ ||
+		    priv->gfargrp[priv->num_grps].interruptReceive  == NO_IRQ ||
+		    priv->gfargrp[priv->num_grps].interruptError    == NO_IRQ)
 			return -EINVAL;
-		}
 	}
 
 	priv->gfargrp[priv->num_grps].grp_id = priv->num_grps;
@@ -2511,7 +2510,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 				skb_recycle_check(skb, priv->rx_buffer_size +
 					RXBUF_ALIGNMENT)) {
 			gfar_align_skb(skb);
-			__skb_queue_head(&priv->rx_recycle, skb);
+			skb_queue_head(&priv->rx_recycle, skb);
 		} else
 			dev_kfree_skb_any(skb);
 
@@ -2594,7 +2593,7 @@ struct sk_buff * gfar_new_skb(struct net_device *dev)
 	struct gfar_private *priv = netdev_priv(dev);
 	struct sk_buff *skb = NULL;
 
-	skb = __skb_dequeue(&priv->rx_recycle);
+	skb = skb_dequeue(&priv->rx_recycle);
 	if (!skb)
 		skb = gfar_alloc_skb(dev);
 
@@ -2750,7 +2749,7 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 			if (unlikely(!newskb))
 				newskb = skb;
 			else if (skb)
-				__skb_queue_head(&priv->rx_recycle, skb);
+				skb_queue_head(&priv->rx_recycle, skb);
 		} else {
 			/* Increment the number of packets */
 			rx_queue->stats.rx_packets++;

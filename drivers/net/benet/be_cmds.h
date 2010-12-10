@@ -1022,8 +1022,6 @@ extern int be_cmd_set_beacon_state(struct be_adapter *adapter,
 			u8 port_num, u8 beacon, u8 status, u8 state);
 extern int be_cmd_get_beacon_state(struct be_adapter *adapter,
 			u8 port_num, u32 *state);
-extern int be_cmd_read_port_type(struct be_adapter *adapter, u32 port,
-					u8 *connector);
 extern int be_cmd_write_flashrom(struct be_adapter *adapter,
 			struct be_dma_mem *cmd, u32 flash_oper,
 			u32 flash_opcode, u32 buf_size);

@@ -3858,7 +3858,6 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 
 	/* device is off until link detection */
 	netif_carrier_off(dev);
-	netif_stop_queue(dev);
 
 	return dev;
 }

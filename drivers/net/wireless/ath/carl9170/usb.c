@@ -82,9 +82,11 @@ static struct usb_device_id carl9170_usb_ids[] = {
 	{ USB_DEVICE(0x07d1, 0x3c10) },
 	/* D-Link DWA 160 A2 */
 	{ USB_DEVICE(0x07d1, 0x3a09) },
+	/* D-Link DWA 130 D */
+	{ USB_DEVICE(0x07d1, 0x3a0f) },
 	/* Netgear WNA1000 */
 	{ USB_DEVICE(0x0846, 0x9040) },
-	/* Netgear WNDA3100 */
+	/* Netgear WNDA3100 (v1) */
 	{ USB_DEVICE(0x0846, 0x9010) },
 	/* Netgear WN111 v2 */
 	{ USB_DEVICE(0x0846, 0x9001), .driver_info = CARL9170_ONE_LED },
@@ -551,12 +553,12 @@ static int carl9170_usb_flush(struct ar9170 *ar)
 		usb_free_urb(urb);
 	}
 
-	ret = usb_wait_anchor_empty_timeout(&ar->tx_cmd, HZ);
+	ret = usb_wait_anchor_empty_timeout(&ar->tx_cmd, 1000);
 	if (ret == 0)
 		err = -ETIMEDOUT;
 
 	/* lets wait a while until the tx - queues are dried out */
-	ret = usb_wait_anchor_empty_timeout(&ar->tx_anch, HZ);
+	ret = usb_wait_anchor_empty_timeout(&ar->tx_anch, 1000);
 	if (ret == 0)
 		err = -ETIMEDOUT;
 
@@ -591,16 +593,23 @@ int __carl9170_exec_cmd(struct ar9170 *ar, struct carl9170_cmd *cmd,
 			const bool free_buf)
 {
 	struct urb *urb;
+	int err = 0;
 
-	if (!IS_INITIALIZED(ar))
-		return -EPERM;
+	if (!IS_INITIALIZED(ar)) {
+		err = -EPERM;
+		goto err_free;
+	}
 
-	if (WARN_ON(cmd->hdr.len > CARL9170_MAX_CMD_LEN - 4))
-		return -EINVAL;
+	if (WARN_ON(cmd->hdr.len > CARL9170_MAX_CMD_LEN - 4)) {
+		err = -EINVAL;
+		goto err_free;
+	}
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb)
-		return -ENOMEM;
+	if (!urb) {
+		err = -ENOMEM;
+		goto err_free;
+	}
 
 	usb_fill_int_urb(urb, ar->udev, usb_sndintpipe(ar->udev,
 		AR9170_USB_EP_CMD), cmd, cmd->hdr.len + 4,
@@ -613,6 +622,12 @@ int __carl9170_exec_cmd(struct ar9170 *ar, struct carl9170_cmd *cmd,
 	usb_free_urb(urb);
 
 	return carl9170_usb_submit_cmd_urb(ar);
+
+err_free:
+	if (free_buf)
+		kfree(cmd);
+
+	return err;
 }
 
 int carl9170_exec_cmd(struct ar9170 *ar, const enum carl9170_cmd_oids cmd,

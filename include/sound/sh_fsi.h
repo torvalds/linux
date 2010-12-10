@@ -85,7 +85,9 @@
  *     ACK_MD (FSI2)
  *     CKG1   (FSI)
  *
- * err:  return value < 0
+ * err		: return value <  0
+ * no change	: return value == 0
+ * change xMD	: return value >  0
  *
  * 0x-00000AB
  *
@@ -111,10 +113,7 @@
 struct sh_fsi_platform_info {
 	unsigned long porta_flags;
 	unsigned long portb_flags;
-	int (*set_rate)(int is_porta, int rate); /* for master mode */
+	int (*set_rate)(struct device *dev, int is_porta, int rate, int enable);
 };
-
-extern struct snd_soc_dai fsi_soc_dai[2];
-extern struct snd_soc_platform fsi_soc_platform;
 
 #endif /* __SOUND_FSI_H */

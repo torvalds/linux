@@ -104,6 +104,8 @@ enum zone_stat_item {
 	NR_ISOLATED_ANON,	/* Temporary isolated pages from anon lru */
 	NR_ISOLATED_FILE,	/* Temporary isolated pages from file lru */
 	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
+	NR_DIRTIED,		/* page dirtyings since bootup */
+	NR_WRITTEN,		/* page writings since bootup */
 #ifdef CONFIG_NUMA
 	NUMA_HIT,		/* allocated in intended node */
 	NUMA_MISS,		/* allocated in non intended node */
@@ -421,6 +423,9 @@ struct zone {
 typedef enum {
 	ZONE_RECLAIM_LOCKED,		/* prevents concurrent reclaim */
 	ZONE_OOM_LOCKED,		/* zone is in OOM killer zonelist */
+	ZONE_CONGESTED,			/* zone has many dirty pages backed by
+					 * a congested BDI
+					 */
 } zone_flags_t;
 
 static inline void zone_set_flag(struct zone *zone, zone_flags_t flag)
@@ -436,6 +441,11 @@ static inline int zone_test_and_set_flag(struct zone *zone, zone_flags_t flag)
 static inline void zone_clear_flag(struct zone *zone, zone_flags_t flag)
 {
 	clear_bit(flag, &zone->flags);
+}
+
+static inline int zone_is_reclaim_congested(const struct zone *zone)
+{
+	return test_bit(ZONE_CONGESTED, &zone->flags);
 }
 
 static inline int zone_is_reclaim_locked(const struct zone *zone)

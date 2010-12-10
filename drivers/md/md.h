@@ -331,6 +331,8 @@ struct mddev_s
 	struct attribute_group		*to_remove;
 	struct plug_handle		*plug; /* if used by personality */
 
+	struct bio_set			*bio_set;
+
 	/* Generic flush handling.
 	 * The last to finish preflush schedules a worker to submit
 	 * the rest of the request (without the REQ_FLUSH flag).
@@ -495,7 +497,7 @@ extern void md_flush_request(mddev_t *mddev, struct bio *bio);
 extern void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 			   sector_t sector, int size, struct page *page);
 extern void md_super_wait(mddev_t *mddev);
-extern int sync_page_io(struct block_device *bdev, sector_t sector, int size,
+extern int sync_page_io(mdk_rdev_t *rdev, sector_t sector, int size,
 			struct page *page, int rw);
 extern void md_do_sync(mddev_t *mddev);
 extern void md_new_event(mddev_t *mddev);
@@ -517,4 +519,8 @@ extern void md_rdev_init(mdk_rdev_t *rdev);
 
 extern void mddev_suspend(mddev_t *mddev);
 extern void mddev_resume(mddev_t *mddev);
+extern struct bio *bio_clone_mddev(struct bio *bio, gfp_t gfp_mask,
+				   mddev_t *mddev);
+extern struct bio *bio_alloc_mddev(gfp_t gfp_mask, int nr_iovecs,
+				   mddev_t *mddev);
 #endif /* _MD_MD_H */

@@ -397,6 +397,11 @@ static s32 ixgbe_dcb_config_82599(struct ixgbe_hw *hw)
 	reg &= ~IXGBE_RTTDCS_ARBDIS;
 	IXGBE_WRITE_REG(hw, IXGBE_RTTDCS, reg);
 
+	/* Enable Security TX Buffer IFG for DCB */
+	reg = IXGBE_READ_REG(hw, IXGBE_SECTXMINIFG);
+	reg |= IXGBE_SECTX_DCB;
+	IXGBE_WRITE_REG(hw, IXGBE_SECTXMINIFG, reg);
+
 	return 0;
 }
 

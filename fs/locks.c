@@ -122,7 +122,6 @@
 #include <linux/module.h>
 #include <linux/security.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/time.h>
 #include <linux/rcupdate.h>
@@ -142,6 +141,7 @@ int lease_break_time = 45;
 
 static LIST_HEAD(file_lock_list);
 static LIST_HEAD(blocked_list);
+static DEFINE_SPINLOCK(file_lock_lock);
 
 /*
  * Protects the two list heads above, plus the inode->i_flock list
@@ -149,23 +149,24 @@ static LIST_HEAD(blocked_list);
  */
 void lock_flocks(void)
 {
-	lock_kernel();
+	spin_lock(&file_lock_lock);
 }
 EXPORT_SYMBOL_GPL(lock_flocks);
 
 void unlock_flocks(void)
 {
-	unlock_kernel();
+	spin_unlock(&file_lock_lock);
 }
 EXPORT_SYMBOL_GPL(unlock_flocks);
 
 static struct kmem_cache *filelock_cache __read_mostly;
 
 /* Allocate an empty lock structure. */
-static struct file_lock *locks_alloc_lock(void)
+struct file_lock *locks_alloc_lock(void)
 {
 	return kmem_cache_alloc(filelock_cache, GFP_KERNEL);
 }
+EXPORT_SYMBOL_GPL(locks_alloc_lock);
 
 void locks_release_private(struct file_lock *fl)
 {
@@ -184,7 +185,7 @@ void locks_release_private(struct file_lock *fl)
 EXPORT_SYMBOL_GPL(locks_release_private);
 
 /* Free a lock which is not in use. */
-static void locks_free_lock(struct file_lock *fl)
+void locks_free_lock(struct file_lock *fl)
 {
 	BUG_ON(waitqueue_active(&fl->fl_wait));
 	BUG_ON(!list_empty(&fl->fl_block));
@@ -193,6 +194,7 @@ static void locks_free_lock(struct file_lock *fl)
 	locks_release_private(fl);
 	kmem_cache_free(filelock_cache, fl);
 }
+EXPORT_SYMBOL(locks_free_lock);
 
 void locks_init_lock(struct file_lock *fl)
 {
@@ -232,11 +234,8 @@ static void locks_copy_private(struct file_lock *new, struct file_lock *fl)
 			fl->fl_ops->fl_copy_lock(new, fl);
 		new->fl_ops = fl->fl_ops;
 	}
-	if (fl->fl_lmops) {
-		if (fl->fl_lmops->fl_copy_lock)
-			fl->fl_lmops->fl_copy_lock(new, fl);
+	if (fl->fl_lmops)
 		new->fl_lmops = fl->fl_lmops;
-	}
 }
 
 /*
@@ -1365,31 +1364,27 @@ int fcntl_getlease(struct file *filp)
 int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 {
 	struct file_lock *fl, **before, **my_before = NULL, *lease;
-	struct file_lock *new_fl = NULL;
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	int error, rdlease_count = 0, wrlease_count = 0;
 
+	lease = *flp;
+
+	error = -EACCES;
 	if ((current_fsuid() != inode->i_uid) && !capable(CAP_LEASE))
-		return -EACCES;
+		goto out;
+	error = -EINVAL;
 	if (!S_ISREG(inode->i_mode))
-		return -EINVAL;
+		goto out;
 	error = security_file_lock(filp, arg);
 	if (error)
-		return error;
+		goto out;
 
 	time_out_leases(inode);
 
 	BUG_ON(!(*flp)->fl_lmops->fl_break);
 
-	lease = *flp;
-
 	if (arg != F_UNLCK) {
-		error = -ENOMEM;
-		new_fl = locks_alloc_lock();
-		if (new_fl == NULL)
-			goto out;
-
 		error = -EAGAIN;
 		if ((arg == F_RDLCK) && (atomic_read(&inode->i_writecount) > 0))
 			goto out;
@@ -1429,12 +1424,12 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 		goto out;
 
 	if (my_before != NULL) {
-		*flp = *my_before;
 		error = lease->fl_lmops->fl_change(my_before, arg);
+		if (!error)
+			*flp = *my_before;
 		goto out;
 	}
 
-	error = 0;
 	if (arg == F_UNLCK)
 		goto out;
 
@@ -1442,15 +1437,10 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	if (!leases_enable)
 		goto out;
 
-	locks_copy_lock(new_fl, lease);
-	locks_insert_lock(before, new_fl);
-
-	*flp = new_fl;
+	locks_insert_lock(before, lease);
 	return 0;
 
 out:
-	if (new_fl != NULL)
-		locks_free_lock(new_fl);
 	return error;
 }
 EXPORT_SYMBOL(generic_setlease);
@@ -1502,6 +1492,59 @@ int vfs_setlease(struct file *filp, long arg, struct file_lock **lease)
 }
 EXPORT_SYMBOL_GPL(vfs_setlease);
 
+static int do_fcntl_delete_lease(struct file *filp)
+{
+	struct file_lock fl, *flp = &fl;
+
+	lease_init(filp, F_UNLCK, flp);
+
+	return vfs_setlease(filp, F_UNLCK, &flp);
+}
+
+static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
+{
+	struct file_lock *fl, *ret;
+	struct fasync_struct *new;
+	int error;
+
+	fl = lease_alloc(filp, arg);
+	if (IS_ERR(fl))
+		return PTR_ERR(fl);
+
+	new = fasync_alloc();
+	if (!new) {
+		locks_free_lock(fl);
+		return -ENOMEM;
+	}
+	ret = fl;
+	lock_flocks();
+	error = __vfs_setlease(filp, arg, &ret);
+	if (error) {
+		unlock_flocks();
+		locks_free_lock(fl);
+		goto out_free_fasync;
+	}
+	if (ret != fl)
+		locks_free_lock(fl);
+
+	/*
+	 * fasync_insert_entry() returns the old entry if any.
+	 * If there was no old entry, then it used 'new' and
+	 * inserted it into the fasync list. Clear new so that
+	 * we don't release it here.
+	 */
+	if (!fasync_insert_entry(fd, filp, &ret->fl_fasync, new))
+		new = NULL;
+
+	error = __f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
+	unlock_flocks();
+
+out_free_fasync:
+	if (new)
+		fasync_free(new);
+	return error;
+}
+
 /**
  *	fcntl_setlease	-	sets a lease on an open file
  *	@fd: open file descriptor
@@ -1514,34 +1557,9 @@ EXPORT_SYMBOL_GPL(vfs_setlease);
  */
 int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 {
-	struct file_lock fl, *flp = &fl;
-	struct inode *inode = filp->f_path.dentry->d_inode;
-	int error;
-
-	locks_init_lock(&fl);
-	error = lease_init(filp, arg, &fl);
-	if (error)
-		return error;
-
-	lock_flocks();
-
-	error = __vfs_setlease(filp, arg, &flp);
-	if (error || arg == F_UNLCK)
-		goto out_unlock;
-
-	error = fasync_helper(fd, filp, 1, &flp->fl_fasync);
-	if (error < 0) {
-		/* remove lease just inserted by setlease */
-		flp->fl_type = F_UNLCK | F_INPROGRESS;
-		flp->fl_break_time = jiffies - 10;
-		time_out_leases(inode);
-		goto out_unlock;
-	}
-
-	error = __f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
-out_unlock:
-	unlock_flocks();
-	return error;
+	if (arg == F_UNLCK)
+		return do_fcntl_delete_lease(filp);
+	return do_fcntl_add_lease(fd, filp, arg);
 }
 
 /**
@@ -2109,7 +2127,7 @@ EXPORT_SYMBOL_GPL(vfs_cancel_lock);
 #include <linux/seq_file.h>
 
 static void lock_get_status(struct seq_file *f, struct file_lock *fl,
-							int id, char *pfx)
+			    loff_t id, char *pfx)
 {
 	struct inode *inode = NULL;
 	unsigned int fl_pid;
@@ -2122,7 +2140,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	if (fl->fl_file != NULL)
 		inode = fl->fl_file->f_path.dentry->d_inode;
 
-	seq_printf(f, "%d:%s ", id, pfx);
+	seq_printf(f, "%lld:%s ", id, pfx);
 	if (IS_POSIX(fl)) {
 		seq_printf(f, "%6s %s ",
 			     (fl->fl_flags & FL_ACCESS) ? "ACCESS" : "POSIX ",
@@ -2185,24 +2203,27 @@ static int locks_show(struct seq_file *f, void *v)
 
 	fl = list_entry(v, struct file_lock, fl_link);
 
-	lock_get_status(f, fl, (long)f->private, "");
+	lock_get_status(f, fl, *((loff_t *)f->private), "");
 
 	list_for_each_entry(bfl, &fl->fl_block, fl_block)
-		lock_get_status(f, bfl, (long)f->private, " ->");
+		lock_get_status(f, bfl, *((loff_t *)f->private), " ->");
 
-	f->private++;
 	return 0;
 }
 
 static void *locks_start(struct seq_file *f, loff_t *pos)
 {
+	loff_t *p = f->private;
+
 	lock_flocks();
-	f->private = (void *)1;
+	*p = (*pos + 1);
 	return seq_list_start(&file_lock_list, *pos);
 }
 
 static void *locks_next(struct seq_file *f, void *v, loff_t *pos)
 {
+	loff_t *p = f->private;
+	++*p;
 	return seq_list_next(v, &file_lock_list, pos);
 }
 
@@ -2220,14 +2241,14 @@ static const struct seq_operations locks_seq_operations = {
 
 static int locks_open(struct inode *inode, struct file *filp)
 {
-	return seq_open(filp, &locks_seq_operations);
+	return seq_open_private(filp, &locks_seq_operations, sizeof(loff_t));
 }
 
 static const struct file_operations proc_locks_operations = {
 	.open		= locks_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= seq_release_private,
 };
 
 static int __init proc_locks_init(void)

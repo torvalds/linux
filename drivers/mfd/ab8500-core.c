@@ -4,6 +4,7 @@
  * License Terms: GNU General Public License v2
  * Author: Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
  * Author: Rabin Vincent <rabin.vincent@stericsson.com>
+ * Changes: Mattias Wallin <mattias.wallin@stericsson.com>
  */
 
 #include <linux/kernel.h>
@@ -15,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
+#include <linux/mfd/abx500.h>
 #include <linux/mfd/ab8500.h>
 #include <linux/regulator/ab8500.h>
 
@@ -22,71 +24,71 @@
  * Interrupt register offsets
  * Bank : 0x0E
  */
-#define AB8500_IT_SOURCE1_REG		0x0E00
-#define AB8500_IT_SOURCE2_REG		0x0E01
-#define AB8500_IT_SOURCE3_REG		0x0E02
-#define AB8500_IT_SOURCE4_REG		0x0E03
-#define AB8500_IT_SOURCE5_REG		0x0E04
-#define AB8500_IT_SOURCE6_REG		0x0E05
-#define AB8500_IT_SOURCE7_REG		0x0E06
-#define AB8500_IT_SOURCE8_REG		0x0E07
-#define AB8500_IT_SOURCE19_REG		0x0E12
-#define AB8500_IT_SOURCE20_REG		0x0E13
-#define AB8500_IT_SOURCE21_REG		0x0E14
-#define AB8500_IT_SOURCE22_REG		0x0E15
-#define AB8500_IT_SOURCE23_REG		0x0E16
-#define AB8500_IT_SOURCE24_REG		0x0E17
+#define AB8500_IT_SOURCE1_REG		0x00
+#define AB8500_IT_SOURCE2_REG		0x01
+#define AB8500_IT_SOURCE3_REG		0x02
+#define AB8500_IT_SOURCE4_REG		0x03
+#define AB8500_IT_SOURCE5_REG		0x04
+#define AB8500_IT_SOURCE6_REG		0x05
+#define AB8500_IT_SOURCE7_REG		0x06
+#define AB8500_IT_SOURCE8_REG		0x07
+#define AB8500_IT_SOURCE19_REG		0x12
+#define AB8500_IT_SOURCE20_REG		0x13
+#define AB8500_IT_SOURCE21_REG		0x14
+#define AB8500_IT_SOURCE22_REG		0x15
+#define AB8500_IT_SOURCE23_REG		0x16
+#define AB8500_IT_SOURCE24_REG		0x17
 
 /*
  * latch registers
  */
-#define AB8500_IT_LATCH1_REG		0x0E20
-#define AB8500_IT_LATCH2_REG		0x0E21
-#define AB8500_IT_LATCH3_REG		0x0E22
-#define AB8500_IT_LATCH4_REG		0x0E23
-#define AB8500_IT_LATCH5_REG		0x0E24
-#define AB8500_IT_LATCH6_REG		0x0E25
-#define AB8500_IT_LATCH7_REG		0x0E26
-#define AB8500_IT_LATCH8_REG		0x0E27
-#define AB8500_IT_LATCH9_REG		0x0E28
-#define AB8500_IT_LATCH10_REG		0x0E29
-#define AB8500_IT_LATCH19_REG		0x0E32
-#define AB8500_IT_LATCH20_REG		0x0E33
-#define AB8500_IT_LATCH21_REG		0x0E34
-#define AB8500_IT_LATCH22_REG		0x0E35
-#define AB8500_IT_LATCH23_REG		0x0E36
-#define AB8500_IT_LATCH24_REG		0x0E37
+#define AB8500_IT_LATCH1_REG		0x20
+#define AB8500_IT_LATCH2_REG		0x21
+#define AB8500_IT_LATCH3_REG		0x22
+#define AB8500_IT_LATCH4_REG		0x23
+#define AB8500_IT_LATCH5_REG		0x24
+#define AB8500_IT_LATCH6_REG		0x25
+#define AB8500_IT_LATCH7_REG		0x26
+#define AB8500_IT_LATCH8_REG		0x27
+#define AB8500_IT_LATCH9_REG		0x28
+#define AB8500_IT_LATCH10_REG		0x29
+#define AB8500_IT_LATCH19_REG		0x32
+#define AB8500_IT_LATCH20_REG		0x33
+#define AB8500_IT_LATCH21_REG		0x34
+#define AB8500_IT_LATCH22_REG		0x35
+#define AB8500_IT_LATCH23_REG		0x36
+#define AB8500_IT_LATCH24_REG		0x37
 
 /*
  * mask registers
  */
 
-#define AB8500_IT_MASK1_REG		0x0E40
-#define AB8500_IT_MASK2_REG		0x0E41
-#define AB8500_IT_MASK3_REG		0x0E42
-#define AB8500_IT_MASK4_REG		0x0E43
-#define AB8500_IT_MASK5_REG		0x0E44
-#define AB8500_IT_MASK6_REG		0x0E45
-#define AB8500_IT_MASK7_REG		0x0E46
-#define AB8500_IT_MASK8_REG		0x0E47
-#define AB8500_IT_MASK9_REG		0x0E48
-#define AB8500_IT_MASK10_REG		0x0E49
-#define AB8500_IT_MASK11_REG		0x0E4A
-#define AB8500_IT_MASK12_REG		0x0E4B
-#define AB8500_IT_MASK13_REG		0x0E4C
-#define AB8500_IT_MASK14_REG		0x0E4D
-#define AB8500_IT_MASK15_REG		0x0E4E
-#define AB8500_IT_MASK16_REG		0x0E4F
-#define AB8500_IT_MASK17_REG		0x0E50
-#define AB8500_IT_MASK18_REG		0x0E51
-#define AB8500_IT_MASK19_REG		0x0E52
-#define AB8500_IT_MASK20_REG		0x0E53
-#define AB8500_IT_MASK21_REG		0x0E54
-#define AB8500_IT_MASK22_REG		0x0E55
-#define AB8500_IT_MASK23_REG		0x0E56
-#define AB8500_IT_MASK24_REG		0x0E57
+#define AB8500_IT_MASK1_REG		0x40
+#define AB8500_IT_MASK2_REG		0x41
+#define AB8500_IT_MASK3_REG		0x42
+#define AB8500_IT_MASK4_REG		0x43
+#define AB8500_IT_MASK5_REG		0x44
+#define AB8500_IT_MASK6_REG		0x45
+#define AB8500_IT_MASK7_REG		0x46
+#define AB8500_IT_MASK8_REG		0x47
+#define AB8500_IT_MASK9_REG		0x48
+#define AB8500_IT_MASK10_REG		0x49
+#define AB8500_IT_MASK11_REG		0x4A
+#define AB8500_IT_MASK12_REG		0x4B
+#define AB8500_IT_MASK13_REG		0x4C
+#define AB8500_IT_MASK14_REG		0x4D
+#define AB8500_IT_MASK15_REG		0x4E
+#define AB8500_IT_MASK16_REG		0x4F
+#define AB8500_IT_MASK17_REG		0x50
+#define AB8500_IT_MASK18_REG		0x51
+#define AB8500_IT_MASK19_REG		0x52
+#define AB8500_IT_MASK20_REG		0x53
+#define AB8500_IT_MASK21_REG		0x54
+#define AB8500_IT_MASK22_REG		0x55
+#define AB8500_IT_MASK23_REG		0x56
+#define AB8500_IT_MASK24_REG		0x57
 
-#define AB8500_REV_REG			0x1080
+#define AB8500_REV_REG			0x80
 
 /*
  * Map interrupt numbers to the LATCH and MASK register offsets, Interrupt
@@ -99,96 +101,132 @@ static const int ab8500_irq_regoffset[AB8500_NUM_IRQ_REGS] = {
 	0, 1, 2, 3, 4, 6, 7, 8, 9, 18, 19, 20, 21,
 };
 
-static int __ab8500_write(struct ab8500 *ab8500, u16 addr, u8 data)
+static int ab8500_get_chip_id(struct device *dev)
+{
+	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
+	return (int)ab8500->chip_id;
+}
+
+static int set_register_interruptible(struct ab8500 *ab8500, u8 bank,
+	u8 reg, u8 data)
 {
 	int ret;
+	/*
+	 * Put the u8 bank and u8 register together into a an u16.
+	 * The bank on higher 8 bits and register in lower 8 bits.
+	 * */
+	u16 addr = ((u16)bank) << 8 | reg;
 
 	dev_vdbg(ab8500->dev, "wr: addr %#x <= %#x\n", addr, data);
+
+	ret = mutex_lock_interruptible(&ab8500->lock);
+	if (ret)
+		return ret;
+
+	ret = ab8500->write(ab8500, addr, data);
+	if (ret < 0)
+		dev_err(ab8500->dev, "failed to write reg %#x: %d\n",
+			addr, ret);
+	mutex_unlock(&ab8500->lock);
+
+	return ret;
+}
+
+static int ab8500_set_register(struct device *dev, u8 bank,
+	u8 reg, u8 value)
+{
+	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
+
+	return set_register_interruptible(ab8500, bank, reg, value);
+}
+
+static int get_register_interruptible(struct ab8500 *ab8500, u8 bank,
+	u8 reg, u8 *value)
+{
+	int ret;
+	/* put the u8 bank and u8 reg together into a an u16.
+	 * bank on higher 8 bits and reg in lower */
+	u16 addr = ((u16)bank) << 8 | reg;
+
+	ret = mutex_lock_interruptible(&ab8500->lock);
+	if (ret)
+		return ret;
+
+	ret = ab8500->read(ab8500, addr);
+	if (ret < 0)
+		dev_err(ab8500->dev, "failed to read reg %#x: %d\n",
+			addr, ret);
+	else
+		*value = ret;
+
+	mutex_unlock(&ab8500->lock);
+	dev_vdbg(ab8500->dev, "rd: addr %#x => data %#x\n", addr, ret);
+
+	return ret;
+}
+
+static int ab8500_get_register(struct device *dev, u8 bank,
+	u8 reg, u8 *value)
+{
+	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
+
+	return get_register_interruptible(ab8500, bank, reg, value);
+}
+
+static int mask_and_set_register_interruptible(struct ab8500 *ab8500, u8 bank,
+	u8 reg, u8 bitmask, u8 bitvalues)
+{
+	int ret;
+	u8 data;
+	/* put the u8 bank and u8 reg together into a an u16.
+	 * bank on higher 8 bits and reg in lower */
+	u16 addr = ((u16)bank) << 8 | reg;
+
+	ret = mutex_lock_interruptible(&ab8500->lock);
+	if (ret)
+		return ret;
+
+	ret = ab8500->read(ab8500, addr);
+	if (ret < 0) {
+		dev_err(ab8500->dev, "failed to read reg %#x: %d\n",
+			addr, ret);
+		goto out;
+	}
+
+	data = (u8)ret;
+	data = (~bitmask & data) | (bitmask & bitvalues);
 
 	ret = ab8500->write(ab8500, addr, data);
 	if (ret < 0)
 		dev_err(ab8500->dev, "failed to write reg %#x: %d\n",
 			addr, ret);
 
-	return ret;
-}
-
-/**
- * ab8500_write() - write an AB8500 register
- * @ab8500: device to write to
- * @addr: address of the register
- * @data: value to write
- */
-int ab8500_write(struct ab8500 *ab8500, u16 addr, u8 data)
-{
-	int ret;
-
-	mutex_lock(&ab8500->lock);
-	ret = __ab8500_write(ab8500, addr, data);
-	mutex_unlock(&ab8500->lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(ab8500_write);
-
-static int __ab8500_read(struct ab8500 *ab8500, u16 addr)
-{
-	int ret;
-
-	ret = ab8500->read(ab8500, addr);
-	if (ret < 0)
-		dev_err(ab8500->dev, "failed to read reg %#x: %d\n",
-			addr, ret);
-
-	dev_vdbg(ab8500->dev, "rd: addr %#x => data %#x\n", addr, ret);
-
-	return ret;
-}
-
-/**
- * ab8500_read() - read an AB8500 register
- * @ab8500: device to read from
- * @addr: address of the register
- */
-int ab8500_read(struct ab8500 *ab8500, u16 addr)
-{
-	int ret;
-
-	mutex_lock(&ab8500->lock);
-	ret = __ab8500_read(ab8500, addr);
-	mutex_unlock(&ab8500->lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(ab8500_read);
-
-/**
- * ab8500_set_bits() - set a bitfield in an AB8500 register
- * @ab8500: device to read from
- * @addr: address of the register
- * @mask: mask of the bitfield to modify
- * @data: value to set to the bitfield
- */
-int ab8500_set_bits(struct ab8500 *ab8500, u16 addr, u8 mask, u8 data)
-{
-	int ret;
-
-	mutex_lock(&ab8500->lock);
-
-	ret = __ab8500_read(ab8500, addr);
-	if (ret < 0)
-		goto out;
-
-	ret &= ~mask;
-	ret |= data;
-
-	ret = __ab8500_write(ab8500, addr, ret);
-
+	dev_vdbg(ab8500->dev, "mask: addr %#x => data %#x\n", addr, data);
 out:
 	mutex_unlock(&ab8500->lock);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ab8500_set_bits);
+
+static int ab8500_mask_and_set_register(struct device *dev,
+	u8 bank, u8 reg, u8 bitmask, u8 bitvalues)
+{
+	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
+
+	return mask_and_set_register_interruptible(ab8500, bank, reg,
+		bitmask, bitvalues);
+
+}
+
+static struct abx500_ops ab8500_ops = {
+	.get_chip_id = ab8500_get_chip_id,
+	.get_register = ab8500_get_register,
+	.set_register = ab8500_set_register,
+	.get_register_page = NULL,
+	.set_register_page = NULL,
+	.mask_and_set_register = ab8500_mask_and_set_register,
+	.event_registers_startup_state_get = NULL,
+	.startup_irq_enabled = NULL,
+};
 
 static void ab8500_irq_lock(unsigned int irq)
 {
@@ -213,7 +251,7 @@ static void ab8500_irq_sync_unlock(unsigned int irq)
 		ab8500->oldmask[i] = new;
 
 		reg = AB8500_IT_MASK1_REG + ab8500_irq_regoffset[i];
-		ab8500_write(ab8500, reg, new);
+		set_register_interruptible(ab8500, AB8500_INTERRUPT, reg, new);
 	}
 
 	mutex_unlock(&ab8500->irq_lock);
@@ -257,9 +295,11 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 	for (i = 0; i < AB8500_NUM_IRQ_REGS; i++) {
 		int regoffset = ab8500_irq_regoffset[i];
 		int status;
+		u8 value;
 
-		status = ab8500_read(ab8500, AB8500_IT_LATCH1_REG + regoffset);
-		if (status <= 0)
+		status = get_register_interruptible(ab8500, AB8500_INTERRUPT,
+			AB8500_IT_LATCH1_REG + regoffset, &value);
+		if (status < 0 || value == 0)
 			continue;
 
 		do {
@@ -267,8 +307,8 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 			int line = i * 8 + bit;
 
 			handle_nested_irq(ab8500->irq_base + line);
-			status &= ~(1 << bit);
-		} while (status);
+			value &= ~(1 << bit);
+		} while (value);
 	}
 
 	return IRQ_HANDLED;
@@ -338,7 +378,27 @@ static struct resource ab8500_rtc_resources[] = {
 	},
 };
 
+static struct resource ab8500_poweronkey_db_resources[] = {
+	{
+		.name	= "ONKEY_DBF",
+		.start	= AB8500_INT_PON_KEY1DB_F,
+		.end	= AB8500_INT_PON_KEY1DB_F,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "ONKEY_DBR",
+		.start	= AB8500_INT_PON_KEY1DB_R,
+		.end	= AB8500_INT_PON_KEY1DB_R,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
 static struct mfd_cell ab8500_devs[] = {
+#ifdef CONFIG_DEBUG_FS
+	{
+		.name = "ab8500-debug",
+	},
+#endif
 	{
 		.name = "ab8500-gpadc",
 		.num_resources = ARRAY_SIZE(ab8500_gpadc_resources),
@@ -349,11 +409,27 @@ static struct mfd_cell ab8500_devs[] = {
 		.num_resources = ARRAY_SIZE(ab8500_rtc_resources),
 		.resources = ab8500_rtc_resources,
 	},
+	{
+		.name = "ab8500-pwm",
+		.id = 1,
+	},
+	{
+		.name = "ab8500-pwm",
+		.id = 2,
+	},
+	{
+		.name = "ab8500-pwm",
+		.id = 3,
+	},
 	{ .name = "ab8500-charger", },
 	{ .name = "ab8500-audio", },
 	{ .name = "ab8500-usb", },
-	{ .name = "ab8500-pwm", },
 	{ .name = "ab8500-regulator", },
+	{
+		.name = "ab8500-poweron-key",
+		.num_resources = ARRAY_SIZE(ab8500_poweronkey_db_resources),
+		.resources = ab8500_poweronkey_db_resources,
+	},
 };
 
 int __devinit ab8500_init(struct ab8500 *ab8500)
@@ -361,6 +437,7 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 	struct ab8500_platform_data *plat = dev_get_platdata(ab8500->dev);
 	int ret;
 	int i;
+	u8 value;
 
 	if (plat)
 		ab8500->irq_base = plat->irq_base;
@@ -368,7 +445,8 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 	mutex_init(&ab8500->lock);
 	mutex_init(&ab8500->irq_lock);
 
-	ret = ab8500_read(ab8500, AB8500_REV_REG);
+	ret = get_register_interruptible(ab8500, AB8500_MISC,
+		AB8500_REV_REG, &value);
 	if (ret < 0)
 		return ret;
 
@@ -377,27 +455,36 @@ int __devinit ab8500_init(struct ab8500 *ab8500)
 	 * 0x10 - Cut 1.0
 	 * 0x11 - Cut 1.1
 	 */
-	if (ret == 0x0 || ret == 0x10 || ret == 0x11) {
-		ab8500->revision = ret;
-		dev_info(ab8500->dev, "detected chip, revision: %#x\n", ret);
+	if (value == 0x0 || value == 0x10 || value == 0x11) {
+		ab8500->revision = value;
+		dev_info(ab8500->dev, "detected chip, revision: %#x\n", value);
 	} else {
-		dev_err(ab8500->dev, "unknown chip, revision: %#x\n", ret);
+		dev_err(ab8500->dev, "unknown chip, revision: %#x\n", value);
 		return -EINVAL;
 	}
+	ab8500->chip_id = value;
 
 	if (plat && plat->init)
 		plat->init(ab8500);
 
 	/* Clear and mask all interrupts */
 	for (i = 0; i < 10; i++) {
-		ab8500_read(ab8500, AB8500_IT_LATCH1_REG + i);
-		ab8500_write(ab8500, AB8500_IT_MASK1_REG + i, 0xff);
+		get_register_interruptible(ab8500, AB8500_INTERRUPT,
+			AB8500_IT_LATCH1_REG + i, &value);
+		set_register_interruptible(ab8500, AB8500_INTERRUPT,
+			AB8500_IT_MASK1_REG + i, 0xff);
 	}
 
 	for (i = 18; i < 24; i++) {
-		ab8500_read(ab8500, AB8500_IT_LATCH1_REG + i);
-		ab8500_write(ab8500, AB8500_IT_MASK1_REG + i, 0xff);
+		get_register_interruptible(ab8500, AB8500_INTERRUPT,
+			AB8500_IT_LATCH1_REG + i, &value);
+		set_register_interruptible(ab8500, AB8500_INTERRUPT,
+			AB8500_IT_MASK1_REG + i, 0xff);
 	}
+
+	ret = abx500_register_ops(ab8500->dev, &ab8500_ops);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < AB8500_NUM_IRQ_REGS; i++)
 		ab8500->mask[i] = ab8500->oldmask[i] = 0xff;

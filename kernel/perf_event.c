@@ -31,6 +31,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/perf_event.h>
 #include <linux/ftrace_event.h>
+#include <linux/hw_breakpoint.h>
 
 #include <asm/irq_regs.h>
 
@@ -417,8 +418,8 @@ event_filter_match(struct perf_event *event)
 	return event->cpu == -1 || event->cpu == smp_processor_id();
 }
 
-static int
-__event_sched_out(struct perf_event *event,
+static void
+event_sched_out(struct perf_event *event,
 		  struct perf_cpu_context *cpuctx,
 		  struct perf_event_context *ctx)
 {
@@ -437,13 +438,14 @@ __event_sched_out(struct perf_event *event,
 	}
 
 	if (event->state != PERF_EVENT_STATE_ACTIVE)
-		return 0;
+		return;
 
 	event->state = PERF_EVENT_STATE_INACTIVE;
 	if (event->pending_disable) {
 		event->pending_disable = 0;
 		event->state = PERF_EVENT_STATE_OFF;
 	}
+	event->tstamp_stopped = ctx->time;
 	event->pmu->del(event, 0);
 	event->oncpu = -1;
 
@@ -452,19 +454,6 @@ __event_sched_out(struct perf_event *event,
 	ctx->nr_active--;
 	if (event->attr.exclusive || !cpuctx->active_oncpu)
 		cpuctx->exclusive = 0;
-	return 1;
-}
-
-static void
-event_sched_out(struct perf_event *event,
-		  struct perf_cpu_context *cpuctx,
-		  struct perf_event_context *ctx)
-{
-	int ret;
-
-	ret = __event_sched_out(event, cpuctx, ctx);
-	if (ret)
-		event->tstamp_stopped = ctx->time;
 }
 
 static void
@@ -664,7 +653,7 @@ retry:
 }
 
 static int
-__event_sched_in(struct perf_event *event,
+event_sched_in(struct perf_event *event,
 		 struct perf_cpu_context *cpuctx,
 		 struct perf_event_context *ctx)
 {
@@ -684,6 +673,10 @@ __event_sched_in(struct perf_event *event,
 		return -EAGAIN;
 	}
 
+	event->tstamp_running += ctx->time - event->tstamp_stopped;
+
+	event->shadow_ctx_time = ctx->time - ctx->timestamp;
+
 	if (!is_software_event(event))
 		cpuctx->active_oncpu++;
 	ctx->nr_active++;
@@ -694,35 +687,6 @@ __event_sched_in(struct perf_event *event,
 	return 0;
 }
 
-static inline int
-event_sched_in(struct perf_event *event,
-		 struct perf_cpu_context *cpuctx,
-		 struct perf_event_context *ctx)
-{
-	int ret = __event_sched_in(event, cpuctx, ctx);
-	if (ret)
-		return ret;
-	event->tstamp_running += ctx->time - event->tstamp_stopped;
-	return 0;
-}
-
-static void
-group_commit_event_sched_in(struct perf_event *group_event,
-	       struct perf_cpu_context *cpuctx,
-	       struct perf_event_context *ctx)
-{
-	struct perf_event *event;
-	u64 now = ctx->time;
-
-	group_event->tstamp_running += now - group_event->tstamp_stopped;
-	/*
-	 * Schedule in siblings as one group (if any):
-	 */
-	list_for_each_entry(event, &group_event->sibling_list, group_entry) {
-		event->tstamp_running += now - event->tstamp_stopped;
-	}
-}
-
 static int
 group_sched_in(struct perf_event *group_event,
 	       struct perf_cpu_context *cpuctx,
@@ -730,19 +694,15 @@ group_sched_in(struct perf_event *group_event,
 {
 	struct perf_event *event, *partial_group = NULL;
 	struct pmu *pmu = group_event->pmu;
+	u64 now = ctx->time;
+	bool simulate = false;
 
 	if (group_event->state == PERF_EVENT_STATE_OFF)
 		return 0;
 
 	pmu->start_txn(pmu);
 
-	/*
-	 * use __event_sched_in() to delay updating tstamp_running
-	 * until the transaction is committed. In case of failure
-	 * we will keep an unmodified tstamp_running which is a
-	 * requirement to get correct timing information
-	 */
-	if (__event_sched_in(group_event, cpuctx, ctx)) {
+	if (event_sched_in(group_event, cpuctx, ctx)) {
 		pmu->cancel_txn(pmu);
 		return -EAGAIN;
 	}
@@ -751,31 +711,42 @@ group_sched_in(struct perf_event *group_event,
 	 * Schedule in siblings as one group (if any):
 	 */
 	list_for_each_entry(event, &group_event->sibling_list, group_entry) {
-		if (__event_sched_in(event, cpuctx, ctx)) {
+		if (event_sched_in(event, cpuctx, ctx)) {
 			partial_group = event;
 			goto group_error;
 		}
 	}
 
-	if (!pmu->commit_txn(pmu)) {
-		/* commit tstamp_running */
-		group_commit_event_sched_in(group_event, cpuctx, ctx);
+	if (!pmu->commit_txn(pmu))
 		return 0;
-	}
+
 group_error:
 	/*
 	 * Groups can be scheduled in as one unit only, so undo any
 	 * partial group before returning:
+	 * The events up to the failed event are scheduled out normally,
+	 * tstamp_stopped will be updated.
 	 *
-	 * use __event_sched_out() to avoid updating tstamp_stopped
-	 * because the event never actually ran
+	 * The failed events and the remaining siblings need to have
+	 * their timings updated as if they had gone thru event_sched_in()
+	 * and event_sched_out(). This is required to get consistent timings
+	 * across the group. This also takes care of the case where the group
+	 * could never be scheduled by ensuring tstamp_stopped is set to mark
+	 * the time the event was actually stopped, such that time delta
+	 * calculation in update_event_times() is correct.
 	 */
 	list_for_each_entry(event, &group_event->sibling_list, group_entry) {
 		if (event == partial_group)
-			break;
-		__event_sched_out(event, cpuctx, ctx);
+			simulate = true;
+
+		if (simulate) {
+			event->tstamp_running += now - event->tstamp_stopped;
+			event->tstamp_stopped = now;
+		} else {
+			event_sched_out(event, cpuctx, ctx);
+		}
 	}
-	__event_sched_out(group_event, cpuctx, ctx);
+	event_sched_out(group_event, cpuctx, ctx);
 
 	pmu->cancel_txn(pmu);
 
@@ -1316,8 +1287,6 @@ void __perf_event_task_sched_out(struct task_struct *task,
 {
 	int ctxn;
 
-	perf_sw_event(PERF_COUNT_SW_CONTEXT_SWITCHES, 1, 1, NULL, 0);
-
 	for_each_task_context_nr(ctxn)
 		perf_event_context_sched_out(task, ctxn, next);
 }
@@ -1651,8 +1620,12 @@ static void rotate_ctx(struct perf_event_context *ctx)
 {
 	raw_spin_lock(&ctx->lock);
 
-	/* Rotate the first entry last of non-pinned groups */
-	list_rotate_left(&ctx->flexible_groups);
+	/*
+	 * Rotate the first entry last of non-pinned groups. Rotation might be
+	 * disabled by the inheritance code.
+	 */
+	if (!ctx->rotate_disable)
+		list_rotate_left(&ctx->flexible_groups);
 
 	raw_spin_unlock(&ctx->lock);
 }
@@ -2264,11 +2237,6 @@ int perf_event_release_kernel(struct perf_event *event)
 	raw_spin_unlock_irq(&ctx->lock);
 	mutex_unlock(&ctx->mutex);
 
-	mutex_lock(&event->owner->perf_event_mutex);
-	list_del_init(&event->owner_entry);
-	mutex_unlock(&event->owner->perf_event_mutex);
-	put_task_struct(event->owner);
-
 	free_event(event);
 
 	return 0;
@@ -2281,8 +2249,42 @@ EXPORT_SYMBOL_GPL(perf_event_release_kernel);
 static int perf_release(struct inode *inode, struct file *file)
 {
 	struct perf_event *event = file->private_data;
+	struct task_struct *owner;
 
 	file->private_data = NULL;
+
+	rcu_read_lock();
+	owner = ACCESS_ONCE(event->owner);
+	/*
+	 * Matches the smp_wmb() in perf_event_exit_task(). If we observe
+	 * !owner it means the list deletion is complete and we can indeed
+	 * free this event, otherwise we need to serialize on
+	 * owner->perf_event_mutex.
+	 */
+	smp_read_barrier_depends();
+	if (owner) {
+		/*
+		 * Since delayed_put_task_struct() also drops the last
+		 * task reference we can safely take a new reference
+		 * while holding the rcu_read_lock().
+		 */
+		get_task_struct(owner);
+	}
+	rcu_read_unlock();
+
+	if (owner) {
+		mutex_lock(&owner->perf_event_mutex);
+		/*
+		 * We have to re-check the event->owner field, if it is cleared
+		 * we raced with perf_event_exit_task(), acquiring the mutex
+		 * ensured they're done, and we can proceed with freeing the
+		 * event.
+		 */
+		if (event->owner)
+			list_del_init(&event->owner_entry);
+		mutex_unlock(&owner->perf_event_mutex);
+		put_task_struct(owner);
+	}
 
 	return perf_event_release_kernel(event);
 }
@@ -3428,7 +3430,8 @@ static u32 perf_event_tid(struct perf_event *event, struct task_struct *p)
 }
 
 static void perf_output_read_one(struct perf_output_handle *handle,
-				 struct perf_event *event)
+				 struct perf_event *event,
+				 u64 enabled, u64 running)
 {
 	u64 read_format = event->attr.read_format;
 	u64 values[4];
@@ -3436,11 +3439,11 @@ static void perf_output_read_one(struct perf_output_handle *handle,
 
 	values[n++] = perf_event_count(event);
 	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
-		values[n++] = event->total_time_enabled +
+		values[n++] = enabled +
 			atomic64_read(&event->child_total_time_enabled);
 	}
 	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
-		values[n++] = event->total_time_running +
+		values[n++] = running +
 			atomic64_read(&event->child_total_time_running);
 	}
 	if (read_format & PERF_FORMAT_ID)
@@ -3453,7 +3456,8 @@ static void perf_output_read_one(struct perf_output_handle *handle,
  * XXX PERF_FORMAT_GROUP vs inherited events seems difficult.
  */
 static void perf_output_read_group(struct perf_output_handle *handle,
-			    struct perf_event *event)
+			    struct perf_event *event,
+			    u64 enabled, u64 running)
 {
 	struct perf_event *leader = event->group_leader, *sub;
 	u64 read_format = event->attr.read_format;
@@ -3463,10 +3467,10 @@ static void perf_output_read_group(struct perf_output_handle *handle,
 	values[n++] = 1 + leader->nr_siblings;
 
 	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
-		values[n++] = leader->total_time_enabled;
+		values[n++] = enabled;
 
 	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
-		values[n++] = leader->total_time_running;
+		values[n++] = running;
 
 	if (leader != event)
 		leader->pmu->read(leader);
@@ -3491,13 +3495,35 @@ static void perf_output_read_group(struct perf_output_handle *handle,
 	}
 }
 
+#define PERF_FORMAT_TOTAL_TIMES (PERF_FORMAT_TOTAL_TIME_ENABLED|\
+				 PERF_FORMAT_TOTAL_TIME_RUNNING)
+
 static void perf_output_read(struct perf_output_handle *handle,
 			     struct perf_event *event)
 {
+	u64 enabled = 0, running = 0, now, ctx_time;
+	u64 read_format = event->attr.read_format;
+
+	/*
+	 * compute total_time_enabled, total_time_running
+	 * based on snapshot values taken when the event
+	 * was last scheduled in.
+	 *
+	 * we cannot simply called update_context_time()
+	 * because of locking issue as we are called in
+	 * NMI context
+	 */
+	if (read_format & PERF_FORMAT_TOTAL_TIMES) {
+		now = perf_clock();
+		ctx_time = event->shadow_ctx_time + now;
+		enabled = ctx_time - event->tstamp_enabled;
+		running = ctx_time - event->tstamp_running;
+	}
+
 	if (event->attr.read_format & PERF_FORMAT_GROUP)
-		perf_output_read_group(handle, event);
+		perf_output_read_group(handle, event, enabled, running);
 	else
-		perf_output_read_one(handle, event);
+		perf_output_read_one(handle, event, enabled, running);
 }
 
 void perf_output_sample(struct perf_output_handle *handle,
@@ -5683,7 +5709,7 @@ SYSCALL_DEFINE5(perf_event_open,
 	mutex_unlock(&ctx->mutex);
 
 	event->owner = current;
-	get_task_struct(current);
+
 	mutex_lock(&current->perf_event_mutex);
 	list_add_tail(&event->owner_entry, &current->perf_event_list);
 	mutex_unlock(&current->perf_event_mutex);
@@ -5750,12 +5776,6 @@ perf_event_create_kernel_counter(struct perf_event_attr *attr, int cpu,
 	perf_install_in_context(ctx, event, cpu);
 	++ctx->generation;
 	mutex_unlock(&ctx->mutex);
-
-	event->owner = current;
-	get_task_struct(current);
-	mutex_lock(&current->perf_event_mutex);
-	list_add_tail(&event->owner_entry, &current->perf_event_list);
-	mutex_unlock(&current->perf_event_mutex);
 
 	return event;
 
@@ -5907,7 +5927,23 @@ again:
  */
 void perf_event_exit_task(struct task_struct *child)
 {
+	struct perf_event *event, *tmp;
 	int ctxn;
+
+	mutex_lock(&child->perf_event_mutex);
+	list_for_each_entry_safe(event, tmp, &child->perf_event_list,
+				 owner_entry) {
+		list_del_init(&event->owner_entry);
+
+		/*
+		 * Ensure the list deletion is visible before we clear
+		 * the owner, closes a race against perf_release() where
+		 * we need to serialize on the owner->perf_event_mutex.
+		 */
+		smp_wmb();
+		event->owner = NULL;
+	}
+	mutex_unlock(&child->perf_event_mutex);
 
 	for_each_task_context_nr(ctxn)
 		perf_event_exit_task_context(child, ctxn);
@@ -6128,6 +6164,7 @@ int perf_event_init_context(struct task_struct *child, int ctxn)
 	struct perf_event *event;
 	struct task_struct *parent = current;
 	int inherited_all = 1;
+	unsigned long flags;
 	int ret = 0;
 
 	child->perf_event_ctxp[ctxn] = NULL;
@@ -6168,12 +6205,25 @@ int perf_event_init_context(struct task_struct *child, int ctxn)
 			break;
 	}
 
+	/*
+	 * We can't hold ctx->lock when iterating the ->flexible_group list due
+	 * to allocations, but we need to prevent rotation because
+	 * rotate_ctx() will change the list from interrupt context.
+	 */
+	raw_spin_lock_irqsave(&parent_ctx->lock, flags);
+	parent_ctx->rotate_disable = 1;
+	raw_spin_unlock_irqrestore(&parent_ctx->lock, flags);
+
 	list_for_each_entry(event, &parent_ctx->flexible_groups, group_entry) {
 		ret = inherit_task_group(event, parent, parent_ctx,
 					 child, ctxn, &inherited_all);
 		if (ret)
 			break;
 	}
+
+	raw_spin_lock_irqsave(&parent_ctx->lock, flags);
+	parent_ctx->rotate_disable = 0;
+	raw_spin_unlock_irqrestore(&parent_ctx->lock, flags);
 
 	child_ctx = child->perf_event_ctxp[ctxn];
 
@@ -6327,6 +6377,8 @@ perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 
 void __init perf_event_init(void)
 {
+	int ret;
+
 	perf_event_init_all_cpus();
 	init_srcu_struct(&pmus_srcu);
 	perf_pmu_register(&perf_swevent);
@@ -6334,4 +6386,7 @@ void __init perf_event_init(void)
 	perf_pmu_register(&perf_task_clock);
 	perf_tp_register();
 	perf_cpu_notifier(perf_cpu_notify);
+
+	ret = init_hw_breakpoint();
+	WARN(ret, "hw_breakpoint initialization failed with: %d", ret);
 }

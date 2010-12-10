@@ -229,6 +229,7 @@ int p9_client_symlink(struct p9_fid *fid, char *name, char *symname, gid_t gid,
 int p9_client_create_dotl(struct p9_fid *ofid, char *name, u32 flags, u32 mode,
 		gid_t gid, struct p9_qid *qid);
 int p9_client_clunk(struct p9_fid *fid);
+int p9_client_fsync(struct p9_fid *fid, int datasync);
 int p9_client_remove(struct p9_fid *fid);
 int p9_client_read(struct p9_fid *fid, char *data, char __user *udata,
 							u64 offset, u32 count);
@@ -248,6 +249,8 @@ int p9_client_mknod_dotl(struct p9_fid *oldfid, char *name, int mode,
 			dev_t rdev, gid_t gid, struct p9_qid *);
 int p9_client_mkdir_dotl(struct p9_fid *fid, char *name, int mode,
 				gid_t gid, struct p9_qid *);
+int p9_client_lock_dotl(struct p9_fid *fid, struct p9_flock *flock, u8 *status);
+int p9_client_getlock_dotl(struct p9_fid *fid, struct p9_getlock *fl);
 struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req);
 
@@ -259,5 +262,6 @@ int p9_is_proto_dotu(struct p9_client *clnt);
 int p9_is_proto_dotl(struct p9_client *clnt);
 struct p9_fid *p9_client_xattrwalk(struct p9_fid *, const char *, u64 *);
 int p9_client_xattrcreate(struct p9_fid *, const char *, u64, int);
+int p9_client_readlink(struct p9_fid *fid, char **target);
 
 #endif /* NET_9P_CLIENT_H */

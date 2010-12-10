@@ -1141,9 +1141,9 @@ static int nilfs_test_bdev_super(struct super_block *s, void *data)
 	return (void *)s->s_bdev == data;
 }
 
-static int
-nilfs_get_sb(struct file_system_type *fs_type, int flags,
-	     const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *
+nilfs_mount(struct file_system_type *fs_type, int flags,
+	     const char *dev_name, void *data)
 {
 	struct nilfs_super_data sd;
 	struct super_block *s;
@@ -1156,7 +1156,7 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 
 	sd.bdev = open_bdev_exclusive(dev_name, mode, fs_type);
 	if (IS_ERR(sd.bdev))
-		return PTR_ERR(sd.bdev);
+		return ERR_CAST(sd.bdev);
 
 	sd.cno = 0;
 	sd.flags = flags;
@@ -1235,9 +1235,7 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
 	if (!s_new)
 		close_bdev_exclusive(sd.bdev, mode);
 
-	mnt->mnt_sb = s;
-	mnt->mnt_root = root_dentry;
-	return 0;
+	return root_dentry;
 
  failed_super:
 	deactivate_locked_super(s);
@@ -1245,13 +1243,13 @@ nilfs_get_sb(struct file_system_type *fs_type, int flags,
  failed:
 	if (!s_new)
 		close_bdev_exclusive(sd.bdev, mode);
-	return err;
+	return ERR_PTR(err);
 }
 
 struct file_system_type nilfs_fs_type = {
 	.owner    = THIS_MODULE,
 	.name     = "nilfs2",
-	.get_sb   = nilfs_get_sb,
+	.mount    = nilfs_mount,
 	.kill_sb  = kill_block_super,
 	.fs_flags = FS_REQUIRES_DEV,
 };

@@ -209,18 +209,6 @@ int __weak kgdb_skipexception(int exception, struct pt_regs *regs)
 	return 0;
 }
 
-/**
- *	kgdb_disable_hw_debug - Disable hardware debugging while we in kgdb.
- *	@regs: Current &struct pt_regs.
- *
- *	This function will be called if the particular architecture must
- *	disable hardware debugging while it is processing gdb packets or
- *	handling exception.
- */
-void __weak kgdb_disable_hw_debug(struct pt_regs *regs)
-{
-}
-
 /*
  * Some architectures need cache flushes when we set/clear a
  * breakpoint:
@@ -484,7 +472,9 @@ static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs,
 		atomic_inc(&masters_in_kgdb);
 	else
 		atomic_inc(&slaves_in_kgdb);
-	kgdb_disable_hw_debug(ks->linux_regs);
+
+	if (arch_kgdb_ops.disable_hw_break)
+		arch_kgdb_ops.disable_hw_break(regs);
 
 acquirelock:
 	/*

@@ -54,9 +54,9 @@
 
 #include "iw_cxgb4.h"
 
-static int fastreg_support;
+static int fastreg_support = 1;
 module_param(fastreg_support, int, 0644);
-MODULE_PARM_DESC(fastreg_support, "Advertise fastreg support (default=0)");
+MODULE_PARM_DESC(fastreg_support, "Advertise fastreg support (default=1)");
 
 static int c4iw_modify_port(struct ib_device *ibdev,
 			    u8 port, int port_modify_mask,
@@ -149,19 +149,28 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	addr = mm->addr;
 	kfree(mm);
 
-	if ((addr >= pci_resource_start(rdev->lldi.pdev, 2)) &&
-	    (addr < (pci_resource_start(rdev->lldi.pdev, 2) +
-		       pci_resource_len(rdev->lldi.pdev, 2)))) {
+	if ((addr >= pci_resource_start(rdev->lldi.pdev, 0)) &&
+	    (addr < (pci_resource_start(rdev->lldi.pdev, 0) +
+		    pci_resource_len(rdev->lldi.pdev, 0)))) {
 
 		/*
-		 * Map T4 DB register.
+		 * MA_SYNC register...
 		 */
-		if (vma->vm_flags & VM_READ)
-			return -EPERM;
-
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-		vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND;
-		vma->vm_flags &= ~VM_MAYREAD;
+		ret = io_remap_pfn_range(vma, vma->vm_start,
+					 addr >> PAGE_SHIFT,
+					 len, vma->vm_page_prot);
+	} else if ((addr >= pci_resource_start(rdev->lldi.pdev, 2)) &&
+		   (addr < (pci_resource_start(rdev->lldi.pdev, 2) +
+		    pci_resource_len(rdev->lldi.pdev, 2)))) {
+
+		/*
+		 * Map user DB or OCQP memory...
+		 */
+		if (addr >= rdev->oc_mw_pa)
+			vma->vm_page_prot = t4_pgprot_wc(vma->vm_page_prot);
+		else
+			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 		ret = io_remap_pfn_range(vma, vma->vm_start,
 					 addr >> PAGE_SHIFT,
 					 len, vma->vm_page_prot);
@@ -382,7 +391,17 @@ static ssize_t show_board(struct device *dev, struct device_attribute *attr,
 static int c4iw_get_mib(struct ib_device *ibdev,
 			union rdma_protocol_stats *stats)
 {
-	return -ENOSYS;
+	struct tp_tcp_stats v4, v6;
+	struct c4iw_dev *c4iw_dev = to_c4iw_dev(ibdev);
+
+	cxgb4_get_tcp_stats(c4iw_dev->rdev.lldi.pdev, &v4, &v6);
+	memset(stats, 0, sizeof *stats);
+	stats->iw.tcpInSegs = v4.tcpInSegs + v6.tcpInSegs;
+	stats->iw.tcpOutSegs = v4.tcpOutSegs + v6.tcpOutSegs;
+	stats->iw.tcpRetransSegs = v4.tcpRetransSegs + v6.tcpRetransSegs;
+	stats->iw.tcpOutRsts = v4.tcpOutRsts + v6.tcpOutSegs;
+
+	return 0;
 }
 
 static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
@@ -472,6 +491,7 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.post_send = c4iw_post_send;
 	dev->ibdev.post_recv = c4iw_post_receive;
 	dev->ibdev.get_protocol_stats = c4iw_get_mib;
+	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)

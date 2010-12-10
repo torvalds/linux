@@ -9,7 +9,6 @@
 #include <linux/time.h>
 #include <asm/uaccess.h>
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 #include <linux/compat.h>
 
 /*
@@ -160,8 +159,6 @@ long reiserfs_compat_ioctl(struct file *file, unsigned int cmd,
 
 int reiserfs_commit_write(struct file *f, struct page *page,
 			  unsigned from, unsigned to);
-int reiserfs_prepare_write(struct file *f, struct page *page,
-			   unsigned from, unsigned to);
 /*
 ** reiserfs_unpack
 ** Function try to convert tail from direct item into indirect.
@@ -186,11 +183,10 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 		return 0;
 	}
 
-	/* we need to make sure nobody is changing the file size beneath
-	 ** us
-	 */
-	reiserfs_mutex_lock_safe(&inode->i_mutex, inode->i_sb);
 	depth = reiserfs_write_lock_once(inode->i_sb);
+
+	/* we need to make sure nobody is changing the file size beneath us */
+	reiserfs_mutex_lock_safe(&inode->i_mutex, inode->i_sb);
 
 	write_from = inode->i_size & (blocksize - 1);
 	/* if we are on a block boundary, we are already unpacked.  */
@@ -200,7 +196,7 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 	}
 
 	/* we unpack by finding the page with the tail, and calling
-	 ** reiserfs_prepare_write on that page.  This will force a
+	 ** __reiserfs_write_begin on that page.  This will force a
 	 ** reiserfs_get_block to unpack the tail for us.
 	 */
 	index = inode->i_size >> PAGE_CACHE_SHIFT;
@@ -210,7 +206,7 @@ int reiserfs_unpack(struct inode *inode, struct file *filp)
 	if (!page) {
 		goto out;
 	}
-	retval = reiserfs_prepare_write(NULL, page, write_from, write_from);
+	retval = __reiserfs_write_begin(page, write_from, 0);
 	if (retval)
 		goto out_unlock;
 

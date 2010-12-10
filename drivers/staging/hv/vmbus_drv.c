@@ -32,6 +32,7 @@
 #include "osd.h"
 #include "logging.h"
 #include "vmbus.h"
+#include "channel.h"
 
 
 /* FIXME! We need to do this dynamically for PIC and APIC system */
@@ -70,13 +71,11 @@ static void vmbus_bus_release(struct device *device);
 
 static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 						   struct hv_guid *instance,
-						   void *context);
+						   struct vmbus_channel *channel);
 static void vmbus_child_device_destroy(struct hv_device *device_obj);
 static int vmbus_child_device_register(struct hv_device *root_device_obj,
 				       struct hv_device *child_device_obj);
 static void vmbus_child_device_unregister(struct hv_device *child_device_obj);
-static void vmbus_child_device_get_info(struct hv_device *device_obj,
-					struct hv_device_info *device_info);
 static ssize_t vmbus_show_device_attr(struct device *dev,
 				      struct device_attribute *dev_attr,
 				      char *buf);
@@ -130,6 +129,47 @@ static struct vmbus_driver_context g_vmbus_drv = {
 	.bus.dev_attrs =	vmbus_device_attrs,
 };
 
+static void get_channel_info(struct hv_device *device,
+			     struct hv_device_info *info)
+{
+	struct vmbus_channel_debug_info debug_info;
+
+	if (!device->channel)
+		return;
+
+	vmbus_get_debug_info(device->channel, &debug_info);
+
+	info->ChannelId = debug_info.RelId;
+	info->ChannelState = debug_info.State;
+	memcpy(&info->ChannelType, &debug_info.InterfaceType,
+	       sizeof(struct hv_guid));
+	memcpy(&info->ChannelInstance, &debug_info.InterfaceInstance,
+	       sizeof(struct hv_guid));
+
+	info->MonitorId = debug_info.MonitorId;
+
+	info->ServerMonitorPending = debug_info.ServerMonitorPending;
+	info->ServerMonitorLatency = debug_info.ServerMonitorLatency;
+	info->ServerMonitorConnectionId = debug_info.ServerMonitorConnectionId;
+
+	info->ClientMonitorPending = debug_info.ClientMonitorPending;
+	info->ClientMonitorLatency = debug_info.ClientMonitorLatency;
+	info->ClientMonitorConnectionId = debug_info.ClientMonitorConnectionId;
+
+	info->Inbound.InterruptMask = debug_info.Inbound.CurrentInterruptMask;
+	info->Inbound.ReadIndex = debug_info.Inbound.CurrentReadIndex;
+	info->Inbound.WriteIndex = debug_info.Inbound.CurrentWriteIndex;
+	info->Inbound.BytesAvailToRead = debug_info.Inbound.BytesAvailToRead;
+	info->Inbound.BytesAvailToWrite = debug_info.Inbound.BytesAvailToWrite;
+
+	info->Outbound.InterruptMask = debug_info.Outbound.CurrentInterruptMask;
+	info->Outbound.ReadIndex = debug_info.Outbound.CurrentReadIndex;
+	info->Outbound.WriteIndex = debug_info.Outbound.CurrentWriteIndex;
+	info->Outbound.BytesAvailToRead = debug_info.Outbound.BytesAvailToRead;
+	info->Outbound.BytesAvailToWrite =
+		debug_info.Outbound.BytesAvailToWrite;
+}
+
 /*
  * vmbus_show_device_attr - Show the device attribute in sysfs.
  *
@@ -145,7 +185,7 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 
 	memset(&device_info, 0, sizeof(struct hv_device_info));
 
-	vmbus_child_device_get_info(&device_ctx->device_obj, &device_info);
+	get_channel_info(&device_ctx->device_obj, &device_info);
 
 	if (!strcmp(dev_attr->attr.name, "class_id")) {
 		return sprintf(buf, "{%02x%02x%02x%02x-%02x%02x-%02x%02x-"
@@ -445,45 +485,13 @@ void vmbus_child_driver_unregister(struct driver_context *driver_ctx)
 }
 EXPORT_SYMBOL(vmbus_child_driver_unregister);
 
-/**
- * vmbus_get_interface() - Get the vmbus channel interface.
- * @interface: Pointer to channel interface structure
- *
- * Get the Hyper-V channel used for the driver.
- *
- * @interface is of type &struct vmbus_channel_interface
- * This is invoked by child/client driver that sits above vmbus.
- *
- * Mainly used by Hyper-V drivers.
- */
-void vmbus_get_interface(struct vmbus_channel_interface *interface)
-{
-	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
-
-	vmbus_drv_obj->GetChannelInterface(interface);
-}
-EXPORT_SYMBOL(vmbus_get_interface);
-
-/*
- * vmbus_child_device_get_info - Get the vmbus child device info.
- *
- * This is invoked to display various device attributes in sysfs.
- */
-static void vmbus_child_device_get_info(struct hv_device *device_obj,
-					struct hv_device_info *device_info)
-{
-	struct vmbus_driver *vmbus_drv_obj = &g_vmbus_drv.drv_obj;
-
-	vmbus_drv_obj->GetChannelInfo(device_obj, device_info);
-}
-
 /*
  * vmbus_child_device_create - Creates and registers a new child device
  * on the vmbus.
  */
 static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 						   struct hv_guid *instance,
-						   void *context)
+						   struct vmbus_channel *channel)
 {
 	struct vm_device *child_device_ctx;
 	struct hv_device *child_device_obj;
@@ -516,7 +524,7 @@ static struct hv_device *vmbus_child_device_create(struct hv_guid *type,
 		instance->data[14], instance->data[15]);
 
 	child_device_obj = &child_device_ctx->device_obj;
-	child_device_obj->context = context;
+	child_device_obj->channel = channel;
 	memcpy(&child_device_obj->deviceType, type, sizeof(struct hv_guid));
 	memcpy(&child_device_obj->deviceInstance, instance,
 	       sizeof(struct hv_guid));

@@ -116,6 +116,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 
 	inode = new_inode(sb);
 	if (inode) {
+		inode->i_ino = get_next_ino();
 		inode->i_mode = mode;
 		inode->i_uid = current_fsuid();
 		inode->i_gid = current_fsgid();
@@ -210,13 +211,13 @@ out:
 	return error;
 }
 
-static int mqueue_get_sb(struct file_system_type *fs_type,
+static struct dentry *mqueue_mount(struct file_system_type *fs_type,
 			 int flags, const char *dev_name,
-			 void *data, struct vfsmount *mnt)
+			 void *data)
 {
 	if (!(flags & MS_KERNMOUNT))
 		data = current->nsproxy->ipc_ns;
-	return get_sb_ns(fs_type, flags, data, mqueue_fill_super, mnt);
+	return mount_ns(fs_type, flags, data, mqueue_fill_super);
 }
 
 static void init_once(void *foo)
@@ -769,7 +770,7 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 
 	inode = dentry->d_inode;
 	if (inode)
-		atomic_inc(&inode->i_count);
+		ihold(inode);
 	err = mnt_want_write(ipc_ns->mq_mnt);
 	if (err)
 		goto out_err;
@@ -1231,7 +1232,7 @@ static const struct super_operations mqueue_super_ops = {
 
 static struct file_system_type mqueue_fs_type = {
 	.name = "mqueue",
-	.get_sb = mqueue_get_sb,
+	.mount = mqueue_mount,
 	.kill_sb = kill_litter_super,
 };
 

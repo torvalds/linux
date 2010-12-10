@@ -30,7 +30,7 @@ static int adis16240_data_rdy_trig_poll(struct iio_dev *dev_info,
 
 IIO_EVENT_SH(data_rdy_trig, &adis16240_data_rdy_trig_poll);
 
-static DEVICE_ATTR(name, S_IRUGO, iio_trigger_read_name, NULL);
+static IIO_TRIGGER_NAME_ATTR;
 
 static struct attribute *adis16240_trigger_attrs[] = {
 	&dev_attr_name.attr,

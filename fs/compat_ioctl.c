@@ -19,7 +19,6 @@
 #include <linux/compiler.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/ioctl.h>
 #include <linux/if.h>
 #include <linux/if_bridge.h>
@@ -46,7 +45,6 @@
 #include <linux/videodev.h>
 #include <linux/netdevice.h>
 #include <linux/raw.h>
-#include <linux/smb_fs.h>
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/rtc.h>
@@ -557,25 +555,6 @@ static int mt_ioctl_trans(unsigned int fd, unsigned int cmd, void __user *argp)
 }
 
 #endif /* CONFIG_BLOCK */
-
-static int do_smb_getmountuid(unsigned int fd, unsigned int cmd,
-			compat_uid_t __user *argp)
-{
-	mm_segment_t old_fs = get_fs();
-	__kernel_uid_t kuid;
-	int err;
-
-	cmd = SMB_IOC_GETMOUNTUID;
-
-	set_fs(KERNEL_DS);
-	err = sys_ioctl(fd, cmd, (unsigned long)&kuid);
-	set_fs(old_fs);
-
-	if (err >= 0)
-		err = put_user(kuid, argp);
-
-	return err;
-}
 
 /* Bluetooth ioctls */
 #define HCIUARTSETPROTO		_IOW('U', 200, int)
@@ -1199,8 +1178,9 @@ COMPATIBLE_IOCTL(SOUND_MIXER_PRIVATE5)
 COMPATIBLE_IOCTL(SOUND_MIXER_GETLEVELS)
 COMPATIBLE_IOCTL(SOUND_MIXER_SETLEVELS)
 COMPATIBLE_IOCTL(OSS_GETVERSION)
-/* SMB ioctls which do not need any translations */
-COMPATIBLE_IOCTL(SMB_IOC_NEWCONN)
+/* Raw devices */
+COMPATIBLE_IOCTL(RAW_SETBIND)
+COMPATIBLE_IOCTL(RAW_GETBIND)
 /* Watchdog */
 COMPATIBLE_IOCTL(WDIOC_GETSUPPORT)
 COMPATIBLE_IOCTL(WDIOC_GETSTATUS)
@@ -1458,10 +1438,6 @@ static long do_ioctl_trans(int fd, unsigned int cmd,
 	case MTIOCPOS32:
 		return mt_ioctl_trans(fd, cmd, argp);
 #endif
-	/* One SMB ioctl needs translations. */
-#define SMB_IOC_GETMOUNTUID_32 _IOR('u', 1, compat_uid_t)
-	case SMB_IOC_GETMOUNTUID_32:
-		return do_smb_getmountuid(fd, cmd, argp);
 	/* Serial */
 	case TIOCGSERIAL:
 	case TIOCSSERIAL:

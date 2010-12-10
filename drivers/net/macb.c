@@ -515,14 +515,15 @@ static int macb_poll(struct napi_struct *napi, int budget)
 		(unsigned long)status, budget);
 
 	work_done = macb_rx(bp, budget);
-	if (work_done < budget)
+	if (work_done < budget) {
 		napi_complete(napi);
 
-	/*
-	 * We've done what we can to clean the buffers. Make sure we
-	 * get notified when new packets arrive.
-	 */
-	macb_writel(bp, IER, MACB_RX_INT_FLAGS);
+		/*
+		 * We've done what we can to clean the buffers. Make sure we
+		 * get notified when new packets arrive.
+		 */
+		macb_writel(bp, IER, MACB_RX_INT_FLAGS);
+	}
 
 	/* TODO: Handle errors */
 
@@ -550,12 +551,16 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 		}
 
 		if (status & MACB_RX_INT_FLAGS) {
+			/*
+			 * There's no point taking any more interrupts
+			 * until we have processed the buffers. The
+			 * scheduling call may fail if the poll routine
+			 * is already scheduled, so disable interrupts
+			 * now.
+			 */
+			macb_writel(bp, IDR, MACB_RX_INT_FLAGS);
+
 			if (napi_schedule_prep(&bp->napi)) {
-				/*
-				 * There's no point taking any more interrupts
-				 * until we have processed the buffers
-				 */
-				macb_writel(bp, IDR, MACB_RX_INT_FLAGS);
 				dev_dbg(&bp->pdev->dev,
 					"scheduling RX softirq\n");
 				__napi_schedule(&bp->napi);

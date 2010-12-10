@@ -38,10 +38,14 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx35.h>
+#include <mach/irqs.h>
+#include <mach/3ds_debugboard.h>
 #include <mach/mxc_ehci.h>
 
 #include "devices-imx35.h"
 #include "devices.h"
+
+#define EXPIO_PARENT_INT	(MXC_INTERNAL_IRQS + GPIO_PORTA + 1)
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
@@ -108,6 +112,13 @@ static struct pad_desc mx35pdk_pads[] = {
 	/* USBH1 */
 	MX35_PAD_I2C2_CLK__USB_TOP_USBH2_PWR,
 	MX35_PAD_I2C2_DAT__USB_TOP_USBH2_OC,
+	/* SDCARD */
+	MX35_PAD_SD1_CMD__ESDHC1_CMD,
+	MX35_PAD_SD1_CLK__ESDHC1_CLK,
+	MX35_PAD_SD1_DATA0__ESDHC1_DAT0,
+	MX35_PAD_SD1_DATA1__ESDHC1_DAT1,
+	MX35_PAD_SD1_DATA2__ESDHC1_DAT2,
+	MX35_PAD_SD1_DATA3__ESDHC1_DAT3,
 };
 
 /* OTG config */
@@ -140,6 +151,11 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxc_usbh1, &usb_host_pdata);
 
 	imx35_add_mxc_nand(&mx35pdk_nand_board_info);
+	imx35_add_esdhc(0, NULL);
+
+	if (mxc_expio_init(MX35_CS5_BASE_ADDR, EXPIO_PARENT_INT))
+		pr_warn("Init of the debugboard failed, all "
+				"devices on the debugboard are unusable.\n");
 }
 
 static void __init mx35pdk_timer_init(void)

@@ -440,15 +440,11 @@ static const unsigned char gdbstub_insn_sizes[256] =
 
 static int __gdbstub_mark_bp(u8 *addr, int ix)
 {
-	if (addr < (u8 *) 0x70000000UL)
-		return 0;
-	/* 70000000-7fffffff: vmalloc area */
-	if (addr < (u8 *) 0x80000000UL)
+	/* vmalloc area */
+	if (((u8 *) VMALLOC_START <= addr) && (addr < (u8 *) VMALLOC_END))
 		goto okay;
-	if (addr < (u8 *) 0x8c000000UL)
-		return 0;
-	/* 8c000000-93ffffff: SRAM, SDRAM */
-	if (addr < (u8 *) 0x94000000UL)
+	/* SRAM, SDRAM */
+	if (((u8 *) 0x80000000UL <= addr) && (addr < (u8 *) 0xa0000000UL))
 		goto okay;
 	return 0;
 
@@ -1197,9 +1193,9 @@ static int gdbstub(struct pt_regs *regs, enum exception_code excep)
 	mn10300_set_gdbleds(1);
 
 	asm volatile("mov mdr,%0" : "=d"(mdr));
-	asm volatile("mov epsw,%0" : "=d"(epsw));
-	asm volatile("mov %0,epsw"
-		     :: "d"((epsw & ~EPSW_IM) | EPSW_IE | EPSW_IM_1));
+	local_save_flags(epsw);
+	arch_local_change_intr_mask_level(
+		NUM2EPSW_IM(CONFIG_GDBSTUB_IRQ_LEVEL + 1));
 
 	gdbstub_store_fpu();
 

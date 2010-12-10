@@ -43,9 +43,12 @@
  * ixgbe_dcb_check_config().
  */
 s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_dcb_config *dcb_config,
-                                   u8 direction)
+				   int max_frame, u8 direction)
 {
 	struct tc_bw_alloc *p;
+	int min_credit;
+	int min_multiplier;
+	int min_percent = 100;
 	s32 ret_val = 0;
 	/* Initialization values default for Tx settings */
 	u32 credit_refill       = 0;
@@ -58,6 +61,31 @@ s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_dcb_config *dcb_config,
 		ret_val = DCB_ERR_CONFIG;
 		goto out;
 	}
+
+	min_credit = ((max_frame / 2) + DCB_CREDIT_QUANTUM - 1) /
+			DCB_CREDIT_QUANTUM;
+
+	/* Find smallest link percentage */
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		p = &dcb_config->tc_config[i].path[direction];
+		bw_percent = dcb_config->bw_percentage[direction][p->bwg_id];
+		link_percentage = p->bwg_percent;
+
+		link_percentage = (link_percentage * bw_percent) / 100;
+
+		if (link_percentage && link_percentage < min_percent)
+			min_percent = link_percentage;
+	}
+
+	/*
+	 * The ratio between traffic classes will control the bandwidth
+	 * percentages seen on the wire. To calculate this ratio we use
+	 * a multiplier. It is required that the refill credits must be
+	 * larger than the max frame size so here we find the smallest
+	 * multiplier that will allow all bandwidth percentages to be
+	 * greater than the max frame size.
+	 */
+	min_multiplier = (min_credit / min_percent) + 1;
 
 	/* Find out the link percentage for each TC first */
 	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
@@ -73,8 +101,9 @@ s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_dcb_config *dcb_config,
 		/* Save link_percentage for reference */
 		p->link_percent = (u8)link_percentage;
 
-		/* Calculate credit refill and save it */
-		credit_refill = link_percentage * MINIMUM_CREDIT_REFILL;
+		/* Calculate credit refill ratio using multiplier */
+		credit_refill = min(link_percentage * min_multiplier,
+				    MAX_CREDIT_REFILL);
 		p->data_credits_refill = (u16)credit_refill;
 
 		/* Calculate maximum credit for the TC */
@@ -85,8 +114,8 @@ s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_dcb_config *dcb_config,
 		 * of a TC is too small, the maximum credit may not be
 		 * enough to send out a jumbo frame in data plane arbitration.
 		 */
-		if (credit_max && (credit_max < MINIMUM_CREDIT_FOR_JUMBO))
-			credit_max = MINIMUM_CREDIT_FOR_JUMBO;
+		if (credit_max && (credit_max < min_credit))
+			credit_max = min_credit;
 
 		if (direction == DCB_TX_CONFIG) {
 			/*

@@ -305,19 +305,17 @@ static const struct super_operations sockfs_ops = {
 	.statfs		= simple_statfs,
 };
 
-static int sockfs_get_sb(struct file_system_type *fs_type,
-			 int flags, const char *dev_name, void *data,
-			 struct vfsmount *mnt)
+static struct dentry *sockfs_mount(struct file_system_type *fs_type,
+			 int flags, const char *dev_name, void *data)
 {
-	return get_sb_pseudo(fs_type, "socket:", &sockfs_ops, SOCKFS_MAGIC,
-			     mnt);
+	return mount_pseudo(fs_type, "socket:", &sockfs_ops, SOCKFS_MAGIC);
 }
 
 static struct vfsmount *sock_mnt __read_mostly;
 
 static struct file_system_type sock_fs_type = {
 	.name =		"sockfs",
-	.get_sb =	sockfs_get_sb,
+	.mount =	sockfs_mount,
 	.kill_sb =	kill_anon_super,
 };
 
@@ -377,7 +375,7 @@ static int sock_alloc_file(struct socket *sock, struct file **f, int flags)
 		  &socket_file_ops);
 	if (unlikely(!file)) {
 		/* drop dentry, keep inode */
-		atomic_inc(&path.dentry->d_inode->i_count);
+		ihold(path.dentry->d_inode);
 		path_put(&path);
 		put_unused_fd(fd);
 		return -ENFILE;
@@ -480,6 +478,7 @@ static struct socket *sock_alloc(void)
 	sock = SOCKET_I(inode);
 
 	kmemcheck_annotate_bitfield(sock, type);
+	inode->i_ino = get_next_ino();
 	inode->i_mode = S_IFSOCK | S_IRWXUGO;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
@@ -1145,7 +1144,7 @@ call_kill:
 }
 EXPORT_SYMBOL(sock_wake_async);
 
-static int __sock_create(struct net *net, int family, int type, int protocol,
+int __sock_create(struct net *net, int family, int type, int protocol,
 			 struct socket **res, int kern)
 {
 	int err;
@@ -1257,6 +1256,7 @@ out_release:
 	rcu_read_unlock();
 	goto out_sock_release;
 }
+EXPORT_SYMBOL(__sock_create);
 
 int sock_create(int family, int type, int protocol, struct socket **res)
 {
@@ -1652,6 +1652,8 @@ SYSCALL_DEFINE6(sendto, int, fd, void __user *, buff, size_t, len,
 	struct iovec iov;
 	int fput_needed;
 
+	if (len > INT_MAX)
+		len = INT_MAX;
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
 		goto out;
@@ -1709,6 +1711,8 @@ SYSCALL_DEFINE6(recvfrom, int, fd, void __user *, ubuf, size_t, size,
 	int err, err2;
 	int fput_needed;
 
+	if (size > INT_MAX)
+		size = INT_MAX;
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
 		goto out;

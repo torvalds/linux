@@ -1147,6 +1147,7 @@ err:
 static int io_subchannel_chp_event(struct subchannel *sch,
 				   struct chp_link *link, int event)
 {
+	struct ccw_device *cdev = sch_get_cdev(sch);
 	int mask;
 
 	mask = chp_ssd_get_mask(&sch->ssd_info, link);
@@ -1156,22 +1157,30 @@ static int io_subchannel_chp_event(struct subchannel *sch,
 	case CHP_VARY_OFF:
 		sch->opm &= ~mask;
 		sch->lpm &= ~mask;
+		if (cdev)
+			cdev->private->path_gone_mask |= mask;
 		io_subchannel_terminate_path(sch, mask);
 		break;
 	case CHP_VARY_ON:
 		sch->opm |= mask;
 		sch->lpm |= mask;
+		if (cdev)
+			cdev->private->path_new_mask |= mask;
 		io_subchannel_verify(sch);
 		break;
 	case CHP_OFFLINE:
 		if (cio_update_schib(sch))
 			return -ENODEV;
+		if (cdev)
+			cdev->private->path_gone_mask |= mask;
 		io_subchannel_terminate_path(sch, mask);
 		break;
 	case CHP_ONLINE:
 		if (cio_update_schib(sch))
 			return -ENODEV;
 		sch->lpm |= mask & sch->opm;
+		if (cdev)
+			cdev->private->path_new_mask |= mask;
 		io_subchannel_verify(sch);
 		break;
 	}
@@ -1196,6 +1205,7 @@ static void io_subchannel_quiesce(struct subchannel *sch)
 		cdev->handler(cdev, cdev->private->intparm, ERR_PTR(-EIO));
 	while (ret == -EBUSY) {
 		cdev->private->state = DEV_STATE_QUIESCE;
+		cdev->private->iretry = 255;
 		ret = ccw_device_cancel_halt_clear(cdev);
 		if (ret == -EBUSY) {
 			ccw_device_set_timeout(cdev, HZ/10);
@@ -1445,7 +1455,16 @@ static int io_subchannel_sch_event(struct subchannel *sch, int process)
 		break;
 	case IO_SCH_UNREG_ATTACH:
 	case IO_SCH_UNREG:
-		if (cdev)
+		if (!cdev)
+			break;
+		if (cdev->private->state == DEV_STATE_SENSE_ID) {
+			/*
+			 * Note: delayed work triggered by this event
+			 * and repeated calls to sch_event are synchronized
+			 * by the above check for work_pending(cdev).
+			 */
+			dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
+		} else
 			ccw_device_set_notoper(cdev);
 		break;
 	case IO_SCH_NOP:
@@ -1468,9 +1487,13 @@ static int io_subchannel_sch_event(struct subchannel *sch, int process)
 			goto out;
 		break;
 	case IO_SCH_UNREG_ATTACH:
+		if (cdev->private->flags.resuming) {
+			/* Device will be handled later. */
+			rc = 0;
+			goto out;
+		}
 		/* Unregister ccw device. */
-		if (!cdev->private->flags.resuming)
-			ccw_device_unregister(cdev);
+		ccw_device_unregister(cdev);
 		break;
 	default:
 		break;

@@ -17,7 +17,7 @@
 
 #include "bfa_modules.h"
 
-/**
+/*
  * BFA module list terminated by NULL
  */
 struct bfa_module_s *hal_mods[] = {
@@ -31,7 +31,7 @@ struct bfa_module_s *hal_mods[] = {
 	NULL
 };
 
-/**
+/*
  * Message handlers for various modules.
  */
 bfa_isr_func_t  bfa_isrs[BFI_MC_MAX] = {
@@ -70,7 +70,7 @@ bfa_isr_func_t  bfa_isrs[BFI_MC_MAX] = {
 };
 
 
-/**
+/*
  * Message handlers for mailbox command classes
  */
 bfa_ioc_mbox_mcfunc_t  bfa_mbox_isrs[BFI_MC_MAX] = {

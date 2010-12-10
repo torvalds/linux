@@ -6,6 +6,7 @@
  *
  * Copyright (C) 1998,2001-2005 Pavel Machek <pavel@ucw.cz>
  * Copyright (C) 2006 Rafael J. Wysocki <rjw@sisk.pl>
+ * Copyright (C) 2010 Bojan Smojver <bojan@rexursive.com>
  *
  * This file is released under the GPLv2.
  *
@@ -251,7 +252,7 @@ static int write_page(void *buf, sector_t offset, struct bio **bio_chain)
 	if (bio_chain) {
 		src = (void *)__get_free_page(__GFP_WAIT | __GFP_HIGH);
 		if (src) {
-			memcpy(src, buf, PAGE_SIZE);
+			copy_page(src, buf);
 		} else {
 			WARN_ON_ONCE(1);
 			bio_chain = NULL;	/* Go synchronous */
@@ -325,7 +326,7 @@ static int swap_write_page(struct swap_map_handle *handle, void *buf,
 		error = write_page(handle->cur, handle->cur_swap, NULL);
 		if (error)
 			goto out;
-		memset(handle->cur, 0, PAGE_SIZE);
+		clear_page(handle->cur);
 		handle->cur_swap = offset;
 		handle->k = 0;
 	}
@@ -753,30 +754,43 @@ static int load_image_lzo(struct swap_map_handle *handle,
 {
 	unsigned int m;
 	int error = 0;
+	struct bio *bio;
 	struct timeval start;
 	struct timeval stop;
 	unsigned nr_pages;
-	size_t off, unc_len, cmp_len;
-	unsigned char *unc, *cmp, *page;
+	size_t i, off, unc_len, cmp_len;
+	unsigned char *unc, *cmp, *page[LZO_CMP_PAGES];
 
-	page = (void *)__get_free_page(__GFP_WAIT | __GFP_HIGH);
-	if (!page) {
-		printk(KERN_ERR "PM: Failed to allocate LZO page\n");
-		return -ENOMEM;
+	for (i = 0; i < LZO_CMP_PAGES; i++) {
+		page[i] = (void *)__get_free_page(__GFP_WAIT | __GFP_HIGH);
+		if (!page[i]) {
+			printk(KERN_ERR "PM: Failed to allocate LZO page\n");
+
+			while (i)
+				free_page((unsigned long)page[--i]);
+
+			return -ENOMEM;
+		}
 	}
 
 	unc = vmalloc(LZO_UNC_SIZE);
 	if (!unc) {
 		printk(KERN_ERR "PM: Failed to allocate LZO uncompressed\n");
-		free_page((unsigned long)page);
+
+		for (i = 0; i < LZO_CMP_PAGES; i++)
+			free_page((unsigned long)page[i]);
+
 		return -ENOMEM;
 	}
 
 	cmp = vmalloc(LZO_CMP_SIZE);
 	if (!cmp) {
 		printk(KERN_ERR "PM: Failed to allocate LZO compressed\n");
+
 		vfree(unc);
-		free_page((unsigned long)page);
+		for (i = 0; i < LZO_CMP_PAGES; i++)
+			free_page((unsigned long)page[i]);
+
 		return -ENOMEM;
 	}
 
@@ -787,6 +801,7 @@ static int load_image_lzo(struct swap_map_handle *handle,
 	if (!m)
 		m = 1;
 	nr_pages = 0;
+	bio = NULL;
 	do_gettimeofday(&start);
 
 	error = snapshot_write_next(snapshot);
@@ -794,11 +809,11 @@ static int load_image_lzo(struct swap_map_handle *handle,
 		goto out_finish;
 
 	for (;;) {
-		error = swap_read_page(handle, page, NULL); /* sync */
+		error = swap_read_page(handle, page[0], NULL); /* sync */
 		if (error)
 			break;
 
-		cmp_len = *(size_t *)page;
+		cmp_len = *(size_t *)page[0];
 		if (unlikely(!cmp_len ||
 		             cmp_len > lzo1x_worst_compress(LZO_UNC_SIZE))) {
 			printk(KERN_ERR "PM: Invalid LZO compressed length\n");
@@ -806,13 +821,20 @@ static int load_image_lzo(struct swap_map_handle *handle,
 			break;
 		}
 
-		memcpy(cmp, page, PAGE_SIZE);
-		for (off = PAGE_SIZE; off < LZO_HEADER + cmp_len; off += PAGE_SIZE) {
-			error = swap_read_page(handle, page, NULL); /* sync */
+		for (off = PAGE_SIZE, i = 1;
+		     off < LZO_HEADER + cmp_len; off += PAGE_SIZE, i++) {
+			error = swap_read_page(handle, page[i], &bio);
 			if (error)
 				goto out_finish;
+		}
 
-			memcpy(cmp + off, page, PAGE_SIZE);
+		error = hib_wait_on_bio_chain(&bio); /* need all data now */
+		if (error)
+			goto out_finish;
+
+		for (off = 0, i = 0;
+		     off < LZO_HEADER + cmp_len; off += PAGE_SIZE, i++) {
+			memcpy(cmp + off, page[i], PAGE_SIZE);
 		}
 
 		unc_len = LZO_UNC_SIZE;
@@ -857,7 +879,8 @@ out_finish:
 
 	vfree(cmp);
 	vfree(unc);
-	free_page((unsigned long)page);
+	for (i = 0; i < LZO_CMP_PAGES; i++)
+		free_page((unsigned long)page[i]);
 
 	return error;
 }
@@ -910,7 +933,7 @@ int swsusp_check(void)
 	hib_resume_bdev = open_by_devnum(swsusp_resume_device, FMODE_READ);
 	if (!IS_ERR(hib_resume_bdev)) {
 		set_blocksize(hib_resume_bdev, PAGE_SIZE);
-		memset(swsusp_header, 0, PAGE_SIZE);
+		clear_page(swsusp_header);
 		error = hib_bio_read_page(swsusp_resume_block,
 					swsusp_header, NULL);
 		if (error)

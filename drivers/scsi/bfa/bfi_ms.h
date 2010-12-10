@@ -41,7 +41,7 @@ struct bfi_iocfc_cfg_s {
 	u16	rsvd_1;
 	u32	endian_sig;	/*  endian signature of host     */
 
-	/**
+	/*
 	 * Request and response circular queue base addresses, size and
 	 * shadow index pointers.
 	 */
@@ -58,7 +58,7 @@ struct bfi_iocfc_cfg_s {
 	struct bfa_iocfc_intr_attr_s intr_attr; /*  IOC interrupt attributes */
 };
 
-/**
+/*
  * Boot target wwn information for this port. This contains either the stored
  * or discovered boot target port wwns for the port.
  */
@@ -75,7 +75,7 @@ struct bfi_iocfc_cfgrsp_s {
 	struct bfi_pbc_s		pbc_cfg;
 };
 
-/**
+/*
  * BFI_IOCFC_H2I_CFG_REQ message
  */
 struct bfi_iocfc_cfg_req_s {
@@ -84,7 +84,7 @@ struct bfi_iocfc_cfg_req_s {
 };
 
 
-/**
+/*
  * BFI_IOCFC_I2H_CFG_REPLY message
  */
 struct bfi_iocfc_cfg_reply_s {
@@ -95,7 +95,7 @@ struct bfi_iocfc_cfg_reply_s {
 };
 
 
-/**
+/*
  * BFI_IOCFC_H2I_SET_INTR_REQ message
  */
 struct bfi_iocfc_set_intr_req_s {
@@ -107,7 +107,7 @@ struct bfi_iocfc_set_intr_req_s {
 };
 
 
-/**
+/*
  * BFI_IOCFC_H2I_UPDATEQ_REQ message
  */
 struct bfi_iocfc_updateq_req_s {
@@ -119,7 +119,7 @@ struct bfi_iocfc_updateq_req_s {
 };
 
 
-/**
+/*
  * BFI_IOCFC_I2H_UPDATEQ_RSP message
  */
 struct bfi_iocfc_updateq_rsp_s {
@@ -129,7 +129,7 @@ struct bfi_iocfc_updateq_rsp_s {
 };
 
 
-/**
+/*
  * H2I Messages
  */
 union bfi_iocfc_h2i_msg_u {
@@ -140,7 +140,7 @@ union bfi_iocfc_h2i_msg_u {
 };
 
 
-/**
+/*
  * I2H Messages
  */
 union bfi_iocfc_i2h_msg_u {
@@ -173,7 +173,7 @@ enum bfi_fcport_i2h {
 };
 
 
-/**
+/*
  * Generic REQ type
  */
 struct bfi_fcport_req_s {
@@ -181,7 +181,7 @@ struct bfi_fcport_req_s {
 	u32	   msgtag;	/*  msgtag for reply		    */
 };
 
-/**
+/*
  * Generic RSP type
  */
 struct bfi_fcport_rsp_s {
@@ -191,7 +191,7 @@ struct bfi_fcport_rsp_s {
 	u32	   msgtag;	/*  msgtag for reply		    */
 };
 
-/**
+/*
  * BFI_FCPORT_H2I_ENABLE_REQ
  */
 struct bfi_fcport_enable_req_s {
@@ -205,7 +205,7 @@ struct bfi_fcport_enable_req_s {
 	u32	   rsvd2;
 };
 
-/**
+/*
  * BFI_FCPORT_H2I_SET_SVC_PARAMS_REQ
  */
 struct bfi_fcport_set_svc_params_req_s {
@@ -214,7 +214,7 @@ struct bfi_fcport_set_svc_params_req_s {
 	u16	   rsvd;
 };
 
-/**
+/*
  * BFI_FCPORT_I2H_EVENT
  */
 struct bfi_fcport_event_s {
@@ -222,7 +222,7 @@ struct bfi_fcport_event_s {
 	struct bfa_port_link_s	link_state;
 };
 
-/**
+/*
  * BFI_FCPORT_I2H_TRUNK_SCN
  */
 struct bfi_fcport_trunk_link_s {
@@ -243,7 +243,7 @@ struct bfi_fcport_trunk_scn_s {
 	struct bfi_fcport_trunk_link_s tlink[BFI_FCPORT_MAX_LINKS];
 };
 
-/**
+/*
  * fcport H2I message
  */
 union bfi_fcport_h2i_msg_u {
@@ -255,7 +255,7 @@ union bfi_fcport_h2i_msg_u {
 	struct bfi_fcport_req_s			*pstatsclear;
 };
 
-/**
+/*
  * fcport I2H message
  */
 union bfi_fcport_i2h_msg_u {
@@ -279,7 +279,7 @@ enum bfi_fcxp_i2h {
 
 #define BFA_FCXP_MAX_SGES	2
 
-/**
+/*
  * FCXP send request structure
  */
 struct bfi_fcxp_send_req_s {
@@ -299,7 +299,7 @@ struct bfi_fcxp_send_req_s {
 	struct bfi_sge_s   rsp_sge[BFA_FCXP_MAX_SGES];	/*  response buf   */
 };
 
-/**
+/*
  * FCXP send response structure
  */
 struct bfi_fcxp_send_rsp_s {
@@ -565,14 +565,14 @@ enum bfi_ioim_i2h {
 	BFI_IOIM_I2H_IOABORT_RSP = BFA_I2HM(2),	/*  ABORT rsp	 */
 };
 
-/**
+/*
  * IO command DIF info
  */
 struct bfi_ioim_dif_s {
 	u32	dif_info[4];
 };
 
-/**
+/*
  * FCP IO messages overview
  *
  * @note
@@ -587,7 +587,7 @@ struct bfi_ioim_req_s {
 	u16	rport_hdl;	/*  itnim/rport firmware handle */
 	struct fcp_cmnd_s	cmnd;	/*  IO request info	*/
 
-	/**
+	/*
 	 * SG elements array within the IO request must be double word
 	 * aligned. This aligment is required to optimize SGM setup for the IO.
 	 */
@@ -598,7 +598,7 @@ struct bfi_ioim_req_s {
 	struct bfi_ioim_dif_s  dif;
 };
 
-/**
+/*
  *	This table shows various IO status codes from firmware and their
  *	meaning. Host driver can use these status codes to further process
  *	IO completions.
@@ -684,7 +684,7 @@ enum bfi_ioim_status {
 };
 
 #define BFI_IOIM_SNSLEN	(256)
-/**
+/*
  * I/O response message
  */
 struct bfi_ioim_rsp_s {
@@ -746,7 +746,7 @@ enum bfi_tskim_status {
 	BFI_TSKIM_STS_NOT_SUPP = 4,
 	BFI_TSKIM_STS_FAILED	= 5,
 
-	/**
+	/*
 	 * Defined by BFA
 	 */
 	BFI_TSKIM_STS_TIMEOUT  = 10,	/*  TM request timedout	*/

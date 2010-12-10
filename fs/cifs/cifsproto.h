@@ -104,6 +104,7 @@ extern struct timespec cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
 extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
 				      int offset);
+extern void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock);
 
 extern struct cifsFileInfo *cifs_new_fileinfo(__u16 fileHandle,
 				struct file *file, struct tcon_link *tlink,
@@ -129,10 +130,12 @@ extern int cifs_get_file_info_unix(struct file *filp);
 extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, int xid);
-extern void cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
+extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 			      struct cifs_fattr *fattr, struct inode *inode,
 			      const char *path, const __u16 *pfid);
-extern int mode_to_acl(struct inode *inode, const char *path, __u64);
+extern int mode_to_cifs_acl(struct inode *inode, const char *path, __u64);
+extern struct cifs_ntsd *get_cifs_acl(struct cifs_sb_info *, struct inode *,
+					const char *, u32 *);
 
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
 			const char *);
@@ -362,13 +365,15 @@ extern int cifs_sign_smb(struct smb_hdr *, struct TCP_Server_Info *, __u32 *);
 extern int cifs_sign_smb2(struct kvec *iov, int n_vec, struct TCP_Server_Info *,
 			  __u32 *);
 extern int cifs_verify_signature(struct smb_hdr *,
-				 const struct session_key *session_key,
+				 struct TCP_Server_Info *server,
 				__u32 expected_sequence_number);
-extern int cifs_calculate_session_key(struct session_key *key, const char *rn,
-				 const char *pass);
-extern void CalcNTLMv2_response(const struct cifsSesInfo *, char *);
-extern int setup_ntlmv2_rsp(struct cifsSesInfo *, char *,
-			     const struct nls_table *);
+extern void SMBNTencrypt(unsigned char *, unsigned char *, unsigned char *);
+extern int setup_ntlm_response(struct cifsSesInfo *);
+extern int setup_ntlmv2_rsp(struct cifsSesInfo *, const struct nls_table *);
+extern int cifs_crypto_shash_allocate(struct TCP_Server_Info *);
+extern void cifs_crypto_shash_release(struct TCP_Server_Info *);
+extern int calc_seckey(struct cifsSesInfo *);
+
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 extern void calc_lanman_hash(const char *password, const char *cryptkey,
 				bool encrypt, char *lnm_session_key);

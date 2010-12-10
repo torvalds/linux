@@ -64,6 +64,7 @@ static unsigned int led_diskio    __read_mostly = 1;
 static unsigned int led_lanrxtx   __read_mostly = 1;
 static char lcd_text[32]          __read_mostly;
 static char lcd_text_default[32]  __read_mostly;
+static int  lcd_no_led_support    __read_mostly = 0; /* KittyHawk doesn't support LED on its LCD */
 
 
 static struct workqueue_struct *led_wq;
@@ -115,7 +116,7 @@ lcd_info __attribute__((aligned(8))) __read_mostly =
 	.lcd_width =		16,
 	.lcd_cmd_reg_addr =	KITTYHAWK_LCD_CMD,
 	.lcd_data_reg_addr =	KITTYHAWK_LCD_DATA,
-	.min_cmd_delay =	40,
+	.min_cmd_delay =	80,
 	.reset_cmd1 =		0x80,
 	.reset_cmd2 =		0xc0,
 };
@@ -134,6 +135,9 @@ static int start_task(void)
 {	
 	/* Display the default text now */
 	if (led_type == LED_HASLCD) lcd_print( lcd_text_default );
+
+	/* KittyHawk has no LED support on its LCD */
+	if (lcd_no_led_support) return 0;
 
 	/* Create the work queue and queue the LED task */
 	led_wq = create_singlethread_workqueue("led_wq");	
@@ -248,9 +252,13 @@ static int __init led_create_procfs(void)
 
 	proc_pdc_root = proc_mkdir("pdc", 0);
 	if (!proc_pdc_root) return -1;
-	ent = proc_create_data("led", S_IRUGO|S_IWUSR, proc_pdc_root,
-				&led_proc_fops, (void *)LED_NOLCD); /* LED */
-	if (!ent) return -1;
+
+	if (!lcd_no_led_support)
+	{
+		ent = proc_create_data("led", S_IRUGO|S_IWUSR, proc_pdc_root,
+					&led_proc_fops, (void *)LED_NOLCD); /* LED */
+		if (!ent) return -1;
+	}
 
 	if (led_type == LED_HASLCD)
 	{
@@ -346,8 +354,8 @@ static __inline__ int led_get_net_activity(void)
 #ifndef CONFIG_NET
 	return 0;
 #else
-	static unsigned long rx_total_last, tx_total_last;
-	unsigned long rx_total, tx_total;
+	static u64 rx_total_last, tx_total_last;
+	u64 rx_total, tx_total;
 	struct net_device *dev;
 	int retval;
 
@@ -356,7 +364,7 @@ static __inline__ int led_get_net_activity(void)
 	/* we are running as a workqueue task, so we can use an RCU lookup */
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, dev) {
-	    const struct net_device_stats *stats;
+	    const struct rtnl_link_stats64 *stats;
 	    struct rtnl_link_stats64 temp;
 	    struct in_device *in_dev = __in_dev_get_rcu(dev);
 	    if (!in_dev || !in_dev->ifa_list)
@@ -692,6 +700,7 @@ int __init led_init(void)
 	case 0x58B:		/* KittyHawk DC2 100 (K200) */
 		printk(KERN_INFO "%s: KittyHawk-Machine (hversion 0x%x) found, "
 				"LED detection skipped.\n", __FILE__, CPU_HVERSION);
+		lcd_no_led_support = 1;
 		goto found;	/* use the preinitialized values of lcd_info */
 	}
 

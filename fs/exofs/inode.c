@@ -185,7 +185,7 @@ static void update_write_page(struct page *page, int ret)
 /* Called at the end of reads, to optionally unlock pages and update their
  * status.
  */
-static int __readpages_done(struct page_collect *pcol, bool do_unlock)
+static int __readpages_done(struct page_collect *pcol)
 {
 	int i;
 	u64 resid;
@@ -221,7 +221,7 @@ static int __readpages_done(struct page_collect *pcol, bool do_unlock)
 			  page_stat ? "bad_bytes" : "good_bytes");
 
 		ret = update_read_page(page, page_stat);
-		if (do_unlock)
+		if (!pcol->read_4_write)
 			unlock_page(page);
 		length += PAGE_SIZE;
 	}
@@ -236,7 +236,7 @@ static void readpages_done(struct exofs_io_state *ios, void *p)
 {
 	struct page_collect *pcol = p;
 
-	__readpages_done(pcol, true);
+	__readpages_done(pcol);
 	atomic_dec(&pcol->sbi->s_curr_pending);
 	kfree(pcol);
 }
@@ -257,7 +257,7 @@ static void _unlock_pcol_pages(struct page_collect *pcol, int ret, int rw)
 	}
 }
 
-static int read_exec(struct page_collect *pcol, bool is_sync)
+static int read_exec(struct page_collect *pcol)
 {
 	struct exofs_i_info *oi = exofs_i(pcol->inode);
 	struct exofs_io_state *ios = pcol->ios;
@@ -267,17 +267,14 @@ static int read_exec(struct page_collect *pcol, bool is_sync)
 	if (!pcol->pages)
 		return 0;
 
-	/* see comment in _readpage() about sync reads */
-	WARN_ON(is_sync && (pcol->nr_pages != 1));
-
 	ios->pages = pcol->pages;
 	ios->nr_pages = pcol->nr_pages;
 	ios->length = pcol->length;
 	ios->offset = pcol->pg_first << PAGE_CACHE_SHIFT;
 
-	if (is_sync) {
+	if (pcol->read_4_write) {
 		exofs_oi_read(oi, pcol->ios);
-		return __readpages_done(pcol, false);
+		return __readpages_done(pcol);
 	}
 
 	pcol_copy = kmalloc(sizeof(*pcol_copy), GFP_KERNEL);
@@ -303,7 +300,7 @@ static int read_exec(struct page_collect *pcol, bool is_sync)
 	return 0;
 
 err:
-	if (!is_sync)
+	if (!pcol->read_4_write)
 		_unlock_pcol_pages(pcol, ret, READ);
 
 	pcol_free(pcol);
@@ -356,7 +353,7 @@ static int readpage_strip(void *data, struct page *page)
 		EXOFS_DBGMSG("readpage_strip(0x%lx, 0x%lx) empty page,"
 			     " splitting\n", inode->i_ino, page->index);
 
-		return read_exec(pcol, false);
+		return read_exec(pcol);
 	}
 
 try_again:
@@ -366,7 +363,7 @@ try_again:
 	} else if (unlikely((pcol->pg_first + pcol->nr_pages) !=
 		   page->index)) {
 		/* Discontinuity detected, split the request */
-		ret = read_exec(pcol, false);
+		ret = read_exec(pcol);
 		if (unlikely(ret))
 			goto fail;
 		goto try_again;
@@ -391,7 +388,7 @@ try_again:
 			  page, len, pcol->nr_pages, pcol->length);
 
 		/* split the request, and start again with current page */
-		ret = read_exec(pcol, false);
+		ret = read_exec(pcol);
 		if (unlikely(ret))
 			goto fail;
 
@@ -420,27 +417,24 @@ static int exofs_readpages(struct file *file, struct address_space *mapping,
 		return ret;
 	}
 
-	return read_exec(&pcol, false);
+	return read_exec(&pcol);
 }
 
-static int _readpage(struct page *page, bool is_sync)
+static int _readpage(struct page *page, bool read_4_write)
 {
 	struct page_collect pcol;
 	int ret;
 
 	_pcol_init(&pcol, 1, page->mapping->host);
 
-	/* readpage_strip might call read_exec(,is_sync==false) at several
-	 * places but not if we have a single page.
-	 */
-	pcol.read_4_write = is_sync;
+	pcol.read_4_write = read_4_write;
 	ret = readpage_strip(&pcol, page);
 	if (ret) {
 		EXOFS_ERR("_readpage => %d\n", ret);
 		return ret;
 	}
 
-	return read_exec(&pcol, is_sync);
+	return read_exec(&pcol);
 }
 
 /*
@@ -1036,6 +1030,7 @@ struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
 		memcpy(oi->i_data, fcb.i_data, sizeof(fcb.i_data));
 	}
 
+	inode->i_mapping->backing_dev_info = sb->s_bdi;
 	if (S_ISREG(inode->i_mode)) {
 		inode->i_op = &exofs_file_inode_operations;
 		inode->i_fop = &exofs_file_operations;
@@ -1072,8 +1067,10 @@ bad_inode:
 int __exofs_wait_obj_created(struct exofs_i_info *oi)
 {
 	if (!obj_created(oi)) {
+		EXOFS_DBGMSG("!obj_created\n");
 		BUG_ON(!obj_2bcreated(oi));
 		wait_event(oi->i_wq, obj_created(oi));
+		EXOFS_DBGMSG("wait_event done\n");
 	}
 	return unlikely(is_bad_inode(&oi->vfs_inode)) ? -EIO : 0;
 }
@@ -1107,7 +1104,6 @@ static void create_done(struct exofs_io_state *ios, void *p)
 
 	set_obj_created(oi);
 
-	atomic_dec(&inode->i_count);
 	wake_up(&oi->i_wq);
 }
 
@@ -1135,6 +1131,7 @@ struct inode *exofs_new_inode(struct inode *dir, int mode)
 
 	sbi = sb->s_fs_info;
 
+	inode->i_mapping->backing_dev_info = sb->s_bdi;
 	sb->s_dirt = 1;
 	inode_init_owner(inode, dir, mode);
 	inode->i_ino = sbi->s_nextid++;
@@ -1157,17 +1154,11 @@ struct inode *exofs_new_inode(struct inode *dir, int mode)
 	ios->obj.id = exofs_oi_objno(oi);
 	exofs_make_credential(oi->i_cred, &ios->obj);
 
-	/* increment the refcount so that the inode will still be around when we
-	 * reach the callback
-	 */
-	atomic_inc(&inode->i_count);
-
 	ios->done = create_done;
 	ios->private = inode;
 	ios->cred = oi->i_cred;
 	ret = exofs_sbi_create(ios);
 	if (ret) {
-		atomic_dec(&inode->i_count);
 		exofs_put_io_state(ios);
 		return ERR_PTR(ret);
 	}
@@ -1257,12 +1248,7 @@ static int exofs_update_inode(struct inode *inode, int do_sync)
 	ios->out_attr_len = 1;
 	ios->out_attr = &attr;
 
-	if (!obj_created(oi)) {
-		EXOFS_DBGMSG("!obj_created\n");
-		BUG_ON(!obj_2bcreated(oi));
-		wait_event(oi->i_wq, obj_created(oi));
-		EXOFS_DBGMSG("wait_event done\n");
-	}
+	wait_obj_created(oi);
 
 	if (!do_sync) {
 		args->sbi = sbi;
@@ -1325,12 +1311,12 @@ void exofs_evict_inode(struct inode *inode)
 	inode->i_size = 0;
 	end_writeback(inode);
 
-	/* if we are deleting an obj that hasn't been created yet, wait */
-	if (!obj_created(oi)) {
-		BUG_ON(!obj_2bcreated(oi));
-		wait_event(oi->i_wq, obj_created(oi));
-		/* ignore the error attempt a remove anyway */
-	}
+	/* if we are deleting an obj that hasn't been created yet, wait.
+	 * This also makes sure that create_done cannot be called with an
+	 * already evicted inode.
+	 */
+	wait_obj_created(oi);
+	/* ignore the error, attempt a remove anyway */
 
 	/* Now Remove the OSD objects */
 	ret = exofs_get_io_state(&sbi->layout, &ios);

@@ -2783,14 +2783,14 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 	/* reset the hardware with the new settings */
 	igbvf_reset(adapter);
 
-	/* tell the stack to leave us alone until igbvf_open() is called */
-	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
-
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
 	if (err)
 		goto err_hw_init;
+
+	/* tell the stack to leave us alone until igbvf_open() is called */
+	netif_carrier_off(netdev);
+	netif_stop_queue(netdev);
 
 	igbvf_print_device_info(adapter);
 

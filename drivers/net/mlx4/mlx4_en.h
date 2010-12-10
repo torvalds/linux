@@ -475,6 +475,7 @@ struct mlx4_en_priv {
 	char *mc_addrs;
 	int mc_addrs_cnt;
 	struct mlx4_en_stat_out_mbox hw_stats;
+	int vids[128];
 };
 
 

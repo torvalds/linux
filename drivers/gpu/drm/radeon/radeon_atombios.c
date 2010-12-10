@@ -98,6 +98,14 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_dev
 				}
 			}
 
+			/* some DCE3 boards have bad data for this entry */
+			if (ASIC_IS_DCE3(rdev)) {
+				if ((i == 4) &&
+				    (gpio->usClkMaskRegisterIndex == 0x1fda) &&
+				    (gpio->sucI2cId.ucAccess == 0x94))
+					gpio->sucI2cId.ucAccess = 0x14;
+			}
+
 			if (gpio->sucI2cId.ucAccess == id) {
 				i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
 				i2c.mask_data_reg = le16_to_cpu(gpio->usDataMaskRegisterIndex) * 4;
@@ -172,6 +180,14 @@ void radeon_atombios_i2c_init(struct radeon_device *rdev)
 					gpio->ucDataY_Shift = 8;
 					gpio->ucDataA_Shift = 8;
 				}
+			}
+
+			/* some DCE3 boards have bad data for this entry */
+			if (ASIC_IS_DCE3(rdev)) {
+				if ((i == 4) &&
+				    (gpio->usClkMaskRegisterIndex == 0x1fda) &&
+				    (gpio->sucI2cId.ucAccess == 0x94))
+					gpio->sucI2cId.ucAccess = 0x14;
 			}
 
 			i2c.mask_clk_reg = le16_to_cpu(gpio->usClkMaskRegisterIndex) * 4;
@@ -526,8 +542,6 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 	if (crev < 2)
 		return false;
 
-	router.valid = false;
-
 	obj_header = (ATOM_OBJECT_HEADER *) (ctx->bios + data_offset);
 	path_obj = (ATOM_DISPLAY_OBJECT_PATH_TABLE *)
 	    (ctx->bios + data_offset +
@@ -624,6 +638,8 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 			if (connector_type == DRM_MODE_CONNECTOR_Unknown)
 				continue;
 
+			router.ddc_valid = false;
+			router.cd_valid = false;
 			for (j = 0; j < ((le16_to_cpu(path->usSize) - 8) / 2); j++) {
 				uint8_t grph_obj_id, grph_obj_num, grph_obj_type;
 
@@ -647,9 +663,8 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 								 usDeviceTag));
 
 				} else if (grph_obj_type == GRAPH_OBJECT_TYPE_ROUTER) {
-					router.valid = false;
 					for (k = 0; k < router_obj->ucNumberOfObjects; k++) {
-						u16 router_obj_id = le16_to_cpu(router_obj->asObjects[j].usObjectID);
+						u16 router_obj_id = le16_to_cpu(router_obj->asObjects[k].usObjectID);
 						if (le16_to_cpu(path->usGraphicObjIds[j]) == router_obj_id) {
 							ATOM_COMMON_RECORD_HEADER *record = (ATOM_COMMON_RECORD_HEADER *)
 								(ctx->bios + data_offset +
@@ -657,6 +672,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 							ATOM_I2C_RECORD *i2c_record;
 							ATOM_I2C_ID_CONFIG_ACCESS *i2c_config;
 							ATOM_ROUTER_DDC_PATH_SELECT_RECORD *ddc_path;
+							ATOM_ROUTER_DATA_CLOCK_PATH_SELECT_RECORD *cd_path;
 							ATOM_SRC_DST_TABLE_FOR_ONE_OBJECT *router_src_dst_table =
 								(ATOM_SRC_DST_TABLE_FOR_ONE_OBJECT *)
 								(ctx->bios + data_offset +
@@ -690,10 +706,18 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 								case ATOM_ROUTER_DDC_PATH_SELECT_RECORD_TYPE:
 									ddc_path = (ATOM_ROUTER_DDC_PATH_SELECT_RECORD *)
 										record;
-									router.valid = true;
-									router.mux_type = ddc_path->ucMuxType;
-									router.mux_control_pin = ddc_path->ucMuxControlPin;
-									router.mux_state = ddc_path->ucMuxState[enum_id];
+									router.ddc_valid = true;
+									router.ddc_mux_type = ddc_path->ucMuxType;
+									router.ddc_mux_control_pin = ddc_path->ucMuxControlPin;
+									router.ddc_mux_state = ddc_path->ucMuxState[enum_id];
+									break;
+								case ATOM_ROUTER_DATA_CLOCK_PATH_SELECT_RECORD_TYPE:
+									cd_path = (ATOM_ROUTER_DATA_CLOCK_PATH_SELECT_RECORD *)
+										record;
+									router.cd_valid = true;
+									router.cd_mux_type = cd_path->ucMuxType;
+									router.cd_mux_control_pin = cd_path->ucMuxControlPin;
+									router.cd_mux_state = cd_path->ucMuxState[enum_id];
 									break;
 								}
 								record = (ATOM_COMMON_RECORD_HEADER *)
@@ -860,7 +884,8 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 	size_t bc_size = sizeof(*bios_connectors) * ATOM_MAX_SUPPORTED_DEVICE;
 	struct radeon_router router;
 
-	router.valid = false;
+	router.ddc_valid = false;
+	router.cd_valid = false;
 
 	bios_connectors = kzalloc(bc_size, GFP_KERNEL);
 	if (!bios_connectors)
@@ -1112,8 +1137,7 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 			 * pre-DCE 3.0 r6xx hardware.  This might need to be adjusted per
 			 * family.
 			 */
-			if (!radeon_new_pll)
-				p1pll->pll_out_min = 64800;
+			p1pll->pll_out_min = 64800;
 		}
 
 		p1pll->pll_in_min =
@@ -1277,36 +1301,27 @@ bool radeon_atombios_get_tmds_info(struct radeon_encoder *encoder,
 	return false;
 }
 
-static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
-							  radeon_encoder
-							  *encoder,
-							  int id)
+bool radeon_atombios_get_ppll_ss_info(struct radeon_device *rdev,
+				      struct radeon_atom_ss *ss,
+				      int id)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_mode_info *mode_info = &rdev->mode_info;
 	int index = GetIndexIntoMasterTable(DATA, PPLL_SS_Info);
-	uint16_t data_offset;
+	uint16_t data_offset, size;
 	struct _ATOM_SPREAD_SPECTRUM_INFO *ss_info;
 	uint8_t frev, crev;
-	struct radeon_atom_ss *ss = NULL;
-	int i;
+	int i, num_indices;
 
-	if (id > ATOM_MAX_SS_ENTRY)
-		return NULL;
-
-	if (atom_parse_data_header(mode_info->atom_context, index, NULL,
+	memset(ss, 0, sizeof(struct radeon_atom_ss));
+	if (atom_parse_data_header(mode_info->atom_context, index, &size,
 				   &frev, &crev, &data_offset)) {
 		ss_info =
 			(struct _ATOM_SPREAD_SPECTRUM_INFO *)(mode_info->atom_context->bios + data_offset);
 
-		ss =
-		    kzalloc(sizeof(struct radeon_atom_ss), GFP_KERNEL);
+		num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+			sizeof(ATOM_SPREAD_SPECTRUM_ASSIGNMENT);
 
-		if (!ss)
-			return NULL;
-
-		for (i = 0; i < ATOM_MAX_SS_ENTRY; i++) {
+		for (i = 0; i < num_indices; i++) {
 			if (ss_info->asSS_Info[i].ucSS_Id == id) {
 				ss->percentage =
 					le16_to_cpu(ss_info->asSS_Info[i].usSpreadSpectrumPercentage);
@@ -1315,11 +1330,88 @@ static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
 				ss->delay = ss_info->asSS_Info[i].ucSS_Delay;
 				ss->range = ss_info->asSS_Info[i].ucSS_Range;
 				ss->refdiv = ss_info->asSS_Info[i].ucRecommendedRef_Div;
-				break;
+				return true;
 			}
 		}
 	}
-	return ss;
+	return false;
+}
+
+union asic_ss_info {
+	struct _ATOM_ASIC_INTERNAL_SS_INFO info;
+	struct _ATOM_ASIC_INTERNAL_SS_INFO_V2 info_2;
+	struct _ATOM_ASIC_INTERNAL_SS_INFO_V3 info_3;
+};
+
+bool radeon_atombios_get_asic_ss_info(struct radeon_device *rdev,
+				      struct radeon_atom_ss *ss,
+				      int id, u32 clock)
+{
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	int index = GetIndexIntoMasterTable(DATA, ASIC_InternalSS_Info);
+	uint16_t data_offset, size;
+	union asic_ss_info *ss_info;
+	uint8_t frev, crev;
+	int i, num_indices;
+
+	memset(ss, 0, sizeof(struct radeon_atom_ss));
+	if (atom_parse_data_header(mode_info->atom_context, index, &size,
+				   &frev, &crev, &data_offset)) {
+
+		ss_info =
+			(union asic_ss_info *)(mode_info->atom_context->bios + data_offset);
+
+		switch (frev) {
+		case 1:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_ASIC_SS_ASSIGNMENT);
+
+			for (i = 0; i < num_indices; i++) {
+				if ((ss_info->info.asSpreadSpectrum[i].ucClockIndication == id) &&
+				    (clock <= ss_info->info.asSpreadSpectrum[i].ulTargetClockRange)) {
+					ss->percentage =
+						le16_to_cpu(ss_info->info.asSpreadSpectrum[i].usSpreadSpectrumPercentage);
+					ss->type = ss_info->info.asSpreadSpectrum[i].ucSpreadSpectrumMode;
+					ss->rate = le16_to_cpu(ss_info->info.asSpreadSpectrum[i].usSpreadRateInKhz);
+					return true;
+				}
+			}
+			break;
+		case 2:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_ASIC_SS_ASSIGNMENT_V2);
+			for (i = 0; i < num_indices; i++) {
+				if ((ss_info->info_2.asSpreadSpectrum[i].ucClockIndication == id) &&
+				    (clock <= ss_info->info_2.asSpreadSpectrum[i].ulTargetClockRange)) {
+					ss->percentage =
+						le16_to_cpu(ss_info->info_2.asSpreadSpectrum[i].usSpreadSpectrumPercentage);
+					ss->type = ss_info->info_2.asSpreadSpectrum[i].ucSpreadSpectrumMode;
+					ss->rate = le16_to_cpu(ss_info->info_2.asSpreadSpectrum[i].usSpreadRateIn10Hz);
+					return true;
+				}
+			}
+			break;
+		case 3:
+			num_indices = (size - sizeof(ATOM_COMMON_TABLE_HEADER)) /
+				sizeof(ATOM_ASIC_SS_ASSIGNMENT_V3);
+			for (i = 0; i < num_indices; i++) {
+				if ((ss_info->info_3.asSpreadSpectrum[i].ucClockIndication == id) &&
+				    (clock <= ss_info->info_3.asSpreadSpectrum[i].ulTargetClockRange)) {
+					ss->percentage =
+						le16_to_cpu(ss_info->info_3.asSpreadSpectrum[i].usSpreadSpectrumPercentage);
+					ss->type = ss_info->info_3.asSpreadSpectrum[i].ucSpreadSpectrumMode;
+					ss->rate = le16_to_cpu(ss_info->info_3.asSpreadSpectrum[i].usSpreadRateIn10Hz);
+					return true;
+				}
+			}
+			break;
+		default:
+			DRM_ERROR("Unsupported ASIC_InternalSS_Info table: %d %d\n", frev, crev);
+			break;
+		}
+
+	}
+	return false;
 }
 
 union lvds_info {
@@ -1371,7 +1463,7 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 			le16_to_cpu(lvds_info->info.sLCDTiming.usVSyncWidth);
 		lvds->panel_pwr_delay =
 		    le16_to_cpu(lvds_info->info.usOffDelayInMs);
-		lvds->lvds_misc = lvds_info->info.ucLVDS_Misc;
+		lvds->lcd_misc = lvds_info->info.ucLVDS_Misc;
 
 		misc = le16_to_cpu(lvds_info->info.sLCDTiming.susModeMiscInfo.usAccess);
 		if (misc & ATOM_VSYNC_POLARITY)
@@ -1388,19 +1480,7 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 		/* set crtc values */
 		drm_mode_set_crtcinfo(&lvds->native_mode, CRTC_INTERLACE_HALVE_V);
 
-		lvds->ss = radeon_atombios_get_ss_info(encoder, lvds_info->info.ucSS_Id);
-
-		if (ASIC_IS_AVIVO(rdev)) {
-			if (radeon_new_pll == 0)
-				lvds->pll_algo = PLL_ALGO_LEGACY;
-			else
-				lvds->pll_algo = PLL_ALGO_NEW;
-		} else {
-			if (radeon_new_pll == 1)
-				lvds->pll_algo = PLL_ALGO_NEW;
-			else
-				lvds->pll_algo = PLL_ALGO_LEGACY;
-		}
+		lvds->lcd_ss_id = lvds_info->info.ucSS_Id;
 
 		encoder->native_mode = lvds->native_mode;
 

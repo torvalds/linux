@@ -419,6 +419,7 @@
 	ENTRY_SAME(perf_event_open)
 	ENTRY_COMP(recvmmsg)
 	ENTRY_SAME(accept4)		/* 320 */
+	ENTRY_SAME(prlimit64)
 
 	/* Nothing yet */
 

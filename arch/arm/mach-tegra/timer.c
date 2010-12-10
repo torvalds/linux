@@ -28,7 +28,6 @@
 #include <linux/cnt32_to_63.h>
 
 #include <asm/mach/time.h>
-#include <asm/mach/time.h>
 #include <asm/localtimer.h>
 
 #include <mach/iomap.h>

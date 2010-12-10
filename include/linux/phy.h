@@ -472,11 +472,7 @@ static inline int phy_write(struct phy_device *phydev, u32 regnum, u16 val)
 int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id);
 struct phy_device* get_phy_device(struct mii_bus *bus, int addr);
 int phy_device_register(struct phy_device *phy);
-int phy_clear_interrupt(struct phy_device *phydev);
-int phy_config_interrupt(struct phy_device *phydev, u32 interrupts);
 int phy_init_hw(struct phy_device *phydev);
-int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
-		u32 flags, phy_interface_t interface);
 struct phy_device * phy_attach(struct net_device *dev,
 		const char *bus_id, u32 flags, phy_interface_t interface);
 struct phy_device *phy_find_first(struct mii_bus *bus);
@@ -492,17 +488,12 @@ void phy_start(struct phy_device *phydev);
 void phy_stop(struct phy_device *phydev);
 int phy_start_aneg(struct phy_device *phydev);
 
-void phy_sanitize_settings(struct phy_device *phydev);
 int phy_stop_interrupts(struct phy_device *phydev);
-int phy_enable_interrupts(struct phy_device *phydev);
-int phy_disable_interrupts(struct phy_device *phydev);
 
 static inline int phy_read_status(struct phy_device *phydev) {
 	return phydev->drv->read_status(phydev);
 }
 
-int genphy_config_advert(struct phy_device *phydev);
-int genphy_setup_forced(struct phy_device *phydev);
 int genphy_restart_aneg(struct phy_device *phydev);
 int genphy_config_aneg(struct phy_device *phydev);
 int genphy_update_link(struct phy_device *phydev);
@@ -511,8 +502,6 @@ int genphy_suspend(struct phy_device *phydev);
 int genphy_resume(struct phy_device *phydev);
 void phy_driver_unregister(struct phy_driver *drv);
 int phy_driver_register(struct phy_driver *new_driver);
-void phy_prepare_link(struct phy_device *phydev,
-		void (*adjust_link)(struct net_device *));
 void phy_state_machine(struct work_struct *work);
 void phy_start_machine(struct phy_device *phydev,
 		void (*handler)(struct net_device *));
@@ -523,7 +512,6 @@ int phy_mii_ioctl(struct phy_device *phydev,
 		struct ifreq *ifr, int cmd);
 int phy_start_interrupts(struct phy_device *phydev);
 void phy_print_status(struct phy_device *phydev);
-struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id);
 void phy_device_free(struct phy_device *phydev);
 
 int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,

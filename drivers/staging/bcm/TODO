@@ -1,0 +1,15 @@
+TODO:
+	- fix non-standard kernel style
+	- sparse warnings
+	- checkpatch warnings
+   	- remove compatiablity code for older kernels
+	- remove #ifdef's
+	- fix bogus device nameing and reference counting (see bcm_notify_event)
+	- fix use of file I/O to load config
+	- request firmware
+	- update to current network device API
+	- merge some files together
+	- cleanup/eliminate debug messages
+
+	- integrate with existing Wimax stack?
+

@@ -9,7 +9,6 @@
 
 #include <linux/types.h>
 #include <linux/time.h>
-#include <linux/smp_lock.h>
 #include <linux/lockd/lockd.h>
 #include <linux/lockd/share.h>
 
@@ -230,9 +229,7 @@ static void nlm4svc_callback_exit(struct rpc_task *task, void *data)
 
 static void nlm4svc_callback_release(void *data)
 {
-	lock_kernel();
 	nlm_release_call(data);
-	unlock_kernel();
 }
 
 static const struct rpc_call_ops nlm4svc_callback_ops = {

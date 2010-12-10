@@ -55,7 +55,6 @@ static struct drm_info_list drm_proc_list[] = {
 	{"queues", drm_queues_info, 0},
 	{"bufs", drm_bufs_info, 0},
 	{"gem_names", drm_gem_name_info, DRIVER_GEM},
-	{"gem_objects", drm_gem_object_info, DRIVER_GEM},
 #if DRM_DEBUG_CODE
 	{"vma", drm_vma_info, 0},
 #endif
@@ -151,7 +150,6 @@ fail:
 int drm_proc_init(struct drm_minor *minor, int minor_id,
 		  struct proc_dir_entry *root)
 {
-	struct drm_device *dev = minor->dev;
 	char name[64];
 	int ret;
 
@@ -172,14 +170,6 @@ int drm_proc_init(struct drm_minor *minor, int minor_id,
 		return ret;
 	}
 
-	if (dev->driver->proc_init) {
-		ret = dev->driver->proc_init(minor);
-		if (ret) {
-			DRM_ERROR("DRM: Driver failed to initialize "
-				  "/proc/dri.\n");
-			return ret;
-		}
-	}
 	return 0;
 }
 
@@ -216,14 +206,10 @@ int drm_proc_remove_files(struct drm_info_list *files, int count,
  */
 int drm_proc_cleanup(struct drm_minor *minor, struct proc_dir_entry *root)
 {
-	struct drm_device *dev = minor->dev;
 	char name[64];
 
 	if (!root || !minor->proc_root)
 		return 0;
-
-	if (dev->driver->proc_cleanup)
-		dev->driver->proc_cleanup(minor);
 
 	drm_proc_remove_files(drm_proc_list, DRM_PROC_ENTRIES, minor);
 

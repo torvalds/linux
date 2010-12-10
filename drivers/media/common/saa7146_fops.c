@@ -56,7 +56,7 @@ void saa7146_dma_free(struct saa7146_dev *dev,struct videobuf_queue *q,
 
 	BUG_ON(in_interrupt());
 
-	videobuf_waiton(&buf->vb,0,0);
+	videobuf_waiton(q, &buf->vb, 0, 0);
 	videobuf_dma_unmap(q->dev, dma);
 	videobuf_dma_free(dma);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;

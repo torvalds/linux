@@ -656,13 +656,23 @@ qlcnic_check_options(struct qlcnic_adapter *adapter)
 
 	dev_info(&pdev->dev, "firmware v%d.%d.%d\n",
 			fw_major, fw_minor, fw_build);
-
 	if (adapter->ahw.port_type == QLCNIC_XGBE) {
-		adapter->num_rxd = DEFAULT_RCV_DESCRIPTORS_10G;
+		if (adapter->flags & QLCNIC_ESWITCH_ENABLED) {
+			adapter->num_rxd = DEFAULT_RCV_DESCRIPTORS_VF;
+			adapter->max_rxd = MAX_RCV_DESCRIPTORS_VF;
+		} else {
+			adapter->num_rxd = DEFAULT_RCV_DESCRIPTORS_10G;
+			adapter->max_rxd = MAX_RCV_DESCRIPTORS_10G;
+		}
+
 		adapter->num_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS_10G;
+		adapter->max_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS_10G;
+
 	} else if (adapter->ahw.port_type == QLCNIC_GBE) {
 		adapter->num_rxd = DEFAULT_RCV_DESCRIPTORS_1G;
 		adapter->num_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS_1G;
+		adapter->max_jumbo_rxd = MAX_JUMBO_RCV_DESCRIPTORS_1G;
+		adapter->max_rxd = MAX_RCV_DESCRIPTORS_1G;
 	}
 
 	adapter->msix_supported = !!use_msi_x;
@@ -1440,7 +1450,6 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 	netdev->irq = adapter->msix_entries[0].vector;
 
 	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
 
 	err = register_netdev(netdev);
 	if (err) {
@@ -1860,6 +1869,11 @@ qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	hlist_for_each_entry_safe(tmp_fil, tmp_hnode, n, head, fnode) {
 		if (!memcmp(tmp_fil->faddr, &src_addr, ETH_ALEN) &&
 			    tmp_fil->vlan_id == vlan_id) {
+
+			if (jiffies >
+			    (QLCNIC_READD_AGE * HZ + tmp_fil->ftime))
+				qlcnic_change_filter(adapter, src_addr, vlan_id,
+								tx_ring);
 			tmp_fil->ftime = jiffies;
 			return;
 		}

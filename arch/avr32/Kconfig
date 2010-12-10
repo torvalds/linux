@@ -1,10 +1,3 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux Kernel Configuration"
-
 config AVR32
 	def_bool y
 	# With EMBEDDED=n, we get lots of stuff automatically selected

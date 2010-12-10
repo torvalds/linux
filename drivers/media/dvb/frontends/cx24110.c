@@ -310,7 +310,7 @@ static int cx24110_set_symbolrate (struct cx24110_state* state, u32 srate)
 
 }
 
-static int _cx24110_pll_write (struct dvb_frontend* fe, u8 *buf, int len)
+static int _cx24110_pll_write (struct dvb_frontend* fe, const u8 buf[], int len)
 {
 	struct cx24110_state *state = fe->demodulator_priv;
 

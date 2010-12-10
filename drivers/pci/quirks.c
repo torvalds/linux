@@ -2136,6 +2136,24 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82865_HB,
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82875_HB,
 			quirk_unhide_mch_dev6);
 
+#ifdef CONFIG_TILE
+/*
+ * The Tilera TILEmpower platform needs to set the link speed
+ * to 2.5GT(Giga-Transfers)/s (Gen 1). The default link speed
+ * setting is 5GT/s (Gen 2). 0x98 is the Link Control2 PCIe
+ * capability register of the PEX8624 PCIe switch. The switch
+ * supports link speed auto negotiation, but falsely sets
+ * the link speed to 5GT/s.
+ */
+static void __devinit quirk_tile_plx_gen1(struct pci_dev *dev)
+{
+	if (tile_plx_gen1) {
+		pci_write_config_dword(dev, 0x98, 0x1);
+		mdelay(50);
+	}
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_PLX, 0x8624, quirk_tile_plx_gen1);
+#endif /* CONFIG_TILE */
 
 #ifdef CONFIG_PCI_MSI
 /* Some chipsets do not support MSI. We cannot easily rely on setting
@@ -2296,6 +2314,37 @@ static void __devinit nvenet_msi_disable(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
 			PCI_DEVICE_ID_NVIDIA_NVENET_15,
 			nvenet_msi_disable);
+
+/*
+ * Some versions of the MCP55 bridge from nvidia have a legacy irq routing
+ * config register.  This register controls the routing of legacy interrupts
+ * from devices that route through the MCP55.  If this register is misprogramed
+ * interrupts are only sent to the bsp, unlike conventional systems where the
+ * irq is broadxast to all online cpus.  Not having this register set
+ * properly prevents kdump from booting up properly, so lets make sure that
+ * we have it set correctly.
+ * Note this is an undocumented register.
+ */
+static void __devinit nvbridge_check_legacy_irq_routing(struct pci_dev *dev)
+{
+	u32 cfg;
+
+	pci_read_config_dword(dev, 0x74, &cfg);
+
+	if (cfg & ((1 << 2) | (1 << 15))) {
+		printk(KERN_INFO "Rewriting irq routing register on MCP55\n");
+		cfg &= ~((1 << 2) | (1 << 15));
+		pci_write_config_dword(dev, 0x74, cfg);
+	}
+}
+
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
+			PCI_DEVICE_ID_NVIDIA_MCP55_BRIDGE_V0,
+			nvbridge_check_legacy_irq_routing);
+
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA,
+			PCI_DEVICE_ID_NVIDIA_MCP55_BRIDGE_V4,
+			nvbridge_check_legacy_irq_routing);
 
 static int __devinit ht_check_msi_mapping(struct pci_dev *dev)
 {

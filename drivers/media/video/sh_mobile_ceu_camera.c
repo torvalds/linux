@@ -245,7 +245,7 @@ static void free_buffer(struct videobuf_queue *vq,
 	if (in_interrupt())
 		BUG();
 
-	videobuf_waiton(&buf->vb, 0, 0);
+	videobuf_waiton(vq, &buf->vb, 0, 0);
 	videobuf_dma_contig_free(vq, &buf->vb);
 	dev_dbg(dev, "%s freed\n", __func__);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
@@ -1726,7 +1726,7 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 	return ret;
 }
 
-static int sh_mobile_ceu_reqbufs(struct soc_camera_file *icf,
+static int sh_mobile_ceu_reqbufs(struct soc_camera_device *icd,
 				 struct v4l2_requestbuffers *p)
 {
 	int i;
@@ -1740,7 +1740,7 @@ static int sh_mobile_ceu_reqbufs(struct soc_camera_file *icf,
 	for (i = 0; i < p->count; i++) {
 		struct sh_mobile_ceu_buffer *buf;
 
-		buf = container_of(icf->vb_vidq.bufs[i],
+		buf = container_of(icd->vb_vidq.bufs[i],
 				   struct sh_mobile_ceu_buffer, vb);
 		INIT_LIST_HEAD(&buf->vb.queue);
 	}
@@ -1750,10 +1750,10 @@ static int sh_mobile_ceu_reqbufs(struct soc_camera_file *icf,
 
 static unsigned int sh_mobile_ceu_poll(struct file *file, poll_table *pt)
 {
-	struct soc_camera_file *icf = file->private_data;
+	struct soc_camera_device *icd = file->private_data;
 	struct sh_mobile_ceu_buffer *buf;
 
-	buf = list_entry(icf->vb_vidq.stream.next,
+	buf = list_entry(icd->vb_vidq.stream.next,
 			 struct sh_mobile_ceu_buffer, vb.stream);
 
 	poll_wait(file, &buf->vb.done, pt);
@@ -1786,23 +1786,7 @@ static void sh_mobile_ceu_init_videobuf(struct videobuf_queue *q,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				       pcdev->field,
 				       sizeof(struct sh_mobile_ceu_buffer),
-				       icd);
-}
-
-static int sh_mobile_ceu_get_parm(struct soc_camera_device *icd,
-				  struct v4l2_streamparm *parm)
-{
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-
-	return v4l2_subdev_call(sd, video, g_parm, parm);
-}
-
-static int sh_mobile_ceu_set_parm(struct soc_camera_device *icd,
-				  struct v4l2_streamparm *parm)
-{
-	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-
-	return v4l2_subdev_call(sd, video, s_parm, parm);
+				       icd, NULL);
 }
 
 static int sh_mobile_ceu_get_ctrl(struct soc_camera_device *icd,
@@ -1866,8 +1850,6 @@ static struct soc_camera_host_ops sh_mobile_ceu_host_ops = {
 	.try_fmt	= sh_mobile_ceu_try_fmt,
 	.set_ctrl	= sh_mobile_ceu_set_ctrl,
 	.get_ctrl	= sh_mobile_ceu_get_ctrl,
-	.set_parm	= sh_mobile_ceu_set_parm,
-	.get_parm	= sh_mobile_ceu_get_parm,
 	.reqbufs	= sh_mobile_ceu_reqbufs,
 	.poll		= sh_mobile_ceu_poll,
 	.querycap	= sh_mobile_ceu_querycap,

@@ -98,7 +98,8 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u32 flags)
 		[20] = "Address vector port checking support",
 		[21] = "UD multicast support",
 		[24] = "Demand paging support",
-		[25] = "Router support"
+		[25] = "Router support",
+		[30] = "IBoE support"
 	};
 	int i;
 
@@ -288,6 +289,10 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		MLX4_GET(field, outbox, QUERY_DEV_CAP_LOG_BF_REG_SZ_OFFSET);
 		dev_cap->bf_reg_size = 1 << (field & 0x1f);
 		MLX4_GET(field, outbox, QUERY_DEV_CAP_LOG_MAX_BF_REGS_PER_PAGE_OFFSET);
+		if ((1 << (field & 0x3f)) > (PAGE_SIZE / dev_cap->bf_reg_size)) {
+			mlx4_warn(dev, "firmware bug: log2 # of blue flame regs is invalid (%d), forcing 3\n", field & 0x1f);
+			field = 3;
+		}
 		dev_cap->bf_regs_per_page = 1 << (field & 0x3f);
 		mlx4_dbg(dev, "BlueFlame available (reg size %d, regs/page %d)\n",
 			 dev_cap->bf_reg_size, dev_cap->bf_regs_per_page);

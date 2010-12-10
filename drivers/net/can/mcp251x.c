@@ -169,6 +169,7 @@
 #  define RXBSIDH_SHIFT 3
 #define RXBSIDL(n)  (((n) * 0x10) + 0x60 + RXBSIDL_OFF)
 #  define RXBSIDL_IDE   0x08
+#  define RXBSIDL_SRR   0x10
 #  define RXBSIDL_EID   3
 #  define RXBSIDL_SHIFT 5
 #define RXBEID8(n)  (((n) * 0x10) + 0x60 + RXBEID8_OFF)
@@ -475,6 +476,8 @@ static void mcp251x_hw_rx(struct spi_device *spi, int buf_idx)
 		frame->can_id =
 			(buf[RXBSIDH_OFF] << RXBSIDH_SHIFT) |
 			(buf[RXBSIDL_OFF] >> RXBSIDL_SHIFT);
+		if (buf[RXBSIDL_OFF] & RXBSIDL_SRR)
+			frame->can_id |= CAN_RTR_FLAG;
 	}
 	/* Data length */
 	frame->can_dlc = get_can_dlc(buf[RXBDLC_OFF] & RXBDLC_LEN_MASK);

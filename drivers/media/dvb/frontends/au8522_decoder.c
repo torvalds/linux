@@ -36,7 +36,6 @@
 #include <linux/delay.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv.h>
 #include <media/v4l2-device.h>
 #include "au8522.h"
 #include "au8522_priv.h"
@@ -831,9 +830,25 @@ static const struct i2c_device_id au8522_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, au8522_id);
 
-static struct v4l2_i2c_driver_data v4l2_i2c_data = {
-	.name = "au8522",
-	.probe = au8522_probe,
-	.remove = au8522_remove,
-	.id_table = au8522_id,
+static struct i2c_driver au8522_driver = {
+	.driver = {
+		.owner	= THIS_MODULE,
+		.name	= "au8522",
+	},
+	.probe		= au8522_probe,
+	.remove		= au8522_remove,
+	.id_table	= au8522_id,
 };
+
+static __init int init_au8522(void)
+{
+	return i2c_add_driver(&au8522_driver);
+}
+
+static __exit void exit_au8522(void)
+{
+	i2c_del_driver(&au8522_driver);
+}
+
+module_init(init_au8522);
+module_exit(exit_au8522);

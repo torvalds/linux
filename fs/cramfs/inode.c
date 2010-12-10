@@ -533,17 +533,16 @@ static const struct super_operations cramfs_ops = {
 	.statfs		= cramfs_statfs,
 };
 
-static int cramfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *cramfs_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, cramfs_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, cramfs_fill_super);
 }
 
 static struct file_system_type cramfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "cramfs",
-	.get_sb		= cramfs_get_sb,
+	.mount		= cramfs_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

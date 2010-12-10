@@ -223,7 +223,7 @@ static void xrun_log(struct snd_pcm_substream *substream,
 	entry->jiffies = jiffies;
 	entry->pos = pos;
 	entry->period_size = runtime->period_size;
-	entry->buffer_size = runtime->buffer_size;;
+	entry->buffer_size = runtime->buffer_size;
 	entry->old_hw_ptr = runtime->status->hw_ptr;
 	entry->hw_ptr_base = runtime->hw_ptr_base;
 	log->idx = (log->idx + 1) % XRUN_LOG_CNT;
@@ -334,11 +334,15 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		/* delta = "expected next hw_ptr" for in_interrupt != 0 */
 		delta = runtime->hw_ptr_interrupt + runtime->period_size;
 		if (delta > new_hw_ptr) {
-			hw_base += runtime->buffer_size;
-			if (hw_base >= runtime->boundary)
-				hw_base = 0;
-			new_hw_ptr = hw_base + pos;
-			goto __delta;
+			/* check for double acknowledged interrupts */
+			hdelta = jiffies - runtime->hw_ptr_jiffies;
+			if (hdelta > runtime->hw_ptr_buffer_jiffies/2) {
+				hw_base += runtime->buffer_size;
+				if (hw_base >= runtime->boundary)
+					hw_base = 0;
+				new_hw_ptr = hw_base + pos;
+				goto __delta;
+			}
 		}
 	}
 	/* new_hw_ptr might be lower than old_hw_ptr in case when */

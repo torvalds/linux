@@ -175,19 +175,18 @@ int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 	return restore_fp_registers(userspace_pid[cpu], fpregs);
 }
 
-long subarch_ptrace(struct task_struct *child, long request, long addr,
-		    long data)
+long subarch_ptrace(struct task_struct *child, long request,
+		    unsigned long addr, unsigned long data)
 {
 	int ret = -EIO;
+	void __user *datap = (void __user *) data;
 
 	switch (request) {
 	case PTRACE_GETFPXREGS: /* Get the child FPU state. */
-		ret = get_fpregs((struct user_i387_struct __user *) data,
-				 child);
+		ret = get_fpregs(datap, child);
 		break;
 	case PTRACE_SETFPXREGS: /* Set the child FPU state. */
-		ret = set_fpregs((struct user_i387_struct __user *) data,
-				 child);
+		ret = set_fpregs(datap, child);
 		break;
 	}
 

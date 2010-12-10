@@ -635,7 +635,7 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 /*
  * mount: join the ceph cluster, and open root directory.
  */
-static int ceph_mount(struct ceph_fs_client *fsc, struct vfsmount *mnt,
+static struct dentry *ceph_real_mount(struct ceph_fs_client *fsc,
 		      const char *path)
 {
 	int err;
@@ -678,16 +678,14 @@ static int ceph_mount(struct ceph_fs_client *fsc, struct vfsmount *mnt,
 		}
 	}
 
-	mnt->mnt_root = root;
-	mnt->mnt_sb = fsc->sb;
-
 	fsc->mount_state = CEPH_MOUNT_MOUNTED;
 	dout("mount success\n");
-	err = 0;
+	mutex_unlock(&fsc->client->mount_mutex);
+	return root;
 
 out:
 	mutex_unlock(&fsc->client->mount_mutex);
-	return err;
+	return ERR_PTR(err);
 
 fail:
 	if (first) {
@@ -777,41 +775,45 @@ static int ceph_register_bdi(struct super_block *sb,
 	return err;
 }
 
-static int ceph_get_sb(struct file_system_type *fs_type,
-		       int flags, const char *dev_name, void *data,
-		       struct vfsmount *mnt)
+static struct dentry *ceph_mount(struct file_system_type *fs_type,
+		       int flags, const char *dev_name, void *data)
 {
 	struct super_block *sb;
 	struct ceph_fs_client *fsc;
+	struct dentry *res;
 	int err;
 	int (*compare_super)(struct super_block *, void *) = ceph_compare_super;
 	const char *path = NULL;
 	struct ceph_mount_options *fsopt = NULL;
 	struct ceph_options *opt = NULL;
 
-	dout("ceph_get_sb\n");
+	dout("ceph_mount\n");
 	err = parse_mount_options(&fsopt, &opt, flags, data, dev_name, &path);
-	if (err < 0)
+	if (err < 0) {
+		res = ERR_PTR(err);
 		goto out_final;
+	}
 
 	/* create client (which we may/may not use) */
 	fsc = create_fs_client(fsopt, opt);
 	if (IS_ERR(fsc)) {
-		err = PTR_ERR(fsc);
+		res = ERR_CAST(fsc);
 		kfree(fsopt);
 		kfree(opt);
 		goto out_final;
 	}
 
 	err = ceph_mdsc_init(fsc);
-	if (err < 0)
+	if (err < 0) {
+		res = ERR_PTR(err);
 		goto out;
+	}
 
 	if (ceph_test_opt(fsc->client, NOSHARE))
 		compare_super = NULL;
 	sb = sget(fs_type, compare_super, ceph_set_super, fsc);
 	if (IS_ERR(sb)) {
-		err = PTR_ERR(sb);
+		res = ERR_CAST(sb);
 		goto out;
 	}
 
@@ -823,16 +825,18 @@ static int ceph_get_sb(struct file_system_type *fs_type,
 	} else {
 		dout("get_sb using new client %p\n", fsc);
 		err = ceph_register_bdi(sb, fsc);
-		if (err < 0)
+		if (err < 0) {
+			res = ERR_PTR(err);
 			goto out_splat;
+		}
 	}
 
-	err = ceph_mount(fsc, mnt, path);
-	if (err < 0)
+	res = ceph_real_mount(fsc, path);
+	if (IS_ERR(res))
 		goto out_splat;
-	dout("root %p inode %p ino %llx.%llx\n", mnt->mnt_root,
-	     mnt->mnt_root->d_inode, ceph_vinop(mnt->mnt_root->d_inode));
-	return 0;
+	dout("root %p inode %p ino %llx.%llx\n", res,
+	     res->d_inode, ceph_vinop(res->d_inode));
+	return res;
 
 out_splat:
 	ceph_mdsc_close_sessions(fsc->mdsc);
@@ -843,8 +847,8 @@ out:
 	ceph_mdsc_destroy(fsc);
 	destroy_fs_client(fsc);
 out_final:
-	dout("ceph_get_sb fail %d\n", err);
-	return err;
+	dout("ceph_mount fail %ld\n", PTR_ERR(res));
+	return res;
 }
 
 static void ceph_kill_sb(struct super_block *s)
@@ -860,7 +864,7 @@ static void ceph_kill_sb(struct super_block *s)
 static struct file_system_type ceph_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "ceph",
-	.get_sb		= ceph_get_sb,
+	.mount		= ceph_mount,
 	.kill_sb	= ceph_kill_sb,
 	.fs_flags	= FS_RENAME_DOES_D_MOVE,
 };

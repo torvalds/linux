@@ -66,7 +66,7 @@ static DEFINE_SPINLOCK(syscon_resetreg_lock);
  *  AMBA bus
  *  |
  *  +- CPU
- *  +- NANDIF NAND Flash interface
+ *  +- FSMC NANDIF NAND Flash interface
  *  +- SEMI Shared Memory interface
  *  +- ISP Image Signal Processor (U335 only)
  *  +- CDS (U335 only)
@@ -726,7 +726,7 @@ static struct clk cpu_clk = {
 };
 
 static struct clk nandif_clk = {
-	.name       = "NANDIF",
+	.name       = "FSMC",
 	.parent	    = &amba_clk,
 	.hw_ctrld   = false,
 	.reset	    = true,
@@ -1259,7 +1259,7 @@ static struct clk_lookup lookups[] = {
 	/* Connected directly to the AMBA bus */
 	DEF_LOOKUP("amba",      &amba_clk),
 	DEF_LOOKUP("cpu",       &cpu_clk),
-	DEF_LOOKUP("fsmc",      &nandif_clk),
+	DEF_LOOKUP("fsmc-nand", &nandif_clk),
 	DEF_LOOKUP("semi",      &semi_clk),
 #ifdef CONFIG_MACH_U300_BS335
 	DEF_LOOKUP("isp",       &isp_clk),

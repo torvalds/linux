@@ -37,16 +37,16 @@ bfa_port_stats_swap(struct bfa_port_s *port, union bfa_port_stats_u *stats)
 		t0 = dip[i];
 		t1 = dip[i + 1];
 #ifdef __BIGENDIAN
-		dip[i] = bfa_os_ntohl(t0);
-		dip[i + 1] = bfa_os_ntohl(t1);
+		dip[i] = be32_to_cpu(t0);
+		dip[i + 1] = be32_to_cpu(t1);
 #else
-		dip[i] = bfa_os_ntohl(t1);
-		dip[i + 1] = bfa_os_ntohl(t0);
+		dip[i] = be32_to_cpu(t1);
+		dip[i + 1] = be32_to_cpu(t0);
 #endif
 	}
 }
 
-/**
+/*
  * bfa_port_enable_isr()
  *
  *
@@ -63,7 +63,7 @@ bfa_port_enable_isr(struct bfa_port_s *port, bfa_status_t status)
 	port->endis_cbfn(port->endis_cbarg, status);
 }
 
-/**
+/*
  * bfa_port_disable_isr()
  *
  *
@@ -80,7 +80,7 @@ bfa_port_disable_isr(struct bfa_port_s *port, bfa_status_t status)
 	port->endis_cbfn(port->endis_cbarg, status);
 }
 
-/**
+/*
  * bfa_port_get_stats_isr()
  *
  *
@@ -112,7 +112,7 @@ bfa_port_get_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 	}
 }
 
-/**
+/*
  * bfa_port_clear_stats_isr()
  *
  *
@@ -129,7 +129,7 @@ bfa_port_clear_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 	port->stats_status = status;
 	port->stats_busy   = BFA_FALSE;
 
-	/**
+	/*
 	* re-initialize time stamp for stats reset
 	*/
 	bfa_os_gettimeofday(&tv);
@@ -141,7 +141,7 @@ bfa_port_clear_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 	}
 }
 
-/**
+/*
  * bfa_port_isr()
  *
  *
@@ -189,7 +189,7 @@ bfa_port_isr(void *cbarg, struct bfi_mbmsg_s *m)
 	}
 }
 
-/**
+/*
  * bfa_port_meminfo()
  *
  *
@@ -203,7 +203,7 @@ bfa_port_meminfo(void)
 	return BFA_ROUNDUP(sizeof(union bfa_port_stats_u), BFA_DMA_ALIGN_SZ);
 }
 
-/**
+/*
  * bfa_port_mem_claim()
  *
  *
@@ -220,7 +220,7 @@ bfa_port_mem_claim(struct bfa_port_s *port, u8 *dma_kva, u64 dma_pa)
 	port->stats_dma.pa  = dma_pa;
 }
 
-/**
+/*
  * bfa_port_enable()
  *
  *   Send the Port enable request to the f/w
@@ -264,7 +264,7 @@ bfa_port_enable(struct bfa_port_s *port, bfa_port_endis_cbfn_t cbfn,
 	return BFA_STATUS_OK;
 }
 
-/**
+/*
  * bfa_port_disable()
  *
  *   Send the Port disable request to the f/w
@@ -308,7 +308,7 @@ bfa_port_disable(struct bfa_port_s *port, bfa_port_endis_cbfn_t cbfn,
 	return BFA_STATUS_OK;
 }
 
-/**
+/*
  * bfa_port_get_stats()
  *
  *   Send the request to the f/w to fetch Port statistics.
@@ -348,7 +348,7 @@ bfa_port_get_stats(struct bfa_port_s *port, union bfa_port_stats_u *stats,
 	return BFA_STATUS_OK;
 }
 
-/**
+/*
  * bfa_port_clear_stats()
  *
  *
@@ -385,7 +385,7 @@ bfa_port_clear_stats(struct bfa_port_s *port, bfa_port_stats_cbfn_t cbfn,
 	return BFA_STATUS_OK;
 }
 
-/**
+/*
  * bfa_port_hbfail()
  *
  *
@@ -415,7 +415,7 @@ bfa_port_hbfail(void *arg)
 	}
 }
 
-/**
+/*
  * bfa_port_attach()
  *
  *
@@ -449,7 +449,7 @@ bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 	bfa_ioc_hbfail_init(&port->hbfail, bfa_port_hbfail, port);
 	bfa_ioc_hbfail_register(port->ioc, &port->hbfail);
 
-	/**
+	/*
 	 * initialize time stamp for stats reset
 	 */
 	bfa_os_gettimeofday(&tv);
@@ -458,7 +458,7 @@ bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 	bfa_trc(port, 0);
 }
 
-/**
+/*
  * bfa_port_detach()
  *
  *

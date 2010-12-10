@@ -250,6 +250,73 @@ int btrfs_add_ordered_sum(struct inode *inode,
 
 /*
  * this is used to account for finished IO across a given range
+ * of the file.  The IO may span ordered extents.  If
+ * a given ordered_extent is completely done, 1 is returned, otherwise
+ * 0.
+ *
+ * test_and_set_bit on a flag in the struct btrfs_ordered_extent is used
+ * to make sure this function only returns 1 once for a given ordered extent.
+ *
+ * file_offset is updated to one byte past the range that is recorded as
+ * complete.  This allows you to walk forward in the file.
+ */
+int btrfs_dec_test_first_ordered_pending(struct inode *inode,
+				   struct btrfs_ordered_extent **cached,
+				   u64 *file_offset, u64 io_size)
+{
+	struct btrfs_ordered_inode_tree *tree;
+	struct rb_node *node;
+	struct btrfs_ordered_extent *entry = NULL;
+	int ret;
+	u64 dec_end;
+	u64 dec_start;
+	u64 to_dec;
+
+	tree = &BTRFS_I(inode)->ordered_tree;
+	spin_lock(&tree->lock);
+	node = tree_search(tree, *file_offset);
+	if (!node) {
+		ret = 1;
+		goto out;
+	}
+
+	entry = rb_entry(node, struct btrfs_ordered_extent, rb_node);
+	if (!offset_in_entry(entry, *file_offset)) {
+		ret = 1;
+		goto out;
+	}
+
+	dec_start = max(*file_offset, entry->file_offset);
+	dec_end = min(*file_offset + io_size, entry->file_offset +
+		      entry->len);
+	*file_offset = dec_end;
+	if (dec_start > dec_end) {
+		printk(KERN_CRIT "bad ordering dec_start %llu end %llu\n",
+		       (unsigned long long)dec_start,
+		       (unsigned long long)dec_end);
+	}
+	to_dec = dec_end - dec_start;
+	if (to_dec > entry->bytes_left) {
+		printk(KERN_CRIT "bad ordered accounting left %llu size %llu\n",
+		       (unsigned long long)entry->bytes_left,
+		       (unsigned long long)to_dec);
+	}
+	entry->bytes_left -= to_dec;
+	if (entry->bytes_left == 0)
+		ret = test_and_set_bit(BTRFS_ORDERED_IO_DONE, &entry->flags);
+	else
+		ret = 1;
+out:
+	if (!ret && cached && entry) {
+		*cached = entry;
+		atomic_inc(&entry->refs);
+	}
+	spin_unlock(&tree->lock);
+	return ret == 0;
+}
+
+/*
+ * this is used to account for finished IO across a given range
  * of the file.  The IO should not span ordered extents.  If
  * a given ordered_extent is completely done, 1 is returned, otherwise
  * 0.
@@ -526,7 +593,6 @@ int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 {
 	u64 end;
 	u64 orig_end;
-	u64 wait_end;
 	struct btrfs_ordered_extent *ordered;
 	int found;
 
@@ -537,7 +603,6 @@ int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 		if (orig_end > INT_LIMIT(loff_t))
 			orig_end = INT_LIMIT(loff_t);
 	}
-	wait_end = orig_end;
 again:
 	/* start IO across the range first to instantiate any delalloc
 	 * extents

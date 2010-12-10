@@ -95,6 +95,9 @@
 
 #define IXGBE_TXPBTHRESH_DCB    0xA        /* THRESH value for DCB mode */
 
+/* SECTXMINIFG DCB */
+#define IXGBE_SECTX_DCB		0x00001F00 /* DCB TX Buffer IFG */
+
 
 /* DCB hardware-specific driver APIs */
 

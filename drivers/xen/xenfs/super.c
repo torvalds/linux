@@ -22,6 +22,46 @@
 MODULE_DESCRIPTION("Xen filesystem");
 MODULE_LICENSE("GPL");
 
+static struct inode *xenfs_make_inode(struct super_block *sb, int mode)
+{
+	struct inode *ret = new_inode(sb);
+
+	if (ret) {
+		ret->i_mode = mode;
+		ret->i_uid = ret->i_gid = 0;
+		ret->i_blocks = 0;
+		ret->i_atime = ret->i_mtime = ret->i_ctime = CURRENT_TIME;
+	}
+	return ret;
+}
+
+static struct dentry *xenfs_create_file(struct super_block *sb,
+					struct dentry *parent,
+					const char *name,
+					const struct file_operations *fops,
+					void *data,
+					int mode)
+{
+	struct dentry *dentry;
+	struct inode *inode;
+
+	dentry = d_alloc_name(parent, name);
+	if (!dentry)
+		return NULL;
+
+	inode = xenfs_make_inode(sb, S_IFREG | mode);
+	if (!inode) {
+		dput(dentry);
+		return NULL;
+	}
+
+	inode->i_fop = fops;
+	inode->i_private = data;
+
+	d_add(dentry, inode);
+	return dentry;
+}
+
 static ssize_t capabilities_read(struct file *file, char __user *buf,
 				 size_t size, loff_t *off)
 {
@@ -44,23 +84,36 @@ static int xenfs_fill_super(struct super_block *sb, void *data, int silent)
 		[1] = {},
 		{ "xenbus", &xenbus_file_ops, S_IRUSR|S_IWUSR },
 		{ "capabilities", &capabilities_file_ops, S_IRUGO },
+		{ "privcmd", &privcmd_file_ops, S_IRUSR|S_IWUSR },
 		{""},
 	};
+	int rc;
 
-	return simple_fill_super(sb, XENFS_SUPER_MAGIC, xenfs_files);
+	rc = simple_fill_super(sb, XENFS_SUPER_MAGIC, xenfs_files);
+	if (rc < 0)
+		return rc;
+
+	if (xen_initial_domain()) {
+		xenfs_create_file(sb, sb->s_root, "xsd_kva",
+				  &xsd_kva_file_ops, NULL, S_IRUSR|S_IWUSR);
+		xenfs_create_file(sb, sb->s_root, "xsd_port",
+				  &xsd_port_file_ops, NULL, S_IRUSR|S_IWUSR);
+	}
+
+	return rc;
 }
 
-static int xenfs_get_sb(struct file_system_type *fs_type,
-			int flags, const char *dev_name,
-			void *data, struct vfsmount *mnt)
+static struct dentry *xenfs_mount(struct file_system_type *fs_type,
+				  int flags, const char *dev_name,
+				  void *data)
 {
-	return get_sb_single(fs_type, flags, data, xenfs_fill_super, mnt);
+	return mount_single(fs_type, flags, data, xenfs_fill_super);
 }
 
 static struct file_system_type xenfs_type = {
 	.owner =	THIS_MODULE,
 	.name =		"xenfs",
-	.get_sb =	xenfs_get_sb,
+	.mount =	xenfs_mount,
 	.kill_sb =	kill_litter_super,
 };
 

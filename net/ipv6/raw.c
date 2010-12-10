@@ -373,7 +373,7 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 
 static inline int rawv6_rcv_skb(struct sock * sk, struct sk_buff * skb)
 {
-	if ((raw6_sk(sk)->checksum || sk->sk_filter) &&
+	if ((raw6_sk(sk)->checksum || rcu_dereference_raw(sk->sk_filter)) &&
 	    skb_checksum_complete(skb)) {
 		atomic_inc(&sk->sk_drops);
 		kfree_skb(skb);

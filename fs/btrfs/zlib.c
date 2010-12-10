@@ -199,8 +199,6 @@ int btrfs_zlib_compress_pages(struct address_space *mapping,
 	int nr_pages = 0;
 	struct page *in_page = NULL;
 	struct page *out_page = NULL;
-	int out_written = 0;
-	int in_read = 0;
 	unsigned long bytes_left;
 
 	*out_pages = 0;
@@ -232,9 +230,6 @@ int btrfs_zlib_compress_pages(struct address_space *mapping,
 	workspace->def_strm.next_out = cpage_out;
 	workspace->def_strm.avail_out = PAGE_CACHE_SIZE;
 	workspace->def_strm.avail_in = min(len, PAGE_CACHE_SIZE);
-
-	out_written = 0;
-	in_read = 0;
 
 	while (workspace->def_strm.total_in < len) {
 		ret = zlib_deflate(&workspace->def_strm, Z_SYNC_FLUSH);

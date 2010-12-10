@@ -915,7 +915,7 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	mfd->pan_waiting = FALSE;
 	init_completion(&mfd->pan_comp);
 	init_completion(&mfd->refresher_comp);
-	init_MUTEX(&mfd->sem);
+	sema_init(&mfd->sem, 1);
 
 	fbram_offset = PAGE_ALIGN((int)fbram)-(int)fbram;
 	fbram += fbram_offset;
@@ -1158,7 +1158,7 @@ static int msm_fb_release(struct fb_info *info, int user)
 	return ret;
 }
 
-DECLARE_MUTEX(msm_fb_pan_sem);
+DEFINE_SEMAPHORE(msm_fb_pan_sem);
 
 static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info)
@@ -1962,7 +1962,7 @@ static int msmfb_overlay_play(struct fb_info *info, unsigned long *argp)
 
 #endif
 
-DECLARE_MUTEX(msm_fb_ioctl_ppp_sem);
+DEFINE_SEMAPHORE(msm_fb_ioctl_ppp_sem);
 DEFINE_MUTEX(msm_fb_ioctl_lut_sem);
 DEFINE_MUTEX(msm_fb_ioctl_hist_sem);
 

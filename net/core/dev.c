@@ -1685,10 +1685,10 @@ EXPORT_SYMBOL(netif_device_attach);
 
 static bool can_checksum_protocol(unsigned long features, __be16 protocol)
 {
-	return ((features & NETIF_F_GEN_CSUM) ||
-		((features & NETIF_F_IP_CSUM) &&
+	return ((features & NETIF_F_NO_CSUM) ||
+		((features & NETIF_F_V4_CSUM) &&
 		 protocol == htons(ETH_P_IP)) ||
-		((features & NETIF_F_IPV6_CSUM) &&
+		((features & NETIF_F_V6_CSUM) &&
 		 protocol == htons(ETH_P_IPV6)) ||
 		((features & NETIF_F_FCOE_CRC) &&
 		 protocol == htons(ETH_P_FCOE)));
@@ -1696,22 +1696,18 @@ static bool can_checksum_protocol(unsigned long features, __be16 protocol)
 
 static bool dev_can_checksum(struct net_device *dev, struct sk_buff *skb)
 {
+	__be16 protocol = skb->protocol;
 	int features = dev->features;
 
-	if (vlan_tx_tag_present(skb))
+	if (vlan_tx_tag_present(skb)) {
 		features &= dev->vlan_features;
-
-	if (can_checksum_protocol(features, skb->protocol))
-		return true;
-
-	if (skb->protocol == htons(ETH_P_8021Q)) {
+	} else if (protocol == htons(ETH_P_8021Q)) {
 		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
-		if (can_checksum_protocol(dev->features & dev->vlan_features,
-					  veh->h_vlan_encapsulated_proto))
-			return true;
+		protocol = veh->h_vlan_encapsulated_proto;
+		features &= dev->vlan_features;
 	}
 
-	return false;
+	return can_checksum_protocol(features, protocol);
 }
 
 /**
@@ -2135,7 +2131,7 @@ static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 	} else {
 		struct sock *sk = skb->sk;
 		queue_index = sk_tx_queue_get(sk);
-		if (queue_index < 0) {
+		if (queue_index < 0 || queue_index >= dev->real_num_tx_queues) {
 
 			queue_index = 0;
 			if (dev->real_num_tx_queues > 1)
@@ -2213,7 +2209,7 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 }
 
 static DEFINE_PER_CPU(int, xmit_recursion);
-#define RECURSION_LIMIT 3
+#define RECURSION_LIMIT 10
 
 /**
  *	dev_queue_xmit - transmit a buffer
@@ -2413,7 +2409,7 @@ EXPORT_SYMBOL(__skb_get_rxhash);
 #ifdef CONFIG_RPS
 
 /* One global table that all flow-based protocols share. */
-struct rps_sock_flow_table *rps_sock_flow_table __read_mostly;
+struct rps_sock_flow_table __rcu *rps_sock_flow_table __read_mostly;
 EXPORT_SYMBOL(rps_sock_flow_table);
 
 /*
@@ -2425,7 +2421,7 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		       struct rps_dev_flow **rflowp)
 {
 	struct netdev_rx_queue *rxqueue;
-	struct rps_map *map = NULL;
+	struct rps_map *map;
 	struct rps_dev_flow_table *flow_table;
 	struct rps_sock_flow_table *sock_flow_table;
 	int cpu = -1;
@@ -2444,15 +2440,15 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	} else
 		rxqueue = dev->_rx;
 
-	if (rxqueue->rps_map) {
-		map = rcu_dereference(rxqueue->rps_map);
-		if (map && map->len == 1) {
+	map = rcu_dereference(rxqueue->rps_map);
+	if (map) {
+		if (map->len == 1) {
 			tcpu = map->cpus[0];
 			if (cpu_online(tcpu))
 				cpu = tcpu;
 			goto done;
 		}
-	} else if (!rxqueue->rps_flow_table) {
+	} else if (!rcu_dereference_raw(rxqueue->rps_flow_table)) {
 		goto done;
 	}
 
@@ -5416,7 +5412,7 @@ void netdev_run_todo(void)
 		/* paranoia */
 		BUG_ON(netdev_refcnt_read(dev));
 		WARN_ON(rcu_dereference_raw(dev->ip_ptr));
-		WARN_ON(dev->ip6_ptr);
+		WARN_ON(rcu_dereference_raw(dev->ip6_ptr));
 		WARN_ON(dev->dn_ptr);
 
 		if (dev->destructor)

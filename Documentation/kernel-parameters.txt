@@ -706,7 +706,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			arch/x86/kernel/cpu/cpufreq/elanfreq.c.
 
 	elevator=	[IOSCHED]
-			Format: {"anticipatory" | "cfq" | "deadline" | "noop"}
+			Format: {"cfq" | "deadline" | "noop"}
 			See Documentation/block/as-iosched.txt and
 			Documentation/block/deadline-iosched.txt for details.
 
@@ -1541,10 +1541,13 @@ and is between 256 and 4096 characters. It is defined in the file
 			1 to enable accounting
 			Default value is 0.
 
-	nfsaddrs=	[NFS]
+	nfsaddrs=	[NFS] Deprecated.  Use ip= instead.
 			See Documentation/filesystems/nfs/nfsroot.txt.
 
 	nfsroot=	[NFS] nfs root filesystem for disk-less boxes.
+			See Documentation/filesystems/nfs/nfsroot.txt.
+
+	nfsrootdebug	[NFS] enable nfsroot debugging messages.
 			See Documentation/filesystems/nfs/nfsroot.txt.
 
 	nfs.callback_tcpport=
@@ -2172,6 +2175,11 @@ and is between 256 and 4096 characters. It is defined in the file
 	reset_devices	[KNL] Force drivers to reset the underlying device
 			during initialization.
 
+	resource_alloc_from_bottom
+			Allocate new resources from the beginning of available
+			space, not the end.  If you need to use this, please
+			report a bug.
+
 	resume=		[SWSUSP]
 			Specify the partition device for software suspend
 
@@ -2377,6 +2385,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			improve throughput, but will also increase the
 			amount of memory reserved for use by the client.
 
+	swapaccount[=0|1]
+			[KNL] Enable accounting of swap in memory resource
+			controller if no parameter or 1 is given or disable
+			it if 0 is given (See Documentation/cgroups/memory.txt)
+
 	swiotlb=	[IA-64] Number of I/O TLB slabs
 
 	switches=	[HW,M68k]
@@ -2438,7 +2451,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			topology informations if the hardware supports these.
 			The scheduler will make use of these informations and
 			e.g. base its process migration decisions on it.
-			Default is off.
+			Default is on.
 
 	tp720=		[HW,PS2]
 

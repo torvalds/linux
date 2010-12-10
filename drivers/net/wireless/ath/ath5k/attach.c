@@ -139,12 +139,12 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	/* Fill the ath5k_hw struct with the needed functions */
 	ret = ath5k_hw_init_desc_functions(ah);
 	if (ret)
-		goto err_free;
+		goto err;
 
 	/* Bring device out of sleep and reset its units */
 	ret = ath5k_hw_nic_wakeup(ah, 0, true);
 	if (ret)
-		goto err_free;
+		goto err;
 
 	/* Get MAC, PHY and RADIO revisions */
 	ah->ah_mac_srev = srev;
@@ -234,7 +234,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 		} else {
 			ATH5K_ERR(sc, "Couldn't identify radio revision.\n");
 			ret = -ENODEV;
-			goto err_free;
+			goto err;
 		}
 	}
 
@@ -244,7 +244,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	(srev < AR5K_SREV_AR2425)) {
 		ATH5K_ERR(sc, "Device not yet supported.\n");
 		ret = -ENODEV;
-		goto err_free;
+		goto err;
 	}
 
 	/*
@@ -252,7 +252,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	 */
 	ret = ath5k_hw_post(ah);
 	if (ret)
-		goto err_free;
+		goto err;
 
 	/* Enable pci core retry fix on Hainan (5213A) and later chips */
 	if (srev >= AR5K_SREV_AR5213A)
@@ -265,7 +265,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	ret = ath5k_eeprom_init(ah);
 	if (ret) {
 		ATH5K_ERR(sc, "unable to init EEPROM\n");
-		goto err_free;
+		goto err;
 	}
 
 	ee = &ah->ah_capabilities.cap_eeprom;
@@ -307,7 +307,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	if (ret) {
 		ATH5K_ERR(sc, "unable to get device capabilities: 0x%04x\n",
 			sc->pdev->device);
-		goto err_free;
+		goto err;
 	}
 
 	/* Crypto settings */
@@ -341,8 +341,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	ath5k_hw_set_ledstate(ah, AR5K_LED_INIT);
 
 	return 0;
-err_free:
-	kfree(ah);
+err:
 	return ret;
 }
 

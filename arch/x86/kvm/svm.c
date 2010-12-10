@@ -3395,6 +3395,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs[VCPU_REGS_RIP] = svm->vmcb->save.rip;
 
 	load_host_msrs(vcpu);
+	kvm_load_ldt(ldt_selector);
 	loadsegment(fs, fs_selector);
 #ifdef CONFIG_X86_64
 	load_gs_index(gs_selector);
@@ -3402,7 +3403,6 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 #else
 	loadsegment(gs, gs_selector);
 #endif
-	kvm_load_ldt(ldt_selector);
 
 	reload_tss(vcpu);
 

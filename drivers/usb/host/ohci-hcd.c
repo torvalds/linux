@@ -1106,6 +1106,11 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER	ohci_hcd_jz4740_driver
 #endif
 
+#ifdef CONFIG_USB_OCTEON_OHCI
+#include "ohci-octeon.c"
+#define PLATFORM_DRIVER		ohci_octeon_driver
+#endif
+
 #if	!defined(PCI_DRIVER) &&		\
 	!defined(PLATFORM_DRIVER) &&	\
 	!defined(OMAP1_PLATFORM_DRIVER) &&	\

@@ -190,7 +190,7 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 		__INIT_WORK((_work), (_func), 0);		\
 	} while (0)
 
-#define INIT_WORK_ON_STACK(_work, _func)			\
+#define INIT_WORK_ONSTACK(_work, _func)				\
 	do {							\
 		__INIT_WORK((_work), (_func), 1);		\
 	} while (0)
@@ -201,9 +201,9 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 		init_timer(&(_work)->timer);			\
 	} while (0)
 
-#define INIT_DELAYED_WORK_ON_STACK(_work, _func)		\
+#define INIT_DELAYED_WORK_ONSTACK(_work, _func)			\
 	do {							\
-		INIT_WORK_ON_STACK(&(_work)->work, (_func));	\
+		INIT_WORK_ONSTACK(&(_work)->work, (_func));	\
 		init_timer_on_stack(&(_work)->timer);		\
 	} while (0)
 

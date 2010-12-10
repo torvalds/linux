@@ -370,7 +370,7 @@ void ath_beacon_tasklet(unsigned long data)
 			ath_print(common, ATH_DBG_BSTUCK,
 				  "beacon is officially stuck\n");
 			sc->sc_flags |= SC_OP_TSF_RESET;
-			ath_reset(sc, false);
+			ath_reset(sc, true);
 		}
 
 		return;

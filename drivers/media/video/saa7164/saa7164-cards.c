@@ -1,7 +1,7 @@
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
- *  Copyright (c) 2009 Steven Toth <stoth@kernellabs.com>
+ *  Copyright (c) 2010 Steven Toth <stoth@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -55,6 +55,10 @@ struct saa7164_board saa7164_boards[] = {
 		.name		= "Hauppauge WinTV-HVR2200",
 		.porta		= SAA7164_MPEG_DVB,
 		.portb		= SAA7164_MPEG_DVB,
+		.portc		= SAA7164_MPEG_ENCODER,
+		.portd		= SAA7164_MPEG_ENCODER,
+		.porte		= SAA7164_MPEG_VBI,
+		.portf		= SAA7164_MPEG_VBI,
 		.chiprev	= SAA7164_CHIP_REV3,
 		.unit		= {{
 			.id		= 0x1d,
@@ -97,6 +101,10 @@ struct saa7164_board saa7164_boards[] = {
 		.name		= "Hauppauge WinTV-HVR2200",
 		.porta		= SAA7164_MPEG_DVB,
 		.portb		= SAA7164_MPEG_DVB,
+		.portc		= SAA7164_MPEG_ENCODER,
+		.portd		= SAA7164_MPEG_ENCODER,
+		.porte		= SAA7164_MPEG_VBI,
+		.portf		= SAA7164_MPEG_VBI,
 		.chiprev	= SAA7164_CHIP_REV2,
 		.unit		= {{
 			.id		= 0x06,
@@ -139,6 +147,10 @@ struct saa7164_board saa7164_boards[] = {
 		.name		= "Hauppauge WinTV-HVR2200",
 		.porta		= SAA7164_MPEG_DVB,
 		.portb		= SAA7164_MPEG_DVB,
+		.portc		= SAA7164_MPEG_ENCODER,
+		.portd		= SAA7164_MPEG_ENCODER,
+		.porte		= SAA7164_MPEG_VBI,
+		.portf		= SAA7164_MPEG_VBI,
 		.chiprev	= SAA7164_CHIP_REV2,
 		.unit		= {{
 			.id		= 0x1d,
@@ -195,6 +207,12 @@ struct saa7164_board saa7164_boards[] = {
 		.name		= "Hauppauge WinTV-HVR2250",
 		.porta		= SAA7164_MPEG_DVB,
 		.portb		= SAA7164_MPEG_DVB,
+		.portc		= SAA7164_MPEG_ENCODER,
+		.portd		= SAA7164_MPEG_ENCODER,
+		.portc		= SAA7164_MPEG_ENCODER,
+		.portd		= SAA7164_MPEG_ENCODER,
+		.porte		= SAA7164_MPEG_VBI,
+		.portf		= SAA7164_MPEG_VBI,
 		.chiprev	= SAA7164_CHIP_REV3,
 		.unit		= {{
 			.id		= 0x22,
@@ -251,6 +269,12 @@ struct saa7164_board saa7164_boards[] = {
 		.name		= "Hauppauge WinTV-HVR2250",
 		.porta		= SAA7164_MPEG_DVB,
 		.portb		= SAA7164_MPEG_DVB,
+		.portc		= SAA7164_MPEG_ENCODER,
+		.portd		= SAA7164_MPEG_ENCODER,
+		.porte		= SAA7164_MPEG_VBI,
+		.portf		= SAA7164_MPEG_VBI,
+		.porte		= SAA7164_MPEG_VBI,
+		.portf		= SAA7164_MPEG_VBI,
 		.chiprev	= SAA7164_CHIP_REV3,
 		.unit		= {{
 			.id		= 0x28,
@@ -307,6 +331,10 @@ struct saa7164_board saa7164_boards[] = {
 		.name		= "Hauppauge WinTV-HVR2250",
 		.porta		= SAA7164_MPEG_DVB,
 		.portb		= SAA7164_MPEG_DVB,
+		.portc		= SAA7164_MPEG_ENCODER,
+		.portd		= SAA7164_MPEG_ENCODER,
+		.porte		= SAA7164_MPEG_VBI,
+		.portf		= SAA7164_MPEG_VBI,
 		.chiprev	= SAA7164_CHIP_REV3,
 		.unit		= {{
 			.id		= 0x26,
@@ -437,8 +465,6 @@ void saa7164_card_list(struct saa7164_dev *dev)
 
 void saa7164_gpio_setup(struct saa7164_dev *dev)
 {
-
-
 	switch (dev->board) {
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200_2:
@@ -462,7 +488,6 @@ void saa7164_gpio_setup(struct saa7164_dev *dev)
 		saa7164_api_set_gpiobit(dev, PCIEBRIDGE_UNITID, 3);
 		break;
 	}
-
 }
 
 static void hauppauge_eeprom(struct saa7164_dev *dev, u8 *eeprom_data)

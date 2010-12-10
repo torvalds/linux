@@ -33,6 +33,8 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/serial_8250.h>
+#include <linux/input/matrix_keypad.h>
+
 #include <mach/mmc.h>
 #include <mach/nand.h>
 #include <mach/serial.h>
@@ -41,6 +43,7 @@ struct tnetv107x_device_info {
 	struct davinci_uart_config	*serial_config;
 	struct davinci_mmc_config	*mmc_config[2];  /* 2 controllers */
 	struct davinci_nand_pdata	*nand_config[4]; /* 4 chipsels */
+	struct matrix_keypad_platform_data *keypad_config;
 };
 
 extern struct platform_device tnetv107x_wdt_device;

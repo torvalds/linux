@@ -48,4 +48,6 @@ struct bfin_eppi_regs {
 	u32 clip;
 };
 
+#undef __BFP
+
 #endif

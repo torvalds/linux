@@ -140,7 +140,6 @@ struct disk_part_tbl {
 	struct rcu_head rcu_head;
 	int len;
 	struct hd_struct __rcu *last_lookup;
-	struct gendisk *disk;
 	struct hd_struct __rcu *part[];
 };
 

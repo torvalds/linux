@@ -52,7 +52,6 @@
 #include <asm/mce.h>
 #include <asm/kvm_para.h>
 #include <asm/tsc.h>
-#include <asm/atomic.h>
 
 unsigned int num_processors;
 

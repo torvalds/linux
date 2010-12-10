@@ -288,7 +288,7 @@ static u16 wm8961_reg_defaults[] = {
 };
 
 struct wm8961_priv {
-	struct snd_soc_codec codec;
+	enum snd_soc_control_type control_type;
 	int sysclk;
 	u16 reg_cache[WM8961_MAX_REGISTER];
 };
@@ -711,7 +711,7 @@ static int wm8961_hw_params(struct snd_pcm_substream *substream,
 	if (fs <= 24000)
 		reg |= WM8961_DACSLOPE;
 	else
-		reg &= WM8961_DACSLOPE;
+		reg &= ~WM8961_DACSLOPE;
 	snd_soc_write(codec, WM8961_ADC_DAC_CONTROL_2, reg);
 
 	return 0;
@@ -736,7 +736,7 @@ static int wm8961_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		freq /= 2;
 	} else {
 		dev_dbg(codec->dev, "Using MCLK/1 for %dHz MCLK\n", freq);
-		reg &= WM8961_MCLKDIV;
+		reg &= ~WM8961_MCLKDIV;
 	}
 
 	snd_soc_write(codec, WM8961_CLOCKING1, reg);
@@ -940,8 +940,8 @@ static struct snd_soc_dai_ops wm8961_dai_ops = {
 	.set_clkdiv = wm8961_set_clkdiv,
 };
 
-struct snd_soc_dai wm8961_dai = {
-	.name = "WM8961",
+static struct snd_soc_dai_driver wm8961_dai = {
+	.name = "wm8961-hifi",
 	.playback = {
 		.stream_name = "HiFi Playback",
 		.channels_min = 1,
@@ -956,140 +956,22 @@ struct snd_soc_dai wm8961_dai = {
 		.formats = WM8961_FORMATS,},
 	.ops = &wm8961_dai_ops,
 };
-EXPORT_SYMBOL_GPL(wm8961_dai);
 
-
-static struct snd_soc_codec *wm8961_codec;
-
-static int wm8961_probe(struct platform_device *pdev)
+static int wm8961_probe(struct snd_soc_codec *codec)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
 	int ret = 0;
-
-	if (wm8961_codec == NULL) {
-		dev_err(&pdev->dev, "Codec device not registered\n");
-		return -ENODEV;
-	}
-
-	socdev->card->codec = wm8961_codec;
-	codec = wm8961_codec;
-
-	/* register pcms */
-	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to create pcms: %d\n", ret);
-		goto pcm_err;
-	}
-
-	snd_soc_add_controls(codec, wm8961_snd_controls,
-				ARRAY_SIZE(wm8961_snd_controls));
-	snd_soc_dapm_new_controls(codec, wm8961_dapm_widgets,
-				  ARRAY_SIZE(wm8961_dapm_widgets));
-	snd_soc_dapm_add_routes(codec, audio_paths, ARRAY_SIZE(audio_paths));
-
-	return ret;
-
-pcm_err:
-	return ret;
-}
-
-static int wm8961_remove(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
-
-	return 0;
-}
-
-#ifdef CONFIG_PM
-static int wm8961_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	wm8961_set_bias_level(codec, SND_SOC_BIAS_OFF);
-
-	return 0;
-}
-
-static int wm8961_resume(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-	u16 *reg_cache = codec->reg_cache;
-	int i;
-
-	for (i = 0; i < codec->reg_cache_size; i++) {
-		if (reg_cache[i] == wm8961_reg_defaults[i])
-			continue;
-
-		if (i == WM8961_SOFTWARE_RESET)
-			continue;
-
-		snd_soc_write(codec, i, reg_cache[i]);
-	}
-
-	wm8961_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
-	return 0;
-}
-#else
-#define wm8961_suspend NULL
-#define wm8961_resume NULL
-#endif
-
-struct snd_soc_codec_device soc_codec_dev_wm8961 = {
-	.probe = 	wm8961_probe,
-	.remove = 	wm8961_remove,
-	.suspend =	wm8961_suspend,
-	.resume =	wm8961_resume,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_wm8961);
-
-static int wm8961_register(struct wm8961_priv *wm8961)
-{
-	struct snd_soc_codec *codec = &wm8961->codec;
-	int ret;
 	u16 reg;
-
-	if (wm8961_codec) {
-		dev_err(codec->dev, "Another WM8961 is registered\n");
-		ret = -EINVAL;
-		goto err;
-	}
-
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	snd_soc_codec_set_drvdata(codec, wm8961);
-	codec->name = "WM8961";
-	codec->owner = THIS_MODULE;
-	codec->dai = &wm8961_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = ARRAY_SIZE(wm8961->reg_cache);
-	codec->reg_cache = &wm8961->reg_cache;
-	codec->bias_level = SND_SOC_BIAS_OFF;
-	codec->set_bias_level = wm8961_set_bias_level;
-	codec->volatile_register = wm8961_volatile_register;
-
-	memcpy(codec->reg_cache, wm8961_reg_defaults,
-	       sizeof(wm8961_reg_defaults));
 
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		goto err;
+		return ret;
 	}
 
 	reg = snd_soc_read(codec, WM8961_SOFTWARE_RESET);
 	if (reg != 0x1801) {
 		dev_err(codec->dev, "Device is not a WM8961: ID=0x%x\n", reg);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	/* This isn't volatile - readback doesn't correspond to write */
@@ -1102,7 +984,7 @@ static int wm8961_register(struct wm8961_priv *wm8961)
 	ret = wm8961_reset(codec);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to issue reset\n");
-		goto err;
+		return ret;
 	}
 
 	/* Enable class W */
@@ -1140,64 +1022,89 @@ static int wm8961_register(struct wm8961_priv *wm8961)
 
 	wm8961_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	wm8961_dai.dev = codec->dev;
-
-	wm8961_codec = codec;
-
-	ret = snd_soc_register_codec(codec);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
-		goto err;
-	}
-
-	ret = snd_soc_register_dai(&wm8961_dai);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		goto err_codec;
-	}
+	snd_soc_add_controls(codec, wm8961_snd_controls,
+				ARRAY_SIZE(wm8961_snd_controls));
+	snd_soc_dapm_new_controls(codec, wm8961_dapm_widgets,
+				  ARRAY_SIZE(wm8961_dapm_widgets));
+	snd_soc_dapm_add_routes(codec, audio_paths, ARRAY_SIZE(audio_paths));
 
 	return 0;
-
-err_codec:
-	snd_soc_unregister_codec(codec);
-err:
-	kfree(wm8961);
-	return ret;
 }
 
-static void wm8961_unregister(struct wm8961_priv *wm8961)
+static int wm8961_remove(struct snd_soc_codec *codec)
 {
-	wm8961_set_bias_level(&wm8961->codec, SND_SOC_BIAS_OFF);
-	snd_soc_unregister_dai(&wm8961_dai);
-	snd_soc_unregister_codec(&wm8961->codec);
-	kfree(wm8961);
-	wm8961_codec = NULL;
+	wm8961_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	return 0;
 }
 
+#ifdef CONFIG_PM
+static int wm8961_suspend(struct snd_soc_codec *codec, pm_message_t state)
+{
+	wm8961_set_bias_level(codec, SND_SOC_BIAS_OFF);
+
+	return 0;
+}
+
+static int wm8961_resume(struct snd_soc_codec *codec)
+{
+	u16 *reg_cache = codec->reg_cache;
+	int i;
+
+	for (i = 0; i < codec->driver->reg_cache_size; i++) {
+		if (reg_cache[i] == wm8961_reg_defaults[i])
+			continue;
+
+		if (i == WM8961_SOFTWARE_RESET)
+			continue;
+
+		snd_soc_write(codec, i, reg_cache[i]);
+	}
+
+	wm8961_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	return 0;
+}
+#else
+#define wm8961_suspend NULL
+#define wm8961_resume NULL
+#endif
+
+static struct snd_soc_codec_driver soc_codec_dev_wm8961 = {
+	.probe =	wm8961_probe,
+	.remove =	wm8961_remove,
+	.suspend =	wm8961_suspend,
+	.resume =	wm8961_resume,
+	.set_bias_level = wm8961_set_bias_level,
+	.reg_cache_size = ARRAY_SIZE(wm8961_reg_defaults),
+	.reg_word_size = sizeof(u16),
+	.reg_cache_default = wm8961_reg_defaults,
+	.volatile_register = wm8961_volatile_register,
+};
+
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8961_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8961_priv *wm8961;
-	struct snd_soc_codec *codec;
+	int ret;
 
 	wm8961 = kzalloc(sizeof(struct wm8961_priv), GFP_KERNEL);
 	if (wm8961 == NULL)
 		return -ENOMEM;
 
-	codec = &wm8961->codec;
-
 	i2c_set_clientdata(i2c, wm8961);
-	codec->control_data = i2c;
 
-	codec->dev = &i2c->dev;
-
-	return wm8961_register(wm8961);
+	ret = snd_soc_register_codec(&i2c->dev,
+			&soc_codec_dev_wm8961, &wm8961_dai, 1);
+	if (ret < 0)
+		kfree(wm8961);
+	return ret;
 }
 
 static __devexit int wm8961_i2c_remove(struct i2c_client *client)
 {
-	struct wm8961_priv *wm8961 = i2c_get_clientdata(client);
-	wm8961_unregister(wm8961);
+	snd_soc_unregister_codec(&client->dev);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
@@ -1209,34 +1116,36 @@ MODULE_DEVICE_TABLE(i2c, wm8961_i2c_id);
 
 static struct i2c_driver wm8961_i2c_driver = {
 	.driver = {
-		.name = "wm8961",
+		.name = "wm8961-codec",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8961_i2c_probe,
 	.remove =   __devexit_p(wm8961_i2c_remove),
 	.id_table = wm8961_i2c_id,
 };
+#endif
 
 static int __init wm8961_modinit(void)
 {
-	int ret;
-
+	int ret = 0;
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&wm8961_i2c_driver);
 	if (ret != 0) {
-		printk(KERN_ERR "Failed to register WM8961 I2C driver: %d\n",
+		printk(KERN_ERR "Failed to register wm8961 I2C driver: %d\n",
 		       ret);
 	}
-
+#endif
 	return ret;
 }
 module_init(wm8961_modinit);
 
 static void __exit wm8961_exit(void)
 {
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8961_i2c_driver);
+#endif
 }
 module_exit(wm8961_exit);
-
 
 MODULE_DESCRIPTION("ASoC WM8961 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

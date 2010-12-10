@@ -22,7 +22,6 @@
 #include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/time.h>
 #include <linux/pm_qos_params.h>
 #include <linux/uio.h>
@@ -142,7 +141,7 @@ int snd_pcm_info_user(struct snd_pcm_substream *substream,
 
 #ifdef RULES_DEBUG
 #define HW_PARAM(v) [SNDRV_PCM_HW_PARAM_##v] = #v
-char *snd_pcm_hw_param_names[] = {
+static const char * const snd_pcm_hw_param_names[] = {
 	HW_PARAM(ACCESS),
 	HW_PARAM(FORMAT),
 	HW_PARAM(SUBFORMAT),
@@ -864,6 +863,8 @@ static void snd_pcm_post_start(struct snd_pcm_substream *substream, int state)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_trigger_tstamp(substream);
 	runtime->hw_ptr_jiffies = jiffies;
+	runtime->hw_ptr_buffer_jiffies = (runtime->buffer_size * HZ) / 
+							    runtime->rate;
 	runtime->status->state = state;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 	    runtime->silence_size > 0)

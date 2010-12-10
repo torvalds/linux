@@ -13,7 +13,6 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/percpu.h>
-#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/acct.h>
@@ -595,7 +594,7 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 				goto out_free;
 		}
 
-		mnt->mnt_flags = old->mnt_flags;
+		mnt->mnt_flags = old->mnt_flags & ~MNT_WRITE_HOLD;
 		atomic_inc(&sb->s_active);
 		mnt->mnt_sb = sb;
 		mnt->mnt_root = dget(root);

@@ -238,9 +238,7 @@ static inline void vio_cmo_dealloc(struct vio_dev *viodev, size_t size)
 	 * memory in this pool does not change.
 	 */
 	if (spare_needed && reserve_freed) {
-		tmp = min(spare_needed, min(reserve_freed,
-		                            (viodev->cmo.entitled -
-		                             VIO_CMO_MIN_ENT)));
+		tmp = min3(spare_needed, reserve_freed, (viodev->cmo.entitled - VIO_CMO_MIN_ENT));
 
 		vio_cmo.spare += tmp;
 		viodev->cmo.entitled -= tmp;

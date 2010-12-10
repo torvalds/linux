@@ -89,9 +89,9 @@ static inline unsigned int blkcipher_done_fast(struct blkcipher_walk *walk,
 		memcpy(walk->dst.virt.addr, walk->page, n);
 		blkcipher_unmap_dst(walk);
 	} else if (!(walk->flags & BLKCIPHER_WALK_PHYS)) {
-		blkcipher_unmap_src(walk);
 		if (walk->flags & BLKCIPHER_WALK_DIFF)
 			blkcipher_unmap_dst(walk);
+		blkcipher_unmap_src(walk);
 	}
 
 	scatterwalk_advance(&walk->in, n);

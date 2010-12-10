@@ -88,7 +88,7 @@ ENTRY(system_call)
 	movel	%d2,PT_OFF_D0(%sp)	/* on syscall entry */
 	subql	#4,%sp
 	SAVE_SWITCH_STACK
-	jbsr	syscall_trace
+	jbsr	syscall_trace_enter
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
 	movel	%d3,%a0
@@ -96,7 +96,7 @@ ENTRY(system_call)
 	movel	%d0,%sp@(PT_OFF_D0)		/* save the return value */
 	subql	#4,%sp			/* dummy return address */
 	SAVE_SWITCH_STACK
-	jbsr	syscall_trace
+	jbsr	syscall_trace_leave
 
 ret_from_signal:
 	RESTORE_SWITCH_STACK

@@ -302,7 +302,7 @@ static struct clk_lookup dm644x_clks[] = {
 	CLK("davinci_emac.1", NULL, &emac_clk),
 	CLK("i2c_davinci.1", NULL, &i2c_clk),
 	CLK("palm_bk3710", NULL, &ide_clk),
-	CLK("davinci-asp", NULL, &asp_clk),
+	CLK("davinci-mcbsp", NULL, &asp_clk),
 	CLK("davinci_mmc.0", NULL, &mmcsd_clk),
 	CLK(NULL, "spi", &spi_clk),
 	CLK(NULL, "gpio", &gpio_clk),
@@ -322,7 +322,6 @@ static struct emac_platform_data dm644x_emac_pdata = {
 	.ctrl_reg_offset	= DM644X_EMAC_CNTRL_OFFSET,
 	.ctrl_mod_reg_offset	= DM644X_EMAC_CNTRL_MOD_OFFSET,
 	.ctrl_ram_offset	= DM644X_EMAC_CNTRL_RAM_OFFSET,
-	.mdio_reg_offset	= DM644X_EMAC_MDIO_OFFSET,
 	.ctrl_ram_size		= DM644X_EMAC_CNTRL_RAM_SIZE,
 	.version		= EMAC_VERSION_1,
 };
@@ -330,7 +329,7 @@ static struct emac_platform_data dm644x_emac_pdata = {
 static struct resource dm644x_emac_resources[] = {
 	{
 		.start	= DM644X_EMAC_BASE,
-		.end	= DM644X_EMAC_BASE + 0x47ff,
+		.end	= DM644X_EMAC_BASE + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
@@ -348,6 +347,21 @@ static struct platform_device dm644x_emac_device = {
        },
        .num_resources	= ARRAY_SIZE(dm644x_emac_resources),
        .resource	= dm644x_emac_resources,
+};
+
+static struct resource dm644x_mdio_resources[] = {
+	{
+		.start	= DM644X_EMAC_MDIO_BASE,
+		.end	= DM644X_EMAC_MDIO_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device dm644x_mdio_device = {
+	.name		= "davinci_mdio",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(dm644x_mdio_resources),
+	.resource	= dm644x_mdio_resources,
 };
 
 /*
@@ -566,7 +580,7 @@ static struct resource dm644x_asp_resources[] = {
 };
 
 static struct platform_device dm644x_asp_device = {
-	.name		= "davinci-asp",
+	.name		= "davinci-mcbsp",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(dm644x_asp_resources),
 	.resource	= dm644x_asp_resources,
@@ -776,7 +790,12 @@ static int __init dm644x_init_devices(void)
 	clk_add_alias("master", dm644x_ccdc_dev.name, "vpss_master", NULL);
 	clk_add_alias("slave", dm644x_ccdc_dev.name, "vpss_slave", NULL);
 	platform_device_register(&dm644x_edma_device);
+
+	platform_device_register(&dm644x_mdio_device);
 	platform_device_register(&dm644x_emac_device);
+	clk_add_alias(NULL, dev_name(&dm644x_mdio_device.dev),
+		      NULL, &dm644x_emac_device.dev);
+
 	platform_device_register(&dm644x_vpss_device);
 	platform_device_register(&dm644x_ccdc_dev);
 	platform_device_register(&vpfe_capture_dev);

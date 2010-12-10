@@ -26,7 +26,8 @@ use IO::Handle;
 		"dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
 		"or51211", "or51132_qam", "or51132_vsb", "bluebird",
 		"opera1", "cx231xx", "cx18", "cx23885", "pvrusb2", "mpc718",
-		"af9015", "ngene", "az6027");
+		"af9015", "ngene", "az6027", "lme2510_lg", "lme2510c_s7395",
+		"lme2510c_s7395_old");
 
 # Check args
 syntax() if (scalar(@ARGV) != 1);
@@ -584,6 +585,49 @@ sub az6027{
 
     $firmware;
 }
+
+sub lme2510_lg {
+    my $sourcefile = "LMEBDA_DVBS.sys";
+    my $hash = "fc6017ad01e79890a97ec53bea157ed2";
+    my $outfile = "dvb-usb-lme2510-lg.fw";
+    my $hasho = "caa065d5fdbd2c09ad57b399bbf55cad";
+
+    checkstandard();
+
+    verify($sourcefile, $hash);
+    extract($sourcefile, 4168, 3841, $outfile);
+    verify($outfile, $hasho);
+    $outfile;
+}
+
+sub lme2510c_s7395 {
+    my $sourcefile = "US2A0D.sys";
+    my $hash = "b0155a8083fb822a3bd47bc360e74601";
+    my $outfile = "dvb-usb-lme2510c-s7395.fw";
+    my $hasho = "3a3cf1aeebd17b6ddc04cebe131e94cf";
+
+    checkstandard();
+
+    verify($sourcefile, $hash);
+    extract($sourcefile, 37248, 3720, $outfile);
+    verify($outfile, $hasho);
+    $outfile;
+}
+
+sub lme2510c_s7395_old {
+    my $sourcefile = "LMEBDA_DVBS7395C.sys";
+    my $hash = "7572ae0eb9cdf91baabd7c0ba9e09b31";
+    my $outfile = "dvb-usb-lme2510c-s7395.fw";
+    my $hasho = "90430c5b435eb5c6f88fd44a9d950674";
+
+    checkstandard();
+
+    verify($sourcefile, $hash);
+    extract($sourcefile, 4208, 3881, $outfile);
+    verify($outfile, $hasho);
+    $outfile;
+}
+
 # ---------------------------------------------------------------
 # Utilities
 

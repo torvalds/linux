@@ -673,6 +673,7 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 	u16 aggr_limit = 0, al = 0, bpad = 0,
 		al_delta, h_baw = tid->baw_size / 2;
 	enum ATH_AGGR_STATUS status = ATH_AGGR_DONE;
+	struct ieee80211_tx_info *tx_info;
 
 	bf_first = list_first_entry(&tid->buf_q, struct ath_buf, list);
 
@@ -698,6 +699,11 @@ static enum ATH_AGGR_STATUS ath_tx_form_aggr(struct ath_softc *sc,
 			status = ATH_AGGR_LIMITED;
 			break;
 		}
+
+		tx_info = IEEE80211_SKB_CB(bf->bf_mpdu);
+		if (nframes && ((tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) ||
+			!(tx_info->control.rates[0].flags & IEEE80211_TX_RC_MCS)))
+			break;
 
 		/* do not exceed subframe limit */
 		if (nframes >= min((int)h_baw, ATH_AMPDU_SUBFRAME_DEFAULT)) {
@@ -1083,15 +1089,6 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 	txq->axq_tx_inprogress = false;
 	spin_unlock_bh(&txq->axq_lock);
 
-	/* flush any pending frames if aggregation is enabled */
-	if (sc->sc_flags & SC_OP_TXAGGR) {
-		if (!retry_tx) {
-			spin_lock_bh(&txq->axq_lock);
-			ath_txq_drain_pending_buffers(sc, txq);
-			spin_unlock_bh(&txq->axq_lock);
-		}
-	}
-
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		spin_lock_bh(&txq->axq_lock);
 		while (!list_empty(&txq->txq_fifo_pending)) {
@@ -1111,6 +1108,15 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 			spin_lock_bh(&txq->axq_lock);
 		}
 		spin_unlock_bh(&txq->axq_lock);
+	}
+
+	/* flush any pending frames if aggregation is enabled */
+	if (sc->sc_flags & SC_OP_TXAGGR) {
+		if (!retry_tx) {
+			spin_lock_bh(&txq->axq_lock);
+			ath_txq_drain_pending_buffers(sc, txq);
+			spin_unlock_bh(&txq->axq_lock);
+		}
 	}
 }
 
@@ -2157,7 +2163,7 @@ static void ath_tx_complete_poll_work(struct work_struct *work)
 		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_RESET,
 			  "tx hung, resetting the chip\n");
 		ath9k_ps_wakeup(sc);
-		ath_reset(sc, false);
+		ath_reset(sc, true);
 		ath9k_ps_restore(sc);
 	}
 

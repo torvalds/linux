@@ -31,12 +31,17 @@
 #include <plat/board.h>
 #include <plat/powerdomain.h>
 #include <plat/clockdomain.h>
+#include <plat/dmtimer.h>
 
 #include "prm.h"
 #include "cm.h"
 #include "pm.h"
 
 int omap2_pm_debug;
+u32 enable_off_mode;
+u32 sleep_while_idle;
+u32 wakeup_timer_seconds;
+u32 wakeup_timer_milliseconds;
 
 #define DUMP_PRM_MOD_REG(mod, reg)    \
 	regs[reg_count].name = #mod "." #reg; \
@@ -162,7 +167,7 @@ void omap2_pm_dump(int mode, int resume, unsigned int us)
 
 static void pm_dbg_regset_store(u32 *ptr);
 
-struct dentry *pm_dbg_dir;
+static struct dentry *pm_dbg_dir;
 
 static int pm_dbg_init_done;
 
@@ -349,6 +354,23 @@ void pm_dbg_update_time(struct powerdomain *pwrdm, int prev)
 	pwrdm->timer = t;
 }
 
+void omap2_pm_wakeup_on_timer(u32 seconds, u32 milliseconds)
+{
+	u32 tick_rate, cycles;
+
+	if (!seconds && !milliseconds)
+		return;
+
+	tick_rate = clk_get_rate(omap_dm_timer_get_fclk(gptimer_wakeup));
+	cycles = tick_rate * seconds + tick_rate * milliseconds / 1000;
+	omap_dm_timer_stop(gptimer_wakeup);
+	omap_dm_timer_set_load_start(gptimer_wakeup, 0, 0xffffffff - cycles);
+
+	pr_info("PM: Resume timer in %u.%03u secs"
+		" (%d ticks at %d ticks/sec.)\n",
+		seconds, milliseconds, cycles, tick_rate);
+}
+
 static int clkdm_dbg_show_counter(struct clockdomain *clkdm, void *user)
 {
 	struct seq_file *s = (struct seq_file *)user;
@@ -494,8 +516,10 @@ int pm_dbg_regset_init(int reg_set)
 
 static int pwrdm_suspend_get(void *data, u64 *val)
 {
-	int ret;
-	ret = omap3_pm_get_suspend_state((struct powerdomain *)data);
+	int ret = -EINVAL;
+
+	if (cpu_is_omap34xx())
+		ret = omap3_pm_get_suspend_state((struct powerdomain *)data);
 	*val = ret;
 
 	if (ret >= 0)
@@ -505,7 +529,10 @@ static int pwrdm_suspend_get(void *data, u64 *val)
 
 static int pwrdm_suspend_set(void *data, u64 val)
 {
-	return omap3_pm_set_suspend_state((struct powerdomain *)data, (int)val);
+	if (cpu_is_omap34xx())
+		return omap3_pm_set_suspend_state(
+			(struct powerdomain *)data, (int)val);
+	return -EINVAL;
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(pwrdm_suspend_fops, pwrdm_suspend_get,
@@ -553,8 +580,10 @@ static int option_set(void *data, u64 val)
 
 	*option = val;
 
-	if (option == &enable_off_mode)
-		omap3_pm_off_mode_enable(val);
+	if (option == &enable_off_mode) {
+		if (cpu_is_omap34xx())
+			omap3_pm_off_mode_enable(val);
+	}
 
 	return 0;
 }
@@ -609,6 +638,9 @@ static int __init pm_dbg_init(void)
 				   &sleep_while_idle, &pm_dbg_option_fops);
 	(void) debugfs_create_file("wakeup_timer_seconds", S_IRUGO | S_IWUGO, d,
 				   &wakeup_timer_seconds, &pm_dbg_option_fops);
+	(void) debugfs_create_file("wakeup_timer_milliseconds",
+			S_IRUGO | S_IWUGO, d, &wakeup_timer_milliseconds,
+			&pm_dbg_option_fops);
 	pm_dbg_init_done = 1;
 
 	return 0;

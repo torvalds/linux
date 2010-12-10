@@ -21,7 +21,9 @@
 #include <linux/netfilter_ipv4/ip_tables.h>
 
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+#define XT_TPROXY_HAVE_IPV6 1
 #include <net/if_inet6.h>
 #include <net/addrconf.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
@@ -172,7 +174,7 @@ tproxy_tg4_v1(struct sk_buff *skb, const struct xt_action_param *par)
 	return tproxy_tg4(skb, tgi->laddr.ip, tgi->lport, tgi->mark_mask, tgi->mark_value);
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#ifdef XT_TPROXY_HAVE_IPV6
 
 static inline const struct in6_addr *
 tproxy_laddr6(struct sk_buff *skb, const struct in6_addr *user_laddr,
@@ -372,7 +374,7 @@ static struct xt_target tproxy_tg_reg[] __read_mostly = {
 		.hooks		= 1 << NF_INET_PRE_ROUTING,
 		.me		= THIS_MODULE,
 	},
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#ifdef XT_TPROXY_HAVE_IPV6
 	{
 		.name		= "TPROXY",
 		.family		= NFPROTO_IPV6,
@@ -391,7 +393,7 @@ static struct xt_target tproxy_tg_reg[] __read_mostly = {
 static int __init tproxy_tg_init(void)
 {
 	nf_defrag_ipv4_enable();
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#ifdef XT_TPROXY_HAVE_IPV6
 	nf_defrag_ipv6_enable();
 #endif
 

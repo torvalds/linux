@@ -125,4 +125,16 @@ extern unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
  */
 extern void plat_mem_setup(void);
 
+#ifdef CONFIG_SWIOTLB
+/*
+ * Optional platform hook to call swiotlb_setup().
+ */
+extern void plat_swiotlb_setup(void);
+
+#else
+
+static inline void plat_swiotlb_setup(void) {}
+
+#endif /* CONFIG_SWIOTLB */
+
 #endif /* _ASM_BOOTINFO_H */

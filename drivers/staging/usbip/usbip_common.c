@@ -456,7 +456,7 @@ EXPORT_SYMBOL_GPL(usbip_task_init);
 /*-------------------------------------------------------------------------*/
 /* socket routines */
 
- /*  Send/receive messages over TCP/IP. I refer drivers/block/nbd.c */
+/*  Send/receive messages over TCP/IP. I refer drivers/block/nbd.c */
 int usbip_xmit(int send, struct socket *sock, char *buf,
 	       int size, int msg_flags)
 {

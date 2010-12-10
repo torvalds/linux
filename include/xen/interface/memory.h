@@ -141,6 +141,19 @@ struct xen_machphys_mfn_list {
 DEFINE_GUEST_HANDLE_STRUCT(xen_machphys_mfn_list);
 
 /*
+ * Returns the location in virtual address space of the machine_to_phys
+ * mapping table. Architectures which do not have a m2p table, or which do not
+ * map it by default into guest address space, do not implement this command.
+ * arg == addr of xen_machphys_mapping_t.
+ */
+#define XENMEM_machphys_mapping     12
+struct xen_machphys_mapping {
+    unsigned long v_start, v_end; /* Start and end virtual addresses.   */
+    unsigned long max_mfn;        /* Maximum MFN that can be looked up. */
+};
+DEFINE_GUEST_HANDLE_STRUCT(xen_machphys_mapping_t);
+
+/*
  * Sets the GPFN at which a particular page appears in the specified guest's
  * pseudophysical address space.
  * arg == addr of xen_add_to_physmap_t.
@@ -185,6 +198,35 @@ struct xen_translate_gpfn_list {
     GUEST_HANDLE(ulong) mfn_list;
 };
 DEFINE_GUEST_HANDLE_STRUCT(xen_translate_gpfn_list);
+
+/*
+ * Returns the pseudo-physical memory map as it was when the domain
+ * was started (specified by XENMEM_set_memory_map).
+ * arg == addr of struct xen_memory_map.
+ */
+#define XENMEM_memory_map           9
+struct xen_memory_map {
+    /*
+     * On call the number of entries which can be stored in buffer. On
+     * return the number of entries which have been stored in
+     * buffer.
+     */
+    unsigned int nr_entries;
+
+    /*
+     * Entries in the buffer are in the same format as returned by the
+     * BIOS INT 0x15 EAX=0xE820 call.
+     */
+    GUEST_HANDLE(void) buffer;
+};
+DEFINE_GUEST_HANDLE_STRUCT(xen_memory_map);
+
+/*
+ * Returns the real physical memory map. Passes the same structure as
+ * XENMEM_memory_map.
+ * arg == addr of struct xen_memory_map.
+ */
+#define XENMEM_machine_memory_map   10
 
 
 /*

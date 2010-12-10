@@ -158,6 +158,4 @@
 #define CS42L51_LASTREG		0x20
 #define CS42L51_NUMREGS		(CS42L51_LASTREG - CS42L51_FIRSTREG + 1)
 
-extern struct snd_soc_dai cs42l51_dai;
-extern struct snd_soc_codec_device soc_codec_device_cs42l51;
 #endif

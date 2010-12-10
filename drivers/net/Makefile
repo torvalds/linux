@@ -7,6 +7,8 @@ obj-$(CONFIG_MDIO) += mdio.o
 obj-$(CONFIG_PHYLIB) += phy/
 
 obj-$(CONFIG_TI_DAVINCI_EMAC) += davinci_emac.o
+obj-$(CONFIG_TI_DAVINCI_MDIO) += davinci_mdio.o
+obj-$(CONFIG_TI_DAVINCI_CPDMA) += davinci_cpdma.o
 
 obj-$(CONFIG_E1000) += e1000/
 obj-$(CONFIG_E1000E) += e1000e/
@@ -299,3 +301,4 @@ obj-$(CONFIG_CAIF) += caif/
 
 obj-$(CONFIG_OCTEON_MGMT_ETHERNET) += octeon/
 obj-$(CONFIG_PCH_GBE) += pch_gbe/
+obj-$(CONFIG_TILE_NET) += tile/

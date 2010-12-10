@@ -44,6 +44,13 @@ void __init gic_init_irq(void)
 }
 
 #ifdef CONFIG_CACHE_L2X0
+
+static void omap4_l2x0_disable(void)
+{
+	/* Disable PL310 L2 Cache controller */
+	omap_smc1(0x102, 0x0);
+}
+
 static int __init omap_l2_cache_init(void)
 {
 	/*
@@ -61,10 +68,20 @@ static int __init omap_l2_cache_init(void)
 	omap_smc1(0x102, 0x1);
 
 	/*
-	 * 32KB way size, 16-way associativity,
-	 * parity disabled
+	 * 16-way associativity, parity disabled
+	 * Way size - 32KB (es1.0)
+	 * Way size - 64KB (es2.0 +)
 	 */
-	l2x0_init(l2cache_base, 0x0e050000, 0xc0000fff);
+	if (omap_rev() == OMAP4430_REV_ES1_0)
+		l2x0_init(l2cache_base, 0x0e050000, 0xc0000fff);
+	else
+		l2x0_init(l2cache_base, 0x0e070000, 0xc0000fff);
+
+	/*
+	 * Override default outer_cache.disable with a OMAP4
+	 * specific one
+	*/
+	outer_cache.disable = omap4_l2x0_disable;
 
 	return 0;
 }

@@ -409,11 +409,11 @@ config ALIM7101_WDT
 	  Most people will say N.
 
 config F71808E_WDT
-	tristate "Fintek F71808E and F71882FG Watchdog"
+	tristate "Fintek F71808E, F71882FG and F71889FG Watchdog"
 	depends on X86 && EXPERIMENTAL
 	help
 	  This is the driver for the hardware watchdog on the Fintek
-	  F71808E and F71882FG Super I/O controllers.
+	  F71808E, F71882FG and F71889FG Super I/O controllers.
 
 	  You can compile this driver directly into the kernel, or use
 	  it as a module.  The module will be called f71808e_wdt.
@@ -558,6 +558,9 @@ config IT8712F_WDT
 	  This is the driver for the built-in watchdog timer on the IT8712F
 	  Super I/0 chipset used on many motherboards.
 
+	  If the driver does not work, then make sure that the game port in
+	  the BIOS is enabled.
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called it8712f_wdt.
 
@@ -565,10 +568,11 @@ config IT87_WDT
 	tristate "IT87 Watchdog Timer"
 	depends on X86 && EXPERIMENTAL
 	---help---
-	  This is the driver for the hardware watchdog on the ITE IT8716,
-	  IT8718, IT8726, IT8712(Version J,K) Super I/O chips. This watchdog
-	  simply watches your kernel to make sure it doesn't freeze, and if
-	  it does, it reboots your computer after a certain amount of time.
+	  This is the driver for the hardware watchdog on the ITE IT8702,
+	  IT8712, IT8716, IT8718, IT8720, IT8726, IT8712 Super I/O chips.
+	  This watchdog simply watches your kernel to make sure it doesn't
+	  freeze, and if it does, it reboots your computer after a certain
+	  amount of time.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called it87_wdt.
@@ -915,6 +919,16 @@ config OCTEON_WDT
 	  When userspace has /dev/watchdog open, no poking is done
 	  from the first interrupt, it is then only poked when the
 	  device is written.
+
+config BCM63XX_WDT
+	tristate "Broadcom BCM63xx hardware watchdog"
+	depends on BCM63XX
+	help
+	  Watchdog driver for the built in watchdog hardware in Broadcom
+	  BCM63xx SoC.
+
+	  To compile this driver as a loadable module, choose M here.
+	  The module will be called bcm63xx_wdt.
 
 # PARISC Architecture
 

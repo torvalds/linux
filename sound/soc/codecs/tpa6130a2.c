@@ -78,8 +78,10 @@ static int tpa6130a2_i2c_write(int reg, u8 value)
 
 	if (data->power_state) {
 		val = i2c_smbus_write_byte_data(tpa6130a2_client, reg, value);
-		if (val < 0)
+		if (val < 0) {
 			dev_err(&tpa6130a2_client->dev, "Write failed\n");
+			return val;
+		}
 	}
 
 	/* Either powered on or off, we save the context */
@@ -98,29 +100,34 @@ static u8 tpa6130a2_read(int reg)
 	return data->regs[reg];
 }
 
-static void tpa6130a2_initialize(void)
+static int tpa6130a2_initialize(void)
 {
 	struct tpa6130a2_data *data;
-	int i;
+	int i, ret = 0;
 
 	BUG_ON(tpa6130a2_client == NULL);
 	data = i2c_get_clientdata(tpa6130a2_client);
 
-	for (i = 1; i < TPA6130A2_REG_VERSION; i++)
-		tpa6130a2_i2c_write(i, data->regs[i]);
+	for (i = 1; i < TPA6130A2_REG_VERSION; i++) {
+		ret = tpa6130a2_i2c_write(i, data->regs[i]);
+		if (ret < 0)
+			break;
+	}
+
+	return ret;
 }
 
 static int tpa6130a2_power(int power)
 {
 	struct	tpa6130a2_data *data;
 	u8	val;
-	int	ret;
+	int	ret = 0;
 
 	BUG_ON(tpa6130a2_client == NULL);
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	mutex_lock(&data->mutex);
-	if (power) {
+	if (power && !data->power_state) {
 		/* Power on */
 		if (data->power_gpio >= 0)
 			gpio_set_value(data->power_gpio, 1);
@@ -133,13 +140,22 @@ static int tpa6130a2_power(int power)
 		}
 
 		data->power_state = 1;
-		tpa6130a2_initialize();
+		ret = tpa6130a2_initialize();
+		if (ret < 0) {
+			dev_err(&tpa6130a2_client->dev,
+				"Failed to initialize chip\n");
+			if (data->power_gpio >= 0)
+				gpio_set_value(data->power_gpio, 0);
+			regulator_disable(data->supply);
+			data->power_state = 0;
+			goto exit;
+		}
 
 		/* Clear SWS */
 		val = tpa6130a2_read(TPA6130A2_REG_CONTROL);
 		val &= ~TPA6130A2_SWS;
 		tpa6130a2_i2c_write(TPA6130A2_REG_CONTROL, val);
-	} else {
+	} else if (!power && data->power_state) {
 		/* set SWS */
 		val = tpa6130a2_read(TPA6130A2_REG_CONTROL);
 		val |= TPA6130A2_SWS;
@@ -375,7 +391,9 @@ int tpa6130a2_add_controls(struct snd_soc_codec *codec)
 {
 	struct	tpa6130a2_data *data;
 
-	BUG_ON(tpa6130a2_client == NULL);
+	if (tpa6130a2_client == NULL)
+		return -ENODEV;
+
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	snd_soc_dapm_new_controls(codec, tpa6130a2_dapm_widgets,

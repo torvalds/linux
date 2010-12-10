@@ -474,6 +474,25 @@ struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_i
 	return inode;
 }
 
+static int calculate_inocache_hashsize(uint32_t flash_size)
+{
+	/*
+	 * Pick a inocache hash size based on the size of the medium.
+	 * Count how many megabytes we're dealing with, apply a hashsize twice
+	 * that size, but rounding down to the usual big powers of 2. And keep
+	 * to sensible bounds.
+	 */
+
+	int size_mb = flash_size / 1024 / 1024;
+	int hashsize = (size_mb * 2) & ~0x3f;
+
+	if (hashsize < INOCACHE_HASHSIZE_MIN)
+		return INOCACHE_HASHSIZE_MIN;
+	if (hashsize > INOCACHE_HASHSIZE_MAX)
+		return INOCACHE_HASHSIZE_MAX;
+
+	return hashsize;
+}
 
 int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 {
@@ -520,7 +539,8 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	if (ret)
 		return ret;
 
-	c->inocache_list = kcalloc(INOCACHE_HASHSIZE, sizeof(struct jffs2_inode_cache *), GFP_KERNEL);
+	c->inocache_hashsize = calculate_inocache_hashsize(c->flash_size);
+	c->inocache_list = kcalloc(c->inocache_hashsize, sizeof(struct jffs2_inode_cache *), GFP_KERNEL);
 	if (!c->inocache_list) {
 		ret = -ENOMEM;
 		goto out_wbuf;

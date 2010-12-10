@@ -503,7 +503,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 
 		if (rsp->EncryptionKeyLength ==
 				cpu_to_le16(CIFS_CRYPTO_KEY_SIZE)) {
-			memcpy(ses->cryptKey, rsp->EncryptionKey,
+			memcpy(ses->server->cryptkey, rsp->EncryptionKey,
 				CIFS_CRYPTO_KEY_SIZE);
 		} else if (server->secMode & SECMODE_PW_ENCRYPT) {
 			rc = -EIO; /* need cryptkey unless plain text */
@@ -574,7 +574,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	server->timeAdj = (int)(__s16)le16_to_cpu(pSMBr->ServerTimeZone);
 	server->timeAdj *= 60;
 	if (pSMBr->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
-		memcpy(ses->cryptKey, pSMBr->u.EncryptionKey,
+		memcpy(ses->server->cryptkey, pSMBr->u.EncryptionKey,
 		       CIFS_CRYPTO_KEY_SIZE);
 	} else if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC)
 			&& (pSMBr->EncryptionKeyLength == 0)) {

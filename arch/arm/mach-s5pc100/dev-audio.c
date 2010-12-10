@@ -24,19 +24,11 @@ static int s5pc100_cfg_i2s(struct platform_device *pdev)
 	/* configure GPIO for i2s port */
 	switch (pdev->id) {
 	case 1:
-		s3c_gpio_cfgpin(S5PC100_GPC(0), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PC100_GPC(1), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PC100_GPC(2), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PC100_GPC(3), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S5PC100_GPC(4), S3C_GPIO_SFN(2));
+		s3c_gpio_cfgpin_range(S5PC100_GPC(0), 5, S3C_GPIO_SFN(2));
 		break;
 
 	case 2:
-		s3c_gpio_cfgpin(S5PC100_GPG3(0), S3C_GPIO_SFN(4));
-		s3c_gpio_cfgpin(S5PC100_GPG3(1), S3C_GPIO_SFN(4));
-		s3c_gpio_cfgpin(S5PC100_GPG3(2), S3C_GPIO_SFN(4));
-		s3c_gpio_cfgpin(S5PC100_GPG3(3), S3C_GPIO_SFN(4));
-		s3c_gpio_cfgpin(S5PC100_GPG3(4), S3C_GPIO_SFN(4));
+		s3c_gpio_cfgpin_range(S5PC100_GPG3(0), 5, S3C_GPIO_SFN(4));
 		break;
 
 	case -1: /* Dedicated pins */
@@ -144,19 +136,11 @@ static int s5pc100_pcm_cfg_gpio(struct platform_device *pdev)
 {
 	switch (pdev->id) {
 	case 0:
-		s3c_gpio_cfgpin(S5PC100_GPG3(0), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5PC100_GPG3(1), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5PC100_GPG3(2), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5PC100_GPG3(3), S3C_GPIO_SFN(5));
-		s3c_gpio_cfgpin(S5PC100_GPG3(4), S3C_GPIO_SFN(5));
+		s3c_gpio_cfgpin_range(S5PC100_GPG3(0), 5, S3C_GPIO_SFN(5));
 		break;
 
 	case 1:
-		s3c_gpio_cfgpin(S5PC100_GPC(0), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PC100_GPC(1), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PC100_GPC(2), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PC100_GPC(3), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S5PC100_GPC(4), S3C_GPIO_SFN(3));
+		s3c_gpio_cfgpin_range(S5PC100_GPC(0), 5, S3C_GPIO_SFN(3));
 		break;
 
 	default:
@@ -231,13 +215,7 @@ struct platform_device s5pc100_device_pcm1 = {
 
 static int s5pc100_ac97_cfg_gpio(struct platform_device *pdev)
 {
-	s3c_gpio_cfgpin(S5PC100_GPC(0), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S5PC100_GPC(1), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S5PC100_GPC(2), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S5PC100_GPC(3), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S5PC100_GPC(4), S3C_GPIO_SFN(4));
-
-	return 0;
+	return s3c_gpio_cfgpin_range(S5PC100_GPC(0), 5, S3C_GPIO_SFN(4));
 }
 
 static struct resource s5pc100_ac97_resource[] = {
@@ -285,3 +263,57 @@ struct platform_device s5pc100_device_ac97 = {
 		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
+
+/* S/PDIF Controller platform_device */
+static int s5pc100_spdif_cfg_gpd(struct platform_device *pdev)
+{
+	s3c_gpio_cfgpin_range(S5PC100_GPD(5), 2, S3C_GPIO_SFN(3));
+
+	return 0;
+}
+
+static int s5pc100_spdif_cfg_gpg3(struct platform_device *pdev)
+{
+	s3c_gpio_cfgpin_range(S5PC100_GPG3(5), 2, S3C_GPIO_SFN(3));
+
+	return 0;
+}
+
+static struct resource s5pc100_spdif_resource[] = {
+	[0] = {
+		.start	= S5PC100_PA_SPDIF,
+		.end	= S5PC100_PA_SPDIF + 0x100 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= DMACH_SPDIF,
+		.end	= DMACH_SPDIF,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct s3c_audio_pdata s5p_spdif_pdata = {
+	.cfg_gpio = s5pc100_spdif_cfg_gpd,
+};
+
+static u64 s5pc100_spdif_dmamask = DMA_BIT_MASK(32);
+
+struct platform_device s5pc100_device_spdif = {
+	.name		= "samsung-spdif",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(s5pc100_spdif_resource),
+	.resource	= s5pc100_spdif_resource,
+	.dev = {
+		.platform_data = &s5p_spdif_pdata,
+		.dma_mask = &s5pc100_spdif_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+};
+
+void __init s5pc100_spdif_setup_gpio(int gpio)
+{
+	if (gpio == S5PC100_SPDIF_GPD)
+		s5p_spdif_pdata.cfg_gpio = s5pc100_spdif_cfg_gpd;
+	else
+		s5p_spdif_pdata.cfg_gpio = s5pc100_spdif_cfg_gpg3;
+}

@@ -25,8 +25,9 @@
 #define INTC_IPR01 0xfffe0818
 #define INTC_ICR1  0xfffe0802
 
-static void disable_se7206_irq(unsigned int irq)
+static void disable_se7206_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	unsigned short val;
 	unsigned short mask = 0xffff ^ (0x0f << 4 * (3 - (IRQ0_IRQ - irq)));
 	unsigned short msk0,msk1;
@@ -55,8 +56,9 @@ static void disable_se7206_irq(unsigned int irq)
 	__raw_writew(msk1, INTMSK1);
 }
 
-static void enable_se7206_irq(unsigned int irq)
+static void enable_se7206_irq(struct irq_data *data)
 {
+	unsigned int irq = data->irq;
 	unsigned short val;
 	unsigned short value = (0x0001 << 4 * (3 - (IRQ0_IRQ - irq)));
 	unsigned short msk0,msk1;
@@ -86,13 +88,14 @@ static void enable_se7206_irq(unsigned int irq)
 	__raw_writew(msk1, INTMSK1);
 }
 
-static void eoi_se7206_irq(unsigned int irq)
+static void eoi_se7206_irq(struct irq_data *data)
 {
 	unsigned short sts0,sts1;
+	unsigned int irq = data->irq;
 	struct irq_desc *desc = irq_to_desc(irq);
 
 	if (!(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_se7206_irq(irq);
+		enable_se7206_irq(data);
 	/* FPGA isr clear */
 	sts0 = __raw_readw(INTSTS0);
 	sts1 = __raw_readw(INTSTS1);
@@ -115,10 +118,9 @@ static void eoi_se7206_irq(unsigned int irq)
 
 static struct irq_chip se7206_irq_chip __read_mostly = {
 	.name		= "SE7206-FPGA",
-	.mask		= disable_se7206_irq,
-	.unmask		= enable_se7206_irq,
-	.mask_ack	= disable_se7206_irq,
-	.eoi		= eoi_se7206_irq,
+	.irq_mask	= disable_se7206_irq,
+	.irq_unmask	= enable_se7206_irq,
+	.irq_eoi	= eoi_se7206_irq,
 };
 
 static void make_se7206_irq(unsigned int irq)
@@ -126,7 +128,7 @@ static void make_se7206_irq(unsigned int irq)
 	disable_irq_nosync(irq);
 	set_irq_chip_and_handler_name(irq, &se7206_irq_chip,
 				      handle_level_irq, "level");
-	disable_se7206_irq(irq);
+	disable_se7206_irq(irq_get_irq_data(irq));
 }
 
 /*
@@ -137,11 +139,13 @@ void __init init_se7206_IRQ(void)
 	make_se7206_irq(IRQ0_IRQ); /* SMC91C111 */
 	make_se7206_irq(IRQ1_IRQ); /* ATA */
 	make_se7206_irq(IRQ3_IRQ); /* SLOT / PCM */
-	__raw_writew(inw(INTC_ICR1) | 0x000b ,INTC_ICR1 ) ; /* ICR1 */
+
+	__raw_writew(__raw_readw(INTC_ICR1) | 0x000b, INTC_ICR); /* ICR1 */
 
 	/* FPGA System register setup*/
 	__raw_writew(0x0000,INTSTS0); /* Clear INTSTS0 */
 	__raw_writew(0x0000,INTSTS1); /* Clear INTSTS1 */
+
 	/* IRQ0=LAN, IRQ1=ATA, IRQ3=SLT,PCM */
 	__raw_writew(0x0001,INTSEL);
 }

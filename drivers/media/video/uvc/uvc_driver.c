@@ -1,8 +1,8 @@
 /*
  *      uvc_driver.c  --  USB Video Class driver
  *
- *      Copyright (C) 2005-2009
- *          Laurent Pinchart (laurent.pinchart@skynet.be)
+ *      Copyright (C) 2005-2010
+ *          Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -38,11 +38,9 @@
 
 #include "uvcvideo.h"
 
-#define DRIVER_AUTHOR		"Laurent Pinchart <laurent.pinchart@skynet.be>"
+#define DRIVER_AUTHOR		"Laurent Pinchart " \
+				"<laurent.pinchart@ideasonboard.com>"
 #define DRIVER_DESC		"USB Video Class driver"
-#ifndef DRIVER_VERSION
-#define DRIVER_VERSION		"v0.1.0"
-#endif
 
 unsigned int uvc_clock_param = CLOCK_MONOTONIC;
 unsigned int uvc_no_drop_param;
@@ -1762,6 +1760,7 @@ static int uvc_probe(struct usb_interface *intf,
 	INIT_LIST_HEAD(&dev->streams);
 	atomic_set(&dev->nstreams, 0);
 	atomic_set(&dev->users, 0);
+	atomic_set(&dev->nmappings, 0);
 
 	dev->udev = usb_get_dev(udev);
 	dev->intf = usb_get_intf(intf);
@@ -1820,6 +1819,7 @@ static int uvc_probe(struct usb_interface *intf,
 	}
 
 	uvc_trace(UVC_TRACE_PROBE, "UVC device initialized.\n");
+	usb_enable_autosuspend(udev);
 	return 0;
 
 error:
@@ -2287,12 +2287,6 @@ static int __init uvc_init(void)
 {
 	int result;
 
-	INIT_LIST_HEAD(&uvc_driver.devices);
-	INIT_LIST_HEAD(&uvc_driver.controls);
-	mutex_init(&uvc_driver.ctrl_mutex);
-
-	uvc_ctrl_init();
-
 	result = usb_register(&uvc_driver.driver);
 	if (result == 0)
 		printk(KERN_INFO DRIVER_DESC " (" DRIVER_VERSION ")\n");
@@ -2302,7 +2296,6 @@ static int __init uvc_init(void)
 static void __exit uvc_cleanup(void)
 {
 	usb_deregister(&uvc_driver.driver);
-	uvc_ctrl_cleanup();
 }
 
 module_init(uvc_init);

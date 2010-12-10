@@ -15,10 +15,16 @@
 #define FS_9P_XATTR_H
 
 #include <linux/xattr.h>
+#include <net/9p/9p.h>
+#include <net/9p/client.h>
 
 extern const struct xattr_handler *v9fs_xattr_handlers[];
 extern struct xattr_handler v9fs_xattr_user_handler;
+extern const struct xattr_handler v9fs_xattr_acl_access_handler;
+extern const struct xattr_handler v9fs_xattr_acl_default_handler;
 
+extern ssize_t v9fs_fid_xattr_get(struct p9_fid *, const char *,
+				  void *, size_t);
 extern ssize_t v9fs_xattr_get(struct dentry *, const char *,
 			      void *, size_t);
 extern int v9fs_xattr_set(struct dentry *, const char *,

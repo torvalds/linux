@@ -30,27 +30,6 @@ struct iio_event_attr {
 	container_of(_dev_attr, struct iio_event_attr, dev_attr)
 
 /**
- * struct iio_chrdev_minor_attr - simple attribute to allow reading of chrdev
- *				minor number
- * @dev_attr:	underlying device attribute
- * @minor:	the minor number
- */
-struct iio_chrdev_minor_attr {
-	struct device_attribute dev_attr;
-	int minor;
-};
-
-void
-__init_iio_chrdev_minor_attr(struct iio_chrdev_minor_attr *minor_attr,
-			   const char *name,
-			   struct module *owner,
-			   int id);
-
-
-#define to_iio_chrdev_minor_attr(_dev_attr) \
-	container_of(_dev_attr, struct iio_chrdev_minor_attr, dev_attr);
-
-/**
  * struct iio_dev_attr - iio specific device attribute
  * @dev_attr:	underlying device attribute
  * @address:	associated register address
@@ -89,11 +68,6 @@ struct iio_const_attr {
 	{ .dev_attr = __ATTR(_name, _mode, _show, _store),	\
 	  .address = _addr }
 
-#define IIO_ATTR_2(_name, _mode, _show, _store, _addr, _val2)	\
-	{ .dev_attr = __ATTR(_name, _mode, _show, _store),	\
-			.address = _addr,			\
-			.val2 = _val2 }
-
 #define IIO_DEVICE_ATTR(_name, _mode, _show, _store, _addr)	\
 	struct iio_dev_attr iio_dev_attr_##_name		\
 	= IIO_ATTR(_name, _mode, _show, _store, _addr)
@@ -111,6 +85,10 @@ struct iio_const_attr {
 	= { .string = _string,						\
 	    .dev_attr = __ATTR(_name, S_IRUGO, iio_read_const_attr, NULL)}
 
+#define IIO_CONST_ATTR_NAMED(_vname, _name, _string)			\
+	struct iio_const_attr iio_const_attr_##_vname			\
+	= { .string = _string,						\
+	    .dev_attr = __ATTR(_name, S_IRUGO, iio_read_const_attr, NULL)}
 /* Generic attributes of onetype or another */
 
 /**
@@ -128,6 +106,13 @@ struct iio_const_attr {
  **/
 #define IIO_DEV_ATTR_NAME(_show)				\
 	IIO_DEVICE_ATTR(name, S_IRUGO, _show, NULL, 0)
+
+/**
+ * IIO_CONST_ATTR_NAME - constant identifier
+ * @_string: the name
+ **/
+#define IIO_CONST_ATTR_NAME(_string)				\
+	IIO_CONST_ATTR(name, _string)
 
 /**
  * IIO_DEV_ATTR_SAMP_FREQ - sets any internal clock frequency
@@ -156,46 +141,8 @@ struct iio_const_attr {
  *
  * Constant version
  **/
-/* Deprecated */
-#define IIO_CONST_ATTR_AVAIL_SAMP_FREQ(_string)			\
-	IIO_CONST_ATTR(available_sampling_frequency, _string)
-
 #define IIO_CONST_ATTR_SAMP_FREQ_AVAIL(_string)			\
 	IIO_CONST_ATTR(sampling_frequency_available, _string)
-
-/**
- * IIO_DEV_ATTR_SCAN_MODE - select a scan mode
- * @_mode: sysfs file mode/permissions
- * @_show: output method for the attribute
- * @_store: input method for the attribute
- *
- * This is used when only certain combinations of inputs may be read in one
- * scan.
- **/
-#define IIO_DEV_ATTR_SCAN_MODE(_mode, _show, _store)		\
-	IIO_DEVICE_ATTR(scan_mode, _mode, _show, _store, 0)
-
-/**
- * IIO_DEV_ATTR_AVAIL_SCAN_MODES - list available scan modes
- * @_show: output method for the attribute
- **/
-#define IIO_DEV_ATTR_AVAIL_SCAN_MODES(_show)				\
-	IIO_DEVICE_ATTR(available_scan_modes, S_IRUGO, _show, NULL, 0)
-
-/**
- * IIO_DEV_ATTR_SCAN - result of scan of multiple channels
- * @_show: output method for the attribute
- **/
-#define IIO_DEV_ATTR_SCAN(_show)		\
-	IIO_DEVICE_ATTR(scan, S_IRUGO, _show, NULL, 0);
-
-/**
- * IIO_DEV_ATTR_INPUT - direct read of a single input channel
- * @_number: input channel number
- * @_show: output method for the attribute
- **/
-#define IIO_DEV_ATTR_INPUT(_number, _show)				\
-	IIO_DEVICE_ATTR(in##_number, S_IRUGO, _show, NULL, _number)
 
 /**
  * IIO_DEV_ATTR_SW_RING_ENABLE - enable software ring buffer
@@ -218,31 +165,14 @@ struct iio_const_attr {
 #define IIO_DEV_ATTR_HW_RING_ENABLE(_show, _store)			\
 	IIO_DEVICE_ATTR(hw_ring_enable, S_IRUGO | S_IWUSR, _show, _store, 0)
 
-/**
- * IIO_DEV_ATTR_BPSE - set number of bits per scan element
- * @_mode: sysfs file mode/permissions
- * @_show: output method for the attribute
- * @_store: input method for the attribute
- **/
-#define IIO_DEV_ATTR_BPSE(_mode, _show, _store)		\
-	IIO_DEVICE_ATTR(bpse, _mode, _show, _store, 0)
-
-/**
- * IIO_DEV_ATTR_BPSE_AVAILABLE - number of bits per scan element supported
- * @_show: output method for the attribute
- **/
-#define IIO_DEV_ATTR_BPSE_AVAILABLE(_show)				\
-	IIO_DEVICE_ATTR(bpse_available, S_IRUGO, _show, NULL, 0)
-
-/**
- * IIO_DEV_ATTR_TEMP - many sensors have auxiliary temperature sensors
- * @_show: output method for the attribute
- **/
-#define IIO_DEV_ATTR_TEMP(_show)			\
-	IIO_DEVICE_ATTR(temp, S_IRUGO, _show, NULL, 0)
-
 #define IIO_DEV_ATTR_TEMP_RAW(_show)			\
 	IIO_DEVICE_ATTR(temp_raw, S_IRUGO, _show, NULL, 0)
+
+#define IIO_CONST_ATTR_TEMP_OFFSET(_string)		\
+	IIO_CONST_ATTR(temp_offset, _string)
+
+#define IIO_CONST_ATTR_TEMP_SCALE(_string)		\
+	IIO_CONST_ATTR(temp_scale, _string)
 
 /**
  * IIO_EVENT_SH - generic shared event handler
@@ -323,15 +253,49 @@ struct iio_const_attr {
 #define IIO_EVENT_ATTR_DATA_RDY(_show, _store, _mask, _handler) \
 	IIO_EVENT_ATTR(data_rdy, _show, _store, _mask, _handler)
 
-#define IIO_EVENT_CODE_DATA_RDY		100
-#define IIO_EVENT_CODE_RING_BASE	200
-#define IIO_EVENT_CODE_ACCEL_BASE	300
-#define IIO_EVENT_CODE_GYRO_BASE	400
-#define IIO_EVENT_CODE_ADC_BASE		500
-#define IIO_EVENT_CODE_MISC_BASE	600
-#define IIO_EVENT_CODE_LIGHT_BASE	700
+#define IIO_EV_CLASS_BUFFER		0
+#define IIO_EV_CLASS_IN			1
+#define IIO_EV_CLASS_ACCEL		2
+#define IIO_EV_CLASS_GYRO		3
+#define IIO_EV_CLASS_MAGN		4
+#define IIO_EV_CLASS_LIGHT		5
+#define IIO_EV_CLASS_PROXIMITY		6
 
-#define IIO_EVENT_CODE_DEVICE_SPECIFIC	1000
+#define IIO_EV_MOD_X			0
+#define IIO_EV_MOD_Y			1
+#define IIO_EV_MOD_Z			2
+#define IIO_EV_MOD_X_AND_Y		3
+#define IIO_EV_MOD_X_ANX_Z		4
+#define IIO_EV_MOD_Y_AND_Z		5
+#define IIO_EV_MOD_X_AND_Y_AND_Z	6
+#define IIO_EV_MOD_X_OR_Y		7
+#define IIO_EV_MOD_X_OR_Z		8
+#define IIO_EV_MOD_Y_OR_Z		9
+#define IIO_EV_MOD_X_OR_Y_OR_Z		10
+
+#define IIO_EV_TYPE_THRESH		0
+#define IIO_EV_TYPE_MAG			1
+#define IIO_EV_TYPE_ROC			2
+
+#define IIO_EV_DIR_EITHER		0
+#define IIO_EV_DIR_RISING		1
+#define IIO_EV_DIR_FALLING		2
+
+#define IIO_EVENT_CODE(channelclass, orient_bit, number,		\
+		       modifier, type, direction)			\
+	(channelclass | (orient_bit << 8) | ((number) << 9) |		\
+	 ((modifier) << 13) | ((type) << 16) | ((direction) << 24))
+
+#define IIO_MOD_EVENT_CODE(channelclass, number, modifier,		\
+			   type, direction)				\
+	IIO_EVENT_CODE(channelclass, 1, number, modifier, type, direction)
+
+#define IIO_UNMOD_EVENT_CODE(channelclass, number, type, direction)	\
+	IIO_EVENT_CODE(channelclass, 0, number, 0, type, direction)
+
+
+#define IIO_BUFFER_EVENT_CODE(code)		\
+	(IIO_EV_CLASS_BUFFER | (code << 8))
 
 /**
  * IIO_EVENT_ATTR_RING_50_FULL - ring buffer event to indicate 50% full
@@ -363,8 +327,8 @@ struct iio_const_attr {
 #define IIO_EVENT_ATTR_RING_75_FULL_SH(_evlist, _show, _store, _mask)	\
 	IIO_EVENT_ATTR_SH(ring_75_full, _evlist, _show, _store, _mask)
 
-#define IIO_EVENT_CODE_RING_50_FULL	IIO_EVENT_CODE_RING_BASE
-#define IIO_EVENT_CODE_RING_75_FULL	(IIO_EVENT_CODE_RING_BASE + 1)
-#define IIO_EVENT_CODE_RING_100_FULL	(IIO_EVENT_CODE_RING_BASE + 2)
+#define IIO_EVENT_CODE_RING_50_FULL	IIO_BUFFER_EVENT_CODE(0)
+#define IIO_EVENT_CODE_RING_75_FULL	IIO_BUFFER_EVENT_CODE(1)
+#define IIO_EVENT_CODE_RING_100_FULL	IIO_BUFFER_EVENT_CODE(2)
 
 #endif /* _INDUSTRIAL_IO_SYSFS_H_ */

@@ -278,7 +278,7 @@ static int display_close(struct inode *inode, struct file *file)
 	struct imon_context *context = NULL;
 	int retval = 0;
 
-	context = (struct imon_context *)file->private_data;
+	context = file->private_data;
 
 	if (!context) {
 		err("%s: no context for device", __func__);
@@ -321,7 +321,6 @@ static int send_packet(struct imon_context *context)
 	unsigned int pipe;
 	int interval = 0;
 	int retval = 0;
-	struct usb_ctrlrequest *control_req = NULL;
 
 	/* Check if we need to use control or interrupt urb */
 	pipe = usb_sndintpipe(context->usbdev,
@@ -356,8 +355,6 @@ static int send_packet(struct imon_context *context)
 			err("%s: packet tx failed (%d)", __func__, retval);
 	}
 
-	kfree(control_req);
-
 	return retval;
 }
 
@@ -384,7 +381,7 @@ static ssize_t vfd_write(struct file *file, const char *buf,
 		0x01, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
 	int *data_buf;
 
-	context = (struct imon_context *)file->private_data;
+	context = file->private_data;
 	if (!context) {
 		err("%s: no context for device", __func__);
 		return -ENODEV;
@@ -600,7 +597,7 @@ static void imon_incoming_packet(struct imon_context *context,
 	struct device *dev = context->driver->dev;
 	int octet, bit;
 	unsigned char mask;
-	int i, chunk_num;
+	int i;
 
 	/*
 	 * just bail out if no listening IR client
@@ -659,7 +656,7 @@ static void imon_incoming_packet(struct imon_context *context,
 		}
 	}
 
-	if (chunk_num == 10) {
+	if (buf[7] == 10) {
 		if (context->rx.count) {
 			submit_data(context);
 			context->rx.count = 0;
@@ -877,7 +874,7 @@ static int imon_probe(struct usb_interface *interface,
 	if (lirc_minor < 0) {
 		err("%s: lirc_register_driver failed", __func__);
 		alloc_status = 7;
-		goto alloc_status_switch;
+		goto unlock;
 	} else
 		dev_info(dev, "Registered iMON driver "
 			 "(lirc minor: %d)\n", lirc_minor);
@@ -933,8 +930,9 @@ static int imon_probe(struct usb_interface *interface,
 		 "usb<%d:%d> initialized\n", vendor, product, ifnum,
 		 usbdev->bus->busnum, usbdev->devnum);
 
-alloc_status_switch:
+unlock:
 	mutex_unlock(&context->ctx_lock);
+alloc_status_switch:
 
 	switch (alloc_status) {
 	case 7:

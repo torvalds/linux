@@ -5,6 +5,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/pfn.h>
+#include <linux/mm.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -35,16 +36,25 @@ typedef struct xpaddr {
 #define MAX_DOMAIN_PAGES						\
     ((unsigned long)((u64)CONFIG_XEN_MAX_DOMAIN_MEMORY * 1024 * 1024 * 1024 / PAGE_SIZE))
 
+extern unsigned long *machine_to_phys_mapping;
+extern unsigned int   machine_to_phys_order;
 
 extern unsigned long get_phys_to_machine(unsigned long pfn);
-extern void set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 
 static inline unsigned long pfn_to_mfn(unsigned long pfn)
 {
+	unsigned long mfn;
+
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return pfn;
 
-	return get_phys_to_machine(pfn) & ~FOREIGN_FRAME_BIT;
+	mfn = get_phys_to_machine(pfn);
+
+	if (mfn != INVALID_P2M_ENTRY)
+		mfn &= ~FOREIGN_FRAME_BIT;
+
+	return mfn;
 }
 
 static inline int phys_to_machine_mapping_valid(unsigned long pfn)
@@ -62,10 +72,8 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return mfn;
 
-#if 0
 	if (unlikely((mfn >> machine_to_phys_order) != 0))
-		return max_mapnr;
-#endif
+		return ~0;
 
 	pfn = 0;
 	/*
@@ -159,6 +167,7 @@ static inline pte_t __pte_ma(pteval_t x)
 
 #define pgd_val_ma(x)	((x).pgd)
 
+void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid);
 
 xmaddr_t arbitrary_virt_to_machine(void *address);
 unsigned long arbitrary_virt_to_mfn(void *vaddr);

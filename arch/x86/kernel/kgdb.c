@@ -315,14 +315,18 @@ static void kgdb_remove_all_hw_break(void)
 		if (!breakinfo[i].enabled)
 			continue;
 		bp = *per_cpu_ptr(breakinfo[i].pev, cpu);
-		if (bp->attr.disabled == 1)
+		if (!bp->attr.disabled) {
+			arch_uninstall_hw_breakpoint(bp);
+			bp->attr.disabled = 1;
 			continue;
+		}
 		if (dbg_is_early)
 			early_dr7 &= ~encode_dr7(i, breakinfo[i].len,
 						 breakinfo[i].type);
-		else
-			arch_uninstall_hw_breakpoint(bp);
-		bp->attr.disabled = 1;
+		else if (hw_break_release_slot(i))
+			printk(KERN_ERR "KGDB: hw bpt remove failed %lx\n",
+			       breakinfo[i].addr);
+		breakinfo[i].enabled = 0;
 	}
 }
 
@@ -387,7 +391,7 @@ kgdb_set_hw_break(unsigned long addr, int len, enum kgdb_bptype bptype)
  *	disable hardware debugging while it is processing gdb packets or
  *	handling exception.
  */
-void kgdb_disable_hw_debug(struct pt_regs *regs)
+static void kgdb_disable_hw_debug(struct pt_regs *regs)
 {
 	int i;
 	int cpu = raw_smp_processor_id();
@@ -724,6 +728,7 @@ struct kgdb_arch arch_kgdb_ops = {
 	.flags			= KGDB_HW_BREAKPOINT,
 	.set_hw_breakpoint	= kgdb_set_hw_break,
 	.remove_hw_breakpoint	= kgdb_remove_hw_break,
+	.disable_hw_break	= kgdb_disable_hw_debug,
 	.remove_all_hw_break	= kgdb_remove_all_hw_break,
 	.correct_hw_break	= kgdb_correct_hw_break,
 };

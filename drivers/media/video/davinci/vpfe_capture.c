@@ -370,7 +370,7 @@ static int vpfe_config_ccdc_image_format(struct vpfe_device *vpfe_dev)
  * For a given standard, this functions sets up the default
  * pix format & crop values in the vpfe device and ccdc.  It first
  * starts with defaults based values from the standard table.
- * It then checks if sub device support g_fmt and then override the
+ * It then checks if sub device support g_mbus_fmt and then override the
  * values based on that.Sets crop values to match with scan resolution
  * starting at 0,0. It calls vpfe_config_ccdc_image_format() set the
  * values in ccdc
@@ -379,6 +379,8 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
 				    const v4l2_std_id *std_id)
 {
 	struct vpfe_subdev_info *sdinfo = vpfe_dev->current_subdev;
+	struct v4l2_mbus_framefmt mbus_fmt;
+	struct v4l2_pix_format *pix = &vpfe_dev->fmt.fmt.pix;
 	int i, ret = 0;
 
 	for (i = 0; i < ARRAY_SIZE(vpfe_standards); i++) {
@@ -403,29 +405,36 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
 	vpfe_dev->crop.left = 0;
 	vpfe_dev->crop.width = vpfe_dev->std_info.active_pixels;
 	vpfe_dev->crop.height = vpfe_dev->std_info.active_lines;
-	vpfe_dev->fmt.fmt.pix.width = vpfe_dev->crop.width;
-	vpfe_dev->fmt.fmt.pix.height = vpfe_dev->crop.height;
+	pix->width = vpfe_dev->crop.width;
+	pix->height = vpfe_dev->crop.height;
 
 	/* first field and frame format based on standard frame format */
 	if (vpfe_dev->std_info.frame_format) {
-		vpfe_dev->fmt.fmt.pix.field = V4L2_FIELD_INTERLACED;
+		pix->field = V4L2_FIELD_INTERLACED;
 		/* assume V4L2_PIX_FMT_UYVY as default */
-		vpfe_dev->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_UYVY;
+		pix->pixelformat = V4L2_PIX_FMT_UYVY;
+		v4l2_fill_mbus_format(&mbus_fmt, pix,
+				V4L2_MBUS_FMT_YUYV10_2X10);
 	} else {
-		vpfe_dev->fmt.fmt.pix.field = V4L2_FIELD_NONE;
+		pix->field = V4L2_FIELD_NONE;
 		/* assume V4L2_PIX_FMT_SBGGR8 */
-		vpfe_dev->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_SBGGR8;
+		pix->pixelformat = V4L2_PIX_FMT_SBGGR8;
+		v4l2_fill_mbus_format(&mbus_fmt, pix,
+				V4L2_MBUS_FMT_SBGGR8_1X8);
 	}
 
-	/* if sub device supports g_fmt, override the defaults */
+	/* if sub device supports g_mbus_fmt, override the defaults */
 	ret = v4l2_device_call_until_err(&vpfe_dev->v4l2_dev,
-			sdinfo->grp_id, video, g_fmt, &vpfe_dev->fmt);
+			sdinfo->grp_id, video, g_mbus_fmt, &mbus_fmt);
 
 	if (ret && ret != -ENOIOCTLCMD) {
 		v4l2_err(&vpfe_dev->v4l2_dev,
-			"error in getting g_fmt from sub device\n");
+			"error in getting g_mbus_fmt from sub device\n");
 		return ret;
 	}
+	v4l2_fill_pix_format(pix, &mbus_fmt);
+	pix->bytesperline = pix->width * 2;
+	pix->sizeimage = pix->bytesperline * pix->height;
 
 	/* Sets the values in CCDC */
 	ret = vpfe_config_ccdc_image_format(vpfe_dev);
@@ -434,11 +443,8 @@ static int vpfe_config_image_format(struct vpfe_device *vpfe_dev,
 
 	/* Update the values of sizeimage and bytesperline */
 	if (!ret) {
-		vpfe_dev->fmt.fmt.pix.bytesperline =
-			ccdc_dev->hw_ops.get_line_length();
-		vpfe_dev->fmt.fmt.pix.sizeimage =
-			vpfe_dev->fmt.fmt.pix.bytesperline *
-			vpfe_dev->fmt.fmt.pix.height;
+		pix->bytesperline = ccdc_dev->hw_ops.get_line_length();
+		pix->sizeimage = pix->bytesperline * pix->height;
 	}
 	return ret;
 }
@@ -1366,7 +1372,7 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 				req_buf->type,
 				vpfe_dev->fmt.fmt.pix.field,
 				sizeof(struct videobuf_buffer),
-				fh);
+				fh, NULL);
 
 	fh->io_allowed = 1;
 	vpfe_dev->io_usrs = 1;
@@ -1980,7 +1986,6 @@ static __init int vpfe_probe(struct platform_device *pdev)
 		vpfe_dev->sd[i] =
 			v4l2_i2c_new_subdev_board(&vpfe_dev->v4l2_dev,
 						  i2c_adap,
-						  sdinfo->name,
 						  &sdinfo->board_info,
 						  NULL);
 		if (vpfe_dev->sd[i]) {

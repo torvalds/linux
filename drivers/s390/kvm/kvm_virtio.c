@@ -372,21 +372,22 @@ static void hotplug_devices(struct work_struct *dummy)
 /*
  * we emulate the request_irq behaviour on top of s390 extints
  */
-static void kvm_extint_handler(u16 code)
+static void kvm_extint_handler(unsigned int ext_int_code,
+			       unsigned int param32, unsigned long param64)
 {
 	struct virtqueue *vq;
 	u16 subcode;
 	u32 param;
 
-	subcode = S390_lowcore.cpu_addr;
+	subcode = ext_int_code >> 16;
 	if ((subcode & 0xff00) != VIRTIO_SUBCODE_64)
 		return;
 
 	/* The LSB might be overloaded, we have to mask it */
-	vq = (struct virtqueue *)(S390_lowcore.ext_params2 & ~1UL);
+	vq = (struct virtqueue *)(param64 & ~1UL);
 
 	/* We use ext_params to decide what this interrupt means */
-	param = S390_lowcore.ext_params & VIRTIO_PARAM_MASK;
+	param = param32 & VIRTIO_PARAM_MASK;
 
 	switch (param) {
 	case VIRTIO_PARAM_CONFIG_CHANGED:

@@ -88,9 +88,9 @@ struct UPT1_RSSConf {
 
 /* features */
 enum {
-	UPT1_F_RXCSUM		= 0x0001,   /* rx csum verification */
-	UPT1_F_RSS		= 0x0002,
-	UPT1_F_RXVLAN		= 0x0004,   /* VLAN tag stripping */
-	UPT1_F_LRO		= 0x0008,
+	UPT1_F_RXCSUM		= cpu_to_le64(0x0001),   /* rx csum verification */
+	UPT1_F_RSS		= cpu_to_le64(0x0002),
+	UPT1_F_RXVLAN		= cpu_to_le64(0x0004),   /* VLAN tag stripping */
+	UPT1_F_LRO		= cpu_to_le64(0x0008),
 };
 #endif

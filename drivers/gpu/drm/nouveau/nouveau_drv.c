@@ -31,13 +31,14 @@
 #include "nouveau_hw.h"
 #include "nouveau_fb.h"
 #include "nouveau_fbcon.h"
+#include "nouveau_pm.h"
 #include "nv50_display.h"
 
 #include "drm_pciids.h"
 
-MODULE_PARM_DESC(noagp, "Disable AGP");
-int nouveau_noagp;
-module_param_named(noagp, nouveau_noagp, int, 0400);
+MODULE_PARM_DESC(agpmode, "AGP mode (0 to disable AGP)");
+int nouveau_agpmode = -1;
+module_param_named(agpmode, nouveau_agpmode, int, 0400);
 
 MODULE_PARM_DESC(modeset, "Enable kernel modesetting");
 static int nouveau_modeset = -1; /* kms */
@@ -79,6 +80,10 @@ MODULE_PARM_DESC(nofbaccel, "Disable fbcon acceleration");
 int nouveau_nofbaccel = 0;
 module_param_named(nofbaccel, nouveau_nofbaccel, int, 0400);
 
+MODULE_PARM_DESC(force_post, "Force POST");
+int nouveau_force_post = 0;
+module_param_named(force_post, nouveau_force_post, int, 0400);
+
 MODULE_PARM_DESC(override_conntype, "Ignore DCB connector type");
 int nouveau_override_conntype = 0;
 module_param_named(override_conntype, nouveau_override_conntype, int, 0400);
@@ -101,6 +106,14 @@ MODULE_PARM_DESC(reg_debug, "Register access debug bitmask:\n"
 		"\t\t0x100 vgaattr, 0x200 EVO (G80+). ");
 int nouveau_reg_debug;
 module_param_named(reg_debug, nouveau_reg_debug, int, 0600);
+
+MODULE_PARM_DESC(perflvl, "Performance level (default: boot)\n");
+char *nouveau_perflvl;
+module_param_named(perflvl, nouveau_perflvl, charp, 0400);
+
+MODULE_PARM_DESC(perflvl_wr, "Allow perflvl changes (warning: dangerous!)\n");
+int nouveau_perflvl_wr;
+module_param_named(perflvl_wr, nouveau_perflvl_wr, int, 0400);
 
 int nouveau_fbpercrtc;
 #if 0
@@ -271,6 +284,8 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 
+	nouveau_pm_resume(dev);
+
 	if (dev_priv->gart_info.type == NOUVEAU_GART_AGP) {
 		ret = nouveau_mem_init_agp(dev);
 		if (ret) {
@@ -379,8 +394,6 @@ static struct drm_driver driver = {
 	.irq_uninstall = nouveau_irq_uninstall,
 	.irq_handler = nouveau_irq_handler,
 	.reclaim_buffers = drm_core_reclaim_buffers,
-	.get_map_ofs = drm_core_get_map_ofs,
-	.get_reg_ofs = drm_core_get_reg_ofs,
 	.ioctls = nouveau_ioctls,
 	.fops = {
 		.owner = THIS_MODULE,

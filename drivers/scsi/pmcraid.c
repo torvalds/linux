@@ -1594,10 +1594,12 @@ static void pmcraid_handle_config_change(struct pmcraid_instance *pinstance)
 	cfg_entry = &ccn_hcam->cfg_entry;
 	fw_version = be16_to_cpu(pinstance->inq_data->fw_version);
 
-	pmcraid_info
-		("CCN(%x): %x type: %x lost: %x flags: %x res: %x:%x:%x:%x\n",
+	pmcraid_info("CCN(%x): %x timestamp: %llx type: %x lost: %x flags: %x \
+		 res: %x:%x:%x:%x\n",
 		 pinstance->ccn.hcam->ilid,
 		 pinstance->ccn.hcam->op_code,
+		((pinstance->ccn.hcam->timestamp1) |
+		((pinstance->ccn.hcam->timestamp2 & 0xffffffffLL) << 32)),
 		 pinstance->ccn.hcam->notification_type,
 		 pinstance->ccn.hcam->notification_lost,
 		 pinstance->ccn.hcam->flags,
@@ -1850,6 +1852,7 @@ static void pmcraid_process_ccn(struct pmcraid_cmd *cmd)
  *   none
  */
 static void pmcraid_initiate_reset(struct pmcraid_instance *);
+static void pmcraid_set_timestamp(struct pmcraid_cmd *cmd);
 
 static void pmcraid_process_ldn(struct pmcraid_cmd *cmd)
 {
@@ -1880,6 +1883,10 @@ static void pmcraid_process_ldn(struct pmcraid_cmd *cmd)
 			spin_unlock_irqrestore(pinstance->host->host_lock,
 					       lock_flags);
 			return;
+		}
+		if (fd_ioasc == PMCRAID_IOASC_TIME_STAMP_OUT_OF_SYNC) {
+			pinstance->timestamp_error = 1;
+			pmcraid_set_timestamp(cmd);
 		}
 	} else {
 		dev_info(&pinstance->pdev->dev,
@@ -3363,7 +3370,7 @@ static struct pmcraid_sglist *pmcraid_alloc_sglist(int buflen)
 	sg_size = buflen;
 
 	for (i = 0; i < num_elem; i++) {
-		page = alloc_pages(GFP_KERNEL|GFP_DMA, order);
+		page = alloc_pages(GFP_KERNEL|GFP_DMA|__GFP_ZERO, order);
 		if (!page) {
 			for (j = i - 1; j >= 0; j--)
 				__free_pages(sg_page(&scatterlist[j]), order);
@@ -3471,7 +3478,7 @@ static int pmcraid_copy_sglist(
  *	  SCSI_MLQUEUE_DEVICE_BUSY if device is busy
  *	  SCSI_MLQUEUE_HOST_BUSY if host is busy
  */
-static int pmcraid_queuecommand(
+static int pmcraid_queuecommand_lck(
 	struct scsi_cmnd *scsi_cmd,
 	void (*done) (struct scsi_cmnd *)
 )
@@ -3576,6 +3583,8 @@ static int pmcraid_queuecommand(
 
 	return rc;
 }
+
+static DEF_SCSI_QCMD(pmcraid_queuecommand)
 
 /**
  * pmcraid_open -char node "open" entry, allowed only users with admin access
@@ -3739,6 +3748,7 @@ static long pmcraid_ioctl_passthrough(
 	unsigned long request_buffer;
 	unsigned long request_offset;
 	unsigned long lock_flags;
+	void *ioasa;
 	u32 ioasc;
 	int request_size;
 	int buffer_size;
@@ -3780,6 +3790,11 @@ static long pmcraid_ioctl_passthrough(
 	rc = __copy_from_user(buffer,
 			     (struct pmcraid_passthrough_ioctl_buffer *) arg,
 			     sizeof(struct pmcraid_passthrough_ioctl_buffer));
+
+	ioasa =
+	(void *)(arg +
+		offsetof(struct pmcraid_passthrough_ioctl_buffer, ioasa));
+
 	if (rc) {
 		pmcraid_err("ioctl: can't copy passthrough buffer\n");
 		rc = -EFAULT;
@@ -3947,22 +3962,14 @@ static long pmcraid_ioctl_passthrough(
 	}
 
 out_handle_response:
-	/* If the command failed for any reason, copy entire IOASA buffer and
-	 * return IOCTL success. If copying IOASA to user-buffer fails, return
+	/* copy entire IOASA buffer and return IOCTL success.
+	 * If copying IOASA to user-buffer fails, return
 	 * EFAULT
 	 */
-	if (PMCRAID_IOASC_SENSE_KEY(le32_to_cpu(cmd->ioa_cb->ioasa.ioasc))) {
-		void *ioasa =
-		    (void *)(arg +
-		    offsetof(struct pmcraid_passthrough_ioctl_buffer, ioasa));
-
-		pmcraid_info("command failed with %x\n",
-			     le32_to_cpu(cmd->ioa_cb->ioasa.ioasc));
-		if (copy_to_user(ioasa, &cmd->ioa_cb->ioasa,
-				 sizeof(struct pmcraid_ioasa))) {
-			pmcraid_err("failed to copy ioasa buffer to user\n");
-			rc = -EFAULT;
-		}
+	if (copy_to_user(ioasa, &cmd->ioa_cb->ioasa,
+		sizeof(struct pmcraid_ioasa))) {
+		pmcraid_err("failed to copy ioasa buffer to user\n");
+		rc = -EFAULT;
 	}
 
 	/* If the data transfer was from device, copy the data onto user
@@ -5147,6 +5154,16 @@ static void pmcraid_release_buffers(struct pmcraid_instance *pinstance)
 		pinstance->inq_data = NULL;
 		pinstance->inq_data_baddr = 0;
 	}
+
+	if (pinstance->timestamp_data != NULL) {
+		pci_free_consistent(pinstance->pdev,
+				    sizeof(struct pmcraid_timestamp_data),
+				    pinstance->timestamp_data,
+				    pinstance->timestamp_data_baddr);
+
+		pinstance->timestamp_data = NULL;
+		pinstance->timestamp_data_baddr = 0;
+	}
 }
 
 /**
@@ -5204,6 +5221,20 @@ static int __devinit pmcraid_init_buffers(struct pmcraid_instance *pinstance)
 		pmcraid_release_buffers(pinstance);
 		return -ENOMEM;
 	}
+
+	/* allocate DMAable memory for set timestamp data buffer */
+	pinstance->timestamp_data = pci_alloc_consistent(
+					pinstance->pdev,
+					sizeof(struct pmcraid_timestamp_data),
+					&pinstance->timestamp_data_baddr);
+
+	if (pinstance->timestamp_data == NULL) {
+		pmcraid_err("couldn't allocate DMA memory for \
+				set time_stamp \n");
+		pmcraid_release_buffers(pinstance);
+		return -ENOMEM;
+	}
+
 
 	/* Initialize all the command blocks and add them to free pool. No
 	 * need to lock (free_pool_lock) as this is done in initialization
@@ -5610,6 +5641,68 @@ static void pmcraid_set_supported_devs(struct pmcraid_cmd *cmd)
 }
 
 /**
+ * pmcraid_set_timestamp - set the timestamp to IOAFP
+ *
+ * @cmd: pointer to pmcraid_cmd structure
+ *
+ * Return Value
+ *  0 for success or non-zero for failure cases
+ */
+static void pmcraid_set_timestamp(struct pmcraid_cmd *cmd)
+{
+	struct pmcraid_instance *pinstance = cmd->drv_inst;
+	struct pmcraid_ioarcb *ioarcb = &cmd->ioa_cb->ioarcb;
+	__be32 time_stamp_len = cpu_to_be32(PMCRAID_TIMESTAMP_LEN);
+	struct pmcraid_ioadl_desc *ioadl = ioarcb->add_data.u.ioadl;
+
+	struct timeval tv;
+	__le64 timestamp;
+
+	do_gettimeofday(&tv);
+	timestamp = tv.tv_sec * 1000;
+
+	pinstance->timestamp_data->timestamp[0] = (__u8)(timestamp);
+	pinstance->timestamp_data->timestamp[1] = (__u8)((timestamp) >> 8);
+	pinstance->timestamp_data->timestamp[2] = (__u8)((timestamp) >> 16);
+	pinstance->timestamp_data->timestamp[3] = (__u8)((timestamp) >> 24);
+	pinstance->timestamp_data->timestamp[4] = (__u8)((timestamp) >> 32);
+	pinstance->timestamp_data->timestamp[5] = (__u8)((timestamp)  >> 40);
+
+	pmcraid_reinit_cmdblk(cmd);
+	ioarcb->request_type = REQ_TYPE_SCSI;
+	ioarcb->resource_handle = cpu_to_le32(PMCRAID_IOA_RES_HANDLE);
+	ioarcb->cdb[0] = PMCRAID_SCSI_SET_TIMESTAMP;
+	ioarcb->cdb[1] = PMCRAID_SCSI_SERVICE_ACTION;
+	memcpy(&(ioarcb->cdb[6]), &time_stamp_len, sizeof(time_stamp_len));
+
+	ioarcb->ioadl_bus_addr = cpu_to_le64((cmd->ioa_cb_bus_addr) +
+					offsetof(struct pmcraid_ioarcb,
+						add_data.u.ioadl[0]));
+	ioarcb->ioadl_length = cpu_to_le32(sizeof(struct pmcraid_ioadl_desc));
+	ioarcb->ioarcb_bus_addr &= ~(0x1FULL);
+
+	ioarcb->request_flags0 |= NO_LINK_DESCS;
+	ioarcb->request_flags0 |= TRANSFER_DIR_WRITE;
+	ioarcb->data_transfer_length =
+		cpu_to_le32(sizeof(struct pmcraid_timestamp_data));
+	ioadl = &(ioarcb->add_data.u.ioadl[0]);
+	ioadl->flags = IOADL_FLAGS_LAST_DESC;
+	ioadl->address = cpu_to_le64(pinstance->timestamp_data_baddr);
+	ioadl->data_len = cpu_to_le32(sizeof(struct pmcraid_timestamp_data));
+
+	if (!pinstance->timestamp_error) {
+		pinstance->timestamp_error = 0;
+		pmcraid_send_cmd(cmd, pmcraid_set_supported_devs,
+			 PMCRAID_INTERNAL_TIMEOUT, pmcraid_timeout_handler);
+	} else {
+		pmcraid_send_cmd(cmd, pmcraid_return_cmd,
+			 PMCRAID_INTERNAL_TIMEOUT, pmcraid_timeout_handler);
+		return;
+	}
+}
+
+
+/**
  * pmcraid_init_res_table - Initialize the resource table
  * @cmd:  pointer to pmcraid command struct
  *
@@ -5720,7 +5813,7 @@ static void pmcraid_init_res_table(struct pmcraid_cmd *cmd)
 
 	/* release the resource list lock */
 	spin_unlock_irqrestore(&pinstance->resource_lock, lock_flags);
-	pmcraid_set_supported_devs(cmd);
+	pmcraid_set_timestamp(cmd);
 }
 
 /**
@@ -6054,10 +6147,10 @@ out_init:
 static void __exit pmcraid_exit(void)
 {
 	pmcraid_netlink_release();
-	class_destroy(pmcraid_class);
 	unregister_chrdev_region(MKDEV(pmcraid_major, 0),
 				 PMCRAID_MAX_ADAPTERS);
 	pci_unregister_driver(&pmcraid_driver);
+	class_destroy(pmcraid_class);
 }
 
 module_init(pmcraid_init);

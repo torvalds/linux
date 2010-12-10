@@ -1266,11 +1266,13 @@ static int cxgb_up(struct adapter *adap)
 	}
 
 	if (!(adap->flags & QUEUES_BOUND)) {
-		err = bind_qsets(adap);
-		if (err) {
-			CH_ERR(adap, "failed to bind qsets, err %d\n", err);
+		int ret = bind_qsets(adap);
+
+		if (ret < 0) {
+			CH_ERR(adap, "failed to bind qsets, err %d\n", ret);
 			t3_intr_disable(adap);
 			free_irq_resources(adap);
+			err = ret;
 			goto out;
 		}
 		adap->flags |= QUEUES_BOUND;
@@ -3299,7 +3301,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 		pi->rx_offload = T3_RX_CSUM | T3_LRO;
 		pi->port_id = i;
 		netif_carrier_off(netdev);
-		netif_tx_stop_all_queues(netdev);
 		netdev->irq = pdev->irq;
 		netdev->mem_start = mmio_start;
 		netdev->mem_end = mmio_start + mmio_len - 1;

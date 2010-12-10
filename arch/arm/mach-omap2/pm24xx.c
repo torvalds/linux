@@ -30,6 +30,7 @@
 #include <linux/irq.h>
 #include <linux/time.h>
 #include <linux/gpio.h>
+#include <linux/console.h>
 
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
@@ -38,7 +39,6 @@
 #include <mach/irqs.h>
 #include <plat/clock.h>
 #include <plat/sram.h>
-#include <plat/control.h>
 #include <plat/dma.h>
 #include <plat/board.h>
 
@@ -48,6 +48,7 @@
 #include "cm-regbits-24xx.h"
 #include "sdrc.h"
 #include "pm.h"
+#include "control.h"
 
 #include <plat/powerdomain.h>
 #include <plat/clockdomain.h>
@@ -118,6 +119,10 @@ static void omap2_enter_full_retention(void)
 	if (omap_irq_pending())
 		goto no_sleep;
 
+	/* Block console output in case it is on one of the OMAP UARTs */
+	if (try_acquire_console_sem())
+		goto no_sleep;
+
 	omap_uart_prepare_idle(0);
 	omap_uart_prepare_idle(1);
 	omap_uart_prepare_idle(2);
@@ -130,6 +135,8 @@ static void omap2_enter_full_retention(void)
 	omap_uart_resume_idle(2);
 	omap_uart_resume_idle(1);
 	omap_uart_resume_idle(0);
+
+	release_console_sem();
 
 no_sleep:
 	if (omap2_pm_debug) {
@@ -244,6 +251,8 @@ static void omap2_enter_mpu_retention(void)
 static int omap2_can_sleep(void)
 {
 	if (omap2_fclks_active())
+		return 0;
+	if (!omap_uart_can_sleep())
 		return 0;
 	if (osc_ck->usecount > 1)
 		return 0;

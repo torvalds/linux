@@ -71,7 +71,7 @@ static int write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len,
 		if (i == (num_wqe-1)) {
 			req->wr.wr_hi = cpu_to_be32(FW_WR_OP(FW_ULPTX_WR) |
 						    FW_WR_COMPL(1));
-			req->wr.wr_lo = (__force __be64)&wr_wait;
+			req->wr.wr_lo = (__force __be64)(unsigned long) &wr_wait;
 		} else
 			req->wr.wr_hi = cpu_to_be32(FW_WR_OP(FW_ULPTX_WR));
 		req->wr.wr_mid = cpu_to_be32(
@@ -103,14 +103,7 @@ static int write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len,
 		len -= C4IW_MAX_INLINE_SIZE;
 	}
 
-	wait_event_timeout(wr_wait.wait, wr_wait.done, C4IW_WR_TO);
-	if (!wr_wait.done) {
-		printk(KERN_ERR MOD "Device %s not responding!\n",
-		       pci_name(rdev->lldi.pdev));
-		rdev->flags = T4_FATAL_ERROR;
-		ret = -EIO;
-	} else
-		ret = wr_wait.ret;
+	ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, 0, __func__);
 	return ret;
 }
 

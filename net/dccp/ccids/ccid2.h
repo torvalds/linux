@@ -81,6 +81,11 @@ struct ccid2_hc_tx_sock {
 	u64			tx_high_ack;
 };
 
+static inline bool ccid2_cwnd_network_limited(struct ccid2_hc_tx_sock *hc)
+{
+	return hc->tx_pipe >= hc->tx_cwnd;
+}
+
 struct ccid2_hc_rx_sock {
 	int	rx_data;
 };

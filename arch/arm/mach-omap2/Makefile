@@ -3,9 +3,10 @@
 #
 
 # Common support
-obj-y := id.o io.o control.o mux.o devices.o serial.o gpmc.o timer-gp.o pm.o
+obj-y := id.o io.o control.o mux.o devices.o serial.o gpmc.o timer-gp.o pm.o \
+	 common.o
 
-omap-2-3-common				= irq.o sdrc.o
+omap-2-3-common				= irq.o sdrc.o prm2xxx_3xxx.o
 hwmod-common				= omap_hwmod.o \
 					  omap_hwmod_common_data.o
 prcm-common				= prcm.o powerdomain.o
@@ -15,7 +16,7 @@ clock-common				= clock.o clock_common_data.o \
 
 obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(prcm-common) $(hwmod-common)
 obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(prcm-common) $(hwmod-common)
-obj-$(CONFIG_ARCH_OMAP4) += $(prcm-common) $(hwmod-common)
+obj-$(CONFIG_ARCH_OMAP4) += $(prcm-common) prm44xx.o $(hwmod-common)
 
 obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
 
@@ -49,13 +50,17 @@ obj-$(CONFIG_ARCH_OMAP2)		+= sdrc2xxx.o
 # Power Management
 ifeq ($(CONFIG_PM),y)
 obj-$(CONFIG_ARCH_OMAP2)		+= pm24xx.o
-obj-$(CONFIG_ARCH_OMAP2)		+= sleep24xx.o
-obj-$(CONFIG_ARCH_OMAP3)		+= pm34xx.o sleep34xx.o cpuidle34xx.o
-obj-$(CONFIG_ARCH_OMAP4)		+= pm44xx.o
+obj-$(CONFIG_ARCH_OMAP2)		+= sleep24xx.o pm_bus.o
+obj-$(CONFIG_ARCH_OMAP3)		+= pm34xx.o sleep34xx.o cpuidle34xx.o pm_bus.o
+obj-$(CONFIG_ARCH_OMAP4)		+= pm44xx.o pm_bus.o
 obj-$(CONFIG_PM_DEBUG)			+= pm-debug.o
 
 AFLAGS_sleep24xx.o			:=-Wa,-march=armv6
 AFLAGS_sleep34xx.o			:=-Wa,-march=armv7-a
+
+ifeq ($(CONFIG_PM_VERBOSE),y)
+CFLAGS_pm_bus.o				+= -DDEBUG
+endif
 
 endif
 
@@ -87,6 +92,7 @@ obj-$(CONFIG_ARCH_OMAP2430)		+= opp2430_data.o
 obj-$(CONFIG_ARCH_OMAP2420)		+= omap_hwmod_2420_data.o
 obj-$(CONFIG_ARCH_OMAP2430)		+= omap_hwmod_2430_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= omap_hwmod_3xxx_data.o
+obj-$(CONFIG_ARCH_OMAP4)		+= omap_hwmod_44xx_data.o
 
 # EMU peripherals
 obj-$(CONFIG_OMAP3_EMU)			+= emu.o
@@ -102,6 +108,10 @@ obj-y					+= $(iommu-m) $(iommu-y)
 i2c-omap-$(CONFIG_I2C_OMAP)		:= i2c.o
 obj-y					+= $(i2c-omap-m) $(i2c-omap-y)
 
+ifneq ($(CONFIG_TIDSPBRIDGE),)
+obj-y					+= dsp.o
+endif
+
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o
 obj-$(CONFIG_MACH_OMAP_H4)		+= board-h4.o
@@ -114,6 +124,10 @@ obj-$(CONFIG_MACH_DEVKIT8000)     	+= board-devkit8000.o \
                                            hsmmc.o
 obj-$(CONFIG_MACH_OMAP_LDP)		+= board-ldp.o \
 					   board-flash.o \
+					   hsmmc.o
+obj-$(CONFIG_MACH_OMAP3530_LV_SOM)      += board-omap3logic.o \
+					   hsmmc.o
+obj-$(CONFIG_MACH_OMAP3_TORPEDO)        += board-omap3logic.o \
 					   hsmmc.o
 obj-$(CONFIG_MACH_OVERO)		+= board-overo.o \
 					   hsmmc.o
@@ -146,7 +160,10 @@ obj-$(CONFIG_MACH_OMAP_3630SDP)		+= board-3630sdp.o \
 					   hsmmc.o
 obj-$(CONFIG_MACH_CM_T35)		+= board-cm-t35.o \
 					   hsmmc.o
+obj-$(CONFIG_MACH_CM_T3517)		+= board-cm-t3517.o
 obj-$(CONFIG_MACH_IGEP0020)		+= board-igep0020.o \
+					   hsmmc.o
+obj-$(CONFIG_MACH_IGEP0030)		+= board-igep0030.o \
 					   hsmmc.o
 obj-$(CONFIG_MACH_OMAP3_TOUCHBOOK)	+= board-omap3touchbook.o \
 					   hsmmc.o
@@ -174,3 +191,6 @@ obj-y					+= $(nand-m) $(nand-y)
 
 smc91x-$(CONFIG_SMC91X)			:= gpmc-smc91x.o
 obj-y					+= $(smc91x-m) $(smc91x-y)
+
+smsc911x-$(CONFIG_SMSC911X)		:= gpmc-smsc911x.o
+obj-y					+= $(smsc911x-m) $(smsc911x-y)

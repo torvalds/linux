@@ -1496,7 +1496,7 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip,
 
 	switch (mode) {
 	case FL_WRITING:
-		write_cmd = (cfi->cfiq->P_ID != 0x0200) ? CMD(0x40) : CMD(0x41);
+		write_cmd = (cfi->cfiq->P_ID != P_ID_INTEL_PERFORMANCE) ? CMD(0x40) : CMD(0x41);
 		break;
 	case FL_OTP_WRITE:
 		write_cmd = CMD(0xc0);
@@ -1661,7 +1661,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 	cmd_adr = adr & ~(wbufsize-1);
 
 	/* Let's determine this according to the interleave only once */
-	write_cmd = (cfi->cfiq->P_ID != 0x0200) ? CMD(0xe8) : CMD(0xe9);
+	write_cmd = (cfi->cfiq->P_ID != P_ID_INTEL_PERFORMANCE) ? CMD(0xe8) : CMD(0xe9);
 
 	mutex_lock(&chip->mutex);
 	ret = get_chip(map, chip, cmd_adr, FL_WRITING);

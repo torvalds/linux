@@ -1898,7 +1898,6 @@ int btrfs_balance(struct btrfs_root *dev_root)
 	u64 size_to_free;
 	struct btrfs_path *path;
 	struct btrfs_key key;
-	struct btrfs_chunk *chunk;
 	struct btrfs_root *chunk_root = dev_root->fs_info->chunk_root;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_key found_key;
@@ -1962,9 +1961,6 @@ int btrfs_balance(struct btrfs_root *dev_root)
 		if (found_key.objectid != key.objectid)
 			break;
 
-		chunk = btrfs_item_ptr(path->nodes[0],
-				       path->slots[0],
-				       struct btrfs_chunk);
 		/* chunk zero is special */
 		if (found_key.offset == 0)
 			break;
@@ -3031,8 +3027,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		}
 		bio->bi_sector = multi->stripes[dev_nr].physical >> 9;
 		dev = multi->stripes[dev_nr].dev;
-		BUG_ON(rw == WRITE && !dev->writeable);
-		if (dev && dev->bdev) {
+		if (dev && dev->bdev && (rw != WRITE || dev->writeable)) {
 			bio->bi_bdev = dev->bdev;
 			if (async_submit)
 				schedule_bio(root, dev, rw, bio);

@@ -1,6 +1,7 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
+#include "nouveau_ramht.h"
 #include "nouveau_fbcon.h"
 
 void
@@ -193,7 +194,8 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_ref_add(dev, dev_priv->channel, Nv2D, eng2d, NULL);
+	ret = nouveau_ramht_insert(dev_priv->channel, Nv2D, eng2d);
+	nouveau_gpuobj_ref(NULL, &eng2d);
 	if (ret)
 		return ret;
 

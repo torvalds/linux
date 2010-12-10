@@ -115,21 +115,19 @@ static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 	} else if (kernel_uses_llsc) {
 		unsigned long dummy;
 
-		__asm__ __volatile__(
-		"	.set	mips3					\n"
-		"1:	ll	%0, %3			# xchg_u32	\n"
-		"	.set	mips0					\n"
-		"	move	%2, %z4					\n"
-		"	.set	mips3					\n"
-		"	sc	%2, %1					\n"
-		"	beqz	%2, 2f					\n"
-		"	.subsection 2					\n"
-		"2:	b	1b					\n"
-		"	.previous					\n"
-		"	.set	mips0					\n"
-		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
-		: "R" (*m), "Jr" (val)
-		: "memory");
+		do {
+			__asm__ __volatile__(
+			"	.set	mips3				\n"
+			"	ll	%0, %3		# xchg_u32	\n"
+			"	.set	mips0				\n"
+			"	move	%2, %z4				\n"
+			"	.set	mips3				\n"
+			"	sc	%2, %1				\n"
+			"	.set	mips0				\n"
+			: "=&r" (retval), "=m" (*m), "=&r" (dummy)
+			: "R" (*m), "Jr" (val)
+			: "memory");
+		} while (unlikely(!dummy));
 	} else {
 		unsigned long flags;
 
@@ -167,19 +165,17 @@ static inline __u64 __xchg_u64(volatile __u64 * m, __u64 val)
 	} else if (kernel_uses_llsc) {
 		unsigned long dummy;
 
-		__asm__ __volatile__(
-		"	.set	mips3					\n"
-		"1:	lld	%0, %3			# xchg_u64	\n"
-		"	move	%2, %z4					\n"
-		"	scd	%2, %1					\n"
-		"	beqz	%2, 2f					\n"
-		"	.subsection 2					\n"
-		"2:	b	1b					\n"
-		"	.previous					\n"
-		"	.set	mips0					\n"
-		: "=&r" (retval), "=m" (*m), "=&r" (dummy)
-		: "R" (*m), "Jr" (val)
-		: "memory");
+		do {
+			__asm__ __volatile__(
+			"	.set	mips3				\n"
+			"	lld	%0, %3		# xchg_u64	\n"
+			"	move	%2, %z4				\n"
+			"	scd	%2, %1				\n"
+			"	.set	mips0				\n"
+			: "=&r" (retval), "=m" (*m), "=&r" (dummy)
+			: "R" (*m), "Jr" (val)
+			: "memory");
+		} while (unlikely(!dummy));
 	} else {
 		unsigned long flags;
 

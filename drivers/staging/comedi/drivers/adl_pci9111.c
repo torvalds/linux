@@ -1,26 +1,26 @@
 /*
 
-   comedi/drivers/adl_pci9111.c
+comedi/drivers/adl_pci9111.c
 
-   Hardware driver for PCI9111 ADLink cards:
+Hardware driver for PCI9111 ADLink cards:
 
-     PCI-9111HR
+PCI-9111HR
 
-   Copyright (C) 2002-2005 Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
+Copyright (C) 2002-2005 Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 /*
@@ -32,46 +32,46 @@ Status: experimental
 
 Supports:
 
-  - ai_insn read
-  - ao_insn read/write
-  - di_insn read
-  - do_insn read/write
-  - ai_do_cmd mode with the following sources:
+	- ai_insn read
+	- ao_insn read/write
+	- di_insn read
+	- do_insn read/write
+	- ai_do_cmd mode with the following sources:
 
-    - start_src			TRIG_NOW
-    - scan_begin_src		TRIG_FOLLOW	TRIG_TIMER	TRIG_EXT
-    - convert_src				TRIG_TIMER	TRIG_EXT
-    - scan_end_src		TRIG_COUNT
-    - stop_src			TRIG_COUNT	TRIG_NONE
+	- start_src		TRIG_NOW
+	- scan_begin_src	TRIG_FOLLOW	TRIG_TIMER	TRIG_EXT
+	- convert_src				TRIG_TIMER	TRIG_EXT
+	- scan_end_src		TRIG_COUNT
+	- stop_src		TRIG_COUNT	TRIG_NONE
 
-    The scanned channels must be consecutive and start from 0. They must
-    all have the same range and aref.
+The scanned channels must be consecutive and start from 0. They must
+all have the same range and aref.
 
 Configuration options:
 
-    [0] - PCI bus number (optional)
-    [1] - PCI slot number (optional)
+	[0] - PCI bus number (optional)
+	[1] - PCI slot number (optional)
 
-    If bus/slot is not specified, the first available PCI
-    device will be used.
+If bus/slot is not specified, the first available PCI
+device will be used.
 
 */
 
 /*
 CHANGELOG:
 
-  2005/02/17 Extend AI streaming capabilities. Now, scan_begin_arg can be
-  a multiple of chanlist_len*convert_arg.
-  2002/02/19 Fixed the two's complement conversion in pci9111_(hr_)ai_get_data.
-  2002/02/18 Added external trigger support for analog input.
+2005/02/17 Extend AI streaming capabilities. Now, scan_begin_arg can be
+a multiple of chanlist_len*convert_arg.
+2002/02/19 Fixed the two's complement conversion in pci9111_(hr_)ai_get_data.
+2002/02/18 Added external trigger support for analog input.
 
 TODO:
 
-  - Really test implemented functionality.
-  - Add support for the PCI-9111DG with a probe routine to identify the card
-    type (perhaps with the help of the channel number readback of the A/D Data
-    register).
-  - Add external multiplexer support.
+	- Really test implemented functionality.
+	- Add support for the PCI-9111DG with a probe routine to identify
+	  the card type (perhaps with the help of the channel number readback
+	  of the A/D Data register).
+	- Add external multiplexer support.
 
 */
 
@@ -187,95 +187,107 @@ TODO:
  */
 
 #define pci9111_trigger_and_autoscan_get() \
-  (inb(PCI9111_IO_BASE+PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK)&0x0F)
+	(inb(PCI9111_IO_BASE+PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK)&0x0F)
 
 #define pci9111_trigger_and_autoscan_set(flags) \
-  outb(flags, PCI9111_IO_BASE+PCI9111_REGISTER_TRIGGER_MODE_CONTROL)
+	outb(flags, PCI9111_IO_BASE+PCI9111_REGISTER_TRIGGER_MODE_CONTROL)
 
-#define pci9111_interrupt_and_fifo_get()				   \
-  ((inb(PCI9111_IO_BASE+PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK) >> 4) \
-   &0x03)
+#define pci9111_interrupt_and_fifo_get() \
+	((inb(PCI9111_IO_BASE+PCI9111_REGISTER_AD_MODE_INTERRUPT_READBACK) \
+		>> 4) & 0x03)
 
 #define pci9111_interrupt_and_fifo_set(flags) \
-  outb(flags, PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CONTROL)
+	outb(flags, PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CONTROL)
 
 #define pci9111_interrupt_clear() \
-  outb(0, PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CLEAR)
+	outb(0, PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CLEAR)
 
 #define pci9111_software_trigger() \
-  outb(0, PCI9111_IO_BASE+PCI9111_REGISTER_SOFTWARE_TRIGGER)
+	outb(0, PCI9111_IO_BASE+PCI9111_REGISTER_SOFTWARE_TRIGGER)
 
-#define pci9111_fifo_reset() do {					\
-  outb(PCI9111_FFEN_SET_FIFO_ENABLE,					\
-       PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CONTROL);		\
-  outb(PCI9111_FFEN_SET_FIFO_DISABLE,					\
-       PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CONTROL);		\
-  outb(PCI9111_FFEN_SET_FIFO_ENABLE,					\
-       PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CONTROL);		\
-  } while (0)
+#define pci9111_fifo_reset() do { \
+	outb(PCI9111_FFEN_SET_FIFO_ENABLE, \
+		PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CONTROL); \
+	outb(PCI9111_FFEN_SET_FIFO_DISABLE, \
+		PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CONTROL); \
+	outb(PCI9111_FFEN_SET_FIFO_ENABLE, \
+		PCI9111_IO_BASE+PCI9111_REGISTER_INTERRUPT_CONTROL); \
+	} while (0)
 
 #define pci9111_is_fifo_full() \
-  ((inb(PCI9111_IO_BASE+PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
-    PCI9111_FIFO_FULL_MASK) == 0)
+	((inb(PCI9111_IO_BASE+PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
+		PCI9111_FIFO_FULL_MASK) == 0)
 
 #define pci9111_is_fifo_half_full() \
-  ((inb(PCI9111_IO_BASE+PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
-    PCI9111_FIFO_HALF_FULL_MASK) == 0)
+	((inb(PCI9111_IO_BASE+PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
+		PCI9111_FIFO_HALF_FULL_MASK) == 0)
 
 #define pci9111_is_fifo_empty() \
-  ((inb(PCI9111_IO_BASE+PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
-    PCI9111_FIFO_EMPTY_MASK) == 0)
+	((inb(PCI9111_IO_BASE+PCI9111_REGISTER_RANGE_STATUS_READBACK)& \
+		PCI9111_FIFO_EMPTY_MASK) == 0)
 
-#define pci9111_ai_channel_set(channel)					\
-  outb((channel)&PCI9111_CHANNEL_MASK,					\
-       PCI9111_IO_BASE+PCI9111_REGISTER_AD_CHANNEL_CONTROL)
+#define pci9111_ai_channel_set(channel) \
+	outb((channel)&PCI9111_CHANNEL_MASK, \
+		PCI9111_IO_BASE+PCI9111_REGISTER_AD_CHANNEL_CONTROL)
 
-#define pci9111_ai_channel_get()					\
-  (inb(PCI9111_IO_BASE+PCI9111_REGISTER_AD_CHANNEL_READBACK)		\
-   &PCI9111_CHANNEL_MASK)
+#define pci9111_ai_channel_get() \
+	(inb(PCI9111_IO_BASE+PCI9111_REGISTER_AD_CHANNEL_READBACK) \
+		&PCI9111_CHANNEL_MASK)
 
-#define pci9111_ai_range_set(range)					\
-  outb((range)&PCI9111_RANGE_MASK,					\
-       PCI9111_IO_BASE+PCI9111_REGISTER_INPUT_SIGNAL_RANGE)
+#define pci9111_ai_range_set(range) \
+	outb((range)&PCI9111_RANGE_MASK, \
+		PCI9111_IO_BASE+PCI9111_REGISTER_INPUT_SIGNAL_RANGE)
 
-#define pci9111_ai_range_get()						\
-  (inb(PCI9111_IO_BASE+PCI9111_REGISTER_RANGE_STATUS_READBACK)		\
-   &PCI9111_RANGE_MASK)
+#define pci9111_ai_range_get() \
+	(inb(PCI9111_IO_BASE+PCI9111_REGISTER_RANGE_STATUS_READBACK) \
+		&PCI9111_RANGE_MASK)
 
-#define pci9111_ai_get_data()						\
-  (((inw(PCI9111_IO_BASE+PCI9111_REGISTER_AD_FIFO_VALUE)>>4)		\
-    &PCI9111_AI_RESOLUTION_MASK)					\
-   ^ PCI9111_AI_RESOLUTION_2_CMP_BIT)
+#define pci9111_ai_get_data() \
+	(((inw(PCI9111_IO_BASE+PCI9111_REGISTER_AD_FIFO_VALUE)>>4) \
+		&PCI9111_AI_RESOLUTION_MASK) \
+			^ PCI9111_AI_RESOLUTION_2_CMP_BIT)
 
-#define pci9111_hr_ai_get_data()					\
-  ((inw(PCI9111_IO_BASE+PCI9111_REGISTER_AD_FIFO_VALUE)			\
-    & PCI9111_HR_AI_RESOLUTION_MASK)					\
-   ^ PCI9111_HR_AI_RESOLUTION_2_CMP_BIT)
+#define pci9111_hr_ai_get_data() \
+	((inw(PCI9111_IO_BASE+PCI9111_REGISTER_AD_FIFO_VALUE) \
+		&PCI9111_HR_AI_RESOLUTION_MASK) \
+			^ PCI9111_HR_AI_RESOLUTION_2_CMP_BIT)
 
-#define pci9111_ao_set_data(data)					\
-  outw(data&PCI9111_AO_RESOLUTION_MASK,					\
-       PCI9111_IO_BASE+PCI9111_REGISTER_DA_OUTPUT)
+#define pci9111_ao_set_data(data) \
+	outw(data&PCI9111_AO_RESOLUTION_MASK, \
+		PCI9111_IO_BASE+PCI9111_REGISTER_DA_OUTPUT)
 
 #define pci9111_di_get_bits() \
-  inw(PCI9111_IO_BASE+PCI9111_REGISTER_DIGITAL_IO)
+	inw(PCI9111_IO_BASE+PCI9111_REGISTER_DIGITAL_IO)
 
 #define pci9111_do_set_bits(bits) \
-  outw(bits, PCI9111_IO_BASE+PCI9111_REGISTER_DIGITAL_IO)
+	outw(bits, PCI9111_IO_BASE+PCI9111_REGISTER_DIGITAL_IO)
 
 #define pci9111_8254_control_set(flags) \
-  outb(flags, PCI9111_IO_BASE+PCI9111_REGISTER_8254_CONTROL)
+	outb(flags, PCI9111_IO_BASE+PCI9111_REGISTER_8254_CONTROL)
 
 #define pci9111_8254_counter_0_set(data) \
-  outb(data & 0xFF, PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_0); \
-  outb((data >> 8) & 0xFF, PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_0)
+	do { \
+		outb(data & 0xFF, \
+			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_0); \
+		outb((data >> 8) & 0xFF, \
+			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_0); \
+	} while (0)
 
 #define pci9111_8254_counter_1_set(data) \
-  outb(data & 0xFF, PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_1); \
-  outb((data >> 8) & 0xFF, PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_1)
+	do { \
+		outb(data & 0xFF, \
+			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_1); \
+		outb((data >> 8) & 0xFF, \
+			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_1); \
+	} while (0)
 
 #define pci9111_8254_counter_2_set(data) \
-  outb(data & 0xFF, PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_2); \
-  outb((data >> 8) & 0xFF, PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_2)
+	do { \
+		outb(data & 0xFF, \
+			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_2); \
+		outb((data >> 8) & 0xFF, \
+			PCI9111_IO_BASE+PCI9111_REGISTER_8254_COUNTER_2); \
+	} while (0)
 
 /*  Function prototypes */
 
@@ -342,7 +354,7 @@ static const struct pci9111_board pci9111_boards[] = {
 };
 
 #define pci9111_board_nbr \
-  (sizeof(pci9111_boards)/sizeof(struct pci9111_board))
+	(sizeof(pci9111_boards)/sizeof(struct pci9111_board))
 
 static struct comedi_driver pci9111_driver = {
 	.driver_name = PCI9111_DRIVER_NAME,
@@ -1280,7 +1292,8 @@ static int pci9111_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	/*  Probe the device to determine what device in the series it is. */
 
-	printk("comedi%d: " PCI9111_DRIVER_NAME " driver\n", dev->minor);
+	printk(KERN_ERR "comedi%d: " PCI9111_DRIVER_NAME " driver\n",
+								dev->minor);
 
 	for_each_pci_dev(pci_device) {
 		if (pci_device->vendor == PCI_VENDOR_ID_ADLINK) {
@@ -1313,13 +1326,14 @@ static int pci9111_attach(struct comedi_device *dev,
 		}
 	}
 
-	printk("comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-	       dev->minor, it->options[0], it->options[1]);
+	printk(KERN_ERR
+		"comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
+			dev->minor, it->options[0], it->options[1]);
 	return -EIO;
 
 found:
 
-	printk("comedi%d: found %s (b:s:f=%d:%d:%d) , irq=%d\n",
+	printk(KERN_ERR "comedi%d: found %s (b:s:f=%d:%d:%d) , irq=%d\n",
 	       dev->minor,
 	       pci9111_boards[i].name,
 	       pci_device->bus->number,
@@ -1350,7 +1364,7 @@ found:
 	io_base = pci_resource_start(pci_device, 2);
 	io_range = pci_resource_len(pci_device, 2);
 
-	printk("comedi%d: 6503 registers at address 0x%4lx [0x%4lx]\n",
+	printk(KERN_ERR "comedi%d: 6503 registers at address 0x%4lx [0x%4lx]\n",
 	       dev->minor, io_base, io_range);
 
 	dev->iobase = io_base;
@@ -1368,8 +1382,9 @@ found:
 	if (pci_device->irq > 0) {
 		if (request_irq(pci_device->irq, pci9111_interrupt,
 				IRQF_SHARED, PCI9111_DRIVER_NAME, dev) != 0) {
-			printk("comedi%d: unable to allocate irq  %u\n",
-			       dev->minor, pci_device->irq);
+			printk(KERN_ERR
+				"comedi%d: unable to allocate irq  %u\n",
+					dev->minor, pci_device->irq);
 			return -EINVAL;
 		}
 	}

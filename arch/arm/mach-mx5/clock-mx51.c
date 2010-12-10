@@ -362,7 +362,7 @@ static int _clk_lp_apm_set_parent(struct clk *clk, struct clk *parent)
 	return 0;
 }
 
-static unsigned long clk_arm_get_rate(struct clk *clk)
+static unsigned long clk_cpu_get_rate(struct clk *clk)
 {
 	u32 cacrr, div;
 	unsigned long parent_rate;
@@ -372,6 +372,22 @@ static unsigned long clk_arm_get_rate(struct clk *clk)
 	div = (cacrr & MXC_CCM_CACRR_ARM_PODF_MASK) + 1;
 
 	return parent_rate / div;
+}
+
+static int clk_cpu_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 reg, cpu_podf;
+	unsigned long parent_rate;
+
+	parent_rate = clk_get_rate(clk->parent);
+	cpu_podf = parent_rate / rate - 1;
+	/* use post divider to change freq */
+	reg = __raw_readl(MXC_CCM_CACRR);
+	reg &= ~MXC_CCM_CACRR_ARM_PODF_MASK;
+	reg |= cpu_podf << MXC_CCM_CACRR_ARM_PODF_OFFSET;
+	__raw_writel(reg, MXC_CCM_CACRR);
+
+	return 0;
 }
 
 static int _clk_periph_apm_set_parent(struct clk *clk, struct clk *parent)
@@ -736,7 +752,8 @@ static struct clk periph_apm_clk = {
 
 static struct clk cpu_clk = {
 	.parent = &pll1_sw_clk,
-	.get_rate = clk_arm_get_rate,
+	.get_rate = clk_cpu_get_rate,
+	.set_rate = clk_cpu_set_rate,
 };
 
 static struct clk ahb_clk = {
@@ -1064,6 +1081,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("imx51-cspi.0", NULL, cspi_clk)
 	_REGISTER_CLOCK("sdhci-esdhc-imx.0", NULL, esdhc1_clk)
 	_REGISTER_CLOCK("sdhci-esdhc-imx.1", NULL, esdhc2_clk)
+	_REGISTER_CLOCK(NULL, "cpu_clk", cpu_clk)
 };
 
 static void clk_tree_init(void)

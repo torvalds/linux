@@ -901,7 +901,7 @@ static int transfer_objects(struct array_cache *to,
 		struct array_cache *from, unsigned int max)
 {
 	/* Figure out how many entries to transfer */
-	int nr = min(min(from->avail, max), to->limit - to->avail);
+	int nr = min3(from->avail, max, to->limit - to->avail);
 
 	if (!nr)
 		return 0;

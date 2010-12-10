@@ -24,7 +24,6 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
-#include <linux/smp_lock.h>
 #include "input-compat.h"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
@@ -74,6 +73,7 @@ static int input_defuzz_abs_event(int value, int old_val, int fuzz)
  * dev->event_lock held and interrupts disabled.
  */
 static void input_pass_event(struct input_dev *dev,
+			     struct input_handler *src_handler,
 			     unsigned int type, unsigned int code, int value)
 {
 	struct input_handler *handler;
@@ -92,6 +92,15 @@ static void input_pass_event(struct input_dev *dev,
 				continue;
 
 			handler = handle->handler;
+
+			/*
+			 * If this is the handler that injected this
+			 * particular event we want to skip it to avoid
+			 * filters firing again and again.
+			 */
+			if (handler == src_handler)
+				continue;
+
 			if (!handler->filter) {
 				if (filtered)
 					break;
@@ -121,7 +130,7 @@ static void input_repeat_key(unsigned long data)
 	if (test_bit(dev->repeat_key, dev->key) &&
 	    is_event_supported(dev->repeat_key, dev->keybit, KEY_MAX)) {
 
-		input_pass_event(dev, EV_KEY, dev->repeat_key, 2);
+		input_pass_event(dev, NULL, EV_KEY, dev->repeat_key, 2);
 
 		if (dev->sync) {
 			/*
@@ -130,7 +139,7 @@ static void input_repeat_key(unsigned long data)
 			 * Otherwise assume that the driver will send
 			 * SYN_REPORT once it's done.
 			 */
-			input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
+			input_pass_event(dev, NULL, EV_SYN, SYN_REPORT, 1);
 		}
 
 		if (dev->rep[REP_PERIOD])
@@ -163,6 +172,7 @@ static void input_stop_autorepeat(struct input_dev *dev)
 #define INPUT_PASS_TO_ALL	(INPUT_PASS_TO_HANDLERS | INPUT_PASS_TO_DEVICE)
 
 static int input_handle_abs_event(struct input_dev *dev,
+				  struct input_handler *src_handler,
 				  unsigned int code, int *pval)
 {
 	bool is_mt_event;
@@ -171,7 +181,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 	if (code == ABS_MT_SLOT) {
 		/*
 		 * "Stage" the event; we'll flush it later, when we
-		 * get actiual touch data.
+		 * get actual touch data.
 		 */
 		if (*pval >= 0 && *pval < dev->mtsize)
 			dev->slot = *pval;
@@ -188,7 +198,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 		pold = &mtslot->abs[code - ABS_MT_FIRST];
 	} else {
 		/*
-		 * Bypass filtering for multitouch events when
+		 * Bypass filtering for multi-touch events when
 		 * not employing slots.
 		 */
 		pold = NULL;
@@ -206,13 +216,15 @@ static int input_handle_abs_event(struct input_dev *dev,
 	/* Flush pending "slot" event */
 	if (is_mt_event && dev->slot != input_abs_get_val(dev, ABS_MT_SLOT)) {
 		input_abs_set_val(dev, ABS_MT_SLOT, dev->slot);
-		input_pass_event(dev, EV_ABS, ABS_MT_SLOT, dev->slot);
+		input_pass_event(dev, src_handler,
+				 EV_ABS, ABS_MT_SLOT, dev->slot);
 	}
 
 	return INPUT_PASS_TO_HANDLERS;
 }
 
 static void input_handle_event(struct input_dev *dev,
+			       struct input_handler *src_handler,
 			       unsigned int type, unsigned int code, int value)
 {
 	int disposition = INPUT_IGNORE_EVENT;
@@ -265,7 +277,8 @@ static void input_handle_event(struct input_dev *dev,
 
 	case EV_ABS:
 		if (is_event_supported(code, dev->absbit, ABS_MAX))
-			disposition = input_handle_abs_event(dev, code, &value);
+			disposition = input_handle_abs_event(dev, src_handler,
+							     code, &value);
 
 		break;
 
@@ -323,7 +336,7 @@ static void input_handle_event(struct input_dev *dev,
 		dev->event(dev, type, code, value);
 
 	if (disposition & INPUT_PASS_TO_HANDLERS)
-		input_pass_event(dev, type, code, value);
+		input_pass_event(dev, src_handler, type, code, value);
 }
 
 /**
@@ -352,7 +365,7 @@ void input_event(struct input_dev *dev,
 
 		spin_lock_irqsave(&dev->event_lock, flags);
 		add_input_randomness(type, code, value);
-		input_handle_event(dev, type, code, value);
+		input_handle_event(dev, NULL, type, code, value);
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 }
@@ -382,7 +395,8 @@ void input_inject_event(struct input_handle *handle,
 		rcu_read_lock();
 		grab = rcu_dereference(dev->grab);
 		if (!grab || grab == handle)
-			input_handle_event(dev, type, code, value);
+			input_handle_event(dev, handle->handler,
+					   type, code, value);
 		rcu_read_unlock();
 
 		spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -595,10 +609,10 @@ static void input_dev_release_keys(struct input_dev *dev)
 		for (code = 0; code <= KEY_MAX; code++) {
 			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
 			    __test_and_clear_bit(code, dev->key)) {
-				input_pass_event(dev, EV_KEY, code, 0);
+				input_pass_event(dev, NULL, EV_KEY, code, 0);
 			}
 		}
-		input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
+		input_pass_event(dev, NULL, EV_SYN, SYN_REPORT, 1);
 	}
 }
 
@@ -634,78 +648,141 @@ static void input_disconnect_device(struct input_dev *dev)
 	spin_unlock_irq(&dev->event_lock);
 }
 
-static int input_fetch_keycode(struct input_dev *dev, int scancode)
+/**
+ * input_scancode_to_scalar() - converts scancode in &struct input_keymap_entry
+ * @ke: keymap entry containing scancode to be converted.
+ * @scancode: pointer to the location where converted scancode should
+ *	be stored.
+ *
+ * This function is used to convert scancode stored in &struct keymap_entry
+ * into scalar form understood by legacy keymap handling methods. These
+ * methods expect scancodes to be represented as 'unsigned int'.
+ */
+int input_scancode_to_scalar(const struct input_keymap_entry *ke,
+			     unsigned int *scancode)
+{
+	switch (ke->len) {
+	case 1:
+		*scancode = *((u8 *)ke->scancode);
+		break;
+
+	case 2:
+		*scancode = *((u16 *)ke->scancode);
+		break;
+
+	case 4:
+		*scancode = *((u32 *)ke->scancode);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(input_scancode_to_scalar);
+
+/*
+ * Those routines handle the default case where no [gs]etkeycode() is
+ * defined. In this case, an array indexed by the scancode is used.
+ */
+
+static unsigned int input_fetch_keycode(struct input_dev *dev,
+					unsigned int index)
 {
 	switch (dev->keycodesize) {
-		case 1:
-			return ((u8 *)dev->keycode)[scancode];
+	case 1:
+		return ((u8 *)dev->keycode)[index];
 
-		case 2:
-			return ((u16 *)dev->keycode)[scancode];
+	case 2:
+		return ((u16 *)dev->keycode)[index];
 
-		default:
-			return ((u32 *)dev->keycode)[scancode];
+	default:
+		return ((u32 *)dev->keycode)[index];
 	}
 }
 
 static int input_default_getkeycode(struct input_dev *dev,
-				    unsigned int scancode,
-				    unsigned int *keycode)
+				    struct input_keymap_entry *ke)
 {
+	unsigned int index;
+	int error;
+
 	if (!dev->keycodesize)
 		return -EINVAL;
 
-	if (scancode >= dev->keycodemax)
+	if (ke->flags & INPUT_KEYMAP_BY_INDEX)
+		index = ke->index;
+	else {
+		error = input_scancode_to_scalar(ke, &index);
+		if (error)
+			return error;
+	}
+
+	if (index >= dev->keycodemax)
 		return -EINVAL;
 
-	*keycode = input_fetch_keycode(dev, scancode);
+	ke->keycode = input_fetch_keycode(dev, index);
+	ke->index = index;
+	ke->len = sizeof(index);
+	memcpy(ke->scancode, &index, sizeof(index));
 
 	return 0;
 }
 
 static int input_default_setkeycode(struct input_dev *dev,
-				    unsigned int scancode,
-				    unsigned int keycode)
+				    const struct input_keymap_entry *ke,
+				    unsigned int *old_keycode)
 {
-	int old_keycode;
+	unsigned int index;
+	int error;
 	int i;
-
-	if (scancode >= dev->keycodemax)
-		return -EINVAL;
 
 	if (!dev->keycodesize)
 		return -EINVAL;
 
-	if (dev->keycodesize < sizeof(keycode) && (keycode >> (dev->keycodesize * 8)))
+	if (ke->flags & INPUT_KEYMAP_BY_INDEX) {
+		index = ke->index;
+	} else {
+		error = input_scancode_to_scalar(ke, &index);
+		if (error)
+			return error;
+	}
+
+	if (index >= dev->keycodemax)
+		return -EINVAL;
+
+	if (dev->keycodesize < sizeof(ke->keycode) &&
+			(ke->keycode >> (dev->keycodesize * 8)))
 		return -EINVAL;
 
 	switch (dev->keycodesize) {
 		case 1: {
 			u8 *k = (u8 *)dev->keycode;
-			old_keycode = k[scancode];
-			k[scancode] = keycode;
+			*old_keycode = k[index];
+			k[index] = ke->keycode;
 			break;
 		}
 		case 2: {
 			u16 *k = (u16 *)dev->keycode;
-			old_keycode = k[scancode];
-			k[scancode] = keycode;
+			*old_keycode = k[index];
+			k[index] = ke->keycode;
 			break;
 		}
 		default: {
 			u32 *k = (u32 *)dev->keycode;
-			old_keycode = k[scancode];
-			k[scancode] = keycode;
+			*old_keycode = k[index];
+			k[index] = ke->keycode;
 			break;
 		}
 	}
 
-	__clear_bit(old_keycode, dev->keybit);
-	__set_bit(keycode, dev->keybit);
+	__clear_bit(*old_keycode, dev->keybit);
+	__set_bit(ke->keycode, dev->keybit);
 
 	for (i = 0; i < dev->keycodemax; i++) {
-		if (input_fetch_keycode(dev, i) == old_keycode) {
-			__set_bit(old_keycode, dev->keybit);
+		if (input_fetch_keycode(dev, i) == *old_keycode) {
+			__set_bit(*old_keycode, dev->keybit);
 			break; /* Setting the bit twice is useless, so break */
 		}
 	}
@@ -716,53 +793,86 @@ static int input_default_setkeycode(struct input_dev *dev,
 /**
  * input_get_keycode - retrieve keycode currently mapped to a given scancode
  * @dev: input device which keymap is being queried
- * @scancode: scancode (or its equivalent for device in question) for which
- *	keycode is needed
- * @keycode: result
+ * @ke: keymap entry
  *
  * This function should be called by anyone interested in retrieving current
- * keymap. Presently keyboard and evdev handlers use it.
+ * keymap. Presently evdev handlers use it.
  */
-int input_get_keycode(struct input_dev *dev,
-		      unsigned int scancode, unsigned int *keycode)
+int input_get_keycode(struct input_dev *dev, struct input_keymap_entry *ke)
 {
 	unsigned long flags;
 	int retval;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-	retval = dev->getkeycode(dev, scancode, keycode);
-	spin_unlock_irqrestore(&dev->event_lock, flags);
 
+	if (dev->getkeycode) {
+		/*
+		 * Support for legacy drivers, that don't implement the new
+		 * ioctls
+		 */
+		u32 scancode = ke->index;
+
+		memcpy(ke->scancode, &scancode, sizeof(scancode));
+		ke->len = sizeof(scancode);
+		retval = dev->getkeycode(dev, scancode, &ke->keycode);
+	} else {
+		retval = dev->getkeycode_new(dev, ke);
+	}
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
 	return retval;
 }
 EXPORT_SYMBOL(input_get_keycode);
 
 /**
- * input_get_keycode - assign new keycode to a given scancode
+ * input_set_keycode - attribute a keycode to a given scancode
  * @dev: input device which keymap is being updated
- * @scancode: scancode (or its equivalent for device in question)
- * @keycode: new keycode to be assigned to the scancode
+ * @ke: new keymap entry
  *
  * This function should be called by anyone needing to update current
  * keymap. Presently keyboard and evdev handlers use it.
  */
 int input_set_keycode(struct input_dev *dev,
-		      unsigned int scancode, unsigned int keycode)
+		      const struct input_keymap_entry *ke)
 {
 	unsigned long flags;
 	unsigned int old_keycode;
 	int retval;
 
-	if (keycode > KEY_MAX)
+	if (ke->keycode > KEY_MAX)
 		return -EINVAL;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 
-	retval = dev->getkeycode(dev, scancode, &old_keycode);
-	if (retval)
-		goto out;
+	if (dev->setkeycode) {
+		/*
+		 * Support for legacy drivers, that don't implement the new
+		 * ioctls
+		 */
+		unsigned int scancode;
 
-	retval = dev->setkeycode(dev, scancode, keycode);
+		retval = input_scancode_to_scalar(ke, &scancode);
+		if (retval)
+			goto out;
+
+		/*
+		 * We need to know the old scancode, in order to generate a
+		 * keyup effect, if the set operation happens successfully
+		 */
+		if (!dev->getkeycode) {
+			retval = -EINVAL;
+			goto out;
+		}
+
+		retval = dev->getkeycode(dev, scancode, &old_keycode);
+		if (retval)
+			goto out;
+
+		retval = dev->setkeycode(dev, scancode, ke->keycode);
+	} else {
+		retval = dev->setkeycode_new(dev, ke, &old_keycode);
+	}
+
 	if (retval)
 		goto out;
 
@@ -777,9 +887,9 @@ int input_set_keycode(struct input_dev *dev,
 	    !is_event_supported(old_keycode, dev->keybit, KEY_MAX) &&
 	    __test_and_clear_bit(old_keycode, dev->key)) {
 
-		input_pass_event(dev, EV_KEY, old_keycode, 0);
+		input_pass_event(dev, NULL, EV_KEY, old_keycode, 0);
 		if (dev->sync)
-			input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
+			input_pass_event(dev, NULL, EV_SYN, SYN_REPORT, 1);
 	}
 
  out:
@@ -1469,8 +1579,7 @@ static int input_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 		}							\
 	} while (0)
 
-#ifdef CONFIG_PM
-static void input_dev_reset(struct input_dev *dev, bool activate)
+static void input_dev_toggle(struct input_dev *dev, bool activate)
 {
 	if (!dev->event)
 		return;
@@ -1484,12 +1593,44 @@ static void input_dev_reset(struct input_dev *dev, bool activate)
 	}
 }
 
+/**
+ * input_reset_device() - reset/restore the state of input device
+ * @dev: input device whose state needs to be reset
+ *
+ * This function tries to reset the state of an opened input device and
+ * bring internal state and state if the hardware in sync with each other.
+ * We mark all keys as released, restore LED state, repeat rate, etc.
+ */
+void input_reset_device(struct input_dev *dev)
+{
+	mutex_lock(&dev->mutex);
+
+	if (dev->users) {
+		input_dev_toggle(dev, true);
+
+		/*
+		 * Keys that have been pressed at suspend time are unlikely
+		 * to be still pressed when we resume.
+		 */
+		spin_lock_irq(&dev->event_lock);
+		input_dev_release_keys(dev);
+		spin_unlock_irq(&dev->event_lock);
+	}
+
+	mutex_unlock(&dev->mutex);
+}
+EXPORT_SYMBOL(input_reset_device);
+
+#ifdef CONFIG_PM
 static int input_dev_suspend(struct device *dev)
 {
 	struct input_dev *input_dev = to_input_dev(dev);
 
 	mutex_lock(&input_dev->mutex);
-	input_dev_reset(input_dev, false);
+
+	if (input_dev->users)
+		input_dev_toggle(input_dev, false);
+
 	mutex_unlock(&input_dev->mutex);
 
 	return 0;
@@ -1499,18 +1640,7 @@ static int input_dev_resume(struct device *dev)
 {
 	struct input_dev *input_dev = to_input_dev(dev);
 
-	mutex_lock(&input_dev->mutex);
-	input_dev_reset(input_dev, true);
-
-	/*
-	 * Keys that have been pressed at suspend time are unlikely
-	 * to be still pressed when we resume.
-	 */
-	spin_lock_irq(&input_dev->event_lock);
-	input_dev_release_keys(input_dev);
-	spin_unlock_irq(&input_dev->event_lock);
-
-	mutex_unlock(&input_dev->mutex);
+	input_reset_device(input_dev);
 
 	return 0;
 }
@@ -1601,7 +1731,7 @@ EXPORT_SYMBOL(input_free_device);
  *
  * This function allocates all necessary memory for MT slot handling in the
  * input device, and adds ABS_MT_SLOT to the device capabilities. All slots
- * are initially marked as unused iby setting ABS_MT_TRACKING_ID to -1.
+ * are initially marked as unused by setting ABS_MT_TRACKING_ID to -1.
  */
 int input_mt_create_slots(struct input_dev *dev, unsigned int num_slots)
 {
@@ -1759,11 +1889,11 @@ int input_register_device(struct input_dev *dev)
 		dev->rep[REP_PERIOD] = 33;
 	}
 
-	if (!dev->getkeycode)
-		dev->getkeycode = input_default_getkeycode;
+	if (!dev->getkeycode && !dev->getkeycode_new)
+		dev->getkeycode_new = input_default_getkeycode;
 
-	if (!dev->setkeycode)
-		dev->setkeycode = input_default_setkeycode;
+	if (!dev->setkeycode && !dev->setkeycode_new)
+		dev->setkeycode_new = input_default_setkeycode;
 
 	dev_set_name(&dev->dev, "input%ld",
 		     (unsigned long) atomic_inc_return(&input_no) - 1);

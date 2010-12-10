@@ -116,7 +116,7 @@ cifs_read_super(struct super_block *sb, void *data,
 		return -ENOMEM;
 
 	spin_lock_init(&cifs_sb->tlink_tree_lock);
-	INIT_RADIX_TREE(&cifs_sb->tlink_tree, GFP_KERNEL);
+	cifs_sb->tlink_tree = RB_ROOT;
 
 	rc = bdi_setup_and_register(&cifs_sb->bdi, "cifs", BDI_CAP_MAP_COPY);
 	if (rc) {
@@ -318,12 +318,10 @@ cifs_alloc_inode(struct super_block *sb)
 		return NULL;
 	cifs_inode->cifsAttrs = 0x20;	/* default */
 	cifs_inode->time = 0;
-	cifs_inode->write_behind_rc = 0;
 	/* Until the file is open and we have gotten oplock
 	info back from the server, can not assume caching of
 	file data or metadata */
-	cifs_inode->clientCanCacheRead = false;
-	cifs_inode->clientCanCacheAll = false;
+	cifs_set_oplock_level(cifs_inode, 0);
 	cifs_inode->delete_pending = false;
 	cifs_inode->invalid_mapping = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
@@ -460,6 +458,8 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 		seq_printf(s, ",acl");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
 		seq_printf(s, ",mfsymlinks");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_FSCACHE)
+		seq_printf(s, ",fsc");
 
 	seq_printf(s, ",rsize=%d", cifs_sb->rsize);
 	seq_printf(s, ",wsize=%d", cifs_sb->wsize);
@@ -545,9 +545,9 @@ static const struct super_operations cifs_super_ops = {
 #endif
 };
 
-static int
-cifs_get_sb(struct file_system_type *fs_type,
-	    int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *
+cifs_do_mount(struct file_system_type *fs_type,
+	    int flags, const char *dev_name, void *data)
 {
 	int rc;
 	struct super_block *sb;
@@ -557,18 +557,17 @@ cifs_get_sb(struct file_system_type *fs_type,
 	cFYI(1, "Devname: %s flags: %d ", dev_name, flags);
 
 	if (IS_ERR(sb))
-		return PTR_ERR(sb);
+		return ERR_CAST(sb);
 
 	sb->s_flags = flags;
 
 	rc = cifs_read_super(sb, data, dev_name, flags & MS_SILENT ? 1 : 0);
 	if (rc) {
 		deactivate_locked_super(sb);
-		return rc;
+		return ERR_PTR(rc);
 	}
 	sb->s_flags |= MS_ACTIVE;
-	simple_set_mnt(mnt, sb);
-	return 0;
+	return dget(sb->s_root);
 }
 
 static ssize_t cifs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
@@ -634,7 +633,7 @@ static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "cifs",
-	.get_sb = cifs_get_sb,
+	.mount = cifs_do_mount,
 	.kill_sb = kill_anon_super,
 	/*  .fs_flags */
 };

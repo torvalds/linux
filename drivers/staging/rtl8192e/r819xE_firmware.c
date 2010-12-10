@@ -1,18 +1,9 @@
 /*
  * Procedure: Init boot code/firmware code/data session
  *
- * Description: This routine will intialize firmware. If any error occurs
+ * Description: This routine will initialize firmware. If any error occurs
  *		during the initialization process, the routine shall terminate
- *		immediately and return fail.  NIC driver should call
- *		NdisOpenFile only from MiniportInitialize.
- *
- * Arguments:   The pointer of the adapter
- *
- * Returns:
- *		NDIS_STATUS_FAILURE - the following initialization process
- *				      should be terminated
- *		NDIS_STATUS_SUCCESS - if firmware initialization process
- *				      success
+ *		immediately and return fail.
  */
 
 #include "r8192E.h"
@@ -91,16 +82,16 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 		 * Transform from little endian to big endian and pending zero
 		 */
 		for (i = 0; i < frag_length; i += 4) {
-			*seg_ptr++ = ((i+0) < frag_length) ? \
+			*seg_ptr++ = ((i+0) < frag_length) ?
 					code_virtual_address[i+3] : 0;
 
-			*seg_ptr++ = ((i+1) < frag_length) ? \
+			*seg_ptr++ = ((i+1) < frag_length) ?
 					code_virtual_address[i+2] : 0;
 
-			*seg_ptr++ = ((i+2) < frag_length) ? \
+			*seg_ptr++ = ((i+2) < frag_length) ?
 					code_virtual_address[i+1] : 0;
 
-			*seg_ptr++ = ((i+3) < frag_length) ? \
+			*seg_ptr++ = ((i+3) < frag_length) ?
 					code_virtual_address[i+0] : 0;
 		}
 		tcb_desc->txbuf_size = (u16)i;
@@ -116,18 +107,11 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 }
 
 /*
- * Procedure:    Check whether main code is download OK. If OK, turn on CPU
+ * Check whether main code is download OK. If OK, turn on CPU
  *
- * Description:   CPU register locates in different page against general
- *		  register.  Switch to CPU register in the begin and switch
- *		  back before return
- *
- * Arguments:   The pointer of the adapter
- *
- * Returns:
- *	NDIS_STATUS_FAILURE - the following initialization process should be
- *			      terminated
- *	NDIS_STATUS_SUCCESS - if firmware initialization process success
+ * CPU register locates in different page against general
+ * register.  Switch to CPU register in the begin and switch
+ * back before return
  */
 static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 {
@@ -249,7 +233,7 @@ bool init_firmware(struct net_device *dev)
 	 * Download boot, main, and data image for System reset.
 	 * Download data image for firmware reseta
 	 */
-	for (init_step = starting_state; init_step <= FW_INIT_STEP2_DATA; \
+	for (init_step = starting_state; init_step <= FW_INIT_STEP2_DATA;
 			init_step++) {
 		/*
 		 * Open Image file, and map file to contineous memory if open file success.
@@ -266,7 +250,7 @@ bool init_firmware(struct net_device *dev)
 				}
 
 				if (fw_entry->size > sizeof(pfirmware->firmware_buf[init_step])) {
-					RT_TRACE(COMP_FIRMWARE, \
+					RT_TRACE(COMP_FIRMWARE,
 						"img file size exceed the container buffer fail!\n");
 					goto download_firmware_fail;
 				}

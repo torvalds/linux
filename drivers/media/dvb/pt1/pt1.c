@@ -1087,7 +1087,6 @@ pt1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pt1_update_power(pt1);
 
 	i2c_adap = &pt1->i2c_adap;
-	i2c_adap->class = I2C_CLASS_TV_DIGITAL;
 	i2c_adap->algo = &pt1_i2c_algo;
 	i2c_adap->algo_data = NULL;
 	i2c_adap->dev.parent = &pdev->dev;

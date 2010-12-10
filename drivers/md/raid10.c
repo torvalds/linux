@@ -120,7 +120,7 @@ static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 	 * Allocate bios.
 	 */
 	for (j = nalloc ; j-- ; ) {
-		bio = bio_alloc(gfp_flags, RESYNC_PAGES);
+		bio = bio_kmalloc(gfp_flags, RESYNC_PAGES);
 		if (!bio)
 			goto out_free_bio;
 		r10_bio->devs[j].bio = bio;
@@ -801,7 +801,6 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 	const int rw = bio_data_dir(bio);
 	const unsigned long do_sync = (bio->bi_rw & REQ_SYNC);
 	const unsigned long do_fua = (bio->bi_rw & REQ_FUA);
-	struct bio_list bl;
 	unsigned long flags;
 	mdk_rdev_t *blocked_rdev;
 
@@ -890,7 +889,7 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		}
 		mirror = conf->mirrors + disk;
 
-		read_bio = bio_clone(bio, GFP_NOIO);
+		read_bio = bio_clone_mddev(bio, GFP_NOIO, mddev);
 
 		r10_bio->devs[slot].bio = read_bio;
 
@@ -950,16 +949,16 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		goto retry_write;
 	}
 
-	atomic_set(&r10_bio->remaining, 0);
+	atomic_set(&r10_bio->remaining, 1);
+	bitmap_startwrite(mddev->bitmap, bio->bi_sector, r10_bio->sectors, 0);
 
-	bio_list_init(&bl);
 	for (i = 0; i < conf->copies; i++) {
 		struct bio *mbio;
 		int d = r10_bio->devs[i].devnum;
 		if (!r10_bio->devs[i].bio)
 			continue;
 
-		mbio = bio_clone(bio, GFP_NOIO);
+		mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
 		r10_bio->devs[i].bio = mbio;
 
 		mbio->bi_sector	= r10_bio->devs[i].addr+
@@ -970,21 +969,21 @@ static int make_request(mddev_t *mddev, struct bio * bio)
 		mbio->bi_private = r10_bio;
 
 		atomic_inc(&r10_bio->remaining);
-		bio_list_add(&bl, mbio);
+		spin_lock_irqsave(&conf->device_lock, flags);
+		bio_list_add(&conf->pending_bio_list, mbio);
+		blk_plug_device(mddev->queue);
+		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
 
-	if (unlikely(!atomic_read(&r10_bio->remaining))) {
-		/* the array is dead */
+	if (atomic_dec_and_test(&r10_bio->remaining)) {
+		/* This matches the end of raid10_end_write_request() */
+		bitmap_endwrite(r10_bio->mddev->bitmap, r10_bio->sector,
+				r10_bio->sectors,
+				!test_bit(R10BIO_Degraded, &r10_bio->state),
+				0);
 		md_write_end(mddev);
 		raid_end_bio_io(r10_bio);
-		return 0;
 	}
-
-	bitmap_startwrite(mddev->bitmap, bio->bi_sector, r10_bio->sectors, 0);
-	spin_lock_irqsave(&conf->device_lock, flags);
-	bio_list_merge(&conf->pending_bio_list, &bl);
-	blk_plug_device(mddev->queue);
-	spin_unlock_irqrestore(&conf->device_lock, flags);
 
 	/* In case raid10d snuck in to freeze_array */
 	wake_up(&conf->wait_barrier);
@@ -1558,7 +1557,7 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 			    test_bit(In_sync, &rdev->flags)) {
 				atomic_inc(&rdev->nr_pending);
 				rcu_read_unlock();
-				success = sync_page_io(rdev->bdev,
+				success = sync_page_io(rdev,
 						       r10_bio->devs[sl].addr +
 						       sect + rdev->data_offset,
 						       s<<9,
@@ -1597,7 +1596,7 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 				atomic_inc(&rdev->nr_pending);
 				rcu_read_unlock();
 				atomic_add(s, &rdev->corrected_errors);
-				if (sync_page_io(rdev->bdev,
+				if (sync_page_io(rdev,
 						 r10_bio->devs[sl].addr +
 						 sect + rdev->data_offset,
 						 s<<9, conf->tmppage, WRITE)
@@ -1634,7 +1633,7 @@ static void fix_read_error(conf_t *conf, mddev_t *mddev, r10bio_t *r10_bio)
 				char b[BDEVNAME_SIZE];
 				atomic_inc(&rdev->nr_pending);
 				rcu_read_unlock();
-				if (sync_page_io(rdev->bdev,
+				if (sync_page_io(rdev,
 						 r10_bio->devs[sl].addr +
 						 sect + rdev->data_offset,
 						 s<<9, conf->tmppage,
@@ -1747,7 +1746,8 @@ static void raid10d(mddev_t *mddev)
 					       mdname(mddev),
 					       bdevname(rdev->bdev,b),
 					       (unsigned long long)r10_bio->sector);
-				bio = bio_clone(r10_bio->master_bio, GFP_NOIO);
+				bio = bio_clone_mddev(r10_bio->master_bio,
+						      GFP_NOIO, mddev);
 				r10_bio->devs[r10_bio->read_slot].bio = bio;
 				bio->bi_sector = r10_bio->devs[r10_bio->read_slot].addr
 					+ rdev->data_offset;
@@ -1820,7 +1820,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	int disk;
 	int i;
 	int max_sync;
-	int sync_blocks;
+	sector_t sync_blocks;
 
 	sector_t sectors_skipped = 0;
 	int chunks_skipped = 0;

@@ -115,7 +115,7 @@ static void smp_start_cpu_interrupt(void)
 static void smp_stop_cpu_interrupt(void)
 {
 	set_cpu_online(smp_processor_id(), 0);
-	raw_local_irq_disable_all();
+	arch_local_irq_disable_all();
 	for (;;)
 		asm("nap");
 }
@@ -212,7 +212,7 @@ void __init ipi_init(void)
 
 		tile.x = cpu_x(cpu);
 		tile.y = cpu_y(cpu);
-		if (hv_get_ipi_pte(tile, 1, &pte) != 0)
+		if (hv_get_ipi_pte(tile, KERNEL_PL, &pte) != 0)
 			panic("Failed to initialize IPI for cpu %d\n", cpu);
 
 		offset = hv_pte_get_pfn(pte) << PAGE_SHIFT;

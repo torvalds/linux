@@ -82,6 +82,16 @@ module_param_array(bw_percentage, uint, NULL, 0);
 
 static struct vxge_drv_config *driver_config;
 
+static enum vxge_hw_status vxge_add_mac_addr(struct vxgedev *vdev,
+					     struct macInfo *mac);
+static enum vxge_hw_status vxge_del_mac_addr(struct vxgedev *vdev,
+					     struct macInfo *mac);
+static int vxge_mac_list_add(struct vxge_vpath *vpath, struct macInfo *mac);
+static int vxge_mac_list_del(struct vxge_vpath *vpath, struct macInfo *mac);
+static enum vxge_hw_status vxge_restore_vpath_vid_table(struct vxge_vpath *vpath);
+static enum vxge_hw_status vxge_restore_vpath_mac_addr(struct vxge_vpath *vpath);
+static enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
+
 static inline int is_vxge_card_up(struct vxgedev *vdev)
 {
 	return test_bit(__VXGE_STATE_CARD_UP, &vdev->state);
@@ -138,7 +148,7 @@ static inline void VXGE_COMPLETE_ALL_RX(struct vxgedev *vdev)
  * This function is called during interrupt context to notify link up state
  * change.
  */
-void
+static void
 vxge_callback_link_up(struct __vxge_hw_device *hldev)
 {
 	struct net_device *dev = hldev->ndev;
@@ -162,7 +172,7 @@ vxge_callback_link_up(struct __vxge_hw_device *hldev)
  * This function is called during interrupt context to notify link down state
  * change.
  */
-void
+static void
 vxge_callback_link_down(struct __vxge_hw_device *hldev)
 {
 	struct net_device *dev = hldev->ndev;
@@ -354,7 +364,7 @@ static inline void vxge_post(int *dtr_cnt, void **first_dtr,
  * If the interrupt is because of a received frame or if the receive ring
  * contains fresh as yet un-processed frames, this function is called.
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
 		 u8 t_code, void *userdata)
 {
@@ -531,7 +541,7 @@ vxge_rx_1b_compl(struct __vxge_hw_ring *ringh, void *dtr,
  * freed and frees all skbs whose data have already DMA'ed into the NICs
  * internal memory.
  */
-enum vxge_hw_status
+static enum vxge_hw_status
 vxge_xmit_compl(struct __vxge_hw_fifo *fifo_hw, void *dtr,
 		enum vxge_hw_fifo_tcode t_code, void *userdata,
 		struct sk_buff ***skb_ptr, int nr_skb, int *more)
@@ -1246,7 +1256,7 @@ static int vxge_set_mac_addr(struct net_device *dev, void *p)
  *
  * Enables the interrupts for the vpath
 */
-void vxge_vpath_intr_enable(struct vxgedev *vdev, int vp_id)
+static void vxge_vpath_intr_enable(struct vxgedev *vdev, int vp_id)
 {
 	struct vxge_vpath *vpath = &vdev->vpaths[vp_id];
 	int msix_id = 0;
@@ -1279,7 +1289,7 @@ void vxge_vpath_intr_enable(struct vxgedev *vdev, int vp_id)
  *
  * Disables the interrupts for the vpath
 */
-void vxge_vpath_intr_disable(struct vxgedev *vdev, int vp_id)
+static void vxge_vpath_intr_disable(struct vxgedev *vdev, int vp_id)
 {
 	struct vxge_vpath *vpath = &vdev->vpaths[vp_id];
 	int msix_id;
@@ -1553,7 +1563,7 @@ out:
  *
  * driver may reset the chip on events of serr, eccerr, etc
  */
-int vxge_reset(struct vxgedev *vdev)
+static int vxge_reset(struct vxgedev *vdev)
 {
 	return do_vxge_reset(vdev, VXGE_LL_FULL_RESET);
 }
@@ -1724,7 +1734,7 @@ static enum vxge_hw_status vxge_rth_configure(struct vxgedev *vdev)
 	return status;
 }
 
-int vxge_mac_list_add(struct vxge_vpath *vpath, struct macInfo *mac)
+static int vxge_mac_list_add(struct vxge_vpath *vpath, struct macInfo *mac)
 {
 	struct vxge_mac_addrs *new_mac_entry;
 	u8 *mac_address = NULL;
@@ -1757,7 +1767,8 @@ int vxge_mac_list_add(struct vxge_vpath *vpath, struct macInfo *mac)
 }
 
 /* Add a mac address to DA table */
-enum vxge_hw_status vxge_add_mac_addr(struct vxgedev *vdev, struct macInfo *mac)
+static enum vxge_hw_status vxge_add_mac_addr(struct vxgedev *vdev,
+					     struct macInfo *mac)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
 	struct vxge_vpath *vpath;
@@ -1782,7 +1793,7 @@ enum vxge_hw_status vxge_add_mac_addr(struct vxgedev *vdev, struct macInfo *mac)
 	return status;
 }
 
-int vxge_mac_list_del(struct vxge_vpath *vpath, struct macInfo *mac)
+static int vxge_mac_list_del(struct vxge_vpath *vpath, struct macInfo *mac)
 {
 	struct list_head *entry, *next;
 	u64 del_mac = 0;
@@ -1807,7 +1818,8 @@ int vxge_mac_list_del(struct vxge_vpath *vpath, struct macInfo *mac)
 	return FALSE;
 }
 /* delete a mac address from DA table */
-enum vxge_hw_status vxge_del_mac_addr(struct vxgedev *vdev, struct macInfo *mac)
+static enum vxge_hw_status vxge_del_mac_addr(struct vxgedev *vdev,
+					     struct macInfo *mac)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
 	struct vxge_vpath *vpath;
@@ -1854,7 +1866,7 @@ static vxge_search_mac_addr_in_da_table(struct vxge_vpath *vpath,
 }
 
 /* Store all vlan ids from the list to the vid table */
-enum vxge_hw_status vxge_restore_vpath_vid_table(struct vxge_vpath *vpath)
+static enum vxge_hw_status vxge_restore_vpath_vid_table(struct vxge_vpath *vpath)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
 	struct vxgedev *vdev = vpath->vdev;
@@ -1874,7 +1886,7 @@ enum vxge_hw_status vxge_restore_vpath_vid_table(struct vxge_vpath *vpath)
 }
 
 /* Store all mac addresses from the list to the DA table */
-enum vxge_hw_status vxge_restore_vpath_mac_addr(struct vxge_vpath *vpath)
+static enum vxge_hw_status vxge_restore_vpath_mac_addr(struct vxge_vpath *vpath)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
 	struct macInfo mac_info;
@@ -1916,7 +1928,7 @@ enum vxge_hw_status vxge_restore_vpath_mac_addr(struct vxge_vpath *vpath)
 }
 
 /* reset vpaths */
-enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev)
+static enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev)
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
 	struct vxge_vpath *vpath;
@@ -1948,7 +1960,7 @@ enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev)
 }
 
 /* close vpaths */
-void vxge_close_vpaths(struct vxgedev *vdev, int index)
+static void vxge_close_vpaths(struct vxgedev *vdev, int index)
 {
 	struct vxge_vpath *vpath;
 	int i;
@@ -1966,7 +1978,7 @@ void vxge_close_vpaths(struct vxgedev *vdev, int index)
 }
 
 /* open vpaths */
-int vxge_open_vpaths(struct vxgedev *vdev)
+static int vxge_open_vpaths(struct vxgedev *vdev)
 {
 	struct vxge_hw_vpath_attr attr;
 	enum vxge_hw_status status;
@@ -2517,7 +2529,7 @@ static void vxge_poll_vp_lockup(unsigned long data)
  * Return value: '0' on success and an appropriate (-)ve integer as
  * defined in errno.h file on failure.
  */
-int
+static int
 vxge_open(struct net_device *dev)
 {
 	enum vxge_hw_status status;
@@ -2721,7 +2733,7 @@ out0:
 }
 
 /* Loop throught the mac address list and delete all the entries */
-void vxge_free_mac_add_list(struct vxge_vpath *vpath)
+static void vxge_free_mac_add_list(struct vxge_vpath *vpath)
 {
 
 	struct list_head *entry, *next;
@@ -2745,7 +2757,7 @@ static void vxge_napi_del_all(struct vxgedev *vdev)
 	}
 }
 
-int do_vxge_close(struct net_device *dev, int do_io)
+static int do_vxge_close(struct net_device *dev, int do_io)
 {
 	enum vxge_hw_status status;
 	struct vxgedev *vdev;
@@ -2856,7 +2868,7 @@ int do_vxge_close(struct net_device *dev, int do_io)
  * Return value: '0' on success and an appropriate (-)ve integer as
  * defined in errno.h file on failure.
  */
-int
+static int
 vxge_close(struct net_device *dev)
 {
 	do_vxge_close(dev, 1);
@@ -3113,10 +3125,10 @@ static const struct net_device_ops vxge_netdev_ops = {
 #endif
 };
 
-int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
-				   struct vxge_config *config,
-				   int high_dma, int no_of_vpath,
-				   struct vxgedev **vdev_out)
+static int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
+					  struct vxge_config *config,
+					  int high_dma, int no_of_vpath,
+					  struct vxgedev **vdev_out)
 {
 	struct net_device *ndev;
 	enum vxge_hw_status status = VXGE_HW_OK;
@@ -3164,7 +3176,7 @@ int __devinit vxge_device_register(struct __vxge_hw_device *hldev,
 
 	ndev->watchdog_timeo = VXGE_LL_WATCH_DOG_TIMEOUT;
 
-	initialize_ethtool_ops(ndev);
+	vxge_initialize_ethtool_ops(ndev);
 
 	/* Allocate memory for vpath */
 	vdev->vpaths = kzalloc((sizeof(struct vxge_vpath)) *
@@ -3249,7 +3261,7 @@ _out0:
  *
  * This function will unregister and free network device
  */
-void
+static void
 vxge_device_unregister(struct __vxge_hw_device *hldev)
 {
 	struct vxgedev *vdev;

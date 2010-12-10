@@ -421,8 +421,8 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	src_q = v4l2_m2m_get_src_vq(m2m_ctx);
 	dst_q = v4l2_m2m_get_dst_vq(m2m_ctx);
 
-	mutex_lock(&src_q->vb_lock);
-	mutex_lock(&dst_q->vb_lock);
+	videobuf_queue_lock(src_q);
+	videobuf_queue_lock(dst_q);
 
 	if (src_q->streaming && !list_empty(&src_q->stream))
 		src_vb = list_first_entry(&src_q->stream,
@@ -450,8 +450,8 @@ unsigned int v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	}
 
 end:
-	mutex_unlock(&dst_q->vb_lock);
-	mutex_unlock(&src_q->vb_lock);
+	videobuf_queue_unlock(dst_q);
+	videobuf_queue_unlock(src_q);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_poll);

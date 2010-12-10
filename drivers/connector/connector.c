@@ -133,7 +133,8 @@ static int cn_call_callback(struct sk_buff *skb)
 					__cbq->data.skb == NULL)) {
 				__cbq->data.skb = skb;
 
-				if (queue_cn_work(__cbq, &__cbq->work))
+				if (queue_work(dev->cbdev->cn_queue,
+					       &__cbq->work))
 					err = 0;
 				else
 					err = -EINVAL;
@@ -148,13 +149,11 @@ static int cn_call_callback(struct sk_buff *skb)
 					d->callback = __cbq->data.callback;
 					d->free = __new_cbq;
 
-					__new_cbq->pdev = __cbq->pdev;
-
 					INIT_WORK(&__new_cbq->work,
 							&cn_queue_wrapper);
 
-					if (queue_cn_work(__new_cbq,
-						    &__new_cbq->work))
+					if (queue_work(dev->cbdev->cn_queue,
+						       &__new_cbq->work))
 						err = 0;
 					else {
 						kfree(__new_cbq);

@@ -177,7 +177,8 @@ void fsnotify_set_inode_mark_mask_locked(struct fsnotify_mark *mark,
  * Attach an initialized mark to a given inode.
  * These marks may be used for the fsnotify backend to determine which
  * event types should be delivered to which group and for which inodes.  These
- * marks are ordered according to the group's location in memory.
+ * marks are ordered according to priority, highest number first, and then by
+ * the group's location in memory.
  */
 int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 			    struct fsnotify_group *group, struct inode *inode,
@@ -211,7 +212,11 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
 			goto out;
 		}
 
-		if (mark->group < lmark->group)
+		if (mark->group->priority < lmark->group->priority)
+			continue;
+
+		if ((mark->group->priority == lmark->group->priority) &&
+		    (mark->group < lmark->group))
 			continue;
 
 		hlist_add_before_rcu(&mark->i.i_list, &lmark->i.i_list);
@@ -240,6 +245,7 @@ void fsnotify_unmount_inodes(struct list_head *list)
 {
 	struct inode *inode, *next_i, *need_iput = NULL;
 
+	spin_lock(&inode_lock);
 	list_for_each_entry_safe(inode, next_i, list, i_sb_list) {
 		struct inode *need_iput_tmp;
 
@@ -297,4 +303,5 @@ void fsnotify_unmount_inodes(struct list_head *list)
 
 		spin_lock(&inode_lock);
 	}
+	spin_unlock(&inode_lock);
 }

@@ -1,11 +1,5 @@
 
-#if defined(CONFIG_RAM32MB)
-#define	MEM_END	0x02000000	/* Memory size 32Mb */
-#elif defined(CONFIG_RAM16MB)
-#define	MEM_END	0x01000000	/* Memory size 16Mb */
-#else
 #define	MEM_END	0x00800000	/* Memory size 8Mb */
-#endif
 
 #undef CRT_DEBUG
 

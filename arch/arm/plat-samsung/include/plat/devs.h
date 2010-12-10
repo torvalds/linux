@@ -32,6 +32,8 @@ extern struct platform_device s3c64xx_device_iisv4;
 extern struct platform_device s3c64xx_device_spi0;
 extern struct platform_device s3c64xx_device_spi1;
 
+extern struct platform_device s3c_device_pcm;
+
 extern struct platform_device s3c64xx_device_pcm0;
 extern struct platform_device s3c64xx_device_pcm1;
 
@@ -46,6 +48,11 @@ extern struct platform_device s3c_device_wdt;
 extern struct platform_device s3c_device_i2c0;
 extern struct platform_device s3c_device_i2c1;
 extern struct platform_device s3c_device_i2c2;
+extern struct platform_device s3c_device_i2c3;
+extern struct platform_device s3c_device_i2c4;
+extern struct platform_device s3c_device_i2c5;
+extern struct platform_device s3c_device_i2c6;
+extern struct platform_device s3c_device_i2c7;
 extern struct platform_device s3c_device_rtc;
 extern struct platform_device s3c_device_adc;
 extern struct platform_device s3c_device_sdi;
@@ -87,6 +94,7 @@ extern struct platform_device s5pv210_device_pcm2;
 extern struct platform_device s5pv210_device_iis0;
 extern struct platform_device s5pv210_device_iis1;
 extern struct platform_device s5pv210_device_iis2;
+extern struct platform_device s5pv210_device_spdif;
 
 extern struct platform_device s5p6442_device_pcm0;
 extern struct platform_device s5p6442_device_pcm1;
@@ -106,6 +114,7 @@ extern struct platform_device s5pc100_device_pcm1;
 extern struct platform_device s5pc100_device_iis0;
 extern struct platform_device s5pc100_device_iis1;
 extern struct platform_device s5pc100_device_iis2;
+extern struct platform_device s5pc100_device_spdif;
 
 extern struct platform_device samsung_device_keypad;
 

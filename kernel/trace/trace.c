@@ -17,7 +17,6 @@
 #include <linux/writeback.h>
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 #include <linux/notifier.h>
 #include <linux/irqflags.h>
 #include <linux/debugfs.h>
@@ -1284,6 +1283,8 @@ void trace_dump_stack(void)
 	__ftrace_trace_stack(global_trace.buffer, flags, 3, preempt_count());
 }
 
+static DEFINE_PER_CPU(int, user_stack_count);
+
 void
 ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 {
@@ -1302,6 +1303,18 @@ ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 	if (unlikely(in_nmi()))
 		return;
 
+	/*
+	 * prevent recursion, since the user stack tracing may
+	 * trigger other kernel events.
+	 */
+	preempt_disable();
+	if (__this_cpu_read(user_stack_count))
+		goto out;
+
+	__this_cpu_inc(user_stack_count);
+
+
+
 	event = trace_buffer_lock_reserve(buffer, TRACE_USER_STACK,
 					  sizeof(*entry), flags, pc);
 	if (!event)
@@ -1319,6 +1332,11 @@ ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 	save_stack_trace_user(&trace);
 	if (!filter_check_discard(call, entry, buffer, event))
 		ring_buffer_unlock_commit(buffer, event);
+
+	__this_cpu_dec(user_stack_count);
+
+ out:
+	preempt_enable();
 }
 
 #ifdef UNUSED
@@ -3996,13 +4014,9 @@ static void tracing_init_debugfs_percpu(long cpu)
 {
 	struct dentry *d_percpu = tracing_dentry_percpu();
 	struct dentry *d_cpu;
-	/* strlen(cpu) + MAX(log10(cpu)) + '\0' */
-	char cpu_dir[7];
+	char cpu_dir[30]; /* 30 characters should be more than enough */
 
-	if (cpu > 999 || cpu < 0)
-		return;
-
-	sprintf(cpu_dir, "cpu%ld", cpu);
+	snprintf(cpu_dir, 30, "cpu%ld", cpu);
 	d_cpu = debugfs_create_dir(cpu_dir, d_percpu);
 	if (!d_cpu) {
 		pr_warning("Could not create debugfs '%s' entry\n", cpu_dir);

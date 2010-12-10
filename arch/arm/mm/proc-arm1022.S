@@ -108,6 +108,20 @@ ENTRY(cpu_arm1022_do_idle)
 /* ================================= CACHE ================================ */
 
 	.align	5
+
+/*
+ *	flush_icache_all()
+ *
+ *	Unconditionally clean and invalidate the entire icache.
+ */
+ENTRY(arm1022_flush_icache_all)
+#ifndef CONFIG_CPU_ICACHE_DISABLE
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
+#endif
+	mov	pc, lr
+ENDPROC(arm1022_flush_icache_all)
+
 /*
  *	flush_user_cache_all()
  *
@@ -326,6 +340,7 @@ ENTRY(arm1022_dma_unmap_area)
 ENDPROC(arm1022_dma_unmap_area)
 
 ENTRY(arm1022_cache_fns)
+	.long	arm1022_flush_icache_all
 	.long	arm1022_flush_kern_cache_all
 	.long	arm1022_flush_user_cache_all
 	.long	arm1022_flush_user_cache_range

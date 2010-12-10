@@ -245,8 +245,11 @@ int av7110_pes_play(void *dest, struct dvb_ringbuffer *buf, int dlen)
 		return -1;
 	}
 	while (1) {
-		if ((len = dvb_ringbuffer_avail(buf)) < 6)
+		len = dvb_ringbuffer_avail(buf);
+		if (len < 6) {
+			wake_up(&buf->queue);
 			return -1;
+		}
 		sync =  DVB_RINGBUFFER_PEEK(buf, 0) << 24;
 		sync |= DVB_RINGBUFFER_PEEK(buf, 1) << 16;
 		sync |= DVB_RINGBUFFER_PEEK(buf, 2) << 8;

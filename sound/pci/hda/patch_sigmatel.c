@@ -32,6 +32,7 @@
 #include <sound/core.h>
 #include <sound/asoundef.h>
 #include <sound/jack.h>
+#include <sound/tlv.h>
 #include "hda_codec.h"
 #include "hda_local.h"
 #include "hda_beep.h"
@@ -263,6 +264,7 @@ struct sigmatel_spec {
 
 	struct sigmatel_mic_route ext_mic;
 	struct sigmatel_mic_route int_mic;
+	struct sigmatel_mic_route dock_mic;
 
 	const char **spdif_labels;
 
@@ -380,6 +382,16 @@ static hda_nid_t stac92hd83xxx_slave_dig_outs[2] = {
 
 static unsigned int stac92hd83xxx_pwr_mapping[4] = {
 	0x03, 0x0c, 0x20, 0x40,
+};
+
+#define STAC92HD83XXX_NUM_DMICS	 2
+static hda_nid_t stac92hd83xxx_dmic_nids[STAC92HD83XXX_NUM_DMICS + 1] = {
+	0x11, 0x20, 0
+};
+
+#define STAC92HD87B_NUM_DMICS	 1
+static hda_nid_t stac92hd87b_dmic_nids[STAC92HD87B_NUM_DMICS + 1] = {
+	0x11, 0
 };
 
 #define STAC92HD83XXX_NUM_CAPS	2
@@ -986,7 +998,7 @@ static struct hda_verb stac9205_core_init[] = {
 	}
 
 static struct snd_kcontrol_new stac9200_mixer[] = {
-	HDA_CODEC_VOLUME("Master Playback Volume", 0xb, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MIN_MUTE("Master Playback Volume", 0xb, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Master Playback Switch", 0xb, 0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x0a, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x0a, 0, HDA_OUTPUT),
@@ -1014,7 +1026,7 @@ static struct snd_kcontrol_new stac92hd71bxx_loopback[] = {
 };
 
 static struct snd_kcontrol_new stac925x_mixer[] = {
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x0e, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MIN_MUTE("Master Playback Volume", 0xe, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Master Playback Switch", 0x0e, 0, HDA_OUTPUT),
 	{ } /* end */
 };
@@ -1105,9 +1117,7 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 		struct hda_input_mux *smux = &spec->private_smux;
 		/* check for mute support on SPDIF out */
 		if (wcaps & AC_WCAP_OUT_AMP) {
-			smux->items[smux->num_items].label = "Off";
-			smux->items[smux->num_items].index = 0;
-			smux->num_items++;
+			snd_hda_add_imux_item(smux, "Off", 0, NULL);
 			spec->spdif_mute = 1;
 		}
 		stac_smux_mixer.count = spec->num_smuxes;
@@ -1140,6 +1150,8 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 					HDA_OUTPUT, vmaster_tlv);
 		/* correct volume offset */
 		vmaster_tlv[2] += vmaster_tlv[3] * spec->volume_offset;
+		/* minimum value is actually mute */
+		vmaster_tlv[3] |= TLV_DB_SCALE_MUTE;
 		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
 					  vmaster_tlv, slave_vols);
 		if (err < 0)
@@ -1180,14 +1192,11 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		nid = cfg->input_pins[i];
-		if (nid) {
-			err = stac92xx_add_jack(codec, nid,
-						SND_JACK_MICROPHONE);
-			if (err < 0)
-				return err;
-		}
+	for (i = 0; i < cfg->num_inputs; i++) {
+		nid = cfg->inputs[i].pin;
+		err = stac92xx_add_jack(codec, nid, SND_JACK_MICROPHONE);
+		if (err < 0)
+			return err;
 	}
 
 	return 0;	
@@ -1617,6 +1626,8 @@ static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
 
 static struct snd_pci_quirk stac92hd73xx_codec_id_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02a1,
+		      "Alienware M17x", STAC_ALIENWARE_M17X),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x043a,
 		      "Alienware M17x", STAC_ALIENWARE_M17X),
 	{} /* terminator */
 };
@@ -2779,7 +2790,7 @@ static inline int stac92xx_add_jack_mode_control(struct hda_codec *codec,
 	struct sigmatel_spec *spec = codec->spec;
 	char name[22];
 
-	if (!((get_defcfg_connect(def_conf)) & AC_JACK_PORT_FIXED)) {
+	if (snd_hda_get_input_pin_attr(def_conf) != INPUT_PIN_ATTR_INT) {
 		if (stac92xx_get_default_vref(codec, nid) == AC_PINCTL_VREF_GRD
 			&& nid == spec->line_switch)
 			control = STAC_CTL_WIDGET_IO_SWITCH;
@@ -2791,7 +2802,7 @@ static inline int stac92xx_add_jack_mode_control(struct hda_codec *codec,
 	}
 
 	if (control) {
-		strcpy(name, auto_pin_cfg_labels[idx]);
+		strcpy(name, hda_get_input_pin_label(codec, nid, 1));
 		return stac92xx_add_control(codec->spec, control,
 					strcat(name, " Jack Mode"), nid);
 	}
@@ -2823,41 +2834,49 @@ static hda_nid_t check_line_out_switch(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	hda_nid_t nid;
 	unsigned int pincap;
+	int i;
 
 	if (cfg->line_out_type != AUTO_PIN_LINE_OUT)
 		return 0;
-	nid = cfg->input_pins[AUTO_PIN_LINE];
-	pincap = snd_hda_query_pin_caps(codec, nid);
-	if (pincap & AC_PINCAP_OUT)
-		return nid;
-	return 0;
-}
-
-/* check whether the mic-input can be used as line-out */
-static hda_nid_t check_mic_out_switch(struct hda_codec *codec)
-{
-	struct sigmatel_spec *spec = codec->spec;
-	struct auto_pin_cfg *cfg = &spec->autocfg;
-	unsigned int def_conf, pincap;
-	unsigned int mic_pin;
-
-	if (cfg->line_out_type != AUTO_PIN_LINE_OUT)
-		return 0;
-	mic_pin = AUTO_PIN_MIC;
-	for (;;) {
-		hda_nid_t nid = cfg->input_pins[mic_pin];
-		def_conf = snd_hda_codec_get_pincfg(codec, nid);
-		/* some laptops have an internal analog microphone
-		 * which can't be used as a output */
-		if (get_defcfg_connect(def_conf) != AC_JACK_PORT_FIXED) {
+	for (i = 0; i < cfg->num_inputs; i++) {
+		if (cfg->inputs[i].type == AUTO_PIN_LINE_IN) {
+			nid = cfg->inputs[i].pin;
 			pincap = snd_hda_query_pin_caps(codec, nid);
 			if (pincap & AC_PINCAP_OUT)
 				return nid;
 		}
-		if (mic_pin == AUTO_PIN_MIC)
-			mic_pin = AUTO_PIN_FRONT_MIC;
-		else
-			break;
+	}
+	return 0;
+}
+
+static hda_nid_t get_unassigned_dac(struct hda_codec *codec, hda_nid_t nid);
+
+/* check whether the mic-input can be used as line-out */
+static hda_nid_t check_mic_out_switch(struct hda_codec *codec, hda_nid_t *dac)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	unsigned int def_conf, pincap;
+	int i;
+
+	*dac = 0;
+	if (cfg->line_out_type != AUTO_PIN_LINE_OUT)
+		return 0;
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
+		if (cfg->inputs[i].type != AUTO_PIN_MIC)
+			continue;
+		def_conf = snd_hda_codec_get_pincfg(codec, nid);
+		/* some laptops have an internal analog microphone
+		 * which can't be used as a output */
+		if (snd_hda_get_input_pin_attr(def_conf) != INPUT_PIN_ATTR_INT) {
+			pincap = snd_hda_query_pin_caps(codec, nid);
+			if (pincap & AC_PINCAP_OUT) {
+				*dac = get_unassigned_dac(codec, nid);
+				if (*dac)
+					return nid;
+			}
+		}
 	}
 	return 0;
 }
@@ -3004,17 +3023,14 @@ static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec)
 		}
 	}
 	/* add mic as output */
-	nid = check_mic_out_switch(codec);
-	if (nid) {
-		dac = get_unassigned_dac(codec, nid);
-		if (dac) {
-			snd_printdd("STAC: Add mic-in 0x%x as output %d\n",
-				    nid, cfg->line_outs);
-			cfg->line_out_pins[cfg->line_outs] = nid;
-			cfg->line_outs++;
-			spec->mic_switch = nid;
-			add_spec_dacs(spec, dac);
-		}
+	nid = check_mic_out_switch(codec, &dac);
+	if (nid && dac) {
+		snd_printdd("STAC: Add mic-in 0x%x as output %d\n",
+			    nid, cfg->line_outs);
+		cfg->line_out_pins[cfg->line_outs] = nid;
+		cfg->line_outs++;
+		spec->mic_switch = nid;
+		add_spec_dacs(spec, dac);
 	}
 
 	snd_printd("stac92xx: dac_nids=%d (0x%x/0x%x/0x%x/0x%x/0x%x)\n",
@@ -3204,13 +3220,13 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 			return err;
 	}
 
-	for (idx = AUTO_PIN_MIC; idx <= AUTO_PIN_FRONT_LINE; idx++) {
-		nid = cfg->input_pins[idx];
-		if (nid) {
-			err = stac92xx_add_jack_mode_control(codec, nid, idx);
-			if (err < 0)
-				return err;
-		}
+	for (idx = 0; idx < cfg->num_inputs; idx++) {
+		if (cfg->inputs[idx].type > AUTO_PIN_LINE_IN)
+			break;
+		nid = cfg->inputs[idx].pin;
+		err = stac92xx_add_jack_mode_control(codec, nid, idx);
+		if (err < 0)
+			return err;
 	}
 
 	return 0;
@@ -3256,12 +3272,9 @@ static int stac92xx_auto_create_mono_output_ctls(struct hda_codec *codec)
 	if (num_cons <= 0 || num_cons > ARRAY_SIZE(stac92xx_mono_labels))
 		return -EINVAL;
 
-	for (i = 0; i < num_cons; i++) {
-		mono_mux->items[mono_mux->num_items].label =
-					stac92xx_mono_labels[i];
-		mono_mux->items[mono_mux->num_items].index = i;
-		mono_mux->num_items++;
-	}
+	for (i = 0; i < num_cons; i++)
+		snd_hda_add_imux_item(mono_mux, stac92xx_mono_labels[i], i,
+				      NULL);
 
 	return stac92xx_add_control(spec, STAC_CTL_WIDGET_MONO_MUX,
 				"Mono Mux", spec->mono_nid);
@@ -3386,11 +3399,8 @@ static int stac92xx_auto_create_spdif_mux_ctls(struct hda_codec *codec)
 	if (!labels)
 		labels = stac92xx_spdif_labels;
 
-	for (i = 0; i < num_cons; i++) {
-		spdif_mux->items[spdif_mux->num_items].label = labels[i];
-		spdif_mux->items[spdif_mux->num_items].index = i;
-		spdif_mux->num_items++;
-	}
+	for (i = 0; i < num_cons; i++)
+		snd_hda_add_imux_item(spdif_mux, labels[i], i, NULL);
 
 	return 0;
 }
@@ -3417,7 +3427,7 @@ static int get_connection_index(struct hda_codec *codec, hda_nid_t mux,
 /* create a volume assigned to the given pin (only if supported) */
 /* return 1 if the volume control is created */
 static int create_elem_capture_vol(struct hda_codec *codec, hda_nid_t nid,
-				   const char *label, int direction)
+				   const char *label, int idx, int direction)
 {
 	unsigned int caps, nums;
 	char name[32];
@@ -3434,8 +3444,8 @@ static int create_elem_capture_vol(struct hda_codec *codec, hda_nid_t nid,
 	if (!nums)
 		return 0;
 	snprintf(name, sizeof(name), "%s Capture Volume", label);
-	err = stac92xx_add_control(codec->spec, STAC_CTL_WIDGET_VOL, name,
-				    HDA_COMPOSE_AMP_VAL(nid, 3, 0, direction));
+	err = stac92xx_add_control_idx(codec->spec, STAC_CTL_WIDGET_VOL, idx, name,
+				       HDA_COMPOSE_AMP_VAL(nid, 3, 0, direction));
 	if (err < 0)
 		return err;
 	return 1;
@@ -3448,27 +3458,14 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 	struct sigmatel_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux;
 	struct hda_input_mux *dimux = &spec->private_dimux;
-	int err, i, active_mics;
+	int err, i;
 	unsigned int def_conf;
 
-	dimux->items[dimux->num_items].label = stac92xx_dmic_labels[0];
-	dimux->items[dimux->num_items].index = 0;
-	dimux->num_items++;
-
-	active_mics = 0;
-	for (i = 0; i < spec->num_dmics; i++) {
-		/* check the validity: sometimes it's a dead vendor-spec node */
-		if (get_wcaps_type(get_wcaps(codec, spec->dmic_nids[i]))
-		    != AC_WID_PIN)
-			continue;
-		def_conf = snd_hda_codec_get_pincfg(codec, spec->dmic_nids[i]);
-		if (get_defcfg_connect(def_conf) != AC_JACK_PORT_NONE)
-			active_mics++;
-	}
+	snd_hda_add_imux_item(dimux, stac92xx_dmic_labels[0], 0, NULL);
 
 	for (i = 0; i < spec->num_dmics; i++) {
 		hda_nid_t nid;
-		int index;
+		int index, type_idx;
 		const char *label;
 
 		nid = spec->dmic_nids[i];
@@ -3482,49 +3479,49 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 		if (index < 0)
 			continue;
 
-		if (active_mics == 1)
-			label = "Digital Mic";
-		else
-			label = stac92xx_dmic_labels[dimux->num_items];
+		label = hda_get_input_pin_label(codec, nid, 1);
+		snd_hda_add_imux_item(dimux, label, index, &type_idx);
 
-		err = create_elem_capture_vol(codec, nid, label, HDA_INPUT);
+		err = create_elem_capture_vol(codec, nid, label, type_idx,
+					      HDA_INPUT);
 		if (err < 0)
 			return err;
 		if (!err) {
 			err = create_elem_capture_vol(codec, nid, label,
-						      HDA_OUTPUT);
+						      type_idx, HDA_OUTPUT);
 			if (err < 0)
 				return err;
 		}
 
-		dimux->items[dimux->num_items].label = label;
-		dimux->items[dimux->num_items].index = index;
-		dimux->num_items++;
-		if (snd_hda_get_bool_hint(codec, "separate_dmux") != 1) {
-			imux->items[imux->num_items].label = label;
-			imux->items[imux->num_items].index = index;
-			imux->num_items++;
-		}
+		if (snd_hda_get_bool_hint(codec, "separate_dmux") != 1)
+			snd_hda_add_imux_item(imux, label, index, NULL);
 	}
 
 	return 0;
 }
 
 static int check_mic_pin(struct hda_codec *codec, hda_nid_t nid,
-			 hda_nid_t *fixed, hda_nid_t *ext)
+			 hda_nid_t *fixed, hda_nid_t *ext, hda_nid_t *dock)
 {
 	unsigned int cfg;
 
 	if (!nid)
 		return 0;
 	cfg = snd_hda_codec_get_pincfg(codec, nid);
-	switch (get_defcfg_connect(cfg)) {
-	case AC_JACK_PORT_FIXED:
+	switch (snd_hda_get_input_pin_attr(cfg)) {
+	case INPUT_PIN_ATTR_INT:
 		if (*fixed)
 			return 1; /* already occupied */
 		*fixed = nid;
 		break;
-	case AC_JACK_PORT_COMPLEX:
+	case INPUT_PIN_ATTR_UNUSED:
+		break;
+	case INPUT_PIN_ATTR_DOCK:
+		if (*dock)
+			return 1; /* already occupied */
+		*dock = nid;
+		break;
+	default:
 		if (*ext)
 			return 1; /* already occupied */
 		*ext = nid;
@@ -3542,10 +3539,13 @@ static int set_mic_route(struct hda_codec *codec,
 	int i;
 
 	mic->pin = pin;
-	for (i = AUTO_PIN_MIC; i <= AUTO_PIN_FRONT_MIC; i++)
-		if (pin == cfg->input_pins[i])
+	if (pin == 0)
+		return 0;
+	for (i = 0; i < cfg->num_inputs; i++) {
+		if (pin == cfg->inputs[i].pin)
 			break;
-	if (i <= AUTO_PIN_FRONT_MIC) {
+	}
+	if (i < cfg->num_inputs && cfg->inputs[i].type == AUTO_PIN_MIC) {
 		/* analog pin */
 		i = get_connection_index(codec, spec->mux_nids[0], pin);
 		if (i < 0)
@@ -3576,26 +3576,29 @@ static int stac_check_auto_mic(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	hda_nid_t fixed, ext;
+	hda_nid_t fixed, ext, dock;
 	int i;
 
-	for (i = AUTO_PIN_LINE; i < AUTO_PIN_LAST; i++) {
-		if (cfg->input_pins[i])
+	for (i = 0; i < cfg->num_inputs; i++) {
+		if (cfg->inputs[i].type >= AUTO_PIN_LINE_IN)
 			return 0; /* must be exclusively mics */
 	}
-	fixed = ext = 0;
-	for (i = AUTO_PIN_MIC; i <= AUTO_PIN_FRONT_MIC; i++)
-		if (check_mic_pin(codec, cfg->input_pins[i], &fixed, &ext))
+	fixed = ext = dock = 0;
+	for (i = 0; i < cfg->num_inputs; i++)
+		if (check_mic_pin(codec, cfg->inputs[i].pin,
+		    &fixed, &ext, &dock))
 			return 0;
 	for (i = 0; i < spec->num_dmics; i++)
-		if (check_mic_pin(codec, spec->dmic_nids[i], &fixed, &ext))
+		if (check_mic_pin(codec, spec->dmic_nids[i],
+		    &fixed, &ext, &dock))
 			return 0;
-	if (!fixed || !ext)
-		return 0;
+	if (!fixed && !ext && !dock)
+		return 0; /* no input to switch */
 	if (!(get_wcaps(codec, ext) & AC_WCAP_UNSOL_CAP))
 		return 0; /* no unsol support */
 	if (set_mic_route(codec, &spec->ext_mic, ext) ||
-	    set_mic_route(codec, &spec->int_mic, fixed))
+	    set_mic_route(codec, &spec->int_mic, fixed) ||
+	    set_mic_route(codec, &spec->dock_mic, dock))
 		return 0; /* something is wrong */
 	return 1;
 }
@@ -3606,13 +3609,12 @@ static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const
 	struct sigmatel_spec *spec = codec->spec;
 	struct hda_input_mux *imux = &spec->private_imux;
 	int i, j;
+	const char *label;
 
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		hda_nid_t nid = cfg->input_pins[i];
-		int index, err;
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
+		int index, err, type_idx;
 
-		if (!nid)
-			continue;
 		index = -1;
 		for (j = 0; j < spec->num_muxes; j++) {
 			index = get_connection_index(codec, spec->mux_nids[j],
@@ -3623,15 +3625,14 @@ static int stac92xx_auto_create_analog_input_ctls(struct hda_codec *codec, const
 		if (index < 0)
 			continue;
 
+		label = hda_get_autocfg_input_label(codec, cfg, i);
+		snd_hda_add_imux_item(imux, label, index, &type_idx);
+
 		err = create_elem_capture_vol(codec, nid,
-					      auto_pin_cfg_labels[i],
+					      label, type_idx,
 					      HDA_INPUT);
 		if (err < 0)
 			return err;
-
-		imux->items[imux->num_items].label = auto_pin_cfg_labels[i];
-		imux->items[imux->num_items].index = index;
-		imux->num_items++;
 	}
 	spec->num_analog_muxes = imux->num_items;
 
@@ -4305,37 +4306,37 @@ static int stac92xx_init(struct hda_codec *codec)
 					  AC_VERB_SET_CONNECT_SEL, 0);
 		if (enable_pin_detect(codec, spec->ext_mic.pin, STAC_MIC_EVENT))
 			stac_issue_unsol_event(codec, spec->ext_mic.pin);
+		if (enable_pin_detect(codec, spec->dock_mic.pin,
+		    STAC_MIC_EVENT))
+			stac_issue_unsol_event(codec, spec->dock_mic.pin);
 	}
-	for (i = 0; i < AUTO_PIN_LAST; i++) {
-		hda_nid_t nid = cfg->input_pins[i];
-		if (nid) {
-			unsigned int pinctl, conf;
-			if (i == AUTO_PIN_MIC || i == AUTO_PIN_FRONT_MIC) {
-				/* for mic pins, force to initialize */
-				pinctl = stac92xx_get_default_vref(codec, nid);
+	for (i = 0; i < cfg->num_inputs; i++) {
+		hda_nid_t nid = cfg->inputs[i].pin;
+		int type = cfg->inputs[i].type;
+		unsigned int pinctl, conf;
+		if (type == AUTO_PIN_MIC) {
+			/* for mic pins, force to initialize */
+			pinctl = stac92xx_get_default_vref(codec, nid);
+			pinctl |= AC_PINCTL_IN_EN;
+			stac92xx_auto_set_pinctl(codec, nid, pinctl);
+		} else {
+			pinctl = snd_hda_codec_read(codec, nid, 0,
+					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+			/* if PINCTL already set then skip */
+			/* Also, if both INPUT and OUTPUT are set,
+			 * it must be a BIOS bug; need to override, too
+			 */
+			if (!(pinctl & AC_PINCTL_IN_EN) ||
+			    (pinctl & AC_PINCTL_OUT_EN)) {
+				pinctl &= ~AC_PINCTL_OUT_EN;
 				pinctl |= AC_PINCTL_IN_EN;
 				stac92xx_auto_set_pinctl(codec, nid, pinctl);
-			} else {
-				pinctl = snd_hda_codec_read(codec, nid, 0,
-					AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
-				/* if PINCTL already set then skip */
-				/* Also, if both INPUT and OUTPUT are set,
-				 * it must be a BIOS bug; need to override, too
-				 */
-				if (!(pinctl & AC_PINCTL_IN_EN) ||
-				    (pinctl & AC_PINCTL_OUT_EN)) {
-					pinctl &= ~AC_PINCTL_OUT_EN;
-					pinctl |= AC_PINCTL_IN_EN;
-					stac92xx_auto_set_pinctl(codec, nid,
-								 pinctl);
-				}
 			}
-			conf = snd_hda_codec_get_pincfg(codec, nid);
-			if (get_defcfg_connect(conf) != AC_JACK_PORT_FIXED) {
-				if (enable_pin_detect(codec, nid,
-						      STAC_INSERT_EVENT))
-					stac_issue_unsol_event(codec, nid);
-			}
+		}
+		conf = snd_hda_codec_get_pincfg(codec, nid);
+		if (get_defcfg_connect(conf) != AC_JACK_PORT_FIXED) {
+			if (enable_pin_detect(codec, nid, STAC_INSERT_EVENT))
+				stac_issue_unsol_event(codec, nid);
 		}
 	}
 	for (i = 0; i < spec->num_dmics; i++)
@@ -4383,11 +4384,9 @@ static int stac92xx_init(struct hda_codec *codec)
 			stac_issue_unsol_event(codec, nid);
 	}
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 	/* sync mute LED */
-	if (spec->gpio_led && codec->patch_ops.check_power_status)
-		codec->patch_ops.check_power_status(codec, 0x01);
-#endif	
+	if (spec->gpio_led)
+		hda_call_check_power_status(codec, 0x01);
 	if (spec->dac_list)
 		stac92xx_power_down(codec);
 	return 0;
@@ -4688,6 +4687,36 @@ static void stac92xx_report_jack(struct hda_codec *codec, hda_nid_t nid)
 	}
 }
 
+/* get the pin connection (fixed, none, etc) */
+static unsigned int stac_get_defcfg_connect(struct hda_codec *codec, int idx)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	unsigned int cfg;
+
+	cfg = snd_hda_codec_get_pincfg(codec, spec->pin_nids[idx]);
+	return get_defcfg_connect(cfg);
+}
+
+static int stac92xx_connected_ports(struct hda_codec *codec,
+					 hda_nid_t *nids, int num_nids)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	int idx, num;
+	unsigned int def_conf;
+
+	for (num = 0; num < num_nids; num++) {
+		for (idx = 0; idx < spec->num_pins; idx++)
+			if (spec->pin_nids[idx] == nids[num])
+				break;
+		if (idx >= spec->num_pins)
+			break;
+		def_conf = stac_get_defcfg_connect(codec, idx);
+		if (def_conf == AC_JACK_PORT_NONE)
+			break;
+	}
+	return num;
+}
+
 static void stac92xx_mic_detect(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -4695,6 +4724,8 @@ static void stac92xx_mic_detect(struct hda_codec *codec)
 
 	if (get_pin_presence(codec, spec->ext_mic.pin))
 		mic = &spec->ext_mic;
+	else if (get_pin_presence(codec, spec->dock_mic.pin))
+		mic = &spec->dock_mic;
 	else
 		mic = &spec->int_mic;
 	if (mic->dmux_idx >= 0)
@@ -4937,11 +4968,9 @@ static int stac92xx_resume(struct hda_codec *codec)
 			stac_issue_unsol_event(codec,
 					       spec->autocfg.line_out_pins[0]);
 	}
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 	/* sync mute LED */
-	if (spec->gpio_led && codec->patch_ops.check_power_status)
-		codec->patch_ops.check_power_status(codec, 0x01);
-#endif	
+	if (spec->gpio_led)
+		hda_call_check_power_status(codec, 0x01);
 	return 0;
 }
 
@@ -5302,6 +5331,82 @@ again:
 	return 0;
 }
 
+static int stac92hd83xxx_set_system_btl_amp(struct hda_codec *codec)
+{
+	if (codec->vendor_id != 0x111d7605 &&
+	    codec->vendor_id != 0x111d76d1)
+		return 0;
+
+	switch (codec->subsystem_id) {
+	case 0x103c1618:
+	case 0x103c1619:
+	case 0x103c161a:
+	case 0x103c161b:
+	case 0x103c161c:
+	case 0x103c161d:
+	case 0x103c161e:
+	case 0x103c161f:
+	case 0x103c1620:
+	case 0x103c1621:
+	case 0x103c1622:
+	case 0x103c1623:
+
+	case 0x103c162a:
+	case 0x103c162b:
+
+	case 0x103c1630:
+	case 0x103c1631:
+
+	case 0x103c1633:
+
+	case 0x103c1635:
+
+	case 0x103c164f:
+
+	case 0x103c1676:
+	case 0x103c1677:
+	case 0x103c1678:
+	case 0x103c1679:
+	case 0x103c167a:
+	case 0x103c167b:
+	case 0x103c167c:
+	case 0x103c167d:
+	case 0x103c167e:
+	case 0x103c167f:
+	case 0x103c1680:
+	case 0x103c1681:
+	case 0x103c1682:
+	case 0x103c1683:
+	case 0x103c1684:
+	case 0x103c1685:
+	case 0x103c1686:
+	case 0x103c1687:
+	case 0x103c1688:
+	case 0x103c1689:
+	case 0x103c168a:
+	case 0x103c168b:
+	case 0x103c168c:
+	case 0x103c168d:
+	case 0x103c168e:
+	case 0x103c168f:
+	case 0x103c1690:
+	case 0x103c1691:
+	case 0x103c1692:
+
+	case 0x103c3587:
+	case 0x103c3588:
+	case 0x103c3589:
+	case 0x103c358a:
+
+	case 0x103c3667:
+	case 0x103c3668:
+		/* set BTL amp level to 13.43dB for louder speaker output */
+		return snd_hda_codec_write_cache(codec, codec->afg, 0,
+						 0x7F4, 0x14);
+	}
+	return 0;
+}
+
 static int patch_stac92hd83xxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
@@ -5313,11 +5418,16 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	if (spec == NULL)
 		return -ENOMEM;
 
+	/* reset pin power-down; Windows may leave these bits after reboot */
+	snd_hda_codec_write_cache(codec, codec->afg, 0, 0x7EC, 0);
+	snd_hda_codec_write_cache(codec, codec->afg, 0, 0x7ED, 0);
 	codec->no_trigger_sense = 1;
 	codec->spec = spec;
 	spec->linear_tone_beep = 1;
 	codec->slave_dig_outs = stac92hd83xxx_slave_dig_outs;
 	spec->digbeep_nid = 0x21;
+	spec->dmic_nids = stac92hd83xxx_dmic_nids;
+	spec->dmux_nids = stac92hd83xxx_mux_nids;
 	spec->mux_nids = stac92hd83xxx_mux_nids;
 	spec->num_muxes = ARRAY_SIZE(stac92hd83xxx_mux_nids);
 	spec->adc_nids = stac92hd83xxx_adc_nids;
@@ -5347,12 +5457,17 @@ again:
 				stac92hd83xxx_brd_tbl[spec->board_config]);
 
 	switch (codec->vendor_id) {
+	case 0x111d76d1:
+	case 0x111d76d9:
+		spec->dmic_nids = stac92hd87b_dmic_nids;
+		spec->num_dmics = stac92xx_connected_ports(codec,
+				stac92hd87b_dmic_nids,
+				STAC92HD87B_NUM_DMICS);
+		/* Fall through */
 	case 0x111d7666:
 	case 0x111d7667:
 	case 0x111d7668:
 	case 0x111d7669:
-	case 0x111d76d1:
-	case 0x111d76d9:
 		spec->num_pins = ARRAY_SIZE(stac92hd88xxx_pin_nids);
 		spec->pin_nids = stac92hd88xxx_pin_nids;
 		spec->mono_nid = 0;
@@ -5363,9 +5478,13 @@ again:
 	case 0x111d76d4:
 	case 0x111d7605:
 	case 0x111d76d5:
+	case 0x111d76e7:
 		if (spec->board_config == STAC_92HD83XXX_PWR_REF)
 			break;
 		spec->num_pwrs = 0;
+		spec->num_dmics = stac92xx_connected_ports(codec,
+				stac92hd83xxx_dmic_nids,
+				STAC92HD83XXX_NUM_DMICS);
 		break;
 	}
 
@@ -5419,39 +5538,11 @@ again:
 			AC_VERB_SET_CONNECT_SEL, num_dacs);
 	}
 
+	stac92hd83xxx_set_system_btl_amp(codec);
+
 	codec->proc_widget_hook = stac92hd_proc_hook;
 
 	return 0;
-}
-
-/* get the pin connection (fixed, none, etc) */
-static unsigned int stac_get_defcfg_connect(struct hda_codec *codec, int idx)
-{
-	struct sigmatel_spec *spec = codec->spec;
-	unsigned int cfg;
-
-	cfg = snd_hda_codec_get_pincfg(codec, spec->pin_nids[idx]);
-	return get_defcfg_connect(cfg);
-}
-
-static int stac92hd71bxx_connected_ports(struct hda_codec *codec,
-					 hda_nid_t *nids, int num_nids)
-{
-	struct sigmatel_spec *spec = codec->spec;
-	int idx, num;
-	unsigned int def_conf;
-
-	for (num = 0; num < num_nids; num++) {
-		for (idx = 0; idx < spec->num_pins; idx++)
-			if (spec->pin_nids[idx] == nids[num])
-				break;
-		if (idx >= spec->num_pins)
-			break;
-		def_conf = stac_get_defcfg_connect(codec, idx);
-		if (def_conf == AC_JACK_PORT_NONE)
-			break;
-	}
-	return num;
 }
 
 static int stac92hd71bxx_connected_smuxes(struct hda_codec *codec,
@@ -5592,7 +5683,7 @@ again:
 	case 0x111d76b5:
 		spec->init = stac92hd71bxx_core_init;
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
-		spec->num_dmics = stac92hd71bxx_connected_ports(codec,
+		spec->num_dmics = stac92xx_connected_ports(codec,
 					stac92hd71bxx_dmic_nids,
 					STAC92HD71BXX_NUM_DMICS);
 		break;
@@ -5624,7 +5715,7 @@ again:
 		snd_hda_codec_set_pincfg(codec, 0x0f, 0x40f000f0);
 		snd_hda_codec_set_pincfg(codec, 0x19, 0x40f000f3);
 		stac92hd71bxx_dmic_nids[STAC92HD71BXX_NUM_DMICS - 1] = 0;
-		spec->num_dmics = stac92hd71bxx_connected_ports(codec,
+		spec->num_dmics = stac92xx_connected_ports(codec,
 					stac92hd71bxx_dmic_nids,
 					STAC92HD71BXX_NUM_DMICS - 1);
 		break;
@@ -5638,7 +5729,7 @@ again:
 	default:
 		spec->init = stac92hd71bxx_core_init;
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
-		spec->num_dmics = stac92hd71bxx_connected_ports(codec,
+		spec->num_dmics = stac92xx_connected_ports(codec,
 					stac92hd71bxx_dmic_nids,
 					STAC92HD71BXX_NUM_DMICS);
 		break;
@@ -6320,6 +6411,8 @@ static struct hda_codec_preset snd_hda_preset_sigmatel[] = {
 	{ .id = 0x111d76cc, .name = "92HD89F3", .patch = patch_stac92hd73xx },
 	{ .id = 0x111d76cd, .name = "92HD89F2", .patch = patch_stac92hd73xx },
 	{ .id = 0x111d76ce, .name = "92HD89F1", .patch = patch_stac92hd73xx },
+	{ .id = 0x111d76e0, .name = "92HD91BXX", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76e7, .name = "92HD90BXX", .patch = patch_stac92hd83xxx},
 	{} /* terminator */
 };
 

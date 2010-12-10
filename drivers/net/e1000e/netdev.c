@@ -4098,6 +4098,25 @@ static void e1000e_enable_receives(struct e1000_adapter *adapter)
 	}
 }
 
+static void e1000e_check_82574_phy_workaround(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+
+	/*
+	 * With 82574 controllers, PHY needs to be checked periodically
+	 * for hung state and reset, if two calls return true
+	 */
+	if (e1000_check_phy_82574(hw))
+		adapter->phy_hang_count++;
+	else
+		adapter->phy_hang_count = 0;
+
+	if (adapter->phy_hang_count > 1) {
+		adapter->phy_hang_count = 0;
+		schedule_work(&adapter->reset_task);
+	}
+}
+
 /**
  * e1000_watchdog - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
@@ -4332,6 +4351,9 @@ link_up:
 	 */
 	if (e1000e_get_laa_state_82571(hw))
 		e1000e_rar_set(hw, adapter->hw.mac.addr, 0);
+
+	if (adapter->flags2 & FLAG2_CHECK_PHY_HANG)
+		e1000e_check_82574_phy_workaround(adapter);
 
 	/* Reset the timer */
 	if (!test_bit(__E1000_DOWN, &adapter->state))
@@ -4860,8 +4882,11 @@ static void e1000_reset_task(struct work_struct *work)
 	struct e1000_adapter *adapter;
 	adapter = container_of(work, struct e1000_adapter, reset_task);
 
-	e1000e_dump(adapter);
-	e_err("Reset adapter\n");
+	if (!((adapter->flags & FLAG_RX_NEEDS_RESTART) &&
+	      (adapter->flags & FLAG_RX_RESTART_NOW))) {
+		e1000e_dump(adapter);
+		e_err("Reset adapter\n");
+	}
 	e1000e_reinit_locked(adapter);
 }
 

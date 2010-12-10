@@ -585,15 +585,15 @@ static inline void rps_reset_sock_flow(struct rps_sock_flow_table *table,
 		table->ents[hash & table->mask] = RPS_NO_CPU;
 }
 
-extern struct rps_sock_flow_table *rps_sock_flow_table;
+extern struct rps_sock_flow_table __rcu *rps_sock_flow_table;
 
 /* This structure contains an instance of an RX queue. */
 struct netdev_rx_queue {
-	struct rps_map *rps_map;
-	struct rps_dev_flow_table *rps_flow_table;
-	struct kobject kobj;
-	struct netdev_rx_queue *first;
-	atomic_t count;
+	struct rps_map __rcu		*rps_map;
+	struct rps_dev_flow_table __rcu	*rps_flow_table;
+	struct kobject			kobj;
+	struct netdev_rx_queue		*first;
+	atomic_t			count;
 } ____cacheline_aligned_in_smp;
 #endif /* CONFIG_RPS */
 
@@ -944,7 +944,7 @@ struct net_device {
 	/* Protocol specific pointers */
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-	struct vlan_group	*vlgrp;		/* VLAN group */
+	struct vlan_group __rcu	*vlgrp;		/* VLAN group */
 #endif
 #ifdef CONFIG_NET_DSA
 	void			*dsa_ptr;	/* dsa specific data */
@@ -952,7 +952,7 @@ struct net_device {
 	void 			*atalk_ptr;	/* AppleTalk link 	*/
 	struct in_device __rcu	*ip_ptr;	/* IPv4 specific data	*/
 	void                    *dn_ptr;        /* DECnet specific data */
-	void                    *ip6_ptr;       /* IPv6 specific data */
+	struct inet6_dev __rcu	*ip6_ptr;       /* IPv6 specific data */
 	void			*ec_ptr;	/* Econet specific data	*/
 	void			*ax25_ptr;	/* AX.25 specific data */
 	struct wireless_dev	*ieee80211_ptr;	/* IEEE 802.11 specific data,
@@ -1072,7 +1072,7 @@ struct net_device {
 		struct pcpu_dstats __percpu	*dstats; /* dummy stats */
 	};
 	/* GARP */
-	struct garp_port	*garp_port;
+	struct garp_port __rcu	*garp_port;
 
 	/* class/net/name entry */
 	struct device		dev;
@@ -1554,6 +1554,11 @@ static inline void netif_tx_wake_all_queues(struct net_device *dev)
 
 static inline void netif_tx_stop_queue(struct netdev_queue *dev_queue)
 {
+	if (WARN_ON(!dev_queue)) {
+		printk(KERN_INFO "netif_stop_queue() cannot be called before "
+		       "register_netdev()");
+		return;
+	}
 	set_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
 }
 

@@ -1,7 +1,7 @@
 /*
  * SH-X3 Prototype Setup
  *
- *  Copyright (C) 2007 - 2009  Paul Mundt
+ *  Copyright (C) 2007 - 2010  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -12,7 +12,9 @@
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
 #include <linux/io.h>
+#include <linux/gpio.h>
 #include <linux/sh_timer.h>
+#include <cpu/shx3.h>
 #include <asm/mmzone.h>
 
 /*
@@ -354,6 +356,10 @@ static struct intc_group groups[] __initdata = {
 		   DMAC1_DMINT9, DMAC1_DMINT10, DMAC1_DMINT11),
 };
 
+#define INT2DISTCR0	0xfe4108a0
+#define INT2DISTCR1	0xfe4108a4
+#define INT2DISTCR2	0xfe4108a8
+
 static struct intc_mask_reg mask_registers[] __initdata = {
 	{ 0xfe410030, 0xfe410050, 32, /* CnINTMSK0 / CnINTMSKCLR0 */
 	  { IRQ0, IRQ1, IRQ2, IRQ3 } },
@@ -363,20 +369,23 @@ static struct intc_mask_reg mask_registers[] __initdata = {
 	  { FE1, FE0, 0, ATAPI, VCORE0, VIN1, VIN0, IIC,
 	    DU, GPIO3, GPIO2, GPIO1, GPIO0, PAM, 0, 0,
 	    0, 0, 0, 0, 0, 0, 0, 0, /* HUDI bits ignored */
-	    0, TMU5, TMU4, TMU3, TMU2, TMU1, TMU0, 0, } },
+	    0, TMU5, TMU4, TMU3, TMU2, TMU1, TMU0, 0, },
+	    INTC_SMP_BALANCING(INT2DISTCR0) },
 	{ 0xfe410830, 0xfe410860, 32, /* CnINT2MSK1 / CnINT2MSKCLR1 */
 	  { 0, 0, 0, 0, DTU3, DTU2, DTU1, DTU0, /* IRM bits ignored */
 	    PCII9, PCII8, PCII7, PCII6, PCII5, PCII4, PCII3, PCII2,
 	    PCII1, PCII0, DMAC1_DMAE, DMAC1_DMINT11,
 	    DMAC1_DMINT10, DMAC1_DMINT9, DMAC1_DMINT8, DMAC1_DMINT7,
 	    DMAC1_DMINT6, DMAC0_DMAE, DMAC0_DMINT5, DMAC0_DMINT4,
-	    DMAC0_DMINT3, DMAC0_DMINT2, DMAC0_DMINT1, DMAC0_DMINT0 } },
+	    DMAC0_DMINT3, DMAC0_DMINT2, DMAC0_DMINT1, DMAC0_DMINT0 },
+	    INTC_SMP_BALANCING(INT2DISTCR1) },
 	{ 0xfe410840, 0xfe410870, 32, /* CnINT2MSK2 / CnINT2MSKCLR2 */
 	  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	    SCIF3_TXI, SCIF3_BRI, SCIF3_RXI, SCIF3_ERI,
 	    SCIF2_TXI, SCIF2_BRI, SCIF2_RXI, SCIF2_ERI,
 	    SCIF1_TXI, SCIF1_BRI, SCIF1_RXI, SCIF1_ERI,
-	    SCIF0_TXI, SCIF0_BRI, SCIF0_RXI, SCIF0_ERI } },
+	    SCIF0_TXI, SCIF0_BRI, SCIF0_RXI, SCIF0_ERI },
+	    INTC_SMP_BALANCING(INT2DISTCR2) },
 };
 
 static struct intc_prio_reg prio_registers[] __initdata = {
@@ -433,11 +442,33 @@ static DECLARE_INTC_DESC(intc_desc_irl, "shx3-irl", vectors_irl, groups,
 
 void __init plat_irq_setup_pins(int mode)
 {
+	int ret = 0;
+
 	switch (mode) {
 	case IRQ_MODE_IRQ:
+		ret |= gpio_request(GPIO_FN_IRQ3, intc_desc_irq.name);
+		ret |= gpio_request(GPIO_FN_IRQ2, intc_desc_irq.name);
+		ret |= gpio_request(GPIO_FN_IRQ1, intc_desc_irq.name);
+		ret |= gpio_request(GPIO_FN_IRQ0, intc_desc_irq.name);
+
+		if (unlikely(ret)) {
+			pr_err("Failed to set IRQ mode\n");
+			return;
+		}
+
 		register_intc_controller(&intc_desc_irq);
 		break;
 	case IRQ_MODE_IRL3210:
+		ret |= gpio_request(GPIO_FN_IRL3, intc_desc_irl.name);
+		ret |= gpio_request(GPIO_FN_IRL2, intc_desc_irl.name);
+		ret |= gpio_request(GPIO_FN_IRL1, intc_desc_irl.name);
+		ret |= gpio_request(GPIO_FN_IRL0, intc_desc_irl.name);
+
+		if (unlikely(ret)) {
+			pr_err("Failed to set IRL mode\n");
+			return;
+		}
+
 		register_intc_controller(&intc_desc_irl);
 		break;
 	default:
@@ -447,6 +478,9 @@ void __init plat_irq_setup_pins(int mode)
 
 void __init plat_irq_setup(void)
 {
+	reserve_intc_vectors(vectors_irq, ARRAY_SIZE(vectors_irq));
+	reserve_intc_vectors(vectors_irl, ARRAY_SIZE(vectors_irl));
+
 	register_intc_controller(&intc_desc);
 }
 

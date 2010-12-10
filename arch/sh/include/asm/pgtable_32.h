@@ -378,8 +378,6 @@ PTE_BIT_FUNC(low, mkold, &= ~_PAGE_ACCESSED);
 PTE_BIT_FUNC(low, mkyoung, |= _PAGE_ACCESSED);
 PTE_BIT_FUNC(low, mkspecial, |= _PAGE_SPECIAL);
 
-#define __HAVE_ARCH_PTE_SPECIAL
-
 /*
  * Macro and implementation to make a page protection as uncachable.
  */
@@ -429,10 +427,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define pte_offset_kernel(dir, address) \
 	((pte_t *) pmd_page_vaddr(*(dir)) + pte_index(address))
 #define pte_offset_map(dir, address)		pte_offset_kernel(dir, address)
-#define pte_offset_map_nested(dir, address)	pte_offset_kernel(dir, address)
-
 #define pte_unmap(pte)		do { } while (0)
-#define pte_unmap_nested(pte)	do { } while (0)
 
 #ifdef CONFIG_X2TLB
 #define pte_ERROR(e) \

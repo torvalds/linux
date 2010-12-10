@@ -91,7 +91,6 @@ static int block2mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 	} else
 		instr->state = MTD_ERASE_DONE;
 
-	instr->state = MTD_ERASE_DONE;
 	mtd_erase_callback(instr);
 	return err;
 }

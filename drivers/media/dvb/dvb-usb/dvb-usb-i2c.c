@@ -20,7 +20,6 @@ int dvb_usb_i2c_init(struct dvb_usb_device *d)
 	}
 
 	strlcpy(d->i2c_adap.name, d->desc->name, sizeof(d->i2c_adap.name));
-	d->i2c_adap.class = I2C_CLASS_TV_DIGITAL,
 	d->i2c_adap.algo      = d->props.i2c_algo;
 	d->i2c_adap.algo_data = NULL;
 	d->i2c_adap.dev.parent = &d->udev->dev;

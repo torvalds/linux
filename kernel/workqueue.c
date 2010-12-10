@@ -2064,7 +2064,7 @@ static void insert_wq_barrier(struct cpu_workqueue_struct *cwq,
 	 * checks and call back into the fixup functions where we
 	 * might deadlock.
 	 */
-	INIT_WORK_ON_STACK(&barr->work, wq_barrier_func);
+	INIT_WORK_ONSTACK(&barr->work, wq_barrier_func);
 	__set_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(&barr->work));
 	init_completion(&barr->done);
 
@@ -2791,7 +2791,9 @@ static int alloc_cwqs(struct workqueue_struct *wq)
 		}
 	}
 
-	/* just in case, make sure it's actually aligned */
+	/* just in case, make sure it's actually aligned
+	 * - this is affected by PERCPU() alignment in vmlinux.lds.S
+	 */
 	BUG_ON(!IS_ALIGNED(wq->cpu_wq.v, align));
 	return wq->cpu_wq.v ? 0 : -ENOMEM;
 }

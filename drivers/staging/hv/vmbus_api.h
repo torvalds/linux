@@ -84,51 +84,6 @@ struct hv_device_info {
 	struct hv_dev_port_info Outbound;
 };
 
-/**
- * struct vmbus_channel_interface - Contains member functions for vmbus channel
- * @Open:      Open the channel
- * @Close:     Close the channel
- * @SendPacket:        Send a packet over the channel
- * @SendPacketPageBuffer:      Send a single page buffer over the channel
- * @SendPacketMultiPageBuffer: Send a multiple page buffers
- * @RecvPacket:        Receive packet
- * @RecvPacketRaw:     Receive Raw packet
- * @EstablishGpadl:    Set up GPADL for ringbuffer
- * @TeardownGpadl:     Teardown GPADL for ringbuffer
- * @GetInfo:   Get info about the channel
- *
- * This structure contains function pointer to control vmbus channel
- * behavior. None of these functions is externally callable, but they
- * are used for normal vmbus channel internal behavior.
- * Only used by Hyper-V drivers.
- */
-struct vmbus_channel_interface {
-	int (*Open)(struct hv_device *Device, u32 SendBufferSize,
-		    u32 RecvRingBufferSize, void *UserData, u32 UserDataLen,
-		    void (*ChannelCallback)(void *context),
-		    void *Context);
-	void (*Close)(struct hv_device *device);
-	int (*SendPacket)(struct hv_device *Device, const void *Buffer,
-			  u32 BufferLen, u64 RequestId, u32 Type, u32 Flags);
-	int (*SendPacketPageBuffer)(struct hv_device *dev,
-				    struct hv_page_buffer PageBuffers[],
-				    u32 PageCount, void *Buffer, u32 BufferLen,
-				    u64 RequestId);
-	int (*SendPacketMultiPageBuffer)(struct hv_device *device,
-					 struct hv_multipage_buffer *mpb,
-					 void *Buffer,
-					 u32 BufferLen,
-					 u64 RequestId);
-	int (*RecvPacket)(struct hv_device *dev, void *buf, u32 buflen,
-			  u32 *BufferActualLen, u64 *RequestId);
-	int (*RecvPacketRaw)(struct hv_device *dev, void *buf, u32 buflen,
-			     u32 *BufferActualLen, u64 *RequestId);
-	int (*EstablishGpadl)(struct hv_device *dev, void *buf, u32 buflen,
-			      u32 *GpadlHandle);
-	int (*TeardownGpadl)(struct hv_device *device, u32 GpadlHandle);
-	void (*GetInfo)(struct hv_device *dev, struct hv_device_info *devinfo);
-};
-
 /* Base driver object */
 struct hv_driver {
 	const char *name;
@@ -139,8 +94,6 @@ struct hv_driver {
 	int (*OnDeviceAdd)(struct hv_device *device, void *data);
 	int (*OnDeviceRemove)(struct hv_device *device);
 	void (*OnCleanup)(struct hv_driver *driver);
-
-	struct vmbus_channel_interface VmbusChannelInterface;
 };
 
 /* Base device object */
@@ -156,7 +109,7 @@ struct hv_device {
 	/* the device instance id of this device */
 	struct hv_guid deviceInstance;
 
-	void *context;
+	struct vmbus_channel *channel;
 
 	/* Device extension; */
 	void *Extension;
@@ -171,7 +124,7 @@ struct vmbus_driver {
 	/* Set by the caller */
 	struct hv_device * (*OnChildDeviceCreate)(struct hv_guid *DeviceType,
 						struct hv_guid *DeviceInstance,
-						void *Context);
+						struct vmbus_channel *channel);
 	void (*OnChildDeviceDestroy)(struct hv_device *device);
 	int (*OnChildDeviceAdd)(struct hv_device *RootDevice,
 				struct hv_device *ChildDevice);
@@ -182,10 +135,6 @@ struct vmbus_driver {
 	void (*OnMsgDpc)(struct hv_driver *driver);
 	void (*OnEventDpc)(struct hv_driver *driver);
 	void (*GetChannelOffers)(void);
-
-	void (*GetChannelInterface)(struct vmbus_channel_interface *i);
-	void (*GetChannelInfo)(struct hv_device *dev,
-			       struct hv_device_info *devinfo);
 };
 
 int VmbusInitialize(struct hv_driver *drv);

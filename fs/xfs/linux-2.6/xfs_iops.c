@@ -317,7 +317,7 @@ xfs_vn_link(
 	if (unlikely(error))
 		return -error;
 
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 	d_instantiate(dentry, inode);
 	return 0;
 }
@@ -760,7 +760,10 @@ xfs_setup_inode(
 
 	inode->i_ino = ip->i_ino;
 	inode->i_state = I_NEW;
-	inode_add_to_lists(ip->i_mount->m_super, inode);
+
+	inode_sb_list_add(inode);
+	/* make the inode look hashed for the writeback code */
+	hlist_add_fake(&inode->i_hash);
 
 	inode->i_mode	= ip->i_d.di_mode;
 	inode->i_nlink	= ip->i_d.di_nlink;

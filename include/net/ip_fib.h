@@ -158,6 +158,8 @@ extern int fib_table_flush(struct fib_table *table);
 extern void fib_table_select_default(struct fib_table *table,
 				     const struct flowi *flp,
 				     struct fib_result *res);
+extern void fib_free_table(struct fib_table *tb);
+
 
 
 #ifndef CONFIG_IP_MULTIPLE_TABLES

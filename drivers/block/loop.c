@@ -101,8 +101,8 @@ static int transfer_none(struct loop_device *lo, int cmd,
 	else
 		memcpy(raw_buf, loop_buf, size);
 
-	kunmap_atomic(raw_buf, KM_USER0);
 	kunmap_atomic(loop_buf, KM_USER1);
+	kunmap_atomic(raw_buf, KM_USER0);
 	cond_resched();
 	return 0;
 }
@@ -130,8 +130,8 @@ static int transfer_xor(struct loop_device *lo, int cmd,
 	for (i = 0; i < size; i++)
 		*out++ = *in++ ^ key[(i & 511) % keysize];
 
-	kunmap_atomic(raw_buf, KM_USER0);
 	kunmap_atomic(loop_buf, KM_USER1);
+	kunmap_atomic(raw_buf, KM_USER0);
 	cond_resched();
 	return 0;
 }
@@ -480,12 +480,6 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 
 	if (bio_rw(bio) == WRITE) {
 		struct file *file = lo->lo_backing_file;
-
-		/* REQ_HARDBARRIER is deprecated */
-		if (bio->bi_rw & REQ_HARDBARRIER) {
-			ret = -EOPNOTSUPP;
-			goto out;
-		}
 
 		if (bio->bi_rw & REQ_FLUSH) {
 			ret = vfs_fsync(file, 0);
@@ -1049,9 +1043,9 @@ static int loop_clr_fd(struct loop_device *lo, struct block_device *bdev)
 	if (bdev)
 		invalidate_bdev(bdev);
 	set_capacity(lo->lo_disk, 0);
+	loop_sysfs_exit(lo);
 	if (bdev) {
 		bd_set_size(bdev, 0);
-		loop_sysfs_exit(lo);
 		/* let user-space know about this change */
 		kobject_uevent(&disk_to_dev(bdev->bd_disk)->kobj, KOBJ_CHANGE);
 	}

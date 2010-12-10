@@ -873,7 +873,7 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 	count = VMXNET3_TXD_NEEDED(skb_headlen(skb)) +
 		skb_shinfo(skb)->nr_frags + 1;
 
-	ctx.ipv4 = (skb->protocol == __constant_ntohs(ETH_P_IP));
+	ctx.ipv4 = (skb->protocol == cpu_to_be16(ETH_P_IP));
 
 	ctx.mss = skb_shinfo(skb)->gso_size;
 	if (ctx.mss) {
@@ -1563,8 +1563,7 @@ vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 			adapter->vlan_grp = grp;
 
 			/* update FEATURES to device */
-			set_flag_le64(&devRead->misc.uptFeatures,
-				      UPT1_F_RXVLAN);
+			devRead->misc.uptFeatures |= UPT1_F_RXVLAN;
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 					       VMXNET3_CMD_UPDATE_FEATURE);
 			/*
@@ -1587,7 +1586,7 @@ vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 		struct Vmxnet3_DSDevRead *devRead = &shared->devRead;
 		adapter->vlan_grp = NULL;
 
-		if (le64_to_cpu(devRead->misc.uptFeatures) & UPT1_F_RXVLAN) {
+		if (devRead->misc.uptFeatures & UPT1_F_RXVLAN) {
 			int i;
 
 			for (i = 0; i < VMXNET3_VFT_SIZE; i++) {
@@ -1600,8 +1599,7 @@ vmxnet3_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 					       VMXNET3_CMD_UPDATE_VLAN_FILTERS);
 
 			/* update FEATURES to device */
-			reset_flag_le64(&devRead->misc.uptFeatures,
-					UPT1_F_RXVLAN);
+			devRead->misc.uptFeatures &= ~UPT1_F_RXVLAN;
 			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 					       VMXNET3_CMD_UPDATE_FEATURE);
 		}
@@ -1762,15 +1760,15 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 
 	/* set up feature flags */
 	if (adapter->rxcsum)
-		set_flag_le64(&devRead->misc.uptFeatures, UPT1_F_RXCSUM);
+		devRead->misc.uptFeatures |= UPT1_F_RXCSUM;
 
 	if (adapter->lro) {
-		set_flag_le64(&devRead->misc.uptFeatures, UPT1_F_LRO);
+		devRead->misc.uptFeatures |= UPT1_F_LRO;
 		devRead->misc.maxNumRxSG = cpu_to_le16(1 + MAX_SKB_FRAGS);
 	}
 	if ((adapter->netdev->features & NETIF_F_HW_VLAN_RX) &&
 	    adapter->vlan_grp) {
-		set_flag_le64(&devRead->misc.uptFeatures, UPT1_F_RXVLAN);
+		devRead->misc.uptFeatures |= UPT1_F_RXVLAN;
 	}
 
 	devRead->misc.mtu = cpu_to_le32(adapter->netdev->mtu);
@@ -2577,7 +2575,7 @@ vmxnet3_suspend(struct device *device)
 		memcpy(pmConf->filters[i].pattern, netdev->dev_addr, ETH_ALEN);
 		pmConf->filters[i].mask[0] = 0x3F; /* LSB ETH_ALEN bits */
 
-		set_flag_le16(&pmConf->wakeUpEvents, VMXNET3_PM_WAKEUP_FILTER);
+		pmConf->wakeUpEvents |= VMXNET3_PM_WAKEUP_FILTER;
 		i++;
 	}
 
@@ -2619,13 +2617,13 @@ vmxnet3_suspend(struct device *device)
 		pmConf->filters[i].mask[5] = 0x03; /* IPv4 TIP */
 		in_dev_put(in_dev);
 
-		set_flag_le16(&pmConf->wakeUpEvents, VMXNET3_PM_WAKEUP_FILTER);
+		pmConf->wakeUpEvents |= VMXNET3_PM_WAKEUP_FILTER;
 		i++;
 	}
 
 skip_arp:
 	if (adapter->wol & WAKE_MAGIC)
-		set_flag_le16(&pmConf->wakeUpEvents, VMXNET3_PM_WAKEUP_MAGIC);
+		pmConf->wakeUpEvents |= VMXNET3_PM_WAKEUP_MAGIC;
 
 	pmConf->numFilters = i;
 
@@ -2667,7 +2665,7 @@ vmxnet3_resume(struct device *device)
 	adapter->shared->devRead.pmConfDesc.confVer = cpu_to_le32(1);
 	adapter->shared->devRead.pmConfDesc.confLen = cpu_to_le32(sizeof(
 								  *pmConf));
-	adapter->shared->devRead.pmConfDesc.confPA = cpu_to_le32(virt_to_phys(
+	adapter->shared->devRead.pmConfDesc.confPA = cpu_to_le64(virt_to_phys(
 								 pmConf));
 
 	netif_device_attach(netdev);

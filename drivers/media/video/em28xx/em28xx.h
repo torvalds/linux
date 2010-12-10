@@ -25,12 +25,13 @@
 #ifndef _EM28XX_H
 #define _EM28XX_H
 
-#include <linux/videodev2.h>
-#include <media/videobuf-vmalloc.h>
-#include <media/v4l2-device.h>
-
+#include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
+#include <linux/videodev2.h>
+
+#include <media/videobuf-vmalloc.h>
+#include <media/v4l2-device.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/ir-core.h>
 #if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
@@ -73,6 +74,7 @@
 #define EM2820_BOARD_VIDEOLOGY_20K14XUSB	  30
 #define EM2821_BOARD_USBGEAR_VD204		  31
 #define EM2821_BOARD_SUPERCOMP_USB_2		  32
+#define EM2860_BOARD_ELGATO_VIDEO_CAPTURE	  33
 #define EM2860_BOARD_TERRATEC_HYBRID_XS		  34
 #define EM2860_BOARD_TYPHOON_DVD_MAKER		  35
 #define EM2860_BOARD_NETGMBH_CAM		  36
@@ -184,11 +186,6 @@ enum em28xx_mode {
 	EM28XX_DIGITAL_MODE,
 };
 
-enum em28xx_stream_state {
-	STREAM_OFF,
-	STREAM_INTERRUPT,
-	STREAM_ON,
-};
 
 struct em28xx;
 
@@ -463,7 +460,6 @@ struct em28xx_audio {
 	struct snd_card            *sndcard;
 
 	int users;
-	enum em28xx_stream_state capture_stream;
 	spinlock_t slock;
 };
 
@@ -504,6 +500,10 @@ struct em28xx {
 
 	unsigned int has_audio_class:1;
 	unsigned int has_alsa_audio:1;
+
+	/* Controls audio streaming */
+	struct work_struct wq_trigger;              /* Trigger to start/stop audio for alsa module */
+	 atomic_t       stream_started;      /* stream should be running if true */
 
 	struct em28xx_fmt *format;
 

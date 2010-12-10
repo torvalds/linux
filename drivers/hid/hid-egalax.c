@@ -221,7 +221,7 @@ static int egalax_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct egalax_data *td;
 	struct hid_report *report;
 
-	td = kmalloc(sizeof(struct egalax_data), GFP_KERNEL);
+	td = kzalloc(sizeof(struct egalax_data), GFP_KERNEL);
 	if (!td) {
 		hid_err(hdev, "cannot allocate eGalax data\n");
 		return -ENOMEM;

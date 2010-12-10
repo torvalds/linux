@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
@@ -57,6 +56,7 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
+#if !defined(CONFIG_SMP) || defined(CONFIG_HOTPLUG_CPU)
 /*
  * we use this if we don't have any better idle routine
  */
@@ -69,6 +69,35 @@ static void default_idle(void)
 		local_irq_enable();
 }
 
+#else /* !CONFIG_SMP || CONFIG_HOTPLUG_CPU  */
+/*
+ * On SMP it's slightly faster (but much more power-consuming!)
+ * to poll the ->work.need_resched flag instead of waiting for the
+ * cross-CPU IPI to arrive. Use this option with caution.
+ */
+static inline void poll_idle(void)
+{
+	int oldval;
+
+	local_irq_enable();
+
+	/*
+	 * Deal with another CPU just having chosen a thread to
+	 * run here:
+	 */
+	oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
+
+	if (!oldval) {
+		set_thread_flag(TIF_POLLING_NRFLAG);
+		while (!need_resched())
+			cpu_relax();
+		clear_thread_flag(TIF_POLLING_NRFLAG);
+	} else {
+		set_need_resched();
+	}
+}
+#endif /* !CONFIG_SMP || CONFIG_HOTPLUG_CPU */
+
 /*
  * the idle thread
  * - there's no useful work to be done, so just try to conserve power and have
@@ -77,8 +106,6 @@ static void default_idle(void)
  */
 void cpu_idle(void)
 {
-	int cpu = smp_processor_id();
-
 	/* endless idle loop with no priority at all */
 	for (;;) {
 		while (!need_resched()) {
@@ -86,10 +113,13 @@ void cpu_idle(void)
 
 			smp_rmb();
 			idle = pm_idle;
-			if (!idle)
+			if (!idle) {
+#if defined(CONFIG_SMP) && !defined(CONFIG_HOTPLUG_CPU)
+				idle = poll_idle;
+#else  /* CONFIG_SMP && !CONFIG_HOTPLUG_CPU */
 				idle = default_idle;
-
-			irq_stat[cpu].idle_timestamp = jiffies;
+#endif /* CONFIG_SMP && !CONFIG_HOTPLUG_CPU */
+			}
 			idle();
 		}
 
@@ -197,6 +227,7 @@ int copy_thread(unsigned long clone_flags,
 		unsigned long c_usp, unsigned long ustk_size,
 		struct task_struct *p, struct pt_regs *kregs)
 {
+	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *c_uregs, *c_kregs, *uregs;
 	unsigned long c_ksp;
 
@@ -217,7 +248,7 @@ int copy_thread(unsigned long clone_flags,
 
 	/* the new TLS pointer is passed in as arg #5 to sys_clone() */
 	if (clone_flags & CLONE_SETTLS)
-		c_uregs->e2 = __frame->d3;
+		c_uregs->e2 = current_frame()->d3;
 
 	/* set up the return kernel frame if called from kernel_thread() */
 	c_kregs = c_uregs;
@@ -235,7 +266,7 @@ int copy_thread(unsigned long clone_flags,
 	}
 
 	/* set up things up so the scheduler can start the new task */
-	p->thread.__frame = c_kregs;
+	ti->frame	= c_kregs;
 	p->thread.a3	= (unsigned long) c_kregs;
 	p->thread.sp	= c_ksp;
 	p->thread.pc	= (unsigned long) ret_from_fork;
@@ -247,25 +278,26 @@ int copy_thread(unsigned long clone_flags,
 
 /*
  * clone a process
- * - tlsptr is retrieved by copy_thread() from __frame->d3
+ * - tlsptr is retrieved by copy_thread() from current_frame()->d3
  */
 asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp,
 			  int __user *parent_tidptr, int __user *child_tidptr,
 			  int __user *tlsptr)
 {
-	return do_fork(clone_flags, newsp ?: __frame->sp, __frame, 0,
-		       parent_tidptr, child_tidptr);
+	return do_fork(clone_flags, newsp ?: current_frame()->sp,
+		       current_frame(), 0, parent_tidptr, child_tidptr);
 }
 
 asmlinkage long sys_fork(void)
 {
-	return do_fork(SIGCHLD, __frame->sp, __frame, 0, NULL, NULL);
+	return do_fork(SIGCHLD, current_frame()->sp,
+		       current_frame(), 0, NULL, NULL);
 }
 
 asmlinkage long sys_vfork(void)
 {
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, __frame->sp, __frame,
-		       0, NULL, NULL);
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, current_frame()->sp,
+		       current_frame(), 0, NULL, NULL);
 }
 
 asmlinkage long sys_execve(const char __user *name,
@@ -279,7 +311,7 @@ asmlinkage long sys_execve(const char __user *name,
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		return error;
-	error = do_execve(filename, argv, envp, __frame);
+	error = do_execve(filename, argv, envp, current_frame());
 	putname(filename);
 	return error;
 }

@@ -56,6 +56,8 @@ int show_interrupts(struct seq_file *p, void *v)
 	int i = *(loff_t *)v, j, prec;
 	struct irqaction *action;
 	struct irq_desc *desc;
+	struct irq_data *data;
+	struct irq_chip *chip;
 
 	if (i > nr_irqs)
 		return 0;
@@ -77,6 +79,9 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (!desc)
 		return 0;
 
+	data = irq_get_irq_data(i);
+	chip = irq_data_get_irq_chip(data);
+
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	for_each_online_cpu(j)
 		any_count |= kstat_irqs_cpu(i, j);
@@ -87,7 +92,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	seq_printf(p, "%*d: ", prec, i);
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-	seq_printf(p, " %14s", desc->chip->name);
+	seq_printf(p, " %14s", chip->name);
 	seq_printf(p, "-%-8s", desc->name);
 
 	if (action) {
@@ -273,15 +278,11 @@ void __init init_IRQ(void)
 {
 	plat_irq_setup();
 
-	/*
-	 * Pin any of the legacy IRQ vectors that haven't already been
-	 * grabbed by the platform
-	 */
-	reserve_irq_legacy();
-
 	/* Perform the machine specific initialisation */
 	if (sh_mv.mv_init_irq)
 		sh_mv.mv_init_irq();
+
+	intc_finalize();
 
 	irq_ctx_init(smp_processor_id());
 }
@@ -295,13 +296,16 @@ int __init arch_probe_nr_irqs(void)
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void route_irq(struct irq_desc *desc, unsigned int irq, unsigned int cpu)
+static void route_irq(struct irq_data *data, unsigned int irq, unsigned int cpu)
 {
+	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_chip *chip = irq_data_get_irq_chip(data);
+
 	printk(KERN_INFO "IRQ%u: moving from cpu%u to cpu%u\n",
-	       irq, desc->node, cpu);
+	       irq, data->node, cpu);
 
 	raw_spin_lock_irq(&desc->lock);
-	desc->chip->set_affinity(irq, cpumask_of(cpu));
+	chip->irq_set_affinity(data, cpumask_of(cpu), false);
 	raw_spin_unlock_irq(&desc->lock);
 }
 
@@ -312,24 +316,25 @@ static void route_irq(struct irq_desc *desc, unsigned int irq, unsigned int cpu)
  */
 void migrate_irqs(void)
 {
-	struct irq_desc *desc;
 	unsigned int irq, cpu = smp_processor_id();
 
-	for_each_irq_desc(irq, desc) {
-		if (desc->node == cpu) {
-			unsigned int newcpu = cpumask_any_and(desc->affinity,
+	for_each_active_irq(irq) {
+		struct irq_data *data = irq_get_irq_data(irq);
+
+		if (data->node == cpu) {
+			unsigned int newcpu = cpumask_any_and(data->affinity,
 							      cpu_online_mask);
 			if (newcpu >= nr_cpu_ids) {
 				if (printk_ratelimit())
 					printk(KERN_INFO "IRQ%u no longer affine to CPU%u\n",
 					       irq, cpu);
 
-				cpumask_setall(desc->affinity);
-				newcpu = cpumask_any_and(desc->affinity,
+				cpumask_setall(data->affinity);
+				newcpu = cpumask_any_and(data->affinity,
 							 cpu_online_mask);
 			}
 
-			route_irq(desc, irq, newcpu);
+			route_irq(data, irq, newcpu);
 		}
 	}
 }

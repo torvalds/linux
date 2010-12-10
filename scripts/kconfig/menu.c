@@ -10,7 +10,7 @@
 #include "lkc.h"
 
 static const char nohelp_text[] = N_(
-	"There is no help available for this kernel option.\n");
+	"There is no help available for this option.\n");
 
 struct menu rootmenu;
 static struct menu **last_entry_ptr;
@@ -138,7 +138,7 @@ struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *e
 			while (isspace(*prompt))
 				prompt++;
 		}
-		if (current_entry->prompt)
+		if (current_entry->prompt && current_entry != &rootmenu)
 			prop_warn(prop, "prompt redefined");
 		current_entry->prompt = prop;
 	}
@@ -150,6 +150,12 @@ struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *e
 struct property *menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep)
 {
 	return menu_add_prop(type, prompt, NULL, dep);
+}
+
+void menu_add_visibility(struct expr *expr)
+{
+	current_entry->visibility = expr_alloc_and(current_entry->visibility,
+	    expr);
 }
 
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep)
@@ -410,6 +416,11 @@ bool menu_is_visible(struct menu *menu)
 	if (!menu->prompt)
 		return false;
 
+	if (menu->visibility) {
+		if (expr_calc_value(menu->visibility) == no)
+			return no;
+	}
+
 	sym = menu->sym;
 	if (sym) {
 		sym_calc_value(sym);
@@ -563,7 +574,7 @@ void menu_get_ext_help(struct menu *menu, struct gstr *help)
 
 	if (menu_has_help(menu)) {
 		if (sym->name) {
-			str_printf(help, "CONFIG_%s:\n\n", sym->name);
+			str_printf(help, "%s%s:\n\n", CONFIG_, sym->name);
 			str_append(help, _(menu_get_help(menu)));
 			str_append(help, "\n");
 		}

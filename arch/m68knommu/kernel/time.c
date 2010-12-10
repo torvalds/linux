@@ -60,13 +60,16 @@ static unsigned long read_rtc_mmss(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
 
-	if (mach_gettod)
+	if (mach_gettod) {
 		mach_gettod(&year, &mon, &day, &hour, &min, &sec);
-	else
-		year = mon = day = hour = min = sec = 0;
+		if ((year += 1900) < 1970)
+			year += 100;
+	} else {
+		year = 1970;
+		mon = day = 1;
+		hour = min = sec = 0;
+	}
 
-	if ((year += 1900) < 1970)
-		year += 100;
 
 	return  mktime(year, mon, day, hour, min, sec);
 }

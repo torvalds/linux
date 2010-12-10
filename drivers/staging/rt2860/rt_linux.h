@@ -409,9 +409,6 @@ struct os_cookie {
 /***********************************************************************************
  *	OS debugging and printing related definitions and data structure
  ***********************************************************************************/
-#define PRINT_MAC(addr)	\
-	addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]
-
 #ifdef DBG
 extern unsigned long RTDebugLevel;
 

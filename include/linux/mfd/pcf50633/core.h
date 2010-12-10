@@ -227,4 +227,11 @@ static inline struct pcf50633 *dev_to_pcf50633(struct device *dev)
 	return dev_get_drvdata(dev);
 }
 
+int pcf50633_irq_init(struct pcf50633 *pcf, int irq);
+void pcf50633_irq_free(struct pcf50633 *pcf);
+#ifdef CONFIG_PM
+int pcf50633_irq_suspend(struct pcf50633 *pcf);
+int pcf50633_irq_resume(struct pcf50633 *pcf);
+#endif
+
 #endif

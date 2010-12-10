@@ -849,20 +849,16 @@ static void be_rx_stats_update(struct be_rx_obj *rxo,
 		stats->rx_mcast_pkts++;
 }
 
-static inline bool do_pkt_csum(struct be_eth_rx_compl *rxcp, bool cso)
+static inline bool csum_passed(struct be_eth_rx_compl *rxcp)
 {
-	u8 l4_cksm, ip_version, ipcksm, tcpf = 0, udpf = 0, ipv6_chk;
+	u8 l4_cksm, ipv6, ipcksm;
 
 	l4_cksm = AMAP_GET_BITS(struct amap_eth_rx_compl, l4_cksm, rxcp);
 	ipcksm = AMAP_GET_BITS(struct amap_eth_rx_compl, ipcksm, rxcp);
-	ip_version = AMAP_GET_BITS(struct amap_eth_rx_compl, ip_version, rxcp);
-	if (ip_version) {
-		tcpf = AMAP_GET_BITS(struct amap_eth_rx_compl, tcpf, rxcp);
-		udpf = AMAP_GET_BITS(struct amap_eth_rx_compl, udpf, rxcp);
-	}
-	ipv6_chk = (ip_version && (tcpf || udpf));
+	ipv6 = AMAP_GET_BITS(struct amap_eth_rx_compl, ip_version, rxcp);
 
-	return ((l4_cksm && ipv6_chk && ipcksm) && cso) ? false : true;
+	/* Ignore ipcksm for ipv6 pkts */
+	return l4_cksm && (ipcksm || ipv6);
 }
 
 static struct be_rx_page_info *
@@ -1017,10 +1013,10 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 
 	skb_fill_rx_data(adapter, rxo, skb, rxcp, num_rcvd);
 
-	if (do_pkt_csum(rxcp, adapter->rx_csum))
-		skb_checksum_none_assert(skb);
-	else
+	if (likely(adapter->rx_csum && csum_passed(rxcp)))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	else
+		skb_checksum_none_assert(skb);
 
 	skb->truesize = skb->len + sizeof(struct sk_buff);
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
@@ -1674,7 +1670,7 @@ static inline bool do_gro(struct be_adapter *adapter, struct be_rx_obj *rxo,
 	return (tcp_frame && !err) ? true : false;
 }
 
-int be_poll_rx(struct napi_struct *napi, int budget)
+static int be_poll_rx(struct napi_struct *napi, int budget)
 {
 	struct be_eq_obj *rx_eq = container_of(napi, struct be_eq_obj, napi);
 	struct be_rx_obj *rxo = container_of(rx_eq, struct be_rx_obj, rx_eq);
@@ -1806,6 +1802,20 @@ static void be_worker(struct work_struct *work)
 	struct be_rx_obj *rxo;
 	int i;
 
+	/* when interrupts are not yet enabled, just reap any pending
+	* mcc completions */
+	if (!netif_running(adapter->netdev)) {
+		int mcc_compl, status = 0;
+
+		mcc_compl = be_process_mcc(adapter, &status);
+
+		if (mcc_compl) {
+			struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
+			be_cq_notify(adapter, mcc_obj->cq.id, false, mcc_compl);
+		}
+		goto reschedule;
+	}
+
 	if (!adapter->stats_ioctl_sent)
 		be_cmd_get_stats(adapter, &adapter->stats_cmd);
 
@@ -1824,6 +1834,7 @@ static void be_worker(struct work_struct *work)
 	if (!adapter->ue_detected)
 		be_detect_dump_ue(adapter);
 
+reschedule:
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
 }
 
@@ -2019,8 +2030,6 @@ static int be_close(struct net_device *netdev)
 	struct be_eq_obj *tx_eq = &adapter->tx_eq;
 	int vec, i;
 
-	cancel_delayed_work_sync(&adapter->work);
-
 	be_async_mcc_disable(adapter);
 
 	netif_stop_queue(netdev);
@@ -2084,8 +2093,6 @@ static int be_open(struct net_device *netdev)
 
 	/* Now that interrupts are on we can process async mcc */
 	be_async_mcc_enable(adapter);
-
-	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
 
 	status = be_cmd_link_status_query(adapter, &link_up, &mac_speed,
 			&link_speed);
@@ -2299,9 +2306,6 @@ static int be_clear(struct be_adapter *adapter)
 
 
 #define FW_FILE_HDR_SIGN 	"ServerEngines Corp. "
-char flash_cookie[2][16] =	{"*** SE FLAS",
-				"H DIRECTORY *** "};
-
 static bool be_flash_redboot(struct be_adapter *adapter,
 			const u8 *p, u32 img_start, int image_size,
 			int hdr_size)
@@ -2454,6 +2458,12 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 	int status, i = 0, num_imgs = 0;
 	const u8 *p;
 
+	if (!netif_running(adapter->netdev)) {
+		dev_err(&adapter->pdev->dev,
+			"Firmware load not allowed (interface is down)\n");
+		return -EPERM;
+	}
+
 	strcpy(fw_file, func);
 
 	status = request_firmware(&fw, fw_file, &adapter->pdev->dev);
@@ -2559,7 +2569,6 @@ static void be_netdev_init(struct net_device *netdev)
 	netif_napi_add(netdev, &adapter->tx_eq.napi, be_poll_tx_mcc,
 		BE_NAPI_WEIGHT);
 
-	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 }
 
@@ -2715,6 +2724,8 @@ static void __devexit be_remove(struct pci_dev *pdev)
 	if (!adapter)
 		return;
 
+	cancel_delayed_work_sync(&adapter->work);
+
 	unregister_netdev(adapter->netdev);
 
 	be_clear(adapter);
@@ -2868,8 +2879,10 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	status = register_netdev(netdev);
 	if (status != 0)
 		goto unsetup;
+	netif_carrier_off(netdev);
 
 	dev_info(&pdev->dev, "%s port %d\n", nic_name(pdev), adapter->port_num);
+	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
 	return 0;
 
 unsetup:

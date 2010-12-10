@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/miscdevice.h>
 #include <linux/major.h>
@@ -32,12 +31,12 @@
 #include <linux/bitops.h>
 #include <linux/compat.h>
 #include <linux/clocksource.h>
+#include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 
 #include <asm/current.h>
-#include <asm/uaccess.h>
 #include <asm/system.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
 
@@ -81,13 +80,13 @@ static cycle_t read_hpet(struct clocksource *cs)
 }
 
 static struct clocksource clocksource_hpet = {
-        .name           = "hpet",
-        .rating         = 250,
-        .read           = read_hpet,
-        .mask           = CLOCKSOURCE_MASK(64),
-	.mult		= 0, /* to be calculated */
-        .shift          = 10,
-        .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
+	.name		= "hpet",
+	.rating		= 250,
+	.read		= read_hpet,
+	.mask		= CLOCKSOURCE_MASK(64),
+	.mult		= 0,		/* to be calculated */
+	.shift		= 10,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 static struct clocksource *hpet_clocksource;
 #endif
@@ -465,6 +464,21 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 	if (irq) {
 		unsigned long irq_flags;
 
+		if (devp->hd_flags & HPET_SHARED_IRQ) {
+			/*
+			 * To prevent the interrupt handler from seeing an
+			 * unwanted interrupt status bit, program the timer
+			 * so that it will not fire in the near future ...
+			 */
+			writel(readl(&timer->hpet_config) & ~Tn_TYPE_CNF_MASK,
+			       &timer->hpet_config);
+			write_counter(read_counter(&hpet->hpet_mc),
+				      &timer->hpet_compare);
+			/* ... and clear any left-over status. */
+			isr = 1 << (devp - devp->hd_hpets->hp_dev);
+			writel(isr, &hpet->hpet_isr);
+		}
+
 		sprintf(devp->hd_name, "hpet%d", (int)(devp - hpetp->hp_dev));
 		irq_flags = devp->hd_flags & HPET_SHARED_IRQ
 						? IRQF_SHARED : IRQF_DISABLED;
@@ -581,11 +595,10 @@ hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg,
 		break;
 	case HPET_INFO:
 		{
+			memset(info, 0, sizeof(*info));
 			if (devp->hd_ireqfreq)
 				info->hi_ireqfreq =
 					hpet_time_div(hpetp, devp->hd_ireqfreq);
-			else
-				info->hi_ireqfreq = 0;
 			info->hi_flags =
 			    readq(&timer->hpet_config) & Tn_PER_INT_CAP_MASK;
 			info->hi_hpet = hpetp->hp_which;
@@ -811,7 +824,7 @@ int hpet_alloc(struct hpet_data *hdp)
 	struct hpets *hpetp;
 	size_t siz;
 	struct hpet __iomem *hpet;
-	static struct hpets *last = NULL;
+	static struct hpets *last;
 	unsigned long period;
 	unsigned long long temp;
 	u32 remainder;
@@ -1000,6 +1013,8 @@ static int hpet_acpi_add(struct acpi_device *device)
 		return -ENODEV;
 
 	if (!data.hd_address || !data.hd_nirqs) {
+		if (data.hd_address)
+			iounmap(data.hd_address);
 		printk("%s: no address or irqs in _CRS\n", __func__);
 		return -ENODEV;
 	}

@@ -65,7 +65,7 @@ enum blkif_state {
 
 struct blk_shadow {
 	struct blkif_request req;
-	unsigned long request;
+	struct request *request;
 	unsigned long frame[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 };
 
@@ -136,7 +136,7 @@ static void add_id_to_freelist(struct blkfront_info *info,
 			       unsigned long id)
 {
 	info->shadow[id].req.id  = info->shadow_free;
-	info->shadow[id].request = 0;
+	info->shadow[id].request = NULL;
 	info->shadow_free = id;
 }
 
@@ -245,14 +245,11 @@ static int blkif_ioctl(struct block_device *bdev, fmode_t mode,
 }
 
 /*
- * blkif_queue_request
+ * Generate a Xen blkfront IO request from a blk layer request.  Reads
+ * and writes are handled as expected.  Since we lack a loose flush
+ * request, we map flushes into a full ordered barrier.
  *
- * request block io
- *
- * id: for guest use only.
- * operation: BLKIF_OP_{READ,WRITE,PROBE}
- * buffer: buffer to read/write into. this should be a
- *   virtual address in the guest os.
+ * @req: a request struct
  */
 static int blkif_queue_request(struct request *req)
 {
@@ -281,7 +278,7 @@ static int blkif_queue_request(struct request *req)
 	/* Fill out a communications ring structure. */
 	ring_req = RING_GET_REQUEST(&info->ring, info->ring.req_prod_pvt);
 	id = get_id_from_freelist(info);
-	info->shadow[id].request = (unsigned long)req;
+	info->shadow[id].request = req;
 
 	ring_req->id = id;
 	ring_req->sector_number = (blkif_sector_t)blk_rq_pos(req);
@@ -289,8 +286,18 @@ static int blkif_queue_request(struct request *req)
 
 	ring_req->operation = rq_data_dir(req) ?
 		BLKIF_OP_WRITE : BLKIF_OP_READ;
-	if (req->cmd_flags & REQ_HARDBARRIER)
+
+	if (req->cmd_flags & (REQ_FLUSH | REQ_FUA)) {
+		/*
+		 * Ideally we could just do an unordered
+		 * flush-to-disk, but all we have is a full write
+		 * barrier at the moment.  However, a barrier write is
+		 * a superset of FUA, so we can implement it the same
+		 * way.  (It's also a FLUSH+FUA, since it is
+		 * guaranteed ordered WRT previous writes.)
+		 */
 		ring_req->operation = BLKIF_OP_WRITE_BARRIER;
+	}
 
 	ring_req->nr_segments = blk_rq_map_sg(req->q, req, info->sg);
 	BUG_ON(ring_req->nr_segments > BLKIF_MAX_SEGMENTS_PER_REQUEST);
@@ -636,7 +643,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 
 		bret = RING_GET_RESPONSE(&info->ring, i);
 		id   = bret->id;
-		req  = (struct request *)info->shadow[id].request;
+		req  = info->shadow[id].request;
 
 		blkif_completion(&info->shadow[id]);
 
@@ -649,6 +656,16 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				printk(KERN_WARNING "blkfront: %s: write barrier op failed\n",
 				       info->gd->disk_name);
 				error = -EOPNOTSUPP;
+			}
+			if (unlikely(bret->status == BLKIF_RSP_ERROR &&
+				     info->shadow[id].req.nr_segments == 0)) {
+				printk(KERN_WARNING "blkfront: %s: empty write barrier op failed\n",
+				       info->gd->disk_name);
+				error = -EOPNOTSUPP;
+			}
+			if (unlikely(error)) {
+				if (error == -EOPNOTSUPP)
+					error = 0;
 				info->feature_flush = 0;
 				xlvbd_flush(info);
 			}
@@ -901,7 +918,7 @@ static int blkif_recover(struct blkfront_info *info)
 	/* Stage 3: Find pending requests and requeue them. */
 	for (i = 0; i < BLK_RING_SIZE; i++) {
 		/* Not in use? */
-		if (copy[i].request == 0)
+		if (!copy[i].request)
 			continue;
 
 		/* Grab a request slot and copy shadow state into it. */
@@ -918,9 +935,7 @@ static int blkif_recover(struct blkfront_info *info)
 				req->seg[j].gref,
 				info->xbdev->otherend_id,
 				pfn_to_mfn(info->shadow[req->id].frame[j]),
-				rq_data_dir(
-					(struct request *)
-					info->shadow[req->id].request));
+				rq_data_dir(info->shadow[req->id].request));
 		info->shadow[req->id].req = *req;
 
 		info->ring.req_prod_pvt++;
@@ -1069,14 +1084,8 @@ static void blkfront_connect(struct blkfront_info *info)
 	 */
 	info->feature_flush = 0;
 
-	/*
-	 * The driver doesn't properly handled empty flushes, so
-	 * lets disable barrier support for now.
-	 */
-#if 0
 	if (!err && barrier)
-		info->feature_flush = REQ_FLUSH;
-#endif
+		info->feature_flush = REQ_FLUSH | REQ_FUA;
 
 	err = xlvbd_alloc_gendisk(sectors, info, binfo, sector_size);
 	if (err) {
@@ -1112,6 +1121,8 @@ static void blkback_changed(struct xenbus_device *dev,
 	case XenbusStateInitialising:
 	case XenbusStateInitWait:
 	case XenbusStateInitialised:
+	case XenbusStateReconfiguring:
+	case XenbusStateReconfigured:
 	case XenbusStateUnknown:
 	case XenbusStateClosed:
 		break;

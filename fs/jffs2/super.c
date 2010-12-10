@@ -179,12 +179,11 @@ static int jffs2_fill_super(struct super_block *sb, void *data, int silent)
 	return ret;
 }
 
-static int jffs2_get_sb(struct file_system_type *fs_type,
+static struct dentry *jffs2_mount(struct file_system_type *fs_type,
 			int flags, const char *dev_name,
-			void *data, struct vfsmount *mnt)
+			void *data)
 {
-	return get_sb_mtd(fs_type, flags, dev_name, data, jffs2_fill_super,
-			  mnt);
+	return mount_mtd(fs_type, flags, dev_name, data, jffs2_fill_super);
 }
 
 static void jffs2_put_super (struct super_block *sb)
@@ -229,7 +228,7 @@ static void jffs2_kill_sb(struct super_block *sb)
 static struct file_system_type jffs2_fs_type = {
 	.owner =	THIS_MODULE,
 	.name =		"jffs2",
-	.get_sb =	jffs2_get_sb,
+	.mount =	jffs2_mount,
 	.kill_sb =	jffs2_kill_sb,
 };
 

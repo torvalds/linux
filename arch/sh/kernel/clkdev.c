@@ -161,9 +161,11 @@ EXPORT_SYMBOL(clk_add_alias);
  */
 void clkdev_drop(struct clk_lookup *cl)
 {
+	struct clk_lookup_alloc *cla = container_of(cl, struct clk_lookup_alloc, cl);
+
 	mutex_lock(&clocks_mutex);
 	list_del(&cl->node);
 	mutex_unlock(&clocks_mutex);
-	kfree(cl);
+	kfree(cla);
 }
 EXPORT_SYMBOL(clkdev_drop);

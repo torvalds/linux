@@ -25,6 +25,7 @@
  */
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 #include <linux/intel_mid_dma.h>
 
 #define MAX_CHAN	4 /*max ch across controllers*/
@@ -91,13 +92,13 @@ static int get_block_ts(int len, int tx_width, int block_size)
 	int byte_width = 0, block_ts = 0;
 
 	switch (tx_width) {
-	case LNW_DMA_WIDTH_8BIT:
+	case DMA_SLAVE_BUSWIDTH_1_BYTE:
 		byte_width = 1;
 		break;
-	case LNW_DMA_WIDTH_16BIT:
+	case DMA_SLAVE_BUSWIDTH_2_BYTES:
 		byte_width = 2;
 		break;
-	case LNW_DMA_WIDTH_32BIT:
+	case DMA_SLAVE_BUSWIDTH_4_BYTES:
 	default:
 		byte_width = 4;
 		break;
@@ -247,16 +248,17 @@ static void midc_dostart(struct intel_mid_dma_chan *midc,
 	struct middma_device *mid = to_middma_device(midc->chan.device);
 
 	/*  channel is idle */
-	if (midc->in_use && test_ch_en(midc->dma_base, midc->ch_id)) {
+	if (midc->busy && test_ch_en(midc->dma_base, midc->ch_id)) {
 		/*error*/
 		pr_err("ERR_MDMA: channel is busy in start\n");
 		/* The tasklet will hopefully advance the queue... */
 		return;
 	}
-
+	midc->busy = true;
 	/*write registers and en*/
 	iowrite32(first->sar, midc->ch_regs + SAR);
 	iowrite32(first->dar, midc->ch_regs + DAR);
+	iowrite32(first->lli_phys, midc->ch_regs + LLP);
 	iowrite32(first->cfg_hi, midc->ch_regs + CFG_HIGH);
 	iowrite32(first->cfg_lo, midc->ch_regs + CFG_LOW);
 	iowrite32(first->ctl_lo, midc->ch_regs + CTL_LOW);
@@ -264,9 +266,9 @@ static void midc_dostart(struct intel_mid_dma_chan *midc,
 	pr_debug("MDMA:TX SAR %x,DAR %x,CFGL %x,CFGH %x,CTLH %x, CTLL %x\n",
 		(int)first->sar, (int)first->dar, first->cfg_hi,
 		first->cfg_lo, first->ctl_hi, first->ctl_lo);
+	first->status = DMA_IN_PROGRESS;
 
 	iowrite32(ENABLE_CHANNEL(midc->ch_id), mid->dma_base + DMA_CHAN_EN);
-	first->status = DMA_IN_PROGRESS;
 }
 
 /**
@@ -283,20 +285,36 @@ static void midc_descriptor_complete(struct intel_mid_dma_chan *midc,
 {
 	struct dma_async_tx_descriptor	*txd = &desc->txd;
 	dma_async_tx_callback callback_txd = NULL;
+	struct intel_mid_dma_lli	*llitem;
 	void *param_txd = NULL;
 
 	midc->completed = txd->cookie;
 	callback_txd = txd->callback;
 	param_txd = txd->callback_param;
 
-	list_move(&desc->desc_node, &midc->free_list);
-
+	if (desc->lli != NULL) {
+		/*clear the DONE bit of completed LLI in memory*/
+		llitem = desc->lli + desc->current_lli;
+		llitem->ctl_hi &= CLEAR_DONE;
+		if (desc->current_lli < desc->lli_length-1)
+			(desc->current_lli)++;
+		else
+			desc->current_lli = 0;
+	}
 	spin_unlock_bh(&midc->lock);
 	if (callback_txd) {
 		pr_debug("MDMA: TXD callback set ... calling\n");
 		callback_txd(param_txd);
-		spin_lock_bh(&midc->lock);
-		return;
+	}
+	if (midc->raw_tfr) {
+		desc->status = DMA_SUCCESS;
+		if (desc->lli != NULL) {
+			pci_pool_free(desc->lli_pool, desc->lli,
+						desc->lli_phys);
+			pci_pool_destroy(desc->lli_pool);
+		}
+		list_move(&desc->desc_node, &midc->free_list);
+		midc->busy = false;
 	}
 	spin_lock_bh(&midc->lock);
 
@@ -317,14 +335,89 @@ static void midc_scan_descriptors(struct middma_device *mid,
 
 	/*tx is complete*/
 	list_for_each_entry_safe(desc, _desc, &midc->active_list, desc_node) {
-		if (desc->status == DMA_IN_PROGRESS)  {
-			desc->status = DMA_SUCCESS;
+		if (desc->status == DMA_IN_PROGRESS)
 			midc_descriptor_complete(midc, desc);
-		}
 	}
 	return;
-}
+	}
+/**
+ * midc_lli_fill_sg -		Helper function to convert
+ *				SG list to Linked List Items.
+ *@midc: Channel
+ *@desc: DMA descriptor
+ *@sglist: Pointer to SG list
+ *@sglen: SG list length
+ *@flags: DMA transaction flags
+ *
+ * Walk through the SG list and convert the SG list into Linked
+ * List Items (LLI).
+ */
+static int midc_lli_fill_sg(struct intel_mid_dma_chan *midc,
+				struct intel_mid_dma_desc *desc,
+				struct scatterlist *sglist,
+				unsigned int sglen,
+				unsigned int flags)
+{
+	struct intel_mid_dma_slave *mids;
+	struct scatterlist  *sg;
+	dma_addr_t lli_next, sg_phy_addr;
+	struct intel_mid_dma_lli *lli_bloc_desc;
+	union intel_mid_dma_ctl_lo ctl_lo;
+	union intel_mid_dma_ctl_hi ctl_hi;
+	int i;
 
+	pr_debug("MDMA: Entered midc_lli_fill_sg\n");
+	mids = midc->mid_slave;
+
+	lli_bloc_desc = desc->lli;
+	lli_next = desc->lli_phys;
+
+	ctl_lo.ctl_lo = desc->ctl_lo;
+	ctl_hi.ctl_hi = desc->ctl_hi;
+	for_each_sg(sglist, sg, sglen, i) {
+		/*Populate CTL_LOW and LLI values*/
+		if (i != sglen - 1) {
+			lli_next = lli_next +
+				sizeof(struct intel_mid_dma_lli);
+		} else {
+		/*Check for circular list, otherwise terminate LLI to ZERO*/
+			if (flags & DMA_PREP_CIRCULAR_LIST) {
+				pr_debug("MDMA: LLI is configured in circular mode\n");
+				lli_next = desc->lli_phys;
+			} else {
+				lli_next = 0;
+				ctl_lo.ctlx.llp_dst_en = 0;
+				ctl_lo.ctlx.llp_src_en = 0;
+			}
+		}
+		/*Populate CTL_HI values*/
+		ctl_hi.ctlx.block_ts = get_block_ts(sg->length,
+							desc->width,
+							midc->dma->block_size);
+		/*Populate SAR and DAR values*/
+		sg_phy_addr = sg_phys(sg);
+		if (desc->dirn ==  DMA_TO_DEVICE) {
+			lli_bloc_desc->sar  = sg_phy_addr;
+			lli_bloc_desc->dar  = mids->dma_slave.dst_addr;
+		} else if (desc->dirn ==  DMA_FROM_DEVICE) {
+			lli_bloc_desc->sar  = mids->dma_slave.src_addr;
+			lli_bloc_desc->dar  = sg_phy_addr;
+		}
+		/*Copy values into block descriptor in system memroy*/
+		lli_bloc_desc->llp = lli_next;
+		lli_bloc_desc->ctl_lo = ctl_lo.ctl_lo;
+		lli_bloc_desc->ctl_hi = ctl_hi.ctl_hi;
+
+		lli_bloc_desc++;
+	}
+	/*Copy very first LLI values to descriptor*/
+	desc->ctl_lo = desc->lli->ctl_lo;
+	desc->ctl_hi = desc->lli->ctl_hi;
+	desc->sar = desc->lli->sar;
+	desc->dar = desc->lli->dar;
+
+	return 0;
+}
 /*****************************************************************************
 DMA engine callback Functions*/
 /**
@@ -349,12 +442,12 @@ static dma_cookie_t intel_mid_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	desc->txd.cookie = cookie;
 
 
-	if (list_empty(&midc->active_list)) {
-		midc_dostart(midc, desc);
+	if (list_empty(&midc->active_list))
 		list_add_tail(&desc->desc_node, &midc->active_list);
-	} else {
+	else
 		list_add_tail(&desc->desc_node, &midc->queue);
-	}
+
+	midc_dostart(midc, desc);
 	spin_unlock_bh(&midc->lock);
 
 	return cookie;
@@ -414,6 +507,23 @@ static enum dma_status intel_mid_dma_tx_status(struct dma_chan *chan,
 	return ret;
 }
 
+static int dma_slave_control(struct dma_chan *chan, unsigned long arg)
+{
+	struct intel_mid_dma_chan	*midc = to_intel_mid_dma_chan(chan);
+	struct dma_slave_config  *slave = (struct dma_slave_config *)arg;
+	struct intel_mid_dma_slave *mid_slave;
+
+	BUG_ON(!midc);
+	BUG_ON(!slave);
+	pr_debug("MDMA: slave control called\n");
+
+	mid_slave = to_intel_mid_dma_slave(slave);
+
+	BUG_ON(!mid_slave);
+
+	midc->mid_slave = mid_slave;
+	return 0;
+}
 /**
  * intel_mid_dma_device_control -	DMA device control
  * @chan: chan for DMA control
@@ -428,49 +538,41 @@ static int intel_mid_dma_device_control(struct dma_chan *chan,
 	struct intel_mid_dma_chan	*midc = to_intel_mid_dma_chan(chan);
 	struct middma_device	*mid = to_middma_device(chan->device);
 	struct intel_mid_dma_desc	*desc, *_desc;
-	LIST_HEAD(list);
+	union intel_mid_dma_cfg_lo cfg_lo;
+
+	if (cmd == DMA_SLAVE_CONFIG)
+		return dma_slave_control(chan, arg);
 
 	if (cmd != DMA_TERMINATE_ALL)
 		return -ENXIO;
 
 	spin_lock_bh(&midc->lock);
-	if (midc->in_use == false) {
+	if (midc->busy == false) {
 		spin_unlock_bh(&midc->lock);
 		return 0;
 	}
-	list_splice_init(&midc->free_list, &list);
-	midc->descs_allocated = 0;
-	midc->slave = NULL;
-
+	/*Suspend and disable the channel*/
+	cfg_lo.cfg_lo = ioread32(midc->ch_regs + CFG_LOW);
+	cfg_lo.cfgx.ch_susp = 1;
+	iowrite32(cfg_lo.cfg_lo, midc->ch_regs + CFG_LOW);
+	iowrite32(DISABLE_CHANNEL(midc->ch_id), mid->dma_base + DMA_CHAN_EN);
+	midc->busy = false;
 	/* Disable interrupts */
 	disable_dma_interrupt(midc);
+	midc->descs_allocated = 0;
 
 	spin_unlock_bh(&midc->lock);
-	list_for_each_entry_safe(desc, _desc, &list, desc_node) {
-		pr_debug("MDMA: freeing descriptor %p\n", desc);
-		pci_pool_free(mid->dma_pool, desc, desc->txd.phys);
+	list_for_each_entry_safe(desc, _desc, &midc->active_list, desc_node) {
+		if (desc->lli != NULL) {
+			pci_pool_free(desc->lli_pool, desc->lli,
+						desc->lli_phys);
+			pci_pool_destroy(desc->lli_pool);
+		}
+		list_move(&desc->desc_node, &midc->free_list);
 	}
 	return 0;
 }
 
-/**
- * intel_mid_dma_prep_slave_sg -	Prep slave sg txn
- * @chan: chan for DMA transfer
- * @sgl: scatter gather list
- * @sg_len: length of sg txn
- * @direction: DMA transfer dirtn
- * @flags: DMA flags
- *
- * Do DMA sg txn: NOT supported now
- */
-static struct dma_async_tx_descriptor *intel_mid_dma_prep_slave_sg(
-			struct dma_chan *chan, struct scatterlist *sgl,
-			unsigned int sg_len, enum dma_data_direction direction,
-			unsigned long flags)
-{
-	/*not supported now*/
-	return NULL;
-}
 
 /**
  * intel_mid_dma_prep_memcpy -	Prep memcpy txn
@@ -495,23 +597,24 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_memcpy(
 	union intel_mid_dma_ctl_hi ctl_hi;
 	union intel_mid_dma_cfg_lo cfg_lo;
 	union intel_mid_dma_cfg_hi cfg_hi;
-	enum intel_mid_dma_width width = 0;
+	enum dma_slave_buswidth width;
 
 	pr_debug("MDMA: Prep for memcpy\n");
-	WARN_ON(!chan);
+	BUG_ON(!chan);
 	if (!len)
 		return NULL;
 
-	mids = chan->private;
-	WARN_ON(!mids);
-
 	midc = to_intel_mid_dma_chan(chan);
-	WARN_ON(!midc);
+	BUG_ON(!midc);
+
+	mids = midc->mid_slave;
+	BUG_ON(!mids);
 
 	pr_debug("MDMA:called for DMA %x CH %d Length %zu\n",
 				midc->dma->pci_id, midc->ch_id, len);
 	pr_debug("MDMA:Cfg passed Mode %x, Dirn %x, HS %x, Width %x\n",
-		mids->cfg_mode, mids->dirn, mids->hs_mode, mids->src_width);
+			mids->cfg_mode, mids->dma_slave.direction,
+			mids->hs_mode, mids->dma_slave.src_addr_width);
 
 	/*calculate CFG_LO*/
 	if (mids->hs_mode == LNW_DMA_SW_HS) {
@@ -530,13 +633,13 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_memcpy(
 		if (midc->dma->pimr_mask) {
 			cfg_hi.cfgx.protctl = 0x0; /*default value*/
 			cfg_hi.cfgx.fifo_mode = 1;
-			if (mids->dirn == DMA_TO_DEVICE) {
+			if (mids->dma_slave.direction == DMA_TO_DEVICE) {
 				cfg_hi.cfgx.src_per = 0;
 				if (mids->device_instance == 0)
 					cfg_hi.cfgx.dst_per = 3;
 				if (mids->device_instance == 1)
 					cfg_hi.cfgx.dst_per = 1;
-			} else if (mids->dirn == DMA_FROM_DEVICE) {
+			} else if (mids->dma_slave.direction == DMA_FROM_DEVICE) {
 				if (mids->device_instance == 0)
 					cfg_hi.cfgx.src_per = 2;
 				if (mids->device_instance == 1)
@@ -552,7 +655,8 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_memcpy(
 
 	/*calculate CTL_HI*/
 	ctl_hi.ctlx.reser = 0;
-	width = mids->src_width;
+	ctl_hi.ctlx.done  = 0;
+	width = mids->dma_slave.src_addr_width;
 
 	ctl_hi.ctlx.block_ts = get_block_ts(len, width, midc->dma->block_size);
 	pr_debug("MDMA:calc len %d for block size %d\n",
@@ -560,21 +664,21 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_memcpy(
 	/*calculate CTL_LO*/
 	ctl_lo.ctl_lo = 0;
 	ctl_lo.ctlx.int_en = 1;
-	ctl_lo.ctlx.dst_tr_width = mids->dst_width;
-	ctl_lo.ctlx.src_tr_width = mids->src_width;
-	ctl_lo.ctlx.dst_msize = mids->src_msize;
-	ctl_lo.ctlx.src_msize = mids->dst_msize;
+	ctl_lo.ctlx.dst_tr_width = mids->dma_slave.dst_addr_width;
+	ctl_lo.ctlx.src_tr_width = mids->dma_slave.src_addr_width;
+	ctl_lo.ctlx.dst_msize = mids->dma_slave.src_maxburst;
+	ctl_lo.ctlx.src_msize = mids->dma_slave.dst_maxburst;
 
 	if (mids->cfg_mode == LNW_DMA_MEM_TO_MEM) {
 		ctl_lo.ctlx.tt_fc = 0;
 		ctl_lo.ctlx.sinc = 0;
 		ctl_lo.ctlx.dinc = 0;
 	} else {
-		if (mids->dirn == DMA_TO_DEVICE) {
+		if (mids->dma_slave.direction == DMA_TO_DEVICE) {
 			ctl_lo.ctlx.sinc = 0;
 			ctl_lo.ctlx.dinc = 2;
 			ctl_lo.ctlx.tt_fc = 1;
-		} else if (mids->dirn == DMA_FROM_DEVICE) {
+		} else if (mids->dma_slave.direction == DMA_FROM_DEVICE) {
 			ctl_lo.ctlx.sinc = 2;
 			ctl_lo.ctlx.dinc = 0;
 			ctl_lo.ctlx.tt_fc = 2;
@@ -597,13 +701,95 @@ static struct dma_async_tx_descriptor *intel_mid_dma_prep_memcpy(
 	desc->ctl_lo = ctl_lo.ctl_lo;
 	desc->ctl_hi = ctl_hi.ctl_hi;
 	desc->width = width;
-	desc->dirn = mids->dirn;
+	desc->dirn = mids->dma_slave.direction;
+	desc->lli_phys = 0;
+	desc->lli = NULL;
+	desc->lli_pool = NULL;
 	return &desc->txd;
 
 err_desc_get:
 	pr_err("ERR_MDMA: Failed to get desc\n");
 	midc_desc_put(midc, desc);
 	return NULL;
+}
+/**
+ * intel_mid_dma_prep_slave_sg -	Prep slave sg txn
+ * @chan: chan for DMA transfer
+ * @sgl: scatter gather list
+ * @sg_len: length of sg txn
+ * @direction: DMA transfer dirtn
+ * @flags: DMA flags
+ *
+ * Prepares LLI based periphral transfer
+ */
+static struct dma_async_tx_descriptor *intel_mid_dma_prep_slave_sg(
+			struct dma_chan *chan, struct scatterlist *sgl,
+			unsigned int sg_len, enum dma_data_direction direction,
+			unsigned long flags)
+{
+	struct intel_mid_dma_chan *midc = NULL;
+	struct intel_mid_dma_slave *mids = NULL;
+	struct intel_mid_dma_desc *desc = NULL;
+	struct dma_async_tx_descriptor *txd = NULL;
+	union intel_mid_dma_ctl_lo ctl_lo;
+
+	pr_debug("MDMA: Prep for slave SG\n");
+
+	if (!sg_len) {
+		pr_err("MDMA: Invalid SG length\n");
+		return NULL;
+	}
+	midc = to_intel_mid_dma_chan(chan);
+	BUG_ON(!midc);
+
+	mids = midc->mid_slave;
+	BUG_ON(!mids);
+
+	if (!midc->dma->pimr_mask) {
+		pr_debug("MDMA: SG list is not supported by this controller\n");
+		return  NULL;
+	}
+
+	pr_debug("MDMA: SG Length = %d, direction = %d, Flags = %#lx\n",
+			sg_len, direction, flags);
+
+	txd = intel_mid_dma_prep_memcpy(chan, 0, 0, sgl->length, flags);
+	if (NULL == txd) {
+		pr_err("MDMA: Prep memcpy failed\n");
+		return NULL;
+	}
+	desc = to_intel_mid_dma_desc(txd);
+	desc->dirn = direction;
+	ctl_lo.ctl_lo = desc->ctl_lo;
+	ctl_lo.ctlx.llp_dst_en = 1;
+	ctl_lo.ctlx.llp_src_en = 1;
+	desc->ctl_lo = ctl_lo.ctl_lo;
+	desc->lli_length = sg_len;
+	desc->current_lli = 0;
+	/* DMA coherent memory pool for LLI descriptors*/
+	desc->lli_pool = pci_pool_create("intel_mid_dma_lli_pool",
+				midc->dma->pdev,
+				(sizeof(struct intel_mid_dma_lli)*sg_len),
+				32, 0);
+	if (NULL == desc->lli_pool) {
+		pr_err("MID_DMA:LLI pool create failed\n");
+		return NULL;
+	}
+
+	desc->lli = pci_pool_alloc(desc->lli_pool, GFP_KERNEL, &desc->lli_phys);
+	if (!desc->lli) {
+		pr_err("MID_DMA: LLI alloc failed\n");
+		pci_pool_destroy(desc->lli_pool);
+		return NULL;
+	}
+
+	midc_lli_fill_sg(midc, desc, sgl, sg_len, flags);
+	if (flags & DMA_PREP_INTERRUPT) {
+		iowrite32(UNMASK_INTR_REG(midc->ch_id),
+				midc->dma_base + MASK_BLOCK);
+		pr_debug("MDMA:Enabled Block interrupt\n");
+	}
+	return &desc->txd;
 }
 
 /**
@@ -618,11 +804,11 @@ static void intel_mid_dma_free_chan_resources(struct dma_chan *chan)
 	struct middma_device	*mid = to_middma_device(chan->device);
 	struct intel_mid_dma_desc	*desc, *_desc;
 
-	if (true == midc->in_use) {
+	if (true == midc->busy) {
 		/*trying to free ch in use!!!!!*/
 		pr_err("ERR_MDMA: trying to free ch in use\n");
 	}
-
+	pm_runtime_put(&mid->pdev->dev);
 	spin_lock_bh(&midc->lock);
 	midc->descs_allocated = 0;
 	list_for_each_entry_safe(desc, _desc, &midc->active_list, desc_node) {
@@ -639,6 +825,7 @@ static void intel_mid_dma_free_chan_resources(struct dma_chan *chan)
 	}
 	spin_unlock_bh(&midc->lock);
 	midc->in_use = false;
+	midc->busy = false;
 	/* Disable CH interrupts */
 	iowrite32(MASK_INTR_REG(midc->ch_id), mid->dma_base + MASK_BLOCK);
 	iowrite32(MASK_INTR_REG(midc->ch_id), mid->dma_base + MASK_ERR);
@@ -659,11 +846,20 @@ static int intel_mid_dma_alloc_chan_resources(struct dma_chan *chan)
 	dma_addr_t		phys;
 	int	i = 0;
 
+	pm_runtime_get_sync(&mid->pdev->dev);
+
+	if (mid->state == SUSPENDED) {
+		if (dma_resume(mid->pdev)) {
+			pr_err("ERR_MDMA: resume failed");
+			return -EFAULT;
+		}
+	}
 
 	/* ASSERT:  channel is idle */
 	if (test_ch_en(mid->dma_base, midc->ch_id)) {
 		/*ch is not idle*/
 		pr_err("ERR_MDMA: ch not idle\n");
+		pm_runtime_put(&mid->pdev->dev);
 		return -EIO;
 	}
 	midc->completed = chan->cookie = 1;
@@ -674,6 +870,7 @@ static int intel_mid_dma_alloc_chan_resources(struct dma_chan *chan)
 		desc = pci_pool_alloc(mid->dma_pool, GFP_KERNEL, &phys);
 		if (!desc) {
 			pr_err("ERR_MDMA: desc failed\n");
+			pm_runtime_put(&mid->pdev->dev);
 			return -ENOMEM;
 			/*check*/
 		}
@@ -686,7 +883,8 @@ static int intel_mid_dma_alloc_chan_resources(struct dma_chan *chan)
 		list_add_tail(&desc->desc_node, &midc->free_list);
 	}
 	spin_unlock_bh(&midc->lock);
-	midc->in_use = false;
+	midc->in_use = true;
+	midc->busy = false;
 	pr_debug("MID_DMA: Desc alloc done ret: %d desc\n", i);
 	return i;
 }
@@ -715,7 +913,7 @@ static void dma_tasklet(unsigned long data)
 {
 	struct middma_device *mid = NULL;
 	struct intel_mid_dma_chan *midc = NULL;
-	u32 status;
+	u32 status, raw_tfr, raw_block;
 	int i;
 
 	mid = (struct middma_device *)data;
@@ -724,8 +922,9 @@ static void dma_tasklet(unsigned long data)
 		return;
 	}
 	pr_debug("MDMA: in tasklet for device %x\n", mid->pci_id);
-	status = ioread32(mid->dma_base + RAW_TFR);
-	pr_debug("MDMA:RAW_TFR %x\n", status);
+	raw_tfr = ioread32(mid->dma_base + RAW_TFR);
+	raw_block = ioread32(mid->dma_base + RAW_BLOCK);
+	status = raw_tfr | raw_block;
 	status &= mid->intr_mask;
 	while (status) {
 		/*txn interrupt*/
@@ -741,15 +940,23 @@ static void dma_tasklet(unsigned long data)
 		}
 		pr_debug("MDMA:Tx complete interrupt %x, Ch No %d Index %d\n",
 				status, midc->ch_id, i);
+		midc->raw_tfr = raw_tfr;
+		midc->raw_block = raw_block;
+		spin_lock_bh(&midc->lock);
 		/*clearing this interrupts first*/
 		iowrite32((1 << midc->ch_id), mid->dma_base + CLEAR_TFR);
-		iowrite32((1 << midc->ch_id), mid->dma_base + CLEAR_BLOCK);
-
-		spin_lock_bh(&midc->lock);
+		if (raw_block) {
+			iowrite32((1 << midc->ch_id),
+				mid->dma_base + CLEAR_BLOCK);
+		}
 		midc_scan_descriptors(mid, midc);
 		pr_debug("MDMA:Scan of desc... complete, unmasking\n");
 		iowrite32(UNMASK_INTR_REG(midc->ch_id),
 				mid->dma_base + MASK_TFR);
+		if (raw_block) {
+			iowrite32(UNMASK_INTR_REG(midc->ch_id),
+				mid->dma_base + MASK_BLOCK);
+		}
 		spin_unlock_bh(&midc->lock);
 	}
 
@@ -804,8 +1011,13 @@ static void dma_tasklet2(unsigned long data)
 static irqreturn_t intel_mid_dma_interrupt(int irq, void *data)
 {
 	struct middma_device *mid = data;
-	u32 status;
+	u32 tfr_status, err_status;
 	int call_tasklet = 0;
+
+	tfr_status = ioread32(mid->dma_base + RAW_TFR);
+	err_status = ioread32(mid->dma_base + RAW_ERR);
+	if (!tfr_status && !err_status)
+		return IRQ_NONE;
 
 	/*DMA Interrupt*/
 	pr_debug("MDMA:Got an interrupt on irq %d\n", irq);
@@ -814,19 +1026,18 @@ static irqreturn_t intel_mid_dma_interrupt(int irq, void *data)
 		return -EINVAL;
 	}
 
-	status = ioread32(mid->dma_base + RAW_TFR);
-	pr_debug("MDMA: Status %x, Mask %x\n", status, mid->intr_mask);
-	status &= mid->intr_mask;
-	if (status) {
+	pr_debug("MDMA: Status %x, Mask %x\n", tfr_status, mid->intr_mask);
+	tfr_status &= mid->intr_mask;
+	if (tfr_status) {
 		/*need to disable intr*/
-		iowrite32((status << 8), mid->dma_base + MASK_TFR);
-		pr_debug("MDMA: Calling tasklet %x\n", status);
+		iowrite32((tfr_status << INT_MASK_WE), mid->dma_base + MASK_TFR);
+		iowrite32((tfr_status << INT_MASK_WE), mid->dma_base + MASK_BLOCK);
+		pr_debug("MDMA: Calling tasklet %x\n", tfr_status);
 		call_tasklet = 1;
 	}
-	status = ioread32(mid->dma_base + RAW_ERR);
-	status &= mid->intr_mask;
-	if (status) {
-		iowrite32(MASK_INTR_REG(status), mid->dma_base + MASK_ERR);
+	err_status &= mid->intr_mask;
+	if (err_status) {
+		iowrite32(MASK_INTR_REG(err_status), mid->dma_base + MASK_ERR);
 		call_tasklet = 1;
 	}
 	if (call_tasklet)
@@ -856,7 +1067,6 @@ static int mid_setup_dma(struct pci_dev *pdev)
 {
 	struct middma_device *dma = pci_get_drvdata(pdev);
 	int err, i;
-	unsigned int irq_level;
 
 	/* DMA coherent memory pool for DMA descriptor allocations */
 	dma->dma_pool = pci_pool_create("intel_mid_dma_desc_pool", pdev,
@@ -884,6 +1094,7 @@ static int mid_setup_dma(struct pci_dev *pdev)
 	pr_debug("MDMA:Adding %d channel for this controller\n", dma->max_chan);
 	/*init CH structures*/
 	dma->intr_mask = 0;
+	dma->state = RUNNING;
 	for (i = 0; i < dma->max_chan; i++) {
 		struct intel_mid_dma_chan *midch = &dma->ch[i];
 
@@ -943,7 +1154,6 @@ static int mid_setup_dma(struct pci_dev *pdev)
 
 	/*register irq */
 	if (dma->pimr_mask) {
-		irq_level = IRQF_SHARED;
 		pr_debug("MDMA:Requesting irq shared for DMAC1\n");
 		err = request_irq(pdev->irq, intel_mid_dma_interrupt1,
 			IRQF_SHARED, "INTEL_MID_DMAC1", dma);
@@ -951,10 +1161,9 @@ static int mid_setup_dma(struct pci_dev *pdev)
 			goto err_irq;
 	} else {
 		dma->intr_mask = 0x03;
-		irq_level = 0;
 		pr_debug("MDMA:Requesting irq for DMAC2\n");
 		err = request_irq(pdev->irq, intel_mid_dma_interrupt2,
-			0, "INTEL_MID_DMAC2", dma);
+			IRQF_SHARED, "INTEL_MID_DMAC2", dma);
 		if (0 != err)
 			goto err_irq;
 	}
@@ -1070,6 +1279,9 @@ static int __devinit intel_mid_dma_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_dma;
 
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_allow(&pdev->dev);
 	return 0;
 
 err_dma:
@@ -1104,6 +1316,85 @@ static void __devexit intel_mid_dma_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
+/* Power Management */
+/*
+* dma_suspend - PCI suspend function
+*
+* @pci: PCI device structure
+* @state: PM message
+*
+* This function is called by OS when a power event occurs
+*/
+int dma_suspend(struct pci_dev *pci, pm_message_t state)
+{
+	int i;
+	struct middma_device *device = pci_get_drvdata(pci);
+	pr_debug("MDMA: dma_suspend called\n");
+
+	for (i = 0; i < device->max_chan; i++) {
+		if (device->ch[i].in_use)
+			return -EAGAIN;
+	}
+	device->state = SUSPENDED;
+	pci_set_drvdata(pci, device);
+	pci_save_state(pci);
+	pci_disable_device(pci);
+	pci_set_power_state(pci, PCI_D3hot);
+	return 0;
+}
+
+/**
+* dma_resume - PCI resume function
+*
+* @pci:	PCI device structure
+*
+* This function is called by OS when a power event occurs
+*/
+int dma_resume(struct pci_dev *pci)
+{
+	int ret;
+	struct middma_device *device = pci_get_drvdata(pci);
+
+	pr_debug("MDMA: dma_resume called\n");
+	pci_set_power_state(pci, PCI_D0);
+	pci_restore_state(pci);
+	ret = pci_enable_device(pci);
+	if (ret) {
+		pr_err("MDMA: device cant be enabled for %x\n", pci->device);
+		return ret;
+	}
+	device->state = RUNNING;
+	iowrite32(REG_BIT0, device->dma_base + DMA_CFG);
+	pci_set_drvdata(pci, device);
+	return 0;
+}
+
+static int dma_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	return dma_suspend(pci_dev, PMSG_SUSPEND);
+}
+
+static int dma_runtime_resume(struct device *dev)
+{
+	struct pci_dev *pci_dev = to_pci_dev(dev);
+	return dma_resume(pci_dev);
+}
+
+static int dma_runtime_idle(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct middma_device *device = pci_get_drvdata(pdev);
+	int i;
+
+	for (i = 0; i < device->max_chan; i++) {
+		if (device->ch[i].in_use)
+			return -EAGAIN;
+	}
+
+	return pm_schedule_suspend(dev, 0);
+}
+
 /******************************************************************************
 * PCI stuff
 */
@@ -1116,11 +1407,24 @@ static struct pci_device_id intel_mid_dma_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, intel_mid_dma_ids);
 
+static const struct dev_pm_ops intel_mid_dma_pm = {
+	.runtime_suspend = dma_runtime_suspend,
+	.runtime_resume = dma_runtime_resume,
+	.runtime_idle = dma_runtime_idle,
+};
+
 static struct pci_driver intel_mid_dma_pci = {
 	.name		=	"Intel MID DMA",
 	.id_table	=	intel_mid_dma_ids,
 	.probe		=	intel_mid_dma_probe,
 	.remove		=	__devexit_p(intel_mid_dma_remove),
+#ifdef CONFIG_PM
+	.suspend = dma_suspend,
+	.resume = dma_resume,
+	.driver = {
+		.pm = &intel_mid_dma_pm,
+	},
+#endif
 };
 
 static int __init intel_mid_dma_init(void)

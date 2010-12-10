@@ -1284,6 +1284,7 @@ ip6_tnl_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				t = netdev_priv(dev);
 
 			ip6_tnl_unlink(ip6n, t);
+			synchronize_net();
 			err = ip6_tnl_change(t, &p);
 			ip6_tnl_link(ip6n, t);
 			netdev_state_change(dev);
@@ -1371,6 +1372,7 @@ static void ip6_tnl_dev_setup(struct net_device *dev)
 	dev->flags |= IFF_NOARP;
 	dev->addr_len = sizeof(struct in6_addr);
 	dev->features |= NETIF_F_NETNS_LOCAL;
+	dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
 }
 
 

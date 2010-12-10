@@ -31,7 +31,7 @@ config MEDIA_TUNER
 	select MEDIA_TUNER_TDA9887 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MC44S803 if !MEDIA_TUNER_CUSTOMISE
 
-menuconfig MEDIA_TUNER_CUSTOMISE
+config MEDIA_TUNER_CUSTOMISE
 	bool "Customize analog and hybrid tuner modules to build"
 	depends on MEDIA_TUNER
 	default y if EMBEDDED
@@ -44,7 +44,8 @@ menuconfig MEDIA_TUNER_CUSTOMISE
 
 	  If unsure say N.
 
-if MEDIA_TUNER_CUSTOMISE
+menu "Customize TV tuners"
+	visible if MEDIA_TUNER_CUSTOMISE
 
 config MEDIA_TUNER_SIMPLE
 	tristate "Simple tuner support"
@@ -179,4 +180,10 @@ config MEDIA_TUNER_MAX2165
 	help
 	  A driver for the silicon tuner MAX2165 from Maxim.
 
-endif # MEDIA_TUNER_CUSTOMISE
+config MEDIA_TUNER_TDA18218
+	tristate "NXP TDA18218 silicon tuner"
+	depends on VIDEO_MEDIA && I2C
+	default m if MEDIA_TUNER_CUSTOMISE
+	help
+	  NXP TDA18218 silicon tuner driver.
+endmenu

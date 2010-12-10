@@ -1219,7 +1219,6 @@ fail_sb:
 fail_locking:
 	init_locking(sdp, &mount_gh, UNDO);
 fail_lm:
-	invalidate_inodes(sb);
 	gfs2_gl_hash_clear(sdp);
 	gfs2_lm_unmount(sdp);
 fail_sys:
@@ -1251,12 +1250,11 @@ static int test_gfs2_super(struct super_block *s, void *ptr)
 }
 
 /**
- * gfs2_get_sb - Get the GFS2 superblock
+ * gfs2_mount - Get the GFS2 superblock
  * @fs_type: The GFS2 filesystem type
  * @flags: Mount flags
  * @dev_name: The name of the device
  * @data: The mount arguments
- * @mnt: The vfsmnt for this mount
  *
  * Q. Why not use get_sb_bdev() ?
  * A. We need to select one of two root directories to mount, independent
@@ -1265,8 +1263,8 @@ static int test_gfs2_super(struct super_block *s, void *ptr)
  * Returns: 0 or -ve on error
  */
 
-static int gfs2_get_sb(struct file_system_type *fs_type, int flags,
-		       const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
+		       const char *dev_name, void *data)
 {
 	struct block_device *bdev;
 	struct super_block *s;
@@ -1280,7 +1278,7 @@ static int gfs2_get_sb(struct file_system_type *fs_type, int flags,
 
 	bdev = open_bdev_exclusive(dev_name, mode, fs_type);
 	if (IS_ERR(bdev))
-		return PTR_ERR(bdev);
+		return ERR_CAST(bdev);
 
 	/*
 	 * once the super is inserted into the list by sget, s_umount
@@ -1299,6 +1297,9 @@ static int gfs2_get_sb(struct file_system_type *fs_type, int flags,
 	if (IS_ERR(s))
 		goto error_bdev;
 
+	if (s->s_root)
+		close_bdev_exclusive(bdev, mode);
+
 	memset(&args, 0, sizeof(args));
 	args.ar_quota = GFS2_QUOTA_DEFAULT;
 	args.ar_data = GFS2_DATA_DEFAULT;
@@ -1310,17 +1311,13 @@ static int gfs2_get_sb(struct file_system_type *fs_type, int flags,
 	error = gfs2_mount_args(&args, data);
 	if (error) {
 		printk(KERN_WARNING "GFS2: can't parse mount arguments\n");
-		if (s->s_root)
-			goto error_super;
-		deactivate_locked_super(s);
-		return error;
+		goto error_super;
 	}
 
 	if (s->s_root) {
 		error = -EBUSY;
 		if ((flags ^ s->s_flags) & MS_RDONLY)
 			goto error_super;
-		close_bdev_exclusive(bdev, mode);
 	} else {
 		char b[BDEVNAME_SIZE];
 
@@ -1329,27 +1326,24 @@ static int gfs2_get_sb(struct file_system_type *fs_type, int flags,
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
 		sb_set_blocksize(s, block_size(bdev));
 		error = fill_super(s, &args, flags & MS_SILENT ? 1 : 0);
-		if (error) {
-			deactivate_locked_super(s);
-			return error;
-		}
+		if (error)
+			goto error_super;
 		s->s_flags |= MS_ACTIVE;
 		bdev->bd_super = s;
 	}
 
 	sdp = s->s_fs_info;
-	mnt->mnt_sb = s;
 	if (args.ar_meta)
-		mnt->mnt_root = dget(sdp->sd_master_dir);
+		return dget(sdp->sd_master_dir);
 	else
-		mnt->mnt_root = dget(sdp->sd_root_dir);
-	return 0;
+		return dget(sdp->sd_root_dir);
 
 error_super:
 	deactivate_locked_super(s);
+	return ERR_PTR(error);
 error_bdev:
 	close_bdev_exclusive(bdev, mode);
-	return error;
+	return ERR_PTR(error);
 }
 
 static int set_meta_super(struct super_block *s, void *ptr)
@@ -1357,8 +1351,8 @@ static int set_meta_super(struct super_block *s, void *ptr)
 	return -EINVAL;
 }
 
-static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
-			    const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *gfs2_mount_meta(struct file_system_type *fs_type,
+			int flags, const char *dev_name, void *data)
 {
 	struct super_block *s;
 	struct gfs2_sbd *sdp;
@@ -1369,23 +1363,21 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 	if (error) {
 		printk(KERN_WARNING "GFS2: path_lookup on %s returned error %d\n",
 		       dev_name, error);
-		return error;
+		return ERR_PTR(error);
 	}
 	s = sget(&gfs2_fs_type, test_gfs2_super, set_meta_super,
 		 path.dentry->d_inode->i_sb->s_bdev);
 	path_put(&path);
 	if (IS_ERR(s)) {
 		printk(KERN_WARNING "GFS2: gfs2 mount does not exist\n");
-		return PTR_ERR(s);
+		return ERR_CAST(s);
 	}
 	if ((flags ^ s->s_flags) & MS_RDONLY) {
 		deactivate_locked_super(s);
-		return -EBUSY;
+		return ERR_PTR(-EBUSY);
 	}
 	sdp = s->s_fs_info;
-	mnt->mnt_sb = s;
-	mnt->mnt_root = dget(sdp->sd_master_dir);
-	return 0;
+	return dget(sdp->sd_master_dir);
 }
 
 static void gfs2_kill_sb(struct super_block *sb)
@@ -1411,7 +1403,7 @@ static void gfs2_kill_sb(struct super_block *sb)
 struct file_system_type gfs2_fs_type = {
 	.name = "gfs2",
 	.fs_flags = FS_REQUIRES_DEV,
-	.get_sb = gfs2_get_sb,
+	.mount = gfs2_mount,
 	.kill_sb = gfs2_kill_sb,
 	.owner = THIS_MODULE,
 };
@@ -1419,7 +1411,7 @@ struct file_system_type gfs2_fs_type = {
 struct file_system_type gfs2meta_fs_type = {
 	.name = "gfs2meta",
 	.fs_flags = FS_REQUIRES_DEV,
-	.get_sb = gfs2_get_sb_meta,
+	.mount = gfs2_mount_meta,
 	.owner = THIS_MODULE,
 };
 

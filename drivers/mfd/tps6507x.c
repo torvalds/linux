@@ -68,7 +68,7 @@ static int tps6507x_i2c_write_device(struct tps6507x_dev *tps6507x, char reg,
 	u8 msg[TPS6507X_MAX_REGISTER + 1];
 	int ret;
 
-	if (bytes > (TPS6507X_MAX_REGISTER + 1))
+	if (bytes > TPS6507X_MAX_REGISTER)
 		return -EINVAL;
 
 	msg[0] = reg;

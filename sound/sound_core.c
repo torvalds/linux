@@ -104,7 +104,6 @@ module_exit(cleanup_soundcore);
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sound.h>

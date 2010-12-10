@@ -98,8 +98,6 @@ acpi_os_table_override(struct acpi_table_header *existing_table,
 /*
  * Spinlock primitives
  */
-acpi_status acpi_os_create_lock(acpi_spinlock * out_handle);
-
 void acpi_os_delete_lock(acpi_spinlock handle);
 
 acpi_cpu_flags acpi_os_acquire_lock(acpi_spinlock handle);
@@ -223,25 +221,15 @@ acpi_os_write_memory(acpi_physical_address address, u32 value, u32 width);
  */
 acpi_status
 acpi_os_read_pci_configuration(struct acpi_pci_id *pci_id,
-			       u32 reg, u32 *value, u32 width);
+			       u32 reg, u64 *value, u32 width);
 
 acpi_status
 acpi_os_write_pci_configuration(struct acpi_pci_id *pci_id,
 				u32 reg, u64 value, u32 width);
 
 /*
- * Interim function needed for PCI IRQ routing
- */
-void
-acpi_os_derive_pci_id(acpi_handle device,
-		      acpi_handle region, struct acpi_pci_id **pci_id);
-
-/*
  * Miscellaneous
  */
-acpi_status acpi_os_validate_interface(char *interface);
-acpi_status acpi_osi_invalidate(char* interface);
-
 acpi_status
 acpi_os_validate_address(u8 space_id, acpi_physical_address address,
 			 acpi_size length, char *name);

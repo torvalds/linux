@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <linux/percpu.h>
+#include <linux/mm.h>
 
 #include <asm/apic.h>
 
@@ -59,9 +60,6 @@ union irq_ctx {
 
 static DEFINE_PER_CPU(union irq_ctx *, hardirq_ctx);
 static DEFINE_PER_CPU(union irq_ctx *, softirq_ctx);
-
-static DEFINE_PER_CPU_MULTIPAGE_ALIGNED(union irq_ctx, hardirq_stack, THREAD_SIZE);
-static DEFINE_PER_CPU_MULTIPAGE_ALIGNED(union irq_ctx, softirq_stack, THREAD_SIZE);
 
 static void call_on_stack(void *func, void *stack)
 {
@@ -128,7 +126,9 @@ void __cpuinit irq_ctx_init(int cpu)
 	if (per_cpu(hardirq_ctx, cpu))
 		return;
 
-	irqctx = &per_cpu(hardirq_stack, cpu);
+	irqctx = page_address(alloc_pages_node(cpu_to_node(cpu),
+					       THREAD_FLAGS,
+					       THREAD_ORDER));
 	irqctx->tinfo.task		= NULL;
 	irqctx->tinfo.exec_domain	= NULL;
 	irqctx->tinfo.cpu		= cpu;
@@ -137,7 +137,9 @@ void __cpuinit irq_ctx_init(int cpu)
 
 	per_cpu(hardirq_ctx, cpu) = irqctx;
 
-	irqctx = &per_cpu(softirq_stack, cpu);
+	irqctx = page_address(alloc_pages_node(cpu_to_node(cpu),
+					       THREAD_FLAGS,
+					       THREAD_ORDER));
 	irqctx->tinfo.task		= NULL;
 	irqctx->tinfo.exec_domain	= NULL;
 	irqctx->tinfo.cpu		= cpu;
@@ -148,11 +150,6 @@ void __cpuinit irq_ctx_init(int cpu)
 
 	printk(KERN_DEBUG "CPU %u irqstacks, hard=%p soft=%p\n",
 	       cpu, per_cpu(hardirq_ctx, cpu),  per_cpu(softirq_ctx, cpu));
-}
-
-void irq_ctx_exit(int cpu)
-{
-	per_cpu(hardirq_ctx, cpu) = NULL;
 }
 
 asmlinkage void do_softirq(void)

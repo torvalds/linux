@@ -203,9 +203,13 @@ static ssize_t key_key_read(struct file *file, char __user *userbuf,
 			    size_t count, loff_t *ppos)
 {
 	struct ieee80211_key *key = file->private_data;
-	int i, res, bufsize = 2 * key->conf.keylen + 2;
+	int i, bufsize = 2 * key->conf.keylen + 2;
 	char *buf = kmalloc(bufsize, GFP_KERNEL);
 	char *p = buf;
+	ssize_t res;
+
+	if (!buf)
+		return -ENOMEM;
 
 	for (i = 0; i < key->conf.keylen; i++)
 		p += scnprintf(p, bufsize + buf - p, "%02x", key->conf.key[i]);

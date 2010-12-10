@@ -209,29 +209,79 @@ tape_state_set(struct tape_device *device, enum tape_state newstate)
 	wake_up(&device->state_change_wq);
 }
 
+struct tape_med_state_work_data {
+	struct tape_device *device;
+	enum tape_medium_state state;
+	struct work_struct  work;
+};
+
+static void
+tape_med_state_work_handler(struct work_struct *work)
+{
+	static char env_state_loaded[] = "MEDIUM_STATE=LOADED";
+	static char env_state_unloaded[] = "MEDIUM_STATE=UNLOADED";
+	struct tape_med_state_work_data *p =
+		container_of(work, struct tape_med_state_work_data, work);
+	struct tape_device *device = p->device;
+	char *envp[] = { NULL, NULL };
+
+	switch (p->state) {
+	case MS_UNLOADED:
+		pr_info("%s: The tape cartridge has been successfully "
+			"unloaded\n", dev_name(&device->cdev->dev));
+		envp[0] = env_state_unloaded;
+		kobject_uevent_env(&device->cdev->dev.kobj, KOBJ_CHANGE, envp);
+		break;
+	case MS_LOADED:
+		pr_info("%s: A tape cartridge has been mounted\n",
+			dev_name(&device->cdev->dev));
+		envp[0] = env_state_loaded;
+		kobject_uevent_env(&device->cdev->dev.kobj, KOBJ_CHANGE, envp);
+		break;
+	default:
+		break;
+	}
+	tape_put_device(device);
+	kfree(p);
+}
+
+static void
+tape_med_state_work(struct tape_device *device, enum tape_medium_state state)
+{
+	struct tape_med_state_work_data *p;
+
+	p = kzalloc(sizeof(*p), GFP_ATOMIC);
+	if (p) {
+		INIT_WORK(&p->work, tape_med_state_work_handler);
+		p->device = tape_get_device(device);
+		p->state = state;
+		schedule_work(&p->work);
+	}
+}
+
 void
 tape_med_state_set(struct tape_device *device, enum tape_medium_state newstate)
 {
-	if (device->medium_state == newstate)
+	enum tape_medium_state oldstate;
+
+	oldstate = device->medium_state;
+	if (oldstate == newstate)
 		return;
+	device->medium_state = newstate;
 	switch(newstate){
 	case MS_UNLOADED:
 		device->tape_generic_status |= GMT_DR_OPEN(~0);
-		if (device->medium_state == MS_LOADED)
-			pr_info("%s: The tape cartridge has been successfully "
-				"unloaded\n", dev_name(&device->cdev->dev));
+		if (oldstate == MS_LOADED)
+			tape_med_state_work(device, MS_UNLOADED);
 		break;
 	case MS_LOADED:
 		device->tape_generic_status &= ~GMT_DR_OPEN(~0);
-		if (device->medium_state == MS_UNLOADED)
-			pr_info("%s: A tape cartridge has been mounted\n",
-				dev_name(&device->cdev->dev));
+		if (oldstate == MS_UNLOADED)
+			tape_med_state_work(device, MS_LOADED);
 		break;
 	default:
-		// print nothing
 		break;
 	}
-	device->medium_state = newstate;
 	wake_up(&device->state_change_wq);
 }
 
@@ -1077,15 +1127,14 @@ __tape_do_irq (struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 		/* FIXME: What to do with the request? */
 		switch (PTR_ERR(irb)) {
 			case -ETIMEDOUT:
-				DBF_LH(1, "(%s): Request timed out\n",
-					dev_name(&cdev->dev));
+				DBF_LH(1, "(%08x): Request timed out\n",
+				       device->cdev_id);
 			case -EIO:
 				__tape_end_request(device, request, -EIO);
 				break;
 			default:
-				DBF_LH(1, "(%s): Unexpected i/o error %li\n",
-					dev_name(&cdev->dev),
-					PTR_ERR(irb));
+				DBF_LH(1, "(%08x): Unexpected i/o error %li\n",
+				       device->cdev_id,	PTR_ERR(irb));
 		}
 		return;
 	}

@@ -973,6 +973,10 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	/* Attach data to the rm */
 	if (payload_len) {
 		rm->data.op_sg = rds_message_alloc_sgs(rm, ceil(payload_len, PAGE_SIZE));
+		if (!rm->data.op_sg) {
+			ret = -ENOMEM;
+			goto out;
+		}
 		ret = rds_message_copy_from_user(rm, msg->msg_iov, payload_len);
 		if (ret)
 			goto out;

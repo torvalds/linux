@@ -1,14 +1,12 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
-
-mainmenu "Linux/PowerPC Kernel Configuration"
-
 source "arch/powerpc/platforms/Kconfig.cputype"
 
 config PPC32
 	bool
 	default y if !PPC64
+
+config 32BIT
+	bool
+	default y if PPC32
 
 config 64BIT
 	bool
@@ -688,9 +686,12 @@ config 4xx_SOC
 	bool
 
 config FSL_LBC
-	bool
+	bool "Freescale Local Bus support"
+	depends on FSL_SOC
 	help
-	  Freescale Localbus support
+	  Enables reporting of errors from the Freescale local bus
+	  controller.  Also contains some common code used by
+	  drivers for specific local bus peripherals.
 
 config FSL_GTM
 	bool

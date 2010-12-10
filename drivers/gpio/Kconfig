@@ -70,6 +70,11 @@ config GPIO_MAX730X
 
 comment "Memory mapped GPIO expanders:"
 
+config GPIO_BASIC_MMIO
+	tristate "Basic memory-mapped GPIO controllers support"
+	help
+	  Say yes here to support basic memory-mapped GPIO controllers.
+
 config GPIO_IT8761E
 	tristate "IT8761E GPIO support"
 	depends on GPIOLIB
@@ -110,6 +115,18 @@ config GPIO_SCH
 
 	  This driver can also be built as a module. If so, the module
 	  will be called sch-gpio.
+
+config GPIO_VX855
+	tristate "VIA VX855/VX875 GPIO"
+	depends on GPIOLIB
+	select MFD_CORE
+	select MFD_VX855
+	help
+	  Support access to the VX855/VX875 GPIO lines through the gpio library.
+
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
 
 comment "I2C GPIO expanders:"
 
@@ -267,6 +284,13 @@ config GPIO_ADP5588
 	  To compile this driver as a module, choose M here: the module will be
 	  called adp5588-gpio.
 
+config GPIO_ADP5588_IRQ
+	bool "Interrupt controller support for ADP5588"
+	depends on GPIO_ADP5588=y
+	help
+	  Say yes here to enable the adp5588 to be used as an interrupt
+	  controller. It requires the driver to be built in the kernel.
+
 comment "PCI GPIO expanders:"
 
 config GPIO_CS5535
@@ -300,6 +324,14 @@ config GPIO_LANGWELL
 	depends on PCI
 	help
 	  Say Y here to support Intel Langwell/Penwell GPIO.
+
+config GPIO_PCH
+	tristate "PCH GPIO of Intel Topcliff"
+	depends on PCI
+	help
+	  This driver is for PCH(Platform controller Hub) GPIO of Intel Topcliff
+	  which is an IOH(Input/Output Hub) for x86 embedded processor.
+	  This driver can access PCH GPIO device.
 
 config GPIO_TIMBERDALE
 	bool "Support for timberdale GPIO IP"
@@ -338,6 +370,14 @@ config GPIO_MC33880
 	help
 	  SPI driver for Freescale MC33880 high-side/low-side switch.
 	  This provides GPIO interface supporting inputs and outputs.
+
+config GPIO_74X164
+	tristate "74x164 serial-in/parallel-out 8-bits shift register"
+	depends on SPI_MASTER
+	help
+	  Platform driver for 74x164 compatible serial-in/parallel-out
+	  8-outputs shift registers. This driver can be used to provide access
+	  to more gpio outputs.
 
 comment "AC97 GPIO expanders:"
 

@@ -1,8 +1,3 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-
-mainmenu "Linux/Microblaze Kernel Configuration"
-
 config MICROBLAZE
 	def_bool y
 	select HAVE_MEMBLOCK
@@ -120,6 +115,23 @@ config CMDLINE_FORCE
 	help
 	  Set this to have arguments from the default kernel command string
 	  override those passed by the boot loader.
+
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	default y
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y. Only embedded should say N here.
 
 endmenu
 

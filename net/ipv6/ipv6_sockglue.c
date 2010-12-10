@@ -343,6 +343,10 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_TRANSPARENT:
+		if (!capable(CAP_NET_ADMIN)) {
+			retv = -EPERM;
+			break;
+		}
 		if (optlen < sizeof(int))
 			goto e_inval;
 		/* we don't have a separate transparent bit for IPV6 we use the one in the IPv4 socket */
