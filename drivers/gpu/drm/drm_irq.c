@@ -1086,15 +1086,18 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 
 	e->event.sequence = vblwait->request.sequence;
 	if ((seq - vblwait->request.sequence) <= (1 << 23)) {
+		e->event.sequence = seq;
 		e->event.tv_sec = now.tv_sec;
 		e->event.tv_usec = now.tv_usec;
 		drm_vblank_put(dev, e->pipe);
 		list_add_tail(&e->base.link, &e->base.file_priv->event_list);
 		wake_up_interruptible(&e->base.file_priv->event_wait);
+		vblwait->reply.sequence = seq;
 		trace_drm_vblank_event_delivered(current->pid, pipe,
 						 vblwait->request.sequence);
 	} else {
 		list_add_tail(&e->base.link, &dev->vblank_event_list);
+		vblwait->reply.sequence = vblwait->request.sequence;
 	}
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
