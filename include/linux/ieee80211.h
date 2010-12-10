@@ -122,6 +122,7 @@
 
 /* U-APSD queue for WMM IEs sent by AP */
 #define IEEE80211_WMM_IE_AP_QOSINFO_UAPSD	(1<<7)
+#define IEEE80211_WMM_IE_AP_QOSINFO_PARAM_SET_CNT_MASK	0x0f
 
 /* U-APSD queues for WMM IEs sent by STA */
 #define IEEE80211_WMM_IE_STA_QOSINFO_AC_VO	(1<<0)
