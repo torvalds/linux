@@ -5568,30 +5568,27 @@ static void s2io_ethtool_gringparam(struct net_device *dev,
 	struct s2io_nic *sp = netdev_priv(dev);
 	int i, tx_desc_count = 0, rx_desc_count = 0;
 
-	if (sp->rxd_mode == RXD_MODE_1)
+	if (sp->rxd_mode == RXD_MODE_1) {
 		ering->rx_max_pending = MAX_RX_DESC_1;
-	else if (sp->rxd_mode == RXD_MODE_3B)
+		ering->rx_jumbo_max_pending = MAX_RX_DESC_1;
+	} else {
 		ering->rx_max_pending = MAX_RX_DESC_2;
-
-	ering->tx_max_pending = MAX_TX_DESC;
-	for (i = 0 ; i < sp->config.tx_fifo_num ; i++)
-		tx_desc_count += sp->config.tx_cfg[i].fifo_len;
-
-	DBG_PRINT(INFO_DBG, "max txds: %d\n", sp->config.max_txds);
-	ering->tx_pending = tx_desc_count;
-	rx_desc_count = 0;
-	for (i = 0 ; i < sp->config.rx_ring_num ; i++)
-		rx_desc_count += sp->config.rx_cfg[i].num_rxd;
-
-	ering->rx_pending = rx_desc_count;
+		ering->rx_jumbo_max_pending = MAX_RX_DESC_2;
+	}
 
 	ering->rx_mini_max_pending = 0;
-	ering->rx_mini_pending = 0;
-	if (sp->rxd_mode == RXD_MODE_1)
-		ering->rx_jumbo_max_pending = MAX_RX_DESC_1;
-	else if (sp->rxd_mode == RXD_MODE_3B)
-		ering->rx_jumbo_max_pending = MAX_RX_DESC_2;
+	ering->tx_max_pending = MAX_TX_DESC;
+
+	for (i = 0; i < sp->config.rx_ring_num; i++)
+		rx_desc_count += sp->config.rx_cfg[i].num_rxd;
+	ering->rx_pending = rx_desc_count;
 	ering->rx_jumbo_pending = rx_desc_count;
+	ering->rx_mini_pending = 0;
+
+	for (i = 0; i < sp->config.tx_fifo_num; i++)
+		tx_desc_count += sp->config.tx_cfg[i].fifo_len;
+	ering->tx_pending = tx_desc_count;
+	DBG_PRINT(INFO_DBG, "max txds: %d\n", sp->config.max_txds);
 }
 
 /**
@@ -7692,6 +7689,8 @@ static void s2io_init_pci(struct s2io_nic *sp)
 static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type,
 			    u8 *dev_multiq)
 {
+	int i;
+
 	if ((tx_fifo_num > MAX_TX_FIFOS) || (tx_fifo_num < 1)) {
 		DBG_PRINT(ERR_DBG, "Requested number of tx fifos "
 			  "(%d) not supported\n", tx_fifo_num);
@@ -7750,6 +7749,15 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type,
 		DBG_PRINT(ERR_DBG, "Defaulting to 1-buffer mode\n");
 		rx_ring_mode = 1;
 	}
+
+	for (i = 0; i < MAX_RX_RINGS; i++)
+		if (rx_ring_sz[i] > MAX_RX_BLOCKS_PER_RING) {
+			DBG_PRINT(ERR_DBG, "Requested rx ring size not "
+				  "supported\nDefaulting to %d\n",
+				  MAX_RX_BLOCKS_PER_RING);
+			rx_ring_sz[i] = MAX_RX_BLOCKS_PER_RING;
+		}
+
 	return SUCCESS;
 }
 
