@@ -101,13 +101,7 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 
 	if (desired) {
 		if (desired >= host->mclk) {
-			/*
-			 * The ST clock divider does not like the bypass bit,
-			 * even though it's available. Instead the datasheet
-			 * recommends setting the divider to zero.
-			 */
-			if (!variant->st_clkdiv)
-				clk = MCI_CLK_BYPASS;
+			clk = MCI_CLK_BYPASS;
 			host->cclk = host->mclk;
 		} else if (variant->st_clkdiv) {
 			/*
