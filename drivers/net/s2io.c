@@ -88,7 +88,7 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "2.0.26.27"
+#define DRV_VERSION "2.0.26.28"
 
 /* S2io Driver name & version. */
 static const char s2io_driver_name[] = "Neterion";
