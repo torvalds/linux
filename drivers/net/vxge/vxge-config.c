@@ -4422,8 +4422,7 @@ __vxge_hw_vpath_tim_configure(struct __vxge_hw_device *hldev, u32 vp_id)
 
 		if (config->tti.util_sel != VXGE_HW_USE_FLASH_DEFAULT) {
 			val64 &= ~VXGE_HW_TIM_CFG3_INT_NUM_UTIL_SEL(0x3f);
-			val64 |= VXGE_HW_TIM_CFG3_INT_NUM_UTIL_SEL(
-					config->tti.util_sel);
+			val64 |= VXGE_HW_TIM_CFG3_INT_NUM_UTIL_SEL(vp_id);
 		}
 
 		if (config->tti.ltimer_val != VXGE_HW_USE_FLASH_DEFAULT) {
@@ -4527,8 +4526,7 @@ __vxge_hw_vpath_tim_configure(struct __vxge_hw_device *hldev, u32 vp_id)
 
 		if (config->rti.util_sel != VXGE_HW_USE_FLASH_DEFAULT) {
 			val64 &= ~VXGE_HW_TIM_CFG3_INT_NUM_UTIL_SEL(0x3f);
-			val64 |= VXGE_HW_TIM_CFG3_INT_NUM_UTIL_SEL(
-					config->rti.util_sel);
+			val64 |= VXGE_HW_TIM_CFG3_INT_NUM_UTIL_SEL(vp_id);
 		}
 
 		if (config->rti.ltimer_val != VXGE_HW_USE_FLASH_DEFAULT) {
@@ -4548,6 +4546,11 @@ __vxge_hw_vpath_tim_configure(struct __vxge_hw_device *hldev, u32 vp_id)
 	writeq(val64, &vp_reg->tim_cfg1_int_num[VXGE_HW_VPATH_INTR_BMAP]);
 	writeq(val64, &vp_reg->tim_cfg2_int_num[VXGE_HW_VPATH_INTR_BMAP]);
 	writeq(val64, &vp_reg->tim_cfg3_int_num[VXGE_HW_VPATH_INTR_BMAP]);
+
+	val64 = VXGE_HW_TIM_WRKLD_CLC_WRKLD_EVAL_PRD(150);
+	val64 |= VXGE_HW_TIM_WRKLD_CLC_WRKLD_EVAL_DIV(0);
+	val64 |= VXGE_HW_TIM_WRKLD_CLC_CNT_RX_TX(3);
+	writeq(val64, &vp_reg->tim_wrkld_clc);
 
 	return status;
 }
