@@ -81,6 +81,17 @@ static const int ldo_vauxn_voltages[] = {
 	3300000,
 };
 
+static const int ldo_vaux3_voltages[] = {
+	1200000,
+	1500000,
+	1800000,
+	2100000,
+	2500000,
+	2750000,
+	2790000,
+	2910000,
+};
+
 static const int ldo_vintcore_voltages[] = {
 	1200000,
 	1225000,
@@ -326,8 +337,8 @@ static struct ab8500_regulator_info ab8500_regulator_info[] = {
 			ldo_vauxn_voltages, ARRAY_SIZE(ldo_vauxn_voltages)),
 	AB8500_LDO(AUX2, 1100, 3300, 0x04, 0x09, 0xc, 0x4, 0x04, 0x20, 0xf,
 			ldo_vauxn_voltages, ARRAY_SIZE(ldo_vauxn_voltages)),
-	AB8500_LDO(AUX3, 1100, 3300, 0x04, 0x0a, 0x3, 0x1, 0x04, 0x21, 0xf,
-			ldo_vauxn_voltages, ARRAY_SIZE(ldo_vauxn_voltages)),
+	AB8500_LDO(AUX3, 1100, 3300, 0x04, 0x0a, 0x3, 0x1, 0x04, 0x21, 0x7,
+			ldo_vaux3_voltages, ARRAY_SIZE(ldo_vaux3_voltages)),
 	AB8500_LDO(INTCORE, 1100, 3300, 0x03, 0x80, 0x44, 0x4, 0x03, 0x80, 0x38,
 		ldo_vintcore_voltages, ARRAY_SIZE(ldo_vintcore_voltages)),
 
@@ -369,6 +380,19 @@ static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 		info = &ab8500_regulator_info[i];
 		info->dev = &pdev->dev;
 
+		/* fix for hardware before ab8500v2.0 */
+		if (abx500_get_chip_id(info->dev) < 0x20) {
+			if (info->desc.id == AB8500_LDO_AUX3) {
+				info->desc.n_voltages =
+					ARRAY_SIZE(ldo_vauxn_voltages);
+				info->supported_voltages = ldo_vauxn_voltages;
+				info->voltages_len =
+					ARRAY_SIZE(ldo_vauxn_voltages);
+				info->voltage_mask = 0xf;
+			}
+		}
+
+		/* register regulator with framework */
 		info->regulator = regulator_register(&info->desc, &pdev->dev,
 				&pdata->regulator[i], info);
 		if (IS_ERR(info->regulator)) {
