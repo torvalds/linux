@@ -4325,7 +4325,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto _exit1;
 	}
 
-	if (pci_request_regions(pdev, VXGE_DRIVER_NAME)) {
+	if (pci_request_region(pdev, 0, VXGE_DRIVER_NAME)) {
 		vxge_debug_init(VXGE_ERR,
 			"%s : request regions failed", __func__);
 		ret = -ENODEV;
@@ -4638,7 +4638,7 @@ _exit4:
 _exit3:
 	iounmap(attr.bar0);
 _exit2:
-	pci_release_regions(pdev);
+	pci_release_region(pdev, 0);
 _exit1:
 	pci_disable_device(pdev);
 _exit0:
@@ -4695,7 +4695,7 @@ static void __devexit vxge_remove(struct pci_dev *pdev)
 	vxge_hw_device_terminate(hldev);
 
 	pci_disable_device(pdev);
-	pci_release_regions(pdev);
+	pci_release_region(pdev, 0);
 	pci_set_drvdata(pdev, NULL);
 	vxge_debug_entryexit(vdev->level_trace,	"%s:%d  Exiting...", __func__,
 			     __LINE__);
