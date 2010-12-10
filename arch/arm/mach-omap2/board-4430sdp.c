@@ -242,6 +242,13 @@ static struct omap_musb_board_data musb_board_data = {
 	.power			= 100,
 };
 
+static struct twl4030_usb_data omap4_usbphy_data = {
+	.phy_init	= omap4430_phy_init,
+	.phy_exit	= omap4430_phy_exit,
+	.phy_power	= omap4430_phy_power,
+	.phy_set_clock	= omap4430_phy_set_clk,
+};
+
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
@@ -461,6 +468,7 @@ static struct twl4030_platform_data sdp4430_twldata = {
 	.vaux1		= &sdp4430_vaux1,
 	.vaux2		= &sdp4430_vaux2,
 	.vaux3		= &sdp4430_vaux3,
+	.usb		= &omap4_usbphy_data
 };
 
 static struct i2c_board_info __initdata sdp4430_i2c_boardinfo[] = {
@@ -533,9 +541,6 @@ static void __init omap_4430sdp_init(void)
 		gpio_direction_output(OMAP4SDP_MDM_PWR_EN_GPIO, 1);
 	}
 	usb_ehci_init(&ehci_pdata);
-
-	/* OMAP4 SDP uses internal transceiver so register nop transceiver */
-	usb_nop_xceiv_register();
 	usb_musb_init(&musb_board_data);
 
 	status = omap_ethernet_init();
