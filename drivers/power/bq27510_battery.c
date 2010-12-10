@@ -41,6 +41,12 @@
 
 #define BQ27510_SPEED 			300 * 1000
 
+#if 0
+#define DBG(x...) printk(KERN_INFO x)
+#else
+#define DBG(x...) do { } while (0)
+#endif
+
 /* If the system has several batteries we need a different name for each
  * of them...
  */
@@ -86,12 +92,14 @@ static int bq27510_battery_temperature(struct bq27510_device_info *di)
 	int temp = 0;
 	u8 buf[2];
 	ret = bq27510_read(di->client,BQ27x00_REG_TEMP,buf,2);
-	if (ret) {
+	if (ret<0) {
 		dev_err(di->dev, "error reading temperature\n");
 		return ret;
 	}
 	temp = get_unaligned_le16(buf);
-	return temp - 2731;
+	temp = temp - 2731;
+	DBG("Enter:%s %d--temp = %d\n",__FUNCTION__,__LINE__,temp);
+	return temp;
 }
 
 /*
@@ -105,12 +113,14 @@ static int bq27510_battery_voltage(struct bq27510_device_info *di)
 	int volt = 0;
 
 	ret = bq27510_read(di->client,BQ27x00_REG_VOLT,buf,2); 
-	if (ret) {
+	if (ret<0) {
 		dev_err(di->dev, "error reading voltage\n");
 		return ret;
 	}
 	volt = get_unaligned_le16(buf);
-	return volt * 1000;
+	volt = volt * 1000;
+	DBG("Enter:%s %d--volt = %d\n",__FUNCTION__,__LINE__,volt);
+	return volt;
 }
 
 /*
@@ -125,13 +135,15 @@ static int bq27510_battery_current(struct bq27510_device_info *di)
 	u8 buf[2];
 
 	ret = bq27510_read(di->client,BQ27x00_REG_AI,buf,2);
-	if (ret) {
+	if (ret<0) {
 		dev_err(di->dev, "error reading current\n");
 		return 0;
 	}
 
 	curr = get_unaligned_le16(buf);
-	return curr * 1000;
+	curr = curr * 1000;
+	DBG("Enter:%s %d--curr = %d\n",__FUNCTION__,__LINE__,curr);
+	return curr;
 }
 
 /*
@@ -145,11 +157,12 @@ static int bq27510_battery_rsoc(struct bq27510_device_info *di)
 	u8 buf[2];
 	
 	ret = bq27510_read(di->client,BQ27500_REG_SOC,buf,2); 
-	if (ret) {
+	if (ret<0) {
 		dev_err(di->dev, "error reading relative State-of-Charge\n");
 		return ret;
 	}
 	rsoc = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--rsoc = %d\n",__FUNCTION__,__LINE__,rsoc);
 	return rsoc;
 }
 
@@ -190,15 +203,17 @@ static int bq27510_battery_time(struct bq27510_device_info *di, int reg,
 	int ret;
 
 	ret = bq27510_read(di->client,reg,buf,2);
-	if (ret) {
+	if (ret<0) {
 		dev_err(di->dev, "error reading register %02x\n", reg);
 		return ret;
 	}
 	tval = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--no battery data\n",__FUNCTION__,__LINE__,val->intval);
 	if (tval == 65535)
 		return -ENODATA;
 
 	val->intval = tval * 60;
+	DBG("Enter:%s %d val->intval = %d\n",__FUNCTION__,__LINE__,val->intval);
 	return 0;
 }
 
@@ -264,7 +279,6 @@ static void bq27510_battery_update_status(struct bq27510_device_info *di)
 static void bq27510_battery_work(struct work_struct *work)
 {
 	struct bq27510_device_info *di = container_of(work, struct bq27510_device_info, work.work); 
-
 	bq27510_battery_update_status(di);
 	/* reschedule for the next time */
 	schedule_delayed_work(&di->work, di->interval);
@@ -312,11 +326,8 @@ static int bq27510_battery_remove(struct i2c_client *client)
 	struct bq27510_device_info *di = i2c_get_clientdata(client);
 
 	power_supply_unregister(&di->bat);
-
 	kfree(di->bat.name);
-
 	kfree(di);
-
 	return 0;
 }
 
@@ -344,7 +355,6 @@ static int __init bq27510_battery_init(void)
 	ret = i2c_add_driver(&bq27510_battery_driver);
 	if (ret)
 		printk(KERN_ERR "Unable to register BQ27510 driver\n");
-
 	return ret;
 }
 module_init(bq27510_battery_init);

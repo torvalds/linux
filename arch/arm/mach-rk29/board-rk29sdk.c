@@ -394,14 +394,14 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #endif
 #if defined (CONFIG_BATTERY_STC3100)
 	{
-		.type    		= "stc3100-battery",
+		.type    		= "stc3100",
 		.addr           = 0x70,
 		.flags			= 0,
-	},
+	}, 
 #endif
 #if defined (CONFIG_BATTERY_BQ27510)
 	{
-		.type    		= "bq27510-battery",
+		.type    		= "bq27510",
 		.addr           = 0x55,
 		.flags			= 0,
 	},

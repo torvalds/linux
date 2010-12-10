@@ -86,7 +86,7 @@ static int stc3100_battery_temperature(struct stc3100_device_info *di)
 	u8 regs[2];
 
 	ret = stc3100_read_regs(di->client,STC3100_REG_TEMPL,regs,2);
-	if (ret) {
+	if (ret<0) {
 		dev_err(di->dev, "error reading temperature\n");
 		return ret;
 	}
@@ -104,7 +104,7 @@ static int stc3100_battery_voltage(struct stc3100_device_info *di)
 	u8 regs[2];
 
 	ret = stc3100_read_regs(di->client,STC3100_REG_VOLTL,regs,2);
-	if (ret) {
+	if (ret<0) {
 		dev_err(di->dev, "error reading voltage\n");
 		return ret;
 	}
@@ -123,7 +123,7 @@ static int stc3100_battery_current(struct stc3100_device_info *di)
 	u8 regs[2];
 
 	ret = stc3100_read_regs(di->client,STC3100_REG_AIL,regs,2);
-	if (ret) {
+	if (ret<0) {
 		dev_err(di->dev, "error reading current\n");
 		return 0;
 	}
@@ -141,7 +141,7 @@ static int stc3100_battery_rsoc(struct stc3100_device_info *di)
 	u8 regs[2];
 
 	ret = stc3100_read_regs(di->client,STC3100_REG_RSOCL,regs,2);
-	if (ret) {
+	if (ret<0) {
 		dev_err(di->dev, "error reading relative State-of-Charge\n");
 		return ret;
 	}
