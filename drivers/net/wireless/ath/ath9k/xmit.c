@@ -1685,17 +1685,20 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct list_head bf_head;
-	struct ath_atx_tid *tid;
+	struct ath_atx_tid *tid = NULL;
 	u8 tidno;
 
 	spin_lock_bh(&txctl->txq->axq_lock);
 
-	if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) && txctl->an) {
+	if (ieee80211_is_data_qos(hdr->frame_control) && txctl->an) {
 		tidno = ieee80211_get_qos_ctl(hdr)[0] &
 			IEEE80211_QOS_CTL_TID_MASK;
 		tid = ATH_AN_2_TID(txctl->an, tidno);
 
 		WARN_ON(tid->ac->txq != txctl->txq);
+	}
+
+	if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) && tid) {
 		/*
 		 * Try aggregation if it's a unicast data frame
 		 * and the destination is HT capable.
@@ -1712,7 +1715,7 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 			ar9003_hw_set_paprd_txdesc(sc->sc_ah, bf->bf_desc,
 						   bf->bf_state.bfs_paprd);
 
-		ath_tx_send_normal(sc, txctl->txq, NULL, &bf_head);
+		ath_tx_send_normal(sc, txctl->txq, tid, &bf_head);
 	}
 
 	spin_unlock_bh(&txctl->txq->axq_lock);
