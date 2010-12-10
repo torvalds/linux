@@ -1051,6 +1051,8 @@ xfs_vm_writepage(
 	type = IO_NEW;
 
 	do {
+		int new_ioend = 0;
+
 		if (offset >= end_offset)
 			break;
 		if (!buffer_uptodate(bh))
@@ -1071,8 +1073,6 @@ xfs_vm_writepage(
 			imap_valid = xfs_imap_valid(inode, &imap, offset);
 
 		if (buffer_unwritten(bh) || buffer_delay(bh)) {
-			int new_ioend = 0;
-
 			if (buffer_unwritten(bh)) {
 				if (type != IO_UNWRITTEN) {
 					type = IO_UNWRITTEN;
@@ -1124,6 +1124,7 @@ xfs_vm_writepage(
 				imap_valid = 0;
 			}
 			if (!imap_valid) {
+				new_ioend = 1;
 				size = xfs_probe_cluster(inode, page, bh, head);
 				err = xfs_map_blocks(inode, offset, size,
 						&imap, flags);
@@ -1142,14 +1143,12 @@ xfs_vm_writepage(
 			 * that we are writing into for the first time.
 			 */
 			type = IO_NEW;
-			if (trylock_buffer(bh)) {
-				if (imap_valid)
-					all_bh = 1;
+			if (imap_valid) {
+				all_bh = 1;
+				lock_buffer(bh);
 				xfs_add_to_ioend(inode, bh, offset, type,
-						&ioend, !imap_valid);
+						&ioend, new_ioend);
 				count++;
-			} else {
-				imap_valid = 0;
 			}
 		} else if (PageUptodate(page)) {
 			ASSERT(buffer_mapped(bh));
