@@ -370,6 +370,12 @@ static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 	}
 	pdata = dev_get_platdata(ab8500->dev);
 
+	/* make sure the platform data has the correct size */
+	if (pdata->num_regulator != ARRAY_SIZE(ab8500_regulator_info)) {
+		dev_err(&pdev->dev, "platform configuration error\n");
+		return -EINVAL;
+	}
+
 	/* register all regulators */
 	for (i = 0; i < ARRAY_SIZE(ab8500_regulator_info); i++) {
 		struct ab8500_regulator_info *info = NULL;
@@ -380,7 +386,7 @@ static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 		info->ab8500 = ab8500;
 
 		info->regulator = regulator_register(&info->desc, &pdev->dev,
-				pdata->regulator[i], info);
+				&pdata->regulator[i], info);
 		if (IS_ERR(info->regulator)) {
 			err = PTR_ERR(info->regulator);
 			dev_err(&pdev->dev, "failed to register regulator %s\n",
