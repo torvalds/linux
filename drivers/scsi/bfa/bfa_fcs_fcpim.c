@@ -19,9 +19,9 @@
  *  fcpim.c - FCP initiator mode i-t nexus state machine
  */
 
+#include "bfad_drv.h"
 #include "bfa_fcs.h"
 #include "bfa_fcbuild.h"
-#include "bfad_drv.h"
 #include "bfad_im.h"
 
 BFA_TRC_FILE(FCS, FCPIM);

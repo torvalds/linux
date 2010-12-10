@@ -19,9 +19,9 @@
  *  bfa_fcs.c BFA FCS main
  */
 
+#include "bfad_drv.h"
 #include "bfa_fcs.h"
 #include "bfa_fcbuild.h"
-#include "bfad_drv.h"
 
 BFA_TRC_FILE(FCS, FCS);
 
@@ -1097,7 +1097,7 @@ bfa_fcs_fabric_uf_recv(struct bfa_fcs_fabric_s *fabric, struct fchs_s *fchs,
 	 * external loopback cable is in place. Our own FLOGI frames are
 	 * sometimes looped back when switch port gets temporarily bypassed.
 	 */
-	if ((pid == bfa_os_ntoh3b(FC_FABRIC_PORT)) &&
+	if ((pid == bfa_ntoh3b(FC_FABRIC_PORT)) &&
 	    (els_cmd->els_code == FC_ELS_FLOGI) &&
 	    (flogi->port_name == bfa_fcs_lport_get_pwwn(&fabric->bport))) {
 		bfa_sm_send_event(fabric, BFA_FCS_FABRIC_SM_LOOPBACK);
@@ -1107,7 +1107,7 @@ bfa_fcs_fabric_uf_recv(struct bfa_fcs_fabric_s *fabric, struct fchs_s *fchs,
 	/*
 	 * FLOGI/EVFP exchanges should be consumed by base fabric.
 	 */
-	if (fchs->d_id == bfa_os_hton3b(FC_FABRIC_PORT)) {
+	if (fchs->d_id == bfa_hton3b(FC_FABRIC_PORT)) {
 		bfa_trc(fabric->fcs, pid);
 		bfa_fcs_fabric_process_uf(fabric, fchs, len);
 		return;
@@ -1220,7 +1220,7 @@ bfa_fcs_fabric_send_flogi_acc(struct bfa_fcs_fabric_s *fabric)
 		return;
 
 	reqlen = fc_flogi_acc_build(&fchs, bfa_fcxp_get_reqbuf(fcxp),
-				    bfa_os_hton3b(FC_FABRIC_PORT),
+				    bfa_hton3b(FC_FABRIC_PORT),
 				    n2n_port->reply_oxid, pcfg->pwwn,
 				    pcfg->nwwn,
 				    bfa_fcport_get_maxfrsize(bfa),

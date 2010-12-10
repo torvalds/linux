@@ -15,11 +15,10 @@
  * General Public License for more details.
  */
 
-#include "bfa_os_inc.h"
+#include "bfad_drv.h"
 #include "bfa_plog.h"
 #include "bfa_cs.h"
 #include "bfa_modules.h"
-#include "bfad_drv.h"
 
 BFA_TRC_FILE(HAL, FCXP);
 BFA_MODULE(fcxp);
@@ -286,6 +285,18 @@ plkd_validate_logrec(struct bfa_plog_rec_s *pl_rec)
 	return 0;
 }
 
+static u64
+bfa_get_log_time(void)
+{
+	u64 system_time = 0;
+	struct timeval tv;
+	do_gettimeofday(&tv);
+
+	/* We are interested in seconds only. */
+	system_time = tv.tv_sec;
+	return system_time;
+}
+
 static void
 bfa_plog_add(struct bfa_plog_s *plog, struct bfa_plog_rec_s *pl_rec)
 {
@@ -306,7 +317,7 @@ bfa_plog_add(struct bfa_plog_s *plog, struct bfa_plog_rec_s *pl_rec)
 
 	memcpy(pl_recp, pl_rec, sizeof(struct bfa_plog_rec_s));
 
-	pl_recp->tv = bfa_os_get_log_time();
+	pl_recp->tv = bfa_get_log_time();
 	BFA_PL_LOG_REC_INCR(plog->tail);
 
 	if (plog->head == plog->tail)
@@ -2728,7 +2739,7 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 	struct bfa_port_cfg_s *port_cfg = &fcport->cfg;
 	struct bfa_fcport_ln_s *ln = &fcport->ln;
-	struct bfa_timeval_s tv;
+	struct timeval tv;
 
 	memset(fcport, 0, sizeof(struct bfa_fcport_s));
 	fcport->bfa = bfa;
@@ -2742,7 +2753,7 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	/*
 	 * initialize time stamp for stats reset
 	 */
-	bfa_os_gettimeofday(&tv);
+	do_gettimeofday(&tv);
 	fcport->stats_reset_time = tv.tv_sec;
 
 	/*
@@ -2967,7 +2978,7 @@ bfa_fcport_fcoe_stats_swap(struct bfa_fcoe_stats_s *d,
 
 	for (i = 0; i < ((sizeof(struct bfa_fcoe_stats_s))/sizeof(u32));
 	     i = i + 2) {
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 		dip[i] = be32_to_cpu(sip[i]);
 		dip[i + 1] = be32_to_cpu(sip[i + 1]);
 #else
@@ -2984,7 +2995,7 @@ __bfa_cb_fcport_stats_get(void *cbarg, bfa_boolean_t complete)
 
 	if (complete) {
 		if (fcport->stats_status == BFA_STATUS_OK) {
-			struct bfa_timeval_s tv;
+			struct timeval tv;
 
 			/* Swap FC QoS or FCoE stats */
 			if (bfa_ioc_get_fcmode(&fcport->bfa->ioc)) {
@@ -2996,7 +3007,7 @@ __bfa_cb_fcport_stats_get(void *cbarg, bfa_boolean_t complete)
 					&fcport->stats_ret->fcoe,
 					&fcport->stats->fcoe);
 
-				bfa_os_gettimeofday(&tv);
+				do_gettimeofday(&tv);
 				fcport->stats_ret->fcoe.secs_reset =
 					tv.tv_sec - fcport->stats_reset_time;
 			}
@@ -3055,12 +3066,12 @@ __bfa_cb_fcport_stats_clr(void *cbarg, bfa_boolean_t complete)
 	struct bfa_fcport_s *fcport = cbarg;
 
 	if (complete) {
-		struct bfa_timeval_s tv;
+		struct timeval tv;
 
 		/*
 		 * re-initialize time stamp for stats reset
 		 */
-		bfa_os_gettimeofday(&tv);
+		do_gettimeofday(&tv);
 		fcport->stats_reset_time = tv.tv_sec;
 
 		fcport->stats_cbfn(fcport->stats_cbarg, fcport->stats_status);
@@ -4929,10 +4940,6 @@ bfa_uf_start(struct bfa_s *bfa)
 {
 	bfa_uf_post_all(BFA_UF_MOD(bfa));
 }
-
-/*
- *  hal_uf_api
- */
 
 /*
  * Register handler for all unsolicted recieve frames.

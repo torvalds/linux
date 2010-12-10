@@ -104,7 +104,7 @@ union bfi_addr_u {
  * Scatter Gather Element
  */
 struct bfi_sge_s {
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u32	flags:2,
 			rsvd:2,
 			sg_len:28;

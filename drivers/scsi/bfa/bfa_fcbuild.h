@@ -21,7 +21,7 @@
 #ifndef __FCBUILD_H__
 #define __FCBUILD_H__
 
-#include "bfa_os_inc.h"
+#include "bfad_drv.h"
 #include "bfa_fc.h"
 #include "bfa_defs_fcs.h"
 

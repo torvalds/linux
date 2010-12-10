@@ -22,7 +22,7 @@
 #ifndef __BFA_CS_H__
 #define __BFA_CS_H__
 
-#include "bfa_os_inc.h"
+#include "bfad_drv.h"
 
 /*
  * BFA TRC
@@ -32,12 +32,20 @@
 #define BFA_TRC_MAX	(4 * 1024)
 #endif
 
+#define BFA_TRC_TS(_trcm)                               \
+	({                                              \
+		struct timeval tv;                      \
+							\
+		do_gettimeofday(&tv);                   \
+		(tv.tv_sec*1000000+tv.tv_usec);         \
+	})
+
 #ifndef BFA_TRC_TS
 #define BFA_TRC_TS(_trcm)	((_trcm)->ticks++)
 #endif
 
 struct bfa_trc_s {
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u16	fileno;
 	u16	line;
 #else
@@ -360,5 +368,44 @@ bfa_wc_wait(struct bfa_wc_s *wc)
 {
 	bfa_wc_down(wc);
 }
+
+static inline void
+wwn2str(char *wwn_str, u64 wwn)
+{
+	union {
+		u64 wwn;
+		u8 byte[8];
+	} w;
+
+	w.wwn = wwn;
+	sprintf(wwn_str, "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x", w.byte[0],
+		w.byte[1], w.byte[2], w.byte[3], w.byte[4], w.byte[5],
+		w.byte[6], w.byte[7]);
+}
+
+static inline void
+fcid2str(char *fcid_str, u32 fcid)
+{
+	union {
+		u32 fcid;
+		u8 byte[4];
+	} f;
+
+	f.fcid = fcid;
+	sprintf(fcid_str, "%02x:%02x:%02x", f.byte[1], f.byte[2], f.byte[3]);
+}
+
+#define bfa_swap_3b(_x)				\
+	((((_x) & 0xff) << 16) |		\
+	((_x) & 0x00ff00) |			\
+	(((_x) & 0xff0000) >> 16))
+
+#ifndef __BIG_ENDIAN
+#define bfa_hton3b(_x)  bfa_swap_3b(_x)
+#else
+#define bfa_hton3b(_x)  (_x)
+#endif
+
+#define bfa_ntoh3b(_x)  bfa_hton3b(_x)
 
 #endif /* __BFA_CS_H__ */

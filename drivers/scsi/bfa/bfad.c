@@ -32,7 +32,6 @@
 #include "bfad_drv.h"
 #include "bfad_im.h"
 #include "bfa_fcs.h"
-#include "bfa_os_inc.h"
 #include "bfa_defs.h"
 #include "bfa.h"
 
@@ -1102,15 +1101,15 @@ bfad_start_ops(struct bfad_s *bfad) {
 
 	/*
 	 * If bfa_linkup_delay is set to -1 default; try to retrive the
-	 * value using the bfad_os_get_linkup_delay(); else use the
+	 * value using the bfad_get_linkup_delay(); else use the
 	 * passed in module param value as the bfa_linkup_delay.
 	 */
 	if (bfa_linkup_delay < 0) {
-		bfa_linkup_delay = bfad_os_get_linkup_delay(bfad);
-		bfad_os_rport_online_wait(bfad);
+		bfa_linkup_delay = bfad_get_linkup_delay(bfad);
+		bfad_rport_online_wait(bfad);
 		bfa_linkup_delay = -1;
 	} else
-		bfad_os_rport_online_wait(bfad);
+		bfad_rport_online_wait(bfad);
 
 	BFA_LOG(KERN_INFO, bfad, bfa_log_level, "bfa device claimed\n");
 

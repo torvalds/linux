@@ -15,9 +15,9 @@
  * General Public License for more details.
  */
 
+#include "bfad_drv.h"
 #include "bfa_modules.h"
 #include "bfi_ctreg.h"
-#include "bfad_drv.h"
 
 BFA_TRC_FILE(HAL, CORE);
 

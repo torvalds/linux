@@ -18,7 +18,7 @@
 #ifndef __BFA_FC_H__
 #define __BFA_FC_H__
 
-#include "bfa_os_inc.h"
+#include "bfad_drv.h"
 
 typedef u64 wwn_t;
 
@@ -62,7 +62,7 @@ struct scsi_cdb_s {
  * Fibre Channel Header Structure (FCHS) definition
  */
 struct fchs_s {
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u32        routing:4;	/* routing bits */
 	u32        cat_info:4;	/* category info */
 #else
@@ -317,7 +317,7 @@ struct fc_plogi_csp_s {
 	u8         verlo;	/* FC-PH low version */
 	__be16        bbcred;	/* BB_Credit */
 
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u8         ciro:1,		/* continuously increasing RO */
 			rro:1,		/* random relative offset */
 			npiv_supp:1,	/* NPIV supported */
@@ -367,7 +367,7 @@ struct fc_plogi_csp_s {
  * FC-PH-x. Figure 78. pg. 318.
  */
 struct fc_plogi_clp_s {
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u32        class_valid:1;
 	u32        intermix:1;	/* class intermix supported if set =1.
 					 * valid only for class1. Reserved for
@@ -532,7 +532,7 @@ struct fc_rsi_s {
  */
 struct fc_prli_params_s {
 	u32        reserved:16;
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u32        reserved1:5;
 	u32        rec_support:1;
 	u32        task_retry_id:1;
@@ -574,7 +574,7 @@ enum {
 struct fc_prli_params_page_s {
 	u32        type:8;
 	u32        codext:8;
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u32        origprocasv:1;
 	u32        rsppav:1;
 	u32        imagepair:1;
@@ -610,7 +610,7 @@ struct fc_prli_s {
 struct fc_prlo_params_page_s {
 	u32        type:8;
 	u32        type_ext:8;
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u32        opa_valid:1;	/* originator process associator
 					 * valid
 					 */
@@ -646,7 +646,7 @@ struct fc_prlo_acc_params_page_s {
 	u32        type:8;
 	u32        type_ext:8;
 
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u32        opa_valid:1;	/* originator process associator
 					 * valid
 					 */
@@ -803,7 +803,7 @@ struct fc_tprlo_params_page_s {
 u32        type:8;
 u32        type_ext:8;
 
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u32        opa_valid:1;
 	u32        rpa_valid:1;
 	u32        tpo_nport_valid:1;
@@ -1177,7 +1177,7 @@ struct fc_srr_s {
 struct fcp_cmnd_s {
 	struct scsi_lun		lun;	/* 64-bit LU number */
 	u8			crn;	/* command reference number */
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u8         resvd:1,
 			priority:4,	/* FCP-3: SAM-3 priority */
 			taskattr:3;	/* scsi task attribute */
@@ -1187,7 +1187,7 @@ struct fcp_cmnd_s {
 			resvd:1;
 #endif
 	u8         tm_flags;	/* task management flags */
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u8         addl_cdb_len:6,	/* additional CDB length words */
 			iodir:2;	/* read/write FCP_DATA IUs */
 #else
@@ -1273,7 +1273,7 @@ struct fcp_rspinfo_s {
 struct fcp_resp_s {
 	u32        reserved[2];	/* 2 words reserved */
 	u16        reserved2;
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 	u8         reserved3:3;
 	u8         fcp_conf_req:1;	/* FCP_CONF is requested */
 	u8         resid_flags:2;	/* underflow/overflow */

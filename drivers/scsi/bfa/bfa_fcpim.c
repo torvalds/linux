@@ -15,8 +15,8 @@
  * General Public License for more details.
  */
 
+#include "bfad_drv.h"
 #include "bfa_modules.h"
-#include "bfa_os_inc.h"
 
 BFA_TRC_FILE(HAL, FCPIM);
 BFA_MODULE(fcpim);
@@ -1560,24 +1560,6 @@ bfa_itnim_hold_io(struct bfa_itnim_s *itnim)
 		 bfa_sm_cmp_state(itnim, bfa_itnim_sm_iocdisable));
 }
 
-bfa_status_t
-bfa_itnim_get_ioprofile(struct bfa_itnim_s *itnim,
-		struct bfa_itnim_ioprofile_s *ioprofile)
-{
-	struct bfa_fcpim_mod_s *fcpim = BFA_FCPIM_MOD(itnim->bfa);
-	if (!fcpim->io_profile)
-		return BFA_STATUS_IOPROFILE_OFF;
-
-	itnim->ioprofile.index = BFA_IOBUCKET_MAX;
-	itnim->ioprofile.io_profile_start_time =
-		bfa_io_profile_start_time(itnim->bfa);
-	itnim->ioprofile.clock_res_mul = bfa_io_lat_clock_res_mul;
-	itnim->ioprofile.clock_res_div = bfa_io_lat_clock_res_div;
-	*ioprofile = itnim->ioprofile;
-
-	return BFA_STATUS_OK;
-}
-
 void
 bfa_itnim_clear_stats(struct bfa_itnim_s *itnim)
 {
@@ -2352,7 +2334,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	scsi_for_each_sg(cmnd, sg, ioim->nsges, i) {
 		if (i == 0) {
 			/* build inline IO SG element */
-			addr = bfa_os_sgaddr(sg_dma_address(sg));
+			addr = bfa_sgaddr_le(sg_dma_address(sg));
 			sge->sga = *(union bfi_addr_u *) &addr;
 			pgdlen = sg_dma_len(sg);
 			sge->sg_len = pgdlen;
@@ -2364,7 +2346,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 			if (sge_id == 0)
 				sgpge = sgpg->sgpg->sges;
 
-			addr = bfa_os_sgaddr(sg_dma_address(sg));
+			addr = bfa_sgaddr_le(sg_dma_address(sg));
 			sgpge->sga = *(union bfi_addr_u *) &addr;
 			sgpge->sg_len = sg_dma_len(sg);
 			pgcumsz += sgpge->sg_len;

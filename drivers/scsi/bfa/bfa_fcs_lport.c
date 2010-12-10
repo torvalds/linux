@@ -15,10 +15,10 @@
  * General Public License for more details.
  */
 
+#include "bfad_drv.h"
 #include "bfa_fcs.h"
 #include "bfa_fcbuild.h"
 #include "bfa_fc.h"
-#include "bfad_drv.h"
 
 BFA_TRC_FILE(FCS, PORT);
 
@@ -2818,7 +2818,7 @@ bfa_fcs_lport_ms_send_plogi(void *ms_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	ms->fcxp = fcxp;
 
 	len = fc_plogi_build(&fchs, bfa_fcxp_get_reqbuf(fcxp),
-			     bfa_os_hton3b(FC_MGMT_SERVER),
+			     bfa_hton3b(FC_MGMT_SERVER),
 			     bfa_fcs_lport_get_fcid(port), 0,
 			     port->port_cfg.pwwn, port->port_cfg.nwwn,
 				 bfa_fcport_get_maxfrsize(port->fcs->bfa));
@@ -3575,7 +3575,7 @@ fcxp = fcxp_alloced ? fcxp_alloced : bfa_fcs_fcxp_alloc(port->fcs);
 	ns->fcxp = fcxp;
 
 	len = fc_plogi_build(&fchs, bfa_fcxp_get_reqbuf(fcxp),
-			     bfa_os_hton3b(FC_NAME_SERVER),
+			     bfa_hton3b(FC_NAME_SERVER),
 			     bfa_fcs_lport_get_fcid(port), 0,
 			     port->port_cfg.pwwn, port->port_cfg.nwwn,
 				 bfa_fcport_get_maxfrsize(port->fcs->bfa));
@@ -4654,7 +4654,7 @@ bfa_fcs_lport_get_rport(struct bfa_fcs_lport_s *port, wwn_t wwn, int index,
 
 	while ((qe != qh) && (i < nrports)) {
 		rport = (struct bfa_fcs_rport_s *) qe;
-		if (bfa_os_ntoh3b(rport->pid) > 0xFFF000) {
+		if (bfa_ntoh3b(rport->pid) > 0xFFF000) {
 			qe = bfa_q_next(qe);
 			bfa_trc(fcs, (u32) rport->pwwn);
 			bfa_trc(fcs, rport->pid);
@@ -4702,7 +4702,7 @@ bfa_fcs_lport_get_rports(struct bfa_fcs_lport_s *port,
 
 	while ((qe != qh) && (i < *nrports)) {
 		rport = (struct bfa_fcs_rport_s *) qe;
-		if (bfa_os_ntoh3b(rport->pid) > 0xFFF000) {
+		if (bfa_ntoh3b(rport->pid) > 0xFFF000) {
 			qe = bfa_q_next(qe);
 			bfa_trc(fcs, (u32) rport->pwwn);
 			bfa_trc(fcs, rport->pid);
@@ -4753,7 +4753,7 @@ bfa_fcs_lport_get_rport_max_speed(bfa_fcs_lport_t *port)
 
 	while (qe != qh) {
 		rport = (struct bfa_fcs_rport_s *) qe;
-		if ((bfa_os_ntoh3b(rport->pid) > 0xFFF000) ||
+		if ((bfa_ntoh3b(rport->pid) > 0xFFF000) ||
 			(bfa_fcs_rport_get_state(rport) ==
 			  BFA_RPORT_OFFLINE)) {
 			qe = bfa_q_next(qe);

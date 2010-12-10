@@ -19,7 +19,7 @@
 #define __BFA_DEFS_H__
 
 #include "bfa_fc.h"
-#include "bfa_os_inc.h"
+#include "bfad_drv.h"
 
 #define BFA_MFG_SERIALNUM_SIZE                  11
 #define STRSZ(_n)                               (((_n) + 4) & ~3)

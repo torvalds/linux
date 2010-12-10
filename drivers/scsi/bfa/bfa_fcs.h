@@ -61,7 +61,7 @@ struct bfa_fcs_s;
 #define N2N_LOCAL_PID	    0x010000
 #define N2N_REMOTE_PID		0x020000
 #define	BFA_FCS_RETRY_TIMEOUT 2000
-#define BFA_FCS_PID_IS_WKA(pid)  ((bfa_os_ntoh3b(pid) > 0xFFF000) ?  1 : 0)
+#define BFA_FCS_PID_IS_WKA(pid)  ((bfa_ntoh3b(pid) > 0xFFF000) ?  1 : 0)
 
 
 

@@ -17,7 +17,7 @@
 #ifndef __BFA_H__
 #define __BFA_H__
 
-#include "bfa_os_inc.h"
+#include "bfad_drv.h"
 #include "bfa_cs.h"
 #include "bfa_plog.h"
 #include "bfa_defs_svc.h"

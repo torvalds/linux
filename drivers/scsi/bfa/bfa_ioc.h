@@ -18,7 +18,7 @@
 #ifndef __BFA_IOC_H__
 #define __BFA_IOC_H__
 
-#include "bfa_os_inc.h"
+#include "bfad_drv.h"
 #include "bfa_cs.h"
 #include "bfi.h"
 
@@ -74,7 +74,7 @@ struct bfa_sge_s {
 #define bfa_swap_words(_x)  (	\
 	((_x) << 32) | ((_x) >> 32))
 
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 #define bfa_sge_to_be(_x)
 #define bfa_sge_to_le(_x)	bfa_sge_word_swap(_x)
 #define bfa_sgaddr_le(_x)	bfa_swap_words(_x)
@@ -120,7 +120,7 @@ static inline void
 __bfa_dma_addr_set(union bfi_addr_u *dma_addr, u64 pa)
 {
 	dma_addr->a32.addr_lo = (__be32) pa;
-	dma_addr->a32.addr_hi = (__be32) (bfa_os_u32(pa));
+	dma_addr->a32.addr_hi = (__be32) (pa >> 32);
 }
 
 
@@ -130,7 +130,7 @@ static inline void
 __bfa_dma_be_addr_set(union bfi_addr_u *dma_addr, u64 pa)
 {
 	dma_addr->a32.addr_lo = cpu_to_be32(pa);
-	dma_addr->a32.addr_hi = cpu_to_be32(bfa_os_u32(pa));
+	dma_addr->a32.addr_hi = cpu_to_be32(pa >> 32);
 }
 
 struct bfa_ioc_regs_s {

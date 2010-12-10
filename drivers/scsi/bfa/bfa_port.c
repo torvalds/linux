@@ -15,6 +15,7 @@
  * General Public License for more details.
  */
 
+#include "bfad_drv.h"
 #include "bfa_defs_svc.h"
 #include "bfa_port.h"
 #include "bfi.h"
@@ -36,7 +37,7 @@ bfa_port_stats_swap(struct bfa_port_s *port, union bfa_port_stats_u *stats)
 		i += 2) {
 		t0 = dip[i];
 		t1 = dip[i + 1];
-#ifdef __BIGENDIAN
+#ifdef __BIG_ENDIAN
 		dip[i] = be32_to_cpu(t0);
 		dip[i + 1] = be32_to_cpu(t1);
 #else
@@ -96,13 +97,13 @@ bfa_port_get_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 	port->stats_busy = BFA_FALSE;
 
 	if (status == BFA_STATUS_OK) {
-		struct bfa_timeval_s tv;
+		struct timeval tv;
 
 		memcpy(port->stats, port->stats_dma.kva,
 		       sizeof(union bfa_port_stats_u));
 		bfa_port_stats_swap(port, port->stats);
 
-		bfa_os_gettimeofday(&tv);
+		do_gettimeofday(&tv);
 		port->stats->fc.secs_reset = tv.tv_sec - port->stats_reset_time;
 	}
 
@@ -124,7 +125,7 @@ bfa_port_get_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 static void
 bfa_port_clear_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 {
-	struct bfa_timeval_s tv;
+	struct timeval tv;
 
 	port->stats_status = status;
 	port->stats_busy   = BFA_FALSE;
@@ -132,7 +133,7 @@ bfa_port_clear_stats_isr(struct bfa_port_s *port, bfa_status_t status)
 	/*
 	* re-initialize time stamp for stats reset
 	*/
-	bfa_os_gettimeofday(&tv);
+	do_gettimeofday(&tv);
 	port->stats_reset_time = tv.tv_sec;
 
 	if (port->stats_cbfn) {
@@ -432,7 +433,7 @@ void
 bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 		 void *dev, struct bfa_trc_mod_s *trcmod)
 {
-	struct bfa_timeval_s tv;
+	struct timeval tv;
 
 	bfa_assert(port);
 
@@ -452,7 +453,7 @@ bfa_port_attach(struct bfa_port_s *port, struct bfa_ioc_s *ioc,
 	/*
 	 * initialize time stamp for stats reset
 	 */
-	bfa_os_gettimeofday(&tv);
+	do_gettimeofday(&tv);
 	port->stats_reset_time = tv.tv_sec;
 
 	bfa_trc(port, 0);

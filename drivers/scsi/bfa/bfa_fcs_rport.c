@@ -19,9 +19,9 @@
  *  rport.c Remote port implementation.
  */
 
+#include "bfad_drv.h"
 #include "bfa_fcs.h"
 #include "bfa_fcbuild.h"
-#include "bfad_drv.h"
 
 BFA_TRC_FILE(FCS, RPORT);
 

@@ -15,6 +15,7 @@
  * General Public License for more details.
  */
 
+#include "bfad_drv.h"
 #include "bfa_modules.h"
 #include "bfi_cbreg.h"
 
