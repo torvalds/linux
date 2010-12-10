@@ -136,16 +136,16 @@ static struct rndis_request *get_rndis_request(struct rndis_device *dev,
 	}
 
 	rndis_msg = &request->request_msg;
-	rndis_msg->NdisMessageType = msg_type;
-	rndis_msg->MessageLength = msg_len;
+	rndis_msg->ndis_msg_type = msg_type;
+	rndis_msg->msg_len = msg_len;
 
 	/*
 	 * Set the request id. This field is always after the rndis header for
 	 * request/response packet types so we just used the SetRequest as a
 	 * template
 	 */
-	set = &rndis_msg->Message.SetRequest;
-	set->RequestId = atomic_inc_return(&dev->new_req_id);
+	set = &rndis_msg->msg.set_req;
+	set->req_id = atomic_inc_return(&dev->new_req_id);
 
 	/* Add to the request list */
 	spin_lock_irqsave(&dev->request_lock, flags);
@@ -170,20 +170,20 @@ static void put_rndis_request(struct rndis_device *dev,
 
 static void dump_rndis_message(struct rndis_message *rndis_msg)
 {
-	switch (rndis_msg->NdisMessageType) {
+	switch (rndis_msg->ndis_msg_type) {
 	case REMOTE_NDIS_PACKET_MSG:
 		DPRINT_DBG(NETVSC, "REMOTE_NDIS_PACKET_MSG (len %u, "
 			   "data offset %u data len %u, # oob %u, "
 			   "oob offset %u, oob len %u, pkt offset %u, "
 			   "pkt len %u",
-			   rndis_msg->MessageLength,
-			   rndis_msg->Message.Packet.DataOffset,
-			   rndis_msg->Message.Packet.DataLength,
-			   rndis_msg->Message.Packet.NumOOBDataElements,
-			   rndis_msg->Message.Packet.OOBDataOffset,
-			   rndis_msg->Message.Packet.OOBDataLength,
-			   rndis_msg->Message.Packet.PerPacketInfoOffset,
-			   rndis_msg->Message.Packet.PerPacketInfoLength);
+			   rndis_msg->msg_len,
+			   rndis_msg->msg.pkt.data_offset,
+			   rndis_msg->msg.pkt.data_len,
+			   rndis_msg->msg.pkt.num_oob_data_elements,
+			   rndis_msg->msg.pkt.oob_data_offset,
+			   rndis_msg->msg.pkt.oob_data_len,
+			   rndis_msg->msg.pkt.per_pkt_info_offset,
+			   rndis_msg->msg.pkt.per_pkt_info_len);
 		break;
 
 	case REMOTE_NDIS_INITIALIZE_CMPLT:
@@ -191,53 +191,53 @@ static void dump_rndis_message(struct rndis_message *rndis_msg)
 			"(len %u, id 0x%x, status 0x%x, major %d, minor %d, "
 			"device flags %d, max xfer size 0x%x, max pkts %u, "
 			"pkt aligned %u)",
-			rndis_msg->MessageLength,
-			rndis_msg->Message.InitializeComplete.RequestId,
-			rndis_msg->Message.InitializeComplete.Status,
-			rndis_msg->Message.InitializeComplete.MajorVersion,
-			rndis_msg->Message.InitializeComplete.MinorVersion,
-			rndis_msg->Message.InitializeComplete.DeviceFlags,
-			rndis_msg->Message.InitializeComplete.MaxTransferSize,
-			rndis_msg->Message.InitializeComplete.
-			   MaxPacketsPerMessage,
-			rndis_msg->Message.InitializeComplete.
-			   PacketAlignmentFactor);
+			rndis_msg->msg_len,
+			rndis_msg->msg.init_complete.req_id,
+			rndis_msg->msg.init_complete.status,
+			rndis_msg->msg.init_complete.major_ver,
+			rndis_msg->msg.init_complete.minor_ver,
+			rndis_msg->msg.init_complete.dev_flags,
+			rndis_msg->msg.init_complete.max_xfer_size,
+			rndis_msg->msg.init_complete.
+			   max_pkt_per_msg,
+			rndis_msg->msg.init_complete.
+			   pkt_alignment_factor);
 		break;
 
 	case REMOTE_NDIS_QUERY_CMPLT:
 		DPRINT_DBG(NETVSC, "REMOTE_NDIS_QUERY_CMPLT "
 			"(len %u, id 0x%x, status 0x%x, buf len %u, "
 			"buf offset %u)",
-			rndis_msg->MessageLength,
-			rndis_msg->Message.QueryComplete.RequestId,
-			rndis_msg->Message.QueryComplete.Status,
-			rndis_msg->Message.QueryComplete.
-			   InformationBufferLength,
-			rndis_msg->Message.QueryComplete.
-			   InformationBufferOffset);
+			rndis_msg->msg_len,
+			rndis_msg->msg.query_complete.req_id,
+			rndis_msg->msg.query_complete.status,
+			rndis_msg->msg.query_complete.
+			   info_buflen,
+			rndis_msg->msg.query_complete.
+			   info_buf_offset);
 		break;
 
 	case REMOTE_NDIS_SET_CMPLT:
 		DPRINT_DBG(NETVSC,
 			"REMOTE_NDIS_SET_CMPLT (len %u, id 0x%x, status 0x%x)",
-			rndis_msg->MessageLength,
-			rndis_msg->Message.SetComplete.RequestId,
-			rndis_msg->Message.SetComplete.Status);
+			rndis_msg->msg_len,
+			rndis_msg->msg.set_complete.req_id,
+			rndis_msg->msg.set_complete.status);
 		break;
 
 	case REMOTE_NDIS_INDICATE_STATUS_MSG:
 		DPRINT_DBG(NETVSC, "REMOTE_NDIS_INDICATE_STATUS_MSG "
 			"(len %u, status 0x%x, buf len %u, buf offset %u)",
-			rndis_msg->MessageLength,
-			rndis_msg->Message.IndicateStatus.Status,
-			rndis_msg->Message.IndicateStatus.StatusBufferLength,
-			rndis_msg->Message.IndicateStatus.StatusBufferOffset);
+			rndis_msg->msg_len,
+			rndis_msg->msg.indicate_status.status,
+			rndis_msg->msg.indicate_status.status_buflen,
+			rndis_msg->msg.indicate_status.status_buf_offset);
 		break;
 
 	default:
 		DPRINT_DBG(NETVSC, "0x%x (len %u)",
-			rndis_msg->NdisMessageType,
-			rndis_msg->MessageLength);
+			rndis_msg->ndis_msg_type,
+			rndis_msg->msg_len);
 		break;
 	}
 }
@@ -252,12 +252,12 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	packet = &req->pkt;
 
 	packet->is_data_pkt = false;
-	packet->total_data_buflen = req->request_msg.MessageLength;
+	packet->total_data_buflen = req->request_msg.msg_len;
 	packet->page_buf_cnt = 1;
 
 	packet->page_buf[0].Pfn = virt_to_phys(&req->request_msg) >>
 					PAGE_SHIFT;
-	packet->page_buf[0].Length = req->request_msg.MessageLength;
+	packet->page_buf[0].Length = req->request_msg.msg_len;
 	packet->page_buf[0].Offset =
 		(unsigned long)&req->request_msg & (PAGE_SIZE - 1);
 
@@ -283,15 +283,15 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 		 * All request/response message contains RequestId as the 1st
 		 * field
 		 */
-		if (request->request_msg.Message.InitializeRequest.RequestId
-		    == resp->Message.InitializeComplete.RequestId) {
+		if (request->request_msg.msg.init_req.req_id
+		    == resp->msg.init_complete.req_id) {
 			DPRINT_DBG(NETVSC, "found rndis request for "
 				"this response (id 0x%x req type 0x%x res "
 				"type 0x%x)",
-				request->request_msg.Message.
-				   InitializeRequest.RequestId,
-				request->request_msg.NdisMessageType,
-				resp->NdisMessageType);
+				request->request_msg.msg.
+				   init_req.req_id,
+				request->request_msg.ndis_msg_type,
+				resp->ndis_msg_type);
 
 			found = true;
 			break;
@@ -300,23 +300,23 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 	spin_unlock_irqrestore(&dev->request_lock, flags);
 
 	if (found) {
-		if (resp->MessageLength <= sizeof(struct rndis_message)) {
+		if (resp->msg_len <= sizeof(struct rndis_message)) {
 			memcpy(&request->response_msg, resp,
-			       resp->MessageLength);
+			       resp->msg_len);
 		} else {
 			DPRINT_ERR(NETVSC, "rndis response buffer overflow "
 				  "detected (size %u max %zu)",
-				  resp->MessageLength,
+				  resp->msg_len,
 				  sizeof(struct rndis_filter_packet));
 
-			if (resp->NdisMessageType ==
+			if (resp->ndis_msg_type ==
 			    REMOTE_NDIS_RESET_CMPLT) {
 				/* does not have a request id field */
-				request->response_msg.Message.ResetComplete.
-					Status = STATUS_BUFFER_OVERFLOW;
+				request->response_msg.msg.reset_complete.
+					status = STATUS_BUFFER_OVERFLOW;
 			} else {
-				request->response_msg.Message.
-				InitializeComplete.Status =
+				request->response_msg.msg.
+				init_complete.status =
 					STATUS_BUFFER_OVERFLOW;
 			}
 		}
@@ -325,8 +325,8 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 	} else {
 		DPRINT_ERR(NETVSC, "no rndis request found for this response "
 			   "(id 0x%x res type 0x%x)",
-			   resp->Message.InitializeComplete.RequestId,
-			   resp->NdisMessageType);
+			   resp->msg.init_complete.req_id,
+			   resp->ndis_msg_type);
 	}
 }
 
@@ -334,12 +334,12 @@ static void rndis_filter_receive_indicate_status(struct rndis_device *dev,
 					     struct rndis_message *resp)
 {
 	struct rndis_indicate_status *indicate =
-			&resp->Message.IndicateStatus;
+			&resp->msg.indicate_status;
 
-	if (indicate->Status == RNDIS_STATUS_MEDIA_CONNECT) {
+	if (indicate->status == RNDIS_STATUS_MEDIA_CONNECT) {
 		rndis_filter.inner_drv.link_status_change(
 			dev->net_dev->dev, 1);
-	} else if (indicate->Status == RNDIS_STATUS_MEDIA_DISCONNECT) {
+	} else if (indicate->status == RNDIS_STATUS_MEDIA_DISCONNECT) {
 		rndis_filter.inner_drv.link_status_change(
 			dev->net_dev->dev, 0);
 	} else {
@@ -360,7 +360,7 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 	/* ASSERT(Packet->PageBuffers[0].Length > */
 	/* 	RNDIS_MESSAGE_SIZE(struct rndis_packet)); */
 
-	rndis_pkt = &msg->Message.Packet;
+	rndis_pkt = &msg->msg.pkt;
 
 	/*
 	 * FIXME: Handle multiple rndis pkt msgs that maybe enclosed in this
@@ -368,7 +368,7 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 	 */
 
 	/* Remove the rndis header and pass it back up the stack */
-	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->DataOffset;
+	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->data_offset;
 
 	pkt->total_data_buflen -= data_offset;
 	pkt->page_buf[0].Offset += data_offset;
@@ -418,36 +418,36 @@ static int rndis_filter_receive(struct hv_device *dev,
 	 * range shows 52 bytes
 	 * */
 #if 0
-	if (pkt->total_data_buflen != rndis_hdr->MessageLength) {
+	if (pkt->total_data_buflen != rndis_hdr->msg_len) {
 		kunmap_atomic(rndis_hdr - pkt->page_buf[0].Offset,
 			      KM_IRQ0);
 
 		DPRINT_ERR(NETVSC, "invalid rndis message? (expected %u "
 			   "bytes got %u)...dropping this message!",
-			   rndis_hdr->MessageLength,
+			   rndis_hdr->msg_len,
 			   pkt->total_data_buflen);
 		return -1;
 	}
 #endif
 
-	if ((rndis_hdr->NdisMessageType != REMOTE_NDIS_PACKET_MSG) &&
-	    (rndis_hdr->MessageLength > sizeof(struct rndis_message))) {
+	if ((rndis_hdr->ndis_msg_type != REMOTE_NDIS_PACKET_MSG) &&
+	    (rndis_hdr->msg_len > sizeof(struct rndis_message))) {
 		DPRINT_ERR(NETVSC, "incoming rndis message buffer overflow "
 			   "detected (got %u, max %zu)...marking it an error!",
-			   rndis_hdr->MessageLength,
+			   rndis_hdr->msg_len,
 			   sizeof(struct rndis_message));
 	}
 
 	memcpy(&rndis_msg, rndis_hdr,
-		(rndis_hdr->MessageLength > sizeof(struct rndis_message)) ?
+		(rndis_hdr->msg_len > sizeof(struct rndis_message)) ?
 			sizeof(struct rndis_message) :
-			rndis_hdr->MessageLength);
+			rndis_hdr->msg_len);
 
 	kunmap_atomic(rndis_hdr - pkt->page_buf[0].Offset, KM_IRQ0);
 
 	dump_rndis_message(&rndis_msg);
 
-	switch (rndis_msg.NdisMessageType) {
+	switch (rndis_msg.ndis_msg_type) {
 	case REMOTE_NDIS_PACKET_MSG:
 		/* data msg */
 		rndis_filter_receive_data(rndis_dev, &rndis_msg, pkt);
@@ -468,8 +468,8 @@ static int rndis_filter_receive(struct hv_device *dev,
 		break;
 	default:
 		DPRINT_ERR(NETVSC, "unhandled rndis message (type %u len %u)",
-			   rndis_msg.NdisMessageType,
-			   rndis_msg.MessageLength);
+			   rndis_msg.ndis_msg_type,
+			   rndis_msg.msg_len);
 		break;
 	}
 
@@ -497,11 +497,11 @@ static int rndis_filter_query_device(struct rndis_device *dev, u32 oid,
 	}
 
 	/* Setup the rndis query */
-	query = &request->request_msg.Message.QueryRequest;
-	query->Oid = oid;
-	query->InformationBufferOffset = sizeof(struct rndis_query_request);
-	query->InformationBufferLength = 0;
-	query->DeviceVcHandle = 0;
+	query = &request->request_msg.msg.query_req;
+	query->oid = oid;
+	query->info_buf_offset = sizeof(struct rndis_query_request);
+	query->info_buflen = 0;
+	query->dev_vc_handle = 0;
 
 	ret = rndis_filter_send_request(dev, request);
 	if (ret != 0)
@@ -510,19 +510,19 @@ static int rndis_filter_query_device(struct rndis_device *dev, u32 oid,
 	osd_waitevent_wait(request->waitevent);
 
 	/* Copy the response back */
-	query_complete = &request->response_msg.Message.QueryComplete;
+	query_complete = &request->response_msg.msg.query_complete;
 
-	if (query_complete->InformationBufferLength > inresult_size) {
+	if (query_complete->info_buflen > inresult_size) {
 		ret = -1;
 		goto Cleanup;
 	}
 
 	memcpy(result,
 	       (void *)((unsigned long)query_complete +
-			 query_complete->InformationBufferOffset),
-	       query_complete->InformationBufferLength);
+			 query_complete->info_buf_offset),
+	       query_complete->info_buflen);
 
-	*result_size = query_complete->InformationBufferLength;
+	*result_size = query_complete->info_buflen;
 
 Cleanup:
 	if (request)
@@ -570,10 +570,10 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 	}
 
 	/* Setup the rndis set */
-	set = &request->request_msg.Message.SetRequest;
-	set->Oid = RNDIS_OID_GEN_CURRENT_PACKET_FILTER;
-	set->InformationBufferLength = sizeof(u32);
-	set->InformationBufferOffset = sizeof(struct rndis_set_request);
+	set = &request->request_msg.msg.set_req;
+	set->oid = RNDIS_OID_GEN_CURRENT_PACKET_FILTER;
+	set->info_buflen = sizeof(u32);
+	set->info_buf_offset = sizeof(struct rndis_set_request);
 
 	memcpy((void *)(unsigned long)set + sizeof(struct rndis_set_request),
 	       &new_filter, sizeof(u32));
@@ -594,8 +594,8 @@ static int rndis_filter_set_packet_filter(struct rndis_device *dev,
 	} else {
 		if (ret > 0)
 			ret = 0;
-		set_complete = &request->response_msg.Message.SetComplete;
-		status = set_complete->Status;
+		set_complete = &request->response_msg.msg.set_complete;
+		status = set_complete->status;
 	}
 
 Cleanup:
@@ -661,11 +661,11 @@ static int rndis_filter_init_device(struct rndis_device *dev)
 	}
 
 	/* Setup the rndis set */
-	init = &request->request_msg.Message.InitializeRequest;
-	init->MajorVersion = RNDIS_MAJOR_VERSION;
-	init->MinorVersion = RNDIS_MINOR_VERSION;
+	init = &request->request_msg.msg.init_req;
+	init->major_ver = RNDIS_MAJOR_VERSION;
+	init->minor_ver = RNDIS_MINOR_VERSION;
 	/* FIXME: Use 1536 - rounded ethernet frame size */
-	init->MaxTransferSize = 2048;
+	init->max_xfer_size = 2048;
 
 	dev->state = RNDIS_DEV_INITIALIZING;
 
@@ -677,8 +677,8 @@ static int rndis_filter_init_device(struct rndis_device *dev)
 
 	osd_waitevent_wait(request->waitevent);
 
-	init_complete = &request->response_msg.Message.InitializeComplete;
-	status = init_complete->Status;
+	init_complete = &request->response_msg.msg.init_complete;
+	status = init_complete->status;
 	if (status == RNDIS_STATUS_SUCCESS) {
 		dev->state = RNDIS_DEV_INITIALIZED;
 		ret = 0;
@@ -706,8 +706,8 @@ static void rndis_filter_halt_device(struct rndis_device *dev)
 		goto Cleanup;
 
 	/* Setup the rndis set */
-	halt = &request->request_msg.Message.HaltRequest;
-	halt->RequestId = atomic_inc_return(&dev->new_req_id);
+	halt = &request->request_msg.msg.halt_req;
+	halt->req_id = atomic_inc_return(&dev->new_req_id);
 
 	/* Ignore return since this msg is optional. */
 	rndis_filter_send_request(dev, request);
@@ -875,13 +875,13 @@ static int rndis_filter_send(struct hv_device *dev,
 	rndisMessage = &filterPacket->msg;
 	rndisMessageSize = RNDIS_MESSAGE_SIZE(struct rndis_packet);
 
-	rndisMessage->NdisMessageType = REMOTE_NDIS_PACKET_MSG;
-	rndisMessage->MessageLength = pkt->total_data_buflen +
+	rndisMessage->ndis_msg_type = REMOTE_NDIS_PACKET_MSG;
+	rndisMessage->msg_len = pkt->total_data_buflen +
 				      rndisMessageSize;
 
-	rndisPacket = &rndisMessage->Message.Packet;
-	rndisPacket->DataOffset = sizeof(struct rndis_packet);
-	rndisPacket->DataLength = pkt->total_data_buflen;
+	rndisPacket = &rndisMessage->msg.pkt;
+	rndisPacket->data_offset = sizeof(struct rndis_packet);
+	rndisPacket->data_len = pkt->total_data_buflen;
 
 	pkt->is_data_pkt = true;
 	pkt->page_buf[0].Pfn = virt_to_phys(rndisMessage) >> PAGE_SHIFT;
