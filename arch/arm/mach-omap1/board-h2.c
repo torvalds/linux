@@ -374,8 +374,6 @@ static void __init h2_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
-	h2_init_smc91x();
 }
 
 static struct omap_usb_config h2_usb_config __initdata = {
@@ -403,6 +401,8 @@ static struct omap_board_config_kernel h2_config[] __initdata = {
 
 static void __init h2_init(void)
 {
+	h2_init_smc91x();
+
 	/* Here we assume the NOR boot config:  NOR on CS3 (possibly swapped
 	 * to address 0 by a dip switch), NAND on CS2B.  The NAND driver will
 	 * notice whether a NAND chip is enabled at probe time.

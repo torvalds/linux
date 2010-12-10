@@ -120,6 +120,15 @@ static struct resource smc91x_resources[] = {
 	},
 };
 
+static void __init fsample_init_smc91x(void)
+{
+	fpga_write(1, H2P2_DBG_FPGA_LAN_RESET);
+	mdelay(50);
+	fpga_write(fpga_read(H2P2_DBG_FPGA_LAN_RESET) & ~1,
+		   H2P2_DBG_FPGA_LAN_RESET);
+	mdelay(50);
+}
+
 static struct mtd_partition nor_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
 	{
@@ -285,6 +294,8 @@ static struct omap_board_config_kernel fsample_config[] = {
 
 static void __init omap_fsample_init(void)
 {
+	fsample_init_smc91x();
+
 	if (gpio_request(FSAMPLE_NAND_RB_GPIO_PIN, "NAND ready") < 0)
 		BUG();
 	gpio_direction_input(FSAMPLE_NAND_RB_GPIO_PIN);
@@ -312,21 +323,10 @@ static void __init omap_fsample_init(void)
 	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 
-static void __init fsample_init_smc91x(void)
-{
-	fpga_write(1, H2P2_DBG_FPGA_LAN_RESET);
-	mdelay(50);
-	fpga_write(fpga_read(H2P2_DBG_FPGA_LAN_RESET) & ~1,
-		   H2P2_DBG_FPGA_LAN_RESET);
-	mdelay(50);
-}
-
 static void __init omap_fsample_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
-	fsample_init_smc91x();
 }
 
 /* Only FPGA needs to be mapped here. All others are done with ioremap */

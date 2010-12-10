@@ -264,6 +264,15 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
+static void __init h3_init_smc91x(void)
+{
+	omap_cfg_reg(W15_1710_GPIO40);
+	if (gpio_request(40, "SMC91x irq") < 0) {
+		printk("Error requesting gpio 40 for smc91x irq\n");
+		return;
+	}
+}
+
 #define GPTIMER_BASE		0xFFFB1400
 #define GPTIMER_REGS(x)	(0xFFFB1400 + (x * 0x800))
 #define GPTIMER_REGS_SIZE	0x46
@@ -376,6 +385,8 @@ static struct i2c_board_info __initdata h3_i2c_board_info[] = {
 
 static void __init h3_init(void)
 {
+	h3_init_smc91x();
+
 	/* Here we assume the NOR boot config:  NOR on CS3 (possibly swapped
 	 * to address 0 by a dip switch), NAND on CS2B.  The NAND driver will
 	 * notice whether a NAND chip is enabled at probe time.
@@ -422,21 +433,10 @@ static void __init h3_init(void)
 	h3_mmc_init();
 }
 
-static void __init h3_init_smc91x(void)
-{
-	omap_cfg_reg(W15_1710_GPIO40);
-	if (gpio_request(40, "SMC91x irq") < 0) {
-		printk("Error requesting gpio 40 for smc91x irq\n");
-		return;
-	}
-}
-
 static void __init h3_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
-	h3_init_smc91x();
 }
 
 static void __init h3_map_io(void)

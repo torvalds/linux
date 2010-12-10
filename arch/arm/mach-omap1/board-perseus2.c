@@ -251,8 +251,19 @@ static struct omap_board_config_kernel perseus2_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&perseus2_lcd_config },
 };
 
+static void __init perseus2_init_smc91x(void)
+{
+	fpga_write(1, H2P2_DBG_FPGA_LAN_RESET);
+	mdelay(50);
+	fpga_write(fpga_read(H2P2_DBG_FPGA_LAN_RESET) & ~1,
+		   H2P2_DBG_FPGA_LAN_RESET);
+	mdelay(50);
+}
+
 static void __init omap_perseus2_init(void)
 {
+	perseus2_init_smc91x();
+
 	if (gpio_request(P2_NAND_RB_GPIO_PIN, "NAND ready") < 0)
 		BUG();
 	gpio_direction_input(P2_NAND_RB_GPIO_PIN);
@@ -280,21 +291,10 @@ static void __init omap_perseus2_init(void)
 	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 
-static void __init perseus2_init_smc91x(void)
-{
-	fpga_write(1, H2P2_DBG_FPGA_LAN_RESET);
-	mdelay(50);
-	fpga_write(fpga_read(H2P2_DBG_FPGA_LAN_RESET) & ~1,
-		   H2P2_DBG_FPGA_LAN_RESET);
-	mdelay(50);
-}
-
 static void __init omap_perseus2_init_irq(void)
 {
 	omap1_init_common_hw();
 	omap_init_irq();
-	omap_gpio_init();
-	perseus2_init_smc91x();
 }
 /* Only FPGA needs to be mapped here. All others are done with ioremap */
 static struct map_desc omap_perseus2_io_desc[] __initdata = {
