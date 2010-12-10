@@ -447,6 +447,42 @@ unsigned int gnttab_max_grant_frames(void)
 }
 EXPORT_SYMBOL_GPL(gnttab_max_grant_frames);
 
+int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
+		    struct page **pages, unsigned int count)
+{
+	int i, ret;
+	pte_t *pte;
+	unsigned long mfn;
+
+	ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, map_ops, count);
+
+	for (i = 0; i < count; i++) {
+		/* m2p override only supported for GNTMAP_contains_pte mappings */
+		if (!(map_ops[i].flags & GNTMAP_contains_pte))
+			continue;
+		pte = (pte_t *) (mfn_to_virt(PFN_DOWN(map_ops[i].host_addr)) +
+				(map_ops[i].host_addr & ~PAGE_MASK));
+		mfn = pte_mfn(*pte);
+		m2p_add_override(mfn, pages[i]);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gnttab_map_refs);
+
+int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
+		struct page **pages, unsigned int count)
+{
+	int i, ret;
+
+	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap_ops, count);
+	for (i = 0; i < count; i++)
+		m2p_remove_override(pages[i]);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(gnttab_unmap_refs);
+
 static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 {
 	struct gnttab_setup_table setup;

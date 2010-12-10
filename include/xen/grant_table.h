@@ -155,4 +155,9 @@ unsigned int gnttab_max_grant_frames(void);
 
 #define gnttab_map_vaddr(map) ((void *)(map.host_virt_addr))
 
+int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
+		    struct page **pages, unsigned int count);
+int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
+		      struct page **pages, unsigned int count);
+
 #endif /* __ASM_GNTTAB_H__ */
