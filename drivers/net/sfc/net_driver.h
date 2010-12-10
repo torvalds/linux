@@ -179,7 +179,6 @@ struct efx_tx_queue {
 	struct efx_nic *efx ____cacheline_aligned_in_smp;
 	unsigned queue;
 	struct efx_channel *channel;
-	struct efx_nic *nic;
 	struct efx_tx_buffer *buffer;
 	struct efx_special_buffer txd;
 	unsigned int ptr_mask;
@@ -321,7 +320,6 @@ enum efx_rx_alloc_method {
  * @irq_moderation: IRQ moderation value (in hardware ticks)
  * @napi_dev: Net device used with NAPI
  * @napi_str: NAPI control structure
- * @reset_work: Scheduled reset work thread
  * @work_pending: Is work pending via NAPI?
  * @eventq: Event queue buffer
  * @eventq_mask: Event queue pointer mask
