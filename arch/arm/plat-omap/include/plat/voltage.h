@@ -44,6 +44,18 @@
 #define OMAP3630_VDD_CORE_OPP50_UV		1000000
 #define OMAP3630_VDD_CORE_OPP100_UV		1200000
 
+#define OMAP4430_VDD_MPU_OPP50_UV		930000
+#define OMAP4430_VDD_MPU_OPP100_UV		1100000
+#define OMAP4430_VDD_MPU_OPPTURBO_UV		1260000
+#define OMAP4430_VDD_MPU_OPPNITRO_UV		1350000
+
+#define OMAP4430_VDD_IVA_OPP50_UV		930000
+#define OMAP4430_VDD_IVA_OPP100_UV		1100000
+#define OMAP4430_VDD_IVA_OPPTURBO_UV		1260000
+
+#define OMAP4430_VDD_CORE_OPP50_UV		930000
+#define OMAP4430_VDD_CORE_OPP100_UV		1100000
+
 /**
  * struct voltagedomain - omap voltage domain global structure.
  * @name:	Name of the voltage domain which can be used as a unique

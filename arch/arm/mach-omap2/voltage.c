@@ -29,6 +29,10 @@
 #include <plat/voltage.h>
 
 #include "prm-regbits-34xx.h"
+#include "prm-regbits-44xx.h"
+#include "prm44xx.h"
+#include "prcm44xx.h"
+#include "prminst44xx.h"
 #include "control.h"
 
 #define VP_IDLE_TIMEOUT		200
@@ -190,6 +194,51 @@ static struct omap_vdd_info omap3_vdd_info[] = {
 
 #define OMAP3_NR_SCALABLE_VDD ARRAY_SIZE(omap3_vdd_info)
 
+/* OMAP4 VDD sturctures */
+static struct omap_vdd_info omap4_vdd_info[] = {
+	{
+		.vp_offs = {
+			.vpconfig = OMAP4_PRM_VP_MPU_CONFIG_OFFSET,
+			.vstepmin = OMAP4_PRM_VP_MPU_VSTEPMIN_OFFSET,
+			.vstepmax = OMAP4_PRM_VP_MPU_VSTEPMAX_OFFSET,
+			.vlimitto = OMAP4_PRM_VP_MPU_VLIMITTO_OFFSET,
+			.vstatus = OMAP4_PRM_VP_MPU_STATUS_OFFSET,
+			.voltage = OMAP4_PRM_VP_MPU_VOLTAGE_OFFSET,
+		},
+		.voltdm = {
+			.name = "mpu",
+		},
+	},
+	{
+		.vp_offs = {
+			.vpconfig = OMAP4_PRM_VP_IVA_CONFIG_OFFSET,
+			.vstepmin = OMAP4_PRM_VP_IVA_VSTEPMIN_OFFSET,
+			.vstepmax = OMAP4_PRM_VP_IVA_VSTEPMAX_OFFSET,
+			.vlimitto = OMAP4_PRM_VP_IVA_VLIMITTO_OFFSET,
+			.vstatus = OMAP4_PRM_VP_IVA_STATUS_OFFSET,
+			.voltage = OMAP4_PRM_VP_IVA_VOLTAGE_OFFSET,
+		},
+		.voltdm = {
+			.name = "iva",
+		},
+	},
+	{
+		.vp_offs = {
+			.vpconfig = OMAP4_PRM_VP_CORE_CONFIG_OFFSET,
+			.vstepmin = OMAP4_PRM_VP_CORE_VSTEPMIN_OFFSET,
+			.vstepmax = OMAP4_PRM_VP_CORE_VSTEPMAX_OFFSET,
+			.vlimitto = OMAP4_PRM_VP_CORE_VLIMITTO_OFFSET,
+			.vstatus = OMAP4_PRM_VP_CORE_STATUS_OFFSET,
+			.voltage = OMAP4_PRM_VP_CORE_VOLTAGE_OFFSET,
+		},
+		.voltdm = {
+			.name = "core",
+		},
+	},
+};
+
+#define OMAP4_NR_SCALABLE_VDD ARRAY_SIZE(omap4_vdd_info)
+
 /*
  * Structures containing OMAP3430/OMAP3630 voltage supported and various
  * voltage dependent data for each VDD.
@@ -234,6 +283,31 @@ static struct omap_volt_data omap36xx_vddcore_volt_data[] = {
 	VOLT_DATA_DEFINE(0, 0, 0, 0),
 };
 
+/*
+ * Structures containing OMAP4430 voltage supported and various
+ * voltage dependent data for each VDD.
+ */
+static struct omap_volt_data omap44xx_vdd_mpu_volt_data[] = {
+	VOLT_DATA_DEFINE(OMAP4430_VDD_MPU_OPP50_UV, OMAP44XX_CONTROL_FUSE_MPU_OPP50, 0xf4, 0x0c),
+	VOLT_DATA_DEFINE(OMAP4430_VDD_MPU_OPP100_UV, OMAP44XX_CONTROL_FUSE_MPU_OPP100, 0xf9, 0x16),
+	VOLT_DATA_DEFINE(OMAP4430_VDD_MPU_OPPTURBO_UV, OMAP44XX_CONTROL_FUSE_MPU_OPPTURBO, 0xfa, 0x23),
+	VOLT_DATA_DEFINE(OMAP4430_VDD_MPU_OPPNITRO_UV, OMAP44XX_CONTROL_FUSE_MPU_OPPNITRO, 0xfa, 0x27),
+	VOLT_DATA_DEFINE(0, 0, 0, 0),
+};
+
+static struct omap_volt_data omap44xx_vdd_iva_volt_data[] = {
+	VOLT_DATA_DEFINE(OMAP4430_VDD_IVA_OPP50_UV, OMAP44XX_CONTROL_FUSE_IVA_OPP50, 0xf4, 0x0c),
+	VOLT_DATA_DEFINE(OMAP4430_VDD_IVA_OPP100_UV, OMAP44XX_CONTROL_FUSE_IVA_OPP100, 0xf9, 0x16),
+	VOLT_DATA_DEFINE(OMAP4430_VDD_IVA_OPPTURBO_UV, OMAP44XX_CONTROL_FUSE_IVA_OPPTURBO, 0xfa, 0x23),
+	VOLT_DATA_DEFINE(0, 0, 0, 0),
+};
+
+static struct omap_volt_data omap44xx_vdd_core_volt_data[] = {
+	VOLT_DATA_DEFINE(OMAP4430_VDD_CORE_OPP50_UV, OMAP44XX_CONTROL_FUSE_CORE_OPP50, 0xf4, 0x0c),
+	VOLT_DATA_DEFINE(OMAP4430_VDD_CORE_OPP100_UV, OMAP44XX_CONTROL_FUSE_CORE_OPP100, 0xf9, 0x16),
+	VOLT_DATA_DEFINE(0, 0, 0, 0),
+};
+
 static struct dentry *voltage_dir;
 
 /* Init function pointers */
@@ -248,6 +322,17 @@ static u32 omap3_voltage_read_reg(u16 mod, u8 offset)
 static void omap3_voltage_write_reg(u32 val, u16 mod, u8 offset)
 {
 	omap2_prm_write_mod_reg(val, mod, offset);
+}
+
+static u32 omap4_voltage_read_reg(u16 mod, u8 offset)
+{
+	return omap4_prminst_read_inst_reg(OMAP4430_PRM_PARTITION,
+					mod, offset);
+}
+
+static void omap4_voltage_write_reg(u32 val, u16 mod, u8 offset)
+{
+	omap4_prminst_write_inst_reg(val, OMAP4430_PRM_PARTITION, mod, offset);
 }
 
 /* Voltage debugfs support */
@@ -841,6 +926,195 @@ static int __init omap3_vdd_data_configure(struct omap_vdd_info *vdd)
 	return 0;
 }
 
+/* OMAP4 specific voltage init functions */
+static void __init omap4_vc_init(struct omap_vdd_info *vdd)
+{
+	u32 vc_val;
+	u16 mod;
+	static bool is_initialized;
+
+	if (!vdd->pmic_info || !vdd->pmic_info->uv_to_vsel) {
+		pr_err("%s: PMIC info requried to configure vc for"
+			"vdd_%s not populated.Hence cannot initialize vc\n",
+			__func__, vdd->voltdm.name);
+		return;
+	}
+
+	if (!vdd->read_reg || !vdd->write_reg) {
+		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
+			__func__, vdd->voltdm.name);
+		return;
+	}
+
+	mod = vdd->vc_reg.prm_mod;
+
+	/* Set up the SMPS_SA(i2c slave address in VC */
+	vc_val = vdd->read_reg(mod, vdd->vc_reg.smps_sa_reg);
+	vc_val &= ~vdd->vc_reg.smps_sa_mask;
+	vc_val |= vdd->pmic_info->i2c_slave_addr << vdd->vc_reg.smps_sa_shift;
+	vdd->write_reg(vc_val, mod, vdd->vc_reg.smps_sa_reg);
+
+	/* Setup the VOLRA(pmic reg addr) in VC */
+	vc_val = vdd->read_reg(mod, vdd->vc_reg.smps_volra_reg);
+	vc_val &= ~vdd->vc_reg.smps_volra_mask;
+	vc_val |= vdd->pmic_info->pmic_reg << vdd->vc_reg.smps_volra_shift;
+	vdd->write_reg(vc_val, mod, vdd->vc_reg.smps_volra_reg);
+
+	/* TODO: Configure setup times and CMD_VAL values*/
+
+	if (is_initialized)
+		return;
+
+	/* Generic VC parameters init */
+	vc_val = (OMAP4430_RAV_VDD_MPU_L_MASK | OMAP4430_CMD_VDD_MPU_L_MASK |
+		OMAP4430_RAV_VDD_IVA_L_MASK | OMAP4430_CMD_VDD_IVA_L_MASK |
+		OMAP4430_RAV_VDD_CORE_L_MASK | OMAP4430_CMD_VDD_CORE_L_MASK);
+	vdd->write_reg(vc_val, mod, OMAP4_PRM_VC_CFG_CHANNEL_OFFSET);
+
+	vc_val = (0x60 << OMAP4430_SCLL_SHIFT | 0x26 << OMAP4430_SCLH_SHIFT);
+	vdd->write_reg(vc_val, mod, OMAP4_PRM_VC_CFG_I2C_CLK_OFFSET);
+
+	is_initialized = true;
+}
+
+/* Sets up all the VDD related info for OMAP4 */
+static int __init omap4_vdd_data_configure(struct omap_vdd_info *vdd)
+{
+	struct clk *sys_ck;
+	u32 sys_clk_speed, timeout_val, waittime;
+
+	if (!vdd->pmic_info) {
+		pr_err("%s: PMIC info requried to configure vdd_%s not"
+			"populated.Hence cannot initialize vdd_%s\n",
+			__func__, vdd->voltdm.name, vdd->voltdm.name);
+		return -EINVAL;
+	}
+
+	if (!strcmp(vdd->voltdm.name, "mpu")) {
+		vdd->volt_data = omap44xx_vdd_mpu_volt_data;
+		vdd->vp_reg.tranxdone_status =
+				OMAP4430_VP_MPU_TRANXDONE_ST_MASK;
+		vdd->vc_reg.cmdval_reg = OMAP4_PRM_VC_VAL_CMD_VDD_MPU_L_OFFSET;
+		vdd->vc_reg.smps_sa_shift =
+				OMAP4430_SA_VDD_MPU_L_PRM_VC_SMPS_SA_SHIFT;
+		vdd->vc_reg.smps_sa_mask =
+				OMAP4430_SA_VDD_MPU_L_PRM_VC_SMPS_SA_MASK;
+		vdd->vc_reg.smps_volra_shift = OMAP4430_VOLRA_VDD_MPU_L_SHIFT;
+		vdd->vc_reg.smps_volra_mask = OMAP4430_VOLRA_VDD_MPU_L_MASK;
+		vdd->vc_reg.voltsetup_reg =
+				OMAP4_PRM_VOLTSETUP_MPU_RET_SLEEP_OFFSET;
+		vdd->prm_irqst_reg = OMAP4_PRM_IRQSTATUS_MPU_2_OFFSET;
+	} else if (!strcmp(vdd->voltdm.name, "core")) {
+		vdd->volt_data = omap44xx_vdd_core_volt_data;
+		vdd->vp_reg.tranxdone_status =
+				OMAP4430_VP_CORE_TRANXDONE_ST_MASK;
+		vdd->vc_reg.cmdval_reg =
+				OMAP4_PRM_VC_VAL_CMD_VDD_CORE_L_OFFSET;
+		vdd->vc_reg.smps_sa_shift = OMAP4430_SA_VDD_CORE_L_0_6_SHIFT;
+		vdd->vc_reg.smps_sa_mask = OMAP4430_SA_VDD_CORE_L_0_6_MASK;
+		vdd->vc_reg.smps_volra_shift = OMAP4430_VOLRA_VDD_CORE_L_SHIFT;
+		vdd->vc_reg.smps_volra_mask = OMAP4430_VOLRA_VDD_CORE_L_MASK;
+		vdd->vc_reg.voltsetup_reg =
+				OMAP4_PRM_VOLTSETUP_CORE_RET_SLEEP_OFFSET;
+		vdd->prm_irqst_reg = OMAP4_PRM_IRQSTATUS_MPU_OFFSET;
+	} else if (!strcmp(vdd->voltdm.name, "iva")) {
+		vdd->volt_data = omap44xx_vdd_iva_volt_data;
+		vdd->vp_reg.tranxdone_status =
+				OMAP4430_VP_IVA_TRANXDONE_ST_MASK;
+		vdd->vc_reg.cmdval_reg = OMAP4_PRM_VC_VAL_CMD_VDD_IVA_L_OFFSET;
+		vdd->vc_reg.smps_sa_shift =
+				OMAP4430_SA_VDD_IVA_L_PRM_VC_SMPS_SA_SHIFT;
+		vdd->vc_reg.smps_sa_mask =
+				OMAP4430_SA_VDD_IVA_L_PRM_VC_SMPS_SA_MASK;
+		vdd->vc_reg.smps_volra_shift = OMAP4430_VOLRA_VDD_IVA_L_SHIFT;
+		vdd->vc_reg.smps_volra_mask = OMAP4430_VOLRA_VDD_IVA_L_MASK;
+		vdd->vc_reg.voltsetup_reg =
+				OMAP4_PRM_VOLTSETUP_IVA_RET_SLEEP_OFFSET;
+		vdd->prm_irqst_reg = OMAP4_PRM_IRQSTATUS_MPU_OFFSET;
+	} else {
+		pr_warning("%s: vdd_%s does not exisit in OMAP4\n",
+			__func__, vdd->voltdm.name);
+		return -EINVAL;
+	}
+
+	/*
+	 * Sys clk rate is require to calculate vp timeout value and
+	 * smpswaittimemin and smpswaittimemax.
+	 */
+	sys_ck = clk_get(NULL, "sys_clkin_ck");
+	if (IS_ERR(sys_ck)) {
+		pr_warning("%s: Could not get the sys clk to calculate"
+			"various vdd_%s params\n", __func__, vdd->voltdm.name);
+		return -EINVAL;
+	}
+	sys_clk_speed = clk_get_rate(sys_ck);
+	clk_put(sys_ck);
+	/* Divide to avoid overflow */
+	sys_clk_speed /= 1000;
+
+	/* Generic voltage parameters */
+	vdd->curr_volt = 1200000;
+	vdd->ocp_mod = OMAP4430_PRM_OCP_SOCKET_INST;
+	vdd->read_reg = omap4_voltage_read_reg;
+	vdd->write_reg = omap4_voltage_write_reg;
+	vdd->volt_scale = vp_forceupdate_scale_voltage;
+	vdd->vp_enabled = false;
+
+	/* VC parameters */
+	vdd->vc_reg.prm_mod = OMAP4430_PRM_DEVICE_INST;
+	vdd->vc_reg.smps_sa_reg = OMAP4_PRM_VC_SMPS_SA_OFFSET;
+	vdd->vc_reg.smps_volra_reg = OMAP4_PRM_VC_VAL_SMPS_RA_VOL_OFFSET;
+	vdd->vc_reg.bypass_val_reg = OMAP4_PRM_VC_VAL_BYPASS_OFFSET;
+	vdd->vc_reg.data_shift = OMAP4430_DATA_SHIFT;
+	vdd->vc_reg.slaveaddr_shift = OMAP4430_SLAVEADDR_SHIFT;
+	vdd->vc_reg.regaddr_shift = OMAP4430_REGADDR_SHIFT;
+	vdd->vc_reg.valid = OMAP4430_VALID_MASK;
+	vdd->vc_reg.cmd_on_shift = OMAP4430_ON_SHIFT;
+	vdd->vc_reg.cmd_on_mask = OMAP4430_ON_MASK;
+	vdd->vc_reg.cmd_onlp_shift = OMAP4430_ONLP_SHIFT;
+	vdd->vc_reg.cmd_ret_shift = OMAP4430_RET_SHIFT;
+	vdd->vc_reg.cmd_off_shift = OMAP4430_OFF_SHIFT;
+
+	vdd->vp_reg.prm_mod = OMAP4430_PRM_DEVICE_INST;
+
+	/* VPCONFIG bit fields */
+	vdd->vp_reg.vpconfig_erroroffset = (vdd->pmic_info->vp_erroroffset <<
+				 OMAP4430_ERROROFFSET_SHIFT);
+	vdd->vp_reg.vpconfig_errorgain_mask = OMAP4430_ERRORGAIN_MASK;
+	vdd->vp_reg.vpconfig_errorgain_shift = OMAP4430_ERRORGAIN_SHIFT;
+	vdd->vp_reg.vpconfig_initvoltage_shift = OMAP4430_INITVOLTAGE_SHIFT;
+	vdd->vp_reg.vpconfig_initvoltage_mask = OMAP4430_INITVOLTAGE_MASK;
+	vdd->vp_reg.vpconfig_timeouten = OMAP4430_TIMEOUTEN_MASK;
+	vdd->vp_reg.vpconfig_initvdd = OMAP4430_INITVDD_MASK;
+	vdd->vp_reg.vpconfig_forceupdate = OMAP4430_FORCEUPDATE_MASK;
+	vdd->vp_reg.vpconfig_vpenable = OMAP4430_VPENABLE_MASK;
+
+	/* VSTEPMIN VSTEPMAX bit fields */
+	waittime = ((vdd->pmic_info->step_size / vdd->pmic_info->slew_rate) *
+				sys_clk_speed) / 1000;
+	vdd->vp_reg.vstepmin_smpswaittimemin = waittime;
+	vdd->vp_reg.vstepmax_smpswaittimemax = waittime;
+	vdd->vp_reg.vstepmin_stepmin = vdd->pmic_info->vp_vstepmin;
+	vdd->vp_reg.vstepmax_stepmax = vdd->pmic_info->vp_vstepmax;
+	vdd->vp_reg.vstepmin_smpswaittimemin_shift =
+			OMAP4430_SMPSWAITTIMEMIN_SHIFT;
+	vdd->vp_reg.vstepmax_smpswaittimemax_shift =
+			OMAP4430_SMPSWAITTIMEMAX_SHIFT;
+	vdd->vp_reg.vstepmin_stepmin_shift = OMAP4430_VSTEPMIN_SHIFT;
+	vdd->vp_reg.vstepmax_stepmax_shift = OMAP4430_VSTEPMAX_SHIFT;
+
+	/* VLIMITTO bit fields */
+	timeout_val = (sys_clk_speed * vdd->pmic_info->vp_timeout_us) / 1000;
+	vdd->vp_reg.vlimitto_timeout = timeout_val;
+	vdd->vp_reg.vlimitto_vddmin = vdd->pmic_info->vp_vddmin;
+	vdd->vp_reg.vlimitto_vddmax = vdd->pmic_info->vp_vddmax;
+	vdd->vp_reg.vlimitto_vddmin_shift = OMAP4430_VDDMIN_SHIFT;
+	vdd->vp_reg.vlimitto_vddmax_shift = OMAP4430_VDDMAX_SHIFT;
+	vdd->vp_reg.vlimitto_timeout_shift = OMAP4430_TIMEOUT_SHIFT;
+
+	return 0;
+}
+
 /* Public functions */
 /**
  * omap_voltage_get_nom_volt() - Gets the current non-auto-compensated voltage
@@ -1283,6 +1557,11 @@ static int __init omap_voltage_early_init(void)
 		nr_scalable_vdd = OMAP3_NR_SCALABLE_VDD;
 		vc_init = omap3_vc_init;
 		vdd_data_configure = omap3_vdd_data_configure;
+	} else if (cpu_is_omap44xx()) {
+		vdd_info = omap4_vdd_info;
+		nr_scalable_vdd = OMAP4_NR_SCALABLE_VDD;
+		vc_init = omap4_vc_init;
+		vdd_data_configure = omap4_vdd_data_configure;
 	} else {
 		pr_warning("%s: voltage driver support not added\n", __func__);
 	}
