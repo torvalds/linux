@@ -249,6 +249,24 @@ static int olpc_bat_get_charge_full_design(union power_supply_propval *val)
 	return ret;
 }
 
+static int olpc_bat_get_charge_now(union power_supply_propval *val)
+{
+	uint8_t soc;
+	union power_supply_propval full;
+	int ret;
+
+	ret = olpc_ec_cmd(EC_BAT_SOC, NULL, 0, &soc, 1);
+	if (ret)
+		return ret;
+
+	ret = olpc_bat_get_charge_full_design(&full);
+	if (ret)
+		return ret;
+
+	val->intval = soc * (full.intval / 100);
+	return 0;
+}
+
 /*********************************************************************
  *		Battery properties
  *********************************************************************/
@@ -347,6 +365,11 @@ static int olpc_bat_get_property(struct power_supply *psy,
 		if (ret)
 			return ret;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_NOW:
+		ret = olpc_bat_get_charge_now(val);
+		if (ret)
+			return ret;
+		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		ret = olpc_ec_cmd(EC_BAT_TEMP, NULL, 0, (void *)&ec_word, 2);
 		if (ret)
@@ -395,6 +418,7 @@ static enum power_supply_property olpc_xo1_bat_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
+	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_TEMP_AMBIENT,
 	POWER_SUPPLY_PROP_MANUFACTURER,
