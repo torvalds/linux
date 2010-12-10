@@ -362,6 +362,35 @@ static inline void efx_notify_tx_desc(struct efx_tx_queue *tx_queue)
 			FR_AZ_TX_DESC_UPD_DWORD_P0, tx_queue->queue);
 }
 
+/* Write pointer and first descriptor for TX descriptor ring */
+static inline void efx_push_tx_desc(struct efx_tx_queue *tx_queue,
+				    const efx_qword_t *txd)
+{
+	unsigned write_ptr;
+	efx_oword_t reg;
+
+	BUILD_BUG_ON(FRF_AZ_TX_DESC_LBN != 0);
+	BUILD_BUG_ON(FR_AA_TX_DESC_UPD_KER != FR_BZ_TX_DESC_UPD_P0);
+
+	write_ptr = tx_queue->write_count & tx_queue->ptr_mask;
+	EFX_POPULATE_OWORD_2(reg, FRF_AZ_TX_DESC_PUSH_CMD, true,
+			     FRF_AZ_TX_DESC_WPTR, write_ptr);
+	reg.qword[0] = *txd;
+	efx_writeo_page(tx_queue->efx, &reg,
+			FR_BZ_TX_DESC_UPD_P0, tx_queue->queue);
+}
+
+static inline bool
+efx_may_push_tx_desc(struct efx_tx_queue *tx_queue, unsigned int write_count)
+{
+	unsigned empty_read_count = ACCESS_ONCE(tx_queue->empty_read_count);
+
+	if (empty_read_count == 0)
+		return false;
+
+	tx_queue->empty_read_count = 0;
+	return ((empty_read_count ^ write_count) & ~EFX_EMPTY_COUNT_VALID) == 0;
+}
 
 /* For each entry inserted into the software descriptor ring, create a
  * descriptor in the hardware TX descriptor ring (in host memory), and
@@ -373,6 +402,7 @@ void efx_nic_push_buffers(struct efx_tx_queue *tx_queue)
 	struct efx_tx_buffer *buffer;
 	efx_qword_t *txd;
 	unsigned write_ptr;
+	unsigned old_write_count = tx_queue->write_count;
 
 	BUG_ON(tx_queue->write_count == tx_queue->insert_count);
 
@@ -391,7 +421,15 @@ void efx_nic_push_buffers(struct efx_tx_queue *tx_queue)
 	} while (tx_queue->write_count != tx_queue->insert_count);
 
 	wmb(); /* Ensure descriptors are written before they are fetched */
-	efx_notify_tx_desc(tx_queue);
+
+	if (efx_may_push_tx_desc(tx_queue, old_write_count)) {
+		txd = efx_tx_desc(tx_queue,
+				  old_write_count & tx_queue->ptr_mask);
+		efx_push_tx_desc(tx_queue, txd);
+		++tx_queue->pushes;
+	} else {
+		efx_notify_tx_desc(tx_queue);
+	}
 }
 
 /* Allocate hardware resources for a TX queue */
@@ -1632,7 +1670,7 @@ void efx_nic_init_common(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_RX_SPACER, 0xfe);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_RX_SPACER_EN, 1);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_ONE_PKT_PER_Q, 1);
-	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_PUSH_EN, 0);
+	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_PUSH_EN, 1);
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_DIS_NON_IP_EV, 1);
 	/* Enable SW_EV to inherit in char driver - assume harmless here */
 	EFX_SET_OWORD_FIELD(temp, FRF_AZ_TX_SOFT_EVT_EN, 1);

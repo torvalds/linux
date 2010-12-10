@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
+#include <linux/in.h>
 #include "net_driver.h"
 #include "workarounds.h"
 #include "selftest.h"
@@ -558,12 +559,8 @@ static int efx_ethtool_set_flags(struct net_device *net_dev, u32 data)
 	if (rc)
 		return rc;
 
-	if (!(data & ETH_FLAG_NTUPLE)) {
-		efx_filter_table_clear(efx, EFX_FILTER_TABLE_RX_IP,
-				       EFX_FILTER_PRI_MANUAL);
-		efx_filter_table_clear(efx, EFX_FILTER_TABLE_RX_MAC,
-				       EFX_FILTER_PRI_MANUAL);
-	}
+	if (!(data & ETH_FLAG_NTUPLE))
+		efx_filter_clear_rx(efx, EFX_FILTER_PRI_MANUAL);
 
 	return 0;
 }
@@ -581,6 +578,9 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 		rc = -EIO;
 		goto fail1;
 	}
+
+	netif_info(efx, drv, efx->net_dev, "starting %sline testing\n",
+		   (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
 
 	/* We need rx buffers and interrupts. */
 	already_up = (efx->net_dev->flags & IFF_UP);
@@ -600,9 +600,9 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 	if (!already_up)
 		dev_close(efx->net_dev);
 
-	netif_dbg(efx, drv, efx->net_dev, "%s %sline self-tests\n",
-		  rc == 0 ? "passed" : "failed",
-		  (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
+	netif_info(efx, drv, efx->net_dev, "%s %sline self-tests\n",
+		   rc == 0 ? "passed" : "failed",
+		   (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
 
  fail2:
  fail1:
@@ -921,6 +921,7 @@ static int efx_ethtool_set_rx_ntuple(struct net_device *net_dev,
 	struct ethhdr *mac_entry = &ntuple->fs.h_u.ether_spec;
 	struct ethhdr *mac_mask = &ntuple->fs.m_u.ether_spec;
 	struct efx_filter_spec filter;
+	int rc;
 
 	/* Range-check action */
 	if (ntuple->fs.action < ETHTOOL_RXNTUPLE_ACTION_CLEAR ||
@@ -930,9 +931,16 @@ static int efx_ethtool_set_rx_ntuple(struct net_device *net_dev,
 	if (~ntuple->fs.data_mask)
 		return -EINVAL;
 
+	efx_filter_init_rx(&filter, EFX_FILTER_PRI_MANUAL, 0,
+			   (ntuple->fs.action == ETHTOOL_RXNTUPLE_ACTION_DROP) ?
+			   0xfff : ntuple->fs.action);
+
 	switch (ntuple->fs.flow_type) {
 	case TCP_V4_FLOW:
-	case UDP_V4_FLOW:
+	case UDP_V4_FLOW: {
+		u8 proto = (ntuple->fs.flow_type == TCP_V4_FLOW ?
+			    IPPROTO_TCP : IPPROTO_UDP);
+
 		/* Must match all of destination, */
 		if (ip_mask->ip4dst | ip_mask->pdst)
 			return -EINVAL;
@@ -944,7 +952,22 @@ static int efx_ethtool_set_rx_ntuple(struct net_device *net_dev,
 		/* and nothing else */
 		if ((u8)~ip_mask->tos | (u16)~ntuple->fs.vlan_tag_mask)
 			return -EINVAL;
+
+		if (!ip_mask->ip4src)
+			rc = efx_filter_set_ipv4_full(&filter, proto,
+						      ip_entry->ip4dst,
+						      ip_entry->pdst,
+						      ip_entry->ip4src,
+						      ip_entry->psrc);
+		else
+			rc = efx_filter_set_ipv4_local(&filter, proto,
+						       ip_entry->ip4dst,
+						       ip_entry->pdst);
+		if (rc)
+			return rc;
 		break;
+	}
+
 	case ETHER_FLOW:
 		/* Must match all of destination, */
 		if (!is_zero_ether_addr(mac_mask->h_dest))
@@ -957,58 +980,24 @@ static int efx_ethtool_set_rx_ntuple(struct net_device *net_dev,
 		if (!is_broadcast_ether_addr(mac_mask->h_source) ||
 		    mac_mask->h_proto != htons(0xffff))
 			return -EINVAL;
+
+		rc = efx_filter_set_eth_local(
+			&filter,
+			(ntuple->fs.vlan_tag_mask == 0xf000) ?
+			ntuple->fs.vlan_tag : EFX_FILTER_VID_UNSPEC,
+			mac_entry->h_dest);
+		if (rc)
+			return rc;
 		break;
+
 	default:
 		return -EINVAL;
 	}
 
-	filter.priority = EFX_FILTER_PRI_MANUAL;
-	filter.flags = 0;
-
-	switch (ntuple->fs.flow_type) {
-	case TCP_V4_FLOW:
-		if (!ip_mask->ip4src)
-			efx_filter_set_rx_tcp_full(&filter,
-						   htonl(ip_entry->ip4src),
-						   htons(ip_entry->psrc),
-						   htonl(ip_entry->ip4dst),
-						   htons(ip_entry->pdst));
-		else
-			efx_filter_set_rx_tcp_wild(&filter,
-						   htonl(ip_entry->ip4dst),
-						   htons(ip_entry->pdst));
-		break;
-	case UDP_V4_FLOW:
-		if (!ip_mask->ip4src)
-			efx_filter_set_rx_udp_full(&filter,
-						   htonl(ip_entry->ip4src),
-						   htons(ip_entry->psrc),
-						   htonl(ip_entry->ip4dst),
-						   htons(ip_entry->pdst));
-		else
-			efx_filter_set_rx_udp_wild(&filter,
-						   htonl(ip_entry->ip4dst),
-						   htons(ip_entry->pdst));
-		break;
-	case ETHER_FLOW:
-		if (ntuple->fs.vlan_tag_mask == 0xf000)
-			efx_filter_set_rx_mac_full(&filter,
-						   ntuple->fs.vlan_tag & 0xfff,
-						   mac_entry->h_dest);
-		else
-			efx_filter_set_rx_mac_wild(&filter, mac_entry->h_dest);
-		break;
-	}
-
-	if (ntuple->fs.action == ETHTOOL_RXNTUPLE_ACTION_CLEAR) {
+	if (ntuple->fs.action == ETHTOOL_RXNTUPLE_ACTION_CLEAR)
 		return efx_filter_remove_filter(efx, &filter);
-	} else {
-		if (ntuple->fs.action == ETHTOOL_RXNTUPLE_ACTION_DROP)
-			filter.dmaq_id = 0xfff;
-		else
-			filter.dmaq_id = ntuple->fs.action;
+	else
 		return efx_filter_insert_filter(efx, &filter, true);
-	}
 }
 
 static int efx_ethtool_get_rxfh_indir(struct net_device *net_dev,

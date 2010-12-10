@@ -240,8 +240,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 				 * of read_count. */
 				smp_mb();
 				tx_queue->old_read_count =
-					*(volatile unsigned *)
-					&tx_queue->read_count;
+					ACCESS_ONCE(tx_queue->read_count);
 				fill_level = (tx_queue->insert_count
 					      - tx_queue->old_read_count);
 				q_space = efx->txq_entries - 1 - fill_level;
@@ -429,6 +428,16 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 			__netif_tx_unlock(queue);
 		}
 	}
+
+	/* Check whether the hardware queue is now empty */
+	if ((int)(tx_queue->read_count - tx_queue->old_write_count) >= 0) {
+		tx_queue->old_write_count = ACCESS_ONCE(tx_queue->write_count);
+		if (tx_queue->read_count == tx_queue->old_write_count) {
+			smp_mb();
+			tx_queue->empty_read_count =
+				tx_queue->read_count | EFX_EMPTY_COUNT_VALID;
+		}
+	}
 }
 
 int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
@@ -474,8 +483,10 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 
 	tx_queue->insert_count = 0;
 	tx_queue->write_count = 0;
+	tx_queue->old_write_count = 0;
 	tx_queue->read_count = 0;
 	tx_queue->old_read_count = 0;
+	tx_queue->empty_read_count = 0 | EFX_EMPTY_COUNT_VALID;
 	BUG_ON(tx_queue->stopped);
 
 	/* Set up TX descriptor ring */
@@ -764,7 +775,7 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 			 * stopped from the access of read_count. */
 			smp_mb();
 			tx_queue->old_read_count =
-				*(volatile unsigned *)&tx_queue->read_count;
+				ACCESS_ONCE(tx_queue->read_count);
 			fill_level = (tx_queue->insert_count
 				      - tx_queue->old_read_count);
 			q_space = efx->txq_entries - 1 - fill_level;
