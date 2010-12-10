@@ -577,7 +577,9 @@ static void drms_uA_update(struct regulator_dev *rdev)
 
 	err = regulator_check_drms(rdev);
 	if (err < 0 || !rdev->desc->ops->get_optimum_mode ||
-	    !rdev->desc->ops->get_voltage || !rdev->desc->ops->set_mode)
+	    (!rdev->desc->ops->get_voltage &&
+	     !rdev->desc->ops->get_voltage_sel) ||
+	    !rdev->desc->ops->set_mode)
 		return;
 
 	/* get output voltage */
@@ -1682,7 +1684,14 @@ EXPORT_SYMBOL_GPL(regulator_set_voltage);
 
 static int _regulator_get_voltage(struct regulator_dev *rdev)
 {
-	/* sanity check */
+	int sel;
+
+	if (rdev->desc->ops->get_voltage_sel) {
+		sel = rdev->desc->ops->get_voltage_sel(rdev);
+		if (sel < 0)
+			return sel;
+		return rdev->desc->ops->list_voltage(rdev, sel);
+	}
 	if (rdev->desc->ops->get_voltage)
 		return rdev->desc->ops->get_voltage(rdev);
 	else
@@ -2191,7 +2200,7 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
 	int			status = 0;
 
 	/* some attributes need specific methods to be displayed */
-	if (ops->get_voltage) {
+	if (ops->get_voltage || ops->get_voltage_sel) {
 		status = device_create_file(dev, &dev_attr_microvolts);
 		if (status < 0)
 			return status;
@@ -2326,6 +2335,16 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 
 	if (!init_data)
 		return ERR_PTR(-EINVAL);
+
+	/* Only one of each should be implemented */
+	WARN_ON(regulator_desc->ops->get_voltage &&
+		regulator_desc->ops->get_voltage_sel);
+
+	/* If we're using selectors we must implement list_voltage. */
+	if (regulator_desc->ops->get_voltage_sel &&
+	    !regulator_desc->ops->list_voltage) {
+		return ERR_PTR(-EINVAL);
+	}
 
 	rdev = kzalloc(sizeof(struct regulator_dev), GFP_KERNEL);
 	if (rdev == NULL)

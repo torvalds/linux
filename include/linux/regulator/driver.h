@@ -43,6 +43,8 @@ enum regulator_status {
  * @set_voltage: Set the voltage for the regulator within the range specified.
  *               The driver should select the voltage closest to min_uV.
  * @get_voltage: Return the currently configured voltage for the regulator.
+ * @get_voltage_sel: Return the currently configured voltage selector for the
+ *                   regulator.
  * @list_voltage: Return one of the supported voltages, in microvolts; zero
  *	if the selector indicates a voltage that is unusable on this system;
  *	or negative errno.  Selectors range from zero to one less than
@@ -82,6 +84,7 @@ struct regulator_ops {
 	int (*set_voltage) (struct regulator_dev *, int min_uV, int max_uV,
 			    unsigned *selector);
 	int (*get_voltage) (struct regulator_dev *);
+	int (*get_voltage_sel) (struct regulator_dev *);
 
 	/* get/set regulator current  */
 	int (*set_current_limit) (struct regulator_dev *,
