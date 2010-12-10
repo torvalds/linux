@@ -339,6 +339,9 @@ static int __init ams_delta_modem_init(void)
 {
 	int err;
 
+	if (!machine_is_ams_delta())
+		return -ENODEV;
+
 	omap_cfg_reg(M14_1510_GPIO2);
 	ams_delta_modem_ports[0].irq =
 			gpio_to_irq(AMS_DELTA_GPIO_PIN_MODEM_IRQ);

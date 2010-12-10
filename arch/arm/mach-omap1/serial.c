@@ -258,6 +258,9 @@ late_initcall(omap_serial_wakeup_init);
 
 static int __init omap_init(void)
 {
+	if (!cpu_class_is_omap1())
+		return -ENODEV;
+
 	return platform_device_register(&serial_device);
 }
 arch_initcall(omap_init);

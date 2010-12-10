@@ -288,6 +288,9 @@ static inline void omap_init_audio(void) {}
  */
 static int __init omap1_init_devices(void)
 {
+	if (!cpu_class_is_omap1())
+		return -ENODEV;
+
 	/* please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */

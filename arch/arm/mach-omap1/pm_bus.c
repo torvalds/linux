@@ -73,6 +73,9 @@ static int __init omap1_pm_runtime_init(void)
 	const struct dev_pm_ops *pm;
 	struct dev_pm_ops *omap_pm;
 
+	if (!cpu_class_is_omap1())
+		return -ENODEV;
+
 	pm = platform_bus_get_pm_ops();
 	if (!pm) {
 		pr_err("%s: unable to get dev_pm_ops from platform_bus\n",
