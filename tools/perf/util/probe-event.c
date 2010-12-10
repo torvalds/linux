@@ -135,7 +135,7 @@ const char *kernel_get_module_path(const char *module)
 		if (dso__load_vmlinux(dso, map, vmlinux_name, NULL) <= 0)
 			return NULL;
 	} else {
-		if (dso__load_vmlinux_path(dso, map, NULL) < 0) {
+		if (dso__load_vmlinux_path(dso, map, NULL) <= 0) {
 			pr_debug("Failed to load kernel map.\n");
 			return NULL;
 		}
