@@ -126,9 +126,11 @@ static int talk_to_otherend(struct xenbus_device *dev)
 
 static int watch_otherend(struct xenbus_device *dev)
 {
-	struct xen_bus_type *bus = container_of(dev->dev.bus, struct xen_bus_type, bus);
+	struct xen_bus_type *bus =
+		container_of(dev->dev.bus, struct xen_bus_type, bus);
 
-	return xenbus_watch_pathfmt(dev, &dev->otherend_watch, bus->otherend_changed,
+	return xenbus_watch_pathfmt(dev, &dev->otherend_watch,
+				    bus->otherend_changed,
 				    "%s/%s", dev->otherend, "state");
 }
 
@@ -579,7 +581,8 @@ int xenbus_dev_suspend(struct device *dev, pm_message_t state)
 {
 	int err = 0;
 	struct xenbus_driver *drv;
-	struct xenbus_device *xdev = container_of(dev, struct xenbus_device, dev);
+	struct xenbus_device *xdev
+		= container_of(dev, struct xenbus_device, dev);
 
 	DPRINTK("%s", xdev->nodename);
 
@@ -599,7 +602,8 @@ int xenbus_dev_resume(struct device *dev)
 {
 	int err;
 	struct xenbus_driver *drv;
-	struct xenbus_device *xdev = container_of(dev, struct xenbus_device, dev);
+	struct xenbus_device *xdev
+		= container_of(dev, struct xenbus_device, dev);
 
 	DPRINTK("%s", xdev->nodename);
 

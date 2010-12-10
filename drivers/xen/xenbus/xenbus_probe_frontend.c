@@ -46,7 +46,8 @@ static int frontend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
 }
 
 /* device/<typename>/<name> */
-static int xenbus_probe_frontend(struct xen_bus_type *bus, const char *type, const char *name)
+static int xenbus_probe_frontend(struct xen_bus_type *bus, const char *type,
+				 const char *name)
 {
 	char *nodename;
 	int err;
@@ -62,7 +63,8 @@ static int xenbus_probe_frontend(struct xen_bus_type *bus, const char *type, con
 	return err;
 }
 
-static int xenbus_uevent_frontend(struct device *_dev, struct kobj_uevent_env *env)
+static int xenbus_uevent_frontend(struct device *_dev,
+				  struct kobj_uevent_env *env)
 {
 	struct xenbus_device *dev = to_xenbus_device(_dev);
 
@@ -85,21 +87,21 @@ static struct device_attribute xenbus_frontend_dev_attrs[] = {
 
 static struct xen_bus_type xenbus_frontend = {
 	.root = "device",
-	.levels = 2, 		/* device/type/<id> */
+	.levels = 2,		/* device/type/<id> */
 	.get_bus_id = frontend_bus_id,
 	.probe = xenbus_probe_frontend,
 	.otherend_changed = backend_changed,
 	.bus = {
-		.name     = "xen",
-		.match    = xenbus_match,
-		.uevent   = xenbus_uevent_frontend,
-		.probe    = xenbus_dev_probe,
-		.remove   = xenbus_dev_remove,
-		.shutdown = xenbus_dev_shutdown,
-		.dev_attrs= xenbus_frontend_dev_attrs,
+		.name		= "xen",
+		.match		= xenbus_match,
+		.uevent		= xenbus_uevent_frontend,
+		.probe		= xenbus_dev_probe,
+		.remove		= xenbus_dev_remove,
+		.shutdown	= xenbus_dev_shutdown,
+		.dev_attrs	= xenbus_frontend_dev_attrs,
 
-		.suspend  = xenbus_dev_suspend,
-		.resume   = xenbus_dev_resume,
+		.suspend	= xenbus_dev_suspend,
+		.resume		= xenbus_dev_resume,
 	},
 };
 

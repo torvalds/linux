@@ -41,8 +41,10 @@ struct xen_bus_type
 	char *root;
 	unsigned int levels;
 	int (*get_bus_id)(char bus_id[XEN_BUS_ID_SIZE], const char *nodename);
-	int (*probe)(struct xen_bus_type *bus, const char *type, const char *dir);
-	void (*otherend_changed)(struct xenbus_watch *watch, const char **vec, unsigned int len);
+	int (*probe)(struct xen_bus_type *bus, const char *type,
+		     const char *dir);
+	void (*otherend_changed)(struct xenbus_watch *watch, const char **vec,
+				 unsigned int len);
 	struct bus_type bus;
 };
 

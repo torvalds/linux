@@ -72,7 +72,7 @@ config XEN_SYS_HYPERVISOR
 
 config XEN_XENBUS_FRONTEND
        tristate
-	  
+
 config XEN_PLATFORM_PCI
 	tristate "xen platform pci device driver"
 	depends on XEN_PVHVM

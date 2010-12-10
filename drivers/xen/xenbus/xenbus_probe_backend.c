@@ -84,8 +84,8 @@ static int backend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
 	if (err)
 		return err;
 
-	if (snprintf(bus_id, XEN_BUS_ID_SIZE,
-		     "%.*s-%i-%s", typelen, type, domid, devid) >= XEN_BUS_ID_SIZE)
+	if (snprintf(bus_id, XEN_BUS_ID_SIZE, "%.*s-%i-%s",
+		     typelen, type, domid, devid) >= XEN_BUS_ID_SIZE)
 		return -ENOSPC;
 	return 0;
 }
@@ -147,7 +147,8 @@ static int xenbus_probe_backend_unit(struct xen_bus_type *bus,
 }
 
 /* backend/<typename>/<frontend-domid> */
-static int xenbus_probe_backend(struct xen_bus_type *bus, const char *type, const char *domid)
+static int xenbus_probe_backend(struct xen_bus_type *bus, const char *type,
+				const char *domid)
 {
 	char *nodename;
 	int err = 0;
@@ -188,18 +189,18 @@ static struct device_attribute xenbus_backend_dev_attrs[] = {
 
 static struct xen_bus_type xenbus_backend = {
 	.root = "backend",
-	.levels = 3, 		/* backend/type/<frontend>/<id> */
+	.levels = 3,		/* backend/type/<frontend>/<id> */
 	.get_bus_id = backend_bus_id,
 	.probe = xenbus_probe_backend,
 	.otherend_changed = frontend_changed,
 	.bus = {
-		.name      = "xen-backend",
-		.match     = xenbus_match,
-		.uevent    = xenbus_uevent_backend,
-		.probe     = xenbus_dev_probe,
-		.remove    = xenbus_dev_remove,
-		.shutdown  = xenbus_dev_shutdown,
-		.dev_attrs = xenbus_backend_dev_attrs,
+		.name		= "xen-backend",
+		.match		= xenbus_match,
+		.uevent		= xenbus_uevent_backend,
+		.probe		= xenbus_dev_probe,
+		.remove		= xenbus_dev_remove,
+		.shutdown	= xenbus_dev_shutdown,
+		.dev_attrs	= xenbus_backend_dev_attrs,
 	},
 };
 
@@ -220,24 +221,6 @@ static int read_frontend_details(struct xenbus_device *xendev)
 {
 	return xenbus_read_otherend_details(xendev, "frontend-id", "frontend");
 }
-
-//void xenbus_backend_suspend(int (*fn)(struct device *, void *))
-//{
-//	DPRINTK("");
-//	bus_for_each_dev(&xenbus_backend.bus, NULL, NULL, fn);
-//}
-
-//void xenbus_backend_resume(int (*fn)(struct device *, void *))
-//{
-//	DPRINTK("");
-//	bus_for_each_dev(&xenbus_backend.bus, NULL, NULL, fn);
-//}
-
-//int xenbus_for_each_backend(void *arg, int (*fn)(struct device *, void *))
-//{
-//	return bus_for_each_dev(&xenbus_backend.bus, NULL, arg, fn);
-//}
-//EXPORT_SYMBOL_GPL(xenbus_for_each_backend);
 
 int xenbus_dev_is_online(struct xenbus_device *dev)
 {
