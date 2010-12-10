@@ -4182,6 +4182,20 @@ static int vxge_probe_fw_update(struct vxgedev *vdev)
 	return ret;
 }
 
+static int __devinit is_sriov_initialized(struct pci_dev *pdev)
+{
+	int pos;
+	u16 ctrl;
+
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
+	if (pos) {
+		pci_read_config_word(pdev, pos + PCI_SRIOV_CTRL, &ctrl);
+		if (ctrl & PCI_SRIOV_CTRL_VFE)
+			return 1;
+	}
+	return 0;
+}
+
 /**
  * vxge_probe
  * @pdev : structure containing the PCI related information of the device.
@@ -4370,14 +4384,13 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 		num_vfs = vxge_get_num_vfs(function_mode) - 1;
 
 	/* Enable SRIOV mode, if firmware has SRIOV support and if it is a PF */
-	if (is_sriov(function_mode) && (max_config_dev > 1) &&
-		(ll_config->intr_type != INTA) &&
-		(is_privileged == VXGE_HW_OK)) {
-		ret = pci_enable_sriov(pdev, ((max_config_dev - 1) < num_vfs)
-			? (max_config_dev - 1) : num_vfs);
+	if (is_sriov(function_mode) && !is_sriov_initialized(pdev) &&
+	   (ll_config->intr_type != INTA)) {
+		ret = pci_enable_sriov(pdev, num_vfs);
 		if (ret)
 			vxge_debug_ll_config(VXGE_ERR,
 				"Failed in enabling SRIOV mode: %d\n", ret);
+			/* No need to fail out, as an error here is non-fatal */
 	}
 
 	/*
@@ -4672,8 +4685,6 @@ static void __devexit vxge_remove(struct pci_dev *pdev)
 	kfree(vdev->vpaths);
 
 	iounmap(vdev->bar0);
-
-	pci_disable_sriov(pdev);
 
 	/* we are safe to free it now */
 	free_netdev(dev);
