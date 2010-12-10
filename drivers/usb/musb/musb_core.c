@@ -99,18 +99,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#ifdef	CONFIG_ARM
-#include <mach/hardware.h>
-#include <mach/memory.h>
-#include <asm/mach-types.h>
-#endif
-
 #include "musb_core.h"
-
-
-#ifdef CONFIG_ARCH_DAVINCI
-#include "davinci.h"
-#endif
 
 #define TA_WAIT_BCON(m) max_t(int, (m)->a_wait_bcon, OTG_TIME_A_WAIT_BCON)
 
