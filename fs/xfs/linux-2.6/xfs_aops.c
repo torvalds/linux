@@ -626,9 +626,7 @@ xfs_map_at_offset(
 	ASSERT(imap->br_startblock != HOLESTARTBLOCK);
 	ASSERT(imap->br_startblock != DELAYSTARTBLOCK);
 
-	lock_buffer(bh);
 	xfs_map_buffer(inode, bh, imap, offset);
-	bh->b_bdev = xfs_find_bdev_for_inode(inode);
 	set_buffer_mapped(bh);
 	clear_buffer_delay(bh);
 	clear_buffer_unwritten(bh);
@@ -751,12 +749,8 @@ xfs_convert_page(
 				continue;
 			}
 
-			ASSERT(imap->br_startblock != HOLESTARTBLOCK);
-			ASSERT(imap->br_startblock != DELAYSTARTBLOCK);
-
-			if (type == IO_OVERWRITE)
-				lock_buffer(bh);
-			else
+			lock_buffer(bh);
+			if (type != IO_OVERWRITE)
 				xfs_map_at_offset(inode, bh, imap, offset);
 			xfs_add_to_ioend(inode, bh, offset, type,
 					 ioendp, done);
@@ -1041,9 +1035,8 @@ xfs_vm_writepage(
 			imap_valid = xfs_imap_valid(inode, &imap, offset);
 		}
 		if (imap_valid) {
-			if (type == IO_OVERWRITE)
-				lock_buffer(bh);
-			else
+			lock_buffer(bh);
+			if (type != IO_OVERWRITE)
 				xfs_map_at_offset(inode, bh, &imap, offset);
 			xfs_add_to_ioend(inode, bh, offset, type, &ioend,
 					 new_ioend);
