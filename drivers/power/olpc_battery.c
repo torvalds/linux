@@ -201,6 +201,54 @@ static int olpc_bat_get_tech(union power_supply_propval *val)
 	return ret;
 }
 
+static int olpc_bat_get_charge_full_design(union power_supply_propval *val)
+{
+	uint8_t ec_byte;
+	union power_supply_propval tech;
+	int ret, mfr;
+
+	ret = olpc_bat_get_tech(&tech);
+	if (ret)
+		return ret;
+
+	ec_byte = BAT_ADDR_MFR_TYPE;
+	ret = olpc_ec_cmd(EC_BAT_EEPROM, &ec_byte, 1, &ec_byte, 1);
+	if (ret)
+		return ret;
+
+	mfr = ec_byte >> 4;
+
+	switch (tech.intval) {
+	case POWER_SUPPLY_TECHNOLOGY_NiMH:
+		switch (mfr) {
+		case 1: /* Gold Peak */
+			val->intval = 3000000*.8;
+			break;
+		default:
+			return -EIO;
+		}
+		break;
+
+	case POWER_SUPPLY_TECHNOLOGY_LiFe:
+		switch (mfr) {
+		case 1: /* Gold Peak */
+			val->intval = 2800000;
+			break;
+		case 2: /* BYD */
+			val->intval = 3100000;
+			break;
+		default:
+			return -EIO;
+		}
+		break;
+
+	default:
+		return -EIO;
+	}
+
+	return ret;
+}
+
 /*********************************************************************
  *		Battery properties
  *********************************************************************/
@@ -294,6 +342,11 @@ static int olpc_bat_get_property(struct power_supply *psy,
 		else
 			val->intval = POWER_SUPPLY_CAPACITY_LEVEL_NORMAL;
 		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
+		ret = olpc_bat_get_charge_full_design(val);
+		if (ret)
+			return ret;
+		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		ret = olpc_ec_cmd(EC_BAT_TEMP, NULL, 0, (void *)&ec_word, 2);
 		if (ret)
@@ -341,6 +394,7 @@ static enum power_supply_property olpc_xo1_bat_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_TEMP_AMBIENT,
 	POWER_SUPPLY_PROP_MANUFACTURER,
