@@ -441,30 +441,24 @@ static irqreturn_t twl6040_naudint_handler(int irq, void *data)
 
 	twl_i2c_read_u8(TWL_MODULE_AUDIO_VOICE, &intid, TWL6040_REG_INTID);
 
-	switch (intid) {
-	case TWL6040_THINT:
+	if (intid & TWL6040_THINT)
 		dev_alert(codec->dev, "die temp over-limit detection\n");
-		break;
-	case TWL6040_PLUGINT:
-	case TWL6040_UNPLUGINT:
+
+	if ((intid & TWL6040_PLUGINT) || (intid & TWL6040_UNPLUGINT))
 		queue_delayed_work(priv->workqueue, &priv->delayed_work,
 							msecs_to_jiffies(200));
-		break;
-	case TWL6040_HOOKINT:
-		break;
-	case TWL6040_HFINT:
+
+	if (intid & TWL6040_HOOKINT)
+		dev_info(codec->dev, "hook detection\n");
+
+	if (intid & TWL6040_HFINT)
 		dev_alert(codec->dev, "hf drivers over current detection\n");
-		break;
-	case TWL6040_VIBINT:
+
+	if (intid & TWL6040_VIBINT)
 		dev_alert(codec->dev, "vib drivers over current detection\n");
-		break;
-	case TWL6040_READYINT:
+
+	if (intid & TWL6040_READYINT)
 		complete(&priv->ready);
-		break;
-	default:
-		dev_err(codec->dev, "unknown audio interrupt %d\n", intid);
-		break;
-	}
 
 	return IRQ_HANDLED;
 }
