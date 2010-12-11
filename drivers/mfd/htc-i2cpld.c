@@ -82,25 +82,25 @@ struct htcpld_data {
 /* There does not appear to be a way to proactively mask interrupts
  * on the htcpld chip itself.  So, we simply ignore interrupts that
  * aren't desired. */
-static void htcpld_mask(unsigned int irq)
+static void htcpld_mask(struct irq_data *data)
 {
-	struct htcpld_chip *chip = get_irq_chip_data(irq);
-	chip->irqs_enabled &= ~(1 << (irq - chip->irq_start));
-	pr_debug("HTCPLD mask %d %04x\n", irq, chip->irqs_enabled);
+	struct htcpld_chip *chip = irq_data_get_irq_chip_data(data);
+	chip->irqs_enabled &= ~(1 << (data->irq - chip->irq_start));
+	pr_debug("HTCPLD mask %d %04x\n", data->irq, chip->irqs_enabled);
 }
-static void htcpld_unmask(unsigned int irq)
+static void htcpld_unmask(struct irq_data *data)
 {
-	struct htcpld_chip *chip = get_irq_chip_data(irq);
-	chip->irqs_enabled |= 1 << (irq - chip->irq_start);
-	pr_debug("HTCPLD unmask %d %04x\n", irq, chip->irqs_enabled);
+	struct htcpld_chip *chip = irq_data_get_irq_chip_data(data);
+	chip->irqs_enabled |= 1 << (data->irq - chip->irq_start);
+	pr_debug("HTCPLD unmask %d %04x\n", data->irq, chip->irqs_enabled);
 }
 
-static int htcpld_set_type(unsigned int irq, unsigned int flags)
+static int htcpld_set_type(struct irq_data *data, unsigned int flags)
 {
-	struct irq_desc *d = irq_to_desc(irq);
+	struct irq_desc *d = irq_to_desc(data->irq);
 
 	if (!d) {
-		pr_err("HTCPLD invalid IRQ: %d\n", irq);
+		pr_err("HTCPLD invalid IRQ: %d\n", data->irq);
 		return -EINVAL;
 	}
 
@@ -118,10 +118,10 @@ static int htcpld_set_type(unsigned int irq, unsigned int flags)
 }
 
 static struct irq_chip htcpld_muxed_chip = {
-	.name     = "htcpld",
-	.mask     = htcpld_mask,
-	.unmask   = htcpld_unmask,
-	.set_type = htcpld_set_type,
+	.name         = "htcpld",
+	.irq_mask     = htcpld_mask,
+	.irq_unmask   = htcpld_unmask,
+	.irq_set_type = htcpld_set_type,
 };
 
 /* To properly dispatch IRQ events, we need to read from the
