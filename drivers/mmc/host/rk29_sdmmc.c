@@ -300,8 +300,8 @@ static void rk29_sdmmc_set_timeout(struct rk29_sdmmc *host,struct mmc_data *data
 	unsigned timeout;
 
 	timeout = ns_to_clocks(host->clock, data->timeout_ns) + data->timeout_clks;
-	///rk29_sdmmc_write(host->regs, SDMMC_TMOUT, 0xffffffff);
-	rk29_sdmmc_write(host->regs, SDMMC_TMOUT, (timeout << 8) | (70));
+	rk29_sdmmc_write(host->regs, SDMMC_TMOUT, 0xffffffff);
+	///rk29_sdmmc_write(host->regs, SDMMC_TMOUT, (timeout << 8) | (70));
 }
 
 static u32 rk29_sdmmc_prepare_command(struct mmc_host *mmc,

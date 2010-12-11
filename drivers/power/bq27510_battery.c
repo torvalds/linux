@@ -66,10 +66,10 @@ static enum power_supply_property bq27510_battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
-	POWER_SUPPLY_PROP_TEMP,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-	POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
-	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
+	//POWER_SUPPLY_PROP_TEMP,
+	//POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
+	//POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
+	//POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
 };
 
 /*
@@ -241,7 +241,7 @@ static int bq27510_battery_get_property(struct power_supply *psy,
 		val->intval = bq27510_battery_current(di);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		val->intval = bq27510_battery_rsoc(di);
+		val->intval = 100; ///bq27510_battery_rsoc(di);
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = bq27510_battery_temperature(di);
