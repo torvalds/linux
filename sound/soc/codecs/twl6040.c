@@ -39,7 +39,7 @@
 
 #include "twl6040.h"
 
-#define TWL6040_RATES	 (SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
+#define TWL6040_RATES		SNDRV_PCM_RATE_8000_96000
 #define TWL6040_FORMATS	 (SNDRV_PCM_FMTBIT_S32_LE)
 
 struct twl6040_jack_data {
@@ -890,10 +890,17 @@ static int twl6040_hw_params(struct snd_pcm_substream *substream,
 
 	rate = params_rate(params);
 	switch (rate) {
+	case 11250:
+	case 22500:
+	case 44100:
 	case 88200:
 		lppllctl |= TWL6040_LPLLFIN;
 		priv->sysclk = 17640000;
 		break;
+	case 8000:
+	case 16000:
+	case 32000:
+	case 48000:
 	case 96000:
 		lppllctl &= ~TWL6040_LPLLFIN;
 		priv->sysclk = 19200000;
