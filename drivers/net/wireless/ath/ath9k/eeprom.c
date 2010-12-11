@@ -309,7 +309,14 @@ void ath9k_hw_get_gain_boundaries_pdadcs(struct ath_hw *ah,
 	int pdgain_boundary_default;
 	struct cal_data_per_freq *data_def = pRawDataSet;
 	struct cal_data_per_freq_4k *data_4k = pRawDataSet;
+	struct cal_data_per_freq_ar9287 *data_9287 = pRawDataSet;
 	bool eeprom_4k = AR_SREV_9285(ah) || AR_SREV_9271(ah);
+	int intercepts;
+
+	if (AR_SREV_9287(ah))
+		intercepts = AR9287_PD_GAIN_ICEPTS;
+	else
+		intercepts = AR5416_PD_GAIN_ICEPTS;
 
 	memset(&minPwrT4, 0, AR5416_NUM_PD_GAINS);
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
@@ -324,14 +331,25 @@ void ath9k_hw_get_gain_boundaries_pdadcs(struct ath_hw *ah,
 					       bChans, numPiers, &idxL, &idxR);
 
 	if (match) {
-		if (eeprom_4k) {
+		if (AR_SREV_9287(ah)) {
+			/* FIXME: array overrun? */
+			for (i = 0; i < numXpdGains; i++) {
+				minPwrT4[i] = data_9287[idxL].pwrPdg[i][0];
+				maxPwrT4[i] = data_9287[idxL].pwrPdg[i][4];
+				ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
+						data_9287[idxL].pwrPdg[i],
+						data_9287[idxL].vpdPdg[i],
+						intercepts,
+						vpdTableI[i]);
+			}
+		} else if (eeprom_4k) {
 			for (i = 0; i < numXpdGains; i++) {
 				minPwrT4[i] = data_4k[idxL].pwrPdg[i][0];
 				maxPwrT4[i] = data_4k[idxL].pwrPdg[i][4];
 				ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
 						data_4k[idxL].pwrPdg[i],
 						data_4k[idxL].vpdPdg[i],
-						AR5416_PD_GAIN_ICEPTS,
+						intercepts,
 						vpdTableI[i]);
 			}
 		} else {
@@ -341,13 +359,18 @@ void ath9k_hw_get_gain_boundaries_pdadcs(struct ath_hw *ah,
 				ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
 						data_def[idxL].pwrPdg[i],
 						data_def[idxL].vpdPdg[i],
-						AR5416_PD_GAIN_ICEPTS,
+						intercepts,
 						vpdTableI[i]);
 			}
 		}
 	} else {
 		for (i = 0; i < numXpdGains; i++) {
-			if (eeprom_4k) {
+			if (AR_SREV_9287(ah)) {
+				pVpdL = data_9287[idxL].vpdPdg[i];
+				pPwrL = data_9287[idxL].pwrPdg[i];
+				pVpdR = data_9287[idxR].vpdPdg[i];
+				pPwrR = data_9287[idxR].pwrPdg[i];
+			} else if (eeprom_4k) {
 				pVpdL = data_4k[idxL].vpdPdg[i];
 				pPwrL = data_4k[idxL].pwrPdg[i];
 				pVpdR = data_4k[idxR].vpdPdg[i];
@@ -362,17 +385,17 @@ void ath9k_hw_get_gain_boundaries_pdadcs(struct ath_hw *ah,
 			minPwrT4[i] = max(pPwrL[0], pPwrR[0]);
 
 			maxPwrT4[i] =
-				min(pPwrL[AR5416_PD_GAIN_ICEPTS - 1],
-				    pPwrR[AR5416_PD_GAIN_ICEPTS - 1]);
+				min(pPwrL[intercepts - 1],
+				    pPwrR[intercepts - 1]);
 
 
 			ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
 						pPwrL, pVpdL,
-						AR5416_PD_GAIN_ICEPTS,
+						intercepts,
 						vpdTableL[i]);
 			ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
 						pPwrR, pVpdR,
-						AR5416_PD_GAIN_ICEPTS,
+						intercepts,
 						vpdTableR[i]);
 
 			for (j = 0; j <= (maxPwrT4[i] - minPwrT4[i]) / 2; j++) {
