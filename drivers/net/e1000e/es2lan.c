@@ -426,8 +426,8 @@ static void e1000_release_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask)
 {
 	u32 swfw_sync;
 
-	while (e1000e_get_hw_semaphore(hw) != 0);
-	/* Empty */
+	while (e1000e_get_hw_semaphore(hw) != 0)
+		; /* Empty */
 
 	swfw_sync = er32(SW_FW_SYNC);
 	swfw_sync &= ~mask;
