@@ -2627,6 +2627,19 @@ nfs4_set_claim_prev(struct nfsd4_open *open)
 	open->op_stateowner->so_client->cl_firststate = 1;
 }
 
+/* Should we give out recallable state?: */
+static bool nfsd4_cb_channel_good(struct nfs4_client *clp)
+{
+	if (clp->cl_cb_state == NFSD4_CB_UP)
+		return true;
+	/*
+	 * In the sessions case, since we don't have to establish a
+	 * separate connection for callbacks, we assume it's OK
+	 * until we hear otherwise:
+	 */
+	return clp->cl_minorversion && clp->cl_cb_state == NFSD4_CB_UNKNOWN;
+}
+
 /*
  * Attempt to hand out a delegation.
  */
@@ -2635,11 +2648,11 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 {
 	struct nfs4_delegation *dp;
 	struct nfs4_stateowner *sop = stp->st_stateowner;
-	/* XXX: or unknown and nfsv4.1: */
-	int cb_up = (sop->so_client->cl_cb_state == NFSD4_CB_UP);
+	int cb_up;
 	struct file_lock *fl;
 	int status, flag = 0;
 
+	cb_up = nfsd4_cb_channel_good(sop->so_client);
 	flag = NFS4_OPEN_DELEGATE_NONE;
 	open->op_recall = 0;
 	switch (open->op_claim_type) {
