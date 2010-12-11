@@ -232,16 +232,16 @@ static struct abx500_ops ab8500_ops = {
 	.startup_irq_enabled = NULL,
 };
 
-static void ab8500_irq_lock(unsigned int irq)
+static void ab8500_irq_lock(struct irq_data *data)
 {
-	struct ab8500 *ab8500 = get_irq_chip_data(irq);
+	struct ab8500 *ab8500 = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&ab8500->irq_lock);
 }
 
-static void ab8500_irq_sync_unlock(unsigned int irq)
+static void ab8500_irq_sync_unlock(struct irq_data *data)
 {
-	struct ab8500 *ab8500 = get_irq_chip_data(irq);
+	struct ab8500 *ab8500 = irq_data_get_irq_chip_data(data);
 	int i;
 
 	for (i = 0; i < AB8500_NUM_IRQ_REGS; i++) {
@@ -261,20 +261,20 @@ static void ab8500_irq_sync_unlock(unsigned int irq)
 	mutex_unlock(&ab8500->irq_lock);
 }
 
-static void ab8500_irq_mask(unsigned int irq)
+static void ab8500_irq_mask(struct irq_data *data)
 {
-	struct ab8500 *ab8500 = get_irq_chip_data(irq);
-	int offset = irq - ab8500->irq_base;
+	struct ab8500 *ab8500 = irq_data_get_irq_chip_data(data);
+	int offset = data->irq - ab8500->irq_base;
 	int index = offset / 8;
 	int mask = 1 << (offset % 8);
 
 	ab8500->mask[index] |= mask;
 }
 
-static void ab8500_irq_unmask(unsigned int irq)
+static void ab8500_irq_unmask(struct irq_data *data)
 {
-	struct ab8500 *ab8500 = get_irq_chip_data(irq);
-	int offset = irq - ab8500->irq_base;
+	struct ab8500 *ab8500 = irq_data_get_irq_chip_data(data);
+	int offset = data->irq - ab8500->irq_base;
 	int index = offset / 8;
 	int mask = 1 << (offset % 8);
 
@@ -283,10 +283,10 @@ static void ab8500_irq_unmask(unsigned int irq)
 
 static struct irq_chip ab8500_irq_chip = {
 	.name			= "ab8500",
-	.bus_lock		= ab8500_irq_lock,
-	.bus_sync_unlock	= ab8500_irq_sync_unlock,
-	.mask			= ab8500_irq_mask,
-	.unmask			= ab8500_irq_unmask,
+	.irq_bus_lock		= ab8500_irq_lock,
+	.irq_bus_sync_unlock	= ab8500_irq_sync_unlock,
+	.irq_mask		= ab8500_irq_mask,
+	.irq_unmask		= ab8500_irq_unmask,
 };
 
 static irqreturn_t ab8500_irq(int irq, void *dev)
