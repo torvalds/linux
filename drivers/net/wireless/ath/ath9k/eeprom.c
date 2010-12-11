@@ -279,6 +279,196 @@ void ath9k_hw_update_regulatory_maxpower(struct ath_hw *ah)
 	}
 }
 
+void ath9k_hw_get_gain_boundaries_pdadcs(struct ath_hw *ah,
+				struct ath9k_channel *chan,
+				void *pRawDataSet,
+				u8 *bChans, u16 availPiers,
+				u16 tPdGainOverlap,
+				u16 *pPdGainBoundaries, u8 *pPDADCValues,
+				u16 numXpdGains)
+{
+	int i, j, k;
+	int16_t ss;
+	u16 idxL = 0, idxR = 0, numPiers;
+	static u8 vpdTableL[AR5416_NUM_PD_GAINS]
+		[AR5416_MAX_PWR_RANGE_IN_HALF_DB];
+	static u8 vpdTableR[AR5416_NUM_PD_GAINS]
+		[AR5416_MAX_PWR_RANGE_IN_HALF_DB];
+	static u8 vpdTableI[AR5416_NUM_PD_GAINS]
+		[AR5416_MAX_PWR_RANGE_IN_HALF_DB];
+
+	u8 *pVpdL, *pVpdR, *pPwrL, *pPwrR;
+	u8 minPwrT4[AR5416_NUM_PD_GAINS];
+	u8 maxPwrT4[AR5416_NUM_PD_GAINS];
+	int16_t vpdStep;
+	int16_t tmpVal;
+	u16 sizeCurrVpdTable, maxIndex, tgtIndex;
+	bool match;
+	int16_t minDelta = 0;
+	struct chan_centers centers;
+	int pdgain_boundary_default;
+	struct cal_data_per_freq *data_def = pRawDataSet;
+	struct cal_data_per_freq_4k *data_4k = pRawDataSet;
+	bool eeprom_4k = AR_SREV_9285(ah) || AR_SREV_9271(ah);
+
+	memset(&minPwrT4, 0, AR5416_NUM_PD_GAINS);
+	ath9k_hw_get_channel_centers(ah, chan, &centers);
+
+	for (numPiers = 0; numPiers < availPiers; numPiers++) {
+		if (bChans[numPiers] == AR5416_BCHAN_UNUSED)
+			break;
+	}
+
+	match = ath9k_hw_get_lower_upper_index((u8)FREQ2FBIN(centers.synth_center,
+							     IS_CHAN_2GHZ(chan)),
+					       bChans, numPiers, &idxL, &idxR);
+
+	if (match) {
+		if (eeprom_4k) {
+			for (i = 0; i < numXpdGains; i++) {
+				minPwrT4[i] = data_4k[idxL].pwrPdg[i][0];
+				maxPwrT4[i] = data_4k[idxL].pwrPdg[i][4];
+				ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
+						data_4k[idxL].pwrPdg[i],
+						data_4k[idxL].vpdPdg[i],
+						AR5416_PD_GAIN_ICEPTS,
+						vpdTableI[i]);
+			}
+		} else {
+			for (i = 0; i < numXpdGains; i++) {
+				minPwrT4[i] = data_def[idxL].pwrPdg[i][0];
+				maxPwrT4[i] = data_def[idxL].pwrPdg[i][4];
+				ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
+						data_def[idxL].pwrPdg[i],
+						data_def[idxL].vpdPdg[i],
+						AR5416_PD_GAIN_ICEPTS,
+						vpdTableI[i]);
+			}
+		}
+	} else {
+		for (i = 0; i < numXpdGains; i++) {
+			if (eeprom_4k) {
+				pVpdL = data_4k[idxL].vpdPdg[i];
+				pPwrL = data_4k[idxL].pwrPdg[i];
+				pVpdR = data_4k[idxR].vpdPdg[i];
+				pPwrR = data_4k[idxR].pwrPdg[i];
+			} else {
+				pVpdL = data_def[idxL].vpdPdg[i];
+				pPwrL = data_def[idxL].pwrPdg[i];
+				pVpdR = data_def[idxR].vpdPdg[i];
+				pPwrR = data_def[idxR].pwrPdg[i];
+			}
+
+			minPwrT4[i] = max(pPwrL[0], pPwrR[0]);
+
+			maxPwrT4[i] =
+				min(pPwrL[AR5416_PD_GAIN_ICEPTS - 1],
+				    pPwrR[AR5416_PD_GAIN_ICEPTS - 1]);
+
+
+			ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
+						pPwrL, pVpdL,
+						AR5416_PD_GAIN_ICEPTS,
+						vpdTableL[i]);
+			ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
+						pPwrR, pVpdR,
+						AR5416_PD_GAIN_ICEPTS,
+						vpdTableR[i]);
+
+			for (j = 0; j <= (maxPwrT4[i] - minPwrT4[i]) / 2; j++) {
+				vpdTableI[i][j] =
+					(u8)(ath9k_hw_interpolate((u16)
+					     FREQ2FBIN(centers.
+						       synth_center,
+						       IS_CHAN_2GHZ
+						       (chan)),
+					     bChans[idxL], bChans[idxR],
+					     vpdTableL[i][j], vpdTableR[i][j]));
+			}
+		}
+	}
+
+	k = 0;
+
+	for (i = 0; i < numXpdGains; i++) {
+		if (i == (numXpdGains - 1))
+			pPdGainBoundaries[i] =
+				(u16)(maxPwrT4[i] / 2);
+		else
+			pPdGainBoundaries[i] =
+				(u16)((maxPwrT4[i] + minPwrT4[i + 1]) / 4);
+
+		pPdGainBoundaries[i] =
+			min((u16)MAX_RATE_POWER, pPdGainBoundaries[i]);
+
+		if ((i == 0) && !AR_SREV_5416_20_OR_LATER(ah)) {
+			minDelta = pPdGainBoundaries[0] - 23;
+			pPdGainBoundaries[0] = 23;
+		} else {
+			minDelta = 0;
+		}
+
+		if (i == 0) {
+			if (AR_SREV_9280_20_OR_LATER(ah))
+				ss = (int16_t)(0 - (minPwrT4[i] / 2));
+			else
+				ss = 0;
+		} else {
+			ss = (int16_t)((pPdGainBoundaries[i - 1] -
+					(minPwrT4[i] / 2)) -
+				       tPdGainOverlap + 1 + minDelta);
+		}
+		vpdStep = (int16_t)(vpdTableI[i][1] - vpdTableI[i][0]);
+		vpdStep = (int16_t)((vpdStep < 1) ? 1 : vpdStep);
+
+		while ((ss < 0) && (k < (AR5416_NUM_PDADC_VALUES - 1))) {
+			tmpVal = (int16_t)(vpdTableI[i][0] + ss * vpdStep);
+			pPDADCValues[k++] = (u8)((tmpVal < 0) ? 0 : tmpVal);
+			ss++;
+		}
+
+		sizeCurrVpdTable = (u8) ((maxPwrT4[i] - minPwrT4[i]) / 2 + 1);
+		tgtIndex = (u8)(pPdGainBoundaries[i] + tPdGainOverlap -
+				(minPwrT4[i] / 2));
+		maxIndex = (tgtIndex < sizeCurrVpdTable) ?
+			tgtIndex : sizeCurrVpdTable;
+
+		while ((ss < maxIndex) && (k < (AR5416_NUM_PDADC_VALUES - 1))) {
+			pPDADCValues[k++] = vpdTableI[i][ss++];
+		}
+
+		vpdStep = (int16_t)(vpdTableI[i][sizeCurrVpdTable - 1] -
+				    vpdTableI[i][sizeCurrVpdTable - 2]);
+		vpdStep = (int16_t)((vpdStep < 1) ? 1 : vpdStep);
+
+		if (tgtIndex >= maxIndex) {
+			while ((ss <= tgtIndex) &&
+			       (k < (AR5416_NUM_PDADC_VALUES - 1))) {
+				tmpVal = (int16_t)((vpdTableI[i][sizeCurrVpdTable - 1] +
+						    (ss - maxIndex + 1) * vpdStep));
+				pPDADCValues[k++] = (u8)((tmpVal > 255) ?
+							 255 : tmpVal);
+				ss++;
+			}
+		}
+	}
+
+	if (eeprom_4k)
+		pdgain_boundary_default = 58;
+	else
+		pdgain_boundary_default = pPdGainBoundaries[i - 1];
+
+	while (i < AR5416_PD_GAINS_IN_MASK) {
+		pPdGainBoundaries[i] = pdgain_boundary_default;
+		i++;
+	}
+
+	while (k < AR5416_NUM_PDADC_VALUES) {
+		pPDADCValues[k] = pPDADCValues[k - 1];
+		k++;
+	}
+}
+
 int ath9k_hw_eeprom_init(struct ath_hw *ah)
 {
 	int status;

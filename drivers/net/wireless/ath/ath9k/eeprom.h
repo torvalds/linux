@@ -691,6 +691,14 @@ u16 ath9k_hw_get_max_edge_power(u16 freq, struct cal_ctl_edges *pRdEdgesPower,
 void ath9k_hw_update_regulatory_maxpower(struct ath_hw *ah);
 int ath9k_hw_eeprom_init(struct ath_hw *ah);
 
+void ath9k_hw_get_gain_boundaries_pdadcs(struct ath_hw *ah,
+				struct ath9k_channel *chan,
+				void *pRawDataSet,
+				u8 *bChans, u16 availPiers,
+				u16 tPdGainOverlap,
+				u16 *pPdGainBoundaries, u8 *pPDADCValues,
+				u16 numXpdGains);
+
 #define ar5416_get_ntxchains(_txchainmask)			\
 	(((_txchainmask >> 2) & 1) +                            \
 	 ((_txchainmask >> 1) & 1) + (_txchainmask & 1))
