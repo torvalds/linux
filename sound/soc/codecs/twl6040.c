@@ -566,7 +566,7 @@ static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 
 	/* AFM gains */
 	SOC_DOUBLE_TLV("Aux FM Volume",
-		TWL6040_REG_LINEGAIN, 0, 5, 0xF, 0, afm_amp_tlv),
+		TWL6040_REG_LINEGAIN, 0, 4, 0xF, 0, afm_amp_tlv),
 
 	/* Playback gains */
 	SOC_DOUBLE_TLV("Headset Playback Volume",
