@@ -1412,11 +1412,8 @@ void hrtimer_run_queues(void)
 		return;
 
 	for (index = 0; index < HRTIMER_MAX_CLOCK_BASES; index++) {
-		struct timerqueue_node *next;
-
 		base = &cpu_base->clock_base[index];
-		next = timerqueue_getnext(&base->active);
-		if (!next)
+		if (!timerqueue_getnext(&base->active))
 			continue;
 
 		if (gettime) {
@@ -1426,7 +1423,7 @@ void hrtimer_run_queues(void)
 
 		raw_spin_lock(&cpu_base->lock);
 
-		while ((node = next)) {
+		while ((node = timerqueue_getnext(&base->active))) {
 			struct hrtimer *timer;
 
 			timer = container_of(node, struct hrtimer, node);
