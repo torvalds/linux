@@ -54,13 +54,6 @@ static void ath9k_hw_init_mode_regs(struct ath_hw *ah)
 	ath9k_hw_private_ops(ah)->init_mode_regs(ah);
 }
 
-static bool ath9k_hw_macversion_supported(struct ath_hw *ah)
-{
-	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
-
-	return priv_ops->macversion_supported(ah->hw_version.macVersion);
-}
-
 static u32 ath9k_hw_compute_pll_control(struct ath_hw *ah,
 					struct ath9k_channel *chan)
 {
@@ -534,7 +527,19 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	else
 		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD;
 
-	if (!ath9k_hw_macversion_supported(ah)) {
+	switch (ah->hw_version.macVersion) {
+	case AR_SREV_VERSION_5416_PCI:
+	case AR_SREV_VERSION_5416_PCIE:
+	case AR_SREV_VERSION_9160:
+	case AR_SREV_VERSION_9100:
+	case AR_SREV_VERSION_9280:
+	case AR_SREV_VERSION_9285:
+	case AR_SREV_VERSION_9287:
+	case AR_SREV_VERSION_9271:
+	case AR_SREV_VERSION_9300:
+	case AR_SREV_VERSION_9485:
+		break;
+	default:
 		ath_err(common,
 			"Mac Chip Rev 0x%02x.%x is not supported by this driver\n",
 			ah->hw_version.macVersion, ah->hw_version.macRev);
