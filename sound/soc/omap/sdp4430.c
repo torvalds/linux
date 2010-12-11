@@ -24,6 +24,7 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
+#include <sound/jack.h>
 
 #include <asm/mach-types.h>
 #include <plat/hardware.h>
@@ -63,6 +64,21 @@ static int sdp4430_hw_params(struct snd_pcm_substream *substream,
 
 static struct snd_soc_ops sdp4430_ops = {
 	.hw_params = sdp4430_hw_params,
+};
+
+/* Headset jack */
+static struct snd_soc_jack hs_jack;
+
+/*Headset jack detection DAPM pins */
+static struct snd_soc_jack_pin hs_jack_pins[] = {
+	{
+		.pin = "Headset Mic",
+		.mask = SND_JACK_MICROPHONE,
+	},
+	{
+		.pin = "Headset Stereophone",
+		.mask = SND_JACK_HEADPHONE,
+	},
 };
 
 static int sdp4430_get_power_mode(struct snd_kcontrol *kcontrol,
@@ -160,6 +176,22 @@ static int sdp4430_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_enable_pin(dapm, "Headset Stereophone");
 
 	ret = snd_soc_dapm_sync(dapm);
+	if (ret)
+		return ret;
+
+	/* Headset jack detection */
+	ret = snd_soc_jack_new(codec, "Headset Jack",
+				SND_JACK_HEADSET, &hs_jack);
+	if (ret)
+		return ret;
+
+	ret = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pins),
+				hs_jack_pins);
+
+	if (machine_is_omap_4430sdp())
+		twl6040_hs_jack_detect(codec, &hs_jack, SND_JACK_HEADSET);
+	else
+		snd_soc_jack_report(&hs_jack, SND_JACK_HEADSET, SND_JACK_HEADSET);
 
 	return ret;
 }
