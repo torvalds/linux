@@ -210,7 +210,7 @@ static int twl6040_read_reg_volatile(struct snd_soc_codec *codec,
 	if (reg >= TWL6040_CACHEREGNUM)
 		return -EIO;
 
-	twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &value, reg);
+	twl_i2c_read_u8(TWL_MODULE_AUDIO_VOICE, &value, reg);
 	twl6040_write_reg_cache(codec, reg, value);
 
 	return value;
@@ -226,7 +226,7 @@ static int twl6040_write(struct snd_soc_codec *codec,
 		return -EIO;
 
 	twl6040_write_reg_cache(codec, reg, value);
-	return twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE, value, reg);
+	return twl_i2c_write_u8(TWL_MODULE_AUDIO_VOICE, value, reg);
 }
 
 static void twl6040_init_vio_regs(struct snd_soc_codec *codec)
@@ -439,7 +439,7 @@ static irqreturn_t twl6040_naudint_handler(int irq, void *data)
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	u8 intid;
 
-	twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &intid, TWL6040_REG_INTID);
+	twl_i2c_read_u8(TWL_MODULE_AUDIO_VOICE, &intid, TWL6040_REG_INTID);
 
 	switch (intid) {
 	case TWL6040_THINT:
@@ -715,7 +715,7 @@ static int twl6040_power_up_completion(struct snd_soc_codec *codec,
 				msecs_to_jiffies(48));
 
 	if (!time_left) {
-		twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &intid,
+		twl_i2c_read_u8(TWL_MODULE_AUDIO_VOICE, &intid,
 							TWL6040_REG_INTID);
 		if (!(intid & TWL6040_READYINT)) {
 			dev_err(codec->dev, "timeout waiting for READYINT\n");
