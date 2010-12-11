@@ -2140,9 +2140,15 @@ int fill_bitmap_rle_bits(struct drbd_conf *mdev,
 	return len;
 }
 
-enum { OK, FAILED, DONE }
+/**
+ * send_bitmap_rle_or_plain
+ *
+ * Return 0 when done, 1 when another iteration is needed, and a negative error
+ * code upon failure.
+ */
+static int
 send_bitmap_rle_or_plain(struct drbd_conf *mdev,
-	struct p_header80 *h, struct bm_xfer_ctx *c)
+			 struct p_header80 *h, struct bm_xfer_ctx *c)
 {
 	struct p_compressed_bm *p = (void*)h;
 	unsigned long num_words;
@@ -2152,7 +2158,7 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev,
 	len = fill_bitmap_rle_bits(mdev, p, c);
 
 	if (len < 0)
-		return FAILED;
+		return -EIO;
 
 	if (len) {
 		DCBP_set_code(p, RLE_VLI_Bits);
@@ -2182,11 +2188,14 @@ send_bitmap_rle_or_plain(struct drbd_conf *mdev,
 		if (c->bit_offset > c->bm_bits)
 			c->bit_offset = c->bm_bits;
 	}
-	ok = ok ? ((len == 0) ? DONE : OK) : FAILED;
-
-	if (ok == DONE)
-		INFO_bm_xfer_stats(mdev, "send", c);
-	return ok;
+	if (ok) {
+		if (len == 0) {
+			INFO_bm_xfer_stats(mdev, "send", c);
+			return 0;
+		} else
+			return 1;
+	}
+	return -EIO;
 }
 
 /* See the comment at receive_bitmap() */
@@ -2194,7 +2203,7 @@ int _drbd_send_bitmap(struct drbd_conf *mdev)
 {
 	struct bm_xfer_ctx c;
 	struct p_header80 *p;
-	int ret;
+	int err;
 
 	ERR_IF(!mdev->bitmap) return false;
 
@@ -2229,11 +2238,11 @@ int _drbd_send_bitmap(struct drbd_conf *mdev)
 	};
 
 	do {
-		ret = send_bitmap_rle_or_plain(mdev, p, &c);
-	} while (ret == OK);
+		err = send_bitmap_rle_or_plain(mdev, p, &c);
+	} while (err > 0);
 
 	free_page((unsigned long) p);
-	return (ret == DONE);
+	return err == 0;
 }
 
 int drbd_send_bitmap(struct drbd_conf *mdev)
