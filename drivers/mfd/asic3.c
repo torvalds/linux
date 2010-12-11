@@ -57,7 +57,7 @@ struct asic3_clk {
 		.rate = _rate,			\
 	}
 
-struct asic3_clk asic3_clk_init[] __initdata = {
+static struct asic3_clk asic3_clk_init[] __initdata = {
 	INIT_CDEX(SPI, 0),
 	INIT_CDEX(OWM, 5000000),
 	INIT_CDEX(PWM0, 0),
@@ -102,7 +102,7 @@ static inline u32 asic3_read_register(struct asic3 *asic,
 			(reg >> asic->bus_shift));
 }
 
-void asic3_set_register(struct asic3 *asic, u32 reg, u32 bits, bool set)
+static void asic3_set_register(struct asic3 *asic, u32 reg, u32 bits, bool set)
 {
 	unsigned long flags;
 	u32 val;
