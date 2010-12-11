@@ -431,13 +431,14 @@ static void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 	NEGOTIATE_MESSAGE *sec_blob = (NEGOTIATE_MESSAGE *)pbuffer;
 	__u32 flags;
 
+	memset(pbuffer, 0, sizeof(NEGOTIATE_MESSAGE));
 	memcpy(sec_blob->Signature, NTLMSSP_SIGNATURE, 8);
 	sec_blob->MessageType = NtLmNegotiate;
 
 	/* BB is NTLMV2 session security format easier to use here? */
 	flags = NTLMSSP_NEGOTIATE_56 |	NTLMSSP_REQUEST_TARGET |
 		NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_UNICODE |
-		NTLMSSP_NEGOTIATE_NTLM;
+		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC;
 	if (ses->server->secMode &
 			(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
@@ -446,7 +447,7 @@ static void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 				NTLMSSP_NEGOTIATE_EXTENDED_SEC;
 	}
 
-	sec_blob->NegotiateFlags |= cpu_to_le32(flags);
+	sec_blob->NegotiateFlags = cpu_to_le32(flags);
 
 	sec_blob->WorkstationName.BufferOffset = 0;
 	sec_blob->WorkstationName.Length = 0;
@@ -477,7 +478,7 @@ static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	flags = NTLMSSP_NEGOTIATE_56 |
 		NTLMSSP_REQUEST_TARGET | NTLMSSP_NEGOTIATE_TARGET_INFO |
 		NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_UNICODE |
-		NTLMSSP_NEGOTIATE_NTLM;
+		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC;
 	if (ses->server->secMode &
 	   (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
@@ -485,7 +486,7 @@ static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 		flags |= NTLMSSP_NEGOTIATE_ALWAYS_SIGN;
 
 	tmp = pbuffer + sizeof(AUTHENTICATE_MESSAGE);
-	sec_blob->NegotiateFlags |= cpu_to_le32(flags);
+	sec_blob->NegotiateFlags = cpu_to_le32(flags);
 
 	sec_blob->LmChallengeResponse.BufferOffset =
 				cpu_to_le32(sizeof(AUTHENTICATE_MESSAGE));
@@ -544,8 +545,9 @@ static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 	sec_blob->WorkstationName.MaximumLength = 0;
 	tmp += 2;
 
-	if ((ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_KEY_XCH) &&
-			!calc_seckey(ses)) {
+	if (((ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_KEY_XCH) ||
+		(ses->ntlmssp->server_flags & NTLMSSP_NEGOTIATE_EXTENDED_SEC))
+			&& !calc_seckey(ses)) {
 		memcpy(tmp, ses->ntlmssp->ciphertext, CIFS_CPHTXT_SIZE);
 		sec_blob->SessionKey.BufferOffset = cpu_to_le32(tmp - pbuffer);
 		sec_blob->SessionKey.Length = cpu_to_le16(CIFS_CPHTXT_SIZE);
@@ -561,16 +563,6 @@ static int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 setup_ntlmv2_ret:
 	*buflen = tmp - pbuffer;
 	return rc;
-}
-
-
-static void setup_ntlmssp_neg_req(SESSION_SETUP_ANDX *pSMB,
-				 struct cifsSesInfo *ses)
-{
-	build_ntlmssp_negotiate_blob(&pSMB->req.SecurityBlob[0], ses);
-	pSMB->req.SecurityBlobLength = cpu_to_le16(sizeof(NEGOTIATE_MESSAGE));
-
-	return;
 }
 #endif
 
@@ -828,16 +820,19 @@ ssetup_ntlmssp_authenticate:
 			capabilities |= CAP_EXTENDED_SECURITY;
 			pSMB->req.Capabilities |= cpu_to_le32(capabilities);
 			if (phase == NtLmNegotiate) {
-				setup_ntlmssp_neg_req(pSMB, ses);
+				build_ntlmssp_negotiate_blob(
+					pSMB->req.SecurityBlob, ses);
 				iov[1].iov_len = sizeof(NEGOTIATE_MESSAGE);
-				iov[1].iov_base = &pSMB->req.SecurityBlob[0];
+				iov[1].iov_base = pSMB->req.SecurityBlob;
+				pSMB->req.SecurityBlobLength =
+					cpu_to_le16(sizeof(NEGOTIATE_MESSAGE));
 			} else if (phase == NtLmAuthenticate) {
 				/* 5 is an empirical value, large enought to
 				 * hold authenticate message, max 10 of
 				 * av paris, doamin,user,workstation mames,
 				 * flags etc..
 				 */
-				ntlmsspblob = kmalloc(
+				ntlmsspblob = kzalloc(
 					5*sizeof(struct _AUTHENTICATE_MESSAGE),
 					GFP_KERNEL);
 				if (!ntlmsspblob) {
