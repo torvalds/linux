@@ -752,7 +752,7 @@ static int twl6040_power_up_completion(struct snd_soc_codec *codec,
 	u8 intid;
 
 	time_left = wait_for_completion_timeout(&priv->ready,
-				msecs_to_jiffies(48));
+				msecs_to_jiffies(144));
 
 	if (!time_left) {
 		twl_i2c_read_u8(TWL_MODULE_AUDIO_VOICE, &intid,
