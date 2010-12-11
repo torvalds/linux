@@ -635,7 +635,7 @@ static struct resource ds1wm_resources[] = {
 	},
 	{
 		.start = ASIC3_IRQ_OWM,
-		.start = ASIC3_IRQ_OWM,
+		.end   = ASIC3_IRQ_OWM,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };
