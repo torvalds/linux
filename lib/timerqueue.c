@@ -85,20 +85,6 @@ void timerqueue_del(struct timerqueue_head *head, struct timerqueue_node *node)
 EXPORT_SYMBOL_GPL(timerqueue_del);
 
 /**
- * timerqueue_getnext - Returns the timer with the earlies expiration time
- *
- * @head: head of timerqueue
- *
- * Returns a pointer to the timer node that has the
- * earliest expiration time.
- */
-struct timerqueue_node *timerqueue_getnext(struct timerqueue_head *head)
-{
-	return head->next;
-}
-EXPORT_SYMBOL_GPL(timerqueue_getnext);
-
-/**
  * timerqueue_iterate_next - Returns the timer after the provided timer
  *
  * @node: Pointer to a timer.

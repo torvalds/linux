@@ -20,9 +20,22 @@ extern void timerqueue_add(struct timerqueue_head *head,
 				struct timerqueue_node *node);
 extern void timerqueue_del(struct timerqueue_head *head,
 				struct timerqueue_node *node);
-extern struct timerqueue_node *timerqueue_getnext(struct timerqueue_head *head);
 extern struct timerqueue_node *timerqueue_iterate_next(
 						struct timerqueue_node *node);
+
+/**
+ * timerqueue_getnext - Returns the timer with the earlies expiration time
+ *
+ * @head: head of timerqueue
+ *
+ * Returns a pointer to the timer node that has the
+ * earliest expiration time.
+ */
+static inline
+struct timerqueue_node *timerqueue_getnext(struct timerqueue_head *head)
+{
+	return head->next;
+}
 
 static inline void timerqueue_init(struct timerqueue_node *node)
 {
