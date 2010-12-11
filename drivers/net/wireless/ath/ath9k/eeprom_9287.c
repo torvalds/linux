@@ -866,8 +866,7 @@ static void ath9k_hw_ar9287_set_board_values(struct ath_hw *ah,
 		antWrites[j++] = (u16)(pModal->antCtrlChain[i] & 0x3);
 	}
 
-	REG_WRITE(ah, AR_PHY_SWITCH_COM,
-		  ah->eep_ops->get_eeprom_antenna_cfg(ah, chan));
+	REG_WRITE(ah, AR_PHY_SWITCH_COM, pModal->antCtrlCommon);
 
 	for (i = 0; i < AR9287_MAX_CHAINS; i++)	{
 		regChainOffset = i * 0x1000;
@@ -968,21 +967,6 @@ static void ath9k_hw_ar9287_set_board_values(struct ath_hw *ah,
 				  pModal->xpaBiasLvl);
 }
 
-static u8 ath9k_hw_ar9287_get_num_ant_config(struct ath_hw *ah,
-					     enum ath9k_hal_freq_band freq_band)
-{
-	return 1;
-}
-
-static u32 ath9k_hw_ar9287_get_eeprom_antenna_cfg(struct ath_hw *ah,
-						  struct ath9k_channel *chan)
-{
-	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
-	struct modal_eep_ar9287_header *pModal = &eep->modalHeader;
-
-	return pModal->antCtrlCommon;
-}
-
 static u16 ath9k_hw_ar9287_get_spur_channel(struct ath_hw *ah,
 					    u16 i, bool is2GHz)
 {
@@ -1020,8 +1004,6 @@ const struct eeprom_ops eep_ar9287_ops = {
 	.fill_eeprom		= ath9k_hw_ar9287_fill_eeprom,
 	.get_eeprom_ver		= ath9k_hw_ar9287_get_eeprom_ver,
 	.get_eeprom_rev		= ath9k_hw_ar9287_get_eeprom_rev,
-	.get_num_ant_config	= ath9k_hw_ar9287_get_num_ant_config,
-	.get_eeprom_antenna_cfg	= ath9k_hw_ar9287_get_eeprom_antenna_cfg,
 	.set_board_values	= ath9k_hw_ar9287_set_board_values,
 	.set_addac		= ath9k_hw_ar9287_set_addac,
 	.set_txpower		= ath9k_hw_ar9287_set_txpower,

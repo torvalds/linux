@@ -770,8 +770,7 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 	pModal = &eep->modalHeader;
 	txRxAttenLocal = 23;
 
-	REG_WRITE(ah, AR_PHY_SWITCH_COM,
-		  ah->eep_ops->get_eeprom_antenna_cfg(ah, chan));
+	REG_WRITE(ah, AR_PHY_SWITCH_COM, pModal->antCtrlCommon);
 
 	/* Single chain for 4K EEPROM*/
 	ath9k_hw_4k_set_gain(ah, pModal, eep, txRxAttenLocal);
@@ -987,21 +986,6 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 	}
 }
 
-static u32 ath9k_hw_4k_get_eeprom_antenna_cfg(struct ath_hw *ah,
-					      struct ath9k_channel *chan)
-{
-	struct ar5416_eeprom_4k *eep = &ah->eeprom.map4k;
-	struct modal_eep_4k_header *pModal = &eep->modalHeader;
-
-	return pModal->antCtrlCommon;
-}
-
-static u8 ath9k_hw_4k_get_num_ant_config(struct ath_hw *ah,
-					 enum ath9k_hal_freq_band freq_band)
-{
-	return 1;
-}
-
 static u16 ath9k_hw_4k_get_spur_channel(struct ath_hw *ah, u16 i, bool is2GHz)
 {
 #define EEP_MAP4K_SPURCHAN \
@@ -1038,8 +1022,6 @@ const struct eeprom_ops eep_4k_ops = {
 	.fill_eeprom		= ath9k_hw_4k_fill_eeprom,
 	.get_eeprom_ver		= ath9k_hw_4k_get_eeprom_ver,
 	.get_eeprom_rev		= ath9k_hw_4k_get_eeprom_rev,
-	.get_num_ant_config	= ath9k_hw_4k_get_num_ant_config,
-	.get_eeprom_antenna_cfg	= ath9k_hw_4k_get_eeprom_antenna_cfg,
 	.set_board_values	= ath9k_hw_4k_set_board_values,
 	.set_addac		= ath9k_hw_4k_set_addac,
 	.set_txpower		= ath9k_hw_4k_set_txpower,

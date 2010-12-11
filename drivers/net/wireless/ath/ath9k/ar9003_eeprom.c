@@ -3427,18 +3427,6 @@ static int ath9k_hw_ar9300_get_eeprom_rev(struct ath_hw *ah)
 	return 0;
 }
 
-static u8 ath9k_hw_ar9300_get_num_ant_config(struct ath_hw *ah,
-					     enum ath9k_hal_freq_band freq_band)
-{
-	return 1;
-}
-
-static u32 ath9k_hw_ar9300_get_eeprom_antenna_cfg(struct ath_hw *ah,
-						  struct ath9k_channel *chan)
-{
-	return -EINVAL;
-}
-
 static s32 ar9003_hw_xpa_bias_level_get(struct ath_hw *ah, bool is2ghz)
 {
 	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
@@ -4848,8 +4836,6 @@ const struct eeprom_ops eep_ar9300_ops = {
 	.fill_eeprom = ath9k_hw_ar9300_fill_eeprom,
 	.get_eeprom_ver = ath9k_hw_ar9300_get_eeprom_ver,
 	.get_eeprom_rev = ath9k_hw_ar9300_get_eeprom_rev,
-	.get_num_ant_config = ath9k_hw_ar9300_get_num_ant_config,
-	.get_eeprom_antenna_cfg = ath9k_hw_ar9300_get_eeprom_antenna_cfg,
 	.set_board_values = ath9k_hw_ar9300_set_board_values,
 	.set_addac = ath9k_hw_ar9300_set_addac,
 	.set_txpower = ath9k_hw_ar9300_set_txpower,

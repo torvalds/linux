@@ -204,8 +204,6 @@ struct ath9k_hw_capabilities {
 	u16 tx_triglevel_max;
 	u16 reg_cap;
 	u8 num_gpio_pins;
-	u8 num_antcfg_2ghz;
-	u8 num_antcfg_5ghz;
 	u8 rx_hp_qdepth;
 	u8 rx_lp_qdepth;
 	u8 rx_status_len;
