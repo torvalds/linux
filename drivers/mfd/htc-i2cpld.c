@@ -235,7 +235,7 @@ static irqreturn_t htcpld_handler(int irq, void *dev)
  * and that work is scheduled in the set routine.  The kernel can then run
  * the I2C functions, which will sleep, in process context.
  */
-void htcpld_chip_set(struct gpio_chip *chip, unsigned offset, int val)
+static void htcpld_chip_set(struct gpio_chip *chip, unsigned offset, int val)
 {
 	struct i2c_client *client;
 	struct htcpld_chip *chip_data;
@@ -259,7 +259,7 @@ void htcpld_chip_set(struct gpio_chip *chip, unsigned offset, int val)
 	schedule_work(&(chip_data->set_val_work));
 }
 
-void htcpld_chip_set_ni(struct work_struct *work)
+static void htcpld_chip_set_ni(struct work_struct *work)
 {
 	struct htcpld_chip *chip_data;
 	struct i2c_client *client;
@@ -269,7 +269,7 @@ void htcpld_chip_set_ni(struct work_struct *work)
 	i2c_smbus_read_byte_data(client, chip_data->cache_out);
 }
 
-int htcpld_chip_get(struct gpio_chip *chip, unsigned offset)
+static int htcpld_chip_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct htcpld_chip *chip_data;
 	int val = 0;
@@ -316,7 +316,7 @@ static int htcpld_direction_input(struct gpio_chip *chip,
 	return (offset < chip->ngpio) ? 0 : -EINVAL;
 }
 
-int htcpld_chip_to_irq(struct gpio_chip *chip, unsigned offset)
+static int htcpld_chip_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct htcpld_chip *chip_data;
 
@@ -328,7 +328,7 @@ int htcpld_chip_to_irq(struct gpio_chip *chip, unsigned offset)
 		return -EINVAL;
 }
 
-void htcpld_chip_reset(struct i2c_client *client)
+static void htcpld_chip_reset(struct i2c_client *client)
 {
 	struct htcpld_chip *chip_data = i2c_get_clientdata(client);
 	if (!chip_data)
