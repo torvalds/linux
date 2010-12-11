@@ -496,7 +496,7 @@ config EZX_PCAP
 
 config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
-	depends on GENERIC_HARDIRQS && ABX500_CORE && SPI_MASTER && ARCH_U8500
+	depends on GENERIC_HARDIRQS && ABX500_CORE && SPI_MASTER
 	select MFD_CORE
 	help
 	  Select this option to enable access to AB8500 power management
