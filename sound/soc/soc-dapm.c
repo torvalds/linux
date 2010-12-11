@@ -62,6 +62,7 @@ static int dapm_up_seq[] = {
 	[snd_soc_dapm_mixer_named_ctl] = 7,
 	[snd_soc_dapm_pga] = 8,
 	[snd_soc_dapm_adc] = 9,
+	[snd_soc_dapm_out_drv] = 10,
 	[snd_soc_dapm_hp] = 10,
 	[snd_soc_dapm_spk] = 10,
 	[snd_soc_dapm_post] = 11,
@@ -72,6 +73,7 @@ static int dapm_down_seq[] = {
 	[snd_soc_dapm_adc] = 1,
 	[snd_soc_dapm_hp] = 2,
 	[snd_soc_dapm_spk] = 2,
+	[snd_soc_dapm_out_drv] = 2,
 	[snd_soc_dapm_pga] = 4,
 	[snd_soc_dapm_mixer_named_ctl] = 5,
 	[snd_soc_dapm_mixer] = 5,
@@ -235,6 +237,7 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	break;
 	/* does not effect routing - always connected */
 	case snd_soc_dapm_pga:
+	case snd_soc_dapm_out_drv:
 	case snd_soc_dapm_output:
 	case snd_soc_dapm_adc:
 	case snd_soc_dapm_input:
@@ -1250,6 +1253,7 @@ static ssize_t dapm_widget_show(struct device *dev,
 		case snd_soc_dapm_dac:
 		case snd_soc_dapm_adc:
 		case snd_soc_dapm_pga:
+		case snd_soc_dapm_out_drv:
 		case snd_soc_dapm_mixer:
 		case snd_soc_dapm_mixer_named_ctl:
 		case snd_soc_dapm_supply:
@@ -1428,6 +1432,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	case snd_soc_dapm_adc:
 	case snd_soc_dapm_dac:
 	case snd_soc_dapm_pga:
+	case snd_soc_dapm_out_drv:
 	case snd_soc_dapm_input:
 	case snd_soc_dapm_output:
 	case snd_soc_dapm_micbias:
@@ -1545,6 +1550,7 @@ int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 			w->power_check = dapm_dac_check_power;
 			break;
 		case snd_soc_dapm_pga:
+		case snd_soc_dapm_out_drv:
 			w->power_check = dapm_generic_check_power;
 			dapm_new_pga(dapm, w);
 			break;
