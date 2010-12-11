@@ -153,7 +153,7 @@ static int ath9k_hw_4k_check_eeprom(struct ath_hw *ah)
 			eep->modalHeader.antCtrlChain[i] = integer;
 		}
 
-		for (i = 0; i < AR5416_EEPROM_MODAL_SPURS; i++) {
+		for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 			word = swab16(eep->modalHeader.spurChans[i].spurChan);
 			eep->modalHeader.spurChans[i].spurChan = word;
 		}
@@ -258,7 +258,7 @@ static void ath9k_hw_get_4k_gain_boundaries_pdadcs(struct ath_hw *ah,
 	struct chan_centers centers;
 #define PD_GAIN_BOUNDARY_DEFAULT 58;
 
-	memset(&minPwrT4, 0, AR9287_NUM_PD_GAINS);
+	memset(&minPwrT4, 0, AR5416_NUM_PD_GAINS);
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
 
 	for (numPiers = 0; numPiers < availPiers; numPiers++) {
@@ -278,7 +278,7 @@ static void ath9k_hw_get_4k_gain_boundaries_pdadcs(struct ath_hw *ah,
 			ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
 					pRawDataSet[idxL].pwrPdg[i],
 					pRawDataSet[idxL].vpdPdg[i],
-					AR5416_EEP4K_PD_GAIN_ICEPTS,
+					AR5416_PD_GAIN_ICEPTS,
 					vpdTableI[i]);
 		}
 	} else {
@@ -291,17 +291,17 @@ static void ath9k_hw_get_4k_gain_boundaries_pdadcs(struct ath_hw *ah,
 			minPwrT4[i] = max(pPwrL[0], pPwrR[0]);
 
 			maxPwrT4[i] =
-				min(pPwrL[AR5416_EEP4K_PD_GAIN_ICEPTS - 1],
-				    pPwrR[AR5416_EEP4K_PD_GAIN_ICEPTS - 1]);
+				min(pPwrL[AR5416_PD_GAIN_ICEPTS - 1],
+				    pPwrR[AR5416_PD_GAIN_ICEPTS - 1]);
 
 
 			ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
 						pPwrL, pVpdL,
-						AR5416_EEP4K_PD_GAIN_ICEPTS,
+						AR5416_PD_GAIN_ICEPTS,
 						vpdTableL[i]);
 			ath9k_hw_fill_vpd_table(minPwrT4[i], maxPwrT4[i],
 						pPwrR, pVpdR,
-						AR5416_EEP4K_PD_GAIN_ICEPTS,
+						AR5416_PD_GAIN_ICEPTS,
 						vpdTableR[i]);
 
 			for (j = 0; j <= (maxPwrT4[i] - minPwrT4[i]) / 2; j++) {
@@ -328,7 +328,7 @@ static void ath9k_hw_get_4k_gain_boundaries_pdadcs(struct ath_hw *ah,
 				(u16)((maxPwrT4[i] + minPwrT4[i + 1]) / 4);
 
 		pPdGainBoundaries[i] =
-			min((u16)AR5416_MAX_RATE_POWER, pPdGainBoundaries[i]);
+			min((u16)MAX_RATE_POWER, pPdGainBoundaries[i]);
 
 		if ((i == 0) && !AR_SREV_5416_20_OR_LATER(ah)) {
 			minDelta = pPdGainBoundaries[0] - 23;
@@ -380,7 +380,7 @@ static void ath9k_hw_get_4k_gain_boundaries_pdadcs(struct ath_hw *ah,
 		}
 	}
 
-	while (i < AR5416_EEP4K_PD_GAINS_IN_MASK) {
+	while (i < AR5416_PD_GAINS_IN_MASK) {
 		pPdGainBoundaries[i] = PD_GAIN_BOUNDARY_DEFAULT;
 		i++;
 	}
@@ -404,7 +404,7 @@ static void ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 	u8 *pCalBChans = NULL;
 	u16 pdGainOverlap_t2;
 	static u8 pdadcValues[AR5416_NUM_PDADC_VALUES];
-	u16 gainBoundaries[AR5416_EEP4K_PD_GAINS_IN_MASK];
+	u16 gainBoundaries[AR5416_PD_GAINS_IN_MASK];
 	u16 numPiers, i, j;
 	u16 numXpdGain, xpdMask;
 	u16 xpdGainValues[AR5416_EEP4K_NUM_PD_GAINS] = { 0, 0 };
@@ -426,12 +426,12 @@ static void ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 
 	numXpdGain = 0;
 
-	for (i = 1; i <= AR5416_EEP4K_PD_GAINS_IN_MASK; i++) {
-		if ((xpdMask >> (AR5416_EEP4K_PD_GAINS_IN_MASK - i)) & 1) {
+	for (i = 1; i <= AR5416_PD_GAINS_IN_MASK; i++) {
+		if ((xpdMask >> (AR5416_PD_GAINS_IN_MASK - i)) & 1) {
 			if (numXpdGain >= AR5416_EEP4K_NUM_PD_GAINS)
 				break;
 			xpdGainValues[numXpdGain] =
-				(u16)(AR5416_EEP4K_PD_GAINS_IN_MASK - i);
+				(u16)(AR5416_PD_GAINS_IN_MASK - i);
 			numXpdGain++;
 		}
 	}
@@ -528,7 +528,7 @@ static void ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 	int i;
 	int16_t twiceLargestAntenna;
 	u16 twiceMinEdgePower;
-	u16 twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
+	u16 twiceMaxEdgePower = MAX_RATE_POWER;
 	u16 scaledPower = 0, minCtlPower, maxRegAllowedPower;
 	u16 numCtlModes;
 	const u16 *pCtlMode;
@@ -537,7 +537,7 @@ static void ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 	struct cal_ctl_data_4k *rep;
 	struct ar5416_eeprom_4k *pEepData = &ah->eeprom.map4k;
 	static const u16 tpScaleReductionTable[5] =
-		{ 0, 3, 6, 9, AR5416_MAX_RATE_POWER };
+		{ 0, 3, 6, 9, MAX_RATE_POWER };
 	struct cal_target_power_leg targetPowerOfdm, targetPowerCck = {
 		0, { 0, 0, 0, 0}
 	};
@@ -613,7 +613,7 @@ static void ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 
 		if (ah->eep_ops->get_eeprom_ver(ah) == 14 &&
 		    ah->eep_ops->get_eeprom_rev(ah) <= 2)
-			twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
+			twiceMaxEdgePower = MAX_RATE_POWER;
 
 		for (i = 0; (i < AR5416_EEP4K_NUM_CTLS) &&
 			     pEepData->ctlIndex[i]; i++) {
@@ -752,8 +752,8 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 	regulatory->max_power_level = 0;
 	for (i = 0; i < ARRAY_SIZE(ratesArray); i++) {
 		ratesArray[i] =	(int16_t)(txPowerIndexOffset + ratesArray[i]);
-		if (ratesArray[i] > AR5416_MAX_RATE_POWER)
-			ratesArray[i] = AR5416_MAX_RATE_POWER;
+		if (ratesArray[i] > MAX_RATE_POWER)
+			ratesArray[i] = MAX_RATE_POWER;
 
 		if (ratesArray[i] > regulatory->max_power_level)
 			regulatory->max_power_level = ratesArray[i];

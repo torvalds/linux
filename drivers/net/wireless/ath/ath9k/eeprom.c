@@ -234,7 +234,7 @@ void ath9k_hw_get_target_powers(struct ath_hw *ah,
 u16 ath9k_hw_get_max_edge_power(u16 freq, struct cal_ctl_edges *pRdEdgesPower,
 				bool is2GHz, int num_band_edges)
 {
-	u16 twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
+	u16 twiceMaxEdgePower = MAX_RATE_POWER;
 	int i;
 
 	for (i = 0; (i < num_band_edges) &&

@@ -206,7 +206,7 @@ static int ath9k_hw_def_check_eeprom(struct ath_hw *ah)
 				pModal->antCtrlChain[i] = integer;
 			}
 
-			for (i = 0; i < AR5416_EEPROM_MODAL_SPURS; i++) {
+			for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 				word = swab16(pModal->spurChans[i].spurChan);
 				pModal->spurChans[i].spurChan = word;
 			}
@@ -616,7 +616,7 @@ static void ath9k_hw_get_def_gain_boundaries_pdadcs(struct ath_hw *ah,
 	int16_t minDelta = 0;
 	struct chan_centers centers;
 
-	memset(&minPwrT4, 0, AR9287_NUM_PD_GAINS);
+	memset(&minPwrT4, 0, AR5416_NUM_PD_GAINS);
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
 
 	for (numPiers = 0; numPiers < availPiers; numPiers++) {
@@ -685,7 +685,7 @@ static void ath9k_hw_get_def_gain_boundaries_pdadcs(struct ath_hw *ah,
 				(u16)((maxPwrT4[i] + minPwrT4[i + 1]) / 4);
 
 		pPdGainBoundaries[i] =
-			min((u16)AR5416_MAX_RATE_POWER, pPdGainBoundaries[i]);
+			min((u16)MAX_RATE_POWER, pPdGainBoundaries[i]);
 
 		if ((i == 0) && !AR_SREV_5416_20_OR_LATER(ah)) {
 			minDelta = pPdGainBoundaries[0] - 23;
@@ -782,7 +782,7 @@ static int16_t ath9k_change_gain_boundary_setting(struct ath_hw *ah,
 		/* Because of a hardware limitation, ensure the gain boundary
 		 * is not larger than (63 - overlap)
 		 */
-		gb_limit = (u16)(AR5416_MAX_RATE_POWER - pdGainOverlap_t2);
+		gb_limit = (u16)(MAX_RATE_POWER - pdGainOverlap_t2);
 
 		for (k = 0; k < numXpdGain; k++)
 			gb[k] = (u16)min(gb_limit, gb[k]);
@@ -1001,9 +1001,9 @@ static void ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
 
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ar5416_eeprom_def *pEepData = &ah->eeprom.def;
-	u16 twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
+	u16 twiceMaxEdgePower = MAX_RATE_POWER;
 	static const u16 tpScaleReductionTable[5] =
-		{ 0, 3, 6, 9, AR5416_MAX_RATE_POWER };
+		{ 0, 3, 6, 9, MAX_RATE_POWER };
 
 	int i;
 	int16_t twiceLargestAntenna;
@@ -1148,7 +1148,7 @@ static void ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
 
 		if (ah->eep_ops->get_eeprom_ver(ah) == 14 &&
 		    ah->eep_ops->get_eeprom_rev(ah) <= 2)
-			twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
+			twiceMaxEdgePower = MAX_RATE_POWER;
 
 		for (i = 0; (i < AR5416_NUM_CTLS) && pEepData->ctlIndex[i]; i++) {
 			if ((((cfgCtl & ~CTL_MODE_M) |
@@ -1293,8 +1293,8 @@ static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 	regulatory->max_power_level = 0;
 	for (i = 0; i < ARRAY_SIZE(ratesArray); i++) {
 		ratesArray[i] =	(int16_t)(txPowerIndexOffset + ratesArray[i]);
-		if (ratesArray[i] > AR5416_MAX_RATE_POWER)
-			ratesArray[i] = AR5416_MAX_RATE_POWER;
+		if (ratesArray[i] > MAX_RATE_POWER)
+			ratesArray[i] = MAX_RATE_POWER;
 		if (ratesArray[i] > regulatory->max_power_level)
 			regulatory->max_power_level = ratesArray[i];
 	}

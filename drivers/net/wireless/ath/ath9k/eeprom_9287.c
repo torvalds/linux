@@ -150,7 +150,7 @@ static int ath9k_hw_ar9287_check_eeprom(struct ath_hw *ah)
 			eep->modalHeader.antCtrlChain[i] = integer;
 		}
 
-		for (i = 0; i < AR9287_EEPROM_MODAL_SPURS; i++) {
+		for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 			word = swab16(eep->modalHeader.spurChans[i].spurChan);
 			eep->modalHeader.spurChans[i].spurChan = word;
 		}
@@ -236,8 +236,8 @@ static void ath9k_hw_get_ar9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 	int16_t ss;
 	u16 idxL = 0, idxR = 0, numPiers;
 	u8 *pVpdL, *pVpdR, *pPwrL, *pPwrR;
-	u8 minPwrT4[AR9287_NUM_PD_GAINS];
-	u8 maxPwrT4[AR9287_NUM_PD_GAINS];
+	u8 minPwrT4[AR5416_NUM_PD_GAINS];
+	u8 maxPwrT4[AR5416_NUM_PD_GAINS];
 	int16_t vpdStep;
 	int16_t tmpVal;
 	u16 sizeCurrVpdTable, maxIndex, tgtIndex;
@@ -251,11 +251,11 @@ static void ath9k_hw_get_ar9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 	static u8 vpdTableI[AR5416_EEP4K_NUM_PD_GAINS]
 		[AR5416_MAX_PWR_RANGE_IN_HALF_DB];
 
-	memset(&minPwrT4, 0, AR9287_NUM_PD_GAINS);
+	memset(&minPwrT4, 0, AR5416_NUM_PD_GAINS);
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
 
 	for (numPiers = 0; numPiers < availPiers; numPiers++) {
-		if (bChans[numPiers] == AR9287_BCHAN_UNUSED)
+		if (bChans[numPiers] == AR5416_BCHAN_UNUSED)
 			break;
 	}
 
@@ -314,7 +314,7 @@ static void ath9k_hw_get_ar9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 			pPdGainBoundaries[i] =
 				(u16)((maxPwrT4[i] + minPwrT4[i+1]) / 4);
 
-		pPdGainBoundaries[i] = min((u16)AR5416_MAX_RATE_POWER,
+		pPdGainBoundaries[i] = min((u16)MAX_RATE_POWER,
 					   pPdGainBoundaries[i]);
 
 
@@ -334,7 +334,7 @@ static void ath9k_hw_get_ar9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 		vpdStep = (int16_t)(vpdTableI[i][1] - vpdTableI[i][0]);
 		vpdStep = (int16_t)((vpdStep < 1) ? 1 : vpdStep);
 
-		while ((ss < 0) && (k < (AR9287_NUM_PDADC_VALUES - 1)))	{
+		while ((ss < 0) && (k < (AR5416_NUM_PDADC_VALUES - 1)))	{
 			tmpVal = (int16_t)(vpdTableI[i][0] + ss * vpdStep);
 			pPDADCValues[k++] = (u8)((tmpVal < 0) ? 0 : tmpVal);
 			ss++;
@@ -346,7 +346,7 @@ static void ath9k_hw_get_ar9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 		maxIndex = (tgtIndex < sizeCurrVpdTable) ?
 			    tgtIndex : sizeCurrVpdTable;
 
-		while ((ss < maxIndex) && (k < (AR9287_NUM_PDADC_VALUES - 1)))
+		while ((ss < maxIndex) && (k < (AR5416_NUM_PDADC_VALUES - 1)))
 			pPDADCValues[k++] = vpdTableI[i][ss++];
 
 		vpdStep = (int16_t)(vpdTableI[i][sizeCurrVpdTable - 1] -
@@ -355,7 +355,7 @@ static void ath9k_hw_get_ar9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 
 		if (tgtIndex > maxIndex) {
 			while ((ss <= tgtIndex) &&
-				(k < (AR9287_NUM_PDADC_VALUES - 1))) {
+				(k < (AR5416_NUM_PDADC_VALUES - 1))) {
 				tmpVal = (int16_t) TMP_VAL_VPD_TABLE;
 				pPDADCValues[k++] =
 					(u8)((tmpVal > 255) ? 255 : tmpVal);
@@ -364,12 +364,12 @@ static void ath9k_hw_get_ar9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 		}
 	}
 
-	while (i < AR9287_PD_GAINS_IN_MASK) {
+	while (i < AR5416_PD_GAINS_IN_MASK) {
 		pPdGainBoundaries[i] = pPdGainBoundaries[i-1];
 		i++;
 	}
 
-	while (k < AR9287_NUM_PDADC_VALUES) {
+	while (k < AR5416_NUM_PDADC_VALUES) {
 		pPDADCValues[k] = pPDADCValues[k-1];
 		k++;
 	}
@@ -389,7 +389,7 @@ static void ar9287_eeprom_get_tx_gain_index(struct ath_hw *ah,
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
 
 	for (numPiers = 0; numPiers < availPiers; numPiers++) {
-		if (pCalChans[numPiers] == AR9287_BCHAN_UNUSED)
+		if (pCalChans[numPiers] == AR5416_BCHAN_UNUSED)
 			break;
 	}
 
@@ -455,11 +455,11 @@ static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
 	struct cal_data_op_loop_ar9287 *pRawDatasetOpenLoop;
 	u8 *pCalBChans = NULL;
 	u16 pdGainOverlap_t2;
-	u8 pdadcValues[AR9287_NUM_PDADC_VALUES];
-	u16 gainBoundaries[AR9287_PD_GAINS_IN_MASK];
+	u8 pdadcValues[AR5416_NUM_PDADC_VALUES];
+	u16 gainBoundaries[AR5416_PD_GAINS_IN_MASK];
 	u16 numPiers = 0, i, j;
 	u16 numXpdGain, xpdMask;
-	u16 xpdGainValues[AR9287_NUM_PD_GAINS] = {0, 0, 0, 0};
+	u16 xpdGainValues[AR5416_NUM_PD_GAINS] = {0, 0, 0, 0};
 	u32 reg32, regOffset, regChainOffset, regval;
 	int16_t modalIdx, diff = 0;
 	struct ar9287_eeprom *pEepData = &ah->eeprom.map9287;
@@ -487,12 +487,12 @@ static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
 	numXpdGain = 0;
 
 	/* Calculate the value of xpdgains from the xpdGain Mask */
-	for (i = 1; i <= AR9287_PD_GAINS_IN_MASK; i++) {
-		if ((xpdMask >> (AR9287_PD_GAINS_IN_MASK - i)) & 1) {
-			if (numXpdGain >= AR9287_NUM_PD_GAINS)
+	for (i = 1; i <= AR5416_PD_GAINS_IN_MASK; i++) {
+		if ((xpdMask >> (AR5416_PD_GAINS_IN_MASK - i)) & 1) {
+			if (numXpdGain >= AR5416_NUM_PD_GAINS)
 				break;
 			xpdGainValues[numXpdGain] =
-				(u16)(AR9287_PD_GAINS_IN_MASK-i);
+				(u16)(AR5416_PD_GAINS_IN_MASK-i);
 			numXpdGain++;
 		}
 	}
@@ -561,13 +561,13 @@ static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
 					     (int32_t)AR9287_PWR_TABLE_OFFSET_DB);
 				diff *= 2;
 
-				for (j = 0; j < ((u16)AR9287_NUM_PDADC_VALUES-diff); j++)
+				for (j = 0; j < ((u16)AR5416_NUM_PDADC_VALUES-diff); j++)
 					pdadcValues[j] = pdadcValues[j+diff];
 
-				for (j = (u16)(AR9287_NUM_PDADC_VALUES-diff);
-				     j < AR9287_NUM_PDADC_VALUES; j++)
+				for (j = (u16)(AR5416_NUM_PDADC_VALUES-diff);
+				     j < AR5416_NUM_PDADC_VALUES; j++)
 					pdadcValues[j] =
-					  pdadcValues[AR9287_NUM_PDADC_VALUES-diff];
+					  pdadcValues[AR5416_NUM_PDADC_VALUES-diff];
 			}
 
 			if (!ath9k_hw_ar9287_get_eeprom(ah, EEP_OL_PWRCTRL)) {
@@ -610,9 +610,9 @@ static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
 #define REDUCE_SCALED_POWER_BY_THREE_CHAIN   10
 
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
-	u16 twiceMaxEdgePower = AR5416_MAX_RATE_POWER;
+	u16 twiceMaxEdgePower = MAX_RATE_POWER;
 	static const u16 tpScaleReductionTable[5] =
-		{ 0, 3, 6, 9, AR5416_MAX_RATE_POWER };
+		{ 0, 3, 6, 9, MAX_RATE_POWER };
 	int i;
 	int16_t twiceLargestAntenna;
 	struct cal_ctl_data_ar9287 *rep;
@@ -877,8 +877,8 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 	regulatory->max_power_level = 0;
 	for (i = 0; i < ARRAY_SIZE(ratesArray); i++) {
 		ratesArray[i] = (int16_t)(txPowerIndexOffset + ratesArray[i]);
-		if (ratesArray[i] > AR9287_MAX_RATE_POWER)
-			ratesArray[i] = AR9287_MAX_RATE_POWER;
+		if (ratesArray[i] > MAX_RATE_POWER)
+			ratesArray[i] = MAX_RATE_POWER;
 
 		if (ratesArray[i] > regulatory->max_power_level)
 			regulatory->max_power_level = ratesArray[i];

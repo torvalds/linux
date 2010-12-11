@@ -238,7 +238,6 @@ struct ath9k_ops_config {
 #define SPUR_DISABLE        	0
 #define SPUR_ENABLE_IOCTL   	1
 #define SPUR_ENABLE_EEPROM  	2
-#define AR_EEPROM_MODAL_SPURS   5
 #define AR_SPUR_5413_1      	1640
 #define AR_SPUR_5413_2      	1200
 #define AR_NO_SPUR      	0x8000
