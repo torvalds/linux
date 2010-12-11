@@ -127,6 +127,7 @@ static ssize_t nfsctl_transaction_write(struct file *file, const char __user *bu
 
 static ssize_t nfsctl_transaction_read(struct file *file, char __user *buf, size_t size, loff_t *pos)
 {
+#ifdef CONFIG_NFSD_DEPRECATED
 	static int warned;
 	if (file->f_dentry->d_name.name[0] == '.' && !warned) {
 		printk(KERN_INFO
@@ -135,6 +136,7 @@ static ssize_t nfsctl_transaction_read(struct file *file, char __user *buf, size
 		       current->comm, file->f_dentry->d_name.name);
 		warned = 1;
 	}
+#endif
 	if (! file->private_data) {
 		/* An attempt to read a transaction file without writing
 		 * causes a 0-byte write so that the file can return
