@@ -110,16 +110,13 @@
 struct tmds_chip_information {
 	int tmds_chip_name;
 	int tmds_chip_slave_addr;
-	int data_mode;
 	int output_interface;
 	int i2c_port;
-	int device_type;
 };
 
 struct lvds_chip_information {
 	int lvds_chip_name;
 	int lvds_chip_slave_addr;
-	int data_mode;
 	int output_interface;
 	int i2c_port;
 };
