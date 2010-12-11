@@ -1108,7 +1108,7 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 	struct twl6040_data *priv;
 	int audpwron, naudint;
 	int ret = 0;
-	u8 icrev;
+	u8 icrev, intmr = TWL6040_ALLINT_MSK;
 
 	priv = kzalloc(sizeof(struct twl6040_data), GFP_KERNEL);
 	if (priv == NULL)
@@ -1154,16 +1154,12 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 		priv->codec_powered = 0;
 
 		/* enable only codec ready interrupt */
-		twl6040_write(codec, TWL6040_REG_INTMR,
-					~TWL6040_READYMSK & TWL6040_ALLINT_MSK);
+		intmr &= ~(TWL6040_READYMSK | TWL6040_PLUGMSK);
 
 		/* reset interrupt status to allow correct power up sequence */
 		twl6040_read_reg_volatile(codec, TWL6040_REG_INTID);
-	} else {
-		/* no interrupts at all */
-		twl6040_write_reg_cache(codec, TWL6040_REG_INTMR,
-						TWL6040_ALLINT_MSK);
 	}
+	twl6040_write(codec, TWL6040_REG_INTMR, intmr);
 
 	if (naudint) {
 		/* audio interrupt */

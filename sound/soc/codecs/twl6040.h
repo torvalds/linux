@@ -79,6 +79,7 @@
 
 /* INTMR (0x04) fields */
 
+#define TWL6040_PLUGMSK			0x02
 #define TWL6040_READYMSK		0x40
 #define TWL6040_ALLINT_MSK		0x7B
 
