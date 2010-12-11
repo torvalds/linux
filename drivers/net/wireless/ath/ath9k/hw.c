@@ -284,10 +284,8 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 
 static void ath9k_hw_disablepcie(struct ath_hw *ah)
 {
-	if (AR_SREV_9100(ah))
+	if (!AR_SREV_5416(ah))
 		return;
-
-	ENABLE_REGWRITE_BUFFER(ah);
 
 	REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fc00);
 	REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
@@ -300,8 +298,6 @@ static void ath9k_hw_disablepcie(struct ath_hw *ah)
 	REG_WRITE(ah, AR_PCIE_SERDES, 0x000e1007);
 
 	REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
-
-	REGWRITE_BUFFER_FLUSH(ah);
 }
 
 /* This should work for all families including legacy */
