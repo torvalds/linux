@@ -158,14 +158,14 @@ static inline struct wm8994_irq_data *irq_to_wm8994_irq(struct wm8994 *wm8994,
 
 static void wm8994_irq_lock(struct irq_data *data)
 {
-	struct wm8994 *wm8994 = data->chip_data;
+	struct wm8994 *wm8994 = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&wm8994->irq_lock);
 }
 
 static void wm8994_irq_sync_unlock(struct irq_data *data)
 {
-	struct wm8994 *wm8994 = data->chip_data;
+	struct wm8994 *wm8994 = irq_data_get_irq_chip_data(data);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(wm8994->irq_masks_cur); i++) {
@@ -184,7 +184,7 @@ static void wm8994_irq_sync_unlock(struct irq_data *data)
 
 static void wm8994_irq_unmask(struct irq_data *data)
 {
-	struct wm8994 *wm8994 = data->chip_data;
+	struct wm8994 *wm8994 = irq_data_get_irq_chip_data(data);
 	struct wm8994_irq_data *irq_data = irq_to_wm8994_irq(wm8994,
 							     data->irq);
 
@@ -193,7 +193,7 @@ static void wm8994_irq_unmask(struct irq_data *data)
 
 static void wm8994_irq_mask(struct irq_data *data)
 {
-	struct wm8994 *wm8994 = data->chip_data;
+	struct wm8994 *wm8994 = irq_data_get_irq_chip_data(data);
 	struct wm8994_irq_data *irq_data = irq_to_wm8994_irq(wm8994,
 							     data->irq);
 

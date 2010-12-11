@@ -347,14 +347,14 @@ static inline struct wm831x_irq_data *irq_to_wm831x_irq(struct wm831x *wm831x,
 
 static void wm831x_irq_lock(struct irq_data *data)
 {
-	struct wm831x *wm831x = data->chip_data;
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&wm831x->irq_lock);
 }
 
 static void wm831x_irq_sync_unlock(struct irq_data *data)
 {
-	struct wm831x *wm831x = data->chip_data;
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(wm831x->irq_masks_cur); i++) {
@@ -373,7 +373,7 @@ static void wm831x_irq_sync_unlock(struct irq_data *data)
 
 static void wm831x_irq_unmask(struct irq_data *data)
 {
-	struct wm831x *wm831x = data->chip_data;
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
 	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x,
 							     data->irq);
 
@@ -382,7 +382,7 @@ static void wm831x_irq_unmask(struct irq_data *data)
 
 static void wm831x_irq_mask(struct irq_data *data)
 {
-	struct wm831x *wm831x = data->chip_data;
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
 	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x,
 							     data->irq);
 
@@ -391,7 +391,7 @@ static void wm831x_irq_mask(struct irq_data *data)
 
 static int wm831x_irq_set_type(struct irq_data *data, unsigned int type)
 {
-	struct wm831x *wm831x = data->chip_data;
+	struct wm831x *wm831x = irq_data_get_irq_chip_data(data);
 	int val, irq;
 
 	irq = data->irq - wm831x->irq_base;
