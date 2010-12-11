@@ -762,7 +762,6 @@ struct ath_hw {
 	u32 *bank6Temp;
 
 	u8 txpower_limit;
-	int16_t txpower_indexoffset;
 	int coverage_class;
 	u32 slottime;
 	u32 globaltxtimeout;

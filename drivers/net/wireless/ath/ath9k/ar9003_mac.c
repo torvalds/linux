@@ -322,7 +322,6 @@ static void ar9003_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 	if (txpower > ah->txpower_limit)
 		txpower = ah->txpower_limit;
 
-	txpower += ah->txpower_indexoffset;
 	if (txpower > 63)
 		txpower = 63;
 

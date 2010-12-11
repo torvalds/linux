@@ -283,7 +283,6 @@ static void ar9002_hw_set11n_txdesc(struct ath_hw *ah, void *ds,
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
 
-	txPower += ah->txpower_indexoffset;
 	if (txPower > 63)
 		txPower = 63;
 
