@@ -767,7 +767,7 @@ static int __devexit platform_pmic_battery_remove(struct platform_device *pdev)
 	power_supply_unregister(&pbi->usb);
 	power_supply_unregister(&pbi->batt);
 
-	flush_scheduled_work();
+	cancel_work_sync(&pbi->handler);
 	kfree(pbi);
 	return 0;
 }

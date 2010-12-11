@@ -201,7 +201,7 @@ EXPORT_SYMBOL_GPL(power_supply_register);
 
 void power_supply_unregister(struct power_supply *psy)
 {
-	flush_scheduled_work();
+	cancel_work_sync(&psy->changed_work);
 	power_supply_remove_triggers(psy);
 	device_unregister(psy->dev);
 }
