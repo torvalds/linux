@@ -161,6 +161,18 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 			if (pdev->revision < 0xa4)
 				ehci->no_selective_suspend = 1;
 			break;
+
+		/* MCP89 chips on the MacBookAir3,1 give EPROTO when
+		 * fetching device descriptors unless LPM is disabled.
+		 * There are also intermittent problems enumerating
+		 * devices with PPCD enabled.
+		 */
+		case 0x0d9d:
+			ehci_info(ehci, "disable lpm/ppcd for nvidia mcp89");
+			ehci->has_lpm = 0;
+			ehci->has_ppcd = 0;
+			ehci->command &= ~CMD_PPCEE;
+			break;
 		}
 		break;
 	case PCI_VENDOR_ID_VIA:

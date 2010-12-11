@@ -953,6 +953,10 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 			 * impossible to distinguish it from a PEB which just
 			 * contains garbage because of a power cut during erase
 			 * operation. So we just schedule this PEB for erasure.
+			 *
+			 * Besides, in case of NOR flash, we deliberatly
+			 * corrupt both headers because NOR flash erasure is
+			 * slow and can start from the end.
 			 */
 			err = 0;
 		else
