@@ -163,7 +163,6 @@ struct lvds_setting_information {
 	int v_active;
 	int bpp;
 	int refresh_rate;
-	int lcd_panel_id;
 	int lcd_panel_hres;
 	int lcd_panel_vres;
 	int display_method;
@@ -188,7 +187,6 @@ struct GFX_DPA_SETTING {
 };
 
 struct VT1636_DPA_SETTING {
-	int PanelSizeID;
 	u8 CLK_SEL_ST1;
 	u8 CLK_SEL_ST2;
 };
