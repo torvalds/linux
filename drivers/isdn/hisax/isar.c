@@ -189,7 +189,7 @@ ISARVersion(struct IsdnCardState *cs, char *s)
 static int
 isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 {
-	int ret, size, cnt, debug;
+	int cfu_ret, ret, size, cnt, debug;
 	u_char len, nom, noc;
 	u_short sadr, left, *sp;
 	u_char __user *p = buf;
@@ -212,8 +212,9 @@ isar_load_firmware(struct IsdnCardState *cs, u_char __user *buf)
 	cs->debug &= ~(L1_DEB_HSCX | L1_DEB_HSCX_FIFO);
 #endif
 	
-	if (copy_from_user(&size, p, sizeof(int))) {
-		printk(KERN_ERR"isar_load_firmware copy_from_user ret %d\n", ret);
+	cfu_ret = copy_from_user(&size, p, sizeof(int));
+	if (cfu_ret) {
+		printk(KERN_ERR"isar_load_firmware copy_from_user ret %d\n", cfu_ret);
 		return -EFAULT;
 	}
 	p += sizeof(int);
