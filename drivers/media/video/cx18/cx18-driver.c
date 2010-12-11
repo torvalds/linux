@@ -925,8 +925,13 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	cx->enc_mem = ioremap_nocache(cx->base_addr + CX18_MEM_OFFSET,
 				       CX18_MEM_SIZE);
 	if (!cx->enc_mem) {
-		CX18_ERR("ioremap failed, perhaps increasing __VMALLOC_RESERVE in page.h\n");
-		CX18_ERR("or disabling CONFIG_HIGHMEM4G into the kernel would help\n");
+		CX18_ERR("ioremap failed. Can't get a window into CX23418 "
+			 "memory and register space\n");
+		CX18_ERR("Each capture card with a CX23418 needs 64 MB of "
+			 "vmalloc address space for the window\n");
+		CX18_ERR("Check the output of 'grep Vmalloc /proc/meminfo'\n");
+		CX18_ERR("Use the vmalloc= kernel command line option to set "
+			 "VmallocTotal to a larger value\n");
 		retval = -ENOMEM;
 		goto free_mem;
 	}
