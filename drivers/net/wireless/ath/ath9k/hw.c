@@ -407,7 +407,6 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->sta_id1_defaults =
 		AR_STA_ID1_CRPT_MIC_ENABLE |
 		AR_STA_ID1_MCAST_KSRCH;
-	ah->beacon_interval = 100;
 	ah->enable_32kHz_clock = DONT_USE_32KHZ;
 	ah->slottime = (u32) -1;
 	ah->globaltxtimeout = (u32) -1;
@@ -1627,8 +1626,6 @@ EXPORT_SYMBOL(ath9k_hw_setpower);
 void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 {
 	int flags = 0;
-
-	ah->beacon_interval = beacon_period;
 
 	ENABLE_REGWRITE_BUFFER(ah);
 

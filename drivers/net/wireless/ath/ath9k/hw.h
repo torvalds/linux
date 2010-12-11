@@ -764,7 +764,6 @@ struct ath_hw {
 	u8 txpower_limit;
 	int16_t txpower_indexoffset;
 	int coverage_class;
-	u32 beacon_interval;
 	u32 slottime;
 	u32 globaltxtimeout;
 
