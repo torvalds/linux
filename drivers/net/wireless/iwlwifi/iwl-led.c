@@ -45,7 +45,7 @@
 /* default: IWL_LED_BLINK(0) using blinking index table */
 static int led_mode;
 module_param(led_mode, int, S_IRUGO);
-MODULE_PARM_DESC(led_mode, "led mode: 0=system default, "
+MODULE_PARM_DESC(led_mode, "0=system default, "
 		"1=On(RF On)/Off(RF Off), 2=blinking");
 
 static const struct {
