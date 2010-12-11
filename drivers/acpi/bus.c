@@ -52,22 +52,6 @@ EXPORT_SYMBOL(acpi_root_dir);
 
 #define STRUCT_TO_INT(s)	(*((int*)&s))
 
-static int set_power_nocheck(const struct dmi_system_id *id)
-{
-	printk(KERN_NOTICE PREFIX "%s detected - "
-		"disable power check in power transition\n", id->ident);
-	acpi_power_nocheck = 1;
-	return 0;
-}
-static struct dmi_system_id __cpuinitdata power_nocheck_dmi_table[] = {
-	{
-	set_power_nocheck, "HP Pavilion 05", {
-	DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies LTD"),
-	DMI_MATCH(DMI_SYS_VENDOR, "HP Pavilion 05"),
-	DMI_MATCH(DMI_PRODUCT_VERSION, "2001211RE101GLEND") }, NULL},
-	{},
-};
-
 
 #ifdef CONFIG_X86
 static int set_copy_dsdt(const struct dmi_system_id *id)
@@ -331,23 +315,6 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 				"Device [%s] is not power manageable\n",
 				dev_name(&device->dev)));
 		return -ENODEV;
-	}
-
-	/*
-	 * Get device's current power state
-	 */
-	if (!acpi_power_nocheck) {
-		/*
-		 * Maybe the incorrect power state is returned on the bogus
-		 * bios, which is different with the real power state.
-		 * For example: the bios returns D0 state and the real power
-		 * state is D3. OS expects to set the device to D0 state. In
-		 * such case if OS uses the power state returned by the BIOS,
-		 * the device can't be transisted to the correct power state.
-		 * So if the acpi_power_nocheck is set, it is unnecessary to
-		 * get the power state by calling acpi_bus_get_power.
-		 */
-		__acpi_bus_get_power(device, &device->power.state);
 	}
 
 	return __acpi_bus_set_power(device, state);
@@ -1071,12 +1038,6 @@ static int __init acpi_init(void)
 
 	if (acpi_disabled)
 		return result;
-
-	/*
-	 * If the laptop falls into the DMI check table, the power state check
-	 * will be disabled in the course of device power transition.
-	 */
-	dmi_check_system(power_nocheck_dmi_table);
 
 	acpi_scan_init();
 	acpi_ec_init();
