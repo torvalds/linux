@@ -51,9 +51,6 @@ MODULE_ALIAS("rt3090sta");
 /* */
 /* Function declarations */
 /* */
-extern int rt28xx_close(IN struct net_device *net_dev);
-extern int rt28xx_open(struct net_device *net_dev);
-
 static void __devexit rt2860_remove_one(struct pci_dev *pci_dev);
 static int __devinit rt2860_probe(struct pci_dev *pci_dev,
 				  const struct pci_device_id *ent);
