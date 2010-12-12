@@ -56,6 +56,8 @@ struct sd {
 	int prev_avg_lum;
 	int exp_too_low_cnt;
 	int exp_too_high_cnt;
+	int header_read;
+	u8 header[12]; /* Header without sof marker */
 
 	unsigned short exposure;
 	unsigned char gain;
@@ -1177,13 +1179,10 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	sd_init(gspca_dev);
 }
 
-static void sd_pkt_scan(struct gspca_dev *gspca_dev,
-			u8 *data,			/* isoc packet */
-			int len)			/* iso packet length */
+static u8* find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
 {
-	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct cam *cam = &gspca_dev->cam;
+	int i, header_size = (sd->bridge == BRIDGE_103) ? 18 : 12;
 
 	/* frames start with:
 	 *	ff ff 00 c4 c4 96	synchro
@@ -1194,57 +1193,83 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	 *	ll mm		brightness sum outside auto exposure
 	 *	(xx xx xx xx xx)	audio values for snc103
 	 */
-	if (len > 6 && len < 24) {
-		for (i = 0; i < len - 6; i++) {
-			if (data[0 + i] == 0xff
-			    && data[1 + i] == 0xff
-			    && data[2 + i] == 0x00
-			    && data[3 + i] == 0xc4
-			    && data[4 + i] == 0xc4
-			    && data[5 + i] == 0x96) {	/* start of frame */
-				int lum = -1;
-				int pkt_type = LAST_PACKET;
-				int fr_h_sz = (sd->bridge == BRIDGE_103) ?
-					18 : 12;
-
-				if (len - i < fr_h_sz) {
-					PDEBUG(D_STREAM, "packet too short to"
-						" get avg brightness");
-				} else if (sd->bridge == BRIDGE_103) {
-					lum = data[i + 9] +
-						(data[i + 10] << 8);
-				} else {
-					lum = data[i + 8] + (data[i + 9] << 8);
-				}
-				/* When exposure changes midway a frame we
-				   get a lum of 0 in this case drop 2 frames
-				   as the frames directly after an exposure
-				   change have an unstable image. Sometimes lum
-				   *really* is 0 (cam used in low light with
-				   low exposure setting), so do not drop frames
-				   if the previous lum was 0 too. */
-				if (lum == 0 && sd->prev_avg_lum != 0) {
-					lum = -1;
-					sd->frames_to_drop = 2;
-					sd->prev_avg_lum = 0;
-				} else
-					sd->prev_avg_lum = lum;
-				atomic_set(&sd->avg_lum, lum);
-
-				if (sd->frames_to_drop) {
-					sd->frames_to_drop--;
-					pkt_type = DISCARD_PACKET;
-				}
-
-				gspca_frame_add(gspca_dev, pkt_type,
-						NULL, 0);
-				data += i + fr_h_sz;
-				len -= i + fr_h_sz;
-				gspca_frame_add(gspca_dev, FIRST_PACKET,
-						data, len);
-				return;
+	for (i = 0; i < len; i++) {
+		switch (sd->header_read) {
+		case 0:
+			if (data[i] == 0xff)
+				sd->header_read++;
+			break;
+		case 1:
+			if (data[i] == 0xff)
+				sd->header_read++;
+			else
+				sd->header_read = 0;
+			break;
+		case 2:
+			if (data[i] == 0x00)
+				sd->header_read++;
+			else if (data[i] != 0xff)
+				sd->header_read = 0;
+			break;
+		case 3:
+			if (data[i] == 0xc4)
+				sd->header_read++;
+			else if (data[i] == 0xff)
+				sd->header_read = 1;
+			else
+				sd->header_read = 0;
+			break;
+		case 4:
+			if (data[i] == 0xc4)
+				sd->header_read++;
+			else if (data[i] == 0xff)
+				sd->header_read = 1;
+			else
+				sd->header_read = 0;
+			break;
+		case 5:
+			if (data[i] == 0x96)
+				sd->header_read++;
+			else if (data[i] == 0xff)
+				sd->header_read = 1;
+			else
+				sd->header_read = 0;
+			break;
+		default:
+			sd->header[sd->header_read - 6] = data[i];
+			sd->header_read++;
+			if (sd->header_read == header_size) {
+				sd->header_read = 0;
+				return data + i + 1;
 			}
 		}
+	}
+	return NULL;
+}
+
+static void sd_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data,			/* isoc packet */
+			int len)			/* iso packet length */
+{
+	int fr_h_sz = 0, lum_offset = 0, len_after_sof = 0;
+	struct sd *sd = (struct sd *) gspca_dev;
+	struct cam *cam = &gspca_dev->cam;
+	u8 *sof;
+
+	sof = find_sof(gspca_dev, data, len);
+	if (sof) {
+		if (sd->bridge == BRIDGE_103) {
+			fr_h_sz = 18;
+			lum_offset = 3;
+		} else {
+			fr_h_sz = 12;
+			lum_offset = 2;
+		}
+
+		len_after_sof = len - (sof - data);
+		len = (sof - data) - fr_h_sz;
+		if (len < 0)
+			len = 0;
 	}
 
 	if (cam->cam_mode[gspca_dev->curr_mode].priv & MODE_RAW) {
@@ -1259,6 +1284,33 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
+
+	if (sof) {
+		int  lum = sd->header[lum_offset] +
+			  (sd->header[lum_offset + 1] << 8);
+
+		/* When exposure changes midway a frame we
+		   get a lum of 0 in this case drop 2 frames
+		   as the frames directly after an exposure
+		   change have an unstable image. Sometimes lum
+		   *really* is 0 (cam used in low light with
+		   low exposure setting), so do not drop frames
+		   if the previous lum was 0 too. */
+		if (lum == 0 && sd->prev_avg_lum != 0) {
+			lum = -1;
+			sd->frames_to_drop = 2;
+			sd->prev_avg_lum = 0;
+		} else
+			sd->prev_avg_lum = lum;
+		atomic_set(&sd->avg_lum, lum);
+
+		if (sd->frames_to_drop)
+			sd->frames_to_drop--;
+		else
+			gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
+
+		gspca_frame_add(gspca_dev, FIRST_PACKET, sof, len_after_sof);
+	}
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
