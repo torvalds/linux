@@ -511,6 +511,9 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		link_shadow_page(it.sptep, sp);
 	}
 
+	if (!map_writable)
+		access &= ~ACC_WRITE_MASK;
+
 	mmu_set_spte(vcpu, it.sptep, access, gw->pte_access & access,
 		     user_fault, write_fault, dirty, ptwrite, it.level,
 		     gw->gfn, pfn, prefault, map_writable);
@@ -592,9 +595,6 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 	/* mmio */
 	if (is_error_pfn(pfn))
 		return kvm_handle_bad_page(vcpu->kvm, walker.gfn, pfn);
-
-	if (!map_writable)
-		walker.pte_access &= ~ACC_WRITE_MASK;
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu, mmu_seq))
