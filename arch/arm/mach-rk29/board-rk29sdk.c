@@ -766,7 +766,7 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 };
 #endif
 #ifdef CONFIG_SDMMC1_RK29
-//#define CONFIG_SDMMC1_USE_DMA
+#define CONFIG_SDMMC1_USE_DMA
 static int rk29_sdmmc1_cfg_gpio(void)
 {
 	rk29_mux_api_set(GPIO1C2_SDMMC1CMD_NAME, GPIO1H_SDMMC1_CMD);
