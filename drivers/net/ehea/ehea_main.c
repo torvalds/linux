@@ -101,7 +101,6 @@ MODULE_PARM_DESC(use_lro, " Large Receive Offload, 1: enable, 0: disable, "
 static int port_name_cnt;
 static LIST_HEAD(adapter_list);
 static unsigned long ehea_driver_flags;
-struct work_struct ehea_rereg_mr_task;
 static DEFINE_MUTEX(dlpar_mem_lock);
 struct ehea_fw_handle_array ehea_fw_handles;
 struct ehea_bcmc_reg_array ehea_bcmc_regs;
@@ -2984,7 +2983,7 @@ out:
 	mutex_unlock(&dlpar_mem_lock);
 }
 
-static void ehea_rereg_mrs(struct work_struct *work)
+static void ehea_rereg_mrs(void)
 {
 	int ret, i;
 	struct ehea_adapter *adapter;
@@ -3659,14 +3658,14 @@ static int ehea_mem_notifier(struct notifier_block *nb,
 		set_bit(__EHEA_STOP_XFER, &ehea_driver_flags);
 		if (ehea_add_sect_bmap(arg->start_pfn, arg->nr_pages))
 			goto out_unlock;
-		ehea_rereg_mrs(NULL);
+		ehea_rereg_mrs();
 		break;
 	case MEM_GOING_OFFLINE:
 		ehea_info("memory is going offline");
 		set_bit(__EHEA_STOP_XFER, &ehea_driver_flags);
 		if (ehea_rem_sect_bmap(arg->start_pfn, arg->nr_pages))
 			goto out_unlock;
-		ehea_rereg_mrs(NULL);
+		ehea_rereg_mrs();
 		break;
 	default:
 		break;
@@ -3742,8 +3741,6 @@ int __init ehea_module_init(void)
 	printk(KERN_INFO "IBM eHEA ethernet device driver (Release %s)\n",
 	       DRV_VERSION);
 
-
-	INIT_WORK(&ehea_rereg_mr_task, ehea_rereg_mrs);
 	memset(&ehea_fw_handles, 0, sizeof(ehea_fw_handles));
 	memset(&ehea_bcmc_regs, 0, sizeof(ehea_bcmc_regs));
 
