@@ -4,6 +4,7 @@
 #include <linux/netdevice.h>
 
 #include "bonding.h"
+#include "bond_alb.h"
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -11,6 +12,52 @@
 #include <linux/seq_file.h>
 
 static struct dentry *bonding_debug_root;
+
+/*
+ *  Show RLB hash table
+ */
+static int bond_debug_rlb_hash_show(struct seq_file *m, void *v)
+{
+	struct bonding *bond = m->private;
+	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
+	struct rlb_client_info *client_info;
+	u32 hash_index;
+
+	if (bond->params.mode != BOND_MODE_ALB)
+		return 0;
+
+	seq_printf(m, "SourceIP        DestinationIP   "
+			"Destination MAC   DEV\n");
+
+	spin_lock_bh(&(BOND_ALB_INFO(bond).rx_hashtbl_lock));
+
+	hash_index = bond_info->rx_hashtbl_head;
+	for (; hash_index != RLB_NULL_INDEX; hash_index = client_info->next) {
+		client_info = &(bond_info->rx_hashtbl[hash_index]);
+		seq_printf(m, "%-15pI4 %-15pI4 %-17pM %s\n",
+			&client_info->ip_src,
+			&client_info->ip_dst,
+			&client_info->mac_dst,
+			client_info->slave->dev->name);
+	}
+
+	spin_unlock_bh(&(BOND_ALB_INFO(bond).rx_hashtbl_lock));
+
+	return 0;
+}
+
+static int bond_debug_rlb_hash_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, bond_debug_rlb_hash_show, inode->i_private);
+}
+
+static const struct file_operations bond_debug_rlb_hash_fops = {
+	.owner		= THIS_MODULE,
+	.open		= bond_debug_rlb_hash_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 void bond_debug_register(struct bonding *bond)
 {
@@ -25,6 +72,9 @@ void bond_debug_register(struct bonding *bond)
 			bond->dev->name);
 		return;
 	}
+
+	debugfs_create_file("rlb_hash_table", 0400, bond->debug_dir,
+				bond, &bond_debug_rlb_hash_fops);
 }
 
 void bond_debug_unregister(struct bonding *bond)
