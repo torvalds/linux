@@ -85,6 +85,7 @@ struct orig_node {
 	uint32_t last_bcast_seqno;
 	struct hlist_head neigh_list;
 	struct list_head frag_list;
+	spinlock_t neigh_list_lock; /* protects neighbor list */
 	unsigned long last_frag_packet;
 	struct {
 		uint8_t candidates;
@@ -116,6 +117,7 @@ struct neigh_node {
 	unsigned long last_valid;
 	unsigned long real_bits[NUM_WORDS];
 	struct kref refcount;
+	struct rcu_head rcu;
 	struct orig_node *orig_node;
 	struct batman_if *if_incoming;
 };

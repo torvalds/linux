@@ -67,6 +67,14 @@ void neigh_node_free_ref(struct kref *refcount)
 	kfree(neigh_node);
 }
 
+static void neigh_node_free_rcu(struct rcu_head *rcu)
+{
+	struct neigh_node *neigh_node;
+
+	neigh_node = container_of(rcu, struct neigh_node, rcu);
+	kref_put(&neigh_node->refcount, neigh_node_free_ref);
+}
+
 struct neigh_node *create_neighbor(struct orig_node *orig_node,
 				   struct orig_node *orig_neigh_node,
 				   uint8_t *neigh,
@@ -89,7 +97,9 @@ struct neigh_node *create_neighbor(struct orig_node *orig_node,
 	neigh_node->if_incoming = if_incoming;
 	kref_init(&neigh_node->refcount);
 
-	hlist_add_head(&neigh_node->list, &orig_node->neigh_list);
+	spin_lock_bh(&orig_node->neigh_list_lock);
+	hlist_add_head_rcu(&neigh_node->list, &orig_node->neigh_list);
+	spin_unlock_bh(&orig_node->neigh_list_lock);
 	return neigh_node;
 }
 
@@ -100,12 +110,16 @@ static void free_orig_node(void *data, void *arg)
 	struct orig_node *orig_node = (struct orig_node *)data;
 	struct bat_priv *bat_priv = (struct bat_priv *)arg;
 
+	spin_lock_bh(&orig_node->neigh_list_lock);
+
 	/* for all neighbors towards this originator ... */
 	hlist_for_each_entry_safe(neigh_node, node, node_tmp,
 				  &orig_node->neigh_list, list) {
-		hlist_del(&neigh_node->list);
-		kref_put(&neigh_node->refcount, neigh_node_free_ref);
+		hlist_del_rcu(&neigh_node->list);
+		call_rcu(&neigh_node->rcu, neigh_node_free_rcu);
 	}
+
+	spin_unlock_bh(&orig_node->neigh_list_lock);
 
 	frag_list_free(&orig_node->frag_list);
 	hna_global_del_orig(bat_priv, orig_node, "originator timed out");
@@ -151,6 +165,7 @@ struct orig_node *get_orig_node(struct bat_priv *bat_priv, uint8_t *addr)
 		return NULL;
 
 	INIT_HLIST_HEAD(&orig_node->neigh_list);
+	spin_lock_init(&orig_node->neigh_list_lock);
 
 	memcpy(orig_node->orig, addr, ETH_ALEN);
 	orig_node->router = NULL;
@@ -200,6 +215,8 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 
 	*best_neigh_node = NULL;
 
+	spin_lock_bh(&orig_node->neigh_list_lock);
+
 	/* for all neighbors towards this originator ... */
 	hlist_for_each_entry_safe(neigh_node, node, node_tmp,
 				  &orig_node->neigh_list, list) {
@@ -225,14 +242,16 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 
 			neigh_purged = true;
 
-			hlist_del(&neigh_node->list);
-			kref_put(&neigh_node->refcount, neigh_node_free_ref);
+			hlist_del_rcu(&neigh_node->list);
+			call_rcu(&neigh_node->rcu, neigh_node_free_rcu);
 		} else {
 			if ((!*best_neigh_node) ||
 			    (neigh_node->tq_avg > (*best_neigh_node)->tq_avg))
 				*best_neigh_node = neigh_node;
 		}
 	}
+
+	spin_unlock_bh(&orig_node->neigh_list_lock);
 	return neigh_purged;
 }
 
@@ -384,11 +403,13 @@ int orig_seq_print_text(struct seq_file *seq, void *offset)
 				   neigh_node->addr,
 				   neigh_node->if_incoming->net_dev->name);
 
-			hlist_for_each_entry(neigh_node, node,
-					     &orig_node->neigh_list, list) {
+			rcu_read_lock();
+			hlist_for_each_entry_rcu(neigh_node, node,
+						 &orig_node->neigh_list, list) {
 				seq_printf(seq, " %pM (%3i)", neigh_node->addr,
 						neigh_node->tq_avg);
 			}
+			rcu_read_unlock();
 
 			seq_printf(seq, "\n");
 			batman_count++;
