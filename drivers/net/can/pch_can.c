@@ -138,10 +138,7 @@ struct pch_can_if_regs {
 	u32 id1;
 	u32 id2;
 	u32 mcont;
-	u32 dataa1;
-	u32 dataa2;
-	u32 datab1;
-	u32 datab2;
+	u32 data[4];
 	u32 rsv[13];
 };
 
@@ -424,10 +421,10 @@ static void pch_can_clear_buffers(struct pch_can_priv *priv)
 		iowrite32(0x0, &priv->regs->ifregs[0].id1);
 		iowrite32(0x0, &priv->regs->ifregs[0].id2);
 		iowrite32(0x0, &priv->regs->ifregs[0].mcont);
-		iowrite32(0x0, &priv->regs->ifregs[0].dataa1);
-		iowrite32(0x0, &priv->regs->ifregs[0].dataa2);
-		iowrite32(0x0, &priv->regs->ifregs[0].datab1);
-		iowrite32(0x0, &priv->regs->ifregs[0].datab2);
+		iowrite32(0x0, &priv->regs->ifregs[0].data[0]);
+		iowrite32(0x0, &priv->regs->ifregs[0].data[1]);
+		iowrite32(0x0, &priv->regs->ifregs[0].data[2]);
+		iowrite32(0x0, &priv->regs->ifregs[0].data[3]);
 		iowrite32(PCH_CMASK_RDWR | PCH_CMASK_MASK |
 			  PCH_CMASK_ARB | PCH_CMASK_CTRL,
 			  &priv->regs->ifregs[0].cmask);
@@ -441,10 +438,10 @@ static void pch_can_clear_buffers(struct pch_can_priv *priv)
 		iowrite32(0x0, &priv->regs->ifregs[1].id1);
 		iowrite32(0x0, &priv->regs->ifregs[1].id2);
 		iowrite32(0x0, &priv->regs->ifregs[1].mcont);
-		iowrite32(0x0, &priv->regs->ifregs[1].dataa1);
-		iowrite32(0x0, &priv->regs->ifregs[1].dataa2);
-		iowrite32(0x0, &priv->regs->ifregs[1].datab1);
-		iowrite32(0x0, &priv->regs->ifregs[1].datab2);
+		iowrite32(0x0, &priv->regs->ifregs[1].data[0]);
+		iowrite32(0x0, &priv->regs->ifregs[1].data[1]);
+		iowrite32(0x0, &priv->regs->ifregs[1].data[2]);
+		iowrite32(0x0, &priv->regs->ifregs[1].data[3]);
 		iowrite32(PCH_CMASK_RDWR | PCH_CMASK_MASK |
 			  PCH_CMASK_ARB | PCH_CMASK_CTRL,
 			  &priv->regs->ifregs[1].cmask);
@@ -707,12 +704,13 @@ static int pch_can_rx_normal(struct net_device *ndev, u32 int_stat)
 	canid_t id;
 	u32 ide;
 	u32 rtr;
-	int i, j, k;
+	int i, k;
 	int rcv_pkts = 0;
 	struct sk_buff *skb;
 	struct can_frame *cf;
 	struct pch_can_priv *priv = netdev_priv(ndev);
 	struct net_device_stats *stats = &(priv->ndev->stats);
+	u16 data_reg;
 
 	/* Reading the messsage object from the Message RAM */
 	iowrite32(PCH_CMASK_RX_TX_GET, &priv->regs->ifregs[0].cmask);
@@ -778,12 +776,10 @@ static int pch_can_rx_normal(struct net_device *ndev, u32 int_stat)
 			      ((ioread32(&priv->regs->ifregs[0].mcont)) & 0x0f);
 		}
 
-		for (i = 0, j = 0; i < cf->can_dlc; j++) {
-			reg = ioread32(&priv->regs->ifregs[0].dataa1 + j*4);
-			cf->data[i++] = cpu_to_le32(reg & 0xff);
-			if (i == cf->can_dlc)
-				break;
-			cf->data[i++] = cpu_to_le32((reg >> 8) & 0xff);
+		for (i = 0; i < cf->can_dlc; i += 2) {
+			data_reg = ioread16(&priv->regs->ifregs[0].data[i / 2]);
+			cf->data[i] = data_reg;
+			cf->data[i + 1] = data_reg >> 8;
 		}
 
 		netif_receive_skb(skb);
@@ -1016,10 +1012,10 @@ static int pch_close(struct net_device *ndev)
 
 static netdev_tx_t pch_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
-	int i, j;
 	struct pch_can_priv *priv = netdev_priv(ndev);
 	struct can_frame *cf = (struct can_frame *)skb->data;
 	int tx_buffer_avail = 0;
+	int i;
 
 	if (can_dropped_invalid_skb(ndev, skb))
 		return NETDEV_TX_OK;
@@ -1060,13 +1056,10 @@ static netdev_tx_t pch_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (cf->can_id & CAN_RTR_FLAG)
 		pch_can_bit_clear(&priv->regs->ifregs[1].id2, PCH_ID2_DIR);
 
-	for (i = 0, j = 0; i < cf->can_dlc; j++) {
-		iowrite32(le32_to_cpu(cf->data[i++]),
-			 (&priv->regs->ifregs[1].dataa1) + j*4);
-		if (i == cf->can_dlc)
-			break;
-		iowrite32(le32_to_cpu(cf->data[i++] << 8),
-			 (&priv->regs->ifregs[1].dataa1) + j*4);
+	/* Copy data to register */
+	for (i = 0; i < cf->can_dlc; i += 2) {
+		iowrite16(cf->data[i] | (cf->data[i + 1] << 8),
+			  &priv->regs->ifregs[1].data[i / 2]);
 	}
 
 	can_put_echo_skb(skb, ndev, tx_buffer_avail - PCH_RX_OBJ_END - 1);
