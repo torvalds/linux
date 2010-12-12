@@ -2833,6 +2833,11 @@ int wl1271_free_hw(struct wl1271 *wl)
 }
 EXPORT_SYMBOL_GPL(wl1271_free_hw);
 
+u32 wl12xx_debug_level;
+EXPORT_SYMBOL_GPL(wl12xx_debug_level);
+module_param_named(debug_level, wl12xx_debug_level, uint, DEBUG_NONE);
+MODULE_PARM_DESC(debug_level, "wl12xx debugging level");
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <luciano.coelho@nokia.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");

@@ -60,31 +60,32 @@ enum {
 	DEBUG_ALL	= ~0,
 };
 
-#define DEBUG_LEVEL (DEBUG_NONE)
+extern u32 wl12xx_debug_level;
 
 #define DEBUG_DUMP_LIMIT 1024
 
 #define wl1271_error(fmt, arg...) \
-	printk(KERN_ERR DRIVER_PREFIX "ERROR " fmt "\n", ##arg)
+	pr_err(DRIVER_PREFIX "ERROR " fmt "\n", ##arg)
 
 #define wl1271_warning(fmt, arg...) \
-	printk(KERN_WARNING DRIVER_PREFIX "WARNING " fmt "\n", ##arg)
+	pr_warning(DRIVER_PREFIX "WARNING " fmt "\n", ##arg)
 
 #define wl1271_notice(fmt, arg...) \
-	printk(KERN_INFO DRIVER_PREFIX fmt "\n", ##arg)
+	pr_info(DRIVER_PREFIX fmt "\n", ##arg)
 
 #define wl1271_info(fmt, arg...) \
-	printk(KERN_DEBUG DRIVER_PREFIX fmt "\n", ##arg)
+	pr_info(DRIVER_PREFIX fmt "\n", ##arg)
 
 #define wl1271_debug(level, fmt, arg...) \
 	do { \
-		if (level & DEBUG_LEVEL) \
-			printk(KERN_DEBUG DRIVER_PREFIX fmt "\n", ##arg); \
+		if (level & wl12xx_debug_level) \
+			pr_debug(DRIVER_PREFIX fmt "\n", ##arg); \
 	} while (0)
 
+/* TODO: use pr_debug_hex_dump when it will be available */
 #define wl1271_dump(level, prefix, buf, len)	\
 	do { \
-		if (level & DEBUG_LEVEL) \
+		if (level & wl12xx_debug_level) \
 			print_hex_dump(KERN_DEBUG, DRIVER_PREFIX prefix, \
 				       DUMP_PREFIX_OFFSET, 16, 1,	\
 				       buf,				\
@@ -94,7 +95,7 @@ enum {
 
 #define wl1271_dump_ascii(level, prefix, buf, len)	\
 	do { \
-		if (level & DEBUG_LEVEL) \
+		if (level & wl12xx_debug_level) \
 			print_hex_dump(KERN_DEBUG, DRIVER_PREFIX prefix, \
 				       DUMP_PREFIX_OFFSET, 16, 1,	\
 				       buf,				\
