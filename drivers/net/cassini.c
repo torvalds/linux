@@ -3880,7 +3880,7 @@ static int cas_change_mtu(struct net_device *dev, int new_mtu)
 	schedule_work(&cp->reset_task);
 #endif
 
-	flush_scheduled_work();
+	flush_work_sync(&cp->reset_task);
 	return 0;
 }
 
@@ -5177,7 +5177,7 @@ static void __devexit cas_remove_one(struct pci_dev *pdev)
 		vfree(cp->fw_data);
 
 	mutex_lock(&cp->pm_mutex);
-	flush_scheduled_work();
+	cancel_work_sync(&cp->reset_task);
 	if (cp->hw_running)
 		cas_shutdown(cp);
 	mutex_unlock(&cp->pm_mutex);

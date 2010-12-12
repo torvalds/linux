@@ -8341,9 +8341,11 @@ static void __devexit s2io_rem_nic(struct pci_dev *pdev)
 		return;
 	}
 
-	flush_scheduled_work();
-
 	sp = netdev_priv(dev);
+
+	cancel_work_sync(&sp->rst_timer_task);
+	cancel_work_sync(&sp->set_link_task);
+
 	unregister_netdev(dev);
 
 	free_shared_mem(sp);

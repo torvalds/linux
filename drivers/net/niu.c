@@ -9917,7 +9917,7 @@ static int niu_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!netif_running(dev))
 		return 0;
 
-	flush_scheduled_work();
+	flush_work_sync(&np->reset_task);
 	niu_netif_stop(np);
 
 	del_timer_sync(&np->timer);

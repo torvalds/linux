@@ -2978,7 +2978,7 @@ static int mv643xx_eth_remove(struct platform_device *pdev)
 	unregister_netdev(mp->dev);
 	if (mp->phy != NULL)
 		phy_detach(mp->phy);
-	flush_scheduled_work();
+	cancel_work_sync(&mp->tx_timeout_task);
 	free_netdev(mp->dev);
 
 	platform_set_drvdata(pdev, NULL);

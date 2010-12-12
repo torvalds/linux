@@ -3069,7 +3069,7 @@ vmxnet3_remove_device(struct pci_dev *pdev)
 #endif
 		num_rx_queues = 1;
 
-	flush_scheduled_work();
+	cancel_work_sync(&adapter->work);
 
 	unregister_netdev(netdev);
 

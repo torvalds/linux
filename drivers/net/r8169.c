@@ -3240,7 +3240,7 @@ static void __devexit rtl8169_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&tp->task);
 
 	unregister_netdev(dev);
 

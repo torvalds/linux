@@ -3484,9 +3484,8 @@ static void __devexit ixgbevf_remove(struct pci_dev *pdev)
 
 	del_timer_sync(&adapter->watchdog_timer);
 
+	cancel_work_sync(&adapter->reset_task);
 	cancel_work_sync(&adapter->watchdog_task);
-
-	flush_scheduled_work();
 
 	if (adapter->netdev_registered) {
 		unregister_netdev(netdev);

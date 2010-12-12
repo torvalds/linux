@@ -2834,7 +2834,7 @@ static void __devexit enic_remove(struct pci_dev *pdev)
 	if (netdev) {
 		struct enic *enic = netdev_priv(netdev);
 
-		flush_scheduled_work();
+		cancel_work_sync(&enic->reset);
 		unregister_netdev(netdev);
 		enic_dev_deinit(enic);
 		vnic_dev_close(enic->vdev);

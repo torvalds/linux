@@ -6028,8 +6028,8 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	bool down = test_bit(__E1000_DOWN, &adapter->state);
 
 	/*
-	 * flush_scheduled work may reschedule our watchdog task, so
-	 * explicitly disable watchdog tasks from being rescheduled
+	 * The timers may be rescheduled, so explicitly disable them
+	 * from being rescheduled.
 	 */
 	if (!down)
 		set_bit(__E1000_DOWN, &adapter->state);
@@ -6040,8 +6040,8 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	cancel_work_sync(&adapter->watchdog_task);
 	cancel_work_sync(&adapter->downshift_task);
 	cancel_work_sync(&adapter->update_phy_task);
+	cancel_work_sync(&adapter->led_blink_task);
 	cancel_work_sync(&adapter->print_hang_task);
-	flush_scheduled_work();
 
 	if (!(netdev->flags & IFF_UP))
 		e1000_power_down_phy(adapter);

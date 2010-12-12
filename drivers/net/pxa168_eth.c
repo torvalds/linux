@@ -1602,7 +1602,7 @@ static int pxa168_eth_remove(struct platform_device *pdev)
 	mdiobus_unregister(pep->smi_bus);
 	mdiobus_free(pep->smi_bus);
 	unregister_netdev(dev);
-	flush_scheduled_work();
+	cancel_work_sync(&pep->tx_timeout_task);
 	free_netdev(dev);
 	platform_set_drvdata(pdev, NULL);
 	return 0;

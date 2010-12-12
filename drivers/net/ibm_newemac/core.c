@@ -2950,7 +2950,7 @@ static int __devexit emac_remove(struct platform_device *ofdev)
 
 	unregister_netdev(dev->ndev);
 
-	flush_scheduled_work();
+	cancel_work_sync(&dev->reset_work);
 
 	if (emac_has_feature(dev, EMAC_FTR_HAS_TAH))
 		tah_detach(dev->tah_dev, dev->tah_port);
