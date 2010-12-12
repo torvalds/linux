@@ -115,6 +115,7 @@ struct neigh_node {
 	struct neigh_node *next_bond_candidate;
 	unsigned long last_valid;
 	unsigned long real_bits[NUM_WORDS];
+	struct kref refcount;
 	struct orig_node *orig_node;
 	struct batman_if *if_incoming;
 };
