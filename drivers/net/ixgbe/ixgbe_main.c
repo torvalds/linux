@@ -7373,13 +7373,15 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	struct net_device *netdev = adapter->netdev;
 
 	set_bit(__IXGBE_DOWN, &adapter->state);
-	/* clear the module not found bit to make sure the worker won't
-	 * reschedule
+
+	/*
+	 * The timers may be rescheduled, so explicitly disable them
+	 * from being rescheduled.
 	 */
 	clear_bit(__IXGBE_SFP_MODULE_NOT_FOUND, &adapter->state);
 	del_timer_sync(&adapter->watchdog_timer);
-
 	del_timer_sync(&adapter->sfp_timer);
+
 	cancel_work_sync(&adapter->watchdog_task);
 	cancel_work_sync(&adapter->sfp_task);
 	cancel_work_sync(&adapter->multispeed_fiber_task);
@@ -7387,7 +7389,8 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||
 	    adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)
 		cancel_work_sync(&adapter->fdir_reinit_task);
-	flush_scheduled_work();
+	if (adapter->flags2 & IXGBE_FLAG2_TEMP_SENSOR_CAPABLE)
+		cancel_work_sync(&adapter->check_overtemp_task);
 
 #ifdef CONFIG_IXGBE_DCA
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {
