@@ -405,11 +405,10 @@ static int wm8350_dcdc_set_voltage(struct regulator_dev *rdev, int min_uV,
 	return 0;
 }
 
-static int wm8350_dcdc_get_voltage(struct regulator_dev *rdev)
+static int wm8350_dcdc_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 	int volt_reg, dcdc = rdev_get_id(rdev);
-	u16 val;
 
 	switch (dcdc) {
 	case WM8350_DCDC_1:
@@ -431,8 +430,7 @@ static int wm8350_dcdc_get_voltage(struct regulator_dev *rdev)
 	}
 
 	/* all DCDCs have same mV bits */
-	val = wm8350_reg_read(wm8350, volt_reg) & WM8350_DC1_VSEL_MASK;
-	return wm8350_dcdc_val_to_mvolts(val) * 1000;
+	return wm8350_reg_read(wm8350, volt_reg) & WM8350_DC1_VSEL_MASK;
 }
 
 static int wm8350_dcdc_list_voltage(struct regulator_dev *rdev,
@@ -807,11 +805,10 @@ static int wm8350_ldo_set_voltage(struct regulator_dev *rdev, int min_uV,
 	return 0;
 }
 
-static int wm8350_ldo_get_voltage(struct regulator_dev *rdev)
+static int wm8350_ldo_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
 	int volt_reg, ldo = rdev_get_id(rdev);
-	u16 val;
 
 	switch (ldo) {
 	case WM8350_LDO_1:
@@ -831,8 +828,7 @@ static int wm8350_ldo_get_voltage(struct regulator_dev *rdev)
 	}
 
 	/* all LDOs have same mV bits */
-	val = wm8350_reg_read(wm8350, volt_reg) & WM8350_LDO1_VSEL_MASK;
-	return wm8350_ldo_val_to_mvolts(val) * 1000;
+	return wm8350_reg_read(wm8350, volt_reg) & WM8350_LDO1_VSEL_MASK;
 }
 
 static int wm8350_ldo_list_voltage(struct regulator_dev *rdev,
@@ -1229,7 +1225,7 @@ static int wm8350_ldo_is_enabled(struct regulator_dev *rdev)
 
 static struct regulator_ops wm8350_dcdc_ops = {
 	.set_voltage = wm8350_dcdc_set_voltage,
-	.get_voltage = wm8350_dcdc_get_voltage,
+	.get_voltage_sel = wm8350_dcdc_get_voltage_sel,
 	.list_voltage = wm8350_dcdc_list_voltage,
 	.enable = wm8350_dcdc_enable,
 	.disable = wm8350_dcdc_disable,
@@ -1253,7 +1249,7 @@ static struct regulator_ops wm8350_dcdc2_5_ops = {
 
 static struct regulator_ops wm8350_ldo_ops = {
 	.set_voltage = wm8350_ldo_set_voltage,
-	.get_voltage = wm8350_ldo_get_voltage,
+	.get_voltage_sel = wm8350_ldo_get_voltage_sel,
 	.list_voltage = wm8350_ldo_list_voltage,
 	.enable = wm8350_ldo_enable,
 	.disable = wm8350_ldo_disable,
