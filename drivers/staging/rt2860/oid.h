@@ -88,7 +88,7 @@
 #define MAX_NUMBER_OF_DLS_ENTRY			4
 
 #define RT_QUERY_SIGNAL_CONTEXT				0x0402
-#define RT_SET_IAPP_PID                 	0x0404
+#define RT_SET_IAPP_PID				0x0404
 #define RT_SET_APD_PID						0x0405
 #define RT_SET_DEL_MAC_ENTRY				0x0406
 #define RT_QUERY_EVENT_TABLE			0x0407
