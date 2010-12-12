@@ -1637,6 +1637,32 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 								 selector);
 		else
 			selector = -1;
+	} else if (rdev->desc->ops->set_voltage_sel) {
+		int best_val = INT_MAX;
+		int i;
+
+		selector = 0;
+
+		/* Find the smallest voltage that falls within the specified
+		 * range.
+		 */
+		for (i = 0; i < rdev->desc->n_voltages; i++) {
+			ret = rdev->desc->ops->list_voltage(rdev, i);
+			if (ret < 0)
+				continue;
+
+			if (ret < best_val && ret >= min_uV && ret <= max_uV) {
+				best_val = ret;
+				selector = i;
+			}
+		}
+
+		if (best_val != INT_MAX) {
+			ret = rdev->desc->ops->set_voltage_sel(rdev, selector);
+			selector = best_val;
+		} else {
+			ret = -EINVAL;
+		}
 	} else {
 		ret = -EINVAL;
 	}
@@ -1672,7 +1698,8 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	mutex_lock(&rdev->mutex);
 
 	/* sanity check */
-	if (!rdev->desc->ops->set_voltage) {
+	if (!rdev->desc->ops->set_voltage &&
+	    !rdev->desc->ops->set_voltage_sel) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -2256,7 +2283,7 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
 		return status;
 
 	/* constraints need specific supporting methods */
-	if (ops->set_voltage) {
+	if (ops->set_voltage || ops->set_voltage_sel) {
 		status = device_create_file(dev, &dev_attr_min_microvolts);
 		if (status < 0)
 			return status;
@@ -2354,9 +2381,15 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	/* Only one of each should be implemented */
 	WARN_ON(regulator_desc->ops->get_voltage &&
 		regulator_desc->ops->get_voltage_sel);
+	WARN_ON(regulator_desc->ops->set_voltage &&
+		regulator_desc->ops->set_voltage_sel);
 
 	/* If we're using selectors we must implement list_voltage. */
 	if (regulator_desc->ops->get_voltage_sel &&
+	    !regulator_desc->ops->list_voltage) {
+		return ERR_PTR(-EINVAL);
+	}
+	if (regulator_desc->ops->set_voltage_sel &&
 	    !regulator_desc->ops->list_voltage) {
 		return ERR_PTR(-EINVAL);
 	}
