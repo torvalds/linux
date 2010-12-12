@@ -222,7 +222,7 @@ static void pch_can_set_run_mode(struct pch_can_priv *priv,
 		break;
 
 	default:
-		dev_err(&priv->ndev->dev, "%s -> Invalid Mode.\n", __func__);
+		netdev_err(priv->ndev, "%s -> Invalid Mode.\n", __func__);
 		break;
 	}
 }
@@ -275,7 +275,7 @@ static void pch_can_set_int_enables(struct pch_can_priv *priv,
 		break;
 
 	default:
-		dev_err(&priv->ndev->dev, "Invalid interrupt number.\n");
+		netdev_err(priv->ndev, "Invalid interrupt number.\n");
 		break;
 	}
 }
@@ -528,7 +528,7 @@ static void pch_can_error(struct net_device *ndev, u32 status)
 			cf->data[1] |= CAN_ERR_CRTL_RX_WARNING;
 		if ((errc & PCH_TEC) > 96)
 			cf->data[1] |= CAN_ERR_CRTL_TX_WARNING;
-		dev_warn(&ndev->dev,
+		netdev_dbg(ndev,
 			"%s -> Error Counter is more than 96.\n", __func__);
 	}
 	/* Error passive interrupt. */
@@ -540,7 +540,7 @@ static void pch_can_error(struct net_device *ndev, u32 status)
 			cf->data[1] |= CAN_ERR_CRTL_RX_PASSIVE;
 		if ((errc & PCH_TEC) > 127)
 			cf->data[1] |= CAN_ERR_CRTL_TX_PASSIVE;
-		dev_err(&ndev->dev,
+		netdev_dbg(ndev,
 			"%s -> CAN controller is ERROR PASSIVE .\n", __func__);
 	}
 
@@ -859,10 +859,10 @@ static int pch_can_open(struct net_device *ndev)
 
 	retval = pci_enable_msi(priv->dev);
 	if (retval) {
-		dev_info(&ndev->dev, "PCH CAN opened without MSI\n");
+		netdev_err(ndev, "PCH CAN opened without MSI\n");
 		priv->use_msi = 0;
 	} else {
-		dev_info(&ndev->dev, "PCH CAN opened with MSI\n");
+		netdev_err(ndev, "PCH CAN opened with MSI\n");
 		priv->use_msi = 1;
 	}
 
@@ -870,14 +870,14 @@ static int pch_can_open(struct net_device *ndev)
 	retval = request_irq(priv->dev->irq, pch_can_interrupt, IRQF_SHARED,
 			     ndev->name, ndev);
 	if (retval) {
-		dev_err(&ndev->dev, "request_irq failed.\n");
+		netdev_err(ndev, "request_irq failed.\n");
 		goto req_irq_err;
 	}
 
 	/* Open common can device */
 	retval = open_candev(ndev);
 	if (retval) {
-		dev_err(ndev->dev.parent, "open_candev() failed %d\n", retval);
+		netdev_err(ndev, "open_candev() failed %d\n", retval);
 		goto err_open_candev;
 	}
 
