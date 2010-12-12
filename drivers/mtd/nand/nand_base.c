@@ -3157,7 +3157,7 @@ ident_done:
 	printk(KERN_INFO "NAND device: Manufacturer ID:"
 		" 0x%02x, Chip ID: 0x%02x (%s %s)\n", *maf_id, *dev_id,
 		nand_manuf_ids[maf_idx].name,
-	chip->onfi_version ? type->name : chip->onfi_params.model);
+		chip->onfi_version ? chip->onfi_params.model : type->name);
 
 	return type;
 }
