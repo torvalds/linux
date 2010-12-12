@@ -643,11 +643,17 @@ enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *mdev, enum dds_
 		|| prev_size	   != mdev->ldev->md.md_size_sect;
 
 	if (la_size_changed || md_moved) {
+		int err;
+
 		drbd_al_shrink(mdev); /* All extents inactive. */
 		dev_info(DEV, "Writing the whole bitmap, %s\n",
 			 la_size_changed && md_moved ? "size changed and md moved" :
 			 la_size_changed ? "size changed" : "md moved");
-		rv = drbd_bitmap_io(mdev, &drbd_bm_write, "size changed"); /* does drbd_resume_io() ! */
+		err = drbd_bitmap_io(mdev, &drbd_bm_write, "size changed"); /* does drbd_resume_io() ! */
+		if (err) {
+			rv = dev_size_error;
+			goto out;
+		}
 		drbd_md_mark_dirty(mdev);
 	}
 
