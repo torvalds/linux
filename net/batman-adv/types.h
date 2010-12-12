@@ -83,7 +83,7 @@ struct orig_node {
 	uint8_t last_ttl;
 	unsigned long bcast_bits[NUM_WORDS];
 	uint32_t last_bcast_seqno;
-	struct list_head neigh_list;
+	struct hlist_head neigh_list;
 	struct list_head frag_list;
 	unsigned long last_frag_packet;
 	struct {
@@ -105,7 +105,7 @@ struct gw_node {
  *	@last_valid: when last packet via this neighbor was received
  */
 struct neigh_node {
-	struct list_head list;
+	struct hlist_node list;
 	uint8_t addr[ETH_ALEN];
 	uint8_t real_packet_count;
 	uint8_t tq_recv[TQ_GLOBAL_WINDOW_SIZE];

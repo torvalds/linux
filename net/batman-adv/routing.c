@@ -149,12 +149,12 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
+	struct hlist_node *node;
 	unsigned char total_count;
 
 	if (orig_node == orig_neigh_node) {
-		list_for_each_entry(tmp_neigh_node,
-				    &orig_node->neigh_list,
-				    list) {
+		hlist_for_each_entry(tmp_neigh_node, node,
+				     &orig_node->neigh_list, list) {
 
 			if (compare_orig(tmp_neigh_node->addr,
 					 orig_neigh_node->orig) &&
@@ -174,8 +174,8 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 		neigh_node->last_valid = jiffies;
 	} else {
 		/* find packet count of corresponding one hop neighbor */
-		list_for_each_entry(tmp_neigh_node,
-				    &orig_neigh_node->neigh_list, list) {
+		hlist_for_each_entry(tmp_neigh_node, node,
+				     &orig_neigh_node->neigh_list, list) {
 
 			if (compare_orig(tmp_neigh_node->addr,
 					 orig_neigh_node->orig) &&
@@ -260,12 +260,14 @@ static void update_orig(struct bat_priv *bat_priv,
 			char is_duplicate)
 {
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
+	struct hlist_node *node;
 	int tmp_hna_buff_len;
 
 	bat_dbg(DBG_BATMAN, bat_priv, "update_originator(): "
 		"Searching and updating originator entry of received packet\n");
 
-	list_for_each_entry(tmp_neigh_node, &orig_node->neigh_list, list) {
+	hlist_for_each_entry(tmp_neigh_node, node,
+			     &orig_node->neigh_list, list) {
 		if (compare_orig(tmp_neigh_node->addr, ethhdr->h_source) &&
 		    (tmp_neigh_node->if_incoming == if_incoming)) {
 			neigh_node = tmp_neigh_node;
@@ -391,6 +393,7 @@ static char count_real_packets(struct ethhdr *ethhdr,
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct orig_node *orig_node;
 	struct neigh_node *tmp_neigh_node;
+	struct hlist_node *node;
 	char is_duplicate = 0;
 	int32_t seq_diff;
 	int need_update = 0;
@@ -407,7 +410,8 @@ static char count_real_packets(struct ethhdr *ethhdr,
 			     &orig_node->batman_seqno_reset))
 		return -1;
 
-	list_for_each_entry(tmp_neigh_node, &orig_node->neigh_list, list) {
+	hlist_for_each_entry(tmp_neigh_node, node,
+			     &orig_node->neigh_list, list) {
 
 		is_duplicate |= get_bit_status(tmp_neigh_node->real_bits,
 					       orig_node->last_real_seqno,
@@ -457,6 +461,7 @@ void update_bonding_candidates(struct orig_node *orig_node)
 	int candidates;
 	int interference_candidate;
 	int best_tq;
+	struct hlist_node *node, *node2;
 	struct neigh_node *tmp_neigh_node, *tmp_neigh_node2;
 	struct neigh_node *first_candidate, *last_candidate;
 
@@ -476,13 +481,15 @@ void update_bonding_candidates(struct orig_node *orig_node)
 	 * as "bonding partner" */
 
 	/* first, zero the list */
-	list_for_each_entry(tmp_neigh_node, &orig_node->neigh_list, list) {
+	hlist_for_each_entry(tmp_neigh_node, node,
+			     &orig_node->neigh_list, list) {
 		tmp_neigh_node->next_bond_candidate = NULL;
 	}
 
 	first_candidate = NULL;
 	last_candidate = NULL;
-	list_for_each_entry(tmp_neigh_node, &orig_node->neigh_list, list) {
+	hlist_for_each_entry(tmp_neigh_node, node,
+			     &orig_node->neigh_list, list) {
 
 		/* only consider if it has the same primary address ...  */
 		if (memcmp(orig_node->orig,
@@ -499,8 +506,8 @@ void update_bonding_candidates(struct orig_node *orig_node)
 		 * select this candidate because of possible interference. */
 
 		interference_candidate = 0;
-		list_for_each_entry(tmp_neigh_node2,
-				&orig_node->neigh_list, list) {
+		hlist_for_each_entry(tmp_neigh_node2, node2,
+				     &orig_node->neigh_list, list) {
 
 			if (tmp_neigh_node2 == tmp_neigh_node)
 				continue;
