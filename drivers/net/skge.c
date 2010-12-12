@@ -4012,8 +4012,6 @@ static void __devexit skge_remove(struct pci_dev *pdev)
 	if (!hw)
 		return;
 
-	flush_scheduled_work();
-
 	dev1 = hw->dev[1];
 	if (dev1)
 		unregister_netdev(dev1);

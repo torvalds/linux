@@ -1552,7 +1552,6 @@ static int sh_eth_drv_remove(struct platform_device *pdev)
 
 	sh_mdio_release(ndev);
 	unregister_netdev(ndev);
-	flush_scheduled_work();
 	pm_runtime_disable(&pdev->dev);
 	free_netdev(ndev);
 	platform_set_drvdata(pdev, NULL);
