@@ -227,10 +227,8 @@ static struct fileIdentDesc *udf_find_entry(struct inode *dir,
 		}
 
 		if ((cfi->fileCharacteristics & FID_FILE_CHAR_PARENT) &&
-		    isdotdot) {
-			brelse(epos.bh);
-			return fi;
-		}
+		    isdotdot)
+			goto out_ok;
 
 		if (!lfi)
 			continue;
