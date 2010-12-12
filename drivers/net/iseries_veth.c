@@ -885,17 +885,8 @@ static void veth_stop_connection(struct veth_lpar_connection *cnx)
 	veth_kick_statemachine(cnx);
 	spin_unlock_irq(&cnx->lock);
 
-	/* There's a slim chance the reset code has just queued the
-	 * statemachine to run in five seconds. If so we need to cancel
-	 * that and requeue the work to run now. */
-	if (cancel_delayed_work(&cnx->statemachine_wq)) {
-		spin_lock_irq(&cnx->lock);
-		veth_kick_statemachine(cnx);
-		spin_unlock_irq(&cnx->lock);
-	}
-
-	/* Wait for the state machine to run. */
-	flush_scheduled_work();
+	/* ensure the statemachine runs now and waits for its completion */
+	flush_delayed_work_sync(&cnx->statemachine_wq);
 }
 
 static void veth_destroy_connection(struct veth_lpar_connection *cnx)
@@ -1653,15 +1644,14 @@ static void __exit veth_module_cleanup(void)
 	/* Disconnect our "irq" to stop events coming from the Hypervisor. */
 	HvLpEvent_unregisterHandler(HvLpEvent_Type_VirtualLan);
 
-	/* Make sure any work queued from Hypervisor callbacks is finished. */
-	flush_scheduled_work();
-
 	for (i = 0; i < HVMAXARCHITECTEDLPS; ++i) {
 		cnx = veth_cnx[i];
 
 		if (!cnx)
 			continue;
 
+		/* Cancel work queued from Hypervisor callbacks */
+		cancel_delayed_work_sync(&cnx->statemachine_wq);
 		/* Remove the connection from sysfs */
 		kobject_del(&cnx->kobject);
 		/* Drop the driver's reference to the connection */
