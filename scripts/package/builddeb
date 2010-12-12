@@ -54,6 +54,9 @@ create_package() {
 		echo "Please add support for $UTS_MACHINE to ${0} ..." >&2
 		echo "" >&2
 	esac
+	if [ -n "$KBUILD_DEBARCH" ] ; then
+		debarch="$KBUILD_DEBARCH"
+	fi
 	if [ -n "$debarch" ] ; then
 		forcearch="-DArchitecture=$debarch"
 	fi
