@@ -73,14 +73,15 @@ struct sd {
 #define BRIDGE_103 1
 
 	__u8 sensor;			/* Type of image sensor chip */
-#define SENSOR_HV7131R 0
-#define SENSOR_OV6650 1
-#define SENSOR_OV7630 2
-#define SENSOR_PAS106 3
-#define SENSOR_PAS202 4
-#define SENSOR_TAS5110C 5
-#define SENSOR_TAS5110D 6
-#define SENSOR_TAS5130CXX 7
+#define SENSOR_HV7131D 0
+#define SENSOR_HV7131R 1
+#define SENSOR_OV6650 2
+#define SENSOR_OV7630 3
+#define SENSOR_PAS106 4
+#define SENSOR_PAS202 5
+#define SENSOR_TAS5110C 6
+#define SENSOR_TAS5110D 7
+#define SENSOR_TAS5130CXX 8
 	__u8 reg11;
 };
 
@@ -305,14 +306,29 @@ static const struct v4l2_pix_format sif_mode[] = {
 		.priv = 0},
 };
 
-static const __u8 initHv7131[] = {
+static const __u8 initHv7131d[] = {
+	0x04, 0x03, 0x00, 0x04, 0x00, 0x00, 0x00, 0x80, 0x11, 0x00, 0x00, 0x00,
+	0x00, 0x00,
+	0x00, 0x00, 0x00, 0x02, 0x02, 0x00,
+	0x28, 0x1e, 0x60, 0x8e, 0x42,
+	0x1d, 0x10, 0x02, 0x03, 0x0f, 0x0c
+};
+static const __u8 hv7131d_sensor_init[][8] = {
+	{0xa0, 0x11, 0x01, 0x04, 0x00, 0x00, 0x00, 0x17},
+	{0xa0, 0x11, 0x02, 0x00, 0x00, 0x00, 0x00, 0x17},
+	{0xa0, 0x11, 0x28, 0x00, 0x00, 0x00, 0x00, 0x17},
+	{0xa0, 0x11, 0x30, 0x30, 0x00, 0x00, 0x00, 0x17}, /* reset level */
+	{0xa0, 0x11, 0x34, 0x02, 0x00, 0x00, 0x00, 0x17}, /* pixel bias volt */
+};
+
+static const __u8 initHv7131r[] = {
 	0x46, 0x77, 0x00, 0x04, 0x00, 0x00, 0x00, 0x80, 0x11, 0x00, 0x00, 0x00,
 	0x00, 0x00,
 	0x00, 0x00, 0x00, 0x02, 0x01, 0x00,
 	0x28, 0x1e, 0x60, 0x8a, 0x20,
 	0x1d, 0x10, 0x02, 0x03, 0x0f, 0x0c
 };
-static const __u8 hv7131_sensor_init[][8] = {
+static const __u8 hv7131r_sensor_init[][8] = {
 	{0xc0, 0x11, 0x31, 0x38, 0x2a, 0x2e, 0x00, 0x10},
 	{0xa0, 0x11, 0x01, 0x08, 0x2a, 0x2e, 0x00, 0x10},
 	{0xb0, 0x11, 0x20, 0x00, 0xd0, 0x2e, 0x00, 0x10},
@@ -553,7 +569,8 @@ static const __u8 tas5130_sensor_init[][8] = {
 };
 
 static struct sensor_data sensor_data[] = {
-SENS(initHv7131, NULL, hv7131_sensor_init, NULL, NULL, 0, NO_EXPO|NO_FREQ, 0),
+SENS(initHv7131d, NULL, hv7131d_sensor_init, NULL, NULL, F_GAIN, NO_BRIGHTNESS|NO_FREQ, 0),
+SENS(initHv7131r, NULL, hv7131r_sensor_init, NULL, NULL, 0, NO_BRIGHTNESS|NO_EXPO|NO_FREQ, 0),
 SENS(initOv6650, NULL, ov6650_sensor_init, NULL, NULL, F_GAIN|F_SIF, 0, 0x60),
 SENS(initOv7630, initOv7630_3, ov7630_sensor_init, NULL, ov7630_sensor_init_3,
 	F_GAIN, 0, 0x21),
@@ -703,7 +720,18 @@ static void setsensorgain(struct gspca_dev *gspca_dev)
 	unsigned char gain = sd->gain;
 
 	switch (sd->sensor) {
+	case SENSOR_HV7131D: {
+		__u8 i2c[] =
+			{0xc0, 0x11, 0x31, 0x00, 0x00, 0x00, 0x00, 0x17};
 
+		i2c[3] = 0x3f - (sd->gain / 4);
+		i2c[4] = 0x3f - (sd->gain / 4);
+		i2c[5] = 0x3f - (sd->gain / 4);
+
+		if (i2c_w(gspca_dev, i2c) < 0)
+			goto err;
+		break;
+	    }
 	case SENSOR_TAS5110C:
 	case SENSOR_TAS5110D: {
 		__u8 i2c[] =
@@ -790,6 +818,23 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->sensor) {
+	case SENSOR_HV7131D: {
+		/* Note the datasheet wrongly says line mode exposure uses reg
+		   0x26 and 0x27, testing has shown 0x25 + 0x26 */
+		__u8 i2c[] = {0xc0, 0x11, 0x25, 0x00, 0x00, 0x00, 0x00, 0x17};
+		/* The HV7131D's exposure goes from 0 - 65535, we scale our
+		   exposure of 0-1023 to 0-6138. There are 2 reasons for this:
+		   1) This puts our exposure knee of 200 at approx the point
+		      where the framerate starts dropping
+		   2) At 6138 the framerate has already dropped to 2 fps,
+		      going any lower makes little sense */
+		__u16 reg = sd->exposure * 6;
+		i2c[3] = reg >> 8;
+		i2c[4] = reg & 0xff;
+		if (i2c_w(gspca_dev, i2c) != 0)
+			goto err;
+		break;
+	    }
 	case SENSOR_TAS5110C:
 	case SENSOR_TAS5110D: {
 		/* register 19's high nibble contains the sn9c10x clock divider
@@ -1494,9 +1539,12 @@ static const struct usb_device_id device_table[] __devinitconst = {
 #endif
 	{USB_DEVICE(0x0c45, 0x6028), SB(PAS202, 102)},
 	{USB_DEVICE(0x0c45, 0x6029), SB(PAS106, 102)},
+	{USB_DEVICE(0x0c45, 0x602a), SB(HV7131D, 102)},
+	/* {USB_DEVICE(0x0c45, 0x602b), SB(MI0343, 102)}, */
 	{USB_DEVICE(0x0c45, 0x602c), SB(OV7630, 102)},
 	{USB_DEVICE(0x0c45, 0x602d), SB(HV7131R, 102)},
 	{USB_DEVICE(0x0c45, 0x602e), SB(OV7630, 102)},
+	/* {USB_DEVICE(0x0c45, 0x602b), SB(MI03XX, 102)}, */ /* MI0343 MI0360 MI0330 */
 	{USB_DEVICE(0x0c45, 0x608f), SB(OV7630, 103)},
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x60af), SB(PAS202, 103)},
