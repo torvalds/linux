@@ -2380,10 +2380,8 @@ static int gem_suspend(struct pci_dev *pdev, pm_message_t state)
 	 */
 	mutex_unlock(&gp->pm_mutex);
 
-	/* Wait for a pending reset task to complete */
-	while (gp->reset_task_pending)
-		yield();
-	flush_scheduled_work();
+	/* Wait for the pending reset task to complete */
+	flush_work_sync(&gp->reset_task);
 
 	/* Shut the PHY down eventually and setup WOL */
 	gem_stop_phy(gp, gp->asleep_wol);
@@ -2928,10 +2926,8 @@ static void gem_remove_one(struct pci_dev *pdev)
 		/* We shouldn't need any locking here */
 		gem_get_cell(gp);
 
-		/* Wait for a pending reset task to complete */
-		while (gp->reset_task_pending)
-			yield();
-		flush_scheduled_work();
+		/* Cancel reset task */
+		cancel_work_sync(&gp->reset_task);
 
 		/* Shut the PHY down */
 		gem_stop_phy(gp, 0);
