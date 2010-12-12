@@ -572,7 +572,7 @@ static void pch_can_error(struct net_device *ndev, u32 status)
 	cf->data[7] = (errc & PCH_REC) >> 8;
 
 	priv->can.state = state;
-	netif_rx(skb);
+	netif_receive_skb(skb);
 
 	stats->rx_packets++;
 	stats->rx_bytes += cf->can_dlc;
