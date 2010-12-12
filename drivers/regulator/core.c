@@ -83,6 +83,8 @@ static int _regulator_get_current_limit(struct regulator_dev *rdev);
 static unsigned int _regulator_get_mode(struct regulator_dev *rdev);
 static void _notifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data);
+static int _regulator_do_set_voltage(struct regulator_dev *rdev,
+				     int min_uV, int max_uV);
 
 static const char *rdev_get_name(struct regulator_dev *rdev)
 {
@@ -745,22 +747,19 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 {
 	struct regulator_ops *ops = rdev->desc->ops;
 	int ret;
-	unsigned selector;
 
 	/* do we need to apply the constraint voltage */
 	if (rdev->constraints->apply_uV &&
-		rdev->constraints->min_uV == rdev->constraints->max_uV &&
-		ops->set_voltage) {
-		ret = ops->set_voltage(rdev,
-				       rdev->constraints->min_uV,
-				       rdev->constraints->max_uV,
-				       &selector);
-			if (ret < 0) {
-				rdev_err(rdev, "failed to apply %duV constraint\n",
-					 rdev->constraints->min_uV);
-				rdev->constraints = NULL;
-				return ret;
-			}
+	    rdev->constraints->min_uV == rdev->constraints->max_uV) {
+		ret = _regulator_do_set_voltage(rdev,
+						rdev->constraints->min_uV,
+						rdev->constraints->max_uV);
+		if (ret < 0) {
+			rdev_err(rdev, "failed to apply %duV constraint\n",
+				 rdev->constraints->min_uV);
+			rdev->constraints = NULL;
+			return ret;
+		}
 	}
 
 	/* constrain machine-level voltage specs to fit
@@ -1621,6 +1620,32 @@ int regulator_is_supported_voltage(struct regulator *regulator,
 	return 0;
 }
 
+static int _regulator_do_set_voltage(struct regulator_dev *rdev,
+				     int min_uV, int max_uV)
+{
+	int ret;
+	unsigned int selector;
+
+	trace_regulator_set_voltage(rdev_get_name(rdev), min_uV, max_uV);
+
+	if (rdev->desc->ops->set_voltage) {
+		ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV,
+						   &selector);
+
+		if (rdev->desc->ops->list_voltage)
+			selector = rdev->desc->ops->list_voltage(rdev,
+								 selector);
+		else
+			selector = -1;
+	} else {
+		ret = -EINVAL;
+	}
+
+	trace_regulator_set_voltage_complete(rdev_get_name(rdev), selector);
+
+	return ret;
+}
+
 /**
  * regulator_set_voltage - set regulator output voltage
  * @regulator: regulator source
@@ -1643,7 +1668,6 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 {
 	struct regulator_dev *rdev = regulator->rdev;
 	int ret;
-	unsigned selector;
 
 	mutex_lock(&rdev->mutex);
 
@@ -1664,16 +1688,7 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	if (ret < 0)
 		goto out;
 
-	trace_regulator_set_voltage(rdev_get_name(rdev), min_uV, max_uV);
-
-	ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV, &selector);
-
-	if (rdev->desc->ops->list_voltage)
-		selector = rdev->desc->ops->list_voltage(rdev, selector);
-	else
-		selector = -1;
-
-	trace_regulator_set_voltage_complete(rdev_get_name(rdev), selector);
+	ret = _regulator_do_set_voltage(rdev, min_uV, max_uV);
 
 out:
 	_notifier_call_chain(rdev, REGULATOR_EVENT_VOLTAGE_CHANGE, NULL);
