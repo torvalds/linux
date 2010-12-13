@@ -413,12 +413,16 @@ static noinline int device_list_add(const char *path,
 
 		device->fs_devices = fs_devices;
 		fs_devices->num_devices++;
-	} else if (strcmp(device->name, path)) {
+	} else if (!device->name || strcmp(device->name, path)) {
 		name = kstrdup(path, GFP_NOFS);
 		if (!name)
 			return -ENOMEM;
 		kfree(device->name);
 		device->name = name;
+		if (device->missing) {
+			fs_devices->missing_devices--;
+			device->missing = 0;
+		}
 	}
 
 	if (found_transid > fs_devices->latest_trans) {
@@ -1237,6 +1241,9 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
 
 	device->fs_devices->num_devices--;
+
+	if (device->missing)
+		root->fs_info->fs_devices->missing_devices--;
 
 	next_device = list_entry(root->fs_info->fs_devices->devices.next,
 				 struct btrfs_device, dev_list);
@@ -3084,7 +3091,9 @@ static struct btrfs_device *add_missing_dev(struct btrfs_root *root,
 	device->devid = devid;
 	device->work.func = pending_bios_fn;
 	device->fs_devices = fs_devices;
+	device->missing = 1;
 	fs_devices->num_devices++;
+	fs_devices->missing_devices++;
 	spin_lock_init(&device->io_lock);
 	INIT_LIST_HEAD(&device->dev_alloc_list);
 	memcpy(device->uuid, dev_uuid, BTRFS_UUID_SIZE);
@@ -3282,6 +3291,15 @@ static int read_one_dev(struct btrfs_root *root,
 			device = add_missing_dev(root, devid, dev_uuid);
 			if (!device)
 				return -ENOMEM;
+		} else if (!device->missing) {
+			/*
+			 * this happens when a device that was properly setup
+			 * in the device info lists suddenly goes bad.
+			 * device->bdev is NULL, and so we have to set
+			 * device->missing to one here
+			 */
+			root->fs_info->fs_devices->missing_devices++;
+			device->missing = 1;
 		}
 	}
 
