@@ -199,15 +199,18 @@ void rt2x00queue_insert_l2pad(struct sk_buff *skb, unsigned int header_length)
 
 void rt2x00queue_remove_l2pad(struct sk_buff *skb, unsigned int header_length)
 {
-	unsigned int l2pad = L2PAD_SIZE(header_length);
+	/*
+	 * L2 padding is only present if the skb contains more than just the
+	 * IEEE 802.11 header.
+	 */
+	unsigned int l2pad = (skb->len > header_length) ?
+				L2PAD_SIZE(header_length) : 0;
 
 	if (!l2pad)
 		return;
 
-	memmove(skb->data + header_length, skb->data + header_length + l2pad,
-				skb->len - header_length - l2pad);
-
-	skb_trim(skb, skb->len - l2pad);
+	memmove(skb->data + l2pad, skb->data, header_length);
+	skb_pull(skb, l2pad);
 }
 
 static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
