@@ -1085,6 +1085,31 @@ static acpi_status wmid3_get_device_status(u32 *value, u16 device)
 	return status;
 }
 
+static acpi_status get_device_status(u32 *value, u32 cap)
+{
+	if (wmi_has_guid(WMID_GUID3)) {
+		u16 device;
+
+		switch (cap) {
+		case ACER_CAP_WIRELESS:
+			device = ACER_WMID3_GDS_WIRELESS;
+			break;
+		case ACER_CAP_BLUETOOTH:
+			device = ACER_WMID3_GDS_BLUETOOTH;
+			break;
+		case ACER_CAP_THREEG:
+			device = ACER_WMID3_GDS_THREEG;
+			break;
+		default:
+			return AE_ERROR;
+		}
+		return wmid3_get_device_status(value, device);
+
+	} else {
+		return get_u32(value, cap);
+	}
+}
+
 /*
  * Rfkill devices
  */
@@ -1135,12 +1160,18 @@ static struct rfkill *acer_rfkill_register(struct device *dev,
 {
 	int err;
 	struct rfkill *rfkill_dev;
+	u32 state;
+	acpi_status status;
 
 	rfkill_dev = rfkill_alloc(name, dev, type,
 				  &acer_rfkill_ops,
 				  (void *)(unsigned long)cap);
 	if (!rfkill_dev)
 		return ERR_PTR(-ENOMEM);
+
+	status = get_device_status(&state, cap);
+	if (ACPI_SUCCESS(status))
+		rfkill_init_sw_state(rfkill_dev, !state);
 
 	err = rfkill_register(rfkill_dev);
 	if (err) {
