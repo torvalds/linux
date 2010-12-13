@@ -642,7 +642,14 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 
 	ACPI_FUNCTION_TRACE(ev_gpe_dispatch);
 
-	acpi_os_gpe_count(gpe_number);
+	/* Invoke global event handler if present */
+
+	acpi_gpe_count++;
+	if (acpi_gbl_global_event_handler) {
+		acpi_gbl_global_event_handler(ACPI_EVENT_TYPE_GPE, gpe_device,
+					      gpe_number,
+					      acpi_gbl_global_event_handler_context);
+	}
 
 	/*
 	 * If edge-triggered, clear the GPE status bit now. Note that

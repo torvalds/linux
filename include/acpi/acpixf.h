@@ -229,6 +229,10 @@ acpi_status
 acpi_install_initialization_handler(acpi_init_handler handler, u32 function);
 
 acpi_status
+acpi_install_global_event_handler(ACPI_GBL_EVENT_HANDLER handler,
+				 void *context);
+
+acpi_status
 acpi_install_fixed_event_handler(u32 acpi_event,
 				 acpi_event_handler handler, void *context);
 

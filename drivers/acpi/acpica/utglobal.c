@@ -778,6 +778,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_init_handler = NULL;
 	acpi_gbl_table_handler = NULL;
 	acpi_gbl_interface_handler = NULL;
+	acpi_gbl_global_event_handler = NULL;
 
 	/* Global Lock support */
 

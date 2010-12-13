@@ -92,6 +92,57 @@ acpi_status acpi_install_exception_handler(acpi_exception_handler handler)
 
 ACPI_EXPORT_SYMBOL(acpi_install_exception_handler)
 #endif				/*  ACPI_FUTURE_USAGE  */
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_install_global_event_handler
+ *
+ * PARAMETERS:  Handler         - Pointer to the global event handler function
+ *              Context         - Value passed to the handler on each event
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Saves the pointer to the handler function. The global handler
+ *              is invoked upon each incoming GPE and Fixed Event. It is
+ *              invoked at interrupt level at the time of the event dispatch.
+ *              Can be used to update event counters, etc.
+ *
+ ******************************************************************************/
+acpi_status
+acpi_install_global_event_handler(ACPI_GBL_EVENT_HANDLER handler, void *context)
+{
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_install_global_event_handler);
+
+	/* Parameter validation */
+
+	if (!handler) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Don't allow two handlers. */
+
+	if (acpi_gbl_global_event_handler) {
+		status = AE_ALREADY_EXISTS;
+		goto cleanup;
+	}
+
+	acpi_gbl_global_event_handler = handler;
+	acpi_gbl_global_event_handler_context = context;
+
+      cleanup:
+	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_install_global_event_handler)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_install_fixed_event_handler

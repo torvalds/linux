@@ -895,6 +895,14 @@ typedef void
 /*
  * Various handlers and callback procedures
  */
+typedef
+void (*ACPI_GBL_EVENT_HANDLER) (u32 event_type,
+			       acpi_handle device,
+			       u32 event_number, void *context);
+
+#define ACPI_EVENT_TYPE_GPE         0
+#define ACPI_EVENT_TYPE_FIXED       1
+
 typedef u32(*acpi_event_handler) (void *context);
 
 typedef
