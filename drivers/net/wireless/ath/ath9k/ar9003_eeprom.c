@@ -4798,6 +4798,19 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 	/* Write target power array to registers */
 	ar9003_hw_tx_power_regwrite(ah, targetPowerValT2);
 	ar9003_hw_calibration_apply(ah, chan->channel);
+
+	if (IS_CHAN_2GHZ(chan)) {
+		if (IS_CHAN_HT40(chan))
+			i = ALL_TARGET_HT40_0_8_16;
+		else
+			i = ALL_TARGET_HT20_0_8_16;
+	} else {
+		if (IS_CHAN_HT40(chan))
+			i = ALL_TARGET_HT40_7;
+		else
+			i = ALL_TARGET_HT20_7;
+	}
+	ah->paprd_target_power = targetPowerValT2[i];
 }
 
 static u16 ath9k_hw_ar9300_get_spur_channel(struct ath_hw *ah,

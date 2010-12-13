@@ -373,6 +373,9 @@ void ath_paprd_calibrate(struct work_struct *work)
 	if (!caldata)
 		return;
 
+	if (ar9003_paprd_init_table(ah) < 0)
+		return;
+
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
 		return;
@@ -388,7 +391,6 @@ void ath_paprd_calibrate(struct work_struct *work)
 	memcpy(hdr->addr3, hw->wiphy->perm_addr, ETH_ALEN);
 
 	ath9k_ps_wakeup(sc);
-	ar9003_paprd_init_table(ah);
 	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
 		if (!(common->tx_chainmask & BIT(chain)))
 			continue;
