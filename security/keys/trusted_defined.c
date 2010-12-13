@@ -108,7 +108,8 @@ static int TSS_rawhmac(unsigned char *digest, const unsigned char *key,
 			goto out;
 	}
 	va_end(argp);
-	ret = crypto_shash_final(&sdesc->shash, digest);
+	if (!ret)
+		ret = crypto_shash_final(&sdesc->shash, digest);
 out:
 	kfree(sdesc);
 	return ret;
@@ -117,9 +118,9 @@ out:
 /*
  * calculate authorization info fields to send to TPM
  */
-static uint32_t TSS_authhmac(unsigned char *digest, const unsigned char *key,
-			     const unsigned int keylen, unsigned char *h1,
-			     unsigned char *h2, unsigned char h3, ...)
+static int TSS_authhmac(unsigned char *digest, const unsigned char *key,
+			const unsigned int keylen, unsigned char *h1,
+			unsigned char *h2, unsigned char h3, ...)
 {
 	unsigned char paramdigest[SHA1_DIGEST_SIZE];
 	struct sdesc *sdesc;
@@ -146,15 +147,17 @@ static uint32_t TSS_authhmac(unsigned char *digest, const unsigned char *key,
 			break;
 		data = va_arg(argp, unsigned char *);
 		ret = crypto_shash_update(&sdesc->shash, data, dlen);
-		if (ret < 0)
+		if (ret < 0) {
+			va_end(argp);
 			goto out;
+		}
 	}
 	va_end(argp);
 	ret = crypto_shash_final(&sdesc->shash, paramdigest);
 	if (!ret)
-		TSS_rawhmac(digest, key, keylen, SHA1_DIGEST_SIZE,
-			    paramdigest, TPM_NONCE_SIZE, h1,
-			    TPM_NONCE_SIZE, h2, 1, &c, 0, 0);
+		ret = TSS_rawhmac(digest, key, keylen, SHA1_DIGEST_SIZE,
+				  paramdigest, TPM_NONCE_SIZE, h1,
+				  TPM_NONCE_SIZE, h2, 1, &c, 0, 0);
 out:
 	kfree(sdesc);
 	return ret;
@@ -163,11 +166,11 @@ out:
 /*
  * verify the AUTH1_COMMAND (Seal) result from TPM
  */
-static uint32_t TSS_checkhmac1(unsigned char *buffer,
-			       const uint32_t command,
-			       const unsigned char *ononce,
-			       const unsigned char *key,
-			       const unsigned int keylen, ...)
+static int TSS_checkhmac1(unsigned char *buffer,
+			  const uint32_t command,
+			  const unsigned char *ononce,
+			  const unsigned char *key,
+			  const unsigned int keylen, ...)
 {
 	uint32_t bufsize;
 	uint16_t tag;
@@ -219,18 +222,22 @@ static uint32_t TSS_checkhmac1(unsigned char *buffer,
 			break;
 		dpos = va_arg(argp, unsigned int);
 		ret = crypto_shash_update(&sdesc->shash, buffer + dpos, dlen);
-		if (ret < 0)
+		if (ret < 0) {
+			va_end(argp);
 			goto out;
+		}
 	}
 	va_end(argp);
 	ret = crypto_shash_final(&sdesc->shash, paramdigest);
 	if (ret < 0)
 		goto out;
+
 	ret = TSS_rawhmac(testhmac, key, keylen, SHA1_DIGEST_SIZE, paramdigest,
 			  TPM_NONCE_SIZE, enonce, TPM_NONCE_SIZE, ononce,
 			  1, continueflag, 0, 0);
 	if (ret < 0)
 		goto out;
+
 	if (memcmp(testhmac, authdata, SHA1_DIGEST_SIZE))
 		ret = -EINVAL;
 out:
@@ -241,13 +248,13 @@ out:
 /*
  * verify the AUTH2_COMMAND (unseal) result from TPM
  */
-static uint32_t TSS_checkhmac2(unsigned char *buffer,
-			       const uint32_t command,
-			       const unsigned char *ononce,
-			       const unsigned char *key1,
-			       const unsigned int keylen1,
-			       const unsigned char *key2,
-			       const unsigned int keylen2, ...)
+static int TSS_checkhmac2(unsigned char *buffer,
+			  const uint32_t command,
+			  const unsigned char *ononce,
+			  const unsigned char *key1,
+			  const unsigned int keylen1,
+			  const unsigned char *key2,
+			  const unsigned int keylen2, ...)
 {
 	uint32_t bufsize;
 	uint16_t tag;
@@ -309,9 +316,12 @@ static uint32_t TSS_checkhmac2(unsigned char *buffer,
 			break;
 		dpos = va_arg(argp, unsigned int);
 		ret = crypto_shash_update(&sdesc->shash, buffer + dpos, dlen);
-		if (ret < 0)
+		if (ret < 0) {
+			va_end(argp);
 			goto out;
+		}
 	}
+	va_end(argp);
 	ret = crypto_shash_final(&sdesc->shash, paramdigest);
 	if (ret < 0)
 		goto out;
@@ -319,6 +329,8 @@ static uint32_t TSS_checkhmac2(unsigned char *buffer,
 	ret = TSS_rawhmac(testhmac1, key1, keylen1, SHA1_DIGEST_SIZE,
 			  paramdigest, TPM_NONCE_SIZE, enonce1,
 			  TPM_NONCE_SIZE, ononce, 1, continueflag1, 0, 0);
+	if (ret < 0)
+		goto out;
 	if (memcmp(testhmac1, authdata1, SHA1_DIGEST_SIZE)) {
 		ret = -EINVAL;
 		goto out;
@@ -326,6 +338,8 @@ static uint32_t TSS_checkhmac2(unsigned char *buffer,
 	ret = TSS_rawhmac(testhmac2, key2, keylen2, SHA1_DIGEST_SIZE,
 			  paramdigest, TPM_NONCE_SIZE, enonce2,
 			  TPM_NONCE_SIZE, ononce, 1, continueflag2, 0, 0);
+	if (ret < 0)
+		goto out;
 	if (memcmp(testhmac2, authdata2, SHA1_DIGEST_SIZE))
 		ret = -EINVAL;
 out:
@@ -364,8 +378,8 @@ static int tpm_get_random(struct tpm_buf *tb, unsigned char *buf, uint32_t len)
 	store32(tb, TPM_ORD_GETRANDOM);
 	store32(tb, len);
 	ret = trusted_tpm_send(TPM_ANY_NUM, tb->data, sizeof tb->data);
-	memcpy(buf, tb->data + TPM_GETRANDOM_SIZE, len);
-
+	if (!ret)
+		memcpy(buf, tb->data + TPM_GETRANDOM_SIZE, len);
 	return ret;
 }
 
@@ -392,10 +406,13 @@ static int my_get_random(unsigned char *buf, int len)
 static int pcrlock(const int pcrnum)
 {
 	unsigned char hash[SHA1_DIGEST_SIZE];
+	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	my_get_random(hash, SHA1_DIGEST_SIZE);
+	ret = my_get_random(hash, SHA1_DIGEST_SIZE);
+	if (ret < 0)
+		return ret;
 	return tpm_pcr_extend(TPM_ANY_NUM, pcrnum, hash) ? -EINVAL : 0;
 }
 
@@ -431,9 +448,8 @@ static int osap(struct tpm_buf *tb, struct osapsess *s,
 	       TPM_NONCE_SIZE);
 	memcpy(enonce, &(tb->data[TPM_DATA_OFFSET + sizeof(uint32_t) +
 				  TPM_NONCE_SIZE]), TPM_NONCE_SIZE);
-	ret = TSS_rawhmac(s->secret, key, SHA1_DIGEST_SIZE, TPM_NONCE_SIZE,
-			  enonce, TPM_NONCE_SIZE, ononce, 0, 0);
-	return ret;
+	return TSS_rawhmac(s->secret, key, SHA1_DIGEST_SIZE, TPM_NONCE_SIZE,
+			   enonce, TPM_NONCE_SIZE, ononce, 0, 0);
 }
 
 /*
@@ -454,7 +470,7 @@ static int oiap(struct tpm_buf *tb, uint32_t *handle, unsigned char *nonce)
 	*handle = LOAD32(tb->data, TPM_DATA_OFFSET);
 	memcpy(nonce, &tb->data[TPM_DATA_OFFSET + sizeof(uint32_t)],
 	       TPM_NONCE_SIZE);
-	return ret;
+	return 0;
 }
 
 struct tpm_digests {
@@ -521,20 +537,23 @@ static int tpm_seal(struct tpm_buf *tb, const uint16_t keytype,
 	/* calculate authorization HMAC value */
 	if (pcrinfosize == 0) {
 		/* no pcr info specified */
-		TSS_authhmac(td->pubauth, sess.secret, SHA1_DIGEST_SIZE,
-			     sess.enonce, td->nonceodd, cont, sizeof(uint32_t),
-			     &ordinal, SHA1_DIGEST_SIZE, td->encauth,
-			     sizeof(uint32_t), &pcrsize, sizeof(uint32_t),
-			     &datsize, datalen, data, 0, 0);
+		ret = TSS_authhmac(td->pubauth, sess.secret, SHA1_DIGEST_SIZE,
+				   sess.enonce, td->nonceodd, cont,
+				   sizeof(uint32_t), &ordinal, SHA1_DIGEST_SIZE,
+				   td->encauth, sizeof(uint32_t), &pcrsize,
+				   sizeof(uint32_t), &datsize, datalen, data, 0,
+				   0);
 	} else {
 		/* pcr info specified */
-		TSS_authhmac(td->pubauth, sess.secret, SHA1_DIGEST_SIZE,
-			     sess.enonce, td->nonceodd, cont, sizeof(uint32_t),
-			     &ordinal, SHA1_DIGEST_SIZE, td->encauth,
-			     sizeof(uint32_t), &pcrsize, pcrinfosize,
-			     pcrinfo, sizeof(uint32_t), &datsize, datalen,
-			     data, 0, 0);
+		ret = TSS_authhmac(td->pubauth, sess.secret, SHA1_DIGEST_SIZE,
+				   sess.enonce, td->nonceodd, cont,
+				   sizeof(uint32_t), &ordinal, SHA1_DIGEST_SIZE,
+				   td->encauth, sizeof(uint32_t), &pcrsize,
+				   pcrinfosize, pcrinfo, sizeof(uint32_t),
+				   &datsize, datalen, data, 0, 0);
 	}
+	if (ret < 0)
+		return ret;
 
 	/* build and send the TPM request packet */
 	INIT_BUF(tb);
@@ -569,8 +588,10 @@ static int tpm_seal(struct tpm_buf *tb, const uint16_t keytype,
 			     0);
 
 	/* copy the returned blob to caller */
-	memcpy(blob, tb->data + TPM_DATA_OFFSET, storedsize);
-	*bloblen = storedsize;
+	if (!ret) {
+		memcpy(blob, tb->data + TPM_DATA_OFFSET, storedsize);
+		*bloblen = storedsize;
+	}
 	return ret;
 }
 
@@ -614,12 +635,16 @@ static int tpm_unseal(struct tpm_buf *tb,
 		pr_info("trusted_key: tpm_get_random failed (%d)\n", ret);
 		return ret;
 	}
-	TSS_authhmac(authdata1, keyauth, TPM_NONCE_SIZE,
-		     enonce1, nonceodd, cont, sizeof(uint32_t),
-		     &ordinal, bloblen, blob, 0, 0);
-	TSS_authhmac(authdata2, blobauth, TPM_NONCE_SIZE,
-		     enonce2, nonceodd, cont, sizeof(uint32_t),
-		     &ordinal, bloblen, blob, 0, 0);
+	ret = TSS_authhmac(authdata1, keyauth, TPM_NONCE_SIZE,
+			   enonce1, nonceodd, cont, sizeof(uint32_t),
+			   &ordinal, bloblen, blob, 0, 0);
+	if (ret < 0)
+		return ret;
+	ret = TSS_authhmac(authdata2, blobauth, TPM_NONCE_SIZE,
+			   enonce2, nonceodd, cont, sizeof(uint32_t),
+			   &ordinal, bloblen, blob, 0, 0);
+	if (ret < 0)
+		return ret;
 
 	/* build and send TPM request packet */
 	INIT_BUF(tb);
@@ -650,10 +675,12 @@ static int tpm_unseal(struct tpm_buf *tb,
 			     sizeof(uint32_t), TPM_DATA_OFFSET,
 			     *datalen, TPM_DATA_OFFSET + sizeof(uint32_t), 0,
 			     0);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_info("trusted_key: TSS_checkhmac2 failed (%d)\n", ret);
+		return ret;
+	}
 	memcpy(data, tb->data + TPM_DATA_OFFSET + sizeof(uint32_t), *datalen);
-	return ret;
+	return 0;
 }
 
 /*
@@ -697,11 +724,11 @@ static int key_unseal(struct trusted_key_payload *p,
 
 	ret = tpm_unseal(tb, o->keyhandle, o->keyauth, p->blob, p->blob_len,
 			 o->blobauth, p->key, &p->key_len);
-	/* pull migratable flag out of sealed key */
-	p->migratable = p->key[--p->key_len];
-
 	if (ret < 0)
 		pr_info("trusted_key: srkunseal failed (%d)\n", ret);
+	else
+		/* pull migratable flag out of sealed key */
+		p->migratable = p->key[--p->key_len];
 
 	kfree(tb);
 	return ret;
@@ -854,12 +881,11 @@ static struct trusted_key_options *trusted_options_alloc(void)
 	struct trusted_key_options *options;
 
 	options = kzalloc(sizeof *options, GFP_KERNEL);
-	if (!options)
-		return options;
-
-	/* set any non-zero defaults */
-	options->keytype = SRK_keytype;
-	options->keyhandle = SRKHANDLE;
+	if (options) {
+		/* set any non-zero defaults */
+		options->keytype = SRK_keytype;
+		options->keyhandle = SRKHANDLE;
+	}
 	return options;
 }
 
@@ -872,9 +898,8 @@ static struct trusted_key_payload *trusted_payload_alloc(struct key *key)
 	if (ret < 0)
 		return p;
 	p = kzalloc(sizeof *p, GFP_KERNEL);
-
-	/* migratable by default */
-	p->migratable = 1;
+	if (p)
+		p->migratable = 1; /* migratable by default */
 	return p;
 }
 
