@@ -361,9 +361,9 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	gpe_block->node = gpe_device;
 	gpe_block->gpe_count = (u16)(register_count * ACPI_GPE_REGISTER_WIDTH);
+	gpe_block->initialized = FALSE;
 	gpe_block->register_count = register_count;
 	gpe_block->block_base_number = gpe_block_base_number;
-	gpe_block->initialized = FALSE;
 
 	ACPI_MEMCPY(&gpe_block->block_address, gpe_block_address,
 		    sizeof(struct acpi_generic_address));
@@ -423,14 +423,12 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
  *
  * FUNCTION:    acpi_ev_initialize_gpe_block
  *
- * PARAMETERS:  gpe_device          - Handle to the parent GPE block
- *              gpe_block           - Gpe Block info
+ * PARAMETERS:  acpi_gpe_callback
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Initialize and enable a GPE block. First find and run any
- *              _PRT methods associated with the block, then enable the
- *              appropriate GPEs.
+ * DESCRIPTION: Initialize and enable a GPE block. Enable GPEs that have
+ *              associated methods.
  *              Note: Assumes namespace is locked.
  *
  ******************************************************************************/
@@ -450,8 +448,8 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 	ACPI_FUNCTION_TRACE(ev_initialize_gpe_block);
 
 	/*
-	 * Ignore a null GPE block (e.g., if no GPE block 1 exists) and
-	 * GPE blocks that have been initialized already.
+	 * Ignore a null GPE block (e.g., if no GPE block 1 exists), and
+	 * any GPE blocks that have been initialized already.
 	 */
 	if (!gpe_block || gpe_block->initialized) {
 		return_ACPI_STATUS(AE_OK);
@@ -459,8 +457,8 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 	/*
 	 * Enable all GPEs that have a corresponding method and have the
-	 * ACPI_GPE_CAN_WAKE flag unset.  Any other GPEs within this block must
-	 * be enabled via the acpi_enable_gpe() interface.
+	 * ACPI_GPE_CAN_WAKE flag unset. Any other GPEs within this block
+	 * must be enabled via the acpi_enable_gpe() interface.
 	 */
 	gpe_enabled_count = 0;
 

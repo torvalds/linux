@@ -104,7 +104,7 @@ acpi_ev_update_gpe_enable_mask(struct acpi_gpe_event_info *gpe_event_info)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Clear the given GPE from stale events and enable it.
+ * DESCRIPTION: Clear a GPE of stale events and enable it.
  *
  ******************************************************************************/
 acpi_status
@@ -142,7 +142,7 @@ acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
  *
  * FUNCTION:    acpi_ev_add_gpe_reference
  *
- * PARAMETERS:  gpe_event_info  - GPE to enable
+ * PARAMETERS:  gpe_event_info          - Add a reference to this GPE
  *
  * RETURN:      Status
  *
@@ -163,6 +163,9 @@ acpi_status acpi_ev_add_gpe_reference(struct acpi_gpe_event_info *gpe_event_info
 
 	gpe_event_info->runtime_count++;
 	if (gpe_event_info->runtime_count == 1) {
+
+		/* Enable on first reference */
+
 		status = acpi_ev_update_gpe_enable_mask(gpe_event_info);
 		if (ACPI_SUCCESS(status)) {
 			status = acpi_ev_enable_gpe(gpe_event_info);
@@ -180,7 +183,7 @@ acpi_status acpi_ev_add_gpe_reference(struct acpi_gpe_event_info *gpe_event_info
  *
  * FUNCTION:    acpi_ev_remove_gpe_reference
  *
- * PARAMETERS:  gpe_event_info  - GPE to disable
+ * PARAMETERS:  gpe_event_info          - Remove a reference to this GPE
  *
  * RETURN:      Status
  *
@@ -201,6 +204,9 @@ acpi_status acpi_ev_remove_gpe_reference(struct acpi_gpe_event_info *gpe_event_i
 
 	gpe_event_info->runtime_count--;
 	if (!gpe_event_info->runtime_count) {
+
+		/* Disable on last reference */
+
 		status = acpi_ev_update_gpe_enable_mask(gpe_event_info);
 		if (ACPI_SUCCESS(status)) {
 			status = acpi_hw_low_set_gpe(gpe_event_info,
@@ -386,7 +392,7 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 			}
 
 			ACPI_DEBUG_PRINT((ACPI_DB_INTERRUPTS,
-					  "Read GPE Register at GPE%X: Status=%02X, Enable=%02X\n",
+					  "Read GPE Register at GPE%02X: Status=%02X, Enable=%02X\n",
 					  gpe_register_info->base_gpe_number,
 					  status_reg, enable_reg));
 
@@ -660,8 +666,7 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 		status = acpi_hw_clear_gpe(gpe_event_info);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"Unable to clear GPE[0x%2X]",
-					gpe_number));
+					"Unable to clear GPE%02X", gpe_number));
 			return_UINT32(ACPI_INTERRUPT_NOT_HANDLED);
 		}
 	}
@@ -720,7 +725,7 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 					 gpe_event_info);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"Unable to queue handler for GPE[0x%2X] - event disabled",
+					"Unable to queue handler for GPE%2X - event disabled",
 					gpe_number));
 		}
 		break;
@@ -733,7 +738,7 @@ acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
 		 * a GPE to be enabled if it has no handler or method.
 		 */
 		ACPI_ERROR((AE_INFO,
-			    "No handler or method for GPE[0x%2X], disabling event",
+			    "No handler or method for GPE%02X, disabling event",
 			    gpe_number));
 
 		break;

@@ -55,13 +55,19 @@ ACPI_MODULE_NAME("evxfgpe")
  *
  * PARAMETERS:  None
  *
- * RETURN:      None
+ * RETURN:      Status
  *
- * DESCRIPTION: Enable all GPEs that have associated _Lxx or _Exx methods and
- *              are not pointed to by any device _PRW methods indicating that
- *              these GPEs are generally intended for system or device wakeup
- *              (such GPEs have to be enabled directly when the devices whose
- *              _PRW methods point to them are set up for wakeup signaling).
+ * DESCRIPTION: Complete GPE initialization and enable all GPEs that have
+ *              associated _Lxx or _Exx methods and are not pointed to by any
+ *              device _PRW methods (this indicates that these GPEs are
+ *              generally intended for system or device wakeup. Such GPEs
+ *              have to be enabled directly when the devices whose _PRW
+ *              methods point to them are set up for wakeup signaling.)
+ *
+ * NOTE: Should be called after any GPEs are added to the system. Primarily,
+ * after the system _PRW methods have been run, but also after a GPE Block
+ * Device has been added or if any new GPE methods have been added via a
+ * dynamic table load.
  *
  ******************************************************************************/
 
@@ -252,7 +258,8 @@ ACPI_EXPORT_SYMBOL(acpi_setup_gpe_for_wake)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Set or clear the GPE's wakeup enable mask bit.
+ * DESCRIPTION: Set or clear the GPE's wakeup enable mask bit. The GPE must
+ *              already be marked as a WAKE GPE.
  *
  ******************************************************************************/
 
@@ -268,8 +275,10 @@ acpi_status acpi_set_gpe_wake_mask(acpi_handle gpe_device, u32 gpe_number, u8 ac
 
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 
-	/* Ensure that we have a valid GPE number */
-
+	/*
+	 * Ensure that we have a valid GPE number and that this GPE is in
+	 * fact a wake GPE
+	 */
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
 	if (!gpe_event_info) {
 		status = AE_BAD_PARAMETER;
@@ -366,7 +375,7 @@ ACPI_EXPORT_SYMBOL(acpi_clear_gpe)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Get status of an event (general purpose)
+ * DESCRIPTION: Get the current status of a GPE (signalled/not_signalled)
  *
  ******************************************************************************/
 acpi_status
@@ -476,7 +485,8 @@ ACPI_EXPORT_SYMBOL(acpi_enable_all_runtime_gpes)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create and Install a block of GPE registers
+ * DESCRIPTION: Create and Install a block of GPE registers. The GPEs are not
+ *              enabled here.
  *
  ******************************************************************************/
 acpi_status
