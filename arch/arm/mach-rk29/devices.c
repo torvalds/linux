@@ -408,33 +408,6 @@ struct platform_device rk29_device_camera = {
 	}
 };
 #endif
-#ifdef CONFIG_FB_RK29
-/* rk29 fb resource */
-static struct resource rk29_fb_resource[] = {
-	[0] = {
-		.start = RK29_LCDC_PHYS,
-		.end   = RK29_LCDC_PHYS + RK29_LCDC_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_LCDC,
-		.end   = IRQ_LCDC,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-/*platform_device*/
-extern struct rk29fb_info rk29_fb_info;
-struct platform_device rk29_device_fb = {
-	.name		  = "rk29-fb",
-	.id		  = 4,
-	.num_resources	  = ARRAY_SIZE(rk29_fb_resource),
-	.resource	  = rk29_fb_resource,
-	.dev            = {
-		.platform_data  = &rk29_fb_info,
-	}
-};
-#endif
 
 #if defined(CONFIG_MTD_NAND_RK29XX)  
 static struct resource rk29xxnand_resources[] = {

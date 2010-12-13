@@ -53,7 +53,6 @@
 
 #include "./display/screen/screen.h"
 
-#define ANDROID_USE_THREE_BUFS  0       //android use three buffers to accelerate UI display in rgb plane
 
 #if 0
 	#define fbprintk(msg...)	printk(msg);
@@ -190,10 +189,6 @@ static int win1fb_set_par(struct fb_info *info);
 
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 static int wq_condition = 0;
-
-#if ANDROID_USE_THREE_BUFS
-static int new_frame_seted = 1;
-#endif
 
 void set_lcd_pin(struct platform_device *pdev, int enable)
 {
@@ -425,7 +420,6 @@ void load_screen(struct fb_info *info, bool initscreen)
     u16 mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend;
     u16 right_margin = screen->right_margin, lower_margin = screen->lower_margin;
     u16 x_res = screen->x_res, y_res = screen->y_res;
-    u32 clk_rate = 0;
     u32 aclk_rate = 150000000;
 
     if(!g_pdev){
@@ -1319,7 +1313,6 @@ static int win1fb_set_par(struct fb_info *info)
     struct rk29fb_screen *screen = inf->cur_screen;
 
     u8 format = 0;
-    dma_addr_t map_dma;
     u32 offset=0, addr=0, map_size=0, smem_len=0;
 
     u16 xres_virtual = var->xres_virtual;      //virtual screen size
@@ -1357,8 +1350,10 @@ static int win1fb_set_par(struct fb_info *info)
     smem_len = fix->line_length * var->yres_virtual;   //cursor buf also alloc here
     map_size = PAGE_ALIGN(smem_len);
 
-    if (smem_len != fix->smem_len)     // buffer need realloc
+    if (smem_len > fix->smem_len)     // buffer need realloc
     {
+        printk("%s win1 buf \n",__FUNCTION__);
+       #if 0
         fbprintk(">>>>>> win1 buffer size is change(%d->%d)! remap memory!\n",fix->smem_len, smem_len);
         fbprintk(">>>>>> smem_len %d = %d * %d \n", smem_len, fix->line_length, var->yres_virtual);
         fbprintk(">>>>>> map_size = %d\n", map_size);
@@ -1381,18 +1376,13 @@ static int win1fb_set_par(struct fb_info *info)
         memset(info->screen_base, 0, map_size);
         fix->smem_start = map_dma;
         fix->smem_len = smem_len;
+
         fbprintk(">>>>>> alloc succ, mem=%08x, len=%d!\n", (u32)fix->smem_start, fix->smem_len);
+        #endif
     }
+
 
     addr = fix->smem_start + offset;
-
-#if ANDROID_USE_THREE_BUFS
-    if(0==new_frame_seted) {
-        wq_condition = 0;
-        wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
-    }
-    new_frame_seted = 0;
-#endif
 
     LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE|m_W1_FORMAT, v_W1_ENABLE(1)|v_W1_FORMAT(format));
 
@@ -1464,7 +1454,6 @@ static int win1fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 
 	mcu_refresh(inf);
 
-#if !ANDROID_USE_THREE_BUFS
     // flush end when wq_condition=1 in mcu panel, but not in rgb panel
     if(SCREEN_MCU == inf->cur_screen->type) {
         wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
@@ -1473,19 +1462,6 @@ static int win1fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
         wq_condition = 0;
         wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
     }
-#endif
-
-#if 0
-    int i;
-    for(i=0;i<=(0xc0/4);i+=4)
-    {
-        fbprintk("0x%02X: 0x%08X 0x%08X 0x%08X 0x%08X \n", i*4,
-            *((u32*)inf->reg_vir_base+i),
-            *((u32*)inf->reg_vir_base+i+1),
-            *((u32*)inf->reg_vir_base+i+2),
-            *((u32*)inf->reg_vir_base+i+3));
-    }
-#endif
 
     return 0;
 }
@@ -1619,10 +1595,6 @@ static irqreturn_t rk29fb_irq(int irq, void *dev_id)
             }
         }
 	}
-
-#if ANDROID_USE_THREE_BUFS
-    new_frame_seted = 1;
-#endif
 
 	wq_condition = 1;
  	wake_up_interruptible(&wq);
@@ -1766,7 +1738,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
 
     /* get virtual basic address of lcdc register */
     fbprintk(">> get virtual basic address of lcdc register \n");
-    res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+    res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lcdc reg");
     if (res == NULL)
     {
         dev_err(&pdev->dev, "failed to get memory registers\n");
@@ -1849,6 +1821,19 @@ static int __init rk29fb_probe (struct platform_device *pdev)
 	ret = fb_alloc_cmap(&inf->win1fb->cmap, 256, 0);
 	if (ret < 0)
 		goto release_cmap;
+
+    /* alloc win1 buf */
+    res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "win1 buf");
+    if (res == NULL)
+    {
+        dev_err(&pdev->dev, "failed to get win1 memory \n");
+        ret = -ENOENT;
+        goto release_win1fb;
+    }
+    inf->win1fb->fix.smem_start = res->start;
+    inf->win1fb->fix.smem_len = res->end - res->start;
+    inf->win1fb->screen_base = ioremap(res->start, inf->win1fb->fix.smem_len);
+    memset(inf->win1fb->screen_base, 0, inf->win1fb->fix.smem_len);
 
     /* Prepare win0 info */
     fbprintk(">> Prepare win0 info \n");
@@ -2082,7 +2067,7 @@ static int rk29fb_remove(struct platform_device *pdev)
     if(inf->win1fb) {
         info = inf->win1fb;
         if (info->screen_base) {
-	        dma_free_writecombine(NULL, PAGE_ALIGN(info->fix.smem_len),info->screen_base, info->fix.smem_start);
+	    //    dma_free_writecombine(NULL, PAGE_ALIGN(info->fix.smem_len),info->screen_base, info->fix.smem_start);
 	        info->screen_base = 0;
 	        info->fix.smem_start = 0;
 	        info->fix.smem_len = 0;

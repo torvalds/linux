@@ -61,12 +61,14 @@
 #define PMEM_UI_SIZE        SZ_32M
 #define PMEM_VPU_SIZE       SZ_32M
 #define PMEM_CAM_SIZE       SZ_16M
+#define MEM_FB_SIZE         SZ_4M
 
 #define PMEM_GPU_BASE       ((u32)RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
 #define PMEM_UI_BASE        (PMEM_GPU_BASE - PMEM_UI_SIZE)
 #define PMEM_VPU_BASE       (PMEM_UI_BASE - PMEM_VPU_SIZE)
 #define PMEM_CAM_BASE       (PMEM_VPU_BASE - PMEM_CAM_SIZE)
-#define LINUX_SIZE          (PMEM_CAM_BASE - RK29_SDRAM_PHYS)
+#define MEM_FB_BASE         (PMEM_CAM_BASE - MEM_FB_SIZE)
+#define LINUX_SIZE          (MEM_FB_BASE - RK29_SDRAM_PHYS)
 
 extern struct sys_timer rk29_timer;
 
@@ -113,6 +115,7 @@ static struct rk29_gpio_bank rk29_gpiobankinit[] = {
 	},
 };
 
+#ifdef CONFIG_FB_RK29
 /*****************************************************************************************
  * lcd  devices
  * author: zyw@rock-chips.com
@@ -214,6 +217,40 @@ struct rk29fb_info rk29_fb_info = {
     .lcd_info = &rk29_lcd_info,
     .io_init   = rk29_fb_io_init,
 };
+
+/* rk29 fb resource */
+struct resource rk29_fb_resource[] = {
+	[0] = {
+        .name  = "lcdc reg",
+		.start = RK29_LCDC_PHYS,
+		.end   = RK29_LCDC_PHYS + RK29_LCDC_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+	    .name  = "lcdc irq",
+		.start = IRQ_LCDC,
+		.end   = IRQ_LCDC,
+		.flags = IORESOURCE_IRQ,
+	},
+	[2] = {
+	    .name   = "win1 buf",
+        .start  = MEM_FB_BASE,
+        .end    = MEM_FB_BASE + MEM_FB_SIZE,
+        .flags  = IORESOURCE_MEM,
+    },
+};
+
+/*platform_device*/
+struct platform_device rk29_device_fb = {
+	.name		  = "rk29-fb",
+	.id		  = 4,
+	.num_resources	  = ARRAY_SIZE(rk29_fb_resource),
+	.resource	  = rk29_fb_resource,
+	.dev            = {
+		.platform_data  = &rk29_fb_info,
+	}
+};
+#endif
 
 static struct android_pmem_platform_data android_pmem_pdata = {
 	.name		= "pmem",
