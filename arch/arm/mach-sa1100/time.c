@@ -81,7 +81,6 @@ static struct clocksource cksrc_sa1100_oscr = {
 	.rating		= 200,
 	.read		= sa1100_read_oscr,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 20,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -105,12 +104,9 @@ static void __init sa1100_timer_init(void)
 		clockevent_delta2ns(MIN_OSCR_DELTA * 2, &ckevt_sa1100_osmr0) + 1;
 	ckevt_sa1100_osmr0.cpumask = cpumask_of(0);
 
-	cksrc_sa1100_oscr.mult =
-		clocksource_hz2mult(CLOCK_TICK_RATE, cksrc_sa1100_oscr.shift);
-
 	setup_irq(IRQ_OST0, &sa1100_timer_irq);
 
-	clocksource_register(&cksrc_sa1100_oscr);
+	clocksource_register_hz(&cksrc_sa1100_oscr, CLOCK_TICK_RATE);
 	clockevents_register_device(&ckevt_sa1100_osmr0);
 }
 
