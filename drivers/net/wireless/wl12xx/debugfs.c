@@ -225,7 +225,7 @@ static ssize_t tx_queue_len_read(struct file *file, char __user *userbuf,
 	char buf[20];
 	int res;
 
-	queue_len = skb_queue_len(&wl->tx_queue);
+	queue_len = wl->tx_queue_count;
 
 	res = scnprintf(buf, sizeof(buf), "%u\n", queue_len);
 	return simple_read_from_buffer(userbuf, count, ppos, buf, res);

@@ -570,7 +570,7 @@ static void wl1271_irq_work(struct work_struct *work)
 
 			/* Check if any tx blocks were freed */
 			if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
-					!skb_queue_empty(&wl->tx_queue)) {
+			    wl->tx_queue_count) {
 				/*
 				 * In order to avoid starvation of the TX path,
 				 * call the work function directly.
@@ -891,6 +891,7 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_tx_info *txinfo = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = txinfo->control.sta;
 	unsigned long flags;
+	int q;
 
 	/*
 	 * peek into the rates configured in the STA entry.
@@ -918,10 +919,12 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		set_bit(WL1271_FLAG_STA_RATES_CHANGED, &wl->flags);
 	}
 #endif
+	wl->tx_queue_count++;
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	/* queue the packet */
-	skb_queue_tail(&wl->tx_queue, skb);
+	q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
+	skb_queue_tail(&wl->tx_queue[q], skb);
 
 	/*
 	 * The chip specific setup must run before the first TX packet -
@@ -935,7 +938,7 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * The workqueue is slow to process the tx_queue and we need stop
 	 * the queue here, otherwise the queue will get too long.
 	 */
-	if (skb_queue_len(&wl->tx_queue) >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
+	if (wl->tx_queue_count >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
 		wl1271_debug(DEBUG_TX, "op_tx: stopping queues");
 
 		spin_lock_irqsave(&wl->wl_lock, flags);
@@ -2719,7 +2722,8 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->hw = hw;
 	wl->plat_dev = plat_dev;
 
-	skb_queue_head_init(&wl->tx_queue);
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		skb_queue_head_init(&wl->tx_queue[i]);
 
 	INIT_DELAYED_WORK(&wl->elp_work, wl1271_elp_work);
 	INIT_DELAYED_WORK(&wl->pspoll_work, wl1271_pspoll_work);

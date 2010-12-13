@@ -292,7 +292,8 @@ struct wl1271 {
 	int session_counter;
 
 	/* Frames scheduled for transmission, not handled yet */
-	struct sk_buff_head tx_queue;
+	struct sk_buff_head tx_queue[NUM_TX_QUEUES];
+	int tx_queue_count;
 
 	struct work_struct tx_work;
 
