@@ -671,10 +671,10 @@ ACPI_EXPORT_SYMBOL(acpi_remove_notify_handler)
 acpi_status
 acpi_install_gpe_handler(acpi_handle gpe_device,
 			 u32 gpe_number,
-			 u32 type, acpi_event_handler address, void *context)
+			 u32 type, acpi_gpe_handler address, void *context)
 {
 	struct acpi_gpe_event_info *gpe_event_info;
-	struct acpi_handler_info *handler;
+	struct acpi_gpe_handler_info *handler;
 	acpi_status status;
 	acpi_cpu_flags flags;
 
@@ -693,7 +693,7 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 
 	/* Allocate memory for the handler object */
 
-	handler = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_handler_info));
+	handler = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_gpe_handler_info));
 	if (!handler) {
 		status = AE_NO_MEMORY;
 		goto unlock_and_exit;
@@ -777,10 +777,10 @@ ACPI_EXPORT_SYMBOL(acpi_install_gpe_handler)
  ******************************************************************************/
 acpi_status
 acpi_remove_gpe_handler(acpi_handle gpe_device,
-			u32 gpe_number, acpi_event_handler address)
+			u32 gpe_number, acpi_gpe_handler address)
 {
 	struct acpi_gpe_event_info *gpe_event_info;
-	struct acpi_handler_info *handler;
+	struct acpi_gpe_handler_info *handler;
 	acpi_status status;
 	acpi_cpu_flags flags;
 

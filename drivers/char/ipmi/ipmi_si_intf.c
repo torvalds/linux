@@ -1928,7 +1928,8 @@ static void __devinit hardcode_find_bmc(void)
 static int acpi_failure;
 
 /* For GPE-type interrupts. */
-static u32 ipmi_acpi_gpe(void *context)
+static u32 ipmi_acpi_gpe(acpi_handle gpe_device,
+	u32 gpe_number, void *context)
 {
 	struct smi_info *smi_info = context;
 	unsigned long   flags;

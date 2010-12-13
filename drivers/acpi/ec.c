@@ -606,7 +606,8 @@ static int ec_check_sci(struct acpi_ec *ec, u8 state)
 	return 0;
 }
 
-static u32 acpi_ec_gpe_handler(void *data)
+static u32 acpi_ec_gpe_handler(acpi_handle gpe_device,
+	u32 gpe_number, void *data)
 {
 	struct acpi_ec *ec = data;
 

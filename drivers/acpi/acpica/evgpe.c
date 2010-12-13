@@ -409,7 +409,9 @@ u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info * gpe_xrupt_list)
 					 * or method.
 					 */
 					int_status |=
-					    acpi_ev_gpe_dispatch(&gpe_block->
+					    acpi_ev_gpe_dispatch(gpe_block->
+								 node,
+								 &gpe_block->
 						event_info[((acpi_size) i * ACPI_GPE_REGISTER_WIDTH) + j], j + gpe_register_info->base_gpe_number);
 				}
 			}
@@ -542,7 +544,8 @@ static void acpi_ev_asynch_enable_gpe(void *context)
  *
  * FUNCTION:    acpi_ev_gpe_dispatch
  *
- * PARAMETERS:  gpe_event_info  - Info for this GPE
+ * PARAMETERS:  gpe_device      - Device node. NULL for GPE0/GPE1
+ *              gpe_event_info  - Info for this GPE
  *              gpe_number      - Number relative to the parent GPE block
  *
  * RETURN:      INTERRUPT_HANDLED or INTERRUPT_NOT_HANDLED
@@ -555,7 +558,8 @@ static void acpi_ev_asynch_enable_gpe(void *context)
  ******************************************************************************/
 
 u32
-acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
+acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
+		    struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 {
 	acpi_status status;
 
@@ -593,7 +597,9 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info, u32 gpe_number)
 		 * Ignore return status for now.
 		 * TBD: leave GPE disabled on error?
 		 */
-		(void)gpe_event_info->dispatch.handler->address(gpe_event_info->
+		(void)gpe_event_info->dispatch.handler->address(gpe_device,
+								gpe_number,
+								gpe_event_info->
 								dispatch.
 								handler->
 								context);

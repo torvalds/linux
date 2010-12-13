@@ -897,6 +897,9 @@ typedef void
 typedef u32(*acpi_event_handler) (void *context);
 
 typedef
+u32 (*acpi_gpe_handler) (acpi_handle gpe_device, u32 gpe_number, void *context);
+
+typedef
 void (*acpi_notify_handler) (acpi_handle device, u32 value, void *context);
 
 typedef

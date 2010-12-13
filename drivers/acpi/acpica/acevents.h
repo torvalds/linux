@@ -112,7 +112,8 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 acpi_status acpi_ev_delete_gpe_block(struct acpi_gpe_block_info *gpe_block);
 
 u32
-acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info,
+acpi_ev_gpe_dispatch(struct acpi_namespace_node *gpe_device,
+		     struct acpi_gpe_event_info *gpe_event_info,
 		     u32 gpe_number);
 
 /*
