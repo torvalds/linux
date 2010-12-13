@@ -984,7 +984,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 {
 	enum drbd_fencing_p fp;
 	enum drbd_req_event what = NOTHING;
-	union drbd_state nsm = (union drbd_state){ .i = -1 };
+	union drbd_state nsm;
 	struct sib_info sib;
 
 	sib.sib_reason = SIB_STATE_CHANGE;
