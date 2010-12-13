@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/tc35892.h>
+#include <linux/mfd/tc3589x.h>
 
 /**
  * tc35892_reg_read() - read a single TC35892 register

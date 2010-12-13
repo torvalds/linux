@@ -13,7 +13,7 @@
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/mfd/tc35892.h>
+#include <linux/mfd/tc3589x.h>
 
 /*
  * These registers are modified under the irq bus lock and cached to avoid
