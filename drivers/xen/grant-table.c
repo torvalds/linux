@@ -455,6 +455,8 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 	unsigned long mfn;
 
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, map_ops, count);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < count; i++) {
 		/* m2p override only supported for GNTMAP_contains_pte mappings */
@@ -463,7 +465,9 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		pte = (pte_t *) (mfn_to_virt(PFN_DOWN(map_ops[i].host_addr)) +
 				(map_ops[i].host_addr & ~PAGE_MASK));
 		mfn = pte_mfn(*pte);
-		m2p_add_override(mfn, pages[i]);
+		ret = m2p_add_override(mfn, pages[i]);
+		if (ret)
+			return ret;
 	}
 
 	return ret;
@@ -476,8 +480,14 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 	int i, ret;
 
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap_ops, count);
-	for (i = 0; i < count; i++)
-		m2p_remove_override(pages[i]);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < count; i++) {
+		ret = m2p_remove_override(pages[i]);
+		if (ret)
+			return ret;
+	}
 
 	return ret;
 }

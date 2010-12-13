@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/hash.h>
+#include <linux/sched.h>
 
 #include <asm/cache.h>
 #include <asm/setup.h>
@@ -404,34 +405,74 @@ static unsigned long mfn_hash(unsigned long mfn)
 }
 
 /* Add an MFN override for a particular page */
-void m2p_add_override(unsigned long mfn, struct page *page)
+int m2p_add_override(unsigned long mfn, struct page *page)
 {
 	unsigned long flags;
-	unsigned long pfn = page_to_pfn(page);
+	unsigned long pfn;
+	unsigned long address;
+	unsigned level;
+	pte_t *ptep = NULL;
+
+	pfn = page_to_pfn(page);
+	if (!PageHighMem(page)) {
+		address = (unsigned long)__va(pfn << PAGE_SHIFT);
+		ptep = lookup_address(address, &level);
+
+		if (WARN(ptep == NULL || level != PG_LEVEL_4K,
+					"m2p_add_override: pfn %lx not mapped", pfn))
+			return -EINVAL;
+	}
+
 	page->private = mfn;
 	page->index = pfn_to_mfn(pfn);
 
 	__set_phys_to_machine(pfn, FOREIGN_FRAME(mfn));
+	if (!PageHighMem(page))
+		/* Just zap old mapping for now */
+		pte_clear(&init_mm, address, ptep);
+
 	spin_lock_irqsave(&m2p_override_lock, flags);
 	list_add(&page->lru,  &m2p_overrides[mfn_hash(mfn)]);
 	spin_unlock_irqrestore(&m2p_override_lock, flags);
+
+	return 0;
 }
 
-void m2p_remove_override(struct page *page)
+int m2p_remove_override(struct page *page)
 {
 	unsigned long flags;
 	unsigned long mfn;
 	unsigned long pfn;
+	unsigned long address;
+	unsigned level;
+	pte_t *ptep = NULL;
 
 	pfn = page_to_pfn(page);
 	mfn = get_phys_to_machine(pfn);
 	if (mfn == INVALID_P2M_ENTRY || !(mfn & FOREIGN_FRAME_BIT))
-		return;
+		return -EINVAL;
+
+	if (!PageHighMem(page)) {
+		address = (unsigned long)__va(pfn << PAGE_SHIFT);
+		ptep = lookup_address(address, &level);
+
+		if (WARN(ptep == NULL || level != PG_LEVEL_4K,
+					"m2p_remove_override: pfn %lx not mapped", pfn))
+			return -EINVAL;
+	}
 
 	spin_lock_irqsave(&m2p_override_lock, flags);
 	list_del(&page->lru);
 	spin_unlock_irqrestore(&m2p_override_lock, flags);
 	__set_phys_to_machine(pfn, page->index);
+
+	if (!PageHighMem(page))
+		set_pte_at(&init_mm, address, ptep,
+				pfn_pte(pfn, PAGE_KERNEL));
+		/* No tlb flush necessary because the caller already
+		 * left the pte unmapped. */
+
+	return 0;
 }
 
 struct page *m2p_find_override(unsigned long mfn)

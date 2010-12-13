@@ -42,8 +42,8 @@ extern unsigned int   machine_to_phys_order;
 extern unsigned long get_phys_to_machine(unsigned long pfn);
 extern bool set_phys_to_machine(unsigned long pfn, unsigned long mfn);
 
-extern void m2p_add_override(unsigned long mfn, struct page *page);
-extern void m2p_remove_override(struct page *page);
+extern int m2p_add_override(unsigned long mfn, struct page *page);
+extern int m2p_remove_override(struct page *page);
 extern struct page *m2p_find_override(unsigned long mfn);
 extern unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn);
 
