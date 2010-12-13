@@ -412,9 +412,7 @@ static void __init u300_timer_init(void)
 	writel(U300_TIMER_APP_EGPT2_TIMER_ENABLE,
 		U300_TIMER_APP_VBASE + U300_TIMER_APP_EGPT2);
 
-	clocksource_calc_mult_shift(&clocksource_u300_1mhz,
-				    rate, APPTIMER_MIN_RANGE);
-	if (clocksource_register(&clocksource_u300_1mhz))
+	if (clocksource_register_hz(&clocksource_u300_1mhz, rate))
 		printk(KERN_ERR "timer: failed to initialize clock "
 		       "source %s\n", clocksource_u300_1mhz.name);
 
