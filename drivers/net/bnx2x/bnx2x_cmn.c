@@ -1167,6 +1167,35 @@ void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw)
 	netif_tx_disable(bp->dev);
 }
 
+u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb)
+{
+#ifdef BCM_CNIC
+	struct bnx2x *bp = netdev_priv(dev);
+	if (NO_FCOE(bp))
+		return skb_tx_hash(dev, skb);
+	else {
+		struct ethhdr *hdr = (struct ethhdr *)skb->data;
+		u16 ether_type = ntohs(hdr->h_proto);
+
+		/* Skip VLAN tag if present */
+		if (ether_type == ETH_P_8021Q) {
+			struct vlan_ethhdr *vhdr =
+				(struct vlan_ethhdr *)skb->data;
+
+			ether_type = ntohs(vhdr->h_vlan_encapsulated_proto);
+		}
+
+		/* If ethertype is FCoE or FIP - use FCoE ring */
+		if ((ether_type == ETH_P_FCOE) || (ether_type == ETH_P_FIP))
+			return bnx2x_fcoe(bp, index);
+	}
+#endif
+	/* Select a none-FCoE queue:  if FCoE is enabled, exclude FCoE L2 ring
+	 */
+	return __skb_tx_hash(dev, skb,
+			dev->real_num_tx_queues - FCOE_CONTEXT_USE);
+}
+
 void bnx2x_set_num_queues(struct bnx2x *bp)
 {
 	switch (bp->multi_mode) {
