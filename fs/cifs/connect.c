@@ -1453,6 +1453,40 @@ srcip_matches(struct sockaddr *srcaddr, struct sockaddr *rhs)
 	}
 }
 
+/*
+ * If no port is specified in addr structure, we try to match with 445 port
+ * and if it fails - with 139 ports. It should be called only if address
+ * families of server and addr are equal.
+ */
+static bool
+match_port(struct TCP_Server_Info *server, struct sockaddr *addr)
+{
+	unsigned short int port, *sport;
+
+	switch (addr->sa_family) {
+	case AF_INET:
+		sport = &((struct sockaddr_in *) &server->dstaddr)->sin_port;
+		port = ((struct sockaddr_in *) addr)->sin_port;
+		break;
+	case AF_INET6:
+		sport = &((struct sockaddr_in6 *) &server->dstaddr)->sin6_port;
+		port = ((struct sockaddr_in6 *) addr)->sin6_port;
+		break;
+	default:
+		WARN_ON(1);
+		return false;
+	}
+
+	if (!port) {
+		port = htons(CIFS_PORT);
+		if (port == *sport)
+			return true;
+
+		port = htons(RFC1001_PORT);
+	}
+
+	return port == *sport;
+}
 
 static bool
 match_address(struct TCP_Server_Info *server, struct sockaddr *addr,
@@ -1466,8 +1500,6 @@ match_address(struct TCP_Server_Info *server, struct sockaddr *addr,
 
 		if (addr4->sin_addr.s_addr != srv_addr4->sin_addr.s_addr)
 			return false;
-		if (addr4->sin_port && addr4->sin_port != srv_addr4->sin_port)
-			return false;
 		break;
 	}
 	case AF_INET6: {
@@ -1479,9 +1511,6 @@ match_address(struct TCP_Server_Info *server, struct sockaddr *addr,
 				     &srv_addr6->sin6_addr))
 			return false;
 		if (addr6->sin6_scope_id != srv_addr6->sin6_scope_id)
-			return false;
-		if (addr6->sin6_port &&
-		    addr6->sin6_port != srv_addr6->sin6_port)
 			return false;
 		break;
 	}
@@ -1553,6 +1582,9 @@ cifs_find_tcp_session(struct sockaddr *addr, struct smb_vol *vol)
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
 		if (!match_address(server, addr,
 				   (struct sockaddr *)&vol->srcaddr))
+			continue;
+
+		if (!match_port(server, addr))
 			continue;
 
 		if (!match_security(server, vol))
