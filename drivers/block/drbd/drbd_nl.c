@@ -1488,7 +1488,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		}
 	} else {
 		if (drbd_bitmap_io(mdev, &drbd_bm_read,
-			"read from attaching", BM_LOCKED_MASK) < 0) {
+			"read from attaching", BM_LOCKED_MASK)) {
 			retcode = ERR_IO_MD_DISK;
 			goto force_diskless_dec;
 		}
