@@ -324,6 +324,13 @@ int bnx2x_func_start(struct bnx2x *bp);
 void bnx2x_ilt_set_info(struct bnx2x *bp);
 
 /**
+ * Inintialize dcbx protocol
+ *
+ * @param bp
+ */
+void bnx2x_dcbx_init(struct bnx2x *bp);
+
+/**
  * Set power state to the requested value. Currently only D0 and
  * D3hot are supported.
  *

@@ -55,6 +55,7 @@
 #include "bnx2x_init.h"
 #include "bnx2x_init_ops.h"
 #include "bnx2x_cmn.h"
+#include "bnx2x_dcb.h"
 
 #include <linux/firmware.h>
 #include "bnx2x_fw_file_hdr.h"
@@ -3105,6 +3106,11 @@ static inline void bnx2x_attn_int_deasserted3(struct bnx2x *bp, u32 attn)
 			if ((bp->port.pmf == 0) && (val & DRV_STATUS_PMF))
 				bnx2x_pmf_update(bp);
 
+			if (bp->port.pmf &&
+			    (val & DRV_STATUS_DCBX_NEGOTIATION_RESULTS))
+				/* start dcbx state machine */
+				bnx2x_dcbx_set_params(bp,
+					BNX2X_DCBX_STATE_NEG_RECEIVED);
 		} else if (attn & BNX2X_MC_ASSERT_BITS) {
 
 			BNX2X_ERR("MC assert!\n");
@@ -3723,6 +3729,15 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 				bnx2x_fp(bp, cid, state) =
 						BNX2X_FP_STATE_CLOSED;
 
+			goto next_spqe;
+
+		case EVENT_RING_OPCODE_STOP_TRAFFIC:
+			DP(NETIF_MSG_IFUP, "got STOP TRAFFIC\n");
+			bnx2x_dcbx_set_params(bp, BNX2X_DCBX_STATE_TX_PAUSED);
+			goto next_spqe;
+		case EVENT_RING_OPCODE_START_TRAFFIC:
+			DP(NETIF_MSG_IFUP, "got START TRAFFIC\n");
+			bnx2x_dcbx_set_params(bp, BNX2X_DCBX_STATE_TX_RELEASED);
 			goto next_spqe;
 		}
 
@@ -4363,6 +4378,7 @@ static void bnx2x_init_internal_common(struct bnx2x *bp)
 static void bnx2x_init_internal_port(struct bnx2x *bp)
 {
 	/* port */
+	bnx2x_dcb_init_intmem_pfc(bp);
 }
 
 static void bnx2x_init_internal(struct bnx2x *bp, u32 load_code)
@@ -5488,8 +5504,10 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 	 *  - SF mode: bits 3-7 are masked. only bits 0-2 are in use
 	 *  - MF mode: bit 3 is masked. bits 0-2 are in use as in SF
 	 *             bits 4-7 are used for "per vn group attention" */
-	REG_WR(bp, MISC_REG_AEU_MASK_ATTN_FUNC_0 + port*4,
-	       (IS_MF(bp) ? 0xF7 : 0x7));
+	val = IS_MF(bp) ? 0xF7 : 0x7;
+	/* Enable DCBX attention for all but E1 */
+	val |= CHIP_IS_E1(bp) ? 0 : 0x10;
+	REG_WR(bp, MISC_REG_AEU_MASK_ATTN_FUNC_0 + port*4, val);
 
 	bnx2x_init_block(bp, PXPCS_BLOCK, init_stage);
 	bnx2x_init_block(bp, EMAC0_BLOCK, init_stage);
@@ -8774,6 +8792,8 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	bp->timer.expires = jiffies + bp->current_interval;
 	bp->timer.data = (unsigned long) bp;
 	bp->timer.function = bnx2x_timer;
+
+	bnx2x_dcbx_init_params(bp);
 
 	return rc;
 }

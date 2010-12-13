@@ -1371,6 +1371,8 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		}
 	}
 
+	bnx2x_dcbx_init(bp);
+
 	bp->state = BNX2X_STATE_OPENING_WAIT4_PORT;
 
 	rc = bnx2x_func_start(bp);
