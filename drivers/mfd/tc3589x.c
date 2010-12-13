@@ -129,7 +129,7 @@ static struct resource gpio_resources[] = {
 	},
 };
 
-static struct mfd_cell tc3589x_devs[] = {
+static struct mfd_cell tc3589x_dev_gpio[] = {
 	{
 		.name		= "tc3589x-gpio",
 		.num_resources	= ARRAY_SIZE(gpio_resources),
@@ -240,6 +240,26 @@ static int tc3589x_chip_init(struct tc3589x *tc3589x)
 	return tc3589x_reg_write(tc3589x, TC3589x_RSTINTCLR, 0x1);
 }
 
+static int __devinit tc3589x_device_init(struct tc3589x *tc3589x)
+{
+	int ret = 0;
+	unsigned int blocks = tc3589x->pdata->block;
+
+	if (blocks & TC3589x_BLOCK_GPIO) {
+		ret = mfd_add_devices(tc3589x->dev, -1, tc3589x_dev_gpio,
+				ARRAY_SIZE(tc3589x_dev_gpio), NULL,
+				tc3589x->irq_base);
+		if (ret) {
+			dev_err(tc3589x->dev, "failed to add gpio child\n");
+			return ret;
+		}
+		dev_info(tc3589x->dev, "added gpio block\n");
+	}
+
+	return ret;
+
+}
+
 static int __devinit tc3589x_probe(struct i2c_client *i2c,
 				   const struct i2c_device_id *id)
 {
@@ -281,11 +301,9 @@ static int __devinit tc3589x_probe(struct i2c_client *i2c,
 		goto out_removeirq;
 	}
 
-	ret = mfd_add_devices(tc3589x->dev, -1, tc3589x_devs,
-			      ARRAY_SIZE(tc3589x_devs), NULL,
-			      tc3589x->irq_base);
+	ret = tc3589x_device_init(tc3589x);
 	if (ret) {
-		dev_err(tc3589x->dev, "failed to add children\n");
+		dev_err(tc3589x->dev, "failed to add child devices\n");
 		goto out_freeirq;
 	}
 

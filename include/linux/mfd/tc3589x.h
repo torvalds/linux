@@ -9,6 +9,11 @@
 
 #include <linux/device.h>
 
+enum tx3589x_block {
+	TC3589x_BLOCK_GPIO        = 1 << 0,
+	TC3589x_BLOCK_KEYPAD      = 1 << 1,
+};
+
 #define TC3589x_RSTCTRL_IRQRST	(1 << 4)
 #define TC3589x_RSTCTRL_TIMRST	(1 << 3)
 #define TC3589x_RSTCTRL_ROTRST	(1 << 2)
@@ -122,10 +127,12 @@ struct tc3589x_gpio_platform_data {
 
 /**
  * struct tc3589x_platform_data - TC3589x platform data
+ * @block: bitmask of blocks to enable (use TC3589x_BLOCK_*)
  * @irq_base: base IRQ number.  %TC3589x_NR_IRQS irqs will be used.
  * @gpio: GPIO-specific platform data
  */
 struct tc3589x_platform_data {
+	unsigned int block;
 	int irq_base;
 	struct tc3589x_gpio_platform_data *gpio;
 };

@@ -122,6 +122,7 @@ static struct tc3589x_gpio_platform_data mop500_tc35892_gpio_data = {
 };
 
 static struct tc3589x_platform_data mop500_tc35892_data = {
+	.block		= TC3589x_BLOCK_GPIO,
 	.gpio		= &mop500_tc35892_gpio_data,
 	.irq_base	= MOP500_EGPIO_IRQ_BASE,
 };
