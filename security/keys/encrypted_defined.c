@@ -32,20 +32,19 @@
 
 #include "encrypted_defined.h"
 
-#define KEY_TRUSTED_PREFIX "trusted:"
-#define KEY_TRUSTED_PREFIX_LEN (sizeof (KEY_TRUSTED_PREFIX) - 1)
-#define KEY_USER_PREFIX "user:"
-#define KEY_USER_PREFIX_LEN (sizeof (KEY_USER_PREFIX) - 1)
-
-#define HASH_SIZE SHA256_DIGEST_SIZE
-#define MAX_DATA_SIZE 4096
-#define MIN_DATA_SIZE  20
-
+static const char KEY_TRUSTED_PREFIX[] = "trusted:";
+static const char KEY_USER_PREFIX[] = "user:";
 static const char hash_alg[] = "sha256";
 static const char hmac_alg[] = "hmac(sha256)";
 static const char blkcipher_alg[] = "cbc(aes)";
 static unsigned int ivsize;
 static int blksize;
+
+#define KEY_TRUSTED_PREFIX_LEN (sizeof (KEY_TRUSTED_PREFIX) - 1)
+#define KEY_USER_PREFIX_LEN (sizeof (KEY_USER_PREFIX) - 1)
+#define HASH_SIZE SHA256_DIGEST_SIZE
+#define MAX_DATA_SIZE 4096
+#define MIN_DATA_SIZE  20
 
 struct sdesc {
 	struct shash_desc shash;
@@ -217,8 +216,7 @@ out:
  * data, trusted key type data is not visible decrypted from userspace.
  */
 static struct key *request_trusted_key(const char *trusted_desc,
-				       u8 **master_key,
-				       unsigned int *master_keylen)
+				       u8 **master_key, size_t *master_keylen)
 {
 	struct trusted_key_payload *tpayload;
 	struct key *tkey;
@@ -241,7 +239,7 @@ error:
  * Use a user provided key to encrypt/decrypt an encrypted-key.
  */
 static struct key *request_user_key(const char *master_desc, u8 **master_key,
-				    unsigned int *master_keylen)
+				    size_t *master_keylen)
 {
 	struct user_key_payload *upayload;
 	struct key *ukey;
@@ -258,7 +256,7 @@ error:
 	return ukey;
 }
 
-static struct sdesc *init_sdesc(struct crypto_shash *alg)
+static struct sdesc *alloc_sdesc(struct crypto_shash *alg)
 {
 	struct sdesc *sdesc;
 	int size;
@@ -272,13 +270,13 @@ static struct sdesc *init_sdesc(struct crypto_shash *alg)
 	return sdesc;
 }
 
-static int calc_hmac(u8 *digest, const u8 *key, const unsigned int keylen,
-		     const u8 *buf, const unsigned int buflen)
+static int calc_hmac(u8 *digest, const u8 *key, unsigned int keylen,
+		     const u8 *buf, unsigned int buflen)
 {
 	struct sdesc *sdesc;
 	int ret;
 
-	sdesc = init_sdesc(hmacalg);
+	sdesc = alloc_sdesc(hmacalg);
 	if (IS_ERR(sdesc)) {
 		pr_info("encrypted_key: can't alloc %s\n", hmac_alg);
 		return PTR_ERR(sdesc);
@@ -291,12 +289,12 @@ static int calc_hmac(u8 *digest, const u8 *key, const unsigned int keylen,
 	return ret;
 }
 
-static int calc_hash(u8 *digest, const u8 *buf, const unsigned int buflen)
+static int calc_hash(u8 *digest, const u8 *buf, unsigned int buflen)
 {
 	struct sdesc *sdesc;
 	int ret;
 
-	sdesc = init_sdesc(hashalg);
+	sdesc = alloc_sdesc(hashalg);
 	if (IS_ERR(sdesc)) {
 		pr_info("encrypted_key: can't alloc %s\n", hash_alg);
 		return PTR_ERR(sdesc);
@@ -311,8 +309,7 @@ enum derived_key_type { ENC_KEY, AUTH_KEY };
 
 /* Derive authentication/encryption key from trusted key */
 static int get_derived_key(u8 *derived_key, enum derived_key_type key_type,
-			   const u8 *master_key,
-			   const unsigned int master_keylen)
+			   const u8 *master_key, size_t master_keylen)
 {
 	u8 *derived_buf;
 	unsigned int derived_buf_len;
@@ -340,8 +337,8 @@ static int get_derived_key(u8 *derived_key, enum derived_key_type key_type,
 }
 
 static int init_blkcipher_desc(struct blkcipher_desc *desc, const u8 *key,
-			       const unsigned int key_len, const u8 *iv,
-			       const unsigned int ivsize)
+			       unsigned int key_len, const u8 *iv,
+			       unsigned int ivsize)
 {
 	int ret;
 
@@ -364,8 +361,7 @@ static int init_blkcipher_desc(struct blkcipher_desc *desc, const u8 *key,
 }
 
 static struct key *request_master_key(struct encrypted_key_payload *epayload,
-				      u8 **master_key,
-				      unsigned int *master_keylen)
+				      u8 **master_key, size_t *master_keylen)
 {
 	struct key *mkey = NULL;
 
@@ -394,7 +390,7 @@ out:
 /* Before returning data to userspace, encrypt decrypted data. */
 static int derived_key_encrypt(struct encrypted_key_payload *epayload,
 			       const u8 *derived_key,
-			       const unsigned int derived_keylen)
+			       unsigned int derived_keylen)
 {
 	struct scatterlist sg_in[2];
 	struct scatterlist sg_out[1];
@@ -433,8 +429,7 @@ out:
 }
 
 static int datablob_hmac_append(struct encrypted_key_payload *epayload,
-				const u8 *master_key,
-				const unsigned int master_keylen)
+				const u8 *master_key, size_t master_keylen)
 {
 	u8 derived_key[HASH_SIZE];
 	u8 *digest;
@@ -455,8 +450,7 @@ out:
 
 /* verify HMAC before decrypting encrypted key */
 static int datablob_hmac_verify(struct encrypted_key_payload *epayload,
-				const u8 *master_key,
-				const unsigned int master_keylen)
+				const u8 *master_key, size_t master_keylen)
 {
 	u8 derived_key[HASH_SIZE];
 	u8 digest[HASH_SIZE];
@@ -485,7 +479,7 @@ out:
 
 static int derived_key_decrypt(struct encrypted_key_payload *epayload,
 			       const u8 *derived_key,
-			       const unsigned int derived_keylen)
+			       unsigned int derived_keylen)
 {
 	struct scatterlist sg_in[1];
 	struct scatterlist sg_out[2];
@@ -506,7 +500,7 @@ static int derived_key_decrypt(struct encrypted_key_payload *epayload,
 	sg_init_table(sg_out, 2);
 	sg_set_buf(sg_in, epayload->encrypted_data, encrypted_datalen);
 	sg_set_buf(&sg_out[0], epayload->decrypted_data,
-		   (unsigned int)epayload->decrypted_datalen);
+		   epayload->decrypted_datalen);
 	sg_set_buf(&sg_out[1], pad, sizeof pad);
 
 	ret = crypto_blkcipher_decrypt(&desc, sg_out, sg_in, encrypted_datalen);
@@ -563,8 +557,8 @@ static int encrypted_key_decrypt(struct encrypted_key_payload *epayload,
 	u8 *master_key;
 	u8 *hmac;
 	const char *hex_encoded_data;
-	unsigned int master_keylen;
 	unsigned int encrypted_datalen;
+	size_t master_keylen;
 	size_t asciilen;
 	int ret;
 
@@ -765,7 +759,7 @@ static long encrypted_read(const struct key *key, char __user *buffer,
 	struct encrypted_key_payload *epayload;
 	struct key *mkey;
 	u8 *master_key;
-	unsigned int master_keylen;
+	size_t master_keylen;
 	char derived_key[HASH_SIZE];
 	char *ascii_buf;
 	size_t asciiblob_len;

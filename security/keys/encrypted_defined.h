@@ -4,8 +4,7 @@
 #define ENCRYPTED_DEBUG 0
 
 #if ENCRYPTED_DEBUG
-static inline void dump_master_key(const u8 *master_key,
-				   unsigned int master_keylen)
+static inline void dump_master_key(const u8 *master_key, size_t master_keylen)
 {
 	print_hex_dump(KERN_ERR, "master key: ", DUMP_PREFIX_NONE, 32, 1,
 		       master_key, master_keylen, 0);
@@ -34,8 +33,7 @@ static inline void dump_hmac(const char *str, const u8 *digest,
 		       hmac_size, 0);
 }
 #else
-static inline void dump_master_key(const u8 *master_key,
-				   unsigned int master_keylen)
+static inline void dump_master_key(const u8 *master_key, size_t master_keylen)
 {
 }
 
