@@ -1643,7 +1643,7 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 
 	/* if there was any work waiting then we run it now and
 	 * wait for its completion */
-	flush_delayed_work_sync(&codec->delayed_work);
+	flush_delayed_work_sync(&codec->dapm.delayed_work);
 
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
