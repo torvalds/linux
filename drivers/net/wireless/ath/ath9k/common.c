@@ -180,8 +180,8 @@ void ath9k_cmn_btcoex_bt_stomp(struct ath_common *common,
 					   AR_STOMP_NONE_WLAN_WGHT);
 		break;
 	default:
-		ath_print(common, ATH_DBG_BTCOEX,
-			  "Invalid Stomptype\n");
+		ath_dbg(common, ATH_DBG_BTCOEX,
+			"Invalid Stomptype\n");
 		break;
 	}
 

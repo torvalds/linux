@@ -258,13 +258,9 @@ struct ieee80211_supported_band {
 
 /**
  * struct vif_params - describes virtual interface parameters
- * @mesh_id: mesh ID to use
- * @mesh_id_len: length of the mesh ID
  * @use_4addr: use 4-address frames
  */
 struct vif_params {
-       u8 *mesh_id;
-       int mesh_id_len;
        int use_4addr;
 };
 
@@ -424,6 +420,7 @@ struct station_parameters {
  * @STATION_INFO_TX_RETRIES: @tx_retries filled
  * @STATION_INFO_TX_FAILED: @tx_failed filled
  * @STATION_INFO_RX_DROP_MISC: @rx_dropped_misc filled
+ * @STATION_INFO_SIGNAL_AVG: @signal_avg filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -439,6 +436,7 @@ enum station_info_flags {
 	STATION_INFO_TX_RETRIES		= 1<<10,
 	STATION_INFO_TX_FAILED		= 1<<11,
 	STATION_INFO_RX_DROP_MISC	= 1<<12,
+	STATION_INFO_SIGNAL_AVG		= 1<<13,
 };
 
 /**
@@ -485,6 +483,7 @@ struct rate_info {
  * @plid: mesh peer link id
  * @plink_state: mesh peer link state
  * @signal: signal strength of last received packet in dBm
+ * @signal_avg: signal strength average in dBm
  * @txrate: current unicast bitrate to this station
  * @rx_packets: packets received from this station
  * @tx_packets: packets transmitted to this station
@@ -505,6 +504,7 @@ struct station_info {
 	u16 plid;
 	u8 plink_state;
 	s8 signal;
+	s8 signal_avg;
 	struct rate_info txrate;
 	u32 rx_packets;
 	u32 tx_packets;
@@ -605,6 +605,8 @@ struct mpath_info {
  *	(or NULL for no change)
  * @basic_rates_len: number of basic rates
  * @ap_isolate: do not forward packets between connected stations
+ * @ht_opmode: HT Operation mode
+ * 	(u16 = opmode, -1 = do not change)
  */
 struct bss_parameters {
 	int use_cts_prot;
@@ -613,8 +615,14 @@ struct bss_parameters {
 	u8 *basic_rates;
 	u8 basic_rates_len;
 	int ap_isolate;
+	int ht_opmode;
 };
 
+/*
+ * struct mesh_config - 802.11s mesh configuration
+ *
+ * These parameters can be changed while the mesh is active.
+ */
 struct mesh_config {
 	/* Timeouts in ms */
 	/* Mesh plink management parameters */
@@ -624,6 +632,8 @@ struct mesh_config {
 	u16 dot11MeshMaxPeerLinks;
 	u8  dot11MeshMaxRetries;
 	u8  dot11MeshTTL;
+	/* ttl used in path selection information elements */
+	u8  element_ttl;
 	bool auto_open_plinks;
 	/* HWMP parameters */
 	u8  dot11MeshHWMPmaxPREQretries;
@@ -633,6 +643,18 @@ struct mesh_config {
 	u16 dot11MeshHWMPpreqMinInterval;
 	u16 dot11MeshHWMPnetDiameterTraversalTime;
 	u8  dot11MeshHWMPRootMode;
+};
+
+/**
+ * struct mesh_setup - 802.11s mesh setup configuration
+ * @mesh_id: the mesh ID
+ * @mesh_id_len: length of the mesh ID, at least 1 and at most 32 bytes
+ *
+ * These parameters are fixed when the mesh is created.
+ */
+struct mesh_setup {
+	const u8 *mesh_id;
+	u8 mesh_id_len;
 };
 
 /**
@@ -1031,7 +1053,8 @@ struct cfg80211_pmksa {
  *
  * @add_virtual_intf: create a new virtual interface with the given name,
  *	must set the struct wireless_dev's iftype. Beware: You must create
- *	the new netdev in the wiphy's network namespace!
+ *	the new netdev in the wiphy's network namespace! Returns the netdev,
+ *	or an ERR_PTR.
  *
  * @del_virtual_intf: remove the virtual interface determined by ifindex.
  *
@@ -1075,7 +1098,7 @@ struct cfg80211_pmksa {
  *
  * @get_mesh_params: Put the current mesh parameters into *params
  *
- * @set_mesh_params: Set mesh parameters.
+ * @update_mesh_params: Update mesh parameters on a running mesh.
  *	The mask is a bitfield which tells us which parameters to
  *	set, and which to leave alone.
  *
@@ -1166,9 +1189,11 @@ struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy);
 	int	(*resume)(struct wiphy *wiphy);
 
-	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
-				    enum nl80211_iftype type, u32 *flags,
-				    struct vif_params *params);
+	struct net_device * (*add_virtual_intf)(struct wiphy *wiphy,
+						char *name,
+						enum nl80211_iftype type,
+						u32 *flags,
+						struct vif_params *params);
 	int	(*del_virtual_intf)(struct wiphy *wiphy, struct net_device *dev);
 	int	(*change_virtual_intf)(struct wiphy *wiphy,
 				       struct net_device *dev,
@@ -1224,9 +1249,14 @@ struct cfg80211_ops {
 	int	(*get_mesh_params)(struct wiphy *wiphy,
 				struct net_device *dev,
 				struct mesh_config *conf);
-	int	(*set_mesh_params)(struct wiphy *wiphy,
-				struct net_device *dev,
-				const struct mesh_config *nconf, u32 mask);
+	int	(*update_mesh_params)(struct wiphy *wiphy,
+				      struct net_device *dev, u32 mask,
+				      const struct mesh_config *nconf);
+	int	(*join_mesh)(struct wiphy *wiphy, struct net_device *dev,
+			     const struct mesh_config *conf,
+			     const struct mesh_setup *setup);
+	int	(*leave_mesh)(struct wiphy *wiphy, struct net_device *dev);
+
 	int	(*change_bss)(struct wiphy *wiphy, struct net_device *dev,
 			      struct bss_parameters *params);
 
@@ -1642,6 +1672,8 @@ struct cfg80211_cached_keys;
  * @bssid: (private) Used by the internal configuration code
  * @ssid: (private) Used by the internal configuration code
  * @ssid_len: (private) Used by the internal configuration code
+ * @mesh_id_len: (private) Used by the internal configuration code
+ * @mesh_id_up_len: (private) Used by the internal configuration code
  * @wext: (private) Used by the internal wireless extensions compat code
  * @use_4addr: indicates 4addr mode is used on this interface, must be
  *	set by driver (if supported) on add_interface BEFORE registering the
@@ -1671,7 +1703,7 @@ struct wireless_dev {
 
 	/* currently used for IBSS and SME - might be rearranged later */
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
-	u8 ssid_len;
+	u8 ssid_len, mesh_id_len, mesh_id_up_len;
 	enum {
 		CFG80211_SME_IDLE,
 		CFG80211_SME_CONNECTING,

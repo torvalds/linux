@@ -210,8 +210,6 @@ struct iwl_lib_ops {
 
 	/* temperature */
 	struct iwl_temp_ops temp_ops;
-	/* recover from tx queue stall */
-	void (*recover_from_tx_stall)(unsigned long data);
 	/* check for plcp health */
 	bool (*check_plcp_health)(struct iwl_priv *priv,
 					struct iwl_rx_packet *pkt);
@@ -280,7 +278,7 @@ struct iwl_mod_params {
  * @plcp_delta_threshold: plcp error rate threshold used to trigger
  *	radio tuning when there is a high receiving plcp error rate
  * @chain_noise_scale: default chain noise scale used for gain computation
- * @monitor_recover_period: default timer used to check stuck queues
+ * @wd_timeout: TX queues watchdog timeout
  * @temperature_kelvin: temperature report by uCode in kelvin
  * @max_event_log_size: size of event log buffer size for ucode event logging
  * @tx_power_by_driver: tx power calibration performed by driver
@@ -315,8 +313,7 @@ struct iwl_base_params {
 	const bool support_wimax_coexist;
 	u8 plcp_delta_threshold;
 	s32 chain_noise_scale;
-	/* timer period for monitor the driver queues */
-	u32 monitor_recover_period;
+	unsigned int wd_timeout;
 	bool temperature_kelvin;
 	u32 max_event_log_size;
 	const bool tx_power_by_driver;
@@ -546,6 +543,7 @@ int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 			int slots_num, u32 txq_id);
 void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id);
+void iwl_setup_watchdog(struct iwl_priv *priv);
 /*****************************************************
  * TX power
  ****************************************************/
@@ -625,7 +623,7 @@ static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
 	return pci_lnk_ctl;
 }
 
-void iwl_bg_monitor_recover(unsigned long data);
+void iwl_bg_watchdog(unsigned long data);
 u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval);
 __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 			   u32 addon, u32 beacon_interval);

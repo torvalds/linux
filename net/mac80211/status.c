@@ -155,10 +155,6 @@ static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 
 		ieee80211_queue_work(&local->hw, &local->recalc_smps);
 	}
-
-	if ((sdata->vif.type == NL80211_IFTYPE_STATION) &&
-	    (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS))
-		ieee80211_sta_tx_notify(sdata, (void *) skb->data);
 }
 
 /*
@@ -186,6 +182,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	int retry_count = -1, i;
 	int rates_idx = -1;
 	bool send_to_cooked;
+	bool acked;
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		/* the HW cannot have attempted that rate */
@@ -211,8 +208,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (memcmp(hdr->addr2, sta->sdata->vif.addr, ETH_ALEN))
 			continue;
 
-		if (!(info->flags & IEEE80211_TX_STAT_ACK) &&
-		    test_sta_flags(sta, WLAN_STA_PS_STA)) {
+		acked = !!(info->flags & IEEE80211_TX_STAT_ACK);
+		if (!acked && test_sta_flags(sta, WLAN_STA_PS_STA)) {
 			/*
 			 * The STA is in power save mode, so assume
 			 * that this TX packet failed because of that.
@@ -244,7 +241,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			rcu_read_unlock();
 			return;
 		} else {
-			if (!(info->flags & IEEE80211_TX_STAT_ACK))
+			if (!acked)
 				sta->tx_retry_failed++;
 			sta->tx_retry_count += retry_count;
 		}
@@ -253,9 +250,12 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (ieee80211_vif_is_mesh(&sta->sdata->vif))
 			ieee80211s_update_metric(local, sta, skb);
 
-		if (!(info->flags & IEEE80211_TX_CTL_INJECTED) &&
-		    (info->flags & IEEE80211_TX_STAT_ACK))
+		if (!(info->flags & IEEE80211_TX_CTL_INJECTED) && acked)
 			ieee80211_frame_acked(sta, skb);
+
+		if ((sta->sdata->vif.type == NL80211_IFTYPE_STATION) &&
+		    (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS))
+			ieee80211_sta_tx_notify(sta->sdata, (void *) skb->data, acked);
 
 		if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) {
 			if (info->flags & IEEE80211_TX_STAT_ACK) {

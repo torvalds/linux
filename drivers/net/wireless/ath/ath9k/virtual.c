@@ -656,10 +656,9 @@ void ath9k_set_wiphy_idle(struct ath_wiphy *aphy, bool idle)
 	struct ath_softc *sc = aphy->sc;
 
 	aphy->idle = idle;
-	ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
-		  "Marking %s as %s\n",
-		  wiphy_name(aphy->hw->wiphy),
-		  idle ? "idle" : "not-idle");
+	ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_CONFIG,
+		"Marking %s as %sidle\n",
+		wiphy_name(aphy->hw->wiphy), idle ? "" : "not-");
 }
 /* Only bother starting a queue on an active virtual wiphy */
 bool ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue)

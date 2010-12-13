@@ -152,8 +152,8 @@ int ath5k_hw_setup_tx_queue(struct ath5k_hw *ah, enum ath5k_tx_queue queue_type,
 	/*
 	 * Get queue by type
 	 */
-	/*5210 only has 2 queues*/
-	if (ah->ah_version == AR5K_AR5210) {
+	/* 5210 only has 2 queues */
+	if (ah->ah_capabilities.cap_queues.q_tx_num == 2) {
 		switch (queue_type) {
 		case AR5K_TX_QUEUE_DATA:
 			queue = AR5K_TX_QUEUE_ID_NOQCU_DATA;

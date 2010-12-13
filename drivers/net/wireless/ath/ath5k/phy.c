@@ -2742,10 +2742,12 @@ ath5k_combine_pwr_to_pdadc_curves(struct ath5k_hw *ah,
 
 /* Write PDADC values on hw */
 static void
-ath5k_setup_pwr_to_pdadc_table(struct ath5k_hw *ah,
-			u8 pdcurves, u8 *pdg_to_idx)
+ath5k_setup_pwr_to_pdadc_table(struct ath5k_hw *ah, u8 ee_mode)
 {
+	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	u8 *pdadc_out = ah->ah_txpower.txp_pd_table;
+	u8 *pdg_to_idx = ee->ee_pdc_to_idx[ee_mode];
+	u8 pdcurves = ee->ee_pd_gains[ee_mode];
 	u32 reg;
 	u8 i;
 
@@ -2992,7 +2994,7 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 						ee->ee_pd_gains[ee_mode]);
 
 		/* Write settings on hw */
-		ath5k_setup_pwr_to_pdadc_table(ah, pdg, pdg_curve_to_idx);
+		ath5k_setup_pwr_to_pdadc_table(ah, ee_mode);
 
 		/* Set txp.offset, note that table_min
 		 * can be negative */
@@ -3114,12 +3116,6 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		return -EINVAL;
 	}
 
-	/* Reset TX power values */
-	memset(&ah->ah_txpower, 0, sizeof(ah->ah_txpower));
-	ah->ah_txpower.txp_tpc = AR5K_TUNE_TPC_TXPOWER;
-	ah->ah_txpower.txp_min_pwr = 0;
-	ah->ah_txpower.txp_max_pwr = AR5K_TUNE_MAX_TXPOWER;
-
 	/* Initialize TX power table */
 	switch (ah->ah_radio) {
 	case AR5K_RF5110:
@@ -3146,11 +3142,24 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	 * so there is no need to recalculate the powertable, we 'll
 	 * just use the cached one */
 	if (!fast) {
+		/* Reset TX power values */
+		memset(&ah->ah_txpower, 0, sizeof(ah->ah_txpower));
+		ah->ah_txpower.txp_tpc = AR5K_TUNE_TPC_TXPOWER;
+		ah->ah_txpower.txp_min_pwr = 0;
+		ah->ah_txpower.txp_max_pwr = AR5K_TUNE_MAX_TXPOWER;
+
+		/* Calculate the powertable */
 		ret = ath5k_setup_channel_powertable(ah, channel,
 							ee_mode, type);
-			if (ret)
-				return ret;
-	}
+		if (ret)
+			return ret;
+	/* Write cached table on hw */
+	} else if (type == AR5K_PWRTABLE_PWR_TO_PDADC)
+		ath5k_setup_pwr_to_pdadc_table(ah, ee_mode);
+	else
+		ath5k_setup_pcdac_table(ah);
+
+
 
 	/* Limit max power if we have a CTL available */
 	ath5k_get_max_ctl_power(ah, channel);

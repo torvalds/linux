@@ -246,7 +246,7 @@ static int ath9k_init_htc_services(struct ath9k_htc_priv *priv, u16 devid,
 	 * the HIF layer, shouldn't matter much.
 	 */
 
-	if (drv_info & AR7010_DEVICE)
+	if (IS_AR7010_DEVICE(drv_info))
 		priv->htc->credits = 45;
 	else
 		priv->htc->credits = 33;
@@ -288,9 +288,9 @@ static unsigned int ath9k_regread(void *hw_priv, u32 reg_offset)
 			  (u8 *) &val, sizeof(val),
 			  100);
 	if (unlikely(r)) {
-		ath_print(common, ATH_DBG_WMI,
-			  "REGISTER READ FAILED: (0x%04x, %d)\n",
-			   reg_offset, r);
+		ath_dbg(common, ATH_DBG_WMI,
+			"REGISTER READ FAILED: (0x%04x, %d)\n",
+			reg_offset, r);
 		return -EIO;
 	}
 
@@ -313,9 +313,9 @@ static void ath9k_regwrite_single(void *hw_priv, u32 val, u32 reg_offset)
 			  (u8 *) &val, sizeof(val),
 			  100);
 	if (unlikely(r)) {
-		ath_print(common, ATH_DBG_WMI,
-			  "REGISTER WRITE FAILED:(0x%04x, %d)\n",
-			  reg_offset, r);
+		ath_dbg(common, ATH_DBG_WMI,
+			"REGISTER WRITE FAILED:(0x%04x, %d)\n",
+			reg_offset, r);
 	}
 }
 
@@ -345,9 +345,9 @@ static void ath9k_regwrite_buffer(void *hw_priv, u32 val, u32 reg_offset)
 			  (u8 *) &rsp_status, sizeof(rsp_status),
 			  100);
 		if (unlikely(r)) {
-			ath_print(common, ATH_DBG_WMI,
-				  "REGISTER WRITE FAILED, multi len: %d\n",
-				  priv->wmi->multi_write_idx);
+			ath_dbg(common, ATH_DBG_WMI,
+				"REGISTER WRITE FAILED, multi len: %d\n",
+				priv->wmi->multi_write_idx);
 		}
 		priv->wmi->multi_write_idx = 0;
 	}
@@ -395,9 +395,9 @@ static void ath9k_regwrite_flush(void *hw_priv)
 			  (u8 *) &rsp_status, sizeof(rsp_status),
 			  100);
 		if (unlikely(r)) {
-			ath_print(common, ATH_DBG_WMI,
-				  "REGISTER WRITE FAILED, multi len: %d\n",
-				  priv->wmi->multi_write_idx);
+			ath_dbg(common, ATH_DBG_WMI,
+				"REGISTER WRITE FAILED, multi len: %d\n",
+				priv->wmi->multi_write_idx);
 		}
 		priv->wmi->multi_write_idx = 0;
 	}
@@ -469,9 +469,9 @@ static void setup_ht_cap(struct ath9k_htc_priv *priv,
 	tx_streams = ath9k_cmn_count_streams(common->tx_chainmask, 2);
 	rx_streams = ath9k_cmn_count_streams(common->rx_chainmask, 2);
 
-	ath_print(common, ATH_DBG_CONFIG,
-		  "TX streams %d, RX streams: %d\n",
-		  tx_streams, rx_streams);
+	ath_dbg(common, ATH_DBG_CONFIG,
+		"TX streams %d, RX streams: %d\n",
+		tx_streams, rx_streams);
 
 	if (tx_streams != rx_streams) {
 		ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_RX_DIFF;
@@ -495,37 +495,31 @@ static int ath9k_init_queues(struct ath9k_htc_priv *priv)
 
 	priv->beaconq = ath9k_hw_beaconq_setup(priv->ah);
 	if (priv->beaconq == -1) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup BEACON xmit queue\n");
+		ath_err(common, "Unable to setup BEACON xmit queue\n");
 		goto err;
 	}
 
 	priv->cabq = ath9k_htc_cabq_setup(priv);
 	if (priv->cabq == -1) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup CAB xmit queue\n");
+		ath_err(common, "Unable to setup CAB xmit queue\n");
 		goto err;
 	}
 
 	if (!ath9k_htc_txq_setup(priv, WME_AC_BE)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for BE traffic\n");
+		ath_err(common, "Unable to setup xmit queue for BE traffic\n");
 		goto err;
 	}
 
 	if (!ath9k_htc_txq_setup(priv, WME_AC_BK)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for BK traffic\n");
+		ath_err(common, "Unable to setup xmit queue for BK traffic\n");
 		goto err;
 	}
 	if (!ath9k_htc_txq_setup(priv, WME_AC_VI)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for VI traffic\n");
+		ath_err(common, "Unable to setup xmit queue for VI traffic\n");
 		goto err;
 	}
 	if (!ath9k_htc_txq_setup(priv, WME_AC_VO)) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to setup xmit queue for VO traffic\n");
+		ath_err(common, "Unable to setup xmit queue for VO traffic\n");
 		goto err;
 	}
 
@@ -543,9 +537,9 @@ static void ath9k_init_crypto(struct ath9k_htc_priv *priv)
 	/* Get the hardware key cache size. */
 	common->keymax = priv->ah->caps.keycache_size;
 	if (common->keymax > ATH_KEYMAX) {
-		ath_print(common, ATH_DBG_ANY,
-			  "Warning, using only %u entries in %u key cache\n",
-			  ATH_KEYMAX, common->keymax);
+		ath_dbg(common, ATH_DBG_ANY,
+			"Warning, using only %u entries in %u key cache\n",
+			ATH_KEYMAX, common->keymax);
 		common->keymax = ATH_KEYMAX;
 	}
 
@@ -636,6 +630,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 
 	ah->hw_version.devid = devid;
 	ah->hw_version.subsysid = 0; /* FIXME */
+	ah->hw_version.usbdev = drv_info;
 	ah->ah_flags |= AH_USE_EEPROM;
 	priv->ah = ah;
 
@@ -646,7 +641,6 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 	common->hw = priv->hw;
 	common->priv = priv;
 	common->debug_mask = ath9k_debug;
-	common->driver_info = drv_info;
 
 	spin_lock_init(&priv->wmi->wmi_lock);
 	spin_lock_init(&priv->beacon_lock);
@@ -670,16 +664,15 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 
 	ret = ath9k_hw_init(ah);
 	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to initialize hardware; "
-			  "initialization status: %d\n", ret);
+		ath_err(common,
+			"Unable to initialize hardware; initialization status: %d\n",
+			ret);
 		goto err_hw;
 	}
 
 	ret = ath9k_htc_init_debug(ah);
 	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to create debugfs files\n");
+		ath_err(common, "Unable to create debugfs files\n");
 		goto err_debug;
 	}
 
@@ -721,7 +714,8 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 		IEEE80211_HW_HAS_RATE_CONTROL |
 		IEEE80211_HW_RX_INCLUDES_FCS |
 		IEEE80211_HW_SUPPORTS_PS |
-		IEEE80211_HW_PS_NULLFUNC_STACK;
+		IEEE80211_HW_PS_NULLFUNC_STACK |
+		IEEE80211_HW_NEED_DTIM_PERIOD;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
@@ -888,6 +882,12 @@ void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug)
 }
 
 #ifdef CONFIG_PM
+
+void ath9k_htc_suspend(struct htc_target *htc_handle)
+{
+	ath9k_htc_setpower(htc_handle->drv_priv, ATH9K_PM_FULL_SLEEP);
+}
+
 int ath9k_htc_resume(struct htc_target *htc_handle)
 {
 	struct ath9k_htc_priv *priv = htc_handle->drv_priv;
@@ -898,7 +898,7 @@ int ath9k_htc_resume(struct htc_target *htc_handle)
 		return ret;
 
 	ret = ath9k_init_htc_services(priv, priv->ah->hw_version.devid,
-				      priv->ah->common.driver_info);
+				      priv->ah->hw_version.usbdev);
 	return ret;
 }
 #endif

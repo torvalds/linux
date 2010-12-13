@@ -1894,75 +1894,56 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL(iwl_mac_change_interface);
 
-/**
- * iwl_bg_monitor_recover - Timer callback to check for stuck queue and recover
- *
- * During normal condition (no queue is stuck), the timer is continually set to
- * execute every monitor_recover_period milliseconds after the last timer
- * expired.  When the queue read_ptr is at the same place, the timer is
- * shorten to 100mSecs.  This is
- *      1) to reduce the chance that the read_ptr may wrap around (not stuck)
- *      2) to detect the stuck queues quicker before the station and AP can
- *      disassociate each other.
- *
- * This function monitors all the tx queues and recover from it if any
- * of the queues are stuck.
- * 1. It first check the cmd queue for stuck conditions.  If it is stuck,
- *      it will recover by resetting the firmware and return.
- * 2. Then, it checks for station association.  If it associates it will check
- *      other queues.  If any queue is stuck, it will recover by resetting
- *      the firmware.
- * Note: It the number of times the queue read_ptr to be at the same place to
- *      be MAX_REPEAT+1 in order to consider to be stuck.
- */
 /*
- * The maximum number of times the read pointer of the tx queue at the
- * same place without considering to be stuck.
+ * On every watchdog tick we check (latest) time stamp. If it does not
+ * change during timeout period and queue is not empty we reset firmware.
  */
-#define MAX_REPEAT      (2)
 static int iwl_check_stuck_queue(struct iwl_priv *priv, int cnt)
 {
-	struct iwl_tx_queue *txq;
-	struct iwl_queue *q;
+	struct iwl_tx_queue *txq = &priv->txq[cnt];
+	struct iwl_queue *q = &txq->q;
+	unsigned long timeout;
+	int ret;
 
-	txq = &priv->txq[cnt];
-	q = &txq->q;
-	/* queue is empty, skip */
-	if (q->read_ptr == q->write_ptr)
+	if (q->read_ptr == q->write_ptr) {
+		txq->time_stamp = jiffies;
 		return 0;
-
-	if (q->read_ptr == q->last_read_ptr) {
-		/* a queue has not been read from last time */
-		if (q->repeat_same_read_ptr > MAX_REPEAT) {
-			IWL_ERR(priv,
-				"queue %d stuck %d time. Fw reload.\n",
-				q->id, q->repeat_same_read_ptr);
-			q->repeat_same_read_ptr = 0;
-			iwl_force_reset(priv, IWL_FW_RESET, false);
-		} else {
-			q->repeat_same_read_ptr++;
-			IWL_DEBUG_RADIO(priv,
-					"queue %d, not read %d time\n",
-					q->id,
-					q->repeat_same_read_ptr);
-			mod_timer(&priv->monitor_recover,
-				jiffies + msecs_to_jiffies(
-				IWL_ONE_HUNDRED_MSECS));
-			return 1;
-		}
-	} else {
-		q->last_read_ptr = q->read_ptr;
-		q->repeat_same_read_ptr = 0;
 	}
+
+	timeout = txq->time_stamp +
+		  msecs_to_jiffies(priv->cfg->base_params->wd_timeout);
+
+	if (time_after(jiffies, timeout)) {
+		IWL_ERR(priv, "Queue %d stuck for %u ms.\n",
+				q->id, priv->cfg->base_params->wd_timeout);
+		ret = iwl_force_reset(priv, IWL_FW_RESET, false);
+		return (ret == -EAGAIN) ? 0 : 1;
+	}
+
 	return 0;
 }
 
-void iwl_bg_monitor_recover(unsigned long data)
+/*
+ * Making watchdog tick be a quarter of timeout assure we will
+ * discover the queue hung between timeout and 1.25*timeout
+ */
+#define IWL_WD_TICK(timeout) ((timeout) / 4)
+
+/*
+ * Watchdog timer callback, we check each tx queue for stuck, if if hung
+ * we reset the firmware. If everything is fine just rearm the timer.
+ */
+void iwl_bg_watchdog(unsigned long data)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)data;
 	int cnt;
+	unsigned long timeout;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	timeout = priv->cfg->base_params->wd_timeout;
+	if (timeout == 0)
 		return;
 
 	/* monitor and check for stuck cmd queue */
@@ -1979,17 +1960,23 @@ void iwl_bg_monitor_recover(unsigned long data)
 				return;
 		}
 	}
-	if (priv->cfg->base_params->monitor_recover_period) {
-		/*
-		 * Reschedule the timer to occur in
-		 * priv->cfg->base_params->monitor_recover_period
-		 */
-		mod_timer(&priv->monitor_recover, jiffies + msecs_to_jiffies(
-			  priv->cfg->base_params->monitor_recover_period));
-	}
-}
-EXPORT_SYMBOL(iwl_bg_monitor_recover);
 
+	mod_timer(&priv->watchdog, jiffies +
+		  msecs_to_jiffies(IWL_WD_TICK(timeout)));
+}
+EXPORT_SYMBOL(iwl_bg_watchdog);
+
+void iwl_setup_watchdog(struct iwl_priv *priv)
+{
+	unsigned int timeout = priv->cfg->base_params->wd_timeout;
+
+	if (timeout)
+		mod_timer(&priv->watchdog,
+			  jiffies + msecs_to_jiffies(IWL_WD_TICK(timeout)));
+	else
+		del_timer(&priv->watchdog);
+}
+EXPORT_SYMBOL(iwl_setup_watchdog);
 
 /*
  * extended beacon time format

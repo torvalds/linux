@@ -17,6 +17,8 @@
 #ifndef HTC_USB_H
 #define HTC_USB_H
 
+#define IS_AR7010_DEVICE(_v) (((_v) == AR9280_USB) || ((_v) == AR9287_USB))
+
 #define AR9271_FIRMWARE       0x501000
 #define AR9271_FIRMWARE_TEXT  0x903000
 #define AR7010_FIRMWARE_TEXT  0x906000

@@ -339,7 +339,6 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.bt_stats_read = iwl_ucode_bt_stats_read,
 		.reply_tx_error = iwl_reply_tx_error_read,
 	},
-	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 	.check_ack_health = iwl_good_ack_health,
 	.txfifo_flush = iwlagn_txfifo_flush,
@@ -412,7 +411,6 @@ static struct iwl_lib_ops iwl6000g2b_lib = {
 		.bt_stats_read = iwl_ucode_bt_stats_read,
 		.reply_tx_error = iwl_reply_tx_error_read,
 	},
-	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 	.check_ack_health = iwl_good_ack_health,
 	.txfifo_flush = iwlagn_txfifo_flush,
@@ -482,7 +480,7 @@ static struct iwl_base_params iwl6000_base_params = {
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
+	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 512,
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
@@ -506,7 +504,7 @@ static struct iwl_base_params iwl6050_base_params = {
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1500,
-	.monitor_recover_period = IWL_DEF_MONITORING_PERIOD,
+	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 1024,
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
@@ -529,7 +527,7 @@ static struct iwl_base_params iwl6000_coex_base_params = {
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
-	.monitor_recover_period = IWL_LONG_MONITORING_PERIOD,
+	.wd_timeout = IWL_LONG_WD_TIMEOUT,
 	.max_event_log_size = 512,
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
@@ -552,7 +550,7 @@ static struct iwl_bt_params iwl6000_bt_params = {
 	.bt_sco_disable = true,
 };
 
-struct iwl_cfg iwl6000g2a_2agn_cfg = {
+struct iwl_cfg iwl6005_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6205 AGN",
 	.fw_name_pre = IWL6000G2A_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
@@ -568,7 +566,7 @@ struct iwl_cfg iwl6000g2a_2agn_cfg = {
 	.led_mode = IWL_LED_RF_STATE,
 };
 
-struct iwl_cfg iwl6000g2a_2abg_cfg = {
+struct iwl_cfg iwl6005_2abg_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6205 ABG",
 	.fw_name_pre = IWL6000G2A_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
@@ -583,7 +581,7 @@ struct iwl_cfg iwl6000g2a_2abg_cfg = {
 	.led_mode = IWL_LED_RF_STATE,
 };
 
-struct iwl_cfg iwl6000g2a_2bg_cfg = {
+struct iwl_cfg iwl6005_2bg_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6205 BG",
 	.fw_name_pre = IWL6000G2A_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
@@ -598,7 +596,7 @@ struct iwl_cfg iwl6000g2a_2bg_cfg = {
 	.led_mode = IWL_LED_RF_STATE,
 };
 
-struct iwl_cfg iwl6000g2b_2agn_cfg = {
+struct iwl_cfg iwl6030_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6230 AGN",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
@@ -618,7 +616,7 @@ struct iwl_cfg iwl6000g2b_2agn_cfg = {
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
 
-struct iwl_cfg iwl6000g2b_2abg_cfg = {
+struct iwl_cfg iwl6030_2abg_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6230 ABG",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
@@ -637,7 +635,7 @@ struct iwl_cfg iwl6000g2b_2abg_cfg = {
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
 
-struct iwl_cfg iwl6000g2b_2bgn_cfg = {
+struct iwl_cfg iwl6030_2bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6230 BGN",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
@@ -657,7 +655,7 @@ struct iwl_cfg iwl6000g2b_2bgn_cfg = {
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
 
-struct iwl_cfg iwl6000g2b_2bg_cfg = {
+struct iwl_cfg iwl6030_2bg_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6230 BG",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
@@ -676,7 +674,7 @@ struct iwl_cfg iwl6000g2b_2bg_cfg = {
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
 
-struct iwl_cfg iwl6000g2b_bgn_cfg = {
+struct iwl_cfg iwl1030_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 1030 BGN",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
@@ -696,7 +694,7 @@ struct iwl_cfg iwl6000g2b_bgn_cfg = {
 	.scan_tx_antennas[IEEE80211_BAND_2GHZ] = ANT_A,
 };
 
-struct iwl_cfg iwl6000g2b_bg_cfg = {
+struct iwl_cfg iwl1030_bg_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 1030 BG",
 	.fw_name_pre = IWL6000G2B_FW_PRE,
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,
@@ -782,7 +780,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.led_mode = IWL_LED_BLINK,
 };
 
-struct iwl_cfg iwl6050g2_bgn_cfg = {
+struct iwl_cfg iwl6150_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N + WiMAX 6150 BGN",
 	.fw_name_pre = IWL6050_FW_PRE,
 	.ucode_api_max = IWL6050_UCODE_API_MAX,

@@ -17,7 +17,6 @@
 #include <net/mac80211.h>
 
 #include "../ath.h"
-#include "../debug.h"
 
 #include "hw.h"
 #include "hw-ops.h"
