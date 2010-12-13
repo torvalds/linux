@@ -122,7 +122,7 @@ static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.driver_data = (void *) 0x00,
 		.flags = CPUIDLE_FLAG_TIME_VALID,
 		.exit_latency = 1,
-		.target_residency = 4,
+		.target_residency = 1,
 		.enter = &intel_idle },
 	{ /* MWAIT C2 */
 		.name = "SNB-C3",
@@ -130,7 +130,7 @@ static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.driver_data = (void *) 0x10,
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 80,
-		.target_residency = 160,
+		.target_residency = 211,
 		.enter = &intel_idle },
 	{ /* MWAIT C3 */
 		.name = "SNB-C6",
@@ -138,7 +138,7 @@ static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.driver_data = (void *) 0x20,
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 104,
-		.target_residency = 208,
+		.target_residency = 345,
 		.enter = &intel_idle },
 	{ /* MWAIT C4 */
 		.name = "SNB-C7",
@@ -146,7 +146,7 @@ static struct cpuidle_state snb_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.driver_data = (void *) 0x30,
 		.flags = CPUIDLE_FLAG_TIME_VALID | CPUIDLE_FLAG_TLB_FLUSHED,
 		.exit_latency = 109,
-		.target_residency = 300,
+		.target_residency = 345,
 		.enter = &intel_idle },
 };
 
