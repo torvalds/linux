@@ -1581,8 +1581,16 @@ static int rt73usb_get_tx_data_len(struct queue_entry *entry)
 
 static void rt73usb_kill_tx_queue(struct data_queue *queue)
 {
-	if (queue->qid == QID_BEACON)
-		rt2x00usb_register_write(queue->rt2x00dev, TXRX_CSR9, 0);
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u32 reg;
+
+	if (queue->qid == QID_BEACON) {
+		rt2x00usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
+		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 0);
+		rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 0);
+		rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
+		rt2x00usb_register_write(rt2x00dev, TXRX_CSR9, reg);
+	}
 
 	rt2x00usb_kill_tx_queue(queue);
 }

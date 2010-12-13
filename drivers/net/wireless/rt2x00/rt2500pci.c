@@ -1294,7 +1294,11 @@ static void rt2500pci_kill_tx_queue(struct data_queue *queue)
 	u32 reg;
 
 	if (queue->qid == QID_BEACON) {
-		rt2x00pci_register_write(rt2x00dev, CSR14, 0);
+		rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
+		rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 0);
+		rt2x00_set_field32(&reg, CSR14_TBCN, 0);
+		rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
+		rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 	} else {
 		rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
 		rt2x00_set_field32(&reg, TXCSR0_ABORT, 1);

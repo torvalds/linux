@@ -588,7 +588,11 @@ static void rt2800pci_kill_tx_queue(struct data_queue *queue)
 	u32 reg;
 
 	if (queue->qid == QID_BEACON) {
-		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, 0);
+		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
+		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 		return;
 	}
 

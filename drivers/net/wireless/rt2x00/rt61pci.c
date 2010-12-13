@@ -1944,7 +1944,11 @@ static void rt61pci_kill_tx_queue(struct data_queue *queue)
 	u32 reg;
 
 	if (queue->qid == QID_BEACON) {
-		rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, 0);
+		rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
+		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 0);
+		rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 0);
+		rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
+		rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 		return;
 	}
 

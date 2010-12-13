@@ -391,8 +391,16 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 
 static void rt2800usb_kill_tx_queue(struct data_queue *queue)
 {
-	if (queue->qid == QID_BEACON)
-		rt2x00usb_register_write(queue->rt2x00dev, BCN_TIME_CFG, 0);
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u32 reg;
+
+	if (queue->qid == QID_BEACON) {
+		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
+		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+	}
 
 	rt2x00usb_kill_tx_queue(queue);
 }

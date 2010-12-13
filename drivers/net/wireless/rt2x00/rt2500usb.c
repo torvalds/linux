@@ -1205,8 +1205,16 @@ static int rt2500usb_get_tx_data_len(struct queue_entry *entry)
 
 static void rt2500usb_kill_tx_queue(struct data_queue *queue)
 {
-	if (queue->qid == QID_BEACON)
-		rt2500usb_register_write(queue->rt2x00dev, TXRX_CSR19, 0);
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u16 reg;
+
+	if (queue->qid == QID_BEACON) {
+		rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
+		rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 0);
+		rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 0);
+		rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
+		rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
+	}
 
 	rt2x00usb_kill_tx_queue(queue);
 }
