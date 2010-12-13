@@ -29,13 +29,19 @@
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
+#include <linux/leds.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/smsc911x.h>
+#include <linux/sh_intc.h>
+#include <linux/tca6416_keypad.h>
 #include <linux/usb/r8a66597.h>
 
 #include <video/sh_mobile_lcdc.h>
+
+#include <sound/sh_fsi.h>
 
 #include <mach/common.h>
 #include <mach/sh7372.h>
@@ -131,6 +137,21 @@
  * *1
  * CN31 is used as Host in Linux.
  */
+
+/*
+ * FIXME !!
+ *
+ * gpio_no_direction
+ * are quick_hack.
+ *
+ * current gpio frame work doesn't have
+ * the method to control only pull up/down/free.
+ * this function should be replaced by correct gpio function
+ */
+static void __init gpio_no_direction(u32 addr)
+{
+	__raw_writeb(0x00, addr);
+}
 
 /* MTD */
 static struct mtd_partition nor_flash_partitions[] = {
@@ -309,11 +330,138 @@ static struct platform_device usb1_host_device = {
 	.resource	= usb1_host_resources,
 };
 
+/* LED */
+static struct gpio_led mackerel_leds[] = {
+	{
+		.name		= "led0",
+		.gpio		= GPIO_PORT0,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name		= "led1",
+		.gpio		= GPIO_PORT1,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name		= "led2",
+		.gpio		= GPIO_PORT2,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	},
+	{
+		.name		= "led3",
+		.gpio		= GPIO_PORT159,
+		.default_state	= LEDS_GPIO_DEFSTATE_ON,
+	}
+};
+
+static struct gpio_led_platform_data mackerel_leds_pdata = {
+	.leds = mackerel_leds,
+	.num_leds = ARRAY_SIZE(mackerel_leds),
+};
+
+static struct platform_device leds_device = {
+	.name = "leds-gpio",
+	.id = 0,
+	.dev = {
+		.platform_data  = &mackerel_leds_pdata,
+	},
+};
+
+/* FSI */
+#define IRQ_FSI evt2irq(0x1840)
+static struct sh_fsi_platform_info fsi_info = {
+	.porta_flags =	SH_FSI_BRS_INV		|
+			SH_FSI_OUT_SLAVE_MODE	|
+			SH_FSI_IN_SLAVE_MODE	|
+			SH_FSI_OFMT(PCM)	|
+			SH_FSI_IFMT(PCM),
+};
+
+static struct resource fsi_resources[] = {
+	[0] = {
+		.name	= "FSI",
+		.start	= 0xFE3C0000,
+		.end	= 0xFE3C0400 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_FSI,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device fsi_device = {
+	.name		= "sh_fsi2",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(fsi_resources),
+	.resource	= fsi_resources,
+	.dev	= {
+		.platform_data	= &fsi_info,
+	},
+};
+
+static struct platform_device fsi_ak4643_device = {
+	.name		= "sh_fsi2_a_ak4643",
+};
+
 static struct platform_device *mackerel_devices[] __initdata = {
 	&nor_flash_device,
 	&smc911x_device,
 	&lcdc_device,
 	&usb1_host_device,
+	&leds_device,
+	&fsi_device,
+	&fsi_ak4643_device,
+};
+
+/* Keypad Initialization */
+#define KEYPAD_BUTTON(ev_type, ev_code, act_low) \
+{								\
+	.type		= ev_type,				\
+	.code		= ev_code,				\
+	.active_low	= act_low,				\
+}
+
+#define KEYPAD_BUTTON_LOW(event_code) KEYPAD_BUTTON(EV_KEY, event_code, 1)
+
+static struct tca6416_button mackerel_gpio_keys[] = {
+	KEYPAD_BUTTON_LOW(KEY_HOME),
+	KEYPAD_BUTTON_LOW(KEY_MENU),
+	KEYPAD_BUTTON_LOW(KEY_BACK),
+	KEYPAD_BUTTON_LOW(KEY_POWER),
+};
+
+static struct tca6416_keys_platform_data mackerel_tca6416_keys_info = {
+	.buttons	= mackerel_gpio_keys,
+	.nbuttons	= ARRAY_SIZE(mackerel_gpio_keys),
+	.rep		= 1,
+	.use_polling	= 0,
+	.pinmask	= 0x000F,
+};
+
+/* I2C */
+#define IRQ9 evt2irq(0x0320)
+
+static struct i2c_board_info i2c0_devices[] = {
+	{
+		I2C_BOARD_INFO("ak4643", 0x13),
+	},
+	/* Keypad */
+	{
+		I2C_BOARD_INFO("tca6408-keys", 0x20),
+		.platform_data = &mackerel_tca6416_keys_info,
+		.irq = IRQ9,
+	},
+};
+
+#define IRQ21 evt2irq(0x32a0)
+
+static struct i2c_board_info i2c1_devices[] = {
+	/* Accelerometer */
+	{
+		I2C_BOARD_INFO("adxl34x", 0x53),
+		.irq = IRQ21,
+	},
 };
 
 static struct map_desc mackerel_io_desc[] __initdata = {
@@ -337,6 +485,8 @@ static void __init mackerel_map_io(void)
 	shmobile_setup_console();
 }
 
+#define GPIO_PORT9CR	0xE6051009
+#define GPIO_PORT10CR	0xE605100A
 static void __init mackerel_init(void)
 {
 	sh7372_pinmux_init();
@@ -394,6 +544,33 @@ static void __init mackerel_init(void)
 	/* setup USB phy */
 	__raw_writew(0x8a0a, 0xE6058130);	/* USBCR2 */
 
+	/* enable FSI2 port A (ak4643) */
+	gpio_request(GPIO_FN_FSIAIBT,	NULL);
+	gpio_request(GPIO_FN_FSIAILR,	NULL);
+	gpio_request(GPIO_FN_FSIAISLD,	NULL);
+	gpio_request(GPIO_FN_FSIAOSLD,	NULL);
+	gpio_request(GPIO_PORT161,	NULL);
+	gpio_direction_output(GPIO_PORT161, 0); /* slave */
+
+	gpio_request(GPIO_PORT9,  NULL);
+	gpio_request(GPIO_PORT10, NULL);
+	gpio_no_direction(GPIO_PORT9CR);  /* FSIAOBT needs no direction */
+	gpio_no_direction(GPIO_PORT10CR); /* FSIAOLR needs no direction */
+
+	intc_set_priority(IRQ_FSI, 3); /* irq priority FSI(3) > SMSC911X(2) */
+
+	/* enable Keypad */
+	gpio_request(GPIO_FN_IRQ9_42,	NULL);
+	set_irq_type(IRQ9, IRQ_TYPE_LEVEL_HIGH);
+
+	/* enable Accelerometer */
+	gpio_request(GPIO_FN_IRQ21,	NULL);
+	set_irq_type(IRQ21, IRQ_TYPE_LEVEL_HIGH);
+
+	i2c_register_board_info(0, i2c0_devices,
+				ARRAY_SIZE(i2c0_devices));
+	i2c_register_board_info(1, i2c1_devices,
+				ARRAY_SIZE(i2c1_devices));
 
 	sh7372_add_standard_devices();
 
