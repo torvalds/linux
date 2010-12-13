@@ -144,26 +144,26 @@ int pcap_to_irq(struct pcap_chip *pcap, int irq)
 }
 EXPORT_SYMBOL_GPL(pcap_to_irq);
 
-static void pcap_mask_irq(unsigned int irq)
+static void pcap_mask_irq(struct irq_data *d)
 {
-	struct pcap_chip *pcap = get_irq_chip_data(irq);
+	struct pcap_chip *pcap = irq_data_get_irq_chip_data(d);
 
-	pcap->msr |= 1 << irq_to_pcap(pcap, irq);
+	pcap->msr |= 1 << irq_to_pcap(pcap, d->irq);
 	queue_work(pcap->workqueue, &pcap->msr_work);
 }
 
-static void pcap_unmask_irq(unsigned int irq)
+static void pcap_unmask_irq(struct irq_data *d)
 {
-	struct pcap_chip *pcap = get_irq_chip_data(irq);
+	struct pcap_chip *pcap = irq_data_get_irq_chip_data(d);
 
-	pcap->msr &= ~(1 << irq_to_pcap(pcap, irq));
+	pcap->msr &= ~(1 << irq_to_pcap(pcap, d->irq));
 	queue_work(pcap->workqueue, &pcap->msr_work);
 }
 
 static struct irq_chip pcap_irq_chip = {
-	.name	= "pcap",
-	.mask	= pcap_mask_irq,
-	.unmask	= pcap_unmask_irq,
+	.name		= "pcap",
+	.irq_mask	= pcap_mask_irq,
+	.irq_unmask	= pcap_unmask_irq,
 };
 
 static void pcap_msr_work(struct work_struct *work)
@@ -217,7 +217,7 @@ static void pcap_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	struct pcap_chip *pcap = get_irq_data(irq);
 
-	desc->chip->ack(irq);
+	desc->irq_data.chip->irq_ack(&desc->irq_data);
 	queue_work(pcap->workqueue, &pcap->isr_work);
 	return;
 }
