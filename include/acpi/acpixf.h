@@ -292,11 +292,11 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number);
 
 acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number);
 
-acpi_status acpi_gpe_can_wake(acpi_handle gpe_device, u32 gpe_number);
+acpi_status acpi_setup_gpe_for_wake(acpi_handle gpe_device, u32 gpe_number);
 
 acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number);
 
-acpi_status acpi_gpe_wakeup(acpi_handle gpe_device, u32 gpe_number, u8 action);
+acpi_status acpi_set_gpe_wake_mask(acpi_handle gpe_device, u32 gpe_number, u8 action);
 
 acpi_status
 acpi_get_gpe_status(acpi_handle gpe_device,
@@ -315,7 +315,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 
 acpi_status acpi_remove_gpe_block(acpi_handle gpe_device);
 
-acpi_status acpi_update_gpes(void);
+acpi_status acpi_update_all_gpes(void);
 
 /*
  * Resource interfaces

@@ -137,7 +137,7 @@ acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_raw_enable_gpe
+ * FUNCTION:    acpi_ev_add_gpe_reference
  *
  * PARAMETERS:  gpe_event_info  - GPE to enable
  *
@@ -148,9 +148,11 @@ acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
  *
  ******************************************************************************/
 
-acpi_status acpi_raw_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
+acpi_status acpi_ev_add_gpe_reference(struct acpi_gpe_event_info *gpe_event_info)
 {
 	acpi_status status = AE_OK;
+
+	ACPI_FUNCTION_TRACE(ev_add_gpe_reference);
 
 	if (gpe_event_info->runtime_count == ACPI_UINT8_MAX) {
 		return_ACPI_STATUS(AE_LIMIT);
@@ -173,7 +175,7 @@ acpi_status acpi_raw_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_raw_disable_gpe
+ * FUNCTION:    acpi_ev_remove_gpe_reference
  *
  * PARAMETERS:  gpe_event_info  - GPE to disable
  *
@@ -184,9 +186,11 @@ acpi_status acpi_raw_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
  *
  ******************************************************************************/
 
-acpi_status acpi_raw_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
+acpi_status acpi_ev_remove_gpe_reference(struct acpi_gpe_event_info *gpe_event_info)
 {
 	acpi_status status = AE_OK;
+
+	ACPI_FUNCTION_TRACE(ev_remove_gpe_reference);
 
 	if (!gpe_event_info->runtime_count) {
 		return_ACPI_STATUS(AE_LIMIT);
@@ -529,7 +533,7 @@ static void acpi_ev_asynch_enable_gpe(void *context)
 	 * Enable this GPE, conditionally. This means that the GPE will only be
 	 * physically enabled if the enable_for_run bit is set in the event_info
 	 */
-	(void)acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_COND_ENABLE);
+	(void)acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_CONDITIONAL_ENABLE);
 
 	return_VOID;
 }

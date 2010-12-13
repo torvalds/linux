@@ -386,7 +386,7 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 		return_ACPI_STATUS(status);
 	}
 
-	acpi_all_gpes_initialized = FALSE;
+	acpi_gbl_all_gpes_initialized = FALSE;
 
 	/* Find all GPE methods (_Lxx or_Exx) for this block */
 
@@ -479,7 +479,7 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 				continue;
 			}
 
-			status = acpi_raw_enable_gpe(gpe_event_info);
+			status = acpi_ev_add_gpe_reference(gpe_event_info);
 			if (ACPI_FAILURE(status)) {
 				ACPI_EXCEPTION((AE_INFO, status,
 					"Could not enable GPE 0x%02X",

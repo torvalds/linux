@@ -51,7 +51,7 @@ ACPI_MODULE_NAME("evxfgpe")
 
 /******************************************************************************
  *
- * FUNCTION:    acpi_update_gpes
+ * FUNCTION:    acpi_update_all_gpes
  *
  * PARAMETERS:  None
  *
@@ -65,29 +65,33 @@ ACPI_MODULE_NAME("evxfgpe")
  *
  ******************************************************************************/
 
-acpi_status acpi_update_gpes(void)
+acpi_status acpi_update_all_gpes(void)
 {
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE(acpi_update_gpes);
+	ACPI_FUNCTION_TRACE(acpi_update_all_gpes);
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_EVENTS);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
-	} else if (acpi_all_gpes_initialized) {
-		goto unlock;
+	}
+
+	if (acpi_gbl_all_gpes_initialized) {
+		goto unlock_and_exit;
 	}
 
 	status = acpi_ev_walk_gpe_list(acpi_ev_initialize_gpe_block, NULL);
 	if (ACPI_SUCCESS(status)) {
-		acpi_all_gpes_initialized = TRUE;
+		acpi_gbl_all_gpes_initialized = TRUE;
 	}
 
-unlock:
+unlock_and_exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);
 
 	return_ACPI_STATUS(status);
 }
+
+ACPI_EXPORT_SYMBOL(acpi_update_all_gpes)
 
 /*******************************************************************************
  *
@@ -117,7 +121,7 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number)
 
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
 	if (gpe_event_info) {
-		status = acpi_raw_enable_gpe(gpe_event_info);
+		status = acpi_ev_add_gpe_reference(gpe_event_info);
 	}
 
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
@@ -154,7 +158,7 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number)
 
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
 	if (gpe_event_info) {
-		status = acpi_raw_disable_gpe(gpe_event_info) ;
+		status = acpi_ev_remove_gpe_reference(gpe_event_info) ;
 	}
 
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
@@ -164,7 +168,7 @@ ACPI_EXPORT_SYMBOL(acpi_disable_gpe)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_gpe_can_wake
+ * FUNCTION:    acpi_setup_gpe_for_wake
  *
  * PARAMETERS:  gpe_device      - Parent GPE Device. NULL for GPE0/GPE1
  *              gpe_number      - GPE level within the GPE block
@@ -178,13 +182,13 @@ ACPI_EXPORT_SYMBOL(acpi_disable_gpe)
  *              to be initially disabled).
  *
  ******************************************************************************/
-acpi_status acpi_gpe_can_wake(acpi_handle gpe_device, u32 gpe_number)
+acpi_status acpi_setup_gpe_for_wake(acpi_handle gpe_device, u32 gpe_number)
 {
 	acpi_status status = AE_OK;
 	struct acpi_gpe_event_info *gpe_event_info;
 	acpi_cpu_flags flags;
 
-	ACPI_FUNCTION_TRACE(acpi_gpe_can_wake);
+	ACPI_FUNCTION_TRACE(acpi_setup_gpe_for_wake);
 
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 
@@ -200,11 +204,11 @@ acpi_status acpi_gpe_can_wake(acpi_handle gpe_device, u32 gpe_number)
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
 	return_ACPI_STATUS(status);
 }
-ACPI_EXPORT_SYMBOL(acpi_gpe_can_wake)
+ACPI_EXPORT_SYMBOL(acpi_setup_gpe_for_wake)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_gpe_wakeup
+ * FUNCTION:    acpi_set_gpe_wake_mask
  *
  * PARAMETERS:  gpe_device      - Parent GPE Device. NULL for GPE0/GPE1
  *              gpe_number      - GPE level within the GPE block
@@ -216,7 +220,7 @@ ACPI_EXPORT_SYMBOL(acpi_gpe_can_wake)
  *
  ******************************************************************************/
 
-acpi_status acpi_gpe_wakeup(acpi_handle gpe_device, u32 gpe_number, u8 action)
+acpi_status acpi_set_gpe_wake_mask(acpi_handle gpe_device, u32 gpe_number, u8 action)
 {
 	acpi_status status = AE_OK;
 	struct acpi_gpe_event_info *gpe_event_info;
@@ -224,15 +228,20 @@ acpi_status acpi_gpe_wakeup(acpi_handle gpe_device, u32 gpe_number, u8 action)
 	acpi_cpu_flags flags;
 	u32 register_bit;
 
-	ACPI_FUNCTION_TRACE(acpi_gpe_wakeup);
+	ACPI_FUNCTION_TRACE(acpi_set_gpe_wake_mask);
 
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 
 	/* Ensure that we have a valid GPE number */
 
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
-	if (!gpe_event_info || !(gpe_event_info->flags & ACPI_GPE_CAN_WAKE)) {
+	if (!gpe_event_info) {
 		status = AE_BAD_PARAMETER;
+		goto unlock_and_exit;
+	}
+
+	if (!(gpe_event_info->flags & ACPI_GPE_CAN_WAKE)) {
+		status = AE_TYPE;
 		goto unlock_and_exit;
 	}
 
@@ -269,7 +278,7 @@ unlock_and_exit:
 	return_ACPI_STATUS(status);
 }
 
-ACPI_EXPORT_SYMBOL(acpi_gpe_wakeup)
+ACPI_EXPORT_SYMBOL(acpi_set_gpe_wake_mask)
 
 /*******************************************************************************
  *
@@ -387,6 +396,8 @@ acpi_status acpi_disable_all_gpes(void)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_disable_all_gpes)
+
 /******************************************************************************
  *
  * FUNCTION:    acpi_enable_all_runtime_gpes
@@ -416,6 +427,8 @@ acpi_status acpi_enable_all_runtime_gpes(void)
 	return_ACPI_STATUS(status);
 }
 
+ACPI_EXPORT_SYMBOL(acpi_enable_all_runtime_gpes)
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_install_gpe_block
@@ -435,7 +448,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 		       struct acpi_generic_address *gpe_block_address,
 		       u32 register_count, u32 interrupt_number)
 {
-	acpi_status status = AE_OK;
+	acpi_status status;
 	union acpi_operand_object *obj_desc;
 	struct acpi_namespace_node *node;
 	struct acpi_gpe_block_info *gpe_block;
@@ -603,7 +616,7 @@ acpi_get_gpe_device(u32 index, acpi_handle *gpe_device)
 		return_ACPI_STATUS(status);
 	}
 
-	*gpe_device = info.gpe_device;
+	*gpe_device = ACPI_CAST_PTR(acpi_handle, info.gpe_device);
 	return_ACPI_STATUS(info.status);
 }
 

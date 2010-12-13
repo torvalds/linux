@@ -118,7 +118,7 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u8 action)
 	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info,
 						gpe_register_info);
 	switch (action) {
-	case ACPI_GPE_COND_ENABLE:
+	case ACPI_GPE_CONDITIONAL_ENABLE:
 		if (!(register_bit & gpe_register_info->enable_for_run))
 			return (AE_BAD_PARAMETER);
 

@@ -370,7 +370,7 @@ ACPI_EXTERN struct acpi_fixed_event_handler
 ACPI_EXTERN struct acpi_gpe_xrupt_info *acpi_gbl_gpe_xrupt_list_head;
 ACPI_EXTERN struct acpi_gpe_block_info
 *acpi_gbl_gpe_fadt_blocks[ACPI_MAX_GPE_BLOCKS];
-ACPI_EXTERN u8 acpi_all_gpes_initialized;
+ACPI_EXTERN u8 acpi_gbl_all_gpes_initialized;
 
 /*****************************************************************************
  *

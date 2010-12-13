@@ -45,7 +45,7 @@ void acpi_enable_wakeup_devices(u8 sleep_state)
 			acpi_enable_wakeup_device_power(dev, sleep_state);
 
 		/* The wake-up power should have been enabled already. */
-		acpi_gpe_wakeup(dev->wakeup.gpe_device, dev->wakeup.gpe_number,
+		acpi_set_gpe_wake_mask(dev->wakeup.gpe_device, dev->wakeup.gpe_number,
 				ACPI_GPE_ENABLE);
 	}
 }
@@ -67,7 +67,7 @@ void acpi_disable_wakeup_devices(u8 sleep_state)
 		    || (sleep_state > (u32) dev->wakeup.sleep_state))
 			continue;
 
-		acpi_gpe_wakeup(dev->wakeup.gpe_device, dev->wakeup.gpe_number,
+		acpi_set_gpe_wake_mask(dev->wakeup.gpe_device, dev->wakeup.gpe_number,
 				ACPI_GPE_DISABLE);
 
 		if (dev->wakeup.state.enabled)
