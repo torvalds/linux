@@ -104,7 +104,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	enum data_queue_qid qid = skb_get_queue_mapping(skb);
-	struct data_queue *queue;
+	struct data_queue *queue = NULL;
 
 	/*
 	 * Mac80211 might be calling this function while we are trying
@@ -153,7 +153,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		goto exit_fail;
 
 	if (rt2x00queue_threshold(queue))
-		ieee80211_stop_queue(rt2x00dev->hw, qid);
+		rt2x00queue_pause_queue(queue);
 
 	return NETDEV_TX_OK;
 
@@ -352,7 +352,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 * if for any reason the link tuner must be reset, this will be
 	 * handled by rt2x00lib_config().
 	 */
-	rt2x00dev->ops->lib->stop_queue(rt2x00dev->rx);
+	rt2x00queue_stop_queue(rt2x00dev->rx);
 
 	/*
 	 * When we've just turned on the radio, we want to reprogram
@@ -370,7 +370,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	rt2x00lib_config_antenna(rt2x00dev, rt2x00dev->default_ant);
 
 	/* Turn RX back on */
-	rt2x00dev->ops->lib->start_queue(rt2x00dev->rx);
+	rt2x00queue_start_queue(rt2x00dev->rx);
 
 	return 0;
 }

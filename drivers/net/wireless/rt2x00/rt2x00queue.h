@@ -392,12 +392,32 @@ enum queue_index {
 };
 
 /**
+ * enum data_queue_flags: Status flags for data queues
+ *
+ * @QUEUE_STARTED: The queue has been started. Fox RX queues this means the
+ *	device might be DMA'ing skbuffers. TX queues will accept skbuffers to
+ *	be transmitted and beacon queues will start beaconing the configured
+ *	beacons.
+ * @QUEUE_PAUSED: The queue has been started but is currently paused.
+ *	When this bit is set, the queue has been stopped in mac80211,
+ *	preventing new frames to be enqueued. However, a few frames
+ *	might still appear shortly after the pausing...
+ */
+enum data_queue_flags {
+	QUEUE_STARTED,
+	QUEUE_PAUSED,
+};
+
+/**
  * struct data_queue: Data queue
  *
  * @rt2x00dev: Pointer to main &struct rt2x00dev where this queue belongs to.
  * @entries: Base address of the &struct queue_entry which are
  *	part of this queue.
  * @qid: The queue identification, see &enum data_queue_qid.
+ * @flags: Entry flags, see &enum queue_entry_flags.
+ * @status_lock: The mutex for protecting the start/stop/flush
+ *	handling on this queue.
  * @index_lock: Spinlock to protect index handling. Whenever @index, @index_done or
  *	@index_crypt needs to be changed this lock should be grabbed to prevent
  *	index corruption due to concurrency.
@@ -421,8 +441,11 @@ struct data_queue {
 	struct queue_entry *entries;
 
 	enum data_queue_qid qid;
+	unsigned long flags;
 
+	struct mutex status_lock;
 	spinlock_t index_lock;
+
 	unsigned int count;
 	unsigned short limit;
 	unsigned short threshold;

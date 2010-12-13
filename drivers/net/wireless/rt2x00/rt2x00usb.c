@@ -261,110 +261,6 @@ static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 	}
 }
 
-void rt2x00usb_kick_queue(struct data_queue *queue)
-{
-	switch (queue->qid) {
-	case QID_AC_BE:
-	case QID_AC_BK:
-	case QID_AC_VI:
-	case QID_AC_VO:
-		if (!rt2x00queue_empty(queue))
-			rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
-						   rt2x00usb_kick_tx_entry);
-		break;
-	default:
-		break;
-	}
-}
-EXPORT_SYMBOL_GPL(rt2x00usb_kick_queue);
-
-static void rt2x00usb_kill_entry(struct queue_entry *entry)
-{
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
-	struct queue_entry_priv_usb_bcn *bcn_priv = entry->priv_data;
-
-	if (!test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
-		return;
-
-	usb_kill_urb(entry_priv->urb);
-
-	/*
-	 * Kill guardian urb (if required by driver).
-	 */
-	if ((entry->queue->qid == QID_BEACON) &&
-	    (test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags)))
-		usb_kill_urb(bcn_priv->guardian_urb);
-}
-
-void rt2x00usb_stop_queue(struct data_queue *queue)
-{
-	rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
-				   rt2x00usb_kill_entry);
-}
-EXPORT_SYMBOL_GPL(rt2x00usb_stop_queue);
-
-static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
-{
-	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
-	unsigned short threshold = queue->threshold;
-
-	WARNING(queue->rt2x00dev, "TX queue %d DMA timed out,"
-		" invoke forced forced reset\n", queue->qid);
-
-	/*
-	 * Temporarily disable the TX queue, this will force mac80211
-	 * to use the other queues until this queue has been restored.
-	 *
-	 * Set the queue threshold to the queue limit. This prevents the
-	 * queue from being enabled during the txdone handler.
-	 */
-	queue->threshold = queue->limit;
-	ieee80211_stop_queue(rt2x00dev->hw, queue->qid);
-
-	/*
-	 * Kill all entries in the queue, afterwards we need to
-	 * wait a bit for all URBs to be cancelled.
-	 */
-	rt2x00usb_stop_queue(queue);
-
-	/*
-	 * In case that a driver has overriden the txdone_work
-	 * function, we invoke the TX done through there.
-	 */
-	rt2x00dev->txdone_work.func(&rt2x00dev->txdone_work);
-
-	/*
-	 * The queue has been reset, and mac80211 is allowed to use the
-	 * queue again.
-	 */
-	queue->threshold = threshold;
-	ieee80211_wake_queue(rt2x00dev->hw, queue->qid);
-}
-
-static void rt2x00usb_watchdog_tx_status(struct data_queue *queue)
-{
-	WARNING(queue->rt2x00dev, "TX queue %d status timed out,"
-		" invoke forced tx handler\n", queue->qid);
-
-	ieee80211_queue_work(queue->rt2x00dev->hw, &queue->rt2x00dev->txdone_work);
-}
-
-void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-
-	tx_queue_for_each(rt2x00dev, queue) {
-		if (!rt2x00queue_empty(queue)) {
-			if (rt2x00queue_dma_timeout(queue))
-				rt2x00usb_watchdog_tx_dma(queue);
-			if (rt2x00queue_status_timeout(queue))
-				rt2x00usb_watchdog_tx_status(queue);
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(rt2x00usb_watchdog);
-
 /*
  * RX data handlers.
  */
@@ -424,6 +320,127 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->rxdone_work);
 }
 
+static void rt2x00usb_kick_rx_entry(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
+	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
+	int status;
+
+	if (test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+		return;
+
+	usb_fill_bulk_urb(entry_priv->urb, usb_dev,
+			  usb_rcvbulkpipe(usb_dev, entry->queue->usb_endpoint),
+			  entry->skb->data, entry->skb->len,
+			  rt2x00usb_interrupt_rxdone, entry);
+
+	status = usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
+	if (status) {
+		if (status == -ENODEV)
+			clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
+		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
+		rt2x00lib_dmadone(entry);
+	}
+}
+
+void rt2x00usb_kick_queue(struct data_queue *queue)
+{
+	switch (queue->qid) {
+	case QID_AC_BE:
+	case QID_AC_BK:
+	case QID_AC_VI:
+	case QID_AC_VO:
+		if (!rt2x00queue_empty(queue))
+			rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
+						   rt2x00usb_kick_tx_entry);
+		break;
+	case QID_RX:
+		if (!rt2x00queue_full(queue))
+			rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
+						   rt2x00usb_kick_rx_entry);
+		break;
+	default:
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_kick_queue);
+
+static void rt2x00usb_kill_entry(struct queue_entry *entry)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
+	struct queue_entry_priv_usb_bcn *bcn_priv = entry->priv_data;
+
+	if (!test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+		return;
+
+	usb_kill_urb(entry_priv->urb);
+
+	/*
+	 * Kill guardian urb (if required by driver).
+	 */
+	if ((entry->queue->qid == QID_BEACON) &&
+	    (test_bit(DRIVER_REQUIRE_BEACON_GUARD, &rt2x00dev->flags)))
+		usb_kill_urb(bcn_priv->guardian_urb);
+}
+
+void rt2x00usb_stop_queue(struct data_queue *queue)
+{
+	rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
+				   rt2x00usb_kill_entry);
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_stop_queue);
+
+static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+
+	WARNING(queue->rt2x00dev, "TX queue %d DMA timed out,"
+		" invoke forced forced reset\n", queue->qid);
+
+	/*
+	 * Temporarily disable the TX queue, this will force mac80211
+	 * to use the other queues until this queue has been restored.
+	 */
+	rt2x00queue_stop_queue(queue);
+
+	/*
+	 * In case that a driver has overriden the txdone_work
+	 * function, we invoke the TX done through there.
+	 */
+	rt2x00dev->txdone_work.func(&rt2x00dev->txdone_work);
+
+	/*
+	 * The queue has been reset, and mac80211 is allowed to use the
+	 * queue again.
+	 */
+	rt2x00queue_start_queue(queue);
+}
+
+static void rt2x00usb_watchdog_tx_status(struct data_queue *queue)
+{
+	WARNING(queue->rt2x00dev, "TX queue %d status timed out,"
+		" invoke forced tx handler\n", queue->qid);
+
+	ieee80211_queue_work(queue->rt2x00dev->hw, &queue->rt2x00dev->txdone_work);
+}
+
+void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+
+	tx_queue_for_each(rt2x00dev, queue) {
+		if (!rt2x00queue_empty(queue)) {
+			if (rt2x00queue_dma_timeout(queue))
+				rt2x00usb_watchdog_tx_dma(queue);
+			if (rt2x00queue_status_timeout(queue))
+				rt2x00usb_watchdog_tx_status(queue);
+		}
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_watchdog);
+
 /*
  * Radio handlers
  */
@@ -431,8 +448,6 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	rt2x00usb_vendor_request_sw(rt2x00dev, USB_RX_CONTROL, 0, 0,
 				    REGISTER_TIMEOUT);
-
-	rt2x00dev->ops->lib->stop_queue(rt2x00dev->rx);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_disable_radio);
 
@@ -441,31 +456,10 @@ EXPORT_SYMBOL_GPL(rt2x00usb_disable_radio);
  */
 void rt2x00usb_clear_entry(struct queue_entry *entry)
 {
-	struct usb_device *usb_dev =
-	    to_usb_device_intf(entry->queue->rt2x00dev->dev);
-	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
-	int pipe;
-	int status;
-
 	entry->flags = 0;
 
-	if (entry->queue->qid == QID_RX) {
-		pipe = usb_rcvbulkpipe(usb_dev, entry->queue->usb_endpoint);
-		usb_fill_bulk_urb(entry_priv->urb, usb_dev, pipe,
-				entry->skb->data, entry->skb->len,
-				rt2x00usb_interrupt_rxdone, entry);
-
-		set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-
-		status = usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
-		if (status) {
-			if (status == -ENODEV)
-				clear_bit(DEVICE_STATE_PRESENT,
-					  &entry->queue->rt2x00dev->flags);
-			set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
-			rt2x00lib_dmadone(entry);
-		}
-	}
+	if (entry->queue->qid == QID_RX)
+		rt2x00usb_kick_rx_entry(entry);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_clear_entry);
 

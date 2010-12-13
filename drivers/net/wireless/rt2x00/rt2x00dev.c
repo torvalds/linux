@@ -66,20 +66,15 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	set_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags);
 
 	/*
-	 * Enable RX.
+	 * Enable queues.
 	 */
-	rt2x00dev->ops->lib->start_queue(rt2x00dev->rx);
+	rt2x00queue_start_queues(rt2x00dev);
 	rt2x00link_start_tuner(rt2x00dev);
 
 	/*
 	 * Start watchdog monitoring.
 	 */
 	rt2x00link_start_watchdog(rt2x00dev);
-
-	/*
-	 * Start the TX queues.
-	 */
-	ieee80211_wake_queues(rt2x00dev->hw);
 
 	return 0;
 }
@@ -90,21 +85,15 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/*
-	 * Stop the TX queues in mac80211.
-	 */
-	ieee80211_stop_queues(rt2x00dev->hw);
-	rt2x00queue_stop_queues(rt2x00dev);
-
-	/*
 	 * Stop watchdog monitoring.
 	 */
 	rt2x00link_stop_watchdog(rt2x00dev);
 
 	/*
-	 * Disable RX.
+	 * Stop all queues
 	 */
 	rt2x00link_stop_tuner(rt2x00dev);
-	rt2x00dev->ops->lib->stop_queue(rt2x00dev->rx);
+	rt2x00queue_stop_queues(rt2x00dev);
 
 	/*
 	 * Disable radio.
@@ -249,7 +238,6 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
-	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
 	unsigned int header_length, i;
 	u8 rate_idx, rate_flags, retry_rates;
 	u8 skbdesc_flags = skbdesc->flags;
@@ -403,7 +391,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * is reenabled when the txdone handler has finished.
 	 */
 	if (!rt2x00queue_threshold(entry->queue))
-		ieee80211_wake_queue(rt2x00dev->hw, qid);
+		rt2x00queue_unpause_queue(entry->queue);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_txdone);
 

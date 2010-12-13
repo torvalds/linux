@@ -585,7 +585,7 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	rt2x00queue_free_skb(intf->beacon);
 
 	if (!enable_beacon) {
-		rt2x00dev->ops->lib->stop_queue(intf->beacon->queue);
+		rt2x00queue_stop_queue(intf->beacon->queue);
 		mutex_unlock(&intf->beacon_skb_mutex);
 		return 0;
 	}
@@ -738,6 +738,125 @@ void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index)
 	spin_unlock_irqrestore(&queue->index_lock, irqflags);
 }
 
+void rt2x00queue_pause_queue(struct data_queue *queue)
+{
+	if (!test_bit(DEVICE_STATE_PRESENT, &queue->rt2x00dev->flags) ||
+	    !test_bit(QUEUE_STARTED, &queue->flags) ||
+	    test_and_set_bit(QUEUE_PAUSED, &queue->flags))
+		return;
+
+	switch (queue->qid) {
+	case QID_AC_BE:
+	case QID_AC_BK:
+	case QID_AC_VI:
+	case QID_AC_VO:
+		/*
+		 * For TX queues, we have to disable the queue
+		 * inside mac80211.
+		 */
+		ieee80211_stop_queue(queue->rt2x00dev->hw, queue->qid);
+		break;
+	default:
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_pause_queue);
+
+void rt2x00queue_unpause_queue(struct data_queue *queue)
+{
+	if (!test_bit(DEVICE_STATE_PRESENT, &queue->rt2x00dev->flags) ||
+	    !test_bit(QUEUE_STARTED, &queue->flags) ||
+	    !test_and_clear_bit(QUEUE_PAUSED, &queue->flags))
+		return;
+
+	switch (queue->qid) {
+	case QID_AC_BE:
+	case QID_AC_BK:
+	case QID_AC_VI:
+	case QID_AC_VO:
+		/*
+		 * For TX queues, we have to enable the queue
+		 * inside mac80211.
+		 */
+		ieee80211_wake_queue(queue->rt2x00dev->hw, queue->qid);
+		break;
+	default:
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_unpause_queue);
+
+void rt2x00queue_start_queue(struct data_queue *queue)
+{
+	mutex_lock(&queue->status_lock);
+
+	if (!test_bit(DEVICE_STATE_PRESENT, &queue->rt2x00dev->flags) ||
+	    test_and_set_bit(QUEUE_STARTED, &queue->flags)) {
+		mutex_unlock(&queue->status_lock);
+		return;
+	}
+
+	set_bit(QUEUE_PAUSED, &queue->flags);
+
+	queue->rt2x00dev->ops->lib->start_queue(queue);
+
+	rt2x00queue_unpause_queue(queue);
+
+	mutex_unlock(&queue->status_lock);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_start_queue);
+
+void rt2x00queue_stop_queue(struct data_queue *queue)
+{
+	mutex_lock(&queue->status_lock);
+
+	if (!test_and_clear_bit(QUEUE_STARTED, &queue->flags)) {
+		mutex_unlock(&queue->status_lock);
+		return;
+	}
+
+	rt2x00queue_pause_queue(queue);
+
+	queue->rt2x00dev->ops->lib->stop_queue(queue);
+
+	mutex_unlock(&queue->status_lock);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_stop_queue);
+
+void rt2x00queue_start_queues(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+
+	/*
+	 * rt2x00queue_start_queue will call ieee80211_wake_queue
+	 * for each queue after is has been properly initialized.
+	 */
+	tx_queue_for_each(rt2x00dev, queue)
+		rt2x00queue_start_queue(queue);
+
+	rt2x00queue_start_queue(rt2x00dev->rx);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_start_queues);
+
+void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+
+	/*
+	 * rt2x00queue_stop_queue will call ieee80211_stop_queue
+	 * as well, but we are completely shutting doing everything
+	 * now, so it is much safer to stop all TX queues at once,
+	 * and use rt2x00queue_stop_queue for cleaning up.
+	 */
+	ieee80211_stop_queues(rt2x00dev->hw);
+
+	tx_queue_for_each(rt2x00dev, queue)
+		rt2x00queue_stop_queue(queue);
+
+	rt2x00queue_stop_queue(rt2x00dev->rx);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_stop_queues);
+
 static void rt2x00queue_reset(struct data_queue *queue)
 {
 	unsigned long irqflags;
@@ -754,14 +873,6 @@ static void rt2x00queue_reset(struct data_queue *queue)
 	}
 
 	spin_unlock_irqrestore(&queue->index_lock, irqflags);
-}
-
-void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-
-	txall_queue_for_each(rt2x00dev, queue)
-		rt2x00dev->ops->lib->stop_queue(queue);
 }
 
 void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev)
@@ -905,6 +1016,7 @@ void rt2x00queue_uninitialize(struct rt2x00_dev *rt2x00dev)
 static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 			     struct data_queue *queue, enum data_queue_qid qid)
 {
+	mutex_init(&queue->status_lock);
 	spin_lock_init(&queue->index_lock);
 
 	queue->rt2x00dev = rt2x00dev;
