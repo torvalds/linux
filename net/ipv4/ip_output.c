@@ -130,7 +130,7 @@ static inline int ip_select_ttl(struct inet_sock *inet, struct dst_entry *dst)
 	int ttl = inet->uc_ttl;
 
 	if (ttl < 0)
-		ttl = dst_metric(dst, RTAX_HOPLIMIT);
+		ttl = dst_metric_hoplimit(dst);
 	return ttl;
 }
 

@@ -1821,7 +1821,7 @@ static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 	} else
 		dst_metric_set(dst, RTAX_MTU, dst->dev->mtu);
 
-	if (dst_metric(dst, RTAX_HOPLIMIT) == 0)
+	if (dst_metric_raw(dst, RTAX_HOPLIMIT) == 0)
 		dst_metric_set(dst, RTAX_HOPLIMIT, sysctl_ip_default_ttl);
 	if (dst_mtu(dst) > IP_MAX_MTU)
 		dst_metric_set(dst, RTAX_MTU, IP_MAX_MTU);

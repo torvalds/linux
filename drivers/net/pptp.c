@@ -277,7 +277,7 @@ static int pptp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	iph->tos      = 0;
 	iph->daddr    = rt->rt_dst;
 	iph->saddr    = rt->rt_src;
-	iph->ttl      = dst_metric(&rt->dst, RTAX_HOPLIMIT);
+	iph->ttl      = dst_metric_hoplimit(&rt->dst);
 	iph->tot_len  = htons(skb->len);
 
 	skb_dst_drop(skb);

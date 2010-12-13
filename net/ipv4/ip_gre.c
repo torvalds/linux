@@ -890,7 +890,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			iph->ttl = ((struct ipv6hdr *)old_iph)->hop_limit;
 #endif
 		else
-			iph->ttl = dst_metric(&rt->dst, RTAX_HOPLIMIT);
+			iph->ttl = dst_metric_hoplimit(&rt->dst);
 	}
 
 	((__be16 *)(iph + 1))[0] = tunnel->parms.o_flags;
