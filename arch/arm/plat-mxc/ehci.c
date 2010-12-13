@@ -254,6 +254,10 @@ int mxc_initialize_usb_hw(int port, unsigned int flags)
 		int ret = 0;
 
 		usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+		if (!usb_base) {
+			printk(KERN_ERR "%s(): ioremap failed\n", __func__);
+			return -ENOMEM;
+		}
 
 		switch (port) {
 		case 0:	/* OTG port */

@@ -157,6 +157,8 @@ static int initialize_otg_port(struct platform_device *pdev)
 	void __iomem *usbother_base;
 
 	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	if (!usb_base)
+		return -ENOMEM;
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
 
 	/* Set the PHY clock to 19.2MHz */
@@ -175,6 +177,8 @@ static int initialize_usbh1_port(struct platform_device *pdev)
 	void __iomem *usbother_base;
 
 	usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+	if (!usb_base)
+		return -ENOMEM;
 	usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
 
 	/* The clock for the USBH1 ULPI port will come from the PHY. */
