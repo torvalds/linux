@@ -294,7 +294,6 @@ static struct clocksource clocksource_bcmring_timer1 = {
 	.rating = 200,
 	.read = bcmring_get_cycles_timer1,
 	.mask = CLOCKSOURCE_MASK(32),
-	.shift = 20,
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -303,7 +302,6 @@ static struct clocksource clocksource_bcmring_timer3 = {
 	.rating = 100,
 	.read = bcmring_get_cycles_timer3,
 	.mask = CLOCKSOURCE_MASK(32),
-	.shift = 20,
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -316,10 +314,8 @@ static int __init bcmring_clocksource_init(void)
 	writel(TIMER_CTRL_32BIT | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC,
 	       TIMER1_VA_BASE + TIMER_CTRL);
 
-	clocksource_bcmring_timer1.mult =
-	    clocksource_khz2mult(TIMER1_FREQUENCY_MHZ * 1000,
-				 clocksource_bcmring_timer1.shift);
-	clocksource_register(&clocksource_bcmring_timer1);
+	clocksource_register_khz(&clocksource_bcmring_timer1,
+				 TIMER1_FREQUENCY_MHZ * 1000);
 
 	/* setup timer3 as free-running clocksource */
 	writel(0, TIMER3_VA_BASE + TIMER_CTRL);
@@ -328,10 +324,8 @@ static int __init bcmring_clocksource_init(void)
 	writel(TIMER_CTRL_32BIT | TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC,
 	       TIMER3_VA_BASE + TIMER_CTRL);
 
-	clocksource_bcmring_timer3.mult =
-	    clocksource_khz2mult(TIMER3_FREQUENCY_KHZ,
-				 clocksource_bcmring_timer3.shift);
-	clocksource_register(&clocksource_bcmring_timer3);
+	clocksource_register_khz(&clocksource_bcmring_timer3,
+				 TIMER3_FREQUENCY_KHZ);
 
 	return 0;
 }
