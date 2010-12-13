@@ -1961,6 +1961,7 @@ static void rt61pci_write_beacon(struct queue_entry *entry,
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	unsigned int beacon_base;
+	unsigned int padding_len;
 	u32 reg;
 
 	/*
@@ -1982,13 +1983,16 @@ static void rt61pci_write_beacon(struct queue_entry *entry,
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry->skb);
 
 	/*
-	 * Write entire beacon with descriptor to register.
+	 * Write entire beacon with descriptor and padding to register.
 	 */
+	padding_len = roundup(entry->skb->len, 4) - entry->skb->len;
+	skb_pad(entry->skb, padding_len);
 	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
 	rt2x00pci_register_multiwrite(rt2x00dev, beacon_base,
 				      entry_priv->desc, TXINFO_SIZE);
 	rt2x00pci_register_multiwrite(rt2x00dev, beacon_base + TXINFO_SIZE,
-				      entry->skb->data, entry->skb->len);
+				      entry->skb->data,
+				      entry->skb->len + padding_len);
 
 	/*
 	 * Enable beaconing again.
