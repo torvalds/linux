@@ -115,7 +115,7 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 {
 	struct bio *bio;
 	struct drbd_md_io md_io;
-	int ok;
+	int err;
 
 	md_io.mdev = mdev;
 	init_completion(&md_io.event);
@@ -128,8 +128,8 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 	bio = bio_alloc_drbd(GFP_NOIO);
 	bio->bi_bdev = bdev->md_bdev;
 	bio->bi_sector = sector;
-	ok = (bio_add_page(bio, page, size, 0) == size);
-	if (!ok)
+	err = -EIO;
+	if (bio_add_page(bio, page, size, 0) != size)
 		goto out;
 	bio->bi_private = &md_io;
 	bio->bi_end_io = drbd_md_io_complete;
@@ -140,11 +140,12 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 	else
 		submit_bio(rw, bio);
 	wait_for_completion(&md_io.event);
-	ok = bio_flagged(bio, BIO_UPTODATE) && md_io.error == 0;
+	if (bio_flagged(bio, BIO_UPTODATE))
+		err = md_io.error;
 
  out:
 	bio_put(bio);
-	return ok;
+	return err;
 }
 
 int drbd_md_sync_page_io(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
@@ -167,7 +168,7 @@ int drbd_md_sync_page_io(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 		     current->comm, current->pid, __func__,
 		     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
 
-	ok = _drbd_md_sync_page_io(mdev, bdev, iop, sector, rw, MD_BLOCK_SIZE);
+	ok = !_drbd_md_sync_page_io(mdev, bdev, iop, sector, rw, MD_BLOCK_SIZE);
 	if (unlikely(!ok)) {
 		dev_err(DEV, "drbd_md_sync_page_io(,%llus,%s) failed!\n",
 		    (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
