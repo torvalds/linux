@@ -72,6 +72,15 @@
 #define PHY_CONFIG_ROOT_ID(node_id)	((((node_id) & 0x3f) << 24) | (1 << 23))
 #define PHY_IDENTIFIER(id)		((id) << 30)
 
+/* returns 0 if the split timeout handler is already running */
+static int try_cancel_split_timeout(struct fw_transaction *t)
+{
+	if (t->is_split_transaction)
+		return del_timer(&t->split_timeout_timer);
+	else
+		return 1;
+}
+
 static int close_transaction(struct fw_transaction *transaction,
 			     struct fw_card *card, int rcode)
 {
@@ -81,7 +90,7 @@ static int close_transaction(struct fw_transaction *transaction,
 	spin_lock_irqsave(&card->lock, flags);
 	list_for_each_entry(t, &card->transaction_list, link) {
 		if (t == transaction) {
-			if (!del_timer(&t->split_timeout_timer)) {
+			if (!try_cancel_split_timeout(t)) {
 				spin_unlock_irqrestore(&card->lock, flags);
 				goto timed_out;
 			}
@@ -141,14 +150,26 @@ static void split_transaction_timeout_callback(unsigned long data)
 	card->tlabel_mask &= ~(1ULL << t->tlabel);
 	spin_unlock_irqrestore(&card->lock, flags);
 
-	card->driver->cancel_packet(card, &t->packet);
-
-	/*
-	 * At this point cancel_packet will never call the transaction
-	 * callback, since we just took the transaction out of the list.
-	 * So do it here.
-	 */
 	t->callback(card, RCODE_CANCELLED, NULL, 0, t->callback_data);
+}
+
+static void start_split_transaction_timeout(struct fw_transaction *t,
+					    struct fw_card *card)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&card->lock, flags);
+
+	if (list_empty(&t->link) || WARN_ON(t->is_split_transaction)) {
+		spin_unlock_irqrestore(&card->lock, flags);
+		return;
+	}
+
+	t->is_split_transaction = true;
+	mod_timer(&t->split_timeout_timer,
+		  jiffies + card->split_timeout_jiffies);
+
+	spin_unlock_irqrestore(&card->lock, flags);
 }
 
 static void transmit_complete_callback(struct fw_packet *packet,
@@ -162,7 +183,7 @@ static void transmit_complete_callback(struct fw_packet *packet,
 		close_transaction(t, card, RCODE_COMPLETE);
 		break;
 	case ACK_PENDING:
-		t->timestamp = packet->timestamp;
+		start_split_transaction_timeout(t, card);
 		break;
 	case ACK_BUSY_X:
 	case ACK_BUSY_A:
@@ -349,11 +370,9 @@ void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 	t->node_id = destination_id;
 	t->tlabel = tlabel;
 	t->card = card;
+	t->is_split_transaction = false;
 	setup_timer(&t->split_timeout_timer,
 		    split_transaction_timeout_callback, (unsigned long)t);
-	/* FIXME: start this timer later, relative to t->timestamp */
-	mod_timer(&t->split_timeout_timer,
-		  jiffies + card->split_timeout_jiffies);
 	t->callback = callback;
 	t->callback_data = callback_data;
 
@@ -926,7 +945,7 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 	spin_lock_irqsave(&card->lock, flags);
 	list_for_each_entry(t, &card->transaction_list, link) {
 		if (t->node_id == source && t->tlabel == tlabel) {
-			if (!del_timer(&t->split_timeout_timer)) {
+			if (!try_cancel_split_timeout(t)) {
 				spin_unlock_irqrestore(&card->lock, flags);
 				goto timed_out;
 			}
