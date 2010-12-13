@@ -2361,6 +2361,11 @@ static int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 	return 1;
 }
 
+static unsigned int xfrm_default_advmss(const struct dst_entry *dst)
+{
+	return dst_metric_advmss(dst->path);
+}
+
 int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 {
 	struct net *net;
@@ -2378,6 +2383,8 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 			dst_ops->kmem_cachep = xfrm_dst_cache;
 		if (likely(dst_ops->check == NULL))
 			dst_ops->check = xfrm_dst_check;
+		if (likely(dst_ops->default_advmss == NULL))
+			dst_ops->default_advmss = xfrm_default_advmss;
 		if (likely(dst_ops->negative_advice == NULL))
 			dst_ops->negative_advice = xfrm_negative_advice;
 		if (likely(dst_ops->link_failure == NULL))

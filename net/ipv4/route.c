@@ -139,6 +139,7 @@ static unsigned long expires_ljiffies;
  */
 
 static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie);
+static unsigned int	 ipv4_default_advmss(const struct dst_entry *dst);
 static void		 ipv4_dst_destroy(struct dst_entry *dst);
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst);
 static void		 ipv4_link_failure(struct sk_buff *skb);
@@ -155,6 +156,7 @@ static struct dst_ops ipv4_dst_ops = {
 	.protocol =		cpu_to_be16(ETH_P_IP),
 	.gc =			rt_garbage_collect,
 	.check =		ipv4_dst_check,
+	.default_advmss =	ipv4_default_advmss,
 	.destroy =		ipv4_dst_destroy,
 	.ifdown =		ipv4_dst_ifdown,
 	.negative_advice =	ipv4_negative_advice,
@@ -383,8 +385,7 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			(__force u32)r->rt_gateway,
 			r->rt_flags, atomic_read(&r->dst.__refcnt),
 			r->dst.__use, 0, (__force u32)r->rt_src,
-			(dst_metric(&r->dst, RTAX_ADVMSS) ?
-			     (int)dst_metric(&r->dst, RTAX_ADVMSS) + 40 : 0),
+			dst_metric_advmss(&r->dst) + 40,
 			dst_metric(&r->dst, RTAX_WINDOW),
 			(int)((dst_metric(&r->dst, RTAX_RTT) >> 3) +
 			      dst_metric(&r->dst, RTAX_RTTVAR)),
@@ -1798,6 +1799,19 @@ static void set_class_tag(struct rtable *rt, u32 tag)
 }
 #endif
 
+static unsigned int ipv4_default_advmss(const struct dst_entry *dst)
+{
+	unsigned int advmss = dst_metric_raw(dst, RTAX_ADVMSS);
+
+	if (advmss == 0) {
+		advmss = max_t(unsigned int, dst->dev->mtu - 40,
+			       ip_rt_min_advmss);
+		if (advmss > 65535 - 40)
+			advmss = 65535 - 40;
+	}
+	return advmss;
+}
+
 static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 {
 	struct dst_entry *dst = &rt->dst;
@@ -1823,11 +1837,7 @@ static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 
 	if (dst_mtu(dst) > IP_MAX_MTU)
 		dst_metric_set(dst, RTAX_MTU, IP_MAX_MTU);
-	if (dst_metric(dst, RTAX_ADVMSS) == 0)
-		dst_metric_set(dst, RTAX_ADVMSS,
-			       max_t(unsigned int, dst->dev->mtu - 40,
-				     ip_rt_min_advmss));
-	if (dst_metric(dst, RTAX_ADVMSS) > 65535 - 40)
+	if (dst_metric_raw(dst, RTAX_ADVMSS) > 65535 - 40)
 		dst_metric_set(dst, RTAX_ADVMSS, 65535 - 40);
 
 #ifdef CONFIG_NET_CLS_ROUTE

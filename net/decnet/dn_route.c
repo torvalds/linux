@@ -110,6 +110,7 @@ static unsigned long dn_rt_deadline;
 
 static int dn_dst_gc(struct dst_ops *ops);
 static struct dst_entry *dn_dst_check(struct dst_entry *, __u32);
+static unsigned int dn_dst_default_advmss(const struct dst_entry *dst);
 static struct dst_entry *dn_dst_negative_advice(struct dst_entry *);
 static void dn_dst_link_failure(struct sk_buff *);
 static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu);
@@ -129,6 +130,7 @@ static struct dst_ops dn_dst_ops = {
 	.gc_thresh =		128,
 	.gc =			dn_dst_gc,
 	.check =		dn_dst_check,
+	.default_advmss =	dn_dst_default_advmss,
 	.negative_advice =	dn_dst_negative_advice,
 	.link_failure =		dn_dst_link_failure,
 	.update_pmtu =		dn_dst_update_pmtu,
@@ -245,7 +247,8 @@ static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu)
 		}
 		if (!(dst_metric_locked(dst, RTAX_ADVMSS))) {
 			u32 mss = mtu - DN_MAX_NSP_DATA_HEADER;
-			if (dst_metric(dst, RTAX_ADVMSS) > mss)
+			u32 existing_mss = dst_metric_raw(dst, RTAX_ADVMSS);
+			if (!existing_mss || existing_mss > mss)
 				dst_metric_set(dst, RTAX_ADVMSS, mss);
 		}
 	}
@@ -795,12 +798,17 @@ static int dn_rt_bug(struct sk_buff *skb)
 	return NET_RX_DROP;
 }
 
+static unsigned int dn_dst_default_advmss(const struct dst_entry *dst)
+{
+	return dn_mss_from_pmtu(dst->dev, dst_mtu(dst));
+}
+
 static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 {
 	struct dn_fib_info *fi = res->fi;
 	struct net_device *dev = rt->dst.dev;
 	struct neighbour *n;
-	unsigned mss;
+	unsigned int metric;
 
 	if (fi) {
 		if (DN_FIB_RES_GW(*res) &&
@@ -820,10 +828,12 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 	if (dst_metric(&rt->dst, RTAX_MTU) == 0 ||
 	    dst_metric(&rt->dst, RTAX_MTU) > rt->dst.dev->mtu)
 		dst_metric_set(&rt->dst, RTAX_MTU, rt->dst.dev->mtu);
-	mss = dn_mss_from_pmtu(dev, dst_mtu(&rt->dst));
-	if (dst_metric(&rt->dst, RTAX_ADVMSS) == 0 ||
-	    dst_metric(&rt->dst, RTAX_ADVMSS) > mss)
-		dst_metric_set(&rt->dst, RTAX_ADVMSS, mss);
+	metric = dst_metric_raw(&rt->dst, RTAX_ADVMSS);
+	if (metric) {
+		unsigned int mss = dn_mss_from_pmtu(dev, dst_mtu(&rt->dst));
+		if (metric > mss)
+			dst_metric_set(&rt->dst, RTAX_ADVMSS, mss);
+	}
 	return 0;
 }
 

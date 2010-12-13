@@ -112,8 +112,20 @@ dst_metric_raw(const struct dst_entry *dst, const int metric)
 static inline u32
 dst_metric(const struct dst_entry *dst, const int metric)
 {
-	WARN_ON_ONCE(metric == RTAX_HOPLIMIT);
+	WARN_ON_ONCE(metric == RTAX_HOPLIMIT ||
+		     metric == RTAX_ADVMSS);
 	return dst_metric_raw(dst, metric);
+}
+
+static inline u32
+dst_metric_advmss(const struct dst_entry *dst)
+{
+	u32 advmss = dst_metric_raw(dst, RTAX_ADVMSS);
+
+	if (!advmss)
+		advmss = dst->ops->default_advmss(dst);
+
+	return advmss;
 }
 
 static inline void dst_metric_set(struct dst_entry *dst, int metric, u32 val)

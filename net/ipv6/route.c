@@ -76,6 +76,7 @@
 
 static struct rt6_info * ip6_rt_copy(struct rt6_info *ort);
 static struct dst_entry	*ip6_dst_check(struct dst_entry *dst, u32 cookie);
+static unsigned int	 ip6_default_advmss(const struct dst_entry *dst);
 static struct dst_entry *ip6_negative_advice(struct dst_entry *);
 static void		ip6_dst_destroy(struct dst_entry *);
 static void		ip6_dst_ifdown(struct dst_entry *,
@@ -103,6 +104,7 @@ static struct dst_ops ip6_dst_ops_template = {
 	.gc			=	ip6_dst_gc,
 	.gc_thresh		=	1024,
 	.check			=	ip6_dst_check,
+	.default_advmss		=	ip6_default_advmss,
 	.destroy		=	ip6_dst_destroy,
 	.ifdown			=	ip6_dst_ifdown,
 	.negative_advice	=	ip6_negative_advice,
@@ -937,8 +939,12 @@ static void ip6_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 
 static int ipv6_get_mtu(struct net_device *dev);
 
-static inline unsigned int ipv6_advmss(struct net *net, unsigned int mtu)
+static unsigned int ip6_default_advmss(const struct dst_entry *dst)
 {
+	struct net_device *dev = dst->dev;
+	unsigned int mtu = dst_mtu(dst);
+	struct net *net = dev_net(dev);
+
 	mtu -= sizeof(struct ipv6hdr) + sizeof(struct tcphdr);
 
 	if (mtu < net->ipv6.sysctl.ip6_rt_min_advmss)
@@ -990,7 +996,6 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	atomic_set(&rt->dst.__refcnt, 1);
 	dst_metric_set(&rt->dst, RTAX_HOPLIMIT, 255);
 	dst_metric_set(&rt->dst, RTAX_MTU, ipv6_get_mtu(rt->rt6i_dev));
-	dst_metric_set(&rt->dst, RTAX_ADVMSS, ipv6_advmss(net, dst_mtu(&rt->dst)));
 	rt->dst.output  = ip6_output;
 
 #if 0	/* there's no chance to use these for ndisc */
@@ -1312,8 +1317,6 @@ install_route:
 
 	if (!dst_mtu(&rt->dst))
 		dst_metric_set(&rt->dst, RTAX_MTU, ipv6_get_mtu(dev));
-	if (!dst_metric(&rt->dst, RTAX_ADVMSS))
-		dst_metric_set(&rt->dst, RTAX_ADVMSS, ipv6_advmss(net, dst_mtu(&rt->dst)));
 	rt->dst.dev = dev;
 	rt->rt6i_idev = idev;
 	rt->rt6i_table = table;
@@ -1540,8 +1543,6 @@ void rt6_redirect(struct in6_addr *dest, struct in6_addr *src,
 	nrt->rt6i_nexthop = neigh_clone(neigh);
 	/* Reset pmtu, it may be better */
 	dst_metric_set(&nrt->dst, RTAX_MTU, ipv6_get_mtu(neigh->dev));
-	dst_metric_set(&nrt->dst, RTAX_ADVMSS, ipv6_advmss(dev_net(neigh->dev),
-							   dst_mtu(&nrt->dst)));
 
 	if (ip6_ins_rt(nrt))
 		goto out;
@@ -1971,7 +1972,6 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	rt->rt6i_dev = net->loopback_dev;
 	rt->rt6i_idev = idev;
 	dst_metric_set(&rt->dst, RTAX_MTU, ipv6_get_mtu(rt->rt6i_dev));
-	dst_metric_set(&rt->dst, RTAX_ADVMSS, ipv6_advmss(net, dst_mtu(&rt->dst)));
 	dst_metric_set(&rt->dst, RTAX_HOPLIMIT, -1);
 	rt->dst.obsolete = -1;
 
@@ -2041,7 +2041,6 @@ static int rt6_mtu_change_route(struct rt6_info *rt, void *p_arg)
 {
 	struct rt6_mtu_change_arg *arg = (struct rt6_mtu_change_arg *) p_arg;
 	struct inet6_dev *idev;
-	struct net *net = dev_net(arg->dev);
 
 	/* In IPv6 pmtu discovery is not optional,
 	   so that RTAX_MTU lock cannot disable it.
@@ -2073,7 +2072,6 @@ static int rt6_mtu_change_route(struct rt6_info *rt, void *p_arg)
 	     (dst_mtu(&rt->dst) < arg->mtu &&
 	      dst_mtu(&rt->dst) == idev->cnf.mtu6))) {
 		dst_metric_set(&rt->dst, RTAX_MTU, arg->mtu);
-		dst_metric_set(&rt->dst, RTAX_ADVMSS, ipv6_advmss(net, arg->mtu));
 	}
 	return 0;
 }
