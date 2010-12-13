@@ -102,7 +102,6 @@ static cycle_t orion_clksrc_read(struct clocksource *cs)
 
 static struct clocksource orion_clksrc = {
 	.name		= "orion_clocksource",
-	.shift		= 20,
 	.rating		= 300,
 	.read		= orion_clksrc_read,
 	.mask		= CLOCKSOURCE_MASK(32),
@@ -245,8 +244,7 @@ void __init orion_time_init(unsigned int irq, unsigned int tclk)
 	writel(u & ~BRIDGE_INT_TIMER0, BRIDGE_MASK);
 	u = readl(TIMER_CTRL);
 	writel(u | TIMER0_EN | TIMER0_RELOAD_EN, TIMER_CTRL);
-	orion_clksrc.mult = clocksource_hz2mult(tclk, orion_clksrc.shift);
-	clocksource_register(&orion_clksrc);
+	clocksource_register_hz(&orion_clksrc, tclk);
 
 	/*
 	 * Setup clockevent timer (interrupt-driven.)
