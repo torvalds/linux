@@ -129,8 +129,7 @@ out:
  * On success returns 0, otherwise -EINVAL.
  */
 static int datablob_parse(char *datablob, char **master_desc,
-			  char **decrypted_datalen, char **hex_encoded_iv,
-			  char **hex_encoded_data)
+			  char **decrypted_datalen, char **hex_encoded_iv)
 {
 	substring_t args[MAX_OPT_ARGS];
 	int ret = -EINVAL;
@@ -167,7 +166,6 @@ static int datablob_parse(char *datablob, char **master_desc,
 		*hex_encoded_iv = strsep(&datablob, " \t");
 		if (!*hex_encoded_iv)
 			break;
-		*hex_encoded_data = *hex_encoded_iv + (2 * ivsize) + 2;
 		ret = 0;
 		break;
 	case Opt_update:
@@ -558,18 +556,24 @@ static struct encrypted_key_payload *encrypted_key_alloc(struct key *key,
 }
 
 static int encrypted_key_decrypt(struct encrypted_key_payload *epayload,
-				 const char *hex_encoded_iv,
-				 const char *hex_encoded_data)
+				 const char *hex_encoded_iv)
 {
 	struct key *mkey;
 	u8 derived_key[HASH_SIZE];
 	u8 *master_key;
 	u8 *hmac;
+	const char *hex_encoded_data;
 	unsigned int master_keylen;
 	unsigned int encrypted_datalen;
+	size_t asciilen;
 	int ret;
 
 	encrypted_datalen = roundup(epayload->decrypted_datalen, blksize);
+	asciilen = (ivsize + 1 + encrypted_datalen + HASH_SIZE) * 2;
+	if (strlen(hex_encoded_iv) != asciilen)
+		return -EINVAL;
+
+	hex_encoded_data = hex_encoded_iv + (2 * ivsize) + 2;
 	hex2bin(epayload->iv, hex_encoded_iv, ivsize);
 	hex2bin(epayload->encrypted_data, hex_encoded_data, encrypted_datalen);
 
@@ -620,20 +624,18 @@ static void __ekey_init(struct encrypted_key_payload *epayload,
  */
 static int encrypted_init(struct encrypted_key_payload *epayload,
 			  const char *master_desc, const char *datalen,
-			  const char *hex_encoded_iv,
-			  const char *hex_encoded_data)
+			  const char *hex_encoded_iv)
 {
 	int ret = 0;
 
 	__ekey_init(epayload, master_desc, datalen);
-	if (!hex_encoded_data) {
+	if (!hex_encoded_iv) {
 		get_random_bytes(epayload->iv, ivsize);
 
 		get_random_bytes(epayload->decrypted_data,
 				 epayload->decrypted_datalen);
 	} else
-		ret = encrypted_key_decrypt(epayload, hex_encoded_iv,
-					    hex_encoded_data);
+		ret = encrypted_key_decrypt(epayload, hex_encoded_iv);
 	return ret;
 }
 
@@ -653,7 +655,6 @@ static int encrypted_instantiate(struct key *key, const void *data,
 	char *master_desc = NULL;
 	char *decrypted_datalen = NULL;
 	char *hex_encoded_iv = NULL;
-	char *hex_encoded_data = NULL;
 	int ret;
 
 	if (datalen <= 0 || datalen > 32767 || !data)
@@ -665,7 +666,7 @@ static int encrypted_instantiate(struct key *key, const void *data,
 	datablob[datalen] = 0;
 	memcpy(datablob, data, datalen);
 	ret = datablob_parse(datablob, &master_desc, &decrypted_datalen,
-			     &hex_encoded_iv, &hex_encoded_data);
+			     &hex_encoded_iv);
 	if (ret < 0)
 		goto out;
 
@@ -675,7 +676,7 @@ static int encrypted_instantiate(struct key *key, const void *data,
 		goto out;
 	}
 	ret = encrypted_init(epayload, master_desc, decrypted_datalen,
-			     hex_encoded_iv, hex_encoded_data);
+			     hex_encoded_iv);
 	if (ret < 0) {
 		kfree(epayload);
 		goto out;
@@ -722,7 +723,7 @@ static int encrypted_update(struct key *key, const void *data, size_t datalen)
 
 	buf[datalen] = 0;
 	memcpy(buf, data, datalen);
-	ret = datablob_parse(buf, &new_master_desc, NULL, NULL, NULL);
+	ret = datablob_parse(buf, &new_master_desc, NULL, NULL);
 	if (ret < 0)
 		goto out;
 
