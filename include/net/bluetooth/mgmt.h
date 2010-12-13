@@ -27,6 +27,12 @@ struct mgmt_hdr {
 } __packed;
 #define MGMT_HDR_SIZE			4
 
+#define MGMT_OP_READ_VERSION		0x0001
+struct mgmt_rp_read_version {
+	__u8 version;
+	__le16 revision;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;
