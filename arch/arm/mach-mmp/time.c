@@ -146,7 +146,6 @@ static cycle_t clksrc_read(struct clocksource *cs)
 
 static struct clocksource cksrc = {
 	.name		= "clocksource",
-	.shift		= 20,
 	.rating		= 200,
 	.read		= clksrc_read,
 	.mask		= CLOCKSOURCE_MASK(32),
@@ -193,10 +192,8 @@ void __init timer_init(int irq)
 	ckevt.min_delta_ns = clockevent_delta2ns(MIN_DELTA, &ckevt);
 	ckevt.cpumask = cpumask_of(0);
 
-	cksrc.mult = clocksource_hz2mult(CLOCK_TICK_RATE, cksrc.shift);
-
 	setup_irq(irq, &timer_irq);
 
-	clocksource_register(&cksrc);
+	clocksource_register_hz(&cksrc, CLOCK_TICK_RATE);
 	clockevents_register_device(&ckevt);
 }
