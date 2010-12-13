@@ -1178,11 +1178,13 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 				bond_do_fail_over_mac(bond, new_active,
 						      old_active);
 
-			bond->send_grat_arp = bond->params.num_grat_arp;
-			bond_send_gratuitous_arp(bond);
+			if (netif_running(bond->dev)) {
+				bond->send_grat_arp = bond->params.num_grat_arp;
+				bond_send_gratuitous_arp(bond);
 
-			bond->send_unsol_na = bond->params.num_unsol_na;
-			bond_send_unsolicited_na(bond);
+				bond->send_unsol_na = bond->params.num_unsol_na;
+				bond_send_unsolicited_na(bond);
+			}
 
 			write_unlock_bh(&bond->curr_slave_lock);
 			read_unlock(&bond->lock);
@@ -1196,8 +1198,9 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 
 	/* resend IGMP joins since active slave has changed or
 	 * all were sent on curr_active_slave */
-	if ((USES_PRIMARY(bond->params.mode) && new_active) ||
-	    bond->params.mode == BOND_MODE_ROUNDROBIN) {
+	if (((USES_PRIMARY(bond->params.mode) && new_active) ||
+	     bond->params.mode == BOND_MODE_ROUNDROBIN) &&
+	    netif_running(bond->dev)) {
 		bond->igmp_retrans = bond->params.resend_igmp;
 		queue_delayed_work(bond->wq, &bond->mcast_work, 0);
 	}
