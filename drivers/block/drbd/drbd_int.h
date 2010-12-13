@@ -2284,14 +2284,14 @@ static inline int is_susp(union drbd_state s)
 	return s.susp || s.susp_nod || s.susp_fen;
 }
 
-static inline int __inc_ap_bio_cond(struct drbd_conf *mdev)
+static inline bool may_inc_ap_bio(struct drbd_conf *mdev)
 {
 	int mxb = drbd_get_max_buffers(mdev);
 
 	if (is_susp(mdev->state))
-		return 0;
+		return false;
 	if (test_bit(SUSPEND_IO, &mdev->flags))
-		return 0;
+		return false;
 
 	/* to avoid potential deadlock or bitmap corruption,
 	 * in various places, we only allow new application io
@@ -2299,23 +2299,23 @@ static inline int __inc_ap_bio_cond(struct drbd_conf *mdev)
 
 	/* no new io accepted when attaching or detaching the disk */
 	if (!drbd_state_is_stable(mdev))
-		return 0;
+		return false;
 
 	/* since some older kernels don't have atomic_add_unless,
 	 * and we are within the spinlock anyways, we have this workaround.  */
 	if (atomic_read(&mdev->ap_bio_cnt) > mxb)
-		return 0;
+		return false;
 	if (test_bit(BITMAP_IO, &mdev->flags))
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
-static inline int _inc_ap_bio_cond(struct drbd_conf *mdev, int count)
+static inline bool inc_ap_bio_cond(struct drbd_conf *mdev, int count)
 {
-	int rv = 0;
+	bool rv = false;
 
 	spin_lock_irq(&mdev->req_lock);
-	rv = __inc_ap_bio_cond(mdev);
+	rv = may_inc_ap_bio(mdev);
 	if (rv)
 		atomic_add(count, &mdev->ap_bio_cnt);
 	spin_unlock_irq(&mdev->req_lock);
@@ -2333,7 +2333,7 @@ static inline void inc_ap_bio(struct drbd_conf *mdev, int count)
 	 * to avoid races with the reconnect code,
 	 * we need to atomic_inc within the spinlock. */
 
-	wait_event(mdev->misc_wait, _inc_ap_bio_cond(mdev, count));
+	wait_event(mdev->misc_wait, inc_ap_bio_cond(mdev, count));
 }
 
 static inline void dec_ap_bio(struct drbd_conf *mdev)

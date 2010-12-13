@@ -3239,7 +3239,7 @@ static int drbd_congested(void *congested_data, int bdi_bits)
 	char reason = '-';
 	int r = 0;
 
-	if (!__inc_ap_bio_cond(mdev)) {
+	if (!may_inc_ap_bio(mdev)) {
 		/* DRBD has frozen IO */
 		r = bdi_bits;
 		reason = 'd';
