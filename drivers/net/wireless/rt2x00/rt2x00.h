@@ -66,7 +66,7 @@
 
 #ifdef CONFIG_RT2X00_DEBUG
 #define DEBUG_PRINTK(__dev, __kernlvl, __lvl, __msg, __args...)	\
-	DEBUG_PRINTK_MSG(__dev, __kernlvl, __lvl, __msg, ##__args);
+	DEBUG_PRINTK_MSG(__dev, __kernlvl, __lvl, __msg, ##__args)
 #else
 #define DEBUG_PRINTK(__dev, __kernlvl, __lvl, __msg, __args...)	\
 	do { } while (0)
