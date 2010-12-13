@@ -352,7 +352,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 * if for any reason the link tuner must be reset, this will be
 	 * handled by rt2x00lib_config().
 	 */
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_RX_OFF);
+	rt2x00dev->ops->lib->stop_queue(rt2x00dev->rx);
 
 	/*
 	 * When we've just turned on the radio, we want to reprogram
@@ -370,7 +370,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	rt2x00lib_config_antenna(rt2x00dev, rt2x00dev->default_ant);
 
 	/* Turn RX back on */
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_RX_ON);
+	rt2x00dev->ops->lib->start_queue(rt2x00dev->rx);
 
 	return 0;
 }
@@ -727,7 +727,7 @@ void rt2x00mac_flush(struct ieee80211_hw *hw, bool drop)
 	 * any pending frames to be transmitted.
 	 */
 	tx_queue_for_each(rt2x00dev, queue) {
-		rt2x00dev->ops->lib->kick_tx_queue(queue);
+		rt2x00dev->ops->lib->kick_queue(queue);
 	}
 
 	/**

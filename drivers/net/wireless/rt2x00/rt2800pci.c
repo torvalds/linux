@@ -537,12 +537,6 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt2800pci_disable_radio(rt2x00dev);
 		rt2800pci_set_state(rt2x00dev, STATE_SLEEP);
 		break;
-	case STATE_RADIO_RX_ON:
-		rt2800pci_start_queue(rt2x00dev->rx);
-		break;
-	case STATE_RADIO_RX_OFF:
-		rt2800pci_stop_queue(rt2x00dev->rx);
-		break;
 	case STATE_RADIO_IRQ_ON:
 	case STATE_RADIO_IRQ_ON_ISR:
 	case STATE_RADIO_IRQ_OFF:
@@ -1004,11 +998,12 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.link_stats		= rt2800_link_stats,
 	.reset_tuner		= rt2800_reset_tuner,
 	.link_tuner		= rt2800_link_tuner,
+	.start_queue		= rt2800pci_start_queue,
+	.kick_queue		= rt2800pci_kick_queue,
+	.stop_queue		= rt2800pci_stop_queue,
 	.write_tx_desc		= rt2800pci_write_tx_desc,
 	.write_tx_data		= rt2800_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
-	.kick_tx_queue		= rt2800pci_kick_queue,
-	.kill_tx_queue		= rt2800pci_stop_queue,
 	.fill_rxdone		= rt2800pci_fill_rxdone,
 	.config_shared_key	= rt2800_config_shared_key,
 	.config_pairwise_key	= rt2800_config_pairwise_key,

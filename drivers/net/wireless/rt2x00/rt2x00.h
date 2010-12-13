@@ -567,7 +567,14 @@ struct rt2x00lib_ops {
 			     struct link_qual *qual);
 	void (*link_tuner) (struct rt2x00_dev *rt2x00dev,
 			    struct link_qual *qual, const u32 count);
+
+	/*
+	 * Data queue handlers.
+	 */
 	void (*watchdog) (struct rt2x00_dev *rt2x00dev);
+	void (*start_queue) (struct data_queue *queue);
+	void (*kick_queue) (struct data_queue *queue);
+	void (*stop_queue) (struct data_queue *queue);
 
 	/*
 	 * TX control handlers
@@ -579,8 +586,6 @@ struct rt2x00lib_ops {
 	void (*write_beacon) (struct queue_entry *entry,
 			      struct txentry_desc *txdesc);
 	int (*get_tx_data_len) (struct queue_entry *entry);
-	void (*kick_tx_queue) (struct data_queue *queue);
-	void (*kill_tx_queue) (struct data_queue *queue);
 
 	/*
 	 * RX control handlers

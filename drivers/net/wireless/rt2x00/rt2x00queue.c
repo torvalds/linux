@@ -471,7 +471,7 @@ static void rt2x00queue_kick_tx_queue(struct data_queue *queue,
 	 */
 	if (rt2x00queue_threshold(queue) ||
 	    !test_bit(ENTRY_TXD_BURST, &txdesc->flags))
-		queue->rt2x00dev->ops->lib->kick_tx_queue(queue);
+		queue->rt2x00dev->ops->lib->kick_queue(queue);
 }
 
 int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
@@ -585,7 +585,7 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	rt2x00queue_free_skb(intf->beacon);
 
 	if (!enable_beacon) {
-		rt2x00dev->ops->lib->kill_tx_queue(intf->beacon->queue);
+		rt2x00dev->ops->lib->stop_queue(intf->beacon->queue);
 		mutex_unlock(&intf->beacon_skb_mutex);
 		return 0;
 	}
@@ -761,7 +761,7 @@ void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev)
 	struct data_queue *queue;
 
 	txall_queue_for_each(rt2x00dev, queue)
-		rt2x00dev->ops->lib->kill_tx_queue(queue);
+		rt2x00dev->ops->lib->stop_queue(queue);
 }
 
 void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev)

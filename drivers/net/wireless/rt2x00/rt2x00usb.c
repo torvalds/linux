@@ -261,12 +261,22 @@ static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 	}
 }
 
-void rt2x00usb_kick_tx_queue(struct data_queue *queue)
+void rt2x00usb_kick_queue(struct data_queue *queue)
 {
-	rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
-				   rt2x00usb_kick_tx_entry);
+	switch (queue->qid) {
+	case QID_AC_BE:
+	case QID_AC_BK:
+	case QID_AC_VI:
+	case QID_AC_VO:
+		if (!rt2x00queue_empty(queue))
+			rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
+						   rt2x00usb_kick_tx_entry);
+		break;
+	default:
+		break;
+	}
 }
-EXPORT_SYMBOL_GPL(rt2x00usb_kick_tx_queue);
+EXPORT_SYMBOL_GPL(rt2x00usb_kick_queue);
 
 static void rt2x00usb_kill_entry(struct queue_entry *entry)
 {
@@ -422,11 +432,7 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00usb_vendor_request_sw(rt2x00dev, USB_RX_CONTROL, 0, 0,
 				    REGISTER_TIMEOUT);
 
-	/*
-	 * The USB version of also works
-	 * on the RX queue.
-	 */
-	rt2x00dev->ops->lib->kill_tx_queue(rt2x00dev->rx);
+	rt2x00dev->ops->lib->stop_queue(rt2x00dev->rx);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_disable_radio);
 

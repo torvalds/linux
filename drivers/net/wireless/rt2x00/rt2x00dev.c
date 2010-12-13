@@ -68,7 +68,7 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Enable RX.
 	 */
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_RX_ON);
+	rt2x00dev->ops->lib->start_queue(rt2x00dev->rx);
 	rt2x00link_start_tuner(rt2x00dev);
 
 	/*
@@ -104,7 +104,7 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	 * Disable RX.
 	 */
 	rt2x00link_stop_tuner(rt2x00dev);
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_RX_OFF);
+	rt2x00dev->ops->lib->stop_queue(rt2x00dev->rx);
 
 	/*
 	 * Disable radio.

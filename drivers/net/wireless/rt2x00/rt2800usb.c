@@ -254,12 +254,6 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt2800usb_disable_radio(rt2x00dev);
 		rt2800usb_set_state(rt2x00dev, STATE_SLEEP);
 		break;
-	case STATE_RADIO_RX_ON:
-		rt2800usb_start_queue(rt2x00dev->rx);
-		break;
-	case STATE_RADIO_RX_OFF:
-		rt2800usb_stop_queue(rt2x00dev->rx);
-		break;
 	case STATE_RADIO_IRQ_ON:
 	case STATE_RADIO_IRQ_ON_ISR:
 	case STATE_RADIO_IRQ_OFF:
@@ -626,12 +620,13 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.reset_tuner		= rt2800_reset_tuner,
 	.link_tuner		= rt2800_link_tuner,
 	.watchdog		= rt2800usb_watchdog,
+	.start_queue		= rt2800usb_start_queue,
+	.kick_queue		= rt2x00usb_kick_queue,
+	.stop_queue		= rt2800usb_stop_queue,
 	.write_tx_desc		= rt2800usb_write_tx_desc,
 	.write_tx_data		= rt2800usb_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
 	.get_tx_data_len	= rt2800usb_get_tx_data_len,
-	.kick_tx_queue		= rt2x00usb_kick_tx_queue,
-	.kill_tx_queue		= rt2800usb_stop_queue,
 	.fill_rxdone		= rt2800usb_fill_rxdone,
 	.config_shared_key	= rt2800_config_shared_key,
 	.config_pairwise_key	= rt2800_config_pairwise_key,

@@ -1441,12 +1441,6 @@ static int rt73usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 	case STATE_RADIO_OFF:
 		rt73usb_disable_radio(rt2x00dev);
 		break;
-	case STATE_RADIO_RX_ON:
-		rt73usb_start_queue(rt2x00dev->rx);
-		break;
-	case STATE_RADIO_RX_OFF:
-		rt73usb_stop_queue(rt2x00dev->rx);
-		break;
 	case STATE_RADIO_IRQ_ON:
 	case STATE_RADIO_IRQ_ON_ISR:
 	case STATE_RADIO_IRQ_OFF:
@@ -2312,11 +2306,12 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.reset_tuner		= rt73usb_reset_tuner,
 	.link_tuner		= rt73usb_link_tuner,
 	.watchdog		= rt2x00usb_watchdog,
+	.start_queue		= rt73usb_start_queue,
+	.kick_queue		= rt2x00usb_kick_queue,
+	.stop_queue		= rt73usb_stop_queue,
 	.write_tx_desc		= rt73usb_write_tx_desc,
 	.write_beacon		= rt73usb_write_beacon,
 	.get_tx_data_len	= rt73usb_get_tx_data_len,
-	.kick_tx_queue		= rt2x00usb_kick_tx_queue,
-	.kill_tx_queue		= rt73usb_stop_queue,
 	.fill_rxdone		= rt73usb_fill_rxdone,
 	.config_shared_key	= rt73usb_config_shared_key,
 	.config_pairwise_key	= rt73usb_config_pairwise_key,

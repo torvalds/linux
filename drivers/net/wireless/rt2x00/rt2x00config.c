@@ -146,8 +146,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * else the changes will be ignored by the device.
 	 */
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
-		rt2x00dev->ops->lib->set_device_state(rt2x00dev,
-						      STATE_RADIO_RX_OFF);
+		rt2x00dev->ops->lib->stop_queue(rt2x00dev->rx);
 
 	/*
 	 * Write new antenna setup to device and reset the link tuner.
@@ -161,8 +160,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	memcpy(active, &config, sizeof(config));
 
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
-		rt2x00dev->ops->lib->set_device_state(rt2x00dev,
-						      STATE_RADIO_RX_ON);
+		rt2x00dev->ops->lib->start_queue(rt2x00dev->rx);
 }
 
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,

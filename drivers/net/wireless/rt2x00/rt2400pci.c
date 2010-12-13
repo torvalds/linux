@@ -1058,12 +1058,6 @@ static int rt2400pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 	case STATE_RADIO_OFF:
 		rt2400pci_disable_radio(rt2x00dev);
 		break;
-	case STATE_RADIO_RX_ON:
-		rt2400pci_start_queue(rt2x00dev->rx);
-		break;
-	case STATE_RADIO_RX_OFF:
-		rt2400pci_stop_queue(rt2x00dev->rx);
-		break;
 	case STATE_RADIO_IRQ_ON:
 	case STATE_RADIO_IRQ_ON_ISR:
 	case STATE_RADIO_IRQ_OFF:
@@ -1672,10 +1666,11 @@ static const struct rt2x00lib_ops rt2400pci_rt2x00_ops = {
 	.link_stats		= rt2400pci_link_stats,
 	.reset_tuner		= rt2400pci_reset_tuner,
 	.link_tuner		= rt2400pci_link_tuner,
+	.start_queue		= rt2400pci_start_queue,
+	.kick_queue		= rt2400pci_kick_queue,
+	.stop_queue		= rt2400pci_stop_queue,
 	.write_tx_desc		= rt2400pci_write_tx_desc,
 	.write_beacon		= rt2400pci_write_beacon,
-	.kick_tx_queue		= rt2400pci_kick_queue,
-	.kill_tx_queue		= rt2400pci_stop_queue,
 	.fill_rxdone		= rt2400pci_fill_rxdone,
 	.config_filter		= rt2400pci_config_filter,
 	.config_intf		= rt2400pci_config_intf,
