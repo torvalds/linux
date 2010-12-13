@@ -745,7 +745,7 @@ void rt2x00mac_flush(struct ieee80211_hw *hw, bool drop)
 		}
 
 		if (!rt2x00queue_empty(queue))
-			WARNING(rt2x00dev, "Failed to flush queue %d", queue->qid);
+			WARNING(rt2x00dev, "Failed to flush queue %d\n", queue->qid);
 	}
 
 	ieee80211_wake_queues(hw);

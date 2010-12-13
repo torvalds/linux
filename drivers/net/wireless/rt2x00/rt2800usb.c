@@ -253,7 +253,7 @@ static void rt2800usb_watchdog(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
 	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX0Q)) {
 		WARNING(rt2x00dev, "TX HW queue 0 timed out,"
-			" invoke forced kick");
+			" invoke forced kick\n");
 
 		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf40012);
 
@@ -269,7 +269,7 @@ static void rt2800usb_watchdog(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
 	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX1Q)) {
 		WARNING(rt2x00dev, "TX HW queue 1 timed out,"
-			" invoke forced kick");
+			" invoke forced kick\n");
 
 		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf4000a);
 

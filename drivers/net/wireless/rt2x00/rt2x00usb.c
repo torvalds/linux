@@ -300,7 +300,7 @@ static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 	unsigned short threshold = queue->threshold;
 
 	WARNING(queue->rt2x00dev, "TX queue %d DMA timed out,"
-		" invoke forced forced reset", queue->qid);
+		" invoke forced forced reset\n", queue->qid);
 
 	/*
 	 * Temporarily disable the TX queue, this will force mac80211
@@ -335,7 +335,7 @@ static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 static void rt2x00usb_watchdog_tx_status(struct data_queue *queue)
 {
 	WARNING(queue->rt2x00dev, "TX queue %d status timed out,"
-		" invoke forced tx handler", queue->qid);
+		" invoke forced tx handler\n", queue->qid);
 
 	ieee80211_queue_work(queue->rt2x00dev->hw, &queue->rt2x00dev->txdone_work);
 }

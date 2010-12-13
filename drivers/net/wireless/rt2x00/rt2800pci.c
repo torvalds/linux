@@ -686,7 +686,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			 * this tx status.
 			 */
 			WARNING(rt2x00dev, "Got TX status report with "
-					   "unexpected pid %u, dropping", qid);
+					   "unexpected pid %u, dropping\n", qid);
 			break;
 		}
 
@@ -697,7 +697,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			 * processing here and drop the tx status
 			 */
 			WARNING(rt2x00dev, "Got TX status for an unavailable "
-					   "queue %u, dropping", qid);
+					   "queue %u, dropping\n", qid);
 			break;
 		}
 
@@ -707,7 +707,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			 * and drop the tx status.
 			 */
 			WARNING(rt2x00dev, "Got TX status for an empty "
-					   "queue %u, dropping", qid);
+					   "queue %u, dropping\n", qid);
 			break;
 		}
 
