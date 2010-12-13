@@ -155,7 +155,7 @@ static struct ctl_table ipv4_table[] = {
 		.data		= &sysctl_ip_default_ttl,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= ipv4_doint_and_flush,
+		.proc_handler	= proc_dointvec,
 		.extra2		= &init_net,
 	},
 	{

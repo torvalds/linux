@@ -116,12 +116,6 @@ dst_metric(const struct dst_entry *dst, const int metric)
 	return dst_metric_raw(dst, metric);
 }
 
-static inline u32
-dst_metric_hoplimit(const struct dst_entry *dst)
-{
-	return dst_metric_raw(dst, RTAX_HOPLIMIT);
-}
-
 static inline void dst_metric_set(struct dst_entry *dst, int metric, u32 val)
 {
 	dst->_metrics[metric-1] = val;

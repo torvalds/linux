@@ -116,7 +116,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	if (ip_route_me_harder(nskb, addr_type))
 		goto free_nskb;
 
-	niph->ttl	= dst_metric_hoplimit(skb_dst(nskb));
+	niph->ttl	= ip4_dst_hoplimit(skb_dst(nskb));
 
 	/* "Never happens" */
 	if (nskb->len > dst_mtu(skb_dst(nskb)))

@@ -82,6 +82,7 @@
 #include <linux/tcp.h>
 
 int sysctl_ip_default_ttl __read_mostly = IPDEFTTL;
+EXPORT_SYMBOL(sysctl_ip_default_ttl);
 
 /* Generate a checksum for an outgoing IP datagram. */
 __inline__ void ip_send_check(struct iphdr *iph)
@@ -130,7 +131,7 @@ static inline int ip_select_ttl(struct inet_sock *inet, struct dst_entry *dst)
 	int ttl = inet->uc_ttl;
 
 	if (ttl < 0)
-		ttl = dst_metric_hoplimit(dst);
+		ttl = ip4_dst_hoplimit(dst);
 	return ttl;
 }
 
