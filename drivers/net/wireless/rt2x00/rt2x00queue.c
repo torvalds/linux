@@ -968,11 +968,8 @@ void rt2x00queue_init_queues(struct rt2x00_dev *rt2x00dev)
 	queue_for_each(rt2x00dev, queue) {
 		rt2x00queue_reset(queue);
 
-		for (i = 0; i < queue->limit; i++) {
+		for (i = 0; i < queue->limit; i++)
 			rt2x00dev->ops->lib->clear_entry(&queue->entries[i]);
-			if (queue->qid == QID_RX)
-				rt2x00queue_index_inc(queue, Q_INDEX);
-		}
 	}
 }
 

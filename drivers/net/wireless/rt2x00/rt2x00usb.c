@@ -330,6 +330,8 @@ static void rt2x00usb_kick_rx_entry(struct queue_entry *entry)
 	if (test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
+	rt2x00lib_dmastart(entry);
+
 	usb_fill_bulk_urb(entry_priv->urb, usb_dev,
 			  usb_rcvbulkpipe(usb_dev, entry->queue->usb_endpoint),
 			  entry->skb->data, entry->skb->len,

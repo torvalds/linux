@@ -226,6 +226,13 @@ void rt2x00lib_pretbtt(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_pretbtt);
 
+void rt2x00lib_dmastart(struct queue_entry *entry)
+{
+	set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
+	rt2x00queue_index_inc(entry->queue, Q_INDEX);
+}
+EXPORT_SYMBOL_GPL(rt2x00lib_dmastart);
+
 void rt2x00lib_dmadone(struct queue_entry *entry)
 {
 	clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
@@ -555,10 +562,8 @@ submit_entry:
 	entry->flags = 0;
 	rt2x00queue_index_inc(entry->queue, Q_INDEX_DONE);
 	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
-	    test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags)) {
+	    test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2x00dev->ops->lib->clear_entry(entry);
-		rt2x00queue_index_inc(entry->queue, Q_INDEX);
-	}
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
 
