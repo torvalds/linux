@@ -170,7 +170,5 @@ void __init iop_init_time(unsigned long tick_rate)
 	write_trr1(0xffffffff);
 	write_tcr1(0xffffffff);
 	write_tmr1(timer_ctl);
-	clocksource_calc_mult_shift(&iop_clocksource, tick_rate,
-				    IOP_MIN_RANGE);
-	clocksource_register(&iop_clocksource);
+	clocksource_register_hz(&iop_clocksource, tick_rate);
 }
