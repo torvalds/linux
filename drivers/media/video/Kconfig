@@ -890,7 +890,21 @@ config SOC_CAMERA_OV5642
 	tristate "ov5642 camera support"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a ov5642 camera driver	 	     
+	  This is a ov5642 camera driver	
+choice
+	prompt "OV5642 Module Focus select"
+	depends on SOC_CAMERA_OV5642
+	default OV5642_AUTOFOCUS
+	---help---
+		
+config OV5642_AUTOFOCUS
+	bool "OV5642 auto focus"
+
+config OV5642_FIXEDFOCUS
+	bool "OV5642 fixed focus"
+endchoice
+
+ 	     
 config MX1_VIDEO
 	bool
 
