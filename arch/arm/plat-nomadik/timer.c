@@ -222,7 +222,6 @@ void __init nmdk_timer_init(void)
 	} else {
 		cr |= MTU_CRn_PRESCALE_1;
 	}
-	clocksource_calc_mult_shift(&nmdk_clksrc, rate, MTU_MIN_RANGE);
 
 	/* Timer 0 is the free running clocksource */
 	writel(cr, mtu_base + MTU_CR(0));
@@ -233,7 +232,7 @@ void __init nmdk_timer_init(void)
 	/* Now the clock source is ready */
 	nmdk_clksrc.read = nmdk_read_timer;
 
-	if (clocksource_register(&nmdk_clksrc))
+	if (clocksource_register_hz(&nmdk_clksrc, rate))
 		pr_err("timer: failed to initialize clock source %s\n",
 		       nmdk_clksrc.name);
 
