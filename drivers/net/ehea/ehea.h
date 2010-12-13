@@ -130,19 +130,6 @@
 
 /* utility functions */
 
-#define ehea_info(fmt, args...) \
-	printk(KERN_INFO DRV_NAME ": " fmt "\n", ## args)
-
-#define ehea_error(fmt, args...) \
-	printk(KERN_ERR DRV_NAME ": Error in %s: " fmt "\n", __func__, ## args)
-
-#ifdef DEBUG
-#define ehea_debug(fmt, args...) \
-	printk(KERN_DEBUG DRV_NAME ": " fmt, ## args)
-#else
-#define ehea_debug(fmt, args...) do {} while (0)
-#endif
-
 void ehea_dump(void *adr, int len, char *msg);
 
 #define EHEA_BMASK(pos, length) (((pos) << 16) + (length))
