@@ -197,7 +197,7 @@ static void sig_atexit(void)
 	if (child_pid > 0)
 		kill(child_pid, SIGTERM);
 
-	if (signr == -1)
+	if (signr == -1 || signr == SIGUSR1)
 		return;
 
 	signal(signr, SIG_DFL);
@@ -515,6 +515,7 @@ static int __cmd_record(int argc, const char **argv)
 	atexit(sig_atexit);
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
+	signal(SIGUSR1, sig_handler);
 
 	if (forks && (pipe(child_ready_pipe) < 0 || pipe(go_pipe) < 0)) {
 		perror("failed to create pipes");
@@ -606,6 +607,7 @@ static int __cmd_record(int argc, const char **argv)
 			execvp(argv[0], (char **)argv);
 
 			perror(argv[0]);
+			kill(getppid(), SIGUSR1);
 			exit(-1);
 		}
 
@@ -697,17 +699,18 @@ static int __cmd_record(int argc, const char **argv)
 	if (err < 0)
 		err = event__synthesize_kernel_mmap(process_synthesized_event,
 						    session, machine, "_stext");
-	if (err < 0) {
-		pr_err("Couldn't record kernel reference relocation symbol.\n");
-		return err;
-	}
+	if (err < 0)
+		pr_err("Couldn't record kernel reference relocation symbol\n"
+		       "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
+		       "Check /proc/kallsyms permission or run as root.\n");
 
 	err = event__synthesize_modules(process_synthesized_event,
 					session, machine);
-	if (err < 0) {
-		pr_err("Couldn't record kernel reference relocation symbol.\n");
-		return err;
-	}
+	if (err < 0)
+		pr_err("Couldn't record kernel module information.\n"
+		       "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
+		       "Check /proc/modules permission or run as root.\n");
+
 	if (perf_guest)
 		perf_session__process_machines(session, event__synthesize_guest_os);
 
@@ -761,7 +764,7 @@ static int __cmd_record(int argc, const char **argv)
 		}
 	}
 
-	if (quiet)
+	if (quiet || signr == SIGUSR1)
 		return 0;
 
 	fprintf(stderr, "[ perf record: Woken up %ld times to write data ]\n", waking);

@@ -112,7 +112,7 @@ config VIDEO_IR_I2C
 #
 
 menu "Encoders/decoders and other helper chips"
-	depends on !VIDEO_HELPER_CHIPS_AUTO
+	visible if !VIDEO_HELPER_CHIPS_AUTO
 
 comment "Audio decoders"
 

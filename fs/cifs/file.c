@@ -2271,8 +2271,10 @@ void cifs_oplock_break_get(struct cifsFileInfo *cfile)
 
 void cifs_oplock_break_put(struct cifsFileInfo *cfile)
 {
+	struct super_block *sb = cfile->dentry->d_sb;
+
 	cifsFileInfo_put(cfile);
-	cifs_sb_deactive(cfile->dentry->d_sb);
+	cifs_sb_deactive(sb);
 }
 
 const struct address_space_operations cifs_addr_ops = {

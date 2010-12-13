@@ -92,6 +92,59 @@
 
 /* ----------------------------------------------------------------------- */
 
+/* Maps the buffer to dma  */
+
+static inline void map_dma_buffer(struct musb_request *request,
+				struct musb *musb)
+{
+	if (request->request.dma == DMA_ADDR_INVALID) {
+		request->request.dma = dma_map_single(
+				musb->controller,
+				request->request.buf,
+				request->request.length,
+				request->tx
+					? DMA_TO_DEVICE
+					: DMA_FROM_DEVICE);
+		request->mapped = 1;
+	} else {
+		dma_sync_single_for_device(musb->controller,
+			request->request.dma,
+			request->request.length,
+			request->tx
+				? DMA_TO_DEVICE
+				: DMA_FROM_DEVICE);
+		request->mapped = 0;
+	}
+}
+
+/* Unmap the buffer from dma and maps it back to cpu */
+static inline void unmap_dma_buffer(struct musb_request *request,
+				struct musb *musb)
+{
+	if (request->request.dma == DMA_ADDR_INVALID) {
+		DBG(20, "not unmapping a never mapped buffer\n");
+		return;
+	}
+	if (request->mapped) {
+		dma_unmap_single(musb->controller,
+			request->request.dma,
+			request->request.length,
+			request->tx
+				? DMA_TO_DEVICE
+				: DMA_FROM_DEVICE);
+		request->request.dma = DMA_ADDR_INVALID;
+		request->mapped = 0;
+	} else {
+		dma_sync_single_for_cpu(musb->controller,
+			request->request.dma,
+			request->request.length,
+			request->tx
+				? DMA_TO_DEVICE
+				: DMA_FROM_DEVICE);
+
+	}
+}
+
 /*
  * Immediately complete a request.
  *
@@ -119,24 +172,8 @@ __acquires(ep->musb->lock)
 
 	ep->busy = 1;
 	spin_unlock(&musb->lock);
-	if (is_dma_capable()) {
-		if (req->mapped) {
-			dma_unmap_single(musb->controller,
-					req->request.dma,
-					req->request.length,
-					req->tx
-						? DMA_TO_DEVICE
-						: DMA_FROM_DEVICE);
-			req->request.dma = DMA_ADDR_INVALID;
-			req->mapped = 0;
-		} else if (req->request.dma != DMA_ADDR_INVALID)
-			dma_sync_single_for_cpu(musb->controller,
-					req->request.dma,
-					req->request.length,
-					req->tx
-						? DMA_TO_DEVICE
-						: DMA_FROM_DEVICE);
-	}
+	if (is_dma_capable() && ep->dma)
+		unmap_dma_buffer(req, musb);
 	if (request->status == 0)
 		DBG(5, "%s done request %p,  %d/%d\n",
 				ep->end_point.name, request,
@@ -395,6 +432,13 @@ static void txstate(struct musb *musb, struct musb_request *req)
 #endif
 
 	if (!use_dma) {
+		/*
+		 * Unmap the dma buffer back to cpu if dma channel
+		 * programming fails
+		 */
+		if (is_dma_capable() && musb_ep->dma)
+			unmap_dma_buffer(req, musb);
+
 		musb_write_fifo(musb_ep->hw_ep, fifo_count,
 				(u8 *) (request->buf + request->actual));
 		request->actual += fifo_count;
@@ -713,6 +757,21 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 					return;
 			}
 #endif
+			/*
+			 * Unmap the dma buffer back to cpu if dma channel
+			 * programming fails. This buffer is mapped if the
+			 * channel allocation is successful
+			 */
+			 if (is_dma_capable() && musb_ep->dma) {
+				unmap_dma_buffer(req, musb);
+
+				/*
+				 * Clear DMAENAB and AUTOCLEAR for the
+				 * PIO mode transfer
+				 */
+				csr &= ~(MUSB_RXCSR_DMAENAB | MUSB_RXCSR_AUTOCLEAR);
+				musb_writew(epio, MUSB_RXCSR, csr);
+			}
 
 			musb_read_fifo(musb_ep->hw_ep, fifo_count, (u8 *)
 					(request->buf + request->actual));
@@ -837,7 +896,9 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 		if (!request)
 			return;
 	}
+#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_TUSB_OMAP_DMA)
 exit:
+#endif
 	/* Analyze request */
 	rxstate(musb, to_musb_request(request));
 }
@@ -1150,26 +1211,9 @@ static int musb_gadget_queue(struct usb_ep *ep, struct usb_request *req,
 	request->epnum = musb_ep->current_epnum;
 	request->tx = musb_ep->is_in;
 
-	if (is_dma_capable() && musb_ep->dma) {
-		if (request->request.dma == DMA_ADDR_INVALID) {
-			request->request.dma = dma_map_single(
-					musb->controller,
-					request->request.buf,
-					request->request.length,
-					request->tx
-						? DMA_TO_DEVICE
-						: DMA_FROM_DEVICE);
-			request->mapped = 1;
-		} else {
-			dma_sync_single_for_device(musb->controller,
-					request->request.dma,
-					request->request.length,
-					request->tx
-						? DMA_TO_DEVICE
-						: DMA_FROM_DEVICE);
-			request->mapped = 0;
-		}
-	} else
+	if (is_dma_capable() && musb_ep->dma)
+		map_dma_buffer(request, musb);
+	else
 		request->mapped = 0;
 
 	spin_lock_irqsave(&musb->lock, lockflags);
@@ -1789,6 +1833,8 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		spin_unlock_irqrestore(&musb->lock, flags);
 
 		if (is_otg_enabled(musb)) {
+			struct usb_hcd	*hcd = musb_to_hcd(musb);
+
 			DBG(3, "OTG startup...\n");
 
 			/* REVISIT:  funcall to other code, which also
@@ -1803,6 +1849,8 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 				musb->gadget_driver = NULL;
 				musb->g.dev.driver = NULL;
 				spin_unlock_irqrestore(&musb->lock, flags);
+			} else {
+				hcd->self.uses_pio_for_control = 1;
 			}
 		}
 	}
