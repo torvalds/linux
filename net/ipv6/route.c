@@ -1105,7 +1105,7 @@ static int ipv6_get_mtu(struct net_device *dev)
 int ip6_dst_hoplimit(struct dst_entry *dst)
 {
 	int hoplimit = dst_metric_raw(dst, RTAX_HOPLIMIT);
-	if (hoplimit < 0) {
+	if (hoplimit == 0) {
 		struct net_device *dev = dst->dev;
 		struct inet6_dev *idev;
 
@@ -1310,8 +1310,6 @@ install_route:
 		}
 	}
 
-	if (dst_metric_raw(&rt->dst, RTAX_HOPLIMIT) == 0)
-		dst_metric_set(&rt->dst, RTAX_HOPLIMIT, -1);
 	if (!dst_mtu(&rt->dst))
 		dst_metric_set(&rt->dst, RTAX_MTU, ipv6_get_mtu(dev));
 	if (!dst_metric(&rt->dst, RTAX_ADVMSS))
