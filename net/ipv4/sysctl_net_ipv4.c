@@ -28,6 +28,8 @@ static int ip_local_port_range_min[] = { 1, 1 };
 static int ip_local_port_range_max[] = { 65535, 65535 };
 static int tcp_adv_win_scale_min = -31;
 static int tcp_adv_win_scale_max = 31;
+static int ip_ttl_min = 1;
+static int ip_ttl_max = 255;
 
 /* Update system visible IP port range */
 static void set_local_port_range(int range[2])
@@ -155,8 +157,9 @@ static struct ctl_table ipv4_table[] = {
 		.data		= &sysctl_ip_default_ttl,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-		.extra2		= &init_net,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &ip_ttl_min,
+		.extra2		= &ip_ttl_max,
 	},
 	{
 		.procname	= "ip_no_pmtu_disc",
