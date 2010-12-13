@@ -51,6 +51,12 @@
 #define PTE_READABLE				(1 << 5)
 #define PTE_WRITEABLE				(1 << 6)
 
+/* tiling bits */
+#define     ARRAY_LINEAR_GENERAL              0x00000000
+#define     ARRAY_LINEAR_ALIGNED              0x00000001
+#define     ARRAY_1D_TILED_THIN1              0x00000002
+#define     ARRAY_2D_TILED_THIN1              0x00000004
+
 /* Registers */
 #define	ARB_POP						0x2418
 #define 	ENABLE_TC128					(1 << 30)

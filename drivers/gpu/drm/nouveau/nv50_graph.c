@@ -402,3 +402,55 @@ struct nouveau_pgraph_object_class nv50_graph_grclass[] = {
 	{ 0x8597, false, NULL }, /* tesla (nva3, nva5, nva8) */
 	{}
 };
+
+void
+nv50_graph_tlb_flush(struct drm_device *dev)
+{
+	nv50_vm_flush(dev, 0);
+}
+
+void
+nv86_graph_tlb_flush(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
+	bool idle, timeout = false;
+	unsigned long flags;
+	u64 start;
+	u32 tmp;
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+	nv_mask(dev, 0x400500, 0x00000001, 0x00000000);
+
+	start = ptimer->read(dev);
+	do {
+		idle = true;
+
+		for (tmp = nv_rd32(dev, 0x400380); tmp && idle; tmp >>= 3) {
+			if ((tmp & 7) == 1)
+				idle = false;
+		}
+
+		for (tmp = nv_rd32(dev, 0x400384); tmp && idle; tmp >>= 3) {
+			if ((tmp & 7) == 1)
+				idle = false;
+		}
+
+		for (tmp = nv_rd32(dev, 0x400388); tmp && idle; tmp >>= 3) {
+			if ((tmp & 7) == 1)
+				idle = false;
+		}
+	} while (!idle && !(timeout = ptimer->read(dev) - start > 2000000000));
+
+	if (timeout) {
+		NV_ERROR(dev, "PGRAPH TLB flush idle timeout fail: "
+			      "0x%08x 0x%08x 0x%08x 0x%08x\n",
+			 nv_rd32(dev, 0x400700), nv_rd32(dev, 0x400380),
+			 nv_rd32(dev, 0x400384), nv_rd32(dev, 0x400388));
+	}
+
+	nv50_vm_flush(dev, 0);
+
+	nv_mask(dev, 0x400500, 0x00000001, 0x00000001);
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
+}
