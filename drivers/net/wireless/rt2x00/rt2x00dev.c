@@ -235,6 +235,7 @@ EXPORT_SYMBOL_GPL(rt2x00lib_dmastart);
 
 void rt2x00lib_dmadone(struct queue_entry *entry)
 {
+	set_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags);
 	clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 	rt2x00queue_index_inc(entry->queue, Q_INDEX_DMA_DONE);
 }

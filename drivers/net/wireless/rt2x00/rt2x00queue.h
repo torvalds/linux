@@ -340,12 +340,16 @@ struct txentry_desc {
  * @ENTRY_DATA_IO_FAILED: Hardware indicated that an IO error occured
  *	while transfering the data to the hardware. No TX status report will
  *	be expected from the hardware.
+ * @ENTRY_DATA_STATUS_PENDING: The entry has been send to the device and
+ *	returned. It is now waiting for the status reporting before the
+ *	entry can be reused again.
  */
 enum queue_entry_flags {
 	ENTRY_BCN_ASSIGNED,
 	ENTRY_OWNER_DEVICE_DATA,
 	ENTRY_DATA_PENDING,
-	ENTRY_DATA_IO_FAILED
+	ENTRY_DATA_IO_FAILED,
+	ENTRY_DATA_STATUS_PENDING,
 };
 
 /**

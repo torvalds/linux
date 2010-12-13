@@ -195,7 +195,8 @@ static void rt2x00usb_work_txdone(struct work_struct *work)
 		while (!rt2x00queue_empty(queue)) {
 			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 
-			if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+			if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
+			    !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
 				break;
 
 			rt2x00usb_work_txdone_entry(entry);
@@ -237,7 +238,8 @@ static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 	u32 length;
 	int status;
 
-	if (!test_and_clear_bit(ENTRY_DATA_PENDING, &entry->flags))
+	if (!test_and_clear_bit(ENTRY_DATA_PENDING, &entry->flags) ||
+	    test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
 		return;
 
 	/*
@@ -275,7 +277,8 @@ static void rt2x00usb_work_rxdone(struct work_struct *work)
 	while (!rt2x00queue_empty(rt2x00dev->rx)) {
 		entry = rt2x00queue_get_entry(rt2x00dev->rx, Q_INDEX_DONE);
 
-		if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+		if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
+		    !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
 			break;
 
 		/*
@@ -327,7 +330,8 @@ static void rt2x00usb_kick_rx_entry(struct queue_entry *entry)
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	int status;
 
-	if (test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
+	if (test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
+	    test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
 		return;
 
 	rt2x00lib_dmastart(entry);
