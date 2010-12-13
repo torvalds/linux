@@ -1747,6 +1747,16 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 		__netif_schedule(txq->qdisc);
 }
 
+/*
+ * Returns a Tx hash for the given packet when dev->real_num_tx_queues is used
+ * as a distribution range limit for the returned value.
+ */
+static inline u16 skb_tx_hash(const struct net_device *dev,
+			      const struct sk_buff *skb)
+{
+	return __skb_tx_hash(dev, skb, dev->real_num_tx_queues);
+}
+
 /**
  *	netif_is_multiqueue - test if device has multiple transmit queues
  *	@dev: network device
