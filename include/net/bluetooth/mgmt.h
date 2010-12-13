@@ -39,6 +39,25 @@ struct mgmt_rp_read_index_list {
 	__le16 index[0];
 } __packed;
 
+#define MGMT_OP_READ_INFO		0x0004
+struct mgmt_cp_read_info {
+	__le16 index;
+} __packed;
+struct mgmt_rp_read_info {
+	__le16 index;
+	__u8 type;
+	__u8 powered;
+	__u8 discoverable;
+	__u8 pairable;
+	__u8 sec_mode;
+	bdaddr_t bdaddr;
+	__u8 dev_class[3];
+	__u8 features[8];
+	__u16 manufacturer;
+	__u8 hci_ver;
+	__u16 hci_rev;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;

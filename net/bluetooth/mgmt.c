@@ -32,6 +32,33 @@
 #define MGMT_VERSION	0
 #define MGMT_REVISION	1
 
+static int cmd_status(struct sock *sk, u16 cmd, u8 status)
+{
+	struct sk_buff *skb;
+	struct mgmt_hdr *hdr;
+	struct mgmt_ev_cmd_status *ev;
+
+	BT_DBG("sock %p", sk);
+
+	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev), GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	hdr = (void *) skb_put(skb, sizeof(*hdr));
+
+	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_STATUS);
+	hdr->len = cpu_to_le16(sizeof(*ev));
+
+	ev = (void *) skb_put(skb, sizeof(*ev));
+	ev->status = status;
+	put_unaligned_le16(cmd, &ev->opcode);
+
+	if (sock_queue_rcv_skb(sk, skb) < 0)
+		kfree_skb(skb);
+
+	return 0;
+}
+
 static int read_version(struct sock *sk)
 {
 	struct sk_buff *skb;
@@ -112,26 +139,70 @@ static int read_index_list(struct sock *sk)
 	return 0;
 }
 
-static int cmd_status(struct sock *sk, u16 cmd, u8 status)
+static int read_controller_info(struct sock *sk, unsigned char *data, u16 len)
 {
 	struct sk_buff *skb;
 	struct mgmt_hdr *hdr;
-	struct mgmt_ev_cmd_status *ev;
+	struct mgmt_ev_cmd_complete *ev;
+	struct mgmt_rp_read_info *rp;
+	struct mgmt_cp_read_info *cp;
+	struct hci_dev *hdev;
+	u16 dev_id;
 
 	BT_DBG("sock %p", sk);
 
-	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev), GFP_ATOMIC);
+	if (len != 2)
+		return cmd_status(sk, MGMT_OP_READ_INFO, EINVAL);
+
+	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + sizeof(*rp), GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
 	hdr = (void *) skb_put(skb, sizeof(*hdr));
-
-	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_STATUS);
-	hdr->len = cpu_to_le16(sizeof(*ev));
+	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
+	hdr->len = cpu_to_le16(sizeof(*ev) + sizeof(*rp));
 
 	ev = (void *) skb_put(skb, sizeof(*ev));
-	ev->status = status;
-	put_unaligned_le16(cmd, &ev->opcode);
+	put_unaligned_le16(MGMT_OP_READ_INFO, &ev->opcode);
+
+	rp = (void *) skb_put(skb, sizeof(*rp));
+
+	cp = (void *) data;
+	dev_id = get_unaligned_le16(&cp->index);
+
+	BT_DBG("request for hci%u", dev_id);
+
+	hdev = hci_dev_get(dev_id);
+	if (!hdev) {
+		kfree_skb(skb);
+		return cmd_status(sk, MGMT_OP_READ_INFO, ENODEV);
+	}
+
+	hci_dev_lock_bh(hdev);
+
+	put_unaligned_le16(hdev->id, &rp->index);
+	rp->type = hdev->dev_type;
+
+	rp->powered = test_bit(HCI_UP, &hdev->flags);
+	rp->discoverable = test_bit(HCI_ISCAN, &hdev->flags);
+	rp->pairable = test_bit(HCI_PSCAN, &hdev->flags);
+
+	if (test_bit(HCI_AUTH, &hdev->flags))
+		rp->sec_mode = 3;
+	else if (hdev->ssp_mode > 0)
+		rp->sec_mode = 4;
+	else
+		rp->sec_mode = 2;
+
+	bacpy(&rp->bdaddr, &hdev->bdaddr);
+	memcpy(rp->features, hdev->features, 8);
+	memcpy(rp->dev_class, hdev->dev_class, 3);
+	put_unaligned_le16(hdev->manufacturer, &rp->manufacturer);
+	rp->hci_ver = hdev->hci_ver;
+	put_unaligned_le16(hdev->hci_rev, &rp->hci_rev);
+
+	hci_dev_unlock_bh(hdev);
+	hci_dev_put(hdev);
 
 	if (sock_queue_rcv_skb(sk, skb) < 0)
 		kfree_skb(skb);
@@ -175,6 +246,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 		break;
 	case MGMT_OP_READ_INDEX_LIST:
 		err = read_index_list(sk);
+		break;
+	case MGMT_OP_READ_INFO:
+		err = read_controller_info(sk, buf + sizeof(*hdr), len);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
