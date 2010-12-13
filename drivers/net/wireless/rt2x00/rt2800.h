@@ -1841,32 +1841,51 @@ struct mac_iveiv_entry {
 #define EEPROM_MAC_ADDR_BYTE5		FIELD16(0xff00)
 
 /*
- * EEPROM ANTENNA config
+ * EEPROM NIC Configuration 0
  * RXPATH: 1: 1R, 2: 2R, 3: 3R
- * TXPATH: 1: 1T, 2: 2T
+ * TXPATH: 1: 1T, 2: 2T, 3: 3T
+ * RF_TYPE: RFIC type
  */
-#define	EEPROM_ANTENNA			0x001a
-#define EEPROM_ANTENNA_RXPATH		FIELD16(0x000f)
-#define EEPROM_ANTENNA_TXPATH		FIELD16(0x00f0)
-#define EEPROM_ANTENNA_RF_TYPE		FIELD16(0x0f00)
+#define	EEPROM_NIC_CONF0		0x001a
+#define EEPROM_NIC_CONF0_RXPATH		FIELD16(0x000f)
+#define EEPROM_NIC_CONF0_TXPATH		FIELD16(0x00f0)
+#define EEPROM_NIC_CONF0_RF_TYPE		FIELD16(0x0f00)
 
 /*
- * EEPROM NIC config
- * CARDBUS_ACCEL: 0 - enable, 1 - disable
+ * EEPROM NIC Configuration 1
+ * HW_RADIO: 0: disable, 1: enable
+ * EXTERNAL_TX_ALC: 0: disable, 1: enable
+ * EXTERNAL_LNA_2G: 0: disable, 1: enable
+ * EXTERNAL_LNA_5G: 0: disable, 1: enable
+ * CARDBUS_ACCEL: 0: enable, 1: disable
+ * BW40M_SB_2G: 0: disable, 1: enable
+ * BW40M_SB_5G: 0: disable, 1: enable
+ * WPS_PBC: 0: disable, 1: enable
+ * BW40M_2G: 0: enable, 1: disable
+ * BW40M_5G: 0: enable, 1: disable
+ * BROADBAND_EXT_LNA: 0: disable, 1: enable
+ * ANT_DIVERSITY: 00: Disable, 01: Diversity,
+ * 				  10: Main antenna, 11: Aux antenna
+ * INTERNAL_TX_ALC: 0: disable, 1: enable
+ * BT_COEXIST: 0: disable, 1: enable
+ * DAC_TEST: 0: disable, 1: enable
  */
-#define	EEPROM_NIC			0x001b
-#define EEPROM_NIC_HW_RADIO		FIELD16(0x0001)
-#define EEPROM_NIC_DYNAMIC_TX_AGC	FIELD16(0x0002)
-#define EEPROM_NIC_EXTERNAL_LNA_BG	FIELD16(0x0004)
-#define EEPROM_NIC_EXTERNAL_LNA_A	FIELD16(0x0008)
-#define EEPROM_NIC_CARDBUS_ACCEL	FIELD16(0x0010)
-#define EEPROM_NIC_BW40M_SB_BG		FIELD16(0x0020)
-#define EEPROM_NIC_BW40M_SB_A		FIELD16(0x0040)
-#define EEPROM_NIC_WPS_PBC		FIELD16(0x0080)
-#define EEPROM_NIC_BW40M_BG		FIELD16(0x0100)
-#define EEPROM_NIC_BW40M_A		FIELD16(0x0200)
-#define EEPROM_NIC_ANT_DIVERSITY	FIELD16(0x0800)
-#define EEPROM_NIC_DAC_TEST		FIELD16(0x8000)
+#define	EEPROM_NIC_CONF1		0x001b
+#define EEPROM_NIC_CONF1_HW_RADIO		FIELD16(0x0001)
+#define EEPROM_NIC_CONF1_EXTERNAL_TX_ALC		FIELD16(0x0002)
+#define EEPROM_NIC_CONF1_EXTERNAL_LNA_2G		FIELD16(0x0004)
+#define EEPROM_NIC_CONF1_EXTERNAL_LNA_5G		FIELD16(0x0008)
+#define EEPROM_NIC_CONF1_CARDBUS_ACCEL		FIELD16(0x0010)
+#define EEPROM_NIC_CONF1_BW40M_SB_2G		FIELD16(0x0020)
+#define EEPROM_NIC_CONF1_BW40M_SB_5G		FIELD16(0x0040)
+#define EEPROM_NIC_CONF1_WPS_PBC		FIELD16(0x0080)
+#define EEPROM_NIC_CONF1_BW40M_2G		FIELD16(0x0100)
+#define EEPROM_NIC_CONF1_BW40M_5G		FIELD16(0x0200)
+#define EEPROM_NIC_CONF1_BROADBAND_EXT_LNA		FIELD16(0x400)
+#define EEPROM_NIC_CONF1_ANT_DIVERSITY		FIELD16(0x1800)
+#define EEPROM_NIC_CONF1_INTERNAL_TX_ALC		FIELD16(0x2000)
+#define EEPROM_NIC_CONF1_BT_COEXIST		FIELD16(0x4000)
+#define EEPROM_NIC_CONF1_DAC_TEST		FIELD16(0x8000)
 
 /*
  * EEPROM frequency
@@ -1888,9 +1907,9 @@ struct mac_iveiv_entry {
  * POLARITY_GPIO_4: Polarity GPIO4 setting.
  * LED_MODE: Led mode.
  */
-#define EEPROM_LED1			0x001e
-#define EEPROM_LED2			0x001f
-#define EEPROM_LED3			0x0020
+#define EEPROM_LED_AG_CONF		0x001e
+#define EEPROM_LED_ACT_CONF		0x001f
+#define EEPROM_LED_POLARITY		0x0020
 #define EEPROM_LED_POLARITY_RDY_BG	FIELD16(0x0001)
 #define EEPROM_LED_POLARITY_RDY_A	FIELD16(0x0002)
 #define EEPROM_LED_POLARITY_ACT		FIELD16(0x0004)
@@ -1900,6 +1919,17 @@ struct mac_iveiv_entry {
 #define EEPROM_LED_POLARITY_GPIO_3	FIELD16(0x0040)
 #define EEPROM_LED_POLARITY_GPIO_4	FIELD16(0x0080)
 #define EEPROM_LED_LED_MODE		FIELD16(0x1f00)
+
+/*
+ * EEPROM NIC Configuration 2
+ * RX_STREAM: 0: Reserved, 1: 1 Stream, 2: 2 Stream
+ * TX_STREAM: 0: Reserved, 1: 1 Stream, 2: 2 Stream
+ * CRYSTAL: 00: Reserved, 01: One crystal, 10: Two crystal, 11: Reserved
+ */
+#define EEPROM_NIC_CONF2		0x0021
+#define EEPROM_NIC_CONF2_RX_STREAM		FIELD16(0x000f)
+#define EEPROM_NIC_CONF2_TX_STREAM		FIELD16(0x00f0)
+#define EEPROM_NIC_CONF2_CRYSTAL		FIELD16(0x0600)
 
 /*
  * EEPROM LNA
@@ -1951,7 +1981,7 @@ struct mac_iveiv_entry {
 
 /*
  * EEPROM TXpower delta: 20MHZ AND 40 MHZ use different power.
- *	This is delta in 40MHZ.
+ * This is delta in 40MHZ.
  * VALUE: Tx Power dalta value (MAX=4)
  * TYPE: 1: Plus the delta value, 0: minus the delta value
  * TXPOWER: Enable:
@@ -2007,9 +2037,9 @@ struct mac_iveiv_entry {
 #define MCU_CURRENT			0x36
 #define MCU_LED				0x50
 #define MCU_LED_STRENGTH		0x51
-#define MCU_LED_1			0x52
-#define MCU_LED_2			0x53
-#define MCU_LED_3			0x54
+#define MCU_LED_AG_CONF		0x52
+#define MCU_LED_ACT_CONF		0x53
+#define MCU_LED_LED_POLARITY		0x54
 #define MCU_RADAR			0x60
 #define MCU_BOOT_SIGNAL			0x72
 #define MCU_BBP_SIGNAL			0x80

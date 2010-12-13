@@ -1930,8 +1930,8 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 		if (rt2x00_rt_rev_lt(rt2x00dev, RT3071, REV_RT3071E) ||
 		    rt2x00_rt_rev_lt(rt2x00dev, RT3090, REV_RT3090E) ||
 		    rt2x00_rt_rev_lt(rt2x00dev, RT3390, REV_RT3390E)) {
-			rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &eeprom);
-			if (rt2x00_get_field16(eeprom, EEPROM_NIC_DAC_TEST))
+			rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
+			if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_DAC_TEST))
 				rt2800_register_write(rt2x00dev, TX_SW_CFG2,
 						      0x0000002c);
 			else
@@ -2376,10 +2376,10 @@ static int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	    rt2x00_rt(rt2x00dev, RT3390)) {
 		rt2800_bbp_read(rt2x00dev, 138, &value);
 
-		rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &eeprom);
-		if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_TXPATH) == 1)
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF0, &eeprom);
+		if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_TXPATH) == 1)
 			value |= 0x20;
-		if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RXPATH) == 1)
+		if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RXPATH) == 1)
 			value &= ~0x02;
 
 		rt2800_bbp_write(rt2x00dev, 138, value);
@@ -2591,8 +2591,8 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field32(&reg, LDO_CFG0_BGSEL, 1);
 		if (rt2x00_rt_rev_lt(rt2x00dev, RT3071, REV_RT3071E) ||
 		    rt2x00_rt_rev_lt(rt2x00dev, RT3090, REV_RT3090E)) {
-			rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &eeprom);
-			if (rt2x00_get_field16(eeprom, EEPROM_NIC_DAC_TEST))
+			rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
+			if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_DAC_TEST))
 				rt2x00_set_field32(&reg, LDO_CFG0_LDO_CORE_VLEVEL, 3);
 			else
 				rt2x00_set_field32(&reg, LDO_CFG0_LDO_CORE_VLEVEL, 0);
@@ -2665,10 +2665,10 @@ static int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	if (rt2x00_rt(rt2x00dev, RT3090)) {
 		rt2800_bbp_read(rt2x00dev, 138, &bbp);
 
-		rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &eeprom);
-		if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RXPATH) == 1)
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF0, &eeprom);
+		if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RXPATH) == 1)
 			rt2x00_set_field8(&bbp, BBP138_RX_ADC1, 0);
-		if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_TXPATH) == 1)
+		if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_TXPATH) == 1)
 			rt2x00_set_field8(&bbp, BBP138_TX_DAC1, 1);
 
 		rt2800_bbp_write(rt2x00dev, 138, bbp);
@@ -2767,16 +2767,16 @@ int rt2800_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize LED control
 	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED1, &word);
-	rt2800_mcu_request(rt2x00dev, MCU_LED_1, 0xff,
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED_AG_CONF, &word);
+	rt2800_mcu_request(rt2x00dev, MCU_LED_AG_CONF, 0xff,
 			   word & 0xff, (word >> 8) & 0xff);
 
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED2, &word);
-	rt2800_mcu_request(rt2x00dev, MCU_LED_2, 0xff,
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED_ACT_CONF, &word);
+	rt2800_mcu_request(rt2x00dev, MCU_LED_ACT_CONF, 0xff,
 			   word & 0xff, (word >> 8) & 0xff);
 
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED3, &word);
-	rt2800_mcu_request(rt2x00dev, MCU_LED_3, 0xff,
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED_POLARITY, &word);
+	rt2800_mcu_request(rt2x00dev, MCU_LED_LED_POLARITY, 0xff,
 			   word & 0xff, (word >> 8) & 0xff);
 
 	return 0;
@@ -2870,38 +2870,41 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		EEPROM(rt2x00dev, "MAC: %pM\n", mac);
 	}
 
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &word);
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF0, &word);
 	if (word == 0xffff) {
-		rt2x00_set_field16(&word, EEPROM_ANTENNA_RXPATH, 2);
-		rt2x00_set_field16(&word, EEPROM_ANTENNA_TXPATH, 1);
-		rt2x00_set_field16(&word, EEPROM_ANTENNA_RF_TYPE, RF2820);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_ANTENNA, word);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF0_RXPATH, 2);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF0_TXPATH, 1);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF0_RF_TYPE, RF2820);
+		rt2x00_eeprom_write(rt2x00dev, EEPROM_NIC_CONF0, word);
 		EEPROM(rt2x00dev, "Antenna: 0x%04x\n", word);
 	} else if (rt2x00_rt(rt2x00dev, RT2860) ||
 		   rt2x00_rt(rt2x00dev, RT2872)) {
 		/*
 		 * There is a max of 2 RX streams for RT28x0 series
 		 */
-		if (rt2x00_get_field16(word, EEPROM_ANTENNA_RXPATH) > 2)
-			rt2x00_set_field16(&word, EEPROM_ANTENNA_RXPATH, 2);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_ANTENNA, word);
+		if (rt2x00_get_field16(word, EEPROM_NIC_CONF0_RXPATH) > 2)
+			rt2x00_set_field16(&word, EEPROM_NIC_CONF0_RXPATH, 2);
+		rt2x00_eeprom_write(rt2x00dev, EEPROM_NIC_CONF0, word);
 	}
 
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &word);
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &word);
 	if (word == 0xffff) {
-		rt2x00_set_field16(&word, EEPROM_NIC_HW_RADIO, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_DYNAMIC_TX_AGC, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_EXTERNAL_LNA_BG, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_EXTERNAL_LNA_A, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_CARDBUS_ACCEL, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_BW40M_SB_BG, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_BW40M_SB_A, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_WPS_PBC, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_BW40M_BG, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_BW40M_A, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_ANT_DIVERSITY, 0);
-		rt2x00_set_field16(&word, EEPROM_NIC_DAC_TEST, 0);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_NIC, word);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_HW_RADIO, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_EXTERNAL_TX_ALC, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_EXTERNAL_LNA_2G, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_EXTERNAL_LNA_5G, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_CARDBUS_ACCEL, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_BW40M_SB_2G, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_BW40M_SB_5G, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_WPS_PBC, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_BW40M_2G, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_BW40M_5G, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_BROADBAND_EXT_LNA, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_ANT_DIVERSITY, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_INTERNAL_TX_ALC, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_BT_COEXIST, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_CONF1_DAC_TEST, 0);
+		rt2x00_eeprom_write(rt2x00dev, EEPROM_NIC_CONF1, word);
 		EEPROM(rt2x00dev, "NIC: 0x%04x\n", word);
 	}
 
@@ -2916,9 +2919,9 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 				   LED_MODE_TXRX_ACTIVITY);
 		rt2x00_set_field16(&word, EEPROM_FREQ_LED_POLARITY, 0);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_FREQ, word);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED1, 0x5555);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED2, 0x2221);
-		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED3, 0xa9f8);
+		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED_AG_CONF, 0x5555);
+		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED_ACT_CONF, 0x2221);
+		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED_POLARITY, 0xa9f8);
 		EEPROM(rt2x00dev, "Led Mode: 0x%04x\n", word);
 	}
 
@@ -2982,12 +2985,12 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Read EEPROM word for configuration.
 	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &eeprom);
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF0, &eeprom);
 
 	/*
 	 * Identify RF chipset.
 	 */
-	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
+	value = rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RF_TYPE);
 	rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
 
 	rt2x00_set_chip(rt2x00dev, rt2x00_get_field32(reg, MAC_CSR0_CHIPSET),
@@ -3023,9 +3026,9 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * Identify default antenna configuration.
 	 */
 	rt2x00dev->default_ant.tx =
-	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_TXPATH);
+	    rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_TXPATH);
 	rt2x00dev->default_ant.rx =
-	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RXPATH);
+	    rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RXPATH);
 
 	/*
 	 * Read frequency offset and RF programming sequence.
@@ -3036,17 +3039,17 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Read external LNA informations.
 	 */
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &eeprom);
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
 
-	if (rt2x00_get_field16(eeprom, EEPROM_NIC_EXTERNAL_LNA_A))
+	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_EXTERNAL_LNA_5G))
 		__set_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags);
-	if (rt2x00_get_field16(eeprom, EEPROM_NIC_EXTERNAL_LNA_BG))
+	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_EXTERNAL_LNA_2G))
 		__set_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags);
 
 	/*
 	 * Detect if this device has an hardware controlled radio.
 	 */
-	if (rt2x00_get_field16(eeprom, EEPROM_NIC_HW_RADIO))
+	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF1_HW_RADIO))
 		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
 
 	/*
@@ -3258,7 +3261,7 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->hw->max_report_rates = 7;
 	rt2x00dev->hw->max_rate_tries = 1;
 
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &eeprom);
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF0, &eeprom);
 
 	/*
 	 * Initialize hw_mode information.
@@ -3302,11 +3305,11 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HT_CAP_SGI_20 |
 	    IEEE80211_HT_CAP_SGI_40;
 
-	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_TXPATH) >= 2)
+	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_TXPATH) >= 2)
 		spec->ht.cap |= IEEE80211_HT_CAP_TX_STBC;
 
 	spec->ht.cap |=
-	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RXPATH) <<
+	    rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RXPATH) <<
 		IEEE80211_HT_CAP_RX_STBC_SHIFT;
 
 	spec->ht.ampdu_factor = 3;
@@ -3314,10 +3317,10 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	spec->ht.mcs.tx_params =
 	    IEEE80211_HT_MCS_TX_DEFINED |
 	    IEEE80211_HT_MCS_TX_RX_DIFF |
-	    ((rt2x00_get_field16(eeprom, EEPROM_ANTENNA_TXPATH) - 1) <<
+	    ((rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_TXPATH) - 1) <<
 		IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
 
-	switch (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RXPATH)) {
+	switch (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RXPATH)) {
 	case 3:
 		spec->ht.mcs.rx_mask[2] = 0xff;
 	case 2:
