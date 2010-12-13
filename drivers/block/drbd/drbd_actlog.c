@@ -151,7 +151,7 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 int drbd_md_sync_page_io(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 			 sector_t sector, int rw)
 {
-	int ok;
+	int err;
 	struct page *iop = mdev->md_io_page;
 
 	D_ASSERT(mutex_is_locked(&mdev->md_io_mutex));
@@ -168,14 +168,12 @@ int drbd_md_sync_page_io(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 		     current->comm, current->pid, __func__,
 		     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
 
-	ok = !_drbd_md_sync_page_io(mdev, bdev, iop, sector, rw, MD_BLOCK_SIZE);
-	if (unlikely(!ok)) {
+	err = _drbd_md_sync_page_io(mdev, bdev, iop, sector, rw, MD_BLOCK_SIZE);
+	if (err) {
 		dev_err(DEV, "drbd_md_sync_page_io(,%llus,%s) failed!\n",
 		    (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
-		return 0;
 	}
-
-	return ok;
+	return err;
 }
 
 static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr)
@@ -392,7 +390,7 @@ w_al_write_transaction(struct drbd_work *w, int unused)
 	if (drbd_bm_write_hinted(mdev))
 		aw->err = -EIO;
 		/* drbd_chk_io_error done already */
-	else if (!drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
+	else if (drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
 		aw->err = -EIO;
 		drbd_chk_io_error(mdev, 1, true);
 	} else {
@@ -439,7 +437,7 @@ static int drbd_al_read_tr(struct drbd_conf *mdev,
 
 	/* Dont process error normally,
 	 * as this is done before disk is attached! */
-	if (!drbd_md_sync_page_io(mdev, bdev, sector, READ))
+	if (drbd_md_sync_page_io(mdev, bdev, sector, READ))
 		return -1;
 
 	if (!expect(b->magic == cpu_to_be32(DRBD_AL_MAGIC)))
