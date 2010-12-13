@@ -965,6 +965,9 @@ out:
 
 static int __init init_tsc_clocksource(void)
 {
+	if (!cpu_has_tsc || tsc_disabled > 0)
+		return 0;
+
 	if (tsc_clocksource_reliable)
 		clocksource_tsc.flags &= ~CLOCK_SOURCE_MUST_VERIFY;
 	/* lower the rating if we already know its unstable: */
