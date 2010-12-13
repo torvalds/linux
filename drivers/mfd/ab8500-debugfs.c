@@ -189,7 +189,7 @@ static struct ab8500_i2c_ranges debug_ranges[AB8500_NUM_BANKS] = {
 	},
 	[AB8500_DBI] = {
 		.num_ranges = 0,
-		.range = 0,
+		.range = NULL,
 	},
 	[AB8500_ECI_AV_ACC] = {
 		.num_ranges = 1,
@@ -202,7 +202,7 @@ static struct ab8500_i2c_ranges debug_ranges[AB8500_NUM_BANKS] = {
 	},
 	[0x9] = {
 		.num_ranges = 0,
-		.range = 0,
+		.range = NULL,
 	},
 	[AB8500_GPADC] = {
 		.num_ranges = 1,
@@ -278,7 +278,7 @@ static struct ab8500_i2c_ranges debug_ranges[AB8500_NUM_BANKS] = {
 	},
 	[AB8500_INTERRUPT] = {
 		.num_ranges = 0,
-		.range = 0,
+		.range = NULL,
 	},
 	[AB8500_RTC] = {
 		.num_ranges = 1,
@@ -328,19 +328,19 @@ static struct ab8500_i2c_ranges debug_ranges[AB8500_NUM_BANKS] = {
 	},
 	[0x11] = {
 		.num_ranges = 0,
-		.range = 0,
+		.range = NULL,
 	},
 	[0x12] = {
 		.num_ranges = 0,
-		.range = 0,
+		.range = NULL,
 	},
 	[0x13] = {
 		.num_ranges = 0,
-		.range = 0,
+		.range = NULL,
 	},
 	[0x14] = {
 		.num_ranges = 0,
-		.range = 0,
+		.range = NULL,
 	},
 	[AB8500_OTP_EMUL] = {
 		.num_ranges = 1,
