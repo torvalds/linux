@@ -76,22 +76,6 @@ static pin_cfg_t mop500_pins[] = {
 	GPIO217_GPIO,		/* GPIO_EXP_INT */
 };
 
-static void ab4500_spi_cs_control(u32 command)
-{
-	/* set the FRM signal, which is CS  - TODO */
-}
-
-struct pl022_config_chip ab4500_chip_info = {
-	.com_mode = INTERRUPT_TRANSFER,
-	.iface = SSP_INTERFACE_MOTOROLA_SPI,
-	/* we can act as master only */
-	.hierarchy = SSP_MASTER,
-	.slave_tx_disable = 0,
-	.rx_lev_trig = SSP_RX_1_OR_MORE_ELEM,
-	.tx_lev_trig = SSP_TX_1_OR_MORE_EMPTY_LOC,
-	.cs_control = ab4500_spi_cs_control,
-};
-
 static struct ab8500_platform_data ab8500_platdata = {
 	.irq_base	= MOP500_AB8500_IRQ_BASE,
 };
@@ -112,19 +96,6 @@ struct platform_device ab8500_device = {
 	},
 	.num_resources = 1,
 	.resource = ab8500_resources,
-};
-
-static struct spi_board_info ab8500_spi_devices[] = {
-	{
-		.modalias = "ab8500-spi",
-		.controller_data = &ab4500_chip_info,
-		.platform_data = &ab8500_platdata,
-		.max_speed_hz = 12000000,
-		.bus_num = 0,
-		.chip_select = 0,
-		.mode = SPI_MODE_3,
-		.irq = IRQ_DB8500_AB8500,
-	},
 };
 
 static struct pl022_ssp_controller ssp0_platform_data = {
@@ -339,12 +310,7 @@ static void __init u8500_init_machine(void)
 	mop500_spi_init();
 	mop500_uart_init();
 
-	/* If HW is early drop (ED) or V1.0 then use SPI to access AB8500 */
-	if (cpu_is_u8500ed() || cpu_is_u8500v10())
-		spi_register_board_info(ab8500_spi_devices,
-			ARRAY_SIZE(ab8500_spi_devices));
-	else /* If HW is v.1.1 or later use I2C to access AB8500 */
-		platform_device_register(&ab8500_device);
+	platform_device_register(&ab8500_device);
 
 	i2c_register_board_info(0, mop500_i2c0_devices,
 				ARRAY_SIZE(mop500_i2c0_devices));
