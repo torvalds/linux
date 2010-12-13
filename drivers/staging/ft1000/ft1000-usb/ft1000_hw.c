@@ -41,7 +41,6 @@ static int ft1000_chkcard (struct ft1000_device *dev);
 //Jim
 
 static u8 tempbuffer[1600];
-static unsigned long gCardIndex;
 
 #define MAX_RCV_LOOP   100
 
@@ -773,8 +772,7 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 	int i, ret_val;
 	struct list_head *cur, *tmp;
 	char card_nr[2];
-
-	gCardIndex=0; //mbelian
+	unsigned long gCardIndex = 0;
 
     DEBUG("Enter init_ft1000_netdev...\n");
 
@@ -794,9 +792,6 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 
     dev_alloc_name(netdev, netdev->name);
 
-    //for the first inserted card, decide the card index beginning number, in case there are existing network interfaces
-    if ( gCardIndex == 0 )
-    {
         DEBUG("init_ft1000_netdev: network device name is %s\n", netdev->name);
 
 	if ( strncmp(netdev->name,"eth", 3) == 0) {
@@ -816,13 +811,6 @@ u16 init_ft1000_netdev(struct ft1000_device *ft1000dev)
 		ret_val = -ENXIO;
 		goto err_net;
         }
-    }
-    else
-    {
-        //not the first inserted card, increase card number by 1
-        pInfo->CardNumber = gCardIndex;
-        /*DEBUG("card number = %d\n", pInfo->CardNumber);*/ //mbelian
-    }
 
     memset(&pInfo->stats, 0, sizeof(struct net_device_stats) );
 
