@@ -14,6 +14,9 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/tc3589x.h>
 
+#define TC3589x_CLKMODE_MODCTL_SLEEP		0x0
+#define TC3589x_CLKMODE_MODCTL_OPERATION	(1 << 0)
+
 /**
  * tc3589x_reg_read() - read a single TC3589x register
  * @tc3589x:	Device to read from
@@ -339,6 +342,37 @@ static int __devexit tc3589x_remove(struct i2c_client *client)
 	return 0;
 }
 
+static int tc3589x_suspend(struct device *dev)
+{
+	struct tc3589x *tc3589x = dev_get_drvdata(dev);
+	struct i2c_client *client = tc3589x->i2c;
+	int ret = 0;
+
+	/* put the system to sleep mode */
+	if (!device_may_wakeup(&client->dev))
+		ret = tc3589x_reg_write(tc3589x, TC3589x_CLKMODE,
+				TC3589x_CLKMODE_MODCTL_SLEEP);
+
+	return ret;
+}
+
+static int tc3589x_resume(struct device *dev)
+{
+	struct tc3589x *tc3589x = dev_get_drvdata(dev);
+	struct i2c_client *client = tc3589x->i2c;
+	int ret = 0;
+
+	/* enable the system into operation */
+	if (!device_may_wakeup(&client->dev))
+		ret = tc3589x_reg_write(tc3589x, TC3589x_CLKMODE,
+				TC3589x_CLKMODE_MODCTL_OPERATION);
+
+	return ret;
+}
+
+static const SIMPLE_DEV_PM_OPS(tc3589x_dev_pm_ops, tc3589x_suspend,
+						tc3589x_resume);
+
 static const struct i2c_device_id tc3589x_id[] = {
 	{ "tc3589x", 24 },
 	{ }
@@ -348,6 +382,9 @@ MODULE_DEVICE_TABLE(i2c, tc3589x_id);
 static struct i2c_driver tc3589x_driver = {
 	.driver.name	= "tc3589x",
 	.driver.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+	.driver.pm	= &tc3589x_dev_pm_ops,
+#endif
 	.probe		= tc3589x_probe,
 	.remove		= __devexit_p(tc3589x_remove),
 	.id_table	= tc3589x_id,
