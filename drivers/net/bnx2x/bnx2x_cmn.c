@@ -827,7 +827,7 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 	DP(NETIF_MSG_IFUP,
 	   "mtu %d  rx_buf_size %d\n", bp->dev->mtu, bp->rx_buf_size);
 
-	for_each_queue(bp, j) {
+	for_each_rx_queue(bp, j) {
 		struct bnx2x_fastpath *fp = &bp->fp[j];
 
 		if (!fp->disable_tpa) {
@@ -880,7 +880,7 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 		}
 	}
 
-	for_each_queue(bp, j) {
+	for_each_rx_queue(bp, j) {
 		struct bnx2x_fastpath *fp = &bp->fp[j];
 
 		fp->rx_bd_cons = 0;
@@ -911,7 +911,7 @@ static void bnx2x_free_tx_skbs(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_queue(bp, i) {
+	for_each_tx_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
 		u16 bd_cons = fp->tx_bd_cons;
@@ -929,7 +929,7 @@ static void bnx2x_free_rx_skbs(struct bnx2x *bp)
 {
 	int i, j;
 
-	for_each_queue(bp, j) {
+	for_each_rx_queue(bp, j) {
 		struct bnx2x_fastpath *fp = &bp->fp[j];
 
 		for (i = 0; i < NUM_RX_BD; i++) {
@@ -970,7 +970,7 @@ static void bnx2x_free_msix_irqs(struct bnx2x *bp)
 #ifdef BCM_CNIC
 	offset++;
 #endif
-	for_each_queue(bp, i) {
+	for_each_eth_queue(bp, i) {
 		DP(NETIF_MSG_IFDOWN, "about to release fp #%d->%d irq  "
 		   "state %x\n", i, bp->msix_table[i + offset].vector,
 		   bnx2x_fp(bp, i, state));
@@ -1004,14 +1004,14 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 	   bp->msix_table[msix_vec].entry, bp->msix_table[msix_vec].entry);
 	msix_vec++;
 #endif
-	for_each_queue(bp, i) {
+	for_each_eth_queue(bp, i) {
 		bp->msix_table[msix_vec].entry = msix_vec;
 		DP(NETIF_MSG_IFUP, "msix_table[%d].entry = %d "
 		   "(fastpath #%u)\n", msix_vec, msix_vec, i);
 		msix_vec++;
 	}
 
-	req_cnt = BNX2X_NUM_QUEUES(bp) + CNIC_CONTEXT_USE + 1;
+	req_cnt = BNX2X_NUM_ETH_QUEUES(bp) + CNIC_CONTEXT_USE + 1;
 
 	rc = pci_enable_msix(bp->pdev, &bp->msix_table[0], req_cnt);
 
@@ -1067,7 +1067,7 @@ static int bnx2x_req_msix_irqs(struct bnx2x *bp)
 #ifdef BCM_CNIC
 	offset++;
 #endif
-	for_each_queue(bp, i) {
+	for_each_eth_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 		snprintf(fp->name, sizeof(fp->name), "%s-fp-%d",
 			 bp->dev->name, i);
@@ -1084,7 +1084,7 @@ static int bnx2x_req_msix_irqs(struct bnx2x *bp)
 		fp->state = BNX2X_FP_STATE_IRQ;
 	}
 
-	i = BNX2X_NUM_QUEUES(bp);
+	i = BNX2X_NUM_ETH_QUEUES(bp);
 	offset = 1 + CNIC_CONTEXT_USE;
 	netdev_info(bp->dev, "using MSI-X  IRQs: sp %d  fp[%d] %d"
 	       " ... fp[%d] %d\n",
@@ -1131,7 +1131,7 @@ static void bnx2x_napi_enable(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_queue(bp, i)
+	for_each_napi_queue(bp, i)
 		napi_enable(&bnx2x_fp(bp, i, napi));
 }
 
@@ -1139,7 +1139,7 @@ static void bnx2x_napi_disable(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_queue(bp, i)
+	for_each_napi_queue(bp, i)
 		napi_disable(&bnx2x_fp(bp, i, napi));
 }
 
@@ -1181,7 +1181,22 @@ void bnx2x_set_num_queues(struct bnx2x *bp)
 		bp->num_queues = 1;
 		break;
 	}
+
+	/* Add special queues */
+	bp->num_queues += NONE_ETH_CONTEXT_USE;
 }
+
+#ifdef BCM_CNIC
+static inline void bnx2x_set_fcoe_eth_macs(struct bnx2x *bp)
+{
+	if (!NO_FCOE(bp)) {
+		if (!IS_MF_SD(bp))
+			bnx2x_set_fip_eth_mac_addr(bp, 1);
+		bnx2x_set_all_enode_macs(bp, 1);
+		bp->flags |= FCOE_MACS_SET;
+	}
+}
+#endif
 
 static void bnx2x_release_firmware(struct bnx2x *bp)
 {
@@ -1189,6 +1204,20 @@ static void bnx2x_release_firmware(struct bnx2x *bp)
 	kfree(bp->init_ops);
 	kfree(bp->init_data);
 	release_firmware(bp->firmware);
+}
+
+static inline int bnx2x_set_real_num_queues(struct bnx2x *bp)
+{
+	int rc, num = bp->num_queues;
+
+#ifdef BCM_CNIC
+	if (NO_FCOE(bp))
+		num -= FCOE_CONTEXT_USE;
+
+#endif
+	netif_set_real_num_tx_queues(bp->dev, num);
+	rc = netif_set_real_num_rx_queues(bp->dev, num);
+	return rc;
 }
 
 /* must be called with rtnl_lock */
@@ -1217,10 +1246,9 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	if (bnx2x_alloc_mem(bp))
 		return -ENOMEM;
 
-	netif_set_real_num_tx_queues(bp->dev, bp->num_queues);
-	rc = netif_set_real_num_rx_queues(bp->dev, bp->num_queues);
+	rc = bnx2x_set_real_num_queues(bp);
 	if (rc) {
-		BNX2X_ERR("Unable to update real_num_rx_queues\n");
+		BNX2X_ERR("Unable to set real_num_queues\n");
 		goto load_error0;
 	}
 
@@ -1228,6 +1256,10 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		bnx2x_fp(bp, i, disable_tpa) =
 					((bp->flags & TPA_ENABLE_FLAG) == 0);
 
+#ifdef BCM_CNIC
+	/* We don't want TPA on FCoE L2 ring */
+	bnx2x_fcoe(bp, disable_tpa) = 1;
+#endif
 	bnx2x_napi_enable(bp);
 
 	/* Send LOAD_REQUEST command to MCP
@@ -1358,6 +1390,10 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/* Now when Clients are configured we are ready to work */
 	bp->state = BNX2X_STATE_OPEN;
 
+#ifdef BCM_CNIC
+	bnx2x_set_fcoe_eth_macs(bp);
+#endif
+
 	bnx2x_set_eth_mac(bp, 1);
 
 	if (bp->port.pmf)
@@ -1416,7 +1452,7 @@ load_error3:
 
 	/* Free SKBs, SGEs, TPA pool and driver internals */
 	bnx2x_free_skbs(bp);
-	for_each_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
 
 	/* Release IRQs */
@@ -1487,7 +1523,7 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 	/* Free SKBs, SGEs, TPA pool and driver internals */
 	bnx2x_free_skbs(bp);
-	for_each_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
 
 	bnx2x_free_mem(bp);
@@ -1591,6 +1627,17 @@ int bnx2x_poll(struct napi_struct *napi, int budget)
 
 		/* Fall out from the NAPI loop if needed */
 		if (!(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
+#ifdef BCM_CNIC
+			/* No need to update SB for FCoE L2 ring as long as
+			 * it's connected to the default SB and the SB
+			 * has been updated when NAPI was scheduled.
+			 */
+			if (IS_FCOE_FP(fp)) {
+				napi_complete(napi);
+				break;
+			}
+#endif
+
 			bnx2x_update_fpsb_idx(fp);
 			/* bnx2x_has_rx_work() reads the status block,
 			 * thus we need to ensure that status block indices
@@ -2255,7 +2302,7 @@ int __devinit bnx2x_alloc_mem_bp(struct bnx2x *bp)
 	bp->fp = fp;
 
 	/* msix table */
-	tbl = kzalloc((bp->l2_cid_count + 1) * sizeof(*tbl),
+	tbl = kzalloc((FP_SB_COUNT(bp->l2_cid_count) + 1) * sizeof(*tbl),
 				  GFP_KERNEL);
 	if (!tbl)
 		goto alloc_err;

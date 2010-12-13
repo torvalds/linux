@@ -13,6 +13,8 @@
 
 #ifndef BNX2X_H
 #define BNX2X_H
+#include <linux/netdevice.h>
+#include <linux/types.h>
 
 /* compilation time flags */
 
@@ -199,9 +201,24 @@ void bnx2x_panic_dump(struct bnx2x *bp);
 /* EQ completions */
 #define HC_SP_INDEX_EQ_CONS			7
 
+/* FCoE L2 connection completions */
+#define HC_SP_INDEX_ETH_FCOE_TX_CQ_CONS		6
+#define HC_SP_INDEX_ETH_FCOE_RX_CQ_CONS		4
 /* iSCSI L2 */
 #define HC_SP_INDEX_ETH_ISCSI_CQ_CONS		5
 #define HC_SP_INDEX_ETH_ISCSI_RX_CQ_CONS	1
+
+/* Special clients parameters */
+
+/* SB indices */
+/* FCoE L2 */
+#define BNX2X_FCOE_L2_RX_INDEX \
+	(&bp->def_status_blk->sp_sb.\
+	index_values[HC_SP_INDEX_ETH_FCOE_RX_CQ_CONS])
+
+#define BNX2X_FCOE_L2_TX_INDEX \
+	(&bp->def_status_blk->sp_sb.\
+	index_values[HC_SP_INDEX_ETH_FCOE_TX_CQ_CONS])
 
 /**
  *  CIDs and CLIDs:
@@ -215,12 +232,19 @@ void bnx2x_panic_dump(struct bnx2x *bp);
 #define BNX2X_ISCSI_ETH_CL_ID		17
 #define BNX2X_ISCSI_ETH_CID		17
 
+/* FCoE L2 */
+#define BNX2X_FCOE_ETH_CL_ID		18
+#define BNX2X_FCOE_ETH_CID		18
+
 /** Additional rings budgeting */
 #ifdef BCM_CNIC
 #define CNIC_CONTEXT_USE		1
+#define FCOE_CONTEXT_USE		1
 #else
 #define CNIC_CONTEXT_USE		0
+#define FCOE_CONTEXT_USE		0
 #endif /* BCM_CNIC */
+#define NONE_ETH_CONTEXT_USE	(FCOE_CONTEXT_USE)
 
 #define AEU_IN_ATTN_BITS_PXPPCICLOCKCLIENT_PARITY_ERROR \
 	AEU_INPUTS_ATTN_BITS_PXPPCICLOCKCLIENT_PARITY_ERROR
@@ -401,6 +425,17 @@ struct bnx2x_fastpath {
 };
 
 #define bnx2x_fp(bp, nr, var)		(bp->fp[nr].var)
+#ifdef BCM_CNIC
+/* FCoE L2 `fastpath' is right after the eth entries */
+#define FCOE_IDX			BNX2X_NUM_ETH_QUEUES(bp)
+#define bnx2x_fcoe_fp(bp)		(&bp->fp[FCOE_IDX])
+#define bnx2x_fcoe(bp, var)		(bnx2x_fcoe_fp(bp)->var)
+#define IS_FCOE_FP(fp)			(fp->index == FCOE_IDX)
+#define IS_FCOE_IDX(idx)		((idx) == FCOE_IDX)
+#else
+#define IS_FCOE_FP(fp)		false
+#define IS_FCOE_IDX(idx)	false
+#endif
 
 
 /* MC hsi */
@@ -669,7 +704,9 @@ struct bnx2x_port {
 enum {
 	CAM_ETH_LINE = 0,
 	CAM_ISCSI_ETH_LINE,
-	CAM_MAX_PF_LINE = CAM_ISCSI_ETH_LINE
+	CAM_FIP_ETH_LINE,
+	CAM_FIP_MCAST_LINE,
+	CAM_MAX_PF_LINE = CAM_FIP_MCAST_LINE
 };
 /* number of MACs per function in NIG memory - used for SI mode */
 #define NIG_LLH_FUNC_MEM_SIZE		16
@@ -714,6 +751,14 @@ enum {
  */
 #define L2_FP_COUNT(cid_cnt)	((cid_cnt) - CNIC_CONTEXT_USE)
 
+/*
+ * The number of FP-SB allocated by the driver == max number of regular L2
+ * queues + 1 for the CNIC which also consumes an FP-SB
+ */
+#define FP_SB_COUNT(cid_cnt)	((cid_cnt) - FCOE_CONTEXT_USE)
+#define NUM_IGU_SB_REQUIRED(cid_cnt) \
+				(FP_SB_COUNT(cid_cnt) - NONE_ETH_CONTEXT_USE)
+
 union cdu_context {
 	struct eth_context eth;
 	char pad[1024];
@@ -726,7 +771,8 @@ union cdu_context {
 
 #ifdef BCM_CNIC
 #define CNIC_ISCSI_CID_MAX	256
-#define CNIC_CID_MAX		(CNIC_ISCSI_CID_MAX)
+#define CNIC_FCOE_CID_MAX	2048
+#define CNIC_CID_MAX		(CNIC_ISCSI_CID_MAX + CNIC_FCOE_CID_MAX)
 #define CNIC_ILT_LINES		DIV_ROUND_UP(CNIC_CID_MAX, ILT_PAGE_CIDS)
 #endif
 
@@ -922,6 +968,10 @@ struct bnx2x {
 #define DISABLE_MSI_FLAG		0x200
 #define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)
 #define MF_FUNC_DIS			0x1000
+#define FCOE_MACS_SET			0x2000
+#define NO_FCOE_FLAG			0x4000
+
+#define NO_FCOE(bp)		((bp)->flags & NO_FCOE_FLAG)
 
 	int			pf_num;	/* absolute PF number */
 	int			pfid;	/* per-path PF number */
@@ -1069,7 +1119,8 @@ struct bnx2x {
 	u16			cnic_kwq_pending;
 	u16			cnic_spq_pending;
 	struct mutex		cnic_mutex;
-	u8			iscsi_mac[6];
+	u8			iscsi_mac[ETH_ALEN];
+	u8			fip_mac[ETH_ALEN];
 #endif
 
 	int			dmae_ready;
@@ -1159,10 +1210,17 @@ struct bnx2x {
 #define RSS_IPV6_TCP_CAP	0x0008
 
 #define BNX2X_NUM_QUEUES(bp)	(bp->num_queues)
+#define BNX2X_NUM_ETH_QUEUES(bp) (BNX2X_NUM_QUEUES(bp) - NONE_ETH_CONTEXT_USE)
+
+/* ethtool statistics are displayed for all regular ethernet queues and the
+ * fcoe L2 queue if not disabled
+ */
+#define BNX2X_NUM_STAT_QUEUES(bp) (NO_FCOE(bp) ? BNX2X_NUM_ETH_QUEUES(bp) : \
+			   (BNX2X_NUM_ETH_QUEUES(bp) + FCOE_CONTEXT_USE))
+
 #define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 1)
 
 #define BNX2X_MAX_QUEUES(bp)	(bp->igu_sb_cnt - CNIC_CONTEXT_USE)
-#define is_eth_multi(bp)	(BNX2X_NUM_ETH_QUEUES(bp) > 1)
 
 #define RSS_IPV4_CAP_MASK						\
 	TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV4_CAPABILITY
@@ -1255,6 +1313,7 @@ struct bnx2x_client_ramrod_params {
 	u16 cl_id;
 	u32 cid;
 	u8 poll;
+#define CLIENT_IS_FCOE			0x01
 #define CLIENT_IS_LEADING_RSS		0x02
 	u8 flags;
 };
@@ -1287,11 +1346,54 @@ struct bnx2x_func_init_params {
 	u16		spq_prod;	/* valid iff FUNC_FLG_SPQ */
 };
 
-#define for_each_queue(bp, var) \
-			for (var = 0; var < BNX2X_NUM_QUEUES(bp); var++)
-#define for_each_nondefault_queue(bp, var) \
-			for (var = 1; var < BNX2X_NUM_QUEUES(bp); var++)
+#define for_each_eth_queue(bp, var) \
+			for (var = 0; var < BNX2X_NUM_ETH_QUEUES(bp); var++)
 
+#define for_each_nondefault_eth_queue(bp, var) \
+			for (var = 1; var < BNX2X_NUM_ETH_QUEUES(bp); var++)
+
+#define for_each_napi_queue(bp, var) \
+	for (var = 0; \
+		var < BNX2X_NUM_ETH_QUEUES(bp) + FCOE_CONTEXT_USE; var++) \
+		if (skip_queue(bp, var))	\
+			continue;		\
+		else
+
+#define for_each_queue(bp, var) \
+	for (var = 0; var < BNX2X_NUM_QUEUES(bp); var++) \
+		if (skip_queue(bp, var))	\
+			continue;		\
+		else
+
+#define for_each_rx_queue(bp, var) \
+	for (var = 0; var < BNX2X_NUM_QUEUES(bp); var++) \
+		if (skip_rx_queue(bp, var))	\
+			continue;		\
+		else
+
+#define for_each_tx_queue(bp, var) \
+	for (var = 0; var < BNX2X_NUM_QUEUES(bp); var++) \
+		if (skip_tx_queue(bp, var))	\
+			continue;		\
+		else
+
+#define for_each_nondefault_queue(bp, var) \
+	for (var = 1; var < BNX2X_NUM_QUEUES(bp); var++) \
+		if (skip_queue(bp, var))	\
+			continue;		\
+		else
+
+/* skip rx queue
+ * if FCOE l2 support is diabled and this is the fcoe L2 queue
+ */
+#define skip_rx_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
+
+/* skip tx queue
+ * if FCOE l2 support is diabled and this is the fcoe L2 queue
+ */
+#define skip_tx_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
+
+#define skip_queue(bp, idx)	(NO_FCOE(bp) && IS_FCOE_IDX(idx))
 
 #define WAIT_RAMROD_POLL	0x01
 #define WAIT_RAMROD_COMMON	0x02
@@ -1614,10 +1716,6 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 	(GET_FLAG(x.flags, \
 	MAC_CONFIGURATION_ENTRY_ACTION_TYPE) == \
 	(T_ETH_MAC_COMMAND_INVALIDATE))
-
-#define CAM_INVALIDATE(x) \
-	(x.target_table_entry.flags = TSTORM_CAM_TARGET_TABLE_ENTRY_ACTION_TYPE)
-
 
 /* Number of u32 elements in MC hash array */
 #define MC_HASH_SIZE			8
