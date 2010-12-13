@@ -778,7 +778,7 @@ acpi_bus_extract_wakeup_device_power_package(acpi_handle handle,
 		wakeup->resources.handles[i] = element->reference.handle;
 	}
 
-	acpi_setup_gpe_for_wake(wakeup->gpe_device, wakeup->gpe_number);
+	acpi_setup_gpe_for_wake(handle, wakeup->gpe_device, wakeup->gpe_number);
 
  out:
 	kfree(buffer.pointer);

@@ -91,6 +91,8 @@ struct acpi_gpe_event_info *acpi_ev_low_get_gpe_info(u32 gpe_number,
 						     struct acpi_gpe_block_info
 						     *gpe_block);
 
+acpi_status acpi_ev_finish_gpe(struct acpi_gpe_event_info *gpe_event_info);
+
 /*
  * evgpeblk - Upper-level GPE block support
  */

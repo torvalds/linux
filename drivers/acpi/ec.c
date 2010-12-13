@@ -619,7 +619,7 @@ static u32 acpi_ec_gpe_handler(acpi_handle gpe_device,
 		wake_up(&ec->wait);
 		ec_check_sci(ec, acpi_ec_read_status(ec));
 	}
-	return ACPI_INTERRUPT_HANDLED;
+	return ACPI_INTERRUPT_HANDLED | ACPI_REENABLE_GPE;
 }
 
 /* --------------------------------------------------------------------------

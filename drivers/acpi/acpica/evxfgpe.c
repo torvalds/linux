@@ -166,29 +166,52 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number)
 }
 ACPI_EXPORT_SYMBOL(acpi_disable_gpe)
 
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_setup_gpe_for_wake
  *
- * PARAMETERS:  gpe_device      - Parent GPE Device. NULL for GPE0/GPE1
- *              gpe_number      - GPE level within the GPE block
+ * PARAMETERS:  wake_device         - Device associated with the GPE (via _PRW)
+ *              gpe_device          - Parent GPE Device. NULL for GPE0/GPE1
+ *              gpe_number          - GPE level within the GPE block
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Set the ACPI_GPE_CAN_WAKE flag for the given GPE.  If the GPE
- *              has a corresponding method and is currently enabled, disable it
- *              (GPEs with corresponding methods are enabled unconditionally
- *              during initialization, but GPEs that can wake up are expected
- *              to be initially disabled).
+ * DESCRIPTION: Mark a GPE as having the ability to wake the system. This
+ *              interface is intended to be used as the host executes the
+ *              _PRW methods (Power Resources for Wake) in the system tables.
+ *              Each _PRW appears under a Device Object (The wake_device), and
+ *              contains the info for the wake GPE associated with the
+ *              wake_device.
  *
  ******************************************************************************/
-acpi_status acpi_setup_gpe_for_wake(acpi_handle gpe_device, u32 gpe_number)
+acpi_status
+acpi_setup_gpe_for_wake(acpi_handle wake_device,
+			acpi_handle gpe_device, u32 gpe_number)
 {
-	acpi_status status = AE_OK;
+	acpi_status status = AE_BAD_PARAMETER;
 	struct acpi_gpe_event_info *gpe_event_info;
+	struct acpi_namespace_node *device_node;
 	acpi_cpu_flags flags;
 
 	ACPI_FUNCTION_TRACE(acpi_setup_gpe_for_wake);
+
+	/* Parameter Validation */
+
+	if (!wake_device) {
+		/*
+		 * By forcing wake_device to be valid, we automatically enable the
+		 * implicit notify feature on all hosts.
+		 */
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
+
+	/* Validate wake_device is of type Device */
+
+	device_node = ACPI_CAST_PTR(struct acpi_namespace_node, wake_device);
+	if (device_node->type != ACPI_TYPE_DEVICE) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+	}
 
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 
@@ -196,9 +219,22 @@ acpi_status acpi_setup_gpe_for_wake(acpi_handle gpe_device, u32 gpe_number)
 
 	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
 	if (gpe_event_info) {
+		/*
+		 * If there is no method or handler for this GPE, then the
+		 * wake_device will be notified whenever this GPE fires (aka
+		 * "implicit notify") Note: The GPE is assumed to be
+		 * level-triggered (for windows compatibility).
+		 */
+		if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
+		    ACPI_GPE_DISPATCH_NONE) {
+			gpe_event_info->flags =
+			    (ACPI_GPE_DISPATCH_NOTIFY |
+			     ACPI_GPE_LEVEL_TRIGGERED);
+			gpe_event_info->dispatch.device_node = device_node;
+		}
+
 		gpe_event_info->flags |= ACPI_GPE_CAN_WAKE;
-	} else {
-		status = AE_BAD_PARAMETER;
+		status = AE_OK;
 	}
 
 	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);

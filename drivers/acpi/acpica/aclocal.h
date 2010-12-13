@@ -419,6 +419,7 @@ struct acpi_gpe_handler_info {
 union acpi_gpe_dispatch_info {
 	struct acpi_namespace_node *method_node;	/* Method node for this GPE level */
 	struct acpi_gpe_handler_info *handler;  /* Installed GPE handler */
+	struct acpi_namespace_node *device_node;        /* Parent _PRW device for implicit notify */
 };
 
 /*
