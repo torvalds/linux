@@ -810,20 +810,35 @@ static bool some_qdisc_is_busy(struct net_device *dev)
 	return false;
 }
 
-void dev_deactivate(struct net_device *dev)
+void dev_deactivate_many(struct list_head *head)
 {
-	netdev_for_each_tx_queue(dev, dev_deactivate_queue, &noop_qdisc);
-	if (dev_ingress_queue(dev))
-		dev_deactivate_queue(dev, dev_ingress_queue(dev), &noop_qdisc);
+	struct net_device *dev;
 
-	dev_watchdog_down(dev);
+	list_for_each_entry(dev, head, unreg_list) {
+		netdev_for_each_tx_queue(dev, dev_deactivate_queue,
+					 &noop_qdisc);
+		if (dev_ingress_queue(dev))
+			dev_deactivate_queue(dev, dev_ingress_queue(dev),
+					     &noop_qdisc);
+
+		dev_watchdog_down(dev);
+	}
 
 	/* Wait for outstanding qdisc-less dev_queue_xmit calls. */
 	synchronize_rcu();
 
 	/* Wait for outstanding qdisc_run calls. */
-	while (some_qdisc_is_busy(dev))
-		yield();
+	list_for_each_entry(dev, head, unreg_list)
+		while (some_qdisc_is_busy(dev))
+			yield();
+}
+
+void dev_deactivate(struct net_device *dev)
+{
+	LIST_HEAD(single);
+
+	list_add(&dev->unreg_list, &single);
+	dev_deactivate_many(&single);
 }
 
 static void dev_init_scheduler_queue(struct net_device *dev,
