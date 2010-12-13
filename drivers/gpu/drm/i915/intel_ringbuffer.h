@@ -54,8 +54,8 @@ struct  intel_ring_buffer {
 	u32		irq_seqno;		/* last seq seem at irq time */
 	u32		waiting_seqno;
 	u32		sync_seqno[I915_NUM_RINGS-1];
-	u32		irq_refcount;
-	void		(*irq_get)(struct intel_ring_buffer *ring);
+	atomic_t	irq_refcount;
+	bool __must_check (*irq_get)(struct intel_ring_buffer *ring);
 	void		(*irq_put)(struct intel_ring_buffer *ring);
 
 	int		(*init)(struct intel_ring_buffer *ring);

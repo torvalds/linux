@@ -1186,10 +1186,9 @@ void i915_trace_irq_get(struct drm_device *dev, u32 seqno)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	struct intel_ring_buffer *ring = LP_RING(dev_priv);
 
-	if (dev_priv->trace_irq_seqno == 0)
-		ring->irq_get(ring);
-
-	dev_priv->trace_irq_seqno = seqno;
+	if (dev_priv->trace_irq_seqno == 0 &&
+	    ring->irq_get(ring))
+		dev_priv->trace_irq_seqno = seqno;
 }
 
 static int i915_wait_irq(struct drm_device * dev, int irq_nr)
@@ -1211,10 +1210,12 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 	if (master_priv->sarea_priv)
 		master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
 
-	ring->irq_get(ring);
-	DRM_WAIT_ON(ret, ring->irq_queue, 3 * DRM_HZ,
-		    READ_BREADCRUMB(dev_priv) >= irq_nr);
-	ring->irq_put(ring);
+	ret = -ENODEV;
+	if (ring->irq_get(ring)) {
+		DRM_WAIT_ON(ret, ring->irq_queue, 3 * DRM_HZ,
+			    READ_BREADCRUMB(dev_priv) >= irq_nr);
+		ring->irq_put(ring);
+	}
 
 	if (ret == -EBUSY) {
 		DRM_ERROR("EBUSY -- rec: %d emitted: %d\n",

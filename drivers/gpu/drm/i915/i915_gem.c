@@ -2000,17 +2000,19 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 		trace_i915_gem_request_wait_begin(dev, seqno);
 
 		ring->waiting_seqno = seqno;
-		ring->irq_get(ring);
-		if (interruptible)
-			ret = wait_event_interruptible(ring->irq_queue,
-				i915_seqno_passed(ring->get_seqno(ring), seqno)
-				|| atomic_read(&dev_priv->mm.wedged));
-		else
-			wait_event(ring->irq_queue,
-				i915_seqno_passed(ring->get_seqno(ring), seqno)
-				|| atomic_read(&dev_priv->mm.wedged));
+		ret = -ENODEV;
+		if (ring->irq_get(ring)) {
+			if (interruptible)
+				ret = wait_event_interruptible(ring->irq_queue,
+							       i915_seqno_passed(ring->get_seqno(ring), seqno)
+							       || atomic_read(&dev_priv->mm.wedged));
+			else
+				wait_event(ring->irq_queue,
+					   i915_seqno_passed(ring->get_seqno(ring), seqno)
+					   || atomic_read(&dev_priv->mm.wedged));
 
-		ring->irq_put(ring);
+			ring->irq_put(ring);
+		}
 		ring->waiting_seqno = 0;
 
 		trace_i915_gem_request_wait_end(dev, seqno);
@@ -3157,14 +3159,15 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 		 * generation is designed to be run atomically and so is
 		 * lockless.
 		 */
-		ring->irq_get(ring);
-		ret = wait_event_interruptible(ring->irq_queue,
-					       i915_seqno_passed(ring->get_seqno(ring), seqno)
-					       || atomic_read(&dev_priv->mm.wedged));
-		ring->irq_put(ring);
+		if (ring->irq_get(ring)) {
+			ret = wait_event_interruptible(ring->irq_queue,
+						       i915_seqno_passed(ring->get_seqno(ring), seqno)
+						       || atomic_read(&dev_priv->mm.wedged));
+			ring->irq_put(ring);
 
-		if (ret == 0 && atomic_read(&dev_priv->mm.wedged))
-			ret = -EIO;
+			if (ret == 0 && atomic_read(&dev_priv->mm.wedged))
+				ret = -EIO;
+		}
 	}
 
 	if (ret == 0)

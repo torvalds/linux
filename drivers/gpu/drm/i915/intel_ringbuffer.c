@@ -327,25 +327,28 @@ ring_get_seqno(struct intel_ring_buffer *ring)
 	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
 }
 
-static void
+static bool
 render_ring_get_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
 
-	if (dev->irq_enabled && ++ring->irq_refcount == 1) {
+	if (!dev->irq_enabled)
+		return false;
+
+	if (atomic_inc_return(&ring->irq_refcount) == 1) {
 		drm_i915_private_t *dev_priv = dev->dev_private;
 		unsigned long irqflags;
 
 		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-
 		if (HAS_PCH_SPLIT(dev))
 			ironlake_enable_graphics_irq(dev_priv,
 						     GT_USER_INTERRUPT);
 		else
 			i915_enable_irq(dev_priv, I915_USER_INTERRUPT);
-
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
+
+	return true;
 }
 
 static void
@@ -353,8 +356,7 @@ render_ring_put_irq(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
 
-	BUG_ON(dev->irq_enabled && ring->irq_refcount == 0);
-	if (dev->irq_enabled && --ring->irq_refcount == 0) {
+	if (atomic_dec_and_test(&ring->irq_refcount)) {
 		drm_i915_private_t *dev_priv = dev->dev_private;
 		unsigned long irqflags;
 
@@ -417,12 +419,15 @@ ring_add_request(struct intel_ring_buffer *ring,
 	return 0;
 }
 
-static void
+static bool
 ring_get_irq(struct intel_ring_buffer *ring, u32 flag)
 {
 	struct drm_device *dev = ring->dev;
 
-	if (dev->irq_enabled && ++ring->irq_refcount == 1) {
+	if (!dev->irq_enabled)
+	       return false;
+
+	if (atomic_inc_return(&ring->irq_refcount) == 1) {
 		drm_i915_private_t *dev_priv = dev->dev_private;
 		unsigned long irqflags;
 
@@ -430,6 +435,8 @@ ring_get_irq(struct intel_ring_buffer *ring, u32 flag)
 		ironlake_enable_graphics_irq(dev_priv, flag);
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 	}
+
+	return true;
 }
 
 static void
@@ -437,7 +444,7 @@ ring_put_irq(struct intel_ring_buffer *ring, u32 flag)
 {
 	struct drm_device *dev = ring->dev;
 
-	if (dev->irq_enabled && --ring->irq_refcount == 0) {
+	if (atomic_dec_and_test(&ring->irq_refcount)) {
 		drm_i915_private_t *dev_priv = dev->dev_private;
 		unsigned long irqflags;
 
@@ -447,16 +454,15 @@ ring_put_irq(struct intel_ring_buffer *ring, u32 flag)
 	}
 }
 
-
-static void
+static bool
 bsd_ring_get_irq(struct intel_ring_buffer *ring)
 {
-    ring_get_irq(ring, GT_BSD_USER_INTERRUPT);
+	return ring_get_irq(ring, GT_BSD_USER_INTERRUPT);
 }
 static void
 bsd_ring_put_irq(struct intel_ring_buffer *ring)
 {
-    ring_put_irq(ring, GT_BSD_USER_INTERRUPT);
+	ring_put_irq(ring, GT_BSD_USER_INTERRUPT);
 }
 
 static int
@@ -846,16 +852,16 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
        return 0;
 }
 
-static void
+static bool
 gen6_bsd_ring_get_irq(struct intel_ring_buffer *ring)
 {
-    ring_get_irq(ring, GT_GEN6_BSD_USER_INTERRUPT);
+	return ring_get_irq(ring, GT_GEN6_BSD_USER_INTERRUPT);
 }
 
 static void
 gen6_bsd_ring_put_irq(struct intel_ring_buffer *ring)
 {
-    ring_put_irq(ring, GT_GEN6_BSD_USER_INTERRUPT);
+	ring_put_irq(ring, GT_GEN6_BSD_USER_INTERRUPT);
 }
 
 /* ring buffer for Video Codec for Gen6+ */
@@ -876,16 +882,16 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
 
 /* Blitter support (SandyBridge+) */
 
-static void
+static bool
 blt_ring_get_irq(struct intel_ring_buffer *ring)
 {
-    ring_get_irq(ring, GT_BLT_USER_INTERRUPT);
+	return ring_get_irq(ring, GT_BLT_USER_INTERRUPT);
 }
 
 static void
 blt_ring_put_irq(struct intel_ring_buffer *ring)
 {
-    ring_put_irq(ring, GT_BLT_USER_INTERRUPT);
+	ring_put_irq(ring, GT_BLT_USER_INTERRUPT);
 }
 
 
