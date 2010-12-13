@@ -29,7 +29,7 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/mgmt.h>
 
-static void cmd_status(struct sock *sk, u16 cmd, u8 status)
+static int cmd_status(struct sock *sk, u16 cmd, u8 status)
 {
 	struct sk_buff *skb;
 	struct mgmt_hdr *hdr;
@@ -39,7 +39,7 @@ static void cmd_status(struct sock *sk, u16 cmd, u8 status)
 
 	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev), GFP_ATOMIC);
 	if (!skb)
-		return;
+		return -ENOMEM;
 
 	hdr = (void *) skb_put(skb, sizeof(*hdr));
 
@@ -52,6 +52,8 @@ static void cmd_status(struct sock *sk, u16 cmd, u8 status)
 
 	if (sock_queue_rcv_skb(sk, skb) < 0)
 		kfree_skb(skb);
+
+	return 0;
 }
 
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
@@ -87,9 +89,12 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	switch (opcode) {
 	default:
 		BT_DBG("Unknown op %u", opcode);
-		cmd_status(sk, opcode, 0x01);
+		err = cmd_status(sk, opcode, 0x01);
 		break;
 	}
+
+	if (err < 0)
+		goto done;
 
 	err = msglen;
 
