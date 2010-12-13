@@ -1119,6 +1119,7 @@ int ip6_dst_hoplimit(struct dst_entry *dst)
 	}
 	return hoplimit;
 }
+EXPORT_SYMBOL(ip6_dst_hoplimit);
 
 /*
  *
