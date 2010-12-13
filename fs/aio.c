@@ -87,7 +87,7 @@ static int __init aio_setup(void)
 
 	aio_wq = create_workqueue("aio");
 	abe_pool = mempool_create_kmalloc_pool(1, sizeof(struct aio_batch_entry));
-	BUG_ON(!abe_pool);
+	BUG_ON(!aio_wq || !abe_pool);
 
 	pr_debug("aio_setup: sizeof(struct page) = %d\n", (int)sizeof(struct page));
 
