@@ -960,6 +960,7 @@ int hci_register_dev(struct hci_dev *hdev)
 		}
 	}
 
+	mgmt_index_added(hdev->id);
 	hci_notify(hdev, HCI_DEV_REG);
 
 	return id;
@@ -989,6 +990,7 @@ int hci_unregister_dev(struct hci_dev *hdev)
 	for (i = 0; i < NUM_REASSEMBLY; i++)
 		kfree_skb(hdev->reassembly[i]);
 
+	mgmt_index_removed(hdev->id);
 	hci_notify(hdev, HCI_DEV_UNREG);
 
 	if (hdev->rfkill) {

@@ -75,3 +75,13 @@ struct mgmt_ev_controller_error {
 	__le16 index;
 	__u8 error_code;
 } __packed;
+
+#define MGMT_EV_INDEX_ADDED		0x0004
+struct mgmt_ev_index_added {
+	__le16 index;
+} __packed;
+
+#define MGMT_EV_INDEX_REMOVED		0x0005
+struct mgmt_ev_index_removed {
+	__le16 index;
+} __packed;

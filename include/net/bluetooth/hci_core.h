@@ -662,6 +662,8 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb);
 
 /* Management interface */
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t len);
+int mgmt_index_added(u16 index);
+int mgmt_index_removed(u16 index);
 
 /* HCI info for socket */
 #define hci_pi(sk) ((struct hci_pinfo *) sk)

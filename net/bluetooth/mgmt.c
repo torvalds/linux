@@ -265,3 +265,44 @@ done:
 	kfree(buf);
 	return err;
 }
+
+static int mgmt_event(u16 event, void *data, u16 data_len)
+{
+	struct sk_buff *skb;
+	struct mgmt_hdr *hdr;
+
+	skb = alloc_skb(sizeof(*hdr) + data_len, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	bt_cb(skb)->channel = HCI_CHANNEL_CONTROL;
+
+	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr->opcode = cpu_to_le16(event);
+	hdr->len = cpu_to_le16(data_len);
+
+	memcpy(skb_put(skb, data_len), data, data_len);
+
+	hci_send_to_sock(NULL, skb);
+	kfree_skb(skb);
+
+	return 0;
+}
+
+int mgmt_index_added(u16 index)
+{
+	struct mgmt_ev_index_added ev;
+
+	put_unaligned_le16(index, &ev.index);
+
+	return mgmt_event(MGMT_EV_INDEX_ADDED, &ev, sizeof(ev));
+}
+
+int mgmt_index_removed(u16 index)
+{
+	struct mgmt_ev_index_added ev;
+
+	put_unaligned_le16(index, &ev.index);
+
+	return mgmt_event(MGMT_EV_INDEX_REMOVED, &ev, sizeof(ev));
+}
