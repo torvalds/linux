@@ -62,6 +62,56 @@ static int read_version(struct sock *sk)
 	return 0;
 }
 
+static int read_index_list(struct sock *sk)
+{
+	struct sk_buff *skb;
+	struct mgmt_hdr *hdr;
+	struct mgmt_ev_cmd_complete *ev;
+	struct mgmt_rp_read_index_list *rp;
+	struct list_head *p;
+	size_t body_len;
+	u16 count;
+	int i;
+
+	BT_DBG("sock %p", sk);
+
+	read_lock(&hci_dev_list_lock);
+
+	count = 0;
+	list_for_each(p, &hci_dev_list) {
+		count++;
+	}
+
+	body_len = sizeof(*ev) + sizeof(*rp) + (2 * count);
+	skb = alloc_skb(sizeof(*hdr) + body_len, GFP_ATOMIC);
+	if (!skb)
+		return -ENOMEM;
+
+	hdr = (void *) skb_put(skb, sizeof(*hdr));
+	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
+	hdr->len = cpu_to_le16(body_len);
+
+	ev = (void *) skb_put(skb, sizeof(*ev));
+	put_unaligned_le16(MGMT_OP_READ_INDEX_LIST, &ev->opcode);
+
+	rp = (void *) skb_put(skb, sizeof(*rp) + (2 * count));
+	put_unaligned_le16(count, &rp->num_controllers);
+
+	i = 0;
+	list_for_each(p, &hci_dev_list) {
+		struct hci_dev *d = list_entry(p, struct hci_dev, list);
+		put_unaligned_le16(d->id, &rp->index[i++]);
+		BT_DBG("Added hci%u", d->id);
+	}
+
+	read_unlock(&hci_dev_list_lock);
+
+	if (sock_queue_rcv_skb(sk, skb) < 0)
+		kfree_skb(skb);
+
+	return 0;
+}
+
 static int cmd_status(struct sock *sk, u16 cmd, u8 status)
 {
 	struct sk_buff *skb;
@@ -122,6 +172,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	switch (opcode) {
 	case MGMT_OP_READ_VERSION:
 		err = read_version(sk);
+		break;
+	case MGMT_OP_READ_INDEX_LIST:
+		err = read_index_list(sk);
 		break;
 	default:
 		BT_DBG("Unknown op %u", opcode);
