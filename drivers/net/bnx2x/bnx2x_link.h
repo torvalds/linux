@@ -65,6 +65,22 @@
 #define FW_PARAM_MDIO_CTRL_OFFSET 16
 #define FW_PARAM_SET(phy_addr, phy_type, mdio_access) \
 	(phy_addr | phy_type | mdio_access << FW_PARAM_MDIO_CTRL_OFFSET)
+
+#define PFC_BRB_MAC_PAUSE_XOFF_THRESHOLD_PAUSEABLE		170
+#define PFC_BRB_MAC_PAUSE_XOFF_THRESHOLD_NON_PAUSEABLE		0
+
+#define PFC_BRB_MAC_PAUSE_XON_THRESHOLD_PAUSEABLE			250
+#define PFC_BRB_MAC_PAUSE_XON_THRESHOLD_NON_PAUSEABLE		0
+
+#define PFC_BRB_MAC_FULL_XOFF_THRESHOLD_PAUSEABLE			10
+#define PFC_BRB_MAC_FULL_XOFF_THRESHOLD_NON_PAUSEABLE		90
+
+#define PFC_BRB_MAC_FULL_XON_THRESHOLD_PAUSEABLE			50
+#define PFC_BRB_MAC_FULL_XON_THRESHOLD_NON_PAUSEABLE		250
+
+#define PFC_BRB_FULL_LB_XOFF_THRESHOLD				170
+#define PFC_BRB_FULL_LB_XON_THRESHOLD				250
+
 /***********************************************************/
 /*                         Structs                         */
 /***********************************************************/
