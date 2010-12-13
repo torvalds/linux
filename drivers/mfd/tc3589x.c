@@ -231,12 +231,15 @@ static int tc3589x_chip_init(struct tc3589x *tc3589x)
 
 	dev_info(tc3589x->dev, "manufacturer: %#x, version: %#x\n", manf, ver);
 
-	/* Put everything except the IRQ module into reset */
+	/*
+	 * Put everything except the IRQ module into reset;
+	 * also spare the GPIO module for any pin initialization
+	 * done during pre-kernel boot
+	 */
 	ret = tc3589x_reg_write(tc3589x, TC3589x_RSTCTRL,
 				TC3589x_RSTCTRL_TIMRST
 				| TC3589x_RSTCTRL_ROTRST
-				| TC3589x_RSTCTRL_KBDRST
-				| TC3589x_RSTCTRL_GPIRST);
+				| TC3589x_RSTCTRL_KBDRST);
 	if (ret < 0)
 		return ret;
 
