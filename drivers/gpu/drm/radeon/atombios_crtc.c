@@ -530,7 +530,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					dp_clock = dig_connector->dp_clock;
 				}
 			}
-
+#if 0 /* doesn't work properly on some laptops */
 			/* use recommended ref_div for ss */
 			if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 				if (ss_enabled) {
@@ -540,7 +540,7 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 					}
 				}
 			}
-
+#endif
 			if (ASIC_IS_AVIVO(rdev)) {
 				/* DVO wants 2x pixel clock if the DVO chip is in 12 bit mode */
 				if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1)
