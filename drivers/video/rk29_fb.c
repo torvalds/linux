@@ -564,6 +564,13 @@ void load_screen(struct fb_info *info, bool initscreen)
     // set lcdc clk
     if(SCREEN_MCU==screen->type)    screen->pixclock = 150000000; //mcu fix to 150 MHz
 
+    if(initscreen == 0)    //not init
+    {
+        clk_disable(inf->dclk);
+        clk_disable(inf->clk);
+        clk_disable(inf->aclk);
+    }
+
     clk_set_parent(inf->dclk_divider, inf->dclk_parent);
     clk_set_parent(inf->dclk, inf->dclk_divider);
     clk_set_parent(inf->aclk, inf->aclk_parent);
@@ -589,7 +596,7 @@ void load_screen(struct fb_info *info, bool initscreen)
     clk_enable(inf->aclk);
 
     // init screen panel
-    if(screen->init && initscreen)
+    if(screen->init)
     {
     	screen->init();
     }
@@ -1268,7 +1275,6 @@ static int win1fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
     if( 0==var->xres_virtual || 0==var->yres_virtual ||
         0==var->xres || 0==var->yres || var->xres<16 ||
-        trspmode>5 || trspval>16 ||
         ((16!=var->bits_per_pixel)&&(32!=var->bits_per_pixel)) )
     {
         printk(">>>>>> win1fb_check_var fail 1!!! \n");
@@ -1280,8 +1286,7 @@ static int win1fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
     }
 
     if( (var->xoffset+var->xres)>var->xres_virtual ||
-        (var->yoffset+var->yres)>var->yres_virtual ||
-        (xpos+var->xres)>xlcd || (ypos+var->yres)>ylcd )
+        (var->yoffset+var->yres)>var->yres_virtual )
     {
         printk(">>>>>> win1fb_check_var fail 2!!! \n");
         printk(">>>>>> (%d+%d)>%d || ", var->xoffset,var->xres,var->xres_virtual);
@@ -1525,7 +1530,7 @@ static int win1fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
         case 7: inf->cur_screen = &inf->hdmi_info[1];  break;  //hdmi 720
         default: break;
         }
-        load_screen(info, 1);
+        load_screen(info, 0);
 		mcu_refresh(inf);
         break;
     default:
