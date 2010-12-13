@@ -411,7 +411,6 @@ static struct clocksource clocksource_ixp4xx = {
 	.rating		= 200,
 	.read		= ixp4xx_get_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift 		= 20,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -419,10 +418,7 @@ unsigned long ixp4xx_timer_freq = FREQ;
 EXPORT_SYMBOL(ixp4xx_timer_freq);
 static void __init ixp4xx_clocksource_init(void)
 {
-	clocksource_ixp4xx.mult =
-		clocksource_hz2mult(ixp4xx_timer_freq,
-				    clocksource_ixp4xx.shift);
-	clocksource_register(&clocksource_ixp4xx);
+	clocksource_register_hz(&clocksource_ixp4xx, ixp4xx_timer_freq);
 }
 
 /*
