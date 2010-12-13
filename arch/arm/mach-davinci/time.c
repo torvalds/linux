@@ -276,7 +276,6 @@ static struct clocksource clocksource_davinci = {
 	.rating		= 300,
 	.read		= read_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.shift		= 24,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -378,10 +377,8 @@ static void __init davinci_timer_init(void)
 
 	/* setup clocksource */
 	clocksource_davinci.name = id_to_name[clocksource_id];
-	clocksource_davinci.mult =
-		clocksource_khz2mult(davinci_clock_tick_rate/1000,
-				     clocksource_davinci.shift);
-	if (clocksource_register(&clocksource_davinci))
+	if (clocksource_register_hz(&clocksource_davinci,
+				    davinci_clock_tick_rate))
 		printk(err, clocksource_davinci.name);
 
 	/* setup clockevent */
