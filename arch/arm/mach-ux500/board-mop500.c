@@ -19,8 +19,7 @@
 #include <linux/amba/pl022.h>
 #include <linux/spi/spi.h>
 #include <linux/mfd/ab8500.h>
-#include <linux/mfd/tc35892.h>
-#include <linux/input/matrix_keypad.h>
+#include <linux/mfd/tc3589x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -112,24 +111,24 @@ static struct pl022_ssp_controller ssp0_platform_data = {
  * TC35892
  */
 
-static void mop500_tc35892_init(struct tc35892 *tc35892, unsigned int base)
+static void mop500_tc35892_init(struct tc3589x *tc3589x, unsigned int base)
 {
 	mop500_sdi_tc35892_init();
 }
 
-static struct tc35892_gpio_platform_data mop500_tc35892_gpio_data = {
+static struct tc3589x_gpio_platform_data mop500_tc35892_gpio_data = {
 	.gpio_base	= MOP500_EGPIO(0),
 	.setup		= mop500_tc35892_init,
 };
 
-static struct tc35892_platform_data mop500_tc35892_data = {
+static struct tc3589x_platform_data mop500_tc35892_data = {
 	.gpio		= &mop500_tc35892_gpio_data,
 	.irq_base	= MOP500_EGPIO_IRQ_BASE,
 };
 
 static struct i2c_board_info mop500_i2c0_devices[] = {
 	{
-		I2C_BOARD_INFO("tc35892", 0x42),
+		I2C_BOARD_INFO("tc3589x", 0x42),
 		.irq            = NOMADIK_GPIO_TO_IRQ(217),
 		.platform_data  = &mop500_tc35892_data,
 	},
@@ -302,7 +301,6 @@ static void __init u8500_init_machine(void)
 
 	nmk_config_pins(mop500_pins, ARRAY_SIZE(mop500_pins));
 
-	ux500_ske_keypad_device.dev.platform_data = &ske_keypad_board;
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
 	mop500_i2c_init();
