@@ -56,7 +56,7 @@ static struct sdesc *init_sdesc(struct crypto_shash *alg)
 	return sdesc;
 }
 
-static int TSS_sha1(const unsigned char *data, const unsigned int datalen,
+static int TSS_sha1(const unsigned char *data, unsigned int datalen,
 		    unsigned char *digest)
 {
 	struct sdesc *sdesc;
@@ -74,7 +74,7 @@ static int TSS_sha1(const unsigned char *data, const unsigned int datalen,
 }
 
 static int TSS_rawhmac(unsigned char *digest, const unsigned char *key,
-		       const unsigned int keylen, ...)
+		       unsigned int keylen, ...)
 {
 	struct sdesc *sdesc;
 	va_list argp;
@@ -119,7 +119,7 @@ out:
  * calculate authorization info fields to send to TPM
  */
 static int TSS_authhmac(unsigned char *digest, const unsigned char *key,
-			const unsigned int keylen, unsigned char *h1,
+			unsigned int keylen, unsigned char *h1,
 			unsigned char *h2, unsigned char h3, ...)
 {
 	unsigned char paramdigest[SHA1_DIGEST_SIZE];
@@ -170,7 +170,7 @@ static int TSS_checkhmac1(unsigned char *buffer,
 			  const uint32_t command,
 			  const unsigned char *ononce,
 			  const unsigned char *key,
-			  const unsigned int keylen, ...)
+			  unsigned int keylen, ...)
 {
 	uint32_t bufsize;
 	uint16_t tag;
@@ -252,9 +252,9 @@ static int TSS_checkhmac2(unsigned char *buffer,
 			  const uint32_t command,
 			  const unsigned char *ononce,
 			  const unsigned char *key1,
-			  const unsigned int keylen1,
+			  unsigned int keylen1,
 			  const unsigned char *key2,
-			  const unsigned int keylen2, ...)
+			  unsigned int keylen2, ...)
 {
 	uint32_t bufsize;
 	uint16_t tag;
@@ -388,7 +388,7 @@ static int my_get_random(unsigned char *buf, int len)
 	struct tpm_buf *tb;
 	int ret;
 
-	tb = kzalloc(sizeof *tb, GFP_KERNEL);
+	tb = kmalloc(sizeof *tb, GFP_KERNEL);
 	if (!tb)
 		return -ENOMEM;
 	ret = tpm_get_random(tb, buf, len);
@@ -420,8 +420,7 @@ static int pcrlock(const int pcrnum)
  * Create an object specific authorisation protocol (OSAP) session
  */
 static int osap(struct tpm_buf *tb, struct osapsess *s,
-		const unsigned char *key, const uint16_t type,
-		const uint32_t handle)
+		const unsigned char *key, uint16_t type, uint32_t handle)
 {
 	unsigned char enonce[TPM_NONCE_SIZE];
 	unsigned char ononce[TPM_NONCE_SIZE];
@@ -485,12 +484,12 @@ struct tpm_digests {
  * Have the TPM seal(encrypt) the trusted key, possibly based on
  * Platform Configuration Registers (PCRs). AUTH1 for sealing key.
  */
-static int tpm_seal(struct tpm_buf *tb, const uint16_t keytype,
-		    const uint32_t keyhandle, const unsigned char *keyauth,
-		    const unsigned char *data, const uint32_t datalen,
+static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
+		    uint32_t keyhandle, const unsigned char *keyauth,
+		    const unsigned char *data, uint32_t datalen,
 		    unsigned char *blob, uint32_t *bloblen,
 		    const unsigned char *blobauth,
-		    const unsigned char *pcrinfo, const uint32_t pcrinfosize)
+		    const unsigned char *pcrinfo, uint32_t pcrinfosize)
 {
 	struct osapsess sess;
 	struct tpm_digests *td;
@@ -599,8 +598,8 @@ static int tpm_seal(struct tpm_buf *tb, const uint16_t keytype,
  * use the AUTH2_COMMAND form of unseal, to authorize both key and blob
  */
 static int tpm_unseal(struct tpm_buf *tb,
-		      const uint32_t keyhandle, const unsigned char *keyauth,
-		      const unsigned char *blob, const int bloblen,
+		      uint32_t keyhandle, const unsigned char *keyauth,
+		      const unsigned char *blob, int bloblen,
 		      const unsigned char *blobauth,
 		      unsigned char *data, unsigned int *datalen)
 {
@@ -913,7 +912,7 @@ static struct trusted_key_payload *trusted_payload_alloc(struct key *key)
  * On success, return 0. Otherwise return errno.
  */
 static int trusted_instantiate(struct key *key, const void *data,
-			       const size_t datalen)
+			       size_t datalen)
 {
 	struct trusted_key_payload *payload = NULL;
 	struct trusted_key_options *options = NULL;
@@ -996,8 +995,7 @@ static void trusted_rcu_free(struct rcu_head *rcu)
 /*
  * trusted_update - reseal an existing key with new PCR values
  */
-static int trusted_update(struct key *key, const void *data,
-			  const size_t datalen)
+static int trusted_update(struct key *key, const void *data, size_t datalen)
 {
 	struct trusted_key_payload *p = key->payload.data;
 	struct trusted_key_payload *new_p;
