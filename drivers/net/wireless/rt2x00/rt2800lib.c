@@ -1625,6 +1625,13 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	}
 
 	msleep(1);
+
+	/*
+	 * Clear channel statistic counters
+	 */
+	rt2800_register_read(rt2x00dev, CH_IDLE_STA, &reg);
+	rt2800_register_read(rt2x00dev, CH_BUSY_STA, &reg);
+	rt2800_register_read(rt2x00dev, CH_BUSY_STA_SEC, &reg);
 }
 
 static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
@@ -2258,6 +2265,17 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_read(rt2x00dev, INT_TIMER_CFG, &reg);
 	rt2x00_set_field32(&reg, INT_TIMER_CFG_PRE_TBTT_TIMER, 6 << 4);
 	rt2800_register_write(rt2x00dev, INT_TIMER_CFG, reg);
+
+	/*
+	 * Set up channel statistics timer
+	 */
+	rt2800_register_read(rt2x00dev, CH_TIME_CFG, &reg);
+	rt2x00_set_field32(&reg, CH_TIME_CFG_EIFS_BUSY, 1);
+	rt2x00_set_field32(&reg, CH_TIME_CFG_NAV_BUSY, 1);
+	rt2x00_set_field32(&reg, CH_TIME_CFG_RX_BUSY, 1);
+	rt2x00_set_field32(&reg, CH_TIME_CFG_TX_BUSY, 1);
+	rt2x00_set_field32(&reg, CH_TIME_CFG_TMR_EN, 1);
+	rt2800_register_write(rt2x00dev, CH_TIME_CFG, reg);
 
 	return 0;
 }
@@ -3538,6 +3556,37 @@ int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rt2800_ampdu_action);
+
+int rt2800_get_survey(struct ieee80211_hw *hw, int idx,
+		      struct survey_info *survey)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+	u32 idle, busy, busy_ext;
+
+	if (idx != 0)
+		return -ENOENT;
+
+	survey->channel = conf->channel;
+
+	rt2800_register_read(rt2x00dev, CH_IDLE_STA, &idle);
+	rt2800_register_read(rt2x00dev, CH_BUSY_STA, &busy);
+	rt2800_register_read(rt2x00dev, CH_BUSY_STA_SEC, &busy_ext);
+
+	if (idle || busy) {
+		survey->filled = SURVEY_INFO_CHANNEL_TIME |
+				 SURVEY_INFO_CHANNEL_TIME_BUSY |
+				 SURVEY_INFO_CHANNEL_TIME_EXT_BUSY;
+
+		survey->channel_time = (idle + busy) / 1000;
+		survey->channel_time_busy = busy / 1000;
+		survey->channel_time_ext_busy = busy_ext / 1000;
+	}
+
+	return 0;
+
+}
+EXPORT_SYMBOL_GPL(rt2800_get_survey);
 
 MODULE_AUTHOR(DRV_PROJECT ", Bartlomiej Zolnierkiewicz");
 MODULE_VERSION(DRV_VERSION);

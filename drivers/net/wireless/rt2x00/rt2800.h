@@ -699,8 +699,18 @@
 
 /*
  * CH_TIME_CFG: count as channel busy
+ * EIFS_BUSY: Count EIFS as channel busy
+ * NAV_BUSY: Count NAS as channel busy
+ * RX_BUSY: Count RX as channel busy
+ * TX_BUSY: Count TX as channel busy
+ * TMR_EN: Enable channel statistics timer
  */
 #define CH_TIME_CFG     	        0x110c
+#define CH_TIME_CFG_EIFS_BUSY		FIELD32(0x00000010)
+#define CH_TIME_CFG_NAV_BUSY		FIELD32(0x00000008)
+#define CH_TIME_CFG_RX_BUSY		FIELD32(0x00000004)
+#define CH_TIME_CFG_TX_BUSY		FIELD32(0x00000002)
+#define CH_TIME_CFG_TMR_EN		FIELD32(0x00000001)
 
 /*
  * PBF_LIFE_TIMER: TX/RX MPDU timestamp timer (free run) Unit: 1us

@@ -562,6 +562,7 @@ static const struct ieee80211_ops rt2800usb_mac80211_ops = {
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
 	.ampdu_action		= rt2800_ampdu_action,
 	.flush			= rt2x00mac_flush,
+	.get_survey		= rt2800_get_survey,
 };
 
 static const struct rt2800_ops rt2800usb_rt2800_ops = {
