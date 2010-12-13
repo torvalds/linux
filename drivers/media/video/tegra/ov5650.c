@@ -504,24 +504,12 @@ static int ov5650_set_frame_length(struct ov5650_info *info, u32 frame_length)
 
 	ov5650_get_frame_length_regs(reg_list, frame_length);
 
-	ret = ov5650_write_reg(info->i2c_client, 0x3212, 0x01);
-	if (ret)
-		return ret;
-
 	for (i = 0; i < 2; i++)	{
 		ret = ov5650_write_reg(info->i2c_client, reg_list[i].addr,
 			reg_list[i].val);
 		if (ret)
 			return ret;
 	}
-
-	ret = ov5650_write_reg(info->i2c_client, 0x3212, 0x11);
-	if (ret)
-		return ret;
-
-	ret = ov5650_write_reg(info->i2c_client, 0x3212, 0xa1);
-	if (ret)
-		return ret;
 
 	return 0;
 }
