@@ -13,8 +13,7 @@
  * build a vector of user pages
  */
 struct page **ceph_get_direct_page_vector(const char __user *data,
-						 int num_pages,
-						 loff_t off, size_t len)
+					  int num_pages)
 {
 	struct page **pages;
 	int rc;

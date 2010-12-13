@@ -30,6 +30,7 @@
 #include <asm/sections.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/hardirq.h>
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
@@ -212,7 +213,7 @@ static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 	/* Set the PER control regs, turns on single step for this address */
 	__ctl_load(kprobe_per_regs, 9, 11);
 	regs->psw.mask |= PSW_MASK_PER;
-	regs->psw.mask &= ~(PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK);
+	regs->psw.mask &= ~(PSW_MASK_IO | PSW_MASK_EXT);
 }
 
 static void __kprobes save_previous_kprobe(struct kprobe_ctlblk *kcb)
@@ -239,7 +240,7 @@ static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 	__get_cpu_var(current_kprobe) = p;
 	/* Save the interrupt and per flags */
 	kcb->kprobe_saved_imask = regs->psw.mask &
-	    (PSW_MASK_PER | PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK);
+		(PSW_MASK_PER | PSW_MASK_IO | PSW_MASK_EXT);
 	/* Save the control regs that govern PER */
 	__ctl_store(kcb->kprobe_saved_ctl, 9, 11);
 }
@@ -316,8 +317,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		return 1;
 
 ss_probe:
-	if (regs->psw.mask & (PSW_MASK_PER | PSW_MASK_IO))
-		local_irq_disable();
 	prepare_singlestep(p, regs);
 	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
@@ -350,6 +349,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	struct hlist_node *node, *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address = (unsigned long)&kretprobe_trampoline;
+	kprobe_opcode_t *correct_ret_addr = NULL;
 
 	INIT_HLIST_HEAD(&empty_rp);
 	kretprobe_hash_lock(current, &head, &flags);
@@ -372,10 +372,32 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 			/* another task is sharing our hash bucket */
 			continue;
 
-		if (ri->rp && ri->rp->handler)
-			ri->rp->handler(ri, regs);
+		orig_ret_address = (unsigned long)ri->ret_addr;
+
+		if (orig_ret_address != trampoline_address)
+			/*
+			 * This is the real return address. Any other
+			 * instances associated with this task are for
+			 * other calls deeper on the call stack
+			 */
+			break;
+	}
+
+	kretprobe_assert(ri, orig_ret_address, trampoline_address);
+
+	correct_ret_addr = ri->ret_addr;
+	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+		if (ri->task != current)
+			/* another task is sharing our hash bucket */
+			continue;
 
 		orig_ret_address = (unsigned long)ri->ret_addr;
+
+		if (ri->rp && ri->rp->handler) {
+			ri->ret_addr = correct_ret_addr;
+			ri->rp->handler(ri, regs);
+		}
+
 		recycle_rp_inst(ri, &empty_rp);
 
 		if (orig_ret_address != trampoline_address) {
@@ -387,7 +409,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 			break;
 		}
 	}
-	kretprobe_assert(ri, orig_ret_address, trampoline_address);
+
 	regs->psw.addr = orig_ret_address | PSW_ADDR_AMODE;
 
 	reset_current_kprobe();
@@ -465,8 +487,6 @@ static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 		goto out;
 	}
 	reset_current_kprobe();
-	if (regs->psw.mask & (PSW_MASK_PER | PSW_MASK_IO))
-		local_irq_enable();
 out:
 	preempt_enable_no_resched();
 
@@ -482,7 +502,7 @@ out:
 	return 1;
 }
 
-int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+static int __kprobes kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
@@ -508,8 +528,6 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 			restore_previous_kprobe(kcb);
 		else {
 			reset_current_kprobe();
-			if (regs->psw.mask & (PSW_MASK_PER | PSW_MASK_IO))
-				local_irq_enable();
 		}
 		preempt_enable_no_resched();
 		break;
@@ -553,6 +571,18 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 	return 0;
 }
 
+int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+{
+	int ret;
+
+	if (regs->psw.mask & (PSW_MASK_IO | PSW_MASK_EXT))
+		local_irq_disable();
+	ret = kprobe_trap_handler(regs, trapnr);
+	if (regs->psw.mask & (PSW_MASK_IO | PSW_MASK_EXT))
+		local_irq_restore(regs->psw.mask & ~PSW_MASK_PER);
+	return ret;
+}
+
 /*
  * Wrapper routine to for handling exceptions.
  */
@@ -560,7 +590,11 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 				       unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
+	struct pt_regs *regs = args->regs;
 	int ret = NOTIFY_DONE;
+
+	if (regs->psw.mask & (PSW_MASK_IO | PSW_MASK_EXT))
+		local_irq_disable();
 
 	switch (val) {
 	case DIE_BPT:
@@ -572,16 +606,17 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 			ret = NOTIFY_STOP;
 		break;
 	case DIE_TRAP:
-		/* kprobe_running() needs smp_processor_id() */
-		preempt_disable();
-		if (kprobe_running() &&
-		    kprobe_fault_handler(args->regs, args->trapnr))
+		if (!preemptible() && kprobe_running() &&
+		    kprobe_trap_handler(args->regs, args->trapnr))
 			ret = NOTIFY_STOP;
-		preempt_enable();
 		break;
 	default:
 		break;
 	}
+
+	if (regs->psw.mask & (PSW_MASK_IO | PSW_MASK_EXT))
+		local_irq_restore(regs->psw.mask & ~PSW_MASK_PER);
+
 	return ret;
 }
 
@@ -595,6 +630,7 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 
 	/* setup return addr to the jprobe handler routine */
 	regs->psw.addr = (unsigned long)(jp->entry) | PSW_ADDR_AMODE;
+	regs->psw.mask &= ~(PSW_MASK_IO | PSW_MASK_EXT);
 
 	/* r14 is the function return address */
 	kcb->jprobe_saved_r14 = (unsigned long)regs->gprs[14];

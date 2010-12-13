@@ -1486,7 +1486,7 @@ static int __devinit viu_of_probe(struct platform_device *op,
 
 	ad = i2c_get_adapter(0);
 	viu_dev->decoder = v4l2_i2c_new_subdev(&viu_dev->v4l2_dev, ad,
-			NULL, "saa7113", VIU_VIDEO_DECODER_ADDR, NULL);
+			"saa7113", VIU_VIDEO_DECODER_ADDR, NULL);
 
 	viu_dev->vidq.timeout.function = viu_vid_timeout;
 	viu_dev->vidq.timeout.data     = (unsigned long)viu_dev;

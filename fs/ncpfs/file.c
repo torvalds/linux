@@ -17,7 +17,6 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 
 #include <linux/ncp_fs.h>
 #include "ncplib_kernel.h"

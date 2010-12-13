@@ -30,7 +30,6 @@
 #include <linux/blkdev.h>
 #include <linux/pagemap.h>
 #include <asm/unaligned.h>
-#include <linux/smp_lock.h>
 
 #include <linux/usb/composite.h>
 #include <linux/usb/functionfs.h>

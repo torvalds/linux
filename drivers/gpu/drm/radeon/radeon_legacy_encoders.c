@@ -670,7 +670,7 @@ static void radeon_legacy_tmds_ext_mode_set(struct drm_encoder *encoder,
 
 	if (rdev->is_atom_bios) {
 		radeon_encoder->pixel_clock = adjusted_mode->clock;
-		atombios_external_tmds_setup(encoder, ATOM_ENABLE);
+		atombios_dvo_setup(encoder, ATOM_ENABLE);
 		fp2_gen_cntl = RREG32(RADEON_FP2_GEN_CNTL);
 	} else {
 		fp2_gen_cntl = RREG32(RADEON_FP2_GEN_CNTL);

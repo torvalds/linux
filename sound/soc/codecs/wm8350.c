@@ -1627,7 +1627,6 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
 	struct wm8350 *wm8350 = dev_get_platdata(codec->dev);
-	int ret;
 
 	wm8350_clear_bits(wm8350, WM8350_JACK_DETECT,
 			  WM8350_JDL_ENA | WM8350_JDR_ENA);
@@ -1642,15 +1641,9 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 	priv->hpr.jack = NULL;
 	priv->mic.jack = NULL;
 
-	/* cancel any work waiting to be queued. */
-	ret = cancel_delayed_work(&codec->dapm.delayed_work);
-
 	/* if there was any work waiting then we run it now and
 	 * wait for its completion */
-	if (ret) {
-		schedule_delayed_work(&codec->dapm.delayed_work, 0);
-		flush_scheduled_work();
-	}
+	flush_delayed_work_sync(&codec->delayed_work);
 
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_OFF);
 

@@ -175,10 +175,21 @@ static inline int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 	return 0;
 }
 
-#define enable_intr_remapping(mode)	(-1)
-#define disable_intr_remapping()	(0)
-#define reenable_intr_remapping(mode)	(0)
 #define intr_remapping_enabled		(0)
+
+static inline int enable_intr_remapping(int eim)
+{
+	return -1;
+}
+
+static inline void disable_intr_remapping(void)
+{
+}
+
+static inline int reenable_intr_remapping(int eim)
+{
+	return 0;
+}
 #endif
 
 /* Can't use the common MSI interrupt functions

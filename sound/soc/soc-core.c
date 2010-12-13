@@ -70,25 +70,6 @@ static int pmdown_time = 5000;
 module_param(pmdown_time, int, 0);
 MODULE_PARM_DESC(pmdown_time, "DAPM stream powerdown time (msecs)");
 
-/*
- * This function forces any delayed work to be queued and run.
- */
-static int run_delayed_work(struct delayed_work *dwork)
-{
-	int ret;
-
-	/* cancel any work waiting to be queued. */
-	ret = cancel_delayed_work(dwork);
-
-	/* if there was any work waiting then we run it now and
-	 * wait for it's completion */
-	if (ret) {
-		schedule_delayed_work(dwork, 0);
-		flush_scheduled_work();
-	}
-	return ret;
-}
-
 /* codec register dump */
 static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf)
 {
@@ -1046,7 +1027,7 @@ static int soc_suspend(struct device *dev)
 
 	/* close any waiting streams and save state */
 	for (i = 0; i < card->num_rtd; i++) {
-		run_delayed_work(&card->rtd[i].delayed_work);
+		flush_delayed_work_sync(&card->rtd[i].delayed_work);
 		card->rtd[i].codec->dapm.suspend_bias_level = card->rtd[i].codec->dapm.bias_level;
 	}
 
@@ -1921,7 +1902,7 @@ static int soc_remove(struct platform_device *pdev)
 		/* make sure any delayed work runs */
 		for (i = 0; i < card->num_rtd; i++) {
 			struct snd_soc_pcm_runtime *rtd = &card->rtd[i];
-			run_delayed_work(&rtd->delayed_work);
+			flush_delayed_work_sync(&rtd->delayed_work);
 		}
 
 		/* remove auxiliary devices */
@@ -1958,7 +1939,7 @@ static int soc_poweroff(struct device *dev)
 	 * now, we're shutting down so no imminent restart. */
 	for (i = 0; i < card->num_rtd; i++) {
 		struct snd_soc_pcm_runtime *rtd = &card->rtd[i];
-		run_delayed_work(&rtd->delayed_work);
+		flush_delayed_work_sync(&rtd->delayed_work);
 	}
 
 	snd_soc_dapm_shutdown(card);

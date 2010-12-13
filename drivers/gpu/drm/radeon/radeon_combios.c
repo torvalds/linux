@@ -571,6 +571,7 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 	}
 
 	if (clk_mask && data_mask) {
+		/* system specific masks */
 		i2c.mask_clk_mask = clk_mask;
 		i2c.mask_data_mask = data_mask;
 		i2c.a_clk_mask = clk_mask;
@@ -579,7 +580,19 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 		i2c.en_data_mask = data_mask;
 		i2c.y_clk_mask = clk_mask;
 		i2c.y_data_mask = data_mask;
+	} else if ((ddc_line == RADEON_GPIOPAD_MASK) ||
+		   (ddc_line == RADEON_MDGPIO_MASK)) {
+		/* default gpiopad masks */
+		i2c.mask_clk_mask = (0x20 << 8);
+		i2c.mask_data_mask = 0x80;
+		i2c.a_clk_mask = (0x20 << 8);
+		i2c.a_data_mask = 0x80;
+		i2c.en_clk_mask = (0x20 << 8);
+		i2c.en_data_mask = 0x80;
+		i2c.y_clk_mask = (0x20 << 8);
+		i2c.y_data_mask = 0x80;
 	} else {
+		/* default masks for ddc pads */
 		i2c.mask_clk_mask = RADEON_GPIO_EN_1;
 		i2c.mask_data_mask = RADEON_GPIO_EN_0;
 		i2c.a_clk_mask = RADEON_GPIO_A_1;
@@ -716,7 +729,7 @@ void radeon_combios_i2c_init(struct radeon_device *rdev)
 					clk = RBIOS8(offset + 3 + (i * 5) + 3);
 					data = RBIOS8(offset + 3 + (i * 5) + 4);
 					i2c = combios_setup_i2c_bus(rdev, DDC_MONID,
-								    clk, data);
+								    (1 << clk), (1 << data));
 					rdev->i2c_bus[4] = radeon_i2c_create(dev, &i2c, "GPIOPAD_MASK");
 					break;
 				}

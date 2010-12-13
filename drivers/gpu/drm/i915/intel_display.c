@@ -1611,6 +1611,18 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 		wait_event(dev_priv->pending_flip_queue,
 			   atomic_read(&obj_priv->pending_flip) == 0);
+
+		/* Big Hammer, we also need to ensure that any pending
+		 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
+		 * current scanout is retired before unpinning the old
+		 * framebuffer.
+		 */
+		ret = i915_gem_object_flush_gpu(obj_priv, false);
+		if (ret) {
+			i915_gem_object_unpin(to_intel_framebuffer(crtc->fb)->obj);
+			mutex_unlock(&dev->struct_mutex);
+			return ret;
+		}
 	}
 
 	ret = intel_pipe_set_base_atomic(crtc, crtc->fb, x, y,
@@ -5324,9 +5336,14 @@ static void intel_setup_outputs(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
 	bool dpd_is_edp = false;
+	bool has_lvds = false;
 
 	if (IS_MOBILE(dev) && !IS_I830(dev))
-		intel_lvds_init(dev);
+		has_lvds = intel_lvds_init(dev);
+	if (!has_lvds && !HAS_PCH_SPLIT(dev)) {
+		/* disable the panel fitter on everything but LVDS */
+		I915_WRITE(PFIT_CONTROL, 0);
+	}
 
 	if (HAS_PCH_SPLIT(dev)) {
 		dpd_is_edp = intel_dpd_is_edp(dev);
