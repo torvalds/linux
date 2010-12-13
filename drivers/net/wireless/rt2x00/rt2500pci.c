@@ -754,12 +754,12 @@ static void rt2500pci_kick_queue(struct data_queue *queue)
 	u32 reg;
 
 	switch (queue->qid) {
-	case QID_AC_BE:
+	case QID_AC_VO:
 		rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
 		rt2x00_set_field32(&reg, TXCSR0_KICK_PRIO, 1);
 		rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
 		break;
-	case QID_AC_BK:
+	case QID_AC_VI:
 		rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
 		rt2x00_set_field32(&reg, TXCSR0_KICK_TX, 1);
 		rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
@@ -780,8 +780,8 @@ static void rt2500pci_stop_queue(struct data_queue *queue)
 	u32 reg;
 
 	switch (queue->qid) {
-	case QID_AC_BE:
-	case QID_AC_BK:
+	case QID_AC_VO:
+	case QID_AC_VI:
 	case QID_ATIM:
 		rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
 		rt2x00_set_field32(&reg, TXCSR0_ABORT, 1);
@@ -1455,13 +1455,13 @@ static irqreturn_t rt2500pci_interrupt_thread(int irq, void *dev_instance)
 	 * 4 - Priority ring transmit done interrupt.
 	 */
 	if (rt2x00_get_field32(reg, CSR7_TXDONE_PRIORING))
-		rt2500pci_txdone(rt2x00dev, QID_AC_BE);
+		rt2500pci_txdone(rt2x00dev, QID_AC_VO);
 
 	/*
 	 * 5 - Tx ring transmit done interrupt.
 	 */
 	if (rt2x00_get_field32(reg, CSR7_TXDONE_TXRING))
-		rt2500pci_txdone(rt2x00dev, QID_AC_BK);
+		rt2500pci_txdone(rt2x00dev, QID_AC_VI);
 
 	/* Enable interrupts again. */
 	rt2x00dev->ops->lib->set_device_state(rt2x00dev,

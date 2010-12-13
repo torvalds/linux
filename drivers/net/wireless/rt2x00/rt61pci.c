@@ -1171,22 +1171,22 @@ static void rt61pci_kick_queue(struct data_queue *queue)
 	u32 reg;
 
 	switch (queue->qid) {
-	case QID_AC_BE:
+	case QID_AC_VO:
 		rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
 		rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC0, 1);
 		rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 		break;
-	case QID_AC_BK:
+	case QID_AC_VI:
 		rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
 		rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC1, 1);
 		rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 		break;
-	case QID_AC_VI:
+	case QID_AC_BE:
 		rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
 		rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC2, 1);
 		rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 		break;
-	case QID_AC_VO:
+	case QID_AC_BK:
 		rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
 		rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC3, 1);
 		rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
@@ -1202,22 +1202,22 @@ static void rt61pci_stop_queue(struct data_queue *queue)
 	u32 reg;
 
 	switch (queue->qid) {
-	case QID_AC_BE:
+	case QID_AC_VO:
 		rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
 		rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC0, 1);
 		rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 		break;
-	case QID_AC_BK:
+	case QID_AC_VI:
 		rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
 		rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC1, 1);
 		rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 		break;
-	case QID_AC_VI:
+	case QID_AC_BE:
 		rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
 		rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC2, 1);
 		rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 		break;
-	case QID_AC_VO:
+	case QID_AC_BK:
 		rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
 		rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC3, 1);
 		rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);

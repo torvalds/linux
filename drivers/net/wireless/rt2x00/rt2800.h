@@ -213,10 +213,10 @@
 
 /*
  * WMM_AIFSN_CFG: Aifsn for each EDCA AC
- * AIFSN0: AC_BE
- * AIFSN1: AC_BK
- * AIFSN2: AC_VI
- * AIFSN3: AC_VO
+ * AIFSN0: AC_VO
+ * AIFSN1: AC_VI
+ * AIFSN2: AC_BE
+ * AIFSN3: AC_BK
  */
 #define WMM_AIFSN_CFG			0x0214
 #define WMM_AIFSN_CFG_AIFSN0		FIELD32(0x0000000f)
@@ -226,10 +226,10 @@
 
 /*
  * WMM_CWMIN_CSR: CWmin for each EDCA AC
- * CWMIN0: AC_BE
- * CWMIN1: AC_BK
- * CWMIN2: AC_VI
- * CWMIN3: AC_VO
+ * CWMIN0: AC_VO
+ * CWMIN1: AC_VI
+ * CWMIN2: AC_BE
+ * CWMIN3: AC_BK
  */
 #define WMM_CWMIN_CFG			0x0218
 #define WMM_CWMIN_CFG_CWMIN0		FIELD32(0x0000000f)
@@ -239,10 +239,10 @@
 
 /*
  * WMM_CWMAX_CSR: CWmax for each EDCA AC
- * CWMAX0: AC_BE
- * CWMAX1: AC_BK
- * CWMAX2: AC_VI
- * CWMAX3: AC_VO
+ * CWMAX0: AC_VO
+ * CWMAX1: AC_VI
+ * CWMAX2: AC_BE
+ * CWMAX3: AC_BK
  */
 #define WMM_CWMAX_CFG			0x021c
 #define WMM_CWMAX_CFG_CWMAX0		FIELD32(0x0000000f)
@@ -251,18 +251,18 @@
 #define WMM_CWMAX_CFG_CWMAX3		FIELD32(0x0000f000)
 
 /*
- * AC_TXOP0: AC_BK/AC_BE TXOP register
- * AC0TXOP: AC_BK in unit of 32us
- * AC1TXOP: AC_BE in unit of 32us
+ * AC_TXOP0: AC_VO/AC_VI TXOP register
+ * AC0TXOP: AC_VO in unit of 32us
+ * AC1TXOP: AC_VI in unit of 32us
  */
 #define WMM_TXOP0_CFG			0x0220
 #define WMM_TXOP0_CFG_AC0TXOP		FIELD32(0x0000ffff)
 #define WMM_TXOP0_CFG_AC1TXOP		FIELD32(0xffff0000)
 
 /*
- * AC_TXOP1: AC_VO/AC_VI TXOP register
- * AC2TXOP: AC_VI in unit of 32us
- * AC3TXOP: AC_VO in unit of 32us
+ * AC_TXOP1: AC_BE/AC_BK TXOP register
+ * AC2TXOP: AC_BE in unit of 32us
+ * AC3TXOP: AC_BK in unit of 32us
  */
 #define WMM_TXOP1_CFG			0x0224
 #define WMM_TXOP1_CFG_AC2TXOP		FIELD32(0x0000ffff)
@@ -288,7 +288,7 @@
 #define MCU_CMD_CFG			0x022c
 
 /*
- * AC_BK register offsets
+ * AC_VO register offsets
  */
 #define TX_BASE_PTR0			0x0230
 #define TX_MAX_CNT0			0x0234
@@ -296,7 +296,7 @@
 #define TX_DTX_IDX0			0x023c
 
 /*
- * AC_BE register offsets
+ * AC_VI register offsets
  */
 #define TX_BASE_PTR1			0x0240
 #define TX_MAX_CNT1			0x0244
@@ -304,7 +304,7 @@
 #define TX_DTX_IDX1			0x024c
 
 /*
- * AC_VI register offsets
+ * AC_BE register offsets
  */
 #define TX_BASE_PTR2			0x0250
 #define TX_MAX_CNT2			0x0254
@@ -312,7 +312,7 @@
 #define TX_DTX_IDX2			0x025c
 
 /*
- * AC_VO register offsets
+ * AC_BK register offsets
  */
 #define TX_BASE_PTR3			0x0260
 #define TX_MAX_CNT3			0x0264

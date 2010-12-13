@@ -45,10 +45,10 @@
 /**
  * enum data_queue_qid: Queue identification
  *
+ * @QID_AC_VO: AC VO queue
+ * @QID_AC_VI: AC VI queue
  * @QID_AC_BE: AC BE queue
  * @QID_AC_BK: AC BK queue
- * @QID_AC_VI: AC VI queue
- * @QID_AC_VO: AC VO queue
  * @QID_HCCA: HCCA queue
  * @QID_MGMT: MGMT queue (prio queue)
  * @QID_RX: RX queue
@@ -57,10 +57,10 @@
  * @QID_ATIM: Atim queue (value unspeficied, don't send it to device)
  */
 enum data_queue_qid {
-	QID_AC_BE = 0,
-	QID_AC_BK = 1,
-	QID_AC_VI = 2,
-	QID_AC_VO = 3,
+	QID_AC_VO = 0,
+	QID_AC_VI = 1,
+	QID_AC_BE = 2,
+	QID_AC_BK = 3,
 	QID_HCCA = 4,
 	QID_MGMT = 13,
 	QID_RX = 14,

@@ -746,10 +746,10 @@ void rt2x00queue_pause_queue(struct data_queue *queue)
 		return;
 
 	switch (queue->qid) {
+	case QID_AC_VO:
+	case QID_AC_VI:
 	case QID_AC_BE:
 	case QID_AC_BK:
-	case QID_AC_VI:
-	case QID_AC_VO:
 		/*
 		 * For TX queues, we have to disable the queue
 		 * inside mac80211.
@@ -770,10 +770,10 @@ void rt2x00queue_unpause_queue(struct data_queue *queue)
 		return;
 
 	switch (queue->qid) {
+	case QID_AC_VO:
+	case QID_AC_VI:
 	case QID_AC_BE:
 	case QID_AC_BK:
-	case QID_AC_VI:
-	case QID_AC_VO:
 		/*
 		 * For TX queues, we have to enable the queue
 		 * inside mac80211.
@@ -834,10 +834,10 @@ void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
 	unsigned int i;
 	bool started;
 	bool tx_queue =
-		(queue->qid == QID_AC_BE) ||
-		(queue->qid == QID_AC_BK) ||
+		(queue->qid == QID_AC_VO) ||
 		(queue->qid == QID_AC_VI) ||
-		(queue->qid == QID_AC_VO);
+		(queue->qid == QID_AC_BE) ||
+		(queue->qid == QID_AC_BK);
 
 	mutex_lock(&queue->status_lock);
 
@@ -1141,7 +1141,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize queue parameters.
 	 * RX: qid = QID_RX
-	 * TX: qid = QID_AC_BE + index
+	 * TX: qid = QID_AC_VO + index
 	 * TX: cw_min: 2^5 = 32.
 	 * TX: cw_max: 2^10 = 1024.
 	 * BCN: qid = QID_BEACON
@@ -1149,7 +1149,7 @@ int rt2x00queue_allocate(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00queue_init(rt2x00dev, rt2x00dev->rx, QID_RX);
 
-	qid = QID_AC_BE;
+	qid = QID_AC_VO;
 	tx_queue_for_each(rt2x00dev, queue)
 		rt2x00queue_init(rt2x00dev, queue, qid++);
 

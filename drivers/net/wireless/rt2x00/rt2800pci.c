@@ -217,10 +217,10 @@ static void rt2800pci_kick_queue(struct data_queue *queue)
 	struct queue_entry *entry;
 
 	switch (queue->qid) {
+	case QID_AC_VO:
+	case QID_AC_VI:
 	case QID_AC_BE:
 	case QID_AC_BK:
-	case QID_AC_VI:
-	case QID_AC_VO:
 		entry = rt2x00queue_get_entry(queue, Q_INDEX);
 		rt2800_register_write(rt2x00dev, TX_CTX_IDX(queue->qid), entry->entry_idx);
 		break;

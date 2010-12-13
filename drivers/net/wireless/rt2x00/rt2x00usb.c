@@ -353,10 +353,10 @@ static void rt2x00usb_kick_rx_entry(struct queue_entry *entry)
 void rt2x00usb_kick_queue(struct data_queue *queue)
 {
 	switch (queue->qid) {
+	case QID_AC_VO:
+	case QID_AC_VI:
 	case QID_AC_BE:
 	case QID_AC_BK:
-	case QID_AC_VI:
-	case QID_AC_VO:
 		if (!rt2x00queue_empty(queue))
 			rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
 						   rt2x00usb_kick_tx_entry);
@@ -403,10 +403,10 @@ void rt2x00usb_flush_queue(struct data_queue *queue)
 	 * Obtain the queue completion handler
 	 */
 	switch (queue->qid) {
+	case QID_AC_VO:
+	case QID_AC_VI:
 	case QID_AC_BE:
 	case QID_AC_BK:
-	case QID_AC_VI:
-	case QID_AC_VO:
 		completion = &queue->rt2x00dev->txdone_work;
 		break;
 	case QID_RX:
