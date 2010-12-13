@@ -498,7 +498,7 @@ static int drv_init(void)
         return -ENODEV;
     }
     /* APMU_GC_156M, APMU_GC_624M, APMU_GC_PLL2, APMU_GC_PLL2_DIV2 currently */
-    if (clk_set_rate(clk_gpu, 624000000))  //designed on 500M
+    if (clk_set_rate(clk_gpu, 312000000))  //designed on 500M
     {
        	gcmkTRACE_ZONE(gcvLEVEL_ERROR, gcvZONE_DRIVER,
     	    	      "[galcore] Can't set core clock.");
