@@ -11,7 +11,9 @@ ip_forward - BOOLEAN
 	for routers)
 
 ip_default_ttl - INTEGER
-	default 64
+	Default value of TTL field (Time To Live) for outgoing (but not
+	forwarded) IP packets. Should be between 1 and 255 inclusive.
+	Default: 64 (as recommended by RFC1700)
 
 ip_no_pmtu_disc - BOOLEAN
 	Disable Path MTU Discovery.
