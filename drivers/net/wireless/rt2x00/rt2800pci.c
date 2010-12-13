@@ -186,6 +186,77 @@ static inline void rt2800pci_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev)
 #endif /* CONFIG_PCI */
 
 /*
+ * Queue handlers.
+ */
+static void rt2800pci_start_queue(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u32 reg;
+
+	switch (queue->qid) {
+	case QID_RX:
+		rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 1);
+		rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+		break;
+	case QID_BEACON:
+		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
+		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+		break;
+	default:
+		break;
+	};
+}
+
+static void rt2800pci_kick_queue(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	struct queue_entry *entry;
+
+	switch (queue->qid) {
+	case QID_AC_BE:
+	case QID_AC_BK:
+	case QID_AC_VI:
+	case QID_AC_VO:
+		entry = rt2x00queue_get_entry(queue, Q_INDEX);
+		rt2800_register_write(rt2x00dev, TX_CTX_IDX(queue->qid), entry->entry_idx);
+		break;
+	case QID_MGMT:
+		entry = rt2x00queue_get_entry(queue, Q_INDEX);
+		rt2800_register_write(rt2x00dev, TX_CTX_IDX(5), entry->entry_idx);
+		break;
+	default:
+		break;
+	}
+}
+
+static void rt2800pci_stop_queue(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u32 reg;
+
+	switch (queue->qid) {
+	case QID_RX:
+		rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 0);
+		rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+		break;
+	case QID_BEACON:
+		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
+		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+		break;
+	default:
+		break;
+	}
+}
+
+/*
  * Firmware functions
  */
 static char *rt2800pci_get_firmware_name(struct rt2x00_dev *rt2x00dev)
@@ -323,17 +394,6 @@ static int rt2800pci_init_queues(struct rt2x00_dev *rt2x00dev)
 /*
  * Device state switch handlers.
  */
-static void rt2800pci_toggle_rx(struct rt2x00_dev *rt2x00dev,
-				enum dev_state state)
-{
-	u32 reg;
-
-	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX,
-			   (state == STATE_RADIO_RX_ON));
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
-}
-
 static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 				 enum dev_state state)
 {
@@ -478,8 +538,10 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt2800pci_set_state(rt2x00dev, STATE_SLEEP);
 		break;
 	case STATE_RADIO_RX_ON:
+		rt2800pci_start_queue(rt2x00dev->rx);
+		break;
 	case STATE_RADIO_RX_OFF:
-		rt2800pci_toggle_rx(rt2x00dev, state);
+		rt2800pci_stop_queue(rt2x00dev->rx);
 		break;
 	case STATE_RADIO_IRQ_ON:
 	case STATE_RADIO_IRQ_ON_ISR:
@@ -563,45 +625,6 @@ static void rt2800pci_write_tx_desc(struct queue_entry *entry,
 	 */
 	skbdesc->desc = txd;
 	skbdesc->desc_len = TXD_DESC_SIZE;
-}
-
-/*
- * TX data initialization
- */
-static void rt2800pci_kick_tx_queue(struct data_queue *queue)
-{
-	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
-	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
-	unsigned int qidx;
-
-	if (queue->qid == QID_MGMT)
-		qidx = 5;
-	else
-		qidx = queue->qid;
-
-	rt2800_register_write(rt2x00dev, TX_CTX_IDX(qidx), entry->entry_idx);
-}
-
-static void rt2800pci_kill_tx_queue(struct data_queue *queue)
-{
-	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
-	u32 reg;
-
-	if (queue->qid == QID_BEACON) {
-		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
-		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
-		return;
-	}
-
-	rt2800_register_read(rt2x00dev, WPDMA_RST_IDX, &reg);
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX0, (queue->qid == QID_AC_BE));
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX1, (queue->qid == QID_AC_BK));
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX2, (queue->qid == QID_AC_VI));
-	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX3, (queue->qid == QID_AC_VO));
-	rt2800_register_write(rt2x00dev, WPDMA_RST_IDX, reg);
 }
 
 /*
@@ -984,8 +1007,8 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.write_tx_desc		= rt2800pci_write_tx_desc,
 	.write_tx_data		= rt2800_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
-	.kick_tx_queue		= rt2800pci_kick_tx_queue,
-	.kill_tx_queue		= rt2800pci_kill_tx_queue,
+	.kick_tx_queue		= rt2800pci_kick_queue,
+	.kill_tx_queue		= rt2800pci_stop_queue,
 	.fill_rxdone		= rt2800pci_fill_rxdone,
 	.config_shared_key	= rt2800_config_shared_key,
 	.config_pairwise_key	= rt2800_config_pairwise_key,

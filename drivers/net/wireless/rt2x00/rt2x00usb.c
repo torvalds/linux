@@ -268,7 +268,7 @@ void rt2x00usb_kick_tx_queue(struct data_queue *queue)
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_kick_tx_queue);
 
-static void rt2x00usb_kill_tx_entry(struct queue_entry *entry)
+static void rt2x00usb_kill_entry(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
@@ -287,12 +287,12 @@ static void rt2x00usb_kill_tx_entry(struct queue_entry *entry)
 		usb_kill_urb(bcn_priv->guardian_urb);
 }
 
-void rt2x00usb_kill_tx_queue(struct data_queue *queue)
+void rt2x00usb_stop_queue(struct data_queue *queue)
 {
 	rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
-				   rt2x00usb_kill_tx_entry);
+				   rt2x00usb_kill_entry);
 }
-EXPORT_SYMBOL_GPL(rt2x00usb_kill_tx_queue);
+EXPORT_SYMBOL_GPL(rt2x00usb_stop_queue);
 
 static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 {
@@ -316,7 +316,7 @@ static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 	 * Kill all entries in the queue, afterwards we need to
 	 * wait a bit for all URBs to be cancelled.
 	 */
-	rt2x00usb_kill_tx_queue(queue);
+	rt2x00usb_stop_queue(queue);
 
 	/*
 	 * In case that a driver has overriden the txdone_work
@@ -423,7 +423,7 @@ void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 				    REGISTER_TIMEOUT);
 
 	/*
-	 * The USB version of kill_tx_queue also works
+	 * The USB version of also works
 	 * on the RX queue.
 	 */
 	rt2x00dev->ops->lib->kill_tx_queue(rt2x00dev->rx);

@@ -50,6 +50,57 @@ module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
 /*
+ * Queue handlers.
+ */
+static void rt2800usb_start_queue(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u32 reg;
+
+	switch (queue->qid) {
+	case QID_RX:
+		rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 1);
+		rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+		break;
+	case QID_BEACON:
+		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
+		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+		break;
+	default:
+		break;
+	}
+}
+
+static void rt2800usb_stop_queue(struct data_queue *queue)
+{
+	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
+	u32 reg;
+
+	switch (queue->qid) {
+	case QID_RX:
+		rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 0);
+		rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+		break;
+	case QID_BEACON:
+		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
+		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
+		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+		break;
+	default:
+		break;
+	}
+
+	rt2x00usb_stop_queue(queue);
+}
+
+/*
  * Firmware functions
  */
 static char *rt2800usb_get_firmware_name(struct rt2x00_dev *rt2x00dev)
@@ -107,17 +158,6 @@ static int rt2800usb_write_firmware(struct rt2x00_dev *rt2x00dev,
 /*
  * Device state switch handlers.
  */
-static void rt2800usb_toggle_rx(struct rt2x00_dev *rt2x00dev,
-				enum dev_state state)
-{
-	u32 reg;
-
-	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX,
-			   (state == STATE_RADIO_RX_ON));
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
-}
-
 static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
@@ -215,8 +255,10 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt2800usb_set_state(rt2x00dev, STATE_SLEEP);
 		break;
 	case STATE_RADIO_RX_ON:
+		rt2800usb_start_queue(rt2x00dev->rx);
+		break;
 	case STATE_RADIO_RX_OFF:
-		rt2800usb_toggle_rx(rt2x00dev, state);
+		rt2800usb_stop_queue(rt2x00dev->rx);
 		break;
 	case STATE_RADIO_IRQ_ON:
 	case STATE_RADIO_IRQ_ON_ISR:
@@ -387,22 +429,6 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 			rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
 		}
 	}
-}
-
-static void rt2800usb_kill_tx_queue(struct data_queue *queue)
-{
-	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
-	u32 reg;
-
-	if (queue->qid == QID_BEACON) {
-		rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
-		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
-		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
-	}
-
-	rt2x00usb_kill_tx_queue(queue);
 }
 
 /*
@@ -605,7 +631,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.write_beacon		= rt2800_write_beacon,
 	.get_tx_data_len	= rt2800usb_get_tx_data_len,
 	.kick_tx_queue		= rt2x00usb_kick_tx_queue,
-	.kill_tx_queue		= rt2800usb_kill_tx_queue,
+	.kill_tx_queue		= rt2800usb_stop_queue,
 	.fill_rxdone		= rt2800usb_fill_rxdone,
 	.config_shared_key	= rt2800_config_shared_key,
 	.config_pairwise_key	= rt2800_config_pairwise_key,
