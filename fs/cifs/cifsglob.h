@@ -163,10 +163,7 @@ struct TCP_Server_Info {
 	char server_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
 	char *hostname; /* hostname portion of UNC string */
 	struct socket *ssocket;
-	union {
-		struct sockaddr_in sockAddr;
-		struct sockaddr_in6 sockAddr6;
-	} addr;
+	struct sockaddr_storage dstaddr;
 	struct sockaddr_storage srcaddr; /* locally bind to this IP */
 	wait_queue_head_t response_q;
 	wait_queue_head_t request_q; /* if more than maxmpx to srvr must block*/

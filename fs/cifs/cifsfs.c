@@ -351,18 +351,19 @@ cifs_evict_inode(struct inode *inode)
 static void
 cifs_show_address(struct seq_file *s, struct TCP_Server_Info *server)
 {
+	struct sockaddr_in *sa = (struct sockaddr_in *) &server->dstaddr;
+	struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *) &server->dstaddr;
+
 	seq_printf(s, ",addr=");
 
-	switch (server->addr.sockAddr.sin_family) {
+	switch (server->dstaddr.ss_family) {
 	case AF_INET:
-		seq_printf(s, "%pI4", &server->addr.sockAddr.sin_addr.s_addr);
+		seq_printf(s, "%pI4", &sa->sin_addr.s_addr);
 		break;
 	case AF_INET6:
-		seq_printf(s, "%pI6",
-			   &server->addr.sockAddr6.sin6_addr.s6_addr);
-		if (server->addr.sockAddr6.sin6_scope_id)
-			seq_printf(s, "%%%u",
-				   server->addr.sockAddr6.sin6_scope_id);
+		seq_printf(s, "%pI6", &sa6->sin6_addr.s6_addr);
+		if (sa6->sin6_scope_id)
+			seq_printf(s, "%%%u", sa6->sin6_scope_id);
 		break;
 	default:
 		seq_printf(s, "(unknown)");
