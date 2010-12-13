@@ -52,8 +52,8 @@ static void ar9003_paprd_setup_single_table(struct ath_hw *ah)
 	else
 		hdr = &eep->modalHeader2G;
 
-	am_mask = le32_to_cpu(hdr->papdRateMaskHt20);
-	ht40_mask = le32_to_cpu(hdr->papdRateMaskHt40);
+	am_mask = le32_to_cpu(hdr->papdRateMaskHt20) & AR9300_PAPRD_RATE_MASK;
+	ht40_mask = le32_to_cpu(hdr->papdRateMaskHt40) & AR9300_PAPRD_RATE_MASK;
 
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_AM2AM, AR_PHY_PAPRD_AM2AM_MASK, am_mask);
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_AM2PM, AR_PHY_PAPRD_AM2PM_MASK, am_mask);

@@ -31,6 +31,12 @@
 #define AR9300_ANT_16S               25
 #define AR9300_FUTURE_MODAL_SZ       6
 
+#define AR9300_PAPRD_RATE_MASK		0x01ffffff
+#define AR9300_PAPRD_SCALE_1		0x0e000000
+#define AR9300_PAPRD_SCALE_1_S		25
+#define AR9300_PAPRD_SCALE_2		0x70000000
+#define AR9300_PAPRD_SCALE_2_S		28
+
 /* Delta from which to start power to pdadc table */
 /* This offset is used in both open loop and closed loop power control
  * schemes. In open loop power control, it is not really needed, but for
