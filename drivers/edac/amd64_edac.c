@@ -570,7 +570,7 @@ static u64 sys_addr_to_dram_addr(struct mem_ctl_info *mci, u64 sys_addr)
 	 * section 3.4.2 of AMD publication 24592: AMD x86-64 Architecture
 	 * Programmer's Manual Volume 1 Application Programming.
 	 */
-	dram_addr = (sys_addr & 0xffffffffffull) - dram_base;
+	dram_addr = (sys_addr & GENMASK(0, 39)) - dram_base;
 
 	debugf2("using DRAM Base register to translate SysAddr 0x%lx to "
 		"DramAddr 0x%lx\n", (unsigned long)sys_addr,
@@ -607,8 +607,8 @@ static u64 dram_addr_to_input_addr(struct mem_ctl_info *mci, u64 dram_addr)
 	 * concerning translating a DramAddr to an InputAddr.
 	 */
 	intlv_shift = num_node_interleave_bits(dram_intlv_en(pvt, 0));
-	input_addr = ((dram_addr >> intlv_shift) & 0xffffff000ull) +
-	    (dram_addr & 0xfff);
+	input_addr = ((dram_addr >> intlv_shift) & GENMASK(12, 35)) +
+		      (dram_addr & 0xfff);
 
 	debugf2("  Intlv Shift=%d DramAddr=0x%lx maps to InputAddr=0x%lx\n",
 		intlv_shift, (unsigned long)dram_addr,
@@ -667,8 +667,8 @@ static u64 input_addr_to_dram_addr(struct mem_ctl_info *mci, u64 input_addr)
 		return input_addr;
 	}
 
-	bits = ((input_addr & 0xffffff000ull) << intlv_shift) +
-	    (input_addr & 0xfff);
+	bits = ((input_addr & GENMASK(12, 35)) << intlv_shift) +
+		(input_addr & 0xfff);
 
 	intlv_sel = dram_intlv_sel(pvt, node_id) & ((1 << intlv_shift) - 1);
 	dram_addr = bits + (intlv_sel << 12);
@@ -1399,21 +1399,20 @@ static int f10_match_to_this_node(struct amd64_pvt *pvt, int range,
 	chan_addr = f10_get_norm_dct_addr(pvt, range, sys_addr,
 					  high_range, dct_sel_base);
 
-	/* remove Node ID (in case of memory interleaving) */
+	/* remove Node ID (in case of node interleaving) */
 	tmp = chan_addr & 0xFC0;
 
-	chan_addr = ((chan_addr >> hweight8(intlv_en)) & 0xFFFFFFFFF000ULL) | tmp;
+	chan_addr = ((chan_addr >> hweight8(intlv_en)) & GENMASK(12, 47)) | tmp;
 
 	/* remove channel interleave and hash */
 	if (dct_interleave_enabled(pvt) &&
 	   !dct_high_range_enabled(pvt) &&
 	   !dct_ganging_enabled(pvt)) {
 		if (dct_sel_interleave_addr(pvt) != 1)
-			chan_addr = (chan_addr >> 1) & 0xFFFFFFFFFFFFFFC0ULL;
+			chan_addr = (chan_addr >> 1) & GENMASK(6, 63);
 		else {
 			tmp = chan_addr & 0xFC0;
-			chan_addr = ((chan_addr & 0xFFFFFFFFFFFFC000ULL) >> 1)
-					| tmp;
+			chan_addr = ((chan_addr & GENMASK(14, 63)) >> 1) | tmp;
 		}
 	}
 
