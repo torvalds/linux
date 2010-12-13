@@ -235,6 +235,7 @@ static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	u32 length;
+	int status;
 
 	if (!test_and_clear_bit(ENTRY_DATA_PENDING, &entry->flags))
 		return;
@@ -251,7 +252,10 @@ static void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 			  entry->skb->data, length,
 			  rt2x00usb_interrupt_txdone, entry);
 
-	if (usb_submit_urb(entry_priv->urb, GFP_ATOMIC)) {
+	status = usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
+	if (status) {
+		if (status == -ENODEV)
+			clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 		set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 		rt2x00lib_dmadone(entry);
 	}
@@ -435,6 +439,7 @@ void rt2x00usb_clear_entry(struct queue_entry *entry)
 	    to_usb_device_intf(entry->queue->rt2x00dev->dev);
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	int pipe;
+	int status;
 
 	entry->flags = 0;
 
@@ -445,7 +450,12 @@ void rt2x00usb_clear_entry(struct queue_entry *entry)
 				rt2x00usb_interrupt_rxdone, entry);
 
 		set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-		if (usb_submit_urb(entry_priv->urb, GFP_ATOMIC)) {
+
+		status = usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
+		if (status) {
+			if (status == -ENODEV)
+				clear_bit(DEVICE_STATE_PRESENT,
+					  &entry->queue->rt2x00dev->flags);
 			set_bit(ENTRY_DATA_IO_FAILED, &entry->flags);
 			rt2x00lib_dmadone(entry);
 		}
