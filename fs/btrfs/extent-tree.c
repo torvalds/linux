@@ -4943,6 +4943,25 @@ search:
 		btrfs_get_block_group(block_group);
 		search_start = block_group->key.objectid;
 
+		/*
+		 * this can happen if we end up cycling through all the
+		 * raid types, but we want to make sure we only allocate
+		 * for the proper type.
+		 */
+		if (!block_group_bits(block_group, data)) {
+		    u64 extra = BTRFS_BLOCK_GROUP_DUP |
+				BTRFS_BLOCK_GROUP_RAID1 |
+				BTRFS_BLOCK_GROUP_RAID10;
+
+			/*
+			 * if they asked for extra copies and this block group
+			 * doesn't provide them, bail.  This does allow us to
+			 * fill raid0 from raid1.
+			 */
+			if ((data & extra) && !(block_group->flags & extra))
+				goto loop;
+		}
+
 have_block_group:
 		if (unlikely(block_group->cached == BTRFS_CACHE_NO)) {
 			u64 free_percent;
@@ -8273,7 +8292,6 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 			break;
 		if (ret != 0)
 			goto error;
-
 		leaf = path->nodes[0];
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 		cache = kzalloc(sizeof(*cache), GFP_NOFS);
