@@ -718,36 +718,8 @@ void rt2x00mac_flush(struct ieee80211_hw *hw, bool drop)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct data_queue *queue;
-	unsigned int i = 0;
 
-	ieee80211_stop_queues(hw);
-
-	/*
-	 * Run over all queues to kick them, this will force
-	 * any pending frames to be transmitted.
-	 */
-	tx_queue_for_each(rt2x00dev, queue) {
-		rt2x00dev->ops->lib->kick_queue(queue);
-	}
-
-	/**
-	 * All queues have been kicked, now wait for each queue
-	 * to become empty. With a bit of luck, we only have to wait
-	 * for the first queue to become empty, because while waiting
-	 * for the that queue, the other queues will have transmitted
-	 * all their frames as well (since they were already kicked).
-	 */
-	tx_queue_for_each(rt2x00dev, queue) {
-		for (i = 0; i < 10; i++) {
-			if (rt2x00queue_empty(queue))
-				break;
-			msleep(100);
-		}
-
-		if (!rt2x00queue_empty(queue))
-			WARNING(rt2x00dev, "Failed to flush queue %d\n", queue->qid);
-	}
-
-	ieee80211_wake_queues(hw);
+	tx_queue_for_each(rt2x00dev, queue)
+		rt2x00queue_flush_queue(queue, drop);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_flush);

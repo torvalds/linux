@@ -780,6 +780,12 @@ void rt2x00queue_unpause_queue(struct data_queue *queue)
 		 */
 		ieee80211_wake_queue(queue->rt2x00dev->hw, queue->qid);
 		break;
+	case QID_RX:
+		/*
+		 * For RX we need to kick the queue now in order to
+		 * receive frames.
+		 */
+		queue->rt2x00dev->ops->lib->kick_queue(queue);
 	default:
 		break;
 	}
@@ -823,6 +829,74 @@ void rt2x00queue_stop_queue(struct data_queue *queue)
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_stop_queue);
 
+void rt2x00queue_flush_queue(struct data_queue *queue, bool drop)
+{
+	unsigned int i;
+	bool started;
+	bool tx_queue =
+		(queue->qid == QID_AC_BE) ||
+		(queue->qid == QID_AC_BK) ||
+		(queue->qid == QID_AC_VI) ||
+		(queue->qid == QID_AC_VO);
+
+	mutex_lock(&queue->status_lock);
+
+	/*
+	 * If the queue has been started, we must stop it temporarily
+	 * to prevent any new frames to be queued on the device. If
+	 * we are not dropping the pending frames, the queue must
+	 * only be stopped in the software and not the hardware,
+	 * otherwise the queue will never become empty on its own.
+	 */
+	started = test_bit(QUEUE_STARTED, &queue->flags);
+	if (started) {
+		/*
+		 * Pause the queue
+		 */
+		rt2x00queue_pause_queue(queue);
+
+		/*
+		 * If we are not supposed to drop any pending
+		 * frames, this means we must force a start (=kick)
+		 * to the queue to make sure the hardware will
+		 * start transmitting.
+		 */
+		if (!drop && tx_queue)
+			queue->rt2x00dev->ops->lib->kick_queue(queue);
+	}
+
+	/*
+	 * Check if driver supports flushing, we can only guarentee
+	 * full support for flushing if the driver is able
+	 * to cancel all pending frames (drop = true).
+	 */
+	if (drop && queue->rt2x00dev->ops->lib->flush_queue)
+		queue->rt2x00dev->ops->lib->flush_queue(queue);
+
+	/*
+	 * When we don't want to drop any frames, or when
+	 * the driver doesn't fully flush the queue correcly,
+	 * we must wait for the queue to become empty.
+	 */
+	for (i = 0; !rt2x00queue_empty(queue) && i < 100; i++)
+		msleep(10);
+
+	/*
+	 * The queue flush has failed...
+	 */
+	if (unlikely(!rt2x00queue_empty(queue)))
+		WARNING(queue->rt2x00dev, "Queue %d failed to flush", queue->qid);
+
+	/*
+	 * Restore the queue to the previous status
+	 */
+	if (started)
+		rt2x00queue_unpause_queue(queue);
+
+	mutex_unlock(&queue->status_lock);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_flush_queue);
+
 void rt2x00queue_start_queues(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
@@ -856,6 +930,17 @@ void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev)
 	rt2x00queue_stop_queue(rt2x00dev->rx);
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_stop_queues);
+
+void rt2x00queue_flush_queues(struct rt2x00_dev *rt2x00dev, bool drop)
+{
+	struct data_queue *queue;
+
+	tx_queue_for_each(rt2x00dev, queue)
+		rt2x00queue_flush_queue(queue, drop);
+
+	rt2x00queue_flush_queue(rt2x00dev->rx, drop);
+}
+EXPORT_SYMBOL_GPL(rt2x00queue_flush_queues);
 
 static void rt2x00queue_reset(struct data_queue *queue)
 {

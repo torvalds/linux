@@ -94,6 +94,7 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00link_stop_tuner(rt2x00dev);
 	rt2x00queue_stop_queues(rt2x00dev);
+	rt2x00queue_flush_queues(rt2x00dev, true);
 
 	/*
 	 * Disable radio.

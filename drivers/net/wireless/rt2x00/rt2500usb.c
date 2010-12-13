@@ -785,8 +785,6 @@ static void rt2500usb_stop_queue(struct data_queue *queue)
 	default:
 		break;
 	}
-
-	rt2x00usb_stop_queue(queue);
 }
 
 /*
@@ -1842,6 +1840,7 @@ static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
 	.start_queue		= rt2500usb_start_queue,
 	.kick_queue		= rt2x00usb_kick_queue,
 	.stop_queue		= rt2500usb_stop_queue,
+	.flush_queue		= rt2x00usb_flush_queue,
 	.write_tx_desc		= rt2500usb_write_tx_desc,
 	.write_beacon		= rt2500usb_write_beacon,
 	.get_tx_data_len	= rt2500usb_get_tx_data_len,

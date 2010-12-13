@@ -387,13 +387,13 @@ struct queue_entry_priv_usb_bcn {
 void rt2x00usb_kick_queue(struct data_queue *queue);
 
 /**
- * rt2x00usb_stop_queue - Stop data queue
+ * rt2x00usb_flush_queue - Flush data queue
  * @queue: Data queue to stop
  *
  * This will walk through all entries of the queue and kill all
  * URB's which were send to the device.
  */
-void rt2x00usb_stop_queue(struct data_queue *queue);
+void rt2x00usb_flush_queue(struct data_queue *queue);
 
 /**
  * rt2x00usb_watchdog - Watchdog for USB communication

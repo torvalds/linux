@@ -575,6 +575,7 @@ struct rt2x00lib_ops {
 	void (*start_queue) (struct data_queue *queue);
 	void (*kick_queue) (struct data_queue *queue);
 	void (*stop_queue) (struct data_queue *queue);
+	void (*flush_queue) (struct data_queue *queue);
 
 	/*
 	 * TX control handlers
@@ -1109,6 +1110,16 @@ void rt2x00queue_start_queue(struct data_queue *queue);
 void rt2x00queue_stop_queue(struct data_queue *queue);
 
 /**
+ * rt2x00queue_flush_queue - Flush a data queue
+ * @queue: Pointer to &struct data_queue.
+ * @drop: True to drop all pending frames.
+ *
+ * This function will flush the queue. After this call
+ * the queue is guarenteed to be empty.
+ */
+void rt2x00queue_flush_queue(struct data_queue *queue, bool drop);
+
+/**
  * rt2x00queue_start_queues - Start all data queues
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  *
@@ -1124,6 +1135,16 @@ void rt2x00queue_start_queues(struct rt2x00_dev *rt2x00dev);
  * any pending frames.
  */
 void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev);
+
+/**
+ * rt2x00queue_flush_queues - Flush all data queues
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @drop: True to drop all pending frames.
+ *
+ * This function will loop through all available queues to flush
+ * any pending frames.
+ */
+void rt2x00queue_flush_queues(struct rt2x00_dev *rt2x00dev, bool drop);
 
 /*
  * Debugfs handlers.

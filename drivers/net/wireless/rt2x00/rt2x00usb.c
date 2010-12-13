@@ -366,7 +366,7 @@ void rt2x00usb_kick_queue(struct data_queue *queue)
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_kick_queue);
 
-static void rt2x00usb_kill_entry(struct queue_entry *entry)
+static void rt2x00usb_flush_entry(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
@@ -385,37 +385,61 @@ static void rt2x00usb_kill_entry(struct queue_entry *entry)
 		usb_kill_urb(bcn_priv->guardian_urb);
 }
 
-void rt2x00usb_stop_queue(struct data_queue *queue)
+void rt2x00usb_flush_queue(struct data_queue *queue)
 {
+	struct work_struct *completion;
+	unsigned int i;
+
 	rt2x00queue_for_each_entry(queue, Q_INDEX_DONE, Q_INDEX,
-				   rt2x00usb_kill_entry);
+				   rt2x00usb_flush_entry);
+
+	/*
+	 * Obtain the queue completion handler
+	 */
+	switch (queue->qid) {
+	case QID_AC_BE:
+	case QID_AC_BK:
+	case QID_AC_VI:
+	case QID_AC_VO:
+		completion = &queue->rt2x00dev->txdone_work;
+		break;
+	case QID_RX:
+		completion = &queue->rt2x00dev->rxdone_work;
+		break;
+	default:
+		return;
+	}
+
+	for (i = 0; i < 20; i++) {
+		/*
+		 * Check if the driver is already done, otherwise we
+		 * have to sleep a little while to give the driver/hw
+		 * the oppurtunity to complete interrupt process itself.
+		 */
+		if (rt2x00queue_empty(queue))
+			break;
+
+		/*
+		 * Schedule the completion handler manually, when this
+		 * worker function runs, it should cleanup the queue.
+		 */
+		ieee80211_queue_work(queue->rt2x00dev->hw, completion);
+
+		/*
+		 * Wait for a little while to give the driver
+		 * the oppurtunity to recover itself.
+		 */
+		msleep(10);
+	}
 }
-EXPORT_SYMBOL_GPL(rt2x00usb_stop_queue);
+EXPORT_SYMBOL_GPL(rt2x00usb_flush_queue);
 
 static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 {
-	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
-
 	WARNING(queue->rt2x00dev, "TX queue %d DMA timed out,"
 		" invoke forced forced reset\n", queue->qid);
 
-	/*
-	 * Temporarily disable the TX queue, this will force mac80211
-	 * to use the other queues until this queue has been restored.
-	 */
-	rt2x00queue_stop_queue(queue);
-
-	/*
-	 * In case that a driver has overriden the txdone_work
-	 * function, we invoke the TX done through there.
-	 */
-	rt2x00dev->txdone_work.func(&rt2x00dev->txdone_work);
-
-	/*
-	 * The queue has been reset, and mac80211 is allowed to use the
-	 * queue again.
-	 */
-	rt2x00queue_start_queue(queue);
+	rt2x00queue_flush_queue(queue, true);
 }
 
 static void rt2x00usb_watchdog_tx_status(struct data_queue *queue)
