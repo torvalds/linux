@@ -1022,6 +1022,11 @@ config CPU_HAS_PMU
 	default y
 	bool
 
+config MULTI_IRQ_HANDLER
+	bool
+	help
+	  Allow each machine to specify it's own IRQ handler at run time.
+
 if !MMU
 source "arch/arm/Kconfig-nommu"
 endif
