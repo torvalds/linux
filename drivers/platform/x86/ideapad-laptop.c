@@ -282,6 +282,15 @@ static void ideapad_unregister_rfkill(struct acpi_device *adevice, int dev)
 /*
  * Platform device
  */
+static struct attribute *ideapad_attributes[] = {
+	&dev_attr_camera_power.attr,
+	NULL
+};
+
+static struct attribute_group ideapad_attribute_group = {
+	.attrs = ideapad_attributes
+};
+
 static int __devinit ideapad_platform_init(void)
 {
 	int result;
@@ -295,8 +304,14 @@ static int __devinit ideapad_platform_init(void)
 	if (result)
 		goto fail_platform_device;
 
+	result = sysfs_create_group(&ideapad_priv->platform_device->dev.kobj,
+				    &ideapad_attribute_group);
+	if (result)
+		goto fail_sysfs;
 	return 0;
 
+fail_sysfs:
+	platform_device_del(ideapad_priv->platform_device);
 fail_platform_device:
 	platform_device_put(ideapad_priv->platform_device);
 	return result;
@@ -304,6 +319,8 @@ fail_platform_device:
 
 static void ideapad_platform_exit(void)
 {
+	sysfs_remove_group(&ideapad_priv->platform_device->dev.kobj,
+			   &ideapad_attribute_group);
 	platform_device_unregister(ideapad_priv->platform_device);
 }
 /* the above is platform device */
@@ -317,50 +334,30 @@ MODULE_DEVICE_TABLE(acpi, ideapad_device_ids);
 static int ideapad_acpi_add(struct acpi_device *adevice)
 {
 	int ret, i, cfg;
-	int devs_present[5];
 	struct ideapad_private *priv;
 
 	if (read_method_int(adevice->handle, "_CFG", &cfg))
 		return -ENODEV;
 
-	for (i = IDEAPAD_DEV_CAMERA; i < IDEAPAD_DEV_KILLSW; i++) {
-		if (test_bit(ideapad_rfk_data[i].cfgbit, (unsigned long *)&cfg))
-			devs_present[i] = 1;
-		else
-			devs_present[i] = 0;
-	}
-
-	/* The hardware switch is always present */
-	devs_present[IDEAPAD_DEV_KILLSW] = 1;
-
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 	ideapad_priv = priv;
+	priv->handle = adevice->handle;
+	dev_set_drvdata(&adevice->dev, priv);
 
 	ret = ideapad_platform_init();
 	if (ret)
 		goto platform_failed;
 
-	if (devs_present[IDEAPAD_DEV_CAMERA]) {
-		ret = device_create_file(&adevice->dev, &dev_attr_camera_power);
-		if (ret)
-			goto camera_failed;
-	}
-
-	priv->handle = adevice->handle;
-	dev_set_drvdata(&adevice->dev, priv);
-	for (i = IDEAPAD_DEV_WLAN; i <= IDEAPAD_DEV_KILLSW; i++) {
-		if (!devs_present[i])
-			continue;
-
-		ideapad_register_rfkill(adevice, i);
+	for (i = IDEAPAD_DEV_WLAN; i < IDEAPAD_DEV_KILLSW; i++) {
+		if (test_bit(ideapad_rfk_data[i].cfgbit, (unsigned long *)&cfg))
+			ideapad_register_rfkill(adevice, i);
 	}
 	ideapad_sync_rfk_state(adevice);
+
 	return 0;
 
-camera_failed:
-	ideapad_platform_exit();
 platform_failed:
 	kfree(priv);
 	return ret;
@@ -371,14 +368,12 @@ static int ideapad_acpi_remove(struct acpi_device *adevice, int type)
 	struct ideapad_private *priv = dev_get_drvdata(&adevice->dev);
 	int i;
 
-	device_remove_file(&adevice->dev, &dev_attr_camera_power);
-
-	for (i = IDEAPAD_DEV_WLAN; i <= IDEAPAD_DEV_KILLSW; i++)
+	for (i = IDEAPAD_DEV_WLAN; i < IDEAPAD_DEV_KILLSW; i++)
 		ideapad_unregister_rfkill(adevice, i);
-
 	ideapad_platform_exit();
 	dev_set_drvdata(&adevice->dev, NULL);
 	kfree(priv);
+
 	return 0;
 }
 
