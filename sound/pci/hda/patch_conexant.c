@@ -3424,6 +3424,9 @@ static void cx_auto_hp_automute(struct hda_codec *codec)
 				    AC_VERB_SET_PIN_WIDGET_CONTROL,
 				    present ? 0 : PIN_OUT);
 	}
+	for (i = 0; !present && i < cfg->line_outs; i++)
+		if (snd_hda_jack_detect(codec, cfg->line_out_pins[i]))
+			present = 1;
 	for (i = 0; i < cfg->speaker_outs; i++) {
 		snd_hda_codec_write(codec, cfg->speaker_pins[i], 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL,
