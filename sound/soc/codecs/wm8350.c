@@ -831,7 +831,7 @@ static int wm8350_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	}
 
 	/* MCLK direction */
-	if (dir == WM8350_MCLK_DIR_OUT)
+	if (dir == SND_SOC_CLOCK_OUT)
 		wm8350_set_bits(wm8350, WM8350_CLOCK_CONTROL_2,
 				WM8350_MCLK_DIR);
 	else
@@ -1586,6 +1586,13 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 	wm8350_set_bits(wm8350, WM8350_ROUT2_VOLUME,
 			WM8350_OUT2_VU | WM8350_OUT2R_MUTE);
 
+	/* Make sure AIF tristating is disabled by default */
+	wm8350_clear_bits(wm8350, WM8350_AI_FORMATING, WM8350_AIF_TRI);
+
+	/* Make sure we've got a sane companding setup too */
+	wm8350_clear_bits(wm8350, WM8350_ADC_DAC_COMP,
+			  WM8350_DAC_COMP | WM8350_LOOPBACK);
+
 	/* Make sure jack detect is disabled to start off with */
 	wm8350_clear_bits(wm8350, WM8350_JACK_DETECT,
 			  WM8350_JDL_ENA | WM8350_JDR_ENA);
@@ -1619,7 +1626,6 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
 	struct wm8350 *wm8350 = dev_get_platdata(codec->dev);
-	int ret;
 
 	wm8350_clear_bits(wm8350, WM8350_JACK_DETECT,
 			  WM8350_JDL_ENA | WM8350_JDR_ENA);
@@ -1634,15 +1640,9 @@ static int  wm8350_codec_remove(struct snd_soc_codec *codec)
 	priv->hpr.jack = NULL;
 	priv->mic.jack = NULL;
 
-	/* cancel any work waiting to be queued. */
-	ret = cancel_delayed_work(&codec->delayed_work);
-
 	/* if there was any work waiting then we run it now and
 	 * wait for its completion */
-	if (ret) {
-		schedule_delayed_work(&codec->delayed_work, 0);
-		flush_scheduled_work();
-	}
+	flush_delayed_work_sync(&codec->delayed_work);
 
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_OFF);
 

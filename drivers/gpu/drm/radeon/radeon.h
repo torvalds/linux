@@ -1262,6 +1262,10 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 		(rdev->family == CHIP_RS400) ||			\
 		(rdev->family == CHIP_RS480))
 #define ASIC_IS_AVIVO(rdev) ((rdev->family >= CHIP_RS600))
+#define ASIC_IS_DCE2(rdev) ((rdev->family == CHIP_RS600)  ||	\
+			    (rdev->family == CHIP_RS690)  ||	\
+			    (rdev->family == CHIP_RS740)  ||	\
+			    (rdev->family >= CHIP_R600))
 #define ASIC_IS_DCE3(rdev) ((rdev->family >= CHIP_RV620))
 #define ASIC_IS_DCE32(rdev) ((rdev->family >= CHIP_RV730))
 #define ASIC_IS_DCE4(rdev) ((rdev->family >= CHIP_CEDAR))

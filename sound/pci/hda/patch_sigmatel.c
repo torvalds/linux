@@ -1627,6 +1627,8 @@ static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
 static struct snd_pci_quirk stac92hd73xx_codec_id_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02a1,
 		      "Alienware M17x", STAC_ALIENWARE_M17X),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x043a,
+		      "Alienware M17x", STAC_ALIENWARE_M17X),
 	{} /* terminator */
 };
 
@@ -3491,10 +3493,8 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 				return err;
 		}
 
-		if (snd_hda_get_bool_hint(codec, "separate_dmux") != 1) {
+		if (snd_hda_get_bool_hint(codec, "separate_dmux") != 1)
 			snd_hda_add_imux_item(imux, label, index, NULL);
-			spec->num_analog_muxes++;
-		}
 	}
 
 	return 0;

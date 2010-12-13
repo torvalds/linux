@@ -17,7 +17,6 @@
 #include <linux/device.h>
 #include <linux/poll.h>
 #include <linux/mutex.h>
-#include <linux/smp_lock.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 

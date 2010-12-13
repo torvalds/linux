@@ -720,6 +720,8 @@ static int vmw_surface_dmabuf_pin(struct vmw_framebuffer *vfb)
 			       &vmw_vram_ne_placement,
 			       false, &vmw_dmabuf_bo_free);
 	vmw_overlay_resume_all(dev_priv);
+	if (unlikely(ret != 0))
+		vfbs->buffer = NULL;
 
 	return ret;
 }
@@ -729,6 +731,9 @@ static int vmw_surface_dmabuf_unpin(struct vmw_framebuffer *vfb)
 	struct ttm_buffer_object *bo;
 	struct vmw_framebuffer_surface *vfbs =
 		vmw_framebuffer_to_vfbs(&vfb->base);
+
+	if (unlikely(vfbs->buffer == NULL))
+		return 0;
 
 	bo = &vfbs->buffer->base;
 	ttm_bo_unref(&bo);

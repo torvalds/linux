@@ -57,14 +57,20 @@ module_param(pc_debug, int, 0644);
 void soc_pcmcia_debug(struct soc_pcmcia_socket *skt, const char *func,
 		      int lvl, const char *fmt, ...)
 {
+	struct va_format vaf;
 	va_list args;
 	if (pc_debug > lvl) {
-		printk(KERN_DEBUG "skt%u: %s: ", skt->nr, func);
 		va_start(args, fmt);
-		vprintk(fmt, args);
+
+		vaf.fmt = fmt;
+		vaf.va = &args;
+
+		printk(KERN_DEBUG "skt%u: %s: %pV", skt->nr, func, &vaf);
+
 		va_end(args);
 	}
 }
+EXPORT_SYMBOL(soc_pcmcia_debug);
 
 #endif
 

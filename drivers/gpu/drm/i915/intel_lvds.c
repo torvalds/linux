@@ -481,11 +481,8 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
 
-	if (intel_lvds->edid) {
-		drm_mode_connector_update_edid_property(connector,
-							intel_lvds->edid);
+	if (intel_lvds->edid)
 		return drm_add_edid_modes(connector, intel_lvds->edid);
-	}
 
 	mode = drm_mode_duplicate(dev, intel_lvds->fixed_mode);
 	if (mode == 0)
@@ -840,7 +837,7 @@ static bool intel_lvds_ddc_probe(struct drm_device *dev, u8 pin)
  * Create the connector, register the LVDS DDC bus, and try to figure out what
  * modes we can display on the LVDS panel (if present).
  */
-void intel_lvds_init(struct drm_device *dev)
+bool intel_lvds_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_lvds *intel_lvds;
@@ -856,37 +853,37 @@ void intel_lvds_init(struct drm_device *dev)
 
 	/* Skip init on machines we know falsely report LVDS */
 	if (dmi_check_system(intel_no_lvds))
-		return;
+		return false;
 
 	pin = GMBUS_PORT_PANEL;
 	if (!lvds_is_present_in_vbt(dev, &pin)) {
 		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
-		return;
+		return false;
 	}
 
 	if (HAS_PCH_SPLIT(dev)) {
 		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
-			return;
+			return false;
 		if (dev_priv->edp.support) {
 			DRM_DEBUG_KMS("disable LVDS for eDP support\n");
-			return;
+			return false;
 		}
 	}
 
 	if (!intel_lvds_ddc_probe(dev, pin)) {
 		DRM_DEBUG_KMS("LVDS did not respond to DDC probe\n");
-		return;
+		return false;
 	}
 
 	intel_lvds = kzalloc(sizeof(struct intel_lvds), GFP_KERNEL);
 	if (!intel_lvds) {
-		return;
+		return false;
 	}
 
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
 		kfree(intel_lvds);
-		return;
+		return false;
 	}
 
 	if (!HAS_PCH_SPLIT(dev)) {
@@ -939,7 +936,16 @@ void intel_lvds_init(struct drm_device *dev)
 	 */
 	intel_lvds->edid = drm_get_edid(connector,
 					&dev_priv->gmbus[pin].adapter);
-
+	if (intel_lvds->edid) {
+		if (drm_add_edid_modes(connector,
+				       intel_lvds->edid)) {
+			drm_mode_connector_update_edid_property(connector,
+								intel_lvds->edid);
+		} else {
+			kfree(intel_lvds->edid);
+			intel_lvds->edid = NULL;
+		}
+	}
 	if (!intel_lvds->edid) {
 		/* Didn't get an EDID, so
 		 * Set wide sync ranges so we get all modes
@@ -1020,7 +1026,7 @@ out:
 	/* keep the LVDS connector */
 	dev_priv->int_lvds_connector = connector;
 	drm_sysfs_connector_add(connector);
-	return;
+	return true;
 
 failed:
 	DRM_DEBUG_KMS("No LVDS modes found, disabling.\n");
@@ -1028,4 +1034,5 @@ failed:
 	drm_encoder_cleanup(encoder);
 	kfree(intel_lvds);
 	kfree(intel_connector);
+	return false;
 }

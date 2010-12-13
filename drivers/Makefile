@@ -26,6 +26,7 @@ obj-$(CONFIG_REGULATOR)		+= regulator/
 
 # char/ comes before serial/ etc so that the VT console is the boot-time
 # default.
+obj-y				+= tty/
 obj-y				+= char/
 
 # gpu/ comes after char for AGP vs DRM startup

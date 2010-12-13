@@ -336,7 +336,8 @@ struct cifsTconInfo {
  * "get" on the container.
  */
 struct tcon_link {
-	unsigned long		tl_index;
+	struct rb_node		tl_rbnode;
+	uid_t			tl_uid;
 	unsigned long		tl_flags;
 #define TCON_LINK_MASTER	0
 #define TCON_LINK_PENDING	1

@@ -552,7 +552,8 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 	if (int_usb & MUSB_INTR_SESSREQ) {
 		void __iomem *mbase = musb->mregs;
 
-		if (devctl & MUSB_DEVCTL_BDEVICE) {
+		if ((devctl & MUSB_DEVCTL_VBUS) == MUSB_DEVCTL_VBUS
+				&& (devctl & MUSB_DEVCTL_BDEVICE)) {
 			DBG(3, "SessReq while on B state\n");
 			return IRQ_HANDLED;
 		}
@@ -1051,6 +1052,11 @@ static void musb_shutdown(struct platform_device *pdev)
 	if (musb->clock)
 		clk_put(musb->clock);
 	spin_unlock_irqrestore(&musb->lock, flags);
+
+	if (!is_otg_enabled(musb) && is_host_enabled(musb))
+		usb_remove_hcd(musb_to_hcd(musb));
+	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
+	musb_platform_exit(musb);
 
 	/* FIXME power down */
 }
@@ -2110,12 +2116,15 @@ bad_config:
 	 * Otherwise, wait till the gadget driver hooks up.
 	 */
 	if (!is_otg_enabled(musb) && is_host_enabled(musb)) {
+		struct usb_hcd	*hcd = musb_to_hcd(musb);
+
 		MUSB_HST_MODE(musb);
 		musb->xceiv->default_a = 1;
 		musb->xceiv->state = OTG_STATE_A_IDLE;
 
 		status = usb_add_hcd(musb_to_hcd(musb), -1, 0);
 
+		hcd->self.uses_pio_for_control = 1;
 		DBG(1, "%s mode, status %d, devctl %02x %c\n",
 			"HOST", status,
 			musb_readb(musb->mregs, MUSB_DEVCTL),
@@ -2244,13 +2253,6 @@ static int __exit musb_remove(struct platform_device *pdev)
 	 */
 	musb_exit_debugfs(musb);
 	musb_shutdown(pdev);
-#ifdef CONFIG_USB_MUSB_HDRC_HCD
-	if (musb->board_mode == MUSB_HOST)
-		usb_remove_hcd(musb_to_hcd(musb));
-#endif
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
-	musb_platform_exit(musb);
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 
 	musb_free(musb);
 	iounmap(ctrl_base);
@@ -2411,9 +2413,6 @@ static int musb_suspend(struct device *dev)
 	unsigned long	flags;
 	struct musb	*musb = dev_to_musb(&pdev->dev);
 
-	if (!musb->clock)
-		return 0;
-
 	spin_lock_irqsave(&musb->lock, flags);
 
 	if (is_peripheral_active(musb)) {
@@ -2428,10 +2427,12 @@ static int musb_suspend(struct device *dev)
 
 	musb_save_context(musb);
 
-	if (musb->set_clock)
-		musb->set_clock(musb->clock, 0);
-	else
-		clk_disable(musb->clock);
+	if (musb->clock) {
+		if (musb->set_clock)
+			musb->set_clock(musb->clock, 0);
+		else
+			clk_disable(musb->clock);
+	}
 	spin_unlock_irqrestore(&musb->lock, flags);
 	return 0;
 }
@@ -2441,13 +2442,12 @@ static int musb_resume_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct musb	*musb = dev_to_musb(&pdev->dev);
 
-	if (!musb->clock)
-		return 0;
-
-	if (musb->set_clock)
-		musb->set_clock(musb->clock, 1);
-	else
-		clk_enable(musb->clock);
+	if (musb->clock) {
+		if (musb->set_clock)
+			musb->set_clock(musb->clock, 1);
+		else
+			clk_enable(musb->clock);
+	}
 
 	musb_restore_context(musb);
 

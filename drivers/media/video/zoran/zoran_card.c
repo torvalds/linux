@@ -1227,6 +1227,7 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 	snprintf(ZR_DEVNAME(zr), sizeof(ZR_DEVNAME(zr)), "MJPEG[%u]", zr->id);
 	spin_lock_init(&zr->spinlock);
 	mutex_init(&zr->resource_lock);
+	mutex_init(&zr->other_lock);
 	if (pci_enable_device(pdev))
 		goto zr_unreg;
 	pci_read_config_byte(zr->pci_dev, PCI_CLASS_REVISION, &zr->revision);
@@ -1342,13 +1343,12 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 	}
 
 	zr->decoder = v4l2_i2c_new_subdev(&zr->v4l2_dev,
-		&zr->i2c_adapter, NULL, zr->card.i2c_decoder,
+		&zr->i2c_adapter, zr->card.i2c_decoder,
 		0, zr->card.addrs_decoder);
 
 	if (zr->card.i2c_encoder)
 		zr->encoder = v4l2_i2c_new_subdev(&zr->v4l2_dev,
-			&zr->i2c_adapter,
-			NULL, zr->card.i2c_encoder,
+			&zr->i2c_adapter, zr->card.i2c_encoder,
 			0, zr->card.addrs_encoder);
 
 	dprintk(2,

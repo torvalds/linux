@@ -40,7 +40,7 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 	us->current_urb->error_count = 0;
 	us->current_urb->status = 0;
 
-//	us->current_urb->transfer_flags = URB_NO_SETUP_DMA_MAP;
+	us->current_urb->transfer_flags = 0;
 	if (us->current_urb->transfer_buffer == us->iobuf)
 		us->current_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	us->current_urb->transfer_dma = us->iobuf_dma;

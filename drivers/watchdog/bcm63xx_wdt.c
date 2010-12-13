@@ -18,7 +18,6 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/reboot.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/watchdog.h>
@@ -220,14 +219,6 @@ static long bcm63xx_wdt_ioctl(struct file *file, unsigned int cmd,
 	}
 }
 
-static int bcm63xx_wdt_notify_sys(struct notifier_block *this,
-				unsigned long code, void *unused)
-{
-	if (code == SYS_DOWN || code == SYS_HALT)
-		bcm63xx_wdt_pause();
-	return NOTIFY_DONE;
-}
-
 static const struct file_operations bcm63xx_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
@@ -243,12 +234,8 @@ static struct miscdevice bcm63xx_wdt_miscdev = {
 	.fops	= &bcm63xx_wdt_fops,
 };
 
-static struct notifier_block bcm63xx_wdt_notifier = {
-	.notifier_call = bcm63xx_wdt_notify_sys,
-};
 
-
-static int bcm63xx_wdt_probe(struct platform_device *pdev)
+static int __devinit bcm63xx_wdt_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *r;
@@ -280,16 +267,10 @@ static int bcm63xx_wdt_probe(struct platform_device *pdev)
 			wdt_time);
 	}
 
-	ret = register_reboot_notifier(&bcm63xx_wdt_notifier);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register reboot_notifier\n");
-		goto unregister_timer;
-	}
-
 	ret = misc_register(&bcm63xx_wdt_miscdev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to register watchdog device\n");
-		goto unregister_reboot_notifier;
+		goto unregister_timer;
 	}
 
 	dev_info(&pdev->dev, " started, timer margin: %d sec\n",
@@ -297,8 +278,6 @@ static int bcm63xx_wdt_probe(struct platform_device *pdev)
 
 	return 0;
 
-unregister_reboot_notifier:
-	unregister_reboot_notifier(&bcm63xx_wdt_notifier);
 unregister_timer:
 	bcm63xx_timer_unregister(TIMER_WDT_ID);
 unmap:
@@ -306,25 +285,28 @@ unmap:
 	return ret;
 }
 
-static int bcm63xx_wdt_remove(struct platform_device *pdev)
+static int __devexit bcm63xx_wdt_remove(struct platform_device *pdev)
 {
 	if (!nowayout)
 		bcm63xx_wdt_pause();
 
 	misc_deregister(&bcm63xx_wdt_miscdev);
-
-	iounmap(bcm63xx_wdt_device.regs);
-
-	unregister_reboot_notifier(&bcm63xx_wdt_notifier);
 	bcm63xx_timer_unregister(TIMER_WDT_ID);
-
+	iounmap(bcm63xx_wdt_device.regs);
 	return 0;
+}
+
+static void bcm63xx_wdt_shutdown(struct platform_device *pdev)
+{
+	bcm63xx_wdt_pause();
 }
 
 static struct platform_driver bcm63xx_wdt = {
 	.probe	= bcm63xx_wdt_probe,
-	.remove = bcm63xx_wdt_remove,
+	.remove = __devexit_p(bcm63xx_wdt_remove),
+	.shutdown = bcm63xx_wdt_shutdown,
 	.driver = {
+		.owner = THIS_MODULE,
 		.name = "bcm63xx-wdt",
 	}
 };

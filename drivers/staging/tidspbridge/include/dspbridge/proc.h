@@ -551,6 +551,29 @@ extern int proc_map(void *hprocessor,
 			   struct process_context *pr_ctxt);
 
 /*
+ *  ======== proc_reserve_memory ========
+ *  Purpose:
+ *      Reserve a virtually contiguous region of DSP address space.
+ *  Parameters:
+ *      hprocessor      :   The processor handle.
+ *      ul_size	  :   Size of the address space to reserve.
+ *      pp_rsv_addr       :   Ptr to DSP side reserved u8 address.
+ *  Returns:
+ *      0	 :   Success.
+ *      -EFAULT     :   Invalid processor handle.
+ *      -EPERM       :   General failure.
+ *      -ENOMEM     :   Cannot reserve chunk of this size.
+ *  Requires:
+ *      pp_rsv_addr is not NULL
+ *      PROC Initialized.
+ *  Ensures:
+ *  Details:
+ */
+extern int proc_reserve_memory(void *hprocessor,
+				      u32 ul_size, void **pp_rsv_addr,
+				      struct process_context *pr_ctxt);
+
+/*
  *  ======== proc_un_map ========
  *  Purpose:
  *      Removes a MPU buffer mapping from the DSP address space.
@@ -571,5 +594,28 @@ extern int proc_map(void *hprocessor,
  */
 extern int proc_un_map(void *hprocessor, void *map_addr,
 			      struct process_context *pr_ctxt);
+
+/*
+ *  ======== proc_un_reserve_memory ========
+ *  Purpose:
+ *      Frees a previously reserved region of DSP address space.
+ *  Parameters:
+ *      hprocessor      :   The processor handle.
+ *      prsv_addr	:   Ptr to DSP side reservedBYTE address.
+ *  Returns:
+ *      0	 :   Success.
+ *      -EFAULT     :   Invalid processor handle.
+ *      -EPERM       :   General failure.
+ *      -ENOENT   :   Cannot find a reserved region starting with this
+ *		      :   address.
+ *  Requires:
+ *      prsv_addr is not NULL
+ *      PROC Initialized.
+ *  Ensures:
+ *  Details:
+ */
+extern int proc_un_reserve_memory(void *hprocessor,
+					 void *prsv_addr,
+					 struct process_context *pr_ctxt);
 
 #endif /* PROC_ */

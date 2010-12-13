@@ -25,7 +25,6 @@
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
@@ -247,10 +246,12 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			mutex_unlock(vdev->lock);
 	} else if (vdev->fops->ioctl) {
 		/* TODO: convert all drivers to unlocked_ioctl */
-		lock_kernel();
+		static DEFINE_MUTEX(v4l2_ioctl_mutex);
+
+		mutex_lock(&v4l2_ioctl_mutex);
 		if (video_is_registered(vdev))
 			ret = vdev->fops->ioctl(filp, cmd, arg);
-		unlock_kernel();
+		mutex_unlock(&v4l2_ioctl_mutex);
 	} else
 		ret = -ENOTTY;
 

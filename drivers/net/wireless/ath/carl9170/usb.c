@@ -82,9 +82,11 @@ static struct usb_device_id carl9170_usb_ids[] = {
 	{ USB_DEVICE(0x07d1, 0x3c10) },
 	/* D-Link DWA 160 A2 */
 	{ USB_DEVICE(0x07d1, 0x3a09) },
+	/* D-Link DWA 130 D */
+	{ USB_DEVICE(0x07d1, 0x3a0f) },
 	/* Netgear WNA1000 */
 	{ USB_DEVICE(0x0846, 0x9040) },
-	/* Netgear WNDA3100 */
+	/* Netgear WNDA3100 (v1) */
 	{ USB_DEVICE(0x0846, 0x9010) },
 	/* Netgear WN111 v2 */
 	{ USB_DEVICE(0x0846, 0x9001), .driver_info = CARL9170_ONE_LED },
@@ -551,12 +553,12 @@ static int carl9170_usb_flush(struct ar9170 *ar)
 		usb_free_urb(urb);
 	}
 
-	ret = usb_wait_anchor_empty_timeout(&ar->tx_cmd, HZ);
+	ret = usb_wait_anchor_empty_timeout(&ar->tx_cmd, 1000);
 	if (ret == 0)
 		err = -ETIMEDOUT;
 
 	/* lets wait a while until the tx - queues are dried out */
-	ret = usb_wait_anchor_empty_timeout(&ar->tx_anch, HZ);
+	ret = usb_wait_anchor_empty_timeout(&ar->tx_anch, 1000);
 	if (ret == 0)
 		err = -ETIMEDOUT;
 

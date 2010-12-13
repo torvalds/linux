@@ -193,6 +193,7 @@ config CPU_SH2
 config CPU_SH2A
 	bool
 	select CPU_SH2
+	select UNCACHED_MAPPING
 
 config CPU_SH3
 	bool

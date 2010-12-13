@@ -484,6 +484,7 @@ static int ath9k_hw_post_init(struct ath_hw *ah)
 		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
 			  "Failed allocating banks for "
 			  "external radio\n");
+		ath9k_hw_rf_free_ext_banks(ah);
 		return ecode;
 	}
 
@@ -952,8 +953,11 @@ static void ath9k_hw_set_operating_mode(struct ath_hw *ah, int opmode)
 		REG_SET_BIT(ah, AR_CFG, AR_CFG_AP_ADHOC_INDICATION);
 		break;
 	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_MONITOR:
 		REG_WRITE(ah, AR_STA_ID1, val | AR_STA_ID1_KSRCH_MODE);
+		break;
+	default:
+		if (ah->is_monitoring)
+			REG_WRITE(ah, AR_STA_ID1, val | AR_STA_ID1_KSRCH_MODE);
 		break;
 	}
 }
@@ -1634,7 +1638,6 @@ void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 
 	switch (ah->opmode) {
 	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_MONITOR:
 		REG_WRITE(ah, AR_NEXT_TBTT_TIMER, TU_TO_USEC(next_beacon));
 		REG_WRITE(ah, AR_NEXT_DMA_BEACON_ALERT, 0xffff);
 		REG_WRITE(ah, AR_NEXT_SWBA, 0x7ffff);
@@ -1663,6 +1666,14 @@ void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 			AR_TBTT_TIMER_EN | AR_DBA_TIMER_EN | AR_SWBA_TIMER_EN;
 		break;
 	default:
+		if (ah->is_monitoring) {
+			REG_WRITE(ah, AR_NEXT_TBTT_TIMER,
+					TU_TO_USEC(next_beacon));
+			REG_WRITE(ah, AR_NEXT_DMA_BEACON_ALERT, 0xffff);
+			REG_WRITE(ah, AR_NEXT_SWBA, 0x7ffff);
+			flags |= AR_TBTT_TIMER_EN;
+			break;
+		}
 		ath_print(ath9k_hw_common(ah), ATH_DBG_BEACON,
 			  "%s: unsupported opmode: %d\n",
 			  __func__, ah->opmode);

@@ -239,6 +239,16 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
+	/* Cursor state */
+	dev_priv->saveCURACNTR = I915_READ(CURACNTR);
+	dev_priv->saveCURAPOS = I915_READ(CURAPOS);
+	dev_priv->saveCURABASE = I915_READ(CURABASE);
+	dev_priv->saveCURBCNTR = I915_READ(CURBCNTR);
+	dev_priv->saveCURBPOS = I915_READ(CURBPOS);
+	dev_priv->saveCURBBASE = I915_READ(CURBBASE);
+	if (IS_GEN2(dev))
+		dev_priv->saveCURSIZE = I915_READ(CURSIZE);
+
 	if (HAS_PCH_SPLIT(dev)) {
 		dev_priv->savePCH_DREF_CONTROL = I915_READ(PCH_DREF_CONTROL);
 		dev_priv->saveDISP_ARB_CTL = I915_READ(DISP_ARB_CTL);
@@ -529,6 +539,16 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 	I915_WRITE(DSPBCNTR, dev_priv->saveDSPBCNTR);
 	I915_WRITE(DSPBADDR, I915_READ(DSPBADDR));
 
+	/* Cursor state */
+	I915_WRITE(CURAPOS, dev_priv->saveCURAPOS);
+	I915_WRITE(CURACNTR, dev_priv->saveCURACNTR);
+	I915_WRITE(CURABASE, dev_priv->saveCURABASE);
+	I915_WRITE(CURBPOS, dev_priv->saveCURBPOS);
+	I915_WRITE(CURBCNTR, dev_priv->saveCURBCNTR);
+	I915_WRITE(CURBBASE, dev_priv->saveCURBBASE);
+	if (IS_GEN2(dev))
+		I915_WRITE(CURSIZE, dev_priv->saveCURSIZE);
+
 	return;
 }
 
@@ -542,16 +562,6 @@ void i915_save_display(struct drm_device *dev)
 	/* This is only meaningful in non-KMS mode */
 	/* Don't save them in KMS mode */
 	i915_save_modeset_reg(dev);
-
-	/* Cursor state */
-	dev_priv->saveCURACNTR = I915_READ(CURACNTR);
-	dev_priv->saveCURAPOS = I915_READ(CURAPOS);
-	dev_priv->saveCURABASE = I915_READ(CURABASE);
-	dev_priv->saveCURBCNTR = I915_READ(CURBCNTR);
-	dev_priv->saveCURBPOS = I915_READ(CURBPOS);
-	dev_priv->saveCURBBASE = I915_READ(CURBBASE);
-	if (IS_GEN2(dev))
-		dev_priv->saveCURSIZE = I915_READ(CURSIZE);
 
 	/* CRT state */
 	if (HAS_PCH_SPLIT(dev)) {
@@ -656,16 +666,6 @@ void i915_restore_display(struct drm_device *dev)
 	/* This is only meaningful in non-KMS mode */
 	/* Don't restore them in KMS mode */
 	i915_restore_modeset_reg(dev);
-
-	/* Cursor state */
-	I915_WRITE(CURAPOS, dev_priv->saveCURAPOS);
-	I915_WRITE(CURACNTR, dev_priv->saveCURACNTR);
-	I915_WRITE(CURABASE, dev_priv->saveCURABASE);
-	I915_WRITE(CURBPOS, dev_priv->saveCURBPOS);
-	I915_WRITE(CURBCNTR, dev_priv->saveCURBCNTR);
-	I915_WRITE(CURBBASE, dev_priv->saveCURBBASE);
-	if (IS_GEN2(dev))
-		I915_WRITE(CURSIZE, dev_priv->saveCURSIZE);
 
 	/* CRT state */
 	if (HAS_PCH_SPLIT(dev))
@@ -862,8 +862,10 @@ int i915_restore_state(struct drm_device *dev)
 	/* Clock gating state */
 	intel_init_clock_gating(dev);
 
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_SPLIT(dev)) {
 		ironlake_enable_drps(dev);
+		intel_init_emon(dev);
+	}
 
 	/* Cache mode state */
 	I915_WRITE (CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);

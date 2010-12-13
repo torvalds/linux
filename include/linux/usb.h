@@ -313,6 +313,10 @@ struct usb_bus {
 	int busnum;			/* Bus number (in order of reg) */
 	const char *bus_name;		/* stable id (PCI slot_name etc) */
 	u8 uses_dma;			/* Does the host controller use DMA? */
+	u8 uses_pio_for_control;	/*
+					 * Does the host controller use PIO
+					 * for control transfers?
+					 */
 	u8 otg_port;			/* 0, or number of OTG/HNP port */
 	unsigned is_b_host:1;		/* true during some HNP roleswitches */
 	unsigned b_hnp_enable:1;	/* OTG: did A-Host enable HNP? */
@@ -797,7 +801,7 @@ struct usbdrv_wrap {
  * @disconnect: Called when the interface is no longer accessible, usually
  *	because its device has been (or is being) disconnected or the
  *	driver module is being unloaded.
- * @ioctl: Used for drivers that want to talk to userspace through
+ * @unlocked_ioctl: Used for drivers that want to talk to userspace through
  *	the "usbfs" filesystem.  This lets devices provide ways to
  *	expose information to user space regardless of where they
  *	do (or don't) show up otherwise in the filesystem.

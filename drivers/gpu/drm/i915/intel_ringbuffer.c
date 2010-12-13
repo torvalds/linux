@@ -177,7 +177,7 @@ static int init_ring_common(struct drm_device *dev,
 
 	I915_WRITE_CTL(ring,
 			((ring->gem_object->size - PAGE_SIZE) & RING_NR_PAGES)
-			| RING_NO_REPORT | RING_VALID);
+			| RING_REPORT_64K | RING_VALID);
 
 	head = I915_READ_HEAD(ring) & HEAD_ADDR;
 	/* If the head is still not zero, the ring is dead */
@@ -654,6 +654,10 @@ void intel_cleanup_ring_buffer(struct drm_device *dev,
 	i915_gem_object_unpin(ring->gem_object);
 	drm_gem_object_unreference(ring->gem_object);
 	ring->gem_object = NULL;
+
+	if (ring->cleanup)
+		ring->cleanup(ring);
+
 	cleanup_status_page(dev, ring);
 }
 
@@ -688,6 +692,17 @@ int intel_wait_ring_buffer(struct drm_device *dev,
 {
 	unsigned long end;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 head;
+
+	head = intel_read_status_page(ring, 4);
+	if (head) {
+		ring->head = head & HEAD_ADDR;
+		ring->space = ring->head - (ring->tail + 8);
+		if (ring->space < 0)
+			ring->space += ring->size;
+		if (ring->space >= n)
+			return 0;
+	}
 
 	trace_i915_ring_wait_begin (dev);
 	end = jiffies + 3 * HZ;
@@ -854,19 +869,125 @@ blt_ring_put_user_irq(struct drm_device *dev,
 	/* do nothing */
 }
 
+
+/* Workaround for some stepping of SNB,
+ * each time when BLT engine ring tail moved,
+ * the first command in the ring to be parsed
+ * should be MI_BATCH_BUFFER_START
+ */
+#define NEED_BLT_WORKAROUND(dev) \
+	(IS_GEN6(dev) && (dev->pdev->revision < 8))
+
+static inline struct drm_i915_gem_object *
+to_blt_workaround(struct intel_ring_buffer *ring)
+{
+	return ring->private;
+}
+
+static int blt_ring_init(struct drm_device *dev,
+			 struct intel_ring_buffer *ring)
+{
+	if (NEED_BLT_WORKAROUND(dev)) {
+		struct drm_i915_gem_object *obj;
+		u32 __iomem *ptr;
+		int ret;
+
+		obj = to_intel_bo(i915_gem_alloc_object(dev, 4096));
+		if (obj == NULL)
+			return -ENOMEM;
+
+		ret = i915_gem_object_pin(&obj->base, 4096);
+		if (ret) {
+			drm_gem_object_unreference(&obj->base);
+			return ret;
+		}
+
+		ptr = kmap(obj->pages[0]);
+		iowrite32(MI_BATCH_BUFFER_END, ptr);
+		iowrite32(MI_NOOP, ptr+1);
+		kunmap(obj->pages[0]);
+
+		ret = i915_gem_object_set_to_gtt_domain(&obj->base, false);
+		if (ret) {
+			i915_gem_object_unpin(&obj->base);
+			drm_gem_object_unreference(&obj->base);
+			return ret;
+		}
+
+		ring->private = obj;
+	}
+
+	return init_ring_common(dev, ring);
+}
+
+static void blt_ring_begin(struct drm_device *dev,
+			   struct intel_ring_buffer *ring,
+			  int num_dwords)
+{
+	if (ring->private) {
+		intel_ring_begin(dev, ring, num_dwords+2);
+		intel_ring_emit(dev, ring, MI_BATCH_BUFFER_START);
+		intel_ring_emit(dev, ring, to_blt_workaround(ring)->gtt_offset);
+	} else
+		intel_ring_begin(dev, ring, 4);
+}
+
+static void blt_ring_flush(struct drm_device *dev,
+			   struct intel_ring_buffer *ring,
+			   u32 invalidate_domains,
+			   u32 flush_domains)
+{
+	blt_ring_begin(dev, ring, 4);
+	intel_ring_emit(dev, ring, MI_FLUSH_DW);
+	intel_ring_emit(dev, ring, 0);
+	intel_ring_emit(dev, ring, 0);
+	intel_ring_emit(dev, ring, 0);
+	intel_ring_advance(dev, ring);
+}
+
+static u32
+blt_ring_add_request(struct drm_device *dev,
+		     struct intel_ring_buffer *ring,
+		     u32 flush_domains)
+{
+	u32 seqno = i915_gem_get_seqno(dev);
+
+	blt_ring_begin(dev, ring, 4);
+	intel_ring_emit(dev, ring, MI_STORE_DWORD_INDEX);
+	intel_ring_emit(dev, ring,
+			I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
+	intel_ring_emit(dev, ring, seqno);
+	intel_ring_emit(dev, ring, MI_USER_INTERRUPT);
+	intel_ring_advance(dev, ring);
+
+	DRM_DEBUG_DRIVER("%s %d\n", ring->name, seqno);
+	return seqno;
+}
+
+static void blt_ring_cleanup(struct intel_ring_buffer *ring)
+{
+	if (!ring->private)
+		return;
+
+	i915_gem_object_unpin(ring->private);
+	drm_gem_object_unreference(ring->private);
+	ring->private = NULL;
+}
+
 static const struct intel_ring_buffer gen6_blt_ring = {
        .name			= "blt ring",
        .id			= RING_BLT,
        .mmio_base		= BLT_RING_BASE,
        .size			= 32 * PAGE_SIZE,
-       .init			= init_ring_common,
+       .init			= blt_ring_init,
        .write_tail		= ring_write_tail,
-       .flush			= gen6_ring_flush,
-       .add_request		= ring_add_request,
+       .flush			= blt_ring_flush,
+       .add_request		= blt_ring_add_request,
        .get_seqno		= ring_status_page_get_seqno,
        .user_irq_get		= blt_ring_get_user_irq,
        .user_irq_put		= blt_ring_put_user_irq,
        .dispatch_gem_execbuffer	= gen6_ring_dispatch_gem_execbuffer,
+       .cleanup			= blt_ring_cleanup,
 };
 
 int intel_init_render_ring_buffer(struct drm_device *dev)
