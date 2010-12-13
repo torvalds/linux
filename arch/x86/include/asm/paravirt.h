@@ -112,7 +112,7 @@ static inline void arch_safe_halt(void)
 
 static inline void halt(void)
 {
-	PVOP_VCALL0(pv_irq_ops.safe_halt);
+	PVOP_VCALL0(pv_irq_ops.halt);
 }
 
 static inline void wbinvd(void)
