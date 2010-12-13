@@ -41,12 +41,6 @@
 
 #include "rk2818-sdmmc.h"
 
-#if 0
-#define DBG(x...) printk(KERN_INFO x)
-#else
-#define DBG(x...) do { } while (0)
-#endif
-
 #define RK29_SDMMC_DATA_ERROR_FLAGS	(SDMMC_INT_DRTO | SDMMC_INT_DCRC | SDMMC_INT_HTO | SDMMC_INT_SBE | SDMMC_INT_EBE)
 #define RK29_SDMMC_CMD_ERROR_FLAGS	(SDMMC_INT_RTO | SDMMC_INT_RCRC | SDMMC_INT_RE | SDMMC_INT_HLE)
 #define RK29_SDMMC_ERROR_FLAGS		(RK29_SDMMC_DATA_ERROR_FLAGS | RK29_SDMMC_CMD_ERROR_FLAGS | SDMMC_INT_HLE)
@@ -425,6 +419,7 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 	dev_vdbg(&host->pdev->dev, "DMA complete\n");
 	if(result != RK29_RES_OK)
 		printk("%s: sdio dma complete err\n",__FUNCTION__);	
+	
 	spin_lock(&host->lock);
 	rk29_sdmmc_dma_cleanup(host);
 	/*
@@ -464,18 +459,16 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 			return -EINVAL;
 	}
 	if (data->flags & MMC_DATA_READ)
-		direction = RK29_DMASRC_HW; 
+		direction = RK29_DMASRC_HW;  
 	else
 		direction = RK29_DMASRC_MEM;  						
     rk29_dma_devconfig(host->dma_chn, direction, (unsigned long )(host->dma_addr));
-   	rk29_dma_ctrl(host->dma_chn, RK29_DMAOP_FLUSH);	
 	dma_len = dma_map_sg(&host->pdev->dev, data->sg, data->sg_len, 
-			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);			                	   
-	for (i = 0; i < dma_len; i++) {                             
-    	rk29_dma_enqueue(host->dma_chn, host, sg_dma_address(&data->sg[i]),sg_dma_len(&data->sg[i]));  // data->sg->dma_address, data->sg->length);	    
-	}
+			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);						                	   
+	for (i = 0; i < dma_len; i++)                              
+    	rk29_dma_enqueue(host->dma_chn, host, sg_dma_address(&data->sg[i]),sg_dma_len(&data->sg[i]));  // data->sg->dma_address, data->sg->length);	    	
 	rk29_sdmmc_write(host->regs, SDMMC_CTRL, (rk29_sdmmc_read(host->regs, SDMMC_CTRL))|SDMMC_CTRL_DMA_ENABLE);// enable dma
-	rk29_dma_ctrl(host->dma_chn, RK29_DMAOP_START);
+	rk29_dma_ctrl(host->dma_chn, RK29_DMAOP_START);	
 	return 0;
 }
 
@@ -622,11 +615,13 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct rk29_sdmmc *host = mmc_priv(mmc);
 
 	WARN_ON(host->mrq);
+	
 	if (!test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags)) {
 		mrq->cmd->error = -ENOMEDIUM;
 		mmc_request_done(mmc, mrq);
 		return;
 	}
+	
 	rk29_sdmmc_queue_request(host,mrq);
 }
 
@@ -635,6 +630,7 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct rk29_sdmmc *host = mmc_priv(mmc);;
 
 	host->ctype = 0; // set default 1 bit mode
+
 	switch (ios->bus_width) {
 	case MMC_BUS_WIDTH_1:
 		host->ctype = 0;
@@ -1146,14 +1142,13 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 	unsigned int		pass_count = 0;
 	bool present;
 	bool present_old;
-		
+
 	spin_lock(&host->lock);
 	do {
 		status = rk29_sdmmc_read(host->regs, SDMMC_RINTSTS);
 		pending = rk29_sdmmc_read(host->regs, SDMMC_MINTSTS);// read only mask reg
-
 		if (!pending)
-			break;
+			break;	
 		if(pending & SDMMC_INT_CD) {
 		    writel(SDMMC_INT_CD, host->regs + SDMMC_RINTSTS);  // clear sd detect int
 			present = rk29_sdmmc_get_cd(host->mmc);
@@ -1187,7 +1182,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 		if(pending & SDMMC_INT_DTO) {
 		    rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_DTO);  // clear interrupt
 		    if (!host->data_status)
-			host->data_status = status;
+				host->data_status = status;
 		    smp_wmb();
 		    if(host->dir_status == RK29_SDMMC_RECV_STATUS) {
 			if(host->sg != NULL) 
@@ -1205,9 +1200,9 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 
 		if (pending & SDMMC_INT_TXDR) {
 		    rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_TXDR);  //  clear interrupt
-		    if(host->sg) {
-			rk29_sdmmc_write_data_pio(host);
-		    }
+		    if(host->sg) 
+				rk29_sdmmc_write_data_pio(host);
+		    
 		}
 
 		if (pending & SDMMC_INT_CMD_DONE) {
@@ -1219,9 +1214,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 				mmc_signal_sdio_irq(host->mmc);
 		}
 	} while (pass_count++ < 5);
-	
 	spin_unlock(&host->lock);
-
 	return pass_count ? IRQ_HANDLED : IRQ_NONE;
 }
 
@@ -1374,20 +1367,20 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	    goto err_dmaunmap;
         
         /* register sdmmc1 card detect interrupt route */ 
-        if ((pdev->id == 1) && (pdata->detect_irq != 0)) {
-            irq = gpio_to_irq(pdata->detect_irq);
-            if (irq < 0)  {
-               printk("%s: request gpio irq failed\n", __FUNCTION__);
-               goto err_dmaunmap;
-            }
-            
-            ret = request_irq(irq, rk29_sdmmc1_card_detect_interrupt, IRQF_TRIGGER_RISING, dev_name(&pdev->dev), host);
-            if (ret) {
-               printk("%s: sdmmc1 request detect interrupt failed\n", __FUNCTION__);
-               goto err_dmaunmap;
-            }
-             
+    if ((pdev->id == 1) && (pdata->detect_irq != 0)) {
+        irq = gpio_to_irq(pdata->detect_irq);
+        if (irq < 0)  {
+           printk("%s: request gpio irq failed\n", __FUNCTION__);
+           goto err_dmaunmap;
         }
+        
+        ret = request_irq(irq, rk29_sdmmc1_card_detect_interrupt, IRQF_TRIGGER_RISING, dev_name(&pdev->dev), host);
+        if (ret) {
+           printk("%s: sdmmc1 request detect interrupt failed\n", __FUNCTION__);
+           goto err_dmaunmap;
+        }
+         
+    }
 	platform_set_drvdata(pdev, host); 	
 	mmc->ops = &rk29_sdmmc_ops[pdev->id];
 	mmc->f_min = host->bus_hz/510;
@@ -1397,7 +1390,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	mmc->max_phys_segs = 64;
 	mmc->max_hw_segs = 64;
 	mmc->max_blk_size = 4095;  //65536; /* SDMMC_BLKSIZ is 16 bits*/
-	mmc->max_blk_count = 512;
+	mmc->max_blk_count = 65535;  ///512;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;	
 	/* Assume card is present initially */
@@ -1406,7 +1399,6 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	else
 		clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
         
-
 	mmc_add_host(mmc);
 #if defined (CONFIG_DEBUG_FS)
 	rk29_sdmmc_init_debugfs(host);
@@ -1415,7 +1407,10 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	setup_timer(&host->detect_timer, rk29_sdmmc_detect_change,(unsigned long)host);
 	// enable interrupt for command done, data over, data empty, receive ready and error such as transmit, receive timeout, crc error
 	rk29_sdmmc_write(host->regs, SDMMC_RINTSTS, 0xFFFFFFFF);
-	rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_TXDR | SDMMC_INT_RXDR | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
+	if(host->use_dma)
+		rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
+	else
+		rk29_sdmmc_write(host->regs, SDMMC_INTMASK,SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_TXDR | SDMMC_INT_RXDR | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD);
 	rk29_sdmmc_write(host->regs, SDMMC_CTRL,SDMMC_CTRL_INT_ENABLE); // enable mci interrupt
 	rk29_sdmmc_write(host->regs, SDMMC_CLKENA,1);
 	dev_info(&pdev->dev, "RK29 SDMMC controller at irq %d\n", irq);
