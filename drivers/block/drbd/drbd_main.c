@@ -3284,7 +3284,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 	q->backing_dev_info.congested_fn = drbd_congested;
 	q->backing_dev_info.congested_data = mdev;
 
-	blk_queue_make_request(q, drbd_make_request_26);
+	blk_queue_make_request(q, drbd_make_request);
 	blk_queue_max_hw_sectors(q, DRBD_MAX_BIO_SIZE >> 9);
 	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
 	blk_queue_merge_bvec(q, drbd_merge_bvec);

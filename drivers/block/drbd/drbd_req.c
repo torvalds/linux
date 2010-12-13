@@ -884,7 +884,7 @@ allocate_barrier:
 	if (is_susp(mdev->state)) {
 		/* If we got suspended, use the retry mechanism of
 		   generic_make_request() to restart processing of this
-		   bio. In the next call to drbd_make_request_26
+		   bio. In the next call to drbd_make_request
 		   we sleep in inc_ap_bio() */
 		ret = 1;
 		spin_unlock_irq(&mdev->req_lock);
@@ -1089,7 +1089,7 @@ static int drbd_fail_request_early(struct drbd_conf *mdev, int is_write)
 	return 0;
 }
 
-int drbd_make_request_26(struct request_queue *q, struct bio *bio)
+int drbd_make_request(struct request_queue *q, struct bio *bio)
 {
 	unsigned int s_enr, e_enr;
 	struct drbd_conf *mdev = (struct drbd_conf *) q->queuedata;
@@ -1182,7 +1182,7 @@ int drbd_make_request_26(struct request_queue *q, struct bio *bio)
  * As long as the BIO is empty we have to allow at least one bvec,
  * regardless of size and offset.  so the resulting bio may still
  * cross extent boundaries.  those are dealt with (bio_split) in
- * drbd_make_request_26.
+ * drbd_make_request.
  */
 int drbd_merge_bvec(struct request_queue *q, struct bvec_merge_data *bvm, struct bio_vec *bvec)
 {
