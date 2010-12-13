@@ -1830,7 +1830,7 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 		if (ret < 0) {
 			printk(KERN_ERR "asoc: failed to register AC97 %s\n", card->name);
 			while (--i >= 0)
-				soc_unregister_ac97_dai_link(&card->rtd[i]);
+				soc_unregister_ac97_dai_link(card->rtd[i].codec);
 			goto probe_aux_dev_err;
 		}
 	}
