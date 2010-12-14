@@ -689,25 +689,21 @@ static void rpcb_getport_done(struct rpc_task *child, void *data)
  * XDR functions for rpcbind
  */
 
-static int rpcb_enc_mapping(struct rpc_rqst *req, __be32 *p,
-			    const struct rpcbind_args *rpcb)
+static void rpcb_enc_mapping(struct rpc_rqst *req, struct xdr_stream *xdr,
+			     const struct rpcbind_args *rpcb)
 {
 	struct rpc_task *task = req->rq_task;
-	struct xdr_stream xdr;
+	__be32 *p;
 
 	dprintk("RPC: %5u encoding PMAP_%s call (%u, %u, %d, %u)\n",
 			task->tk_pid, task->tk_msg.rpc_proc->p_name,
 			rpcb->r_prog, rpcb->r_vers, rpcb->r_prot, rpcb->r_port);
 
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-
-	p = xdr_reserve_space(&xdr, RPCB_mappingargs_sz << 2);
+	p = xdr_reserve_space(xdr, RPCB_mappingargs_sz << 2);
 	*p++ = cpu_to_be32(rpcb->r_prog);
 	*p++ = cpu_to_be32(rpcb->r_vers);
 	*p++ = cpu_to_be32(rpcb->r_prot);
 	*p   = cpu_to_be32(rpcb->r_port);
-
-	return 0;
 }
 
 static int rpcb_dec_getport(struct rpc_rqst *req, __be32 *p,
@@ -769,27 +765,24 @@ static void encode_rpcb_string(struct xdr_stream *xdr, const char *string,
 	xdr_encode_opaque(p, string, len);
 }
 
-static int rpcb_enc_getaddr(struct rpc_rqst *req, __be32 *p,
-			    const struct rpcbind_args *rpcb)
+static void rpcb_enc_getaddr(struct rpc_rqst *req, struct xdr_stream *xdr,
+			     const struct rpcbind_args *rpcb)
 {
 	struct rpc_task *task = req->rq_task;
-	struct xdr_stream xdr;
+	__be32 *p;
 
 	dprintk("RPC: %5u encoding RPCB_%s call (%u, %u, '%s', '%s')\n",
 			task->tk_pid, task->tk_msg.rpc_proc->p_name,
 			rpcb->r_prog, rpcb->r_vers,
 			rpcb->r_netid, rpcb->r_addr);
 
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-
-	p = xdr_reserve_space(&xdr, (RPCB_program_sz + RPCB_version_sz) << 2);
+	p = xdr_reserve_space(xdr, (RPCB_program_sz + RPCB_version_sz) << 2);
 	*p++ = cpu_to_be32(rpcb->r_prog);
 	*p = cpu_to_be32(rpcb->r_vers);
 
-	encode_rpcb_string(&xdr, rpcb->r_netid, RPCBIND_MAXNETIDLEN);
-	encode_rpcb_string(&xdr, rpcb->r_addr, RPCBIND_MAXUADDRLEN);
-	encode_rpcb_string(&xdr, rpcb->r_owner, RPCB_MAXOWNERLEN);
-	return 0;
+	encode_rpcb_string(xdr, rpcb->r_netid, RPCBIND_MAXNETIDLEN);
+	encode_rpcb_string(xdr, rpcb->r_addr, RPCBIND_MAXUADDRLEN);
+	encode_rpcb_string(xdr, rpcb->r_owner, RPCB_MAXOWNERLEN);
 }
 
 static int rpcb_dec_getaddr(struct rpc_rqst *req, __be32 *p,
@@ -849,7 +842,7 @@ out_fail:
 static struct rpc_procinfo rpcb_procedures2[] = {
 	[RPCBPROC_SET] = {
 		.p_proc		= RPCBPROC_SET,
-		.p_encode	= (kxdrproc_t)rpcb_enc_mapping,
+		.p_encode	= (kxdreproc_t)rpcb_enc_mapping,
 		.p_decode	= (kxdrproc_t)rpcb_dec_set,
 		.p_arglen	= RPCB_mappingargs_sz,
 		.p_replen	= RPCB_setres_sz,
@@ -859,7 +852,7 @@ static struct rpc_procinfo rpcb_procedures2[] = {
 	},
 	[RPCBPROC_UNSET] = {
 		.p_proc		= RPCBPROC_UNSET,
-		.p_encode	= (kxdrproc_t)rpcb_enc_mapping,
+		.p_encode	= (kxdreproc_t)rpcb_enc_mapping,
 		.p_decode	= (kxdrproc_t)rpcb_dec_set,
 		.p_arglen	= RPCB_mappingargs_sz,
 		.p_replen	= RPCB_setres_sz,
@@ -869,7 +862,7 @@ static struct rpc_procinfo rpcb_procedures2[] = {
 	},
 	[RPCBPROC_GETPORT] = {
 		.p_proc		= RPCBPROC_GETPORT,
-		.p_encode	= (kxdrproc_t)rpcb_enc_mapping,
+		.p_encode	= (kxdreproc_t)rpcb_enc_mapping,
 		.p_decode	= (kxdrproc_t)rpcb_dec_getport,
 		.p_arglen	= RPCB_mappingargs_sz,
 		.p_replen	= RPCB_getportres_sz,
@@ -882,7 +875,7 @@ static struct rpc_procinfo rpcb_procedures2[] = {
 static struct rpc_procinfo rpcb_procedures3[] = {
 	[RPCBPROC_SET] = {
 		.p_proc		= RPCBPROC_SET,
-		.p_encode	= (kxdrproc_t)rpcb_enc_getaddr,
+		.p_encode	= (kxdreproc_t)rpcb_enc_getaddr,
 		.p_decode	= (kxdrproc_t)rpcb_dec_set,
 		.p_arglen	= RPCB_getaddrargs_sz,
 		.p_replen	= RPCB_setres_sz,
@@ -892,7 +885,7 @@ static struct rpc_procinfo rpcb_procedures3[] = {
 	},
 	[RPCBPROC_UNSET] = {
 		.p_proc		= RPCBPROC_UNSET,
-		.p_encode	= (kxdrproc_t)rpcb_enc_getaddr,
+		.p_encode	= (kxdreproc_t)rpcb_enc_getaddr,
 		.p_decode	= (kxdrproc_t)rpcb_dec_set,
 		.p_arglen	= RPCB_getaddrargs_sz,
 		.p_replen	= RPCB_setres_sz,
@@ -902,7 +895,7 @@ static struct rpc_procinfo rpcb_procedures3[] = {
 	},
 	[RPCBPROC_GETADDR] = {
 		.p_proc		= RPCBPROC_GETADDR,
-		.p_encode	= (kxdrproc_t)rpcb_enc_getaddr,
+		.p_encode	= (kxdreproc_t)rpcb_enc_getaddr,
 		.p_decode	= (kxdrproc_t)rpcb_dec_getaddr,
 		.p_arglen	= RPCB_getaddrargs_sz,
 		.p_replen	= RPCB_getaddrres_sz,
@@ -915,7 +908,7 @@ static struct rpc_procinfo rpcb_procedures3[] = {
 static struct rpc_procinfo rpcb_procedures4[] = {
 	[RPCBPROC_SET] = {
 		.p_proc		= RPCBPROC_SET,
-		.p_encode	= (kxdrproc_t)rpcb_enc_getaddr,
+		.p_encode	= (kxdreproc_t)rpcb_enc_getaddr,
 		.p_decode	= (kxdrproc_t)rpcb_dec_set,
 		.p_arglen	= RPCB_getaddrargs_sz,
 		.p_replen	= RPCB_setres_sz,
@@ -925,7 +918,7 @@ static struct rpc_procinfo rpcb_procedures4[] = {
 	},
 	[RPCBPROC_UNSET] = {
 		.p_proc		= RPCBPROC_UNSET,
-		.p_encode	= (kxdrproc_t)rpcb_enc_getaddr,
+		.p_encode	= (kxdreproc_t)rpcb_enc_getaddr,
 		.p_decode	= (kxdrproc_t)rpcb_dec_set,
 		.p_arglen	= RPCB_getaddrargs_sz,
 		.p_replen	= RPCB_setres_sz,
@@ -935,7 +928,7 @@ static struct rpc_procinfo rpcb_procedures4[] = {
 	},
 	[RPCBPROC_GETADDR] = {
 		.p_proc		= RPCBPROC_GETADDR,
-		.p_encode	= (kxdrproc_t)rpcb_enc_getaddr,
+		.p_encode	= (kxdreproc_t)rpcb_enc_getaddr,
 		.p_decode	= (kxdrproc_t)rpcb_dec_getaddr,
 		.p_arglen	= RPCB_getaddrargs_sz,
 		.p_replen	= RPCB_getaddrres_sz,

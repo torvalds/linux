@@ -288,14 +288,10 @@ static void encode_mntdirpath(struct xdr_stream *xdr, const char *pathname)
 	xdr_encode_opaque(p, pathname, pathname_len);
 }
 
-static int mnt_enc_dirpath(struct rpc_rqst *req, __be32 *p,
-			   const char *dirpath)
+static void mnt_xdr_enc_dirpath(struct rpc_rqst *req, struct xdr_stream *xdr,
+				const char *dirpath)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_mntdirpath(&xdr, dirpath);
-	return 0;
+	encode_mntdirpath(xdr, dirpath);
 }
 
 /*
@@ -460,7 +456,7 @@ static int mnt_dec_mountres3(struct rpc_rqst *req, __be32 *p,
 static struct rpc_procinfo mnt_procedures[] = {
 	[MOUNTPROC_MNT] = {
 		.p_proc		= MOUNTPROC_MNT,
-		.p_encode	= (kxdrproc_t)mnt_enc_dirpath,
+		.p_encode	= (kxdreproc_t)mnt_xdr_enc_dirpath,
 		.p_decode	= (kxdrproc_t)mnt_dec_mountres,
 		.p_arglen	= MNT_enc_dirpath_sz,
 		.p_replen	= MNT_dec_mountres_sz,
@@ -469,7 +465,7 @@ static struct rpc_procinfo mnt_procedures[] = {
 	},
 	[MOUNTPROC_UMNT] = {
 		.p_proc		= MOUNTPROC_UMNT,
-		.p_encode	= (kxdrproc_t)mnt_enc_dirpath,
+		.p_encode	= (kxdreproc_t)mnt_xdr_enc_dirpath,
 		.p_arglen	= MNT_enc_dirpath_sz,
 		.p_statidx	= MOUNTPROC_UMNT,
 		.p_name		= "UMOUNT",
@@ -479,7 +475,7 @@ static struct rpc_procinfo mnt_procedures[] = {
 static struct rpc_procinfo mnt3_procedures[] = {
 	[MOUNTPROC3_MNT] = {
 		.p_proc		= MOUNTPROC3_MNT,
-		.p_encode	= (kxdrproc_t)mnt_enc_dirpath,
+		.p_encode	= (kxdreproc_t)mnt_xdr_enc_dirpath,
 		.p_decode	= (kxdrproc_t)mnt_dec_mountres3,
 		.p_arglen	= MNT_enc_dirpath_sz,
 		.p_replen	= MNT_dec_mountres3_sz,
@@ -488,7 +484,7 @@ static struct rpc_procinfo mnt3_procedures[] = {
 	},
 	[MOUNTPROC3_UMNT] = {
 		.p_proc		= MOUNTPROC3_UMNT,
-		.p_encode	= (kxdrproc_t)mnt_enc_dirpath,
+		.p_encode	= (kxdreproc_t)mnt_xdr_enc_dirpath,
 		.p_arglen	= MNT_enc_dirpath_sz,
 		.p_statidx	= MOUNTPROC3_UMNT,
 		.p_name		= "UMOUNT",

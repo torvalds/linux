@@ -558,14 +558,11 @@ out_default:
  * "NFS: Network File System Protocol Specification".
  */
 
-static int nfs2_xdr_enc_fhandle(struct rpc_rqst *req, __be32 *p,
-				const struct nfs_fh *fh)
+static void nfs2_xdr_enc_fhandle(struct rpc_rqst *req,
+				 struct xdr_stream *xdr,
+				 const struct nfs_fh *fh)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_fhandle(&xdr, fh);
-	return 0;
+	encode_fhandle(xdr, fh);
 }
 
 /*
@@ -576,37 +573,28 @@ static int nfs2_xdr_enc_fhandle(struct rpc_rqst *req, __be32 *p,
  *		sattr attributes;
  *	};
  */
-static int nfs2_xdr_enc_sattrargs(struct rpc_rqst *req, __be32 *p,
-				  const struct nfs_sattrargs *args)
+static void nfs2_xdr_enc_sattrargs(struct rpc_rqst *req,
+				   struct xdr_stream *xdr,
+				   const struct nfs_sattrargs *args)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_fhandle(&xdr, args->fh);
-	encode_sattr(&xdr, args->sattr);
-	return 0;
+	encode_fhandle(xdr, args->fh);
+	encode_sattr(xdr, args->sattr);
 }
 
-static int nfs2_xdr_enc_diropargs(struct rpc_rqst *req, __be32 *p,
-				  const struct nfs_diropargs *args)
+static void nfs2_xdr_enc_diropargs(struct rpc_rqst *req,
+				   struct xdr_stream *xdr,
+				   const struct nfs_diropargs *args)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_diropargs(&xdr, args->fh, args->name, args->len);
-	return 0;
+	encode_diropargs(xdr, args->fh, args->name, args->len);
 }
 
-static int nfs2_xdr_enc_readlinkargs(struct rpc_rqst *req, __be32 *p,
-				     const struct nfs_readlinkargs *args)
+static void nfs2_xdr_enc_readlinkargs(struct rpc_rqst *req,
+				      struct xdr_stream *xdr,
+				      const struct nfs_readlinkargs *args)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_fhandle(&xdr, args->fh);
+	encode_fhandle(xdr, args->fh);
 	prepare_reply_buffer(req, args->pages, args->pgbase,
 					args->pglen, NFS_readlinkres_sz);
-	return 0;
 }
 
 /*
@@ -634,17 +622,14 @@ static void encode_readargs(struct xdr_stream *xdr,
 	*p = cpu_to_be32(count);
 }
 
-static int nfs2_xdr_enc_readargs(struct rpc_rqst *req, __be32 *p,
-				 const struct nfs_readargs *args)
+static void nfs2_xdr_enc_readargs(struct rpc_rqst *req,
+				  struct xdr_stream *xdr,
+				  const struct nfs_readargs *args)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_readargs(&xdr, args);
+	encode_readargs(xdr, args);
 	prepare_reply_buffer(req, args->pages, args->pgbase,
 					args->count, NFS_readres_sz);
 	req->rq_rcv_buf.flags |= XDRBUF_READ;
-	return 0;
 }
 
 /*
@@ -677,15 +662,12 @@ static void encode_writeargs(struct xdr_stream *xdr,
 	xdr_write_pages(xdr, args->pages, args->pgbase, count);
 }
 
-static int nfs2_xdr_enc_writeargs(struct rpc_rqst *req, __be32 *p,
-				  const struct nfs_writeargs *args)
+static void nfs2_xdr_enc_writeargs(struct rpc_rqst *req,
+				   struct xdr_stream *xdr,
+				   const struct nfs_writeargs *args)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_writeargs(&xdr, args);
-	xdr.buf->flags |= XDRBUF_WRITE;
-	return 0;
+	encode_writeargs(xdr, args);
+	xdr->buf->flags |= XDRBUF_WRITE;
 }
 
 /*
@@ -696,25 +678,19 @@ static int nfs2_xdr_enc_writeargs(struct rpc_rqst *req, __be32 *p,
  *		sattr attributes;
  *	};
  */
-static int nfs2_xdr_enc_createargs(struct rpc_rqst *req, __be32 *p,
-				   const struct nfs_createargs *args)
+static void nfs2_xdr_enc_createargs(struct rpc_rqst *req,
+				    struct xdr_stream *xdr,
+				    const struct nfs_createargs *args)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_diropargs(&xdr, args->fh, args->name, args->len);
-	encode_sattr(&xdr, args->sattr);
-	return 0;
+	encode_diropargs(xdr, args->fh, args->name, args->len);
+	encode_sattr(xdr, args->sattr);
 }
 
-static int nfs2_xdr_enc_removeargs(struct rpc_rqst *req, __be32 *p,
-				   const struct nfs_removeargs *args)
+static void nfs2_xdr_enc_removeargs(struct rpc_rqst *req,
+				    struct xdr_stream *xdr,
+				    const struct nfs_removeargs *args)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_diropargs(&xdr, args->fh, args->name.name, args->name.len);
-	return 0;
+	encode_diropargs(xdr, args->fh, args->name.name, args->name.len);
 }
 
 /*
@@ -725,17 +701,15 @@ static int nfs2_xdr_enc_removeargs(struct rpc_rqst *req, __be32 *p,
  *		diropargs to;
  *	};
  */
-static int nfs2_xdr_enc_renameargs(struct rpc_rqst *req, __be32 *p,
-				   const struct nfs_renameargs *args)
+static void nfs2_xdr_enc_renameargs(struct rpc_rqst *req,
+				    struct xdr_stream *xdr,
+				    const struct nfs_renameargs *args)
 {
 	const struct qstr *old = args->old_name;
 	const struct qstr *new = args->new_name;
-	struct xdr_stream xdr;
 
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_diropargs(&xdr, args->old_dir, old->name, old->len);
-	encode_diropargs(&xdr, args->new_dir, new->name, new->len);
-	return 0;
+	encode_diropargs(xdr, args->old_dir, old->name, old->len);
+	encode_diropargs(xdr, args->new_dir, new->name, new->len);
 }
 
 /*
@@ -746,15 +720,12 @@ static int nfs2_xdr_enc_renameargs(struct rpc_rqst *req, __be32 *p,
  *		diropargs to;
  *	};
  */
-static int nfs2_xdr_enc_linkargs(struct rpc_rqst *req, __be32 *p,
-				 const struct nfs_linkargs *args)
+static void nfs2_xdr_enc_linkargs(struct rpc_rqst *req,
+				  struct xdr_stream *xdr,
+				  const struct nfs_linkargs *args)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_fhandle(&xdr, args->fromfh);
-	encode_diropargs(&xdr, args->tofh, args->toname, args->tolen);
-	return 0;
+	encode_fhandle(xdr, args->fromfh);
+	encode_diropargs(xdr, args->tofh, args->toname, args->tolen);
 }
 
 /*
@@ -766,16 +737,13 @@ static int nfs2_xdr_enc_linkargs(struct rpc_rqst *req, __be32 *p,
  *		sattr attributes;
  *	};
  */
-static int nfs2_xdr_enc_symlinkargs(struct rpc_rqst *req, __be32 *p,
-				    const struct nfs_symlinkargs *args)
+static void nfs2_xdr_enc_symlinkargs(struct rpc_rqst *req,
+				     struct xdr_stream *xdr,
+				     const struct nfs_symlinkargs *args)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_diropargs(&xdr, args->fromfh, args->fromname, args->fromlen);
-	encode_path(&xdr, args->pages, args->pathlen);
-	encode_sattr(&xdr, args->sattr);
-	return 0;
+	encode_diropargs(xdr, args->fromfh, args->fromname, args->fromlen);
+	encode_path(xdr, args->pages, args->pathlen);
+	encode_sattr(xdr, args->sattr);
 }
 
 /*
@@ -799,16 +767,13 @@ static void encode_readdirargs(struct xdr_stream *xdr,
 	*p = cpu_to_be32(args->count);
 }
 
-static int nfs2_xdr_enc_readdirargs(struct rpc_rqst *req, __be32 *p,
-				    const struct nfs_readdirargs *args)
+static void nfs2_xdr_enc_readdirargs(struct rpc_rqst *req,
+				     struct xdr_stream *xdr,
+				     const struct nfs_readdirargs *args)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_readdirargs(&xdr, args);
+	encode_readdirargs(xdr, args);
 	prepare_reply_buffer(req, args->pages, 0,
 					args->count, NFS_readdirres_sz);
-	return 0;
 }
 
 /*
@@ -1184,7 +1149,7 @@ int nfs_stat_to_errno(enum nfs_stat status)
 #define PROC(proc, argtype, restype, timer)				\
 [NFSPROC_##proc] = {							\
 	.p_proc	    =  NFSPROC_##proc,					\
-	.p_encode   =  (kxdrproc_t)nfs2_xdr_enc_##argtype,		\
+	.p_encode   =  (kxdreproc_t)nfs2_xdr_enc_##argtype,		\
 	.p_decode   =  (kxdrproc_t)nfs2_xdr_dec_##restype,		\
 	.p_arglen   =  NFS_##argtype##_sz,				\
 	.p_replen   =  NFS_##restype##_sz,				\

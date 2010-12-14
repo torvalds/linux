@@ -499,34 +499,28 @@ out_default:
 /*
  * NB: Without this zero space reservation, callbacks over krb5p fail
  */
-static int nfs4_xdr_enc_cb_null(struct rpc_rqst *req, __be32 *p, void *__unused)
+static void nfs4_xdr_enc_cb_null(struct rpc_rqst *req, struct xdr_stream *xdr,
+				 void *__unused)
 {
-	struct xdr_stream xdrs, *xdr = &xdrs;
-
-	xdr_init_encode(&xdrs, &req->rq_snd_buf, p);
 	xdr_reserve_space(xdr, 0);
-	return 0;
 }
 
 /*
  * 20.2. Operation 4: CB_RECALL - Recall a Delegation
  */
-static int nfs4_xdr_enc_cb_recall(struct rpc_rqst *req, __be32 *p,
-				  const struct nfsd4_callback *cb)
+static void nfs4_xdr_enc_cb_recall(struct rpc_rqst *req, struct xdr_stream *xdr,
+				   const struct nfsd4_callback *cb)
 {
-	struct xdr_stream xdr;
 	const struct nfs4_delegation *args = cb->cb_op;
 	struct nfs4_cb_compound_hdr hdr = {
 		.ident = cb->cb_clp->cl_cb_ident,
 		.minorversion = cb->cb_minorversion,
 	};
 
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_cb_compound4args(&xdr, &hdr);
-	encode_cb_sequence4args(&xdr, cb, &hdr);
-	encode_cb_recall4args(&xdr, args, &hdr);
+	encode_cb_compound4args(xdr, &hdr);
+	encode_cb_sequence4args(xdr, cb, &hdr);
+	encode_cb_recall4args(xdr, args, &hdr);
 	encode_cb_nops(&hdr);
-	return 0;
 }
 
 
@@ -583,7 +577,7 @@ out_default:
 #define PROC(proc, call, argtype, restype)				\
 [NFSPROC4_CLNT_##proc] = {						\
 	.p_proc    = NFSPROC4_CB_##call,				\
-	.p_encode  = (kxdrproc_t)nfs4_xdr_enc_##argtype,		\
+	.p_encode  = (kxdreproc_t)nfs4_xdr_enc_##argtype,		\
 	.p_decode  = (kxdrproc_t)nfs4_xdr_dec_##restype,		\
 	.p_arglen  = NFS4_enc_##argtype##_sz,				\
 	.p_replen  = NFS4_dec_##restype##_sz,				\

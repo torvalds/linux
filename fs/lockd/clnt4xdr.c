@@ -385,17 +385,15 @@ static void encode_nlm4_lock(struct xdr_stream *xdr,
  *		struct nlm4_lock alock;
  *	};
  */
-static int nlm4_xdr_enc_testargs(struct rpc_rqst *req, __be32 *p,
-				 const struct nlm_args *args)
+static void nlm4_xdr_enc_testargs(struct rpc_rqst *req,
+				  struct xdr_stream *xdr,
+				  const struct nlm_args *args)
 {
 	const struct nlm_lock *lock = &args->lock;
-	struct xdr_stream xdr;
 
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_cookie(&xdr, &args->cookie);
-	encode_bool(&xdr, lock->fl.fl_type == F_WRLCK);
-	encode_nlm4_lock(&xdr, lock);
-	return 0;
+	encode_cookie(xdr, &args->cookie);
+	encode_bool(xdr, lock->fl.fl_type == F_WRLCK);
+	encode_nlm4_lock(xdr, lock);
 }
 
 /*
@@ -408,20 +406,18 @@ static int nlm4_xdr_enc_testargs(struct rpc_rqst *req, __be32 *p,
  *		int state;
  *	};
  */
-static int nlm4_xdr_enc_lockargs(struct rpc_rqst *req, __be32 *p,
-				 const struct nlm_args *args)
+static void nlm4_xdr_enc_lockargs(struct rpc_rqst *req,
+				  struct xdr_stream *xdr,
+				  const struct nlm_args *args)
 {
 	const struct nlm_lock *lock = &args->lock;
-	struct xdr_stream xdr;
 
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_cookie(&xdr, &args->cookie);
-	encode_bool(&xdr, args->block);
-	encode_bool(&xdr, lock->fl.fl_type == F_WRLCK);
-	encode_nlm4_lock(&xdr, lock);
-	encode_bool(&xdr, args->reclaim);
-	encode_int32(&xdr, args->state);
-	return 0;
+	encode_cookie(xdr, &args->cookie);
+	encode_bool(xdr, args->block);
+	encode_bool(xdr, lock->fl.fl_type == F_WRLCK);
+	encode_nlm4_lock(xdr, lock);
+	encode_bool(xdr, args->reclaim);
+	encode_int32(xdr, args->state);
 }
 
 /*
@@ -432,18 +428,16 @@ static int nlm4_xdr_enc_lockargs(struct rpc_rqst *req, __be32 *p,
  *		struct nlm4_lock alock;
  *	};
  */
-static int nlm4_xdr_enc_cancargs(struct rpc_rqst *req, __be32 *p,
-				 const struct nlm_args *args)
+static void nlm4_xdr_enc_cancargs(struct rpc_rqst *req,
+				  struct xdr_stream *xdr,
+				  const struct nlm_args *args)
 {
 	const struct nlm_lock *lock = &args->lock;
-	struct xdr_stream xdr;
 
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_cookie(&xdr, &args->cookie);
-	encode_bool(&xdr, args->block);
-	encode_bool(&xdr, lock->fl.fl_type == F_WRLCK);
-	encode_nlm4_lock(&xdr, lock);
-	return 0;
+	encode_cookie(xdr, &args->cookie);
+	encode_bool(xdr, args->block);
+	encode_bool(xdr, lock->fl.fl_type == F_WRLCK);
+	encode_nlm4_lock(xdr, lock);
 }
 
 /*
@@ -452,16 +446,14 @@ static int nlm4_xdr_enc_cancargs(struct rpc_rqst *req, __be32 *p,
  *		struct nlm4_lock alock;
  *	};
  */
-static int nlm4_xdr_enc_unlockargs(struct rpc_rqst *req, __be32 *p,
-				   const struct nlm_args *args)
+static void nlm4_xdr_enc_unlockargs(struct rpc_rqst *req,
+				    struct xdr_stream *xdr,
+				    const struct nlm_args *args)
 {
 	const struct nlm_lock *lock = &args->lock;
-	struct xdr_stream xdr;
 
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_cookie(&xdr, &args->cookie);
-	encode_nlm4_lock(&xdr, lock);
-	return 0;
+	encode_cookie(xdr, &args->cookie);
+	encode_nlm4_lock(xdr, lock);
 }
 
 /*
@@ -470,15 +462,12 @@ static int nlm4_xdr_enc_unlockargs(struct rpc_rqst *req, __be32 *p,
  *		nlm4_stat stat;
  *	};
  */
-static int nlm4_xdr_enc_res(struct rpc_rqst *req, __be32 *p,
-			    const struct nlm_res *result)
+static void nlm4_xdr_enc_res(struct rpc_rqst *req,
+			     struct xdr_stream *xdr,
+			     const struct nlm_res *result)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_cookie(&xdr, &result->cookie);
-	encode_nlm4_stat(&xdr, result->status);
-	return 0;
+	encode_cookie(xdr, &result->cookie);
+	encode_nlm4_stat(xdr, result->status);
 }
 
 /*
@@ -494,17 +483,14 @@ static int nlm4_xdr_enc_res(struct rpc_rqst *req, __be32 *p,
  *		nlm4_testrply test_stat;
  *	};
  */
-static int nlm4_xdr_enc_testres(struct rpc_rqst *req, __be32 *p,
-				const struct nlm_res *result)
+static void nlm4_xdr_enc_testres(struct rpc_rqst *req,
+				 struct xdr_stream *xdr,
+				 const struct nlm_res *result)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
-	encode_cookie(&xdr, &result->cookie);
-	encode_nlm4_stat(&xdr, result->status);
+	encode_cookie(xdr, &result->cookie);
+	encode_nlm4_stat(xdr, result->status);
 	if (result->status == nlm_lck_denied)
-		encode_nlm4_holder(&xdr, result);
-	return 0;
+		encode_nlm4_holder(xdr, result);
 }
 
 
@@ -588,7 +574,7 @@ out:
 #define PROC(proc, argtype, restype)					\
 [NLMPROC_##proc] = {							\
 	.p_proc      = NLMPROC_##proc,					\
-	.p_encode    = (kxdrproc_t)nlm4_xdr_enc_##argtype,		\
+	.p_encode    = (kxdreproc_t)nlm4_xdr_enc_##argtype,		\
 	.p_decode    = (kxdrproc_t)nlm4_xdr_dec_##restype,		\
 	.p_arglen    = NLM4_##argtype##_sz,				\
 	.p_replen    = NLM4_##restype##_sz,				\

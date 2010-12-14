@@ -33,8 +33,8 @@ struct xdr_netobj {
 };
 
 /*
- * This is the generic XDR function. rqstp is either a rpc_rqst (client
- * side) or svc_rqst pointer (server side).
+ * This is the legacy generic XDR function. rqstp is either a rpc_rqst
+ * (client side) or svc_rqst pointer (server side).
  * Encode functions always assume there's enough room in the buffer.
  */
 typedef int	(*kxdrproc_t)(void *rqstp, __be32 *data, void *obj);
@@ -202,6 +202,11 @@ struct xdr_stream {
 	__be32 *end;		/* end of available buffer space */
 	struct kvec *iov;	/* pointer to the current kvec */
 };
+
+/*
+ * This is the xdr_stream style generic XDR function.
+ */
+typedef void	(*kxdreproc_t)(void *rqstp, struct xdr_stream *xdr, void *obj);
 
 extern void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p);
 extern __be32 *xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes);
