@@ -111,6 +111,7 @@ static unsigned long dn_rt_deadline;
 static int dn_dst_gc(struct dst_ops *ops);
 static struct dst_entry *dn_dst_check(struct dst_entry *, __u32);
 static unsigned int dn_dst_default_advmss(const struct dst_entry *dst);
+static unsigned int dn_dst_default_mtu(const struct dst_entry *dst);
 static struct dst_entry *dn_dst_negative_advice(struct dst_entry *);
 static void dn_dst_link_failure(struct sk_buff *);
 static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu);
@@ -131,6 +132,7 @@ static struct dst_ops dn_dst_ops = {
 	.gc =			dn_dst_gc,
 	.check =		dn_dst_check,
 	.default_advmss =	dn_dst_default_advmss,
+	.default_mtu =		dn_dst_default_mtu,
 	.negative_advice =	dn_dst_negative_advice,
 	.link_failure =		dn_dst_link_failure,
 	.update_pmtu =		dn_dst_update_pmtu,
@@ -803,6 +805,11 @@ static unsigned int dn_dst_default_advmss(const struct dst_entry *dst)
 	return dn_mss_from_pmtu(dst->dev, dst_mtu(dst));
 }
 
+static unsigned int dn_dst_default_mtu(const struct dst_entry *dst)
+{
+	return dst->dev->mtu;
+}
+
 static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 {
 	struct dn_fib_info *fi = res->fi;
@@ -825,8 +832,7 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 		rt->dst.neighbour = n;
 	}
 
-	if (dst_metric(&rt->dst, RTAX_MTU) == 0 ||
-	    dst_metric(&rt->dst, RTAX_MTU) > rt->dst.dev->mtu)
+	if (dst_metric(&rt->dst, RTAX_MTU) > rt->dst.dev->mtu)
 		dst_metric_set(&rt->dst, RTAX_MTU, rt->dst.dev->mtu);
 	metric = dst_metric_raw(&rt->dst, RTAX_ADVMSS);
 	if (metric) {

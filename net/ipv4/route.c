@@ -140,6 +140,7 @@ static unsigned long expires_ljiffies;
 
 static struct dst_entry *ipv4_dst_check(struct dst_entry *dst, u32 cookie);
 static unsigned int	 ipv4_default_advmss(const struct dst_entry *dst);
+static unsigned int	 ipv4_default_mtu(const struct dst_entry *dst);
 static void		 ipv4_dst_destroy(struct dst_entry *dst);
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst);
 static void		 ipv4_link_failure(struct sk_buff *skb);
@@ -157,6 +158,7 @@ static struct dst_ops ipv4_dst_ops = {
 	.gc =			rt_garbage_collect,
 	.check =		ipv4_dst_check,
 	.default_advmss =	ipv4_default_advmss,
+	.default_mtu =		ipv4_default_mtu,
 	.destroy =		ipv4_dst_destroy,
 	.ifdown =		ipv4_dst_ifdown,
 	.negative_advice =	ipv4_negative_advice,
@@ -1812,6 +1814,23 @@ static unsigned int ipv4_default_advmss(const struct dst_entry *dst)
 	return advmss;
 }
 
+static unsigned int ipv4_default_mtu(const struct dst_entry *dst)
+{
+	unsigned int mtu = dst->dev->mtu;
+
+	if (unlikely(dst_metric_locked(dst, RTAX_MTU))) {
+		const struct rtable *rt = (const struct rtable *) dst;
+
+		if (rt->rt_gateway != rt->rt_dst && mtu > 576)
+			mtu = 576;
+	}
+
+	if (mtu > IP_MAX_MTU)
+		mtu = IP_MAX_MTU;
+
+	return mtu;
+}
+
 static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 {
 	struct dst_entry *dst = &rt->dst;
@@ -1822,18 +1841,10 @@ static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 		    FIB_RES_NH(*res).nh_scope == RT_SCOPE_LINK)
 			rt->rt_gateway = FIB_RES_GW(*res);
 		dst_import_metrics(dst, fi->fib_metrics);
-		if (fi->fib_mtu == 0) {
-			dst_metric_set(dst, RTAX_MTU, dst->dev->mtu);
-			if (dst_metric_locked(dst, RTAX_MTU) &&
-			    rt->rt_gateway != rt->rt_dst &&
-			    dst->dev->mtu > 576)
-				dst_metric_set(dst, RTAX_MTU, 576);
-		}
 #ifdef CONFIG_NET_CLS_ROUTE
 		dst->tclassid = FIB_RES_NH(*res).nh_tclassid;
 #endif
-	} else
-		dst_metric_set(dst, RTAX_MTU, dst->dev->mtu);
+	}
 
 	if (dst_mtu(dst) > IP_MAX_MTU)
 		dst_metric_set(dst, RTAX_MTU, IP_MAX_MTU);

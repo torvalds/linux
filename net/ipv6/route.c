@@ -77,6 +77,7 @@
 static struct rt6_info * ip6_rt_copy(struct rt6_info *ort);
 static struct dst_entry	*ip6_dst_check(struct dst_entry *dst, u32 cookie);
 static unsigned int	 ip6_default_advmss(const struct dst_entry *dst);
+static unsigned int	 ip6_default_mtu(const struct dst_entry *dst);
 static struct dst_entry *ip6_negative_advice(struct dst_entry *);
 static void		ip6_dst_destroy(struct dst_entry *);
 static void		ip6_dst_ifdown(struct dst_entry *,
@@ -105,6 +106,7 @@ static struct dst_ops ip6_dst_ops_template = {
 	.gc_thresh		=	1024,
 	.check			=	ip6_dst_check,
 	.default_advmss		=	ip6_default_advmss,
+	.default_mtu		=	ip6_default_mtu,
 	.destroy		=	ip6_dst_destroy,
 	.ifdown			=	ip6_dst_ifdown,
 	.negative_advice	=	ip6_negative_advice,
@@ -937,8 +939,6 @@ static void ip6_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 	}
 }
 
-static int ipv6_get_mtu(struct net_device *dev);
-
 static unsigned int ip6_default_advmss(const struct dst_entry *dst)
 {
 	struct net_device *dev = dst->dev;
@@ -958,6 +958,20 @@ static unsigned int ip6_default_advmss(const struct dst_entry *dst)
 	 */
 	if (mtu > IPV6_MAXPLEN - sizeof(struct tcphdr))
 		mtu = IPV6_MAXPLEN;
+	return mtu;
+}
+
+static unsigned int ip6_default_mtu(const struct dst_entry *dst)
+{
+	unsigned int mtu = IPV6_MIN_MTU;
+	struct inet6_dev *idev;
+
+	rcu_read_lock();
+	idev = __in6_dev_get(dst->dev);
+	if (idev)
+		mtu = idev->cnf.mtu6;
+	rcu_read_unlock();
+
 	return mtu;
 }
 
@@ -995,7 +1009,6 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	rt->rt6i_nexthop  = neigh;
 	atomic_set(&rt->dst.__refcnt, 1);
 	dst_metric_set(&rt->dst, RTAX_HOPLIMIT, 255);
-	dst_metric_set(&rt->dst, RTAX_MTU, ipv6_get_mtu(rt->rt6i_dev));
 	rt->dst.output  = ip6_output;
 
 #if 0	/* there's no chance to use these for ndisc */
@@ -1093,19 +1106,6 @@ out:
 
    Remove it only when all the things will work!
  */
-
-static int ipv6_get_mtu(struct net_device *dev)
-{
-	int mtu = IPV6_MIN_MTU;
-	struct inet6_dev *idev;
-
-	rcu_read_lock();
-	idev = __in6_dev_get(dev);
-	if (idev)
-		mtu = idev->cnf.mtu6;
-	rcu_read_unlock();
-	return mtu;
-}
 
 int ip6_dst_hoplimit(struct dst_entry *dst)
 {
@@ -1315,8 +1315,6 @@ install_route:
 		}
 	}
 
-	if (!dst_mtu(&rt->dst))
-		dst_metric_set(&rt->dst, RTAX_MTU, ipv6_get_mtu(dev));
 	rt->dst.dev = dev;
 	rt->rt6i_idev = idev;
 	rt->rt6i_table = table;
@@ -1541,8 +1539,6 @@ void rt6_redirect(struct in6_addr *dest, struct in6_addr *src,
 
 	ipv6_addr_copy(&nrt->rt6i_gateway, (struct in6_addr*)neigh->primary_key);
 	nrt->rt6i_nexthop = neigh_clone(neigh);
-	/* Reset pmtu, it may be better */
-	dst_metric_set(&nrt->dst, RTAX_MTU, ipv6_get_mtu(neigh->dev));
 
 	if (ip6_ins_rt(nrt))
 		goto out;
@@ -1971,7 +1967,6 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 	rt->dst.output = ip6_output;
 	rt->rt6i_dev = net->loopback_dev;
 	rt->rt6i_idev = idev;
-	dst_metric_set(&rt->dst, RTAX_MTU, ipv6_get_mtu(rt->rt6i_dev));
 	dst_metric_set(&rt->dst, RTAX_HOPLIMIT, -1);
 	rt->dst.obsolete = -1;
 

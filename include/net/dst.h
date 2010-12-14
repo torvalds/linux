@@ -113,7 +113,8 @@ static inline u32
 dst_metric(const struct dst_entry *dst, const int metric)
 {
 	WARN_ON_ONCE(metric == RTAX_HOPLIMIT ||
-		     metric == RTAX_ADVMSS);
+		     metric == RTAX_ADVMSS ||
+		     metric == RTAX_MTU);
 	return dst_metric_raw(dst, metric);
 }
 
@@ -156,11 +157,11 @@ dst_feature(const struct dst_entry *dst, u32 feature)
 
 static inline u32 dst_mtu(const struct dst_entry *dst)
 {
-	u32 mtu = dst_metric(dst, RTAX_MTU);
-	/*
-	 * Alexey put it here, so ask him about it :)
-	 */
-	barrier();
+	u32 mtu = dst_metric_raw(dst, RTAX_MTU);
+
+	if (!mtu)
+		mtu = dst->ops->default_mtu(dst);
+
 	return mtu;
 }
 
@@ -186,7 +187,7 @@ dst_allfrag(const struct dst_entry *dst)
 }
 
 static inline int
-dst_metric_locked(struct dst_entry *dst, int metric)
+dst_metric_locked(const struct dst_entry *dst, int metric)
 {
 	return dst_metric(dst, RTAX_LOCK) & (1<<metric);
 }
