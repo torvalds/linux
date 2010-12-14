@@ -57,10 +57,6 @@ enum {
 	RPCBPROC_GETSTAT,
 };
 
-#define RPCB_HIGHPROC_2		RPCBPROC_CALLIT
-#define RPCB_HIGHPROC_3		RPCBPROC_TADDR2UADDR
-#define RPCB_HIGHPROC_4		RPCBPROC_GETSTAT
-
 /*
  * r_owner
  *
@@ -975,19 +971,19 @@ static struct rpcb_info rpcb_next_version6[] = {
 
 static struct rpc_version rpcb_version2 = {
 	.number		= RPCBVERS_2,
-	.nrprocs	= RPCB_HIGHPROC_2,
+	.nrprocs	= ARRAY_SIZE(rpcb_procedures2),
 	.procs		= rpcb_procedures2
 };
 
 static struct rpc_version rpcb_version3 = {
 	.number		= RPCBVERS_3,
-	.nrprocs	= RPCB_HIGHPROC_3,
+	.nrprocs	= ARRAY_SIZE(rpcb_procedures3),
 	.procs		= rpcb_procedures3
 };
 
 static struct rpc_version rpcb_version4 = {
 	.number		= RPCBVERS_4,
-	.nrprocs	= RPCB_HIGHPROC_4,
+	.nrprocs	= ARRAY_SIZE(rpcb_procedures4),
 	.procs		= rpcb_procedures4
 };
 
