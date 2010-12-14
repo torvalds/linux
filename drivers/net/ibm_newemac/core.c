@@ -1279,7 +1279,7 @@ static void emac_force_link_update(struct emac_instance *dev)
 	netif_carrier_off(dev->ndev);
 	smp_rmb();
 	if (dev->link_polling) {
-		cancel_rearming_delayed_work(&dev->link_work);
+		cancel_delayed_work_sync(&dev->link_work);
 		if (dev->link_polling)
 			schedule_delayed_work(&dev->link_work,  PHY_POLL_LINK_OFF);
 	}
@@ -1294,7 +1294,7 @@ static int emac_close(struct net_device *ndev)
 
 	if (dev->phy.address >= 0) {
 		dev->link_polling = 0;
-		cancel_rearming_delayed_work(&dev->link_work);
+		cancel_delayed_work_sync(&dev->link_work);
 	}
 	mutex_lock(&dev->link_lock);
 	emac_netif_stop(dev);
