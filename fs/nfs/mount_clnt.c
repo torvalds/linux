@@ -236,10 +236,8 @@ void nfs_umount(const struct nfs_mount_request *info)
 		.authflavor	= RPC_AUTH_UNIX,
 		.flags		= RPC_CLNT_CREATE_NOPING,
 	};
-	struct mountres	result;
 	struct rpc_message msg	= {
 		.rpc_argp	= info->dirpath,
-		.rpc_resp	= &result,
 	};
 	struct rpc_clnt *clnt;
 	int status;
