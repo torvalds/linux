@@ -355,6 +355,7 @@ static void sc_kref_release(struct kref *kref)
 		sc->sc_sock = NULL;
 	}
 
+	o2nm_undepend_item(&sc->sc_node->nd_item);
 	o2nm_node_put(sc->sc_node);
 	sc->sc_node = NULL;
 
@@ -376,6 +377,7 @@ static struct o2net_sock_container *sc_alloc(struct o2nm_node *node)
 {
 	struct o2net_sock_container *sc, *ret = NULL;
 	struct page *page = NULL;
+	int status = 0;
 
 	page = alloc_page(GFP_NOFS);
 	sc = kzalloc(sizeof(*sc), GFP_NOFS);
@@ -386,6 +388,13 @@ static struct o2net_sock_container *sc_alloc(struct o2nm_node *node)
 	o2nm_node_get(node);
 	sc->sc_node = node;
 
+	/* pin the node item of the remote node */
+	status = o2nm_depend_item(&node->nd_item);
+	if (status) {
+		mlog_errno(status);
+		o2nm_node_put(node);
+		goto out;
+	}
 	INIT_WORK(&sc->sc_connect_work, o2net_sc_connect_completed);
 	INIT_WORK(&sc->sc_rx_work, o2net_rx_until_empty);
 	INIT_WORK(&sc->sc_shutdown_work, o2net_shutdown_sc);
