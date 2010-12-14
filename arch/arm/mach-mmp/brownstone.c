@@ -17,6 +17,7 @@
 #include <linux/gpio.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/max8649.h>
+#include <linux/regulator/fixed.h>
 #include <linux/mfd/max8925.h>
 
 #include <asm/mach-types.h>
@@ -29,6 +30,8 @@
 #include "common.h"
 
 #define BROWNSTONE_NR_IRQS	(IRQ_BOARD_START + 40)
+
+#define GPIO_5V_ENABLE		(89)
 
 static unsigned long brownstone_pin_config[] __initdata = {
 	/* UART1 */
@@ -97,6 +100,9 @@ static unsigned long brownstone_pin_config[] __initdata = {
 	GPIO111_MMC3_DAT0 | MFP_PULL_HIGH,
 	GPIO112_MMC3_CMD | MFP_PULL_HIGH,
 	GPIO151_MMC3_CLK,
+
+	/* 5V regulator */
+	GPIO89_GPIO,
 };
 
 static struct regulator_consumer_supply max8649_supply[] = {
@@ -121,6 +127,35 @@ static struct max8649_platform_data brownstone_max8649_info = {
 	.extclk		= 0,
 	.ramp_timing	= MAX8649_RAMP_32MV,
 	.regulator	= &max8649_init_data,
+};
+
+static struct regulator_consumer_supply brownstone_v_5vp_supplies[] = {
+	REGULATOR_SUPPLY("v_5vp", NULL),
+};
+
+static struct regulator_init_data brownstone_v_5vp_data = {
+	.constraints	= {
+		.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(brownstone_v_5vp_supplies),
+	.consumer_supplies	= brownstone_v_5vp_supplies,
+};
+
+static struct fixed_voltage_config brownstone_v_5vp = {
+	.supply_name		= "v_5vp",
+	.microvolts		= 5000000,
+	.gpio			= GPIO_5V_ENABLE,
+	.enable_high		= 1,
+	.enabled_at_boot	= 1,
+	.init_data		= &brownstone_v_5vp_data,
+};
+
+static struct platform_device brownstone_v_5vp_device = {
+	.name		= "reg-fixed-voltage",
+	.id		= 1,
+	.dev = {
+		.platform_data = &brownstone_v_5vp,
+	},
 };
 
 static struct max8925_platform_data brownstone_max8925_info = {
@@ -154,6 +189,9 @@ static void __init brownstone_init(void)
 	mmp2_add_uart(3);
 	mmp2_add_twsi(1, NULL, ARRAY_AND_SIZE(brownstone_twsi1_info));
 	mmp2_add_sdhost(0, &mmp2_sdh_platdata_mmc0); /* SD/MMC */
+
+	/* enable 5v regulator */
+	platform_device_register(&brownstone_v_5vp_device);
 }
 
 MACHINE_START(BROWNSTONE, "Brownstone Development Platform")
