@@ -755,6 +755,10 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 
 	nla_nest_end(msg, nl_cmds);
 
+	if (dev->ops->remain_on_channel)
+		NLA_PUT_U32(msg, NL80211_ATTR_MAX_REMAIN_ON_CHANNEL_DURATION,
+			    dev->wiphy.max_remain_on_channel_duration);
+
 	/* for now at least assume all drivers have it */
 	if (dev->ops->mgmt_tx)
 		NLA_PUT_FLAG(msg, NL80211_ATTR_OFFCHANNEL_TX_OK);
@@ -4228,7 +4232,8 @@ static int nl80211_remain_on_channel(struct sk_buff *skb,
 	 * We should be on that channel for at least one jiffie,
 	 * and more than 5 seconds seems excessive.
 	 */
-	if (!duration || !msecs_to_jiffies(duration) || duration > 5000)
+	if (!duration || !msecs_to_jiffies(duration) ||
+	    duration > rdev->wiphy.max_remain_on_channel_duration)
 		return -EINVAL;
 
 	if (!rdev->ops->remain_on_channel)

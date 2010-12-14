@@ -1474,6 +1474,9 @@ struct ieee80211_txrx_stypes {
  *
  * @available_antennas: bitmap of antennas which are available to configure.
  *	antenna configuration commands will be rejected unless this is set.
+ *
+ * @max_remain_on_channel_duration: Maximum time a remain-on-channel operation
+ *	may request, if implemented.
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -1510,6 +1513,8 @@ struct wiphy {
 
 	char fw_version[ETHTOOL_BUSINFO_LEN];
 	u32 hw_version;
+
+	u16 max_remain_on_channel_duration;
 
 	u8 max_num_pmkids;
 

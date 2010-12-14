@@ -745,6 +745,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		}
 	}
 
+	local->hw.wiphy->max_remain_on_channel_duration = 5000;
+
 	result = wiphy_register(local->hw.wiphy);
 	if (result < 0)
 		goto fail_wiphy_register;
