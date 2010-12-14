@@ -29,6 +29,8 @@
 #include <mach/fb.h>
 #include <mach/nvhost.h>
 #include <linux/regulator/consumer.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 
 #include "board.h"
 #include "board-stingray.h"
@@ -145,29 +147,64 @@ int __init board_lcd_manfid_init(char *s)
 }
 __setup("lcd_manfid=", board_lcd_manfid_init);
 
+/* Disgusting hack to deal with the fact that there are a set of pull down
+ * resistors on the panel end of the i2c bus.  These cause a voltage
+ * divider on the i2c bus which can cause these devices to fail to recognize
+ * their addresses when power to the display is cut.  This creates a dependency
+ * between these devices and the power to the panel.
+ */
+static struct regulator_consumer_supply stingray_panel_reg_consumer_supply[] = {
+	{ .supply = "vdd_panel", .dev_name = NULL, },
+	{ .supply = "vio", .dev_name = "0-0077" /* barometer */},
+	{ .supply = "vio", .dev_name = "0-002c" /* lighting */},
+	{ .supply = "vio", .dev_name = "0-005b" /* touch */},
+	{ .supply = "vio", .dev_name = "0-004b" /* als */},
+};
+
+static struct regulator_init_data stingray_panel_reg_initdata = {
+	.consumer_supplies = stingray_panel_reg_consumer_supply,
+	.num_consumer_supplies = ARRAY_SIZE(stingray_panel_reg_consumer_supply),
+	.constraints = {
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+	},
+};
+
+static struct fixed_voltage_config stingray_panel_reg_config = {
+	.supply_name		= "stingray_panel_reg",
+	.microvolts		= 5000000,
+	.gpio			= STINGRAY_LVDS_SHDN_B,
+	.startup_delay		= 200000,
+	.enable_high		= 1,
+	.enabled_at_boot	= 1,
+	.init_data		= &stingray_panel_reg_initdata,
+};
+
+static struct platform_device stingray_panel_reg_device = {
+	.name	= "reg-fixed-voltage",
+	.id	= 0,
+	.dev	= {
+		.platform_data = &stingray_panel_reg_config,
+	},
+};
+
+static struct regulator *stingray_panel_regulator = NULL;
 static int stingray_panel_enable(void)
 {
-	struct i2c_adapter *adapter = NULL;
-
-	if (!strncmp(lcd_manfid, "SHP", 3) || !strncmp(lcd_manfid, "AUO", 3)) {
-		adapter = i2c_get_adapter(0);
-		if (adapter)
-			i2c_lock_adapter(adapter);
+	if (IS_ERR_OR_NULL(stingray_panel_regulator)) {
+		stingray_panel_regulator = regulator_get(NULL, "vdd_panel");
+		if (IS_ERR_OR_NULL(stingray_panel_regulator)) {
+			pr_err("%s: Could not get panel regulator\n", __func__);
+			return PTR_ERR(stingray_panel_regulator);
+		}
 	}
 
-	gpio_set_value(STINGRAY_LVDS_SHDN_B, 1);
-
-	if (adapter) {
-		msleep(200);
-		i2c_unlock_adapter(adapter);
-		i2c_put_adapter(adapter);
-	}
-	return 0;
+	return regulator_enable(stingray_panel_regulator);
 }
 
 static int stingray_panel_disable(void)
 {
-	gpio_set_value(STINGRAY_LVDS_SHDN_B, 0);
+	if (!IS_ERR_OR_NULL(stingray_panel_regulator))
+		regulator_disable(stingray_panel_regulator);
 	return 0;
 }
 
@@ -353,9 +390,7 @@ int __init stingray_panel_init(void)
 			ARRAY_SIZE(stingray_i2c_bus1_led_info));
 	}
 
-	tegra_gpio_enable(STINGRAY_LVDS_SHDN_B);
-	gpio_request(STINGRAY_LVDS_SHDN_B, "lvds_shdn_b");
-	gpio_direction_output(STINGRAY_LVDS_SHDN_B, 1);
+	platform_device_register(&stingray_panel_reg_device);
 
 	stingray_hdmi_init();
 
