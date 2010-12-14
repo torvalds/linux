@@ -610,6 +610,7 @@ void bfa_lps_flogi(struct bfa_lps_s *lps, void *uarg, u8 alpa,
 void bfa_lps_fdisc(struct bfa_lps_s *lps, void *uarg, u16 pdusz,
 		   wwn_t pwwn, wwn_t nwwn);
 void bfa_lps_fdisclogo(struct bfa_lps_s *lps);
+void bfa_lps_set_n2n_pid(struct bfa_lps_s *lps, u32 n2n_pid);
 u32 bfa_lps_get_base_pid(struct bfa_s *bfa);
 u8 bfa_lps_get_tag_from_pid(struct bfa_s *bfa, u32 pid);
 void bfa_cb_lps_flogi_comp(void *bfad, void *uarg, bfa_status_t status);

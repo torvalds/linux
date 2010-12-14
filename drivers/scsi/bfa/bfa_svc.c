@@ -131,6 +131,7 @@ static void bfa_lps_reqq_resume(void *lps_arg);
 static void bfa_lps_free(struct bfa_lps_s *lps);
 static void bfa_lps_send_login(struct bfa_lps_s *lps);
 static void bfa_lps_send_logout(struct bfa_lps_s *lps);
+static void bfa_lps_send_set_n2n_pid(struct bfa_lps_s *lps);
 static void bfa_lps_login_comp(struct bfa_lps_s *lps);
 static void bfa_lps_logout_comp(struct bfa_lps_s *lps);
 static void bfa_lps_cvl_event(struct bfa_lps_s *lps);
@@ -143,6 +144,8 @@ static void bfa_lps_sm_login(struct bfa_lps_s *lps, enum bfa_lps_event event);
 static void bfa_lps_sm_loginwait(struct bfa_lps_s *lps, enum bfa_lps_event
 					event);
 static void bfa_lps_sm_online(struct bfa_lps_s *lps, enum bfa_lps_event event);
+static void bfa_lps_sm_online_n2n_pid_wait(struct bfa_lps_s *lps,
+					enum bfa_lps_event event);
 static void bfa_lps_sm_logout(struct bfa_lps_s *lps, enum bfa_lps_event event);
 static void bfa_lps_sm_logowait(struct bfa_lps_s *lps, enum bfa_lps_event
 					event);
@@ -1254,6 +1257,12 @@ bfa_lps_sm_login(struct bfa_lps_s *lps, enum bfa_lps_event event)
 			else
 				bfa_plog_str(lps->bfa->plog, BFA_PL_MID_LPS,
 					BFA_PL_EID_LOGIN, 0, "FLOGI Accept");
+			/* If N2N, send the assigned PID to FW */
+			bfa_trc(lps->bfa, lps->fport);
+			bfa_trc(lps->bfa, lps->lp_pid);
+
+			if (!lps->fport && lps->lp_pid)
+				bfa_sm_send_event(lps, BFA_LPS_SM_SET_N2N_PID);
 		} else {
 			bfa_sm_set_state(lps, bfa_lps_sm_init);
 			if (lps->fdisc)
@@ -1270,6 +1279,11 @@ bfa_lps_sm_login(struct bfa_lps_s *lps, enum bfa_lps_event event)
 
 	case BFA_LPS_SM_OFFLINE:
 		bfa_sm_set_state(lps, bfa_lps_sm_init);
+		break;
+
+	case BFA_LPS_SM_SET_N2N_PID:
+		bfa_trc(lps->bfa, lps->fport);
+		bfa_trc(lps->bfa, lps->lp_pid);
 		break;
 
 	default:
@@ -1340,9 +1354,59 @@ bfa_lps_sm_online(struct bfa_lps_s *lps, enum bfa_lps_event event)
 			BFA_PL_EID_FIP_FCF_CVL, 0, "FCF Clear Virt. Link Rx");
 		break;
 
+	case BFA_LPS_SM_SET_N2N_PID:
+		if (bfa_reqq_full(lps->bfa, lps->reqq)) {
+			bfa_sm_set_state(lps, bfa_lps_sm_online_n2n_pid_wait);
+			bfa_reqq_wait(lps->bfa, lps->reqq, &lps->wqe);
+		} else
+			bfa_lps_send_set_n2n_pid(lps);
+		break;
+
 	case BFA_LPS_SM_OFFLINE:
 	case BFA_LPS_SM_DELETE:
 		bfa_sm_set_state(lps, bfa_lps_sm_init);
+		break;
+
+	default:
+		bfa_sm_fault(lps->bfa, event);
+	}
+}
+
+/**
+ * login complete
+ */
+static void
+bfa_lps_sm_online_n2n_pid_wait(struct bfa_lps_s *lps, enum bfa_lps_event event)
+{
+	bfa_trc(lps->bfa, lps->lp_tag);
+	bfa_trc(lps->bfa, event);
+
+	switch (event) {
+	case BFA_LPS_SM_RESUME:
+		bfa_sm_set_state(lps, bfa_lps_sm_online);
+		bfa_lps_send_set_n2n_pid(lps);
+		break;
+
+	case BFA_LPS_SM_LOGOUT:
+		bfa_sm_set_state(lps, bfa_lps_sm_logowait);
+		bfa_plog_str(lps->bfa->plog, BFA_PL_MID_LPS,
+			BFA_PL_EID_LOGO, 0, "Logout");
+		break;
+
+	case BFA_LPS_SM_RX_CVL:
+		bfa_sm_set_state(lps, bfa_lps_sm_init);
+		bfa_reqq_wcancel(&lps->wqe);
+
+		/* Let the vport module know about this event */
+		bfa_lps_cvl_event(lps);
+		bfa_plog_str(lps->bfa->plog, BFA_PL_MID_LPS,
+			BFA_PL_EID_FIP_FCF_CVL, 0, "FCF Clear Virt. Link Rx");
+		break;
+
+	case BFA_LPS_SM_OFFLINE:
+	case BFA_LPS_SM_DELETE:
+		bfa_sm_set_state(lps, bfa_lps_sm_init);
+		bfa_reqq_wcancel(&lps->wqe);
 		break;
 
 	default:
@@ -1498,8 +1562,9 @@ bfa_lps_login_rsp(struct bfa_s *bfa, struct bfi_lps_login_rsp_s *rsp)
 	switch (rsp->status) {
 	case BFA_STATUS_OK:
 		lps->fport	= rsp->f_port;
+		if (lps->fport)
+			lps->lp_pid = rsp->lp_pid;
 		lps->npiv_en	= rsp->npiv_en;
-		lps->lp_pid	= rsp->lp_pid;
 		lps->pr_bbcred	= be16_to_cpu(rsp->bb_credit);
 		lps->pr_pwwn	= rsp->port_name;
 		lps->pr_nwwn	= rsp->node_name;
@@ -1623,6 +1688,25 @@ bfa_lps_send_logout(struct bfa_lps_s *lps)
 
 	m->lp_tag    = lps->lp_tag;
 	m->port_name = lps->pwwn;
+	bfa_reqq_produce(lps->bfa, lps->reqq);
+}
+
+/**
+ * send n2n pid set request to firmware
+ */
+static void
+bfa_lps_send_set_n2n_pid(struct bfa_lps_s *lps)
+{
+	struct bfi_lps_n2n_pid_req_s *m;
+
+	m = bfa_reqq_next(lps->bfa, lps->reqq);
+	bfa_assert(m);
+
+	bfi_h2i_set(m->mh, BFI_MC_LPS, BFI_LPS_H2I_N2N_PID_REQ,
+		bfa_lpuid(lps->bfa));
+
+	m->lp_tag = lps->lp_tag;
+	m->lp_pid = lps->lp_pid;
 	bfa_reqq_produce(lps->bfa, lps->reqq);
 }
 
@@ -1844,6 +1928,19 @@ bfa_lps_get_base_pid(struct bfa_s *bfa)
 	struct bfa_lps_mod_s	*mod = BFA_LPS_MOD(bfa);
 
 	return BFA_LPS_FROM_TAG(mod, 0)->lp_pid;
+}
+
+/**
+ * Set PID in case of n2n (which is assigned during PLOGI)
+ */
+void
+bfa_lps_set_n2n_pid(struct bfa_lps_s *lps, uint32_t n2n_pid)
+{
+	bfa_trc(lps->bfa, lps->lp_tag);
+	bfa_trc(lps->bfa, n2n_pid);
+
+	lps->lp_pid = n2n_pid;
+	bfa_sm_send_event(lps, BFA_LPS_SM_SET_N2N_PID);
 }
 
 /*

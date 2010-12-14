@@ -309,6 +309,7 @@ bfa_fcs_lport_plogi(struct bfa_fcs_lport_s *port,
 			return;
 		}
 		port->pid  = rx_fchs->d_id;
+		bfa_lps_set_n2n_pid(port->fabric->lps, rx_fchs->d_id);
 	}
 
 	/*
@@ -323,6 +324,7 @@ bfa_fcs_lport_plogi(struct bfa_fcs_lport_s *port,
 			(memcmp((void *)&bfa_fcs_lport_get_pwwn(port),
 			(void *)&plogi->port_name, sizeof(wwn_t)) < 0)) {
 			port->pid  = rx_fchs->d_id;
+			bfa_lps_set_n2n_pid(port->fabric->lps, rx_fchs->d_id);
 			rport->pid = rx_fchs->s_id;
 		}
 		bfa_fcs_rport_plogi(rport, rx_fchs, plogi);
@@ -979,6 +981,7 @@ bfa_fcs_lport_n2n_online(struct bfa_fcs_lport_s *port)
 	    ((void *)&pcfg->pwwn, (void *)&n2n_port->rem_port_wwn,
 	     sizeof(wwn_t)) > 0) {
 		port->pid = N2N_LOCAL_PID;
+		bfa_lps_set_n2n_pid(port->fabric->lps, N2N_LOCAL_PID);
 		/*
 		 * First, check if we know the device by pwwn.
 		 */

@@ -342,6 +342,7 @@ struct bfi_uf_frm_rcvd_s {
 enum bfi_lps_h2i_msgs {
 	BFI_LPS_H2I_LOGIN_REQ	= 1,
 	BFI_LPS_H2I_LOGOUT_REQ	= 2,
+	BFI_LPS_H2I_N2N_PID_REQ = 3,
 };
 
 enum bfi_lps_i2h_msgs {
@@ -401,10 +402,17 @@ struct bfi_lps_cvl_event_s {
 	u8		rsvd[3];
 };
 
+struct bfi_lps_n2n_pid_req_s {
+	struct bfi_mhdr_s	mh;	/*  common msg header		*/
+	u8	lp_tag;
+	u32	lp_pid:24;
+};
+
 union bfi_lps_h2i_msg_u {
 	struct bfi_mhdr_s		*msg;
 	struct bfi_lps_login_req_s	*login_req;
 	struct bfi_lps_logout_req_s	*logout_req;
+	struct bfi_lps_n2n_pid_req_s	*n2n_pid_req;
 };
 
 union bfi_lps_i2h_msg_u {

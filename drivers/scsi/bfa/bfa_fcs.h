@@ -38,6 +38,7 @@ enum bfa_lps_event {
 	BFA_LPS_SM_DELETE	= 5,	/* lps delete from user         */
 	BFA_LPS_SM_OFFLINE	= 6,	/* Link is offline              */
 	BFA_LPS_SM_RX_CVL	= 7,	/* Rx clear virtual link        */
+	BFA_LPS_SM_SET_N2N_PID  = 8,	/* Set assigned PID for n2n */
 };
 
 
