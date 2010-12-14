@@ -3725,7 +3725,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 		err = register_netdev(adapter->port[i]);
 		if (err)
 			break;
-		__set_bit(i, &adapter->registered_device_map);
 		adapter->chan_map[pi->tx_chan] = i;
 		print_port_info(adapter->port[i]);
 	}
@@ -3785,7 +3784,7 @@ static void __devexit remove_one(struct pci_dev *pdev)
 			detach_ulds(adapter);
 
 		for_each_port(adapter, i)
-			if (test_bit(i, &adapter->registered_device_map))
+			if (adapter->port[i]->reg_state == NETREG_REGISTERED)
 				unregister_netdev(adapter->port[i]);
 
 		if (adapter->debugfs_root)

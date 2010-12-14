@@ -482,7 +482,6 @@ struct adapter {
 	void __iomem *regs;
 	struct pci_dev *pdev;
 	struct device *pdev_dev;
-	unsigned long registered_device_map;
 	unsigned int fn;
 	unsigned int flags;
 
