@@ -181,6 +181,11 @@ static struct omap_board_config_kernel ams_delta_config[] = {
 	{ OMAP_TAG_LCD,		&ams_delta_lcd_config },
 };
 
+static struct platform_device ams_delta_nand_device = {
+	.name	= "ams-delta-nand",
+	.id	= -1
+};
+
 static struct resource ams_delta_kp_resources[] = {
 	[0] = {
 		.start	= INT_KEYBOARD,
@@ -263,6 +268,7 @@ static struct omap1_cam_platform_data ams_delta_camera_platform_data = {
 };
 
 static struct platform_device *ams_delta_devices[] __initdata = {
+	&ams_delta_nand_device,
 	&ams_delta_kp_device,
 	&ams_delta_lcd_device,
 	&ams_delta_led_device,

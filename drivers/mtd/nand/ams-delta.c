@@ -4,6 +4,7 @@
  *  Copyright (C) 2006 Jonathan McDowell <noodles@earth.li>
  *
  *  Derived from drivers/mtd/toto.c
+ *  Converted to platform driver by Janusz Krzysztofik <jkrzyszt@tis.icnet.pl>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -151,7 +152,7 @@ static int ams_delta_nand_ready(struct mtd_info *mtd)
 /*
  * Main initialization routine
  */
-static int __init ams_delta_init(void)
+static int __devinit ams_delta_init(struct platform_device *pdev)
 {
 	struct nand_chip *this;
 	int err = 0;
@@ -219,20 +220,40 @@ static int __init ams_delta_init(void)
 	return err;
 }
 
-module_init(ams_delta_init);
-
 /*
  * Clean up routine
  */
-static void __exit ams_delta_cleanup(void)
+static int __devexit ams_delta_cleanup(struct platform_device *pdev)
 {
 	/* Release resources, unregister device */
 	nand_release(ams_delta_mtd);
 
 	/* Free the MTD device structure */
 	kfree(ams_delta_mtd);
+
+	return 0;
 }
-module_exit(ams_delta_cleanup);
+
+static struct platform_driver ams_delta_nand_driver = {
+	.probe		= ams_delta_init,
+	.remove		= __devexit_p(ams_delta_cleanup),
+	.driver		= {
+		.name	= "ams-delta-nand",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static int __init ams_delta_nand_init(void)
+{
+	return platform_driver_register(&ams_delta_nand_driver);
+}
+module_init(ams_delta_nand_init);
+
+static void __exit ams_delta_nand_exit(void)
+{
+	platform_driver_unregister(&ams_delta_nand_driver);
+}
+module_exit(ams_delta_nand_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jonathan McDowell <noodles@earth.li>");
