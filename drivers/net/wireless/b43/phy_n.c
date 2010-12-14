@@ -88,13 +88,6 @@ static void b43_nphy_rf_control_override(struct b43_wldev *dev, u16 field,
 static void b43_nphy_rf_control_intc_override(struct b43_wldev *dev, u8 field,
 						u16 value, u8 core);
 
-static inline bool b43_channel_type_is_40mhz(
-					enum nl80211_channel_type channel_type)
-{
-	return (channel_type == NL80211_CHAN_HT40MINUS ||
-		channel_type == NL80211_CHAN_HT40PLUS);
-}
-
 void b43_nphy_set_rxantenna(struct b43_wldev *dev, int antenna)
 {//TODO
 }
@@ -258,7 +251,8 @@ static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 
 	for (i = 0; i < 2; i++) {
 		if (dev->phy.rev >= 3) {
-			/* TODO */
+			/* FIXME: support 5GHz */
+			txgain = b43_ntab_tx_gain_rev3plus_2ghz[txpi[i]];
 			radio_gain = (txgain >> 16) & 0x1FFFF;
 		} else {
 			txgain = b43_ntab_tx_gain_rev0_1_2[txpi[i]];
@@ -613,6 +607,8 @@ static void b43_nphy_rx_iq_coeffs(struct b43_wldev *dev, bool write,
 	}
 }
 
+#if 0
+/* Ready but not used anywhere */
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/RxCalPhyCleanup */
 static void b43_nphy_rx_cal_phy_cleanup(struct b43_wldev *dev, u8 core)
 {
@@ -694,6 +690,7 @@ static void b43_nphy_rx_cal_phy_setup(struct b43_wldev *dev, u8 core)
 	b43_nphy_rf_control_intc_override(dev, 1, rxval, (core + 1));
 	b43_nphy_rf_control_intc_override(dev, 1, txval, (2 - core));
 }
+#endif
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CalcRxIqComp */
 static void b43_nphy_calc_rx_iq_comp(struct b43_wldev *dev, u8 mask)
@@ -3088,7 +3085,7 @@ static int b43_nphy_rev2_cal_rx_iq(struct b43_wldev *dev,
 	u8 rfctl[2];
 	u8 afectl_core;
 	u16 tmp[6];
-	u16 cur_hpf1, cur_hpf2, cur_lna;
+	u16 uninitialized_var(cur_hpf1), uninitialized_var(cur_hpf2), cur_lna;
 	u32 real, imag;
 	enum ieee80211_band band;
 
@@ -3518,7 +3515,6 @@ int b43_phy_initn(struct b43_wldev *dev)
 	if (phy->rev >= 3)
 		b43_nphy_spur_workaround(dev);
 
-	b43err(dev->wl, "IEEE 802.11n devices are not supported, yet.\n");
 	return 0;
 }
 
@@ -3705,6 +3701,15 @@ static void b43_nphy_op_write(struct b43_wldev *dev, u16 reg, u16 value)
 	b43_write16(dev, B43_MMIO_PHY_DATA, value);
 }
 
+static void b43_nphy_op_maskset(struct b43_wldev *dev, u16 reg, u16 mask,
+				 u16 set)
+{
+	check_phyreg(dev, reg);
+	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
+	b43_write16(dev, B43_MMIO_PHY_DATA,
+		    (b43_read16(dev, B43_MMIO_PHY_DATA) & mask) | set);
+}
+
 static u16 b43_nphy_op_radio_read(struct b43_wldev *dev, u16 reg)
 {
 	/* Register 1 is a 32-bit register. */
@@ -3799,6 +3804,7 @@ const struct b43_phy_operations b43_phyops_n = {
 	.init			= b43_nphy_op_init,
 	.phy_read		= b43_nphy_op_read,
 	.phy_write		= b43_nphy_op_write,
+	.phy_maskset		= b43_nphy_op_maskset,
 	.radio_read		= b43_nphy_op_radio_read,
 	.radio_write		= b43_nphy_op_radio_write,
 	.software_rfkill	= b43_nphy_op_software_rfkill,

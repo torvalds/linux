@@ -357,6 +357,7 @@ struct ieee80211_if_managed {
 	unsigned long beacon_timeout;
 	unsigned long probe_timeout;
 	int probe_send_count;
+	bool nullfunc_failed;
 
 	struct mutex mtx;
 	struct cfg80211_bss *associated;
@@ -606,19 +607,6 @@ static inline
 struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 {
 	return container_of(p, struct ieee80211_sub_if_data, vif);
-}
-
-static inline void
-ieee80211_sdata_set_mesh_id(struct ieee80211_sub_if_data *sdata,
-			    u8 mesh_id_len, u8 *mesh_id)
-{
-#ifdef CONFIG_MAC80211_MESH
-	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	ifmsh->mesh_id_len = mesh_id_len;
-	memcpy(ifmsh->mesh_id, mesh_id, mesh_id_len);
-#else
-	WARN_ON(1);
-#endif
 }
 
 enum sdata_queue_type {
@@ -1271,7 +1259,7 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_hdr *hdr);
 void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
-			     struct ieee80211_hdr *hdr);
+			     struct ieee80211_hdr *hdr, bool ack);
 void ieee80211_beacon_connection_loss_work(struct work_struct *work);
 
 void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,

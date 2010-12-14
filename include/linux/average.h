@@ -1,8 +1,6 @@
 #ifndef _LINUX_AVERAGE_H
 #define _LINUX_AVERAGE_H
 
-#include <linux/kernel.h>
-
 /* Exponentially weighted moving average (EWMA) */
 
 /* For more documentation see lib/average.c */
@@ -26,7 +24,7 @@ extern struct ewma *ewma_add(struct ewma *avg, unsigned long val);
  */
 static inline unsigned long ewma_read(const struct ewma *avg)
 {
-	return DIV_ROUND_CLOSEST(avg->internal, avg->factor);
+	return avg->internal >> avg->factor;
 }
 
 #endif /* _LINUX_AVERAGE_H */

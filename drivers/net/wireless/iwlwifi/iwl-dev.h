@@ -129,9 +129,6 @@ struct iwl_queue {
 	int write_ptr;       /* 1-st empty entry (index) host_w*/
 	int read_ptr;         /* last used entry (index) host_r*/
 	/* use for monitoring and recovering the stuck queue */
-	int last_read_ptr;      /* storing the last read_ptr */
-	/* number of time read_ptr and last_read_ptr are the same */
-	u8 repeat_same_read_ptr;
 	dma_addr_t dma_addr;   /* physical addr for BD's */
 	int n_window;	       /* safe queue window */
 	u32 id;
@@ -155,6 +152,7 @@ struct iwl_tx_info {
  * @meta: array of meta data for each command/tx buffer
  * @dma_addr_cmd: physical address of cmd/tx buffer array
  * @txb: array of per-TFD driver data
+ * @time_stamp: time (in jiffies) of last read_ptr change
  * @need_update: indicates need to update read/write index
  * @sched_retry: indicates queue is high-throughput aggregation (HT AGG) enabled
  *
@@ -170,6 +168,7 @@ struct iwl_tx_queue {
 	struct iwl_device_cmd **cmd;
 	struct iwl_cmd_meta *meta;
 	struct iwl_tx_info *txb;
+	unsigned long time_stamp;
 	u8 need_update;
 	u8 sched_retry;
 	u8 active;
@@ -1104,11 +1103,10 @@ struct iwl_event_log {
 #define IWL_DELAY_NEXT_FORCE_RF_RESET  (HZ*3)
 #define IWL_DELAY_NEXT_FORCE_FW_RELOAD (HZ*5)
 
-/* timer constants use to monitor and recover stuck tx queues in mSecs */
-#define IWL_DEF_MONITORING_PERIOD	(1000)
-#define IWL_LONG_MONITORING_PERIOD	(5000)
-#define IWL_ONE_HUNDRED_MSECS   (100)
-#define IWL_MAX_MONITORING_PERIOD	(60000)
+/* TX queue watchdog timeouts in mSecs */
+#define IWL_DEF_WD_TIMEOUT	(2000)
+#define IWL_LONG_WD_TIMEOUT	(10000)
+#define IWL_MAX_WD_TIMEOUT	(120000)
 
 /* BT Antenna Coupling Threshold (dB) */
 #define IWL_BT_ANTENNA_COUPLING_THRESHOLD	(35)
@@ -1544,7 +1542,7 @@ struct iwl_priv {
 	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
 	struct timer_list ucode_trace;
-	struct timer_list monitor_recover;
+	struct timer_list watchdog;
 	bool hw_ready;
 
 	struct iwl_event_log event_log;

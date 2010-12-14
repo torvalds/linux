@@ -60,7 +60,6 @@
 
 #include "base.h"
 #include "debug.h"
-#include "../debug.h"
 
 static unsigned int ath5k_debug;
 module_param_named(debug, ath5k_debug, uint, 0);

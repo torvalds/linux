@@ -60,7 +60,6 @@
 #include "reg.h"
 #include "debug.h"
 #include "ani.h"
-#include "../debug.h"
 
 static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
@@ -76,7 +75,6 @@ MODULE_AUTHOR("Nick Kossifidis");
 MODULE_DESCRIPTION("Support for 5xxx series of Atheros 802.11 wireless LAN cards.");
 MODULE_SUPPORTED_DEVICE("Atheros 5xxx WLAN cards");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION("0.6.0 (EXPERIMENTAL)");
 
 static int ath5k_init(struct ieee80211_hw *hw);
 static int ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
@@ -1881,7 +1879,8 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 		sc->bmisscount = 0;
 	}
 
-	if (sc->opmode == NL80211_IFTYPE_AP && sc->num_ap_vifs > 1) {
+	if ((sc->opmode == NL80211_IFTYPE_AP && sc->num_ap_vifs > 1) ||
+			sc->opmode == NL80211_IFTYPE_MESH_POINT) {
 		u64 tsf = ath5k_hw_get_tsf64(ah);
 		u32 tsftu = TSF_TO_TU(tsf);
 		int slot = ((tsftu % sc->bintval) * ATH_BCBUF) / sc->bintval;
@@ -1913,8 +1912,9 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 		/* NB: hw still stops DMA, so proceed */
 	}
 
-	/* refresh the beacon for AP mode */
-	if (sc->opmode == NL80211_IFTYPE_AP)
+	/* refresh the beacon for AP or MESH mode */
+	if (sc->opmode == NL80211_IFTYPE_AP ||
+			sc->opmode == NL80211_IFTYPE_MESH_POINT)
 		ath5k_beacon_update(sc->hw, vif);
 
 	ath5k_hw_set_txdp(ah, sc->bhalq, bf->daddr);
@@ -2341,8 +2341,9 @@ ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 	/* Initialize driver private data */
 	SET_IEEE80211_DEV(hw, sc->dev);
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
-		    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-		    IEEE80211_HW_SIGNAL_DBM;
+			IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
+			IEEE80211_HW_SIGNAL_DBM |
+			IEEE80211_HW_REPORTS_TX_ACK_STATUS;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |
@@ -2653,7 +2654,7 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 							bool skip_pcu)
 {
 	struct ath5k_hw *ah = sc->ah;
-	int ret;
+	int ret, ani_mode;
 
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "resetting\n");
 
@@ -2661,9 +2662,17 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 	synchronize_irq(sc->irq);
 	stop_tasklets(sc);
 
-	if (chan) {
-		ath5k_drain_tx_buffs(sc);
+	/* Save ani mode and disable ANI durring
+	 * reset. If we don't we might get false
+	 * PHY error interrupts. */
+	ani_mode = ah->ah_sc->ani_state.ani_mode;
+	ath5k_ani_init(ah, ATH5K_ANI_MODE_OFF);
 
+	/* We are going to empty hw queues
+	 * so we should also free any remaining
+	 * tx buffers */
+	ath5k_drain_tx_buffs(sc);
+	if (chan) {
 		sc->curchan = chan;
 		sc->curband = &sc->sbands[chan->band];
 	}
@@ -2680,12 +2689,12 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 		goto err;
 	}
 
-	ath5k_ani_init(ah, ah->ah_sc->ani_state.ani_mode);
+	ath5k_ani_init(ah, ani_mode);
 
 	ah->ah_cal_next_full = jiffies;
 	ah->ah_cal_next_ani = jiffies;
 	ah->ah_cal_next_nf = jiffies;
-	ewma_init(&ah->ah_beacon_rssi_avg, 1000, 8);
+	ewma_init(&ah->ah_beacon_rssi_avg, 1024, 8);
 
 	/*
 	 * Change channels and update the h/w rate map if we're switching;
@@ -2790,33 +2799,46 @@ ath5k_init(struct ieee80211_hw *hw)
 		goto err_bhal;
 	}
 
-	/* This order matches mac80211's queue priority, so we can
-	 * directly use the mac80211 queue number without any mapping */
-	txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_VO);
-	if (IS_ERR(txq)) {
-		ATH5K_ERR(sc, "can't setup xmit queue\n");
-		ret = PTR_ERR(txq);
-		goto err_queues;
+	/* 5211 and 5212 usually support 10 queues but we better rely on the
+	 * capability information */
+	if (ah->ah_capabilities.cap_queues.q_tx_num >= 6) {
+		/* This order matches mac80211's queue priority, so we can
+		* directly use the mac80211 queue number without any mapping */
+		txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_VO);
+		if (IS_ERR(txq)) {
+			ATH5K_ERR(sc, "can't setup xmit queue\n");
+			ret = PTR_ERR(txq);
+			goto err_queues;
+		}
+		txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_VI);
+		if (IS_ERR(txq)) {
+			ATH5K_ERR(sc, "can't setup xmit queue\n");
+			ret = PTR_ERR(txq);
+			goto err_queues;
+		}
+		txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_BE);
+		if (IS_ERR(txq)) {
+			ATH5K_ERR(sc, "can't setup xmit queue\n");
+			ret = PTR_ERR(txq);
+			goto err_queues;
+		}
+		txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_BK);
+		if (IS_ERR(txq)) {
+			ATH5K_ERR(sc, "can't setup xmit queue\n");
+			ret = PTR_ERR(txq);
+			goto err_queues;
+		}
+		hw->queues = 4;
+	} else {
+		/* older hardware (5210) can only support one data queue */
+		txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_BE);
+		if (IS_ERR(txq)) {
+			ATH5K_ERR(sc, "can't setup xmit queue\n");
+			ret = PTR_ERR(txq);
+			goto err_queues;
+		}
+		hw->queues = 1;
 	}
-	txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_VI);
-	if (IS_ERR(txq)) {
-		ATH5K_ERR(sc, "can't setup xmit queue\n");
-		ret = PTR_ERR(txq);
-		goto err_queues;
-	}
-	txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_BE);
-	if (IS_ERR(txq)) {
-		ATH5K_ERR(sc, "can't setup xmit queue\n");
-		ret = PTR_ERR(txq);
-		goto err_queues;
-	}
-	txq = ath5k_txq_setup(sc, AR5K_TX_QUEUE_DATA, AR5K_WME_AC_BK);
-	if (IS_ERR(txq)) {
-		ATH5K_ERR(sc, "can't setup xmit queue\n");
-		ret = PTR_ERR(txq);
-		goto err_queues;
-	}
-	hw->queues = 4;
 
 	tasklet_init(&sc->rxtq, ath5k_tasklet_rx, (unsigned long)sc);
 	tasklet_init(&sc->txtq, ath5k_tasklet_tx, (unsigned long)sc);
@@ -2977,7 +2999,8 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 
 	/* Assign the vap/adhoc to a beacon xmit slot. */
 	if ((avf->opmode == NL80211_IFTYPE_AP) ||
-	    (avf->opmode == NL80211_IFTYPE_ADHOC)) {
+	    (avf->opmode == NL80211_IFTYPE_ADHOC) ||
+	    (avf->opmode == NL80211_IFTYPE_MESH_POINT)) {
 		int slot;
 
 		WARN_ON(list_empty(&sc->bcbuf));
@@ -2996,7 +3019,7 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 		sc->bslot[avf->bslot] = vif;
 		if (avf->opmode == NL80211_IFTYPE_AP)
 			sc->num_ap_vifs++;
-		else
+		else if (avf->opmode == NL80211_IFTYPE_ADHOC)
 			sc->num_adhoc_vifs++;
 	}
 

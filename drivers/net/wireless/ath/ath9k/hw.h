@@ -30,7 +30,6 @@
 #include "btcoex.h"
 
 #include "../regd.h"
-#include "../debug.h"
 
 #define ATHEROS_VENDOR_ID	0x168c
 
@@ -44,6 +43,7 @@
 #define AR9287_DEVID_PCI	0x002d
 #define AR9287_DEVID_PCIE	0x002e
 #define AR9300_DEVID_PCIE	0x0030
+#define AR9300_DEVID_AR9485_PCIE 0x0032
 
 #define AR5416_AR9100_DEVID	0x000b
 
@@ -199,6 +199,8 @@ struct ath9k_hw_capabilities {
 	u16 rts_aggr_limit;
 	u8 tx_chainmask;
 	u8 rx_chainmask;
+	u8 max_txchains;
+	u8 max_rxchains;
 	u16 tx_triglevel_max;
 	u16 reg_cap;
 	u8 num_gpio_pins;
@@ -209,6 +211,8 @@ struct ath9k_hw_capabilities {
 	u8 rx_status_len;
 	u8 tx_desc_len;
 	u8 txs_len;
+	u16 pcie_lcr_offset;
+	bool pcie_lcr_extsync_en;
 };
 
 struct ath9k_ops_config {
@@ -442,6 +446,7 @@ struct ath9k_hw_version {
 	u16 analog5GhzRev;
 	u16 analog2GhzRev;
 	u16 subsysid;
+	enum ath_usb_dev usbdev;
 };
 
 /* Generic TSF timer definitions */

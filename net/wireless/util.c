@@ -792,6 +792,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 
 	if (ntype != otype) {
 		dev->ieee80211_ptr->use_4addr = false;
+		dev->ieee80211_ptr->mesh_id_up_len = 0;
 
 		switch (otype) {
 		case NL80211_IFTYPE_ADHOC:

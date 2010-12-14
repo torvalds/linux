@@ -332,6 +332,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	WARN_ON(ops->add_virtual_intf && !ops->del_virtual_intf);
 	WARN_ON(ops->add_station && !ops->del_station);
 	WARN_ON(ops->add_mpath && !ops->del_mpath);
+	WARN_ON(ops->join_mesh && !ops->leave_mesh);
 
 	alloc_size = sizeof(*rdev) + sizeof_priv;
 
@@ -752,6 +753,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			cfg80211_mlme_down(rdev, dev);
 			wdev_unlock(wdev);
 			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			cfg80211_leave_mesh(rdev, dev);
+			break;
 		default:
 			break;
 		}
@@ -775,20 +779,27 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 		}
 		cfg80211_lock_rdev(rdev);
 		mutex_lock(&rdev->devlist_mtx);
-#ifdef CONFIG_CFG80211_WEXT
 		wdev_lock(wdev);
 		switch (wdev->iftype) {
+#ifdef CONFIG_CFG80211_WEXT
 		case NL80211_IFTYPE_ADHOC:
 			cfg80211_ibss_wext_join(rdev, wdev);
 			break;
 		case NL80211_IFTYPE_STATION:
 			cfg80211_mgd_wext_connect(rdev, wdev);
 			break;
+#endif
+		case NL80211_IFTYPE_MESH_POINT:
+			/* backward compat code ... */
+			if (wdev->mesh_id_up_len)
+				__cfg80211_join_mesh(rdev, dev, wdev->ssid,
+						     wdev->mesh_id_up_len,
+						     &default_mesh_config);
+			break;
 		default:
 			break;
 		}
 		wdev_unlock(wdev);
-#endif
 		rdev->opencount++;
 		mutex_unlock(&rdev->devlist_mtx);
 		cfg80211_unlock_rdev(rdev);

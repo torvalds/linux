@@ -1150,6 +1150,12 @@ void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
 
 	flags |= B43_TMSLOW_PHYCLKEN;
 	flags |= B43_TMSLOW_PHYRESET;
+	if (dev->phy.type == B43_PHYTYPE_N) {
+		if (b43_channel_type_is_40mhz(dev->phy.channel_type))
+			flags |= B43_TMSLOW_PHYCLKSPEED_160MHZ;
+		else
+			flags |= B43_TMSLOW_PHYCLKSPEED_80MHZ;
+	}
 	ssb_device_enable(dev->dev, flags);
 	msleep(2);		/* Wait for the PLL to turn on. */
 
@@ -4046,9 +4052,9 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		if (phy_rev > 9)
 			unsupported = 1;
 		break;
-#ifdef CONFIG_B43_NPHY
+#ifdef CONFIG_B43_PHY_N
 	case B43_PHYTYPE_N:
-		if (phy_rev > 4)
+		if (phy_rev > 2)
 			unsupported = 1;
 		break;
 #endif
@@ -5091,7 +5097,7 @@ static void b43_print_driverinfo(void)
 #ifdef CONFIG_B43_PCMCIA
 	feat_pcmcia = "M";
 #endif
-#ifdef CONFIG_B43_NPHY
+#ifdef CONFIG_B43_PHY_N
 	feat_nphy = "N";
 #endif
 #ifdef CONFIG_B43_LEDS

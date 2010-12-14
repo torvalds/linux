@@ -78,6 +78,7 @@
 #define AR9300_EEPROM_SIZE (16*1024)
 #define FIXED_CCA_THRESHOLD 15
 
+#define AR9300_BASE_ADDR_4K 0xfff
 #define AR9300_BASE_ADDR 0x3ff
 #define AR9300_BASE_ADDR_512 0x1ff
 
@@ -342,4 +343,5 @@ struct ar9300_eeprom {
 s32 ar9003_hw_get_tx_gain_idx(struct ath_hw *ah);
 s32 ar9003_hw_get_rx_gain_idx(struct ath_hw *ah);
 
+u8 *ar9003_get_spur_chan_ptr(struct ath_hw *ah, bool is_2ghz);
 #endif
