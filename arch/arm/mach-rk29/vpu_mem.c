@@ -958,4 +958,74 @@ static void __exit vpu_mem_exit(void)
 module_init(vpu_mem_init);
 module_exit(vpu_mem_exit);
 
+#ifdef CONFIG_PROC_FS
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+
+static int proc_vpu_mem_show(struct seq_file *s, void *v)
+{
+	unsigned int i;
+
+	if (vpu_mem.bitmap) {
+		seq_printf(s, "vpu mem opened\n");
+	} else {
+		seq_printf(s, "vpu mem closed\n");
+        return 0;
+	}
+
+    down_read(&vpu_mem.bitmap_sem);
+    {
+        // 打印 bitmap 中的全部 region
+        for (i = 0; i < vpu_mem.num_entries; i = VPU_MEM_NEXT_INDEX(i)) {
+            region_check(i);
+            seq_printf(s, "vpu_mem: idx %6d pfn %6d refc %3d avail %3d\n",
+                i, VPU_MEM_PFN(i), VPU_MEM_REFC(i), VPU_MEM_AVAIL(i));
+        }
+
+        // 打印 vpu_mem_data 中的全部 region
+        down(&vpu_mem.data_list_sem);
+        {   // search exists index
+            struct list_head *list, *tmp_list;
+            list_for_each_safe(list, tmp_list, &vpu_mem.data_list) {
+                struct list_head *region, *tmp_data;
+                struct vpu_mem_data *data = list_entry(list, struct vpu_mem_data, list);
+
+                seq_printf(s, "pid: %d\n", data->pid);
+
+                down_read(&data->sem);
+                list_for_each_safe(region, tmp_data, &data->region_list) {
+                    struct vpu_mem_region_node *node = list_entry(region, struct vpu_mem_region_node, list);
+                    i = node->region.index;
+                    seq_printf(s, "    region: idx %6d pfn %6d refc %3d avail %3d ref by %d\n",
+                        i, VPU_MEM_PFN(i), VPU_MEM_REFC(i), VPU_MEM_AVAIL(i), node->region.ref_count);
+                }
+                up_read(&data->sem);
+            }
+        }
+        up(&vpu_mem.data_list_sem);
+    }
+    up_read(&vpu_mem.bitmap_sem);
+	return 0;
+}
+
+static int proc_vpu_mem_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_vpu_mem_show, NULL);
+}
+
+static const struct file_operations proc_vpu_mem_fops = {
+	.open		= proc_vpu_mem_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init vpu_mem_proc_init(void)
+{
+	proc_create("vpu_mem", 0, NULL, &proc_vpu_mem_fops);
+	return 0;
+
+}
+late_initcall(vpu_mem_proc_init);
+#endif /* CONFIG_PROC_FS */
 
