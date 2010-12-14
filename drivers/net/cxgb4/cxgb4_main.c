@@ -2717,10 +2717,6 @@ static int cxgb_open(struct net_device *dev)
 			return err;
 	}
 
-	netif_set_real_num_tx_queues(dev, pi->nqsets);
-	err = netif_set_real_num_rx_queues(dev, pi->nqsets);
-	if (err)
-		return err;
 	err = link_start(dev);
 	if (!err)
 		netif_tx_start_all_queues(dev);
@@ -3733,6 +3729,10 @@ static int __devinit init_one(struct pci_dev *pdev,
 	 * register at least one net device.
 	 */
 	for_each_port(adapter, i) {
+		pi = adap2pinfo(adapter, i);
+		netif_set_real_num_tx_queues(adapter->port[i], pi->nqsets);
+		netif_set_real_num_rx_queues(adapter->port[i], pi->nqsets);
+
 		err = register_netdev(adapter->port[i]);
 		if (err)
 			dev_warn(&pdev->dev,
@@ -3747,7 +3747,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 				adapter->name = adapter->port[i]->name;
 
 			__set_bit(i, &adapter->registered_device_map);
-			adapter->chan_map[adap2pinfo(adapter, i)->tx_chan] = i;
+			adapter->chan_map[pi->tx_chan] = i;
 		}
 	}
 	if (!adapter->registered_device_map) {
