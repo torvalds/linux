@@ -116,7 +116,7 @@ static void p1003_report_single_event(struct ts_p1003 *ts,struct multitouch_even
 }
 static inline int p1003_read_values(struct ts_p1003 *ts, struct multitouch_event *tc)
 {
-    s32 data;
+    int data;
     int len = 10;
     char buf[10];
     short contactid=0;
@@ -129,6 +129,7 @@ static inline int p1003_read_values(struct ts_p1003 *ts, struct multitouch_event
 		for(i = 0; i < 10 ; i++)
 			dev_err(&ts->client->dev," hannstar reg[%d] = 0x%x\n",i,buf[i]);
     	enable_irq(ts->irq);
+		data = -1;
     	return data;
     }
 
