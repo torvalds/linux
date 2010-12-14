@@ -47,11 +47,13 @@ extern struct rk29_sdmmc_platform_data default_sdmmc1_data;
 extern struct platform_device rk29_device_sdmmc0;
 extern struct platform_device rk29_device_sdmmc1;
 extern struct platform_device rk29_device_adc;
+extern struct platform_device rk29_device_vmac;
 extern struct rk29_bl_info rk29_bl_info;
 extern struct platform_device rk29_device_backlight;
 extern struct platform_device rk29_device_dwc_otg;
 extern struct platform_device android_usb_device;
 extern struct usb_mass_storage_platform_data mass_storage_pdata;
 extern struct platform_device usb_mass_storage_device;
-
+extern struct platform_device rk29_device_vmac;
+extern struct rk29_vmac_platform_data rk29_vmac_pdata;
 #endif

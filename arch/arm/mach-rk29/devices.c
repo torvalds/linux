@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/usb/android_composite.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <mach/irqs.h>
 #include <mach/rk29_iomap.h>
 #include <mach/rk29-dma-pl330.h> 
@@ -46,6 +47,36 @@ struct platform_device rk29_device_adc = {
 };
 
 #endif
+
+#ifdef CONFIG_RK29_VMAC
+static u64 eth_dmamask = DMA_BIT_MASK(32);
+static struct resource rk29_vmac_resource[] = {
+	[0] = {
+		.start = RK29_MAC_PHYS,    
+		.end   = RK29_MAC_PHYS + RK29_MAC_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_MAC,
+		.end   = IRQ_MAC,
+		.flags = IORESOURCE_IRQ,
+	}
+
+};
+
+struct platform_device rk29_device_vmac = {
+	.name		= "rk29 vmac",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= &eth_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data = &rk29_vmac_pdata,
+	},
+	.num_resources	= ARRAY_SIZE(rk29_vmac_resource),
+	.resource	= rk29_vmac_resource,
+};
+#endif
+
 #ifdef CONFIG_I2C_RK29
 static struct resource resources_i2c0[] = {
 	{

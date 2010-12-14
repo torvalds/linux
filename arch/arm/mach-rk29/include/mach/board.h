@@ -36,6 +36,13 @@ struct rk29xx_spi_platform_data {
 	u16 num_chipselect;
 };
 
+/*vmac*/
+struct rk29_vmac_platform_data {
+	int (*vmac_register_set)(void);
+	int (*rmii_io_init)(void);
+    int (*rmii_power_control)(int enable);
+};
+
 #define INVALID_GPIO        -1
 
 struct rk29lcd_info{

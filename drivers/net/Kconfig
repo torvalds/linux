@@ -236,6 +236,16 @@ config AX88796_93CX6
 	help
 	  Select this if your platform comes with an external 93CX6 eeprom.
 
+config RK29_VMAC
+	tristate "RK29 VMAC ethernet support"
+	depends on HAS_DMA
+	select MII
+	select PHYLIB
+	select CRC32
+	help
+	  MAC device present on rockchip rk29xx 
+
+
 config MACE
 	tristate "MACE (Power Mac ethernet) support"
 	depends on PPC_PMAC && PPC32

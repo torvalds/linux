@@ -1044,6 +1044,19 @@ static void __init rk29_board_iomux_init(void)
 	rk29_mux_api_set(GPIO2C6_SPI1TXD_NAME, GPIO2H_SPI1_TXD);
 	rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME, GPIO2H_SPI1_RXD);
     #endif
+	#ifdef CONFIG_RK29_VMAC
+    rk29_mux_api_set(GPIO4C0_RMIICLKOUT_RMIICLKIN_NAME, GPIO4H_RMII_CLKOUT);
+    rk29_mux_api_set(GPIO4C1_RMIITXEN_MIITXEN_NAME, GPIO4H_RMII_TX_EN);
+    rk29_mux_api_set(GPIO4C2_RMIITXD1_MIITXD1_NAME, GPIO4H_RMII_TXD1);
+    rk29_mux_api_set(GPIO4C3_RMIITXD0_MIITXD0_NAME, GPIO4H_RMII_TXD0);
+    rk29_mux_api_set(GPIO4C4_RMIIRXERR_MIIRXERR_NAME, GPIO4H_RMII_RX_ERR);
+    rk29_mux_api_set(GPIO4C5_RMIICSRDVALID_MIIRXDVALID_NAME, GPIO4H_RMII_CSR_DVALID);
+    rk29_mux_api_set(GPIO4C6_RMIIRXD1_MIIRXD1_NAME, GPIO4H_RMII_RXD1);
+    rk29_mux_api_set(GPIO4C7_RMIIRXD0_MIIRXD0_NAME, GPIO4H_RMII_RXD0);
+
+	rk29_mux_api_set(GPIO0A7_MIIMDCLK_NAME, GPIO0L_MII_MDCLK);
+	rk29_mux_api_set(GPIO0A6_MIIMD_NAME, GPIO0L_MII_MD);
+	#endif
 }
 
 static struct platform_device *devices[] __initdata = {
@@ -1106,6 +1119,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
 #endif
+#ifdef CONFIG_RK29_VMAC
+	&rk29_device_vmac,
+#endif
 #ifdef CONFIG_VIVANTE
 	&rk29_device_gpu,
 #endif
@@ -1124,6 +1140,74 @@ static struct platform_device *devices[] __initdata = {
 	&android_usb_device,
 	&usb_mass_storage_device,
 #endif
+};
+
+/*****************************************************************************************
+ * spi devices
+ * author: cmc@rock-chips.com
+ *****************************************************************************************/
+static int rk29_vmac_register_set(void)
+{
+	//config rk29 vmac as rmii, 100MHz 
+	u32 value= readl(RK29_GRF_BASE + 0xbc);
+	value = (value & 0xfff7ff) | (0x400);
+	writel(value, RK29_GRF_BASE + 0xbc);
+	return 0;
+}
+
+static int rk29_rmii_io_init(void)
+{
+	int err;
+
+	//set dm9161 rmii
+	rk29_mux_api_set(GPIO2D3_I2S0SDI_MIICOL_NAME, GPIO2H_GPIO2D3);
+	err = gpio_request(RK29_PIN2_PD3, "rmii");
+	if (err) {
+		gpio_free(RK29_PIN2_PD3);
+		printk("-------request RK29_PIN2_PD3 fail--------\n");
+		return -1;
+	}
+	gpio_direction_output(RK29_PIN2_PD3, GPIO_HIGH);
+	gpio_set_value(RK29_PIN2_PD3, GPIO_HIGH);
+
+	//rmii power on
+	err = gpio_request(RK29_PIN6_PB0, "rmii_power_en");
+	if (err) {
+		gpio_free(RK29_PIN6_PB0);
+		gpio_free(RK29_PIN2_PD3);
+		printk("-------request RK29_PIN6_PB0 fail--------\n");
+		return -1;
+	}	
+	gpio_direction_output(RK29_PIN6_PB0, GPIO_HIGH);
+	gpio_set_value(RK29_PIN6_PB0, GPIO_HIGH);
+	
+	return 0;
+}
+
+static int rk29_rmii_power_control(int enable)
+{
+	if (enable) {
+		//set dm9161 as rmii
+		gpio_direction_output(RK29_PIN2_PD3, GPIO_HIGH);
+		gpio_set_value(RK29_PIN2_PD3, GPIO_HIGH);
+
+		//enable rmii power
+		gpio_direction_output(RK29_PIN6_PB0, GPIO_HIGH);
+		gpio_set_value(RK29_PIN6_PB0, GPIO_HIGH);
+		
+	}
+	else {
+		gpio_direction_output(RK29_PIN6_PB0, GPIO_LOW);
+		gpio_set_value(RK29_PIN6_PB0, GPIO_LOW);
+	}
+
+	return 0;
+}
+
+struct rk29_vmac_platform_data rk29_vmac_pdata = {
+	.vmac_register_set = rk29_vmac_register_set,
+	.rmii_io_init = rk29_rmii_io_init,
+	.rmii_power_control = rk29_rmii_power_control,
 };
 
 /*****************************************************************************************
