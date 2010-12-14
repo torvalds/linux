@@ -170,10 +170,6 @@ static int tegra_ehci_hub_control(
 		if (handshake(ehci, status_reg, PORT_RESUME, 0, 2000))
 			pr_err("%s: timeout waiting for PORT_RESUME\n", __func__);
 
-		/* write PORT_RESUME to 0 to clear PORT_SUSPEND bit */
-		temp &= ~(PORT_RESUME | PORT_SUSPEND);
-		ehci_writel(ehci, temp, status_reg);
-
 		/* polling PORT_SUSPEND until the controller clear this bit */
 		if (handshake(ehci, status_reg, PORT_SUSPEND, 0, 2000))
 			pr_err("%s: timeout waiting for PORT_SUSPEND\n", __func__);
