@@ -120,6 +120,8 @@ static int clk_set_rate_nolock(struct clk *clk, unsigned long rate);
 static int clk_set_parent_nolock(struct clk *clk, struct clk *parent);
 static void __clk_reparent(struct clk *child, struct clk *parent);
 static void __propagate_rate(struct clk *tclk);
+static struct clk codec_pll_clk;
+static struct clk periph_pll_clk;
 
 static unsigned long clksel_recalc_div(struct clk *clk)
 {
@@ -255,8 +257,8 @@ static struct clk clk_12m = {
 	.flags		= RATE_FIXED,
 };
 
-static struct clk extclk = {
-	.name		= "extclk",
+static struct clk xin27m = {
+	.name		= "xin27m",
 	.rate		= 27 * MHZ,
 	.flags		= RATE_FIXED,
 };
@@ -417,11 +419,17 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
+static struct clk *arm_pll_parents[2] = { &xin24m, &xin27m };
+
 static struct clk arm_pll_clk = {
 	.name		= "arm_pll",
 	.parent		= &xin24m,
 	.recalc		= arm_pll_clk_recalc,
 	.set_rate	= arm_pll_clk_set_rate,
+	.clksel_con	= CRU_MODE_CON,
+	.clksel_parent_mask	= 1,
+	.clksel_parent_shift	= 8,
+	.parents	= arm_pll_parents,
 };
 
 static unsigned long ddr_pll_clk_recalc(struct clk *clk)
@@ -442,10 +450,16 @@ static unsigned long ddr_pll_clk_recalc(struct clk *clk)
 	return rate;
 }
 
+static struct clk *ddr_pll_parents[4] = { &xin24m, &xin27m, &codec_pll_clk, &periph_pll_clk };
+
 static struct clk ddr_pll_clk = {
 	.name		= "ddr_pll",
 	.parent		= &xin24m,
 	.recalc		= ddr_pll_clk_recalc,
+	.clksel_con	= CRU_MODE_CON,
+	.clksel_parent_mask	= 3,
+	.clksel_parent_shift	= 13,
+	.parents	= ddr_pll_parents,
 };
 
 
@@ -467,10 +481,75 @@ static unsigned long codec_pll_clk_recalc(struct clk *clk)
 	return rate;
 }
 
+#define CODEC_PLL_PARENT_MASK	(3 << 11)
+#define CODEC_PLL_PARENT_XIN24M	(0 << 11)
+#define CODEC_PLL_PARENT_XIN27M	(1 << 11)
+#define CODEC_PLL_PARENT_DDR_PLL	(2 << 11)
+#define CODEC_PLL_PARENT_PERIPH_PLL	(3 << 11)
+
+static int codec_pll_clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 cpll_con;
+	u32 mode_con;
+	struct clk *parent;
+	int i;
+
+	switch (rate) {
+	case 108 * MHZ:
+		/* 24 * 18 / 4 */
+		cpll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(18) | PLL_NO_4;
+		mode_con = CODEC_PLL_PARENT_XIN24M;
+		parent = &xin24m;
+		break;
+	case 297 * MHZ:
+		/* 27 * 22 / 2 */
+		cpll_con = PLL_LOW_BAND | PLL_CLKR(1) | PLL_CLKF(22) | PLL_NO_2;
+		mode_con = CODEC_PLL_PARENT_XIN27M;
+		parent = &xin27m;
+		break;
+	default:
+		return -ENOENT;
+		break;
+	}
+
+	/* enter slow mode */
+	cru_writel((cru_readl(CRU_MODE_CON) & ~(CRU_CODEC_MODE_MASK | CODEC_PLL_PARENT_MASK)) | CRU_CODEC_MODE_SLOW | mode_con, CRU_MODE_CON);
+
+	/* power down */
+	cru_writel(cru_readl(CRU_CPLL_CON) | PLL_PD, CRU_CPLL_CON);
+
+	delay_500ns();
+
+	cru_writel(cpll_con | PLL_PD, CRU_CPLL_CON);
+
+	delay_500ns();
+
+	/* power up */
+	cru_writel(cpll_con, CRU_CPLL_CON);
+
+	for (i = 0; i < 600; i++)
+		delay_500ns();
+	pll_wait_lock(CODEC_PLL_IDX, 2400000);
+
+	/* enter normal mode */
+	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | CRU_CODEC_MODE_NORMAL, CRU_MODE_CON);
+
+	clk_set_parent_nolock(clk, parent);
+
+	return 0;
+}
+
+static struct clk *codec_pll_parents[4] = { &xin24m, &xin27m, &ddr_pll_clk, &periph_pll_clk };
+
 static struct clk codec_pll_clk = {
 	.name		= "codec_pll",
 	.parent		= &xin24m,
 	.recalc		= codec_pll_clk_recalc,
+	.set_rate	= codec_pll_clk_set_rate,
+	.clksel_con	= CRU_MODE_CON,
+	.clksel_parent_mask	= 3,
+	.clksel_parent_shift	= 11,
+	.parents	= codec_pll_parents,
 };
 
 
@@ -523,12 +602,19 @@ static int periph_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
+static struct clk *periph_pll_parents[4] = { &xin24m, &xin27m, &ddr_pll_clk, &codec_pll_clk };
+
 static struct clk periph_pll_clk = {
 	.name		= "periph_pll",
 	.parent		= &xin24m,
 	.recalc		= periph_pll_clk_recalc,
 	.set_rate	= periph_pll_clk_set_rate,
+	.clksel_con	= CRU_MODE_CON,
+	.clksel_parent_mask	= 3,
+	.clksel_parent_shift	= 9,
+	.parents	= periph_pll_parents,
 };
+
 
 static struct clk *clk_core_parents[4] = { &arm_pll_clk, &periph_pll_clk, &codec_pll_clk, &ddr_pll_clk };
 
@@ -1279,7 +1365,7 @@ static struct clk clk_hsadc_frac_div = {
 	.clksel_con	= CRU_CLKSEL15_CON,
 };
 
-static struct clk *clk_demod_parents[4] = { &clk_hsadc_div, &clk_hsadc_frac_div, &extclk };
+static struct clk *clk_demod_parents[4] = { &clk_hsadc_div, &clk_hsadc_frac_div, &xin27m };
 
 static struct clk clk_demod = {
 	.name		= "demod",
@@ -1347,7 +1433,7 @@ static struct clk dclk_lcdc_div = {
 	.parents	= dclk_lcdc_div_parents,
 };
 
-static struct clk *dclk_lcdc_parents[2] = { &dclk_lcdc_div, &extclk };
+static struct clk *dclk_lcdc_parents[2] = { &dclk_lcdc_div, &xin27m };
 
 static struct clk dclk_lcdc = {
 	.name		= "dclk_lcdc",
@@ -1488,7 +1574,7 @@ static struct clk aclk_gpu = {
 };
 
 
-static struct clk *clk_vip_parents[4] = { &xin24m, &extclk, &dclk_ebook };
+static struct clk *clk_vip_parents[4] = { &xin24m, &xin27m, &dclk_ebook };
 
 static struct clk clk_vip = {
 	.name		= "vip",
@@ -1598,7 +1684,7 @@ GATE_CLK(emmc_ahb, hclk_periph, EMMC_AHB);
 
 static struct clk_lookup clks[] = {
 	CLK(NULL, "xin24m", &xin24m),
-	CLK(NULL, "extclk", &extclk),
+	CLK(NULL, "xin27m", &xin27m),
 	CLK(NULL, "otgphy0_clkin", &otgphy0_clkin),
 	CLK(NULL, "otgphy1_clkin", &otgphy1_clkin),
 	CLK(NULL, "gpsclk", &gpsclk),
