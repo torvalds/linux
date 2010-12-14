@@ -38,4 +38,9 @@ extern void sh73a0_pinmux_init(void);
 extern struct clk sh73a0_extal1_clk;
 extern struct clk sh73a0_extal2_clk;
 
+extern unsigned int sh73a0_get_core_count(void);
+extern void sh73a0_secondary_init(unsigned int cpu);
+extern int sh73a0_boot_secondary(unsigned int cpu);
+extern void sh73a0_smp_prepare_cpus(void);
+
 #endif /* __ARCH_MACH_COMMON_H */
