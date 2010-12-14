@@ -1626,8 +1626,10 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	if (old_fb)
+	if (old_fb) {
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
 		i915_gem_object_unpin(to_intel_framebuffer(old_fb)->obj);
+	}
 
 	mutex_unlock(&dev->struct_mutex);
 
