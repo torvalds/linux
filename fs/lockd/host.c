@@ -40,7 +40,7 @@ static struct hlist_head	nlm_client_hosts[NLM_HOST_NRHASH];
 						(chain), h_hash)
 
 static unsigned long		next_gc;
-static int			nrhosts;
+static unsigned long		nrhosts;
 static DEFINE_MUTEX(nlm_host_mutex);
 
 static void			nlm_gc_hosts(void);
@@ -673,9 +673,9 @@ nlm_shutdown_hosts(void)
 	mutex_unlock(&nlm_host_mutex);
 
 	/* complain if any hosts are left */
-	if (nrhosts) {
+	if (nrhosts != 0) {
 		printk(KERN_WARNING "lockd: couldn't shutdown host module!\n");
-		dprintk("lockd: %d hosts left:\n", nrhosts);
+		dprintk("lockd: %lu hosts left:\n", nrhosts);
 		for_each_host(host, pos, chain, nlm_server_hosts) {
 			dprintk("       %s (cnt %d use %d exp %ld)\n",
 				host->h_name, atomic_read(&host->h_count),
