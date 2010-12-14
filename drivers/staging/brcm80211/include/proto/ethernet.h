@@ -62,13 +62,6 @@ BWL_PRE_PACKED_STRUCT struct ether_addr {
 	u8 octet[ETHER_ADDR_LEN];
 } BWL_POST_PACKED_STRUCT;
 
-#define ETHER_SET_LOCALADDR(ea)	(((u8 *)(ea))[0] = (((u8 *)(ea))[0] | 2))
-#define ETHER_IS_LOCALADDR(ea) 	(((u8 *)(ea))[0] & 2)
-#define ETHER_CLR_LOCALADDR(ea)	(((u8 *)(ea))[0] = \
-	(((u8 *)(ea))[0] & 0xd))
-#define ETHER_TOGGLE_LOCALADDR(ea)	(((u8 *)(ea))[0] = \
-	(((u8 *)(ea))[0] ^ 2))
-
 #define ETHER_SET_UNICAST(ea)	(((u8 *)(ea))[0] = (((u8 *)(ea))[0] & ~1))
 
 #define ETHER_ISMULTI(ea) (((const u8 *)(ea))[0] & 1)
