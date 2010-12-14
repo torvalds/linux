@@ -24,6 +24,8 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/earlysuspend.h>
+#include <linux/regulator/consumer.h>
+#include <linux/err.h>
 
 #define DEBUG
 
@@ -66,6 +68,7 @@ struct lp8550_data {
 	int brightness;
 	atomic_t enabled;
 	bool suspended;
+	struct regulator *regulator;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspender;
 #endif
@@ -246,8 +249,12 @@ static void lp8550_brightness_write(struct lp8550_data *led_data)
 				__func__, error);
 		}
 		atomic_set(&led_data->enabled, 0);
+		if (!IS_ERR_OR_NULL(led_data->regulator))
+			regulator_disable(led_data->regulator);
 	} else {
 		if (!atomic_cmpxchg(&led_data->enabled, 0, 1)) {
+			if (!IS_ERR_OR_NULL(led_data->regulator))
+				regulator_enable(led_data->regulator);
 			if (lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
 				led_data->led_pdata->dev_ctrl_config | 0x01))
 				pr_err("%s:writing failed while setting brightness:%d\n",
@@ -444,6 +451,10 @@ static int ld_lp8550_probe(struct i2c_client *client,
 	}
 #endif
 
+	led_data->regulator = regulator_get(&client->dev, "vio");
+	if (!IS_ERR_OR_NULL(led_data->regulator))
+		regulator_enable(led_data->regulator);
+
 	return 0;
 
 err_class_reg_failed:
@@ -460,6 +471,8 @@ static int ld_lp8550_remove(struct i2c_client *client)
 #ifdef DEBUG
 	device_remove_file(led_data->led_dev.dev, &dev_attr_registers);
 #endif
+	if (!IS_ERR_OR_NULL(led_data->regulator))
+		regulator_put(led_data->regulator);
 	led_classdev_unregister(&led_data->led_dev);
 	kfree(led_data);
 	return 0;
