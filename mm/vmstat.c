@@ -185,20 +185,6 @@ void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
 EXPORT_SYMBOL(__mod_zone_page_state);
 
 /*
- * For an unknown interrupt state
- */
-void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
-					int delta)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__mod_zone_page_state(zone, item, delta);
-	local_irq_restore(flags);
-}
-EXPORT_SYMBOL(mod_zone_page_state);
-
-/*
  * Optimized increment and decrement functions.
  *
  * These are only for a single page and therefore can take a struct page *
@@ -265,6 +251,92 @@ void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
 }
 EXPORT_SYMBOL(__dec_zone_page_state);
 
+#ifdef CONFIG_CMPXCHG_LOCAL
+/*
+ * If we have cmpxchg_local support then we do not need to incur the overhead
+ * that comes with local_irq_save/restore if we use this_cpu_cmpxchg.
+ *
+ * mod_state() modifies the zone counter state through atomic per cpu
+ * operations.
+ *
+ * Overstep mode specifies how overstep should handled:
+ *     0       No overstepping
+ *     1       Overstepping half of threshold
+ *     -1      Overstepping minus half of threshold
+*/
+static inline void mod_state(struct zone *zone,
+       enum zone_stat_item item, int delta, int overstep_mode)
+{
+	struct per_cpu_pageset __percpu *pcp = zone->pageset;
+	s8 __percpu *p = pcp->vm_stat_diff + item;
+	long o, n, t, z;
+
+	do {
+		z = 0;  /* overflow to zone counters */
+
+		/*
+		 * The fetching of the stat_threshold is racy. We may apply
+		 * a counter threshold to the wrong the cpu if we get
+		 * rescheduled while executing here. However, the following
+		 * will apply the threshold again and therefore bring the
+		 * counter under the threshold.
+		 */
+		t = this_cpu_read(pcp->stat_threshold);
+
+		o = this_cpu_read(*p);
+		n = delta + o;
+
+		if (n > t || n < -t) {
+			int os = overstep_mode * (t >> 1) ;
+
+			/* Overflow must be added to zone counters */
+			z = n + os;
+			n = -os;
+		}
+	} while (this_cpu_cmpxchg(*p, o, n) != o);
+
+	if (z)
+		zone_page_state_add(z, zone, item);
+}
+
+void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
+					int delta)
+{
+	mod_state(zone, item, delta, 0);
+}
+EXPORT_SYMBOL(mod_zone_page_state);
+
+void inc_zone_state(struct zone *zone, enum zone_stat_item item)
+{
+	mod_state(zone, item, 1, 1);
+}
+
+void inc_zone_page_state(struct page *page, enum zone_stat_item item)
+{
+	mod_state(page_zone(page), item, 1, 1);
+}
+EXPORT_SYMBOL(inc_zone_page_state);
+
+void dec_zone_page_state(struct page *page, enum zone_stat_item item)
+{
+	mod_state(page_zone(page), item, -1, -1);
+}
+EXPORT_SYMBOL(dec_zone_page_state);
+#else
+/*
+ * Use interrupt disable to serialize counter updates
+ */
+void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
+					int delta)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__mod_zone_page_state(zone, item, delta);
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(mod_zone_page_state);
+
 void inc_zone_state(struct zone *zone, enum zone_stat_item item)
 {
 	unsigned long flags;
@@ -295,6 +367,7 @@ void dec_zone_page_state(struct page *page, enum zone_stat_item item)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(dec_zone_page_state);
+#endif
 
 /*
  * Update the zone counters for one cpu.
