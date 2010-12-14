@@ -135,6 +135,7 @@
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/spinlock.h>
 
 #include <plat/common.h>
 #include <plat/cpu.h>
@@ -1192,17 +1193,14 @@ static int _reset(struct omap_hwmod *oh)
 }
 
 /**
- * _omap_hwmod_enable - enable an omap_hwmod
+ * _enable - enable an omap_hwmod
  * @oh: struct omap_hwmod *
  *
  * Enables an omap_hwmod @oh such that the MPU can access the hwmod's
- * register target.  (This function has a full name --
- * _omap_hwmod_enable() rather than simply _enable() -- because it is
- * currently required by the pm34xx.c idle loop.)  Returns -EINVAL if
- * the hwmod is in the wrong state or passes along the return value of
- * _wait_target_ready().
+ * register target.  Returns -EINVAL if the hwmod is in the wrong
+ * state or passes along the return value of _wait_target_ready().
  */
-int _omap_hwmod_enable(struct omap_hwmod *oh)
+static int _enable(struct omap_hwmod *oh)
 {
 	int r;
 
@@ -1249,16 +1247,14 @@ int _omap_hwmod_enable(struct omap_hwmod *oh)
 }
 
 /**
- * _omap_hwmod_idle - idle an omap_hwmod
+ * _idle - idle an omap_hwmod
  * @oh: struct omap_hwmod *
  *
  * Idles an omap_hwmod @oh.  This should be called once the hwmod has
- * no further work.  (This function has a full name --
- * _omap_hwmod_idle() rather than simply _idle() -- because it is
- * currently required by the pm34xx.c idle loop.)  Returns -EINVAL if
- * the hwmod is in the wrong state or returns 0.
+ * no further work.  Returns -EINVAL if the hwmod is in the wrong
+ * state or returns 0.
  */
-int _omap_hwmod_idle(struct omap_hwmod *oh)
+static int _idle(struct omap_hwmod *oh)
 {
 	if (oh->_state != _HWMOD_STATE_ENABLED) {
 		WARN(1, "omap_hwmod: %s: idle state can only be entered from "
@@ -1304,11 +1300,11 @@ static int _shutdown(struct omap_hwmod *oh)
 	if (oh->class->pre_shutdown) {
 		prev_state = oh->_state;
 		if (oh->_state == _HWMOD_STATE_IDLE)
-			_omap_hwmod_enable(oh);
+			_enable(oh);
 		ret = oh->class->pre_shutdown(oh);
 		if (ret) {
 			if (prev_state == _HWMOD_STATE_IDLE)
-				_omap_hwmod_idle(oh);
+				_idle(oh);
 			return ret;
 		}
 	}
@@ -1381,7 +1377,7 @@ static int _setup(struct omap_hwmod *oh, void *data)
 	if ((oh->flags & HWMOD_INIT_NO_RESET) && oh->rst_lines_cnt == 1)
 		return 0;
 
-	r = _omap_hwmod_enable(oh);
+	r = _enable(oh);
 	if (r) {
 		pr_warning("omap_hwmod: %s: cannot be enabled (%d)\n",
 			   oh->name, oh->_state);
@@ -1393,7 +1389,7 @@ static int _setup(struct omap_hwmod *oh, void *data)
 
 		/*
 		 * OCP_SYSCONFIG bits need to be reprogrammed after a softreset.
-		 * The _omap_hwmod_enable() function should be split to
+		 * The _enable() function should be split to
 		 * avoid the rewrite of the OCP_SYSCONFIG register.
 		 */
 		if (oh->class->sysc) {
@@ -1415,7 +1411,7 @@ static int _setup(struct omap_hwmod *oh, void *data)
 		postsetup_state = _HWMOD_STATE_ENABLED;
 
 	if (postsetup_state == _HWMOD_STATE_IDLE)
-		_omap_hwmod_idle(oh);
+		_idle(oh);
 	else if (postsetup_state == _HWMOD_STATE_DISABLED)
 		_shutdown(oh);
 	else if (postsetup_state != _HWMOD_STATE_ENABLED)
@@ -1521,7 +1517,7 @@ int omap_hwmod_register(struct omap_hwmod *oh)
 
 	list_add_tail(&oh->node, &omap_hwmod_list);
 
-	mutex_init(&oh->_mutex);
+	spin_lock_init(&oh->_lock);
 
 	oh->_state = _HWMOD_STATE_REGISTERED;
 
@@ -1681,17 +1677,17 @@ int omap_hwmod_unregister(struct omap_hwmod *oh)
 int omap_hwmod_enable(struct omap_hwmod *oh)
 {
 	int r;
+	unsigned long flags;
 
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&oh->_mutex);
-	r = _omap_hwmod_enable(oh);
-	mutex_unlock(&oh->_mutex);
+	spin_lock_irqsave(&oh->_lock, flags);
+	r = _enable(oh);
+	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return r;
 }
-
 
 /**
  * omap_hwmod_idle - idle an omap_hwmod
@@ -1702,12 +1698,14 @@ int omap_hwmod_enable(struct omap_hwmod *oh)
  */
 int omap_hwmod_idle(struct omap_hwmod *oh)
 {
+	unsigned long flags;
+
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&oh->_mutex);
-	_omap_hwmod_idle(oh);
-	mutex_unlock(&oh->_mutex);
+	spin_lock_irqsave(&oh->_lock, flags);
+	_idle(oh);
+	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
 }
@@ -1722,12 +1720,14 @@ int omap_hwmod_idle(struct omap_hwmod *oh)
  */
 int omap_hwmod_shutdown(struct omap_hwmod *oh)
 {
+	unsigned long flags;
+
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&oh->_mutex);
+	spin_lock_irqsave(&oh->_lock, flags);
 	_shutdown(oh);
-	mutex_unlock(&oh->_mutex);
+	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
 }
@@ -1740,9 +1740,11 @@ int omap_hwmod_shutdown(struct omap_hwmod *oh)
  */
 int omap_hwmod_enable_clocks(struct omap_hwmod *oh)
 {
-	mutex_lock(&oh->_mutex);
+	unsigned long flags;
+
+	spin_lock_irqsave(&oh->_lock, flags);
 	_enable_clocks(oh);
-	mutex_unlock(&oh->_mutex);
+	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
 }
@@ -1755,9 +1757,11 @@ int omap_hwmod_enable_clocks(struct omap_hwmod *oh)
  */
 int omap_hwmod_disable_clocks(struct omap_hwmod *oh)
 {
-	mutex_lock(&oh->_mutex);
+	unsigned long flags;
+
+	spin_lock_irqsave(&oh->_lock, flags);
 	_disable_clocks(oh);
-	mutex_unlock(&oh->_mutex);
+	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
 }
@@ -1801,13 +1805,14 @@ void omap_hwmod_ocp_barrier(struct omap_hwmod *oh)
 int omap_hwmod_reset(struct omap_hwmod *oh)
 {
 	int r;
+	unsigned long flags;
 
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&oh->_mutex);
+	spin_lock_irqsave(&oh->_lock, flags);
 	r = _reset(oh);
-	mutex_unlock(&oh->_mutex);
+	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return r;
 }
@@ -2004,13 +2009,15 @@ int omap_hwmod_del_initiator_dep(struct omap_hwmod *oh,
  */
 int omap_hwmod_enable_wakeup(struct omap_hwmod *oh)
 {
+	unsigned long flags;
+
 	if (!oh->class->sysc ||
 	    !(oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP))
 		return -EINVAL;
 
-	mutex_lock(&oh->_mutex);
+	spin_lock_irqsave(&oh->_lock, flags);
 	_enable_wakeup(oh);
-	mutex_unlock(&oh->_mutex);
+	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
 }
@@ -2029,13 +2036,15 @@ int omap_hwmod_enable_wakeup(struct omap_hwmod *oh)
  */
 int omap_hwmod_disable_wakeup(struct omap_hwmod *oh)
 {
+	unsigned long flags;
+
 	if (!oh->class->sysc ||
 	    !(oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP))
 		return -EINVAL;
 
-	mutex_lock(&oh->_mutex);
+	spin_lock_irqsave(&oh->_lock, flags);
 	_disable_wakeup(oh);
-	mutex_unlock(&oh->_mutex);
+	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
 }
@@ -2055,13 +2064,14 @@ int omap_hwmod_disable_wakeup(struct omap_hwmod *oh)
 int omap_hwmod_assert_hardreset(struct omap_hwmod *oh, const char *name)
 {
 	int ret;
+	unsigned long flags;
 
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&oh->_mutex);
+	spin_lock_irqsave(&oh->_lock, flags);
 	ret = _assert_hardreset(oh, name);
-	mutex_unlock(&oh->_mutex);
+	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return ret;
 }
@@ -2081,13 +2091,14 @@ int omap_hwmod_assert_hardreset(struct omap_hwmod *oh, const char *name)
 int omap_hwmod_deassert_hardreset(struct omap_hwmod *oh, const char *name)
 {
 	int ret;
+	unsigned long flags;
 
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&oh->_mutex);
+	spin_lock_irqsave(&oh->_lock, flags);
 	ret = _deassert_hardreset(oh, name);
-	mutex_unlock(&oh->_mutex);
+	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return ret;
 }
@@ -2106,13 +2117,14 @@ int omap_hwmod_deassert_hardreset(struct omap_hwmod *oh, const char *name)
 int omap_hwmod_read_hardreset(struct omap_hwmod *oh, const char *name)
 {
 	int ret;
+	unsigned long flags;
 
 	if (!oh)
 		return -EINVAL;
 
-	mutex_lock(&oh->_mutex);
+	spin_lock_irqsave(&oh->_lock, flags);
 	ret = _read_hardreset(oh, name);
-	mutex_unlock(&oh->_mutex);
+	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return ret;
 }
@@ -2180,6 +2192,7 @@ int omap_hwmod_for_each_by_class(const char *classname,
 int omap_hwmod_set_postsetup_state(struct omap_hwmod *oh, u8 state)
 {
 	int ret;
+	unsigned long flags;
 
 	if (!oh)
 		return -EINVAL;
@@ -2189,7 +2202,7 @@ int omap_hwmod_set_postsetup_state(struct omap_hwmod *oh, u8 state)
 	    state != _HWMOD_STATE_IDLE)
 		return -EINVAL;
 
-	mutex_lock(&oh->_mutex);
+	spin_lock_irqsave(&oh->_lock, flags);
 
 	if (oh->_state != _HWMOD_STATE_REGISTERED) {
 		ret = -EINVAL;
@@ -2200,7 +2213,7 @@ int omap_hwmod_set_postsetup_state(struct omap_hwmod *oh, u8 state)
 	ret = 0;
 
 ohsps_unlock:
-	mutex_unlock(&oh->_mutex);
+	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return ret;
 }
