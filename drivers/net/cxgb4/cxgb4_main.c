@@ -3490,50 +3490,41 @@ static int __devinit init_rss(struct adapter *adap)
 	return 0;
 }
 
-static void __devinit print_port_info(struct adapter *adap)
+static void __devinit print_port_info(const struct net_device *dev)
 {
 	static const char *base[] = {
 		"R XFI", "R XAUI", "T SGMII", "T XFI", "T XAUI", "KX4", "CX4",
 		"KX", "KR", "R SFP+", "KR/KX", "KR/KX/KX4"
 	};
 
-	int i;
 	char buf[80];
+	char *bufp = buf;
 	const char *spd = "";
+	const struct port_info *pi = netdev_priv(dev);
+	const struct adapter *adap = pi->adapter;
 
 	if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_2_5GB)
 		spd = " 2.5 GT/s";
 	else if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_5_0GB)
 		spd = " 5 GT/s";
 
-	for_each_port(adap, i) {
-		struct net_device *dev = adap->port[i];
-		const struct port_info *pi = netdev_priv(dev);
-		char *bufp = buf;
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100M)
+		bufp += sprintf(bufp, "100/");
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
+		bufp += sprintf(bufp, "1000/");
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
+		bufp += sprintf(bufp, "10G/");
+	if (bufp != buf)
+		--bufp;
+	sprintf(bufp, "BASE-%s", base[pi->port_type]);
 
-		if (!test_bit(i, &adap->registered_device_map))
-			continue;
-
-		if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100M)
-			bufp += sprintf(bufp, "100/");
-		if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
-			bufp += sprintf(bufp, "1000/");
-		if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
-			bufp += sprintf(bufp, "10G/");
-		if (bufp != buf)
-			--bufp;
-		sprintf(bufp, "BASE-%s", base[pi->port_type]);
-
-		netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s%s\n",
-			    adap->params.vpd.id, adap->params.rev,
-			    buf, is_offload(adap) ? "R" : "",
-			    adap->params.pci.width, spd,
-			    (adap->flags & USING_MSIX) ? " MSI-X" :
-			    (adap->flags & USING_MSI) ? " MSI" : "");
-		if (adap->name == dev->name)
-			netdev_info(dev, "S/N: %s, E/C: %s\n",
-				    adap->params.vpd.sn, adap->params.vpd.ec);
-	}
+	netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s%s\n",
+		    adap->params.vpd.id, adap->params.rev, buf,
+		    is_offload(adap) ? "R" : "", adap->params.pci.width, spd,
+		    (adap->flags & USING_MSIX) ? " MSI-X" :
+		    (adap->flags & USING_MSI) ? " MSI" : "");
+	netdev_info(dev, "S/N: %s, E/C: %s\n",
+		    adap->params.vpd.sn, adap->params.vpd.ec);
 }
 
 static void __devinit enable_pcie_relaxed_ordering(struct pci_dev *dev)
@@ -3753,6 +3744,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 			__set_bit(i, &adapter->registered_device_map);
 			adapter->chan_map[pi->tx_chan] = i;
+			print_port_info(adapter->port[i]);
 		}
 	}
 	if (!adapter->registered_device_map) {
@@ -3768,8 +3760,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 	if (is_offload(adapter))
 		attach_ulds(adapter);
-
-	print_port_info(adapter);
 
 sriov:
 #ifdef CONFIG_PCI_IOV
