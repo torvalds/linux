@@ -228,15 +228,15 @@ static struct regulator_ops mc13783_gpo_regulator_ops;
 	}
 
 #define MC13783_DEFINE_SW(_name, _reg, _vsel_reg, _voltages)		\
-	MC13783_DEFINE(SW, _name, _reg, _vsel_reg, _voltages)
+	MC13783_DEFINE(REG, _name, _reg, _vsel_reg, _voltages)
 #define MC13783_DEFINE_REGU(_name, _reg, _vsel_reg, _voltages)		\
-	MC13783_DEFINE(REGU, _name, _reg, _vsel_reg, _voltages)
+	MC13783_DEFINE(REG, _name, _reg, _vsel_reg, _voltages)
 
 static struct mc13783_regulator mc13783_regulators[] = {
 	MC13783_DEFINE_SW(SW3, SWITCHERS5, SWITCHERS5, mc13783_sw3_val),
 
-	MC13783_FIXED_DEFINE(REGU, VAUDIO, REGULATORMODE0, mc13783_vaudio_val),
-	MC13783_FIXED_DEFINE(REGU, VIOHI, REGULATORMODE0, mc13783_viohi_val),
+	MC13783_FIXED_DEFINE(REG, VAUDIO, REGULATORMODE0, mc13783_vaudio_val),
+	MC13783_FIXED_DEFINE(REG, VIOHI, REGULATORMODE0, mc13783_viohi_val),
 	MC13783_DEFINE_REGU(VIOLO, REGULATORMODE0, REGULATORSETTING0,	\
 			    mc13783_violo_val),
 	MC13783_DEFINE_REGU(VDIG, REGULATORMODE0, REGULATORSETTING0,	\
@@ -255,7 +255,7 @@ static struct mc13783_regulator mc13783_regulators[] = {
 			    mc13783_vesim_val),
 	MC13783_DEFINE_REGU(VCAM, REGULATORMODE1, REGULATORSETTING0,	\
 			    mc13783_vcam_val),
-	MC13783_FIXED_DEFINE(REGU, VRFBG, REGULATORMODE1, mc13783_vrfbg_val),
+	MC13783_FIXED_DEFINE(REG, VRFBG, REGULATORMODE1, mc13783_vrfbg_val),
 	MC13783_DEFINE_REGU(VVIB, REGULATORMODE1, REGULATORSETTING1,	\
 			    mc13783_vvib_val),
 	MC13783_DEFINE_REGU(VRF1, REGULATORMODE1, REGULATORSETTING1,	\
@@ -266,12 +266,12 @@ static struct mc13783_regulator mc13783_regulators[] = {
 			    mc13783_vmmc_val),
 	MC13783_DEFINE_REGU(VMMC2, REGULATORMODE1, REGULATORSETTING1,	\
 			    mc13783_vmmc_val),
-	MC13783_GPO_DEFINE(REGU, GPO1, POWERMISC, mc13783_gpo_val),
-	MC13783_GPO_DEFINE(REGU, GPO2, POWERMISC, mc13783_gpo_val),
-	MC13783_GPO_DEFINE(REGU, GPO3, POWERMISC, mc13783_gpo_val),
-	MC13783_GPO_DEFINE(REGU, GPO4, POWERMISC, mc13783_gpo_val),
-	MC13783_GPO_DEFINE(REGU, PWGT1SPI, POWERMISC, mc13783_pwgtdrv_val),
-	MC13783_GPO_DEFINE(REGU, PWGT2SPI, POWERMISC, mc13783_pwgtdrv_val),
+	MC13783_GPO_DEFINE(REG, GPO1, POWERMISC, mc13783_gpo_val),
+	MC13783_GPO_DEFINE(REG, GPO2, POWERMISC, mc13783_gpo_val),
+	MC13783_GPO_DEFINE(REG, GPO3, POWERMISC, mc13783_gpo_val),
+	MC13783_GPO_DEFINE(REG, GPO4, POWERMISC, mc13783_gpo_val),
+	MC13783_GPO_DEFINE(REG, PWGT1SPI, POWERMISC, mc13783_pwgtdrv_val),
+	MC13783_GPO_DEFINE(REG, PWGT2SPI, POWERMISC, mc13783_pwgtdrv_val),
 };
 
 struct mc13783_regulator_priv {
@@ -508,8 +508,8 @@ static int mc13783_gpo_regulator_enable(struct regulator_dev *rdev)
 	dev_dbg(rdev_get_dev(rdev), "%s id: %d\n", __func__, id);
 
 	/* Power Gate enable value is 0 */
-	if (id == MC13783_REGU_PWGT1SPI ||
-	    id == MC13783_REGU_PWGT2SPI)
+	if (id == MC13783_REG_PWGT1SPI ||
+	    id == MC13783_REG_PWGT2SPI)
 		en_val = 0;
 
 	mc13783_lock(priv->mc13783);
@@ -530,8 +530,8 @@ static int mc13783_gpo_regulator_disable(struct regulator_dev *rdev)
 	dev_dbg(rdev_get_dev(rdev), "%s id: %d\n", __func__, id);
 
 	/* Power Gate disable value is 1 */
-	if (id == MC13783_REGU_PWGT1SPI ||
-	    id == MC13783_REGU_PWGT2SPI)
+	if (id == MC13783_REG_PWGT1SPI ||
+	    id == MC13783_REG_PWGT2SPI)
 		dis_val = mc13783_regulators[id].enable_bit;
 
 	mc13783_lock(priv->mc13783);
