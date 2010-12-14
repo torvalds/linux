@@ -579,6 +579,7 @@ static inline void __refill_fl(struct adapter *adap, struct sge_fl *fl)
  *	@phys: the physical address of the allocated ring
  *	@metadata: address of the array holding the SW state for the ring
  *	@stat_size: extra space in HW ring for status information
+ *	@node: preferred node for memory allocations
  *
  *	Allocates resources for an SGE descriptor ring, such as Tx queues,
  *	free buffer lists, or response queues.  Each SGE ring requires
@@ -590,7 +591,7 @@ static inline void __refill_fl(struct adapter *adap, struct sge_fl *fl)
  */
 static void *alloc_ring(struct device *dev, size_t nelem, size_t elem_size,
 			size_t sw_size, dma_addr_t *phys, void *metadata,
-			size_t stat_size)
+			size_t stat_size, int node)
 {
 	size_t len = nelem * elem_size + stat_size;
 	void *s = NULL;
@@ -599,7 +600,7 @@ static void *alloc_ring(struct device *dev, size_t nelem, size_t elem_size,
 	if (!p)
 		return NULL;
 	if (sw_size) {
-		s = kcalloc(nelem, sw_size, GFP_KERNEL);
+		s = kzalloc_node(nelem * sw_size, GFP_KERNEL, node);
 
 		if (!s) {
 			dma_free_coherent(dev, len, p, *phys);
@@ -1982,7 +1983,7 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	iq->size = roundup(iq->size, 16);
 
 	iq->desc = alloc_ring(adap->pdev_dev, iq->size, iq->iqe_len, 0,
-			      &iq->phys_addr, NULL, 0);
+			      &iq->phys_addr, NULL, 0, NUMA_NO_NODE);
 	if (!iq->desc)
 		return -ENOMEM;
 
@@ -2008,7 +2009,7 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		fl->size = roundup(fl->size, 8);
 		fl->desc = alloc_ring(adap->pdev_dev, fl->size, sizeof(__be64),
 				      sizeof(struct rx_sw_desc), &fl->addr,
-				      &fl->sdesc, STAT_LEN);
+				      &fl->sdesc, STAT_LEN, NUMA_NO_NODE);
 		if (!fl->desc)
 			goto fl_nomem;
 
@@ -2095,7 +2096,8 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 
 	txq->q.desc = alloc_ring(adap->pdev_dev, txq->q.size,
 			sizeof(struct tx_desc), sizeof(struct tx_sw_desc),
-			&txq->q.phys_addr, &txq->q.sdesc, STAT_LEN);
+			&txq->q.phys_addr, &txq->q.sdesc, STAT_LEN,
+			netdev_queue_numa_node_read(netdevq));
 	if (!txq->q.desc)
 		return -ENOMEM;
 
@@ -2147,7 +2149,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 
 	txq->q.desc = alloc_ring(adap->pdev_dev, nentries,
 				 sizeof(struct tx_desc), 0, &txq->q.phys_addr,
-				 NULL, 0);
+				 NULL, 0, NUMA_NO_NODE);
 	if (!txq->q.desc)
 		return -ENOMEM;
 
@@ -2198,7 +2200,8 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 
 	txq->q.desc = alloc_ring(adap->pdev_dev, txq->q.size,
 			sizeof(struct tx_desc), sizeof(struct tx_sw_desc),
-			&txq->q.phys_addr, &txq->q.sdesc, STAT_LEN);
+			&txq->q.phys_addr, &txq->q.sdesc, STAT_LEN,
+			NUMA_NO_NODE);
 	if (!txq->q.desc)
 		return -ENOMEM;
 
