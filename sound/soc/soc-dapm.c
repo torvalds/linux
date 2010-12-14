@@ -920,6 +920,41 @@ static void dapm_seq_run(struct snd_soc_dapm_context *dapm,
 		dapm_seq_run_coalesced(dapm, &pending);
 }
 
+static void dapm_widget_update(struct snd_soc_dapm_context *dapm)
+{
+	struct snd_soc_dapm_update *update = dapm->update;
+	struct snd_soc_dapm_widget *w;
+	int ret;
+
+	if (!update)
+		return;
+
+	w = update->widget;
+
+	if (w->event &&
+	    (w->event_flags & SND_SOC_DAPM_PRE_REG)) {
+		ret = w->event(w, update->kcontrol, SND_SOC_DAPM_PRE_REG);
+		if (ret != 0)
+			pr_err("%s DAPM pre-event failed: %d\n",
+			       w->name, ret);
+	}
+
+	ret = snd_soc_update_bits(w->codec, update->reg, update->mask,
+				  update->val);
+	if (ret < 0)
+		pr_err("%s DAPM update failed: %d\n", w->name, ret);
+
+	if (w->event &&
+	    (w->event_flags & SND_SOC_DAPM_POST_REG)) {
+		ret = w->event(w, update->kcontrol, SND_SOC_DAPM_POST_REG);
+		if (ret != 0)
+			pr_err("%s DAPM post-event failed: %d\n",
+			       w->name, ret);
+	}
+}
+
+
+
 /*
  * Scan each dapm widget for complete audio path.
  * A complete path is a route that has valid endpoints i.e.:-
@@ -1036,6 +1071,8 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 
 	/* Power down widgets first; try to avoid amplifying pops. */
 	dapm_seq_run(dapm, &down_list, event, dapm_down_seq);
+
+	dapm_widget_update(dapm);
 
 	/* Now power up. */
 	dapm_seq_run(dapm, &up_list, event, dapm_up_seq);
@@ -1683,13 +1720,12 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	unsigned int reg = mc->reg;
 	unsigned int shift = mc->shift;
-	unsigned int rshift = mc->rshift;
 	int max = mc->max;
 	unsigned int mask = (1 << fls(max)) - 1;
 	unsigned int invert = mc->invert;
-	unsigned int val, val2, val_mask;
-	int connect;
-	int ret;
+	unsigned int val, val_mask;
+	int connect, change;
+	struct snd_soc_dapm_update update;
 
 	val = (ucontrol->value.integer.value[0] & mask);
 
@@ -1697,18 +1733,12 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 		val = max - val;
 	val_mask = mask << shift;
 	val = val << shift;
-	if (shift != rshift) {
-		val2 = (ucontrol->value.integer.value[1] & mask);
-		if (invert)
-			val2 = max - val2;
-		val_mask |= mask << rshift;
-		val |= val2 << rshift;
-	}
 
 	mutex_lock(&widget->codec->mutex);
 	widget->value = val;
 
-	if (snd_soc_test_bits(widget->codec, reg, val_mask, val)) {
+	change = snd_soc_test_bits(widget->codec, reg, val_mask, val);
+	if (change) {
 		if (val)
 			/* new connection */
 			connect = invert ? 0:1;
@@ -1716,28 +1746,20 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 			/* old connection must be powered down */
 			connect = invert ? 1:0;
 
+		update.kcontrol = kcontrol;
+		update.widget = widget;
+		update.reg = reg;
+		update.mask = mask;
+		update.val = val;
+		widget->dapm->update = &update;
+
 		dapm_mixer_update_power(widget, kcontrol, connect);
+
+		widget->dapm->update = NULL;
 	}
 
-	if (widget->event) {
-		if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
-			ret = widget->event(widget, kcontrol,
-						SND_SOC_DAPM_PRE_REG);
-			if (ret < 0) {
-				ret = 1;
-				goto out;
-			}
-		}
-		ret = snd_soc_update_bits(widget->codec, reg, val_mask, val);
-		if (widget->event_flags & SND_SOC_DAPM_POST_REG)
-			ret = widget->event(widget, kcontrol,
-						SND_SOC_DAPM_POST_REG);
-	} else
-		ret = snd_soc_update_bits(widget->codec, reg, val_mask, val);
-
-out:
 	mutex_unlock(&widget->codec->mutex);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_volsw);
 
@@ -1785,7 +1807,7 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int val, mux, change;
 	unsigned int mask, bitmask;
-	int ret = 0;
+	struct snd_soc_dapm_update update;
 
 	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
 		;
@@ -1804,24 +1826,20 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 	mutex_lock(&widget->codec->mutex);
 	widget->value = val;
 	change = snd_soc_test_bits(widget->codec, e->reg, mask, val);
+
+	update.kcontrol = kcontrol;
+	update.widget = widget;
+	update.reg = e->reg;
+	update.mask = mask;
+	update.val = val;
+	widget->dapm->update = &update;
+
 	dapm_mux_update_power(widget, kcontrol, change, mux, e);
 
-	if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
-		ret = widget->event(widget,
-				    kcontrol, SND_SOC_DAPM_PRE_REG);
-		if (ret < 0)
-			goto out;
-	}
+	widget->dapm->update = NULL;
 
-	ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
-
-	if (widget->event_flags & SND_SOC_DAPM_POST_REG)
-		ret = widget->event(widget,
-				    kcontrol, SND_SOC_DAPM_POST_REG);
-
-out:
 	mutex_unlock(&widget->codec->mutex);
-	return ret;
+	return change;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_enum_double);
 
@@ -1933,7 +1951,7 @@ int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int val, mux, change;
 	unsigned int mask;
-	int ret = 0;
+	struct snd_soc_dapm_update update;
 
 	if (ucontrol->value.enumerated.item[0] > e->max - 1)
 		return -EINVAL;
@@ -1950,24 +1968,20 @@ int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
 	mutex_lock(&widget->codec->mutex);
 	widget->value = val;
 	change = snd_soc_test_bits(widget->codec, e->reg, mask, val);
+
+	update.kcontrol = kcontrol;
+	update.widget = widget;
+	update.reg = e->reg;
+	update.mask = mask;
+	update.val = val;
+	widget->dapm->update = &update;
+
 	dapm_mux_update_power(widget, kcontrol, change, mux, e);
 
-	if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
-		ret = widget->event(widget,
-				    kcontrol, SND_SOC_DAPM_PRE_REG);
-		if (ret < 0)
-			goto out;
-	}
+	widget->dapm->update = NULL;
 
-	ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
-
-	if (widget->event_flags & SND_SOC_DAPM_POST_REG)
-		ret = widget->event(widget,
-				    kcontrol, SND_SOC_DAPM_POST_REG);
-
-out:
 	mutex_unlock(&widget->codec->mutex);
-	return ret;
+	return change;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_value_enum_double);
 

@@ -460,6 +460,14 @@ struct snd_soc_dapm_widget {
 	struct list_head power_list;
 };
 
+struct snd_soc_dapm_update {
+	struct snd_soc_dapm_widget *widget;
+	struct snd_kcontrol *kcontrol;
+	int reg;
+	int mask;
+	int val;
+};
+
 /* DAPM context */
 struct snd_soc_dapm_context {
 	int n_widgets; /* number of widgets in this context */
@@ -467,6 +475,8 @@ struct snd_soc_dapm_context {
 	enum snd_soc_bias_level suspend_bias_level;
 	struct delayed_work delayed_work;
 	unsigned int idle_bias_off:1; /* Use BIAS_OFF instead of STANDBY */
+
+	struct snd_soc_dapm_update *update;
 
 	struct device *dev; /* from parent - for debug */
 	struct snd_soc_codec *codec; /* parent codec */
