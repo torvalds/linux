@@ -188,7 +188,8 @@ struct bfi_fcport_rsp_s {
 	struct bfi_mhdr_s  mh;		/*  common msg header		    */
 	u8		   status;	/*  port enable status		    */
 	u8		   rsvd[3];
-	u32	   msgtag;	/*  msgtag for reply		    */
+	struct	bfa_port_cfg_s port_cfg;/* port configuration	*/
+	u32	msgtag;			/* msgtag for reply	*/
 };
 
 /*
@@ -202,7 +203,8 @@ struct bfi_fcport_enable_req_s {
 	struct bfa_port_cfg_s port_cfg; /*  port configuration	    */
 	union bfi_addr_u   stats_dma_addr; /*  DMA address for stats	    */
 	u32	   msgtag;	/*  msgtag for reply		    */
-	u32	   rsvd2;
+	u8	use_flash_cfg;	/* get prot cfg from flash */
+	u8	rsvd2[3];
 };
 
 /*

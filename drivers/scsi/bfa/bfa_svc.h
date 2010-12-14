@@ -444,6 +444,7 @@ struct bfa_fcport_s {
 	u8			myalpa;	/*  my ALPA in LOOP topology */
 	u8			rsvd[3];
 	struct bfa_port_cfg_s	cfg;	/*  current port configuration */
+	bfa_boolean_t		use_flash_cfg; /* get port cfg from flash */
 	struct bfa_qos_attr_s  qos_attr;   /* QoS Attributes */
 	struct bfa_qos_vc_attr_s qos_vc_attr;  /*  VC info from ELP */
 	struct bfa_reqq_wait_s	reqq_wait;

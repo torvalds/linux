@@ -1890,6 +1890,8 @@ bfa_fcport_sm_uninit(struct bfa_fcport_s *fcport,
 		/*
 		 * Start event after IOC is configured and BFA is started.
 		 */
+		fcport->use_flash_cfg = BFA_TRUE;
+
 		if (bfa_fcport_send_enable(fcport)) {
 			bfa_trc(fcport->bfa, BFA_TRUE);
 			bfa_sm_set_state(fcport, bfa_fcport_sm_enabling);
@@ -2855,6 +2857,7 @@ bfa_fcport_send_enable(struct bfa_fcport_s *fcport)
 	m->port_cfg = fcport->cfg;
 	m->msgtag = fcport->msgtag;
 	m->port_cfg.maxfrsize = cpu_to_be16(fcport->cfg.maxfrsize);
+	 m->use_flash_cfg = fcport->use_flash_cfg;
 	bfa_dma_be_addr_set(m->stats_dma_addr, fcport->stats_pa);
 	bfa_trc(fcport->bfa, m->stats_dma_addr.a32.addr_lo);
 	bfa_trc(fcport->bfa, m->stats_dma_addr.a32.addr_hi);
@@ -3251,8 +3254,28 @@ bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg)
 
 	switch (msg->mhdr.msg_id) {
 	case BFI_FCPORT_I2H_ENABLE_RSP:
-		if (fcport->msgtag == i2hmsg.penable_rsp->msgtag)
+		if (fcport->msgtag == i2hmsg.penable_rsp->msgtag) {
+
+			if (fcport->use_flash_cfg) {
+				fcport->cfg = i2hmsg.penable_rsp->port_cfg;
+				fcport->cfg.maxfrsize =
+					cpu_to_be16(fcport->cfg.maxfrsize);
+				fcport->cfg.path_tov =
+					cpu_to_be16(fcport->cfg.path_tov);
+				fcport->cfg.q_depth =
+					cpu_to_be16(fcport->cfg.q_depth);
+
+				if (fcport->cfg.trunked)
+					fcport->trunk.attr.state =
+						BFA_TRUNK_OFFLINE;
+				else
+					fcport->trunk.attr.state =
+						BFA_TRUNK_DISABLED;
+				fcport->use_flash_cfg = BFA_FALSE;
+			}
+
 			bfa_sm_send_event(fcport, BFA_FCPORT_SM_FWRSP);
+		}
 		break;
 
 	case BFI_FCPORT_I2H_DISABLE_RSP:
