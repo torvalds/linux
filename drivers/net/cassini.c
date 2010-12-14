@@ -2788,7 +2788,7 @@ static inline int cas_xmit_tx_ringN(struct cas *cp, int ring,
 
 	ctrl = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		const u64 csum_start_off = skb_transport_offset(skb);
+		const u64 csum_start_off = skb_checksum_start_offset(skb);
 		const u64 csum_stuff_off = csum_start_off + skb->csum_offset;
 
 		ctrl =  TX_DESC_CSUM_EN |

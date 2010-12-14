@@ -798,7 +798,7 @@ vmxnet3_parse_and_copy_hdr(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 {
 	struct Vmxnet3_TxDataDesc *tdd;
 
-	if (ctx->mss) {
+	if (ctx->mss) {	/* TSO */
 		ctx->eth_ip_hdr_size = skb_transport_offset(skb);
 		ctx->l4_hdr_size = ((struct tcphdr *)
 				   skb_transport_header(skb))->doff * 4;
@@ -807,7 +807,7 @@ vmxnet3_parse_and_copy_hdr(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 		unsigned int pull_size;
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			ctx->eth_ip_hdr_size = skb_transport_offset(skb);
+			ctx->eth_ip_hdr_size = skb_checksum_start_offset(skb);
 
 			if (ctx->ipv4) {
 				struct iphdr *iph = (struct iphdr *)

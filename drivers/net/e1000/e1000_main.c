@@ -2726,7 +2726,7 @@ static bool e1000_tx_csum(struct e1000_adapter *adapter,
 		break;
 	}
 
-	css = skb_transport_offset(skb);
+	css = skb_checksum_start_offset(skb);
 
 	i = tx_ring->next_to_use;
 	buffer_info = &tx_ring->buffer_info[i];

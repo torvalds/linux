@@ -6589,7 +6589,7 @@ static u64 niu_compute_tx_flags(struct sk_buff *skb, struct ethhdr *ehdr,
 			     (ip_proto == IPPROTO_UDP ?
 			      TXHDR_CSUM_UDP : TXHDR_CSUM_SCTP));
 
-		start = skb_transport_offset(skb) -
+		start = skb_checksum_start_offset(skb) -
 			(pad_bytes + sizeof(struct tx_pkt_hdr));
 		stuff = start + skb->csum_offset;
 
