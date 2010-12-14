@@ -567,8 +567,8 @@ struct chan20_info chan20_info[] = {
 const locale_info_t *wlc_get_locale_2g(u8 locale_idx)
 {
 	if (locale_idx >= ARRAY_SIZE(g_locale_2g_table)) {
-		WL_ERROR(("%s: locale 2g index size out of range %d\n",
-			  __func__, locale_idx));
+		WL_ERROR("%s: locale 2g index size out of range %d\n",
+			 __func__, locale_idx);
 		ASSERT(locale_idx < ARRAY_SIZE(g_locale_2g_table));
 		return NULL;
 	}
@@ -578,8 +578,8 @@ const locale_info_t *wlc_get_locale_2g(u8 locale_idx)
 const locale_info_t *wlc_get_locale_5g(u8 locale_idx)
 {
 	if (locale_idx >= ARRAY_SIZE(g_locale_5g_table)) {
-		WL_ERROR(("%s: locale 5g index size out of range %d\n",
-			  __func__, locale_idx));
+		WL_ERROR("%s: locale 5g index size out of range %d\n",
+			 __func__, locale_idx);
 		ASSERT(locale_idx < ARRAY_SIZE(g_locale_5g_table));
 		return NULL;
 	}
@@ -589,8 +589,8 @@ const locale_info_t *wlc_get_locale_5g(u8 locale_idx)
 const locale_mimo_info_t *wlc_get_mimo_2g(u8 locale_idx)
 {
 	if (locale_idx >= ARRAY_SIZE(g_mimo_2g_table)) {
-		WL_ERROR(("%s: mimo 2g index size out of range %d\n", __func__,
-			  locale_idx));
+		WL_ERROR("%s: mimo 2g index size out of range %d\n",
+			 __func__, locale_idx);
 		return NULL;
 	}
 	return g_mimo_2g_table[locale_idx];
@@ -599,8 +599,8 @@ const locale_mimo_info_t *wlc_get_mimo_2g(u8 locale_idx)
 const locale_mimo_info_t *wlc_get_mimo_5g(u8 locale_idx)
 {
 	if (locale_idx >= ARRAY_SIZE(g_mimo_5g_table)) {
-		WL_ERROR(("%s: mimo 5g index size out of range %d\n", __func__,
-			  locale_idx));
+		WL_ERROR("%s: mimo 5g index size out of range %d\n",
+			 __func__, locale_idx);
 		return NULL;
 	}
 	return g_mimo_5g_table[locale_idx];
@@ -614,11 +614,11 @@ wlc_cm_info_t *wlc_channel_mgr_attach(struct wlc_info *wlc)
 	struct wlc_pub *pub = wlc->pub;
 	char *ccode;
 
-	WL_TRACE(("wl%d: wlc_channel_mgr_attach\n", wlc->pub->unit));
+	WL_TRACE("wl%d: wlc_channel_mgr_attach\n", wlc->pub->unit);
 
 	wlc_cm = kzalloc(sizeof(wlc_cm_info_t), GFP_ATOMIC);
 	if (wlc_cm == NULL) {
-		WL_ERROR(("wl%d: %s: out of memory", pub->unit, __func__));
+		WL_ERROR("wl%d: %s: out of memory", pub->unit, __func__);
 		return NULL;
 	}
 	wlc_cm->pub = pub;
@@ -629,8 +629,9 @@ wlc_cm_info_t *wlc_channel_mgr_attach(struct wlc_info *wlc)
 	ccode = getvar(wlc->pub->vars, "ccode");
 	if (ccode) {
 		strncpy(wlc->pub->srom_ccode, ccode, WLC_CNTRY_BUF_SZ - 1);
-		WL_NONE(("%s: SROM country code is %c%c\n", __func__,
-			 wlc->pub->srom_ccode[0], wlc->pub->srom_ccode[1]));
+		WL_NONE("%s: SROM country code is %c%c\n",
+			__func__,
+			wlc->pub->srom_ccode[0], wlc->pub->srom_ccode[1]);
 	}
 
 	/* internal country information which must match regulatory constraints in firmware */
@@ -716,7 +717,9 @@ wlc_set_countrycode_rev(wlc_cm_info_t *wlc_cm,
 	char mapped_ccode[WLC_CNTRY_BUF_SZ];
 	uint mapped_regrev;
 
-	WL_NONE(("%s: (country_abbrev \"%s\", ccode \"%s\", regrev %d) SPROM \"%s\"/%u\n", __func__, country_abbrev, ccode, regrev, wlc_cm->srom_ccode, wlc_cm->srom_regrev));
+	WL_NONE("%s: (country_abbrev \"%s\", ccode \"%s\", regrev %d) SPROM \"%s\"/%u\n",
+		__func__, country_abbrev, ccode, regrev,
+		wlc_cm->srom_ccode, wlc_cm->srom_regrev);
 
 	/* if regrev is -1, lookup the mapped country code,
 	 * otherwise use the ccode and regrev directly
@@ -827,8 +830,8 @@ static const country_info_t *wlc_countrycode_map(wlc_cm_info_t *wlc_cm,
 
 	/* check for currently supported ccode size */
 	if (strlen(ccode) > (WLC_CNTRY_BUF_SZ - 1)) {
-		WL_ERROR(("wl%d: %s: ccode \"%s\" too long for match\n",
-			  wlc->pub->unit, __func__, ccode));
+		WL_ERROR("wl%d: %s: ccode \"%s\" too long for match\n",
+			 wlc->pub->unit, __func__, ccode);
 		return NULL;
 	}
 
@@ -843,7 +846,7 @@ static const country_info_t *wlc_countrycode_map(wlc_cm_info_t *wlc_cm,
 	if (!strcmp(srom_ccode, ccode)) {
 		*mapped_regrev = srom_regrev;
 		mapped = 0;
-		WL_ERROR(("srom_code == ccode %s\n", __func__));
+		WL_ERROR("srom_code == ccode %s\n", __func__);
 		ASSERT(0);
 	} else {
 		mapped =
@@ -895,7 +898,7 @@ static const country_info_t *wlc_country_lookup_direct(const char *ccode,
 		}
 	}
 
-	WL_ERROR(("%s: Returning NULL\n", __func__));
+	WL_ERROR("%s: Returning NULL\n", __func__);
 	ASSERT(0);
 	return NULL;
 }
@@ -974,7 +977,9 @@ static void wlc_channels_commit(wlc_cm_info_t *wlc_cm)
 	if (chan == INVCHANNEL) {
 		/* country/locale with no valid channels, set the radio disable bit */
 		mboolset(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
-		WL_ERROR(("wl%d: %s: no valid channel for \"%s\" nbands %d bandlocked %d\n", wlc->pub->unit, __func__, wlc_cm->country_abbrev, NBANDS(wlc), wlc->bandlocked));
+		WL_ERROR("wl%d: %s: no valid channel for \"%s\" nbands %d bandlocked %d\n",
+			 wlc->pub->unit, __func__,
+			 wlc_cm->country_abbrev, NBANDS(wlc), wlc->bandlocked);
 	} else
 	    if (mboolisset(wlc->pub->radio_disabled,
 		WL_RADIO_COUNTRY_DISABLE)) {
@@ -1538,8 +1543,8 @@ wlc_valid_chanspec_ext(wlc_cm_info_t *wlc_cm, chanspec_t chspec, bool dualband)
 
 	/* check the chanspec */
 	if (wf_chspec_malformed(chspec)) {
-		WL_ERROR(("wl%d: malformed chanspec 0x%x\n", wlc->pub->unit,
-			  chspec));
+		WL_ERROR("wl%d: malformed chanspec 0x%x\n",
+			 wlc->pub->unit, chspec);
 		ASSERT(0);
 		return false;
 	}

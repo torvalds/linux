@@ -179,7 +179,7 @@ static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct wl_info *wl = hw->priv;
 	WL_LOCK(wl);
 	if (!wl->pub->up) {
-		WL_ERROR(("ops->tx called while down\n"));
+		WL_ERROR("ops->tx called while down\n");
 		status = -ENETDOWN;
 		goto done;
 	}
@@ -192,8 +192,10 @@ static int wl_ops_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 static int wl_ops_start(struct ieee80211_hw *hw)
 {
 	struct wl_info *wl = hw->priv;
-	/* struct ieee80211_channel *curchan = hw->conf.channel; */
-	WL_NONE(("%s : Initial channel: %d\n", __func__, curchan->hw_value));
+	/*
+	  struct ieee80211_channel *curchan = hw->conf.channel;
+	  WL_NONE("%s : Initial channel: %d\n", __func__, curchan->hw_value);
+	*/
 
 	WL_LOCK(wl);
 	ieee80211_wake_queues(hw);
@@ -226,8 +228,8 @@ wl_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	    vif->type != NL80211_IFTYPE_STATION &&
 	    vif->type != NL80211_IFTYPE_WDS &&
 	    vif->type != NL80211_IFTYPE_ADHOC) {
-		WL_ERROR(("%s: Attempt to add type %d, only STA for now\n",
-			  __func__, vif->type));
+		WL_ERROR("%s: Attempt to add type %d, only STA for now\n",
+			 __func__, vif->type);
 		return -EOPNOTSUPP;
 	}
 
@@ -237,7 +239,7 @@ wl_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	WL_UNLOCK(wl);
 
 	if (err != 0)
-		WL_ERROR(("%s: wl_up() returned %d\n", __func__, err));
+		WL_ERROR("%s: wl_up() returned %d\n", __func__, err);
 	return err;
 }
 
@@ -263,8 +265,7 @@ ieee_set_channel(struct ieee80211_hw *hw, struct ieee80211_channel *chan,
 		break;
 	case NL80211_CHAN_HT40MINUS:
 	case NL80211_CHAN_HT40PLUS:
-		WL_ERROR(("%s: Need to implement 40 Mhz Channels!\n",
-			  __func__));
+		WL_ERROR("%s: Need to implement 40 Mhz Channels!\n", __func__);
 		break;
 	}
 
@@ -281,12 +282,12 @@ static int wl_ops_config(struct ieee80211_hw *hw, u32 changed)
 	int new_int;
 
 	if (changed & IEEE80211_CONF_CHANGE_LISTEN_INTERVAL) {
-		WL_NONE(("%s: Setting listen interval to %d\n",
-			 __func__, conf->listen_interval));
+		WL_NONE("%s: Setting listen interval to %d\n",
+			__func__, conf->listen_interval);
 		if (wlc_iovar_setint
 		    (wl->wlc, "bcn_li_bcn", conf->listen_interval)) {
-			WL_ERROR(("%s: Error setting listen_interval\n",
-				  __func__));
+			WL_ERROR("%s: Error setting listen_interval\n",
+				 __func__);
 			err = -EIO;
 			goto config_out;
 		}
@@ -294,41 +295,42 @@ static int wl_ops_config(struct ieee80211_hw *hw, u32 changed)
 		ASSERT(new_int == conf->listen_interval);
 	}
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR)
-		WL_NONE(("Need to set monitor mode\n"));
+		WL_NONE("Need to set monitor mode\n");
 	if (changed & IEEE80211_CONF_CHANGE_PS)
-		WL_NONE(("Need to set Power-save mode\n"));
+		WL_NONE("Need to set Power-save mode\n");
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		WL_NONE(("%s: Setting tx power to %d dbm\n", __func__,
-			 conf->power_level));
+		WL_NONE("%s: Setting tx power to %d dbm\n",
+			__func__, conf->power_level);
 		if (wlc_iovar_setint
 		    (wl->wlc, "qtxpower", conf->power_level * 4)) {
-			WL_ERROR(("%s: Error setting power_level\n", __func__));
+			WL_ERROR("%s: Error setting power_level\n", __func__);
 			err = -EIO;
 			goto config_out;
 		}
 		wlc_iovar_getint(wl->wlc, "qtxpower", &new_int);
 		if (new_int != (conf->power_level * 4))
-			WL_ERROR(("%s: Power level req != actual, %d %d\n",
-				  __func__, conf->power_level * 4, new_int));
+			WL_ERROR("%s: Power level req != actual, %d %d\n",
+				 __func__, conf->power_level * 4, new_int);
 	}
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		err = ieee_set_channel(hw, conf->channel, conf->channel_type);
 	}
 	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS) {
-		WL_NONE(("%s: srl %d, lrl %d\n", __func__,
-			 conf->short_frame_max_tx_count,
-			 conf->long_frame_max_tx_count));
+		WL_NONE("%s: srl %d, lrl %d\n",
+			__func__,
+			conf->short_frame_max_tx_count,
+			conf->long_frame_max_tx_count);
 		if (wlc_set
 		    (wl->wlc, WLC_SET_SRL,
 		     conf->short_frame_max_tx_count) < 0) {
-			WL_ERROR(("%s: Error setting srl\n", __func__));
+			WL_ERROR("%s: Error setting srl\n", __func__);
 			err = -EIO;
 			goto config_out;
 		}
 		if (wlc_set(wl->wlc, WLC_SET_LRL, conf->long_frame_max_tx_count)
 		    < 0) {
-			WL_ERROR(("%s: Error setting lrl\n", __func__));
+			WL_ERROR("%s: Error setting lrl\n", __func__);
 			err = -EIO;
 			goto config_out;
 		}
@@ -348,24 +350,24 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		WL_ERROR(("Associated:\t%s\n", info->assoc ? "True" : "False"));
+		WL_ERROR("Associated:\t%s\n", info->assoc ? "True" : "False");
 		/* association status changed (associated/disassociated)
 		 * also implies a change in the AID.
 		 */
 	}
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
-		WL_NONE(("Use_cts_prot:\t%s Implement me\n",
-			 info->use_cts_prot ? "True" : "False"));
+		WL_NONE("Use_cts_prot:\t%s Implement me\n",
+			info->use_cts_prot ? "True" : "False");
 		/* CTS protection changed */
 	}
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
-		WL_NONE(("Short preamble:\t%s Implement me\n",
-			 info->use_short_preamble ? "True" : "False"));
+		WL_NONE("Short preamble:\t%s Implement me\n",
+			info->use_short_preamble ? "True" : "False");
 		/* preamble changed */
 	}
 	if (changed & BSS_CHANGED_ERP_SLOT) {
-		WL_NONE(("Changing short slot:\t%s\n",
-			 info->use_short_slot ? "True" : "False"));
+		WL_NONE("Changing short slot:\t%s\n",
+			info->use_short_slot ? "True" : "False");
 		if (info->use_short_slot)
 			val = 1;
 		else
@@ -375,34 +377,34 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_HT) {
-		WL_NONE(("%s: HT mode - Implement me\n", __func__));
+		WL_NONE("%s: HT mode - Implement me\n", __func__);
 		/* 802.11n parameters changed */
 	}
 	if (changed & BSS_CHANGED_BASIC_RATES) {
-		WL_NONE(("Need to change Basic Rates:\t0x%x! Implement me\n",
-			 (u32) info->basic_rates));
+		WL_NONE("Need to change Basic Rates:\t0x%x! Implement me\n",
+			(u32) info->basic_rates);
 		/* Basic rateset changed */
 	}
 	if (changed & BSS_CHANGED_BEACON_INT) {
-		WL_NONE(("Beacon Interval:\t%d Implement me\n",
-			 info->beacon_int));
+		WL_NONE("Beacon Interval:\t%d Implement me\n",
+			info->beacon_int);
 		/* Beacon interval changed */
 	}
 	if (changed & BSS_CHANGED_BSSID) {
-		WL_NONE(("new BSSID:\taid %d  bss:%pM\n", info->aid,
-			info->bssid));
+		WL_NONE("new BSSID:\taid %d  bss:%pM\n",
+			info->aid, info->bssid);
 		/* BSSID changed, for whatever reason (IBSS and managed mode) */
 		/* FIXME: need to store bssid in bsscfg */
 		wlc_set_addrmatch(wl->wlc, RCM_BSSID_OFFSET,
 				  (struct ether_addr *)info->bssid);
 	}
 	if (changed & BSS_CHANGED_BEACON) {
-		WL_ERROR(("BSS_CHANGED_BEACON\n"));
+		WL_ERROR("BSS_CHANGED_BEACON\n");
 		/* Beacon data changed, retrieve new beacon (beaconing modes) */
 	}
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
-		WL_ERROR(("Beacon enabled:\t%s\n",
-			  info->enable_beacon ? "True" : "False"));
+		WL_ERROR("Beacon enabled:\t%s\n",
+			 info->enable_beacon ? "True" : "False");
 		/* Beaconing should be enabled/disabled (beaconing modes) */
 	}
 	return;
@@ -418,19 +420,19 @@ wl_ops_configure_filter(struct ieee80211_hw *hw,
 	changed_flags &= MAC_FILTERS;
 	*total_flags &= MAC_FILTERS;
 	if (changed_flags & FIF_PROMISC_IN_BSS)
-		WL_ERROR(("FIF_PROMISC_IN_BSS\n"));
+		WL_ERROR("FIF_PROMISC_IN_BSS\n");
 	if (changed_flags & FIF_ALLMULTI)
-		WL_ERROR(("FIF_ALLMULTI\n"));
+		WL_ERROR("FIF_ALLMULTI\n");
 	if (changed_flags & FIF_FCSFAIL)
-		WL_ERROR(("FIF_FCSFAIL\n"));
+		WL_ERROR("FIF_FCSFAIL\n");
 	if (changed_flags & FIF_PLCPFAIL)
-		WL_ERROR(("FIF_PLCPFAIL\n"));
+		WL_ERROR("FIF_PLCPFAIL\n");
 	if (changed_flags & FIF_CONTROL)
-		WL_ERROR(("FIF_CONTROL\n"));
+		WL_ERROR("FIF_CONTROL\n");
 	if (changed_flags & FIF_OTHER_BSS)
-		WL_ERROR(("FIF_OTHER_BSS\n"));
+		WL_ERROR("FIF_OTHER_BSS\n");
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
-		WL_NONE(("FIF_BCN_PRBRESP_PROMISC\n"));
+		WL_NONE("FIF_BCN_PRBRESP_PROMISC\n");
 		WL_LOCK(wl);
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC) {
 			wl->pub->mac80211_state |= MAC80211_PROMISC_BCNS;
@@ -447,25 +449,25 @@ wl_ops_configure_filter(struct ieee80211_hw *hw,
 static int
 wl_ops_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 {
-	WL_ERROR(("%s: Enter\n", __func__));
+	WL_ERROR("%s: Enter\n", __func__);
 	return 0;
 }
 
 static void wl_ops_sw_scan_start(struct ieee80211_hw *hw)
 {
-	WL_NONE(("Scan Start\n"));
+	WL_NONE("Scan Start\n");
 	return;
 }
 
 static void wl_ops_sw_scan_complete(struct ieee80211_hw *hw)
 {
-	WL_NONE(("Scan Complete\n"));
+	WL_NONE("Scan Complete\n");
 	return;
 }
 
 static void wl_ops_set_tsf(struct ieee80211_hw *hw, u64 tsf)
 {
-	WL_ERROR(("%s: Enter\n", __func__));
+	WL_ERROR("%s: Enter\n", __func__);
 	return;
 }
 
@@ -473,13 +475,13 @@ static int
 wl_ops_get_stats(struct ieee80211_hw *hw,
 		 struct ieee80211_low_level_stats *stats)
 {
-	WL_ERROR(("%s: Enter\n", __func__));
+	WL_ERROR("%s: Enter\n", __func__);
 	return 0;
 }
 
 static int wl_ops_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 {
-	WL_ERROR(("%s: Enter\n", __func__));
+	WL_ERROR("%s: Enter\n", __func__);
 	return 0;
 }
 
@@ -487,10 +489,10 @@ static void
 wl_ops_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  enum sta_notify_cmd cmd, struct ieee80211_sta *sta)
 {
-	WL_NONE(("%s: Enter\n", __func__));
+	WL_NONE("%s: Enter\n", __func__);
 	switch (cmd) {
 	default:
-		WL_ERROR(("%s: Uknown cmd = %d\n", __func__, cmd));
+		WL_ERROR("%s: Unknown cmd = %d\n", __func__, cmd);
 		break;
 	}
 	return;
@@ -502,9 +504,9 @@ wl_ops_conf_tx(struct ieee80211_hw *hw, u16 queue,
 {
 	struct wl_info *wl = hw->priv;
 
-	WL_NONE(("%s: Enter (WME config)\n", __func__));
-	WL_NONE(("queue %d, txop %d, cwmin %d, cwmax %d, aifs %d\n", queue,
-		 params->txop, params->cw_min, params->cw_max, params->aifs));
+	WL_NONE("%s: Enter (WME config)\n", __func__);
+	WL_NONE("queue %d, txop %d, cwmin %d, cwmax %d, aifs %d\n", queue,
+		 params->txop, params->cw_min, params->cw_max, params->aifs);
 
 	WL_LOCK(wl);
 	wlc_wme_setparams(wl->wlc, queue, (void *)params, true);
@@ -515,7 +517,7 @@ wl_ops_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 static u64 wl_ops_get_tsf(struct ieee80211_hw *hw)
 {
-	WL_ERROR(("%s: Enter\n", __func__));
+	WL_ERROR("%s: Enter\n", __func__);
 	return 0;
 }
 
@@ -558,7 +560,7 @@ static int
 wl_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	      struct ieee80211_sta *sta)
 {
-	WL_NONE(("%s: Enter\n", __func__));
+	WL_NONE("%s: Enter\n", __func__);
 	return 0;
 }
 
@@ -576,14 +578,14 @@ wl_ampdu_action(struct ieee80211_hw *hw,
 	ASSERT(scb->magic == SCB_MAGIC);
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		WL_NONE(("%s: action = IEEE80211_AMPDU_RX_START\n", __func__));
+		WL_NONE("%s: action = IEEE80211_AMPDU_RX_START\n", __func__);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
-		WL_NONE(("%s: action = IEEE80211_AMPDU_RX_STOP\n", __func__));
+		WL_NONE("%s: action = IEEE80211_AMPDU_RX_STOP\n", __func__);
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		if (!wlc_aggregatable(wl->wlc, tid)) {
-			/* WL_ERROR(("START: tid %d is not agg' able, return FAILURE to stack\n", tid)); */
+			/* WL_ERROR("START: tid %d is not agg' able, return FAILURE to stack\n", tid); */
 			return -1;
 		}
 		/* XXX: Use the starting sequence number provided ... */
@@ -597,11 +599,11 @@ wl_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		/* Not sure what to do here */
 		/* Power save wakeup */
-		WL_NONE(("%s: action = IEEE80211_AMPDU_TX_OPERATIONAL\n",
-			 __func__));
+		WL_NONE("%s: action = IEEE80211_AMPDU_TX_OPERATIONAL\n",
+			__func__);
 		break;
 	default:
-		WL_ERROR(("%s: Invalid command, ignoring\n", __func__));
+		WL_ERROR("%s: Invalid command, ignoring\n", __func__);
 	}
 
 	return 0;
@@ -632,8 +634,8 @@ static const struct ieee80211_ops wl_ops = {
 
 static int wl_set_hint(struct wl_info *wl, char *abbrev)
 {
-	WL_ERROR(("%s: Sending country code %c%c to MAC80211\n", __func__,
-		  abbrev[0], abbrev[1]));
+	WL_ERROR("%s: Sending country code %c%c to MAC80211\n",
+		 __func__, abbrev[0], abbrev[1]);
 	return regulatory_hint(wl->pub->ieee_hw->wiphy, abbrev);
 }
 
@@ -663,7 +665,7 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	err = 0;
 
 	if (unit < 0) {
-		WL_ERROR(("wl%d: unit number overflow, exiting\n", unit));
+		WL_ERROR("wl%d: unit number overflow, exiting\n", unit);
 		return NULL;
 	}
 
@@ -691,13 +693,13 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 		/* Do nothing */
 	} else {
 		bustype = PCI_BUS;
-		WL_TRACE(("force to PCI\n"));
+		WL_TRACE("force to PCI\n");
 	}
 	wl->bcm_bustype = bustype;
 
 	wl->regsva = ioremap_nocache(base_addr, PCI_BAR0_WINSZ);
 	if (wl->regsva == NULL) {
-		WL_ERROR(("wl%d: ioremap() failed\n", unit));
+		WL_ERROR("wl%d: ioremap() failed\n", unit);
 		goto fail;
 	}
 	spin_lock_init(&wl->lock);
@@ -729,13 +731,12 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 
 
 	if (wlc_iovar_setint(wl->wlc, "mpc", 0)) {
-		WL_ERROR(("wl%d: Error setting MPC variable to 0\n",
-			  unit));
+		WL_ERROR("wl%d: Error setting MPC variable to 0\n", unit);
 	}
 
 	/* register our interrupt handler */
 	if (request_irq(irq, wl_isr, IRQF_SHARED, KBUILD_MODNAME, wl)) {
-		WL_ERROR(("wl%d: request_irq() failed\n", unit));
+		WL_ERROR("wl%d: request_irq() failed\n", unit);
 		goto fail;
 	}
 	wl->irq = irq;
@@ -745,7 +746,7 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 			    NULL);
 
 	if (ieee_hw_init(hw)) {
-		WL_ERROR(("wl%d: %s: ieee_hw_init failed!\n", unit, __func__));
+		WL_ERROR("wl%d: %s: ieee_hw_init failed!\n", unit, __func__);
 		goto fail;
 	}
 
@@ -755,8 +756,8 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 
 	err = ieee80211_register_hw(hw);
 	if (err) {
-		WL_ERROR(("%s: ieee80211_register_hw failed, status %d\n",
-			  __func__, err));
+		WL_ERROR("%s: ieee80211_register_hw failed, status %d\n",
+			 __func__, err);
 	}
 
 	if (wl->pub->srom_ccode[0])
@@ -764,11 +765,11 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	else
 		err = wl_set_hint(wl, "US");
 	if (err) {
-		WL_ERROR(("%s: regulatory_hint failed, status %d\n", __func__,
-			  err));
+		WL_ERROR("%s: regulatory_hint failed, status %d\n",
+			 __func__, err);
 	}
-	WL_ERROR(("wl%d: Broadcom BCM43xx 802.11 MAC80211 Driver "
-		  " (" PHY_VERSION_STR ")", unit));
+	WL_ERROR("wl%d: Broadcom BCM43xx 802.11 MAC80211 Driver (" PHY_VERSION_STR ")",
+		 unit);
 
 #ifdef BCMDBG
 	printf(" (Compiled at " __TIME__ " on " __DATE__ ")");
@@ -964,9 +965,9 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 	hw->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
 
 	if (wlc_get(wl->wlc, WLC_GET_PHYLIST, (int *)&phy_list) < 0) {
-		WL_ERROR(("Phy list failed\n"));
+		WL_ERROR("Phy list failed\n");
 	}
-	WL_NONE(("%s: phylist = %c\n", __func__, phy_list[0]));
+	WL_NONE("%s: phylist = %c\n", __func__, phy_list[0]);
 
 	if (phy_list[0] == 'n' || phy_list[0] == 'c') {
 		if (phy_list[0] == 'c') {
@@ -991,7 +992,7 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 		}
 	}
 
-	WL_NONE(("%s: 2ghz = %d, 5ghz = %d\n", __func__, 1, has_5g));
+	WL_NONE("%s: 2ghz = %d, 5ghz = %d\n", __func__, 1, has_5g);
 
 	return 0;
 }
@@ -1039,9 +1040,9 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ASSERT(pdev);
 
-	WL_TRACE(("%s: bus %d slot %d func %d irq %d\n", __func__,
-		  pdev->bus->number, PCI_SLOT(pdev->devfn),
-		  PCI_FUNC(pdev->devfn), pdev->irq));
+	WL_TRACE("%s: bus %d slot %d func %d irq %d\n",
+		 __func__, pdev->bus->number, PCI_SLOT(pdev->devfn),
+		 PCI_FUNC(pdev->devfn), pdev->irq);
 
 	if ((pdev->vendor != PCI_VENDOR_ID_BROADCOM) ||
 	    (((pdev->device & 0xff00) != 0x4300) &&
@@ -1051,9 +1052,9 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		WL_ERROR(("%s: Cannot enable device %d-%d_%d\n", __func__,
-			  pdev->bus->number, PCI_SLOT(pdev->devfn),
-			  PCI_FUNC(pdev->devfn)));
+		WL_ERROR("%s: Cannot enable device %d-%d_%d\n",
+			 __func__, pdev->bus->number, PCI_SLOT(pdev->devfn),
+			 PCI_FUNC(pdev->devfn));
 		return -ENODEV;
 	}
 	pci_set_master(pdev);
@@ -1064,7 +1065,7 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	hw = ieee80211_alloc_hw(sizeof(struct wl_info), &wl_ops);
 	if (!hw) {
-		WL_ERROR(("%s: ieee80211_alloc_hw failed\n", __func__));
+		WL_ERROR("%s: ieee80211_alloc_hw failed\n", __func__);
 		rc = -ENOMEM;
 		goto err_1;
 	}
@@ -1079,13 +1080,13 @@ wl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       PCI_BUS, pdev, pdev->irq);
 
 	if (!wl) {
-		WL_ERROR(("%s: %s: wl_attach failed!\n",
-			KBUILD_MODNAME, __func__));
+		WL_ERROR("%s: %s: wl_attach failed!\n",
+			 KBUILD_MODNAME, __func__);
 		return -ENODEV;
 	}
 	return 0;
  err_1:
-	WL_ERROR(("%s: err_1: Major hoarkage\n", __func__));
+	WL_ERROR("%s: err_1: Major hoarkage\n", __func__);
 	return 0;
 }
 
@@ -1095,12 +1096,12 @@ static int wl_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct wl_info *wl;
 	struct ieee80211_hw *hw;
 
-	WL_TRACE(("wl: wl_suspend\n"));
+	WL_TRACE("wl: wl_suspend\n");
 
 	hw = pci_get_drvdata(pdev);
 	wl = HW_TO_WL(hw);
 	if (!wl) {
-		WL_ERROR(("wl: wl_suspend: pci_get_drvdata failed\n"));
+		WL_ERROR("wl: wl_suspend: pci_get_drvdata failed\n");
 		return -ENODEV;
 	}
 
@@ -1120,11 +1121,11 @@ static int wl_resume(struct pci_dev *pdev)
 	int err = 0;
 	u32 val;
 
-	WL_TRACE(("wl: wl_resume\n"));
+	WL_TRACE("wl: wl_resume\n");
 	hw = pci_get_drvdata(pdev);
 	wl = HW_TO_WL(hw);
 	if (!wl) {
-		WL_ERROR(("wl: wl_resume: pci_get_drvdata failed\n"));
+		WL_ERROR("wl: wl_resume: pci_get_drvdata failed\n");
 		return -ENODEV;
 	}
 
@@ -1160,11 +1161,11 @@ static void wl_remove(struct pci_dev *pdev)
 	hw = pci_get_drvdata(pdev);
 	wl = HW_TO_WL(hw);
 	if (!wl) {
-		WL_ERROR(("wl: wl_remove: pci_get_drvdata failed\n"));
+		WL_ERROR("wl: wl_remove: pci_get_drvdata failed\n");
 		return;
 	}
 	if (!wlc_chipmatch(pdev->vendor, pdev->device)) {
-		WL_ERROR(("wl: wl_remove: wlc_chipmatch failed\n"));
+		WL_ERROR("wl: wl_remove: wlc_chipmatch failed\n");
 		return;
 	}
 	if (wl->wlc) {
@@ -1172,7 +1173,7 @@ static void wl_remove(struct pci_dev *pdev)
 		WL_LOCK(wl);
 		wl_down(wl);
 		WL_UNLOCK(wl);
-		WL_NONE(("%s: Down\n", __func__));
+		WL_NONE("%s: Down\n", __func__);
 	}
 	pci_disable_device(pdev);
 
@@ -1334,12 +1335,12 @@ wl_start_int(struct wl_info *wl, struct ieee80211_hw *hw, struct sk_buff *skb)
 void wl_txflowcontrol(struct wl_info *wl, struct wl_if *wlif, bool state,
 		      int prio)
 {
-	WL_ERROR(("Shouldn't be here %s\n", __func__));
+	WL_ERROR("Shouldn't be here %s\n", __func__);
 }
 
 void wl_init(struct wl_info *wl)
 {
-	WL_TRACE(("wl%d: wl_init\n", wl->pub->unit));
+	WL_TRACE("wl%d: wl_init\n", wl->pub->unit);
 
 	wl_reset(wl);
 
@@ -1348,7 +1349,7 @@ void wl_init(struct wl_info *wl)
 
 uint wl_reset(struct wl_info *wl)
 {
-	WL_TRACE(("wl%d: wl_reset\n", wl->pub->unit));
+	WL_TRACE("wl%d: wl_reset\n", wl->pub->unit);
 
 	wlc_reset(wl->wlc);
 
@@ -1494,12 +1495,12 @@ static void BCMFASTPATH wl_dpc(unsigned long data)
 
 static void wl_link_up(struct wl_info *wl, char *ifname)
 {
-	WL_ERROR(("wl%d: link up (%s)\n", wl->pub->unit, ifname));
+	WL_ERROR("wl%d: link up (%s)\n", wl->pub->unit, ifname);
 }
 
 static void wl_link_down(struct wl_info *wl, char *ifname)
 {
-	WL_ERROR(("wl%d: link down (%s)\n", wl->pub->unit, ifname));
+	WL_ERROR("wl%d: link down (%s)\n", wl->pub->unit, ifname);
 }
 
 void wl_event(struct wl_info *wl, char *ifname, wlc_event_t *e)
@@ -1551,7 +1552,7 @@ wl_timer_t *wl_init_timer(struct wl_info *wl, void (*fn) (void *arg), void *arg,
 
 	t = kmalloc(sizeof(wl_timer_t), GFP_ATOMIC);
 	if (!t) {
-		WL_ERROR(("wl%d: wl_init_timer: out of memory\n", wl->pub->unit));
+		WL_ERROR("wl%d: wl_init_timer: out of memory\n", wl->pub->unit);
 		return 0;
 	}
 
@@ -1582,8 +1583,8 @@ void wl_add_timer(struct wl_info *wl, wl_timer_t *t, uint ms, int periodic)
 {
 #ifdef BCMDBG
 	if (t->set) {
-		WL_ERROR(("%s: Already set. Name: %s, per %d\n",
-			  __func__, t->name, periodic));
+		WL_ERROR("%s: Already set. Name: %s, per %d\n",
+			 __func__, t->name, periodic);
 	}
 #endif
 	ASSERT(!t->set);
@@ -1752,7 +1753,7 @@ static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev)
 			break;
 		sprintf(fw_name, "%s-%d.fw", wl_firmwares[i],
 			UCODE_LOADER_API_VER);
-		WL_NONE(("request fw %s\n", fw_name));
+		WL_NONE("request fw %s\n", fw_name);
 		status = request_firmware(&wl->fw.fw_bin[i], fw_name, device);
 		if (status) {
 			printf("%s: fail to load firmware %s\n",
@@ -1760,7 +1761,7 @@ static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev)
 			wl_release_fw(wl);
 			return status;
 		}
-		WL_NONE(("request fw %s\n", fw_name));
+		WL_NONE("request fw %s\n", fw_name);
 		sprintf(fw_name, "%s_hdr-%d.fw", wl_firmwares[i],
 			UCODE_LOADER_API_VER);
 		status = request_firmware(&wl->fw.fw_hdr[i], fw_name, device);
@@ -1772,8 +1773,8 @@ static int wl_request_fw(struct wl_info *wl, struct pci_dev *pdev)
 		}
 		wl->fw.hdr_num_entries[i] =
 		    wl->fw.fw_hdr[i]->size / (sizeof(struct wl_fw_hdr));
-		WL_NONE(("request fw %s find: %d entries\n", fw_name,
-			 wl->fw.hdr_num_entries[i]));
+		WL_NONE("request fw %s find: %d entries\n",
+			fw_name, wl->fw.hdr_num_entries[i]);
 	}
 	wl->fw.fw_cnt = i;
 	return wl_ucode_data_init(wl);
@@ -1811,16 +1812,16 @@ int wl_check_firmwares(struct wl_info *wl)
 		if (fw == NULL && fw_hdr == NULL) {
 			break;
 		} else if (fw == NULL || fw_hdr == NULL) {
-			WL_ERROR(("%s: invalid bin/hdr fw\n", __func__));
+			WL_ERROR("%s: invalid bin/hdr fw\n", __func__);
 			rc = -EBADF;
 		} else if (fw_hdr->size % sizeof(struct wl_fw_hdr)) {
-			WL_ERROR(("%s: non integral fw hdr file size %d/%d\n",
-				  __func__, fw_hdr->size,
-				  sizeof(struct wl_fw_hdr)));
+			WL_ERROR("%s: non integral fw hdr file size %d/%zu\n",
+				 __func__, fw_hdr->size,
+				 sizeof(struct wl_fw_hdr));
 			rc = -EBADF;
 		} else if (fw->size < MIN_FW_SIZE || fw->size > MAX_FW_SIZE) {
-			WL_ERROR(("%s: out of bounds fw file size %d\n",
-				  __func__, fw->size));
+			WL_ERROR("%s: out of bounds fw file size %d\n",
+				 __func__, fw->size);
 			rc = -EBADF;
 		} else {
 			/* check if ucode section overruns firmware image */
@@ -1829,15 +1830,15 @@ int wl_check_firmwares(struct wl_info *wl)
 			     entry++, ucode_hdr++) {
 				if (ucode_hdr->offset + ucode_hdr->len >
 				    fw->size) {
-					WL_ERROR(("%s: conflicting bin/hdr\n",
-						  __func__));
+					WL_ERROR("%s: conflicting bin/hdr\n",
+						 __func__);
 					rc = -EBADF;
 				}
 			}
 		}
 	}
 	if (rc == 0 && wl->fw.fw_cnt != i) {
-		WL_ERROR(("%s: invalid fw_cnt=%d\n", __func__, wl->fw.fw_cnt));
+		WL_ERROR("%s: invalid fw_cnt=%d\n", __func__, wl->fw.fw_cnt);
 		rc = -EBADF;
 	}
 	return rc;

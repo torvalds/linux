@@ -306,7 +306,7 @@ void wlc_get_rcmta(struct wlc_info *wlc, int idx, struct ether_addr *addr)
 	u32 v32;
 	struct osl_info *osh;
 
-	WL_TRACE(("wl%d: %s\n", WLCWLUNIT(wlc), __func__));
+	WL_TRACE("wl%d: %s\n", WLCWLUNIT(wlc), __func__);
 
 	ASSERT(wlc->pub->corerev > 4);
 
@@ -364,7 +364,7 @@ bool wlc_ps_allowed(struct wlc_info *wlc)
 
 void wlc_reset(struct wlc_info *wlc)
 {
-	WL_TRACE(("wl%d: wlc_reset\n", wlc->pub->unit));
+	WL_TRACE("wl%d: wlc_reset\n", wlc->pub->unit);
 
 	wlc->check_for_unaligned_tbtt = false;
 
@@ -385,7 +385,7 @@ void wlc_reset(struct wlc_info *wlc)
 
 void wlc_fatal_error(struct wlc_info *wlc)
 {
-	WL_ERROR(("wl%d: fatal error, reinitializing\n", wlc->pub->unit));
+	WL_ERROR("wl%d: fatal error, reinitializing\n", wlc->pub->unit);
 	wl_init(wlc->wl);
 }
 
@@ -426,7 +426,7 @@ void wlc_init(struct wlc_info *wlc)
 	wlc_bsscfg_t *bsscfg;
 	bool mute = false;
 
-	WL_TRACE(("wl%d: wlc_init\n", wlc->pub->unit));
+	WL_TRACE("wl%d: wlc_init\n", wlc->pub->unit);
 
 	regs = wlc->regs;
 
@@ -605,8 +605,8 @@ bool wlc_ps_check(struct wlc_info *wlc)
 		 * to avoid assert
 		 */
 		if (tmp == 0xffffffff) {
-			WL_ERROR(("wl%d: %s: dead chip\n", wlc->pub->unit,
-				  __func__));
+			WL_ERROR("wl%d: %s: dead chip\n",
+				 wlc->pub->unit, __func__);
 			return DEVICEREMOVED(wlc);
 		}
 
@@ -615,7 +615,8 @@ bool wlc_ps_check(struct wlc_info *wlc)
 		if (hps != ((tmp & MCTL_HPS) != 0)) {
 			int idx;
 			wlc_bsscfg_t *cfg;
-			WL_ERROR(("wl%d: hps not sync, sw %d, maccontrol 0x%x\n", wlc->pub->unit, hps, tmp));
+			WL_ERROR("wl%d: hps not sync, sw %d, maccontrol 0x%x\n",
+				 wlc->pub->unit, hps, tmp);
 			FOREACH_BSS(wlc, idx, cfg) {
 				if (!BSSCFG_STA(cfg))
 					continue;
@@ -629,7 +630,8 @@ bool wlc_ps_check(struct wlc_info *wlc)
 		wake = STAY_AWAKE(wlc) || wlc->hw->wake_override;
 		wake_ok = (wake == ((tmp & MCTL_WAKE) != 0));
 		if (hps && !wake_ok) {
-			WL_ERROR(("wl%d: wake not sync, sw %d maccontrol 0x%x\n", wlc->pub->unit, wake, tmp));
+			WL_ERROR("wl%d: wake not sync, sw %d maccontrol 0x%x\n",
+				 wlc->pub->unit, wake, tmp);
 			res = false;
 		}
 	}
@@ -647,8 +649,8 @@ void wlc_set_ps_ctrl(struct wlc_info *wlc)
 	hps = PS_ALLOWED(wlc);
 	wake = hps ? (STAY_AWAKE(wlc)) : true;
 
-	WL_TRACE(("wl%d: wlc_set_ps_ctrl: hps %d wake %d\n", wlc->pub->unit,
-		  hps, wake));
+	WL_TRACE("wl%d: wlc_set_ps_ctrl: hps %d wake %d\n",
+		 wlc->pub->unit, hps, wake);
 
 	v1 = R_REG(wlc->osh, &wlc->regs->maccontrol);
 	v2 = 0;
@@ -806,8 +808,8 @@ void wlc_set_chanspec(struct wlc_info *wlc, chanspec_t chanspec)
 	chanspec_t old_chanspec = wlc->chanspec;
 
 	if (!wlc_valid_chanspec_db(wlc->cmi, chanspec)) {
-		WL_ERROR(("wl%d: %s: Bad channel %d\n",
-			  wlc->pub->unit, __func__, CHSPEC_CHANNEL(chanspec)));
+		WL_ERROR("wl%d: %s: Bad channel %d\n",
+			 wlc->pub->unit, __func__, CHSPEC_CHANNEL(chanspec));
 		ASSERT(wlc_valid_chanspec_db(wlc->cmi, chanspec));
 		return;
 	}
@@ -818,7 +820,9 @@ void wlc_set_chanspec(struct wlc_info *wlc, chanspec_t chanspec)
 		if (wlc->band->bandunit != bandunit || wlc->bandinit_pending) {
 			switchband = true;
 			if (wlc->bandlocked) {
-				WL_ERROR(("wl%d: %s: chspec %d band is locked!\n", wlc->pub->unit, __func__, CHSPEC_CHANNEL(chanspec)));
+				WL_ERROR("wl%d: %s: chspec %d band is locked!\n",
+					 wlc->pub->unit, __func__,
+					 CHSPEC_CHANNEL(chanspec));
 				return;
 			}
 			/* BMAC_NOTE: should the setband call come after the wlc_bmac_chanspec() ?
@@ -1120,7 +1124,7 @@ void wlc_beacon_phytxctl_txant_upd(struct wlc_info *wlc, ratespec_t bcn_rspec)
 */
 void wlc_protection_upd(struct wlc_info *wlc, uint idx, int val)
 {
-	WL_TRACE(("wlc_protection_upd: idx %d, val %d\n", idx, val));
+	WL_TRACE("wlc_protection_upd: idx %d, val %d\n", idx, val);
 
 	switch (idx) {
 	case WLC_PROT_G_SPEC:
@@ -1228,7 +1232,7 @@ static void wlc_bandinit_ordered(struct wlc_info *wlc, chanspec_t chanspec)
 	uint parkband;
 	uint i, band_order[2];
 
-	WL_TRACE(("wl%d: wlc_bandinit_ordered\n", wlc->pub->unit));
+	WL_TRACE("wl%d: wlc_bandinit_ordered\n", wlc->pub->unit);
 	/*
 	 * We might have been bandlocked during down and the chip power-cycled (hibernate).
 	 * figure out the right band to park on
@@ -1271,8 +1275,8 @@ static void wlc_bandinit_ordered(struct wlc_info *wlc, chanspec_t chanspec)
 /* band-specific init */
 static void WLBANDINITFN(wlc_bsinit) (struct wlc_info *wlc)
 {
-	WL_TRACE(("wl%d: wlc_bsinit: bandunit %d\n", wlc->pub->unit,
-		  wlc->band->bandunit));
+	WL_TRACE("wl%d: wlc_bsinit: bandunit %d\n",
+		 wlc->pub->unit, wlc->band->bandunit);
 
 	/* write ucode ACK/CTS rate table */
 	wlc_set_ratetable(wlc);
@@ -1348,7 +1352,7 @@ void wlc_wme_setparams(struct wlc_info *wlc, u16 aci, void *arg, bool suspend)
 
 	/* Only apply params if the core is out of reset and has clocks */
 	if (!wlc->clk) {
-		WL_ERROR(("wl%d: %s : no-clock\n", wlc->pub->unit, __func__));
+		WL_ERROR("wl%d: %s : no-clock\n", wlc->pub->unit, __func__);
 		return;
 	}
 
@@ -1380,8 +1384,8 @@ void wlc_wme_setparams(struct wlc_info *wlc, u16 aci, void *arg, bool suspend)
 
 		if (acp_shm.aifs < EDCF_AIFSN_MIN
 		    || acp_shm.aifs > EDCF_AIFSN_MAX) {
-			WL_ERROR(("wl%d: wlc_edcf_setparams: bad aifs %d\n",
-				  wlc->pub->unit, acp_shm.aifs));
+			WL_ERROR("wl%d: wlc_edcf_setparams: bad aifs %d\n",
+				 wlc->pub->unit, acp_shm.aifs);
 			continue;
 		}
 
@@ -1464,8 +1468,8 @@ void wlc_edcf_setparams(wlc_bsscfg_t *cfg, bool suspend)
 
 		if (acp_shm.aifs < EDCF_AIFSN_MIN
 		    || acp_shm.aifs > EDCF_AIFSN_MAX) {
-			WL_ERROR(("wl%d: wlc_edcf_setparams: bad aifs %d\n",
-				  wlc->pub->unit, acp_shm.aifs));
+			WL_ERROR("wl%d: wlc_edcf_setparams: bad aifs %d\n",
+				 wlc->pub->unit, acp_shm.aifs);
 			continue;
 		}
 
@@ -1512,15 +1516,14 @@ bool wlc_timers_init(struct wlc_info *wlc, int unit)
 	wlc->wdtimer = wl_init_timer(wlc->wl, wlc_watchdog_by_timer,
 		wlc, "watchdog");
 	if (!wlc->wdtimer) {
-		WL_ERROR(("wl%d:  wl_init_timer for wdtimer failed\n", unit));
+		WL_ERROR("wl%d:  wl_init_timer for wdtimer failed\n", unit);
 		goto fail;
 	}
 
 	wlc->radio_timer = wl_init_timer(wlc->wl, wlc_radio_timer,
 		wlc, "radio");
 	if (!wlc->radio_timer) {
-		WL_ERROR(("wl%d:  wl_init_timer for radio_timer failed\n",
-			  unit));
+		WL_ERROR("wl%d:  wl_init_timer for radio_timer failed\n", unit);
 		goto fail;
 	}
 
@@ -1667,15 +1670,14 @@ static uint wlc_attach_module(struct wlc_info *wlc)
 
 	wlc->asi = wlc_antsel_attach(wlc, wlc->osh, wlc->pub, wlc->hw);
 	if (wlc->asi == NULL) {
-		WL_ERROR(("wl%d: wlc_attach: wlc_antsel_attach failed\n",
-			  unit));
+		WL_ERROR("wl%d: wlc_attach: wlc_antsel_attach failed\n", unit);
 		err = 44;
 		goto fail;
 	}
 
 	wlc->ampdu = wlc_ampdu_attach(wlc);
 	if (wlc->ampdu == NULL) {
-		WL_ERROR(("wl%d: wlc_attach: wlc_ampdu_attach failed\n", unit));
+		WL_ERROR("wl%d: wlc_attach: wlc_ampdu_attach failed\n", unit);
 		err = 50;
 		goto fail;
 	}
@@ -1684,13 +1686,13 @@ static uint wlc_attach_module(struct wlc_info *wlc)
 	wlc->eventq =
 	    wlc_eventq_attach(wlc->pub, wlc, wlc->wl, wlc_process_eventq);
 	if (wlc->eventq == NULL) {
-		WL_ERROR(("wl%d: wlc_attach: wlc_eventq_attachfailed\n", unit));
+		WL_ERROR("wl%d: wlc_attach: wlc_eventq_attachfailed\n", unit);
 		err = 57;
 		goto fail;
 	}
 
 	if ((wlc_stf_attach(wlc) != 0)) {
-		WL_ERROR(("wl%d: wlc_attach: wlc_stf_attach failed\n", unit));
+		WL_ERROR("wl%d: wlc_attach: wlc_stf_attach failed\n", unit);
 		err = 68;
 		goto fail;
 	}
@@ -1719,8 +1721,8 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	wlc_txq_info_t *qi;
 	uint n_disabled;
 
-	WL_NONE(("wl%d: %s: vendor 0x%x device 0x%x\n", unit, __func__, vendor,
-		 device));
+	WL_NONE("wl%d: %s: vendor 0x%x device 0x%x\n",
+		unit, __func__, vendor, device);
 
 	ASSERT(WSEC_MAX_RCMTA_KEYS <= WSEC_MAX_KEYS);
 	ASSERT(WSEC_MAX_DEFAULT_KEYS == WLC_DEFAULT_KEYS);
@@ -1897,7 +1899,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 		goto fail;
 
 	if (!wlc_timers_init(wlc, unit)) {
-		WL_ERROR(("wl%d: %s: wlc_init_timer failed\n", unit, __func__));
+		WL_ERROR("wl%d: %s: wlc_init_timer failed\n", unit, __func__);
 		err = 32;
 		goto fail;
 	}
@@ -1905,8 +1907,8 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	/* depend on rateset, gmode */
 	wlc->cmi = wlc_channel_mgr_attach(wlc);
 	if (!wlc->cmi) {
-		WL_ERROR(("wl%d: %s: wlc_channel_mgr_attach failed\n", unit,
-			  __func__));
+		WL_ERROR("wl%d: %s: wlc_channel_mgr_attach failed\n",
+			 unit, __func__);
 		err = 33;
 		goto fail;
 	}
@@ -1921,8 +1923,8 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	/* allocate our initial queue */
 	qi = wlc_txq_alloc(wlc, osh);
 	if (qi == NULL) {
-		WL_ERROR(("wl%d: %s: failed to malloc tx queue\n", unit,
-			  __func__));
+		WL_ERROR("wl%d: %s: failed to malloc tx queue\n",
+			 unit, __func__);
 		err = 100;
 		goto fail;
 	}
@@ -2008,7 +2010,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	return (void *)wlc;
 
  fail:
-	WL_ERROR(("wl%d: %s: failed with err %d\n", unit, __func__, err));
+	WL_ERROR("wl%d: %s: failed with err %d\n", unit, __func__, err);
 	if (wlc)
 		wlc_detach(wlc);
 
@@ -2026,7 +2028,8 @@ static void wlc_attach_antgain_init(struct wlc_info *wlc)
 		/* default antenna gain for srom rev 1 is 2 dBm (8 qdbm) */
 		wlc->band->antgain = 8;
 	} else if (wlc->band->antgain == -1) {
-		WL_ERROR(("wl%d: %s: Invalid antennas available in srom, using 2dB\n", unit, __func__));
+		WL_ERROR("wl%d: %s: Invalid antennas available in srom, using 2dB\n",
+			 unit, __func__);
 		wlc->band->antgain = 8;
 	} else {
 		s8 gain, fract;
@@ -2065,7 +2068,8 @@ static bool wlc_attach_stf_ant_init(struct wlc_info *wlc)
 		aa = (s8) getintvar(vars,
 				      (BAND_5G(bandtype) ? "aa1" : "aa0"));
 	if ((aa < 1) || (aa > 15)) {
-		WL_ERROR(("wl%d: %s: Invalid antennas available in srom (0x%x), using 3.\n", unit, __func__, aa));
+		WL_ERROR("wl%d: %s: Invalid antennas available in srom (0x%x), using 3\n",
+			 unit, __func__, aa);
 		aa = 3;
 	}
 
@@ -2132,7 +2136,7 @@ uint wlc_detach(struct wlc_info *wlc)
 	if (wlc == NULL)
 		return 0;
 
-	WL_TRACE(("wl%d: %s\n", wlc->pub->unit, __func__));
+	WL_TRACE("wl%d: %s\n", wlc->pub->unit, __func__);
 
 	ASSERT(!wlc->pub->up);
 
@@ -2340,7 +2344,7 @@ static void wlc_radio_timer(void *arg)
 	struct wlc_info *wlc = (struct wlc_info *) arg;
 
 	if (DEVICEREMOVED(wlc)) {
-		WL_ERROR(("wl%d: %s: dead chip\n", wlc->pub->unit, __func__));
+		WL_ERROR("wl%d: %s: dead chip\n", wlc->pub->unit, __func__);
 		wl_down(wlc->wl);
 		return;
 	}
@@ -2441,13 +2445,13 @@ static void wlc_watchdog(void *arg)
 	int i;
 	wlc_bsscfg_t *cfg;
 
-	WL_TRACE(("wl%d: wlc_watchdog\n", wlc->pub->unit));
+	WL_TRACE("wl%d: wlc_watchdog\n", wlc->pub->unit);
 
 	if (!wlc->pub->up)
 		return;
 
 	if (DEVICEREMOVED(wlc)) {
-		WL_ERROR(("wl%d: %s: dead chip\n", wlc->pub->unit, __func__));
+		WL_ERROR("wl%d: %s: dead chip\n", wlc->pub->unit, __func__);
 		wl_down(wlc->wl);
 		return;
 	}
@@ -2519,7 +2523,7 @@ static void wlc_watchdog(void *arg)
 /* make interface operational */
 int wlc_up(struct wlc_info *wlc)
 {
-	WL_TRACE(("wl%d: %s:\n", wlc->pub->unit, __func__));
+	WL_TRACE("wl%d: %s:\n", wlc->pub->unit, __func__);
 
 	/* HW is turned off so don't try to access it */
 	if (wlc->pub->hw_off || DEVICEREMOVED(wlc))
@@ -2564,7 +2568,8 @@ int wlc_up(struct wlc_info *wlc)
 					if (!BSSCFG_STA(bsscfg)
 					    || !bsscfg->enable || !bsscfg->BSS)
 						continue;
-					WL_ERROR(("wl%d.%d: wlc_up: rfdisable -> " "wlc_bsscfg_disable()\n", wlc->pub->unit, idx));
+					WL_ERROR("wl%d.%d: wlc_up: rfdisable -> " "wlc_bsscfg_disable()\n",
+						 wlc->pub->unit, idx);
 				}
 			}
 		} else
@@ -2664,12 +2669,12 @@ uint wlc_down(struct wlc_info *wlc)
 	bool dev_gone = false;
 	wlc_txq_info_t *qi;
 
-	WL_TRACE(("wl%d: %s:\n", wlc->pub->unit, __func__));
+	WL_TRACE("wl%d: %s:\n", wlc->pub->unit, __func__);
 
 	/* check if we are already in the going down path */
 	if (wlc->going_down) {
-		WL_ERROR(("wl%d: %s: Driver going down so return\n",
-			  wlc->pub->unit, __func__));
+		WL_ERROR("wl%d: %s: Driver going down so return\n",
+			 wlc->pub->unit, __func__);
 		return 0;
 	}
 	if (!wlc->pub->up)
@@ -2728,8 +2733,8 @@ uint wlc_down(struct wlc_info *wlc)
 
 	/* Verify all packets are flushed from the driver */
 	if (wlc->osh->pktalloced != 0) {
-		WL_ERROR(("%d packets not freed at wlc_down!!!!!!\n",
-			  wlc->osh->pktalloced));
+		WL_ERROR("%d packets not freed at wlc_down!!!!!!\n",
+			 wlc->osh->pktalloced);
 	}
 #ifdef BCMDBG
 	/* Since all the packets should have been freed,
@@ -2826,8 +2831,8 @@ int wlc_set_gmode(struct wlc_info *wlc, u8 gmode, bool config)
 
 	default:
 		/* Error */
-		WL_ERROR(("wl%d: %s: invalid gmode %d\n", wlc->pub->unit,
-			  __func__, gmode));
+		WL_ERROR("wl%d: %s: invalid gmode %d\n",
+			 wlc->pub->unit, __func__, gmode);
 		return BCME_UNSUPPORTED;
 	}
 
@@ -3082,7 +3087,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 	/* If the device is turned off, then it's not "removed" */
 	if (!wlc->pub->hw_off && DEVICEREMOVED(wlc)) {
-		WL_ERROR(("wl%d: %s: dead chip\n", wlc->pub->unit, __func__));
+		WL_ERROR("wl%d: %s: dead chip\n", wlc->pub->unit, __func__);
 		wl_down(wlc->wl);
 		return BCME_ERROR;
 	}
@@ -3102,8 +3107,8 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 	bool_val = val != 0;
 
 	if (cmd != WLC_SET_CHANNEL)
-		WL_NONE(("WLC_IOCTL: cmd %d val 0x%x (%d) len %d\n", cmd,
-			 (uint) val, val, len));
+		WL_NONE("WLC_IOCTL: cmd %d val 0x%x (%d) len %d\n",
+			cmd, (uint)val, val, len);
 
 	bcmerror = 0;
 	regs = wlc->regs;
@@ -3123,8 +3128,8 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 
 	default:
 		if ((arg == NULL) || (len <= 0)) {
-			WL_ERROR(("wl%d: %s: Command %d needs arguments\n",
-				  wlc->pub->unit, __func__, cmd));
+			WL_ERROR("wl%d: %s: Command %d needs arguments\n",
+				 wlc->pub->unit, __func__, cmd);
 			bcmerror = BCME_BADARG;
 			goto done;
 		}
@@ -3457,8 +3462,8 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			/* 4322 supports antdiv in phy, no need to set it to ucode */
 			if (WLCISNPHY(wlc->band)
 			    && D11REV_IS(wlc->pub->corerev, 16)) {
-				WL_ERROR(("wl%d: can't set ucantdiv for 4322\n",
-					  wlc->pub->unit));
+				WL_ERROR("wl%d: can't set ucantdiv for 4322\n",
+					 wlc->pub->unit);
 				bcmerror = BCME_UNSUPPORTED;
 			} else
 				wlc_mhf(wlc, MHF1, MHF1_ANTDIV,
@@ -3555,8 +3560,8 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 			if ((radiomask == 0) || (radiomask & ~validbits)
 			    || (radioval & ~validbits)
 			    || ((radioval & ~radiomask) != 0)) {
-				WL_ERROR(("SET_RADIO with wrong bits 0x%x\n",
-					  val));
+				WL_ERROR("SET_RADIO with wrong bits 0x%x\n",
+					 val);
 				bcmerror = BCME_RANGE;
 				break;
 			}
@@ -4192,7 +4197,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 #endif
 
 	case WLC_LAST:
-		WL_ERROR(("%s: WLC_LAST\n", __func__));
+		WL_ERROR("%s: WLC_LAST\n", __func__);
 	}
  done:
 
@@ -4402,8 +4407,8 @@ wlc_iovar_op(struct wlc_info *wlc, const char *name,
 
 	if (!set && (len == sizeof(int)) &&
 	    !(IS_ALIGNED((unsigned long)(arg), (uint) sizeof(int)))) {
-		WL_ERROR(("wl%d: %s unaligned get ptr for %s\n",
-			  wlc->pub->unit, __func__, name));
+		WL_ERROR("wl%d: %s unaligned get ptr for %s\n",
+			 wlc->pub->unit, __func__, name);
 		ASSERT(0);
 	}
 
@@ -4530,7 +4535,7 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 	bool bool_val2;
 	wlc_bss_info_t *current_bss;
 
-	WL_TRACE(("wl%d: %s\n", wlc->pub->unit, __func__));
+	WL_TRACE("wl%d: %s\n", wlc->pub->unit, __func__);
 
 	bsscfg = NULL;
 	current_bss = NULL;
@@ -4553,8 +4558,8 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 	bool_val = (int_val != 0) ? true : false;
 	bool_val2 = (int_val2 != 0) ? true : false;
 
-	WL_TRACE(("wl%d: %s: id %d\n", wlc->pub->unit, __func__,
-		  IOV_ID(actionid)));
+	WL_TRACE("wl%d: %s: id %d\n",
+		 wlc->pub->unit, __func__, IOV_ID(actionid));
 	/* Do the actual parameter implementation */
 	switch (actionid) {
 
@@ -4612,7 +4617,7 @@ wlc_doiovar(void *hdl, const bcm_iovar_t *vi, u32 actionid,
 		break;
 
 	default:
-		WL_ERROR(("wl%d: %s: unsupported\n", wlc->pub->unit, __func__));
+		WL_ERROR("wl%d: %s: unsupported\n", wlc->pub->unit, __func__);
 		err = BCME_UNSUPPORTED;
 		break;
 	}
@@ -4747,8 +4752,8 @@ void wlc_statsupd(struct wlc_info *wlc)
 	/* check for rx fifo 0 overflow */
 	delta = (u16) (wlc->core->macstat_snapshot->rxf0ovfl - rxf0ovfl);
 	if (delta)
-		WL_ERROR(("wl%d: %u rx fifo 0 overflows!\n", wlc->pub->unit,
-			  delta));
+		WL_ERROR("wl%d: %u rx fifo 0 overflows!\n",
+			 wlc->pub->unit, delta);
 
 	/* check for tx fifo underflows */
 	for (i = 0; i < NFIFO; i++) {
@@ -4756,8 +4761,8 @@ void wlc_statsupd(struct wlc_info *wlc)
 		    (u16) (wlc->core->macstat_snapshot->txfunfl[i] -
 			      txfunfl[i]);
 		if (delta)
-			WL_ERROR(("wl%d: %u tx fifo %d underflows!\n",
-				  wlc->pub->unit, delta, i));
+			WL_ERROR("wl%d: %u tx fifo %d underflows!\n",
+				 wlc->pub->unit, delta, i);
 	}
 #endif				/* BCMDBG */
 
@@ -4806,7 +4811,7 @@ void wlc_statsupd(struct wlc_info *wlc)
 bool wlc_chipmatch(u16 vendor, u16 device)
 {
 	if (vendor != VENDOR_BROADCOM) {
-		WL_ERROR(("wlc_chipmatch: unknown vendor id %04x\n", vendor));
+		WL_ERROR("wlc_chipmatch: unknown vendor id %04x\n", vendor);
 		return false;
 	}
 
@@ -4818,7 +4823,7 @@ bool wlc_chipmatch(u16 vendor, u16 device)
 	if ((device == BCM43236_D11N_ID) || (device == BCM43236_D11N2G_ID))
 		return true;
 
-	WL_ERROR(("wlc_chipmatch: unknown device id %04x\n", device));
+	WL_ERROR("wlc_chipmatch: unknown device id %04x\n", device);
 	return false;
 }
 
@@ -5009,8 +5014,8 @@ wlc_prec_enq_head(struct wlc_info *wlc, struct pktq *q, struct sk_buff *pkt,
 		p = pktq_peek_tail(q, &eprec);
 		ASSERT(p != NULL);
 		if (eprec > prec) {
-			WL_ERROR(("%s: Failing: eprec %d > prec %d\n", __func__,
-				  eprec, prec));
+			WL_ERROR("%s: Failing: eprec %d > prec %d\n",
+				 __func__, eprec, prec);
 			return false;
 		}
 	}
@@ -5026,8 +5031,8 @@ wlc_prec_enq_head(struct wlc_info *wlc, struct pktq *q, struct sk_buff *pkt,
 
 		/* Refuse newer packet unless configured to discard oldest */
 		if (eprec == prec && !discard_oldest) {
-			WL_ERROR(("%s: No where to go, prec == %d\n", __func__,
-				  prec));
+			WL_ERROR("%s: No where to go, prec == %d\n",
+				 __func__, prec);
 			return false;
 		}
 
@@ -5075,8 +5080,8 @@ void BCMFASTPATH wlc_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 	if (!wlc_prec_enq(wlc, q, sdu, prec)) {
 		if (!EDCF_ENAB(wlc->pub)
 		    || (wlc->pub->wlfeatureflag & WL_SWFL_FLOWCONTROL))
-			WL_ERROR(("wl%d: wlc_txq_enq: txq overflow\n",
-				  wlc->pub->unit));
+			WL_ERROR("wl%d: wlc_txq_enq: txq overflow\n",
+				 wlc->pub->unit);
 
 		/* ASSERT(9 == 8); *//* XXX we might hit this condtion in case packet flooding from mac80211 stack */
 		pkt_buf_free_skb(wlc->osh, sdu, true);
@@ -5252,8 +5257,8 @@ wlc_txfifo(struct wlc_info *wlc, uint fifo, struct sk_buff *p, bool commit,
 	 */
 	if (commit) {
 		TXPKTPENDINC(wlc, fifo, txpktpend);
-		WL_TRACE(("wlc_txfifo, pktpend inc %d to %d\n", txpktpend,
-			  TXPKTPENDGET(wlc, fifo)));
+		WL_TRACE("wlc_txfifo, pktpend inc %d to %d\n",
+			 txpktpend, TXPKTPENDGET(wlc, fifo));
 	}
 
 	/* Commit BCMC sequence number in the SHM frame ID location */
@@ -5261,7 +5266,7 @@ wlc_txfifo(struct wlc_info *wlc, uint fifo, struct sk_buff *p, bool commit,
 		BCMCFID(wlc, frameid);
 
 	if (dma_txfast(wlc->hw->di[fifo], p, commit) < 0) {
-		WL_ERROR(("wlc_txfifo: fatal, toss frames !!!\n"));
+		WL_ERROR("wlc_txfifo: fatal, toss frames !!!\n");
 	}
 }
 
@@ -5301,7 +5306,8 @@ wlc_compute_airtime(struct wlc_info *wlc, ratespec_t rspec, uint length)
 			usec = (length << 3) / 11;
 			break;
 		default:
-			WL_ERROR(("wl%d: wlc_compute_airtime: unsupported rspec 0x%x\n", wlc->pub->unit, rspec));
+			WL_ERROR("wl%d: wlc_compute_airtime: unsupported rspec 0x%x\n",
+				 wlc->pub->unit, rspec);
 			ASSERT((const char *)"Bad phy_rate" == NULL);
 			break;
 		}
@@ -5397,7 +5403,7 @@ static void wlc_cck_plcp_set(int rate_500, uint length, u8 *plcp)
 		break;
 
 	default:
-		WL_ERROR(("wlc_cck_plcp_set: unsupported rate %d\n", rate_500));
+		WL_ERROR("wlc_cck_plcp_set: unsupported rate %d\n", rate_500);
 		rate_500 = WLC_RATE_1M;
 		usec = length << 3;
 		break;
@@ -5537,7 +5543,8 @@ u16 BCMFASTPATH wlc_phytxctl1_calc(struct wlc_info *wlc, ratespec_t rspec)
 		bw = RSPEC_GET_BW(rspec);
 		/* 10Mhz is not supported yet */
 		if (bw < PHY_TXC1_BW_20MHZ) {
-			WL_ERROR(("wlc_phytxctl1_calc: bw %d is not supported yet, set to 20L\n", bw));
+			WL_ERROR("wlc_phytxctl1_calc: bw %d is not supported yet, set to 20L\n",
+				 bw);
 			bw = PHY_TXC1_BW_20MHZ;
 		}
 
@@ -5562,7 +5569,7 @@ u16 BCMFASTPATH wlc_phytxctl1_calc(struct wlc_info *wlc, ratespec_t rspec)
 		/* get the phyctl byte from rate phycfg table */
 		phycfg = wlc_rate_legacy_phyctl(RSPEC2RATE(rspec));
 		if (phycfg == -1) {
-			WL_ERROR(("wlc_phytxctl1_calc: wrong legacy OFDM/CCK rate\n"));
+			WL_ERROR("wlc_phytxctl1_calc: wrong legacy OFDM/CCK rate\n");
 			ASSERT(0);
 			phycfg = 0;
 		}
@@ -5722,8 +5729,8 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 		/* non-AP STA should never use BCMC queue */
 		ASSERT(queue != TX_BCMC_FIFO);
 		if (queue == TX_BCMC_FIFO) {
-			WL_ERROR(("wl%d: %s: ASSERT queue == TX_BCMC!\n",
-				  WLCWLUNIT(wlc), __func__));
+			WL_ERROR("wl%d: %s: ASSERT queue == TX_BCMC!\n",
+				 WLCWLUNIT(wlc), __func__);
 			frameid = bcmc_fid_generate(wlc, NULL, txh);
 		} else {
 			/* Increment the counter for first fragment */
@@ -5901,7 +5908,8 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 			if ((txrate[k]->flags & IEEE80211_TX_RC_MCS)
 			    && (!IS_MCS(rspec[k]))) {
-				WL_ERROR(("wl%d: %s: IEEE80211_TX_RC_MCS != IS_MCS(rspec)\n", WLCWLUNIT(wlc), __func__));
+				WL_ERROR("wl%d: %s: IEEE80211_TX_RC_MCS != IS_MCS(rspec)\n",
+					 WLCWLUNIT(wlc), __func__);
 				ASSERT(0 && "Rate mismatch");
 			}
 
@@ -6295,12 +6303,16 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 					}
 				}
 			} else
-				WL_ERROR(("wl%d: %s txop invalid for rate %d\n",
-					  wlc->pub->unit, fifo_names[queue],
-					  RSPEC2RATE(rspec[0])));
+				WL_ERROR("wl%d: %s txop invalid for rate %d\n",
+					 wlc->pub->unit, fifo_names[queue],
+					 RSPEC2RATE(rspec[0]));
 
 			if (dur > wlc->edcf_txop[ac])
-				WL_ERROR(("wl%d: %s: %s txop exceeded phylen %d/%d dur %d/%d\n", wlc->pub->unit, __func__, fifo_names[queue], phylen, wlc->fragthresh[queue], dur, wlc->edcf_txop[ac]));
+				WL_ERROR("wl%d: %s: %s txop exceeded phylen %d/%d dur %d/%d\n",
+					 wlc->pub->unit, __func__,
+					 fifo_names[queue],
+					 phylen, wlc->fragthresh[queue],
+					 dur, wlc->edcf_txop[ac]);
 		}
 	}
 
@@ -6406,8 +6418,8 @@ void wlc_high_dpc(struct wlc_info *wlc, u32 macintstatus)
 	if (macintstatus & ~(MI_TBTT | MI_TXSTOP)) {
 		bcm_format_flags(int_flags, macintstatus, flagstr,
 				 sizeof(flagstr));
-		WL_TRACE(("wl%d: macintstatus 0x%x %s\n", wlc->pub->unit,
-			  macintstatus, flagstr));
+		WL_TRACE("wl%d: macintstatus 0x%x %s\n",
+			 wlc->pub->unit, macintstatus, flagstr);
 	}
 #endif				/* BCMDBG */
 
@@ -6422,7 +6434,8 @@ void wlc_high_dpc(struct wlc_info *wlc, u32 macintstatus)
 		wlc_tbtt(wlc, regs);
 
 	if (macintstatus & MI_GP0) {
-		WL_ERROR(("wl%d: PSM microcode watchdog fired at %d (seconds). Resetting.\n", wlc->pub->unit, wlc->pub->now));
+		WL_ERROR("wl%d: PSM microcode watchdog fired at %d (seconds). Resetting.\n",
+			 wlc->pub->unit, wlc->pub->now);
 
 		printk_once("%s : PSM Watchdog, chipid 0x%x, chiprev 0x%x\n",
 					__func__, wlc->pub->sih->chip,
@@ -6440,7 +6453,9 @@ void wlc_high_dpc(struct wlc_info *wlc, u32 macintstatus)
 	}
 
 	if (macintstatus & MI_RFDISABLE) {
-		WL_ERROR(("wl%d: MAC Detected a change on the RF Disable Input 0x%x\n", wlc->pub->unit, R_REG(wlc->osh, &regs->phydebug) & PDBG_RFD));
+		WL_ERROR("wl%d: MAC Detected a change on the RF Disable Input 0x%x\n",
+			 wlc->pub->unit,
+			 R_REG(wlc->osh, &regs->phydebug) & PDBG_RFD);
 		/* delay the cleanup to wl_down in IBSS case */
 		if ((R_REG(wlc->osh, &regs->phydebug) & PDBG_RFD)) {
 			int idx;
@@ -6449,7 +6464,8 @@ void wlc_high_dpc(struct wlc_info *wlc, u32 macintstatus)
 				if (!BSSCFG_STA(bsscfg) || !bsscfg->enable
 				    || !bsscfg->BSS)
 					continue;
-				WL_ERROR(("wl%d: wlc_dpc: rfdisable -> wlc_bsscfg_disable()\n", wlc->pub->unit));
+				WL_ERROR("wl%d: wlc_dpc: rfdisable -> wlc_bsscfg_disable()\n",
+					 wlc->pub->unit);
 			}
 		}
 	}
@@ -6485,7 +6501,8 @@ static void *wlc_15420war(struct wlc_info *wlc, uint queue)
 	if (dma_txactive(wlc->hw->di[queue]) == 0) {
 		WLCNTINCR(wlc->pub->_cnt->txdmawar);
 		if (!dma_txreset(di))
-			WL_ERROR(("wl%d: %s: dma_txreset[%d]: cannot stop dma\n", wlc->pub->unit, __func__, queue));
+			WL_ERROR("wl%d: %s: dma_txreset[%d]: cannot stop dma\n",
+				 wlc->pub->unit, __func__, queue);
 		dma_txinit(di);
 	}
 	return p;
@@ -6538,7 +6555,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 			 ((txs->
 			   status & TX_STATUS_FRM_RTX_MASK) >>
 			  TX_STATUS_FRM_RTX_SHIFT));
-		WL_ERROR(("%s: INTERMEDIATE but not AMPDU\n", __func__));
+		WL_ERROR("%s: INTERMEDIATE but not AMPDU\n", __func__);
 		return false;
 	}
 
@@ -6563,8 +6580,8 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	mcl = ltoh16(txh->MacTxControlLow);
 
 	if (txs->phyerr) {
-		WL_ERROR(("phyerr 0x%x, rate 0x%x\n", txs->phyerr,
-			  txh->MainRates));
+		WL_ERROR("phyerr 0x%x, rate 0x%x\n",
+			 txs->phyerr, txh->MainRates);
 		wlc_print_txdesc(txh);
 		wlc_print_txstatus(txs);
 	}
@@ -6595,8 +6612,8 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 
 	supr_status = txs->status & TX_STATUS_SUPR_MASK;
 	if (supr_status == TX_STATUS_SUPR_BADCH)
-		WL_NONE(("%s: Pkt tx suppressed, possibly channel %d\n",
-			 __func__, CHSPEC_CHANNEL(wlc->default_bss->chanspec)));
+		WL_NONE("%s: Pkt tx suppressed, possibly channel %d\n",
+			__func__, CHSPEC_CHANNEL(wlc->default_bss->chanspec));
 
 	tx_rts = htol16(txh->MacTxControlLow) & TXC_SENDRTS;
 	tx_frame_count =
@@ -6607,7 +6624,7 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	lastframe = (fc & FC_MOREFRAG) == 0;
 
 	if (!lastframe) {
-		WL_ERROR(("Not last frame!\n"));
+		WL_ERROR("Not last frame!\n");
 	} else {
 		u16 sfbl, lfbl;
 		ieee80211_tx_info_clear_status(tx_info);
@@ -6658,8 +6675,8 @@ wlc_dotxstatus(struct wlc_info *wlc, tx_status_t *txs, u32 frm_tx2)
 		ieee80211_tx_status_irqsafe(wlc->pub->ieee_hw, p);
 		WLCNTINCR(wlc->pub->_cnt->ieee_tx_status);
 	} else {
-		WL_ERROR(("%s: Not last frame => not calling tx_status\n",
-			  __func__));
+		WL_ERROR("%s: Not last frame => not calling tx_status\n",
+			 __func__);
 	}
 
 	return false;
@@ -6677,8 +6694,8 @@ void BCMFASTPATH
 wlc_txfifo_complete(struct wlc_info *wlc, uint fifo, s8 txpktpend)
 {
 	TXPKTPENDDEC(wlc, fifo, txpktpend);
-	WL_TRACE(("wlc_txfifo_complete, pktpend dec %d to %d\n", txpktpend,
-		  TXPKTPENDGET(wlc, fifo)));
+	WL_TRACE("wlc_txfifo_complete, pktpend dec %d to %d\n",
+		 txpktpend, TXPKTPENDGET(wlc, fifo));
 
 	/* There is more room; mark precedences related to this FIFO sendable */
 	WLC_TX_FIFO_ENAB(wlc, fifo);
@@ -6872,19 +6889,19 @@ prep_mac80211_status(struct wlc_info *wlc, d11rxhdr_t *rxh, struct sk_buff *p,
 			rx_status->rate_idx = 11;
 			break;
 		default:
-			WL_ERROR(("%s: Unknown rate\n", __func__));
+			WL_ERROR("%s: Unknown rate\n", __func__);
 		}
 
 		/* Determine short preamble and rate_idx */
 		preamble = 0;
 		if (IS_CCK(rspec)) {
 			if (rxh->PhyRxStatus_0 & PRXS0_SHORTH)
-				WL_ERROR(("Short CCK\n"));
+				WL_ERROR("Short CCK\n");
 			rx_status->flag |= RX_FLAG_SHORTPRE;
 		} else if (IS_OFDM(rspec)) {
 			rx_status->flag |= RX_FLAG_SHORTPRE;
 		} else {
-			WL_ERROR(("%s: Unknown modulation\n", __func__));
+			WL_ERROR("%s: Unknown modulation\n", __func__);
 		}
 	}
 
@@ -6893,11 +6910,11 @@ prep_mac80211_status(struct wlc_info *wlc, d11rxhdr_t *rxh, struct sk_buff *p,
 
 	if (rxh->RxStatus1 & RXS_DECERR) {
 		rx_status->flag |= RX_FLAG_FAILED_PLCP_CRC;
-		WL_ERROR(("%s:  RX_FLAG_FAILED_PLCP_CRC\n", __func__));
+		WL_ERROR("%s:  RX_FLAG_FAILED_PLCP_CRC\n", __func__);
 	}
 	if (rxh->RxStatus1 & RXS_FCSERR) {
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
-		WL_ERROR(("%s:  RX_FLAG_FAILED_FCS_CRC\n", __func__));
+		WL_ERROR("%s:  RX_FLAG_FAILED_FCS_CRC\n", __func__);
 	}
 }
 
@@ -6943,7 +6960,7 @@ void wlc_bss_list_free(struct wlc_info *wlc, wlc_bss_list_t *bss_list)
 	wlc_bss_info_t *bi;
 
 	if (!bss_list) {
-		WL_ERROR(("%s: Attempting to free NULL list\n", __func__));
+		WL_ERROR("%s: Attempting to free NULL list\n", __func__);
 		return;
 	}
 	/* inspect all BSS descriptor */
@@ -6975,7 +6992,7 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	uint len;
 	bool is_amsdu;
 
-	WL_TRACE(("wl%d: wlc_recv\n", wlc->pub->unit));
+	WL_TRACE("wl%d: wlc_recv\n", wlc->pub->unit);
 
 	osh = wlc->osh;
 
@@ -6992,8 +7009,8 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	if (rxh->RxStatus1 & RXS_PBPRES) {
 		if (p->len < 2) {
 			WLCNTINCR(wlc->pub->_cnt->rxrunt);
-			WL_ERROR(("wl%d: wlc_recv: rcvd runt of len %d\n",
-				  wlc->pub->unit, p->len));
+			WL_ERROR("wl%d: wlc_recv: rcvd runt of len %d\n",
+				 wlc->pub->unit, p->len);
 			goto toss;
 		}
 		skb_pull(p, 2);
@@ -7004,10 +7021,10 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 
 	if (rxh->RxStatus1 & RXS_FCSERR) {
 		if (wlc->pub->mac80211_state & MAC80211_PROMISC_BCNS) {
-			WL_ERROR(("FCSERR while scanning******* - tossing\n"));
+			WL_ERROR("FCSERR while scanning******* - tossing\n");
 			goto toss;
 		} else {
-			WL_ERROR(("RCSERR!!!\n"));
+			WL_ERROR("RCSERR!!!\n");
 			goto toss;
 		}
 	}
@@ -7028,9 +7045,8 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 		if (FC_TYPE(fc) == FC_TYPE_DATA || FC_TYPE(fc) == FC_TYPE_MNG) {
 			if ((is_zero_ether_addr(h->a2.octet) ||
 			     is_multicast_ether_addr(h->a2.octet))) {
-				WL_ERROR(("wl%d: %s: dropping a frame with "
-					"invalid src mac address, a2: %pM\n",
-					wlc->pub->unit, __func__, &h->a2));
+				WL_ERROR("wl%d: %s: dropping a frame with invalid src mac address, a2: %pM\n",
+					 wlc->pub->unit, __func__, &h->a2);
 				WLCNTINCR(wlc->pub->_cnt->rxbadsrcmac);
 				goto toss;
 			}
@@ -7045,7 +7061,7 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	}
 
 	if (is_amsdu) {
-		WL_ERROR(("%s: is_amsdu causing toss\n", __func__));
+		WL_ERROR("%s: is_amsdu causing toss\n", __func__);
 		goto toss;
 	}
 
@@ -7067,8 +7083,8 @@ wlc_calc_lsig_len(struct wlc_info *wlc, ratespec_t ratespec, uint mac_len)
 {
 	uint nsyms, len = 0, kNdps;
 
-	WL_TRACE(("wl%d: wlc_calc_lsig_len: rate %d, len%d\n", wlc->pub->unit,
-		  RSPEC2RATE(ratespec), mac_len));
+	WL_TRACE("wl%d: wlc_calc_lsig_len: rate %d, len%d\n",
+		 wlc->pub->unit, RSPEC2RATE(ratespec), mac_len);
 
 	if (IS_MCS(ratespec)) {
 		uint mcs = ratespec & RSPEC_RATE_MASK;
@@ -7112,11 +7128,12 @@ wlc_calc_frame_time(struct wlc_info *wlc, ratespec_t ratespec, u8 preamble_type,
 
 	if (rate == 0) {
 		ASSERT(0);
-		WL_ERROR(("wl%d: WAR: using rate of 1 mbps\n", wlc->pub->unit));
+		WL_ERROR("wl%d: WAR: using rate of 1 mbps\n", wlc->pub->unit);
 		rate = WLC_RATE_1M;
 	}
 
-	WL_TRACE(("wl%d: wlc_calc_frame_time: rspec 0x%x, preamble_type %d, len%d\n", wlc->pub->unit, ratespec, preamble_type, mac_len));
+	WL_TRACE("wl%d: wlc_calc_frame_time: rspec 0x%x, preamble_type %d, len%d\n",
+		 wlc->pub->unit, ratespec, preamble_type, mac_len);
 
 	if (IS_MCS(ratespec)) {
 		uint mcs = ratespec & RSPEC_RATE_MASK;
@@ -7180,7 +7197,8 @@ wlc_calc_frame_len(struct wlc_info *wlc, ratespec_t ratespec, u8 preamble_type,
 	uint nsyms, mac_len, Ndps, kNdps;
 	uint rate = RSPEC2RATE(ratespec);
 
-	WL_TRACE(("wl%d: wlc_calc_frame_len: rspec 0x%x, preamble_type %d, dur %d\n", wlc->pub->unit, ratespec, preamble_type, dur));
+	WL_TRACE("wl%d: wlc_calc_frame_len: rspec 0x%x, preamble_type %d, dur %d\n",
+		 wlc->pub->unit, ratespec, preamble_type, dur);
 
 	if (IS_MCS(ratespec)) {
 		uint mcs = ratespec & RSPEC_RATE_MASK;
@@ -7222,8 +7240,8 @@ wlc_calc_frame_len(struct wlc_info *wlc, ratespec_t ratespec, u8 preamble_type,
 static uint
 wlc_calc_ba_time(struct wlc_info *wlc, ratespec_t rspec, u8 preamble_type)
 {
-	WL_TRACE(("wl%d: wlc_calc_ba_time: rspec 0x%x, preamble_type %d\n",
-		  wlc->pub->unit, rspec, preamble_type));
+	WL_TRACE("wl%d: wlc_calc_ba_time: rspec 0x%x, preamble_type %d\n",
+		 wlc->pub->unit, rspec, preamble_type);
 	/* Spec 9.6: ack rate is the highest rate in BSSBasicRateSet that is less than
 	 * or equal to the rate of the immediately previous frame in the FES
 	 */
@@ -7241,8 +7259,8 @@ wlc_calc_ack_time(struct wlc_info *wlc, ratespec_t rspec, u8 preamble_type)
 {
 	uint dur = 0;
 
-	WL_TRACE(("wl%d: wlc_calc_ack_time: rspec 0x%x, preamble_type %d\n",
-		  wlc->pub->unit, rspec, preamble_type));
+	WL_TRACE("wl%d: wlc_calc_ack_time: rspec 0x%x, preamble_type %d\n",
+		 wlc->pub->unit, rspec, preamble_type);
 	/* Spec 9.6: ack rate is the highest rate in BSSBasicRateSet that is less than
 	 * or equal to the rate of the immediately previous frame in the FES
 	 */
@@ -7259,8 +7277,8 @@ wlc_calc_ack_time(struct wlc_info *wlc, ratespec_t rspec, u8 preamble_type)
 static uint
 wlc_calc_cts_time(struct wlc_info *wlc, ratespec_t rspec, u8 preamble_type)
 {
-	WL_TRACE(("wl%d: wlc_calc_cts_time: ratespec 0x%x, preamble_type %d\n",
-		  wlc->pub->unit, rspec, preamble_type));
+	WL_TRACE("wl%d: wlc_calc_cts_time: ratespec 0x%x, preamble_type %d\n",
+		 wlc->pub->unit, rspec, preamble_type);
 	return wlc_calc_ack_time(wlc, rspec, preamble_type);
 }
 
@@ -7289,7 +7307,8 @@ void wlc_rate_lookup_init(struct wlc_info *wlc, wlc_rateset_t *rateset)
 		rate = (rateset->rates[i] & RATE_MASK);
 
 		if (rate > WLC_MAXRATE) {
-			WL_ERROR(("wlc_rate_lookup_init: invalid rate 0x%X in rate set\n", rateset->rates[i]));
+			WL_ERROR("wlc_rate_lookup_init: invalid rate 0x%X in rate set\n",
+				 rateset->rates[i]);
 			continue;
 		}
 
@@ -7468,7 +7487,8 @@ bool wlc_valid_rate(struct wlc_info *wlc, ratespec_t rspec, int band,
 			return true;
  error:
 	if (verbose) {
-		WL_ERROR(("wl%d: wlc_valid_rate: rate spec 0x%x not in hw_rateset\n", wlc->pub->unit, rspec));
+		WL_ERROR("wl%d: wlc_valid_rate: rate spec 0x%x not in hw_rateset\n",
+			 wlc->pub->unit, rspec);
 	}
 
 	return false;
@@ -7550,8 +7570,8 @@ wlc_compute_bcntsfoff(struct wlc_info *wlc, ratespec_t rspec,
 	uint bcntsfoff = 0;
 
 	if (IS_MCS(rspec)) {
-		WL_ERROR(("wl%d: recd beacon with mcs rate; rspec 0x%x\n",
-			  wlc->pub->unit, rspec));
+		WL_ERROR("wl%d: recd beacon with mcs rate; rspec 0x%x\n",
+			 wlc->pub->unit, rspec);
 	} else if (IS_OFDM(rspec)) {
 		/* tx delay from MAC through phy to air (2.1 usec) +
 		 * phy header time (preamble + PLCP SIGNAL == 20 usec) +
@@ -7979,8 +7999,8 @@ mac80211_wlc_set_nrate(struct wlc_info *wlc, struct wlcband *cur_band,
 	if (N_ENAB(wlc->pub) && ismcs) {
 		/* mcs only allowed when nmode */
 		if (stf > PHY_TXC1_MODE_SDM) {
-			WL_ERROR(("wl%d: %s: Invalid stf\n", WLCWLUNIT(wlc),
-				  __func__));
+			WL_ERROR("wl%d: %s: Invalid stf\n",
+				 WLCWLUNIT(wlc), __func__);
 			bcmerror = BCME_RANGE;
 			goto done;
 		}
@@ -7990,8 +8010,8 @@ mac80211_wlc_set_nrate(struct wlc_info *wlc, struct wlcband *cur_band,
 			if (!CHSPEC_IS40(wlc->home_chanspec) ||
 			    ((stf != PHY_TXC1_MODE_SISO)
 			     && (stf != PHY_TXC1_MODE_CDD))) {
-				WL_ERROR(("wl%d: %s: Invalid mcs 32\n",
-					  WLCWLUNIT(wlc), __func__));
+				WL_ERROR("wl%d: %s: Invalid mcs 32\n",
+					 WLCWLUNIT(wlc), __func__);
 				bcmerror = BCME_RANGE;
 				goto done;
 			}
@@ -7999,7 +8019,8 @@ mac80211_wlc_set_nrate(struct wlc_info *wlc, struct wlcband *cur_band,
 		} else if (rate > HIGHEST_SINGLE_STREAM_MCS) {
 			/* mcs > 7 must use stf SDM */
 			if (stf != PHY_TXC1_MODE_SDM) {
-				WL_TRACE(("wl%d: %s: enabling SDM mode for mcs %d\n", WLCWLUNIT(wlc), __func__, rate));
+				WL_TRACE("wl%d: %s: enabling SDM mode for mcs %d\n",
+					 WLCWLUNIT(wlc), __func__, rate);
 				stf = PHY_TXC1_MODE_SDM;
 			}
 		} else {
@@ -8007,37 +8028,37 @@ mac80211_wlc_set_nrate(struct wlc_info *wlc, struct wlcband *cur_band,
 			if ((stf > PHY_TXC1_MODE_STBC) ||
 			    (!WLC_STBC_CAP_PHY(wlc)
 			     && (stf == PHY_TXC1_MODE_STBC))) {
-				WL_ERROR(("wl%d: %s: Invalid STBC\n",
-					  WLCWLUNIT(wlc), __func__));
+				WL_ERROR("wl%d: %s: Invalid STBC\n",
+					 WLCWLUNIT(wlc), __func__);
 				bcmerror = BCME_RANGE;
 				goto done;
 			}
 		}
 	} else if (IS_OFDM(rate)) {
 		if ((stf != PHY_TXC1_MODE_CDD) && (stf != PHY_TXC1_MODE_SISO)) {
-			WL_ERROR(("wl%d: %s: Invalid OFDM\n", WLCWLUNIT(wlc),
-				  __func__));
+			WL_ERROR("wl%d: %s: Invalid OFDM\n",
+				 WLCWLUNIT(wlc), __func__);
 			bcmerror = BCME_RANGE;
 			goto done;
 		}
 	} else if (IS_CCK(rate)) {
 		if ((cur_band->bandtype != WLC_BAND_2G)
 		    || (stf != PHY_TXC1_MODE_SISO)) {
-			WL_ERROR(("wl%d: %s: Invalid CCK\n", WLCWLUNIT(wlc),
-				  __func__));
+			WL_ERROR("wl%d: %s: Invalid CCK\n",
+				 WLCWLUNIT(wlc), __func__);
 			bcmerror = BCME_RANGE;
 			goto done;
 		}
 	} else {
-		WL_ERROR(("wl%d: %s: Unknown rate type\n", WLCWLUNIT(wlc),
-			  __func__));
+		WL_ERROR("wl%d: %s: Unknown rate type\n",
+			 WLCWLUNIT(wlc), __func__);
 		bcmerror = BCME_RANGE;
 		goto done;
 	}
 	/* make sure multiple antennae are available for non-siso rates */
 	if ((stf != PHY_TXC1_MODE_SISO) && (wlc->stf->txstreams == 1)) {
-		WL_ERROR(("wl%d: %s: SISO antenna but !SISO request\n",
-			  WLCWLUNIT(wlc), __func__));
+		WL_ERROR("wl%d: %s: SISO antenna but !SISO request\n",
+			 WLCWLUNIT(wlc), __func__);
 		bcmerror = BCME_RANGE;
 		goto done;
 	}
@@ -8068,7 +8089,7 @@ mac80211_wlc_set_nrate(struct wlc_info *wlc, struct wlcband *cur_band,
 
 	return rspec;
  done:
-	WL_ERROR(("Hoark\n"));
+	WL_ERROR("Hoark\n");
 	return rate;
 }
 
@@ -8082,8 +8103,7 @@ wlc_duty_cycle_set(struct wlc_info *wlc, int duty_cycle, bool isOFDM,
 	    isOFDM ? M_TX_IDLE_BUSY_RATIO_X_16_OFDM :
 	    M_TX_IDLE_BUSY_RATIO_X_16_CCK;
 	if (duty_cycle > 100 || duty_cycle < 0) {
-		WL_ERROR(("wl%d:  duty cycle value off limit\n",
-			  wlc->pub->unit));
+		WL_ERROR("wl%d:  duty cycle value off limit\n", wlc->pub->unit);
 		return BCME_RANGE;
 	}
 	if (duty_cycle)
@@ -8282,7 +8302,7 @@ void wlc_txflowcontrol(struct wlc_info *wlc, wlc_txq_info_t *qi,
 	uint prio_bits;
 	uint cur_bits;
 
-	WL_ERROR(("%s: flow contro kicks in\n", __func__));
+	WL_ERROR("%s: flow control kicks in\n", __func__);
 
 	if (prio == ALLPRIO) {
 		prio_bits = TXQ_STOP_FOR_PRIOFC_MASK;

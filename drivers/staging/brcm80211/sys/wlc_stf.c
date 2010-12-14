@@ -196,8 +196,8 @@ bool wlc_stf_stbc_rx_set(struct wlc_info *wlc, s32 int_val)
 
 static int wlc_stf_txcore_set(struct wlc_info *wlc, u8 Nsts, u8 core_mask)
 {
-	WL_TRACE(("wl%d: %s: Nsts %d core_mask %x\n",
-		  wlc->pub->unit, __func__, Nsts, core_mask));
+	WL_TRACE("wl%d: %s: Nsts %d core_mask %x\n",
+		 wlc->pub->unit, __func__, Nsts, core_mask);
 
 	ASSERT((Nsts > 0) && (Nsts <= MAX_STREAMS_SUPPORTED));
 
@@ -236,7 +236,7 @@ static int wlc_stf_spatial_policy_set(struct wlc_info *wlc, int val)
 	int i;
 	u8 core_mask = 0;
 
-	WL_TRACE(("wl%d: %s: val %x\n", wlc->pub->unit, __func__, val));
+	WL_TRACE("wl%d: %s: val %x\n", wlc->pub->unit, __func__, val);
 
 	wlc->stf->spatial_policy = (s8) val;
 	for (i = 1; i <= MAX_STREAMS_SUPPORTED; i++) {
@@ -278,13 +278,15 @@ int wlc_stf_txchain_set(struct wlc_info *wlc, s32 int_val, bool force)
 				if (RSPEC_STF(wlc->bandstate[i]->rspec_override)
 				    != PHY_TXC1_MODE_SISO) {
 					wlc->bandstate[i]->rspec_override = 0;
-					WL_ERROR(("%s(): temp sense override non-SISO" " rspec_override.\n", __func__));
+					WL_ERROR("%s(): temp sense override non-SISO rspec_override\n",
+						 __func__);
 				}
 				if (RSPEC_STF
 				    (wlc->bandstate[i]->mrspec_override) !=
 				    PHY_TXC1_MODE_SISO) {
 					wlc->bandstate[i]->mrspec_override = 0;
-					WL_ERROR(("%s(): temp sense override non-SISO" " mrspec_override.\n", __func__));
+					WL_ERROR("%s(): temp sense override non-SISO mrspec_override\n",
+						 __func__);
 				}
 			}
 	}

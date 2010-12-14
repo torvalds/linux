@@ -75,8 +75,8 @@ wlc_eventq_t *wlc_eventq_attach(struct wlc_pub *pub, struct wlc_info *wlc,
 
 	eq->timer = wl_init_timer(eq->wl, wlc_timer_cb, eq, "eventq");
 	if (!eq->timer) {
-		WL_ERROR(("wl%d: wlc_eventq_attach: timer failed\n",
-			  pub->unit));
+		WL_ERROR("wl%d: wlc_eventq_attach: timer failed\n",
+			 pub->unit);
 		kfree(eq);
 		return NULL;
 	}

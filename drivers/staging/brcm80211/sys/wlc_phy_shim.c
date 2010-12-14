@@ -70,7 +70,8 @@ wlc_phy_shim_info_t *wlc_phy_shim_attach(struct wlc_hw_info *wlc_hw,
 
 	physhim = kzalloc(sizeof(wlc_phy_shim_info_t), GFP_ATOMIC);
 	if (!physhim) {
-		WL_ERROR(("wl%d: wlc_phy_shim_attach: out of mem\n", wlc_hw->unit));
+		WL_ERROR("wl%d: wlc_phy_shim_attach: out of mem\n",
+			 wlc_hw->unit);
 		return NULL;
 	}
 	physhim->wlc_hw = wlc_hw;
