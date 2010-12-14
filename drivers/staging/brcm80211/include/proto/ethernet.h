@@ -23,7 +23,6 @@
 
 #define	ETHER_TYPE_LEN		2
 #define	ETHER_CRC_LEN		4
-#define	ETHER_HDR_LEN		(ETH_ALEN * 2 + ETHER_TYPE_LEN)
 #define	ETHER_MIN_LEN		64
 #define	ETHER_MIN_DATA		46
 #define	ETHER_MAX_LEN		1518
