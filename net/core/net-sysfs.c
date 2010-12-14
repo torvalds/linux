@@ -1009,7 +1009,8 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 	if (dev_maps)
 		call_rcu(&dev_maps->rcu, xps_dev_maps_release);
 
-	netdev_queue_numa_node_write(queue, (numa_node >= 0) ? numa_node : -1);
+	netdev_queue_numa_node_write(queue, (numa_node >= 0) ? numa_node :
+					    NUMA_NO_NODE);
 
 	mutex_unlock(&xps_map_mutex);
 

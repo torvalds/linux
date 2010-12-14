@@ -530,7 +530,7 @@ static inline int netdev_queue_numa_node_read(const struct netdev_queue *q)
 #if defined(CONFIG_XPS) && defined(CONFIG_NUMA)
 	return q->numa_node;
 #else
-	return -1;
+	return NUMA_NO_NODE;
 #endif
 }
 
