@@ -486,7 +486,6 @@ struct adapter {
 	unsigned int fn;
 	unsigned int flags;
 
-	const char *name;
 	int msg_enable;
 
 	struct adapter_params params;
