@@ -370,7 +370,7 @@ int t4_seeprom_wp(struct adapter *adapter, bool enable)
 static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
 	int i, ret;
-	int ec, sn, v2;
+	int ec, sn;
 	u8 vpd[VPD_LEN], csum;
 	unsigned int vpdr_len;
 	const struct t4_vpd_hdr *v;
@@ -408,10 +408,8 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 
 	FIND_VPD_KW(ec, "EC");
 	FIND_VPD_KW(sn, "SN");
-	FIND_VPD_KW(v2, "V2");
 #undef FIND_VPD_KW
 
-	p->cclk = simple_strtoul(vpd + v2, NULL, 10);
 	memcpy(p->id, v->id_data, ID_LEN);
 	strim(p->id);
 	memcpy(p->ec, vpd + ec, EC_LEN);
