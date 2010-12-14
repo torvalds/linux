@@ -53,8 +53,6 @@ struct nlm_lookup_host_info {
 	const u32		version;	/* NLM version to search for */
 	const char		*hostname;	/* remote's hostname */
 	const size_t		hostname_len;	/* it's length */
-	const struct sockaddr	*src_sap;	/* our address (optional) */
-	const size_t		src_len;	/* it's length */
 	const int		noresvport;	/* use non-priv port */
 };
 
@@ -324,6 +322,8 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 	struct sockaddr_in6 sin6 = {
 		.sin6_family	= AF_INET6,
 	};
+	struct sockaddr *src_sap;
+	size_t src_len = rqstp->rq_addrlen;
 	struct nlm_lookup_host_info ni = {
 		.server		= 1,
 		.sap		= svc_addr(rqstp),
@@ -332,7 +332,6 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 		.version	= rqstp->rq_vers,
 		.hostname	= hostname,
 		.hostname_len	= hostname_len,
-		.src_len	= rqstp->rq_addrlen,
 	};
 
 	dprintk("lockd: %s(host='%*s', vers=%u, proto=%s)\n", __func__,
@@ -344,11 +343,11 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 	switch (ni.sap->sa_family) {
 	case AF_INET:
 		sin.sin_addr.s_addr = rqstp->rq_daddr.addr.s_addr;
-		ni.src_sap = (struct sockaddr *)&sin;
+		src_sap = (struct sockaddr *)&sin;
 		break;
 	case AF_INET6:
 		ipv6_addr_copy(&sin6.sin6_addr, &rqstp->rq_daddr.addr6);
-		ni.src_sap = (struct sockaddr *)&sin6;
+		src_sap = (struct sockaddr *)&sin6;
 		break;
 	default:
 		dprintk("lockd: %s failed; unrecognized address family\n",
@@ -372,7 +371,7 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 			continue;
 		if (host->h_version != ni.version)
 			continue;
-		if (!rpc_cmp_addr(nlm_srcaddr(host), ni.src_sap))
+		if (!rpc_cmp_addr(nlm_srcaddr(host), src_sap))
 			continue;
 
 		/* Move to head of hash chain. */
@@ -389,8 +388,8 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 	if (unlikely(host == NULL))
 		goto out;
 
-	memcpy(nlm_srcaddr(host), ni.src_sap, ni.src_len);
-	host->h_srcaddrlen = ni.src_len;
+	memcpy(nlm_srcaddr(host), src_sap, src_len);
+	host->h_srcaddrlen = src_len;
 	hlist_add_head(&host->h_hash, chain);
 	nrhosts++;
 
