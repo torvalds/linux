@@ -149,8 +149,11 @@ struct bfa_ioc_regs_s {
 	void __iomem *host_page_num_fn;
 	void __iomem *heartbeat;
 	void __iomem *ioc_fwstate;
+	void __iomem *alt_ioc_fwstate;
 	void __iomem *ll_halt;
+	void __iomem *alt_ll_halt;
 	void __iomem *err_set;
+	void __iomem *ioc_fail_sync;
 	void __iomem *shirq_isr_next;
 	void __iomem *shirq_msk_next;
 	void __iomem *smem_page_start;
@@ -258,8 +261,12 @@ struct bfa_ioc_hwif_s {
 	void		(*ioc_map_port)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_isr_mode_set)	(struct bfa_ioc_s *ioc,
 					bfa_boolean_t msix);
-	void		(*ioc_notify_hbfail)	(struct bfa_ioc_s *ioc);
+	void		(*ioc_notify_fail)	(struct bfa_ioc_s *ioc);
 	void		(*ioc_ownership_reset)	(struct bfa_ioc_s *ioc);
+	void		(*ioc_sync_join)	(struct bfa_ioc_s *ioc);
+	void		(*ioc_sync_leave)	(struct bfa_ioc_s *ioc);
+	void		(*ioc_sync_ack)		(struct bfa_ioc_s *ioc);
+	bfa_boolean_t	(*ioc_sync_complete)	(struct bfa_ioc_s *ioc);
 };
 
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
@@ -288,6 +295,15 @@ struct bfa_ioc_hwif_s {
 #define BFA_IOC_FLASH_CHUNK_NO(off)		(off / BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_OFFSET_IN_CHUNK(off)	(off % BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_IOC_FLASH_CHUNK_ADDR(chunkno)  (chunkno * BFI_FLASH_CHUNK_SZ_WORDS)
+
+#ifdef BFA_IOC_IS_UEFI
+#define bfa_ioc_is_bios_optrom(__ioc) (0)
+#define bfa_ioc_is_uefi(__ioc) BFA_IOC_IS_UEFI
+#else
+#define bfa_ioc_is_bios_optrom(__ioc)   \
+	(bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(__ioc)) < BFA_IOC_FWIMG_MINSZ)
+#define bfa_ioc_is_uefi(__ioc) (0)
+#endif
 
 /*
  * IOC mailbox interface
@@ -343,6 +359,7 @@ bfa_boolean_t bfa_ioc_is_initialized(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_is_disabled(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_fw_mismatch(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_adapter_is_disabled(struct bfa_ioc_s *ioc);
+void bfa_ioc_reset_fwstate(struct bfa_ioc_s *ioc);
 enum bfa_ioc_type_e bfa_ioc_get_type(struct bfa_ioc_s *ioc);
 void bfa_ioc_get_adapter_serial_num(struct bfa_ioc_s *ioc, char *serial_num);
 void bfa_ioc_get_adapter_fw_ver(struct bfa_ioc_s *ioc, char *fw_ver);
