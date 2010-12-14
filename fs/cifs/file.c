@@ -1769,6 +1769,21 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 	return total_read;
 }
 
+int cifs_file_strict_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	int rc, xid;
+	struct inode *inode = file->f_path.dentry->d_inode;
+
+	xid = GetXid();
+
+	if (!CIFS_I(inode)->clientCanCacheRead)
+		cifs_invalidate_mapping(inode);
+
+	rc = generic_file_mmap(file, vma);
+	FreeXid(xid);
+	return rc;
+}
+
 int cifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int rc, xid;

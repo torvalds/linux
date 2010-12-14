@@ -743,7 +743,7 @@ const struct file_operations cifs_file_strict_ops = {
 	.lock = cifs_lock,
 	.fsync = cifs_strict_fsync,
 	.flush = cifs_flush,
-	.mmap = cifs_file_mmap,
+	.mmap = cifs_file_strict_mmap,
 	.splice_read = generic_file_splice_read,
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
@@ -798,7 +798,7 @@ const struct file_operations cifs_file_strict_nobrl_ops = {
 	.release = cifs_close,
 	.fsync = cifs_strict_fsync,
 	.flush = cifs_flush,
-	.mmap = cifs_file_mmap,
+	.mmap = cifs_file_strict_mmap,
 	.splice_read = generic_file_splice_read,
 	.llseek = cifs_llseek,
 #ifdef CONFIG_CIFS_POSIX
