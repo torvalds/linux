@@ -111,6 +111,7 @@ struct rk29_sdmmc {
 	int			id;
 	int			irq;
 	struct timer_list	detect_timer;
+        unsigned int            oldstatus;
 };
 
 #define rk29_sdmmc_test_and_clear_pending(host, event)		\
@@ -450,8 +451,10 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	 * non-word-aligned buffers or lengths. Also, we don't bother
 	 * with all the DMA setup overhead for short transfers.
 	 */
+#if 0
 	if (data->blocks * data->blksz < RK29_SDMMC_DMA_THRESHOLD)
 		return -EINVAL;
+#endif
 	if (data->blksz & 3)
 		return -EINVAL;
 	for_each_sg(data->sg, sg, data->sg_len, i) {
@@ -1099,6 +1102,7 @@ static void rk29_sdmmc_cmd_interrupt(struct rk29_sdmmc *host, u32 status)
 	tasklet_schedule(&host->tasklet);
 }
 
+#if 0
 static int rk29_sdmmc1_card_get_cd(struct mmc_host *mmc)
 {
         struct rk29_sdmmc *host = mmc_priv(mmc);
@@ -1134,6 +1138,7 @@ static irqreturn_t rk29_sdmmc1_card_detect_interrupt(int irq, void *dev_id)
        return IRQ_HANDLED;
 
 }
+#endif
 
 static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 {
@@ -1288,6 +1293,37 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 	mmc_detect_change(host->mmc, 0);	
 }
 
+static void rk29_sdmmc1_check_status(unsigned long data)
+{
+        struct rk29_sdmmc *host = (struct rk29_sdmmc *)data;
+        struct rk29_sdmmc_platform_data *pdata = host->pdev->dev.platform_data;
+        unsigned int status;
+
+        status = pdata->status(mmc_dev(host->mmc));
+
+        if (status ^ host->oldstatus)
+        {
+                pr_info("%s: slot status change detected(%d-%d)\n",mmc_hostname(host->mmc), host->oldstatus, status);
+                if (status) {
+                    set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+                    mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(200));
+                }
+                else {
+                    clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+                    rk29_sdmmc_detect_change((unsigned long)host);
+                }
+        }
+
+        host->oldstatus = status;
+}
+
+static void rk29_sdmmc1_status_notify_cb(int card_present, void *dev_id)
+{
+        struct rk29_sdmmc *host = dev_id;
+        printk(KERN_INFO "%s, card_present %d\n", mmc_hostname(host->mmc), card_present);
+        rk29_sdmmc1_check_status((unsigned long)host);
+}
+
 static int rk29_sdmmc_probe(struct platform_device *pdev)
 {
 	struct mmc_host 		*mmc;
@@ -1365,22 +1401,45 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	ret = request_irq(irq, rk29_sdmmc_interrupt, 0, dev_name(&pdev->dev), host);
 	if (ret)
 	    goto err_dmaunmap;
-        
+       
+#if 0 
         /* register sdmmc1 card detect interrupt route */ 
-    if ((pdev->id == 1) && (pdata->detect_irq != 0)) {
-        irq = gpio_to_irq(pdata->detect_irq);
-        if (irq < 0)  {
-           printk("%s: request gpio irq failed\n", __FUNCTION__);
-           goto err_dmaunmap;
-        }
+        if ((pdev->id == 1) && (pdata->detect_irq != 0)) {
+        	irq = gpio_to_irq(pdata->detect_irq);
+        	if (irq < 0)  {
+           		printk("%s: request gpio irq failed\n", __FUNCTION__);
+           		goto err_dmaunmap;
+        	}
         
-        ret = request_irq(irq, rk29_sdmmc1_card_detect_interrupt, IRQF_TRIGGER_RISING, dev_name(&pdev->dev), host);
-        if (ret) {
-           printk("%s: sdmmc1 request detect interrupt failed\n", __FUNCTION__);
-           goto err_dmaunmap;
-        }
+        	ret = request_irq(irq, rk29_sdmmc1_card_detect_interrupt, IRQF_TRIGGER_RISING, dev_name(&pdev->dev), host);
+        	if (ret) {
+           		printk("%s: sdmmc1 request detect interrupt failed\n", __FUNCTION__);
+           		goto err_dmaunmap;
+        	}
          
-    }
+    	}
+#endif
+        /* setup sdmmc1 wifi card detect change */
+        if (pdata->register_status_notify) {
+            pdata->register_status_notify(rk29_sdmmc1_status_notify_cb, host);
+        }
+
+        /* Assume card is present initially */
+        if(rk29_sdmmc_get_cd(host->mmc))
+                set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+        else
+                clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+
+        /* sdmmc1 wifi card slot status initially */
+        if (pdata->status) {
+            host->oldstatus = pdata->status(mmc_dev(host->mmc));
+            if (host->oldstatus)  {
+                set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+            }else {
+                clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
+            }
+        }
+
 	platform_set_drvdata(pdev, host); 	
 	mmc->ops = &rk29_sdmmc_ops[pdev->id];
 	mmc->f_min = host->bus_hz/510;
@@ -1393,11 +1452,6 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	mmc->max_blk_count = 65535;  ///512;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;	
-	/* Assume card is present initially */
-	if(rk29_sdmmc_get_cd(host->mmc))
-		set_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
-	else
-		clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
         
 	mmc_add_host(mmc);
 #if defined (CONFIG_DEBUG_FS)

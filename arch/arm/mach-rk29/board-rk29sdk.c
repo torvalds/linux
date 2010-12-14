@@ -840,7 +840,9 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
         .status = rk29sdk_wifi_status,
         .register_status_notify = rk29sdk_wifi_status_register,
 #endif
+#if 0
         .detect_irq = RK29SDK_WIFI_SDIO_CARD_DETECT_N,
+#endif
 };
 #endif
 
