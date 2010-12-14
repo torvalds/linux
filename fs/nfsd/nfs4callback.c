@@ -580,23 +580,23 @@ out_default:
 /*
  * RPC procedure tables
  */
-#define PROC(proc, call, argtype, restype)                              \
-[NFSPROC4_CLNT_##proc] = {                                      	\
-        .p_proc   = NFSPROC4_CB_##call,					\
-        .p_encode = (kxdrproc_t) nfs4_xdr_##argtype,                    \
-        .p_decode = (kxdrproc_t) nfs4_xdr_##restype,                    \
-        .p_arglen = NFS4_##argtype##_sz,                                \
-        .p_replen = NFS4_##restype##_sz,                                \
-        .p_statidx = NFSPROC4_CB_##call,				\
-	.p_name   = #proc,                                              \
+#define PROC(proc, call, argtype, restype)				\
+[NFSPROC4_CLNT_##proc] = {						\
+	.p_proc    = NFSPROC4_CB_##call,				\
+	.p_encode  = (kxdrproc_t)nfs4_xdr_enc_##argtype,		\
+	.p_decode  = (kxdrproc_t)nfs4_xdr_dec_##restype,		\
+	.p_arglen  = NFS4_enc_##argtype##_sz,				\
+	.p_replen  = NFS4_dec_##restype##_sz,				\
+	.p_statidx = NFSPROC4_CB_##call,				\
+	.p_name    = #proc,						\
 }
 
-static struct rpc_procinfo     nfs4_cb_procedures[] = {
-    PROC(CB_NULL,      NULL,     enc_cb_null,     dec_cb_null),
-    PROC(CB_RECALL,    COMPOUND,   enc_cb_recall,      dec_cb_recall),
+static struct rpc_procinfo nfs4_cb_procedures[] = {
+	PROC(CB_NULL,	NULL,		cb_null,	cb_null),
+	PROC(CB_RECALL,	COMPOUND,	cb_recall,	cb_recall),
 };
 
-static struct rpc_version       nfs_cb_version4 = {
+static struct rpc_version nfs_cb_version4 = {
 /*
  * Note on the callback rpc program version number: despite language in rfc
  * 5661 section 18.36.3 requiring servers to use 4 in this field, the
@@ -604,29 +604,29 @@ static struct rpc_version       nfs_cb_version4 = {
  * in practice that appears to be what implementations use.  The section
  * 18.36.3 language is expected to be fixed in an erratum.
  */
-        .number                 = 1,
-        .nrprocs                = ARRAY_SIZE(nfs4_cb_procedures),
-        .procs                  = nfs4_cb_procedures
+	.number			= 1,
+	.nrprocs		= ARRAY_SIZE(nfs4_cb_procedures),
+	.procs			= nfs4_cb_procedures
 };
 
-static struct rpc_version *	nfs_cb_version[] = {
+static struct rpc_version *nfs_cb_version[] = {
 	&nfs_cb_version4,
 };
 
 static struct rpc_program cb_program;
 
 static struct rpc_stat cb_stats = {
-		.program	= &cb_program
+	.program		= &cb_program
 };
 
 #define NFS4_CALLBACK 0x40000000
 static struct rpc_program cb_program = {
-		.name 		= "nfs4_cb",
-		.number		= NFS4_CALLBACK,
-		.nrvers		= ARRAY_SIZE(nfs_cb_version),
-		.version	= nfs_cb_version,
-		.stats		= &cb_stats,
-		.pipe_dir_name  = "/nfsd4_cb",
+	.name			= "nfs4_cb",
+	.number			= NFS4_CALLBACK,
+	.nrvers			= ARRAY_SIZE(nfs_cb_version),
+	.version		= nfs_cb_version,
+	.stats			= &cb_stats,
+	.pipe_dir_name		= "/nfsd4_cb",
 };
 
 static int max_cb_time(void)
