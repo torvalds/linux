@@ -5825,6 +5825,8 @@ void intel_init_clock_gating(struct drm_device *dev)
 			I915_WRITE(PCH_3DCGDIS0,
 				   MARIUNIT_CLOCK_GATE_DISABLE |
 				   SVSMUNIT_CLOCK_GATE_DISABLE);
+			I915_WRITE(PCH_3DCGDIS1,
+				   VFMUNIT_CLOCK_GATE_DISABLE);
 		}
 
 		I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
