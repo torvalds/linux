@@ -1375,7 +1375,12 @@ static unsigned int from_fw_linkcaps(unsigned int type, unsigned int caps)
 	} else if (type == FW_PORT_TYPE_KR)
 		v |= SUPPORTED_Backplane | SUPPORTED_10000baseKR_Full;
 	else if (type == FW_PORT_TYPE_BP_AP)
-		v |= SUPPORTED_Backplane | SUPPORTED_10000baseR_FEC;
+		v |= SUPPORTED_Backplane | SUPPORTED_10000baseR_FEC |
+		     SUPPORTED_10000baseKR_Full | SUPPORTED_1000baseKX_Full;
+	else if (type == FW_PORT_TYPE_BP4_AP)
+		v |= SUPPORTED_Backplane | SUPPORTED_10000baseR_FEC |
+		     SUPPORTED_10000baseKR_Full | SUPPORTED_1000baseKX_Full |
+		     SUPPORTED_10000baseKX4_Full;
 	else if (type == FW_PORT_TYPE_FIBER_XFI ||
 		 type == FW_PORT_TYPE_FIBER_XAUI || type == FW_PORT_TYPE_SFP)
 		v |= SUPPORTED_FIBRE;
@@ -3489,7 +3494,7 @@ static void __devinit print_port_info(struct adapter *adap)
 {
 	static const char *base[] = {
 		"R XFI", "R XAUI", "T SGMII", "T XFI", "T XAUI", "KX4", "CX4",
-		"KX", "KR", "KR SFP+", "KR FEC"
+		"KX", "KR", "R SFP+", "KR/KX", "KR/KX/KX4"
 	};
 
 	int i;
