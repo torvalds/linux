@@ -423,11 +423,7 @@ do{                                   \
 
 #define DBGPRINT(Level, Fmt)    DBGPRINT_RAW(Level, Fmt)
 
-#define DBGPRINT_ERR(Fmt)           \
-{                                   \
-    printk("ERROR! ");          \
-    printk Fmt;                  \
-}
+#define DBGPRINT_ERR(fmt, args...) printk(KERN_ERR fmt, ##args)
 
 #define DBGPRINT_S(Status, Fmt)		\
 {									\

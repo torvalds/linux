@@ -645,7 +645,7 @@ void STAHandleRxMgmtFrame(struct rt_rtmp_adapter *pAd, struct rt_rx_blk *pRxBlk)
 
 		/* First check the size, it MUST not exceed the mlme queue size */
 		if (pRxWI->MPDUtotalByteCount > MGMT_DMA_BUFFER_SIZE) {
-			DBGPRINT_ERR(("STAHandleRxMgmtFrame: frame too large, size = %d \n", pRxWI->MPDUtotalByteCount));
+			DBGPRINT_ERR("STAHandleRxMgmtFrame: frame too large, size = %d \n", pRxWI->MPDUtotalByteCount);
 			break;
 		}
 

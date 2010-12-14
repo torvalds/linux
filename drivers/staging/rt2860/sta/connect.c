@@ -215,8 +215,7 @@ void MlmeCntlMachinePerformAction(struct rt_rtmp_adapter *pAd,
 		break;
 #endif /* RTMP_MAC_USB // */
 	default:
-		DBGPRINT_ERR(("ERROR! CNTL - Illegal message type(=%ld)",
-			      Elem->MsgType));
+		DBGPRINT_ERR("ERROR! CNTL - Illegal message type(=%ld)", Elem->MsgType);
 		break;
 	}
 }

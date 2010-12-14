@@ -284,7 +284,7 @@ void MlmeScanReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *E
 		DBGPRINT(RT_DEBUG_TRACE, ("SYNC - BBP R4 to 20MHz.l\n"));
 		ScanNextChannel(pAd);
 	} else {
-		DBGPRINT_ERR(("SYNC - MlmeScanReqAction() sanity check fail\n"));
+		DBGPRINT_ERR("SYNC - MlmeScanReqAction() sanity check fail\n");
 		pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
 		Status = MLME_INVALID_FORMAT;
 		MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_SCAN_CONF, 2,
@@ -536,7 +536,7 @@ void MlmeStartReqAction(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *
 		MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_START_CONF, 2,
 			    &Status);
 	} else {
-		DBGPRINT_ERR(("SYNC - MlmeStartReqAction() sanity check fail.\n"));
+		DBGPRINT_ERR("SYNC - MlmeStartReqAction() sanity check fail.\n");
 		pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
 		Status = MLME_INVALID_FORMAT;
 		MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_START_CONF, 2,
@@ -1208,7 +1208,7 @@ void PeerBeacon(struct rt_rtmp_adapter *pAd, struct rt_mlme_queue_elem *Elem)
 			}
 
 			if (index >= pAd->ChannelListNum) {
-				DBGPRINT_ERR(("PeerBeacon(can not find New Channel=%d in ChannelList[%d]\n", pAd->CommonCfg.Channel, pAd->ChannelListNum));
+				DBGPRINT_ERR("PeerBeacon(can not find New Channel=%d in ChannelList[%d]\n", pAd->CommonCfg.Channel, pAd->ChannelListNum);
 			}
 		}
 		/* if the ssid matched & bssid unmatched, we should select the bssid with large value. */

@@ -509,8 +509,7 @@ BOOLEAN AUTH_ReqSend(struct rt_rtmp_adapter *pAd,
 		RTMPSetTimer(pAuthTimer, Timeout);
 		return TRUE;
 	} else {
-		DBGPRINT_ERR(("%s - MlmeAuthReqAction() sanity check failed\n",
-			      pSMName));
+		DBGPRINT_ERR("%s - MlmeAuthReqAction() sanity check failed\n", pSMName);
 		return FALSE;
 	}
 

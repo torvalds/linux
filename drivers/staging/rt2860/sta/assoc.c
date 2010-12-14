@@ -1055,7 +1055,7 @@ void AssocPostProc(struct rt_rtmp_adapter *pAd, u8 *pAddr2, u16 CapabilityInfo, 
 	/* Set New WPA information */
 	Idx = BssTableSearch(&pAd->ScanTab, pAddr2, pAd->MlmeAux.Channel);
 	if (Idx == BSS_NOT_FOUND) {
-		DBGPRINT_ERR(("ASSOC - Can't find BSS after receiving Assoc response\n"));
+		DBGPRINT_ERR("ASSOC - Can't find BSS after receiving Assoc response\n");
 	} else {
 		/* Init variable */
 		pAd->MacTab.Content[BSSID_WCID].RSNIE_Len = 0;
