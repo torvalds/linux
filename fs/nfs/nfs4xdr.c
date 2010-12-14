@@ -6159,8 +6159,22 @@ out:
 }
 #endif /* CONFIG_NFS_V4_1 */
 
-__be32 *nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
-			   struct nfs_server *server, int plus)
+/**
+ * nfs4_decode_dirent - Decode a single NFSv4 directory entry stored in
+ *                      the local page cache.
+ * @xdr: XDR stream where entry resides
+ * @entry: buffer to fill in with entry data
+ * @plus: boolean indicating whether this should be a readdirplus entry
+ *
+ * Returns zero if successful, otherwise a negative errno value is
+ * returned.
+ *
+ * This function is not invoked during READDIR reply decoding, but
+ * rather whenever an application invokes the getdents(2) system call
+ * on a directory already in our cache.
+ */
+int nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
+		       int plus)
 {
 	uint32_t bitmap[2] = {0};
 	uint32_t len;
@@ -6172,9 +6186,9 @@ __be32 *nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 		if (unlikely(!p))
 			goto out_overflow;
 		if (!ntohl(*p++))
-			return ERR_PTR(-EAGAIN);
+			return -EAGAIN;
 		entry->eof = 1;
-		return ERR_PTR(-EBADCOOKIE);
+		return -EBADCOOKIE;
 	}
 
 	p = xdr_inline_decode(xdr, 12);
@@ -6203,7 +6217,8 @@ __be32 *nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	if (decode_attr_length(xdr, &len, &p) < 0)
 		goto out_overflow;
 
-	if (decode_getfattr_attrs(xdr, bitmap, entry->fattr, entry->fh, server, 1) < 0)
+	if (decode_getfattr_attrs(xdr, bitmap, entry->fattr, entry->fh,
+					entry->server, 1) < 0)
 		goto out_overflow;
 	if (entry->fattr->valid & NFS_ATTR_FATTR_FILEID)
 		entry->ino = entry->fattr->fileid;
@@ -6221,11 +6236,11 @@ __be32 *nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	else
 		entry->eof = 0;
 
-	return p;
+	return 0;
 
 out_overflow:
 	print_overflow_msg(__func__, xdr);
-	return ERR_PTR(-EAGAIN);
+	return -EAGAIN;
 }
 
 /*

@@ -1970,10 +1970,10 @@ out_status:
  *			the local page cache
  * @xdr: XDR stream where entry resides
  * @entry: buffer to fill in with entry data
- * @server: nfs_server data for this directory
  * @plus: boolean indicating whether this should be a readdirplus entry
  *
- * Returns the position of the next item in the buffer, or an ERR_PTR.
+ * Returns zero if successful, otherwise a negative errno value is
+ * returned.
  *
  * This function is not invoked during READDIR reply decoding, but
  * rather whenever an application invokes the getdents(2) system call
@@ -2000,8 +2000,8 @@ out_status:
  *		entryplus3	*nextentry;
  *	};
  */
-__be32 *nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
-			   struct nfs_server *server, int plus)
+int nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
+		       int plus)
 {
 	struct nfs_entry old = *entry;
 	__be32 *p;
@@ -2015,23 +2015,23 @@ __be32 *nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 		if (unlikely(p == NULL))
 			goto out_overflow;
 		if (*p == xdr_zero)
-			return ERR_PTR(-EAGAIN);
+			return -EAGAIN;
 		entry->eof = 1;
-		return ERR_PTR(-EBADCOOKIE);
+		return -EBADCOOKIE;
 	}
 
 	error = decode_fileid3(xdr, &entry->ino);
 	if (unlikely(error))
-		return ERR_PTR(error);
+		return error;
 
 	error = decode_inline_filename3(xdr, &entry->name, &entry->len);
 	if (unlikely(error))
-		return ERR_PTR(error);
+		return error;
 
 	entry->prev_cookie = entry->cookie;
 	error = decode_cookie3(xdr, &entry->cookie);
 	if (unlikely(error))
-		return ERR_PTR(error);
+		return error;
 
 	entry->d_type = DT_UNKNOWN;
 
@@ -2039,7 +2039,7 @@ __be32 *nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 		entry->fattr->valid = 0;
 		error = decode_post_op_attr(xdr, entry->fattr);
 		if (unlikely(error))
-			return ERR_PTR(error);
+			return error;
 		if (entry->fattr->valid & NFS_ATTR_FATTR_V3)
 			entry->d_type = nfs_umode_to_dtype(entry->fattr->mode);
 
@@ -2052,7 +2052,7 @@ __be32 *nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 			if (unlikely(error)) {
 				if (error == -E2BIG)
 					goto out_truncated;
-				return ERR_PTR(error);
+				return error;
 			}
 		} else
 			zero_nfs_fh3(entry->fh);
@@ -2063,15 +2063,15 @@ __be32 *nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	entry->eof = 0;
 	if (p != NULL)
 		entry->eof = (p[0] == xdr_zero) && (p[1] != xdr_zero);
-	return p;
+	return 0;
 
 out_overflow:
 	print_overflow_msg(__func__, xdr);
-	return ERR_PTR(-EAGAIN);
+	return -EAGAIN;
 out_truncated:
 	dprintk("NFS: directory entry contains invalid file handle\n");
 	*entry = old;
-	return ERR_PTR(-EAGAIN);
+	return -EAGAIN;
 }
 
 /*

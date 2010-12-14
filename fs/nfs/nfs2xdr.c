@@ -936,10 +936,10 @@ static int nfs2_xdr_dec_writeres(struct rpc_rqst *req, __be32 *p,
  *                      the local page cache.
  * @xdr: XDR stream where entry resides
  * @entry: buffer to fill in with entry data
- * @server: nfs_server data for this directory
  * @plus: boolean indicating whether this should be a readdirplus entry
  *
- * Returns the position of the next item in the buffer, or an ERR_PTR.
+ * Returns zero if successful, otherwise a negative errno value is
+ * returned.
  *
  * This function is not invoked during READDIR reply decoding, but
  * rather whenever an application invokes the getdents(2) system call
@@ -954,8 +954,8 @@ static int nfs2_xdr_dec_writeres(struct rpc_rqst *req, __be32 *p,
  *		entry		*nextentry;
  *	};
  */
-__be32 *nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
-			   struct nfs_server *server, int plus)
+int nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
+		       int plus)
 {
 	__be32 *p;
 	int error;
@@ -968,9 +968,9 @@ __be32 *nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 		if (unlikely(p == NULL))
 			goto out_overflow;
 		if (*p++ == xdr_zero)
-			return ERR_PTR(-EAGAIN);
+			return -EAGAIN;
 		entry->eof = 1;
-		return ERR_PTR(-EBADCOOKIE);
+		return -EBADCOOKIE;
 	}
 
 	p = xdr_inline_decode(xdr, 4);
@@ -980,7 +980,7 @@ __be32 *nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 
 	error = decode_filename_inline(xdr, &entry->name, &entry->len);
 	if (unlikely(error))
-		return ERR_PTR(error);
+		return error;
 
 	/*
 	 * The type (size and byte order) of nfscookie isn't defined in
@@ -999,11 +999,11 @@ __be32 *nfs2_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	entry->eof = 0;
 	if (p != NULL)
 		entry->eof = (p[0] == xdr_zero) && (p[1] != xdr_zero);
-	return p;
+	return 0;
 
 out_overflow:
 	print_overflow_msg(__func__, xdr);
-	return ERR_PTR(-EAGAIN);
+	return -EAGAIN;
 }
 
 /*
