@@ -1782,13 +1782,6 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	else
 		len = mtd->oobsize;
 
-	/* Do not allow read past end of page */
-	if ((ops->ooboffs + readlen) > len) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Attempt to read "
-				"past end of page\n", __func__);
-		return -EINVAL;
-	}
-
 	if (unlikely(ops->ooboffs >= len)) {
 		DEBUG(MTD_DEBUG_LEVEL0, "%s: Attempt to start read "
 					"outside oob\n", __func__);
@@ -2384,7 +2377,7 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 		return -EINVAL;
 	}
 
-	/* Do not allow write past end of device */
+	/* Do not allow reads past end of device */
 	if (unlikely(to >= mtd->size ||
 		     ops->ooboffs + ops->ooblen >
 			((mtd->size >> chip->page_shift) -
