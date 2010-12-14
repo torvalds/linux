@@ -1313,23 +1313,15 @@ static int _shutdown(struct omap_hwmod *oh)
 /**
  * _setup - do initial configuration of omap_hwmod
  * @oh: struct omap_hwmod *
- * @skip_setup_idle_p: do not idle hwmods at the end of the fn if 1
  *
  * Writes the CLOCKACTIVITY bits @clockact to the hwmod @oh
- * OCP_SYSCONFIG register.  @skip_setup_idle is intended to be used on
- * a system that will not call omap_hwmod_enable() to enable devices
- * (e.g., a system without PM runtime).  Returns -EINVAL if the hwmod
- * is in the wrong state or returns 0.
+ * OCP_SYSCONFIG register.  Returns -EINVAL if the hwmod is in the
+ * wrong state or returns 0.
  */
 static int _setup(struct omap_hwmod *oh, void *data)
 {
 	int i, r;
-	u8 skip_setup_idle;
-
-	if (!oh || !data)
-		return -EINVAL;
-
-	skip_setup_idle = *(u8 *)data;
+	u8 postsetup_state;
 
 	/* Set iclk autoidle mode */
 	if (oh->slaves_cnt > 0) {
@@ -1349,7 +1341,6 @@ static int _setup(struct omap_hwmod *oh, void *data)
 		}
 	}
 
-	mutex_init(&oh->_mutex);
 	oh->_state = _HWMOD_STATE_INITIALIZED;
 
 	/*
@@ -1383,8 +1374,25 @@ static int _setup(struct omap_hwmod *oh, void *data)
 		}
 	}
 
-	if (!(oh->flags & HWMOD_INIT_NO_IDLE) && !skip_setup_idle)
+	postsetup_state = oh->_postsetup_state;
+	if (postsetup_state == _HWMOD_STATE_UNKNOWN)
+		postsetup_state = _HWMOD_STATE_ENABLED;
+
+	/*
+	 * XXX HWMOD_INIT_NO_IDLE does not belong in hwmod data -
+	 * it should be set by the core code as a runtime flag during startup
+	 */
+	if ((oh->flags & HWMOD_INIT_NO_IDLE) &&
+	    (postsetup_state == _HWMOD_STATE_IDLE))
+		postsetup_state = _HWMOD_STATE_ENABLED;
+
+	if (postsetup_state == _HWMOD_STATE_IDLE)
 		_omap_hwmod_idle(oh);
+	else if (postsetup_state == _HWMOD_STATE_DISABLED)
+		_shutdown(oh);
+	else if (postsetup_state != _HWMOD_STATE_ENABLED)
+		WARN(1, "hwmod: %s: unknown postsetup state %d! defaulting to enabled\n",
+		     oh->name, postsetup_state);
 
 	return 0;
 }
@@ -1484,6 +1492,8 @@ int omap_hwmod_register(struct omap_hwmod *oh)
 	}
 
 	list_add_tail(&oh->node, &omap_hwmod_list);
+
+	mutex_init(&oh->_mutex);
 
 	oh->_state = _HWMOD_STATE_REGISTERED;
 
@@ -1585,13 +1595,12 @@ int omap_hwmod_init(struct omap_hwmod **ohs)
 
 /**
  * omap_hwmod_late_init - do some post-clock framework initialization
- * @skip_setup_idle: if 1, do not idle hwmods in _setup()
  *
  * Must be called after omap2_clk_init().  Resolves the struct clk names
  * to struct clk pointers for each registered omap_hwmod.  Also calls
  * _setup() on each hwmod.  Returns 0.
  */
-int omap_hwmod_late_init(u8 skip_setup_idle)
+int omap_hwmod_late_init(void)
 {
 	int r;
 
@@ -1603,10 +1612,7 @@ int omap_hwmod_late_init(u8 skip_setup_idle)
 	WARN(!mpu_oh, "omap_hwmod: could not find MPU initiator hwmod %s\n",
 	     MPU_INITIATOR_NAME);
 
-	if (skip_setup_idle)
-		pr_debug("omap_hwmod: will leave hwmods enabled during setup\n");
-
-	omap_hwmod_for_each(_setup, &skip_setup_idle);
+	omap_hwmod_for_each(_setup, NULL);
 
 	return 0;
 }
@@ -2132,3 +2138,41 @@ int omap_hwmod_for_each_by_class(const char *classname,
 	return ret;
 }
 
+/**
+ * omap_hwmod_set_postsetup_state - set the post-_setup() state for this hwmod
+ * @oh: struct omap_hwmod *
+ * @state: state that _setup() should leave the hwmod in
+ *
+ * Sets the hwmod state that @oh will enter at the end of _setup() (called by
+ * omap_hwmod_late_init()).  Only valid to call between calls to
+ * omap_hwmod_init() and omap_hwmod_late_init().  Returns 0 upon success or
+ * -EINVAL if there is a problem with the arguments or if the hwmod is
+ * in the wrong state.
+ */
+int omap_hwmod_set_postsetup_state(struct omap_hwmod *oh, u8 state)
+{
+	int ret;
+
+	if (!oh)
+		return -EINVAL;
+
+	if (state != _HWMOD_STATE_DISABLED &&
+	    state != _HWMOD_STATE_ENABLED &&
+	    state != _HWMOD_STATE_IDLE)
+		return -EINVAL;
+
+	mutex_lock(&oh->_mutex);
+
+	if (oh->_state != _HWMOD_STATE_REGISTERED) {
+		ret = -EINVAL;
+		goto ohsps_unlock;
+	}
+
+	oh->_postsetup_state = state;
+	ret = 0;
+
+ohsps_unlock:
+	mutex_unlock(&oh->_mutex);
+
+	return ret;
+}

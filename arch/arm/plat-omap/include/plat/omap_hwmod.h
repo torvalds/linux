@@ -462,6 +462,7 @@ struct omap_hwmod_class {
  * @response_lat: device OCP response latency (in interface clock cycles)
  * @_int_flags: internal-use hwmod flags
  * @_state: internal-use hwmod state
+ * @_postsetup_state: internal-use state to leave the hwmod in after _setup()
  * @flags: hwmod flags (documented below)
  * @omap_chip: OMAP chips this hwmod is present on
  * @_mutex: mutex serializing operations on this hwmod
@@ -510,6 +511,7 @@ struct omap_hwmod {
 	u8				hwmods_cnt;
 	u8				_int_flags;
 	u8				_state;
+	u8				_postsetup_state;
 	const struct omap_chip_id	omap_chip;
 };
 
@@ -519,7 +521,7 @@ int omap_hwmod_unregister(struct omap_hwmod *oh);
 struct omap_hwmod *omap_hwmod_lookup(const char *name);
 int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
 			void *data);
-int omap_hwmod_late_init(u8 skip_setup_idle);
+int omap_hwmod_late_init(void);
 
 int omap_hwmod_enable(struct omap_hwmod *oh);
 int _omap_hwmod_enable(struct omap_hwmod *oh);
@@ -565,6 +567,8 @@ int omap_hwmod_for_each_by_class(const char *classname,
 				 int (*fn)(struct omap_hwmod *oh,
 					   void *user),
 				 void *user);
+
+int omap_hwmod_set_postsetup_state(struct omap_hwmod *oh, u8 state);
 
 /*
  * Chip variant-specific hwmod init routines - XXX should be converted

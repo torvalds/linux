@@ -312,6 +312,11 @@ static int __init _omap2_init_reprogram_sdrc(void)
 	return v;
 }
 
+static int _set_hwmod_postsetup_state(struct omap_hwmod *oh, void *data)
+{
+	return omap_hwmod_set_postsetup_state(oh, *(u8 *)data);
+}
+
 /*
  * Initialize asm_irq_base for entry-macro.S
  */
@@ -333,6 +338,8 @@ static inline void omap_irq_base_init(void)
 
 void __init omap2_init_common_infrastructure(void)
 {
+	u8 postsetup_state;
+
 	pwrdm_init(powerdomains_omap);
 	clkdm_init(clockdomains_omap, clkdm_autodeps);
 	if (cpu_is_omap242x())
@@ -343,6 +350,16 @@ void __init omap2_init_common_infrastructure(void)
 		omap3xxx_hwmod_init();
 	else if (cpu_is_omap44xx())
 		omap44xx_hwmod_init();
+	else
+		pr_err("Could not init hwmod data - unknown SoC\n");
+
+	/* Set the default postsetup state for all hwmods */
+#ifdef CONFIG_PM_RUNTIME
+	postsetup_state = _HWMOD_STATE_IDLE;
+#else
+	postsetup_state = _HWMOD_STATE_ENABLED;
+#endif
+	omap_hwmod_for_each(_set_hwmod_postsetup_state, &postsetup_state);
 
 	omap_pm_if_early_init();
 
@@ -355,25 +372,16 @@ void __init omap2_init_common_infrastructure(void)
 	else if (cpu_is_omap44xx())
 		omap4xxx_clk_init();
 	else
-		pr_err("Could not init clock framework - unknown CPU\n");
+		pr_err("Could not init clock framework - unknown SoC\n");
 }
 
-/*
- * XXX Ideally, this function will dwindle into nothingness over time;
- * almost all device init code should be possible through initcalls
- * and other generalized mechanisms
- */
 void __init omap2_init_common_devices(struct omap_sdrc_params *sdrc_cs0,
 				      struct omap_sdrc_params *sdrc_cs1)
 {
-	u8 skip_setup_idle = 0;
-
 	omap_serial_early_init();
 
-#ifndef CONFIG_PM_RUNTIME
-	skip_setup_idle = 1;
-#endif
-	omap_hwmod_late_init(skip_setup_idle);
+	omap_hwmod_late_init();
+
 	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 		omap2_sdrc_init(sdrc_cs0, sdrc_cs1);
 		_omap2_init_reprogram_sdrc();
