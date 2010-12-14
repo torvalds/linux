@@ -480,7 +480,7 @@ nouveau_mem_gart_init(struct drm_device *dev)
 	dev_priv->gart_info.type = NOUVEAU_GART_NONE;
 
 #if !defined(__powerpc__) && !defined(__ia64__)
-	if (drm_device_is_agp(dev) && dev->agp && nouveau_agpmode) {
+	if (drm_pci_device_is_agp(dev) && dev->agp && nouveau_agpmode) {
 		ret = nouveau_mem_init_agp(dev);
 		if (ret)
 			NV_ERROR(dev, "Error initialising AGP: %d\n", ret);

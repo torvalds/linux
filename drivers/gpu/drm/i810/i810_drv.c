@@ -64,17 +64,17 @@ static struct drm_driver driver = {
 		 .llseek = noop_llseek,
 	},
 
-	.pci_driver = {
-		 .name = DRIVER_NAME,
-		 .id_table = pciidlist,
-	},
-
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
+};
+
+static struct pci_driver i810_pci_driver = {
+	.name = DRIVER_NAME,
+	.id_table = pciidlist,
 };
 
 static int __init i810_init(void)
@@ -84,12 +84,12 @@ static int __init i810_init(void)
 		return -EINVAL;
 	}
 	driver.num_ioctls = i810_max_ioctl;
-	return drm_init(&driver);
+	return drm_pci_init(&driver, &i810_pci_driver);
 }
 
 static void __exit i810_exit(void)
 {
-	drm_exit(&driver);
+	drm_pci_exit(&driver, &i810_pci_driver);
 }
 
 module_init(i810_init);

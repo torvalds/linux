@@ -719,20 +719,20 @@ static struct drm_driver driver = {
 		 .llseek = noop_llseek,
 	},
 
-	.pci_driver = {
-		 .name = DRIVER_NAME,
-		 .id_table = pciidlist,
-		 .probe = i915_pci_probe,
-		 .remove = i915_pci_remove,
-		 .driver.pm = &i915_pm_ops,
-	},
-
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
+};
+
+static struct pci_driver i915_pci_driver = {
+	.name = DRIVER_NAME,
+	.id_table = pciidlist,
+	.probe = i915_pci_probe,
+	.remove = i915_pci_remove,
+	.driver.pm = &i915_pm_ops,
 };
 
 static int __init i915_init(void)
@@ -768,12 +768,12 @@ static int __init i915_init(void)
 	if (!(driver.driver_features & DRIVER_MODESET))
 		driver.get_vblank_timestamp = NULL;
 
-	return drm_init(&driver);
+	return drm_pci_init(&driver, &i915_pci_driver);
 }
 
 static void __exit i915_exit(void)
 {
-	drm_exit(&driver);
+	drm_pci_exit(&driver, &i915_pci_driver);
 }
 
 module_init(i915_init);

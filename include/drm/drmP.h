@@ -145,7 +145,10 @@ extern void drm_ut_debug_printk(unsigned int request_level,
 #define DRIVER_IRQ_VBL2    0x800
 #define DRIVER_GEM         0x1000
 #define DRIVER_MODESET     0x2000
-#define DRIVER_USE_PLATFORM_DEVICE  0x4000
+
+#define DRIVER_BUS_PCI 0x1
+#define DRIVER_BUS_PLATFORM 0x2
+#define DRIVER_BUS_USB 0x3
 
 /***********************************************************************/
 /** \name Begin the DRM... */
@@ -698,6 +701,19 @@ struct drm_master {
 #define DRM_SCANOUTPOS_INVBL        (1 << 1)
 #define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
 
+struct drm_bus {
+	int bus_type;
+	int (*get_irq)(struct drm_device *dev);
+	const char *(*get_name)(struct drm_device *dev);
+	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
+	int (*set_unique)(struct drm_device *dev, struct drm_master *master,
+			  struct drm_unique *unique);
+	int (*irq_by_busid)(struct drm_device *dev, struct drm_irq_busid *p);
+	/* hooks that are for PCI */
+	int (*agp_init)(struct drm_device *dev);
+
+};
+
 /**
  * DRM driver structure. This structure represent the common code for
  * a family of cards. There will one drm_device for each card present
@@ -906,8 +922,12 @@ struct drm_driver {
 	struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
 	struct file_operations fops;
-	struct pci_driver pci_driver;
-	struct platform_device *platform_device;
+	union {
+		struct pci_driver *pci;
+		struct platform_device *platform_device;
+	} kdriver;
+	struct drm_bus *bus;
+
 	/* List of devices hanging off this driver */
 	struct list_head device_list;
 };
@@ -1147,28 +1167,9 @@ static __inline__ int drm_core_check_feature(struct drm_device *dev,
 
 static inline int drm_dev_to_irq(struct drm_device *dev)
 {
-	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE))
-		return platform_get_irq(dev->platformdev, 0);
-	else
-		return dev->pdev->irq;
+	return dev->driver->bus->get_irq(dev);
 }
 
-static inline int drm_get_pci_domain(struct drm_device *dev)
-{
-	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE))
-		return 0;
-
-#ifndef __alpha__
-	/* For historical reasons, drm_get_pci_domain() is busticated
-	 * on most archs and has to remain so for userspace interface
-	 * < 1.4, except on alpha which was right from the beginning
-	 */
-	if (dev->if_version < 0x10004)
-		return 0;
-#endif /* __alpha__ */
-
-	return pci_domain_nr(dev->pdev->bus);
-}
 
 #if __OS_HAS_AGP
 static inline int drm_core_has_AGP(struct drm_device *dev)
@@ -1222,8 +1223,6 @@ static inline int drm_mtrr_del(int handle, unsigned long offset,
 /*@{*/
 
 				/* Driver support (drm_drv.h) */
-extern int drm_init(struct drm_driver *driver);
-extern void drm_exit(struct drm_driver *driver);
 extern long drm_ioctl(struct file *filp,
 		      unsigned int cmd, unsigned long arg);
 extern long drm_compat_ioctl(struct file *filp,
@@ -1433,11 +1432,7 @@ extern int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 struct drm_master *drm_master_create(struct drm_minor *minor);
 extern struct drm_master *drm_master_get(struct drm_master *master);
 extern void drm_master_put(struct drm_master **master);
-extern int drm_get_pci_dev(struct pci_dev *pdev,
-			   const struct pci_device_id *ent,
-			   struct drm_driver *driver);
-extern int drm_get_platform_dev(struct platform_device *pdev,
-				struct drm_driver *driver);
+
 extern void drm_put_dev(struct drm_device *dev);
 extern int drm_put_minor(struct drm_minor **minor);
 extern unsigned int drm_debug;
@@ -1628,11 +1623,21 @@ static __inline__ struct drm_local_map *drm_core_findmap(struct drm_device *dev,
 	return NULL;
 }
 
-static __inline__ int drm_device_is_agp(struct drm_device *dev)
+static __inline__ void drm_core_dropmap(struct drm_local_map *map)
 {
-	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE))
-		return 0;
+}
 
+#include "drm_mem_util.h"
+
+extern int drm_fill_in_dev(struct drm_device *dev,
+			   const struct pci_device_id *ent,
+			   struct drm_driver *driver);
+int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type);
+/*@}*/
+
+/* PCI section */
+static __inline__ int drm_pci_device_is_agp(struct drm_device *dev)
+{
 	if (dev->driver->device_is_agp != NULL) {
 		int err = (*dev->driver->device_is_agp) (dev);
 
@@ -1644,35 +1649,26 @@ static __inline__ int drm_device_is_agp(struct drm_device *dev)
 	return pci_find_capability(dev->pdev, PCI_CAP_ID_AGP);
 }
 
-static __inline__ int drm_device_is_pcie(struct drm_device *dev)
+
+static __inline__ int drm_pci_device_is_pcie(struct drm_device *dev)
 {
-	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE))
-		return 0;
-	else
-		return pci_find_capability(dev->pdev, PCI_CAP_ID_EXP);
+	return pci_find_capability(dev->pdev, PCI_CAP_ID_EXP);
 }
 
-static __inline__ void drm_core_dropmap(struct drm_local_map *map)
-{
-}
 
-#include "drm_mem_util.h"
-
-static inline void *drm_get_device(struct drm_device *dev)
-{
-	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE))
-		return dev->platformdev;
-	else
-		return dev->pdev;
-}
-
-extern int drm_platform_init(struct drm_driver *driver);
-extern int drm_pci_init(struct drm_driver *driver);
-extern int drm_fill_in_dev(struct drm_device *dev,
+extern int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
+extern void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);
+extern int drm_get_pci_dev(struct pci_dev *pdev,
 			   const struct pci_device_id *ent,
 			   struct drm_driver *driver);
-int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type);
-/*@}*/
+
+
+/* platform section */
+extern int drm_platform_init(struct drm_driver *driver, struct platform_device *platform_device);
+extern void drm_platform_exit(struct drm_driver *driver, struct platform_device *platform_device);
+
+extern int drm_get_platform_dev(struct platform_device *pdev,
+				struct drm_driver *driver);
 
 #endif				/* __KERNEL__ */
 #endif

@@ -237,49 +237,6 @@ int drm_lastclose(struct drm_device * dev)
 	return 0;
 }
 
-/**
- * Module initialization. Called via init_module at module load time, or via
- * linux/init/main.c (this is not currently supported).
- *
- * \return zero on success or a negative number on failure.
- *
- * Initializes an array of drm_device structures, and attempts to
- * initialize all available devices, using consecutive minors, registering the
- * stubs and initializing the device.
- *
- * Expands the \c DRIVER_PREINIT and \c DRIVER_POST_INIT macros before and
- * after the initialization for driver customization.
- */
-int drm_init(struct drm_driver *driver)
-{
-	DRM_DEBUG("\n");
-	INIT_LIST_HEAD(&driver->device_list);
-
-	if (driver->driver_features & DRIVER_USE_PLATFORM_DEVICE)
-		return drm_platform_init(driver);
-	else
-		return drm_pci_init(driver);
-}
-
-EXPORT_SYMBOL(drm_init);
-
-void drm_exit(struct drm_driver *driver)
-{
-	struct drm_device *dev, *tmp;
-	DRM_DEBUG("\n");
-
-	if (driver->driver_features & DRIVER_MODESET) {
-		pci_unregister_driver(&driver->pci_driver);
-	} else {
-		list_for_each_entry_safe(dev, tmp, &driver->device_list, driver_item)
-			drm_put_dev(dev);
-	}
-
-	DRM_INFO("Module unloaded\n");
-}
-
-EXPORT_SYMBOL(drm_exit);
-
 /** File operations structure */
 static const struct file_operations drm_stub_fops = {
 	.owner = THIS_MODULE,

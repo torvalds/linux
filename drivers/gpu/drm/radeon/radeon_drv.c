@@ -238,11 +238,6 @@ static struct drm_driver driver_old = {
 		 .llseek = noop_llseek,
 	},
 
-	.pci_driver = {
-		 .name = DRIVER_NAME,
-		 .id_table = pciidlist,
-	},
-
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
@@ -349,15 +344,6 @@ static struct drm_driver kms_driver = {
 #endif
 	},
 
-	.pci_driver = {
-		 .name = DRIVER_NAME,
-		 .id_table = pciidlist,
-		 .probe = radeon_pci_probe,
-		 .remove = radeon_pci_remove,
-		 .suspend = radeon_pci_suspend,
-		 .resume = radeon_pci_resume,
-	},
-
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
@@ -367,15 +353,32 @@ static struct drm_driver kms_driver = {
 };
 
 static struct drm_driver *driver;
+static struct pci_driver *pdriver;
+
+static struct pci_driver radeon_pci_driver = {
+	.name = DRIVER_NAME,
+	.id_table = pciidlist,
+};
+
+static struct pci_driver radeon_kms_pci_driver = {
+	.name = DRIVER_NAME,
+	.id_table = pciidlist,
+	.probe = radeon_pci_probe,
+	.remove = radeon_pci_remove,
+	.suspend = radeon_pci_suspend,
+	.resume = radeon_pci_resume,
+};
 
 static int __init radeon_init(void)
 {
 	driver = &driver_old;
+	pdriver = &radeon_pci_driver;
 	driver->num_ioctls = radeon_max_ioctl;
 #ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && radeon_modeset == -1) {
 		DRM_INFO("VGACON disable radeon kernel modesetting.\n");
 		driver = &driver_old;
+		pdriver = &radeon_pci_driver;
 		driver->driver_features &= ~DRIVER_MODESET;
 		radeon_modeset = 0;
 	}
@@ -393,18 +396,19 @@ static int __init radeon_init(void)
 	if (radeon_modeset == 1) {
 		DRM_INFO("radeon kernel modesetting enabled.\n");
 		driver = &kms_driver;
+		pdriver = &radeon_kms_pci_driver;
 		driver->driver_features |= DRIVER_MODESET;
 		driver->num_ioctls = radeon_max_kms_ioctl;
 		radeon_register_atpx_handler();
 	}
 	/* if the vga console setting is enabled still
 	 * let modprobe override it */
-	return drm_init(driver);
+	return drm_pci_init(driver, pdriver);
 }
 
 static void __exit radeon_exit(void)
 {
-	drm_exit(driver);
+	drm_pci_exit(driver, pdriver);
 	radeon_unregister_atpx_handler();
 }
 
