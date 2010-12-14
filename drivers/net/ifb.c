@@ -96,7 +96,7 @@ static void ri_tasklet(unsigned long dev)
 			dev_queue_xmit(skb);
 		} else if (from & AT_INGRESS) {
 			skb_pull(skb, skb->dev->hard_header_len);
-			netif_rx(skb);
+			netif_receive_skb(skb);
 		} else
 			BUG();
 	}
