@@ -231,15 +231,20 @@ out:
 }
 
 /*
- * Destroy a host
+ * Destroy an nlm_host and free associated resources
+ *
+ * Caller must hold nlm_host_mutex.
  */
-static void
-nlm_destroy_host(struct nlm_host *host)
+static void nlm_destroy_host_locked(struct nlm_host *host)
 {
 	struct rpc_clnt	*clnt;
 
+	dprintk("lockd: destroy host %s\n", host->h_name);
+
 	BUG_ON(!list_empty(&host->h_lockowners));
 	BUG_ON(atomic_read(&host->h_count));
+
+	hlist_del_init(&host->h_hash);
 
 	nsm_unmonitor(host);
 	nsm_release(host->h_nsmhandle);
@@ -248,6 +253,8 @@ nlm_destroy_host(struct nlm_host *host)
 	if (clnt != NULL)
 		rpc_shutdown_client(clnt);
 	kfree(host);
+
+	nrhosts--;
 }
 
 /**
@@ -589,11 +596,7 @@ nlm_gc_hosts(void)
 				host->h_inuse, host->h_expires);
 			continue;
 		}
-		dprintk("lockd: delete host %s\n", host->h_name);
-		hlist_del_init(&host->h_hash);
-
-		nlm_destroy_host(host);
-		nrhosts--;
+		nlm_destroy_host_locked(host);
 	}
 
 	next_gc = jiffies + NLM_HOST_COLLECT;
