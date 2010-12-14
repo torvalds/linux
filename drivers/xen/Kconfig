@@ -62,6 +62,13 @@ config XEN_SYS_HYPERVISOR
 	 virtual environment, /sys/hypervisor will still be present,
 	 but will have no xen contents.
 
+config XEN_GNTDEV
+	tristate "userspace grant access device driver"
+	depends on XEN
+	select MMU_NOTIFIER
+	help
+	  Allows userspace processes to use grants.
+
 config XEN_PLATFORM_PCI
 	tristate "xen platform pci device driver"
 	depends on XEN_PVHVM
