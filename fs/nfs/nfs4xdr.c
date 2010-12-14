@@ -5000,7 +5000,7 @@ static int decode_getdeviceinfo(struct xdr_stream *xdr,
 		goto out_overflow;
 	len = be32_to_cpup(p);
 	if (len) {
-		int i;
+		uint32_t i;
 
 		p = xdr_inline_decode(xdr, 4 * len);
 		if (unlikely(!p))
