@@ -272,7 +272,7 @@ static int dapm_connect_mux(struct snd_soc_dapm_context *dapm,
 
 	for (i = 0; i < e->max; i++) {
 		if (!(strcmp(control_name, e->texts[i]))) {
-			list_add(&path->list, &dapm->paths);
+			list_add(&path->list, &dapm->card->paths);
 			list_add(&path->list_sink, &dest->sources);
 			list_add(&path->list_source, &src->sinks);
 			path->name = (char*)e->texts[i];
@@ -294,7 +294,7 @@ static int dapm_connect_mixer(struct snd_soc_dapm_context *dapm,
 	/* search for mixer kcontrol */
 	for (i = 0; i < dest->num_kcontrols; i++) {
 		if (!strcmp(control_name, dest->kcontrols[i].name)) {
-			list_add(&path->list, &dapm->paths);
+			list_add(&path->list, &dapm->card->paths);
 			list_add(&path->list_sink, &dest->sources);
 			list_add(&path->list_source, &src->sinks);
 			path->name = dest->kcontrols[i].name;
@@ -453,7 +453,7 @@ static inline void dapm_clear_walk(struct snd_soc_dapm_context *dapm)
 {
 	struct snd_soc_dapm_path *p;
 
-	list_for_each_entry(p, &dapm->paths, list)
+	list_for_each_entry(p, &dapm->card->paths, list)
 		p->walked = 0;
 }
 
@@ -1180,7 +1180,7 @@ static int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
 		return 0;
 
 	/* find dapm widget path assoc with kcontrol */
-	list_for_each_entry(path, &widget->dapm->paths, list) {
+	list_for_each_entry(path, &widget->dapm->card->paths, list) {
 		if (path->kcontrol != kcontrol)
 			continue;
 
@@ -1214,7 +1214,7 @@ static int dapm_mixer_update_power(struct snd_soc_dapm_widget *widget,
 		return -ENODEV;
 
 	/* find dapm widget path assoc with kcontrol */
-	list_for_each_entry(path, &widget->dapm->paths, list) {
+	list_for_each_entry(path, &widget->dapm->card->paths, list) {
 		if (path->kcontrol != kcontrol)
 			continue;
 
@@ -1305,14 +1305,27 @@ static void dapm_free_widgets(struct snd_soc_dapm_context *dapm)
 
 	list_for_each_entry_safe(w, next_w, &dapm->widgets, list) {
 		list_del(&w->list);
+		/*
+		 * remove source and sink paths associated to this widget.
+		 * While removing the path, remove reference to it from both
+		 * source and sink widgets so that path is removed only once.
+		 */
+		list_for_each_entry_safe(p, next_p, &w->sources, list_sink) {
+			list_del(&p->list_sink);
+			list_del(&p->list_source);
+			list_del(&p->list);
+			kfree(p->long_name);
+			kfree(p);
+		}
+		list_for_each_entry_safe(p, next_p, &w->sinks, list_source) {
+			list_del(&p->list_sink);
+			list_del(&p->list_source);
+			list_del(&p->list);
+			kfree(p->long_name);
+			kfree(p);
+		}
 		kfree(w->name);
 		kfree(w);
-	}
-
-	list_for_each_entry_safe(p, next_p, &dapm->paths, list) {
-		list_del(&p->list);
-		kfree(p->long_name);
-		kfree(p);
 	}
 }
 
@@ -1420,7 +1433,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 
 	/* connect static paths */
 	if (control == NULL) {
-		list_add(&path->list, &dapm->paths);
+		list_add(&path->list, &dapm->card->paths);
 		list_add(&path->list_sink, &wsink->sources);
 		list_add(&path->list_source, &wsource->sinks);
 		path->connect = 1;
@@ -1442,7 +1455,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	case snd_soc_dapm_supply:
 	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_aif_out:
-		list_add(&path->list, &dapm->paths);
+		list_add(&path->list, &dapm->card->paths);
 		list_add(&path->list_sink, &wsink->sources);
 		list_add(&path->list_source, &wsource->sinks);
 		path->connect = 1;
@@ -1465,7 +1478,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 	case snd_soc_dapm_mic:
 	case snd_soc_dapm_line:
 	case snd_soc_dapm_spk:
-		list_add(&path->list, &dapm->paths);
+		list_add(&path->list, &dapm->card->paths);
 		list_add(&path->list_sink, &wsink->sources);
 		list_add(&path->list_source, &wsource->sinks);
 		path->connect = 0;

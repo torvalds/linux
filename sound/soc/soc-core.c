@@ -1879,6 +1879,7 @@ static int soc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&card->dai_dev_list);
 	INIT_LIST_HEAD(&card->codec_dev_list);
 	INIT_LIST_HEAD(&card->platform_dev_list);
+	INIT_LIST_HEAD(&card->paths);
 
 	soc_init_card_debugfs(card);
 
@@ -3481,7 +3482,6 @@ int snd_soc_register_codec(struct device *dev,
 		codec->compress_type = SND_SOC_FLAT_COMPRESSION;
 
 	INIT_LIST_HEAD(&codec->dapm.widgets);
-	INIT_LIST_HEAD(&codec->dapm.paths);
 	codec->write = codec_drv->write;
 	codec->read = codec_drv->read;
 	codec->dapm.bias_level = SND_SOC_BIAS_OFF;

@@ -463,7 +463,6 @@ struct snd_soc_dapm_widget {
 /* DAPM context */
 struct snd_soc_dapm_context {
 	struct list_head widgets;
-	struct list_head paths;
 	enum snd_soc_bias_level bias_level;
 	enum snd_soc_bias_level suspend_bias_level;
 	struct delayed_work delayed_work;
