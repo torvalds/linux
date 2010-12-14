@@ -167,14 +167,6 @@ out_overflow:
  * Encode/decode time.
  */
 static inline __be32 *
-xdr_encode_time3(__be32 *p, const struct timespec *timep)
-{
-	*p++ = htonl(timep->tv_sec);
-	*p++ = htonl(timep->tv_nsec);
-	return p;
-}
-
-static inline __be32 *
 xdr_decode_time3(__be32 *p, struct timespec *timep)
 {
 	timep->tv_sec = ntohl(*p++);
@@ -215,52 +207,6 @@ xdr_decode_fattr(__be32 *p, struct nfs_fattr *fattr)
 
 	/* Update the mode bits */
 	fattr->valid |= NFS_ATTR_FATTR_V3;
-	return p;
-}
-
-static inline __be32 *
-xdr_encode_sattr(__be32 *p, const struct iattr *attr)
-{
-	if (attr->ia_valid & ATTR_MODE) {
-		*p++ = xdr_one;
-		*p++ = htonl(attr->ia_mode & S_IALLUGO);
-	} else {
-		*p++ = xdr_zero;
-	}
-	if (attr->ia_valid & ATTR_UID) {
-		*p++ = xdr_one;
-		*p++ = htonl(attr->ia_uid);
-	} else {
-		*p++ = xdr_zero;
-	}
-	if (attr->ia_valid & ATTR_GID) {
-		*p++ = xdr_one;
-		*p++ = htonl(attr->ia_gid);
-	} else {
-		*p++ = xdr_zero;
-	}
-	if (attr->ia_valid & ATTR_SIZE) {
-		*p++ = xdr_one;
-		p = xdr_encode_hyper(p, (__u64) attr->ia_size);
-	} else {
-		*p++ = xdr_zero;
-	}
-	if (attr->ia_valid & ATTR_ATIME_SET) {
-		*p++ = xdr_two;
-		p = xdr_encode_time3(p, &attr->ia_atime);
-	} else if (attr->ia_valid & ATTR_ATIME) {
-		*p++ = xdr_one;
-	} else {
-		*p++ = xdr_zero;
-	}
-	if (attr->ia_valid & ATTR_MTIME_SET) {
-		*p++ = xdr_two;
-		p = xdr_encode_time3(p, &attr->ia_mtime);
-	} else if (attr->ia_valid & ATTR_MTIME) {
-		*p++ = xdr_one;
-	} else {
-		*p++ = xdr_zero;
-	}
 	return p;
 }
 
@@ -453,6 +399,21 @@ static void encode_nfs_fh3(struct xdr_stream *xdr, const struct nfs_fh *fh)
 }
 
 /*
+ * nfstime3
+ *
+ *	struct nfstime3 {
+ *		uint32	seconds;
+ *		uint32	nseconds;
+ *	};
+ */
+static __be32 *xdr_encode_nfstime3(__be32 *p, const struct timespec *timep)
+{
+	*p++ = cpu_to_be32(timep->tv_sec);
+	*p++ = cpu_to_be32(timep->tv_nsec);
+	return p;
+}
+
+/*
  * sattr3
  *
  *	enum time_how {
@@ -538,7 +499,45 @@ static void encode_sattr3(struct xdr_stream *xdr, const struct iattr *attr)
 		nbytes += 8;
 	p = xdr_reserve_space(xdr, nbytes);
 
-	xdr_encode_sattr(p, attr);
+	if (attr->ia_valid & ATTR_MODE) {
+		*p++ = xdr_one;
+		*p++ = cpu_to_be32(attr->ia_mode & S_IALLUGO);
+	} else
+		*p++ = xdr_zero;
+
+	if (attr->ia_valid & ATTR_UID) {
+		*p++ = xdr_one;
+		*p++ = cpu_to_be32(attr->ia_uid);
+	} else
+		*p++ = xdr_zero;
+
+	if (attr->ia_valid & ATTR_GID) {
+		*p++ = xdr_one;
+		*p++ = cpu_to_be32(attr->ia_gid);
+	} else
+		*p++ = xdr_zero;
+
+	if (attr->ia_valid & ATTR_SIZE) {
+		*p++ = xdr_one;
+		p = xdr_encode_hyper(p, (u64)attr->ia_size);
+	} else
+		*p++ = xdr_zero;
+
+	if (attr->ia_valid & ATTR_ATIME_SET) {
+		*p++ = xdr_two;
+		p = xdr_encode_nfstime3(p, &attr->ia_atime);
+	} else if (attr->ia_valid & ATTR_ATIME) {
+		*p++ = xdr_one;
+	} else
+		*p++ = xdr_zero;
+
+	if (attr->ia_valid & ATTR_MTIME_SET) {
+		*p++ = xdr_two;
+		xdr_encode_nfstime3(p, &attr->ia_mtime);
+	} else if (attr->ia_valid & ATTR_MTIME) {
+		*p = xdr_one;
+	} else
+		*p = xdr_zero;
 }
 
 /*
@@ -605,7 +604,7 @@ static void encode_sattrguard3(struct xdr_stream *xdr,
 	if (args->guard) {
 		p = xdr_reserve_space(xdr, 4 + 8);
 		*p++ = xdr_one;
-		xdr_encode_time3(p, &args->guardtime);
+		xdr_encode_nfstime3(p, &args->guardtime);
 	} else {
 		p = xdr_reserve_space(xdr, 4);
 		*p = xdr_zero;
