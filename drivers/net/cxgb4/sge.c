@@ -2014,6 +2014,8 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 
 		flsz = fl->size / 8 + STAT_LEN / sizeof(struct tx_desc);
 		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_FL0PACKEN |
+					    FW_IQ_CMD_FL0FETCHRO(1) |
+					    FW_IQ_CMD_FL0DATARO(1) |
 					    FW_IQ_CMD_FL0PADEN);
 		c.fl0dcaen_to_fl0cidxfthresh = htons(FW_IQ_CMD_FL0FBMIN(2) |
 				FW_IQ_CMD_FL0FBMAX(3));
@@ -2106,6 +2108,7 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 	c.viid_pkd = htonl(FW_EQ_ETH_CMD_VIID(pi->viid));
 	c.fetchszm_to_iqid = htonl(FW_EQ_ETH_CMD_HOSTFCMODE(2) |
 				   FW_EQ_ETH_CMD_PCIECHN(pi->tx_chan) |
+				   FW_EQ_ETH_CMD_FETCHRO(1) |
 				   FW_EQ_ETH_CMD_IQID(iqid));
 	c.dcaen_to_eqsize = htonl(FW_EQ_ETH_CMD_FBMIN(2) |
 				  FW_EQ_ETH_CMD_FBMAX(3) |
@@ -2158,6 +2161,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 	c.physeqid_pkd = htonl(0);
 	c.fetchszm_to_iqid = htonl(FW_EQ_CTRL_CMD_HOSTFCMODE(2) |
 				   FW_EQ_CTRL_CMD_PCIECHN(pi->tx_chan) |
+				   FW_EQ_CTRL_CMD_FETCHRO |
 				   FW_EQ_CTRL_CMD_IQID(iqid));
 	c.dcaen_to_eqsize = htonl(FW_EQ_CTRL_CMD_FBMIN(2) |
 				  FW_EQ_CTRL_CMD_FBMAX(3) |
@@ -2207,6 +2211,7 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 				 FW_EQ_OFLD_CMD_EQSTART | FW_LEN16(c));
 	c.fetchszm_to_iqid = htonl(FW_EQ_OFLD_CMD_HOSTFCMODE(2) |
 				   FW_EQ_OFLD_CMD_PCIECHN(pi->tx_chan) |
+				   FW_EQ_OFLD_CMD_FETCHRO(1) |
 				   FW_EQ_OFLD_CMD_IQID(iqid));
 	c.dcaen_to_eqsize = htonl(FW_EQ_OFLD_CMD_FBMIN(2) |
 				  FW_EQ_OFLD_CMD_FBMAX(3) |

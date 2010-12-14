@@ -3535,6 +3535,19 @@ static void __devinit print_port_info(struct adapter *adap)
 	}
 }
 
+static void __devinit enable_pcie_relaxed_ordering(struct pci_dev *dev)
+{
+	u16 v;
+	int pos;
+
+	pos = pci_pcie_cap(dev);
+	if (pos > 0) {
+		pci_read_config_word(dev, pos + PCI_EXP_DEVCTL, &v);
+		v |= PCI_EXP_DEVCTL_RELAX_EN;
+		pci_write_config_word(dev, pos + PCI_EXP_DEVCTL, v);
+	}
+}
+
 /*
  * Free the following resources:
  * - memory used for tables
@@ -3609,6 +3622,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 	}
 
 	pci_enable_pcie_error_reporting(pdev);
+	enable_pcie_relaxed_ordering(pdev);
 	pci_set_master(pdev);
 	pci_save_state(pdev);
 
