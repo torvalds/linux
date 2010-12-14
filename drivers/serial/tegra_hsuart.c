@@ -312,9 +312,9 @@ static void tegra_rx_dma_complete_callback(struct tegra_dma_req *req)
 	spin_unlock(&u->lock);
 	tty_flip_buffer_push(u->state->port.tty);
 
+	spin_lock(&u->lock);
 	if (t->rx_done_cb)
 		t->rx_done_cb(u);
-	spin_lock(&u->lock);
 }
 
 /* Lock already taken */
@@ -532,9 +532,9 @@ static irqreturn_t tegra_uart_isr(int irq, void *data)
 
 				spin_unlock_irqrestore(&u->lock, flags);
 				tty_flip_buffer_push(u->state->port.tty);
+				spin_lock_irqsave(&u->lock, flags);
 				if (t->rx_done_cb)
 					t->rx_done_cb(u);
-				spin_lock_irqsave(&u->lock, flags);
 			}
 			break;
 		case 3: /* Receive error */
