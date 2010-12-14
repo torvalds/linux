@@ -2035,6 +2035,7 @@ struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("epp", "tegra_grhost", "epp"),
 	CLK_DUPLICATE("mpe", "tegra_grhost", "mpe"),
 	CLK_DUPLICATE("cop", "tegra-avp", "cop"),
+	CLK_DUPLICATE("vde", "tegra-aes", "vde"),
 	CLK_DUPLICATE("usbd", "cpcap-otg", NULL),
 };
 
