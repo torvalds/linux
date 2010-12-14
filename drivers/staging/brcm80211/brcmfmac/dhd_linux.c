@@ -1034,7 +1034,7 @@ int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 
 		if (is_multicast_ether_addr(eh->ether_dhost))
 			dhdp->tx_multicast++;
-		if (ntoh16(eh->ether_type) == ETHER_TYPE_802_1X)
+		if (ntoh16(eh->ether_type) == ETH_P_PAE)
 			atomic_inc(&dhd->pend_8021x_cnt);
 	}
 
@@ -1262,7 +1262,7 @@ void dhd_txcomplete(dhd_pub_t *dhdp, struct sk_buff *txp, bool success)
 	eh = (struct ether_header *)(txp->data);
 	type = ntoh16(eh->ether_type);
 
-	if (type == ETHER_TYPE_802_1X)
+	if (type == ETH_P_PAE)
 		atomic_dec(&dhd->pend_8021x_cnt);
 
 }
