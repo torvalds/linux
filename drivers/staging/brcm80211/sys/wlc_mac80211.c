@@ -15,6 +15,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/ctype.h>
+#include <linux/etherdevice.h>
 #include <bcmdefs.h>
 #include <bcmdevs.h>
 #include <wlc_cfg.h>
@@ -5802,7 +5803,8 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 			ASSERT(RSPEC_ACTIVE(rspec[k]));
 			rspec[k] = WLC_RATE_1M;
 		} else {
-			if (WLANTSEL_ENAB(wlc) && !ETHER_ISMULTI(&h->a1)) {
+			if (WLANTSEL_ENAB(wlc) &&
+			    !is_multicast_ether_addr(h->a1.octet)) {
 				/* set tx antenna config */
 				wlc_antsel_antcfg_get(wlc->asi, false, false, 0,
 						      0, &antcfg, &fbantcfg);
@@ -5963,7 +5965,8 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	    plcp[0];
 
 	/* DUR field for main rate */
-	if ((fc != FC_PS_POLL) && !ETHER_ISMULTI(&h->a1) && !use_rifs) {
+	if ((fc != FC_PS_POLL) &&
+	    !is_multicast_ether_addr(h->a1.octet) && !use_rifs) {
 		durid =
 		    wlc_compute_frame_dur(wlc, rspec[0], preamble_type[0],
 					  next_frag_len);
@@ -5981,7 +5984,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	/* DUR field for fallback rate */
 	if (fc == FC_PS_POLL)
 		txh->FragDurFallback = h->durid;
-	else if (ETHER_ISMULTI(&h->a1) || use_rifs)
+	else if (is_multicast_ether_addr(h->a1.octet) || use_rifs)
 		txh->FragDurFallback = 0;
 	else {
 		durid = wlc_compute_frame_dur(wlc, rspec[1],
@@ -5993,7 +5996,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	if (frag == 0)
 		mcl |= TXC_STARTMSDU;
 
-	if (!ETHER_ISMULTI(&h->a1))
+	if (!is_multicast_ether_addr(h->a1.octet))
 		mcl |= TXC_IMMEDACK;
 
 	if (BAND_5G(wlc->band->bandtype))
@@ -6222,7 +6225,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	if (SCB_WME(scb) && qos && wlc->edcf_txop[ac]) {
 		uint frag_dur, dur, dur_fallback;
 
-		ASSERT(!ETHER_ISMULTI(&h->a1));
+		ASSERT(!is_multicast_ether_addr(h->a1.octet));
 
 		/* WME: Update TXOP threshold */
 		if ((!(tx_info->flags & IEEE80211_TX_CTL_AMPDU)) && (frag == 0)) {
@@ -7023,7 +7026,8 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	if (!is_amsdu) {
 		/* CTS and ACK CTL frames are w/o a2 */
 		if (FC_TYPE(fc) == FC_TYPE_DATA || FC_TYPE(fc) == FC_TYPE_MNG) {
-			if ((ETHER_ISNULLADDR(&h->a2) || ETHER_ISMULTI(&h->a2))) {
+			if ((ETHER_ISNULLADDR(&h->a2) ||
+			     is_multicast_ether_addr(h->a2.octet))) {
 				WL_ERROR(("wl%d: %s: dropping a frame with "
 					"invalid src mac address, a2: %pM\n",
 					wlc->pub->unit, __func__, &h->a2));

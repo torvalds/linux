@@ -1532,7 +1532,7 @@ wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 	key.index = (u32) key_idx;
 	/* Instead of bcast for ea address for default wep keys,
 		 driver needs it to be Null */
-	if (!ETHER_ISMULTI(mac_addr))
+	if (!is_multicast_ether_addr(mac_addr))
 		memcpy((char *)&key.ea, (void *)mac_addr, ETHER_ADDR_LEN);
 	key.len = (u32) params->key_len;
 	/* check for key index change */

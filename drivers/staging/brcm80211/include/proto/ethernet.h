@@ -64,8 +64,6 @@ BWL_PRE_PACKED_STRUCT struct ether_addr {
 
 #define ETHER_SET_UNICAST(ea)	(((u8 *)(ea))[0] = (((u8 *)(ea))[0] & ~1))
 
-#define ETHER_ISMULTI(ea) (((const u8 *)(ea))[0] & 1)
-
 #define	ether_cmp(a, b)	(!(((short *)a)[0] == ((short *)b)[0]) | \
 			 !(((short *)a)[1] == ((short *)b)[1]) | \
 			 !(((short *)a)[2] == ((short *)b)[2]))

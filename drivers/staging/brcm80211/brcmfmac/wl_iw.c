@@ -2548,7 +2548,7 @@ wl_iw_set_encodeext(struct net_device *dev,
 
 	key.len = iwe->key_len;
 
-	if (!ETHER_ISMULTI(iwe->addr.sa_data))
+	if (!is_multicast_ether_addr(iwe->addr.sa_data))
 		bcopy((void *)&iwe->addr.sa_data, (char *)&key.ea,
 		      ETHER_ADDR_LEN);
 

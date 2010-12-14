@@ -1032,7 +1032,7 @@ int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 		u8 *pktdata = (u8 *) (pktbuf->data);
 		struct ether_header *eh = (struct ether_header *)pktdata;
 
-		if (ETHER_ISMULTI(eh->ether_dhost))
+		if (is_multicast_ether_addr(eh->ether_dhost))
 			dhdp->tx_multicast++;
 		if (ntoh16(eh->ether_type) == ETHER_TYPE_802_1X)
 			atomic_inc(&dhd->pend_8021x_cnt);

@@ -15,6 +15,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/etherdevice.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <linux/module.h>
@@ -499,10 +500,10 @@ int srom_parsecis(struct osl_info *osh, u8 *pcis[], uint ciscnt, char **vars,
 					break;
 				default:
 					/* set macaddr if HNBU_MACADDR not seen yet */
-					if (eabuf[0] == '\0'
-					    && cis[i] == LAN_NID
-					    && !(ETHER_ISNULLADDR(&cis[i + 2]))
-					    && !(ETHER_ISMULTI(&cis[i + 2]))) {
+					if (eabuf[0] == '\0' &&
+					    cis[i] == LAN_NID &&
+					    !(ETHER_ISNULLADDR(&cis[i + 2])) &&
+					    !is_multicast_ether_addr(&cis[i + 2])) {
 						ASSERT(cis[i + 1] ==
 						       ETHER_ADDR_LEN);
 						snprintf(eabuf, sizeof(eabuf),
@@ -974,7 +975,7 @@ int srom_parsecis(struct osl_info *osh, u8 *pcis[], uint ciscnt, char **vars,
 
 				case HNBU_MACADDR:
 					if (!(ETHER_ISNULLADDR(&cis[i + 1])) &&
-					    !(ETHER_ISMULTI(&cis[i + 1]))) {
+					    !is_multicast_ether_addr(&cis[i + 1])) {
 						snprintf(eabuf, sizeof(eabuf),
 							"%pM", &cis[i + 1]);
 
