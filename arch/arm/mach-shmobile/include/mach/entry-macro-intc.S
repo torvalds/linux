@@ -17,6 +17,12 @@
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 
+	.macro	test_for_ipi, irqnr, irqstat, base, tmp
+	.endm
+
+	.macro	test_for_ltirq, irqnr, irqstat, base, tmp
+	.endm
+
 	.macro  disable_fiq
 	.endm
 
