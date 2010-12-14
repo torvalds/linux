@@ -415,14 +415,24 @@ struct omap_hwmod_omap4_prcm {
  * @name: name of the hwmod_class
  * @sysc: device SYSCONFIG/SYSSTATUS register data
  * @rev: revision of the IP class
+ * @pre_shutdown: ptr to fn to be executed immediately prior to device shutdown
  *
  * Represent the class of a OMAP hardware "modules" (e.g. timer,
  * smartreflex, gpio, uart...)
+ *
+ * @pre_shutdown is a function that will be run immediately before
+ * hwmod clocks are disabled, etc.  It is intended for use for hwmods
+ * like the MPU watchdog, which cannot be disabled with the standard
+ * omap_hwmod_shutdown().  The function should return 0 upon success,
+ * or some negative error upon failure.  Returning an error will cause
+ * omap_hwmod_shutdown() to abort the device shutdown and return an
+ * error.
  */
 struct omap_hwmod_class {
 	const char				*name;
 	struct omap_hwmod_class_sysconfig	*sysc;
 	u32					rev;
+	int					(*pre_shutdown)(struct omap_hwmod *oh);
 };
 
 /**

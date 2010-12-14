@@ -1261,6 +1261,9 @@ int _omap_hwmod_idle(struct omap_hwmod *oh)
  */
 static int _shutdown(struct omap_hwmod *oh)
 {
+	int ret;
+	u8 prev_state;
+
 	if (oh->_state != _HWMOD_STATE_IDLE &&
 	    oh->_state != _HWMOD_STATE_ENABLED) {
 		WARN(1, "omap_hwmod: %s: disabled state can only be entered "
@@ -1269,6 +1272,18 @@ static int _shutdown(struct omap_hwmod *oh)
 	}
 
 	pr_debug("omap_hwmod: %s: disabling\n", oh->name);
+
+	if (oh->class->pre_shutdown) {
+		prev_state = oh->_state;
+		if (oh->_state == _HWMOD_STATE_IDLE)
+			_omap_hwmod_enable(oh);
+		ret = oh->class->pre_shutdown(oh);
+		if (ret) {
+			if (prev_state == _HWMOD_STATE_IDLE)
+				_omap_hwmod_idle(oh);
+			return ret;
+		}
+	}
 
 	if (oh->class->sysc)
 		_shutdown_sysc(oh);
