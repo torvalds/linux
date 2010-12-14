@@ -383,6 +383,10 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 				    const char *hostname,
 				    const size_t hostname_len)
 {
+	struct hlist_head *chain;
+	struct hlist_node *pos;
+	struct nlm_host	*host = NULL;
+	struct nsm_handle *nsm = NULL;
 	struct sockaddr_in sin = {
 		.sin_family	= AF_INET,
 	};
@@ -404,6 +408,8 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 			(int)hostname_len, hostname, rqstp->rq_vers,
 			(rqstp->rq_prot == IPPROTO_UDP ? "udp" : "tcp"));
 
+	mutex_lock(&nlm_host_mutex);
+
 	switch (ni.sap->sa_family) {
 	case AF_INET:
 		sin.sin_addr.s_addr = rqstp->rq_daddr.addr.s_addr;
@@ -414,10 +420,73 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 		ni.src_sap = (struct sockaddr *)&sin6;
 		break;
 	default:
-		return NULL;
+		dprintk("lockd: %s failed; unrecognized address family\n",
+			__func__);
+		goto out;
 	}
 
-	return nlm_lookup_host(&ni);
+	if (time_after_eq(jiffies, next_gc))
+		nlm_gc_hosts();
+
+	chain = &nlm_hosts[nlm_hash_address(ni.sap)];
+	hlist_for_each_entry(host, pos, chain, h_hash) {
+		if (!rpc_cmp_addr(nlm_addr(host), ni.sap))
+			continue;
+
+		/* Same address. Share an NSM handle if we already have one */
+		if (nsm == NULL)
+			nsm = host->h_nsmhandle;
+
+		if (host->h_proto != ni.protocol)
+			continue;
+		if (host->h_version != ni.version)
+			continue;
+		if (!rpc_cmp_addr(nlm_srcaddr(host), ni.src_sap))
+			continue;
+
+		/* Move to head of hash chain. */
+		hlist_del(&host->h_hash);
+		hlist_add_head(&host->h_hash, chain);
+
+		nlm_get_host(host);
+		dprintk("lockd: %s found host %s (%s)\n",
+			__func__, host->h_name, host->h_addrbuf);
+		goto out;
+	}
+
+	host = nlm_alloc_host(&ni, nsm);
+	if (unlikely(host == NULL))
+		goto out;
+
+	memcpy(nlm_srcaddr(host), ni.src_sap, ni.src_len);
+	host->h_srcaddrlen = ni.src_len;
+	hlist_add_head(&host->h_hash, chain);
+	nrhosts++;
+
+	dprintk("lockd: %s created host %s (%s)\n",
+		__func__, host->h_name, host->h_addrbuf);
+
+out:
+	mutex_unlock(&nlm_host_mutex);
+	return host;
+}
+
+/**
+ * nlmsvc_release_host - release server nlm_host
+ * @host: nlm_host to release
+ *
+ * Host is destroyed later in nlm_gc_host().
+ */
+void nlmsvc_release_host(struct nlm_host *host)
+{
+	if (host == NULL)
+		return;
+
+	dprintk("lockd: release server host %s\n", host->h_name);
+
+	BUG_ON(atomic_read(&host->h_count) < 0);
+	BUG_ON(!host->h_server);
+	atomic_dec(&host->h_count);
 }
 
 /*
@@ -517,22 +586,6 @@ struct nlm_host * nlm_get_host(struct nlm_host *host)
 	return host;
 }
 
-/*
- * Release NLM host after use
- */
-void nlm_release_host(struct nlm_host *host)
-{
-	if (host != NULL) {
-		dprintk("lockd: release host %s\n", host->h_name);
-		BUG_ON(atomic_read(&host->h_count) < 0);
-		if (atomic_dec_and_test(&host->h_count)) {
-			BUG_ON(!list_empty(&host->h_lockowners));
-			BUG_ON(!list_empty(&host->h_granted));
-			BUG_ON(!list_empty(&host->h_reclaim));
-		}
-	}
-}
-
 static struct nlm_host *next_host_state(struct hlist_head *cache,
 					struct nsm_handle *nsm,
 					const struct nlm_reboot *info)
@@ -581,7 +634,7 @@ void nlm_host_rebooted(const struct nlm_reboot *info)
 	 */
 	while ((host = next_host_state(nlm_hosts, nsm, info)) != NULL) {
 		nlmsvc_free_host_resources(host);
-		nlm_release_host(host);
+		nlmsvc_release_host(host);
 	}
 	while ((host = next_host_state(nlm_client_hosts, nsm, info)) != NULL) {
 		nlmclnt_recovery(host);

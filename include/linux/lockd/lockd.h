@@ -227,10 +227,10 @@ void		  nlmclnt_release_host(struct nlm_host *);
 struct nlm_host  *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 					const char *hostname,
 					const size_t hostname_len);
+void		  nlmsvc_release_host(struct nlm_host *);
 struct rpc_clnt * nlm_bind_host(struct nlm_host *);
 void		  nlm_rebind_host(struct nlm_host *);
 struct nlm_host * nlm_get_host(struct nlm_host *);
-void		  nlm_release_host(struct nlm_host *);
 void		  nlm_shutdown_hosts(void);
 void		  nlm_host_rebooted(const struct nlm_reboot *);
 
