@@ -90,6 +90,10 @@ static int mosart_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	case 0xff000000:
 		/* ignore HID features */
 		return -1;
+
+	case HID_UP_BUTTON:
+		/* ignore buttons */
+		return -1;
 	}
 
 	return 0;
