@@ -8393,8 +8393,6 @@ bnx2_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2 *bp = netdev_priv(dev);
 
-	cancel_work_sync(&bp->reset_task);
-
 	unregister_netdev(dev);
 
 	if (bp->mips_firmware)
