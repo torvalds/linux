@@ -1540,8 +1540,8 @@ bfa_ioim_sm_active(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 		break;
 
 	case BFA_IOIM_SM_SQRETRY:
-		if (bfa_ioim_get_iotag(ioim) != BFA_TRUE) {
-			/* max retry completed free IO */
+		if (bfa_ioim_maxretry_reached(ioim)) {
+			/* max retry reached, free IO */
 			bfa_sm_set_state(ioim, bfa_ioim_sm_hcb_free);
 			bfa_ioim_move_to_comp_q(ioim);
 			bfa_cb_queue(ioim->bfa, &ioim->hcb_qe,
@@ -1569,6 +1569,7 @@ bfa_ioim_sm_cmnd_retry(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 	switch (event) {
 	case BFA_IOIM_SM_FREE:
 		/* abts and rrq done. Now retry the IO with new tag */
+		bfa_ioim_update_iotag(ioim);
 		if (!bfa_ioim_send_ioreq(ioim)) {
 			bfa_sm_set_state(ioim, bfa_ioim_sm_qfull);
 			break;
@@ -2526,7 +2527,7 @@ bfa_ioim_good_comp_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	iotag = be16_to_cpu(rsp->io_tag);
 
 	ioim = BFA_IOIM_FROM_TAG(fcpim, iotag);
-	bfa_assert(ioim->iotag == iotag);
+	bfa_assert(BFA_IOIM_TAG_2_ID(ioim->iotag) == iotag);
 
 	bfa_trc_fp(ioim->bfa, ioim->iotag);
 	bfa_ioim_cb_profile_comp(fcpim, ioim);
@@ -2629,6 +2630,7 @@ bfa_ioim_free(struct bfa_ioim_s *ioim)
 	bfa_stats(ioim->itnim, io_comps);
 	fcpim->ios_active--;
 
+	ioim->iotag &= BFA_IOIM_IOTAG_MASK;
 	list_del(&ioim->qe);
 	list_add_tail(&ioim->qe, &fcpim->ioim_free_q);
 }

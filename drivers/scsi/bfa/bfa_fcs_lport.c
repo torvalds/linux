@@ -604,6 +604,7 @@ bfa_fcs_lport_uf_recv(struct bfa_fcs_lport_s *lport,
 	struct fc_els_cmd_s *els_cmd = (struct fc_els_cmd_s *) (fchs + 1);
 
 	bfa_stats(lport, uf_recvs);
+	bfa_trc(lport->fcs, fchs->type);
 
 	if (!bfa_fcs_lport_is_online(lport)) {
 		bfa_stats(lport, uf_recv_drops);
@@ -663,8 +664,11 @@ bfa_fcs_lport_uf_recv(struct bfa_fcs_lport_s *lport,
 	 * Only handles ELS frames for now.
 	 */
 	if (fchs->type != FC_TYPE_ELS) {
-		bfa_trc(lport->fcs, fchs->type);
-		bfa_assert(0);
+		bfa_trc(lport->fcs, fchs->s_id);
+		bfa_trc(lport->fcs, fchs->d_id);
+		/* ignore type FC_TYPE_FC_FSS */
+		if (fchs->type != FC_TYPE_FC_FSS)
+			bfa_sm_fault(lport->fcs, fchs->type);
 		return;
 	}
 

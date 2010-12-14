@@ -41,7 +41,7 @@
 	(__itnim->ioprofile.iocomps[__index]++)
 
 #define BFA_IOIM_RETRY_TAG_OFFSET 11
-#define BFA_IOIM_RETRY_TAG_MASK 0x07ff /* 2K IOs */
+#define BFA_IOIM_IOTAG_MASK 0x07ff /* 2K IOs */
 #define BFA_IOIM_RETRY_MAX 7
 
 /* Buckets are are 512 bytes to 2MB */
@@ -189,8 +189,9 @@ struct bfa_itnim_s {
 
 #define bfa_itnim_is_online(_itnim) ((_itnim)->is_online)
 #define BFA_FCPIM_MOD(_hal) (&(_hal)->modules.fcpim_mod)
+#define BFA_IOIM_TAG_2_ID(_iotag)	((_iotag) & BFA_IOIM_IOTAG_MASK)
 #define BFA_IOIM_FROM_TAG(_fcpim, _iotag)	\
-	(&fcpim->ioim_arr[(_iotag & BFA_IOIM_RETRY_TAG_MASK)])
+	(&fcpim->ioim_arr[(_iotag & BFA_IOIM_IOTAG_MASK)])
 #define BFA_TSKIM_FROM_TAG(_fcpim, _tmtag)	\
 	(&fcpim->tskim_arr[_tmtag & (fcpim->num_tskim_reqs - 1)])
 
@@ -198,20 +199,21 @@ struct bfa_itnim_s {
 	(_bfa->modules.fcpim_mod.io_profile_start_time)
 #define bfa_fcpim_get_io_profile(_bfa)	\
 	(_bfa->modules.fcpim_mod.io_profile)
+#define bfa_ioim_update_iotag(__ioim) do {				\
+	uint16_t k = (__ioim)->iotag >> BFA_IOIM_RETRY_TAG_OFFSET;	\
+	k++; (__ioim)->iotag &= BFA_IOIM_IOTAG_MASK;			\
+	(__ioim)->iotag |= k << BFA_IOIM_RETRY_TAG_OFFSET;		\
+} while (0)
 
 static inline bfa_boolean_t
-bfa_ioim_get_iotag(struct bfa_ioim_s *ioim)
+bfa_ioim_maxretry_reached(struct bfa_ioim_s *ioim)
 {
-	u16 k = ioim->iotag;
-
-	k >>= BFA_IOIM_RETRY_TAG_OFFSET; k++;
-
-	if (k > BFA_IOIM_RETRY_MAX)
+	uint16_t k = ioim->iotag >> BFA_IOIM_RETRY_TAG_OFFSET;
+	if (k < BFA_IOIM_RETRY_MAX)
 		return BFA_FALSE;
-	ioim->iotag &= BFA_IOIM_RETRY_TAG_MASK;
-	ioim->iotag |= k<<BFA_IOIM_RETRY_TAG_OFFSET;
 	return BFA_TRUE;
 }
+
 /*
  * function prototypes
  */
