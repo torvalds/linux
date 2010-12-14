@@ -2000,7 +2000,6 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 		trace_i915_gem_request_wait_begin(dev, seqno);
 
 		ring->waiting_seqno = seqno;
-		ret = -ENODEV;
 		if (ring->irq_get(ring)) {
 			if (interruptible)
 				ret = wait_event_interruptible(ring->irq_queue,
@@ -2012,7 +2011,10 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 					   || atomic_read(&dev_priv->mm.wedged));
 
 			ring->irq_put(ring);
-		}
+		} else if (wait_for(i915_seqno_passed(ring->get_seqno(ring),
+						      seqno) ||
+				    atomic_read(&dev_priv->mm.wedged), 3000))
+			ret = -EBUSY;
 		ring->waiting_seqno = 0;
 
 		trace_i915_gem_request_wait_end(dev, seqno);
