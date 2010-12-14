@@ -174,7 +174,7 @@ int ft1000_create_dev(struct ft1000_device *dev)
 	}
 
 	file = debugfs_create_file("device", S_IRUGO | S_IWUSR, dir,
-					NULL, &ft1000fops);
+					dev, &ft1000fops);
 	if (IS_ERR(file)) {
 		result = PTR_ERR(file);
 		goto debug_file_fail;
@@ -398,7 +398,6 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
                            unsigned long argument)
 {
     void __user *argp = (void __user *)argument;
-    struct net_device *dev;
 	struct ft1000_info *info;
     struct ft1000_device *ft1000dev;
     int result=0;
@@ -428,9 +427,8 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
 
     //DEBUG("FT1000:ft1000_ioctl:command = 0x%x argument = 0x%8x\n", command, (u32)argument);
 
-    dev = file->private_data;
-	info = netdev_priv(dev);
-    ft1000dev = info->pFt1000Dev;
+	info = file->private_data;
+	ft1000dev = info->pFt1000Dev;
     cmd = _IOC_NR(command);
     //DEBUG("FT1000:ft1000_ioctl:cmd = 0x%x\n", cmd);
 
