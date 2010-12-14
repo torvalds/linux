@@ -128,7 +128,6 @@ static inline int p1003_read_values(struct ts_p1003 *ts, struct multitouch_event
 		dev_err(&ts->client->dev, "i2c io error: %d or Hannstar read reg failed\n", data);
 		for(i = 0; i < 10 ; i++)
 			dev_err(&ts->client->dev," hannstar reg[%d] = 0x%x\n",i,buf[i]);
-    	enable_irq(ts->irq);
 		data = -1;
     	return data;
     }
@@ -162,14 +161,15 @@ static void p1003_work(struct work_struct *work)
 #else
     p1003_report_event(ts,tc);
 #endif
-     
+
+out:    
 	if (ts->pendown)
 		schedule_delayed_work(&ts->work,
 				      msecs_to_jiffies(10));
 	else
 		enable_irq(ts->irq);
 	
-out:
+
 	return;
 }
 
