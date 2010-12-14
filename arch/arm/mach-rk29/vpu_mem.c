@@ -303,8 +303,10 @@ static int region_split(struct list_head *region_list, struct vpu_mem_region_nod
         DLOG("start region_set index %d pfn %u\n", index, pfn);
         region_set(index,       pfn);
 
-        DLOG("start region_set index %d pfn %u\n", index + pfn, pfn_free - pfn);
-        region_set(index + pfn, pfn_free - pfn);
+        if (pfn_free - pfn) {
+            DLOG("start region_set index %d pfn %u\n", index + pfn, pfn_free - pfn);
+            region_set(index + pfn, pfn_free - pfn);
+        }
 
         region_set_avail(index, VPU_MEM_AVAIL(index) + 1);
         region_set_ref_count(index, VPU_MEM_REFC(index) + 1);
