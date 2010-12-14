@@ -341,32 +341,3 @@ nlmsvc_encode_void(struct svc_rqst *rqstp, __be32 *p, void *dummy)
 {
 	return xdr_ressize_check(rqstp, p);
 }
-
-#ifdef RPC_DEBUG
-const char *nlmdbg_cookie2a(const struct nlm_cookie *cookie)
-{
-	/*
-	 * We can get away with a static buffer because we're only
-	 * called with BKL held.
-	 */
-	static char buf[2*NLM_MAXCOOKIELEN+1];
-	unsigned int i, len = sizeof(buf);
-	char *p = buf;
-
-	len--;	/* allow for trailing \0 */
-	if (len < 3)
-		return "???";
-	for (i = 0 ; i < cookie->len ; i++) {
-		if (len < 2) {
-			strcpy(p-3, "...");
-			break;
-		}
-		sprintf(p, "%02x", cookie->data[i]);
-		p += 2;
-		len -= 2;
-	}
-	*p = '\0';
-
-	return buf;
-}
-#endif
