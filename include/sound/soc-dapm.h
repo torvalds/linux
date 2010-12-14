@@ -471,6 +471,11 @@ struct snd_soc_dapm_context {
 	struct device *dev; /* from parent - for debug */
 	struct snd_soc_codec *codec; /* parent codec */
 	struct snd_soc_card *card; /* parent card */
+
+	/* used during DAPM updates */
+	int dev_power;
+	struct list_head list;
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dapm;
 #endif

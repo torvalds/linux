@@ -663,6 +663,7 @@ struct snd_soc_card {
 
 	struct list_head widgets;
 	struct list_head paths;
+	struct list_head dapm_list;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_card_root;
