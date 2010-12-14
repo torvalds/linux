@@ -91,32 +91,6 @@ xdr_decode_fhandle(__be32 *p, struct nfs_fh *fhandle)
 }
 
 static inline __be32*
-xdr_encode_time(__be32 *p, const struct timespec *timep)
-{
-	*p++ = htonl(timep->tv_sec);
-	/* Convert nanoseconds into microseconds */
-	*p++ = htonl(timep->tv_nsec ? timep->tv_nsec / 1000 : 0);
-	return p;
-}
-
-static inline __be32*
-xdr_encode_current_server_time(__be32 *p, const struct timespec *timep)
-{
-	/*
-	 * Passing the invalid value useconds=1000000 is a
-	 * Sun convention for "set to current server time".
-	 * It's needed to make permissions checks for the
-	 * "touch" program across v2 mounts to Solaris and
-	 * Irix boxes work correctly. See description of
-	 * sattr in section 6.1 of "NFS Illustrated" by
-	 * Brent Callaghan, Addison-Wesley, ISBN 0-201-32750-5
-	 */
-	*p++ = htonl(timep->tv_sec);
-	*p++ = htonl(1000000);
-	return p;
-}
-
-static inline __be32*
 xdr_decode_time(__be32 *p, struct timespec *timep)
 {
 	timep->tv_sec = ntohl(*p++);
@@ -176,6 +150,39 @@ static void encode_fhandle(struct xdr_stream *xdr, const struct nfs_fh *fh)
 	BUG_ON(fh->size != NFS2_FHSIZE);
 	p = xdr_reserve_space(xdr, NFS2_FHSIZE);
 	memcpy(p, fh->data, NFS2_FHSIZE);
+}
+
+/*
+ * 2.3.4.  timeval
+ *
+ *	struct timeval {
+ *		unsigned int seconds;
+ *		unsigned int useconds;
+ *	};
+ */
+static __be32 *xdr_encode_time(__be32 *p, const struct timespec *timep)
+{
+	*p++ = cpu_to_be32(timep->tv_sec);
+	if (timep->tv_nsec != 0)
+		*p++ = cpu_to_be32(timep->tv_nsec / NSEC_PER_USEC);
+	else
+		*p++ = cpu_to_be32(0);
+	return p;
+}
+
+/*
+ * Passing the invalid value useconds=1000000 is a Sun convention for
+ * "set to current server time".  It's needed to make permissions checks
+ * for the "touch" program across v2 mounts to Solaris and Irix servers
+ * work correctly.  See description of sattr in section 6.1 of "NFS
+ * Illustrated" by Brent Callaghan, Addison-Wesley, ISBN 0-201-32750-5.
+ */
+static __be32 *xdr_encode_current_server_time(__be32 *p,
+					      const struct timespec *timep)
+{
+	*p++ = cpu_to_be32(timep->tv_sec);
+	*p++ = cpu_to_be32(1000000);
+	return p;
 }
 
 /*
