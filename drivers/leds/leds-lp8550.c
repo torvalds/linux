@@ -23,6 +23,7 @@
 #include <linux/leds-lp8550.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/earlysuspend.h>
 
 #define DEBUG
 
@@ -64,6 +65,10 @@ struct lp8550_data {
 	uint8_t last_requested_brightness;
 	int brightness;
 	atomic_t enabled;
+	bool suspended;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct early_suspend early_suspender;
+#endif
 };
 
 #ifdef DEBUG
@@ -212,7 +217,8 @@ static void ld_lp8550_brightness_set(struct led_classdev *led_cdev,
 		brightness = 255;
 
 	led_data->brightness = brightness;
-	schedule_work(&led_data->wq);
+	if (!led_data->suspended)
+		schedule_work(&led_data->wq);
 }
 EXPORT_SYMBOL(ld_lp8550_brightness_set);
 
@@ -335,6 +341,31 @@ static DEVICE_ATTR(registers, 0644, ld_lp8550_registers_show,
 		ld_lp8550_registers_store);
 #endif
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void lp8550_early_suspend(struct early_suspend *h)
+{
+	struct lp8550_data *led_data =
+		container_of(h, struct lp8550_data, early_suspender);
+	enum led_brightness cur_brightness = led_data->brightness;
+
+	led_data->suspended = true;
+
+	cancel_work_sync(&led_data->wq);
+	led_data->brightness = LED_OFF;
+	lp8550_brightness_write(led_data);
+	led_data->brightness = cur_brightness;
+}
+
+static void lp8550_late_resume(struct early_suspend *h)
+{
+	struct lp8550_data *led_data =
+		container_of(h, struct lp8550_data, early_suspender);
+	led_data->suspended = false;
+	schedule_work(&led_data->wq);
+}
+#endif
+
+
 static int ld_lp8550_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
@@ -390,6 +421,13 @@ static int ld_lp8550_probe(struct i2c_client *client,
 	atomic_set(&led_data->enabled, 0);
 
 	INIT_WORK(&led_data->wq, lp8550_brightness_work);
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	led_data->early_suspender.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
+	led_data->early_suspender.suspend = lp8550_early_suspend;
+	led_data->early_suspender.resume = lp8550_late_resume,
+	register_early_suspend(&led_data->early_suspender);
+#endif
 
 	error = led_classdev_register((struct device *) &client->dev,
 				&led_data->led_dev);
