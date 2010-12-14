@@ -58,7 +58,7 @@ static void nlm_put_lockowner(struct nlm_lockowner *lockowner)
 		return;
 	list_del(&lockowner->list);
 	spin_unlock(&lockowner->host->h_lock);
-	nlm_release_host(lockowner->host);
+	nlmclnt_release_host(lockowner->host);
 	kfree(lockowner);
 }
 
@@ -207,7 +207,7 @@ struct nlm_rqst *nlm_alloc_call(struct nlm_host *host)
 		printk("nlm_alloc_call: failed, waiting for memory\n");
 		schedule_timeout_interruptible(5*HZ);
 	}
-	nlm_release_host(host);
+	nlmclnt_release_host(host);
 	return NULL;
 }
 
@@ -215,7 +215,7 @@ void nlmclnt_release_call(struct nlm_rqst *call)
 {
 	if (!atomic_dec_and_test(&call->a_count))
 		return;
-	nlm_release_host(call->a_host);
+	nlmclnt_release_host(call->a_host);
 	nlmclnt_release_lockargs(call);
 	kfree(call);
 }
