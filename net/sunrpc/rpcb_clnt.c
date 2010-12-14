@@ -705,14 +705,11 @@ static int rpcb_enc_mapping(struct rpc_rqst *req, __be32 *p,
 
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 
-	p = xdr_reserve_space(&xdr, sizeof(__be32) * RPCB_mappingargs_sz);
-	if (unlikely(p == NULL))
-		return -EIO;
-
-	*p++ = htonl(rpcb->r_prog);
-	*p++ = htonl(rpcb->r_vers);
-	*p++ = htonl(rpcb->r_prot);
-	*p   = htonl(rpcb->r_port);
+	p = xdr_reserve_space(&xdr, RPCB_mappingargs_sz << 2);
+	*p++ = cpu_to_be32(rpcb->r_prog);
+	*p++ = cpu_to_be32(rpcb->r_vers);
+	*p++ = cpu_to_be32(rpcb->r_prot);
+	*p   = cpu_to_be32(rpcb->r_port);
 
 	return 0;
 }
@@ -728,11 +725,11 @@ static int rpcb_dec_getport(struct rpc_rqst *req, __be32 *p,
 
 	rpcb->r_port = 0;
 
-	p = xdr_inline_decode(&xdr, sizeof(__be32));
+	p = xdr_inline_decode(&xdr, 4);
 	if (unlikely(p == NULL))
 		return -EIO;
 
-	port = ntohl(*p);
+	port = be32_to_cpup(p);
 	dprintk("RPC: %5u PMAP_%s result: %lu\n", task->tk_pid,
 			task->tk_msg.rpc_proc->p_name, port);
 	if (unlikely(port > USHRT_MAX))
@@ -750,7 +747,7 @@ static int rpcb_dec_set(struct rpc_rqst *req, __be32 *p,
 
 	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
 
-	p = xdr_inline_decode(&xdr, sizeof(__be32));
+	p = xdr_inline_decode(&xdr, 4);
 	if (unlikely(p == NULL))
 		return -EIO;
 
@@ -764,24 +761,16 @@ static int rpcb_dec_set(struct rpc_rqst *req, __be32 *p,
 	return 0;
 }
 
-static int encode_rpcb_string(struct xdr_stream *xdr, const char *string,
-				const u32 maxstrlen)
+static void encode_rpcb_string(struct xdr_stream *xdr, const char *string,
+			       const u32 maxstrlen)
 {
-	u32 len;
 	__be32 *p;
+	u32 len;
 
-	if (unlikely(string == NULL))
-		return -EIO;
 	len = strlen(string);
-	if (unlikely(len > maxstrlen))
-		return -EIO;
-
-	p = xdr_reserve_space(xdr, sizeof(__be32) + len);
-	if (unlikely(p == NULL))
-		return -EIO;
+	BUG_ON(len > maxstrlen);
+	p = xdr_reserve_space(xdr, 4 + len);
 	xdr_encode_opaque(p, string, len);
-
-	return 0;
 }
 
 static int rpcb_enc_getaddr(struct rpc_rqst *req, __be32 *p,
@@ -797,20 +786,13 @@ static int rpcb_enc_getaddr(struct rpc_rqst *req, __be32 *p,
 
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 
-	p = xdr_reserve_space(&xdr,
-			sizeof(__be32) * (RPCB_program_sz + RPCB_version_sz));
-	if (unlikely(p == NULL))
-		return -EIO;
-	*p++ = htonl(rpcb->r_prog);
-	*p = htonl(rpcb->r_vers);
+	p = xdr_reserve_space(&xdr, (RPCB_program_sz + RPCB_version_sz) << 2);
+	*p++ = cpu_to_be32(rpcb->r_prog);
+	*p = cpu_to_be32(rpcb->r_vers);
 
-	if (encode_rpcb_string(&xdr, rpcb->r_netid, RPCBIND_MAXNETIDLEN))
-		return -EIO;
-	if (encode_rpcb_string(&xdr, rpcb->r_addr, RPCBIND_MAXUADDRLEN))
-		return -EIO;
-	if (encode_rpcb_string(&xdr, rpcb->r_owner, RPCB_MAXOWNERLEN))
-		return -EIO;
-
+	encode_rpcb_string(&xdr, rpcb->r_netid, RPCBIND_MAXNETIDLEN);
+	encode_rpcb_string(&xdr, rpcb->r_addr, RPCBIND_MAXUADDRLEN);
+	encode_rpcb_string(&xdr, rpcb->r_owner, RPCB_MAXOWNERLEN);
 	return 0;
 }
 
@@ -827,10 +809,10 @@ static int rpcb_dec_getaddr(struct rpc_rqst *req, __be32 *p,
 
 	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
 
-	p = xdr_inline_decode(&xdr, sizeof(__be32));
+	p = xdr_inline_decode(&xdr, 4);
 	if (unlikely(p == NULL))
 		goto out_fail;
-	len = ntohl(*p);
+	len = be32_to_cpup(p);
 
 	/*
 	 * If the returned universal address is a null string,
