@@ -364,7 +364,7 @@ struct omap_hwmod_omap4_prcm {
  *     when module is enabled, rather than the default, which is to
  *     enable autoidle
  * HWMOD_SET_DEFAULT_CLOCKACT: program CLOCKACTIVITY bits at startup
- * HWMOD_NO_IDLEST : this module does not have idle status - this is the case
+ * HWMOD_NO_IDLEST: this module does not have idle status - this is the case
  *     only for few initiator modules on OMAP2 & 3.
  * HWMOD_CONTROL_OPT_CLKS_IN_RESET: Enable all optional clocks during reset.
  *     This is needed for devices like DSS that require optional clocks enabled
@@ -416,6 +416,7 @@ struct omap_hwmod_omap4_prcm {
  * @sysc: device SYSCONFIG/SYSSTATUS register data
  * @rev: revision of the IP class
  * @pre_shutdown: ptr to fn to be executed immediately prior to device shutdown
+ * @reset: ptr to fn to be executed in place of the standard hwmod reset fn
  *
  * Represent the class of a OMAP hardware "modules" (e.g. timer,
  * smartreflex, gpio, uart...)
@@ -427,12 +428,18 @@ struct omap_hwmod_omap4_prcm {
  * or some negative error upon failure.  Returning an error will cause
  * omap_hwmod_shutdown() to abort the device shutdown and return an
  * error.
+ *
+ * If @reset is defined, then the function it points to will be
+ * executed in place of the standard hwmod _reset() code in
+ * mach-omap2/omap_hwmod.c.  This is needed for IP blocks which have
+ * unusual reset sequences - usually processor IP blocks like the IVA.
  */
 struct omap_hwmod_class {
 	const char				*name;
 	struct omap_hwmod_class_sysconfig	*sysc;
 	u32					rev;
 	int					(*pre_shutdown)(struct omap_hwmod *oh);
+	int					(*reset)(struct omap_hwmod *oh);
 };
 
 /**

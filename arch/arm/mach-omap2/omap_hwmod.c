@@ -1089,7 +1089,7 @@ static int _read_hardreset(struct omap_hwmod *oh, const char *name)
 }
 
 /**
- * _reset - reset an omap_hwmod
+ * _ocp_softreset - reset an omap_hwmod via the OCP_SYSCONFIG bit
  * @oh: struct omap_hwmod *
  *
  * Resets an omap_hwmod @oh via the OCP_SYSCONFIG bit.  hwmod must be
@@ -1098,12 +1098,13 @@ static int _read_hardreset(struct omap_hwmod *oh, const char *name)
  * the module did not reset in time, or 0 upon success.
  *
  * In OMAP3 a specific SYSSTATUS register is used to get the reset status.
- * Starting in OMAP4, some IPs does not have SYSSTATUS register and instead
+ * Starting in OMAP4, some IPs do not have SYSSTATUS registers and instead
  * use the SYSCONFIG softreset bit to provide the status.
  *
- * Note that some IP like McBSP does have a reset control but no reset status.
+ * Note that some IP like McBSP do have reset control but don't have
+ * reset status.
  */
-static int _reset(struct omap_hwmod *oh)
+static int _ocp_softreset(struct omap_hwmod *oh)
 {
 	u32 v;
 	int c = 0;
@@ -1124,7 +1125,7 @@ static int _reset(struct omap_hwmod *oh)
 	if (oh->flags & HWMOD_CONTROL_OPT_CLKS_IN_RESET)
 		_enable_optional_clocks(oh);
 
-	pr_debug("omap_hwmod: %s: resetting\n", oh->name);
+	pr_debug("omap_hwmod: %s: resetting via OCP SOFTRESET\n", oh->name);
 
 	v = oh->_sysc_cache;
 	ret = _set_softreset(oh, &v);
@@ -1159,6 +1160,33 @@ static int _reset(struct omap_hwmod *oh)
 dis_opt_clks:
 	if (oh->flags & HWMOD_CONTROL_OPT_CLKS_IN_RESET)
 		_disable_optional_clocks(oh);
+
+	return ret;
+}
+
+/**
+ * _reset - reset an omap_hwmod
+ * @oh: struct omap_hwmod *
+ *
+ * Resets an omap_hwmod @oh.  The default software reset mechanism for
+ * most OMAP IP blocks is triggered via the OCP_SYSCONFIG.SOFTRESET
+ * bit.  However, some hwmods cannot be reset via this method: some
+ * are not targets and therefore have no OCP header registers to
+ * access; others (like the IVA) have idiosyncratic reset sequences.
+ * So for these relatively rare cases, custom reset code can be
+ * supplied in the struct omap_hwmod_class .reset function pointer.
+ * Passes along the return value from either _reset() or the custom
+ * reset function - these must return -EINVAL if the hwmod cannot be
+ * reset this way or if the hwmod is in the wrong state, -ETIMEDOUT if
+ * the module did not reset in time, or 0 upon success.
+ */
+static int _reset(struct omap_hwmod *oh)
+{
+	int ret;
+
+	pr_debug("omap_hwmod: %s: resetting\n", oh->name);
+
+	ret = (oh->class->reset) ? oh->class->reset(oh) : _ocp_softreset(oh);
 
 	return ret;
 }
