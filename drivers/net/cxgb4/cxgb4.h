@@ -497,7 +497,7 @@ struct adapter {
 
 	struct {
 		unsigned short vec;
-		char desc[14];
+		char desc[IFNAMSIZ + 10];
 	} msix_info[MAX_INGQ + 1];
 
 	struct sge sge;
