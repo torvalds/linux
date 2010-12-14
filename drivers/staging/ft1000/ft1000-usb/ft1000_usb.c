@@ -198,7 +198,7 @@ static int ft1000_probe(struct usb_interface *interface,
 	if (ret)
 		goto err_thread;
 
-	ret = ft1000InitProc(ft1000dev->net);
+	ret = ft1000_init_proc(ft1000dev->net);
 	if (ret)
 		goto err_proc;
 
@@ -228,7 +228,7 @@ static void ft1000_disconnect(struct usb_interface *interface)
 	DEBUG("In disconnect pft1000info=%p\n", pft1000info);
 
 	if (pft1000info) {
-		ft1000CleanupProc(pft1000info);
+		ft1000_cleanup_proc(pft1000info);
 		if (pft1000info->pPollThread)
 			kthread_stop(pft1000info->pPollThread);
 

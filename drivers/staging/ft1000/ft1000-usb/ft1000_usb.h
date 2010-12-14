@@ -594,8 +594,8 @@ struct usb_interface;
 int reg_ft1000_netdev(struct ft1000_device *ft1000dev, struct usb_interface *intf);
 int ft1000_poll(void* dev_id);
 
-int ft1000InitProc(struct net_device *dev);
-void ft1000CleanupProc(struct ft1000_info *info);
+int ft1000_init_proc(struct net_device *dev);
+void ft1000_cleanup_proc(struct ft1000_info *info);
 
 
 

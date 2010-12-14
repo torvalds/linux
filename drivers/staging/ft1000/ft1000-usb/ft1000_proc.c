@@ -201,7 +201,7 @@ static struct notifier_block ft1000_netdev_notifier = {
 };
 
 
-int ft1000InitProc(struct net_device *dev)
+int ft1000_init_proc(struct net_device *dev)
 {
 	struct ft1000_info *info;
 	struct proc_dir_entry *ft1000_proc_file;
@@ -243,7 +243,7 @@ fail:
 	return ret;
 }
 
-void ft1000CleanupProc(struct ft1000_info *info)
+void ft1000_cleanup_proc(struct ft1000_info *info)
 {
 	remove_proc_entry(info->netdevname, info->ft1000_proc_dir);
 	remove_proc_entry(FT1000_PROC_DIR, FTNET_PROC);
