@@ -925,6 +925,7 @@ struct drm_driver {
 	union {
 		struct pci_driver *pci;
 		struct platform_device *platform_device;
+		struct usb_driver *usb;
 	} kdriver;
 	struct drm_bus *bus;
 
@@ -1130,6 +1131,7 @@ struct drm_device {
 #endif
 
 	struct platform_device *platformdev; /**< Platform device struture */
+	struct usb_device *usbdev;
 
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
 	int num_crtcs;                  /**< Number of CRTCs on this device */

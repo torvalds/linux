@@ -463,6 +463,7 @@ void drm_put_dev(struct drm_device *dev)
 
 	drm_put_minor(&dev->primary);
 
+	list_del(&dev->driver_item);
 	if (dev->devname) {
 		kfree(dev->devname);
 		dev->devname = NULL;
