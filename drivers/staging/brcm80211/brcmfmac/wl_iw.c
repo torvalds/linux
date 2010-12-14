@@ -347,7 +347,7 @@ wl_iw_config_commit(struct net_device *dev,
 		return 0;
 
 	memset(&bssid, 0, sizeof(struct sockaddr));
-	error = dev_wlc_ioctl(dev, WLC_REASSOC, &bssid, ETHER_ADDR_LEN);
+	error = dev_wlc_ioctl(dev, WLC_REASSOC, &bssid, ETH_ALEN);
 	if (error) {
 		WL_ERROR(("%s: WLC_REASSOC to %s failed\n", __func__,
 			  ssid.SSID));
@@ -691,7 +691,7 @@ wl_iw_set_spy(struct net_device *dev,
 
 	iw->spy_num = min_t(int, ARRAY_SIZE(iw->spy_addr), dwrq->length);
 	for (i = 0; i < iw->spy_num; i++)
-		memcpy(&iw->spy_addr[i], addr[i].sa_data, ETHER_ADDR_LEN);
+		memcpy(&iw->spy_addr[i], addr[i].sa_data, ETH_ALEN);
 	memset(iw->spy_qual, 0, sizeof(iw->spy_qual));
 
 	return 0;
@@ -713,7 +713,7 @@ wl_iw_get_spy(struct net_device *dev,
 
 	dwrq->length = iw->spy_num;
 	for (i = 0; i < iw->spy_num; i++) {
-		memcpy(addr[i].sa_data, &iw->spy_addr[i], ETHER_ADDR_LEN);
+		memcpy(addr[i].sa_data, &iw->spy_addr[i], ETH_ALEN);
 		addr[i].sa_family = AF_UNIX;
 		memcpy(&qual[i], &iw->spy_qual[i], sizeof(struct iw_quality));
 		iw->spy_qual[i].updated = 0;
@@ -786,7 +786,7 @@ wl_iw_set_wap(struct net_device *dev,
 
 	memcpy(join_params.ssid.SSID, g_ssid.SSID, g_ssid.SSID_len);
 	join_params.ssid.SSID_len = htod32(g_ssid.SSID_len);
-	memcpy(&join_params.params.bssid, awrq->sa_data, ETHER_ADDR_LEN);
+	memcpy(&join_params.params.bssid, awrq->sa_data, ETH_ALEN);
 
 	WL_TRACE(("%s  target_channel=%d\n", __func__,
 		  g_wl_iw_params.target_channel));
@@ -816,9 +816,9 @@ wl_iw_get_wap(struct net_device *dev,
 	WL_TRACE(("%s: SIOCGIWAP\n", dev->name));
 
 	awrq->sa_family = ARPHRD_ETHER;
-	memset(awrq->sa_data, 0, ETHER_ADDR_LEN);
+	memset(awrq->sa_data, 0, ETH_ALEN);
 
-	(void)dev_wlc_ioctl(dev, WLC_GET_BSSID, awrq->sa_data, ETHER_ADDR_LEN);
+	(void)dev_wlc_ioctl(dev, WLC_GET_BSSID, awrq->sa_data, ETH_ALEN);
 
 	return 0;
 }
@@ -841,7 +841,7 @@ wl_iw_mlme(struct net_device *dev,
 	}
 
 	scbval.val = mlme->reason_code;
-	bcopy(&mlme->addr.sa_data, &scbval.ea, ETHER_ADDR_LEN);
+	bcopy(&mlme->addr.sa_data, &scbval.ea, ETH_ALEN);
 
 	if (mlme->cmd == IW_MLME_DISASSOC) {
 		scbval.val = htod32(scbval.val);
@@ -912,7 +912,7 @@ wl_iw_get_aplist(struct net_device *dev,
 		if (!(dtoh16(bi->capability) & DOT11_CAP_ESS))
 			continue;
 
-		memcpy(addr[dwrq->length].sa_data, &bi->BSSID, ETHER_ADDR_LEN);
+		memcpy(addr[dwrq->length].sa_data, &bi->BSSID, ETH_ALEN);
 		addr[dwrq->length].sa_family = ARPHRD_ETHER;
 		qual[dwrq->length].qual = rssi_to_qual(dtoh16(bi->RSSI));
 		qual[dwrq->length].level = 0x100 + dtoh16(bi->RSSI);
@@ -986,7 +986,7 @@ wl_iw_iscan_get_aplist(struct net_device *dev,
 				continue;
 
 			memcpy(addr[dwrq->length].sa_data, &bi->BSSID,
-			       ETHER_ADDR_LEN);
+			       ETH_ALEN);
 			addr[dwrq->length].sa_family = ARPHRD_ETHER;
 			qual[dwrq->length].qual =
 			    rssi_to_qual(dtoh16(bi->RSSI));
@@ -1017,7 +1017,7 @@ static int wl_iw_iscan_prep(wl_scan_params_t *params, wlc_ssid_t *ssid)
 {
 	int err = 0;
 
-	memcpy(&params->bssid, &ether_bcast, ETHER_ADDR_LEN);
+	memcpy(&params->bssid, &ether_bcast, ETH_ALEN);
 	params->bss_type = DOT11_BSSTYPE_ANY;
 	params->scan_type = 0;
 	params->nprobes = -1;
@@ -1516,7 +1516,7 @@ wl_iw_get_scan_prep(wl_scan_results_t *list,
 
 		iwe.cmd = SIOCGIWAP;
 		iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
-		memcpy(iwe.u.ap_addr.sa_data, &bi->BSSID, ETHER_ADDR_LEN);
+		memcpy(iwe.u.ap_addr.sa_data, &bi->BSSID, ETH_ALEN);
 		event =
 		    IWE_STREAM_ADD_EVENT(info, event, end, &iwe,
 					 IW_EV_ADDR_LEN);
@@ -1780,14 +1780,14 @@ wl_iw_iscan_get_scan(struct net_device *dev,
 			ASSERT(((unsigned long)bi + dtoh32(bi->length)) <=
 			       ((unsigned long)list + WLC_IW_ISCAN_MAXLEN));
 
-			if (event + ETHER_ADDR_LEN + bi->SSID_len +
+			if (event + ETH_ALEN + bi->SSID_len +
 			    IW_EV_UINT_LEN + IW_EV_FREQ_LEN + IW_EV_QUAL_LEN >=
 			    end)
 				return -E2BIG;
 			iwe.cmd = SIOCGIWAP;
 			iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 			memcpy(iwe.u.ap_addr.sa_data, &bi->BSSID,
-			       ETHER_ADDR_LEN);
+			       ETH_ALEN);
 			event =
 			    IWE_STREAM_ADD_EVENT(info, event, end, &iwe,
 						 IW_EV_ADDR_LEN);
@@ -1924,7 +1924,7 @@ wl_iw_set_essid(struct net_device *dev,
 
 	memcpy(&join_params.ssid.SSID, g_ssid.SSID, g_ssid.SSID_len);
 	join_params.ssid.SSID_len = htod32(g_ssid.SSID_len);
-	memcpy(&join_params.params.bssid, &ether_bcast, ETHER_ADDR_LEN);
+	memcpy(&join_params.params.bssid, &ether_bcast, ETH_ALEN);
 
 	wl_iw_ch_to_chanspec(g_wl_iw_params.target_channel, &join_params,
 			     &join_params_size);
@@ -2551,7 +2551,7 @@ wl_iw_set_encodeext(struct net_device *dev,
 
 	if (!is_multicast_ether_addr(iwe->addr.sa_data))
 		bcopy((void *)&iwe->addr.sa_data, (char *)&key.ea,
-		      ETHER_ADDR_LEN);
+		      ETH_ALEN);
 
 	if (key.len == 0) {
 		if (iwe->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
@@ -2657,7 +2657,7 @@ wl_iw_set_pmksa(struct net_device *dev,
 			pmkidptr = &pmkid;
 
 			bcopy(&iwpmksa->bssid.sa_data[0],
-			      &pmkidptr->pmkid[0].BSSID, ETHER_ADDR_LEN);
+			      &pmkidptr->pmkid[0].BSSID, ETH_ALEN);
 			bcopy(&iwpmksa->pmkid[0], &pmkidptr->pmkid[0].PMKID,
 			      WPA2_PMKID_LEN);
 
@@ -2671,7 +2671,7 @@ wl_iw_set_pmksa(struct net_device *dev,
 		for (i = 0; i < pmkid_list.pmkids.npmkid; i++)
 			if (!memcmp
 			    (&iwpmksa->bssid.sa_data[0],
-			     &pmkid_list.pmkids.pmkid[i].BSSID, ETHER_ADDR_LEN))
+			     &pmkid_list.pmkids.pmkid[i].BSSID, ETH_ALEN))
 				break;
 
 		if ((pmkid_list.pmkids.npmkid > 0)
@@ -2680,7 +2680,7 @@ wl_iw_set_pmksa(struct net_device *dev,
 			for (; i < (pmkid_list.pmkids.npmkid - 1); i++) {
 				bcopy(&pmkid_list.pmkids.pmkid[i + 1].BSSID,
 				      &pmkid_list.pmkids.pmkid[i].BSSID,
-				      ETHER_ADDR_LEN);
+				      ETH_ALEN);
 				bcopy(&pmkid_list.pmkids.pmkid[i + 1].PMKID,
 				      &pmkid_list.pmkids.pmkid[i].PMKID,
 				      WPA2_PMKID_LEN);
@@ -2694,12 +2694,12 @@ wl_iw_set_pmksa(struct net_device *dev,
 		for (i = 0; i < pmkid_list.pmkids.npmkid; i++)
 			if (!memcmp
 			    (&iwpmksa->bssid.sa_data[0],
-			     &pmkid_list.pmkids.pmkid[i].BSSID, ETHER_ADDR_LEN))
+			     &pmkid_list.pmkids.pmkid[i].BSSID, ETH_ALEN))
 				break;
 		if (i < MAXPMKID) {
 			bcopy(&iwpmksa->bssid.sa_data[0],
 			      &pmkid_list.pmkids.pmkid[i].BSSID,
-			      ETHER_ADDR_LEN);
+			      ETH_ALEN);
 			bcopy(&iwpmksa->pmkid[0],
 			      &pmkid_list.pmkids.pmkid[i].PMKID,
 			      WPA2_PMKID_LEN);
@@ -3395,34 +3395,34 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 	switch (event_type) {
 	case WLC_E_TXFAIL:
 		cmd = IWEVTXDROP;
-		memcpy(wrqu.addr.sa_data, &e->addr, ETHER_ADDR_LEN);
+		memcpy(wrqu.addr.sa_data, &e->addr, ETH_ALEN);
 		wrqu.addr.sa_family = ARPHRD_ETHER;
 		break;
 #if WIRELESS_EXT > 14
 	case WLC_E_JOIN:
 	case WLC_E_ASSOC_IND:
 	case WLC_E_REASSOC_IND:
-		memcpy(wrqu.addr.sa_data, &e->addr, ETHER_ADDR_LEN);
+		memcpy(wrqu.addr.sa_data, &e->addr, ETH_ALEN);
 		wrqu.addr.sa_family = ARPHRD_ETHER;
 		cmd = IWEVREGISTERED;
 		break;
 	case WLC_E_DEAUTH_IND:
 	case WLC_E_DISASSOC_IND:
 		cmd = SIOCGIWAP;
-		memset(wrqu.addr.sa_data, 0, ETHER_ADDR_LEN);
+		memset(wrqu.addr.sa_data, 0, ETH_ALEN);
 		wrqu.addr.sa_family = ARPHRD_ETHER;
-		memset(&extra, 0, ETHER_ADDR_LEN);
+		memset(&extra, 0, ETH_ALEN);
 		break;
 	case WLC_E_LINK:
 	case WLC_E_NDIS_LINK:
 		cmd = SIOCGIWAP;
 		if (!(flags & WLC_EVENT_MSG_LINK)) {
-			memset(wrqu.addr.sa_data, 0, ETHER_ADDR_LEN);
-			memset(&extra, 0, ETHER_ADDR_LEN);
+			memset(wrqu.addr.sa_data, 0, ETH_ALEN);
+			memset(&extra, 0, ETH_ALEN);
 			WAKE_LOCK_TIMEOUT(iw->pub, WAKE_LOCK_LINK_DOWN_TMOUT,
 					  20 * HZ);
 		} else {
-			memcpy(wrqu.addr.sa_data, &e->addr, ETHER_ADDR_LEN);
+			memcpy(wrqu.addr.sa_data, &e->addr, ETH_ALEN);
 			WL_TRACE(("Link UP\n"));
 
 		}
@@ -3465,7 +3465,7 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 			else
 				micerrevt->flags |= IW_MICFAILURE_PAIRWISE;
 			memcpy(micerrevt->src_addr.sa_data, &e->addr,
-			       ETHER_ADDR_LEN);
+			       ETH_ALEN);
 			micerrevt->src_addr.sa_family = ARPHRD_ETHER;
 
 			break;
@@ -3495,7 +3495,7 @@ void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void *data)
 						    IW_PMKID_CAND_PREAUTH;
 					bcopy(&pmkidcand->BSSID,
 					      &iwpmkidcand->bssid.sa_data,
-					      ETHER_ADDR_LEN);
+					      ETH_ALEN);
 #ifndef SANDGATE2G
 					wireless_send_event(dev, cmd, &wrqu,
 							    extra);

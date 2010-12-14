@@ -505,7 +505,7 @@ int srom_parsecis(struct osl_info *osh, u8 *pcis[], uint ciscnt, char **vars,
 					    !is_zero_ether_addr(&cis[i + 2]) &&
 					    !is_multicast_ether_addr(&cis[i + 2])) {
 						ASSERT(cis[i + 1] ==
-						       ETHER_ADDR_LEN);
+						       ETH_ALEN);
 						snprintf(eabuf, sizeof(eabuf),
 							"%pM", &cis[i + 2]);
 

@@ -749,7 +749,7 @@ static struct wl_info *wl_attach(u16 vendor, u16 device, unsigned long regs,
 		goto fail;
 	}
 
-	bcopy(&wl->pub->cur_etheraddr, perm, ETHER_ADDR_LEN);
+	bcopy(&wl->pub->cur_etheraddr, perm, ETH_ALEN);
 	ASSERT(is_valid_ether_addr(perm));
 	SET_IEEE80211_PERM_ADDR(hw, perm);
 

@@ -1726,7 +1726,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	ASSERT(WSEC_MAX_DEFAULT_KEYS == WLC_DEFAULT_KEYS);
 
 	/* some code depends on packed structures */
-	ASSERT(sizeof(struct ether_addr) == ETHER_ADDR_LEN);
+	ASSERT(sizeof(struct ether_addr) == ETH_ALEN);
 	ASSERT(sizeof(struct ether_header) == ETHER_HDR_LEN);
 	ASSERT(sizeof(d11regs_t) == SI_CORE_SIZE);
 	ASSERT(sizeof(ofdm_phy_hdr_t) == D11_PHY_HDR_LEN);
@@ -1839,7 +1839,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	wlc_bmac_hw_etheraddr(wlc->hw, &wlc->perm_etheraddr);
 
 	bcopy((char *)&wlc->perm_etheraddr, (char *)&pub->cur_etheraddr,
-	      ETHER_ADDR_LEN);
+	      ETH_ALEN);
 
 	for (j = 0; j < NBANDS(wlc); j++) {
 		/* Use band 1 for single band 11a */
@@ -3598,7 +3598,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 					key.flags |= WL_PRIMARY_KEY;
 
 				bcopy(src_key->ea.octet, key.ea.octet,
-				      ETHER_ADDR_LEN);
+				      ETH_ALEN);
 			}
 
 			bcopy((char *)&key, arg, sizeof(key));
@@ -6031,7 +6031,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	txh->TxFesTimeFallback = htol16(0);
 
 	/* TxFrameRA */
-	bcopy((char *)&h->a1, (char *)&txh->TxFrameRA, ETHER_ADDR_LEN);
+	bcopy((char *)&h->a1, (char *)&txh->TxFrameRA, ETH_ALEN);
 
 	/* TxFrameID */
 	txh->TxFrameID = htol16(frameid);
@@ -6118,11 +6118,11 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 		if (use_cts) {
 			rts->fc = htol16(FC_CTS);
-			bcopy((char *)&h->a2, (char *)&rts->ra, ETHER_ADDR_LEN);
+			bcopy((char *)&h->a2, (char *)&rts->ra, ETH_ALEN);
 		} else {
 			rts->fc = htol16((u16) FC_RTS);
 			bcopy((char *)&h->a1, (char *)&rts->ra,
-			      2 * ETHER_ADDR_LEN);
+			      2 * ETH_ALEN);
 		}
 
 		/* mainrate
@@ -7639,9 +7639,9 @@ wlc_bcn_prb_template(struct wlc_info *wlc, uint type, ratespec_t bcn_rspec,
 	/* A1 filled in by MAC for prb resp, broadcast for bcn */
 	if (type == FC_BEACON)
 		bcopy((const char *)&ether_bcast, (char *)&h->da,
-		      ETHER_ADDR_LEN);
-	bcopy((char *)&cfg->cur_etheraddr, (char *)&h->sa, ETHER_ADDR_LEN);
-	bcopy((char *)&cfg->BSSID, (char *)&h->bssid, ETHER_ADDR_LEN);
+		      ETH_ALEN);
+	bcopy((char *)&cfg->cur_etheraddr, (char *)&h->sa, ETH_ALEN);
+	bcopy((char *)&cfg->BSSID, (char *)&h->bssid, ETH_ALEN);
 
 	/* SEQ filled in by MAC */
 

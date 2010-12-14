@@ -1340,13 +1340,13 @@ void wlc_bmac_wait_for_wake(struct wlc_hw_info *wlc_hw)
 
 void wlc_bmac_hw_etheraddr(struct wlc_hw_info *wlc_hw, struct ether_addr *ea)
 {
-	bcopy(&wlc_hw->etheraddr, ea, ETHER_ADDR_LEN);
+	bcopy(&wlc_hw->etheraddr, ea, ETH_ALEN);
 }
 
 void wlc_bmac_set_hw_etheraddr(struct wlc_hw_info *wlc_hw,
 			       struct ether_addr *ea)
 {
-	bcopy(ea, &wlc_hw->etheraddr, ETHER_ADDR_LEN);
+	bcopy(ea, &wlc_hw->etheraddr, ETH_ALEN);
 }
 
 int wlc_bmac_bandtype(struct wlc_hw_info *wlc_hw)

@@ -210,7 +210,7 @@ typedef struct dhd_if {
 	int idx;		/* iface idx in dongle */
 	int state;		/* interface state */
 	uint subunit;		/* subunit */
-	u8 mac_addr[ETHER_ADDR_LEN];	/* assigned MAC address */
+	u8 mac_addr[ETH_ALEN];	/* assigned MAC address */
 	bool attached;		/* Delayed attachment when unset */
 	bool txflowcontrol;	/* Per interface flow control indicator */
 	char name[IFNAMSIZ];	/* linux interface name */
@@ -708,7 +708,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 
 	/* Send down the multicast list first. */
 
-	buflen = sizeof("mcast_list") + sizeof(cnt) + (cnt * ETHER_ADDR_LEN);
+	buflen = sizeof("mcast_list") + sizeof(cnt) + (cnt * ETH_ALEN);
 	bufp = buf = kmalloc(buflen, GFP_ATOMIC);
 	if (!bufp) {
 		DHD_ERROR(("%s: out of memory for mcast_list, cnt %d\n",
@@ -726,8 +726,8 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	netdev_for_each_mc_addr(ha, dev) {
 		if (!cnt)
 			break;
-		memcpy(bufp, ha->addr, ETHER_ADDR_LEN);
-		bufp += ETHER_ADDR_LEN;
+		memcpy(bufp, ha->addr, ETH_ALEN);
+		bufp += ETH_ALEN;
 		cnt--;
 	}
 
@@ -811,7 +811,7 @@ _dhd_set_mac_address(dhd_info_t *dhd, int ifidx, struct ether_addr *addr)
 
 	DHD_TRACE(("%s enter\n", __func__));
 	if (!bcm_mkiovar
-	    ("cur_etheraddr", (char *)addr, ETHER_ADDR_LEN, buf, 32)) {
+	    ("cur_etheraddr", (char *)addr, ETH_ALEN, buf, 32)) {
 		DHD_ERROR(("%s: mkiovar failed for cur_etheraddr\n",
 			   dhd_ifname(&dhd->pub, ifidx)));
 		return -1;
@@ -827,7 +827,7 @@ _dhd_set_mac_address(dhd_info_t *dhd, int ifidx, struct ether_addr *addr)
 		DHD_ERROR(("%s: set cur_etheraddr failed\n",
 			   dhd_ifname(&dhd->pub, ifidx)));
 	} else {
-		memcpy(dhd->iflist[ifidx]->net->dev_addr, addr, ETHER_ADDR_LEN);
+		memcpy(dhd->iflist[ifidx]->net->dev_addr, addr, ETH_ALEN);
 	}
 
 	return ret;
@@ -997,7 +997,7 @@ static int dhd_set_mac_address(struct net_device *dev, void *addr)
 		return -1;
 
 	ASSERT(dhd->sysioc_tsk);
-	memcpy(&dhd->macvalue, sa->sa_data, ETHER_ADDR_LEN);
+	memcpy(&dhd->macvalue, sa->sa_data, ETH_ALEN);
 	dhd->set_macaddress = true;
 	up(&dhd->sysioc_sem);
 
@@ -1028,7 +1028,7 @@ int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 		return -ENODEV;
 
 	/* Update multicast statistic */
-	if (pktbuf->len >= ETHER_ADDR_LEN) {
+	if (pktbuf->len >= ETH_ALEN) {
 		u8 *pktdata = (u8 *) (pktbuf->data);
 		struct ether_header *eh = (struct ether_header *)pktdata;
 
@@ -1866,7 +1866,7 @@ static int dhd_open(struct net_device *net)
 		}
 		atomic_set(&dhd->pend_8021x_cnt, 0);
 
-		memcpy(net->dev_addr, dhd->pub.mac.octet, ETHER_ADDR_LEN);
+		memcpy(net->dev_addr, dhd->pub.mac.octet, ETH_ALEN);
 
 #ifdef TOE
 		/* Get current TOE mode from dongle */
@@ -1922,7 +1922,7 @@ dhd_add_if(dhd_info_t *dhd, int ifidx, void *handle, char *name,
 	dhd->iflist[ifidx] = ifp;
 	strlcpy(ifp->name, name, IFNAMSIZ);
 	if (mac_addr != NULL)
-		memcpy(&ifp->mac_addr, mac_addr, ETHER_ADDR_LEN);
+		memcpy(&ifp->mac_addr, mac_addr, ETH_ALEN);
 
 	if (handle == NULL) {
 		ifp->state = WLC_E_IF_ADD;
@@ -2281,7 +2281,7 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 {
 	dhd_info_t *dhd = (dhd_info_t *) dhdp->info;
 	struct net_device *net;
-	u8 temp_addr[ETHER_ADDR_LEN] = {
+	u8 temp_addr[ETH_ALEN] = {
 		0x00, 0x90, 0x4c, 0x11, 0x22, 0x33};
 
 	DHD_TRACE(("%s: ifidx %d\n", __func__, ifidx));
@@ -2299,7 +2299,7 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 	 */
 	if (ifidx != 0) {
 		/* for virtual interfaces use the primary MAC  */
-		memcpy(temp_addr, dhd->pub.mac.octet, ETHER_ADDR_LEN);
+		memcpy(temp_addr, dhd->pub.mac.octet, ETH_ALEN);
 
 	}
 
@@ -2327,7 +2327,7 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 
 	dhd->pub.rxsz = net->mtu + net->hard_header_len + dhd->pub.hdrlen;
 
-	memcpy(net->dev_addr, temp_addr, ETHER_ADDR_LEN);
+	memcpy(net->dev_addr, temp_addr, ETH_ALEN);
 
 	if (register_netdev(net) != 0) {
 		DHD_ERROR(("%s: couldn't register the net device\n",

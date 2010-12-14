@@ -648,7 +648,7 @@ wl_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 
 static void wl_iscan_prep(struct wl_scan_params *params, struct wlc_ssid *ssid)
 {
-	memcpy(&params->bssid, &ether_bcast, ETHER_ADDR_LEN);
+	memcpy(&params->bssid, &ether_bcast, ETH_ALEN);
 	params->bss_type = DOT11_BSSTYPE_ANY;
 	params->scan_type = 0;
 	params->nprobes = -1;
@@ -1044,9 +1044,9 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	join_params.ssid.SSID_len = htod32(params->ssid_len);
 	if (params->bssid)
 		memcpy(&join_params.params.bssid, params->bssid,
-		       ETHER_ADDR_LEN);
+		       ETH_ALEN);
 	else
-		memset(&join_params.params.bssid, 0, ETHER_ADDR_LEN);
+		memset(&join_params.params.bssid, 0, ETH_ALEN);
 
 	err = wl_dev_ioctl(dev, WLC_SET_SSID, &join_params,
 			sizeof(join_params));
@@ -1373,7 +1373,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	memcpy(&join_params.ssid.SSID, sme->ssid, join_params.ssid.SSID_len);
 	join_params.ssid.SSID_len = htod32(join_params.ssid.SSID_len);
 	wl_update_prof(wl, NULL, &join_params.ssid, WL_PROF_SSID);
-	memcpy(&join_params.params.bssid, &ether_bcast, ETHER_ADDR_LEN);
+	memcpy(&join_params.params.bssid, &ether_bcast, ETH_ALEN);
 
 	wl_ch_to_chanspec(wl->channel, &join_params, &join_params_size);
 	WL_DBG(("join_param_size %d\n", join_params_size));
@@ -1406,7 +1406,7 @@ wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	act = *(bool *) wl_read_prof(wl, WL_PROF_ACT);
 	if (likely(act)) {
 		scbval.val = reason_code;
-		memcpy(&scbval.ea, &wl->bssid, ETHER_ADDR_LEN);
+		memcpy(&scbval.ea, &wl->bssid, ETH_ALEN);
 		scbval.val = htod32(scbval.val);
 		err = wl_dev_ioctl(dev, WLC_DISASSOC, &scbval,
 				sizeof(scb_val_t));
@@ -1533,7 +1533,7 @@ wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 	/* Instead of bcast for ea address for default wep keys,
 		 driver needs it to be Null */
 	if (!is_multicast_ether_addr(mac_addr))
-		memcpy((char *)&key.ea, (void *)mac_addr, ETHER_ADDR_LEN);
+		memcpy((char *)&key.ea, (void *)mac_addr, ETH_ALEN);
 	key.len = (u32) params->key_len;
 	/* check for key index change */
 	if (key.len == 0) {
@@ -1826,7 +1826,7 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	CHECK_SYS_UP();
 	if (unlikely
-	    (memcmp(mac, wl_read_prof(wl, WL_PROF_BSSID), ETHER_ADDR_LEN))) {
+	    (memcmp(mac, wl_read_prof(wl, WL_PROF_BSSID), ETH_ALEN))) {
 		WL_ERR(("Wrong Mac address\n"));
 		return -ENOENT;
 	}
@@ -2029,11 +2029,11 @@ wl_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	CHECK_SYS_UP();
 	for (i = 0; i < wl->pmk_list->pmkids.npmkid; i++)
 		if (!memcmp(pmksa->bssid, &wl->pmk_list->pmkids.pmkid[i].BSSID,
-			    ETHER_ADDR_LEN))
+			    ETH_ALEN))
 			break;
 	if (i < WL_NUM_PMKIDS_MAX) {
 		memcpy(&wl->pmk_list->pmkids.pmkid[i].BSSID, pmksa->bssid,
-		       ETHER_ADDR_LEN);
+		       ETH_ALEN);
 		memcpy(&wl->pmk_list->pmkids.pmkid[i].PMKID, pmksa->pmkid,
 		       WPA2_PMKID_LEN);
 		if (i == wl->pmk_list->pmkids.npmkid)
@@ -2064,7 +2064,7 @@ wl_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	int i;
 
 	CHECK_SYS_UP();
-	memcpy(&pmkid.pmkid[0].BSSID, pmksa->bssid, ETHER_ADDR_LEN);
+	memcpy(&pmkid.pmkid[0].BSSID, pmksa->bssid, ETH_ALEN);
 	memcpy(&pmkid.pmkid[0].PMKID, pmksa->pmkid, WPA2_PMKID_LEN);
 
 	WL_DBG(("del_pmksa,IW_PMKSA_REMOVE - PMKID: %pM =\n",
@@ -2076,7 +2076,7 @@ wl_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	for (i = 0; i < wl->pmk_list->pmkids.npmkid; i++)
 		if (!memcmp
 		    (pmksa->bssid, &wl->pmk_list->pmkids.pmkid[i].BSSID,
-		     ETHER_ADDR_LEN))
+		     ETH_ALEN))
 			break;
 
 	if ((wl->pmk_list->pmkids.npmkid > 0)
@@ -2085,7 +2085,7 @@ wl_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 		for (; i < (wl->pmk_list->pmkids.npmkid - 1); i++) {
 			memcpy(&wl->pmk_list->pmkids.pmkid[i].BSSID,
 			       &wl->pmk_list->pmkids.pmkid[i + 1].BSSID,
-			       ETHER_ADDR_LEN);
+			       ETH_ALEN);
 			memcpy(&wl->pmk_list->pmkids.pmkid[i].PMKID,
 			       &wl->pmk_list->pmkids.pmkid[i + 1].PMKID,
 			       WPA2_PMKID_LEN);
@@ -2284,7 +2284,7 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 	else
 		band = wiphy->bands[IEEE80211_BAND_5GHZ];
 	notif_bss_info->rssi = bi->RSSI;
-	memcpy(mgmt->bssid, &bi->BSSID, ETHER_ADDR_LEN);
+	memcpy(mgmt->bssid, &bi->BSSID, ETH_ALEN);
 	mgmt_type = wl->active_scan ?
 		IEEE80211_STYPE_PROBE_RESP : IEEE80211_STYPE_BEACON;
 	if (!memcmp(bi->SSID, sr->ssid.SSID, bi->SSID_len)) {
@@ -2579,7 +2579,7 @@ static s32 wl_update_bss_info(struct wl_priv *wl)
 			goto update_bss_info_out;
 		}
 		bi = (struct wl_bss_info *)(wl->extra_buf + 4);
-		if (unlikely(memcmp(&bi->BSSID, &wl->bssid, ETHER_ADDR_LEN))) {
+		if (unlikely(memcmp(&bi->BSSID, &wl->bssid, ETH_ALEN))) {
 			err = -EIO;
 			goto update_bss_info_out;
 		}
@@ -2631,7 +2631,7 @@ wl_bss_roaming_done(struct wl_priv *wl, struct net_device *ndev,
 	s32 err = 0;
 
 	wl_get_assoc_ies(wl);
-	memcpy(&wl->bssid, &e->addr, ETHER_ADDR_LEN);
+	memcpy(&wl->bssid, &e->addr, ETH_ALEN);
 	wl_update_bss_info(wl);
 	cfg80211_roamed(ndev,
 			(u8 *)&wl->bssid,
@@ -2652,7 +2652,7 @@ wl_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 	s32 err = 0;
 
 	wl_get_assoc_ies(wl);
-	memcpy(&wl->bssid, &e->addr, ETHER_ADDR_LEN);
+	memcpy(&wl->bssid, &e->addr, ETH_ALEN);
 	wl_update_bss_info(wl);
 	if (test_and_clear_bit(WL_STATUS_CONNECTING, &wl->status)) {
 		cfg80211_connect_result(ndev,
@@ -3926,9 +3926,9 @@ wl_update_prof(struct wl_priv *wl, const wl_event_msg_t *e, void *data,
 		break;
 	case WL_PROF_BSSID:
 		if (data)
-			memcpy(wl->profile->bssid, data, ETHER_ADDR_LEN);
+			memcpy(wl->profile->bssid, data, ETH_ALEN);
 		else
-			memset(wl->profile->bssid, 0, ETHER_ADDR_LEN);
+			memset(wl->profile->bssid, 0, ETH_ALEN);
 		break;
 	case WL_PROF_SEC:
 		memcpy(&wl->profile->sec, data, sizeof(wl->profile->sec));

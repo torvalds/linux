@@ -237,7 +237,7 @@ struct wl_ibss {
 struct wl_profile {
 	u32 mode;
 	struct wlc_ssid ssid;
-	u8 bssid[ETHER_ADDR_LEN];
+	u8 bssid[ETH_ALEN];
 	u16 beacon_interval;
 	u8 dtim_period;
 	struct wl_security sec;

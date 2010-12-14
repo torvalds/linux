@@ -17,12 +17,13 @@
 #ifndef _NET_ETHERNET_H_
 #define _NET_ETHERNET_H_
 
+#include <linux/if_ether.h>
+
 #include <packed_section_start.h>
 
-#define	ETHER_ADDR_LEN		6
 #define	ETHER_TYPE_LEN		2
 #define	ETHER_CRC_LEN		4
-#define	ETHER_HDR_LEN		(ETHER_ADDR_LEN * 2 + ETHER_TYPE_LEN)
+#define	ETHER_HDR_LEN		(ETH_ALEN * 2 + ETHER_TYPE_LEN)
 #define	ETHER_MIN_LEN		64
 #define	ETHER_MIN_DATA		46
 #define	ETHER_MAX_LEN		1518
@@ -36,9 +37,9 @@
 #define	ETHER_TYPE_802_1X	0x888e
 #define	ETHER_TYPE_802_1X_PREAUTH 0x88c7
 
-#define ETHER_DEST_OFFSET	(0 * ETHER_ADDR_LEN)
-#define ETHER_SRC_OFFSET	(1 * ETHER_ADDR_LEN)
-#define ETHER_TYPE_OFFSET	(2 * ETHER_ADDR_LEN)
+#define ETHER_DEST_OFFSET	(0 * ETH_ALEN)
+#define ETHER_SRC_OFFSET	(1 * ETH_ALEN)
+#define ETHER_TYPE_OFFSET	(2 * ETH_ALEN)
 
 #define	ETHER_IS_VALID_LEN(foo)	\
 	((foo) >= ETHER_MIN_LEN && (foo) <= ETHER_MAX_LEN)
@@ -53,13 +54,13 @@
 }
 
 BWL_PRE_PACKED_STRUCT struct ether_header {
-	u8 ether_dhost[ETHER_ADDR_LEN];
-	u8 ether_shost[ETHER_ADDR_LEN];
+	u8 ether_dhost[ETH_ALEN];
+	u8 ether_shost[ETH_ALEN];
 	u16 ether_type;
 } BWL_POST_PACKED_STRUCT;
 
 BWL_PRE_PACKED_STRUCT struct ether_addr {
-	u8 octet[ETHER_ADDR_LEN];
+	u8 octet[ETH_ALEN];
 } BWL_POST_PACKED_STRUCT;
 
 #define ETHER_SET_UNICAST(ea)	(((u8 *)(ea))[0] = (((u8 *)(ea))[0] & ~1))
