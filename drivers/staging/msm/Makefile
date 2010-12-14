@@ -61,14 +61,12 @@ obj-y += mddi_prism.o
 obj-y += mddi_toshiba.o
 obj-y += mddi_toshiba_vga.o
 obj-y += mddi_toshiba_wvga_pt.o
-obj-y += mddi_toshiba_wvga.o
 obj-y += mddi_sharp.o
 else
 obj-$(CONFIG_FB_MSM_MDDI_PRISM_WVGA) += mddi_prism.o
 obj-$(CONFIG_FB_MSM_MDDI_TOSHIBA_COMMON) += mddi_toshiba.o
 obj-$(CONFIG_FB_MSM_MDDI_TOSHIBA_COMMON_VGA) += mddi_toshiba_vga.o
 obj-$(CONFIG_FB_MSM_MDDI_TOSHIBA_WVGA_PORTRAIT) += mddi_toshiba_wvga_pt.o
-obj-$(CONFIG_FB_MSM_MDDI_TOSHIBA_WVGA) += mddi_toshiba_wvga.o
 obj-$(CONFIG_FB_MSM_MDDI_SHARP_QVGA_128x128) += mddi_sharp.o
 endif
 
@@ -76,11 +74,8 @@ obj-$(CONFIG_FB_MSM_LCDC_PANEL) += lcdc_panel.o
 obj-$(CONFIG_FB_MSM_LCDC_PRISM_WVGA) += lcdc_prism.o
 obj-$(CONFIG_FB_MSM_LCDC_EXTERNAL_WXGA) += lcdc_external.o
 obj-$(CONFIG_FB_MSM_LCDC_GORDON_VGA) += lcdc_gordon.o
-obj-$(CONFIG_FB_MSM_LCDC_WXGA) += lcdc_wxga.o
 obj-$(CONFIG_FB_MSM_LCDC_TOSHIBA_WVGA_PT) += lcdc_toshiba_wvga_pt.o
 obj-$(CONFIG_FB_MSM_LCDC_SHARP_WVGA_PT) += lcdc_sharp_wvga_pt.o
-obj-$(CONFIG_FB_MSM_LCDC_GRAPEFRUIT_VGA) += lcdc_grapefruit.o
-obj-$(CONFIG_FB_MSM_LCDC_ST1_WXGA) += lcdc_st1_wxga.o
 obj-$(CONFIG_FB_MSM_LCDC_ST15_WXGA) += lcdc_st15.o
 obj-$(CONFIG_FB_MSM_HDMI_SII_EXTERNAL_720P) += hdmi_sii9022.o
 

@@ -312,6 +312,8 @@ static void setup_events_to_report(struct input_dev *input_dev,
 	__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
 	__set_bit(BTN_TOOL_QUADTAP, input_dev->keybit);
 	__set_bit(BTN_LEFT, input_dev->keybit);
+
+	input_set_events_per_packet(input_dev, 60);
 }
 
 /* report button data as logical button state */
@@ -335,10 +337,14 @@ static void report_finger_data(struct input_dev *input,
 			       const struct bcm5974_config *cfg,
 			       const struct tp_finger *f)
 {
-	input_report_abs(input, ABS_MT_TOUCH_MAJOR, raw2int(f->force_major));
-	input_report_abs(input, ABS_MT_TOUCH_MINOR, raw2int(f->force_minor));
-	input_report_abs(input, ABS_MT_WIDTH_MAJOR, raw2int(f->size_major));
-	input_report_abs(input, ABS_MT_WIDTH_MINOR, raw2int(f->size_minor));
+	input_report_abs(input, ABS_MT_TOUCH_MAJOR,
+			 raw2int(f->force_major) << 1);
+	input_report_abs(input, ABS_MT_TOUCH_MINOR,
+			 raw2int(f->force_minor) << 1);
+	input_report_abs(input, ABS_MT_WIDTH_MAJOR,
+			 raw2int(f->size_major) << 1);
+	input_report_abs(input, ABS_MT_WIDTH_MINOR,
+			 raw2int(f->size_minor) << 1);
 	input_report_abs(input, ABS_MT_ORIENTATION,
 			 MAX_FINGER_ORIENTATION - raw2int(f->orientation));
 	input_report_abs(input, ABS_MT_POSITION_X, raw2int(f->abs_x));
@@ -580,23 +586,30 @@ exit:
  */
 static int bcm5974_start_traffic(struct bcm5974 *dev)
 {
-	if (bcm5974_wellspring_mode(dev, true)) {
+	int error;
+
+	error = bcm5974_wellspring_mode(dev, true);
+	if (error) {
 		dprintk(1, "bcm5974: mode switch failed\n");
-		goto error;
+		goto err_out;
 	}
 
-	if (usb_submit_urb(dev->bt_urb, GFP_KERNEL))
-		goto error;
+	error = usb_submit_urb(dev->bt_urb, GFP_KERNEL);
+	if (error)
+		goto err_reset_mode;
 
-	if (usb_submit_urb(dev->tp_urb, GFP_KERNEL))
+	error = usb_submit_urb(dev->tp_urb, GFP_KERNEL);
+	if (error)
 		goto err_kill_bt;
 
 	return 0;
 
 err_kill_bt:
 	usb_kill_urb(dev->bt_urb);
-error:
-	return -EIO;
+err_reset_mode:
+	bcm5974_wellspring_mode(dev, false);
+err_out:
+	return error;
 }
 
 static void bcm5974_pause_traffic(struct bcm5974 *dev)

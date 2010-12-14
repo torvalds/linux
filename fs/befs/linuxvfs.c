@@ -436,7 +436,7 @@ befs_init_inodecache(void)
 					      init_once);
 	if (befs_inode_cachep == NULL) {
 		printk(KERN_ERR "befs_init_inodecache: "
-		       "Couldn't initalize inode slabcache\n");
+		       "Couldn't initialize inode slabcache\n");
 		return -ENOMEM;
 	}
 
@@ -913,18 +913,17 @@ befs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int
-befs_get_sb(struct file_system_type *fs_type, int flags, const char *dev_name,
-	    void *data, struct vfsmount *mnt)
+static struct dentry *
+befs_mount(struct file_system_type *fs_type, int flags, const char *dev_name,
+	    void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, befs_fill_super,
-			   mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, befs_fill_super);
 }
 
 static struct file_system_type befs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "befs",
-	.get_sb		= befs_get_sb,
+	.mount		= befs_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,	
 };

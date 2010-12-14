@@ -283,10 +283,11 @@ static inline int fbcon_is_inactive(struct vc_data *vc, struct fb_info *info)
 	struct fbcon_ops *ops = info->fbcon_par;
 
 	return (info->state != FBINFO_STATE_RUNNING ||
-		vc->vc_mode != KD_TEXT || ops->graphics);
+		vc->vc_mode != KD_TEXT || ops->graphics) &&
+		!vt_force_oops_output(vc);
 }
 
-static inline int get_color(struct vc_data *vc, struct fb_info *info,
+static int get_color(struct vc_data *vc, struct fb_info *info,
 	      u16 c, int is_fg)
 {
 	int depth = fb_get_color_depth(&info->var, &info->fix);
@@ -1073,6 +1074,7 @@ static void fbcon_init(struct vc_data *vc, int init)
 	if (p->userfont)
 		charcnt = FNTCHARCNT(p->fontdata);
 
+	vc->vc_panic_force_write = !!(info->flags & FBINFO_CAN_FORCE_OUTPUT);
 	vc->vc_can_do_color = (fb_get_color_depth(&info->var, &info->fix)!=1);
 	vc->vc_complement_mask = vc->vc_can_do_color ? 0x7700 : 0x0800;
 	if (charcnt == 256) {
@@ -2342,6 +2344,30 @@ static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
 	return 0;
 }
 
+static int fbcon_debug_enter(struct vc_data *vc)
+{
+	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
+	struct fbcon_ops *ops = info->fbcon_par;
+
+	ops->save_graphics = ops->graphics;
+	ops->graphics = 0;
+	if (info->fbops->fb_debug_enter)
+		info->fbops->fb_debug_enter(info);
+	fbcon_set_palette(vc, color_table);
+	return 0;
+}
+
+static int fbcon_debug_leave(struct vc_data *vc)
+{
+	struct fb_info *info = registered_fb[con2fb_map[vc->vc_num]];
+	struct fbcon_ops *ops = info->fbcon_par;
+
+	ops->graphics = ops->save_graphics;
+	if (info->fbops->fb_debug_leave)
+		info->fbops->fb_debug_leave(info);
+	return 0;
+}
+
 static int fbcon_get_font(struct vc_data *vc, struct console_font *font)
 {
 	u8 *fontdata = vc->vc_font.data;
@@ -3276,6 +3302,8 @@ static const struct consw fb_con = {
 	.con_screen_pos 	= fbcon_screen_pos,
 	.con_getxy 		= fbcon_getxy,
 	.con_resize             = fbcon_resize,
+	.con_debug_enter	= fbcon_debug_enter,
+	.con_debug_leave	= fbcon_debug_leave,
 };
 
 static struct notifier_block fbcon_event_notifier = {
@@ -3480,7 +3508,7 @@ static void fbcon_exit(void)
 	softback_buf = 0UL;
 
 	for (i = 0; i < FB_MAX; i++) {
-		int pending;
+		int pending = 0;
 
 		mapped = 0;
 		info = registered_fb[i];
@@ -3488,7 +3516,8 @@ static void fbcon_exit(void)
 		if (info == NULL)
 			continue;
 
-		pending = cancel_work_sync(&info->queue);
+		if (info->queue.func)
+			pending = cancel_work_sync(&info->queue);
 		DPRINTK("fbcon: %s pending work\n", (pending ? "canceled" :
 			"no"));
 

@@ -260,7 +260,7 @@ static struct miscdevice gef_wdt_miscdev = {
 };
 
 
-static int __devinit gef_wdt_probe(struct of_device *dev,
+static int __devinit gef_wdt_probe(struct platform_device *dev,
 	const struct of_device_id *match)
 {
 	int timeout = 10;

@@ -91,7 +91,7 @@ static struct dma_channel *dma_channel_allocate(struct dma_controller *c,
 			channel = &(musb_channel->channel);
 			channel->private_data = musb_channel;
 			channel->status = MUSB_DMA_STATUS_FREE;
-			channel->max_len = 0x10000;
+			channel->max_len = 0x100000;
 			/* Tx => mode 1; Rx => mode 0 */
 			channel->desired_mode = transmit;
 			channel->actual_len = 0;
@@ -173,10 +173,7 @@ static int dma_channel_program(struct dma_channel *channel,
 	musb_channel->max_packet_sz = packet_sz;
 	channel->status = MUSB_DMA_STATUS_BUSY;
 
-	if ((mode == 1) && (len >= packet_sz))
-		configure_channel(channel, packet_sz, 1, dma_addr, len);
-	else
-		configure_channel(channel, packet_sz, 0, dma_addr, len);
+	configure_channel(channel, packet_sz, mode, dma_addr, len);
 
 	return true;
 }

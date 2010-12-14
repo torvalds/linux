@@ -1,18 +1,22 @@
 #include "builtin.h"
 
-#include "util/util.h"
+#include "perf.h"
 #include "util/cache.h"
+#include "util/debug.h"
+#include "util/exec_cmd.h"
+#include "util/header.h"
+#include "util/parse-options.h"
+#include "util/session.h"
 #include "util/symbol.h"
 #include "util/thread.h"
-#include "util/header.h"
-#include "util/exec_cmd.h"
 #include "util/trace-event.h"
-#include "util/session.h"
+#include "util/util.h"
 
 static char const		*script_name;
 static char const		*generate_script_lang;
-static bool			debug_ordering;
+static bool			debug_mode;
 static u64			last_timestamp;
+static u64			nr_unordered;
 
 static int default_start_script(const char *script __unused,
 				int argc __unused,
@@ -42,9 +46,6 @@ static struct scripting_ops	*scripting_ops;
 
 static void setup_scripting(void)
 {
-	/* make sure PERF_EXEC_PATH is set for scripts */
-	perf_set_argv_exec_path(perf_exec_path());
-
 	setup_perl_scripting();
 	setup_python_scripting();
 
@@ -57,14 +58,6 @@ static int cleanup_scripting(void)
 
 	return scripting_ops->stop_script();
 }
-
-#include "util/parse-options.h"
-
-#include "perf.h"
-#include "util/debug.h"
-
-#include "util/trace-event.h"
-#include "util/exec_cmd.h"
 
 static char const		*input_name = "perf.data";
 
@@ -91,13 +84,15 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	}
 
 	if (session->sample_type & PERF_SAMPLE_RAW) {
-		if (debug_ordering) {
+		if (debug_mode) {
 			if (data.time < last_timestamp) {
 				pr_err("Samples misordered, previous: %llu "
 					"this: %llu\n", last_timestamp,
 					data.time);
+				nr_unordered++;
 			}
 			last_timestamp = data.time;
+			return 0;
 		}
 		/*
 		 * FIXME: better resolve from pid from the struct trace_entry
@@ -113,6 +108,15 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	return 0;
 }
 
+static u64 nr_lost;
+
+static int process_lost_event(event_t *event, struct perf_session *session __used)
+{
+	nr_lost += event->lost.lost;
+
+	return 0;
+}
+
 static struct perf_event_ops event_ops = {
 	.sample	= process_sample_event,
 	.comm	= event__process_comm,
@@ -120,6 +124,7 @@ static struct perf_event_ops event_ops = {
 	.event_type = event__process_event_type,
 	.tracing_data = event__process_tracing_data,
 	.build_id = event__process_build_id,
+	.lost = process_lost_event,
 	.ordered_samples = true,
 };
 
@@ -132,9 +137,18 @@ static void sig_handler(int sig __unused)
 
 static int __cmd_trace(struct perf_session *session)
 {
+	int ret;
+
 	signal(SIGINT, sig_handler);
 
-	return perf_session__process_events(session, &event_ops);
+	ret = perf_session__process_events(session, &event_ops);
+
+	if (debug_mode) {
+		pr_err("Misordered timestamps: %llu\n", nr_unordered);
+		pr_err("Lost events: %llu\n", nr_lost);
+	}
+
+	return ret;
 }
 
 struct script_spec {
@@ -268,7 +282,7 @@ static int parse_scriptname(const struct option *opt __used,
 		script++;
 	} else {
 		script = str;
-		ext = strchr(script, '.');
+		ext = strrchr(script, '.');
 		if (!ext) {
 			fprintf(stderr, "invalid script extension");
 			return -1;
@@ -544,8 +558,8 @@ static const struct option options[] = {
 		   "generate perf-trace.xx script in specified language"),
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
-	OPT_BOOLEAN('d', "debug-ordering", &debug_ordering,
-		   "check that samples time ordering is monotonic"),
+	OPT_BOOLEAN('d', "debug-mode", &debug_mode,
+		   "do various checks like samples ordering and lost events"),
 
 	OPT_END()
 };
@@ -575,6 +589,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 		}
 		suffix = REPORT_SUFFIX;
 	}
+
+	/* make sure PERF_EXEC_PATH is set for scripts */
+	perf_set_argv_exec_path(perf_exec_path());
 
 	if (!suffix && argc >= 2 && strncmp(argv[1], "-", strlen("-")) != 0) {
 		char *record_script_path, *report_script_path;
@@ -608,12 +625,13 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 			dup2(live_pipe[1], 1);
 			close(live_pipe[0]);
 
-			__argv = malloc(5 * sizeof(const char *));
+			__argv = malloc(6 * sizeof(const char *));
 			__argv[0] = "/bin/sh";
 			__argv[1] = record_script_path;
-			__argv[2] = "-o";
-			__argv[3] = "-";
-			__argv[4] = NULL;
+			__argv[2] = "-q";
+			__argv[3] = "-o";
+			__argv[4] = "-";
+			__argv[5] = NULL;
 
 			execvp("/bin/sh", (char **)__argv);
 			exit(-1);

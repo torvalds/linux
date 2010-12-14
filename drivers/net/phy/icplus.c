@@ -116,6 +116,8 @@ static struct phy_driver ip175c_driver = {
 	.config_init	= &ip175c_config_init,
 	.config_aneg	= &ip175c_config_aneg,
 	.read_status	= &ip175c_read_status,
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
 	.driver		= { .owner = THIS_MODULE,},
 };
 
@@ -132,7 +134,7 @@ static void __exit ip175c_exit(void)
 module_init(ip175c_init);
 module_exit(ip175c_exit);
 
-static struct mdio_device_id icplus_tbl[] = {
+static struct mdio_device_id __maybe_unused icplus_tbl[] = {
 	{ 0x02430d80, 0x0ffffff0 },
 	{ }
 };

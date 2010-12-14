@@ -22,6 +22,10 @@
 #include <asm/thread_info.h>
 #include <asm/system.h>
 
+#ifdef CONFIG_DEBUG_LL
+#include <mach/debug-macro.S>
+#endif
+
 #if (PHYS_OFFSET & 0x001fffff)
 #error "PHYS_OFFSET must be at an even 2MiB boundary!"
 #endif
@@ -86,6 +90,9 @@ ENTRY(stext)
 	movs	r8, r5				@ invalid machine (r5=0)?
 	beq	__error_a			@ yes, error 'a'
 	bl	__vet_atags
+#ifdef CONFIG_SMP_ON_UP
+	bl	__fixup_smp
+#endif
 	bl	__create_page_tables
 
 	/*
@@ -95,113 +102,15 @@ ENTRY(stext)
 	 * above.  On return, the CPU will be ready for the MMU to be
 	 * turned on, and r0 will hold the CPU control register value.
 	 */
-	ldr	r13, __switch_data		@ address to jump to after
+	ldr	r13, =__mmap_switched		@ address to jump to after
 						@ mmu has been enabled
-	adr	lr, BSYM(__enable_mmu)		@ return (PIC) address
+	adr	lr, BSYM(1f)			@ return (PIC) address
  ARM(	add	pc, r10, #PROCINFO_INITFUNC	)
  THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
  THUMB(	mov	pc, r12				)
+1:	b	__enable_mmu
 ENDPROC(stext)
-
-#if defined(CONFIG_SMP)
-ENTRY(secondary_startup)
-	/*
-	 * Common entry point for secondary CPUs.
-	 *
-	 * Ensure that we're in SVC mode, and IRQs are disabled.  Lookup
-	 * the processor type - there is no need to check the machine type
-	 * as it has already been validated by the primary processor.
-	 */
-	setmode	PSR_F_BIT | PSR_I_BIT | SVC_MODE, r9
-	mrc	p15, 0, r9, c0, c0		@ get processor id
-	bl	__lookup_processor_type
-	movs	r10, r5				@ invalid processor?
-	moveq	r0, #'p'			@ yes, error 'p'
-	beq	__error
-
-	/*
-	 * Use the page tables supplied from  __cpu_up.
-	 */
-	adr	r4, __secondary_data
-	ldmia	r4, {r5, r7, r12}		@ address to jump to after
-	sub	r4, r4, r5			@ mmu has been enabled
-	ldr	r4, [r7, r4]			@ get secondary_data.pgdir
-	adr	lr, BSYM(__enable_mmu)		@ return address
-	mov	r13, r12			@ __secondary_switched address
- ARM(	add	pc, r10, #PROCINFO_INITFUNC	) @ initialise processor
-						  @ (return control reg)
- THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
- THUMB(	mov	pc, r12				)
-ENDPROC(secondary_startup)
-
-	/*
-	 * r6  = &secondary_data
-	 */
-ENTRY(__secondary_switched)
-	ldr	sp, [r7, #4]			@ get secondary_data.stack
-	mov	fp, #0
-	b	secondary_start_kernel
-ENDPROC(__secondary_switched)
-
-	.type	__secondary_data, %object
-__secondary_data:
-	.long	.
-	.long	secondary_data
-	.long	__secondary_switched
-#endif /* defined(CONFIG_SMP) */
-
-
-
-/*
- * Setup common bits before finally enabling the MMU.  Essentially
- * this is just loading the page table pointer and domain access
- * registers.
- */
-__enable_mmu:
-#ifdef CONFIG_ALIGNMENT_TRAP
-	orr	r0, r0, #CR_A
-#else
-	bic	r0, r0, #CR_A
-#endif
-#ifdef CONFIG_CPU_DCACHE_DISABLE
-	bic	r0, r0, #CR_C
-#endif
-#ifdef CONFIG_CPU_BPREDICT_DISABLE
-	bic	r0, r0, #CR_Z
-#endif
-#ifdef CONFIG_CPU_ICACHE_DISABLE
-	bic	r0, r0, #CR_I
-#endif
-	mov	r5, #(domain_val(DOMAIN_USER, DOMAIN_MANAGER) | \
-		      domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
-		      domain_val(DOMAIN_TABLE, DOMAIN_MANAGER) | \
-		      domain_val(DOMAIN_IO, DOMAIN_CLIENT))
-	mcr	p15, 0, r5, c3, c0, 0		@ load domain access register
-	mcr	p15, 0, r4, c2, c0, 0		@ load page table pointer
-	b	__turn_mmu_on
-ENDPROC(__enable_mmu)
-
-/*
- * Enable the MMU.  This completely changes the structure of the visible
- * memory space.  You will not be able to trace execution through this.
- * If you have an enquiry about this, *please* check the linux-arm-kernel
- * mailing list archives BEFORE sending another post to the list.
- *
- *  r0  = cp#15 control register
- *  r13 = *virtual* address to jump to upon completion
- *
- * other registers depend on the function called upon completion
- */
-	.align	5
-__turn_mmu_on:
-	mov	r0, r0
-	mcr	p15, 0, r0, c1, c0, 0		@ write control reg
-	mrc	p15, 0, r3, c0, c0, 0		@ read id reg
-	mov	r3, r3
-	mov	r3, r13
-	mov	pc, r3
-ENDPROC(__turn_mmu_on)
-
+	.ltorg
 
 /*
  * Setup the initial page tables.  We only setup the barest
@@ -213,7 +122,7 @@ ENDPROC(__turn_mmu_on)
  * r10 = procinfo
  *
  * Returns:
- *  r0, r3, r6, r7 corrupted
+ *  r0, r3, r5-r7 corrupted
  *  r4 = physical page table address
  */
 __create_page_tables:
@@ -235,20 +144,30 @@ __create_page_tables:
 	ldr	r7, [r10, #PROCINFO_MM_MMUFLAGS] @ mm_mmuflags
 
 	/*
-	 * Create identity mapping for first MB of kernel to
-	 * cater for the MMU enable.  This identity mapping
-	 * will be removed by paging_init().  We use our current program
-	 * counter to determine corresponding section base address.
+	 * Create identity mapping to cater for __enable_mmu.
+	 * This identity mapping will be removed by paging_init().
 	 */
-	mov	r6, pc
-	mov	r6, r6, lsr #20			@ start of kernel section
-	orr	r3, r7, r6, lsl #20		@ flags + kernel base
-	str	r3, [r4, r6, lsl #2]		@ identity mapping
+	adr	r0, __enable_mmu_loc
+	ldmia	r0, {r3, r5, r6}
+	sub	r0, r0, r3			@ virt->phys offset
+	add	r5, r5, r0			@ phys __enable_mmu
+	add	r6, r6, r0			@ phys __enable_mmu_end
+	mov	r5, r5, lsr #20
+	mov	r6, r6, lsr #20
+
+1:	orr	r3, r7, r5, lsl #20		@ flags + kernel base
+	str	r3, [r4, r5, lsl #2]		@ identity mapping
+	teq	r5, r6
+	addne	r5, r5, #1			@ next section
+	bne	1b
 
 	/*
 	 * Now setup the pagetables for our kernel direct
 	 * mapped region.
 	 */
+	mov	r3, pc
+	mov	r3, r3, lsr #20
+	orr	r3, r7, r3, lsl #20
 	add	r0, r4,  #(KERNEL_START & 0xff000000) >> 18
 	str	r3, [r0, #(KERNEL_START & 0x00f00000) >> 18]!
 	ldr	r6, =(KERNEL_END - 1)
@@ -289,24 +208,35 @@ __create_page_tables:
 	str	r6, [r0]
 
 #ifdef CONFIG_DEBUG_LL
-	ldr	r7, [r10, #PROCINFO_IO_MMUFLAGS] @ io_mmuflags
+#ifndef CONFIG_DEBUG_ICEDCC
 	/*
 	 * Map in IO space for serial debugging.
 	 * This allows debug messages to be output
 	 * via a serial console before paging_init.
 	 */
-	ldr	r3, [r8, #MACHINFO_PGOFFIO]
+	addruart r7, r3
+
+	mov	r3, r3, lsr #20
+	mov	r3, r3, lsl #2
+
 	add	r0, r4, r3
 	rsb	r3, r3, #0x4000			@ PTRS_PER_PGD*sizeof(long)
 	cmp	r3, #0x0800			@ limit to 512MB
 	movhi	r3, #0x0800
 	add	r6, r0, r3
-	ldr	r3, [r8, #MACHINFO_PHYSIO]
-	orr	r3, r3, r7
+	mov	r3, r7, lsr #20
+	ldr	r7, [r10, #PROCINFO_IO_MMUFLAGS] @ io_mmuflags
+	orr	r3, r7, r3, lsl #20
 1:	str	r3, [r0], #4
 	add	r3, r3, #1 << 20
 	teq	r0, r6
 	bne	1b
+
+#else /* CONFIG_DEBUG_ICEDCC */
+	/* we don't need any serial debugging mappings for ICEDCC */
+	ldr	r7, [r10, #PROCINFO_IO_MMUFLAGS] @ io_mmuflags
+#endif /* !CONFIG_DEBUG_ICEDCC */
+
 #if defined(CONFIG_ARCH_NETWINDER) || defined(CONFIG_ARCH_CATS)
 	/*
 	 * If we're using the NetWinder or CATS, we also need to map
@@ -332,5 +262,168 @@ __create_page_tables:
 	mov	pc, lr
 ENDPROC(__create_page_tables)
 	.ltorg
+__enable_mmu_loc:
+	.long	.
+	.long	__enable_mmu
+	.long	__enable_mmu_end
+
+#if defined(CONFIG_SMP)
+	__CPUINIT
+ENTRY(secondary_startup)
+	/*
+	 * Common entry point for secondary CPUs.
+	 *
+	 * Ensure that we're in SVC mode, and IRQs are disabled.  Lookup
+	 * the processor type - there is no need to check the machine type
+	 * as it has already been validated by the primary processor.
+	 */
+	setmode	PSR_F_BIT | PSR_I_BIT | SVC_MODE, r9
+	mrc	p15, 0, r9, c0, c0		@ get processor id
+	bl	__lookup_processor_type
+	movs	r10, r5				@ invalid processor?
+	moveq	r0, #'p'			@ yes, error 'p'
+	beq	__error_p
+
+	/*
+	 * Use the page tables supplied from  __cpu_up.
+	 */
+	adr	r4, __secondary_data
+	ldmia	r4, {r5, r7, r12}		@ address to jump to after
+	sub	r4, r4, r5			@ mmu has been enabled
+	ldr	r4, [r7, r4]			@ get secondary_data.pgdir
+	adr	lr, BSYM(__enable_mmu)		@ return address
+	mov	r13, r12			@ __secondary_switched address
+ ARM(	add	pc, r10, #PROCINFO_INITFUNC	) @ initialise processor
+						  @ (return control reg)
+ THUMB(	add	r12, r10, #PROCINFO_INITFUNC	)
+ THUMB(	mov	pc, r12				)
+ENDPROC(secondary_startup)
+
+	/*
+	 * r6  = &secondary_data
+	 */
+ENTRY(__secondary_switched)
+	ldr	sp, [r7, #4]			@ get secondary_data.stack
+	mov	fp, #0
+	b	secondary_start_kernel
+ENDPROC(__secondary_switched)
+
+	.type	__secondary_data, %object
+__secondary_data:
+	.long	.
+	.long	secondary_data
+	.long	__secondary_switched
+#endif /* defined(CONFIG_SMP) */
+
+
+
+/*
+ * Setup common bits before finally enabling the MMU.  Essentially
+ * this is just loading the page table pointer and domain access
+ * registers.
+ *
+ *  r0  = cp#15 control register
+ *  r1  = machine ID
+ *  r2  = atags pointer
+ *  r4  = page table pointer
+ *  r9  = processor ID
+ *  r13 = *virtual* address to jump to upon completion
+ */
+__enable_mmu:
+#ifdef CONFIG_ALIGNMENT_TRAP
+	orr	r0, r0, #CR_A
+#else
+	bic	r0, r0, #CR_A
+#endif
+#ifdef CONFIG_CPU_DCACHE_DISABLE
+	bic	r0, r0, #CR_C
+#endif
+#ifdef CONFIG_CPU_BPREDICT_DISABLE
+	bic	r0, r0, #CR_Z
+#endif
+#ifdef CONFIG_CPU_ICACHE_DISABLE
+	bic	r0, r0, #CR_I
+#endif
+	mov	r5, #(domain_val(DOMAIN_USER, DOMAIN_MANAGER) | \
+		      domain_val(DOMAIN_KERNEL, DOMAIN_MANAGER) | \
+		      domain_val(DOMAIN_TABLE, DOMAIN_MANAGER) | \
+		      domain_val(DOMAIN_IO, DOMAIN_CLIENT))
+	mcr	p15, 0, r5, c3, c0, 0		@ load domain access register
+	mcr	p15, 0, r4, c2, c0, 0		@ load page table pointer
+	b	__turn_mmu_on
+ENDPROC(__enable_mmu)
+
+/*
+ * Enable the MMU.  This completely changes the structure of the visible
+ * memory space.  You will not be able to trace execution through this.
+ * If you have an enquiry about this, *please* check the linux-arm-kernel
+ * mailing list archives BEFORE sending another post to the list.
+ *
+ *  r0  = cp#15 control register
+ *  r1  = machine ID
+ *  r2  = atags pointer
+ *  r9  = processor ID
+ *  r13 = *virtual* address to jump to upon completion
+ *
+ * other registers depend on the function called upon completion
+ */
+	.align	5
+__turn_mmu_on:
+	mov	r0, r0
+	mcr	p15, 0, r0, c1, c0, 0		@ write control reg
+	mrc	p15, 0, r3, c0, c0, 0		@ read id reg
+	mov	r3, r3
+	mov	r3, r13
+	mov	pc, r3
+__enable_mmu_end:
+ENDPROC(__turn_mmu_on)
+
+
+#ifdef CONFIG_SMP_ON_UP
+__fixup_smp:
+	mov	r7, #0x00070000
+	orr	r6, r7, #0xff000000	@ mask 0xff070000
+	orr	r7, r7, #0x41000000	@ val 0x41070000
+	and	r0, r9, r6
+	teq	r0, r7			@ ARM CPU and ARMv6/v7?
+	bne	__fixup_smp_on_up	@ no, assume UP
+
+	orr	r6, r6, #0x0000ff00
+	orr	r6, r6, #0x000000f0	@ mask 0xff07fff0
+	orr	r7, r7, #0x0000b000
+	orr	r7, r7, #0x00000020	@ val 0x4107b020
+	and	r0, r9, r6
+	teq	r0, r7			@ ARM 11MPCore?
+	moveq	pc, lr			@ yes, assume SMP
+
+	mrc	p15, 0, r0, c0, c0, 5	@ read MPIDR
+	tst	r0, #1 << 31
+	movne	pc, lr			@ bit 31 => SMP
+
+__fixup_smp_on_up:
+	adr	r0, 1f
+	ldmia	r0, {r3, r6, r7}
+	sub	r3, r0, r3
+	add	r6, r6, r3
+	add	r7, r7, r3
+2:	cmp	r6, r7
+	ldmia	r6!, {r0, r4}
+	strlo	r4, [r0, r3]
+	blo	2b
+	mov	pc, lr
+ENDPROC(__fixup_smp)
+
+1:	.word	.
+	.word	__smpalt_begin
+	.word	__smpalt_end
+
+	.pushsection .data
+	.globl	smp_on_up
+smp_on_up:
+	ALT_SMP(.long	1)
+	ALT_UP(.long	0)
+	.popsection
+
+#endif
 
 #include "head-common.S"

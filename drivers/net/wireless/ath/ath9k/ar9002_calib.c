@@ -20,6 +20,13 @@
 
 #define AR9285_CLCAL_REDO_THRESH    1
 
+enum ar9002_cal_types {
+	ADC_GAIN_CAL = BIT(0),
+	ADC_DC_CAL = BIT(1),
+	IQ_MISMATCH_CAL = BIT(2),
+};
+
+
 static void ar9002_hw_setup_calibration(struct ath_hw *ah,
 					struct ath9k_cal_list *currCal)
 {
@@ -45,13 +52,6 @@ static void ar9002_hw_setup_calibration(struct ath_hw *ah,
 		ath_print(common, ATH_DBG_CALIBRATE,
 			  "starting ADC DC Calibration\n");
 		break;
-	case ADC_DC_INIT_CAL:
-		REG_WRITE(ah, AR_PHY_CALMODE, AR_PHY_CALMODE_ADC_DC_INIT);
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "starting Init ADC DC Calibration\n");
-		break;
-	case TEMP_COMP_CAL:
-		break; /* Not supported */
 	}
 
 	REG_SET_BIT(ah, AR_PHY_TIMING_CTRL4(0),
@@ -63,6 +63,7 @@ static bool ar9002_hw_per_calibration(struct ath_hw *ah,
 				      u8 rxchainmask,
 				      struct ath9k_cal_list *currCal)
 {
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	bool iscaldone = false;
 
 	if (currCal->calState == CAL_RUNNING) {
@@ -81,37 +82,18 @@ static bool ar9002_hw_per_calibration(struct ath_hw *ah,
 				}
 
 				currCal->calData->calPostProc(ah, numChains);
-				ichan->CalValid |= currCal->calData->calType;
+				caldata->CalValid |= currCal->calData->calType;
 				currCal->calState = CAL_DONE;
 				iscaldone = true;
 			} else {
 				ar9002_hw_setup_calibration(ah, currCal);
 			}
 		}
-	} else if (!(ichan->CalValid & currCal->calData->calType)) {
+	} else if (!(caldata->CalValid & currCal->calData->calType)) {
 		ath9k_hw_reset_calibration(ah, currCal);
 	}
 
 	return iscaldone;
-}
-
-/* Assumes you are talking about the currently configured channel */
-static bool ar9002_hw_iscal_supported(struct ath_hw *ah,
-				      enum ath9k_cal_types calType)
-{
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
-
-	switch (calType & ah->supp_cals) {
-	case IQ_MISMATCH_CAL: /* Both 2 GHz and 5 GHz support OFDM */
-		return true;
-	case ADC_GAIN_CAL:
-	case ADC_DC_CAL:
-		if (!(conf->channel->band == IEEE80211_BAND_2GHZ &&
-		      conf_is_ht20(conf)))
-			return true;
-		break;
-	}
-	return false;
 }
 
 static void ar9002_hw_iqcal_collect(struct ath_hw *ah)
@@ -239,7 +221,7 @@ static void ar9002_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 			if (qCoff > 15)
 				qCoff = 15;
 			else if (qCoff <= -16)
-				qCoff = 16;
+				qCoff = -16;
 
 			ath_print(common, ATH_DBG_CALIBRATE,
 				  "Chn %d : iCoff = 0x%x  qCoff = 0x%x\n",
@@ -540,7 +522,6 @@ static void ar9271_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 		REG_WRITE(ah, regList[i][0], regList[i][1]);
 
 	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 static inline void ar9285_hw_pa_cal(struct ath_hw *ah, bool is_reset)
@@ -565,11 +546,6 @@ static inline void ar9285_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 	if (ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE) ==
 	    AR5416_EEP_TXGAIN_HIGH_POWER)
 		return;
-
-	if (AR_SREV_9285_11(ah)) {
-		REG_WRITE(ah, AR9285_AN_TOP4, (AR9285_AN_TOP4_DEFAULT | 0x14));
-		udelay(10);
-	}
 
 	for (i = 0; i < ARRAY_SIZE(regList); i++)
 		regList[i][1] = REG_READ(ah, regList[i][0]);
@@ -650,10 +626,6 @@ static inline void ar9285_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 		REG_WRITE(ah, regList[i][0], regList[i][1]);
 
 	REG_RMW_FIELD(ah, AR9285_AN_RF2G6, AR9285_AN_RF2G6_CCOMP, ccomp_org);
-
-	if (AR_SREV_9285_11(ah))
-		REG_WRITE(ah, AR9285_AN_TOP4, AR9285_AN_TOP4_DEFAULT);
-
 }
 
 static void ar9002_hw_pa_cal(struct ath_hw *ah, bool is_reset)
@@ -663,7 +635,7 @@ static void ar9002_hw_pa_cal(struct ath_hw *ah, bool is_reset)
 			ar9271_hw_pa_cal(ah, is_reset);
 		else
 			ah->pacal_info.skipcount--;
-	} else if (AR_SREV_9285_11_OR_LATER(ah)) {
+	} else if (AR_SREV_9285_12_OR_LATER(ah)) {
 		if (is_reset || !ah->pacal_info.skipcount)
 			ar9285_hw_pa_cal(ah, is_reset);
 		else
@@ -686,8 +658,13 @@ static bool ar9002_hw_calibrate(struct ath_hw *ah,
 {
 	bool iscaldone = true;
 	struct ath9k_cal_list *currCal = ah->cal_list_curr;
+	bool nfcal, nfcal_pending = false;
 
-	if (currCal &&
+	nfcal = !!(REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF);
+	if (ah->caldata)
+		nfcal_pending = ah->caldata->nfcal_pending;
+
+	if (currCal && !nfcal &&
 	    (currCal->calState == CAL_RUNNING ||
 	     currCal->calState == CAL_WAITING)) {
 		iscaldone = ar9002_hw_per_calibration(ah, chan,
@@ -703,7 +680,7 @@ static bool ar9002_hw_calibrate(struct ath_hw *ah,
 	}
 
 	/* Do NF cal only at longer intervals */
-	if (longcal) {
+	if (longcal || nfcal_pending) {
 		/* Do periodic PAOffset Cal */
 		ar9002_hw_pa_cal(ah, false);
 		ar9002_hw_olc_temp_compensation(ah);
@@ -712,16 +689,18 @@ static bool ar9002_hw_calibrate(struct ath_hw *ah,
 		 * Get the value from the previous NF cal and update
 		 * history buffer.
 		 */
-		ath9k_hw_getnf(ah, chan);
+		if (ath9k_hw_getnf(ah, chan)) {
+			/*
+			 * Load the NF from history buffer of the current
+			 * channel.
+			 * NF is slow time-variant, so it is OK to use a
+			 * historical value.
+			 */
+			ath9k_hw_loadnf(ah, ah->curchan);
+		}
 
-		/*
-		 * Load the NF from history buffer of the current channel.
-		 * NF is slow time-variant, so it is OK to use a historical
-		 * value.
-		 */
-		ath9k_hw_loadnf(ah, ah->curchan);
-
-		ath9k_hw_start_nfcal(ah);
+		if (longcal)
+			ath9k_hw_start_nfcal(ah, false);
 	}
 
 	return iscaldone;
@@ -833,8 +812,8 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 		if (!ar9285_hw_clc(ah, chan))
 			return false;
 	} else {
-		if (AR_SREV_9280_10_OR_LATER(ah)) {
-			if (!AR_SREV_9287_10_OR_LATER(ah))
+		if (AR_SREV_9280_20_OR_LATER(ah)) {
+			if (!AR_SREV_9287_11_OR_LATER(ah))
 				REG_CLR_BIT(ah, AR_PHY_ADC_CTL,
 					    AR_PHY_ADC_CTL_OFF_PWDADC);
 			REG_SET_BIT(ah, AR_PHY_AGC_CONTROL,
@@ -856,8 +835,8 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 			return false;
 		}
 
-		if (AR_SREV_9280_10_OR_LATER(ah)) {
-			if (!AR_SREV_9287_10_OR_LATER(ah))
+		if (AR_SREV_9280_20_OR_LATER(ah)) {
+			if (!AR_SREV_9287_11_OR_LATER(ah))
 				REG_SET_BIT(ah, AR_PHY_ADC_CTL,
 					    AR_PHY_ADC_CTL_OFF_PWDADC);
 			REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
@@ -869,31 +848,37 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	ar9002_hw_pa_cal(ah, true);
 
 	/* Do NF Calibration after DC offset and other calibrations */
-	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
-		  REG_READ(ah, AR_PHY_AGC_CONTROL) | AR_PHY_AGC_CONTROL_NF);
+	ath9k_hw_start_nfcal(ah, true);
+
+	if (ah->caldata)
+		ah->caldata->nfcal_pending = true;
 
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
 
 	/* Enable IQ, ADC Gain and ADC DC offset CALs */
 	if (AR_SREV_9100(ah) || AR_SREV_9160_10_OR_LATER(ah)) {
-		if (ar9002_hw_iscal_supported(ah, ADC_GAIN_CAL)) {
+		ah->supp_cals = IQ_MISMATCH_CAL;
+
+		if (AR_SREV_9160_10_OR_LATER(ah) &&
+		    !(IS_CHAN_2GHZ(chan) && IS_CHAN_HT20(chan))) {
+			ah->supp_cals |= ADC_GAIN_CAL | ADC_DC_CAL;
+
+
 			INIT_CAL(&ah->adcgain_caldata);
 			INSERT_CAL(ah, &ah->adcgain_caldata);
 			ath_print(common, ATH_DBG_CALIBRATE,
 				  "enabling ADC Gain Calibration.\n");
-		}
-		if (ar9002_hw_iscal_supported(ah, ADC_DC_CAL)) {
+
 			INIT_CAL(&ah->adcdc_caldata);
 			INSERT_CAL(ah, &ah->adcdc_caldata);
 			ath_print(common, ATH_DBG_CALIBRATE,
 				  "enabling ADC DC Calibration.\n");
 		}
-		if (ar9002_hw_iscal_supported(ah, IQ_MISMATCH_CAL)) {
-			INIT_CAL(&ah->iq_caldata);
-			INSERT_CAL(ah, &ah->iq_caldata);
-			ath_print(common, ATH_DBG_CALIBRATE,
-				  "enabling IQ Calibration.\n");
-		}
+
+		INIT_CAL(&ah->iq_caldata);
+		INSERT_CAL(ah, &ah->iq_caldata);
+		ath_print(common, ATH_DBG_CALIBRATE,
+			  "enabling IQ Calibration.\n");
 
 		ah->cal_list_curr = ah->cal_list;
 
@@ -901,7 +886,8 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 			ath9k_hw_reset_calibration(ah, ah->cal_list_curr);
 	}
 
-	chan->CalValid = 0;
+	if (ah->caldata)
+		ah->caldata->CalValid = 0;
 
 	return true;
 }
@@ -948,13 +934,6 @@ static const struct ath9k_percal_data adc_dc_cal_single_sample = {
 	ar9002_hw_adc_dccal_collect,
 	ar9002_hw_adc_dccal_calibrate
 };
-static const struct ath9k_percal_data adc_init_dc_cal = {
-	ADC_DC_INIT_CAL,
-	MIN_CAL_SAMPLES,
-	INIT_LOG_COUNT,
-	ar9002_hw_adc_dccal_collect,
-	ar9002_hw_adc_dccal_calibrate
-};
 
 static void ar9002_hw_init_cal_settings(struct ath_hw *ah)
 {
@@ -965,22 +944,18 @@ static void ar9002_hw_init_cal_settings(struct ath_hw *ah)
 	}
 
 	if (AR_SREV_9160_10_OR_LATER(ah)) {
-		if (AR_SREV_9280_10_OR_LATER(ah)) {
+		if (AR_SREV_9280_20_OR_LATER(ah)) {
 			ah->iq_caldata.calData = &iq_cal_single_sample;
 			ah->adcgain_caldata.calData =
 				&adc_gain_cal_single_sample;
 			ah->adcdc_caldata.calData =
 				&adc_dc_cal_single_sample;
-			ah->adcdc_calinitdata.calData =
-				&adc_init_dc_cal;
 		} else {
 			ah->iq_caldata.calData = &iq_cal_multi_sample;
 			ah->adcgain_caldata.calData =
 				&adc_gain_cal_multi_sample;
 			ah->adcdc_caldata.calData =
 				&adc_dc_cal_multi_sample;
-			ah->adcdc_calinitdata.calData =
-				&adc_init_dc_cal;
 		}
 		ah->supp_cals = ADC_GAIN_CAL | ADC_DC_CAL | IQ_MISMATCH_CAL;
 	}
@@ -994,7 +969,6 @@ void ar9002_hw_attach_calib_ops(struct ath_hw *ah)
 	priv_ops->init_cal_settings = ar9002_hw_init_cal_settings;
 	priv_ops->init_cal = ar9002_hw_init_cal;
 	priv_ops->setup_calibration = ar9002_hw_setup_calibration;
-	priv_ops->iscal_supported = ar9002_hw_iscal_supported;
 
 	ops->calibrate = ar9002_hw_calibrate;
 }

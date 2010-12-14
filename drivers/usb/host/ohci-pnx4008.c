@@ -329,7 +329,7 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 	memset(&i2c_info, 0, sizeof(struct i2c_board_info));
 	strlcpy(i2c_info.type, "isp1301_pnx", I2C_NAME_SIZE);
 	isp1301_i2c_client = i2c_new_probed_device(i2c_adap, &i2c_info,
-						   normal_i2c);
+						   normal_i2c, NULL);
 	i2c_put_adapter(i2c_adap);
 	if (!isp1301_i2c_client) {
 		err("failed to connect I2C to ISP1301 USB Transceiver");

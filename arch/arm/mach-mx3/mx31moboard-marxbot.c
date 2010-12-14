@@ -10,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/delay.h>
@@ -183,7 +179,6 @@ static struct soc_camera_link base_iclink = {
 	.reset		= marxbot_basecam_reset,
 	.board_info	= &marxbot_i2c_devices[0],
 	.i2c_adapter_id	= 0,
-	.module_name	= "mt9t031",
 };
 
 static struct platform_device marxbot_camera[] = {

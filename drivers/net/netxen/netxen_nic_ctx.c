@@ -685,7 +685,6 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	if (!NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		if (test_and_set_bit(__NX_FW_ATTACHED, &adapter->state))
 			goto done;
-
 		err = nx_fw_cmd_create_rx_ctx(adapter);
 		if (err)
 			goto err_out_free;

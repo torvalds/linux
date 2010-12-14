@@ -30,6 +30,7 @@
 #include <linux/module.h>
 
 #include "cx88.h"
+#include <media/ir-core.h>
 #include <media/ir-common.h>
 
 #define MODULE_NAME "cx88xx"
@@ -39,8 +40,8 @@
 struct cx88_IR {
 	struct cx88_core *core;
 	struct input_dev *input;
-	struct ir_input_state ir;
 	struct ir_dev_props props;
+	u64 ir_type;
 
 	int users;
 
@@ -51,7 +52,6 @@ struct cx88_IR {
 	u32 sampling;
 	u32 samples[16];
 	int scount;
-	unsigned long release;
 
 	/* poll external decoder */
 	int polling;
@@ -125,29 +125,21 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 
 		data = (data << 4) | ((gpio_key & 0xf0) >> 4);
 
-		ir_input_keydown(ir->input, &ir->ir, data);
-		ir_input_nokey(ir->input, &ir->ir);
+		ir_keydown(ir->input, data, 0);
 
 	} else if (ir->mask_keydown) {
 		/* bit set on keydown */
-		if (gpio & ir->mask_keydown) {
-			ir_input_keydown(ir->input, &ir->ir, data);
-		} else {
-			ir_input_nokey(ir->input, &ir->ir);
-		}
+		if (gpio & ir->mask_keydown)
+			ir_keydown(ir->input, data, 0);
 
 	} else if (ir->mask_keyup) {
 		/* bit cleared on keydown */
-		if (0 == (gpio & ir->mask_keyup)) {
-			ir_input_keydown(ir->input, &ir->ir, data);
-		} else {
-			ir_input_nokey(ir->input, &ir->ir);
-		}
+		if (0 == (gpio & ir->mask_keyup))
+			ir_keydown(ir->input, data, 0);
 
 	} else {
 		/* can't distinguish keydown/up :-/ */
-		ir_input_keydown(ir->input, &ir->ir, data);
-		ir_input_nokey(ir->input, &ir->ir);
+		ir_keydown(ir->input, data, 0);
 	}
 }
 
@@ -413,6 +405,11 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->mask_keycode = 0x7e;
 		ir->polling      = 100; /* ms */
 		break;
+	case CX88_BOARD_TWINHAN_VP1027_DVBS:
+		ir_codes         = RC_MAP_TWINHAN_VP1027_DVBS;
+		ir_type          = IR_TYPE_NEC;
+		ir->sampling     = 0xff00; /* address */
+		break;
 	}
 
 	if (NULL == ir_codes) {
@@ -439,9 +436,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	snprintf(ir->name, sizeof(ir->name), "cx88 IR (%s)", core->board.name);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0", pci_name(pci));
 
-	err = ir_input_init(input_dev, &ir->ir, ir_type);
-	if (err < 0)
-		goto err_out_free;
+	ir->ir_type = ir_type;
 
 	input_dev->name = ir->name;
 	input_dev->phys = ir->phys;
@@ -516,8 +511,6 @@ void cx88_ir_irq(struct cx88_core *core)
 	}
 	if (!ir->scount) {
 		/* nothing to sample */
-		if (ir->ir.keypressed && time_after(jiffies, ir->release))
-			ir_input_nokey(ir->input, &ir->ir);
 		return;
 	}
 
@@ -542,6 +535,7 @@ void cx88_ir_irq(struct cx88_core *core)
 	case CX88_BOARD_PROF_7300:
 	case CX88_BOARD_PROF_7301:
 	case CX88_BOARD_PROF_6200:
+	case CX88_BOARD_TWINHAN_VP1027_DVBS:
 		ircode = ir_decode_pulsedistance(ir->samples, ir->scount, 1, 4);
 
 		if (ircode == 0xffffffff) { /* decoding error */
@@ -553,7 +547,7 @@ void cx88_ir_irq(struct cx88_core *core)
 
 		if (ircode == 0) { /* key still pressed */
 			ir_dprintk("pulse distance decoded repeat code\n");
-			ir->release = jiffies + msecs_to_jiffies(120);
+			ir_repeat(ir->input);
 			break;
 		}
 
@@ -567,10 +561,8 @@ void cx88_ir_irq(struct cx88_core *core)
 			break;
 		}
 
-		ir_dprintk("Key Code: %x\n", (ircode >> 16) & 0x7f);
-
-		ir_input_keydown(ir->input, &ir->ir, (ircode >> 16) & 0x7f);
-		ir->release = jiffies + msecs_to_jiffies(120);
+		ir_dprintk("Key Code: %x\n", (ircode >> 16) & 0xff);
+		ir_keydown(ir->input, (ircode >> 16) & 0xff, 0);
 		break;
 	case CX88_BOARD_HAUPPAUGE:
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
@@ -606,16 +598,16 @@ void cx88_ir_irq(struct cx88_core *core)
 		if ( dev != 0x1e && dev != 0x1f )
 			/* not a hauppauge remote */
 			break;
-		ir_input_keydown(ir->input, &ir->ir, code);
-		ir->release = jiffies + msecs_to_jiffies(120);
+		ir_keydown(ir->input, code, toggle);
 		break;
 	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
 		ircode = ir_decode_biphase(ir->samples, ir->scount, 5, 7);
 		ir_dprintk("biphase decoded: %x\n", ircode);
 		if ((ircode & 0xfffff000) != 0x3000)
 			break;
-		ir_input_keydown(ir->input, &ir->ir, ircode & 0x3f);
-		ir->release = jiffies + msecs_to_jiffies(120);
+		/* Note: bit 0x800 being the toggle is assumed, not checked
+		   with real hardware  */
+		ir_keydown(ir->input, ircode & 0x3f, ircode & 0x0800 ? 1 : 0);
 		break;
 	}
 
@@ -623,13 +615,54 @@ void cx88_ir_irq(struct cx88_core *core)
 	return;
 }
 
+
+void cx88_i2c_init_ir(struct cx88_core *core)
+{
+	struct i2c_board_info info;
+	const unsigned short addr_list[] = {
+		0x18, 0x6b, 0x71,
+		I2C_CLIENT_END
+	};
+	const unsigned short *addrp;
+	/* Instantiate the IR receiver device, if present */
+	if (0 != core->i2c_rc)
+		return;
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+
+	/*
+	 * We can't call i2c_new_probed_device() because it uses
+	 * quick writes for probing and at least some RC receiver
+	 * devices only reply to reads.
+	 * Also, Hauppauge XVR needs to be specified, as address 0x71
+	 * conflicts with another remote type used with saa7134
+	 */
+	for (addrp = addr_list; *addrp != I2C_CLIENT_END; addrp++) {
+		info.platform_data = NULL;
+		memset(&core->init_data, 0, sizeof(core->init_data));
+
+		if (*addrp == 0x71) {
+			/* Hauppauge XVR */
+			core->init_data.name = "cx88 Hauppauge XVR remote";
+			core->init_data.ir_codes = RC_MAP_HAUPPAUGE_NEW;
+			core->init_data.type = IR_TYPE_RC5;
+			core->init_data.internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
+
+			info.platform_data = &core->init_data;
+		}
+		if (i2c_smbus_xfer(&core->i2c_adap, *addrp, 0,
+					I2C_SMBUS_READ, 0,
+					I2C_SMBUS_QUICK, NULL) >= 0) {
+			info.addr = *addrp;
+			i2c_new_device(&core->i2c_adap, &info);
+			break;
+		}
+	}
+}
+
 /* ---------------------------------------------------------------------- */
 
 MODULE_AUTHOR("Gerd Knorr, Pavel Machek, Chris Pascoe");
 MODULE_DESCRIPTION("input driver for cx88 GPIO-based IR remote controls");
 MODULE_LICENSE("GPL");
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

@@ -69,6 +69,7 @@ config S3C24XX_GPIO_EXTRA
 	int
 	default 128 if S3C24XX_GPIO_EXTRA128
 	default 64 if S3C24XX_GPIO_EXTRA64
+	default 16 if ARCH_H1940
 	default 0
 
 config S3C24XX_GPIO_EXTRA64

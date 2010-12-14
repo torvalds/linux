@@ -73,9 +73,6 @@ struct iio_shared_ev_pointer {
  * @det_events:		list of detected events
  * @max_events:		maximum number of events before new ones are dropped
  * @current_events:	number of events in detected list
- * @id:			indentifier to allow the event interface to know which
- *			physical line it corresponds to
- * @attr:		this chrdev's minor number sysfs attribute
  * @owner:		ensure the driver module owns the file, not iio
  * @private:		driver specific data
  * @_name:		used internally to store the sysfs name for minor id
@@ -90,8 +87,6 @@ struct iio_event_interface {
 	struct iio_detected_event_list		det_events;
 	int					max_events;
 	int					current_events;
-	int					id;
-	struct iio_chrdev_minor_attr		attr;
 	struct module				*owner;
 	void					*private;
 	char					_name[35];

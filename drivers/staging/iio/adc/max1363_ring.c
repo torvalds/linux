@@ -30,22 +30,20 @@
 /* Todo: test this */
 int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
 {
-	unsigned long numvals;
+	struct iio_ring_buffer *ring = st->indio_dev->ring;
 	int count = 0, ret;
 	u8 *ring_data;
 	if (!(st->current_mode->modemask & mask)) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
-	numvals = hweight_long(st->current_mode->modemask);
 
-	ring_data = kmalloc(numvals*2, GFP_KERNEL);
+	ring_data = kmalloc(ring->access.get_bytes_per_datum(ring), GFP_KERNEL);
 	if (ring_data == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-	ret = st->indio_dev->ring->access.read_last(st->indio_dev->ring,
-						ring_data);
+	ret = ring->access.read_last(ring, ring_data);
 	if (ret)
 		goto error_free_ring_data;
 	/* Need a count of channels prior to this one */
@@ -68,7 +66,7 @@ error_ret:
 }
 
 /**
- * max1363_ring_preenable() setup the parameters of the ring before enabling
+ * max1363_ring_preenable() - setup the parameters of the ring before enabling
  *
  * The complex nature of the setting of the nuber of bytes per datum is due
  * to this driver currently ensuring that the timestamp is stored at an 8
@@ -77,6 +75,7 @@ error_ret:
 static int max1363_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct max1363_state *st = indio_dev->dev_data;
+	struct iio_ring_buffer *ring = indio_dev->ring;
 	size_t d_size;
 	unsigned long numvals;
 
@@ -84,7 +83,7 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 	 * Need to figure out the current mode based upon the requested
 	 * scan mask in iio_dev
 	 */
-	st->current_mode = max1363_match_mode(st->indio_dev->scan_mask,
+	st->current_mode = max1363_match_mode(ring->scan_mask,
 					st->chip_info);
 	if (!st->current_mode)
 		return -EINVAL;
@@ -92,57 +91,28 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 	max1363_set_scan_mode(st);
 
 	numvals = hweight_long(st->current_mode->modemask);
-	if (indio_dev->ring->access.set_bpd) {
+	if (ring->access.set_bytes_per_datum) {
 		if (st->chip_info->bits != 8)
 			d_size = numvals*2 + sizeof(s64);
 		else
 			d_size = numvals + sizeof(s64);
 		if (d_size % 8)
 			d_size += 8 - (d_size % 8);
-		indio_dev->ring->access.set_bpd(indio_dev->ring, d_size);
+		ring->access.set_bytes_per_datum(ring, d_size);
 	}
 
 	return 0;
 }
 
-/**
- * max1363_ring_postenable() typical ring post enable
- *
- * Only not moved into the core for the hardware ring buffer cases
- * that are more sophisticated.
- **/
-static int max1363_ring_postenable(struct iio_dev *indio_dev)
-{
-	if (indio_dev->trig == NULL)
-		return 0;
-	return iio_trigger_attach_poll_func(indio_dev->trig,
-					    indio_dev->pollfunc);
-}
 
 /**
- * max1363_ring_predisable() runs just prior to ring buffer being disabled
- *
- * Typical predisable function which ensures that no trigger events can
- * occur before we disable the ring buffer (and hence would have no idea
- * what to do with them)
- **/
-static int max1363_ring_predisable(struct iio_dev *indio_dev)
-{
-	if (indio_dev->trig)
-		return iio_trigger_dettach_poll_func(indio_dev->trig,
-						     indio_dev->pollfunc);
-	else
-		return 0;
-}
-
-/**
- * max1363_poll_func_th() th of trigger launched polling to ring buffer
+ * max1363_poll_func_th() - th of trigger launched polling to ring buffer
  *
  * As sampling only occurs on i2c comms occuring, leave timestamping until
  * then.  Some triggers will generate their own time stamp.  Currently
  * there is no way of notifying them when no one cares.
  **/
-static void max1363_poll_func_th(struct iio_dev *indio_dev)
+static void max1363_poll_func_th(struct iio_dev *indio_dev, s64 time)
 {
 	struct max1363_state *st = indio_dev->dev_data;
 
@@ -151,7 +121,7 @@ static void max1363_poll_func_th(struct iio_dev *indio_dev)
 	return;
 }
 /**
- * max1363_poll_bh_to_ring() bh of trigger launched polling to ring buffer
+ * max1363_poll_bh_to_ring() - bh of trigger launched polling to ring buffer
  * @work_s:	the work struct through which this was scheduled
  *
  * Currently there is no option in this driver to disable the saving of
@@ -164,7 +134,7 @@ static void max1363_poll_bh_to_ring(struct work_struct *work_s)
 	struct max1363_state *st = container_of(work_s, struct max1363_state,
 						  poll_work);
 	struct iio_dev *indio_dev = st->indio_dev;
-	struct iio_sw_ring_buffer *ring = iio_to_sw_ring(indio_dev->ring);
+	struct iio_sw_ring_buffer *sw_ring = iio_to_sw_ring(indio_dev->ring);
 	s64 time_ns;
 	__u8 *rxbuf;
 	int b_sent;
@@ -204,7 +174,7 @@ static void max1363_poll_bh_to_ring(struct work_struct *work_s)
 
 	memcpy(rxbuf + d_size - sizeof(s64), &time_ns, sizeof(time_ns));
 
-	indio_dev->ring->access.store_to(&ring->buf, rxbuf, time_ns);
+	indio_dev->ring->access.store_to(&sw_ring->buf, rxbuf, time_ns);
 done:
 	kfree(rxbuf);
 	atomic_dec(&st->protect_ring);
@@ -222,20 +192,16 @@ int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_ret;
 	}
 	/* Effectively select the ring buffer implementation */
-	iio_ring_sw_register_funcs(&st->indio_dev->ring->access);
-	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
+	iio_ring_sw_register_funcs(&indio_dev->ring->access);
+	ret = iio_alloc_pollfunc(indio_dev, NULL, &max1363_poll_func_th);
+	if (ret)
 		goto error_deallocate_sw_rb;
-	}
-	/* Configure the polling function called on trigger interrupts */
-	indio_dev->pollfunc->poll_func_main = &max1363_poll_func_th;
-	indio_dev->pollfunc->private_data = indio_dev;
 
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->ring->postenable = &max1363_ring_postenable;
+	indio_dev->ring->scan_el_attrs = st->chip_info->scan_attrs;
+	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
 	indio_dev->ring->preenable = &max1363_ring_preenable;
-	indio_dev->ring->predisable = &max1363_ring_predisable;
+	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
 	INIT_WORK(&st->poll_work, &max1363_poll_bh_to_ring);
 
 	/* Flag that polled ring buffering is possible */
@@ -258,13 +224,3 @@ void max1363_ring_cleanup(struct iio_dev *indio_dev)
 	kfree(indio_dev->pollfunc);
 	iio_sw_rb_free(indio_dev->ring);
 }
-
-void max1363_uninitialize_ring(struct iio_ring_buffer *ring)
-{
-	iio_ring_buffer_unregister(ring);
-};
-
-int max1363_initialize_ring(struct iio_ring_buffer *ring)
-{
-	return iio_ring_buffer_register(ring, 0);
-};

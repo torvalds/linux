@@ -25,10 +25,26 @@
 #define GPMC_CS_NAND_ADDRESS	0x20
 #define GPMC_CS_NAND_DATA	0x24
 
-#define GPMC_CONFIG		0x50
-#define GPMC_STATUS		0x54
-#define GPMC_CS0_BASE		0x60
-#define GPMC_CS_SIZE		0x30
+/* Control Commands */
+#define GPMC_CONFIG_RDY_BSY	0x00000001
+#define GPMC_CONFIG_DEV_SIZE	0x00000002
+#define GPMC_CONFIG_DEV_TYPE	0x00000003
+#define GPMC_SET_IRQ_STATUS	0x00000004
+#define GPMC_CONFIG_WP		0x00000005
+
+#define GPMC_GET_IRQ_STATUS	0x00000006
+#define GPMC_PREFETCH_FIFO_CNT	0x00000007 /* bytes available in FIFO for r/w */
+#define GPMC_PREFETCH_COUNT	0x00000008 /* remaining bytes to be read/write*/
+#define GPMC_STATUS_BUFFER	0x00000009 /* 1: buffer is available to write */
+
+#define GPMC_NAND_COMMAND	0x0000000a
+#define GPMC_NAND_ADDRESS	0x0000000b
+#define GPMC_NAND_DATA		0x0000000c
+
+/* ECC commands */
+#define GPMC_ECC_READ		0 /* Reset Hardware ECC for read */
+#define GPMC_ECC_WRITE		1 /* Reset Hardware ECC for write */
+#define GPMC_ECC_READSYN	2 /* Reset before syndrom is read back */
 
 #define GPMC_CONFIG1_WRAPBURST_SUPP     (1 << 31)
 #define GPMC_CONFIG1_READMULTIPLE_SUPP  (1 << 30)
@@ -47,7 +63,6 @@
 #define GPMC_CONFIG1_DEVICESIZE_16      GPMC_CONFIG1_DEVICESIZE(1)
 #define GPMC_CONFIG1_DEVICETYPE(val)    ((val & 3) << 10)
 #define GPMC_CONFIG1_DEVICETYPE_NOR     GPMC_CONFIG1_DEVICETYPE(0)
-#define GPMC_CONFIG1_DEVICETYPE_NAND    GPMC_CONFIG1_DEVICETYPE(2)
 #define GPMC_CONFIG1_MUXADDDATA         (1 << 9)
 #define GPMC_CONFIG1_TIME_PARA_GRAN     (1 << 4)
 #define GPMC_CONFIG1_FCLK_DIV(val)      (val & 3)
@@ -55,6 +70,14 @@
 #define GPMC_CONFIG1_FCLK_DIV3          (GPMC_CONFIG1_FCLK_DIV(2))
 #define GPMC_CONFIG1_FCLK_DIV4          (GPMC_CONFIG1_FCLK_DIV(3))
 #define GPMC_CONFIG7_CSVALID		(1 << 6)
+
+#define GPMC_DEVICETYPE_NOR		0
+#define GPMC_DEVICETYPE_NAND		2
+#define GPMC_CONFIG_WRITEPROTECT	0x00000010
+#define GPMC_STATUS_BUFF_EMPTY		0x00000001
+#define WR_RD_PIN_MONITORING		0x00600000
+#define GPMC_PREFETCH_STATUS_FIFO_CNT(val)	((val >> 24) & 0x7F)
+#define GPMC_PREFETCH_STATUS_COUNT(val)	(val & 0x00003fff)
 
 /*
  * Note that all values in this struct are in nanoseconds, while
@@ -108,10 +131,15 @@ extern int gpmc_cs_set_reserved(int cs, int reserved);
 extern int gpmc_cs_reserved(int cs);
 extern int gpmc_prefetch_enable(int cs, int dma_mode,
 					unsigned int u32_count, int is_write);
-extern void gpmc_prefetch_reset(void);
-extern int gpmc_prefetch_status(void);
+extern int gpmc_prefetch_reset(int cs);
 extern void omap3_gpmc_save_context(void);
 extern void omap3_gpmc_restore_context(void);
 extern void gpmc_init(void);
+extern int gpmc_read_status(int cmd);
+extern int gpmc_cs_configure(int cs, int cmd, int wval);
+extern int gpmc_nand_read(int cs, int cmd);
+extern int gpmc_nand_write(int cs, int cmd, int wval);
 
+int gpmc_enable_hwecc(int cs, int mode, int dev_width, int ecc_size);
+int gpmc_calculate_ecc(int cs, const u_char *dat, u_char *ecc_code);
 #endif

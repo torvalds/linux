@@ -31,14 +31,10 @@
    the sensor drivers to v4l2 sub drivers, and properly split of this
    driver from ov519.c */
 
-/* The CONEX_CAM define for jpeg.h needs renaming, now its used here too */
-#define CONEX_CAM
-#include "jpeg.h"
-
 #define W9968CF_I2C_BUS_DELAY    4 /* delay in us for I2C bit r/w operations */
 
-#define Y_QUANTABLE (sd->jpeg_hdr + JPEG_QT0_OFFSET)
-#define UV_QUANTABLE (sd->jpeg_hdr + JPEG_QT1_OFFSET)
+#define Y_QUANTABLE (&sd->jpeg_hdr[JPEG_QT0_OFFSET])
+#define UV_QUANTABLE (&sd->jpeg_hdr[JPEG_QT1_OFFSET])
 
 static const struct v4l2_pix_format w9968cf_vga_mode[] = {
 	{160, 120, V4L2_PIX_FMT_UYVY, V4L2_FIELD_NONE,
@@ -71,7 +67,7 @@ static int reg_w(struct sd *sd, __u16 index, __u16 value);
   --------------------------------------------------------------------------*/
 static int w9968cf_write_fsb(struct sd *sd, u16* data)
 {
-	struct usb_device* udev = sd->gspca_dev.dev;
+	struct usb_device *udev = sd->gspca_dev.dev;
 	u16 value;
 	int ret;
 
@@ -82,7 +78,7 @@ static int w9968cf_write_fsb(struct sd *sd, u16* data)
 			      USB_TYPE_VENDOR | USB_DIR_OUT | USB_RECIP_DEVICE,
 			      value, 0x06, sd->gspca_dev.usb_buf, 6, 500);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "Write FSB registers failed (%d)", ret);
+		err("Write FSB registers failed (%d)", ret);
 		return ret;
 	}
 
@@ -108,7 +104,7 @@ static int w9968cf_write_sb(struct sd *sd, u16 value)
 	udelay(W9968CF_I2C_BUS_DELAY);
 
 	if (ret < 0) {
-		PDEBUG(D_ERR, "Write SB reg [01] %04x failed", value);
+		err("Write SB reg [01] %04x failed", value);
 		return ret;
 	}
 
@@ -134,7 +130,7 @@ static int w9968cf_read_sb(struct sd *sd)
 		ret = sd->gspca_dev.usb_buf[0] |
 		      (sd->gspca_dev.usb_buf[1] << 8);
 	else
-		PDEBUG(D_ERR, "Read SB reg [01] failed");
+		err("Read SB reg [01] failed");
 
 	udelay(W9968CF_I2C_BUS_DELAY);
 
@@ -441,7 +437,7 @@ static int w9968cf_set_crop_window(struct sd *sd)
 	if (sd->sensor == SEN_OV7620) {
 		/* Sigh, this is dependend on the clock / framerate changes
 		   made by the frequency control, sick. */
-		if (sd->freq == 1) {
+		if (sd->ctrls[FREQ].val == 1) {
 			start_cropx = 277;
 			start_cropy = 37;
 		} else {
@@ -509,11 +505,6 @@ static int w9968cf_mode_init_regs(struct sd *sd)
 	if (w9968cf_vga_mode[sd->gspca_dev.curr_mode].pixelformat ==
 	    V4L2_PIX_FMT_JPEG) {
 		/* We may get called multiple times (usb isoc bw negotiat.) */
-		if (!sd->jpeg_hdr)
-			sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
-		if (!sd->jpeg_hdr)
-			return -ENOMEM;
-
 		jpeg_define(sd->jpeg_hdr, sd->gspca_dev.height,
 			    sd->gspca_dev.width, 0x22); /* JPEG 420 */
 		jpeg_set_qual(sd->jpeg_hdr, sd->quality);
@@ -562,9 +553,6 @@ static void w9968cf_stop0(struct sd *sd)
 		reg_w(sd, 0x39, 0x0000); /* disable JPEG encoder */
 		reg_w(sd, 0x16, 0x0000); /* stop video capture */
 	}
-
-	kfree(sd->jpeg_hdr);
-	sd->jpeg_hdr = NULL;
 }
 
 /* The w9968cf docs say that a 0 sized packet means EOF (and also SOF

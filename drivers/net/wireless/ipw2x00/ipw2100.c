@@ -174,7 +174,7 @@ that only one external action is invoked at a time.
 #define DRV_DESCRIPTION	"Intel(R) PRO/Wireless 2100 Network Driver"
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2006 Intel Corporation"
 
-struct pm_qos_request_list *ipw2100_pm_qos_req;
+static struct pm_qos_request_list ipw2100_pm_qos_req;
 
 /* Debugging stuff */
 #ifdef CONFIG_IPW2100_DEBUG
@@ -1741,7 +1741,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 	/* the ipw2100 hardware really doesn't want power management delays
 	 * longer than 175usec
 	 */
-	pm_qos_update_request(ipw2100_pm_qos_req, 175);
+	pm_qos_update_request(&ipw2100_pm_qos_req, 175);
 
 	/* If the interrupt is enabled, turn it off... */
 	spin_lock_irqsave(&priv->low_lock, flags);
@@ -1889,7 +1889,7 @@ static void ipw2100_down(struct ipw2100_priv *priv)
 	ipw2100_disable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->low_lock, flags);
 
-	pm_qos_update_request(ipw2100_pm_qos_req, PM_QOS_DEFAULT_VALUE);
+	pm_qos_update_request(&ipw2100_pm_qos_req, PM_QOS_DEFAULT_VALUE);
 
 	/* We have to signal any supplicant if we are disassociating */
 	if (associated)
@@ -1921,9 +1921,13 @@ static int ipw2100_net_init(struct net_device *dev)
 
 		bg_band->band = IEEE80211_BAND_2GHZ;
 		bg_band->n_channels = geo->bg_channels;
-		bg_band->channels =
-			kzalloc(geo->bg_channels *
-				sizeof(struct ieee80211_channel), GFP_KERNEL);
+		bg_band->channels = kcalloc(geo->bg_channels,
+					    sizeof(struct ieee80211_channel),
+					    GFP_KERNEL);
+		if (!bg_band->channels) {
+			ipw2100_down(priv);
+			return -ENOMEM;
+		}
 		/* translate geo->bg to bg_band.channels */
 		for (i = 0; i < geo->bg_channels; i++) {
 			bg_band->channels[i].band = IEEE80211_BAND_2GHZ;
@@ -2719,14 +2723,6 @@ static void __ipw2100_rx_process(struct ipw2100_priv *priv)
 
 		packet = &priv->rx_buffers[i];
 
-		/* Sync the DMA for the STATUS buffer so CPU is sure to get
-		 * the correct values */
-		pci_dma_sync_single_for_cpu(priv->pci_dev,
-					    sq->nic +
-					    sizeof(struct ipw2100_status) * i,
-					    sizeof(struct ipw2100_status),
-					    PCI_DMA_FROMDEVICE);
-
 		/* Sync the DMA for the RX buffer so CPU is sure to get
 		 * the correct values */
 		pci_dma_sync_single_for_cpu(priv->pci_dev, packet->dma_addr,
@@ -3060,9 +3056,9 @@ static void ipw2100_tx_send_commands(struct ipw2100_priv *priv)
 
 		packet = list_entry(element, struct ipw2100_tx_packet, list);
 
-		IPW_DEBUG_TX("using TBD at virt=%p, phys=%p\n",
+		IPW_DEBUG_TX("using TBD at virt=%p, phys=%04X\n",
 			     &txq->drv[txq->next],
-			     (void *)(txq->nic + txq->next *
+			     (u32) (txq->nic + txq->next *
 				      sizeof(struct ipw2100_bd)));
 
 		packet->index = txq->next;
@@ -3467,10 +3463,8 @@ static int ipw2100_msg_allocate(struct ipw2100_priv *priv)
 	dma_addr_t p;
 
 	priv->msg_buffers =
-	    (struct ipw2100_tx_packet *)kmalloc(IPW_COMMAND_POOL_SIZE *
-						sizeof(struct
-						       ipw2100_tx_packet),
-						GFP_KERNEL);
+	    kmalloc(IPW_COMMAND_POOL_SIZE * sizeof(struct ipw2100_tx_packet),
+		    GFP_KERNEL);
 	if (!priv->msg_buffers) {
 		printk(KERN_ERR DRV_NAME ": %s: PCI alloc failed for msg "
 		       "buffers.\n", priv->net_dev->name);
@@ -4499,10 +4493,8 @@ static int ipw2100_tx_allocate(struct ipw2100_priv *priv)
 	}
 
 	priv->tx_buffers =
-	    (struct ipw2100_tx_packet *)kmalloc(TX_PENDED_QUEUE_LENGTH *
-						sizeof(struct
-						       ipw2100_tx_packet),
-						GFP_ATOMIC);
+	    kmalloc(TX_PENDED_QUEUE_LENGTH * sizeof(struct ipw2100_tx_packet),
+		    GFP_ATOMIC);
 	if (!priv->tx_buffers) {
 		printk(KERN_ERR DRV_NAME
 		       ": %s: alloc failed form tx buffers.\n",
@@ -4651,9 +4643,9 @@ static int ipw2100_rx_allocate(struct ipw2100_priv *priv)
 	/*
 	 * allocate packets
 	 */
-	priv->rx_buffers = (struct ipw2100_rx_packet *)
-	    kmalloc(RX_QUEUE_LENGTH * sizeof(struct ipw2100_rx_packet),
-		    GFP_KERNEL);
+	priv->rx_buffers = kmalloc(RX_QUEUE_LENGTH *
+				   sizeof(struct ipw2100_rx_packet),
+				   GFP_KERNEL);
 	if (!priv->rx_buffers) {
 		IPW_DEBUG_INFO("can't allocate rx packet buffer table\n");
 
@@ -5233,7 +5225,7 @@ struct security_info_params {
 	u8 auth_mode;
 	u8 replay_counters_number;
 	u8 unicast_using_group;
-} __attribute__ ((packed));
+} __packed;
 
 static int ipw2100_set_security_information(struct ipw2100_priv *priv,
 					    int auth_mode,
@@ -6665,12 +6657,13 @@ static int __init ipw2100_init(void)
 	printk(KERN_INFO DRV_NAME ": %s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
 	printk(KERN_INFO DRV_NAME ": %s\n", DRV_COPYRIGHT);
 
+	pm_qos_add_request(&ipw2100_pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
+			   PM_QOS_DEFAULT_VALUE);
+
 	ret = pci_register_driver(&ipw2100_pci_driver);
 	if (ret)
 		goto out;
 
-	ipw2100_pm_qos_req = pm_qos_add_request(PM_QOS_CPU_DMA_LATENCY,
-			PM_QOS_DEFAULT_VALUE);
 #ifdef CONFIG_IPW2100_DEBUG
 	ipw2100_debug_level = debug;
 	ret = driver_create_file(&ipw2100_pci_driver.driver,
@@ -6692,7 +6685,7 @@ static void __exit ipw2100_exit(void)
 			   &driver_attr_debug_level);
 #endif
 	pci_unregister_driver(&ipw2100_pci_driver);
-	pm_qos_remove_request(ipw2100_pm_qos_req);
+	pm_qos_remove_request(&ipw2100_pm_qos_req);
 }
 
 module_init(ipw2100_init);
@@ -8475,7 +8468,7 @@ struct ipw2100_fw_header {
 	short mode;
 	unsigned int fw_size;
 	unsigned int uc_size;
-} __attribute__ ((packed));
+} __packed;
 
 static int ipw2100_mod_firmware_load(struct ipw2100_fw *fw)
 {

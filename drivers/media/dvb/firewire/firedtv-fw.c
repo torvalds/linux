@@ -194,8 +194,8 @@ static const struct firedtv_backend backend = {
 
 static void handle_fcp(struct fw_card *card, struct fw_request *request,
 		       int tcode, int destination, int source, int generation,
-		       int speed, unsigned long long offset,
-		       void *payload, size_t length, void *callback_data)
+		       unsigned long long offset, void *payload, size_t length,
+		       void *callback_data)
 {
 	struct firedtv *f, *fdtv = NULL;
 	struct fw_device *device;

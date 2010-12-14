@@ -34,6 +34,15 @@ static const struct dmi_system_id pci_use_crs_table[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "x3800"),
 		},
 	},
+	/* https://bugzilla.kernel.org/show_bug.cgi?id=16007 */
+	/* 2006 AMD HT/VIA system with two host bridges */
+        {
+		.callback = set_use_crs,
+		.ident = "ASRock ALiveSATA2-GLAN",
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "ALiveSATA2-GLAN"),
+                },
+        },
 	{}
 };
 

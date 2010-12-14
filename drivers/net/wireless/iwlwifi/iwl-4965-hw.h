@@ -787,6 +787,6 @@ enum {
 struct iwl4965_scd_bc_tbl {
 	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
 	u8 pad[1024 - (TFD_QUEUE_BC_SIZE) * sizeof(__le16)];
-} __attribute__ ((packed));
+} __packed;
 
 #endif /* !__iwl_4965_hw_h__ */

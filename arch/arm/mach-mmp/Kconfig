@@ -57,6 +57,13 @@ config MACH_MARVELL_JASPER
 	  PXA910-based development board. Since MMP2 is compatible to
 	  ARMv6 architecture.
 
+config MACH_TETON_BGA
+	bool "Marvell's PXA168 Teton BGA Development Board"
+	select CPU_PXA168
+	help
+	  Say 'Y' here if you want to support the Marvell PXA168-based
+	  Teton BGA Development Board.
+
 endmenu
 
 config CPU_PXA168

@@ -143,17 +143,16 @@ static void __init rx51_init(void)
 
 static void __init rx51_map_io(void)
 {
-	omap2_set_globals_343x();
+	omap2_set_globals_3xxx();
 	rx51_video_mem_init();
 	omap34xx_map_common_io();
 }
 
 MACHINE_START(NOKIA_RX51, "Nokia RX-51 board")
 	/* Maintainer: Lauri Leukkunen <lauri.leukkunen@nokia.com> */
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= rx51_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= rx51_init_irq,
 	.init_machine	= rx51_init,
 	.timer		= &omap_timer,

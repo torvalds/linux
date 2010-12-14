@@ -156,7 +156,7 @@ void end_buffer_write_sync(struct buffer_head *bh, int uptodate)
 	if (uptodate) {
 		set_buffer_uptodate(bh);
 	} else {
-		if (!buffer_eopnotsupp(bh) && !quiet_error(bh)) {
+		if (!quiet_error(bh)) {
 			buffer_io_error(bh);
 			printk(KERN_WARNING "lost page write due to "
 					"I/O error on %s\n",
@@ -770,11 +770,12 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 				spin_unlock(lock);
 				/*
 				 * Ensure any pending I/O completes so that
-				 * ll_rw_block() actually writes the current
-				 * contents - it is a noop if I/O is still in
-				 * flight on potentially older contents.
+				 * write_dirty_buffer() actually writes the
+				 * current contents - it is a noop if I/O is
+				 * still in flight on potentially older
+				 * contents.
 				 */
-				ll_rw_block(SWRITE_SYNC_PLUG, 1, &bh);
+				write_dirty_buffer(bh, WRITE_SYNC_PLUG);
 
 				/*
 				 * Kick off IO for the previous mapping. Note
@@ -904,7 +905,6 @@ try_again:
 
 		bh->b_state = 0;
 		atomic_set(&bh->b_count, 0);
-		bh->b_private = NULL;
 		bh->b_size = size;
 
 		/* Link the buffer to its page */
@@ -1705,7 +1705,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 		 * and kswapd activity, but those code paths have their own
 		 * higher-level throttling.
 		 */
-		if (wbc->sync_mode != WB_SYNC_NONE || !wbc->nonblocking) {
+		if (wbc->sync_mode != WB_SYNC_NONE) {
 			lock_buffer(bh);
 		} else if (!trylock_buffer(bh)) {
 			redirty_page_for_writepage(wbc, page);
@@ -1833,9 +1833,12 @@ void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
 }
 EXPORT_SYMBOL(page_zero_new_buffers);
 
-static int __block_prepare_write(struct inode *inode, struct page *page,
-		unsigned from, unsigned to, get_block_t *get_block)
+int __block_write_begin(struct page *page, loff_t pos, unsigned len,
+		get_block_t *get_block)
 {
+	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+	unsigned to = from + len;
+	struct inode *inode = page->mapping->host;
 	unsigned block_start, block_end;
 	sector_t block;
 	int err = 0;
@@ -1908,10 +1911,13 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 		if (!buffer_uptodate(*wait_bh))
 			err = -EIO;
 	}
-	if (unlikely(err))
+	if (unlikely(err)) {
 		page_zero_new_buffers(page, from, to);
+		ClearPageUptodate(page);
+	}
 	return err;
 }
+EXPORT_SYMBOL(__block_write_begin);
 
 static int __block_commit_write(struct inode *inode, struct page *page,
 		unsigned from, unsigned to)
@@ -1949,89 +1955,31 @@ static int __block_commit_write(struct inode *inode, struct page *page,
 }
 
 /*
- * Filesystems implementing the new truncate sequence should use the
- * _newtrunc postfix variant which won't incorrectly call vmtruncate.
- * The filesystem needs to handle block truncation upon failure.
- */
-int block_write_begin_newtrunc(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata,
-			get_block_t *get_block)
-{
-	struct inode *inode = mapping->host;
-	int status = 0;
-	struct page *page;
-	pgoff_t index;
-	unsigned start, end;
-	int ownpage = 0;
-
-	index = pos >> PAGE_CACHE_SHIFT;
-	start = pos & (PAGE_CACHE_SIZE - 1);
-	end = start + len;
-
-	page = *pagep;
-	if (page == NULL) {
-		ownpage = 1;
-		page = grab_cache_page_write_begin(mapping, index, flags);
-		if (!page) {
-			status = -ENOMEM;
-			goto out;
-		}
-		*pagep = page;
-	} else
-		BUG_ON(!PageLocked(page));
-
-	status = __block_prepare_write(inode, page, start, end, get_block);
-	if (unlikely(status)) {
-		ClearPageUptodate(page);
-
-		if (ownpage) {
-			unlock_page(page);
-			page_cache_release(page);
-			*pagep = NULL;
-		}
-	}
-
-out:
-	return status;
-}
-EXPORT_SYMBOL(block_write_begin_newtrunc);
-
-/*
  * block_write_begin takes care of the basic task of block allocation and
  * bringing partial write blocks uptodate first.
  *
- * If *pagep is not NULL, then block_write_begin uses the locked page
- * at *pagep rather than allocating its own. In this case, the page will
- * not be unlocked or deallocated on failure.
+ * The filesystem needs to handle block truncation upon failure.
  */
-int block_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata,
-			get_block_t *get_block)
+int block_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
+		unsigned flags, struct page **pagep, get_block_t *get_block)
 {
-	int ret;
+	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+	struct page *page;
+	int status;
 
-	ret = block_write_begin_newtrunc(file, mapping, pos, len, flags,
-					pagep, fsdata, get_block);
+	page = grab_cache_page_write_begin(mapping, index, flags);
+	if (!page)
+		return -ENOMEM;
 
-	/*
-	 * prepare_write() may have instantiated a few blocks
-	 * outside i_size.  Trim these off again. Don't need
-	 * i_size_read because we hold i_mutex.
-	 *
-	 * Filesystems which pass down their own page also cannot
-	 * call into vmtruncate here because it would lead to lock
-	 * inversion problems (*pagep is locked). This is a further
-	 * example of where the old truncate sequence is inadequate.
-	 */
-	if (unlikely(ret) && *pagep == NULL) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
+	status = __block_write_begin(page, pos, len, get_block);
+	if (unlikely(status)) {
+		unlock_page(page);
+		page_cache_release(page);
+		page = NULL;
 	}
 
-	return ret;
+	*pagep = page;
+	return status;
 }
 EXPORT_SYMBOL(block_write_begin);
 
@@ -2351,7 +2299,7 @@ out:
  * For moronic filesystems that do not allow holes in file.
  * We may have to extend the file.
  */
-int cont_write_begin_newtrunc(struct file *file, struct address_space *mapping,
+int cont_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata,
 			get_block_t *get_block, loff_t *bytes)
@@ -2363,7 +2311,7 @@ int cont_write_begin_newtrunc(struct file *file, struct address_space *mapping,
 
 	err = cont_expand_zero(file, mapping, pos, bytes);
 	if (err)
-		goto out;
+		return err;
 
 	zerofrom = *bytes & ~PAGE_CACHE_MASK;
 	if (pos+len > *bytes && zerofrom & (blocksize-1)) {
@@ -2371,43 +2319,9 @@ int cont_write_begin_newtrunc(struct file *file, struct address_space *mapping,
 		(*bytes)++;
 	}
 
-	*pagep = NULL;
-	err = block_write_begin_newtrunc(file, mapping, pos, len,
-				flags, pagep, fsdata, get_block);
-out:
-	return err;
-}
-EXPORT_SYMBOL(cont_write_begin_newtrunc);
-
-int cont_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata,
-			get_block_t *get_block, loff_t *bytes)
-{
-	int ret;
-
-	ret = cont_write_begin_newtrunc(file, mapping, pos, len, flags,
-					pagep, fsdata, get_block, bytes);
-	if (unlikely(ret)) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
-
-	return ret;
+	return block_write_begin(mapping, pos, len, flags, pagep, get_block);
 }
 EXPORT_SYMBOL(cont_write_begin);
-
-int block_prepare_write(struct page *page, unsigned from, unsigned to,
-			get_block_t *get_block)
-{
-	struct inode *inode = page->mapping->host;
-	int err = __block_prepare_write(inode, page, from, to, get_block);
-	if (err)
-		ClearPageUptodate(page);
-	return err;
-}
-EXPORT_SYMBOL(block_prepare_write);
 
 int block_commit_write(struct page *page, unsigned from, unsigned to)
 {
@@ -2457,7 +2371,7 @@ block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 	else
 		end = PAGE_CACHE_SIZE;
 
-	ret = block_prepare_write(page, 0, end, get_block);
+	ret = __block_write_begin(page, 0, end, get_block);
 	if (!ret)
 		ret = block_commit_write(page, 0, end);
 
@@ -2510,11 +2424,11 @@ static void attach_nobh_buffers(struct page *page, struct buffer_head *head)
 }
 
 /*
- * Filesystems implementing the new truncate sequence should use the
- * _newtrunc postfix variant which won't incorrectly call vmtruncate.
+ * On entry, the page is fully not uptodate.
+ * On exit the page is fully uptodate in the areas outside (from,to)
  * The filesystem needs to handle block truncation upon failure.
  */
-int nobh_write_begin_newtrunc(struct file *file, struct address_space *mapping,
+int nobh_write_begin(struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata,
 			get_block_t *get_block)
@@ -2544,11 +2458,10 @@ int nobh_write_begin_newtrunc(struct file *file, struct address_space *mapping,
 	*fsdata = NULL;
 
 	if (page_has_buffers(page)) {
-		unlock_page(page);
-		page_cache_release(page);
-		*pagep = NULL;
-		return block_write_begin_newtrunc(file, mapping, pos, len,
-					flags, pagep, fsdata, get_block);
+		ret = __block_write_begin(page, pos, len, get_block);
+		if (unlikely(ret))
+			goto out_release;
+		return ret;
 	}
 
 	if (PageMappedToDisk(page))
@@ -2651,35 +2564,6 @@ out_release:
 	unlock_page(page);
 	page_cache_release(page);
 	*pagep = NULL;
-
-	return ret;
-}
-EXPORT_SYMBOL(nobh_write_begin_newtrunc);
-
-/*
- * On entry, the page is fully not uptodate.
- * On exit the page is fully uptodate in the areas outside (from,to)
- */
-int nobh_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata,
-			get_block_t *get_block)
-{
-	int ret;
-
-	ret = nobh_write_begin_newtrunc(file, mapping, pos, len, flags,
-					pagep, fsdata, get_block);
-
-	/*
-	 * prepare_write() may have instantiated a few blocks
-	 * outside i_size.  Trim these off again. Don't need
-	 * i_size_read because we hold i_mutex.
-	 */
-	if (unlikely(ret)) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
 
 	return ret;
 }
@@ -2998,7 +2882,6 @@ static void end_bio_bh_io_sync(struct bio *bio, int err)
 
 	if (err == -EOPNOTSUPP) {
 		set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
-		set_bit(BH_Eopnotsupp, &bh->b_state);
 	}
 
 	if (unlikely (test_bit(BIO_QUIET,&bio->bi_flags)))
@@ -3018,13 +2901,6 @@ int submit_bh(int rw, struct buffer_head * bh)
 	BUG_ON(!bh->b_end_io);
 	BUG_ON(buffer_delay(bh));
 	BUG_ON(buffer_unwritten(bh));
-
-	/*
-	 * Mask in barrier bit for a write (could be either a WRITE or a
-	 * WRITE_SYNC
-	 */
-	if (buffer_ordered(bh) && (rw & WRITE))
-		rw |= WRITE_BARRIER;
 
 	/*
 	 * Only clear out a write error when rewriting
@@ -3064,22 +2940,21 @@ EXPORT_SYMBOL(submit_bh);
 
 /**
  * ll_rw_block: low-level access to block devices (DEPRECATED)
- * @rw: whether to %READ or %WRITE or %SWRITE or maybe %READA (readahead)
+ * @rw: whether to %READ or %WRITE or maybe %READA (readahead)
  * @nr: number of &struct buffer_heads in the array
  * @bhs: array of pointers to &struct buffer_head
  *
  * ll_rw_block() takes an array of pointers to &struct buffer_heads, and
  * requests an I/O operation on them, either a %READ or a %WRITE.  The third
- * %SWRITE is like %WRITE only we make sure that the *current* data in buffers
- * are sent to disk. The fourth %READA option is described in the documentation
- * for generic_make_request() which ll_rw_block() calls.
+ * %READA option is described in the documentation for generic_make_request()
+ * which ll_rw_block() calls.
  *
  * This function drops any buffer that it cannot get a lock on (with the
- * BH_Lock state bit) unless SWRITE is required, any buffer that appears to be
- * clean when doing a write request, and any buffer that appears to be
- * up-to-date when doing read request.  Further it marks as clean buffers that
- * are processed for writing (the buffer cache won't assume that they are
- * actually clean until the buffer gets unlocked).
+ * BH_Lock state bit), any buffer that appears to be clean when doing a write
+ * request, and any buffer that appears to be up-to-date when doing read
+ * request.  Further it marks as clean buffers that are processed for
+ * writing (the buffer cache won't assume that they are actually clean
+ * until the buffer gets unlocked).
  *
  * ll_rw_block sets b_end_io to simple completion handler that marks
  * the buffer up-to-date (if approriate), unlocks the buffer and wakes
@@ -3095,20 +2970,13 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 	for (i = 0; i < nr; i++) {
 		struct buffer_head *bh = bhs[i];
 
-		if (rw == SWRITE || rw == SWRITE_SYNC || rw == SWRITE_SYNC_PLUG)
-			lock_buffer(bh);
-		else if (!trylock_buffer(bh))
+		if (!trylock_buffer(bh))
 			continue;
-
-		if (rw == WRITE || rw == SWRITE || rw == SWRITE_SYNC ||
-		    rw == SWRITE_SYNC_PLUG) {
+		if (rw == WRITE) {
 			if (test_clear_buffer_dirty(bh)) {
 				bh->b_end_io = end_buffer_write_sync;
 				get_bh(bh);
-				if (rw == SWRITE_SYNC)
-					submit_bh(WRITE_SYNC, bh);
-				else
-					submit_bh(WRITE, bh);
+				submit_bh(WRITE, bh);
 				continue;
 			}
 		} else {
@@ -3124,12 +2992,25 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 }
 EXPORT_SYMBOL(ll_rw_block);
 
+void write_dirty_buffer(struct buffer_head *bh, int rw)
+{
+	lock_buffer(bh);
+	if (!test_clear_buffer_dirty(bh)) {
+		unlock_buffer(bh);
+		return;
+	}
+	bh->b_end_io = end_buffer_write_sync;
+	get_bh(bh);
+	submit_bh(rw, bh);
+}
+EXPORT_SYMBOL(write_dirty_buffer);
+
 /*
  * For a data-integrity writeout, we need to wait upon any in-progress I/O
  * and then start new I/O and then wait upon it.  The caller must have a ref on
  * the buffer_head.
  */
-int sync_dirty_buffer(struct buffer_head *bh)
+int __sync_dirty_buffer(struct buffer_head *bh, int rw)
 {
 	int ret = 0;
 
@@ -3138,18 +3019,20 @@ int sync_dirty_buffer(struct buffer_head *bh)
 	if (test_clear_buffer_dirty(bh)) {
 		get_bh(bh);
 		bh->b_end_io = end_buffer_write_sync;
-		ret = submit_bh(WRITE_SYNC, bh);
+		ret = submit_bh(rw, bh);
 		wait_on_buffer(bh);
-		if (buffer_eopnotsupp(bh)) {
-			clear_buffer_eopnotsupp(bh);
-			ret = -EOPNOTSUPP;
-		}
 		if (!ret && !buffer_uptodate(bh))
 			ret = -EIO;
 	} else {
 		unlock_buffer(bh);
 	}
 	return ret;
+}
+EXPORT_SYMBOL(__sync_dirty_buffer);
+
+int sync_dirty_buffer(struct buffer_head *bh)
+{
+	return __sync_dirty_buffer(bh, WRITE_SYNC);
 }
 EXPORT_SYMBOL(sync_dirty_buffer);
 

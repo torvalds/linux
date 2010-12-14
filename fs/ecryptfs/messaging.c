@@ -274,7 +274,7 @@ int ecryptfs_process_response(struct ecryptfs_message *msg, uid_t euid,
 			      struct user_namespace *user_ns, struct pid *pid,
 			      u32 seq)
 {
-	struct ecryptfs_daemon *daemon;
+	struct ecryptfs_daemon *uninitialized_var(daemon);
 	struct ecryptfs_msg_ctx *msg_ctx;
 	size_t msg_size;
 	struct nsproxy *nsproxy;
@@ -473,7 +473,7 @@ sleep:
 	return rc;
 }
 
-int ecryptfs_init_messaging(void)
+int __init ecryptfs_init_messaging(void)
 {
 	int i;
 	int rc = 0;

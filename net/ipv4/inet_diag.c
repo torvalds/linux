@@ -425,7 +425,7 @@ static int inet_diag_bc_run(const void *bc, int len,
 			bc += op->no;
 		}
 	}
-	return (len == 0);
+	return len == 0;
 }
 
 static int valid_cc(const void *bc, int len, int cc)

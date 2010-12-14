@@ -5,7 +5,7 @@
  * Copyright (c) 2001-2007 Anton Altaparmakov
  * Copyright (C) 2001,2002 Jakob Kemi <jakob.kemi@telia.com>
  *
- * Documentation is available at http://www.linux-ntfs.org/content/view/19/37/
+ * Documentation is available at http://www.linux-ntfs.org/doku.php?id=downloads 
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -643,7 +643,7 @@ static bool ldm_create_data_partitions (struct parsed_partitions *pp,
 		return false;
 	}
 
-	printk (" [LDM]");
+	strlcat(pp->pp_buf, " [LDM]", PAGE_SIZE);
 
 	/* Create the data partitions */
 	list_for_each (item, &ldb->v_part) {
@@ -658,7 +658,7 @@ static bool ldm_create_data_partitions (struct parsed_partitions *pp,
 		part_num++;
 	}
 
-	printk ("\n");
+	strlcat(pp->pp_buf, "\n", PAGE_SIZE);
 	return true;
 }
 

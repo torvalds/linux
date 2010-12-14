@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2008 QLogic Corporation
+ * Copyright (c)  2003-2010 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -28,8 +28,6 @@
 /* #define QL_DEBUG_LEVEL_16 */ /* Output ISP84XX trace msgs */
 /* #define QL_DEBUG_LEVEL_17 */ /* Output EEH trace messages */
 /* #define QL_DEBUG_LEVEL_18 */ /* Output T10 CRC trace messages */
-
-/* #define QL_PRINTK_BUF */ /* Captures printk to buffer */
 
 /*
 * Macros use for debugging the driver.

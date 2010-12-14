@@ -29,7 +29,6 @@
  * @arg:	command-specific argument for ioctl
  *
  * Invokes filesystem specific ->unlocked_ioctl, if one exists; otherwise
- * invokes filesystem specific ->ioctl method.  If neither method exists,
  * returns -ENOTTY.
  *
  * Returns 0 on success, -errno on error.
@@ -39,21 +38,12 @@ static long vfs_ioctl(struct file *filp, unsigned int cmd,
 {
 	int error = -ENOTTY;
 
-	if (!filp->f_op)
+	if (!filp->f_op || !filp->f_op->unlocked_ioctl)
 		goto out;
 
-	if (filp->f_op->unlocked_ioctl) {
-		error = filp->f_op->unlocked_ioctl(filp, cmd, arg);
-		if (error == -ENOIOCTLCMD)
-			error = -EINVAL;
-		goto out;
-	} else if (filp->f_op->ioctl) {
-		lock_kernel();
-		error = filp->f_op->ioctl(filp->f_path.dentry->d_inode,
-					  filp, cmd, arg);
-		unlock_kernel();
-	}
-
+	error = filp->f_op->unlocked_ioctl(filp, cmd, arg);
+	if (error == -ENOIOCTLCMD)
+		error = -EINVAL;
  out:
 	return error;
 }
@@ -540,6 +530,41 @@ static int ioctl_fsthaw(struct file *filp)
 	return thaw_super(sb);
 }
 
+static int ioctl_fstrim(struct file *filp, void __user *argp)
+{
+	struct super_block *sb = filp->f_path.dentry->d_inode->i_sb;
+	struct fstrim_range range;
+	int ret = 0;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	/* If filesystem doesn't support trim feature, return. */
+	if (sb->s_op->trim_fs == NULL)
+		return -EOPNOTSUPP;
+
+	/* If a blockdevice-backed filesystem isn't specified, return EINVAL. */
+	if (sb->s_bdev == NULL)
+		return -EINVAL;
+
+	if (argp == NULL) {
+		range.start = 0;
+		range.len = ULLONG_MAX;
+		range.minlen = 0;
+	} else if (copy_from_user(&range, argp, sizeof(range)))
+		return -EFAULT;
+
+	ret = sb->s_op->trim_fs(sb, &range);
+	if (ret < 0)
+		return ret;
+
+	if ((argp != NULL) &&
+	    (copy_to_user(argp, &range, sizeof(range))))
+		return -EFAULT;
+
+	return 0;
+}
+
 /*
  * When you add any new common ioctls to the switches above and below
  * please update compat_sys_ioctl() too.
@@ -588,6 +613,10 @@ int do_vfs_ioctl(struct file *filp, unsigned int fd, unsigned int cmd,
 
 	case FITHAW:
 		error = ioctl_fsthaw(filp);
+		break;
+
+	case FITRIM:
+		error = ioctl_fstrim(filp, argp);
 		break;
 
 	case FS_IOC_FIEMAP:

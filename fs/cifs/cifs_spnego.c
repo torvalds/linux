@@ -84,6 +84,9 @@ struct key_type cifs_spnego_key_type = {
 /* strlen of ";uid=0x" */
 #define UID_KEY_LEN		7
 
+/* strlen of ";creduid=0x" */
+#define CREDUID_KEY_LEN		11
+
 /* strlen of ";user=" */
 #define USER_KEY_LEN		6
 
@@ -107,6 +110,7 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 		   IP_KEY_LEN + INET6_ADDRSTRLEN +
 		   MAX_MECH_STR_LEN +
 		   UID_KEY_LEN + (sizeof(uid_t) * 2) +
+		   CREDUID_KEY_LEN + (sizeof(uid_t) * 2) +
 		   USER_KEY_LEN + strlen(sesInfo->userName) +
 		   PID_KEY_LEN + (sizeof(pid_t) * 2) + 1;
 
@@ -142,6 +146,9 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 
 	dp = description + strlen(description);
 	sprintf(dp, ";uid=0x%x", sesInfo->linux_uid);
+
+	dp = description + strlen(description);
+	sprintf(dp, ";creduid=0x%x", sesInfo->cred_uid);
 
 	dp = description + strlen(description);
 	sprintf(dp, ";user=%s", sesInfo->userName);

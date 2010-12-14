@@ -35,7 +35,9 @@
 
 #ifdef CONFIG_64BIT
 
-#define __UA_LIMIT	(- TASK_SIZE)
+extern u64 __ua_limit;
+
+#define __UA_LIMIT	__ua_limit
 
 #define __UA_ADDR	".dword"
 #define __UA_LA		"dla"

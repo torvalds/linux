@@ -22,8 +22,9 @@ static loff_t
 proc_bus_zorro_lseek(struct file *file, loff_t off, int whence)
 {
 	loff_t new = -1;
+	struct inode *inode = file->f_path.dentry->d_inode;
 
-	lock_kernel();
+	mutex_lock(&inode->i_mutex);
 	switch (whence) {
 	case 0:
 		new = off;
@@ -35,12 +36,12 @@ proc_bus_zorro_lseek(struct file *file, loff_t off, int whence)
 		new = sizeof(struct ConfigDev) + off;
 		break;
 	}
-	if (new < 0 || new > sizeof(struct ConfigDev)) {
-		unlock_kernel();
-		return -EINVAL;
-	}
-	unlock_kernel();
-	return (file->f_pos = new);
+	if (new < 0 || new > sizeof(struct ConfigDev))
+		new = -EINVAL;
+	else
+		file->f_pos = new;
+	mutex_unlock(&inode->i_mutex);
+	return new;
 }
 
 static ssize_t
@@ -67,7 +68,7 @@ proc_bus_zorro_read(struct file *file, char __user *buf, size_t nbytes, loff_t *
 	cd.cd_BoardAddr = (void *)zorro_resource_start(z);
 	cd.cd_BoardSize = zorro_resource_len(z);
 
-	if (copy_to_user(buf, &cd, nbytes))
+	if (copy_to_user(buf, (void *)&cd + pos, nbytes))
 		return -EFAULT;
 	*ppos += nbytes;
 

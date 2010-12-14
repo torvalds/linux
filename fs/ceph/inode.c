@@ -1,4 +1,4 @@
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
 
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -13,7 +13,8 @@
 #include <linux/pagevec.h>
 
 #include "super.h"
-#include "decode.h"
+#include "mds_client.h"
+#include <linux/ceph/decode.h>
 
 /*
  * Ceph inode operations
@@ -384,7 +385,7 @@ void ceph_destroy_inode(struct inode *inode)
 	 */
 	if (ci->i_snap_realm) {
 		struct ceph_mds_client *mdsc =
-			&ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
+			ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
 		struct ceph_snap_realm *realm = ci->i_snap_realm;
 
 		dout(" dropping residual ref to snap realm %p\n", realm);
@@ -442,8 +443,9 @@ int ceph_fill_file_size(struct inode *inode, int issued,
 			 * the file is either opened or mmaped
 			 */
 			if ((issued & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_RD|
-				      CEPH_CAP_FILE_WR|CEPH_CAP_FILE_BUFFER|
-				      CEPH_CAP_FILE_EXCL)) ||
+				       CEPH_CAP_FILE_WR|CEPH_CAP_FILE_BUFFER|
+				       CEPH_CAP_FILE_EXCL|
+				       CEPH_CAP_FILE_LAZYIO)) ||
 			    mapping_mapped(inode->i_mapping) ||
 			    __ceph_caps_file_wanted(ci)) {
 				ci->i_truncate_pending++;
@@ -676,6 +678,7 @@ static int fill_inode(struct inode *inode,
 		if (ci->i_files == 0 && ci->i_subdirs == 0 &&
 		    ceph_snap(inode) == CEPH_NOSNAP &&
 		    (le32_to_cpu(info->cap.caps) & CEPH_CAP_FILE_SHARED) &&
+		    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
 		    (ci->i_ceph_flags & CEPH_I_COMPLETE) == 0) {
 			dout(" marking %p complete (empty)\n", inode);
 			ci->i_ceph_flags |= CEPH_I_COMPLETE;
@@ -683,7 +686,7 @@ static int fill_inode(struct inode *inode,
 		}
 
 		/* it may be better to set st_size in getattr instead? */
-		if (ceph_test_opt(ceph_sb_to_client(inode->i_sb), RBYTES))
+		if (ceph_test_mount_opt(ceph_sb_to_client(inode->i_sb), RBYTES))
 			inode->i_size = ci->i_rbytes;
 		break;
 	default:
@@ -843,7 +846,7 @@ static void ceph_set_dentry_offset(struct dentry *dn)
  * the caller) if we fail.
  */
 static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
-				    bool *prehash)
+				    bool *prehash, bool set_offset)
 {
 	struct dentry *realdn;
 
@@ -875,7 +878,8 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
 	}
 	if ((!prehash || *prehash) && d_unhashed(dn))
 		d_rehash(dn);
-	ceph_set_dentry_offset(dn);
+	if (set_offset)
+		ceph_set_dentry_offset(dn);
 out:
 	return dn;
 }
@@ -898,7 +902,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 	struct inode *in = NULL;
 	struct ceph_mds_reply_inode *ininfo;
 	struct ceph_vino vino;
-	struct ceph_client *client = ceph_sb_to_client(sb);
+	struct ceph_fs_client *fsc = ceph_sb_to_client(sb);
 	int i = 0;
 	int err = 0;
 
@@ -962,7 +966,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 	 */
 	if (rinfo->head->is_dentry && !req->r_aborted &&
 	    (rinfo->head->is_target || strncmp(req->r_dentry->d_name.name,
-					       client->mount_args->snapdir_name,
+					       fsc->mount_options->snapdir_name,
 					       req->r_dentry->d_name.len))) {
 		/*
 		 * lookup link rename   : null -> possibly existing inode
@@ -1060,7 +1064,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 				d_delete(dn);
 				goto done;
 			}
-			dn = splice_dentry(dn, in, &have_lease);
+			dn = splice_dentry(dn, in, &have_lease, true);
 			if (IS_ERR(dn)) {
 				err = PTR_ERR(dn);
 				goto done;
@@ -1103,7 +1107,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			goto done;
 		}
 		dout(" linking snapped dir %p to dn %p\n", in, dn);
-		dn = splice_dentry(dn, in, NULL);
+		dn = splice_dentry(dn, in, NULL, true);
 		if (IS_ERR(dn)) {
 			err = PTR_ERR(dn);
 			goto done;
@@ -1228,14 +1232,14 @@ retry_lookup:
 			in = dn->d_inode;
 		} else {
 			in = ceph_get_inode(parent->d_sb, vino);
-			if (in == NULL) {
+			if (IS_ERR(in)) {
 				dout("new_inode badness\n");
 				d_delete(dn);
 				dput(dn);
-				err = -ENOMEM;
+				err = PTR_ERR(in);
 				goto out;
 			}
-			dn = splice_dentry(dn, in, NULL);
+			dn = splice_dentry(dn, in, NULL, false);
 			if (IS_ERR(dn))
 				dn = NULL;
 		}
@@ -1530,7 +1534,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	struct inode *parent_inode = dentry->d_parent->d_inode;
 	const unsigned int ia_valid = attr->ia_valid;
 	struct ceph_mds_request *req;
-	struct ceph_mds_client *mdsc = &ceph_sb_to_client(dentry->d_sb)->mdsc;
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(dentry->d_sb)->mdsc;
 	int issued;
 	int release = 0, dirtied = 0;
 	int mask = 0;
@@ -1725,8 +1729,8 @@ out:
  */
 int ceph_do_getattr(struct inode *inode, int mask)
 {
-	struct ceph_client *client = ceph_sb_to_client(inode->i_sb);
-	struct ceph_mds_client *mdsc = &client->mdsc;
+	struct ceph_fs_client *fsc = ceph_sb_to_client(inode->i_sb);
+	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
 	int err;
 

@@ -28,9 +28,14 @@ struct nf_ct_ext {
 	char data[0];
 };
 
-static inline int nf_ct_ext_exist(const struct nf_conn *ct, u8 id)
+static inline bool __nf_ct_ext_exist(const struct nf_ct_ext *ext, u8 id)
 {
-	return (ct->ext && ct->ext->offset[id]);
+	return !!ext->offset[id];
+}
+
+static inline bool nf_ct_ext_exist(const struct nf_conn *ct, u8 id)
+{
+	return (ct->ext && __nf_ct_ext_exist(ct->ext, id));
 }
 
 static inline void *__nf_ct_ext_find(const struct nf_conn *ct, u8 id)

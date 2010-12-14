@@ -38,7 +38,7 @@
 
 struct mpc5xxx_can_data {
 	unsigned int type;
-	u32 (*get_clock)(struct of_device *ofdev, const char *clock_name,
+	u32 (*get_clock)(struct platform_device *ofdev, const char *clock_name,
 			 int *mscan_clksrc);
 };
 
@@ -48,7 +48,7 @@ static struct of_device_id __devinitdata mpc52xx_cdm_ids[] = {
 	{}
 };
 
-static u32 __devinit mpc52xx_can_get_clock(struct of_device *ofdev,
+static u32 __devinit mpc52xx_can_get_clock(struct platform_device *ofdev,
 					   const char *clock_name,
 					   int *mscan_clksrc)
 {
@@ -101,7 +101,7 @@ static u32 __devinit mpc52xx_can_get_clock(struct of_device *ofdev,
 	return freq;
 }
 #else /* !CONFIG_PPC_MPC52xx */
-static u32 __devinit mpc52xx_can_get_clock(struct of_device *ofdev,
+static u32 __devinit mpc52xx_can_get_clock(struct platform_device *ofdev,
 					   const char *clock_name,
 					   int *mscan_clksrc)
 {
@@ -129,7 +129,7 @@ static struct of_device_id __devinitdata mpc512x_clock_ids[] = {
 	{}
 };
 
-static u32 __devinit mpc512x_can_get_clock(struct of_device *ofdev,
+static u32 __devinit mpc512x_can_get_clock(struct platform_device *ofdev,
 					   const char *clock_name,
 					   int *mscan_clksrc)
 {
@@ -143,12 +143,12 @@ static u32 __devinit mpc512x_can_get_clock(struct of_device *ofdev,
 	np_clock = of_find_matching_node(NULL, mpc512x_clock_ids);
 	if (!np_clock) {
 		dev_err(&ofdev->dev, "couldn't find clock node\n");
-		return -ENODEV;
+		return 0;
 	}
 	clockctl = of_iomap(np_clock, 0);
 	if (!clockctl) {
 		dev_err(&ofdev->dev, "couldn't map clock registers\n");
-		return 0;
+		goto exit_put;
 	}
 
 	/* Determine the MSCAN device index from the physical address */
@@ -233,13 +233,13 @@ static u32 __devinit mpc512x_can_get_clock(struct of_device *ofdev,
 		clocksrc == 1 ? "ref_clk" : "sys_clk", clockdiv);
 
 exit_unmap:
-	of_node_put(np_clock);
 	iounmap(clockctl);
-
+exit_put:
+	of_node_put(np_clock);
 	return freq;
 }
 #else /* !CONFIG_PPC_MPC512x */
-static u32 __devinit mpc512x_can_get_clock(struct of_device *ofdev,
+static u32 __devinit mpc512x_can_get_clock(struct platform_device *ofdev,
 					   const char *clock_name,
 					   int *mscan_clksrc)
 {
@@ -247,7 +247,7 @@ static u32 __devinit mpc512x_can_get_clock(struct of_device *ofdev,
 }
 #endif /* CONFIG_PPC_MPC512x */
 
-static int __devinit mpc5xxx_can_probe(struct of_device *ofdev,
+static int __devinit mpc5xxx_can_probe(struct platform_device *ofdev,
 				       const struct of_device_id *id)
 {
 	struct mpc5xxx_can_data *data = (struct mpc5xxx_can_data *)id->data;
@@ -317,7 +317,7 @@ exit_unmap_mem:
 	return err;
 }
 
-static int __devexit mpc5xxx_can_remove(struct of_device *ofdev)
+static int __devexit mpc5xxx_can_remove(struct platform_device *ofdev)
 {
 	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
 	struct mscan_priv *priv = netdev_priv(dev);
@@ -334,7 +334,7 @@ static int __devexit mpc5xxx_can_remove(struct of_device *ofdev)
 
 #ifdef CONFIG_PM
 static struct mscan_regs saved_regs;
-static int mpc5xxx_can_suspend(struct of_device *ofdev, pm_message_t state)
+static int mpc5xxx_can_suspend(struct platform_device *ofdev, pm_message_t state)
 {
 	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
 	struct mscan_priv *priv = netdev_priv(dev);
@@ -345,7 +345,7 @@ static int mpc5xxx_can_suspend(struct of_device *ofdev, pm_message_t state)
 	return 0;
 }
 
-static int mpc5xxx_can_resume(struct of_device *ofdev)
+static int mpc5xxx_can_resume(struct platform_device *ofdev)
 {
 	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
 	struct mscan_priv *priv = netdev_priv(dev);

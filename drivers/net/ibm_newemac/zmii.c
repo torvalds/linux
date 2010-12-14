@@ -82,7 +82,7 @@ static inline u32 zmii_mode_mask(int mode, int input)
 	}
 }
 
-int __devinit zmii_attach(struct of_device *ofdev, int input, int *mode)
+int __devinit zmii_attach(struct platform_device *ofdev, int input, int *mode)
 {
 	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 	struct zmii_regs __iomem *p = dev->base;
@@ -148,7 +148,7 @@ int __devinit zmii_attach(struct of_device *ofdev, int input, int *mode)
 	return 0;
 }
 
-void zmii_get_mdio(struct of_device *ofdev, int input)
+void zmii_get_mdio(struct platform_device *ofdev, int input)
 {
 	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 	u32 fer;
@@ -161,7 +161,7 @@ void zmii_get_mdio(struct of_device *ofdev, int input)
 	out_be32(&dev->base->fer, fer | ZMII_FER_MDI(input));
 }
 
-void zmii_put_mdio(struct of_device *ofdev, int input)
+void zmii_put_mdio(struct platform_device *ofdev, int input)
 {
 	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 
@@ -170,7 +170,7 @@ void zmii_put_mdio(struct of_device *ofdev, int input)
 }
 
 
-void zmii_set_speed(struct of_device *ofdev, int input, int speed)
+void zmii_set_speed(struct platform_device *ofdev, int input, int speed)
 {
 	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 	u32 ssr;
@@ -191,7 +191,7 @@ void zmii_set_speed(struct of_device *ofdev, int input, int speed)
 	mutex_unlock(&dev->lock);
 }
 
-void zmii_detach(struct of_device *ofdev, int input)
+void zmii_detach(struct platform_device *ofdev, int input)
 {
 	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 
@@ -210,13 +210,13 @@ void zmii_detach(struct of_device *ofdev, int input)
 	mutex_unlock(&dev->lock);
 }
 
-int zmii_get_regs_len(struct of_device *ofdev)
+int zmii_get_regs_len(struct platform_device *ofdev)
 {
 	return sizeof(struct emac_ethtool_regs_subhdr) +
 		sizeof(struct zmii_regs);
 }
 
-void *zmii_dump_regs(struct of_device *ofdev, void *buf)
+void *zmii_dump_regs(struct platform_device *ofdev, void *buf)
 {
 	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 	struct emac_ethtool_regs_subhdr *hdr = buf;
@@ -231,7 +231,7 @@ void *zmii_dump_regs(struct of_device *ofdev, void *buf)
 	return regs + 1;
 }
 
-static int __devinit zmii_probe(struct of_device *ofdev,
+static int __devinit zmii_probe(struct platform_device *ofdev,
 				const struct of_device_id *match)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -286,7 +286,7 @@ static int __devinit zmii_probe(struct of_device *ofdev,
 	return rc;
 }
 
-static int __devexit zmii_remove(struct of_device *ofdev)
+static int __devexit zmii_remove(struct platform_device *ofdev)
 {
 	struct zmii_instance *dev = dev_get_drvdata(&ofdev->dev);
 

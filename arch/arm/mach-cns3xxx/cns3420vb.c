@@ -32,6 +32,7 @@
 #include <mach/cns3xxx.h>
 #include <mach/irqs.h>
 #include "core.h"
+#include "devices.h"
 
 /*
  * NOR Flash
@@ -117,6 +118,9 @@ static void __init cns3420_init(void)
 {
 	platform_add_devices(cns3420_pdevs, ARRAY_SIZE(cns3420_pdevs));
 
+	cns3xxx_ahci_init();
+	cns3xxx_sdhci_init();
+
 	pm_power_off = cns3xxx_power_off;
 }
 
@@ -138,8 +142,6 @@ static void __init cns3420_map_io(void)
 }
 
 MACHINE_START(CNS3420VB, "Cavium Networks CNS3420 Validation Board")
-	.phys_io	= CNS3XXX_UART0_BASE,
-	.io_pg_offst	= (CNS3XXX_UART0_BASE_VIRT >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.map_io		= cns3420_map_io,
 	.init_irq	= cns3xxx_init_irq,

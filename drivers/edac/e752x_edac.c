@@ -958,7 +958,7 @@ static void e752x_check(struct mem_ctl_info *mci)
 }
 
 /* Program byte/sec bandwidth scrub rate to hardware */
-static int set_sdram_scrub_rate(struct mem_ctl_info *mci, u32 *new_bw)
+static int set_sdram_scrub_rate(struct mem_ctl_info *mci, u32 new_bw)
 {
 	const struct scrubrate *scrubrates;
 	struct e752x_pvt *pvt = (struct e752x_pvt *) mci->pvt_info;
@@ -975,7 +975,7 @@ static int set_sdram_scrub_rate(struct mem_ctl_info *mci, u32 *new_bw)
 	 * desired rate and program the cooresponding register value.
 	 */
 	for (i = 0; scrubrates[i].bandwidth != SDRATE_EOT; i++)
-		if (scrubrates[i].bandwidth >= *new_bw)
+		if (scrubrates[i].bandwidth >= new_bw)
 			break;
 
 	if (scrubrates[i].bandwidth == SDRATE_EOT)

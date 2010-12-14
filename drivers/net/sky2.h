@@ -2161,21 +2161,21 @@ struct sky2_tx_le {
 	__le16	length;	/* also vlan tag or checksum start */
 	u8	ctrl;
 	u8	opcode;
-} __attribute((packed));
+} __packed;
 
 struct sky2_rx_le {
 	__le32	addr;
 	__le16	length;
 	u8	ctrl;
 	u8	opcode;
-} __attribute((packed));
+} __packed;
 
 struct sky2_status_le {
 	__le32	status;	/* also checksum */
 	__le16	length;	/* also vlan tag */
 	u8	css;
 	u8	opcode;
-} __attribute((packed));
+} __packed;
 
 struct tx_ring_info {
 	struct sk_buff	*skb;

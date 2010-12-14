@@ -410,7 +410,7 @@ static int
 ixgb_get_eeprom_len(struct net_device *netdev)
 {
 	/* return size in bytes */
-	return (IXGB_EEPROM_SIZE << 1);
+	return IXGB_EEPROM_SIZE << 1;
 }
 
 static int

@@ -38,53 +38,21 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
-#include <linux/inet_lro.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/qp.h>
 #include <linux/mlx4/cq.h>
 #include <linux/mlx4/srq.h>
 #include <linux/mlx4/doorbell.h>
+#include <linux/mlx4/cmd.h>
 
 #include "en_port.h"
 
 #define DRV_NAME	"mlx4_en"
-#define DRV_VERSION	"1.4.1.1"
-#define DRV_RELDATE	"June 2009"
-
+#define DRV_VERSION	"1.5.1.6"
+#define DRV_RELDATE	"August 2010"
 
 #define MLX4_EN_MSG_LEVEL	(NETIF_MSG_LINK | NETIF_MSG_IFDOWN)
-
-#define en_print(level, priv, format, arg...)			\
-	{							\
-	if ((priv)->registered)					\
-		printk(level "%s: %s: " format, DRV_NAME,	\
-			(priv->dev)->name, ## arg);		\
-	else							\
-		printk(level "%s: %s: Port %d: " format,	\
-			DRV_NAME, dev_name(&priv->mdev->pdev->dev), \
-			(priv)->port, ## arg);			\
-	}
-
-#define en_dbg(mlevel, priv, format, arg...)			\
-	{							\
-	if (NETIF_MSG_##mlevel & priv->msg_enable)		\
-		en_print(KERN_DEBUG, priv, format, ## arg)	\
-	}
-#define en_warn(priv, format, arg...)				\
-	en_print(KERN_WARNING, priv, format, ## arg)
-#define en_err(priv, format, arg...)				\
-	en_print(KERN_ERR, priv, format, ## arg)
-
-#define mlx4_err(mdev, format, arg...) \
-	printk(KERN_ERR "%s %s: " format , DRV_NAME ,\
-		dev_name(&mdev->pdev->dev) , ## arg)
-#define mlx4_info(mdev, format, arg...) \
-	printk(KERN_INFO "%s %s: " format , DRV_NAME ,\
-		dev_name(&mdev->pdev->dev) , ## arg)
-#define mlx4_warn(mdev, format, arg...) \
-	printk(KERN_WARNING "%s %s: " format , DRV_NAME ,\
-		dev_name(&mdev->pdev->dev) , ## arg)
 
 /*
  * Device constants
@@ -93,7 +61,6 @@
 
 #define MLX4_EN_PAGE_SHIFT	12
 #define MLX4_EN_PAGE_SIZE	(1 << MLX4_EN_PAGE_SHIFT)
-#define MAX_TX_RINGS		16
 #define MAX_RX_RINGS		16
 #define TXBB_SIZE		64
 #define HEADROOM		(2048 / TXBB_SIZE + 1)
@@ -139,6 +106,7 @@ enum {
 #define MLX4_EN_SMALL_PKT_SIZE		64
 #define MLX4_EN_NUM_TX_RINGS		8
 #define MLX4_EN_NUM_PPP_RINGS		8
+#define MAX_TX_RINGS			(MLX4_EN_NUM_TX_RINGS + MLX4_EN_NUM_PPP_RINGS)
 #define MLX4_EN_DEF_TX_RING_SIZE	512
 #define MLX4_EN_DEF_RX_RING_SIZE  	1024
 
@@ -171,9 +139,13 @@ enum {
 
 #define SMALL_PACKET_SIZE      (256 - NET_IP_ALIGN)
 #define HEADER_COPY_SIZE       (128 - NET_IP_ALIGN)
+#define MLX4_LOOPBACK_TEST_PAYLOAD (HEADER_COPY_SIZE - ETH_HLEN)
 
 #define MLX4_EN_MIN_MTU		46
 #define ETH_BCAST		0xffffffffffffULL
+
+#define MLX4_EN_LOOPBACK_RETRIES	5
+#define MLX4_EN_LOOPBACK_TIMEOUT	100
 
 #ifdef MLX4_EN_PERF_STAT
 /* Number of samples to 'average' */
@@ -281,7 +253,6 @@ struct mlx4_en_rx_desc {
 struct mlx4_en_rx_ring {
 	struct mlx4_hwq_resources wqres;
 	struct mlx4_en_rx_alloc page_alloc[MLX4_EN_MAX_RX_FRAGS];
-	struct net_lro_mgr lro;
 	u32 size ;	/* number of Rx descs*/
 	u32 actual_size;
 	u32 size_mask;
@@ -345,7 +316,8 @@ struct mlx4_en_port_profile {
 
 struct mlx4_en_profile {
 	int rss_xor;
-	int num_lro;
+	int tcp_rss;
+	int udp_rss;
 	u8 rss_mask;
 	u32 active_ports;
 	u32 small_pkt_int;
@@ -369,6 +341,7 @@ struct mlx4_en_dev {
 	struct mlx4_mr		mr;
 	u32                     priv_pdn;
 	spinlock_t              uar_lock;
+	u8			mac_removed[MLX4_MAX_PORTS + 1];
 };
 
 
@@ -387,6 +360,13 @@ struct mlx4_en_rss_context {
 	u8 hash_fn;
 	u8 flags;
 	__be32 rss_key[10];
+	__be32 base_qpn_udp;
+};
+
+struct mlx4_en_port_state {
+	int link_state;
+	int link_speed;
+	int transciver;
 };
 
 struct mlx4_en_pkt_stats {
@@ -397,9 +377,6 @@ struct mlx4_en_pkt_stats {
 };
 
 struct mlx4_en_port_stats {
-	unsigned long lro_aggregated;
-	unsigned long lro_flushed;
-	unsigned long lro_no_desc;
 	unsigned long tso_packets;
 	unsigned long queue_stopped;
 	unsigned long wake_queue;
@@ -408,7 +385,7 @@ struct mlx4_en_port_stats {
 	unsigned long rx_chksum_good;
 	unsigned long rx_chksum_none;
 	unsigned long tx_chksum_offload;
-#define NUM_PORT_STATS		11
+#define NUM_PORT_STATS		8
 };
 
 struct mlx4_en_perf_stats {
@@ -437,6 +414,7 @@ struct mlx4_en_priv {
 	struct vlan_group *vlgrp;
 	struct net_device_stats stats;
 	struct net_device_stats ret_stats;
+	struct mlx4_en_port_state port_state;
 	spinlock_t stats_lock;
 
 	unsigned long last_moder_packets;
@@ -455,6 +433,8 @@ struct mlx4_en_priv {
 	u16 sample_interval;
 	u16 adaptive_rx_coal;
 	u32 msg_enable;
+	u32 loopback_ok;
+	u32 validate_loopback;
 
 	struct mlx4_hwq_resources res;
 	int link_state;
@@ -495,6 +475,7 @@ struct mlx4_en_priv {
 	char *mc_addrs;
 	int mc_addrs_cnt;
 	struct mlx4_en_stat_out_mbox hw_stats;
+	int vids[128];
 };
 
 
@@ -563,9 +544,46 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 			   u8 promisc);
 
 int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset);
+int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port);
+
+#define MLX4_EN_NUM_SELF_TEST	5
+void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf);
+u64 mlx4_en_mac_to_u64(u8 *addr);
 
 /*
  * Globals
  */
 extern const struct ethtool_ops mlx4_en_ethtool_ops;
+
+
+
+/*
+ * printk / logging functions
+ */
+
+int en_print(const char *level, const struct mlx4_en_priv *priv,
+	     const char *format, ...) __attribute__ ((format (printf, 3, 4)));
+
+#define en_dbg(mlevel, priv, format, arg...)			\
+do {								\
+	if (NETIF_MSG_##mlevel & priv->msg_enable)		\
+		en_print(KERN_DEBUG, priv, format, ##arg);	\
+} while (0)
+#define en_warn(priv, format, arg...)			\
+	en_print(KERN_WARNING, priv, format, ##arg)
+#define en_err(priv, format, arg...)			\
+	en_print(KERN_ERR, priv, format, ##arg)
+#define en_info(priv, format, arg...)			\
+	en_print(KERN_INFO, priv, format, ## arg)
+
+#define mlx4_err(mdev, format, arg...)			\
+	pr_err("%s %s: " format, DRV_NAME,		\
+	       dev_name(&mdev->pdev->dev), ##arg)
+#define mlx4_info(mdev, format, arg...)			\
+	pr_info("%s %s: " format, DRV_NAME,		\
+		dev_name(&mdev->pdev->dev), ##arg)
+#define mlx4_warn(mdev, format, arg...)			\
+	pr_warning("%s %s: " format, DRV_NAME,		\
+		   dev_name(&mdev->pdev->dev), ##arg)
+
 #endif

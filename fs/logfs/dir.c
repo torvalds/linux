@@ -434,8 +434,11 @@ static int __logfs_create(struct inode *dir, struct dentry *dentry,
 	int ret;
 
 	ta = kzalloc(sizeof(*ta), GFP_KERNEL);
-	if (!ta)
+	if (!ta) {
+		inode->i_nlink--;
+		iput(inode);
 		return -ENOMEM;
+	}
 
 	ta->state = CREATE_1;
 	ta->ino = inode->i_ino;
@@ -566,7 +569,7 @@ static int logfs_link(struct dentry *old_dentry, struct inode *dir,
 		return -EMLINK;
 
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 	inode->i_nlink++;
 	mark_inode_dirty_sync(inode);
 
@@ -821,7 +824,8 @@ const struct inode_operations logfs_dir_iops = {
 };
 const struct file_operations logfs_dir_fops = {
 	.fsync		= logfs_fsync,
-	.ioctl		= logfs_ioctl,
+	.unlocked_ioctl	= logfs_ioctl,
 	.readdir	= logfs_readdir,
 	.read		= generic_read_dir,
+	.llseek		= default_llseek,
 };

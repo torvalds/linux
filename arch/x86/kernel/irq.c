@@ -67,10 +67,10 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->apic_perf_irqs);
 	seq_printf(p, "  Performance monitoring interrupts\n");
-	seq_printf(p, "%*s: ", prec, "PND");
+	seq_printf(p, "%*s: ", prec, "IWI");
 	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", irq_stats(j)->apic_pending_irqs);
-	seq_printf(p, "  Performance pending work\n");
+		seq_printf(p, "%10u ", irq_stats(j)->apic_irq_work_irqs);
+	seq_printf(p, "  IRQ work interrupts\n");
 #endif
 	if (x86_platform_ipi_callback) {
 		seq_printf(p, "%*s: ", prec, "PLT");
@@ -159,7 +159,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	seq_printf(p, "%*d: ", prec, i);
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
-	seq_printf(p, " %8s", desc->chip->name);
+	seq_printf(p, " %8s", desc->irq_data.chip->name);
 	seq_printf(p, "-%-8s", desc->name);
 
 	if (action) {
@@ -185,7 +185,7 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 	sum += irq_stats(cpu)->apic_timer_irqs;
 	sum += irq_stats(cpu)->irq_spurious_count;
 	sum += irq_stats(cpu)->apic_perf_irqs;
-	sum += irq_stats(cpu)->apic_pending_irqs;
+	sum += irq_stats(cpu)->apic_irq_work_irqs;
 #endif
 	if (x86_platform_ipi_callback)
 		sum += irq_stats(cpu)->x86_platform_ipis;
@@ -282,6 +282,7 @@ void fixup_irqs(void)
 	unsigned int irq, vector;
 	static int warned;
 	struct irq_desc *desc;
+	struct irq_data *data;
 
 	for_each_irq_desc(irq, desc) {
 		int break_affinity = 0;
@@ -296,7 +297,8 @@ void fixup_irqs(void)
 		/* interrupt's are disabled at this point */
 		raw_spin_lock(&desc->lock);
 
-		affinity = desc->affinity;
+		data = &desc->irq_data;
+		affinity = data->affinity;
 		if (!irq_has_action(irq) ||
 		    cpumask_equal(affinity, cpu_online_mask)) {
 			raw_spin_unlock(&desc->lock);
@@ -315,16 +317,16 @@ void fixup_irqs(void)
 			affinity = cpu_all_mask;
 		}
 
-		if (!(desc->status & IRQ_MOVE_PCNTXT) && desc->chip->mask)
-			desc->chip->mask(irq);
+		if (!(desc->status & IRQ_MOVE_PCNTXT) && data->chip->irq_mask)
+			data->chip->irq_mask(data);
 
-		if (desc->chip->set_affinity)
-			desc->chip->set_affinity(irq, affinity);
+		if (data->chip->irq_set_affinity)
+			data->chip->irq_set_affinity(data, affinity, true);
 		else if (!(warned++))
 			set_affinity = 0;
 
-		if (!(desc->status & IRQ_MOVE_PCNTXT) && desc->chip->unmask)
-			desc->chip->unmask(irq);
+		if (!(desc->status & IRQ_MOVE_PCNTXT) && data->chip->irq_unmask)
+			data->chip->irq_unmask(data);
 
 		raw_spin_unlock(&desc->lock);
 
@@ -355,10 +357,10 @@ void fixup_irqs(void)
 		if (irr  & (1 << (vector % 32))) {
 			irq = __get_cpu_var(vector_irq)[vector];
 
-			desc = irq_to_desc(irq);
+			data = irq_get_irq_data(irq);
 			raw_spin_lock(&desc->lock);
-			if (desc->chip->retrigger)
-				desc->chip->retrigger(irq);
+			if (data->chip->irq_retrigger)
+				data->chip->irq_retrigger(data);
 			raw_spin_unlock(&desc->lock);
 		}
 	}

@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/sched.h>
@@ -1001,7 +1000,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 	struct pxa_i2c *i2c;
 	struct resource *res;
 	struct i2c_pxa_platform_data *plat = dev->dev.platform_data;
-	struct platform_device_id *id = platform_get_device_id(dev);
+	const struct platform_device_id *id = platform_get_device_id(dev);
 	int ret;
 	int irq;
 

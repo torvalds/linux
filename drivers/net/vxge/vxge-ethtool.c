@@ -7,9 +7,9 @@
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
  *
- * vxge-ethtool.c: Driver for Neterion Inc's X3100 Series 10GbE PCIe I/O
+ * vxge-ethtool.c: Driver for Exar Corp's X3100 Series 10GbE PCIe I/O
  *                 Virtualized Server Adapter.
- * Copyright(c) 2002-2009 Neterion Inc.
+ * Copyright(c) 2002-2010 Exar Corp.
  ******************************************************************************/
 #include<linux/ethtool.h>
 #include <linux/slab.h>
@@ -1142,7 +1142,7 @@ static const struct ethtool_ops vxge_ethtool_ops = {
 	.get_ethtool_stats	= vxge_get_ethtool_stats,
 };
 
-void initialize_ethtool_ops(struct net_device *ndev)
+void vxge_initialize_ethtool_ops(struct net_device *ndev)
 {
 	SET_ETHTOOL_OPS(ndev, &vxge_ethtool_ops);
 }

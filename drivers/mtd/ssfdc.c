@@ -1,6 +1,6 @@
 /*
  * Linux driver for SSFDC Flash Translation Layer (Read only)
- * (c) 2005 Eptar srl
+ * © 2005 Eptar srl
  * Author: Claudio Lanconelli <lanconelli.claudio@eptar.com>
  *
  * Based on NTFL and MTDBLOCK_RO drivers

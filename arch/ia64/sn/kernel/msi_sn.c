@@ -175,7 +175,7 @@ static int sn_set_msi_irq_affinity(unsigned int irq,
 	 * Release XIO resources for the old MSI PCI address
 	 */
 
-	read_msi_msg(irq, &msg);
+	get_cached_msi_msg(irq, &msg);
         sn_pdev = (struct pcidev_info *)sn_irq_info->irq_pciioinfo;
 	pdev = sn_pdev->pdi_linux_pcidev;
 	provider = SN_PCIDEV_BUSPROVIDER(pdev);
@@ -228,8 +228,8 @@ static int sn_msi_retrigger_irq(unsigned int irq)
 
 static struct irq_chip sn_msi_chip = {
 	.name		= "PCI-MSI",
-	.mask		= mask_msi_irq,
-	.unmask		= unmask_msi_irq,
+	.irq_mask	= mask_msi_irq,
+	.irq_unmask	= unmask_msi_irq,
 	.ack		= sn_ack_msi_irq,
 #ifdef CONFIG_SMP
 	.set_affinity	= sn_set_msi_irq_affinity,

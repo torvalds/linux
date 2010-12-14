@@ -623,6 +623,19 @@ static struct platform_driver iss_net_driver = {
 
 static int driver_registered;
 
+static const struct net_device_ops iss_netdev_ops = {
+	.ndo_open		= iss_net_open,
+	.ndo_stop		= iss_net_close,
+	.ndo_get_stats		= iss_net_get_stats,
+	.ndo_start_xmit		= iss_net_start_xmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= iss_net_change_mtu,
+	.ndo_set_mac_address	= iss_net_set_mac,
+	//.ndo_do_ioctl		= iss_net_ioctl,
+	.ndo_tx_timeout		= iss_net_tx_timeout,
+	.ndo_set_multicast_list = iss_net_set_multicast_list,
+};
+
 static int iss_net_configure(int index, char *init)
 {
 	struct net_device *dev;
@@ -686,15 +699,8 @@ static int iss_net_configure(int index, char *init)
 	 */
 	snprintf(dev->name, sizeof dev->name, "eth%d", index);
 
+	dev->netdev_ops = &iss_netdev_ops;
 	dev->mtu = lp->mtu;
-	dev->open = iss_net_open;
-	dev->hard_start_xmit = iss_net_start_xmit;
-	dev->stop = iss_net_close;
-	dev->get_stats = iss_net_get_stats;
-	dev->set_multicast_list = iss_net_set_multicast_list;
-	dev->tx_timeout = iss_net_tx_timeout;
-	dev->set_mac_address = iss_net_set_mac;
-	dev->change_mtu = iss_net_change_mtu;
 	dev->watchdog_timeo = (HZ >> 1);
 	dev->irq = -1;
 

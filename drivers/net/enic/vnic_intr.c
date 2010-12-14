@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Cisco Systems, Inc.  All rights reserved.
+ * Copyright 2008-2010 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
  *
  * This program is free software; you may redistribute it and/or modify
@@ -39,8 +39,7 @@ int vnic_intr_alloc(struct vnic_dev *vdev, struct vnic_intr *intr,
 
 	intr->ctrl = vnic_dev_get_res(vdev, RES_TYPE_INTR_CTRL, index);
 	if (!intr->ctrl) {
-		printk(KERN_ERR "Failed to hook INTR[%d].ctrl resource\n",
-			index);
+		pr_err("Failed to hook INTR[%d].ctrl resource\n", index);
 		return -EINVAL;
 	}
 
@@ -65,9 +64,4 @@ void vnic_intr_coalescing_timer_set(struct vnic_intr *intr,
 void vnic_intr_clean(struct vnic_intr *intr)
 {
 	iowrite32(0, &intr->ctrl->int_credits);
-}
-
-void vnic_intr_raise(struct vnic_intr *intr)
-{
-	vnic_dev_raise_intr(intr->vdev, (u16)intr->index);
 }

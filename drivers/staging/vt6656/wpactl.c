@@ -186,7 +186,6 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
 		return wpa_release_wpadev(pDevice);
 }
 
-
 /*
  * Description:
  *      Set WPA algorithm & keys
@@ -349,9 +348,8 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
         return -EINVAL;
     }
 
-
-    if (IS_BROADCAST_ADDRESS(&param->addr[0]) || (param->addr == NULL)) {
-        // If IS_BROADCAST_ADDRESS, set the key as every key entry's group key.
+    if (is_broadcast_ether_addr(&param->addr[0]) || (param->addr == NULL)) {
+	/* if broadcast, set the key as every key entry's group key */
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Groupe Key Assign.\n");
 
         if ((KeybSetAllGroupKey(pDevice,
@@ -404,7 +402,7 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
 
         } else {
             // Key Table Full
-            if (IS_ETH_ADDRESS_EQUAL(&param->addr[0], pDevice->abyBSSID)) {
+	    if (!compare_ether_addr(&param->addr[0], pDevice->abyBSSID)) {
                 //DBG_PRN_WLAN03(("return NDIS_STATUS_INVALID_DATA -Key Table Full.2\n"));
                 return -EINVAL;
 
@@ -517,7 +515,6 @@ static int wpa_set_scan(PSDevice pDevice,
 {
 	int ret = 0;
 
-//2007-0919-01<Add>by MikeLiu
 /**set ap_scan=1&&scan_ssid=1 under hidden ssid mode**/
         PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
         PWLAN_IE_SSID       pItemSSID;
@@ -647,9 +644,9 @@ static int wpa_get_scan(PSDevice pDevice,
 
     for (ii = 0; ii < MAX_BSS_NUM; ii++) {
 
-         for(jj=0;jj<MAX_BSS_NUM-ii-1;jj++) {
+	for (jj = 0; jj < MAX_BSS_NUM - ii - 1; jj++) {
 
-           if((pMgmt->sBSSList[jj].bActive!=TRUE) ||
+		if ((pMgmt->sBSSList[jj].bActive != TRUE) ||
 
                 ((pMgmt->sBSSList[jj].uRSSI>pMgmt->sBSSList[jj+1].uRSSI) &&(pMgmt->sBSSList[jj+1].bActive!=FALSE))) {
 
@@ -697,7 +694,7 @@ static int wpa_get_scan(PSDevice pDevice,
    		    scan_buf->ssid_len = pItemSSID->len;
             scan_buf->freq = frequency_list[pBSS->uChannel-1];
             scan_buf->caps = pBSS->wCapInfo;    //DavidWang for sharemode
-//20080717-05,<Add> by James Li
+
 	        RFvRSSITodBm(pDevice, (BYTE)(pBSS->uRSSI), &ldBm);
 			if(-ldBm<50){
 				scan_buf->qual = 100;
@@ -712,7 +709,7 @@ static int wpa_get_scan(PSDevice pDevice,
             //scan_buf->qual =
             scan_buf->noise = 0;
             scan_buf->level = ldBm;
- //20080717-05,<Add> by James Li--End
+
             //scan_buf->maxrate =
             if (pBSS->wWPALen != 0) {
                 scan_buf->wpa_ie_len = pBSS->wWPALen;
@@ -875,7 +872,6 @@ static int wpa_set_associate(PSDevice pDevice,
     pMgmt->eCurrState = WMAC_STATE_IDLE;
     netif_stop_queue(pDevice->dev);
 
-//20080701-02,<Add> by Mike Liu
 /*******search if ap_scan=2 ,which is associating request in hidden ssid mode ****/
 {
    PKnownBSS       pCurr = NULL;

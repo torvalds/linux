@@ -6,7 +6,7 @@
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
- * Copyright 2007-2008, Intel Corporation
+ * Copyright 2007-2010, Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -29,7 +29,7 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 
 	memset(ht_cap, 0, sizeof(*ht_cap));
 
-	if (!ht_cap_ie)
+	if (!ht_cap_ie || !sband->ht_cap.ht_supported)
 		return;
 
 	ht_cap->ht_supported = true;
@@ -101,15 +101,55 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 		ht_cap->mcs.rx_mask[32/8] |= 1;
 }
 
-void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta)
+void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta, bool tx)
 {
 	int i;
 
+	cancel_work_sync(&sta->ampdu_mlme.work);
+
 	for (i = 0; i <  STA_TID_NUM; i++) {
-		__ieee80211_stop_tx_ba_session(sta, i, WLAN_BACK_INITIATOR);
+		__ieee80211_stop_tx_ba_session(sta, i, WLAN_BACK_INITIATOR, tx);
 		__ieee80211_stop_rx_ba_session(sta, i, WLAN_BACK_RECIPIENT,
-					       WLAN_REASON_QSTA_LEAVE_QBSS);
+					       WLAN_REASON_QSTA_LEAVE_QBSS, tx);
 	}
+}
+
+void ieee80211_ba_session_work(struct work_struct *work)
+{
+	struct sta_info *sta =
+		container_of(work, struct sta_info, ampdu_mlme.work);
+	struct tid_ampdu_tx *tid_tx;
+	int tid;
+
+	/*
+	 * When this flag is set, new sessions should be
+	 * blocked, and existing sessions will be torn
+	 * down by the code that set the flag, so this
+	 * need not run.
+	 */
+	if (test_sta_flags(sta, WLAN_STA_BLOCK_BA))
+		return;
+
+	mutex_lock(&sta->ampdu_mlme.mtx);
+	for (tid = 0; tid < STA_TID_NUM; tid++) {
+		if (test_and_clear_bit(tid, sta->ampdu_mlme.tid_rx_timer_expired))
+			___ieee80211_stop_rx_ba_session(
+				sta, tid, WLAN_BACK_RECIPIENT,
+				WLAN_REASON_QSTA_TIMEOUT, true);
+
+		tid_tx = sta->ampdu_mlme.tid_tx[tid];
+		if (!tid_tx)
+			continue;
+
+		if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state))
+			ieee80211_tx_ba_session_handle_start(sta, tid);
+		else if (test_and_clear_bit(HT_AGG_STATE_WANT_STOP,
+					    &tid_tx->state))
+			___ieee80211_stop_tx_ba_session(sta, tid,
+							WLAN_BACK_INITIATOR,
+							true);
+	}
+	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
 
 void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
@@ -175,14 +215,11 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	if (initiator == WLAN_BACK_INITIATOR)
-		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_INITIATOR, 0);
-	else { /* WLAN_BACK_RECIPIENT */
-		spin_lock_bh(&sta->lock);
-		if (sta->ampdu_mlme.tid_state_tx[tid] & HT_ADDBA_REQUESTED_MSK)
-			___ieee80211_stop_tx_ba_session(sta, tid,
-							WLAN_BACK_RECIPIENT);
-		spin_unlock_bh(&sta->lock);
-	}
+		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_INITIATOR, 0,
+					       true);
+	else
+		__ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_RECIPIENT,
+					       true);
 }
 
 int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
@@ -231,3 +268,33 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 
 	return 0;
 }
+
+void ieee80211_request_smps_work(struct work_struct *work)
+{
+	struct ieee80211_sub_if_data *sdata =
+		container_of(work, struct ieee80211_sub_if_data,
+			     u.mgd.request_smps_work);
+
+	mutex_lock(&sdata->u.mgd.mtx);
+	__ieee80211_request_smps(sdata, sdata->u.mgd.driver_smps_mode);
+	mutex_unlock(&sdata->u.mgd.mtx);
+}
+
+void ieee80211_request_smps(struct ieee80211_vif *vif,
+			    enum ieee80211_smps_mode smps_mode)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION))
+		return;
+
+	if (WARN_ON(smps_mode == IEEE80211_SMPS_OFF))
+		smps_mode = IEEE80211_SMPS_AUTOMATIC;
+
+	sdata->u.mgd.driver_smps_mode = smps_mode;
+
+	ieee80211_queue_work(&sdata->local->hw,
+			     &sdata->u.mgd.request_smps_work);
+}
+/* this might change ... don't want non-open drivers using it */
+EXPORT_SYMBOL_GPL(ieee80211_request_smps);

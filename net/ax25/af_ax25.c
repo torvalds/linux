@@ -1103,7 +1103,7 @@ done:
 out:
 	release_sock(sk);
 
-	return 0;
+	return err;
 }
 
 /*

@@ -76,7 +76,8 @@ static void ath_led_brightness(struct led_classdev *led_cdev,
 	case LED_FULL:
 		if (led->led_type == ATH_LED_ASSOC) {
 			sc->sc_flags |= SC_OP_LED_ASSOCIATED;
-			ieee80211_queue_delayed_work(sc->hw,
+			if (led_blink)
+				ieee80211_queue_delayed_work(sc->hw,
 						     &sc->ath_led_blink_work, 0);
 		} else if (led->led_type == ATH_LED_RADIO) {
 			ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 0);
@@ -143,7 +144,8 @@ void ath_init_leds(struct ath_softc *sc)
 	/* LED off, active low */
 	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
 
-	INIT_DELAYED_WORK(&sc->ath_led_blink_work, ath_led_blink_work);
+	if (led_blink)
+		INIT_DELAYED_WORK(&sc->ath_led_blink_work, ath_led_blink_work);
 
 	trigger = ieee80211_get_radio_led_name(sc->hw);
 	snprintf(sc->radio_led.name, sizeof(sc->radio_led.name),
@@ -180,7 +182,8 @@ void ath_init_leds(struct ath_softc *sc)
 	return;
 
 fail:
-	cancel_delayed_work_sync(&sc->ath_led_blink_work);
+	if (led_blink)
+		cancel_delayed_work_sync(&sc->ath_led_blink_work);
 	ath_deinit_leds(sc);
 }
 
@@ -248,36 +251,6 @@ static void ath_detect_bt_priority(struct ath_softc *sc)
 	}
 }
 
-/*
- * Configures appropriate weight based on stomp type.
- */
-static void ath9k_btcoex_bt_stomp(struct ath_softc *sc,
-				  enum ath_stomp_type stomp_type)
-{
-	struct ath_hw *ah = sc->sc_ah;
-
-	switch (stomp_type) {
-	case ATH_BTCOEX_STOMP_ALL:
-		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
-					   AR_STOMP_ALL_WLAN_WGHT);
-		break;
-	case ATH_BTCOEX_STOMP_LOW:
-		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
-					   AR_STOMP_LOW_WLAN_WGHT);
-		break;
-	case ATH_BTCOEX_STOMP_NONE:
-		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
-					   AR_STOMP_NONE_WLAN_WGHT);
-		break;
-	default:
-		ath_print(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
-			  "Invalid Stomptype\n");
-		break;
-	}
-
-	ath9k_hw_btcoex_enable(ah);
-}
-
 static void ath9k_gen_timer_start(struct ath_hw *ah,
 				  struct ath_gen_timer *timer,
 				  u32 timer_next,
@@ -316,6 +289,7 @@ static void ath_btcoex_period_timer(unsigned long data)
 	struct ath_softc *sc = (struct ath_softc *) data;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_common *common = ath9k_hw_common(ah);
 	u32 timer_period;
 	bool is_btscan;
 
@@ -325,7 +299,7 @@ static void ath_btcoex_period_timer(unsigned long data)
 
 	spin_lock_bh(&btcoex->btcoex_lock);
 
-	ath9k_btcoex_bt_stomp(sc, is_btscan ? ATH_BTCOEX_STOMP_ALL :
+	ath9k_cmn_btcoex_bt_stomp(common, is_btscan ? ATH_BTCOEX_STOMP_ALL :
 			      btcoex->bt_stomp_type);
 
 	spin_unlock_bh(&btcoex->btcoex_lock);
@@ -356,17 +330,18 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 	struct ath_softc *sc = (struct ath_softc *)arg;
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_common *common = ath9k_hw_common(ah);
 	bool is_btscan = sc->sc_flags & SC_OP_BT_SCAN;
 
-	ath_print(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
+	ath_print(common, ATH_DBG_BTCOEX,
 		  "no stomp timer running\n");
 
 	spin_lock_bh(&btcoex->btcoex_lock);
 
 	if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_LOW || is_btscan)
-		ath9k_btcoex_bt_stomp(sc, ATH_BTCOEX_STOMP_NONE);
+		ath9k_cmn_btcoex_bt_stomp(common, ATH_BTCOEX_STOMP_NONE);
 	 else if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_ALL)
-		ath9k_btcoex_bt_stomp(sc, ATH_BTCOEX_STOMP_LOW);
+		ath9k_cmn_btcoex_bt_stomp(common, ATH_BTCOEX_STOMP_LOW);
 
 	spin_unlock_bh(&btcoex->btcoex_lock);
 }

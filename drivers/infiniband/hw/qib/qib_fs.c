@@ -58,6 +58,7 @@ static int qibfs_mknod(struct inode *dir, struct dentry *dentry,
 		goto bail;
 	}
 
+	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_uid = 0;
 	inode->i_gid = 0;
@@ -135,8 +136,8 @@ static ssize_t driver_names_read(struct file *file, char __user *buf,
 }
 
 static const struct file_operations driver_ops[] = {
-	{ .read = driver_stats_read, },
-	{ .read = driver_names_read, },
+	{ .read = driver_stats_read, .llseek = generic_file_llseek, },
+	{ .read = driver_names_read, .llseek = generic_file_llseek, },
 };
 
 /* read the per-device counters */
@@ -164,8 +165,8 @@ static ssize_t dev_names_read(struct file *file, char __user *buf,
 }
 
 static const struct file_operations cntr_ops[] = {
-	{ .read = dev_counters_read, },
-	{ .read = dev_names_read, },
+	{ .read = dev_counters_read, .llseek = generic_file_llseek, },
+	{ .read = dev_names_read, .llseek = generic_file_llseek, },
 };
 
 /*
@@ -210,9 +211,9 @@ static ssize_t portcntrs_2_read(struct file *file, char __user *buf,
 }
 
 static const struct file_operations portcntr_ops[] = {
-	{ .read = portnames_read, },
-	{ .read = portcntrs_1_read, },
-	{ .read = portcntrs_2_read, },
+	{ .read = portnames_read, .llseek = generic_file_llseek, },
+	{ .read = portcntrs_1_read, .llseek = generic_file_llseek, },
+	{ .read = portcntrs_2_read, .llseek = generic_file_llseek, },
 };
 
 /*
@@ -261,8 +262,8 @@ static ssize_t qsfp_2_read(struct file *file, char __user *buf,
 }
 
 static const struct file_operations qsfp_ops[] = {
-	{ .read = qsfp_1_read, },
-	{ .read = qsfp_2_read, },
+	{ .read = qsfp_1_read, .llseek = generic_file_llseek, },
+	{ .read = qsfp_2_read, .llseek = generic_file_llseek, },
 };
 
 static ssize_t flash_read(struct file *file, char __user *buf,
@@ -367,6 +368,7 @@ bail:
 static const struct file_operations flash_ops = {
 	.read = flash_read,
 	.write = flash_write,
+	.llseek = default_llseek,
 };
 
 static int add_cntr_files(struct super_block *sb, struct qib_devdata *dd)
@@ -553,13 +555,13 @@ bail:
 	return ret;
 }
 
-static int qibfs_get_sb(struct file_system_type *fs_type, int flags,
-			const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *qibfs_mount(struct file_system_type *fs_type, int flags,
+			const char *dev_name, void *data)
 {
-	int ret = get_sb_single(fs_type, flags, data,
-				qibfs_fill_super, mnt);
-	if (ret >= 0)
-		qib_super = mnt->mnt_sb;
+	struct dentry *ret;
+	ret = mount_single(fs_type, flags, data, qibfs_fill_super);
+	if (!IS_ERR(ret))
+		qib_super = ret->d_sb;
 	return ret;
 }
 
@@ -601,7 +603,7 @@ int qibfs_remove(struct qib_devdata *dd)
 static struct file_system_type qibfs_fs_type = {
 	.owner =        THIS_MODULE,
 	.name =         "ipathfs",
-	.get_sb =       qibfs_get_sb,
+	.mount =        qibfs_mount,
 	.kill_sb =      qibfs_kill_super,
 };
 

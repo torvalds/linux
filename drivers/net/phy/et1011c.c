@@ -111,7 +111,7 @@ static void __exit et1011c_exit(void)
 module_init(et1011c_init);
 module_exit(et1011c_exit);
 
-static struct mdio_device_id et1011c_tbl[] = {
+static struct mdio_device_id __maybe_unused et1011c_tbl[] = {
 	{ 0x0282f014, 0xfffffff0 },
 	{ }
 };

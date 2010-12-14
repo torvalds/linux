@@ -15,9 +15,6 @@
 #include <sound/soc.h>
 #include <linux/mfd/wm8350/audio.h>
 
-extern struct snd_soc_dai wm8350_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8350;
-
 enum wm8350_jack {
 	WM8350_JDL = 1,
 	WM8350_JDR = 2,

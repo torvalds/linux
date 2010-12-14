@@ -139,13 +139,12 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 	pdacf->p_dev = link;
 	link->priv = pdacf;
 
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	link->io.NumPorts1 = 16;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
+	link->resource[0]->end = 16;
 
-	link->conf.Attributes = CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
-	link->conf.IntType = INT_MEMORY_AND_IO;
-	link->conf.ConfigIndex = 1;
-	link->conf.Present = PRESENT_OPTION;
+	link->config_flags = CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
+	link->config_index = 1;
+	link->config_regs = PRESENT_OPTION;
 
 	return pdacf_config(link);
 }
@@ -217,9 +216,10 @@ static int pdacf_config(struct pcmcia_device *link)
 	int ret;
 
 	snd_printdd(KERN_DEBUG "pdacf_config called\n");
-	link->conf.ConfigIndex = 0x5;
+	link->config_index = 0x5;
+	link->config_flags |= CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ;
 
-	ret = pcmcia_request_io(link, &link->io);
+	ret = pcmcia_request_io(link);
 	if (ret)
 		goto failed;
 
@@ -227,11 +227,12 @@ static int pdacf_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	ret = pcmcia_request_configuration(link, &link->conf);
+	ret = pcmcia_enable_device(link);
 	if (ret)
 		goto failed;
 
-	if (snd_pdacf_assign_resources(pdacf, link->io.BasePort1, link->irq) < 0)
+	if (snd_pdacf_assign_resources(pdacf, link->resource[0]->start,
+					link->irq) < 0)
 		goto failed;
 
 	return 0;
@@ -286,9 +287,7 @@ MODULE_DEVICE_TABLE(pcmcia, snd_pdacf_ids);
 
 static struct pcmcia_driver pdacf_cs_driver = {
 	.owner		= THIS_MODULE,
-	.drv		= {
-		.name	= "snd-pdaudiocf",
-	},
+	.name		= "snd-pdaudiocf",
 	.probe		= snd_pdacf_probe,
 	.remove		= snd_pdacf_detach,
 	.id_table	= snd_pdacf_ids,

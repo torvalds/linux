@@ -390,7 +390,9 @@ static inline int gpio_valid(int gpio)
 		return 0;
 	if (cpu_is_omap7xx() && gpio < 192)
 		return 0;
-	if (cpu_is_omap24xx() && gpio < 128)
+	if (cpu_is_omap2420() && gpio < 128)
+		return 0;
+	if (cpu_is_omap2430() && gpio < 160)
 		return 0;
 	if ((cpu_is_omap34xx() || cpu_is_omap44xx()) && gpio < 192)
 		return 0;
@@ -2082,9 +2084,10 @@ void omap2_gpio_prepare_for_idle(int power_state)
 
 	for (i = min; i < gpio_bank_count; i++) {
 		struct gpio_bank *bank = &gpio_bank[i];
-		u32 l1, l2;
+		u32 l1 = 0, l2 = 0;
+		int j;
 
-		if (bank->dbck_enable_mask)
+		for (j = 0; j < hweight_long(bank->dbck_enable_mask); j++)
 			clk_disable(bank->dbck);
 
 		if (power_state > PWRDM_POWER_OFF)
@@ -2149,9 +2152,10 @@ void omap2_gpio_resume_after_idle(void)
 		min = 1;
 	for (i = min; i < gpio_bank_count; i++) {
 		struct gpio_bank *bank = &gpio_bank[i];
-		u32 l, gen, gen0, gen1;
+		u32 l = 0, gen, gen0, gen1;
+		int j;
 
-		if (bank->dbck_enable_mask)
+		for (j = 0; j < hweight_long(bank->dbck_enable_mask); j++)
 			clk_enable(bank->dbck);
 
 		if (!workaround_enabled)

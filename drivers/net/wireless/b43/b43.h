@@ -186,7 +186,8 @@ enum {
 #define B43_SHM_SH_PHYTXNOI		0x006E	/* PHY noise directly after TX (lower 8bit only) */
 #define B43_SHM_SH_RFRXSP1		0x0072	/* RF RX SP Register 1 */
 #define B43_SHM_SH_CHAN			0x00A0	/* Current channel (low 8bit only) */
-#define  B43_SHM_SH_CHAN_5GHZ		0x0100	/* Bit set, if 5Ghz channel */
+#define  B43_SHM_SH_CHAN_5GHZ		0x0100	/* Bit set, if 5 Ghz channel */
+#define  B43_SHM_SH_CHAN_40MHZ		0x0200	/* Bit set, if 40 Mhz channel width */
 #define B43_SHM_SH_BCMCFIFOID		0x0108	/* Last posted cookie to the bcast/mcast FIFO */
 /* TSSI information */
 #define B43_SHM_SH_TSSI_CCK		0x0058	/* TSSI for last 4 CCK frames (32bit) */
@@ -530,7 +531,7 @@ struct b43_fw_header {
 	/* Size of the data. For ucode and PCM this is in bytes.
 	 * For IV this is number-of-ivs. */
 	__be32 size;
-} __attribute__((__packed__));
+} __packed;
 
 /* Initial Value file format */
 #define B43_IV_OFFSET_MASK	0x7FFF
@@ -540,8 +541,8 @@ struct b43_iv {
 	union {
 		__be16 d16;
 		__be32 d32;
-	} data __attribute__((__packed__));
-} __attribute__((__packed__));
+	} data __packed;
+} __packed;
 
 
 /* Data structures for DMA transmission, per 80211 core. */

@@ -9,7 +9,7 @@ firstly, there's nothing wrong with semaphores. But if the simpler
 mutex semantics are sufficient for your code, then there are a couple
 of advantages of mutexes:
 
- - 'struct mutex' is smaller on most architectures: .e.g on x86,
+ - 'struct mutex' is smaller on most architectures: E.g. on x86,
    'struct semaphore' is 20 bytes, 'struct mutex' is 16 bytes.
    A smaller structure size means less RAM footprint, and better
    CPU-cache utilization.
@@ -136,3 +136,4 @@ the APIs of 'struct mutex' have been streamlined:
  void mutex_lock_nested(struct mutex *lock, unsigned int subclass);
  int  mutex_lock_interruptible_nested(struct mutex *lock,
                                       unsigned int subclass);
+ int atomic_dec_and_mutex_lock(atomic_t *cnt, struct mutex *lock);

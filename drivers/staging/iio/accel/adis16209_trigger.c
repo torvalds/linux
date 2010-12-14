@@ -23,15 +23,14 @@ static int adis16209_data_rdy_trig_poll(struct iio_dev *dev_info,
 	struct adis16209_state *st = iio_dev_get_devdata(dev_info);
 	struct iio_trigger *trig = st->trig;
 
-	trig->timestamp = timestamp;
-	iio_trigger_poll(trig);
+	iio_trigger_poll(trig, timestamp);
 
 	return IRQ_HANDLED;
 }
 
 IIO_EVENT_SH(data_rdy_trig, &adis16209_data_rdy_trig_poll);
 
-static DEVICE_ATTR(name, S_IRUGO, iio_trigger_read_name, NULL);
+static IIO_TRIGGER_NAME_ATTR;
 
 static struct attribute *adis16209_trigger_attrs[] = {
 	&dev_attr_name.attr,
@@ -83,14 +82,13 @@ int adis16209_probe_trigger(struct iio_dev *indio_dev)
 	struct adis16209_state *st = indio_dev->dev_data;
 
 	st->trig = iio_allocate_trigger();
-	st->trig->name = kmalloc(IIO_TRIGGER_NAME_LENGTH, GFP_KERNEL);
+	st->trig->name = kasprintf(GFP_KERNEL,
+				   "adis16209-dev%d",
+				   indio_dev->id);
 	if (!st->trig->name) {
 		ret = -ENOMEM;
 		goto error_free_trig;
 	}
-	snprintf((char *)st->trig->name,
-		 IIO_TRIGGER_NAME_LENGTH,
-		 "adis16209-dev%d", indio_dev->id);
 	st->trig->dev.parent = &st->us->dev;
 	st->trig->owner = THIS_MODULE;
 	st->trig->private_data = st;

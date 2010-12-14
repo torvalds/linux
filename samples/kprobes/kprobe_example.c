@@ -32,6 +32,11 @@ static int handler_pre(struct kprobe *p, struct pt_regs *regs)
 			" msr = 0x%lx\n",
 		p->addr, regs->nip, regs->msr);
 #endif
+#ifdef CONFIG_MIPS
+	printk(KERN_INFO "pre_handler: p->addr = 0x%p, epc = 0x%lx,"
+			" status = 0x%lx\n",
+		p->addr, regs->cp0_epc, regs->cp0_status);
+#endif
 
 	/* A dump_stack() here will give a stack backtrace */
 	return 0;
@@ -48,6 +53,10 @@ static void handler_post(struct kprobe *p, struct pt_regs *regs,
 #ifdef CONFIG_PPC
 	printk(KERN_INFO "post_handler: p->addr = 0x%p, msr = 0x%lx\n",
 		p->addr, regs->msr);
+#endif
+#ifdef CONFIG_MIPS
+	printk(KERN_INFO "post_handler: p->addr = 0x%p, status = 0x%lx\n",
+		p->addr, regs->cp0_status);
 #endif
 }
 

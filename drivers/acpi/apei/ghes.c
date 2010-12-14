@@ -41,6 +41,8 @@
 #include <linux/interrupt.h>
 #include <linux/cper.h>
 #include <linux/kdebug.h>
+#include <linux/platform_device.h>
+#include <linux/mutex.h>
 #include <acpi/apei.h>
 #include <acpi/atomicio.h>
 #include <acpi/hed.h>
@@ -87,6 +89,7 @@ struct ghes {
  * used for that.
  */
 static LIST_HEAD(ghes_sci);
+static DEFINE_MUTEX(ghes_list_mutex);
 
 static struct ghes *ghes_new(struct acpi_hest_generic *generic)
 {
@@ -132,26 +135,26 @@ static void ghes_fini(struct ghes *ghes)
 }
 
 enum {
-	GHES_SER_NO = 0x0,
-	GHES_SER_CORRECTED = 0x1,
-	GHES_SER_RECOVERABLE = 0x2,
-	GHES_SER_PANIC = 0x3,
+	GHES_SEV_NO = 0x0,
+	GHES_SEV_CORRECTED = 0x1,
+	GHES_SEV_RECOVERABLE = 0x2,
+	GHES_SEV_PANIC = 0x3,
 };
 
 static inline int ghes_severity(int severity)
 {
 	switch (severity) {
-	case CPER_SER_INFORMATIONAL:
-		return GHES_SER_NO;
-	case CPER_SER_CORRECTED:
-		return GHES_SER_CORRECTED;
-	case CPER_SER_RECOVERABLE:
-		return GHES_SER_RECOVERABLE;
-	case CPER_SER_FATAL:
-		return GHES_SER_PANIC;
+	case CPER_SEV_INFORMATIONAL:
+		return GHES_SEV_NO;
+	case CPER_SEV_CORRECTED:
+		return GHES_SEV_CORRECTED;
+	case CPER_SEV_RECOVERABLE:
+		return GHES_SEV_RECOVERABLE;
+	case CPER_SEV_FATAL:
+		return GHES_SEV_PANIC;
 	default:
 		/* Unkown, go panic */
-		return GHES_SER_PANIC;
+		return GHES_SEV_PANIC;
 	}
 }
 
@@ -237,16 +240,16 @@ static void ghes_clear_estatus(struct ghes *ghes)
 
 static void ghes_do_proc(struct ghes *ghes)
 {
-	int ser, processed = 0;
+	int sev, processed = 0;
 	struct acpi_hest_generic_data *gdata;
 
-	ser = ghes_severity(ghes->estatus->error_severity);
+	sev = ghes_severity(ghes->estatus->error_severity);
 	apei_estatus_for_each_section(ghes->estatus, gdata) {
 #ifdef CONFIG_X86_MCE
 		if (!uuid_le_cmp(*(uuid_le *)gdata->section_type,
 				 CPER_SEC_PLATFORM_MEM)) {
 			apei_mce_report_mem_error(
-				ser == GHES_SER_CORRECTED,
+				sev == GHES_SEV_CORRECTED,
 				(struct cper_sec_mem_err *)(gdata+1));
 			processed = 1;
 		}
@@ -293,18 +296,15 @@ static struct notifier_block ghes_notifier_sci = {
 	.notifier_call = ghes_notify_sci,
 };
 
-static int hest_ghes_parse(struct acpi_hest_header *hest_hdr, void *data)
+static int __devinit ghes_probe(struct platform_device *ghes_dev)
 {
 	struct acpi_hest_generic *generic;
 	struct ghes *ghes = NULL;
-	int rc = 0;
+	int rc = -EINVAL;
 
-	if (hest_hdr->type != ACPI_HEST_TYPE_GENERIC_ERROR)
-		return 0;
-
-	generic = (struct acpi_hest_generic *)hest_hdr;
+	generic = *(struct acpi_hest_generic **)ghes_dev->dev.platform_data;
 	if (!generic->enabled)
-		return 0;
+		return -ENODEV;
 
 	if (generic->error_block_length <
 	    sizeof(struct acpi_hest_generic_status)) {
@@ -327,62 +327,91 @@ static int hest_ghes_parse(struct acpi_hest_header *hest_hdr, void *data)
 		ghes = NULL;
 		goto err;
 	}
-	switch (generic->notify.type) {
-	case ACPI_HEST_NOTIFY_POLLED:
-		pr_warning(GHES_PFX
-"Generic hardware error source: %d notified via POLL is not supported!\n",
-			   generic->header.source_id);
-		break;
-	case ACPI_HEST_NOTIFY_EXTERNAL:
-	case ACPI_HEST_NOTIFY_LOCAL:
-		pr_warning(GHES_PFX
-"Generic hardware error source: %d notified via IRQ is not supported!\n",
-			   generic->header.source_id);
-		break;
-	case ACPI_HEST_NOTIFY_SCI:
+	if (generic->notify.type == ACPI_HEST_NOTIFY_SCI) {
+		mutex_lock(&ghes_list_mutex);
 		if (list_empty(&ghes_sci))
 			register_acpi_hed_notifier(&ghes_notifier_sci);
 		list_add_rcu(&ghes->list, &ghes_sci);
-		break;
-	case ACPI_HEST_NOTIFY_NMI:
-		pr_warning(GHES_PFX
-"Generic hardware error source: %d notified via NMI is not supported!\n",
-			   generic->header.source_id);
-		break;
-	default:
-		pr_warning(FW_WARN GHES_PFX
-	"Unknown notification type: %u for generic hardware error source: %d\n",
-			   generic->notify.type, generic->header.source_id);
-		break;
+		mutex_unlock(&ghes_list_mutex);
+	} else {
+		unsigned char *notify = NULL;
+
+		switch (generic->notify.type) {
+		case ACPI_HEST_NOTIFY_POLLED:
+			notify = "POLL";
+			break;
+		case ACPI_HEST_NOTIFY_EXTERNAL:
+		case ACPI_HEST_NOTIFY_LOCAL:
+			notify = "IRQ";
+			break;
+		case ACPI_HEST_NOTIFY_NMI:
+			notify = "NMI";
+			break;
+		}
+		if (notify) {
+			pr_warning(GHES_PFX
+"Generic hardware error source: %d notified via %s is not supported!\n",
+				   generic->header.source_id, notify);
+		} else {
+			pr_warning(FW_WARN GHES_PFX
+"Unknown notification type: %u for generic hardware error source: %d\n",
+			generic->notify.type, generic->header.source_id);
+		}
+		rc = -ENODEV;
+		goto err;
 	}
+	platform_set_drvdata(ghes_dev, ghes);
 
 	return 0;
 err:
-	if (ghes)
-		ghes_fini(ghes);
-	return rc;
-}
-
-static void ghes_cleanup(void)
-{
-	struct ghes *ghes, *nghes;
-
-	if (!list_empty(&ghes_sci))
-		unregister_acpi_hed_notifier(&ghes_notifier_sci);
-
-	synchronize_rcu();
-
-	list_for_each_entry_safe(ghes, nghes, &ghes_sci, list) {
-		list_del(&ghes->list);
+	if (ghes) {
 		ghes_fini(ghes);
 		kfree(ghes);
 	}
+	return rc;
 }
+
+static int __devexit ghes_remove(struct platform_device *ghes_dev)
+{
+	struct ghes *ghes;
+	struct acpi_hest_generic *generic;
+
+	ghes = platform_get_drvdata(ghes_dev);
+	generic = ghes->generic;
+
+	switch (generic->notify.type) {
+	case ACPI_HEST_NOTIFY_SCI:
+		mutex_lock(&ghes_list_mutex);
+		list_del_rcu(&ghes->list);
+		if (list_empty(&ghes_sci))
+			unregister_acpi_hed_notifier(&ghes_notifier_sci);
+		mutex_unlock(&ghes_list_mutex);
+		break;
+	default:
+		BUG();
+		break;
+	}
+
+	synchronize_rcu();
+	ghes_fini(ghes);
+	kfree(ghes);
+
+	platform_set_drvdata(ghes_dev, NULL);
+
+	return 0;
+}
+
+static struct platform_driver ghes_platform_driver = {
+	.driver		= {
+		.name	= "GHES",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= ghes_probe,
+	.remove		= ghes_remove,
+};
 
 static int __init ghes_init(void)
 {
-	int rc;
-
 	if (acpi_disabled)
 		return -ENODEV;
 
@@ -391,32 +420,12 @@ static int __init ghes_init(void)
 		return -EINVAL;
 	}
 
-	rc = apei_hest_parse(hest_ghes_parse, NULL);
-	if (rc) {
-		pr_err(GHES_PFX
-		"Error during parsing HEST generic hardware error sources.\n");
-		goto err_cleanup;
-	}
-
-	if (list_empty(&ghes_sci)) {
-		pr_info(GHES_PFX
-			"No functional generic hardware error sources.\n");
-		rc = -ENODEV;
-		goto err_cleanup;
-	}
-
-	pr_info(GHES_PFX
-		"Generic Hardware Error Source support is initialized.\n");
-
-	return 0;
-err_cleanup:
-	ghes_cleanup();
-	return rc;
+	return platform_driver_register(&ghes_platform_driver);
 }
 
 static void __exit ghes_exit(void)
 {
-	ghes_cleanup();
+	platform_driver_unregister(&ghes_platform_driver);
 }
 
 module_init(ghes_init);
@@ -425,3 +434,4 @@ module_exit(ghes_exit);
 MODULE_AUTHOR("Huang Ying");
 MODULE_DESCRIPTION("APEI Generic Hardware Error Source support");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:GHES");

@@ -239,7 +239,7 @@ static int device_process(struct m2mtest_ctx *ctx,
 		return -EFAULT;
 	}
 
-	if (in_buf->vb.size < out_buf->vb.size) {
+	if (in_buf->vb.size > out_buf->vb.size) {
 		v4l2_err(&dev->v4l2_dev, "Output buffer is too small\n");
 		return -EINVAL;
 	}
@@ -848,7 +848,7 @@ static void queue_init(void *priv, struct videobuf_queue *vq,
 
 	videobuf_queue_vmalloc_init(vq, &m2mtest_qops, ctx->dev->v4l2_dev.dev,
 				    &ctx->dev->irqlock, type, V4L2_FIELD_NONE,
-				    sizeof(struct m2mtest_buffer), priv);
+				    sizeof(struct m2mtest_buffer), priv, NULL);
 }
 
 
@@ -903,14 +903,14 @@ static int m2mtest_release(struct file *file)
 static unsigned int m2mtest_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
-	struct m2mtest_ctx *ctx = (struct m2mtest_ctx *)file->private_data;
+	struct m2mtest_ctx *ctx = file->private_data;
 
 	return v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
 }
 
 static int m2mtest_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct m2mtest_ctx *ctx = (struct m2mtest_ctx *)file->private_data;
+	struct m2mtest_ctx *ctx = file->private_data;
 
 	return v4l2_m2m_mmap(file, ctx->m2m_ctx, vma);
 }
@@ -1014,6 +1014,7 @@ static int m2mtest_remove(struct platform_device *pdev)
 	v4l2_m2m_release(dev->m2m_dev);
 	del_timer_sync(&dev->timer);
 	video_unregister_device(dev->vfd);
+	video_device_release(dev->vfd);
 	v4l2_device_unregister(&dev->v4l2_dev);
 	kfree(dev);
 

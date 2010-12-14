@@ -9,5 +9,6 @@ obj-$(CONFIG_CAN_SJA1000_OF_PLATFORM) += sja1000_of_platform.o
 obj-$(CONFIG_CAN_EMS_PCI) += ems_pci.o
 obj-$(CONFIG_CAN_KVASER_PCI) += kvaser_pci.o
 obj-$(CONFIG_CAN_PLX_PCI) += plx_pci.o
+obj-$(CONFIG_CAN_TSCAN1) += tscan1.o
 
 ccflags-$(CONFIG_CAN_DEBUG_DEVICES) := -DDEBUG

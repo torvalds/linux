@@ -496,13 +496,13 @@ restart:
 			v4l_dbg(1, msp_debug, client,
 				"thread: no carrier scan\n");
 			state->scan_in_progress = 0;
-			msp_set_audio(client);
+			msp_update_volume(state);
 			continue;
 		}
 
 		/* mute audio */
 		state->scan_in_progress = 1;
-		msp_set_audio(client);
+		msp_update_volume(state);
 
 		msp3400c_set_mode(client, MSP_MODE_AM_DETECT);
 		val1 = val2 = 0;
@@ -634,7 +634,7 @@ no_second:
 		/* unmute */
 		state->scan_in_progress = 0;
 		msp3400c_set_audmode(client);
-		msp_set_audio(client);
+		msp_update_volume(state);
 
 		if (msp_debug)
 			msp3400c_print_mode(client);
@@ -679,13 +679,13 @@ restart:
 			v4l_dbg(1, msp_debug, client,
 				"thread: no carrier scan\n");
 			state->scan_in_progress = 0;
-			msp_set_audio(client);
+			msp_update_volume(state);
 			continue;
 		}
 
 		/* mute audio */
 		state->scan_in_progress = 1;
-		msp_set_audio(client);
+		msp_update_volume(state);
 
 		/* start autodetect. Note: autodetect is not supported for
 		   NTSC-M and radio, hence we force the standard in those
@@ -797,7 +797,7 @@ restart:
 		/* unmute */
 		msp3400c_set_audmode(client);
 		state->scan_in_progress = 0;
-		msp_set_audio(client);
+		msp_update_volume(state);
 
 		/* monitor tv audio mode, the first time don't wait
 		   so long to get a quick stereo/bilingual result */
@@ -974,7 +974,7 @@ restart:
 			v4l_dbg(1, msp_debug, client,
 				"thread: no carrier scan\n");
 			state->scan_in_progress = 0;
-			msp_set_audio(client);
+			msp_update_volume(state);
 			continue;
 		}
 
@@ -1020,7 +1020,7 @@ unmute:
 		}
 
 		/* unmute: dispatch sound to scart output, set scart volume */
-		msp_set_audio(client);
+		msp_update_volume(state);
 
 		/* restore ACB */
 		if (msp_write_dsp(client, 0x13, state->acb))

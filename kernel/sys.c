@@ -931,6 +931,7 @@ SYSCALL_DEFINE2(setpgid, pid_t, pid, pid_t, pgid)
 		pgid = pid;
 	if (pgid < 0)
 		return -EINVAL;
+	rcu_read_lock();
 
 	/* From this point forward we keep holding onto the tasklist lock
 	 * so that our parent does not change from under us. -DaveM
@@ -984,6 +985,7 @@ SYSCALL_DEFINE2(setpgid, pid_t, pid, pid_t, pgid)
 out:
 	/* All paths lead to here, thus we are safe. -DaveM */
 	write_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	return err;
 }
 
@@ -1236,15 +1238,14 @@ SYSCALL_DEFINE2(setdomainname, char __user *, name, int, len)
 
 SYSCALL_DEFINE2(getrlimit, unsigned int, resource, struct rlimit __user *, rlim)
 {
-	if (resource >= RLIM_NLIMITS)
-		return -EINVAL;
-	else {
-		struct rlimit value;
-		task_lock(current->group_leader);
-		value = current->signal->rlim[resource];
-		task_unlock(current->group_leader);
-		return copy_to_user(rlim, &value, sizeof(*rlim)) ? -EFAULT : 0;
-	}
+	struct rlimit value;
+	int ret;
+
+	ret = do_prlimit(current, resource, NULL, &value);
+	if (!ret)
+		ret = copy_to_user(rlim, &value, sizeof(*rlim)) ? -EFAULT : 0;
+
+	return ret;
 }
 
 #ifdef __ARCH_WANT_SYS_OLD_GETRLIMIT
@@ -1272,44 +1273,89 @@ SYSCALL_DEFINE2(old_getrlimit, unsigned int, resource,
 
 #endif
 
-SYSCALL_DEFINE2(setrlimit, unsigned int, resource, struct rlimit __user *, rlim)
+static inline bool rlim64_is_infinity(__u64 rlim64)
 {
-	struct rlimit new_rlim, *old_rlim;
-	int retval;
+#if BITS_PER_LONG < 64
+	return rlim64 >= ULONG_MAX;
+#else
+	return rlim64 == RLIM64_INFINITY;
+#endif
+}
+
+static void rlim_to_rlim64(const struct rlimit *rlim, struct rlimit64 *rlim64)
+{
+	if (rlim->rlim_cur == RLIM_INFINITY)
+		rlim64->rlim_cur = RLIM64_INFINITY;
+	else
+		rlim64->rlim_cur = rlim->rlim_cur;
+	if (rlim->rlim_max == RLIM_INFINITY)
+		rlim64->rlim_max = RLIM64_INFINITY;
+	else
+		rlim64->rlim_max = rlim->rlim_max;
+}
+
+static void rlim64_to_rlim(const struct rlimit64 *rlim64, struct rlimit *rlim)
+{
+	if (rlim64_is_infinity(rlim64->rlim_cur))
+		rlim->rlim_cur = RLIM_INFINITY;
+	else
+		rlim->rlim_cur = (unsigned long)rlim64->rlim_cur;
+	if (rlim64_is_infinity(rlim64->rlim_max))
+		rlim->rlim_max = RLIM_INFINITY;
+	else
+		rlim->rlim_max = (unsigned long)rlim64->rlim_max;
+}
+
+/* make sure you are allowed to change @tsk limits before calling this */
+int do_prlimit(struct task_struct *tsk, unsigned int resource,
+		struct rlimit *new_rlim, struct rlimit *old_rlim)
+{
+	struct rlimit *rlim;
+	int retval = 0;
 
 	if (resource >= RLIM_NLIMITS)
 		return -EINVAL;
-	if (copy_from_user(&new_rlim, rlim, sizeof(*rlim)))
-		return -EFAULT;
-	if (new_rlim.rlim_cur > new_rlim.rlim_max)
-		return -EINVAL;
-	old_rlim = current->signal->rlim + resource;
-	if ((new_rlim.rlim_max > old_rlim->rlim_max) &&
-	    !capable(CAP_SYS_RESOURCE))
-		return -EPERM;
-	if (resource == RLIMIT_NOFILE && new_rlim.rlim_max > sysctl_nr_open)
-		return -EPERM;
-
-	retval = security_task_setrlimit(resource, &new_rlim);
-	if (retval)
-		return retval;
-
-	if (resource == RLIMIT_CPU && new_rlim.rlim_cur == 0) {
-		/*
-		 * The caller is asking for an immediate RLIMIT_CPU
-		 * expiry.  But we use the zero value to mean "it was
-		 * never set".  So let's cheat and make it one second
-		 * instead
-		 */
-		new_rlim.rlim_cur = 1;
+	if (new_rlim) {
+		if (new_rlim->rlim_cur > new_rlim->rlim_max)
+			return -EINVAL;
+		if (resource == RLIMIT_NOFILE &&
+				new_rlim->rlim_max > sysctl_nr_open)
+			return -EPERM;
 	}
 
-	task_lock(current->group_leader);
-	*old_rlim = new_rlim;
-	task_unlock(current->group_leader);
-
-	if (resource != RLIMIT_CPU)
+	/* protect tsk->signal and tsk->sighand from disappearing */
+	read_lock(&tasklist_lock);
+	if (!tsk->sighand) {
+		retval = -ESRCH;
 		goto out;
+	}
+
+	rlim = tsk->signal->rlim + resource;
+	task_lock(tsk->group_leader);
+	if (new_rlim) {
+		if (new_rlim->rlim_max > rlim->rlim_max &&
+				!capable(CAP_SYS_RESOURCE))
+			retval = -EPERM;
+		if (!retval)
+			retval = security_task_setrlimit(tsk->group_leader,
+					resource, new_rlim);
+		if (resource == RLIMIT_CPU && new_rlim->rlim_cur == 0) {
+			/*
+			 * The caller is asking for an immediate RLIMIT_CPU
+			 * expiry.  But we use the zero value to mean "it was
+			 * never set".  So let's cheat and make it one second
+			 * instead
+			 */
+			new_rlim->rlim_cur = 1;
+		}
+	}
+	if (!retval) {
+		if (old_rlim)
+			*old_rlim = *rlim;
+		if (new_rlim)
+			*rlim = *new_rlim;
+	}
+	task_unlock(tsk->group_leader);
 
 	/*
 	 * RLIMIT_CPU handling.   Note that the kernel fails to return an error
@@ -1317,12 +1363,82 @@ SYSCALL_DEFINE2(setrlimit, unsigned int, resource, struct rlimit __user *, rlim)
 	 * very long-standing error, and fixing it now risks breakage of
 	 * applications, so we live with it
 	 */
-	if (new_rlim.rlim_cur == RLIM_INFINITY)
-		goto out;
-
-	update_rlimit_cpu(new_rlim.rlim_cur);
+	 if (!retval && new_rlim && resource == RLIMIT_CPU &&
+			 new_rlim->rlim_cur != RLIM_INFINITY)
+		update_rlimit_cpu(tsk, new_rlim->rlim_cur);
 out:
+	read_unlock(&tasklist_lock);
+	return retval;
+}
+
+/* rcu lock must be held */
+static int check_prlimit_permission(struct task_struct *task)
+{
+	const struct cred *cred = current_cred(), *tcred;
+
+	tcred = __task_cred(task);
+	if ((cred->uid != tcred->euid ||
+	     cred->uid != tcred->suid ||
+	     cred->uid != tcred->uid  ||
+	     cred->gid != tcred->egid ||
+	     cred->gid != tcred->sgid ||
+	     cred->gid != tcred->gid) &&
+	     !capable(CAP_SYS_RESOURCE)) {
+		return -EPERM;
+	}
+
 	return 0;
+}
+
+SYSCALL_DEFINE4(prlimit64, pid_t, pid, unsigned int, resource,
+		const struct rlimit64 __user *, new_rlim,
+		struct rlimit64 __user *, old_rlim)
+{
+	struct rlimit64 old64, new64;
+	struct rlimit old, new;
+	struct task_struct *tsk;
+	int ret;
+
+	if (new_rlim) {
+		if (copy_from_user(&new64, new_rlim, sizeof(new64)))
+			return -EFAULT;
+		rlim64_to_rlim(&new64, &new);
+	}
+
+	rcu_read_lock();
+	tsk = pid ? find_task_by_vpid(pid) : current;
+	if (!tsk) {
+		rcu_read_unlock();
+		return -ESRCH;
+	}
+	ret = check_prlimit_permission(tsk);
+	if (ret) {
+		rcu_read_unlock();
+		return ret;
+	}
+	get_task_struct(tsk);
+	rcu_read_unlock();
+
+	ret = do_prlimit(tsk, resource, new_rlim ? &new : NULL,
+			old_rlim ? &old : NULL);
+
+	if (!ret && old_rlim) {
+		rlim_to_rlim64(&old, &old64);
+		if (copy_to_user(old_rlim, &old64, sizeof(old64)))
+			ret = -EFAULT;
+	}
+
+	put_task_struct(tsk);
+	return ret;
+}
+
+SYSCALL_DEFINE2(setrlimit, unsigned int, resource, struct rlimit __user *, rlim)
+{
+	struct rlimit new_rlim;
+
+	if (copy_from_user(&new_rlim, rlim, sizeof(*rlim)))
+		return -EFAULT;
+	return do_prlimit(current, resource, &new_rlim, NULL);
 }
 
 /*

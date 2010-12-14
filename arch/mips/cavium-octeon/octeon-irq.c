@@ -3,15 +3,13 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004-2008 Cavium Networks
+ * Copyright (C) 2004-2008, 2009, 2010 Cavium Networks
  */
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
 
 #include <asm/octeon/octeon.h>
-#include <asm/octeon/cvmx-pexp-defs.h>
-#include <asm/octeon/cvmx-npi-defs.h>
 
 static DEFINE_RAW_SPINLOCK(octeon_irq_ciu0_lock);
 static DEFINE_RAW_SPINLOCK(octeon_irq_ciu1_lock);
@@ -41,14 +39,14 @@ static void octeon_irq_core_ack(unsigned int irq)
 
 static void octeon_irq_core_eoi(unsigned int irq)
 {
-	struct irq_desc *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned int bit = irq - OCTEON_IRQ_SW0;
 	/*
 	 * If an IRQ is being processed while we are disabling it the
 	 * handler will attempt to unmask the interrupt after it has
 	 * been disabled.
 	 */
-	if (desc->status & IRQ_DISABLED)
+	if ((unlikely(desc->status & IRQ_DISABLED)))
 		return;
 	/*
 	 * We don't need to disable IRQs to make these atomic since
@@ -106,6 +104,29 @@ static struct irq_chip octeon_irq_chip_core = {
 
 static void octeon_irq_ciu0_ack(unsigned int irq)
 {
+	switch (irq) {
+	case OCTEON_IRQ_GMX_DRP0:
+	case OCTEON_IRQ_GMX_DRP1:
+	case OCTEON_IRQ_IPD_DRP:
+	case OCTEON_IRQ_KEY_ZERO:
+	case OCTEON_IRQ_TIMER0:
+	case OCTEON_IRQ_TIMER1:
+	case OCTEON_IRQ_TIMER2:
+	case OCTEON_IRQ_TIMER3:
+	{
+		int index = cvmx_get_core_num() * 2;
+		u64 mask = 1ull << (irq - OCTEON_IRQ_WORKQ0);
+		/*
+		 * CIU timer type interrupts must be acknoleged by
+		 * writing a '1' bit to their sum0 bit.
+		 */
+		cvmx_write_csr(CVMX_CIU_INTX_SUM0(index), mask);
+		break;
+	}
+	default:
+		break;
+	}
+
 	/*
 	 * In order to avoid any locking accessing the CIU, we
 	 * acknowledge CIU interrupts by disabling all of them.  This
@@ -130,7 +151,53 @@ static void octeon_irq_ciu0_eoi(unsigned int irq)
 	set_c0_status(0x100 << 2);
 }
 
+static int next_coreid_for_irq(struct irq_desc *desc)
+{
+
+#ifdef CONFIG_SMP
+	int coreid;
+	int weight = cpumask_weight(desc->affinity);
+
+	if (weight > 1) {
+		int cpu = smp_processor_id();
+		for (;;) {
+			cpu = cpumask_next(cpu, desc->affinity);
+			if (cpu >= nr_cpu_ids) {
+				cpu = -1;
+				continue;
+			} else if (cpumask_test_cpu(cpu, cpu_online_mask)) {
+				break;
+			}
+		}
+		coreid = octeon_coreid_for_cpu(cpu);
+	} else if (weight == 1) {
+		coreid = octeon_coreid_for_cpu(cpumask_first(desc->affinity));
+	} else {
+		coreid = cvmx_get_core_num();
+	}
+	return coreid;
+#else
+	return cvmx_get_core_num();
+#endif
+}
+
 static void octeon_irq_ciu0_enable(unsigned int irq)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	int coreid = next_coreid_for_irq(desc);
+	unsigned long flags;
+	uint64_t en0;
+	int bit = irq - OCTEON_IRQ_WORKQ0;	/* Bit 0-63 of EN0 */
+
+	raw_spin_lock_irqsave(&octeon_irq_ciu0_lock, flags);
+	en0 = cvmx_read_csr(CVMX_CIU_INTX_EN0(coreid * 2));
+	en0 |= 1ull << bit;
+	cvmx_write_csr(CVMX_CIU_INTX_EN0(coreid * 2), en0);
+	cvmx_read_csr(CVMX_CIU_INTX_EN0(coreid * 2));
+	raw_spin_unlock_irqrestore(&octeon_irq_ciu0_lock, flags);
+}
+
+static void octeon_irq_ciu0_enable_mbox(unsigned int irq)
 {
 	int coreid = cvmx_get_core_num();
 	unsigned long flags;
@@ -167,14 +234,31 @@ static void octeon_irq_ciu0_disable(unsigned int irq)
 }
 
 /*
- * Enable the irq on the current core for chips that have the EN*_W1{S,C}
- * registers.
+ * Enable the irq on the next core in the affinity set for chips that
+ * have the EN*_W1{S,C} registers.
  */
 static void octeon_irq_ciu0_enable_v2(unsigned int irq)
 {
-	int index = cvmx_get_core_num() * 2;
+	int index;
+	u64 mask = 1ull << (irq - OCTEON_IRQ_WORKQ0);
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if ((desc->status & IRQ_DISABLED) == 0) {
+		index = next_coreid_for_irq(desc) * 2;
+		cvmx_write_csr(CVMX_CIU_INTX_EN0_W1S(index), mask);
+	}
+}
+
+/*
+ * Enable the irq on the current CPU for chips that
+ * have the EN*_W1{S,C} registers.
+ */
+static void octeon_irq_ciu0_enable_mbox_v2(unsigned int irq)
+{
+	int index;
 	u64 mask = 1ull << (irq - OCTEON_IRQ_WORKQ0);
 
+	index = cvmx_get_core_num() * 2;
 	cvmx_write_csr(CVMX_CIU_INTX_EN0_W1S(index), mask);
 }
 
@@ -187,43 +271,39 @@ static void octeon_irq_ciu0_ack_v2(unsigned int irq)
 	int index = cvmx_get_core_num() * 2;
 	u64 mask = 1ull << (irq - OCTEON_IRQ_WORKQ0);
 
+	switch (irq) {
+	case OCTEON_IRQ_GMX_DRP0:
+	case OCTEON_IRQ_GMX_DRP1:
+	case OCTEON_IRQ_IPD_DRP:
+	case OCTEON_IRQ_KEY_ZERO:
+	case OCTEON_IRQ_TIMER0:
+	case OCTEON_IRQ_TIMER1:
+	case OCTEON_IRQ_TIMER2:
+	case OCTEON_IRQ_TIMER3:
+		/*
+		 * CIU timer type interrupts must be acknoleged by
+		 * writing a '1' bit to their sum0 bit.
+		 */
+		cvmx_write_csr(CVMX_CIU_INTX_SUM0(index), mask);
+		break;
+	default:
+		break;
+	}
+
 	cvmx_write_csr(CVMX_CIU_INTX_EN0_W1C(index), mask);
-}
-
-/*
- * CIU timer type interrupts must be acknoleged by writing a '1' bit
- * to their sum0 bit.
- */
-static void octeon_irq_ciu0_timer_ack(unsigned int irq)
-{
-	int index = cvmx_get_core_num() * 2;
-	uint64_t mask = 1ull << (irq - OCTEON_IRQ_WORKQ0);
-	cvmx_write_csr(CVMX_CIU_INTX_SUM0(index), mask);
-}
-
-static void octeon_irq_ciu0_timer_ack_v1(unsigned int irq)
-{
-	octeon_irq_ciu0_timer_ack(irq);
-	octeon_irq_ciu0_ack(irq);
-}
-
-static void octeon_irq_ciu0_timer_ack_v2(unsigned int irq)
-{
-	octeon_irq_ciu0_timer_ack(irq);
-	octeon_irq_ciu0_ack_v2(irq);
 }
 
 /*
  * Enable the irq on the current core for chips that have the EN*_W1{S,C}
  * registers.
  */
-static void octeon_irq_ciu0_eoi_v2(unsigned int irq)
+static void octeon_irq_ciu0_eoi_mbox_v2(unsigned int irq)
 {
-	struct irq_desc *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_to_desc(irq);
 	int index = cvmx_get_core_num() * 2;
 	u64 mask = 1ull << (irq - OCTEON_IRQ_WORKQ0);
 
-	if ((desc->status & IRQ_DISABLED) == 0)
+	if (likely((desc->status & IRQ_DISABLED) == 0))
 		cvmx_write_csr(CVMX_CIU_INTX_EN0_W1S(index), mask);
 }
 
@@ -246,18 +326,30 @@ static void octeon_irq_ciu0_disable_all_v2(unsigned int irq)
 static int octeon_irq_ciu0_set_affinity(unsigned int irq, const struct cpumask *dest)
 {
 	int cpu;
+	struct irq_desc *desc = irq_to_desc(irq);
+	int enable_one = (desc->status & IRQ_DISABLED) == 0;
 	unsigned long flags;
 	int bit = irq - OCTEON_IRQ_WORKQ0;	/* Bit 0-63 of EN0 */
+
+	/*
+	 * For non-v2 CIU, we will allow only single CPU affinity.
+	 * This removes the need to do locking in the .ack/.eoi
+	 * functions.
+	 */
+	if (cpumask_weight(dest) != 1)
+		return -EINVAL;
 
 	raw_spin_lock_irqsave(&octeon_irq_ciu0_lock, flags);
 	for_each_online_cpu(cpu) {
 		int coreid = octeon_coreid_for_cpu(cpu);
 		uint64_t en0 =
 			cvmx_read_csr(CVMX_CIU_INTX_EN0(coreid * 2));
-		if (cpumask_test_cpu(cpu, dest))
+		if (cpumask_test_cpu(cpu, dest) && enable_one) {
+			enable_one = 0;
 			en0 |= 1ull << bit;
-		else
+		} else {
 			en0 &= ~(1ull << bit);
+		}
 		cvmx_write_csr(CVMX_CIU_INTX_EN0(coreid * 2), en0);
 	}
 	/*
@@ -279,13 +371,18 @@ static int octeon_irq_ciu0_set_affinity_v2(unsigned int irq,
 {
 	int cpu;
 	int index;
+	struct irq_desc *desc = irq_to_desc(irq);
+	int enable_one = (desc->status & IRQ_DISABLED) == 0;
 	u64 mask = 1ull << (irq - OCTEON_IRQ_WORKQ0);
+
 	for_each_online_cpu(cpu) {
 		index = octeon_coreid_for_cpu(cpu) * 2;
-		if (cpumask_test_cpu(cpu, dest))
+		if (cpumask_test_cpu(cpu, dest) && enable_one) {
+			enable_one = 0;
 			cvmx_write_csr(CVMX_CIU_INTX_EN0_W1S(index), mask);
-		else
+		} else {
 			cvmx_write_csr(CVMX_CIU_INTX_EN0_W1C(index), mask);
+		}
 	}
 	return 0;
 }
@@ -298,8 +395,7 @@ static struct irq_chip octeon_irq_chip_ciu0_v2 = {
 	.name = "CIU0",
 	.enable = octeon_irq_ciu0_enable_v2,
 	.disable = octeon_irq_ciu0_disable_all_v2,
-	.ack = octeon_irq_ciu0_ack_v2,
-	.eoi = octeon_irq_ciu0_eoi_v2,
+	.eoi = octeon_irq_ciu0_enable_v2,
 #ifdef CONFIG_SMP
 	.set_affinity = octeon_irq_ciu0_set_affinity_v2,
 #endif
@@ -309,35 +405,26 @@ static struct irq_chip octeon_irq_chip_ciu0 = {
 	.name = "CIU0",
 	.enable = octeon_irq_ciu0_enable,
 	.disable = octeon_irq_ciu0_disable,
-	.ack = octeon_irq_ciu0_ack,
 	.eoi = octeon_irq_ciu0_eoi,
 #ifdef CONFIG_SMP
 	.set_affinity = octeon_irq_ciu0_set_affinity,
 #endif
 };
 
-static struct irq_chip octeon_irq_chip_ciu0_timer_v2 = {
-	.name = "CIU0-T",
-	.enable = octeon_irq_ciu0_enable_v2,
-	.disable = octeon_irq_ciu0_disable_all_v2,
-	.ack = octeon_irq_ciu0_timer_ack_v2,
-	.eoi = octeon_irq_ciu0_eoi_v2,
-#ifdef CONFIG_SMP
-	.set_affinity = octeon_irq_ciu0_set_affinity_v2,
-#endif
-};
-
-static struct irq_chip octeon_irq_chip_ciu0_timer = {
-	.name = "CIU0-T",
-	.enable = octeon_irq_ciu0_enable,
+/* The mbox versions don't do any affinity or round-robin. */
+static struct irq_chip octeon_irq_chip_ciu0_mbox_v2 = {
+	.name = "CIU0-M",
+	.enable = octeon_irq_ciu0_enable_mbox_v2,
 	.disable = octeon_irq_ciu0_disable,
-	.ack = octeon_irq_ciu0_timer_ack_v1,
-	.eoi = octeon_irq_ciu0_eoi,
-#ifdef CONFIG_SMP
-	.set_affinity = octeon_irq_ciu0_set_affinity,
-#endif
+	.eoi = octeon_irq_ciu0_eoi_mbox_v2,
 };
 
+static struct irq_chip octeon_irq_chip_ciu0_mbox = {
+	.name = "CIU0-M",
+	.enable = octeon_irq_ciu0_enable_mbox,
+	.disable = octeon_irq_ciu0_disable,
+	.eoi = octeon_irq_ciu0_eoi,
+};
 
 static void octeon_irq_ciu1_ack(unsigned int irq)
 {
@@ -365,10 +452,30 @@ static void octeon_irq_ciu1_eoi(unsigned int irq)
 
 static void octeon_irq_ciu1_enable(unsigned int irq)
 {
-	int coreid = cvmx_get_core_num();
+	struct irq_desc *desc = irq_to_desc(irq);
+	int coreid = next_coreid_for_irq(desc);
 	unsigned long flags;
 	uint64_t en1;
 	int bit = irq - OCTEON_IRQ_WDOG0;	/* Bit 0-63 of EN1 */
+
+	raw_spin_lock_irqsave(&octeon_irq_ciu1_lock, flags);
+	en1 = cvmx_read_csr(CVMX_CIU_INTX_EN1(coreid * 2 + 1));
+	en1 |= 1ull << bit;
+	cvmx_write_csr(CVMX_CIU_INTX_EN1(coreid * 2 + 1), en1);
+	cvmx_read_csr(CVMX_CIU_INTX_EN1(coreid * 2 + 1));
+	raw_spin_unlock_irqrestore(&octeon_irq_ciu1_lock, flags);
+}
+
+/*
+ * Watchdog interrupts are special.  They are associated with a single
+ * core, so we hardwire the affinity to that core.
+ */
+static void octeon_irq_ciu1_wd_enable(unsigned int irq)
+{
+	unsigned long flags;
+	uint64_t en1;
+	int bit = irq - OCTEON_IRQ_WDOG0;	/* Bit 0-63 of EN1 */
+	int coreid = bit;
 
 	raw_spin_lock_irqsave(&octeon_irq_ciu1_lock, flags);
 	en1 = cvmx_read_csr(CVMX_CIU_INTX_EN1(coreid * 2 + 1));
@@ -405,10 +512,31 @@ static void octeon_irq_ciu1_disable(unsigned int irq)
  */
 static void octeon_irq_ciu1_enable_v2(unsigned int irq)
 {
-	int index = cvmx_get_core_num() * 2 + 1;
+	int index;
 	u64 mask = 1ull << (irq - OCTEON_IRQ_WDOG0);
+	struct irq_desc *desc = irq_to_desc(irq);
 
-	cvmx_write_csr(CVMX_CIU_INTX_EN1_W1S(index), mask);
+	if ((desc->status & IRQ_DISABLED) == 0) {
+		index = next_coreid_for_irq(desc) * 2 + 1;
+		cvmx_write_csr(CVMX_CIU_INTX_EN1_W1S(index), mask);
+	}
+}
+
+/*
+ * Watchdog interrupts are special.  They are associated with a single
+ * core, so we hardwire the affinity to that core.
+ */
+static void octeon_irq_ciu1_wd_enable_v2(unsigned int irq)
+{
+	int index;
+	int coreid = irq - OCTEON_IRQ_WDOG0;
+	u64 mask = 1ull << (irq - OCTEON_IRQ_WDOG0);
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	if ((desc->status & IRQ_DISABLED) == 0) {
+		index = coreid * 2 + 1;
+		cvmx_write_csr(CVMX_CIU_INTX_EN1_W1S(index), mask);
+	}
 }
 
 /*
@@ -421,20 +549,6 @@ static void octeon_irq_ciu1_ack_v2(unsigned int irq)
 	u64 mask = 1ull << (irq - OCTEON_IRQ_WDOG0);
 
 	cvmx_write_csr(CVMX_CIU_INTX_EN1_W1C(index), mask);
-}
-
-/*
- * Enable the irq on the current core for chips that have the EN*_W1{S,C}
- * registers.
- */
-static void octeon_irq_ciu1_eoi_v2(unsigned int irq)
-{
-	struct irq_desc *desc = irq_desc + irq;
-	int index = cvmx_get_core_num() * 2 + 1;
-	u64 mask = 1ull << (irq - OCTEON_IRQ_WDOG0);
-
-	if ((desc->status & IRQ_DISABLED) == 0)
-		cvmx_write_csr(CVMX_CIU_INTX_EN1_W1S(index), mask);
 }
 
 /*
@@ -457,19 +571,30 @@ static int octeon_irq_ciu1_set_affinity(unsigned int irq,
 					const struct cpumask *dest)
 {
 	int cpu;
+	struct irq_desc *desc = irq_to_desc(irq);
+	int enable_one = (desc->status & IRQ_DISABLED) == 0;
 	unsigned long flags;
 	int bit = irq - OCTEON_IRQ_WDOG0;	/* Bit 0-63 of EN1 */
+
+	/*
+	 * For non-v2 CIU, we will allow only single CPU affinity.
+	 * This removes the need to do locking in the .ack/.eoi
+	 * functions.
+	 */
+	if (cpumask_weight(dest) != 1)
+		return -EINVAL;
 
 	raw_spin_lock_irqsave(&octeon_irq_ciu1_lock, flags);
 	for_each_online_cpu(cpu) {
 		int coreid = octeon_coreid_for_cpu(cpu);
 		uint64_t en1 =
-			cvmx_read_csr(CVMX_CIU_INTX_EN1
-				(coreid * 2 + 1));
-		if (cpumask_test_cpu(cpu, dest))
+			cvmx_read_csr(CVMX_CIU_INTX_EN1(coreid * 2 + 1));
+		if (cpumask_test_cpu(cpu, dest) && enable_one) {
+			enable_one = 0;
 			en1 |= 1ull << bit;
-		else
+		} else {
 			en1 &= ~(1ull << bit);
+		}
 		cvmx_write_csr(CVMX_CIU_INTX_EN1(coreid * 2 + 1), en1);
 	}
 	/*
@@ -491,13 +616,17 @@ static int octeon_irq_ciu1_set_affinity_v2(unsigned int irq,
 {
 	int cpu;
 	int index;
+	struct irq_desc *desc = irq_to_desc(irq);
+	int enable_one = (desc->status & IRQ_DISABLED) == 0;
 	u64 mask = 1ull << (irq - OCTEON_IRQ_WDOG0);
 	for_each_online_cpu(cpu) {
 		index = octeon_coreid_for_cpu(cpu) * 2 + 1;
-		if (cpumask_test_cpu(cpu, dest))
+		if (cpumask_test_cpu(cpu, dest) && enable_one) {
+			enable_one = 0;
 			cvmx_write_csr(CVMX_CIU_INTX_EN1_W1S(index), mask);
-		else
+		} else {
 			cvmx_write_csr(CVMX_CIU_INTX_EN1_W1C(index), mask);
+		}
 	}
 	return 0;
 }
@@ -507,11 +636,10 @@ static int octeon_irq_ciu1_set_affinity_v2(unsigned int irq,
  * Newer octeon chips have support for lockless CIU operation.
  */
 static struct irq_chip octeon_irq_chip_ciu1_v2 = {
-	.name = "CIU0",
+	.name = "CIU1",
 	.enable = octeon_irq_ciu1_enable_v2,
 	.disable = octeon_irq_ciu1_disable_all_v2,
-	.ack = octeon_irq_ciu1_ack_v2,
-	.eoi = octeon_irq_ciu1_eoi_v2,
+	.eoi = octeon_irq_ciu1_enable_v2,
 #ifdef CONFIG_SMP
 	.set_affinity = octeon_irq_ciu1_set_affinity_v2,
 #endif
@@ -521,103 +649,36 @@ static struct irq_chip octeon_irq_chip_ciu1 = {
 	.name = "CIU1",
 	.enable = octeon_irq_ciu1_enable,
 	.disable = octeon_irq_ciu1_disable,
-	.ack = octeon_irq_ciu1_ack,
 	.eoi = octeon_irq_ciu1_eoi,
 #ifdef CONFIG_SMP
 	.set_affinity = octeon_irq_ciu1_set_affinity,
 #endif
 };
 
-#ifdef CONFIG_PCI_MSI
-
-static DEFINE_RAW_SPINLOCK(octeon_irq_msi_lock);
-
-static void octeon_irq_msi_ack(unsigned int irq)
-{
-	if (!octeon_has_feature(OCTEON_FEATURE_PCIE)) {
-		/* These chips have PCI */
-		cvmx_write_csr(CVMX_NPI_NPI_MSI_RCV,
-			       1ull << (irq - OCTEON_IRQ_MSI_BIT0));
-	} else {
-		/*
-		 * These chips have PCIe. Thankfully the ACK doesn't
-		 * need any locking.
-		 */
-		cvmx_write_csr(CVMX_PEXP_NPEI_MSI_RCV0,
-			       1ull << (irq - OCTEON_IRQ_MSI_BIT0));
-	}
-}
-
-static void octeon_irq_msi_eoi(unsigned int irq)
-{
-	/* Nothing needed */
-}
-
-static void octeon_irq_msi_enable(unsigned int irq)
-{
-	if (!octeon_has_feature(OCTEON_FEATURE_PCIE)) {
-		/*
-		 * Octeon PCI doesn't have the ability to mask/unmask
-		 * MSI interrupts individually.  Instead of
-		 * masking/unmasking them in groups of 16, we simple
-		 * assume MSI devices are well behaved.  MSI
-		 * interrupts are always enable and the ACK is assumed
-		 * to be enough.
-		 */
-	} else {
-		/* These chips have PCIe.  Note that we only support
-		 * the first 64 MSI interrupts.  Unfortunately all the
-		 * MSI enables are in the same register.  We use
-		 * MSI0's lock to control access to them all.
-		 */
-		uint64_t en;
-		unsigned long flags;
-		raw_spin_lock_irqsave(&octeon_irq_msi_lock, flags);
-		en = cvmx_read_csr(CVMX_PEXP_NPEI_MSI_ENB0);
-		en |= 1ull << (irq - OCTEON_IRQ_MSI_BIT0);
-		cvmx_write_csr(CVMX_PEXP_NPEI_MSI_ENB0, en);
-		cvmx_read_csr(CVMX_PEXP_NPEI_MSI_ENB0);
-		raw_spin_unlock_irqrestore(&octeon_irq_msi_lock, flags);
-	}
-}
-
-static void octeon_irq_msi_disable(unsigned int irq)
-{
-	if (!octeon_has_feature(OCTEON_FEATURE_PCIE)) {
-		/* See comment in enable */
-	} else {
-		/*
-		 * These chips have PCIe.  Note that we only support
-		 * the first 64 MSI interrupts.  Unfortunately all the
-		 * MSI enables are in the same register.  We use
-		 * MSI0's lock to control access to them all.
-		 */
-		uint64_t en;
-		unsigned long flags;
-		raw_spin_lock_irqsave(&octeon_irq_msi_lock, flags);
-		en = cvmx_read_csr(CVMX_PEXP_NPEI_MSI_ENB0);
-		en &= ~(1ull << (irq - OCTEON_IRQ_MSI_BIT0));
-		cvmx_write_csr(CVMX_PEXP_NPEI_MSI_ENB0, en);
-		cvmx_read_csr(CVMX_PEXP_NPEI_MSI_ENB0);
-		raw_spin_unlock_irqrestore(&octeon_irq_msi_lock, flags);
-	}
-}
-
-static struct irq_chip octeon_irq_chip_msi = {
-	.name = "MSI",
-	.enable = octeon_irq_msi_enable,
-	.disable = octeon_irq_msi_disable,
-	.ack = octeon_irq_msi_ack,
-	.eoi = octeon_irq_msi_eoi,
+static struct irq_chip octeon_irq_chip_ciu1_wd_v2 = {
+	.name = "CIU1-W",
+	.enable = octeon_irq_ciu1_wd_enable_v2,
+	.disable = octeon_irq_ciu1_disable_all_v2,
+	.eoi = octeon_irq_ciu1_wd_enable_v2,
 };
-#endif
+
+static struct irq_chip octeon_irq_chip_ciu1_wd = {
+	.name = "CIU1-W",
+	.enable = octeon_irq_ciu1_wd_enable,
+	.disable = octeon_irq_ciu1_disable,
+	.eoi = octeon_irq_ciu1_eoi,
+};
+
+static void (*octeon_ciu0_ack)(unsigned int);
+static void (*octeon_ciu1_ack)(unsigned int);
 
 void __init arch_init_irq(void)
 {
-	int irq;
+	unsigned int irq;
 	struct irq_chip *chip0;
-	struct irq_chip *chip0_timer;
+	struct irq_chip *chip0_mbox;
 	struct irq_chip *chip1;
+	struct irq_chip *chip1_wd;
 
 #ifdef CONFIG_SMP
 	/* Set the default affinity to the boot cpu. */
@@ -631,13 +692,19 @@ void __init arch_init_irq(void)
 	if (OCTEON_IS_MODEL(OCTEON_CN58XX_PASS2_X) ||
 	    OCTEON_IS_MODEL(OCTEON_CN56XX_PASS2_X) ||
 	    OCTEON_IS_MODEL(OCTEON_CN52XX_PASS2_X)) {
+		octeon_ciu0_ack = octeon_irq_ciu0_ack_v2;
+		octeon_ciu1_ack = octeon_irq_ciu1_ack_v2;
 		chip0 = &octeon_irq_chip_ciu0_v2;
-		chip0_timer = &octeon_irq_chip_ciu0_timer_v2;
+		chip0_mbox = &octeon_irq_chip_ciu0_mbox_v2;
 		chip1 = &octeon_irq_chip_ciu1_v2;
+		chip1_wd = &octeon_irq_chip_ciu1_wd_v2;
 	} else {
+		octeon_ciu0_ack = octeon_irq_ciu0_ack;
+		octeon_ciu1_ack = octeon_irq_ciu1_ack;
 		chip0 = &octeon_irq_chip_ciu0;
-		chip0_timer = &octeon_irq_chip_ciu0_timer;
+		chip0_mbox = &octeon_irq_chip_ciu0_mbox;
 		chip1 = &octeon_irq_chip_ciu1;
+		chip1_wd = &octeon_irq_chip_ciu1_wd;
 	}
 
 	/* 0 - 15 reserved for i8259 master and slave controller. */
@@ -651,34 +718,23 @@ void __init arch_init_irq(void)
 	/* 24 - 87 CIU_INT_SUM0 */
 	for (irq = OCTEON_IRQ_WORKQ0; irq <= OCTEON_IRQ_BOOTDMA; irq++) {
 		switch (irq) {
-		case OCTEON_IRQ_GMX_DRP0:
-		case OCTEON_IRQ_GMX_DRP1:
-		case OCTEON_IRQ_IPD_DRP:
-		case OCTEON_IRQ_KEY_ZERO:
-		case OCTEON_IRQ_TIMER0:
-		case OCTEON_IRQ_TIMER1:
-		case OCTEON_IRQ_TIMER2:
-		case OCTEON_IRQ_TIMER3:
-			set_irq_chip_and_handler(irq, chip0_timer, handle_percpu_irq);
+		case OCTEON_IRQ_MBOX0:
+		case OCTEON_IRQ_MBOX1:
+			set_irq_chip_and_handler(irq, chip0_mbox, handle_percpu_irq);
 			break;
 		default:
-			set_irq_chip_and_handler(irq, chip0, handle_percpu_irq);
+			set_irq_chip_and_handler(irq, chip0, handle_fasteoi_irq);
 			break;
 		}
 	}
 
 	/* 88 - 151 CIU_INT_SUM1 */
-	for (irq = OCTEON_IRQ_WDOG0; irq <= OCTEON_IRQ_RESERVED151; irq++) {
-		set_irq_chip_and_handler(irq, chip1, handle_percpu_irq);
-	}
+	for (irq = OCTEON_IRQ_WDOG0; irq <= OCTEON_IRQ_WDOG15; irq++)
+		set_irq_chip_and_handler(irq, chip1_wd, handle_fasteoi_irq);
 
-#ifdef CONFIG_PCI_MSI
-	/* 152 - 215 PCI/PCIe MSI interrupts */
-	for (irq = OCTEON_IRQ_MSI_BIT0; irq <= OCTEON_IRQ_MSI_BIT63; irq++) {
-		set_irq_chip_and_handler(irq, &octeon_irq_chip_msi,
-					 handle_percpu_irq);
-	}
-#endif
+	for (irq = OCTEON_IRQ_UART2; irq <= OCTEON_IRQ_RESERVED151; irq++)
+		set_irq_chip_and_handler(irq, chip1, handle_fasteoi_irq);
+
 	set_c0_status(0x300 << 2);
 }
 
@@ -693,6 +749,7 @@ asmlinkage void plat_irq_dispatch(void)
 	unsigned long cop0_status;
 	uint64_t ciu_en;
 	uint64_t ciu_sum;
+	unsigned int irq;
 
 	while (1) {
 		cop0_cause = read_c0_cause();
@@ -704,18 +761,24 @@ asmlinkage void plat_irq_dispatch(void)
 			ciu_sum = cvmx_read_csr(ciu_sum0_address);
 			ciu_en = cvmx_read_csr(ciu_en0_address);
 			ciu_sum &= ciu_en;
-			if (likely(ciu_sum))
-				do_IRQ(fls64(ciu_sum) + OCTEON_IRQ_WORKQ0 - 1);
-			else
+			if (likely(ciu_sum)) {
+				irq = fls64(ciu_sum) + OCTEON_IRQ_WORKQ0 - 1;
+				octeon_ciu0_ack(irq);
+				do_IRQ(irq);
+			} else {
 				spurious_interrupt();
+			}
 		} else if (unlikely(cop0_cause & STATUSF_IP3)) {
 			ciu_sum = cvmx_read_csr(ciu_sum1_address);
 			ciu_en = cvmx_read_csr(ciu_en1_address);
 			ciu_sum &= ciu_en;
-			if (likely(ciu_sum))
-				do_IRQ(fls64(ciu_sum) + OCTEON_IRQ_WDOG0 - 1);
-			else
+			if (likely(ciu_sum)) {
+				irq = fls64(ciu_sum) + OCTEON_IRQ_WDOG0 - 1;
+				octeon_ciu1_ack(irq);
+				do_IRQ(irq);
+			} else {
 				spurious_interrupt();
+			}
 		} else if (likely(cop0_cause)) {
 			do_IRQ(fls(cop0_cause) - 9 + MIPS_CPU_IRQ_BASE);
 		} else {
@@ -725,54 +788,84 @@ asmlinkage void plat_irq_dispatch(void)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int is_irq_enabled_on_cpu(unsigned int irq, unsigned int cpu)
-{
-	unsigned int isset;
-	int coreid = octeon_coreid_for_cpu(cpu);
-	int bit = (irq < OCTEON_IRQ_WDOG0) ?
-		   irq - OCTEON_IRQ_WORKQ0 : irq - OCTEON_IRQ_WDOG0;
-       if (irq < 64) {
-		isset = (cvmx_read_csr(CVMX_CIU_INTX_EN0(coreid * 2)) &
-			(1ull << bit)) >> bit;
-       } else {
-	       isset = (cvmx_read_csr(CVMX_CIU_INTX_EN1(coreid * 2 + 1)) &
-			(1ull << bit)) >> bit;
-       }
-       return isset;
-}
 
 void fixup_irqs(void)
 {
-       int irq;
+	int irq;
+	struct irq_desc *desc;
+	cpumask_t new_affinity;
+	unsigned long flags;
+	int do_set_affinity;
+	int cpu;
+
+	cpu = smp_processor_id();
 
 	for (irq = OCTEON_IRQ_SW0; irq <= OCTEON_IRQ_TIMER; irq++)
 		octeon_irq_core_disable_local(irq);
 
-	for (irq = OCTEON_IRQ_WORKQ0; irq <= OCTEON_IRQ_GPIO15; irq++) {
-		if (is_irq_enabled_on_cpu(irq, smp_processor_id())) {
-			/* ciu irq migrates to next cpu */
-			octeon_irq_chip_ciu0.disable(irq);
-			octeon_irq_ciu0_set_affinity(irq, &cpu_online_map);
-		}
-	}
+	for (irq = OCTEON_IRQ_WORKQ0; irq < OCTEON_IRQ_LAST; irq++) {
+		desc = irq_to_desc(irq);
+		switch (irq) {
+		case OCTEON_IRQ_MBOX0:
+		case OCTEON_IRQ_MBOX1:
+			/* The eoi function will disable them on this CPU. */
+			desc->chip->eoi(irq);
+			break;
+		case OCTEON_IRQ_WDOG0:
+		case OCTEON_IRQ_WDOG1:
+		case OCTEON_IRQ_WDOG2:
+		case OCTEON_IRQ_WDOG3:
+		case OCTEON_IRQ_WDOG4:
+		case OCTEON_IRQ_WDOG5:
+		case OCTEON_IRQ_WDOG6:
+		case OCTEON_IRQ_WDOG7:
+		case OCTEON_IRQ_WDOG8:
+		case OCTEON_IRQ_WDOG9:
+		case OCTEON_IRQ_WDOG10:
+		case OCTEON_IRQ_WDOG11:
+		case OCTEON_IRQ_WDOG12:
+		case OCTEON_IRQ_WDOG13:
+		case OCTEON_IRQ_WDOG14:
+		case OCTEON_IRQ_WDOG15:
+			/*
+			 * These have special per CPU semantics and
+			 * are handled in the watchdog driver.
+			 */
+			break;
+		default:
+			raw_spin_lock_irqsave(&desc->lock, flags);
+			/*
+			 * If this irq has an action, it is in use and
+			 * must be migrated if it has affinity to this
+			 * cpu.
+			 */
+			if (desc->action && cpumask_test_cpu(cpu, desc->affinity)) {
+				if (cpumask_weight(desc->affinity) > 1) {
+					/*
+					 * It has multi CPU affinity,
+					 * just remove this CPU from
+					 * the affinity set.
+					 */
+					cpumask_copy(&new_affinity, desc->affinity);
+					cpumask_clear_cpu(cpu, &new_affinity);
+				} else {
+					/*
+					 * Otherwise, put it on lowest
+					 * numbered online CPU.
+					 */
+					cpumask_clear(&new_affinity);
+					cpumask_set_cpu(cpumask_first(cpu_online_mask), &new_affinity);
+				}
+				do_set_affinity = 1;
+			} else {
+				do_set_affinity = 0;
+			}
+			raw_spin_unlock_irqrestore(&desc->lock, flags);
 
-#if 0
-	for (irq = OCTEON_IRQ_MBOX0; irq <= OCTEON_IRQ_MBOX1; irq++)
-		octeon_irq_mailbox_mask(irq);
-#endif
-	for (irq = OCTEON_IRQ_UART0; irq <= OCTEON_IRQ_BOOTDMA; irq++) {
-		if (is_irq_enabled_on_cpu(irq, smp_processor_id())) {
-			/* ciu irq migrates to next cpu */
-			octeon_irq_chip_ciu0.disable(irq);
-			octeon_irq_ciu0_set_affinity(irq, &cpu_online_map);
-		}
-	}
+			if (do_set_affinity)
+				irq_set_affinity(irq, &new_affinity);
 
-	for (irq = OCTEON_IRQ_UART2; irq <= OCTEON_IRQ_RESERVED135; irq++) {
-		if (is_irq_enabled_on_cpu(irq, smp_processor_id())) {
-			/* ciu irq migrates to next cpu */
-			octeon_irq_chip_ciu1.disable(irq);
-			octeon_irq_ciu1_set_affinity(irq, &cpu_online_map);
+			break;
 		}
 	}
 }

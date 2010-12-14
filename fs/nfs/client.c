@@ -48,6 +48,7 @@
 #include "iostat.h"
 #include "internal.h"
 #include "fscache.h"
+#include "pnfs.h"
 
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
@@ -150,11 +151,14 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	clp->cl_boot_time = CURRENT_TIME;
 	clp->cl_state = 1 << NFS4CLNT_LEASE_EXPIRED;
 	clp->cl_minorversion = cl_init->minorversion;
+	clp->cl_mvops = nfs_v4_minor_ops[cl_init->minorversion];
 #endif
 	cred = rpc_lookup_machine_cred();
 	if (!IS_ERR(cred))
 		clp->cl_machine_cred = cred;
-
+#if defined(CONFIG_NFS_V4_1)
+	INIT_LIST_HEAD(&clp->cl_layouts);
+#endif
 	nfs_fscache_get_client_cookie(clp);
 
 	return clp;
@@ -178,7 +182,7 @@ static void nfs4_clear_client_minor_version(struct nfs_client *clp)
 		clp->cl_session = NULL;
 	}
 
-	clp->cl_call_sync = _nfs4_call_sync;
+	clp->cl_mvops = nfs_v4_minor_ops[0];
 #endif /* CONFIG_NFS_V4_1 */
 }
 
@@ -188,7 +192,7 @@ static void nfs4_clear_client_minor_version(struct nfs_client *clp)
 static void nfs4_destroy_callback(struct nfs_client *clp)
 {
 	if (__test_and_clear_bit(NFS_CS_CALLBACK, &clp->cl_res_state))
-		nfs_callback_down(clp->cl_minorversion);
+		nfs_callback_down(clp->cl_mvops->minor_version);
 }
 
 static void nfs4_shutdown_client(struct nfs_client *clp)
@@ -251,6 +255,7 @@ void nfs_put_client(struct nfs_client *clp)
 		nfs_free_client(clp);
 	}
 }
+EXPORT_SYMBOL_GPL(nfs_put_client);
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 /*
@@ -274,7 +279,7 @@ static int nfs_sockaddr_match_ipaddr6(const struct sockaddr *sa1,
 	    sin1->sin6_scope_id != sin2->sin6_scope_id)
 		return 0;
 
-	return ipv6_addr_equal(&sin1->sin6_addr, &sin1->sin6_addr);
+	return ipv6_addr_equal(&sin1->sin6_addr, &sin2->sin6_addr);
 }
 #else	/* !defined(CONFIG_IPV6) && !defined(CONFIG_IPV6_MODULE) */
 static int nfs_sockaddr_match_ipaddr6(const struct sockaddr *sa1,
@@ -600,6 +605,7 @@ static int nfs_create_rpc_client(struct nfs_client *clp,
 {
 	struct rpc_clnt		*clnt = NULL;
 	struct rpc_create_args args = {
+		.net		= &init_net,
 		.protocol	= clp->cl_proto,
 		.address	= (struct sockaddr *)&clp->cl_addr,
 		.addrsize	= clp->cl_addrlen,
@@ -634,7 +640,8 @@ static int nfs_create_rpc_client(struct nfs_client *clp,
  */
 static void nfs_destroy_server(struct nfs_server *server)
 {
-	if (!(server->flags & NFS_MOUNT_NONLM))
+	if (!(server->flags & NFS_MOUNT_LOCAL_FLOCK) ||
+			!(server->flags & NFS_MOUNT_LOCAL_FCNTL))
 		nlmclnt_done(server->nlm_host);
 }
 
@@ -656,7 +663,8 @@ static int nfs_start_lockd(struct nfs_server *server)
 
 	if (nlm_init.nfs_version > 3)
 		return 0;
-	if (server->flags & NFS_MOUNT_NONLM)
+	if ((server->flags & NFS_MOUNT_LOCAL_FLOCK) &&
+			(server->flags & NFS_MOUNT_LOCAL_FCNTL))
 		return 0;
 
 	switch (clp->cl_proto) {
@@ -897,11 +905,13 @@ static void nfs_server_set_fsinfo(struct nfs_server *server, struct nfs_fsinfo *
 	if (server->wsize > NFS_MAX_FILE_IO_SIZE)
 		server->wsize = NFS_MAX_FILE_IO_SIZE;
 	server->wpages = (server->wsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	set_pnfs_layoutdriver(server, fsinfo->layouttype);
+
 	server->wtmult = nfs_block_bits(fsinfo->wtmult, NULL);
 
 	server->dtsize = nfs_block_size(fsinfo->dtpref, NULL);
-	if (server->dtsize > PAGE_CACHE_SIZE)
-		server->dtsize = PAGE_CACHE_SIZE;
+	if (server->dtsize > PAGE_CACHE_SIZE * NFS_MAX_READDIR_PAGES)
+		server->dtsize = PAGE_CACHE_SIZE * NFS_MAX_READDIR_PAGES;
 	if (server->dtsize > server->rsize)
 		server->dtsize = server->rsize;
 
@@ -911,6 +921,8 @@ static void nfs_server_set_fsinfo(struct nfs_server *server, struct nfs_fsinfo *
 	}
 
 	server->maxfilesize = fsinfo->maxfilesize;
+
+	server->time_delta = fsinfo->time_delta;
 
 	/* We're airborne Set socket buffersize */
 	rpc_setbufsize(server->client, server->wsize + 100, server->rsize + 100);
@@ -934,6 +946,7 @@ static int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *mntfh, str
 	}
 
 	fsinfo.fattr = fattr;
+	fsinfo.layouttype = 0;
 	error = clp->rpc_ops->fsinfo(server, mntfh, &fsinfo);
 	if (error < 0)
 		goto out_error;
@@ -1016,6 +1029,7 @@ void nfs_free_server(struct nfs_server *server)
 {
 	dprintk("--> nfs_free_server()\n");
 
+	unset_pnfs_layoutdriver(server);
 	spin_lock(&nfs_client_lock);
 	list_del(&server->client_link);
 	list_del(&server->master_link);
@@ -1126,7 +1140,7 @@ static int nfs4_init_callback(struct nfs_client *clp)
 				return error;
 		}
 
-		error = nfs_callback_up(clp->cl_minorversion,
+		error = nfs_callback_up(clp->cl_mvops->minor_version,
 					clp->cl_rpcclient->cl_xprt);
 		if (error < 0) {
 			dprintk("%s: failed to start callback. Error = %d\n",
@@ -1143,10 +1157,8 @@ static int nfs4_init_callback(struct nfs_client *clp)
  */
 static int nfs4_init_client_minor_version(struct nfs_client *clp)
 {
-	clp->cl_call_sync = _nfs4_call_sync;
-
 #if defined(CONFIG_NFS_V4_1)
-	if (clp->cl_minorversion) {
+	if (clp->cl_mvops->minor_version) {
 		struct nfs4_session *session = NULL;
 		/*
 		 * Create the session and mark it expired.
@@ -1158,7 +1170,13 @@ static int nfs4_init_client_minor_version(struct nfs_client *clp)
 			return -ENOMEM;
 
 		clp->cl_session = session;
-		clp->cl_call_sync = _nfs4_call_sync_session;
+		/*
+		 * The create session reply races with the server back
+		 * channel probe. Mark the client NFS_CS_SESSION_INITING
+		 * so that the client back channel can find the
+		 * nfs_client struct
+		 */
+		clp->cl_cons_state = NFS_CS_SESSION_INITING;
 	}
 #endif /* CONFIG_NFS_V4_1 */
 
@@ -1351,8 +1369,9 @@ static int nfs4_init_server(struct nfs_server *server,
 
 	/* Initialise the client representation from the mount data */
 	server->flags = data->flags;
-	server->caps |= NFS_CAP_ATOMIC_OPEN|NFS_CAP_CHANGE_ATTR|
-		NFS_CAP_POSIX_LOCK;
+	server->caps |= NFS_CAP_ATOMIC_OPEN|NFS_CAP_CHANGE_ATTR|NFS_CAP_POSIX_LOCK;
+	if (!(data->flags & NFS_MOUNT_NORDIRPLUS))
+			server->caps |= NFS_CAP_READDIRPLUS;
 	server->options = data->options;
 
 	/* Get a client record */
@@ -1454,7 +1473,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 				data->authflavor,
 				parent_server->client->cl_xprt->prot,
 				parent_server->client->cl_timeout,
-				parent_client->cl_minorversion);
+				parent_client->cl_mvops->minor_version);
 	if (error < 0)
 		goto error;
 

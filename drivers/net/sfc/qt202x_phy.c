@@ -91,9 +91,10 @@ static int qt2025c_wait_heartbeat(struct efx_nic *efx)
 		if (time_after(jiffies, timeout)) {
 			/* Some cables have EEPROMs that conflict with the
 			 * PHY's on-board EEPROM so it cannot load firmware */
-			EFX_ERR(efx, "If an SFP+ direct attach cable is"
-				" connected, please check that it complies"
-				" with the SFP+ specification\n");
+			netif_err(efx, hw, efx->net_dev,
+				  "If an SFP+ direct attach cable is"
+				  " connected, please check that it complies"
+				  " with the SFP+ specification\n");
 			return -ETIMEDOUT;
 		}
 		msleep(QT2025C_HEARTB_WAIT);
@@ -145,7 +146,8 @@ static int qt2025c_wait_reset(struct efx_nic *efx)
 		/* Bug 17689: occasionally heartbeat starts but firmware status
 		 * code never progresses beyond 0x00.  Try again, once, after
 		 * restarting execution of the firmware image. */
-		EFX_LOG(efx, "bashing QT2025C microcontroller\n");
+		netif_dbg(efx, hw, efx->net_dev,
+			  "bashing QT2025C microcontroller\n");
 		qt2025c_restart_firmware(efx);
 		rc = qt2025c_wait_heartbeat(efx);
 		if (rc != 0)
@@ -165,11 +167,12 @@ static void qt2025c_firmware_id(struct efx_nic *efx)
 	for (i = 0; i < sizeof(firmware_id); i++)
 		firmware_id[i] = efx_mdio_read(efx, MDIO_MMD_PCS,
 					       PCS_FW_PRODUCT_CODE_1 + i);
-	EFX_INFO(efx, "QT2025C firmware %xr%d v%d.%d.%d.%d [20%02d-%02d-%02d]\n",
-		 (firmware_id[0] << 8) | firmware_id[1], firmware_id[2],
-		 firmware_id[3] >> 4, firmware_id[3] & 0xf,
-		 firmware_id[4], firmware_id[5],
-		 firmware_id[6], firmware_id[7], firmware_id[8]);
+	netif_info(efx, probe, efx->net_dev,
+		   "QT2025C firmware %xr%d v%d.%d.%d.%d [20%02d-%02d-%02d]\n",
+		   (firmware_id[0] << 8) | firmware_id[1], firmware_id[2],
+		   firmware_id[3] >> 4, firmware_id[3] & 0xf,
+		   firmware_id[4], firmware_id[5],
+		   firmware_id[6], firmware_id[7], firmware_id[8]);
 	phy_data->firmware_ver = ((firmware_id[3] & 0xf0) << 20) |
 				 ((firmware_id[3] & 0x0f) << 16) |
 				 (firmware_id[4] << 8) | firmware_id[5];
@@ -198,7 +201,7 @@ static void qt2025c_bug17190_workaround(struct efx_nic *efx)
 	}
 
 	if (time_after_eq(jiffies, phy_data->bug17190_timer)) {
-		EFX_LOG(efx, "bashing QT2025C PMA/PMD\n");
+		netif_dbg(efx, hw, efx->net_dev, "bashing QT2025C PMA/PMD\n");
 		efx_mdio_set_flag(efx, MDIO_MMD_PMAPMD, MDIO_CTRL1,
 				  MDIO_PMA_CTRL1_LOOPBACK, true);
 		msleep(100);
@@ -231,7 +234,8 @@ static int qt2025c_select_phy_mode(struct efx_nic *efx)
 	reg = efx_mdio_read(efx, 1, 0xc319);
 	if ((reg & 0x0038) == phy_op_mode)
 		return 0;
-	EFX_LOG(efx, "Switching PHY to mode 0x%04x\n", phy_op_mode);
+	netif_dbg(efx, hw, efx->net_dev, "Switching PHY to mode 0x%04x\n",
+		  phy_op_mode);
 
 	/* This sequence replicates the register writes configured in the boot
 	 * EEPROM (including the differences between board revisions), except
@@ -287,8 +291,9 @@ static int qt2025c_select_phy_mode(struct efx_nic *efx)
 	/* Wait for the microcontroller to be ready again */
 	rc = qt2025c_wait_reset(efx);
 	if (rc < 0) {
-		EFX_ERR(efx, "PHY microcontroller reset during mode switch "
-				"timed out\n");
+		netif_err(efx, hw, efx->net_dev,
+			  "PHY microcontroller reset during mode switch "
+			  "timed out\n");
 		return rc;
 	}
 
@@ -324,7 +329,7 @@ static int qt202x_reset_phy(struct efx_nic *efx)
 	return 0;
 
  fail:
-	EFX_ERR(efx, "PHY reset timed out\n");
+	netif_err(efx, hw, efx->net_dev, "PHY reset timed out\n");
 	return rc;
 }
 
@@ -353,14 +358,15 @@ static int qt202x_phy_init(struct efx_nic *efx)
 
 	rc = qt202x_reset_phy(efx);
 	if (rc) {
-		EFX_ERR(efx, "PHY init failed\n");
+		netif_err(efx, probe, efx->net_dev, "PHY init failed\n");
 		return rc;
 	}
 
 	devid = efx_mdio_read_id(efx, MDIO_MMD_PHYXS);
-	EFX_INFO(efx, "PHY ID reg %x (OUI %06x model %02x revision %x)\n",
-		 devid, efx_mdio_id_oui(devid), efx_mdio_id_model(devid),
-		 efx_mdio_id_rev(devid));
+	netif_info(efx, probe, efx->net_dev,
+		   "PHY ID reg %x (OUI %06x model %02x revision %x)\n",
+		   devid, efx_mdio_id_oui(devid), efx_mdio_id_model(devid),
+		   efx_mdio_id_rev(devid));
 
 	if (efx->phy_type == PHY_TYPE_QT2025C)
 		qt2025c_firmware_id(efx);

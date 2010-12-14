@@ -10,7 +10,6 @@
 #if defined(CONFIG_MEM_MT48LC16M16A2TG_75) || \
     defined(CONFIG_MEM_MT48LC64M4A2FB_7E) || \
     defined(CONFIG_MEM_MT48LC16M8A2TG_75) || \
-    defined(CONFIG_MEM_GENERIC_BOARD) || \
     defined(CONFIG_MEM_MT48LC32M8A2_75) || \
     defined(CONFIG_MEM_MT48LC8M32B2B5_7) || \
     defined(CONFIG_MEM_MT48LC32M16A2TG_75) || \
@@ -178,7 +177,6 @@
 
 #if defined(CONFIG_MEM_MT48LC32M8A2_75) || \
     defined(CONFIG_MEM_MT48LC64M4A2FB_7E) || \
-    defined(CONFIG_MEM_GENERIC_BOARD) || \
     defined(CONFIG_MEM_MT48LC32M16A2TG_75) || \
     defined(CONFIG_MEM_MT48LC16M16A2TG_75) || \
     defined(CONFIG_MEM_MT48LC32M8A2_75)
@@ -246,22 +244,6 @@
 #define DDR_tWTR	DDR_TWTR(2)
 #define DDR_tMRD	DDR_TMRD(MIN_DDR_SCLK(10))
 #define DDR_tWR		DDR_TWR(MIN_DDR_SCLK(15))
-#endif
-
-#if defined(CONFIG_MEM_GENERIC_BOARD)
-#define DDR_SIZE	DEVSZ_512
-#define DDR_WIDTH	DEVWD_16
-#define DDR_MAX_tCK	13
-
-#define DDR_tRCD	DDR_TRCD(3)
-#define DDR_tWTR	DDR_TWTR(2)
-#define DDR_tWR		DDR_TWR(2)
-#define DDR_tMRD	DDR_TMRD(2)
-#define DDR_tRP		DDR_TRP(3)
-#define DDR_tRAS	DDR_TRAS(7)
-#define DDR_tRC		DDR_TRC(10)
-#define DDR_tRFC	DDR_TRFC(12)
-#define DDR_tREFI	DDR_TREFI(1288)
 #endif
 
 #if (CONFIG_SCLK_HZ < DDR_CLK_HZ(DDR_MAX_tCK))

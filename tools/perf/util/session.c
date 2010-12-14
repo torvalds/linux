@@ -27,8 +27,10 @@ static int perf_session__open(struct perf_session *self, bool force)
 
 	self->fd = open(self->filename, O_RDONLY);
 	if (self->fd < 0) {
-		pr_err("failed to open file: %s", self->filename);
-		if (!strcmp(self->filename, "perf.data"))
+		int err = errno;
+
+		pr_err("failed to open %s: %s", self->filename, strerror(err));
+		if (err == ENOENT && !strcmp(self->filename, "perf.data"))
 			pr_err("  (try 'perf record' first)");
 		pr_err("\n");
 		return -errno;
@@ -77,6 +79,12 @@ int perf_session__create_kernel_maps(struct perf_session *self)
 	return ret;
 }
 
+static void perf_session__destroy_kernel_maps(struct perf_session *self)
+{
+	machine__destroy_kernel_maps(&self->host_machine);
+	machines__destroy_guest_kernel_maps(&self->machines);
+}
+
 struct perf_session *perf_session__new(const char *filename, int mode, bool force, bool repipe)
 {
 	size_t len = filename ? strlen(filename) + 1 : 0;
@@ -94,8 +102,6 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->hists_tree = RB_ROOT;
 	self->last_match = NULL;
 	self->mmap_window = 32;
-	self->cwd = NULL;
-	self->cwdlen = 0;
 	self->machines = RB_ROOT;
 	self->repipe = repipe;
 	INIT_LIST_HEAD(&self->ordered_samples.samples_head);
@@ -124,16 +130,43 @@ out_delete:
 	return NULL;
 }
 
+static void perf_session__delete_dead_threads(struct perf_session *self)
+{
+	struct thread *n, *t;
+
+	list_for_each_entry_safe(t, n, &self->dead_threads, node) {
+		list_del(&t->node);
+		thread__delete(t);
+	}
+}
+
+static void perf_session__delete_threads(struct perf_session *self)
+{
+	struct rb_node *nd = rb_first(&self->threads);
+
+	while (nd) {
+		struct thread *t = rb_entry(nd, struct thread, rb_node);
+
+		rb_erase(&t->rb_node, &self->threads);
+		nd = rb_next(nd);
+		thread__delete(t);
+	}
+}
+
 void perf_session__delete(struct perf_session *self)
 {
 	perf_header__exit(&self->header);
+	perf_session__destroy_kernel_maps(self);
+	perf_session__delete_dead_threads(self);
+	perf_session__delete_threads(self);
+	machine__exit(&self->host_machine);
 	close(self->fd);
-	free(self->cwd);
 	free(self);
 }
 
 void perf_session__remove_thread(struct perf_session *self, struct thread *th)
 {
+	self->last_match = NULL;
 	rb_erase(&th->rb_node, &self->threads);
 	/*
 	 * We may have references to this thread, for instance in some hist_entry
@@ -830,23 +863,6 @@ int perf_session__process_events(struct perf_session *self,
 	if (perf_session__register_idle_thread(self) == NULL)
 		return -ENOMEM;
 
-	if (!symbol_conf.full_paths) {
-		char bf[PATH_MAX];
-
-		if (getcwd(bf, sizeof(bf)) == NULL) {
-			err = -errno;
-out_getcwd_err:
-			pr_err("failed to get the current directory\n");
-			goto out_err;
-		}
-		self->cwd = strdup(bf);
-		if (self->cwd == NULL) {
-			err = -ENOMEM;
-			goto out_getcwd_err;
-		}
-		self->cwdlen = strlen(self->cwd);
-	}
-
 	if (!self->fd_pipe)
 		err = __perf_session__process_events(self,
 						     self->header.data_offset,
@@ -854,7 +870,7 @@ out_getcwd_err:
 						     self->size, ops);
 	else
 		err = __perf_session__process_pipe_events(self, ops);
-out_err:
+
 	return err;
 }
 

@@ -28,7 +28,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/smp_lock.h>
 #include <linux/wait.h>
 #include <asm/uaccess.h>
 #include "i2c.h"
@@ -376,7 +375,6 @@ int __init eeprom_init(void)
 /* Opens the device. */
 static int eeprom_open(struct inode * inode, struct file * file)
 {
-  cycle_kernel_lock();
   if(iminor(inode) != EEPROM_MINOR_NR)
      return -ENXIO;
   if(imajor(inode) != EEPROM_MAJOR_NR)

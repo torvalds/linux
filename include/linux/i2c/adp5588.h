@@ -74,9 +74,57 @@
 
 #define ADP5588_DEVICE_ID_MASK	0xF
 
+ /* Configuration Register1 */
+#define ADP5588_AUTO_INC	(1 << 7)
+#define ADP5588_GPIEM_CFG	(1 << 6)
+#define ADP5588_INT_CFG		(1 << 4)
+#define ADP5588_GPI_IEN		(1 << 1)
+
+/* Interrupt Status Register */
+#define ADP5588_GPI_INT		(1 << 1)
+#define ADP5588_KE_INT		(1 << 0)
+
+#define ADP5588_MAXGPIO		18
+#define ADP5588_BANK(offs)	((offs) >> 3)
+#define ADP5588_BIT(offs)	(1u << ((offs) & 0x7))
+
 /* Put one of these structures in i2c_board_info platform_data */
 
 #define ADP5588_KEYMAPSIZE	80
+
+#define GPI_PIN_ROW0 97
+#define GPI_PIN_ROW1 98
+#define GPI_PIN_ROW2 99
+#define GPI_PIN_ROW3 100
+#define GPI_PIN_ROW4 101
+#define GPI_PIN_ROW5 102
+#define GPI_PIN_ROW6 103
+#define GPI_PIN_ROW7 104
+#define GPI_PIN_COL0 105
+#define GPI_PIN_COL1 106
+#define GPI_PIN_COL2 107
+#define GPI_PIN_COL3 108
+#define GPI_PIN_COL4 109
+#define GPI_PIN_COL5 110
+#define GPI_PIN_COL6 111
+#define GPI_PIN_COL7 112
+#define GPI_PIN_COL8 113
+#define GPI_PIN_COL9 114
+
+#define GPI_PIN_ROW_BASE GPI_PIN_ROW0
+#define GPI_PIN_ROW_END GPI_PIN_ROW7
+#define GPI_PIN_COL_BASE GPI_PIN_COL0
+#define GPI_PIN_COL_END GPI_PIN_COL9
+
+#define GPI_PIN_BASE GPI_PIN_ROW_BASE
+#define GPI_PIN_END GPI_PIN_COL_END
+
+#define ADP5588_GPIMAPSIZE_MAX (GPI_PIN_END - GPI_PIN_BASE + 1)
+
+struct adp5588_gpi_map {
+	unsigned short pin;
+	unsigned short sw_evt;
+};
 
 struct adp5588_kpad_platform_data {
 	int rows;			/* Number of rows */
@@ -87,11 +135,17 @@ struct adp5588_kpad_platform_data {
 	unsigned en_keylock:1;		/* Enable Key Lock feature */
 	unsigned short unlock_key1;	/* Unlock Key 1 */
 	unsigned short unlock_key2;	/* Unlock Key 2 */
+	const struct adp5588_gpi_map *gpimap;
+	unsigned short gpimapsize;
+	const struct adp5588_gpio_platform_data *gpio_data;
 };
 
+struct i2c_client; /* forward declaration */
+
 struct adp5588_gpio_platform_data {
-	unsigned gpio_start;		/* GPIO Chip base # */
-	unsigned pullup_dis_mask;	/* Pull-Up Disable Mask */
+	int gpio_start;		/* GPIO Chip base # */
+	unsigned irq_base;	/* interrupt base # */
+	unsigned pullup_dis_mask; /* Pull-Up Disable Mask */
 	int	(*setup)(struct i2c_client *client,
 				int gpio, unsigned ngpio,
 				void *context);

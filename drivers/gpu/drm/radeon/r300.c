@@ -1048,13 +1048,46 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		/* RB3D_COLOR_CHANNEL_MASK */
 		track->color_channel_mask = idx_value;
 		break;
-	case 0x4d1c:
+	case 0x43a4:
+		/* SC_HYPERZ_EN */
+		/* r300c emits this register - we need to disable hyperz for it
+		 * without complaining */
+		if (p->rdev->hyperz_filp != p->filp) {
+			if (idx_value & 0x1)
+				ib[idx] = idx_value & ~1;
+		}
+		break;
+	case 0x4f1c:
 		/* ZB_BW_CNTL */
 		track->zb_cb_clear = !!(idx_value & (1 << 5));
+		if (p->rdev->hyperz_filp != p->filp) {
+			if (idx_value & (R300_HIZ_ENABLE |
+					 R300_RD_COMP_ENABLE |
+					 R300_WR_COMP_ENABLE |
+					 R300_FAST_FILL_ENABLE))
+				goto fail;
+		}
 		break;
 	case 0x4e04:
 		/* RB3D_BLENDCNTL */
 		track->blend_read_enable = !!(idx_value & (1 << 2));
+		break;
+	case 0x4f28: /* ZB_DEPTHCLEARVALUE */
+		break;
+	case 0x4f30: /* ZB_MASK_OFFSET */
+	case 0x4f34: /* ZB_ZMASK_PITCH */
+	case 0x4f44: /* ZB_HIZ_OFFSET */
+	case 0x4f54: /* ZB_HIZ_PITCH */
+		if (idx_value && (p->rdev->hyperz_filp != p->filp))
+			goto fail;
+		break;
+	case 0x4028:
+		if (idx_value && (p->rdev->hyperz_filp != p->filp))
+			goto fail;
+		/* GB_Z_PEQ_CONFIG */
+		if (p->rdev->family >= CHIP_RV350)
+			break;
+		goto fail;
 		break;
 	case 0x4be8:
 		/* valid register only on RV530 */
@@ -1066,8 +1099,8 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	}
 	return 0;
 fail:
-	printk(KERN_ERR "Forbidden register 0x%04X in cs at %d\n",
-	       reg, idx);
+	printk(KERN_ERR "Forbidden register 0x%04X in cs at %d (val=%08x)\n",
+	       reg, idx, idx_value);
 	return -EINVAL;
 }
 
@@ -1160,6 +1193,11 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 		if (r) {
 			return r;
 		}
+		break;
+	case PACKET3_3D_CLEAR_HIZ:
+	case PACKET3_3D_CLEAR_ZMASK:
+		if (p->rdev->hyperz_filp != p->filp)
+			return -EINVAL;
 		break;
 	case PACKET3_NOP:
 		break;
@@ -1294,6 +1332,12 @@ static int r300_startup(struct radeon_device *rdev)
 		if (r)
 			return r;
 	}
+
+	/* allocate wb buffer */
+	r = radeon_wb_init(rdev);
+	if (r)
+		return r;
+
 	/* Enable IRQ */
 	r100_irq_set(rdev);
 	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
@@ -1303,9 +1347,6 @@ static int r300_startup(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failled initializing CP (%d).\n", r);
 		return r;
 	}
-	r = r100_wb_init(rdev);
-	if (r)
-		dev_err(rdev->dev, "failled initializing WB (%d).\n", r);
 	r = r100_ib_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "failled initializing IB (%d).\n", r);
@@ -1341,7 +1382,7 @@ int r300_resume(struct radeon_device *rdev)
 int r300_suspend(struct radeon_device *rdev)
 {
 	r100_cp_disable(rdev);
-	r100_wb_disable(rdev);
+	radeon_wb_disable(rdev);
 	r100_irq_disable(rdev);
 	if (rdev->flags & RADEON_IS_PCIE)
 		rv370_pcie_gart_disable(rdev);
@@ -1353,7 +1394,7 @@ int r300_suspend(struct radeon_device *rdev)
 void r300_fini(struct radeon_device *rdev)
 {
 	r100_cp_fini(rdev);
-	r100_wb_fini(rdev);
+	radeon_wb_fini(rdev);
 	r100_ib_fini(rdev);
 	radeon_gem_fini(rdev);
 	if (rdev->flags & RADEON_IS_PCIE)
@@ -1380,6 +1421,8 @@ int r300_init(struct radeon_device *rdev)
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
 	/* TODO: disable VGA need to use VGA request */
+	/* restore some register to sane defaults */
+	r100_restore_sanity(rdev);
 	/* BIOS*/
 	if (!radeon_get_bios(rdev)) {
 		if (ASIC_IS_AVIVO(rdev))
@@ -1444,7 +1487,7 @@ int r300_init(struct radeon_device *rdev)
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
 		r100_cp_fini(rdev);
-		r100_wb_fini(rdev);
+		radeon_wb_fini(rdev);
 		r100_ib_fini(rdev);
 		radeon_irq_kms_fini(rdev);
 		if (rdev->flags & RADEON_IS_PCIE)

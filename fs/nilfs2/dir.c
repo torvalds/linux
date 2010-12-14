@@ -80,23 +80,10 @@ static unsigned nilfs_last_byte(struct inode *inode, unsigned long page_nr)
 	return last_byte;
 }
 
-static int nilfs_prepare_chunk_uninterruptible(struct page *page,
-					       struct address_space *mapping,
-					       unsigned from, unsigned to)
+static int nilfs_prepare_chunk(struct page *page, unsigned from, unsigned to)
 {
 	loff_t pos = page_offset(page) + from;
-	return block_write_begin(NULL, mapping, pos, to - from,
-				 AOP_FLAG_UNINTERRUPTIBLE, &page,
-				 NULL, nilfs_get_block);
-}
-
-static int nilfs_prepare_chunk(struct page *page,
-			       struct address_space *mapping,
-			       unsigned from, unsigned to)
-{
-	loff_t pos = page_offset(page) + from;
-	return block_write_begin(NULL, mapping, pos, to - from, 0, &page,
-				 NULL, nilfs_get_block);
+	return __block_write_begin(page, pos, to - from, nilfs_get_block);
 }
 
 static void nilfs_commit_chunk(struct page *page,
@@ -141,7 +128,7 @@ static void nilfs_check_page(struct page *page)
 	}
 	for (offs = 0; offs <= limit - NILFS_DIR_REC_LEN(1); offs += rec_len) {
 		p = (struct nilfs_dir_entry *)(kaddr + offs);
-		rec_len = le16_to_cpu(p->rec_len);
+		rec_len = nilfs_rec_len_from_disk(p->rec_len);
 
 		if (rec_len < NILFS_DIR_REC_LEN(1))
 			goto Eshort;
@@ -199,13 +186,10 @@ fail:
 static struct page *nilfs_get_page(struct inode *dir, unsigned long n)
 {
 	struct address_space *mapping = dir->i_mapping;
-	struct page *page = read_cache_page(mapping, n,
-				(filler_t *)mapping->a_ops->readpage, NULL);
+	struct page *page = read_mapping_page(mapping, n, NULL);
+
 	if (!IS_ERR(page)) {
-		wait_on_page_locked(page);
 		kmap(page);
-		if (!PageUptodate(page))
-			goto fail;
 		if (!PageChecked(page))
 			nilfs_check_page(page);
 		if (PageError(page))
@@ -238,7 +222,8 @@ nilfs_match(int len, const unsigned char *name, struct nilfs_dir_entry *de)
  */
 static struct nilfs_dir_entry *nilfs_next_entry(struct nilfs_dir_entry *p)
 {
-	return (struct nilfs_dir_entry *)((char *)p + le16_to_cpu(p->rec_len));
+	return (struct nilfs_dir_entry *)((char *)p +
+					  nilfs_rec_len_from_disk(p->rec_len));
 }
 
 static unsigned char
@@ -329,7 +314,7 @@ static int nilfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 					goto success;
 				}
 			}
-			filp->f_pos += le16_to_cpu(de->rec_len);
+			filp->f_pos += nilfs_rec_len_from_disk(de->rec_len);
 		}
 		nilfs_put_page(page);
 	}
@@ -444,12 +429,12 @@ void nilfs_set_link(struct inode *dir, struct nilfs_dir_entry *de,
 		    struct page *page, struct inode *inode)
 {
 	unsigned from = (char *) de - (char *) page_address(page);
-	unsigned to = from + le16_to_cpu(de->rec_len);
+	unsigned to = from + nilfs_rec_len_from_disk(de->rec_len);
 	struct address_space *mapping = page->mapping;
 	int err;
 
 	lock_page(page);
-	err = nilfs_prepare_chunk_uninterruptible(page, mapping, from, to);
+	err = nilfs_prepare_chunk(page, from, to);
 	BUG_ON(err);
 	de->inode = cpu_to_le64(inode->i_ino);
 	nilfs_set_de_type(de, inode);
@@ -500,7 +485,7 @@ int nilfs_add_link(struct dentry *dentry, struct inode *inode)
 				/* We hit i_size */
 				name_len = 0;
 				rec_len = chunk_size;
-				de->rec_len = cpu_to_le16(chunk_size);
+				de->rec_len = nilfs_rec_len_to_disk(chunk_size);
 				de->inode = 0;
 				goto got_it;
 			}
@@ -514,7 +499,7 @@ int nilfs_add_link(struct dentry *dentry, struct inode *inode)
 			if (nilfs_match(namelen, name, de))
 				goto out_unlock;
 			name_len = NILFS_DIR_REC_LEN(de->name_len);
-			rec_len = le16_to_cpu(de->rec_len);
+			rec_len = nilfs_rec_len_from_disk(de->rec_len);
 			if (!de->inode && rec_len >= reclen)
 				goto got_it;
 			if (rec_len >= name_len + reclen)
@@ -530,15 +515,15 @@ int nilfs_add_link(struct dentry *dentry, struct inode *inode)
 got_it:
 	from = (char *)de - (char *)page_address(page);
 	to = from + rec_len;
-	err = nilfs_prepare_chunk(page, page->mapping, from, to);
+	err = nilfs_prepare_chunk(page, from, to);
 	if (err)
 		goto out_unlock;
 	if (de->inode) {
 		struct nilfs_dir_entry *de1;
 
 		de1 = (struct nilfs_dir_entry *)((char *)de + name_len);
-		de1->rec_len = cpu_to_le16(rec_len - name_len);
-		de->rec_len = cpu_to_le16(name_len);
+		de1->rec_len = nilfs_rec_len_to_disk(rec_len - name_len);
+		de->rec_len = nilfs_rec_len_to_disk(name_len);
 		de = de1;
 	}
 	de->name_len = namelen;
@@ -569,7 +554,8 @@ int nilfs_delete_entry(struct nilfs_dir_entry *dir, struct page *page)
 	struct inode *inode = mapping->host;
 	char *kaddr = page_address(page);
 	unsigned from = ((char *)dir - kaddr) & ~(nilfs_chunk_size(inode) - 1);
-	unsigned to = ((char *)dir - kaddr) + le16_to_cpu(dir->rec_len);
+	unsigned to = ((char *)dir - kaddr) +
+		nilfs_rec_len_from_disk(dir->rec_len);
 	struct nilfs_dir_entry *pde = NULL;
 	struct nilfs_dir_entry *de = (struct nilfs_dir_entry *)(kaddr + from);
 	int err;
@@ -587,10 +573,10 @@ int nilfs_delete_entry(struct nilfs_dir_entry *dir, struct page *page)
 	if (pde)
 		from = (char *)pde - (char *)page_address(page);
 	lock_page(page);
-	err = nilfs_prepare_chunk(page, mapping, from, to);
+	err = nilfs_prepare_chunk(page, from, to);
 	BUG_ON(err);
 	if (pde)
-		pde->rec_len = cpu_to_le16(to - from);
+		pde->rec_len = nilfs_rec_len_to_disk(to - from);
 	dir->inode = 0;
 	nilfs_commit_chunk(page, mapping, from, to);
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
@@ -615,7 +601,7 @@ int nilfs_make_empty(struct inode *inode, struct inode *parent)
 	if (!page)
 		return -ENOMEM;
 
-	err = nilfs_prepare_chunk(page, mapping, 0, chunk_size);
+	err = nilfs_prepare_chunk(page, 0, chunk_size);
 	if (unlikely(err)) {
 		unlock_page(page);
 		goto fail;
@@ -624,14 +610,14 @@ int nilfs_make_empty(struct inode *inode, struct inode *parent)
 	memset(kaddr, 0, chunk_size);
 	de = (struct nilfs_dir_entry *)kaddr;
 	de->name_len = 1;
-	de->rec_len = cpu_to_le16(NILFS_DIR_REC_LEN(1));
+	de->rec_len = nilfs_rec_len_to_disk(NILFS_DIR_REC_LEN(1));
 	memcpy(de->name, ".\0\0", 4);
 	de->inode = cpu_to_le64(inode->i_ino);
 	nilfs_set_de_type(de, inode);
 
 	de = (struct nilfs_dir_entry *)(kaddr + NILFS_DIR_REC_LEN(1));
 	de->name_len = 2;
-	de->rec_len = cpu_to_le16(chunk_size - NILFS_DIR_REC_LEN(1));
+	de->rec_len = nilfs_rec_len_to_disk(chunk_size - NILFS_DIR_REC_LEN(1));
 	de->inode = cpu_to_le64(parent->i_ino);
 	memcpy(de->name, "..\0", 4);
 	nilfs_set_de_type(de, inode);

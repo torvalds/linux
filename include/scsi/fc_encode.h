@@ -21,6 +21,13 @@
 #define _FC_ENCODE_H_
 #include <asm/unaligned.h>
 
+/*
+ * F_CTL values for simple requests and responses.
+ */
+#define FC_FCTL_REQ	(FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT)
+#define FC_FCTL_RESP	(FC_FC_EX_CTX | FC_FC_LAST_SEQ | \
+			FC_FC_END_SEQ | FC_FC_SEQ_INIT)
+
 struct fc_ns_rft {
 	struct fc_ns_fid fid;	/* port ID object */
 	struct fc_ns_fts fts;	/* FC4-types object */

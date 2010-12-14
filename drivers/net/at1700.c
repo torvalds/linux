@@ -811,10 +811,8 @@ static int net_close(struct net_device *dev)
 	/* No statistic counters on the chip to update. */
 
 	/* Disable the IRQ on boards of fmv18x where it is feasible. */
-	if (lp->jumpered) {
+	if (lp->jumpered)
 		outb(0x00, ioaddr + IOCONFIG1);
-		free_irq(dev->irq, dev);
-	}
 
 	/* Power-down the chip.  Green, green, green! */
 	outb(0x00, ioaddr + CONFIG_1);

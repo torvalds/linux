@@ -19,7 +19,10 @@
 #include <linux/amba/bus.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
-#include <mach/coh901318.h>
+#include <linux/clk.h>
+#include <linux/err.h>
+#include <linux/mtd/nand.h>
+#include <linux/mtd/fsmc.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -28,6 +31,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/coh901318.h>
 #include <mach/hardware.h>
 #include <mach/syscon.h>
 #include <mach/dma_channels.h>
@@ -283,6 +287,13 @@ static struct resource rtc_resources[] = {
  */
 static struct resource fsmc_resources[] = {
 	{
+		.name  = "nand_data",
+		.start = U300_NAND_CS0_PHYS_BASE,
+		.end   = U300_NAND_CS0_PHYS_BASE + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.name  = "fsmc_regs",
 		.start = U300_NAND_IF_PHYS_BASE,
 		.end   = U300_NAND_IF_PHYS_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
@@ -1427,11 +1438,39 @@ static struct platform_device rtc_device = {
 	.resource = rtc_resources,
 };
 
-static struct platform_device fsmc_device = {
-	.name = "nandif",
+static struct mtd_partition u300_partitions[] = {
+	{
+		.name = "bootrecords",
+		.offset = 0,
+		.size = SZ_128K,
+	},
+	{
+		.name = "free",
+		.offset = SZ_128K,
+		.size = 8064 * SZ_1K,
+	},
+	{
+		.name = "platform",
+		.offset = 8192 * SZ_1K,
+		.size = 253952 * SZ_1K,
+	},
+};
+
+static struct fsmc_nand_platform_data nand_platform_data = {
+	.partitions = u300_partitions,
+	.nr_partitions = ARRAY_SIZE(u300_partitions),
+	.options = NAND_SKIP_BBTSCAN,
+	.width = FSMC_NAND_BW8,
+};
+
+static struct platform_device nand_device = {
+	.name = "fsmc-nand",
 	.id = -1,
-	.num_resources = ARRAY_SIZE(fsmc_resources),
 	.resource = fsmc_resources,
+	.num_resources = ARRAY_SIZE(fsmc_resources),
+	.dev = {
+		.platform_data = &nand_platform_data,
+	},
 };
 
 static struct platform_device ave_device = {
@@ -1463,7 +1502,7 @@ static struct platform_device *platform_devs[] __initdata = {
 	&keypad_device,
 	&rtc_device,
 	&gpio_device,
-	&fsmc_device,
+	&nand_device,
 	&wdog_device,
 	&ave_device
 };
@@ -1477,11 +1516,19 @@ static struct platform_device *platform_devs[] __initdata = {
 void __init u300_init_irq(void)
 {
 	u32 mask[2] = {0, 0};
+	struct clk *clk;
 	int i;
+
+	/* initialize clocking early, we want to clock the INTCON */
+	u300_clock_init();
+
+	/* Clock the interrupt controller */
+	clk = clk_get_sys("intcon", NULL);
+	BUG_ON(IS_ERR(clk));
+	clk_enable(clk);
 
 	for (i = 0; i < NR_IRQS; i++)
 		set_bit(i, (unsigned long *) &mask[0]);
-	u300_enable_intcon_clock();
 	vic_init((void __iomem *) U300_INTCON0_VBASE, 0, mask[0], mask[0]);
 	vic_init((void __iomem *) U300_INTCON1_VBASE, 32, mask[1], mask[1]);
 }
@@ -1561,13 +1608,6 @@ static void __init u300_init_check_chip(void)
 	printk(KERN_INFO "Initializing U300 system on %s baseband chip " \
 	       "(chip ID 0x%04x)\n", chipname, val);
 
-#ifdef CONFIG_MACH_U300_BS26
-	if ((val & 0xFF00U) != 0xc800) {
-		printk(KERN_ERR "Platform configured for BS25/BS26 " \
-		       "with DB3150 but %s detected, expect problems!",
-		       chipname);
-	}
-#endif
 #ifdef CONFIG_MACH_U300_BS330
 	if ((val & 0xFF00U) != 0xd800) {
 		printk(KERN_ERR "Platform configured for BS330 " \
@@ -1642,12 +1682,10 @@ void __init u300_init_devices(void)
 	u300_spi_init(&pl022_device);
 
 	/* Register the AMBA devices in the AMBA bus abstraction layer */
-	u300_clock_primecells();
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
 		amba_device_register(d, &iomem_resource);
 	}
-	u300_unclock_primecells();
 
 	u300_assign_physmem();
 

@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2002, IBM Corp.
  *
- * All rights reserved.          
+ * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,9 +34,16 @@
 #ifndef cpu_to_node
 #define cpu_to_node(cpu)	((void)(cpu),0)
 #endif
+#ifndef set_numa_node
+#define set_numa_node(node)
+#endif
+#ifndef set_cpu_numa_node
+#define set_cpu_numa_node(cpu, node)
+#endif
 #ifndef cpu_to_mem
 #define cpu_to_mem(cpu)		((void)(cpu),0)
 #endif
+
 #ifndef parent_node
 #define parent_node(node)	((void)(node),0)
 #endif
@@ -54,5 +61,16 @@
 #endif
 
 #endif	/* CONFIG_NUMA */
+
+#if !defined(CONFIG_NUMA) || !defined(CONFIG_HAVE_MEMORYLESS_NODES)
+
+#ifndef set_numa_mem
+#define set_numa_mem(node)
+#endif
+#ifndef set_cpu_numa_mem
+#define set_cpu_numa_mem(cpu, node)
+#endif
+
+#endif	/* !CONFIG_NUMA || !CONFIG_HAVE_MEMORYLESS_NODES */
 
 #endif /* _ASM_GENERIC_TOPOLOGY_H */

@@ -40,8 +40,8 @@
 #define DBGBH(fmt) if (debug_level >= DEBUG_LEVEL_BH) printk fmt
 #define DBGISR(fmt) if (debug_level >= DEBUG_LEVEL_ISR) printk fmt
 #define DBGDATA(info, buf, size, label) if (debug_level >= DEBUG_LEVEL_DATA) trace_block((info), (buf), (size), (label))
-//#define DBGTBUF(info) dump_tbufs(info)
-//#define DBGRBUF(info) dump_rbufs(info)
+/*#define DBGTBUF(info) dump_tbufs(info)*/
+/*#define DBGRBUF(info) dump_rbufs(info)*/
 
 
 #include <linux/module.h>
@@ -62,7 +62,6 @@
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
@@ -302,6 +301,8 @@ struct slgt_info {
 	unsigned int rx_pio;
 	unsigned int if_mode;
 	unsigned int base_clock;
+	unsigned int xsync;
+	unsigned int xctrl;
 
 	/* device status */
 
@@ -406,6 +407,8 @@ static MGSL_PARAMS default_params = {
 #define TDCSR 0x94 /* tx DMA control/status */
 #define RDDAR 0x98 /* rx DMA descriptor address */
 #define TDDAR 0x9c /* tx DMA descriptor address */
+#define XSR   0x40 /* extended sync pattern */
+#define XCR   0x44 /* extended control */
 
 #define RXIDLE      BIT14
 #define RXBREAK     BIT14
@@ -518,6 +521,10 @@ static int  set_interface(struct slgt_info *info, int if_mode);
 static int  set_gpio(struct slgt_info *info, struct gpio_desc __user *gpio);
 static int  get_gpio(struct slgt_info *info, struct gpio_desc __user *gpio);
 static int  wait_gpio(struct slgt_info *info, struct gpio_desc __user *gpio);
+static int  get_xsync(struct slgt_info *info, int __user *if_mode);
+static int  set_xsync(struct slgt_info *info, int if_mode);
+static int  get_xctrl(struct slgt_info *info, int __user *if_mode);
+static int  set_xctrl(struct slgt_info *info, int if_mode);
 
 /*
  * driver functions
@@ -676,12 +683,14 @@ static int open(struct tty_struct *tty, struct file *filp)
 		goto cleanup;
 	}
 
+	mutex_lock(&info->port.mutex);
 	info->port.tty->low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
 	spin_lock_irqsave(&info->netlock, flags);
 	if (info->netcount) {
 		retval = -EBUSY;
 		spin_unlock_irqrestore(&info->netlock, flags);
+		mutex_unlock(&info->port.mutex);
 		goto cleanup;
 	}
 	info->port.count++;
@@ -690,10 +699,12 @@ static int open(struct tty_struct *tty, struct file *filp)
 	if (info->port.count == 1) {
 		/* 1st open on this device, init hardware */
 		retval = startup(info);
-		if (retval < 0)
+		if (retval < 0) {
+			mutex_unlock(&info->port.mutex);
 			goto cleanup;
+		}
 	}
-
+	mutex_unlock(&info->port.mutex);
 	retval = block_til_ready(tty, filp, info);
 	if (retval) {
 		DBGINFO(("%s block_til_ready rc=%d\n", info->device_name, retval));
@@ -725,12 +736,14 @@ static void close(struct tty_struct *tty, struct file *filp)
 	if (tty_port_close_start(&info->port, tty, filp) == 0)
 		goto cleanup;
 
+	mutex_lock(&info->port.mutex);
  	if (info->port.flags & ASYNC_INITIALIZED)
  		wait_until_sent(tty, info->timeout);
 	flush_buffer(tty);
 	tty_ldisc_flush(tty);
 
 	shutdown(info);
+	mutex_unlock(&info->port.mutex);
 
 	tty_port_close_end(&info->port, tty);
 	info->port.tty = NULL;
@@ -741,17 +754,23 @@ cleanup:
 static void hangup(struct tty_struct *tty)
 {
 	struct slgt_info *info = tty->driver_data;
+	unsigned long flags;
 
 	if (sanity_check(info, tty->name, "hangup"))
 		return;
 	DBGINFO(("%s hangup\n", info->device_name));
 
 	flush_buffer(tty);
+
+	mutex_lock(&info->port.mutex);
 	shutdown(info);
 
+	spin_lock_irqsave(&info->port.lock, flags);
 	info->port.count = 0;
 	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->port.tty = NULL;
+	spin_unlock_irqrestore(&info->port.lock, flags);
+	mutex_unlock(&info->port.mutex);
 
 	wake_up_interruptible(&info->port.open_wait);
 }
@@ -901,8 +920,6 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 	 * Note: use tight timings here to satisfy the NIST-PCTS.
 	 */
 
-	lock_kernel();
-
 	if (info->params.data_rate) {
 	       	char_time = info->timeout/(32 * 5);
 		if (!char_time)
@@ -920,8 +937,6 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 		if (timeout && time_after(jiffies, orig_jiffies + timeout))
 			break;
 	}
-	unlock_kernel();
-
 exit:
 	DBGINFO(("%s wait_until_sent exit\n", info->device_name));
 }
@@ -1025,9 +1040,6 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 		 unsigned int cmd, unsigned long arg)
 {
 	struct slgt_info *info = tty->driver_data;
-	struct mgsl_icount cnow;	/* kernel counter temps */
-	struct serial_icounter_struct __user *p_cuser;	/* user space */
-	unsigned long flags;
 	void __user *argp = (void __user *)arg;
 	int ret;
 
@@ -1036,13 +1048,32 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 	DBGINFO(("%s ioctl() cmd=%08X\n", info->device_name, cmd));
 
 	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
-	    (cmd != TIOCMIWAIT) && (cmd != TIOCGICOUNT)) {
+	    (cmd != TIOCMIWAIT)) {
 		if (tty->flags & (1 << TTY_IO_ERROR))
 		    return -EIO;
 	}
 
-	lock_kernel();
-
+	switch (cmd) {
+	case MGSL_IOCWAITEVENT:
+		return wait_mgsl_event(info, argp);
+	case TIOCMIWAIT:
+		return modem_input_wait(info,(int)arg);
+	case MGSL_IOCSGPIO:
+		return set_gpio(info, argp);
+	case MGSL_IOCGGPIO:
+		return get_gpio(info, argp);
+	case MGSL_IOCWAITGPIO:
+		return wait_gpio(info, argp);
+	case MGSL_IOCGXSYNC:
+		return get_xsync(info, argp);
+	case MGSL_IOCSXSYNC:
+		return set_xsync(info, (int)arg);
+	case MGSL_IOCGXCTRL:
+		return get_xctrl(info, argp);
+	case MGSL_IOCSXCTRL:
+		return set_xctrl(info, (int)arg);
+	}
+	mutex_lock(&info->port.mutex);
 	switch (cmd) {
 	case MGSL_IOCGPARAMS:
 		ret = get_params(info, argp);
@@ -1068,51 +1099,44 @@ static int ioctl(struct tty_struct *tty, struct file *file,
 	case MGSL_IOCGSTATS:
 		ret = get_stats(info, argp);
 		break;
-	case MGSL_IOCWAITEVENT:
-		ret = wait_mgsl_event(info, argp);
-		break;
-	case TIOCMIWAIT:
-		ret = modem_input_wait(info,(int)arg);
-		break;
 	case MGSL_IOCGIF:
 		ret = get_interface(info, argp);
 		break;
 	case MGSL_IOCSIF:
 		ret = set_interface(info,(int)arg);
 		break;
-	case MGSL_IOCSGPIO:
-		ret = set_gpio(info, argp);
-		break;
-	case MGSL_IOCGGPIO:
-		ret = get_gpio(info, argp);
-		break;
-	case MGSL_IOCWAITGPIO:
-		ret = wait_gpio(info, argp);
-		break;
-	case TIOCGICOUNT:
-		spin_lock_irqsave(&info->lock,flags);
-		cnow = info->icount;
-		spin_unlock_irqrestore(&info->lock,flags);
-		p_cuser = argp;
-		if (put_user(cnow.cts, &p_cuser->cts) ||
-		    put_user(cnow.dsr, &p_cuser->dsr) ||
-		    put_user(cnow.rng, &p_cuser->rng) ||
-		    put_user(cnow.dcd, &p_cuser->dcd) ||
-		    put_user(cnow.rx, &p_cuser->rx) ||
-		    put_user(cnow.tx, &p_cuser->tx) ||
-		    put_user(cnow.frame, &p_cuser->frame) ||
-		    put_user(cnow.overrun, &p_cuser->overrun) ||
-		    put_user(cnow.parity, &p_cuser->parity) ||
-		    put_user(cnow.brk, &p_cuser->brk) ||
-		    put_user(cnow.buf_overrun, &p_cuser->buf_overrun))
-			ret = -EFAULT;
-		ret = 0;
-		break;
 	default:
 		ret = -ENOIOCTLCMD;
 	}
-	unlock_kernel();
+	mutex_unlock(&info->port.mutex);
 	return ret;
+}
+
+static int get_icount(struct tty_struct *tty,
+				struct serial_icounter_struct *icount)
+
+{
+	struct slgt_info *info = tty->driver_data;
+	struct mgsl_icount cnow;	/* kernel counter temps */
+	unsigned long flags;
+
+	spin_lock_irqsave(&info->lock,flags);
+	cnow = info->icount;
+	spin_unlock_irqrestore(&info->lock,flags);
+
+	icount->cts = cnow.cts;
+	icount->dsr = cnow.dsr;
+	icount->rng = cnow.rng;
+	icount->dcd = cnow.dcd;
+	icount->rx = cnow.rx;
+	icount->tx = cnow.tx;
+	icount->frame = cnow.frame;
+	icount->overrun = cnow.overrun;
+	icount->parity = cnow.parity;
+	icount->brk = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
+
+	return 0;
 }
 
 /*
@@ -1124,6 +1148,7 @@ static long get_params32(struct slgt_info *info, struct MGSL_PARAMS32 __user *us
 	struct MGSL_PARAMS32 tmp_params;
 
 	DBGINFO(("%s get_params32\n", info->device_name));
+	memset(&tmp_params, 0, sizeof(tmp_params));
 	tmp_params.mode            = (compat_ulong_t)info->params.mode;
 	tmp_params.loopback        = info->params.loopback;
 	tmp_params.flags           = info->params.flags;
@@ -1204,16 +1229,16 @@ static long slgt_compat_ioctl(struct tty_struct *tty, struct file *file,
 	case MGSL_IOCSGPIO:
 	case MGSL_IOCGGPIO:
 	case MGSL_IOCWAITGPIO:
-	case TIOCGICOUNT:
-		rc = ioctl(tty, file, cmd, (unsigned long)(compat_ptr(arg)));
-		break;
-
+	case MGSL_IOCGXSYNC:
+	case MGSL_IOCGXCTRL:
 	case MGSL_IOCSTXIDLE:
 	case MGSL_IOCTXENABLE:
 	case MGSL_IOCRXENABLE:
 	case MGSL_IOCTXABORT:
 	case TIOCMIWAIT:
 	case MGSL_IOCSIF:
+	case MGSL_IOCSXSYNC:
+	case MGSL_IOCSXCTRL:
 		rc = ioctl(tty, file, cmd, arg);
 		break;
 	}
@@ -1613,6 +1638,8 @@ static int hdlcdev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	if (cmd != SIOCWANDEV)
 		return hdlc_ioctl(dev, ifr, cmd);
 
+	memset(&new_line, 0, sizeof(new_line));
+
 	switch(ifr->ifr_settings.type) {
 	case IF_GET_IFACE: /* return current sync_serial_settings */
 
@@ -1954,6 +1981,7 @@ static void bh_handler(struct work_struct *work)
 			case MGSL_MODE_RAW:
 			case MGSL_MODE_MONOSYNC:
 			case MGSL_MODE_BISYNC:
+			case MGSL_MODE_XSYNC:
 				while(rx_get_buf(info));
 				break;
 			}
@@ -2353,26 +2381,27 @@ static irqreturn_t slgt_interrupt(int dummy, void *dev_id)
 
 	DBGISR(("slgt_interrupt irq=%d entry\n", info->irq_level));
 
-	spin_lock(&info->lock);
-
 	while((gsr = rd_reg32(info, GSR) & 0xffffff00)) {
 		DBGISR(("%s gsr=%08x\n", info->device_name, gsr));
 		info->irq_occurred = true;
 		for(i=0; i < info->port_count ; i++) {
 			if (info->port_array[i] == NULL)
 				continue;
+			spin_lock(&info->port_array[i]->lock);
 			if (gsr & (BIT8 << i))
 				isr_serial(info->port_array[i]);
 			if (gsr & (BIT16 << (i*2)))
 				isr_rdma(info->port_array[i]);
 			if (gsr & (BIT17 << (i*2)))
 				isr_tdma(info->port_array[i]);
+			spin_unlock(&info->port_array[i]->lock);
 		}
 	}
 
 	if (info->gpio_present) {
 		unsigned int state;
 		unsigned int changed;
+		spin_lock(&info->lock);
 		while ((changed = rd_reg32(info, IOSR)) != 0) {
 			DBGISR(("%s iosr=%08x\n", info->device_name, changed));
 			/* read latched state of GPIO signals */
@@ -2384,21 +2413,23 @@ static irqreturn_t slgt_interrupt(int dummy, void *dev_id)
 					isr_gpio(info->port_array[i], changed, state);
 			}
 		}
+		spin_unlock(&info->lock);
 	}
 
 	for(i=0; i < info->port_count ; i++) {
 		struct slgt_info *port = info->port_array[i];
-
-		if (port && (port->port.count || port->netcount) &&
+		if (port == NULL)
+			continue;
+		spin_lock(&port->lock);
+		if ((port->port.count || port->netcount) &&
 		    port->pending_bh && !port->bh_running &&
 		    !port->bh_requested) {
 			DBGISR(("%s bh queued\n", port->device_name));
 			schedule_work(&port->task);
 			port->bh_requested = true;
 		}
+		spin_unlock(&port->lock);
 	}
-
-	spin_unlock(&info->lock);
 
 	DBGISR(("slgt_interrupt irq=%d exit\n", info->irq_level));
 	return IRQ_HANDLED;
@@ -2879,6 +2910,69 @@ static int set_interface(struct slgt_info *info, int if_mode)
 	return 0;
 }
 
+static int get_xsync(struct slgt_info *info, int __user *xsync)
+{
+	DBGINFO(("%s get_xsync=%x\n", info->device_name, info->xsync));
+	if (put_user(info->xsync, xsync))
+		return -EFAULT;
+	return 0;
+}
+
+/*
+ * set extended sync pattern (1 to 4 bytes) for extended sync mode
+ *
+ * sync pattern is contained in least significant bytes of value
+ * most significant byte of sync pattern is oldest (1st sent/detected)
+ */
+static int set_xsync(struct slgt_info *info, int xsync)
+{
+	unsigned long flags;
+
+	DBGINFO(("%s set_xsync=%x)\n", info->device_name, xsync));
+	spin_lock_irqsave(&info->lock, flags);
+	info->xsync = xsync;
+	wr_reg32(info, XSR, xsync);
+	spin_unlock_irqrestore(&info->lock, flags);
+	return 0;
+}
+
+static int get_xctrl(struct slgt_info *info, int __user *xctrl)
+{
+	DBGINFO(("%s get_xctrl=%x\n", info->device_name, info->xctrl));
+	if (put_user(info->xctrl, xctrl))
+		return -EFAULT;
+	return 0;
+}
+
+/*
+ * set extended control options
+ *
+ * xctrl[31:19] reserved, must be zero
+ * xctrl[18:17] extended sync pattern length in bytes
+ *              00 = 1 byte  in xsr[7:0]
+ *              01 = 2 bytes in xsr[15:0]
+ *              10 = 3 bytes in xsr[23:0]
+ *              11 = 4 bytes in xsr[31:0]
+ * xctrl[16]    1 = enable terminal count, 0=disabled
+ * xctrl[15:0]  receive terminal count for fixed length packets
+ *              value is count minus one (0 = 1 byte packet)
+ *              when terminal count is reached, receiver
+ *              automatically returns to hunt mode and receive
+ *              FIFO contents are flushed to DMA buffers with
+ *              end of frame (EOF) status
+ */
+static int set_xctrl(struct slgt_info *info, int xctrl)
+{
+	unsigned long flags;
+
+	DBGINFO(("%s set_xctrl=%x)\n", info->device_name, xctrl));
+	spin_lock_irqsave(&info->lock, flags);
+	info->xctrl = xctrl;
+	wr_reg32(info, XCR, xctrl);
+	spin_unlock_irqrestore(&info->lock, flags);
+	return 0;
+}
+
 /*
  * set general purpose IO pin state and direction
  *
@@ -2902,7 +2996,7 @@ static int set_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
 		 info->device_name, gpio.state, gpio.smask,
 		 gpio.dir, gpio.dmask));
 
-	spin_lock_irqsave(&info->lock,flags);
+	spin_lock_irqsave(&info->port_array[0]->lock, flags);
 	if (gpio.dmask) {
 		data = rd_reg32(info, IODR);
 		data |= gpio.dmask & gpio.dir;
@@ -2915,7 +3009,7 @@ static int set_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
 		data &= ~(gpio.smask & ~gpio.state);
 		wr_reg32(info, IOVR, data);
 	}
-	spin_unlock_irqrestore(&info->lock,flags);
+	spin_unlock_irqrestore(&info->port_array[0]->lock, flags);
 
 	return 0;
 }
@@ -3016,7 +3110,7 @@ static int wait_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
 		return -EINVAL;
 	init_cond_wait(&wait, gpio.smask);
 
-	spin_lock_irqsave(&info->lock, flags);
+	spin_lock_irqsave(&info->port_array[0]->lock, flags);
 	/* enable interrupts for watched pins */
 	wr_reg32(info, IOER, rd_reg32(info, IOER) | gpio.smask);
 	/* get current pin states */
@@ -3028,20 +3122,20 @@ static int wait_gpio(struct slgt_info *info, struct gpio_desc __user *user_gpio)
 	} else {
 		/* wait for target state */
 		add_cond_wait(&info->gpio_wait_q, &wait);
-		spin_unlock_irqrestore(&info->lock, flags);
+		spin_unlock_irqrestore(&info->port_array[0]->lock, flags);
 		schedule();
 		if (signal_pending(current))
 			rc = -ERESTARTSYS;
 		else
 			gpio.state = wait.data;
-		spin_lock_irqsave(&info->lock, flags);
+		spin_lock_irqsave(&info->port_array[0]->lock, flags);
 		remove_cond_wait(&info->gpio_wait_q, &wait);
 	}
 
 	/* disable all GPIO interrupts if no waiting processes */
 	if (info->gpio_wait_q == NULL)
 		wr_reg32(info, IOER, 0);
-	spin_unlock_irqrestore(&info->lock,flags);
+	spin_unlock_irqrestore(&info->port_array[0]->lock, flags);
 
 	if ((rc == 0) && copy_to_user(user_gpio, &gpio, sizeof(gpio)))
 		rc = -EFAULT;
@@ -3244,7 +3338,9 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 		}
 
 		DBGINFO(("%s block_til_ready wait\n", tty->driver->name));
+		tty_unlock();
 		schedule();
+		tty_lock();
 	}
 
 	set_current_state(TASK_RUNNING);
@@ -3572,7 +3668,6 @@ static void device_init(int adapter_num, struct pci_dev *pdev)
 
 		/* copy resource information from first port to others */
 		for (i = 1; i < port_count; ++i) {
-			port_array[i]->lock      = port_array[0]->lock;
 			port_array[i]->irq_level = port_array[0]->irq_level;
 			port_array[i]->reg_addr  = port_array[0]->reg_addr;
 			alloc_dma_bufs(port_array[i]);
@@ -3638,6 +3733,7 @@ static const struct tty_operations ops = {
 	.hangup = hangup,
 	.tiocmget = tiocmget,
 	.tiocmset = tiocmset,
+	.get_icount = get_icount,
 	.proc_fops = &synclink_gt_proc_fops,
 };
 
@@ -3756,7 +3852,9 @@ module_exit(slgt_exit);
 #define CALC_REGADDR() \
 	unsigned long reg_addr = ((unsigned long)info->reg_addr) + addr; \
 	if (addr >= 0x80) \
-		reg_addr += (info->port_num) * 32;
+		reg_addr += (info->port_num) * 32; \
+	else if (addr >= 0x40)	\
+		reg_addr += (info->port_num) * 16;
 
 static __u8 rd_reg8(struct slgt_info *info, unsigned int addr)
 {
@@ -4175,7 +4273,13 @@ static void sync_mode(struct slgt_info *info)
 
 	/* TCR (tx control)
 	 *
-	 * 15..13  mode, 000=HDLC 001=raw 010=async 011=monosync 100=bisync
+	 * 15..13  mode
+	 *         000=HDLC/SDLC
+	 *         001=raw bit synchronous
+	 *         010=asynchronous/isochronous
+	 *         011=monosync byte synchronous
+	 *         100=bisync byte synchronous
+	 *         101=xsync byte synchronous
 	 * 12..10  encoding
 	 * 09      CRC enable
 	 * 08      CRC32
@@ -4190,6 +4294,9 @@ static void sync_mode(struct slgt_info *info)
 	val = BIT2;
 
 	switch(info->params.mode) {
+	case MGSL_MODE_XSYNC:
+		val |= BIT15 + BIT13;
+		break;
 	case MGSL_MODE_MONOSYNC: val |= BIT14 + BIT13; break;
 	case MGSL_MODE_BISYNC:   val |= BIT15; break;
 	case MGSL_MODE_RAW:      val |= BIT13; break;
@@ -4244,7 +4351,13 @@ static void sync_mode(struct slgt_info *info)
 
 	/* RCR (rx control)
 	 *
-	 * 15..13  mode, 000=HDLC 001=raw 010=async 011=monosync 100=bisync
+	 * 15..13  mode
+	 *         000=HDLC/SDLC
+	 *         001=raw bit synchronous
+	 *         010=asynchronous/isochronous
+	 *         011=monosync byte synchronous
+	 *         100=bisync byte synchronous
+	 *         101=xsync byte synchronous
 	 * 12..10  encoding
 	 * 09      CRC enable
 	 * 08      CRC32
@@ -4256,6 +4369,9 @@ static void sync_mode(struct slgt_info *info)
 	val = 0;
 
 	switch(info->params.mode) {
+	case MGSL_MODE_XSYNC:
+		val |= BIT15 + BIT13;
+		break;
 	case MGSL_MODE_MONOSYNC: val |= BIT14 + BIT13; break;
 	case MGSL_MODE_BISYNC:   val |= BIT15; break;
 	case MGSL_MODE_RAW:      val |= BIT13; break;
@@ -4672,6 +4788,7 @@ static bool rx_get_buf(struct slgt_info *info)
 	switch(info->params.mode) {
 	case MGSL_MODE_MONOSYNC:
 	case MGSL_MODE_BISYNC:
+	case MGSL_MODE_XSYNC:
 		/* ignore residue in byte synchronous modes */
 		if (desc_residue(info->rbufs[i]))
 			count--;
@@ -4845,7 +4962,7 @@ static int register_test(struct slgt_info *info)
 {
 	static unsigned short patterns[] =
 		{0x0000, 0xffff, 0xaaaa, 0x5555, 0x6969, 0x9696};
-	static unsigned int count = sizeof(patterns)/sizeof(patterns[0]);
+	static unsigned int count = ARRAY_SIZE(patterns);
 	unsigned int i;
 	int rc = 0;
 

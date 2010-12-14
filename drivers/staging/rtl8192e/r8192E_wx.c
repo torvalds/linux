@@ -26,7 +26,7 @@
 #endif
 
 #define RATE_COUNT 12
-static u32 rtl8180_rates[] = {1000000,2000000,5500000,11000000,
+static const u32 rtl8180_rates[] = {1000000,2000000,5500000,11000000,
 	6000000,9000000,12000000,18000000,24000000,36000000,48000000,54000000};
 
 
@@ -70,7 +70,7 @@ static int r8192_wx_set_rate(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -90,7 +90,7 @@ static int r8192_wx_set_rts(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -117,7 +117,7 @@ static int r8192_wx_set_power(struct net_device *dev,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -137,161 +137,6 @@ static int r8192_wx_get_power(struct net_device *dev,
 	return ieee80211_wx_get_power(priv->ieee80211,info,wrqu,extra);
 }
 
-#ifdef JOHN_IOCTL
-u16 read_rtl8225(struct net_device *dev, u8 addr);
-void write_rtl8225(struct net_device *dev, u8 adr, u16 data);
-u32 john_read_rtl8225(struct net_device *dev, u8 adr);
-void _write_rtl8225(struct net_device *dev, u8 adr, u16 data);
-
-static int r8192_wx_read_regs(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-	struct r8192_priv *priv = ieee80211_priv(dev);
-	u8 addr;
-	u16 data1;
-
-	down(&priv->wx_sem);
-
-
-	get_user(addr,(u8*)wrqu->data.pointer);
-	data1 = read_rtl8225(dev, addr);
-	wrqu->data.length = data1;
-
-	up(&priv->wx_sem);
-	return 0;
-
-}
-
-static int r8192_wx_write_regs(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-        struct r8192_priv *priv = ieee80211_priv(dev);
-        u8 addr;
-
-        down(&priv->wx_sem);
-
-        get_user(addr, (u8*)wrqu->data.pointer);
-	write_rtl8225(dev, addr, wrqu->data.length);
-
-        up(&priv->wx_sem);
-	return 0;
-
-}
-
-void rtl8187_write_phy(struct net_device *dev, u8 adr, u32 data);
-u8 rtl8187_read_phy(struct net_device *dev,u8 adr, u32 data);
-
-static int r8192_wx_read_bb(struct net_device *dev,
-			       struct iw_request_info *info,
-			       union iwreq_data *wrqu, char *extra)
-{
-        struct r8192_priv *priv = ieee80211_priv(dev);
-	u8 databb;
-#if 0
-	int i;
-	for(i=0;i<12;i++) printk("%8x\n", read_cam(dev, i) );
-#endif
-
-        down(&priv->wx_sem);
-
-	databb = rtl8187_read_phy(dev, (u8)wrqu->data.length, 0x00000000);
-	wrqu->data.length = databb;
-
-	up(&priv->wx_sem);
-	return 0;
-}
-
-void rtl8187_write_phy(struct net_device *dev, u8 adr, u32 data);
-static int r8192_wx_write_bb(struct net_device *dev,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
-{
-        struct r8192_priv *priv = ieee80211_priv(dev);
-        u8 databb;
-
-        down(&priv->wx_sem);
-
-        get_user(databb, (u8*)wrqu->data.pointer);
-        rtl8187_write_phy(dev, wrqu->data.length, databb);
-
-        up(&priv->wx_sem);
-        return 0;
-
-}
-
-
-static int r8192_wx_write_nicb(struct net_device *dev,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
-{
-        struct r8192_priv *priv = ieee80211_priv(dev);
-        u32 addr;
-
-        down(&priv->wx_sem);
-
-        get_user(addr, (u32*)wrqu->data.pointer);
-        write_nic_byte(dev, addr, wrqu->data.length);
-
-        up(&priv->wx_sem);
-        return 0;
-
-}
-static int r8192_wx_read_nicb(struct net_device *dev,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
-{
-        struct r8192_priv *priv = ieee80211_priv(dev);
-        u32 addr;
-        u16 data1;
-
-        down(&priv->wx_sem);
-
-        get_user(addr,(u32*)wrqu->data.pointer);
-        data1 = read_nic_byte(dev, addr);
-        wrqu->data.length = data1;
-
-        up(&priv->wx_sem);
-        return 0;
-}
-
-static int r8192_wx_get_ap_status(struct net_device *dev,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
-{
-        struct r8192_priv *priv = ieee80211_priv(dev);
-        struct ieee80211_device *ieee = priv->ieee80211;
-        struct ieee80211_network *target;
-	int name_len;
-
-        down(&priv->wx_sem);
-
-	//count the length of input ssid
-	for(name_len=0 ; ((char*)wrqu->data.pointer)[name_len]!='\0' ; name_len++);
-
-	//search for the correspoding info which is received
-        list_for_each_entry(target, &ieee->network_list, list) {
-                if ( (target->ssid_len == name_len) &&
-		     (strncmp(target->ssid, (char*)wrqu->data.pointer, name_len)==0)){
-			if(target->wpa_ie_len>0 || target->rsn_ie_len>0 )
-				//set flags=1 to indicate this ap is WPA
-				wrqu->data.flags = 1;
-			else wrqu->data.flags = 0;
-
-
-		break;
-                }
-        }
-
-        up(&priv->wx_sem);
-        return 0;
-}
-
-
-
-#endif
-
 static int r8192_wx_set_rawtx(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
@@ -299,7 +144,7 @@ static int r8192_wx_set_rawtx(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int ret;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -337,7 +182,7 @@ static int r8192_wx_set_crcmon(struct net_device *dev,
 	int enable = (parms[0] > 0);
 	short prev = priv->crcmon;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -367,7 +212,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	RT_RF_POWER_STATE	rtState;
 	int ret;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	rtState = priv->ieee80211->eRFPowerState;
@@ -538,7 +383,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	RT_RF_POWER_STATE	rtState;
 	int ret;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	rtState = priv->ieee80211->eRFPowerState;
@@ -607,7 +452,7 @@ static int r8192_wx_get_scan(struct net_device *dev, struct iw_request_info *a,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	if(!priv->up) return -ENETDOWN;
@@ -629,7 +474,7 @@ static int r8192_wx_set_essid(struct net_device *dev,
 	RT_RF_POWER_STATE	rtState;
 	int ret;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	rtState = priv->ieee80211->eRFPowerState;
@@ -673,7 +518,7 @@ static int r8192_wx_set_freq(struct net_device *dev, struct iw_request_info *a,
 	int ret;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -699,7 +544,7 @@ static int r8192_wx_set_frag(struct net_device *dev,
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	if (wrqu->frag.disabled)
@@ -740,7 +585,7 @@ static int r8192_wx_set_wap(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 //        struct sockaddr *temp = (struct sockaddr *)awrq;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -796,7 +641,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 				{0x00,0x00,0x00,0x00,0x00,0x03} };
 	int i;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
        if(!priv->up) return -ENETDOWN;
@@ -941,7 +786,7 @@ static int r8192_wx_set_retry(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int err = 0;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1037,7 +882,7 @@ static int r8192_wx_set_sens(struct net_device *dev,
 
 	short err = 0;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1066,7 +911,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device* ieee = priv->ieee80211;
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1171,7 +1016,7 @@ static int r8192_wx_set_auth(struct net_device *dev,
 	//printk("====>%s()\n", __FUNCTION__);
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1189,7 +1034,7 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 	int ret=0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
 	down(&priv->wx_sem);
@@ -1206,7 +1051,7 @@ static int r8192_wx_set_gen_ie(struct net_device *dev,
 	int ret=0;
         struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if(priv->bHwRadioOff == true)
+	if (priv->bHwRadioOff)
 		return 0;
 
         down(&priv->wx_sem);

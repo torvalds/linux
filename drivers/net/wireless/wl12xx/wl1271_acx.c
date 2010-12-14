@@ -86,40 +86,6 @@ out:
 	return ret;
 }
 
-int wl1271_acx_fw_version(struct wl1271 *wl, char *buf, size_t len)
-{
-	struct acx_revision *rev;
-	int ret;
-
-	wl1271_debug(DEBUG_ACX, "acx fw rev");
-
-	rev = kzalloc(sizeof(*rev), GFP_KERNEL);
-	if (!rev) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = wl1271_cmd_interrogate(wl, ACX_FW_REV, rev, sizeof(*rev));
-	if (ret < 0) {
-		wl1271_warning("ACX_FW_REV interrogate failed");
-		goto out;
-	}
-
-	/* be careful with the buffer sizes */
-	strncpy(buf, rev->fw_version, min(len, sizeof(rev->fw_version)));
-
-	/*
-	 * if the firmware version string is exactly
-	 * sizeof(rev->fw_version) long or fw_len is less than
-	 * sizeof(rev->fw_version) it won't be null terminated
-	 */
-	buf[min(len, sizeof(rev->fw_version)) - 1] = '\0';
-
-out:
-	kfree(rev);
-	return ret;
-}
-
 int wl1271_acx_tx_power(struct wl1271 *wl, int power)
 {
 	struct acx_current_tx_power *acx;
@@ -269,7 +235,7 @@ int wl1271_acx_pd_threshold(struct wl1271 *wl)
 
 out:
 	kfree(pd);
-	return 0;
+	return ret;
 }
 
 int wl1271_acx_slot(struct wl1271 *wl, enum acx_slot_type slot_time)
@@ -1075,8 +1041,7 @@ out:
 	return ret;
 }
 
-int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, u8 *address,
-			     u8 version)
+int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, __be32 address)
 {
 	struct wl1271_acx_arp_filter *acx;
 	int ret;
@@ -1089,17 +1054,11 @@ int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, u8 *address,
 		goto out;
 	}
 
-	acx->version = version;
+	acx->version = ACX_IPV4_VERSION;
 	acx->enable = enable;
 
-	if (enable == true) {
-		if (version == ACX_IPV4_VERSION)
-			memcpy(acx->address, address, ACX_IPV4_ADDR_SIZE);
-		else if (version == ACX_IPV6_VERSION)
-			memcpy(acx->address, address, sizeof(acx->address));
-		else
-			wl1271_error("Invalid IP version");
-	}
+	if (enable == true)
+		memcpy(acx->address, &address, ACX_IPV4_ADDR_SIZE);
 
 	ret = wl1271_cmd_configure(wl, ACX_ARP_IP_FILTER,
 				   acx, sizeof(*acx));
@@ -1264,5 +1223,31 @@ int wl1271_acx_rssi_snr_avg_weights(struct wl1271 *wl)
 
 out:
 	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime)
+{
+	struct wl1271_acx_fw_tsf_information *tsf_info;
+	int ret;
+
+	tsf_info = kzalloc(sizeof(*tsf_info), GFP_KERNEL);
+	if (!tsf_info) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = wl1271_cmd_interrogate(wl, ACX_TSF_INFO,
+				     tsf_info, sizeof(*tsf_info));
+	if (ret < 0) {
+		wl1271_warning("acx tsf info interrogate failed");
+		goto out;
+	}
+
+	*mactime = le32_to_cpu(tsf_info->current_tsf_low) |
+		((u64) le32_to_cpu(tsf_info->current_tsf_high) << 32);
+
+out:
+	kfree(tsf_info);
 	return ret;
 }

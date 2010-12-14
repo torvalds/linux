@@ -67,25 +67,11 @@ static inline unsigned int gic_irq(unsigned int irq)
 
 /*
  * Routines to acknowledge, disable and enable interrupts
- *
- * Linux assumes that when we're done with an interrupt we need to
- * unmask it, in the same way we need to unmask an interrupt when
- * we first enable it.
- *
- * The GIC has a separate notion of "end of interrupt" to re-enable
- * an interrupt after handling, in order to support hardware
- * prioritisation.
- *
- * We can make the GIC behave in the way that Linux expects by making
- * our "acknowledge" routine disable the interrupt, then mark it as
- * complete.
  */
 static void gic_ack_irq(unsigned int irq)
 {
-	u32 mask = 1 << (irq % 32);
 
 	spin_lock(&irq_controller_lock);
-	writel(mask, gic_dist_base(irq) + GIC_DIST_ENABLE_CLEAR + (gic_irq(irq) / 32) * 4);
 	writel(gic_irq(irq), gic_cpu_base(irq) + GIC_CPU_EOI);
 	spin_unlock(&irq_controller_lock);
 }
@@ -106,6 +92,51 @@ static void gic_unmask_irq(unsigned int irq)
 	spin_lock(&irq_controller_lock);
 	writel(mask, gic_dist_base(irq) + GIC_DIST_ENABLE_SET + (gic_irq(irq) / 32) * 4);
 	spin_unlock(&irq_controller_lock);
+}
+
+static int gic_set_type(unsigned int irq, unsigned int type)
+{
+	void __iomem *base = gic_dist_base(irq);
+	unsigned int gicirq = gic_irq(irq);
+	u32 enablemask = 1 << (gicirq % 32);
+	u32 enableoff = (gicirq / 32) * 4;
+	u32 confmask = 0x2 << ((gicirq % 16) * 2);
+	u32 confoff = (gicirq / 16) * 4;
+	bool enabled = false;
+	u32 val;
+
+	/* Interrupt configuration for SGIs can't be changed */
+	if (gicirq < 16)
+		return -EINVAL;
+
+	if (type != IRQ_TYPE_LEVEL_HIGH && type != IRQ_TYPE_EDGE_RISING)
+		return -EINVAL;
+
+	spin_lock(&irq_controller_lock);
+
+	val = readl(base + GIC_DIST_CONFIG + confoff);
+	if (type == IRQ_TYPE_LEVEL_HIGH)
+		val &= ~confmask;
+	else if (type == IRQ_TYPE_EDGE_RISING)
+		val |= confmask;
+
+	/*
+	 * As recommended by the spec, disable the interrupt before changing
+	 * the configuration
+	 */
+	if (readl(base + GIC_DIST_ENABLE_SET + enableoff) & enablemask) {
+		writel(enablemask, base + GIC_DIST_ENABLE_CLEAR + enableoff);
+		enabled = true;
+	}
+
+	writel(val, base + GIC_DIST_CONFIG + confoff);
+
+	if (enabled)
+		writel(enablemask, base + GIC_DIST_ENABLE_SET + enableoff);
+
+	spin_unlock(&irq_controller_lock);
+
+	return 0;
 }
 
 #ifdef CONFIG_SMP
@@ -161,6 +192,7 @@ static struct irq_chip gic_chip = {
 	.ack		= gic_ack_irq,
 	.mask		= gic_mask_irq,
 	.unmask		= gic_unmask_irq,
+	.set_type	= gic_set_type,
 #ifdef CONFIG_SMP
 	.set_affinity	= gic_set_cpu,
 #endif

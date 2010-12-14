@@ -9,9 +9,7 @@
 #include <linux/kprobes.h>
 #include "trace.h"
 
-EXPORT_SYMBOL_GPL(perf_arch_fetch_caller_regs);
-
-static char *perf_trace_buf[4];
+static char __percpu *perf_trace_buf[PERF_NR_CONTEXTS];
 
 /*
  * Force it to be aligned to unsigned long to avoid misaligned accesses
@@ -26,7 +24,7 @@ static int	total_ref_count;
 static int perf_trace_event_init(struct ftrace_event_call *tp_event,
 				 struct perf_event *p_event)
 {
-	struct hlist_head *list;
+	struct hlist_head __percpu *list;
 	int ret = -ENOMEM;
 	int cpu;
 
@@ -44,11 +42,11 @@ static int perf_trace_event_init(struct ftrace_event_call *tp_event,
 	tp_event->perf_events = list;
 
 	if (!total_ref_count) {
-		char *buf;
+		char __percpu *buf;
 		int i;
 
-		for (i = 0; i < 4; i++) {
-			buf = (char *)alloc_percpu(perf_trace_t);
+		for (i = 0; i < PERF_NR_CONTEXTS; i++) {
+			buf = (char __percpu *)alloc_percpu(perf_trace_t);
 			if (!buf)
 				goto fail;
 
@@ -56,13 +54,7 @@ static int perf_trace_event_init(struct ftrace_event_call *tp_event,
 		}
 	}
 
-	if (tp_event->class->reg)
-		ret = tp_event->class->reg(tp_event, TRACE_REG_PERF_REGISTER);
-	else
-		ret = tracepoint_probe_register(tp_event->name,
-						tp_event->class->perf_probe,
-						tp_event);
-
+	ret = tp_event->class->reg(tp_event, TRACE_REG_PERF_REGISTER);
 	if (ret)
 		goto fail;
 
@@ -73,7 +65,7 @@ fail:
 	if (!total_ref_count) {
 		int i;
 
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < PERF_NR_CONTEXTS; i++) {
 			free_percpu(perf_trace_buf[i]);
 			perf_trace_buf[i] = NULL;
 		}
@@ -96,11 +88,11 @@ int perf_trace_init(struct perf_event *p_event)
 	mutex_lock(&event_mutex);
 	list_for_each_entry(tp_event, &ftrace_events, list) {
 		if (tp_event->event.type == event_id &&
-		    tp_event->class &&
-		    (tp_event->class->perf_probe ||
-		     tp_event->class->reg) &&
+		    tp_event->class && tp_event->class->reg &&
 		    try_module_get(tp_event->mod)) {
 			ret = perf_trace_event_init(tp_event, p_event);
+			if (ret)
+				module_put(tp_event->mod);
 			break;
 		}
 	}
@@ -109,22 +101,26 @@ int perf_trace_init(struct perf_event *p_event)
 	return ret;
 }
 
-int perf_trace_enable(struct perf_event *p_event)
+int perf_trace_add(struct perf_event *p_event, int flags)
 {
 	struct ftrace_event_call *tp_event = p_event->tp_event;
+	struct hlist_head __percpu *pcpu_list;
 	struct hlist_head *list;
 
-	list = tp_event->perf_events;
-	if (WARN_ON_ONCE(!list))
+	pcpu_list = tp_event->perf_events;
+	if (WARN_ON_ONCE(!pcpu_list))
 		return -EINVAL;
 
-	list = this_cpu_ptr(list);
+	if (!(flags & PERF_EF_START))
+		p_event->hw.state = PERF_HES_STOPPED;
+
+	list = this_cpu_ptr(pcpu_list);
 	hlist_add_head_rcu(&p_event->hlist_entry, list);
 
 	return 0;
 }
 
-void perf_trace_disable(struct perf_event *p_event)
+void perf_trace_del(struct perf_event *p_event, int flags)
 {
 	hlist_del_rcu(&p_event->hlist_entry);
 }
@@ -138,29 +134,25 @@ void perf_trace_destroy(struct perf_event *p_event)
 	if (--tp_event->perf_refcount > 0)
 		goto out;
 
-	if (tp_event->class->reg)
-		tp_event->class->reg(tp_event, TRACE_REG_PERF_UNREGISTER);
-	else
-		tracepoint_probe_unregister(tp_event->name,
-					    tp_event->class->perf_probe,
-					    tp_event);
+	tp_event->class->reg(tp_event, TRACE_REG_PERF_UNREGISTER);
 
 	/*
-	 * Ensure our callback won't be called anymore. See
-	 * tracepoint_probe_unregister() and __DO_TRACE().
+	 * Ensure our callback won't be called anymore. The buffers
+	 * will be freed after that.
 	 */
-	synchronize_sched();
+	tracepoint_synchronize_unregister();
 
 	free_percpu(tp_event->perf_events);
 	tp_event->perf_events = NULL;
 
 	if (!--total_ref_count) {
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < PERF_NR_CONTEXTS; i++) {
 			free_percpu(perf_trace_buf[i]);
 			perf_trace_buf[i] = NULL;
 		}
 	}
 out:
+	module_put(tp_event->mod);
 	mutex_unlock(&event_mutex);
 }
 

@@ -153,7 +153,9 @@ static int ____call_usermodehelper(void *data)
 			goto fail;
 	}
 
-	retval = kernel_execve(sub_info->path, sub_info->argv, sub_info->envp);
+	retval = kernel_execve(sub_info->path,
+			       (const char *const *)sub_info->argv,
+			       (const char *const *)sub_info->envp);
 
 	/* Exec failed? */
 fail:

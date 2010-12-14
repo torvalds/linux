@@ -614,7 +614,7 @@ sys32_sysfs_wrapper:
 
 	.globl	sys32_personality_wrapper
 sys32_personality_wrapper:
-	llgfr	%r2,%r2			# unsigned long
+	llgfr	%r2,%r2			# unsigned int
 	jg	sys_s390_personality	# branch to system call
 
 	.globl	sys32_setfsuid16_wrapper
@@ -1853,3 +1853,27 @@ sys32_execve_wrapper:
 	llgtr	%r3,%r3			# compat_uptr_t *
 	llgtr	%r4,%r4			# compat_uptr_t *
 	jg	sys32_execve		# branch to system call
+
+	.globl	sys_fanotify_init_wrapper
+sys_fanotify_init_wrapper:
+	llgfr	%r2,%r2			# unsigned int
+	llgfr	%r3,%r3			# unsigned int
+	jg	sys_fanotify_init	# branch to system call
+
+	.globl	sys_fanotify_mark_wrapper
+sys_fanotify_mark_wrapper:
+	lgfr	%r2,%r2			# int
+	llgfr	%r3,%r3			# unsigned int
+	sllg	%r4,%r4,32		# get high word of 64bit mask
+	lr	%r4,%r5			# get low word of 64bit mask
+	llgfr	%r5,%r6			# unsigned int
+	llgt	%r6,164(%r15)		# char *
+	jg	sys_fanotify_mark	# branch to system call
+
+	.globl	sys_prlimit64_wrapper
+sys_prlimit64_wrapper:
+	lgfr	%r2,%r2			# pid_t
+	llgfr	%r3,%r3			# unsigned int
+	llgtr	%r4,%r4			# const struct rlimit64 __user *
+	llgtr	%r5,%r5			# struct rlimit64 __user *
+	jg	sys_prlimit64		# branch to system call

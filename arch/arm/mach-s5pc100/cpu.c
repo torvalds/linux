@@ -1,5 +1,8 @@
 /* linux/arch/arm/mach-s5pc100/cpu.c
  *
+ * Copyright (c) 2010 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
  * Copyright 2009 Samsung Electronics Co.
  *	Byungho Min <bhmin@samsung.com>
  *
@@ -21,6 +24,7 @@
 #include <linux/sysdev.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
+#include <linux/sched.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -38,9 +42,12 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
+#include <plat/ata-core.h>
 #include <plat/iic-core.h>
 #include <plat/sdhci.h>
+#include <plat/adc-core.h>
 #include <plat/onenand-core.h>
+#include <plat/fb-core.h>
 
 #include <plat/s5pc100.h>
 
@@ -53,9 +60,29 @@ static struct map_desc s5pc100_iodesc[] __initdata = {
 		.length		= SZ_16K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= (unsigned long)VA_VIC2,
-		.pfn		= __phys_to_pfn(S5P_PA_VIC2),
+		.virtual	= (unsigned long)S5P_VA_GPIO,
+		.pfn		= __phys_to_pfn(S5PC100_PA_GPIO),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)VA_VIC0,
+		.pfn		= __phys_to_pfn(S5PC100_PA_VIC0),
 		.length		= SZ_16K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)VA_VIC1,
+		.pfn		= __phys_to_pfn(S5PC100_PA_VIC1),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)VA_VIC2,
+		.pfn		= __phys_to_pfn(S5PC100_PA_VIC2),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S3C_VA_UART,
+		.pfn		= __phys_to_pfn(S3C_PA_UART),
+		.length		= SZ_512K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S5PC100_VA_OTHERS,
@@ -87,11 +114,15 @@ void __init s5pc100_map_io(void)
 	s5pc100_default_sdhci1();
 	s5pc100_default_sdhci2();
 
+	s3c_adc_setname("s3c64xx-adc");
+
 	/* the i2c devices are directly compatible with s3c2440 */
 	s3c_i2c0_setname("s3c2440-i2c");
 	s3c_i2c1_setname("s3c2440-i2c");
 
 	s3c_onenand_setname("s5pc100-onenand");
+	s3c_fb_setname("s5pc100-fb");
+	s3c_cfcon_setname("s5pc100-pata");
 }
 
 void __init s5pc100_init_clocks(int xtal)

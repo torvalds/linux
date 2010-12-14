@@ -511,8 +511,6 @@ static void dlm_lockres_release(struct kref *kref)
 
 	atomic_dec(&dlm->res_cur_count);
 
-	dlm_put(dlm);
-
 	if (!hlist_unhashed(&res->hash_node) ||
 	    !list_empty(&res->granted) ||
 	    !list_empty(&res->converting) ||
@@ -585,8 +583,6 @@ static void dlm_init_lockres(struct dlm_ctxt *dlm,
 	res->migration_pending = 0;
 	res->inflight_locks = 0;
 
-	/* put in dlm_lockres_release */
-	dlm_grab(dlm);
 	res->dlm = dlm;
 
 	kref_init(&res->refs);
@@ -3050,8 +3046,6 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,
 	/* check for pre-existing lock */
 	spin_lock(&dlm->spinlock);
 	res = __dlm_lookup_lockres(dlm, name, namelen, hash);
-	spin_lock(&dlm->master_lock);
-
 	if (res) {
 		spin_lock(&res->spinlock);
 		if (res->state & DLM_LOCK_RES_RECOVERING) {
@@ -3069,14 +3063,15 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,
 		spin_unlock(&res->spinlock);
 	}
 
+	spin_lock(&dlm->master_lock);
 	/* ignore status.  only nonzero status would BUG. */
 	ret = dlm_add_migration_mle(dlm, res, mle, &oldmle,
 				    name, namelen,
 				    migrate->new_master,
 				    migrate->master);
 
-unlock:
 	spin_unlock(&dlm->master_lock);
+unlock:
 	spin_unlock(&dlm->spinlock);
 
 	if (oldmle) {
@@ -3437,4 +3432,44 @@ void dlm_lockres_release_ast(struct dlm_ctxt *dlm,
 	spin_unlock(&res->spinlock);
 	wake_up(&res->wq);
 	wake_up(&dlm->migration_wq);
+}
+
+void dlm_force_free_mles(struct dlm_ctxt *dlm)
+{
+	int i;
+	struct hlist_head *bucket;
+	struct dlm_master_list_entry *mle;
+	struct hlist_node *tmp, *list;
+
+	/*
+	 * We notified all other nodes that we are exiting the domain and
+	 * marked the dlm state to DLM_CTXT_LEAVING. If any mles are still
+	 * around we force free them and wake any processes that are waiting
+	 * on the mles
+	 */
+	spin_lock(&dlm->spinlock);
+	spin_lock(&dlm->master_lock);
+
+	BUG_ON(dlm->dlm_state != DLM_CTXT_LEAVING);
+	BUG_ON((find_next_bit(dlm->domain_map, O2NM_MAX_NODES, 0) < O2NM_MAX_NODES));
+
+	for (i = 0; i < DLM_HASH_BUCKETS; i++) {
+		bucket = dlm_master_hash(dlm, i);
+		hlist_for_each_safe(list, tmp, bucket) {
+			mle = hlist_entry(list, struct dlm_master_list_entry,
+					  master_hash_node);
+			if (mle->type != DLM_MLE_BLOCK) {
+				mlog(ML_ERROR, "bad mle: %p\n", mle);
+				dlm_print_one_mle(mle);
+			}
+			atomic_set(&mle->woken, 1);
+			wake_up(&mle->wq);
+
+			__dlm_unlink_mle(dlm, mle);
+			__dlm_mle_detach_hb_events(dlm, mle);
+			__dlm_put_mle(mle);
+		}
+	}
+	spin_unlock(&dlm->master_lock);
+	spin_unlock(&dlm->spinlock);
 }

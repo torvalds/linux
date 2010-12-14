@@ -16,7 +16,6 @@
 
 #include <asm/mpc52xx_psc.h>
 
-#include "mpc5200_psc_i2s.h"
 #include "mpc5200_dma.h"
 
 /**
@@ -41,7 +40,7 @@ static int psc_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct psc_dma *psc_dma = rtd->dai->cpu_dai->private_data;
+	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(rtd->cpu_dai);
 	u32 mode;
 
 	dev_dbg(psc_dma->dev, "%s(substream=%p) p_size=%i p_bytes=%i"
@@ -89,7 +88,7 @@ static int psc_i2s_hw_params(struct snd_pcm_substream *substream,
 static int psc_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 			      int clk_id, unsigned int freq, int dir)
 {
-	struct psc_dma *psc_dma = cpu_dai->private_data;
+	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(cpu_dai);
 	dev_dbg(psc_dma->dev, "psc_i2s_set_sysclk(cpu_dai=%p, dir=%i)\n",
 				cpu_dai, dir);
 	return (dir == SND_SOC_CLOCK_IN) ? 0 : -EINVAL;
@@ -108,7 +107,7 @@ static int psc_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
  */
 static int psc_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int format)
 {
-	struct psc_dma *psc_dma = cpu_dai->private_data;
+	struct psc_dma *psc_dma = snd_soc_dai_get_drvdata(cpu_dai);
 	dev_dbg(psc_dma->dev, "psc_i2s_set_fmt(cpu_dai=%p, format=%i)\n",
 				cpu_dai, format);
 	return (format == SND_SOC_DAIFMT_I2S) ? 0 : -EINVAL;
@@ -130,8 +129,7 @@ static struct snd_soc_dai_ops psc_i2s_dai_ops = {
 	.set_fmt	= psc_i2s_set_fmt,
 };
 
-struct snd_soc_dai psc_i2s_dai[] = {{
-	.name   = "I2S",
+static struct snd_soc_dai_driver psc_i2s_dai[] = {{
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -146,25 +144,20 @@ struct snd_soc_dai psc_i2s_dai[] = {{
 	},
 	.ops = &psc_i2s_dai_ops,
 } };
-EXPORT_SYMBOL_GPL(psc_i2s_dai);
 
 /* ---------------------------------------------------------------------
  * OF platform bus binding code:
  * - Probe/remove operations
  * - OF device match table
  */
-static int __devinit psc_i2s_of_probe(struct of_device *op,
+static int __devinit psc_i2s_of_probe(struct platform_device *op,
 				      const struct of_device_id *match)
 {
 	int rc;
 	struct psc_dma *psc_dma;
 	struct mpc52xx_psc __iomem *regs;
 
-	rc = mpc5200_audio_dma_create(op);
-	if (rc != 0)
-		return rc;
-
-	rc = snd_soc_register_dais(psc_i2s_dai, ARRAY_SIZE(psc_i2s_dai));
+	rc = snd_soc_register_dais(&op->dev, psc_i2s_dai, ARRAY_SIZE(psc_i2s_dai));
 	if (rc != 0) {
 		pr_err("Failed to register DAI\n");
 		return 0;
@@ -206,9 +199,10 @@ static int __devinit psc_i2s_of_probe(struct of_device *op,
 
 }
 
-static int __devexit psc_i2s_of_remove(struct of_device *op)
+static int __devexit psc_i2s_of_remove(struct platform_device *op)
 {
-	return mpc5200_audio_dma_destroy(op);
+	snd_soc_unregister_dais(&op->dev, ARRAY_SIZE(psc_i2s_dai));
+	return 0;
 }
 
 /* Match table for of_platform binding */

@@ -6,7 +6,7 @@
  *	D-77833 Ottersweier
  *	Tel: +19(0)7223/9493-0
  *	Fax: +49(0)7223/9493-92
- *	http://www.addi-data-com
+ *	http://www.addi-data.com
  *	info@addi-data.com
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -247,16 +247,14 @@ int i_pci_card_data(struct pcilst_struct *amcc,
 /* build list of amcc cards in this system */
 void v_pci_card_list_init(unsigned short pci_vendor, char display)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	struct pcilst_struct *amcc, *last;
 	int i;
 	int i_Count = 0;
 	amcc_devices = NULL;
 	last = NULL;
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for_each_pci_dev(pcidev) {
 		for (i_Count = 0; i_Count < 2; i_Count++) {
 			pci_vendor = i_ADDIDATADeviceID[i_Count];
 			if (pcidev->vendor == pci_vendor) {

@@ -332,6 +332,15 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
 		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
+	}, {
+		.ident		= MAC_MODEL_CCLII,
+		.name		= "Color Classic II",
+		.adb_type	= MAC_ADB_CUDA,
+		.via_type	= MAC_VIA_IIci,
+		.scsi_type	= MAC_SCSI_OLD,
+		.scc_type	= MAC_SCC_II,
+		.nubus_type	= MAC_NUBUS,
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	},
 
 	/*

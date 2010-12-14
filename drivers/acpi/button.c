@@ -338,7 +338,8 @@ static int acpi_button_add(struct acpi_device *device)
 {
 	struct acpi_button *button;
 	struct input_dev *input;
-	char *hid, *name, *class;
+	const char *hid = acpi_device_hid(device);
+	char *name, *class;
 	int error;
 
 	button = kzalloc(sizeof(struct acpi_button), GFP_KERNEL);
@@ -353,7 +354,6 @@ static int acpi_button_add(struct acpi_device *device)
 		goto err_free_button;
 	}
 
-	hid = acpi_device_hid(device);
 	name = acpi_device_name(device);
 	class = acpi_device_class(device);
 
@@ -424,8 +424,7 @@ static int acpi_button_add(struct acpi_device *device)
 	if (device->wakeup.flags.valid) {
 		/* Button's GPE is run-wake GPE */
 		acpi_enable_gpe(device->wakeup.gpe_device,
-				device->wakeup.gpe_number,
-				ACPI_GPE_TYPE_RUNTIME);
+				device->wakeup.gpe_number);
 		device->wakeup.run_wake_count++;
 		device->wakeup.state.enabled = 1;
 	}
@@ -448,8 +447,7 @@ static int acpi_button_remove(struct acpi_device *device, int type)
 
 	if (device->wakeup.flags.valid) {
 		acpi_disable_gpe(device->wakeup.gpe_device,
-				device->wakeup.gpe_number,
-				ACPI_GPE_TYPE_RUNTIME);
+				device->wakeup.gpe_number);
 		device->wakeup.run_wake_count--;
 		device->wakeup.state.enabled = 0;
 	}

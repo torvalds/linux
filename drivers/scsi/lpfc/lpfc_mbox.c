@@ -797,6 +797,34 @@ lpfc_unreg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t rpi,
 }
 
 /**
+ * lpfc_sli4_unreg_all_rpis - unregister all RPIs for a vport on SLI4 HBA.
+ * @vport: pointer to a vport object.
+ *
+ * This routine sends mailbox command to unregister all active RPIs for
+ * a vport.
+ **/
+void
+lpfc_sli4_unreg_all_rpis(struct lpfc_vport *vport)
+{
+	struct lpfc_hba  *phba  = vport->phba;
+	LPFC_MBOXQ_t     *mbox;
+	int rc;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (mbox) {
+		lpfc_unreg_login(phba, vport->vpi,
+			vport->vpi + phba->vpi_base, mbox);
+		mbox->u.mb.un.varUnregLogin.rsvd1 = 0x4000 ;
+		mbox->vport = vport;
+		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		mbox->context1 = NULL;
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+		if (rc == MBX_NOT_FINISHED)
+			mempool_free(mbox, phba->mbox_mem_pool);
+	}
+}
+
+/**
  * lpfc_reg_vpi - Prepare a mailbox command for registering vport identifier
  * @phba: pointer to lpfc hba data structure.
  * @vpi: virtual N_Port identifier.
@@ -815,9 +843,15 @@ void
 lpfc_reg_vpi(struct lpfc_vport *vport, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
+	struct lpfc_hba *phba = vport->phba;
 
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
-
+	/*
+	 * Set the re-reg VPI bit for f/w to update the MAC address.
+	 */
+	if ((phba->sli_rev == LPFC_SLI_REV4) &&
+		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI))
+		mb->un.varRegVpi.upd = 1;
 	mb->un.varRegVpi.vpi = vport->vpi + vport->phba->vpi_base;
 	mb->un.varRegVpi.sid = vport->fc_myDID;
 	mb->un.varRegVpi.vfi = vport->vfi + vport->phba->vfi_base;
@@ -952,6 +986,26 @@ lpfc_read_rev(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	mb->un.varRdRev.v3req = 1; /* Request SLI3 info */
 	mb->mbxCommand = MBX_READ_REV;
 	mb->mbxOwner = OWN_HOST;
+	return;
+}
+
+void
+lpfc_sli4_swap_str(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+{
+	MAILBOX_t *mb = &pmb->u.mb;
+	struct lpfc_mqe *mqe;
+
+	switch (mb->mbxCommand) {
+	case  MBX_READ_REV:
+		 mqe = &pmb->u.mqe;
+		lpfc_sli_pcimem_bcopy(mqe->un.read_rev.fw_name,
+				 mqe->un.read_rev.fw_name, 16);
+		lpfc_sli_pcimem_bcopy(mqe->un.read_rev.ulp_fw_name,
+				 mqe->un.read_rev.ulp_fw_name, 16);
+		break;
+	default:
+		break;
+	}
 	return;
 }
 
@@ -1199,7 +1253,6 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		mb->un.varCfgPort.cdss = 1; /* Configure Security */
 		mb->un.varCfgPort.cerbm = 1; /* Request HBQs */
 		mb->un.varCfgPort.ccrp = 1; /* Command Ring Polling */
-		mb->un.varCfgPort.cinb = 1; /* Interrupt Notification Block */
 		mb->un.varCfgPort.max_hbq = lpfc_sli_hbq_count();
 		if (phba->max_vpi && phba->cfg_enable_npiv &&
 		    phba->vpd.sli3Feat.cmv) {
@@ -2026,7 +2079,7 @@ lpfc_reg_fcfi(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 	       phba->fcf.current_rec.fcf_indx);
 	/* reg_fcf addr mode is bit wise inverted value of fcf addr_mode */
 	bf_set(lpfc_reg_fcfi_mam, reg_fcfi, (~phba->fcf.addr_mode) & 0x3);
-	if (phba->fcf.current_rec.vlan_id != 0xFFFF) {
+	if (phba->fcf.current_rec.vlan_id != LPFC_FCOE_NULL_VID) {
 		bf_set(lpfc_reg_fcfi_vv, reg_fcfi, 1);
 		bf_set(lpfc_reg_fcfi_vlan_tag, reg_fcfi,
 		       phba->fcf.current_rec.vlan_id);

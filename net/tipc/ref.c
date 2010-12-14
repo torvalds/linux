@@ -282,23 +282,6 @@ void *tipc_ref_lock(u32 ref)
 	return NULL;
 }
 
-/**
- * tipc_ref_unlock - unlock referenced object
- */
-
-void tipc_ref_unlock(u32 ref)
-{
-	if (likely(tipc_ref_table.entries)) {
-		struct reference *entry;
-
-		entry = &tipc_ref_table.entries[ref &
-						tipc_ref_table.index_mask];
-		if (likely((entry->ref == ref) && (entry->object)))
-			spin_unlock_bh(&entry->lock);
-		else
-			err("Attempt to unlock non-existent reference\n");
-	}
-}
 
 /**
  * tipc_ref_deref - return pointer referenced object (without locking it)

@@ -34,6 +34,7 @@
 #include "ttm/ttm_memory.h"
 #include "ttm/ttm_module.h"
 #include "drm_mm.h"
+#include "drm_global.h"
 #include "linux/workqueue.h"
 #include "linux/fs.h"
 #include "linux/spinlock.h"
@@ -202,7 +203,22 @@ struct ttm_tt {
  * It's set up by the ttm_bo_driver::init_mem_type method.
  */
 
+struct ttm_mem_type_manager;
+
+struct ttm_mem_type_manager_func {
+	int  (*init)(struct ttm_mem_type_manager *man, unsigned long p_size);
+	int  (*takedown)(struct ttm_mem_type_manager *man);
+	int  (*get_node)(struct ttm_mem_type_manager *man,
+			 struct ttm_buffer_object *bo,
+			 struct ttm_placement *placement,
+			 struct ttm_mem_reg *mem);
+	void (*put_node)(struct ttm_mem_type_manager *man,
+			 struct ttm_mem_reg *mem);
+	void (*debug)(struct ttm_mem_type_manager *man, const char *prefix);
+};
+
 struct ttm_mem_type_manager {
+	struct ttm_bo_device *bdev;
 
 	/*
 	 * No protection. Constant from start.
@@ -221,8 +237,8 @@ struct ttm_mem_type_manager {
 	 * TODO: Consider one lru_lock per ttm_mem_type_manager.
 	 * Plays ill with list removal, though.
 	 */
-
-	struct drm_mm manager;
+	const struct ttm_mem_type_manager_func *func;
+	void *priv;
 	struct list_head lru;
 };
 
@@ -362,7 +378,7 @@ struct ttm_bo_driver {
  */
 
 struct ttm_bo_global_ref {
-	struct ttm_global_reference ref;
+	struct drm_global_reference ref;
 	struct ttm_mem_global *mem_glob;
 };
 
@@ -648,6 +664,12 @@ extern int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 				struct ttm_mem_reg *mem,
 				bool interruptible,
 				bool no_wait_reserve, bool no_wait_gpu);
+
+extern void ttm_bo_mem_put(struct ttm_buffer_object *bo,
+			   struct ttm_mem_reg *mem);
+extern void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
+				  struct ttm_mem_reg *mem);
+
 /**
  * ttm_bo_wait_for_cpu
  *
@@ -687,8 +709,8 @@ extern int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 extern void ttm_mem_io_free(struct ttm_bo_device *bdev,
 				struct ttm_mem_reg *mem);
 
-extern void ttm_bo_global_release(struct ttm_global_reference *ref);
-extern int ttm_bo_global_init(struct ttm_global_reference *ref);
+extern void ttm_bo_global_release(struct drm_global_reference *ref);
+extern int ttm_bo_global_init(struct drm_global_reference *ref);
 
 extern int ttm_bo_device_release(struct ttm_bo_device *bdev);
 
@@ -889,6 +911,8 @@ extern int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
  * setting up a PTE with the caching model indicated by @c_state.
  */
 extern pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
+
+extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
 
 #if (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
 #define TTM_HAS_AGP

@@ -977,7 +977,7 @@ static int o2net_tx_can_proceed(struct o2net_node *nn,
 int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 			   size_t caller_veclen, u8 target_node, int *status)
 {
-	int ret;
+	int ret = 0;
 	struct o2net_msg *msg = NULL;
 	size_t veclen, caller_bytes = 0;
 	struct kvec *vec = NULL;
@@ -1696,6 +1696,9 @@ static void o2net_hb_node_down_cb(struct o2nm_node *node, int node_num,
 {
 	o2quo_hb_down(node_num);
 
+	if (!node)
+		return;
+
 	if (node_num != o2nm_this_node())
 		o2net_disconnect_node(node);
 
@@ -1708,6 +1711,8 @@ static void o2net_hb_node_up_cb(struct o2nm_node *node, int node_num,
 	struct o2net_node *nn = o2net_nn_from_num(node_num);
 
 	o2quo_hb_up(node_num);
+
+	BUG_ON(!node);
 
 	/* ensure an immediate connect attempt */
 	nn->nn_last_connect_attempt = jiffies -
@@ -1759,6 +1764,7 @@ static int o2net_accept_one(struct socket *sock)
 	struct sockaddr_in sin;
 	struct socket *new_sock = NULL;
 	struct o2nm_node *node = NULL;
+	struct o2nm_node *local_node = NULL;
 	struct o2net_sock_container *sc = NULL;
 	struct o2net_node *nn;
 
@@ -1796,11 +1802,15 @@ static int o2net_accept_one(struct socket *sock)
 		goto out;
 	}
 
-	if (o2nm_this_node() > node->nd_num) {
-		mlog(ML_NOTICE, "unexpected connect attempted from a lower "
-		     "numbered node '%s' at " "%pI4:%d with num %u\n",
-		     node->nd_name, &sin.sin_addr.s_addr,
-		     ntohs(sin.sin_port), node->nd_num);
+	if (o2nm_this_node() >= node->nd_num) {
+		local_node = o2nm_get_node_by_num(o2nm_this_node());
+		mlog(ML_NOTICE, "unexpected connect attempt seen at node '%s' ("
+		     "%u, %pI4:%d) from node '%s' (%u, %pI4:%d)\n",
+		     local_node->nd_name, local_node->nd_num,
+		     &(local_node->nd_ipv4_address),
+		     ntohs(local_node->nd_ipv4_port),
+		     node->nd_name, node->nd_num, &sin.sin_addr.s_addr,
+		     ntohs(sin.sin_port));
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1857,6 +1867,8 @@ out:
 		sock_release(new_sock);
 	if (node)
 		o2nm_node_put(node);
+	if (local_node)
+		o2nm_node_put(local_node);
 	if (sc)
 		sc_put(sc);
 	return ret;

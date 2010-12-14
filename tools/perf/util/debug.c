@@ -12,8 +12,8 @@
 #include "debug.h"
 #include "util.h"
 
-int verbose = 0;
-bool dump_trace = false;
+int verbose;
+bool dump_trace = false, quiet = false;
 
 int eprintf(int level, const char *fmt, ...)
 {
@@ -23,7 +23,7 @@ int eprintf(int level, const char *fmt, ...)
 	if (verbose >= level) {
 		va_start(args, fmt);
 		if (use_browser > 0)
-			ret = browser__show_help(fmt, args);
+			ret = ui_helpline__show_help(fmt, args);
 		else
 			ret = vfprintf(stderr, fmt, args);
 		va_end(args);
@@ -86,12 +86,10 @@ void trace_event(event_t *event)
 			dump_printf_color("  ", color);
 			for (j = 0; j < 15-(i & 15); j++)
 				dump_printf_color("   ", color);
-			for (j = 0; j < (i & 15); j++) {
-				if (isprint(raw_event[i-15+j]))
-					dump_printf_color("%c", color,
-							  raw_event[i-15+j]);
-				else
-					dump_printf_color(".", color);
+			for (j = i & ~15; j <= i; j++) {
+				dump_printf_color("%c", color,
+						isprint(raw_event[j]) ?
+						raw_event[j] : '.');
 			}
 			dump_printf_color("\n", color);
 		}

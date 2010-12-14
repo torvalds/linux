@@ -47,7 +47,7 @@
 #include <linux/i2c-id.h>
 #include <linux/workqueue.h>
 
-#include <media/ir-common.h>
+#include <media/ir-core.h>
 #include <media/ir-kbd-i2c.h>
 
 /* ----------------------------------------------------------------------- */
@@ -141,26 +141,6 @@ static int get_key_pixelview(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 		dprintk(1,"read error\n");
 		return -EIO;
 	}
-	*ir_key = b;
-	*ir_raw = b;
-	return 1;
-}
-
-static int get_key_pv951(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
-{
-	unsigned char b;
-
-	/* poll IR chip */
-	if (1 != i2c_master_recv(ir->c, &b, 1)) {
-		dprintk(1,"read error\n");
-		return -EIO;
-	}
-
-	/* ignore 0xaa */
-	if (b==0xaa)
-		return 0;
-	dprintk(2,"key %02x\n", b);
-
 	*ir_key = b;
 	*ir_raw = b;
 	return 1;
@@ -272,25 +252,16 @@ static void ir_key_poll(struct IR_i2c *ir)
 		return;
 	}
 
-	if (0 == rc) {
-		ir_input_nokey(ir->input, &ir->ir);
-	} else {
-		ir_input_keydown(ir->input, &ir->ir, ir_key);
-	}
+	if (rc)
+		ir_keydown(ir->input, ir_key, 0);
 }
 
 static void ir_work(struct work_struct *work)
 {
 	struct IR_i2c *ir = container_of(work, struct IR_i2c, work.work);
-	int polling_interval = 100;
-
-	/* MSI TV@nywhere Plus requires more frequent polling
-	   otherwise it will miss some keypresses */
-	if (ir->c->adapter->id == I2C_HW_SAA7134 && ir->c->addr == 0x30)
-		polling_interval = 50;
 
 	ir_key_poll(ir);
-	schedule_delayed_work(&ir->work, msecs_to_jiffies(polling_interval));
+	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling_interval));
 }
 
 /* ----------------------------------------------------------------------- */
@@ -315,6 +286,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	ir->c = client;
 	ir->input = input_dev;
+	ir->polling_interval = DEFAULT_POLLING_INTERVAL;
 	i2c_set_clientdata(client, ir);
 
 	switch(addr) {
@@ -323,12 +295,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir->get_key = get_key_pixelview;
 		ir_type     = IR_TYPE_OTHER;
 		ir_codes    = RC_MAP_EMPTY;
-		break;
-	case 0x4b:
-		name        = "PV951";
-		ir->get_key = get_key_pv951;
-		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = RC_MAP_PV951;
 		break;
 	case 0x18:
 	case 0x1f:
@@ -354,27 +320,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir_type     = IR_TYPE_RC5;
 		ir_codes    = RC_MAP_FUSIONHDTV_MCE;
 		break;
-	case 0x0b:
-	case 0x47:
-	case 0x71:
-		if (adap->id == I2C_HW_B_CX2388x ||
-		    adap->id == I2C_HW_B_CX2341X) {
-			/* Handled by cx88-input */
-			name = adap->id == I2C_HW_B_CX2341X ? "CX2341x remote"
-							    : "CX2388x remote";
-			ir_type     = IR_TYPE_RC5;
-			ir->get_key = get_key_haup_xvr;
-			if (hauppauge == 1) {
-				ir_codes    = RC_MAP_HAUPPAUGE_NEW;
-			} else {
-				ir_codes    = RC_MAP_RC5_TV;
-			}
-		} else {
-			/* Handled by saa7134-input */
-			name        = "SAA713x remote";
-			ir_type     = IR_TYPE_OTHER;
-		}
-		break;
 	case 0x40:
 		name        = "AVerMedia Cardbus remote";
 		ir->get_key = get_key_avermedia_cardbus;
@@ -393,6 +338,9 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		if (init_data->type)
 			ir_type = init_data->type;
 
+		if (init_data->polling_interval)
+			ir->polling_interval = init_data->polling_interval;
+
 		switch (init_data->internal_get_key_func) {
 		case IR_KBD_GET_KEY_CUSTOM:
 			/* The bridge driver provided us its own function */
@@ -400,9 +348,6 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			break;
 		case IR_KBD_GET_KEY_PIXELVIEW:
 			ir->get_key = get_key_pixelview;
-			break;
-		case IR_KBD_GET_KEY_PV951:
-			ir->get_key = get_key_pv951;
 			break;
 		case IR_KBD_GET_KEY_HAUP:
 			ir->get_key = get_key_haup;
@@ -439,10 +384,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 dev_name(&client->dev));
 
 	/* init + register input device */
-	err = ir_input_init(input_dev, &ir->ir, ir_type);
-	if (err < 0)
-		goto err_out_free;
-
+	ir->ir_type = ir_type;
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->name       = ir->name;
 	input_dev->phys       = ir->phys;

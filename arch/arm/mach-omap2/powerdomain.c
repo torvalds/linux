@@ -875,6 +875,7 @@ int pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank)
 		break;
 	case 4:
 		m = OMAP_MEM4_RETSTATE_MASK;
+		break;
 	default:
 		WARN_ON(1); /* should never happen */
 		return -EEXIST;

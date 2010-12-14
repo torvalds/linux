@@ -31,7 +31,6 @@
 #define AC_CMD_DATA(x) (x & 0xffff)
 
 struct s3c_ac97_info {
-	unsigned           state;
 	struct clk         *ac97_clk;
 	void __iomem	   *regs;
 	struct mutex       lock;
@@ -90,7 +89,7 @@ static void s3c_ac97_activate(struct snd_ac97 *ac97)
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
 	if (!wait_for_completion_timeout(&s3c_ac97.done, HZ))
-		printk(KERN_ERR "AC97: Unable to activate!");
+		pr_err("AC97: Unable to activate!");
 }
 
 static unsigned short s3c_ac97_read(struct snd_ac97 *ac97,
@@ -116,14 +115,15 @@ static unsigned short s3c_ac97_read(struct snd_ac97 *ac97,
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
 	if (!wait_for_completion_timeout(&s3c_ac97.done, HZ))
-		printk(KERN_ERR "AC97: Unable to read!");
+		pr_err("AC97: Unable to read!");
 
 	stat = readl(s3c_ac97.regs + S3C_AC97_STAT);
 	addr = (stat >> 16) & 0x7f;
 	data = (stat & 0xffff);
 
 	if (addr != reg)
-		printk(KERN_ERR "s3c-ac97: req addr = %02x, rep addr = %02x\n", reg, addr);
+		pr_err("s3c-ac97: req addr = %02x, rep addr = %02x\n",
+			reg, addr);
 
 	mutex_unlock(&s3c_ac97.lock);
 
@@ -152,7 +152,7 @@ static void s3c_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
 	if (!wait_for_completion_timeout(&s3c_ac97.done, HZ))
-		printk(KERN_ERR "AC97: Unable to write!");
+		pr_err("AC97: Unable to write!");
 
 	ac_codec_cmd = readl(s3c_ac97.regs + S3C_AC97_CODEC_CMD);
 	ac_codec_cmd |= S3C_AC97_CODEC_CMD_READ;
@@ -163,6 +163,7 @@ static void s3c_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 
 static void s3c_ac97_cold_reset(struct snd_ac97 *ac97)
 {
+	pr_debug("AC97: Cold reset\n");
 	writel(S3C_AC97_GLBCTRL_COLDRESET,
 			s3c_ac97.regs + S3C_AC97_GLBCTRL);
 	msleep(1);
@@ -178,6 +179,8 @@ static void s3c_ac97_warm_reset(struct snd_ac97 *ac97)
 	stat = readl(s3c_ac97.regs + S3C_AC97_GLBSTAT) & 0x7;
 	if (stat == S3C_AC97_GLBSTAT_MAINSTATE_ACTIVE)
 		return; /* Return if already active */
+
+	pr_debug("AC97: Warm reset\n");
 
 	writel(S3C_AC97_GLBCTRL_WARMRESET, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 	msleep(1);
@@ -223,7 +226,7 @@ static int s3c_ac97_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct s3c_dma_params *dma_data;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -242,7 +245,7 @@ static int s3c_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 	u32 ac_glbctrl;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct s3c_dma_params *dma_data =
-		snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
+		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	ac_glbctrl = readl(s3c_ac97.regs + S3C_AC97_GLBCTRL);
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
@@ -278,7 +281,7 @@ static int s3c_ac97_hw_mic_params(struct snd_pcm_substream *substream,
 				      struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		return -ENODEV;
@@ -294,7 +297,7 @@ static int s3c_ac97_mic_trigger(struct snd_pcm_substream *substream,
 	u32 ac_glbctrl;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct s3c_dma_params *dma_data =
-		snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
+		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	ac_glbctrl = readl(s3c_ac97.regs + S3C_AC97_GLBCTRL);
 	ac_glbctrl &= ~S3C_AC97_GLBCTRL_MICINTM_MASK;
@@ -329,10 +332,9 @@ static struct snd_soc_dai_ops s3c_ac97_mic_dai_ops = {
 	.trigger	= s3c_ac97_mic_trigger,
 };
 
-struct snd_soc_dai s3c_ac97_dai[] = {
+static struct snd_soc_dai_driver s3c_ac97_dai[] = {
 	[S3C_AC97_DAI_PCM] = {
 		.name =	"s3c-ac97",
-		.id = S3C_AC97_DAI_PCM,
 		.ac97_control = 1,
 		.playback = {
 			.stream_name = "AC97 Playback",
@@ -350,7 +352,6 @@ struct snd_soc_dai s3c_ac97_dai[] = {
 	},
 	[S3C_AC97_DAI_MIC] = {
 		.name = "s3c-ac97-mic",
-		.id = S3C_AC97_DAI_MIC,
 		.ac97_control = 1,
 		.capture = {
 			.stream_name = "AC97 Mic Capture",
@@ -361,7 +362,6 @@ struct snd_soc_dai s3c_ac97_dai[] = {
 		.ops = &s3c_ac97_mic_dai_ops,
 	},
 };
-EXPORT_SYMBOL_GPL(s3c_ac97_dai);
 
 static __devinit int s3c_ac97_probe(struct platform_device *pdev)
 {
@@ -446,14 +446,12 @@ static __devinit int s3c_ac97_probe(struct platform_device *pdev)
 	ret = request_irq(irq_res->start, s3c_ac97_irq,
 					IRQF_DISABLED, "AC97", NULL);
 	if (ret < 0) {
-		printk(KERN_ERR "s3c-ac97: interrupt request failed.\n");
+		dev_err(&pdev->dev, "s3c-ac97: interrupt request failed.\n");
 		goto err4;
 	}
 
-	s3c_ac97_dai[S3C_AC97_DAI_PCM].dev = &pdev->dev;
-	s3c_ac97_dai[S3C_AC97_DAI_MIC].dev = &pdev->dev;
-
-	ret = snd_soc_register_dais(s3c_ac97_dai, ARRAY_SIZE(s3c_ac97_dai));
+	ret = snd_soc_register_dais(&pdev->dev, s3c_ac97_dai,
+			ARRAY_SIZE(s3c_ac97_dai));
 	if (ret)
 		goto err5;
 
@@ -477,7 +475,7 @@ static __devexit int s3c_ac97_remove(struct platform_device *pdev)
 {
 	struct resource *mem_res, *irq_res;
 
-	snd_soc_unregister_dais(s3c_ac97_dai, ARRAY_SIZE(s3c_ac97_dai));
+	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(s3c_ac97_dai));
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (irq_res)
@@ -519,3 +517,4 @@ module_exit(s3c_ac97_exit);
 MODULE_AUTHOR("Jaswinder Singh, <jassi.brar@samsung.com>");
 MODULE_DESCRIPTION("AC97 driver for the Samsung SoC");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:s3c-ac97");

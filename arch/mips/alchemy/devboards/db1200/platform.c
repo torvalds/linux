@@ -216,14 +216,14 @@ static struct resource db1200_ide_res[] = {
 	}
 };
 
-static u64 ide_dmamask = DMA_32BIT_MASK;
+static u64 ide_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device db1200_ide_dev = {
 	.name		= "au1200-ide",
 	.id		= 0,
 	.dev = {
 		.dma_mask 		= &ide_dmamask,
-		.coherent_dma_mask	= DMA_32BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(db1200_ide_res),
 	.resource	= db1200_ide_res,
@@ -385,12 +385,12 @@ static struct au1550_spi_info db1200_spi_platdata = {
 	.activate_cs	= db1200_spi_cs_en,
 };
 
-static u64 spi_dmamask = DMA_32BIT_MASK;
+static u64 spi_dmamask = DMA_BIT_MASK(32);
 
 static struct platform_device db1200_spi_dev = {
 	.dev	= {
 		.dma_mask		= &spi_dmamask,
-		.coherent_dma_mask	= DMA_32BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &db1200_spi_platdata,
 	},
 	.name		= "au1550-spi",
@@ -429,6 +429,11 @@ static struct platform_device db1200_audio_dev = {
 	.resource	= au1200_psc1_res,
 };
 
+static struct platform_device db1200_stac_dev = {
+	.name		= "ac97-codec",
+	.id		= 1,	/* on PSC1 */
+};
+
 static struct platform_device *db1200_devs[] __initdata = {
 	NULL,		/* PSC0, selected by S6.8 */
 	&db1200_ide_dev,
@@ -436,6 +441,7 @@ static struct platform_device *db1200_devs[] __initdata = {
 	&db1200_rtc_dev,
 	&db1200_nand_dev,
 	&db1200_audio_dev,
+	&db1200_stac_dev,
 };
 
 static int __init db1200_dev_init(void)

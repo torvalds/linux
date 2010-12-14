@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -91,7 +91,6 @@ E1000_PARAM(TxAbsIntDelay, "Transmit Absolute Interrupt Delay");
  * Valid Range: 0-65535
  */
 E1000_PARAM(RxIntDelay, "Receive Interrupt Delay");
-#define DEFAULT_RDTR 0
 #define MAX_RXDELAY 0xFFFF
 #define MIN_RXDELAY 0
 
@@ -101,7 +100,6 @@ E1000_PARAM(RxIntDelay, "Receive Interrupt Delay");
  * Valid Range: 0-65535
  */
 E1000_PARAM(RxAbsIntDelay, "Receive Absolute Interrupt Delay");
-#define DEFAULT_RADV 8
 #define MAX_RXABSDELAY 0xFFFF
 #define MIN_RXABSDELAY 0
 

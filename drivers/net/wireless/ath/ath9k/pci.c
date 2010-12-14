@@ -28,6 +28,7 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x002C) }, /* PCI-E 802.11n bonded out */
 	{ PCI_VDEVICE(ATHEROS, 0x002D) }, /* PCI   */
 	{ PCI_VDEVICE(ATHEROS, 0x002E) }, /* PCI-E */
+	{ PCI_VDEVICE(ATHEROS, 0x0030) }, /* PCI-E  AR9300 */
 	{ 0 }
 };
 
@@ -208,11 +209,8 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	ath9k_hw_name(sc->sc_ah, hw_name, sizeof(hw_name));
-	printk(KERN_INFO
-	       "%s: %s mem=0x%lx, irq=%d\n",
-	       wiphy_name(hw->wiphy),
-	       hw_name,
-	       (unsigned long)mem, pdev->irq);
+	wiphy_info(hw->wiphy, "%s mem=0x%lx, irq=%d\n",
+		   hw_name, (unsigned long)mem, pdev->irq);
 
 	return 0;
 

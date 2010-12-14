@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/platform_device.h>
+#include <linux/sched.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/io.h>

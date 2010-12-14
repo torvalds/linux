@@ -861,6 +861,47 @@ typedef struct  _RPS_RSP {	/* Structure is in Big Endian format */
 	uint32_t crcCnt;
 } RPS_RSP;
 
+struct RLS {			/* Structure is in Big Endian format */
+	uint32_t rls;
+#define rls_rsvd_SHIFT		24
+#define rls_rsvd_MASK		0x000000ff
+#define rls_rsvd_WORD		rls
+#define rls_did_SHIFT		0
+#define rls_did_MASK		0x00ffffff
+#define rls_did_WORD		rls
+};
+
+struct  RLS_RSP {		/* Structure is in Big Endian format */
+	uint32_t linkFailureCnt;
+	uint32_t lossSyncCnt;
+	uint32_t lossSignalCnt;
+	uint32_t primSeqErrCnt;
+	uint32_t invalidXmitWord;
+	uint32_t crcCnt;
+};
+
+struct RTV_RSP {		/* Structure is in Big Endian format */
+	uint32_t ratov;
+	uint32_t edtov;
+	uint32_t qtov;
+#define qtov_rsvd0_SHIFT	28
+#define qtov_rsvd0_MASK		0x0000000f
+#define qtov_rsvd0_WORD		qtov		/* reserved */
+#define qtov_edtovres_SHIFT	27
+#define qtov_edtovres_MASK	0x00000001
+#define qtov_edtovres_WORD	qtov		/* E_D_TOV Resolution */
+#define qtov__rsvd1_SHIFT	19
+#define qtov_rsvd1_MASK		0x0000003f
+#define qtov_rsvd1_WORD		qtov		/* reserved */
+#define qtov_rttov_SHIFT	18
+#define qtov_rttov_MASK		0x00000001
+#define qtov_rttov_WORD		qtov		/* R_T_TOV value */
+#define qtov_rsvd2_SHIFT	0
+#define qtov_rsvd2_MASK		0x0003ffff
+#define qtov_rsvd2_WORD		qtov		/* reserved */
+};
+
+
 typedef struct  _RPL {		/* Structure is in Big Endian format */
 	uint32_t maxsize;
 	uint32_t index;
@@ -1170,6 +1211,7 @@ typedef struct {
 #define PCI_DEVICE_ID_TIGERSHARK    0x0704
 #define PCI_DEVICE_ID_TOMCAT        0x0714
 #define PCI_DEVICE_ID_FALCON        0xf180
+#define PCI_DEVICE_ID_BALIUS        0xe131
 
 #define JEDEC_ID_ADDRESS            0x0080001c
 #define FIREFLY_JEDEC_ID            0x1ACC
@@ -1379,6 +1421,9 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_INIT_VFI        0xA3
 #define MBX_INIT_VPI        0xA4
 
+#define MBX_AUTH_PORT       0xF8
+#define MBX_SECURITY_MGMT   0xF9
+
 /* IOCB Commands */
 
 #define CMD_RCV_SEQUENCE_CX     0x01
@@ -1501,7 +1546,8 @@ typedef struct {		/* FireFly BIU registers */
 #define MBXERR_DMA_ERROR            15
 #define MBXERR_ERROR                16
 #define MBXERR_LINK_DOWN            0x33
-#define MBX_NOT_FINISHED           255
+#define MBXERR_SEC_NO_PERMISSION    0xF02
+#define MBX_NOT_FINISHED            255
 
 #define MBX_BUSY                   0xffffff /* Attempted cmd to busy Mailbox */
 #define MBX_TIMEOUT                0xfffffe /* time-out expired waiting for */
@@ -2290,7 +2336,8 @@ typedef struct {
 typedef struct {
 #ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t rsvd1;
-	uint32_t rsvd2:8;
+	uint32_t rsvd2:7;
+	uint32_t upd:1;
 	uint32_t sid:24;
 	uint32_t wwn[2];
 	uint32_t rsvd5;
@@ -2299,7 +2346,8 @@ typedef struct {
 #else	/*  __LITTLE_ENDIAN */
 	uint32_t rsvd1;
 	uint32_t sid:24;
-	uint32_t rsvd2:8;
+	uint32_t upd:1;
+	uint32_t rsvd2:7;
 	uint32_t wwn[2];
 	uint32_t rsvd5;
 	uint16_t vpi;
@@ -2805,11 +2853,15 @@ typedef struct {
 	uint32_t rsvd6;           /* Reserved                             */
 
 #ifdef __BIG_ENDIAN_BITFIELD
-	uint32_t rsvd7      : 16;  /* Reserved                             */
+	uint32_t fips_rev   : 3;   /* FIPS Spec Revision                   */
+	uint32_t fips_level : 4;   /* FIPS Level                           */
+	uint32_t sec_err    : 9;   /* security crypto error                */
 	uint32_t max_vpi    : 16;  /* Max number of virt N-Ports           */
 #else	/*  __LITTLE_ENDIAN */
 	uint32_t max_vpi    : 16;  /* Max number of virt N-Ports           */
-	uint32_t rsvd7      : 16;  /* Reserved                             */
+	uint32_t sec_err    : 9;   /* security crypto error                */
+	uint32_t fips_level : 4;   /* FIPS Level                           */
+	uint32_t fips_rev   : 3;   /* FIPS Spec Revision                   */
 #endif
 
 } CONFIG_PORT_VAR;
@@ -3014,18 +3066,10 @@ struct sli3_pgp {
 	uint32_t hbq_get[16];
 };
 
-struct sli3_inb_pgp {
-	uint32_t ha_copy;
-	uint32_t counter;
-	struct lpfc_pgp port[MAX_RINGS];
-	uint32_t hbq_get[16];
-};
-
 union sli_var {
 	struct sli2_desc	s2;
 	struct sli3_desc	s3;
 	struct sli3_pgp		s3_pgp;
-	struct sli3_inb_pgp	s3_inb_pgp;
 };
 
 typedef struct {
@@ -3132,6 +3176,14 @@ typedef struct {
 #define IOERR_BUFFER_SHORTAGE         0x28
 #define IOERR_DEFAULT                 0x29
 #define IOERR_CNT                     0x2A
+#define IOERR_SLER_FAILURE            0x46
+#define IOERR_SLER_CMD_RCV_FAILURE    0x47
+#define IOERR_SLER_REC_RJT_ERR        0x48
+#define IOERR_SLER_REC_SRR_RETRY_ERR  0x49
+#define IOERR_SLER_SRR_RJT_ERR        0x4A
+#define IOERR_SLER_RRQ_RJT_ERR        0x4C
+#define IOERR_SLER_RRQ_RETRY_ERR      0x4D
+#define IOERR_SLER_ABTS_ERR           0x4E
 
 #define IOERR_DRVR_MASK               0x100
 #define IOERR_SLI_DOWN                0x101  /* ulpStatus  - Driver defined */
@@ -3440,63 +3492,63 @@ struct sli3_bg_fields {
 static inline uint32_t
 lpfc_bgs_get_bidir_bg_prof(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_BIDIR_BG_PROF_MASK) >>
+	return (bgstat & BGS_BIDIR_BG_PROF_MASK) >>
 				BGS_BIDIR_BG_PROF_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_bidir_err_cond(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_BIDIR_ERR_COND_FLAGS_MASK) >>
+	return (bgstat & BGS_BIDIR_ERR_COND_FLAGS_MASK) >>
 				BGS_BIDIR_ERR_COND_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_bg_prof(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_BG_PROFILE_MASK) >>
+	return (bgstat & BGS_BG_PROFILE_MASK) >>
 				BGS_BG_PROFILE_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_invalid_prof(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_INVALID_PROF_MASK) >>
+	return (bgstat & BGS_INVALID_PROF_MASK) >>
 				BGS_INVALID_PROF_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_uninit_dif_block(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_UNINIT_DIF_BLOCK_MASK) >>
+	return (bgstat & BGS_UNINIT_DIF_BLOCK_MASK) >>
 				BGS_UNINIT_DIF_BLOCK_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_hi_water_mark_present(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_HI_WATER_MARK_PRESENT_MASK) >>
+	return (bgstat & BGS_HI_WATER_MARK_PRESENT_MASK) >>
 				BGS_HI_WATER_MARK_PRESENT_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_reftag_err(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_REFTAG_ERR_MASK) >>
+	return (bgstat & BGS_REFTAG_ERR_MASK) >>
 				BGS_REFTAG_ERR_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_apptag_err(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_APPTAG_ERR_MASK) >>
+	return (bgstat & BGS_APPTAG_ERR_MASK) >>
 				BGS_APPTAG_ERR_SHIFT;
 }
 
 static inline uint32_t
 lpfc_bgs_get_guard_err(uint32_t bgstat)
 {
-	return (le32_to_cpu(bgstat) & BGS_GUARD_ERR_MASK) >>
+	return (bgstat & BGS_GUARD_ERR_MASK) >>
 				BGS_GUARD_ERR_SHIFT;
 }
 

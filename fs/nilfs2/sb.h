@@ -42,11 +42,6 @@ struct nilfs_sc_info;
  * NILFS super-block data in memory
  */
 struct nilfs_sb_info {
-	/* Snapshot status */
-	__u64 s_snapshot_cno;		/* Checkpoint number */
-	atomic_t s_inodes_count;
-	atomic_t s_blocks_count;	/* Reserved (might be deleted) */
-
 	/* Mount options */
 	unsigned long s_mount_opt;
 	uid_t s_resuid;
@@ -59,17 +54,12 @@ struct nilfs_sb_info {
 	/* Fundamental members */
 	struct super_block *s_super;	/* reverse pointer to super_block */
 	struct the_nilfs *s_nilfs;
-	struct list_head s_list;	/* list head for nilfs->ns_supers */
-	atomic_t s_count;		/* reference count */
 
 	/* Segment constructor */
 	struct list_head s_dirty_files;	/* dirty files list */
 	struct nilfs_sc_info *s_sc_info; /* segment constructor info */
 	spinlock_t s_inode_lock;	/* Lock for the nilfs inode.
 					   It covers s_dirty_files list */
-
-	/* Metadata files */
-	struct inode *s_ifile;		/* index file inode */
 
 	/* Inode allocator */
 	spinlock_t s_next_gen_lock;

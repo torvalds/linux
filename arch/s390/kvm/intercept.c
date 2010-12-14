@@ -135,7 +135,7 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 	spin_lock_bh(&vcpu->arch.local_int.lock);
 	if (vcpu->arch.local_int.action_bits & ACTION_STORE_ON_STOP) {
 		vcpu->arch.local_int.action_bits &= ~ACTION_STORE_ON_STOP;
-		rc = __kvm_s390_vcpu_store_status(vcpu,
+		rc = kvm_s390_vcpu_store_status(vcpu,
 						  KVM_S390_STORE_STATUS_NOADDR);
 		if (rc >= 0)
 			rc = -EOPNOTSUPP;

@@ -48,11 +48,11 @@
 // PSDevice pDevice
 // PSDevice hDeviceContext
 
-BOOL
+bool
 PSbConsiderPowerDown(
     void *hDeviceContext,
-    BOOL bCheckRxDMA,
-    BOOL bCheckCountToWakeUp
+    bool bCheckRxDMA,
+    bool bCheckCountToWakeUp
     );
 
 void
@@ -63,7 +63,7 @@ PSvDisablePowerSaving(
 void
 PSvEnablePowerSaving(
     void *hDeviceContext,
-    WORD wListenInterval
+    unsigned short wListenInterval
     );
 
 void
@@ -71,12 +71,12 @@ PSvSendPSPOLL(
     void *hDeviceContext
     );
 
-BOOL
+bool
 PSbSendNullPacket(
     void *hDeviceContext
     );
 
-BOOL
+bool
 PSbIsNextTBTTWakeUp(
     void *hDeviceContext
     );

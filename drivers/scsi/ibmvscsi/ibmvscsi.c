@@ -73,6 +73,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/pm.h>
+#include <linux/kthread.h>
 #include <asm/firmware.h>
 #include <asm/vio.h>
 #include <scsi/scsi.h>
@@ -101,7 +102,7 @@ static int client_reserve = 1;
 
 static struct scsi_transport_template *ibmvscsi_transport_template;
 
-#define IBMVSCSI_VERSION "1.5.8"
+#define IBMVSCSI_VERSION "1.5.9"
 
 static struct ibmvscsi_ops *ibmvscsi_ops;
 
@@ -473,23 +474,26 @@ static int map_data_for_srp_cmd(struct scsi_cmnd *cmd,
  */
 static void purge_requests(struct ibmvscsi_host_data *hostdata, int error_code)
 {
-	struct srp_event_struct *tmp_evt, *pos;
+	struct srp_event_struct *evt;
 	unsigned long flags;
 
 	spin_lock_irqsave(hostdata->host->host_lock, flags);
-	list_for_each_entry_safe(tmp_evt, pos, &hostdata->sent, list) {
-		list_del(&tmp_evt->list);
-		del_timer(&tmp_evt->timer);
-		if (tmp_evt->cmnd) {
-			tmp_evt->cmnd->result = (error_code << 16);
-			unmap_cmd_data(&tmp_evt->iu.srp.cmd,
-				       tmp_evt,
-				       tmp_evt->hostdata->dev);
-			if (tmp_evt->cmnd_done)
-				tmp_evt->cmnd_done(tmp_evt->cmnd);
-		} else if (tmp_evt->done)
-			tmp_evt->done(tmp_evt);
-		free_event_struct(&tmp_evt->hostdata->pool, tmp_evt);
+	while (!list_empty(&hostdata->sent)) {
+		evt = list_first_entry(&hostdata->sent, struct srp_event_struct, list);
+		list_del(&evt->list);
+		del_timer(&evt->timer);
+
+		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+		if (evt->cmnd) {
+			evt->cmnd->result = (error_code << 16);
+			unmap_cmd_data(&evt->iu.srp.cmd, evt,
+				       evt->hostdata->dev);
+			if (evt->cmnd_done)
+				evt->cmnd_done(evt->cmnd);
+		} else if (evt->done)
+			evt->done(evt);
+		free_event_struct(&evt->hostdata->pool, evt);
+		spin_lock_irqsave(hostdata->host->host_lock, flags);
 	}
 	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 }
@@ -504,14 +508,8 @@ static void ibmvscsi_reset_host(struct ibmvscsi_host_data *hostdata)
 	atomic_set(&hostdata->request_limit, 0);
 
 	purge_requests(hostdata, DID_ERROR);
-	if ((ibmvscsi_ops->reset_crq_queue(&hostdata->queue, hostdata)) ||
-	    (ibmvscsi_ops->send_crq(hostdata, 0xC001000000000000LL, 0)) ||
-	    (vio_enable_interrupts(to_vio_dev(hostdata->dev)))) {
-		atomic_set(&hostdata->request_limit, -1);
-		dev_err(hostdata->dev, "error after reset\n");
-	}
-
-	scsi_unblock_requests(hostdata->host);
+	hostdata->reset_crq = 1;
+	wake_up(&hostdata->work_wait_q);
 }
 
 /**
@@ -550,6 +548,7 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	u64 *crq_as_u64 = (u64 *) &evt_struct->crq;
 	int request_status = 0;
 	int rc;
+	int srp_req = 0;
 
 	/* If we have exhausted our request limit, just fail this request,
 	 * unless it is for a reset or abort.
@@ -558,6 +557,7 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	 * can handle more requests (can_queue) when we actually can't
 	 */
 	if (evt_struct->crq.format == VIOSRP_SRP_FORMAT) {
+		srp_req = 1;
 		request_status =
 			atomic_dec_if_positive(&hostdata->request_limit);
 		/* If request limit was -1 when we started, it is now even
@@ -632,7 +632,8 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 			goto send_busy;
 		}
 		dev_err(hostdata->dev, "send error %d\n", rc);
-		atomic_inc(&hostdata->request_limit);
+		if (srp_req)
+			atomic_inc(&hostdata->request_limit);
 		goto send_error;
 	}
 
@@ -642,7 +643,7 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	unmap_cmd_data(&evt_struct->iu.srp.cmd, evt_struct, hostdata->dev);
 
 	free_event_struct(&hostdata->pool, evt_struct);
-	if (request_status != -1)
+	if (srp_req && request_status != -1)
 		atomic_inc(&hostdata->request_limit);
 	return SCSI_MLQUEUE_HOST_BUSY;
 
@@ -1462,30 +1463,14 @@ void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 			/* We need to re-setup the interpartition connection */
 			dev_info(hostdata->dev, "Re-enabling adapter!\n");
 			hostdata->client_migrated = 1;
+			hostdata->reenable_crq = 1;
 			purge_requests(hostdata, DID_REQUEUE);
-			if ((ibmvscsi_ops->reenable_crq_queue(&hostdata->queue,
-							      hostdata)) ||
-			    (ibmvscsi_ops->send_crq(hostdata,
-						    0xC001000000000000LL, 0))) {
-					atomic_set(&hostdata->request_limit,
-						   -1);
-					dev_err(hostdata->dev, "error after enable\n");
-			}
+			wake_up(&hostdata->work_wait_q);
 		} else {
 			dev_err(hostdata->dev, "Virtual adapter failed rc %d!\n",
 				crq->format);
-
-			purge_requests(hostdata, DID_ERROR);
-			if ((ibmvscsi_ops->reset_crq_queue(&hostdata->queue,
-							   hostdata)) ||
-			    (ibmvscsi_ops->send_crq(hostdata,
-						    0xC001000000000000LL, 0))) {
-					atomic_set(&hostdata->request_limit,
-						   -1);
-					dev_err(hostdata->dev, "error after reset\n");
-			}
+			ibmvscsi_reset_host(hostdata);
 		}
-		scsi_unblock_requests(hostdata->host);
 		return;
 	case 0x80:		/* real payload */
 		break;
@@ -1850,6 +1835,75 @@ static unsigned long ibmvscsi_get_desired_dma(struct vio_dev *vdev)
 	return desired_io;
 }
 
+static void ibmvscsi_do_work(struct ibmvscsi_host_data *hostdata)
+{
+	int rc;
+	char *action = "reset";
+
+	if (hostdata->reset_crq) {
+		smp_rmb();
+		hostdata->reset_crq = 0;
+
+		rc = ibmvscsi_ops->reset_crq_queue(&hostdata->queue, hostdata);
+		if (!rc)
+			rc = ibmvscsi_ops->send_crq(hostdata, 0xC001000000000000LL, 0);
+		if (!rc)
+			rc = vio_enable_interrupts(to_vio_dev(hostdata->dev));
+	} else if (hostdata->reenable_crq) {
+		smp_rmb();
+		action = "enable";
+		rc = ibmvscsi_ops->reenable_crq_queue(&hostdata->queue, hostdata);
+		hostdata->reenable_crq = 0;
+		if (!rc)
+			rc = ibmvscsi_ops->send_crq(hostdata, 0xC001000000000000LL, 0);
+	} else
+		return;
+
+	if (rc) {
+		atomic_set(&hostdata->request_limit, -1);
+		dev_err(hostdata->dev, "error after %s\n", action);
+	}
+
+	scsi_unblock_requests(hostdata->host);
+}
+
+static int ibmvscsi_work_to_do(struct ibmvscsi_host_data *hostdata)
+{
+	if (kthread_should_stop())
+		return 1;
+	else if (hostdata->reset_crq) {
+		smp_rmb();
+		return 1;
+	} else if (hostdata->reenable_crq) {
+		smp_rmb();
+		return 1;
+	}
+
+	return 0;
+}
+
+static int ibmvscsi_work(void *data)
+{
+	struct ibmvscsi_host_data *hostdata = data;
+	int rc;
+
+	set_user_nice(current, -20);
+
+	while (1) {
+		rc = wait_event_interruptible(hostdata->work_wait_q,
+					      ibmvscsi_work_to_do(hostdata));
+
+		BUG_ON(rc);
+
+		if (kthread_should_stop())
+			break;
+
+		ibmvscsi_do_work(hostdata);
+	}
+
+	return 0;
+}
+
 /**
  * Called by bus code for each adapter
  */
@@ -1875,6 +1929,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	hostdata = shost_priv(host);
 	memset(hostdata, 0x00, sizeof(*hostdata));
 	INIT_LIST_HEAD(&hostdata->sent);
+	init_waitqueue_head(&hostdata->work_wait_q);
 	hostdata->host = host;
 	hostdata->dev = dev;
 	atomic_set(&hostdata->request_limit, -1);
@@ -1885,10 +1940,19 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 		goto persist_bufs_failed;
 	}
 
+	hostdata->work_thread = kthread_run(ibmvscsi_work, hostdata, "%s_%d",
+					    "ibmvscsi", host->host_no);
+
+	if (IS_ERR(hostdata->work_thread)) {
+		dev_err(&vdev->dev, "couldn't initialize kthread. rc=%ld\n",
+			PTR_ERR(hostdata->work_thread));
+		goto init_crq_failed;
+	}
+
 	rc = ibmvscsi_ops->init_crq_queue(&hostdata->queue, hostdata, max_events);
 	if (rc != 0 && rc != H_RESOURCE) {
 		dev_err(&vdev->dev, "couldn't initialize crq. rc=%d\n", rc);
-		goto init_crq_failed;
+		goto kill_kthread;
 	}
 	if (initialize_event_pool(&hostdata->pool, max_events, hostdata) != 0) {
 		dev_err(&vdev->dev, "couldn't initialize event pool\n");
@@ -1944,6 +2008,8 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	release_event_pool(&hostdata->pool, hostdata);
       init_pool_failed:
 	ibmvscsi_ops->release_crq_queue(&hostdata->queue, hostdata, max_events);
+      kill_kthread:
+      kthread_stop(hostdata->work_thread);
       init_crq_failed:
 	unmap_persist_bufs(hostdata);
       persist_bufs_failed:
@@ -1960,6 +2026,7 @@ static int ibmvscsi_remove(struct vio_dev *vdev)
 	ibmvscsi_ops->release_crq_queue(&hostdata->queue, hostdata,
 					max_events);
 
+	kthread_stop(hostdata->work_thread);
 	srp_remove_host(hostdata->host);
 	scsi_remove_host(hostdata->host);
 	scsi_host_put(hostdata->host);

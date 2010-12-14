@@ -27,7 +27,7 @@ struct kvm_kpit_state {
 	u32    speaker_data_on;
 	struct mutex lock;
 	struct kvm_pit *pit;
-	raw_spinlock_t inject_lock;
+	spinlock_t inject_lock;
 	unsigned long irq_ack;
 	struct kvm_irq_ack_notifier irq_ack_notifier;
 };
@@ -40,6 +40,8 @@ struct kvm_pit {
 	struct kvm_kpit_state pit_state;
 	int irq_source_id;
 	struct kvm_irq_mask_notifier mask_notifier;
+	struct workqueue_struct *wq;
+	struct work_struct expired;
 };
 
 #define KVM_PIT_BASE_ADDRESS	    0x40

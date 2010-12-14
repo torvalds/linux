@@ -276,8 +276,6 @@ static void __init nhk8815_platform_init(void)
 
 MACHINE_START(NOMADIK, "NHK8815")
 	/* Maintainer: ST MicroElectronics */
-	.phys_io	= NOMADIK_UART0_BASE,
-	.io_pg_offst	= (IO_ADDRESS(NOMADIK_UART0_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x100,
 	.map_io		= cpu8815_map_io,
 	.init_irq	= cpu8815_init_irq,

@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>
 #include <linux/bitops.h>
@@ -274,6 +275,18 @@ static void __init smp_dump_mptable(struct mpc_table *mpc, unsigned char *mpt)
 
 void __init default_smp_read_mpc_oem(struct mpc_table *mpc) { }
 
+static void __init smp_register_lapic_address(unsigned long address)
+{
+	mp_lapic_addr = address;
+
+	set_fixmap_nocache(FIX_APIC_BASE, address);
+	if (boot_cpu_physical_apicid == -1U) {
+		boot_cpu_physical_apicid  = read_apic_id();
+		apic_version[boot_cpu_physical_apicid] =
+			 GET_APIC_VERSION(apic_read(APIC_LVR));
+	}
+}
+
 static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 {
 	char str[16];
@@ -294,6 +307,10 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 
 	if (early)
 		return 1;
+
+	/* Initialize the lapic mapping */
+	if (!acpi_lapic)
+		smp_register_lapic_address(mpc->lapic);
 
 	if (mpc->oemptr)
 		x86_init.mpparse.smp_read_mpc_oem(mpc);
@@ -641,7 +658,7 @@ static void __init smp_reserve_memory(struct mpf_intel *mpf)
 {
 	unsigned long size = get_mpc_size(mpf->physptr);
 
-	reserve_early_overlap_ok(mpf->physptr, mpf->physptr+size, "MP-table mpc");
+	memblock_x86_reserve_range(mpf->physptr, mpf->physptr+size, "* MP-table mpc");
 }
 
 static int __init smp_scan_config(unsigned long base, unsigned long length)
@@ -670,7 +687,7 @@ static int __init smp_scan_config(unsigned long base, unsigned long length)
 			       mpf, (u64)virt_to_phys(mpf));
 
 			mem = virt_to_phys(mpf);
-			reserve_early_overlap_ok(mem, mem + sizeof(*mpf), "MP-table mpf");
+			memblock_x86_reserve_range(mem, mem + sizeof(*mpf), "* MP-table mpf");
 			if (mpf->physptr)
 				smp_reserve_memory(mpf);
 

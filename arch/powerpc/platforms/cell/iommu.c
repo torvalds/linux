@@ -477,7 +477,7 @@ cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 
 	ioid = cell_iommu_get_ioid(np);
 
-	window = kmalloc_node(sizeof(*window), GFP_KERNEL, iommu->nid);
+	window = kzalloc_node(sizeof(*window), GFP_KERNEL, iommu->nid);
 	BUG_ON(window == NULL);
 
 	window->offset = offset;
@@ -1204,7 +1204,7 @@ static int __init cell_iommu_init(void)
 	/* Register callbacks on OF platform device addition/removal
 	 * to handle linking them to the right DMA operations
 	 */
-	bus_register_notifier(&of_platform_bus_type, &cell_of_bus_notifier);
+	bus_register_notifier(&platform_bus_type, &cell_of_bus_notifier);
 
 	return 0;
 }

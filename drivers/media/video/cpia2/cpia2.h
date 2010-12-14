@@ -32,7 +32,7 @@
 #define __CPIA2_H__
 
 #include <linux/version.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <linux/usb.h>
 #include <linux/poll.h>
@@ -43,7 +43,7 @@
 /* define for verbose debug output */
 //#define _CPIA2_DEBUG_
 
-#define CPIA2_MAJ_VER	2
+#define CPIA2_MAJ_VER	3
 #define CPIA2_MIN_VER   0
 #define CPIA2_PATCH_VER	0
 
@@ -396,8 +396,8 @@ struct camera_data {
 	/* v4l */
 	int video_size;			/* VIDEO_SIZE_ */
 	struct video_device *vdev;	/* v4l videodev */
-	struct video_picture vp;	/* v4l camera settings */
-	struct video_window vw;		/* v4l capture area */
+	u32 width;
+	u32 height;			/* Its size */
 	__u32 pixelformat;       /* Format fourcc      */
 
 	/* USB */

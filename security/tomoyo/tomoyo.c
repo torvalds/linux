@@ -3,10 +3,7 @@
  *
  * LSM hooks for TOMOYO Linux.
  *
- * Copyright (C) 2005-2009  NTT DATA CORPORATION
- *
- * Version: 2.2.0   2009/04/01
- *
+ * Copyright (C) 2005-2010  NTT DATA CORPORATION
  */
 
 #include <linux/security.h>
@@ -96,8 +93,7 @@ static int tomoyo_bprm_check_security(struct linux_binprm *bprm)
 	return tomoyo_check_open_permission(domain, &bprm->file->f_path, O_RDONLY);
 }
 
-static int tomoyo_path_truncate(struct path *path, loff_t length,
-				unsigned int time_attrs)
+static int tomoyo_path_truncate(struct path *path)
 {
 	return tomoyo_path_perm(TOMOYO_TYPE_TRUNCATE, path);
 }
@@ -112,7 +108,8 @@ static int tomoyo_path_mkdir(struct path *parent, struct dentry *dentry,
 			     int mode)
 {
 	struct path path = { parent->mnt, dentry };
-	return tomoyo_path_perm(TOMOYO_TYPE_MKDIR, &path);
+	return tomoyo_path_number_perm(TOMOYO_TYPE_MKDIR, &path,
+				       mode & S_IALLUGO);
 }
 
 static int tomoyo_path_rmdir(struct path *parent, struct dentry *dentry)
@@ -133,6 +130,7 @@ static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
 {
 	struct path path = { parent->mnt, dentry };
 	int type = TOMOYO_TYPE_CREATE;
+	const unsigned int perm = mode & S_IALLUGO;
 
 	switch (mode & S_IFMT) {
 	case S_IFCHR:
@@ -141,6 +139,12 @@ static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
 	case S_IFBLK:
 		type = TOMOYO_TYPE_MKBLOCK;
 		break;
+	default:
+		goto no_dev;
+	}
+	return tomoyo_mkdev_perm(type, &path, perm, dev);
+ no_dev:
+	switch (mode & S_IFMT) {
 	case S_IFIFO:
 		type = TOMOYO_TYPE_MKFIFO;
 		break;
@@ -148,7 +152,7 @@ static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
 		type = TOMOYO_TYPE_MKSOCK;
 		break;
 	}
-	return tomoyo_path_perm(type, &path);
+	return tomoyo_path_number_perm(type, &path, perm);
 }
 
 static int tomoyo_path_link(struct dentry *old_dentry, struct path *new_dir,
@@ -173,7 +177,7 @@ static int tomoyo_file_fcntl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
 	if (cmd == F_SETFL && ((arg ^ file->f_flags) & O_APPEND))
-		return tomoyo_check_rewrite_permission(file);
+		return tomoyo_path_perm(TOMOYO_TYPE_REWRITE, &file->f_path);
 	return 0;
 }
 
@@ -189,23 +193,24 @@ static int tomoyo_dentry_open(struct file *f, const struct cred *cred)
 static int tomoyo_file_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
-	return tomoyo_path_perm(TOMOYO_TYPE_IOCTL, &file->f_path);
+	return tomoyo_path_number_perm(TOMOYO_TYPE_IOCTL, &file->f_path, cmd);
 }
 
 static int tomoyo_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
 			     mode_t mode)
 {
 	struct path path = { mnt, dentry };
-	return tomoyo_path_perm(TOMOYO_TYPE_CHMOD, &path);
+	return tomoyo_path_number_perm(TOMOYO_TYPE_CHMOD, &path,
+				       mode & S_IALLUGO);
 }
 
 static int tomoyo_path_chown(struct path *path, uid_t uid, gid_t gid)
 {
 	int error = 0;
 	if (uid != (uid_t) -1)
-		error = tomoyo_path_perm(TOMOYO_TYPE_CHOWN, path);
+		error = tomoyo_path_number_perm(TOMOYO_TYPE_CHOWN, path, uid);
 	if (!error && gid != (gid_t) -1)
-		error = tomoyo_path_perm(TOMOYO_TYPE_CHGRP, path);
+		error = tomoyo_path_number_perm(TOMOYO_TYPE_CHGRP, path, gid);
 	return error;
 }
 
@@ -217,7 +222,7 @@ static int tomoyo_path_chroot(struct path *path)
 static int tomoyo_sb_mount(char *dev_name, struct path *path,
 			   char *type, unsigned long flags, void *data)
 {
-	return tomoyo_path_perm(TOMOYO_TYPE_MOUNT, path);
+	return tomoyo_mount_permission(dev_name, path, type, flags, data);
 }
 
 static int tomoyo_sb_umount(struct vfsmount *mnt, int flags)
@@ -277,7 +282,7 @@ static int __init tomoyo_init(void)
 		panic("Failure registering TOMOYO Linux");
 	printk(KERN_INFO "TOMOYO Linux initialized\n");
 	cred->security = &tomoyo_kernel_domain;
-	tomoyo_realpath_init();
+	tomoyo_mm_init();
 	return 0;
 }
 

@@ -10,22 +10,14 @@
  *  option) any later version.
  */
 
-#include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/io.h>
-#include <linux/i2c.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
-#include <sound/soc.h>
-#include <sound/soc-dapm.h>
-
 #include <sound/sh_fsi.h>
-#include "../codecs/da7210.h"
 
-static int fsi_da7210_init(struct snd_soc_codec *codec)
+static int fsi_da7210_init(struct snd_soc_pcm_runtime *rtd)
 {
-	return snd_soc_dai_set_fmt(&da7210_dai,
+	struct snd_soc_dai *dai = rtd->codec_dai;
+
+	return snd_soc_dai_set_fmt(dai,
 				   SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				   SND_SOC_DAIFMT_CBM_CFM);
 }
@@ -33,21 +25,17 @@ static int fsi_da7210_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link fsi_da7210_dai = {
 	.name		= "DA7210",
 	.stream_name	= "DA7210",
-	.cpu_dai	= &fsi_soc_dai[1], /* FSI B */
-	.codec_dai	= &da7210_dai,
+	.cpu_dai_name	= "fsib-dai", /* FSI B */
+	.codec_dai_name	= "da7210-hifi",
+	.platform_name	= "sh_fsi.0",
+	.codec_name	= "da7210-codec.0-001a",
 	.init		= fsi_da7210_init,
 };
 
 static struct snd_soc_card fsi_soc_card = {
-	.name		= "FSI",
-	.platform	= &fsi_soc_platform,
+	.name		= "FSI (DA7210)",
 	.dai_link	= &fsi_da7210_dai,
 	.num_links	= 1,
-};
-
-static struct snd_soc_device fsi_da7210_snd_devdata = {
-	.card		= &fsi_soc_card,
-	.codec_dev	= &soc_codec_dev_da7210,
 };
 
 static struct platform_device *fsi_da7210_snd_device;
@@ -56,12 +44,11 @@ static int __init fsi_da7210_sound_init(void)
 {
 	int ret;
 
-	fsi_da7210_snd_device = platform_device_alloc("soc-audio", -1);
+	fsi_da7210_snd_device = platform_device_alloc("soc-audio", FSI_PORT_B);
 	if (!fsi_da7210_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(fsi_da7210_snd_device, &fsi_da7210_snd_devdata);
-	fsi_da7210_snd_devdata.dev = &fsi_da7210_snd_device->dev;
+	platform_set_drvdata(fsi_da7210_snd_device, &fsi_soc_card);
 	ret = platform_device_add(fsi_da7210_snd_device);
 	if (ret)
 		platform_device_put(fsi_da7210_snd_device);

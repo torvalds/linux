@@ -376,7 +376,7 @@ static int ext4_ext_swap_inode_data(handle_t *handle, struct inode *inode,
 	 * We have the extent map build with the tmp inode.
 	 * Now copy the i_data across
 	 */
-	ei->i_flags |= EXT4_EXTENTS_FL;
+	ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS);
 	memcpy(ei->i_data, tmp_ei->i_data, sizeof(ei->i_data));
 
 	/*
@@ -412,7 +412,7 @@ static int free_ext_idx(handle_t *handle, struct inode *inode,
 	struct buffer_head *bh;
 	struct ext4_extent_header *eh;
 
-	block = idx_pblock(ix);
+	block = ext4_idx_pblock(ix);
 	bh = sb_bread(inode->i_sb, block);
 	if (!bh)
 		return -EIO;

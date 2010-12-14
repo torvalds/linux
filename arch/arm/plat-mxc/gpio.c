@@ -20,6 +20,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
@@ -201,11 +202,42 @@ static void mx2_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 	}
 }
 
+/*
+ * Set interrupt number "irq" in the GPIO as a wake-up source.
+ * While system is running, all registered GPIO interrupts need to have
+ * wake-up enabled. When system is suspended, only selected GPIO interrupts
+ * need to have wake-up enabled.
+ * @param  irq          interrupt source number
+ * @param  enable       enable as wake-up if equal to non-zero
+ * @return       This function returns 0 on success.
+ */
+static int gpio_set_wake_irq(u32 irq, u32 enable)
+{
+	u32 gpio = irq_to_gpio(irq);
+	u32 gpio_idx = gpio & 0x1F;
+	struct mxc_gpio_port *port = &mxc_gpio_ports[gpio / 32];
+
+	if (enable) {
+		if (port->irq_high && (gpio_idx >= 16))
+			enable_irq_wake(port->irq_high);
+		else
+			enable_irq_wake(port->irq);
+	} else {
+		if (port->irq_high && (gpio_idx >= 16))
+			disable_irq_wake(port->irq_high);
+		else
+			disable_irq_wake(port->irq);
+	}
+
+	return 0;
+}
+
 static struct irq_chip gpio_irq_chip = {
 	.ack = gpio_ack_irq,
 	.mask = gpio_mask_irq,
 	.unmask = gpio_unmask_irq,
 	.set_type = gpio_set_irq_type,
+	.set_wake = gpio_set_wake_irq,
 };
 
 static void _set_gpio_direction(struct gpio_chip *chip, unsigned offset,
@@ -214,13 +246,16 @@ static void _set_gpio_direction(struct gpio_chip *chip, unsigned offset,
 	struct mxc_gpio_port *port =
 		container_of(chip, struct mxc_gpio_port, chip);
 	u32 l;
+	unsigned long flags;
 
+	spin_lock_irqsave(&port->lock, flags);
 	l = __raw_readl(port->base + GPIO_GDIR);
 	if (dir)
 		l |= 1 << offset;
 	else
 		l &= ~(1 << offset);
 	__raw_writel(l, port->base + GPIO_GDIR);
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void mxc_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
@@ -229,9 +264,12 @@ static void mxc_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 		container_of(chip, struct mxc_gpio_port, chip);
 	void __iomem *reg = port->base + GPIO_DR;
 	u32 l;
+	unsigned long flags;
 
-	l = (__raw_readl(reg) & (~(1 << offset))) | (value << offset);
+	spin_lock_irqsave(&port->lock, flags);
+	l = (__raw_readl(reg) & (~(1 << offset))) | (!!value << offset);
 	__raw_writel(l, reg);
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static int mxc_gpio_get(struct gpio_chip *chip, unsigned offset)
@@ -285,6 +323,8 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 		port[i].chip.base = i * 32;
 		port[i].chip.ngpio = 32;
 
+		spin_lock_init(&port[i].lock);
+
 		/* its a serious configuration bug when it fails */
 		BUG_ON( gpiochip_add(&port[i].chip) < 0 );
 
@@ -292,6 +332,12 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 			/* setup one handler for each entry */
 			set_irq_chained_handler(port[i].irq, mx3_gpio_irq_handler);
 			set_irq_data(port[i].irq, &port[i]);
+			if (port[i].irq_high) {
+				/* setup handler for GPIO 16 to 31 */
+				set_irq_chained_handler(port[i].irq_high,
+						mx3_gpio_irq_handler);
+				set_irq_data(port[i].irq_high, &port[i]);
+			}
 		}
 	}
 

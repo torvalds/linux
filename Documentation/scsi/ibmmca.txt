@@ -1109,7 +1109,7 @@
      Q: Where can I find the latest info about this driver?
      A: See the file MAINTAINERS for the current WWW-address, which offers
         updates, info and Q/A lists. At this file's origin, the webaddress
-	was: http://www.uni-mainz.de/~langm000/linux.html
+	was: http://www.staff.uni-mainz.de/mlang/linux.html
      Q: My SCSI-adapter is not recognized by the driver, what can I do?
      A: Just force it to be recognized by kernel parameters. See section 5.1.
         If this really happens, do also send e-mail to the maintainer, as

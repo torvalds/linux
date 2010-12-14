@@ -71,20 +71,20 @@ static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_
 	if (inode->i_flock == NULL)
 		goto out;
 
-	/* Protect inode->i_flock using the BKL */
-	lock_kernel();
+	/* Protect inode->i_flock using the file locks lock */
+	lock_flocks();
 	for (fl = inode->i_flock; fl != NULL; fl = fl->fl_next) {
 		if (!(fl->fl_flags & (FL_POSIX|FL_FLOCK)))
 			continue;
 		if (nfs_file_open_context(fl->fl_file) != ctx)
 			continue;
-		unlock_kernel();
+		unlock_flocks();
 		status = nfs4_lock_delegation_recall(state, fl);
 		if (status < 0)
 			goto out;
-		lock_kernel();
+		lock_flocks();
 	}
-	unlock_kernel();
+	unlock_flocks();
 out:
 	return status;
 }
@@ -268,14 +268,6 @@ out:
 	return status;
 }
 
-/* Sync all data to disk upon delegation return */
-static void nfs_msync_inode(struct inode *inode)
-{
-	filemap_fdatawrite(inode->i_mapping);
-	nfs_wb_all(inode);
-	filemap_fdatawait(inode->i_mapping);
-}
-
 /*
  * Basic procedure for returning a delegation to the server
  */
@@ -367,7 +359,7 @@ int nfs_inode_return_delegation(struct inode *inode)
 		delegation = nfs_detach_delegation_locked(nfsi, NULL, clp);
 		spin_unlock(&clp->cl_lock);
 		if (delegation != NULL) {
-			nfs_msync_inode(inode);
+			nfs_wb_all(inode);
 			err = __nfs_inode_return_delegation(inode, delegation, 1);
 		}
 	}
@@ -471,9 +463,7 @@ void nfs_expire_unreferenced_delegations(struct nfs_client *clp)
 /*
  * Asynchronous delegation recall!
  */
-int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *stateid,
-				      int (*validate_stateid)(struct nfs_delegation *delegation,
-							      const nfs4_stateid *stateid))
+int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *stateid)
 {
 	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
 	struct nfs_delegation *delegation;
@@ -481,7 +471,7 @@ int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *s
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(inode)->delegation);
 
-	if (!validate_stateid(delegation, stateid)) {
+	if (!clp->cl_mvops->validate_stateid(delegation, stateid)) {
 		rcu_read_unlock();
 		return -ENOENT;
 	}

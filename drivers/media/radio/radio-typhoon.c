@@ -1,9 +1,6 @@
 /* Typhoon Radio Card driver for radio support
  * (c) 1999 Dr. Henrik Seidel <Henrik.Seidel@gmx.de>
  *
- * Card manufacturer:
- * http://194.18.155.92/idc/prod2.idc?nr=50753&lang=e
- *
  * Notes on the hardware
  *
  * This card has two output sockets, one for speakers and one for line.

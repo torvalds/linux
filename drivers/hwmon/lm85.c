@@ -64,9 +64,12 @@ enum chips {
 #define	LM85_REG_VERSTEP		0x3f
 
 #define	ADT7468_REG_CFG5		0x7c
-#define		ADT7468_OFF64		0x01
+#define		ADT7468_OFF64		(1 << 0)
+#define		ADT7468_HFPWM		(1 << 1)
 #define	IS_ADT7468_OFF64(data)		\
 	((data)->type == adt7468 && !((data)->cfg5 & ADT7468_OFF64))
+#define	IS_ADT7468_HFPWM(data)		\
+	((data)->type == adt7468 && !((data)->cfg5 & ADT7468_HFPWM))
 
 /* These are the recognized values for the above regs */
 #define	LM85_COMPANY_NATIONAL		0x01
@@ -567,8 +570,14 @@ static ssize_t show_pwm_freq(struct device *dev,
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
-	return sprintf(buf, "%d\n", FREQ_FROM_REG(data->freq_map,
-						  data->pwm_freq[nr]));
+	int freq;
+
+	if (IS_ADT7468_HFPWM(data))
+		freq = 22500;
+	else
+		freq = FREQ_FROM_REG(data->freq_map, data->pwm_freq[nr]);
+
+	return sprintf(buf, "%d\n", freq);
 }
 
 static ssize_t set_pwm_freq(struct device *dev,
@@ -580,10 +589,22 @@ static ssize_t set_pwm_freq(struct device *dev,
 	long val = simple_strtol(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
-	data->pwm_freq[nr] = FREQ_TO_REG(data->freq_map, val);
-	lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
-		(data->zone[nr].range << 4)
-		| data->pwm_freq[nr]);
+	/* The ADT7468 has a special high-frequency PWM output mode,
+	 * where all PWM outputs are driven by a 22.5 kHz clock.
+	 * This might confuse the user, but there's not much we can do. */
+	if (data->type == adt7468 && val >= 11300) {	/* High freq. mode */
+		data->cfg5 &= ~ADT7468_HFPWM;
+		lm85_write_value(client, ADT7468_REG_CFG5, data->cfg5);
+	} else {					/* Low freq. mode */
+		data->pwm_freq[nr] = FREQ_TO_REG(data->freq_map, val);
+		lm85_write_value(client, LM85_REG_AFAN_RANGE(nr),
+				 (data->zone[nr].range << 4)
+				 | data->pwm_freq[nr]);
+		if (data->type == adt7468) {
+			data->cfg5 |= ADT7468_HFPWM;
+			lm85_write_value(client, ADT7468_REG_CFG5, data->cfg5);
+		}
+	}
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -1259,6 +1280,7 @@ static int lm85_probe(struct i2c_client *client,
 	switch (data->type) {
 	case adm1027:
 	case adt7463:
+	case adt7468:
 	case emc6d100:
 	case emc6d102:
 		data->freq_map = adm1027_freq_map;

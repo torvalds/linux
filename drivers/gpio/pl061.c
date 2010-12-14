@@ -232,7 +232,7 @@ static void pl061_irq_handler(unsigned irq, struct irq_desc *desc)
 	desc->chip->unmask(irq);
 }
 
-static int __init pl061_probe(struct amba_device *dev, struct amba_id *id)
+static int pl061_probe(struct amba_device *dev, struct amba_id *id)
 {
 	struct pl061_platform_data *pdata;
 	struct pl061_gpio *chip;
@@ -333,7 +333,7 @@ free_mem:
 	return ret;
 }
 
-static struct amba_id pl061_ids[] __initdata = {
+static struct amba_id pl061_ids[] = {
 	{
 		.id	= 0x00041061,
 		.mask	= 0x000fffff,

@@ -8,55 +8,6 @@
 #include <net/sctp/checksum.h>
 #include <net/ip_vs.h>
 
-
-static struct ip_vs_conn *
-sctp_conn_in_get(int af,
-		 const struct sk_buff *skb,
-		 struct ip_vs_protocol *pp,
-		 const struct ip_vs_iphdr *iph,
-		 unsigned int proto_off,
-		 int inverse)
-{
-	__be16 _ports[2], *pptr;
-
-	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
-	if (pptr == NULL)
-		return NULL;
-
-	if (likely(!inverse)) 
-		return ip_vs_conn_in_get(af, iph->protocol,
-					 &iph->saddr, pptr[0],
-					 &iph->daddr, pptr[1]);
-	else 
-		return ip_vs_conn_in_get(af, iph->protocol,
-					 &iph->daddr, pptr[1],
-					 &iph->saddr, pptr[0]);
-}
-
-static struct ip_vs_conn *
-sctp_conn_out_get(int af,
-		  const struct sk_buff *skb,
-		  struct ip_vs_protocol *pp,
-		  const struct ip_vs_iphdr *iph,
-		  unsigned int proto_off,
-		  int inverse)
-{
-	__be16 _ports[2], *pptr;
-
-	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
-	if (pptr == NULL)
-		return NULL;
-
-	if (likely(!inverse)) 
-		return ip_vs_conn_out_get(af, iph->protocol,
-					  &iph->saddr, pptr[0],
-					  &iph->daddr, pptr[1]);
-	else 
-		return ip_vs_conn_out_get(af, iph->protocol,
-					  &iph->daddr, pptr[1],
-					  &iph->saddr, pptr[0]);
-}
-
 static int
 sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		   int *verdict, struct ip_vs_conn **cpp)
@@ -80,6 +31,8 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 	if ((sch->type == SCTP_CID_INIT) &&
 	    (svc = ip_vs_service_get(af, skb->mark, iph.protocol,
 				     &iph.daddr, sh->dest))) {
+		int ignored;
+
 		if (ip_vs_todrop()) {
 			/*
 			 * It seems that we are very loaded.
@@ -93,8 +46,8 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb);
-		if (!*cpp) {
+		*cpp = ip_vs_schedule(svc, skb, pp, &ignored);
+		if (!*cpp && !ignored) {
 			*verdict = ip_vs_leave(svc, skb, pp);
 			return 0;
 		}
@@ -110,6 +63,7 @@ sctp_snat_handler(struct sk_buff *skb,
 {
 	sctp_sctphdr_t *sctph;
 	unsigned int sctphoff;
+	struct sk_buff *iter;
 	__be32 crc32;
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -138,8 +92,8 @@ sctp_snat_handler(struct sk_buff *skb,
 
 	/* Calculate the checksum */
 	crc32 = sctp_start_cksum((u8 *) sctph, skb_headlen(skb) - sctphoff);
-	for (skb = skb_shinfo(skb)->frag_list; skb; skb = skb->next)
-		crc32 = sctp_update_cksum((u8 *) skb->data, skb_headlen(skb),
+	skb_walk_frags(skb, iter)
+		crc32 = sctp_update_cksum((u8 *) iter->data, skb_headlen(iter),
 				          crc32);
 	crc32 = sctp_end_cksum(crc32);
 	sctph->checksum = crc32;
@@ -151,9 +105,9 @@ static int
 sctp_dnat_handler(struct sk_buff *skb,
 		  struct ip_vs_protocol *pp, struct ip_vs_conn *cp)
 {
-
 	sctp_sctphdr_t *sctph;
 	unsigned int sctphoff;
+	struct sk_buff *iter;
 	__be32 crc32;
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -173,7 +127,7 @@ sctp_dnat_handler(struct sk_buff *skb,
 			return 0;
 
 		/* Call application helper if needed */
-		if (!ip_vs_app_pkt_out(cp, skb))
+		if (!ip_vs_app_pkt_in(cp, skb))
 			return 0;
 	}
 
@@ -182,8 +136,8 @@ sctp_dnat_handler(struct sk_buff *skb,
 
 	/* Calculate the checksum */
 	crc32 = sctp_start_cksum((u8 *) sctph, skb_headlen(skb) - sctphoff);
-	for (skb = skb_shinfo(skb)->frag_list; skb; skb = skb->next)
-		crc32 = sctp_update_cksum((u8 *) skb->data, skb_headlen(skb),
+	skb_walk_frags(skb, iter)
+		crc32 = sctp_update_cksum((u8 *) iter->data, skb_headlen(iter),
 					  crc32);
 	crc32 = sctp_end_cksum(crc32);
 	sctph->checksum = crc32;
@@ -194,9 +148,9 @@ sctp_dnat_handler(struct sk_buff *skb,
 static int
 sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 {
-	struct sk_buff *list = skb_shinfo(skb)->frag_list;
 	unsigned int sctphoff;
 	struct sctphdr *sh, _sctph;
+	struct sk_buff *iter;
 	__le32 cmp;
 	__le32 val;
 	__u32 tmp;
@@ -215,15 +169,15 @@ sctp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 	cmp = sh->checksum;
 
 	tmp = sctp_start_cksum((__u8 *) sh, skb_headlen(skb));
-	for (; list; list = list->next)
-		tmp = sctp_update_cksum((__u8 *) list->data,
-					skb_headlen(list), tmp);
+	skb_walk_frags(skb, iter)
+		tmp = sctp_update_cksum((__u8 *) iter->data,
+					skb_headlen(iter), tmp);
 
 	val = sctp_end_cksum(tmp);
 
 	if (val != cmp) {
 		/* CRC failure, dump it. */
-		IP_VS_DBG_RL_PKT(0, pp, skb, 0,
+		IP_VS_DBG_RL_PKT(0, af, pp, skb, 0,
 				"Failed checksum for");
 		return 0;
 	}
@@ -1169,8 +1123,8 @@ struct ip_vs_protocol ip_vs_protocol_sctp = {
 	.register_app = sctp_register_app,
 	.unregister_app = sctp_unregister_app,
 	.conn_schedule = sctp_conn_schedule,
-	.conn_in_get = sctp_conn_in_get,
-	.conn_out_get = sctp_conn_out_get,
+	.conn_in_get = ip_vs_conn_in_get_proto,
+	.conn_out_get = ip_vs_conn_out_get_proto,
 	.snat_handler = sctp_snat_handler,
 	.dnat_handler = sctp_dnat_handler,
 	.csum_check = sctp_csum_check,

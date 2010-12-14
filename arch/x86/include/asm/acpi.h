@@ -93,6 +93,9 @@ extern u8 acpi_sci_flags;
 extern int acpi_sci_override_gsi;
 void acpi_pic_sci_set_trigger(unsigned int, u16);
 
+extern int (*__acpi_register_gsi)(struct device *dev, u32 gsi,
+				  int trigger, int polarity);
+
 static inline void disable_acpi(void)
 {
 	acpi_disabled = 1;
@@ -134,7 +137,7 @@ static inline unsigned int acpi_processor_cstate_check(unsigned int max_cstate)
 	    boot_cpu_data.x86_model <= 0x05 &&
 	    boot_cpu_data.x86_mask < 0x0A)
 		return 1;
-	else if (boot_cpu_has(X86_FEATURE_AMDC1E))
+	else if (c1e_detected)
 		return 1;
 	else
 		return max_cstate;

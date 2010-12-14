@@ -62,7 +62,7 @@
 
 #define SD_NO_CTL               0xE0
 #define NO_CTL                  0xff
-#define CTL_MODE_M              7
+#define CTL_MODE_M              0xf
 #define CTL_11A                 0
 #define CTL_11B                 1
 #define CTL_11G                 2
@@ -101,7 +101,7 @@
 #define AR5416_VER_MASK (eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK)
 #define OLC_FOR_AR9280_20_LATER (AR_SREV_9280_20_OR_LATER(ah) && \
 				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
-#define OLC_FOR_AR9287_10_LATER (AR_SREV_9287_10_OR_LATER(ah) && \
+#define OLC_FOR_AR9287_10_LATER (AR_SREV_9287_11_OR_LATER(ah) && \
 				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
 
 #define AR_EEPROM_RFSILENT_GPIO_SEL     0x001c
@@ -191,6 +191,7 @@
 #define AR9287_EEP_NO_BACK_VER       AR9287_EEP_MINOR_VER_1
 
 #define AR9287_EEP_START_LOC            128
+#define AR9287_HTC_EEP_START_LOC        256
 #define AR9287_NUM_2G_CAL_PIERS         3
 #define AR9287_NUM_2G_CCK_TARGET_POWERS 3
 #define AR9287_NUM_2G_20_TARGET_POWERS  3
@@ -263,7 +264,10 @@ enum eeprom_param {
 	EEP_PWR_TABLE_OFFSET,
 	EEP_DRIVE_STRENGTH,
 	EEP_INTERNAL_REGULATOR,
-	EEP_SWREG
+	EEP_SWREG,
+	EEP_PAPRD,
+	EEP_MODAL_VER,
+	EEP_ANT_DIV_CTL1,
 };
 
 enum ar5416_rates {
@@ -668,8 +672,9 @@ struct eeprom_ops {
 	bool (*fill_eeprom)(struct ath_hw *hw);
 	int (*get_eeprom_ver)(struct ath_hw *hw);
 	int (*get_eeprom_rev)(struct ath_hw *hw);
-	u8 (*get_num_ant_config)(struct ath_hw *hw, enum ieee80211_band band);
-	u16 (*get_eeprom_antenna_cfg)(struct ath_hw *hw,
+	u8 (*get_num_ant_config)(struct ath_hw *hw,
+				 enum ath9k_hal_freq_band band);
+	u32 (*get_eeprom_antenna_cfg)(struct ath_hw *hw,
 				      struct ath9k_channel *chan);
 	void (*set_board_values)(struct ath_hw *hw, struct ath9k_channel *chan);
 	void (*set_addac)(struct ath_hw *hw, struct ath9k_channel *chan);
@@ -679,6 +684,7 @@ struct eeprom_ops {
 	u16 (*get_spur_channel)(struct ath_hw *ah, u16 i, bool is2GHz);
 };
 
+void ath9k_hw_analog_shift_regwrite(struct ath_hw *ah, u32 reg, u32 val);
 void ath9k_hw_analog_shift_rmw(struct ath_hw *ah, u32 reg, u32 mask,
 			       u32 shift, u32 val);
 int16_t ath9k_hw_interpolate(u16 target, u16 srcLeft, u16 srcRight,
@@ -704,6 +710,7 @@ void ath9k_hw_get_target_powers(struct ath_hw *ah,
 				u16 numRates, bool isHt40Target);
 u16 ath9k_hw_get_max_edge_power(u16 freq, struct cal_ctl_edges *pRdEdgesPower,
 				bool is2GHz, int num_band_edges);
+void ath9k_hw_update_regulatory_maxpower(struct ath_hw *ah);
 int ath9k_hw_eeprom_init(struct ath_hw *ah);
 
 #define ar5416_get_ntxchains(_txchainmask)			\

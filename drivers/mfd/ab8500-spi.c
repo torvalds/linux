@@ -68,7 +68,12 @@ static int ab8500_spi_read(struct ab8500 *ab8500, u16 addr)
 
 	ret = spi_sync(spi, &msg);
 	if (!ret)
-		ret = ab8500->rx_buf[0];
+		/*
+		 * Only the 8 lowermost bytes are
+		 * defined with value, the rest may
+		 * vary depending on chip/board noise.
+		 */
+		ret = ab8500->rx_buf[0] & 0xFFU;
 
 	return ret;
 }
@@ -77,6 +82,11 @@ static int __devinit ab8500_spi_probe(struct spi_device *spi)
 {
 	struct ab8500 *ab8500;
 	int ret;
+
+	spi->bits_per_word = 24;
+	ret = spi_setup(spi);
+	if (ret < 0)
+		return ret;
 
 	ab8500 = kzalloc(sizeof *ab8500, GFP_KERNEL);
 	if (!ab8500)
@@ -109,7 +119,7 @@ static int __devexit ab8500_spi_remove(struct spi_device *spi)
 
 static struct spi_driver ab8500_spi_driver = {
 	.driver = {
-		.name = "ab8500",
+		.name = "ab8500-spi",
 		.owner = THIS_MODULE,
 	},
 	.probe	= ab8500_spi_probe,

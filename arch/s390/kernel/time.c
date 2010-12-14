@@ -155,7 +155,9 @@ void init_cpu_timer(void)
 	__ctl_set_bit(0, 4);
 }
 
-static void clock_comparator_interrupt(__u16 code)
+static void clock_comparator_interrupt(unsigned int ext_int_code,
+				       unsigned int param32,
+				       unsigned long param64)
 {
 	if (S390_lowcore.clock_comparator == -1ULL)
 		set_clock_comparator(S390_lowcore.clock_comparator);
@@ -164,14 +166,13 @@ static void clock_comparator_interrupt(__u16 code)
 static void etr_timing_alert(struct etr_irq_parm *);
 static void stp_timing_alert(struct stp_irq_parm *);
 
-static void timing_alert_interrupt(__u16 code)
+static void timing_alert_interrupt(unsigned int ext_int_code,
+				   unsigned int param32, unsigned long param64)
 {
-	if (S390_lowcore.ext_params & 0x00c40000)
-		etr_timing_alert((struct etr_irq_parm *)
-				 &S390_lowcore.ext_params);
-	if (S390_lowcore.ext_params & 0x00038000)
-		stp_timing_alert((struct stp_irq_parm *)
-				 &S390_lowcore.ext_params);
+	if (param32 & 0x00c40000)
+		etr_timing_alert((struct etr_irq_parm *) &param32);
+	if (param32 & 0x00038000)
+		stp_timing_alert((struct stp_irq_parm *) &param32);
 }
 
 static void etr_reset(void);
@@ -207,8 +208,8 @@ struct clocksource * __init clocksource_default_clock(void)
 	return &clocksource_tod;
 }
 
-void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
-		     u32 mult)
+void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
+			struct clocksource *clock, u32 mult)
 {
 	if (clock != &clocksource_tod)
 		return;
@@ -219,8 +220,8 @@ void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
 	vdso_data->xtime_tod_stamp = clock->cycle_last;
 	vdso_data->xtime_clock_sec = wall_time->tv_sec;
 	vdso_data->xtime_clock_nsec = wall_time->tv_nsec;
-	vdso_data->wtom_clock_sec = wall_to_monotonic.tv_sec;
-	vdso_data->wtom_clock_nsec = wall_to_monotonic.tv_nsec;
+	vdso_data->wtom_clock_sec = wtm->tv_sec;
+	vdso_data->wtom_clock_nsec = wtm->tv_nsec;
 	vdso_data->ntp_mult = mult;
 	smp_wmb();
 	++vdso_data->tb_update_count;

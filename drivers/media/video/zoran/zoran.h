@@ -341,10 +341,8 @@ struct card_info {
 	enum card_type type;
 	char name[32];
 	const char *i2c_decoder;	/* i2c decoder device */
-	const char *mod_decoder;	/* i2c decoder module */
 	const unsigned short *addrs_decoder;
 	const char *i2c_encoder;	/* i2c encoder device */
-	const char *mod_encoder;	/* i2c encoder module */
 	const unsigned short *addrs_encoder;
 	u16 video_vfe, video_codec;			/* videocodec types */
 	u16 audio_chip;					/* audio type */
@@ -391,7 +389,7 @@ struct zoran {
 
 	struct mutex resource_lock;	/* prevent evil stuff */
 
-	u8 initialized;		/* flag if zoran has been correctly initalized */
+	u8 initialized;		/* flag if zoran has been correctly initialized */
 	int user;		/* number of current users */
 	struct card_info card;
 	struct tvnorm *timing;

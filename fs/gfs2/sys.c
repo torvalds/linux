@@ -25,6 +25,7 @@
 #include "quota.h"
 #include "util.h"
 #include "glops.h"
+#include "recovery.h"
 
 struct gfs2_attr {
 	struct attribute attr;
@@ -229,7 +230,10 @@ static ssize_t demote_rq_store(struct gfs2_sbd *sdp, const char *buf, size_t len
 
 	if (gltype > LM_TYPE_JOURNAL)
 		return -EINVAL;
-	glops = gfs2_glops_list[gltype];
+	if (gltype == LM_TYPE_NONDISK && glnum == GFS2_TRANS_LOCK)
+		glops = &gfs2_trans_glops;
+	else
+		glops = gfs2_glops_list[gltype];
 	if (glops == NULL)
 		return -EINVAL;
 	if (!test_and_set_bit(SDF_DEMOTE, &sdp->sd_flags))
@@ -325,6 +329,30 @@ static ssize_t lkfirst_show(struct gfs2_sbd *sdp, char *buf)
 	return sprintf(buf, "%d\n", ls->ls_first);
 }
 
+static ssize_t lkfirst_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
+{
+	unsigned first;
+	int rv;
+
+	rv = sscanf(buf, "%u", &first);
+	if (rv != 1 || first > 1)
+		return -EINVAL;
+	spin_lock(&sdp->sd_jindex_spin);
+	rv = -EBUSY;
+	if (test_bit(SDF_NOJOURNALID, &sdp->sd_flags) == 0)
+		goto out;
+	rv = -EINVAL;
+	if (sdp->sd_args.ar_spectator)
+		goto out;
+	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL)
+		goto out;
+        sdp->sd_lockstruct.ls_first = first;
+        rv = 0;
+out:
+        spin_unlock(&sdp->sd_jindex_spin);
+        return rv ? rv : len;
+}
+
 static ssize_t first_done_show(struct gfs2_sbd *sdp, char *buf)
 {
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
@@ -352,7 +380,7 @@ static ssize_t recover_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
 		if (jd->jd_jid != jid)
 			continue;
-		rv = slow_work_enqueue(&jd->jd_work);
+		rv = gfs2_recover_journal(jd, false);
 		break;
 	}
 out:
@@ -374,7 +402,35 @@ static ssize_t recover_status_show(struct gfs2_sbd *sdp, char *buf)
 
 static ssize_t jid_show(struct gfs2_sbd *sdp, char *buf)
 {
-	return sprintf(buf, "%u\n", sdp->sd_lockstruct.ls_jid);
+	return sprintf(buf, "%d\n", sdp->sd_lockstruct.ls_jid);
+}
+
+static ssize_t jid_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
+{
+        int jid;
+	int rv;
+
+	rv = sscanf(buf, "%d", &jid);
+	if (rv != 1)
+		return -EINVAL;
+
+	spin_lock(&sdp->sd_jindex_spin);
+	rv = -EINVAL;
+	if (sdp->sd_lockstruct.ls_ops->lm_mount == NULL)
+		goto out;
+	rv = -EBUSY;
+	if (test_bit(SDF_NOJOURNALID, &sdp->sd_flags) == 0)
+		goto out;
+	rv = 0;
+	if (sdp->sd_args.ar_spectator && jid > 0)
+		rv = jid = -EINVAL;
+	sdp->sd_lockstruct.ls_jid = jid;
+	clear_bit(SDF_NOJOURNALID, &sdp->sd_flags);
+	smp_mb__after_clear_bit();
+	wake_up_bit(&sdp->sd_flags, SDF_NOJOURNALID);
+out:
+	spin_unlock(&sdp->sd_jindex_spin);
+	return rv ? rv : len;
 }
 
 #define GDLM_ATTR(_name,_mode,_show,_store) \
@@ -383,8 +439,8 @@ static struct gfs2_attr gdlm_attr_##_name = __ATTR(_name,_mode,_show,_store)
 GDLM_ATTR(proto_name,		0444, proto_name_show,		NULL);
 GDLM_ATTR(block,		0644, block_show,		block_store);
 GDLM_ATTR(withdraw,		0644, withdraw_show,		withdraw_store);
-GDLM_ATTR(jid,			0444, jid_show,			NULL);
-GDLM_ATTR(first,		0444, lkfirst_show,		NULL);
+GDLM_ATTR(jid,			0644, jid_show,			jid_store);
+GDLM_ATTR(first,		0644, lkfirst_show,		lkfirst_store);
 GDLM_ATTR(first_done,		0444, first_done_show,		NULL);
 GDLM_ATTR(recover,		0600, NULL,			recover_store);
 GDLM_ATTR(recover_done,		0444, recover_done_show,	NULL);
@@ -564,8 +620,8 @@ static int gfs2_uevent(struct kset *kset, struct kobject *kobj,
 
 	add_uevent_var(env, "LOCKTABLE=%s", sdp->sd_table_name);
 	add_uevent_var(env, "LOCKPROTO=%s", sdp->sd_proto_name);
-	if (!sdp->sd_args.ar_spectator)
-		add_uevent_var(env, "JOURNALID=%u", sdp->sd_lockstruct.ls_jid);
+	if (!test_bit(SDF_NOJOURNALID, &sdp->sd_flags))
+		add_uevent_var(env, "JOURNALID=%d", sdp->sd_lockstruct.ls_jid);
 	if (gfs2_uuid_valid(uuid))
 		add_uevent_var(env, "UUID=%pUB", uuid);
 	return 0;

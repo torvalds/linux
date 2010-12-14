@@ -219,6 +219,7 @@ struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
 	return __skb_recv_datagram(sk, flags | (noblock ? MSG_DONTWAIT : 0),
 				   &peeked, err);
 }
+EXPORT_SYMBOL(skb_recv_datagram);
 
 void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 {
@@ -242,6 +243,7 @@ void skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb)
 	unlock_sock_fast(sk, slow);
 
 	/* skb is now orphaned, can be freed outside of locked section */
+	trace_kfree_skb(skb, skb_free_datagram_locked);
 	__kfree_skb(skb);
 }
 EXPORT_SYMBOL(skb_free_datagram_locked);
@@ -288,7 +290,6 @@ int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
 
 	return err;
 }
-
 EXPORT_SYMBOL(skb_kill_datagram);
 
 /**
@@ -373,6 +374,7 @@ int skb_copy_datagram_iovec(const struct sk_buff *skb, int offset,
 fault:
 	return -EFAULT;
 }
+EXPORT_SYMBOL(skb_copy_datagram_iovec);
 
 /**
  *	skb_copy_datagram_const_iovec - Copy a datagram to an iovec.
@@ -716,6 +718,7 @@ csum_error:
 fault:
 	return -EFAULT;
 }
+EXPORT_SYMBOL(skb_copy_and_csum_datagram_iovec);
 
 /**
  * 	datagram_poll - generic datagram poll
@@ -744,13 +747,12 @@ unsigned int datagram_poll(struct file *file, struct socket *sock,
 	if (sk->sk_err || !skb_queue_empty(&sk->sk_error_queue))
 		mask |= POLLERR;
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
-		mask |= POLLRDHUP;
+		mask |= POLLRDHUP | POLLIN | POLLRDNORM;
 	if (sk->sk_shutdown == SHUTDOWN_MASK)
 		mask |= POLLHUP;
 
 	/* readable? */
-	if (!skb_queue_empty(&sk->sk_receive_queue) ||
-	    (sk->sk_shutdown & RCV_SHUTDOWN))
+	if (!skb_queue_empty(&sk->sk_receive_queue))
 		mask |= POLLIN | POLLRDNORM;
 
 	/* Connection-based need to check for termination and startup */
@@ -770,8 +772,4 @@ unsigned int datagram_poll(struct file *file, struct socket *sock,
 
 	return mask;
 }
-
 EXPORT_SYMBOL(datagram_poll);
-EXPORT_SYMBOL(skb_copy_and_csum_datagram_iovec);
-EXPORT_SYMBOL(skb_copy_datagram_iovec);
-EXPORT_SYMBOL(skb_recv_datagram);

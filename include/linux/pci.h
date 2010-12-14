@@ -270,6 +270,8 @@ struct pci_dev {
 	unsigned int	d1_support:1;	/* Low power state D1 is supported */
 	unsigned int	d2_support:1;	/* Low power state D2 is supported */
 	unsigned int	no_d1d2:1;	/* Only allow D0 and D3 */
+	unsigned int	mmio_always_on:1;	/* disallow turning off io/mem
+						   decoding during bar sizing */
 	unsigned int	wakeup_prepared:1;
 	unsigned int	d3_delay;	/* D3->D0 transition time in ms */
 
@@ -539,7 +541,7 @@ struct pci_error_handlers {
 struct module;
 struct pci_driver {
 	struct list_head node;
-	char *name;
+	const char *name;
 	const struct pci_device_id *id_table;	/* must be non-NULL for probe to be called */
 	int  (*probe)  (struct pci_dev *dev, const struct pci_device_id *id);	/* New device inserted */
 	void (*remove) (struct pci_dev *dev);	/* Device removed (NULL if not a hot-plug capable driver) */
@@ -817,6 +819,9 @@ pci_power_t pci_target_state(struct pci_dev *dev);
 int pci_prepare_to_sleep(struct pci_dev *dev);
 int pci_back_from_sleep(struct pci_dev *dev);
 bool pci_dev_run_wake(struct pci_dev *dev);
+bool pci_check_pme_status(struct pci_dev *dev);
+void pci_wakeup_event(struct pci_dev *dev);
+void pci_pme_wakeup_bus(struct pci_bus *bus);
 
 static inline int pci_enable_wake(struct pci_dev *dev, pci_power_t state,
 				  bool enable)
@@ -1211,6 +1216,9 @@ static inline struct pci_dev *pci_get_slot(struct pci_bus *bus,
 static inline struct pci_dev *pci_get_bus_and_slot(unsigned int bus,
 						unsigned int devfn)
 { return NULL; }
+
+static inline int pci_domain_nr(struct pci_bus *bus)
+{ return 0; }
 
 #define dev_is_pci(d) (false)
 #define dev_is_pf(d) (false)

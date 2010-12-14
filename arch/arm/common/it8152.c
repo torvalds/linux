@@ -271,6 +271,14 @@ int dma_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
 		((dma_addr + size - PHYS_OFFSET) >= SZ_64M);
 }
 
+int dma_set_coherent_mask(struct device *dev, u64 mask)
+{
+	if (mask >= PHYS_OFFSET + SZ_64M - 1)
+		return 0;
+
+	return -EIO;
+}
+
 int __init it8152_pci_setup(int nr, struct pci_sys_data *sys)
 {
 	it8152_io.start = IT8152_IO_BASE + 0x12000;

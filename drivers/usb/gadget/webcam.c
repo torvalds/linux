@@ -90,7 +90,7 @@ DECLARE_UVC_HEADER_DESCRIPTOR(1);
 static const struct UVC_HEADER_DESCRIPTOR(1) uvc_control_header = {
 	.bLength		= UVC_DT_HEADER_SIZE(1),
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
-	.bDescriptorSubType	= UVC_DT_HEADER,
+	.bDescriptorSubType	= UVC_VC_HEADER,
 	.bcdUVC			= cpu_to_le16(0x0100),
 	.wTotalLength		= 0, /* dynamic */
 	.dwClockFrequency	= cpu_to_le32(48000000),
@@ -101,7 +101,7 @@ static const struct UVC_HEADER_DESCRIPTOR(1) uvc_control_header = {
 static const struct uvc_camera_terminal_descriptor uvc_camera_terminal = {
 	.bLength		= UVC_DT_CAMERA_TERMINAL_SIZE(3),
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
-	.bDescriptorSubType	= UVC_DT_INPUT_TERMINAL,
+	.bDescriptorSubType	= UVC_VC_INPUT_TERMINAL,
 	.bTerminalID		= 1,
 	.wTerminalType		= cpu_to_le16(0x0201),
 	.bAssocTerminal		= 0,
@@ -118,7 +118,7 @@ static const struct uvc_camera_terminal_descriptor uvc_camera_terminal = {
 static const struct uvc_processing_unit_descriptor uvc_processing = {
 	.bLength		= UVC_DT_PROCESSING_UNIT_SIZE(2),
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
-	.bDescriptorSubType	= UVC_DT_PROCESSING_UNIT,
+	.bDescriptorSubType	= UVC_VC_PROCESSING_UNIT,
 	.bUnitID		= 2,
 	.bSourceID		= 1,
 	.wMaxMultiplier		= cpu_to_le16(16*1024),
@@ -131,7 +131,7 @@ static const struct uvc_processing_unit_descriptor uvc_processing = {
 static const struct uvc_output_terminal_descriptor uvc_output_terminal = {
 	.bLength		= UVC_DT_OUTPUT_TERMINAL_SIZE,
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
-	.bDescriptorSubType	= UVC_DT_OUTPUT_TERMINAL,
+	.bDescriptorSubType	= UVC_VC_OUTPUT_TERMINAL,
 	.bTerminalID		= 3,
 	.wTerminalType		= cpu_to_le16(0x0101),
 	.bAssocTerminal		= 0,
@@ -144,7 +144,7 @@ DECLARE_UVC_INPUT_HEADER_DESCRIPTOR(1, 2);
 static const struct UVC_INPUT_HEADER_DESCRIPTOR(1, 2) uvc_input_header = {
 	.bLength		= UVC_DT_INPUT_HEADER_SIZE(1, 2),
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
-	.bDescriptorSubType	= UVC_DT_INPUT_HEADER,
+	.bDescriptorSubType	= UVC_VS_INPUT_HEADER,
 	.bNumFormats		= 2,
 	.wTotalLength		= 0, /* dynamic */
 	.bEndpointAddress	= 0, /* dynamic */
@@ -161,7 +161,7 @@ static const struct UVC_INPUT_HEADER_DESCRIPTOR(1, 2) uvc_input_header = {
 static const struct uvc_format_uncompressed uvc_format_yuv = {
 	.bLength		= UVC_DT_FORMAT_UNCOMPRESSED_SIZE,
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
-	.bDescriptorSubType	= UVC_DT_FORMAT_UNCOMPRESSED,
+	.bDescriptorSubType	= UVC_VS_FORMAT_UNCOMPRESSED,
 	.bFormatIndex		= 1,
 	.bNumFrameDescriptors	= 2,
 	.guidFormat		=
@@ -181,7 +181,7 @@ DECLARE_UVC_FRAME_UNCOMPRESSED(3);
 static const struct UVC_FRAME_UNCOMPRESSED(3) uvc_frame_yuv_360p = {
 	.bLength		= UVC_DT_FRAME_UNCOMPRESSED_SIZE(3),
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
-	.bDescriptorSubType	= UVC_DT_FRAME_UNCOMPRESSED,
+	.bDescriptorSubType	= UVC_VS_FRAME_UNCOMPRESSED,
 	.bFrameIndex		= 1,
 	.bmCapabilities		= 0,
 	.wWidth			= cpu_to_le16(640),
@@ -199,7 +199,7 @@ static const struct UVC_FRAME_UNCOMPRESSED(3) uvc_frame_yuv_360p = {
 static const struct UVC_FRAME_UNCOMPRESSED(1) uvc_frame_yuv_720p = {
 	.bLength		= UVC_DT_FRAME_UNCOMPRESSED_SIZE(1),
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
-	.bDescriptorSubType	= UVC_DT_FRAME_UNCOMPRESSED,
+	.bDescriptorSubType	= UVC_VS_FRAME_UNCOMPRESSED,
 	.bFrameIndex		= 2,
 	.bmCapabilities		= 0,
 	.wWidth			= cpu_to_le16(1280),
@@ -215,7 +215,7 @@ static const struct UVC_FRAME_UNCOMPRESSED(1) uvc_frame_yuv_720p = {
 static const struct uvc_format_mjpeg uvc_format_mjpg = {
 	.bLength		= UVC_DT_FORMAT_MJPEG_SIZE,
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
-	.bDescriptorSubType	= UVC_DT_FORMAT_MJPEG,
+	.bDescriptorSubType	= UVC_VS_FORMAT_MJPEG,
 	.bFormatIndex		= 2,
 	.bNumFrameDescriptors	= 2,
 	.bmFlags		= 0,
@@ -232,7 +232,7 @@ DECLARE_UVC_FRAME_MJPEG(3);
 static const struct UVC_FRAME_MJPEG(3) uvc_frame_mjpg_360p = {
 	.bLength		= UVC_DT_FRAME_MJPEG_SIZE(3),
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
-	.bDescriptorSubType	= UVC_DT_FRAME_MJPEG,
+	.bDescriptorSubType	= UVC_VS_FRAME_MJPEG,
 	.bFrameIndex		= 1,
 	.bmCapabilities		= 0,
 	.wWidth			= cpu_to_le16(640),
@@ -250,7 +250,7 @@ static const struct UVC_FRAME_MJPEG(3) uvc_frame_mjpg_360p = {
 static const struct UVC_FRAME_MJPEG(1) uvc_frame_mjpg_720p = {
 	.bLength		= UVC_DT_FRAME_MJPEG_SIZE(1),
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
-	.bDescriptorSubType	= UVC_DT_FRAME_MJPEG,
+	.bDescriptorSubType	= UVC_VS_FRAME_MJPEG,
 	.bFrameIndex		= 2,
 	.bmCapabilities		= 0,
 	.wWidth			= cpu_to_le16(1280),
@@ -266,7 +266,7 @@ static const struct UVC_FRAME_MJPEG(1) uvc_frame_mjpg_720p = {
 static const struct uvc_color_matching_descriptor uvc_color_matching = {
 	.bLength		= UVC_DT_COLOR_MATCHING_SIZE,
 	.bDescriptorType	= USB_DT_CS_INTERFACE,
-	.bDescriptorSubType	= UVC_DT_COLOR_MATCHING,
+	.bDescriptorSubType	= UVC_VS_COLORFORMAT,
 	.bColorPrimaries	= 1,
 	.bTransferCharacteristics	= 1,
 	.bMatrixCoefficients	= 4,
@@ -317,7 +317,6 @@ webcam_config_bind(struct usb_configuration *c)
 
 static struct usb_configuration webcam_config_driver = {
 	.label			= webcam_config_label,
-	.bind			= webcam_config_bind,
 	.bConfigurationValue	= 1,
 	.iConfiguration		= 0, /* dynamic */
 	.bmAttributes		= USB_CONFIG_ATT_SELFPOWER,
@@ -354,7 +353,8 @@ webcam_bind(struct usb_composite_dev *cdev)
 	webcam_config_driver.iConfiguration = ret;
 
 	/* Register our configuration. */
-	if ((ret = usb_add_config(cdev, &webcam_config_driver)) < 0)
+	if ((ret = usb_add_config(cdev, &webcam_config_driver,
+					webcam_config_bind)) < 0)
 		goto error;
 
 	INFO(cdev, "Webcam Video Gadget\n");
@@ -373,14 +373,13 @@ static struct usb_composite_driver webcam_driver = {
 	.name		= "g_webcam",
 	.dev		= &webcam_device_descriptor,
 	.strings	= webcam_device_strings,
-	.bind		= webcam_bind,
 	.unbind		= webcam_unbind,
 };
 
 static int __init
 webcam_init(void)
 {
-	return usb_composite_register(&webcam_driver);
+	return usb_composite_probe(&webcam_driver, webcam_bind);
 }
 
 static void __exit

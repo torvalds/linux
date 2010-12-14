@@ -14,8 +14,8 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
+#include <linux/security.h>
 #include <linux/skbuff.h>
-#include <linux/selinux.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_SECMARK.h>
 
@@ -39,9 +39,8 @@ secmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 
 	switch (mode) {
 	case SECMARK_MODE_SEL:
-		secmark = info->u.sel.selsid;
+		secmark = info->secid;
 		break;
-
 	default:
 		BUG();
 	}
@@ -50,33 +49,33 @@ secmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	return XT_CONTINUE;
 }
 
-static int checkentry_selinux(struct xt_secmark_target_info *info)
+static int checkentry_lsm(struct xt_secmark_target_info *info)
 {
 	int err;
-	struct xt_secmark_target_selinux_info *sel = &info->u.sel;
 
-	sel->selctx[SECMARK_SELCTX_MAX - 1] = '\0';
+	info->secctx[SECMARK_SECCTX_MAX - 1] = '\0';
+	info->secid = 0;
 
-	err = selinux_string_to_sid(sel->selctx, &sel->selsid);
+	err = security_secctx_to_secid(info->secctx, strlen(info->secctx),
+				       &info->secid);
 	if (err) {
 		if (err == -EINVAL)
-			pr_info("invalid SELinux context \'%s\'\n",
-				sel->selctx);
+			pr_info("invalid security context \'%s\'\n", info->secctx);
 		return err;
 	}
 
-	if (!sel->selsid) {
-		pr_info("unable to map SELinux context \'%s\'\n", sel->selctx);
+	if (!info->secid) {
+		pr_info("unable to map security context \'%s\'\n", info->secctx);
 		return -ENOENT;
 	}
 
-	err = selinux_secmark_relabel_packet_permission(sel->selsid);
+	err = security_secmark_relabel_packet(info->secid);
 	if (err) {
 		pr_info("unable to obtain relabeling permission\n");
 		return err;
 	}
 
-	selinux_secmark_refcount_inc();
+	security_secmark_refcount_inc();
 	return 0;
 }
 
@@ -100,15 +99,15 @@ static int secmark_tg_check(const struct xt_tgchk_param *par)
 
 	switch (info->mode) {
 	case SECMARK_MODE_SEL:
-		err = checkentry_selinux(info);
-		if (err <= 0)
-			return err;
 		break;
-
 	default:
 		pr_info("invalid mode: %hu\n", info->mode);
 		return -EINVAL;
 	}
+
+	err = checkentry_lsm(info);
+	if (err)
+		return err;
 
 	if (!mode)
 		mode = info->mode;
@@ -119,7 +118,7 @@ static void secmark_tg_destroy(const struct xt_tgdtor_param *par)
 {
 	switch (mode) {
 	case SECMARK_MODE_SEL:
-		selinux_secmark_refcount_dec();
+		security_secmark_refcount_dec();
 	}
 }
 

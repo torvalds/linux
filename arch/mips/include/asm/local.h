@@ -117,7 +117,7 @@ static __inline__ long local_sub_return(long i, local_t * l)
 
 #define local_cmpxchg(l, o, n) \
 	((long)cmpxchg_local(&((l)->a.counter), (o), (n)))
-#define local_xchg(l, n) (xchg_local(&((l)->a.counter), (n)))
+#define local_xchg(l, n) (atomic_long_xchg((&(l)->a), (n)))
 
 /**
  * local_add_unless - add unless the number is a given value

@@ -394,8 +394,13 @@ static int wm831x_irq_set_type(unsigned int irq, unsigned int type)
 
 	irq = irq - wm831x->irq_base;
 
-	if (irq < WM831X_IRQ_GPIO_1 || irq > WM831X_IRQ_GPIO_11)
-		return -EINVAL;
+	if (irq < WM831X_IRQ_GPIO_1 || irq > WM831X_IRQ_GPIO_11) {
+		/* Ignore internal-only IRQs */
+		if (irq >= 0 && irq < WM831X_NUM_IRQS)
+			return 0;
+		else
+			return -EINVAL;
+	}
 
 	switch (type) {
 	case IRQ_TYPE_EDGE_BOTH:

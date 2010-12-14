@@ -614,7 +614,7 @@ static int inic_hardreset(struct ata_link *link, unsigned int *class,
 
 	writew(IDMA_CTL_RST_ATA, idma_ctl);
 	readw(idma_ctl);	/* flush */
-	msleep(1);
+	ata_msleep(ap, 1);
 	writew(0, idma_ctl);
 
 	rc = sata_link_resume(link, timing, deadline);

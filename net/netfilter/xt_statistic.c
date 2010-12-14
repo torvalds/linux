@@ -18,8 +18,8 @@
 #include <linux/netfilter/x_tables.h>
 
 struct xt_statistic_priv {
-	uint32_t count;
-};
+	atomic_t count;
+} ____cacheline_aligned_in_smp;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
@@ -27,13 +27,12 @@ MODULE_DESCRIPTION("Xtables: statistics-based matching (\"Nth\", random)");
 MODULE_ALIAS("ipt_statistic");
 MODULE_ALIAS("ip6t_statistic");
 
-static DEFINE_SPINLOCK(nth_lock);
-
 static bool
 statistic_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_statistic_info *info = par->matchinfo;
 	bool ret = info->flags & XT_STATISTIC_INVERT;
+	int nval, oval;
 
 	switch (info->mode) {
 	case XT_STATISTIC_MODE_RANDOM:
@@ -41,12 +40,12 @@ statistic_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			ret = !ret;
 		break;
 	case XT_STATISTIC_MODE_NTH:
-		spin_lock_bh(&nth_lock);
-		if (info->master->count++ == info->u.nth.every) {
-			info->master->count = 0;
+		do {
+			oval = atomic_read(&info->master->count);
+			nval = (oval == info->u.nth.every) ? 0 : oval + 1;
+		} while (atomic_cmpxchg(&info->master->count, oval, nval) != oval);
+		if (nval == 0)
 			ret = !ret;
-		}
-		spin_unlock_bh(&nth_lock);
 		break;
 	}
 
@@ -64,7 +63,7 @@ static int statistic_mt_check(const struct xt_mtchk_param *par)
 	info->master = kzalloc(sizeof(*info->master), GFP_KERNEL);
 	if (info->master == NULL)
 		return -ENOMEM;
-	info->master->count = info->u.nth.count;
+	atomic_set(&info->master->count, info->u.nth.count);
 
 	return 0;
 }

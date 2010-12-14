@@ -43,6 +43,9 @@ static inline void ep93xx_devcfg_clear_bits(unsigned int bits)
 
 unsigned int ep93xx_chip_revision(void);
 
+void ep93xx_register_flash(unsigned int width,
+			   resource_size_t start, resource_size_t size);
+
 void ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr);
 void ep93xx_register_i2c(struct i2c_gpio_platform_data *data,
 			 struct i2c_board_info *devices, int num);
@@ -55,6 +58,10 @@ void ep93xx_pwm_release_gpio(struct platform_device *pdev);
 void ep93xx_register_keypad(struct ep93xx_keypad_platform_data *data);
 int ep93xx_keypad_acquire_gpio(struct platform_device *pdev);
 void ep93xx_keypad_release_gpio(struct platform_device *pdev);
+void ep93xx_register_i2s(void);
+int ep93xx_i2s_acquire(unsigned i2s_pins, unsigned i2s_config);
+void ep93xx_i2s_release(void);
+void ep93xx_register_ac97(void);
 
 void ep93xx_init_devices(void);
 extern struct sys_timer ep93xx_timer;

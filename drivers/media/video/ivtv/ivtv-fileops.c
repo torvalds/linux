@@ -32,6 +32,7 @@
 #include "ivtv-yuv.h"
 #include "ivtv-ioctl.h"
 #include "ivtv-cards.h"
+#include "ivtv-firmware.h"
 #include <media/v4l2-event.h>
 #include <media/saa7115.h>
 
@@ -149,12 +150,10 @@ void ivtv_release_stream(struct ivtv_stream *s)
 static void ivtv_dualwatch(struct ivtv *itv)
 {
 	struct v4l2_tuner vt;
-	u32 new_bitmap;
 	u32 new_stereo_mode;
-	const u32 stereo_mask = 0x0300;
-	const u32 dual = 0x0200;
+	const u32 dual = 0x02;
 
-	new_stereo_mode = itv->params.audio_properties & stereo_mask;
+	new_stereo_mode = v4l2_ctrl_g_ctrl(itv->cxhdl.audio_mode);
 	memset(&vt, 0, sizeof(vt));
 	ivtv_call_all(itv, tuner, g_tuner, &vt);
 	if (vt.audmode == V4L2_TUNER_MODE_LANG1_LANG2 && (vt.rxsubchans & V4L2_TUNER_SUB_LANG2))
@@ -163,16 +162,10 @@ static void ivtv_dualwatch(struct ivtv *itv)
 	if (new_stereo_mode == itv->dualwatch_stereo_mode)
 		return;
 
-	new_bitmap = new_stereo_mode | (itv->params.audio_properties & ~stereo_mask);
-
-	IVTV_DEBUG_INFO("dualwatch: change stereo flag from 0x%x to 0x%x. new audio_bitmask=0x%ux\n",
-			   itv->dualwatch_stereo_mode, new_stereo_mode, new_bitmap);
-
-	if (ivtv_vapi(itv, CX2341X_ENC_SET_AUDIO_PROPERTIES, 1, new_bitmap) == 0) {
-		itv->dualwatch_stereo_mode = new_stereo_mode;
-		return;
-	}
-	IVTV_DEBUG_INFO("dualwatch: changing stereo flag failed\n");
+	IVTV_DEBUG_INFO("dualwatch: change stereo flag from 0x%x to 0x%x.\n",
+			   itv->dualwatch_stereo_mode, new_stereo_mode);
+	if (v4l2_ctrl_s_ctrl(itv->cxhdl.audio_mode, new_stereo_mode))
+		IVTV_DEBUG_INFO("dualwatch: changing stereo flag failed\n");
 }
 
 static void ivtv_update_pgm_info(struct ivtv *itv)
@@ -526,6 +519,7 @@ int ivtv_start_decoding(struct ivtv_open_id *id, int speed)
 {
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
+	int rc;
 
 	if (atomic_read(&itv->decoding) == 0) {
 		if (ivtv_claim_stream(id, s->type)) {
@@ -533,7 +527,13 @@ int ivtv_start_decoding(struct ivtv_open_id *id, int speed)
 			IVTV_DEBUG_WARN("start decode, stream already claimed\n");
 			return -EBUSY;
 		}
-		ivtv_start_v4l2_decode_stream(s, 0);
+		rc = ivtv_start_v4l2_decode_stream(s, 0);
+		if (rc < 0) {
+			if (rc == -EAGAIN)
+				rc = ivtv_start_v4l2_decode_stream(s, 0);
+			if (rc < 0)
+				return rc;
+		}
 	}
 	if (s->type == IVTV_DEC_STREAM_TYPE_MPG)
 		return ivtv_set_speed(itv, speed);
@@ -886,7 +886,8 @@ int ivtv_v4l2_close(struct file *filp)
 		if (atomic_read(&itv->capturing) > 0) {
 			/* Undo video mute */
 			ivtv_vapi(itv, CX2341X_ENC_MUTE_VIDEO, 1,
-				itv->params.video_mute | (itv->params.video_mute_yuv << 8));
+				v4l2_ctrl_g_ctrl(itv->cxhdl.video_mute) |
+				(v4l2_ctrl_g_ctrl(itv->cxhdl.video_mute_yuv) << 8));
 		}
 		/* Done! Unmute and continue. */
 		ivtv_unmute(itv);
@@ -912,11 +913,31 @@ int ivtv_v4l2_close(struct file *filp)
 
 static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 {
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	struct video_device *vdev = video_devdata(filp);
+#endif
 	struct ivtv *itv = s->itv;
 	struct ivtv_open_id *item;
 	int res = 0;
 
 	IVTV_DEBUG_FILE("open %s\n", s->name);
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	/* Unless ivtv_fw_debug is set, error out if firmware dead. */
+	if (ivtv_fw_debug) {
+		IVTV_WARN("Opening %s with dead firmware lockout disabled\n",
+			  video_device_node_name(vdev));
+		IVTV_WARN("Selected firmware errors will be ignored\n");
+	} else {
+#else
+	if (1) {
+#endif
+		res = ivtv_firmware_check(itv, "ivtv_serialized_open");
+		if (res == -EAGAIN)
+			res = ivtv_firmware_check(itv, "ivtv_serialized_open");
+		if (res < 0)
+			return -EIO;
+	}
 
 	if (s->type == IVTV_DEC_STREAM_TYPE_MPG &&
 		test_bit(IVTV_F_S_CLAIMED, &itv->streams[IVTV_DEC_STREAM_TYPE_YUV].s_flags))

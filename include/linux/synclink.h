@@ -126,6 +126,7 @@
 #define MGSL_MODE_BISYNC	4
 #define MGSL_MODE_RAW		6
 #define MGSL_MODE_BASE_CLOCK    7
+#define MGSL_MODE_XSYNC         8
 
 #define MGSL_BUS_TYPE_ISA	1
 #define MGSL_BUS_TYPE_EISA	2
@@ -290,6 +291,10 @@ struct gpio_desc {
 #define MGSL_IOCSGPIO		_IOW(MGSL_MAGIC_IOC,16,struct gpio_desc)
 #define MGSL_IOCGGPIO		_IOR(MGSL_MAGIC_IOC,17,struct gpio_desc)
 #define MGSL_IOCWAITGPIO	_IOWR(MGSL_MAGIC_IOC,18,struct gpio_desc)
+#define MGSL_IOCSXSYNC		_IO(MGSL_MAGIC_IOC, 19)
+#define MGSL_IOCGXSYNC		_IO(MGSL_MAGIC_IOC, 20)
+#define MGSL_IOCSXCTRL		_IO(MGSL_MAGIC_IOC, 21)
+#define MGSL_IOCGXCTRL		_IO(MGSL_MAGIC_IOC, 22)
 
 #ifdef __KERNEL__
 /* provide 32 bit ioctl compatibility on 64 bit systems */

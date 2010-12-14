@@ -5,7 +5,7 @@
 menuconfig PHYLIB
 	tristate "PHY Device support and infrastructure"
 	depends on !S390
-	depends on NET_ETHERNET
+	depends on NETDEVICES
 	help
 	  Ethernet controllers are usually attached to PHY
 	  devices.  This option provides infrastructure for
@@ -58,7 +58,6 @@ config BROADCOM_PHY
 
 config BCM63XX_PHY
 	tristate "Drivers for Broadcom 63xx SOCs internal PHY"
-	depends on BCM63XX
 	---help---
 	  Currently supports the 6348 and 6358 PHYs.
 

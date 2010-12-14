@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/pwm_backlight.h>
 #include <linux/serial_core.h>
+#include <linux/spi/spi_gpio.h>
 #include <linux/usb/gpio_vbus.h>
 
 #include <asm/mach-types.h>
@@ -135,7 +136,7 @@ static struct platform_device smartq_usb_otg_vbus_dev = {
 	.dev.platform_data	= &smartq_usb_otg_vbus_pdata,
 };
 
-static int __init smartq_bl_init(struct device *dev)
+static int smartq_bl_init(struct device *dev)
 {
     s3c_gpio_cfgpin(S3C64XX_GPF(15), S3C_GPIO_SFN(2));
 
@@ -166,7 +167,7 @@ static struct s3c2410_ts_mach_info smartq_touchscreen_pdata __initdata = {
 
 static struct s3c_sdhci_platdata smartq_internal_hsmmc_pdata = {
 	.max_width		= 4,
-	/*.broken_card_detection	= true,*/
+	.cd_type		= S3C_SDHCI_CD_PERMANENT,
 };
 
 static struct s3c_hwmon_pdata smartq_hwmon_pdata __initdata = {
@@ -184,6 +185,33 @@ static struct s3c_hwmon_pdata smartq_hwmon_pdata __initdata = {
 	},
 };
 
+static int __init smartq_lcd_setup_gpio(void)
+{
+	int ret;
+
+	ret = gpio_request(S3C64XX_GPM(3), "LCD power");
+	if (ret < 0)
+		return ret;
+
+	/* turn power off */
+	gpio_direction_output(S3C64XX_GPM(3), 0);
+
+	return 0;
+}
+
+/* GPM0 -> CS */
+static struct spi_gpio_platform_data smartq_lcd_control = {
+	.sck			= S3C64XX_GPM(1),
+	.mosi			= S3C64XX_GPM(2),
+	.miso			= S3C64XX_GPM(2),
+};
+
+static struct platform_device smartq_lcd_control_device = {
+	.name			= "spi-gpio",
+	.id			= 1,
+	.dev.platform_data	= &smartq_lcd_control,
+};
+
 static void smartq_lcd_power_set(struct plat_lcd_data *pd, unsigned int power)
 {
 	gpio_direction_output(S3C64XX_GPM(3), power);
@@ -199,6 +227,9 @@ static struct platform_device smartq_lcd_power_device = {
 	.dev.platform_data	= &smartq_lcd_power_data,
 };
 
+static struct i2c_board_info smartq_i2c_devs[] __initdata = {
+	{ I2C_BOARD_INFO("wm8987", 0x1a), },
+};
 
 static struct platform_device *smartq_devices[] __initdata = {
 	&s3c_device_hsmmc1,	/* Init iNAND first, ... */
@@ -213,7 +244,9 @@ static struct platform_device *smartq_devices[] __initdata = {
 	&s3c_device_timer[1],
 	&s3c_device_ts,
 	&s3c_device_usb_hsotg,
+	&s3c64xx_device_iis0,
 	&smartq_backlight_device,
+	&smartq_lcd_control_device,
 	&smartq_lcd_power_device,
 	&smartq_usb_otg_vbus_dev,
 };
@@ -251,7 +284,6 @@ static int __init smartq_power_off_init(void)
 
 	/* leave power on */
 	gpio_direction_output(S3C64XX_GPK(15), 0);
-
 
 	pm_power_off = smartq_power_off;
 
@@ -354,6 +386,10 @@ void __init smartq_machine_init(void)
 	s3c_sdhci2_set_platdata(&smartq_internal_hsmmc_pdata);
 	s3c24xx_ts_set_platdata(&smartq_touchscreen_pdata);
 
+	i2c_register_board_info(0, smartq_i2c_devs,
+				ARRAY_SIZE(smartq_i2c_devs));
+
+	WARN_ON(smartq_lcd_setup_gpio());
 	WARN_ON(smartq_power_off_init());
 	WARN_ON(smartq_usb_host_init());
 	WARN_ON(smartq_usb_otg_init());

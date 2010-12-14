@@ -69,6 +69,4 @@ static inline unsigned long __lbus_to_virt(dma_addr_t x)
 #endif /* CONFIG_ARCH_IOP13XX */
 #endif /* !ASSEMBLY */
 
-#define PFN_TO_NID(addr)	(0)
-
 #endif

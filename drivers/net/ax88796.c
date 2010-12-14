@@ -481,8 +481,10 @@ static int ax_open(struct net_device *dev)
 		return ret;
 
 	ret = ax_ei_open(dev);
-	if (ret)
+	if (ret) {
+		free_irq(dev->irq, dev);
 		return ret;
+	}
 
 	/* turn the phy on (if turned off) */
 
@@ -862,6 +864,7 @@ static int ax_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "no IRQ specified\n");
+		ret = -ENXIO;
 		goto exit_mem;
 	}
 

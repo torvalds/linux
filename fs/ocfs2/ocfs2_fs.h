@@ -101,7 +101,8 @@
 					 | OCFS2_FEATURE_INCOMPAT_META_ECC \
 					 | OCFS2_FEATURE_INCOMPAT_INDEXED_DIRS \
 					 | OCFS2_FEATURE_INCOMPAT_REFCOUNT_TREE \
-					 | OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG)
+					 | OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG	\
+					 | OCFS2_FEATURE_INCOMPAT_CLUSTERINFO)
 #define OCFS2_FEATURE_RO_COMPAT_SUPP	(OCFS2_FEATURE_RO_COMPAT_UNWRITTEN \
 					 | OCFS2_FEATURE_RO_COMPAT_USRQUOTA \
 					 | OCFS2_FEATURE_RO_COMPAT_GRPQUOTA)
@@ -170,6 +171,13 @@
 #define OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG	0x2000
 
 /*
+ * Incompat bit to indicate useable clusterinfo with stackflags for all
+ * cluster stacks (userspace adnd o2cb). If this bit is set,
+ * INCOMPAT_USERSPACE_STACK becomes superfluous and thus should not be set.
+ */
+#define OCFS2_FEATURE_INCOMPAT_CLUSTERINFO	0x4000
+
+/*
  * backup superblock flag is used to indicate that this volume
  * has backup superblocks.
  */
@@ -235,18 +243,31 @@
 #define OCFS2_HAS_REFCOUNT_FL   (0x0010)
 
 /* Inode attributes, keep in sync with EXT2 */
-#define OCFS2_SECRM_FL		(0x00000001)	/* Secure deletion */
-#define OCFS2_UNRM_FL		(0x00000002)	/* Undelete */
-#define OCFS2_COMPR_FL		(0x00000004)	/* Compress file */
-#define OCFS2_SYNC_FL		(0x00000008)	/* Synchronous updates */
-#define OCFS2_IMMUTABLE_FL	(0x00000010)	/* Immutable file */
-#define OCFS2_APPEND_FL		(0x00000020)	/* writes to file may only append */
-#define OCFS2_NODUMP_FL		(0x00000040)	/* do not dump file */
-#define OCFS2_NOATIME_FL	(0x00000080)	/* do not update atime */
-#define OCFS2_DIRSYNC_FL	(0x00010000)	/* dirsync behaviour (directories only) */
+#define OCFS2_SECRM_FL			FS_SECRM_FL	/* Secure deletion */
+#define OCFS2_UNRM_FL			FS_UNRM_FL	/* Undelete */
+#define OCFS2_COMPR_FL			FS_COMPR_FL	/* Compress file */
+#define OCFS2_SYNC_FL			FS_SYNC_FL	/* Synchronous updates */
+#define OCFS2_IMMUTABLE_FL		FS_IMMUTABLE_FL	/* Immutable file */
+#define OCFS2_APPEND_FL			FS_APPEND_FL	/* writes to file may only append */
+#define OCFS2_NODUMP_FL			FS_NODUMP_FL	/* do not dump file */
+#define OCFS2_NOATIME_FL		FS_NOATIME_FL	/* do not update atime */
+/* Reserved for compression usage... */
+#define OCFS2_DIRTY_FL			FS_DIRTY_FL
+#define OCFS2_COMPRBLK_FL		FS_COMPRBLK_FL	/* One or more compressed clusters */
+#define OCFS2_NOCOMP_FL			FS_NOCOMP_FL	/* Don't compress */
+#define OCFS2_ECOMPR_FL			FS_ECOMPR_FL	/* Compression error */
+/* End compression flags --- maybe not all used */
+#define OCFS2_BTREE_FL			FS_BTREE_FL	/* btree format dir */
+#define OCFS2_INDEX_FL			FS_INDEX_FL	/* hash-indexed directory */
+#define OCFS2_IMAGIC_FL			FS_IMAGIC_FL	/* AFS directory */
+#define OCFS2_JOURNAL_DATA_FL		FS_JOURNAL_DATA_FL /* Reserved for ext3 */
+#define OCFS2_NOTAIL_FL			FS_NOTAIL_FL	/* file tail should not be merged */
+#define OCFS2_DIRSYNC_FL		FS_DIRSYNC_FL	/* dirsync behaviour (directories only) */
+#define OCFS2_TOPDIR_FL			FS_TOPDIR_FL	/* Top of directory hierarchies*/
+#define OCFS2_RESERVED_FL		FS_RESERVED_FL	/* reserved for ext2 lib */
 
-#define OCFS2_FL_VISIBLE	(0x000100FF)	/* User visible flags */
-#define OCFS2_FL_MODIFIABLE	(0x000100FF)	/* User modifiable flags */
+#define OCFS2_FL_VISIBLE		FS_FL_USER_VISIBLE	/* User visible flags */
+#define OCFS2_FL_MODIFIABLE		FS_FL_USER_MODIFIABLE	/* User modifiable flags */
 
 /*
  * Extent record flags (e_node.leaf.flags)
@@ -279,9 +300,12 @@
 #define OCFS2_VOL_UUID_LEN		16
 #define OCFS2_MAX_VOL_LABEL_LEN		64
 
-/* The alternate, userspace stack fields */
+/* The cluster stack fields */
 #define OCFS2_STACK_LABEL_LEN		4
 #define OCFS2_CLUSTER_NAME_LEN		16
+
+/* Classic (historically speaking) cluster stack */
+#define OCFS2_CLASSIC_CLUSTER_STACK	"o2cb"
 
 /* Journal limits (in bytes) */
 #define OCFS2_MIN_JOURNAL_SIZE		(4 * 1024 * 1024)
@@ -291,6 +315,11 @@
  * The value chosen should be aligned to 16 byte boundaries.
  */
 #define OCFS2_MIN_XATTR_INLINE_SIZE     256
+
+/*
+ * Cluster info flags (ocfs2_cluster_info.ci_stackflags)
+ */
+#define OCFS2_CLUSTER_O2CB_GLOBAL_HEARTBEAT	(0x01)
 
 struct ocfs2_system_inode_info {
 	char	*si_name;
@@ -309,6 +338,7 @@ enum {
 	USER_QUOTA_SYSTEM_INODE,
 	GROUP_QUOTA_SYSTEM_INODE,
 #define OCFS2_LAST_GLOBAL_SYSTEM_INODE GROUP_QUOTA_SYSTEM_INODE
+#define OCFS2_FIRST_LOCAL_SYSTEM_INODE ORPHAN_DIR_SYSTEM_INODE
 	ORPHAN_DIR_SYSTEM_INODE,
 	EXTENT_ALLOC_SYSTEM_INODE,
 	INODE_ALLOC_SYSTEM_INODE,
@@ -317,8 +347,12 @@ enum {
 	TRUNCATE_LOG_SYSTEM_INODE,
 	LOCAL_USER_QUOTA_SYSTEM_INODE,
 	LOCAL_GROUP_QUOTA_SYSTEM_INODE,
+#define OCFS2_LAST_LOCAL_SYSTEM_INODE LOCAL_GROUP_QUOTA_SYSTEM_INODE
 	NUM_SYSTEM_INODES
 };
+#define NUM_GLOBAL_SYSTEM_INODES OCFS2_LAST_GLOBAL_SYSTEM_INODE
+#define NUM_LOCAL_SYSTEM_INODES	\
+		(NUM_SYSTEM_INODES - OCFS2_FIRST_LOCAL_SYSTEM_INODE)
 
 static struct ocfs2_system_inode_info ocfs2_system_inodes[NUM_SYSTEM_INODES] = {
 	/* Global system inodes (single copy) */
@@ -347,6 +381,7 @@ static struct ocfs2_system_inode_info ocfs2_system_inodes[NUM_SYSTEM_INODES] = {
 /* Parameter passed from mount.ocfs2 to module */
 #define OCFS2_HB_NONE			"heartbeat=none"
 #define OCFS2_HB_LOCAL			"heartbeat=local"
+#define OCFS2_HB_GLOBAL			"heartbeat=global"
 
 /*
  * OCFS2 directory file types.  Only the low 3 bits are used.  The
@@ -553,9 +588,21 @@ struct ocfs2_slot_map_extended {
  */
 };
 
+/*
+ * ci_stackflags is only valid if the incompat bit
+ * OCFS2_FEATURE_INCOMPAT_CLUSTERINFO is set.
+ */
 struct ocfs2_cluster_info {
 /*00*/	__u8   ci_stack[OCFS2_STACK_LABEL_LEN];
-	__le32 ci_reserved;
+	union {
+		__le32 ci_reserved;
+		struct {
+			__u8 ci_stackflags;
+			__u8 ci_reserved1;
+			__u8 ci_reserved2;
+			__u8 ci_reserved3;
+		};
+	};
 /*08*/	__u8   ci_cluster[OCFS2_CLUSTER_NAME_LEN];
 /*18*/
 };
@@ -592,9 +639,9 @@ struct ocfs2_super_block {
 					 * group header */
 /*50*/	__u8  s_label[OCFS2_MAX_VOL_LABEL_LEN];	/* Label for mounting, etc. */
 /*90*/	__u8  s_uuid[OCFS2_VOL_UUID_LEN];	/* 128-bit uuid */
-/*A0*/  struct ocfs2_cluster_info s_cluster_info; /* Selected userspace
-						     stack.  Only valid
-						     with INCOMPAT flag. */
+/*A0*/  struct ocfs2_cluster_info s_cluster_info; /* Only valid if either
+						     userspace or clusterinfo
+						     INCOMPAT flag set. */
 /*B8*/	__le16 s_xattr_inline_size;	/* extended attribute inline size
 					   for this fs*/
 	__le16 s_reserved0;

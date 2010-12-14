@@ -47,8 +47,7 @@
 #include <linux/mm.h>
 #include <linux/ioport.h>
 #include <linux/io.h>
-
-#include "../rar_register/rar_register.h"
+#include <linux/rar_register.h>
 
 #include "memrar.h"
 #include "memrar_allocator.h"
@@ -279,19 +278,10 @@ static int memrar_init_rar_resources(int rarnum, char const *devname)
 	BUG_ON(!memrar_is_valid_rar_type(rarnum));
 	BUG_ON(rar->allocated);
 
-	mutex_init(&rar->lock);
-
-	/*
-	 * Initialize the process table before we reach any
-	 * code that exit on failure since the finalization
-	 * code requires an initialized list.
-	 */
-	INIT_LIST_HEAD(&rar->buffers.list);
-
 	if (rar_get_address(rarnum, &low, &high) != 0)
 		/* No RAR is available. */
 		return -ENODEV;
-	
+
 	if (low == 0 || high == 0) {
 		rar->base      = 0;
 		rar->length    = 0;
@@ -311,7 +301,8 @@ static int memrar_init_rar_resources(int rarnum, char const *devname)
 	/* Claim RAR memory as our own. */
 	if (request_mem_region(low, rar->length, devname) == NULL) {
 		rar->length = 0;
-		pr_err("%s: Unable to claim RAR[%d] memory.\n", devname, rarnum);
+		pr_err("%s: Unable to claim RAR[%d] memory.\n",
+		       devname, rarnum);
 		pr_err("%s: RAR[%d] disabled.\n", devname, rarnum);
 		return -EBUSY;
 	}
@@ -347,7 +338,7 @@ static int memrar_init_rar_resources(int rarnum, char const *devname)
 	}
 
 	pr_info("%s: BRAR[%d] bus address range = [0x%lx, 0x%lx]\n",
-			devname, rarnum, (unsigned long) low, (unsigned long) high);
+		devname, rarnum, (unsigned long) low, (unsigned long) high);
 
 	pr_info("%s: BRAR[%d] size = %zu KiB\n",
 			devname, rarnum, rar->allocator->capacity / 1024);
@@ -531,7 +522,7 @@ static long memrar_get_stat(struct RAR_stat *r)
 {
 	struct memrar_allocator *allocator;
 
- 	if (!memrar_is_valid_rar_type(r->type))
+	if (!memrar_is_valid_rar_type(r->type))
 		return -EINVAL;
 
 	if (!memrars[r->type].allocated)
@@ -899,6 +890,7 @@ static const struct file_operations memrar_fops = {
 	.mmap           = memrar_mmap,
 	.open           = memrar_open,
 	.release        = memrar_release,
+	.llseek		= no_llseek,
 };
 
 static struct miscdevice memrar_miscdev = {
@@ -940,8 +932,27 @@ static int memrar_registration_callback(unsigned long rar)
 static int __init memrar_init(void)
 {
 	int err;
+	int i;
 
 	printk(banner);
+
+	/*
+	 * Some delayed initialization is performed in this driver.
+	 * Make sure resources that are used during driver clean-up
+	 * (e.g. during driver's release() function) are fully
+	 * initialized before first use.  This is particularly
+	 * important for the case when the delayed initialization
+	 * isn't completed, leaving behind a partially initialized
+	 * driver.
+	 *
+	 * Such a scenario can occur when RAR is not available on the
+	 * platform, and the driver is release()d.
+	 */
+	for (i = 0; i != ARRAY_SIZE(memrars); ++i) {
+		struct memrar_rar_info * const rar = &memrars[i];
+		mutex_init(&rar->lock);
+		INIT_LIST_HEAD(&rar->buffers.list);
+	}
 
 	err = misc_register(&memrar_miscdev);
 	if (err)

@@ -175,8 +175,7 @@ EXPORT_SYMBOL_GPL(unregister_keyboard_notifier);
  */
 
 struct getset_keycode_data {
-	unsigned int scancode;
-	unsigned int keycode;
+	struct input_keymap_entry ke;
 	int error;
 };
 
@@ -184,32 +183,50 @@ static int getkeycode_helper(struct input_handle *handle, void *data)
 {
 	struct getset_keycode_data *d = data;
 
-	d->error = input_get_keycode(handle->dev, d->scancode, &d->keycode);
+	d->error = input_get_keycode(handle->dev, &d->ke);
 
 	return d->error == 0; /* stop as soon as we successfully get one */
 }
 
 int getkeycode(unsigned int scancode)
 {
-	struct getset_keycode_data d = { scancode, 0, -ENODEV };
+	struct getset_keycode_data d = {
+		.ke	= {
+			.flags		= 0,
+			.len		= sizeof(scancode),
+			.keycode	= 0,
+		},
+		.error	= -ENODEV,
+	};
+
+	memcpy(d.ke.scancode, &scancode, sizeof(scancode));
 
 	input_handler_for_each_handle(&kbd_handler, &d, getkeycode_helper);
 
-	return d.error ?: d.keycode;
+	return d.error ?: d.ke.keycode;
 }
 
 static int setkeycode_helper(struct input_handle *handle, void *data)
 {
 	struct getset_keycode_data *d = data;
 
-	d->error = input_set_keycode(handle->dev, d->scancode, d->keycode);
+	d->error = input_set_keycode(handle->dev, &d->ke);
 
 	return d->error == 0; /* stop as soon as we successfully set one */
 }
 
 int setkeycode(unsigned int scancode, unsigned int keycode)
 {
-	struct getset_keycode_data d = { scancode, keycode, -ENODEV };
+	struct getset_keycode_data d = {
+		.ke	= {
+			.flags		= 0,
+			.len		= sizeof(scancode),
+			.keycode	= keycode,
+		},
+		.error	= -ENODEV,
+	};
+
+	memcpy(d.ke.scancode, &scancode, sizeof(scancode));
 
 	input_handler_for_each_handle(&kbd_handler, &d, setkeycode_helper);
 
@@ -299,7 +316,7 @@ int kbd_rate(struct kbd_repeat *rep)
  */
 static void put_queue(struct vc_data *vc, int ch)
 {
-	struct tty_struct *tty = vc->vc_tty;
+	struct tty_struct *tty = vc->port.tty;
 
 	if (tty) {
 		tty_insert_flip_char(tty, ch, 0);
@@ -309,7 +326,7 @@ static void put_queue(struct vc_data *vc, int ch)
 
 static void puts_queue(struct vc_data *vc, char *cp)
 {
-	struct tty_struct *tty = vc->vc_tty;
+	struct tty_struct *tty = vc->port.tty;
 
 	if (!tty)
 		return;
@@ -485,7 +502,7 @@ static void fn_show_ptregs(struct vc_data *vc)
 
 static void fn_hold(struct vc_data *vc)
 {
-	struct tty_struct *tty = vc->vc_tty;
+	struct tty_struct *tty = vc->port.tty;
 
 	if (rep || !tty)
 		return;
@@ -563,7 +580,7 @@ static void fn_inc_console(struct vc_data *vc)
 
 static void fn_send_intr(struct vc_data *vc)
 {
-	struct tty_struct *tty = vc->vc_tty;
+	struct tty_struct *tty = vc->port.tty;
 
 	if (!tty)
 		return;
@@ -1162,7 +1179,7 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 	struct keyboard_notifier_param param = { .vc = vc, .value = keycode, .down = down };
 	int rc;
 
-	tty = vc->vc_tty;
+	tty = vc->port.tty;
 
 	if (tty && (!tty->driver_data)) {
 		/* No driver data? Strange. Okay we fix it then. */
@@ -1315,10 +1332,14 @@ static bool kbd_match(struct input_handler *handler, struct input_dev *dev)
 	if (test_bit(EV_SND, dev->evbit))
 		return true;
 
-	if (test_bit(EV_KEY, dev->evbit))
+	if (test_bit(EV_KEY, dev->evbit)) {
 		for (i = KEY_RESERVED; i < BTN_MISC; i++)
 			if (test_bit(i, dev->keybit))
 				return true;
+		for (i = KEY_BRL_DOT1; i <= KEY_BRL_DOT10; i++)
+			if (test_bit(i, dev->keybit))
+				return true;
+	}
 
 	return false;
 }

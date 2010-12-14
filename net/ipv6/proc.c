@@ -126,6 +126,8 @@ static const struct snmp_mib snmp6_udp6_list[] = {
 	SNMP_MIB_ITEM("Udp6NoPorts", UDP_MIB_NOPORTS),
 	SNMP_MIB_ITEM("Udp6InErrors", UDP_MIB_INERRORS),
 	SNMP_MIB_ITEM("Udp6OutDatagrams", UDP_MIB_OUTDATAGRAMS),
+	SNMP_MIB_ITEM("Udp6RcvbufErrors", UDP_MIB_RCVBUFERRORS),
+	SNMP_MIB_ITEM("Udp6SndbufErrors", UDP_MIB_SNDBUFERRORS),
 	SNMP_MIB_SENTINEL
 };
 
@@ -134,6 +136,8 @@ static const struct snmp_mib snmp6_udplite6_list[] = {
 	SNMP_MIB_ITEM("UdpLite6NoPorts", UDP_MIB_NOPORTS),
 	SNMP_MIB_ITEM("UdpLite6InErrors", UDP_MIB_INERRORS),
 	SNMP_MIB_ITEM("UdpLite6OutDatagrams", UDP_MIB_OUTDATAGRAMS),
+	SNMP_MIB_ITEM("UdpLite6RcvbufErrors", UDP_MIB_RCVBUFERRORS),
+	SNMP_MIB_ITEM("UdpLite6SndbufErrors", UDP_MIB_SNDBUFERRORS),
 	SNMP_MIB_SENTINEL
 };
 
@@ -174,17 +178,28 @@ static void snmp6_seq_show_item(struct seq_file *seq, void __percpu **mib,
 				const struct snmp_mib *itemlist)
 {
 	int i;
-	for (i=0; itemlist[i].name; i++)
+
+	for (i = 0; itemlist[i].name; i++)
 		seq_printf(seq, "%-32s\t%lu\n", itemlist[i].name,
 			   snmp_fold_field(mib, itemlist[i].entry));
+}
+
+static void snmp6_seq_show_item64(struct seq_file *seq, void __percpu **mib,
+				  const struct snmp_mib *itemlist, size_t syncpoff)
+{
+	int i;
+
+	for (i = 0; itemlist[i].name; i++)
+		seq_printf(seq, "%-32s\t%llu\n", itemlist[i].name,
+			   snmp_fold_field64(mib, itemlist[i].entry, syncpoff));
 }
 
 static int snmp6_seq_show(struct seq_file *seq, void *v)
 {
 	struct net *net = (struct net *)seq->private;
 
-	snmp6_seq_show_item(seq, (void __percpu **)net->mib.ipv6_statistics,
-			    snmp6_ipstats_list);
+	snmp6_seq_show_item64(seq, (void __percpu **)net->mib.ipv6_statistics,
+			    snmp6_ipstats_list, offsetof(struct ipstats_mib, syncp));
 	snmp6_seq_show_item(seq, (void __percpu **)net->mib.icmpv6_statistics,
 			    snmp6_icmp6_list);
 	snmp6_seq_show_icmpv6msg(seq,

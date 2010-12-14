@@ -568,6 +568,7 @@ static int mpc5121_nfc_read_hw_config(struct mtd_info *mtd)
 	uint rcw_width;
 	uint rcwh;
 	uint romloc, ps;
+	int ret = 0;
 
 	rmnode = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-reset");
 	if (!rmnode) {
@@ -579,7 +580,8 @@ static int mpc5121_nfc_read_hw_config(struct mtd_info *mtd)
 	rm = of_iomap(rmnode, 0);
 	if (!rm) {
 		dev_err(prv->dev, "Error mapping reset module node!\n");
-		return -EBUSY;
+		ret = -EBUSY;
+		goto out;
 	}
 
 	rcwh = in_be32(&rm->rcwhr);
@@ -628,8 +630,9 @@ static int mpc5121_nfc_read_hw_config(struct mtd_info *mtd)
 				rcw_width * 8, rcw_pagesize,
 				rcw_sparesize);
 	iounmap(rm);
+out:
 	of_node_put(rmnode);
-	return 0;
+	return ret;
 }
 
 /* Free driver resources */
@@ -647,7 +650,7 @@ static void mpc5121_nfc_free(struct device *dev, struct mtd_info *mtd)
 		iounmap(prv->csreg);
 }
 
-static int __devinit mpc5121_nfc_probe(struct of_device *op,
+static int __devinit mpc5121_nfc_probe(struct platform_device *op,
 					const struct of_device_id *match)
 {
 	struct device_node *rootnode, *dn = op->dev.of_node;
@@ -660,7 +663,7 @@ static int __devinit mpc5121_nfc_probe(struct of_device *op,
 #endif
 	struct nand_chip *chip;
 	unsigned long regs_paddr, regs_size;
-	const uint *chips_no;
+	const __be32 *chips_no;
 	int resettime = 0;
 	int retval = 0;
 	int rev, len;
@@ -803,7 +806,7 @@ static int __devinit mpc5121_nfc_probe(struct of_device *op,
 	}
 
 	/* Detect NAND chips */
-	if (nand_scan(mtd, *chips_no)) {
+	if (nand_scan(mtd, be32_to_cpup(chips_no))) {
 		dev_err(dev, "NAND Flash not found !\n");
 		devm_free_irq(dev, prv->irq, mtd);
 		retval = -ENXIO;
@@ -869,7 +872,7 @@ error:
 	return retval;
 }
 
-static int __devexit mpc5121_nfc_remove(struct of_device *op)
+static int __devexit mpc5121_nfc_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct mtd_info *mtd = dev_get_drvdata(dev);

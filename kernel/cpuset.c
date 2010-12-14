@@ -105,7 +105,7 @@ struct cpuset {
 	/* for custom sched domain */
 	int relax_domain_level;
 
-	/* used for walking a cpuset heirarchy */
+	/* used for walking a cpuset hierarchy */
 	struct list_head stack_list;
 };
 
@@ -231,18 +231,17 @@ static DEFINE_SPINLOCK(cpuset_buffer_lock);
  * users. If someone tries to mount the "cpuset" filesystem, we
  * silently switch it to mount "cgroup" instead
  */
-static int cpuset_get_sb(struct file_system_type *fs_type,
-			 int flags, const char *unused_dev_name,
-			 void *data, struct vfsmount *mnt)
+static struct dentry *cpuset_mount(struct file_system_type *fs_type,
+			 int flags, const char *unused_dev_name, void *data)
 {
 	struct file_system_type *cgroup_fs = get_fs_type("cgroup");
-	int ret = -ENODEV;
+	struct dentry *ret = ERR_PTR(-ENODEV);
 	if (cgroup_fs) {
 		char mountopts[] =
 			"cpuset,noprefix,"
 			"release_agent=/sbin/cpuset_release_agent";
-		ret = cgroup_fs->get_sb(cgroup_fs, flags,
-					   unused_dev_name, mountopts, mnt);
+		ret = cgroup_fs->mount(cgroup_fs, flags,
+					   unused_dev_name, mountopts);
 		put_filesystem(cgroup_fs);
 	}
 	return ret;
@@ -250,7 +249,7 @@ static int cpuset_get_sb(struct file_system_type *fs_type,
 
 static struct file_system_type cpuset_fs_type = {
 	.name = "cpuset",
-	.get_sb = cpuset_get_sb,
+	.mount = cpuset_mount,
 };
 
 /*
@@ -1397,7 +1396,7 @@ static int cpuset_can_attach(struct cgroup_subsys *ss, struct cgroup *cont,
 	if (tsk->flags & PF_THREAD_BOUND)
 		return -EINVAL;
 
-	ret = security_task_setscheduler(tsk, 0, NULL);
+	ret = security_task_setscheduler(tsk);
 	if (ret)
 		return ret;
 	if (threadgroup) {
@@ -1405,7 +1404,7 @@ static int cpuset_can_attach(struct cgroup_subsys *ss, struct cgroup *cont,
 
 		rcu_read_lock();
 		list_for_each_entry_rcu(c, &tsk->thread_group, thread_group) {
-			ret = security_task_setscheduler(c, 0, NULL);
+			ret = security_task_setscheduler(c);
 			if (ret) {
 				rcu_read_unlock();
 				return ret;
@@ -2113,30 +2112,16 @@ static void scan_for_empty_cpusets(struct cpuset *root)
  * but making no active use of cpusets.
  *
  * This routine ensures that top_cpuset.cpus_allowed tracks
- * cpu_online_map on each CPU hotplug (cpuhp) event.
+ * cpu_active_mask on each CPU hotplug (cpuhp) event.
  *
  * Called within get_online_cpus().  Needs to call cgroup_lock()
  * before calling generate_sched_domains().
  */
-static int cpuset_track_online_cpus(struct notifier_block *unused_nb,
-				unsigned long phase, void *unused_cpu)
+void cpuset_update_active_cpus(void)
 {
 	struct sched_domain_attr *attr;
 	cpumask_var_t *doms;
 	int ndoms;
-
-	switch (phase) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-	case CPU_DOWN_PREPARE:
-	case CPU_DOWN_PREPARE_FROZEN:
-	case CPU_DOWN_FAILED:
-	case CPU_DOWN_FAILED_FROZEN:
-		break;
-
-	default:
-		return NOTIFY_DONE;
-	}
 
 	cgroup_lock();
 	mutex_lock(&callback_mutex);
@@ -2148,8 +2133,6 @@ static int cpuset_track_online_cpus(struct notifier_block *unused_nb,
 
 	/* Have scheduler rebuild the domains */
 	partition_sched_domains(ndoms, doms, attr);
-
-	return NOTIFY_OK;
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
@@ -2203,7 +2186,6 @@ void __init cpuset_init_smp(void)
 	cpumask_copy(top_cpuset.cpus_allowed, cpu_active_mask);
 	top_cpuset.mems_allowed = node_states[N_HIGH_MEMORY];
 
-	hotcpu_notifier(cpuset_track_online_cpus, 0);
 	hotplug_memory_notifier(cpuset_track_online_nodes, 10);
 
 	cpuset_wq = create_singlethread_workqueue("cpuset");

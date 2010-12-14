@@ -144,7 +144,7 @@ static unsigned int eisa_irq_level __read_mostly; /* default to edge triggered *
 
 
 /* called by free irq */
-static void eisa_disable_irq(unsigned int irq)
+static void eisa_mask_irq(unsigned int irq)
 {
 	unsigned long flags;
 
@@ -164,7 +164,7 @@ static void eisa_disable_irq(unsigned int irq)
 }
 
 /* called by request irq */
-static void eisa_enable_irq(unsigned int irq)
+static void eisa_unmask_irq(unsigned int irq)
 {
 	unsigned long flags;
 	EISA_DBG("enable irq %d\n", irq);
@@ -182,20 +182,11 @@ static void eisa_enable_irq(unsigned int irq)
 	EISA_DBG("pic1 mask %02x\n", eisa_in8(0xa1));
 }
 
-static unsigned int eisa_startup_irq(unsigned int irq)
-{
-	eisa_enable_irq(irq);
-	return 0;
-}
-
 static struct irq_chip eisa_interrupt_type = {
-	.name	 =	"EISA",
-	.startup =	eisa_startup_irq,
-	.shutdown =	eisa_disable_irq,
-	.enable =	eisa_enable_irq,
-	.disable =	eisa_disable_irq,
-	.ack =		no_ack_irq,
-	.end =		no_end_irq,
+	.name	=	"EISA",
+	.unmask	=	eisa_unmask_irq,
+	.mask	=	eisa_mask_irq,
+	.ack	=	no_ack_irq,
 };
 
 static irqreturn_t eisa_irq(int wax_irq, void *intr_dev)
@@ -233,7 +224,7 @@ static irqreturn_t eisa_irq(int wax_irq, void *intr_dev)
 	}
 	spin_unlock_irqrestore(&eisa_irq_lock, flags);
 
-	__do_IRQ(irq);
+	generic_handle_irq(irq);
    
 	spin_lock_irqsave(&eisa_irq_lock, flags);
 	/* unmask */
@@ -346,10 +337,10 @@ static int __init eisa_probe(struct parisc_device *dev)
 	}
 	
 	/* Reserve IRQ2 */
-	irq_to_desc(2)->action = &irq2_action;
-	
+	setup_irq(2, &irq2_action);
 	for (i = 0; i < 16; i++) {
-		irq_to_desc(i)->chip = &eisa_interrupt_type;
+		set_irq_chip_and_handler(i, &eisa_interrupt_type,
+			handle_level_irq);
 	}
 	
 	EISA_bus = 1;

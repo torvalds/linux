@@ -588,7 +588,7 @@ static void delete_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *re
 
 void jffs2_xattr_delete_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
 {
-	/* It's called from jffs2_clear_inode() on inode removing.
+	/* It's called from jffs2_evict_inode() on inode removing.
 	   When an inode with XATTR is removed, those XATTRs must be removed. */
 	struct jffs2_xattr_ref *ref, *_ref;
 

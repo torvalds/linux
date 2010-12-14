@@ -706,7 +706,7 @@ static int fuse_write_begin(struct file *file, struct address_space *mapping,
 	return 0;
 }
 
-static void fuse_write_update_size(struct inode *inode, loff_t pos)
+void fuse_write_update_size(struct inode *inode, loff_t pos)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
@@ -1144,8 +1144,8 @@ static void fuse_writepage_finish(struct fuse_conn *fc, struct fuse_req *req)
 
 /* Called under fc->lock, may release and reacquire it */
 static void fuse_send_writepage(struct fuse_conn *fc, struct fuse_req *req)
-__releases(&fc->lock)
-__acquires(&fc->lock)
+__releases(fc->lock)
+__acquires(fc->lock)
 {
 	struct fuse_inode *fi = get_fuse_inode(req->inode);
 	loff_t size = i_size_read(req->inode);
@@ -1183,8 +1183,8 @@ __acquires(&fc->lock)
  * Called with fc->lock
  */
 void fuse_flush_writepages(struct inode *inode)
-__releases(&fc->lock)
-__acquires(&fc->lock)
+__releases(fc->lock)
+__acquires(fc->lock)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);

@@ -38,6 +38,7 @@
 
 #include "../rt_config.h"
 #include <stdarg.h>
+#include <linux/kernel.h>
 
 u8 CISCO_OUI[] = { 0x00, 0x40, 0x96 };
 
@@ -1536,10 +1537,8 @@ void MlmeAutoReconnectLastSSID(struct rt_rtmp_adapter *pAd)
 {
 	if (pAd->StaCfg.bAutoConnectByBssid) {
 		DBGPRINT(RT_DEBUG_TRACE,
-			 ("Driver auto reconnect to last OID_802_11_BSSID setting - %02X:%02X:%02X:%02X:%02X:%02X\n",
-			  pAd->MlmeAux.Bssid[0], pAd->MlmeAux.Bssid[1],
-			  pAd->MlmeAux.Bssid[2], pAd->MlmeAux.Bssid[3],
-			  pAd->MlmeAux.Bssid[4], pAd->MlmeAux.Bssid[5]));
+			("Driver auto reconnect to last OID_802_11_BSSID "
+				"setting - %pM\n", pAd->MlmeAux.Bssid));
 
 		pAd->MlmeAux.Channel = pAd->CommonCfg.Channel;
 		MlmeEnqueue(pAd,

@@ -71,13 +71,13 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #define ELF_ET_DYN_BASE         (0x08000000)
 
-#ifdef __LITTLE_ENDIAN__
+#ifdef __MICROBLAZEEL__
 #define ELF_DATA	ELFDATA2LSB
 #else
 #define ELF_DATA	ELFDATA2MSB
 #endif
 
-#define ELF_EXEC_PAGESIZE	4096
+#define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 
 #define ELF_CORE_COPY_REGS(_dest, _regs)			\

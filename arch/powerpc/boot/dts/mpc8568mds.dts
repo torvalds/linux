@@ -124,14 +124,14 @@
 		};
 
 		memory-controller@2000 {
-			compatible = "fsl,8568-memory-controller";
+			compatible = "fsl,mpc8568-memory-controller";
 			reg = <0x2000 0x1000>;
 			interrupt-parent = <&mpic>;
 			interrupts = <18 2>;
 		};
 
 		L2: l2-cache-controller@20000 {
-			compatible = "fsl,8568-l2-cache-controller";
+			compatible = "fsl,mpc8568-l2-cache-controller";
 			reg = <0x20000 0x1000>;
 			cache-line-size = <32>;	// 32 bytes
 			cache-size = <0x80000>;	// L2, 512K

@@ -79,7 +79,7 @@ static void __exit realtek_exit(void)
 module_init(realtek_init);
 module_exit(realtek_exit);
 
-static struct mdio_device_id realtek_tbl[] = {
+static struct mdio_device_id __maybe_unused realtek_tbl[] = {
 	{ 0x001cc912, 0x001fffff },
 	{ }
 };

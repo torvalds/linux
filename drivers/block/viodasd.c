@@ -41,6 +41,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/mutex.h>
 #include <linux/dma-mapping.h>
 #include <linux/completion.h>
 #include <linux/device.h>
@@ -72,6 +73,7 @@ enum {
 	MAX_DISK_NAME = FIELD_SIZEOF(struct gendisk, disk_name)
 };
 
+static DEFINE_MUTEX(viodasd_mutex);
 static DEFINE_SPINLOCK(viodasd_spinlock);
 
 #define VIOMAXREQ		16
@@ -175,6 +177,18 @@ static int viodasd_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
+static int viodasd_unlocked_open(struct block_device *bdev, fmode_t mode)
+{
+	int ret;
+
+	mutex_lock(&viodasd_mutex);
+	ret = viodasd_open(bdev, mode);
+	mutex_unlock(&viodasd_mutex);
+
+	return ret;
+}
+
+
 /*
  * External release entry point.
  */
@@ -183,6 +197,7 @@ static int viodasd_release(struct gendisk *disk, fmode_t mode)
 	struct viodasd_device *d = disk->private_data;
 	HvLpEvent_Rc hvrc;
 
+	mutex_lock(&viodasd_mutex);
 	/* Send the event to OS/400.  We DON'T expect a response */
 	hvrc = HvCallEvent_signalLpEventFast(viopath_hostLp,
 			HvLpEvent_Type_VirtualIo,
@@ -195,6 +210,9 @@ static int viodasd_release(struct gendisk *disk, fmode_t mode)
 			0, 0, 0);
 	if (hvrc != 0)
 		pr_warning("HV close call failed %d\n", (int)hvrc);
+
+	mutex_unlock(&viodasd_mutex);
+
 	return 0;
 }
 
@@ -219,7 +237,7 @@ static int viodasd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
  */
 static const struct block_device_operations viodasd_fops = {
 	.owner = THIS_MODULE,
-	.open = viodasd_open,
+	.open = viodasd_unlocked_open,
 	.release = viodasd_release,
 	.getgeo = viodasd_getgeo,
 };
@@ -361,7 +379,7 @@ static void do_viodasd_request(struct request_queue *q)
 		if (req == NULL)
 			return;
 		/* check that request contains a valid command */
-		if (!blk_fs_request(req)) {
+		if (req->cmd_type != REQ_TYPE_FS) {
 			viodasd_end_request(req, -EIO, blk_rq_sectors(req));
 			continue;
 		}

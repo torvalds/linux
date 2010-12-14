@@ -30,20 +30,17 @@
 #include "intel_drv.h"
 
 struct intel_dvo_device {
-	char *name;
+	const char *name;
 	int type;
 	/* DVOA/B/C output register */
 	u32 dvo_reg;
 	/* GPIO register used for i2c bus to control this device */
 	u32 gpio;
 	int slave_addr;
-	struct i2c_adapter *i2c_bus;
 
 	const struct intel_dvo_dev_ops *dev_ops;
 	void *dev_priv;
-
-	struct drm_display_mode *panel_fixed_mode;
-	bool panel_wants_dither;
+	struct i2c_adapter *i2c_bus;
 };
 
 struct intel_dvo_dev_ops {

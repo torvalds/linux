@@ -31,6 +31,7 @@
 #include <linux/i2c/at24.h>
 #include <linux/i2c/twl.h>
 #include <linux/regulator/machine.h>
+#include <linux/mmc/host.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/tdo24m.h>
@@ -61,8 +62,6 @@
 #define SB_T35_SMSC911X_GPIO	65
 
 #define NAND_BLOCK_SIZE		SZ_128K
-#define GPMC_CS0_BASE		0x60
-#define GPMC_CS0_BASE_ADDR	(OMAP34XX_GPMC_VIRT + GPMC_CS0_BASE)
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 #include <linux/smsc911x.h>
@@ -223,28 +222,12 @@ static struct omap_nand_platform_data cm_t35_nand_data = {
 	.nr_parts		= ARRAY_SIZE(cm_t35_nand_partitions),
 	.dma_channel		= -1,	/* disable DMA in OMAP NAND driver */
 	.cs			= 0,
-	.gpmc_cs_baseaddr	= (void __iomem *)GPMC_CS0_BASE_ADDR,
-	.gpmc_baseaddr		= (void __iomem *)OMAP34XX_GPMC_VIRT,
 
-};
-
-static struct resource cm_t35_nand_resource = {
-	.flags		= IORESOURCE_MEM,
-};
-
-static struct platform_device cm_t35_nand_device = {
-	.name		= "omap2-nand",
-	.id		= -1,
-	.num_resources	= 1,
-	.resource	= &cm_t35_nand_resource,
-	.dev		= {
-		.platform_data	= &cm_t35_nand_data,
-	},
 };
 
 static void __init cm_t35_init_nand(void)
 {
-	if (platform_device_register(&cm_t35_nand_device) < 0)
+	if (gpmc_nand_init(&cm_t35_nand_data) < 0)
 		pr_err("CM-T35: Unable to register NAND device\n");
 }
 #else
@@ -254,8 +237,6 @@ static inline void cm_t35_init_nand(void) {}
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
 	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
 #include <linux/spi/ads7846.h>
-
-#include <plat/mcspi.h>
 
 static struct omap2_mcspi_device_config ads7846_mcspi_config = {
 	.turbo_mode	= 0,
@@ -576,7 +557,7 @@ static struct twl4030_usb_data cm_t35_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
-static int cm_t35_keymap[] = {
+static uint32_t cm_t35_keymap[] = {
 	KEY(0, 0, KEY_A),	KEY(0, 1, KEY_B),	KEY(0, 2, KEY_LEFT),
 	KEY(1, 0, KEY_UP),	KEY(1, 1, KEY_ENTER),	KEY(1, 2, KEY_DOWN),
 	KEY(2, 0, KEY_RIGHT),	KEY(2, 1, KEY_C),	KEY(2, 2, KEY_D),
@@ -597,14 +578,14 @@ static struct twl4030_keypad_data cm_t35_kp_data = {
 static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 
 	},
 	{
 		.mmc		= 2,
-		.wires		= 4,
+		.caps		= MMC_CAP_4_BIT_DATA,
 		.transceiver	= 1,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
@@ -706,12 +687,6 @@ static void __init cm_t35_init_irq(void)
 			     mt46h32m32lf6_sdrc_params);
 	omap_init_irq();
 	omap_gpio_init();
-}
-
-static void __init cm_t35_map_io(void)
-{
-	omap2_set_globals_343x();
-	omap34xx_map_common_io();
 }
 
 static struct omap_board_mux board_mux[] __initdata = {
@@ -833,10 +808,9 @@ static void __init cm_t35_init(void)
 }
 
 MACHINE_START(CM_T35, "Compulab CM-T35")
-	.phys_io	= 0x48000000,
-	.io_pg_offst	= ((0xd8000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
-	.map_io		= cm_t35_map_io,
+	.map_io		= omap3_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= cm_t35_init_irq,
 	.init_machine	= cm_t35_init,
 	.timer		= &omap_timer,

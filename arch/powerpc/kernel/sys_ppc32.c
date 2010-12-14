@@ -546,7 +546,7 @@ compat_ssize_t compat_sys_pread64(unsigned int fd, char __user *ubuf, compat_siz
 	return sys_pread64(fd, ubuf, count, ((loff_t)poshi << 32) | poslo);
 }
 
-compat_ssize_t compat_sys_pwrite64(unsigned int fd, char __user *ubuf, compat_size_t count,
+compat_ssize_t compat_sys_pwrite64(unsigned int fd, const char __user *ubuf, compat_size_t count,
 			      u32 reg6, u32 poshi, u32 poslo)
 {
 	return sys_pwrite64(fd, ubuf, count, ((loff_t)poshi << 32) | poslo);
@@ -615,4 +615,12 @@ asmlinkage long compat_sys_sync_file_range2(int fd, unsigned int flags,
 	loff_t nbytes = ((loff_t)nbytes_hi << 32) | nbytes_lo;
 
 	return sys_sync_file_range(fd, offset, nbytes, flags);
+}
+
+asmlinkage long compat_sys_fanotify_mark(int fanotify_fd, unsigned int flags,
+					 unsigned mask_hi, unsigned mask_lo,
+					 int dfd, const char __user *pathname)
+{
+	u64 mask = ((u64)mask_hi << 32) | mask_lo;
+	return sys_fanotify_mark(fanotify_fd, flags, mask, dfd, pathname);
 }

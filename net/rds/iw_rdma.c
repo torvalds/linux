@@ -34,7 +34,6 @@
 #include <linux/slab.h>
 
 #include "rds.h"
-#include "rdma.h"
 #include "iw.h"
 
 
@@ -158,7 +157,8 @@ static int rds_iw_add_cm_id(struct rds_iw_device *rds_iwdev, struct rdma_cm_id *
 	return 0;
 }
 
-void rds_iw_remove_cm_id(struct rds_iw_device *rds_iwdev, struct rdma_cm_id *cm_id)
+static void rds_iw_remove_cm_id(struct rds_iw_device *rds_iwdev,
+				struct rdma_cm_id *cm_id)
 {
 	struct rds_iw_cm_id *i_cm_id;
 
@@ -207,9 +207,9 @@ void rds_iw_add_conn(struct rds_iw_device *rds_iwdev, struct rds_connection *con
 	BUG_ON(list_empty(&ic->iw_node));
 	list_del(&ic->iw_node);
 
-	spin_lock_irq(&rds_iwdev->spinlock);
+	spin_lock(&rds_iwdev->spinlock);
 	list_add_tail(&ic->iw_node, &rds_iwdev->conn_list);
-	spin_unlock_irq(&rds_iwdev->spinlock);
+	spin_unlock(&rds_iwdev->spinlock);
 	spin_unlock_irq(&iw_nodev_conns_lock);
 
 	ic->rds_iwdev = rds_iwdev;

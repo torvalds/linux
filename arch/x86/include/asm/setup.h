@@ -82,7 +82,7 @@ void *extend_brk(size_t size, size_t align);
  * executable.)
  */
 #define RESERVE_BRK(name,sz)						\
-	static void __section(.discard) __used				\
+	static void __section(.discard.text) __used			\
 	__brk_reservation_fn_##name##__(void) {				\
 		asm volatile (						\
 			".pushsection .brk_reservation,\"aw\",@nobits;" \
@@ -92,6 +92,11 @@ void *extend_brk(size_t size, size_t align);
 			" .popsection"					\
 			: : "i" (sz));					\
 	}
+
+/* Helper for reserving space for arrays of things */
+#define RESERVE_BRK_ARRAY(type, name, entries)		\
+	type *name;					\
+	RESERVE_BRK(name, sizeof(type) * entries)
 
 #ifdef __i386__
 

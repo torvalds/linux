@@ -16,20 +16,15 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
+#include <linux/kobject_ns.h>
 #include <asm/atomic.h>
 
 struct kobject;
 struct module;
 enum kobj_ns_type;
 
-/* FIXME
- * The *owner field is no longer used.
- * x86 tree has been cleaned up. The owner
- * attribute is still left for other arches.
- */
 struct attribute {
 	const char		*name;
-	struct module		*owner;
 	mode_t			mode;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lock_class_key	*key;
@@ -136,8 +131,8 @@ int __must_check sysfs_create_file(struct kobject *kobj,
 				   const struct attribute *attr);
 int __must_check sysfs_create_files(struct kobject *kobj,
 				   const struct attribute **attr);
-int __must_check sysfs_chmod_file(struct kobject *kobj, struct attribute *attr,
-				  mode_t mode);
+int __must_check sysfs_chmod_file(struct kobject *kobj,
+				  const struct attribute *attr, mode_t mode);
 void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
 void sysfs_remove_files(struct kobject *kobj, const struct attribute **attr);
 
@@ -169,6 +164,10 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 			const struct attribute *attr, const char *group);
 void sysfs_remove_file_from_group(struct kobject *kobj,
 			const struct attribute *attr, const char *group);
+int sysfs_merge_group(struct kobject *kobj,
+		       const struct attribute_group *grp);
+void sysfs_unmerge_group(struct kobject *kobj,
+		       const struct attribute_group *grp);
 
 void sysfs_notify(struct kobject *kobj, const char *dir, const char *attr);
 void sysfs_notify_dirent(struct sysfs_dirent *sd);
@@ -225,7 +224,7 @@ static inline int sysfs_create_files(struct kobject *kobj,
 }
 
 static inline int sysfs_chmod_file(struct kobject *kobj,
-				   struct attribute *attr, mode_t mode)
+				   const struct attribute *attr, mode_t mode)
 {
 	return 0;
 }
@@ -304,6 +303,17 @@ static inline int sysfs_add_file_to_group(struct kobject *kobj,
 
 static inline void sysfs_remove_file_from_group(struct kobject *kobj,
 		const struct attribute *attr, const char *group)
+{
+}
+
+static inline int sysfs_merge_group(struct kobject *kobj,
+		       const struct attribute_group *grp)
+{
+	return 0;
+}
+
+static inline void sysfs_unmerge_group(struct kobject *kobj,
+		       const struct attribute_group *grp)
 {
 }
 

@@ -90,46 +90,58 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
  * The vmalloc() routines also leaves a hole of 4kB between each vmalloced
  * area to catch addressing errors.
  */
+#ifndef __ASSEMBLY__
+#define VMALLOC_OFFSET	(8UL * 1024 * 1024)
+#define VMALLOC_START	(0x70000000UL)
+#define VMALLOC_END	(0x7C000000UL)
+#else
 #define VMALLOC_OFFSET	(8 * 1024 * 1024)
 #define VMALLOC_START	(0x70000000)
 #define VMALLOC_END	(0x7C000000)
+#endif
 
 #ifndef __ASSEMBLY__
 extern pte_t kernel_vmalloc_ptes[(VMALLOC_END - VMALLOC_START) / PAGE_SIZE];
 #endif
 
-/* IPTEL/DPTEL bit assignments */
-#define _PAGE_BIT_VALID		xPTEL_V_BIT
-#define _PAGE_BIT_ACCESSED	xPTEL_UNUSED1_BIT	/* mustn't be loaded into IPTEL/DPTEL */
-#define _PAGE_BIT_NX		xPTEL_UNUSED2_BIT	/* mustn't be loaded into IPTEL/DPTEL */
-#define _PAGE_BIT_CACHE		xPTEL_C_BIT
-#define _PAGE_BIT_PRESENT	xPTEL_PV_BIT
-#define _PAGE_BIT_DIRTY		xPTEL_D_BIT
-#define _PAGE_BIT_GLOBAL	xPTEL_G_BIT
+/* IPTEL2/DPTEL2 bit assignments */
+#define _PAGE_BIT_VALID		xPTEL2_V_BIT
+#define _PAGE_BIT_CACHE		xPTEL2_C_BIT
+#define _PAGE_BIT_PRESENT	xPTEL2_PV_BIT
+#define _PAGE_BIT_DIRTY		xPTEL2_D_BIT
+#define _PAGE_BIT_GLOBAL	xPTEL2_G_BIT
+#define _PAGE_BIT_ACCESSED	xPTEL2_UNUSED1_BIT	/* mustn't be loaded into IPTEL2/DPTEL2 */
 
-#define _PAGE_VALID		xPTEL_V
-#define _PAGE_ACCESSED		xPTEL_UNUSED1
-#define _PAGE_NX		xPTEL_UNUSED2		/* no-execute bit */
-#define _PAGE_CACHE		xPTEL_C
-#define _PAGE_PRESENT		xPTEL_PV
-#define _PAGE_DIRTY		xPTEL_D
-#define _PAGE_PROT		xPTEL_PR
-#define _PAGE_PROT_RKNU		xPTEL_PR_ROK
-#define _PAGE_PROT_WKNU		xPTEL_PR_RWK
-#define _PAGE_PROT_RKRU		xPTEL_PR_ROK_ROU
-#define _PAGE_PROT_WKRU		xPTEL_PR_RWK_ROU
-#define _PAGE_PROT_WKWU		xPTEL_PR_RWK_RWU
-#define _PAGE_GLOBAL		xPTEL_G
-#define _PAGE_PSE		xPTEL_PS_4Mb		/* 4MB page */
+#define _PAGE_VALID		xPTEL2_V
+#define _PAGE_CACHE		xPTEL2_C
+#define _PAGE_PRESENT		xPTEL2_PV
+#define _PAGE_DIRTY		xPTEL2_D
+#define _PAGE_PROT		xPTEL2_PR
+#define _PAGE_PROT_RKNU		xPTEL2_PR_ROK
+#define _PAGE_PROT_WKNU		xPTEL2_PR_RWK
+#define _PAGE_PROT_RKRU		xPTEL2_PR_ROK_ROU
+#define _PAGE_PROT_WKRU		xPTEL2_PR_RWK_ROU
+#define _PAGE_PROT_WKWU		xPTEL2_PR_RWK_RWU
+#define _PAGE_GLOBAL		xPTEL2_G
+#define _PAGE_PS_MASK		xPTEL2_PS
+#define _PAGE_PS_4Kb		xPTEL2_PS_4Kb
+#define _PAGE_PS_128Kb		xPTEL2_PS_128Kb
+#define _PAGE_PS_1Kb		xPTEL2_PS_1Kb
+#define _PAGE_PS_4Mb		xPTEL2_PS_4Mb
+#define _PAGE_PSE		xPTEL2_PS_4Mb		/* 4MB page */
+#define _PAGE_CACHE_WT		xPTEL2_CWT
+#define _PAGE_ACCESSED		xPTEL2_UNUSED1
+#define _PAGE_NX		0			/* no-execute bit */
 
-#define _PAGE_FILE		xPTEL_UNUSED1_BIT	/* set:pagecache unset:swap */
+/* If _PAGE_VALID is clear, we use these: */
+#define _PAGE_FILE		xPTEL2_C	/* set:pagecache unset:swap */
+#define _PAGE_PROTNONE		0x000		/* If not present */
 
-#define __PAGE_PROT_UWAUX	0x040
-#define __PAGE_PROT_USER	0x080
-#define __PAGE_PROT_WRITE	0x100
+#define __PAGE_PROT_UWAUX	0x010
+#define __PAGE_PROT_USER	0x020
+#define __PAGE_PROT_WRITE	0x040
 
 #define _PAGE_PRESENTV		(_PAGE_PRESENT|_PAGE_VALID)
-#define _PAGE_PROTNONE		0x000	/* If not present */
 
 #ifndef __ASSEMBLY__
 
@@ -169,6 +181,9 @@ extern pte_t kernel_vmalloc_ptes[(VMALLOC_END - VMALLOC_START) / PAGE_SIZE];
 #define PAGE_KERNEL_NOCACHE	__pgprot(__PAGE_KERNEL_NOCACHE)
 #define PAGE_KERNEL_LARGE	__pgprot(__PAGE_KERNEL_LARGE)
 #define PAGE_KERNEL_LARGE_EXEC	__pgprot(__PAGE_KERNEL_LARGE_EXEC)
+
+#define __PAGE_USERIO		(__PAGE_KERNEL_BASE | _PAGE_PROT_WKWU | _PAGE_NX)
+#define PAGE_USERIO		__pgprot(__PAGE_USERIO)
 
 /*
  * Whilst the MN10300 can do page protection for execute (given separate data
@@ -323,11 +338,7 @@ static inline int pte_exec_kernel(pte_t pte)
 	return 1;
 }
 
-/*
- * Bits 0 and 1 are taken, split up the 29 bits of offset
- * into this range:
- */
-#define PTE_FILE_MAX_BITS	29
+#define PTE_FILE_MAX_BITS	30
 
 #define pte_to_pgoff(pte)	(pte_val(pte) >> 2)
 #define pgoff_to_pte(off)	__pte((off) << 2 | _PAGE_FILE)
@@ -373,8 +384,13 @@ static inline void ptep_mkdirty(pte_t *ptep)
  * Macro to mark a page protection value as "uncacheable".  On processors which
  * do not support it, this is a no-op.
  */
-#define pgprot_noncached(prot)	__pgprot(pgprot_val(prot) | _PAGE_CACHE)
+#define pgprot_noncached(prot)	__pgprot(pgprot_val(prot) & ~_PAGE_CACHE)
 
+/*
+ * Macro to mark a page protection value as "Write-Through".
+ * On processors which do not support it, this is a no-op.
+ */
+#define pgprot_through(prot)	__pgprot(pgprot_val(prot) | _PAGE_CACHE_WT)
 
 /*
  * Conversion functions: convert a page and protection to a page entry,
@@ -457,9 +473,7 @@ static inline int set_kernel_exec(unsigned long vaddr, int enable)
 
 #define pte_offset_map(dir, address) \
 	((pte_t *) page_address(pmd_page(*(dir))) + pte_index(address))
-#define pte_offset_map_nested(dir, address) pte_offset_map(dir, address)
 #define pte_unmap(pte)		do {} while (0)
-#define pte_unmap_nested(pte)	do {} while (0)
 
 /*
  * The MN10300 has external MMU info in the form of a TLB: this is adapted from

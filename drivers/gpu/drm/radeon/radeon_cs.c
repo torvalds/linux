@@ -72,7 +72,7 @@ int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			if (p->relocs[i].gobj == NULL) {
 				DRM_ERROR("gem object lookup failed 0x%x\n",
 					  r->handle);
-				return -EINVAL;
+				return -ENOENT;
 			}
 			p->relocs_ptr[i] = &p->relocs[i];
 			p->relocs[i].robj = p->relocs[i].gobj->driver_private;
@@ -268,7 +268,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	}
 	r = radeon_ib_schedule(rdev, parser.ib);
 	if (r) {
-		DRM_ERROR("Faild to schedule IB !\n");
+		DRM_ERROR("Failed to schedule IB !\n");
 	}
 	radeon_cs_parser_fini(&parser, r);
 	mutex_unlock(&rdev->cs_mutex);

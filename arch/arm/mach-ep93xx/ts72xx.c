@@ -17,7 +17,6 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/m48t86.h>
-#include <linux/mtd/physmap.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
@@ -173,31 +172,13 @@ static struct platform_device ts72xx_nand_flash = {
 };
 
 
-/*************************************************************************
- * NOR flash (TS-7200 only)
- *************************************************************************/
-static struct physmap_flash_data ts72xx_nor_data = {
-	.width		= 2,
-};
-
-static struct resource ts72xx_nor_resource = {
-	.start		= EP93XX_CS6_PHYS_BASE,
-	.end		= EP93XX_CS6_PHYS_BASE + SZ_16M - 1,
-	.flags		= IORESOURCE_MEM,
-};
-
-static struct platform_device ts72xx_nor_flash = {
-	.name			= "physmap-flash",
-	.id			= 0,
-	.dev.platform_data	= &ts72xx_nor_data,
-	.resource		= &ts72xx_nor_resource,
-	.num_resources		= 1,
-};
-
 static void __init ts72xx_register_flash(void)
 {
+	/*
+	 * TS7200 has NOR flash all other TS72xx board have NAND flash.
+	 */
 	if (board_is_ts7200()) {
-		platform_device_register(&ts72xx_nor_flash);
+		ep93xx_register_flash(2, EP93XX_CS6_PHYS_BASE, SZ_16M);
 	} else {
 		resource_size_t start;
 
@@ -276,8 +257,6 @@ static void __init ts72xx_init_machine(void)
 
 MACHINE_START(TS72XX, "Technologic Systems TS-72xx SBC")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
-	.phys_io	= EP93XX_APB_PHYS_BASE,
-	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE3_PHYS_BASE_SYNC + 0x100,
 	.map_io		= ts72xx_map_io,
 	.init_irq	= ep93xx_init_irq,

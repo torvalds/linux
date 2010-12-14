@@ -12,14 +12,6 @@
 # Author: Wu Zhangjin <wuzhangjin@gmail.com>
 #
 
-# compressed kernel load addr: VMLINUZ_LOAD_ADDRESS > VMLINUX_LOAD_ADDRESS + VMLINUX_SIZE
-VMLINUX_SIZE := $(shell wc -c $(objtree)/$(KBUILD_IMAGE) 2>/dev/null | cut -d' ' -f1)
-VMLINUX_SIZE := $(shell [ -n "$(VMLINUX_SIZE)" ] && echo -n $$(($(VMLINUX_SIZE) + (65536 - $(VMLINUX_SIZE) % 65536))))
-# VMLINUZ_LOAD_ADDRESS = concat "high32 of VMLINUX_LOAD_ADDRESS" and "(low32 of VMLINUX_LOAD_ADDRESS) + VMLINUX_SIZE"
-HIGH32 := $(shell A=$(VMLINUX_LOAD_ADDRESS); [ $${\#A} -gt 10 ] && expr substr "$(VMLINUX_LOAD_ADDRESS)" 3 $$(($${\#A} - 10)))
-LOW32 := $(shell [ -n "$(HIGH32)" ] && A=11 || A=3; expr substr "$(VMLINUX_LOAD_ADDRESS)" $${A} 8)
-VMLINUZ_LOAD_ADDRESS := 0x$(shell [ -n "$(VMLINUX_SIZE)" -a -n "$(LOW32)" ] && printf "$(HIGH32)%08x" $$(($(VMLINUX_SIZE) + 0x$(LOW32))))
-
 # set the default size of the mallocing area for decompressing
 BOOT_HEAP_SIZE := 0x400000
 
@@ -33,49 +25,61 @@ KBUILD_AFLAGS := $(LINUXINCLUDE) $(KBUILD_AFLAGS) -D__ASSEMBLY__ \
 	-DBOOT_HEAP_SIZE=$(BOOT_HEAP_SIZE) \
 	-DKERNEL_ENTRY=0x$(shell $(NM) $(objtree)/$(KBUILD_IMAGE) 2>/dev/null | grep " kernel_entry" | cut -f1 -d \ )
 
-obj-y := $(obj)/head.o $(obj)/decompress.o $(obj)/dbg.o
+targets := head.o decompress.o dbg.o uart-16550.o uart-alchemy.o
+
+# decompressor objects (linked with vmlinuz)
+vmlinuzobjs-y := $(obj)/head.o $(obj)/decompress.o $(obj)/dbg.o
 
 ifdef CONFIG_DEBUG_ZBOOT
-obj-$(CONFIG_SYS_SUPPORTS_ZBOOT_UART16550) += $(obj)/uart-16550.o
-obj-$(CONFIG_MACH_ALCHEMY)		   += $(obj)/uart-alchemy.o
+vmlinuzobjs-$(CONFIG_SYS_SUPPORTS_ZBOOT_UART16550) += $(obj)/uart-16550.o
+vmlinuzobjs-$(CONFIG_MIPS_ALCHEMY)		   += $(obj)/uart-alchemy.o
 endif
 
+targets += vmlinux.bin
 OBJCOPYFLAGS_vmlinux.bin := $(OBJCOPYFLAGS) -O binary -R .comment -S
-$(obj)/vmlinux.bin: $(KBUILD_IMAGE)
+$(obj)/vmlinux.bin: $(KBUILD_IMAGE) FORCE
 	$(call if_changed,objcopy)
 
-suffix_$(CONFIG_KERNEL_GZIP)  = gz
-suffix_$(CONFIG_KERNEL_BZIP2) = bz2
-suffix_$(CONFIG_KERNEL_LZMA)  = lzma
-suffix_$(CONFIG_KERNEL_LZO)   = lzo
 tool_$(CONFIG_KERNEL_GZIP)    = gzip
 tool_$(CONFIG_KERNEL_BZIP2)   = bzip2
 tool_$(CONFIG_KERNEL_LZMA)    = lzma
 tool_$(CONFIG_KERNEL_LZO)     = lzo
-$(obj)/vmlinux.$(suffix_y): $(obj)/vmlinux.bin
+
+targets += vmlinux.bin.z
+$(obj)/vmlinux.bin.z: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,$(tool_y))
 
-$(obj)/piggy.o: $(obj)/vmlinux.$(suffix_y) $(obj)/dummy.o
-	$(Q)$(OBJCOPY) $(OBJCOPYFLAGS) \
-		--add-section=.image=$< \
-		--set-section-flags=.image=contents,alloc,load,readonly,data \
-		$(obj)/dummy.o $@
+targets += piggy.o
+OBJCOPYFLAGS_piggy.o := --add-section=.image=$(obj)/vmlinux.bin.z \
+                        --set-section-flags=.image=contents,alloc,load,readonly,data
+$(obj)/piggy.o: $(obj)/dummy.o $(obj)/vmlinux.bin.z FORCE
+	$(call if_changed,objcopy)
 
-LDFLAGS_vmlinuz := $(LDFLAGS) -Ttext $(VMLINUZ_LOAD_ADDRESS) -T
-vmlinuz: $(src)/ld.script $(obj-y) $(obj)/piggy.o
-	$(call if_changed,ld)
-	$(Q)$(OBJCOPY) $(OBJCOPYFLAGS) $@
+# Calculate the load address of the compressed kernel image
+hostprogs-y := calc_vmlinuz_load_addr
+
+VMLINUZ_LOAD_ADDRESS = $(shell $(obj)/calc_vmlinuz_load_addr \
+		$(obj)/vmlinux.bin $(VMLINUX_LOAD_ADDRESS))
+
+vmlinuzobjs-y += $(obj)/piggy.o
+
+quiet_cmd_zld = LD      $@
+      cmd_zld = $(LD) $(LDFLAGS) -Ttext $(VMLINUZ_LOAD_ADDRESS) -T $< $(vmlinuzobjs-y) -o $@
+quiet_cmd_strip = STRIP   $@
+      cmd_strip = $(STRIP) -s $@
+vmlinuz: $(src)/ld.script $(vmlinuzobjs-y) $(obj)/calc_vmlinuz_load_addr
+	$(call cmd,zld)
+	$(call cmd,strip)
 
 #
 # Some DECstations need all possible sections of an ECOFF executable
 #
 ifdef CONFIG_MACH_DECSTATION
-  E2EFLAGS = -a
-else
-  E2EFLAGS =
+  e2eflag := -a
 endif
 
 # elf2ecoff can only handle 32bit image
+hostprogs-y += ../elf2ecoff
 
 ifdef CONFIG_32BIT
 	VMLINUZ = vmlinuz
@@ -83,23 +87,22 @@ else
 	VMLINUZ = vmlinuz.32
 endif
 
+quiet_cmd_32 = OBJCOPY $@
+      cmd_32 = $(OBJCOPY) -O $(32bit-bfd) $(OBJCOPYFLAGS) $< $@
 vmlinuz.32: vmlinuz
-	$(Q)$(OBJCOPY) -O $(32bit-bfd) $(OBJCOPYFLAGS) $< $@
+	$(call cmd,32)
 
+quiet_cmd_ecoff = ECOFF   $@
+      cmd_ecoff = $< $(VMLINUZ) $@ $(e2eflag)
 vmlinuz.ecoff: $(obj)/../elf2ecoff $(VMLINUZ)
-	$(Q)$(obj)/../elf2ecoff $(VMLINUZ) vmlinuz.ecoff $(E2EFLAGS)
-
-$(obj)/../elf2ecoff: $(src)/../elf2ecoff.c
-	$(Q)$(HOSTCC) -o $@ $^
+	$(call cmd,ecoff)
 
 OBJCOPYFLAGS_vmlinuz.bin := $(OBJCOPYFLAGS) -O binary
 vmlinuz.bin: vmlinuz
-	$(call if_changed,objcopy)
+	$(call cmd,objcopy)
 
 OBJCOPYFLAGS_vmlinuz.srec := $(OBJCOPYFLAGS) -S -O srec
 vmlinuz.srec: vmlinuz
-	$(call if_changed,objcopy)
+	$(call cmd,objcopy)
 
-clean:
-clean-files += *.o \
-	       vmlinu*
+clean-files := $(objtree)/vmlinuz $(objtree)/vmlinuz.{32,ecoff,bin,srec}

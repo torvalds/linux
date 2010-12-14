@@ -246,7 +246,7 @@ static int st6422_start(struct sd *sd)
 	intf = usb_ifnum_to_if(sd->gspca_dev.dev, sd->gspca_dev.iface);
 	alt = usb_altnum_to_altsetting(intf, sd->gspca_dev.alt);
 	if (!alt) {
-		PDEBUG(D_ERR, "Couldn't get altsetting");
+		err("Couldn't get altsetting");
 		return -EIO;
 	}
 

@@ -93,6 +93,7 @@ static const struct file_operations mmapper_fops = {
 	.mmap		= mmapper_mmap,
 	.open		= mmapper_open,
 	.release	= mmapper_release,
+	.llseek		= default_llseek,
 };
 
 /*

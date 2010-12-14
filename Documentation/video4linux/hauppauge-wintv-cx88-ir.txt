@@ -44,7 +44,7 @@ http://www.atmel.com/dyn/resources/prod_documents/doc2817.pdf
 This data sheet (google search) seems to have a lovely description of the
 RC5 basics
 
-http://users.pandora.be/nenya/electronics/rc5/  and more data
+http://www.nenya.be/beor/electronics/rc5.htm and more data
 
 http://www.ee.washington.edu/circuit_archive/text/ir_decode.txt
 and even a reference to how to decode a bi-phase data stream.

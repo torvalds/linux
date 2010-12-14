@@ -752,6 +752,67 @@ void __init dove_xor1_init(void)
 	platform_device_register(&dove_xor11_channel);
 }
 
+/*****************************************************************************
+ * SDIO
+ ****************************************************************************/
+static u64 sdio_dmamask = DMA_BIT_MASK(32);
+
+static struct resource dove_sdio0_resources[] = {
+	{
+		.start	= DOVE_SDIO0_PHYS_BASE,
+		.end	= DOVE_SDIO0_PHYS_BASE + 0xff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_DOVE_SDIO0,
+		.end	= IRQ_DOVE_SDIO0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device dove_sdio0 = {
+	.name		= "sdhci-mv",
+	.id		= 0,
+	.dev		= {
+		.dma_mask		= &sdio_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= dove_sdio0_resources,
+	.num_resources	= ARRAY_SIZE(dove_sdio0_resources),
+};
+
+void __init dove_sdio0_init(void)
+{
+	platform_device_register(&dove_sdio0);
+}
+
+static struct resource dove_sdio1_resources[] = {
+	{
+		.start	= DOVE_SDIO1_PHYS_BASE,
+		.end	= DOVE_SDIO1_PHYS_BASE + 0xff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_DOVE_SDIO1,
+		.end	= IRQ_DOVE_SDIO1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device dove_sdio1 = {
+	.name		= "sdhci-mv",
+	.id		= 1,
+	.dev		= {
+		.dma_mask		= &sdio_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= dove_sdio1_resources,
+	.num_resources	= ARRAY_SIZE(dove_sdio1_resources),
+};
+
+void __init dove_sdio1_init(void)
+{
+	platform_device_register(&dove_sdio1);
+}
+
 void __init dove_init(void)
 {
 	int tclk;

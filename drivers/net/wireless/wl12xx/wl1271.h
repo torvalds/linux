@@ -33,6 +33,7 @@
 #include <net/mac80211.h>
 
 #include "wl1271_conf.h"
+#include "wl1271_ini.h"
 
 #define DRIVER_NAME "wl1271"
 #define DRIVER_PREFIX DRIVER_NAME ": "
@@ -116,37 +117,7 @@ enum {
 #define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
 #define WL1271_TX_SECURITY_HI32(s) ((u32)(((s) >> 16) & 0xffffffff))
 
-/* NVS data structure */
-#define WL1271_NVS_SECTION_SIZE                  468
-
-#define WL1271_NVS_GENERAL_PARAMS_SIZE            57
-#define WL1271_NVS_GENERAL_PARAMS_SIZE_PADDED \
-	(WL1271_NVS_GENERAL_PARAMS_SIZE + 1)
-#define WL1271_NVS_STAT_RADIO_PARAMS_SIZE         17
-#define WL1271_NVS_STAT_RADIO_PARAMS_SIZE_PADDED \
-	(WL1271_NVS_STAT_RADIO_PARAMS_SIZE + 1)
-#define WL1271_NVS_DYN_RADIO_PARAMS_SIZE          65
-#define WL1271_NVS_DYN_RADIO_PARAMS_SIZE_PADDED \
-	(WL1271_NVS_DYN_RADIO_PARAMS_SIZE + 1)
-#define WL1271_NVS_FEM_COUNT                       2
-#define WL1271_NVS_INI_SPARE_SIZE                124
-
-struct wl1271_nvs_file {
-	/* NVS section */
-	u8 nvs[WL1271_NVS_SECTION_SIZE];
-
-	/* INI section */
-	u8 general_params[WL1271_NVS_GENERAL_PARAMS_SIZE_PADDED];
-	u8 stat_radio_params[WL1271_NVS_STAT_RADIO_PARAMS_SIZE_PADDED];
-	u8 dyn_radio_params[WL1271_NVS_FEM_COUNT]
-			   [WL1271_NVS_DYN_RADIO_PARAMS_SIZE_PADDED];
-	u8 ini_spare[WL1271_NVS_INI_SPARE_SIZE];
-} __attribute__ ((packed));
-
-/*
- * Enable/disable 802.11a support for WL1273
- */
-#undef WL1271_80211A_ENABLED
+#define WL1271_CIPHER_SUITE_GEM 0x00147201
 
 #define WL1271_BUSY_WORD_CNT 1
 #define WL1271_BUSY_WORD_LEN (WL1271_BUSY_WORD_CNT * sizeof(u32))
@@ -158,6 +129,8 @@ struct wl1271_nvs_file {
 #define WL1271_DEFAULT_DTIM_PERIOD 1
 
 #define ACX_TX_DESCRIPTORS         32
+
+#define WL1271_AGGR_BUFFER_SIZE (4 * PAGE_SIZE)
 
 enum wl1271_state {
 	WL1271_STATE_OFF,
@@ -317,7 +290,7 @@ struct wl1271_fw_status {
 	__le32 tx_released_blks[NUM_TX_QUEUES];
 	__le32 fw_localtime;
 	__le32 padding[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct wl1271_rx_mem_pool_addr {
 	u32 addr;
@@ -325,12 +298,12 @@ struct wl1271_rx_mem_pool_addr {
 };
 
 struct wl1271_scan {
+	struct cfg80211_scan_request *req;
+	bool *scanned_ch;
+	bool failed;
 	u8 state;
 	u8 ssid[IW_ESSID_MAX_SIZE+1];
 	size_t ssid_len;
-	u8 active;
-	u8 high_prio;
-	u8 probe_requests;
 };
 
 struct wl1271_if_operations {
@@ -340,7 +313,7 @@ struct wl1271_if_operations {
 		     bool fixed);
 	void (*reset)(struct wl1271 *wl);
 	void (*init)(struct wl1271 *wl);
-	void (*power)(struct wl1271 *wl, bool enable);
+	int (*power)(struct wl1271 *wl, bool enable);
 	struct device* (*dev)(struct wl1271 *wl);
 	void (*enable_irq)(struct wl1271 *wl);
 	void (*disable_irq)(struct wl1271 *wl);
@@ -357,6 +330,7 @@ struct wl1271 {
 
 	void (*set_power)(bool enable);
 	int irq;
+	int ref_clock;
 
 	spinlock_t wl_lock;
 
@@ -368,13 +342,15 @@ struct wl1271 {
 #define WL1271_FLAG_JOINED             (2)
 #define WL1271_FLAG_GPIO_POWER         (3)
 #define WL1271_FLAG_TX_QUEUE_STOPPED   (4)
-#define WL1271_FLAG_SCANNING           (5)
-#define WL1271_FLAG_IN_ELP             (6)
-#define WL1271_FLAG_PSM                (7)
-#define WL1271_FLAG_PSM_REQUESTED      (8)
-#define WL1271_FLAG_IRQ_PENDING        (9)
-#define WL1271_FLAG_IRQ_RUNNING       (10)
-#define WL1271_FLAG_IDLE              (11)
+#define WL1271_FLAG_IN_ELP             (5)
+#define WL1271_FLAG_PSM                (6)
+#define WL1271_FLAG_PSM_REQUESTED      (7)
+#define WL1271_FLAG_IRQ_PENDING        (8)
+#define WL1271_FLAG_IRQ_RUNNING        (9)
+#define WL1271_FLAG_IDLE              (10)
+#define WL1271_FLAG_IDLE_REQUESTED    (11)
+#define WL1271_FLAG_PSPOLL_FAILURE    (12)
+#define WL1271_FLAG_STA_STATE_SENT    (13)
 	unsigned long flags;
 
 	struct wl1271_partition_set part;
@@ -387,6 +363,7 @@ struct wl1271 {
 	u8 *fw;
 	size_t fw_len;
 	struct wl1271_nvs_file *nvs;
+	size_t nvs_len;
 
 	s8 hw_pg_ver;
 
@@ -421,6 +398,7 @@ struct wl1271 {
 
 	/* Pending TX frames */
 	struct sk_buff *tx_frames[ACX_TX_DESCRIPTORS];
+	int tx_frames_cnt;
 
 	/* Security sequence number counters */
 	u8 tx_security_last_seq;
@@ -432,8 +410,14 @@ struct wl1271 {
 	/* Rx memory pool address */
 	struct wl1271_rx_mem_pool_addr rx_mem_pool_addr;
 
+	/* Intermediate buffer, used for packet aggregation */
+	u8 *aggr_buf;
+
 	/* The target interrupt mask */
 	struct work_struct irq_work;
+
+	/* Hardware recovery work */
+	struct work_struct recovery_work;
 
 	/* The mbox event mask */
 	u32 event_mask;
@@ -443,6 +427,7 @@ struct wl1271 {
 
 	/* Are we currently scanning */
 	struct wl1271_scan scan;
+	struct delayed_work scan_complete_work;
 
 	/* Our association ID */
 	u16 aid;
@@ -468,6 +453,10 @@ struct wl1271 {
 
 	struct completion *elp_compl;
 	struct delayed_work elp_work;
+	struct delayed_work pspoll_work;
+
+	/* counter for ps-poll delivery failures */
+	int ps_poll_failures;
 
 	/* retry counter for PSM entries */
 	u8 psm_entry_retry;
@@ -495,7 +484,12 @@ struct wl1271 {
 
 	bool sg_enabled;
 
+	bool enable_11a;
+
 	struct list_head list;
+
+	/* Most recently reported noise in dBm */
+	s8 noise;
 };
 
 int wl1271_plt_start(struct wl1271 *wl);
@@ -514,15 +508,5 @@ int wl1271_plt_stop(struct wl1271 *wl);
    on in case is has been shut down shortly before */
 #define WL1271_PRE_POWER_ON_SLEEP 20 /* in miliseconds */
 #define WL1271_POWER_ON_SLEEP 200 /* in miliseconds */
-
-static inline bool wl1271_11a_enabled(void)
-{
-	/* FIXME: this could be determined based on the NVS-INI file */
-#ifdef WL1271_80211A_ENABLED
-	return true;
-#else
-	return false;
-#endif
-}
 
 #endif

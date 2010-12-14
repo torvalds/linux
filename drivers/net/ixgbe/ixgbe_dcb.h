@@ -149,34 +149,15 @@ struct ixgbe_dcb_config {
 
 /* DCB driver APIs */
 
-/* DCB rule checking function.*/
-s32 ixgbe_dcb_check_config(struct ixgbe_dcb_config *config);
-
 /* DCB credits calculation */
-s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_dcb_config *, u8);
-
-/* DCB PFC functions */
-s32 ixgbe_dcb_config_pfc(struct ixgbe_hw *, struct ixgbe_dcb_config *g);
-s32 ixgbe_dcb_get_pfc_stats(struct ixgbe_hw *, struct ixgbe_hw_stats *, u8);
-
-/* DCB traffic class stats */
-s32 ixgbe_dcb_config_tc_stats(struct ixgbe_hw *);
-s32 ixgbe_dcb_get_tc_stats(struct ixgbe_hw *, struct ixgbe_hw_stats *, u8);
-
-/* DCB config arbiters */
-s32 ixgbe_dcb_config_tx_desc_arbiter(struct ixgbe_hw *,
-                                     struct ixgbe_dcb_config *);
-s32 ixgbe_dcb_config_tx_data_arbiter(struct ixgbe_hw *,
-                                     struct ixgbe_dcb_config *);
-s32 ixgbe_dcb_config_rx_arbiter(struct ixgbe_hw *, struct ixgbe_dcb_config *);
+s32 ixgbe_dcb_calculate_tc_credits(struct ixgbe_dcb_config *, int, u8);
 
 /* DCB hw initialization */
 s32 ixgbe_dcb_hw_config(struct ixgbe_hw *, struct ixgbe_dcb_config *);
 
 /* DCB definitions for credit calculation */
+#define DCB_CREDIT_QUANTUM	64   /* DCB Quantum */
 #define MAX_CREDIT_REFILL       511  /* 0x1FF * 64B = 32704B */
-#define MINIMUM_CREDIT_REFILL   5    /* 5*64B = 320B */
-#define MINIMUM_CREDIT_FOR_JUMBO 145  /* 145= UpperBound((9*1024+54)/64B) for 9KB jumbo frame */
 #define DCB_MAX_TSO_SIZE        (32*1024) /* MAX TSO packet size supported in DCB mode */
 #define MINIMUM_CREDIT_FOR_TSO  (DCB_MAX_TSO_SIZE/64 + 1) /* 513 for 32KB TSO packet */
 #define MAX_CREDIT              4095 /* Maximum credit supported: 256KB * 1204 / 64B */

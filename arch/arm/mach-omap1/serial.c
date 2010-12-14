@@ -122,6 +122,13 @@ void __init omap_serial_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(serial_platform_data) - 1; i++) {
 
+		/* Don't look at UARTs higher than 2 for omap7xx */
+		if (cpu_is_omap7xx() && i > 1) {
+			serial_platform_data[i].membase = NULL;
+			serial_platform_data[i].mapbase = 0;
+			continue;
+		}
+
 		/* Static mapping, never released */
 		serial_platform_data[i].membase =
 			ioremap(serial_platform_data[i].mapbase, SZ_2K);

@@ -19,10 +19,10 @@
 #include <linux/davinci_emac.h>
 
 #define DM646X_EMAC_BASE		(0x01C80000)
+#define DM646X_EMAC_MDIO_BASE		(DM646X_EMAC_BASE + 0x4000)
 #define DM646X_EMAC_CNTRL_OFFSET	(0x0000)
 #define DM646X_EMAC_CNTRL_MOD_OFFSET	(0x1000)
 #define DM646X_EMAC_CNTRL_RAM_OFFSET	(0x2000)
-#define DM646X_EMAC_MDIO_OFFSET		(0x4000)
 #define DM646X_EMAC_CNTRL_RAM_SIZE	(0x2000)
 
 #define DM646X_ASYNC_EMIF_CONTROL_BASE	0x20008000
@@ -32,6 +32,7 @@ void __init dm646x_init(void);
 void __init dm646x_init_mcasp0(struct snd_platform_data *pdata);
 void __init dm646x_init_mcasp1(struct snd_platform_data *pdata);
 void __init dm646x_board_setup_refclk(struct clk *clk);
+int __init dm646x_init_edma(struct edma_rsv_info *rsv);
 
 void dm646x_video_init(void);
 

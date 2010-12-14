@@ -168,17 +168,6 @@ struct slic_cmdqueue {
 	struct slic_spinlock lock;
 };
 
-#ifdef STATUS_SUCCESS
-#undef STATUS_SUCCESS
-#endif
-
-#define STATUS_SUCCESS              0
-#define STATUS_PENDING              0
-#define STATUS_FAILURE             -1
-#define STATUS_ERROR               -2
-#define STATUS_NOT_SUPPORTED       -3
-#define STATUS_BUFFER_TOO_SHORT    -4
-
 #define SLIC_MAX_CARDS              32
 #define SLIC_MAX_PORTS              4        /* Max # of ports per card   */
 
@@ -510,7 +499,6 @@ struct adapter {
     struct slic_ifevents  if_events;
     struct slic_stats        inicstats_prev;
     struct slicnet_stats     slic_stats;
-    struct net_device_stats stats;
 };
 
 
@@ -527,14 +515,16 @@ struct adapter {
     (largestat) += ((newstat) - (oldstat));                              \
 }
 
-#if defined(CONFIG_X86_64) || defined(CONFIG_IA64)
+#if BITS_PER_LONG == 64
 #define   SLIC_GET_ADDR_LOW(_addr)  (u32)((u64)(_addr) & \
 	0x00000000FFFFFFFF)
 #define   SLIC_GET_ADDR_HIGH(_addr)  (u32)(((u64)(_addr) >> 32) & \
 	0x00000000FFFFFFFF)
-#else
-#define   SLIC_GET_ADDR_LOW(_addr)   (u32)_addr
+#elif BITS_PER_LONG == 32
+#define   SLIC_GET_ADDR_LOW(_addr)   (u32)(_addr)
 #define   SLIC_GET_ADDR_HIGH(_addr)  (u32)0
+#else
+#error BITS_PER_LONG must be 32 or 64
 #endif
 
 #define FLUSH		true

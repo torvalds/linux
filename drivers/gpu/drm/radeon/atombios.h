@@ -4999,7 +4999,7 @@ typedef struct _SW_I2C_IO_DATA_PARAMETERS
 #define SW_I2C_CNTL_WRITE1BIT 6
 
 //==============================VESA definition Portion===============================
-#define VESA_OEM_PRODUCT_REV			            '01.00'
+#define VESA_OEM_PRODUCT_REV			            "01.00"
 #define VESA_MODE_ATTRIBUTE_MODE_SUPPORT	     0xBB	//refer to VBE spec p.32, no TTY support
 #define VESA_MODE_WIN_ATTRIBUTE						     7
 #define VESA_WIN_SIZE											     64

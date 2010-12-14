@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2004 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -213,9 +213,16 @@ struct rxdone_entry_desc {
 /**
  * enum txdone_entry_desc_flags: Flags for &struct txdone_entry_desc
  *
+ * Every txdone report has to contain the basic result of the
+ * transmission, either &TXDONE_UNKNOWN, &TXDONE_SUCCESS or
+ * &TXDONE_FAILURE. The flag &TXDONE_FALLBACK can be used in
+ * conjunction with all of these flags but should only be set
+ * if retires > 0. The flag &TXDONE_EXCESSIVE_RETRY can only be used
+ * in conjunction with &TXDONE_FAILURE.
+ *
  * @TXDONE_UNKNOWN: Hardware could not determine success of transmission.
  * @TXDONE_SUCCESS: Frame was successfully send
- * @TXDONE_FALLBACK: Frame was successfully send using a fallback rate.
+ * @TXDONE_FALLBACK: Hardware used fallback rates for retries
  * @TXDONE_FAILURE: Frame was not successfully send
  * @TXDONE_EXCESSIVE_RETRY: In addition to &TXDONE_FAILURE, the
  *	frame transmission failed due to excessive retries.
@@ -261,6 +268,7 @@ struct txdone_entry_desc {
  * @ENTRY_TXD_HT_AMPDU: This frame is part of an AMPDU.
  * @ENTRY_TXD_HT_BW_40: Use 40MHz Bandwidth.
  * @ENTRY_TXD_HT_SHORT_GI: Use short GI.
+ * @ENTRY_TXD_HT_MIMO_PS: The receiving STA is in dynamic SM PS mode.
  */
 enum txentry_desc_flags {
 	ENTRY_TXD_RTS_FRAME,
@@ -279,6 +287,7 @@ enum txentry_desc_flags {
 	ENTRY_TXD_HT_AMPDU,
 	ENTRY_TXD_HT_BW_40,
 	ENTRY_TXD_HT_SHORT_GI,
+	ENTRY_TXD_HT_MIMO_PS,
 };
 
 /**
@@ -287,7 +296,7 @@ enum txentry_desc_flags {
  * Summary of information for the frame descriptor before sending a TX frame.
  *
  * @flags: Descriptor flags (See &enum queue_entry_flags).
- * @queue: Queue identification (See &enum data_queue_qid).
+ * @qid: Queue identification (See &enum data_queue_qid).
  * @length: Length of the entire frame.
  * @header_length: Length of 802.11 header.
  * @length_high: PLCP length high word.
@@ -313,7 +322,7 @@ enum txentry_desc_flags {
 struct txentry_desc {
 	unsigned long flags;
 
-	enum data_queue_qid queue;
+	enum data_queue_qid qid;
 
 	u16 length;
 	u16 header_length;
@@ -351,17 +360,17 @@ struct txentry_desc {
  * @ENTRY_OWNER_DEVICE_DATA: This entry is owned by the device for data
  *	transfer (either TX or RX depending on the queue). The entry should
  *	only be touched after the device has signaled it is done with it.
- * @ENTRY_OWNER_DEVICE_CRYPTO: This entry is owned by the device for data
- *	encryption or decryption. The entry should only be touched after
- *	the device has signaled it is done with it.
  * @ENTRY_DATA_PENDING: This entry contains a valid frame and is waiting
  *	for the signal to start sending.
+ * @ENTRY_DATA_IO_FAILED: Hardware indicated that an IO error occured
+ *	while transfering the data to the hardware. No TX status report will
+ *	be expected from the hardware.
  */
 enum queue_entry_flags {
 	ENTRY_BCN_ASSIGNED,
 	ENTRY_OWNER_DEVICE_DATA,
-	ENTRY_OWNER_DEVICE_CRYPTO,
 	ENTRY_DATA_PENDING,
+	ENTRY_DATA_IO_FAILED
 };
 
 /**
@@ -392,18 +401,18 @@ struct queue_entry {
  *
  * @Q_INDEX: Index pointer to the current entry in the queue, if this entry is
  *	owned by the hardware then the queue is considered to be full.
+ * @Q_INDEX_DMA_DONE: Index pointer for the next entry which will have been
+ *	transfered to the hardware.
  * @Q_INDEX_DONE: Index pointer to the next entry which will be completed by
  *	the hardware and for which we need to run the txdone handler. If this
  *	entry is not owned by the hardware the queue is considered to be empty.
- * @Q_INDEX_CRYPTO: Index pointer to the next entry which encryption/decription
- *	will be completed by the hardware next.
  * @Q_INDEX_MAX: Keep last, used in &struct data_queue to determine the size
  *	of the index array.
  */
 enum queue_index {
 	Q_INDEX,
+	Q_INDEX_DMA_DONE,
 	Q_INDEX_DONE,
-	Q_INDEX_CRYPTO,
 	Q_INDEX_MAX,
 };
 
@@ -444,6 +453,7 @@ struct data_queue {
 	unsigned short threshold;
 	unsigned short length;
 	unsigned short index[Q_INDEX_MAX];
+	unsigned long last_action[Q_INDEX_MAX];
 
 	unsigned short txop;
 	unsigned short aifs;
@@ -556,6 +566,22 @@ struct data_queue_desc {
 	queue_loop(__entry, (__dev)->tx, queue_end(__dev))
 
 /**
+ * rt2x00queue_for_each_entry - Loop through all entries in the queue
+ * @queue: Pointer to @data_queue
+ * @start: &enum queue_index Pointer to start index
+ * @end: &enum queue_index Pointer to end index
+ * @fn: The function to call for each &struct queue_entry
+ *
+ * This will walk through all entries in the queue, in chronological
+ * order. This means it will start at the current @start pointer
+ * and will walk through the queue until it reaches the @end pointer.
+ */
+void rt2x00queue_for_each_entry(struct data_queue *queue,
+				enum queue_index start,
+				enum queue_index end,
+				void (*fn)(struct queue_entry *entry));
+
+/**
  * rt2x00queue_empty - Check if the queue is empty.
  * @queue: Queue to check if empty.
  */
@@ -589,6 +615,26 @@ static inline int rt2x00queue_available(struct data_queue *queue)
 static inline int rt2x00queue_threshold(struct data_queue *queue)
 {
 	return rt2x00queue_available(queue) < queue->threshold;
+}
+
+/**
+ * rt2x00queue_timeout - Check if a timeout occured for STATUS reorts
+ * @queue: Queue to check.
+ */
+static inline int rt2x00queue_timeout(struct data_queue *queue)
+{
+	return time_after(queue->last_action[Q_INDEX_DMA_DONE],
+			  queue->last_action[Q_INDEX_DONE] + (HZ / 10));
+}
+
+/**
+ * rt2x00queue_timeout - Check if a timeout occured for DMA transfers
+ * @queue: Queue to check.
+ */
+static inline int rt2x00queue_dma_timeout(struct data_queue *queue)
+{
+	return time_after(queue->last_action[Q_INDEX],
+			  queue->last_action[Q_INDEX_DMA_DONE] + (HZ / 10));
 }
 
 /**

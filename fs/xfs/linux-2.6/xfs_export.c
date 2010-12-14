@@ -23,13 +23,13 @@
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_export.h"
 #include "xfs_vnodeops.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
+#include "xfs_trace.h"
 
 /*
  * Note that we only accept fileids which are long enough rather than allow
@@ -132,8 +132,7 @@ xfs_nfs_get_inode(
 	 * fine and not an indication of a corrupted filesystem as clients can
 	 * send invalid file handles and we have to handle it gracefully..
 	 */
-	error = xfs_iget(mp, NULL, ino, XFS_IGET_UNTRUSTED,
-			 XFS_ILOCK_SHARED, &ip);
+	error = xfs_iget(mp, NULL, ino, XFS_IGET_UNTRUSTED, 0, &ip);
 	if (error) {
 		/*
 		 * EINVAL means the inode cluster doesn't exist anymore.
@@ -148,11 +147,10 @@ xfs_nfs_get_inode(
 	}
 
 	if (ip->i_d.di_gen != generation) {
-		xfs_iput_new(ip, XFS_ILOCK_SHARED);
+		IRELE(ip);
 		return ERR_PTR(-ENOENT);
 	}
 
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 	return VFS_I(ip);
 }
 

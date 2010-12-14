@@ -25,6 +25,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/math64.h>
 #include <asm/div64.h>
 #include "dvb_frontend.h"
 #include "dvb_math.h"
@@ -49,8 +50,8 @@
 #define TDA10048_CONF_C4_1         0x1E
 #define TDA10048_CONF_C4_2         0x1F
 #define TDA10048_CODE_IN_RAM       0x20
-#define TDA10048_CHANNEL_INFO_1_R  0x22
-#define TDA10048_CHANNEL_INFO_2_R  0x23
+#define TDA10048_CHANNEL_INFO1_R   0x22
+#define TDA10048_CHANNEL_INFO2_R   0x23
 #define TDA10048_CHANNEL_INFO1     0x24
 #define TDA10048_CHANNEL_INFO2     0x25
 #define TDA10048_TIME_ERROR_R      0x26
@@ -63,8 +64,8 @@
 #define TDA10048_IT_STAT           0x32
 #define TDA10048_DSP_AD_LSB        0x3C
 #define TDA10048_DSP_AD_MSB        0x3D
-#define TDA10048_DSP_REF_LSB       0x3E
-#define TDA10048_DSP_REF_MSB       0x3F
+#define TDA10048_DSP_REG_LSB       0x3E
+#define TDA10048_DSP_REG_MSB       0x3F
 #define TDA10048_CONF_TRISTATE1    0x44
 #define TDA10048_CONF_TRISTATE2    0x45
 #define TDA10048_CONF_POLARITY     0x46
@@ -112,7 +113,7 @@
 #define TDA10048_FREE_REG_1        0xB2
 #define TDA10048_FREE_REG_2        0xB3
 #define TDA10048_CONF_C3_1         0xC0
-#define TDA10048_CYBER_CTRL        0xC2
+#define TDA10048_CVBER_CTRL        0xC2
 #define TDA10048_CBER_NMAX_LSB     0xC4
 #define TDA10048_CBER_NMAX_MSB     0xC5
 #define TDA10048_CBER_LSB          0xC6
@@ -120,7 +121,7 @@
 #define TDA10048_VBER_LSB          0xC8
 #define TDA10048_VBER_MID          0xC9
 #define TDA10048_VBER_MSB          0xCA
-#define TDA10048_CYBER_LUT         0xCC
+#define TDA10048_CVBER_LUT         0xCC
 #define TDA10048_UNCOR_CTRL        0xCD
 #define TDA10048_UNCOR_CPT_LSB     0xCE
 #define TDA10048_UNCOR_CPT_MSB     0xCF
@@ -183,7 +184,7 @@ static struct init_tab {
 	{ TDA10048_AGC_IF_MAX, 0xff },
 	{ TDA10048_AGC_THRESHOLD_MSB, 0x00 },
 	{ TDA10048_AGC_THRESHOLD_LSB, 0x70 },
-	{ TDA10048_CYBER_CTRL, 0x38 },
+	{ TDA10048_CVBER_CTRL, 0x38 },
 	{ TDA10048_AGC_GAINS, 0x12 },
 	{ TDA10048_CONF_XO, 0x00 },
 	{ TDA10048_CONF_TS1, 0x07 },
@@ -688,7 +689,7 @@ static int tda10048_get_tps(struct tda10048_state *state,
 		p->guard_interval =  GUARD_INTERVAL_1_4;
 		break;
 	}
-	switch (val & 0x02) {
+	switch (val & 0x03) {
 	case 0:
 		p->transmission_mode = TRANSMISSION_MODE_2K;
 		break;
@@ -765,6 +766,8 @@ static int tda10048_set_frontend(struct dvb_frontend *fe,
 
 	/* Enable demod TPS auto detection and begin acquisition */
 	tda10048_writereg(state, TDA10048_AUTO, 0x57);
+	/* trigger cber and vber acquisition */
+	tda10048_writereg(state, TDA10048_CVBER_CTRL, 0x3B);
 
 	return 0;
 }
@@ -830,12 +833,27 @@ static int tda10048_read_status(struct dvb_frontend *fe, fe_status_t *status)
 static int tda10048_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct tda10048_state *state = fe->demodulator_priv;
+	static u32 cber_current;
+	u32 cber_nmax;
+	u64 cber_tmp;
 
 	dprintk(1, "%s()\n", __func__);
 
-	/* TODO: A reset may be required here */
-	*ber = tda10048_readreg(state, TDA10048_CBER_MSB) << 8 |
-		tda10048_readreg(state, TDA10048_CBER_LSB);
+	/* update cber on interrupt */
+	if (tda10048_readreg(state, TDA10048_SOFT_IT_C3) & 0x01) {
+		cber_tmp = tda10048_readreg(state, TDA10048_CBER_MSB) << 8 |
+			tda10048_readreg(state, TDA10048_CBER_LSB);
+		cber_nmax = tda10048_readreg(state, TDA10048_CBER_NMAX_MSB) << 8 |
+			tda10048_readreg(state, TDA10048_CBER_NMAX_LSB);
+		cber_tmp *= 100000000;
+		cber_tmp *= 2;
+		cber_tmp = div_u64(cber_tmp, (cber_nmax * 32) + 1);
+		cber_current = (u32)cber_tmp;
+		/* retrigger cber acquisition */
+		tda10048_writereg(state, TDA10048_CVBER_CTRL, 0x39);
+	}
+	/* actual cber is (*ber)/1e8 */
+	*ber = cber_current;
 
 	return 0;
 }
@@ -1015,6 +1033,9 @@ static int tda10048_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 	*ucblocks = tda10048_readreg(state, TDA10048_UNCOR_CPT_MSB) << 8 |
 		tda10048_readreg(state, TDA10048_UNCOR_CPT_LSB);
+	/* clear the uncorrected TS packets counter when saturated */
+	if (*ucblocks == 0xFFFF)
+		tda10048_writereg(state, TDA10048_UNCOR_CTRL, 0x80);
 
 	return 0;
 }

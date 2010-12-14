@@ -137,8 +137,6 @@ extern struct ctl_table ether_table[];
 
 extern ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len);
 
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-
 #endif
 
 #endif	/* _LINUX_IF_ETHER_H */

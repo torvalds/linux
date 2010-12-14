@@ -219,7 +219,7 @@ static int tsi108_read_mii(struct tsi108_prv_data *data, int reg)
 	if (i == 100)
 		return 0xffff;
 	else
-		return (TSI_READ_PHY(TSI108_MAC_MII_DATAIN));
+		return TSI_READ_PHY(TSI108_MAC_MII_DATAIN);
 }
 
 static void tsi108_write_mii(struct tsi108_prv_data *data,

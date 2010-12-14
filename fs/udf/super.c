@@ -107,17 +107,16 @@ struct logicalVolIntegrityDescImpUse *udf_sb_lvidiu(struct udf_sb_info *sbi)
 }
 
 /* UDF filesystem type */
-static int udf_get_sb(struct file_system_type *fs_type,
-		      int flags, const char *dev_name, void *data,
-		      struct vfsmount *mnt)
+static struct dentry *udf_mount(struct file_system_type *fs_type,
+		      int flags, const char *dev_name, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data, udf_fill_super, mnt);
+	return mount_bdev(fs_type, flags, dev_name, data, udf_fill_super);
 }
 
 static struct file_system_type udf_fstype = {
 	.owner		= THIS_MODULE,
 	.name		= "udf",
-	.get_sb		= udf_get_sb,
+	.mount		= udf_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
@@ -175,8 +174,7 @@ static const struct super_operations udf_sb_ops = {
 	.alloc_inode	= udf_alloc_inode,
 	.destroy_inode	= udf_destroy_inode,
 	.write_inode	= udf_write_inode,
-	.delete_inode	= udf_delete_inode,
-	.clear_inode	= udf_clear_inode,
+	.evict_inode	= udf_evict_inode,
 	.put_super	= udf_put_super,
 	.sync_fs	= udf_sync_fs,
 	.statfs		= udf_statfs,
@@ -1579,9 +1577,7 @@ static int udf_load_sequence(struct super_block *sb, struct buffer_head *bh,
 {
 	struct anchorVolDescPtr *anchor;
 	long main_s, main_e, reserve_s, reserve_e;
-	struct udf_sb_info *sbi;
 
-	sbi = UDF_SB(sb);
 	anchor = (struct anchorVolDescPtr *)bh->b_data;
 
 	/* Locate the main sequence */
@@ -1883,6 +1879,8 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	struct kernel_lb_addr rootdir, fileset;
 	struct udf_sb_info *sbi;
 
+	lock_kernel();
+
 	uopt.flags = (1 << UDF_FLAG_USE_AD_IN_ICB) | (1 << UDF_FLAG_STRICT);
 	uopt.uid = -1;
 	uopt.gid = -1;
@@ -1891,8 +1889,10 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	uopt.dmode = UDF_INVALID_MODE;
 
 	sbi = kzalloc(sizeof(struct udf_sb_info), GFP_KERNEL);
-	if (!sbi)
+	if (!sbi) {
+		unlock_kernel();
 		return -ENOMEM;
+	}
 
 	sb->s_fs_info = sbi;
 
@@ -2038,6 +2038,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 		goto error_out;
 	}
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
+	unlock_kernel();
 	return 0;
 
 error_out:
@@ -2058,6 +2059,7 @@ error_out:
 	kfree(sbi);
 	sb->s_fs_info = NULL;
 
+	unlock_kernel();
 	return -EINVAL;
 }
 

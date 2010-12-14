@@ -145,8 +145,6 @@ void __init tzic_init_irq(void __iomem *irqbase)
 		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
-	mxc_register_gpios();
-
 	pr_info("TrustZone Interrupt Controller (TZIC) initialized\n");
 }
 
@@ -166,8 +164,9 @@ int tzic_enable_wake(int is_idle)
 		return -EAGAIN;
 
 	for (i = 0; i < 4; i++) {
-		v = is_idle ? __raw_readl(TZIC_ENSET0(i)) : wakeup_intr[i];
-		__raw_writel(v, TZIC_WAKEUP0(i));
+		v = is_idle ? __raw_readl(tzic_base + TZIC_ENSET0(i)) :
+			wakeup_intr[i];
+		__raw_writel(v, tzic_base + TZIC_WAKEUP0(i));
 	}
 
 	return 0;

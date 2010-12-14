@@ -247,8 +247,8 @@ struct vmbus_channel {
 	/* Allocated memory for ring buffer */
 	void *RingBufferPages;
 	u32 RingBufferPageCount;
-	RING_BUFFER_INFO Outbound;	/* send to parent */
-	RING_BUFFER_INFO Inbound;	/* receive from parent */
+	struct hv_ring_buffer_info Outbound;	/* send to parent */
+	struct hv_ring_buffer_info Inbound;	/* receive from parent */
 	spinlock_t inbound_lock;
 	struct workqueue_struct *ControlWQ;
 
@@ -272,8 +272,8 @@ struct vmbus_channel_debug_info {
 	u32 ClientMonitorLatency;
 	u32 ClientMonitorConnectionId;
 
-	RING_BUFFER_DEBUG_INFO Inbound;
-	RING_BUFFER_DEBUG_INFO Outbound;
+	struct hv_ring_buffer_debug_info Inbound;
+	struct hv_ring_buffer_debug_info Outbound;
 };
 
 /*
@@ -307,14 +307,12 @@ struct vmbus_channel_msginfo {
 };
 
 
-struct vmbus_channel *AllocVmbusChannel(void);
+void free_channel(struct vmbus_channel *channel);
 
-void FreeVmbusChannel(struct vmbus_channel *Channel);
+void vmbus_onmessage(void *context);
 
-void VmbusOnChannelMessage(void *Context);
+int vmbus_request_offers(void);
 
-int VmbusChannelRequestOffers(void);
-
-void VmbusChannelReleaseUnattachedChannels(void);
+void vmbus_release_unattached_channels(void);
 
 #endif /* _CHANNEL_MGMT_H_ */

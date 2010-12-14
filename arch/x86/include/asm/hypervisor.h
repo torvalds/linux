@@ -45,5 +45,6 @@ extern const struct hypervisor_x86 *x86_hyper;
 /* Recognized hypervisors */
 extern const struct hypervisor_x86 x86_hyper_vmware;
 extern const struct hypervisor_x86 x86_hyper_ms_hyperv;
+extern const struct hypervisor_x86 x86_hyper_xen_hvm;
 
 #endif

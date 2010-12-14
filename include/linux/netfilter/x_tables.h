@@ -66,6 +66,11 @@ struct xt_standard_target {
 	int verdict;
 };
 
+struct xt_error_target {
+	struct xt_entry_target target;
+	char errorname[XT_FUNCTION_MAXNAMELEN];
+};
+
 /* The argument to IPT_SO_GET_REVISION_*.  Returns highest revision
  * kernel supports, if >= revision. */
 struct xt_get_revision {

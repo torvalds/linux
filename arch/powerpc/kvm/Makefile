@@ -4,7 +4,7 @@
 
 subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
-EXTRA_CFLAGS += -Ivirt/kvm -Iarch/powerpc/kvm
+ccflags-y := -Ivirt/kvm -Iarch/powerpc/kvm
 
 common-objs-y = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o)
 
@@ -45,6 +45,7 @@ kvm-book3s_64-objs := \
 	book3s.o \
 	book3s_emulate.o \
 	book3s_interrupts.o \
+	book3s_mmu_hpte.o \
 	book3s_64_mmu_host.o \
 	book3s_64_mmu.o \
 	book3s_32_mmu.o
@@ -57,6 +58,7 @@ kvm-book3s_32-objs := \
 	book3s.o \
 	book3s_emulate.o \
 	book3s_interrupts.o \
+	book3s_mmu_hpte.o \
 	book3s_32_mmu_host.o \
 	book3s_32_mmu.o
 kvm-objs-$(CONFIG_KVM_BOOK3S_32) := $(kvm-book3s_32-objs)

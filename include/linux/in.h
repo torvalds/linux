@@ -85,6 +85,7 @@ struct in_addr {
 #define IP_RECVORIGDSTADDR   IP_ORIGDSTADDR
 
 #define IP_MINTTL       21
+#define IP_NODEFRAG     22
 
 /* IP_MTU_DISCOVER values */
 #define IP_PMTUDISC_DONT		0	/* Never send DF frames */
@@ -248,6 +249,25 @@ struct sockaddr_in {
 #include <asm/byteorder.h> 
 
 #ifdef __KERNEL__
+
+#include <linux/errno.h>
+
+static inline int proto_ports_offset(int proto)
+{
+	switch (proto) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+	case IPPROTO_DCCP:
+	case IPPROTO_ESP:	/* SPI */
+	case IPPROTO_SCTP:
+	case IPPROTO_UDPLITE:
+		return 0;
+	case IPPROTO_AH:	/* SPI */
+		return 4;
+	default:
+		return -EINVAL;
+	}
+}
 
 static inline bool ipv4_is_loopback(__be32 addr)
 {

@@ -23,6 +23,10 @@
 #include <linux/ahci_platform.h>
 #include "ahci.h"
 
+static struct scsi_host_template ahci_platform_sht = {
+	AHCI_SHT("ahci_platform"),
+};
+
 static int __init ahci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -54,19 +58,13 @@ static int __init ahci_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (pdata && pdata->init) {
-		rc = pdata->init(dev);
-		if (rc)
-			return rc;
-	}
-
 	if (pdata && pdata->ata_port_info)
 		pi = *pdata->ata_port_info;
 
 	hpriv = devm_kzalloc(dev, sizeof(*hpriv), GFP_KERNEL);
 	if (!hpriv) {
-		rc = -ENOMEM;
-		goto err0;
+		dev_err(dev, "can't alloc ahci_host_priv\n");
+		return -ENOMEM;
 	}
 
 	hpriv->flags |= (unsigned long)pi.private_data;
@@ -74,8 +72,19 @@ static int __init ahci_probe(struct platform_device *pdev)
 	hpriv->mmio = devm_ioremap(dev, mem->start, resource_size(mem));
 	if (!hpriv->mmio) {
 		dev_err(dev, "can't map %pR\n", mem);
-		rc = -ENOMEM;
-		goto err0;
+		return -ENOMEM;
+	}
+
+	/*
+	 * Some platforms might need to prepare for mmio region access,
+	 * which could be done in the following init call. So, the mmio
+	 * region shouldn't be accessed before init (if provided) has
+	 * returned successfully.
+	 */
+	if (pdata && pdata->init) {
+		rc = pdata->init(dev, hpriv->mmio);
+		if (rc)
+			return rc;
 	}
 
 	ahci_save_initial_config(dev, hpriv,
@@ -120,9 +129,6 @@ static int __init ahci_probe(struct platform_device *pdev)
 		ata_port_desc(ap, "mmio %pR", mem);
 		ata_port_desc(ap, "port 0x%x", 0x100 + ap->port_no * 0x80);
 
-		/* set initial link pm policy */
-		ap->pm_policy = NOT_AVAILABLE;
-
 		/* set enclosure management message type */
 		if (ap->flags & ATA_FLAG_EM)
 			ap->em_message_type = hpriv->em_msg_type;
@@ -140,7 +146,7 @@ static int __init ahci_probe(struct platform_device *pdev)
 	ahci_print_info(host, "platform");
 
 	rc = ata_host_activate(host, irq, ahci_interrupt, IRQF_SHARED,
-			       &ahci_sht);
+			       &ahci_platform_sht);
 	if (rc)
 		goto err0;
 
@@ -166,7 +172,6 @@ static int __devexit ahci_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ahci_driver = {
-	.probe = ahci_probe,
 	.remove = __devexit_p(ahci_remove),
 	.driver = {
 		.name = "ahci",

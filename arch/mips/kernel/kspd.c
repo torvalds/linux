@@ -251,7 +251,7 @@ void sp_work_handle_request(void)
  		memset(&tz, 0, sizeof(tz));
  		if ((ret.retval = sp_syscall(__NR_gettimeofday, (int)&tv,
 					     (int)&tz, 0, 0)) == 0)
-		ret.retval = tv.tv_sec;
+			ret.retval = tv.tv_sec;
 		break;
 
  	case MTSP_SYSCALL_EXIT:

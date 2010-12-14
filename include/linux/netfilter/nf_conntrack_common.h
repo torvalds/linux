@@ -76,6 +76,10 @@ enum ip_conntrack_status {
 	/* Conntrack is a template */
 	IPS_TEMPLATE_BIT = 11,
 	IPS_TEMPLATE = (1 << IPS_TEMPLATE_BIT),
+
+	/* Conntrack is a fake untracked entry */
+	IPS_UNTRACKED_BIT = 12,
+	IPS_UNTRACKED = (1 << IPS_UNTRACKED_BIT),
 };
 
 /* Connection tracking event types */
@@ -94,7 +98,13 @@ enum ip_conntrack_events {
 
 enum ip_conntrack_expect_events {
 	IPEXP_NEW,		/* new expectation */
+	IPEXP_DESTROY,		/* destroyed expectation */
 };
+
+/* expectation flags */
+#define NF_CT_EXPECT_PERMANENT		0x1
+#define NF_CT_EXPECT_INACTIVE		0x2
+#define NF_CT_EXPECT_USERSPACE		0x4
 
 #ifdef __KERNEL__
 struct ip_conntrack_stat {

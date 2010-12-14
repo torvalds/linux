@@ -272,6 +272,7 @@ void musb_write_fifo(struct musb_hw_ep *hw_ep, u16 len, const u8 *src)
 	}
 }
 
+#if !defined(CONFIG_USB_MUSB_AM35X)
 /*
  * Unload an endpoint's FIFO
  */
@@ -309,6 +310,7 @@ void musb_read_fifo(struct musb_hw_ep *hw_ep, u16 len, u8 *dst)
 		readsb(fifo, dst, len);
 	}
 }
+#endif
 
 #endif	/* normal PIO */
 
@@ -550,6 +552,11 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 	if (int_usb & MUSB_INTR_SESSREQ) {
 		void __iomem *mbase = musb->mregs;
 
+		if (devctl & MUSB_DEVCTL_BDEVICE) {
+			DBG(3, "SessReq while on B state\n");
+			return IRQ_HANDLED;
+		}
+
 		DBG(1, "SESSION_REQUEST (%s)\n", otg_state_string(musb));
 
 		/* IRQ arrives from ID pin sense or (later, if VBUS power
@@ -704,7 +711,6 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 	if (int_usb & MUSB_INTR_CONNECT) {
 		struct usb_hcd *hcd = musb_to_hcd(musb);
-		void __iomem *mbase = musb->mregs;
 
 		handled = IRQ_HANDLED;
 		musb->is_active = 1;
@@ -717,9 +723,9 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 		if (is_peripheral_active(musb)) {
 			/* REVISIT HNP; just force disconnect */
 		}
-		musb_writew(mbase, MUSB_INTRTXE, musb->epmask);
-		musb_writew(mbase, MUSB_INTRRXE, musb->epmask & 0xfffe);
-		musb_writeb(mbase, MUSB_INTRUSBE, 0xf7);
+		musb_writew(musb->mregs, MUSB_INTRTXE, musb->epmask);
+		musb_writew(musb->mregs, MUSB_INTRRXE, musb->epmask & 0xfffe);
+		musb_writeb(musb->mregs, MUSB_INTRUSBE, 0xf7);
 #endif
 		musb->port1_status &= ~(USB_PORT_STAT_LOW_SPEED
 					|USB_PORT_STAT_HIGH_SPEED
@@ -1922,10 +1928,6 @@ static void musb_free(struct musb *musb)
 		dma_controller_destroy(c);
 	}
 
-#ifdef CONFIG_USB_MUSB_OTG
-	put_device(musb->xceiv->dev);
-#endif
-
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 	usb_put_hcd(musb_to_hcd(musb));
 #else
@@ -2267,6 +2269,7 @@ void musb_save_context(struct musb *musb)
 {
 	int i;
 	void __iomem *musb_base = musb->mregs;
+	void __iomem *epio;
 
 	if (is_host_enabled(musb)) {
 		musb_context.frame = musb_readw(musb_base, MUSB_FRAME);
@@ -2280,16 +2283,16 @@ void musb_save_context(struct musb *musb)
 	musb_context.index = musb_readb(musb_base, MUSB_INDEX);
 	musb_context.devctl = musb_readb(musb_base, MUSB_DEVCTL);
 
-	for (i = 0; i < MUSB_C_NUM_EPS; ++i) {
-		musb_writeb(musb_base, MUSB_INDEX, i);
+	for (i = 0; i < musb->config->num_eps; ++i) {
+		epio = musb->endpoints[i].regs;
 		musb_context.index_regs[i].txmaxp =
-			musb_readw(musb_base, 0x10 + MUSB_TXMAXP);
+			musb_readw(epio, MUSB_TXMAXP);
 		musb_context.index_regs[i].txcsr =
-			musb_readw(musb_base, 0x10 + MUSB_TXCSR);
+			musb_readw(epio, MUSB_TXCSR);
 		musb_context.index_regs[i].rxmaxp =
-			musb_readw(musb_base, 0x10 + MUSB_RXMAXP);
+			musb_readw(epio, MUSB_RXMAXP);
 		musb_context.index_regs[i].rxcsr =
-			musb_readw(musb_base, 0x10 + MUSB_RXCSR);
+			musb_readw(epio, MUSB_RXCSR);
 
 		if (musb->dyn_fifo) {
 			musb_context.index_regs[i].txfifoadd =
@@ -2303,13 +2306,13 @@ void musb_save_context(struct musb *musb)
 		}
 		if (is_host_enabled(musb)) {
 			musb_context.index_regs[i].txtype =
-				musb_readb(musb_base, 0x10 + MUSB_TXTYPE);
+				musb_readb(epio, MUSB_TXTYPE);
 			musb_context.index_regs[i].txinterval =
-				musb_readb(musb_base, 0x10 + MUSB_TXINTERVAL);
+				musb_readb(epio, MUSB_TXINTERVAL);
 			musb_context.index_regs[i].rxtype =
-				musb_readb(musb_base, 0x10 + MUSB_RXTYPE);
+				musb_readb(epio, MUSB_RXTYPE);
 			musb_context.index_regs[i].rxinterval =
-				musb_readb(musb_base, 0x10 + MUSB_RXINTERVAL);
+				musb_readb(epio, MUSB_RXINTERVAL);
 
 			musb_context.index_regs[i].txfunaddr =
 				musb_read_txfunaddr(musb_base, i);
@@ -2327,8 +2330,6 @@ void musb_save_context(struct musb *musb)
 		}
 	}
 
-	musb_writeb(musb_base, MUSB_INDEX, musb_context.index);
-
 	musb_platform_save_context(musb, &musb_context);
 }
 
@@ -2337,6 +2338,7 @@ void musb_restore_context(struct musb *musb)
 	int i;
 	void __iomem *musb_base = musb->mregs;
 	void __iomem *ep_target_regs;
+	void __iomem *epio;
 
 	musb_platform_restore_context(musb, &musb_context);
 
@@ -2351,15 +2353,15 @@ void musb_restore_context(struct musb *musb)
 	musb_writeb(musb_base, MUSB_INTRUSBE, musb_context.intrusbe);
 	musb_writeb(musb_base, MUSB_DEVCTL, musb_context.devctl);
 
-	for (i = 0; i < MUSB_C_NUM_EPS; ++i) {
-		musb_writeb(musb_base, MUSB_INDEX, i);
-		musb_writew(musb_base, 0x10 + MUSB_TXMAXP,
+	for (i = 0; i < musb->config->num_eps; ++i) {
+		epio = musb->endpoints[i].regs;
+		musb_writew(epio, MUSB_TXMAXP,
 			musb_context.index_regs[i].txmaxp);
-		musb_writew(musb_base, 0x10 + MUSB_TXCSR,
+		musb_writew(epio, MUSB_TXCSR,
 			musb_context.index_regs[i].txcsr);
-		musb_writew(musb_base, 0x10 + MUSB_RXMAXP,
+		musb_writew(epio, MUSB_RXMAXP,
 			musb_context.index_regs[i].rxmaxp);
-		musb_writew(musb_base, 0x10 + MUSB_RXCSR,
+		musb_writew(epio, MUSB_RXCSR,
 			musb_context.index_regs[i].rxcsr);
 
 		if (musb->dyn_fifo) {
@@ -2374,13 +2376,13 @@ void musb_restore_context(struct musb *musb)
 		}
 
 		if (is_host_enabled(musb)) {
-			musb_writeb(musb_base, 0x10 + MUSB_TXTYPE,
+			musb_writeb(epio, MUSB_TXTYPE,
 				musb_context.index_regs[i].txtype);
-			musb_writeb(musb_base, 0x10 + MUSB_TXINTERVAL,
+			musb_writeb(epio, MUSB_TXINTERVAL,
 				musb_context.index_regs[i].txinterval);
-			musb_writeb(musb_base, 0x10 + MUSB_RXTYPE,
+			musb_writeb(epio, MUSB_RXTYPE,
 				musb_context.index_regs[i].rxtype);
-			musb_writeb(musb_base, 0x10 + MUSB_RXINTERVAL,
+			musb_writeb(epio, MUSB_RXINTERVAL,
 
 			musb_context.index_regs[i].rxinterval);
 			musb_write_txfunaddr(musb_base, i,
@@ -2401,8 +2403,6 @@ void musb_restore_context(struct musb *musb)
 				musb_context.index_regs[i].rxhubport);
 		}
 	}
-
-	musb_writeb(musb_base, MUSB_INDEX, musb_context.index);
 }
 
 static int musb_suspend(struct device *dev)

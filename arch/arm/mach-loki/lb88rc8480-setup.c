@@ -90,8 +90,6 @@ static void __init lb88rc8480_init(void)
 
 MACHINE_START(LB88RC8480, "Marvell LB88RC8480 Development Board")
 	/* Maintainer: Ke Wei <kewei@marvell.com> */
-	.phys_io	= LOKI_REGS_PHYS_BASE,
-	.io_pg_offst	= ((LOKI_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.init_machine	= lb88rc8480_init,
 	.map_io		= loki_map_io,

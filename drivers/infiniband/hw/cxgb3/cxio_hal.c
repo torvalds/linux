@@ -160,6 +160,7 @@ int cxio_create_cq(struct cxio_rdev *rdev_p, struct t3_cq *cq, int kernel)
 	struct rdma_cq_setup setup;
 	int size = (1UL << (cq->size_log2)) * sizeof(struct t3_cqe);
 
+	size += 1; /* one extra page for storing cq-in-err state */
 	cq->cqid = cxio_hal_get_cqid(rdev_p->rscp);
 	if (!cq->cqid)
 		return -ENOMEM;

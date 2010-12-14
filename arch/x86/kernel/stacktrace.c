@@ -23,10 +23,15 @@ static int save_stack_stack(void *data, char *name)
 	return 0;
 }
 
-static void save_stack_address(void *data, unsigned long addr, int reliable)
+static void
+__save_stack_address(void *data, unsigned long addr, bool reliable, bool nosched)
 {
 	struct stack_trace *trace = data;
+#ifdef CONFIG_FRAME_POINTER
 	if (!reliable)
+		return;
+#endif
+	if (nosched && in_sched_functions(addr))
 		return;
 	if (trace->skip > 0) {
 		trace->skip--;
@@ -36,20 +41,15 @@ static void save_stack_address(void *data, unsigned long addr, int reliable)
 		trace->entries[trace->nr_entries++] = addr;
 }
 
+static void save_stack_address(void *data, unsigned long addr, int reliable)
+{
+	return __save_stack_address(data, addr, reliable, false);
+}
+
 static void
 save_stack_address_nosched(void *data, unsigned long addr, int reliable)
 {
-	struct stack_trace *trace = (struct stack_trace *)data;
-	if (!reliable)
-		return;
-	if (in_sched_functions(addr))
-		return;
-	if (trace->skip > 0) {
-		trace->skip--;
-		return;
-	}
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = addr;
+	return __save_stack_address(data, addr, reliable, true);
 }
 
 static const struct stacktrace_ops save_stack_ops = {
@@ -96,12 +96,13 @@ EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
 
 /* Userspace stacktrace - based on kernel/trace/trace_sysprof.c */
 
-struct stack_frame {
+struct stack_frame_user {
 	const void __user	*next_fp;
 	unsigned long		ret_addr;
 };
 
-static int copy_stack_frame(const void __user *fp, struct stack_frame *frame)
+static int
+copy_stack_frame(const void __user *fp, struct stack_frame_user *frame)
 {
 	int ret;
 
@@ -126,7 +127,7 @@ static inline void __save_stack_trace_user(struct stack_trace *trace)
 		trace->entries[trace->nr_entries++] = regs->ip;
 
 	while (trace->nr_entries < trace->max_entries) {
-		struct stack_frame frame;
+		struct stack_frame_user frame;
 
 		frame.next_fp = NULL;
 		frame.ret_addr = 0;

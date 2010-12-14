@@ -1896,7 +1896,7 @@ fail:
 /* Some SMP systems have reported number of odd errors with hostap_pci. fid
  * register has changed values between consecutive reads for an unknown reason.
  * This should really not happen, so more debugging is needed. This test
- * version is a big slower, but it will detect most of such register changes
+ * version is a bit slower, but it will detect most of such register changes
  * and will try to get the correct fid eventually. */
 #define EXTRA_FID_READ_TESTS
 
@@ -2621,7 +2621,7 @@ static irqreturn_t prism2_interrupt(int irq, void *dev_id)
 	iface = netdev_priv(dev);
 	local = iface->local;
 
-	/* Detect early interrupt before driver is fully configued */
+	/* Detect early interrupt before driver is fully configured */
 	spin_lock(&local->irq_init_lock);
 	if (!dev->base_addr) {
 		if (net_ratelimit()) {

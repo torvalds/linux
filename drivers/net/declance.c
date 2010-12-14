@@ -1255,7 +1255,7 @@ static int __devinit dec_lance_probe(struct device *bdev, const int type)
 	 */
 	init_timer(&lp->multicast_timer);
 	lp->multicast_timer.data = (unsigned long) dev;
-	lp->multicast_timer.function = &lance_set_multicast_retry;
+	lp->multicast_timer.function = lance_set_multicast_retry;
 
 	ret = register_netdev(dev);
 	if (ret) {

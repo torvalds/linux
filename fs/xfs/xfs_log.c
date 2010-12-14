@@ -24,8 +24,6 @@
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_error.h"
 #include "xfs_log_priv.h"
@@ -35,8 +33,6 @@
 #include "xfs_ialloc_btree.h"
 #include "xfs_log_recover.h"
 #include "xfs_trans_priv.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_rw.h"
@@ -337,7 +333,6 @@ xfs_log_reserve(
 	int			retval = 0;
 
 	ASSERT(client == XFS_TRANSACTION || client == XFS_LOG);
-	ASSERT((flags & XFS_LOG_NOSLEEP) == 0);
 
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return XFS_ERROR(EIO);
@@ -552,7 +547,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 				.magic = XLOG_UNMOUNT_TYPE,
 			};
 			struct xfs_log_iovec reg = {
-				.i_addr = (void *)&magic,
+				.i_addr = &magic,
 				.i_len = sizeof(magic),
 				.i_type = XLOG_REG_TYPE_UNMOUNT,
 			};
@@ -922,19 +917,6 @@ xlog_iodone(xfs_buf_t *bp)
 	l = iclog->ic_log;
 
 	/*
-	 * If the _XFS_BARRIER_FAILED flag was set by a lower
-	 * layer, it means the underlying device no longer supports
-	 * barrier I/O. Warn loudly and turn off barriers.
-	 */
-	if (bp->b_flags & _XFS_BARRIER_FAILED) {
-		bp->b_flags &= ~_XFS_BARRIER_FAILED;
-		l->l_mp->m_flags &= ~XFS_MOUNT_BARRIER;
-		xfs_fs_cmn_err(CE_WARN, l->l_mp,
-				"xlog_iodone: Barriers are no longer supported"
-				" by device. Disabling barriers\n");
-	}
-
-	/*
 	 * Race to shutdown the filesystem if we see an error.
 	 */
 	if (XFS_TEST_ERROR((XFS_BUF_GETERROR(bp)), l->l_mp,
@@ -1047,7 +1029,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	xlog_in_core_t		*iclog, *prev_iclog=NULL;
 	xfs_buf_t		*bp;
 	int			i;
-	int			iclogsize;
 	int			error = ENOMEM;
 	uint			log2_size = 0;
 
@@ -1127,7 +1108,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	 * with different amounts of memory.  See the definition of
 	 * xlog_in_core_t in xfs_log_priv.h for details.
 	 */
-	iclogsize = log->l_iclog_size;
 	ASSERT(log->l_iclog_size >= 4096);
 	for (i=0; i < log->l_iclog_bufs; i++) {
 		*iclogp = kmem_zalloc(sizeof(xlog_in_core_t), KM_MAYFAIL);
@@ -1138,7 +1118,8 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		iclog->ic_prev = prev_iclog;
 		prev_iclog = iclog;
 
-		bp = xfs_buf_get_noaddr(log->l_iclog_size, mp->m_logdev_targp);
+		bp = xfs_buf_get_uncached(mp->m_logdev_targp,
+						log->l_iclog_size, 0);
 		if (!bp)
 			goto out_free_iclog;
 		if (!XFS_BUF_CPSEMA(bp))
@@ -1316,7 +1297,7 @@ xlog_bdstrat(
 	if (iclog->ic_state & XLOG_STATE_IOERROR) {
 		XFS_BUF_ERROR(bp, EIO);
 		XFS_BUF_STALE(bp);
-		xfs_biodone(bp);
+		xfs_buf_ioend(bp, 0);
 		/*
 		 * It would seem logical to return EIO here, but we rely on
 		 * the log state machine to propagate I/O errors instead of
@@ -1428,11 +1409,8 @@ xlog_sync(xlog_t		*log,
 	XFS_BUF_BUSY(bp);
 	XFS_BUF_ASYNC(bp);
 	bp->b_flags |= XBF_LOG_BUFFER;
-	/*
-	 * Do an ordered write for the log block.
-	 * Its unnecessary to flush the first split block in the log wrap case.
-	 */
-	if (!split && (log->l_mp->m_flags & XFS_MOUNT_BARRIER))
+
+	if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
 		XFS_BUF_ORDERED(bp);
 
 	ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
@@ -3025,7 +3003,8 @@ _xfs_log_force(
 
 	XFS_STATS_INC(xs_log_force);
 
-	xlog_cil_push(log, 1);
+	if (log->l_cilp)
+		xlog_cil_force(log);
 
 	spin_lock(&log->l_icloglock);
 
@@ -3177,7 +3156,7 @@ _xfs_log_force_lsn(
 	XFS_STATS_INC(xs_log_force);
 
 	if (log->l_cilp) {
-		lsn = xlog_cil_push_lsn(log, lsn);
+		lsn = xlog_cil_force_lsn(log, lsn);
 		if (lsn == NULLCOMMITLSN)
 			return 0;
 	}
@@ -3734,7 +3713,7 @@ xfs_log_force_umount(
 	 * call below.
 	 */
 	if (!logerror && (mp->m_flags & XFS_MOUNT_DELAYLOG))
-		xlog_cil_push(log, 1);
+		xlog_cil_force(log);
 
 	/*
 	 * We must hold both the GRANT lock and the LOG lock,

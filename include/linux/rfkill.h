@@ -81,7 +81,7 @@ struct rfkill_event {
 	__u8  type;
 	__u8  op;
 	__u8  soft, hard;
-} __packed;
+} __attribute__((packed));
 
 /*
  * We are planning to be backward and forward compatible with changes

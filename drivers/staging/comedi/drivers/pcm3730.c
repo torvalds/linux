@@ -38,7 +38,18 @@ static struct comedi_driver driver_pcm3730 = {
 	.detach = pcm3730_detach,
 };
 
-COMEDI_INITCLEANUP(driver_pcm3730);
+static int __init driver_pcm3730_init_module(void)
+{
+	return comedi_driver_register(&driver_pcm3730);
+}
+
+static void __exit driver_pcm3730_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_pcm3730);
+}
+
+module_init(driver_pcm3730_init_module);
+module_exit(driver_pcm3730_cleanup_module);
 
 static int pcm3730_do_insn_bits(struct comedi_device *dev,
 				struct comedi_subdevice *s,
@@ -154,3 +165,7 @@ static int pcm3730_detach(struct comedi_device *dev)
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

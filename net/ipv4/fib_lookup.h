@@ -12,17 +12,22 @@ struct fib_alias {
 	u8			fa_type;
 	u8			fa_scope;
 	u8			fa_state;
-#ifdef CONFIG_IP_FIB_TRIE
 	struct rcu_head		rcu;
-#endif
 };
 
 #define FA_S_ACCESSED	0x01
 
+/* Dont write on fa_state unless needed, to keep it shared on all cpus */
+static inline void fib_alias_accessed(struct fib_alias *fa)
+{
+	if (!(fa->fa_state & FA_S_ACCESSED))
+		fa->fa_state |= FA_S_ACCESSED;
+}
+
 /* Exported by fib_semantics.c */
 extern int fib_semantic_match(struct list_head *head,
 			      const struct flowi *flp,
-			      struct fib_result *res, int prefixlen);
+			      struct fib_result *res, int prefixlen, int fib_flags);
 extern void fib_release_info(struct fib_info *);
 extern struct fib_info *fib_create_info(struct fib_config *cfg);
 extern int fib_nh_match(struct fib_config *cfg, struct fib_info *fi);

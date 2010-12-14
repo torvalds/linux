@@ -45,6 +45,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/fs.h>
 #include <linux/completion.h>
@@ -325,6 +326,9 @@ struct qib_verbs_txreq {
 #define QIB_IB_QDR 4
 
 #define QIB_DEFAULT_MTU 4096
+
+/* max number of IB ports supported per HCA */
+#define QIB_MAX_IB_PORTS 2
 
 /*
  * Possible IB config parameters for f_get/set_ib_table()
@@ -1402,7 +1406,7 @@ extern struct mutex qib_mutex;
  */
 #define qib_early_err(dev, fmt, ...) \
 	do { \
-		dev_info(dev, KERN_ERR QIB_DRV_NAME ": " fmt, ##__VA_ARGS__); \
+		dev_err(dev, fmt, ##__VA_ARGS__); \
 	} while (0)
 
 #define qib_dev_err(dd, fmt, ...) \

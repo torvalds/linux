@@ -72,25 +72,9 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	l	%r1,BASED(.Ltrace_irq_off_caller)
 	basr	%r14,%r1
 	.endm
-
-	.macro	TRACE_IRQS_CHECK_ON
-	tm	SP_PSW(%r15),0x03	# irqs enabled?
-	bz	BASED(0f)
-	TRACE_IRQS_ON
-0:
-	.endm
-
-	.macro	TRACE_IRQS_CHECK_OFF
-	tm	SP_PSW(%r15),0x03	# irqs enabled?
-	bz	BASED(0f)
-	TRACE_IRQS_OFF
-0:
-	.endm
 #else
 #define TRACE_IRQS_ON
 #define TRACE_IRQS_OFF
-#define TRACE_IRQS_CHECK_ON
-#define TRACE_IRQS_CHECK_OFF
 #endif
 
 #ifdef CONFIG_LOCKDEP
@@ -198,6 +182,12 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	lpsw	\psworg			# back to caller
 	.endm
 
+	.macro REENABLE_IRQS
+	mvc	__SF_EMPTY(1,%r15),SP_PSW(%r15)
+	ni	__SF_EMPTY(%r15),0xbf
+	ssm	__SF_EMPTY(%r15)
+	.endm
+
 /*
  * Scheduler resume function, called by switch_to
  *  gpr2 = (task_struct *) prev
@@ -264,12 +254,11 @@ sysc_do_svc:
 	bnl	BASED(sysc_nr_ok)
 	lr	%r7,%r1 	  # copy svc number to %r7
 sysc_nr_ok:
-	mvc	SP_ARGS(4,%r15),SP_R7(%r15)
-sysc_do_restart:
 	sth	%r7,SP_SVCNR(%r15)
 	sll	%r7,2		  # svc number *4
 	l	%r8,BASED(.Lsysc_table)
 	tm	__TI_flags+2(%r9),_TIF_SYSCALL
+	mvc	SP_ARGS(4,%r15),SP_R7(%r15)
 	l	%r8,0(%r7,%r8)	  # get system call addr.
 	bnz	BASED(sysc_tracesys)
 	basr	%r14,%r8	  # call sys_xxxx
@@ -357,7 +346,7 @@ sysc_restart:
 	l	%r7,SP_R2(%r15) 	# load new svc number
 	mvc	SP_R2(4,%r15),SP_ORIG_R2(%r15) # restore first argument
 	lm	%r2,%r6,SP_R2(%r15)	# load svc arguments
-	b	BASED(sysc_do_restart)	# restart svc
+	b	BASED(sysc_nr_ok)	# restart svc
 
 #
 # _TIF_SINGLE_STEP is set, call do_single_step
@@ -390,6 +379,7 @@ sysc_tracesys:
 	l	%r8,0(%r7,%r8)
 sysc_tracego:
 	lm	%r3,%r6,SP_R3(%r15)
+	mvc	SP_ARGS(4,%r15),SP_R7(%r15)
 	l	%r2,SP_ORIG_R2(%r15)
 	basr	%r14,%r8		# call sys_xxx
 	st	%r2,SP_R2(%r15)		# store return value
@@ -440,13 +430,11 @@ kernel_execve:
 	br	%r14
 	# execve succeeded.
 0:	stnsm	__SF_EMPTY(%r15),0xfc	# disable interrupts
-	TRACE_IRQS_OFF
 	l	%r15,__LC_KERNEL_STACK	# load ksp
 	s	%r15,BASED(.Lc_spsize)	# make room for registers & psw
 	l	%r9,__LC_THREAD_INFO
 	mvc	SP_PTREGS(__PT_SIZE,%r15),0(%r12)	# copy pt_regs
 	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15)
-	TRACE_IRQS_ON
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	l	%r1,BASED(.Lexecve_tail)
 	basr	%r14,%r1
@@ -483,9 +471,10 @@ pgm_check_handler:
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
 pgm_no_vtime:
-	TRACE_IRQS_CHECK_OFF
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	l	%r3,__LC_PGM_ILC	# load program interruption code
+	l	%r4,__LC_TRANS_EXC_CODE
+	REENABLE_IRQS
 	la	%r8,0x7f
 	nr	%r8,%r3
 pgm_do_call:
@@ -495,7 +484,6 @@ pgm_do_call:
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	basr	%r14,%r7		# branch to interrupt-handler
 pgm_exit:
-	TRACE_IRQS_CHECK_ON
 	b	BASED(sysc_return)
 
 #
@@ -523,7 +511,6 @@ pgm_per_std:
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
 pgm_no_vtime2:
-	TRACE_IRQS_CHECK_OFF
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	l	%r1,__TI_task(%r9)
 	tm	SP_PSW+1(%r15),0x01	# kernel per event ?
@@ -533,6 +520,8 @@ pgm_no_vtime2:
 	mvc	__THREAD_per+__PER_access_id(1,%r1),__LC_PER_ACCESS_ID
 	oi	__TI_flags+3(%r9),_TIF_SINGLE_STEP # set TIF_SINGLE_STEP
 	l	%r3,__LC_PGM_ILC	# load program interruption code
+	l	%r4,__LC_TRANS_EXC_CODE
+	REENABLE_IRQS
 	la	%r8,0x7f
 	nr	%r8,%r3 		# clear per-event-bit and ilc
 	be	BASED(pgm_exit2)	# only per or per+check ?
@@ -542,8 +531,6 @@ pgm_no_vtime2:
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	basr	%r14,%r7		# branch to interrupt-handler
 pgm_exit2:
-	TRACE_IRQS_ON
-	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	b	BASED(sysc_return)
 
 #
@@ -557,13 +544,11 @@ pgm_svcper:
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
 	lh	%r7,0x8a		# get svc number from lowcore
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
-	TRACE_IRQS_OFF
 	l	%r8,__TI_task(%r9)
 	mvc	__THREAD_per+__PER_atmid(2,%r8),__LC_PER_ATMID
 	mvc	__THREAD_per+__PER_address(4,%r8),__LC_PER_ADDRESS
 	mvc	__THREAD_per+__PER_access_id(1,%r8),__LC_PER_ACCESS_ID
 	oi	__TI_flags+3(%r9),_TIF_SINGLE_STEP # set TIF_SINGLE_STEP
-	TRACE_IRQS_ON
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	lm	%r2,%r6,SP_R2(%r15)	# load svc arguments
 	b	BASED(sysc_do_svc)
@@ -572,6 +557,7 @@ pgm_svcper:
 # per was called from kernel, must be kprobes
 #
 kernel_per:
+	REENABLE_IRQS
 	mvi	SP_SVCNR(%r15),0xff	# set trap indication to pgm check
 	mvi	SP_SVCNR+1(%r15),0xff
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
@@ -737,7 +723,8 @@ ext_no_vtime:
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	TRACE_IRQS_OFF
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
-	lh	%r3,__LC_EXT_INT_CODE	# get interruption code
+	l	%r3,__LC_CPU_ADDRESS	# get cpu address + interruption code
+	l	%r4,__LC_EXT_PARAMS	# get external parameters
 	l	%r1,BASED(.Ldo_extint)
 	basr	%r14,%r1
 	b	BASED(io_return)

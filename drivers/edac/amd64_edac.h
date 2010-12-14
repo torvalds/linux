@@ -72,7 +72,7 @@
 #include <linux/edac.h>
 #include <asm/msr.h>
 #include "edac_core.h"
-#include "edac_mce_amd.h"
+#include "mce_amd.h"
 
 #define amd64_printk(level, fmt, arg...) \
 	edac_printk(level, "amd64", fmt, ##arg)
@@ -244,43 +244,16 @@
 
 
 #define F10_DCTL_SEL_LOW		0x110
-
-#define dct_sel_baseaddr(pvt)    \
-	((pvt->dram_ctl_select_low) & 0xFFFFF800)
-
-#define dct_sel_interleave_addr(pvt)    \
-	(((pvt->dram_ctl_select_low) >> 6) & 0x3)
-
-enum {
-	F10_DCTL_SEL_LOW_DctSelHiRngEn	= BIT(0),
-	F10_DCTL_SEL_LOW_DctSelIntLvEn	= BIT(2),
-	F10_DCTL_SEL_LOW_DctGangEn	= BIT(4),
-	F10_DCTL_SEL_LOW_DctDatIntLv	= BIT(5),
-	F10_DCTL_SEL_LOW_DramEnable	= BIT(8),
-	F10_DCTL_SEL_LOW_MemCleared	= BIT(10),
-};
-
-#define    dct_high_range_enabled(pvt)    \
-	(pvt->dram_ctl_select_low & F10_DCTL_SEL_LOW_DctSelHiRngEn)
-
-#define dct_interleave_enabled(pvt)	   \
-	(pvt->dram_ctl_select_low & F10_DCTL_SEL_LOW_DctSelIntLvEn)
-
-#define dct_ganging_enabled(pvt)        \
-	(pvt->dram_ctl_select_low & F10_DCTL_SEL_LOW_DctGangEn)
-
-#define dct_data_intlv_enabled(pvt)    \
-	(pvt->dram_ctl_select_low & F10_DCTL_SEL_LOW_DctDatIntLv)
-
-#define dct_dram_enabled(pvt)    \
-	(pvt->dram_ctl_select_low & F10_DCTL_SEL_LOW_DramEnable)
-
-#define dct_memory_cleared(pvt)    \
-	(pvt->dram_ctl_select_low & F10_DCTL_SEL_LOW_MemCleared)
-
+#define dct_sel_baseaddr(pvt)		((pvt->dram_ctl_select_low) & 0xFFFFF800)
+#define dct_sel_interleave_addr(pvt)	(((pvt->dram_ctl_select_low) >> 6) & 0x3)
+#define dct_high_range_enabled(pvt)	(pvt->dram_ctl_select_low & BIT(0))
+#define dct_interleave_enabled(pvt)	(pvt->dram_ctl_select_low & BIT(2))
+#define dct_ganging_enabled(pvt)	(pvt->dram_ctl_select_low & BIT(4))
+#define dct_data_intlv_enabled(pvt)	(pvt->dram_ctl_select_low & BIT(5))
+#define dct_dram_enabled(pvt)		(pvt->dram_ctl_select_low & BIT(8))
+#define dct_memory_cleared(pvt)		(pvt->dram_ctl_select_low & BIT(10))
 
 #define F10_DCTL_SEL_HIGH		0x114
-
 
 /*
  * Function 3 - Misc Control
@@ -382,6 +355,8 @@ enum {
 #define K8_NBCAP_SECDED			BIT(3)
 #define K8_NBCAP_DCT_DUAL		BIT(0)
 
+#define EXT_NB_MCA_CFG			0x180
+
 /* MSRs */
 #define K8_MSR_MCGCTL_NBE		BIT(4)
 
@@ -471,6 +446,9 @@ struct amd64_pvt {
 	u32 dram_ctl_select_high;	/* DRAM Controller Select High Reg */
 	u32 online_spare;               /* On-Line spare Reg */
 
+	/* x4 or x8 syndromes in use */
+	u8 syn_type;
+
 	/* temp storage for when input is received from sysfs */
 	struct err_regs ctl_error_info;
 
@@ -504,11 +482,10 @@ extern const char *rrrr_msgs[16];
 extern const char *to_msgs[2];
 extern const char *pp_msgs[4];
 extern const char *ii_msgs[4];
-extern const char *ext_msgs[32];
 extern const char *htlink_msgs[8];
 
 #ifdef CONFIG_EDAC_DEBUG
-#define NUM_DBG_ATTRS 9
+#define NUM_DBG_ATTRS 5
 #else
 #define NUM_DBG_ATTRS 0
 #endif

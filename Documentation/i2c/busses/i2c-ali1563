@@ -3,7 +3,7 @@ Kernel driver i2c-ali1563
 Supported adapters:
   * Acer Labs, Inc. ALI 1563 (south bridge)
     Datasheet: Now under NDA
-	http://www.ali.com.tw/eng/support/datasheet_request.php
+	http://www.ali.com.tw/
 
 Author: Patrick Mochel <mochel@digitalimplant.org>
 

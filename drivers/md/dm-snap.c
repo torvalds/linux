@@ -148,6 +148,12 @@ struct dm_snapshot {
 #define RUNNING_MERGE          0
 #define SHUTDOWN_MERGE         1
 
+struct dm_dev *dm_snap_origin(struct dm_snapshot *s)
+{
+	return s->origin;
+}
+EXPORT_SYMBOL(dm_snap_origin);
+
 struct dm_dev *dm_snap_cow(struct dm_snapshot *s)
 {
 	return s->cow;
@@ -700,8 +706,6 @@ static int dm_add_exception(void *context, chunk_t old, chunk_t new)
 	return 0;
 }
 
-#define min_not_zero(l, r) (((l) == 0) ? (r) : (((r) == 0) ? (l) : min(l, r)))
-
 /*
  * Return a minimum chunk size of all snapshots that have the specified origin.
  * Return zero if the origin has no snapshots.
@@ -1065,16 +1069,22 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		origin_mode = FMODE_WRITE;
 	}
 
-	origin_path = argv[0];
-	argv++;
-	argc--;
-
 	s = kmalloc(sizeof(*s), GFP_KERNEL);
 	if (!s) {
 		ti->error = "Cannot allocate snapshot context private "
 		    "structure";
 		r = -ENOMEM;
 		goto bad;
+	}
+
+	origin_path = argv[0];
+	argv++;
+	argc--;
+
+	r = dm_get_device(ti, origin_path, origin_mode, &s->origin);
+	if (r) {
+		ti->error = "Cannot get origin device";
+		goto bad_origin;
 	}
 
 	cow_path = argv[0];
@@ -1096,12 +1106,6 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	argv += args_used;
 	argc -= args_used;
-
-	r = dm_get_device(ti, origin_path, origin_mode, &s->origin);
-	if (r) {
-		ti->error = "Cannot get origin device";
-		goto bad_origin;
-	}
 
 	s->ti = ti;
 	s->valid = 1;
@@ -1212,15 +1216,15 @@ bad_kcopyd:
 	dm_exception_table_exit(&s->complete, exception_cache);
 
 bad_hash_tables:
-	dm_put_device(ti, s->origin);
-
-bad_origin:
 	dm_exception_store_destroy(s->store);
 
 bad_store:
 	dm_put_device(ti, s->cow);
 
 bad_cow:
+	dm_put_device(ti, s->origin);
+
+bad_origin:
 	kfree(s);
 
 bad:
@@ -1314,11 +1318,11 @@ static void snapshot_dtr(struct dm_target *ti)
 
 	mempool_destroy(s->pending_pool);
 
-	dm_put_device(ti, s->origin);
-
 	dm_exception_store_destroy(s->store);
 
 	dm_put_device(ti, s->cow);
+
+	dm_put_device(ti, s->origin);
 
 	kfree(s);
 }
@@ -1581,7 +1585,7 @@ static int snapshot_map(struct dm_target *ti, struct bio *bio,
 	chunk_t chunk;
 	struct dm_snap_pending_exception *pe = NULL;
 
-	if (unlikely(bio_empty_barrier(bio))) {
+	if (bio->bi_rw & REQ_FLUSH) {
 		bio->bi_bdev = s->cow->bdev;
 		return DM_MAPIO_REMAPPED;
 	}
@@ -1685,8 +1689,8 @@ static int snapshot_merge_map(struct dm_target *ti, struct bio *bio,
 	int r = DM_MAPIO_REMAPPED;
 	chunk_t chunk;
 
-	if (unlikely(bio_empty_barrier(bio))) {
-		if (!map_context->flush_request)
+	if (bio->bi_rw & REQ_FLUSH) {
+		if (!map_context->target_request_nr)
 			bio->bi_bdev = s->origin->bdev;
 		else
 			bio->bi_bdev = s->cow->bdev;
@@ -1899,8 +1903,14 @@ static int snapshot_iterate_devices(struct dm_target *ti,
 				    iterate_devices_callout_fn fn, void *data)
 {
 	struct dm_snapshot *snap = ti->private;
+	int r;
 
-	return fn(ti, snap->origin, 0, ti->len, data);
+	r = fn(ti, snap->origin, 0, ti->len, data);
+
+	if (!r)
+		r = fn(ti, snap->cow, 0, get_dev_size(snap->cow->bdev), data);
+
+	return r;
 }
 
 
@@ -2123,7 +2133,7 @@ static int origin_map(struct dm_target *ti, struct bio *bio,
 	struct dm_dev *dev = ti->private;
 	bio->bi_bdev = dev->bdev;
 
-	if (unlikely(bio_empty_barrier(bio)))
+	if (bio->bi_rw & REQ_FLUSH)
 		return DM_MAPIO_REMAPPED;
 
 	/* Only tell snapshots if this is a write */
@@ -2159,6 +2169,21 @@ static int origin_status(struct dm_target *ti, status_type_t type, char *result,
 	return 0;
 }
 
+static int origin_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
+			struct bio_vec *biovec, int max_size)
+{
+	struct dm_dev *dev = ti->private;
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+
+	if (!q->merge_bvec_fn)
+		return max_size;
+
+	bvm->bi_bdev = dev->bdev;
+	bvm->bi_sector = bvm->bi_sector;
+
+	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
+}
+
 static int origin_iterate_devices(struct dm_target *ti,
 				  iterate_devices_callout_fn fn, void *data)
 {
@@ -2176,6 +2201,7 @@ static struct target_type origin_target = {
 	.map     = origin_map,
 	.resume  = origin_resume,
 	.status  = origin_status,
+	.merge	 = origin_merge,
 	.iterate_devices = origin_iterate_devices,
 };
 

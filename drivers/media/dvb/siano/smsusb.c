@@ -352,8 +352,7 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	params.num_buffers = MAX_BUFFERS;
 	params.sendrequest_handler = smsusb_sendrequest;
 	params.context = dev;
-	snprintf(params.devpath, sizeof(params.devpath),
-		 "usb\\%d-%s", dev->udev->bus->busnum, dev->udev->devpath);
+	usb_make_path(dev->udev, params.devpath, sizeof(params.devpath));
 
 	/* register in smscore */
 	rc = smscore_register_device(&params, &dev->coredev);

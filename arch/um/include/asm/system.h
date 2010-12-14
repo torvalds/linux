@@ -8,23 +8,38 @@ extern int set_signals(int enable);
 extern void block_signals(void);
 extern void unblock_signals(void);
 
-#define local_save_flags(flags) do { typecheck(unsigned long, flags); \
-				     (flags) = get_signals(); } while(0)
-#define local_irq_restore(flags) do { typecheck(unsigned long, flags); \
-				      set_signals(flags); } while(0)
+static inline unsigned long arch_local_save_flags(void)
+{
+	return get_signals();
+}
 
-#define local_irq_save(flags) do { local_save_flags(flags); \
-                                   local_irq_disable(); } while(0)
+static inline void arch_local_irq_restore(unsigned long flags)
+{
+	set_signals(flags);
+}
 
-#define local_irq_enable() unblock_signals()
-#define local_irq_disable() block_signals()
+static inline void arch_local_irq_enable(void)
+{
+	unblock_signals();
+}
 
-#define irqs_disabled()                 \
-({                                      \
-        unsigned long flags;            \
-        local_save_flags(flags);        \
-        (flags == 0);                   \
-})
+static inline void arch_local_irq_disable(void)
+{
+	block_signals();
+}
+
+static inline unsigned long arch_local_irq_save(void)
+{
+	unsigned long flags;
+	flags = arch_local_save_flags();
+	arch_local_irq_disable();
+	return flags;
+}
+
+static inline bool arch_irqs_disabled(void)
+{
+	return arch_local_save_flags() == 0;
+}
 
 extern void *_switch_to(void *prev, void *next, void *last);
 #define switch_to(prev, next, last) prev = _switch_to(prev, next, last)

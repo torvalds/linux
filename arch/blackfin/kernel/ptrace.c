@@ -27,6 +27,7 @@
 #include <asm/fixed_code.h>
 #include <asm/cacheflush.h>
 #include <asm/mem_map.h>
+#include <asm/mmu_context.h>
 
 /*
  * does not yet catch signals sent when the child dies.
@@ -37,12 +38,13 @@
  * Get contents of register REGNO in task TASK.
  */
 static inline long
-get_reg(struct task_struct *task, long regno, unsigned long __user *datap)
+get_reg(struct task_struct *task, unsigned long regno,
+	unsigned long __user *datap)
 {
 	long tmp;
 	struct pt_regs *regs = task_pt_regs(task);
 
-	if (regno & 3 || regno > PT_LAST_PSEUDO || regno < 0)
+	if (regno & 3 || regno > PT_LAST_PSEUDO)
 		return -EIO;
 
 	switch (regno) {
@@ -73,11 +75,11 @@ get_reg(struct task_struct *task, long regno, unsigned long __user *datap)
  * Write contents of register REGNO in task TASK.
  */
 static inline int
-put_reg(struct task_struct *task, long regno, unsigned long data)
+put_reg(struct task_struct *task, unsigned long regno, unsigned long data)
 {
 	struct pt_regs *regs = task_pt_regs(task);
 
-	if (regno & 3 || regno > PT_LAST_PSEUDO || regno < 0)
+	if (regno & 3 || regno > PT_LAST_PSEUDO)
 		return -EIO;
 
 	switch (regno) {
@@ -113,8 +115,8 @@ put_reg(struct task_struct *task, long regno, unsigned long data)
 /*
  * check that an address falls within the bounds of the target process's memory mappings
  */
-static inline int is_user_addr_valid(struct task_struct *child,
-				     unsigned long start, unsigned long len)
+int
+is_user_addr_valid(struct task_struct *child, unsigned long start, unsigned long len)
 {
 	struct vm_area_struct *vma;
 	struct sram_list_struct *sraml;
@@ -134,6 +136,13 @@ static inline int is_user_addr_valid(struct task_struct *child,
 
 	if (start >= FIXED_CODE_START && start + len < FIXED_CODE_END)
 		return 0;
+
+#ifdef CONFIG_APP_STACK_L1
+	if (child->mm->context.l1_stack_save)
+		if (start >= (unsigned long)l1_stack_base &&
+			start + len < (unsigned long)l1_stack_base + l1_stack_len)
+			return 0;
+#endif
 
 	return -EIO;
 }
@@ -232,7 +241,8 @@ void user_disable_single_step(struct task_struct *child)
 	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 }
 
-long arch_ptrace(struct task_struct *child, long request, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request,
+		 unsigned long addr, unsigned long data)
 {
 	int ret;
 	unsigned long __user *datap = (unsigned long __user *)data;
@@ -360,14 +370,14 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		return copy_regset_to_user(child, &user_bfin_native_view,
 					   REGSET_GENERAL,
 					   0, sizeof(struct pt_regs),
-					   (void __user *)data);
+					   datap);
 
 	case PTRACE_SETREGS:
 		pr_debug("ptrace: PTRACE_SETREGS\n");
 		return copy_regset_from_user(child, &user_bfin_native_view,
 					     REGSET_GENERAL,
 					     0, sizeof(struct pt_regs),
-					     (const void __user *)data);
+					     datap);
 
 	case_default:
 	default:

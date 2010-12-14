@@ -394,4 +394,15 @@
 #define LPA_PAUSE_ALL			(LPA_PAUSE_CAP | \
 					 LPA_PAUSE_ASYM)
 
+/*
+ * Provide hooks to let the arch add to the initialisation procedure
+ * and to override the source of the MAC address.
+ */
+#define SMSC_INITIALIZE()		do {} while (0)
+#define smsc_get_mac(dev)		smsc911x_read_mac_address((dev))
+
+#ifdef CONFIG_SMSC911X_ARCH_HOOKS
+#include <asm/smsc911x.h>
+#endif
+
 #endif				/* __SMSC911X_H__ */

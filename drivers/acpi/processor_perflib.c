@@ -447,8 +447,8 @@ int acpi_processor_notify_smm(struct module *calling_module)
 	if (!try_module_get(calling_module))
 		return -EINVAL;
 
-	/* is_done is set to negative if an error occured,
-	 * and to postitive if _no_ error occured, but SMM
+	/* is_done is set to negative if an error occurred,
+	 * and to postitive if _no_ error occurred, but SMM
 	 * was already notified. This avoids double notification
 	 * which might lead to unexpected results...
 	 */

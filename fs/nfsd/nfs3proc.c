@@ -168,7 +168,7 @@ nfsd3_proc_read(struct svc_rqst *rqstp, struct nfsd3_readargs *argp,
 	svc_reserve_auth(rqstp, ((1 + NFS3_POST_OP_ATTR_WORDS + 3)<<2) + resp->count +4);
 
 	fh_copy(&resp->fh, &argp->fh);
-	nfserr = nfsd_read(rqstp, &resp->fh, NULL,
+	nfserr = nfsd_read(rqstp, &resp->fh,
 				  argp->offset,
 			   	  rqstp->rq_vec, argp->vlen,
 				  &resp->count);
@@ -271,7 +271,7 @@ nfsd3_proc_mkdir(struct svc_rqst *rqstp, struct nfsd3_createargs *argp,
 	fh_init(&resp->fh, NFS3_FHSIZE);
 	nfserr = nfsd_create(rqstp, &resp->dirfh, argp->name, argp->len,
 				    &argp->attrs, S_IFDIR, 0, &resp->fh);
-
+	fh_unlock(&resp->dirfh);
 	RETURN_STATUS(nfserr);
 }
 
@@ -327,7 +327,7 @@ nfsd3_proc_mknod(struct svc_rqst *rqstp, struct nfsd3_mknodargs *argp,
 	type = nfs3_ftypes[argp->ftype];
 	nfserr = nfsd_create(rqstp, &resp->dirfh, argp->name, argp->len,
 				    &argp->attrs, type, rdev, &resp->fh);
-
+	fh_unlock(&resp->dirfh);
 	RETURN_STATUS(nfserr);
 }
 
@@ -348,6 +348,7 @@ nfsd3_proc_remove(struct svc_rqst *rqstp, struct nfsd3_diropargs *argp,
 	/* Unlink. -S_IFDIR means file must not be a directory */
 	fh_copy(&resp->fh, &argp->fh);
 	nfserr = nfsd_unlink(rqstp, &resp->fh, -S_IFDIR, argp->name, argp->len);
+	fh_unlock(&resp->fh);
 	RETURN_STATUS(nfserr);
 }
 
@@ -367,6 +368,7 @@ nfsd3_proc_rmdir(struct svc_rqst *rqstp, struct nfsd3_diropargs *argp,
 
 	fh_copy(&resp->fh, &argp->fh);
 	nfserr = nfsd_unlink(rqstp, &resp->fh, S_IFDIR, argp->name, argp->len);
+	fh_unlock(&resp->fh);
 	RETURN_STATUS(nfserr);
 }
 

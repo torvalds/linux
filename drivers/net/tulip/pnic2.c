@@ -59,7 +59,7 @@
  * Bit 14:12 - autonegotiation state (write 001 to start autonegotiate)
  * Bit 3     - Autopolarity state
  * Bit 2     - LS10B - link state of 10baseT 0 - good, 1 - failed
- * Bit 1     - LS100B - link state of 100baseT 0 - good, 1- faild
+ * Bit 1     - LS100B - link state of 100baseT 0 - good, 1 - failed
  *
  *
  * Data Port Selection Info

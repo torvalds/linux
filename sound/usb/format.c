@@ -49,7 +49,8 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 	u64 pcm_formats;
 
 	switch (protocol) {
-	case UAC_VERSION_1: {
+	case UAC_VERSION_1:
+	default: {
 		struct uac_format_type_i_discrete_descriptor *fmt = _fmt;
 		sample_width = fmt->bBitResolution;
 		sample_bytes = fmt->bSubframeSize;
@@ -64,9 +65,6 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		format <<= 1;
 		break;
 	}
-
-	default:
-		return -EINVAL;
 	}
 
 	pcm_formats = 0;
@@ -264,13 +262,12 @@ static int parse_uac2_sample_rate_range(struct audioformat *fp, int nr_triplets,
  * on the audioformat table (audio class v2).
  */
 static int parse_audio_format_rates_v2(struct snd_usb_audio *chip,
-				       struct audioformat *fp,
-				       struct usb_host_interface *iface)
+				       struct audioformat *fp)
 {
 	struct usb_device *dev = chip->dev;
 	unsigned char tmp[2], *data;
 	int nr_triplets, data_size, ret = 0;
-	int clock = snd_usb_clock_find_source(chip, chip->ctrl_intf, fp->clock);
+	int clock = snd_usb_clock_find_source(chip, fp->clock);
 
 	if (clock < 0) {
 		snd_printk(KERN_ERR "%s(): unable to find clock source (clock %d)\n",
@@ -385,13 +382,17 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 	 * audio class v2 uses class specific EP0 range requests for that.
 	 */
 	switch (protocol) {
+	default:
+		snd_printdd(KERN_WARNING "%d:%u:%d : invalid protocol version %d, assuming v1\n",
+			   chip->dev->devnum, fp->iface, fp->altsetting, protocol);
+		/* fall through */
 	case UAC_VERSION_1:
 		fp->channels = fmt->bNrChannels;
 		ret = parse_audio_format_rates_v1(chip, fp, (unsigned char *) fmt, 7);
 		break;
 	case UAC_VERSION_2:
 		/* fp->channels is already set in this case */
-		ret = parse_audio_format_rates_v2(chip, fp, iface);
+		ret = parse_audio_format_rates_v2(chip, fp);
 		break;
 	}
 
@@ -435,6 +436,10 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 	fp->channels = 1;
 
 	switch (protocol) {
+	default:
+		snd_printdd(KERN_WARNING "%d:%u:%d : invalid protocol version %d, assuming v1\n",
+			   chip->dev->devnum, fp->iface, fp->altsetting, protocol);
+		/* fall through */
 	case UAC_VERSION_1: {
 		struct uac_format_type_ii_discrete_descriptor *fmt = _fmt;
 		brate = le16_to_cpu(fmt->wMaxBitRate);
@@ -450,7 +455,7 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 		framesize = le16_to_cpu(fmt->wSamplesPerFrame);
 		snd_printd(KERN_INFO "found format II with max.bitrate = %d, frame size=%d\n", brate, framesize);
 		fp->frame_size = framesize;
-		ret = parse_audio_format_rates_v2(chip, fp, iface);
+		ret = parse_audio_format_rates_v2(chip, fp);
 		break;
 	}
 	}

@@ -52,12 +52,10 @@ static void shutdown_onchannelcallback(void *context)
 	struct icmsg_hdr *icmsghdrp;
 	struct icmsg_negotiate *negop = NULL;
 
-	DPRINT_ENTER(VMBUS);
-
 	buflen = PAGE_SIZE;
 	buf = kmalloc(buflen, GFP_ATOMIC);
 
-	VmbusChannelRecvPacket(channel, buf, buflen, &recvlen, &requestid);
+	vmbus_recvpacket(channel, buf, buflen, &recvlen, &requestid);
 
 	if (recvlen > 0) {
 		DPRINT_DBG(VMBUS, "shutdown packet: len=%d, requestid=%lld",
@@ -95,14 +93,12 @@ static void shutdown_onchannelcallback(void *context)
 		icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION
 			| ICMSGHDRFLAG_RESPONSE;
 
-		VmbusChannelSendPacket(channel, buf,
+		vmbus_sendpacket(channel, buf,
 				       recvlen, requestid,
 				       VmbusPacketTypeDataInBand, 0);
 	}
 
 	kfree(buf);
-
-	DPRINT_EXIT(VMBUS);
 
 	if (execute_shutdown == true)
 		orderly_poweroff(false);
@@ -160,12 +156,10 @@ static void timesync_onchannelcallback(void *context)
 	struct icmsg_hdr *icmsghdrp;
 	struct ictimesync_data *timedatap;
 
-	DPRINT_ENTER(VMBUS);
-
 	buflen = PAGE_SIZE;
 	buf = kmalloc(buflen, GFP_ATOMIC);
 
-	VmbusChannelRecvPacket(channel, buf, buflen, &recvlen, &requestid);
+	vmbus_recvpacket(channel, buf, buflen, &recvlen, &requestid);
 
 	if (recvlen > 0) {
 		DPRINT_DBG(VMBUS, "timesync packet: recvlen=%d, requestid=%lld",
@@ -186,14 +180,12 @@ static void timesync_onchannelcallback(void *context)
 		icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION
 			| ICMSGHDRFLAG_RESPONSE;
 
-		VmbusChannelSendPacket(channel, buf,
+		vmbus_sendpacket(channel, buf,
 				recvlen, requestid,
 				VmbusPacketTypeDataInBand, 0);
 	}
 
 	kfree(buf);
-
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -210,12 +202,10 @@ static void heartbeat_onchannelcallback(void *context)
 	struct icmsg_hdr *icmsghdrp;
 	struct heartbeat_msg_data *heartbeat_msg;
 
-	DPRINT_ENTER(VMBUS);
-
 	buflen = PAGE_SIZE;
 	buf = kmalloc(buflen, GFP_ATOMIC);
 
-	VmbusChannelRecvPacket(channel, buf, buflen, &recvlen, &requestid);
+	vmbus_recvpacket(channel, buf, buflen, &recvlen, &requestid);
 
 	if (recvlen > 0) {
 		DPRINT_DBG(VMBUS, "heartbeat packet: len=%d, requestid=%lld",
@@ -243,14 +233,12 @@ static void heartbeat_onchannelcallback(void *context)
 		icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION
 			| ICMSGHDRFLAG_RESPONSE;
 
-		VmbusChannelSendPacket(channel, buf,
+		vmbus_sendpacket(channel, buf,
 				       recvlen, requestid,
 				       VmbusPacketTypeDataInBand, 0);
 	}
 
 	kfree(buf);
-
-	DPRINT_EXIT(VMBUS);
 }
 
 static const struct pci_device_id __initconst

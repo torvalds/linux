@@ -52,7 +52,7 @@
 static unsigned char smcfs_mult[8] = { 6, 0, 8, 0, 0, 16, };
 
 /* crystal frequency to HSIO bus frequency multiplier (HSS) */
-static unsigned char hss_mult[4] = { 8, 12, 16, 0 };
+static unsigned char hss_mult[4] = { 8, 12, 16, 24 };
 
 /*
  * Get the clock frequency as reflected by CCSR and the turbo flag.
@@ -96,23 +96,6 @@ unsigned int pxa3xx_get_clk_frequency_khz(int info)
 	}
 
 	return CLK / 1000;
-}
-
-/*
- * Return the current static memory controller clock frequency
- * in units of 10kHz
- */
-unsigned int pxa3xx_get_memclk_frequency_10khz(void)
-{
-	unsigned long acsr;
-	unsigned int smcfs, clk = 0;
-
-	acsr = ACSR;
-
-	smcfs = (acsr >> 23) & 0x7;
-	clk = (acsr & ACCR_D0CS) ? RO_CLK : smcfs_mult[smcfs] * BASE_CLK;
-
-	return (clk / 10000);
 }
 
 void pxa3xx_clear_reset_status(unsigned int mask)
@@ -265,7 +248,7 @@ static struct clk_lookup pxa3xx_clkregs[] = {
 	INIT_CLKREG(&clk_pxa3xx_i2c, "pxa2xx-i2c.0", NULL),
 	INIT_CLKREG(&clk_pxa3xx_udc, "pxa27x-udc", NULL),
 	INIT_CLKREG(&clk_pxa3xx_usbh, "pxa27x-ohci", NULL),
-	INIT_CLKREG(&clk_pxa3xx_u2d, NULL, "U2DCLK"),
+	INIT_CLKREG(&clk_pxa3xx_u2d, "pxa3xx-u2d", NULL),
 	INIT_CLKREG(&clk_pxa3xx_keypad, "pxa27x-keypad", NULL),
 	INIT_CLKREG(&clk_pxa3xx_ssp1, "pxa27x-ssp.0", NULL),
 	INIT_CLKREG(&clk_pxa3xx_ssp2, "pxa27x-ssp.1", NULL),
@@ -552,11 +535,23 @@ static void pxa_unmask_ext_wakeup(unsigned int irq)
 	PECR |= PECR_IE(irq - IRQ_WAKEUP0);
 }
 
+static int pxa_set_ext_wakeup_type(unsigned int irq, unsigned int flow_type)
+{
+	if (flow_type & IRQ_TYPE_EDGE_RISING)
+		PWER |= 1 << (irq - IRQ_WAKEUP0);
+
+	if (flow_type & IRQ_TYPE_EDGE_FALLING)
+		PWER |= 1 << (irq - IRQ_WAKEUP0 + 2);
+
+	return 0;
+}
+
 static struct irq_chip pxa_ext_wakeup_chip = {
 	.name		= "WAKEUP",
 	.ack		= pxa_ack_ext_wakeup,
 	.mask		= pxa_mask_ext_wakeup,
 	.unmask		= pxa_unmask_ext_wakeup,
+	.set_type	= pxa_set_ext_wakeup_type,
 };
 
 static void __init pxa_init_ext_wakeup_irq(set_wake_t fn)
@@ -596,7 +591,13 @@ void __init pxa3xx_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 
 static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_udc,
+	&pxa_device_pmu,
 	&pxa_device_i2s,
+	&pxa_device_asoc_ssp1,
+	&pxa_device_asoc_ssp2,
+	&pxa_device_asoc_ssp3,
+	&pxa_device_asoc_ssp4,
+	&pxa_device_asoc_platform,
 	&sa1100_device_rtc,
 	&pxa_device_rtc,
 	&pxa27x_device_ssp1,

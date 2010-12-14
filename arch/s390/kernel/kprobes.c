@@ -316,6 +316,8 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		return 1;
 
 ss_probe:
+	if (regs->psw.mask & (PSW_MASK_PER | PSW_MASK_IO))
+		local_irq_disable();
 	prepare_singlestep(p, regs);
 	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
@@ -463,6 +465,8 @@ static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 		goto out;
 	}
 	reset_current_kprobe();
+	if (regs->psw.mask & (PSW_MASK_PER | PSW_MASK_IO))
+		local_irq_enable();
 out:
 	preempt_enable_no_resched();
 
@@ -502,8 +506,11 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		regs->psw.mask |= kcb->kprobe_saved_imask;
 		if (kcb->kprobe_status == KPROBE_REENTER)
 			restore_previous_kprobe(kcb);
-		else
+		else {
 			reset_current_kprobe();
+			if (regs->psw.mask & (PSW_MASK_PER | PSW_MASK_IO))
+				local_irq_enable();
+		}
 		preempt_enable_no_resched();
 		break;
 	case KPROBE_HIT_ACTIVE:

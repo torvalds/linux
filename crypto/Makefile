@@ -26,7 +26,7 @@ crypto_hash-objs += ahash.o
 crypto_hash-objs += shash.o
 obj-$(CONFIG_CRYPTO_HASH2) += crypto_hash.o
 
-obj-$(CONFIG_CRYPTO_PCOMP) += pcompress.o
+obj-$(CONFIG_CRYPTO_PCOMP2) += pcompress.o
 
 cryptomgr-objs := algboss.o testmgr.o
 
@@ -61,7 +61,7 @@ obj-$(CONFIG_CRYPTO_CRYPTD) += cryptd.o
 obj-$(CONFIG_CRYPTO_DES) += des_generic.o
 obj-$(CONFIG_CRYPTO_FCRYPT) += fcrypt.o
 obj-$(CONFIG_CRYPTO_BLOWFISH) += blowfish.o
-obj-$(CONFIG_CRYPTO_TWOFISH) += twofish.o
+obj-$(CONFIG_CRYPTO_TWOFISH) += twofish_generic.o
 obj-$(CONFIG_CRYPTO_TWOFISH_COMMON) += twofish_common.o
 obj-$(CONFIG_CRYPTO_SERPENT) += serpent.o
 obj-$(CONFIG_CRYPTO_AES) += aes_generic.o

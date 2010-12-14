@@ -1779,6 +1779,7 @@ static int e100_tx_clean(struct nic *nic)
 	for (cb = nic->cb_to_clean;
 	    cb->status & cpu_to_le16(cb_complete);
 	    cb = nic->cb_to_clean = cb->next) {
+		rmb(); /* read skb after status */
 		netif_printk(nic, tx_done, KERN_DEBUG, nic->netdev,
 			     "cb[%d]->status = 0x%04X\n",
 			     (int)(((void*)cb - (void*)nic->cbs)/sizeof(struct cb)),
@@ -1927,6 +1928,7 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 
 	netif_printk(nic, rx_status, KERN_DEBUG, nic->netdev,
 		     "status=0x%04X\n", rfd_status);
+	rmb(); /* read size after status bit */
 
 	/* If data isn't ready, nothing to indicate */
 	if (unlikely(!(rfd_status & cb_complete))) {
@@ -2213,10 +2215,10 @@ static int e100_change_mtu(struct net_device *netdev, int new_mtu)
 static int e100_asf(struct nic *nic)
 {
 	/* ASF can be enabled from eeprom */
-	return((nic->pdev->device >= 0x1050) && (nic->pdev->device <= 0x1057) &&
+	return (nic->pdev->device >= 0x1050) && (nic->pdev->device <= 0x1057) &&
 	   (nic->eeprom[eeprom_config_asf] & eeprom_asf) &&
 	   !(nic->eeprom[eeprom_config_asf] & eeprom_gcl) &&
-	   ((nic->eeprom[eeprom_smbus_addr] & 0xFF) != 0xFE));
+	   ((nic->eeprom[eeprom_smbus_addr] & 0xFF) != 0xFE);
 }
 
 static int e100_up(struct nic *nic)

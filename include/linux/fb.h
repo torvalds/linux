@@ -3,6 +3,9 @@
 
 #include <linux/types.h>
 #include <linux/i2c.h>
+#ifdef __KERNEL__
+#include <linux/kgdb.h>
+#endif /* __KERNEL__ */
 
 /* Definitions of frame buffers						*/
 
@@ -607,6 +610,12 @@ struct fb_deferred_io {
  * LOCKING NOTE: those functions must _ALL_ be called with the console
  * semaphore held, this is the only suitable locking mechanism we have
  * in 2.6. Some may be called at interrupt time at this point though.
+ *
+ * The exception to this is the debug related hooks.  Putting the fb
+ * into a debug state (e.g. flipping to the kernel console) and restoring
+ * it must be done in a lock-free manner, so low level drivers should
+ * keep track of the initial console (if applicable) and may need to
+ * perform direct, unlocked hardware writes in these hooks.
  */
 
 struct fb_ops {
@@ -676,6 +685,10 @@ struct fb_ops {
 
 	/* teardown any resources to do with this framebuffer */
 	void (*fb_destroy)(struct fb_info *info);
+
+	/* called at KDB enter and leave time to prepare the console */
+	int (*fb_debug_enter)(struct fb_info *info);
+	int (*fb_debug_leave)(struct fb_info *info);
 };
 
 #ifdef CONFIG_FB_TILEBLITTING
@@ -812,6 +825,10 @@ struct fb_tile_ops {
  */
 #define FBINFO_BE_MATH  0x100000
 
+/* report to the VT layer that this fb driver can accept forced console
+   output like oopses */
+#define FBINFO_CAN_FORCE_OUTPUT     0x200000
+
 struct fb_info {
 	int node;
 	int flags;
@@ -914,6 +931,8 @@ static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
 #define fb_writel sbus_writel
 #define fb_writeq sbus_writeq
 #define fb_memset sbus_memset_io
+#define fb_memcpy_fromfb sbus_memcpy_fromio
+#define fb_memcpy_tofb sbus_memcpy_toio
 
 #elif defined(__i386__) || defined(__alpha__) || defined(__x86_64__) || defined(__hppa__) || defined(__sh__) || defined(__powerpc__) || defined(__avr32__) || defined(__bfin__)
 
@@ -926,6 +945,8 @@ static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
 #define fb_writel __raw_writel
 #define fb_writeq __raw_writeq
 #define fb_memset memset_io
+#define fb_memcpy_fromfb memcpy_fromio
+#define fb_memcpy_tofb memcpy_toio
 
 #else
 
@@ -938,6 +959,8 @@ static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
 #define fb_writel(b,addr) (*(volatile u32 *) (addr) = (b))
 #define fb_writeq(b,addr) (*(volatile u64 *) (addr) = (b))
 #define fb_memset memset
+#define fb_memcpy_fromfb memcpy
+#define fb_memcpy_tofb memcpy
 
 #endif
 

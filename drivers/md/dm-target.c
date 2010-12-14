@@ -113,6 +113,11 @@ void dm_unregister_target(struct target_type *tt)
  */
 static int io_err_ctr(struct dm_target *tt, unsigned int argc, char **args)
 {
+	/*
+	 * Return error for discards instead of -EOPNOTSUPP
+	 */
+	tt->num_discard_requests = 1;
+
 	return 0;
 }
 

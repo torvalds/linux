@@ -36,7 +36,7 @@ config USB_STORAGE_DATAFAB
 	depends on USB_STORAGE
 	help
 	  Support for certain Datafab CompactFlash readers.
-	  Datafab has a web page at <http://www.datafabusa.com/>.
+	  Datafab has a web page at <http://www.datafab.com/>.
 
 	  If this driver is compiled as a module, it will be named ums-datafab.
 
@@ -171,6 +171,19 @@ config USB_STORAGE_CYPRESS_ATACB
 	  mass storage class.
 
 	  If this driver is compiled as a module, it will be named ums-cypress.
+
+config USB_UAS
+	tristate "USB Attached SCSI"
+	depends on USB && SCSI
+	help
+	  The USB Attached SCSI protocol is supported by some USB
+	  storage devices.  It permits higher performance by supporting
+	  multiple outstanding commands.
+
+	  If you don't know whether you have a UAS device, it is safe to
+	  say 'Y' or 'M' here and the kernel will use the right driver.
+
+	  If you compile this driver as a module, it will be named uas.
 
 config USB_LIBUSUAL
 	bool "The shared table of common (or usual) storage devices"

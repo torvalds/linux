@@ -646,17 +646,14 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 	size_t size;
 	int rc;
 
-	lock_kernel();
 	mutex_lock(&mon_lock);
 	if ((mbus = mon_bus_lookup(iminor(inode))) == NULL) {
 		mutex_unlock(&mon_lock);
-		unlock_kernel();
 		return -ENODEV;
 	}
 	if (mbus != &mon_bus0 && mbus->u_bus == NULL) {
 		printk(KERN_ERR TAG ": consistency error on open\n");
 		mutex_unlock(&mon_lock);
-		unlock_kernel();
 		return -ENODEV;
 	}
 
@@ -689,7 +686,6 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 
 	file->private_data = rp;
 	mutex_unlock(&mon_lock);
-	unlock_kernel();
 	return 0;
 
 err_allocbuff:
@@ -698,7 +694,6 @@ err_allocvec:
 	kfree(rp);
 err_alloc:
 	mutex_unlock(&mon_lock);
-	unlock_kernel();
 	return rc;
 }
 
@@ -954,7 +949,7 @@ static int mon_bin_queued(struct mon_reader_bin *rp)
 
 /*
  */
-static int mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct mon_reader_bin *rp = file->private_data;
 	// struct mon_bus* mbus = rp->r.m_bus;
@@ -1009,7 +1004,7 @@ static int mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		mutex_lock(&rp->fetch_lock);
 		spin_lock_irqsave(&rp->b_lock, flags);
-		mon_free_buff(rp->b_vec, size/CHUNK_SIZE);
+		mon_free_buff(rp->b_vec, rp->b_size/CHUNK_SIZE);
 		kfree(rp->b_vec);
 		rp->b_vec  = vec;
 		rp->b_size = size;
@@ -1093,19 +1088,6 @@ static int mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	return ret;
 }
-
-static long mon_bin_unlocked_ioctl(struct file *file, unsigned int cmd,
-				   unsigned long arg)
-{
-	int ret;
-
-	lock_kernel();
-	ret = mon_bin_ioctl(file, cmd, arg);
-	unlock_kernel();
-
-	return ret;
-}
-
 
 #ifdef CONFIG_COMPAT
 static long mon_bin_compat_ioctl(struct file *file,
@@ -1250,7 +1232,7 @@ static const struct file_operations mon_fops_binary = {
 	.read =		mon_bin_read,
 	/* .write =	mon_text_write, */
 	.poll =		mon_bin_poll,
-	.unlocked_ioctl = mon_bin_unlocked_ioctl,
+	.unlocked_ioctl = mon_bin_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl =	mon_bin_compat_ioctl,
 #endif

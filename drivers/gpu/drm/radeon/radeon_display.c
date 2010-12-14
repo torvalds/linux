@@ -42,7 +42,7 @@ static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 	struct radeon_device *rdev = dev->dev_private;
 	int i;
 
-	DRM_DEBUG("%d\n", radeon_crtc->crtc_id);
+	DRM_DEBUG_KMS("%d\n", radeon_crtc->crtc_id);
 	WREG32(AVIVO_DC_LUTA_CONTROL + radeon_crtc->crtc_offset, 0);
 
 	WREG32(AVIVO_DC_LUTA_BLACK_OFFSET_BLUE + radeon_crtc->crtc_offset, 0);
@@ -75,7 +75,7 @@ static void evergreen_crtc_load_lut(struct drm_crtc *crtc)
 	struct radeon_device *rdev = dev->dev_private;
 	int i;
 
-	DRM_DEBUG("%d\n", radeon_crtc->crtc_id);
+	DRM_DEBUG_KMS("%d\n", radeon_crtc->crtc_id);
 	WREG32(EVERGREEN_DC_LUT_CONTROL + radeon_crtc->crtc_offset, 0);
 
 	WREG32(EVERGREEN_DC_LUT_BLACK_OFFSET_BLUE + radeon_crtc->crtc_offset, 0);
@@ -161,17 +161,13 @@ void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 }
 
 static void radeon_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
-				  u16 *blue, uint32_t size)
+				  u16 *blue, uint32_t start, uint32_t size)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
-	int i;
-
-	if (size != 256) {
-		return;
-	}
+	int end = (start + size > 256) ? 256 : start + size, i;
 
 	/* userspace palettes are always correct as is */
-	for (i = 0; i < 256; i++) {
+	for (i = start; i < end; i++) {
 		radeon_crtc->lut_r[i] = red[i] >> 6;
 		radeon_crtc->lut_g[i] = green[i] >> 6;
 		radeon_crtc->lut_b[i] = blue[i] >> 6;
@@ -319,6 +315,10 @@ static void radeon_print_display_setup(struct drm_device *dev)
 				 radeon_connector->ddc_bus->rec.en_data_reg,
 				 radeon_connector->ddc_bus->rec.y_clk_reg,
 				 radeon_connector->ddc_bus->rec.y_data_reg);
+			if (radeon_connector->router_bus)
+				DRM_INFO("  DDC Router 0x%x/0x%x\n",
+					 radeon_connector->router.mux_control_pin,
+					 radeon_connector->router.mux_state);
 		} else {
 			if (connector->connector_type == DRM_MODE_CONNECTOR_VGA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_DVII ||
@@ -349,6 +349,8 @@ static void radeon_print_display_setup(struct drm_device *dev)
 					DRM_INFO("    DFP4: %s\n", encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_DFP5_SUPPORT)
 					DRM_INFO("    DFP5: %s\n", encoder_names[radeon_encoder->encoder_id]);
+				if (devices & ATOM_DEVICE_DFP6_SUPPORT)
+					DRM_INFO("    DFP6: %s\n", encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_TV1_SUPPORT)
 					DRM_INFO("    TV1: %s\n", encoder_names[radeon_encoder->encoder_id]);
 				if (devices & ATOM_DEVICE_CV_SUPPORT)
@@ -395,6 +397,10 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 	struct radeon_device *rdev = dev->dev_private;
 	int ret = 0;
 
+	/* on hw with routers, select right port */
+	if (radeon_connector->router.valid)
+		radeon_router_select_port(radeon_connector);
+
 	if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
 	    (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)) {
 		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
@@ -425,6 +431,10 @@ static int radeon_ddc_dump(struct drm_connector *connector)
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	int ret = 0;
 
+	/* on hw with routers, select right port */
+	if (radeon_connector->router.valid)
+		radeon_router_select_port(radeon_connector);
+
 	if (!radeon_connector->ddc_bus)
 		return -1;
 	edid = drm_get_edid(connector, &radeon_connector->ddc_bus->adapter);
@@ -444,13 +454,13 @@ static inline uint32_t radeon_div(uint64_t n, uint32_t d)
 	return n;
 }
 
-static void radeon_compute_pll_legacy(struct radeon_pll *pll,
-				      uint64_t freq,
-				      uint32_t *dot_clock_p,
-				      uint32_t *fb_div_p,
-				      uint32_t *frac_fb_div_p,
-				      uint32_t *ref_div_p,
-				      uint32_t *post_div_p)
+void radeon_compute_pll(struct radeon_pll *pll,
+			uint64_t freq,
+			uint32_t *dot_clock_p,
+			uint32_t *fb_div_p,
+			uint32_t *frac_fb_div_p,
+			uint32_t *ref_div_p,
+			uint32_t *post_div_p)
 {
 	uint32_t min_ref_div = pll->min_ref_div;
 	uint32_t max_ref_div = pll->max_ref_div;
@@ -469,7 +479,7 @@ static void radeon_compute_pll_legacy(struct radeon_pll *pll,
 	uint32_t post_div;
 	u32 pll_out_min, pll_out_max;
 
-	DRM_DEBUG("PLL freq %llu %u %u\n", freq, pll->min_ref_div, pll->max_ref_div);
+	DRM_DEBUG_KMS("PLL freq %llu %u %u\n", freq, pll->min_ref_div, pll->max_ref_div);
 	freq = freq * 1000;
 
 	if (pll->flags & RADEON_PLL_IS_LCD) {
@@ -503,7 +513,7 @@ static void radeon_compute_pll_legacy(struct radeon_pll *pll,
 		max_fractional_feed_div = pll->max_frac_feedback_div;
 	}
 
-	for (post_div = min_post_div; post_div <= max_post_div; ++post_div) {
+	for (post_div = max_post_div; post_div >= min_post_div; --post_div) {
 		uint32_t ref_div;
 
 		if ((pll->flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
@@ -558,15 +568,17 @@ static void radeon_compute_pll_legacy(struct radeon_pll *pll,
 					current_freq = radeon_div(tmp, ref_div * post_div);
 
 					if (pll->flags & RADEON_PLL_PREFER_CLOSEST_LOWER) {
-						error = freq - current_freq;
-						error = error < 0 ? 0xffffffff : error;
+						if (freq < current_freq)
+							error = 0xffffffff;
+						else
+							error = freq - current_freq;
 					} else
 						error = abs(current_freq - freq);
 					vco_diff = abs(vco - best_vco);
 
 					if ((best_vco == 0 && error < best_error) ||
 					    (best_vco != 0 &&
-					     (error < best_error - 100 ||
+					     ((best_error > 100 && error < best_error - 100) ||
 					      (abs(error - best_error) < 100 && vco_diff < best_vco_diff)))) {
 						best_post_div = post_div;
 						best_ref_div = ref_div;
@@ -619,220 +631,13 @@ static void radeon_compute_pll_legacy(struct radeon_pll *pll,
 	*post_div_p = best_post_div;
 }
 
-static bool
-calc_fb_div(struct radeon_pll *pll,
-	    uint32_t freq,
-            uint32_t post_div,
-            uint32_t ref_div,
-            uint32_t *fb_div,
-            uint32_t *fb_div_frac)
-{
-	fixed20_12 feedback_divider, a, b;
-	u32 vco_freq;
-
-	vco_freq = freq * post_div;
-	/* feedback_divider = vco_freq * ref_div / pll->reference_freq; */
-	a.full = dfixed_const(pll->reference_freq);
-	feedback_divider.full = dfixed_const(vco_freq);
-	feedback_divider.full = dfixed_div(feedback_divider, a);
-	a.full = dfixed_const(ref_div);
-	feedback_divider.full = dfixed_mul(feedback_divider, a);
-
-	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV) {
-		/* feedback_divider = floor((feedback_divider * 10.0) + 0.5) * 0.1; */
-		a.full = dfixed_const(10);
-		feedback_divider.full = dfixed_mul(feedback_divider, a);
-		feedback_divider.full += dfixed_const_half(0);
-		feedback_divider.full = dfixed_floor(feedback_divider);
-		feedback_divider.full = dfixed_div(feedback_divider, a);
-
-		/* *fb_div = floor(feedback_divider); */
-		a.full = dfixed_floor(feedback_divider);
-		*fb_div = dfixed_trunc(a);
-		/* *fb_div_frac = fmod(feedback_divider, 1.0) * 10.0; */
-		a.full = dfixed_const(10);
-		b.full = dfixed_mul(feedback_divider, a);
-
-		feedback_divider.full = dfixed_floor(feedback_divider);
-		feedback_divider.full = dfixed_mul(feedback_divider, a);
-		feedback_divider.full = b.full - feedback_divider.full;
-		*fb_div_frac = dfixed_trunc(feedback_divider);
-	} else {
-		/* *fb_div = floor(feedback_divider + 0.5); */
-		feedback_divider.full += dfixed_const_half(0);
-		feedback_divider.full = dfixed_floor(feedback_divider);
-
-		*fb_div = dfixed_trunc(feedback_divider);
-		*fb_div_frac = 0;
-	}
-
-	if (((*fb_div) < pll->min_feedback_div) || ((*fb_div) > pll->max_feedback_div))
-		return false;
-	else
-		return true;
-}
-
-static bool
-calc_fb_ref_div(struct radeon_pll *pll,
-		uint32_t freq,
-		uint32_t post_div,
-		uint32_t *fb_div,
-                uint32_t *fb_div_frac,
-                uint32_t *ref_div)
-{
-	fixed20_12 ffreq, max_error, error, pll_out, a;
-	u32 vco;
-	u32 pll_out_min, pll_out_max;
-
-	if (pll->flags & RADEON_PLL_IS_LCD) {
-		pll_out_min = pll->lcd_pll_out_min;
-		pll_out_max = pll->lcd_pll_out_max;
-	} else {
-		pll_out_min = pll->pll_out_min;
-		pll_out_max = pll->pll_out_max;
-	}
-
-	ffreq.full = dfixed_const(freq);
-	/* max_error = ffreq * 0.0025; */
-	a.full = dfixed_const(400);
-	max_error.full = dfixed_div(ffreq, a);
-
-	for ((*ref_div) = pll->min_ref_div; (*ref_div) < pll->max_ref_div; ++(*ref_div)) {
-		if (calc_fb_div(pll, freq, post_div, (*ref_div), fb_div, fb_div_frac)) {
-			vco = pll->reference_freq * (((*fb_div) * 10) + (*fb_div_frac));
-			vco = vco / ((*ref_div) * 10);
-
-			if ((vco < pll_out_min) || (vco > pll_out_max))
-				continue;
-
-			/* pll_out = vco / post_div; */
-			a.full = dfixed_const(post_div);
-			pll_out.full = dfixed_const(vco);
-			pll_out.full = dfixed_div(pll_out, a);
-
-			if (pll_out.full >= ffreq.full) {
-				error.full = pll_out.full - ffreq.full;
-				if (error.full <= max_error.full)
-					return true;
-			}
-		}
-	}
-	return false;
-}
-
-static void radeon_compute_pll_new(struct radeon_pll *pll,
-				   uint64_t freq,
-				   uint32_t *dot_clock_p,
-				   uint32_t *fb_div_p,
-				   uint32_t *frac_fb_div_p,
-				   uint32_t *ref_div_p,
-				   uint32_t *post_div_p)
-{
-	u32 fb_div = 0, fb_div_frac = 0, post_div = 0, ref_div = 0;
-	u32 best_freq = 0, vco_frequency;
-	u32 pll_out_min, pll_out_max;
-
-	if (pll->flags & RADEON_PLL_IS_LCD) {
-		pll_out_min = pll->lcd_pll_out_min;
-		pll_out_max = pll->lcd_pll_out_max;
-	} else {
-		pll_out_min = pll->pll_out_min;
-		pll_out_max = pll->pll_out_max;
-	}
-
-	/* freq = freq / 10; */
-	do_div(freq, 10);
-
-	if (pll->flags & RADEON_PLL_USE_POST_DIV) {
-		post_div = pll->post_div;
-		if ((post_div < pll->min_post_div) || (post_div > pll->max_post_div))
-			goto done;
-
-		vco_frequency = freq * post_div;
-		if ((vco_frequency < pll_out_min) || (vco_frequency > pll_out_max))
-			goto done;
-
-		if (pll->flags & RADEON_PLL_USE_REF_DIV) {
-			ref_div = pll->reference_div;
-			if ((ref_div < pll->min_ref_div) || (ref_div > pll->max_ref_div))
-				goto done;
-			if (!calc_fb_div(pll, freq, post_div, ref_div, &fb_div, &fb_div_frac))
-				goto done;
-		}
-	} else {
-		for (post_div = pll->max_post_div; post_div >= pll->min_post_div; --post_div) {
-			if (pll->flags & RADEON_PLL_LEGACY) {
-				if ((post_div == 5) ||
-				    (post_div == 7) ||
-				    (post_div == 9) ||
-				    (post_div == 10) ||
-				    (post_div == 11))
-					continue;
-			}
-
-			if ((pll->flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
-				continue;
-
-			vco_frequency = freq * post_div;
-			if ((vco_frequency < pll_out_min) || (vco_frequency > pll_out_max))
-				continue;
-			if (pll->flags & RADEON_PLL_USE_REF_DIV) {
-				ref_div = pll->reference_div;
-				if ((ref_div < pll->min_ref_div) || (ref_div > pll->max_ref_div))
-					goto done;
-				if (calc_fb_div(pll, freq, post_div, ref_div, &fb_div, &fb_div_frac))
-					break;
-			} else {
-				if (calc_fb_ref_div(pll, freq, post_div, &fb_div, &fb_div_frac, &ref_div))
-					break;
-			}
-		}
-	}
-
-	best_freq = pll->reference_freq * 10 * fb_div;
-	best_freq += pll->reference_freq * fb_div_frac;
-	best_freq = best_freq / (ref_div * post_div);
-
-done:
-	if (best_freq == 0)
-		DRM_ERROR("Couldn't find valid PLL dividers\n");
-
-	*dot_clock_p = best_freq / 10;
-	*fb_div_p = fb_div;
-	*frac_fb_div_p = fb_div_frac;
-	*ref_div_p = ref_div;
-	*post_div_p = post_div;
-
-	DRM_DEBUG("%u %d.%d, %d, %d\n", *dot_clock_p, *fb_div_p, *frac_fb_div_p, *ref_div_p, *post_div_p);
-}
-
-void radeon_compute_pll(struct radeon_pll *pll,
-			uint64_t freq,
-			uint32_t *dot_clock_p,
-			uint32_t *fb_div_p,
-			uint32_t *frac_fb_div_p,
-			uint32_t *ref_div_p,
-			uint32_t *post_div_p)
-{
-	switch (pll->algo) {
-	case PLL_ALGO_NEW:
-		radeon_compute_pll_new(pll, freq, dot_clock_p, fb_div_p,
-				       frac_fb_div_p, ref_div_p, post_div_p);
-		break;
-	case PLL_ALGO_LEGACY:
-	default:
-		radeon_compute_pll_legacy(pll, freq, dot_clock_p, fb_div_p,
-					  frac_fb_div_p, ref_div_p, post_div_p);
-		break;
-	}
-}
-
 static void radeon_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct radeon_framebuffer *radeon_fb = to_radeon_framebuffer(fb);
 
-	if (radeon_fb->obj)
+	if (radeon_fb->obj) {
 		drm_gem_object_unreference_unlocked(radeon_fb->obj);
+	}
 	drm_framebuffer_cleanup(fb);
 	kfree(radeon_fb);
 }
@@ -874,13 +679,12 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 	if (obj ==  NULL) {
 		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
 			"can't create framebuffer\n", mode_cmd->handle);
-		return NULL;
+		return ERR_PTR(-ENOENT);
 	}
 
 	radeon_fb = kzalloc(sizeof(*radeon_fb), GFP_KERNEL);
-	if (radeon_fb == NULL) {
-		return NULL;
-	}
+	if (radeon_fb == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	radeon_framebuffer_init(dev, radeon_fb, mode_cmd, obj);
 
@@ -917,6 +721,12 @@ static struct drm_prop_enum_list radeon_tv_std_enum_list[] =
 	{ TV_STD_SCART_PAL, "scart-pal" },
 	{ TV_STD_PAL_CN, "pal-cn" },
 	{ TV_STD_SECAM, "secam" },
+};
+
+static struct drm_prop_enum_list radeon_underscan_enum_list[] =
+{	{ UNDERSCAN_OFF, "off" },
+	{ UNDERSCAN_ON, "on" },
+	{ UNDERSCAN_AUTO, "auto" },
 };
 
 static int radeon_modeset_create_props(struct radeon_device *rdev)
@@ -972,6 +782,36 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 				      radeon_tv_std_enum_list[i].name);
 	}
 
+	sz = ARRAY_SIZE(radeon_underscan_enum_list);
+	rdev->mode_info.underscan_property =
+		drm_property_create(rdev->ddev,
+				    DRM_MODE_PROP_ENUM,
+				    "underscan", sz);
+	for (i = 0; i < sz; i++) {
+		drm_property_add_enum(rdev->mode_info.underscan_property,
+				      i,
+				      radeon_underscan_enum_list[i].type,
+				      radeon_underscan_enum_list[i].name);
+	}
+
+	rdev->mode_info.underscan_hborder_property =
+		drm_property_create(rdev->ddev,
+					DRM_MODE_PROP_RANGE,
+					"underscan hborder", 2);
+	if (!rdev->mode_info.underscan_hborder_property)
+		return -ENOMEM;
+	rdev->mode_info.underscan_hborder_property->values[0] = 0;
+	rdev->mode_info.underscan_hborder_property->values[1] = 128;
+
+	rdev->mode_info.underscan_vborder_property =
+		drm_property_create(rdev->ddev,
+					DRM_MODE_PROP_RANGE,
+					"underscan vborder", 2);
+	if (!rdev->mode_info.underscan_vborder_property)
+		return -ENOMEM;
+	rdev->mode_info.underscan_vborder_property->values[0] = 0;
+	rdev->mode_info.underscan_vborder_property->values[1] = 128;
+
 	return 0;
 }
 
@@ -1020,6 +860,9 @@ int radeon_modeset_init(struct radeon_device *rdev)
 		return ret;
 	}
 
+	/* init i2c buses */
+	radeon_i2c_init(rdev);
+
 	/* check combios for a valid hardcoded EDID - Sun servers */
 	if (!rdev->is_atom_bios) {
 		/* check for hardcoded EDID in BIOS */
@@ -1060,6 +903,20 @@ void radeon_modeset_fini(struct radeon_device *rdev)
 		drm_mode_config_cleanup(rdev->ddev);
 		rdev->mode_info.mode_config_initialized = false;
 	}
+	/* free i2c buses */
+	radeon_i2c_fini(rdev);
+}
+
+static bool is_hdtv_mode(struct drm_display_mode *mode)
+{
+	/* try and guess if this is a tv or a monitor */
+	if ((mode->vdisplay == 480 && mode->hdisplay == 720) || /* 480p */
+	    (mode->vdisplay == 576) || /* 576p */
+	    (mode->vdisplay == 720) || /* 720p */
+	    (mode->vdisplay == 1080)) /* 1080p */
+		return true;
+	else
+		return false;
 }
 
 bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
@@ -1067,15 +924,26 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 				struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct drm_encoder *encoder;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_encoder *radeon_encoder;
+	struct drm_connector *connector;
+	struct radeon_connector *radeon_connector;
 	bool first = true;
+	u32 src_v = 1, dst_v = 1;
+	u32 src_h = 1, dst_h = 1;
+
+	radeon_crtc->h_border = 0;
+	radeon_crtc->v_border = 0;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		radeon_encoder = to_radeon_encoder(encoder);
 		if (encoder->crtc != crtc)
 			continue;
+		radeon_encoder = to_radeon_encoder(encoder);
+		connector = radeon_get_connector_for_encoder(encoder);
+		radeon_connector = to_radeon_connector(connector);
+
 		if (first) {
 			/* set scaling */
 			if (radeon_encoder->rmx_type == RMX_OFF)
@@ -1089,31 +957,210 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 			memcpy(&radeon_crtc->native_mode,
 			       &radeon_encoder->native_mode,
 				sizeof(struct drm_display_mode));
+			src_v = crtc->mode.vdisplay;
+			dst_v = radeon_crtc->native_mode.vdisplay;
+			src_h = crtc->mode.hdisplay;
+			dst_h = radeon_crtc->native_mode.hdisplay;
+
+			/* fix up for overscan on hdmi */
+			if (ASIC_IS_AVIVO(rdev) &&
+			    (!(mode->flags & DRM_MODE_FLAG_INTERLACE)) &&
+			    ((radeon_encoder->underscan_type == UNDERSCAN_ON) ||
+			     ((radeon_encoder->underscan_type == UNDERSCAN_AUTO) &&
+			      drm_detect_hdmi_monitor(radeon_connector->edid) &&
+			      is_hdtv_mode(mode)))) {
+				if (radeon_encoder->underscan_hborder != 0)
+					radeon_crtc->h_border = radeon_encoder->underscan_hborder;
+				else
+					radeon_crtc->h_border = (mode->hdisplay >> 5) + 16;
+				if (radeon_encoder->underscan_vborder != 0)
+					radeon_crtc->v_border = radeon_encoder->underscan_vborder;
+				else
+					radeon_crtc->v_border = (mode->vdisplay >> 5) + 16;
+				radeon_crtc->rmx_type = RMX_FULL;
+				src_v = crtc->mode.vdisplay;
+				dst_v = crtc->mode.vdisplay - (radeon_crtc->v_border * 2);
+				src_h = crtc->mode.hdisplay;
+				dst_h = crtc->mode.hdisplay - (radeon_crtc->h_border * 2);
+			}
 			first = false;
 		} else {
 			if (radeon_crtc->rmx_type != radeon_encoder->rmx_type) {
 				/* WARNING: Right now this can't happen but
 				 * in the future we need to check that scaling
-				 * are consistent accross different encoder
+				 * are consistent across different encoder
 				 * (ie all encoder can work with the same
 				 *  scaling).
 				 */
-				DRM_ERROR("Scaling not consistent accross encoder.\n");
+				DRM_ERROR("Scaling not consistent across encoder.\n");
 				return false;
 			}
 		}
 	}
 	if (radeon_crtc->rmx_type != RMX_OFF) {
 		fixed20_12 a, b;
-		a.full = dfixed_const(crtc->mode.vdisplay);
-		b.full = dfixed_const(radeon_crtc->native_mode.hdisplay);
+		a.full = dfixed_const(src_v);
+		b.full = dfixed_const(dst_v);
 		radeon_crtc->vsc.full = dfixed_div(a, b);
-		a.full = dfixed_const(crtc->mode.hdisplay);
-		b.full = dfixed_const(radeon_crtc->native_mode.vdisplay);
+		a.full = dfixed_const(src_h);
+		b.full = dfixed_const(dst_h);
 		radeon_crtc->hsc.full = dfixed_div(a, b);
 	} else {
 		radeon_crtc->vsc.full = dfixed_const(1);
 		radeon_crtc->hsc.full = dfixed_const(1);
 	}
 	return true;
+}
+
+/*
+ * Retrieve current video scanout position of crtc on a given gpu.
+ *
+ * \param rdev Device to query.
+ * \param crtc Crtc to query.
+ * \param *vpos Location where vertical scanout position should be stored.
+ * \param *hpos Location where horizontal scanout position should go.
+ *
+ * Returns vpos as a positive number while in active scanout area.
+ * Returns vpos as a negative number inside vblank, counting the number
+ * of scanlines to go until end of vblank, e.g., -1 means "one scanline
+ * until start of active scanout / end of vblank."
+ *
+ * \return Flags, or'ed together as follows:
+ *
+ * RADEON_SCANOUTPOS_VALID = Query successfull.
+ * RADEON_SCANOUTPOS_INVBL = Inside vblank.
+ * RADEON_SCANOUTPOS_ACCURATE = Returned position is accurate. A lack of
+ * this flag means that returned position may be offset by a constant but
+ * unknown small number of scanlines wrt. real scanout position.
+ *
+ */
+int radeon_get_crtc_scanoutpos(struct radeon_device *rdev, int crtc, int *vpos, int *hpos)
+{
+	u32 stat_crtc = 0, vbl = 0, position = 0;
+	int vbl_start, vbl_end, vtotal, ret = 0;
+	bool in_vbl = true;
+
+	if (ASIC_IS_DCE4(rdev)) {
+		if (crtc == 0) {
+			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
+				     EVERGREEN_CRTC0_REGISTER_OFFSET);
+			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
+					  EVERGREEN_CRTC0_REGISTER_OFFSET);
+			ret |= RADEON_SCANOUTPOS_VALID;
+		}
+		if (crtc == 1) {
+			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
+				     EVERGREEN_CRTC1_REGISTER_OFFSET);
+			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
+					  EVERGREEN_CRTC1_REGISTER_OFFSET);
+			ret |= RADEON_SCANOUTPOS_VALID;
+		}
+		if (crtc == 2) {
+			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
+				     EVERGREEN_CRTC2_REGISTER_OFFSET);
+			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
+					  EVERGREEN_CRTC2_REGISTER_OFFSET);
+			ret |= RADEON_SCANOUTPOS_VALID;
+		}
+		if (crtc == 3) {
+			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
+				     EVERGREEN_CRTC3_REGISTER_OFFSET);
+			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
+					  EVERGREEN_CRTC3_REGISTER_OFFSET);
+			ret |= RADEON_SCANOUTPOS_VALID;
+		}
+		if (crtc == 4) {
+			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
+				     EVERGREEN_CRTC4_REGISTER_OFFSET);
+			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
+					  EVERGREEN_CRTC4_REGISTER_OFFSET);
+			ret |= RADEON_SCANOUTPOS_VALID;
+		}
+		if (crtc == 5) {
+			vbl = RREG32(EVERGREEN_CRTC_V_BLANK_START_END +
+				     EVERGREEN_CRTC5_REGISTER_OFFSET);
+			position = RREG32(EVERGREEN_CRTC_STATUS_POSITION +
+					  EVERGREEN_CRTC5_REGISTER_OFFSET);
+			ret |= RADEON_SCANOUTPOS_VALID;
+		}
+	} else if (ASIC_IS_AVIVO(rdev)) {
+		if (crtc == 0) {
+			vbl = RREG32(AVIVO_D1CRTC_V_BLANK_START_END);
+			position = RREG32(AVIVO_D1CRTC_STATUS_POSITION);
+			ret |= RADEON_SCANOUTPOS_VALID;
+		}
+		if (crtc == 1) {
+			vbl = RREG32(AVIVO_D2CRTC_V_BLANK_START_END);
+			position = RREG32(AVIVO_D2CRTC_STATUS_POSITION);
+			ret |= RADEON_SCANOUTPOS_VALID;
+		}
+	} else {
+		/* Pre-AVIVO: Different encoding of scanout pos and vblank interval. */
+		if (crtc == 0) {
+			/* Assume vbl_end == 0, get vbl_start from
+			 * upper 16 bits.
+			 */
+			vbl = (RREG32(RADEON_CRTC_V_TOTAL_DISP) &
+				RADEON_CRTC_V_DISP) >> RADEON_CRTC_V_DISP_SHIFT;
+			/* Only retrieve vpos from upper 16 bits, set hpos == 0. */
+			position = (RREG32(RADEON_CRTC_VLINE_CRNT_VLINE) >> 16) & RADEON_CRTC_V_TOTAL;
+			stat_crtc = RREG32(RADEON_CRTC_STATUS);
+			if (!(stat_crtc & 1))
+				in_vbl = false;
+
+			ret |= RADEON_SCANOUTPOS_VALID;
+		}
+		if (crtc == 1) {
+			vbl = (RREG32(RADEON_CRTC2_V_TOTAL_DISP) &
+				RADEON_CRTC_V_DISP) >> RADEON_CRTC_V_DISP_SHIFT;
+			position = (RREG32(RADEON_CRTC2_VLINE_CRNT_VLINE) >> 16) & RADEON_CRTC_V_TOTAL;
+			stat_crtc = RREG32(RADEON_CRTC2_STATUS);
+			if (!(stat_crtc & 1))
+				in_vbl = false;
+
+			ret |= RADEON_SCANOUTPOS_VALID;
+		}
+	}
+
+	/* Decode into vertical and horizontal scanout position. */
+	*vpos = position & 0x1fff;
+	*hpos = (position >> 16) & 0x1fff;
+
+	/* Valid vblank area boundaries from gpu retrieved? */
+	if (vbl > 0) {
+		/* Yes: Decode. */
+		ret |= RADEON_SCANOUTPOS_ACCURATE;
+		vbl_start = vbl & 0x1fff;
+		vbl_end = (vbl >> 16) & 0x1fff;
+	}
+	else {
+		/* No: Fake something reasonable which gives at least ok results. */
+		vbl_start = rdev->mode_info.crtcs[crtc]->base.mode.crtc_vdisplay;
+		vbl_end = 0;
+	}
+
+	/* Test scanout position against vblank region. */
+	if ((*vpos < vbl_start) && (*vpos >= vbl_end))
+		in_vbl = false;
+
+	/* Check if inside vblank area and apply corrective offsets:
+	 * vpos will then be >=0 in video scanout area, but negative
+	 * within vblank area, counting down the number of lines until
+	 * start of scanout.
+	 */
+
+	/* Inside "upper part" of vblank area? Apply corrective offset if so: */
+	if (in_vbl && (*vpos >= vbl_start)) {
+		vtotal = rdev->mode_info.crtcs[crtc]->base.mode.crtc_vtotal;
+		*vpos = *vpos - vtotal;
+	}
+
+	/* Correct for shifted end of vbl at vbl_end. */
+	*vpos = *vpos - vbl_end;
+
+	/* In vblank? */
+	if (in_vbl)
+		ret |= RADEON_SCANOUTPOS_INVBL;
+
+	return ret;
 }

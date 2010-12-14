@@ -3931,6 +3931,15 @@ static int ocfs2_dx_dir_rebalance(struct ocfs2_super *osb, struct inode *dir,
 		goto out_commit;
 	}
 
+	cpos = split_hash;
+	ret = ocfs2_dx_dir_new_cluster(dir, &et, cpos, handle,
+				       data_ac, meta_ac, new_dx_leaves,
+				       num_dx_leaves);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
 	for (i = 0; i < num_dx_leaves; i++) {
 		ret = ocfs2_journal_access_dl(handle, INODE_CACHE(dir),
 					      orig_dx_leaves[i],
@@ -3939,15 +3948,14 @@ static int ocfs2_dx_dir_rebalance(struct ocfs2_super *osb, struct inode *dir,
 			mlog_errno(ret);
 			goto out_commit;
 		}
-	}
 
-	cpos = split_hash;
-	ret = ocfs2_dx_dir_new_cluster(dir, &et, cpos, handle,
-				       data_ac, meta_ac, new_dx_leaves,
-				       num_dx_leaves);
-	if (ret) {
-		mlog_errno(ret);
-		goto out_commit;
+		ret = ocfs2_journal_access_dl(handle, INODE_CACHE(dir),
+					      new_dx_leaves[i],
+					      OCFS2_JOURNAL_ACCESS_WRITE);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_commit;
+		}
 	}
 
 	ocfs2_dx_dir_transfer_leaf(dir, split_hash, handle, tmp_dx_leaf,

@@ -260,6 +260,7 @@ vxfs_get_fake_inode(struct super_block *sbp, struct vxfs_inode_info *vip)
 	struct inode			*ip = NULL;
 
 	if ((ip = new_inode(sbp))) {
+		ip->i_ino = get_next_ino();
 		vxfs_iinit(ip, vip);
 		ip->i_mapping->a_ops = &vxfs_aops;
 	}
@@ -337,15 +338,17 @@ vxfs_iget(struct super_block *sbp, ino_t ino)
 }
 
 /**
- * vxfs_clear_inode - remove inode from main memory
+ * vxfs_evict_inode - remove inode from main memory
  * @ip:		inode to discard.
  *
  * Description:
- *  vxfs_clear_inode() is called on the final iput and frees the private
+ *  vxfs_evict_inode() is called on the final iput and frees the private
  *  inode area.
  */
 void
-vxfs_clear_inode(struct inode *ip)
+vxfs_evict_inode(struct inode *ip)
 {
+	truncate_inode_pages(&ip->i_data, 0);
+	end_writeback(ip);
 	kmem_cache_free(vxfs_inode_cachep, ip->i_private);
 }

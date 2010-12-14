@@ -30,5 +30,6 @@ int ivtv_api(struct ivtv *itv, int cmd, int args, u32 data[]);
 int ivtv_vapi_result(struct ivtv *itv, u32 data[CX2341X_MBOX_MAX_DATA], int cmd, int args, ...);
 int ivtv_vapi(struct ivtv *itv, int cmd, int args, ...);
 int ivtv_api_func(void *priv, u32 cmd, int in, int out, u32 data[CX2341X_MBOX_MAX_DATA]);
+void ivtv_mailbox_cache_invalidate(struct ivtv *itv);
 
 #endif

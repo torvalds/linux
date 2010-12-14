@@ -30,8 +30,6 @@
 #include <linux/ioport.h>
 #include <linux/scatterlist.h>
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <linux/io.h>
@@ -537,9 +535,7 @@ static int sdricoh_pcmcia_resume(struct pcmcia_device *link)
 #endif
 
 static struct pcmcia_driver sdricoh_driver = {
-	.drv = {
-		.name = DRIVER_NAME,
-		},
+	.name = DRIVER_NAME,
 	.probe = sdricoh_pcmcia_probe,
 	.remove = sdricoh_pcmcia_detach,
 	.id_table = pcmcia_ids,

@@ -14,12 +14,13 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
-
+#include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
+#include "../ring_generic.h"
 #include "../adc/adc.h"
 #include "gyro.h"
 
@@ -441,29 +442,30 @@ err_ret:
 	return ret;
 }
 
-static IIO_DEV_ATTR_IN_NAMED_RAW(supply,
+static IIO_DEV_ATTR_IN_NAMED_RAW(0, supply,
 				adis16260_read_12bit_unsigned,
 				ADIS16260_SUPPLY_OUT);
-static IIO_CONST_ATTR(in_supply_scale, "0.0018315");
+static IIO_CONST_ATTR_IN_NAMED_SCALE(0, supply, "0.0018315");
 
 static IIO_DEV_ATTR_GYRO(adis16260_read_14bit_signed,
 		ADIS16260_GYRO_OUT);
-static IIO_DEV_ATTR_GYRO_SCALE(S_IWUSR | S_IRUGO,
+static IIO_CONST_ATTR_GYRO_SCALE("0.00127862821");
+static IIO_DEV_ATTR_GYRO_CALIBSCALE(S_IWUSR | S_IRUGO,
 		adis16260_read_14bit_signed,
 		adis16260_write_16bit,
 		ADIS16260_GYRO_SCALE);
-static IIO_DEV_ATTR_GYRO_OFFSET(S_IWUSR | S_IRUGO,
+static IIO_DEV_ATTR_GYRO_CALIBBIAS(S_IWUSR | S_IRUGO,
 		adis16260_read_12bit_signed,
 		adis16260_write_16bit,
 		ADIS16260_GYRO_OFF);
 
 static IIO_DEV_ATTR_TEMP_RAW(adis16260_read_12bit_unsigned);
-static IIO_CONST_ATTR(temp_offset, "25");
-static IIO_CONST_ATTR(temp_scale, "0.1453");
+static IIO_CONST_ATTR_TEMP_OFFSET("25");
+static IIO_CONST_ATTR_TEMP_SCALE("0.1453");
 
-static IIO_DEV_ATTR_IN_RAW(0, adis16260_read_12bit_unsigned,
+static IIO_DEV_ATTR_IN_RAW(1, adis16260_read_12bit_unsigned,
 		ADIS16260_AUX_ADC);
-static IIO_CONST_ATTR(in0_scale, "0.0006105");
+static IIO_CONST_ATTR(in1_scale, "0.0006105");
 
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 		adis16260_read_frequency,
@@ -473,9 +475,9 @@ static IIO_DEV_ATTR_ANGL(adis16260_read_14bit_signed,
 
 static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16260_write_reset, 0);
 
-static IIO_CONST_ATTR_AVAIL_SAMP_FREQ("256 2048");
+static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("256 2048");
 
-static IIO_CONST_ATTR(name, "adis16260");
+static IIO_CONST_ATTR_NAME("adis16260");
 
 static struct attribute *adis16260_event_attributes[] = {
 	NULL
@@ -486,19 +488,20 @@ static struct attribute_group adis16260_event_attribute_group = {
 };
 
 static struct attribute *adis16260_attributes[] = {
-	&iio_dev_attr_in_supply_raw.dev_attr.attr,
-	&iio_const_attr_in_supply_scale.dev_attr.attr,
+	&iio_dev_attr_in0_supply_raw.dev_attr.attr,
+	&iio_const_attr_in0_supply_scale.dev_attr.attr,
 	&iio_dev_attr_gyro_raw.dev_attr.attr,
-	&iio_dev_attr_gyro_scale.dev_attr.attr,
-	&iio_dev_attr_gyro_offset.dev_attr.attr,
+	&iio_const_attr_gyro_scale.dev_attr.attr,
+	&iio_dev_attr_gyro_calibscale.dev_attr.attr,
+	&iio_dev_attr_gyro_calibbias.dev_attr.attr,
 	&iio_dev_attr_angl_raw.dev_attr.attr,
 	&iio_dev_attr_temp_raw.dev_attr.attr,
 	&iio_const_attr_temp_offset.dev_attr.attr,
 	&iio_const_attr_temp_scale.dev_attr.attr,
-	&iio_dev_attr_in0_raw.dev_attr.attr,
-	&iio_const_attr_in0_scale.dev_attr.attr,
+	&iio_dev_attr_in1_raw.dev_attr.attr,
+	&iio_const_attr_in1_scale.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
-	&iio_const_attr_available_sampling_frequency.dev_attr.attr,
+	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_const_attr_name.dev_attr.attr,
 	NULL
@@ -555,8 +558,7 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 	if (ret)
 		goto error_unreg_ring_funcs;
 	regdone = 1;
-
-	ret = adis16260_initialize_ring(st->indio_dev->ring);
+	ret = iio_ring_buffer_register(st->indio_dev->ring, 0);
 	if (ret) {
 		printk(KERN_ERR "failed to initialize the ring\n");
 		goto error_unreg_ring_funcs;
@@ -588,7 +590,7 @@ error_unregister_line:
 	if (spi->irq)
 		iio_unregister_interrupt_line(st->indio_dev, 0);
 error_uninitialize_ring:
-	adis16260_uninitialize_ring(st->indio_dev->ring);
+	iio_ring_buffer_unregister(st->indio_dev->ring);
 error_unreg_ring_funcs:
 	adis16260_unconfigure_ring(st->indio_dev);
 error_free_dev:
@@ -622,14 +624,12 @@ static int adis16260_remove(struct spi_device *spi)
 	if (spi->irq)
 		iio_unregister_interrupt_line(indio_dev, 0);
 
-	adis16260_uninitialize_ring(indio_dev->ring);
+	iio_ring_buffer_unregister(st->indio_dev->ring);
 	iio_device_unregister(indio_dev);
 	adis16260_unconfigure_ring(indio_dev);
 	kfree(st->tx);
 	kfree(st->rx);
 	kfree(st);
-
-	return 0;
 
 err_ret:
 	return ret;

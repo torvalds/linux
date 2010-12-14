@@ -58,4 +58,16 @@ config CAN_PLX_PCI
 	   - esd CAN-PCIe/2000
 	   - Marathon CAN-bus-PCI card (http://www.marathon.ru/)
 	   - TEWS TECHNOLOGIES TPMC810 card (http://www.tews.com/)
+
+config CAN_TSCAN1
+	tristate "TS-CAN1 PC104 boards"
+	depends on ISA
+	help
+	This driver is for Technologic Systems' TSCAN-1 PC104 boards.
+	http://www.embeddedarm.com/products/board-detail.php?product=TS-CAN1
+	The driver supports multiple boards and automatically configures them:
+	PLD IO base addresses are read from jumpers JP1 and JP2,
+	IRQ numbers are read from jumpers JP4 and JP5,
+	SJA1000 IO base addresses are chosen heuristically (first that works).
+
 endif

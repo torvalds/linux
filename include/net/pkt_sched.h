@@ -95,7 +95,7 @@ extern void __qdisc_run(struct Qdisc *q);
 
 static inline void qdisc_run(struct Qdisc *q)
 {
-	if (!test_and_set_bit(__QDISC_STATE_RUNNING, &q->state))
+	if (qdisc_run_begin(q))
 		__qdisc_run(q);
 }
 

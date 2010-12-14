@@ -82,18 +82,11 @@ int page_is_ram(unsigned long pfn)
 	return pfn < max_pfn;
 #else
 	unsigned long paddr = (pfn << PAGE_SHIFT);
-	int i;
-	for (i=0; i < memblock.memory.cnt; i++) {
-		unsigned long base;
+	struct memblock_region *reg;
 
-		base = memblock.memory.region[i].base;
-
-		if ((paddr >= base) &&
-			(paddr < (base + memblock.memory.region[i].size))) {
+	for_each_memblock(memory, reg)
+		if (paddr >= reg->base && paddr < (reg->base + reg->size))
 			return 1;
-		}
-	}
-
 	return 0;
 #endif
 }
@@ -149,23 +142,19 @@ int
 walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 		void *arg, int (*func)(unsigned long, unsigned long, void *))
 {
-	struct memblock_property res;
-	unsigned long pfn, len;
-	u64 end;
+	struct memblock_region *reg;
+	unsigned long end_pfn = start_pfn + nr_pages;
+	unsigned long tstart, tend;
 	int ret = -1;
 
-	res.base = (u64) start_pfn << PAGE_SHIFT;
-	res.size = (u64) nr_pages << PAGE_SHIFT;
-
-	end = res.base + res.size - 1;
-	while ((res.base < end) && (memblock_find(&res) >= 0)) {
-		pfn = (unsigned long)(res.base >> PAGE_SHIFT);
-		len = (unsigned long)(res.size >> PAGE_SHIFT);
-		ret = (*func)(pfn, len, arg);
+	for_each_memblock(memory, reg) {
+		tstart = max(start_pfn, memblock_region_memory_base_pfn(reg));
+		tend = min(end_pfn, memblock_region_memory_end_pfn(reg));
+		if (tstart >= tend)
+			continue;
+		ret = (*func)(tstart, tend - tstart, arg);
 		if (ret)
 			break;
-		res.base += (res.size + 1);
-		res.size = (end - res.base + 1);
 	}
 	return ret;
 }
@@ -179,9 +168,9 @@ EXPORT_SYMBOL_GPL(walk_system_ram_range);
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 void __init do_init_bootmem(void)
 {
-	unsigned long i;
 	unsigned long start, bootmap_pages;
 	unsigned long total_pages;
+	struct memblock_region *reg;
 	int boot_mapsize;
 
 	max_low_pfn = max_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
@@ -204,10 +193,10 @@ void __init do_init_bootmem(void)
 	boot_mapsize = init_bootmem_node(NODE_DATA(0), start >> PAGE_SHIFT, min_low_pfn, max_low_pfn);
 
 	/* Add active regions with valid PFNs */
-	for (i = 0; i < memblock.memory.cnt; i++) {
+	for_each_memblock(memory, reg) {
 		unsigned long start_pfn, end_pfn;
-		start_pfn = memblock.memory.region[i].base >> PAGE_SHIFT;
-		end_pfn = start_pfn + memblock_size_pages(&memblock.memory, i);
+		start_pfn = memblock_region_memory_base_pfn(reg);
+		end_pfn = memblock_region_memory_end_pfn(reg);
 		add_active_range(0, start_pfn, end_pfn);
 	}
 
@@ -218,29 +207,21 @@ void __init do_init_bootmem(void)
 	free_bootmem_with_active_regions(0, lowmem_end_addr >> PAGE_SHIFT);
 
 	/* reserve the sections we're already using */
-	for (i = 0; i < memblock.reserved.cnt; i++) {
-		unsigned long addr = memblock.reserved.region[i].base +
-				     memblock_size_bytes(&memblock.reserved, i) - 1;
-		if (addr < lowmem_end_addr)
-			reserve_bootmem(memblock.reserved.region[i].base,
-					memblock_size_bytes(&memblock.reserved, i),
-					BOOTMEM_DEFAULT);
-		else if (memblock.reserved.region[i].base < lowmem_end_addr) {
-			unsigned long adjusted_size = lowmem_end_addr -
-				      memblock.reserved.region[i].base;
-			reserve_bootmem(memblock.reserved.region[i].base,
-					adjusted_size, BOOTMEM_DEFAULT);
+	for_each_memblock(reserved, reg) {
+		unsigned long top = reg->base + reg->size - 1;
+		if (top < lowmem_end_addr)
+			reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
+		else if (reg->base < lowmem_end_addr) {
+			unsigned long trunc_size = lowmem_end_addr - reg->base;
+			reserve_bootmem(reg->base, trunc_size, BOOTMEM_DEFAULT);
 		}
 	}
 #else
 	free_bootmem_with_active_regions(0, max_pfn);
 
 	/* reserve the sections we're already using */
-	for (i = 0; i < memblock.reserved.cnt; i++)
-		reserve_bootmem(memblock.reserved.region[i].base,
-				memblock_size_bytes(&memblock.reserved, i),
-				BOOTMEM_DEFAULT);
-
+	for_each_memblock(reserved, reg)
+		reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
 #endif
 	/* XXX need to clip this if using highmem? */
 	sparse_memory_present_with_active_regions(0);
@@ -251,22 +232,15 @@ void __init do_init_bootmem(void)
 /* mark pages that don't exist as nosave */
 static int __init mark_nonram_nosave(void)
 {
-	unsigned long memblock_next_region_start_pfn,
-		      memblock_region_max_pfn;
-	int i;
+	struct memblock_region *reg, *prev = NULL;
 
-	for (i = 0; i < memblock.memory.cnt - 1; i++) {
-		memblock_region_max_pfn =
-			(memblock.memory.region[i].base >> PAGE_SHIFT) +
-			(memblock.memory.region[i].size >> PAGE_SHIFT);
-		memblock_next_region_start_pfn =
-			memblock.memory.region[i+1].base >> PAGE_SHIFT;
-
-		if (memblock_region_max_pfn < memblock_next_region_start_pfn)
-			register_nosave_region(memblock_region_max_pfn,
-					       memblock_next_region_start_pfn);
+	for_each_memblock(memory, reg) {
+		if (prev &&
+		    memblock_region_memory_end_pfn(prev) < memblock_region_memory_base_pfn(reg))
+			register_nosave_region(memblock_region_memory_end_pfn(prev),
+					       memblock_region_memory_base_pfn(reg));
+		prev = reg;
 	}
-
 	return 0;
 }
 
@@ -327,7 +301,7 @@ void __init mem_init(void)
 		swiotlb_init(1);
 #endif
 
-	num_physpages = memblock.memory.size >> PAGE_SHIFT;
+	num_physpages = memblock_phys_mem_size() >> PAGE_SHIFT;
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES

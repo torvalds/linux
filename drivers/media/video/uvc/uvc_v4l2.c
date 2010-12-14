@@ -1,8 +1,8 @@
 /*
  *      uvc_v4l2.c  --  USB Video Class driver - V4L2 API
  *
- *      Copyright (C) 2005-2009
- *          Laurent Pinchart (laurent.pinchart@skynet.be)
+ *      Copyright (C) 2005-2010
+ *          Laurent Pinchart (laurent.pinchart@ideasonboard.com)
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -27,6 +27,74 @@
 #include <media/v4l2-ioctl.h>
 
 #include "uvcvideo.h"
+
+/* ------------------------------------------------------------------------
+ * UVC ioctls
+ */
+static int uvc_ioctl_ctrl_map(struct uvc_video_chain *chain,
+	struct uvc_xu_control_mapping *xmap, int old)
+{
+	struct uvc_control_mapping *map;
+	unsigned int size;
+	int ret;
+
+	map = kzalloc(sizeof *map, GFP_KERNEL);
+	if (map == NULL)
+		return -ENOMEM;
+
+	map->id = xmap->id;
+	memcpy(map->name, xmap->name, sizeof map->name);
+	memcpy(map->entity, xmap->entity, sizeof map->entity);
+	map->selector = xmap->selector;
+	map->size = xmap->size;
+	map->offset = xmap->offset;
+	map->v4l2_type = xmap->v4l2_type;
+	map->data_type = xmap->data_type;
+
+	switch (xmap->v4l2_type) {
+	case V4L2_CTRL_TYPE_INTEGER:
+	case V4L2_CTRL_TYPE_BOOLEAN:
+	case V4L2_CTRL_TYPE_BUTTON:
+		break;
+
+	case V4L2_CTRL_TYPE_MENU:
+		if (old) {
+			uvc_trace(UVC_TRACE_CONTROL, "V4L2_CTRL_TYPE_MENU not "
+				  "supported for UVCIOC_CTRL_MAP_OLD.\n");
+			ret = -EINVAL;
+			goto done;
+		}
+
+		size = xmap->menu_count * sizeof(*map->menu_info);
+		map->menu_info = kmalloc(size, GFP_KERNEL);
+		if (map->menu_info == NULL) {
+			ret = -ENOMEM;
+			goto done;
+		}
+
+		if (copy_from_user(map->menu_info, xmap->menu_info, size)) {
+			ret = -EFAULT;
+			goto done;
+		}
+
+		map->menu_count = xmap->menu_count;
+		break;
+
+	default:
+		uvc_trace(UVC_TRACE_CONTROL, "Unsupported V4L2 control type "
+			  "%u.\n", xmap->v4l2_type);
+		ret = -EINVAL;
+		goto done;
+	}
+
+	ret = uvc_ctrl_add_mapping(chain, map);
+
+done:
+	kfree(map->menu_info);
+	kfree(map);
+
+	return ret;
+}
 
 /* ------------------------------------------------------------------------
  * V4L2 interface
@@ -451,7 +519,7 @@ static int uvc_v4l2_open(struct file *file)
 
 static int uvc_v4l2_release(struct file *file)
 {
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;
 
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_release\n");
@@ -482,7 +550,7 @@ static int uvc_v4l2_release(struct file *file)
 static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_video_chain *chain = handle->chain;
 	struct uvc_streaming *stream = handle->stream;
 	long ret = 0;
@@ -956,58 +1024,13 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	/* Dynamic controls. */
 	case UVCIOC_CTRL_ADD:
-	{
-		struct uvc_xu_control_info *xinfo = arg;
-		struct uvc_control_info *info;
+		/* Legacy ioctl, kept for API compatibility reasons */
+		return -EEXIST;
 
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		info = kzalloc(sizeof *info, GFP_KERNEL);
-		if (info == NULL)
-			return -ENOMEM;
-
-		memcpy(info->entity, xinfo->entity, sizeof info->entity);
-		info->index = xinfo->index;
-		info->selector = xinfo->selector;
-		info->size = xinfo->size;
-		info->flags = xinfo->flags;
-
-		info->flags |= UVC_CONTROL_GET_MIN | UVC_CONTROL_GET_MAX |
-				UVC_CONTROL_GET_RES | UVC_CONTROL_GET_DEF;
-
-		ret = uvc_ctrl_add_info(info);
-		if (ret < 0)
-			kfree(info);
-		break;
-	}
-
+	case UVCIOC_CTRL_MAP_OLD:
 	case UVCIOC_CTRL_MAP:
-	{
-		struct uvc_xu_control_mapping *xmap = arg;
-		struct uvc_control_mapping *map;
-
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		map = kzalloc(sizeof *map, GFP_KERNEL);
-		if (map == NULL)
-			return -ENOMEM;
-
-		map->id = xmap->id;
-		memcpy(map->name, xmap->name, sizeof map->name);
-		memcpy(map->entity, xmap->entity, sizeof map->entity);
-		map->selector = xmap->selector;
-		map->size = xmap->size;
-		map->offset = xmap->offset;
-		map->v4l2_type = xmap->v4l2_type;
-		map->data_type = xmap->data_type;
-
-		ret = uvc_ctrl_add_mapping(map);
-		if (ret < 0)
-			kfree(map);
-		break;
-	}
+		return uvc_ioctl_ctrl_map(chain, arg,
+					  cmd == UVCIOC_CTRL_MAP_OLD);
 
 	case UVCIOC_CTRL_GET:
 		return uvc_xu_ctrl_query(chain, arg, 0);
@@ -1067,7 +1090,7 @@ static const struct vm_operations_struct uvc_vm_ops = {
 
 static int uvc_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;
 	struct uvc_video_queue *queue = &stream->queue;
 	struct uvc_buffer *uninitialized_var(buffer);
@@ -1122,7 +1145,7 @@ done:
 
 static unsigned int uvc_v4l2_poll(struct file *file, poll_table *wait)
 {
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;
 
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_poll\n");

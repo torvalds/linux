@@ -353,7 +353,12 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 			phr->u.c.param1 = pC->u.t.band;
 		else if ((phm->u.c.attribute == HPI_TUNER_LEVEL)
 			&& (phm->u.c.param1 == HPI_TUNER_LEVEL_AVERAGE))
-			phr->u.c.param1 = pC->u.t.level;
+			if (pC->u.t.level == HPI_ERROR_ILLEGAL_CACHE_VALUE) {
+				phr->u.c.param1 = 0;
+				phr->error =
+					HPI_ERROR_INVALID_CONTROL_ATTRIBUTE;
+			} else
+				phr->u.c.param1 = pC->u.t.level;
 		else
 			found = 0;
 		break;
@@ -397,7 +402,8 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 			if (pC->u.clk.source_index ==
 				HPI_ERROR_ILLEGAL_CACHE_VALUE) {
 				phr->u.c.param1 = 0;
-				phr->error = HPI_ERROR_INVALID_OPERATION;
+				phr->error =
+					HPI_ERROR_INVALID_CONTROL_ATTRIBUTE;
 			} else
 				phr->u.c.param1 = pC->u.clk.source_index;
 		} else if (phm->u.c.attribute == HPI_SAMPLECLOCK_SAMPLERATE)

@@ -26,7 +26,6 @@ struct syscall_metadata {
 	const char	**types;
 	const char	**args;
 	struct list_head enter_fields;
-	struct list_head exit_fields;
 
 	struct ftrace_event_call *enter_event;
 	struct ftrace_event_call *exit_event;

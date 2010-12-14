@@ -1341,7 +1341,7 @@ static int omap_vout_open(struct file *file)
 
 	videobuf_queue_dma_contig_init(q, &video_vbq_ops, q->dev,
 			&vout->vbq_lock, vout->type, V4L2_FIELD_NONE,
-			sizeof(struct videobuf_buffer), vout);
+			sizeof(struct videobuf_buffer), vout, NULL);
 
 	v4l2_dbg(1, debug, &vout->vid_dev->v4l2_dev, "Exiting %s\n", __func__);
 	return 0;
@@ -2545,19 +2545,11 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 			/* set the update mode */
 			if (def_display->caps &
 					OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) {
-#ifdef CONFIG_FB_OMAP2_FORCE_AUTO_UPDATE
-				if (dssdrv->enable_te)
-					dssdrv->enable_te(def_display, 1);
-				if (dssdrv->set_update_mode)
-					dssdrv->set_update_mode(def_display,
-							OMAP_DSS_UPDATE_AUTO);
-#else	/* MANUAL_UPDATE */
 				if (dssdrv->enable_te)
 					dssdrv->enable_te(def_display, 0);
 				if (dssdrv->set_update_mode)
 					dssdrv->set_update_mode(def_display,
 							OMAP_DSS_UPDATE_MANUAL);
-#endif
 			} else {
 				if (dssdrv->set_update_mode)
 					dssdrv->set_update_mode(def_display,

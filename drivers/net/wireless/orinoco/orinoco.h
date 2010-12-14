@@ -32,7 +32,7 @@
 struct orinoco_key {
 	__le16 len;	/* always stored as little-endian */
 	char data[ORINOCO_MAX_KEY_SIZE];
-} __attribute__ ((packed));
+} __packed;
 
 #define TKIP_KEYLEN	16
 #define MIC_KEYLEN	8

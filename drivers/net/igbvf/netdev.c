@@ -41,14 +41,12 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
-#include <linux/pm_qos_params.h>
 
 #include "igbvf.h"
 
 #define DRV_VERSION "1.0.0-k0"
 char igbvf_driver_name[] = "igbvf";
 const char igbvf_driver_version[] = DRV_VERSION;
-struct pm_qos_request_list *igbvf_driver_pm_qos_req;
 static const char igbvf_driver_string[] =
 				"Intel(R) Virtual Function Network Driver";
 static const char igbvf_copyright[] = "Copyright (c) 2009 Intel Corporation.";
@@ -103,7 +101,7 @@ static void igbvf_receive_skb(struct igbvf_adapter *adapter,
 static inline void igbvf_rx_checksum_adv(struct igbvf_adapter *adapter,
                                          u32 status_err, struct sk_buff *skb)
 {
-	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
 
 	/* Ignore Checksum bit is set or checksum is disabled through ethtool */
 	if ((status_err & E1000_RXD_STAT_IXSM) ||
@@ -248,6 +246,7 @@ static bool igbvf_clean_rx_irq(struct igbvf_adapter *adapter,
 		if (*work_done >= work_to_do)
 			break;
 		(*work_done)++;
+		rmb(); /* read descriptor and rx_buffer_info after status DD */
 
 		buffer_info = &rx_ring->buffer_info[i];
 
@@ -780,6 +779,7 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 
 	while ((eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)) &&
 	       (count < tx_ring->count)) {
+		rmb();	/* read buffer_info after eop_desc status */
 		for (cleaned = false; !cleaned; count++) {
 			tx_desc = IGBVF_TX_DESC_ADV(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
@@ -843,7 +843,7 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 	}
 	adapter->net_stats.tx_bytes += total_bytes;
 	adapter->net_stats.tx_packets += total_packets;
-	return (count < tx_ring->count);
+	return count < tx_ring->count;
 }
 
 static irqreturn_t igbvf_msix_other(int irq, void *data)
@@ -1254,7 +1254,7 @@ static void igbvf_restore_vlan(struct igbvf_adapter *adapter)
 	if (!adapter->vlgrp)
 		return;
 
-	for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
+	for (vid = 0; vid < VLAN_N_VID; vid++) {
 		if (!vlan_group_get_device(adapter->vlgrp, vid))
 			continue;
 		igbvf_vlan_rx_add_vid(adapter->netdev, vid);
@@ -2751,7 +2751,7 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 		dev_info(&pdev->dev,
 			 "PF still in reset state, assigning new address."
 			 " Is the PF interface up?\n");
-		random_ether_addr(hw->mac.addr);
+		dev_hw_addr_random(adapter->netdev, hw->mac.addr);
 	} else {
 		err = hw->mac.ops.read_mac_addr(hw);
 		if (err) {
@@ -2783,14 +2783,14 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 	/* reset the hardware with the new settings */
 	igbvf_reset(adapter);
 
-	/* tell the stack to leave us alone until igbvf_open() is called */
-	netif_carrier_off(netdev);
-	netif_stop_queue(netdev);
-
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
 	if (err)
 		goto err_hw_init;
+
+	/* tell the stack to leave us alone until igbvf_open() is called */
+	netif_carrier_off(netdev);
+	netif_stop_queue(netdev);
 
 	igbvf_print_device_info(adapter);
 
@@ -2902,8 +2902,6 @@ static int __init igbvf_init_module(void)
 	printk(KERN_INFO "%s\n", igbvf_copyright);
 
 	ret = pci_register_driver(&igbvf_driver);
-	igbvf_driver_pm_qos_req = pm_qos_add_request(PM_QOS_CPU_DMA_LATENCY,
-	                       PM_QOS_DEFAULT_VALUE);
 
 	return ret;
 }
@@ -2918,8 +2916,6 @@ module_init(igbvf_init_module);
 static void __exit igbvf_exit_module(void)
 {
 	pci_unregister_driver(&igbvf_driver);
-	pm_qos_remove_request(igbvf_driver_pm_qos_req);
-	igbvf_driver_pm_qos_req = NULL;
 }
 module_exit(igbvf_exit_module);
 

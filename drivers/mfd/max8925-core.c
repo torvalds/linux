@@ -90,6 +90,29 @@ static struct mfd_cell rtc_devs[] = {
 	},
 };
 
+static struct resource onkey_resources[] = {
+	{
+		.name	= "max8925-onkey",
+		.start	= MAX8925_IRQ_GPM_SW_R,
+		.end	= MAX8925_IRQ_GPM_SW_R,
+		.flags	= IORESOURCE_IRQ,
+	}, {
+		.name	= "max8925-onkey",
+		.start	= MAX8925_IRQ_GPM_SW_F,
+		.end	= MAX8925_IRQ_GPM_SW_F,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mfd_cell onkey_devs[] = {
+	{
+		.name		= "max8925-onkey",
+		.num_resources	= 2,
+		.resources	= &onkey_resources[0],
+		.id		= -1,
+	},
+};
+
 #define MAX8925_REG_RESOURCE(_start, _end)	\
 {						\
 	.start	= MAX8925_##_start,		\
@@ -411,24 +434,25 @@ static void max8925_irq_sync_unlock(unsigned int irq)
 	irq_tsc = cache_tsc;
 	for (i = 0; i < ARRAY_SIZE(max8925_irqs); i++) {
 		irq_data = &max8925_irqs[i];
+		/* 1 -- disable, 0 -- enable */
 		switch (irq_data->mask_reg) {
 		case MAX8925_CHG_IRQ1_MASK:
-			irq_chg[0] &= irq_data->enable;
+			irq_chg[0] &= ~irq_data->enable;
 			break;
 		case MAX8925_CHG_IRQ2_MASK:
-			irq_chg[1] &= irq_data->enable;
+			irq_chg[1] &= ~irq_data->enable;
 			break;
 		case MAX8925_ON_OFF_IRQ1_MASK:
-			irq_on[0] &= irq_data->enable;
+			irq_on[0] &= ~irq_data->enable;
 			break;
 		case MAX8925_ON_OFF_IRQ2_MASK:
-			irq_on[1] &= irq_data->enable;
+			irq_on[1] &= ~irq_data->enable;
 			break;
 		case MAX8925_RTC_IRQ_MASK:
-			irq_rtc &= irq_data->enable;
+			irq_rtc &= ~irq_data->enable;
 			break;
 		case MAX8925_TSC_IRQ_MASK:
-			irq_tsc &= irq_data->enable;
+			irq_tsc &= ~irq_data->enable;
 			break;
 		default:
 			dev_err(chip->dev, "wrong IRQ\n");
@@ -596,6 +620,15 @@ int __devinit max8925_device_init(struct max8925_chip *chip,
 		dev_err(chip->dev, "Failed to add rtc subdev\n");
 		goto out;
 	}
+
+	ret = mfd_add_devices(chip->dev, 0, &onkey_devs[0],
+			      ARRAY_SIZE(onkey_devs),
+			      &onkey_resources[0], 0);
+	if (ret < 0) {
+		dev_err(chip->dev, "Failed to add onkey subdev\n");
+		goto out_dev;
+	}
+
 	if (pdata && pdata->regulator[0]) {
 		ret = mfd_add_devices(chip->dev, 0, &regulator_devs[0],
 				      ARRAY_SIZE(regulator_devs),

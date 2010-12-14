@@ -95,8 +95,8 @@ DEFINE_MUTEX(ubi_devices_mutex);
 static DEFINE_SPINLOCK(ubi_devices_lock);
 
 /* "Show" method for files in '/<sysfs>/class/ubi/' */
-static ssize_t ubi_version_show(struct class *class, struct class_attribute *attr,
-				char *buf)
+static ssize_t ubi_version_show(struct class *class,
+				struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", UBI_VERSION);
 }
@@ -591,8 +591,10 @@ static int attach_by_scanning(struct ubi_device *ubi)
 
 	ubi->bad_peb_count = si->bad_peb_count;
 	ubi->good_peb_count = ubi->peb_count - ubi->bad_peb_count;
+	ubi->corr_peb_count = si->corr_peb_count;
 	ubi->max_ec = si->max_ec;
 	ubi->mean_ec = si->mean_ec;
+	ubi_msg("max. sequence number:       %llu", si->max_sqnum);
 
 	err = ubi_read_volume_table(ubi, si);
 	if (err)
@@ -971,6 +973,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	ubi_msg("MTD device size:            %llu MiB", ubi->flash_size >> 20);
 	ubi_msg("number of good PEBs:        %d", ubi->good_peb_count);
 	ubi_msg("number of bad PEBs:         %d", ubi->bad_peb_count);
+	ubi_msg("number of corrupted PEBs:   %d", ubi->corr_peb_count);
 	ubi_msg("max. allowed volumes:       %d", ubi->vtbl_slots);
 	ubi_msg("wear-leveling threshold:    %d", CONFIG_MTD_UBI_WL_THRESHOLD);
 	ubi_msg("number of internal volumes: %d", UBI_INT_VOL_COUNT);
@@ -981,7 +984,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	ubi_msg("number of PEBs reserved for bad PEB handling: %d",
 		ubi->beb_rsvd_pebs);
 	ubi_msg("max/mean erase counter: %d/%d", ubi->max_ec, ubi->mean_ec);
-	ubi_msg("image sequence number: %d", ubi->image_seq);
+	ubi_msg("image sequence number:  %d", ubi->image_seq);
 
 	/*
 	 * The below lock makes sure we do not race with 'ubi_thread()' which

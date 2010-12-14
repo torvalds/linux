@@ -47,9 +47,12 @@
 #include <linux/mm_inline.h>
 #include <linux/page_cgroup.h>
 #include <linux/cpu.h>
+#include <linux/oom.h>
 #include "internal.h"
 
 #include <asm/uaccess.h>
+
+#include <trace/events/vmscan.h>
 
 struct cgroup_subsys mem_cgroup_subsys __read_mostly;
 #define MEM_CGROUP_RECLAIM_RETRIES	5
@@ -86,7 +89,10 @@ enum mem_cgroup_stat_index {
 	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
 	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
 	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
-	MEM_CGROUP_EVENTS,	/* incremented at every  pagein/pageout */
+	MEM_CGROUP_STAT_DATA, /* end of data requires synchronization */
+	/* incremented at every  pagein/pageout */
+	MEM_CGROUP_EVENTS = MEM_CGROUP_STAT_DATA,
+	MEM_CGROUP_ON_MOVE,	/* someone is moving account between groups */
 
 	MEM_CGROUP_STAT_NSTATS,
 };
@@ -211,8 +217,6 @@ struct mem_cgroup {
 	*/
 	spinlock_t reclaim_param_lock;
 
-	int	prev_priority;	/* for recording reclaim priority */
-
 	/*
 	 * While reclaiming in a hierarchy, we cache the last child we
 	 * reclaimed from.
@@ -253,6 +257,12 @@ struct mem_cgroup {
 	 * percpu counter.
 	 */
 	struct mem_cgroup_stat_cpu *stat;
+	/*
+	 * used when a cpu is offlined or other synchronizations
+	 * See mem_cgroup_read_stat().
+	 */
+	struct mem_cgroup_stat_cpu nocpu_base;
+	spinlock_t pcp_counter_lock;
 };
 
 /* Stuffs for move charges at task migration. */
@@ -268,6 +278,7 @@ enum move_type {
 
 /* "mc" and its members are protected by cgroup_mutex */
 static struct move_charge_struct {
+	spinlock_t	  lock; /* for from, to, moving_task */
 	struct mem_cgroup *from;
 	struct mem_cgroup *to;
 	unsigned long precharge;
@@ -276,6 +287,7 @@ static struct move_charge_struct {
 	struct task_struct *moving_task;	/* a task moving charges */
 	wait_queue_head_t waitq;		/* a waitq for other context */
 } mc = {
+	.lock = __SPIN_LOCK_UNLOCKED(mc.lock),
 	.waitq = __WAIT_QUEUE_HEAD_INITIALIZER(mc.waitq),
 };
 
@@ -527,14 +539,40 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
 	return mz;
 }
 
+/*
+ * Implementation Note: reading percpu statistics for memcg.
+ *
+ * Both of vmstat[] and percpu_counter has threshold and do periodic
+ * synchronization to implement "quick" read. There are trade-off between
+ * reading cost and precision of value. Then, we may have a chance to implement
+ * a periodic synchronizion of counter in memcg's counter.
+ *
+ * But this _read() function is used for user interface now. The user accounts
+ * memory usage by memory cgroup and he _always_ requires exact value because
+ * he accounts memory. Even if we provide quick-and-fuzzy read, we always
+ * have to visit all online cpus and make sum. So, for now, unnecessary
+ * synchronization is not implemented. (just implemented for cpu hotplug)
+ *
+ * If there are kernel internal actions which can make use of some not-exact
+ * value, and reading all cpu value can be performance bottleneck in some
+ * common workload, threashold and synchonization as vmstat[] should be
+ * implemented.
+ */
 static s64 mem_cgroup_read_stat(struct mem_cgroup *mem,
 		enum mem_cgroup_stat_index idx)
 {
 	int cpu;
 	s64 val = 0;
 
-	for_each_possible_cpu(cpu)
+	get_online_cpus();
+	for_each_online_cpu(cpu)
 		val += per_cpu(mem->stat->count[idx], cpu);
+#ifdef CONFIG_HOTPLUG_CPU
+	spin_lock(&mem->pcp_counter_lock);
+	val += mem->nocpu_base.count[idx];
+	spin_unlock(&mem->pcp_counter_lock);
+#endif
+	put_online_cpus();
 	return val;
 }
 
@@ -656,40 +694,83 @@ static struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
 	return mem;
 }
 
-/*
- * Call callback function against all cgroup under hierarchy tree.
- */
-static int mem_cgroup_walk_tree(struct mem_cgroup *root, void *data,
-			  int (*func)(struct mem_cgroup *, void *))
+/* The caller has to guarantee "mem" exists before calling this */
+static struct mem_cgroup *mem_cgroup_start_loop(struct mem_cgroup *mem)
 {
-	int found, ret, nextid;
 	struct cgroup_subsys_state *css;
-	struct mem_cgroup *mem;
+	int found;
 
-	if (!root->use_hierarchy)
-		return (*func)(root, data);
-
-	nextid = 1;
-	do {
-		ret = 0;
+	if (!mem) /* ROOT cgroup has the smallest ID */
+		return root_mem_cgroup; /*css_put/get against root is ignored*/
+	if (!mem->use_hierarchy) {
+		if (css_tryget(&mem->css))
+			return mem;
+		return NULL;
+	}
+	rcu_read_lock();
+	/*
+	 * searching a memory cgroup which has the smallest ID under given
+	 * ROOT cgroup. (ID >= 1)
+	 */
+	css = css_get_next(&mem_cgroup_subsys, 1, &mem->css, &found);
+	if (css && css_tryget(css))
+		mem = container_of(css, struct mem_cgroup, css);
+	else
 		mem = NULL;
-
-		rcu_read_lock();
-		css = css_get_next(&mem_cgroup_subsys, nextid, &root->css,
-				   &found);
-		if (css && css_tryget(css))
-			mem = container_of(css, struct mem_cgroup, css);
-		rcu_read_unlock();
-
-		if (mem) {
-			ret = (*func)(mem, data);
-			css_put(&mem->css);
-		}
-		nextid = found + 1;
-	} while (!ret && css);
-
-	return ret;
+	rcu_read_unlock();
+	return mem;
 }
+
+static struct mem_cgroup *mem_cgroup_get_next(struct mem_cgroup *iter,
+					struct mem_cgroup *root,
+					bool cond)
+{
+	int nextid = css_id(&iter->css) + 1;
+	int found;
+	int hierarchy_used;
+	struct cgroup_subsys_state *css;
+
+	hierarchy_used = iter->use_hierarchy;
+
+	css_put(&iter->css);
+	/* If no ROOT, walk all, ignore hierarchy */
+	if (!cond || (root && !hierarchy_used))
+		return NULL;
+
+	if (!root)
+		root = root_mem_cgroup;
+
+	do {
+		iter = NULL;
+		rcu_read_lock();
+
+		css = css_get_next(&mem_cgroup_subsys, nextid,
+				&root->css, &found);
+		if (css && css_tryget(css))
+			iter = container_of(css, struct mem_cgroup, css);
+		rcu_read_unlock();
+		/* If css is NULL, no more cgroups will be found */
+		nextid = found + 1;
+	} while (css && !iter);
+
+	return iter;
+}
+/*
+ * for_eacn_mem_cgroup_tree() for visiting all cgroup under tree. Please
+ * be careful that "break" loop is not allowed. We have reference count.
+ * Instead of that modify "cond" to be false and "continue" to exit the loop.
+ */
+#define for_each_mem_cgroup_tree_cond(iter, root, cond)	\
+	for (iter = mem_cgroup_start_loop(root);\
+	     iter != NULL;\
+	     iter = mem_cgroup_get_next(iter, root, cond))
+
+#define for_each_mem_cgroup_tree(iter, root) \
+	for_each_mem_cgroup_tree_cond(iter, root, true)
+
+#define for_each_mem_cgroup_all(iter) \
+	for_each_mem_cgroup_tree_cond(iter, NULL, true)
+
 
 static inline bool mem_cgroup_is_root(struct mem_cgroup *mem)
 {
@@ -836,12 +917,13 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
 {
 	int ret;
 	struct mem_cgroup *curr = NULL;
+	struct task_struct *p;
 
-	task_lock(task);
-	rcu_read_lock();
-	curr = try_get_mem_cgroup_from_mm(task->mm);
-	rcu_read_unlock();
-	task_unlock(task);
+	p = find_lock_task_mm(task);
+	if (!p)
+		return 0;
+	curr = try_get_mem_cgroup_from_mm(p->mm);
+	task_unlock(p);
 	if (!curr)
 		return 0;
 	/*
@@ -856,35 +938,6 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
 		ret = (curr == mem);
 	css_put(&curr->css);
 	return ret;
-}
-
-/*
- * prev_priority control...this will be used in memory reclaim path.
- */
-int mem_cgroup_get_reclaim_priority(struct mem_cgroup *mem)
-{
-	int prev_priority;
-
-	spin_lock(&mem->reclaim_param_lock);
-	prev_priority = mem->prev_priority;
-	spin_unlock(&mem->reclaim_param_lock);
-
-	return prev_priority;
-}
-
-void mem_cgroup_note_reclaim_priority(struct mem_cgroup *mem, int priority)
-{
-	spin_lock(&mem->reclaim_param_lock);
-	if (priority < mem->prev_priority)
-		mem->prev_priority = priority;
-	spin_unlock(&mem->reclaim_param_lock);
-}
-
-void mem_cgroup_record_reclaim_priority(struct mem_cgroup *mem, int priority)
-{
-	spin_lock(&mem->reclaim_param_lock);
-	mem->prev_priority = priority;
-	spin_unlock(&mem->reclaim_param_lock);
 }
 
 static int calc_inactive_ratio(struct mem_cgroup *memcg, unsigned long *present_pages)
@@ -944,7 +997,7 @@ unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
 				       struct zone *zone,
 				       enum lru_list lru)
 {
-	int nid = zone->zone_pgdat->node_id;
+	int nid = zone_to_nid(zone);
 	int zid = zone_idx(zone);
 	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
 
@@ -954,7 +1007,7 @@ unsigned long mem_cgroup_zone_nr_pages(struct mem_cgroup *memcg,
 struct zone_reclaim_stat *mem_cgroup_get_reclaim_stat(struct mem_cgroup *memcg,
 						      struct zone *zone)
 {
-	int nid = zone->zone_pgdat->node_id;
+	int nid = zone_to_nid(zone);
 	int zid = zone_idx(zone);
 	struct mem_cgroup_per_zone *mz = mem_cgroup_zoneinfo(memcg, nid, zid);
 
@@ -999,7 +1052,7 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 	LIST_HEAD(pc_list);
 	struct list_head *src;
 	struct page_cgroup *pc, *tmp;
-	int nid = z->zone_pgdat->node_id;
+	int nid = zone_to_nid(z);
 	int zid = zone_idx(z);
 	struct mem_cgroup_per_zone *mz;
 	int lru = LRU_FILE * file + active;
@@ -1038,6 +1091,10 @@ unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 	}
 
 	*scanned = scan;
+
+	trace_mm_vmscan_memcg_isolate(0, nr_to_scan, scan, nr_taken,
+				      0, 0, 0, mode);
+
 	return nr_taken;
 }
 
@@ -1072,11 +1129,90 @@ static unsigned int get_swappiness(struct mem_cgroup *memcg)
 	return swappiness;
 }
 
-static int mem_cgroup_count_children_cb(struct mem_cgroup *mem, void *data)
+static void mem_cgroup_start_move(struct mem_cgroup *mem)
 {
-	int *val = data;
-	(*val)++;
-	return 0;
+	int cpu;
+
+	get_online_cpus();
+	spin_lock(&mem->pcp_counter_lock);
+	for_each_online_cpu(cpu)
+		per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) += 1;
+	mem->nocpu_base.count[MEM_CGROUP_ON_MOVE] += 1;
+	spin_unlock(&mem->pcp_counter_lock);
+	put_online_cpus();
+
+	synchronize_rcu();
+}
+
+static void mem_cgroup_end_move(struct mem_cgroup *mem)
+{
+	int cpu;
+
+	if (!mem)
+		return;
+	get_online_cpus();
+	spin_lock(&mem->pcp_counter_lock);
+	for_each_online_cpu(cpu)
+		per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) -= 1;
+	mem->nocpu_base.count[MEM_CGROUP_ON_MOVE] -= 1;
+	spin_unlock(&mem->pcp_counter_lock);
+	put_online_cpus();
+}
+/*
+ * 2 routines for checking "mem" is under move_account() or not.
+ *
+ * mem_cgroup_stealed() - checking a cgroup is mc.from or not. This is used
+ *			  for avoiding race in accounting. If true,
+ *			  pc->mem_cgroup may be overwritten.
+ *
+ * mem_cgroup_under_move() - checking a cgroup is mc.from or mc.to or
+ *			  under hierarchy of moving cgroups. This is for
+ *			  waiting at hith-memory prressure caused by "move".
+ */
+
+static bool mem_cgroup_stealed(struct mem_cgroup *mem)
+{
+	VM_BUG_ON(!rcu_read_lock_held());
+	return this_cpu_read(mem->stat->count[MEM_CGROUP_ON_MOVE]) > 0;
+}
+
+static bool mem_cgroup_under_move(struct mem_cgroup *mem)
+{
+	struct mem_cgroup *from;
+	struct mem_cgroup *to;
+	bool ret = false;
+	/*
+	 * Unlike task_move routines, we access mc.to, mc.from not under
+	 * mutual exclusion by cgroup_mutex. Here, we take spinlock instead.
+	 */
+	spin_lock(&mc.lock);
+	from = mc.from;
+	to = mc.to;
+	if (!from)
+		goto unlock;
+	if (from == mem || to == mem
+	    || (mem->use_hierarchy && css_is_ancestor(&from->css, &mem->css))
+	    || (mem->use_hierarchy && css_is_ancestor(&to->css,	&mem->css)))
+		ret = true;
+unlock:
+	spin_unlock(&mc.lock);
+	return ret;
+}
+
+static bool mem_cgroup_wait_acct_move(struct mem_cgroup *mem)
+{
+	if (mc.moving_task && current != mc.moving_task) {
+		if (mem_cgroup_under_move(mem)) {
+			DEFINE_WAIT(wait);
+			prepare_to_wait(&mc.waitq, &wait, TASK_INTERRUPTIBLE);
+			/* moving charge context might have finished. */
+			if (mc.moving_task)
+				schedule();
+			finish_wait(&mc.waitq, &wait);
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -1153,8 +1289,29 @@ done:
 static int mem_cgroup_count_children(struct mem_cgroup *mem)
 {
 	int num = 0;
- 	mem_cgroup_walk_tree(mem, &num, mem_cgroup_count_children_cb);
+	struct mem_cgroup *iter;
+
+	for_each_mem_cgroup_tree(iter, mem)
+		num++;
 	return num;
+}
+
+/*
+ * Return the memory (and swap, if configured) limit for a memcg.
+ */
+u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
+{
+	u64 limit;
+	u64 memsw;
+
+	limit = res_counter_read_u64(&memcg->res, RES_LIMIT) +
+			total_swap_pages;
+	memsw = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+	/*
+	 * If memsw is finite and limits the amount of swap space available
+	 * to this memcg, return that limit.
+	 */
+	return min(limit, memsw);
 }
 
 /*
@@ -1262,8 +1419,7 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 		/* we use swappiness of local cgroup */
 		if (check_soft)
 			ret = mem_cgroup_shrink_node_zone(victim, gfp_mask,
-				noswap, get_swappiness(victim), zone,
-				zone->zone_pgdat->node_id);
+				noswap, get_swappiness(victim), zone);
 		else
 			ret = try_to_free_mem_cgroup_pages(victim, gfp_mask,
 						noswap, get_swappiness(victim));
@@ -1285,49 +1441,39 @@ static int mem_cgroup_hierarchical_reclaim(struct mem_cgroup *root_mem,
 	return total;
 }
 
-static int mem_cgroup_oom_lock_cb(struct mem_cgroup *mem, void *data)
-{
-	int *val = (int *)data;
-	int x;
-	/*
-	 * Logically, we can stop scanning immediately when we find
-	 * a memcg is already locked. But condidering unlock ops and
-	 * creation/removal of memcg, scan-all is simple operation.
-	 */
-	x = atomic_inc_return(&mem->oom_lock);
-	*val = max(x, *val);
-	return 0;
-}
 /*
  * Check OOM-Killer is already running under our hierarchy.
  * If someone is running, return false.
  */
 static bool mem_cgroup_oom_lock(struct mem_cgroup *mem)
 {
-	int lock_count = 0;
+	int x, lock_count = 0;
+	struct mem_cgroup *iter;
 
-	mem_cgroup_walk_tree(mem, &lock_count, mem_cgroup_oom_lock_cb);
+	for_each_mem_cgroup_tree(iter, mem) {
+		x = atomic_inc_return(&iter->oom_lock);
+		lock_count = max(x, lock_count);
+	}
 
 	if (lock_count == 1)
 		return true;
 	return false;
 }
 
-static int mem_cgroup_oom_unlock_cb(struct mem_cgroup *mem, void *data)
+static int mem_cgroup_oom_unlock(struct mem_cgroup *mem)
 {
+	struct mem_cgroup *iter;
+
 	/*
 	 * When a new child is created while the hierarchy is under oom,
 	 * mem_cgroup_oom_lock() may not be called. We have to use
 	 * atomic_add_unless() here.
 	 */
-	atomic_add_unless(&mem->oom_lock, -1, 0);
+	for_each_mem_cgroup_tree(iter, mem)
+		atomic_add_unless(&iter->oom_lock, -1, 0);
 	return 0;
 }
 
-static void mem_cgroup_oom_unlock(struct mem_cgroup *mem)
-{
-	mem_cgroup_walk_tree(mem, NULL,	mem_cgroup_oom_unlock_cb);
-}
 
 static DEFINE_MUTEX(memcg_oom_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(memcg_oom_waitq);
@@ -1370,7 +1516,7 @@ static void memcg_wakeup_oom(struct mem_cgroup *mem)
 
 static void memcg_oom_recover(struct mem_cgroup *mem)
 {
-	if (atomic_read(&mem->oom_lock))
+	if (mem && atomic_read(&mem->oom_lock))
 		memcg_wakeup_oom(mem);
 }
 
@@ -1425,34 +1571,73 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
 /*
  * Currently used to update mapped file statistics, but the routine can be
  * generalized to update other statistics as well.
+ *
+ * Notes: Race condition
+ *
+ * We usually use page_cgroup_lock() for accessing page_cgroup member but
+ * it tends to be costly. But considering some conditions, we doesn't need
+ * to do so _always_.
+ *
+ * Considering "charge", lock_page_cgroup() is not required because all
+ * file-stat operations happen after a page is attached to radix-tree. There
+ * are no race with "charge".
+ *
+ * Considering "uncharge", we know that memcg doesn't clear pc->mem_cgroup
+ * at "uncharge" intentionally. So, we always see valid pc->mem_cgroup even
+ * if there are race with "uncharge". Statistics itself is properly handled
+ * by flags.
+ *
+ * Considering "move", this is an only case we see a race. To make the race
+ * small, we check MEM_CGROUP_ON_MOVE percpu value and detect there are
+ * possibility of race condition. If there is, we take a lock.
  */
-void mem_cgroup_update_file_mapped(struct page *page, int val)
+
+static void mem_cgroup_update_file_stat(struct page *page, int idx, int val)
 {
 	struct mem_cgroup *mem;
-	struct page_cgroup *pc;
+	struct page_cgroup *pc = lookup_page_cgroup(page);
+	bool need_unlock = false;
 
-	pc = lookup_page_cgroup(page);
 	if (unlikely(!pc))
 		return;
 
-	lock_page_cgroup(pc);
+	rcu_read_lock();
 	mem = pc->mem_cgroup;
-	if (!mem || !PageCgroupUsed(pc))
-		goto done;
-
-	/*
-	 * Preemption is already disabled. We can use __this_cpu_xxx
-	 */
-	if (val > 0) {
-		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-		SetPageCgroupFileMapped(pc);
-	} else {
-		__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_FILE_MAPPED]);
-		ClearPageCgroupFileMapped(pc);
+	if (unlikely(!mem || !PageCgroupUsed(pc)))
+		goto out;
+	/* pc->mem_cgroup is unstable ? */
+	if (unlikely(mem_cgroup_stealed(mem))) {
+		/* take a lock against to access pc->mem_cgroup */
+		lock_page_cgroup(pc);
+		need_unlock = true;
+		mem = pc->mem_cgroup;
+		if (!mem || !PageCgroupUsed(pc))
+			goto out;
 	}
 
-done:
-	unlock_page_cgroup(pc);
+	this_cpu_add(mem->stat->count[idx], val);
+
+	switch (idx) {
+	case MEM_CGROUP_STAT_FILE_MAPPED:
+		if (val > 0)
+			SetPageCgroupFileMapped(pc);
+		else if (!page_mapped(page))
+			ClearPageCgroupFileMapped(pc);
+		break;
+	default:
+		BUG();
+	}
+
+out:
+	if (unlikely(need_unlock))
+		unlock_page_cgroup(pc);
+	rcu_read_unlock();
+	return;
+}
+
+void mem_cgroup_update_file_mapped(struct page *page, int val)
+{
+	mem_cgroup_update_file_stat(page, MEM_CGROUP_STAT_FILE_MAPPED, val);
 }
 
 /*
@@ -1568,18 +1753,125 @@ static void drain_all_stock_sync(void)
 	atomic_dec(&memcg_drain_count);
 }
 
-static int __cpuinit memcg_stock_cpu_callback(struct notifier_block *nb,
+/*
+ * This function drains percpu counter value from DEAD cpu and
+ * move it to local cpu. Note that this function can be preempted.
+ */
+static void mem_cgroup_drain_pcp_counter(struct mem_cgroup *mem, int cpu)
+{
+	int i;
+
+	spin_lock(&mem->pcp_counter_lock);
+	for (i = 0; i < MEM_CGROUP_STAT_DATA; i++) {
+		s64 x = per_cpu(mem->stat->count[i], cpu);
+
+		per_cpu(mem->stat->count[i], cpu) = 0;
+		mem->nocpu_base.count[i] += x;
+	}
+	/* need to clear ON_MOVE value, works as a kind of lock. */
+	per_cpu(mem->stat->count[MEM_CGROUP_ON_MOVE], cpu) = 0;
+	spin_unlock(&mem->pcp_counter_lock);
+}
+
+static void synchronize_mem_cgroup_on_move(struct mem_cgroup *mem, int cpu)
+{
+	int idx = MEM_CGROUP_ON_MOVE;
+
+	spin_lock(&mem->pcp_counter_lock);
+	per_cpu(mem->stat->count[idx], cpu) = mem->nocpu_base.count[idx];
+	spin_unlock(&mem->pcp_counter_lock);
+}
+
+static int __cpuinit memcg_cpu_hotplug_callback(struct notifier_block *nb,
 					unsigned long action,
 					void *hcpu)
 {
 	int cpu = (unsigned long)hcpu;
 	struct memcg_stock_pcp *stock;
+	struct mem_cgroup *iter;
 
-	if (action != CPU_DEAD)
+	if ((action == CPU_ONLINE)) {
+		for_each_mem_cgroup_all(iter)
+			synchronize_mem_cgroup_on_move(iter, cpu);
 		return NOTIFY_OK;
+	}
+
+	if ((action != CPU_DEAD) || action != CPU_DEAD_FROZEN)
+		return NOTIFY_OK;
+
+	for_each_mem_cgroup_all(iter)
+		mem_cgroup_drain_pcp_counter(iter, cpu);
+
 	stock = &per_cpu(memcg_stock, cpu);
 	drain_stock(stock);
 	return NOTIFY_OK;
+}
+
+
+/* See __mem_cgroup_try_charge() for details */
+enum {
+	CHARGE_OK,		/* success */
+	CHARGE_RETRY,		/* need to retry but retry is not bad */
+	CHARGE_NOMEM,		/* we can't do more. return -ENOMEM */
+	CHARGE_WOULDBLOCK,	/* GFP_WAIT wasn't set and no enough res. */
+	CHARGE_OOM_DIE,		/* the current is killed because of OOM */
+};
+
+static int __mem_cgroup_do_charge(struct mem_cgroup *mem, gfp_t gfp_mask,
+				int csize, bool oom_check)
+{
+	struct mem_cgroup *mem_over_limit;
+	struct res_counter *fail_res;
+	unsigned long flags = 0;
+	int ret;
+
+	ret = res_counter_charge(&mem->res, csize, &fail_res);
+
+	if (likely(!ret)) {
+		if (!do_swap_account)
+			return CHARGE_OK;
+		ret = res_counter_charge(&mem->memsw, csize, &fail_res);
+		if (likely(!ret))
+			return CHARGE_OK;
+
+		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
+		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
+	} else
+		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+
+	if (csize > PAGE_SIZE) /* change csize and retry */
+		return CHARGE_RETRY;
+
+	if (!(gfp_mask & __GFP_WAIT))
+		return CHARGE_WOULDBLOCK;
+
+	ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
+					gfp_mask, flags);
+	/*
+	 * try_to_free_mem_cgroup_pages() might not give us a full
+	 * picture of reclaim. Some pages are reclaimed and might be
+	 * moved to swap cache or just unmapped from the cgroup.
+	 * Check the limit again to see if the reclaim reduced the
+	 * current usage of the cgroup before giving up
+	 */
+	if (ret || mem_cgroup_check_under_limit(mem_over_limit))
+		return CHARGE_RETRY;
+
+	/*
+	 * At task move, charge accounts can be doubly counted. So, it's
+	 * better to wait until the end of task_move if something is going on.
+	 */
+	if (mem_cgroup_wait_acct_move(mem_over_limit))
+		return CHARGE_RETRY;
+
+	/* If we don't need to call oom-killer at el, return immediately */
+	if (!oom_check)
+		return CHARGE_NOMEM;
+	/* check OOM */
+	if (!mem_cgroup_handle_oom(mem_over_limit, gfp_mask))
+		return CHARGE_OOM_DIE;
+
+	return CHARGE_RETRY;
 }
 
 /*
@@ -1587,11 +1879,11 @@ static int __cpuinit memcg_stock_cpu_callback(struct notifier_block *nb,
  * oom-killer can be invoked.
  */
 static int __mem_cgroup_try_charge(struct mm_struct *mm,
-			gfp_t gfp_mask, struct mem_cgroup **memcg, bool oom)
+		gfp_t gfp_mask, struct mem_cgroup **memcg, bool oom)
 {
-	struct mem_cgroup *mem, *mem_over_limit;
-	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-	struct res_counter *fail_res;
+	int nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
+	struct mem_cgroup *mem = NULL;
+	int ret;
 	int csize = CHARGE_SIZE;
 
 	/*
@@ -1609,126 +1901,108 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 	 * thread group leader migrates. It's possible that mm is not
 	 * set, if so charge the init_mm (happens for pagecache usage).
 	 */
-	mem = *memcg;
-	if (likely(!mem)) {
-		mem = try_get_mem_cgroup_from_mm(mm);
-		*memcg = mem;
-	} else {
-		css_get(&mem->css);
-	}
-	if (unlikely(!mem))
-		return 0;
-
-	VM_BUG_ON(css_is_removed(&mem->css));
-	if (mem_cgroup_is_root(mem))
-		goto done;
-
-	while (1) {
-		int ret = 0;
-		unsigned long flags = 0;
-
+	if (!*memcg && !mm)
+		goto bypass;
+again:
+	if (*memcg) { /* css should be a valid one */
+		mem = *memcg;
+		VM_BUG_ON(css_is_removed(&mem->css));
+		if (mem_cgroup_is_root(mem))
+			goto done;
 		if (consume_stock(mem))
 			goto done;
+		css_get(&mem->css);
+	} else {
+		struct task_struct *p;
 
-		ret = res_counter_charge(&mem->res, csize, &fail_res);
-		if (likely(!ret)) {
-			if (!do_swap_account)
-				break;
-			ret = res_counter_charge(&mem->memsw, csize, &fail_res);
-			if (likely(!ret))
-				break;
-			/* mem+swap counter fails */
-			res_counter_uncharge(&mem->res, csize);
-			flags |= MEM_CGROUP_RECLAIM_NOSWAP;
-			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
-									memsw);
-		} else
-			/* mem counter fails */
-			mem_over_limit = mem_cgroup_from_res_counter(fail_res,
-									res);
-
-		/* reduce request size and retry */
-		if (csize > PAGE_SIZE) {
-			csize = PAGE_SIZE;
-			continue;
-		}
-		if (!(gfp_mask & __GFP_WAIT))
-			goto nomem;
-
-		ret = mem_cgroup_hierarchical_reclaim(mem_over_limit, NULL,
-						gfp_mask, flags);
-		if (ret)
-			continue;
-
+		rcu_read_lock();
+		p = rcu_dereference(mm->owner);
+		VM_BUG_ON(!p);
 		/*
-		 * try_to_free_mem_cgroup_pages() might not give us a full
-		 * picture of reclaim. Some pages are reclaimed and might be
-		 * moved to swap cache or just unmapped from the cgroup.
-		 * Check the limit again to see if the reclaim reduced the
-		 * current usage of the cgroup before giving up
-		 *
+		 * because we don't have task_lock(), "p" can exit while
+		 * we're here. In that case, "mem" can point to root
+		 * cgroup but never be NULL. (and task_struct itself is freed
+		 * by RCU, cgroup itself is RCU safe.) Then, we have small
+		 * risk here to get wrong cgroup. But such kind of mis-account
+		 * by race always happens because we don't have cgroup_mutex().
+		 * It's overkill and we allow that small race, here.
 		 */
-		if (mem_cgroup_check_under_limit(mem_over_limit))
-			continue;
-
-		/* try to avoid oom while someone is moving charge */
-		if (mc.moving_task && current != mc.moving_task) {
-			struct mem_cgroup *from, *to;
-			bool do_continue = false;
-			/*
-			 * There is a small race that "from" or "to" can be
-			 * freed by rmdir, so we use css_tryget().
-			 */
-			from = mc.from;
-			to = mc.to;
-			if (from && css_tryget(&from->css)) {
-				if (mem_over_limit->use_hierarchy)
-					do_continue = css_is_ancestor(
-							&from->css,
-							&mem_over_limit->css);
-				else
-					do_continue = (from == mem_over_limit);
-				css_put(&from->css);
-			}
-			if (!do_continue && to && css_tryget(&to->css)) {
-				if (mem_over_limit->use_hierarchy)
-					do_continue = css_is_ancestor(
-							&to->css,
-							&mem_over_limit->css);
-				else
-					do_continue = (to == mem_over_limit);
-				css_put(&to->css);
-			}
-			if (do_continue) {
-				DEFINE_WAIT(wait);
-				prepare_to_wait(&mc.waitq, &wait,
-							TASK_INTERRUPTIBLE);
-				/* moving charge context might have finished. */
-				if (mc.moving_task)
-					schedule();
-				finish_wait(&mc.waitq, &wait);
-				continue;
-			}
+		mem = mem_cgroup_from_task(p);
+		VM_BUG_ON(!mem);
+		if (mem_cgroup_is_root(mem)) {
+			rcu_read_unlock();
+			goto done;
 		}
+		if (consume_stock(mem)) {
+			/*
+			 * It seems dagerous to access memcg without css_get().
+			 * But considering how consume_stok works, it's not
+			 * necessary. If consume_stock success, some charges
+			 * from this memcg are cached on this cpu. So, we
+			 * don't need to call css_get()/css_tryget() before
+			 * calling consume_stock().
+			 */
+			rcu_read_unlock();
+			goto done;
+		}
+		/* after here, we may be blocked. we need to get refcnt */
+		if (!css_tryget(&mem->css)) {
+			rcu_read_unlock();
+			goto again;
+		}
+		rcu_read_unlock();
+	}
 
-		if (!nr_retries--) {
-			if (!oom)
-				goto nomem;
-			if (mem_cgroup_handle_oom(mem_over_limit, gfp_mask)) {
-				nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
-				continue;
-			}
-			/* When we reach here, current task is dying .*/
+	do {
+		bool oom_check;
+
+		/* If killed, bypass charge */
+		if (fatal_signal_pending(current)) {
 			css_put(&mem->css);
 			goto bypass;
 		}
-	}
+
+		oom_check = false;
+		if (oom && !nr_oom_retries) {
+			oom_check = true;
+			nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
+		}
+
+		ret = __mem_cgroup_do_charge(mem, gfp_mask, csize, oom_check);
+
+		switch (ret) {
+		case CHARGE_OK:
+			break;
+		case CHARGE_RETRY: /* not in OOM situation but retry */
+			csize = PAGE_SIZE;
+			css_put(&mem->css);
+			mem = NULL;
+			goto again;
+		case CHARGE_WOULDBLOCK: /* !__GFP_WAIT */
+			css_put(&mem->css);
+			goto nomem;
+		case CHARGE_NOMEM: /* OOM routine works */
+			if (!oom) {
+				css_put(&mem->css);
+				goto nomem;
+			}
+			/* If oom, we never return -ENOMEM */
+			nr_oom_retries--;
+			break;
+		case CHARGE_OOM_DIE: /* Killed by OOM Killer */
+			css_put(&mem->css);
+			goto bypass;
+		}
+	} while (ret != CHARGE_OK);
+
 	if (csize > PAGE_SIZE)
 		refill_stock(mem, csize - PAGE_SIZE);
+	css_put(&mem->css);
 done:
+	*memcg = mem;
 	return 0;
 nomem:
-	css_put(&mem->css);
+	*memcg = NULL;
 	return -ENOMEM;
 bypass:
 	*memcg = NULL;
@@ -1747,11 +2021,7 @@ static void __mem_cgroup_cancel_charge(struct mem_cgroup *mem,
 		res_counter_uncharge(&mem->res, PAGE_SIZE * count);
 		if (do_swap_account)
 			res_counter_uncharge(&mem->memsw, PAGE_SIZE * count);
-		VM_BUG_ON(test_bit(CSS_ROOT, &mem->css.flags));
-		WARN_ON_ONCE(count > INT_MAX);
-		__css_put(&mem->css, (int)count);
 	}
-	/* we don't need css_put for root */
 }
 
 static void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
@@ -1979,10 +2249,9 @@ out:
  * < 0 if the cgroup is over its limit
  */
 static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
-				gfp_t gfp_mask, enum charge_type ctype,
-				struct mem_cgroup *memcg)
+				gfp_t gfp_mask, enum charge_type ctype)
 {
-	struct mem_cgroup *mem;
+	struct mem_cgroup *mem = NULL;
 	struct page_cgroup *pc;
 	int ret;
 
@@ -1992,7 +2261,6 @@ static int mem_cgroup_charge_common(struct page *page, struct mm_struct *mm,
 		return 0;
 	prefetchw(pc);
 
-	mem = memcg;
 	ret = __mem_cgroup_try_charge(mm, gfp_mask, &mem, true);
 	if (ret || !mem)
 		return ret;
@@ -2020,7 +2288,7 @@ int mem_cgroup_newpage_charge(struct page *page,
 	if (unlikely(!mm))
 		mm = &init_mm;
 	return mem_cgroup_charge_common(page, mm, gfp_mask,
-				MEM_CGROUP_CHARGE_TYPE_MAPPED, NULL);
+				MEM_CGROUP_CHARGE_TYPE_MAPPED);
 }
 
 static void
@@ -2030,7 +2298,6 @@ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *ptr,
 int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask)
 {
-	struct mem_cgroup *mem = NULL;
 	int ret;
 
 	if (mem_cgroup_disabled())
@@ -2051,7 +2318,6 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 	if (!(gfp_mask & __GFP_WAIT)) {
 		struct page_cgroup *pc;
 
-
 		pc = lookup_page_cgroup(page);
 		if (!pc)
 			return 0;
@@ -2063,22 +2329,24 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 		unlock_page_cgroup(pc);
 	}
 
-	if (unlikely(!mm && !mem))
+	if (unlikely(!mm))
 		mm = &init_mm;
 
 	if (page_is_file_cache(page))
 		return mem_cgroup_charge_common(page, mm, gfp_mask,
-				MEM_CGROUP_CHARGE_TYPE_CACHE, NULL);
+				MEM_CGROUP_CHARGE_TYPE_CACHE);
 
 	/* shmem */
 	if (PageSwapCache(page)) {
+		struct mem_cgroup *mem = NULL;
+
 		ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
 		if (!ret)
 			__mem_cgroup_commit_charge_swapin(page, mem,
 					MEM_CGROUP_CHARGE_TYPE_SHMEM);
 	} else
 		ret = mem_cgroup_charge_common(page, mm, gfp_mask,
-					MEM_CGROUP_CHARGE_TYPE_SHMEM, mem);
+					MEM_CGROUP_CHARGE_TYPE_SHMEM);
 
 	return ret;
 }
@@ -2114,7 +2382,6 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
 		goto charge_cur_mm;
 	*ptr = mem;
 	ret = __mem_cgroup_try_charge(NULL, mask, ptr, true);
-	/* drop extra refcnt from tryget */
 	css_put(&mem->css);
 	return ret;
 charge_cur_mm:
@@ -2245,7 +2512,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 {
 	struct page_cgroup *pc;
 	struct mem_cgroup *mem = NULL;
-	struct mem_cgroup_per_zone *mz;
 
 	if (mem_cgroup_disabled())
 		return NULL;
@@ -2285,10 +2551,6 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 		break;
 	}
 
-	if (!mem_cgroup_is_root(mem))
-		__do_uncharge(mem, ctype);
-	if (ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
-		mem_cgroup_swap_statistics(mem, true);
 	mem_cgroup_charge_statistics(mem, pc, false);
 
 	ClearPageCgroupUsed(pc);
@@ -2299,13 +2561,18 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	 * special functions.
 	 */
 
-	mz = page_cgroup_zoneinfo(pc);
 	unlock_page_cgroup(pc);
-
+	/*
+	 * even after unlock, we have mem->res.usage here and this memcg
+	 * will never be freed.
+	 */
 	memcg_check_events(mem, page);
-	/* at swapout, this memcg will be accessed to record to swap */
-	if (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
-		css_put(&mem->css);
+	if (do_swap_account && ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT) {
+		mem_cgroup_swap_statistics(mem, true);
+		mem_cgroup_get(mem);
+	}
+	if (!mem_cgroup_is_root(mem))
+		__do_uncharge(mem, ctype);
 
 	return mem;
 
@@ -2392,13 +2659,12 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
 
 	memcg = __mem_cgroup_uncharge_common(page, ctype);
 
-	/* record memcg information */
-	if (do_swap_account && swapout && memcg) {
+	/*
+	 * record memcg information,  if swapout && memcg != NULL,
+	 * mem_cgroup_get() was called in uncharge().
+	 */
+	if (do_swap_account && swapout && memcg)
 		swap_cgroup_record(ent, css_id(&memcg->css));
-		mem_cgroup_get(memcg);
-	}
-	if (swapout && memcg)
-		css_put(&memcg->css);
 }
 #endif
 
@@ -2476,7 +2742,6 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
 			 */
 			if (!mem_cgroup_is_root(to))
 				res_counter_uncharge(&to->res, PAGE_SIZE);
-			css_put(&to->css);
 		}
 		return 0;
 	}
@@ -2611,11 +2876,8 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
 	ClearPageCgroupMigration(pc);
 	unlock_page_cgroup(pc);
 
-	if (unused != oldpage)
-		pc = lookup_page_cgroup(unused);
 	__mem_cgroup_uncharge_common(unused, MEM_CGROUP_CHARGE_TYPE_FORCE);
 
-	pc = lookup_page_cgroup(used);
 	/*
 	 * If a page is a file cache, radix-tree replacement is very atomic
 	 * and we can skip this check. When it was an Anon page, its mapcount
@@ -2791,8 +3053,7 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
 }
 
 unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
-						gfp_t gfp_mask, int nid,
-						int zid)
+					    gfp_t gfp_mask)
 {
 	unsigned long nr_reclaimed = 0;
 	struct mem_cgroup_per_zone *mz, *next_mz = NULL;
@@ -2804,7 +3065,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
 	if (order > 0)
 		return 0;
 
-	mctz = soft_limit_tree_node_zone(nid, zid);
+	mctz = soft_limit_tree_node_zone(zone_to_nid(zone), zone_idx(zone));
 	/*
 	 * This loop can run a while, specially if mem_cgroup's continuously
 	 * keep exceeding their soft limit and putting the system under
@@ -2965,6 +3226,7 @@ move_account:
 		lru_add_drain_all();
 		drain_all_stock_sync();
 		ret = 0;
+		mem_cgroup_start_move(mem);
 		for_each_node_state(node, N_HIGH_MEMORY) {
 			for (zid = 0; !ret && zid < MAX_NR_ZONES; zid++) {
 				enum lru_list l;
@@ -2978,6 +3240,7 @@ move_account:
 			if (ret)
 				break;
 		}
+		mem_cgroup_end_move(mem);
 		memcg_oom_recover(mem);
 		/* it seems parent cgroup doesn't have enough mem */
 		if (ret == -ENOMEM)
@@ -3064,33 +3327,25 @@ static int mem_cgroup_hierarchy_write(struct cgroup *cont, struct cftype *cft,
 	return retval;
 }
 
-struct mem_cgroup_idx_data {
-	s64 val;
-	enum mem_cgroup_stat_index idx;
-};
 
-static int
-mem_cgroup_get_idx_stat(struct mem_cgroup *mem, void *data)
+static u64 mem_cgroup_get_recursive_idx_stat(struct mem_cgroup *mem,
+				enum mem_cgroup_stat_index idx)
 {
-	struct mem_cgroup_idx_data *d = data;
-	d->val += mem_cgroup_read_stat(mem, d->idx);
-	return 0;
-}
+	struct mem_cgroup *iter;
+	s64 val = 0;
 
-static void
-mem_cgroup_get_recursive_idx_stat(struct mem_cgroup *mem,
-				enum mem_cgroup_stat_index idx, s64 *val)
-{
-	struct mem_cgroup_idx_data d;
-	d.idx = idx;
-	d.val = 0;
-	mem_cgroup_walk_tree(mem, &d, mem_cgroup_get_idx_stat);
-	*val = d.val;
+	/* each per cpu's value can be minus.Then, use s64 */
+	for_each_mem_cgroup_tree(iter, mem)
+		val += mem_cgroup_read_stat(iter, idx);
+
+	if (val < 0) /* race ? */
+		val = 0;
+	return val;
 }
 
 static inline u64 mem_cgroup_usage(struct mem_cgroup *mem, bool swap)
 {
-	u64 idx_val, val;
+	u64 val;
 
 	if (!mem_cgroup_is_root(mem)) {
 		if (!swap)
@@ -3099,16 +3354,12 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *mem, bool swap)
 			return res_counter_read_u64(&mem->memsw, RES_USAGE);
 	}
 
-	mem_cgroup_get_recursive_idx_stat(mem, MEM_CGROUP_STAT_CACHE, &idx_val);
-	val = idx_val;
-	mem_cgroup_get_recursive_idx_stat(mem, MEM_CGROUP_STAT_RSS, &idx_val);
-	val += idx_val;
+	val = mem_cgroup_get_recursive_idx_stat(mem, MEM_CGROUP_STAT_CACHE);
+	val += mem_cgroup_get_recursive_idx_stat(mem, MEM_CGROUP_STAT_RSS);
 
-	if (swap) {
-		mem_cgroup_get_recursive_idx_stat(mem,
-				MEM_CGROUP_STAT_SWAPOUT, &idx_val);
-		val += idx_val;
-	}
+	if (swap)
+		val += mem_cgroup_get_recursive_idx_stat(mem,
+				MEM_CGROUP_STAT_SWAPOUT);
 
 	return val << PAGE_SHIFT;
 }
@@ -3316,9 +3567,9 @@ struct {
 };
 
 
-static int mem_cgroup_get_local_stat(struct mem_cgroup *mem, void *data)
+static void
+mem_cgroup_get_local_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
 {
-	struct mcs_total_stat *s = data;
 	s64 val;
 
 	/* per cpu stat */
@@ -3348,13 +3599,15 @@ static int mem_cgroup_get_local_stat(struct mem_cgroup *mem, void *data)
 	s->stat[MCS_ACTIVE_FILE] += val * PAGE_SIZE;
 	val = mem_cgroup_get_local_zonestat(mem, LRU_UNEVICTABLE);
 	s->stat[MCS_UNEVICTABLE] += val * PAGE_SIZE;
-	return 0;
 }
 
 static void
 mem_cgroup_get_total_stat(struct mem_cgroup *mem, struct mcs_total_stat *s)
 {
-	mem_cgroup_walk_tree(mem, s, mem_cgroup_get_local_stat);
+	struct mem_cgroup *iter;
+
+	for_each_mem_cgroup_tree(iter, mem)
+		mem_cgroup_get_local_stat(iter, s);
 }
 
 static int mem_control_stat_show(struct cgroup *cont, struct cftype *cft,
@@ -3514,9 +3767,13 @@ unlock:
 
 static void mem_cgroup_threshold(struct mem_cgroup *memcg)
 {
-	__mem_cgroup_threshold(memcg, false);
-	if (do_swap_account)
-		__mem_cgroup_threshold(memcg, true);
+	while (memcg) {
+		__mem_cgroup_threshold(memcg, false);
+		if (do_swap_account)
+			__mem_cgroup_threshold(memcg, true);
+
+		memcg = parent_mem_cgroup(memcg);
+	}
 }
 
 static int compare_thresholds(const void *a, const void *b)
@@ -3527,7 +3784,7 @@ static int compare_thresholds(const void *a, const void *b)
 	return _a->threshold - _b->threshold;
 }
 
-static int mem_cgroup_oom_notify_cb(struct mem_cgroup *mem, void *data)
+static int mem_cgroup_oom_notify_cb(struct mem_cgroup *mem)
 {
 	struct mem_cgroup_eventfd_list *ev;
 
@@ -3538,7 +3795,10 @@ static int mem_cgroup_oom_notify_cb(struct mem_cgroup *mem, void *data)
 
 static void mem_cgroup_oom_notify(struct mem_cgroup *mem)
 {
-	mem_cgroup_walk_tree(mem, NULL, mem_cgroup_oom_notify_cb);
+	struct mem_cgroup *iter;
+
+	for_each_mem_cgroup_tree(iter, mem)
+		mem_cgroup_oom_notify_cb(iter);
 }
 
 static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
@@ -3759,8 +4019,6 @@ static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
 	return 0;
 }
 
-/*
- */
 static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
 	struct cftype *cft, u64 val)
 {
@@ -3957,6 +4215,7 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
 			vfree(mem);
 		mem = NULL;
 	}
+	spin_lock_init(&mem->pcp_counter_lock);
 	return mem;
 }
 
@@ -4083,7 +4342,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 						&per_cpu(memcg_stock, cpu);
 			INIT_WORK(&stock->work, drain_local_stock);
 		}
-		hotcpu_notifier(memcg_stock_cpu_callback, 0);
+		hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
 	} else {
 		parent = mem_cgroup_from_cont(cont->parent);
 		mem->use_hierarchy = parent->use_hierarchy;
@@ -4180,9 +4439,6 @@ static int mem_cgroup_do_precharge(unsigned long count)
 			goto one_by_one;
 		}
 		mc.precharge += count;
-		VM_BUG_ON(test_bit(CSS_ROOT, &mem->css.flags));
-		WARN_ON_ONCE(count > INT_MAX);
-		__css_get(&mem->css, (int)count);
 		return ret;
 	}
 one_by_one:
@@ -4400,11 +4656,13 @@ static int mem_cgroup_precharge_mc(struct mm_struct *mm)
 
 static void mem_cgroup_clear_mc(void)
 {
+	struct mem_cgroup *from = mc.from;
+	struct mem_cgroup *to = mc.to;
+
 	/* we must uncharge all the leftover precharges from mc.to */
 	if (mc.precharge) {
 		__mem_cgroup_cancel_charge(mc.to, mc.precharge);
 		mc.precharge = 0;
-		memcg_oom_recover(mc.to);
 	}
 	/*
 	 * we didn't uncharge from mc.from at mem_cgroup_move_account(), so
@@ -4413,11 +4671,9 @@ static void mem_cgroup_clear_mc(void)
 	if (mc.moved_charge) {
 		__mem_cgroup_cancel_charge(mc.from, mc.moved_charge);
 		mc.moved_charge = 0;
-		memcg_oom_recover(mc.from);
 	}
 	/* we must fixup refcnts and charges */
 	if (mc.moved_swap) {
-		WARN_ON_ONCE(mc.moved_swap > INT_MAX);
 		/* uncharge swap account from the old cgroup */
 		if (!mem_cgroup_is_root(mc.from))
 			res_counter_uncharge(&mc.from->memsw,
@@ -4431,16 +4687,19 @@ static void mem_cgroup_clear_mc(void)
 			 */
 			res_counter_uncharge(&mc.to->res,
 						PAGE_SIZE * mc.moved_swap);
-			VM_BUG_ON(test_bit(CSS_ROOT, &mc.to->css.flags));
-			__css_put(&mc.to->css, mc.moved_swap);
 		}
 		/* we've already done mem_cgroup_get(mc.to) */
 
 		mc.moved_swap = 0;
 	}
+	spin_lock(&mc.lock);
 	mc.from = NULL;
 	mc.to = NULL;
 	mc.moving_task = NULL;
+	spin_unlock(&mc.lock);
+	mem_cgroup_end_move(from);
+	memcg_oom_recover(from);
+	memcg_oom_recover(to);
 	wake_up_all(&mc.waitq);
 }
 
@@ -4469,12 +4728,15 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
 			VM_BUG_ON(mc.moved_charge);
 			VM_BUG_ON(mc.moved_swap);
 			VM_BUG_ON(mc.moving_task);
+			mem_cgroup_start_move(from);
+			spin_lock(&mc.lock);
 			mc.from = from;
 			mc.to = mem;
 			mc.precharge = 0;
 			mc.moved_charge = 0;
 			mc.moved_swap = 0;
 			mc.moving_task = current;
+			spin_unlock(&mc.lock);
 
 			ret = mem_cgroup_precharge_mc(mm);
 			if (ret)

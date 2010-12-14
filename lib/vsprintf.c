@@ -146,19 +146,16 @@ int strict_strtoul(const char *cp, unsigned int base, unsigned long *res)
 {
 	char *tail;
 	unsigned long val;
-	size_t len;
 
 	*res = 0;
-	len = strlen(cp);
-	if (len == 0)
+	if (!*cp)
 		return -EINVAL;
 
 	val = simple_strtoul(cp, &tail, base);
 	if (tail == cp)
 		return -EINVAL;
 
-	if ((*tail == '\0') ||
-		((len == (size_t)(tail - cp) + 1) && (*tail == '\n'))) {
+	if ((tail[0] == '\0') || (tail[0] == '\n' && tail[1] == '\0')) {
 		*res = val;
 		return 0;
 	}
@@ -220,18 +217,15 @@ int strict_strtoull(const char *cp, unsigned int base, unsigned long long *res)
 {
 	char *tail;
 	unsigned long long val;
-	size_t len;
 
 	*res = 0;
-	len = strlen(cp);
-	if (len == 0)
+	if (!*cp)
 		return -EINVAL;
 
 	val = simple_strtoull(cp, &tail, base);
 	if (tail == cp)
 		return -EINVAL;
-	if ((*tail == '\0') ||
-		((len == (size_t)(tail - cp) + 1) && (*tail == '\n'))) {
+	if ((tail[0] == '\0') || (tail[0] == '\n' && tail[1] == '\0')) {
 		*res = val;
 		return 0;
 	}
@@ -980,6 +974,11 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
  *             [0][1][2][3]-[4][5]-[6][7]-[8][9]-[10][11][12][13][14][15]
  *           little endian output byte order is:
  *             [3][2][1][0]-[5][4]-[7][6]-[8][9]-[10][11][12][13][14][15]
+ * - 'V' For a struct va_format which contains a format string * and va_list *,
+ *       call vsnprintf(->format, *->va_list).
+ *       Implements a "recursive vsnprintf".
+ *       Do not use this feature without some mechanism to verify the
+ *       correctness of the format string and va_list arguments.
  *
  * Note: The difference between 'S' and 'F' is that on ia64 and ppc64
  * function pointers are really function descriptors, which contain a
@@ -989,8 +988,15 @@ static noinline_for_stack
 char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	      struct printf_spec spec)
 {
-	if (!ptr)
+	if (!ptr) {
+		/*
+		 * Print (null) with the same width as a pointer so it makes
+		 * tabular output look nice.
+		 */
+		if (spec.field_width == -1)
+			spec.field_width = 2 * sizeof(void *);
 		return string(buf, end, "(null)", spec);
+	}
 
 	switch (*fmt) {
 	case 'F':
@@ -1025,10 +1031,14 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		break;
 	case 'U':
 		return uuid_string(buf, end, ptr, spec, fmt);
+	case 'V':
+		return buf + vsnprintf(buf, end - buf,
+				       ((struct va_format *)ptr)->fmt,
+				       *(((struct va_format *)ptr)->va));
 	}
 	spec.flags |= SMALL;
 	if (spec.field_width == -1) {
-		spec.field_width = 2*sizeof(void *);
+		spec.field_width = 2 * sizeof(void *);
 		spec.flags |= ZEROPAD;
 	}
 	spec.base = 16;
@@ -1494,7 +1504,7 @@ EXPORT_SYMBOL(snprintf);
  * @...: Arguments for the format string
  *
  * The return value is the number of characters written into @buf not including
- * the trailing '\0'. If @size is <= 0 the function returns 0.
+ * the trailing '\0'. If @size is == 0 the function returns 0.
  */
 
 int scnprintf(char *buf, size_t size, const char *fmt, ...)
@@ -1506,7 +1516,11 @@ int scnprintf(char *buf, size_t size, const char *fmt, ...)
 	i = vsnprintf(buf, size, fmt, args);
 	va_end(args);
 
-	return (i >= size) ? (size - 1) : i;
+	if (likely(i < size))
+		return i;
+	if (size != 0)
+		return size - 1;
+	return 0;
 }
 EXPORT_SYMBOL(scnprintf);
 

@@ -47,6 +47,7 @@
 #include <linux/memory.h>
 #include <linux/ftrace.h>
 #include <linux/cpu.h>
+#include <linux/jump_label.h>
 
 #include <asm-generic/sections.h>
 #include <asm/cacheflush.h>
@@ -73,7 +74,8 @@ static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
 /* NOTE: change this value only with kprobe_mutex held */
 static bool kprobes_all_disarmed;
 
-static DEFINE_MUTEX(kprobe_mutex);	/* Protects kprobe_table */
+/* This protects kprobe_table and optimizing_list */
+static DEFINE_MUTEX(kprobe_mutex);
 static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
 static struct {
 	spinlock_t lock ____cacheline_aligned_in_smp;
@@ -399,7 +401,7 @@ static inline int kprobe_optready(struct kprobe *p)
  * Return an optimized kprobe whose optimizing code replaces
  * instructions including addr (exclude breakpoint).
  */
-struct kprobe *__kprobes get_optimized_kprobe(unsigned long addr)
+static struct kprobe *__kprobes get_optimized_kprobe(unsigned long addr)
 {
 	int i;
 	struct kprobe *p = NULL;
@@ -594,6 +596,7 @@ static __kprobes void try_to_optimize_kprobe(struct kprobe *p)
 }
 
 #ifdef CONFIG_SYSCTL
+/* This should be called with kprobe_mutex locked */
 static void __kprobes optimize_all_kprobes(void)
 {
 	struct hlist_head *head;
@@ -606,17 +609,16 @@ static void __kprobes optimize_all_kprobes(void)
 		return;
 
 	kprobes_allow_optimization = true;
-	mutex_lock(&text_mutex);
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
 		hlist_for_each_entry_rcu(p, node, head, hlist)
 			if (!kprobe_disabled(p))
 				optimize_kprobe(p);
 	}
-	mutex_unlock(&text_mutex);
 	printk(KERN_INFO "Kprobes globally optimized\n");
 }
 
+/* This should be called with kprobe_mutex locked */
 static void __kprobes unoptimize_all_kprobes(void)
 {
 	struct hlist_head *head;
@@ -831,6 +833,7 @@ void __kprobes recycle_rp_inst(struct kretprobe_instance *ri,
 
 void __kprobes kretprobe_hash_lock(struct task_struct *tsk,
 			 struct hlist_head **head, unsigned long *flags)
+__acquires(hlist_lock)
 {
 	unsigned long hash = hash_ptr(tsk, KPROBE_HASH_BITS);
 	spinlock_t *hlist_lock;
@@ -842,6 +845,7 @@ void __kprobes kretprobe_hash_lock(struct task_struct *tsk,
 
 static void __kprobes kretprobe_table_lock(unsigned long hash,
 	unsigned long *flags)
+__acquires(hlist_lock)
 {
 	spinlock_t *hlist_lock = kretprobe_table_lock_ptr(hash);
 	spin_lock_irqsave(hlist_lock, *flags);
@@ -849,6 +853,7 @@ static void __kprobes kretprobe_table_lock(unsigned long hash,
 
 void __kprobes kretprobe_hash_unlock(struct task_struct *tsk,
 	unsigned long *flags)
+__releases(hlist_lock)
 {
 	unsigned long hash = hash_ptr(tsk, KPROBE_HASH_BITS);
 	spinlock_t *hlist_lock;
@@ -857,7 +862,9 @@ void __kprobes kretprobe_hash_unlock(struct task_struct *tsk,
 	spin_unlock_irqrestore(hlist_lock, *flags);
 }
 
-void __kprobes kretprobe_table_unlock(unsigned long hash, unsigned long *flags)
+static void __kprobes kretprobe_table_unlock(unsigned long hash,
+       unsigned long *flags)
+__releases(hlist_lock)
 {
 	spinlock_t *hlist_lock = kretprobe_table_lock_ptr(hash);
 	spin_unlock_irqrestore(hlist_lock, *flags);
@@ -1138,13 +1145,13 @@ int __kprobes register_kprobe(struct kprobe *p)
 	if (ret)
 		return ret;
 
+	jump_label_lock();
 	preempt_disable();
 	if (!kernel_text_address((unsigned long) p->addr) ||
 	    in_kprobes_functions((unsigned long) p->addr) ||
-	    ftrace_text_reserved(p->addr, p->addr)) {
-		preempt_enable();
-		return -EINVAL;
-	}
+	    ftrace_text_reserved(p->addr, p->addr) ||
+	    jump_label_text_reserved(p->addr, p->addr))
+		goto fail_with_jump_label;
 
 	/* User can pass only KPROBE_FLAG_DISABLED to register_kprobe */
 	p->flags &= KPROBE_FLAG_DISABLED;
@@ -1158,10 +1165,9 @@ int __kprobes register_kprobe(struct kprobe *p)
 		 * We must hold a refcount of the probed module while updating
 		 * its code to prohibit unexpected unloading.
 		 */
-		if (unlikely(!try_module_get(probed_mod))) {
-			preempt_enable();
-			return -EINVAL;
-		}
+		if (unlikely(!try_module_get(probed_mod)))
+			goto fail_with_jump_label;
+
 		/*
 		 * If the module freed .init.text, we couldn't insert
 		 * kprobes in there.
@@ -1169,15 +1175,17 @@ int __kprobes register_kprobe(struct kprobe *p)
 		if (within_module_init((unsigned long)p->addr, probed_mod) &&
 		    probed_mod->state != MODULE_STATE_COMING) {
 			module_put(probed_mod);
-			preempt_enable();
-			return -EINVAL;
+			goto fail_with_jump_label;
 		}
 	}
 	preempt_enable();
+	jump_label_unlock();
 
 	p->nmissed = 0;
 	INIT_LIST_HEAD(&p->list);
 	mutex_lock(&kprobe_mutex);
+
+	jump_label_lock(); /* needed to call jump_label_text_reserved() */
 
 	get_online_cpus();	/* For avoiding text_mutex deadlock. */
 	mutex_lock(&text_mutex);
@@ -1206,12 +1214,18 @@ int __kprobes register_kprobe(struct kprobe *p)
 out:
 	mutex_unlock(&text_mutex);
 	put_online_cpus();
+	jump_label_unlock();
 	mutex_unlock(&kprobe_mutex);
 
 	if (probed_mod)
 		module_put(probed_mod);
 
 	return ret;
+
+fail_with_jump_label:
+	preempt_enable();
+	jump_label_unlock();
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(register_kprobe);
 
@@ -1339,18 +1353,19 @@ int __kprobes register_jprobes(struct jprobe **jps, int num)
 	if (num <= 0)
 		return -EINVAL;
 	for (i = 0; i < num; i++) {
-		unsigned long addr;
+		unsigned long addr, offset;
 		jp = jps[i];
 		addr = arch_deref_entry_point(jp->entry);
 
-		if (!kernel_text_address(addr))
-			ret = -EINVAL;
-		else {
-			/* Todo: Verify probepoint is a function entry point */
+		/* Verify probepoint is a function entry point */
+		if (kallsyms_lookup_size_offset(addr, NULL, &offset) &&
+		    offset == 0) {
 			jp->kp.pre_handler = setjmp_pre_handler;
 			jp->kp.break_handler = longjmp_break_handler;
 			ret = register_kprobe(&jp->kp);
-		}
+		} else
+			ret = -EINVAL;
+
 		if (ret < 0) {
 			if (i > 0)
 				unregister_jprobes(jps, i);
@@ -1992,6 +2007,7 @@ static ssize_t write_enabled_file_bool(struct file *file,
 static const struct file_operations fops_kp = {
 	.read =         read_enabled_file_bool,
 	.write =        write_enabled_file_bool,
+	.llseek =	default_llseek,
 };
 
 static int __kprobes debugfs_kprobe_init(void)

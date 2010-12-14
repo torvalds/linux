@@ -48,7 +48,7 @@
 
 static const struct proto_ops econet_ops;
 static struct hlist_head econet_sklist;
-static DEFINE_RWLOCK(econet_lock);
+static DEFINE_SPINLOCK(econet_lock);
 static DEFINE_MUTEX(econet_mutex);
 
 /* Since there are only 256 possible network numbers (or fewer, depends
@@ -98,16 +98,16 @@ struct ec_cb
 
 static void econet_remove_socket(struct hlist_head *list, struct sock *sk)
 {
-	write_lock_bh(&econet_lock);
+	spin_lock_bh(&econet_lock);
 	sk_del_node_init(sk);
-	write_unlock_bh(&econet_lock);
+	spin_unlock_bh(&econet_lock);
 }
 
 static void econet_insert_socket(struct hlist_head *list, struct sock *sk)
 {
-	write_lock_bh(&econet_lock);
+	spin_lock_bh(&econet_lock);
 	sk_add_node(sk, list);
-	write_unlock_bh(&econet_lock);
+	spin_unlock_bh(&econet_lock);
 }
 
 /*
@@ -392,7 +392,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		dev_queue_xmit(skb);
 		dev_put(dev);
 		mutex_unlock(&econet_mutex);
-		return(len);
+		return len;
 
 	out_free:
 		kfree_skb(skb);
@@ -637,7 +637,7 @@ static int econet_create(struct net *net, struct socket *sock, int protocol,
 	eo->num = protocol;
 
 	econet_insert_socket(&econet_sklist, sk);
-	return(0);
+	return 0;
 out:
 	return err;
 }
@@ -782,15 +782,19 @@ static struct sock *ec_listening_socket(unsigned char port, unsigned char
 	struct sock *sk;
 	struct hlist_node *node;
 
+	spin_lock(&econet_lock);
 	sk_for_each(sk, node, &econet_sklist) {
 		struct econet_sock *opt = ec_sk(sk);
 		if ((opt->port == port || opt->port == 0) &&
 		    (opt->station == station || opt->station == 0) &&
-		    (opt->net == net || opt->net == 0))
+		    (opt->net == net || opt->net == 0)) {
+			sock_hold(sk);
 			goto found;
+		}
 	}
 	sk = NULL;
 found:
+	spin_unlock(&econet_lock);
 	return sk;
 }
 
@@ -852,7 +856,7 @@ static void aun_incoming(struct sk_buff *skb, struct aunhdr *ah, size_t len)
 {
 	struct iphdr *ip = ip_hdr(skb);
 	unsigned char stn = ntohl(ip->saddr) & 0xff;
-	struct sock *sk;
+	struct sock *sk = NULL;
 	struct sk_buff *newskb;
 	struct ec_device *edev = skb->dev->ec_ptr;
 
@@ -882,10 +886,13 @@ static void aun_incoming(struct sk_buff *skb, struct aunhdr *ah, size_t len)
 	}
 
 	aun_send_response(ip->saddr, ah->handle, 3, 0);
+	sock_put(sk);
 	return;
 
 bad:
 	aun_send_response(ip->saddr, ah->handle, 4, 0);
+	if (sk)
+		sock_put(sk);
 }
 
 /*
@@ -1002,7 +1009,6 @@ static int __init aun_udp_initialise(void)
 	struct sockaddr_in sin;
 
 	skb_queue_head_init(&aun_queue);
-	spin_lock_init(&aun_queue_lock);
 	setup_timer(&ab_cleanup_timer, ab_cleanup, 0);
 	ab_cleanup_timer.expires = jiffies + (HZ*2);
 	add_timer(&ab_cleanup_timer);
@@ -1050,7 +1056,7 @@ release:
 static int econet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct ec_framehdr *hdr;
-	struct sock *sk;
+	struct sock *sk = NULL;
 	struct ec_device *edev = dev->ec_ptr;
 
 	if (!net_eq(dev_net(dev), &init_net))
@@ -1085,10 +1091,12 @@ static int econet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 	if (ec_queue_packet(sk, skb, edev->net, hdr->src_stn, hdr->cb,
 			    hdr->port))
 		goto drop;
-
+	sock_put(sk);
 	return NET_RX_SUCCESS;
 
 drop:
+	if (sk)
+		sock_put(sk);
 	kfree_skb(skb);
 	return NET_RX_DROP;
 }
@@ -1158,7 +1166,6 @@ static int __init econet_proto_init(void)
 		goto out;
 	sock_register(&econet_family_ops);
 #ifdef CONFIG_ECONET_AUNUDP
-	spin_lock_init(&aun_queue_lock);
 	aun_udp_initialise();
 #endif
 #ifdef CONFIG_ECONET_NATIVE

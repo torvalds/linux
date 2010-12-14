@@ -23,8 +23,10 @@ asmlinkage long sys_vfork(struct pt_regs *regs);
 #endif
 
 #ifndef sys_execve
-asmlinkage long sys_execve(char __user *filename, char __user * __user *argv,
-			char __user * __user *envp, struct pt_regs *regs);
+asmlinkage long sys_execve(const char __user *filename,
+			   const char __user *const __user *argv,
+			   const char __user *const __user *envp,
+			   struct pt_regs *regs);
 #endif
 
 #ifndef sys_mmap2

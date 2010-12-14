@@ -54,7 +54,7 @@
 /* anyone who has. HOWEVER the chip bears a striking resemblence */
 /* to the IrDA controller in the Toshiba RISC TMPR3922 chip      */
 /* the documentation for this is freely available at             */
-/* http://www.toshiba.com/taec/components/Generic/TMPR3922.shtml */
+/* http://www.madingley.org/james/resources/toshoboe/TMPR3922.pdf */
 /* The mapping between the registers in that document and the    */
 /* Registers in the 701 oboe chip are as follows    */
 
@@ -273,7 +273,7 @@ struct OboeSlot
   __u8 control;                 /*Slot control/status see below */
   __u32 address;                /*Slot buffer address */
 }
-__attribute__ ((packed));
+__packed;
 
 #define OBOE_NTASKS OBOE_TXRING_OFFSET_IN_SLOTS
 

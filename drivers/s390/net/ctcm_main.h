@@ -111,8 +111,8 @@ enum ctcm_channel_types {
 
 #define CTCM_INITIAL_BLOCKLEN	2
 
-#define READ			0
-#define WRITE			1
+#define CTCM_READ		0
+#define CTCM_WRITE		1
 
 #define CTCM_ID_SIZE		20+3
 

@@ -55,14 +55,6 @@ void rs400_gart_adjust_size(struct radeon_device *rdev)
 		rdev->mc.gtt_size = 32 * 1024 * 1024;
 		return;
 	}
-	if (rdev->family == CHIP_RS400 || rdev->family == CHIP_RS480) {
-		/* FIXME: RS400 & RS480 seems to have issue with GART size
-		 * if 4G of system memory (needs more testing)
-		 */
-		/* XXX is this still an issue with proper alignment? */
-		rdev->mc.gtt_size = 32 * 1024 * 1024;
-		DRM_ERROR("Forcing to 32M GART size (because of ASIC bug ?)\n");
-	}
 }
 
 void rs400_gart_tlb_flush(struct radeon_device *rdev)
@@ -405,6 +397,12 @@ static int rs400_startup(struct radeon_device *rdev)
 	r = rs400_gart_enable(rdev);
 	if (r)
 		return r;
+
+	/* allocate wb buffer */
+	r = radeon_wb_init(rdev);
+	if (r)
+		return r;
+
 	/* Enable IRQ */
 	r100_irq_set(rdev);
 	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
@@ -414,9 +412,6 @@ static int rs400_startup(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failled initializing CP (%d).\n", r);
 		return r;
 	}
-	r = r100_wb_init(rdev);
-	if (r)
-		dev_err(rdev->dev, "failled initializing WB (%d).\n", r);
 	r = r100_ib_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "failled initializing IB (%d).\n", r);
@@ -451,7 +446,7 @@ int rs400_resume(struct radeon_device *rdev)
 int rs400_suspend(struct radeon_device *rdev)
 {
 	r100_cp_disable(rdev);
-	r100_wb_disable(rdev);
+	radeon_wb_disable(rdev);
 	r100_irq_disable(rdev);
 	rs400_gart_disable(rdev);
 	return 0;
@@ -460,7 +455,7 @@ int rs400_suspend(struct radeon_device *rdev)
 void rs400_fini(struct radeon_device *rdev)
 {
 	r100_cp_fini(rdev);
-	r100_wb_fini(rdev);
+	radeon_wb_fini(rdev);
 	r100_ib_fini(rdev);
 	radeon_gem_fini(rdev);
 	rs400_gart_fini(rdev);
@@ -483,6 +478,8 @@ int rs400_init(struct radeon_device *rdev)
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
 	/* TODO: disable VGA need to use VGA request */
+	/* restore some register to sane defaults */
+	r100_restore_sanity(rdev);
 	/* BIOS*/
 	if (!radeon_get_bios(rdev)) {
 		if (ASIC_IS_AVIVO(rdev))
@@ -532,7 +529,7 @@ int rs400_init(struct radeon_device *rdev)
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
 		r100_cp_fini(rdev);
-		r100_wb_fini(rdev);
+		radeon_wb_fini(rdev);
 		r100_ib_fini(rdev);
 		rs400_gart_fini(rdev);
 		radeon_irq_kms_fini(rdev);

@@ -910,28 +910,19 @@ struct i2400m_work {
 	u8 pl[0];
 };
 
-extern int i2400m_schedule_work(struct i2400m *,
-				void (*)(struct work_struct *), gfp_t,
-				const void *, size_t);
-
 extern int i2400m_msg_check_status(const struct i2400m_l3l4_hdr *,
 				   char *, size_t);
 extern int i2400m_msg_size_check(struct i2400m *,
 				 const struct i2400m_l3l4_hdr *, size_t);
 extern struct sk_buff *i2400m_msg_to_dev(struct i2400m *, const void *, size_t);
 extern void i2400m_msg_to_dev_cancel_wait(struct i2400m *, int);
-extern void i2400m_msg_ack_hook(struct i2400m *,
-				const struct i2400m_l3l4_hdr *, size_t);
 extern void i2400m_report_hook(struct i2400m *,
 			       const struct i2400m_l3l4_hdr *, size_t);
 extern void i2400m_report_hook_work(struct work_struct *);
 extern int i2400m_cmd_enter_powersave(struct i2400m *);
-extern int i2400m_cmd_get_state(struct i2400m *);
 extern int i2400m_cmd_exit_idle(struct i2400m *);
 extern struct sk_buff *i2400m_get_device_info(struct i2400m *);
 extern int i2400m_firmware_check(struct i2400m *);
-extern int i2400m_set_init_config(struct i2400m *,
-				  const struct i2400m_tlv_hdr **, size_t);
 extern int i2400m_set_idle_timeout(struct i2400m *, unsigned);
 
 static inline

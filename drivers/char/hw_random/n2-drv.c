@@ -619,7 +619,7 @@ static void __devinit n2rng_driver_version(void)
 		pr_info("%s", version);
 }
 
-static int __devinit n2rng_probe(struct of_device *op,
+static int __devinit n2rng_probe(struct platform_device *op,
 				 const struct of_device_id *match)
 {
 	int victoria_falls = (match->data != NULL);
@@ -714,7 +714,7 @@ out:
 	return err;
 }
 
-static int __devexit n2rng_remove(struct of_device *op)
+static int __devexit n2rng_remove(struct platform_device *op)
 {
 	struct n2rng *np = dev_get_drvdata(&op->dev);
 
@@ -762,12 +762,12 @@ static struct of_platform_driver n2rng_driver = {
 
 static int __init n2rng_init(void)
 {
-	return of_register_driver(&n2rng_driver, &of_bus_type);
+	return of_register_platform_driver(&n2rng_driver);
 }
 
 static void __exit n2rng_exit(void)
 {
-	of_unregister_driver(&n2rng_driver);
+	of_unregister_platform_driver(&n2rng_driver);
 }
 
 module_init(n2rng_init);

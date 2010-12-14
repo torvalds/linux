@@ -282,5 +282,5 @@ void __init leon_init_IRQ(void)
 
 void __init leon_init(void)
 {
-	prom_build_more = &leon_node_init;
+	of_pdt_build_more = &leon_node_init;
 }

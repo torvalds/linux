@@ -386,6 +386,11 @@
 #       define AVIVO_D1GRPH_TILED                               (1 << 20)
 #       define AVIVO_D1GRPH_MACRO_ADDRESS_MODE                  (1 << 21)
 
+#       define R600_D1GRPH_ARRAY_MODE_LINEAR_GENERAL            (0 << 20)
+#       define R600_D1GRPH_ARRAY_MODE_LINEAR_ALIGNED            (1 << 20)
+#       define R600_D1GRPH_ARRAY_MODE_1D_TILED_THIN1            (2 << 20)
+#       define R600_D1GRPH_ARRAY_MODE_2D_TILED_THIN1            (4 << 20)
+
 /* The R7xx *_HIGH surface regs are backwards; the D1 regs are in the D2
  * block and vice versa.  This applies to GRPH, CUR, etc.
  */

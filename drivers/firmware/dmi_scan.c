@@ -2,6 +2,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/ctype.h>
 #include <linux/dmi.h>
 #include <linux/efi.h>
 #include <linux/bootmem.h>
@@ -277,6 +278,29 @@ static void __init dmi_save_ipmi_device(const struct dmi_header *dm)
 	list_add_tail(&dev->list, &dmi_devices);
 }
 
+static void __init dmi_save_dev_onboard(int instance, int segment, int bus,
+					int devfn, const char *name)
+{
+	struct dmi_dev_onboard *onboard_dev;
+
+	onboard_dev = dmi_alloc(sizeof(*onboard_dev) + strlen(name) + 1);
+	if (!onboard_dev) {
+		printk(KERN_ERR "dmi_save_dev_onboard: out of memory.\n");
+		return;
+	}
+	onboard_dev->instance = instance;
+	onboard_dev->segment = segment;
+	onboard_dev->bus = bus;
+	onboard_dev->devfn = devfn;
+
+	strcpy((char *)&onboard_dev[1], name);
+	onboard_dev->dev.type = DMI_DEV_TYPE_DEV_ONBOARD;
+	onboard_dev->dev.name = (char *)&onboard_dev[1];
+	onboard_dev->dev.device_data = onboard_dev;
+
+	list_add(&onboard_dev->dev.list, &dmi_devices);
+}
+
 static void __init dmi_save_extended_devices(const struct dmi_header *dm)
 {
 	const u8 *d = (u8*) dm + 5;
@@ -285,6 +309,8 @@ static void __init dmi_save_extended_devices(const struct dmi_header *dm)
 	if ((*d & 0x80) == 0)
 		return;
 
+	dmi_save_dev_onboard(*(d+1), *(u16 *)(d+2), *(d+4), *(d+5),
+			     dmi_string_nosave(dm, *(d-1)));
 	dmi_save_one_device(*d & 0x7f, dmi_string_nosave(dm, *(d - 1)));
 }
 
@@ -336,6 +362,33 @@ static void __init dmi_decode(const struct dmi_header *dm, void *dummy)
 	}
 }
 
+static void __init print_filtered(const char *info)
+{
+	const char *p;
+
+	if (!info)
+		return;
+
+	for (p = info; *p; p++)
+		if (isprint(*p))
+			printk(KERN_CONT "%c", *p);
+		else
+			printk(KERN_CONT "\\x%02x", *p & 0xff);
+}
+
+static void __init dmi_dump_ids(void)
+{
+	printk(KERN_DEBUG "DMI: ");
+	print_filtered(dmi_get_system_info(DMI_BOARD_NAME));
+	printk(KERN_CONT "/");
+	print_filtered(dmi_get_system_info(DMI_PRODUCT_NAME));
+	printk(KERN_CONT ", BIOS ");
+	print_filtered(dmi_get_system_info(DMI_BIOS_VERSION));
+	printk(KERN_CONT " ");
+	print_filtered(dmi_get_system_info(DMI_BIOS_DATE));
+	printk(KERN_CONT "\n");
+}
+
 static int __init dmi_present(const char __iomem *p)
 {
 	u8 buf[15];
@@ -356,8 +409,10 @@ static int __init dmi_present(const char __iomem *p)
 			       buf[14] >> 4, buf[14] & 0xF);
 		else
 			printk(KERN_INFO "DMI present.\n");
-		if (dmi_walk_early(dmi_decode) == 0)
+		if (dmi_walk_early(dmi_decode) == 0) {
+			dmi_dump_ids();
 			return 0;
+		}
 	}
 	return 1;
 }

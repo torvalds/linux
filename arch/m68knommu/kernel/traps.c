@@ -179,14 +179,16 @@ static void __show_stack(struct task_struct *task, unsigned long *stack)
 
 void bad_super_trap(struct frame *fp)
 {
+	int vector = (fp->ptregs.vector >> 2) & 0xff;
+
 	console_verbose();
-	if (fp->ptregs.vector < 4 * ARRAY_SIZE(vec_names))
+	if (vector < ARRAY_SIZE(vec_names))
 		printk (KERN_WARNING "*** %s ***   FORMAT=%X\n",
-			vec_names[(fp->ptregs.vector) >> 2],
+			vec_names[vector],
 			fp->ptregs.format);
 	else
 		printk (KERN_WARNING "*** Exception %d ***   FORMAT=%X\n",
-			(fp->ptregs.vector) >> 2, 
+			vector,
 			fp->ptregs.format);
 	printk (KERN_WARNING "Current process id is %d\n", current->pid);
 	die_if_kernel("BAD KERNEL TRAP", &fp->ptregs, 0);
@@ -195,10 +197,11 @@ void bad_super_trap(struct frame *fp)
 asmlinkage void trap_c(struct frame *fp)
 {
 	int sig;
+	int vector = (fp->ptregs.vector >> 2) & 0xff;
 	siginfo_t info;
 
 	if (fp->ptregs.sr & PS_S) {
-		if ((fp->ptregs.vector >> 2) == VEC_TRACE) {
+		if (vector == VEC_TRACE) {
 			/* traced a trapping instruction */
 		} else
 			bad_super_trap(fp);
@@ -206,7 +209,7 @@ asmlinkage void trap_c(struct frame *fp)
 	}
 
 	/* send the appropriate signal to the user program */
-	switch ((fp->ptregs.vector) >> 2) {
+	switch (vector) {
 	    case VEC_ADDRERR:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
@@ -360,16 +363,3 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	else
 		__show_stack(task, stack);
 }
-
-#ifdef CONFIG_M68KFPU_EMU
-asmlinkage void fpemu_signal(int signal, int code, void *addr)
-{
-	siginfo_t info;
-
-	info.si_signo = signal;
-	info.si_errno = 0;
-	info.si_code = code;
-	info.si_addr = addr;
-	force_sig_info(signal, &info, current);
-}
-#endif

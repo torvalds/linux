@@ -34,6 +34,8 @@ struct sys_timer;
 extern void omap_map_common_io(void);
 extern struct sys_timer omap_timer;
 
+extern void omap_reserve(void);
+
 /*
  * IO bases for various OMAP processors
  * Except the tap base, rest all the io bases
@@ -45,6 +47,7 @@ struct omap_globals {
 	unsigned long   sdrc;           /* SDRAM Controller */
 	unsigned long   sms;            /* SDRAM Memory Scheduler */
 	unsigned long   ctrl;           /* System Control Module */
+	unsigned long   ctrl_pad;	/* PAD Control Module */
 	unsigned long   prm;            /* Power and Reset Management */
 	unsigned long   cm;             /* Clock Management */
 	unsigned long   cm2;
@@ -56,8 +59,7 @@ struct omap_globals {
 
 void omap2_set_globals_242x(void);
 void omap2_set_globals_243x(void);
-void omap2_set_globals_343x(void);
-void omap2_set_globals_36xx(void);
+void omap2_set_globals_3xxx(void);
 void omap2_set_globals_443x(void);
 
 /* These get called from omap2_set_globals_xxxx(), do not call these */
@@ -65,7 +67,8 @@ void omap2_set_globals_tap(struct omap_globals *);
 void omap2_set_globals_sdrc(struct omap_globals *);
 void omap2_set_globals_control(struct omap_globals *);
 void omap2_set_globals_prcm(struct omap_globals *);
-void omap2_set_globals_uart(struct omap_globals *);
+
+void omap3_map_io(void);
 
 /**
  * omap_test_timeout - busy-loop, testing a condition
@@ -86,5 +89,10 @@ void omap2_set_globals_uart(struct omap_globals *);
 		udelay(1);					\
 	}							\
 })
+
+extern struct device *omap2_get_mpuss_device(void);
+extern struct device *omap2_get_iva_device(void);
+extern struct device *omap2_get_l3_device(void);
+extern struct device *omap4_get_dsp_device(void);
 
 #endif /* __ARCH_ARM_MACH_OMAP_COMMON_H */

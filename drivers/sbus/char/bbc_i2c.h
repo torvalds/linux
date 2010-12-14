@@ -7,7 +7,7 @@
 
 struct bbc_i2c_client {
 	struct bbc_i2c_bus		*bp;
-	struct of_device		*op;
+	struct platform_device		*op;
 	int				bus;
 	int				address;
 };
@@ -64,16 +64,16 @@ struct bbc_i2c_bus {
 	struct list_head		temps;
 	struct list_head		fans;
 
-	struct of_device		*op;
+	struct platform_device		*op;
 	struct {
-		struct of_device	*device;
+		struct platform_device	*device;
 		int			client_claimed;
 	} devs[NUM_CHILDREN];
 };
 
 /* Probing and attachment. */
-extern struct of_device *bbc_i2c_getdev(struct bbc_i2c_bus *, int);
-extern struct bbc_i2c_client *bbc_i2c_attach(struct bbc_i2c_bus *bp, struct of_device *);
+extern struct platform_device *bbc_i2c_getdev(struct bbc_i2c_bus *, int);
+extern struct bbc_i2c_client *bbc_i2c_attach(struct bbc_i2c_bus *bp, struct platform_device *);
 extern void bbc_i2c_detach(struct bbc_i2c_client *);
 
 /* Register read/write.  NOTE: Blocking! */

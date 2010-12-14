@@ -398,12 +398,7 @@
  */
 #define FH_TSSR_TX_ERROR_REG		(FH_TSSR_LOWER_BOUND + 0x018)
 
-#define FH_TSSR_TX_STATUS_REG_BIT_BUFS_EMPTY(_chnl) ((1 << (_chnl)) << 24)
-#define FH_TSSR_TX_STATUS_REG_BIT_NO_PEND_REQ(_chnl) ((1 << (_chnl)) << 16)
-
-#define FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(_chnl) \
-	(FH_TSSR_TX_STATUS_REG_BIT_BUFS_EMPTY(_chnl) | \
-	FH_TSSR_TX_STATUS_REG_BIT_NO_PEND_REQ(_chnl))
+#define FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(_chnl) ((1 << (_chnl)) << 16)
 
 /* Tx service channels */
 #define FH_SRVC_CHNL		(9)
@@ -449,7 +444,7 @@ struct iwl_rb_status {
 	__le16 finished_rb_num;
 	__le16 finished_fr_nam;
 	__le32 __unused; /* 3945 only */
-} __attribute__ ((packed));
+} __packed;
 
 
 #define TFD_QUEUE_SIZE_MAX      (256)
@@ -475,7 +470,7 @@ static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
 struct iwl_tfd_tb {
 	__le32 lo;
 	__le16 hi_n_len;
-} __attribute__((packed));
+} __packed;
 
 /**
  * struct iwl_tfd
@@ -510,7 +505,7 @@ struct iwl_tfd {
 	u8 num_tbs;
 	struct iwl_tfd_tb tbs[IWL_NUM_OF_TBS];
 	__le32 __pad;
-} __attribute__ ((packed));
+} __packed;
 
 /* Keep Warm Size */
 #define IWL_KW_SIZE 0x1000	/* 4k */

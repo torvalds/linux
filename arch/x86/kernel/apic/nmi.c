@@ -178,7 +178,7 @@ int __init check_nmi_watchdog(void)
 error:
 	if (nmi_watchdog == NMI_IO_APIC) {
 		if (!timer_through_8259)
-			legacy_pic->chip->mask(0);
+			legacy_pic->mask(0);
 		on_each_cpu(__acpi_nmi_disable, NULL, 1);
 	}
 
@@ -400,13 +400,6 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 	int touched = 0;
 	int cpu = smp_processor_id();
 	int rc = 0;
-
-	/* check for other users first */
-	if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT)
-			== NOTIFY_STOP) {
-		rc = 1;
-		touched = 1;
-	}
 
 	sum = get_timer_irqs(cpu);
 

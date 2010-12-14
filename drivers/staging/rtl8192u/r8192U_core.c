@@ -410,14 +410,12 @@ u16 read_nic_word(struct net_device *dev, int indx)
 	struct usb_device *udev = priv->udev;
 
 	status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
-			       RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
-			       (indx&0xff)|0xff00, (indx>>8)&0x0f, &data, 2, HZ / 2);
+				       RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
+				       (indx&0xff)|0xff00, (indx>>8)&0x0f,
+							&data, 2, HZ / 2);
 
 	if (status < 0)
-	{
 		printk("read_nic_word TimeOut! status:%d\n", status);
-	}
-
 
 	return data;
 }
@@ -431,13 +429,10 @@ u16 read_nic_word_E(struct net_device *dev, int indx)
 
 	status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			       RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
-			       indx|0xfe00, 0, &data, 2, HZ / 2);
+				       indx|0xfe00, 0, &data, 2, HZ / 2);
 
 	if (status < 0)
-	{
 		printk("read_nic_word TimeOut! status:%d\n", status);
-	}
-
 
 	return data;
 }
@@ -446,31 +441,29 @@ u32 read_nic_dword(struct net_device *dev, int indx)
 {
 	u32 data;
 	int status;
-//	int result;
+	/* int result; */
 
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct usb_device *udev = priv->udev;
 
 	status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
-			       RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
-			       (indx&0xff)|0xff00, (indx>>8)&0x0f, &data, 4, HZ / 2);
-//	if(0 != result) {
-//	  printk(KERN_WARNING "read size of data = %d\, date = %d\n", result, data);
-//	}
+				       RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
+					(indx&0xff)|0xff00, (indx>>8)&0x0f,
+							&data, 4, HZ / 2);
+	/* if(0 != result) {
+	 *	printk(KERN_WARNING "read size of data = %d\, date = %d\n",
+	 *							 result, data);
+	 * }
+	 */
 
 	if (status < 0)
-	{
 		printk("read_nic_dword TimeOut! status:%d\n", status);
-	}
-
-
 
 	return data;
 }
 
-
-//u8 read_phy_cck(struct net_device *dev, u8 adr);
-//u8 read_phy_ofdm(struct net_device *dev, u8 adr);
+/* u8 read_phy_cck(struct net_device *dev, u8 adr); */
+/* u8 read_phy_ofdm(struct net_device *dev, u8 adr); */
 /* this might still called in what was the PHY rtl8185/rtl8192 common code
  * plans are to possibilty turn it again in one common code...
  */
@@ -478,26 +471,22 @@ inline void force_pci_posting(struct net_device *dev)
 {
 }
 
-
 static struct net_device_stats *rtl8192_stats(struct net_device *dev);
 void rtl8192_commit(struct net_device *dev);
-//void rtl8192_restart(struct net_device *dev);
+/* void rtl8192_restart(struct net_device *dev); */
 void rtl8192_restart(struct work_struct *work);
-//void rtl8192_rq_tx_ack(struct work_struct *work);
-
+/* void rtl8192_rq_tx_ack(struct work_struct *work); */
 void watch_dog_timer_callback(unsigned long data);
 
 /****************************************************************************
-   -----------------------------PROCFS STUFF-------------------------
-*****************************************************************************/
+ *   -----------------------------PROCFS STUFF-------------------------
+*****************************************************************************
+ */
 
-static struct proc_dir_entry *rtl8192_proc = NULL;
+static struct proc_dir_entry *rtl8192_proc;
 
-
-
-static int proc_get_stats_ap(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
+static int proc_get_stats_ap(char *page, char **start, off_t offset, int count,
+							int *eof, void *data)
 {
 	struct net_device *dev = data;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -508,18 +497,12 @@ static int proc_get_stats_ap(char *page, char **start,
 
 	list_for_each_entry(target, &ieee->network_list, list) {
 
-		len += snprintf(page + len, count - len,
-		"%s ", target->ssid);
+		len += snprintf(page + len, count - len, "%s ", target->ssid);
 
-		if(target->wpa_ie_len>0 || target->rsn_ie_len>0){
-			len += snprintf(page + len, count - len,
-			"WPA\n");
-		}
-		else{
-			len += snprintf(page + len, count - len,
-			"non_WPA\n");
-		}
-
+		if (target->wpa_ie_len > 0 || target->rsn_ie_len > 0)
+			len += snprintf(page + len, count - len, "WPA\n");
+		else
+			len += snprintf(page + len, count - len, "non_WPA\n");
 	}
 
 	*eof = 1;
@@ -1551,7 +1534,7 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 				 * 1. check whether there's tx irq available, for it's a completion return
 				 *    function, it should contain enough tx irq;
 				 * 2. check pakcet type;
-				 * 3. intialize sendlist, check whether the to-be send packet no greater than 1
+				 * 3. initialize sendlist, check whether the to-be send packet no greater than 1
 				 * 4. aggregation the packets, and fill firmware info and tx desc to it, etc.
 				 * 5. check whehter the packet could be sent, otherwise just insert to wait head
 				 * */
@@ -5810,10 +5793,12 @@ static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 	struct net_device *dev = NULL;
 	struct r8192_priv *priv= NULL;
 	struct usb_device *udev = interface_to_usbdev(intf);
+	int ret;
 	RT_TRACE(COMP_INIT, "Oops: i'm coming\n");
 
 	dev = alloc_ieee80211(sizeof(struct r8192_priv));
-
+	if (dev == NULL)
+		return -ENOMEM;
 
 	usb_set_intfdata(intf, dev);
 	SET_NETDEV_DEV(dev, &intf->dev);
@@ -5843,12 +5828,16 @@ static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 	RT_TRACE(COMP_INIT, "Driver probe completed1\n");
 	if(rtl8192_init(dev)!=0){
 		RT_TRACE(COMP_ERR, "Initialization failed");
+		ret = -ENODEV;
 		goto fail;
 	}
 	netif_carrier_off(dev);
 	netif_stop_queue(dev);
 
-	register_netdev(dev);
+	ret = register_netdev(dev);
+	if (ret)
+		goto fail2;
+
 	RT_TRACE(COMP_INIT, "dev name=======> %s\n",dev->name);
 	rtl8192_proc_init_one(dev);
 
@@ -5856,13 +5845,20 @@ static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 	RT_TRACE(COMP_INIT, "Driver probe completed\n");
 	return 0;
 
-
+fail2:
+	rtl8192_down(dev);
+	if (priv->pFirmware) {
+		kfree(priv->pFirmware);
+		priv->pFirmware = NULL;
+	}
+	rtl8192_usb_deleteendpoints(dev);
+	destroy_workqueue(priv->priv_wq);
+	mdelay(10);
 fail:
 	free_ieee80211(dev);
 
 	RT_TRACE(COMP_ERR, "wlan driver load failed\n");
-	return -ENODEV;
-
+	return ret;
 }
 
 //detach all the work and timer structure declared or inititialize in r8192U_init function.

@@ -12,7 +12,7 @@ obj-$(CONFIG_OMAP_MPU_TIMER)	+= time.o
 obj-$(CONFIG_OMAP_32K_TIMER)	+= timer32k.o
 
 # Power Management
-obj-$(CONFIG_PM) += pm.o sleep.o
+obj-$(CONFIG_PM) += pm.o sleep.o pm_bus.o
 
 # DSP
 obj-$(CONFIG_OMAP_MBOX_FWK)	+= mailbox_mach.o
@@ -22,6 +22,9 @@ i2c-omap-$(CONFIG_I2C_OMAP)		:= i2c.o
 obj-y					+= $(i2c-omap-m) $(i2c-omap-y)
 
 led-y := leds.o
+
+usb-fs-$(CONFIG_USB)			:= usb.o
+obj-y					+= $(usb-fs-m) $(usb-fs-y)
 
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_H2)		+= board-h2.o board-h2-mmc.o

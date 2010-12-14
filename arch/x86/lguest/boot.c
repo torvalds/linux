@@ -324,9 +324,8 @@ static void lguest_load_gdt(const struct desc_ptr *desc)
 }
 
 /*
- * For a single GDT entry which changes, we do the lazy thing: alter our GDT,
- * then tell the Host to reload the entire thing.  This operation is so rare
- * that this naive implementation is reasonable.
+ * For a single GDT entry which changes, we simply change our copy and
+ * then tell the host about it.
  */
 static void lguest_write_gdt_entry(struct desc_struct *dt, int entrynum,
 				   const void *desc, int type)
@@ -338,9 +337,13 @@ static void lguest_write_gdt_entry(struct desc_struct *dt, int entrynum,
 }
 
 /*
- * OK, I lied.  There are three "thread local storage" GDT entries which change
+ * There are three "thread local storage" GDT entries which change
  * on every context switch (these three entries are how glibc implements
- * __thread variables).  So we have a hypercall specifically for this case.
+ * __thread variables).  As an optimization, we have a hypercall
+ * specifically for this case.
+ *
+ * Wouldn't it be nicer to have a general LOAD_GDT_ENTRIES hypercall
+ * which took a range of entries?
  */
 static void lguest_load_tls(struct thread_struct *t, unsigned int cpu)
 {
@@ -788,22 +791,22 @@ static void lguest_flush_tlb_kernel(void)
  * simple as setting a bit.  We don't actually "ack" interrupts as such, we
  * just mask and unmask them.  I wonder if we should be cleverer?
  */
-static void disable_lguest_irq(unsigned int irq)
+static void disable_lguest_irq(struct irq_data *data)
 {
-	set_bit(irq, lguest_data.blocked_interrupts);
+	set_bit(data->irq, lguest_data.blocked_interrupts);
 }
 
-static void enable_lguest_irq(unsigned int irq)
+static void enable_lguest_irq(struct irq_data *data)
 {
-	clear_bit(irq, lguest_data.blocked_interrupts);
+	clear_bit(data->irq, lguest_data.blocked_interrupts);
 }
 
 /* This structure describes the lguest IRQ controller. */
 static struct irq_chip lguest_irq_controller = {
 	.name		= "lguest",
-	.mask		= disable_lguest_irq,
-	.mask_ack	= disable_lguest_irq,
-	.unmask		= enable_lguest_irq,
+	.irq_mask	= disable_lguest_irq,
+	.irq_mask_ack	= disable_lguest_irq,
+	.irq_unmask	= enable_lguest_irq,
 };
 
 /*
@@ -835,12 +838,12 @@ static void __init lguest_init_IRQ(void)
  * rather than set them in lguest_init_IRQ we are called here every time an
  * lguest device needs an interrupt.
  *
- * FIXME: irq_to_desc_alloc_node() can fail due to lack of memory, we should
+ * FIXME: irq_alloc_desc_at() can fail due to lack of memory, we should
  * pass that up!
  */
 void lguest_setup_irq(unsigned int irq)
 {
-	irq_to_desc_alloc_node(irq, 0);
+	irq_alloc_desc_at(irq, 0);
 	set_irq_chip_and_handler_name(irq, &lguest_irq_controller,
 				      handle_level_irq, "level");
 }

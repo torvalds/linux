@@ -15,4 +15,12 @@ static inline void list_del_range(struct list_head *begin,
 	begin->prev->next = end->next;
 	end->next->prev = begin->prev;
 }
+
+/**
+ * list_for_each_from	-	iterate over a list from one of its nodes
+ * @pos:  the &struct list_head to use as a loop cursor, from where to start
+ * @head: the head for your list.
+ */
+#define list_for_each_from(pos, head) \
+	for (; prefetch(pos->next), pos != (head); pos = pos->next)
 #endif

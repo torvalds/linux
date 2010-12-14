@@ -188,25 +188,43 @@ void tty_audit_tiocsti(struct tty_struct *tty, char ch)
 }
 
 /**
- *	tty_audit_push_task	-	Flush task's pending audit data
+ * tty_audit_push_task	-	Flush task's pending audit data
+ * @tsk:		task pointer
+ * @loginuid:		sender login uid
+ * @sessionid:		sender session id
+ *
+ * Called with a ref on @tsk held. Try to lock sighand and get a
+ * reference to the tty audit buffer if available.
+ * Flush the buffer or return an appropriate error code.
  */
-void tty_audit_push_task(struct task_struct *tsk, uid_t loginuid, u32 sessionid)
+int tty_audit_push_task(struct task_struct *tsk, uid_t loginuid, u32 sessionid)
 {
-	struct tty_audit_buf *buf;
+	struct tty_audit_buf *buf = ERR_PTR(-EPERM);
+	unsigned long flags;
 
-	spin_lock_irq(&tsk->sighand->siglock);
-	buf = tsk->signal->tty_audit_buf;
-	if (buf)
-		atomic_inc(&buf->count);
-	spin_unlock_irq(&tsk->sighand->siglock);
-	if (!buf)
-		return;
+	if (!lock_task_sighand(tsk, &flags))
+		return -ESRCH;
+
+	if (tsk->signal->audit_tty) {
+		buf = tsk->signal->tty_audit_buf;
+		if (buf)
+			atomic_inc(&buf->count);
+	}
+	unlock_task_sighand(tsk, &flags);
+
+	/*
+	 * Return 0 when signal->audit_tty set
+	 * but tsk->signal->tty_audit_buf == NULL.
+	 */
+	if (!buf || IS_ERR(buf))
+		return PTR_ERR(buf);
 
 	mutex_lock(&buf->mutex);
 	tty_audit_buf_push(tsk, loginuid, sessionid, buf);
 	mutex_unlock(&buf->mutex);
 
 	tty_audit_buf_put(buf);
+	return 0;
 }
 
 /**

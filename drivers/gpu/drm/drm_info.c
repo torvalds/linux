@@ -51,13 +51,24 @@ int drm_name_info(struct seq_file *m, void *data)
 	if (!master)
 		return 0;
 
-	if (master->unique) {
-		seq_printf(m, "%s %s %s\n",
-			   dev->driver->pci_driver.name,
-			   pci_name(dev->pdev), master->unique);
+	if (drm_core_check_feature(dev, DRIVER_USE_PLATFORM_DEVICE)) {
+		if (master->unique) {
+			seq_printf(m, "%s %s %s\n",
+					dev->driver->platform_device->name,
+					dev_name(dev->dev), master->unique);
+		} else {
+			seq_printf(m, "%s\n",
+				dev->driver->platform_device->name);
+		}
 	} else {
-		seq_printf(m, "%s %s\n", dev->driver->pci_driver.name,
-			   pci_name(dev->pdev));
+		if (master->unique) {
+			seq_printf(m, "%s %s %s\n",
+				dev->driver->pci_driver.name,
+				dev_name(dev->dev), master->unique);
+		} else {
+			seq_printf(m, "%s %s\n", dev->driver->pci_driver.name,
+				dev_name(dev->dev));
+		}
 	}
 
 	return 0;
@@ -244,7 +255,7 @@ int drm_gem_one_name_info(int id, void *ptr, void *data)
 
 	seq_printf(m, "%6d %8zd %7d %8d\n",
 		   obj->name, obj->size,
-		   atomic_read(&obj->handlecount.refcount),
+		   atomic_read(&obj->handle_count),
 		   atomic_read(&obj->refcount.refcount));
 	return 0;
 }
@@ -256,20 +267,6 @@ int drm_gem_name_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "  name     size handles refcount\n");
 	idr_for_each(&dev->object_name_idr, drm_gem_one_name_info, m);
-	return 0;
-}
-
-int drm_gem_object_info(struct seq_file *m, void* data)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-
-	seq_printf(m, "%d objects\n", atomic_read(&dev->object_count));
-	seq_printf(m, "%d object bytes\n", atomic_read(&dev->object_memory));
-	seq_printf(m, "%d pinned\n", atomic_read(&dev->pin_count));
-	seq_printf(m, "%d pin bytes\n", atomic_read(&dev->pin_memory));
-	seq_printf(m, "%d gtt bytes\n", atomic_read(&dev->gtt_memory));
-	seq_printf(m, "%d gtt total\n", dev->gtt_total);
 	return 0;
 }
 

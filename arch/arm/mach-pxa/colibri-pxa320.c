@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
+#include <linux/usb/gpio_vbus.h>
 
 #include <asm/mach-types.h>
 #include <asm/sizes.h>
@@ -28,6 +29,8 @@
 #include <mach/pxafb.h>
 #include <mach/ohci.h>
 #include <mach/audio.h>
+#include <mach/pxa27x-udc.h>
+#include <mach/udc.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -100,6 +103,42 @@ void __init colibri_pxa320_init_ohci(void)
 #else
 static inline void colibri_pxa320_init_ohci(void) {}
 #endif /* CONFIG_USB_OHCI_HCD || CONFIG_USB_OHCI_HCD_MODULE */
+
+#if defined(CONFIG_USB_GADGET_PXA27X)||defined(CONFIG_USB_GADGET_PXA27X_MODULE)
+static struct gpio_vbus_mach_info colibri_pxa320_gpio_vbus_info = {
+	.gpio_vbus		= mfp_to_gpio(MFP_PIN_GPIO96),
+	.gpio_pullup		= -1,
+};
+
+static struct platform_device colibri_pxa320_gpio_vbus = {
+	.name	= "gpio-vbus",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &colibri_pxa320_gpio_vbus_info,
+	},
+};
+
+static void colibri_pxa320_udc_command(int cmd)
+{
+	if (cmd == PXA2XX_UDC_CMD_CONNECT)
+		UP2OCR = UP2OCR_HXOE | UP2OCR_DPPUE;
+	else if (cmd == PXA2XX_UDC_CMD_DISCONNECT)
+		UP2OCR = UP2OCR_HXOE;
+}
+
+static struct pxa2xx_udc_mach_info colibri_pxa320_udc_info __initdata = {
+	.udc_command		= colibri_pxa320_udc_command,
+	.gpio_pullup		= -1,
+};
+
+static void __init colibri_pxa320_init_udc(void)
+{
+	pxa_set_udc_info(&colibri_pxa320_udc_info);
+	platform_device_register(&colibri_pxa320_gpio_vbus);
+}
+#else
+static inline void colibri_pxa320_init_udc(void) {}
+#endif
 
 static mfp_cfg_t colibri_pxa320_mmc_pin_config[] __initdata = {
 	GPIO22_MMC1_CLK,
@@ -212,11 +251,10 @@ void __init colibri_pxa320_init(void)
 	colibri_pxa3xx_init_mmc(ARRAY_AND_SIZE(colibri_pxa320_mmc_pin_config),
 				mfp_to_gpio(MFP_PIN_GPIO28));
 	colibri_pxa320_init_uart();
+	colibri_pxa320_init_udc();
 }
 
 MACHINE_START(COLIBRI320, "Toradex Colibri PXA320")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= COLIBRI_SDRAM_BASE + 0x100,
 	.init_machine	= colibri_pxa320_init,
 	.map_io		= pxa_map_io,

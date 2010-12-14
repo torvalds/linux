@@ -305,15 +305,9 @@ c4hw_attach_all (void)
     error_flag = 0;
     prep_hdw_info ();
     /*** scan PCI bus for all possible boards */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     while ((pdev = pci_get_device (PCI_VENDOR_ID_CONEXANT,
-                                   PCI_DEVICE_ID_CN8474,
-                                   pdev)))
-#else
-    while ((pdev = pci_find_device (PCI_VENDOR_ID_CONEXANT,
                                     PCI_DEVICE_ID_CN8474,
                                     pdev)))
-#endif
     {
         if (c4_hdw_init (pdev, found))
             found++;

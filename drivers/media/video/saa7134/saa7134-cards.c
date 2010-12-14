@@ -4323,13 +4323,13 @@ struct saa7134_board saa7134_boards[] = {
 	},
 	[SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM] = {
 		/*       Beholder Intl. Ltd. 2008      */
-		/*Dmitry Belimov <d.belimov@gmail.com> */
-		.name           = "Beholder BeholdTV Columbus TVFM",
+		/* Dmitry Belimov <d.belimov@gmail.com> */
+		.name           = "Beholder BeholdTV Columbus TV/FM",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_ALPS_TSBE5_PAL,
-		.radio_type     = UNSET,
-		.tuner_addr     = ADDR_UNSET,
-		.radio_addr     = ADDR_UNSET,
+		.radio_type     = TUNER_TEA5767,
+		.tuner_addr     = 0xc2 >> 1,
+		.radio_addr     = 0xc0 >> 1,
 		.tda9887_conf   = TDA9887_PRESENT,
 		.gpiomask       = 0x000A8004,
 		.inputs         = {{
@@ -5461,6 +5461,30 @@ struct saa7134_board saa7134_boards[] = {
 			.name = name_radio,
 			.amux = TV,
 		},
+	},
+	[SAA7134_BOARD_TECHNOTREND_BUDGET_T3000] = {
+		.name           = "TechoTrend TT-budget T-3000",
+		.tuner_type     = TUNER_PHILIPS_TD1316,
+		.audio_clock    = 0x00187de7,
+		.radio_type     = UNSET,
+		.tuner_addr     = 0x63,
+		.radio_addr     = ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT | TDA9887_PORT1_ACTIVE,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 3,
+			.amux   = TV,
+			.tv     = 1,
+		}, {
+			.name   = name_comp1,
+			.vmux   = 0,
+			.amux   = LINE2,
+		}, {
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE2,
+		} },
 	},
 
 };
@@ -6631,6 +6655,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x6655,
 		.driver_data  = SAA7134_BOARD_LEADTEK_WINFAST_DTV1000S,
 	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x13c2,
+		.subdevice    = 0x2804,
+		.driver_data  = SAA7134_BOARD_TECHNOTREND_BUDGET_T3000,
+	}, {
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -7320,6 +7350,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
 	case SAA7134_BOARD_ASUS_EUROPA2_HYBRID:
 	case SAA7134_BOARD_ASUS_EUROPA_HYBRID:
+	case SAA7134_BOARD_TECHNOTREND_BUDGET_T3000:
 	{
 
 		/* The Philips EUROPA based hybrid boards have the tuner
@@ -7520,22 +7551,22 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		   so we do not need to probe for a radio tuner device. */
 		if (dev->radio_type != UNSET)
 			v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, "tuner", "tuner",
+				&dev->i2c_adap, NULL, "tuner",
 				dev->radio_addr, NULL);
 		if (has_demod)
 			v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, "tuner", "tuner",
+				&dev->i2c_adap, NULL, "tuner",
 				0, v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (dev->tuner_addr == ADDR_UNSET) {
 			enum v4l2_i2c_tuner_type type =
 				has_demod ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
 
 			v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, "tuner", "tuner",
+				&dev->i2c_adap, NULL, "tuner",
 				0, v4l2_i2c_tuner_addrs(type));
 		} else {
 			v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_adap, "tuner", "tuner",
+				&dev->i2c_adap, NULL, "tuner",
 				dev->tuner_addr, NULL);
 		}
 	}

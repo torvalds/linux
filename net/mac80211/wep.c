@@ -32,13 +32,16 @@ int ieee80211_wep_init(struct ieee80211_local *local)
 
 	local->wep_tx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0,
 						CRYPTO_ALG_ASYNC);
-	if (IS_ERR(local->wep_tx_tfm))
+	if (IS_ERR(local->wep_tx_tfm)) {
+		local->wep_rx_tfm = ERR_PTR(-EINVAL);
 		return PTR_ERR(local->wep_tx_tfm);
+	}
 
 	local->wep_rx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0,
 						CRYPTO_ALG_ASYNC);
 	if (IS_ERR(local->wep_rx_tfm)) {
 		crypto_free_blkcipher(local->wep_tx_tfm);
+		local->wep_tx_tfm = ERR_PTR(-EINVAL);
 		return PTR_ERR(local->wep_rx_tfm);
 	}
 
@@ -47,8 +50,10 @@ int ieee80211_wep_init(struct ieee80211_local *local)
 
 void ieee80211_wep_free(struct ieee80211_local *local)
 {
-	crypto_free_blkcipher(local->wep_tx_tfm);
-	crypto_free_blkcipher(local->wep_rx_tfm);
+	if (!IS_ERR(local->wep_tx_tfm))
+		crypto_free_blkcipher(local->wep_tx_tfm);
+	if (!IS_ERR(local->wep_rx_tfm))
+		crypto_free_blkcipher(local->wep_rx_tfm);
 }
 
 static inline bool ieee80211_wep_weak_iv(u32 iv, int keylen)
@@ -122,12 +127,15 @@ static void ieee80211_wep_remove_iv(struct ieee80211_local *local,
 /* Perform WEP encryption using given key. data buffer must have tailroom
  * for 4-byte ICV. data_len must not include this ICV. Note: this function
  * does _not_ add IV. data = RC4(data | CRC32(data)) */
-void ieee80211_wep_encrypt_data(struct crypto_blkcipher *tfm, u8 *rc4key,
-				size_t klen, u8 *data, size_t data_len)
+int ieee80211_wep_encrypt_data(struct crypto_blkcipher *tfm, u8 *rc4key,
+			       size_t klen, u8 *data, size_t data_len)
 {
 	struct blkcipher_desc desc = { .tfm = tfm };
 	struct scatterlist sg;
 	__le32 icv;
+
+	if (IS_ERR(tfm))
+		return -1;
 
 	icv = cpu_to_le32(~crc32_le(~0, data, data_len));
 	put_unaligned(icv, (__le32 *)(data + data_len));
@@ -135,6 +143,8 @@ void ieee80211_wep_encrypt_data(struct crypto_blkcipher *tfm, u8 *rc4key,
 	crypto_blkcipher_setkey(tfm, rc4key, klen);
 	sg_init_one(&sg, data, data_len + WEP_ICV_LEN);
 	crypto_blkcipher_encrypt(&desc, &sg, &sg, sg.length);
+
+	return 0;
 }
 
 
@@ -168,10 +178,8 @@ int ieee80211_wep_encrypt(struct ieee80211_local *local,
 	/* Add room for ICV */
 	skb_put(skb, WEP_ICV_LEN);
 
-	ieee80211_wep_encrypt_data(local->wep_tx_tfm, rc4key, keylen + 3,
-				   iv + WEP_IV_LEN, len);
-
-	return 0;
+	return ieee80211_wep_encrypt_data(local->wep_tx_tfm, rc4key, keylen + 3,
+					  iv + WEP_IV_LEN, len);
 }
 
 
@@ -184,6 +192,9 @@ int ieee80211_wep_decrypt_data(struct crypto_blkcipher *tfm, u8 *rc4key,
 	struct blkcipher_desc desc = { .tfm = tfm };
 	struct scatterlist sg;
 	__le32 crc;
+
+	if (IS_ERR(tfm))
+		return -1;
 
 	crypto_blkcipher_setkey(tfm, rc4key, klen);
 	sg_init_one(&sg, data, data_len + WEP_ICV_LEN);
@@ -211,7 +222,7 @@ static int ieee80211_wep_decrypt(struct ieee80211_local *local,
 				 struct ieee80211_key *key)
 {
 	u32 klen;
-	u8 *rc4key;
+	u8 rc4key[3 + WLAN_KEY_LEN_WEP104];
 	u8 keyidx;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	unsigned int hdrlen;
@@ -229,14 +240,10 @@ static int ieee80211_wep_decrypt(struct ieee80211_local *local,
 
 	keyidx = skb->data[hdrlen + 3] >> 6;
 
-	if (!key || keyidx != key->conf.keyidx || key->conf.alg != ALG_WEP)
+	if (!key || keyidx != key->conf.keyidx)
 		return -1;
 
 	klen = 3 + key->conf.keylen;
-
-	rc4key = kmalloc(klen, GFP_ATOMIC);
-	if (!rc4key)
-		return -1;
 
 	/* Prepend 24-bit IV to RC4 key */
 	memcpy(rc4key, skb->data + hdrlen, 3);
@@ -248,8 +255,6 @@ static int ieee80211_wep_decrypt(struct ieee80211_local *local,
 				       skb->data + hdrlen + WEP_IV_LEN,
 				       len))
 		ret = -1;
-
-	kfree(rc4key);
 
 	/* Trim ICV */
 	skb_trim(skb, skb->len - WEP_ICV_LEN);

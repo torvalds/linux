@@ -8,28 +8,27 @@
 #if (_MIPS_ISA == _MIPS_ISA_MIPS1) || (_MIPS_ISA == _MIPS_ISA_MIPS2) || \
 	(_MIPS_ISA == _MIPS_ISA_MIPS32)
 
-#define KGDB_GDB_REG_SIZE 32
+#define KGDB_GDB_REG_SIZE	32
+#define GDB_SIZEOF_REG		sizeof(u32)
 
 #elif (_MIPS_ISA == _MIPS_ISA_MIPS3) || (_MIPS_ISA == _MIPS_ISA_MIPS4) || \
 	(_MIPS_ISA == _MIPS_ISA_MIPS64)
 
 #ifdef CONFIG_32BIT
-#define KGDB_GDB_REG_SIZE 32
+#define KGDB_GDB_REG_SIZE	32
+#define GDB_SIZEOF_REG		sizeof(u32)
 #else /* CONFIG_CPU_32BIT */
-#define KGDB_GDB_REG_SIZE 64
+#define KGDB_GDB_REG_SIZE	64
+#define GDB_SIZEOF_REG		sizeof(u64)
 #endif
 #else
 #error "Need to set KGDB_GDB_REG_SIZE for MIPS ISA"
 #endif /* _MIPS_ISA */
 
 #define BUFMAX			2048
-#if (KGDB_GDB_REG_SIZE == 32)
-#define NUMREGBYTES		(90*sizeof(u32))
-#define NUMCRITREGBYTES		(12*sizeof(u32))
-#else
-#define NUMREGBYTES		(90*sizeof(u64))
-#define NUMCRITREGBYTES		(12*sizeof(u64))
-#endif
+#define DBG_MAX_REG_NUM		72
+#define NUMREGBYTES		(DBG_MAX_REG_NUM * sizeof(GDB_SIZEOF_REG))
+#define NUMCRITREGBYTES		(12 * sizeof(GDB_SIZEOF_REG))
 #define BREAK_INSTR_SIZE	4
 #define CACHE_FLUSH_IS_SAFE	0
 

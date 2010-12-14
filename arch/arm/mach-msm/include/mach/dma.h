@@ -32,10 +32,18 @@ struct msm_dmov_cmd {
 	void *data;
 };
 
+#ifndef CONFIG_ARCH_MSM8X60
 void msm_dmov_enqueue_cmd(unsigned id, struct msm_dmov_cmd *cmd);
 void msm_dmov_stop_cmd(unsigned id, struct msm_dmov_cmd *cmd, int graceful);
 int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr);
-
+#else
+static inline
+void msm_dmov_enqueue_cmd(unsigned id, struct msm_dmov_cmd *cmd) { }
+static inline
+void msm_dmov_stop_cmd(unsigned id, struct msm_dmov_cmd *cmd, int graceful) { }
+static inline
+int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr) { return -EIO; }
+#endif
 
 
 #define DMOV_SD0(off, ch) (MSM_DMOV_BASE + 0x0000 + (off) + ((ch) << 2))

@@ -184,7 +184,7 @@ data.</entry>
 	  <row>
 	    <entry><constant>V4L2_CAP_RDS_CAPTURE</constant></entry>
 	    <entry>0x00000100</entry>
-	    <entry>The device supports the <link linkend="rds">RDS</link> interface.</entry>
+	    <entry>The device supports the <link linkend="rds">RDS</link> capture interface.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CAP_VIDEO_OUTPUT_OVERLAY</constant></entry>
@@ -204,6 +204,11 @@ driver capabilities.</para></footnote></entry>
 	    <entry>0x00000400</entry>
 	    <entry>The device supports the &VIDIOC-S-HW-FREQ-SEEK; ioctl for
 hardware frequency seeking.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CAP_RDS_OUTPUT</constant></entry>
+	    <entry>0x00000800</entry>
+	    <entry>The device supports the <link linkend="rds">RDS</link> output interface.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CAP_TUNER</constant></entry>

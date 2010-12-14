@@ -14,5 +14,5 @@ obj-y += adc/
 obj-y += gyro/
 obj-y += imu/
 obj-y += light/
-
 obj-y += trigger/
+obj-y += magnetometer/

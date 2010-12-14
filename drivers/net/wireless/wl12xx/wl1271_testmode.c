@@ -199,17 +199,11 @@ static int wl1271_tm_cmd_nvs_push(struct wl1271 *wl, struct nlattr *tb[])
 	buf = nla_data(tb[WL1271_TM_ATTR_DATA]);
 	len = nla_len(tb[WL1271_TM_ATTR_DATA]);
 
-	if (len != sizeof(struct wl1271_nvs_file)) {
-		wl1271_error("nvs size is not as expected: %zu != %zu",
-			     len, sizeof(struct wl1271_nvs_file));
-		return -EMSGSIZE;
-	}
-
 	mutex_lock(&wl->mutex);
 
 	kfree(wl->nvs);
 
-	wl->nvs = kmalloc(sizeof(struct wl1271_nvs_file), GFP_KERNEL);
+	wl->nvs = kzalloc(sizeof(struct wl1271_nvs_file), GFP_KERNEL);
 	if (!wl->nvs) {
 		wl1271_error("could not allocate memory for the nvs file");
 		ret = -ENOMEM;
@@ -217,6 +211,7 @@ static int wl1271_tm_cmd_nvs_push(struct wl1271 *wl, struct nlattr *tb[])
 	}
 
 	memcpy(wl->nvs, buf, len);
+	wl->nvs_len = len;
 
 	wl1271_debug(DEBUG_TESTMODE, "testmode pushed nvs");
 

@@ -11,6 +11,11 @@
 
 #define MAXNAME (256)
 
+#define DEBUG_CACHE_DIR ".debug"
+
+
+char buildid_dir[MAXPATHLEN]; /* root dir for buildid, binary cache */
+
 static FILE *config_file;
 static const char *config_file_name;
 static int config_linenr;
@@ -127,7 +132,7 @@ static int get_value(config_fn_t fn, void *data, char *name, unsigned int len)
 			break;
 		if (!iskeychar(c))
 			break;
-		name[len++] = tolower(c);
+		name[len++] = c;
 		if (len >= MAXNAME)
 			return -1;
 	}
@@ -327,6 +332,13 @@ int perf_config_bool(const char *name, const char *value)
 	return !!perf_config_bool_or_int(name, value, &discard);
 }
 
+const char *perf_config_dirname(const char *name, const char *value)
+{
+	if (!name)
+		return NULL;
+	return value;
+}
+
 static int perf_default_core_config(const char *var __used, const char *value __used)
 {
 	/* Add other config variables here and to Documentation/config.txt. */
@@ -427,4 +439,54 @@ int perf_config(config_fn_t fn, void *data)
 int config_error_nonbool(const char *var)
 {
 	return error("Missing value for '%s'", var);
+}
+
+struct buildid_dir_config {
+	char *dir;
+};
+
+static int buildid_dir_command_config(const char *var, const char *value,
+				      void *data)
+{
+	struct buildid_dir_config *c = data;
+	const char *v;
+
+	/* same dir for all commands */
+	if (!prefixcmp(var, "buildid.") && !strcmp(var + 8, "dir")) {
+		v = perf_config_dirname(var, value);
+		if (!v)
+			return -1;
+		strncpy(c->dir, v, MAXPATHLEN-1);
+		c->dir[MAXPATHLEN-1] = '\0';
+	}
+	return 0;
+}
+
+static void check_buildid_dir_config(void)
+{
+	struct buildid_dir_config c;
+	c.dir = buildid_dir;
+	perf_config(buildid_dir_command_config, &c);
+}
+
+void set_buildid_dir(void)
+{
+	buildid_dir[0] = '\0';
+
+	/* try config file */
+	check_buildid_dir_config();
+
+	/* default to $HOME/.debug */
+	if (buildid_dir[0] == '\0') {
+		char *v = getenv("HOME");
+		if (v) {
+			snprintf(buildid_dir, MAXPATHLEN-1, "%s/%s",
+				 v, DEBUG_CACHE_DIR);
+		} else {
+			strncpy(buildid_dir, DEBUG_CACHE_DIR, MAXPATHLEN-1);
+		}
+		buildid_dir[MAXPATHLEN-1] = '\0';
+	}
+	/* for communicating with external commands */
+	setenv("PERF_BUILDID_DIR", buildid_dir, 1);
 }

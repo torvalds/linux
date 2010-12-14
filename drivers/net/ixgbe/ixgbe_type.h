@@ -871,6 +871,8 @@
 #define IXGBE_RDRXCTL_MVMEN         0x00000020
 #define IXGBE_RDRXCTL_DMAIDONE      0x00000008 /* DMA init cycle done */
 #define IXGBE_RDRXCTL_AGGDIS        0x00010000 /* Aggregation disable */
+#define IXGBE_RDRXCTL_RSCACKC       0x02000000 /* must set 1 when RSC enabled */
+#define IXGBE_RDRXCTL_FCOE_WRFIX    0x04000000 /* must set 1 when RSC enabled */
 
 /* RQTC Bit Masks and Shifts */
 #define IXGBE_RQTC_SHIFT_TC(_i)     ((_i) * 4)
@@ -2214,6 +2216,8 @@ enum ixgbe_sfp_type {
 	ixgbe_sfp_type_srlr_core1 = 6,
 	ixgbe_sfp_type_da_act_lmt_core0 = 7,
 	ixgbe_sfp_type_da_act_lmt_core1 = 8,
+	ixgbe_sfp_type_1g_cu_core0 = 9,
+	ixgbe_sfp_type_1g_cu_core1 = 10,
 	ixgbe_sfp_type_not_present = 0xFFFE,
 	ixgbe_sfp_type_unknown = 0xFFFF
 };

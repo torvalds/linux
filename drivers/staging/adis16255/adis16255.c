@@ -303,7 +303,7 @@ static int spi_adis16255_bringup(struct spi_adis16255_data *spiadis)
 	if (status != 0)
 		goto err;
 	if (value != 0x0800) {
-		dev_warn(&spiadis->spi->dev, "Scale factor is none default"
+		dev_warn(&spiadis->spi->dev, "Scale factor is none default "
 				"value (%.4x)\n", value);
 	}
 
@@ -338,7 +338,7 @@ static int spi_adis16255_bringup(struct spi_adis16255_data *spiadis)
 			status = -ENODEV;
 			goto err;
 		} else if (value & 0x3)	{
-			dev_warn(&spiadis->spi->dev, "Sensor voltage"
+			dev_warn(&spiadis->spi->dev, "Sensor voltage "
 						"out of range.\n");
 			status = -ENODEV;
 			goto err;
@@ -406,12 +406,14 @@ static int __devinit spi_adis16255_probe(struct spi_device *spi)
 
 	status = spi_adis16255_bringup(spiadis);
 	if (status != 0)
-		goto irq_err;
+		goto sysfs_err;
 
 	dev_info(&spi->dev, "spi_adis16255 driver added!\n");
 
 	return status;
 
+sysfs_err:
+	sysfs_remove_group(&spiadis->spi->dev.kobj, &adis16255_attr_group);
 irq_err:
 	free_irq(spiadis->irq, spiadis);
 gpio_err:

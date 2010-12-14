@@ -62,7 +62,9 @@ extern const char raid6_empty_zero_page[PAGE_SIZE];
 #define disable_kernel_altivec()
 
 #define EXPORT_SYMBOL(sym)
+#define EXPORT_SYMBOL_GPL(sym)
 #define MODULE_LICENSE(licence)
+#define MODULE_DESCRIPTION(desc)
 #define subsys_initcall(x)
 #define module_exit(x)
 #endif /* __KERNEL__ */

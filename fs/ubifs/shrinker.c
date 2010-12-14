@@ -250,7 +250,7 @@ static int kick_a_thread(void)
 			dirty_zn_cnt = atomic_long_read(&c->dirty_zn_cnt);
 
 			if (!dirty_zn_cnt || c->cmt_state == COMMIT_BROKEN ||
-			    c->ro_media) {
+			    c->ro_mount || c->ro_error) {
 				mutex_unlock(&c->umount_mutex);
 				continue;
 			}

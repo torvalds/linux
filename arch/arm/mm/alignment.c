@@ -885,8 +885,23 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 	if (ai_usermode & UM_SIGNAL)
 		force_sig(SIGBUS, current);
-	else
-		set_cr(cr_no_alignment);
+	else {
+		/*
+		 * We're about to disable the alignment trap and return to
+		 * user space.  But if an interrupt occurs before actually
+		 * reaching user space, then the IRQ vector entry code will
+		 * notice that we were still in kernel space and therefore
+		 * the alignment trap won't be re-enabled in that case as it
+		 * is presumed to be always on from kernel space.
+		 * Let's prevent that race by disabling interrupts here (they
+		 * are disabled on the way back to user space anyway in
+		 * entry-common.S) and disable the alignment trap only if
+		 * there is no work pending for this thread.
+		 */
+		raw_local_irq_disable();
+		if (!(current_thread_info()->flags & _TIF_WORK_MASK))
+			set_cr(cr_no_alignment);
+	}
 
 	return 0;
 }
@@ -924,8 +939,20 @@ static int __init alignment_init(void)
 		ai_usermode = UM_FIXUP;
 	}
 
-	hook_fault_code(1, do_alignment, SIGILL, "alignment exception");
-	hook_fault_code(3, do_alignment, SIGILL, "alignment exception");
+	hook_fault_code(1, do_alignment, SIGBUS, BUS_ADRALN,
+			"alignment exception");
+
+	/*
+	 * ARMv6K and ARMv7 use fault status 3 (0b00011) as Access Flag section
+	 * fault, not as alignment error.
+	 *
+	 * TODO: handle ARMv6K properly. Runtime check for 'K' extension is
+	 * needed.
+	 */
+	if (cpu_architecture() <= CPU_ARCH_ARMv6) {
+		hook_fault_code(3, do_alignment, SIGBUS, BUS_ADRALN,
+				"alignment exception");
+	}
 
 	return 0;
 }

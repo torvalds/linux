@@ -732,25 +732,23 @@ int ocfs2_resmap_resv_bits(struct ocfs2_reservation_map *resmap,
 			   struct ocfs2_alloc_reservation *resv,
 			   int *cstart, int *clen)
 {
-	unsigned int wanted = *clen;
-
 	if (resv == NULL || ocfs2_resmap_disabled(resmap))
 		return -ENOSPC;
 
 	spin_lock(&resv_lock);
 
-	/*
-	 * We don't want to over-allocate for temporary
-	 * windows. Otherwise, we run the risk of fragmenting the
-	 * allocation space.
-	 */
-	wanted = ocfs2_resv_window_bits(resmap, resv);
-	if ((resv->r_flags & OCFS2_RESV_FLAG_TMP) || wanted < *clen)
-		wanted = *clen;
-
 	if (ocfs2_resv_empty(resv)) {
-		mlog(0, "empty reservation, find new window\n");
+		/*
+		 * We don't want to over-allocate for temporary
+		 * windows. Otherwise, we run the risk of fragmenting the
+		 * allocation space.
+		 */
+		unsigned int wanted = ocfs2_resv_window_bits(resmap, resv);
 
+		if ((resv->r_flags & OCFS2_RESV_FLAG_TMP) || wanted < *clen)
+			wanted = *clen;
+
+		mlog(0, "empty reservation, find new window\n");
 		/*
 		 * Try to get a window here. If it works, we must fall
 		 * through and test the bitmap . This avoids some

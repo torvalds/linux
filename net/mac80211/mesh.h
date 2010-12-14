@@ -115,7 +115,7 @@ struct mesh_path {
  * @hash_rnd: random value used for hash computations
  * @entries: number of entries in the table
  * @free_node: function to free nodes of the table
- * @copy_node: fuction to copy nodes of the table
+ * @copy_node: function to copy nodes of the table
  * @size_order: determines size of the table, there will be 2^size_order hash
  *	buckets
  * @mean_chain_len: maximum average length for the hash buckets' list, if it is
@@ -237,8 +237,6 @@ void ieee80211s_update_metric(struct ieee80211_local *local,
 		struct sta_info *stainfo, struct sk_buff *skb);
 void ieee80211s_stop(void);
 void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata);
-ieee80211_rx_result
-ieee80211_mesh_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
 void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh);

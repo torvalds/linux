@@ -55,8 +55,6 @@
 
 #include <asm/uaccess.h>
 
-DEFINE_SNMP_STAT(struct ipstats_mib, ipv6_statistics) __read_mostly;
-
 struct ip6_ra_chain *ip6_ra_chain;
 DEFINE_RWLOCK(ip6_ra_lock);
 
@@ -341,6 +339,25 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		if (optlen < sizeof(int))
 			goto e_inval;
 		np->rxopt.bits.rxpmtu = valbool;
+		retv = 0;
+		break;
+
+	case IPV6_TRANSPARENT:
+		if (!capable(CAP_NET_ADMIN)) {
+			retv = -EPERM;
+			break;
+		}
+		if (optlen < sizeof(int))
+			goto e_inval;
+		/* we don't have a separate transparent bit for IPV6 we use the one in the IPv4 socket */
+		inet_sk(sk)->transparent = valbool;
+		retv = 0;
+		break;
+
+	case IPV6_RECVORIGDSTADDR:
+		if (optlen < sizeof(int))
+			goto e_inval;
+		np->rxopt.bits.rxorigdstaddr = valbool;
 		retv = 0;
 		break;
 
@@ -1105,6 +1122,14 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		return 0;
 		break;
 	}
+
+	case IPV6_TRANSPARENT:
+		val = inet_sk(sk)->transparent;
+		break;
+
+	case IPV6_RECVORIGDSTADDR:
+		val = np->rxopt.bits.rxorigdstaddr;
+		break;
 
 	case IPV6_UNICAST_HOPS:
 	case IPV6_MULTICAST_HOPS:

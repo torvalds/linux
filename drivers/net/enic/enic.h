@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Cisco Systems, Inc.  All rights reserved.
+ * Copyright 2008-2010 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
  *
  * This program is free software; you may redistribute it and/or modify
@@ -20,8 +20,6 @@
 #ifndef _ENIC_H_
 #define _ENIC_H_
 
-#include <linux/inet_lro.h>
-
 #include "vnic_enet.h"
 #include "vnic_dev.h"
 #include "vnic_wq.h"
@@ -34,12 +32,8 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"1.3.1.1-pp"
-#define DRV_COPYRIGHT		"Copyright 2008-2009 Cisco Systems, Inc"
-#define PFX			DRV_NAME ": "
-
-#define ENIC_LRO_MAX_DESC	8
-#define ENIC_LRO_MAX_AGGR	64
+#define DRV_VERSION		"1.4.1.6"
+#define DRV_COPYRIGHT		"Copyright 2008-2010 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
 
@@ -47,25 +41,6 @@
 #define ENIC_RQ_MAX		8
 #define ENIC_CQ_MAX		(ENIC_WQ_MAX + ENIC_RQ_MAX)
 #define ENIC_INTR_MAX		(ENIC_CQ_MAX + 2)
-
-enum enic_cq_index {
-	ENIC_CQ_RQ,
-	ENIC_CQ_WQ,
-};
-
-enum enic_intx_intr_index {
-	ENIC_INTX_WQ_RQ,
-	ENIC_INTX_ERR,
-	ENIC_INTX_NOTIFY,
-};
-
-enum enic_msix_intr_index {
-	ENIC_MSIX_RQ,
-	ENIC_MSIX_WQ,
-	ENIC_MSIX_ERR,
-	ENIC_MSIX_NOTIFY,
-	ENIC_MSIX_MAX,
-};
 
 struct enic_msix_entry {
 	int requested;
@@ -97,8 +72,8 @@ struct enic {
 	struct vnic_dev *vdev;
 	struct timer_list notify_timer;
 	struct work_struct reset;
-	struct msix_entry msix_entry[ENIC_MSIX_MAX];
-	struct enic_msix_entry msix[ENIC_MSIX_MAX];
+	struct msix_entry msix_entry[ENIC_INTR_MAX];
+	struct enic_msix_entry msix[ENIC_INTR_MAX];
 	u32 msg_enable;
 	spinlock_t devcmd_lock;
 	u8 mac_addr[ETH_ALEN];
@@ -116,6 +91,8 @@ struct enic {
 	spinlock_t wq_lock[ENIC_WQ_MAX];
 	unsigned int wq_count;
 	struct vlan_group *vlan_group;
+	u16 loop_enable;
+	u16 loop_tag;
 
 	/* receive queue cache line section */
 	____cacheline_aligned struct vnic_rq rq[ENIC_RQ_MAX];
@@ -123,9 +100,7 @@ struct enic {
 	int (*rq_alloc_buf)(struct vnic_rq *rq);
 	u64 rq_truncated_pkts;
 	u64 rq_bad_fcs;
-	struct napi_struct napi;
-	struct net_lro_mgr lro_mgr;
-	struct net_lro_desc lro_desc[ENIC_LRO_MAX_DESC];
+	struct napi_struct napi[ENIC_RQ_MAX];
 
 	/* interrupt resource cache line section */
 	____cacheline_aligned struct vnic_intr intr[ENIC_INTR_MAX];
@@ -136,5 +111,10 @@ struct enic {
 	____cacheline_aligned struct vnic_cq cq[ENIC_CQ_MAX];
 	unsigned int cq_count;
 };
+
+static inline struct device *enic_get_dev(struct enic *enic)
+{
+	return &(enic->pdev->dev);
+}
 
 #endif /* _ENIC_H_ */

@@ -44,8 +44,6 @@ int VmbusConnect(void)
 	struct vmbus_channel_initiate_contact *msg;
 	unsigned long flags;
 
-	DPRINT_ENTER(VMBUS);
-
 	/* Make sure we are not connecting or connected */
 	if (gVmbusConnection.ConnectState != Disconnected)
 		return -1;
@@ -155,8 +153,6 @@ int VmbusConnect(void)
 
 	kfree(msgInfo->WaitEvent);
 	kfree(msgInfo);
-	DPRINT_EXIT(VMBUS);
-
 	return 0;
 
 Cleanup:
@@ -180,8 +176,6 @@ Cleanup:
 		kfree(msgInfo);
 	}
 
-	DPRINT_EXIT(VMBUS);
-
 	return ret;
 }
 
@@ -192,8 +186,6 @@ int VmbusDisconnect(void)
 {
 	int ret = 0;
 	struct vmbus_channel_message_header *msg;
-
-	DPRINT_ENTER(VMBUS);
 
 	/* Make sure we are connected */
 	if (gVmbusConnection.ConnectState != Connected)
@@ -221,7 +213,6 @@ int VmbusDisconnect(void)
 
 Cleanup:
 	kfree(msg);
-	DPRINT_EXIT(VMBUS);
 	return ret;
 }
 
@@ -263,10 +254,10 @@ static void VmbusProcessChannelEvent(void *context)
 	channel = GetChannelFromRelId(relId);
 
 	if (channel) {
-		VmbusChannelOnChannelEvent(channel);
+		vmbus_onchannel_event(channel);
 		/*
 		 * WorkQueueQueueWorkItem(channel->dataWorkQueue,
-		 *			  VmbusChannelOnChannelEvent,
+		 *			  vmbus_onchannel_event,
 		 *			  (void*)channel);
 		 */
 	} else {
@@ -284,8 +275,6 @@ void VmbusOnEvents(void)
 	int bit;
 	int relid;
 	u32 *recvInterruptPage = gVmbusConnection.RecvInterruptPage;
-
-	DPRINT_ENTER(VMBUS);
 
 	/* Check events */
 	if (recvInterruptPage) {
@@ -310,8 +299,6 @@ void VmbusOnEvents(void)
 			}
 		 }
 	}
-	DPRINT_EXIT(VMBUS);
-
 	return;
 }
 
@@ -332,18 +319,10 @@ int VmbusPostMessage(void *buffer, size_t bufferLen)
  */
 int VmbusSetEvent(u32 childRelId)
 {
-	int ret = 0;
-
-	DPRINT_ENTER(VMBUS);
-
 	/* Each u32 represents 32 channels */
 	set_bit(childRelId & 31,
 		(unsigned long *)gVmbusConnection.SendInterruptPage +
 		(childRelId >> 5));
 
-	ret = HvSignalEvent();
-
-	DPRINT_EXIT(VMBUS);
-
-	return ret;
+	return HvSignalEvent();
 }

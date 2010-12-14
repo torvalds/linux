@@ -168,8 +168,7 @@ static const unsigned long JCACTSELtbl[2][7] = {
 };
 
 static const struct pci_device_id scc_pci_tbl[] = {
-	{PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_SCC_ATA,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_SCC_ATA), 0},
 	{ }	/* terminate list */
 };
 
@@ -531,7 +530,7 @@ static int scc_wait_after_reset(struct ata_link *link, unsigned int devmask,
 	 *
 	 * Old drivers/ide uses the 2mS rule and then waits for ready.
 	 */
-	msleep(150);
+	ata_msleep(ap, 150);
 
 	/* always check readiness of the master device */
 	rc = ata_sff_wait_ready(link, deadline);
@@ -560,7 +559,7 @@ static int scc_wait_after_reset(struct ata_link *link, unsigned int devmask,
 			lbal = in_be32(ioaddr->lbal_addr);
 			if ((nsect == 1) && (lbal == 1))
 				break;
-			msleep(50);	/* give drive a breather */
+			ata_msleep(ap, 50);	/* give drive a breather */
 		}
 
 		rc = ata_sff_wait_ready(link, deadline);

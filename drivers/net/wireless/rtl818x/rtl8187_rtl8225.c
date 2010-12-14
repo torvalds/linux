@@ -366,8 +366,8 @@ static void rtl8225_rf_init(struct ieee80211_hw *dev)
 		rtl8225_write(dev, 0x02, 0x044d);
 		msleep(100);
 		if (!(rtl8225_read(dev, 6) & (1 << 7)))
-			printk(KERN_WARNING "%s: RF Calibration Failed! %x\n",
-			       wiphy_name(dev->wiphy), rtl8225_read(dev, 6));
+			wiphy_warn(dev->wiphy, "RF Calibration Failed! %x\n",
+				   rtl8225_read(dev, 6));
 	}
 
 	rtl8225_write(dev, 0x0, 0x127);
@@ -735,8 +735,8 @@ static void rtl8225z2_rf_init(struct ieee80211_hw *dev)
 		rtl8225_write(dev, 0x02, 0x044D);
 		msleep(100);
 		if (!(rtl8225_read(dev, 6) & (1 << 7)))
-			printk(KERN_WARNING "%s: RF Calibration Failed! %x\n",
-			       wiphy_name(dev->wiphy), rtl8225_read(dev, 6));
+			wiphy_warn(dev->wiphy, "RF Calibration Failed! %x\n",
+				   rtl8225_read(dev, 6));
 	}
 
 	msleep(200);

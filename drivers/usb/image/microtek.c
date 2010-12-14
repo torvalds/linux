@@ -398,7 +398,6 @@ void mts_int_submit_urb (struct urb* transfer,
 		context->srb->result = DID_ERROR << 16;
 		mts_transfer_cleanup(transfer);
 	}
-	return;
 }
 
 
@@ -409,7 +408,6 @@ static void mts_transfer_cleanup( struct urb *transfer )
 
 	if ( likely(context->final_callback != NULL) )
 		context->final_callback(context->srb);
-
 }
 
 static void mts_transfer_done( struct urb *transfer )
@@ -420,8 +418,6 @@ static void mts_transfer_done( struct urb *transfer )
 	context->srb->result |= (unsigned)(*context->scsi_status)<<1;
 
 	mts_transfer_cleanup(transfer);
-
-	return;
 }
 
 
@@ -452,8 +448,6 @@ static void mts_data_done( struct urb* transfer )
 	}
 
 	mts_get_status(transfer);
-
-	return;
 }
 
 
@@ -496,8 +490,6 @@ static void mts_command_done( struct urb *transfer )
 			mts_get_status(transfer);
 		}
 	}
-
-	return;
 }
 
 static void mts_do_sg (struct urb* transfer)
@@ -522,7 +514,6 @@ static void mts_do_sg (struct urb* transfer)
 			   sg[context->fragment].length,
 			   context->fragment + 1 == scsi_sg_count(context->srb) ?
 			   mts_data_done : mts_do_sg);
-	return;
 }
 
 static const u8 mts_read_image_sig[] = { 0x28, 00, 00, 00 };

@@ -271,3 +271,13 @@ FPD_THREE_IN(fmsub)
 FPD_THREE_IN(fmadd)
 FPD_THREE_IN(fnmsub)
 FPD_THREE_IN(fnmadd)
+
+_GLOBAL(kvm_cvt_fd)
+	lfs	0,0(r3)
+	stfd	0,0(r4)
+	blr
+
+_GLOBAL(kvm_cvt_df)
+	lfd	0,0(r3)
+	stfs	0,0(r4)
+	blr

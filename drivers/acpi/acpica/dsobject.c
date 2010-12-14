@@ -81,6 +81,7 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 {
 	union acpi_operand_object *obj_desc;
 	acpi_status status;
+	acpi_object_type type;
 
 	ACPI_FUNCTION_TRACE(ds_build_internal_object);
 
@@ -172,7 +173,20 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 				return_ACPI_STATUS(status);
 			}
 
-			switch (op->common.node->type) {
+			/*
+			 * Special handling for Alias objects. We need to setup the type
+			 * and the Op->Common.Node to point to the Alias target. Note,
+			 * Alias has at most one level of indirection internally.
+			 */
+			type = op->common.node->type;
+			if (type == ACPI_TYPE_LOCAL_ALIAS) {
+				type = obj_desc->common.type;
+				op->common.node =
+				    ACPI_CAST_PTR(struct acpi_namespace_node,
+						  op->common.node->object);
+			}
+
+			switch (type) {
 				/*
 				 * For these types, we need the actual node, not the subobject.
 				 * However, the subobject did not get an extra reference count above.

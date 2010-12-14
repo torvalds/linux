@@ -161,6 +161,9 @@ extern int os_stat_filesystem(char *path, long *bsize_out,
 			      long *spare_out);
 extern int os_change_dir(char *dir);
 extern int os_fchange_dir(int fd);
+extern unsigned os_major(unsigned long long dev);
+extern unsigned os_minor(unsigned long long dev);
+extern unsigned long long os_makedev(unsigned major, unsigned minor);
 
 /* start_up.c */
 extern void os_early_checks(void);

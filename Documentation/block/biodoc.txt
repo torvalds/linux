@@ -7,7 +7,7 @@ Notes Written on Jan 15, 2002:
 
 Last Updated May 2, 2002
 September 2003: Updated I/O Scheduler portions
-	Nick Piggin <piggin@cyberone.com.au>
+	Nick Piggin <npiggin@kernel.dk>
 
 Introduction:
 

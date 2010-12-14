@@ -348,7 +348,7 @@ int dma_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
  * This is really ugly and we need a better way of specifying
  * DMA-capable regions of memory.
  */
-void __init ixp4xx_adjust_zones(int node, unsigned long *zone_size,
+void __init ixp4xx_adjust_zones(unsigned long *zone_size,
 	unsigned long *zhole_size)
 {
 	unsigned int sz = SZ_64M >> PAGE_SHIFT;
@@ -356,7 +356,7 @@ void __init ixp4xx_adjust_zones(int node, unsigned long *zone_size,
 	/*
 	 * Only adjust if > 64M on current system
 	 */
-	if (node || (zone_size[0] <= sz))
+	if (zone_size[0] <= sz)
 		return;
 
 	zone_size[1] = zone_size[0] - sz;
@@ -382,7 +382,8 @@ void __init ixp4xx_pci_preinit(void)
 
 
 	/* hook in our fault handler for PCI errors */
-	hook_fault_code(16+6, abort_handler, SIGBUS, "imprecise external abort");
+	hook_fault_code(16+6, abort_handler, SIGBUS, 0,
+			"imprecise external abort");
 
 	pr_debug("setup PCI-AHB(inbound) and AHB-PCI(outbound) address mappings\n");
 
@@ -500,6 +501,14 @@ int ixp4xx_setup(int nr, struct pci_sys_data *sys)
 struct pci_bus * __devinit ixp4xx_scan_bus(int nr, struct pci_sys_data *sys)
 {
 	return pci_scan_bus(sys->busnr, &ixp4xx_ops, sys);
+}
+
+int dma_set_coherent_mask(struct device *dev, u64 mask)
+{
+	if (mask >= SZ_64M - 1)
+		return 0;
+
+	return -EIO;
 }
 
 EXPORT_SYMBOL(ixp4xx_pci_read);

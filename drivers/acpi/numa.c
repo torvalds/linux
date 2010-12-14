@@ -255,12 +255,10 @@ acpi_parse_memory_affinity(struct acpi_subtable_header * header,
 
 static int __init acpi_parse_srat(struct acpi_table_header *table)
 {
-	struct acpi_table_srat *srat;
-
 	if (!table)
 		return -EINVAL;
 
-	srat = (struct acpi_table_srat *)table;
+	/* Real work done in acpi_table_parse_srat below. */
 
 	return 0;
 }

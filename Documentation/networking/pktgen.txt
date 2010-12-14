@@ -151,6 +151,8 @@ Examples:
 
  pgset stop    	          aborts injection. Also, ^C aborts generator.
 
+ pgset "rate 300M"        set rate to 300 Mb/s
+ pgset "ratep 1000000"    set rate to 1Mpps
 
 Example scripts
 ===============
@@ -240,6 +242,9 @@ src6
 
 flows
 flowlen
+
+rate
+ratep
 
 References:
 ftp://robur.slu.se/pub/Linux/net-development/pktgen-testing/

@@ -17,19 +17,9 @@
 #include <linux/seq_file.h>
 #include <linux/kernel_stat.h>
 #include <linux/irq.h>
+#include <linux/of_irq.h>
 
 #include <asm/prom.h>
-
-unsigned int irq_of_parse_and_map(struct device_node *dev, int index)
-{
-	struct of_irq oirq;
-
-	if (of_irq_map_one(dev, index, &oirq))
-		return NO_IRQ;
-
-	return oirq.specifier[0];
-}
-EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
 
 static u32 concurrent_irq;
 
@@ -37,6 +27,7 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 {
 	unsigned int irq;
 	struct pt_regs *old_regs = set_irq_regs(regs);
+	trace_hardirqs_off();
 
 	irq_enter();
 	irq = get_irq(regs);
@@ -53,6 +44,7 @@ next_irq:
 
 	irq_exit();
 	set_irq_regs(old_regs);
+	trace_hardirqs_on();
 }
 
 int show_interrupts(struct seq_file *p, void *v)
@@ -104,7 +96,7 @@ unsigned int irq_create_mapping(struct irq_host *host, irq_hw_number_t hwirq)
 EXPORT_SYMBOL_GPL(irq_create_mapping);
 
 unsigned int irq_create_of_mapping(struct device_node *controller,
-					u32 *intspec, unsigned int intsize)
+				   const u32 *intspec, unsigned int intsize)
 {
 	return intspec[0];
 }

@@ -247,10 +247,14 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
  */
 void radeon_ring_free_size(struct radeon_device *rdev)
 {
-	if (rdev->family >= CHIP_R600)
-		rdev->cp.rptr = RREG32(R600_CP_RB_RPTR);
-	else
-		rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
+	if (rdev->wb.enabled)
+		rdev->cp.rptr = rdev->wb.wb[RADEON_WB_CP_RPTR_OFFSET/4];
+	else {
+		if (rdev->family >= CHIP_R600)
+			rdev->cp.rptr = RREG32(R600_CP_RB_RPTR);
+		else
+			rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
+	}
 	/* This works because ring_size is a power of 2 */
 	rdev->cp.ring_free_dw = (rdev->cp.rptr + (rdev->cp.ring_size / 4));
 	rdev->cp.ring_free_dw -= rdev->cp.wptr;

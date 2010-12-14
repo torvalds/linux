@@ -11,7 +11,11 @@
 #include <asm/cache.h>
 #include <asm/page.h>
 
+#ifdef CONFIG_CACHE_FLUSH_L1
+.section .l1.text
+#else
 .text
+#endif
 
 /* 05000443 - IFLUSH cannot be last instruction in hardware loop */
 #if ANOMALY_05000443
@@ -64,17 +68,6 @@
 
 /* Invalidate all instruction cache lines assocoiated with this memory area */
 ENTRY(_blackfin_icache_flush_range)
-/*
- * Walkaround to avoid loading wrong instruction after invalidating icache
- * and following sequence is met.
- *
- * 1) One instruction address is cached in the instruction cache.
- * 2) This instruction in SDRAM is changed.
- * 3) IFLASH[P0] is executed only once in blackfin_icache_flush_range().
- * 4) This instruction is executed again, but the old one is loaded.
- */
-	P0 = R0;
-	IFLUSH[P0];
 	do_flush IFLUSH
 ENDPROC(_blackfin_icache_flush_range)
 

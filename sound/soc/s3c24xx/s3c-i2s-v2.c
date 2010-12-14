@@ -32,7 +32,8 @@
 
 #undef S3C_IIS_V2_SUPPORTED
 
-#if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413)
+#if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413) \
+	|| defined(CONFIG_CPU_S5PV210)
 #define S3C_IIS_V2_SUPPORTED
 #endif
 
@@ -48,7 +49,7 @@
 
 static inline struct s3c_i2sv2_info *to_info(struct snd_soc_dai *cpu_dai)
 {
-	return cpu_dai->private_data;
+	return snd_soc_dai_get_drvdata(cpu_dai);
 }
 
 #define bit_set(v, b) (((v) & (b)) ? 1 : 0)
@@ -306,11 +307,9 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 
 static int s3c_i2sv2_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
-				 struct snd_soc_dai *socdai)
+				 struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai_link *dai = rtd->dai;
-	struct s3c_i2sv2_info *i2s = to_info(dai->cpu_dai);
+	struct s3c_i2sv2_info *i2s = to_info(dai);
 	struct s3c_dma_params *dma_data;
 	u32 iismod;
 
@@ -321,7 +320,7 @@ static int s3c_i2sv2_hw_params(struct snd_pcm_substream *substream,
 	else
 		dma_data = i2s->dma_capture;
 
-	snd_soc_dai_set_dma_data(dai->cpu_dai, substream, dma_data);
+	snd_soc_dai_set_dma_data(dai, substream, dma_data);
 
 	/* Working copies of register */
 	iismod = readl(i2s->regs + S3C2412_IISMOD);
@@ -395,12 +394,12 @@ static int s3c2412_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct s3c_i2sv2_info *i2s = to_info(rtd->dai->cpu_dai);
+	struct s3c_i2sv2_info *i2s = to_info(rtd->cpu_dai);
 	int capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
 	unsigned long irqs;
 	int ret = 0;
 	struct s3c_dma_params *dma_data =
-		snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
+		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	pr_debug("Entered %s\n", __func__);
 
@@ -639,36 +638,17 @@ int s3c_i2sv2_iis_calc_rate(struct s3c_i2sv2_rate_calc *info,
 }
 EXPORT_SYMBOL_GPL(s3c_i2sv2_iis_calc_rate);
 
-int s3c_i2sv2_probe(struct platform_device *pdev,
-		    struct snd_soc_dai *dai,
+int s3c_i2sv2_probe(struct snd_soc_dai *dai,
 		    struct s3c_i2sv2_info *i2s,
 		    unsigned long base)
 {
-	struct device *dev = &pdev->dev;
+	struct device *dev = dai->dev;
 	unsigned int iismod;
 
 	i2s->dev = dev;
 
 	/* record our i2s structure for later use in the callbacks */
-	dai->private_data = i2s;
-
-	if (!base) {
-		struct resource *res = platform_get_resource(pdev,
-							     IORESOURCE_MEM,
-							     0);
-		if (!res) {
-			dev_err(dev, "Unable to get register resource\n");
-			return -ENXIO;
-		}
-
-		if (!request_mem_region(res->start, resource_size(res),
-					"s3c64xx-i2s-v4")) {
-			dev_err(dev, "Unable to request register region\n");
-			return -EBUSY;
-		}
-
-		base = res->start;
-	}
+	snd_soc_dai_set_drvdata(dai, i2s);
 
 	i2s->regs = ioremap(base, 0x100);
 	if (i2s->regs == NULL) {
@@ -751,9 +731,10 @@ static int s3c2412_i2s_resume(struct snd_soc_dai *dai)
 #define s3c2412_i2s_resume  NULL
 #endif
 
-int s3c_i2sv2_register_dai(struct snd_soc_dai *dai)
+int s3c_i2sv2_register_dai(struct device *dev, int id,
+		struct snd_soc_dai_driver *drv)
 {
-	struct snd_soc_dai_ops *ops = dai->ops;
+	struct snd_soc_dai_ops *ops = drv->ops;
 
 	ops->trigger = s3c2412_i2s_trigger;
 	if (!ops->hw_params)
@@ -766,10 +747,10 @@ int s3c_i2sv2_register_dai(struct snd_soc_dai *dai)
 	if (!ops->delay)
 		ops->delay = s3c2412_i2s_delay;
 
-	dai->suspend = s3c2412_i2s_suspend;
-	dai->resume = s3c2412_i2s_resume;
+	drv->suspend = s3c2412_i2s_suspend;
+	drv->resume = s3c2412_i2s_resume;
 
-	return snd_soc_register_dai(dai);
+	return snd_soc_register_dai(dev, drv);
 }
 EXPORT_SYMBOL_GPL(s3c_i2sv2_register_dai);
 

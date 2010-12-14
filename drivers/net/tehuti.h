@@ -269,7 +269,6 @@ struct bdx_priv {
 	u32 msg_enable;
 	int stats_flag;
 	struct bdx_stats hw_stats;
-	struct net_device_stats net_stats;
 	struct pci_dev *pdev;
 
 	struct pci_nic *nic;
@@ -334,7 +333,7 @@ struct txd_desc {
 	u32 va_lo;
 	u32 va_hi;
 	struct pbl pbl[0];	/* Fragments */
-} __attribute__ ((packed));
+} __packed;
 
 /* Register region size */
 #define BDX_REGS_SIZE	  0x1000

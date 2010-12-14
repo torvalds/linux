@@ -22,9 +22,6 @@
 #ifndef OCFS2_AOPS_H
 #define OCFS2_AOPS_H
 
-int ocfs2_prepare_write_nolock(struct inode *inode, struct page *page,
-			       unsigned from, unsigned to);
-
 handle_t *ocfs2_start_walk_page_trans(struct inode *inode,
 							 struct page *page,
 							 unsigned from,
@@ -48,7 +45,8 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 			   loff_t pos, unsigned len, unsigned copied,
 			   struct page *page, void *fsdata);
 
-int ocfs2_write_begin_nolock(struct address_space *mapping,
+int ocfs2_write_begin_nolock(struct file *filp,
+			     struct address_space *mapping,
 			     loff_t pos, unsigned len, unsigned flags,
 			     struct page **pagep, void **fsdata,
 			     struct buffer_head *di_bh, struct page *mmap_page);

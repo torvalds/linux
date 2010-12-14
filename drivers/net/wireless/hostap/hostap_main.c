@@ -186,7 +186,7 @@ int prism2_wds_add(local_info_t *local, u8 *remote_addr,
 		return -ENOBUFS;
 
 	/* verify that there is room for wds# postfix in the interface name */
-	if (strlen(local->dev->name) > IFNAMSIZ - 5) {
+	if (strlen(local->dev->name) >= IFNAMSIZ - 5) {
 		printk(KERN_DEBUG "'%s' too long base device name\n",
 		       local->dev->name);
 		return -EINVAL;
@@ -741,9 +741,7 @@ void hostap_set_multicast_list_queue(struct work_struct *work)
 	local_info_t *local =
 		container_of(work, local_info_t, set_multicast_list_queue);
 	struct net_device *dev = local->dev;
-	struct hostap_interface *iface;
 
-	iface = netdev_priv(dev);
 	if (hostap_set_word(dev, HFA384X_RID_PROMISCUOUSMODE,
 			    local->is_promisc)) {
 		printk(KERN_INFO "%s: %sabling promiscuous mode failed\n",

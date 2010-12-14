@@ -299,14 +299,6 @@ static void __rtnl_kill_links(struct net *net, struct rtnl_link_ops *ops)
 	unregister_netdevice_many(&list_kill);
 }
 
-void rtnl_kill_links(struct net *net, struct rtnl_link_ops *ops)
-{
-	rtnl_lock();
-	__rtnl_kill_links(net, ops);
-	rtnl_unlock();
-}
-EXPORT_SYMBOL_GPL(rtnl_kill_links);
-
 /**
  * __rtnl_link_unregister - Unregister rtnl_link_ops from rtnetlink.
  * @ops: struct rtnl_link_ops * to unregister
@@ -579,7 +571,7 @@ static unsigned int rtnl_dev_combine_flags(const struct net_device *dev,
 }
 
 static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
-				 const struct net_device_stats *b)
+				 const struct rtnl_link_stats64 *b)
 {
 	a->rx_packets = b->rx_packets;
 	a->tx_packets = b->tx_packets;
@@ -610,38 +602,9 @@ static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
 	a->tx_compressed = b->tx_compressed;
 }
 
-static void copy_rtnl_link_stats64(void *v, const struct net_device_stats *b)
+static void copy_rtnl_link_stats64(void *v, const struct rtnl_link_stats64 *b)
 {
-	struct rtnl_link_stats64 a;
-
-	a.rx_packets = b->rx_packets;
-	a.tx_packets = b->tx_packets;
-	a.rx_bytes = b->rx_bytes;
-	a.tx_bytes = b->tx_bytes;
-	a.rx_errors = b->rx_errors;
-	a.tx_errors = b->tx_errors;
-	a.rx_dropped = b->rx_dropped;
-	a.tx_dropped = b->tx_dropped;
-
-	a.multicast = b->multicast;
-	a.collisions = b->collisions;
-
-	a.rx_length_errors = b->rx_length_errors;
-	a.rx_over_errors = b->rx_over_errors;
-	a.rx_crc_errors = b->rx_crc_errors;
-	a.rx_frame_errors = b->rx_frame_errors;
-	a.rx_fifo_errors = b->rx_fifo_errors;
-	a.rx_missed_errors = b->rx_missed_errors;
-
-	a.tx_aborted_errors = b->tx_aborted_errors;
-	a.tx_carrier_errors = b->tx_carrier_errors;
-	a.tx_fifo_errors = b->tx_fifo_errors;
-	a.tx_heartbeat_errors = b->tx_heartbeat_errors;
-	a.tx_window_errors = b->tx_window_errors;
-
-	a.rx_compressed = b->rx_compressed;
-	a.tx_compressed = b->tx_compressed;
-	memcpy(v, &a, sizeof(a));
+	memcpy(v, b, sizeof(*b));
 }
 
 /* All VF info */
@@ -686,7 +649,7 @@ static size_t rtnl_port_size(const struct net_device *dev)
 		return port_self_size;
 }
 
-static inline size_t if_nlmsg_size(const struct net_device *dev)
+static noinline size_t if_nlmsg_size(const struct net_device *dev)
 {
 	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
 	       + nla_total_size(IFNAMSIZ) /* IFLA_IFNAME */
@@ -791,7 +754,8 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 {
 	struct ifinfomsg *ifm;
 	struct nlmsghdr *nlh;
-	const struct net_device_stats *stats;
+	struct rtnl_link_stats64 temp;
+	const struct rtnl_link_stats64 *stats;
 	struct nlattr *attr;
 
 	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ifm), flags);
@@ -847,7 +811,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	if (attr == NULL)
 		goto nla_put_failure;
 
-	stats = dev_get_stats(dev);
+	stats = dev_get_stats(dev, &temp);
 	copy_rtnl_link_stats(nla_data(attr), stats);
 
 	attr = nla_reserve(skb, IFLA_STATS64,

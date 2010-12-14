@@ -1,0 +1,15 @@
+menuconfig BRCMFMAC
+	tristate "Broadcom fullmac wireless cards support"
+	depends on MMC
+	depends on CFG80211
+	select FW_LOADER
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	---help---
+	  This module adds support for wireless adapters based on
+	  Broadcom fullmac chipsets.
+	  This driver uses the kernel's wireless extensions subsystem.
+	  If you choose to build a module, it'll be called brcmfmac.ko. Say M if
+	  unsure.
+
+

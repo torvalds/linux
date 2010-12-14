@@ -2,7 +2,6 @@ TODO:
 	- checkpatch.pl cleanups
 	- Lindent
 	- remove all wrappers
-	- remove typedefs
 	- audit userspace interface
 	- reserve major number
 	- cleanup the individual comedi drivers as well

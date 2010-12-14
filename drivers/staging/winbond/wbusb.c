@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Pavel Machek <pavel@suse.cz>
+ * Copyright 2008 Pavel Machek <pavel@ucw.cz>
  *
  * Distribute under GPLv2.
  *
@@ -121,7 +121,24 @@ static int wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct wbsoft_priv *priv = dev->priv;
 
-	MLMESendFrame(priv, skb->data, skb->len, FRAME_TYPE_802_11_MANAGEMENT);
+	if (priv->sMlmeFrame.IsInUsed != PACKET_FREE_TO_USE) {
+		priv->sMlmeFrame.wNumTxMMPDUDiscarded++;
+		return NETDEV_TX_BUSY;
+	}
+
+	priv->sMlmeFrame.IsInUsed = PACKET_COME_FROM_MLME;
+
+	priv->sMlmeFrame.pMMPDU		= skb->data;
+	priv->sMlmeFrame.DataType	= FRAME_TYPE_802_11_MANAGEMENT;
+	priv->sMlmeFrame.len		= skb->len;
+	priv->sMlmeFrame.wNumTxMMPDU++;
+
+	/*
+	 * H/W will enter power save by set the register. S/W don't send null
+	 * frame with PWRMgt bit enbled to enter power save now.
+	 */
+
+	Mds_Tx(priv);
 
 	return NETDEV_TX_OK;
 }
@@ -700,7 +717,7 @@ static int wb35_hw_init(struct ieee80211_hw *hw)
 	Mds_initial(priv);
 
 	/*
-	 * If no user-defined address in the registry, use the addresss
+	 * If no user-defined address in the registry, use the address
 	 * "burned" on the NIC instead.
 	 */
 	pMacAddr = priv->sLocalPara.ThisMacAddress;
@@ -782,8 +799,6 @@ static int wb35_probe(struct usb_interface *intf,
 	}
 
 	priv = dev->priv;
-
-	spin_lock_init(&priv->SpinLock);
 
 	pWbUsb = &priv->sHwData.WbUsb;
 	pWbUsb->udev = udev;

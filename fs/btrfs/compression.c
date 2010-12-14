@@ -163,7 +163,6 @@ fail:
  */
 static void end_compressed_bio_read(struct bio *bio, int err)
 {
-	struct extent_io_tree *tree;
 	struct compressed_bio *cb = bio->bi_private;
 	struct inode *inode;
 	struct page *page;
@@ -187,7 +186,6 @@ static void end_compressed_bio_read(struct bio *bio, int err)
 	/* ok, we're the last bio for this extent, lets start
 	 * the decompression.
 	 */
-	tree = &BTRFS_I(inode)->io_tree;
 	ret = btrfs_zlib_decompress_biovec(cb->compressed_pages,
 					cb->start,
 					cb->orig_bio->bi_io_vec,

@@ -54,14 +54,14 @@
 void
 nfs4_renew_state(struct work_struct *work)
 {
-	struct nfs4_state_maintenance_ops *ops;
+	const struct nfs4_state_maintenance_ops *ops;
 	struct nfs_client *clp =
 		container_of(work, struct nfs_client, cl_renewd.work);
 	struct rpc_cred *cred;
 	long lease;
 	unsigned long last, now;
 
-	ops = nfs4_state_renewal_ops[clp->cl_minorversion];
+	ops = clp->cl_mvops->state_renewal_ops;
 	dprintk("%s: start\n", __func__);
 	/* Are there any active superblocks? */
 	if (list_empty(&clp->cl_superblocks))

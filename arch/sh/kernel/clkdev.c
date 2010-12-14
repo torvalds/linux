@@ -36,7 +36,7 @@ static DEFINE_MUTEX(clocks_mutex);
  *  If an entry has a device ID, it must match
  *  If an entry has a connection ID, it must match
  * Then we take the most specific entry - with the following
- * order of precidence: dev+con > dev only > con only.
+ * order of precedence: dev+con > dev only > con only.
  */
 static struct clk *clk_find(const char *dev_id, const char *con_id)
 {
@@ -161,9 +161,11 @@ EXPORT_SYMBOL(clk_add_alias);
  */
 void clkdev_drop(struct clk_lookup *cl)
 {
+	struct clk_lookup_alloc *cla = container_of(cl, struct clk_lookup_alloc, cl);
+
 	mutex_lock(&clocks_mutex);
 	list_del(&cl->node);
 	mutex_unlock(&clocks_mutex);
-	kfree(cl);
+	kfree(cla);
 }
 EXPORT_SYMBOL(clkdev_drop);

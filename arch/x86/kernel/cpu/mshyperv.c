@@ -18,6 +18,7 @@
 #include <asm/mshyperv.h>
 
 struct ms_hyperv_info ms_hyperv;
+EXPORT_SYMBOL_GPL(ms_hyperv);
 
 static bool __init ms_hyperv_platform(void)
 {

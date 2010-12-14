@@ -172,13 +172,8 @@ static inline int pci_has_flag(int flag)
 
 extern struct list_head hose_list;
 
-extern unsigned long pci_address_to_pio(phys_addr_t address);
 extern int pcibios_vaddr_is_ioport(void __iomem *address);
 #else
-static inline unsigned long pci_address_to_pio(phys_addr_t address)
-{
-	return (unsigned long)-1;
-}
 static inline int pcibios_vaddr_is_ioport(void __iomem *address)
 {
 	return 0;

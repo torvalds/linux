@@ -915,15 +915,15 @@ int hil_mlc_register(hil_mlc *mlc)
 	mlc->ostarted = 0;
 
 	rwlock_init(&mlc->lock);
-	init_MUTEX(&mlc->osem);
+	sema_init(&mlc->osem, 1);
 
-	init_MUTEX(&mlc->isem);
+	sema_init(&mlc->isem, 1);
 	mlc->icount = -1;
 	mlc->imatch = 0;
 
 	mlc->opercnt = 0;
 
-	init_MUTEX_LOCKED(&(mlc->csem));
+	sema_init(&(mlc->csem), 0);
 
 	hil_mlc_clear_di_scratch(mlc);
 	hil_mlc_clear_di_map(mlc, 0);

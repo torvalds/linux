@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -1494,6 +1494,7 @@ struct e1000_info e1000_es2_info = {
 				  | FLAG_APME_CHECK_PORT_B
 				  | FLAG_DISABLE_FC_PAUSE_TIME /* errata */
 				  | FLAG_TIPG_MEDIUM_FOR_80003ESLAN,
+	.flags2			= FLAG2_DMA_BURST,
 	.pba			= 38,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_80003es2lan,

@@ -23,6 +23,7 @@ extern int perf_config(config_fn_t fn, void *);
 extern int perf_config_int(const char *, const char *);
 extern int perf_config_bool(const char *, const char *);
 extern int config_error_nonbool(const char *);
+extern const char *perf_config_dirname(const char *, const char *);
 
 /* pager.c */
 extern void setup_pager(void);
@@ -81,6 +82,8 @@ extern char *perf_path(const char *fmt, ...) __attribute__((format (printf, 1, 2
 extern char *perf_pathdup(const char *fmt, ...)
 	__attribute__((format (printf, 1, 2)));
 
+#ifdef NO_STRLCPY
 extern size_t strlcpy(char *dest, const char *src, size_t size);
+#endif
 
 #endif /* __PERF_CACHE_H */

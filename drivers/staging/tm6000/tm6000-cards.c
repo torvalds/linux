@@ -1,20 +1,20 @@
 /*
-   tm6000-cards.c - driver for TM5600/TM6000/TM6010 USB video capture devices
-
-   Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation version 2
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *  tm6000-cards.c - driver for TM5600/TM6000/TM6010 USB video capture devices
+ *
+ *  Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation version 2
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -29,6 +29,7 @@
 #include <media/tuner.h>
 #include <media/tvaudio.h>
 #include <media/i2c-addr.h>
+#include <media/rc-map.h>
 
 #include "tm6000.h"
 #include "tm6000-regs.h"
@@ -69,6 +70,8 @@ struct tm6000_board {
 	int             demod_addr;     /* demodulator address */
 
 	struct tm6000_gpio gpio;
+
+	char		*ir_codes;
 };
 
 struct tm6000_board tm6000_boards[] = {
@@ -276,6 +279,7 @@ struct tm6000_board tm6000_boards[] = {
 			.dvb_led	= TM6010_GPIO_5,
 			.ir		= TM6010_GPIO_0,
 		},
+		.ir_codes = RC_MAP_NEC_TERRATEC_CINERGY_XS,
 	},
 	[TM6010_BOARD_TWINHAN_TU501] = {
 		.name         = "Twinhan TU501(704D1)",
@@ -345,9 +349,9 @@ int tm6000_xc5000_callback(void *ptr, int component, int command, int arg)
 			       dev->gpio.tuner_reset, 0x01);
 		break;
 	}
-	return (rc);
+	return rc;
 }
-
+EXPORT_SYMBOL_GPL(tm6000_xc5000_callback);
 
 /* Tuner callback to provide the proper gpio changes needed for xc2028 */
 
@@ -361,6 +365,8 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 
 	switch (command) {
 	case XC2028_RESET_CLK:
+		tm6000_ir_wait(dev, 0);
+
 		tm6000_set_reg(dev, REQ_04_EN_DISABLE_MCU_INT,
 					0x02, arg);
 		msleep(10);
@@ -410,13 +416,14 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 				msleep(130);
 				break;
 			}
+
+			tm6000_ir_wait(dev, 1);
 			break;
 		case 1:
 			tm6000_set_reg(dev, REQ_04_EN_DISABLE_MCU_INT,
 						0x02, 0x01);
 			msleep(10);
 			break;
-
 		case 2:
 			rc = tm6000_i2c_reset(dev, 100);
 			break;
@@ -424,6 +431,7 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 	}
 	return rc;
 }
+EXPORT_SYMBOL_GPL(tm6000_tuner_callback);
 
 int tm6000_cards_setup(struct tm6000_core *dev)
 {
@@ -537,7 +545,7 @@ static void tm6000_config_tuner(struct tm6000_core *dev)
 
 	/* Load tuner module */
 	v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-		"tuner", "tuner", dev->tuner_addr, NULL);
+		NULL, "tuner", dev->tuner_addr, NULL);
 
 	memset(&tun_setup, 0, sizeof(tun_setup));
 	tun_setup.type = dev->tuner_type;
@@ -635,6 +643,8 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 
 	dev->gpio = tm6000_boards[dev->model].gpio;
 
+	dev->ir_codes = tm6000_boards[dev->model].ir_codes;
+
 	dev->demod_addr = tm6000_boards[dev->model].demod_addr;
 
 	dev->caps = tm6000_boards[dev->model].caps;
@@ -673,7 +683,7 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 
 	if (dev->caps.has_tda9874)
 		v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
-			"tvaudio", "tvaudio", I2C_ADDR_TDA9874, NULL);
+			NULL, "tvaudio", I2C_ADDR_TDA9874, NULL);
 
 	/* register and initialize V4L2 */
 	rc = tm6000_v4l2_register(dev);
@@ -681,30 +691,12 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 		goto err;
 
 	tm6000_add_into_devlist(dev);
-
 	tm6000_init_extension(dev);
 
-	if (dev->caps.has_dvb) {
-		dev->dvb = kzalloc(sizeof(*(dev->dvb)), GFP_KERNEL);
-		if (!dev->dvb) {
-			rc = -ENOMEM;
-			goto err2;
-		}
+	tm6000_ir_init(dev);
 
-#ifdef CONFIG_VIDEO_TM6000_DVB
-		rc = tm6000_dvb_register(dev);
-		if (rc < 0) {
-			kfree(dev->dvb);
-			dev->dvb = NULL;
-			goto err2;
-		}
-#endif
-	}
 	mutex_unlock(&dev->lock);
 	return 0;
-
-err2:
-	v4l2_device_unregister(&dev->v4l2_dev);
 
 err:
 	mutex_unlock(&dev->lock);
@@ -724,7 +716,7 @@ static void get_max_endpoint(struct usb_device *udev,
 	unsigned int size = tmp & 0x7ff;
 
 	if (udev->speed == USB_SPEED_HIGH)
-		size = size * hb_mult (tmp);
+		size = size * hb_mult(tmp);
 
 	if (size > tm_ep->maxsize) {
 		tm_ep->endp = curr_e;
@@ -848,6 +840,19 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 							 &dev->isoc_out);
 				}
 				break;
+			case USB_ENDPOINT_XFER_INT:
+				if (!dir_out) {
+					get_max_endpoint(usbdev,
+							&interface->altsetting[i],
+							"INT IN", e,
+							&dev->int_in);
+				} else {
+					get_max_endpoint(usbdev,
+							&interface->altsetting[i],
+							"INT OUT", e,
+							&dev->int_out);
+				}
+				break;
 			}
 		}
 	}
@@ -904,14 +909,7 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 
 	printk(KERN_INFO "tm6000: disconnecting %s\n", dev->name);
 
-	mutex_lock(&dev->lock);
-
-#ifdef CONFIG_VIDEO_TM6000_DVB
-	if (dev->dvb) {
-		tm6000_dvb_unregister(dev);
-		kfree(dev->dvb);
-	}
-#endif
+	tm6000_ir_fini(dev);
 
 	if (dev->gpio.power_led) {
 		switch (dev->model) {
@@ -942,10 +940,9 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 
 	usb_put_dev(dev->udev);
 
-	tm6000_remove_from_devlist(dev);
 	tm6000_close_extension(dev);
+	tm6000_remove_from_devlist(dev);
 
-	mutex_unlock(&dev->lock);
 	kfree(dev);
 }
 

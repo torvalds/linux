@@ -28,10 +28,13 @@
 #ifndef _IXGBE_H_
 #define _IXGBE_H_
 
+#include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
+#include <linux/cpumask.h>
 #include <linux/aer.h>
+#include <linux/if_vlan.h>
 
 #include "ixgbe_type.h"
 #include "ixgbe_common.h"
@@ -44,11 +47,9 @@
 #include <linux/dca.h>
 #endif
 
-#define PFX "ixgbe: "
-#define DPRINTK(nlevel, klevel, fmt, args...) \
-	((void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
-	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
-		__func__ , ## args)))
+/* common prefix used by pr_<> macros */
+#undef pr_fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 /* TX/RX descriptor defines */
 #define IXGBE_DEFAULT_TXD		    512
@@ -71,15 +72,20 @@
 #define IXGBE_MAX_FCPAUSE		 0xFFFF
 
 /* Supported Rx Buffer Sizes */
-#define IXGBE_RXBUFFER_64    64     /* Used for packet split */
-#define IXGBE_RXBUFFER_128   128    /* Used for packet split */
-#define IXGBE_RXBUFFER_256   256    /* Used for packet split */
+#define IXGBE_RXBUFFER_512   512    /* Used for packet split */
 #define IXGBE_RXBUFFER_2048  2048
 #define IXGBE_RXBUFFER_4096  4096
 #define IXGBE_RXBUFFER_8192  8192
 #define IXGBE_MAX_RXBUFFER   16384  /* largest size for a single descriptor */
 
-#define IXGBE_RX_HDR_SIZE IXGBE_RXBUFFER_256
+/*
+ * NOTE: netdev_alloc_skb reserves up to 64 bytes, NET_IP_ALIGN mans we
+ * reserve 2 more, and skb_shared_info adds an additional 384 bytes more,
+ * this adds up to 512 bytes of extra data meaning the smallest allocation
+ * we could have is 1K.
+ * i.e. RXBUFFER_512 --> size-1024 slab
+ */
+#define IXGBE_RX_HDR_SIZE IXGBE_RXBUFFER_512
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
 
@@ -112,7 +118,6 @@ struct vf_data_storage {
 	u16 vlans_enabled;
 	bool clear_to_send;
 	bool pf_set_mac;
-	int rar;
 	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
 	u16 pf_qos;
 };
@@ -177,8 +182,9 @@ struct ixgbe_ring {
 					 */
 
 	struct ixgbe_queue_stats stats;
-	unsigned long reinit_state;
+	struct u64_stats_sync syncp;
 	int numa_node;
+	unsigned long reinit_state;
 	u64 rsc_count;			/* stat for coalesced packets */
 	u64 rsc_flush;			/* stats for flushed packets */
 	u32 restart_queue;		/* track tx queue restarts */
@@ -239,6 +245,7 @@ struct ixgbe_q_vector {
 	u8 tx_itr;
 	u8 rx_itr;
 	u32 eitr;
+	cpumask_var_t affinity_mask;
 };
 
 /* Helper macros to switch between ints/sec and what the register uses.
@@ -254,11 +261,11 @@ struct ixgbe_q_vector {
 	(R)->next_to_clean - (R)->next_to_use - 1)
 
 #define IXGBE_RX_DESC_ADV(R, i)	    \
-	(&(((union ixgbe_adv_rx_desc *)((R).desc))[i]))
+	(&(((union ixgbe_adv_rx_desc *)((R)->desc))[i]))
 #define IXGBE_TX_DESC_ADV(R, i)	    \
-	(&(((union ixgbe_adv_tx_desc *)((R).desc))[i]))
+	(&(((union ixgbe_adv_tx_desc *)((R)->desc))[i]))
 #define IXGBE_TX_CTXTDESC_ADV(R, i)	    \
-	(&(((struct ixgbe_adv_tx_context_desc *)((R).desc))[i]))
+	(&(((struct ixgbe_adv_tx_context_desc *)((R)->desc))[i]))
 
 #define IXGBE_MAX_JUMBO_FRAME_SIZE        16128
 #ifdef IXGBE_FCOE
@@ -283,7 +290,7 @@ struct ixgbe_q_vector {
 /* board specific private data structure */
 struct ixgbe_adapter {
 	struct timer_list watchdog_timer;
-	struct vlan_group *vlgrp;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u16 bd_number;
 	struct work_struct reset_task;
 	struct ixgbe_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
@@ -451,9 +458,20 @@ extern int ixgbe_setup_rx_resources(struct ixgbe_adapter *, struct ixgbe_ring *)
 extern int ixgbe_setup_tx_resources(struct ixgbe_adapter *, struct ixgbe_ring *);
 extern void ixgbe_free_rx_resources(struct ixgbe_adapter *, struct ixgbe_ring *);
 extern void ixgbe_free_tx_resources(struct ixgbe_adapter *, struct ixgbe_ring *);
+extern void ixgbe_configure_rx_ring(struct ixgbe_adapter *,struct ixgbe_ring *);
+extern void ixgbe_configure_tx_ring(struct ixgbe_adapter *,struct ixgbe_ring *);
 extern void ixgbe_update_stats(struct ixgbe_adapter *adapter);
 extern int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter);
 extern void ixgbe_clear_interrupt_scheme(struct ixgbe_adapter *adapter);
+extern netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *,
+					 struct net_device *,
+					 struct ixgbe_adapter *,
+					 struct ixgbe_ring *);
+extern void ixgbe_unmap_and_free_tx_resource(struct ixgbe_adapter *,
+                                             struct ixgbe_tx_buffer *);
+extern void ixgbe_alloc_rx_buffers(struct ixgbe_adapter *adapter,
+                                   struct ixgbe_ring *rx_ring,
+                                   int cleaned_count);
 extern void ixgbe_write_eitr(struct ixgbe_q_vector *);
 extern int ethtool_ioctl(struct ifreq *ifr);
 extern s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw);

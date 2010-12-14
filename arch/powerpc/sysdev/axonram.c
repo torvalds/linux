@@ -60,7 +60,7 @@
 static int azfs_major, azfs_minor;
 
 struct axon_ram_bank {
-	struct of_device	*device;
+	struct platform_device	*device;
 	struct gendisk		*disk;
 	unsigned int		irq_id;
 	unsigned long		ph_addr;
@@ -72,7 +72,7 @@ struct axon_ram_bank {
 static ssize_t
 axon_ram_sysfs_ecc(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct of_device *device = to_of_device(dev);
+	struct platform_device *device = to_platform_device(dev);
 	struct axon_ram_bank *bank = device->dev.platform_data;
 
 	BUG_ON(!bank);
@@ -90,7 +90,7 @@ static DEVICE_ATTR(ecc, S_IRUGO, axon_ram_sysfs_ecc, NULL);
 static irqreturn_t
 axon_ram_irq_handler(int irq, void *dev)
 {
-	struct of_device *device = dev;
+	struct platform_device *device = dev;
 	struct axon_ram_bank *bank = device->dev.platform_data;
 
 	BUG_ON(!bank);
@@ -174,8 +174,8 @@ static const struct block_device_operations axon_ram_devops = {
  * axon_ram_probe - probe() method for platform driver
  * @device, @device_id: see of_platform_driver method
  */
-static int
-axon_ram_probe(struct of_device *device, const struct of_device_id *device_id)
+static int axon_ram_probe(struct platform_device *device,
+			  const struct of_device_id *device_id)
 {
 	static int axon_ram_bank_id = -1;
 	struct axon_ram_bank *bank;
@@ -304,7 +304,7 @@ failed:
  * @device: see of_platform_driver method
  */
 static int
-axon_ram_remove(struct of_device *device)
+axon_ram_remove(struct platform_device *device)
 {
 	struct axon_ram_bank *bank = device->dev.platform_data;
 

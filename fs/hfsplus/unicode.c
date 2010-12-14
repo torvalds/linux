@@ -121,7 +121,7 @@ static u16 *hfsplus_compose_lookup(u16 *p, u16 cc)
 int hfsplus_uni2asc(struct super_block *sb, const struct hfsplus_unistr *ustr, char *astr, int *len_p)
 {
 	const hfsplus_unichr *ip;
-	struct nls_table *nls = HFSPLUS_SB(sb).nls;
+	struct nls_table *nls = HFSPLUS_SB(sb)->nls;
 	u8 *op;
 	u16 cc, c0, c1;
 	u16 *ce1, *ce2;
@@ -132,7 +132,7 @@ int hfsplus_uni2asc(struct super_block *sb, const struct hfsplus_unistr *ustr, c
 	ustrlen = be16_to_cpu(ustr->length);
 	len = *len_p;
 	ce1 = NULL;
-	compose = !(HFSPLUS_SB(sb).flags & HFSPLUS_SB_NODECOMPOSE);
+	compose = !test_bit(HFSPLUS_SB_NODECOMPOSE, &HFSPLUS_SB(sb)->flags);
 
 	while (ustrlen > 0) {
 		c0 = be16_to_cpu(*ip++);
@@ -246,7 +246,7 @@ out:
 static inline int asc2unichar(struct super_block *sb, const char *astr, int len,
 			      wchar_t *uc)
 {
-	int size = HFSPLUS_SB(sb).nls->char2uni(astr, len, uc);
+	int size = HFSPLUS_SB(sb)->nls->char2uni(astr, len, uc);
 	if (size <= 0) {
 		*uc = '?';
 		size = 1;
@@ -293,7 +293,7 @@ int hfsplus_asc2uni(struct super_block *sb, struct hfsplus_unistr *ustr,
 	u16 *dstr, outlen = 0;
 	wchar_t c;
 
-	decompose = !(HFSPLUS_SB(sb).flags & HFSPLUS_SB_NODECOMPOSE);
+	decompose = !test_bit(HFSPLUS_SB_NODECOMPOSE, &HFSPLUS_SB(sb)->flags);
 	while (outlen < HFSPLUS_MAX_STRLEN && len > 0) {
 		size = asc2unichar(sb, astr, len, &c);
 
@@ -330,8 +330,8 @@ int hfsplus_hash_dentry(struct dentry *dentry, struct qstr *str)
 	wchar_t c;
 	u16 c2;
 
-	casefold = (HFSPLUS_SB(sb).flags & HFSPLUS_SB_CASEFOLD);
-	decompose = !(HFSPLUS_SB(sb).flags & HFSPLUS_SB_NODECOMPOSE);
+	casefold = test_bit(HFSPLUS_SB_CASEFOLD, &HFSPLUS_SB(sb)->flags);
+	decompose = !test_bit(HFSPLUS_SB_NODECOMPOSE, &HFSPLUS_SB(sb)->flags);
 	hash = init_name_hash();
 	astr = str->name;
 	len = str->len;
@@ -373,8 +373,8 @@ int hfsplus_compare_dentry(struct dentry *dentry, struct qstr *s1, struct qstr *
 	u16 c1, c2;
 	wchar_t c;
 
-	casefold = (HFSPLUS_SB(sb).flags & HFSPLUS_SB_CASEFOLD);
-	decompose = !(HFSPLUS_SB(sb).flags & HFSPLUS_SB_NODECOMPOSE);
+	casefold = test_bit(HFSPLUS_SB_CASEFOLD, &HFSPLUS_SB(sb)->flags);
+	decompose = !test_bit(HFSPLUS_SB_NODECOMPOSE, &HFSPLUS_SB(sb)->flags);
 	astr1 = s1->name;
 	len1 = s1->len;
 	astr2 = s2->name;

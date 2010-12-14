@@ -24,6 +24,8 @@
  */
 
 #include <linux/init.h>
+#include <linux/memblock.h>
+
 #include <asm/mmu.h>
 #include <asm/system.h>
 #include <asm/page.h>
@@ -211,6 +213,18 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 #endif /* DEBUG */
 	}
 	return total_lowmem;
+}
+
+void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+				phys_addr_t first_memblock_size)
+{
+	/* We don't currently support the first MEMBLOCK not mapping 0
+	 * physical on those processors
+	 */
+	BUG_ON(first_memblock_base != 0);
+
+	/* 44x has a 256M TLB entry pinned at boot */
+	memblock_set_current_limit(min_t(u64, first_memblock_size, PPC_PIN_SIZE));
 }
 
 #ifdef CONFIG_SMP

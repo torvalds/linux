@@ -86,7 +86,7 @@ out:
 	return 0;
 }
 
-int ecryptfs_init_kthread(void)
+int __init ecryptfs_init_kthread(void)
 {
 	int rc = 0;
 

@@ -13,6 +13,7 @@
  */
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <asm/time.h>
 #include <asm/txx9tmr.h>
 

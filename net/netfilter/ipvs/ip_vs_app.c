@@ -103,8 +103,8 @@ ip_vs_app_inc_new(struct ip_vs_app *app, __u16 proto, __u16 port)
 		goto out;
 
 	list_add(&inc->a_list, &app->incs_list);
-	IP_VS_DBG(9, "%s application %s:%u registered\n",
-		  pp->name, inc->name, inc->port);
+	IP_VS_DBG(9, "%s App %s:%u registered\n",
+		  pp->name, inc->name, ntohs(inc->port));
 
 	return 0;
 
@@ -130,7 +130,7 @@ ip_vs_app_inc_release(struct ip_vs_app *inc)
 		pp->unregister_app(inc);
 
 	IP_VS_DBG(9, "%s App %s:%u unregistered\n",
-		  pp->name, inc->name, inc->port);
+		  pp->name, inc->name, ntohs(inc->port));
 
 	list_del(&inc->a_list);
 
@@ -568,49 +568,6 @@ static const struct file_operations ip_vs_app_fops = {
 	.release = seq_release,
 };
 #endif
-
-
-/*
- *	Replace a segment of data with a new segment
- */
-int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
-		      char *o_buf, int o_len, char *n_buf, int n_len)
-{
-	int diff;
-	int o_offset;
-	int o_left;
-
-	EnterFunction(9);
-
-	diff = n_len - o_len;
-	o_offset = o_buf - (char *)skb->data;
-	/* The length of left data after o_buf+o_len in the skb data */
-	o_left = skb->len - (o_offset + o_len);
-
-	if (diff <= 0) {
-		memmove(o_buf + n_len, o_buf + o_len, o_left);
-		memcpy(o_buf, n_buf, n_len);
-		skb_trim(skb, skb->len + diff);
-	} else if (diff <= skb_tailroom(skb)) {
-		skb_put(skb, diff);
-		memmove(o_buf + n_len, o_buf + o_len, o_left);
-		memcpy(o_buf, n_buf, n_len);
-	} else {
-		if (pskb_expand_head(skb, skb_headroom(skb), diff, pri))
-			return -ENOMEM;
-		skb_put(skb, diff);
-		memmove(skb->data + o_offset + n_len,
-			skb->data + o_offset + o_len, o_left);
-		skb_copy_to_linear_data_offset(skb, o_offset, n_buf, n_len);
-	}
-
-	/* must update the iph total length here */
-	ip_hdr(skb)->tot_len = htons(skb->len);
-
-	LeaveFunction(9);
-	return 0;
-}
-
 
 int __init ip_vs_app_init(void)
 {

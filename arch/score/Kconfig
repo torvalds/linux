@@ -1,8 +1,3 @@
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-
-mainmenu "Linux/SCORE Kernel Configuration"
-
 menu "Machine selection"
 
 choice
@@ -53,9 +48,6 @@ config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
 config GENERIC_CLOCKEVENTS
-	def_bool y
-
-config GENERIC_TIME
 	def_bool y
 
 config SCHED_NO_NO_OMIT_FRAME_POINTER

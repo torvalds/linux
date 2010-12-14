@@ -22,23 +22,15 @@
 #include "xfs_inum.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
-#include "xfs_dir2.h"
 #include "xfs_trans.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc_btree.h"
-#include "xfs_ialloc_btree.h"
 #include "xfs_alloc.h"
-#include "xfs_btree.h"
-#include "xfs_attr_sf.h"
-#include "xfs_dir2_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_inode_item.h"
 #include "xfs_bmap.h"
 #include "xfs_error.h"
-#include "xfs_rw.h"
 #include "xfs_vnodeops.h"
 #include "xfs_da_btree.h"
 #include "xfs_ioctl.h"
@@ -108,7 +100,7 @@ xfs_file_fsync(
 	int			error = 0;
 	int			log_flushed = 0;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_file_fsync(ip);
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return -XFS_ERROR(EIO);
@@ -166,8 +158,7 @@ xfs_file_fsync(
 		 * transaction.	 So we play it safe and fire off the
 		 * transaction anyway.
 		 */
-		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-		xfs_trans_ihold(tp, ip);
+		xfs_trans_ijoin(tp, ip);
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 		xfs_trans_set_sync(tp);
 		error = _xfs_trans_commit(tp, 0, &log_flushed);
@@ -275,20 +266,6 @@ xfs_file_aio_read(
 		mutex_lock(&inode->i_mutex);
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 
-	if (DM_EVENT_ENABLED(ip, DM_EVENT_READ) && !(ioflags & IO_INVIS)) {
-		int dmflags = FILP_DELAY_FLAG(file) | DM_SEM_FLAG_RD(ioflags);
-		int iolock = XFS_IOLOCK_SHARED;
-
-		ret = -XFS_SEND_DATA(mp, DM_EVENT_READ, ip, iocb->ki_pos, size,
-					dmflags, &iolock);
-		if (ret) {
-			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-			if (unlikely(ioflags & IO_ISDIRECT))
-				mutex_unlock(&inode->i_mutex);
-			return ret;
-		}
-	}
-
 	if (unlikely(ioflags & IO_ISDIRECT)) {
 		if (inode->i_mapping->nrpages) {
 			ret = -xfs_flushinval_pages(ip,
@@ -321,7 +298,6 @@ xfs_file_splice_read(
 	unsigned int		flags)
 {
 	struct xfs_inode	*ip = XFS_I(infilp->f_mapping->host);
-	struct xfs_mount	*mp = ip->i_mount;
 	int			ioflags = 0;
 	ssize_t			ret;
 
@@ -334,18 +310,6 @@ xfs_file_splice_read(
 		return -EIO;
 
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
-
-	if (DM_EVENT_ENABLED(ip, DM_EVENT_READ) && !(ioflags & IO_INVIS)) {
-		int iolock = XFS_IOLOCK_SHARED;
-		int error;
-
-		error = XFS_SEND_DATA(mp, DM_EVENT_READ, ip, *ppos, count,
-					FILP_DELAY_FLAG(infilp), &iolock);
-		if (error) {
-			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
-			return -error;
-		}
-	}
 
 	trace_xfs_file_splice_read(ip, count, *ppos, ioflags);
 
@@ -367,7 +331,6 @@ xfs_file_splice_write(
 {
 	struct inode		*inode = outfilp->f_mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
-	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fsize_t		isize, new_size;
 	int			ioflags = 0;
 	ssize_t			ret;
@@ -381,18 +344,6 @@ xfs_file_splice_write(
 		return -EIO;
 
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
-
-	if (DM_EVENT_ENABLED(ip, DM_EVENT_WRITE) && !(ioflags & IO_INVIS)) {
-		int iolock = XFS_IOLOCK_EXCL;
-		int error;
-
-		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, ip, *ppos, count,
-					FILP_DELAY_FLAG(outfilp), &iolock);
-		if (error) {
-			xfs_iunlock(ip, XFS_IOLOCK_EXCL);
-			return -error;
-		}
-	}
 
 	new_size = *ppos + count;
 
@@ -463,7 +414,7 @@ xfs_zero_last_block(
 	last_fsb = XFS_B_TO_FSBT(mp, isize);
 	nimaps = 1;
 	error = xfs_bmapi(NULL, ip, last_fsb, 1, 0, NULL, 0, &imap,
-			  &nimaps, NULL, NULL);
+			  &nimaps, NULL);
 	if (error) {
 		return error;
 	}
@@ -558,7 +509,7 @@ xfs_zero_eof(
 		nimaps = 1;
 		zero_count_fsb = end_zero_fsb - start_zero_fsb + 1;
 		error = xfs_bmapi(NULL, ip, start_zero_fsb, zero_count_fsb,
-				  0, NULL, 0, &imap, &nimaps, NULL, NULL);
+				  0, NULL, 0, &imap, &nimaps, NULL);
 		if (error) {
 			ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_IOLOCK_EXCL));
 			return error;
@@ -627,7 +578,6 @@ xfs_file_aio_write(
 	int			ioflags = 0;
 	xfs_fsize_t		isize, new_size;
 	int			iolock;
-	int			eventsent = 0;
 	size_t			ocount = 0, count;
 	int			need_i_mutex;
 
@@ -671,33 +621,6 @@ start:
 	if (error) {
 		xfs_iunlock(ip, XFS_ILOCK_EXCL|iolock);
 		goto out_unlock_mutex;
-	}
-
-	if ((DM_EVENT_ENABLED(ip, DM_EVENT_WRITE) &&
-	    !(ioflags & IO_INVIS) && !eventsent)) {
-		int		dmflags = FILP_DELAY_FLAG(file);
-
-		if (need_i_mutex)
-			dmflags |= DM_FLAGS_IMUX;
-
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		error = XFS_SEND_DATA(ip->i_mount, DM_EVENT_WRITE, ip,
-				      pos, count, dmflags, &iolock);
-		if (error) {
-			goto out_unlock_internal;
-		}
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		eventsent = 1;
-
-		/*
-		 * The iolock was dropped and reacquired in XFS_SEND_DATA
-		 * so we have to recheck the size when appending.
-		 * We will only "goto start;" once, since having sent the
-		 * event prevents another call to XFS_SEND_DATA, which is
-		 * what allows the size to change in the first place.
-		 */
-		if ((file->f_flags & O_APPEND) && pos != ip->i_size)
-			goto start;
 	}
 
 	if (ioflags & IO_ISDIRECT) {
@@ -828,22 +751,6 @@ write_retry:
 		if (iocb->ki_pos > ip->i_size)
 			ip->i_size = iocb->ki_pos;
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	}
-
-	if (ret == -ENOSPC &&
-	    DM_EVENT_ENABLED(ip, DM_EVENT_NOSPACE) && !(ioflags & IO_INVIS)) {
-		xfs_iunlock(ip, iolock);
-		if (need_i_mutex)
-			mutex_unlock(&inode->i_mutex);
-		error = XFS_SEND_NAMESP(ip->i_mount, DM_EVENT_NOSPACE, ip,
-				DM_RIGHT_NULL, ip, DM_RIGHT_NULL, NULL, NULL,
-				0, 0, 0); /* Delay flag intentionally  unused */
-		if (need_i_mutex)
-			mutex_lock(&inode->i_mutex);
-		xfs_ilock(ip, iolock);
-		if (error)
-			goto out_unlock_internal;
-		goto start;
 	}
 
 	error = -ret;
@@ -1014,9 +921,6 @@ const struct file_operations xfs_file_operations = {
 	.open		= xfs_file_open,
 	.release	= xfs_file_release,
 	.fsync		= xfs_file_fsync,
-#ifdef HAVE_FOP_OPEN_EXEC
-	.open_exec	= xfs_file_open_exec,
-#endif
 };
 
 const struct file_operations xfs_dir_file_operations = {

@@ -71,6 +71,9 @@
 #define     UNICHROME_VX855         12
 #define     UNICHROME_VX855_DID     0x5122
 
+#define     UNICHROME_VX900         13
+#define     UNICHROME_VX900_DID     0x7122
+
 /**************************************************/
 /* Definition TMDS Trasmitter Information         */
 /**************************************************/
@@ -160,7 +163,6 @@ struct lvds_setting_information {
 	int v_active;
 	int bpp;
 	int refresh_rate;
-	int get_lcd_size_method;
 	int lcd_panel_id;
 	int lcd_panel_hres;
 	int lcd_panel_vres;

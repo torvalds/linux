@@ -21,6 +21,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
+#include <linux/of_address.h>
 #include <linux/mm.h>
 #include <linux/list.h>
 #include <linux/syscalls.h>
@@ -1089,8 +1090,6 @@ void __devinit pcibios_setup_bus_devices(struct pci_bus *bus)
 		 bus->number, bus->self ? pci_name(bus->self) : "PHB");
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
-		struct dev_archdata *sd = &dev->dev.archdata;
-
 		/* Cardbus can call us to add new devices to a bus, so ignore
 		 * those who are already fully discovered
 		 */
@@ -1106,7 +1105,7 @@ void __devinit pcibios_setup_bus_devices(struct pci_bus *bus)
 		set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
 
 		/* Hook up default DMA ops */
-		sd->dma_ops = pci_dma_ops;
+		set_dma_ops(&dev->dev, pci_dma_ops);
 		set_dma_offset(&dev->dev, PCI_DRAM_OFFSET);
 
 		/* Additional platform DMA/iommu setup */

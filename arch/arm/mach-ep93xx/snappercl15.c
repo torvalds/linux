@@ -157,13 +157,12 @@ static void __init snappercl15_init_machine(void)
 	ep93xx_register_i2c(&snappercl15_i2c_gpio_data, snappercl15_i2c_data,
 			    ARRAY_SIZE(snappercl15_i2c_data));
 	ep93xx_register_fb(&snappercl15_fb_info);
+	ep93xx_register_i2s();
 	platform_device_register(&snappercl15_nand_device);
 }
 
 MACHINE_START(SNAPPER_CL15, "Bluewater Systems Snapper CL15")
 	/* Maintainer: Ryan Mallon <ryan@bluewatersys.com> */
-	.phys_io	= EP93XX_APB_PHYS_BASE,
-	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= EP93XX_SDCE0_PHYS_BASE + 0x100,
 	.map_io		= ep93xx_map_io,
 	.init_irq	= ep93xx_init_irq,

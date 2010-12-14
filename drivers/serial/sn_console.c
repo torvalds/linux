@@ -470,7 +470,7 @@ sn_receive_chars(struct sn_cons_port *port, unsigned long flags)
 	}
 
 	if (port->sc_port.state) {
-		/* The serial_core stuffs are initilized, use them */
+		/* The serial_core stuffs are initialized, use them */
 		tty = port->sc_port.state->port.tty;
 	}
 	else {
@@ -492,7 +492,7 @@ sn_receive_chars(struct sn_cons_port *port, unsigned long flags)
                         sysrq_requested = 0;
                         if (ch && time_before(jiffies, sysrq_timeout)) {
                                 spin_unlock_irqrestore(&port->sc_port.lock, flags);
-                                handle_sysrq(ch, NULL);
+                                handle_sysrq(ch);
                                 spin_lock_irqsave(&port->sc_port.lock, flags);
                                 /* ignore actual sysrq command char */
                                 continue;
@@ -551,11 +551,11 @@ static void sn_transmit_chars(struct sn_cons_port *port, int raw)
 	BUG_ON(!port->sc_is_asynch);
 
 	if (port->sc_port.state) {
-		/* We're initilized, using serial core infrastructure */
+		/* We're initialized, using serial core infrastructure */
 		xmit = &port->sc_port.state->xmit;
 	} else {
 		/* Probably sn_sal_switch_to_asynch has been run but serial core isn't
-		 * initilized yet.  Just return.  Writes are going through
+		 * initialized yet.  Just return.  Writes are going through
 		 * sn_sal_console_write (due to register_console) at this time.
 		 */
 		return;

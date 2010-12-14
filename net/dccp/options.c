@@ -96,18 +96,11 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 		}
 
 		/*
-		 * CCID-Specific Options (from RFC 4340, sec. 10.3):
-		 *
-		 * Option numbers 128 through 191 are for options sent from the
-		 * HC-Sender to the HC-Receiver; option numbers 192 through 255
-		 * are for options sent from the HC-Receiver to	the HC-Sender.
-		 *
 		 * CCID-specific options are ignored during connection setup, as
 		 * negotiation may still be in progress (see RFC 4340, 10.3).
 		 * The same applies to Ack Vectors, as these depend on the CCID.
-		 *
 		 */
-		if (dreq != NULL && (opt >= 128 ||
+		if (dreq != NULL && (opt >= DCCPO_MIN_RX_CCID_SPECIFIC ||
 		    opt == DCCPO_ACK_VECTOR_0 || opt == DCCPO_ACK_VECTOR_1))
 			goto ignore_option;
 
@@ -170,6 +163,8 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 				      dccp_role(sk), ntohl(opt_val),
 				      (unsigned long long)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
+			/* schedule an Ack in case this sender is quiescent */
+			inet_csk_schedule_ack(sk);
 			break;
 		case DCCPO_TIMESTAMP_ECHO:
 			if (len != 4 && len != 6 && len != 8)
@@ -226,23 +221,15 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			dccp_pr_debug("%s rx opt: ELAPSED_TIME=%d\n",
 				      dccp_role(sk), elapsed_time);
 			break;
-		case 128 ... 191: {
-			const u16 idx = value - options;
-
+		case DCCPO_MIN_RX_CCID_SPECIFIC ... DCCPO_MAX_RX_CCID_SPECIFIC:
 			if (ccid_hc_rx_parse_options(dp->dccps_hc_rx_ccid, sk,
-						     opt, len, idx,
-						     value) != 0)
+						     pkt_type, opt, value, len))
 				goto out_invalid_option;
-		}
 			break;
-		case 192 ... 255: {
-			const u16 idx = value - options;
-
+		case DCCPO_MIN_TX_CCID_SPECIFIC ... DCCPO_MAX_TX_CCID_SPECIFIC:
 			if (ccid_hc_tx_parse_options(dp->dccps_hc_tx_ccid, sk,
-						     opt, len, idx,
-						     value) != 0)
+						     pkt_type, opt, value, len))
 				goto out_invalid_option;
-		}
 			break;
 		default:
 			DCCP_CRIT("DCCP(%p): option %d(len=%d) not "
@@ -299,9 +286,8 @@ static inline u8 dccp_ndp_len(const u64 ndp)
 	return likely(ndp <= USHRT_MAX) ? 2 : (ndp <= UINT_MAX ? 4 : 6);
 }
 
-int dccp_insert_option(struct sock *sk, struct sk_buff *skb,
-			const unsigned char option,
-			const void *value, const unsigned char len)
+int dccp_insert_option(struct sk_buff *skb, const unsigned char option,
+		       const void *value, const unsigned char len)
 {
 	unsigned char *to;
 
@@ -354,8 +340,7 @@ static inline int dccp_elapsed_time_len(const u32 elapsed_time)
 	return elapsed_time == 0 ? 0 : elapsed_time <= 0xFFFF ? 2 : 4;
 }
 
-int dccp_insert_option_elapsed_time(struct sock *sk, struct sk_buff *skb,
-				    u32 elapsed_time)
+int dccp_insert_option_elapsed_time(struct sk_buff *skb, u32 elapsed_time)
 {
 	const int elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
 	const int len = 2 + elapsed_time_len;
@@ -386,16 +371,14 @@ int dccp_insert_option_elapsed_time(struct sock *sk, struct sk_buff *skb,
 
 EXPORT_SYMBOL_GPL(dccp_insert_option_elapsed_time);
 
-int dccp_insert_option_timestamp(struct sock *sk, struct sk_buff *skb)
+static int dccp_insert_option_timestamp(struct sk_buff *skb)
 {
 	__be32 now = htonl(dccp_timestamp());
 	/* yes this will overflow but that is the point as we want a
 	 * 10 usec 32 bit timer which mean it wraps every 11.9 hours */
 
-	return dccp_insert_option(sk, skb, DCCPO_TIMESTAMP, &now, sizeof(now));
+	return dccp_insert_option(skb, DCCPO_TIMESTAMP, &now, sizeof(now));
 }
-
-EXPORT_SYMBOL_GPL(dccp_insert_option_timestamp);
 
 static int dccp_insert_option_timestamp_echo(struct dccp_sock *dp,
 					     struct dccp_request_sock *dreq,
@@ -531,9 +514,9 @@ int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 		if (DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_REQUEST) {
 			/*
 			 * Obtain RTT sample from Request/Response exchange.
-			 * This is currently used in CCID 3 initialisation.
+			 * This is currently used for TFRC initialisation.
 			 */
-			if (dccp_insert_option_timestamp(sk, skb))
+			if (dccp_insert_option_timestamp(skb))
 				return -1;
 
 		} else if (dp->dccps_hc_rx_ackvec != NULL &&
@@ -562,6 +545,10 @@ int dccp_insert_options_rsk(struct dccp_request_sock *dreq, struct sk_buff *skb)
 	DCCP_SKB_CB(skb)->dccpd_opt_len = 0;
 
 	if (dccp_feat_insert_opts(NULL, dreq, skb))
+		return -1;
+
+	/* Obtain RTT sample from Response/Ack exchange (used by TFRC). */
+	if (dccp_insert_option_timestamp(skb))
 		return -1;
 
 	if (dreq->dreq_timestamp_echo != 0 &&

@@ -18,6 +18,11 @@
 #include "hw-ops.h"
 #include "ar9003_phy.h"
 
+enum ar9003_cal_types {
+	IQ_MISMATCH_CAL = BIT(0),
+	TEMP_COMP_CAL = BIT(1),
+};
+
 static void ar9003_hw_setup_calibration(struct ath_hw *ah,
 					struct ath9k_cal_list *currCal)
 {
@@ -50,11 +55,6 @@ static void ar9003_hw_setup_calibration(struct ath_hw *ah,
 		ath_print(common, ATH_DBG_CALIBRATE,
 			  "starting Temperature Compensation Calibration\n");
 		break;
-	case ADC_DC_INIT_CAL:
-	case ADC_GAIN_CAL:
-	case ADC_DC_CAL:
-		/* Not yet */
-		break;
 	}
 }
 
@@ -68,6 +68,7 @@ static bool ar9003_hw_per_calibration(struct ath_hw *ah,
 				      u8 rxchainmask,
 				      struct ath9k_cal_list *currCal)
 {
+	struct ath9k_hw_cal_data *caldata = ah->caldata;
 	/* Cal is assumed not done until explicitly set below */
 	bool iscaldone = false;
 
@@ -95,7 +96,7 @@ static bool ar9003_hw_per_calibration(struct ath_hw *ah,
 				currCal->calData->calPostProc(ah, numChains);
 
 				/* Calibration has finished. */
-				ichan->CalValid |= currCal->calData->calType;
+				caldata->CalValid |= currCal->calData->calType;
 				currCal->calState = CAL_DONE;
 				iscaldone = true;
 			} else {
@@ -106,7 +107,7 @@ static bool ar9003_hw_per_calibration(struct ath_hw *ah,
 			ar9003_hw_setup_calibration(ah, currCal);
 			}
 		}
-	} else if (!(ichan->CalValid & currCal->calData->calType)) {
+	} else if (!(caldata->CalValid & currCal->calData->calType)) {
 		/* If current cal is marked invalid in channel, kick it off */
 		ath9k_hw_reset_calibration(ah, currCal);
 	}
@@ -149,6 +150,12 @@ static bool ar9003_hw_calibrate(struct ath_hw *ah,
 	/* Do NF cal only at longer intervals */
 	if (longcal) {
 		/*
+		 * Get the value from the previous NF cal and update
+		 * history buffer.
+		 */
+		ath9k_hw_getnf(ah, chan);
+
+		/*
 		 * Load the NF from history buffer of the current channel.
 		 * NF is slow time-variant, so it is OK to use a historical
 		 * value.
@@ -156,7 +163,7 @@ static bool ar9003_hw_calibrate(struct ath_hw *ah,
 		ath9k_hw_loadnf(ah, ah->curchan);
 
 		/* start NF calibration, without updating BB NF register */
-		ath9k_hw_start_nfcal(ah);
+		ath9k_hw_start_nfcal(ah, false);
 	}
 
 	return iscaldone;
@@ -307,27 +314,6 @@ static const struct ath9k_percal_data iq_cal_single_sample = {
 static void ar9003_hw_init_cal_settings(struct ath_hw *ah)
 {
 	ah->iq_caldata.calData = &iq_cal_single_sample;
-	ah->supp_cals = IQ_MISMATCH_CAL;
-}
-
-static bool ar9003_hw_iscal_supported(struct ath_hw *ah,
-				      enum ath9k_cal_types calType)
-{
-	switch (calType & ah->supp_cals) {
-	case IQ_MISMATCH_CAL:
-		/*
-		 * XXX: Run IQ Mismatch for non-CCK only
-		 * Note that CHANNEL_B is never set though.
-		 */
-		return true;
-	case ADC_GAIN_CAL:
-	case ADC_DC_CAL:
-		return false;
-	case TEMP_COMP_CAL:
-		return true;
-	}
-
-	return false;
 }
 
 /*
@@ -739,6 +725,12 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	 */
 	ar9003_hw_set_chain_masks(ah, 0x7, 0x7);
 
+	/* Do Tx IQ Calibration */
+	ar9003_hw_tx_iq_cal(ah);
+	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
+	udelay(5);
+	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
+
 	/* Calibrate the AGC */
 	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
 		  REG_READ(ah, AR_PHY_AGC_CONTROL) |
@@ -753,24 +745,23 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 		return false;
 	}
 
-	/* Do Tx IQ Calibration */
-	if (ah->config.tx_iq_calibration)
-		ar9003_hw_tx_iq_cal(ah);
-
 	/* Revert chainmasks to their original values before NF cal */
 	ar9003_hw_set_chain_masks(ah, ah->rxchainmask, ah->txchainmask);
 
+	ath9k_hw_start_nfcal(ah, true);
+
 	/* Initialize list pointers */
 	ah->cal_list = ah->cal_list_last = ah->cal_list_curr = NULL;
+	ah->supp_cals = IQ_MISMATCH_CAL;
 
-	if (ar9003_hw_iscal_supported(ah, IQ_MISMATCH_CAL)) {
+	if (ah->supp_cals & IQ_MISMATCH_CAL) {
 		INIT_CAL(&ah->iq_caldata);
 		INSERT_CAL(ah, &ah->iq_caldata);
 		ath_print(common, ATH_DBG_CALIBRATE,
 			  "enabling IQ Calibration.\n");
 	}
 
-	if (ar9003_hw_iscal_supported(ah, TEMP_COMP_CAL)) {
+	if (ah->supp_cals & TEMP_COMP_CAL) {
 		INIT_CAL(&ah->tempCompCalData);
 		INSERT_CAL(ah, &ah->tempCompCalData);
 		ath_print(common, ATH_DBG_CALIBRATE,
@@ -783,7 +774,8 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	if (ah->cal_list_curr)
 		ath9k_hw_reset_calibration(ah, ah->cal_list_curr);
 
-	chan->CalValid = 0;
+	if (ah->caldata)
+		ah->caldata->CalValid = 0;
 
 	return true;
 }
@@ -796,7 +788,6 @@ void ar9003_hw_attach_calib_ops(struct ath_hw *ah)
 	priv_ops->init_cal_settings = ar9003_hw_init_cal_settings;
 	priv_ops->init_cal = ar9003_hw_init_cal;
 	priv_ops->setup_calibration = ar9003_hw_setup_calibration;
-	priv_ops->iscal_supported = ar9003_hw_iscal_supported;
 
 	ops->calibrate = ar9003_hw_calibrate;
 }

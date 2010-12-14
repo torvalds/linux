@@ -174,7 +174,7 @@ and is used in Argentinia, Uruguay, an a few others
 We do not talk about how the audio is broadcast !
 
 A rather good sites about the TV standards are:
-http://www.sony.jp/ServiceArea/Voltage_map/
+http://www.sony.jp/support/
 http://info.electronicwerkstatt.de/bereiche/fernsehtechnik/frequenzen_und_normen/Fernsehnormen/
 and http://www.cabl.com/restaurant/channel.html
 
@@ -330,7 +330,7 @@ These extensions are known as the v4l/mjpeg extensions. See zoran.h for
 details (structs/ioctls).
 
 Information - video4linux:
-http://roadrunner.swansea.linux.org.uk/v4lapi.shtml
+http://linux.bytesex.org/v4l2/API.html
 Documentation/video4linux/API.html
 /usr/include/linux/videodev.h
 
@@ -390,7 +390,7 @@ BUZIOC_G_STATUS
 Get the status of the input lines (video source connected/norm).
 
 For programming example, please, look at lavrec.c and lavplay.c code in
-lavtools-1.2p2 package (URL: http://www.cicese.mx/~mirsev/DC10plus/)
+lavtools-1.2p2 package (URL: http://www.cicese.mx/)
 and the 'examples' directory in the original Buz driver distribution.
 
 Additional notes for software developers:

@@ -150,16 +150,13 @@
 #define DATA_DATA							\
 	*(.data)							\
 	*(.ref.data)							\
+	*(.data..shared_aligned) /* percpu related */			\
 	DEV_KEEP(init.data)						\
 	DEV_KEEP(exit.data)						\
 	CPU_KEEP(init.data)						\
 	CPU_KEEP(exit.data)						\
 	MEM_KEEP(init.data)						\
 	MEM_KEEP(exit.data)						\
-	. = ALIGN(8);							\
-	VMLINUX_SYMBOL(__start___markers) = .;				\
-	*(__markers)							\
-	VMLINUX_SYMBOL(__stop___markers) = .;				\
 	. = ALIGN(32);							\
 	VMLINUX_SYMBOL(__start___tracepoints) = .;			\
 	*(__tracepoints)						\
@@ -223,6 +220,8 @@
 	}								\
 									\
 	BUG_TABLE							\
+									\
+	JUMP_TABLE							\
 									\
 	/* PCI quirks */						\
 	.pci_fixup        : AT(ADDR(.pci_fixup) - LOAD_OFFSET) {	\
@@ -567,6 +566,14 @@
 #define BUG_TABLE
 #endif
 
+#define JUMP_TABLE							\
+	. = ALIGN(8);							\
+	__jump_table : AT(ADDR(__jump_table) - LOAD_OFFSET) {		\
+		VMLINUX_SYMBOL(__start___jump_table) = .;		\
+		*(__jump_table)						\
+		VMLINUX_SYMBOL(__stop___jump_table) = .;		\
+	}
+
 #ifdef CONFIG_PM_TRACE
 #define TRACEDATA							\
 	. = ALIGN(4);							\
@@ -630,7 +637,7 @@
 
 #ifdef CONFIG_BLK_DEV_INITRD
 #define INIT_RAM_FS							\
-	. = ALIGN(PAGE_SIZE);						\
+	. = ALIGN(4);							\
 	VMLINUX_SYMBOL(__initramfs_start) = .;				\
 	*(.init.ramfs)							\
 	. = ALIGN(8);							\
@@ -654,6 +661,7 @@
 	EXIT_DATA							\
 	EXIT_CALL							\
 	*(.discard)							\
+	*(.discard.*)							\
 	}
 
 /**
@@ -681,7 +689,9 @@
 				- LOAD_OFFSET) {			\
 		VMLINUX_SYMBOL(__per_cpu_start) = .;			\
 		*(.data..percpu..first)					\
+		. = ALIGN(PAGE_SIZE);					\
 		*(.data..percpu..page_aligned)				\
+		*(.data..percpu..readmostly)				\
 		*(.data..percpu)					\
 		*(.data..percpu..shared_aligned)			\
 		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
@@ -707,7 +717,9 @@
 		VMLINUX_SYMBOL(__per_cpu_load) = .;			\
 		VMLINUX_SYMBOL(__per_cpu_start) = .;			\
 		*(.data..percpu..first)					\
+		. = ALIGN(PAGE_SIZE);					\
 		*(.data..percpu..page_aligned)				\
+		*(.data..percpu..readmostly)				\
 		*(.data..percpu)					\
 		*(.data..percpu..shared_aligned)			\
 		VMLINUX_SYMBOL(__per_cpu_end) = .;			\

@@ -201,11 +201,11 @@ int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 		return r;
 	}
 	r = drm_gem_handle_create(filp, gobj, &handle);
+	/* drop reference from allocate - handle holds it now */
+	drm_gem_object_unreference_unlocked(gobj);
 	if (r) {
-		drm_gem_object_unreference_unlocked(gobj);
 		return r;
 	}
-	drm_gem_object_handle_unreference_unlocked(gobj);
 	args->handle = handle;
 	return 0;
 }
@@ -226,7 +226,7 @@ int radeon_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	/* just do a BO wait for now */
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
 	if (gobj == NULL) {
-		return -EINVAL;
+		return -ENOENT;
 	}
 	robj = gobj->driver_private;
 
@@ -245,7 +245,7 @@ int radeon_gem_mmap_ioctl(struct drm_device *dev, void *data,
 
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
 	if (gobj == NULL) {
-		return -EINVAL;
+		return -ENOENT;
 	}
 	robj = gobj->driver_private;
 	args->addr_ptr = radeon_bo_mmap_offset(robj);
@@ -264,7 +264,7 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
 	if (gobj == NULL) {
-		return -EINVAL;
+		return -ENOENT;
 	}
 	robj = gobj->driver_private;
 	r = radeon_bo_wait(robj, &cur_placement, true);
@@ -294,7 +294,7 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
 	if (gobj == NULL) {
-		return -EINVAL;
+		return -ENOENT;
 	}
 	robj = gobj->driver_private;
 	r = radeon_bo_wait(robj, NULL, false);
@@ -316,7 +316,7 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 	DRM_DEBUG("%d \n", args->handle);
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
 	if (gobj == NULL)
-		return -EINVAL;
+		return -ENOENT;
 	robj = gobj->driver_private;
 	r = radeon_bo_set_tiling_flags(robj, args->tiling_flags, args->pitch);
 	drm_gem_object_unreference_unlocked(gobj);
@@ -334,7 +334,7 @@ int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 	DRM_DEBUG("\n");
 	gobj = drm_gem_object_lookup(dev, filp, args->handle);
 	if (gobj == NULL)
-		return -EINVAL;
+		return -ENOENT;
 	rbo = gobj->driver_private;
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))

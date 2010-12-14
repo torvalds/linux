@@ -36,43 +36,14 @@
 //
 // constants
 //
-#define U_CRC_LEN           4           //
 #define U_ETHER_ADDR_STR_LEN (ETH_ALEN * 2 + 1)
                                         // Ethernet address string length
-
-#define MIN_DATA_LEN        46          // min data length
-#define MAX_DATA_LEN        1500        // max data length
-
-#define MIN_PACKET_LEN      (MIN_DATA_LEN + ETH_HLEN)
-                                        // 60
-                                        // min total packet length (tx)
-#define MAX_PACKET_LEN      (MAX_DATA_LEN + ETH_HLEN)
-                                        // 1514
-                                        // max total packet length (tx)
-
-#define MAX_LOOKAHEAD_SIZE  MAX_PACKET_LEN
-
 #define U_MULTI_ADDR_LEN    8           // multicast address length
-
 
 #ifdef __BIG_ENDIAN
 
-#define TYPE_PKT_IP         0x0800      //
-#define TYPE_PKT_ARP        0x0806      //
-#define TYPE_PKT_RARP       0x8035      //
-#define TYPE_PKT_IPX	    0x8137	    //
-#define TYPE_PKT_802_1x     0x888e
-#define TYPE_PKT_PreAuth    0x88C7
-
-#define TYPE_PKT_PING_M_REQ 0x8011      // master reguest
-#define TYPE_PKT_PING_S_GNT 0x8022      // slave grant
-#define TYPE_PKT_PING_M     0x8077      // pingpong master packet
-#define TYPE_PKT_PING_S     0x8088      // pingpong slave packet
-#define TYPE_PKT_WOL_M_REQ  0x8033      // WOL waker request
-#define TYPE_PKT_WOL_S_GNT  0x8044      // WOL sleeper grant
 #define TYPE_MGMT_PROBE_RSP 0x5000
-#define TYPE_PKT_VNT_DIAG   0x8011      // Diag Pkt
-#define TYPE_PKT_VNT_PER    0x8888      // Diag PER Pkt
+
 //
 // wFrameCtl field in the S802_11Header
 //
@@ -109,23 +80,9 @@
 //
 // NOTE....
 //   in network byte order, high byte is going first
-#define TYPE_PKT_IP         0x0008      //
-#define TYPE_PKT_ARP        0x0608      //
-#define TYPE_PKT_RARP       0x3580      //
-#define TYPE_PKT_IPX	    0x3781	    //
 
-#define TYPE_PKT_802_1x     0x8e88
-#define TYPE_PKT_PreAuth    0xC788
-
-#define TYPE_PKT_PING_M_REQ 0x1180      // master reguest
-#define TYPE_PKT_PING_S_GNT 0x2280      // slave grant
-#define TYPE_PKT_PING_M     0x7780      // pingpong master packet
-#define TYPE_PKT_PING_S     0x8880      // pingpong slave packet
-#define TYPE_PKT_WOL_M_REQ  0x3380      // WOL waker request
-#define TYPE_PKT_WOL_S_GNT  0x4480      // WOL sleeper grant
 #define TYPE_MGMT_PROBE_RSP 0x0050
-#define TYPE_PKT_VNT_DIAG   0x1180      // Diag Pkt
-#define TYPE_PKT_VNT_PER    0x8888      // Diag PER Pkt
+
 //
 // wFrameCtl field in the S802_11Header
 //
@@ -168,7 +125,7 @@ typedef struct tagSEthernetHeader {
     BYTE    abyDstAddr[ETH_ALEN];
     BYTE    abySrcAddr[ETH_ALEN];
     WORD    wType;
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 SEthernetHeader, *PSEthernetHeader;
 
 
@@ -179,7 +136,7 @@ typedef struct tagS802_3Header {
     BYTE    abyDstAddr[ETH_ALEN];
     BYTE    abySrcAddr[ETH_ALEN];
     WORD    wLen;
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 S802_3Header, *PS802_3Header;
 
 //
@@ -193,30 +150,10 @@ typedef struct tagS802_11Header {
     BYTE    abyAddr3[ETH_ALEN];
     WORD    wSeqCtl;
     BYTE    abyAddr4[ETH_ALEN];
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 S802_11Header, *PS802_11Header;
 
 /*---------------------  Export Macros ------------------------------*/
-// Frame type macro
-
-#define IS_MULTICAST_ADDRESS(pbyEtherAddr)          \
-    ((*(PBYTE)(pbyEtherAddr) & 0x01) == 1)
-
-#define IS_BROADCAST_ADDRESS(pbyEtherAddr) (        \
-    (*(PDWORD)(pbyEtherAddr) == 0xFFFFFFFFL) &&     \
-    (*(PWORD)((PBYTE)(pbyEtherAddr) + 4) == 0xFFFF) \
-)
-
-#define IS_NULL_ADDRESS(pbyEtherAddr) (             \
-    (*(PDWORD)(pbyEtherAddr) == 0L) &&              \
-    (*(PWORD)((PBYTE)(pbyEtherAddr) + 4) == 0)      \
-)
-
-#define IS_ETH_ADDRESS_EQUAL(pbyAddr1, pbyAddr2) (  \
-    (*(PDWORD)(pbyAddr1) == *(PDWORD)(pbyAddr2)) && \
-    (*(PWORD)((PBYTE)(pbyAddr1) + 4) ==             \
-    *(PWORD)((PBYTE)(pbyAddr2) + 4))                \
-)
 
 /*---------------------  Export Classes  ----------------------------*/
 

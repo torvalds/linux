@@ -503,15 +503,16 @@ static const union acpi_predefined_info predefined_names[] =
 	{{"_WAK", 1, ACPI_RTYPE_NONE | ACPI_RTYPE_INTEGER | ACPI_RTYPE_PACKAGE}},
 			  {{{ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 2,0}, 0,0}}, /* Fixed-length (2 Int), but is optional */
 
-	{{{0,0,0,0}, 0,0}} /* Table terminator */
+	/* _WDG/_WED are MS extensions defined by "Windows Instrumentation" */
+
+	{{"_WDG", 0, ACPI_RTYPE_BUFFER}},
+	{{"_WED", 1,
+	  ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING | ACPI_RTYPE_BUFFER}},
+
+	{{{0, 0, 0, 0}, 0, 0}}  /* Table terminator */
 };
 
 #if 0
-	/* Not implemented */
-
-	{{"_WDG", 0, ACPI_RTYPE_BUFFER}},  /* MS Extension */
-	{{"_WED", 1, ACPI_RTYPE_PACKAGE}}, /* MS Extension */
-
 	/* This is an internally implemented control method, no need to check */
 	{{"_OSI", 1, ACPI_RTYPE_INTEGER}},
 

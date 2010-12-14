@@ -712,8 +712,16 @@ static ssize_t aio_run_iocb(struct kiocb *iocb)
 	 */
 	ret = retry(iocb);
 
-	if (ret != -EIOCBRETRY && ret != -EIOCBQUEUED)
+	if (ret != -EIOCBRETRY && ret != -EIOCBQUEUED) {
+		/*
+		 * There's no easy way to restart the syscall since other AIO's
+		 * may be already running. Just fail this IO with EINTR.
+		 */
+		if (unlikely(ret == -ERESTARTSYS || ret == -ERESTARTNOINTR ||
+			     ret == -ERESTARTNOHAND || ret == -ERESTART_RESTARTBLOCK))
+			ret = -EINTR;
 		aio_complete(iocb, ret, 0);
+	}
 out:
 	spin_lock_irq(&ctx->ctx_lock);
 
@@ -1277,7 +1285,7 @@ out:
 /* sys_io_destroy:
  *	Destroy the aio_context specified.  May cancel any outstanding 
  *	AIOs and block on completion.  Will fail with -ENOSYS if not
- *	implemented.  May fail with -EFAULT if the context pointed to
+ *	implemented.  May fail with -EINVAL if the context pointed to
  *	is invalid.
  */
 SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
@@ -1535,7 +1543,19 @@ static void aio_batch_add(struct address_space *mapping,
 	}
 
 	abe = mempool_alloc(abe_pool, GFP_KERNEL);
-	BUG_ON(!igrab(mapping->host));
+
+	/*
+	 * we should be using igrab here, but
+	 * we don't want to hammer on the global
+	 * inode spinlock just to take an extra
+	 * reference on a file that we must already
+	 * have a reference to.
+	 *
+	 * When we're called, we always have a reference
+	 * on the file, so we must always have a reference
+	 * on the inode, so ihold() is safe here.
+	 */
+	ihold(mapping->host);
 	abe->mapping = mapping;
 	hlist_add_head(&abe->list, &batch_hash[bucket]);
 	return;
@@ -1658,6 +1678,9 @@ long do_io_submit(aio_context_t ctx_id, long nr,
 
 	if (unlikely(nr < 0))
 		return -EINVAL;
+
+	if (unlikely(nr > LONG_MAX/sizeof(*iocbpp)))
+		nr = LONG_MAX/sizeof(*iocbpp);
 
 	if (unlikely(!access_ok(VERIFY_READ, iocbpp, (nr*sizeof(*iocbpp)))))
 		return -EFAULT;
@@ -1795,15 +1818,16 @@ SYSCALL_DEFINE3(io_cancel, aio_context_t, ctx_id, struct iocb __user *, iocb,
 
 /* io_getevents:
  *	Attempts to read at least min_nr events and up to nr events from
- *	the completion queue for the aio_context specified by ctx_id.  May
- *	fail with -EINVAL if ctx_id is invalid, if min_nr is out of range,
- *	if nr is out of range, if when is out of range.  May fail with
- *	-EFAULT if any of the memory specified to is invalid.  May return
- *	0 or < min_nr if no events are available and the timeout specified
- *	by when	has elapsed, where when == NULL specifies an infinite
- *	timeout.  Note that the timeout pointed to by when is relative and
- *	will be updated if not NULL and the operation blocks.  Will fail
- *	with -ENOSYS if not implemented.
+ *	the completion queue for the aio_context specified by ctx_id. If
+ *	it succeeds, the number of read events is returned. May fail with
+ *	-EINVAL if ctx_id is invalid, if min_nr is out of range, if nr is
+ *	out of range, if timeout is out of range.  May fail with -EFAULT
+ *	if any of the memory specified is invalid.  May return 0 or
+ *	< min_nr if the timeout specified by timeout has elapsed
+ *	before sufficient events are available, where timeout == NULL
+ *	specifies an infinite timeout. Note that the timeout pointed to by
+ *	timeout is relative and will be updated if not NULL and the
+ *	operation blocks. Will fail with -ENOSYS if not implemented.
  */
 SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
 		long, min_nr,

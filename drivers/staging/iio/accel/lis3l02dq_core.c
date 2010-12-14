@@ -27,6 +27,9 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
+#include "../ring_generic.h"
+#include "../ring_sw.h"
+
 #include "accel.h"
 
 #include "lis3l02dq.h"
@@ -47,7 +50,9 @@ int lis3l02dq_spi_read_reg_8(struct device *dev, u8 reg_address, u8 *val)
 	int ret;
 	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct lis3l02dq_state *st = iio_dev_get_devdata(indio_dev);
+	struct iio_sw_ring_helper_state *h = iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
+
 	struct spi_transfer xfer = {
 		.tx_buf = st->tx,
 		.rx_buf = st->rx,
@@ -82,7 +87,9 @@ int lis3l02dq_spi_write_reg_8(struct device *dev,
 	int ret;
 	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct lis3l02dq_state *st = iio_dev_get_devdata(indio_dev);
+	struct iio_sw_ring_helper_state *h
+		= iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 	struct spi_transfer xfer = {
 		.tx_buf = st->tx,
 		.bits_per_word = 8,
@@ -96,7 +103,7 @@ int lis3l02dq_spi_write_reg_8(struct device *dev,
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
-	ret =  spi_sync(st->us, &msg);
+	ret = spi_sync(st->us, &msg);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -116,7 +123,9 @@ static int lis3l02dq_spi_write_reg_s16(struct device *dev,
 	int ret;
 	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct lis3l02dq_state *st = iio_dev_get_devdata(indio_dev);
+	struct iio_sw_ring_helper_state *h
+		= iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 	struct spi_transfer xfers[] = { {
 			.tx_buf = st->tx,
 			.bits_per_word = 8,
@@ -158,7 +167,9 @@ static int lis3l02dq_spi_read_reg_s16(struct device *dev,
 {
 	struct spi_message msg;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct lis3l02dq_state *st = iio_dev_get_devdata(indio_dev);
+	struct iio_sw_ring_helper_state *h
+		= iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 	int ret;
 	struct spi_transfer xfers[] = { {
 			.tx_buf = st->tx,
@@ -411,7 +422,7 @@ static int lis3l02dq_initial_setup(struct lis3l02dq_state *st)
 
 	val = LIS3L02DQ_DEFAULT_CTRL1;
 	/* Write suitable defaults to ctrl1 */
-	ret = lis3l02dq_spi_write_reg_8(&st->indio_dev->dev,
+	ret = lis3l02dq_spi_write_reg_8(&st->help.indio_dev->dev,
 					LIS3L02DQ_REG_CTRL_1_ADDR,
 					&val);
 	if (ret) {
@@ -419,7 +430,7 @@ static int lis3l02dq_initial_setup(struct lis3l02dq_state *st)
 		goto err_ret;
 	}
 	/* Repeat as sometimes doesn't work first time?*/
-	ret = lis3l02dq_spi_write_reg_8(&st->indio_dev->dev,
+	ret = lis3l02dq_spi_write_reg_8(&st->help.indio_dev->dev,
 					LIS3L02DQ_REG_CTRL_1_ADDR,
 					&val);
 	if (ret) {
@@ -429,17 +440,17 @@ static int lis3l02dq_initial_setup(struct lis3l02dq_state *st)
 
 	/* Read back to check this has worked acts as loose test of correct
 	 * chip */
-	ret = lis3l02dq_spi_read_reg_8(&st->indio_dev->dev,
+	ret = lis3l02dq_spi_read_reg_8(&st->help.indio_dev->dev,
 				       LIS3L02DQ_REG_CTRL_1_ADDR,
 				       &valtest);
 	if (ret || (valtest != val)) {
-		dev_err(&st->indio_dev->dev, "device not playing ball");
+		dev_err(&st->help.indio_dev->dev, "device not playing ball");
 		ret = -EINVAL;
 		goto err_ret;
 	}
 
 	val = LIS3L02DQ_DEFAULT_CTRL2;
-	ret = lis3l02dq_spi_write_reg_8(&st->indio_dev->dev,
+	ret = lis3l02dq_spi_write_reg_8(&st->help.indio_dev->dev,
 					LIS3L02DQ_REG_CTRL_2_ADDR,
 					&val);
 	if (ret) {
@@ -448,7 +459,7 @@ static int lis3l02dq_initial_setup(struct lis3l02dq_state *st)
 	}
 
 	val = LIS3L02DQ_REG_WAKE_UP_CFG_LATCH_SRC;
-	ret = lis3l02dq_spi_write_reg_8(&st->indio_dev->dev,
+	ret = lis3l02dq_spi_write_reg_8(&st->help.indio_dev->dev,
 					LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
 					&val);
 	if (ret)
@@ -486,7 +497,7 @@ static LIS3L02DQ_UNSIGNED_ATTR(accel_y_calibscale,
 static LIS3L02DQ_UNSIGNED_ATTR(accel_z_calibscale,
 			       LIS3L02DQ_REG_GAIN_Z_ADDR);
 
-static IIO_DEVICE_ATTR(accel_mag_either_rising_value,
+static IIO_DEVICE_ATTR(accel_raw_mag_value,
 		       S_IWUSR | S_IRUGO,
 		       lis3l02dq_read_16bit_signed,
 		       lis3l02dq_write_16bit_signed,
@@ -524,8 +535,7 @@ static ssize_t lis3l02dq_read_interrupt_config(struct device *dev,
 				       LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
 				       (u8 *)&val);
 
-	return ret ? ret : sprintf(buf, "%d\n",
-				   (val & this_attr->mask) ? 1 : 0);;
+	return ret ? ret : sprintf(buf, "%d\n", !!(val & this_attr->mask));
 }
 
 static ssize_t lis3l02dq_write_interrupt_config(struct device *dev,
@@ -595,16 +605,18 @@ error_mutex_unlock:
 }
 
 
-static int lis3l02dq_thresh_handler_th(struct iio_dev *dev_info,
+static int lis3l02dq_thresh_handler_th(struct iio_dev *indio_dev,
 				       int index,
 				       s64 timestamp,
 				       int no_test)
 {
-	struct lis3l02dq_state *st = dev_info->dev_data;
+	struct iio_sw_ring_helper_state *h
+		= iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 
 	/* Stash the timestamp somewhere convenient for the bh */
-	st->last_timestamp = timestamp;
-	schedule_work(&st->work_cont_thresh.ws);
+	st->thresh_timestamp = timestamp;
+	schedule_work(&st->work_thresh);
 
 	return 0;
 }
@@ -615,48 +627,73 @@ static int lis3l02dq_thresh_handler_th(struct iio_dev *dev_info,
  */
 static void lis3l02dq_thresh_handler_bh_no_check(struct work_struct *work_s)
 {
-	struct iio_work_cont *wc
-		= container_of(work_s, struct iio_work_cont, ws);
-	struct lis3l02dq_state *st = wc->st;
+       struct lis3l02dq_state *st
+	       = container_of(work_s,
+		       struct lis3l02dq_state, work_thresh);
+
 	u8 t;
 
-	lis3l02dq_spi_read_reg_8(&st->indio_dev->dev,
+	lis3l02dq_spi_read_reg_8(&st->help.indio_dev->dev,
 				 LIS3L02DQ_REG_WAKE_UP_SRC_ADDR,
 				 &t);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_HIGH)
-		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_Z_HIGH,
-			       st->last_timestamp);
+		iio_push_event(st->help.indio_dev, 0,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Z,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
+			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Z_LOW)
-		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_Z_LOW,
-			       st->last_timestamp);
+		iio_push_event(st->help.indio_dev, 0,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Z,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
+			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_HIGH)
-		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_Y_HIGH,
-			       st->last_timestamp);
+		iio_push_event(st->help.indio_dev, 0,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Y,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
+			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_Y_LOW)
-		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_Y_LOW,
-			       st->last_timestamp);
+		iio_push_event(st->help.indio_dev, 0,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_Y,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
+			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_HIGH)
-		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_X_HIGH,
-			       st->last_timestamp);
+		iio_push_event(st->help.indio_dev, 0,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_X,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
+			       st->thresh_timestamp);
 
 	if (t & LIS3L02DQ_REG_WAKE_UP_SRC_INTERRUPT_X_LOW)
-		iio_push_event(st->indio_dev, 0,
-			       IIO_EVENT_CODE_ACCEL_X_LOW,
-			       st->last_timestamp);
+		iio_push_event(st->help.indio_dev, 0,
+			       IIO_MOD_EVENT_CODE(IIO_EV_CLASS_ACCEL,
+						  0,
+						  IIO_EV_MOD_X,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
+			       st->thresh_timestamp);
 	/* reenable the irq */
 	enable_irq(st->us->irq);
 	/* Ack and allow for new interrupts */
-	lis3l02dq_spi_read_reg_8(&st->indio_dev->dev,
+	lis3l02dq_spi_read_reg_8(&st->help.indio_dev->dev,
 				 LIS3L02DQ_REG_WAKE_UP_ACK_ADDR,
 				 &t);
 
@@ -666,37 +703,37 @@ static void lis3l02dq_thresh_handler_bh_no_check(struct work_struct *work_s)
 /* A shared handler for a number of threshold types */
 IIO_EVENT_SH(threshold, &lis3l02dq_thresh_handler_th);
 
-IIO_EVENT_ATTR_SH(accel_x_mag_pos_rising_en,
+IIO_EVENT_ATTR_SH(accel_x_thresh_rising_en,
 		  iio_event_threshold,
 		  lis3l02dq_read_interrupt_config,
 		  lis3l02dq_write_interrupt_config,
 		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_X_HIGH);
 
-IIO_EVENT_ATTR_SH(accel_y_mag_pos_rising_en,
+IIO_EVENT_ATTR_SH(accel_y_thresh_rising_en,
 		  iio_event_threshold,
 		  lis3l02dq_read_interrupt_config,
 		  lis3l02dq_write_interrupt_config,
 		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Y_HIGH);
 
-IIO_EVENT_ATTR_SH(accel_z_mag_pos_rising_en,
+IIO_EVENT_ATTR_SH(accel_z_thresh_rising_en,
 		  iio_event_threshold,
 		  lis3l02dq_read_interrupt_config,
 		  lis3l02dq_write_interrupt_config,
 		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Z_HIGH);
 
-IIO_EVENT_ATTR_SH(accel_x_mag_neg_rising_en,
+IIO_EVENT_ATTR_SH(accel_x_thresh_falling_en,
 		  iio_event_threshold,
 		  lis3l02dq_read_interrupt_config,
 		  lis3l02dq_write_interrupt_config,
 		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_X_LOW);
 
-IIO_EVENT_ATTR_SH(accel_y_mag_neg_rising_en,
+IIO_EVENT_ATTR_SH(accel_y_thresh_falling_en,
 		  iio_event_threshold,
 		  lis3l02dq_read_interrupt_config,
 		  lis3l02dq_write_interrupt_config,
 		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Y_LOW);
 
-IIO_EVENT_ATTR_SH(accel_z_mag_neg_rising_en,
+IIO_EVENT_ATTR_SH(accel_z_thresh_falling_en,
 		  iio_event_threshold,
 		  lis3l02dq_read_interrupt_config,
 		  lis3l02dq_write_interrupt_config,
@@ -704,13 +741,13 @@ IIO_EVENT_ATTR_SH(accel_z_mag_neg_rising_en,
 
 
 static struct attribute *lis3l02dq_event_attributes[] = {
-	&iio_event_attr_accel_x_mag_pos_rising_en.dev_attr.attr,
-	&iio_event_attr_accel_y_mag_pos_rising_en.dev_attr.attr,
-	&iio_event_attr_accel_z_mag_pos_rising_en.dev_attr.attr,
-	&iio_event_attr_accel_x_mag_neg_rising_en.dev_attr.attr,
-	&iio_event_attr_accel_y_mag_neg_rising_en.dev_attr.attr,
-	&iio_event_attr_accel_z_mag_neg_rising_en.dev_attr.attr,
-	&iio_dev_attr_accel_mag_either_rising_value.dev_attr.attr,
+	&iio_event_attr_accel_x_thresh_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_y_thresh_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_z_thresh_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_x_thresh_falling_en.dev_attr.attr,
+	&iio_event_attr_accel_y_thresh_falling_en.dev_attr.attr,
+	&iio_event_attr_accel_z_thresh_falling_en.dev_attr.attr,
+	&iio_dev_attr_accel_raw_mag_value.dev_attr.attr,
 	NULL
 };
 
@@ -718,7 +755,7 @@ static struct attribute_group lis3l02dq_event_attribute_group = {
 	.attrs = lis3l02dq_event_attributes,
 };
 
-static IIO_CONST_ATTR(name, "lis3l02dq");
+static IIO_CONST_ATTR_NAME("lis3l02dq");
 static IIO_CONST_ATTR(accel_scale, "0.00958");
 
 static struct attribute *lis3l02dq_attributes[] = {
@@ -750,6 +787,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 		ret =  -ENOMEM;
 		goto error_ret;
 	}
+	INIT_WORK(&st->work_thresh, lis3l02dq_thresh_handler_bh_no_check);
 	/* this is only used tor removal purposes */
 	spi_set_drvdata(spi, st);
 
@@ -767,56 +805,46 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	st->us = spi;
 	mutex_init(&st->buf_lock);
 	/* setup the industrialio driver allocated elements */
-	st->indio_dev = iio_allocate_device();
-	if (st->indio_dev == NULL) {
+	st->help.indio_dev = iio_allocate_device();
+	if (st->help.indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_free_tx;
 	}
 
-	st->indio_dev->dev.parent = &spi->dev;
-	st->indio_dev->num_interrupt_lines = 1;
-	st->indio_dev->event_attrs = &lis3l02dq_event_attribute_group;
-	st->indio_dev->attrs = &lis3l02dq_attribute_group;
-	st->indio_dev->dev_data = (void *)(st);
-	st->indio_dev->driver_module = THIS_MODULE;
-	st->indio_dev->modes = INDIO_DIRECT_MODE;
+	st->help.indio_dev->dev.parent = &spi->dev;
+	st->help.indio_dev->num_interrupt_lines = 1;
+	st->help.indio_dev->event_attrs = &lis3l02dq_event_attribute_group;
+	st->help.indio_dev->attrs = &lis3l02dq_attribute_group;
+	st->help.indio_dev->dev_data = (void *)(&st->help);
+	st->help.indio_dev->driver_module = THIS_MODULE;
+	st->help.indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = lis3l02dq_configure_ring(st->indio_dev);
+	ret = lis3l02dq_configure_ring(st->help.indio_dev);
 	if (ret)
 		goto error_free_dev;
 
-	ret = iio_device_register(st->indio_dev);
+	ret = iio_device_register(st->help.indio_dev);
 	if (ret)
 		goto error_unreg_ring_funcs;
 	regdone = 1;
 
-	ret = lis3l02dq_initialize_ring(st->indio_dev->ring);
+	ret = iio_ring_buffer_register(st->help.indio_dev->ring, 0);
 	if (ret) {
 		printk(KERN_ERR "failed to initialize the ring\n");
 		goto error_unreg_ring_funcs;
 	}
 
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
-		/* This is a little unusual, in that the device seems
-		   to need a full read of the interrupt source reg before
-		   the interrupt will reset.
-		   Hence the two handlers are the same */
-		iio_init_work_cont(&st->work_cont_thresh,
-				   lis3l02dq_thresh_handler_bh_no_check,
-				   lis3l02dq_thresh_handler_bh_no_check,
-				   LIS3L02DQ_REG_WAKE_UP_SRC_ADDR,
-				   0,
-				   st);
 		st->inter = 0;
 		ret = iio_register_interrupt_line(spi->irq,
-						  st->indio_dev,
+						  st->help.indio_dev,
 						  0,
 						  IRQF_TRIGGER_RISING,
 						  "lis3l02dq");
 		if (ret)
 			goto error_uninitialize_ring;
 
-		ret = lis3l02dq_probe_trigger(st->indio_dev);
+		ret = lis3l02dq_probe_trigger(st->help.indio_dev);
 		if (ret)
 			goto error_unregister_line;
 	}
@@ -828,20 +856,20 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	return 0;
 
 error_remove_trigger:
-	if (st->indio_dev->modes & INDIO_RING_TRIGGERED)
-		lis3l02dq_remove_trigger(st->indio_dev);
+	if (st->help.indio_dev->modes & INDIO_RING_TRIGGERED)
+		lis3l02dq_remove_trigger(st->help.indio_dev);
 error_unregister_line:
-	if (st->indio_dev->modes & INDIO_RING_TRIGGERED)
-		iio_unregister_interrupt_line(st->indio_dev, 0);
+	if (st->help.indio_dev->modes & INDIO_RING_TRIGGERED)
+		iio_unregister_interrupt_line(st->help.indio_dev, 0);
 error_uninitialize_ring:
-	lis3l02dq_uninitialize_ring(st->indio_dev->ring);
+	iio_ring_buffer_unregister(st->help.indio_dev->ring);
 error_unreg_ring_funcs:
-	lis3l02dq_unconfigure_ring(st->indio_dev);
+	lis3l02dq_unconfigure_ring(st->help.indio_dev);
 error_free_dev:
 	if (regdone)
-		iio_device_unregister(st->indio_dev);
+		iio_device_unregister(st->help.indio_dev);
 	else
-		iio_free_device(st->indio_dev);
+		iio_free_device(st->help.indio_dev);
 error_free_tx:
 	kfree(st->tx);
 error_free_rx:
@@ -856,7 +884,9 @@ error_ret:
 static int lis3l02dq_stop_device(struct iio_dev *indio_dev)
 {
 	int ret;
-	struct lis3l02dq_state *st = indio_dev->dev_data;
+	struct iio_sw_ring_helper_state *h
+		= iio_dev_get_devdata(indio_dev);
+	struct lis3l02dq_state *st = lis3l02dq_h_to_s(h);
 	u8 val = 0;
 
 	mutex_lock(&indio_dev->mlock);
@@ -883,7 +913,7 @@ static int lis3l02dq_remove(struct spi_device *spi)
 {
 	int ret;
 	struct lis3l02dq_state *st = spi_get_drvdata(spi);
-	struct iio_dev *indio_dev = st->indio_dev;
+	struct iio_dev *indio_dev = st->help.indio_dev;
 
 	ret = lis3l02dq_stop_device(indio_dev);
 	if (ret)
@@ -895,7 +925,7 @@ static int lis3l02dq_remove(struct spi_device *spi)
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
 		iio_unregister_interrupt_line(indio_dev, 0);
 
-	lis3l02dq_uninitialize_ring(indio_dev->ring);
+	iio_ring_buffer_unregister(indio_dev->ring);
 	lis3l02dq_unconfigure_ring(indio_dev);
 	iio_device_unregister(indio_dev);
 	kfree(st->tx);

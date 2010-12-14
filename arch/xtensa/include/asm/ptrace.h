@@ -77,6 +77,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/coprocessor.h>
+
 /*
  * This struct defines the way the registers are stored on the
  * kernel stack during a system call or other kernel entry.

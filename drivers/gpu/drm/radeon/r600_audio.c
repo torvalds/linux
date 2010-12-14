@@ -63,7 +63,8 @@ int r600_audio_bits_per_sample(struct radeon_device *rdev)
 	case 0x4: return 32;
 	}
 
-	DRM_ERROR("Unknown bits per sample 0x%x using 16 instead.\n", (int)value);
+	dev_err(rdev->dev, "Unknown bits per sample 0x%x using 16 instead\n",
+		(int)value);
 
 	return 16;
 }
@@ -150,7 +151,8 @@ static void r600_audio_update_hdmi(unsigned long param)
 			r600_hdmi_update_audio_settings(encoder);
 	}
 
-	if(still_going) r600_audio_schedule_polling(rdev);
+	if (still_going)
+		r600_audio_schedule_polling(rdev);
 }
 
 /*
@@ -158,8 +160,9 @@ static void r600_audio_update_hdmi(unsigned long param)
  */
 static void r600_audio_engine_enable(struct radeon_device *rdev, bool enable)
 {
-	DRM_INFO("%s audio support", enable ? "Enabling" : "Disabling");
+	DRM_INFO("%s audio support\n", enable ? "Enabling" : "Disabling");
 	WREG32_P(R600_AUDIO_ENABLE, enable ? 0x81000000 : 0x0, ~0x81000000);
+	rdev->audio_enabled = enable;
 }
 
 /*
@@ -195,12 +198,14 @@ void r600_audio_enable_polling(struct drm_encoder *encoder)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 
-	DRM_DEBUG("r600_audio_enable_polling: %d", radeon_encoder->audio_polling_active);
+	DRM_DEBUG("r600_audio_enable_polling: %d\n",
+		radeon_encoder->audio_polling_active);
 	if (radeon_encoder->audio_polling_active)
 		return;
 
 	radeon_encoder->audio_polling_active = 1;
-	mod_timer(&rdev->audio_timer, jiffies + 1);
+	if (rdev->audio_enabled)
+		mod_timer(&rdev->audio_timer, jiffies + 1);
 }
 
 /*
@@ -209,7 +214,8 @@ void r600_audio_enable_polling(struct drm_encoder *encoder)
 void r600_audio_disable_polling(struct drm_encoder *encoder)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	DRM_DEBUG("r600_audio_disable_polling: %d", radeon_encoder->audio_polling_active);
+	DRM_DEBUG("r600_audio_disable_polling: %d\n",
+		radeon_encoder->audio_polling_active);
 	radeon_encoder->audio_polling_active = 0;
 }
 
@@ -236,7 +242,7 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
 		WREG32_P(R600_AUDIO_TIMING, 0x100, ~0x301);
 		break;
 	default:
-		DRM_ERROR("Unsupported encoder type 0x%02X\n",
+		dev_err(rdev->dev, "Unsupported encoder type 0x%02X\n",
 			  radeon_encoder->encoder_id);
 		return;
 	}
@@ -266,7 +272,7 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
  */
 void r600_audio_fini(struct radeon_device *rdev)
 {
-	if (!radeon_audio || !r600_audio_chipset_supported(rdev))
+	if (!rdev->audio_enabled)
 		return;
 
 	del_timer(&rdev->audio_timer);

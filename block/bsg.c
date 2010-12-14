@@ -20,7 +20,6 @@
 #include <linux/uio.h>
 #include <linux/idr.h>
 #include <linux/bsg.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 
 #include <scsi/scsi.h>
@@ -426,7 +425,7 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 	/*
 	 * fill in all the output members
 	 */
-	hdr->device_status = status_byte(rq->errors);
+	hdr->device_status = rq->errors & 0xff;
 	hdr->transport_status = host_byte(rq->errors);
 	hdr->driver_status = driver_byte(rq->errors);
 	hdr->info = 0;
@@ -843,9 +842,7 @@ static int bsg_open(struct inode *inode, struct file *file)
 {
 	struct bsg_device *bd;
 
-	lock_kernel();
 	bd = bsg_get_device(inode, file);
-	unlock_kernel();
 
 	if (IS_ERR(bd))
 		return PTR_ERR(bd);
@@ -968,6 +965,7 @@ static const struct file_operations bsg_fops = {
 	.release	=	bsg_release,
 	.unlocked_ioctl	=	bsg_ioctl,
 	.owner		=	THIS_MODULE,
+	.llseek		=	default_llseek,
 };
 
 void bsg_unregister_queue(struct request_queue *q)

@@ -202,8 +202,25 @@ _GLOBAL(kvmppc_rmcall)
 
 #if defined(CONFIG_PPC_BOOK3S_32)
 #define STACK_LR	INT_FRAME_SIZE+4
+
+/* load_up_xxx have to run with MSR_DR=0 on Book3S_32 */
+#define MSR_EXT_START						\
+	PPC_STL	r20, _NIP(r1);					\
+	mfmsr	r20;						\
+	LOAD_REG_IMMEDIATE(r3, MSR_DR|MSR_EE);			\
+	andc	r3,r20,r3;		/* Disable DR,EE */	\
+	mtmsr	r3;						\
+	sync
+
+#define MSR_EXT_END						\
+	mtmsr	r20;			/* Enable DR,EE */	\
+	sync;							\
+	PPC_LL	r20, _NIP(r1)
+
 #elif defined(CONFIG_PPC_BOOK3S_64)
 #define STACK_LR	_LINK
+#define MSR_EXT_START
+#define MSR_EXT_END
 #endif
 
 /*
@@ -215,19 +232,12 @@ _GLOBAL(kvmppc_load_up_ ## what);				\
 	PPC_STLU r1, -INT_FRAME_SIZE(r1);			\
 	mflr	r3;						\
 	PPC_STL	r3, STACK_LR(r1);				\
-	PPC_STL	r20, _NIP(r1);					\
-	mfmsr	r20;						\
-	LOAD_REG_IMMEDIATE(r3, MSR_DR|MSR_EE);			\
-	andc	r3,r20,r3;		/* Disable DR,EE */	\
-	mtmsr	r3;						\
-	sync;							\
+	MSR_EXT_START;						\
 								\
 	bl	FUNC(load_up_ ## what);				\
 								\
-	mtmsr	r20;			/* Enable DR,EE */	\
-	sync;							\
+	MSR_EXT_END;						\
 	PPC_LL	r3, STACK_LR(r1);				\
-	PPC_LL	r20, _NIP(r1);					\
 	mtlr	r3;						\
 	addi	r1, r1, INT_FRAME_SIZE;				\
 	blr
@@ -242,10 +252,10 @@ define_load_up(vsx)
 
 .global kvmppc_trampoline_lowmem
 kvmppc_trampoline_lowmem:
-	.long kvmppc_handler_lowmem_trampoline - CONFIG_KERNEL_START
+	PPC_LONG kvmppc_handler_lowmem_trampoline - CONFIG_KERNEL_START
 
 .global kvmppc_trampoline_enter
 kvmppc_trampoline_enter:
-	.long kvmppc_handler_trampoline_enter - CONFIG_KERNEL_START
+	PPC_LONG kvmppc_handler_trampoline_enter - CONFIG_KERNEL_START
 
 #include "book3s_segment.S"

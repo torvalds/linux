@@ -9,12 +9,11 @@
 
 #define SAMPLE_BUFFER_SIZE 8192
 
-static char* sample_buffer;
-static char* sample_buffer_pos;
+static char *sample_buffer;
+static char *sample_buffer_pos;
 static int prof_running = 0;
 
-void
-cris_profile_sample(struct pt_regs* regs)
+void cris_profile_sample(struct pt_regs *regs)
 {
 	if (!prof_running)
 		return;
@@ -24,7 +23,7 @@ cris_profile_sample(struct pt_regs* regs)
 	else
 		*(unsigned int*)sample_buffer_pos = 0;
 
-	*(unsigned int*)(sample_buffer_pos + 4) = instruction_pointer(regs);
+	*(unsigned int *)(sample_buffer_pos + 4) = instruction_pointer(regs);
 	sample_buffer_pos += 8;
 
 	if (sample_buffer_pos == sample_buffer + SAMPLE_BUFFER_SIZE)
@@ -54,15 +53,16 @@ write_cris_profile(struct file *file, const char __user *buf,
 {
 	sample_buffer_pos = sample_buffer;
 	memset(sample_buffer, 0, SAMPLE_BUFFER_SIZE);
+	return count < SAMPLE_BUFFER_SIZE ? count : SAMPLE_BUFFER_SIZE;
 }
 
 static const struct file_operations cris_proc_profile_operations = {
 	.read		= read_cris_profile,
 	.write		= write_cris_profile,
+	.llseek		= default_llseek,
 };
 
-static int
-__init init_cris_profile(void)
+static int __init init_cris_profile(void)
 {
 	struct proc_dir_entry *entry;
 
@@ -82,5 +82,5 @@ __init init_cris_profile(void)
 
 	return 0;
 }
-
 __initcall(init_cris_profile);
+

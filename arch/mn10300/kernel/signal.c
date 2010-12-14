@@ -65,10 +65,10 @@ asmlinkage long sys_sigaction(int sig,
 		old_sigset_t mask;
 		if (verify_area(VERIFY_READ, act, sizeof(*act)) ||
 		    __get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
+		    __get_user(new_ka.sa.sa_restorer, &act->sa_restorer) ||
+		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
+		    __get_user(mask, &act->sa_mask))
 			return -EFAULT;
-		__get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		__get_user(mask, &act->sa_mask);
 		siginitset(&new_ka.sa.sa_mask, mask);
 	}
 
@@ -77,10 +77,10 @@ asmlinkage long sys_sigaction(int sig,
 	if (!ret && oact) {
 		if (verify_area(VERIFY_WRITE, oact, sizeof(*oact)) ||
 		    __put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
+		    __put_user(old_ka.sa.sa_restorer, &oact->sa_restorer) ||
+		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
+		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
 			return -EFAULT;
-		__put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
 	}
 
 	return ret;
@@ -91,7 +91,7 @@ asmlinkage long sys_sigaction(int sig,
  */
 asmlinkage long sys_sigaltstack(const stack_t __user *uss, stack_t *uoss)
 {
-	return do_sigaltstack(uss, uoss, __frame->sp);
+	return do_sigaltstack(uss, uoss, current_frame()->sp);
 }
 
 /*
@@ -101,6 +101,9 @@ static int restore_sigcontext(struct pt_regs *regs,
 			      struct sigcontext __user *sc, long *_d0)
 {
 	unsigned int err = 0;
+
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 	if (is_using_fpu(current))
 		fpu_kill_state(current);
@@ -153,10 +156,11 @@ badframe:
  */
 asmlinkage long sys_sigreturn(void)
 {
-	struct sigframe __user *frame = (struct sigframe __user *) __frame->sp;
+	struct sigframe __user *frame;
 	sigset_t set;
 	long d0;
 
+	frame = (struct sigframe __user *) current_frame()->sp;
 	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__get_user(set.sig[0], &frame->sc.oldmask))
@@ -173,7 +177,7 @@ asmlinkage long sys_sigreturn(void)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(__frame, &frame->sc, &d0))
+	if (restore_sigcontext(current_frame(), &frame->sc, &d0))
 		goto badframe;
 
 	return d0;
@@ -188,11 +192,11 @@ badframe:
  */
 asmlinkage long sys_rt_sigreturn(void)
 {
-	struct rt_sigframe __user *frame =
-		(struct rt_sigframe __user *) __frame->sp;
+	struct rt_sigframe __user *frame;
 	sigset_t set;
-	unsigned long d0;
+	long d0;
 
+	frame = (struct rt_sigframe __user *) current_frame()->sp;
 	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
@@ -204,10 +208,11 @@ asmlinkage long sys_rt_sigreturn(void)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (restore_sigcontext(__frame, &frame->uc.uc_mcontext, &d0))
+	if (restore_sigcontext(current_frame(), &frame->uc.uc_mcontext, &d0))
 		goto badframe;
 
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, __frame->sp) == -EFAULT)
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL, current_frame()->sp) ==
+	    -EFAULT)
 		goto badframe;
 
 	return d0;
@@ -330,8 +335,6 @@ static int setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	regs->d0 = sig;
 	regs->d1 = (unsigned long) &frame->sc;
 
-	set_fs(USER_DS);
-
 	/* the tracer may want to single-step inside the handler */
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);
@@ -345,7 +348,7 @@ static int setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	return 0;
 
 give_sigsegv:
-	force_sig(SIGSEGV, current);
+	force_sigsegv(sig, current);
 	return -EFAULT;
 }
 
@@ -413,8 +416,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->d0 = sig;
 	regs->d1 = (long) &frame->info;
 
-	set_fs(USER_DS);
-
 	/* the tracer may want to single-step inside the handler */
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);
@@ -428,8 +429,14 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	return 0;
 
 give_sigsegv:
-	force_sig(SIGSEGV, current);
+	force_sigsegv(sig, current);
 	return -EFAULT;
+}
+
+static inline void stepback(struct pt_regs *regs)
+{
+	regs->pc -= 2;
+	regs->orig_d0 = -1;
 }
 
 /*
@@ -459,7 +466,7 @@ static int handle_signal(int sig,
 			/* fallthrough */
 		case -ERESTARTNOINTR:
 			regs->d0 = regs->orig_d0;
-			regs->pc -= 2;
+			stepback(regs);
 		}
 	}
 
@@ -527,12 +534,12 @@ static void do_signal(struct pt_regs *regs)
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:
 			regs->d0 = regs->orig_d0;
-			regs->pc -= 2;
+			stepback(regs);
 			break;
 
 		case -ERESTART_RESTARTBLOCK:
 			regs->d0 = __NR_restart_syscall;
-			regs->pc -= 2;
+			stepback(regs);
 			break;
 		}
 	}
@@ -567,7 +574,7 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, u32 thread_info_flags)
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(__frame);
+		tracehook_notify_resume(current_frame());
 		if (current->replacement_session_keyring)
 			key_replace_session_keyring();
 	}

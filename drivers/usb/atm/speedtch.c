@@ -525,7 +525,7 @@ static void speedtch_check_status(struct work_struct *work)
 
 		switch (status) {
 		case 0:
-			atm_dev->signal = ATM_PHY_SIG_LOST;
+			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 			if (instance->last_status)
 				atm_info(usbatm, "ADSL line is down\n");
 			/* It may never resync again unless we ask it to... */
@@ -533,12 +533,12 @@ static void speedtch_check_status(struct work_struct *work)
 			break;
 
 		case 0x08:
-			atm_dev->signal = ATM_PHY_SIG_UNKNOWN;
+			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_UNKNOWN);
 			atm_info(usbatm, "ADSL line is blocked?\n");
 			break;
 
 		case 0x10:
-			atm_dev->signal = ATM_PHY_SIG_LOST;
+			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 			atm_info(usbatm, "ADSL line is synchronising\n");
 			break;
 
@@ -554,7 +554,7 @@ static void speedtch_check_status(struct work_struct *work)
 			}
 
 			atm_dev->link_rate = down_speed * 1000 / 424;
-			atm_dev->signal = ATM_PHY_SIG_FOUND;
+			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_FOUND);
 
 			atm_info(usbatm,
 				 "ADSL line is up (%d kb/s down | %d kb/s up)\n",
@@ -562,7 +562,7 @@ static void speedtch_check_status(struct work_struct *work)
 			break;
 
 		default:
-			atm_dev->signal = ATM_PHY_SIG_UNKNOWN;
+			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_UNKNOWN);
 			atm_info(usbatm, "unknown line state %02x\n", status);
 			break;
 		}
@@ -753,11 +753,13 @@ static struct usb_driver speedtch_usb_driver = {
 	.id_table	= speedtch_usb_ids
 };
 
-static void speedtch_release_interfaces(struct usb_device *usb_dev, int num_interfaces) {
+static void speedtch_release_interfaces(struct usb_device *usb_dev,
+					int num_interfaces)
+{
 	struct usb_interface *cur_intf;
 	int i;
 
-	for(i = 0; i < num_interfaces; i++)
+	for (i = 0; i < num_interfaces; i++)
 		if ((cur_intf = usb_ifnum_to_if(usb_dev, i))) {
 			usb_set_intfdata(cur_intf, NULL);
 			usb_driver_release_interface(&speedtch_usb_driver, cur_intf);
@@ -792,7 +794,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 
 	/* claim all interfaces */
 
-	for (i=0; i < num_interfaces; i++) {
+	for (i = 0; i < num_interfaces; i++) {
 		cur_intf = usb_ifnum_to_if(usb_dev, i);
 
 		if ((i != ifnum) && cur_intf) {
@@ -842,7 +844,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 
 		use_isoc = 0; /* fall back to bulk if endpoint not found */
 
-		for (i=0; i<desc->desc.bNumEndpoints; i++) {
+		for (i = 0; i < desc->desc.bNumEndpoints; i++) {
 			const struct usb_endpoint_descriptor *endpoint_desc = &desc->endpoint[i].desc;
 
 			if ((endpoint_desc->bEndpointAddress == target_address)) {

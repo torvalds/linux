@@ -43,6 +43,8 @@
 
 #include <plat/timer-sp.h>
 
+#include "common.h"
+
 #define INTCP_PA_FLASH_BASE		0x24000000
 #define INTCP_FLASH_SIZE		SZ_32M
 
@@ -597,10 +599,9 @@ static struct sys_timer cp_timer = {
 
 MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
-	.phys_io	= 0x16000000,
-	.io_pg_offst	= ((0xf1600000) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
 	.map_io		= intcp_map_io,
+	.reserve	= integrator_reserve,
 	.init_irq	= intcp_init_irq,
 	.timer		= &cp_timer,
 	.init_machine	= intcp_init,

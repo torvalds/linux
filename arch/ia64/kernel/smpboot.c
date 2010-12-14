@@ -390,13 +390,11 @@ smp_callin (void)
 
 	fix_b0_for_bsp();
 
-#ifdef CONFIG_NUMA
 	/*
 	 * numa_node_id() works after this.
 	 */
 	set_numa_node(cpu_to_node_map[cpuid]);
 	set_numa_mem(local_memory_node(cpu_to_node_map[cpuid]));
-#endif
 
 	ipi_call_lock_irq();
 	spin_lock(&vector_lock);
@@ -510,21 +508,18 @@ do_boot_cpu (int sapicid, int cpu)
 		.done	= COMPLETION_INITIALIZER(c_idle.done),
 	};
 
+	/*
+	 * We can't use kernel_thread since we must avoid to
+	 * reschedule the child.
+	 */
  	c_idle.idle = get_idle_for_cpu(cpu);
  	if (c_idle.idle) {
 		init_idle(c_idle.idle, cpu);
  		goto do_rest;
 	}
 
-	/*
-	 * We can't use kernel_thread since we must avoid to reschedule the child.
-	 */
-	if (!keventd_up() || current_is_keventd())
-		c_idle.work.func(&c_idle.work);
-	else {
-		schedule_work(&c_idle.work);
-		wait_for_completion(&c_idle.done);
-	}
+	schedule_work(&c_idle.work);
+	wait_for_completion(&c_idle.done);
 
 	if (IS_ERR(c_idle.idle))
 		panic("failed fork for CPU %d", cpu);
@@ -640,9 +635,7 @@ void __devinit smp_prepare_boot_cpu(void)
 {
 	cpu_set(smp_processor_id(), cpu_online_map);
 	cpu_set(smp_processor_id(), cpu_callin_map);
-#ifdef CONFIG_NUMA
 	set_numa_node(cpu_to_node_map[smp_processor_id()]);
-#endif
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 	paravirt_post_smp_prepare_boot_cpu();
 }

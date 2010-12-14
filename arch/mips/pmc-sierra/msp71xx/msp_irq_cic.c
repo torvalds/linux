@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
+#include <linux/irq.h>
 
 #include <asm/system.h>
 

@@ -501,7 +501,8 @@ postcore_initcall(at91_clk_debugfs_init);
 int __init clk_register(struct clk *clk)
 {
 	if (clk_is_peripheral(clk)) {
-		clk->parent = &mck;
+		if (!clk->parent)
+			clk->parent = &mck;
 		clk->mode = pmc_periph_mode;
 		list_add_tail(&clk->node, &clocks);
 	}

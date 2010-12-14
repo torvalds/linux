@@ -353,3 +353,25 @@ ENTRY(sys_call_table)
 	.long sys_pwritev
 	.long sys_rt_tgsigqueueinfo	/* 335 */
 	.long sys_perf_event_open
+	.long sys_fanotify_init
+	.long sys_fanotify_mark
+	.long sys_prlimit64
+	/* Broken-out socket family */
+	.long sys_socket		/* 340 */
+	.long sys_bind
+	.long sys_connect
+	.long sys_listen
+	.long sys_accept
+	.long sys_getsockname	/* 345 */
+	.long sys_getpeername
+	.long sys_socketpair
+	.long sys_send
+	.long sys_sendto
+	.long sys_recv			/* 350 */
+	.long sys_recvfrom
+	.long sys_shutdown
+	.long sys_setsockopt
+	.long sys_getsockopt
+	.long sys_sendmsg		/* 355 */
+	.long sys_recvmsg
+	.long sys_recvmmsg

@@ -316,7 +316,10 @@ void ch7006_setup_power_state(struct drm_encoder *encoder)
 		}
 
 	} else {
-		*power |= bitfs(CH7006_POWER_LEVEL, FULL_POWER_OFF);
+		if (priv->chip_version >= 0x20)
+			*power |= bitfs(CH7006_POWER_LEVEL, FULL_POWER_OFF);
+		else
+			*power |= bitfs(CH7006_POWER_LEVEL, POWER_OFF);
 	}
 }
 

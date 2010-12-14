@@ -15,12 +15,10 @@
 
 #ifndef CONFIG_DEBUG_DC21285_PORT
 	/* For NetWinder debugging */
-		.macro	addruart, rx, tmp
-		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1			@ MMU enabled?
-		moveq	\rx, #0x7c000000	@ physical
-		movne	\rx, #0xff000000	@ virtual
-		orr	\rx, \rx, #0x000003f8
+		.macro	addruart, rp, rv
+		mov	\rp, #0x000003f8
+		orr	\rv, \rp, #0x7c000000	@ physical
+		orr	\rp, \rp, #0xff000000	@ virtual
 		.endm
 
 #define UART_SHIFT	0
@@ -32,14 +30,14 @@
 		.equ	dc21285_high, ARMCSR_BASE & 0xff000000
 		.equ	dc21285_low,  ARMCSR_BASE & 0x00ffffff
 
-		.macro	addruart, rx, tmp
-		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1			@ MMU enabled?
-		moveq	\rx, #0x42000000
-		movne	\rx, #dc21285_high
+		.macro	addruart, rp, rv
 		.if	dc21285_low
-		orrne	\rx, \rx, #dc21285_low
+		mov	\rp, #dc21285_low
+		.else
+		mov	\rp, #0
 		.endif
+		orr	\rv, \rp, #0x42000000
+		orr	\rp, \rp, #dc21285_high
 		.endm
 
 		.macro	senduart,rd,rx

@@ -154,7 +154,7 @@ static struct platform_device nand_flash_device = {
 #define PORT_DRVCRA	0xA405018A
 #define PORT_DRVCRB	0xA405018C
 
-static void ap320_wvga_power_on(void *board_data)
+static void ap320_wvga_power_on(void *board_data, struct fb_info *info)
 {
 	msleep(100);
 
@@ -176,6 +176,21 @@ static void ap320_wvga_power_off(void *board_data)
 	__raw_writew(0, FPGA_LCDREG);
 }
 
+const static struct fb_videomode ap325rxa_lcdc_modes[] = {
+	{
+		.name = "LB070WV1",
+		.xres = 800,
+		.yres = 480,
+		.left_margin = 32,
+		.right_margin = 160,
+		.hsync_len = 8,
+		.upper_margin = 63,
+		.lower_margin = 80,
+		.vsync_len = 1,
+		.sync = 0, /* hsync and vsync are active low */
+	},
+};
+
 static struct sh_mobile_lcdc_info lcdc_info = {
 	.clock_source = LCDC_CLK_EXTERNAL,
 	.ch[0] = {
@@ -183,18 +198,8 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 		.bpp = 16,
 		.interface_type = RGB18,
 		.clock_divider = 1,
-		.lcd_cfg = {
-			.name = "LB070WV1",
-			.xres = 800,
-			.yres = 480,
-			.left_margin = 32,
-			.right_margin = 160,
-			.hsync_len = 8,
-			.upper_margin = 63,
-			.lower_margin = 80,
-			.vsync_len = 1,
-			.sync = 0, /* hsync and vsync are active low */
-		},
+		.lcd_cfg = ap325rxa_lcdc_modes,
+		.num_cfg = ARRAY_SIZE(ap325rxa_lcdc_modes),
 		.lcd_size_cfg = { /* 7.0 inch */
 			.width = 152,
 			.height = 91,
@@ -316,7 +321,7 @@ static struct soc_camera_platform_info camera_info = {
 	.format_name = "UYVY",
 	.format_depth = 16,
 	.format = {
-		.code = V4L2_MBUS_FMT_YUYV8_2X8_BE,
+		.code = V4L2_MBUS_FMT_UYVY8_2X8,
 		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 		.field = V4L2_FIELD_NONE,
 		.width = 640,
@@ -481,7 +486,6 @@ static struct soc_camera_link ov7725_link = {
 	.power		= ov7725_power,
 	.board_info	= &ap325rxa_i2c_camera[0],
 	.i2c_adapter_id	= 0,
-	.module_name	= "ov772x",
 	.priv		= &ov7725_info,
 };
 

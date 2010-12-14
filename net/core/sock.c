@@ -110,6 +110,7 @@
 #include <linux/tcp.h>
 #include <linux/init.h>
 #include <linux/highmem.h>
+#include <linux/user_namespace.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -156,7 +157,7 @@ static const char *const af_family_key_strings[AF_MAX+1] = {
   "sk_lock-27"       , "sk_lock-28"          , "sk_lock-AF_CAN"      ,
   "sk_lock-AF_TIPC"  , "sk_lock-AF_BLUETOOTH", "sk_lock-IUCV"        ,
   "sk_lock-AF_RXRPC" , "sk_lock-AF_ISDN"     , "sk_lock-AF_PHONET"   ,
-  "sk_lock-AF_IEEE802154",
+  "sk_lock-AF_IEEE802154", "sk_lock-AF_CAIF" ,
   "sk_lock-AF_MAX"
 };
 static const char *const af_family_slock_key_strings[AF_MAX+1] = {
@@ -172,7 +173,7 @@ static const char *const af_family_slock_key_strings[AF_MAX+1] = {
   "slock-27"       , "slock-28"          , "slock-AF_CAN"      ,
   "slock-AF_TIPC"  , "slock-AF_BLUETOOTH", "slock-AF_IUCV"     ,
   "slock-AF_RXRPC" , "slock-AF_ISDN"     , "slock-AF_PHONET"   ,
-  "slock-AF_IEEE802154",
+  "slock-AF_IEEE802154", "slock-AF_CAIF" ,
   "slock-AF_MAX"
 };
 static const char *const af_family_clock_key_strings[AF_MAX+1] = {
@@ -188,7 +189,7 @@ static const char *const af_family_clock_key_strings[AF_MAX+1] = {
   "clock-27"       , "clock-28"          , "clock-AF_CAN"      ,
   "clock-AF_TIPC"  , "clock-AF_BLUETOOTH", "clock-AF_IUCV"     ,
   "clock-AF_RXRPC" , "clock-AF_ISDN"     , "clock-AF_PHONET"   ,
-  "clock-AF_IEEE802154",
+  "clock-AF_IEEE802154", "clock-AF_CAIF" ,
   "clock-AF_MAX"
 };
 
@@ -749,6 +750,20 @@ set_rcvbuf:
 EXPORT_SYMBOL(sock_setsockopt);
 
 
+void cred_to_ucred(struct pid *pid, const struct cred *cred,
+		   struct ucred *ucred)
+{
+	ucred->pid = pid_vnr(pid);
+	ucred->uid = ucred->gid = -1;
+	if (cred) {
+		struct user_namespace *current_ns = current_user_ns();
+
+		ucred->uid = user_ns_map_uid(current_ns, cred, cred->euid);
+		ucred->gid = user_ns_map_gid(current_ns, cred, cred->egid);
+	}
+}
+EXPORT_SYMBOL_GPL(cred_to_ucred);
+
 int sock_getsockopt(struct socket *sock, int level, int optname,
 		    char __user *optval, int __user *optlen)
 {
@@ -901,11 +916,15 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		break;
 
 	case SO_PEERCRED:
-		if (len > sizeof(sk->sk_peercred))
-			len = sizeof(sk->sk_peercred);
-		if (copy_to_user(optval, &sk->sk_peercred, len))
+	{
+		struct ucred peercred;
+		if (len > sizeof(peercred))
+			len = sizeof(peercred);
+		cred_to_ucred(sk->sk_peer_pid, sk->sk_peer_cred, &peercred);
+		if (copy_to_user(optval, &peercred, len))
 			return -EFAULT;
 		goto lenout;
+	}
 
 	case SO_PEERNAME:
 	{
@@ -1059,8 +1078,11 @@ static void sk_prot_free(struct proto *prot, struct sock *sk)
 #ifdef CONFIG_CGROUPS
 void sock_update_classid(struct sock *sk)
 {
-	u32 classid = task_cls_classid(current);
+	u32 classid;
 
+	rcu_read_lock();  /* doing current task, which cannot vanish. */
+	classid = task_cls_classid(current);
+	rcu_read_unlock();
 	if (classid && classid != sk->sk_classid)
 		sk->sk_classid = classid;
 }
@@ -1119,6 +1141,9 @@ static void __sk_free(struct sock *sk)
 		printk(KERN_DEBUG "%s: optmem leakage (%d bytes) detected.\n",
 		       __func__, atomic_read(&sk->sk_omem_alloc));
 
+	if (sk->sk_peer_cred)
+		put_cred(sk->sk_peer_cred);
+	put_pid(sk->sk_peer_pid);
 	put_net(sock_net(sk));
 	sk_prot_free(sk->sk_prot_creator, sk);
 }
@@ -1200,7 +1225,7 @@ struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 		sock_reset_flag(newsk, SOCK_DONE);
 		skb_queue_head_init(&newsk->sk_error_queue);
 
-		filter = newsk->sk_filter;
+		filter = rcu_dereference_protected(newsk->sk_filter, 1);
 		if (filter != NULL)
 			sk_filter_charge(newsk, filter);
 
@@ -1317,9 +1342,10 @@ EXPORT_SYMBOL(sock_wfree);
 void sock_rfree(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
+	unsigned int len = skb->truesize;
 
-	atomic_sub(skb->truesize, &sk->sk_rmem_alloc);
-	sk_mem_uncharge(skb->sk, skb->truesize);
+	atomic_sub(len, &sk->sk_rmem_alloc);
+	sk_mem_uncharge(sk, len);
 }
 EXPORT_SYMBOL(sock_rfree);
 
@@ -1328,9 +1354,9 @@ int sock_i_uid(struct sock *sk)
 {
 	int uid;
 
-	read_lock(&sk->sk_callback_lock);
+	read_lock_bh(&sk->sk_callback_lock);
 	uid = sk->sk_socket ? SOCK_INODE(sk->sk_socket)->i_uid : 0;
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 	return uid;
 }
 EXPORT_SYMBOL(sock_i_uid);
@@ -1339,9 +1365,9 @@ unsigned long sock_i_ino(struct sock *sk)
 {
 	unsigned long ino;
 
-	read_lock(&sk->sk_callback_lock);
+	read_lock_bh(&sk->sk_callback_lock);
 	ino = sk->sk_socket ? SOCK_INODE(sk->sk_socket)->i_ino : 0;
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 	return ino;
 }
 EXPORT_SYMBOL(sock_i_ino);
@@ -1534,6 +1560,8 @@ struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
 EXPORT_SYMBOL(sock_alloc_send_skb);
 
 static void __lock_sock(struct sock *sk)
+	__releases(&sk->sk_lock.slock)
+	__acquires(&sk->sk_lock.slock)
 {
 	DEFINE_WAIT(wait);
 
@@ -1550,6 +1578,8 @@ static void __lock_sock(struct sock *sk)
 }
 
 static void __release_sock(struct sock *sk)
+	__releases(&sk->sk_lock.slock)
+	__acquires(&sk->sk_lock.slock)
 {
 	struct sk_buff *skb = sk->sk_backlog.head;
 
@@ -1954,9 +1984,8 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_sndmsg_page	=	NULL;
 	sk->sk_sndmsg_off	=	0;
 
-	sk->sk_peercred.pid 	=	0;
-	sk->sk_peercred.uid	=	-1;
-	sk->sk_peercred.gid	=	-1;
+	sk->sk_peer_pid 	=	NULL;
+	sk->sk_peer_cred	=	NULL;
 	sk->sk_write_pending	=	0;
 	sk->sk_rcvlowat		=	1;
 	sk->sk_rcvtimeo		=	MAX_SCHEDULE_TIMEOUT;
@@ -2210,8 +2239,7 @@ static DECLARE_BITMAP(proto_inuse_idx, PROTO_INUSE_NR);
 #ifdef CONFIG_NET_NS
 void sock_prot_inuse_add(struct net *net, struct proto *prot, int val)
 {
-	int cpu = smp_processor_id();
-	per_cpu_ptr(net->core.inuse, cpu)->val[prot->inuse_idx] += val;
+	__this_cpu_add(net->core.inuse->val[prot->inuse_idx], val);
 }
 EXPORT_SYMBOL_GPL(sock_prot_inuse_add);
 
@@ -2257,7 +2285,7 @@ static DEFINE_PER_CPU(struct prot_inuse, prot_inuse);
 
 void sock_prot_inuse_add(struct net *net, struct proto *prot, int val)
 {
-	__get_cpu_var(prot_inuse).val[prot->inuse_idx] += val;
+	__this_cpu_add(prot_inuse.val[prot->inuse_idx], val);
 }
 EXPORT_SYMBOL_GPL(sock_prot_inuse_add);
 

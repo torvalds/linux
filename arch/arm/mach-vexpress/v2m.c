@@ -48,7 +48,7 @@ void __init v2m_map_io(struct map_desc *tile, size_t num)
 }
 
 
-static void v2m_timer_init(void)
+static void __init v2m_timer_init(void)
 {
 	writel(0, MMIO_P2V(V2M_TIMER0) + TIMER_CTRL);
 	writel(0, MMIO_P2V(V2M_TIMER1) + TIMER_CTRL);
@@ -298,8 +298,13 @@ static struct clk osc2_clk = {
 	.rate	= 24000000,
 };
 
+static struct clk dummy_apb_pclk;
+
 static struct clk_lookup v2m_lookups[] = {
-	{	/* UART0 */
+	{	/* AMBA bus clock */
+		.con_id		= "apb_pclk",
+		.clk		= &dummy_apb_pclk,
+	}, {	/* UART0 */
 		.dev_id		= "mb:uart0",
 		.clk		= &osc2_clk,
 	}, {	/* UART1 */

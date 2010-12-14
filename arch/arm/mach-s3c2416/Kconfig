@@ -25,6 +25,11 @@ config S3C2416_DMA
 	help
 	  Internal config node for S3C2416 DMA support
 
+config S3C2416_PM
+	bool
+	help
+	  Internal config node to apply S3C2416 power management
+
 menu "S3C2416 Machines"
 
 config MACH_SMDK2416
@@ -33,6 +38,7 @@ config MACH_SMDK2416
 	select S3C_DEV_FB
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
+	select S3C2416_PM if PM
 	help
 	  Say Y here if you are using an SMDK2416
 

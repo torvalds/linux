@@ -151,6 +151,27 @@ static void tqm85xx_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "PLL setting\t: 0x%x\n", ((phid1 >> 24) & 0x3f));
 }
 
+static void __init tqm85xx_ti1520_fixup(struct pci_dev *pdev)
+{
+	unsigned int val;
+
+	/* Do not do the fixup on other platforms! */
+	if (!machine_is(tqm85xx))
+		return;
+
+	dev_info(&pdev->dev, "Using TI 1520 fixup on TQM85xx\n");
+
+	/*
+	 * Enable P2CCLK bit in system control register
+	 * to enable CLOCK output to power chip
+	 */
+	pci_read_config_dword(pdev, 0x80, &val);
+	pci_write_config_dword(pdev, 0x80, val | (1 << 27));
+
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1520,
+		tqm85xx_ti1520_fixup);
+
 static struct of_device_id __initdata of_bus_ids[] = {
 	{ .compatible = "simple-bus", },
 	{ .compatible = "gianfar", },

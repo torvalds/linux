@@ -67,21 +67,21 @@ static void bcmring_unmask_irq2(unsigned int irq)
 }
 
 static struct irq_chip bcmring_irq0_chip = {
-	.typename = "ARM-INTC0",
+	.name = "ARM-INTC0",
 	.ack = bcmring_mask_irq0,
 	.mask = bcmring_mask_irq0,	/* mask a specific interrupt, blocking its delivery. */
 	.unmask = bcmring_unmask_irq0,	/* unmaks an interrupt */
 };
 
 static struct irq_chip bcmring_irq1_chip = {
-	.typename = "ARM-INTC1",
+	.name = "ARM-INTC1",
 	.ack = bcmring_mask_irq1,
 	.mask = bcmring_mask_irq1,
 	.unmask = bcmring_unmask_irq1,
 };
 
 static struct irq_chip bcmring_irq2_chip = {
-	.typename = "ARM-SINTC",
+	.name = "ARM-SINTC",
 	.ack = bcmring_mask_irq2,
 	.mask = bcmring_mask_irq2,
 	.unmask = bcmring_unmask_irq2,

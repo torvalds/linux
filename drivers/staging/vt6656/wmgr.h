@@ -82,7 +82,7 @@
 
 /*---------------------  Export Types  ------------------------------*/
 //mike define: make timer  to expire after desired times
-#define timer_expire(timer,next_tick)   mod_timer(&timer, RUN_AT(next_tick))
+#define timer_expire(timer, next_tick) mod_timer(&timer, RUN_AT(next_tick))
 
 typedef void (*TimerFunction)(unsigned long);
 
@@ -259,9 +259,7 @@ typedef struct tagSMgmtObject
     // Operation state variables
     WMAC_CURRENT_MODE       eCurrMode;   // MAC current connection mode
     WMAC_BSS_STATE          eCurrState;  // MAC current BSS state
-    #ifdef SndEvt_ToAPI
     WMAC_BSS_STATE          eLastState;  // MAC last BSS state
-    #endif
 
     PKnownBSS               pCurrBSS;
     BYTE                    byCSSGK;
@@ -293,10 +291,7 @@ typedef struct tagSMgmtObject
     BYTE                    abyDesireBSSID[WLAN_BSSID_LEN];
 
 //restore BSS info for Ad-Hoc mode
-//20080131-05,<Add> by Mike Liu
-#ifdef Adhoc_STA
      BYTE                    abyAdHocSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
-#endif
 
     // Adhoc or AP configuration vars
     WORD                    wIBSSBeaconPeriod;
@@ -343,11 +338,11 @@ typedef struct tagSMgmtObject
     BOOL                    bRxBeaconInTBTTWake;
     BYTE                    abyPSTxMap[MAX_NODE_NUM + 1];
 
-    // managment command related
+    // management command related
     unsigned int                    uCmdBusy;
     unsigned int                    uCmdHostAPBusy;
 
-    // managment packet pool
+    // management packet pool
     PBYTE                   pbyMgmtPacketPool;
     BYTE                    byMgmtPacketPool[sizeof(STxMgmtPacket) + WLAN_A3FR_MAXLEN];
 
@@ -360,7 +355,7 @@ typedef struct tagSMgmtObject
 
     // link list of known bss's (scan results)
     KnownBSS                sBSSList[MAX_BSS_NUM];
-   //link list of same bss's  //DavidWang
+	/* link list of same bss's */
     KnownBSS				pSameBSS[6] ;
     BOOL          Cisco_cckm ;
     BYTE          Roam_dbm;

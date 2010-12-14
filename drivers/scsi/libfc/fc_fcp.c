@@ -58,8 +58,7 @@ struct kmem_cache *scsi_pkt_cachep;
 #define FC_SRB_WRITE		(1 << 0)
 
 /*
- * The SCp.ptr should be tested and set under the host lock. NULL indicates
- * that the command has been retruned to the scsi layer.
+ * The SCp.ptr should be tested and set under the scsi_pkt_queue lock
  */
 #define CMD_SP(Cmnd)		    ((struct fc_fcp_pkt *)(Cmnd)->SCp.ptr)
 #define CMD_ENTRY_STATUS(Cmnd)	    ((Cmnd)->SCp.have_data_in)
@@ -580,10 +579,8 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 			   fsp, seq_blen, lport->lso_max, t_blen);
 	}
 
-	WARN_ON(t_blen < FC_MIN_MAX_PAYLOAD);
 	if (t_blen > 512)
 		t_blen &= ~(512 - 1);	/* round down to block size */
-	WARN_ON(t_blen < FC_MIN_MAX_PAYLOAD);	/* won't go below 256 */
 	sc = fsp->cmd;
 
 	remaining = seq_blen;
@@ -745,7 +742,7 @@ static void fc_fcp_recv(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 	fh = fc_frame_header_get(fp);
 	r_ctl = fh->fh_r_ctl;
 
-	if (!(lport->state & LPORT_ST_READY))
+	if (lport->state != LPORT_ST_READY)
 		goto out;
 	if (fc_fcp_lock_pkt(fsp))
 		goto out;
@@ -1110,7 +1107,7 @@ static int fc_fcp_cmd_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 
 	fc_fill_fc_hdr(fp, FC_RCTL_DD_UNSOL_CMD, rport->port_id,
 		       rpriv->local_port->port_id, FC_TYPE_FCP,
-		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
+		       FC_FCTL_REQ, 0);
 
 	seq = lport->tt.exch_seq_send(lport, fp, resp, fc_fcp_pkt_destroy,
 				      fsp, 0);
@@ -1383,7 +1380,7 @@ static void fc_fcp_rec(struct fc_fcp_pkt *fsp)
 	fr_seq(fp) = fsp->seq_ptr;
 	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REQ, rport->port_id,
 		       rpriv->local_port->port_id, FC_TYPE_ELS,
-		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
+		       FC_FCTL_REQ, 0);
 	if (lport->tt.elsct_send(lport, rport->port_id, fp, ELS_REC,
 				 fc_fcp_rec_resp, fsp,
 				 jiffies_to_msecs(FC_SCSI_REC_TOV))) {
@@ -1641,7 +1638,7 @@ static void fc_fcp_srr(struct fc_fcp_pkt *fsp, enum fc_rctl r_ctl, u32 offset)
 
 	fc_fill_fc_hdr(fp, FC_RCTL_ELS4_REQ, rport->port_id,
 		       rpriv->local_port->port_id, FC_TYPE_FCP,
-		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
+		       FC_FCTL_REQ, 0);
 
 	seq = lport->tt.exch_seq_send(lport, fp, fc_fcp_srr_resp, NULL,
 				      fsp, jiffies_to_msecs(FC_SCSI_REC_TOV));
@@ -1767,14 +1764,14 @@ int fc_queuecommand(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
 	struct fcoe_dev_stats *stats;
 
 	lport = shost_priv(sc_cmd->device->host);
-	spin_unlock_irq(lport->host->host_lock);
 
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
 		sc_cmd->result = rval;
 		done(sc_cmd);
-		goto out;
+		return 0;
 	}
+	spin_unlock_irq(lport->host->host_lock);
 
 	if (!*(struct fc_remote_port **)rport->dd_data) {
 		/*
@@ -1882,8 +1879,6 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 
 	lport = fsp->lp;
 	si = fc_get_scsi_internal(lport);
-	if (!fsp->cmd)
-		return;
 
 	/*
 	 * if can_queue ramp down is done then try can_queue ramp up
@@ -1893,11 +1888,6 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		fc_fcp_can_queue_ramp_up(lport);
 
 	sc_cmd = fsp->cmd;
-	fsp->cmd = NULL;
-
-	if (!sc_cmd->SCp.ptr)
-		return;
-
 	CMD_SCSI_STATUS(sc_cmd) = fsp->cdb_status;
 	switch (fsp->status_code) {
 	case FC_COMPLETE:
@@ -1973,10 +1963,13 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		break;
 	}
 
+	if (lport->state != LPORT_ST_READY && fsp->status_code != FC_COMPLETE)
+		sc_cmd->result = (DID_TRANSPORT_DISRUPTED << 16);
+
 	spin_lock_irqsave(&si->scsi_queue_lock, flags);
 	list_del(&fsp->list);
-	spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 	sc_cmd->SCp.ptr = NULL;
+	spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 	sc_cmd->scsi_done(sc_cmd);
 
 	/* release ref from initial allocation in queue command */
@@ -1994,6 +1987,7 @@ int fc_eh_abort(struct scsi_cmnd *sc_cmd)
 {
 	struct fc_fcp_pkt *fsp;
 	struct fc_lport *lport;
+	struct fc_fcp_internal *si;
 	int rc = FAILED;
 	unsigned long flags;
 
@@ -2003,7 +1997,8 @@ int fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	else if (!lport->link_up)
 		return rc;
 
-	spin_lock_irqsave(lport->host->host_lock, flags);
+	si = fc_get_scsi_internal(lport);
+	spin_lock_irqsave(&si->scsi_queue_lock, flags);
 	fsp = CMD_SP(sc_cmd);
 	if (!fsp) {
 		/* command completed while scsi eh was setting up */
@@ -2012,7 +2007,7 @@ int fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	}
 	/* grab a ref so the fsp and sc_cmd cannot be relased from under us */
 	fc_fcp_pkt_hold(fsp);
-	spin_unlock_irqrestore(lport->host->host_lock, flags);
+	spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 
 	if (fc_fcp_lock_pkt(fsp)) {
 		/* completed while we were waiting for timer to be deleted */

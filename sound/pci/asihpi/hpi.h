@@ -50,7 +50,8 @@ i.e 3.05.02 is a development version
 #define HPI_VER_RELEASE(v) ((int)(v & 0xFF))
 
 /* Use single digits for versions less that 10 to avoid octal. */
-#define HPI_VER HPI_VERSION_CONSTRUCTOR(4L, 3, 25)
+#define HPI_VER HPI_VERSION_CONSTRUCTOR(4L, 4, 1)
+#define HPI_VER_STRING "4.04.01"
 
 /* Library version as documented in hpi-api-versions.txt */
 #define HPI_LIB_VER  HPI_VERSION_CONSTRUCTOR(9, 0, 0)
@@ -203,8 +204,6 @@ enum HPI_SOURCENODES {
 	exists on a destination node can be searched for using a source
 	node value of either 0, or HPI_SOURCENODE_NONE */
 	HPI_SOURCENODE_NONE = 100,
-	/** \deprecated Use HPI_SOURCENODE_NONE instead. */
-	HPI_SOURCENODE_BASE = 100,
 	/** Out Stream (Play) node. */
 	HPI_SOURCENODE_OSTREAM = 101,
 	/** Line in node - could be analog, AES/EBU or network. */
@@ -235,8 +234,6 @@ enum HPI_DESTNODES {
 	exists on a source node can be searched for using a destination
 	node value of either 0, or HPI_DESTNODE_NONE */
 	HPI_DESTNODE_NONE = 200,
-	/** \deprecated Use HPI_DESTNODE_NONE instead. */
-	HPI_DESTNODE_BASE = 200,
 	/** In Stream (Record) node. */
 	HPI_DESTNODE_ISTREAM = 201,
 	HPI_DESTNODE_LINEOUT = 202,	    /**< line out node. */
@@ -432,7 +429,18 @@ Property 2 - adapter can do stream grouping (supports SSX2)
 Property 1 - adapter can do samplerate conversion (MRX)
 Property 2 - adapter can do timestretch (TSX)
 */
-	HPI_ADAPTER_PROPERTY_CAPS2 = 269
+	HPI_ADAPTER_PROPERTY_CAPS2 = 269,
+
+/** Readonly adapter sync header connection count.
+*/
+	HPI_ADAPTER_PROPERTY_SYNC_HEADER_CONNECTIONS = 270,
+/** Readonly supports SSX2 property.
+Indicates the adapter supports SSX2 in some mode setting. The
+return value is true (1) or false (0). If the current adapter
+mode is MONO SSX2 is disabled, even though this property will
+return true.
+*/
+	HPI_ADAPTER_PROPERTY_SUPPORTS_SSX2 = 271
 };
 
 /** Adapter mode commands
@@ -813,8 +821,6 @@ enum HPI_SAMPLECLOCK_SOURCES {
 /** The sampleclock output is derived from its local samplerate generator.
     The local samplerate may be set using HPI_SampleClock_SetLocalRate(). */
 	HPI_SAMPLECLOCK_SOURCE_LOCAL = 1,
-/** \deprecated Use HPI_SAMPLECLOCK_SOURCE_LOCAL instead */
-	HPI_SAMPLECLOCK_SOURCE_ADAPTER = 1,
 /** The adapter is clocked from a dedicated AES/EBU SampleClock input.*/
 	HPI_SAMPLECLOCK_SOURCE_AESEBU_SYNC = 2,
 /** From external wordclock connector */
@@ -825,10 +831,6 @@ enum HPI_SAMPLECLOCK_SOURCES {
 	HPI_SAMPLECLOCK_SOURCE_SMPTE = 5,
 /** One of the aesebu inputs */
 	HPI_SAMPLECLOCK_SOURCE_AESEBU_INPUT = 6,
-/** \deprecated The first aesebu input with a valid signal
-Superseded by separate Auto enable flag
-*/
-	HPI_SAMPLECLOCK_SOURCE_AESEBU_AUTO = 7,
 /** From a network interface e.g. Cobranet or Livewire at either 48 or 96kHz */
 	HPI_SAMPLECLOCK_SOURCE_NETWORK = 8,
 /** From previous adjacent module (ASI2416 only)*/
@@ -1015,8 +1017,6 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_CONTROL_DISABLED = 404,
 	/** I2C transaction failed due to a missing ACK. */
 	HPI_ERROR_CONTROL_I2C_MISSING_ACK = 405,
-	/** Control attribute is valid, but not supported by this hardware. */
-	HPI_ERROR_UNSUPPORTED_CONTROL_ATTRIBUTE = 406,
 	/** Control is busy, or coming out of
 	reset and cannot be accessed at this time. */
 	HPI_ERROR_CONTROL_NOT_READY = 407,
@@ -1827,13 +1827,41 @@ u16 hpi_parametricEQ__get_coeffs(const struct hpi_hsubsys *ph_subsys,
   Compressor Expander control
 *******************************/
 
-u16 hpi_compander_set(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u16 attack, u16 decay, short ratio100, short threshold0_01dB,
-	short makeup_gain0_01dB);
+u16 hpi_compander_set_enable(const struct hpi_hsubsys *ph_subsys,
+	u32 h_control, u32 on);
 
-u16 hpi_compander_get(const struct hpi_hsubsys *ph_subsys, u32 h_control,
-	u16 *pw_attack, u16 *pw_decay, short *pw_ratio100,
-	short *pn_threshold0_01dB, short *pn_makeup_gain0_01dB);
+u16 hpi_compander_get_enable(const struct hpi_hsubsys *ph_subsys,
+	u32 h_control, u32 *pon);
+
+u16 hpi_compander_set_makeup_gain(const struct hpi_hsubsys *ph_subsys,
+	u32 h_control, short makeup_gain0_01dB);
+
+u16 hpi_compander_get_makeup_gain(const struct hpi_hsubsys *ph_subsys,
+	u32 h_control, short *pn_makeup_gain0_01dB);
+
+u16 hpi_compander_set_attack_time_constant(const struct hpi_hsubsys
+	*ph_subsys, u32 h_control, u32 index, u32 attack);
+
+u16 hpi_compander_get_attack_time_constant(const struct hpi_hsubsys
+	*ph_subsys, u32 h_control, u32 index, u32 *pw_attack);
+
+u16 hpi_compander_set_decay_time_constant(const struct hpi_hsubsys *ph_subsys,
+	u32 h_control, u32 index, u32 decay);
+
+u16 hpi_compander_get_decay_time_constant(const struct hpi_hsubsys *ph_subsys,
+	u32 h_control, u32 index, u32 *pw_decay);
+
+u16 hpi_compander_set_threshold(const struct hpi_hsubsys *ph_subsys,
+	u32 h_control, u32 index, short threshold0_01dB);
+
+u16 hpi_compander_get_threshold(const struct hpi_hsubsys *ph_subsys,
+	u32 h_control, u32 index, short *pn_threshold0_01dB);
+
+u16 hpi_compander_set_ratio(const struct hpi_hsubsys *ph_subsys,
+	u32 h_control, u32 index, u32 ratio100);
+
+u16 hpi_compander_get_ratio(const struct hpi_hsubsys *ph_subsys,
+	u32 h_control, u32 index, u32 *pw_ratio100);
 
 /*******************************
   Cobranet HMI control

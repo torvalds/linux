@@ -50,31 +50,6 @@ TRACE_EVENT(sched_kthread_stop_ret,
 );
 
 /*
- * Tracepoint for waiting on task to unschedule:
- */
-TRACE_EVENT(sched_wait_task,
-
-	TP_PROTO(struct task_struct *p),
-
-	TP_ARGS(p),
-
-	TP_STRUCT__entry(
-		__array(	char,	comm,	TASK_COMM_LEN	)
-		__field(	pid_t,	pid			)
-		__field(	int,	prio			)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
-		__entry->pid	= p->pid;
-		__entry->prio	= p->prio;
-	),
-
-	TP_printk("comm=%s pid=%d prio=%d",
-		  __entry->comm, __entry->pid, __entry->prio)
-);
-
-/*
  * Tracepoint for waking up a task:
  */
 DECLARE_EVENT_CLASS(sched_wakeup_template,
@@ -240,6 +215,13 @@ DEFINE_EVENT(sched_process_template, sched_process_exit,
 	     TP_ARGS(p));
 
 /*
+ * Tracepoint for waiting on task to unschedule:
+ */
+DEFINE_EVENT(sched_process_template, sched_wait_task,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p));
+
+/*
  * Tracepoint for a waiting task:
  */
 TRACE_EVENT(sched_process_wait,
@@ -378,6 +360,35 @@ TRACE_EVENT(sched_stat_runtime,
 			__entry->comm, __entry->pid,
 			(unsigned long long)__entry->runtime,
 			(unsigned long long)__entry->vruntime)
+);
+
+/*
+ * Tracepoint for showing priority inheritance modifying a tasks
+ * priority.
+ */
+TRACE_EVENT(sched_pi_setprio,
+
+	TP_PROTO(struct task_struct *tsk, int newprio),
+
+	TP_ARGS(tsk, newprio),
+
+	TP_STRUCT__entry(
+		__array( char,	comm,	TASK_COMM_LEN	)
+		__field( pid_t,	pid			)
+		__field( int,	oldprio			)
+		__field( int,	newprio			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+		__entry->pid		= tsk->pid;
+		__entry->oldprio	= tsk->prio;
+		__entry->newprio	= newprio;
+	),
+
+	TP_printk("comm=%s pid=%d oldprio=%d newprio=%d",
+			__entry->comm, __entry->pid,
+			__entry->oldprio, __entry->newprio)
 );
 
 #endif /* _TRACE_SCHED_H */

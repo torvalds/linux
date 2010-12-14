@@ -378,6 +378,7 @@ void release_pages(struct page **pages, int nr, int cold)
 
 	pagevec_free(&pages_to_free);
 }
+EXPORT_SYMBOL(release_pages);
 
 /*
  * The pages which we're about to release may be in the deferred lru-addition

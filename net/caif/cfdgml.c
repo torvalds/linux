@@ -4,6 +4,8 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
+
 #include <linux/stddef.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -17,6 +19,7 @@
 #define DGM_FLOW_OFF 0x81
 #define DGM_FLOW_ON  0x80
 #define DGM_CTRL_PKT_SIZE 1
+#define DGM_MTU 1500
 
 static int cfdgml_receive(struct cflayer *layr, struct cfpkt *pkt);
 static int cfdgml_transmit(struct cflayer *layr, struct cfpkt *pkt);
@@ -25,12 +28,12 @@ struct cflayer *cfdgml_create(u8 channel_id, struct dev_info *dev_info)
 {
 	struct cfsrvl *dgm = kmalloc(sizeof(struct cfsrvl), GFP_ATOMIC);
 	if (!dgm) {
-		pr_warning("CAIF: %s(): Out of memory\n", __func__);
+		pr_warn("Out of memory\n");
 		return NULL;
 	}
 	caif_assert(offsetof(struct cfsrvl, layer) == 0);
 	memset(dgm, 0, sizeof(struct cfsrvl));
-	cfsrvl_init(dgm, channel_id, dev_info);
+	cfsrvl_init(dgm, channel_id, dev_info, true);
 	dgm->layer.receive = cfdgml_receive;
 	dgm->layer.transmit = cfdgml_transmit;
 	snprintf(dgm->layer.name, CAIF_LAYER_NAME_SZ - 1, "dgm%d", channel_id);
@@ -48,14 +51,14 @@ static int cfdgml_receive(struct cflayer *layr, struct cfpkt *pkt)
 	caif_assert(layr->ctrlcmd != NULL);
 
 	if (cfpkt_extr_head(pkt, &cmd, 1) < 0) {
-		pr_err("CAIF: %s(): Packet is erroneous!\n", __func__);
+		pr_err("Packet is erroneous!\n");
 		cfpkt_destroy(pkt);
 		return -EPROTO;
 	}
 
 	if ((cmd & DGM_CMD_BIT) == 0) {
 		if (cfpkt_extr_head(pkt, &dgmhdr, 3) < 0) {
-			pr_err("CAIF: %s(): Packet is erroneous!\n", __func__);
+			pr_err("Packet is erroneous!\n");
 			cfpkt_destroy(pkt);
 			return -EPROTO;
 		}
@@ -74,8 +77,7 @@ static int cfdgml_receive(struct cflayer *layr, struct cfpkt *pkt)
 		return 0;
 	default:
 		cfpkt_destroy(pkt);
-		pr_info("CAIF: %s(): Unknown datagram control %d (0x%x)\n",
-			__func__, cmd, cmd);
+		pr_info("Unknown datagram control %d (0x%x)\n", cmd, cmd);
 		return -EPROTO;
 	}
 }
@@ -88,6 +90,10 @@ static int cfdgml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	int ret;
 	if (!cfsrvl_ready(service, &ret))
 		return ret;
+
+	/* STE Modem cannot handle more than 1500 bytes datagrams */
+	if (cfpkt_getlen(pkt) > DGM_MTU)
+		return -EMSGSIZE;
 
 	cfpkt_add_head(pkt, &zero, 4);
 

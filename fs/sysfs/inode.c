@@ -122,7 +122,7 @@ int sysfs_setattr(struct dentry *dentry, struct iattr *iattr)
 		goto out;
 
 	/* this ignores size changes */
-	generic_setattr(inode, iattr);
+	setattr_copy(inode, iattr);
 
 out:
 	mutex_unlock(&sysfs_mutex);
@@ -312,15 +312,15 @@ struct inode * sysfs_get_inode(struct super_block *sb, struct sysfs_dirent *sd)
  * The sysfs_dirent serves as both an inode and a directory entry for sysfs.
  * To prevent the sysfs inode numbers from being freed prematurely we take a
  * reference to sysfs_dirent from the sysfs inode.  A
- * super_operations.delete_inode() implementation is needed to drop that
+ * super_operations.evict_inode() implementation is needed to drop that
  * reference upon inode destruction.
  */
-void sysfs_delete_inode(struct inode *inode)
+void sysfs_evict_inode(struct inode *inode)
 {
 	struct sysfs_dirent *sd  = inode->i_private;
 
 	truncate_inode_pages(&inode->i_data, 0);
-	clear_inode(inode);
+	end_writeback(inode);
 	sysfs_put(sd);
 }
 

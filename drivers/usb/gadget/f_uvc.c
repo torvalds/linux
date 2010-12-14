@@ -61,12 +61,12 @@ static struct usb_gadget_strings *uvc_function_strings[] = {
 #define UVC_INTF_VIDEO_STREAMING		1
 
 static struct usb_interface_assoc_descriptor uvc_iad __initdata = {
-	.bLength		= USB_DT_INTERFACE_ASSOCIATION_SIZE,
+	.bLength		= sizeof(uvc_iad),
 	.bDescriptorType	= USB_DT_INTERFACE_ASSOCIATION,
 	.bFirstInterface	= 0,
 	.bInterfaceCount	= 2,
 	.bFunctionClass		= USB_CLASS_VIDEO,
-	.bFunctionSubClass	= 0x03,
+	.bFunctionSubClass	= UVC_SC_VIDEO_INTERFACE_COLLECTION,
 	.bFunctionProtocol	= 0x00,
 	.iFunction		= 0,
 };
@@ -78,7 +78,7 @@ static struct usb_interface_descriptor uvc_control_intf __initdata = {
 	.bAlternateSetting	= 0,
 	.bNumEndpoints		= 1,
 	.bInterfaceClass	= USB_CLASS_VIDEO,
-	.bInterfaceSubClass	= 0x01,
+	.bInterfaceSubClass	= UVC_SC_VIDEOCONTROL,
 	.bInterfaceProtocol	= 0x00,
 	.iInterface		= 0,
 };
@@ -106,7 +106,7 @@ static struct usb_interface_descriptor uvc_streaming_intf_alt0 __initdata = {
 	.bAlternateSetting	= 0,
 	.bNumEndpoints		= 0,
 	.bInterfaceClass	= USB_CLASS_VIDEO,
-	.bInterfaceSubClass	= 0x02,
+	.bInterfaceSubClass	= UVC_SC_VIDEOSTREAMING,
 	.bInterfaceProtocol	= 0x00,
 	.iInterface		= 0,
 };
@@ -118,7 +118,7 @@ static struct usb_interface_descriptor uvc_streaming_intf_alt1 __initdata = {
 	.bAlternateSetting	= 1,
 	.bNumEndpoints		= 1,
 	.bInterfaceClass	= USB_CLASS_VIDEO,
-	.bInterfaceSubClass	= 0x02,
+	.bInterfaceSubClass	= UVC_SC_VIDEOSTREAMING,
 	.bInterfaceProtocol	= 0x00,
 	.iInterface		= 0,
 };
@@ -603,15 +603,15 @@ uvc_bind_config(struct usb_configuration *c,
 
 	/* Validate the descriptors. */
 	if (control == NULL || control[0] == NULL ||
-	    control[0]->bDescriptorSubType != UVC_DT_HEADER)
+	    control[0]->bDescriptorSubType != UVC_VC_HEADER)
 		goto error;
 
 	if (fs_streaming == NULL || fs_streaming[0] == NULL ||
-	    fs_streaming[0]->bDescriptorSubType != UVC_DT_INPUT_HEADER)
+	    fs_streaming[0]->bDescriptorSubType != UVC_VS_INPUT_HEADER)
 		goto error;
 
 	if (hs_streaming == NULL || hs_streaming[0] == NULL ||
-	    hs_streaming[0]->bDescriptorSubType != UVC_DT_INPUT_HEADER)
+	    hs_streaming[0]->bDescriptorSubType != UVC_VS_INPUT_HEADER)
 		goto error;
 
 	uvc->desc.control = control;

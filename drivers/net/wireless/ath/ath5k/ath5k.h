@@ -175,7 +175,7 @@
 #define AR5K_TUNE_ADDITIONAL_SWBA_BACKOFF	0
 #define AR5K_TUNE_RADAR_ALERT			false
 #define AR5K_TUNE_MIN_TX_FIFO_THRES		1
-#define AR5K_TUNE_MAX_TX_FIFO_THRES		((IEEE80211_MAX_LEN / 64) + 1)
+#define AR5K_TUNE_MAX_TX_FIFO_THRES	((IEEE80211_MAX_FRAME_LEN / 64) + 1)
 #define AR5K_TUNE_REGISTER_TIMEOUT		20000
 /* Register for RSSI threshold has a mask of 0xff, so 255 seems to
  * be the max value. */
@@ -204,6 +204,9 @@
 #define AR5K_TUNE_TPC_TXPOWER			false
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_FULL    10000   /* 10 sec */
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_ANI	1000	/* 1 sec */
+#define ATH5K_TUNE_CALIBRATION_INTERVAL_NF	60000	/* 60 sec */
+
+#define ATH5K_TX_COMPLETE_POLL_INT		3000	/* 3 sec */
 
 #define AR5K_INIT_CARR_SENSE_EN			1
 
@@ -255,8 +258,6 @@
 	(AR5K_INIT_PROG_IFS_TURBO)					\
 )
 
-/* token to use for aifs, cwmin, cwmax in MadWiFi */
-#define	AR5K_TXQ_USEDEFAULT	((u32) -1)
 
 /* GENERIC CHIPSET DEFINITIONS */
 
@@ -342,15 +343,12 @@ struct ath5k_srev_name {
 #define AR5K_SREV_PHY_5413	0x61
 #define AR5K_SREV_PHY_2425	0x70
 
-/* IEEE defs */
-#define IEEE80211_MAX_LEN       2500
-
 /* TODO add support to mac80211 for vendor-specific rates and modes */
 
 /*
  * Some of this information is based on Documentation from:
  *
- * http://madwifi.org/wiki/ChipsetFeatures/SuperAG
+ * http://madwifi-project.org/wiki/ChipsetFeatures/SuperAG 
  *
  * Modulation for Atheros' eXtended Range - range enhancing extension that is
  * supposed to double the distance an Atheros client device can keep a
@@ -530,9 +528,9 @@ struct ath5k_txq_info {
 	enum ath5k_tx_queue tqi_type;
 	enum ath5k_tx_queue_subtype tqi_subtype;
 	u16	tqi_flags;	/* Tx queue flags (see above) */
-	u32	tqi_aifs;	/* Arbitrated Interframe Space */
-	s32	tqi_cw_min;	/* Minimum Contention Window */
-	s32	tqi_cw_max;	/* Maximum Contention Window */
+	u8	tqi_aifs;	/* Arbitrated Interframe Space */
+	u16	tqi_cw_min;	/* Minimum Contention Window */
+	u16	tqi_cw_max;	/* Maximum Contention Window */
 	u32	tqi_cbr_period; /* Constant bit rate period */
 	u32	tqi_cbr_overflow_limit;
 	u32	tqi_burst_time;
@@ -565,7 +563,7 @@ enum ath5k_pkt_type {
 )
 
 /*
- * DMA size definitions (2^n+2)
+ * DMA size definitions (2^(n+2))
  */
 enum ath5k_dmasize {
 	AR5K_DMASIZE_4B	= 0,
@@ -1030,8 +1028,6 @@ struct ath5k_hw {
 	bool			ah_turbo;
 	bool			ah_calibration;
 	bool			ah_single_chip;
-	bool			ah_aes_support;
-	bool			ah_combined_mic;
 
 	enum ath5k_version	ah_version;
 	enum ath5k_radio	ah_radio;
@@ -1045,10 +1041,6 @@ struct ath5k_hw {
 #define ah_modes		ah_capabilities.cap_mode
 #define ah_ee_version		ah_capabilities.cap_eeprom.ee_version
 
-	u32			ah_atim_window;
-	u32			ah_aifs;
-	u32			ah_cw_min;
-	u32			ah_cw_max;
 	u32			ah_limit_tx_retries;
 	u8			ah_coverage_class;
 
@@ -1118,6 +1110,7 @@ struct ath5k_hw {
 	/* Calibration timestamp */
 	unsigned long		ah_cal_next_full;
 	unsigned long		ah_cal_next_ani;
+	unsigned long		ah_cal_next_nf;
 
 	/* Calibration mask */
 	u8			ah_cal_mask;
@@ -1125,15 +1118,10 @@ struct ath5k_hw {
 	/*
 	 * Function pointers
 	 */
-	int (*ah_setup_rx_desc)(struct ath5k_hw *ah, struct ath5k_desc *desc,
-				u32 size, unsigned int flags);
 	int (*ah_setup_tx_desc)(struct ath5k_hw *, struct ath5k_desc *,
 		unsigned int, unsigned int, int, enum ath5k_pkt_type,
 		unsigned int, unsigned int, unsigned int, unsigned int,
 		unsigned int, unsigned int, unsigned int, unsigned int);
-	int (*ah_setup_mrr_tx_desc)(struct ath5k_hw *, struct ath5k_desc *,
-		unsigned int, unsigned int, unsigned int, unsigned int,
-		unsigned int, unsigned int);
 	int (*ah_proc_tx_desc)(struct ath5k_hw *, struct ath5k_desc *,
 		struct ath5k_tx_status *);
 	int (*ah_proc_rx_desc)(struct ath5k_hw *, struct ath5k_desc *,
@@ -1147,6 +1135,9 @@ struct ath5k_hw {
 /* Attach/Detach Functions */
 int ath5k_hw_attach(struct ath5k_softc *sc);
 void ath5k_hw_detach(struct ath5k_hw *ah);
+
+int ath5k_sysfs_register(struct ath5k_softc *sc);
+void ath5k_sysfs_unregister(struct ath5k_softc *sc);
 
 /* LED functions */
 int ath5k_init_leds(struct ath5k_softc *sc);
@@ -1190,7 +1181,7 @@ extern int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype opmode);
 void ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class);
 /* BSSID Functions */
 int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac);
-void ath5k_hw_set_associd(struct ath5k_hw *ah);
+void ath5k_hw_set_bssid(struct ath5k_hw *ah);
 void ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask);
 /* Receive start/stop functions */
 void ath5k_hw_start_rx_pcu(struct ath5k_hw *ah);
@@ -1204,17 +1195,13 @@ u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah);
 void ath5k_hw_set_tsf64(struct ath5k_hw *ah, u64 tsf64);
 void ath5k_hw_reset_tsf(struct ath5k_hw *ah);
 void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval);
+bool ath5k_hw_check_beacon_timers(struct ath5k_hw *ah, int intval);
 /* ACK bit rate */
 void ath5k_hw_set_ack_bitrate_high(struct ath5k_hw *ah, bool high);
 /* Clock rate related functions */
 unsigned int ath5k_hw_htoclock(struct ath5k_hw *ah, unsigned int usec);
 unsigned int ath5k_hw_clocktoh(struct ath5k_hw *ah, unsigned int clock);
-unsigned int ath5k_hw_get_clockrate(struct ath5k_hw *ah);
-/* Key table (WEP) functions */
-int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry);
-int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
-		     const struct ieee80211_key_conf *key, const u8 *mac);
-int ath5k_hw_set_key_lladdr(struct ath5k_hw *ah, u16 entry, const u8 *mac);
+void ath5k_hw_set_clockrate(struct ath5k_hw *ah);
 
 /* Queue Control Unit, DFS Control Unit Functions */
 int ath5k_hw_get_tx_queueprops(struct ath5k_hw *ah, int queue,
@@ -1231,6 +1218,11 @@ int ath5k_hw_set_slot_time(struct ath5k_hw *ah, unsigned int slot_time);
 
 /* Hardware Descriptor Functions */
 int ath5k_hw_init_desc_functions(struct ath5k_hw *ah);
+int ath5k_hw_setup_rx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
+			   u32 size, unsigned int flags);
+int ath5k_hw_setup_mrr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
+	unsigned int tx_rate1, u_int tx_tries1, u_int tx_rate2,
+	u_int tx_tries2, unsigned int tx_rate3, u_int tx_tries3);
 
 /* GPIO Functions */
 void ath5k_hw_set_ledstate(struct ath5k_hw *ah, unsigned int state);
@@ -1270,6 +1262,7 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 void ath5k_hw_init_nfcal_hist(struct ath5k_hw *ah);
 int ath5k_hw_phy_calibrate(struct ath5k_hw *ah,
 			   struct ieee80211_channel *channel);
+void ath5k_hw_update_noise_floor(struct ath5k_hw *ah);
 /* Spur mitigation */
 bool ath5k_hw_chan_has_spur_noise(struct ath5k_hw *ah,
 				  struct ieee80211_channel *channel);
@@ -1280,6 +1273,7 @@ u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan);
 int ath5k_hw_phy_disable(struct ath5k_hw *ah);
 /* Antenna control */
 void ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode);
+void ath5k_hw_set_antenna_switch(struct ath5k_hw *ah, u8 ee_mode);
 /* TX power setup */
 int ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		     u8 ee_mode, u8 txpower);

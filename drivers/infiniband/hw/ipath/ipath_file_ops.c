@@ -63,7 +63,8 @@ static const struct file_operations ipath_file_ops = {
 	.open = ipath_open,
 	.release = ipath_close,
 	.poll = ipath_poll,
-	.mmap = ipath_mmap
+	.mmap = ipath_mmap,
+	.llseek = noop_llseek,
 };
 
 /*
@@ -2055,7 +2056,7 @@ static int ipath_close(struct inode *in, struct file *fp)
 
 	mutex_lock(&ipath_mutex);
 
-	fd = (struct ipath_filedata *) fp->private_data;
+	fd = fp->private_data;
 	fp->private_data = NULL;
 	pd = fd->pd;
 	if (!pd) {

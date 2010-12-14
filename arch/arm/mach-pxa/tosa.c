@@ -948,15 +948,13 @@ static void __init fixup_tosa(struct machine_desc *desc,
 	sharpsl_save_param();
 	mi->nr_banks=1;
 	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].node = 0;
 	mi->bank[0].size = (64*1024*1024);
 }
 
 MACHINE_START(TOSA, "SHARP Tosa")
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.fixup          = fixup_tosa,
 	.map_io         = pxa_map_io,
+	.nr_irqs	= TOSA_NR_IRQS,
 	.init_irq       = pxa25x_init_irq,
 	.init_machine   = tosa_init,
 	.timer          = &pxa_timer,

@@ -229,7 +229,7 @@ static struct resource sa1111_resources[] = {
 };
 
 static struct sa1111_platform_data sa1111_info = {
-	.irq_base	= IRQ_BOARD_END,
+	.irq_base	= LUBBOCK_SA1111_IRQ_BASE,
 };
 
 static struct platform_device sa1111_device = {
@@ -557,9 +557,8 @@ static void __init lubbock_map_io(void)
 
 MACHINE_START(LUBBOCK, "Intel DBPXA250 Development Platform (aka Lubbock)")
 	/* Maintainer: MontaVista Software Inc. */
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= lubbock_map_io,
+	.nr_irqs	= LUBBOCK_NR_IRQS,
 	.init_irq	= lubbock_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= lubbock_init,

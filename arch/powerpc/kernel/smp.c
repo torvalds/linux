@@ -288,8 +288,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 			max_cpus = NR_CPUS;
 	else
 		max_cpus = 1;
- 
-	smp_space_timers(max_cpus);
 
 	for_each_possible_cpu(cpu)
 		if (cpu != boot_cpuid)
@@ -429,11 +427,11 @@ int __cpuinit __cpu_up(unsigned int cpu)
 #endif
 
 	if (!cpu_callin_map[cpu]) {
-		printk("Processor %u is stuck.\n", cpu);
+		printk(KERN_ERR "Processor %u is stuck.\n", cpu);
 		return -ENOENT;
 	}
 
-	printk("Processor %u found.\n", cpu);
+	DBG("Processor %u found.\n", cpu);
 
 	if (smp_ops->give_timebase)
 		smp_ops->give_timebase();
@@ -501,14 +499,6 @@ int __devinit start_secondary(void *unused)
 	current->active_mm = &init_mm;
 
 	smp_store_cpu_info(cpu);
-
-#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
-	/* Clear any pending timer interrupts */
-	mtspr(SPRN_TSR, TSR_ENW | TSR_WIS | TSR_DIS | TSR_FIS);
-
-	/* Enable decrementer interrupt */
-	mtspr(SPRN_TCR, TCR_DIE);
-#endif
 	set_dec(tb_ticks_per_jiffy);
 	preempt_disable();
 	cpu_callin_map[cpu] = 1;
@@ -517,9 +507,6 @@ int __devinit start_secondary(void *unused)
 		smp_ops->setup_cpu(cpu);
 	if (smp_ops->take_timebase)
 		smp_ops->take_timebase();
-
-	if (system_state > SYSTEM_BOOTING)
-		snapshot_timebase();
 
 	secondary_cpu_time_init();
 
@@ -585,9 +572,16 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 	free_cpumask_var(old_mask);
 
-	snapshot_timebases();
-
 	dump_numa_cpu_topology();
+}
+
+int arch_sd_sibling_asym_packing(void)
+{
+	if (cpu_has_feature(CPU_FTR_ASYM_SMT)) {
+		printk_once(KERN_INFO "Enabling Asymmetric SMT scheduling\n");
+		return SD_ASYM_PACKING;
+	}
+	return 0;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

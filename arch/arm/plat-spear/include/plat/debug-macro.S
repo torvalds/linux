@@ -14,11 +14,9 @@
 #include <linux/amba/serial.h>
 #include <mach/spear.h>
 
-		.macro	addruart, rx
-		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1					@ MMU enabled?
-		moveq	\rx, #SPEAR_DBG_UART_BASE		@ Physical base
-		movne	\rx, #VA_SPEAR_DBG_UART_BASE		@ Virtual base
+		.macro	addruart, rp, rv
+		mov	\rp, #SPEAR_DBG_UART_BASE		@ Physical base
+		mov	\rv, #VA_SPEAR_DBG_UART_BASE		@ Virtual base
 		.endm
 
 		.macro	senduart, rd, rx

@@ -41,6 +41,8 @@ struct net {
 						 * destroy on demand
 						 */
 #endif
+	spinlock_t		rules_mod_lock;
+
 	struct list_head	list;		/* list of network namespaces */
 	struct list_head	cleanup_list;	/* namespaces on death row */
 	struct list_head	exit_list;	/* Use only net_mutex */
@@ -52,7 +54,8 @@ struct net {
 	struct ctl_table_set	sysctls;
 #endif
 
-	struct net_device       *loopback_dev;          /* The loopback */
+	struct sock 		*rtnl;			/* rtnetlink socket */
+	struct sock		*genl_sock;
 
 	struct list_head 	dev_base_head;
 	struct hlist_head 	*dev_name_head;
@@ -60,11 +63,9 @@ struct net {
 
 	/* core fib_rules */
 	struct list_head	rules_ops;
-	spinlock_t		rules_mod_lock;
 
-	struct sock 		*rtnl;			/* rtnetlink socket */
-	struct sock		*genl_sock;
 
+	struct net_device       *loopback_dev;          /* The loopback */
 	struct netns_core	core;
 	struct netns_mib	mib;
 	struct netns_packet	packet;
@@ -84,13 +85,15 @@ struct net {
 	struct sock		*nfnl;
 	struct sock		*nfnl_stash;
 #endif
-#ifdef CONFIG_XFRM
-	struct netns_xfrm	xfrm;
-#endif
 #ifdef CONFIG_WEXT_CORE
 	struct sk_buff_head	wext_nlevents;
 #endif
-	struct net_generic	*gen;
+	struct net_generic __rcu	*gen;
+
+	/* Note : following structs are cache line aligned */
+#ifdef CONFIG_XFRM
+	struct netns_xfrm	xfrm;
+#endif
 };
 
 

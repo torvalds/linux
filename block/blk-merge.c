@@ -12,7 +12,6 @@
 static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 					     struct bio *bio)
 {
-	unsigned int phys_size;
 	struct bio_vec *bv, *bvprv = NULL;
 	int cluster, i, high, highprv = 1;
 	unsigned int seg_size, nr_phys_segs;
@@ -24,7 +23,7 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 	fbio = bio;
 	cluster = test_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
 	seg_size = 0;
-	phys_size = nr_phys_segs = 0;
+	nr_phys_segs = 0;
 	for_each_bio(bio) {
 		bio_for_each_segment(bv, bio, i) {
 			/*
@@ -180,7 +179,7 @@ new_segment:
 	}
 
 	if (q->dma_drain_size && q->dma_drain_needed(rq)) {
-		if (rq->cmd_flags & REQ_RW)
+		if (rq->cmd_flags & REQ_WRITE)
 			memset(q->dma_drain_buffer, 0, q->dma_drain_size);
 
 		sg->page_link &= ~0x02;
@@ -206,12 +205,11 @@ static inline int ll_new_hw_segment(struct request_queue *q,
 {
 	int nr_phys_segs = bio_phys_segments(q, bio);
 
-	if (req->nr_phys_segments + nr_phys_segs > queue_max_segments(q)) {
-		req->cmd_flags |= REQ_NOMERGE;
-		if (req == q->last_merge)
-			q->last_merge = NULL;
-		return 0;
-	}
+	if (req->nr_phys_segments + nr_phys_segs > queue_max_segments(q))
+		goto no_merge;
+
+	if (bio_integrity(bio) && blk_integrity_merge_bio(q, req, bio))
+		goto no_merge;
 
 	/*
 	 * This will form the start of a new hw segment.  Bump both
@@ -219,6 +217,12 @@ static inline int ll_new_hw_segment(struct request_queue *q,
 	 */
 	req->nr_phys_segments += nr_phys_segs;
 	return 1;
+
+no_merge:
+	req->cmd_flags |= REQ_NOMERGE;
+	if (req == q->last_merge)
+		q->last_merge = NULL;
+	return 0;
 }
 
 int ll_back_merge_fn(struct request_queue *q, struct request *req,
@@ -226,7 +230,7 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req,
 {
 	unsigned short max_sectors;
 
-	if (unlikely(blk_pc_request(req)))
+	if (unlikely(req->cmd_type == REQ_TYPE_BLOCK_PC))
 		max_sectors = queue_max_hw_sectors(q);
 	else
 		max_sectors = queue_max_sectors(q);
@@ -250,7 +254,7 @@ int ll_front_merge_fn(struct request_queue *q, struct request *req,
 {
 	unsigned short max_sectors;
 
-	if (unlikely(blk_pc_request(req)))
+	if (unlikely(req->cmd_type == REQ_TYPE_BLOCK_PC))
 		max_sectors = queue_max_hw_sectors(q);
 	else
 		max_sectors = queue_max_sectors(q);
@@ -300,6 +304,9 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 	}
 
 	if (total_phys_segments > queue_max_segments(q))
+		return 0;
+
+	if (blk_integrity_rq(req) && blk_integrity_merge_rq(q, req, next))
 		return 0;
 
 	/* Merge is OK... */
@@ -363,6 +370,18 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 		return 0;
 
 	/*
+	 * Don't merge file system requests and discard requests
+	 */
+	if ((req->cmd_flags & REQ_DISCARD) != (next->cmd_flags & REQ_DISCARD))
+		return 0;
+
+	/*
+	 * Don't merge discard requests and secure discard requests
+	 */
+	if ((req->cmd_flags & REQ_SECURE) != (next->cmd_flags & REQ_SECURE))
+		return 0;
+
+	/*
 	 * not contiguous
 	 */
 	if (blk_rq_pos(req) + blk_rq_sectors(req) != blk_rq_pos(next))
@@ -371,9 +390,6 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	if (rq_data_dir(req) != rq_data_dir(next)
 	    || req->rq_disk != next->rq_disk
 	    || next->special)
-		return 0;
-
-	if (blk_integrity_rq(req) != blk_integrity_rq(next))
 		return 0;
 
 	/*

@@ -37,6 +37,8 @@
 #include <linux/ratelimit.h>
 #include <linux/kmsg_dump.h>
 #include <linux/syslog.h>
+#include <linux/cpu.h>
+#include <linux/notifier.h>
 
 #include <asm/uaccess.h>
 
@@ -83,7 +85,7 @@ EXPORT_SYMBOL(oops_in_progress);
  * provides serialisation for access to the entire console
  * driver system.
  */
-static DECLARE_MUTEX(console_sem);
+static DEFINE_SEMAPHORE(console_sem);
 struct console *console_drivers;
 EXPORT_SYMBOL_GPL(console_drivers);
 
@@ -208,7 +210,7 @@ __setup("log_buf_len=", log_buf_len_setup);
 
 #ifdef CONFIG_BOOT_PRINTK_DELAY
 
-static unsigned int boot_delay; /* msecs delay after each printk during bootup */
+static int boot_delay; /* msecs delay after each printk during bootup */
 static unsigned long long loops_per_msec;	/* based on boot_delay */
 
 static int __init boot_delay_setup(char *str)
@@ -554,7 +556,7 @@ static void zap_locks(void)
 	/* If a crash is occurring, make sure we can't deadlock */
 	spin_lock_init(&logbuf_lock);
 	/* And make sure that we print immediately */
-	init_MUTEX(&console_sem);
+	sema_init(&console_sem, 1);
 }
 
 #if defined(CONFIG_PRINTK_TIME)
@@ -645,6 +647,7 @@ static inline int can_use_console(unsigned int cpu)
  * released but interrupts still disabled.
  */
 static int acquire_console_semaphore_for_printk(unsigned int cpu)
+	__releases(&logbuf_lock)
 {
 	int retval = 0;
 
@@ -982,6 +985,32 @@ void resume_console(void)
 	down(&console_sem);
 	console_suspended = 0;
 	release_console_sem();
+}
+
+/**
+ * console_cpu_notify - print deferred console messages after CPU hotplug
+ * @self: notifier struct
+ * @action: CPU hotplug event
+ * @hcpu: unused
+ *
+ * If printk() is called from a CPU that is not online yet, the messages
+ * will be spooled but will not show up on the console.  This function is
+ * called when a new CPU comes online (or fails to come up), and ensures
+ * that any such output gets printed.
+ */
+static int __cpuinit console_cpu_notify(struct notifier_block *self,
+	unsigned long action, void *hcpu)
+{
+	switch (action) {
+	case CPU_ONLINE:
+	case CPU_DEAD:
+	case CPU_DYING:
+	case CPU_DOWN_FAILED:
+	case CPU_UP_CANCELED:
+		acquire_console_sem();
+		release_console_sem();
+	}
+	return NOTIFY_OK;
 }
 
 /**
@@ -1371,7 +1400,7 @@ int unregister_console(struct console *console)
 }
 EXPORT_SYMBOL(unregister_console);
 
-static int __init disable_boot_consoles(void)
+static int __init printk_late_init(void)
 {
 	struct console *con;
 
@@ -1382,9 +1411,10 @@ static int __init disable_boot_consoles(void)
 			unregister_console(con);
 		}
 	}
+	hotcpu_notifier(console_cpu_notify, 0);
 	return 0;
 }
-late_initcall(disable_boot_consoles);
+late_initcall(printk_late_init);
 
 #if defined CONFIG_PRINTK
 
@@ -1482,7 +1512,7 @@ int kmsg_dump_unregister(struct kmsg_dumper *dumper)
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_unregister);
 
-static const char const *kmsg_reasons[] = {
+static const char * const kmsg_reasons[] = {
 	[KMSG_DUMP_OOPS]	= "oops",
 	[KMSG_DUMP_PANIC]	= "panic",
 	[KMSG_DUMP_KEXEC]	= "kexec",
@@ -1520,9 +1550,9 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 	chars = logged_chars;
 	spin_unlock_irqrestore(&logbuf_lock, flags);
 
-	if (logged_chars > end) {
-		s1 = log_buf + log_buf_len - logged_chars + end;
-		l1 = logged_chars - end;
+	if (chars > end) {
+		s1 = log_buf + log_buf_len - chars + end;
+		l1 = chars - end;
 
 		s2 = log_buf;
 		l2 = end;
@@ -1530,8 +1560,8 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 		s1 = "";
 		l1 = 0;
 
-		s2 = log_buf + end - logged_chars;
-		l2 = logged_chars;
+		s2 = log_buf + end - chars;
+		l2 = chars;
 	}
 
 	if (!spin_trylock_irqsave(&dump_list_lock, flags)) {

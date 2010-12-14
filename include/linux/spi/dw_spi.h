@@ -14,7 +14,9 @@
 #define SPI_MODE_OFFSET			6
 #define SPI_SCPH_OFFSET			6
 #define SPI_SCOL_OFFSET			7
+
 #define SPI_TMOD_OFFSET			8
+#define SPI_TMOD_MASK			(0x3 << SPI_TMOD_OFFSET)
 #define	SPI_TMOD_TR			0x0		/* xmit & recv */
 #define SPI_TMOD_TO			0x1		/* xmit only */
 #define SPI_TMOD_RO			0x2		/* recv only */

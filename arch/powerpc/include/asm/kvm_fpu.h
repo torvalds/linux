@@ -22,24 +22,24 @@
 
 #include <linux/types.h>
 
-extern void fps_fres(struct thread_struct *t, u32 *dst, u32 *src1);
-extern void fps_frsqrte(struct thread_struct *t, u32 *dst, u32 *src1);
-extern void fps_fsqrts(struct thread_struct *t, u32 *dst, u32 *src1);
+extern void fps_fres(u64 *fpscr, u32 *dst, u32 *src1);
+extern void fps_frsqrte(u64 *fpscr, u32 *dst, u32 *src1);
+extern void fps_fsqrts(u64 *fpscr, u32 *dst, u32 *src1);
 
-extern void fps_fadds(struct thread_struct *t, u32 *dst, u32 *src1, u32 *src2);
-extern void fps_fdivs(struct thread_struct *t, u32 *dst, u32 *src1, u32 *src2);
-extern void fps_fmuls(struct thread_struct *t, u32 *dst, u32 *src1, u32 *src2);
-extern void fps_fsubs(struct thread_struct *t, u32 *dst, u32 *src1, u32 *src2);
+extern void fps_fadds(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2);
+extern void fps_fdivs(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2);
+extern void fps_fmuls(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2);
+extern void fps_fsubs(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2);
 
-extern void fps_fmadds(struct thread_struct *t, u32 *dst, u32 *src1, u32 *src2,
+extern void fps_fmadds(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2,
 		       u32 *src3);
-extern void fps_fmsubs(struct thread_struct *t, u32 *dst, u32 *src1, u32 *src2,
+extern void fps_fmsubs(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2,
 		       u32 *src3);
-extern void fps_fnmadds(struct thread_struct *t, u32 *dst, u32 *src1, u32 *src2,
+extern void fps_fnmadds(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2,
 		        u32 *src3);
-extern void fps_fnmsubs(struct thread_struct *t, u32 *dst, u32 *src1, u32 *src2,
+extern void fps_fnmsubs(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2,
 		        u32 *src3);
-extern void fps_fsel(struct thread_struct *t, u32 *dst, u32 *src1, u32 *src2,
+extern void fps_fsel(u64 *fpscr, u32 *dst, u32 *src1, u32 *src2,
 		     u32 *src3);
 
 #define FPD_ONE_IN(name) extern void fpd_ ## name(u64 *fpscr, u32 *cr, \
@@ -81,5 +81,8 @@ FPD_THREE_IN(fmsub)
 FPD_THREE_IN(fmadd)
 FPD_THREE_IN(fnmsub)
 FPD_THREE_IN(fnmadd)
+
+extern void kvm_cvt_fd(u32 *from, u64 *to);
+extern void kvm_cvt_df(u64 *from, u32 *to);
 
 #endif

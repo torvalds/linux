@@ -178,7 +178,7 @@ static int get_irq_server(unsigned int virq, const struct cpumask *cpumask,
 	if (!distribute_irqs)
 		return default_server;
 
-	if (!cpumask_equal(cpumask, cpu_all_mask)) {
+	if (!cpumask_subset(cpu_possible_mask, cpumask)) {
 		int server = cpumask_first_and(cpu_online_mask, cpumask);
 
 		if (server < nr_cpu_ids)
@@ -243,7 +243,7 @@ static unsigned int xics_startup(unsigned int virq)
 	 * at that level, so we do it here by hand.
 	 */
 	if (irq_to_desc(virq)->msi_desc)
-		unmask_msi_irq(virq);
+		unmask_msi_irq(irq_get_irq_data(virq));
 
 	/* unmask it */
 	xics_unmask_irq(virq);
@@ -548,8 +548,6 @@ void smp_xics_message_pass(int target, int msg)
 static irqreturn_t xics_ipi_dispatch(int cpu)
 {
 	unsigned long *tgt = &per_cpu(xics_ipi_message, cpu);
-
-	WARN_ON(cpu_is_offline(cpu));
 
 	mb();	/* order mmio clearing qirr */
 	while (*tgt) {
@@ -930,8 +928,10 @@ void xics_migrate_irqs_away(void)
 		if (xics_status[0] != hw_cpu)
 			goto unlock;
 
-		printk(KERN_WARNING "IRQ %u affinity broken off cpu %u\n",
-		       virq, cpu);
+		/* This is expected during cpu offline. */
+		if (cpu_online(cpu))
+			printk(KERN_WARNING "IRQ %u affinity broken off cpu %u\n",
+			       virq, cpu);
 
 		/* Reset affinity to all cpus */
 		cpumask_setall(irq_to_desc(virq)->affinity);

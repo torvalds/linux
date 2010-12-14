@@ -34,6 +34,11 @@ extern void (*cpu_wait)(void);
 extern unsigned int vced_count, vcei_count;
 
 /*
+ * MIPS does have an arch_pick_mmap_layout()
+ */
+#define HAVE_ARCH_PICK_MMAP_LAYOUT 1
+
+/*
  * A special page (the vdso) is mapped into all processes at the very
  * top of the virtual memory space.
  */
@@ -45,13 +50,13 @@ extern unsigned int vced_count, vcei_count;
  * so don't change it unless you know what you are doing.
  */
 #define TASK_SIZE	0x7fff8000UL
-#define STACK_TOP	((TASK_SIZE & PAGE_MASK) - SPECIAL_PAGES_SIZE)
 
-/*
- * This decides where the kernel will search for a free chunk of vm
- * space during mmap's.
- */
-#define TASK_UNMAPPED_BASE	((TASK_SIZE / 3) & ~(PAGE_SIZE))
+#ifdef __KERNEL__
+#define STACK_TOP_MAX	TASK_SIZE
+#endif
+
+#define TASK_IS_32BIT_ADDR 1
+
 #endif
 
 #ifdef CONFIG_64BIT
@@ -63,25 +68,29 @@ extern unsigned int vced_count, vcei_count;
  * 8192EB ...
  */
 #define TASK_SIZE32	0x7fff8000UL
-#define TASK_SIZE	0x10000000000UL
-#define STACK_TOP	\
-	(((test_thread_flag(TIF_32BIT_ADDR) ?				\
-	   TASK_SIZE32 : TASK_SIZE) & PAGE_MASK) - SPECIAL_PAGES_SIZE)
+#define TASK_SIZE64	0x10000000000UL
+#define TASK_SIZE (test_thread_flag(TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE64)
+
+#ifdef __KERNEL__
+#define STACK_TOP_MAX	TASK_SIZE64
+#endif
+
+
+#define TASK_SIZE_OF(tsk)						\
+	(test_tsk_thread_flag(tsk, TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE64)
+
+#define TASK_IS_32BIT_ADDR test_thread_flag(TIF_32BIT_ADDR)
+
+#endif
+
+#define STACK_TOP	((TASK_SIZE & PAGE_MASK) - SPECIAL_PAGES_SIZE)
 
 /*
  * This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */
-#define TASK_UNMAPPED_BASE						\
-	(test_thread_flag(TIF_32BIT_ADDR) ?				\
-		PAGE_ALIGN(TASK_SIZE32 / 3) : PAGE_ALIGN(TASK_SIZE / 3))
-#define TASK_SIZE_OF(tsk)						\
-	(test_tsk_thread_flag(tsk, TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE)
-#endif
+#define TASK_UNMAPPED_BASE PAGE_ALIGN(TASK_SIZE / 3)
 
-#ifdef __KERNEL__
-#define STACK_TOP_MAX	TASK_SIZE
-#endif
 
 #define NUM_FPU_REGS	32
 
@@ -218,7 +227,6 @@ struct thread_struct {
 	unsigned long cp0_badvaddr;	/* Last user fault */
 	unsigned long cp0_baduaddr;	/* Last kernel fault accessing USEG */
 	unsigned long error_code;
-	unsigned long trap_no;
 	unsigned long irix_trampoline;  /* Wheee... */
 	unsigned long irix_oldctx;
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
@@ -290,7 +298,6 @@ struct thread_struct {
 	.cp0_badvaddr		= 0,				\
 	.cp0_baduaddr		= 0,				\
 	.error_code		= 0,				\
-	.trap_no		= 0,				\
 	.irix_trampoline	= 0,				\
 	.irix_oldctx		= 0,				\
 	/*							\

@@ -8,7 +8,7 @@ Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
 	D-77833 Ottersweier
 	Tel: +19(0)7223/9493-0
 	Fax: +49(0)7223/9493-92
-	http://www.addi-data-com
+	http://www.addi-data.com
 	info@addi-data.com
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
@@ -2541,7 +2541,43 @@ static struct comedi_driver driver_addi = {
 	.offset = sizeof(struct addi_board),
 };
 
-COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);
+static int __devinit driver_addi_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_addi.driver_name);
+}
+
+static void __devexit driver_addi_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_addi_pci_driver = {
+	.id_table = addi_apci_tbl,
+	.probe = &driver_addi_pci_probe,
+	.remove = __devexit_p(&driver_addi_pci_remove)
+};
+
+static int __init driver_addi_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_addi);
+	if (retval < 0)
+		return retval;
+
+	driver_addi_pci_driver.name = (char *)driver_addi.driver_name;
+	return pci_register_driver(&driver_addi_pci_driver);
+}
+
+static void __exit driver_addi_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_addi_pci_driver);
+	comedi_driver_unregister(&driver_addi);
+}
+
+module_init(driver_addi_init_module);
+module_exit(driver_addi_cleanup_module);
 
 /*
 +----------------------------------------------------------------------------+

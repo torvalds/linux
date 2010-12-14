@@ -160,14 +160,3 @@ u32 tipc_zone_select_router(struct _zone *z_ptr, u32 addr, u32 ref)
 	}
 	return 0;
 }
-
-
-u32 tipc_zone_next_node(u32 addr)
-{
-	struct cluster *c_ptr = tipc_cltr_find(addr);
-
-	if (c_ptr)
-		return tipc_cltr_next_node(c_ptr, addr);
-	return 0;
-}
-

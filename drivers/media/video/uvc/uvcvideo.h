@@ -40,6 +40,15 @@ struct uvc_xu_control_info {
 	__u32 flags;
 };
 
+struct uvc_menu_info {
+	__u32 value;
+	__u8 name[32];
+};
+
+struct uvc_xu_control_mapping_old {
+	__u8 reserved[64];
+};
+
 struct uvc_xu_control_mapping {
 	__u32 id;
 	__u8 name[32];
@@ -50,6 +59,11 @@ struct uvc_xu_control_mapping {
 	__u8 offset;
 	enum v4l2_ctrl_type v4l2_type;
 	__u32 data_type;
+
+	struct uvc_menu_info __user *menu_info;
+	__u32 menu_count;
+
+	__u32 reserved[4];
 };
 
 struct uvc_xu_control {
@@ -60,6 +74,7 @@ struct uvc_xu_control {
 };
 
 #define UVCIOC_CTRL_ADD		_IOW('U', 1, struct uvc_xu_control_info)
+#define UVCIOC_CTRL_MAP_OLD	_IOWR('U', 2, struct uvc_xu_control_mapping_old)
 #define UVCIOC_CTRL_MAP		_IOWR('U', 2, struct uvc_xu_control_mapping)
 #define UVCIOC_CTRL_GET		_IOWR('U', 3, struct uvc_xu_control)
 #define UVCIOC_CTRL_SET		_IOW('U', 4, struct uvc_xu_control)
@@ -142,7 +157,8 @@ struct uvc_xu_control {
  * Driver specific constants.
  */
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(0, 1, 0)
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(1, 0, 0)
+#define DRIVER_VERSION		"v1.0.0"
 
 /* Number of isochronous URBs. */
 #define UVC_URBS		5
@@ -156,6 +172,9 @@ struct uvc_xu_control {
 #define UVC_CTRL_CONTROL_TIMEOUT	300
 #define UVC_CTRL_STREAMING_TIMEOUT	5000
 
+/* Maximum allowed number of control mappings per device */
+#define UVC_MAX_CONTROL_MAPPINGS	1024
+
 /* Devices quirks */
 #define UVC_QUIRK_STATUS_INTERVAL	0x00000001
 #define UVC_QUIRK_PROBE_MINMAX		0x00000002
@@ -165,6 +184,7 @@ struct uvc_xu_control {
 #define UVC_QUIRK_IGNORE_SELECTOR_UNIT	0x00000020
 #define UVC_QUIRK_FIX_BANDWIDTH		0x00000080
 #define UVC_QUIRK_PROBE_DEF		0x00000100
+#define UVC_QUIRK_RESTRICT_FRAME_RATE	0x00000200
 
 /* Format flags */
 #define UVC_FMT_FLAG_COMPRESSED		0x00000001
@@ -179,36 +199,11 @@ struct uvc_device;
 /* TODO: Put the most frequently accessed fields at the beginning of
  * structures to maximize cache efficiency.
  */
-struct uvc_streaming_control {
-	__u16 bmHint;
-	__u8  bFormatIndex;
-	__u8  bFrameIndex;
-	__u32 dwFrameInterval;
-	__u16 wKeyFrameRate;
-	__u16 wPFrameRate;
-	__u16 wCompQuality;
-	__u16 wCompWindowSize;
-	__u16 wDelay;
-	__u32 dwMaxVideoFrameSize;
-	__u32 dwMaxPayloadTransferSize;
-	__u32 dwClockFrequency;
-	__u8  bmFramingInfo;
-	__u8  bPreferedVersion;
-	__u8  bMinVersion;
-	__u8  bMaxVersion;
-};
-
-struct uvc_menu_info {
-	__u32 value;
-	__u8 name[32];
-};
-
 struct uvc_control_info {
-	struct list_head list;
 	struct list_head mappings;
 
 	__u8 entity[16];
-	__u8 index;
+	__u8 index;	/* Bit index in bmControls */
 	__u8 selector;
 
 	__u16 size;
@@ -241,16 +236,17 @@ struct uvc_control_mapping {
 
 struct uvc_control {
 	struct uvc_entity *entity;
-	struct uvc_control_info *info;
+	struct uvc_control_info info;
 
 	__u8 index;	/* Used to match the uvc_control entry with a
 			   uvc_control_info. */
-	__u8 dirty : 1,
-	     loaded : 1,
-	     modified : 1,
-	     cached : 1;
+	__u8 dirty:1,
+	     loaded:1,
+	     modified:1,
+	     cached:1,
+	     initialized:1;
 
-	__u8 *data;
+	__u8 *uvc_data;
 };
 
 struct uvc_format_desc {
@@ -385,18 +381,18 @@ struct uvc_buffer {
 	struct list_head queue;
 	wait_queue_head_t wait;
 	enum uvc_buffer_state state;
+	unsigned int error;
 };
 
 #define UVC_QUEUE_STREAMING		(1 << 0)
 #define UVC_QUEUE_DISCONNECTED		(1 << 1)
-#define UVC_QUEUE_DROP_INCOMPLETE	(1 << 2)
+#define UVC_QUEUE_DROP_CORRUPTED	(1 << 2)
 
 struct uvc_video_queue {
 	enum v4l2_buf_type type;
 
 	void *mem;
 	unsigned int flags;
-	__u32 sequence;
 
 	unsigned int count;
 	unsigned int buf_size;
@@ -417,7 +413,7 @@ struct uvc_video_chain {
 	struct uvc_entity *processing;		/* Processing unit */
 	struct uvc_entity *selector;		/* Selector unit */
 
-	struct mutex ctrl_mutex;
+	struct mutex ctrl_mutex;		/* Protects ctrl.info */
 };
 
 struct uvc_streaming {
@@ -462,6 +458,7 @@ struct uvc_streaming {
 	dma_addr_t urb_dma[UVC_URBS];
 	unsigned int urb_size;
 
+	__u32 sequence;
 	__u8 last_fid;
 };
 
@@ -478,8 +475,8 @@ struct uvc_device {
 	char name[32];
 
 	enum uvc_device_state state;
-	struct list_head list;
 	atomic_t users;
+	atomic_t nmappings;
 
 	/* Video control interface */
 	__u16 uvc_version;
@@ -513,11 +510,6 @@ struct uvc_fh {
 
 struct uvc_driver {
 	struct usb_driver driver;
-
-	struct list_head devices;	/* struct uvc_device list */
-	struct list_head controls;	/* struct uvc_control_info list */
-	struct mutex ctrl_mutex;	/* protects controls and devices
-					   lists */
 };
 
 /* ------------------------------------------------------------------------
@@ -568,7 +560,7 @@ extern struct uvc_driver uvc_driver;
 
 /* Video buffers queue management. */
 extern void uvc_queue_init(struct uvc_video_queue *queue,
-		enum v4l2_buf_type type);
+		enum v4l2_buf_type type, int drop_corrupted);
 extern int uvc_alloc_buffers(struct uvc_video_queue *queue,
 		unsigned int nbuffers, unsigned int buflength);
 extern int uvc_free_buffers(struct uvc_video_queue *queue);
@@ -619,12 +611,11 @@ extern struct uvc_control *uvc_find_control(struct uvc_video_chain *chain,
 extern int uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 		struct v4l2_queryctrl *v4l2_ctrl);
 
-extern int uvc_ctrl_add_info(struct uvc_control_info *info);
-extern int uvc_ctrl_add_mapping(struct uvc_control_mapping *mapping);
+extern int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
+		const struct uvc_control_mapping *mapping);
 extern int uvc_ctrl_init_device(struct uvc_device *dev);
 extern void uvc_ctrl_cleanup_device(struct uvc_device *dev);
 extern int uvc_ctrl_resume_device(struct uvc_device *dev);
-extern void uvc_ctrl_init(void);
 
 extern int uvc_ctrl_begin(struct uvc_video_chain *chain);
 extern int __uvc_ctrl_commit(struct uvc_video_chain *chain, int rollback);

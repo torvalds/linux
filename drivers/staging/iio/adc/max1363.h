@@ -32,14 +32,6 @@
 
 /* Specific to the max1363 */
 #define MAX1363_MON_RESET_CHAN(a) (1 << ((a) + 4))
-#define MAX1363_MON_CONV_RATE_133ksps		0
-#define MAX1363_MON_CONV_RATE_66_5ksps		0x02
-#define MAX1363_MON_CONV_RATE_33_3ksps		0x04
-#define MAX1363_MON_CONV_RATE_16_6ksps		0x06
-#define MAX1363_MON_CONV_RATE_8_3ksps		0x08
-#define MAX1363_MON_CONV_RATE_4_2ksps		0x0A
-#define MAX1363_MON_CONV_RATE_2_0ksps		0x0C
-#define MAX1363_MON_CONV_RATE_1_0ksps		0x0E
 #define MAX1363_MON_INT_ENABLE			0x01
 
 /* defined for readability reasons */
@@ -67,9 +59,8 @@
 
 /**
  * struct max1363_mode - scan mode information
- * @name:	Name used to identify the scan mode.
  * @conf:	The corresponding value of the configuration register
- * @numvals:	The number of values returned by a single scan
+ * @modemask:	Bit mask corresponding to channels enabled in this mode
  */
 struct max1363_mode {
 	int8_t		conf;
@@ -122,15 +113,6 @@ struct max1363_mode {
 			.modemask = _mask				\
 }
 
-/* Not currently handled */
-#define MAX1363_MODE_MONITOR {					\
-		.name = "monitor",				\
-			.conf = MAX1363_CHANNEL_SEL(3)		\
-			| MAX1363_CONFIG_SCAN_MONITOR_MODE	\
-			| MAX1363_CONFIG_SE,			\
-			.numvals = 10,				\
-		}
-
 /* This may seem an overly long winded way to do this, but at least it makes
  * clear what all the various options actually do. Alternative suggestions
  * that don't require user to have intimate knowledge of the chip welcomed.
@@ -147,7 +129,7 @@ enum max1363_channels {
 	max1363_in1min0, max1363_in3min2,
 	max1363_in5min4, max1363_in7min6,
 	max1363_in9min8, max1363_in11min10,
-	};
+};
 
 /* This must be maintained along side the max1363_mode_table in max1363_core */
 enum max1363_modes {
@@ -179,7 +161,6 @@ enum max1363_modes {
  * @default_mode:	the scan mode in which the chip starts up
  */
 struct max1363_chip_info {
-	const char			*name;
 	u8				num_inputs;
 	u8				bits;
 	u16				int_vref_mv;
@@ -190,7 +171,6 @@ struct max1363_chip_info {
 	struct attribute_group		*dev_attrs;
 	struct attribute_group		*scan_attrs;
 };
-
 
 /**
  * struct max1363_state - driver instance specific data
@@ -204,12 +184,20 @@ struct max1363_chip_info {
  * @poll_work:		bottom half of polling interrupt handler
  * @protect_ring:	used to ensure only one polling bh running at a time
  * @reg:		supply regulator
+ * @monitor_on:		whether monitor mode is enabled
+ * @monitor_speed:	parameter corresponding to device monitor speed setting
+ * @mask_high:		bitmask for enabled high thresholds
+ * @mask_low:		bitmask for enabled low thresholds
+ * @thresh_high:	high threshold values
+ * @thresh_low:		low threshold values
+ * @last_timestamp:	timestamp of last event interrupt
+ * @thresh_work:	bh work structure for event handling
  */
 struct max1363_state {
 	struct iio_dev			*indio_dev;
 	struct i2c_client		*client;
-	char				setupbyte;
-	char				configbyte;
+	u8				setupbyte;
+	u8				configbyte;
 	const struct max1363_chip_info	*chip_info;
 	const struct max1363_mode	*current_mode;
 	u32				requestedmask;
@@ -217,6 +205,18 @@ struct max1363_state {
 	atomic_t			protect_ring;
 	struct iio_trigger		*trig;
 	struct regulator		*reg;
+
+	/* Using monitor modes and buffer at the same time is
+	   currently not supported */
+	bool				monitor_on;
+	unsigned int			monitor_speed:3;
+	u8				mask_high;
+	u8				mask_low;
+	/* 4x unipolar first then the fours bipolar ones */
+	s16				thresh_high[8];
+	s16				thresh_low[8];
+	s64				last_timestamp;
+	struct work_struct		thresh_work;
 };
 
 const struct max1363_mode
@@ -230,32 +230,21 @@ int max1363_single_channel_from_ring(long mask, struct max1363_state *st);
 int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev);
 void max1363_ring_cleanup(struct iio_dev *indio_dev);
 
-int max1363_initialize_ring(struct iio_ring_buffer *ring);
-void max1363_uninitialize_ring(struct iio_ring_buffer *ring);
-
 #else /* CONFIG_MAX1363_RING_BUFFER */
-
-static inline void max1363_uninitialize_ring(struct iio_ring_buffer *ring)
-{
-};
-
-static inline int max1363_initialize_ring(struct iio_ring_buffer *ring)
-{
-	return 0;
-};
 
 int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
 {
 	return -EINVAL;
-};
-
+}
 
 static inline int
 max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
 	return 0;
-};
+}
 
-static inline void max1363_ring_cleanup(struct iio_dev *indio_dev) {};
+static inline void max1363_ring_cleanup(struct iio_dev *indio_dev)
+{
+}
 #endif /* CONFIG_MAX1363_RING_BUFFER */
 #endif /* _MAX1363_H_ */

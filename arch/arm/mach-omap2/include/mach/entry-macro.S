@@ -177,7 +177,10 @@ omap_irq_base:	.word	0
 		cmpne   \irqnr, \tmp
 		cmpcs   \irqnr, \irqnr
 		.endm
+#endif
+#endif	/* MULTI_OMAP2 */
 
+#ifdef CONFIG_SMP
 		/* We assume that irqstat (the raw value of the IRQ acknowledge
 		 * register) is preserved from the macro above.
 		 * If there is an IPI, we immediately signal end of interrupt
@@ -205,8 +208,7 @@ omap_irq_base:	.word	0
 		streq	\irqstat, [\base, #GIC_CPU_EOI]
 		cmp	\tmp, #0
 		.endm
-#endif
-#endif	/* MULTI_OMAP2 */
+#endif	/* CONFIG_SMP */
 
 		.macro	irq_prio_table
 		.endm

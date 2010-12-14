@@ -1,6 +1,7 @@
 /*
  * irq.c: API for in kernel interrupt controller
  * Copyright (c) 2007, Intel Corporation.
+ * Copyright 2009 Red Hat, Inc. and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -32,12 +33,7 @@
  */
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
-	int ret;
-
-	ret = pit_has_pending_timer(vcpu);
-	ret |= apic_has_pending_timer(vcpu);
-
-	return ret;
+	return apic_has_pending_timer(vcpu);
 }
 EXPORT_SYMBOL(kvm_cpu_has_pending_timer);
 
@@ -89,7 +85,6 @@ EXPORT_SYMBOL_GPL(kvm_cpu_get_interrupt);
 void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu)
 {
 	kvm_inject_apic_timer_irqs(vcpu);
-	kvm_inject_pit_timer_irqs(vcpu);
 	/* TODO: PIT, RTC etc. */
 }
 EXPORT_SYMBOL_GPL(kvm_inject_pending_timer_irqs);

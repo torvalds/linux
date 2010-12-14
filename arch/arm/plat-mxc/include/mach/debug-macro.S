@@ -23,8 +23,8 @@
 #error "CONFIG_DEBUG_LL is incompatible with multiple archs"
 #endif
 #include <mach/mx25.h>
-#define UART_PADDR	UART1_BASE_ADDR
-#define UART_VADDR	MX25_AIPS1_IO_ADDRESS(UART1_BASE_ADDR)
+#define UART_PADDR	MX25_UART1_BASE_ADDR
+#define UART_VADDR	MX25_AIPS1_IO_ADDRESS(MX25_UART1_BASE_ADDR)
 #endif
 
 #ifdef CONFIG_ARCH_MX2
@@ -62,11 +62,9 @@
 #define UART_PADDR	MXC91231_UART2_BASE_ADDR
 #define UART_VADDR	MXC91231_IO_ADDRESS(MXC91231_UART2_BASE_ADDR)
 #endif
-		.macro	addruart, rx, tmp
-		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1			@ MMU enabled?
-		ldreq	\rx, =UART_PADDR	@ physical
-		ldrne	\rx, =UART_VADDR	@ virtual
+		.macro	addruart, rp, rv
+		ldr	\rp, =UART_PADDR	@ physical
+		ldr	\rv, =UART_VADDR	@ virtual
 		.endm
 
 		.macro	senduart,rd,rx

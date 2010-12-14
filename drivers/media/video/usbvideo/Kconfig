@@ -12,10 +12,13 @@ config USB_VICAM
 	  module will be called vicam.
 
 config USB_IBMCAM
-	tristate "USB IBM (Xirlink) C-it Camera support"
+	tristate "USB IBM (Xirlink) C-it Camera support (DEPRECATED)"
 	depends on VIDEO_V4L1
 	select VIDEO_USBVIDEO
 	---help---
+	  This driver is DEPRECATED please use the gspca xirlink_cit module
+	  instead.
+
 	  Say Y here if you want to connect a IBM "C-It" camera, also known as
 	  "Xirlink PC Camera" to your computer's USB port.
 
@@ -27,27 +30,16 @@ config USB_IBMCAM
 	  <file:Documentation/video4linux/ibmcam.txt> to learn more.
 
 config USB_KONICAWC
-	tristate "USB Konica Webcam support"
+	tristate "USB Konica Webcam support (DEPRECATED)"
 	depends on VIDEO_V4L1
 	select VIDEO_USBVIDEO
 	---help---
+	  This driver is DEPRECATED (and known to crash) please use the
+	  gspca konica module instead.
+
 	  Say Y here if you want support for webcams based on a Konica
 	  chipset. This is known to work with the Intel YC76 webcam.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called konicawc.
-
-config USB_QUICKCAM_MESSENGER
-	tristate "USB Logitech Quickcam Messenger (DEPRECATED)"
-	depends on VIDEO_V4L1
-	select VIDEO_USBVIDEO
-	---help---
-	  This driver is DEPRECATED please use the gspca stv06xx module
-	  instead.
-
-	  Say Y or M here to enable support for the USB Logitech Quickcam
-	  Messenger webcam.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called quickcam_messenger.
 

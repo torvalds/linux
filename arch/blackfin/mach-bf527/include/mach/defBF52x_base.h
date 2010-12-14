@@ -458,22 +458,22 @@
 
 /* Two-Wire Interface		(0xFFC01400 - 0xFFC014FF)								*/
 #define TWI0_REGBASE			0xFFC01400
-#define TWI_CLKDIV			0xFFC01400	/* Serial Clock Divider Register			*/
-#define TWI_CONTROL			0xFFC01404	/* TWI Control Register						*/
-#define TWI_SLAVE_CTL		0xFFC01408	/* Slave Mode Control Register				*/
-#define TWI_SLAVE_STAT		0xFFC0140C	/* Slave Mode Status Register				*/
-#define TWI_SLAVE_ADDR		0xFFC01410	/* Slave Mode Address Register				*/
-#define TWI_MASTER_CTL		0xFFC01414	/* Master Mode Control Register				*/
-#define TWI_MASTER_STAT		0xFFC01418	/* Master Mode Status Register				*/
-#define TWI_MASTER_ADDR		0xFFC0141C	/* Master Mode Address Register				*/
-#define TWI_INT_STAT		0xFFC01420	/* TWI Interrupt Status Register			*/
-#define TWI_INT_MASK		0xFFC01424	/* TWI Master Interrupt Mask Register		*/
-#define TWI_FIFO_CTL		0xFFC01428	/* FIFO Control Register					*/
-#define TWI_FIFO_STAT		0xFFC0142C	/* FIFO Status Register						*/
-#define TWI_XMT_DATA8		0xFFC01480	/* FIFO Transmit Data Single Byte Register	*/
-#define TWI_XMT_DATA16		0xFFC01484	/* FIFO Transmit Data Double Byte Register	*/
-#define TWI_RCV_DATA8		0xFFC01488	/* FIFO Receive Data Single Byte Register	*/
-#define TWI_RCV_DATA16		0xFFC0148C	/* FIFO Receive Data Double Byte Register	*/
+#define TWI0_CLKDIV			0xFFC01400	/* Serial Clock Divider Register			*/
+#define TWI0_CONTROL			0xFFC01404	/* TWI Control Register						*/
+#define TWI0_SLAVE_CTL		0xFFC01408	/* Slave Mode Control Register				*/
+#define TWI0_SLAVE_STAT		0xFFC0140C	/* Slave Mode Status Register				*/
+#define TWI0_SLAVE_ADDR		0xFFC01410	/* Slave Mode Address Register				*/
+#define TWI0_MASTER_CTL		0xFFC01414	/* Master Mode Control Register				*/
+#define TWI0_MASTER_STAT		0xFFC01418	/* Master Mode Status Register				*/
+#define TWI0_MASTER_ADDR		0xFFC0141C	/* Master Mode Address Register				*/
+#define TWI0_INT_STAT		0xFFC01420	/* TWI Interrupt Status Register			*/
+#define TWI0_INT_MASK		0xFFC01424	/* TWI Master Interrupt Mask Register		*/
+#define TWI0_FIFO_CTL		0xFFC01428	/* FIFO Control Register					*/
+#define TWI0_FIFO_STAT		0xFFC0142C	/* FIFO Status Register						*/
+#define TWI0_XMT_DATA8		0xFFC01480	/* FIFO Transmit Data Single Byte Register	*/
+#define TWI0_XMT_DATA16		0xFFC01484	/* FIFO Transmit Data Double Byte Register	*/
+#define TWI0_RCV_DATA8		0xFFC01488	/* FIFO Receive Data Single Byte Register	*/
+#define TWI0_RCV_DATA16		0xFFC0148C	/* FIFO Receive Data Double Byte Register	*/
 
 
 /* General Purpose I/O Port G (0xFFC01500 - 0xFFC015FF)												*/
@@ -749,51 +749,6 @@
 #define FFE			0x20		/* Force Framing Error On Transmit	*/
 
 
-/* ***********  SERIAL PERIPHERAL INTERFACE (SPI) MASKS  ****************************/
-/* SPI_CTL Masks																	*/
-#define	TIMOD		0x0003		/* Transfer Initiate Mode							*/
-#define RDBR_CORE	0x0000		/* 		RDBR Read Initiates, IRQ When RDBR Full		*/
-#define	TDBR_CORE	0x0001		/* 		TDBR Write Initiates, IRQ When TDBR Empty	*/
-#define RDBR_DMA	0x0002		/* 		DMA Read, DMA Until FIFO Empty				*/
-#define TDBR_DMA	0x0003		/* 		DMA Write, DMA Until FIFO Full				*/
-#define SZ			0x0004		/* Send Zero (When TDBR Empty, Send Zero/Last*)		*/
-#define GM			0x0008		/* Get More (When RDBR Full, Overwrite/Discard*)	*/
-#define PSSE		0x0010		/* Slave-Select Input Enable						*/
-#define EMISO		0x0020		/* Enable MISO As Output							*/
-#define SIZE		0x0100		/* Size of Words (16/8* Bits)						*/
-#define LSBF		0x0200		/* LSB First										*/
-#define CPHA		0x0400		/* Clock Phase										*/
-#define CPOL		0x0800		/* Clock Polarity									*/
-#define MSTR		0x1000		/* Master/Slave*									*/
-#define WOM			0x2000		/* Write Open Drain Master							*/
-#define SPE			0x4000		/* SPI Enable										*/
-
-/* SPI_FLG Masks																	*/
-#define FLS1		0x0002		/* Enables SPI_FLOUT1 as SPI Slave-Select Output	*/
-#define FLS2		0x0004		/* Enables SPI_FLOUT2 as SPI Slave-Select Output	*/
-#define FLS3		0x0008		/* Enables SPI_FLOUT3 as SPI Slave-Select Output	*/
-#define FLS4		0x0010		/* Enables SPI_FLOUT4 as SPI Slave-Select Output	*/
-#define FLS5		0x0020		/* Enables SPI_FLOUT5 as SPI Slave-Select Output	*/
-#define FLS6		0x0040		/* Enables SPI_FLOUT6 as SPI Slave-Select Output	*/
-#define FLS7		0x0080		/* Enables SPI_FLOUT7 as SPI Slave-Select Output	*/
-#define FLG1		0xFDFF		/* Activates SPI_FLOUT1 							*/
-#define FLG2		0xFBFF		/* Activates SPI_FLOUT2								*/
-#define FLG3		0xF7FF		/* Activates SPI_FLOUT3								*/
-#define FLG4		0xEFFF		/* Activates SPI_FLOUT4								*/
-#define FLG5		0xDFFF		/* Activates SPI_FLOUT5								*/
-#define FLG6		0xBFFF		/* Activates SPI_FLOUT6								*/
-#define FLG7		0x7FFF		/* Activates SPI_FLOUT7								*/
-
-/* SPI_STAT Masks																				*/
-#define SPIF		0x0001		/* SPI Finished (Single-Word Transfer Complete)					*/
-#define MODF		0x0002		/* Mode Fault Error (Another Device Tried To Become Master)		*/
-#define TXE			0x0004		/* Transmission Error (Data Sent With No New Data In TDBR)		*/
-#define TXS			0x0008		/* SPI_TDBR Data Buffer Status (Full/Empty*)					*/
-#define RBSY		0x0010		/* Receive Error (Data Received With RDBR Full)					*/
-#define RXS			0x0020		/* SPI_RDBR Data Buffer Status (Full/Empty*)					*/
-#define TXCOL		0x0040		/* Transmit Collision Error (Corrupt Data May Have Been Sent)	*/
-
-
 /*  ****************  GENERAL PURPOSE TIMER MASKS  **********************/
 /* TIMER_ENABLE Masks													*/
 #define TIMEN0			0x0001		/* Enable Timer 0					*/
@@ -921,88 +876,6 @@
 #define PH13	0x2000
 #define PH14	0x4000
 #define PH15	0x8000
-
-
-/* *******************  SERIAL PORT MASKS  **************************************/
-/* SPORTx_TCR1 Masks															*/
-#define TSPEN		0x0001		/* Transmit Enable								*/
-#define ITCLK		0x0002		/* Internal Transmit Clock Select				*/
-#define DTYPE_NORM	0x0004		/* Data Format Normal							*/
-#define DTYPE_ULAW	0x0008		/* Compand Using u-Law							*/
-#define DTYPE_ALAW	0x000C		/* Compand Using A-Law							*/
-#define TLSBIT		0x0010		/* Transmit Bit Order							*/
-#define ITFS		0x0200		/* Internal Transmit Frame Sync Select			*/
-#define TFSR		0x0400		/* Transmit Frame Sync Required Select			*/
-#define DITFS		0x0800		/* Data-Independent Transmit Frame Sync Select	*/
-#define LTFS		0x1000		/* Low Transmit Frame Sync Select				*/
-#define LATFS		0x2000		/* Late Transmit Frame Sync Select				*/
-#define TCKFE		0x4000		/* Clock Falling Edge Select					*/
-
-/* SPORTx_TCR2 Masks and Macro													*/
-#define SLEN(x)		((x)&0x1F)	/* SPORT TX Word Length (2 - 31)				*/
-#define TXSE		0x0100		/* TX Secondary Enable							*/
-#define TSFSE		0x0200		/* Transmit Stereo Frame Sync Enable			*/
-#define TRFST		0x0400		/* Left/Right Order (1 = Right Channel 1st)		*/
-
-/* SPORTx_RCR1 Masks															*/
-#define RSPEN		0x0001		/* Receive Enable 								*/
-#define IRCLK		0x0002		/* Internal Receive Clock Select 				*/
-#define DTYPE_NORM	0x0004		/* Data Format Normal							*/
-#define DTYPE_ULAW	0x0008		/* Compand Using u-Law							*/
-#define DTYPE_ALAW	0x000C		/* Compand Using A-Law							*/
-#define RLSBIT		0x0010		/* Receive Bit Order							*/
-#define IRFS		0x0200		/* Internal Receive Frame Sync Select 			*/
-#define RFSR		0x0400		/* Receive Frame Sync Required Select 			*/
-#define LRFS		0x1000		/* Low Receive Frame Sync Select 				*/
-#define LARFS		0x2000		/* Late Receive Frame Sync Select 				*/
-#define RCKFE		0x4000		/* Clock Falling Edge Select 					*/
-
-/* SPORTx_RCR2 Masks															*/
-#define SLEN(x)		((x)&0x1F)	/* SPORT RX Word Length (2 - 31)				*/
-#define RXSE		0x0100		/* RX Secondary Enable							*/
-#define RSFSE		0x0200		/* RX Stereo Frame Sync Enable					*/
-#define RRFST		0x0400		/* Right-First Data Order 						*/
-
-/* SPORTx_STAT Masks															*/
-#define RXNE		0x0001		/* Receive FIFO Not Empty Status				*/
-#define RUVF		0x0002		/* Sticky Receive Underflow Status				*/
-#define ROVF		0x0004		/* Sticky Receive Overflow Status				*/
-#define TXF			0x0008		/* Transmit FIFO Full Status					*/
-#define TUVF		0x0010		/* Sticky Transmit Underflow Status				*/
-#define TOVF		0x0020		/* Sticky Transmit Overflow Status				*/
-#define TXHRE		0x0040		/* Transmit Hold Register Empty					*/
-
-/* SPORTx_MCMC1 Macros															*/
-#define SP_WOFF(x)	((x) & 0x3FF) 	/* Multichannel Window Offset Field			*/
-
-/* Only use WSIZE Macro With Logic OR While Setting Lower Order Bits						*/
-#define SP_WSIZE(x)	(((((x)>>0x3)-1)&0xF) << 0xC)	/* Multichannel Window Size = (x/8)-1	*/
-
-/* SPORTx_MCMC2 Masks															*/
-#define REC_BYPASS	0x0000		/* Bypass Mode (No Clock Recovery)				*/
-#define REC_2FROM4	0x0002		/* Recover 2 MHz Clock from 4 MHz Clock			*/
-#define REC_8FROM16	0x0003		/* Recover 8 MHz Clock from 16 MHz Clock		*/
-#define MCDTXPE		0x0004 		/* Multichannel DMA Transmit Packing			*/
-#define MCDRXPE		0x0008 		/* Multichannel DMA Receive Packing				*/
-#define MCMEN		0x0010 		/* Multichannel Frame Mode Enable				*/
-#define FSDR		0x0080 		/* Multichannel Frame Sync to Data Relationship	*/
-#define MFD_0		0x0000		/* Multichannel Frame Delay = 0					*/
-#define MFD_1		0x1000		/* Multichannel Frame Delay = 1					*/
-#define MFD_2		0x2000		/* Multichannel Frame Delay = 2					*/
-#define MFD_3		0x3000		/* Multichannel Frame Delay = 3					*/
-#define MFD_4		0x4000		/* Multichannel Frame Delay = 4					*/
-#define MFD_5		0x5000		/* Multichannel Frame Delay = 5					*/
-#define MFD_6		0x6000		/* Multichannel Frame Delay = 6					*/
-#define MFD_7		0x7000		/* Multichannel Frame Delay = 7					*/
-#define MFD_8		0x8000		/* Multichannel Frame Delay = 8					*/
-#define MFD_9		0x9000		/* Multichannel Frame Delay = 9					*/
-#define MFD_10		0xA000		/* Multichannel Frame Delay = 10				*/
-#define MFD_11		0xB000		/* Multichannel Frame Delay = 11				*/
-#define MFD_12		0xC000		/* Multichannel Frame Delay = 12				*/
-#define MFD_13		0xD000		/* Multichannel Frame Delay = 13				*/
-#define MFD_14		0xE000		/* Multichannel Frame Delay = 14				*/
-#define MFD_15		0xF000		/* Multichannel Frame Delay = 15				*/
-
 
 /* *********************  ASYNCHRONOUS MEMORY CONTROLLER MASKS  *************************/
 /* EBIU_AMGCTL Masks																	*/
@@ -1328,7 +1201,7 @@
 #define	TWI_ENA		0x0080		/* TWI Enable									*/
 #define	SCCB		0x0200		/* SCCB Compatibility Enable					*/
 
-/* TWI_SLAVE_CTRL Masks															*/
+/* TWI_SLAVE_CTL Masks															*/
 #define	SEN			0x0001		/* Slave Enable									*/
 #define	SADD_LEN	0x0002		/* Slave Address Length							*/
 #define	STDVAL		0x0004		/* Slave Transmit Data Valid					*/
@@ -1339,7 +1212,7 @@
 #define	SDIR		0x0001		/* Slave Transfer Direction (Transmit/Receive*)	*/
 #define GCALL		0x0002		/* General Call Indicator						*/
 
-/* TWI_MASTER_CTRL Masks													*/
+/* TWI_MASTER_CTL Masks													*/
 #define	MEN			0x0001		/* Master Mode Enable						*/
 #define	MADD_LEN	0x0002		/* Master Address Length					*/
 #define	MDIR		0x0004		/* Master Transmit Direction (RX/TX*)		*/
@@ -1589,114 +1462,6 @@
 
 #define             HOST_COUNT_TIMEOUT  0x7ff      /* Host Timeout count */
 
-/* Bit masks for CNT_CONFIG */
-
-#define                      CNTE  0x1        /* Counter Enable */
-#define                     nCNTE  0x0
-#define                      DEBE  0x2        /* Debounce Enable */
-#define                     nDEBE  0x0
-#define                    CDGINV  0x10       /* CDG Pin Polarity Invert */
-#define                   nCDGINV  0x0
-#define                    CUDINV  0x20       /* CUD Pin Polarity Invert */
-#define                   nCUDINV  0x0
-#define                    CZMINV  0x40       /* CZM Pin Polarity Invert */
-#define                   nCZMINV  0x0
-#define                   CNTMODE  0x700      /* Counter Operating Mode */
-#define                      ZMZC  0x800      /* CZM Zeroes Counter Enable */
-#define                     nZMZC  0x0
-#define                   BNDMODE  0x3000     /* Boundary register Mode */
-#define                    INPDIS  0x8000     /* CUG and CDG Input Disable */
-#define                   nINPDIS  0x0
-
-/* Bit masks for CNT_IMASK */
-
-#define                      ICIE  0x1        /* Illegal Gray/Binary Code Interrupt Enable */
-#define                     nICIE  0x0
-#define                      UCIE  0x2        /* Up count Interrupt Enable */
-#define                     nUCIE  0x0
-#define                      DCIE  0x4        /* Down count Interrupt Enable */
-#define                     nDCIE  0x0
-#define                    MINCIE  0x8        /* Min Count Interrupt Enable */
-#define                   nMINCIE  0x0
-#define                    MAXCIE  0x10       /* Max Count Interrupt Enable */
-#define                   nMAXCIE  0x0
-#define                   COV31IE  0x20       /* Bit 31 Overflow Interrupt Enable */
-#define                  nCOV31IE  0x0
-#define                   COV15IE  0x40       /* Bit 15 Overflow Interrupt Enable */
-#define                  nCOV15IE  0x0
-#define                   CZEROIE  0x80       /* Count to Zero Interrupt Enable */
-#define                  nCZEROIE  0x0
-#define                     CZMIE  0x100      /* CZM Pin Interrupt Enable */
-#define                    nCZMIE  0x0
-#define                    CZMEIE  0x200      /* CZM Error Interrupt Enable */
-#define                   nCZMEIE  0x0
-#define                    CZMZIE  0x400      /* CZM Zeroes Counter Interrupt Enable */
-#define                   nCZMZIE  0x0
-
-/* Bit masks for CNT_STATUS */
-
-#define                      ICII  0x1        /* Illegal Gray/Binary Code Interrupt Identifier */
-#define                     nICII  0x0
-#define                      UCII  0x2        /* Up count Interrupt Identifier */
-#define                     nUCII  0x0
-#define                      DCII  0x4        /* Down count Interrupt Identifier */
-#define                     nDCII  0x0
-#define                    MINCII  0x8        /* Min Count Interrupt Identifier */
-#define                   nMINCII  0x0
-#define                    MAXCII  0x10       /* Max Count Interrupt Identifier */
-#define                   nMAXCII  0x0
-#define                   COV31II  0x20       /* Bit 31 Overflow Interrupt Identifier */
-#define                  nCOV31II  0x0
-#define                   COV15II  0x40       /* Bit 15 Overflow Interrupt Identifier */
-#define                  nCOV15II  0x0
-#define                   CZEROII  0x80       /* Count to Zero Interrupt Identifier */
-#define                  nCZEROII  0x0
-#define                     CZMII  0x100      /* CZM Pin Interrupt Identifier */
-#define                    nCZMII  0x0
-#define                    CZMEII  0x200      /* CZM Error Interrupt Identifier */
-#define                   nCZMEII  0x0
-#define                    CZMZII  0x400      /* CZM Zeroes Counter Interrupt Identifier */
-#define                   nCZMZII  0x0
-
-/* Bit masks for CNT_COMMAND */
-
-#define                    W1LCNT  0xf        /* Load Counter Register */
-#define                    W1LMIN  0xf0       /* Load Min Register */
-#define                    W1LMAX  0xf00      /* Load Max Register */
-#define                  W1ZMONCE  0x1000     /* Enable CZM Clear Counter Once */
-#define                 nW1ZMONCE  0x0
-
-/* Bit masks for CNT_DEBOUNCE */
-
-#define                 DPRESCALE  0xf        /* Load Counter Register */
-
-/* CNT_COMMAND bit field options */
-
-#define W1LCNT_ZERO   0x0001   /* write 1 to load CNT_COUNTER with zero */
-#define W1LCNT_MIN    0x0004   /* write 1 to load CNT_COUNTER from CNT_MIN */
-#define W1LCNT_MAX    0x0008   /* write 1 to load CNT_COUNTER from CNT_MAX */
-
-#define W1LMIN_ZERO   0x0010   /* write 1 to load CNT_MIN with zero */
-#define W1LMIN_CNT    0x0020   /* write 1 to load CNT_MIN from CNT_COUNTER */
-#define W1LMIN_MAX    0x0080   /* write 1 to load CNT_MIN from CNT_MAX */
-
-#define W1LMAX_ZERO   0x0100   /* write 1 to load CNT_MAX with zero */
-#define W1LMAX_CNT    0x0200   /* write 1 to load CNT_MAX from CNT_COUNTER */
-#define W1LMAX_MIN    0x0400   /* write 1 to load CNT_MAX from CNT_MIN */
-
-/* CNT_CONFIG bit field options */
-
-#define CNTMODE_QUADENC  0x0000  /* quadrature encoder mode */
-#define CNTMODE_BINENC   0x0100  /* binary encoder mode */
-#define CNTMODE_UDCNT    0x0200  /* up/down counter mode */
-#define CNTMODE_DIRCNT   0x0400  /* direction counter mode */
-#define CNTMODE_DIRTMR   0x0500  /* direction timer mode */
-
-#define BNDMODE_COMP     0x0000  /* boundary compare mode */
-#define BNDMODE_ZERO     0x1000  /* boundary compare and zero mode */
-#define BNDMODE_CAPT     0x2000  /* boundary capture mode */
-#define BNDMODE_AEXT     0x3000  /* boundary auto-extend mode */
-
 /* Bit masks for SECURE_SYSSWT */
 
 #define                   EMUDABL  0x1        /* Emulation Disable. */
@@ -1737,86 +1502,5 @@
 #define                    AFEXIT  0x10       /* Authentication Firmware Exit */
 #define                   nAFEXIT  0x0
 #define                   SECSTAT  0xe0       /* Secure Status */
-
-/* Bit masks for NFC_CTL */
-
-#define                    WR_DLY  0xf        /* Write Strobe Delay */
-#define                    RD_DLY  0xf0       /* Read Strobe Delay */
-#define                    NWIDTH  0x100      /* NAND Data Width */
-#define                   nNWIDTH  0x0
-#define                   PG_SIZE  0x200      /* Page Size */
-#define                  nPG_SIZE  0x0
-
-/* Bit masks for NFC_STAT */
-
-#define                     NBUSY  0x1        /* Not Busy */
-#define                    nNBUSY  0x0
-#define                   WB_FULL  0x2        /* Write Buffer Full */
-#define                  nWB_FULL  0x0
-#define                PG_WR_STAT  0x4        /* Page Write Pending */
-#define               nPG_WR_STAT  0x0
-#define                PG_RD_STAT  0x8        /* Page Read Pending */
-#define               nPG_RD_STAT  0x0
-#define                  WB_EMPTY  0x10       /* Write Buffer Empty */
-#define                 nWB_EMPTY  0x0
-
-/* Bit masks for NFC_IRQSTAT */
-
-#define                  NBUSYIRQ  0x1        /* Not Busy IRQ */
-#define                 nNBUSYIRQ  0x0
-#define                    WB_OVF  0x2        /* Write Buffer Overflow */
-#define                   nWB_OVF  0x0
-#define                   WB_EDGE  0x4        /* Write Buffer Edge Detect */
-#define                  nWB_EDGE  0x0
-#define                    RD_RDY  0x8        /* Read Data Ready */
-#define                   nRD_RDY  0x0
-#define                   WR_DONE  0x10       /* Page Write Done */
-#define                  nWR_DONE  0x0
-
-/* Bit masks for NFC_IRQMASK */
-
-#define              MASK_BUSYIRQ  0x1        /* Mask Not Busy IRQ */
-#define             nMASK_BUSYIRQ  0x0
-#define                MASK_WBOVF  0x2        /* Mask Write Buffer Overflow */
-#define               nMASK_WBOVF  0x0
-#define              MASK_WBEMPTY  0x4        /* Mask Write Buffer Empty */
-#define             nMASK_WBEMPTY  0x0
-#define                MASK_RDRDY  0x8        /* Mask Read Data Ready */
-#define               nMASK_RDRDY  0x0
-#define               MASK_WRDONE  0x10       /* Mask Write Done */
-#define              nMASK_WRDONE  0x0
-
-/* Bit masks for NFC_RST */
-
-#define                   ECC_RST  0x1        /* ECC (and NFC counters) Reset */
-#define                  nECC_RST  0x0
-
-/* Bit masks for NFC_PGCTL */
-
-#define               PG_RD_START  0x1        /* Page Read Start */
-#define              nPG_RD_START  0x0
-#define               PG_WR_START  0x2        /* Page Write Start */
-#define              nPG_WR_START  0x0
-
-/* Bit masks for NFC_ECC0 */
-
-#define                      ECC0  0x7ff      /* Parity Calculation Result0 */
-
-/* Bit masks for NFC_ECC1 */
-
-#define                      ECC1  0x7ff      /* Parity Calculation Result1 */
-
-/* Bit masks for NFC_ECC2 */
-
-#define                      ECC2  0x7ff      /* Parity Calculation Result2 */
-
-/* Bit masks for NFC_ECC3 */
-
-#define                      ECC3  0x7ff      /* Parity Calculation Result3 */
-
-/* Bit masks for NFC_COUNT */
-
-#define                    ECCCNT  0x3ff      /* Transfer Count */
-
 
 #endif /* _DEF_BF52X_H */

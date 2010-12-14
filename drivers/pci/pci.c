@@ -38,6 +38,19 @@ EXPORT_SYMBOL(pci_pci_problems);
 
 unsigned int pci_pm_d3_delay;
 
+static void pci_pme_list_scan(struct work_struct *work);
+
+static LIST_HEAD(pci_pme_list);
+static DEFINE_MUTEX(pci_pme_list_mutex);
+static DECLARE_DELAYED_WORK(pci_pme_work, pci_pme_list_scan);
+
+struct pci_pme_device {
+	struct list_head list;
+	struct pci_dev *dev;
+};
+
+#define PME_TIMEOUT 1000 /* How long between PME checks */
+
 static void pci_dev_d3_sleep(struct pci_dev *dev)
 {
 	unsigned int delay = dev->d3_delay;
@@ -1275,6 +1288,22 @@ bool pci_check_pme_status(struct pci_dev *dev)
 	return ret;
 }
 
+/*
+ * Time to wait before the system can be put into a sleep state after reporting
+ * a wakeup event signaled by a PCI device.
+ */
+#define PCI_WAKEUP_COOLDOWN	100
+
+/**
+ * pci_wakeup_event - Report a wakeup event related to a given PCI device.
+ * @dev: Device to report the wakeup event for.
+ */
+void pci_wakeup_event(struct pci_dev *dev)
+{
+	if (device_may_wakeup(&dev->dev))
+		pm_wakeup_event(&dev->dev, PCI_WAKEUP_COOLDOWN);
+}
+
 /**
  * pci_pme_wakeup - Wake up a PCI device if its PME Status bit is set.
  * @dev: Device to handle.
@@ -1285,8 +1314,10 @@ bool pci_check_pme_status(struct pci_dev *dev)
  */
 static int pci_pme_wakeup(struct pci_dev *dev, void *ign)
 {
-	if (pci_check_pme_status(dev))
+	if (pci_check_pme_status(dev)) {
 		pm_request_resume(&dev->dev);
+		pci_wakeup_event(dev);
+	}
 	return 0;
 }
 
@@ -1313,6 +1344,32 @@ bool pci_pme_capable(struct pci_dev *dev, pci_power_t state)
 	return !!(dev->pme_support & (1 << state));
 }
 
+static void pci_pme_list_scan(struct work_struct *work)
+{
+	struct pci_pme_device *pme_dev;
+
+	mutex_lock(&pci_pme_list_mutex);
+	if (!list_empty(&pci_pme_list)) {
+		list_for_each_entry(pme_dev, &pci_pme_list, list)
+			pci_pme_wakeup(pme_dev->dev, NULL);
+		schedule_delayed_work(&pci_pme_work, msecs_to_jiffies(PME_TIMEOUT));
+	}
+	mutex_unlock(&pci_pme_list_mutex);
+}
+
+/**
+ * pci_external_pme - is a device an external PCI PME source?
+ * @dev: PCI device to check
+ *
+ */
+
+static bool pci_external_pme(struct pci_dev *dev)
+{
+	if (pci_is_pcie(dev) || dev->bus->number == 0)
+		return false;
+	return true;
+}
+
 /**
  * pci_pme_active - enable or disable PCI device's PME# function
  * @dev: PCI device to handle.
@@ -1336,6 +1393,44 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
 
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, pmcsr);
 
+	/* PCI (as opposed to PCIe) PME requires that the device have
+	   its PME# line hooked up correctly. Not all hardware vendors
+	   do this, so the PME never gets delivered and the device
+	   remains asleep. The easiest way around this is to
+	   periodically walk the list of suspended devices and check
+	   whether any have their PME flag set. The assumption is that
+	   we'll wake up often enough anyway that this won't be a huge
+	   hit, and the power savings from the devices will still be a
+	   win. */
+
+	if (pci_external_pme(dev)) {
+		struct pci_pme_device *pme_dev;
+		if (enable) {
+			pme_dev = kmalloc(sizeof(struct pci_pme_device),
+					  GFP_KERNEL);
+			if (!pme_dev)
+				goto out;
+			pme_dev->dev = dev;
+			mutex_lock(&pci_pme_list_mutex);
+			list_add(&pme_dev->list, &pci_pme_list);
+			if (list_is_singular(&pci_pme_list))
+				schedule_delayed_work(&pci_pme_work,
+						      msecs_to_jiffies(PME_TIMEOUT));
+			mutex_unlock(&pci_pme_list_mutex);
+		} else {
+			mutex_lock(&pci_pme_list_mutex);
+			list_for_each_entry(pme_dev, &pci_pme_list, list) {
+				if (pme_dev->dev == dev) {
+					list_del(&pme_dev->list);
+					kfree(pme_dev);
+					break;
+				}
+			}
+			mutex_unlock(&pci_pme_list_mutex);
+		}
+	}
+
+out:
 	dev_printk(KERN_DEBUG, &dev->dev, "PME# %s\n",
 			enable ? "enabled" : "disabled");
 }
@@ -2294,21 +2389,17 @@ void pci_msi_off(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_msi_off);
 
-#ifndef HAVE_ARCH_PCI_SET_DMA_MAX_SEGMENT_SIZE
 int pci_set_dma_max_seg_size(struct pci_dev *dev, unsigned int size)
 {
 	return dma_set_max_seg_size(&dev->dev, size);
 }
 EXPORT_SYMBOL(pci_set_dma_max_seg_size);
-#endif
 
-#ifndef HAVE_ARCH_PCI_SET_DMA_SEGMENT_BOUNDARY
 int pci_set_dma_seg_boundary(struct pci_dev *dev, unsigned long mask)
 {
 	return dma_set_seg_boundary(&dev->dev, mask);
 }
 EXPORT_SYMBOL(pci_set_dma_seg_boundary);
-#endif
 
 static int pcie_flr(struct pci_dev *dev, int probe)
 {
@@ -2675,7 +2766,7 @@ int pcie_get_readrq(struct pci_dev *dev)
 
 	ret = pci_read_config_word(dev, cap + PCI_EXP_DEVCTL, &ctl);
 	if (!ret)
-	ret = 128 << ((ctl & PCI_EXP_DEVCTL_READRQ) >> 12);
+		ret = 128 << ((ctl & PCI_EXP_DEVCTL_READRQ) >> 12);
 
 	return ret;
 }

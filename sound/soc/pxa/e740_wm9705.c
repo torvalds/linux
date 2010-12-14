@@ -24,7 +24,6 @@
 #include <asm/mach-types.h>
 
 #include "../codecs/wm9705.h"
-#include "pxa2xx-pcm.h"
 #include "pxa2xx-ac97.h"
 
 
@@ -90,8 +89,10 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Mic Amp", NULL, "Mic (Internal)"},
 };
 
-static int e740_ac97_init(struct snd_soc_codec *codec)
+static int e740_ac97_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
+
 	snd_soc_dapm_nc_pin(codec, "HPOUTL");
 	snd_soc_dapm_nc_pin(codec, "HPOUTR");
 	snd_soc_dapm_nc_pin(codec, "PHONE");
@@ -116,28 +117,26 @@ static struct snd_soc_dai_link e740_dai[] = {
 	{
 		.name = "AC97",
 		.stream_name = "AC97 HiFi",
-		.cpu_dai = &pxa_ac97_dai[PXA2XX_DAI_AC97_HIFI],
-		.codec_dai = &wm9705_dai[WM9705_DAI_AC97_HIFI],
+		.cpu_dai_name = "pxa-ac97.0",
+		.codec_dai_name = "wm9705-hifi",
+		.platform_name = "pxa-pcm-audio",
+		.codec_name = "wm9705-codec",
 		.init = e740_ac97_init,
 	},
 	{
 		.name = "AC97 Aux",
 		.stream_name = "AC97 Aux",
-		.cpu_dai = &pxa_ac97_dai[PXA2XX_DAI_AC97_AUX],
-		.codec_dai = &wm9705_dai[WM9705_DAI_AC97_AUX],
+		.cpu_dai_name = "pxa-ac97.1",
+		.codec_dai_name = "wm9705-aux",
+		.platform_name = "pxa-pcm-audio",
+		.codec_name = "wm9705-codec",
 	},
 };
 
 static struct snd_soc_card e740 = {
 	.name = "Toshiba e740",
-	.platform = &pxa2xx_soc_platform,
 	.dai_link = e740_dai,
 	.num_links = ARRAY_SIZE(e740_dai),
-};
-
-static struct snd_soc_device e740_snd_devdata = {
-	.card = &e740,
-	.codec_dev = &soc_codec_dev_wm9705,
 };
 
 static struct platform_device *e740_snd_device;
@@ -178,8 +177,7 @@ static int __init e740_init(void)
 		goto free_apwr_gpio;
 	}
 
-	platform_set_drvdata(e740_snd_device, &e740_snd_devdata);
-	e740_snd_devdata.dev = &e740_snd_device->dev;
+	platform_set_drvdata(e740_snd_device, &e740);
 	ret = platform_device_add(e740_snd_device);
 
 	if (!ret)
@@ -200,6 +198,9 @@ free_mic_amp_gpio:
 static void __exit e740_exit(void)
 {
 	platform_device_unregister(e740_snd_device);
+	gpio_free(GPIO_E740_WM9705_nAVDD2);
+	gpio_free(GPIO_E740_AMP_ON);
+	gpio_free(GPIO_E740_MIC_ON);
 }
 
 module_init(e740_init);

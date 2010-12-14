@@ -34,8 +34,6 @@
 #include <linux/ata.h>
 #include <linux/libata.h>
 
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/cisreg.h>
@@ -169,61 +167,26 @@ static struct ata_port_operations pcmcia_8bit_port_ops = {
 };
 
 
-struct pcmcia_config_check {
-	unsigned long ctl_base;
-	int skip_vcc;
-	int is_kme;
-};
-
-static int pcmcia_check_one_config(struct pcmcia_device *pdev,
-				   cistpl_cftable_entry_t *cfg,
-				   cistpl_cftable_entry_t *dflt,
-				   unsigned int vcc,
-				   void *priv_data)
+static int pcmcia_check_one_config(struct pcmcia_device *pdev, void *priv_data)
 {
-	struct pcmcia_config_check *stk = priv_data;
+	int *is_kme = priv_data;
 
-	/* Check for matching Vcc, unless we're desperate */
-	if (!stk->skip_vcc) {
-		if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
-				return -ENODEV;
-		} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000)
-				return -ENODEV;
-		}
+	if (!(pdev->resource[0]->flags & IO_DATA_PATH_WIDTH_8)) {
+		pdev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+		pdev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 	}
+	pdev->resource[1]->flags &= ~IO_DATA_PATH_WIDTH;
+	pdev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 
-	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		pdev->conf.Vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-	else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
-		pdev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-
-	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		pdev->io.BasePort1 = io->win[0].base;
-		pdev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-		if (!(io->flags & CISTPL_IO_16BIT))
-			pdev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		if (io->nwin == 2) {
-			pdev->io.NumPorts1 = 8;
-			pdev->io.BasePort2 = io->win[1].base;
-			pdev->io.NumPorts2 = (stk->is_kme) ? 2 : 1;
-			if (pcmcia_request_io(pdev, &pdev->io) != 0)
-				return -ENODEV;
-			stk->ctl_base = pdev->io.BasePort2;
-		} else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
-			pdev->io.NumPorts1 = io->win[0].len;
-			pdev->io.NumPorts2 = 0;
-			if (pcmcia_request_io(pdev, &pdev->io) != 0)
-				return -ENODEV;
-			stk->ctl_base = pdev->io.BasePort1 + 0x0e;
-		} else
+	if (pdev->resource[1]->end) {
+		pdev->resource[0]->end = 8;
+		pdev->resource[1]->end = (*is_kme) ? 2 : 1;
+	} else {
+		if (pdev->resource[0]->end < 16)
 			return -ENODEV;
-		/* If we've got this far, we're done */
-		return 0;
 	}
-	return -ENODEV;
+
+	return pcmcia_request_io(pdev);
 }
 
 /**
@@ -238,7 +201,6 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 {
 	struct ata_host *host;
 	struct ata_port *ap;
-	struct pcmcia_config_check *stk = NULL;
 	int is_kme = 0, ret = -ENOMEM, p;
 	unsigned long io_base, ctl_base;
 	void __iomem *io_addr, *ctl_addr;
@@ -246,11 +208,8 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	struct ata_port_operations *ops = &pcmcia_port_ops;
 
 	/* Set up attributes in order to probe card and get resources */
-	pdev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	pdev->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-	pdev->io.IOAddrLines = 3;
-	pdev->conf.Attributes = CONF_ENABLE_IRQ;
-	pdev->conf.IntType = INT_MEMORY_AND_IO;
+	pdev->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO |
+		CONF_AUTO_SET_VPP | CONF_AUTO_CHECK_VCC;
 
 	/* See if we have a manufacturer identifier. Use it to set is_kme for
 	   vendor quirks */
@@ -258,25 +217,21 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 		  ((pdev->card_id == PRODID_KME_KXLC005_A) ||
 		   (pdev->card_id == PRODID_KME_KXLC005_B)));
 
-	/* Allocate resoure probing structures */
-
-	stk = kzalloc(sizeof(*stk), GFP_KERNEL);
-	if (!stk)
-		goto out1;
-	stk->is_kme = is_kme;
-	stk->skip_vcc = io_base = ctl_base = 0;
-
-	if (pcmcia_loop_config(pdev, pcmcia_check_one_config, stk)) {
-		stk->skip_vcc = 1;
-		if (pcmcia_loop_config(pdev, pcmcia_check_one_config, stk))
+	if (pcmcia_loop_config(pdev, pcmcia_check_one_config, &is_kme)) {
+		pdev->config_flags &= ~CONF_AUTO_CHECK_VCC;
+		if (pcmcia_loop_config(pdev, pcmcia_check_one_config, &is_kme))
 			goto failed; /* No suitable config found */
 	}
-	io_base = pdev->io.BasePort1;
-	ctl_base = stk->ctl_base;
+	io_base = pdev->resource[0]->start;
+	if (pdev->resource[1]->end)
+		ctl_base = pdev->resource[1]->start;
+	else
+		ctl_base = pdev->resource[0]->start + 0x0e;
+
 	if (!pdev->irq)
 		goto failed;
 
-	ret = pcmcia_request_configuration(pdev, &pdev->conf);
+	ret = pcmcia_enable_device(pdev);
 	if (ret)
 		goto failed;
 
@@ -294,7 +249,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 
 	/* FIXME: Could be more ports at base + 0x10 but we only deal with
 	   one right now */
-	if (pdev->io.NumPorts1 >= 0x20)
+	if (resource_size(pdev->resource[0]) >= 0x20)
 		n_ports = 2;
 
 	if (pdev->manf_id == 0x0097 && pdev->card_id == 0x1620)
@@ -329,13 +284,10 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 		goto failed;
 
 	pdev->priv = host;
-	kfree(stk);
 	return 0;
 
 failed:
-	kfree(stk);
 	pcmcia_disable_device(pdev);
-out1:
 	return ret;
 }
 
@@ -430,9 +382,7 @@ MODULE_DEVICE_TABLE(pcmcia, pcmcia_devices);
 
 static struct pcmcia_driver pcmcia_driver = {
 	.owner		= THIS_MODULE,
-	.drv = {
-		.name		= DRV_NAME,
-	},
+	.name		= DRV_NAME,
 	.id_table	= pcmcia_devices,
 	.probe		= pcmcia_init_one,
 	.remove		= pcmcia_remove_one,

@@ -46,6 +46,9 @@ extern void __init at91_clock_associate(const char *id, struct device *dev, cons
 extern void at91_irq_suspend(void);
 extern void at91_irq_resume(void);
 
+/* reset */
+extern void at91sam9_alt_reset(void);
+
  /* GPIO */
 #define AT91RM9200_PQFP		3	/* AT91RM9200 PQFP package has 3 banks */
 #define AT91RM9200_BGA		4	/* AT91RM9200 BGA package has 4 banks */

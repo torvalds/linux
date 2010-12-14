@@ -385,6 +385,8 @@ static int __initdata msc_nr_eicirqs = ARRAY_SIZE(msc_eicirqmap);
  */
 
 #define GIC_CPU_NMI GIC_MAP_TO_NMI_MSK
+#define X GIC_UNUSED
+
 static struct gic_intr_map gic_intr_map[GIC_NUM_INTRS] = {
 	{ X, X,		   X,		X,		0 },
 	{ X, X,		   X,	 	X,		0 },
@@ -404,6 +406,7 @@ static struct gic_intr_map gic_intr_map[GIC_NUM_INTRS] = {
 	{ X, X,		   X,		X,	        0 },
 	/* The remainder of this table is initialised by fill_ipi_map */
 };
+#undef X
 
 /*
  * GCMP needs to be detected before any SMP initialisation

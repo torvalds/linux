@@ -596,9 +596,7 @@ static void __init saar_init(void)
 
 MACHINE_START(SAAR, "PXA930 Handheld Platform (aka SAAR)")
 	/* Maintainer: Eric Miao <eric.miao@marvell.com> */
-	.phys_io        = 0x40000000,
 	.boot_params    = 0xa0000100,
-	.io_pg_offst    = (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io         = pxa_map_io,
 	.init_irq       = pxa3xx_init_irq,
 	.timer          = &pxa_timer,

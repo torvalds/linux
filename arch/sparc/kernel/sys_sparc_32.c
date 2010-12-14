@@ -166,7 +166,6 @@ sparc_breakpoint (struct pt_regs *regs)
 {
 	siginfo_t info;
 
-	lock_kernel();
 #ifdef DEBUG_SPARC_BREAKPOINT
         printk ("TRAP: Entering kernel PC=%x, nPC=%x\n", regs->pc, regs->npc);
 #endif
@@ -180,7 +179,6 @@ sparc_breakpoint (struct pt_regs *regs)
 #ifdef DEBUG_SPARC_BREAKPOINT
 	printk ("TRAP: Returning to space: PC=%x nPC=%x\n", regs->pc, regs->npc);
 #endif
-	unlock_kernel();
 }
 
 asmlinkage int
@@ -282,7 +280,9 @@ out:
  * Do a system call from kernel instead of calling sys_execve so we
  * end up with proper pt_regs.
  */
-int kernel_execve(const char *filename, char *const argv[], char *const envp[])
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
 {
 	long __res;
 	register long __g1 __asm__ ("g1") = __NR_execve;

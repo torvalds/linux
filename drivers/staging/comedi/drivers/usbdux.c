@@ -111,7 +111,7 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #define VENDOR_DIR_IN  0xC0
 #define VENDOR_DIR_OUT 0x40
 
-/* internal adresses of the 8051 processor */
+/* internal addresses of the 8051 processor */
 #define USBDUXSUB_CPUCS 0xE600
 
 /*
@@ -315,7 +315,7 @@ struct usbduxsub {
  */
 static struct usbduxsub usbduxsub[NUMUSBDUX];
 
-static DECLARE_MUTEX(start_stop_sem);
+static DEFINE_SEMAPHORE(start_stop_sem);
 
 /*
  * Stops the data acquision
@@ -649,7 +649,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 
 	/* normal operation: executing a command in this subdevice */
 	this_usbduxsub->ao_counter--;
-	if (this_usbduxsub->ao_counter <= 0) {
+	if ((int)this_usbduxsub->ao_counter <= 0) {
 		/* timer zero */
 		this_usbduxsub->ao_counter = this_usbduxsub->ao_timer;
 
@@ -2085,7 +2085,7 @@ static int usbdux_pwm_start(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 
-	/* initalise the buffer */
+	/* initialise the buffer */
 	for (i = 0; i < this_usbduxsub->sizePwmBuf; i++)
 		((char *)(this_usbduxsub->urbPwm->transfer_buffer))[i] = 0;
 
@@ -2367,7 +2367,7 @@ static int usbduxsub_probe(struct usb_interface *uinterf,
 	dev_dbg(dev, "comedi_: usbdux: "
 		"usbduxsub[%d] is ready to connect to comedi.\n", index);
 
-	init_MUTEX(&(usbduxsub[index].sem));
+	sema_init(&(usbduxsub[index].sem), 1);
 	/* save a pointer to the usb device */
 	usbduxsub[index].usbdev = udev;
 

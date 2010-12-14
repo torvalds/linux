@@ -331,7 +331,7 @@ static int compare_init_pts_sb(struct super_block *s, void *p)
 }
 
 /*
- * devpts_get_sb()
+ * devpts_mount()
  *
  *     If the '-o newinstance' mount option was specified, mount a new
  *     (private) instance of devpts.  PTYs created in this instance are
@@ -345,20 +345,20 @@ static int compare_init_pts_sb(struct super_block *s, void *p)
  *     semantics in devpts while preserving backward compatibility of the
  *     current 'single-namespace' semantics. i.e all mounts of devpts
  *     without the 'newinstance' mount option should bind to the initial
- *     kernel mount, like get_sb_single().
+ *     kernel mount, like mount_single().
  *
  *     Mounts with 'newinstance' option create a new, private namespace.
  *
  *     NOTE:
  *
- *     For single-mount semantics, devpts cannot use get_sb_single(),
- *     because get_sb_single()/sget() find and use the super-block from
+ *     For single-mount semantics, devpts cannot use mount_single(),
+ *     because mount_single()/sget() find and use the super-block from
  *     the most recent mount of devpts. But that recent mount may be a
- *     'newinstance' mount and get_sb_single() would pick the newinstance
+ *     'newinstance' mount and mount_single() would pick the newinstance
  *     super-block instead of the initial super-block.
  */
-static int devpts_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *devpts_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
 	int error;
 	struct pts_mount_opts opts;
@@ -366,7 +366,7 @@ static int devpts_get_sb(struct file_system_type *fs_type,
 
 	error = parse_mount_options(data, PARSE_MOUNT, &opts);
 	if (error)
-		return error;
+		return ERR_PTR(error);
 
 	if (opts.newinstance)
 		s = sget(fs_type, NULL, set_anon_super, NULL);
@@ -374,7 +374,7 @@ static int devpts_get_sb(struct file_system_type *fs_type,
 		s = sget(fs_type, compare_init_pts_sb, set_anon_super, NULL);
 
 	if (IS_ERR(s))
-		return PTR_ERR(s);
+		return ERR_CAST(s);
 
 	if (!s->s_root) {
 		s->s_flags = flags;
@@ -390,13 +390,11 @@ static int devpts_get_sb(struct file_system_type *fs_type,
 	if (error)
 		goto out_undo_sget;
 
-	simple_set_mnt(mnt, s);
-
-	return 0;
+	return dget(s->s_root);
 
 out_undo_sget:
 	deactivate_locked_super(s);
-	return error;
+	return ERR_PTR(error);
 }
 
 #else
@@ -404,10 +402,10 @@ out_undo_sget:
  * This supports only the legacy single-instance semantics (no
  * multiple-instance semantics)
  */
-static int devpts_get_sb(struct file_system_type *fs_type, int flags,
-		const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *devpts_mount(struct file_system_type *fs_type, int flags,
+		const char *dev_name, void *data)
 {
-	return get_sb_single(fs_type, flags, data, devpts_fill_super, mnt);
+	return mount_single(fs_type, flags, data, devpts_fill_super);
 }
 #endif
 
@@ -421,7 +419,7 @@ static void devpts_kill_sb(struct super_block *sb)
 
 static struct file_system_type devpts_fs_type = {
 	.name		= "devpts",
-	.get_sb		= devpts_get_sb,
+	.mount		= devpts_mount,
 	.kill_sb	= devpts_kill_sb,
 };
 

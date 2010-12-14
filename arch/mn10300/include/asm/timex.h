@@ -16,16 +16,28 @@
 
 #define TICK_SIZE (tick_nsec / 1000)
 
-#define CLOCK_TICK_RATE 1193180 /* Underlying HZ - this should probably be set
-				 * to something appropriate, but what? */
-
-extern cycles_t cacheflush_time;
+#define CLOCK_TICK_RATE MN10300_JCCLK /* Underlying HZ */
 
 #ifdef __KERNEL__
+
+extern cycles_t cacheflush_time;
 
 static inline cycles_t get_cycles(void)
 {
 	return read_timestamp_counter();
+}
+
+extern int init_clockevents(void);
+extern int init_clocksource(void);
+
+static inline void setup_jiffies_interrupt(int irq,
+					   struct irqaction *action)
+{
+	u16 tmp;
+	setup_irq(irq, action);
+	set_intr_level(irq, NUM2GxICR_LEVEL(CONFIG_TIMER_IRQ_LEVEL));
+	GxICR(irq) |= GxICR_ENABLE | GxICR_DETECT | GxICR_REQUEST;
+	tmp = GxICR(irq);
 }
 
 #endif /* __KERNEL__ */

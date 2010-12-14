@@ -53,19 +53,22 @@ struct ipcm_cookie {
 	__be32			addr;
 	int			oif;
 	struct ip_options	*opt;
-	union skb_shared_tx	shtx;
+	__u8			tx_flags;
 };
 
 #define IPCB(skb) ((struct inet_skb_parm*)((skb)->cb))
 
 struct ip_ra_chain {
-	struct ip_ra_chain	*next;
+	struct ip_ra_chain __rcu *next;
 	struct sock		*sk;
-	void			(*destructor)(struct sock *);
+	union {
+		void			(*destructor)(struct sock *);
+		struct sock		*saved_sk;
+	};
+	struct rcu_head		rcu;
 };
 
-extern struct ip_ra_chain *ip_ra_chain;
-extern rwlock_t ip_ra_lock;
+extern struct ip_ra_chain __rcu *ip_ra_chain;
 
 /* IP flags. */
 #define IP_CE		0x8000		/* Flag: "Congestion"		*/
@@ -162,12 +165,12 @@ struct ipv4_config {
 };
 
 extern struct ipv4_config ipv4_config;
-#define IP_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.ip_statistics, field)
-#define IP_INC_STATS_BH(net, field)	SNMP_INC_STATS_BH((net)->mib.ip_statistics, field)
-#define IP_ADD_STATS(net, field, val)	SNMP_ADD_STATS((net)->mib.ip_statistics, field, val)
-#define IP_ADD_STATS_BH(net, field, val) SNMP_ADD_STATS_BH((net)->mib.ip_statistics, field, val)
-#define IP_UPD_PO_STATS(net, field, val) SNMP_UPD_PO_STATS((net)->mib.ip_statistics, field, val)
-#define IP_UPD_PO_STATS_BH(net, field, val) SNMP_UPD_PO_STATS_BH((net)->mib.ip_statistics, field, val)
+#define IP_INC_STATS(net, field)	SNMP_INC_STATS64((net)->mib.ip_statistics, field)
+#define IP_INC_STATS_BH(net, field)	SNMP_INC_STATS64_BH((net)->mib.ip_statistics, field)
+#define IP_ADD_STATS(net, field, val)	SNMP_ADD_STATS64((net)->mib.ip_statistics, field, val)
+#define IP_ADD_STATS_BH(net, field, val) SNMP_ADD_STATS64_BH((net)->mib.ip_statistics, field, val)
+#define IP_UPD_PO_STATS(net, field, val) SNMP_UPD_PO_STATS64((net)->mib.ip_statistics, field, val)
+#define IP_UPD_PO_STATS_BH(net, field, val) SNMP_UPD_PO_STATS64_BH((net)->mib.ip_statistics, field, val)
 #define NET_INC_STATS(net, field)	SNMP_INC_STATS((net)->mib.net_statistics, field)
 #define NET_INC_STATS_BH(net, field)	SNMP_INC_STATS_BH((net)->mib.net_statistics, field)
 #define NET_INC_STATS_USER(net, field) 	SNMP_INC_STATS_USER((net)->mib.net_statistics, field)
@@ -175,7 +178,15 @@ extern struct ipv4_config ipv4_config;
 #define NET_ADD_STATS_USER(net, field, adnd) SNMP_ADD_STATS_USER((net)->mib.net_statistics, field, adnd)
 
 extern unsigned long snmp_fold_field(void __percpu *mib[], int offt);
-extern int snmp_mib_init(void __percpu *ptr[2], size_t mibsize);
+#if BITS_PER_LONG==32
+extern u64 snmp_fold_field64(void __percpu *mib[], int offt, size_t sync_off);
+#else
+static inline u64 snmp_fold_field64(void __percpu *mib[], int offt, size_t syncp_off)
+{
+	return snmp_fold_field(mib, offt);
+}
+#endif
+extern int snmp_mib_init(void __percpu *ptr[2], size_t mibsize, size_t align);
 extern void snmp_mib_free(void __percpu *ptr[2]);
 
 extern struct local_ports {
@@ -227,9 +238,9 @@ int ip_decrease_ttl(struct iphdr *iph)
 static inline
 int ip_dont_fragment(struct sock *sk, struct dst_entry *dst)
 {
-	return (inet_sk(sk)->pmtudisc == IP_PMTUDISC_DO ||
+	return  inet_sk(sk)->pmtudisc == IP_PMTUDISC_DO ||
 		(inet_sk(sk)->pmtudisc == IP_PMTUDISC_WANT &&
-		 !(dst_metric_locked(dst, RTAX_MTU))));
+		 !(dst_metric_locked(dst, RTAX_MTU)));
 }
 
 extern void __ip_select_ident(struct iphdr *iph, struct dst_entry *dst, int more);

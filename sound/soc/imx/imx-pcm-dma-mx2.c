@@ -103,7 +103,7 @@ static int imx_ssi_dma_alloc(struct snd_pcm_substream *substream)
 	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
 	int ret;
 
-	dma_params = snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
+	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	iprtd->dma = imx_dma_request_by_prio(DRV_NAME, DMA_PRIO_HIGH);
 	if (iprtd->dma < 0) {
@@ -213,7 +213,7 @@ static int snd_imx_pcm_prepare(struct snd_pcm_substream *substream)
 	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
 	int err;
 
-	dma_params = snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
+	dma_params = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	iprtd->substream = substream;
 	iprtd->buf = (unsigned int *)substream->dma_buffer.area;
@@ -292,12 +292,16 @@ static int snd_imx_open(struct snd_pcm_substream *substream)
 	int ret;
 
 	iprtd = kzalloc(sizeof(*iprtd), GFP_KERNEL);
+	if (iprtd == NULL)
+		return -ENOMEM;
 	runtime->private_data = iprtd;
 
 	ret = snd_pcm_hw_constraint_integer(substream->runtime,
 			SNDRV_PCM_HW_PARAM_PERIODS);
-	if (ret < 0)
+	if (ret < 0) {
+		kfree(iprtd);
 		return ret;
+	}
 
 	snd_soc_set_runtime_hwparams(substream, &snd_imx_hardware);
 	return 0;
@@ -314,19 +318,42 @@ static struct snd_pcm_ops imx_pcm_ops = {
 	.mmap		= snd_imx_pcm_mmap,
 };
 
-static struct snd_soc_platform imx_soc_platform_dma = {
-	.name		= "imx-audio",
-	.pcm_ops 	= &imx_pcm_ops,
+static struct snd_soc_platform_driver imx_soc_platform_mx2 = {
+	.ops		= &imx_pcm_ops,
 	.pcm_new	= imx_pcm_new,
 	.pcm_free	= imx_pcm_free,
 };
 
-struct snd_soc_platform *imx_ssi_dma_mx2_init(struct platform_device *pdev,
-		struct imx_ssi *ssi)
+static int __devinit imx_soc_platform_probe(struct platform_device *pdev)
 {
-	ssi->dma_params_tx.burstsize = DMA_TXFIFO_BURST;
-	ssi->dma_params_rx.burstsize = DMA_RXFIFO_BURST;
-
-	return &imx_soc_platform_dma;
+	return snd_soc_register_platform(&pdev->dev, &imx_soc_platform_mx2);
 }
+
+static int __devexit imx_soc_platform_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_platform(&pdev->dev);
+	return 0;
+}
+
+static struct platform_driver imx_pcm_driver = {
+	.driver = {
+			.name = "imx-pcm-audio",
+			.owner = THIS_MODULE,
+	},
+
+	.probe = imx_soc_platform_probe,
+	.remove = __devexit_p(imx_soc_platform_remove),
+};
+
+static int __init snd_imx_pcm_init(void)
+{
+	return platform_driver_register(&imx_pcm_driver);
+}
+module_init(snd_imx_pcm_init);
+
+static void __exit snd_imx_pcm_exit(void)
+{
+	platform_driver_unregister(&imx_pcm_driver);
+}
+module_exit(snd_imx_pcm_exit);
 

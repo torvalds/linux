@@ -93,7 +93,7 @@ unsigned long *qib_cpulist;
 void qib_set_ctxtcnt(struct qib_devdata *dd)
 {
 	if (!qib_cfgctxts)
-		dd->cfgctxts = dd->ctxtcnt;
+		dd->cfgctxts = dd->first_user_ctxt + num_online_cpus();
 	else if (qib_cfgctxts < dd->num_pports)
 		dd->cfgctxts = dd->ctxtcnt;
 	else if (qib_cfgctxts <= dd->ctxtcnt)
@@ -1243,6 +1243,7 @@ static int __devinit qib_init_one(struct pci_dev *pdev,
 		qib_early_err(&pdev->dev, "QLogic PCIE device 0x%x cannot "
 		      "work if CONFIG_PCI_MSI is not enabled\n",
 		      ent->device);
+		dd = ERR_PTR(-ENODEV);
 #endif
 		break;
 

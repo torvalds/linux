@@ -36,7 +36,7 @@ Example scripts
 ===============
 LUKS (Linux Unified Key Setup) is now the preferred way to set up disk
 encryption with dm-crypt using the 'cryptsetup' utility, see
-http://luks.endorphin.org/
+http://clemens.endorphin.org/cryptography
 
 [[
 #!/bin/sh

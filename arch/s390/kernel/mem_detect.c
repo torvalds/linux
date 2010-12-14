@@ -54,11 +54,11 @@ void detect_memory_layout(struct mem_chunk chunk[])
 	 * right thing and we don't get scheduled away with low address
 	 * protection disabled.
 	 */
-	flags = __raw_local_irq_stnsm(0xf8);
+	flags = __arch_local_irq_stnsm(0xf8);
 	__ctl_store(cr0, 0, 0);
 	__ctl_clear_bit(0, 28);
 	find_memory_chunks(chunk);
 	__ctl_load(cr0, 0, 0);
-	__raw_local_irq_ssm(flags);
+	arch_local_irq_restore(flags);
 }
 EXPORT_SYMBOL(detect_memory_layout);

@@ -1,6 +1,6 @@
 config PRISM2_USB
 	tristate "Prism2.5/3 USB driver"
-	depends on WLAN && USB
+	depends on WLAN && USB && CFG80211
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	default n

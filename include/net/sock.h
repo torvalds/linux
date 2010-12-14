@@ -195,7 +195,8 @@ struct sock_common {
   *	@sk_priority: %SO_PRIORITY setting
   *	@sk_type: socket type (%SOCK_STREAM, etc)
   *	@sk_protocol: which protocol this socket belongs in this network family
-  *	@sk_peercred: %SO_PEERCRED setting
+  *	@sk_peer_pid: &struct pid for this socket's peer
+  *	@sk_peer_cred: %SO_PEERCRED setting
   *	@sk_rcvlowat: %SO_RCVLOWAT setting
   *	@sk_rcvtimeo: %SO_RCVTIMEO setting
   *	@sk_sndtimeo: %SO_SNDTIMEO setting
@@ -211,6 +212,7 @@ struct sock_common {
   *	@sk_send_head: front of stuff to transmit
   *	@sk_security: used by security modules
   *	@sk_mark: generic packet mark
+  *	@sk_classid: this socket's cgroup classid
   *	@sk_write_pending: a write to stream socket waits to start
   *	@sk_state_change: callback to indicate change in the state of the sock
   *	@sk_data_ready: callback to indicate there is data to be processed
@@ -295,10 +297,11 @@ struct sock {
 	unsigned short		sk_ack_backlog;
 	unsigned short		sk_max_ack_backlog;
 	__u32			sk_priority;
-	struct ucred		sk_peercred;
+	struct pid		*sk_peer_pid;
+	const struct cred	*sk_peer_cred;
 	long			sk_rcvtimeo;
 	long			sk_sndtimeo;
-	struct sk_filter      	*sk_filter;
+	struct sk_filter __rcu	*sk_filter;
 	void			*sk_protinfo;
 	struct timer_list	sk_timer;
 	ktime_t			sk_stamp;
@@ -749,6 +752,7 @@ struct proto {
 	/* Keeping track of sk's, looking them up, and port selection methods. */
 	void			(*hash)(struct sock *sk);
 	void			(*unhash)(struct sock *sk);
+	void			(*rehash)(struct sock *sk);
 	int			(*get_port)(struct sock *sk, unsigned short snum);
 
 	/* Keeping track of sockets in use */
@@ -771,6 +775,7 @@ struct proto {
 	int			*sysctl_wmem;
 	int			*sysctl_rmem;
 	int			max_header;
+	bool			no_autobind;
 
 	struct kmem_cache	*slab;
 	unsigned int		obj_size;
@@ -1553,7 +1558,11 @@ static inline void sk_wake_async(struct sock *sk, int how, int band)
 }
 
 #define SOCK_MIN_SNDBUF 2048
-#define SOCK_MIN_RCVBUF 256
+/*
+ * Since sk_rmem_alloc sums skb->truesize, even a small frame might need
+ * sizeof(sk_buff) + MTU + padding, unless net driver perform copybreak
+ */
+#define SOCK_MIN_RCVBUF (2048 + sizeof(struct sk_buff))
 
 static inline void sk_stream_moderate_sndbuf(struct sock *sk)
 {
@@ -1665,17 +1674,13 @@ static inline void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
 
 /**
  * sock_tx_timestamp - checks whether the outgoing packet is to be time stamped
- * @msg:	outgoing packet
  * @sk:		socket sending this packet
- * @shtx:	filled with instructions for time stamping
+ * @tx_flags:	filled with instructions for time stamping
  *
  * Currently only depends on SOCK_TIMESTAMPING* flags. Returns error code if
  * parameters are invalid.
  */
-extern int sock_tx_timestamp(struct msghdr *msg,
-			     struct sock *sk,
-			     union skb_shared_tx *shtx);
-
+extern int sock_tx_timestamp(struct sock *sk, __u8 *tx_flags);
 
 /**
  * sk_eat_skb - Release a skb if it is no longer needed
@@ -1706,19 +1711,13 @@ static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb, int copied_e
 static inline
 struct net *sock_net(const struct sock *sk)
 {
-#ifdef CONFIG_NET_NS
-	return sk->sk_net;
-#else
-	return &init_net;
-#endif
+	return read_pnet(&sk->sk_net);
 }
 
 static inline
 void sock_net_set(struct sock *sk, struct net *net)
 {
-#ifdef CONFIG_NET_NS
-	sk->sk_net = net;
-#endif
+	write_pnet(&sk->sk_net, net);
 }
 
 /*

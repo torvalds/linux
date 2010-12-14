@@ -102,6 +102,9 @@ struct machdep_calls {
 	void		(*pci_dma_dev_setup)(struct pci_dev *dev);
 	void		(*pci_dma_bus_setup)(struct pci_bus *bus);
 
+	/* Platform set_dma_mask override */
+	int		(*dma_set_mask)(struct device *dev, u64 dma_mask);
+
 	int		(*probe)(void);
 	void		(*setup_arch)(void); /* Optional, may be NULL */
 	void		(*init_early)(void);
@@ -266,6 +269,7 @@ struct machdep_calls {
 	void (*suspend_disable_irqs)(void);
 	void (*suspend_enable_irqs)(void);
 #endif
+	int (*suspend_disable_cpu)(void);
 
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
 	ssize_t (*cpu_probe)(const char *, size_t);
@@ -277,6 +281,7 @@ extern void e500_idle(void);
 extern void power4_idle(void);
 extern void power4_cpu_offline_powersave(void);
 extern void ppc6xx_idle(void);
+extern void book3e_idle(void);
 
 /*
  * ppc_md contains a copy of the machine description structure for the
@@ -365,9 +370,6 @@ static inline void log_error(char *buf, unsigned int err_type, int fatal)
 #define machine_device_initcall_sync(mach,fn)	__define_machine_initcall(mach,"6s",fn,6s)
 #define machine_late_initcall(mach,fn)		__define_machine_initcall(mach,"7",fn,7)
 #define machine_late_initcall_sync(mach,fn)	__define_machine_initcall(mach,"7s",fn,7s)
-
-void generic_suspend_disable_irqs(void);
-void generic_suspend_enable_irqs(void);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_MACHDEP_H */

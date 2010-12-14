@@ -49,16 +49,11 @@ struct task_struct;
 
 #ifdef CONFIG_LOCKDEP
 extern void debug_show_all_locks(void);
-extern void __debug_show_held_locks(struct task_struct *task);
 extern void debug_show_held_locks(struct task_struct *task);
 extern void debug_check_no_locks_freed(const void *from, unsigned long len);
 extern void debug_check_no_locks_held(struct task_struct *task);
 #else
 static inline void debug_show_all_locks(void)
-{
-}
-
-static inline void __debug_show_held_locks(struct task_struct *task)
 {
 }
 

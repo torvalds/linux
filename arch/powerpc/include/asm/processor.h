@@ -118,7 +118,7 @@ extern struct task_struct *last_task_used_spe;
 #define TASK_UNMAPPED_BASE_USER32 (PAGE_ALIGN(TASK_SIZE_USER32 / 4))
 #define TASK_UNMAPPED_BASE_USER64 (PAGE_ALIGN(TASK_SIZE_USER64 / 4))
 
-#define TASK_UNMAPPED_BASE ((test_thread_flag(TIF_32BIT)) ? \
+#define TASK_UNMAPPED_BASE ((is_32bit_task()) ? \
 		TASK_UNMAPPED_BASE_USER32 : TASK_UNMAPPED_BASE_USER64 )
 #endif
 
@@ -128,7 +128,7 @@ extern struct task_struct *last_task_used_spe;
 #define STACK_TOP_USER64 TASK_SIZE_USER64
 #define STACK_TOP_USER32 TASK_SIZE_USER32
 
-#define STACK_TOP (test_thread_flag(TIF_32BIT) ? \
+#define STACK_TOP (is_32bit_task() ? \
 		   STACK_TOP_USER32 : STACK_TOP_USER64)
 
 #define STACK_TOP_MAX STACK_TOP_USER64
@@ -209,6 +209,14 @@ struct thread_struct {
 #ifdef CONFIG_PPC64
 	unsigned long	start_tb;	/* Start purr when proc switched in */
 	unsigned long	accum_tb;	/* Total accumilated purr for process */
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	struct perf_event *ptrace_bps[HBP_NUM];
+	/*
+	 * Helps identify source of single-step exception and subsequent
+	 * hw-breakpoint enablement
+	 */
+	struct perf_event *last_hit_ubp;
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
 	unsigned long	dabr;		/* Data address breakpoint register */
 #ifdef CONFIG_ALTIVEC

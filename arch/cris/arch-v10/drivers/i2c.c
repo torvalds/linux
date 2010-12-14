@@ -14,7 +14,6 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -60,8 +59,8 @@ static const char i2c_name[] = "i2c";
 
 #define SDABIT CONFIG_ETRAX_I2C_DATA_PORT
 #define SCLBIT CONFIG_ETRAX_I2C_CLK_PORT
-#define i2c_enable() 
-#define i2c_disable() 
+#define i2c_enable()
+#define i2c_disable()
 
 /* enable or disable output-enable, to select output or input on the i2c bus */
 
@@ -91,7 +90,7 @@ static const char i2c_name[] = "i2c";
 
 #define i2c_dir_out() \
 	*R_PORT_PB_I2C = (port_pb_i2c_shadow &= ~IO_MASK(R_PORT_PB_I2C, i2c_oe_)); \
-	REG_SHADOW_SET(R_PORT_PB_DIR, port_pb_dir_shadow, 0, 1); 
+	REG_SHADOW_SET(R_PORT_PB_DIR, port_pb_dir_shadow, 0, 1);
 #define i2c_dir_in() \
 	*R_PORT_PB_I2C = (port_pb_i2c_shadow |= IO_MASK(R_PORT_PB_I2C, i2c_oe_)); \
 	REG_SHADOW_SET(R_PORT_PB_DIR, port_pb_dir_shadow, 0, 0);
@@ -189,7 +188,7 @@ i2c_outbyte(unsigned char x)
 		} else {
 			i2c_data(I2C_DATA_LOW);
 		}
-		
+
 		i2c_delay(CLOCK_LOW_TIME/2);
 		i2c_clk(I2C_CLOCK_HIGH);
 		i2c_delay(CLOCK_HIGH_TIME);
@@ -416,7 +415,7 @@ i2c_sendnack(void)
 *#
 *#--------------------------------------------------------------------------*/
 int
-i2c_writereg(unsigned char theSlave, unsigned char theReg, 
+i2c_writereg(unsigned char theSlave, unsigned char theReg,
 	     unsigned char theValue)
 {
 	int error, cntr = 3;
@@ -468,7 +467,7 @@ i2c_writereg(unsigned char theSlave, unsigned char theReg,
 		 * enable interrupt again
 		 */
 		local_irq_restore(flags);
-		
+
 	} while(error && cntr--);
 
 	i2c_delay(CLOCK_LOW_TIME);
@@ -504,7 +503,7 @@ i2c_readreg(unsigned char theSlave, unsigned char theReg)
 		 * generate start condition
 		 */
 		i2c_start();
-    
+
 		/*
 		 * send slave address
 		 */
@@ -555,7 +554,7 @@ i2c_readreg(unsigned char theSlave, unsigned char theReg)
 		 * enable interrupt again
 		 */
 		local_irq_restore(flags);
-		
+
 	} while(error && cntr--);
 
 	spin_unlock(&i2c_lock);
@@ -566,7 +565,6 @@ i2c_readreg(unsigned char theSlave, unsigned char theReg)
 static int
 i2c_open(struct inode *inode, struct file *filp)
 {
-	cycle_kernel_lock();
 	return 0;
 }
 
@@ -579,9 +577,7 @@ i2c_release(struct inode *inode, struct file *filp)
 /* Main device API. ioctl's to write or read to/from i2c registers.
  */
 
-static int
-i2c_ioctl(struct inode *inode, struct file *file,
-	  unsigned int cmd, unsigned long arg)
+static long i2c_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	if(_IOC_TYPE(cmd) != ETRAXI2C_IOCTYPE) {
 		return -EINVAL;
@@ -590,7 +586,7 @@ i2c_ioctl(struct inode *inode, struct file *file,
 	switch (_IOC_NR(cmd)) {
 		case I2C_WRITEREG:
 			/* write to an i2c slave */
-			D(printk("i2cw %d %d %d\n", 
+			D(printk(KERN_DEBUG "i2cw %d %d %d\n",
 				 I2C_ARGSLAVE(arg),
 				 I2C_ARGREG(arg),
 				 I2C_ARGVALUE(arg)));
@@ -602,26 +598,26 @@ i2c_ioctl(struct inode *inode, struct file *file,
 		{
 			unsigned char val;
 			/* read from an i2c slave */
-			D(printk("i2cr %d %d ", 
+			D(printk(KERN_DEBUG "i2cr %d %d ",
 				I2C_ARGSLAVE(arg),
 				I2C_ARGREG(arg)));
 			val = i2c_readreg(I2C_ARGSLAVE(arg), I2C_ARGREG(arg));
-			D(printk("= %d\n", val));
+			D(printk(KERN_DEBUG "= %d\n", val));
 			return val;
-		}					    
+		}
 		default:
 			return -EINVAL;
 
 	}
-	
 	return 0;
 }
 
 static const struct file_operations i2c_fops = {
-	.owner    = THIS_MODULE,
-	.ioctl    = i2c_ioctl,
-	.open     = i2c_open,
-	.release  = i2c_release,
+	.owner		= THIS_MODULE,
+	.unlocked_ioctl	= i2c_ioctl,
+	.open		= i2c_open,
+	.release	= i2c_release,
+	.llseek		= noop_llseek,
 };
 
 int __init

@@ -13,8 +13,8 @@ wireless LAN cards.
 
 As of kernel 2.3.18, the ray_cs driver is part of the Linux kernel
 source.  My web page for the development of ray_cs is at
-http://world.std.com/~corey/raylink.html and I can be emailed at
-corey@world.std.com
+http://web.ralinktech.com/ralink/Home/Support/Linux.html 
+and I can be emailed at corey@world.std.com
 
 The kernel driver is based on ray_cs-1.62.tgz
 

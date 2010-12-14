@@ -10,7 +10,7 @@
  * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  *
  * (C) 1999		David A. Hinds
- * (C) 2003 - 2008	Dominik Brodowski
+ * (C) 2003 - 2010	Dominik Brodowski
  *
  *
  * This file contains definitions _only_ needed by the PCMCIA core modules.
@@ -26,19 +26,16 @@
 /* Flags in client state */
 #define CLIENT_WIN_REQ(i)	(0x1<<(i))
 
+/* Flag to access all functions */
+#define BIND_FN_ALL	0xff
+
 /* Each card function gets one of these guys */
 typedef struct config_t {
 	struct kref	ref;
 	unsigned int	state;
-	unsigned int	Attributes;
-	unsigned int	IntType;
-	unsigned int	ConfigBase;
-	unsigned char	Status, Pin, Copy, Option, ExtStatus;
-	unsigned int	CardValues;
-	io_req_t	io;
-	struct {
-		u_int	Attributes;
-	} irq;
+
+	struct resource io[MAX_IO_WIN]; /* io ports */
+	struct resource mem[MAX_WIN];   /* mem areas */
 } config_t;
 
 
@@ -56,18 +53,11 @@ struct pccard_resource_ops {
 					 unsigned int attr,
 					 unsigned int *base,
 					 unsigned int num,
-					 unsigned int align);
+					 unsigned int align,
+					 struct resource **parent);
 	struct resource* (*find_mem)	(unsigned long base, unsigned long num,
 					 unsigned long align, int low,
 					 struct pcmcia_socket *s);
-	int	(*add_io)		(struct pcmcia_socket *s,
-					 unsigned int action,
-					 unsigned long r_start,
-					 unsigned long r_end);
-	int	(*add_mem)		(struct pcmcia_socket *s,
-					 unsigned int action,
-					 unsigned long r_start,
-					 unsigned long r_end);
 	int	(*init)			(struct pcmcia_socket *s);
 	void	(*exit)			(struct pcmcia_socket *s);
 };
@@ -114,11 +104,12 @@ void cb_free(struct pcmcia_socket *s);
 
 struct pcmcia_callback{
 	struct module	*owner;
-	int		(*event) (struct pcmcia_socket *s,
-				  event_t event, int priority);
+	int		(*add) (struct pcmcia_socket *s);
+	int		(*remove) (struct pcmcia_socket *s);
 	void		(*requery) (struct pcmcia_socket *s);
 	int		(*validate) (struct pcmcia_socket *s, unsigned int *i);
 	int		(*suspend) (struct pcmcia_socket *s);
+	int		(*early_resume) (struct pcmcia_socket *s);
 	int		(*resume) (struct pcmcia_socket *s);
 };
 
@@ -146,6 +137,8 @@ void pcmcia_put_socket(struct pcmcia_socket *skt);
 /* ds.c */
 extern struct bus_type pcmcia_bus_type;
 
+struct pcmcia_device;
+
 /* pcmcia_resource.c */
 extern int pcmcia_release_configuration(struct pcmcia_device *p_dev);
 extern int pcmcia_validate_mem(struct pcmcia_socket *s);
@@ -163,8 +156,8 @@ extern struct bin_attribute pccard_cis_attr;
 
 int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr,
 			u_int addr, u_int len, void *ptr);
-void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr,
-			  u_int addr, u_int len, void *ptr);
+int pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr,
+			u_int addr, u_int len, void *ptr);
 void release_cis_mem(struct pcmcia_socket *s);
 void destroy_cis_cache(struct pcmcia_socket *s);
 int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function,
@@ -187,35 +180,5 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function,
 			tuple_t *tuple);
 
 int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
-
-
-#ifdef CONFIG_PCMCIA_IOCTL
-/* ds.c */
-extern struct pcmcia_device *pcmcia_get_dev(struct pcmcia_device *p_dev);
-extern void pcmcia_put_dev(struct pcmcia_device *p_dev);
-
-struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
-					unsigned int function);
-
-/* pcmcia_ioctl.c */
-extern void __init pcmcia_setup_ioctl(void);
-extern void __exit pcmcia_cleanup_ioctl(void);
-extern void handle_event(struct pcmcia_socket *s, event_t event);
-extern int handle_request(struct pcmcia_socket *s, event_t event);
-
-#else /* CONFIG_PCMCIA_IOCTL */
-
-static inline void __init pcmcia_setup_ioctl(void) { return; }
-static inline void __exit pcmcia_cleanup_ioctl(void) { return; }
-static inline void handle_event(struct pcmcia_socket *s, event_t event)
-{
-	return;
-}
-static inline int handle_request(struct pcmcia_socket *s, event_t event)
-{
-	return 0;
-}
-
-#endif /* CONFIG_PCMCIA_IOCTL */
 
 #endif /* _LINUX_CS_INTERNAL_H */

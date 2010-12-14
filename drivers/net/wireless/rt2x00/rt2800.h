@@ -1,5 +1,6 @@
 /*
-	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2004 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
+	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
 	Copyright (C) 2009 Alban Browaeys <prahal@yahoo.com>
 	Copyright (C) 2009 Felix Fietkau <nbd@openwrt.org>
 	Copyright (C) 2009 Luis Correia <luis.f.correia@gmail.com>
@@ -63,7 +64,6 @@
  */
 #define REV_RT2860C			0x0100
 #define REV_RT2860D			0x0101
-#define REV_RT2870D			0x0101
 #define REV_RT2872E			0x0200
 #define REV_RT3070E			0x0200
 #define REV_RT3070F			0x0201
@@ -75,7 +75,7 @@
  * Signal information.
  * Default offset is required for RSSI <-> dBm conversion.
  */
-#define DEFAULT_RSSI_OFFSET		120 /* FIXME */
+#define DEFAULT_RSSI_OFFSET		120
 
 /*
  * Register layout information.
@@ -97,6 +97,21 @@
 /*
  * Registers.
  */
+
+/*
+ * E2PROM_CSR: PCI EEPROM control register.
+ * RELOAD: Write 1 to reload eeprom content.
+ * TYPE: 0: 93c46, 1:93c66.
+ * LOAD_STATUS: 1:loading, 0:done.
+ */
+#define E2PROM_CSR			0x0004
+#define E2PROM_CSR_DATA_CLOCK		FIELD32(0x00000001)
+#define E2PROM_CSR_CHIP_SELECT		FIELD32(0x00000002)
+#define E2PROM_CSR_DATA_IN		FIELD32(0x00000004)
+#define E2PROM_CSR_DATA_OUT		FIELD32(0x00000008)
+#define E2PROM_CSR_TYPE			FIELD32(0x00000030)
+#define E2PROM_CSR_LOAD_STATUS		FIELD32(0x00000040)
+#define E2PROM_CSR_RELOAD		FIELD32(0x00000080)
 
 /*
  * OPT_14: Unknown register used by rt3xxx devices.
@@ -320,6 +335,39 @@
 #define RX_MAX_CNT			0x0294
 #define RX_CRX_IDX			0x0298
 #define RX_DRX_IDX			0x029c
+
+/*
+ * USB_DMA_CFG
+ * RX_BULK_AGG_TIMEOUT: Rx Bulk Aggregation TimeOut in unit of 33ns.
+ * RX_BULK_AGG_LIMIT: Rx Bulk Aggregation Limit in unit of 256 bytes.
+ * PHY_CLEAR: phy watch dog enable.
+ * TX_CLEAR: Clear USB DMA TX path.
+ * TXOP_HALT: Halt TXOP count down when TX buffer is full.
+ * RX_BULK_AGG_EN: Enable Rx Bulk Aggregation.
+ * RX_BULK_EN: Enable USB DMA Rx.
+ * TX_BULK_EN: Enable USB DMA Tx.
+ * EP_OUT_VALID: OUT endpoint data valid.
+ * RX_BUSY: USB DMA RX FSM busy.
+ * TX_BUSY: USB DMA TX FSM busy.
+ */
+#define USB_DMA_CFG			0x02a0
+#define USB_DMA_CFG_RX_BULK_AGG_TIMEOUT	FIELD32(0x000000ff)
+#define USB_DMA_CFG_RX_BULK_AGG_LIMIT	FIELD32(0x0000ff00)
+#define USB_DMA_CFG_PHY_CLEAR		FIELD32(0x00010000)
+#define USB_DMA_CFG_TX_CLEAR		FIELD32(0x00080000)
+#define USB_DMA_CFG_TXOP_HALT		FIELD32(0x00100000)
+#define USB_DMA_CFG_RX_BULK_AGG_EN	FIELD32(0x00200000)
+#define USB_DMA_CFG_RX_BULK_EN		FIELD32(0x00400000)
+#define USB_DMA_CFG_TX_BULK_EN		FIELD32(0x00800000)
+#define USB_DMA_CFG_EP_OUT_VALID	FIELD32(0x3f000000)
+#define USB_DMA_CFG_RX_BUSY		FIELD32(0x40000000)
+#define USB_DMA_CFG_TX_BUSY		FIELD32(0x80000000)
+
+/*
+ * US_CYC_CNT
+ */
+#define US_CYC_CNT			0x02a4
+#define US_CYC_CNT_CLOCK_CYCLE		FIELD32(0x000000ff)
 
 /*
  * PBF_SYS_CTRL
@@ -592,6 +640,18 @@
 #define LED_CFG_LED_POLAR		FIELD32(0x40000000)
 
 /*
+ * AMPDU_BA_WINSIZE: Force BlockAck window size
+ * FORCE_WINSIZE_ENABLE:
+ *   0: Disable forcing of BlockAck window size
+ *   1: Enable forcing of BlockAck window size, overwrites values BlockAck
+ *      window size values in the TXWI
+ * FORCE_WINSIZE: BlockAck window size
+ */
+#define AMPDU_BA_WINSIZE		0x1040
+#define AMPDU_BA_WINSIZE_FORCE_WINSIZE_ENABLE FIELD32(0x00000020)
+#define AMPDU_BA_WINSIZE_FORCE_WINSIZE	FIELD32(0x0000001f)
+
+/*
  * XIFS_TIME_CFG: MAC timing
  * CCKM_SIFS_TIME: unit 1us. Applied after CCK RX/TX
  * OFDM_SIFS_TIME: unit 1us. Applied after OFDM RX/TX
@@ -651,8 +711,14 @@
 
 /*
  * TBTT_SYNC_CFG:
+ * BCN_AIFSN: Beacon AIFSN after TBTT interrupt in slots
+ * BCN_CWMIN: Beacon CWMin after TBTT interrupt in slots
  */
 #define TBTT_SYNC_CFG			0x1118
+#define TBTT_SYNC_CFG_TBTT_ADJUST	FIELD32(0x000000ff)
+#define TBTT_SYNC_CFG_BCN_EXP_WIN	FIELD32(0x0000ff00)
+#define TBTT_SYNC_CFG_BCN_AIFSN		FIELD32(0x000f0000)
+#define TBTT_SYNC_CFG_BCN_CWMIN		FIELD32(0x00f00000)
 
 /*
  * TSF_TIMER_DW0: Local lsb TSF timer, read-only
@@ -672,24 +738,35 @@
 #define TBTT_TIMER			0x1124
 
 /*
- * INT_TIMER_CFG:
+ * INT_TIMER_CFG: timer configuration
+ * PRE_TBTT_TIMER: leadtime to tbtt for pretbtt interrupt in units of 1/16 TU
+ * GP_TIMER: period of general purpose timer in units of 1/16 TU
  */
 #define INT_TIMER_CFG			0x1128
+#define INT_TIMER_CFG_PRE_TBTT_TIMER	FIELD32(0x0000ffff)
+#define INT_TIMER_CFG_GP_TIMER		FIELD32(0xffff0000)
 
 /*
  * INT_TIMER_EN: GP-timer and pre-tbtt Int enable
  */
 #define INT_TIMER_EN			0x112c
+#define INT_TIMER_EN_PRE_TBTT_TIMER	FIELD32(0x00000001)
+#define INT_TIMER_EN_GP_TIMER		FIELD32(0x00000002)
 
 /*
- * CH_IDLE_STA: channel idle time
+ * CH_IDLE_STA: channel idle time (in us)
  */
 #define CH_IDLE_STA			0x1130
 
 /*
- * CH_BUSY_STA: channel busy time
+ * CH_BUSY_STA: channel busy time on primary channel (in us)
  */
 #define CH_BUSY_STA			0x1134
+
+/*
+ * CH_BUSY_STA_SEC: channel busy time on secondary channel in HT40 mode (in us)
+ */
+#define CH_BUSY_STA_SEC			0x1138
 
 /*
  * MAC_STATUS_CFG:
@@ -754,6 +831,18 @@
  * EDCA_TID_AC_MAP:
  */
 #define EDCA_TID_AC_MAP			0x1310
+
+/*
+ * TX_PWR_CFG:
+ */
+#define TX_PWR_CFG_RATE0		FIELD32(0x0000000f)
+#define TX_PWR_CFG_RATE1		FIELD32(0x000000f0)
+#define TX_PWR_CFG_RATE2		FIELD32(0x00000f00)
+#define TX_PWR_CFG_RATE3		FIELD32(0x0000f000)
+#define TX_PWR_CFG_RATE4		FIELD32(0x000f0000)
+#define TX_PWR_CFG_RATE5		FIELD32(0x00f00000)
+#define TX_PWR_CFG_RATE6		FIELD32(0x0f000000)
+#define TX_PWR_CFG_RATE7		FIELD32(0xf0000000)
 
 /*
  * TX_PWR_CFG_0:
@@ -1253,11 +1342,34 @@
 #define TX_STA_CNT2_TX_UNDER_FLOW_COUNT	FIELD32(0xffff0000)
 
 /*
- * TX_STA_FIFO: TX Result for specific PID status fifo register
+ * TX_STA_FIFO: TX Result for specific PID status fifo register.
+ *
+ * This register is implemented as FIFO with 16 entries in the HW. Each
+ * register read fetches the next tx result. If the FIFO is full because
+ * it wasn't read fast enough after the according interrupt (TX_FIFO_STATUS)
+ * triggered, the hw seems to simply drop further tx results.
+ *
+ * VALID: 1: this tx result is valid
+ *        0: no valid tx result -> driver should stop reading
+ * PID_TYPE: The PID latched from the PID field in the TXWI, can be used
+ *           to match a frame with its tx result (even though the PID is
+ *           only 4 bits wide).
+ * PID_QUEUE: Part of PID_TYPE, this is the queue index number (0-3)
+ * PID_ENTRY: Part of PID_TYPE, this is the queue entry index number (1-3)
+ *            This identification number is calculated by ((idx % 3) + 1).
+ * TX_SUCCESS: Indicates tx success (1) or failure (0)
+ * TX_AGGRE: Indicates if the frame was part of an aggregate (1) or not (0)
+ * TX_ACK_REQUIRED: Indicates if the frame needed to get ack'ed (1) or not (0)
+ * WCID: The wireless client ID.
+ * MCS: The tx rate used during the last transmission of this frame, be it
+ *      successful or not.
+ * PHYMODE: The phymode used for the transmission.
  */
 #define TX_STA_FIFO			0x1718
 #define TX_STA_FIFO_VALID		FIELD32(0x00000001)
 #define TX_STA_FIFO_PID_TYPE		FIELD32(0x0000001e)
+#define TX_STA_FIFO_PID_QUEUE		FIELD32(0x00000006)
+#define TX_STA_FIFO_PID_ENTRY		FIELD32(0x00000018)
 #define TX_STA_FIFO_TX_SUCCESS		FIELD32(0x00000020)
 #define TX_STA_FIFO_TX_AGGRE		FIELD32(0x00000040)
 #define TX_STA_FIFO_TX_ACK_REQUIRED	FIELD32(0x00000080)
@@ -1340,6 +1452,24 @@
 
 /*
  * Security key table memory.
+ *
+ * The pairwise key table shares some memory with the beacon frame
+ * buffers 6 and 7. That basically means that when beacon 6 & 7
+ * are used we should only use the reduced pairwise key table which
+ * has a maximum of 222 entries.
+ *
+ * ---------------------------------------------
+ * |0x4000 | Pairwise Key   | Reduced Pairwise |
+ * |       | Table          | Key Table        |
+ * |       | Size: 256 * 32 | Size: 222 * 32   |
+ * |0x5BC0 |                |-------------------
+ * |       |                | Beacon 6         |
+ * |0x5DC0 |                |-------------------
+ * |       |                | Beacon 7         |
+ * |0x5FC0 |                |-------------------
+ * |0x5FFF |                |
+ * --------------------------
+ *
  * MAC_WCID_BASE: 8-bytes (use only 6 bytes) * 256 entry
  * PAIRWISE_KEY_TABLE_BASE: 32-byte * 256 entry
  * MAC_IVEIV_TABLE_BASE: 8-byte * 256-entry
@@ -1370,17 +1500,17 @@
 struct mac_wcid_entry {
 	u8 mac[6];
 	u8 reserved[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct hw_key_entry {
 	u8 key[16];
 	u8 tx_mic[8];
 	u8 rx_mic[8];
-} __attribute__ ((packed));
+} __packed;
 
 struct mac_iveiv_entry {
 	u8 iv[8];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * MAC_WCID_ATTRIBUTE:
@@ -1389,6 +1519,10 @@ struct mac_iveiv_entry {
 #define MAC_WCID_ATTRIBUTE_CIPHER	FIELD32(0x0000000e)
 #define MAC_WCID_ATTRIBUTE_BSS_IDX	FIELD32(0x00000070)
 #define MAC_WCID_ATTRIBUTE_RX_WIUDF	FIELD32(0x00000380)
+#define MAC_WCID_ATTRIBUTE_CIPHER_EXT	FIELD32(0x00000400)
+#define MAC_WCID_ATTRIBUTE_BSS_IDX_EXT	FIELD32(0x00000800)
+#define MAC_WCID_ATTRIBUTE_WAPI_MCBC	FIELD32(0x00008000)
+#define MAC_WCID_ATTRIBUTE_WAPI_KEY_IDX	FIELD32(0xff000000)
 
 /*
  * SHARED_KEY_MODE:
@@ -1485,7 +1619,8 @@ struct mac_iveiv_entry {
  * 2. Extract memory from FCE table for BCN 4~5
  * 3. Extract memory from Pair-wise key table for BCN 6~7
  *    It occupied those memory of wcid 238~253 for BCN 6
- *    and wcid 222~237 for BCN 7
+ *    and wcid 222~237 for BCN 7 (see Security key table memory
+ *    for more info).
  *
  * IMPORTANT NOTE: Not sure why legacy driver does this,
  * but HW_BEACON_BASE7 is 0x0200 bytes below HW_BEACON_BASE6.
@@ -1510,7 +1645,9 @@ struct mac_iveiv_entry {
  */
 
 /*
- * BBP 1: TX Antenna
+ * BBP 1: TX Antenna & Power
+ * POWER: 0 - normal, 1 - drop tx power by 6dBm, 2 - drop tx power by 12dBm,
+ *	3 - increase tx power by 6dBm
  */
 #define BBP1_TX_POWER			FIELD8(0x07)
 #define BBP1_TX_ANTENNA			FIELD8(0x18)
@@ -1770,6 +1907,13 @@ struct mac_iveiv_entry {
 #define EEPROM_RSSI_A2_LNA_A2		FIELD16(0xff00)
 
 /*
+ * EEPROM Maximum TX power values
+ */
+#define EEPROM_MAX_TX_POWER		0x0027
+#define EEPROM_MAX_TX_POWER_24GHZ	FIELD16(0x00ff)
+#define EEPROM_MAX_TX_POWER_5GHZ	FIELD16(0xff00)
+
+/*
  * EEPROM TXpower delta: 20MHZ AND 40 MHZ use different power.
  *	This is delta in 40MHZ.
  * VALUE: Tx Power dalta value (MAX=4)
@@ -1800,9 +1944,15 @@ struct mac_iveiv_entry {
 #define EEPROM_TXPOWER_A_2		FIELD16(0xff00)
 
 /*
- * EEPROM TXpower byrate: 20MHZ power
+ * EEPROM TXPOWER by rate: tx power per tx rate for HT20 mode
  */
 #define EEPROM_TXPOWER_BYRATE		0x006f
+#define EEPROM_TXPOWER_BYRATE_SIZE	9
+
+#define EEPROM_TXPOWER_BYRATE_RATE0	FIELD16(0x000f)
+#define EEPROM_TXPOWER_BYRATE_RATE1	FIELD16(0x00f0)
+#define EEPROM_TXPOWER_BYRATE_RATE2	FIELD16(0x0f00)
+#define EEPROM_TXPOWER_BYRATE_RATE3	FIELD16(0xf000)
 
 /*
  * EEPROM BBP.
@@ -1849,8 +1999,17 @@ struct mac_iveiv_entry {
  * FRAG: 1 To inform TKIP engine this is a fragment.
  * MIMO_PS: The remote peer is in dynamic MIMO-PS mode
  * TX_OP: 0:HT TXOP rule , 1:PIFS TX ,2:Backoff, 3:sifs
- * BW: Channel bandwidth 20MHz or 40 MHz
+ * BW: Channel bandwidth 0:20MHz, 1:40 MHz (for legacy rates this will
+ *     duplicate the frame to both channels).
  * STBC: 1: STBC support MCS =0-7, 2,3 : RESERVED
+ * AMPDU: 1: this frame is eligible for AMPDU aggregation, the hw will
+ *        aggregate consecutive frames with the same RA and QoS TID. If
+ *        a frame A with the same RA and QoS TID but AMPDU=0 is queued
+ *        directly after a frame B with AMPDU=1, frame A might still
+ *        get aggregated into the AMPDU started by frame B. So, setting
+ *        AMPDU to 0 does _not_ necessarily mean the frame is sent as
+ *        MPDU, it can still end up in an AMPDU if the previous frame
+ *        was tagged as AMPDU.
  */
 #define TXWI_W0_FRAG			FIELD32(0x00000001)
 #define TXWI_W0_MIMO_PS			FIELD32(0x00000002)
@@ -1868,6 +2027,19 @@ struct mac_iveiv_entry {
 
 /*
  * Word1
+ * ACK: 0: No Ack needed, 1: Ack needed
+ * NSEQ: 0: Don't assign hw sequence number, 1: Assign hw sequence number
+ * BW_WIN_SIZE: BA windows size of the recipient
+ * WIRELESS_CLI_ID: Client ID for WCID table access
+ * MPDU_TOTAL_BYTE_COUNT: Length of 802.11 frame
+ * PACKETID: Will be latched into the TX_STA_FIFO register once the according
+ *           frame was processed. If multiple frames are aggregated together
+ *           (AMPDU==1) the reported tx status will always contain the packet
+ *           id of the first frame. 0: Don't report tx status for this frame.
+ * PACKETID_QUEUE: Part of PACKETID, This is the queue index (0-3)
+ * PACKETID_ENTRY: Part of PACKETID, THis is the queue entry index (1-3)
+ *                 This identification number is calculated by ((idx % 3) + 1).
+ *		   The (+1) is required to prevent PACKETID to become 0.
  */
 #define TXWI_W1_ACK			FIELD32(0x00000001)
 #define TXWI_W1_NSEQ			FIELD32(0x00000002)
@@ -1875,6 +2047,8 @@ struct mac_iveiv_entry {
 #define TXWI_W1_WIRELESS_CLI_ID		FIELD32(0x0000ff00)
 #define TXWI_W1_MPDU_TOTAL_BYTE_COUNT	FIELD32(0x0fff0000)
 #define TXWI_W1_PACKETID		FIELD32(0xf0000000)
+#define TXWI_W1_PACKETID_QUEUE		FIELD32(0x30000000)
+#define TXWI_W1_PACKETID_ENTRY		FIELD32(0xc0000000)
 
 /*
  * Word2

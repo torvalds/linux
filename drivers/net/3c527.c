@@ -443,7 +443,7 @@ static int __init mc32_probe1(struct net_device *dev, int slot)
 	 *	Grab the IRQ
 	 */
 
-	err = request_irq(dev->irq, mc32_interrupt, IRQF_SHARED | IRQF_SAMPLE_RANDOM, DRV_NAME, dev);
+	err = request_irq(dev->irq, mc32_interrupt, IRQF_SHARED, DRV_NAME, dev);
 	if (err) {
 		release_region(dev->base_addr, MC32_IO_EXTENT);
 		pr_err("%s: unable to get IRQ %d.\n", DRV_NAME, dev->irq);
@@ -522,7 +522,7 @@ static int __init mc32_probe1(struct net_device *dev, int slot)
 	lp->tx_len 		= lp->exec_box->data[9];   /* Transmit list count */
 	lp->rx_len 		= lp->exec_box->data[11];  /* Receive list count */
 
-	init_MUTEX_LOCKED(&lp->cmd_mutex);
+	sema_init(&lp->cmd_mutex, 0);
 	init_completion(&lp->execution_cmd);
 	init_completion(&lp->xceiver_cmd);
 
@@ -729,14 +729,14 @@ static void mc32_halt_transceiver(struct net_device *dev)
  *	mc32_load_rx_ring	-	load the ring of receive buffers
  *	@dev: 3c527 to build the ring for
  *
- *	This initalises the on-card and driver datastructures to
+ *	This initialises the on-card and driver datastructures to
  *	the point where mc32_start_transceiver() can be called.
  *
  *	The card sets up the receive ring for us. We are required to use the
  *	ring it provides, although the size of the ring is configurable.
  *
  * 	We allocate an sk_buff for each ring entry in turn and
- * 	initalise its house-keeping info. At the same time, we read
+ * 	initialise its house-keeping info. At the same time, we read
  * 	each 'next' pointer in our rx_ring array. This reduces slow
  * 	shared-memory reads and makes it easy to access predecessor
  * 	descriptors.

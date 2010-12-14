@@ -34,6 +34,7 @@
 #include <linux/kdebug.h>
 #include <linux/highmem.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 #include <acpi/apei.h>
 
 #include "apei-internal.h"
@@ -46,11 +47,6 @@ EXPORT_SYMBOL_GPL(hest_disable);
 /* HEST table parsing */
 
 static struct acpi_table_hest *hest_tab;
-
-static int hest_void_parse(struct acpi_hest_header *hest_hdr, void *data)
-{
-	return 0;
-}
 
 static int hest_esrc_len_tab[ACPI_HEST_TYPE_RESERVED] = {
 	[ACPI_HEST_TYPE_IA32_CHECK] = -1,	/* need further calculation */
@@ -125,6 +121,72 @@ int apei_hest_parse(apei_hest_func_t func, void *data)
 }
 EXPORT_SYMBOL_GPL(apei_hest_parse);
 
+struct ghes_arr {
+	struct platform_device **ghes_devs;
+	unsigned int count;
+};
+
+static int hest_parse_ghes_count(struct acpi_hest_header *hest_hdr, void *data)
+{
+	int *count = data;
+
+	if (hest_hdr->type == ACPI_HEST_TYPE_GENERIC_ERROR)
+		(*count)++;
+	return 0;
+}
+
+static int hest_parse_ghes(struct acpi_hest_header *hest_hdr, void *data)
+{
+	struct platform_device *ghes_dev;
+	struct ghes_arr *ghes_arr = data;
+	int rc;
+
+	if (hest_hdr->type != ACPI_HEST_TYPE_GENERIC_ERROR)
+		return 0;
+
+	if (!((struct acpi_hest_generic *)hest_hdr)->enabled)
+		return 0;
+	ghes_dev = platform_device_alloc("GHES", hest_hdr->source_id);
+	if (!ghes_dev)
+		return -ENOMEM;
+
+	rc = platform_device_add_data(ghes_dev, &hest_hdr, sizeof(void *));
+	if (rc)
+		goto err;
+
+	rc = platform_device_add(ghes_dev);
+	if (rc)
+		goto err;
+	ghes_arr->ghes_devs[ghes_arr->count++] = ghes_dev;
+
+	return 0;
+err:
+	platform_device_put(ghes_dev);
+	return rc;
+}
+
+static int hest_ghes_dev_register(unsigned int ghes_count)
+{
+	int rc, i;
+	struct ghes_arr ghes_arr;
+
+	ghes_arr.count = 0;
+	ghes_arr.ghes_devs = kmalloc(sizeof(void *) * ghes_count, GFP_KERNEL);
+	if (!ghes_arr.ghes_devs)
+		return -ENOMEM;
+
+	rc = apei_hest_parse(hest_parse_ghes, &ghes_arr);
+	if (rc)
+		goto err;
+out:
+	kfree(ghes_arr.ghes_devs);
+	return rc;
+err:
+	for (i = 0; i < ghes_arr.count; i++)
+		platform_device_unregister(ghes_arr.ghes_devs[i]);
+	goto out;
+}
+
 static int __init setup_hest_disable(char *str)
 {
 	hest_disable = 1;
@@ -137,6 +199,7 @@ static int __init hest_init(void)
 {
 	acpi_status status;
 	int rc = -ENODEV;
+	unsigned int ghes_count = 0;
 
 	if (acpi_disabled)
 		goto err;
@@ -158,7 +221,11 @@ static int __init hest_init(void)
 		goto err;
 	}
 
-	rc = apei_hest_parse(hest_void_parse, NULL);
+	rc = apei_hest_parse(hest_parse_ghes_count, &ghes_count);
+	if (rc)
+		goto err;
+
+	rc = hest_ghes_dev_register(ghes_count);
 	if (rc)
 		goto err;
 

@@ -992,8 +992,6 @@ static void __init viper_map_io(void)
 
 MACHINE_START(VIPER, "Arcom/Eurotech VIPER SBC")
 	/* Maintainer: Marc Zyngier <maz@misterjones.org> */
-	.phys_io	= 0x40000000,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= viper_map_io,
 	.init_irq	= viper_init_irq,

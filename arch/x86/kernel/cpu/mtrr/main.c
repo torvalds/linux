@@ -35,6 +35,7 @@
 
 #include <linux/types.h> /* FIXME: kvm_para.h needs this */
 
+#include <linux/stop_machine.h>
 #include <linux/kvm_para.h>
 #include <linux/uaccess.h>
 #include <linux/module.h>
@@ -143,22 +144,28 @@ struct set_mtrr_data {
 	mtrr_type	smp_type;
 };
 
+static DEFINE_PER_CPU(struct cpu_stop_work, mtrr_work);
+
 /**
- * ipi_handler - Synchronisation handler. Executed by "other" CPUs.
+ * mtrr_work_handler - Synchronisation handler. Executed by "other" CPUs.
  * @info: pointer to mtrr configuration data
  *
  * Returns nothing.
  */
-static void ipi_handler(void *info)
+static int mtrr_work_handler(void *info)
 {
 #ifdef CONFIG_SMP
 	struct set_mtrr_data *data = info;
 	unsigned long flags;
 
+	atomic_dec(&data->count);
+	while (!atomic_read(&data->gate))
+		cpu_relax();
+
 	local_irq_save(flags);
 
 	atomic_dec(&data->count);
-	while (!atomic_read(&data->gate))
+	while (atomic_read(&data->gate))
 		cpu_relax();
 
 	/*  The master has cleared me to execute  */
@@ -173,12 +180,13 @@ static void ipi_handler(void *info)
 	}
 
 	atomic_dec(&data->count);
-	while (atomic_read(&data->gate))
+	while (!atomic_read(&data->gate))
 		cpu_relax();
 
 	atomic_dec(&data->count);
 	local_irq_restore(flags);
 #endif
+	return 0;
 }
 
 static inline int types_compatible(mtrr_type type1, mtrr_type type2)
@@ -198,7 +206,7 @@ static inline int types_compatible(mtrr_type type1, mtrr_type type2)
  *
  * This is kinda tricky, but fortunately, Intel spelled it out for us cleanly:
  *
- * 1. Send IPI to do the following:
+ * 1. Queue work to do the following on all processors:
  * 2. Disable Interrupts
  * 3. Wait for all procs to do so
  * 4. Enter no-fill cache mode
@@ -215,14 +223,17 @@ static inline int types_compatible(mtrr_type type1, mtrr_type type2)
  * 15. Enable interrupts.
  *
  * What does that mean for us? Well, first we set data.count to the number
- * of CPUs. As each CPU disables interrupts, it'll decrement it once. We wait
- * until it hits 0 and proceed. We set the data.gate flag and reset data.count.
- * Meanwhile, they are waiting for that flag to be set. Once it's set, each
+ * of CPUs. As each CPU announces that it started the rendezvous handler by
+ * decrementing the count, We reset data.count and set the data.gate flag
+ * allowing all the cpu's to proceed with the work. As each cpu disables
+ * interrupts, it'll decrement data.count once. We wait until it hits 0 and
+ * proceed. We clear the data.gate flag and reset data.count. Meanwhile, they
+ * are waiting for that flag to be cleared. Once it's cleared, each
  * CPU goes through the transition of updating MTRRs.
  * The CPU vendors may each do it differently,
  * so we call mtrr_if->set() callback and let them take care of it.
  * When they're done, they again decrement data->count and wait for data.gate
- * to be reset.
+ * to be set.
  * When we finish, we wait for data.count to hit 0 and toggle the data.gate flag
  * Everyone then enables interrupts and we all continue on.
  *
@@ -234,6 +245,9 @@ set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type typ
 {
 	struct set_mtrr_data data;
 	unsigned long flags;
+	int cpu;
+
+	preempt_disable();
 
 	data.smp_reg = reg;
 	data.smp_base = base;
@@ -246,8 +260,23 @@ set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type typ
 	atomic_set(&data.gate, 0);
 
 	/* Start the ball rolling on other CPUs */
-	if (smp_call_function(ipi_handler, &data, 0) != 0)
-		panic("mtrr: timed out waiting for other CPUs\n");
+	for_each_online_cpu(cpu) {
+		struct cpu_stop_work *work = &per_cpu(mtrr_work, cpu);
+
+		if (cpu == smp_processor_id())
+			continue;
+
+		stop_one_cpu_nowait(cpu, mtrr_work_handler, &data, work);
+	}
+
+
+	while (atomic_read(&data.count))
+		cpu_relax();
+
+	/* Ok, reset count and toggle gate */
+	atomic_set(&data.count, num_booting_cpus() - 1);
+	smp_wmb();
+	atomic_set(&data.gate, 1);
 
 	local_irq_save(flags);
 
@@ -257,7 +286,7 @@ set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type typ
 	/* Ok, reset count and toggle gate */
 	atomic_set(&data.count, num_booting_cpus() - 1);
 	smp_wmb();
-	atomic_set(&data.gate, 1);
+	atomic_set(&data.gate, 0);
 
 	/* Do our MTRR business */
 
@@ -279,7 +308,7 @@ set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type typ
 
 	atomic_set(&data.count, num_booting_cpus() - 1);
 	smp_wmb();
-	atomic_set(&data.gate, 0);
+	atomic_set(&data.gate, 1);
 
 	/*
 	 * Wait here for everyone to have seen the gate change
@@ -289,6 +318,7 @@ set_mtrr(unsigned int reg, unsigned long base, unsigned long size, mtrr_type typ
 		cpu_relax();
 
 	local_irq_restore(flags);
+	preempt_enable();
 }
 
 /**

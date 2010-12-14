@@ -35,7 +35,7 @@ struct cfg80211_conn {
 	bool auto_auth, prev_bssid_valid;
 };
 
-bool cfg80211_is_all_idle(void)
+static bool cfg80211_is_all_idle(void)
 {
 	struct cfg80211_registered_device *rdev;
 	struct wireless_dev *wdev;
@@ -411,7 +411,8 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT))
 		return;
 
 	if (wdev->sme_state != CFG80211_SME_CONNECTING)
@@ -548,7 +549,8 @@ void __cfg80211_roamed(struct wireless_dev *wdev, const u8 *bssid,
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT))
 		return;
 
 	if (wdev->sme_state != CFG80211_SME_CONNECTED)
@@ -644,7 +646,8 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION))
+	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_STATION &&
+		    wdev->iftype != NL80211_IFTYPE_P2P_CLIENT))
 		return;
 
 	if (wdev->sme_state != CFG80211_SME_CONNECTED)
@@ -695,7 +698,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 	 */
 	if (rdev->ops->del_key)
 		for (i = 0; i < 6; i++)
-			rdev->ops->del_key(wdev->wiphy, dev, i, NULL);
+			rdev->ops->del_key(wdev->wiphy, dev, i, false, NULL);
 
 #ifdef CONFIG_CFG80211_WEXT
 	memset(&wrqu, 0, sizeof(wrqu));

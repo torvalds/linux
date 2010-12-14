@@ -229,7 +229,7 @@ void __init ixp23xx_pci_preinit(void)
 {
 	ixp23xx_pci_common_init();
 
-	hook_fault_code(16+6, ixp23xx_pci_abort_handler, SIGBUS,
+	hook_fault_code(16+6, ixp23xx_pci_abort_handler, SIGBUS, 0,
 			"PCI config cycle to non-existent device");
 
 	*IXP23XX_PCI_ADDR_EXT = 0x0000e000;

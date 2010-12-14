@@ -294,7 +294,29 @@ static int synaptics_pt_write(struct serio *serio, unsigned char c)
 	return 0;
 }
 
-static inline int synaptics_is_pt_packet(unsigned char *buf)
+static int synaptics_pt_start(struct serio *serio)
+{
+	struct psmouse *parent = serio_get_drvdata(serio->parent);
+	struct synaptics_data *priv = parent->private;
+
+	serio_pause_rx(parent->ps2dev.serio);
+	priv->pt_port = serio;
+	serio_continue_rx(parent->ps2dev.serio);
+
+	return 0;
+}
+
+static void synaptics_pt_stop(struct serio *serio)
+{
+	struct psmouse *parent = serio_get_drvdata(serio->parent);
+	struct synaptics_data *priv = parent->private;
+
+	serio_pause_rx(parent->ps2dev.serio);
+	priv->pt_port = NULL;
+	serio_continue_rx(parent->ps2dev.serio);
+}
+
+static int synaptics_is_pt_packet(unsigned char *buf)
 {
 	return (buf[0] & 0xFC) == 0x84 && (buf[3] & 0xCC) == 0xC4;
 }
@@ -315,9 +337,8 @@ static void synaptics_pass_pt_packet(struct serio *ptport, unsigned char *packet
 
 static void synaptics_pt_activate(struct psmouse *psmouse)
 {
-	struct serio *ptport = psmouse->ps2dev.serio->child;
-	struct psmouse *child = serio_get_drvdata(ptport);
 	struct synaptics_data *priv = psmouse->private;
+	struct psmouse *child = serio_get_drvdata(priv->pt_port);
 
 	/* adjust the touchpad to child's choice of protocol */
 	if (child) {
@@ -345,6 +366,8 @@ static void synaptics_pt_create(struct psmouse *psmouse)
 	strlcpy(serio->name, "Synaptics pass-through", sizeof(serio->name));
 	strlcpy(serio->phys, "synaptics-pt/serio0", sizeof(serio->name));
 	serio->write = synaptics_pt_write;
+	serio->start = synaptics_pt_start;
+	serio->stop = synaptics_pt_stop;
 	serio->parent = psmouse->ps2dev.serio;
 
 	psmouse->pt_activate = synaptics_pt_activate;
@@ -502,7 +525,9 @@ static void synaptics_process_packet(struct psmouse *psmouse)
 	}
 	input_report_abs(dev, ABS_PRESSURE, hw.z);
 
-	input_report_abs(dev, ABS_TOOL_WIDTH, finger_width);
+	if (SYN_CAP_PALMDETECT(priv->capabilities))
+		input_report_abs(dev, ABS_TOOL_WIDTH, finger_width);
+
 	input_report_key(dev, BTN_TOOL_FINGER, num_fingers == 1);
 	input_report_key(dev, BTN_LEFT, hw.left);
 	input_report_key(dev, BTN_RIGHT, hw.right);
@@ -576,9 +601,10 @@ static psmouse_ret_t synaptics_process_byte(struct psmouse *psmouse)
 		if (unlikely(priv->pkt_type == SYN_NEWABS))
 			priv->pkt_type = synaptics_detect_pkt_type(psmouse);
 
-		if (SYN_CAP_PASS_THROUGH(priv->capabilities) && synaptics_is_pt_packet(psmouse->packet)) {
-			if (psmouse->ps2dev.serio->child)
-				synaptics_pass_pt_packet(psmouse->ps2dev.serio->child, psmouse->packet);
+		if (SYN_CAP_PASS_THROUGH(priv->capabilities) &&
+		    synaptics_is_pt_packet(psmouse->packet)) {
+			if (priv->pt_port)
+				synaptics_pass_pt_packet(priv->pt_port, psmouse->packet);
 		} else
 			synaptics_process_packet(psmouse);
 
@@ -602,7 +628,9 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 	input_set_abs_params(dev, ABS_Y,
 			     YMIN_NOMINAL, priv->y_max ?: YMAX_NOMINAL, 0, 0);
 	input_set_abs_params(dev, ABS_PRESSURE, 0, 255, 0, 0);
-	__set_bit(ABS_TOOL_WIDTH, dev->absbit);
+
+	if (SYN_CAP_PALMDETECT(priv->capabilities))
+		input_set_abs_params(dev, ABS_TOOL_WIDTH, 0, 15, 0, 0);
 
 	__set_bit(EV_KEY, dev->evbit);
 	__set_bit(BTN_TOUCH, dev->keybit);
@@ -631,8 +659,8 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 	__clear_bit(REL_X, dev->relbit);
 	__clear_bit(REL_Y, dev->relbit);
 
-	dev->absres[ABS_X] = priv->x_res;
-	dev->absres[ABS_Y] = priv->y_res;
+	input_abs_set_res(dev, ABS_X, priv->x_res);
+	input_abs_set_res(dev, ABS_Y, priv->y_res);
 
 	if (SYN_CAP_CLICKPAD(priv->ext_cap_0c)) {
 		/* Clickpads report only left button */
@@ -727,7 +755,7 @@ int synaptics_init(struct psmouse *psmouse)
 
 	psmouse->private = priv = kzalloc(sizeof(struct synaptics_data), GFP_KERNEL);
 	if (!priv)
-		return -1;
+		return -ENOMEM;
 
 	psmouse_reset(psmouse);
 

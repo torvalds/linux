@@ -32,19 +32,16 @@
 #define ID_OV2640   2
 #define ID_OV9655   4
 #define ID_MI2020   8
-#define ID_MI2020b 16
 
 #define _MI1320_  (((struct sd *) gspca_dev)->sensor == ID_MI1320)
 #define _MI2020_  (((struct sd *) gspca_dev)->sensor == ID_MI2020)
-#define _MI2020b_ (((struct sd *) gspca_dev)->sensor == ID_MI2020b)
-#define _MI2020c_ 0
 #define _OV2640_  (((struct sd *) gspca_dev)->sensor == ID_OV2640)
 #define _OV9655_  (((struct sd *) gspca_dev)->sensor == ID_OV9655)
 
 #define IMAGE_640   0
 #define IMAGE_800   1
 #define IMAGE_1280  2
-#define IMAGE_1600 3
+#define IMAGE_1600  3
 
 struct sd_gl860 {
 	u16 backlight;
@@ -75,10 +72,10 @@ struct sd {
 	int  (*dev_camera_settings)(struct gspca_dev *);
 
 	u8   swapRB;
-	u8  mirrorMask;
-	u8  sensor;
-	s32 nbIm;
-	s32 nbRightUp;
+	u8   mirrorMask;
+	u8   sensor;
+	s32  nbIm;
+	s32  nbRightUp;
 	u8   waitSet;
 };
 

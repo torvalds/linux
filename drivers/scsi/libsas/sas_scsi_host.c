@@ -113,10 +113,10 @@ static void sas_scsi_task_done(struct sas_task *task)
 		case SAS_ABORTED_TASK:
 			hs = DID_ABORT;
 			break;
-		case SAM_CHECK_COND:
+		case SAM_STAT_CHECK_CONDITION:
 			memcpy(sc->sense_buffer, ts->buf,
 			       min(SCSI_SENSE_BUFFERSIZE, ts->buf_valid_size));
-			stat = SAM_CHECK_COND;
+			stat = SAM_STAT_CHECK_CONDITION;
 			break;
 		default:
 			stat = ts->stat;
@@ -128,17 +128,6 @@ static void sas_scsi_task_done(struct sas_task *task)
 	list_del_init(&task->list);
 	sas_free_task(task);
 	sc->scsi_done(sc);
-}
-
-static enum task_attribute sas_scsi_get_task_attr(struct scsi_cmnd *cmd)
-{
-	enum task_attribute ta = TASK_ATTR_SIMPLE;
-	if (cmd->request && blk_rq_tagged(cmd->request)) {
-		if (cmd->device->ordered_tags &&
-		    (cmd->request->cmd_flags & REQ_HARDBARRIER))
-			ta = TASK_ATTR_ORDERED;
-	}
-	return ta;
 }
 
 static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
@@ -160,7 +149,7 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	task->ssp_task.retry_count = 1;
 	int_to_scsilun(cmd->device->lun, &lun);
 	memcpy(task->ssp_task.LUN, &lun.scsi_lun, 8);
-	task->ssp_task.task_attr = sas_scsi_get_task_attr(cmd);
+	task->ssp_task.task_attr = TASK_ATTR_SIMPLE;
 	memcpy(task->ssp_task.cdb, cmd->cmnd, 16);
 
 	task->scatter = scsi_sglist(cmd);
@@ -225,6 +214,13 @@ int sas_queuecommand(struct scsi_cmnd *cmd,
 			res = ata_sas_queuecmd(cmd, scsi_done,
 					       dev->sata_dev.ap);
 			spin_unlock_irqrestore(dev->sata_dev.ap->lock, flags);
+			goto out;
+		}
+
+		/* If the device fell off, no sense in issuing commands */
+		if (dev->gone) {
+			cmd->result = DID_BAD_TARGET << 16;
+			scsi_done(cmd);
 			goto out;
 		}
 

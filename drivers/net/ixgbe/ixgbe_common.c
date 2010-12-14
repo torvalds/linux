@@ -52,6 +52,7 @@ static void ixgbe_disable_rar(struct ixgbe_hw *hw, u32 index);
 static s32 ixgbe_mta_vector(struct ixgbe_hw *hw, u8 *mc_addr);
 static void ixgbe_add_uc_addr(struct ixgbe_hw *hw, u8 *addr, u32 vmdq);
 static s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num);
+static s32 ixgbe_poll_eerd_eewr_done(struct ixgbe_hw *hw, u32 ee_reg);
 
 /**
  *  ixgbe_start_hw_generic - Prepare hardware for Tx/Rx
@@ -637,7 +638,7 @@ out:
  *  Polls the status bit (bit 1) of the EERD or EEWR to determine when the
  *  read or write is done respectively.
  **/
-s32 ixgbe_poll_eerd_eewr_done(struct ixgbe_hw *hw, u32 ee_reg)
+static s32 ixgbe_poll_eerd_eewr_done(struct ixgbe_hw *hw, u32 ee_reg)
 {
 	u32 i;
 	u32 reg;
@@ -2449,7 +2450,7 @@ s32 ixgbe_init_uta_tables_generic(struct ixgbe_hw *hw)
  *  return the VLVF index where this VLAN id should be placed
  *
  **/
-s32 ixgbe_find_vlvf_slot(struct ixgbe_hw *hw, u32 vlan)
+static s32 ixgbe_find_vlvf_slot(struct ixgbe_hw *hw, u32 vlan)
 {
 	u32 bits = 0;
 	u32 first_empty_slot = 0;
@@ -2702,50 +2703,5 @@ s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 		hw->fc.fc_was_autonegged = false;
 	}
 
-	return 0;
-}
-
-/**
- *  ixgbe_get_wwn_prefix_generic - Get alternative WWNN/WWPN prefix from
- *  the EEPROM
- *  @hw: pointer to hardware structure
- *  @wwnn_prefix: the alternative WWNN prefix
- *  @wwpn_prefix: the alternative WWPN prefix
- *
- *  This function will read the EEPROM from the alternative SAN MAC address
- *  block to check the support for the alternative WWNN/WWPN prefix support.
- **/
-s32 ixgbe_get_wwn_prefix_generic(struct ixgbe_hw *hw, u16 *wwnn_prefix,
-                                 u16 *wwpn_prefix)
-{
-	u16 offset, caps;
-	u16 alt_san_mac_blk_offset;
-
-	/* clear output first */
-	*wwnn_prefix = 0xFFFF;
-	*wwpn_prefix = 0xFFFF;
-
-	/* check if alternative SAN MAC is supported */
-	hw->eeprom.ops.read(hw, IXGBE_ALT_SAN_MAC_ADDR_BLK_PTR,
-	                    &alt_san_mac_blk_offset);
-
-	if ((alt_san_mac_blk_offset == 0) ||
-	    (alt_san_mac_blk_offset == 0xFFFF))
-		goto wwn_prefix_out;
-
-	/* check capability in alternative san mac address block */
-	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_CAPS_OFFSET;
-	hw->eeprom.ops.read(hw, offset, &caps);
-	if (!(caps & IXGBE_ALT_SAN_MAC_ADDR_CAPS_ALTWWN))
-		goto wwn_prefix_out;
-
-	/* get the corresponding prefix for WWNN/WWPN */
-	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_WWNN_OFFSET;
-	hw->eeprom.ops.read(hw, offset, wwnn_prefix);
-
-	offset = alt_san_mac_blk_offset + IXGBE_ALT_SAN_MAC_ADDR_WWPN_OFFSET;
-	hw->eeprom.ops.read(hw, offset, wwpn_prefix);
-
-wwn_prefix_out:
 	return 0;
 }

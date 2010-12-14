@@ -92,6 +92,7 @@
 #include "hcf.h"				// HCF and MSF common include file
 #include "hcfdef.h"				// HCF specific include file
 #include "mmd.h"				// MoreModularDriver common include file
+#include <linux/kernel.h>
 
 #if ! defined offsetof
 #define offsetof(s,m)   ((unsigned int)&(((s *)0)->m))
@@ -502,7 +503,7 @@ HCF_STATIC hcf_16* BASED xxxx[ ] = {
 #endif // MSF_COMPONENT_ID
 	NULL									//endsentinel
   };
-#define xxxx_PRI_IDENTITY_OFFSET	(sizeof(xxxx)/sizeof(xxxx[0]) - 3)
+#define xxxx_PRI_IDENTITY_OFFSET	(ARRAY_SIZE(xxxx) - 3)
 
 #endif // MSF_COMPONENT_ID / HCF_EXT_MB
 

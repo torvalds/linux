@@ -34,6 +34,7 @@
      /* CAPTURE_3_FROM_I2S_3		not implemented */
 #define MIDI_OUTPUT		0x0800
 #define MIDI_INPUT		0x1000
+#define AC97_CD_INPUT		0x2000
 
 enum {
 	CONTROL_SPDIF_PCM,
@@ -155,6 +156,7 @@ void oxygen_pci_remove(struct pci_dev *pci);
 int oxygen_pci_suspend(struct pci_dev *pci, pm_message_t state);
 int oxygen_pci_resume(struct pci_dev *pci);
 #endif
+void oxygen_pci_shutdown(struct pci_dev *pci);
 
 /* oxygen_mixer.c */
 

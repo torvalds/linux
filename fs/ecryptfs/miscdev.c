@@ -482,6 +482,7 @@ static const struct file_operations ecryptfs_miscdev_fops = {
 	.read    = ecryptfs_miscdev_read,
 	.write   = ecryptfs_miscdev_write,
 	.release = ecryptfs_miscdev_release,
+	.llseek  = noop_llseek,
 };
 
 static struct miscdevice ecryptfs_miscdev = {
@@ -500,7 +501,7 @@ static struct miscdevice ecryptfs_miscdev = {
  *
  * Returns zero on success; non-zero otherwise
  */
-int ecryptfs_init_ecryptfs_miscdev(void)
+int __init ecryptfs_init_ecryptfs_miscdev(void)
 {
 	int rc;
 

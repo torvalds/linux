@@ -95,7 +95,7 @@ Using the pktcdvd sysfs interface
 
 Since Linux 2.6.20, the pktcdvd module has a sysfs interface
 and can be controlled by it. For example the "pktcdvd" tool uses
-this interface. (see http://people.freenet.de/BalaGi#pktcdvd )
+this interface. (see http://tom.ist-im-web.de/download/pktcdvd )
 
 "pktcdvd" works similar to "pktsetup", e.g.:
 

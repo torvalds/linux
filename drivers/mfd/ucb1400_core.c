@@ -114,7 +114,7 @@ static int ucb1400_core_probe(struct device *dev)
 err3:
 	platform_device_put(ucb->ucb1400_ts);
 err2:
-	platform_device_unregister(ucb->ucb1400_gpio);
+	platform_device_del(ucb->ucb1400_gpio);
 err1:
 	platform_device_put(ucb->ucb1400_gpio);
 err0:

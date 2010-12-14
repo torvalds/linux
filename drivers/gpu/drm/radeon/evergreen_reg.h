@@ -61,6 +61,11 @@
 #       define EVERGREEN_GRPH_FORMAT_8B_BGRA1010102     5
 #       define EVERGREEN_GRPH_FORMAT_RGB111110          6
 #       define EVERGREEN_GRPH_FORMAT_BGR101111          7
+#       define EVERGREEN_GRPH_ARRAY_MODE(x)             (((x) & 0x7) << 20)
+#       define EVERGREEN_GRPH_ARRAY_LINEAR_GENERAL      0
+#       define EVERGREEN_GRPH_ARRAY_LINEAR_ALIGNED      1
+#       define EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1      2
+#       define EVERGREEN_GRPH_ARRAY_2D_TILED_THIN1      4
 #define EVERGREEN_GRPH_SWAP_CONTROL                     0x680c
 #       define EVERGREEN_GRPH_ENDIAN_SWAP(x)            (((x) & 0x3) << 0)
 #       define EVERGREEN_GRPH_ENDIAN_NONE               0

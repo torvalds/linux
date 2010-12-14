@@ -222,7 +222,7 @@ static void p9_conn_cancel(struct p9_conn *m, int err)
 	}
 }
 
-static unsigned int
+static int
 p9_fd_poll(struct p9_client *client, struct poll_table_struct *pt)
 {
 	int ret, n;
@@ -948,7 +948,7 @@ p9_fd_create_unix(struct p9_client *client, const char *addr, char *args)
 
 	csocket = NULL;
 
-	if (strlen(addr) > UNIX_PATH_MAX) {
+	if (strlen(addr) >= UNIX_PATH_MAX) {
 		P9_EPRINTK(KERN_ERR, "p9_trans_unix: address too long: %s\n",
 			addr);
 		return -ENAMETOOLONG;

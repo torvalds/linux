@@ -1,6 +1,9 @@
-#include "ceph_debug.h"
+#include <linux/ceph/ceph_debug.h>
+
 #include "super.h"
-#include "decode.h"
+#include "mds_client.h"
+
+#include <linux/ceph/decode.h>
 
 #include <linux/xattr.h>
 #include <linux/slab.h>
@@ -337,6 +340,8 @@ void __ceph_destroy_xattrs(struct ceph_inode_info *ci)
 }
 
 static int __build_xattrs(struct inode *inode)
+	__releases(inode->i_lock)
+	__acquires(inode->i_lock)
 {
 	u32 namelen;
 	u32 numattr = 0;
@@ -483,6 +488,7 @@ void __ceph_build_xattrs_blob(struct ceph_inode_info *ci)
 		ci->i_xattrs.blob = ci->i_xattrs.prealloc_blob;
 		ci->i_xattrs.prealloc_blob = NULL;
 		ci->i_xattrs.dirty = false;
+		ci->i_xattrs.version++;
 	}
 }
 
@@ -617,12 +623,12 @@ out:
 static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 			      const char *value, size_t size, int flags)
 {
-	struct ceph_client *client = ceph_sb_to_client(dentry->d_sb);
+	struct ceph_fs_client *fsc = ceph_sb_to_client(dentry->d_sb);
 	struct inode *inode = dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct inode *parent_inode = dentry->d_parent->d_inode;
 	struct ceph_mds_request *req;
-	struct ceph_mds_client *mdsc = &client->mdsc;
+	struct ceph_mds_client *mdsc = fsc->mdsc;
 	int err;
 	int i, nr_pages;
 	struct page **pages = NULL;
@@ -710,10 +716,9 @@ int ceph_setxattr(struct dentry *dentry, const char *name,
 
 	/* preallocate memory for xattr name, value, index node */
 	err = -ENOMEM;
-	newname = kmalloc(name_len + 1, GFP_NOFS);
+	newname = kmemdup(name, name_len + 1, GFP_NOFS);
 	if (!newname)
 		goto out;
-	memcpy(newname, name, name_len + 1);
 
 	if (val_len) {
 		newval = kmalloc(val_len + 1, GFP_NOFS);
@@ -774,8 +779,8 @@ out:
 
 static int ceph_send_removexattr(struct dentry *dentry, const char *name)
 {
-	struct ceph_client *client = ceph_sb_to_client(dentry->d_sb);
-	struct ceph_mds_client *mdsc = &client->mdsc;
+	struct ceph_fs_client *fsc = ceph_sb_to_client(dentry->d_sb);
+	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct inode *inode = dentry->d_inode;
 	struct inode *parent_inode = dentry->d_parent->d_inode;
 	struct ceph_mds_request *req;

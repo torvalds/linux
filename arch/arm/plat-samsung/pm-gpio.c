@@ -192,7 +192,7 @@ struct s3c_gpio_pm s3c_gpio_pm_2bit = {
 	.resume = s3c_gpio_pm_2bit_resume,
 };
 
-#ifdef CONFIG_ARCH_S3C64XX
+#if defined(CONFIG_ARCH_S3C64XX) || defined(CONFIG_PLAT_S5P)
 static void s3c_gpio_pm_4bit_save(struct s3c_gpio_chip *chip)
 {
 	chip->pm_save[1] = __raw_readl(chip->base + OFFS_CON);
@@ -302,7 +302,7 @@ struct s3c_gpio_pm s3c_gpio_pm_4bit = {
 	.save	= s3c_gpio_pm_4bit_save,
 	.resume = s3c_gpio_pm_4bit_resume,
 };
-#endif /* CONFIG_ARCH_S3C64XX */
+#endif /* CONFIG_ARCH_S3C64XX || CONFIG_PLAT_S5P */
 
 /**
  * s3c_pm_save_gpio() - save gpio chip data for suspend

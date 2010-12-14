@@ -50,9 +50,7 @@
 struct fib_nh;
 struct inet_peer;
 struct rtable {
-	union {
-		struct dst_entry	dst;
-	} u;
+	struct dst_entry	dst;
 
 	/* Cache lookup keys */
 	struct flowi		fl;
@@ -144,7 +142,7 @@ extern void fib_add_ifaddr(struct in_ifaddr *);
 static inline void ip_rt_put(struct rtable * rt)
 {
 	if (rt)
-		dst_release(&rt->u.dst);
+		dst_release(&rt->dst);
 }
 
 #define IPTOS_RT_MASK	(IPTOS_TOS_MASK & ~3)
@@ -201,6 +199,8 @@ static inline int ip_route_newports(struct rtable **rp, u8 protocol,
 		fl.fl_ip_sport = sport;
 		fl.fl_ip_dport = dport;
 		fl.proto = protocol;
+		if (inet_sk(sk)->transparent)
+			fl.flags |= FLOWI_FLAG_ANYSRC;
 		ip_rt_put(*rp);
 		*rp = NULL;
 		security_sk_classify_flow(sk, &fl);

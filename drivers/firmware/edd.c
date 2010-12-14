@@ -15,7 +15,7 @@
  * made in setup.S, copied to safe structures in setup.c,
  * and presents it in sysfs.
  *
- * Please see http://linux.dell.com/edd30/results.html for
+ * Please see http://linux.dell.com/edd/results.html for
  * the list of BIOSs which have been reported to implement EDD.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -744,7 +744,7 @@ static inline int edd_num_devices(void)
 static int __init
 edd_init(void)
 {
-	unsigned int i;
+	int i;
 	int rc=0;
 	struct edd_device *edev;
 
@@ -760,21 +760,27 @@ edd_init(void)
 	if (!edd_kset)
 		return -ENOMEM;
 
-	for (i = 0; i < edd_num_devices() && !rc; i++) {
+	for (i = 0; i < edd_num_devices(); i++) {
 		edev = kzalloc(sizeof (*edev), GFP_KERNEL);
-		if (!edev)
-			return -ENOMEM;
+		if (!edev) {
+			rc = -ENOMEM;
+			goto out;
+		}
 
 		rc = edd_device_register(edev, i);
 		if (rc) {
 			kfree(edev);
-			break;
+			goto out;
 		}
 		edd_devices[i] = edev;
 	}
 
-	if (rc)
-		kset_unregister(edd_kset);
+	return 0;
+
+out:
+	while (--i >= 0)
+		edd_device_unregister(edd_devices[i]);
+	kset_unregister(edd_kset);
 	return rc;
 }
 

@@ -78,8 +78,9 @@ static inline void efx_writeo(struct efx_nic *efx, efx_oword_t *value,
 {
 	unsigned long flags __attribute__ ((unused));
 
-	EFX_REGDUMP(efx, "writing register %x with " EFX_OWORD_FMT "\n", reg,
-		    EFX_OWORD_VAL(*value));
+	netif_vdbg(efx, hw, efx->net_dev,
+		   "writing register %x with " EFX_OWORD_FMT "\n", reg,
+		   EFX_OWORD_VAL(*value));
 
 	spin_lock_irqsave(&efx->biu_lock, flags);
 #ifdef EFX_USE_QWORD_IO
@@ -105,8 +106,9 @@ static inline void efx_sram_writeq(struct efx_nic *efx, void __iomem *membase,
 	unsigned int addr = index * sizeof(*value);
 	unsigned long flags __attribute__ ((unused));
 
-	EFX_REGDUMP(efx, "writing SRAM address %x with " EFX_QWORD_FMT "\n",
-		    addr, EFX_QWORD_VAL(*value));
+	netif_vdbg(efx, hw, efx->net_dev,
+		   "writing SRAM address %x with " EFX_QWORD_FMT "\n",
+		   addr, EFX_QWORD_VAL(*value));
 
 	spin_lock_irqsave(&efx->biu_lock, flags);
 #ifdef EFX_USE_QWORD_IO
@@ -129,8 +131,9 @@ static inline void efx_sram_writeq(struct efx_nic *efx, void __iomem *membase,
 static inline void efx_writed(struct efx_nic *efx, efx_dword_t *value,
 			      unsigned int reg)
 {
-	EFX_REGDUMP(efx, "writing partial register %x with "EFX_DWORD_FMT"\n",
-		    reg, EFX_DWORD_VAL(*value));
+	netif_vdbg(efx, hw, efx->net_dev,
+		   "writing partial register %x with "EFX_DWORD_FMT"\n",
+		   reg, EFX_DWORD_VAL(*value));
 
 	/* No lock required */
 	_efx_writed(efx, value->u32[0], reg);
@@ -155,8 +158,9 @@ static inline void efx_reado(struct efx_nic *efx, efx_oword_t *value,
 	value->u32[3] = _efx_readd(efx, reg + 12);
 	spin_unlock_irqrestore(&efx->biu_lock, flags);
 
-	EFX_REGDUMP(efx, "read from register %x, got " EFX_OWORD_FMT "\n", reg,
-		    EFX_OWORD_VAL(*value));
+	netif_vdbg(efx, hw, efx->net_dev,
+		   "read from register %x, got " EFX_OWORD_FMT "\n", reg,
+		   EFX_OWORD_VAL(*value));
 }
 
 /* Read an 8-byte SRAM entry through supplied mapping,
@@ -177,8 +181,9 @@ static inline void efx_sram_readq(struct efx_nic *efx, void __iomem *membase,
 #endif
 	spin_unlock_irqrestore(&efx->biu_lock, flags);
 
-	EFX_REGDUMP(efx, "read from SRAM address %x, got "EFX_QWORD_FMT"\n",
-		    addr, EFX_QWORD_VAL(*value));
+	netif_vdbg(efx, hw, efx->net_dev,
+		   "read from SRAM address %x, got "EFX_QWORD_FMT"\n",
+		   addr, EFX_QWORD_VAL(*value));
 }
 
 /* Read dword from register that allows partial writes (sic) */
@@ -186,8 +191,9 @@ static inline void efx_readd(struct efx_nic *efx, efx_dword_t *value,
 				unsigned int reg)
 {
 	value->u32[0] = _efx_readd(efx, reg);
-	EFX_REGDUMP(efx, "read from register %x, got "EFX_DWORD_FMT"\n",
-		    reg, EFX_DWORD_VAL(*value));
+	netif_vdbg(efx, hw, efx->net_dev,
+		   "read from register %x, got "EFX_DWORD_FMT"\n",
+		   reg, EFX_DWORD_VAL(*value));
 }
 
 /* Write to a register forming part of a table */
@@ -209,6 +215,13 @@ static inline void efx_writed_table(struct efx_nic *efx, efx_dword_t *value,
 				       unsigned int reg, unsigned int index)
 {
 	efx_writed(efx, value, reg + index * sizeof(efx_oword_t));
+}
+
+/* Read from a dword register forming part of a table */
+static inline void efx_readd_table(struct efx_nic *efx, efx_dword_t *value,
+				   unsigned int reg, unsigned int index)
+{
+	efx_readd(efx, value, reg + index * sizeof(efx_dword_t));
 }
 
 /* Page-mapped register block size */

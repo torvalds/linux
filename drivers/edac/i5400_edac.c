@@ -1348,7 +1348,7 @@ static int __devinit i5400_init_one(struct pci_dev *pdev,
 
 	/* wake up device */
 	rc = pci_enable_device(pdev);
-	if (rc == -EIO)
+	if (rc)
 		return rc;
 
 	/* now probe and enable the device */

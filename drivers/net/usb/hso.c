@@ -73,7 +73,6 @@
 #include <linux/serial.h>
 
 
-#define DRIVER_VERSION			"1.2"
 #define MOD_AUTHOR			"Option Wireless"
 #define MOD_DESCRIPTION			"USB High Speed Option driver"
 #define MOD_LICENSE			"GPL"
@@ -211,7 +210,7 @@ struct hso_serial_state_notification {
 	u16 wIndex;
 	u16 wLength;
 	u16 UART_state_bitmap;
-} __attribute__((packed));
+} __packed;
 
 struct hso_tiocmget {
 	struct mutex mutex;
@@ -401,7 +400,7 @@ static int disable_net;
 /* driver info */
 static const char driver_name[] = "hso";
 static const char tty_filename[] = "ttyHS";
-static const char *version = __FILE__ ": " DRIVER_VERSION " " MOD_AUTHOR;
+static const char *version = __FILE__ ": " MOD_AUTHOR;
 /* the usb driver itself (registered in hso_init) */
 static struct usb_driver hso_driver;
 /* serial structures */
@@ -478,6 +477,7 @@ static const struct usb_device_id hso_ids[] = {
 	{USB_DEVICE(0x0af0, 0x8600)},
 	{USB_DEVICE(0x0af0, 0x8800)},
 	{USB_DEVICE(0x0af0, 0x8900)},
+	{USB_DEVICE(0x0af0, 0x9000)},
 	{USB_DEVICE(0x0af0, 0xd035)},
 	{USB_DEVICE(0x0af0, 0xd055)},
 	{USB_DEVICE(0x0af0, 0xd155)},
@@ -843,17 +843,7 @@ static netdev_tx_t hso_net_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static void hso_get_drvinfo(struct net_device *net, struct ethtool_drvinfo *info)
-{
-	struct hso_net *odev = netdev_priv(net);
-
-	strncpy(info->driver, driver_name, ETHTOOL_BUSINFO_LEN);
-	strncpy(info->version, DRIVER_VERSION, ETHTOOL_BUSINFO_LEN);
-	usb_make_path(odev->parent->usb, info->bus_info, sizeof info->bus_info);
-}
-
 static const struct ethtool_ops ops = {
-	.get_drvinfo = hso_get_drvinfo,
 	.get_link = ethtool_op_get_link
 };
 
@@ -1646,12 +1636,14 @@ hso_wait_modem_status(struct hso_serial *serial, unsigned long arg)
  * NB: both 1->0 and 0->1 transitions are counted except for
  *     RI where only 0->1 is counted.
  */
-static int hso_get_count(struct hso_serial *serial,
-			  struct serial_icounter_struct __user *icnt)
+static int hso_get_count(struct tty_struct *tty,
+		  struct serial_icounter_struct *icount)
 {
-	struct serial_icounter_struct icount;
 	struct uart_icount cnow;
+	struct hso_serial *serial = get_serial_by_tty(tty);
 	struct hso_tiocmget  *tiocmget = serial->tiocmget;
+
+	memset(&icount, 0, sizeof(struct serial_icounter_struct));
 
 	if (!tiocmget)
 		 return -ENOENT;
@@ -1659,19 +1651,19 @@ static int hso_get_count(struct hso_serial *serial,
 	memcpy(&cnow, &tiocmget->icount, sizeof(struct uart_icount));
 	spin_unlock_irq(&serial->serial_lock);
 
-	icount.cts         = cnow.cts;
-	icount.dsr         = cnow.dsr;
-	icount.rng         = cnow.rng;
-	icount.dcd         = cnow.dcd;
-	icount.rx          = cnow.rx;
-	icount.tx          = cnow.tx;
-	icount.frame       = cnow.frame;
-	icount.overrun     = cnow.overrun;
-	icount.parity      = cnow.parity;
-	icount.brk         = cnow.brk;
-	icount.buf_overrun = cnow.buf_overrun;
+	icount->cts         = cnow.cts;
+	icount->dsr         = cnow.dsr;
+	icount->rng         = cnow.rng;
+	icount->dcd         = cnow.dcd;
+	icount->rx          = cnow.rx;
+	icount->tx          = cnow.tx;
+	icount->frame       = cnow.frame;
+	icount->overrun     = cnow.overrun;
+	icount->parity      = cnow.parity;
+	icount->brk         = cnow.brk;
+	icount->buf_overrun = cnow.buf_overrun;
 
-	return copy_to_user(icnt, &icount, sizeof(icount)) ? -EFAULT : 0;
+	return 0;
 }
 
 
@@ -1762,10 +1754,6 @@ static int hso_serial_ioctl(struct tty_struct *tty, struct file *file,
 	switch (cmd) {
 	case TIOCMIWAIT:
 		ret = hso_wait_modem_status(serial, arg);
-		break;
-
-	case TIOCGICOUNT:
-		ret = hso_get_count(serial, uarg);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -3299,6 +3287,7 @@ static const struct tty_operations hso_serial_ops = {
 	.chars_in_buffer = hso_serial_chars_in_buffer,
 	.tiocmget = hso_serial_tiocmget,
 	.tiocmset = hso_serial_tiocmset,
+	.get_icount = hso_get_count,
 	.unthrottle = hso_unthrottle
 };
 
@@ -3388,7 +3377,6 @@ module_exit(hso_exit);
 MODULE_AUTHOR(MOD_AUTHOR);
 MODULE_DESCRIPTION(MOD_DESCRIPTION);
 MODULE_LICENSE(MOD_LICENSE);
-MODULE_INFO(Version, DRIVER_VERSION);
 
 /* change the debug level (eg: insmod hso.ko debug=0x04) */
 MODULE_PARM_DESC(debug, "Level of debug [0x01 | 0x02 | 0x04 | 0x08 | 0x10]");

@@ -22,7 +22,7 @@
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
-#include <linux/wm97xx_batt.h>
+#include <linux/wm97xx.h>
 #include <linux/power_supply.h>
 #include <linux/sysdev.h>
 #include <linux/mtd/mtd.h>
@@ -39,8 +39,9 @@
 #include <mach/mmc.h>
 #include <mach/pxafb.h>
 #include <mach/irda.h>
-#include <mach/pxa27x_keypad.h>
+#include <plat/pxa27x_keypad.h>
 #include <mach/palmasoc.h>
+#include <mach/palm27x.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -127,6 +128,7 @@ static unsigned long palmld_pin_config[] __initdata = {
 /******************************************************************************
  * NOR Flash
  ******************************************************************************/
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 static struct mtd_partition palmld_partitions[] = {
 	{
 		.name		= "Flash",
@@ -160,20 +162,18 @@ static struct platform_device palmld_flash = {
 	},
 };
 
-/******************************************************************************
- * SD/MMC card controller
- ******************************************************************************/
-static struct pxamci_platform_data palmld_mci_platform_data = {
-	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_card_detect	= GPIO_NR_PALMLD_SD_DETECT_N,
-	.gpio_card_ro		= GPIO_NR_PALMLD_SD_READONLY,
-	.gpio_power		= GPIO_NR_PALMLD_SD_POWER,
-	.detect_delay_ms	= 200,
-};
+static void __init palmld_nor_init(void)
+{
+	platform_device_register(&palmld_flash);
+}
+#else
+static inline void palmld_nor_init(void) {}
+#endif
 
 /******************************************************************************
  * GPIO keyboard
  ******************************************************************************/
+#if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
 static unsigned int palmld_matrix_keys[] = {
 	KEY(0, 1, KEY_F2),
 	KEY(0, 2, KEY_UP),
@@ -200,9 +200,18 @@ static struct pxa27x_keypad_platform_data palmld_keypad_platform_data = {
 	.debounce_interval	= 30,
 };
 
+static void __init palmld_kpc_init(void)
+{
+	pxa_set_keypad_info(&palmld_keypad_platform_data);
+}
+#else
+static inline void palmld_kpc_init(void) {}
+#endif
+
 /******************************************************************************
  * GPIO keys
  ******************************************************************************/
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 static struct gpio_keys_button palmld_pxa_buttons[] = {
 	{KEY_F8, GPIO_NR_PALMLD_HOTSYNC_BUTTON_N, 1, "HotSync Button" },
 	{KEY_F9, GPIO_NR_PALMLD_LOCK_SWITCH, 0, "Lock Switch" },
@@ -222,77 +231,18 @@ static struct platform_device palmld_pxa_keys = {
 	},
 };
 
-/******************************************************************************
- * Backlight
- ******************************************************************************/
-static int palmld_backlight_init(struct device *dev)
+static void __init palmld_keys_init(void)
 {
-	int ret;
-
-	ret = gpio_request(GPIO_NR_PALMLD_BL_POWER, "BL POWER");
-	if (ret)
-		goto err;
-	ret = gpio_direction_output(GPIO_NR_PALMLD_BL_POWER, 0);
-	if (ret)
-		goto err2;
-	ret = gpio_request(GPIO_NR_PALMLD_LCD_POWER, "LCD POWER");
-	if (ret)
-		goto err2;
-	ret = gpio_direction_output(GPIO_NR_PALMLD_LCD_POWER, 0);
-	if (ret)
-		goto err3;
-
-	return 0;
-err3:
-	gpio_free(GPIO_NR_PALMLD_LCD_POWER);
-err2:
-	gpio_free(GPIO_NR_PALMLD_BL_POWER);
-err:
-	return ret;
+	platform_device_register(&palmld_pxa_keys);
 }
-
-static int palmld_backlight_notify(struct device *dev, int brightness)
-{
-	gpio_set_value(GPIO_NR_PALMLD_BL_POWER, brightness);
-	gpio_set_value(GPIO_NR_PALMLD_LCD_POWER, brightness);
-	return brightness;
-}
-
-static void palmld_backlight_exit(struct device *dev)
-{
-	gpio_free(GPIO_NR_PALMLD_BL_POWER);
-	gpio_free(GPIO_NR_PALMLD_LCD_POWER);
-}
-
-static struct platform_pwm_backlight_data palmld_backlight_data = {
-	.pwm_id		= 0,
-	.max_brightness	= PALMLD_MAX_INTENSITY,
-	.dft_brightness	= PALMLD_MAX_INTENSITY,
-	.pwm_period_ns	= PALMLD_PERIOD_NS,
-	.init		= palmld_backlight_init,
-	.notify		= palmld_backlight_notify,
-	.exit		= palmld_backlight_exit,
-};
-
-static struct platform_device palmld_backlight = {
-	.name	= "pwm-backlight",
-	.dev	= {
-		.parent		= &pxa27x_device_pwm0.dev,
-		.platform_data	= &palmld_backlight_data,
-	},
-};
-
-/******************************************************************************
- * IrDA
- ******************************************************************************/
-static struct pxaficp_platform_data palmld_ficp_platform_data = {
-	.gpio_pwdown		= GPIO_NR_PALMLD_IR_DISABLE,
-	.transceiver_cap	= IR_SIRMODE | IR_OFF,
-};
+#else
+static inline void palmld_keys_init(void) {}
+#endif
 
 /******************************************************************************
  * LEDs
  ******************************************************************************/
+#if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
 struct gpio_led gpio_leds[] = {
 {
 	.name			= "palmld:green:led",
@@ -318,174 +268,34 @@ static struct platform_device palmld_leds = {
 	}
 };
 
-/******************************************************************************
- * Power supply
- ******************************************************************************/
-static int power_supply_init(struct device *dev)
+static void __init palmld_leds_init(void)
 {
-	int ret;
-
-	ret = gpio_request(GPIO_NR_PALMLD_POWER_DETECT, "CABLE_STATE_AC");
-	if (ret)
-		goto err1;
-	ret = gpio_direction_input(GPIO_NR_PALMLD_POWER_DETECT);
-	if (ret)
-		goto err2;
-
-	ret = gpio_request(GPIO_NR_PALMLD_USB_DETECT_N, "CABLE_STATE_USB");
-	if (ret)
-		goto err2;
-	ret = gpio_direction_input(GPIO_NR_PALMLD_USB_DETECT_N);
-	if (ret)
-		goto err3;
-
-	return 0;
-
-err3:
-	gpio_free(GPIO_NR_PALMLD_USB_DETECT_N);
-err2:
-	gpio_free(GPIO_NR_PALMLD_POWER_DETECT);
-err1:
-	return ret;
+	platform_device_register(&palmld_leds);
 }
-
-static int palmld_is_ac_online(void)
-{
-	return gpio_get_value(GPIO_NR_PALMLD_POWER_DETECT);
-}
-
-static int palmld_is_usb_online(void)
-{
-	return !gpio_get_value(GPIO_NR_PALMLD_USB_DETECT_N);
-}
-
-static void power_supply_exit(struct device *dev)
-{
-	gpio_free(GPIO_NR_PALMLD_USB_DETECT_N);
-	gpio_free(GPIO_NR_PALMLD_POWER_DETECT);
-}
-
-static char *palmld_supplicants[] = {
-	"main-battery",
-};
-
-static struct pda_power_pdata power_supply_info = {
-	.init            = power_supply_init,
-	.is_ac_online    = palmld_is_ac_online,
-	.is_usb_online   = palmld_is_usb_online,
-	.exit            = power_supply_exit,
-	.supplied_to     = palmld_supplicants,
-	.num_supplicants = ARRAY_SIZE(palmld_supplicants),
-};
-
-static struct platform_device power_supply = {
-	.name = "pda-power",
-	.id   = -1,
-	.dev  = {
-		.platform_data = &power_supply_info,
-	},
-};
-
-/******************************************************************************
- * WM97xx battery
- ******************************************************************************/
-static struct wm97xx_batt_info wm97xx_batt_pdata = {
-	.batt_aux	= WM97XX_AUX_ID3,
-	.temp_aux	= WM97XX_AUX_ID2,
-	.charge_gpio	= -1,
-	.max_voltage	= PALMLD_BAT_MAX_VOLTAGE,
-	.min_voltage	= PALMLD_BAT_MIN_VOLTAGE,
-	.batt_mult	= 1000,
-	.batt_div	= 414,
-	.temp_mult	= 1,
-	.temp_div	= 1,
-	.batt_tech	= POWER_SUPPLY_TECHNOLOGY_LIPO,
-	.batt_name	= "main-batt",
-};
-
-/******************************************************************************
- * aSoC audio
- ******************************************************************************/
-static struct palm27x_asoc_info palmld_asoc_pdata = {
-	.jack_gpio	= GPIO_NR_PALMLD_EARPHONE_DETECT,
-};
-
-static pxa2xx_audio_ops_t palmld_ac97_pdata = {
-	.reset_gpio	= 95,
-};
-
-static struct platform_device palmld_asoc = {
-	.name = "palm27x-asoc",
-	.id   = -1,
-	.dev  = {
-		.platform_data = &palmld_asoc_pdata,
-	},
-};
+#else
+static inline void palmld_leds_init(void) {}
+#endif
 
 /******************************************************************************
  * HDD
  ******************************************************************************/
-static struct platform_device palmld_hdd = {
+#if defined(CONFIG_PATA_PALMLD) || defined(CONFIG_PATA_PALMLD_MODULE)
+static struct platform_device palmld_ide_device = {
 	.name	= "pata_palmld",
 	.id	= -1,
 };
 
-/******************************************************************************
- * Framebuffer
- ******************************************************************************/
-static struct pxafb_mode_info palmld_lcd_modes[] = {
+static void __init palmld_ide_init(void)
 {
-	.pixclock	= 57692,
-	.xres		= 320,
-	.yres		= 480,
-	.bpp		= 16,
-
-	.left_margin	= 32,
-	.right_margin	= 1,
-	.upper_margin	= 7,
-	.lower_margin	= 1,
-
-	.hsync_len	= 4,
-	.vsync_len	= 1,
-},
-};
-
-static struct pxafb_mach_info palmld_lcd_screen = {
-	.modes		= palmld_lcd_modes,
-	.num_modes	= ARRAY_SIZE(palmld_lcd_modes),
-	.lcd_conn	= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
-};
-
-/******************************************************************************
- * Power management - standby
- ******************************************************************************/
-static void __init palmld_pm_init(void)
-{
-	static u32 resume[] = {
-		0xe3a00101,	/* mov	r0,	#0x40000000 */
-		0xe380060f,	/* orr	r0, r0, #0x00f00000 */
-		0xe590f008,	/* ldr	pc, [r0, #0x08] */
-	};
-
-	/* copy the bootloader */
-	memcpy(phys_to_virt(PALMLD_STR_BASE), resume, sizeof(resume));
+	platform_device_register(&palmld_ide_device);
 }
+#else
+static inline void palmld_ide_init(void) {}
+#endif
 
 /******************************************************************************
  * Machine init
  ******************************************************************************/
-static struct platform_device *devices[] __initdata = {
-#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
-	&palmld_pxa_keys,
-#endif
-	&palmld_backlight,
-	&palmld_leds,
-	&power_supply,
-	&palmld_asoc,
-	&palmld_hdd,
-	&palmld_flash,
-};
-
 static struct map_desc palmld_io_desc[] __initdata = {
 {
 	.virtual	= PALMLD_IDE_VIRT,
@@ -510,25 +320,29 @@ static void __init palmld_map_io(void)
 static void __init palmld_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(palmld_pin_config));
-
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	palmld_pm_init();
-	set_pxa_fb_info(&palmld_lcd_screen);
-	pxa_set_mci_info(&palmld_mci_platform_data);
-	pxa_set_ac97_info(&palmld_ac97_pdata);
-	pxa_set_ficp_info(&palmld_ficp_platform_data);
-	pxa_set_keypad_info(&palmld_keypad_platform_data);
-	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);
-
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	palm27x_mmc_init(GPIO_NR_PALMLD_SD_DETECT_N, GPIO_NR_PALMLD_SD_READONLY,
+			GPIO_NR_PALMLD_SD_POWER, 0);
+	palm27x_pm_init(PALMLD_STR_BASE);
+	palm27x_lcd_init(-1, &palm_320x480_lcd_mode);
+	palm27x_irda_init(GPIO_NR_PALMLD_IR_DISABLE);
+	palm27x_ac97_init(PALMLD_BAT_MIN_VOLTAGE, PALMLD_BAT_MAX_VOLTAGE,
+			GPIO_NR_PALMLD_EARPHONE_DETECT, 95);
+	palm27x_pwm_init(GPIO_NR_PALMLD_BL_POWER, GPIO_NR_PALMLD_LCD_POWER);
+	palm27x_power_init(GPIO_NR_PALMLD_POWER_DETECT,
+			GPIO_NR_PALMLD_USB_DETECT_N);
+	palm27x_pmic_init();
+	palmld_kpc_init();
+	palmld_keys_init();
+	palmld_nor_init();
+	palmld_leds_init();
+	palmld_ide_init();
 }
 
 MACHINE_START(PALMLD, "Palm LifeDrive")
-	.phys_io	= PALMLD_PHYS_IO_START,
-	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= 0xa0000100,
 	.map_io		= palmld_map_io,
 	.init_irq	= pxa27x_init_irq,

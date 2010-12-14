@@ -21,9 +21,7 @@ config MACH_U8500_MOP
 	bool "U8500 Development platform"
 	select UX500_SOC_DB8500
 	help
-	  Include support for mop500 development platform
-	  based on U8500 architecture. The platform is based
-	  on early drop silicon version of 8500.
+	  Include support for the mop500 development platform.
 
 config MACH_U5500
 	bool "U5500 Development platform"
@@ -38,5 +36,19 @@ config UX500_DEBUG_UART
 	help
 	  Choose the UART on which kernel low-level debug messages should be
 	  output.
+
+config U5500_MODEM_IRQ
+	bool "Modem IRQ support"
+	depends on MACH_U5500
+	default y
+	help
+	  Add support for handling IRQ:s from modem side
+
+config U5500_MBOX
+	bool "Mailbox support"
+	depends on MACH_U5500 && U5500_MODEM_IRQ
+	default y
+	help
+	  Add support for U5500 mailbox communication with modem side
 
 endif

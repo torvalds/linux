@@ -21,13 +21,11 @@ struct davinci_pcm_dma_params {
 	unsigned short acnt;
 	dma_addr_t dma_addr;		/* device physical address for DMA */
 	unsigned sram_size;
-	enum dma_event_q eventq_no;	/* event queue number */
+	enum dma_event_q asp_chan_q;	/* event queue number for ASP channel */
+	enum dma_event_q ram_chan_q;	/* event queue number for RAM channel */
 	unsigned char data_type;	/* xfer data type */
 	unsigned char convert_mono_stereo;
 	unsigned int fifo_level;
 };
-
-
-extern struct snd_soc_platform davinci_soc_platform;
 
 #endif

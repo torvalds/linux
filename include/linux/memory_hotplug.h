@@ -70,6 +70,10 @@ extern void online_page(struct page *page);
 extern int online_pages(unsigned long, unsigned long);
 extern void __offline_isolated_pages(unsigned long, unsigned long);
 
+#ifdef CONFIG_MEMORY_HOTREMOVE
+extern bool is_pageblock_removable_nolock(struct page *page);
+#endif /* CONFIG_MEMORY_HOTREMOVE */
+
 /* reasonably generic interface to expand the physical pages in a zone  */
 extern int __add_pages(int nid, struct zone *zone, unsigned long start_pfn,
 	unsigned long nr_pages);

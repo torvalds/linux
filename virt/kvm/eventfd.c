@@ -2,6 +2,7 @@
  * kvm eventfd support - use eventfd objects to signal various KVM events
  *
  * Copyright 2009 Novell.  All Rights Reserved.
+ * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  * Author:
  *	Gregory Haskins <ghaskins@novell.com>
@@ -217,7 +218,6 @@ kvm_irqfd_assign(struct kvm *kvm, int fd, int gsi)
 	events = file->f_op->poll(file, &irqfd->pt);
 
 	list_add_tail(&irqfd->list, &kvm->irqfds.items);
-	spin_unlock_irq(&kvm->irqfds.lock);
 
 	/*
 	 * Check if there was an event already pending on the eventfd
@@ -225,6 +225,8 @@ kvm_irqfd_assign(struct kvm *kvm, int fd, int gsi)
 	 */
 	if (events & POLLIN)
 		schedule_work(&irqfd->inject);
+
+	spin_unlock_irq(&kvm->irqfds.lock);
 
 	/*
 	 * do not drop the file until the irqfd is fully initialized, otherwise

@@ -84,7 +84,7 @@ static int iget_skip_test(struct inode *inode, void *opaque)
 	struct gfs2_skip_data *data = opaque;
 
 	if (ip->i_no_addr == data->no_addr) {
-		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE)){
+		if (inode->i_state & (I_FREEING|I_WILL_FREE)){
 			data->skipped = 1;
 			return 0;
 		}
@@ -359,8 +359,7 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	 * to do that.
 	 */
 	ip->i_inode.i_nlink = be32_to_cpu(str->di_nlink);
-	ip->i_disksize = be64_to_cpu(str->di_size);
-	i_size_write(&ip->i_inode, ip->i_disksize);
+	i_size_write(&ip->i_inode, be64_to_cpu(str->di_size));
 	gfs2_set_inode_blocks(&ip->i_inode, be64_to_cpu(str->di_blocks));
 	atime.tv_sec = be64_to_cpu(str->di_atime);
 	atime.tv_nsec = be32_to_cpu(str->di_atime_nsec);
@@ -991,18 +990,29 @@ fail:
 
 static int __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 {
+	struct inode *inode = &ip->i_inode;
 	struct buffer_head *dibh;
 	int error;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (!error) {
-		error = inode_setattr(&ip->i_inode, attr);
-		gfs2_assert_warn(GFS2_SB(&ip->i_inode), !error);
-		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-		gfs2_dinode_out(ip, dibh->b_data);
-		brelse(dibh);
+	if (error)
+		return error;
+
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, attr->ia_size);
+		if (error)
+			return error;
 	}
-	return error;
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+
+	gfs2_assert_warn(GFS2_SB(inode), !error);
+	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+	gfs2_dinode_out(ip, dibh->b_data);
+	brelse(dibh);
+	return 0;
 }
 
 /**
@@ -1044,7 +1054,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_uid = cpu_to_be32(ip->i_inode.i_uid);
 	str->di_gid = cpu_to_be32(ip->i_inode.i_gid);
 	str->di_nlink = cpu_to_be32(ip->i_inode.i_nlink);
-	str->di_size = cpu_to_be64(ip->i_disksize);
+	str->di_size = cpu_to_be64(i_size_read(&ip->i_inode));
 	str->di_blocks = cpu_to_be64(gfs2_get_inode_blocks(&ip->i_inode));
 	str->di_atime = cpu_to_be64(ip->i_inode.i_atime.tv_sec);
 	str->di_mtime = cpu_to_be64(ip->i_inode.i_mtime.tv_sec);
@@ -1074,8 +1084,8 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 	       (unsigned long long)ip->i_no_formal_ino);
 	printk(KERN_INFO "  no_addr = %llu\n",
 	       (unsigned long long)ip->i_no_addr);
-	printk(KERN_INFO "  i_disksize = %llu\n",
-	       (unsigned long long)ip->i_disksize);
+	printk(KERN_INFO "  i_size = %llu\n",
+	       (unsigned long long)i_size_read(&ip->i_inode));
 	printk(KERN_INFO "  blocks = %llu\n",
 	       (unsigned long long)gfs2_get_inode_blocks(&ip->i_inode));
 	printk(KERN_INFO "  i_goal = %llu\n",

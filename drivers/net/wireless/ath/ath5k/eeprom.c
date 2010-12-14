@@ -35,7 +35,6 @@ static int ath5k_hw_eeprom_read(struct ath5k_hw *ah, u32 offset, u16 *data)
 {
 	u32 status, timeout;
 
-	ATH5K_TRACE(ah->ah_sc);
 	/*
 	 * Initialize EEPROM access
 	 */
@@ -662,7 +661,7 @@ ath5k_eeprom_init_11bg_2413(struct ath5k_hw *ah, unsigned int mode, int offset)
  * (eeprom versions < 4). For RF5111 we have 11 pre-defined PCDAC
  * steps that match with the power values we read from eeprom. On
  * older eeprom versions (< 3.2) these steps are equaly spaced at
- * 10% of the pcdac curve -until the curve reaches it's maximum-
+ * 10% of the pcdac curve -until the curve reaches its maximum-
  * (11 steps from 0 to 100%) but on newer eeprom versions (>= 3.2)
  * these 11 steps are spaced in a different way. This function returns
  * the pcdac steps based on eeprom version and curve min/max so that we
@@ -715,7 +714,7 @@ ath5k_eeprom_convert_pcal_info_5111(struct ath5k_hw *ah, int mode,
 
 		/* Only one curve for RF5111
 		 * find out which one and place
-		 * in in pd_curves.
+		 * in pd_curves.
 		 * Note: ee_x_gain is reversed here */
 		for (idx = 0; idx < AR5K_EEPROM_N_PD_CURVES; idx++) {
 
@@ -1114,7 +1113,7 @@ ath5k_eeprom_read_pcal_info_5112(struct ath5k_hw *ah, int mode)
  */
 
 /* For RF2413 power calibration data doesn't start on a fixed location and
- * if a mode is not supported, it's section is missing -not zeroed-.
+ * if a mode is not supported, its section is missing -not zeroed-.
  * So we need to calculate the starting offset for each section by using
  * these two functions */
 

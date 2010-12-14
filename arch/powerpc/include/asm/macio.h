@@ -38,7 +38,7 @@ struct macio_dev
 {
 	struct macio_bus	*bus;		/* macio bus this device is on */
 	struct macio_dev	*media_bay;	/* Device is part of a media bay */
-	struct of_device	ofdev;
+	struct platform_device	ofdev;
 	struct device_dma_parameters dma_parms; /* ide needs that */
 	int			n_resources;
 	struct resource		resource[MACIO_DEV_COUNT_RESOURCES];

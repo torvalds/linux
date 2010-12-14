@@ -1079,7 +1079,7 @@ static int au1200fb_fb_check_var(struct fb_var_screeninfo *var,
 	 * clock can only be obtain by dividing this value by an even integer.
 	 * Fallback to a slower pixel clock if necessary. */
 	pixclock = max((u32)(PICOS2KHZ(var->pixclock) * 1000), fbi->monspecs.dclkmin);
-	pixclock = min(pixclock, min(fbi->monspecs.dclkmax, (u32)AU1200_LCD_MAX_CLK/2));
+	pixclock = min3(pixclock, fbi->monspecs.dclkmax, (u32)AU1200_LCD_MAX_CLK/2);
 
 	if (AU1200_LCD_MAX_CLK % pixclock) {
 		int diff = AU1200_LCD_MAX_CLK % pixclock;

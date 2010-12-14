@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -118,7 +118,6 @@ static int e1000_get_settings(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 status;
 
 	if (hw->phy.media_type == e1000_media_type_copper) {
 
@@ -156,22 +155,29 @@ static int e1000_get_settings(struct net_device *netdev,
 		ecmd->transceiver = XCVR_EXTERNAL;
 	}
 
-	status = er32(STATUS);
-	if (status & E1000_STATUS_LU) {
-		if (status & E1000_STATUS_SPEED_1000)
-			ecmd->speed = 1000;
-		else if (status & E1000_STATUS_SPEED_100)
-			ecmd->speed = 100;
-		else
-			ecmd->speed = 10;
+	ecmd->speed = -1;
+	ecmd->duplex = -1;
 
-		if (status & E1000_STATUS_FD)
-			ecmd->duplex = DUPLEX_FULL;
-		else
-			ecmd->duplex = DUPLEX_HALF;
+	if (netif_running(netdev)) {
+		if (netif_carrier_ok(netdev)) {
+			ecmd->speed = adapter->link_speed;
+			ecmd->duplex = adapter->link_duplex - 1;
+		}
 	} else {
-		ecmd->speed = -1;
-		ecmd->duplex = -1;
+		u32 status = er32(STATUS);
+		if (status & E1000_STATUS_LU) {
+			if (status & E1000_STATUS_SPEED_1000)
+				ecmd->speed = 1000;
+			else if (status & E1000_STATUS_SPEED_100)
+				ecmd->speed = 100;
+			else
+				ecmd->speed = 10;
+
+			if (status & E1000_STATUS_FD)
+				ecmd->duplex = DUPLEX_FULL;
+			else
+				ecmd->duplex = DUPLEX_HALF;
+		}
 	}
 
 	ecmd->autoneg = ((hw->phy.media_type == e1000_media_type_fiber) ||
@@ -179,7 +185,7 @@ static int e1000_get_settings(struct net_device *netdev,
 
 	/* MDI-X => 2; MDI =>1; Invalid =>0 */
 	if ((hw->phy.media_type == e1000_media_type_copper) &&
-	    !hw->mac.get_link_status)
+	    netif_carrier_ok(netdev))
 		ecmd->eth_tp_mdix = hw->phy.is_mdix ? ETH_TP_MDI_X :
 		                                      ETH_TP_MDI;
 	else
@@ -191,19 +197,15 @@ static int e1000_get_settings(struct net_device *netdev,
 static u32 e1000_get_link(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_mac_info *mac = &adapter->hw.mac;
+	struct e1000_hw *hw = &adapter->hw;
 
 	/*
-	 * If the link is not reported up to netdev, interrupts are disabled,
-	 * and so the physical link state may have changed since we last
-	 * looked. Set get_link_status to make sure that the true link
-	 * state is interrogated, rather than pulling a cached and possibly
-	 * stale link state from the driver.
+	 * Avoid touching hardware registers when possible, otherwise
+	 * link negotiation can get messed up when user-level scripts
+	 * are rapidly polling the driver to see if link is up.
 	 */
-	if (!netif_carrier_ok(netdev))
-		mac->get_link_status = 1;
-
-	return e1000e_has_link(adapter);
+	return netif_running(netdev) ? netif_carrier_ok(netdev) :
+	    !!(er32(STATUS) & E1000_STATUS_LU);
 }
 
 static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u16 spddplx)
@@ -366,7 +368,7 @@ out:
 static u32 e1000_get_rx_csum(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	return (adapter->flags & FLAG_RX_CSUM_ENABLED);
+	return adapter->flags & FLAG_RX_CSUM_ENABLED;
 }
 
 static int e1000_set_rx_csum(struct net_device *netdev, u32 data)
@@ -387,7 +389,7 @@ static int e1000_set_rx_csum(struct net_device *netdev, u32 data)
 
 static u32 e1000_get_tx_csum(struct net_device *netdev)
 {
-	return ((netdev->features & NETIF_F_HW_CSUM) != 0);
+	return (netdev->features & NETIF_F_HW_CSUM) != 0;
 }
 
 static int e1000_set_tx_csum(struct net_device *netdev, u32 data)
@@ -880,6 +882,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	switch (mac->type) {
 	case e1000_ich10lan:
 	case e1000_pchlan:
+	case e1000_pch2lan:
 		mask |= (1 << 18);
 		break;
 	default:
@@ -1263,33 +1266,36 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 
 	hw->mac.autoneg = 0;
 
-	/* Workaround: K1 must be disabled for stable 1Gbps operation */
-	if (hw->mac.type == e1000_pchlan)
-		e1000_configure_k1_ich8lan(hw, false);
+	if (hw->phy.type == e1000_phy_ife) {
+		/* force 100, set loopback */
+		e1e_wphy(hw, PHY_CONTROL, 0x6100);
 
-	if (hw->phy.type == e1000_phy_m88) {
+		/* Now set up the MAC to the same speed/duplex as the PHY. */
+		ctrl_reg = er32(CTRL);
+		ctrl_reg &= ~E1000_CTRL_SPD_SEL; /* Clear the speed sel bits */
+		ctrl_reg |= (E1000_CTRL_FRCSPD | /* Set the Force Speed Bit */
+			     E1000_CTRL_FRCDPX | /* Set the Force Duplex Bit */
+			     E1000_CTRL_SPD_100 |/* Force Speed to 100 */
+			     E1000_CTRL_FD);	 /* Force Duplex to FULL */
+
+		ew32(CTRL, ctrl_reg);
+		udelay(500);
+
+		return 0;
+	}
+
+	/* Specific PHY configuration for loopback */
+	switch (hw->phy.type) {
+	case e1000_phy_m88:
 		/* Auto-MDI/MDIX Off */
 		e1e_wphy(hw, M88E1000_PHY_SPEC_CTRL, 0x0808);
 		/* reset to update Auto-MDI/MDIX */
 		e1e_wphy(hw, PHY_CONTROL, 0x9140);
 		/* autoneg off */
 		e1e_wphy(hw, PHY_CONTROL, 0x8140);
-	} else if (hw->phy.type == e1000_phy_gg82563)
+		break;
+	case e1000_phy_gg82563:
 		e1e_wphy(hw, GG82563_PHY_KMRN_MODE_CTRL, 0x1CC);
-
-	ctrl_reg = er32(CTRL);
-
-	switch (hw->phy.type) {
-	case e1000_phy_ife:
-		/* force 100, set loopback */
-		e1e_wphy(hw, PHY_CONTROL, 0x6100);
-
-		/* Now set up the MAC to the same speed/duplex as the PHY. */
-		ctrl_reg &= ~E1000_CTRL_SPD_SEL; /* Clear the speed sel bits */
-		ctrl_reg |= (E1000_CTRL_FRCSPD | /* Set the Force Speed Bit */
-			     E1000_CTRL_FRCDPX | /* Set the Force Duplex Bit */
-			     E1000_CTRL_SPD_100 |/* Force Speed to 100 */
-			     E1000_CTRL_FD);	 /* Force Duplex to FULL */
 		break;
 	case e1000_phy_bm:
 		/* Set Default MAC Interface speed to 1GB */
@@ -1312,23 +1318,41 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 		/* Set Early Link Enable */
 		e1e_rphy(hw, PHY_REG(769, 20), &phy_reg);
 		e1e_wphy(hw, PHY_REG(769, 20), phy_reg | 0x0400);
-		/* fall through */
+		break;
+	case e1000_phy_82577:
+	case e1000_phy_82578:
+		/* Workaround: K1 must be disabled for stable 1Gbps operation */
+		e1000_configure_k1_ich8lan(hw, false);
+		break;
+	case e1000_phy_82579:
+		/* Disable PHY energy detect power down */
+		e1e_rphy(hw, PHY_REG(0, 21), &phy_reg);
+		e1e_wphy(hw, PHY_REG(0, 21), phy_reg & ~(1 << 3));
+		/* Disable full chip energy detect */
+		e1e_rphy(hw, PHY_REG(776, 18), &phy_reg);
+		e1e_wphy(hw, PHY_REG(776, 18), phy_reg | 1);
+		/* Enable loopback on the PHY */
+#define I82577_PHY_LBK_CTRL          19
+		e1e_wphy(hw, I82577_PHY_LBK_CTRL, 0x8001);
+		break;
 	default:
-		/* force 1000, set loopback */
-		e1e_wphy(hw, PHY_CONTROL, 0x4140);
-		mdelay(250);
-
-		/* Now set up the MAC to the same speed/duplex as the PHY. */
-		ctrl_reg = er32(CTRL);
-		ctrl_reg &= ~E1000_CTRL_SPD_SEL; /* Clear the speed sel bits */
-		ctrl_reg |= (E1000_CTRL_FRCSPD | /* Set the Force Speed Bit */
-			     E1000_CTRL_FRCDPX | /* Set the Force Duplex Bit */
-			     E1000_CTRL_SPD_1000 |/* Force Speed to 1000 */
-			     E1000_CTRL_FD);	 /* Force Duplex to FULL */
-
-		if (adapter->flags & FLAG_IS_ICH)
-			ctrl_reg |= E1000_CTRL_SLU;	/* Set Link Up */
+		break;
 	}
+
+	/* force 1000, set loopback */
+	e1e_wphy(hw, PHY_CONTROL, 0x4140);
+	mdelay(250);
+
+	/* Now set up the MAC to the same speed/duplex as the PHY. */
+	ctrl_reg = er32(CTRL);
+	ctrl_reg &= ~E1000_CTRL_SPD_SEL; /* Clear the speed sel bits */
+	ctrl_reg |= (E1000_CTRL_FRCSPD | /* Set the Force Speed Bit */
+		     E1000_CTRL_FRCDPX | /* Set the Force Duplex Bit */
+		     E1000_CTRL_SPD_1000 |/* Force Speed to 1000 */
+		     E1000_CTRL_FD);	 /* Force Duplex to FULL */
+
+	if (adapter->flags & FLAG_IS_ICH)
+		ctrl_reg |= E1000_CTRL_SLU;	/* Set Link Up */
 
 	if (hw->phy.media_type == e1000_media_type_copper &&
 	    hw->phy.type == e1000_phy_m88) {
@@ -1693,13 +1717,6 @@ static void e1000_diag_test(struct net_device *netdev,
 
 		e_info("offline testing starting\n");
 
-		/*
-		 * Link test performed before hardware reset so autoneg doesn't
-		 * interfere with test result
-		 */
-		if (e1000_link_test(adapter, &data[4]))
-			eth_test->flags |= ETH_TEST_FL_FAILED;
-
 		if (if_running)
 			/* indicate we're in test mode */
 			dev_close(netdev);
@@ -1723,15 +1740,19 @@ static void e1000_diag_test(struct net_device *netdev,
 		if (e1000_loopback_test(adapter, &data[3]))
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
-		/* restore speed, duplex, autoneg settings */
-		adapter->hw.phy.autoneg_advertised = autoneg_advertised;
-		adapter->hw.mac.forced_speed_duplex = forced_speed_duplex;
-		adapter->hw.mac.autoneg = autoneg;
-
 		/* force this routine to wait until autoneg complete/timeout */
 		adapter->hw.phy.autoneg_wait_to_complete = 1;
 		e1000e_reset(adapter);
 		adapter->hw.phy.autoneg_wait_to_complete = 0;
+
+		if (e1000_link_test(adapter, &data[4]))
+			eth_test->flags |= ETH_TEST_FL_FAILED;
+
+		/* restore speed, duplex, autoneg settings */
+		adapter->hw.phy.autoneg_advertised = autoneg_advertised;
+		adapter->hw.mac.forced_speed_duplex = forced_speed_duplex;
+		adapter->hw.mac.autoneg = autoneg;
+		e1000e_reset(adapter);
 
 		clear_bit(__E1000_TESTING, &adapter->state);
 		if (if_running)
@@ -1868,6 +1889,7 @@ static int e1000_phys_id(struct net_device *netdev, u32 data)
 
 	if ((hw->phy.type == e1000_phy_ife) ||
 	    (hw->mac.type == e1000_pchlan) ||
+	    (hw->mac.type == e1000_pch2lan) ||
 	    (hw->mac.type == e1000_82583) ||
 	    (hw->mac.type == e1000_82574)) {
 		INIT_WORK(&adapter->led_blink_task, e1000e_led_blink_task);
@@ -2026,7 +2048,6 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_coalesce		= e1000_get_coalesce,
 	.set_coalesce		= e1000_set_coalesce,
 	.get_flags		= ethtool_op_get_flags,
-	.set_flags		= ethtool_op_set_flags,
 };
 
 void e1000e_set_ethtool_ops(struct net_device *netdev)

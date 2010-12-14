@@ -1,7 +1,7 @@
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
- *  Copyright (c) 2009 Steven Toth <stoth@kernellabs.com>
+ *  Copyright (c) 2010 Steven Toth <stoth@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,11 +24,11 @@
 
 #include "saa7164.h"
 
-#define SAA7164_REV2_FIRMWARE		"v4l-saa7164-1.0.2.fw"
-#define SAA7164_REV2_FIRMWARE_SIZE	3978608
+#define SAA7164_REV2_FIRMWARE		"NXP7164-2010-03-10.1.fw"
+#define SAA7164_REV2_FIRMWARE_SIZE	4019072
 
-#define SAA7164_REV3_FIRMWARE		"v4l-saa7164-1.0.3.fw"
-#define SAA7164_REV3_FIRMWARE_SIZE	3978608
+#define SAA7164_REV3_FIRMWARE		"NXP7164-2010-03-10.1.fw"
+#define SAA7164_REV3_FIRMWARE_SIZE	4019072
 
 struct fw_header {
 	u32	firmwaresize;
@@ -604,6 +604,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 		}
 	}
 
+	dev->firmwareloaded = 1;
 	ret = 0;
 
 out:

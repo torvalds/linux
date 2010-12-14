@@ -236,7 +236,7 @@ static int __init clk_disable_unused(void)
 		if (!davinci_psc_is_clk_active(ck->gpsc, ck->lpsc))
 			continue;
 
-		pr_info("Clocks: disable unused %s\n", ck->name);
+		pr_debug("Clocks: disable unused %s\n", ck->name);
 
 		davinci_psc_config(psc_domain(ck), ck->gpsc, ck->lpsc,
 				(ck->flags & PSC_SWRSTDISABLE) ?
@@ -286,6 +286,79 @@ static unsigned long clk_sysclk_recalc(struct clk *clk)
 
 	return rate;
 }
+
+int davinci_set_sysclk_rate(struct clk *clk, unsigned long rate)
+{
+	unsigned v;
+	struct pll_data *pll;
+	unsigned long input;
+	unsigned ratio = 0;
+
+	/* If this is the PLL base clock, wrong function to call */
+	if (clk->pll_data)
+		return -EINVAL;
+
+	/* There must be a parent... */
+	if (WARN_ON(!clk->parent))
+		return -EINVAL;
+
+	/* ... the parent must be a PLL... */
+	if (WARN_ON(!clk->parent->pll_data))
+		return -EINVAL;
+
+	/* ... and this clock must have a divider. */
+	if (WARN_ON(!clk->div_reg))
+		return -EINVAL;
+
+	pll = clk->parent->pll_data;
+
+	input = clk->parent->rate;
+
+	/* If pre-PLL, source clock is before the multiplier and divider(s) */
+	if (clk->flags & PRE_PLL)
+		input = pll->input_rate;
+
+	if (input > rate) {
+		/*
+		 * Can afford to provide an output little higher than requested
+		 * only if maximum rate supported by hardware on this sysclk
+		 * is known.
+		 */
+		if (clk->maxrate) {
+			ratio = DIV_ROUND_CLOSEST(input, rate);
+			if (input / ratio > clk->maxrate)
+				ratio = 0;
+		}
+
+		if (ratio == 0)
+			ratio = DIV_ROUND_UP(input, rate);
+
+		ratio--;
+	}
+
+	if (ratio > PLLDIV_RATIO_MASK)
+		return -EINVAL;
+
+	do {
+		v = __raw_readl(pll->base + PLLSTAT);
+	} while (v & PLLSTAT_GOSTAT);
+
+	v = __raw_readl(pll->base + clk->div_reg);
+	v &= ~PLLDIV_RATIO_MASK;
+	v |= ratio | PLLDIV_EN;
+	__raw_writel(v, pll->base + clk->div_reg);
+
+	v = __raw_readl(pll->base + PLLCMD);
+	v |= PLLCMD_GOSET;
+	__raw_writel(v, pll->base + PLLCMD);
+
+	do {
+		v = __raw_readl(pll->base + PLLSTAT);
+	} while (v & PLLSTAT_GOSTAT);
+
+	return 0;
+}
+EXPORT_SYMBOL(davinci_set_sysclk_rate);
 
 static unsigned long clk_leafclk_recalc(struct clk *clk)
 {

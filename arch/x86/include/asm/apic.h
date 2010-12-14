@@ -252,9 +252,7 @@ static inline int apic_is_clustered_box(void)
 }
 #endif
 
-extern u8 setup_APIC_eilvt_mce(u8 vector, u8 msg_type, u8 mask);
-extern u8 setup_APIC_eilvt_ibs(u8 vector, u8 msg_type, u8 mask);
-
+extern int setup_APIC_eilvt(u8 lvt_off, u8 vector, u8 msg_type, u8 mask);
 
 #else /* !CONFIG_X86_LOCAL_APIC */
 static inline void lapic_shutdown(void) { }

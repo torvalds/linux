@@ -67,6 +67,17 @@ int br_forward_finish(struct sk_buff *skb)
 static void __br_deliver(const struct net_bridge_port *to, struct sk_buff *skb)
 {
 	skb->dev = to->dev;
+
+	if (unlikely(netpoll_tx_running(to->dev))) {
+		if (packet_length(skb) > skb->dev->mtu && !skb_is_gso(skb))
+			kfree_skb(skb);
+		else {
+			skb_push(skb, ETH_HLEN);
+			br_netpoll_send_skb(to, skb);
+		}
+		return;
+	}
+
 	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
 		br_forward_finish);
 }

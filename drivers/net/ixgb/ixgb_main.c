@@ -446,8 +446,10 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			   NETIF_F_HW_VLAN_FILTER;
 	netdev->features |= NETIF_F_TSO;
 
-	if (pci_using_dac)
+	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
+		netdev->vlan_features |= NETIF_F_HIGHDMA;
+	}
 
 	/* make sure the EEPROM is good */
 
@@ -470,7 +472,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->part_num = ixgb_get_ee_pba_number(&adapter->hw);
 
 	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = &ixgb_watchdog;
+	adapter->watchdog_timer.function = ixgb_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 
 	INIT_WORK(&adapter->tx_timeout_task, ixgb_tx_timeout_task);
@@ -531,6 +533,7 @@ ixgb_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 
 	free_netdev(netdev);
+	pci_disable_device(pdev);
 }
 
 /**
@@ -1816,6 +1819,7 @@ ixgb_clean_tx_irq(struct ixgb_adapter *adapter)
 
 	while (eop_desc->status & IXGB_TX_DESC_STATUS_DD) {
 
+		rmb(); /* read buffer_info after eop_desc */
 		for (cleaned = false; !cleaned; ) {
 			tx_desc = IXGB_TX_DESC(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
@@ -1904,7 +1908,7 @@ ixgb_rx_checksum(struct ixgb_adapter *adapter,
 	 */
 	if ((rx_desc->status & IXGB_RX_DESC_STATUS_IXSM) ||
 	   (!(rx_desc->status & IXGB_RX_DESC_STATUS_TCPCS))) {
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 		return;
 	}
 
@@ -1912,7 +1916,7 @@ ixgb_rx_checksum(struct ixgb_adapter *adapter,
 	/* now look at the TCP checksum error bit */
 	if (rx_desc->errors & IXGB_RX_DESC_ERRORS_TCPE) {
 		/* let the stack verify checksum errors */
-		skb->ip_summed = CHECKSUM_NONE;
+		skb_checksum_none_assert(skb);
 		adapter->hw_csum_rx_error++;
 	} else {
 		/* TCP checksum is good */
@@ -1976,6 +1980,7 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 			break;
 
 		(*work_done)++;
+		rmb();	/* read descriptor and rx_buffer_info after status DD */
 		status = rx_desc->status;
 		skb = buffer_info->skb;
 		buffer_info->skb = NULL;
@@ -2219,7 +2224,7 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
 
 	if (adapter->vlgrp) {
 		u16 vid;
-		for (vid = 0; vid < VLAN_GROUP_ARRAY_LEN; vid++) {
+		for (vid = 0; vid < VLAN_N_VID; vid++) {
 			if (!vlan_group_get_device(adapter->vlgrp, vid))
 				continue;
 			ixgb_vlan_rx_add_vid(adapter->netdev, vid);

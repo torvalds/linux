@@ -108,12 +108,11 @@ static uint32_t atom_iio_execute(struct atom_context *ctx, int base,
 			base++;
 			break;
 		case ATOM_IIO_READ:
-			temp = ctx->card->reg_read(ctx->card, CU16(base + 1));
+			temp = ctx->card->ioreg_read(ctx->card, CU16(base + 1));
 			base += 3;
 			break;
 		case ATOM_IIO_WRITE:
-			(void)ctx->card->reg_read(ctx->card, CU16(base + 1));
-			ctx->card->reg_write(ctx->card, CU16(base + 1), temp);
+			ctx->card->ioreg_write(ctx->card, CU16(base + 1), temp);
 			base += 3;
 			break;
 		case ATOM_IIO_CLEAR:
@@ -715,8 +714,8 @@ static void atom_op_jump(atom_exec_context *ctx, int *ptr, int arg)
 			cjiffies = jiffies;
 			if (time_after(cjiffies, ctx->last_jump_jiffies)) {
 				cjiffies -= ctx->last_jump_jiffies;
-				if ((jiffies_to_msecs(cjiffies) > 1000)) {
-					DRM_ERROR("atombios stuck in loop for more than 1sec aborting\n");
+				if ((jiffies_to_msecs(cjiffies) > 5000)) {
+					DRM_ERROR("atombios stuck in loop for more than 5secs aborting\n");
 					ctx->abort = true;
 				}
 			} else {

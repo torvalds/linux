@@ -38,9 +38,11 @@
 void nv50_display_irq_handler(struct drm_device *dev);
 void nv50_display_irq_handler_bh(struct work_struct *work);
 void nv50_display_irq_hotplug_bh(struct work_struct *work);
-int nv50_display_init(struct drm_device *dev);
+int nv50_display_early_init(struct drm_device *dev);
+void nv50_display_late_takedown(struct drm_device *dev);
 int nv50_display_create(struct drm_device *dev);
-int nv50_display_destroy(struct drm_device *dev);
+int nv50_display_init(struct drm_device *dev);
+void nv50_display_destroy(struct drm_device *dev);
 int nv50_crtc_blank(struct nouveau_crtc *, bool blank);
 int nv50_crtc_set_clock(struct drm_device *, int head, int pclk);
 

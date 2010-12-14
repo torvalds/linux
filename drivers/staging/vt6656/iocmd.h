@@ -33,10 +33,6 @@
 
 /*---------------------  Export Definitions -------------------------*/
 
-#if !defined(DEF)
-#define DEF
-#endif
-
 // ioctl Command code
 #define MAGIC_CODE	                 0x3142
 #define IOCTL_CMD_TEST	            (SIOCDEVPRIVATE + 0)
@@ -70,10 +66,10 @@ typedef enum tagWMAC_CMD {
 } WMAC_CMD, *PWMAC_CMD;
 
 typedef enum tagWZONETYPE {
-  ZoneType_USA=0,
-  ZoneType_Japan=1,
-  ZoneType_Europe=2
-}WZONETYPE;
+  ZoneType_USA = 0,
+  ZoneType_Japan = 1,
+  ZoneType_Europe = 2
+} WZONETYPE;
 
 #define ADHOC	0
 #define INFRA	1
@@ -83,9 +79,9 @@ typedef enum tagWZONETYPE {
 #define ADHOC_STARTED	   1
 #define ADHOC_JOINTED	   2
 
-#define PHY80211a 	    0
-#define PHY80211b       1
-#define PHY80211g       2
+#define PHY80211a 0
+#define PHY80211b 1
+#define PHY80211g 2
 
 #define SSID_ID                0
 #define SSID_MAXLEN            32
@@ -143,7 +139,6 @@ typedef struct tagSCmdZoneTypeSet {
 
 } SCmdZoneTypeSet, *PSCmdZoneTypeSet;
 
-#ifdef WPA_SM_Transtatus
 typedef struct tagSWPAResult {
          char	ifname[100];
 	u8 proto;
@@ -151,7 +146,6 @@ typedef struct tagSWPAResult {
 	u8 eap_type;
          BOOL authenticated;
 } SWPAResult, *PSWPAResult;
-#endif
 
 typedef struct tagSCmdStartAP {
 

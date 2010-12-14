@@ -24,6 +24,7 @@
 #include <asm/ppc-pci.h>
 #include <asm/mpic.h>
 #include "fsl_msi.h"
+#include "fsl_pci.h"
 
 LIST_HEAD(msi_head);
 
@@ -51,8 +52,8 @@ static void fsl_msi_end_irq(unsigned int virq)
 }
 
 static struct irq_chip fsl_msi_chip = {
-	.mask		= mask_msi_irq,
-	.unmask		= unmask_msi_irq,
+	.irq_mask	= mask_msi_irq,
+	.irq_unmask	= unmask_msi_irq,
 	.ack		= fsl_msi_end_irq,
 	.name		= "FSL-MSI",
 };
@@ -125,13 +126,11 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 {
 	struct fsl_msi *msi_data = fsl_msi_data;
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
-	u32 base = 0;
+	u64 base = fsl_pci_immrbar_base(hose);
 
-	pci_bus_read_config_dword(hose->bus,
-		PCI_DEVFN(0, 0), PCI_BASE_ADDRESS_0, &base);
+	msg->address_lo = msi_data->msi_addr_lo + lower_32_bits(base);
+	msg->address_hi = msi_data->msi_addr_hi + upper_32_bits(base);
 
-	msg->address_lo = msi_data->msi_addr_lo + base;
-	msg->address_hi = msi_data->msi_addr_hi;
 	msg->data = hwirq;
 
 	pr_debug("%s: allocated srs: %d, ibs: %d\n",
@@ -250,7 +249,7 @@ unlock:
 	raw_spin_unlock(&desc->lock);
 }
 
-static int fsl_of_msi_remove(struct of_device *ofdev)
+static int fsl_of_msi_remove(struct platform_device *ofdev)
 {
 	struct fsl_msi *msi = ofdev->dev.platform_data;
 	int virq, i;
@@ -274,7 +273,7 @@ static int fsl_of_msi_remove(struct of_device *ofdev)
 	return 0;
 }
 
-static int __devinit fsl_of_msi_probe(struct of_device *dev,
+static int __devinit fsl_of_msi_probe(struct platform_device *dev,
 				const struct of_device_id *match)
 {
 	struct fsl_msi *msi;

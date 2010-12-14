@@ -27,6 +27,8 @@
 #define DEBUG
 #endif
 
+#include <linux/rwsem.h>
+
 #include <plat/display.h>
 
 #ifdef DEBUG
@@ -44,6 +46,7 @@ extern unsigned int omapfb_debug;
 #define OMAPFB_MAX_OVL_PER_FB 3
 
 struct omapfb2_mem_region {
+	int             id;
 	u32		paddr;
 	void __iomem	*vaddr;
 	struct vrfb	vrfb;
@@ -51,13 +54,15 @@ struct omapfb2_mem_region {
 	u8		type;		/* OMAPFB_PLANE_MEM_* */
 	bool		alloc;		/* allocated by the driver */
 	bool		map;		/* kernel mapped by the driver */
+	atomic_t	map_count;
+	struct rw_semaphore lock;
+	atomic_t	lock_count;
 };
 
 /* appended to fb_info */
 struct omapfb_info {
 	int id;
-	struct omapfb2_mem_region region;
-	atomic_t map_count;
+	struct omapfb2_mem_region *region;
 	int num_overlays;
 	struct omap_overlay *overlays[OMAPFB_MAX_OVL_PER_FB];
 	struct omapfb2_device *fbdev;
@@ -76,6 +81,7 @@ struct omapfb2_device {
 
 	unsigned num_fbs;
 	struct fb_info *fbs[10];
+	struct omapfb2_mem_region regions[10];
 
 	unsigned num_displays;
 	struct omap_dss_device *displays[10];
@@ -117,6 +123,9 @@ int omapfb_update_window(struct fb_info *fbi,
 int dss_mode_to_fb_mode(enum omap_color_mode dssmode,
 			struct fb_var_screeninfo *var);
 
+int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
+		u16 posx, u16 posy, u16 outw, u16 outh);
+
 /* find the display connected to this fb, if any */
 static inline struct omap_dss_device *fb2display(struct fb_info *fbi)
 {
@@ -148,8 +157,24 @@ static inline int omapfb_overlay_enable(struct omap_overlay *ovl,
 	struct omap_overlay_info info;
 
 	ovl->get_overlay_info(ovl, &info);
+	if (info.enabled == enable)
+		return 0;
 	info.enabled = enable;
 	return ovl->set_overlay_info(ovl, &info);
+}
+
+static inline struct omapfb2_mem_region *
+omapfb_get_mem_region(struct omapfb2_mem_region *rg)
+{
+	down_read_nested(&rg->lock, rg->id);
+	atomic_inc(&rg->lock_count);
+	return rg;
+}
+
+static inline void omapfb_put_mem_region(struct omapfb2_mem_region *rg)
+{
+	atomic_dec(&rg->lock_count);
+	up_read(&rg->lock);
 }
 
 #endif

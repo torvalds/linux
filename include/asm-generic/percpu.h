@@ -55,14 +55,18 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
  */
 #define per_cpu(var, cpu) \
 	(*SHIFT_PERCPU_PTR(&(var), per_cpu_offset(cpu)))
-#define __get_cpu_var(var) \
-	(*SHIFT_PERCPU_PTR(&(var), my_cpu_offset))
-#define __raw_get_cpu_var(var) \
-	(*SHIFT_PERCPU_PTR(&(var), __my_cpu_offset))
 
-#define this_cpu_ptr(ptr) SHIFT_PERCPU_PTR(ptr, my_cpu_offset)
+#ifndef __this_cpu_ptr
 #define __this_cpu_ptr(ptr) SHIFT_PERCPU_PTR(ptr, __my_cpu_offset)
+#endif
+#ifdef CONFIG_DEBUG_PREEMPT
+#define this_cpu_ptr(ptr) SHIFT_PERCPU_PTR(ptr, my_cpu_offset)
+#else
+#define this_cpu_ptr(ptr) __this_cpu_ptr(ptr)
+#endif
 
+#define __get_cpu_var(var) (*this_cpu_ptr(&(var)))
+#define __raw_get_cpu_var(var) (*__this_cpu_ptr(&(var)))
 
 #ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
 extern void setup_per_cpu_areas(void);
@@ -70,11 +74,16 @@ extern void setup_per_cpu_areas(void);
 
 #else /* ! SMP */
 
-#define per_cpu(var, cpu)			(*((void)(cpu), &(var)))
-#define __get_cpu_var(var)			(var)
-#define __raw_get_cpu_var(var)			(var)
-#define this_cpu_ptr(ptr) per_cpu_ptr(ptr, 0)
-#define __this_cpu_ptr(ptr) this_cpu_ptr(ptr)
+#define VERIFY_PERCPU_PTR(__p) ({			\
+	__verify_pcpu_ptr((__p));			\
+	(typeof(*(__p)) __kernel __force *)(__p);	\
+})
+
+#define per_cpu(var, cpu)	(*((void)(cpu), VERIFY_PERCPU_PTR(&(var))))
+#define __get_cpu_var(var)	(*VERIFY_PERCPU_PTR(&(var)))
+#define __raw_get_cpu_var(var)	(*VERIFY_PERCPU_PTR(&(var)))
+#define this_cpu_ptr(ptr)	per_cpu_ptr(ptr, 0)
+#define __this_cpu_ptr(ptr)	this_cpu_ptr(ptr)
 
 #endif	/* SMP */
 

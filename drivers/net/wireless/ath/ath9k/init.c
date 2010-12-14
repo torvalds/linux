@@ -33,6 +33,10 @@ int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, int, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
 
+int led_blink;
+module_param_named(blink, led_blink, int, 0444);
+MODULE_PARM_DESC(blink, "Enable LED blink on activity");
+
 /* We use the hw_value as an index into our private channel structure */
 
 #define CHAN2G(_freq, _idx)  { \
@@ -52,7 +56,7 @@ MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
  * on 5 MHz steps, we support the channels which we know
  * we have calibration data for all cards though to make
  * this static */
-static struct ieee80211_channel ath9k_2ghz_chantable[] = {
+static const struct ieee80211_channel ath9k_2ghz_chantable[] = {
 	CHAN2G(2412, 0), /* Channel 1 */
 	CHAN2G(2417, 1), /* Channel 2 */
 	CHAN2G(2422, 2), /* Channel 3 */
@@ -73,7 +77,7 @@ static struct ieee80211_channel ath9k_2ghz_chantable[] = {
  * on 5 MHz steps, we support the channels which we know
  * we have calibration data for all cards though to make
  * this static */
-static struct ieee80211_channel ath9k_5ghz_chantable[] = {
+static const struct ieee80211_channel ath9k_5ghz_chantable[] = {
 	/* _We_ call this UNII 1 */
 	CHAN5G(5180, 14), /* Channel 36 */
 	CHAN5G(5200, 15), /* Channel 40 */
@@ -175,18 +179,6 @@ static const struct ath_ops ath9k_common_ops = {
 	.write = ath9k_iowrite32,
 };
 
-static int count_streams(unsigned int chainmask, int max)
-{
-	int streams = 0;
-
-	do {
-		if (++streams == max)
-			break;
-	} while ((chainmask = chainmask & (chainmask - 1)));
-
-	return streams;
-}
-
 /**************************/
 /*     Initialization     */
 /**************************/
@@ -208,6 +200,9 @@ static void setup_ht_cap(struct ath_softc *sc,
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_LDPC)
 		ht_info->cap |= IEEE80211_HT_CAP_LDPC_CODING;
 
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_SGI_20)
+		ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
+
 	ht_info->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
 	ht_info->ampdu_density = IEEE80211_HT_MPDU_DENSITY_8;
 
@@ -216,7 +211,7 @@ static void setup_ht_cap(struct ath_softc *sc,
 	else
 		max_streams = 2;
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
+	if (AR_SREV_9280_20_OR_LATER(ah)) {
 		if (max_streams >= 2)
 			ht_info->cap |= IEEE80211_HT_CAP_TX_STBC;
 		ht_info->cap |= (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
@@ -224,8 +219,8 @@ static void setup_ht_cap(struct ath_softc *sc,
 
 	/* set up supported mcs set */
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
-	tx_streams = count_streams(common->tx_chainmask, max_streams);
-	rx_streams = count_streams(common->rx_chainmask, max_streams);
+	tx_streams = ath9k_cmn_count_streams(common->tx_chainmask, max_streams);
+	rx_streams = ath9k_cmn_count_streams(common->rx_chainmask, max_streams);
 
 	ath_print(common, ATH_DBG_CONFIG,
 		  "TX streams %d, RX streams: %d\n",
@@ -386,18 +381,7 @@ static void ath9k_init_crypto(struct ath_softc *sc)
 	 * reset the contents on initial power up.
 	 */
 	for (i = 0; i < common->keymax; i++)
-		ath9k_hw_keyreset(sc->sc_ah, (u16) i);
-
-	if (ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
-				   ATH9K_CIPHER_TKIP, NULL)) {
-		/*
-		 * Whether we should enable h/w TKIP MIC.
-		 * XXX: if we don't support WME TKIP MIC, then we wouldn't
-		 * report WMM capable, so it's always safe to turn on
-		 * TKIP MIC in this case.
-		 */
-		ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_TKIP_MIC, 0, 1, NULL);
-	}
+		ath_hw_keyreset(common, (u16) i);
 
 	/*
 	 * Check whether the separate key cache entries
@@ -405,19 +389,8 @@ static void ath9k_init_crypto(struct ath_softc *sc)
 	 * With split mic keys the number of stations is limited
 	 * to 27 otherwise 59.
 	 */
-	if (ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
-				   ATH9K_CIPHER_TKIP, NULL)
-	    && ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
-				      ATH9K_CIPHER_MIC, NULL)
-	    && ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_TKIP_SPLIT,
-				      0, NULL))
-		common->splitmic = 1;
-
-	/* turn on mcast key search if possible */
-	if (!ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_MCAST_KEYSRCH, 0, NULL))
-		(void)ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_MCAST_KEYSRCH,
-					     1, 1, NULL);
-
+	if (sc->sc_ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA)
+		common->crypt_caps |= ATH_CRYPT_CAP_MIC_COMBINED;
 }
 
 static int ath9k_init_btcoex(struct ath_softc *sc)
@@ -435,7 +408,7 @@ static int ath9k_init_btcoex(struct ath_softc *sc)
 		r = ath_init_btcoex_timer(sc);
 		if (r)
 			return -1;
-		qnum = ath_tx_get_qnum(sc, ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
+		qnum = sc->tx.hwq_map[WME_AC_BE];
 		ath9k_hw_init_btcoex_hw(sc->sc_ah, qnum);
 		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
 		break;
@@ -472,23 +445,23 @@ static int ath9k_init_queues(struct ath_softc *sc)
 	sc->config.cabqReadytime = ATH_CABQ_READY_TIME;
 	ath_cabq_update(sc);
 
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_BK)) {
+	if (!ath_tx_setup(sc, WME_AC_BK)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for BK traffic\n");
 		goto err;
 	}
 
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_BE)) {
+	if (!ath_tx_setup(sc, WME_AC_BE)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for BE traffic\n");
 		goto err;
 	}
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_VI)) {
+	if (!ath_tx_setup(sc, WME_AC_VI)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for VI traffic\n");
 		goto err;
 	}
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_VO)) {
+	if (!ath_tx_setup(sc, WME_AC_VO)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for VO traffic\n");
 		goto err;
@@ -504,10 +477,21 @@ err:
 	return -EIO;
 }
 
-static void ath9k_init_channels_rates(struct ath_softc *sc)
+static int ath9k_init_channels_rates(struct ath_softc *sc)
 {
-	if (test_bit(ATH9K_MODE_11G, sc->sc_ah->caps.wireless_modes)) {
-		sc->sbands[IEEE80211_BAND_2GHZ].channels = ath9k_2ghz_chantable;
+	void *channels;
+
+	BUILD_BUG_ON(ARRAY_SIZE(ath9k_2ghz_chantable) +
+		     ARRAY_SIZE(ath9k_5ghz_chantable) !=
+		     ATH9K_NUM_CHANNELS);
+
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ) {
+		channels = kmemdup(ath9k_2ghz_chantable,
+			sizeof(ath9k_2ghz_chantable), GFP_KERNEL);
+		if (!channels)
+		    return -ENOMEM;
+
+		sc->sbands[IEEE80211_BAND_2GHZ].channels = channels;
 		sc->sbands[IEEE80211_BAND_2GHZ].band = IEEE80211_BAND_2GHZ;
 		sc->sbands[IEEE80211_BAND_2GHZ].n_channels =
 			ARRAY_SIZE(ath9k_2ghz_chantable);
@@ -516,8 +500,16 @@ static void ath9k_init_channels_rates(struct ath_softc *sc)
 			ARRAY_SIZE(ath9k_legacy_rates);
 	}
 
-	if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes)) {
-		sc->sbands[IEEE80211_BAND_5GHZ].channels = ath9k_5ghz_chantable;
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ) {
+		channels = kmemdup(ath9k_5ghz_chantable,
+			sizeof(ath9k_5ghz_chantable), GFP_KERNEL);
+		if (!channels) {
+			if (sc->sbands[IEEE80211_BAND_2GHZ].channels)
+				kfree(sc->sbands[IEEE80211_BAND_2GHZ].channels);
+			return -ENOMEM;
+		}
+
+		sc->sbands[IEEE80211_BAND_5GHZ].channels = channels;
 		sc->sbands[IEEE80211_BAND_5GHZ].band = IEEE80211_BAND_5GHZ;
 		sc->sbands[IEEE80211_BAND_5GHZ].n_channels =
 			ARRAY_SIZE(ath9k_5ghz_chantable);
@@ -526,6 +518,7 @@ static void ath9k_init_channels_rates(struct ath_softc *sc)
 		sc->sbands[IEEE80211_BAND_5GHZ].n_bitrates =
 			ARRAY_SIZE(ath9k_legacy_rates) - 4;
 	}
+	return 0;
 }
 
 static void ath9k_init_misc(struct ath_softc *sc)
@@ -533,7 +526,6 @@ static void ath9k_init_misc(struct ath_softc *sc)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int i = 0;
 
-	common->ani.noise_floor = ATH_DEFAULT_NOISE_FLOOR;
 	setup_timer(&common->ani.timer, ath_ani_calibrate, (unsigned long)sc);
 
 	sc->config.txpowlimit = ATH_TXPOWER_MAX;
@@ -549,8 +541,7 @@ static void ath9k_init_misc(struct ath_softc *sc)
 	ath9k_hw_set_diversity(sc->sc_ah, true);
 	sc->rx.defant = ath9k_hw_getdefantenna(sc->sc_ah);
 
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
+	memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
 
 	sc->beacon.slottime = ATH9K_SLOT_TIME_9;
 
@@ -558,6 +549,9 @@ static void ath9k_init_misc(struct ath_softc *sc)
 		sc->beacon.bslot[i] = NULL;
 		sc->beacon.bslot_aphy[i] = NULL;
 	}
+
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_ANT_DIV_COMB)
+		sc->ant_comb.count = ATH_ANT_DIV_COMB_INIT_COUNT;
 }
 
 static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
@@ -583,6 +577,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	common->hw = sc->hw;
 	common->priv = sc;
 	common->debug_mask = ath9k_debug;
+	spin_lock_init(&common->cc_lock);
 
 	spin_lock_init(&sc->wiphy_lock);
 	spin_lock_init(&sc->sc_resetlock);
@@ -620,8 +615,11 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 	if (ret)
 		goto err_btcoex;
 
+	ret = ath9k_init_channels_rates(sc);
+	if (ret)
+		goto err_btcoex;
+
 	ath9k_init_crypto(sc);
-	ath9k_init_channels_rates(sc);
 	ath9k_init_misc(sc);
 
 	return 0;
@@ -664,11 +662,13 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_AP) |
+		BIT(NL80211_IFTYPE_WDS) |
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC) |
 		BIT(NL80211_IFTYPE_MESH_POINT);
 
-	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
+	if (AR_SREV_5416(sc->sc_ah))
+		hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	hw->queues = 4;
 	hw->max_rates = 4;
@@ -678,19 +678,21 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	hw->sta_data_size = sizeof(struct ath_node);
 	hw->vif_data_size = sizeof(struct ath_vif);
 
+#ifdef CONFIG_ATH9K_RATE_CONTROL
 	hw->rate_control_algorithm = "ath9k_rate_control";
+#endif
 
-	if (test_bit(ATH9K_MODE_11G, sc->sc_ah->caps.wireless_modes))
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 			&sc->sbands[IEEE80211_BAND_2GHZ];
-	if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes))
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&sc->sbands[IEEE80211_BAND_5GHZ];
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
-		if (test_bit(ATH9K_MODE_11G, sc->sc_ah->caps.wireless_modes))
+		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
 			setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
-		if (test_bit(ATH9K_MODE_11A, sc->sc_ah->caps.wireless_modes))
+		if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
 			setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
 	}
 
@@ -745,6 +747,8 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 			goto error_world;
 	}
 
+	INIT_WORK(&sc->hw_check_work, ath_hw_check);
+	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
 	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
 	INIT_DELAYED_WORK(&sc->wiphy_work, ath9k_wiphy_work);
 	sc->wiphy_scheduler_int = msecs_to_jiffies(500);
@@ -775,6 +779,12 @@ error_init:
 static void ath9k_deinit_softc(struct ath_softc *sc)
 {
 	int i = 0;
+
+	if (sc->sbands[IEEE80211_BAND_2GHZ].channels)
+		kfree(sc->sbands[IEEE80211_BAND_2GHZ].channels);
+
+	if (sc->sbands[IEEE80211_BAND_5GHZ].channels)
+		kfree(sc->sbands[IEEE80211_BAND_5GHZ].channels);
 
         if ((sc->btcoex.no_stomp_timer) &&
 	    sc->sc_ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
@@ -812,12 +822,12 @@ void ath9k_deinit_device(struct ath_softc *sc)
 		ieee80211_unregister_hw(aphy->hw);
 		ieee80211_free_hw(aphy->hw);
 	}
-	kfree(sc->sec_wiphy);
 
 	ieee80211_unregister_hw(hw);
 	ath_rx_cleanup(sc);
 	ath_tx_cleanup(sc);
 	ath9k_deinit_softc(sc);
+	kfree(sc->sec_wiphy);
 }
 
 void ath_descdma_cleanup(struct ath_softc *sc,

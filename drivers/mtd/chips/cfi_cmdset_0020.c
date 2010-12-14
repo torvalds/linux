@@ -33,7 +33,6 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/cfi.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/compatmac.h>
 
 
 static int cfi_staa_read(struct mtd_info *, loff_t, size_t, size_t *, u_char *);

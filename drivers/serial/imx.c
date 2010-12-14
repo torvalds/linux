@@ -327,14 +327,13 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 {
 	struct circ_buf *xmit = &sport->port.state->xmit;
 
-	while (!(readl(sport->port.membase + UTS) & UTS_TXFULL)) {
+	while (!uart_circ_empty(xmit) &&
+			!(readl(sport->port.membase + UTS) & UTS_TXFULL)) {
 		/* send xmit->buf[xmit->tail]
 		 * out the port here */
 		writel(xmit->buf[xmit->tail], sport->port.membase + URTX0);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		sport->port.icount.tx++;
-		if (uart_circ_empty(xmit))
-			break;
 	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -909,13 +908,11 @@ imx_set_termios(struct uart_port *port, struct ktermios *termios,
 	rational_best_approximation(16 * div * baud, sport->port.uartclk,
 		1 << 16, 1 << 16, &num, &denom);
 
-	if (port->state && port->state->port.tty) {
-		tdiv64 = sport->port.uartclk;
-		tdiv64 *= num;
-		do_div(tdiv64, denom * 16 * div);
-		tty_encode_baud_rate(sport->port.state->port.tty,
+	tdiv64 = sport->port.uartclk;
+	tdiv64 *= num;
+	do_div(tdiv64, denom * 16 * div);
+	tty_termios_encode_baud_rate(termios,
 				(speed_t)tdiv64, (speed_t)tdiv64);
-	}
 
 	num -= 1;
 	denom -= 1;

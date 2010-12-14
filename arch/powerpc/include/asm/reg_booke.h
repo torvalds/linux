@@ -29,8 +29,8 @@
 #if defined(CONFIG_PPC_BOOK3E_64)
 #define MSR_		MSR_ME | MSR_CE
 #define MSR_KERNEL      MSR_ | MSR_CM
-#define MSR_USER32	MSR_ | MSR_PR | MSR_EE
-#define MSR_USER64	MSR_USER32 | MSR_CM
+#define MSR_USER32	MSR_ | MSR_PR | MSR_EE | MSR_DE
+#define MSR_USER64	MSR_USER32 | MSR_CM | MSR_DE
 #elif defined (CONFIG_40x)
 #define MSR_KERNEL	(MSR_ME|MSR_RI|MSR_IR|MSR_DR|MSR_CE)
 #define MSR_USER	(MSR_KERNEL|MSR_PR|MSR_EE)
@@ -62,6 +62,7 @@
 #define SPRN_TLB0PS	0x158	/* TLB 0 Page Size Register */
 #define SPRN_MAS5_MAS6	0x15c	/* MMU Assist Register 5 || 6 */
 #define SPRN_MAS8_MAS1	0x15d	/* MMU Assist Register 8 || 1 */
+#define SPRN_EPTCFG	0x15e	/* Embedded Page Table Config */
 #define SPRN_MAS7_MAS3	0x174	/* MMU Assist Register 7 || 3 */
 #define SPRN_MAS0_MAS1	0x175	/* MMU Assist Register 0 || 1 */
 #define SPRN_IVOR0	0x190	/* Interrupt Vector Offset Register 0 */

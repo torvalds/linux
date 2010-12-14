@@ -47,6 +47,8 @@ static inline void *radix_tree_indirect_to_ptr(void *ptr)
 {
 	return (void *)((unsigned long)ptr & ~RADIX_TREE_INDIRECT_PTR);
 }
+#define radix_tree_indirect_to_ptr(ptr) \
+	radix_tree_indirect_to_ptr((void __force *)(ptr))
 
 static inline int radix_tree_is_indirect_ptr(void *ptr)
 {
@@ -55,13 +57,13 @@ static inline int radix_tree_is_indirect_ptr(void *ptr)
 
 /*** radix-tree API starts here ***/
 
-#define RADIX_TREE_MAX_TAGS 2
+#define RADIX_TREE_MAX_TAGS 3
 
 /* root tags are stored in gfp_mask, shifted by __GFP_BITS_SHIFT */
 struct radix_tree_root {
 	unsigned int		height;
 	gfp_t			gfp_mask;
-	struct radix_tree_node	*rnode;
+	struct radix_tree_node	__rcu *rnode;
 };
 
 #define RADIX_TREE_INIT(mask)	{					\
@@ -192,6 +194,10 @@ unsigned int
 radix_tree_gang_lookup_tag_slot(struct radix_tree_root *root, void ***results,
 		unsigned long first_index, unsigned int max_items,
 		unsigned int tag);
+unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
+		unsigned long *first_indexp, unsigned long last_index,
+		unsigned long nr_to_tag,
+		unsigned int fromtag, unsigned int totag);
 int radix_tree_tagged(struct radix_tree_root *root, unsigned int tag);
 
 static inline void radix_tree_preload_end(void)

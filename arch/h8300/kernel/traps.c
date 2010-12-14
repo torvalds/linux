@@ -96,7 +96,7 @@ static void dump(struct pt_regs *fp)
 	printk("\n\n");
 }
 
-void die(char *str, struct pt_regs *fp, unsigned long err)
+void die(const char *str, struct pt_regs *fp, unsigned long err)
 {
 	static int diecount;
 
