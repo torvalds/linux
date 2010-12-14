@@ -519,8 +519,8 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_lock(&priv->mutex);
 
 	if (unlikely(!iwl_is_ready(priv))) {
-                IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
-                mutex_unlock(&priv->mutex);
+		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
+		mutex_unlock(&priv->mutex);
 		return;
         }
 
