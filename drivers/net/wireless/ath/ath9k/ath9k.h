@@ -57,6 +57,8 @@ struct ath_node;
 
 #define A_MAX(a, b) ((a) > (b) ? (a) : (b))
 
+#define ATH9K_PM_QOS_DEFAULT_VALUE	55
+
 #define TSF_TO_TU(_h,_l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
@@ -663,6 +665,7 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 extern struct ieee80211_ops ath9k_ops;
 extern int modparam_nohwcrypt;
 extern int led_blink;
+extern int ath9k_pm_qos_value;
 
 irqreturn_t ath_isr(int irq, void *dev);
 int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
