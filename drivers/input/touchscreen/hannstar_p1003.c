@@ -124,7 +124,10 @@ static inline int p1003_read_values(struct ts_p1003 *ts, struct multitouch_event
     data = i2c_master_normal_recv(ts->client, buf,len, 200*1000);
 
     if (data < 0 || (buf[0]!=0x04)) {
-    	dev_err(&ts->client->dev, "i2c io error: %d or Hannstar read reg failed\n", data);
+		int i;
+		dev_err(&ts->client->dev, "i2c io error: %d or Hannstar read reg failed\n", data);
+		for(i = 0; i < 10 ; i++)
+			dev_err(&ts->client->dev," hannstar reg[%d] = 0x%x\n",i,buf[i]);
     	enable_irq(ts->irq);
     	return data;
     }
@@ -152,19 +155,21 @@ static void p1003_work(struct work_struct *work)
     
     if(rt < 0)
         goto out;
+	
 #if defined (Singltouch_Mode)
     p1003_report_single_event(ts,tc);
 #else
     p1003_report_event(ts,tc);
 #endif
-    
- out:
+     
 	if (ts->pendown)
 		schedule_delayed_work(&ts->work,
 				      msecs_to_jiffies(10));
-	    
 	else
 		enable_irq(ts->irq);
+	
+out:
+	return;
 }
 
 static irqreturn_t p1003_irq(int irq, void *handle)
