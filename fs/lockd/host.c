@@ -441,6 +441,31 @@ void nlm_release_host(struct nlm_host *host)
 	}
 }
 
+static struct nlm_host *next_host_state(struct hlist_head *cache,
+					struct nsm_handle *nsm,
+					const struct nlm_reboot *info)
+{
+	struct nlm_host *host = NULL;
+	struct hlist_head *chain;
+	struct hlist_node *pos;
+
+	mutex_lock(&nlm_host_mutex);
+	for_each_host(host, pos, chain, cache) {
+		if (host->h_nsmhandle == nsm
+		    && host->h_nsmstate != info->state) {
+			host->h_nsmstate = info->state;
+			host->h_state++;
+
+			nlm_get_host(host);
+			mutex_unlock(&nlm_host_mutex);
+			goto out;
+		}
+	}
+out:
+	mutex_unlock(&nlm_host_mutex);
+	return host;
+}
+
 /**
  * nlm_host_rebooted - Release all resources held by rebooted host
  * @info: pointer to decoded results of NLM_SM_NOTIFY call
@@ -450,8 +475,6 @@ void nlm_release_host(struct nlm_host *host)
  */
 void nlm_host_rebooted(const struct nlm_reboot *info)
 {
-	struct hlist_head *chain;
-	struct hlist_node *pos;
 	struct nsm_handle *nsm;
 	struct nlm_host	*host;
 
@@ -464,30 +487,17 @@ void nlm_host_rebooted(const struct nlm_reboot *info)
 	 * lock for this.
 	 * To avoid processing a host several times, we match the nsmstate.
 	 */
-again:	mutex_lock(&nlm_host_mutex);
-	for_each_host(host, pos, chain, nlm_hosts) {
-		if (host->h_nsmhandle == nsm
-		 && host->h_nsmstate != info->state) {
-			host->h_nsmstate = info->state;
-			host->h_state++;
-
-			nlm_get_host(host);
-			mutex_unlock(&nlm_host_mutex);
-
-			if (host->h_server) {
-				/* We're server for this guy, just ditch
-				 * all the locks he held. */
-				nlmsvc_free_host_resources(host);
-			} else {
-				/* He's the server, initiate lock recovery. */
-				nlmclnt_recovery(host);
-			}
-
-			nlm_release_host(host);
-			goto again;
+	while ((host = next_host_state(nlm_hosts, nsm, info)) != NULL) {
+		if (host->h_server) {
+			/* We're server for this guy, just ditch
+			 * all the locks he held. */
+			nlmsvc_free_host_resources(host);
+		} else {
+			/* He's the server, initiate lock recovery. */
+			nlmclnt_recovery(host);
 		}
+		nlm_release_host(host);
 	}
-	mutex_unlock(&nlm_host_mutex);
 	nsm_release(nsm);
 }
 
