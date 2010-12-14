@@ -522,39 +522,32 @@ static irqreturn_t t4_nondata_intr(int irq, void *cookie)
  */
 static void name_msix_vecs(struct adapter *adap)
 {
-	int i, j, msi_idx = 2, n = sizeof(adap->msix_info[0].desc) - 1;
+	int i, j, msi_idx = 2, n = sizeof(adap->msix_info[0].desc);
 
 	/* non-data interrupts */
 	snprintf(adap->msix_info[0].desc, n, "%s", adap->name);
-	adap->msix_info[0].desc[n] = 0;
 
 	/* FW events */
 	snprintf(adap->msix_info[1].desc, n, "%s-FWeventq", adap->name);
-	adap->msix_info[1].desc[n] = 0;
 
 	/* Ethernet queues */
 	for_each_port(adap, j) {
 		struct net_device *d = adap->port[j];
 		const struct port_info *pi = netdev_priv(d);
 
-		for (i = 0; i < pi->nqsets; i++, msi_idx++) {
+		for (i = 0; i < pi->nqsets; i++, msi_idx++)
 			snprintf(adap->msix_info[msi_idx].desc, n, "%s-Rx%d",
 				 d->name, i);
-			adap->msix_info[msi_idx].desc[n] = 0;
-		}
 	}
 
 	/* offload queues */
-	for_each_ofldrxq(&adap->sge, i) {
-		snprintf(adap->msix_info[msi_idx].desc, n, "%s-ofld%d",
+	for_each_ofldrxq(&adap->sge, i)
+		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-ofld%d",
 			 adap->name, i);
-		adap->msix_info[msi_idx++].desc[n] = 0;
-	}
-	for_each_rdmarxq(&adap->sge, i) {
-		snprintf(adap->msix_info[msi_idx].desc, n, "%s-rdma%d",
+
+	for_each_rdmarxq(&adap->sge, i)
+		snprintf(adap->msix_info[msi_idx++].desc, n, "%s-rdma%d",
 			 adap->name, i);
-		adap->msix_info[msi_idx++].desc[n] = 0;
-	}
 }
 
 static int request_msix_queue_irqs(struct adapter *adap)
