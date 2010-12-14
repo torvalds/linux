@@ -1030,6 +1030,12 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 				    WM8993_VMID_SEL_MASK | WM8993_BIAS_ENA,
 				    0);
 
+		snd_soc_update_bits(codec, WM8993_ANTIPOP2,
+				    WM8993_STARTUP_BIAS_ENA |
+				    WM8993_VMID_BUF_ENA |
+				    WM8993_VMID_RAMP_MASK |
+				    WM8993_BIAS_SRC, 0);
+
 #ifdef CONFIG_REGULATOR
                /* Post 2.6.34 we will be able to get a callback when
                 * the regulators are disabled which we can use but
