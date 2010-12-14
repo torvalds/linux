@@ -202,9 +202,9 @@ extern u32			nsm_local_state;
  * Lockd client functions
  */
 struct nlm_rqst * nlm_alloc_call(struct nlm_host *host);
-void		  nlm_release_call(struct nlm_rqst *);
 int		  nlm_async_call(struct nlm_rqst *, u32, const struct rpc_call_ops *);
 int		  nlm_async_reply(struct nlm_rqst *, u32, const struct rpc_call_ops *);
+void		  nlmclnt_release_call(struct nlm_rqst *);
 struct nlm_wait * nlmclnt_prepare_block(struct nlm_host *host, struct file_lock *fl);
 void		  nlmclnt_finish_block(struct nlm_wait *block);
 int		  nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout);
@@ -267,6 +267,7 @@ unsigned long	  nlmsvc_retry_blocked(void);
 void		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,
 					nlm_host_match_fn_t match);
 void		  nlmsvc_grant_reply(struct nlm_cookie *, __be32);
+void		  nlmsvc_release_call(struct nlm_rqst *);
 
 /*
  * File handling for the server personality

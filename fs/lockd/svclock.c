@@ -234,7 +234,7 @@ nlmsvc_create_block(struct svc_rqst *rqstp, struct nlm_host *host,
 failed_free:
 	kfree(block);
 failed:
-	nlm_release_call(call);
+	nlmsvc_release_call(call);
 	return NULL;
 }
 
@@ -267,7 +267,7 @@ static void nlmsvc_free_block(struct kref *kref)
 	mutex_unlock(&file->f_mutex);
 
 	nlmsvc_freegrantargs(block->b_call);
-	nlm_release_call(block->b_call);
+	nlmsvc_release_call(block->b_call);
 	nlm_release_file(block->b_file);
 	kfree(block->b_fl);
 	kfree(block);

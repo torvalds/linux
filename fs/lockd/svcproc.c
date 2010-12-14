@@ -257,9 +257,17 @@ static void nlmsvc_callback_exit(struct rpc_task *task, void *data)
 			-task->tk_status);
 }
 
+void nlmsvc_release_call(struct nlm_rqst *call)
+{
+	if (!atomic_dec_and_test(&call->a_count))
+		return;
+	nlm_release_host(call->a_host);
+	kfree(call);
+}
+
 static void nlmsvc_callback_release(void *data)
 {
-	nlm_release_call(data);
+	nlmsvc_release_call(data);
 }
 
 static const struct rpc_call_ops nlmsvc_callback_ops = {
@@ -291,7 +299,7 @@ static __be32 nlmsvc_callback(struct svc_rqst *rqstp, u32 proc, struct nlm_args 
 
 	stat = func(rqstp, argp, &call->a_res);
 	if (stat != 0) {
-		nlm_release_call(call);
+		nlmsvc_release_call(call);
 		return stat;
 	}
 

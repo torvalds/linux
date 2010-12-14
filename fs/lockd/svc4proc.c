@@ -229,7 +229,7 @@ static void nlm4svc_callback_exit(struct rpc_task *task, void *data)
 
 static void nlm4svc_callback_release(void *data)
 {
-	nlm_release_call(data);
+	nlmsvc_release_call(data);
 }
 
 static const struct rpc_call_ops nlm4svc_callback_ops = {
@@ -261,7 +261,7 @@ static __be32 nlm4svc_callback(struct svc_rqst *rqstp, u32 proc, struct nlm_args
 
 	stat = func(rqstp, argp, &call->a_res);
 	if (stat != 0) {
-		nlm_release_call(call);
+		nlmsvc_release_call(call);
 		return stat;
 	}
 
