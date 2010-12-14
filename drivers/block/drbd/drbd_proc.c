@@ -91,9 +91,9 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 		seq_printf(seq, "sync'ed:");
 	seq_printf(seq, "%3u.%u%% ", res / 10, res % 10);
 
-	/* if more than 1 GB display in MB */
-	if (mdev->rs_total > 0x100000L)
-		seq_printf(seq, "(%lu/%lu)M\n\t",
+	/* if more than a few GB, display in MB */
+	if (mdev->rs_total > (4UL << (30 - BM_BLOCK_SHIFT)))
+		seq_printf(seq, "(%lu/%lu)M",
 			    (unsigned long) Bit2KB(rs_left >> 10),
 			    (unsigned long) Bit2KB(mdev->rs_total >> 10));
 	else

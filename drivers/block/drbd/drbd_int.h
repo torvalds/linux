@@ -1003,9 +1003,9 @@ struct drbd_conf {
 	struct hlist_head *tl_hash;
 	unsigned int tl_hash_s;
 
-	/* blocks to sync in this run [unit BM_BLOCK_SIZE] */
+	/* blocks to resync in this run [unit BM_BLOCK_SIZE] */
 	unsigned long rs_total;
-	/* number of sync IOs that failed in this run */
+	/* number of resync blocks that failed in this run */
 	unsigned long rs_failed;
 	/* Syncer's start time [unit jiffies] */
 	unsigned long rs_start;
@@ -1399,7 +1399,9 @@ struct bm_extent {
  * you should use 64bit OS for that much storage, anyways. */
 #define DRBD_MAX_SECTORS_FLEX BM_BIT_TO_SECT(0xffff7fff)
 #else
-#define DRBD_MAX_SECTORS_FLEX BM_BIT_TO_SECT(0x1LU << 32)
+/* we allow up to 1 PiB now on 64bit architecture with "flexible" meta data */
+#define DRBD_MAX_SECTORS_FLEX (1UL << 51)
+/* corresponds to (1UL << 38) bits right now. */
 #endif
 #endif
 
@@ -1419,11 +1421,15 @@ extern int  drbd_bm_resize(struct drbd_conf *mdev, sector_t sectors, int set_new
 extern void drbd_bm_cleanup(struct drbd_conf *mdev);
 extern void drbd_bm_set_all(struct drbd_conf *mdev);
 extern void drbd_bm_clear_all(struct drbd_conf *mdev);
+/* set/clear/test only a few bits at a time */
 extern int  drbd_bm_set_bits(
 		struct drbd_conf *mdev, unsigned long s, unsigned long e);
 extern int  drbd_bm_clear_bits(
 		struct drbd_conf *mdev, unsigned long s, unsigned long e);
-/* bm_set_bits variant for use while holding drbd_bm_lock */
+extern int drbd_bm_count_bits(
+	struct drbd_conf *mdev, const unsigned long s, const unsigned long e);
+/* bm_set_bits variant for use while holding drbd_bm_lock,
+ * may process the whole bitmap in one go */
 extern void _drbd_bm_set_bits(struct drbd_conf *mdev,
 		const unsigned long s, const unsigned long e);
 extern int  drbd_bm_test_bit(struct drbd_conf *mdev, unsigned long bitnr);
@@ -1436,6 +1442,8 @@ extern unsigned long drbd_bm_ALe_set_all(struct drbd_conf *mdev,
 extern size_t	     drbd_bm_words(struct drbd_conf *mdev);
 extern unsigned long drbd_bm_bits(struct drbd_conf *mdev);
 extern sector_t      drbd_bm_capacity(struct drbd_conf *mdev);
+
+#define DRBD_END_OF_BITMAP	(~(unsigned long)0)
 extern unsigned long drbd_bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo);
 /* bm_find_next variants for use while you hold drbd_bm_lock() */
 extern unsigned long _drbd_bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo);
@@ -1452,8 +1460,6 @@ extern void drbd_bm_get_lel(struct drbd_conf *mdev, size_t offset,
 
 extern void drbd_bm_lock(struct drbd_conf *mdev, char *why);
 extern void drbd_bm_unlock(struct drbd_conf *mdev);
-
-extern int drbd_bm_count_bits(struct drbd_conf *mdev, const unsigned long s, const unsigned long e);
 /* drbd_main.c */
 
 extern struct kmem_cache *drbd_request_cache;
@@ -2158,10 +2164,8 @@ extern int _get_ldev_if_state(struct drbd_conf *mdev, enum drbd_disk_state mins)
 static inline void drbd_get_syncer_progress(struct drbd_conf *mdev,
 		unsigned long *bits_left, unsigned int *per_mil_done)
 {
-	/*
-	 * this is to break it at compile time when we change that
-	 * (we may feel 4TB maximum storage per drbd is not enough)
-	 */
+	/* this is to break it at compile time when we change that, in case we
+	 * want to support more than (1<<32) bits on a 32bit arch. */
 	typecheck(unsigned long, mdev->rs_total);
 
 	/* note: both rs_total and rs_left are in bits, i.e. in
@@ -2186,10 +2190,19 @@ static inline void drbd_get_syncer_progress(struct drbd_conf *mdev,
 				*bits_left, mdev->rs_total, mdev->rs_failed);
 		*per_mil_done = 0;
 	} else {
-		/* make sure the calculation happens in long context */
-		unsigned long tmp = 1000UL -
-				(*bits_left >> 10)*1000UL
-				/ ((mdev->rs_total >> 10) + 1UL);
+		/* Make sure the division happens in long context.
+		 * We allow up to one petabyte storage right now,
+		 * at a granularity of 4k per bit that is 2**38 bits.
+		 * After shift right and multiplication by 1000,
+		 * this should still fit easily into a 32bit long,
+		 * so we don't need a 64bit division on 32bit arch.
+		 * Note: currently we don't support such large bitmaps on 32bit
+		 * arch anyways, but no harm done to be prepared for it here.
+		 */
+		unsigned int shift = mdev->rs_total >= (1ULL << 32) ? 16 : 10;
+		unsigned long left = *bits_left >> shift;
+		unsigned long total = 1UL + (mdev->rs_total >> shift);
+		unsigned long tmp = 1000UL - left * 1000UL/total;
 		*per_mil_done = tmp;
 	}
 }

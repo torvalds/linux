@@ -527,17 +527,19 @@ static void drbd_md_set_sector_offsets(struct drbd_conf *mdev,
 	}
 }
 
+/* input size is expected to be in KB */
 char *ppsize(char *buf, unsigned long long size)
 {
-	/* Needs 9 bytes at max. */
+	/* Needs 9 bytes at max including trailing NUL:
+	 * -1ULL ==> "16384 EB" */
 	static char units[] = { 'K', 'M', 'G', 'T', 'P', 'E' };
 	int base = 0;
-	while (size >= 10000) {
+	while (size >= 10000 && base < sizeof(units)-1) {
 		/* shift + round */
 		size = (size >> 10) + !!(size & (1<<9));
 		base++;
 	}
-	sprintf(buf, "%lu %cB", (long)size, units[base]);
+	sprintf(buf, "%u %cB", (unsigned)size, units[base]);
 
 	return buf;
 }

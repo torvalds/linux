@@ -577,7 +577,7 @@ next_sector:
 		size = BM_BLOCK_SIZE;
 		bit  = drbd_bm_find_next(mdev, mdev->bm_resync_fo);
 
-		if (bit == -1UL) {
+		if (bit == DRBD_END_OF_BITMAP) {
 			mdev->bm_resync_fo = drbd_bm_bits(mdev);
 			mdev->resync_work.cb = w_resync_inactive;
 			put_ldev(mdev);
