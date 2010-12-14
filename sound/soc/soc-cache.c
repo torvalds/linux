@@ -85,7 +85,7 @@ static int snd_soc_4_12_spi_write(void *control_data, const char *data,
 	msg[1] = data[0];
 
 	spi_message_init(&m);
-	memset(&t, 0, (sizeof t));
+	memset(&t, 0, sizeof t);
 
 	t.tx_buf = &msg[0];
 	t.len = len;
@@ -166,7 +166,7 @@ static int snd_soc_7_9_spi_write(void *control_data, const char *data,
 	msg[1] = data[1];
 
 	spi_message_init(&m);
-	memset(&t, 0, (sizeof t));
+	memset(&t, 0, sizeof t);
 
 	t.tx_buf = &msg[0];
 	t.len = len;
@@ -246,7 +246,7 @@ static int snd_soc_8_8_spi_write(void *control_data, const char *data,
 	msg[1] = data[1];
 
 	spi_message_init(&m);
-	memset(&t, 0, (sizeof t));
+	memset(&t, 0, sizeof t);
 
 	t.tx_buf = &msg[0];
 	t.len = len;
@@ -326,7 +326,7 @@ static int snd_soc_8_16_spi_write(void *control_data, const char *data,
 	msg[2] = data[2];
 
 	spi_message_init(&m);
-	memset(&t, 0, (sizeof t));
+	memset(&t, 0, sizeof t);
 
 	t.tx_buf = &msg[0];
 	t.len = len;
@@ -513,7 +513,7 @@ static int snd_soc_16_8_spi_write(void *control_data, const char *data,
 	msg[2] = data[2];
 
 	spi_message_init(&m);
-	memset(&t, 0, (sizeof t));
+	memset(&t, 0, sizeof t);
 
 	t.tx_buf = &msg[0];
 	t.len = len;
@@ -633,7 +633,7 @@ static int snd_soc_16_16_spi_write(void *control_data, const char *data,
 	msg[3] = data[3];
 
 	spi_message_init(&m);
-	memset(&t, 0, (sizeof t));
+	memset(&t, 0, sizeof t);
 
 	t.tx_buf = &msg[0];
 	t.len = len;
@@ -1342,7 +1342,7 @@ static int snd_soc_lzo_cache_init(struct snd_soc_codec *codec)
 	 * that register.
 	 */
 	bmp_size = codec_drv->reg_cache_size;
-	sync_bmp = kmalloc(BITS_TO_LONGS(bmp_size) * sizeof (long),
+	sync_bmp = kmalloc(BITS_TO_LONGS(bmp_size) * sizeof(long),
 			   GFP_KERNEL);
 	if (!sync_bmp) {
 		ret = -ENOMEM;
