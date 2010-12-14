@@ -203,7 +203,7 @@ static int rt2860_resume(struct pci_dev *pci_dev)
 
 	/* initialize device before it's used by a driver */
 	if (pci_enable_device(pci_dev)) {
-		printk("pci enable fail!\n");
+		printk(KERN_ERR "rt2860: pci enable fail!\n");
 		return 0;
 	}
 

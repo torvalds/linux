@@ -421,7 +421,7 @@ int rt28xx_open(struct net_device *dev)
 	{
 		u32 reg = 0;
 		RTMP_IO_READ32(pAd, 0x1300, &reg);	/* clear garbage interrupts */
-		printk("0x1300 = %08x\n", reg);
+		printk(KERN_DEBUG "0x1300 = %08x\n", reg);
 	}
 
 	{

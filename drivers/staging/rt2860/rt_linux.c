@@ -321,7 +321,7 @@ int RTMPCloneNdisPacket(struct rt_rtmp_adapter *pAd,
 
 	RTMP_SET_PACKET_SOURCE(OSPKT_TO_RTPKT(pkt), PKTSRC_NDIS);
 
-	printk("###Clone###\n");
+	printk(KERN_DEBUG "###Clone###\n");
 
 	return NDIS_STATUS_SUCCESS;
 }
@@ -343,9 +343,8 @@ int RTMPAllocateNdisPacket(struct rt_rtmp_adapter *pAd,
 					   RTMP_PKT_TAIL_PADDING);
 	if (pPacket == NULL) {
 		*ppPacket = NULL;
-#ifdef DEBUG
-		printk("RTMPAllocateNdisPacket Fail\n");
-#endif
+		pr_devel("RTMPAllocateNdisPacket Fail\n");
+
 		return NDIS_STATUS_FAILURE;
 	}
 	/* 2. clone the frame content */
@@ -601,15 +600,15 @@ void hex_dump(char *str, unsigned char *pSrcBufVA, unsigned int SrcBufLen)
 		return;
 
 	pt = pSrcBufVA;
-	printk("%s: %p, len = %d\n", str, pSrcBufVA, SrcBufLen);
+	printk(KERN_DEBUG "%s: %p, len = %d\n", str, pSrcBufVA, SrcBufLen);
 	for (x = 0; x < SrcBufLen; x++) {
 		if (x % 16 == 0)
-			printk("0x%04x : ", x);
-		printk("%02x ", ((unsigned char)pt[x]));
+			printk(KERN_DEBUG "0x%04x : ", x);
+		printk(KERN_DEBUG "%02x ", ((unsigned char)pt[x]));
 		if (x % 16 == 15)
-			printk("\n");
+			printk(KERN_DEBUG "\n");
 	}
-	printk("\n");
+	printk(KERN_DEBUG "\n");
 }
 
 /*
@@ -926,7 +925,7 @@ int RtmpOSIRQRequest(struct net_device *pNetDev)
 		    request_irq(_pObj->pci_dev->irq, rt2860_interrupt, SA_SHIRQ,
 				(net_dev)->name, (net_dev));
 		if (retval != 0)
-			printk("RT2860: request_irq  ERROR(%d)\n", retval);
+			printk(KERN_ERR "rt2860: request_irq  ERROR(%d)\n", retval);
 	}
 
 	return retval;
@@ -1022,7 +1021,7 @@ int RtmpOSTaskKill(struct rt_rtmp_os_task *pTask)
 	}
 #else
 	CHECK_PID_LEGALITY(pTask->taskPID) {
-		printk("Terminate the task(%s) with pid(%d)!\n",
+		printk(KERN_INFO "Terminate the task(%s) with pid(%d)!\n",
 		       pTask->taskName, GET_PID_NUMBER(pTask->taskPID));
 		mb();
 		pTask->task_killed = 1;
