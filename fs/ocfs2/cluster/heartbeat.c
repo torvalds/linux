@@ -2009,6 +2009,7 @@ static void o2hb_heartbeat_group_drop_item(struct config_group *group,
 	if (o2hb_global_heartbeat_active()) {
 		clear_bit(reg->hr_region_num, o2hb_region_bitmap);
 		clear_bit(reg->hr_region_num, o2hb_live_region_bitmap);
+		clear_bit(reg->hr_region_num, o2hb_quorum_region_bitmap);
 	}
 	hb_task = reg->hr_task;
 	reg->hr_task = NULL;
