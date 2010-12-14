@@ -3517,7 +3517,7 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
 		if (signalled())
 			break;
 		if (loop++ & 1)
-			ssleep(clp->cl_lease_time + 1);
+			ssleep(clp->cl_lease_time / HZ + 1);
 		else
 			if (++clp->cl_id_uniquifier == 0)
 				break;
