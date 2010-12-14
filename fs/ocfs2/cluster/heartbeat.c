@@ -1083,6 +1083,9 @@ static int o2hb_thread(void *data)
 
 	set_user_nice(current, -20);
 
+	/* Pin node */
+	o2nm_depend_this_node();
+
 	while (!kthread_should_stop() && !reg->hr_unclean_stop) {
 		/* We track the time spent inside
 		 * o2hb_do_disk_heartbeat so that we avoid more than
@@ -1131,6 +1134,9 @@ static int o2hb_thread(void *data)
 	} else {
 		mlog_errno(ret);
 	}
+
+	/* Unpin node */
+	o2nm_undepend_this_node();
 
 	mlog(ML_HEARTBEAT|ML_KTHREAD, "hb thread exiting\n");
 
