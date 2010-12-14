@@ -1188,7 +1188,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 
 	addr = &xhci->op_regs->port_status_base + NUM_PORT_REGS * (port_id - 1);
 	temp = xhci_readl(xhci, addr);
-	if ((temp & PORT_CONNECT) && (hcd->state == HC_STATE_SUSPENDED)) {
+	if (hcd->state == HC_STATE_SUSPENDED) {
 		xhci_dbg(xhci, "resume root hub\n");
 		usb_hcd_resume_root_hub(hcd);
 	}
