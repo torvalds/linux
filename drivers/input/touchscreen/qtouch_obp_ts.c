@@ -29,6 +29,7 @@
 #include <linux/qtouch_obp_ts.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
+#include <linux/regulator/consumer.h>
 
 #define IGNORE_CHECKSUM_MISMATCH
 
@@ -101,6 +102,8 @@ struct qtouch_ts_data {
 	 * MUST enforce that there is no concurrent access to msg_buf. */
 	uint8_t				*msg_buf;
 	int				msg_size;
+
+	struct regulator		*regulator;
 };
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -1819,6 +1822,10 @@ finish_touch_setup:
 		goto err_create_fw_version_file_failed;
 	}
 
+	ts->regulator = regulator_get(&ts->client->dev, "vio");
+	if (!IS_ERR_OR_NULL(ts->regulator))
+		regulator_enable(ts->regulator);
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB - 1;
 	ts->early_suspend.suspend = qtouch_ts_early_suspend;
@@ -1850,6 +1857,9 @@ err_alloc_data_failed:
 static int qtouch_ts_remove(struct i2c_client *client)
 {
 	struct qtouch_ts_data *ts = i2c_get_clientdata(client);
+
+	if (!IS_ERR_OR_NULL(ts->regulator))
+		regulator_put(ts->regulator);
 
 	device_remove_file(&ts->client->dev, &dev_attr_irq_enable);
 	device_remove_file(&ts->client->dev, &dev_attr_update_status);
@@ -1891,6 +1901,9 @@ static int qtouch_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	if (ts->pdata->hw_suspend)
 		ts->pdata->hw_suspend(1);
 
+	if (!IS_ERR_OR_NULL(ts->regulator))
+		regulator_disable(ts->regulator);
+
 	return 0;
 }
 
@@ -1909,6 +1922,9 @@ static int qtouch_ts_resume(struct i2c_client *client)
 
 	if (ts->mode == 1)
 		return -EBUSY;
+
+	if (!IS_ERR_OR_NULL(ts->regulator))
+		regulator_enable(ts->regulator);
 
 	if (ts->pdata->hw_suspend)
 		ts->pdata->hw_suspend(0);
