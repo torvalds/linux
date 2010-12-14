@@ -533,7 +533,8 @@ static void nfs4_xdr_enc_cb_recall(struct rpc_rqst *req, struct xdr_stream *xdr,
  * Protocol".
  */
 
-static int nfs4_xdr_dec_cb_null(struct rpc_rqst *req, __be32 *p, void *__unused)
+static int nfs4_xdr_dec_cb_null(struct rpc_rqst *req, struct xdr_stream *xdr,
+				void *__unused)
 {
 	return 0;
 }
@@ -541,26 +542,25 @@ static int nfs4_xdr_dec_cb_null(struct rpc_rqst *req, __be32 *p, void *__unused)
 /*
  * 20.2. Operation 4: CB_RECALL - Recall a Delegation
  */
-static int nfs4_xdr_dec_cb_recall(struct rpc_rqst *rqstp, __be32 *p,
+static int nfs4_xdr_dec_cb_recall(struct rpc_rqst *rqstp,
+				  struct xdr_stream *xdr,
 				  struct nfsd4_callback *cb)
 {
-	struct xdr_stream xdr;
 	struct nfs4_cb_compound_hdr hdr;
 	enum nfsstat4 nfserr;
 	int status;
 
-	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
-	status = decode_cb_compound4res(&xdr, &hdr);
+	status = decode_cb_compound4res(xdr, &hdr);
 	if (unlikely(status))
 		goto out;
 
 	if (cb != NULL) {
-		status = decode_cb_sequence4res(&xdr, cb);
+		status = decode_cb_sequence4res(xdr, cb);
 		if (unlikely(status))
 			goto out;
 	}
 
-	status = decode_cb_op_status(&xdr, OP_CB_RECALL, &nfserr);
+	status = decode_cb_op_status(xdr, OP_CB_RECALL, &nfserr);
 	if (unlikely(status))
 		goto out;
 	if (unlikely(nfserr != NFS4_OK))
@@ -578,7 +578,7 @@ out_default:
 [NFSPROC4_CLNT_##proc] = {						\
 	.p_proc    = NFSPROC4_CB_##call,				\
 	.p_encode  = (kxdreproc_t)nfs4_xdr_enc_##argtype,		\
-	.p_decode  = (kxdrproc_t)nfs4_xdr_dec_##restype,		\
+	.p_decode  = (kxdrdproc_t)nfs4_xdr_dec_##restype,		\
 	.p_arglen  = NFS4_enc_##argtype##_sz,				\
 	.p_replen  = NFS4_dec_##restype##_sz,				\
 	.p_statidx = NFSPROC4_CB_##call,				\

@@ -1535,7 +1535,7 @@ call_decode(struct rpc_task *task)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
 	struct rpc_rqst	*req = task->tk_rqstp;
-	kxdrproc_t	decode = task->tk_msg.rpc_proc->p_decode;
+	kxdrdproc_t	decode = task->tk_msg.rpc_proc->p_decode;
 	__be32		*p;
 
 	dprintk("RPC: %5u call_decode (status %d)\n",
@@ -1780,7 +1780,7 @@ static void rpcproc_encode_null(void *rqstp, struct xdr_stream *xdr, void *obj)
 {
 }
 
-static int rpcproc_decode_null(void *rqstp, __be32 *data, void *obj)
+static int rpcproc_decode_null(void *rqstp, struct xdr_stream *xdr, void *obj)
 {
 	return 0;
 }

@@ -112,7 +112,7 @@ struct rpc_credops {
 	__be32 *		(*crvalidate)(struct rpc_task *, __be32 *);
 	int			(*crwrap_req)(struct rpc_task *, kxdreproc_t,
 						void *, __be32 *, void *);
-	int			(*crunwrap_resp)(struct rpc_task *, kxdrproc_t,
+	int			(*crunwrap_resp)(struct rpc_task *, kxdrdproc_t,
 						void *, __be32 *, void *);
 };
 
@@ -140,7 +140,7 @@ void			put_rpccred(struct rpc_cred *);
 __be32 *		rpcauth_marshcred(struct rpc_task *, __be32 *);
 __be32 *		rpcauth_checkverf(struct rpc_task *, __be32 *);
 int			rpcauth_wrap_req(struct rpc_task *task, kxdreproc_t encode, void *rqstp, __be32 *data, void *obj);
-int			rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp, __be32 *data, void *obj);
+int			rpcauth_unwrap_resp(struct rpc_task *task, kxdrdproc_t decode, void *rqstp, __be32 *data, void *obj);
 int			rpcauth_refreshcred(struct rpc_task *);
 void			rpcauth_invalcred(struct rpc_task *);
 int			rpcauth_uptodatecred(struct rpc_task *);

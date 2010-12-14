@@ -90,7 +90,7 @@ struct rpc_version {
 struct rpc_procinfo {
 	u32			p_proc;		/* RPC procedure number */
 	kxdreproc_t		p_encode;	/* XDR encode function */
-	kxdrproc_t		p_decode;	/* XDR decode function */
+	kxdrdproc_t		p_decode;	/* XDR decode function */
 	unsigned int		p_arglen;	/* argument hdr length (u32) */
 	unsigned int		p_replen;	/* reply hdr length (u32) */
 	unsigned int		p_count;	/* call count */

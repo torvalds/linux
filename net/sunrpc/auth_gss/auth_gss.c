@@ -1503,10 +1503,19 @@ gss_unwrap_resp_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	return 0;
 }
 
+static int
+gss_unwrap_req_decode(kxdrdproc_t decode, struct rpc_rqst *rqstp,
+		      __be32 *p, void *obj)
+{
+	struct xdr_stream xdr;
+
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
+	return decode(rqstp, &xdr, obj);
+}
 
 static int
 gss_unwrap_resp(struct rpc_task *task,
-		kxdrproc_t decode, void *rqstp, __be32 *p, void *obj)
+		kxdrdproc_t decode, void *rqstp, __be32 *p, void *obj)
 {
 	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred,
@@ -1537,7 +1546,7 @@ gss_unwrap_resp(struct rpc_task *task,
 	cred->cr_auth->au_rslack = cred->cr_auth->au_verfsize + (p - savedp)
 						+ (savedlen - head->iov_len);
 out_decode:
-	status = decode(rqstp, p, obj);
+	status = gss_unwrap_req_decode(decode, rqstp, p, obj);
 out:
 	gss_put_ctx(ctx);
 	dprintk("RPC: %5u gss_unwrap_resp returning %d\n", task->tk_pid,

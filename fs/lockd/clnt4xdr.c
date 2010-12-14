@@ -529,17 +529,16 @@ out:
 	return error;
 }
 
-static int nlm4_xdr_dec_testres(struct rpc_rqst *req, __be32 *p,
+static int nlm4_xdr_dec_testres(struct rpc_rqst *req,
+				struct xdr_stream *xdr,
 				struct nlm_res *result)
 {
-	struct xdr_stream xdr;
 	int error;
 
-	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
-	error = decode_cookie(&xdr, &result->cookie);
+	error = decode_cookie(xdr, &result->cookie);
 	if (unlikely(error))
 		goto out;
-	error = decode_nlm4_testrply(&xdr, result);
+	error = decode_nlm4_testrply(xdr, result);
 out:
 	return error;
 }
@@ -550,17 +549,16 @@ out:
  *		nlm4_stat stat;
  *	};
  */
-static int nlm4_xdr_dec_res(struct rpc_rqst *req, __be32 *p,
+static int nlm4_xdr_dec_res(struct rpc_rqst *req,
+			    struct xdr_stream *xdr,
 			    struct nlm_res *result)
 {
-	struct xdr_stream xdr;
 	int error;
 
-	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
-	error = decode_cookie(&xdr, &result->cookie);
+	error = decode_cookie(xdr, &result->cookie);
 	if (unlikely(error))
 		goto out;
-	error = decode_nlm4_stat(&xdr, &result->status);
+	error = decode_nlm4_stat(xdr, &result->status);
 out:
 	return error;
 }
@@ -575,7 +573,7 @@ out:
 [NLMPROC_##proc] = {							\
 	.p_proc      = NLMPROC_##proc,					\
 	.p_encode    = (kxdreproc_t)nlm4_xdr_enc_##argtype,		\
-	.p_decode    = (kxdrproc_t)nlm4_xdr_dec_##restype,		\
+	.p_decode    = (kxdrdproc_t)nlm4_xdr_dec_##restype,		\
 	.p_arglen    = NLM4_##argtype##_sz,				\
 	.p_replen    = NLM4_##restype##_sz,				\
 	.p_statidx   = NLMPROC_##proc,					\

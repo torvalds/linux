@@ -587,8 +587,18 @@ rpcauth_wrap_req(struct rpc_task *task, kxdreproc_t encode, void *rqstp,
 	return 0;
 }
 
+static int
+rpcauth_unwrap_req_decode(kxdrdproc_t decode, struct rpc_rqst *rqstp,
+			  __be32 *data, void *obj)
+{
+	struct xdr_stream xdr;
+
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, data);
+	return decode(rqstp, &xdr, obj);
+}
+
 int
-rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp,
+rpcauth_unwrap_resp(struct rpc_task *task, kxdrdproc_t decode, void *rqstp,
 		__be32 *data, void *obj)
 {
 	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
@@ -599,7 +609,7 @@ rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp,
 		return cred->cr_ops->crunwrap_resp(task, decode, rqstp,
 						   data, obj);
 	/* By default, we decode the arguments normally. */
-	return decode(rqstp, data, obj);
+	return rpcauth_unwrap_req_decode(decode, rqstp, data, obj);
 }
 
 int

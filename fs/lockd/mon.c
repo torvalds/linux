@@ -472,35 +472,35 @@ static void nsm_xdr_enc_unmon(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_mon_id(xdr, argp);
 }
 
-static int xdr_dec_stat_res(struct rpc_rqst *rqstp, __be32 *p,
-			    struct nsm_res *resp)
+static int nsm_xdr_dec_stat_res(struct rpc_rqst *rqstp,
+				struct xdr_stream *xdr,
+				struct nsm_res *resp)
 {
-	struct xdr_stream xdr;
+	__be32 *p;
 
-	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
-	p = xdr_inline_decode(&xdr, 4 + 4);
+	p = xdr_inline_decode(xdr, 4 + 4);
 	if (unlikely(p == NULL))
 		return -EIO;
 	resp->status = be32_to_cpup(p++);
 	resp->state = be32_to_cpup(p);
 
-	dprintk("lockd: xdr_dec_stat_res status %d state %d\n",
-			resp->status, resp->state);
+	dprintk("lockd: %s status %d state %d\n",
+		__func__, resp->status, resp->state);
 	return 0;
 }
 
-static int xdr_dec_stat(struct rpc_rqst *rqstp, __be32 *p,
-			struct nsm_res *resp)
+static int nsm_xdr_dec_stat(struct rpc_rqst *rqstp,
+			    struct xdr_stream *xdr,
+			    struct nsm_res *resp)
 {
-	struct xdr_stream xdr;
+	__be32 *p;
 
-	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
-	p = xdr_inline_decode(&xdr, 4);
+	p = xdr_inline_decode(xdr, 4);
 	if (unlikely(p == NULL))
 		return -EIO;
 	resp->state = be32_to_cpup(p);
 
-	dprintk("lockd: xdr_dec_stat state %d\n", resp->state);
+	dprintk("lockd: %s state %d\n", __func__, resp->state);
 	return 0;
 }
 
@@ -517,7 +517,7 @@ static struct rpc_procinfo	nsm_procedures[] = {
 [NSMPROC_MON] = {
 		.p_proc		= NSMPROC_MON,
 		.p_encode	= (kxdreproc_t)nsm_xdr_enc_mon,
-		.p_decode	= (kxdrproc_t)xdr_dec_stat_res,
+		.p_decode	= (kxdrdproc_t)nsm_xdr_dec_stat_res,
 		.p_arglen	= SM_mon_sz,
 		.p_replen	= SM_monres_sz,
 		.p_statidx	= NSMPROC_MON,
@@ -526,7 +526,7 @@ static struct rpc_procinfo	nsm_procedures[] = {
 [NSMPROC_UNMON] = {
 		.p_proc		= NSMPROC_UNMON,
 		.p_encode	= (kxdreproc_t)nsm_xdr_enc_unmon,
-		.p_decode	= (kxdrproc_t)xdr_dec_stat,
+		.p_decode	= (kxdrdproc_t)nsm_xdr_dec_stat,
 		.p_arglen	= SM_mon_id_sz,
 		.p_replen	= SM_unmonres_sz,
 		.p_statidx	= NSMPROC_UNMON,

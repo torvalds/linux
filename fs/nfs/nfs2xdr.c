@@ -783,15 +783,13 @@ static void nfs2_xdr_enc_readdirargs(struct rpc_rqst *req,
  * "NFS: Network File System Protocol Specification".
  */
 
-static int nfs2_xdr_dec_stat(struct rpc_rqst *req, __be32 *p,
+static int nfs2_xdr_dec_stat(struct rpc_rqst *req, struct xdr_stream *xdr,
 			     void *__unused)
 {
-	struct xdr_stream xdr;
 	enum nfs_stat status;
 	int error;
 
-	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
-	error = decode_stat(&xdr, &status);
+	error = decode_stat(xdr, &status);
 	if (unlikely(error))
 		goto out;
 	if (status != NFS_OK)
@@ -802,22 +800,16 @@ out_default:
 	return nfs_stat_to_errno(status);
 }
 
-static int nfs2_xdr_dec_attrstat(struct rpc_rqst *req, __be32 *p,
+static int nfs2_xdr_dec_attrstat(struct rpc_rqst *req, struct xdr_stream *xdr,
 				 struct nfs_fattr *result)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
-	return decode_attrstat(&xdr, result);
+	return decode_attrstat(xdr, result);
 }
 
-static int nfs2_xdr_dec_diropres(struct rpc_rqst *req, __be32 *p,
+static int nfs2_xdr_dec_diropres(struct rpc_rqst *req, struct xdr_stream *xdr,
 				 struct nfs_diropok *result)
 {
-	struct xdr_stream xdr;
-
-	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
-	return decode_diropres(&xdr, result);
+	return decode_diropres(xdr, result);
 }
 
 /*
@@ -830,20 +822,18 @@ static int nfs2_xdr_dec_diropres(struct rpc_rqst *req, __be32 *p,
  *		void;
  *	};
  */
-static int nfs2_xdr_dec_readlinkres(struct rpc_rqst *req, __be32 *p,
-				    void *__unused)
+static int nfs2_xdr_dec_readlinkres(struct rpc_rqst *req,
+				    struct xdr_stream *xdr, void *__unused)
 {
-	struct xdr_stream xdr;
 	enum nfs_stat status;
 	int error;
 
-	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
-	error = decode_stat(&xdr, &status);
+	error = decode_stat(xdr, &status);
 	if (unlikely(error))
 		goto out;
 	if (status != NFS_OK)
 		goto out_default;
-	error = decode_path(&xdr);
+	error = decode_path(xdr);
 out:
 	return error;
 out_default:
@@ -861,39 +851,33 @@ out_default:
  *		void;
  *	};
  */
-static int nfs2_xdr_dec_readres(struct rpc_rqst *req, __be32 *p,
+static int nfs2_xdr_dec_readres(struct rpc_rqst *req, struct xdr_stream *xdr,
 				struct nfs_readres *result)
 {
-	struct xdr_stream xdr;
 	enum nfs_stat status;
 	int error;
 
-	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
-	error = decode_stat(&xdr, &status);
+	error = decode_stat(xdr, &status);
 	if (unlikely(error))
 		goto out;
 	if (status != NFS_OK)
 		goto out_default;
-	error = decode_fattr(&xdr, result->fattr);
+	error = decode_fattr(xdr, result->fattr);
 	if (unlikely(error))
 		goto out;
-	error = decode_nfsdata(&xdr, result);
+	error = decode_nfsdata(xdr, result);
 out:
 	return error;
 out_default:
 	return nfs_stat_to_errno(status);
 }
 
-static int nfs2_xdr_dec_writeres(struct rpc_rqst *req, __be32 *p,
+static int nfs2_xdr_dec_writeres(struct rpc_rqst *req, struct xdr_stream *xdr,
 				 struct nfs_writeres *result)
 {
-	struct xdr_stream xdr;
-
 	/* All NFSv2 writes are "file sync" writes */
 	result->verf->committed = NFS_FILE_SYNC;
-
-	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
-	return decode_attrstat(&xdr, result->fattr);
+	return decode_attrstat(xdr, result->fattr);
 }
 
 /**
@@ -1008,20 +992,18 @@ out_cheating:
 	goto out;
 }
 
-static int nfs2_xdr_dec_readdirres(struct rpc_rqst *req, __be32 *p,
-				   void *__unused)
+static int nfs2_xdr_dec_readdirres(struct rpc_rqst *req,
+				   struct xdr_stream *xdr, void *__unused)
 {
-	struct xdr_stream xdr;
 	enum nfs_stat status;
 	int error;
 
-	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
-	error = decode_stat(&xdr, &status);
+	error = decode_stat(xdr, &status);
 	if (unlikely(error))
 		goto out;
 	if (status != NFS_OK)
 		goto out_default;
-	error = decode_readdirok(&xdr);
+	error = decode_readdirok(xdr);
 out:
 	return error;
 out_default:
@@ -1062,20 +1044,18 @@ out_overflow:
 	return -EIO;
 }
 
-static int nfs2_xdr_dec_statfsres(struct rpc_rqst *req, __be32 *p,
+static int nfs2_xdr_dec_statfsres(struct rpc_rqst *req, struct xdr_stream *xdr,
 				  struct nfs2_fsstat *result)
 {
-	struct xdr_stream xdr;
 	enum nfs_stat status;
 	int error;
 
-	xdr_init_decode(&xdr, &req->rq_rcv_buf, p);
-	error = decode_stat(&xdr, &status);
+	error = decode_stat(xdr, &status);
 	if (unlikely(error))
 		goto out;
 	if (status != NFS_OK)
 		goto out_default;
-	error = decode_info(&xdr, result);
+	error = decode_info(xdr, result);
 out:
 	return error;
 out_default:
@@ -1150,7 +1130,7 @@ int nfs_stat_to_errno(enum nfs_stat status)
 [NFSPROC_##proc] = {							\
 	.p_proc	    =  NFSPROC_##proc,					\
 	.p_encode   =  (kxdreproc_t)nfs2_xdr_enc_##argtype,		\
-	.p_decode   =  (kxdrproc_t)nfs2_xdr_dec_##restype,		\
+	.p_decode   =  (kxdrdproc_t)nfs2_xdr_dec_##restype,		\
 	.p_arglen   =  NFS_##argtype##_sz,				\
 	.p_replen   =  NFS_##restype##_sz,				\
 	.p_timer    =  timer,						\
