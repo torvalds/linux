@@ -661,6 +661,7 @@ struct snd_soc_card {
 	struct list_head platform_dev_list;
 	struct list_head dai_dev_list;
 
+	struct list_head widgets;
 	struct list_head paths;
 
 #ifdef CONFIG_DEBUG_FS
