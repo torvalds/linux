@@ -25,6 +25,7 @@
 #include <linux/max9635.h>
 #include <linux/miscdevice.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
@@ -62,6 +63,7 @@ struct max9635_data {
 	atomic_t enabled;
 	spinlock_t irq_lock;
 	int cur_irq_state;
+	struct regulator *regulator;
 };
 
 struct max9635_data *max9635_misc_data;
@@ -283,6 +285,8 @@ static int max9635_enable(struct max9635_data *als_data)
 	int err;
 
 	if (!atomic_cmpxchg(&als_data->enabled, 0, 1)) {
+		if (!IS_ERR_OR_NULL(als_data->regulator))
+			regulator_enable(als_data->regulator);
 		err = max9635_device_power(als_data, 0x01);
 		if (err) {
 			atomic_set(&als_data->enabled, 0);
@@ -294,8 +298,11 @@ static int max9635_enable(struct max9635_data *als_data)
 
 static int max9635_disable(struct max9635_data *als_data)
 {
-	if (atomic_cmpxchg(&als_data->enabled, 1, 0))
+	if (atomic_cmpxchg(&als_data->enabled, 1, 0)) {
+		if (!IS_ERR_OR_NULL(als_data->regulator))
+			regulator_disable(als_data->regulator);
 		max9635_device_power(als_data, 0x00);
+	}
 	cancel_delayed_work_sync(&als_data->working_queue);
 
 	return 0;
@@ -520,6 +527,8 @@ static int max9635_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, als_data);
 
+	als_data->regulator = regulator_get(&client->dev, "vio");
+
 #ifdef DEBUG
 	error = device_create_file(&als_data->client->dev, &dev_attr_registers);
 	if (error < 0) {
@@ -553,6 +562,8 @@ static int max9635_remove(struct i2c_client *client)
 #ifdef DEBUG
 	device_remove_file(&als_data->client->dev, &dev_attr_registers);
 #endif
+	if (!IS_ERR_OR_NULL(als_data->regulator))
+		regulator_put(als_data->regulator);
 	free_irq(als_data->client->irq, als_data);
 	input_unregister_device(als_data->idev);
 	input_free_device(als_data->idev);
