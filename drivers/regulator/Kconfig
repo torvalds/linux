@@ -186,9 +186,13 @@ config REGULATOR_PCAP
 	 This driver provides support for the voltage regulators of the
 	 PCAP2 PMIC.
 
+config REGULATOR_MC13XXX_CORE
+	bool
+
 config REGULATOR_MC13783
 	tristate "Support regulators on Freescale MC13783 PMIC"
 	depends on MFD_MC13783
+	select REGULATOR_MC13XXX_CORE
 	help
 	  Say y here to support the regulators found on the Freescale MC13783
 	  PMIC.
