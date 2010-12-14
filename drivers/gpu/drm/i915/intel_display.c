@@ -642,26 +642,23 @@ static const intel_limit_t intel_limits_ironlake_display_port = {
         .find_pll = intel_find_pll_ironlake_dp,
 };
 
-static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc)
+static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc,
+						int refclk)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	const intel_limit_t *limit;
-	int refclk = 120;
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		if (dev_priv->lvds_use_ssc && dev_priv->lvds_ssc_freq == 100)
-			refclk = 100;
-
 		if ((I915_READ(PCH_LVDS) & LVDS_CLKB_POWER_MASK) ==
 		    LVDS_CLKB_POWER_UP) {
 			/* LVDS dual channel */
-			if (refclk == 100)
+			if (refclk == 100000)
 				limit = &intel_limits_ironlake_dual_lvds_100m;
 			else
 				limit = &intel_limits_ironlake_dual_lvds;
 		} else {
-			if (refclk == 100)
+			if (refclk == 100000)
 				limit = &intel_limits_ironlake_single_lvds_100m;
 			else
 				limit = &intel_limits_ironlake_single_lvds;
@@ -702,13 +699,13 @@ static const intel_limit_t *intel_g4x_limit(struct drm_crtc *crtc)
 	return limit;
 }
 
-static const intel_limit_t *intel_limit(struct drm_crtc *crtc)
+static const intel_limit_t *intel_limit(struct drm_crtc *crtc, int refclk)
 {
 	struct drm_device *dev = crtc->dev;
 	const intel_limit_t *limit;
 
 	if (HAS_PCH_SPLIT(dev))
-		limit = intel_ironlake_limit(crtc);
+		limit = intel_ironlake_limit(crtc, refclk);
 	else if (IS_G4X(dev)) {
 		limit = intel_g4x_limit(crtc);
 	} else if (IS_PINEVIEW(dev)) {
@@ -773,11 +770,10 @@ bool intel_pipe_has_type(struct drm_crtc *crtc, int type)
  * the given connectors.
  */
 
-static bool intel_PLL_is_valid(struct drm_crtc *crtc, intel_clock_t *clock)
+static bool intel_PLL_is_valid(struct drm_device *dev,
+			       const intel_limit_t *limit,
+			       const intel_clock_t *clock)
 {
-	const intel_limit_t *limit = intel_limit (crtc);
-	struct drm_device *dev = crtc->dev;
-
 	if (clock->p1  < limit->p1.min  || limit->p1.max  < clock->p1)
 		INTELPllInvalid ("p1 out of range\n");
 	if (clock->p   < limit->p.min   || limit->p.max   < clock->p)
@@ -849,8 +845,8 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 					int this_err;
 
 					intel_clock(dev, refclk, &clock);
-
-					if (!intel_PLL_is_valid(crtc, &clock))
+					if (!intel_PLL_is_valid(dev, limit,
+								&clock))
 						continue;
 
 					this_err = abs(clock.dot - target);
@@ -912,9 +908,11 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 					int this_err;
 
 					intel_clock(dev, refclk, &clock);
-					if (!intel_PLL_is_valid(crtc, &clock))
+					if (!intel_PLL_is_valid(dev, limit,
+								&clock))
 						continue;
-					this_err = abs(clock.dot - target) ;
+
+					this_err = abs(clock.dot - target);
 					if (this_err < err_most) {
 						*best_clock = clock;
 						err_most = this_err;
@@ -3655,7 +3653,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	 * refclk, or FALSE.  The returned values represent the clock equation:
 	 * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
 	 */
-	limit = intel_limit(crtc);
+	limit = intel_limit(crtc, refclk);
 	ok = limit->find_pll(limit, crtc, adjusted_mode->clock, refclk, &clock);
 	if (!ok) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
