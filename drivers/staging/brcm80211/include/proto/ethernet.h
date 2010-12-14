@@ -66,19 +66,6 @@ BWL_PRE_PACKED_STRUCT struct ether_addr {
 
 static const struct ether_addr ether_bcast = { {255, 255, 255, 255, 255, 255} };
 
-#define ETHER_ISBCAST(ea)	((((u8 *)(ea))[0] &		\
-	((u8 *)(ea))[1] &		\
-	((u8 *)(ea))[2] &		\
-	((u8 *)(ea))[3] &		\
-	((u8 *)(ea))[4] &		\
-	((u8 *)(ea))[5]) == 0xff)
-#define ETHER_ISNULLADDR(ea)	((((u8 *)(ea))[0] |		\
-	((u8 *)(ea))[1] |		\
-	((u8 *)(ea))[2] |		\
-	((u8 *)(ea))[3] |		\
-	((u8 *)(ea))[4] |		\
-	((u8 *)(ea))[5]) == 0)
-
 #define ETHER_MOVE_HDR(d, s) \
 do { \
 	struct ether_header t; \

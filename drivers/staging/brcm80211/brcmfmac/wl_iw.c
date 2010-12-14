@@ -772,7 +772,8 @@ wl_iw_set_wap(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if (ETHER_ISBCAST(awrq->sa_data) || ETHER_ISNULLADDR(awrq->sa_data)) {
+	if (is_broadcast_ether_addr(awrq->sa_data) ||
+	    is_zero_ether_addr(awrq->sa_data)) {
 		scb_val_t scbval;
 		memset(&scbval, 0, sizeof(scb_val_t));
 		(void)dev_wlc_ioctl(dev, WLC_DISASSOC, &scbval,

@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <proto/802.11.h>
@@ -1022,8 +1023,8 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 		goto fail;
 	}
 	bcm_ether_atoe(macaddr, &wlc_hw->etheraddr);
-	if (ETHER_ISBCAST((char *)&wlc_hw->etheraddr) ||
-	    ETHER_ISNULLADDR((char *)&wlc_hw->etheraddr)) {
+	if (is_broadcast_ether_addr(wlc_hw->etheraddr.octet) ||
+	    is_zero_ether_addr(wlc_hw->etheraddr.octet)) {
 		WL_ERROR(("wl%d: wlc_bmac_attach: bad macaddr %s\n", unit,
 			  macaddr));
 		err = 22;

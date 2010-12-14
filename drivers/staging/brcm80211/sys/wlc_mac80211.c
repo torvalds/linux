@@ -3633,8 +3633,8 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 				u16 lo;
 				u32 hi;
 				/* group keys in WPA-NONE (IBSS only, AES and TKIP) use a global TXIV */
-				if ((bsscfg->WPA_auth & WPA_AUTH_NONE)
-				    && ETHER_ISNULLADDR(&key->ea)) {
+				if ((bsscfg->WPA_auth & WPA_AUTH_NONE) &&
+				    is_zero_ether_addr(key->ea.octet)) {
 					lo = bsscfg->wpa_none_txiv.lo;
 					hi = bsscfg->wpa_none_txiv.hi;
 				} else {
@@ -7026,7 +7026,7 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	if (!is_amsdu) {
 		/* CTS and ACK CTL frames are w/o a2 */
 		if (FC_TYPE(fc) == FC_TYPE_DATA || FC_TYPE(fc) == FC_TYPE_MNG) {
-			if ((ETHER_ISNULLADDR(&h->a2) ||
+			if ((is_zero_ether_addr(h->a2.octet) ||
 			     is_multicast_ether_addr(h->a2.octet))) {
 				WL_ERROR(("wl%d: %s: dropping a frame with "
 					"invalid src mac address, a2: %pM\n",
