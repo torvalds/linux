@@ -82,6 +82,7 @@ static unsigned long o2hb_failed_region_bitmap[BITS_TO_LONGS(O2NM_MAX_REGIONS)];
 #define O2HB_DB_TYPE_REGION_LIVENODES	4
 #define O2HB_DB_TYPE_REGION_NUMBER	5
 #define O2HB_DB_TYPE_REGION_ELAPSED_TIME	6
+#define O2HB_DB_TYPE_REGION_PINNED	7
 struct o2hb_debug_buf {
 	int db_type;
 	int db_size;
@@ -101,6 +102,7 @@ static struct o2hb_debug_buf *o2hb_db_failedregions;
 #define O2HB_DEBUG_FAILEDREGIONS	"failed_regions"
 #define O2HB_DEBUG_REGION_NUMBER	"num"
 #define O2HB_DEBUG_REGION_ELAPSED_TIME	"elapsed_time_in_ms"
+#define O2HB_DEBUG_REGION_PINNED	"pinned"
 
 static struct dentry *o2hb_debug_dir;
 static struct dentry *o2hb_debug_livenodes;
@@ -241,9 +243,11 @@ struct o2hb_region {
 	struct dentry		*hr_debug_livenodes;
 	struct dentry		*hr_debug_regnum;
 	struct dentry		*hr_debug_elapsed_time;
+	struct dentry		*hr_debug_pinned;
 	struct o2hb_debug_buf	*hr_db_livenodes;
 	struct o2hb_debug_buf	*hr_db_regnum;
 	struct o2hb_debug_buf	*hr_db_elapsed_time;
+	struct o2hb_debug_buf	*hr_db_pinned;
 
 	/* let the person setting up hb wait for it to return until it
 	 * has reached a 'steady' state.  This will be fixed when we have
@@ -1180,6 +1184,12 @@ static int o2hb_debug_open(struct inode *inode, struct file *file)
 						 reg->hr_last_timeout_start));
 		goto done;
 
+	case O2HB_DB_TYPE_REGION_PINNED:
+		reg = (struct o2hb_region *)db->db_data;
+		out += snprintf(buf + out, PAGE_SIZE - out, "%u\n",
+				!!reg->hr_item_pinned);
+		goto done;
+
 	default:
 		goto done;
 	}
@@ -1424,6 +1434,7 @@ static void o2hb_region_release(struct config_item *item)
 	debugfs_remove(reg->hr_debug_livenodes);
 	debugfs_remove(reg->hr_debug_regnum);
 	debugfs_remove(reg->hr_debug_elapsed_time);
+	debugfs_remove(reg->hr_debug_pinned);
 	debugfs_remove(reg->hr_debug_dir);
 
 	spin_lock(&o2hb_live_lock);
@@ -1984,6 +1995,18 @@ static int o2hb_debug_region_init(struct o2hb_region *reg, struct dentry *dir)
 					  O2HB_DB_TYPE_REGION_ELAPSED_TIME,
 					  0, 0, reg);
 	if (!reg->hr_debug_elapsed_time) {
+		mlog_errno(ret);
+		goto bail;
+	}
+
+	reg->hr_debug_pinned =
+			o2hb_debug_create(O2HB_DEBUG_REGION_PINNED,
+					  reg->hr_debug_dir,
+					  &(reg->hr_db_pinned),
+					  sizeof(*(reg->hr_db_pinned)),
+					  O2HB_DB_TYPE_REGION_PINNED,
+					  0, 0, reg);
+	if (!reg->hr_debug_pinned) {
 		mlog_errno(ret);
 		goto bail;
 	}
