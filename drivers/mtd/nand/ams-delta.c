@@ -5,6 +5,7 @@
  *
  *  Derived from drivers/mtd/toto.c
  *  Converted to platform driver by Janusz Krzysztofik <jkrzyszt@tis.icnet.pl>
+ *  Partially stolen from drivers/mtd/nand/plat_nand.c
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -63,9 +64,10 @@ static struct mtd_partition partition_info[] = {
 static void ams_delta_write_byte(struct mtd_info *mtd, u_char byte)
 {
 	struct nand_chip *this = mtd->priv;
+	void __iomem *io_base = this->priv;
 
-	omap_writew(0, (OMAP1_MPUIO_BASE + OMAP_MPUIO_IO_CNTL));
-	omap_writew(byte, this->IO_ADDR_W);
+	writew(0, io_base + OMAP_MPUIO_IO_CNTL);
+	writew(byte, this->IO_ADDR_W);
 	ams_delta_latch2_write(AMS_DELTA_LATCH2_NAND_NWE, 0);
 	ndelay(40);
 	ams_delta_latch2_write(AMS_DELTA_LATCH2_NAND_NWE,
@@ -76,11 +78,12 @@ static u_char ams_delta_read_byte(struct mtd_info *mtd)
 {
 	u_char res;
 	struct nand_chip *this = mtd->priv;
+	void __iomem *io_base = this->priv;
 
 	ams_delta_latch2_write(AMS_DELTA_LATCH2_NAND_NRE, 0);
 	ndelay(40);
-	omap_writew(~0, (OMAP1_MPUIO_BASE + OMAP_MPUIO_IO_CNTL));
-	res = omap_readw(this->IO_ADDR_R);
+	writew(~0, io_base + OMAP_MPUIO_IO_CNTL);
+	res = readw(this->IO_ADDR_R);
 	ams_delta_latch2_write(AMS_DELTA_LATCH2_NAND_NRE,
 			       AMS_DELTA_LATCH2_NAND_NRE);
 
@@ -155,7 +158,12 @@ static int ams_delta_nand_ready(struct mtd_info *mtd)
 static int __devinit ams_delta_init(struct platform_device *pdev)
 {
 	struct nand_chip *this;
+	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	void __iomem *io_base;
 	int err = 0;
+
+	if (!res)
+		return -ENXIO;
 
 	/* Allocate memory for MTD device structure and private data */
 	ams_delta_mtd = kmalloc(sizeof(struct mtd_info) +
@@ -178,9 +186,25 @@ static int __devinit ams_delta_init(struct platform_device *pdev)
 	/* Link the private data with the MTD structure */
 	ams_delta_mtd->priv = this;
 
+	if (!request_mem_region(res->start, resource_size(res),
+			dev_name(&pdev->dev))) {
+		dev_err(&pdev->dev, "request_mem_region failed\n");
+		err = -EBUSY;
+		goto out_free;
+	}
+
+	io_base = ioremap(res->start, resource_size(res));
+	if (io_base == NULL) {
+		dev_err(&pdev->dev, "ioremap failed\n");
+		err = -EIO;
+		goto out_release_io;
+	}
+
+	this->priv = io_base;
+
 	/* Set address of NAND IO lines */
-	this->IO_ADDR_R = (OMAP1_MPUIO_BASE + OMAP_MPUIO_INPUT_LATCH);
-	this->IO_ADDR_W = (OMAP1_MPUIO_BASE + OMAP_MPUIO_OUTPUT);
+	this->IO_ADDR_R = io_base + OMAP_MPUIO_INPUT_LATCH;
+	this->IO_ADDR_W = io_base + OMAP_MPUIO_OUTPUT;
 	this->read_byte = ams_delta_read_byte;
 	this->write_buf = ams_delta_write_buf;
 	this->read_buf = ams_delta_read_buf;
@@ -195,6 +219,8 @@ static int __devinit ams_delta_init(struct platform_device *pdev)
 	/* 25 us command delay time */
 	this->chip_delay = 30;
 	this->ecc.mode = NAND_ECC_SOFT;
+
+	platform_set_drvdata(pdev, io_base);
 
 	/* Set chip enabled, but  */
 	ams_delta_latch2_write(NAND_MASK, AMS_DELTA_LATCH2_NAND_NRE |
@@ -215,6 +241,11 @@ static int __devinit ams_delta_init(struct platform_device *pdev)
 	goto out;
 
  out_mtd:
+	platform_set_drvdata(pdev, NULL);
+	iounmap(io_base);
+out_release_io:
+	release_mem_region(res->start, resource_size(res));
+out_free:
 	kfree(ams_delta_mtd);
  out:
 	return err;
@@ -225,8 +256,14 @@ static int __devinit ams_delta_init(struct platform_device *pdev)
  */
 static int __devexit ams_delta_cleanup(struct platform_device *pdev)
 {
+	void __iomem *io_base = platform_get_drvdata(pdev);
+	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
 	/* Release resources, unregister device */
 	nand_release(ams_delta_mtd);
+
+	iounmap(io_base);
+	release_mem_region(res->start, resource_size(res));
 
 	/* Free the MTD device structure */
 	kfree(ams_delta_mtd);
