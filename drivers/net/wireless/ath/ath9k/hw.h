@@ -868,6 +868,11 @@ static inline struct ath_hw_ops *ath9k_hw_ops(struct ath_hw *ah)
 	return &ah->ops;
 }
 
+static inline u8 get_streams(int mask)
+{
+	return !!(mask & BIT(0)) + !!(mask & BIT(1)) + !!(mask & BIT(2));
+}
+
 /* Initialization, Detach, Reset */
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_deinit(struct ath_hw *ah);

@@ -50,11 +50,6 @@ static int ar9003_get_training_power_2g(struct ath_hw *ah)
 	return power;
 }
 
-static int get_streams(int mask)
-{
-	return !!(mask & BIT(0)) + !!(mask & BIT(1)) + !!(mask & BIT(2));
-}
-
 static int ar9003_get_training_power_5g(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
