@@ -45,6 +45,7 @@ struct platform_device *__init mxs_add_fec(
 		},
 	};
 
-	return mxs_add_platform_device("imx28-fec", data->id,
-			res, ARRAY_SIZE(res), pdata, sizeof(*pdata));
+	return mxs_add_platform_device_dmamask("imx28-fec", data->id,
+			res, ARRAY_SIZE(res), pdata, sizeof(*pdata),
+			DMA_BIT_MASK(32));
 }
