@@ -2873,6 +2873,8 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 	lq_sta->is_agg = 0;
 
+	lq_sta->dbg_fixed_rate = 0;
+
 	rs_initialize_lq(priv, conf, sta, lq_sta);
 }
 

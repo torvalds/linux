@@ -957,6 +957,22 @@ void iwl_irq_handle_error(struct iwl_priv *priv)
 	/* Cancel currently queued command. */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 
+	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
+	if (priv->cfg->internal_wimax_coex &&
+	    (!(iwl_read_prph(priv, APMG_CLK_CTRL_REG) &
+			APMS_CLK_VAL_MRB_FUNC_MODE) ||
+	     (iwl_read_prph(priv, APMG_PS_CTRL_REG) &
+			APMG_PS_CTRL_VAL_RESET_REQ))) {
+		wake_up_interruptible(&priv->wait_command_queue);
+		/*
+		 *Keep the restart process from trying to send host
+		 * commands by clearing the INIT status bit
+		 */
+		clear_bit(STATUS_READY, &priv->status);
+		IWL_ERR(priv, "RF is used by WiMAX\n");
+		return;
+	}
+
 	IWL_ERR(priv, "Loaded firmware version: %s\n",
 		priv->hw->wiphy->fw_version);
 
@@ -1207,6 +1223,7 @@ void iwl_send_bt_config(struct iwl_priv *priv)
 	else
 		bt_cmd.flags = BT_COEX_ENABLE;
 
+	priv->bt_enable_flag = bt_cmd.flags;
 	IWL_DEBUG_INFO(priv, "BT coex %s\n",
 		(bt_cmd.flags == BT_COEX_DISABLE) ? "disable" : "active");
 
