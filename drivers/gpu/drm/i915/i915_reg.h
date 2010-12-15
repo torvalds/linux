@@ -600,6 +600,16 @@
 
 
 /*
+ * Framebuffer compression for Sandybridge
+ *
+ * The following two registers are of type GTTMMADR
+ */
+#define SNB_DPFC_CTL_SA		0x100100
+#define   SNB_CPU_FENCE_ENABLE	(1<<29)
+#define DPFC_CPU_FENCE_OFFSET	0x100104
+
+
+/*
  * GPIO regs
  */
 #define GPIOA			0x5010

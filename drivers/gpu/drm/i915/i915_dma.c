@@ -1078,7 +1078,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 	if (!cfb_base)
 		goto err_fb;
 
-	if (!(IS_GM45(dev) || IS_IRONLAKE_M(dev))) {
+	if (!(IS_GM45(dev) || HAS_PCH_SPLIT(dev))) {
 		compressed_llb = drm_mm_search_free(&dev_priv->mm.stolen,
 						    4096, 4096, 0);
 		if (compressed_llb)
@@ -1096,7 +1096,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 
 	intel_disable_fbc(dev);
 	dev_priv->compressed_fb = compressed_fb;
-	if (IS_IRONLAKE_M(dev))
+	if (HAS_PCH_SPLIT(dev))
 		I915_WRITE(ILK_DPFC_CB_BASE, compressed_fb->start);
 	else if (IS_GM45(dev)) {
 		I915_WRITE(DPFC_CB_BASE, compressed_fb->start);

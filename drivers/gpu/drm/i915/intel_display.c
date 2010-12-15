@@ -1262,6 +1262,12 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	/* enable it... */
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
 
+	if (IS_GEN6(dev)) {
+		I915_WRITE(SNB_DPFC_CTL_SA,
+			   SNB_CPU_FENCE_ENABLE | dev_priv->cfb_fence);
+		I915_WRITE(DPFC_CPU_FENCE_OFFSET, crtc->y);
+	}
+
 	DRM_DEBUG_KMS("enabled fbc on plane %d\n", intel_crtc->plane);
 }
 
@@ -6395,7 +6401,7 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.dpms = i9xx_crtc_dpms;
 
 	if (I915_HAS_FBC(dev)) {
-		if (IS_IRONLAKE_M(dev)) {
+		if (HAS_PCH_SPLIT(dev)) {
 			dev_priv->display.fbc_enabled = ironlake_fbc_enabled;
 			dev_priv->display.enable_fbc = ironlake_enable_fbc;
 			dev_priv->display.disable_fbc = ironlake_disable_fbc;
