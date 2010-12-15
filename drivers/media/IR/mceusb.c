@@ -156,7 +156,7 @@ struct mceusb_model {
 	u32 mce_gen1:1;
 	u32 mce_gen2:1;
 	u32 mce_gen3:1;
-	u32 tx_mask_inverted:1;
+	u32 tx_mask_normal:1;
 	u32 is_polaris:1;
 	u32 no_tx:1;
 
@@ -167,18 +167,18 @@ struct mceusb_model {
 static const struct mceusb_model mceusb_model[] = {
 	[MCE_GEN1] = {
 		.mce_gen1 = 1,
-		.tx_mask_inverted = 1,
+		.tx_mask_normal = 1,
 	},
 	[MCE_GEN2] = {
 		.mce_gen2 = 1,
 	},
 	[MCE_GEN2_TX_INV] = {
 		.mce_gen2 = 1,
-		.tx_mask_inverted = 1,
+		.tx_mask_normal = 1,
 	},
 	[MCE_GEN3] = {
 		.mce_gen3 = 1,
-		.tx_mask_inverted = 1,
+		.tx_mask_normal = 1,
 	},
 	[POLARIS_EVK] = {
 		.is_polaris = 1,
@@ -350,7 +350,7 @@ struct mceusb_dev {
 
 	struct {
 		u32 connected:1;
-		u32 tx_mask_inverted:1;
+		u32 tx_mask_normal:1;
 		u32 microsoft_gen1:1;
 		u32 no_tx:1;
 	} flags;
@@ -753,11 +753,11 @@ static int mceusb_set_tx_mask(void *priv, u32 mask)
 {
 	struct mceusb_dev *ir = priv;
 
-	if (ir->flags.tx_mask_inverted)
+	if (ir->flags.tx_mask_normal)
+		ir->tx_mask = mask;
+	else
 		ir->tx_mask = (mask != MCE_DEFAULT_TX_MASK ?
 				mask ^ MCE_DEFAULT_TX_MASK : mask) << 1;
-	else
-		ir->tx_mask = mask;
 
 	return 0;
 }
@@ -1117,7 +1117,7 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	enum mceusb_model_type model = id->driver_info;
 	bool is_gen3;
 	bool is_microsoft_gen1;
-	bool tx_mask_inverted;
+	bool tx_mask_normal;
 	bool is_polaris;
 
 	dev_dbg(&intf->dev, "%s called\n", __func__);
@@ -1126,7 +1126,7 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 
 	is_gen3 = mceusb_model[model].mce_gen3;
 	is_microsoft_gen1 = mceusb_model[model].mce_gen1;
-	tx_mask_inverted = mceusb_model[model].tx_mask_inverted;
+	tx_mask_normal = mceusb_model[model].tx_mask_normal;
 	is_polaris = mceusb_model[model].is_polaris;
 
 	if (is_polaris) {
@@ -1193,7 +1193,7 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	ir->dev = &intf->dev;
 	ir->len_in = maxp;
 	ir->flags.microsoft_gen1 = is_microsoft_gen1;
-	ir->flags.tx_mask_inverted = tx_mask_inverted;
+	ir->flags.tx_mask_normal = tx_mask_normal;
 	ir->flags.no_tx = mceusb_model[model].no_tx;
 	ir->model = model;
 
