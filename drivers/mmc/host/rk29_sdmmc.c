@@ -733,6 +733,7 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_request *
 			 /* wait till resets clear */
 			while (rk29_sdmmc_read(host->regs, SDMMC_CTRL) & ( SDMMC_CTRL_FIFO_RESET));
 			local_irq_restore(flags);
+			time_out2--;
 			if(!time_out2)
 				break;
 		}

@@ -308,9 +308,6 @@ struct platform_device rk29_device_uart0 = {
 	.id	= 0,
 	.num_resources	= ARRAY_SIZE(resources_uart0),
 	.resource	= resources_uart0,
-	.dev = {
-		.platform_data = &rk2818_serial0_platdata,
-	},
 };
 #endif
 #ifdef CONFIG_UART1_RK29

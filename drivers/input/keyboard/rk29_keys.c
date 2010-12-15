@@ -32,7 +32,7 @@
 #define INVALID_ADVALUE 				10
 
 
-#if 1
+#if 0
 #define key_dbg(bdata, format, arg...)		\
 	dev_printk(KERN_INFO , &bdata->input->dev , format , ## arg)
 #else
