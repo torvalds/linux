@@ -596,9 +596,8 @@ static void bm_memset(struct drbd_bitmap *b, size_t offset, int c, size_t len)
 		if (bm+do_now > p_addr + LWPP) {
 			printk(KERN_ALERT "drbd: BUG BUG BUG! p_addr:%p bm:%p do_now:%d\n",
 			       p_addr, bm, (int)do_now);
-			break; /* breaks to after catch_oob_access_end() only! */
-		}
-		memset(bm, c, do_now * sizeof(long));
+		} else
+			memset(bm, c, do_now * sizeof(long));
 		bm_unmap(p_addr);
 		bm_set_page_need_writeout(b->bm_pages[idx]);
 		offset += do_now;
