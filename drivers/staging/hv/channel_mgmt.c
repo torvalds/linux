@@ -753,7 +753,6 @@ void vmbus_onmessage(void *context)
 			   hdr->msgtype, size);
 		print_hex_dump_bytes("", DUMP_PREFIX_NONE,
 				     (unsigned char *)msg->u.payload, size);
-		kfree(msg);
 		return;
 	}
 
@@ -762,9 +761,6 @@ void vmbus_onmessage(void *context)
 	else
 		DPRINT_ERR(VMBUS, "Unhandled channel message type %d",
 			   hdr->msgtype);
-
-	/* Free the msg that was allocated in VmbusOnMsgDPC() */
-	kfree(msg);
 }
 
 /*

@@ -203,6 +203,21 @@ static void VmbusOnCleanup(struct hv_driver *drv)
 	hv_cleanup();
 }
 
+struct onmessage_work_context {
+	struct work_struct work;
+	struct hv_message msg;
+};
+
+static void vmbus_onmessage_work(struct work_struct *work)
+{
+	struct onmessage_work_context *ctx;
+
+	ctx = container_of(work, struct onmessage_work_context,
+			   work);
+	vmbus_onmessage(&ctx->msg);
+	kfree(ctx);
+}
+
 /*
  * vmbus_on_msg_dpc - DPC routine to handle messages from the hypervisior
  */
@@ -212,20 +227,19 @@ static void vmbus_on_msg_dpc(struct hv_driver *drv)
 	void *page_addr = hv_context.synic_message_page[cpu];
 	struct hv_message *msg = (struct hv_message *)page_addr +
 				  VMBUS_MESSAGE_SINT;
-	struct hv_message *copied;
+	struct onmessage_work_context *ctx;
 
 	while (1) {
 		if (msg->header.message_type == HVMSG_NONE) {
 			/* no msg */
 			break;
 		} else {
-			copied = kmemdup(msg, sizeof(*copied), GFP_ATOMIC);
-			if (copied == NULL)
+			ctx = kmalloc(sizeof(*ctx), GFP_ATOMIC);
+			if (ctx == NULL)
 				continue;
-
-			osd_schedule_callback(gVmbusConnection.WorkQueue,
-					      vmbus_onmessage,
-					      (void *)copied);
+			INIT_WORK(&ctx->work, vmbus_onmessage_work);
+			memcpy(&ctx->msg, msg, sizeof(*msg));
+			queue_work(gVmbusConnection.WorkQueue, &ctx->work);
 		}
 
 		msg->header.message_type = HVMSG_NONE;
