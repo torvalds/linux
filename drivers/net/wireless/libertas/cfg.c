@@ -619,7 +619,7 @@ static int lbs_ret_scan(struct lbs_private *priv, unsigned long dummy,
 				     print_ssid(ssid_buf, ssid, ssid_len),
 				     LBS_SCAN_RSSI_TO_MBM(rssi)/100);
 
-			if (channel ||
+			if (channel &&
 			    !(channel->flags & IEEE80211_CHAN_DISABLED))
 				cfg80211_inform_bss(wiphy, channel,
 					bssid, le64_to_cpu(*(__le64 *)tsfdesc),
