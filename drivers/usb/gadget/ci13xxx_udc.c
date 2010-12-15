@@ -2393,7 +2393,6 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 
 	if (driver             == NULL ||
 	    bind               == NULL ||
-	    driver->unbind     == NULL ||
 	    driver->setup      == NULL ||
 	    driver->disconnect == NULL ||
 	    driver->suspend    == NULL ||
