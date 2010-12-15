@@ -52,6 +52,8 @@
 #include <mach/irqs.h>
 #include <plat/timer-sp.h>
 
+#include <plat/sched_clock.h>
+
 #include "core.h"
 
 /* used by entry-macro.S and platsmp.c */
@@ -658,6 +660,12 @@ void realview_leds_event(led_event_t ledevt)
 #endif	/* CONFIG_LEDS */
 
 /*
+ * The sched_clock counter
+ */
+#define REFCOUNTER		(__io_address(REALVIEW_SYS_BASE) + \
+				 REALVIEW_SYS_24MHz_OFFSET)
+
+/*
  * Where is the timer (VA)?
  */
 void __iomem *timer0_va_base;
@@ -671,6 +679,8 @@ void __iomem *timer3_va_base;
 void __init realview_timer_init(unsigned int timer_irq)
 {
 	u32 val;
+
+	versatile_sched_clock_init(REFCOUNTER, 24000000);
 
 	/* 
 	 * set clock frequency: 

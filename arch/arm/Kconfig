@@ -236,6 +236,7 @@ config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARM_AMBA
 	select COMMON_CLKDEV
+	select HAVE_SCHED_CLOCK
 	select ICST
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -250,6 +251,7 @@ config ARCH_VERSATILE
 	select ARM_AMBA
 	select ARM_VIC
 	select COMMON_CLKDEV
+	select HAVE_SCHED_CLOCK
 	select ICST
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
