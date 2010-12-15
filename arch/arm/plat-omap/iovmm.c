@@ -280,13 +280,14 @@ static struct iovm_struct *alloc_iovm_area(struct iommu *obj, u32 da,
 	alignement = PAGE_SIZE;
 
 	if (flags & IOVMF_DA_ANON) {
-		/*
-		 * Reserve the first page for NULL
-		 */
-		start = PAGE_SIZE;
+		start = obj->da_start;
+
 		if (flags & IOVMF_LINEAR)
 			alignement = iopgsz_max(bytes);
 		start = roundup(start, alignement);
+	} else if (start < obj->da_start || start > obj->da_end ||
+					obj->da_end - start < bytes) {
+		return ERR_PTR(-EINVAL);
 	}
 
 	tmp = NULL;
@@ -299,16 +300,16 @@ static struct iovm_struct *alloc_iovm_area(struct iommu *obj, u32 da,
 		if (prev_end > start)
 			break;
 
-		if (start + bytes <= tmp->da_start)
+		if (tmp->da_start > start && (tmp->da_start - start) >= bytes)
 			goto found;
 
-		if (flags & IOVMF_DA_ANON)
+		if (tmp->da_end >= start && flags & IOVMF_DA_ANON)
 			start = roundup(tmp->da_end + 1, alignement);
 
 		prev_end = tmp->da_end;
 	}
 
-	if ((start >= prev_end) && (ULONG_MAX - start + 1 >= bytes))
+	if ((start >= prev_end) && (obj->da_end - start >= bytes))
 		goto found;
 
 	dev_dbg(obj->dev, "%s: no space to fit %08x(%x) flags: %08x\n",
