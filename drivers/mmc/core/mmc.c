@@ -534,39 +534,57 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 */
 	if ((card->csd.mmca_vsn >= CSD_SPEC_VER_4) &&
 	    (host->caps & (MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA))) {
-		unsigned ext_csd_bit, bus_width;
+		static unsigned ext_csd_bits[][2] = {
+			{ EXT_CSD_BUS_WIDTH_8, EXT_CSD_DDR_BUS_WIDTH_8 },
+			{ EXT_CSD_BUS_WIDTH_4, EXT_CSD_DDR_BUS_WIDTH_4 },
+			{ EXT_CSD_BUS_WIDTH_1, EXT_CSD_BUS_WIDTH_1 },
+		};
+		static unsigned bus_widths[] = {
+			MMC_BUS_WIDTH_8,
+			MMC_BUS_WIDTH_4,
+			MMC_BUS_WIDTH_1
+		};
+		unsigned idx, bus_width = 0;
 
-		if (host->caps & MMC_CAP_8_BIT_DATA) {
-			if (ddr)
-				ext_csd_bit = EXT_CSD_DDR_BUS_WIDTH_8;
-			else
-				ext_csd_bit = EXT_CSD_BUS_WIDTH_8;
-			bus_width = MMC_BUS_WIDTH_8;
-		} else {
-			if (ddr)
-				ext_csd_bit = EXT_CSD_DDR_BUS_WIDTH_4;
-			else
-				ext_csd_bit = EXT_CSD_BUS_WIDTH_4;
-			bus_width = MMC_BUS_WIDTH_4;
+		if (host->caps & MMC_CAP_8_BIT_DATA)
+			idx = 0;
+		else
+			idx = 1;
+		for (; idx < ARRAY_SIZE(bus_widths); idx++) {
+			bus_width = bus_widths[idx];
+			if (bus_width == MMC_BUS_WIDTH_1)
+				ddr = 0; /* no DDR for 1-bit width */
+			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+					 EXT_CSD_BUS_WIDTH,
+					 ext_csd_bits[idx][0]);
+			if (!err) {
+				/*
+				 * If controller can't handle bus width test,
+				 * use the highest bus width to maintain
+				 * compatibility with previous MMC behavior.
+				 */
+				if (!(host->caps & MMC_CAP_BUS_WIDTH_TEST))
+					break;
+				mmc_set_bus_width_ddr(card->host,
+						      bus_width, MMC_SDR_MODE);
+				err = mmc_bus_test(card, bus_width);
+				if (!err)
+					break;
+			}
 		}
 
-		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-				 EXT_CSD_BUS_WIDTH, ext_csd_bit);
-
-		if (err && err != -EBADMSG)
-			goto free_card;
-
+		if (!err && ddr) {
+			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+					EXT_CSD_BUS_WIDTH,
+					ext_csd_bits[idx][1]);
+		}
 		if (err) {
 			printk(KERN_WARNING "%s: switch to bus width %d ddr %d "
-			       "failed\n", mmc_hostname(card->host),
-			       1 << bus_width, ddr);
-			err = 0;
-		} else {
-			if (ddr)
-				mmc_card_set_ddr_mode(card);
-			else
-				ddr = MMC_SDR_MODE;
-
+				"failed\n", mmc_hostname(card->host),
+				1 << bus_width, ddr);
+			goto free_card;
+		} else if (ddr) {
+			mmc_card_set_ddr_mode(card);
 			mmc_set_bus_width_ddr(card->host, bus_width, ddr);
 		}
 	}
