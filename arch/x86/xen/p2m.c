@@ -27,6 +27,8 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/list.h>
+#include <linux/hash.h>
 
 #include <asm/cache.h>
 #include <asm/setup.h>
@@ -36,6 +38,8 @@
 #include <asm/xen/hypervisor.h>
 
 #include "xen-ops.h"
+
+static void __init m2p_override_init(void);
 
 unsigned long xen_max_p2m_pfn __read_mostly;
 
@@ -234,6 +238,8 @@ void __init xen_build_dynamic_phys_to_machine(void)
 
 		p2m_top[topidx][mididx] = &mfn_list[pfn];
 	}
+
+	m2p_override_init();
 }
 
 unsigned long get_phys_to_machine(unsigned long pfn)
@@ -373,4 +379,78 @@ bool set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 	}
 
 	return true;
+}
+
+#define M2P_OVERRIDE_HASH_SHIFT	10
+#define M2P_OVERRIDE_HASH	(1 << M2P_OVERRIDE_HASH_SHIFT)
+
+static RESERVE_BRK_ARRAY(struct list_head, m2p_overrides, M2P_OVERRIDE_HASH);
+static DEFINE_SPINLOCK(m2p_override_lock);
+
+static void __init m2p_override_init(void)
+{
+	unsigned i;
+
+	m2p_overrides = extend_brk(sizeof(*m2p_overrides) * M2P_OVERRIDE_HASH,
+				   sizeof(unsigned long));
+
+	for (i = 0; i < M2P_OVERRIDE_HASH; i++)
+		INIT_LIST_HEAD(&m2p_overrides[i]);
+}
+
+static unsigned long mfn_hash(unsigned long mfn)
+{
+	return hash_long(mfn, M2P_OVERRIDE_HASH_SHIFT);
+}
+
+/* Add an MFN override for a particular page */
+void m2p_add_override(unsigned long mfn, struct page *page)
+{
+	unsigned long flags;
+	page->private = mfn;
+
+	spin_lock_irqsave(&m2p_override_lock, flags);
+	list_add(&page->lru,  &m2p_overrides[mfn_hash(mfn)]);
+	spin_unlock_irqrestore(&m2p_override_lock, flags);
+}
+
+void m2p_remove_override(struct page *page)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&m2p_override_lock, flags);
+	list_del(&page->lru);
+	spin_unlock_irqrestore(&m2p_override_lock, flags);
+}
+
+struct page *m2p_find_override(unsigned long mfn)
+{
+	unsigned long flags;
+	struct list_head *bucket = &m2p_overrides[mfn_hash(mfn)];
+	struct page *p, *ret;
+
+	ret = NULL;
+
+	spin_lock_irqsave(&m2p_override_lock, flags);
+
+	list_for_each_entry(p, bucket, lru) {
+		if (p->private == mfn) {
+			ret = p;
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&m2p_override_lock, flags);
+
+	return ret;
+}
+
+unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn)
+{
+	struct page *p = m2p_find_override(mfn);
+	unsigned long ret = pfn;
+
+	if (p)
+		ret = page_to_pfn(p);
+
+	return ret;
 }
