@@ -1810,7 +1810,7 @@ void drbd_thread_current_set_cpu(struct drbd_conf *mdev)
 		p == mdev->receiver.task ? &mdev->receiver :
 		p == mdev->worker.task   ? &mdev->worker   :
 		NULL;
-	ERR_IF(thi == NULL)
+	if (!expect(thi != NULL))
 		return;
 	if (!thi->reset_cpu_mask)
 		return;
@@ -1826,8 +1826,10 @@ int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
 {
 	int sent, ok;
 
-	ERR_IF(!h) return false;
-	ERR_IF(!size) return false;
+	if (!expect(h))
+		return false;
+	if (!expect(size))
+		return false;
 
 	h->magic   = cpu_to_be32(DRBD_MAGIC);
 	h->command = cpu_to_be16(cmd);
@@ -2300,7 +2302,8 @@ int _drbd_send_bitmap(struct drbd_conf *mdev)
 	struct p_header80 *p;
 	int err;
 
-	ERR_IF(!mdev->bitmap) return false;
+	if (!expect(mdev->bitmap))
+		return false;
 
 	/* maybe we should use some per thread scratch page,
 	 * and allocate that during initial device creation? */
@@ -3255,7 +3258,7 @@ static void drbd_delete_device(unsigned int minor)
 		dev_err(DEV, "open_cnt = %d in %s:%u", mdev->open_cnt,
 				__FILE__ , __LINE__);
 
-	ERR_IF (!list_empty(&mdev->data.work.q)) {
+	if (!expect(list_empty(&mdev->data.work.q))) {
 		struct list_head *lp;
 		list_for_each(lp, &mdev->data.work.q) {
 			dev_err(DEV, "lp = %p\n", lp);

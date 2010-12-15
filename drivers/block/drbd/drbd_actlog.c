@@ -491,7 +491,8 @@ int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 		unsigned int trn;
 
 		rv = drbd_al_read_tr(mdev, bdev, buffer, i);
-		ERR_IF(rv == 0) goto cancel;
+		if (!expect(rv != 0))
+			goto cancel;
 		if (rv == -1) {
 			mutex_unlock(&mdev->md_io_mutex);
 			return 0;
@@ -770,8 +771,10 @@ void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector, int size,
 	nr_sectors = drbd_get_capacity(mdev->this_bdev);
 	esector = sector + (size >> 9) - 1;
 
-	ERR_IF(sector >= nr_sectors) return;
-	ERR_IF(esector >= nr_sectors) esector = (nr_sectors-1);
+	if (!expect(sector < nr_sectors))
+		return;
+	if (!expect(esector < nr_sectors))
+		esector = nr_sectors - 1;
 
 	lbnr = BM_SECT_TO_BIT(nr_sectors-1);
 
@@ -837,10 +840,10 @@ int __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector, int size,
 	nr_sectors = drbd_get_capacity(mdev->this_bdev);
 	esector = sector + (size >> 9) - 1;
 
-	ERR_IF(sector >= nr_sectors)
+	if (!expect(sector < nr_sectors))
 		goto out;
-	ERR_IF(esector >= nr_sectors)
-		esector = (nr_sectors-1);
+	if (!expect(esector < nr_sectors))
+		esector = nr_sectors - 1;
 
 	lbnr = BM_SECT_TO_BIT(nr_sectors-1);
 
@@ -1218,8 +1221,10 @@ void drbd_rs_failed_io(struct drbd_conf *mdev, sector_t sector, int size)
 	nr_sectors = drbd_get_capacity(mdev->this_bdev);
 	esector = sector + (size >> 9) - 1;
 
-	ERR_IF(sector >= nr_sectors) return;
-	ERR_IF(esector >= nr_sectors) esector = (nr_sectors-1);
+	if (!expect(sector < nr_sectors))
+		return;
+	if (!expect(esector < nr_sectors))
+		esector = nr_sectors - 1;
 
 	lbnr = BM_SECT_TO_BIT(nr_sectors-1);
 

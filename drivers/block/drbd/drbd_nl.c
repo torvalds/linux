@@ -751,7 +751,7 @@ static int drbd_check_al_size(struct drbd_conf *mdev)
 	unsigned int in_use;
 	int i;
 
-	ERR_IF(mdev->sync_conf.al_extents < 7)
+	if (!expect(mdev->sync_conf.al_extents >= 7))
 		mdev->sync_conf.al_extents = 127;
 
 	if (mdev->act_log &&
@@ -1804,8 +1804,10 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 		}
 	}
 
-	ERR_IF (sc.rate < 1) sc.rate = 1;
-	ERR_IF (sc.al_extents < 7) sc.al_extents = 127; /* arbitrary minimum */
+	if (!expect(sc.rate >= 1))
+		sc.rate = 1;
+	if (!expect(sc.al_extents >= 7))
+		sc.al_extents = 127; /* arbitrary minimum */
 #define AL_MAX ((MD_AL_MAX_SIZE-1) * AL_EXTENTS_PT)
 	if (sc.al_extents > AL_MAX) {
 		dev_err(DEV, "sc.al_extents > %d\n", AL_MAX);

@@ -440,7 +440,8 @@ int drbd_bm_init(struct drbd_conf *mdev)
 
 sector_t drbd_bm_capacity(struct drbd_conf *mdev)
 {
-	ERR_IF(!mdev->bitmap) return 0;
+	if (!expect(mdev->bitmap))
+		return 0;
 	return mdev->bitmap->bm_dev_capacity;
 }
 
@@ -448,7 +449,8 @@ sector_t drbd_bm_capacity(struct drbd_conf *mdev)
  */
 void drbd_bm_cleanup(struct drbd_conf *mdev)
 {
-	ERR_IF (!mdev->bitmap) return;
+	if (!expect(mdev->bitmap))
+		return;
 	bm_free_pages(mdev->bitmap->bm_pages, mdev->bitmap->bm_number_of_pages);
 	bm_vk_free(mdev->bitmap->bm_pages, (BM_P_VMALLOCED & mdev->bitmap->bm_flags));
 	kfree(mdev->bitmap);
@@ -611,7 +613,8 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 	int err = 0, growing;
 	int opages_vmalloced;
 
-	ERR_IF(!b) return -ENOMEM;
+	if (!expect(b))
+		return -ENOMEM;
 
 	drbd_bm_lock(mdev, "resize", BM_LOCKED_MASK);
 
@@ -733,8 +736,10 @@ unsigned long _drbd_bm_total_weight(struct drbd_conf *mdev)
 	unsigned long s;
 	unsigned long flags;
 
-	ERR_IF(!b) return 0;
-	ERR_IF(!b->bm_pages) return 0;
+	if (!expect(b))
+		return 0;
+	if (!expect(b->bm_pages))
+		return 0;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
 	s = b->bm_set;
@@ -757,8 +762,10 @@ unsigned long drbd_bm_total_weight(struct drbd_conf *mdev)
 size_t drbd_bm_words(struct drbd_conf *mdev)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
-	ERR_IF(!b) return 0;
-	ERR_IF(!b->bm_pages) return 0;
+	if (!expect(b))
+		return 0;
+	if (!expect(b->bm_pages))
+		return 0;
 
 	return b->bm_words;
 }
@@ -766,7 +773,8 @@ size_t drbd_bm_words(struct drbd_conf *mdev)
 unsigned long drbd_bm_bits(struct drbd_conf *mdev)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
-	ERR_IF(!b) return 0;
+	if (!expect(b))
+		return 0;
 
 	return b->bm_bits;
 }
@@ -787,8 +795,10 @@ void drbd_bm_merge_lel(struct drbd_conf *mdev, size_t offset, size_t number,
 
 	end = offset + number;
 
-	ERR_IF(!b) return;
-	ERR_IF(!b->bm_pages) return;
+	if (!expect(b))
+		return;
+	if (!expect(b->bm_pages))
+		return;
 	if (number == 0)
 		return;
 	WARN_ON(offset >= b->bm_words);
@@ -832,8 +842,10 @@ void drbd_bm_get_lel(struct drbd_conf *mdev, size_t offset, size_t number,
 
 	end = offset + number;
 
-	ERR_IF(!b) return;
-	ERR_IF(!b->bm_pages) return;
+	if (!expect(b))
+		return;
+	if (!expect(b->bm_pages))
+		return;
 
 	spin_lock_irq(&b->bm_lock);
 	if ((offset >= b->bm_words) ||
@@ -861,8 +873,10 @@ void drbd_bm_get_lel(struct drbd_conf *mdev, size_t offset, size_t number,
 void drbd_bm_set_all(struct drbd_conf *mdev)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
-	ERR_IF(!b) return;
-	ERR_IF(!b->bm_pages) return;
+	if (!expect(b))
+		return;
+	if (!expect(b->bm_pages))
+		return;
 
 	spin_lock_irq(&b->bm_lock);
 	bm_memset(b, 0, 0xff, b->bm_words);
@@ -875,8 +889,10 @@ void drbd_bm_set_all(struct drbd_conf *mdev)
 void drbd_bm_clear_all(struct drbd_conf *mdev)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
-	ERR_IF(!b) return;
-	ERR_IF(!b->bm_pages) return;
+	if (!expect(b))
+		return;
+	if (!expect(b->bm_pages))
+		return;
 
 	spin_lock_irq(&b->bm_lock);
 	bm_memset(b, 0, 0, b->bm_words);
@@ -1209,8 +1225,10 @@ static unsigned long bm_find_next(struct drbd_conf *mdev,
 	struct drbd_bitmap *b = mdev->bitmap;
 	unsigned long i = DRBD_END_OF_BITMAP;
 
-	ERR_IF(!b) return i;
-	ERR_IF(!b->bm_pages) return i;
+	if (!expect(b))
+		return i;
+	if (!expect(b->bm_pages))
+		return i;
 
 	spin_lock_irq(&b->bm_lock);
 	if (BM_DONT_TEST & b->bm_flags)
@@ -1311,8 +1329,10 @@ static int bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
 	struct drbd_bitmap *b = mdev->bitmap;
 	int c = 0;
 
-	ERR_IF(!b) return 1;
-	ERR_IF(!b->bm_pages) return 0;
+	if (!expect(b))
+		return 1;
+	if (!expect(b->bm_pages))
+		return 0;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
 	if ((val ? BM_DONT_SET : BM_DONT_CLEAR) & b->bm_flags)
@@ -1437,8 +1457,10 @@ int drbd_bm_test_bit(struct drbd_conf *mdev, const unsigned long bitnr)
 	unsigned long *p_addr;
 	int i;
 
-	ERR_IF(!b) return 0;
-	ERR_IF(!b->bm_pages) return 0;
+	if (!expect(b))
+		return 0;
+	if (!expect(b->bm_pages))
+		return 0;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
 	if (BM_DONT_TEST & b->bm_flags)
@@ -1472,8 +1494,10 @@ int drbd_bm_count_bits(struct drbd_conf *mdev, const unsigned long s, const unsi
 	 * robust in case we screwed up elsewhere, in that case pretend there
 	 * was one dirty bit in the requested area, so we won't try to do a
 	 * local read there (no bitmap probably implies no disk) */
-	ERR_IF(!b) return 1;
-	ERR_IF(!b->bm_pages) return 1;
+	if (!expect(b))
+		return 1;
+	if (!expect(b->bm_pages))
+		return 1;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
 	if (BM_DONT_TEST & b->bm_flags)
@@ -1486,11 +1510,10 @@ int drbd_bm_count_bits(struct drbd_conf *mdev, const unsigned long s, const unsi
 				bm_unmap(p_addr);
 			p_addr = bm_map_pidx(b, idx);
 		}
-		ERR_IF (bitnr >= b->bm_bits) {
-			dev_err(DEV, "bitnr=%lu bm_bits=%lu\n", bitnr, b->bm_bits);
-		} else {
+		if (expect(bitnr < b->bm_bits))
 			c += (0 != test_bit_le(bitnr - (page_nr << (PAGE_SHIFT+3)), p_addr));
-		}
+		else
+			dev_err(DEV, "bitnr=%lu bm_bits=%lu\n", bitnr, b->bm_bits);
 	}
 	if (p_addr)
 		bm_unmap(p_addr);
@@ -1520,8 +1543,10 @@ int drbd_bm_e_weight(struct drbd_conf *mdev, unsigned long enr)
 	unsigned long flags;
 	unsigned long *p_addr, *bm;
 
-	ERR_IF(!b) return 0;
-	ERR_IF(!b->bm_pages) return 0;
+	if (!expect(b))
+		return 0;
+	if (!expect(b->bm_pages))
+		return 0;
 
 	spin_lock_irqsave(&b->bm_lock, flags);
 	if (BM_DONT_TEST & b->bm_flags)
@@ -1553,8 +1578,10 @@ unsigned long drbd_bm_ALe_set_all(struct drbd_conf *mdev, unsigned long al_enr)
 	unsigned long weight;
 	unsigned long s, e;
 	int count, i, do_now;
-	ERR_IF(!b) return 0;
-	ERR_IF(!b->bm_pages) return 0;
+	if (!expect(b))
+		return 0;
+	if (!expect(b->bm_pages))
+		return 0;
 
 	spin_lock_irq(&b->bm_lock);
 	if (BM_DONT_SET & b->bm_flags)

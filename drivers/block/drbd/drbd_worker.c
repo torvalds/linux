@@ -1331,7 +1331,8 @@ static int _drbd_may_sync_now(struct drbd_conf *mdev)
 		if (odev->sync_conf.after == -1)
 			return 1;
 		odev = minor_to_mdev(odev->sync_conf.after);
-		ERR_IF(!odev) return 1;
+		if (!expect(odev))
+			return 1;
 		if ((odev->state.conn >= C_SYNC_SOURCE &&
 		     odev->state.conn <= C_PAUSED_SYNC_T) ||
 		    odev->state.aftr_isp || odev->state.peer_isp ||
@@ -1637,7 +1638,7 @@ int drbd_worker(struct drbd_thread *thi)
 		if (intr) {
 			D_ASSERT(intr == -EINTR);
 			flush_signals(current);
-			ERR_IF (get_t_state(thi) == RUNNING)
+			if (!expect(get_t_state(thi) != RUNNING))
 				continue;
 			break;
 		}
@@ -1650,7 +1651,7 @@ int drbd_worker(struct drbd_thread *thi)
 
 		w = NULL;
 		spin_lock_irq(&mdev->data.work.q_lock);
-		ERR_IF(list_empty(&mdev->data.work.q)) {
+		if (!expect(!list_empty(&mdev->data.work.q))) {
 			/* something terribly wrong in our logic.
 			 * we were able to down() the semaphore,
 			 * but the list is empty... doh.

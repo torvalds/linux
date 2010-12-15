@@ -1260,9 +1260,12 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __
 
 	data_size -= dgs;
 
-	ERR_IF(data_size == 0) return NULL;
-	ERR_IF(data_size &  0x1ff) return NULL;
-	ERR_IF(data_size >  DRBD_MAX_BIO_SIZE) return NULL;
+	if (!expect(data_size != 0))
+		return NULL;
+	if (!expect(IS_ALIGNED(data_size, 512)))
+		return NULL;
+	if (!expect(data_size <= DRBD_MAX_BIO_SIZE))
+		return NULL;
 
 	/* even though we trust out peer,
 	 * we sometimes have to double check. */
@@ -3615,7 +3618,8 @@ static int receive_skip(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned 
 	while (size > 0) {
 		want = min_t(int, size, sizeof(sink));
 		r = drbd_recv(mdev, sink, want);
-		ERR_IF(r <= 0) break;
+		if (!expect(r > 0))
+			break;
 		size -= r;
 	}
 	return size == 0;
@@ -4493,7 +4497,10 @@ int drbd_asender(struct drbd_thread *thi)
 	while (get_t_state(thi) == RUNNING) {
 		drbd_thread_current_set_cpu(mdev);
 		if (test_and_clear_bit(SEND_PING, &mdev->flags)) {
-			ERR_IF(!drbd_send_ping(mdev)) goto reconnect;
+			if (!drbd_send_ping(mdev)) {
+				dev_err(DEV, "drbd_send_ping has failed\n");
+				goto reconnect;
+			}
 			mdev->meta.socket->sk->sk_rcvtimeo =
 				mdev->net_conf->ping_timeo*HZ/10;
 			ping_timeout_active = 1;
@@ -4587,7 +4594,7 @@ int drbd_asender(struct drbd_thread *thi)
 				goto disconnect;
 			}
 			expect = cmd->pkt_size;
-			ERR_IF(len != expect-sizeof(struct p_header80))
+			if (!expect(len == expect - sizeof(struct p_header80)))
 				goto reconnect;
 		}
 		if (received == expect) {

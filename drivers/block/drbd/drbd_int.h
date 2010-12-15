@@ -102,12 +102,18 @@ struct drbd_conf;
 #define D_ASSERT(exp)	if (!(exp)) \
 	 dev_err(DEV, "ASSERT( " #exp " ) in %s:%d\n", __FILE__, __LINE__)
 
-#define ERR_IF(exp) if (({						\
-	int _b = (exp) != 0;						\
-	if (_b) dev_err(DEV, "ASSERT FAILED: %s: (%s) in %s:%d\n",	\
-			__func__, #exp, __FILE__, __LINE__);		\
-	_b;								\
-	}))
+/**
+ * expect  -  Make an assertion
+ *
+ * Unlike the assert macro, this macro returns a boolean result.
+ */
+#define expect(exp) ({								\
+		bool _bool = (exp);						\
+		if (!_bool)							\
+			dev_err(DEV, "ASSERTION %s FAILED in %s\n",		\
+			        #exp, __func__);				\
+		_bool;								\
+		})
 
 /* Defines to control fault insertion */
 enum {
