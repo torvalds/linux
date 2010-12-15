@@ -488,10 +488,7 @@ static int bm_clear_surplus(struct drbd_bitmap *b)
 	 * on disk and in core memory alike */
 	mask = cpu_to_lel(mask);
 
-	/* because of the "extra long to catch oob access" we allocate in
-	 * drbd_bm_resize, bm_number_of_pages -1 is not necessarily the page
-	 * containing the last _relevant_ bitmap word */
-	p_addr = bm_map_pidx(b, bm_bit_to_page_idx(b, b->bm_bits - 1));
+	p_addr = bm_map_pidx(b, b->bm_number_of_pages - 1);
 	bm = p_addr + (tmp/BITS_PER_LONG);
 	if (mask) {
 		/* If mask != 0, we are not exactly aligned, so bm now points
@@ -527,10 +524,7 @@ static void bm_set_surplus(struct drbd_bitmap *b)
 	 * on disk and in core memory alike */
 	mask = cpu_to_lel(mask);
 
-	/* because of the "extra long to catch oob access" we allocate in
-	 * drbd_bm_resize, bm_number_of_pages -1 is not necessarily the page
-	 * containing the last _relevant_ bitmap word */
-	p_addr = bm_map_pidx(b, bm_bit_to_page_idx(b, b->bm_bits - 1));
+	p_addr = bm_map_pidx(b, b->bm_number_of_pages - 1);
 	bm = p_addr + (tmp/BITS_PER_LONG);
 	if (mask) {
 		/* If mask != 0, we are not exactly aligned, so bm now points
@@ -556,15 +550,10 @@ static unsigned long bm_count_bits(struct drbd_bitmap *b)
 	unsigned long *p_addr;
 	unsigned long bits = 0;
 	unsigned long mask = (1UL << (b->bm_bits & BITS_PER_LONG_MASK)) -1;
-	int idx, last_page, i, last_word;
-
-	/* because of the "extra long to catch oob access" we allocate in
-	 * drbd_bm_resize, bm_number_of_pages -1 is not necessarily the page
-	 * containing the last _relevant_ bitmap word */
-	last_page = bm_bit_to_page_idx(b, b->bm_bits-1);
+	int idx, i, last_word;
 
 	/* all but last page */
-	for (idx = 0; idx < last_page; idx++) {
+	for (idx = 0; idx < b->bm_number_of_pages - 1; idx++) {
 		p_addr = __bm_map_pidx(b, idx, KM_USER0);
 		for (i = 0; i < LWPP; i++)
 			bits += hweight_long(p_addr[i]);
@@ -627,7 +616,7 @@ static void bm_memset(struct drbd_bitmap *b, size_t offset, int c, size_t len)
 int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
-	unsigned long bits, words, owords, obits, *p_addr, *bm;
+	unsigned long bits, words, owords, obits;
 	unsigned long want, have, onpages; /* number of pages */
 	struct page **npages, **opages = NULL;
 	int err = 0, growing;
@@ -681,8 +670,7 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 		}
 	}
 
-	/* one extra long to catch off by one errors */
-	want = ALIGN((words+1)*sizeof(long), PAGE_SIZE) >> PAGE_SHIFT;
+	want = ALIGN(words*sizeof(long), PAGE_SIZE) >> PAGE_SHIFT;
 	have = b->bm_number_of_pages;
 	if (want == have) {
 		D_ASSERT(b->bm_pages != NULL);
@@ -727,11 +715,6 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 		/* implicit: (opages != NULL) && (opages != npages) */
 		bm_free_pages(opages + want, have - want);
 	}
-
-	p_addr = bm_map_pidx(b, bm_word_to_page_idx(b, words));
-	bm = p_addr + MLPP(words);
-	*bm = DRBD_MAGIC;
-	bm_unmap(p_addr);
 
 	(void)bm_clear_surplus(b);
 
@@ -845,7 +828,6 @@ void drbd_bm_merge_lel(struct drbd_conf *mdev, size_t offset, size_t number,
 	 */
 	if (end == b->bm_words)
 		b->bm_set -= bm_clear_surplus(b);
-
 	spin_unlock_irq(&b->bm_lock);
 }
 
@@ -1030,7 +1012,7 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 	struct bm_aio_ctx ctx =
 		{ .flags = lazy_writeout_upper_idx ? BM_AIO_COPY_PAGES : 0 };
 	struct drbd_bitmap *b = mdev->bitmap;
-	int last_page, i, count = 0;
+	int num_pages, i, count = 0;
 	unsigned long now;
 	char ppb[10];
 	int err = 0;
@@ -1046,10 +1028,7 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 	if (!ctx.flags)
 		WARN_ON(!bm_is_locked(b));
 
-	/* because of the "extra long to catch oob access" we allocate in
-	 * drbd_bm_resize, bm_number_of_pages -1 is not necessarily the page
-	 * containing the last _relevant_ bitmap word */
-	last_page = bm_word_to_page_idx(b, b->bm_words - 1);
+	num_pages = b->bm_number_of_pages;
 
 	now = jiffies;
 	ctx.mdev = mdev;
@@ -1058,7 +1037,7 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 	ctx.error = 0;
 
 	/* let the layers below us try to merge these bios... */
-	for (i = 0; i <= last_page; i++) {
+	for (i = 0; i < num_pages; i++) {
 		/* ignore completely unchanged pages */
 		if (lazy_writeout_upper_idx && i == lazy_writeout_upper_idx)
 			break;
