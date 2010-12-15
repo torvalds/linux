@@ -1,27 +1,34 @@
 /*
+ *  Linux MegaRAID driver for SAS based RAID controllers
  *
- *		Linux MegaRAID driver for SAS based RAID controllers
+ *  Copyright (c) 2009-2011  LSI Corporation.
  *
- * Copyright (c) 2003-2005  LSI Corporation.
+ *  This program is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU General Public License
+ *  as published by the Free Software Foundation; either version 2
+ *  of the License, or (at your option) any later version.
  *
- *	   This program is free software; you can redistribute it and/or
- *	   modify it under the terms of the GNU General Public License
- *	   as published by the Free Software Foundation; either version
- *	   2 of the License, or (at your option) any later version.
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
  *
- * FILE		: megaraid_sas.c
- * Version     : v00.00.04.31-rc1
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * Authors:
- *	(email-id : megaraidlinux@lsi.com)
- * 	Sreenivas Bagalkote
- * 	Sumant Patro
- *	Bo Yang
+ *  FILE: megaraid_sas_base.c
+ *  Version : v00.00.05.29-rc1
  *
- * List of supported controllers
+ *  Authors: LSI Corporation
+ *           Sreenivas Bagalkote
+ *           Sumant Patro
+ *           Bo Yang
  *
- * OEM	Product Name			VID	DID	SSVID	SSID
- * ---	------------			---	---	----	----
+ *  Send feedback to: <megaraidlinux@lsi.com>
+ *
+ *  Mail to: LSI Corporation, 1621 Barber Lane, Milpitas, CA 95035
+ *     ATTN: Linuxraid
  */
 
 #include <linux/kernel.h>
