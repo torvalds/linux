@@ -1163,10 +1163,26 @@ find_unconfirmed_client_by_str(const char *dname, unsigned int hashval)
 	return NULL;
 }
 
+static void rpc_svcaddr2sockaddr(struct sockaddr *sa, unsigned short family, union svc_addr_u *svcaddr)
+{
+	switch (family) {
+	case AF_INET:
+		((struct sockaddr_in *)sa)->sin_family = AF_INET;
+		((struct sockaddr_in *)sa)->sin_addr = svcaddr->addr;
+		return;
+	case AF_INET6:
+		((struct sockaddr_in6 *)sa)->sin6_family = AF_INET6;
+		((struct sockaddr_in6 *)sa)->sin6_addr = svcaddr->addr6;
+		return;
+	}
+}
+
 static void
-gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se, u32 scopeid)
+gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se, struct svc_rqst *rqstp)
 {
 	struct nfs4_cb_conn *conn = &clp->cl_cb_conn;
+	struct sockaddr	*sa = svc_addr(rqstp);
+	u32 scopeid = rpc_get_scope_id(sa);
 	unsigned short expected_family;
 
 	/* Currently, we only support tcp and tcp6 for the callback channel */
@@ -1192,6 +1208,7 @@ gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se, u32 scopeid)
 
 	conn->cb_prog = se->se_callback_prog;
 	conn->cb_ident = se->se_callback_ident;
+	rpc_svcaddr2sockaddr((struct sockaddr *)&conn->cb_saddr, expected_family, &rqstp->rq_daddr);
 	return;
 out_err:
 	conn->cb_addr.ss_family = AF_UNSPEC;
@@ -1768,7 +1785,6 @@ __be32
 nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		  struct nfsd4_setclientid *setclid)
 {
-	struct sockaddr		*sa = svc_addr(rqstp);
 	struct xdr_netobj 	clname = { 
 		.len = setclid->se_namelen,
 		.data = setclid->se_name,
@@ -1871,7 +1887,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * for consistent minorversion use throughout:
 	 */
 	new->cl_minorversion = 0;
-	gen_callback(new, setclid, rpc_get_scope_id(sa));
+	gen_callback(new, setclid, rqstp);
 	add_to_unconfirmed(new, strhashval);
 	setclid->se_clientid.cl_boot = new->cl_clientid.cl_boot;
 	setclid->se_clientid.cl_id = new->cl_clientid.cl_id;

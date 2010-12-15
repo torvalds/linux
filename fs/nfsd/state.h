@@ -96,6 +96,7 @@ struct nfs4_delegation {
 struct nfs4_cb_conn {
 	/* SETCLIENTID info */
 	struct sockaddr_storage	cb_addr;
+	struct sockaddr_storage	cb_saddr;
 	size_t			cb_addrlen;
 	u32                     cb_prog; /* used only in 4.0 case;
 					    per-session otherwise */
