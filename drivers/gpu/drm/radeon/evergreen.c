@@ -748,6 +748,8 @@ void evergreen_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	unsigned i;
 	u32 tmp;
 
+	WREG32(HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+
 	WREG32(VM_CONTEXT0_REQUEST_RESPONSE, REQUEST_TYPE(1));
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		/* read MC_STATUS */
