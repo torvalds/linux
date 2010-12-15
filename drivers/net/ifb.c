@@ -71,7 +71,7 @@ static void ri_tasklet(unsigned long dev)
 		}
 	}
 
-	while ((skb = skb_dequeue(&dp->tq)) != NULL) {
+	while ((skb = __skb_dequeue(&dp->tq)) != NULL) {
 		u32 from = G_TC_FROM(skb->tc_verd);
 
 		skb->tc_verd = 0;
