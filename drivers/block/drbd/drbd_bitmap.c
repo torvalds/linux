@@ -376,9 +376,16 @@ static unsigned long __bm_count_bits(struct drbd_bitmap *b, const int swap_endia
 	unsigned long *p_addr, *bm, offset = 0;
 	unsigned long bits = 0;
 	unsigned long i, do_now;
+	unsigned long words;
 
-	while (offset < b->bm_words) {
-		i = do_now = min_t(size_t, b->bm_words-offset, LWPP);
+	/* due to 64bit alignment, the last long on a 32bit arch
+	 * may be not used at all. The last used long will likely
+	 * be only partially used, always. Don't count those bits,
+	 * but mask them out. */
+	words = (b->bm_bits + BITS_PER_LONG - 1) >> LN2_BPL;
+
+	while (offset < words) {
+		i = do_now = min_t(size_t, words-offset, LWPP);
 		p_addr = __bm_map_paddr(b, offset, KM_USER0);
 		bm = p_addr + MLPP(offset);
 		while (i--) {
@@ -388,8 +395,20 @@ static unsigned long __bm_count_bits(struct drbd_bitmap *b, const int swap_endia
 #endif
 			bits += hweight_long(*bm++);
 		}
-		__bm_unmap(p_addr, KM_USER0);
 		offset += do_now;
+		if (offset == words) {
+			/* last word may only be partially used,
+			 * see also bm_clear_surplus. */
+			i = (1UL << (b->bm_bits & (BITS_PER_LONG-1))) -1;
+			if (i) {
+				bits -= hweight_long(p_addr[do_now-1] & ~i);
+				p_addr[do_now-1] &= i;
+			}
+			/* 32bit arch, may have an unused padding long */
+			if (words != b->bm_words)
+				p_addr[do_now] = 0;
+		}
+		__bm_unmap(p_addr, KM_USER0);
 		cond_resched();
 	}
 
