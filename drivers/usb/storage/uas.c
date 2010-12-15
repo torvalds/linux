@@ -141,7 +141,7 @@ static void uas_do_work(struct work_struct *work)
 		struct scsi_pointer *scp = (void *)cmdinfo;
 		struct scsi_cmnd *cmnd = container_of(scp,
 							struct scsi_cmnd, SCp);
-		uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_KERNEL);
+		uas_submit_urbs(cmnd, cmnd->device->hostdata, GFP_NOIO);
 	}
 }
 
