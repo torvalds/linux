@@ -148,7 +148,11 @@ struct hrtimer_clock_base {
 #endif
 };
 
-#define HRTIMER_MAX_CLOCK_BASES 2
+enum  hrtimer_base_type {
+	HRTIMER_BASE_REALTIME,
+	HRTIMER_BASE_MONOTONIC,
+	HRTIMER_MAX_CLOCK_BASES,
+};
 
 /*
  * struct hrtimer_cpu_base - the per cpu clock bases
