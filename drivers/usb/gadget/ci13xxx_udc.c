@@ -1794,16 +1794,18 @@ __acquires(mEp->lock)
 
 	dbg_done(_usb_addr(mEp), mReq->ptr->token, retval);
 
+	if (!list_empty(&mEp->qh[mEp->dir].queue)) {
+		struct ci13xxx_req* mReqEnq;
+
+		mReqEnq = list_entry(mEp->qh[mEp->dir].queue.next,
+				  struct ci13xxx_req, queue);
+		_hardware_enqueue(mEp, mReqEnq);
+	}
+
 	if (!mReq->req.no_interrupt && mReq->req.complete != NULL) {
 		spin_unlock(mEp->lock);
 		mReq->req.complete(&mEp->ep, &mReq->req);
 		spin_lock(mEp->lock);
-	}
-
-	if (!list_empty(&mEp->qh[mEp->dir].queue)) {
-		mReq = list_entry(mEp->qh[mEp->dir].queue.next,
-				  struct ci13xxx_req, queue);
-		_hardware_enqueue(mEp, mReq);
 	}
 
  done:
@@ -2170,8 +2172,10 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 	mReq->req.actual = 0;
 	list_add_tail(&mReq->queue, &mEp->qh[mEp->dir].queue);
 
-	retval = _hardware_enqueue(mEp, mReq);
-	if (retval == -EALREADY || retval == -EBUSY) {
+	if (list_is_singular(&mEp->qh[mEp->dir].queue))
+		retval = _hardware_enqueue(mEp, mReq);
+
+	if (retval == -EALREADY) {
 		dbg_event(_usb_addr(mEp), "QUEUE", retval);
 		retval = 0;
 	}
