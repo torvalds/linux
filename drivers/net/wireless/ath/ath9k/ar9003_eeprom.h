@@ -315,4 +315,7 @@ s32 ar9003_hw_get_tx_gain_idx(struct ath_hw *ah);
 s32 ar9003_hw_get_rx_gain_idx(struct ath_hw *ah);
 
 u8 *ar9003_get_spur_chan_ptr(struct ath_hw *ah, bool is_2ghz);
+
+unsigned int ar9003_get_paprd_scale_factor(struct ath_hw *ah,
+					   struct ath9k_channel *chan);
 #endif

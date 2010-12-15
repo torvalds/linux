@@ -4843,6 +4843,27 @@ u8 *ar9003_get_spur_chan_ptr(struct ath_hw *ah, bool is_2ghz)
 		return eep->modalHeader5G.spurChans;
 }
 
+unsigned int ar9003_get_paprd_scale_factor(struct ath_hw *ah,
+					   struct ath9k_channel *chan)
+{
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+
+	if (IS_CHAN_2GHZ(chan))
+		return MS(le32_to_cpu(eep->modalHeader2G.papdRateMaskHt20),
+			  AR9300_PAPRD_SCALE_1);
+	else {
+		if (chan->channel >= 5700)
+		return MS(le32_to_cpu(eep->modalHeader5G.papdRateMaskHt20),
+			  AR9300_PAPRD_SCALE_1);
+		else if (chan->channel >= 5400)
+			return MS(le32_to_cpu(eep->modalHeader5G.papdRateMaskHt40),
+				   AR9300_PAPRD_SCALE_2);
+		else
+			return MS(le32_to_cpu(eep->modalHeader5G.papdRateMaskHt40),
+				  AR9300_PAPRD_SCALE_1);
+	}
+}
+
 const struct eeprom_ops eep_ar9300_ops = {
 	.check_eeprom = ath9k_hw_ar9300_check_eeprom,
 	.get_eeprom = ath9k_hw_ar9300_get_eeprom,
