@@ -28,37 +28,38 @@
 #include "nouveau_vm.h"
 
 void
-nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 type, u32 pde,
-		struct nouveau_gpuobj *pgt)
+nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
+		struct nouveau_gpuobj *pgt[2])
 {
 	struct drm_nouveau_private *dev_priv = pgd->dev->dev_private;
-	u32 coverage = (pgt->size >> 3) << type;
-	u64 phys;
+	u64 phys = 0xdeadcafe00000000ULL;
+	u32 coverage = 0;
 
-	phys  = pgt->vinst;
-	phys |= 0x01; /* present */
-	phys |= (type == 12) ? 0x02 : 0x00; /* 4KiB pages */
-	if (dev_priv->vram_sys_base) {
-		phys += dev_priv->vram_sys_base;
-		phys |= 0x30;
+	if (pgt[0]) {
+		phys = 0x00000003 | pgt[0]->vinst; /* present, 4KiB pages */
+		coverage = (pgt[0]->size >> 3) << 12;
+	} else
+	if (pgt[1]) {
+		phys = 0x00000001 | pgt[1]->vinst; /* present */
+		coverage = (pgt[1]->size >> 3) << 16;
 	}
 
-	if (coverage <= 32 * 1024 * 1024)
-		phys |= 0x60;
-	else if (coverage <= 64 * 1024 * 1024)
-		phys |= 0x40;
-	else if (coverage < 128 * 1024 * 1024)
-		phys |= 0x20;
+	if (phys & 1) {
+		if (dev_priv->vram_sys_base) {
+			phys += dev_priv->vram_sys_base;
+			phys |= 0x30;
+		}
+
+		if (coverage <= 32 * 1024 * 1024)
+			phys |= 0x60;
+		else if (coverage <= 64 * 1024 * 1024)
+			phys |= 0x40;
+		else if (coverage < 128 * 1024 * 1024)
+			phys |= 0x20;
+	}
 
 	nv_wo32(pgd, (pde * 8) + 0, lower_32_bits(phys));
 	nv_wo32(pgd, (pde * 8) + 4, upper_32_bits(phys));
-}
-
-void
-nv50_vm_unmap_pgt(struct nouveau_gpuobj *pgd, u32 pde)
-{
-	nv_wo32(pgd, (pde * 8) + 0, 0x00000000);
-	nv_wo32(pgd, (pde * 8) + 4, 0xdeadcafe);
 }
 
 static inline u64
