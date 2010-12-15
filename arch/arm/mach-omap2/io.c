@@ -320,7 +320,7 @@ static inline void omap_irq_base_init(void)
 	extern void __iomem *omap_irq_base;
 
 #ifdef MULTI_OMAP2
-	if (cpu_is_omap242x())
+	if (cpu_is_omap24xx())
 		omap_irq_base = OMAP2_L4_IO_ADDRESS(OMAP24XX_IC_BASE);
 	else if (cpu_is_omap34xx())
 		omap_irq_base = OMAP2_L4_IO_ADDRESS(OMAP34XX_IC_BASE);
