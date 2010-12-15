@@ -387,7 +387,7 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 	if (load > IWL_AGG_LOAD_THRESHOLD) {
 		IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
 				sta->addr, tid);
-		ret = ieee80211_start_tx_ba_session(sta, tid);
+		ret = ieee80211_start_tx_ba_session(sta, tid, 5000);
 		if (ret == -EAGAIN) {
 			/*
 			 * driver and mac80211 is out of sync

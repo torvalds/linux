@@ -1373,7 +1373,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 			an = (struct ath_node *)sta->drv_priv;
 
 			if(ath_tx_aggr_check(sc, an, tid))
-				ieee80211_start_tx_ba_session(sta, tid);
+				ieee80211_start_tx_ba_session(sta, tid, 0);
 		}
 	}
 

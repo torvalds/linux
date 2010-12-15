@@ -78,6 +78,7 @@ enum ieee80211_sta_info_flags {
  * @addba_resp_timer: timer for peer's response to addba request
  * @pending: pending frames queue -- use sta's spinlock to protect
  * @dialog_token: dialog token for aggregation session
+ * @timeout: session timeout value to be filled in ADDBA requests
  * @state: session state (see above)
  * @stop_initiator: initiator of a session stop
  * @tx_stop: TX DelBA frame when stopping
@@ -96,6 +97,7 @@ struct tid_ampdu_tx {
 	struct timer_list addba_resp_timer;
 	struct sk_buff_head pending;
 	unsigned long state;
+	u16 timeout;
 	u8 dialog_token;
 	u8 stop_initiator;
 	bool tx_stop;

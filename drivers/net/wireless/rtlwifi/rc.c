@@ -169,7 +169,7 @@ static void rtl_tx_status(void *ppriv,
 			tid = qc[0] & 0xf;
 
 			if (_rtl_tx_aggr_check(rtlpriv, tid))
-				ieee80211_start_tx_ba_session(sta, tid);
+				ieee80211_start_tx_ba_session(sta, tid, 5000);
 		}
 	}
 }

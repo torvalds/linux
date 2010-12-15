@@ -251,7 +251,7 @@ void ath9k_tx_tasklet(unsigned long data)
 				ista = (struct ath9k_htc_sta *)sta->drv_priv;
 
 				if (ath9k_htc_check_tx_aggr(priv, ista, tid)) {
-					ieee80211_start_tx_ba_session(sta, tid);
+					ieee80211_start_tx_ba_session(sta, tid, 0);
 					spin_lock_bh(&priv->tx_lock);
 					ista->tid_state[tid] = AGGR_PROGRESS;
 					spin_unlock_bh(&priv->tx_lock);
