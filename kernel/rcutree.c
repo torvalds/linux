@@ -1435,21 +1435,10 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 	 */
 	local_irq_save(flags);
 	rdp = this_cpu_ptr(rsp->rda);
-	rcu_process_gp_end(rsp, rdp);
-	check_for_new_grace_period(rsp, rdp);
 
 	/* Add the callback to our list. */
 	*rdp->nxttail[RCU_NEXT_TAIL] = head;
 	rdp->nxttail[RCU_NEXT_TAIL] = &head->next;
-
-	/* Start a new grace period if one not already started. */
-	if (!rcu_gp_in_progress(rsp)) {
-		unsigned long nestflag;
-		struct rcu_node *rnp_root = rcu_get_root(rsp);
-
-		raw_spin_lock_irqsave(&rnp_root->lock, nestflag);
-		rcu_start_gp(rsp, nestflag);  /* releases rnp_root->lock. */
-	}
 
 	/*
 	 * Force the grace period if too many callbacks or too long waiting.
@@ -1459,12 +1448,27 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 	 * is the only one waiting for a grace period to complete.
 	 */
 	if (unlikely(++rdp->qlen > rdp->qlen_last_fqs_check + qhimark)) {
-		rdp->blimit = LONG_MAX;
-		if (rsp->n_force_qs == rdp->n_force_qs_snap &&
-		    *rdp->nxttail[RCU_DONE_TAIL] != head)
-			force_quiescent_state(rsp, 0);
-		rdp->n_force_qs_snap = rsp->n_force_qs;
-		rdp->qlen_last_fqs_check = rdp->qlen;
+
+		/* Are we ignoring a completed grace period? */
+		rcu_process_gp_end(rsp, rdp);
+		check_for_new_grace_period(rsp, rdp);
+
+		/* Start a new grace period if one not already started. */
+		if (!rcu_gp_in_progress(rsp)) {
+			unsigned long nestflag;
+			struct rcu_node *rnp_root = rcu_get_root(rsp);
+
+			raw_spin_lock_irqsave(&rnp_root->lock, nestflag);
+			rcu_start_gp(rsp, nestflag);  /* rlses rnp_root->lock */
+		} else {
+			/* Give the grace period a kick. */
+			rdp->blimit = LONG_MAX;
+			if (rsp->n_force_qs == rdp->n_force_qs_snap &&
+			    *rdp->nxttail[RCU_DONE_TAIL] != head)
+				force_quiescent_state(rsp, 0);
+			rdp->n_force_qs_snap = rsp->n_force_qs;
+			rdp->qlen_last_fqs_check = rdp->qlen;
+		}
 	} else if (ULONG_CMP_LT(ACCESS_ONCE(rsp->jiffies_force_qs), jiffies))
 		force_quiescent_state(rsp, 1);
 	local_irq_restore(flags);
