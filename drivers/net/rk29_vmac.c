@@ -1225,7 +1225,29 @@ static void create_multicast_filter(struct net_device *dev,
 	unsigned long *bitmask)
 {
 #if 1
+	struct netdev_hw_addr *ha;
+	unsigned long crc;
+	char *addrs;
+	struct netdev_hw_addr_list *list = &dev->dev_addrs;
+	
 	printk("-----------------func %s-------------------\n", __func__);
+
+	WARN_ON(dev->mc_count == 0);
+	WARN_ON(dev->flags & IFF_ALLMULTI);
+
+	bitmask[0] = bitmask[1] = 0;
+
+	list_for_each_entry(ha, &list->list, list) {
+		addrs = ha->addr;
+
+		/* skip non-multicast addresses */
+		if (!(*addrs & 1))
+			continue;
+
+		crc = ether_crc_le(ETH_ALEN, addrs);
+		set_bit(crc >> 26, bitmask);
+		
+	}
 #else
 	struct netdev_hw_addr *ha;
 	unsigned long crc;
@@ -1251,7 +1273,32 @@ static void create_multicast_filter(struct net_device *dev,
 static void vmac_set_multicast_list(struct net_device *dev)
 {
 #if 1
+	struct vmac_priv *ap = netdev_priv(dev);
+	unsigned long flags, bitmask[2];
+	int promisc, reg;
+
 	printk("-----------------func %s-------------------\n", __func__);
+
+	spin_lock_irqsave(&ap->lock, flags);
+
+	promisc = !!(dev->flags & IFF_PROMISC);
+	reg = vmac_readl(ap, ENABLE);
+	if (promisc != !!(reg & PROM_MASK)) {
+		reg ^= PROM_MASK;
+		vmac_writel(ap, reg, ENABLE);
+	}
+
+	if (dev->flags & IFF_ALLMULTI)
+		memset(bitmask, 1, sizeof(bitmask));
+	else if (dev->mc_count == 0)
+		memset(bitmask, 0, sizeof(bitmask));
+	else
+		create_multicast_filter(dev, bitmask);
+
+	vmac_writel(ap, bitmask[0], LAFL);
+	vmac_writel(ap, bitmask[1], LAFH);
+
+	spin_unlock_irqrestore(&ap->lock, flags);
 #else
 	struct vmac_priv *ap = netdev_priv(dev);
 	unsigned long flags, bitmask[2];
@@ -1295,7 +1342,7 @@ static const struct net_device_ops vmac_netdev_ops = {
 	.ndo_do_ioctl		= vmac_ioctl,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_tx_timeout		= vmac_tx_timeout,
-	//.ndo_set_multicast_list = vmac_set_multicast_list,
+	.ndo_set_multicast_list = vmac_set_multicast_list,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,
 };
