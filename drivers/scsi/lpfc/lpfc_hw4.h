@@ -460,42 +460,41 @@ struct lpfc_register {
 	uint32_t word0;
 };
 
-/* The SLI4 INTF register offset is common to all if_type values. */
-#define LPFC_SLI_INTF			0x0058
-
 /* The following BAR0 Registers apply to SLI4 if_type 0 UCNAs. */
 #define LPFC_UERR_STATUS_HI		0x00A4
 #define LPFC_UERR_STATUS_LO		0x00A0
 #define LPFC_UE_MASK_HI			0x00AC
 #define LPFC_UE_MASK_LO			0x00A8
 
-#define LPFC_HST_STATE			0x00AC
-#define lpfc_hst_state_perr_SHIFT	31
-#define lpfc_hst_state_perr_MASK	0x1
-#define lpfc_hst_state_perr_WORD	word0
-#define lpfc_hst_state_sfi_SHIFT	30
-#define lpfc_hst_state_sfi_MASK		0x1
-#define lpfc_hst_state_sfi_WORD		word0
-#define lpfc_hst_state_nip_SHIFT	29
-#define lpfc_hst_state_nip_MASK		0x1
-#define lpfc_hst_state_nip_WORD		word0
-#define lpfc_hst_state_ipc_SHIFT	28
-#define lpfc_hst_state_ipc_MASK		0x1
-#define lpfc_hst_state_ipc_WORD		word0
-#define lpfc_hst_state_xrom_SHIFT	27
-#define lpfc_hst_state_xrom_MASK	0x1
-#define lpfc_hst_state_xrom_WORD	word0
-#define lpfc_hst_state_dl_SHIFT		26
-#define lpfc_hst_state_dl_MASK		0x1
-#define lpfc_hst_state_dl_WORD		word0
-#define lpfc_hst_state_port_status_SHIFT	0
-#define lpfc_hst_state_port_status_MASK		0xFFFF
-#define lpfc_hst_state_port_status_WORD		word0
+/* The following BAR0 register sets are defined for if_type 0 and 2 UCNAs. */
+#define LPFC_SLI_INTF			0x0058
 
-/*
- * The following Port Status Values apply to SLI4, if_type 0 and 2
- * UCNAs.
- */
+#define LPFC_SLIPORT_IF2_SMPHR		0x0400
+#define lpfc_port_smphr_perr_SHIFT	31
+#define lpfc_port_smphr_perr_MASK	0x1
+#define lpfc_port_smphr_perr_WORD	word0
+#define lpfc_port_smphr_sfi_SHIFT	30
+#define lpfc_port_smphr_sfi_MASK	0x1
+#define lpfc_port_smphr_sfi_WORD	word0
+#define lpfc_port_smphr_nip_SHIFT	29
+#define lpfc_port_smphr_nip_MASK	0x1
+#define lpfc_port_smphr_nip_WORD	word0
+#define lpfc_port_smphr_ipc_SHIFT	28
+#define lpfc_port_smphr_ipc_MASK	0x1
+#define lpfc_port_smphr_ipc_WORD	word0
+#define lpfc_port_smphr_scr1_SHIFT	27
+#define lpfc_port_smphr_scr1_MASK	0x1
+#define lpfc_port_smphr_scr1_WORD	word0
+#define lpfc_port_smphr_scr2_SHIFT	26
+#define lpfc_port_smphr_scr2_MASK	0x1
+#define lpfc_port_smphr_scr2_WORD	word0
+#define lpfc_port_smphr_host_scratch_SHIFT	16
+#define lpfc_port_smphr_host_scratch_MASK	0xFF
+#define lpfc_port_smphr_host_scratch_WORD	word0
+#define lpfc_port_smphr_port_status_SHIFT	0
+#define lpfc_port_smphr_port_status_MASK	0xFFFF
+#define lpfc_port_smphr_port_status_WORD	word0
+
 #define LPFC_POST_STAGE_POWER_ON_RESET			0x0000
 #define LPFC_POST_STAGE_AWAITING_HOST_RDY		0x0001
 #define LPFC_POST_STAGE_HOST_RDY			0x0002
@@ -527,36 +526,8 @@ struct lpfc_register {
 #define LPFC_POST_STAGE_RC_DONE				0x0B07
 #define LPFC_POST_STAGE_REBOOT_SYSTEM			0x0B08
 #define LPFC_POST_STAGE_MAC_ADDRESS			0x0C00
-#define LPFC_POST_STAGE_ARMFW_READY			0xC000
-#define LPFC_POST_STAGE_ARMFW_UE 			0xF000
-
-
-/* The following BAR0 register sets are defined for if_type 2 UCNAs. */
-#define LPFC_SLIPORT_SEMAPHORE		0x0400
-#define lpfc_sliport_smphr_perr_SHIFT	31
-#define lpfc_sliport_smphr_perr_MASK	0x1
-#define lpfc_sliport_smphr_perr_WORD	word0
-#define lpfc_sliport_smphr_sfi_SHIFT	30
-#define lpfc_sliport_smphr_sfi_MASK	0x1
-#define lpfc_sliport_smphr_sfi_WORD	word0
-#define lpfc_sliport_smphr_nip_SHIFT	29
-#define lpfc_sliport_smphr_nip_MASK	0x1
-#define lpfc_sliport_smphr_nip_WORD	word0
-#define lpfc_sliport_smphr_ipc_SHIFT	28
-#define lpfc_sliport_smphr_ipc_MASK	0x1
-#define lpfc_sliport_smphr_ipc_WORD	word0
-#define lpfc_sliport_smphr_scr1_SHIFT	27
-#define lpfc_sliport_smphr_scr1_MASK	0x1
-#define lpfc_sliport_smphr_scr1_WORD	word0
-#define lpfc_sliport_smphr_scr2_SHIFT	26
-#define lpfc_sliport_smphr_scr2_MASK	0x1
-#define lpfc_sliport_smphr_scr2_WORD	word0
-#define lpfc_sliport_smphr_host_scratch_SHIFT	16
-#define lpfc_sliport_smphr_host_scratch_MASK	0xFF
-#define lpfc_sliport_smphr_host_scratch_WORD	word0
-#define lpfc_sliport_smphr_port_status_SHIFT	0
-#define lpfc_sliport_smphr_port_status_MASK	0xFFFF
-#define lpfc_sliport_smphr_port_status_WORD	word0
+#define LPFC_POST_STAGE_PORT_READY			0xC000
+#define LPFC_POST_STAGE_PORT_UE 			0xF000
 
 #define LPFC_SLIPORT_STATUS		0x0404
 #define lpfc_sliport_status_err_SHIFT	31
@@ -574,8 +545,9 @@ struct lpfc_register {
 #define lpfc_sliport_status_rdy_SHIFT	23
 #define lpfc_sliport_status_rdy_MASK	0x1
 #define lpfc_sliport_status_rdy_WORD	word0
+#define MAX_IF_TYPE_2_RESETS	1000
 
-#define LPFC_SLIPORT_CONTROL		0x0408
+#define LPFC_SLIPORT_CNTRL		0x0408
 #define lpfc_sliport_ctrl_end_SHIFT	30
 #define lpfc_sliport_ctrl_end_MASK	0x1
 #define lpfc_sliport_ctrl_end_WORD	word0
@@ -584,11 +556,16 @@ struct lpfc_register {
 #define lpfc_sliport_ctrl_ip_SHIFT	27
 #define lpfc_sliport_ctrl_ip_MASK	0x1
 #define lpfc_sliport_ctrl_ip_WORD	word0
+#define LPFC_SLIPORT_INIT_PORT	1
 
-#define LPFC_SLIPORT_ERROR_1		0x040C
-#define LPFC_SLIPORT_ERROR_2		0x0410
+#define LPFC_SLIPORT_ERR_1		0x040C
+#define LPFC_SLIPORT_ERR_2		0x0410
 
-/* BAR1 Registers */
+/* The following Registers apply to SLI4 if_type 0 UCNAs. They typically
+ * reside in BAR 2.
+ */
+#define LPFC_SLIPORT_IF0_SMPHR	0x00AC
+
 #define LPFC_IMR_MASK_ALL	0xFFFFFFFF
 #define LPFC_ISCR_CLEAR_ALL	0xFFFFFFFF
 
@@ -647,7 +624,7 @@ struct lpfc_register {
  * The Doorbell registers defined here exist in different BAR
  * register sets depending on the UCNA Port's reported if_type
  * value.  For UCNA ports running SLI4 and if_type 0, they reside in
- * BAR2.  For UCNA ports running SLI4 and if_type 2, they reside in
+ * BAR4.  For UCNA ports running SLI4 and if_type 2, they reside in
  * BAR0.  The offsets are the same so the driver must account for
  * any base address difference.
  */
@@ -2378,7 +2355,7 @@ struct wqe_common {
 #define wqe_rcvoxid_WORD      word9
 	uint32_t word10;
 #define wqe_ebde_cnt_SHIFT    0
-#define wqe_ebde_cnt_MASK     0x00000007
+#define wqe_ebde_cnt_MASK     0x0000000f
 #define wqe_ebde_cnt_WORD     word10
 #define wqe_lenloc_SHIFT      7
 #define wqe_lenloc_MASK       0x00000003
@@ -2570,7 +2547,6 @@ struct xmit_seq64_wqe {
 	uint32_t relative_offset;
 	struct wqe_rctl_dfctl wge_ctl;
 	struct wqe_common wqe_com; /* words 6-11 */
-	/* Note: word10 different REVISIT */
 	uint32_t xmit_len;
 	uint32_t rsvd_12_15[3];
 };

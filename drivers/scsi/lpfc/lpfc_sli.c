@@ -4690,6 +4690,10 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	struct lpfc_vport *vport = phba->pport;
 	struct lpfc_dmabuf *mp;
 
+	/*
+	 * TODO:  Why does this routine execute these task in a different
+	 * order from probe?
+	 */
 	/* Perform a PCI function reset to start from clean */
 	rc = lpfc_pci_function_reset(phba);
 	if (unlikely(rc))
@@ -8439,29 +8443,66 @@ static int
 lpfc_sli4_eratt_read(struct lpfc_hba *phba)
 {
 	uint32_t uerr_sta_hi, uerr_sta_lo;
+	uint32_t if_type, portsmphr;
+	struct lpfc_register portstat_reg;
 
-	/* For now, use the SLI4 device internal unrecoverable error
+	/*
+	 * For now, use the SLI4 device internal unrecoverable error
 	 * registers for error attention. This can be changed later.
 	 */
-	uerr_sta_lo = readl(phba->sli4_hba.UERRLOregaddr);
-	uerr_sta_hi = readl(phba->sli4_hba.UERRHIregaddr);
-	if ((~phba->sli4_hba.ue_mask_lo & uerr_sta_lo) ||
-	    (~phba->sli4_hba.ue_mask_hi & uerr_sta_hi)) {
+	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
+	switch (if_type) {
+	case LPFC_SLI_INTF_IF_TYPE_0:
+		uerr_sta_lo = readl(phba->sli4_hba.u.if_type0.UERRLOregaddr);
+		uerr_sta_hi = readl(phba->sli4_hba.u.if_type0.UERRHIregaddr);
+		if ((~phba->sli4_hba.ue_mask_lo & uerr_sta_lo) ||
+		    (~phba->sli4_hba.ue_mask_hi & uerr_sta_hi)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"1423 HBA Unrecoverable error: "
+					"uerr_lo_reg=0x%x, uerr_hi_reg=0x%x, "
+					"ue_mask_lo_reg=0x%x, "
+					"ue_mask_hi_reg=0x%x\n",
+					uerr_sta_lo, uerr_sta_hi,
+					phba->sli4_hba.ue_mask_lo,
+					phba->sli4_hba.ue_mask_hi);
+			phba->work_status[0] = uerr_sta_lo;
+			phba->work_status[1] = uerr_sta_hi;
+			phba->work_ha |= HA_ERATT;
+			phba->hba_flag |= HBA_ERATT_HANDLED;
+			return 1;
+		}
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_2:
+		portstat_reg.word0 =
+			readl(phba->sli4_hba.u.if_type2.STATUSregaddr);
+		portsmphr = readl(phba->sli4_hba.PSMPHRregaddr);
+		if (bf_get(lpfc_sliport_status_err, &portstat_reg)) {
+			phba->work_status[0] =
+				readl(phba->sli4_hba.u.if_type2.ERR1regaddr);
+			phba->work_status[1] =
+				readl(phba->sli4_hba.u.if_type2.ERR2regaddr);
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2885 Port Error Detected: "
+					"port status reg 0x%x, "
+					"port smphr reg 0x%x, "
+					"error 1=0x%x, error 2=0x%x\n",
+					portstat_reg.word0,
+					portsmphr,
+					phba->work_status[0],
+					phba->work_status[1]);
+			phba->work_ha |= HA_ERATT;
+			phba->hba_flag |= HBA_ERATT_HANDLED;
+			return 1;
+		}
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_1:
+	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"1423 HBA Unrecoverable error: "
-				"uerr_lo_reg=0x%x, uerr_hi_reg=0x%x, "
-				"ue_mask_lo_reg=0x%x, ue_mask_hi_reg=0x%x\n",
-				uerr_sta_lo, uerr_sta_hi,
-				phba->sli4_hba.ue_mask_lo,
-				phba->sli4_hba.ue_mask_hi);
-		phba->work_status[0] = uerr_sta_lo;
-		phba->work_status[1] = uerr_sta_hi;
-		/* Set the driver HA work bitmap */
-		phba->work_ha |= HA_ERATT;
-		/* Indicate polling handles this ERATT */
-		phba->hba_flag |= HBA_ERATT_HANDLED;
+				"2886 HBA Error Attention on unsupported "
+				"if type %d.", if_type);
 		return 1;
 	}
+
 	return 0;
 }
 
@@ -8516,7 +8557,7 @@ lpfc_sli_check_eratt(struct lpfc_hba *phba)
 		ha_copy = lpfc_sli_eratt_read(phba);
 		break;
 	case LPFC_SLI_REV4:
-		/* Read devcie Uncoverable Error (UERR) registers */
+		/* Read device Uncoverable Error (UERR) registers */
 		ha_copy = lpfc_sli4_eratt_read(phba);
 		break;
 	default:

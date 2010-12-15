@@ -369,23 +369,39 @@ struct lpfc_sli4_hba {
 					     PCI BAR1, control registers */
 	void __iomem *drbl_regs_memmap_p; /* Kernel memory mapped address for
 					     PCI BAR2, doorbell registers */
-	/* BAR0 PCI config space register memory map */
-	void __iomem *UERRLOregaddr; /* Address to UERR_STATUS_LO register */
-	void __iomem *UERRHIregaddr; /* Address to UERR_STATUS_HI register */
-	void __iomem *UEMASKLOregaddr; /* Address to UE_MASK_LO register */
-	void __iomem *UEMASKHIregaddr; /* Address to UE_MASK_HI register */
-	void __iomem *SLIINTFregaddr; /* Address to SLI_INTF register */
-	/* BAR1 FCoE function CSR register memory map */
-	void __iomem *STAregaddr;    /* Address to HST_STATE register */
-	void __iomem *ISRregaddr;    /* Address to HST_ISR register */
-	void __iomem *IMRregaddr;    /* Address to HST_IMR register */
-	void __iomem *ISCRregaddr;   /* Address to HST_ISCR register */
-	/* BAR2 VF-0 doorbell register memory map */
-	void __iomem *RQDBregaddr;   /* Address to RQ_DOORBELL register */
-	void __iomem *WQDBregaddr;   /* Address to WQ_DOORBELL register */
-	void __iomem *EQCQDBregaddr; /* Address to EQCQ_DOORBELL register */
-	void __iomem *MQDBregaddr;   /* Address to MQ_DOORBELL register */
-	void __iomem *BMBXregaddr;   /* Address to BootStrap MBX register */
+	union {
+		struct {
+			/* IF Type 0, BAR 0 PCI cfg space reg mem map */
+			void __iomem *UERRLOregaddr;
+			void __iomem *UERRHIregaddr;
+			void __iomem *UEMASKLOregaddr;
+			void __iomem *UEMASKHIregaddr;
+		} if_type0;
+		struct {
+			/* IF Type 2, BAR 0 PCI cfg space reg mem map. */
+			void __iomem *STATUSregaddr;
+			void __iomem *CTRLregaddr;
+			void __iomem *ERR1regaddr;
+			void __iomem *ERR2regaddr;
+		} if_type2;
+	} u;
+
+	/* IF type 0, BAR1 and if type 2, Bar 0 CSR register memory map */
+	void __iomem *PSMPHRregaddr;
+
+	/* Well-known SLI INTF register memory map. */
+	void __iomem *SLIINTFregaddr;
+
+	/* IF type 0, BAR 1 function CSR register memory map */
+	void __iomem *ISRregaddr;	/* HST_ISR register */
+	void __iomem *IMRregaddr;	/* HST_IMR register */
+	void __iomem *ISCRregaddr;	/* HST_ISCR register */
+	/* IF type 0, BAR 0 and if type 2, BAR 0 doorbell register memory map */
+	void __iomem *RQDBregaddr;	/* RQ_DOORBELL register */
+	void __iomem *WQDBregaddr;	/* WQ_DOORBELL register */
+	void __iomem *EQCQDBregaddr;	/* EQCQ_DOORBELL register */
+	void __iomem *MQDBregaddr;	/* MQ_DOORBELL register */
+	void __iomem *BMBXregaddr;	/* BootStrap MBX register */
 
 	uint32_t ue_mask_lo;
 	uint32_t ue_mask_hi;
