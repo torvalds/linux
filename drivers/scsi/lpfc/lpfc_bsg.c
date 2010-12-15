@@ -162,7 +162,6 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 			struct lpfc_iocbq *cmdiocbq,
 			struct lpfc_iocbq *rspiocbq)
 {
-	unsigned long iflags;
 	struct bsg_job_data *dd_data;
 	struct fc_bsg_job *job;
 	IOCB_t *rsp;
@@ -173,9 +172,10 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 	int rc = 0;
 
 	spin_lock_irqsave(&phba->ct_ev_lock, flags);
-	dd_data = cmdiocbq->context1;
+	dd_data = cmdiocbq->context2;
 	if (!dd_data) {
 		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
+		lpfc_sli_release_iocbq(phba, cmdiocbq);
 		return;
 	}
 
@@ -183,17 +183,9 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 	job = iocb->set_job;
 	job->dd_data = NULL; /* so timeout handler does not reply */
 
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	cmdiocbq->iocb_flag |= LPFC_IO_WAKE;
-	if (cmdiocbq->context2 && rspiocbq)
-		memcpy(&((struct lpfc_iocbq *)cmdiocbq->context2)->iocb,
-		       &rspiocbq->iocb, sizeof(IOCB_t));
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
-
 	bmp = iocb->bmp;
-	rspiocbq = iocb->rspiocbq;
 	rsp = &rspiocbq->iocb;
-	ndlp = iocb->ndlp;
+	ndlp = cmdiocbq->context1;
 
 	pci_unmap_sg(phba->pcidev, job->request_payload.sg_list,
 		     job->request_payload.sg_cnt, DMA_TO_DEVICE);
@@ -220,7 +212,6 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 			rsp->un.genreq64.bdl.bdeSize;
 
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
-	lpfc_sli_release_iocbq(phba, rspiocbq);
 	lpfc_sli_release_iocbq(phba, cmdiocbq);
 	lpfc_nlp_put(ndlp);
 	kfree(bmp);
@@ -247,9 +238,7 @@ lpfc_bsg_send_mgmt_cmd(struct fc_bsg_job *job)
 	struct ulp_bde64 *bpl = NULL;
 	uint32_t timeout;
 	struct lpfc_iocbq *cmdiocbq = NULL;
-	struct lpfc_iocbq *rspiocbq = NULL;
 	IOCB_t *cmd;
-	IOCB_t *rsp;
 	struct lpfc_dmabuf *bmp = NULL;
 	int request_nseg;
 	int reply_nseg;
@@ -296,17 +285,10 @@ lpfc_bsg_send_mgmt_cmd(struct fc_bsg_job *job)
 	}
 
 	cmd = &cmdiocbq->iocb;
-	rspiocbq = lpfc_sli_get_iocbq(phba);
-	if (!rspiocbq) {
-		rc = -ENOMEM;
-		goto free_cmdiocbq;
-	}
-
-	rsp = &rspiocbq->iocb;
 	bmp->virt = lpfc_mbuf_alloc(phba, 0, &bmp->phys);
 	if (!bmp->virt) {
 		rc = -ENOMEM;
-		goto free_rspiocbq;
+		goto free_cmdiocbq;
 	}
 
 	INIT_LIST_HEAD(&bmp->list);
@@ -358,14 +340,12 @@ lpfc_bsg_send_mgmt_cmd(struct fc_bsg_job *job)
 	cmd->ulpTimeout = timeout;
 
 	cmdiocbq->iocb_cmpl = lpfc_bsg_send_mgmt_cmd_cmp;
-	cmdiocbq->context1 = dd_data;
-	cmdiocbq->context2 = rspiocbq;
+	cmdiocbq->context1 = ndlp;
+	cmdiocbq->context2 = dd_data;
 	dd_data->type = TYPE_IOCB;
 	dd_data->context_un.iocb.cmdiocbq = cmdiocbq;
-	dd_data->context_un.iocb.rspiocbq = rspiocbq;
 	dd_data->context_un.iocb.set_job = job;
 	dd_data->context_un.iocb.bmp = bmp;
-	dd_data->context_un.iocb.ndlp = ndlp;
 
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT) {
 		creg_val = readl(phba->HCregaddr);
@@ -391,8 +371,6 @@ lpfc_bsg_send_mgmt_cmd(struct fc_bsg_job *job)
 
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 
-free_rspiocbq:
-	lpfc_sli_release_iocbq(phba, rspiocbq);
 free_cmdiocbq:
 	lpfc_sli_release_iocbq(phba, cmdiocbq);
 free_bmp:
@@ -1220,7 +1198,7 @@ lpfc_issue_ct_rsp_cmp(struct lpfc_hba *phba,
 	int rc = 0;
 
 	spin_lock_irqsave(&phba->ct_ev_lock, flags);
-	dd_data = cmdiocbq->context1;
+	dd_data = cmdiocbq->context2;
 	/* normal completion and timeout crossed paths, already done */
 	if (!dd_data) {
 		spin_unlock_irqrestore(&phba->ct_ev_lock, flags);
@@ -1369,8 +1347,8 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct fc_bsg_job *job, uint32_t tag,
 	ctiocb->context3 = bmp;
 
 	ctiocb->iocb_cmpl = lpfc_issue_ct_rsp_cmp;
-	ctiocb->context1 = dd_data;
-	ctiocb->context2 = NULL;
+	ctiocb->context2 = dd_data;
+	ctiocb->context1 = ndlp;
 	dd_data->type = TYPE_IOCB;
 	dd_data->context_un.iocb.cmdiocbq = ctiocb;
 	dd_data->context_un.iocb.rspiocbq = NULL;
