@@ -263,9 +263,11 @@ static struct vmbus_channel *alloc_channel(void)
 /*
  * release_hannel - Release the vmbus channel object itself
  */
-static inline void release_channel(void *context)
+static void release_channel(struct work_struct *work)
 {
-	struct vmbus_channel *channel = context;
+	struct vmbus_channel *channel = container_of(work,
+						     struct vmbus_channel,
+						     work);
 
 	DPRINT_DBG(VMBUS, "releasing channel (%p)", channel);
 	destroy_workqueue(channel->controlwq);
@@ -286,8 +288,8 @@ void free_channel(struct vmbus_channel *channel)
 	 * workqueue/thread context
 	 * ie we can't destroy ourselves.
 	 */
-	osd_schedule_callback(gVmbusConnection.WorkQueue, release_channel,
-			      channel);
+	INIT_WORK(&channel->work, release_channel);
+	queue_work(gVmbusConnection.WorkQueue, &channel->work);
 }
 
 
@@ -308,19 +310,36 @@ static void count_hv_channel(void)
 	spin_unlock_irqrestore(&gVmbusConnection.channel_lock, flags);
 }
 
+/*
+ * vmbus_process_rescind_offer -
+ * Rescind the offer by initiating a device removal
+ */
+static void vmbus_process_rescind_offer(struct work_struct *work)
+{
+	struct vmbus_channel *channel = container_of(work,
+						     struct vmbus_channel,
+						     work);
+
+	vmbus_child_device_unregister(channel->device_obj);
+}
 
 /*
  * vmbus_process_offer - Process the offer by creating a channel/device
  * associated with this offer
  */
-static void vmbus_process_offer(void *context)
+static void vmbus_process_offer(struct work_struct *work)
 {
-	struct vmbus_channel *newchannel = context;
+	struct vmbus_channel *newchannel = container_of(work,
+							struct vmbus_channel,
+							work);
 	struct vmbus_channel *channel;
 	bool fnew = true;
 	int ret;
 	int cnt;
 	unsigned long flags;
+
+	/* The next possible work is rescind handling */
+	INIT_WORK(&newchannel->work, vmbus_process_rescind_offer);
 
 	/* Make sure this is a new offer */
 	spin_lock_irqsave(&gVmbusConnection.channel_lock, flags);
@@ -406,17 +425,6 @@ static void vmbus_process_offer(void *context)
 }
 
 /*
- * vmbus_process_rescind_offer -
- * Rescind the offer by initiating a device removal
- */
-static void vmbus_process_rescind_offer(void *context)
-{
-	struct vmbus_channel *channel = context;
-
-	vmbus_child_device_unregister(channel->device_obj);
-}
-
-/*
  * vmbus_onoffer - Handler for channel offers from vmbus in parent partition.
  *
  * We ignore all offers except network and storage offers. For each network and
@@ -490,8 +498,8 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 	newchannel->monitor_bit = (u8)offer->monitorid % 32;
 
 	/* TODO: Make sure the offer comes from our parent partition */
-	osd_schedule_callback(newchannel->controlwq, vmbus_process_offer,
-			      newchannel);
+	INIT_WORK(&newchannel->work, vmbus_process_offer);
+	queue_work(newchannel->controlwq, &newchannel->work);
 }
 
 /*
@@ -512,9 +520,9 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 		return;
 	}
 
-	osd_schedule_callback(channel->controlwq,
-			      vmbus_process_rescind_offer,
-			      channel);
+	/* work is initialized for vmbus_process_rescind_offer() from
+	 * vmbus_process_offer() where the channel got created */
+	queue_work(channel->controlwq, &channel->work);
 }
 
 /*
