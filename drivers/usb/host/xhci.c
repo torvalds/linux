@@ -694,7 +694,10 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	int			retval;
 
-	if (time_before(jiffies, xhci->next_statechange))
+	/* Wait a bit if the bus needs to settle from the transistion to
+	 * suspend.
+	 */
+	if (time_before(jiffies, xhci->bus_state[0].next_statechange))
 		msleep(100);
 
 	spin_lock_irq(&xhci->lock);

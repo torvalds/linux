@@ -1451,7 +1451,7 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 
 	xhci->page_size = 0;
 	xhci->page_shift = 0;
-	xhci->bus_suspended = 0;
+	xhci->bus_state[0].bus_suspended = 0;
 }
 
 static int xhci_test_trb_in_td(struct xhci_hcd *xhci,
@@ -1971,7 +1971,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	for (i = 0; i < MAX_HC_SLOTS; ++i)
 		xhci->devs[i] = NULL;
 	for (i = 0; i < USB_MAXCHILDREN; ++i)
-		xhci->resume_done[i] = 0;
+		xhci->bus_state[0].resume_done[i] = 0;
 
 	if (scratchpad_alloc(xhci, flags))
 		goto fail;

@@ -1161,6 +1161,22 @@ struct s3_save {
 	u64	erst_dequeue;
 };
 
+struct xhci_bus_state {
+	unsigned long		bus_suspended;
+	unsigned long		next_statechange;
+
+	/* Port suspend arrays are indexed by the portnum of the fake roothub */
+	/* ports suspend status arrays - max 31 ports for USB2, 15 for USB3 */
+	u32			port_c_suspend;
+	u32			suspended_ports;
+	unsigned long		resume_done[USB_MAXCHILDREN];
+};
+
+static inline unsigned int hcd_index(struct usb_hcd *hcd)
+{
+	return 0;
+}
+
 /* There is one ehci_hci structure per controller */
 struct xhci_hcd {
 	struct usb_hcd *main_hcd;
@@ -1225,9 +1241,6 @@ struct xhci_hcd {
 	/* Host controller watchdog timer structures */
 	unsigned int		xhc_state;
 
-	unsigned long		bus_suspended;
-	unsigned long		next_statechange;
-
 	u32			command;
 	struct s3_save		s3;
 /* Host controller is dying - not responding to commands. "I'm not dead yet!"
@@ -1249,11 +1262,10 @@ struct xhci_hcd {
 #define	XHCI_LINK_TRB_QUIRK	(1 << 0)
 #define XHCI_RESET_EP_QUIRK	(1 << 1)
 #define XHCI_NEC_HOST		(1 << 2)
-	/* port suspend change*/
-	u32			port_c_suspend;
-	/* which ports are suspended */
-	u32			suspended_ports;
-	unsigned long		resume_done[USB_MAXCHILDREN];
+	/* There's only one roothub to keep track of bus suspend info for
+	 * (right now).
+	 */
+	struct xhci_bus_state   bus_state[1];
 	/* Is each xHCI roothub port a USB 3.0, USB 2.0, or USB 1.1 port? */
 	u8			*port_array;
 	/* Array of pointers to USB 3.0 PORTSC registers */

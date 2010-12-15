@@ -1166,7 +1166,9 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	unsigned int faked_port_index;
 	u32 __iomem *port_array[15 + USB_MAXCHILDREN];
 	int i;
+	struct xhci_bus_state *bus_state;
 
+	bus_state = &xhci->bus_state[0];
 	/* Port status change events always have a successful completion code */
 	if (GET_COMP_CODE(event->generic.field[2]) != COMP_SUCCESS) {
 		xhci_warn(xhci, "WARN: xHC returned failed port status event\n");
@@ -1225,10 +1227,10 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			xhci_writel(xhci, temp, port_array[faked_port_index]);
 		} else {
 			xhci_dbg(xhci, "resume HS port %d\n", port_id);
-			xhci->resume_done[port_id - 1] = jiffies +
+			bus_state->resume_done[port_id - 1] = jiffies +
 				msecs_to_jiffies(20);
 			mod_timer(&hcd->rh_timer,
-				  xhci->resume_done[port_id - 1]);
+				  bus_state->resume_done[port_id - 1]);
 			/* Do the rest in GetPortStatus */
 		}
 	}

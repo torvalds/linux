@@ -291,6 +291,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	u32 __iomem *port_array[15 + USB_MAXCHILDREN];
 	int i;
 	int slot_id;
+	struct xhci_bus_state *bus_state;
 
 	ports = HCS_MAX_PORTS(xhci->hcs_params1);
 	for (i = 0; i < ports; i++) {
@@ -300,6 +301,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			port_array[i] =
 				xhci->usb2_ports[i - xhci->num_usb3_ports];
 	}
+	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	switch (typeReq) {
@@ -336,10 +338,10 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			if ((temp & PORT_RESET) || !(temp & PORT_PE))
 				goto error;
 			if (!DEV_SUPERSPEED(temp) && time_after_eq(jiffies,
-						xhci->resume_done[wIndex])) {
+						bus_state->resume_done[wIndex])) {
 				xhci_dbg(xhci, "Resume USB2 port %d\n",
 					wIndex + 1);
-				xhci->resume_done[wIndex] = 0;
+				bus_state->resume_done[wIndex] = 0;
 				temp1 = xhci_port_state_to_neutral(temp);
 				temp1 &= ~PORT_PLS_MASK;
 				temp1 |= PORT_LINK_STROBE | XDEV_U0;
@@ -354,15 +356,15 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					goto error;
 				}
 				xhci_ring_device(xhci, slot_id);
-				xhci->port_c_suspend |= 1 << wIndex;
-				xhci->suspended_ports &= ~(1 << wIndex);
+				bus_state->port_c_suspend |= 1 << wIndex;
+				bus_state->suspended_ports &= ~(1 << wIndex);
 			}
 		}
 		if ((temp & PORT_PLS_MASK) == XDEV_U0
 			&& (temp & PORT_POWER)
-			&& (xhci->suspended_ports & (1 << wIndex))) {
-			xhci->suspended_ports &= ~(1 << wIndex);
-			xhci->port_c_suspend |= 1 << wIndex;
+			&& (bus_state->suspended_ports & (1 << wIndex))) {
+			bus_state->suspended_ports &= ~(1 << wIndex);
+			bus_state->port_c_suspend |= 1 << wIndex;
 		}
 		if (temp & PORT_CONNECT) {
 			status |= USB_PORT_STAT_CONNECTION;
@@ -376,7 +378,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			status |= USB_PORT_STAT_RESET;
 		if (temp & PORT_POWER)
 			status |= USB_PORT_STAT_POWER;
-		if (xhci->port_c_suspend & (1 << wIndex))
+		if (bus_state->port_c_suspend & (1 << wIndex))
 			status |= 1 << USB_PORT_FEAT_C_SUSPEND;
 		xhci_dbg(xhci, "Get port status returned 0x%x\n", status);
 		put_unaligned(cpu_to_le32(status), (__le32 *) buf);
@@ -422,7 +424,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			spin_lock_irqsave(&xhci->lock, flags);
 
 			temp = xhci_readl(xhci, port_array[wIndex]);
-			xhci->suspended_ports |= 1 << wIndex;
+			bus_state->suspended_ports |= 1 << wIndex;
 			break;
 		case USB_PORT_FEAT_POWER:
 			/*
@@ -493,7 +495,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					xhci_writel(xhci, temp,
 							port_array[wIndex]);
 				}
-				xhci->port_c_suspend |= 1 << wIndex;
+				bus_state->port_c_suspend |= 1 << wIndex;
 			}
 
 			slot_id = xhci_find_slot_id_by_port(xhci, wIndex + 1);
@@ -504,7 +506,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			xhci_ring_device(xhci, slot_id);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
-			xhci->port_c_suspend &= ~(1 << wIndex);
+			bus_state->port_c_suspend &= ~(1 << wIndex);
 		case USB_PORT_FEAT_C_RESET:
 		case USB_PORT_FEAT_C_CONNECTION:
 		case USB_PORT_FEAT_C_OVER_CURRENT:
@@ -546,6 +548,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ports;
 	u32 __iomem *port_array[15 + USB_MAXCHILDREN];
+	struct xhci_bus_state *bus_state;
 
 	ports = HCS_MAX_PORTS(xhci->hcs_params1);
 	for (i = 0; i < ports; i++) {
@@ -555,6 +558,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 			port_array[i] =
 				xhci->usb2_ports[i - xhci->num_usb3_ports];
 	}
+	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
 	/* Initial status is no changes */
 	retval = (ports + 8) / 8;
@@ -568,9 +572,9 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	for (i = 0; i < ports; i++) {
 		temp = xhci_readl(xhci, port_array[i]);
 		if ((temp & mask) != 0 ||
-			(xhci->port_c_suspend & 1 << i) ||
-			(xhci->resume_done[i] && time_after_eq(
-			    jiffies, xhci->resume_done[i]))) {
+			(bus_state->port_c_suspend & 1 << i) ||
+			(bus_state->resume_done[i] && time_after_eq(
+			    jiffies, bus_state->resume_done[i]))) {
 			buf[(i + 1) / 8] |= 1 << (i + 1) % 8;
 			status = 1;
 		}
@@ -587,6 +591,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 	int max_ports, port_index;
 	u32 __iomem *port_array[15 + USB_MAXCHILDREN];
 	int i;
+	struct xhci_bus_state *bus_state;
 	unsigned long flags;
 
 	xhci_dbg(xhci, "suspend root hub\n");
@@ -598,13 +603,14 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 			port_array[i] =
 				xhci->usb2_ports[i - xhci->num_usb3_ports];
 	}
+	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	if (hcd->self.root_hub->do_remote_wakeup) {
 		port_index = max_ports;
 		while (port_index--) {
-			if (xhci->resume_done[port_index] != 0) {
+			if (bus_state->resume_done[port_index] != 0) {
 				spin_unlock_irqrestore(&xhci->lock, flags);
 				xhci_dbg(xhci, "suspend failed because "
 						"port %d is resuming\n",
@@ -615,7 +621,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 	}
 
 	port_index = max_ports;
-	xhci->bus_suspended = 0;
+	bus_state->bus_suspended = 0;
 	while (port_index--) {
 		/* suspend the port if the port is not suspended */
 		u32 t1, t2;
@@ -635,7 +641,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 			}
 			t2 &= ~PORT_PLS_MASK;
 			t2 |= PORT_LINK_STROBE | XDEV_U3;
-			set_bit(port_index, &xhci->bus_suspended);
+			set_bit(port_index, &bus_state->bus_suspended);
 		}
 		if (hcd->self.root_hub->do_remote_wakeup) {
 			if (t1 & PORT_CONNECT) {
@@ -667,7 +673,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 		}
 	}
 	hcd->state = HC_STATE_SUSPENDED;
-	xhci->next_statechange = jiffies + msecs_to_jiffies(10);
+	bus_state->next_statechange = jiffies + msecs_to_jiffies(10);
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	return 0;
 }
@@ -678,6 +684,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 	int max_ports, port_index;
 	u32 __iomem *port_array[15 + USB_MAXCHILDREN];
 	int i;
+	struct xhci_bus_state *bus_state;
 	u32 temp;
 	unsigned long flags;
 
@@ -690,8 +697,9 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 			port_array[i] =
 				xhci->usb2_ports[i - xhci->num_usb3_ports];
 	}
+	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
-	if (time_before(jiffies, xhci->next_statechange))
+	if (time_before(jiffies, bus_state->next_statechange))
 		msleep(5);
 
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -717,7 +725,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 			temp &= ~(PORT_RWC_BITS | PORT_CEC | PORT_WAKE_BITS);
 		else
 			temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
-		if (test_bit(port_index, &xhci->bus_suspended) &&
+		if (test_bit(port_index, &bus_state->bus_suspended) &&
 		    (temp & PORT_PLS_MASK)) {
 			if (DEV_SUPERSPEED(temp)) {
 				temp = xhci_port_state_to_neutral(temp);
@@ -763,7 +771,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 
 	(void) xhci_readl(xhci, &xhci->op_regs->command);
 
-	xhci->next_statechange = jiffies + msecs_to_jiffies(5);
+	bus_state->next_statechange = jiffies + msecs_to_jiffies(5);
 	/* re-enable irqs */
 	temp = xhci_readl(xhci, &xhci->op_regs->command);
 	temp |= CMD_EIE;
