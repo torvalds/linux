@@ -1272,6 +1272,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_mark_phy_inactive(ah);
 
+	ah->paprd_table_write_done = false;
+
 	/* Only required on the first reset */
 	if (AR_SREV_9271(ah) && ah->htc_reset_init) {
 		REG_WRITE(ah,

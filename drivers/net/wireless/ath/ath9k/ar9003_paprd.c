@@ -19,6 +19,20 @@
 
 void ar9003_paprd_enable(struct ath_hw *ah, bool val)
 {
+	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
+	struct ath9k_channel *chan = ah->curchan;
+
+	if (val) {
+		ah->paprd_table_write_done = true;
+
+		ah->eep_ops->set_txpower(ah, chan,
+				ath9k_regd_get_ctl(regulatory, chan),
+				chan->chan->max_antenna_gain * 2,
+				chan->chan->max_power * 2,
+				min((u32) MAX_RATE_POWER,
+				(u32) regulatory->power_limit), false);
+	}
+
 	REG_RMW_FIELD(ah, AR_PHY_PAPRD_CTRL0_B0,
 		      AR_PHY_PAPRD_CTRL0_PAPRD_ENABLE, !!val);
 	if (ah->caps.tx_chainmask & BIT(1))

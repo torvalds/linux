@@ -533,7 +533,7 @@ set_timer:
 	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_PAPRD) && ah->caldata) {
 		if (!ah->caldata->paprd_done)
 			ieee80211_queue_work(sc->hw, &sc->paprd_work);
-		else
+		else if (!ah->paprd_table_write_done)
 			ath_paprd_activate(sc);
 	}
 }

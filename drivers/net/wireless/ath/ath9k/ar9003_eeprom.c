@@ -4743,6 +4743,16 @@ static void ar9003_hw_set_power_per_rate_table(struct ath_hw *ah,
 	} /* end ctl mode checking */
 }
 
+static inline u8 mcsidx_to_tgtpwridx(unsigned int mcs_idx, u8 base_pwridx)
+{
+	u8 mod_idx = mcs_idx % 8;
+
+	if (mod_idx <= 3)
+		return mod_idx ? (base_pwridx + 1) : base_pwridx;
+	else
+		return base_pwridx + 4 * (mcs_idx / 8) + mod_idx - 2;
+}
+
 static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 					struct ath9k_channel *chan, u16 cfgCtl,
 					u8 twiceAntennaReduction,
@@ -4755,7 +4765,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 	u8 targetPowerValT2[ar9300RateSize];
 	u8 target_power_val_t2_eep[ar9300RateSize];
 	unsigned int i = 0, paprd_scale_factor = 0;
-	u8 pwr_idx, min_pwridx;
+	u8 pwr_idx, min_pwridx = 0;
 
 	ar9003_hw_set_target_power_eeprom(ah, chan->channel, targetPowerValT2);
 
@@ -4771,6 +4781,24 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 				le32_to_cpu(eep->modalHeader5G.papdRateMaskHt20))
 				& AR9300_PAPRD_RATE_MASK;
 
+		paprd_scale_factor = ar9003_get_paprd_scale_factor(ah, chan);
+		min_pwridx = IS_CHAN_HT40(chan) ? ALL_TARGET_HT40_0_8_16 :
+						  ALL_TARGET_HT20_0_8_16;
+
+		if (!ah->paprd_table_write_done) {
+			memcpy(target_power_val_t2_eep, targetPowerValT2,
+			       sizeof(targetPowerValT2));
+			for (i = 0; i < 24; i++) {
+				pwr_idx = mcsidx_to_tgtpwridx(i, min_pwridx);
+				if (ah->paprd_ratemask & (1 << i)) {
+					if (targetPowerValT2[pwr_idx] &&
+					    targetPowerValT2[pwr_idx] ==
+					    target_power_val_t2_eep[pwr_idx])
+						targetPowerValT2[pwr_idx] -=
+							paprd_scale_factor;
+				}
+			}
+		}
 		memcpy(target_power_val_t2_eep, targetPowerValT2,
 		       sizeof(targetPowerValT2));
 	}
@@ -4782,10 +4810,6 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 					   powerLimit);
 
 	if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD)) {
-		paprd_scale_factor = ar9003_get_paprd_scale_factor(ah, chan);
-		min_pwridx = IS_CHAN_HT40(chan) ? ALL_TARGET_HT40_0_8_16 :
-						  ALL_TARGET_HT20_0_8_16;
-
 		for (i = 0; i < ar9300RateSize; i++) {
 			if ((ah->paprd_ratemask & (1 << i)) &&
 			    (abs(targetPowerValT2[i] -
