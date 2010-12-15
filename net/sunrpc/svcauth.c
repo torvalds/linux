@@ -118,7 +118,6 @@ EXPORT_SYMBOL_GPL(svc_auth_unregister);
 
 #define	DN_HASHBITS	6
 #define	DN_HASHMAX	(1<<DN_HASHBITS)
-#define	DN_HASHMASK	(DN_HASHMAX-1)
 
 static struct hlist_head	auth_domain_table[DN_HASHMAX];
 static spinlock_t	auth_domain_lock =

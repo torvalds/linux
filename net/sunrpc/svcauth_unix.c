@@ -85,7 +85,6 @@ static void svcauth_unix_domain_release(struct auth_domain *dom)
  */
 #define	IP_HASHBITS	8
 #define	IP_HASHMAX	(1<<IP_HASHBITS)
-#define	IP_HASHMASK	(IP_HASHMAX-1)
 
 struct ip_map {
 	struct cache_head	h;
@@ -497,7 +496,6 @@ svcauth_unix_info_release(struct svc_xprt *xpt)
  */
 #define	GID_HASHBITS	8
 #define	GID_HASHMAX	(1<<GID_HASHBITS)
-#define	GID_HASHMASK	(GID_HASHMAX - 1)
 
 struct unix_gid {
 	struct cache_head	h;
