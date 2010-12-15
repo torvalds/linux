@@ -95,8 +95,8 @@ static iomux_v3_cfg_t mx51babbage_pads[] = {
 	MX51_PAD_KEY_COL5__I2C2_SDA,
 
 	/* HSI2C */
-	MX51_PAD_I2C1_CLK__HSI2C_CLK,
-	MX51_PAD_I2C1_DAT__HSI2C_DAT,
+	MX51_PAD_I2C1_CLK__I2C1_CLK,
+	MX51_PAD_I2C1_DAT__I2C1_DAT,
 
 	/* USB HOST1 */
 	MX51_PAD_USBH1_CLK__USBH1_CLK,
@@ -112,29 +112,29 @@ static iomux_v3_cfg_t mx51babbage_pads[] = {
 	MX51_PAD_USBH1_DATA7__USBH1_DATA7,
 
 	/* USB HUB reset line*/
-	MX51_PAD_GPIO_1_7__GPIO_1_7,
+	MX51_PAD_GPIO1_7__GPIO1_7,
 
 	/* FEC */
 	MX51_PAD_EIM_EB2__FEC_MDIO,
-	MX51_PAD_EIM_EB3__FEC_RDAT1,
-	MX51_PAD_EIM_CS2__FEC_RDAT2,
-	MX51_PAD_EIM_CS3__FEC_RDAT3,
+	MX51_PAD_EIM_EB3__FEC_RDATA1,
+	MX51_PAD_EIM_CS2__FEC_RDATA2,
+	MX51_PAD_EIM_CS3__FEC_RDATA3,
 	MX51_PAD_EIM_CS4__FEC_RX_ER,
 	MX51_PAD_EIM_CS5__FEC_CRS,
 	MX51_PAD_NANDF_RB2__FEC_COL,
-	MX51_PAD_NANDF_RB3__FEC_RXCLK,
-	MX51_PAD_NANDF_RB6__FEC_RDAT0,
-	MX51_PAD_NANDF_RB7__FEC_TDAT0,
+	MX51_PAD_NANDF_RB3__FEC_RX_CLK,
+	MX51_PAD_NANDF_D9__FEC_RDATA0,
+	MX51_PAD_NANDF_D8__FEC_TDATA0,
 	MX51_PAD_NANDF_CS2__FEC_TX_ER,
 	MX51_PAD_NANDF_CS3__FEC_MDC,
-	MX51_PAD_NANDF_CS4__FEC_TDAT1,
-	MX51_PAD_NANDF_CS5__FEC_TDAT2,
-	MX51_PAD_NANDF_CS6__FEC_TDAT3,
+	MX51_PAD_NANDF_CS4__FEC_TDATA1,
+	MX51_PAD_NANDF_CS5__FEC_TDATA2,
+	MX51_PAD_NANDF_CS6__FEC_TDATA3,
 	MX51_PAD_NANDF_CS7__FEC_TX_EN,
 	MX51_PAD_NANDF_RDY_INT__FEC_TX_CLK,
 
 	/* FEC PHY reset line */
-	MX51_PAD_EIM_A20__GPIO_2_14,
+	MX51_PAD_EIM_A20__GPIO2_14,
 
 	/* SD 1 */
 	MX51_PAD_SD1_CMD__SD1_CMD,
@@ -156,8 +156,8 @@ static iomux_v3_cfg_t mx51babbage_pads[] = {
 	MX51_PAD_CSPI1_MISO__ECSPI1_MISO,
 	MX51_PAD_CSPI1_MOSI__ECSPI1_MOSI,
 	MX51_PAD_CSPI1_SCLK__ECSPI1_SCLK,
-	MX51_PAD_CSPI1_SS0__GPIO_4_24,
-	MX51_PAD_CSPI1_SS1__GPIO_4_25,
+	MX51_PAD_CSPI1_SS0__GPIO4_24,
+	MX51_PAD_CSPI1_SS1__GPIO4_25,
 };
 
 /* Serial ports */
@@ -188,8 +188,8 @@ static struct imxi2c_platform_data babbage_hsi2c_data = {
 
 static int gpio_usbh1_active(void)
 {
-	iomux_v3_cfg_t usbh1stp_gpio = MX51_PAD_USBH1_STP__GPIO_1_27;
-	iomux_v3_cfg_t phyreset_gpio = MX51_PAD_EIM_D21__GPIO_2_5;
+	iomux_v3_cfg_t usbh1stp_gpio = MX51_PAD_USBH1_STP__GPIO1_27;
+	iomux_v3_cfg_t phyreset_gpio = MX51_PAD_EIM_D21__GPIO2_5;
 	int ret;
 
 	/* Set USBH1_STP to GPIO and toggle it */
@@ -352,8 +352,8 @@ static const struct spi_imx_master mx51_babbage_spi_pdata __initconst = {
 static void __init mxc_board_init(void)
 {
 	iomux_v3_cfg_t usbh1stp = MX51_PAD_USBH1_STP__USBH1_STP;
-	iomux_v3_cfg_t power_key = (MX51_PAD_EIM_A27__GPIO_2_21 &
-				~MUX_PAD_CTRL_MASK) | MX51_GPIO_PAD_CTRL_2;
+	iomux_v3_cfg_t power_key = _MX51_PAD_EIM_A27__GPIO2_21 |
+		MUX_PAD_CTRL(PAD_CTL_SRE_FAST | PAD_CTL_DSE_HIGH | PAD_CTL_PUS_100K_UP);
 
 #if defined(CONFIG_CPU_FREQ_IMX)
 	get_cpu_op = mx51_get_cpu_op;

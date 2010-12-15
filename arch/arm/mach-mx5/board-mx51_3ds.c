@@ -50,7 +50,7 @@ static iomux_v3_cfg_t mx51_3ds_pads[] = {
 	MX51_PAD_EIM_D27__UART3_RTS,
 
 	/* CPLD PARENT IRQ PIN */
-	MX51_PAD_GPIO_1_6__GPIO_1_6,
+	MX51_PAD_GPIO1_6__GPIO1_6,
 
 	/* KPP */
 	MX51_PAD_KEY_ROW0__KEY_ROW0,
@@ -68,7 +68,7 @@ static iomux_v3_cfg_t mx51_3ds_pads[] = {
 	MX51_PAD_NANDF_RB2__ECSPI2_SCLK,
 	MX51_PAD_NANDF_RB3__ECSPI2_MISO,
 	MX51_PAD_NANDF_D15__ECSPI2_MOSI,
-	MX51_PAD_NANDF_D12__GPIO_3_28,
+	MX51_PAD_NANDF_D12__GPIO3_28,
 };
 
 /* Serial ports */
