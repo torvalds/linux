@@ -578,10 +578,7 @@ static void ar9003_hw_prog_ini(struct ath_hw *ah,
 		u32 reg = INI_RA(iniArr, i, 0);
 		u32 val = INI_RA(iniArr, i, column);
 
-		if (reg >= 0x16000 && reg < 0x17000)
-			ath9k_hw_analog_shift_regwrite(ah, reg, val);
-		else
-			REG_WRITE(ah, reg, val);
+		REG_WRITE(ah, reg, val);
 
 		DO_DELAY(regWrites);
 	}
