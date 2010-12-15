@@ -95,7 +95,7 @@ static int tps6586x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 
 	seconds -= rtc->epoch_start;
 
-	ticks = seconds << 10;
+	ticks = (unsigned long long)seconds << 10;
 	buff[0] = (ticks >> 32) & 0xff;
 	buff[1] = (ticks >> 24) & 0xff;
 	buff[2] = (ticks >> 16) & 0xff;
@@ -148,7 +148,7 @@ static int tps6586x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	}
 
 	seconds -= rtc->epoch_start;
-	ticks = (seconds << 10) & 0xffffff;
+	ticks = (unsigned long long)seconds << 10;
 
 	buff[0] = (ticks >> 16) & 0xff;
 	buff[1] = (ticks >> 8) & 0xff;
