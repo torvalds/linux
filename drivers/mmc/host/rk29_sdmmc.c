@@ -418,9 +418,7 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 	if(host->use_dma == 0)
 		return;
 	dev_vdbg(&host->pdev->dev, "DMA complete\n");
-	if(result != RK29_RES_OK)
-		printk("%s: sdio dma complete err\n",__FUNCTION__);	
-	
+			
 	spin_lock(&host->lock);
 	rk29_sdmmc_dma_cleanup(host);
 	/*
@@ -432,6 +430,12 @@ static void rk29_sdmmc_dma_complete(void *arg, int size, enum rk29_dma_buffresul
 		tasklet_schedule(&host->tasklet);
 	}
 	spin_unlock(&host->lock);
+	if(result != RK29_RES_OK){
+		rk29_dma_ctrl(host->dma_chn,RK29_DMAOP_STOP);
+		rk29_dma_ctrl(host->dma_chn,RK29_DMAOP_FLUSH);
+		rk29_sdmmc_write(host->regs, SDMMC_CTRL, (rk29_sdmmc_read(host->regs, SDMMC_CTRL))&(~SDMMC_CTRL_DMA_ENABLE));
+		printk("%s: sdio dma complete err\n",__FUNCTION__);
+	}
 }
 
 static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *data)
