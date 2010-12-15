@@ -38,6 +38,9 @@ config HAVE_PWM
 config SYS_SUPPORTS_APM_EMULATION
 	bool
 
+config HAVE_SCHED_CLOCK
+	bool
+
 config GENERIC_GPIO
 	bool
 
