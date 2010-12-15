@@ -548,8 +548,13 @@ static int sfq_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	sfq_index idx = q->ht[cl-1];
-	struct gnet_stats_queue qs = { .qlen = q->qs[idx].qlen };
+	struct sk_buff_head *list = &q->qs[idx];
+	struct gnet_stats_queue qs = { .qlen = list->qlen };
 	struct tc_sfq_xstats xstats = { .allot = q->allot[idx] };
+	struct sk_buff *skb;
+
+	skb_queue_walk(list, skb)
+		qs.backlog += qdisc_pkt_len(skb);
 
 	if (gnet_stats_copy_queue(d, &qs) < 0)
 		return -1;
