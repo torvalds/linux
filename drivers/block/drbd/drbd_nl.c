@@ -407,10 +407,8 @@ drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 		}
 	}
 
-	if ((new_role == R_SECONDARY) && get_ldev(mdev)) {
-		drbd_al_to_on_disk_bm(mdev);
-		put_ldev(mdev);
-	}
+	/* writeout of activity log covered areas of the bitmap
+	 * to stable storage done in after state change already */
 
 	if (mdev->state.conn >= C_WF_REPORT_PARAMS) {
 		/* if this was forced, we should consider sync */
@@ -1174,7 +1172,10 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 
 	if (cp_discovered) {
 		drbd_al_apply_to_bm(mdev);
-		drbd_al_to_on_disk_bm(mdev);
+		if (drbd_bitmap_io(mdev, &drbd_bm_write, "crashed primary apply AL")) {
+			retcode = ERR_IO_MD_DISK;
+			goto force_diskless_dec;
+		}
 	}
 
 	if (_drbd_bm_total_weight(mdev) == drbd_bm_bits(mdev))

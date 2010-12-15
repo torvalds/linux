@@ -262,6 +262,33 @@ void drbd_al_complete_io(struct drbd_conf *mdev, sector_t sector)
 	spin_unlock_irqrestore(&mdev->al_lock, flags);
 }
 
+#if (PAGE_SHIFT + 3) < (AL_EXTENT_SHIFT - BM_BLOCK_SHIFT)
+/* Currently BM_BLOCK_SHIFT, BM_EXT_SHIFT and AL_EXTENT_SHIFT
+ * are still coupled, or assume too much about their relation.
+ * Code below will not work if this is violated.
+ * Will be cleaned up with some followup patch.
+ */
+# error FIXME
+#endif
+
+static unsigned int al_extent_to_bm_page(unsigned int al_enr)
+{
+	return al_enr >>
+		/* bit to page */
+		((PAGE_SHIFT + 3) -
+		/* al extent number to bit */
+		 (AL_EXTENT_SHIFT - BM_BLOCK_SHIFT));
+}
+
+static unsigned int rs_extent_to_bm_page(unsigned int rs_enr)
+{
+	return rs_enr >>
+		/* bit to page */
+		((PAGE_SHIFT + 3) -
+		/* al extent number to bit */
+		 (BM_EXT_SHIFT - BM_BLOCK_SHIFT));
+}
+
 int
 w_al_write_transaction(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 {
@@ -289,7 +316,7 @@ w_al_write_transaction(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 	 * For now, we must not write the transaction,
 	 * if we cannot write out the bitmap of the evicted extent. */
 	if (mdev->state.conn < C_CONNECTED && evicted != LC_FREE)
-		drbd_bm_write_sect(mdev, evicted/AL_EXT_PER_BM_SECT);
+		drbd_bm_write_page(mdev, al_extent_to_bm_page(evicted));
 
 	/* The bitmap write may have failed, causing a state change. */
 	if (mdev->state.disk < D_INCONSISTENT) {
@@ -636,105 +663,6 @@ out_bio_put:
 }
 
 /**
- * drbd_al_to_on_disk_bm() -  * Writes bitmap parts covered by active AL extents
- * @mdev:	DRBD device.
- *
- * Called when we detach (unconfigure) local storage,
- * or when we go from R_PRIMARY to R_SECONDARY role.
- */
-void drbd_al_to_on_disk_bm(struct drbd_conf *mdev)
-{
-	int i, nr_elements;
-	unsigned int enr;
-	struct bio **bios;
-	struct drbd_atodb_wait wc;
-
-	ERR_IF (!get_ldev_if_state(mdev, D_ATTACHING))
-		return; /* sorry, I don't have any act_log etc... */
-
-	wait_event(mdev->al_wait, lc_try_lock(mdev->act_log));
-
-	nr_elements = mdev->act_log->nr_elements;
-
-	/* GFP_KERNEL, we are not in anyone's write-out path */
-	bios = kzalloc(sizeof(struct bio *) * nr_elements, GFP_KERNEL);
-	if (!bios)
-		goto submit_one_by_one;
-
-	atomic_set(&wc.count, 0);
-	init_completion(&wc.io_done);
-	wc.mdev = mdev;
-	wc.error = 0;
-
-	for (i = 0; i < nr_elements; i++) {
-		enr = lc_element_by_index(mdev->act_log, i)->lc_number;
-		if (enr == LC_FREE)
-			continue;
-		/* next statement also does atomic_inc wc.count and local_cnt */
-		if (atodb_prepare_unless_covered(mdev, bios,
-						enr/AL_EXT_PER_BM_SECT,
-						&wc))
-			goto free_bios_submit_one_by_one;
-	}
-
-	/* unnecessary optimization? */
-	lc_unlock(mdev->act_log);
-	wake_up(&mdev->al_wait);
-
-	/* all prepared, submit them */
-	for (i = 0; i < nr_elements; i++) {
-		if (bios[i] == NULL)
-			break;
-		if (drbd_insert_fault(mdev, DRBD_FAULT_MD_WR)) {
-			bios[i]->bi_rw = WRITE;
-			bio_endio(bios[i], -EIO);
-		} else {
-			submit_bio(WRITE, bios[i]);
-		}
-	}
-
-	/* always (try to) flush bitmap to stable storage */
-	drbd_md_flush(mdev);
-
-	/* In case we did not submit a single IO do not wait for
-	 * them to complete. ( Because we would wait forever here. )
-	 *
-	 * In case we had IOs and they are already complete, there
-	 * is not point in waiting anyways.
-	 * Therefore this if () ... */
-	if (atomic_read(&wc.count))
-		wait_for_completion(&wc.io_done);
-
-	put_ldev(mdev);
-
-	kfree(bios);
-	return;
-
- free_bios_submit_one_by_one:
-	/* free everything by calling the endio callback directly. */
-	for (i = 0; i < nr_elements && bios[i]; i++)
-		bio_endio(bios[i], 0);
-
-	kfree(bios);
-
- submit_one_by_one:
-	dev_warn(DEV, "Using the slow drbd_al_to_on_disk_bm()\n");
-
-	for (i = 0; i < mdev->act_log->nr_elements; i++) {
-		enr = lc_element_by_index(mdev->act_log, i)->lc_number;
-		if (enr == LC_FREE)
-			continue;
-		/* Really slow: if we have al-extents 16..19 active,
-		 * sector 4 will be written four times! Synchronous! */
-		drbd_bm_write_sect(mdev, enr/AL_EXT_PER_BM_SECT);
-	}
-
-	lc_unlock(mdev->act_log);
-	wake_up(&mdev->al_wait);
-	put_ldev(mdev);
-}
-
-/**
  * drbd_al_apply_to_bm() - Sets the bitmap to diry(1) where covered ba active AL extents
  * @mdev:	DRBD device.
  */
@@ -813,7 +741,7 @@ static int w_update_odbm(struct drbd_conf *mdev, struct drbd_work *w, int unused
 		return 1;
 	}
 
-	drbd_bm_write_sect(mdev, udw->enr);
+	drbd_bm_write_page(mdev, rs_extent_to_bm_page(udw->enr));
 	put_ldev(mdev);
 
 	kfree(udw);
@@ -893,7 +821,6 @@ static void drbd_try_clear_on_disk_bm(struct drbd_conf *mdev, sector_t sector,
 				dev_warn(DEV, "Kicking resync_lru element enr=%u "
 				     "out with rs_failed=%d\n",
 				     ext->lce.lc_number, ext->rs_failed);
-				set_bit(WRITE_BM_AFTER_RESYNC, &mdev->flags);
 			}
 			ext->rs_left = rs_left;
 			ext->rs_failed = success ? 0 : count;
@@ -912,7 +839,6 @@ static void drbd_try_clear_on_disk_bm(struct drbd_conf *mdev, sector_t sector,
 				drbd_queue_work_front(&mdev->data.work, &udw->w);
 			} else {
 				dev_warn(DEV, "Could not kmalloc an udw\n");
-				set_bit(WRITE_BM_AFTER_RESYNC, &mdev->flags);
 			}
 		}
 	} else {

@@ -1289,6 +1289,26 @@ static void abw_start_sync(struct drbd_conf *mdev, int rv)
 	}
 }
 
+int drbd_bitmap_io_from_worker(struct drbd_conf *mdev, int (*io_fn)(struct drbd_conf *), char *why)
+{
+	int rv;
+
+	D_ASSERT(current == mdev->worker.task);
+
+	/* open coded non-blocking drbd_suspend_io(mdev); */
+	set_bit(SUSPEND_IO, &mdev->flags);
+	if (!is_susp(mdev->state))
+		D_ASSERT(atomic_read(&mdev->ap_bio_cnt) == 0);
+
+	drbd_bm_lock(mdev, why);
+	rv = io_fn(mdev);
+	drbd_bm_unlock(mdev);
+
+	drbd_resume_io(mdev);
+
+	return rv;
+}
+
 /**
  * after_state_ch() - Perform after state change actions that may sleep
  * @mdev:	DRBD device.
@@ -1404,7 +1424,12 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 		/* D_DISKLESS Peer becomes secondary */
 		if (os.peer == R_PRIMARY && ns.peer == R_SECONDARY)
-			drbd_al_to_on_disk_bm(mdev);
+			drbd_bitmap_io_from_worker(mdev, &drbd_bm_write, "demote diskless peer");
+		put_ldev(mdev);
+	}
+
+	if (os.role == R_PRIMARY && ns.role == R_SECONDARY && get_ldev(mdev)) {
+		drbd_bitmap_io_from_worker(mdev, &drbd_bm_write, "demote");
 		put_ldev(mdev);
 	}
 

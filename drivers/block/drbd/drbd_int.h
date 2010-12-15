@@ -833,7 +833,7 @@ enum {
 	CRASHED_PRIMARY,	/* This node was a crashed primary.
 				 * Gets cleared when the state.conn
 				 * goes into C_CONNECTED state. */
-	WRITE_BM_AFTER_RESYNC,	/* A kmalloc() during resync failed */
+	NO_BARRIER_SUPP,	/* underlying block device doesn't implement barriers */
 	CONSIDER_RESYNC,
 
 	MD_NO_FUA,		/* Users wants us to not use FUA/FLUSH on meta data dev */
@@ -1428,7 +1428,7 @@ extern void _drbd_bm_set_bits(struct drbd_conf *mdev,
 		const unsigned long s, const unsigned long e);
 extern int  drbd_bm_test_bit(struct drbd_conf *mdev, unsigned long bitnr);
 extern int  drbd_bm_e_weight(struct drbd_conf *mdev, unsigned long enr);
-extern int  drbd_bm_write_sect(struct drbd_conf *mdev, unsigned long enr) __must_hold(local);
+extern int  drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(local);
 extern int  drbd_bm_read(struct drbd_conf *mdev) __must_hold(local);
 extern int  drbd_bm_write(struct drbd_conf *mdev) __must_hold(local);
 extern unsigned long drbd_bm_ALe_set_all(struct drbd_conf *mdev,
@@ -1446,7 +1446,7 @@ extern int drbd_bm_rs_done(struct drbd_conf *mdev);
 /* for receive_bitmap */
 extern void drbd_bm_merge_lel(struct drbd_conf *mdev, size_t offset,
 		size_t number, unsigned long *buffer);
-/* for _drbd_send_bitmap and drbd_bm_write_sect */
+/* for _drbd_send_bitmap */
 extern void drbd_bm_get_lel(struct drbd_conf *mdev, size_t offset,
 		size_t number, unsigned long *buffer);
 
@@ -1641,7 +1641,6 @@ extern int __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector,
 #define drbd_set_out_of_sync(mdev, sector, size) \
 	__drbd_set_out_of_sync(mdev, sector, size, __FILE__, __LINE__)
 extern void drbd_al_apply_to_bm(struct drbd_conf *mdev);
-extern void drbd_al_to_on_disk_bm(struct drbd_conf *mdev);
 extern void drbd_al_shrink(struct drbd_conf *mdev);
 
 

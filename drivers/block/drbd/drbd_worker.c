@@ -907,10 +907,8 @@ out:
 
 	drbd_md_sync(mdev);
 
-	if (test_and_clear_bit(WRITE_BM_AFTER_RESYNC, &mdev->flags)) {
-		dev_info(DEV, "Writing the whole bitmap\n");
-		drbd_queue_bitmap_io(mdev, &drbd_bm_write, NULL, "write from resync_finished");
-	}
+	dev_info(DEV, "Writing changed bitmap pages\n");
+	drbd_queue_bitmap_io(mdev, &drbd_bm_write, NULL, "write from resync_finished");
 
 	if (khelper_cmd)
 		drbd_khelper(mdev, khelper_cmd);
@@ -1127,7 +1125,6 @@ void drbd_ov_oos_found(struct drbd_conf *mdev, sector_t sector, int size)
 		mdev->ov_last_oos_size = size>>9;
 	}
 	drbd_set_out_of_sync(mdev, sector, size);
-	set_bit(WRITE_BM_AFTER_RESYNC, &mdev->flags);
 }
 
 int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
