@@ -61,7 +61,7 @@
 #define PMEM_UI_SIZE        SZ_32M
 #define PMEM_VPU_SIZE       SZ_32M
 #define PMEM_CAM_SIZE       SZ_16M
-#define MEM_FB_SIZE         SZ_4M
+#define MEM_FB_SIZE         (3*SZ_2M)
 
 #define PMEM_GPU_BASE       ((u32)RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
 #define PMEM_UI_BASE        (PMEM_GPU_BASE - PMEM_UI_SIZE)
