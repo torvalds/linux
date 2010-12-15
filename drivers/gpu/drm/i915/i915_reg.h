@@ -596,6 +596,8 @@
 
 #define ILK_DISPLAY_CHICKEN1	0x42000
 #define   ILK_FBCQ_DIS		(1<<22)
+#define   ILK_PABSTRETCH_DIS 	(1<<21)
+
 
 /*
  * GPIO regs
@@ -954,6 +956,8 @@
  *
  */
 #define MCHBAR_MIRROR_BASE	0x10000
+
+#define MCHBAR_MIRROR_BASE_SNB	0x140000
 
 /** 915-945 and GM965 MCH register controlling DRAM channel access */
 #define DCC			0x10200
@@ -2346,6 +2350,40 @@
 
 #define ILK_FIFO_LINE_SIZE	64
 
+/* define the WM info on Sandybridge */
+#define SNB_DISPLAY_FIFO	128
+#define SNB_DISPLAY_MAXWM	0x7f	/* bit 16:22 */
+#define SNB_DISPLAY_DFTWM	8
+#define SNB_CURSOR_FIFO		32
+#define SNB_CURSOR_MAXWM	0x1f	/* bit 4:0 */
+#define SNB_CURSOR_DFTWM	8
+
+#define SNB_DISPLAY_SR_FIFO	512
+#define SNB_DISPLAY_MAX_SRWM	0x1ff	/* bit 16:8 */
+#define SNB_DISPLAY_DFT_SRWM	0x3f
+#define SNB_CURSOR_SR_FIFO	64
+#define SNB_CURSOR_MAX_SRWM	0x3f	/* bit 5:0 */
+#define SNB_CURSOR_DFT_SRWM	8
+
+#define SNB_FBC_MAX_SRWM	0xf	/* bit 23:20 */
+
+#define SNB_FIFO_LINE_SIZE	64
+
+
+/* the address where we get all kinds of latency value */
+#define SSKPD			0x5d10
+#define SSKPD_WM_MASK		0x3f
+#define SSKPD_WM0_SHIFT		0
+#define SSKPD_WM1_SHIFT		8
+#define SSKPD_WM2_SHIFT		16
+#define SSKPD_WM3_SHIFT		24
+
+#define SNB_LATENCY(shift)	(I915_READ(MCHBAR_MIRROR_BASE_SNB + SSKPD) >> (shift) & SSKPD_WM_MASK)
+#define SNB_READ_WM0_LATENCY()		SNB_LATENCY(SSKPD_WM0_SHIFT)
+#define SNB_READ_WM1_LATENCY()		SNB_LATENCY(SSKPD_WM1_SHIFT)
+#define SNB_READ_WM2_LATENCY()		SNB_LATENCY(SSKPD_WM2_SHIFT)
+#define SNB_READ_WM3_LATENCY()		SNB_LATENCY(SSKPD_WM3_SHIFT)
+
 /*
  * The two pipe frame counter registers are not synchronized, so
  * reading a stable value is somewhat tricky. The following code
@@ -2651,6 +2689,8 @@
 #define  ILK_VSDPFD_FULL	(1<<21)
 #define ILK_DSPCLK_GATE		0x42020
 #define  ILK_DPARB_CLK_GATE	(1<<5)
+#define  ILK_DPFD_CLK_GATE	(1<<7)
+
 /* According to spec this bit 7/8/9 of 0x42020 should be set to enable FBC */
 #define   ILK_CLK_FBC		(1<<7)
 #define   ILK_DPFC_DIS1		(1<<8)

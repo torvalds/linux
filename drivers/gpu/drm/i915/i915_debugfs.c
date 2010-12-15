@@ -933,7 +933,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	bool sr_enabled = false;
 
-	if (IS_GEN5(dev))
+	if (HAS_PCH_SPLIT(dev))
 		sr_enabled = I915_READ(WM1_LP_ILK) & WM1_LP_SR_EN;
 	else if (IS_CRESTLINE(dev) || IS_I945G(dev) || IS_I945GM(dev))
 		sr_enabled = I915_READ(FW_BLC_SELF) & FW_BLC_SELF_EN;
