@@ -297,7 +297,7 @@ static struct urb *uas_alloc_sense_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 	if (!urb)
 		goto out;
 
-	iu = kmalloc(sizeof(*iu), gfp);
+	iu = kzalloc(sizeof(*iu), gfp);
 	if (!iu)
 		goto free;
 
@@ -328,7 +328,7 @@ static struct urb *uas_alloc_cmd_urb(struct uas_dev_info *devinfo, gfp_t gfp,
 	if (len < 0)
 		len = 0;
 	len = ALIGN(len, 4);
-	iu = kmalloc(sizeof(*iu) + len, gfp);
+	iu = kzalloc(sizeof(*iu) + len, gfp);
 	if (!iu)
 		goto free;
 
