@@ -164,17 +164,6 @@ struct mesh_rmc {
 };
 
 
-/*
- * MESH_CFG_COMP_LEN Includes:
- * 	- Active path selection protocol ID.
- * 	- Active path selection metric ID.
- * 	- Congestion control mode identifier.
- * 	- Channel precedence.
- * Does not include mesh capabilities, which may vary across nodes in the same
- * mesh
- */
-#define MESH_CFG_CMP_LEN 	(IEEE80211_MESH_CONFIG_LEN - 2)
-
 #define MESH_DEFAULT_BEACON_INTERVAL		1000 	/* in 1024 us units */
 
 #define MESH_PATH_EXPIRE (600 * HZ)
