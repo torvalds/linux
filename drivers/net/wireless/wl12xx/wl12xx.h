@@ -378,7 +378,6 @@ struct wl1271 {
 	int last_rssi_event;
 
 	struct wl1271_stats stats;
-	struct dentry *rootdir;
 
 	__le32 buffer_32;
 	u32 buffer_cmd;
