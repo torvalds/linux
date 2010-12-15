@@ -3149,11 +3149,11 @@ lpfc_sli4_parse_latt_link_speed(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_sli4_async_link_evt - Process the asynchronous FC or FCoE link event
+ * lpfc_sli4_async_link_evt - Process the asynchronous FCoE link event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async link completion queue entry.
  *
- * This routine is to handle the SLI4 asynchronous link event.
+ * This routine is to handle the SLI4 asynchronous FCoE link event.
  **/
 static void
 lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
@@ -3210,12 +3210,25 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 				bf_get(lpfc_acqe_link_duplex, acqe_link);
 	phba->sli4_hba.link_state.status =
 				bf_get(lpfc_acqe_link_status, acqe_link);
-	phba->sli4_hba.link_state.physical =
-				bf_get(lpfc_acqe_link_physical, acqe_link);
+	phba->sli4_hba.link_state.type =
+				bf_get(lpfc_acqe_link_type, acqe_link);
+	phba->sli4_hba.link_state.number =
+				bf_get(lpfc_acqe_link_number, acqe_link);
 	phba->sli4_hba.link_state.fault =
 				bf_get(lpfc_acqe_link_fault, acqe_link);
 	phba->sli4_hba.link_state.logical_speed =
-				bf_get(lpfc_acqe_qos_link_speed, acqe_link);
+			bf_get(lpfc_acqe_logical_link_speed, acqe_link);
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"2900 Async FCoE Link event - Speed:%dGBit duplex:x%x "
+			"LA Type:x%x Port Type:%d Port Number:%d Logical "
+			"speed:%dMbps Fault:%d\n",
+			phba->sli4_hba.link_state.speed,
+			phba->sli4_hba.link_state.topology,
+			phba->sli4_hba.link_state.status,
+			phba->sli4_hba.link_state.type,
+			phba->sli4_hba.link_state.number,
+			phba->sli4_hba.link_state.logical_speed * 10,
+			phba->sli4_hba.link_state.fault);
 	/*
 	 * For FC Mode: issue the READ_TOPOLOGY mailbox command to fetch
 	 * topology info. Note: Optional for non FC-AL ports.
@@ -3259,6 +3272,118 @@ out_free_dmabuf:
 	kfree(mp);
 out_free_pmb:
 	mempool_free(pmb, phba->mbox_mem_pool);
+}
+
+/**
+ * lpfc_sli4_async_fc_evt - Process the asynchronous FC link event
+ * @phba: pointer to lpfc hba data structure.
+ * @acqe_fc: pointer to the async fc completion queue entry.
+ *
+ * This routine is to handle the SLI4 asynchronous FC event. It will simply log
+ * that the event was received and then issue a read_topology mailbox command so
+ * that the rest of the driver will treat it the same as SLI3.
+ **/
+static void
+lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
+{
+	struct lpfc_dmabuf *mp;
+	LPFC_MBOXQ_t *pmb;
+	int rc;
+
+	if (bf_get(lpfc_trailer_type, acqe_fc) !=
+	    LPFC_FC_LA_EVENT_TYPE_FC_LINK) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2895 Non FC link Event detected.(%d)\n",
+				bf_get(lpfc_trailer_type, acqe_fc));
+		return;
+	}
+	/* Keep the link status for extra SLI4 state machine reference */
+	phba->sli4_hba.link_state.speed =
+				bf_get(lpfc_acqe_fc_la_speed, acqe_fc);
+	phba->sli4_hba.link_state.duplex = LPFC_ASYNC_LINK_DUPLEX_FULL;
+	phba->sli4_hba.link_state.topology =
+				bf_get(lpfc_acqe_fc_la_topology, acqe_fc);
+	phba->sli4_hba.link_state.status =
+				bf_get(lpfc_acqe_fc_la_att_type, acqe_fc);
+	phba->sli4_hba.link_state.type =
+				bf_get(lpfc_acqe_fc_la_port_type, acqe_fc);
+	phba->sli4_hba.link_state.number =
+				bf_get(lpfc_acqe_fc_la_port_number, acqe_fc);
+	phba->sli4_hba.link_state.fault =
+				bf_get(lpfc_acqe_link_fault, acqe_fc);
+	phba->sli4_hba.link_state.logical_speed =
+				bf_get(lpfc_acqe_fc_la_llink_spd, acqe_fc);
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"2896 Async FC event - Speed:%dGBaud Topology:x%x "
+			"LA Type:x%x Port Type:%d Port Number:%d Logical speed:"
+			"%dMbps Fault:%d\n",
+			phba->sli4_hba.link_state.speed,
+			phba->sli4_hba.link_state.topology,
+			phba->sli4_hba.link_state.status,
+			phba->sli4_hba.link_state.type,
+			phba->sli4_hba.link_state.number,
+			phba->sli4_hba.link_state.logical_speed * 10,
+			phba->sli4_hba.link_state.fault);
+	pmb = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmb) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2897 The mboxq allocation failed\n");
+		return;
+	}
+	mp = kmalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	if (!mp) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2898 The lpfc_dmabuf allocation failed\n");
+		goto out_free_pmb;
+	}
+	mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
+	if (!mp->virt) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2899 The mbuf allocation failed\n");
+		goto out_free_dmabuf;
+	}
+
+	/* Cleanup any outstanding ELS commands */
+	lpfc_els_flush_all_cmd(phba);
+
+	/* Block ELS IOCBs until we have done process link event */
+	phba->sli.ring[LPFC_ELS_RING].flag |= LPFC_STOP_IOCB_EVENT;
+
+	/* Update link event statistics */
+	phba->sli.slistat.link_event++;
+
+	/* Create lpfc_handle_latt mailbox command from link ACQE */
+	lpfc_read_topology(phba, pmb, mp);
+	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_topology;
+	pmb->vport = phba->pport;
+
+	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED)
+		goto out_free_dmabuf;
+	return;
+
+out_free_dmabuf:
+	kfree(mp);
+out_free_pmb:
+	mempool_free(pmb, phba->mbox_mem_pool);
+}
+
+/**
+ * lpfc_sli4_async_sli_evt - Process the asynchronous SLI link event
+ * @phba: pointer to lpfc hba data structure.
+ * @acqe_fc: pointer to the async SLI completion queue entry.
+ *
+ * This routine is to handle the SLI4 asynchronous SLI events.
+ **/
+static void
+lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
+{
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"2901 Async SLI event - Event Data1:x%08x Event Data2:"
+			"x%08x SLI Event Type:%d",
+			acqe_sli->event_data1, acqe_sli->event_data2,
+			bf_get(lpfc_trailer_type, acqe_sli));
+	return;
 }
 
 /**
@@ -3348,9 +3473,9 @@ lpfc_sli4_perform_all_vport_cvl(struct lpfc_hba *phba)
  **/
 static void
 lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
-			struct lpfc_acqe_fcoe *acqe_fcoe)
+			struct lpfc_acqe_fip *acqe_fip)
 {
-	uint8_t event_type = bf_get(lpfc_acqe_fcoe_event_type, acqe_fcoe);
+	uint8_t event_type = bf_get(lpfc_trailer_type, acqe_fip);
 	int rc;
 	struct lpfc_vport *vport;
 	struct lpfc_nodelist *ndlp;
@@ -3359,25 +3484,25 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 	struct lpfc_vport **vports;
 	int i;
 
-	phba->fc_eventTag = acqe_fcoe->event_tag;
-	phba->fcoe_eventtag = acqe_fcoe->event_tag;
+	phba->fc_eventTag = acqe_fip->event_tag;
+	phba->fcoe_eventtag = acqe_fip->event_tag;
 	switch (event_type) {
-	case LPFC_FCOE_EVENT_TYPE_NEW_FCF:
-	case LPFC_FCOE_EVENT_TYPE_FCF_PARAM_MOD:
-		if (event_type == LPFC_FCOE_EVENT_TYPE_NEW_FCF)
+	case LPFC_FIP_EVENT_TYPE_NEW_FCF:
+	case LPFC_FIP_EVENT_TYPE_FCF_PARAM_MOD:
+		if (event_type == LPFC_FIP_EVENT_TYPE_NEW_FCF)
 			lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
 					LOG_DISCOVERY,
 					"2546 New FCF event, evt_tag:x%x, "
 					"index:x%x\n",
-					acqe_fcoe->event_tag,
-					acqe_fcoe->index);
+					acqe_fip->event_tag,
+					acqe_fip->index);
 		else
 			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP |
 					LOG_DISCOVERY,
 					"2788 FCF param modified event, "
 					"evt_tag:x%x, index:x%x\n",
-					acqe_fcoe->event_tag,
-					acqe_fcoe->index);
+					acqe_fip->event_tag,
+					acqe_fip->index);
 		if (phba->fcf.fcf_flag & FCF_DISCOVERY) {
 			/*
 			 * During period of FCF discovery, read the FCF
@@ -3388,8 +3513,8 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 					LOG_DISCOVERY,
 					"2779 Read FCF (x%x) for updating "
 					"roundrobin FCF failover bmask\n",
-					acqe_fcoe->index);
-			rc = lpfc_sli4_read_fcf_rec(phba, acqe_fcoe->index);
+					acqe_fip->index);
+			rc = lpfc_sli4_read_fcf_rec(phba, acqe_fip->index);
 		}
 
 		/* If the FCF discovery is in progress, do nothing. */
@@ -3415,7 +3540,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
 				"2770 Start FCF table scan per async FCF "
 				"event, evt_tag:x%x, index:x%x\n",
-				acqe_fcoe->event_tag, acqe_fcoe->index);
+				acqe_fip->event_tag, acqe_fip->index);
 		rc = lpfc_sli4_fcf_scan_read_fcf_rec(phba,
 						     LPFC_FCOE_FCF_GET_FIRST);
 		if (rc)
@@ -3424,17 +3549,17 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 					"command failed (x%x)\n", rc);
 		break;
 
-	case LPFC_FCOE_EVENT_TYPE_FCF_TABLE_FULL:
+	case LPFC_FIP_EVENT_TYPE_FCF_TABLE_FULL:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 			"2548 FCF Table full count 0x%x tag 0x%x\n",
-			bf_get(lpfc_acqe_fcoe_fcf_count, acqe_fcoe),
-			acqe_fcoe->event_tag);
+			bf_get(lpfc_acqe_fip_fcf_count, acqe_fip),
+			acqe_fip->event_tag);
 		break;
 
-	case LPFC_FCOE_EVENT_TYPE_FCF_DEAD:
+	case LPFC_FIP_EVENT_TYPE_FCF_DEAD:
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
 			"2549 FCF (x%x) disconnected from network, "
-			"tag:x%x\n", acqe_fcoe->index, acqe_fcoe->event_tag);
+			"tag:x%x\n", acqe_fip->index, acqe_fip->event_tag);
 		/*
 		 * If we are in the middle of FCF failover process, clear
 		 * the corresponding FCF bit in the roundrobin bitmap.
@@ -3443,13 +3568,13 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		if (phba->fcf.fcf_flag & FCF_DISCOVERY) {
 			spin_unlock_irq(&phba->hbalock);
 			/* Update FLOGI FCF failover eligible FCF bmask */
-			lpfc_sli4_fcf_rr_index_clear(phba, acqe_fcoe->index);
+			lpfc_sli4_fcf_rr_index_clear(phba, acqe_fip->index);
 			break;
 		}
 		spin_unlock_irq(&phba->hbalock);
 
 		/* If the event is not for currently used fcf do nothing */
-		if (phba->fcf.current_rec.fcf_indx != acqe_fcoe->index)
+		if (phba->fcf.current_rec.fcf_indx != acqe_fip->index)
 			break;
 
 		/*
@@ -3466,7 +3591,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
 				"2771 Start FCF fast failover process due to "
 				"FCF DEAD event: evt_tag:x%x, fcf_index:x%x "
-				"\n", acqe_fcoe->event_tag, acqe_fcoe->index);
+				"\n", acqe_fip->event_tag, acqe_fip->index);
 		rc = lpfc_sli4_redisc_fcf_table(phba);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
@@ -3493,12 +3618,12 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			lpfc_sli4_perform_all_vport_cvl(phba);
 		}
 		break;
-	case LPFC_FCOE_EVENT_TYPE_CVL:
+	case LPFC_FIP_EVENT_TYPE_CVL:
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
 			"2718 Clear Virtual Link Received for VPI 0x%x"
-			" tag 0x%x\n", acqe_fcoe->index, acqe_fcoe->event_tag);
+			" tag 0x%x\n", acqe_fip->index, acqe_fip->event_tag);
 		vport = lpfc_find_vport_by_vpid(phba,
-				acqe_fcoe->index - phba->vpi_base);
+				acqe_fip->index - phba->vpi_base);
 		ndlp = lpfc_sli4_perform_vport_cvl(vport);
 		if (!ndlp)
 			break;
@@ -3549,7 +3674,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			lpfc_printf_log(phba, KERN_INFO, LOG_FIP |
 					LOG_DISCOVERY,
 					"2773 Start FCF failover per CVL, "
-					"evt_tag:x%x\n", acqe_fcoe->event_tag);
+					"evt_tag:x%x\n", acqe_fip->event_tag);
 			rc = lpfc_sli4_redisc_fcf_table(phba);
 			if (rc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
@@ -3577,7 +3702,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 			"0288 Unknown FCoE event type 0x%x event tag "
-			"0x%x\n", event_type, acqe_fcoe->event_tag);
+			"0x%x\n", event_type, acqe_fip->event_tag);
 		break;
 	}
 }
@@ -3650,13 +3775,11 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 		/* Process the asynchronous event */
 		switch (bf_get(lpfc_trailer_code, &cq_event->cqe.mcqe_cmpl)) {
 		case LPFC_TRAILER_CODE_LINK:
-		case LPFC_TRAILER_CODE_FC:
 			lpfc_sli4_async_link_evt(phba,
 						 &cq_event->cqe.acqe_link);
 			break;
 		case LPFC_TRAILER_CODE_FCOE:
-			lpfc_sli4_async_fip_evt(phba,
-						&cq_event->cqe.acqe_fcoe);
+			lpfc_sli4_async_fip_evt(phba, &cq_event->cqe.acqe_fip);
 			break;
 		case LPFC_TRAILER_CODE_DCBX:
 			lpfc_sli4_async_dcbx_evt(phba,
@@ -3665,6 +3788,12 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 		case LPFC_TRAILER_CODE_GRP5:
 			lpfc_sli4_async_grp5_evt(phba,
 						 &cq_event->cqe.acqe_grp5);
+			break;
+		case LPFC_TRAILER_CODE_FC:
+			lpfc_sli4_async_fc_evt(phba, &cq_event->cqe.acqe_fc);
+			break;
+		case LPFC_TRAILER_CODE_SLI:
+			lpfc_sli4_async_sli_evt(phba, &cq_event->cqe.acqe_sli);
 			break;
 		default:
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,

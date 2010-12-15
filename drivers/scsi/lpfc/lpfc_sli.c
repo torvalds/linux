@@ -10561,16 +10561,20 @@ lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
 			 length, LPFC_SLI4_MBX_EMBED);
 
 	mq_create_ext = &mbox->u.mqe.un.mq_create_ext;
-	bf_set(lpfc_mbx_mq_create_ext_num_pages, &mq_create_ext->u.request,
-		    mq->page_count);
-	bf_set(lpfc_mbx_mq_create_ext_async_evt_link, &mq_create_ext->u.request,
-	       1);
-	bf_set(lpfc_mbx_mq_create_ext_async_evt_fcfste,
+	bf_set(lpfc_mbx_mq_create_ext_num_pages,
+	       &mq_create_ext->u.request, mq->page_count);
+	bf_set(lpfc_mbx_mq_create_ext_async_evt_link,
+	       &mq_create_ext->u.request, 1);
+	bf_set(lpfc_mbx_mq_create_ext_async_evt_fip,
 	       &mq_create_ext->u.request, 1);
 	bf_set(lpfc_mbx_mq_create_ext_async_evt_group5,
 	       &mq_create_ext->u.request, 1);
-	bf_set(lpfc_mq_context_cq_id, &mq_create_ext->u.request.context,
-	       cq->queue_id);
+	bf_set(lpfc_mbx_mq_create_ext_async_evt_fc,
+	       &mq_create_ext->u.request, 1);
+	bf_set(lpfc_mbx_mq_create_ext_async_evt_sli,
+	       &mq_create_ext->u.request, 1);
+	bf_set(lpfc_mq_context_cq_id,
+	       &mq_create_ext->u.request.context, cq->queue_id);
 	bf_set(lpfc_mq_context_valid, &mq_create_ext->u.request.context, 1);
 	switch (mq->entry_count) {
 	default:
