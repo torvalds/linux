@@ -1163,7 +1163,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	u32 port_id;
 	u32 temp, temp1;
 	u32 __iomem *addr;
-	int ports;
+	int max_ports;
 	int slot_id;
 
 	/* Port status change events always have a successful completion code */
@@ -1174,8 +1174,8 @@ static void handle_port_status(struct xhci_hcd *xhci,
 	port_id = GET_PORT_ID(event->generic.field[0]);
 	xhci_dbg(xhci, "Port Status Change Event for port %d\n", port_id);
 
-	ports = HCS_MAX_PORTS(xhci->hcs_params1);
-	if ((port_id <= 0) || (port_id > ports)) {
+	max_ports = HCS_MAX_PORTS(xhci->hcs_params1);
+	if ((port_id <= 0) || (port_id > max_ports)) {
 		xhci_warn(xhci, "Invalid port id %d\n", port_id);
 		goto cleanup;
 	}

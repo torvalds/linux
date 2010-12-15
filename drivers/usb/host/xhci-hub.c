@@ -568,42 +568,44 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 int xhci_bus_suspend(struct usb_hcd *hcd)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	int port;
+	int max_ports, port_index;
 	unsigned long flags;
 
 	xhci_dbg(xhci, "suspend root hub\n");
+	max_ports = HCS_MAX_PORTS(xhci->hcs_params1);
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	if (hcd->self.root_hub->do_remote_wakeup) {
-		port = HCS_MAX_PORTS(xhci->hcs_params1);
-		while (port--) {
-			if (xhci->resume_done[port] != 0) {
+		port_index = max_ports;
+		while (port_index--) {
+			if (xhci->resume_done[port_index] != 0) {
 				spin_unlock_irqrestore(&xhci->lock, flags);
 				xhci_dbg(xhci, "suspend failed because "
 						"port %d is resuming\n",
-						port + 1);
+						port_index + 1);
 				return -EBUSY;
 			}
 		}
 	}
 
-	port = HCS_MAX_PORTS(xhci->hcs_params1);
+	port_index = max_ports;
 	xhci->bus_suspended = 0;
-	while (port--) {
+	while (port_index--) {
 		/* suspend the port if the port is not suspended */
 		u32 __iomem *addr;
 		u32 t1, t2;
 		int slot_id;
 
 		addr = &xhci->op_regs->port_status_base +
-			NUM_PORT_REGS * (port & 0xff);
+			NUM_PORT_REGS * (port_index & 0xff);
 		t1 = xhci_readl(xhci, addr);
 		t2 = xhci_port_state_to_neutral(t1);
 
 		if ((t1 & PORT_PE) && !(t1 & PORT_PLS_MASK)) {
-			xhci_dbg(xhci, "port %d not suspended\n", port);
-			slot_id = xhci_find_slot_id_by_port(xhci, port + 1);
+			xhci_dbg(xhci, "port %d not suspended\n", port_index);
+			slot_id = xhci_find_slot_id_by_port(xhci,
+					port_index + 1);
 			if (slot_id) {
 				spin_unlock_irqrestore(&xhci->lock, flags);
 				xhci_stop_device(xhci, slot_id, 1);
@@ -611,7 +613,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 			}
 			t2 &= ~PORT_PLS_MASK;
 			t2 |= PORT_LINK_STROBE | XDEV_U3;
-			set_bit(port, &xhci->bus_suspended);
+			set_bit(port_index, &xhci->bus_suspended);
 		}
 		if (hcd->self.root_hub->do_remote_wakeup) {
 			if (t1 & PORT_CONNECT) {
@@ -634,7 +636,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 			u32 tmp;
 
 			addr = &xhci->op_regs->port_power_base +
-				NUM_PORT_REGS * (port & 0xff);
+				NUM_PORT_REGS * (port_index & 0xff);
 			tmp = xhci_readl(xhci, addr);
 			tmp |= PORT_RWE;
 			xhci_writel(xhci, tmp, addr);
@@ -649,11 +651,12 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 int xhci_bus_resume(struct usb_hcd *hcd)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
-	int port;
+	int max_ports, port_index;
 	u32 temp;
 	unsigned long flags;
 
 	xhci_dbg(xhci, "resume root hub\n");
+	max_ports = HCS_MAX_PORTS(xhci->hcs_params1);
 
 	if (time_before(jiffies, xhci->next_statechange))
 		msleep(5);
@@ -669,8 +672,8 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 	temp &= ~CMD_EIE;
 	xhci_writel(xhci, temp, &xhci->op_regs->command);
 
-	port = HCS_MAX_PORTS(xhci->hcs_params1);
-	while (port--) {
+	port_index = max_ports;
+	while (port_index--) {
 		/* Check whether need resume ports. If needed
 		   resume port and disable remote wakeup */
 		u32 __iomem *addr;
@@ -678,13 +681,13 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 		int slot_id;
 
 		addr = &xhci->op_regs->port_status_base +
-			NUM_PORT_REGS * (port & 0xff);
+			NUM_PORT_REGS * (port_index & 0xff);
 		temp = xhci_readl(xhci, addr);
 		if (DEV_SUPERSPEED(temp))
 			temp &= ~(PORT_RWC_BITS | PORT_CEC | PORT_WAKE_BITS);
 		else
 			temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
-		if (test_bit(port, &xhci->bus_suspended) &&
+		if (test_bit(port_index, &xhci->bus_suspended) &&
 		    (temp & PORT_PLS_MASK)) {
 			if (DEV_SUPERSPEED(temp)) {
 				temp = xhci_port_state_to_neutral(temp);
@@ -707,7 +710,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 				temp |= PORT_LINK_STROBE | XDEV_U0;
 				xhci_writel(xhci, temp, addr);
 			}
-			slot_id = xhci_find_slot_id_by_port(xhci, port + 1);
+			slot_id = xhci_find_slot_id_by_port(xhci, port_index + 1);
 			if (slot_id)
 				xhci_ring_device(xhci, slot_id);
 		} else
@@ -719,7 +722,7 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 			u32 tmp;
 
 			addr = &xhci->op_regs->port_power_base +
-				NUM_PORT_REGS * (port & 0xff);
+				NUM_PORT_REGS * (port_index & 0xff);
 			tmp = xhci_readl(xhci, addr);
 			tmp &= ~PORT_RWE;
 			xhci_writel(xhci, tmp, addr);
