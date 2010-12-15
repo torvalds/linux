@@ -22,6 +22,8 @@
 #include <mach/clkdev.h>
 #include <mach/motherboard.h>
 
+#include <plat/sched_clock.h>
+
 #include <plat/timer-sp.h>
 
 #include "core.h"
@@ -50,6 +52,8 @@ void __init v2m_map_io(struct map_desc *tile, size_t num)
 
 static void __init v2m_timer_init(void)
 {
+	versatile_sched_clock_init(MMIO_P2V(V2M_SYS_24MHZ), 24000000);
+
 	writel(0, MMIO_P2V(V2M_TIMER0) + TIMER_CTRL);
 	writel(0, MMIO_P2V(V2M_TIMER1) + TIMER_CTRL);
 
