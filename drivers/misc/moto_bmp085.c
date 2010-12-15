@@ -155,6 +155,7 @@ struct bmp085_data {
 	atomic_t enabled;
 	int on_before_suspend;
 	struct regulator *regulator;
+	struct regulator *io_regulator;
 	u8 resume_state[5];
 };
 
@@ -251,6 +252,7 @@ static int bmp085_enable(struct bmp085_data *barom)
 	if (!atomic_cmpxchg(&barom->enabled, 0, 1)) {
 		if (barom->regulator)
 			err = regulator_enable(barom->regulator);
+			err = regulator_enable(barom->io_regulator);
 		if (err < 0) {
 			atomic_set(&barom->enabled, 0);
 			return err;
@@ -269,6 +271,7 @@ static int bmp085_disable(struct bmp085_data *barom)
 		cancel_delayed_work_sync(&barom->input_work);
 		if (barom->regulator)
 			regulator_disable(barom->regulator);
+			regulator_disable(barom->io_regulator);
 	}
 	barom->measurement_cycle = NO_CYCLE;
 
@@ -784,6 +787,9 @@ static int bmp085_probe(struct i2c_client *client,
 		dev_err(&client->dev, "unable to get regulator\n");
 		barom->regulator = NULL;
 	}
+	barom->io_regulator = regulator_get(&client->dev, "vio");
+	if (IS_ERR(barom->io_regulator))
+		barom->io_regulator = NULL;
 
 	err = bmp085_input_init(barom);
 	if (err < 0)
@@ -814,6 +820,8 @@ err4:
 err3:
 	if (barom->regulator)
 		regulator_put(barom->regulator);
+	if (barom->io_regulator)
+		regulator_put(barom->io_regulator);
 err_req_irq_failed:
 err1_1:
 	mutex_unlock(&barom->lock);
@@ -834,6 +842,8 @@ static int __devexit bmp085_remove(struct i2c_client *client)
 	bmp085_disable(barom);
 	if (barom->regulator)
 		regulator_put(barom->regulator);
+	if (barom->io_regulator)
+		regulator_put(barom->io_regulator);
 #ifdef DEBUG
 	device_remove_file(&client->dev, &dev_attr_registers);
 #endif
