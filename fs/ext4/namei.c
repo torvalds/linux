@@ -872,7 +872,7 @@ static struct buffer_head * ext4_find_entry (struct inode *dir,
 	if (namelen > EXT4_NAME_LEN)
 		return NULL;
 	if ((namelen <= 2) && (name[0] == '.') &&
-	    (name[1] == '.' || name[1] == '0')) {
+	    (name[1] == '.' || name[1] == '\0')) {
 		/*
 		 * "." or ".." will only be in the first block
 		 * NFS may look up ".."; "." should be handled by the VFS
