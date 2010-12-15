@@ -57,7 +57,7 @@
 #else
 #define SDRAM_SIZE          SZ_512M
 #endif
-#define PMEM_GPU_SIZE       SZ_48M
+#define PMEM_GPU_SIZE       SZ_64M
 #define PMEM_UI_SIZE        SZ_32M
 #define PMEM_VPU_SIZE       SZ_32M
 #define PMEM_CAM_SIZE       SZ_16M
@@ -969,7 +969,7 @@ static struct resource resources_gpu[] = {
     [1] = {
 		.name = "gpu_base",
         .start  = RK29_GPU_PHYS,
-        .end    = RK29_GPU_PHYS + (256 << 10),
+        .end    = RK29_GPU_PHYS + RK29_GPU_PHYS_SIZE,
         .flags  = IORESOURCE_MEM,
     },
     [2] = {

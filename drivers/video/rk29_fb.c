@@ -1714,6 +1714,8 @@ static int __init rk29fb_probe (struct platform_device *pdev)
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
+    *(volatile u32 *)(RK29_GRF_BASE+0xac) = ((*(volatile u32 *)(RK29_GRF_BASE+0xac)) & ~0x3FF) | 0x246;
+
     /* Malloc rk29fb_inf and set it to pdev for drvdata */
     fbprintk(">> Malloc rk29fb_inf and set it to pdev for drvdata \n");
     inf = kmalloc(sizeof(struct rk29fb_inf), GFP_KERNEL);
