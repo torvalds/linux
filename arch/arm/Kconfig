@@ -992,6 +992,7 @@ config ARCH_ACORN
 config PLAT_IOP
 	bool
 	select GENERIC_CLOCKEVENTS
+	select HAVE_SCHED_CLOCK
 
 config PLAT_ORION
 	bool
