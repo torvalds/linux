@@ -87,8 +87,6 @@ static int ar9003_get_training_power_5g(struct ath_hw *ah)
 static int ar9003_paprd_setup_single_table(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
-	struct ar9300_modal_eep_header *hdr;
 	static const u32 ctrl0[3] = {
 		AR_PHY_PAPRD_CTRL0_B0,
 		AR_PHY_PAPRD_CTRL0_B1,
@@ -99,17 +97,8 @@ static int ar9003_paprd_setup_single_table(struct ath_hw *ah)
 		AR_PHY_PAPRD_CTRL1_B1,
 		AR_PHY_PAPRD_CTRL1_B2
 	};
-	u32 am_mask, ht40_mask;
 	int training_power;
 	int i;
-
-	if (ah->curchan && IS_CHAN_5GHZ(ah->curchan))
-		hdr = &eep->modalHeader5G;
-	else
-		hdr = &eep->modalHeader2G;
-
-	am_mask = le32_to_cpu(hdr->papdRateMaskHt20) & AR9300_PAPRD_RATE_MASK;
-	ht40_mask = le32_to_cpu(hdr->papdRateMaskHt40) & AR9300_PAPRD_RATE_MASK;
 
 	if (IS_CHAN_2GHZ(ah->curchan))
 		training_power = ar9003_get_training_power_2g(ah);
@@ -126,9 +115,12 @@ static int ar9003_paprd_setup_single_table(struct ath_hw *ah)
 		"Training power: %d, Target power: %d\n",
 		ah->paprd_training_power, ah->paprd_target_power);
 
-	REG_RMW_FIELD(ah, AR_PHY_PAPRD_AM2AM, AR_PHY_PAPRD_AM2AM_MASK, am_mask);
-	REG_RMW_FIELD(ah, AR_PHY_PAPRD_AM2PM, AR_PHY_PAPRD_AM2PM_MASK, am_mask);
-	REG_RMW_FIELD(ah, AR_PHY_PAPRD_HT40, AR_PHY_PAPRD_HT40_MASK, ht40_mask);
+	REG_RMW_FIELD(ah, AR_PHY_PAPRD_AM2AM, AR_PHY_PAPRD_AM2AM_MASK,
+		      ah->paprd_ratemask);
+	REG_RMW_FIELD(ah, AR_PHY_PAPRD_AM2PM, AR_PHY_PAPRD_AM2PM_MASK,
+		      ah->paprd_ratemask);
+	REG_RMW_FIELD(ah, AR_PHY_PAPRD_HT40, AR_PHY_PAPRD_HT40_MASK,
+		      AR_PHY_PAPRD_HT40_MASK);
 
 	for (i = 0; i < ah->caps.max_txchains; i++) {
 		REG_RMW_FIELD(ah, ctrl0[i],

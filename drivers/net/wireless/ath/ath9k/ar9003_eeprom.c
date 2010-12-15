@@ -4751,15 +4751,52 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 {
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath_common *common = ath9k_hw_common(ah);
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
 	u8 targetPowerValT2[ar9300RateSize];
-	unsigned int i = 0;
+	u8 target_power_val_t2_eep[ar9300RateSize];
+	unsigned int i = 0, paprd_scale_factor = 0;
+	u8 pwr_idx, min_pwridx;
 
 	ar9003_hw_set_target_power_eeprom(ah, chan->channel, targetPowerValT2);
+
+	if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD)) {
+		if (IS_CHAN_2GHZ(chan))
+			ah->paprd_ratemask = (IS_CHAN_HT40(chan) ?
+				le32_to_cpu(eep->modalHeader2G.papdRateMaskHt40) :
+				le32_to_cpu(eep->modalHeader2G.papdRateMaskHt20))
+				& AR9300_PAPRD_RATE_MASK;
+		else
+			ah->paprd_ratemask = (IS_CHAN_HT40(chan) ?
+				le32_to_cpu(eep->modalHeader5G.papdRateMaskHt40) :
+				le32_to_cpu(eep->modalHeader5G.papdRateMaskHt20))
+				& AR9300_PAPRD_RATE_MASK;
+
+		memcpy(target_power_val_t2_eep, targetPowerValT2,
+		       sizeof(targetPowerValT2));
+	}
+
 	ar9003_hw_set_power_per_rate_table(ah, chan,
 					   targetPowerValT2, cfgCtl,
 					   twiceAntennaReduction,
 					   twiceMaxRegulatoryPower,
 					   powerLimit);
+
+	if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD)) {
+		paprd_scale_factor = ar9003_get_paprd_scale_factor(ah, chan);
+		min_pwridx = IS_CHAN_HT40(chan) ? ALL_TARGET_HT40_0_8_16 :
+						  ALL_TARGET_HT20_0_8_16;
+
+		for (i = 0; i < ar9300RateSize; i++) {
+			if ((ah->paprd_ratemask & (1 << i)) &&
+			    (abs(targetPowerValT2[i] -
+				target_power_val_t2_eep[i]) >
+			    paprd_scale_factor)) {
+				ah->paprd_ratemask &= ~(1 << i);
+				ath_dbg(common, ATH_DBG_EEPROM,
+					"paprd disabled for mcs %d\n", i);
+			}
+		}
+	}
 
 	regulatory->max_power_level = 0;
 	for (i = 0; i < ar9300RateSize; i++) {
