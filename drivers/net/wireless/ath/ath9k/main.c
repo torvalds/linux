@@ -1196,6 +1196,10 @@ static int ath9k_start(struct ieee80211_hw *hw)
 			ath9k_btcoex_timer_resume(sc);
 	}
 
+	/* User has the option to provide pm-qos value as a module
+	 * parameter rather than using the default value of
+	 * 'ATH9K_PM_QOS_DEFAULT_VALUE'.
+	 */
 	pm_qos_update_request(&sc->pm_qos_req, ath9k_pm_qos_value);
 
 	if (ah->caps.pcie_lcr_extsync_en && common->bus_ops->extn_synch_en)
