@@ -3236,21 +3236,14 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	u32 tmp_sectors;
 	struct megasas_register_set __iomem *reg_set;
 	struct megasas_ctrl_info *ctrl_info;
-	/*
-	 * Map the message registers
-	 */
-	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS1078GEN2) ||
-		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY) ||
-		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
-		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0079GEN2)) {
-		instance->base_addr = pci_resource_start(instance->pdev, 1);
-	} else {
-		instance->base_addr = pci_resource_start(instance->pdev, 0);
-	}
+	unsigned long bar_list;
 
-	if (pci_request_selected_regions(instance->pdev,
-		pci_select_bars(instance->pdev, IORESOURCE_MEM),
-		"megasas: LSI")) {
+	/* Find first memory bar */
+	bar_list = pci_select_bars(instance->pdev, IORESOURCE_MEM);
+	instance->bar = find_first_bit(&bar_list, sizeof(unsigned long));
+	instance->base_addr = pci_resource_start(instance->pdev, instance->bar);
+	if (pci_request_selected_regions(instance->pdev, instance->bar,
+					 "megasas: LSI")) {
 		printk(KERN_DEBUG "megasas: IO memory region busy!\n");
 		return -EBUSY;
 	}
@@ -3411,8 +3404,7 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	iounmap(instance->reg_set);
 
       fail_ioremap:
-	pci_release_selected_regions(instance->pdev,
-		pci_select_bars(instance->pdev, IORESOURCE_MEM));
+	pci_release_selected_regions(instance->pdev, instance->bar);
 
 	return -EINVAL;
 }
@@ -3432,8 +3424,7 @@ static void megasas_release_mfi(struct megasas_instance *instance)
 
 	iounmap(instance->reg_set);
 
-	pci_release_selected_regions(instance->pdev,
-		pci_select_bars(instance->pdev, IORESOURCE_MEM));
+	pci_release_selected_regions(instance->pdev, instance->bar);
 }
 
 /**

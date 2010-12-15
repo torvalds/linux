@@ -1338,6 +1338,7 @@ struct megasas_instance {
 
 	u8	msi_flag;
 	struct msix_entry msixentry;
+	unsigned long bar;
 };
 
 enum {
