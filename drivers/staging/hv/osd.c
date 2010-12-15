@@ -43,12 +43,6 @@
 #include <linux/slab.h>
 #include "osd.h"
 
-struct osd_callback_struct {
-	struct work_struct work;
-	void (*callback)(void *);
-	void *data;
-};
-
 void *osd_virtual_alloc_exec(unsigned int size)
 {
 #ifdef __x86_64__
@@ -198,31 +192,3 @@ int osd_waitevent_waitex(struct osd_waitevent *wait_event, u32 timeout_in_ms)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(osd_waitevent_waitex);
-
-static void osd_callback_work(struct work_struct *work)
-{
-	struct osd_callback_struct *cb = container_of(work,
-						struct osd_callback_struct,
-						work);
-	(cb->callback)(cb->data);
-	kfree(cb);
-}
-
-int osd_schedule_callback(struct workqueue_struct *wq,
-			  void (*func)(void *),
-			  void *data)
-{
-	struct osd_callback_struct *cb;
-
-	cb = kmalloc(sizeof(*cb), GFP_KERNEL);
-	if (!cb) {
-		printk(KERN_ERR "unable to allocate memory in osd_schedule_callback\n");
-		return -1;
-	}
-
-	cb->callback = func;
-	cb->data = data;
-	INIT_WORK(&cb->work, osd_callback_work);
-	return queue_work(wq, &cb->work);
-}
-

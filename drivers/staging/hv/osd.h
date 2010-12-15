@@ -63,8 +63,4 @@ extern int osd_waitevent_wait(struct osd_waitevent *wait_event);
 extern int osd_waitevent_waitex(struct osd_waitevent *wait_event,
 			       u32 timeout_in_ms);
 
-int osd_schedule_callback(struct workqueue_struct *wq,
-			  void (*func)(void *),
-			  void *data);
-
 #endif /* _OSD_H_ */
