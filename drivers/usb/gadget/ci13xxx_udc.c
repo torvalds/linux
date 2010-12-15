@@ -1551,7 +1551,7 @@ __acquires(mEp->lock)
 		list_del_init(&mReq->queue);
 		mReq->req.status = -ESHUTDOWN;
 
-		if (!mReq->req.no_interrupt && mReq->req.complete != NULL) {
+		if (mReq->req.complete != NULL) {
 			spin_unlock(mEp->lock);
 			mReq->req.complete(&mEp->ep, &mReq->req);
 			spin_lock(mEp->lock);
@@ -1802,7 +1802,7 @@ __acquires(mEp->lock)
 		_hardware_enqueue(mEp, mReqEnq);
 	}
 
-	if (!mReq->req.no_interrupt && mReq->req.complete != NULL) {
+	if (mReq->req.complete != NULL) {
 		spin_unlock(mEp->lock);
 		mReq->req.complete(&mEp->ep, &mReq->req);
 		spin_lock(mEp->lock);
@@ -2213,7 +2213,7 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	list_del_init(&mReq->queue);
 	req->status = -ECONNRESET;
 
-	if (!mReq->req.no_interrupt && mReq->req.complete != NULL) {
+	if (mReq->req.complete != NULL) {
 		spin_unlock(mEp->lock);
 		mReq->req.complete(&mEp->ep, &mReq->req);
 		spin_lock(mEp->lock);
