@@ -2360,6 +2360,32 @@ void __cfg80211_send_disassoc(struct net_device *dev, const u8 *buf,
 	size_t len);
 
 /**
+ * cfg80211_send_unprot_deauth - notification of unprotected deauthentication
+ * @dev: network device
+ * @buf: deauthentication frame (header + body)
+ * @len: length of the frame data
+ *
+ * This function is called whenever a received Deauthentication frame has been
+ * dropped in station mode because of MFP being used but the Deauthentication
+ * frame was not protected. This function may sleep.
+ */
+void cfg80211_send_unprot_deauth(struct net_device *dev, const u8 *buf,
+				 size_t len);
+
+/**
+ * cfg80211_send_unprot_disassoc - notification of unprotected disassociation
+ * @dev: network device
+ * @buf: disassociation frame (header + body)
+ * @len: length of the frame data
+ *
+ * This function is called whenever a received Disassociation frame has been
+ * dropped in station mode because of MFP being used but the Disassociation
+ * frame was not protected. This function may sleep.
+ */
+void cfg80211_send_unprot_disassoc(struct net_device *dev, const u8 *buf,
+				   size_t len);
+
+/**
  * cfg80211_michael_mic_failure - notification of Michael MIC failure (TKIP)
  * @dev: network device
  * @addr: The source MAC address of the frame

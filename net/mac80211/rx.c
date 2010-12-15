@@ -1540,12 +1540,30 @@ ieee80211_drop_unencrypted_mgmt(struct ieee80211_rx_data *rx)
 	if (rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP)) {
 		if (unlikely(!ieee80211_has_protected(fc) &&
 			     ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
-			     rx->key))
+			     rx->key)) {
+			if (ieee80211_is_deauth(fc))
+				cfg80211_send_unprot_deauth(rx->sdata->dev,
+							    rx->skb->data,
+							    rx->skb->len);
+			else if (ieee80211_is_disassoc(fc))
+				cfg80211_send_unprot_disassoc(rx->sdata->dev,
+							      rx->skb->data,
+							      rx->skb->len);
 			return -EACCES;
+		}
 		/* BIP does not use Protected field, so need to check MMIE */
 		if (unlikely(ieee80211_is_multicast_robust_mgmt_frame(rx->skb) &&
-			     ieee80211_get_mmie_keyidx(rx->skb) < 0))
+			     ieee80211_get_mmie_keyidx(rx->skb) < 0)) {
+			if (ieee80211_is_deauth(fc))
+				cfg80211_send_unprot_deauth(rx->sdata->dev,
+							    rx->skb->data,
+							    rx->skb->len);
+			else if (ieee80211_is_disassoc(fc))
+				cfg80211_send_unprot_disassoc(rx->sdata->dev,
+							      rx->skb->data,
+							      rx->skb->len);
 			return -EACCES;
+		}
 		/*
 		 * When using MFP, Action frames are not allowed prior to
 		 * having configured keys.

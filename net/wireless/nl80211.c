@@ -5473,6 +5473,22 @@ void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
 				NL80211_CMD_DISASSOCIATE, gfp);
 }
 
+void nl80211_send_unprot_deauth(struct cfg80211_registered_device *rdev,
+				struct net_device *netdev, const u8 *buf,
+				size_t len, gfp_t gfp)
+{
+	nl80211_send_mlme_event(rdev, netdev, buf, len,
+				NL80211_CMD_UNPROT_DEAUTHENTICATE, gfp);
+}
+
+void nl80211_send_unprot_disassoc(struct cfg80211_registered_device *rdev,
+				  struct net_device *netdev, const u8 *buf,
+				  size_t len, gfp_t gfp)
+{
+	nl80211_send_mlme_event(rdev, netdev, buf, len,
+				NL80211_CMD_UNPROT_DISASSOCIATE, gfp);
+}
+
 static void nl80211_send_mlme_timeout(struct cfg80211_registered_device *rdev,
 				      struct net_device *netdev, int cmd,
 				      const u8 *addr, gfp_t gfp)
