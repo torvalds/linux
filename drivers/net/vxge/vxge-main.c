@@ -3439,6 +3439,8 @@ static void vxge_device_unregister(struct __vxge_hw_device *hldev)
 
 	strncpy(buf, dev->name, IFNAMSIZ);
 
+	flush_work_sync(&vdev->reset_task);
+
 	/* in 2.6 will call stop() if device is up */
 	unregister_netdev(dev);
 
