@@ -997,6 +997,7 @@ config PLAT_IOP
 
 config PLAT_ORION
 	bool
+	select HAVE_SCHED_CLOCK
 
 config PLAT_PXA
 	bool
