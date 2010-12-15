@@ -412,6 +412,7 @@ struct iwl_cfg {
 	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
 	enum iwl_led_mode led_mode;
 	const bool adv_pm;
+	const bool use_new_eeprom_reading; /* temporary, remove later */
 };
 
 /***************************

@@ -311,6 +311,7 @@ struct iwl_cfg iwl100_bgn_cfg = {
 	.base_params = &iwl1000_base_params,
 	.ht_params = &iwl1000_ht_params,
 	.led_mode = IWL_LED_RF_STATE,
+	.use_new_eeprom_reading = true,
 };
 
 struct iwl_cfg iwl100_bg_cfg = {
@@ -324,6 +325,7 @@ struct iwl_cfg iwl100_bg_cfg = {
 	.mod_params = &iwlagn_mod_params,
 	.base_params = &iwl1000_base_params,
 	.led_mode = IWL_LED_RF_STATE,
+	.use_new_eeprom_reading = true,
 };
 
 MODULE_FIRMWARE(IWL1000_MODULE_FIRMWARE(IWL1000_UCODE_API_MAX));
