@@ -616,11 +616,6 @@ static void ar9003_hw_tx_iq_cal(struct ath_hw *ah)
 		AR_PHY_TX_IQCAL_STATUS_B1,
 		AR_PHY_TX_IQCAL_STATUS_B2,
 	};
-	static const u32 rx_corr[AR9300_MAX_CHAINS] = {
-		AR_PHY_RX_IQCAL_CORR_B0,
-		AR_PHY_RX_IQCAL_CORR_B1,
-		AR_PHY_RX_IQCAL_CORR_B2,
-	};
 	static const u_int32_t chan_info_tab[] = {
 		AR_PHY_CHAN_INFO_TAB_0,
 		AR_PHY_CHAN_INFO_TAB_1,
@@ -703,18 +698,10 @@ static void ar9003_hw_tx_iq_cal(struct ath_hw *ah)
 		REG_RMW_FIELD(ah, tx_corr_coeff[i],
 			      AR_PHY_TX_IQCAL_CORR_COEFF_01_COEFF_TABLE,
 			      iqc_coeff[0]);
-		REG_RMW_FIELD(ah, rx_corr[i],
-			      AR_PHY_RX_IQCAL_CORR_LOOPBACK_IQCORR_Q_Q_COFF,
-			      iqc_coeff[1] >> 7);
-		REG_RMW_FIELD(ah, rx_corr[i],
-			      AR_PHY_RX_IQCAL_CORR_LOOPBACK_IQCORR_Q_I_COFF,
-			      iqc_coeff[1]);
 	}
 
 	REG_RMW_FIELD(ah, AR_PHY_TX_IQCAL_CONTROL_3,
 		      AR_PHY_TX_IQCAL_CONTROL_3_IQCORR_EN, 0x1);
-	REG_RMW_FIELD(ah, AR_PHY_RX_IQCAL_CORR_B0,
-		      AR_PHY_RX_IQCAL_CORR_B0_LOOPBACK_IQCORR_EN, 0x1);
 
 	return;
 
