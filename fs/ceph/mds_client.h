@@ -35,6 +35,7 @@ struct ceph_cap;
  */
 struct ceph_mds_reply_info_in {
 	struct ceph_mds_reply_inode *in;
+	struct ceph_dir_layout dir_layout;
 	u32 symlink_len;
 	char *symlink;
 	u32 xattr_len;

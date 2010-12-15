@@ -428,7 +428,8 @@ struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 		goto fail;
 	}
 	fsc->client->extra_mon_dispatch = extra_mon_dispatch;
-	fsc->client->supported_features |= CEPH_FEATURE_FLOCK;
+	fsc->client->supported_features |= CEPH_FEATURE_FLOCK |
+		CEPH_FEATURE_DIRLAYOUTHASH;
 	fsc->client->monc.want_mdsmap = 1;
 
 	fsc->mount_options = fsopt;

@@ -682,6 +682,8 @@ static int fill_inode(struct inode *inode,
 		inode->i_op = &ceph_dir_iops;
 		inode->i_fop = &ceph_dir_fops;
 
+		ci->i_dir_layout = iinfo->dir_layout;
+
 		ci->i_files = le64_to_cpu(info->files);
 		ci->i_subdirs = le64_to_cpu(info->subdirs);
 		ci->i_rbytes = le64_to_cpu(info->rbytes);
