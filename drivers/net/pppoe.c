@@ -948,7 +948,7 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 
 abort:
 	kfree_skb(skb);
-	return 0;
+	return 1;
 }
 
 /************************************************************************

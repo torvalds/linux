@@ -838,7 +838,7 @@ static void bnx2x_qm_init_ptr_table(struct bnx2x *bp, int qm_cid_count,
 /****************************************************************************
 * SRC initializations
 ****************************************************************************/
-
+#ifdef BCM_CNIC
 /* called during init func stage */
 static void bnx2x_src_init_t2(struct bnx2x *bp, struct src_ent *t2,
 			      dma_addr_t t2_mapping, int src_cid_count)
@@ -862,5 +862,5 @@ static void bnx2x_src_init_t2(struct bnx2x *bp, struct src_ent *t2,
 		    U64_HI((u64)t2_mapping +
 			   (src_cid_count-1) * sizeof(struct src_ent)));
 }
-
+#endif
 #endif /* BNX2X_INIT_OPS_H */

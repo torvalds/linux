@@ -891,6 +891,12 @@ void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug)
 }
 
 #ifdef CONFIG_PM
+
+void ath9k_htc_suspend(struct htc_target *htc_handle)
+{
+	ath9k_htc_setpower(htc_handle->drv_priv, ATH9K_PM_FULL_SLEEP);
+}
+
 int ath9k_htc_resume(struct htc_target *htc_handle)
 {
 	int ret;
