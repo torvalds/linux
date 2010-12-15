@@ -50,6 +50,8 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
+#define AUTO_OFF_TIMEOUT 2000
+
 static void hci_cmd_task(unsigned long arg);
 static void hci_rx_task(unsigned long arg);
 static void hci_tx_task(unsigned long arg);
@@ -794,6 +796,7 @@ int hci_get_dev_list(void __user *arg)
 	list_for_each(p, &hci_dev_list) {
 		struct hci_dev *hdev;
 		hdev = list_entry(p, struct hci_dev, list);
+		hci_del_off_timer(hdev);
 		(dr + n)->dev_id  = hdev->id;
 		(dr + n)->dev_opt = hdev->flags;
 		if (++n >= dev_num)
@@ -822,6 +825,8 @@ int hci_get_dev_info(void __user *arg)
 	hdev = hci_dev_get(di.dev_id);
 	if (!hdev)
 		return -ENODEV;
+
+	hci_del_off_timer(hdev);
 
 	strcpy(di.name, hdev->name);
 	di.bdaddr   = hdev->bdaddr;
@@ -891,6 +896,51 @@ void hci_free_dev(struct hci_dev *hdev)
 }
 EXPORT_SYMBOL(hci_free_dev);
 
+static void hci_power_on(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev, power_on);
+
+	BT_DBG("%s", hdev->name);
+
+	if (hci_dev_open(hdev->id) < 0)
+		return;
+
+	if (test_bit(HCI_AUTO_OFF, &hdev->flags))
+		mod_timer(&hdev->off_timer,
+				jiffies + msecs_to_jiffies(AUTO_OFF_TIMEOUT));
+
+	if (test_and_clear_bit(HCI_SETUP, &hdev->flags))
+		mgmt_index_added(hdev->id);
+}
+
+static void hci_power_off(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev, power_off);
+
+	BT_DBG("%s", hdev->name);
+
+	hci_dev_close(hdev->id);
+}
+
+static void hci_auto_off(unsigned long data)
+{
+	struct hci_dev *hdev = (struct hci_dev *) data;
+
+	BT_DBG("%s", hdev->name);
+
+	clear_bit(HCI_AUTO_OFF, &hdev->flags);
+
+	queue_work(hdev->workqueue, &hdev->power_off);
+}
+
+void hci_del_off_timer(struct hci_dev *hdev)
+{
+	BT_DBG("%s", hdev->name);
+
+	clear_bit(HCI_AUTO_OFF, &hdev->flags);
+	del_timer(&hdev->off_timer);
+}
+
 /* Register HCI device */
 int hci_register_dev(struct hci_dev *hdev)
 {
@@ -948,6 +998,10 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	INIT_LIST_HEAD(&hdev->blacklist);
 
+	INIT_WORK(&hdev->power_on, hci_power_on);
+	INIT_WORK(&hdev->power_off, hci_power_off);
+	setup_timer(&hdev->off_timer, hci_auto_off, (unsigned long) hdev);
+
 	memset(&hdev->stat, 0, sizeof(struct hci_dev_stats));
 
 	atomic_set(&hdev->promisc, 0);
@@ -969,7 +1023,10 @@ int hci_register_dev(struct hci_dev *hdev)
 		}
 	}
 
-	mgmt_index_added(hdev->id);
+	set_bit(HCI_AUTO_OFF, &hdev->flags);
+	set_bit(HCI_SETUP, &hdev->flags);
+	queue_work(hdev->workqueue, &hdev->power_on);
+
 	hci_notify(hdev, HCI_DEV_REG);
 
 	return id;
@@ -999,7 +1056,10 @@ int hci_unregister_dev(struct hci_dev *hdev)
 	for (i = 0; i < NUM_REASSEMBLY; i++)
 		kfree_skb(hdev->reassembly[i]);
 
-	mgmt_index_removed(hdev->id);
+	if (!test_bit(HCI_INIT, &hdev->flags) &&
+					!test_bit(HCI_SETUP, &hdev->flags))
+		mgmt_index_removed(hdev->id);
+
 	hci_notify(hdev, HCI_DEV_UNREG);
 
 	if (hdev->rfkill) {

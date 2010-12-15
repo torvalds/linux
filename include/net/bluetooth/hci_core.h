@@ -114,6 +114,10 @@ struct hci_dev {
 
 	struct workqueue_struct	*workqueue;
 
+	struct work_struct	power_on;
+	struct work_struct	power_off;
+	struct timer_list	off_timer;
+
 	struct tasklet_struct	cmd_task;
 	struct tasklet_struct	rx_task;
 	struct tasklet_struct	tx_task;
@@ -436,6 +440,8 @@ int hci_inquiry(void __user *arg);
 
 struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr);
 int hci_blacklist_clear(struct hci_dev *hdev);
+
+void hci_del_off_timer(struct hci_dev *hdev);
 
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
 

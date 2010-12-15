@@ -129,6 +129,12 @@ static int read_index_list(struct sock *sk)
 	i = 0;
 	list_for_each(p, &hci_dev_list) {
 		struct hci_dev *d = list_entry(p, struct hci_dev, list);
+
+		hci_del_off_timer(d);
+
+		if (test_bit(HCI_SETUP, &d->flags))
+			continue;
+
 		put_unaligned_le16(d->id, &rp->index[i++]);
 		BT_DBG("Added hci%u", d->id);
 	}
@@ -179,6 +185,8 @@ static int read_controller_info(struct sock *sk, unsigned char *data, u16 len)
 		kfree_skb(skb);
 		return cmd_status(sk, MGMT_OP_READ_INFO, ENODEV);
 	}
+
+	hci_del_off_timer(hdev);
 
 	hci_dev_lock_bh(hdev);
 
