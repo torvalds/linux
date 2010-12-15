@@ -670,7 +670,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			if (!desc)
 				goto err_desc_get;
 
-			mem = sg_phys(sg);
+			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 			mem_width = 2;
 			if (unlikely(mem & 3 || len & 3))
@@ -712,7 +712,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			if (!desc)
 				goto err_desc_get;
 
-			mem = sg_phys(sg);
+			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 			mem_width = 2;
 			if (unlikely(mem & 3 || len & 3))
