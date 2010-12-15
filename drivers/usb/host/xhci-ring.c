@@ -308,11 +308,8 @@ static int room_on_ring(struct xhci_hcd *xhci, struct xhci_ring *ring,
 /* Ring the host controller doorbell after placing a command on the ring */
 void xhci_ring_cmd_db(struct xhci_hcd *xhci)
 {
-	u32 temp;
-
 	xhci_dbg(xhci, "// Ding dong!\n");
-	temp = xhci_readl(xhci, &xhci->dba->doorbell[0]) & DB_MASK;
-	xhci_writel(xhci, temp | DB_TARGET_HOST, &xhci->dba->doorbell[0]);
+	xhci_writel(xhci, DB_VALUE_HOST, &xhci->dba->doorbell[0]);
 	/* Flush PCI posted writes */
 	xhci_readl(xhci, &xhci->dba->doorbell[0]);
 }
@@ -322,26 +319,24 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci,
 		unsigned int ep_index,
 		unsigned int stream_id)
 {
-	struct xhci_virt_ep *ep;
-	unsigned int ep_state;
-	u32 field;
 	__u32 __iomem *db_addr = &xhci->dba->doorbell[slot_id];
+	struct xhci_virt_ep *ep = &xhci->devs[slot_id]->eps[ep_index];
+	unsigned int ep_state = ep->ep_state;
 
-	ep = &xhci->devs[slot_id]->eps[ep_index];
-	ep_state = ep->ep_state;
 	/* Don't ring the doorbell for this endpoint if there are pending
-	 * cancellations because the we don't want to interrupt processing.
+	 * cancellations because we don't want to interrupt processing.
 	 * We don't want to restart any stream rings if there's a set dequeue
 	 * pointer command pending because the device can choose to start any
 	 * stream once the endpoint is on the HW schedule.
 	 * FIXME - check all the stream rings for pending cancellations.
 	 */
-	if (!(ep_state & EP_HALT_PENDING) && !(ep_state & SET_DEQ_PENDING)
-			&& !(ep_state & EP_HALTED)) {
-		field = xhci_readl(xhci, db_addr) & DB_MASK;
-		field |= EPI_TO_DB(ep_index) | STREAM_ID_TO_DB(stream_id);
-		xhci_writel(xhci, field, db_addr);
-	}
+	if ((ep_state & EP_HALT_PENDING) || (ep_state & SET_DEQ_PENDING) ||
+	    (ep_state & EP_HALTED))
+		return;
+	xhci_writel(xhci, DB_VALUE(ep_index, stream_id), db_addr);
+	/* The CPU has better things to do at this point than wait for a
+	 * write-posting flush.  It'll get there soon enough.
+	 */
 }
 
 /* Ring the doorbell for any rings with pending URBs */

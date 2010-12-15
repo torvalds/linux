@@ -436,22 +436,18 @@ struct xhci_run_regs {
 /**
  * struct doorbell_array
  *
+ * Bits  0 -  7: Endpoint target
+ * Bits  8 - 15: RsvdZ
+ * Bits 16 - 31: Stream ID
+ *
  * Section 5.6
  */
 struct xhci_doorbell_array {
 	u32	doorbell[256];
 };
 
-#define	DB_TARGET_MASK		0xFFFFFF00
-#define	DB_STREAM_ID_MASK	0x0000FFFF
-#define	DB_TARGET_HOST		0x0
-#define	DB_STREAM_ID_HOST	0x0
-#define	DB_MASK			(0xff << 8)
-
-/* Endpoint Target - bits 0:7 */
-#define EPI_TO_DB(p)		(((p) + 1) & 0xff)
-#define STREAM_ID_TO_DB(p)	(((p) & 0xffff) << 16)
-
+#define DB_VALUE(ep, stream)	((((ep) + 1) & 0xff) | ((stream) << 16))
+#define DB_VALUE_HOST		0x00000000
 
 /**
  * struct xhci_protocol_caps
