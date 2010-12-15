@@ -14801,6 +14801,7 @@ enum {
 	ALC269_FIXUP_SONY_VAIO,
 	ALC269_FIXUP_DELL_M101Z,
 	ALC269_FIXUP_LENOVO_EDGE14,
+	ALC269_FIXUP_ASUS_G73JW,
 };
 
 static const struct alc_fixup alc269_fixups[] = {
@@ -14821,12 +14822,19 @@ static const struct alc_fixup alc269_fixups[] = {
 	[ALC269_FIXUP_LENOVO_EDGE14] = {
 		.sku = ALC_FIXUP_SKU_IGNORE,
 	},
+	[ALC269_FIXUP_ASUS_G73JW] = {
+		.pins = (const struct alc_pincfg[]) {
+			{ 0x17, 0x99130111 }, /* subwoofer */
+			{ }
+		}
+	},
 };
 
 static struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK_VENDOR(0x104d, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
 	SND_PCI_QUIRK(0x1028, 0x0470, "Dell M101z", ALC269_FIXUP_DELL_M101Z),
 	SND_PCI_QUIRK(0x17aa, 0x21b8, "Thinkpad Edge 14", ALC269_FIXUP_LENOVO_EDGE14),
+	SND_PCI_QUIRK(0x1043, 0x1a13, "Asus G73Jw", ALC269_FIXUP_ASUS_G73JW),
 	{}
 };
 
