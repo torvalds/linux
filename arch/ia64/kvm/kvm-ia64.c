@@ -951,7 +951,9 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 		r = kvm_setup_default_irq_routing(kvm);
 		if (r) {
+			mutex_lock(&kvm->slots_lock);
 			kvm_ioapic_destroy(kvm);
+			mutex_unlock(&kvm->slots_lock);
 			goto out;
 		}
 		break;
