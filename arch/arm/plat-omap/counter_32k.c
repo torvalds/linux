@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/sched.h>
 
 #include <plat/common.h>
 #include <plat/board.h>
@@ -44,7 +45,7 @@
 static u32 offset_32k __read_mostly;
 
 #ifdef CONFIG_ARCH_OMAP16XX
-static cycle_t omap16xx_32k_read(struct clocksource *cs)
+static cycle_t notrace omap16xx_32k_read(struct clocksource *cs)
 {
 	return omap_readl(OMAP16XX_TIMER_32K_SYNCHRONIZED) - offset_32k;
 }
@@ -53,7 +54,7 @@ static cycle_t omap16xx_32k_read(struct clocksource *cs)
 #endif
 
 #ifdef CONFIG_ARCH_OMAP2420
-static cycle_t omap2420_32k_read(struct clocksource *cs)
+static cycle_t notrace omap2420_32k_read(struct clocksource *cs)
 {
 	return omap_readl(OMAP2420_32KSYNCT_BASE + 0x10) - offset_32k;
 }
@@ -62,7 +63,7 @@ static cycle_t omap2420_32k_read(struct clocksource *cs)
 #endif
 
 #ifdef CONFIG_ARCH_OMAP2430
-static cycle_t omap2430_32k_read(struct clocksource *cs)
+static cycle_t notrace omap2430_32k_read(struct clocksource *cs)
 {
 	return omap_readl(OMAP2430_32KSYNCT_BASE + 0x10) - offset_32k;
 }
@@ -71,7 +72,7 @@ static cycle_t omap2430_32k_read(struct clocksource *cs)
 #endif
 
 #ifdef CONFIG_ARCH_OMAP3
-static cycle_t omap34xx_32k_read(struct clocksource *cs)
+static cycle_t notrace omap34xx_32k_read(struct clocksource *cs)
 {
 	return omap_readl(OMAP3430_32KSYNCT_BASE + 0x10) - offset_32k;
 }
@@ -80,7 +81,7 @@ static cycle_t omap34xx_32k_read(struct clocksource *cs)
 #endif
 
 #ifdef CONFIG_ARCH_OMAP4
-static cycle_t omap44xx_32k_read(struct clocksource *cs)
+static cycle_t notrace omap44xx_32k_read(struct clocksource *cs)
 {
 	return omap_readl(OMAP4430_32KSYNCT_BASE + 0x10) - offset_32k;
 }
@@ -92,7 +93,7 @@ static cycle_t omap44xx_32k_read(struct clocksource *cs)
  * Kernel assumes that sched_clock can be called early but may not have
  * things ready yet.
  */
-static cycle_t omap_32k_read_dummy(struct clocksource *cs)
+static cycle_t notrace omap_32k_read_dummy(struct clocksource *cs)
 {
 	return 0;
 }
@@ -109,7 +110,7 @@ static struct clocksource clocksource_32k = {
  * Returns current time from boot in nsecs. It's OK for this to wrap
  * around for now, as it's just a relative time stamp.
  */
-unsigned long long sched_clock(void)
+unsigned long long notrace sched_clock(void)
 {
 	return clocksource_cyc2ns(clocksource_32k.read(&clocksource_32k),
 				  clocksource_32k.mult, clocksource_32k.shift);

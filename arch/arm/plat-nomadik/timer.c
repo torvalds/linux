@@ -19,6 +19,7 @@
 #include <linux/err.h>
 #include <linux/cnt32_to_63.h>
 #include <linux/timer.h>
+#include <linux/sched.h>
 #include <asm/mach/time.h>
 
 #include <plat/mtu.h>

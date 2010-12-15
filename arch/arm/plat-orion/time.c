@@ -55,7 +55,7 @@ static u32 ticks_per_jiffy;
 
 static unsigned long tclk2ns_scale;
 
-unsigned long long sched_clock(void)
+unsigned long long notrace sched_clock(void)
 {
 	unsigned long long v = cnt32_to_63(0xffffffff - readl(TIMER0_VAL));
 	return (v * tclk2ns_scale) >> TCLK2NS_SCALE_FACTOR;

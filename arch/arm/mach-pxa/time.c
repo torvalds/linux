@@ -51,7 +51,7 @@ static void __init set_oscr2ns_scale(unsigned long oscr_rate)
 		oscr2ns_scale++;
 }
 
-unsigned long long sched_clock(void)
+unsigned long long notrace sched_clock(void)
 {
 	unsigned long long v = cnt32_to_63(OSCR);
 	return (v * oscr2ns_scale) >> OSCR2NS_SCALE_FACTOR;

@@ -18,6 +18,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/sched.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -110,7 +111,7 @@ static struct clocksource tegra_clocksource = {
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-unsigned long long sched_clock(void)
+unsigned long long notrace sched_clock(void)
 {
 	return cnt32_to_63(timer_readl(TIMERUS_CNTR_1US)) * 1000;
 }

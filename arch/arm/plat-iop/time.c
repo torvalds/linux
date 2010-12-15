@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 #include <linux/timex.h>
 #include <linux/io.h>
 #include <linux/clocksource.h>
@@ -52,7 +53,7 @@ static struct clocksource iop_clocksource = {
 /*
  * IOP sched_clock() implementation via its clocksource.
  */
-unsigned long long sched_clock(void)
+unsigned long long notrace sched_clock(void)
 {
 	cycle_t cyc = iop_clocksource_read(NULL);
 	struct clocksource *cs = &iop_clocksource;
