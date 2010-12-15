@@ -1,11 +1,11 @@
 /*
- * wl1271_sdio_test.c - SDIO testing driver for wl1271
+ * SDIO testing driver for wl12xx
  *
  * Copyright (C) 2010 Nokia Corporation
  *
  * Contact: Roger Quadros <roger.quadros@nokia.com>
  *
- * wl1271 read/write routines taken from wl1271_sdio.c
+ * wl12xx read/write routines taken from the main module
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -34,10 +34,11 @@
 #include <linux/wl12xx.h>
 #include <linux/kthread.h>
 #include <linux/firmware.h>
+#include <linux/pm_runtime.h>
 
-#include "wl1271.h"
-#include "wl1271_io.h"
-#include "wl1271_boot.h"
+#include "wl12xx.h"
+#include "io.h"
+#include "boot.h"
 
 #ifndef SDIO_VENDOR_ID_TI
 #define SDIO_VENDOR_ID_TI		0x0097
@@ -130,22 +131,31 @@ static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
 static int wl1271_sdio_set_power(struct wl1271 *wl, bool enable)
 {
 	struct sdio_func *func = wl_to_func(wl);
+	int ret;
 
 	/* Let the SDIO stack handle wlan_enable control, so we
 	 * keep host claimed while wlan is in use to keep wl1271
 	 * alive.
 	 */
 	if (enable) {
-		sdio_claim_power(func);
+		/* Power up the card */
+		ret = pm_runtime_get_sync(&func->dev);
+		if (ret < 0)
+			goto out;
 		sdio_claim_host(func);
 		sdio_enable_func(func);
+		sdio_release_host(func);
 	} else {
+		sdio_claim_host(func);
 		sdio_disable_func(func);
 		sdio_release_host(func);
-		sdio_release_power(func);
+
+		/* Power down the card */
+		ret = pm_runtime_put_sync(&func->dev);
 	}
 
-	return 0;
+out:
+	return ret;
 }
 
 static void wl1271_sdio_disable_interrupts(struct wl1271 *wl)
@@ -481,7 +491,7 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 }
 
 static struct sdio_driver wl1271_sdio_driver = {
-	.name		= "wl1271_sdio_test",
+	.name		= "wl12xx_sdio_test",
 	.id_table	= wl1271_devices,
 	.probe		= wl1271_probe,
 	.remove		= __devexit_p(wl1271_remove),
