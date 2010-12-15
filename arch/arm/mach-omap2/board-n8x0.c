@@ -46,8 +46,7 @@ static struct device *mmc_device;
 #define TUSB6010_GPIO_ENABLE	0
 #define TUSB6010_DMACHAN	0x3f
 
-#if defined(CONFIG_USB_TUSB6010) || \
-	defined(CONFIG_USB_TUSB6010_MODULE)
+#ifdef CONFIG_USB_MUSB_TUSB6010
 /*
  * Enable or disable power to TUSB6010. When enabling, turn on 3.3 V and
  * 1.5 V voltage regulators of PM companion chip. Companion chip will then
@@ -134,7 +133,7 @@ err:
 
 static void __init n8x0_usb_init(void) {}
 
-#endif /*CONFIG_USB_TUSB6010 */
+#endif /*CONFIG_USB_MUSB_TUSB6010 */
 
 
 static struct omap2_mcspi_device_config p54spi_mcspi_config = {
