@@ -187,7 +187,7 @@ config REGULATOR_PCAP
 	 PCAP2 PMIC.
 
 config REGULATOR_MC13XXX_CORE
-	bool
+	tristate
 
 config REGULATOR_MC13783
 	tristate "Support regulators on Freescale MC13783 PMIC"
