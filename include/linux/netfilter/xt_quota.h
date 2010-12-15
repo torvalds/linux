@@ -9,9 +9,9 @@ enum xt_quota_flags {
 struct xt_quota_priv;
 
 struct xt_quota_info {
-	u_int32_t		flags;
-	u_int32_t		pad;
-	aligned_u64		quota;
+	__u32 flags;
+	__u32 pad;
+	aligned_u64 quota;
 
 	/* Used internally by the kernel */
 	struct xt_quota_priv	*master;

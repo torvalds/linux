@@ -7,7 +7,7 @@
 	(((1U << (idx & 31)) & bmap[(idx) >> 5]) != 0)
 
 struct xt_tcpoptstrip_target_info {
-	u_int32_t strip_bmap[8];
+	__u32 strip_bmap[8];
 };
 
 #endif /* _XT_TCPOPTSTRIP_H */
