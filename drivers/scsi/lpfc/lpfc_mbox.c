@@ -710,7 +710,7 @@ lpfc_read_lnk_stat(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
  * @did: remote port identifier.
  * @param: pointer to memory holding the server parameters.
  * @pmb: pointer to the driver internal queue element for mailbox command.
- * @flag: action flag to be passed back for the complete function.
+ * @rpi: the rpi to use in the registration (usually only used for SLI4.
  *
  * The registration login mailbox command is used to register an N_Port or
  * F_Port login. This registration allows the HBA to cache the remote N_Port
@@ -729,7 +729,7 @@ lpfc_read_lnk_stat(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
  **/
 int
 lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
-	       uint8_t *param, LPFC_MBOXQ_t *pmb, uint32_t flag)
+	     uint8_t *param, LPFC_MBOXQ_t *pmb, uint16_t rpi)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
 	uint8_t *sparam;
@@ -739,17 +739,13 @@ lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 
 	mb->un.varRegLogin.rpi = 0;
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		mb->un.varRegLogin.rpi = lpfc_sli4_alloc_rpi(phba);
+		mb->un.varRegLogin.rpi = rpi;
 		if (mb->un.varRegLogin.rpi == LPFC_RPI_ALLOC_ERROR)
 			return 1;
 	}
-
 	mb->un.varRegLogin.vpi = vpi + phba->vpi_base;
 	mb->un.varRegLogin.did = did;
-	mb->un.varWords[30] = flag;	/* Set flag to issue action on cmpl */
-
 	mb->mbxOwner = OWN_HOST;
-
 	/* Get a buffer to hold NPorts Service Parameters */
 	mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL);
 	if (mp)
@@ -760,7 +756,7 @@ lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 		/* REG_LOGIN: no buffers */
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
 				"0302 REG_LOGIN: no buffers, VPI:%d DID:x%x, "
-				"flag x%x\n", vpi, did, flag);
+				"rpi x%x\n", vpi, did, rpi);
 		return (1);
 	}
 	INIT_LIST_HEAD(&mp->list);

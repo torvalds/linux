@@ -1619,7 +1619,7 @@ job_error:
  * This function obtains a remote port login id so the diag loopback test
  * can send and receive its own unsolicited CT command.
  **/
-static int lpfcdiag_loop_self_reg(struct lpfc_hba *phba, uint16_t * rpi)
+static int lpfcdiag_loop_self_reg(struct lpfc_hba *phba, uint16_t *rpi)
 {
 	LPFC_MBOXQ_t *mbox;
 	struct lpfc_dmabuf *dmabuff;
@@ -1629,10 +1629,14 @@ static int lpfcdiag_loop_self_reg(struct lpfc_hba *phba, uint16_t * rpi)
 	if (!mbox)
 		return -ENOMEM;
 
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		*rpi = lpfc_sli4_alloc_rpi(phba);
 	status = lpfc_reg_rpi(phba, 0, phba->pport->fc_myDID,
-				(uint8_t *)&phba->pport->fc_sparam, mbox, 0);
+			      (uint8_t *)&phba->pport->fc_sparam, mbox, *rpi);
 	if (status) {
 		mempool_free(mbox, phba->mbox_mem_pool);
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			lpfc_sli4_free_rpi(phba, *rpi);
 		return -ENOMEM;
 	}
 
@@ -1646,6 +1650,8 @@ static int lpfcdiag_loop_self_reg(struct lpfc_hba *phba, uint16_t * rpi)
 		kfree(dmabuff);
 		if (status != MBX_TIMEOUT)
 			mempool_free(mbox, phba->mbox_mem_pool);
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			lpfc_sli4_free_rpi(phba, *rpi);
 		return -ENODEV;
 	}
 
@@ -1682,8 +1688,9 @@ static int lpfcdiag_loop_self_unreg(struct lpfc_hba *phba, uint16_t rpi)
 			mempool_free(mbox, phba->mbox_mem_pool);
 		return -EIO;
 	}
-
 	mempool_free(mbox, phba->mbox_mem_pool);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		lpfc_sli4_free_rpi(phba, rpi);
 	return 0;
 }
 
@@ -2080,7 +2087,7 @@ lpfc_bsg_diag_test(struct fc_bsg_job *job)
 	uint32_t size;
 	uint32_t full_size;
 	size_t segment_len = 0, segment_offset = 0, current_offset = 0;
-	uint16_t rpi;
+	uint16_t rpi = 0;
 	struct lpfc_iocbq *cmdiocbq, *rspiocbq;
 	IOCB_t *cmd, *rsp;
 	struct lpfc_sli_ct_request *ctreq;
@@ -2167,7 +2174,6 @@ lpfc_bsg_diag_test(struct fc_bsg_job *job)
 	sg_copy_to_buffer(job->request_payload.sg_list,
 				job->request_payload.sg_cnt,
 				ptr, size);
-
 	rc = lpfcdiag_loop_self_reg(phba, &rpi);
 	if (rc)
 		goto loopback_test_exit;

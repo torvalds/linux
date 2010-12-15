@@ -2116,11 +2116,6 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		kfree(mp);
 	}
 
-	if ((pmb->u.mb.mbxCommand == MBX_UNREG_LOGIN) &&
-	    (phba->sli_rev == LPFC_SLI_REV4) &&
-	    (pmb->u.mb.un.varUnregLogin.rsvd1 == 0x0))
-		lpfc_sli4_free_rpi(phba, pmb->u.mb.un.varUnregLogin.rpi);
-
 	/*
 	 * If a REG_LOGIN succeeded  after node is destroyed or node
 	 * is in re-discovery driver need to cleanup the RPI.
@@ -6426,11 +6421,6 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		bf_set(els_req64_vf, &wqe->els_req, 0);
 		/* And a VFID for word 12 */
 		bf_set(els_req64_vfid, &wqe->els_req, 0);
-		/*
-		 * Set ct field to 3, indicates that the context_tag field
-		 * contains the FCFI and remote N_Port_ID is
-		 * in word 5.
-		 */
 		ct = ((iocbq->iocb.ulpCt_h << 1) | iocbq->iocb.ulpCt_l);
 		bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
 		       iocbq->iocb.ulpContext);
@@ -13372,9 +13362,6 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 	while (!list_empty(&mbox_cmd_list)) {
 		list_remove_head(&mbox_cmd_list, mb, LPFC_MBOXQ_t, list);
 		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
-			if (phba->sli_rev == LPFC_SLI_REV4)
-				__lpfc_sli4_free_rpi(phba,
-						mb->u.mb.un.varRegLogin.rpi);
 			mp = (struct lpfc_dmabuf *) (mb->context1);
 			if (mp) {
 				__lpfc_mbuf_free(phba, mp->virt, mp->phys);

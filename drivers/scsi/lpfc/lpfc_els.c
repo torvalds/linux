@@ -375,7 +375,8 @@ lpfc_issue_fabric_reglogin(struct lpfc_vport *vport)
 		err = 4;
 		goto fail;
 	}
-	rc = lpfc_reg_rpi(phba, vport->vpi, Fabric_DID, (uint8_t *)sp, mbox, 0);
+	rc = lpfc_reg_rpi(phba, vport->vpi, Fabric_DID, (uint8_t *)sp, mbox,
+			  ndlp->nlp_rpi);
 	if (rc) {
 		err = 5;
 		goto fail_free_mbox;
@@ -1023,7 +1024,9 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (sp->cmn.fcphHigh < FC_PH3)
 		sp->cmn.fcphHigh = FC_PH3;
 
-	if  (phba->sli_rev == LPFC_SLI_REV4) {
+	if  ((phba->sli_rev == LPFC_SLI_REV4) &&
+	     (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	      LPFC_SLI_INTF_IF_TYPE_0)) {
 		elsiocb->iocb.ulpCt_h = ((SLI4_CT_FCFI >> 1) & 1);
 		elsiocb->iocb.ulpCt_l = (SLI4_CT_FCFI & 1);
 		/* FLOGI needs to be 3 for WQE FCFI */
@@ -3317,14 +3320,6 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
-
-	/*
-	 * This routine is used to register and unregister in previous SLI
-	 * modes.
-	 */
-	if ((pmb->u.mb.mbxCommand == MBX_UNREG_LOGIN) &&
-	    (phba->sli_rev == LPFC_SLI_REV4))
-		lpfc_sli4_free_rpi(phba, pmb->u.mb.un.varUnregLogin.rpi);
 
 	pmb->context1 = NULL;
 	pmb->context2 = NULL;
@@ -7090,7 +7085,9 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	icmd->un.elsreq64.myID = 0;
 	icmd->un.elsreq64.fl = 1;
 
-	if  (phba->sli_rev == LPFC_SLI_REV4) {
+	if  ((phba->sli_rev == LPFC_SLI_REV4) &&
+	     (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	      LPFC_SLI_INTF_IF_TYPE_0)) {
 		/* FDISC needs to be 1 for WQE VPI */
 		elsiocb->iocb.ulpCt_h = (SLI4_CT_VPI >> 1) & 1;
 		elsiocb->iocb.ulpCt_l = SLI4_CT_VPI & 1 ;

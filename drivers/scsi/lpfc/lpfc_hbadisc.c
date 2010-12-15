@@ -3102,8 +3102,8 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (ndlp->nlp_flag & NLP_REG_LOGIN_SEND)
 		ndlp->nlp_flag &= ~NLP_REG_LOGIN_SEND;
 
-	if (ndlp->nlp_flag &  NLP_IGNR_REG_CMPL ||
-		ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE) {
+	if (ndlp->nlp_flag & NLP_IGNR_REG_CMPL ||
+	    ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE) {
 		/* We rcvd a rscn after issuing this
 		 * mbox reg login, we may have cycled
 		 * back through the state and be
@@ -3115,10 +3115,6 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
 		spin_unlock_irq(shost->host_lock);
-		if (phba->sli_rev == LPFC_SLI_REV4)
-			lpfc_sli4_free_rpi(phba,
-				pmb->u.mb.un.varRegLogin.rpi);
-
 	} else
 		/* Good status, call state machine */
 		lpfc_disc_state_machine(vport, ndlp, pmb,
@@ -3428,7 +3424,7 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	ndlp->nlp_rpi = mb->un.varWords[0];
-	ndlp->nlp_flag |= NLP_RPI_VALID;
+	ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 
@@ -3502,7 +3498,7 @@ out:
 	}
 
 	ndlp->nlp_rpi = mb->un.varWords[0];
-	ndlp->nlp_flag |= NLP_RPI_VALID;
+	ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 
@@ -3835,6 +3831,8 @@ lpfc_initialize_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	NLP_INT_NODE_ACT(ndlp);
 	atomic_set(&ndlp->cmd_pending, 0);
 	ndlp->cmd_qdepth = vport->cfg_tgt_queue_depth;
+	if (vport->phba->sli_rev == LPFC_SLI_REV4)
+		ndlp->nlp_rpi = lpfc_sli4_alloc_rpi(vport->phba);
 }
 
 struct lpfc_nodelist *
@@ -4048,7 +4046,7 @@ lpfc_no_rpi(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	 * by firmware with a no rpi error.
 	 */
 	psli = &phba->sli;
-	if (ndlp->nlp_flag & NLP_RPI_VALID) {
+	if (ndlp->nlp_flag & NLP_RPI_REGISTERED) {
 		/* Now process each ring */
 		for (i = 0; i < psli->num_rings; i++) {
 			pring = &psli->ring[i];
@@ -4096,7 +4094,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	LPFC_MBOXQ_t    *mbox;
 	int rc;
 
-	if (ndlp->nlp_flag & NLP_RPI_VALID) {
+	if (ndlp->nlp_flag & NLP_RPI_REGISTERED) {
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (mbox) {
 			lpfc_unreg_login(phba, vport->vpi, ndlp->nlp_rpi, mbox);
@@ -4108,8 +4106,9 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		}
 		lpfc_no_rpi(phba, ndlp);
 
-		ndlp->nlp_rpi = 0;
-		ndlp->nlp_flag &= ~NLP_RPI_VALID;
+		if (phba->sli_rev != LPFC_SLI_REV4)
+			ndlp->nlp_rpi = 0;
+		ndlp->nlp_flag &= ~NLP_RPI_REGISTERED;
 		ndlp->nlp_flag &= ~NLP_NPR_ADISC;
 		return 1;
 	}
@@ -4141,7 +4140,7 @@ lpfc_unreg_hba_rpis(struct lpfc_hba *phba)
 		shost = lpfc_shost_from_vport(vports[i]);
 		spin_lock_irq(shost->host_lock);
 		list_for_each_entry(ndlp, &vports[i]->fc_nodes, nlp_listp) {
-			if (ndlp->nlp_flag & NLP_RPI_VALID) {
+			if (ndlp->nlp_flag & NLP_RPI_REGISTERED) {
 				/* The mempool_alloc might sleep */
 				spin_unlock_irq(shost->host_lock);
 				lpfc_unreg_rpi(vports[i], ndlp);
@@ -4270,9 +4269,6 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				kfree(mp);
 			}
 			list_del(&mb->list);
-			if (phba->sli_rev == LPFC_SLI_REV4)
-				lpfc_sli4_free_rpi(phba,
-					 mb->u.mb.un.varRegLogin.rpi);
 			mempool_free(mb, phba->mbox_mem_pool);
 			/* We shall not invoke the lpfc_nlp_put to decrement
 			 * the ndlp reference count as we are in the process
@@ -4314,15 +4310,15 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	lpfc_cancel_retry_delay_tmo(vport, ndlp);
 	if ((ndlp->nlp_flag & NLP_DEFER_RM) &&
-		!(ndlp->nlp_flag & NLP_REG_LOGIN_SEND) &&
-	    !(ndlp->nlp_flag & NLP_RPI_VALID)) {
+	    !(ndlp->nlp_flag & NLP_REG_LOGIN_SEND) &&
+	    !(ndlp->nlp_flag & NLP_RPI_REGISTERED)) {
 		/* For this case we need to cleanup the default rpi
 		 * allocated by the firmware.
 		 */
 		if ((mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL))
 			!= NULL) {
 			rc = lpfc_reg_rpi(phba, vport->vpi, ndlp->nlp_DID,
-			    (uint8_t *) &vport->fc_sparam, mbox, 0);
+			    (uint8_t *) &vport->fc_sparam, mbox, ndlp->nlp_rpi);
 			if (rc) {
 				mempool_free(mbox, phba->mbox_mem_pool);
 			}
@@ -5060,7 +5056,7 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	pmb->context2 = NULL;
 
 	ndlp->nlp_rpi = mb->un.varWords[0];
-	ndlp->nlp_flag |= NLP_RPI_VALID;
+	ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 	ndlp->nlp_type |= NLP_FABRIC;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 
@@ -5184,6 +5180,8 @@ lpfc_nlp_release(struct kref *kref)
 	spin_lock_irqsave(&phba->ndlp_lock, flags);
 	NLP_CLR_NODE_ACT(ndlp);
 	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
 
 	/* free ndlp memory for final ndlp release */
 	if (NLP_CHK_FREE_REQ(ndlp)) {
@@ -5354,7 +5352,7 @@ lpfc_fcf_inuse(struct lpfc_hba *phba)
 					"logged in\n",
 					ndlp->nlp_rpi, ndlp->nlp_DID,
 					ndlp->nlp_flag);
-				if (ndlp->nlp_flag & NLP_RPI_VALID)
+				if (ndlp->nlp_flag & NLP_RPI_REGISTERED)
 					ret = 1;
 			}
 		}
