@@ -1460,7 +1460,7 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	mReq->ptr->page[0]  = mReq->req.dma;
 	for (i = 1; i < 5; i++)
 		mReq->ptr->page[i] =
-			(mReq->req.dma + i * PAGE_SIZE) & ~TD_RESERVED_MASK;
+			(mReq->req.dma + i * CI13XXX_PAGE_SIZE) & ~TD_RESERVED_MASK;
 
 	/*
 	 *  QH configuration
@@ -2159,8 +2159,8 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 		goto done;
 	}
 
-	if (req->length > (4 * PAGE_SIZE)) {
-		req->length = (4 * PAGE_SIZE);
+	if (req->length > (4 * CI13XXX_PAGE_SIZE)) {
+		req->length = (4 * CI13XXX_PAGE_SIZE);
 		retval = -EMSGSIZE;
 		warn("request length truncated");
 	}
@@ -2410,13 +2410,13 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 	/* alloc resources */
 	udc->qh_pool = dma_pool_create("ci13xxx_qh", &udc->gadget.dev,
 				       sizeof(struct ci13xxx_qh),
-				       64, PAGE_SIZE);
+				       64, CI13XXX_PAGE_SIZE);
 	if (udc->qh_pool == NULL)
 		return -ENOMEM;
 
 	udc->td_pool = dma_pool_create("ci13xxx_td", &udc->gadget.dev,
 				       sizeof(struct ci13xxx_td),
-				       64, PAGE_SIZE);
+				       64, CI13XXX_PAGE_SIZE);
 	if (udc->td_pool == NULL) {
 		dma_pool_destroy(udc->qh_pool);
 		udc->qh_pool = NULL;
