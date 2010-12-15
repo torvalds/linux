@@ -49,14 +49,17 @@ struct command_iu {
 	__u8 cdb[16];	/* XXX: Overflow-checking tools may misunderstand */
 };
 
+/*
+ * Also used for the Read Ready and Write Ready IUs since they have the
+ * same first four bytes
+ */
 struct sense_iu {
 	__u8 iu_id;
 	__u8 rsvd1;
 	__be16 tag;
 	__be16 status_qual;
 	__u8 status;
-	__u8 service_response;
-	__u8 rsvd8[6];
+	__u8 rsvd7[7];
 	__be16 len;
 	__u8 sense[SCSI_SENSE_BUFFERSIZE];
 };
