@@ -30,6 +30,7 @@
 #include <asm/kmap_types.h>
 #include "drbd_int.h"
 
+
 /* OPAQUE outside this file!
  * interface defined in drbd_int.h
 
@@ -154,6 +155,14 @@ void drbd_bm_unlock(struct drbd_conf *mdev)
 	mutex_unlock(&b->bm_change);
 }
 
+static unsigned int bm_bit_to_page_idx(struct drbd_bitmap *b, u64 bitnr)
+{
+       /* page_nr = (bitnr/8) >> PAGE_SHIFT; */
+       unsigned int page_nr = bitnr >> (PAGE_SHIFT + 3);
+       BUG_ON(page_nr >= b->bm_number_of_pages);
+       return page_nr;
+}
+
 /* word offset to long pointer */
 static unsigned long *__bm_map_paddr(struct drbd_bitmap *b, unsigned long offset, const enum km_type km)
 {
@@ -166,6 +175,17 @@ static unsigned long *__bm_map_paddr(struct drbd_bitmap *b, unsigned long offset
 	page = b->bm_pages[page_nr];
 
 	return (unsigned long *) kmap_atomic(page, km);
+}
+
+static unsigned long *__bm_map_pidx(struct drbd_bitmap *b, unsigned int idx, const enum km_type km)
+{
+	struct page *page = b->bm_pages[idx];
+	return (unsigned long *) kmap_atomic(page, km);
+}
+
+static unsigned long *bm_map_pidx(struct drbd_bitmap *b, unsigned int idx)
+{
+	return __bm_map_pidx(b, idx, KM_IRQ1);
 }
 
 static unsigned long * bm_map_paddr(struct drbd_bitmap *b, unsigned long offset)
@@ -329,22 +349,42 @@ void drbd_bm_cleanup(struct drbd_conf *mdev)
  * this masks out the remaining bits.
  * Returns the number of bits cleared.
  */
+#define BITS_PER_PAGE		(1UL << (PAGE_SHIFT + 3))
+#define BITS_PER_PAGE_MASK	(BITS_PER_PAGE - 1)
+#define BITS_PER_LONG_MASK	(BITS_PER_LONG - 1)
 static int bm_clear_surplus(struct drbd_bitmap *b)
 {
-	const unsigned long mask = (1UL << (b->bm_bits & (BITS_PER_LONG-1))) - 1;
-	size_t w = b->bm_bits >> LN2_BPL;
-	int cleared = 0;
+	unsigned long mask;
 	unsigned long *p_addr, *bm;
+	int tmp;
+	int cleared = 0;
 
-	p_addr = bm_map_paddr(b, w);
-	bm = p_addr + MLPP(w);
-	if (w < b->bm_words) {
+	/* number of bits modulo bits per page */
+	tmp = (b->bm_bits & BITS_PER_PAGE_MASK);
+	/* mask the used bits of the word containing the last bit */
+	mask = (1UL << (tmp & BITS_PER_LONG_MASK)) -1;
+	/* bitmap is always stored little endian,
+	 * on disk and in core memory alike */
+	mask = cpu_to_lel(mask);
+
+	/* because of the "extra long to catch oob access" we allocate in
+	 * drbd_bm_resize, bm_number_of_pages -1 is not necessarily the page
+	 * containing the last _relevant_ bitmap word */
+	p_addr = bm_map_pidx(b, bm_bit_to_page_idx(b, b->bm_bits - 1));
+	bm = p_addr + (tmp/BITS_PER_LONG);
+	if (mask) {
+		/* If mask != 0, we are not exactly aligned, so bm now points
+		 * to the long containing the last bit.
+		 * If mask == 0, bm already points to the word immediately
+		 * after the last (long word aligned) bit. */
 		cleared = hweight_long(*bm & ~mask);
 		*bm &= mask;
-		w++; bm++;
+		bm++;
 	}
 
-	if (w < b->bm_words) {
+	if (BITS_PER_LONG == 32 && ((bm - p_addr) & 1) == 1) {
+		/* on a 32bit arch, we may need to zero out
+		 * a padding long to align with a 64bit remote */
 		cleared += hweight_long(*bm);
 		*bm = 0;
 	}
@@ -354,24 +394,41 @@ static int bm_clear_surplus(struct drbd_bitmap *b)
 
 static void bm_set_surplus(struct drbd_bitmap *b)
 {
-	const unsigned long mask = (1UL << (b->bm_bits & (BITS_PER_LONG-1))) - 1;
-	size_t w = b->bm_bits >> LN2_BPL;
+	unsigned long mask;
 	unsigned long *p_addr, *bm;
+	int tmp;
 
-	p_addr = bm_map_paddr(b, w);
-	bm = p_addr + MLPP(w);
-	if (w < b->bm_words) {
+	/* number of bits modulo bits per page */
+	tmp = (b->bm_bits & BITS_PER_PAGE_MASK);
+	/* mask the used bits of the word containing the last bit */
+	mask = (1UL << (tmp & BITS_PER_LONG_MASK)) -1;
+	/* bitmap is always stored little endian,
+	 * on disk and in core memory alike */
+	mask = cpu_to_lel(mask);
+
+	/* because of the "extra long to catch oob access" we allocate in
+	 * drbd_bm_resize, bm_number_of_pages -1 is not necessarily the page
+	 * containing the last _relevant_ bitmap word */
+	p_addr = bm_map_pidx(b, bm_bit_to_page_idx(b, b->bm_bits - 1));
+	bm = p_addr + (tmp/BITS_PER_LONG);
+	if (mask) {
+		/* If mask != 0, we are not exactly aligned, so bm now points
+		 * to the long containing the last bit.
+		 * If mask == 0, bm already points to the word immediately
+		 * after the last (long word aligned) bit. */
 		*bm |= ~mask;
-		bm++; w++;
+		bm++;
 	}
 
-	if (w < b->bm_words) {
-		*bm = ~(0UL);
+	if (BITS_PER_LONG == 32 && ((bm - p_addr) & 1) == 1) {
+		/* on a 32bit arch, we may need to zero out
+		 * a padding long to align with a 64bit remote */
+		*bm = ~0UL;
 	}
 	bm_unmap(p_addr);
 }
 
-static unsigned long __bm_count_bits(struct drbd_bitmap *b, const int swap_endian)
+static unsigned long bm_count_bits(struct drbd_bitmap *b)
 {
 	unsigned long *p_addr, *bm, offset = 0;
 	unsigned long bits = 0;
@@ -389,10 +446,6 @@ static unsigned long __bm_count_bits(struct drbd_bitmap *b, const int swap_endia
 		p_addr = __bm_map_paddr(b, offset, KM_USER0);
 		bm = p_addr + MLPP(offset);
 		while (i--) {
-#ifndef __LITTLE_ENDIAN
-			if (swap_endian)
-				*bm = lel_to_cpu(*bm);
-#endif
 			bits += hweight_long(*bm++);
 		}
 		offset += do_now;
@@ -413,16 +466,6 @@ static unsigned long __bm_count_bits(struct drbd_bitmap *b, const int swap_endia
 	}
 
 	return bits;
-}
-
-static unsigned long bm_count_bits(struct drbd_bitmap *b)
-{
-	return __bm_count_bits(b, 0);
-}
-
-static unsigned long bm_count_bits_swap_endian(struct drbd_bitmap *b)
-{
-	return __bm_count_bits(b, 1);
 }
 
 /* offset and len in long words.*/
@@ -662,7 +705,7 @@ void drbd_bm_merge_lel(struct drbd_conf *mdev, size_t offset, size_t number,
 		offset += do_now;
 		while (do_now--) {
 			bits = hweight_long(*bm);
-			word = *bm | lel_to_cpu(*buffer++);
+			word = *bm | *buffer++;
 			*bm++ = word;
 			b->bm_set += hweight_long(word) - bits;
 		}
@@ -709,7 +752,7 @@ void drbd_bm_get_lel(struct drbd_conf *mdev, size_t offset, size_t number,
 			bm = p_addr + MLPP(offset);
 			offset += do_now;
 			while (do_now--)
-				*buffer++ = cpu_to_lel(*bm++);
+				*buffer++ = *bm++;
 			bm_unmap(p_addr);
 		}
 	}
@@ -795,39 +838,6 @@ static void bm_page_io_async(struct drbd_conf *mdev, struct drbd_bitmap *b, int 
 	}
 }
 
-# if defined(__LITTLE_ENDIAN)
-	/* nothing to do, on disk == in memory */
-# define bm_cpu_to_lel(x) ((void)0)
-# else
-static void bm_cpu_to_lel(struct drbd_bitmap *b)
-{
-	/* need to cpu_to_lel all the pages ...
-	 * this may be optimized by using
-	 * cpu_to_lel(-1) == -1 and cpu_to_lel(0) == 0;
-	 * the following is still not optimal, but better than nothing */
-	unsigned int i;
-	unsigned long *p_addr, *bm;
-	if (b->bm_set == 0) {
-		/* no page at all; avoid swap if all is 0 */
-		i = b->bm_number_of_pages;
-	} else if (b->bm_set == b->bm_bits) {
-		/* only the last page */
-		i = b->bm_number_of_pages - 1;
-	} else {
-		/* all pages */
-		i = 0;
-	}
-	for (; i < b->bm_number_of_pages; i++) {
-		p_addr = kmap_atomic(b->bm_pages[i], KM_USER0);
-		for (bm = p_addr; bm < p_addr + PAGE_SIZE/sizeof(long); bm++)
-			*bm = cpu_to_lel(*bm);
-		kunmap_atomic(p_addr, KM_USER0);
-	}
-}
-# endif
-/* lel_to_cpu == cpu_to_lel */
-# define bm_lel_to_cpu(x) bm_cpu_to_lel(x)
-
 /*
  * bm_rw: read/write the whole bitmap from/to its on disk location.
  */
@@ -847,10 +857,6 @@ static int bm_rw(struct drbd_conf *mdev, int rw) __must_hold(local)
 	bm_words  = drbd_bm_words(mdev);
 	num_pages = (bm_words*sizeof(long) + PAGE_SIZE-1) >> PAGE_SHIFT;
 
-	/* on disk bitmap is little endian */
-	if (rw == WRITE)
-		bm_cpu_to_lel(b);
-
 	now = jiffies;
 	atomic_set(&b->bm_async_io, num_pages);
 	__clear_bit(BM_MD_IO_ERROR, &b->bm_flags);
@@ -869,13 +875,9 @@ static int bm_rw(struct drbd_conf *mdev, int rw) __must_hold(local)
 
 	now = jiffies;
 	if (rw == WRITE) {
-		/* swap back endianness */
-		bm_lel_to_cpu(b);
-		/* flush bitmap to stable storage */
 		drbd_md_flush(mdev);
 	} else /* rw == READ */ {
-		/* just read, if necessary adjust endianness */
-		b->bm_set = bm_count_bits_swap_endian(b);
+		b->bm_set = bm_count_bits(b);
 		dev_info(DEV, "recounting of set bits took additional %lu jiffies\n",
 		     jiffies - now);
 	}
@@ -969,9 +971,9 @@ static unsigned long __bm_find_next(struct drbd_conf *mdev, unsigned long bm_fo,
 			p_addr = __bm_map_paddr(b, offset, km);
 
 			if (find_zero_bit)
-				i = find_next_zero_bit(p_addr, PAGE_SIZE*8, bm_fo & BPP_MASK);
+				i = generic_find_next_zero_le_bit(p_addr, PAGE_SIZE*8, bm_fo & BPP_MASK);
 			else
-				i = find_next_bit(p_addr, PAGE_SIZE*8, bm_fo & BPP_MASK);
+				i = generic_find_next_le_bit(p_addr, PAGE_SIZE*8, bm_fo & BPP_MASK);
 
 			__bm_unmap(p_addr, km);
 			if (i < PAGE_SIZE*8) {
@@ -1064,9 +1066,9 @@ static int __bm_change_bits_to(struct drbd_conf *mdev, const unsigned long s,
 			last_page_nr = page_nr;
 		}
 		if (val)
-			c += (0 == __test_and_set_bit(bitnr & BPP_MASK, p_addr));
+			c += (0 == generic___test_and_set_le_bit(bitnr & BPP_MASK, p_addr));
 		else
-			c -= (0 != __test_and_clear_bit(bitnr & BPP_MASK, p_addr));
+			c -= (0 != generic___test_and_clear_le_bit(bitnr & BPP_MASK, p_addr));
 	}
 	if (p_addr)
 		__bm_unmap(p_addr, km);
@@ -1211,7 +1213,7 @@ int drbd_bm_test_bit(struct drbd_conf *mdev, const unsigned long bitnr)
 	if (bitnr < b->bm_bits) {
 		unsigned long offset = bitnr>>LN2_BPL;
 		p_addr = bm_map_paddr(b, offset);
-		i = test_bit(bitnr & BPP_MASK, p_addr) ? 1 : 0;
+		i = generic_test_le_bit(bitnr & BPP_MASK, p_addr) ? 1 : 0;
 		bm_unmap(p_addr);
 	} else if (bitnr == b->bm_bits) {
 		i = -1;
@@ -1255,7 +1257,7 @@ int drbd_bm_count_bits(struct drbd_conf *mdev, const unsigned long s, const unsi
 		ERR_IF (bitnr >= b->bm_bits) {
 			dev_err(DEV, "bitnr=%lu bm_bits=%lu\n", bitnr, b->bm_bits);
 		} else {
-			c += (0 != test_bit(bitnr - (page_nr << (PAGE_SHIFT+3)), p_addr));
+			c += (0 != generic_test_le_bit(bitnr - (page_nr << (PAGE_SHIFT+3)), p_addr));
 		}
 	}
 	if (p_addr)
