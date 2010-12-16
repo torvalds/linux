@@ -4080,6 +4080,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->block_isbad = onenand_block_isbad;
 	mtd->block_markbad = onenand_block_markbad;
 	mtd->owner = THIS_MODULE;
+	mtd->writebufsize = mtd->writesize;
 
 	/* Unlock whole block */
 	this->unlock_all(mtd);
