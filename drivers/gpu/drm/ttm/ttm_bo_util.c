@@ -370,7 +370,6 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	}
 	mb();
 out2:
-	ttm_bo_free_old_node(bo);
 	old_copy = *old_mem;
 	*old_mem = *new_mem;
 	new_mem->mm_node = NULL;
@@ -385,6 +384,7 @@ out1:
 	ttm_mem_reg_iounmap(bdev, old_mem, new_iomap);
 out:
 	ttm_mem_reg_iounmap(bdev, &old_copy, old_iomap);
+	ttm_bo_mem_put(bo, &old_copy);
 	return ret;
 }
 EXPORT_SYMBOL(ttm_bo_move_memcpy);
