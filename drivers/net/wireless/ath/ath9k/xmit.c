@@ -838,7 +838,7 @@ static void ath_tx_sched_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		ath_tx_txqaddbuf(sc, txq, &bf_q);
 		TX_STAT_INC(txq->axq_qnum, a_aggr);
 
-	} while (txq->axq_depth < ATH_AGGR_MIN_QDEPTH &&
+	} while (txq->axq_ampdu_depth < ATH_AGGR_MIN_QDEPTH &&
 		 status != ATH_AGGR_BAW_CLOSED);
 }
 
@@ -999,6 +999,7 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 		INIT_LIST_HEAD(&txq->axq_acq);
 		spin_lock_init(&txq->axq_lock);
 		txq->axq_depth = 0;
+		txq->axq_ampdu_depth = 0;
 		txq->axq_tx_inprogress = false;
 		sc->tx.txqsetup |= 1<<qnum;
 
@@ -1068,6 +1069,12 @@ int ath_cabq_update(struct ath_softc *sc)
 	return 0;
 }
 
+static bool bf_is_ampdu_not_probing(struct ath_buf *bf)
+{
+    struct ieee80211_tx_info *info = IEEE80211_SKB_CB(bf->bf_mpdu);
+    return bf_isampdu(bf) && !(info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE);
+}
+
 /*
  * Drain a given TX queue (could be Beacon or Data)
  *
@@ -1126,7 +1133,8 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 		}
 
 		txq->axq_depth--;
-
+		if (bf_is_ampdu_not_probing(bf))
+			txq->axq_ampdu_depth--;
 		spin_unlock_bh(&txq->axq_lock);
 
 		if (bf_isampdu(bf))
@@ -1316,6 +1324,8 @@ static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
 		ath9k_hw_txstart(ah, txq->axq_qnum);
 	}
 	txq->axq_depth++;
+	if (bf_is_ampdu_not_probing(bf))
+		txq->axq_ampdu_depth++;
 }
 
 static void ath_tx_send_ampdu(struct ath_softc *sc, struct ath_atx_tid *tid,
@@ -1336,7 +1346,7 @@ static void ath_tx_send_ampdu(struct ath_softc *sc, struct ath_atx_tid *tid,
 	 */
 	if (!list_empty(&tid->buf_q) || tid->paused ||
 	    !BAW_WITHIN(tid->seq_start, tid->baw_size, fi->seqno) ||
-	    txctl->txq->axq_depth >= ATH_AGGR_MIN_QDEPTH) {
+	    txctl->txq->axq_ampdu_depth >= ATH_AGGR_MIN_QDEPTH) {
 		/*
 		 * Add this frame to software queue for scheduling later
 		 * for aggregation.
@@ -2040,6 +2050,9 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		txq->axq_tx_inprogress = false;
 		if (bf_held)
 			list_del(&bf_held->list);
+
+		if (bf_is_ampdu_not_probing(bf))
+			txq->axq_ampdu_depth--;
 		spin_unlock_bh(&txq->axq_lock);
 
 		if (bf_held)
@@ -2168,6 +2181,8 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 		INCR(txq->txq_tailidx, ATH_TXFIFO_DEPTH);
 		txq->axq_depth--;
 		txq->axq_tx_inprogress = false;
+		if (bf_is_ampdu_not_probing(bf))
+			txq->axq_ampdu_depth--;
 		spin_unlock_bh(&txq->axq_lock);
 
 		txok = !(txs.ts_status & ATH9K_TXERR_MASK);

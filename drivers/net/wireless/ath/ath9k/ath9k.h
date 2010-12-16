@@ -189,6 +189,7 @@ struct ath_txq {
 	struct list_head axq_q;
 	spinlock_t axq_lock;
 	u32 axq_depth;
+	u32 axq_ampdu_depth;
 	bool stopped;
 	bool axq_tx_inprogress;
 	struct list_head axq_acq;
