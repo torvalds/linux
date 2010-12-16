@@ -105,6 +105,18 @@ xfs_inode_alloc(
 }
 
 void
+__xfs_inode_free(
+	struct rcu_head		*head)
+{
+	struct inode		*inode = container_of((void *)head,
+							struct inode, i_dentry);
+	struct xfs_inode	*ip = XFS_I(inode);
+
+	INIT_LIST_HEAD(&inode->i_dentry);
+	kmem_zone_free(xfs_inode_zone, ip);
+}
+
+void
 xfs_inode_free(
 	struct xfs_inode	*ip)
 {
@@ -147,7 +159,7 @@ xfs_inode_free(
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
 	ASSERT(completion_done(&ip->i_flush));
 
-	kmem_zone_free(xfs_inode_zone, ip);
+	call_rcu((struct rcu_head *)&VFS_I(ip)->i_dentry, __xfs_inode_free);
 }
 
 /*
