@@ -1482,8 +1482,13 @@ struct ieee80211_txrx_stypes {
  *	transmitted through nl80211, points to an array indexed by interface
  *	type
  *
- * @available_antennas: bitmap of antennas which are available to configure.
- *	antenna configuration commands will be rejected unless this is set.
+ * @available_antennas_tx: bitmap of antennas which are available to be
+ *	configured as TX antennas. Antenna configuration commands will be
+ *	rejected unless this or @available_antennas_rx is set.
+ *
+ * @available_antennas_rx: bitmap of antennas which are available to be
+ *	configured as RX antennas. Antenna configuration commands will be
+ *	rejected unless this or @available_antennas_tx is set.
  *
  * @max_remain_on_channel_duration: Maximum time a remain-on-channel operation
  *	may request, if implemented.
@@ -1528,7 +1533,8 @@ struct wiphy {
 
 	u8 max_num_pmkids;
 
-	u32 available_antennas;
+	u32 available_antennas_tx;
+	u32 available_antennas_rx;
 
 	/* If multiple wiphys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee80211_ptr, you won't

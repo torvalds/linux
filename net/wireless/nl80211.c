@@ -605,7 +605,8 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	if (dev->wiphy.flags & WIPHY_FLAG_CONTROL_PORT_PROTOCOL)
 		NLA_PUT_FLAG(msg, NL80211_ATTR_CONTROL_PORT_ETHERTYPE);
 
-	if (dev->wiphy.available_antennas && dev->ops->get_antenna) {
+	if ((dev->wiphy.available_antennas_tx ||
+	     dev->wiphy.available_antennas_rx) && dev->ops->get_antenna) {
 		u32 tx_ant = 0, rx_ant = 0;
 		int res;
 		res = dev->ops->get_antenna(&dev->wiphy, &tx_ant, &rx_ant);
@@ -1107,7 +1108,9 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_WIPHY_ANTENNA_TX] &&
 	    info->attrs[NL80211_ATTR_WIPHY_ANTENNA_RX]) {
 		u32 tx_ant, rx_ant;
-		if (!rdev->wiphy.available_antennas || !rdev->ops->set_antenna) {
+		if ((!rdev->wiphy.available_antennas_tx &&
+		     !rdev->wiphy.available_antennas_rx) ||
+		    !rdev->ops->set_antenna) {
 			result = -EOPNOTSUPP;
 			goto bad_res;
 		}
@@ -1116,15 +1119,15 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		rx_ant = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_ANTENNA_RX]);
 
 		/* reject antenna configurations which don't match the
-		 * available antenna mask, except for the "all" mask */
-		if ((~tx_ant && (tx_ant & ~rdev->wiphy.available_antennas)) ||
-		    (~rx_ant && (rx_ant & ~rdev->wiphy.available_antennas))) {
+		 * available antenna masks, except for the "all" mask */
+		if ((~tx_ant && (tx_ant & ~rdev->wiphy.available_antennas_tx)) ||
+		    (~rx_ant && (rx_ant & ~rdev->wiphy.available_antennas_rx))) {
 			result = -EINVAL;
 			goto bad_res;
 		}
 
-		tx_ant = tx_ant & rdev->wiphy.available_antennas;
-		rx_ant = rx_ant & rdev->wiphy.available_antennas;
+		tx_ant = tx_ant & rdev->wiphy.available_antennas_tx;
+		rx_ant = rx_ant & rdev->wiphy.available_antennas_rx;
 
 		result = rdev->ops->set_antenna(&rdev->wiphy, tx_ant, rx_ant);
 		if (result)
