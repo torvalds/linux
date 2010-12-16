@@ -131,15 +131,15 @@ enum pci_bridge_vendor {
 
 struct rtl_rx_desc {
 	u32 dword[8];
-} __attribute__ ((packed));
+} __packed;
 
 struct rtl_tx_desc {
 	u32 dword[16];
-} __attribute__ ((packed));
+} __packed;
 
 struct rtl_tx_cmd_desc {
 	u32 dword[16];
-} __attribute__ ((packed));
+} __packed;
 
 struct rtl8192_tx_ring {
 	struct rtl_tx_desc *desc;

@@ -551,13 +551,13 @@ struct rtl_hdr_3addr {
 	u8 addr3[ETH_ALEN];
 	__le16 seq_ctl;
 	u8 payload[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct rtl_info_element {
 	u8 id;
 	u8 len;
 	u8 data[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct rtl_probe_rsp {
 	struct rtl_hdr_3addr header;
@@ -567,7 +567,7 @@ struct rtl_probe_rsp {
 	/*SSID, supported rates, FH params, DS params,
 	   CF params, IBSS params, TIM (if beacon), RSN */
 	struct rtl_info_element info_element[0];
-} __attribute__ ((packed));
+} __packed;
 
 /*LED related.*/
 /*ledpin Identify how to implement this SW led.*/
@@ -589,7 +589,7 @@ struct rtl_qos_parameters {
 	u8 aifs;
 	u8 flag;
 	__le16 tx_op;
-} __attribute__ ((packed));
+} __packed;
 
 struct rt_smooth_data {
 	u32 elements[100];	/*array to store values */

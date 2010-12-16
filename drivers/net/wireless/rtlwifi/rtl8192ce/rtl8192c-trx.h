@@ -535,7 +535,7 @@ struct rx_fwinfo_92c {
 	u8 sgi_en:1;
 	u8 rxsc:2;
 	u8 reserve:4;
-} __attribute__ ((packed));
+} __packed;
 
 struct tx_desc_92c {
 	u32 pktsize:16;
@@ -637,7 +637,7 @@ struct tx_desc_92c {
 	u32 nextdescaddress64;
 
 	u32 reserve_pass_pcie_mm_limit[4];
-} __attribute__ ((packed));
+} __packed;
 
 struct rx_desc_92c {
 	u32 length:14;
@@ -695,7 +695,7 @@ struct rx_desc_92c {
 	u32 bufferaddress;
 	u32 bufferaddress64;
 
-} __attribute__ ((packed));
+} __packed;
 
 void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 			  struct ieee80211_hdr *hdr,
