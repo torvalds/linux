@@ -363,21 +363,17 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int vpif_get_std_info(struct channel_obj *ch)
+static int vpif_update_std_info(struct channel_obj *ch)
 {
-	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	struct video_obj *vid_ch = &ch->video;
 	struct vpif_params *vpifparams = &ch->vpifparams;
 	struct vpif_channel_config_params *std_info = &vpifparams->std_info;
 	const struct vpif_channel_config_params *config;
 
-	int index;
+	int i;
 
-	if (!vid_ch->stdid && !vid_ch->dv_preset)
-		return -EINVAL;
-
-	for (index = 0; index < vpif_ch_params_count; index++) {
-		config = &ch_params[index];
+	for (i = 0; i < vpif_ch_params_count; i++) {
+		config = &ch_params[i];
 		if (config->hd_sd == 0) {
 			vpif_dbg(2, debug, "SD format\n");
 			if (config->stdid & vid_ch->stdid) {
@@ -393,8 +389,28 @@ static int vpif_get_std_info(struct channel_obj *ch)
 		}
 	}
 
-	if (index == vpif_ch_params_count)
+	if (i == vpif_ch_params_count) {
+		vpif_dbg(1, debug, "Format not found\n");
 		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int vpif_update_resolution(struct channel_obj *ch)
+{
+	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
+	struct video_obj *vid_ch = &ch->video;
+	struct vpif_params *vpifparams = &ch->vpifparams;
+	struct vpif_channel_config_params *std_info = &vpifparams->std_info;
+
+	if (!vid_ch->stdid && !vid_ch->dv_preset && !vid_ch->bt_timings.height)
+		return -EINVAL;
+
+	if (vid_ch->stdid || vid_ch->dv_preset) {
+		if (vpif_update_std_info(ch))
+			return -EINVAL;
+	}
 
 	common->fmt.fmt.pix.width = std_info->width;
 	common->fmt.fmt.pix.height = std_info->height;
@@ -402,8 +418,8 @@ static int vpif_get_std_info(struct channel_obj *ch)
 			common->fmt.fmt.pix.width, common->fmt.fmt.pix.height);
 
 	/* Set height and width paramateres */
-	ch->common[VPIF_VIDEO_INDEX].height = std_info->height;
-	ch->common[VPIF_VIDEO_INDEX].width = std_info->width;
+	common->height = std_info->height;
+	common->width = std_info->width;
 
 	return 0;
 }
@@ -514,10 +530,8 @@ static int vpif_check_format(struct channel_obj *ch,
 	else
 		sizeimage = config_params.channel_bufsize[ch->channel_id];
 
-	if (vpif_get_std_info(ch)) {
-		vpif_err("Error getting the standard info\n");
+	if (vpif_update_resolution(ch))
 		return -EINVAL;
-	}
 
 	hpitch = pixfmt->bytesperline;
 	vpitch = sizeimage / (hpitch * 2);
@@ -715,6 +729,7 @@ static int vpif_g_fmt_vid_out(struct file *file, void *priv,
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
+	int ret = 0;
 
 	/* Check the validity of the buffer type */
 	if (common->fmt.type != fmt->type)
@@ -724,14 +739,14 @@ static int vpif_g_fmt_vid_out(struct file *file, void *priv,
 	if (mutex_lock_interruptible(&common->lock))
 		return -ERESTARTSYS;
 
-	if (vpif_get_std_info(ch)) {
-		vpif_err("Error getting the standard info\n");
-		return -EINVAL;
-	}
+	if (vpif_update_resolution(ch))
+		ret = -EINVAL;
+	else
+		*fmt = common->fmt;
 
-	*fmt = common->fmt;
 	mutex_unlock(&common->lock);
-	return 0;
+
+	return ret;
 }
 
 static int vpif_s_fmt_vid_out(struct file *file, void *priv,
@@ -992,10 +1007,13 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 		return -ERESTARTSYS;
 
 	ch->video.stdid = *std_id;
+	ch->video.dv_preset = V4L2_DV_INVALID;
+	memset(&ch->video.bt_timings, 0, sizeof(ch->video.bt_timings));
+
 	/* Get the information about the standard */
-	if (vpif_get_std_info(ch)) {
-		vpif_err("Error getting the standard info\n");
-		return -EINVAL;
+	if (vpif_update_resolution(ch)) {
+		ret = -EINVAL;
+		goto s_std_exit;
 	}
 
 	if ((ch->vpifparams.std_info.width *
@@ -1362,11 +1380,11 @@ static int vpif_s_dv_preset(struct file *file, void *priv,
 
 	ch->video.dv_preset = preset->preset;
 	ch->video.stdid = V4L2_STD_UNKNOWN;
+	memset(&ch->video.bt_timings, 0, sizeof(ch->video.bt_timings));
 
 	/* Get the information about the standard */
-	if (vpif_get_std_info(ch)) {
+	if (vpif_update_resolution(ch)) {
 		ret = -EINVAL;
-		vpif_dbg(1, debug, "Error getting the standard info\n");
 	} else {
 		/* Configure the default format information */
 		vpif_config_format(ch);
@@ -1392,6 +1410,126 @@ static int vpif_g_dv_preset(struct file *file, void *priv,
 	struct channel_obj *ch = fh->channel;
 
 	preset->preset = ch->video.dv_preset;
+
+	return 0;
+}
+/**
+ * vpif_s_dv_timings() - S_DV_TIMINGS handler
+ * @file: file ptr
+ * @priv: file handle
+ * @timings: digital video timings
+ */
+static int vpif_s_dv_timings(struct file *file, void *priv,
+		struct v4l2_dv_timings *timings)
+{
+	struct vpif_fh *fh = priv;
+	struct channel_obj *ch = fh->channel;
+	struct vpif_params *vpifparams = &ch->vpifparams;
+	struct vpif_channel_config_params *std_info = &vpifparams->std_info;
+	struct video_obj *vid_ch = &ch->video;
+	struct v4l2_bt_timings *bt = &vid_ch->bt_timings;
+	int ret;
+
+	if (timings->type != V4L2_DV_BT_656_1120) {
+		vpif_dbg(2, debug, "Timing type not defined\n");
+		return -EINVAL;
+	}
+
+	/* Configure subdevice timings, if any */
+	ret = v4l2_subdev_call(vpif_obj.sd[vid_ch->output_id],
+			video, s_dv_timings, timings);
+	if (ret == -ENOIOCTLCMD) {
+		vpif_dbg(2, debug, "Custom DV timings not supported by "
+				"subdevice\n");
+		return -EINVAL;
+	}
+	if (ret < 0) {
+		vpif_dbg(2, debug, "Error setting custom DV timings\n");
+		return ret;
+	}
+
+	if (!(timings->bt.width && timings->bt.height &&
+				(timings->bt.hbackporch ||
+				 timings->bt.hfrontporch ||
+				 timings->bt.hsync) &&
+				timings->bt.vfrontporch &&
+				(timings->bt.vbackporch ||
+				 timings->bt.vsync))) {
+		vpif_dbg(2, debug, "Timings for width, height, "
+				"horizontal back porch, horizontal sync, "
+				"horizontal front porch, vertical back porch, "
+				"vertical sync and vertical back porch "
+				"must be defined\n");
+		return -EINVAL;
+	}
+
+	*bt = timings->bt;
+
+	/* Configure video port timings */
+
+	std_info->eav2sav = bt->hbackporch + bt->hfrontporch +
+		bt->hsync - 8;
+	std_info->sav2eav = bt->width;
+
+	std_info->l1 = 1;
+	std_info->l3 = bt->vsync + bt->vbackporch + 1;
+
+	if (bt->interlaced) {
+		if (bt->il_vbackporch || bt->il_vfrontporch || bt->il_vsync) {
+			std_info->vsize = bt->height * 2 +
+				bt->vfrontporch + bt->vsync + bt->vbackporch +
+				bt->il_vfrontporch + bt->il_vsync +
+				bt->il_vbackporch;
+			std_info->l5 = std_info->vsize/2 -
+				(bt->vfrontporch - 1);
+			std_info->l7 = std_info->vsize/2 + 1;
+			std_info->l9 = std_info->l7 + bt->il_vsync +
+				bt->il_vbackporch + 1;
+			std_info->l11 = std_info->vsize -
+				(bt->il_vfrontporch - 1);
+		} else {
+			vpif_dbg(2, debug, "Required timing values for "
+					"interlaced BT format missing\n");
+			return -EINVAL;
+		}
+	} else {
+		std_info->vsize = bt->height + bt->vfrontporch +
+			bt->vsync + bt->vbackporch;
+		std_info->l5 = std_info->vsize - (bt->vfrontporch - 1);
+	}
+	strncpy(std_info->name, "Custom timings BT656/1120",
+			VPIF_MAX_NAME);
+	std_info->width = bt->width;
+	std_info->height = bt->height;
+	std_info->frm_fmt = bt->interlaced ? 0 : 1;
+	std_info->ycmux_mode = 0;
+	std_info->capture_format = 0;
+	std_info->vbi_supported = 0;
+	std_info->hd_sd = 1;
+	std_info->stdid = 0;
+	std_info->dv_preset = V4L2_DV_INVALID;
+
+	vid_ch->stdid = 0;
+	vid_ch->dv_preset = V4L2_DV_INVALID;
+
+	return 0;
+}
+
+/**
+ * vpif_g_dv_timings() - G_DV_TIMINGS handler
+ * @file: file ptr
+ * @priv: file handle
+ * @timings: digital video timings
+ */
+static int vpif_g_dv_timings(struct file *file, void *priv,
+		struct v4l2_dv_timings *timings)
+{
+	struct vpif_fh *fh = priv;
+	struct channel_obj *ch = fh->channel;
+	struct video_obj *vid_ch = &ch->video;
+	struct v4l2_bt_timings *bt = &vid_ch->bt_timings;
+
+	timings->bt = *bt;
 
 	return 0;
 }
@@ -1498,6 +1636,8 @@ static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
 	.vidioc_enum_dv_presets         = vpif_enum_dv_presets,
 	.vidioc_s_dv_preset             = vpif_s_dv_preset,
 	.vidioc_g_dv_preset             = vpif_g_dv_preset,
+	.vidioc_s_dv_timings            = vpif_s_dv_timings,
+	.vidioc_g_dv_timings            = vpif_g_dv_timings,
 	.vidioc_g_chip_ident		= vpif_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register		= vpif_dbg_g_register,

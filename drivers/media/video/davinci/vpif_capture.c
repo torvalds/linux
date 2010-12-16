@@ -1452,6 +1452,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 
 	ch->video.stdid = *std_id;
 	ch->video.dv_preset = V4L2_DV_INVALID;
+	memset(&ch->video.bt_timings, 0, sizeof(ch->video.bt_timings));
 
 	/* Get the information about the standard */
 	if (vpif_update_std_info(ch)) {
@@ -1874,6 +1875,7 @@ static int vpif_s_dv_preset(struct file *file, void *priv,
 
 	ch->video.dv_preset = preset->preset;
 	ch->video.stdid = V4L2_STD_UNKNOWN;
+	memset(&ch->video.bt_timings, 0, sizeof(ch->video.bt_timings));
 
 	/* Get the information about the standard */
 	if (vpif_update_std_info(ch)) {
@@ -1904,6 +1906,125 @@ static int vpif_g_dv_preset(struct file *file, void *priv,
 	struct channel_obj *ch = fh->channel;
 
 	preset->preset = ch->video.dv_preset;
+
+	return 0;
+}
+
+/**
+ * vpif_s_dv_timings() - S_DV_TIMINGS handler
+ * @file: file ptr
+ * @priv: file handle
+ * @timings: digital video timings
+ */
+static int vpif_s_dv_timings(struct file *file, void *priv,
+		struct v4l2_dv_timings *timings)
+{
+	struct vpif_fh *fh = priv;
+	struct channel_obj *ch = fh->channel;
+	struct vpif_params *vpifparams = &ch->vpifparams;
+	struct vpif_channel_config_params *std_info = &vpifparams->std_info;
+	struct video_obj *vid_ch = &ch->video;
+	struct v4l2_bt_timings *bt = &vid_ch->bt_timings;
+	int ret;
+
+	if (timings->type != V4L2_DV_BT_656_1120) {
+		vpif_dbg(2, debug, "Timing type not defined\n");
+		return -EINVAL;
+	}
+
+	/* Configure subdevice timings, if any */
+	ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
+			video, s_dv_timings, timings);
+	if (ret == -ENOIOCTLCMD) {
+		vpif_dbg(2, debug, "Custom DV timings not supported by "
+				"subdevice\n");
+		return -EINVAL;
+	}
+	if (ret < 0) {
+		vpif_dbg(2, debug, "Error setting custom DV timings\n");
+		return ret;
+	}
+
+	if (!(timings->bt.width && timings->bt.height &&
+				(timings->bt.hbackporch ||
+				 timings->bt.hfrontporch ||
+				 timings->bt.hsync) &&
+				timings->bt.vfrontporch &&
+				(timings->bt.vbackporch ||
+				 timings->bt.vsync))) {
+		vpif_dbg(2, debug, "Timings for width, height, "
+				"horizontal back porch, horizontal sync, "
+				"horizontal front porch, vertical back porch, "
+				"vertical sync and vertical back porch "
+				"must be defined\n");
+		return -EINVAL;
+	}
+
+	*bt = timings->bt;
+
+	/* Configure video port timings */
+
+	std_info->eav2sav = bt->hbackporch + bt->hfrontporch +
+		bt->hsync - 8;
+	std_info->sav2eav = bt->width;
+
+	std_info->l1 = 1;
+	std_info->l3 = bt->vsync + bt->vbackporch + 1;
+
+	if (bt->interlaced) {
+		if (bt->il_vbackporch || bt->il_vfrontporch || bt->il_vsync) {
+			std_info->vsize = bt->height * 2 +
+				bt->vfrontporch + bt->vsync + bt->vbackporch +
+				bt->il_vfrontporch + bt->il_vsync +
+				bt->il_vbackporch;
+			std_info->l5 = std_info->vsize/2 -
+				(bt->vfrontporch - 1);
+			std_info->l7 = std_info->vsize/2 + 1;
+			std_info->l9 = std_info->l7 + bt->il_vsync +
+				bt->il_vbackporch + 1;
+			std_info->l11 = std_info->vsize -
+				(bt->il_vfrontporch - 1);
+		} else {
+			vpif_dbg(2, debug, "Required timing values for "
+					"interlaced BT format missing\n");
+			return -EINVAL;
+		}
+	} else {
+		std_info->vsize = bt->height + bt->vfrontporch +
+			bt->vsync + bt->vbackporch;
+		std_info->l5 = std_info->vsize - (bt->vfrontporch - 1);
+	}
+	strncpy(std_info->name, "Custom timings BT656/1120", VPIF_MAX_NAME);
+	std_info->width = bt->width;
+	std_info->height = bt->height;
+	std_info->frm_fmt = bt->interlaced ? 0 : 1;
+	std_info->ycmux_mode = 0;
+	std_info->capture_format = 0;
+	std_info->vbi_supported = 0;
+	std_info->hd_sd = 1;
+	std_info->stdid = 0;
+	std_info->dv_preset = V4L2_DV_INVALID;
+
+	vid_ch->stdid = 0;
+	vid_ch->dv_preset = V4L2_DV_INVALID;
+	return 0;
+}
+
+/**
+ * vpif_g_dv_timings() - G_DV_TIMINGS handler
+ * @file: file ptr
+ * @priv: file handle
+ * @timings: digital video timings
+ */
+static int vpif_g_dv_timings(struct file *file, void *priv,
+		struct v4l2_dv_timings *timings)
+{
+	struct vpif_fh *fh = priv;
+	struct channel_obj *ch = fh->channel;
+	struct video_obj *vid_ch = &ch->video;
+	struct v4l2_bt_timings *bt = &vid_ch->bt_timings;
+
+	timings->bt = *bt;
 
 	return 0;
 }
@@ -2010,6 +2131,8 @@ static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
 	.vidioc_s_dv_preset             = vpif_s_dv_preset,
 	.vidioc_g_dv_preset             = vpif_g_dv_preset,
 	.vidioc_query_dv_preset         = vpif_query_dv_preset,
+	.vidioc_s_dv_timings            = vpif_s_dv_timings,
+	.vidioc_g_dv_timings            = vpif_g_dv_timings,
 	.vidioc_g_chip_ident		= vpif_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register		= vpif_dbg_g_register,
