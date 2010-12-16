@@ -82,20 +82,6 @@ static struct vpif_device vpif_obj = { {NULL} };
 static struct device *vpif_dev;
 
 /**
- * ch_params: video standard configuration parameters for vpif
- */
-static const struct vpif_channel_config_params ch_params[] = {
-	{
-		"NTSC_M", 720, 480, 30, 0, 1, 268, 1440, 1, 23, 263, 266,
-		286, 525, 525, 0, 1, 0, V4L2_STD_525_60,
-	},
-	{
-		"PAL_BDGHIK", 720, 576, 25, 0, 1, 280, 1440, 1, 23, 311, 313,
-		336, 624, 625, 0, 1, 0, V4L2_STD_625_50,
-	},
-};
-
-/**
  * vpif_uservirt_to_phys : translate user/virtual address to phy address
  * @virtp: user/virtual address
  *
@@ -444,7 +430,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 
 	std_info = &vpifparams->std_info;
 
-	for (index = 0; index < ARRAY_SIZE(ch_params); index++) {
+	for (index = 0; index < vpif_ch_params_count; index++) {
 		config = &ch_params[index];
 		if (config->stdid & vid_ch->stdid) {
 			memcpy(std_info, config, sizeof(*config));
@@ -453,7 +439,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	}
 
 	/* standard not found */
-	if (index == ARRAY_SIZE(ch_params))
+	if (index == vpif_ch_params_count)
 		return -EINVAL;
 
 	common->fmt.fmt.pix.width = std_info->width;

@@ -41,6 +41,56 @@ spinlock_t vpif_lock;
 
 void __iomem *vpif_base;
 
+/**
+ * ch_params: video standard configuration parameters for vpif
+ * The table must include all presets from supported subdevices.
+ */
+const struct vpif_channel_config_params ch_params[] = {
+	/* SDTV formats */
+	{
+		.name = "NTSC_M",
+		.width = 720,
+		.height = 480,
+		.frm_fmt = 0,
+		.ycmux_mode = 1,
+		.eav2sav = 268,
+		.sav2eav = 1440,
+		.l1 = 1,
+		.l3 = 23,
+		.l5 = 263,
+		.l7 = 266,
+		.l9 = 286,
+		.l11 = 525,
+		.vsize = 525,
+		.capture_format = 0,
+		.vbi_supported = 1,
+		.hd_sd = 0,
+		.stdid = V4L2_STD_525_60,
+	},
+	{
+		.name = "PAL_BDGHIK",
+		.width = 720,
+		.height = 576,
+		.frm_fmt = 0,
+		.ycmux_mode = 1,
+		.eav2sav = 280,
+		.sav2eav = 1440,
+		.l1 = 1,
+		.l3 = 23,
+		.l5 = 311,
+		.l7 = 313,
+		.l9 = 336,
+		.l11 = 624,
+		.vsize = 625,
+		.capture_format = 0,
+		.vbi_supported = 1,
+		.hd_sd = 0,
+		.stdid = V4L2_STD_625_50,
+	},
+};
+
+const unsigned int vpif_ch_params_count = ARRAY_SIZE(ch_params);
+
 static inline void vpif_wr_bit(u32 reg, u32 bit, u32 val)
 {
 	if (val)

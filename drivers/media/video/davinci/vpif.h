@@ -577,7 +577,6 @@ struct vpif_channel_config_params {
 	char name[VPIF_MAX_NAME];	/* Name of the mode */
 	u16 width;			/* Indicates width of the image */
 	u16 height;			/* Indicates height of the image */
-	u8 fps;
 	u8 frm_fmt;			/* Indicates whether this is interlaced
 					 * or progressive format */
 	u8 ycmux_mode;			/* Indicates whether this mode requires
@@ -593,6 +592,9 @@ struct vpif_channel_config_params {
 	u8 hd_sd;
 	v4l2_std_id stdid;
 };
+
+extern const unsigned int vpif_ch_params_count;
+extern const struct vpif_channel_config_params ch_params[];
 
 struct vpif_video_params;
 struct vpif_params;
