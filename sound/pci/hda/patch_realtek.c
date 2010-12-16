@@ -9214,16 +9214,6 @@ static void alc883_mitac_setup(struct hda_codec *codec)
 	spec->autocfg.speaker_pins[1] = 0x17;
 }
 
-/* auto-toggle front mic */
-/*
-static void alc883_mitac_mic_automute(struct hda_codec *codec)
-{
-	unsigned char bits = snd_hda_jack_detect(codec, 0x18) ? HDA_AMP_MUTE : 0;
-
-	snd_hda_codec_amp_stereo(codec, 0x0b, HDA_INPUT, 1, HDA_AMP_MUTE, bits);
-}
-*/
-
 static struct hda_verb alc883_mitac_verbs[] = {
 	/* HP */
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
