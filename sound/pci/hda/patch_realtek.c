@@ -3352,7 +3352,7 @@ static struct hda_verb alc880_beep_init_verbs[] = {
 };
 
 /* auto-toggle front mic */
-static void alc880_uniwill_mic_automute(struct hda_codec *codec)
+static void alc88x_simple_mic_automute(struct hda_codec *codec)
 {
  	unsigned int present;
 	unsigned char bits;
@@ -3374,7 +3374,7 @@ static void alc880_uniwill_setup(struct hda_codec *codec)
 static void alc880_uniwill_init_hook(struct hda_codec *codec)
 {
 	alc_automute_amp(codec);
-	alc880_uniwill_mic_automute(codec);
+	alc88x_simple_mic_automute(codec);
 }
 
 static void alc880_uniwill_unsol_event(struct hda_codec *codec,
@@ -3385,7 +3385,7 @@ static void alc880_uniwill_unsol_event(struct hda_codec *codec,
 	 */
 	switch (res >> 28) {
 	case ALC880_MIC_EVENT:
-		alc880_uniwill_mic_automute(codec);
+		alc88x_simple_mic_automute(codec);
 		break;
 	default:
 		alc_automute_amp_unsol_event(codec, res);
@@ -9480,15 +9480,6 @@ static void alc883_lenovo_nb0763_setup(struct hda_codec *codec)
 #define alc883_targa_init_hook		alc882_targa_init_hook
 #define alc883_targa_unsol_event	alc882_targa_unsol_event
 
-static void alc883_clevo_m720_mic_automute(struct hda_codec *codec)
-{
-	unsigned int present;
-
-	present = snd_hda_jack_detect(codec, 0x18);
-	snd_hda_codec_amp_stereo(codec, 0x0b, HDA_INPUT, 1,
-				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
-}
-
 static void alc883_clevo_m720_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -9500,7 +9491,7 @@ static void alc883_clevo_m720_setup(struct hda_codec *codec)
 static void alc883_clevo_m720_init_hook(struct hda_codec *codec)
 {
 	alc_automute_amp(codec);
-	alc883_clevo_m720_mic_automute(codec);
+	alc88x_simple_mic_automute(codec);
 }
 
 static void alc883_clevo_m720_unsol_event(struct hda_codec *codec,
@@ -9508,7 +9499,7 @@ static void alc883_clevo_m720_unsol_event(struct hda_codec *codec,
 {
 	switch (res >> 26) {
 	case ALC880_MIC_EVENT:
-		alc883_clevo_m720_mic_automute(codec);
+		alc88x_simple_mic_automute(codec);
 		break;
 	default:
 		alc_automute_amp_unsol_event(codec, res);
@@ -16697,18 +16688,6 @@ static struct hda_verb alc861vd_lenovo_unsol_verbs[] = {
 	{}
 };
 
-static void alc861vd_lenovo_mic_automute(struct hda_codec *codec)
-{
-	unsigned int present;
-	unsigned char bits;
-
-	present = snd_hda_jack_detect(codec, 0x18);
-	bits = present ? HDA_AMP_MUTE : 0;
-
-	snd_hda_codec_amp_stereo(codec, 0x0b, HDA_INPUT, 1,
-				 HDA_AMP_MUTE, bits);
-}
-
 static void alc861vd_lenovo_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -16719,7 +16698,7 @@ static void alc861vd_lenovo_setup(struct hda_codec *codec)
 static void alc861vd_lenovo_init_hook(struct hda_codec *codec)
 {
 	alc_automute_amp(codec);
-	alc861vd_lenovo_mic_automute(codec);
+	alc88x_simple_mic_automute(codec);
 }
 
 static void alc861vd_lenovo_unsol_event(struct hda_codec *codec,
@@ -16727,7 +16706,7 @@ static void alc861vd_lenovo_unsol_event(struct hda_codec *codec,
 {
 	switch (res >> 26) {
 	case ALC880_MIC_EVENT:
-		alc861vd_lenovo_mic_automute(codec);
+		alc88x_simple_mic_automute(codec);
 		break;
 	default:
 		alc_automute_amp_unsol_event(codec, res);
