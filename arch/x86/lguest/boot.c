@@ -1002,7 +1002,7 @@ static void lguest_time_init(void)
 	clockevents_register_device(&lguest_clockevent);
 
 	/* Finally, we unblock the timer interrupt. */
-	enable_lguest_irq(0);
+	clear_bit(0, lguest_data.blocked_interrupts);
 }
 
 /*
