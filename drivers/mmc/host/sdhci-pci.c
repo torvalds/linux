@@ -381,6 +381,8 @@ static int jmicron_probe_slot(struct sdhci_pci_slot *slot)
 	    slot->chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD)
 		jmicron_enable_mmc(slot->host, 1);
 
+	slot->host->mmc->caps |= MMC_CAP_BUS_WIDTH_TEST;
+
 	return 0;
 }
 
