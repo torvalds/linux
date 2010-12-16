@@ -248,9 +248,9 @@ static void lp8550_brightness_write(struct lp8550_data *led_data)
 			pr_err("%s:writing failed while setting brightness:%d\n",
 				__func__, error);
 		}
-		atomic_set(&led_data->enabled, 0);
-		if (!IS_ERR_OR_NULL(led_data->regulator))
-			regulator_disable(led_data->regulator);
+		if (atomic_cmpxchg(&led_data->enabled, 1, 0))
+			if (!IS_ERR_OR_NULL(led_data->regulator))
+				regulator_disable(led_data->regulator);
 	} else {
 		if (!atomic_cmpxchg(&led_data->enabled, 0, 1)) {
 			if (!IS_ERR_OR_NULL(led_data->regulator))
@@ -452,8 +452,6 @@ static int ld_lp8550_probe(struct i2c_client *client,
 #endif
 
 	led_data->regulator = regulator_get(&client->dev, "vio");
-	if (!IS_ERR_OR_NULL(led_data->regulator))
-		regulator_enable(led_data->regulator);
 
 	return 0;
 
