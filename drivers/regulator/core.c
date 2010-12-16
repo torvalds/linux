@@ -1727,6 +1727,53 @@ out:
 }
 EXPORT_SYMBOL_GPL(regulator_set_voltage);
 
+/**
+ * regulator_sync_voltage - re-apply last regulator output voltage
+ * @regulator: regulator source
+ *
+ * Re-apply the last configured voltage.  This is intended to be used
+ * where some external control source the consumer is cooperating with
+ * has caused the configured voltage to change.
+ */
+int regulator_sync_voltage(struct regulator *regulator)
+{
+	struct regulator_dev *rdev = regulator->rdev;
+	int ret, min_uV, max_uV;
+
+	mutex_lock(&rdev->mutex);
+
+	if (!rdev->desc->ops->set_voltage &&
+	    !rdev->desc->ops->set_voltage_sel) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* This is only going to work if we've had a voltage configured. */
+	if (!regulator->min_uV && !regulator->max_uV) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	min_uV = regulator->min_uV;
+	max_uV = regulator->max_uV;
+
+	/* This should be a paranoia check... */
+	ret = regulator_check_voltage(rdev, &min_uV, &max_uV);
+	if (ret < 0)
+		goto out;
+
+	ret = regulator_check_consumers(rdev, &min_uV, &max_uV);
+	if (ret < 0)
+		goto out;
+
+	ret = _regulator_do_set_voltage(rdev, min_uV, max_uV);
+
+out:
+	mutex_unlock(&rdev->mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regulator_sync_voltage);
+
 static int _regulator_get_voltage(struct regulator_dev *rdev)
 {
 	int sel;
