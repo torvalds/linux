@@ -31,7 +31,8 @@
 #define DBG_MASK	(0)
 
 #define dprint(flg, fmt, args...) \
-	if (flg & DBG_MASK) printk(fmt , ## args)
+	if (flg & DBG_MASK) \
+		printk(fmt , ## args)
 
 /* Runtime config options */
 #define HFSPLUS_DEF_CR_TYPE    0x3F3F3F3F  /* '????' */

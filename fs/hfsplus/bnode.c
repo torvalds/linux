@@ -363,9 +363,8 @@ void hfs_bnode_unlink(struct hfs_bnode *node)
 		tree->leaf_tail = node->prev;
 
 	/* move down? */
-	if (!node->prev && !node->next) {
+	if (!node->prev && !node->next)
 		dprint(DBG_BNODE_MOD, "hfs_btree_del_level\n");
-	}
 	if (!node->parent) {
 		tree->root = 0;
 		tree->depth = 0;
@@ -392,11 +391,9 @@ struct hfs_bnode *hfs_bnode_findhash(struct hfs_btree *tree, u32 cnid)
 	}
 
 	for (node = tree->node_hash[hfs_bnode_hash(cnid)];
-	     node; node = node->next_hash) {
-		if (node->this == cnid) {
+			node; node = node->next_hash)
+		if (node->this == cnid)
 			return node;
-		}
-	}
 	return NULL;
 }
 

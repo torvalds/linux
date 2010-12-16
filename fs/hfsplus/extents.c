@@ -397,12 +397,13 @@ int hfsplus_file_extend(struct inode *inode)
 	u32 start, len, goal;
 	int res;
 
-	if (sbi->alloc_file->i_size * 8 <
-	    sbi->total_blocks - sbi->free_blocks + 8) {
+	if (sbi->total_blocks - sbi->free_blocks + 8 >
+			sbi->alloc_file->i_size * 8) {
 		/* extend alloc file */
-		printk(KERN_ERR "hfs: extend alloc file! (%Lu,%u,%u)\n",
-				sbi->alloc_file->i_size * 8,
-				sbi->total_blocks, sbi->free_blocks);
+		printk(KERN_ERR "hfs: extend alloc file! "
+				"(%llu,%u,%u)\n",
+			sbi->alloc_file->i_size * 8,
+			sbi->total_blocks, sbi->free_blocks);
 		return -ENOSPC;
 	}
 
@@ -490,8 +491,9 @@ void hfsplus_file_truncate(struct inode *inode)
 	u32 alloc_cnt, blk_cnt, start;
 	int res;
 
-	dprint(DBG_INODE, "truncate: %lu, %Lu -> %Lu\n",
-		inode->i_ino, (long long)hip->phys_size, inode->i_size);
+	dprint(DBG_INODE, "truncate: %lu, %llu -> %llu\n",
+		inode->i_ino, (long long)hip->phys_size,
+		inode->i_size);
 
 	if (inode->i_size > hip->phys_size) {
 		struct address_space *mapping = inode->i_mapping;
