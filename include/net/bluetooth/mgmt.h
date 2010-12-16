@@ -58,6 +58,16 @@ struct mgmt_rp_read_info {
 	__u16 hci_rev;
 } __packed;
 
+#define MGMT_OP_SET_POWERED		0x0005
+struct mgmt_cp_set_powered {
+	__le16 index;
+	__u8 powered;
+} __packed;
+struct mgmt_rp_set_powered {
+	__le16 index;
+	__u8 powered;
+} __packed;
+
 #define MGMT_EV_CMD_COMPLETE		0x0001
 struct mgmt_ev_cmd_complete {
 	__le16 opcode;
