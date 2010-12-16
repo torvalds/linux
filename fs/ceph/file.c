@@ -384,7 +384,7 @@ static ssize_t ceph_sync_read(struct file *file, char __user *data,
 
 	if (file->f_flags & O_DIRECT) {
 		num_pages = calc_pages_for((unsigned long)data, len);
-		pages = ceph_get_direct_page_vector(data, num_pages);
+		pages = ceph_get_direct_page_vector(data, num_pages, true);
 	} else {
 		num_pages = calc_pages_for(off, len);
 		pages = ceph_alloc_page_vector(num_pages, GFP_NOFS);
@@ -413,7 +413,7 @@ static ssize_t ceph_sync_read(struct file *file, char __user *data,
 
 done:
 	if (file->f_flags & O_DIRECT)
-		ceph_put_page_vector(pages, num_pages);
+		ceph_put_page_vector(pages, num_pages, true);
 	else
 		ceph_release_page_vector(pages, num_pages);
 	dout("sync_read result %d\n", ret);
@@ -522,7 +522,7 @@ more:
 		return -ENOMEM;
 
 	if (file->f_flags & O_DIRECT) {
-		pages = ceph_get_direct_page_vector(data, num_pages);
+		pages = ceph_get_direct_page_vector(data, num_pages, false);
 		if (IS_ERR(pages)) {
 			ret = PTR_ERR(pages);
 			goto out;
@@ -572,7 +572,7 @@ more:
 	}
 
 	if (file->f_flags & O_DIRECT)
-		ceph_put_page_vector(pages, num_pages);
+		ceph_put_page_vector(pages, num_pages, false);
 	else if (file->f_flags & O_SYNC)
 		ceph_release_page_vector(pages, num_pages);
 
