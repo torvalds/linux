@@ -38,7 +38,7 @@
 #include <linux/wait.h>
 #include <linux/syscalls.h>
 #include <linux/timer.h>
-#include "rk29-ipp.h"
+#include <mach/rk29-ipp.h>
 
 
 struct ipp_drvdata {
@@ -123,7 +123,7 @@ static void ipp_soft_reset(void)
 		ERR("soft reset timeout.\n");
 }
 
-static int ipp_do_blit(struct rk29_ipp_req *req)
+int ipp_do_blit(struct rk29_ipp_req *req)
 {
 	uint32_t rotate;
 	uint32_t pre_scale 	= 0;
@@ -131,9 +131,9 @@ static int ipp_do_blit(struct rk29_ipp_req *req)
 	uint32_t pre_scale_w, pre_scale_h;
 	uint32_t post_scale_w = 0x1000;
 	uint32_t post_scale_h = 0x1000;
-	uint32_t pre_scale_target_w, pre_scale_target_h;
+	uint32_t pre_scale_target_w=0, pre_scale_target_h=0;
 	uint32_t post_scale_target_w, post_scale_target_h;
-	uint32_t dst0_YrgbMst,dst0_CbrMst;
+	uint32_t dst0_YrgbMst=0,dst0_CbrMst=0;
 	uint32_t ret = 0;
 	rotate = req->flag;
 	switch (rotate) {
@@ -620,7 +620,7 @@ static int ipp_do_blit(struct rk29_ipp_req *req)
 
 	if(!wait_event_timeout(wait_queue, wq_condition, msecs_to_jiffies(req->timeout)))
 	{
-		printk("wait_event_timeout \n");
+		printk("%s wait_event_timeout \n",__FUNCTION__);
 		wq_condition = 0;
 		if(!drvdata)
 		{

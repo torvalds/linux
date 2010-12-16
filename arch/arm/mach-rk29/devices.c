@@ -404,62 +404,6 @@ struct platform_device rk29xx_device_spi1m = {
 	},
 };
 
-/* RK29 Camera :  ddl@rock-chips.com  */
-#ifdef CONFIG_VIDEO_RK29
-extern struct rk29camera_platform_data rk29_camera_platform_data;
-
-static struct resource rk29_camera_resource[] = {
-	[0] = {
-		.start = RK29_VIP_PHYS,
-		.end   = RK29_VIP_PHYS + RK29_VIP_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_VIP,
-		.end   = IRQ_VIP,
-		.flags = IORESOURCE_IRQ,
-	}
-};
-
-static u64 rockchip_device_camera_dmamask = 0xffffffffUL;
-
-/*platform_device : */
-struct platform_device rk29_device_camera = {
-	.name		  = RK29_CAM_DRV_NAME,
-	.id		  = RK29_CAM_PLATFORM_DEV_ID,               /* This is used to put cameras on this interface */
-	.num_resources	  = ARRAY_SIZE(rk29_camera_resource),
-	.resource	  = rk29_camera_resource,
-	.dev            = {
-		.dma_mask = &rockchip_device_camera_dmamask,
-		.coherent_dma_mask = 0xffffffffUL,
-		.platform_data  = &rk29_camera_platform_data,
-	}
-};
-#endif
-
-#ifdef CONFIG_RK29_IPP
-/* rk29 ipp resource */
-static struct resource rk29_ipp_resource[] = {
-	[0] = {
-		.start = RK29_IPP_PHYS,
-		.end   = RK29_IPP_PHYS + RK29_IPP_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_IPP,
-		.end   = IRQ_IPP,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-/*platform_device*/
-struct platform_device rk29_device_ipp = {
-	.name		  = "rk29-ipp",
-	.id		  = -1,
-	.num_resources	  = ARRAY_SIZE(rk29_ipp_resource),
-	.resource	  = rk29_ipp_resource,
-};
-#endif
 #if defined(CONFIG_MTD_NAND_RK29XX)  
 static struct resource rk29xxnand_resources[] = {
 	{
@@ -564,6 +508,31 @@ struct platform_device rk29_device_iis_8ch = {
         .resource       = rk29_iis_8ch_resource,
 };
 #endif
+#ifdef CONFIG_RK29_IPP
+/* rk29 ipp resource */
+static struct resource rk29_ipp_resource[] = {
+	[0] = {
+		.start = RK29_IPP_PHYS,
+		.end   = RK29_IPP_PHYS + RK29_IPP_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_IPP,
+		.end   = IRQ_IPP,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+/*platform_device*/
+//extern struct rk29ipp_info rk29_ipp_info;
+struct platform_device rk29_device_ipp = {
+	.name		  = "rk29-ipp",
+	.id		  = -1,
+	.num_resources	  = ARRAY_SIZE(rk29_ipp_resource),
+	.resource	  = rk29_ipp_resource,
+};
+#endif
+
 #ifdef CONFIG_DWC_OTG
 /*DWC_OTG*/
 static struct resource dwc_otg_resource[] = {

@@ -99,4 +99,5 @@ typedef enum
 		     (img == IPP_XRGB_8888) ))
 #define HAS_ALPHA(img) (img == IPP_ARGB_8888)
 
+int ipp_do_blit(struct rk29_ipp_req *req);
 #endif /*_RK29_IPP_DRIVER_H_*/

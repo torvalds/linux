@@ -975,6 +975,19 @@ config VIDEO_RK29_WORK_ONEFRAME
 config VIDEO_RK29_WORK_PINGPONG
 	bool "VIP PingPong Mode"
 endchoice
+choice
+	prompt "RK29XX camera sensor interface work with IPP "
+	depends on VIDEO_RK29 && RK29_IPP
+	default VIDEO_RK29_WORK_IPP
+	---help---
+		RK29 Camera Sensor Interface(VIP) can work with IPP or not IPP
+config VIDEO_RK29_WORK_IPP
+	bool "VIP work with IPP"
+
+config VIDEO_RK29_WORK_NOT_IPP
+	bool "VIP don't work with IPP"
+endchoice
+
 #
 # USB Multimedia device configuration
 #

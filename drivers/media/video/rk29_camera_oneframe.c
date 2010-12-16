@@ -39,6 +39,8 @@
 #include <media/videobuf-dma-contig.h>
 #include <media/soc_camera.h>
 
+#include <mach/rk29-ipp.h>
+
 // VIP Reg Offset
 #define RK29_VIP_AHBR_CTRL                0x00
 #define RK29_VIP_INT_MASK                 0x04
@@ -188,6 +190,12 @@ struct rk29_camera_reg
 	unsigned int VipCrm;
 	enum rk29_camera_reg_state Inval;
 };
+struct rk29_camera_work
+{
+	struct videobuf_buffer *vb;
+	struct rk29_camera_dev *pcdev;
+	struct work_struct work;
+};
 struct rk29_camera_dev
 {
     struct soc_camera_host	soc_host;
@@ -201,6 +209,12 @@ struct rk29_camera_dev
 	void __iomem *grf_base;
     int frame_inval;           /* ddl@rock-chips.com : The first frames is invalidate  */
     unsigned int irq;
+	unsigned int pixfmt;
+	unsigned int vipmem_phybase;
+	unsigned int vipmem_size;
+	unsigned int vipmem_bsize;
+	int host_width;
+	int host_height;
 
     struct rk29camera_platform_data *pdata;
     struct resource		*res;
@@ -212,6 +226,8 @@ struct rk29_camera_dev
     struct videobuf_buffer	*active;
 	struct videobuf_queue *vb_vidq_ptr;
 	struct rk29_camera_reg reginfo_suspend;
+	struct workqueue_struct *camera_wq;
+	struct rk29_camera_work *camera_work;
 };
 static DEFINE_MUTEX(camera_lock);
 static const char *rk29_cam_driver_description = "RK29_Camera";
@@ -227,14 +243,26 @@ static int rk29_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
                                unsigned int *size)
 {
     struct soc_camera_device *icd = vq->priv_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+    struct rk29_camera_dev *pcdev = ici->priv;
     int bytes_per_pixel = (icd->current_fmt->depth + 7) >> 3;
 
     dev_dbg(&icd->dev, "count=%d, size=%d\n", *count, *size);
 
-    /* planar capture requires Y, U and V buffers to be page aligned */
-    *size = PAGE_ALIGN( icd->user_width * icd->user_height * bytes_per_pixel);                               /* Y pages UV pages, yuv422*/
+	if (pcdev->camera_work == NULL) {
+		pcdev->camera_work = kmalloc(sizeof(struct rk29_camera_work)*(*count), GFP_KERNEL);
+		if (pcdev->camera_work == NULL)
+			RK29CAMERA_TR("\n %s kmalloc fail\n", __FUNCTION__);
+	}
 
-    RK29CAMERA_DG("\n%s..%d.. size = %d\n",__FUNCTION__,__LINE__, *size);
+    /* planar capture requires Y, U and V buffers to be page aligned */
+    *size = PAGE_ALIGN(icd->user_width* icd->user_height * bytes_per_pixel);                               /* Y pages UV pages, yuv422*/
+	pcdev->vipmem_bsize = PAGE_ALIGN(pcdev->host_width * pcdev->host_height * bytes_per_pixel);
+
+	if ((pcdev->host_width != pcdev->icd->user_width) || (pcdev->host_height != pcdev->icd->user_height))
+		BUG_ON(pcdev->vipmem_bsize*(*count) > pcdev->vipmem_size);
+
+    RK29CAMERA_DG("\n%s..%d.. videobuf size:%d, vipmem_buf size:%d \n",__FUNCTION__,__LINE__, *size,pcdev->vipmem_bsize);
 
     return 0;
 }
@@ -260,6 +288,7 @@ static void rk29_videobuf_free(struct videobuf_queue *vq, struct rk29_buffer *bu
 static int rk29_videobuf_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb, enum v4l2_field field)
 {
     struct soc_camera_device *icd = vq->priv_data;
+	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk29_buffer *buf;
     int ret;
 
@@ -290,7 +319,7 @@ static int rk29_videobuf_prepare(struct videobuf_queue *vq, struct videobuf_buff
         vb->state   = VIDEOBUF_NEEDS_INIT;
     }
 
-    vb->size = vb->width * vb->height * ((buf->fmt->depth + 7) >> 3) ;          /* ddl@rock-chips.com : fmt->depth is coorect */
+    vb->size = (((vb->width * vb->height *buf->fmt->depth) + 7) >> 3) ;          /* ddl@rock-chips.com : fmt->depth is coorect */
     if (0 != vb->baddr && vb->bsize < vb->size) {
         ret = -EINVAL;
         goto out;
@@ -313,14 +342,21 @@ out:
 
 static inline void rk29_videobuf_capture(struct videobuf_buffer *vb)
 {
-    unsigned int size;
+	unsigned int y_addr,uv_addr;
+	struct rk29_camera_dev *pcdev = rk29_camdev_info_ptr;
 
     if (vb) {
-        size = vb->width * vb->height; /* Y pages UV pages, yuv422*/
-        write_vip_reg(RK29_VIP_CAPTURE_F1SA_Y, vb->boff);
-        write_vip_reg(RK29_VIP_CAPTURE_F1SA_UV, vb->boff + size);
-        write_vip_reg(RK29_VIP_CAPTURE_F2SA_Y, vb->boff);
-        write_vip_reg(RK29_VIP_CAPTURE_F2SA_UV, vb->boff + size);
+		if ((pcdev->host_width != pcdev->icd->user_width) || (pcdev->host_height != pcdev->icd->user_height)) {
+			y_addr = pcdev->vipmem_phybase + vb->i*pcdev->vipmem_bsize;
+			uv_addr = y_addr + pcdev->host_width*pcdev->host_height;
+		} else {
+			y_addr = vb->boff;
+			uv_addr = y_addr + vb->width * vb->height;
+		}
+        write_vip_reg(RK29_VIP_CAPTURE_F1SA_Y, y_addr);
+        write_vip_reg(RK29_VIP_CAPTURE_F1SA_UV, uv_addr);
+        write_vip_reg(RK29_VIP_CAPTURE_F2SA_Y, y_addr);
+        write_vip_reg(RK29_VIP_CAPTURE_F2SA_UV, uv_addr);
         write_vip_reg(RK29_VIP_FB_SR,  0x00000002);//frame1 has been ready to receive data,frame 2 is not used
     }
 }
@@ -337,7 +373,7 @@ static void rk29_videobuf_queue(struct videobuf_queue *vq,
 
     vb->state = VIDEOBUF_QUEUED;
 
-	if (!list_empty(&pcdev->capture)) {
+	if (list_empty(&pcdev->capture)) {
 		list_add_tail(&vb->queue, &pcdev->capture);
 	} else {
 		if (list_entry(pcdev->capture.next, struct videobuf_buffer, queue) != vb)
@@ -351,10 +387,76 @@ static void rk29_videobuf_queue(struct videobuf_queue *vq,
         rk29_videobuf_capture(vb);
     }
 }
+static int rk29_pixfmt2ippfmt(unsigned int pixfmt, int *ippfmt)
+{
+	switch (pixfmt)
+	{
+		case V4L2_PIX_FMT_YUV422P:
+		{
+			*ippfmt = IPP_Y_CBCR_H2V1;
+			break;
+		}
+		case V4L2_PIX_FMT_YUV420:
+		{
+			*ippfmt = IPP_Y_CBCR_H2V2;
+			break;
+		}
+		default:
+			goto rk29_pixfmt2ippfmt_err;
+	}
+
+	return 0;
+rk29_pixfmt2ippfmt_err:
+	return -1;
+}
+static void rk29_camera_capture_process(struct work_struct *work)
+{
+	struct rk29_camera_work *camera_work = container_of(work, struct rk29_camera_work, work);
+	struct videobuf_buffer *vb = camera_work->vb;
+	struct rk29_camera_dev *pcdev = camera_work->pcdev;
+	struct rk29_ipp_req ipp_req;
+	unsigned int flags;
+
+	ipp_req.src0.YrgbMst = pcdev->vipmem_phybase + vb->i*pcdev->vipmem_bsize;
+	ipp_req.src0.CbrMst= ipp_req.src0.YrgbMst + pcdev->host_width*pcdev->host_height;
+	ipp_req.src0.w = pcdev->host_width;
+	ipp_req.src0.h = pcdev->host_height;
+	rk29_pixfmt2ippfmt(pcdev->pixfmt, &ipp_req.src0.fmt);
+
+	ipp_req.dst0.YrgbMst = vb->boff;
+	ipp_req.dst0.CbrMst= vb->boff+vb->width * vb->height;
+	ipp_req.dst0.w = pcdev->icd->user_width;
+	ipp_req.dst0.h = pcdev->icd->user_height;
+	rk29_pixfmt2ippfmt(pcdev->pixfmt, &ipp_req.dst0.fmt);
+
+	ipp_req.src_vir_w = ipp_req.src0.w;
+	ipp_req.dst_vir_w = ipp_req.dst0.w;
+	ipp_req.timeout = 100;
+	ipp_req.flag = IPP_ROT_0;
+
+	if (ipp_do_blit(&ipp_req)) {
+		spin_lock_irqsave(&pcdev->lock, flags);
+		vb->state = VIDEOBUF_ERROR;
+		spin_unlock_irqrestore(&pcdev->lock, flags);
+		RK29CAMERA_TR("Capture image(vb->i:0x%x) which IPP operated is error!\n", vb->i);
+		RK29CAMERA_TR("ipp_req.src0.YrgbMst:0x%x ipp_req.src0.CbrMst:0x%x \n", ipp_req.src0.YrgbMst,ipp_req.src0.CbrMst);
+		RK29CAMERA_TR("ipp_req.src0.w:0x%x ipp_req.src0.h:0x%x \n",ipp_req.src0.w,ipp_req.src0.h);
+		RK29CAMERA_TR("ipp_req.src0.fmt:0x%x\n",ipp_req.src0.fmt);
+		RK29CAMERA_TR("ipp_req.dst0.YrgbMst:0x%x ipp_req.dst0.CbrMst:0x%x \n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
+		RK29CAMERA_TR("ipp_req.dst0.w:0x%x ipp_req.dst0.h:0x%x \n",ipp_req.dst0.w ,ipp_req.dst0.h);
+		RK29CAMERA_TR("ipp_req.dst0.fmt:0x%x\n",ipp_req.dst0.fmt);
+		RK29CAMERA_TR("ipp_req.src_vir_w:0x%x ipp_req.dst_vir_w :0x%x\n",ipp_req.src_vir_w ,ipp_req.dst_vir_w);
+	    RK29CAMERA_TR("ipp_req.timeout:0x%x ipp_req.flag :0x%x\n",ipp_req.timeout,ipp_req.flag);
+	}
+
+	wake_up(&(camera_work->vb->done));
+}
+
 static irqreturn_t rk29_camera_irq(int irq, void *data)
 {
     struct rk29_camera_dev *pcdev = data;
     struct videobuf_buffer *vb;
+	struct rk29_camera_work *wk;
 
     read_vip_reg(RK29_VIP_INT_STS);    /* clear vip interrupte single  */
 
@@ -397,7 +499,15 @@ static irqreturn_t rk29_camera_irq(int irq, void *data)
 	        vb->field_count++;
 		}
 
-        wake_up(&vb->done);
+		if ((pcdev->host_width != pcdev->icd->user_width) || (pcdev->host_height != pcdev->icd->user_height)) {
+			wk = pcdev->camera_work + vb->i;
+			INIT_WORK(&(wk->work), rk29_camera_capture_process);
+			wk->vb = vb;
+			wk->pcdev = pcdev;
+			queue_work(pcdev->camera_wq, &(wk->work));
+		} else {
+			wake_up(&vb->done);
+		}
     }
 
 RK29_CAMERA_IRQ_END:
@@ -596,6 +706,11 @@ static void rk29_camera_remove_device(struct soc_camera_device *icd)
 		pcdev->vb_vidq_ptr = NULL;
 	}
 
+	if (pcdev->camera_work) {
+		kfree(pcdev->camera_work);
+		pcdev->camera_work = NULL;
+	}
+
 	pcdev->active = NULL;
     pcdev->icd = NULL;
 	pcdev->reginfo_suspend.Inval = Reg_Invalidate;
@@ -717,15 +832,18 @@ static void rk29_camera_setup_format(struct soc_camera_device *icd, __u32 host_p
         case V4L2_PIX_FMT_YUV422P:
             vip_ctrl_val |= VIPREGYUV422;
 			pcdev->frame_inval = RK29_CAM_FRAME_INVAL_DC;
+			pcdev->pixfmt = host_pixfmt;
             break;
         case V4L2_PIX_FMT_YUV420:
             vip_ctrl_val |= VIPREGYUV420;
 			if (pcdev->frame_inval != RK29_CAM_FRAME_INVAL_INIT)
 				pcdev->frame_inval = RK29_CAM_FRAME_INVAL_INIT;
+			pcdev->pixfmt = host_pixfmt;
             break;
 		case V4L2_PIX_FMT_SGRBG10:
 			vip_ctrl_val |= (VIP_RAW | VIP_SENSOR | VIP_DATA_LITTLEEND);
 			pcdev->frame_inval = RK29_CAM_FRAME_INVAL_DC;
+			pcdev->pixfmt = host_pixfmt;
 			break;
         default:                                                                                /* ddl@rock-chips.com : vip output format is hold when pixfmt is invalidate */
             vip_ctrl_val |= (read_vip_reg(RK29_VIP_CTRL) & VIPREGYUV422);
@@ -753,18 +871,16 @@ static void rk29_camera_setup_format(struct soc_camera_device *icd, __u32 host_p
         vip_crop = ((rect->left<<16) + rect->top);
         vip_fs  = (((rect->width + rect->left)<<16) + (rect->height+rect->top));
     } else if (vip_ctrl_val & PING_PONG) {
-        if (rect->left ||rect->top ) {
-			RK29CAMERA_DG("\n %s..PingPang not support Crop \n",__FUNCTION__);
-			BUG();
-        }
-		vip_crop = 0;
-        vip_fs  = (((rect->width + rect->left)<<16) + (rect->height+rect->top));
+        BUG();
     }
 
     write_vip_reg(RK29_VIP_CROP, vip_crop);
     write_vip_reg(RK29_VIP_FS, vip_fs);
 
     write_vip_reg(RK29_VIP_FB_SR,  0x00000003);
+
+	pcdev->host_width = rect->width;
+	pcdev->host_height = rect->height;
 
     RK29CAMERA_DG("\n%s.. crop:0x%x fs:0x%x ctrl:0x%x CtrlReg:0x%x\n",__FUNCTION__,vip_crop,vip_fs,vip_ctrl_val,read_vip_reg(RK29_VIP_CTRL));
 	return;
@@ -874,12 +990,16 @@ static int rk29_camera_set_fmt(struct soc_camera_device *icd,
     struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
     const struct soc_camera_data_format *cam_fmt = NULL;
     const struct soc_camera_format_xlate *xlate = NULL;
+	struct soc_camera_host *ici =to_soc_camera_host(icd->dev.parent);
+    struct rk29_camera_dev *pcdev = ici->priv;
     struct v4l2_pix_format *pix = &f->fmt.pix;
     struct v4l2_format cam_f = *f;
     struct v4l2_rect rect;
-    int ret;
+    int ret,usr_w,usr_h;
 
-    RK29CAMERA_DG("\n%s..%d..  \n",__FUNCTION__,__LINE__);
+	usr_w = pix->width;
+	usr_h = pix->height;
+    RK29CAMERA_DG("\n%s enter width:%d  height:%d\n",__FUNCTION__,usr_w,usr_h);
 
     xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
     if (!xlate) {
@@ -894,20 +1014,29 @@ static int rk29_camera_set_fmt(struct soc_camera_device *icd,
     ret = v4l2_subdev_call(sd, video, s_fmt, &cam_f);
     cam_f.fmt.pix.pixelformat = pix->pixelformat;
     *pix = cam_f.fmt.pix;
-
+	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
+	if ((pix->width != usr_w) || (pix->height != usr_h)) {
+		pix->width = usr_w;
+		pix->height = usr_h;
+	}
+	#endif
     icd->sense = NULL;
 
     if (!ret) {
         rect.left = 0;
         rect.top = 0;
-        rect.width = pix->width;
-        rect.height = pix->height;
+        rect.width = cam_f.fmt.pix.width;
+        rect.height = cam_f.fmt.pix.height;
 
-        RK29CAMERA_DG("\n%s..%s..%s \n",__FUNCTION__,xlate->host_fmt->name, cam_fmt->name);
+        RK29CAMERA_DG("\n%s..%s..%s icd width:%d  host width:%d \n",__FUNCTION__,xlate->host_fmt->name, cam_fmt->name,
+			           rect.width, pix->width);
         rk29_camera_setup_format(icd, pix->pixelformat, cam_fmt->fourcc, &rect);
-
         icd->buswidth = xlate->buswidth;
         icd->current_fmt = xlate->host_fmt;
+
+		if (((pcdev->host_width != pcdev->icd->user_width) || (pcdev->host_height != pcdev->icd->user_height))) {
+			BUG_ON(pcdev->vipmem_phybase == 0);
+		}
     }
 
 RK29_CAMERA_SET_FMT_END:
@@ -925,9 +1054,11 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
     struct v4l2_pix_format *pix = &f->fmt.pix;
     __u32 pixfmt = pix->pixelformat;
     enum v4l2_field field;
-    int ret;
+    int ret,usr_w,usr_h;
 
-    RK29CAMERA_DG("\n%s..%d.. \n",__FUNCTION__,__LINE__);
+	usr_w = pix->width;
+	usr_h = pix->height;
+	RK29CAMERA_DG("\n%s enter width:%d  height:%d\n",__FUNCTION__,usr_w,usr_h);
 
     xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
     if (!xlate) {
@@ -948,6 +1079,12 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
     /* limit to sensor capabilities */
     ret = v4l2_subdev_call(sd, video, try_fmt, f);
     pix->pixelformat = pixfmt;
+	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
+	if ((pix->width != usr_w) || (pix->height != usr_h)) {
+		pix->width = usr_w;
+		pix->height = usr_h;
+	}
+	#endif
 
     field = pix->field;
 
@@ -1150,7 +1287,17 @@ static int rk29_camera_probe(struct platform_device *pdev)
     if (pcdev->pdata && pcdev->pdata->io_init) {
         pcdev->pdata->io_init();
     }
-
+	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
+	if (pcdev->pdata && (strcmp(pcdev->pdata->meminfo.name,"camera_ipp_mem")==0)) {
+		pcdev->vipmem_phybase = pcdev->pdata->meminfo.start;
+		pcdev->vipmem_size = pcdev->pdata->meminfo.size;
+		RK29CAMERA_TR("\n%s Memory(start:0x%x size:0x%x) for IPP obtain \n",__FUNCTION__, pcdev->pdata->meminfo.start,pcdev->pdata->meminfo.size);
+	} else {
+		RK29CAMERA_TR("\n%s Memory for IPP have not obtain! IPP Function is fail\n",__FUNCTION__);
+		pcdev->vipmem_phybase = 0;
+		pcdev->vipmem_size = 0;
+	}
+	#endif
     INIT_LIST_HEAD(&pcdev->capture);
     spin_lock_init(&pcdev->lock);
 
@@ -1181,6 +1328,10 @@ static int rk29_camera_probe(struct platform_device *pdev)
         dev_err(pcdev->dev, "Camera interrupt register failed \n");
         goto exit_reqirq;
     }
+
+	pcdev->camera_wq = create_workqueue("camera wq");
+	if (pcdev->camera_wq == NULL)
+		goto exit_free_irq;
 
     pcdev->soc_host.drv_name	= RK29_CAM_DRV_NAME;
     pcdev->soc_host.ops		= &rk29_soc_camera_host_ops;

@@ -1411,7 +1411,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     struct sensor *sensor = to_sensor(client);
     struct v4l2_pix_format *pix = &f->fmt.pix;
     struct reginfo *winseqe_set_addr=NULL;
-    int ret, set_w,set_h;
+    int ret=0, set_w,set_h;
 
 	if (sensor->info_priv.pixfmt != pix->pixelformat) {
 		switch (pix->pixelformat)
@@ -1489,20 +1489,20 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         winseqe_set_addr = SENSOR_INIT_WINSEQADR;               /* ddl@rock-chips.com : Sensor output smallest size if  isn't support app  */
         set_w = SENSOR_INIT_WIDTH;
         set_h = SENSOR_INIT_HEIGHT;
-
+		ret = -1;
 		SENSOR_TR("\n %s..%s Format is Invalidate. pix->width = %d.. pix->height = %d\n",SENSOR_NAME_STRING(),__FUNCTION__,pix->width,pix->height);
     }
 
     if ((int)winseqe_set_addr  != sensor->info_priv.winseqe_cur_addr)
     {
-        ret = sensor_write_array(client, winseqe_set_addr);
-        if (ret != 0)
-        {
+        ret |= sensor_write_array(client, winseqe_set_addr);
+        if (ret != 0) {
             SENSOR_TR("%s set format capability failed\n", SENSOR_NAME_STRING());
-            return ret;
+            goto sensor_s_fmt_end;
         }
 
         sensor->info_priv.winseqe_cur_addr  = (int)winseqe_set_addr;
+
 
         SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,set_w,set_h);
     }
@@ -1511,7 +1511,11 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         SENSOR_TR("\n %s .. Current Format is validate. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),set_w,set_h);
     }
 
-    return 0;
+	pix->width = set_w;
+    pix->height = set_h;
+
+sensor_s_fmt_end:
+    return ret;
 }
 
 static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
