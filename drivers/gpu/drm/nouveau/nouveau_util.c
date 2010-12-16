@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2008 Maarten Maathuis.
+ * Copyright (C) 2010 Nouveau Project
+ *
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -24,24 +25,45 @@
  *
  */
 
-#ifndef __NV50_DISPLAY_H__
-#define __NV50_DISPLAY_H__
+#include <linux/ratelimit.h>
 
-#include "drmP.h"
-#include "drm.h"
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_reg.h"
-#include "nouveau_crtc.h"
-#include "nv50_evo.h"
+#include "nouveau_util.h"
 
-void nv50_display_irq_handler_bh(struct work_struct *work);
-int nv50_display_early_init(struct drm_device *dev);
-void nv50_display_late_takedown(struct drm_device *dev);
-int nv50_display_create(struct drm_device *dev);
-int nv50_display_init(struct drm_device *dev);
-void nv50_display_destroy(struct drm_device *dev);
-int nv50_crtc_blank(struct nouveau_crtc *, bool blank);
-int nv50_crtc_set_clock(struct drm_device *, int head, int pclk);
+static DEFINE_RATELIMIT_STATE(nouveau_ratelimit_state, 3 * HZ, 20);
 
-#endif /* __NV50_DISPLAY_H__ */
+void
+nouveau_bitfield_print(const struct nouveau_bitfield *bf, u32 value)
+{
+	while (bf->name) {
+		if (value & bf->mask) {
+			printk(" %s", bf->name);
+			value &= ~bf->mask;
+		}
+
+		bf++;
+	}
+
+	if (value)
+		printk(" (unknown bits 0x%08x)", value);
+}
+
+void
+nouveau_enum_print(const struct nouveau_enum *en, u32 value)
+{
+	while (en->name) {
+		if (value == en->value) {
+			printk("%s", en->name);
+			return;
+		}
+
+		en++;
+	}
+
+	printk("(unknown enum 0x%08x)", value);
+}
+
+int
+nouveau_ratelimit(void)
+{
+	return __ratelimit(&nouveau_ratelimit_state);
+}

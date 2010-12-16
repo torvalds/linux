@@ -22,34 +22,41 @@
  * Authors: Ben Skeggs
  */
 
-#ifndef __NOUVEAU_RAMHT_H__
-#define __NOUVEAU_RAMHT_H__
+#ifndef __NOUVEAU_REGION_H__
+#define __NOUVEAU_REGION_H__
 
-struct nouveau_ramht_entry {
-	struct list_head head;
-	struct nouveau_channel *channel;
-	struct nouveau_gpuobj *gpuobj;
-	u32 handle;
+struct nouveau_mm_node {
+	struct list_head nl_entry;
+	struct list_head fl_entry;
+	struct list_head rl_entry;
+
+	bool free;
+	int  type;
+
+	u32 offset;
+	u32 length;
 };
 
-struct nouveau_ramht {
-	struct drm_device *dev;
-	struct kref refcount;
-	spinlock_t lock;
-	struct nouveau_gpuobj *gpuobj;
-	struct list_head entries;
-	int bits;
+struct nouveau_mm {
+	struct list_head nodes;
+	struct list_head free;
+
+	struct mutex mutex;
+
+	u32 block_size;
 };
 
-extern int  nouveau_ramht_new(struct drm_device *, struct nouveau_gpuobj *,
-			      struct nouveau_ramht **);
-extern void nouveau_ramht_ref(struct nouveau_ramht *, struct nouveau_ramht **,
-			      struct nouveau_channel *unref_channel);
+int  nouveau_mm_init(struct nouveau_mm **, u32 offset, u32 length, u32 block);
+int  nouveau_mm_fini(struct nouveau_mm **);
+int  nouveau_mm_pre(struct nouveau_mm *);
+int  nouveau_mm_get(struct nouveau_mm *, int type, u32 size, u32 size_nc,
+		    u32 align, struct nouveau_mm_node **);
+void nouveau_mm_put(struct nouveau_mm *, struct nouveau_mm_node *);
 
-extern int  nouveau_ramht_insert(struct nouveau_channel *, u32 handle,
-				 struct nouveau_gpuobj *);
-extern int  nouveau_ramht_remove(struct nouveau_channel *, u32 handle);
-extern struct nouveau_gpuobj *
-nouveau_ramht_find(struct nouveau_channel *chan, u32 handle);
+int  nv50_vram_init(struct drm_device *);
+int  nv50_vram_new(struct drm_device *, u64 size, u32 align, u32 size_nc,
+		    u32 memtype, struct nouveau_vram **);
+void nv50_vram_del(struct drm_device *, struct nouveau_vram **);
+bool nv50_vram_flags_valid(struct drm_device *, u32 tile_flags);
 
 #endif

@@ -345,7 +345,6 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		     uint32_t buffer_handle, uint32_t width, uint32_t height)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_bo *cursor = NULL;
 	struct drm_gem_object *gem;
@@ -374,8 +373,7 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 
 	nouveau_bo_unmap(cursor);
 
-	nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.nvbo->bo.offset -
-					    dev_priv->vm_vram_base);
+	nv_crtc->cursor.set_offset(nv_crtc, nv_crtc->cursor.nvbo->bo.mem.start << PAGE_SHIFT);
 	nv_crtc->cursor.show(nv_crtc, true);
 
 out:
@@ -437,6 +435,7 @@ static const struct drm_crtc_funcs nv50_crtc_funcs = {
 	.cursor_move = nv50_crtc_cursor_move,
 	.gamma_set = nv50_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
+	.page_flip = nouveau_crtc_page_flip,
 	.destroy = nv50_crtc_destroy,
 };
 
@@ -453,6 +452,7 @@ nv50_crtc_prepare(struct drm_crtc *crtc)
 
 	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
 
+	drm_vblank_pre_modeset(dev, nv_crtc->index);
 	nv50_crtc_blank(nv_crtc, true);
 }
 
@@ -468,6 +468,7 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
 
 	nv50_crtc_blank(nv_crtc, false);
+	drm_vblank_post_modeset(dev, nv_crtc->index);
 
 	ret = RING_SPACE(evo, 2);
 	if (ret) {
@@ -545,7 +546,7 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 		 return -EINVAL;
 	}
 
-	nv_crtc->fb.offset = fb->nvbo->bo.offset - dev_priv->vm_vram_base;
+	nv_crtc->fb.offset = fb->nvbo->bo.mem.start << PAGE_SHIFT;
 	nv_crtc->fb.tile_flags = nouveau_bo_tile_layout(fb->nvbo);
 	nv_crtc->fb.cpp = drm_fb->bits_per_pixel / 8;
 	if (!nv_crtc->fb.blanked && dev_priv->chipset != 0x50) {
