@@ -2009,11 +2009,11 @@ struct arg_dev_net {
 
 static int fib6_ifdown(struct rt6_info *rt, void *arg)
 {
-	struct net_device *dev = ((struct arg_dev_net *)arg)->dev;
-	struct net *net = ((struct arg_dev_net *)arg)->net;
+	const struct arg_dev_net *adn = arg;
+	const struct net_device *dev = adn->dev;
 
-	if (((void *)rt->rt6i_dev == dev || dev == NULL) &&
-	    rt != net->ipv6.ip6_null_entry) {
+	if ((rt->rt6i_dev == dev || dev == NULL) &&
+	    rt != adn->net->ipv6.ip6_null_entry) {
 		RT6_TRACE("deleted by ifdown %p\n", rt);
 		return -1;
 	}
