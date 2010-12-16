@@ -35,10 +35,10 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 #include <linux/input.h>
+#include <linux/usb.h>
+#include <linux/usb/input.h>
 #include <media/ir-core.h>
-#include <media/ir-common.h>
 
 #define DRIVER_VERSION	"1.91"
 #define DRIVER_AUTHOR	"Jarod Wilson <jarod@wilsonet.com>"
@@ -1078,6 +1078,9 @@ static struct input_dev *mceusb_init_input_dev(struct mceusb_dev *ir)
 	}
 
 	ir->props = props;
+
+	usb_to_input_id(ir->usbdev, &idev->id);
+	idev->dev.parent = ir->dev;
 
 	if (mceusb_model[ir->model].rc_map)
 		rc_map = mceusb_model[ir->model].rc_map;

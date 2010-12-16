@@ -34,8 +34,9 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 #include <linux/input.h>
+#include <linux/usb.h>
+#include <linux/usb/input.h>
 #include <media/ir-core.h>
 
 #define DRIVER_VERSION	"1.61"
@@ -331,6 +332,9 @@ static struct input_dev *streamzap_init_input_dev(struct streamzap_ir *sz)
 	props->allowed_protos = IR_TYPE_ALL;
 
 	sz->props = props;
+
+	usb_to_input_id(sz->usbdev, &idev->id);
+	idev->dev.parent = sz->dev;
 
 	ret = ir_input_register(idev, RC_MAP_STREAMZAP, props, DRIVER_NAME);
 	if (ret < 0) {
