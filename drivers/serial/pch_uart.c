@@ -682,7 +682,8 @@ static int dma_handle_rx(struct eg20t_port *priv)
 	sg_dma_len(sg) = priv->fifo_size;
 
 	sg_set_page(&priv->sg_rx, virt_to_page(priv->rx_buf_virt),
-		     sg_dma_len(sg), (int)priv->rx_buf_virt & ~PAGE_MASK);
+		     sg_dma_len(sg), (unsigned long)priv->rx_buf_virt &
+		     ~PAGE_MASK);
 
 	sg_dma_address(sg) = priv->rx_buf_dma;
 
@@ -1254,7 +1255,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	int ret;
 	unsigned int iobase;
 	unsigned int mapbase;
-	unsigned int rxbuf;
+	unsigned char *rxbuf;
 	int fifosize, base_baud;
 	static int num;
 
@@ -1262,7 +1263,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	if (priv == NULL)
 		goto init_port_alloc_err;
 
-	rxbuf = __get_free_page(GFP_KERNEL);
+	rxbuf = (unsigned char *)__get_free_page(GFP_KERNEL);
 	if (!rxbuf)
 		goto init_port_free_txbuf;
 
@@ -1286,7 +1287,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	priv->iobase = iobase;
 	priv->pdev = pdev;
 	priv->tx_empty = 1;
-	priv->rxbuf.buf = (unsigned char *)rxbuf;
+	priv->rxbuf.buf = rxbuf;
 	priv->rxbuf.size = PAGE_SIZE;
 
 	priv->fifo_size = fifosize;
@@ -1313,7 +1314,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	return priv;
 
 init_port_hal_free:
-	free_page(rxbuf);
+	free_page((unsigned long)rxbuf);
 init_port_free_txbuf:
 	kfree(priv);
 init_port_alloc_err:
@@ -1325,7 +1326,7 @@ static void pch_uart_exit_port(struct eg20t_port *priv)
 {
 	uart_remove_one_port(&pch_uart_driver, &priv->port);
 	pci_set_drvdata(priv->pdev, NULL);
-	free_page((unsigned int)priv->rxbuf.buf);
+	free_page((unsigned long)priv->rxbuf.buf);
 }
 
 static void pch_uart_pci_remove(struct pci_dev *pdev)
