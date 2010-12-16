@@ -43,13 +43,13 @@ static int rtl_op_start(struct ieee80211_hw *hw)
 		return 0;
 	if (!test_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status))
 		return 0;
-	down(&rtlpriv->locks.conf_sem);
+	mutex_lock(&rtlpriv->locks.conf_mutex);
 	err = rtlpriv->intf_ops->adapter_start(hw);
 	if (err)
 		goto out;
 	rtl_watch_dog_timer_callback((unsigned long)hw);
 out:
-	up(&rtlpriv->locks.conf_sem);
+	mutex_unlock(&rtlpriv->locks.conf_mutex);
 	return err;
 }
 
@@ -68,7 +68,7 @@ static void rtl_op_stop(struct ieee80211_hw *hw)
 		mdelay(1);
 	}
 
-	down(&rtlpriv->locks.conf_sem);
+	mutex_lock(&rtlpriv->locks.conf_mutex);
 
 	mac->link_state = MAC80211_NOLINK;
 	memset(mac->bssid, 0, 6);
@@ -79,7 +79,7 @@ static void rtl_op_stop(struct ieee80211_hw *hw)
 	rtl_deinit_deferred_work(hw);
 	rtlpriv->intf_ops->adapter_stop(hw);
 
-	up(&rtlpriv->locks.conf_sem);
+	mutex_unlock(&rtlpriv->locks.conf_mutex);
 }
 
 static int rtl_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
@@ -119,7 +119,7 @@ static int rtl_op_add_interface(struct ieee80211_hw *hw,
 
 	rtl_ips_nic_on(hw);
 
-	down(&rtlpriv->locks.conf_sem);
+	mutex_lock(&rtlpriv->locks.conf_mutex);
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 		if (mac->beacon_enabled == 1) {
@@ -156,7 +156,7 @@ static int rtl_op_add_interface(struct ieee80211_hw *hw,
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_ETHER_ADDR, mac->mac_addr);
 
 out:
-	up(&rtlpriv->locks.conf_sem);
+	mutex_unlock(&rtlpriv->locks.conf_mutex);
 	return err;
 }
 
@@ -166,7 +166,7 @@ static void rtl_op_remove_interface(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 
-	down(&rtlpriv->locks.conf_sem);
+	mutex_lock(&rtlpriv->locks.conf_mutex);
 
 	/* Free beacon resources */
 	if ((mac->opmode == NL80211_IFTYPE_AP) ||
@@ -190,7 +190,7 @@ static void rtl_op_remove_interface(struct ieee80211_hw *hw,
 	mac->opmode = NL80211_IFTYPE_UNSPECIFIED;
 	rtlpriv->cfg->ops->set_network_type(hw, mac->opmode);
 
-	up(&rtlpriv->locks.conf_sem);
+	mutex_unlock(&rtlpriv->locks.conf_mutex);
 }
 
 
@@ -202,7 +202,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	struct ieee80211_conf *conf = &hw->conf;
 
-	down(&rtlpriv->locks.conf_sem);
+	mutex_lock(&rtlpriv->locks.conf_mutex);
 	if (changed & IEEE80211_CONF_CHANGE_LISTEN_INTERVAL) {	/*BIT(2)*/
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_LOUD,
 			 ("IEEE80211_CONF_CHANGE_LISTEN_INTERVAL\n"));
@@ -303,7 +303,7 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 					       hw->conf.channel_type);
 	}
 
-	up(&rtlpriv->locks.conf_sem);
+	mutex_unlock(&rtlpriv->locks.conf_mutex);
 
 	return 0;
 }
@@ -450,7 +450,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 
-	down(&rtlpriv->locks.conf_sem);
+	mutex_lock(&rtlpriv->locks.conf_mutex);
 
 	if ((vif->type == NL80211_IFTYPE_ADHOC) ||
 	    (vif->type == NL80211_IFTYPE_AP) ||
@@ -700,7 +700,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 out:
-	up(&rtlpriv->locks.conf_sem);
+	mutex_unlock(&rtlpriv->locks.conf_mutex);
 }
 
 static u64 rtl_op_get_tsf(struct ieee80211_hw *hw)
@@ -852,7 +852,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		  sta ? sta->addr : bcast_addr));
 	rtlpriv->sec.being_setkey = true;
 	rtl_ips_nic_on(hw);
-	down(&rtlpriv->locks.conf_sem);
+	mutex_lock(&rtlpriv->locks.conf_mutex);
 	/* <1> get encryption alg */
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
@@ -970,7 +970,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			 ("cmd_err:%x!!!!:\n", cmd));
 	}
 out_unlock:
-	up(&rtlpriv->locks.conf_sem);
+	mutex_unlock(&rtlpriv->locks.conf_mutex);
 	rtlpriv->sec.being_setkey = false;
 	return err;
 }
@@ -986,7 +986,7 @@ static void rtl_op_rfkill_poll(struct ieee80211_hw *hw)
 	if (!test_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status))
 		return;
 
-	down(&rtlpriv->locks.conf_sem);
+	mutex_lock(&rtlpriv->locks.conf_mutex);
 
 	/*if Radio On return true here */
 	radio_state = rtlpriv->cfg->ops->radio_onoff_checking(hw, &valid);
@@ -1004,7 +1004,7 @@ static void rtl_op_rfkill_poll(struct ieee80211_hw *hw)
 		}
 	}
 
-	up(&rtlpriv->locks.conf_sem);
+	mutex_unlock(&rtlpriv->locks.conf_mutex);
 }
 
 const struct ieee80211_ops rtl_ops = {

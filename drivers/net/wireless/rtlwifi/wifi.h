@@ -1193,8 +1193,8 @@ struct rtl_hal_cfg {
 
 struct rtl_locks {
 	/*sem */
-	struct semaphore ips_sem;
-	struct semaphore conf_sem;
+	struct mutex ips_mutex;
+	struct mutex conf_mutex;
 
 	/*spin lock */
 	spinlock_t irq_th_lock;

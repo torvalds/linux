@@ -309,8 +309,8 @@ int rtl_init_core(struct ieee80211_hw *hw)
 	}
 
 	/* <4> locks */
-	sema_init(&rtlpriv->locks.ips_sem, 1);
-	sema_init(&rtlpriv->locks.conf_sem, 1);
+	mutex_init(&rtlpriv->locks.ips_mutex);
+	mutex_init(&rtlpriv->locks.conf_mutex);
 	spin_lock_init(&rtlpriv->locks.irq_th_lock);
 	spin_lock_init(&rtlpriv->locks.h2c_lock);
 	spin_lock_init(&rtlpriv->locks.rf_ps_lock);
