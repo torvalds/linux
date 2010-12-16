@@ -20,6 +20,9 @@ config HAVE_SPARSE_IRQ
 config GENERIC_IRQ_PROBE
 	def_bool n
 
+config GENERIC_IRQ_SHOW
+       def_bool n
+
 config GENERIC_PENDING_IRQ
 	def_bool n
 
