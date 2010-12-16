@@ -4374,10 +4374,20 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		 * use this buffer rather sooner than later, so issuing the required
 		 * flush earlier is beneficial.
 		 */
-		if (obj->write_domain & I915_GEM_GPU_DOMAINS)
+		if (obj->write_domain & I915_GEM_GPU_DOMAINS) {
 			i915_gem_flush_ring(dev, file_priv,
 					    obj_priv->ring,
 					    0, obj->write_domain);
+		} else if (obj_priv->ring->outstanding_lazy_request) {
+			/* This ring is not being cleared by active usage,
+			 * so emit a request to do so.
+			 */
+			u32 seqno = i915_add_request(dev,
+						     NULL, NULL,
+						     obj_priv->ring);
+			if (seqno == 0)
+				ret = -ENOMEM;
+		}
 
 		/* Update the active list for the hardware's current position.
 		 * Otherwise this only updates on a delayed timer or when irqs
