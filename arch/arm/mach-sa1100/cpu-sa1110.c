@@ -16,28 +16,24 @@
  *
  * The SDRAM type can be passed on the command line as cpu_sa1110.sdram=type
  */
-#include <linux/moduleparam.h>
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/cpufreq.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/moduleparam.h>
+#include <linux/types.h>
 
-#include <mach/hardware.h>
 #include <asm/cputype.h>
 #include <asm/mach-types.h>
-#include <asm/system.h>
+
+#include <mach/hardware.h>
 
 #include "generic.h"
 
 #undef DEBUG
 
-static struct cpufreq_driver sa1110_driver;
-
 struct sdram_params {
-	const char name[16];
+	const char name[20];
 	u_char  rows;		/* bits				 */
 	u_char  cas_latency;	/* cycles			 */
 	u_char  tck;		/* clock cycle time (ns)	 */
@@ -101,6 +97,15 @@ static struct sdram_params sdram_tbl[] __initdata = {
 	}, {	/* Winbond W982516AH75L CL3 */
 		.name		= "W982516AH75L",
 		.rows		= 16,
+		.tck		= 8,
+		.trcd		= 20,
+		.trp		= 20,
+		.twr		= 8,
+		.refresh	= 64000,
+		.cas_latency	= 3,
+	}, {	/* Micron MT48LC8M16A2TG-75 */
+		.name		= "MT48LC8M16A2TG-75",
+		.rows		= 12,
 		.tck		= 8,
 		.trcd		= 20,
 		.trp		= 20,
@@ -336,7 +341,9 @@ static int __init sa1110_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static struct cpufreq_driver sa1110_driver = {
+/* sa1110_driver needs __refdata because it must remain after init registers
+ * it with cpufreq_register_driver() */
+static struct cpufreq_driver sa1110_driver __refdata = {
 	.flags		= CPUFREQ_STICKY,
 	.verify		= sa11x0_verify_speed,
 	.target		= sa1110_target,
@@ -369,14 +376,14 @@ static int __init sa1110_clk_init(void)
 	if (!name[0]) {
 		if (machine_is_assabet())
 			name = "TC59SM716-CL3";
-
 		if (machine_is_pt_system3())
 			name = "K4S641632D";
-
 		if (machine_is_h3100())
 			name = "KM416S4030CT";
 		if (machine_is_jornada720())
 		        name = "K4S281632B-1H";
+		if (machine_is_nanoengine())
+			name = "MT48LC8M16A2TG-75";
 	}
 
 	sdram = sa1110_find_sdram(name);
