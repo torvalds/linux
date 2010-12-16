@@ -67,6 +67,7 @@ struct video_obj {
 					 * most recent displayed frame only */
 	v4l2_std_id stdid;		/* Currently selected or default
 					 * standard */
+	u32 dv_preset;
 	u32 output_id;			/* Current output id */
 };
 

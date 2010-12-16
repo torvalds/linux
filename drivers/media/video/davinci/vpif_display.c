@@ -373,15 +373,23 @@ static int vpif_get_std_info(struct channel_obj *ch)
 
 	int index;
 
-	std_info->stdid = vid_ch->stdid;
-	if (!std_info->stdid)
-		return -1;
+	if (!vid_ch->stdid && !vid_ch->dv_preset)
+		return -EINVAL;
 
 	for (index = 0; index < vpif_ch_params_count; index++) {
 		config = &ch_params[index];
-		if (config->stdid & std_info->stdid) {
-			memcpy(std_info, config, sizeof(*config));
-			break;
+		if (config->hd_sd == 0) {
+			vpif_dbg(2, debug, "SD format\n");
+			if (config->stdid & vid_ch->stdid) {
+				memcpy(std_info, config, sizeof(*config));
+				break;
+			}
+		} else {
+			vpif_dbg(2, debug, "HD format\n");
+			if (config->dv_preset == vid_ch->dv_preset) {
+				memcpy(std_info, config, sizeof(*config));
+				break;
+			}
 		}
 	}
 
@@ -1305,6 +1313,88 @@ static int vpif_s_priority(struct file *file, void *priv, enum v4l2_priority p)
 	return v4l2_prio_change(&ch->prio, &fh->prio, p);
 }
 
+/**
+ * vpif_enum_dv_presets() - ENUM_DV_PRESETS handler
+ * @file: file ptr
+ * @priv: file handle
+ * @preset: input preset
+ */
+static int vpif_enum_dv_presets(struct file *file, void *priv,
+		struct v4l2_dv_enum_preset *preset)
+{
+	struct vpif_fh *fh = priv;
+	struct channel_obj *ch = fh->channel;
+	struct video_obj *vid_ch = &ch->video;
+
+	return v4l2_subdev_call(vpif_obj.sd[vid_ch->output_id],
+			video, enum_dv_presets, preset);
+}
+
+/**
+ * vpif_s_dv_presets() - S_DV_PRESETS handler
+ * @file: file ptr
+ * @priv: file handle
+ * @preset: input preset
+ */
+static int vpif_s_dv_preset(struct file *file, void *priv,
+		struct v4l2_dv_preset *preset)
+{
+	struct vpif_fh *fh = priv;
+	struct channel_obj *ch = fh->channel;
+	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
+	struct video_obj *vid_ch = &ch->video;
+	int ret = 0;
+
+	if (common->started) {
+		vpif_dbg(1, debug, "streaming in progress\n");
+		return -EBUSY;
+	}
+
+	ret = v4l2_prio_check(&ch->prio, fh->prio);
+	if (ret != 0)
+		return ret;
+
+	fh->initialized = 1;
+
+	/* Call encoder subdevice function to set the standard */
+	if (mutex_lock_interruptible(&common->lock))
+		return -ERESTARTSYS;
+
+	ch->video.dv_preset = preset->preset;
+	ch->video.stdid = V4L2_STD_UNKNOWN;
+
+	/* Get the information about the standard */
+	if (vpif_get_std_info(ch)) {
+		ret = -EINVAL;
+		vpif_dbg(1, debug, "Error getting the standard info\n");
+	} else {
+		/* Configure the default format information */
+		vpif_config_format(ch);
+
+		ret = v4l2_subdev_call(vpif_obj.sd[vid_ch->output_id],
+				video, s_dv_preset, preset);
+	}
+
+	mutex_unlock(&common->lock);
+
+	return ret;
+}
+/**
+ * vpif_g_dv_presets() - G_DV_PRESETS handler
+ * @file: file ptr
+ * @priv: file handle
+ * @preset: input preset
+ */
+static int vpif_g_dv_preset(struct file *file, void *priv,
+		struct v4l2_dv_preset *preset)
+{
+	struct vpif_fh *fh = priv;
+	struct channel_obj *ch = fh->channel;
+
+	preset->preset = ch->video.dv_preset;
+
+	return 0;
+}
 
 /*
  * vpif_g_chip_ident() - Identify the chip
@@ -1405,6 +1495,9 @@ static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
 	.vidioc_s_output		= vpif_s_output,
 	.vidioc_g_output		= vpif_g_output,
 	.vidioc_cropcap         	= vpif_cropcap,
+	.vidioc_enum_dv_presets         = vpif_enum_dv_presets,
+	.vidioc_s_dv_preset             = vpif_s_dv_preset,
+	.vidioc_g_dv_preset             = vpif_g_dv_preset,
 	.vidioc_g_chip_ident		= vpif_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register		= vpif_dbg_g_register,

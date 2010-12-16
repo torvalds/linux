@@ -432,9 +432,18 @@ static int vpif_update_std_info(struct channel_obj *ch)
 
 	for (index = 0; index < vpif_ch_params_count; index++) {
 		config = &ch_params[index];
-		if (config->stdid & vid_ch->stdid) {
-			memcpy(std_info, config, sizeof(*config));
-			break;
+		if (config->hd_sd == 0) {
+			vpif_dbg(2, debug, "SD format\n");
+			if (config->stdid & vid_ch->stdid) {
+				memcpy(std_info, config, sizeof(*config));
+				break;
+			}
+		} else {
+			vpif_dbg(2, debug, "HD format\n");
+			if (config->dv_preset == vid_ch->dv_preset) {
+				memcpy(std_info, config, sizeof(*config));
+				break;
+			}
 		}
 	}
 
@@ -1442,6 +1451,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 		return -ERESTARTSYS;
 
 	ch->video.stdid = *std_id;
+	ch->video.dv_preset = V4L2_DV_INVALID;
 
 	/* Get the information about the standard */
 	if (vpif_update_std_info(ch)) {
@@ -1794,6 +1804,110 @@ static int vpif_cropcap(struct file *file, void *priv,
 	return 0;
 }
 
+/**
+ * vpif_enum_dv_presets() - ENUM_DV_PRESETS handler
+ * @file: file ptr
+ * @priv: file handle
+ * @preset: input preset
+ */
+static int vpif_enum_dv_presets(struct file *file, void *priv,
+		struct v4l2_dv_enum_preset *preset)
+{
+	struct vpif_fh *fh = priv;
+	struct channel_obj *ch = fh->channel;
+
+	return v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
+			video, enum_dv_presets, preset);
+}
+
+/**
+ * vpif_query_dv_presets() - QUERY_DV_PRESET handler
+ * @file: file ptr
+ * @priv: file handle
+ * @preset: input preset
+ */
+static int vpif_query_dv_preset(struct file *file, void *priv,
+		struct v4l2_dv_preset *preset)
+{
+	struct vpif_fh *fh = priv;
+	struct channel_obj *ch = fh->channel;
+
+	return v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
+		       video, query_dv_preset, preset);
+}
+/**
+ * vpif_s_dv_presets() - S_DV_PRESETS handler
+ * @file: file ptr
+ * @priv: file handle
+ * @preset: input preset
+ */
+static int vpif_s_dv_preset(struct file *file, void *priv,
+		struct v4l2_dv_preset *preset)
+{
+	struct vpif_fh *fh = priv;
+	struct channel_obj *ch = fh->channel;
+	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
+	int ret = 0;
+
+	if (common->started) {
+		vpif_dbg(1, debug, "streaming in progress\n");
+		return -EBUSY;
+	}
+
+	if ((VPIF_CHANNEL0_VIDEO == ch->channel_id) ||
+	    (VPIF_CHANNEL1_VIDEO == ch->channel_id)) {
+		if (!fh->initialized) {
+			vpif_dbg(1, debug, "Channel Busy\n");
+			return -EBUSY;
+		}
+	}
+
+	ret = v4l2_prio_check(&ch->prio, fh->prio);
+	if (ret)
+		return ret;
+
+	fh->initialized = 1;
+
+	/* Call encoder subdevice function to set the standard */
+	if (mutex_lock_interruptible(&common->lock))
+		return -ERESTARTSYS;
+
+	ch->video.dv_preset = preset->preset;
+	ch->video.stdid = V4L2_STD_UNKNOWN;
+
+	/* Get the information about the standard */
+	if (vpif_update_std_info(ch)) {
+		vpif_dbg(1, debug, "Error getting the standard info\n");
+		ret = -EINVAL;
+	} else {
+		/* Configure the default format information */
+		vpif_config_format(ch);
+
+		ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
+				video, s_dv_preset, preset);
+	}
+
+	mutex_unlock(&common->lock);
+
+	return ret;
+}
+/**
+ * vpif_g_dv_presets() - G_DV_PRESETS handler
+ * @file: file ptr
+ * @priv: file handle
+ * @preset: input preset
+ */
+static int vpif_g_dv_preset(struct file *file, void *priv,
+		struct v4l2_dv_preset *preset)
+{
+	struct vpif_fh *fh = priv;
+	struct channel_obj *ch = fh->channel;
+
+	preset->preset = ch->video.dv_preset;
+
+	return 0;
+}
+
 /*
  * vpif_g_chip_ident() - Identify the chip
  * @file: file ptr
@@ -1892,6 +2006,10 @@ static const struct v4l2_ioctl_ops vpif_ioctl_ops = {
 	.vidioc_streamon        	= vpif_streamon,
 	.vidioc_streamoff       	= vpif_streamoff,
 	.vidioc_cropcap         	= vpif_cropcap,
+	.vidioc_enum_dv_presets         = vpif_enum_dv_presets,
+	.vidioc_s_dv_preset             = vpif_s_dv_preset,
+	.vidioc_g_dv_preset             = vpif_g_dv_preset,
+	.vidioc_query_dv_preset         = vpif_query_dv_preset,
 	.vidioc_g_chip_ident		= vpif_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register		= vpif_dbg_g_register,

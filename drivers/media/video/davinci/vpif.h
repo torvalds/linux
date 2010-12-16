@@ -591,6 +591,7 @@ struct vpif_channel_config_params {
 					 * supports capturing vbi or not */
 	u8 hd_sd;
 	v4l2_std_id stdid;
+	u32 dv_preset;			/* HDTV format */
 };
 
 extern const unsigned int vpif_ch_params_count;

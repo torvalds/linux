@@ -59,6 +59,7 @@ struct video_obj {
 	enum v4l2_field buf_field;
 	/* Currently selected or default standard */
 	v4l2_std_id stdid;
+	u32 dv_preset;
 	/* This is to track the last input that is passed to application */
 	u32 input_idx;
 };
