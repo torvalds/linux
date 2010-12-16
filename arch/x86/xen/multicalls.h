@@ -1,6 +1,8 @@
 #ifndef _XEN_MULTICALLS_H
 #define _XEN_MULTICALLS_H
 
+#include <trace/events/xen.h>
+
 #include "xen-ops.h"
 
 /* Multicalls */
@@ -20,6 +22,7 @@ DECLARE_PER_CPU(unsigned long, xen_mc_irq_flags);
 static inline void xen_mc_batch(void)
 {
 	unsigned long flags;
+
 	/* need to disable interrupts until this entry is complete */
 	local_irq_save(flags);
 	__this_cpu_write(xen_mc_irq_flags, flags);
