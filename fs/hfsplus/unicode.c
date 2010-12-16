@@ -118,7 +118,9 @@ static u16 *hfsplus_compose_lookup(u16 *p, u16 cc)
 	return NULL;
 }
 
-int hfsplus_uni2asc(struct super_block *sb, const struct hfsplus_unistr *ustr, char *astr, int *len_p)
+int hfsplus_uni2asc(struct super_block *sb,
+		const struct hfsplus_unistr *ustr,
+		char *astr, int *len_p)
 {
 	const hfsplus_unichr *ip;
 	struct nls_table *nls = HFSPLUS_SB(sb)->nls;
@@ -171,7 +173,8 @@ int hfsplus_uni2asc(struct super_block *sb, const struct hfsplus_unistr *ustr, c
 				goto same;
 			c1 = be16_to_cpu(*ip);
 			if (likely(compose))
-				ce1 = hfsplus_compose_lookup(hfsplus_compose_table, c1);
+				ce1 = hfsplus_compose_lookup(
+					hfsplus_compose_table, c1);
 			if (ce1)
 				break;
 			switch (c0) {
@@ -199,7 +202,8 @@ int hfsplus_uni2asc(struct super_block *sb, const struct hfsplus_unistr *ustr, c
 		if (ce2) {
 			i = 1;
 			while (i < ustrlen) {
-				ce1 = hfsplus_compose_lookup(ce2, be16_to_cpu(ip[i]));
+				ce1 = hfsplus_compose_lookup(ce2,
+					be16_to_cpu(ip[i]));
 				if (!ce1)
 					break;
 				i++;
@@ -363,7 +367,8 @@ int hfsplus_hash_dentry(struct dentry *dentry, struct qstr *str)
  * Composed unicode characters are decomposed and case-folding is performed
  * if the appropriate bits are (un)set on the superblock.
  */
-int hfsplus_compare_dentry(struct dentry *dentry, struct qstr *s1, struct qstr *s2)
+int hfsplus_compare_dentry(struct dentry *dentry,
+		struct qstr *s1, struct qstr *s2)
 {
 	struct super_block *sb = dentry->d_sb;
 	int casefold, decompose, size;
@@ -388,7 +393,9 @@ int hfsplus_compare_dentry(struct dentry *dentry, struct qstr *s1, struct qstr *
 			astr1 += size;
 			len1 -= size;
 
-			if (!decompose || !(dstr1 = decompose_unichar(c, &dsize1))) {
+			if (decompose)
+				dstr1 = decompose_unichar(c, &dsize1);
+			if (!decompose || !dstr1) {
 				c1 = c;
 				dstr1 = &c1;
 				dsize1 = 1;
@@ -400,7 +407,9 @@ int hfsplus_compare_dentry(struct dentry *dentry, struct qstr *s1, struct qstr *
 			astr2 += size;
 			len2 -= size;
 
-			if (!decompose || !(dstr2 = decompose_unichar(c, &dsize2))) {
+			if (decompose)
+				dstr2 = decompose_unichar(c, &dsize2);
+			if (!decompose || !dstr2) {
 				c2 = c;
 				dstr2 = &c2;
 				dsize2 = 1;

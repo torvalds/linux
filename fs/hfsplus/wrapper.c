@@ -74,12 +74,14 @@ static int hfsplus_read_mdb(void *bufptr, struct hfsplus_wd *wd)
 	   !(attrib & HFSP_WRAP_ATTRIB_SPARED))
 		return 0;
 
-	wd->ablk_size = be32_to_cpu(*(__be32 *)(bufptr + HFSP_WRAPOFF_ABLKSIZE));
+	wd->ablk_size =
+		be32_to_cpu(*(__be32 *)(bufptr + HFSP_WRAPOFF_ABLKSIZE));
 	if (wd->ablk_size < HFSPLUS_SECTOR_SIZE)
 		return 0;
 	if (wd->ablk_size % HFSPLUS_SECTOR_SIZE)
 		return 0;
-	wd->ablk_start = be16_to_cpu(*(__be16 *)(bufptr + HFSP_WRAPOFF_ABLKSTART));
+	wd->ablk_start =
+		be16_to_cpu(*(__be16 *)(bufptr + HFSP_WRAPOFF_ABLKSTART));
 
 	extent = get_unaligned_be32(bufptr + HFSP_WRAPOFF_EMBEDEXT);
 	wd->embed_start = (extent >> 16) & 0xFFFF;
@@ -102,7 +104,8 @@ static int hfsplus_get_last_session(struct super_block *sb,
 	if (HFSPLUS_SB(sb)->session >= 0) {
 		te.cdte_track = HFSPLUS_SB(sb)->session;
 		te.cdte_format = CDROM_LBA;
-		res = ioctl_by_bdev(sb->s_bdev, CDROMREADTOCENTRY, (unsigned long)&te);
+		res = ioctl_by_bdev(sb->s_bdev,
+			CDROMREADTOCENTRY, (unsigned long)&te);
 		if (!res && (te.cdte_ctrl & CDROM_DATA_TRACK) == 4) {
 			*start = (sector_t)te.cdte_addr.lba << 2;
 			return 0;
@@ -111,7 +114,8 @@ static int hfsplus_get_last_session(struct super_block *sb,
 		return -EINVAL;
 	}
 	ms_info.addr_format = CDROM_LBA;
-	res = ioctl_by_bdev(sb->s_bdev, CDROMMULTISESSION, (unsigned long)&ms_info);
+	res = ioctl_by_bdev(sb->s_bdev, CDROMMULTISESSION,
+		(unsigned long)&ms_info);
 	if (!res && ms_info.xa_flag)
 		*start = (sector_t)ms_info.addr.lba << 2;
 	return 0;
@@ -212,7 +216,8 @@ reread:
 		blocksize >>= 1;
 
 	if (sb_set_blocksize(sb, blocksize) != blocksize) {
-		printk(KERN_ERR "hfs: unable to set blocksize to %u!\n", blocksize);
+		printk(KERN_ERR "hfs: unable to set blocksize to %u!\n",
+			blocksize);
 		goto out_free_backup_vhdr;
 	}
 

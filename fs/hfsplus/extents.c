@@ -83,7 +83,8 @@ static u32 hfsplus_ext_lastblock(struct hfsplus_extent *ext)
 	return be32_to_cpu(ext->start_block) + be32_to_cpu(ext->block_count);
 }
 
-static void __hfsplus_ext_write_extent(struct inode *inode, struct hfs_find_data *fd)
+static void __hfsplus_ext_write_extent(struct inode *inode,
+		struct hfs_find_data *fd)
 {
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 	int res;
@@ -152,11 +153,13 @@ static inline int __hfsplus_ext_read_extent(struct hfs_find_data *fd,
 		return -ENOENT;
 	if (fd->entrylength != sizeof(hfsplus_extent_rec))
 		return -EIO;
-	hfs_bnode_read(fd->bnode, extent, fd->entryoffset, sizeof(hfsplus_extent_rec));
+	hfs_bnode_read(fd->bnode, extent, fd->entryoffset,
+		sizeof(hfsplus_extent_rec));
 	return 0;
 }
 
-static inline int __hfsplus_ext_cache_extent(struct hfs_find_data *fd, struct inode *inode, u32 block)
+static inline int __hfsplus_ext_cache_extent(struct hfs_find_data *fd,
+		struct inode *inode, u32 block)
 {
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
 	int res;
@@ -172,7 +175,8 @@ static inline int __hfsplus_ext_cache_extent(struct hfs_find_data *fd, struct in
 						HFSPLUS_TYPE_DATA);
 	if (!res) {
 		hip->cached_start = be32_to_cpu(fd->key->ext.start_block);
-		hip->cached_blocks = hfsplus_ext_block_count(hip->cached_extents);
+		hip->cached_blocks =
+			hfsplus_ext_block_count(hip->cached_extents);
 	} else {
 		hip->cached_start = hip->cached_blocks = 0;
 		hip->extent_state &= ~(HFSPLUS_EXT_DIRTY | HFSPLUS_EXT_NEW);
@@ -249,9 +253,12 @@ int hfsplus_get_block(struct inode *inode, sector_t iblock,
 	mutex_unlock(&hip->extents_lock);
 
 done:
-	dprint(DBG_EXTENT, "get_block(%lu): %llu - %u\n", inode->i_ino, (long long)iblock, dblock);
+	dprint(DBG_EXTENT, "get_block(%lu): %llu - %u\n",
+		inode->i_ino, (long long)iblock, dblock);
 	mask = (1 << sbi->fs_shift) - 1;
-	map_bh(bh_result, sb, (dblock << sbi->fs_shift) + sbi->blockoffset + (iblock & mask));
+	map_bh(bh_result, sb,
+		(dblock << sbi->fs_shift) + sbi->blockoffset +
+			(iblock & mask));
 	if (create) {
 		set_buffer_new(bh_result);
 		hip->phys_size += sb->s_blocksize;
@@ -342,7 +349,8 @@ found:
 	}
 }
 
-int hfsplus_free_fork(struct super_block *sb, u32 cnid, struct hfsplus_fork_raw *fork, int type)
+int hfsplus_free_fork(struct super_block *sb, u32 cnid,
+		struct hfsplus_fork_raw *fork, int type)
 {
 	struct hfs_find_data fd;
 	hfsplus_extent_rec ext_entry;
@@ -497,7 +505,8 @@ void hfsplus_file_truncate(struct inode *inode)
 						&page, &fsdata);
 		if (res)
 			return;
-		res = pagecache_write_end(NULL, mapping, size, 0, 0, page, fsdata);
+		res = pagecache_write_end(NULL, mapping, size,
+			0, 0, page, fsdata);
 		if (res < 0)
 			return;
 		mark_inode_dirty(inode);
@@ -543,7 +552,8 @@ void hfsplus_file_truncate(struct inode *inode)
 	hip->alloc_blocks = blk_cnt;
 out:
 	hip->phys_size = inode->i_size;
-	hip->fs_blocks = (inode->i_size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
+	hip->fs_blocks = (inode->i_size + sb->s_blocksize - 1) >>
+		sb->s_blocksize_bits;
 	inode_set_bytes(inode, hip->fs_blocks << sb->s_blocksize_bits);
 	hfsplus_mark_inode_dirty(inode, HFSPLUS_I_ALLOC_DIRTY);
 }

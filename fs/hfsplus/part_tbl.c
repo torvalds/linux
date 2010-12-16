@@ -2,7 +2,8 @@
  * linux/fs/hfsplus/part_tbl.c
  *
  * Copyright (C) 1996-1997  Paul H. Hargrove
- * This file may be distributed under the terms of the GNU General Public License.
+ * This file may be distributed under the terms of
+ * the GNU General Public License.
  *
  * Original code to handle the new style Mac partition table based on
  * a patch contributed by Holger Schemel (aeglos@valinor.owl.de).

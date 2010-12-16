@@ -78,7 +78,8 @@ static int hfsplus_releasepage(struct page *page, gfp_t mask)
 	if (!tree)
 		return 0;
 	if (tree->node_size >= PAGE_CACHE_SIZE) {
-		nidx = page->index >> (tree->node_size_shift - PAGE_CACHE_SHIFT);
+		nidx = page->index >>
+			(tree->node_size_shift - PAGE_CACHE_SHIFT);
 		spin_lock(&tree->hash_lock);
 		node = hfs_bnode_findhash(tree, nidx);
 		if (!node)
@@ -91,7 +92,8 @@ static int hfsplus_releasepage(struct page *page, gfp_t mask)
 		}
 		spin_unlock(&tree->hash_lock);
 	} else {
-		nidx = page->index << (PAGE_CACHE_SHIFT - tree->node_size_shift);
+		nidx = page->index <<
+			(PAGE_CACHE_SHIFT - tree->node_size_shift);
 		i = 1 << (PAGE_CACHE_SHIFT - tree->node_size_shift);
 		spin_lock(&tree->hash_lock);
 		do {
@@ -167,8 +169,8 @@ const struct dentry_operations hfsplus_dentry_operations = {
 	.d_compare    = hfsplus_compare_dentry,
 };
 
-static struct dentry *hfsplus_file_lookup(struct inode *dir, struct dentry *dentry,
-					  struct nameidata *nd)
+static struct dentry *hfsplus_file_lookup(struct inode *dir,
+		struct dentry *dentry, struct nameidata *nd)
 {
 	struct hfs_find_data fd;
 	struct super_block *sb = dir->i_sb;
@@ -222,7 +224,8 @@ out:
 	return NULL;
 }
 
-static void hfsplus_get_perms(struct inode *inode, struct hfsplus_perm *perms, int dir)
+static void hfsplus_get_perms(struct inode *inode,
+		struct hfsplus_perm *perms, int dir)
 {
 	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
 	u16 mode;
@@ -324,7 +327,8 @@ int hfsplus_file_fsync(struct file *file, int datasync)
 		error = filemap_write_and_wait(sbi->cat_tree->inode->i_mapping);
 
 	if (test_and_clear_bit(HFSPLUS_I_EXT_DIRTY, &hip->flags)) {
-		error2 = filemap_write_and_wait(sbi->ext_tree->inode->i_mapping);
+		error2 =
+			filemap_write_and_wait(sbi->ext_tree->inode->i_mapping);
 		if (!error)
 			error = error2;
 	}
@@ -472,7 +476,8 @@ void hfsplus_inode_read_fork(struct inode *inode, struct hfsplus_fork_raw *fork)
 	}
 }
 
-void hfsplus_inode_write_fork(struct inode *inode, struct hfsplus_fork_raw *fork)
+void hfsplus_inode_write_fork(struct inode *inode,
+		struct hfsplus_fork_raw *fork)
 {
 	memcpy(&fork->extents, &HFSPLUS_I(inode)->first_extents,
 	       sizeof(hfsplus_extent_rec));
@@ -520,7 +525,8 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		inode->i_nlink = 1;
 		if (S_ISREG(inode->i_mode)) {
 			if (file->permissions.dev)
-				inode->i_nlink = be32_to_cpu(file->permissions.dev);
+				inode->i_nlink =
+					be32_to_cpu(file->permissions.dev);
 			inode->i_op = &hfsplus_file_inode_operations;
 			inode->i_fop = &hfsplus_file_operations;
 			inode->i_mapping->a_ops = &hfsplus_aops;
@@ -593,7 +599,9 @@ int hfsplus_cat_write_inode(struct inode *inode)
 					sizeof(struct hfsplus_cat_file));
 		hfsplus_inode_write_fork(inode, &file->data_fork);
 		hfsplus_cat_set_perms(inode, &file->permissions);
-		if ((file->permissions.rootflags | file->permissions.userflags) & HFSPLUS_FLG_IMMUTABLE)
+		if (HFSPLUS_FLG_IMMUTABLE &
+				(file->permissions.rootflags |
+					file->permissions.userflags))
 			file->flags |= cpu_to_be16(HFSPLUS_FILE_LOCKED);
 		else
 			file->flags &= cpu_to_be16(~HFSPLUS_FILE_LOCKED);

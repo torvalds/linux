@@ -165,7 +165,9 @@ int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi)
 			if (p)
 				sbi->nls = load_nls(p);
 			if (!sbi->nls) {
-				printk(KERN_ERR "hfs: unable to load nls mapping \"%s\"\n", p);
+				printk(KERN_ERR "hfs: unable to load "
+						"nls mapping \"%s\"\n",
+					p);
 				kfree(p);
 				return 0;
 			}
@@ -212,7 +214,8 @@ int hfsplus_show_options(struct seq_file *seq, struct vfsmount *mnt)
 		seq_printf(seq, ",creator=%.4s", (char *)&sbi->creator);
 	if (sbi->type != HFSPLUS_DEF_CR_TYPE)
 		seq_printf(seq, ",type=%.4s", (char *)&sbi->type);
-	seq_printf(seq, ",umask=%o,uid=%u,gid=%u", sbi->umask, sbi->uid, sbi->gid);
+	seq_printf(seq, ",umask=%o,uid=%u,gid=%u", sbi->umask,
+		sbi->uid, sbi->gid);
 	if (sbi->part >= 0)
 		seq_printf(seq, ",part=%u", sbi->part);
 	if (sbi->session >= 0)
