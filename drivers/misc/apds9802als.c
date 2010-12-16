@@ -251,7 +251,6 @@ static int apds9802als_probe(struct i2c_client *client,
 
 	return res;
 als_error1:
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return res;
 }

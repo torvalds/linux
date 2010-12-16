@@ -945,7 +945,7 @@ M:	Magnus Damm <magnus.damm@gmail.com>
 L:	linux-sh@vger.kernel.org
 W:	http://oss.renesas.com
 Q:	http://patchwork.kernel.org/project/linux-sh/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/genesis-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/sh-2.6.git rmobile-latest
 S:	Supported
 F:	arch/arm/mach-shmobile/
 F:	drivers/sh/
@@ -2435,6 +2435,7 @@ F:	drivers/net/wan/sdla.c
 FRAMEBUFFER LAYER
 L:	linux-fbdev@vger.kernel.org
 W:	http://linux-fbdev.sourceforge.net/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/fbdev-2.6.git
 S:	Orphan
 F:	Documentation/fb/
 F:	drivers/video/fb*
@@ -5705,7 +5706,7 @@ M:	Paul Mundt <lethal@linux-sh.org>
 L:	linux-sh@vger.kernel.org
 W:	http://www.linux-sh.org
 Q:	http://patchwork.kernel.org/project/linux-sh/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/sh-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/sh-2.6.git sh-latest
 S:	Supported
 F:	Documentation/sh/
 F:	arch/sh/

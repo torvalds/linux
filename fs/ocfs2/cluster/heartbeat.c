@@ -1674,7 +1674,7 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 		goto out;
 
 	reg->hr_bdev = I_BDEV(filp->f_mapping->host);
-	ret = blkdev_get(reg->hr_bdev, FMODE_WRITE | FMODE_READ);
+	ret = blkdev_get(reg->hr_bdev, FMODE_WRITE | FMODE_READ, NULL);
 	if (ret) {
 		reg->hr_bdev = NULL;
 		goto out;
