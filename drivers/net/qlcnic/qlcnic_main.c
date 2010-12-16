@@ -1468,7 +1468,6 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	uint8_t revision_id;
 	uint8_t pci_using_dac;
 	char brd_name[QLCNIC_MAX_BOARD_NAME_LEN];
-	u32 val;
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -1530,9 +1529,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto err_out_iounmap;
 
-	val = QLCRD32(adapter, QLCNIC_CRB_DRV_ACTIVE);
-	if (QLC_DEV_CHECK_ACTIVE(val, adapter->portnum))
-		adapter->flags |= QLCNIC_NEED_FLR;
+	adapter->flags |= QLCNIC_NEED_FLR;
 
 	err = adapter->nic_ops->start_firmware(adapter);
 	if (err) {
