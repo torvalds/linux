@@ -283,6 +283,8 @@ static struct usb_device_id mceusb_dev_table[] = {
 	{ USB_DEVICE(VENDOR_FORMOSA, 0xe03c) },
 	/* Formosa Industrial Computing */
 	{ USB_DEVICE(VENDOR_FORMOSA, 0xe03e) },
+	/* Fintek eHome Infrared Transceiver (HP branded) */
+	{ USB_DEVICE(VENDOR_FINTEK, 0x5168) },
 	/* Fintek eHome Infrared Transceiver */
 	{ USB_DEVICE(VENDOR_FINTEK, 0x0602) },
 	/* Fintek eHome Infrared Transceiver (in the AOpen MP45) */
