@@ -745,28 +745,6 @@ static void ar9003_hw_rfbus_done(struct ath_hw *ah)
 	REG_WRITE(ah, AR_PHY_RFBUS_REQ, 0);
 }
 
-/*
- * Set the interrupt and GPIO values so the ISR can disable RF
- * on a switch signal.  Assumes GPIO port and interrupt polarity
- * are set prior to call.
- */
-static void ar9003_hw_enable_rfkill(struct ath_hw *ah)
-{
-	/* Connect rfsilent_bb_l to baseband */
-	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
-		    AR_GPIO_INPUT_EN_VAL_RFSILENT_BB);
-	/* Set input mux for rfsilent_bb_l to GPIO #0 */
-	REG_CLR_BIT(ah, AR_GPIO_INPUT_MUX2,
-		    AR_GPIO_INPUT_MUX2_RFSILENT);
-
-	/*
-	 * Configure the desired GPIO port for input and
-	 * enable baseband rf silence.
-	 */
-	ath9k_hw_cfg_gpio_input(ah, ah->rfkill_gpio);
-	REG_SET_BIT(ah, AR_PHY_TEST, RFSILENT_BB);
-}
-
 static void ar9003_hw_set_diversity(struct ath_hw *ah, bool value)
 {
 	u32 v = REG_READ(ah, AR_PHY_CCK_DETECT);
@@ -1203,7 +1181,6 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->set_delta_slope = ar9003_hw_set_delta_slope;
 	priv_ops->rfbus_req = ar9003_hw_rfbus_req;
 	priv_ops->rfbus_done = ar9003_hw_rfbus_done;
-	priv_ops->enable_rfkill = ar9003_hw_enable_rfkill;
 	priv_ops->set_diversity = ar9003_hw_set_diversity;
 	priv_ops->ani_control = ar9003_hw_ani_control;
 	priv_ops->do_getnf = ar9003_hw_do_getnf;

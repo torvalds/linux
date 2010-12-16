@@ -1385,7 +1385,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ath9k_hw_init_qos(ah);
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
-		ath9k_enable_rfkill(ah);
+		ath9k_hw_cfg_gpio_input(ah, ah->rfkill_gpio);
 
 	ath9k_hw_init_global_settings(ah);
 
