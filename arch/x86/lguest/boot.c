@@ -1352,9 +1352,6 @@ __init void lguest_init(void)
 	 */
 	switch_to_new_gdt(0);
 
-	/* We actually boot with all memory mapped, but let's say 128MB. */
-	max_pfn_mapped = (128*1024*1024) >> PAGE_SHIFT;
-
 	/*
 	 * The Host<->Guest Switcher lives at the top of our address space, and
 	 * the Host told us how big it is when we made LGUEST_INIT hypercall:
