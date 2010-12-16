@@ -593,54 +593,44 @@ static struct of_platform_driver grlib_apbuart_of_driver = {
 };
 
 
-static void grlib_apbuart_configure(void)
+static int grlib_apbuart_configure(void)
 {
-	static int enum_done;
 	struct device_node *np, *rp;
-	struct uart_port *port = NULL;
 	const u32 *prop;
-	int freq_khz;
-	int v = 0, d = 0;
-	unsigned int addr;
-	int irq, line;
-	struct amba_prom_registers *regs;
-
-	if (enum_done)
-		return;
+	int freq_khz, line = 0;
 
 	/* Get bus frequency */
 	rp = of_find_node_by_path("/");
+	if (!rp)
+		return -ENODEV;
 	rp = of_get_next_child(rp, NULL);
+	if (!rp)
+		return -ENODEV;
 	prop = of_get_property(rp, "clock-frequency", NULL);
+	if (!prop)
+		return -ENODEV;
 	freq_khz = *prop;
 
-	line = 0;
 	for_each_matching_node(np, apbuart_match) {
+		const int *irqs = of_get_property(np, "interrupts", NULL);
+		const struct amba_prom_registers *regs;
+		struct uart_port *port;
+		unsigned long addr;
 
-		int *vendor = (int *) of_get_property(np, "vendor", NULL);
-		int *device = (int *) of_get_property(np, "device", NULL);
-		int *irqs = (int *) of_get_property(np, "interrupts", NULL);
-		regs = (struct amba_prom_registers *)
-		    of_get_property(np, "reg", NULL);
-
-		if (vendor)
-			v = *vendor;
-		if (device)
-			d = *device;
+		regs = of_get_property(np, "reg", NULL);
 
 		if (!irqs || !regs)
-			return;
+			return -ENODEV;
 
 		grlib_apbuart_nodes[line] = np;
 
 		addr = regs->phys_addr;
-		irq = *irqs;
 
 		port = &grlib_apbuart_ports[line];
 
 		port->mapbase = addr;
 		port->membase = ioremap(addr, sizeof(struct grlib_apbuart_regs_map));
-		port->irq = irq;
+		port->irq = *irqs;
 		port->iotype = UPIO_MEM;
 		port->ops = &grlib_apbuart_ops;
 		port->flags = UPF_BOOT_AUTOCONF;
@@ -652,12 +642,10 @@ static void grlib_apbuart_configure(void)
 		/* We support maximum UART_NR uarts ... */
 		if (line == UART_NR)
 			break;
-
 	}
 
-	enum_done = 1;
-
 	grlib_apbuart_driver.nr = grlib_apbuart_port_nr = line;
+	return line ? 0 : -ENODEV;
 }
 
 static int __init grlib_apbuart_init(void)
@@ -665,7 +653,9 @@ static int __init grlib_apbuart_init(void)
 	int ret;
 
 	/* Find all APBUARTS in device the tree and initialize their ports */
-	grlib_apbuart_configure();
+	ret = grlib_apbuart_configure();
+	if (ret)
+		return ret;
 
 	printk(KERN_INFO "Serial: GRLIB APBUART driver\n");
 
