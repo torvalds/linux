@@ -790,6 +790,7 @@ static const char *section_white_list[] =
 {
 	".comment*",
 	".debug*",
+	".zdebug*",		/* Compressed debug sections. */
 	".GCC-command-line",	/* mn10300 */
 	".mdebug*",        /* alpha, score, mips etc. */
 	".pdr",            /* alpha, score, mips etc. */
