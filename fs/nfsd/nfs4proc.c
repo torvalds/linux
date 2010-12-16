@@ -780,6 +780,29 @@ nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 }
 
 static __be32
+nfsd4_secinfo_no_name(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+	      struct nfsd4_secinfo_no_name *sin)
+{
+	__be32 err;
+
+	switch (sin->sin_style) {
+	case NFS4_SECINFO_STYLE4_CURRENT_FH:
+		break;
+	case NFS4_SECINFO_STYLE4_PARENT:
+		err = nfsd4_do_lookupp(rqstp, &cstate->current_fh);
+		if (err)
+			return err;
+		break;
+	default:
+		return nfserr_inval;
+	}
+	exp_get(cstate->current_fh.fh_export);
+	sin->sin_exp = cstate->current_fh.fh_export;
+	fh_put(&cstate->current_fh);
+	return nfs_ok;
+}
+
+static __be32
 nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	      struct nfsd4_setattr *setattr)
 {
@@ -1326,6 +1349,10 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_func = (nfsd4op_func)nfsd4_reclaim_complete,
 		.op_flags = ALLOWED_WITHOUT_FH,
 		.op_name = "OP_RECLAIM_COMPLETE",
+	},
+	[OP_SECINFO_NO_NAME] = {
+		.op_func = (nfsd4op_func)nfsd4_secinfo_no_name,
+		.op_name = "OP_SECINFO_NO_NAME",
 	},
 };
 

@@ -311,6 +311,11 @@ struct nfsd4_secinfo {
 	struct svc_export *si_exp;			/* response */
 };
 
+struct nfsd4_secinfo_no_name {
+	u32 sin_style;					/* request */
+	struct svc_export *sin_exp;			/* response */
+};
+
 struct nfsd4_setattr {
 	stateid_t	sa_stateid;         /* request */
 	u32		sa_bmval[3];        /* request */
