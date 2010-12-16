@@ -4564,9 +4564,11 @@ static void kvm_timer_init(void)
 #ifdef CONFIG_CPU_FREQ
 		struct cpufreq_policy policy;
 		memset(&policy, 0, sizeof(policy));
-		cpufreq_get_policy(&policy, get_cpu());
+		cpu = get_cpu();
+		cpufreq_get_policy(&policy, cpu);
 		if (policy.cpuinfo.max_freq)
 			max_tsc_khz = policy.cpuinfo.max_freq;
+		put_cpu();
 #endif
 		cpufreq_register_notifier(&kvmclock_cpufreq_notifier_block,
 					  CPUFREQ_TRANSITION_NOTIFIER);
