@@ -60,7 +60,7 @@ struct new_pmap {
  */
 struct old_pmap {
 	__be16		pdSig;	/* Signature bytes */
-	struct 	old_pmap_entry {
+	struct old_pmap_entry {
 		__be32	pdStart;
 		__be32	pdSize;
 		__be32	pdFSID;
@@ -97,7 +97,7 @@ static int hfs_parse_new_pmap(struct super_block *sb, struct new_pmap *pm,
 	int i = 0;
 
 	do {
-		if (!memcmp(pm->pmPartType,"Apple_HFS", 9) &&
+		if (!memcmp(pm->pmPartType, "Apple_HFS", 9) &&
 		    (sbi->part < 0 || sbi->part == i)) {
 			*part_start += be32_to_cpu(pm->pmPyPartStart);
 			*part_size = be32_to_cpu(pm->pmPartBlkCnt);

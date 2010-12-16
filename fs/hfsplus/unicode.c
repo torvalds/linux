@@ -17,14 +17,14 @@
 /* Returns folded char, or 0 if ignorable */
 static inline u16 case_fold(u16 c)
 {
-        u16 tmp;
+	u16 tmp;
 
-        tmp = hfsplus_case_fold_table[c >> 8];
-        if (tmp)
-                tmp = hfsplus_case_fold_table[tmp + (c & 0xff)];
-        else
-                tmp = c;
-        return tmp;
+	tmp = hfsplus_case_fold_table[c >> 8];
+	if (tmp)
+		tmp = hfsplus_case_fold_table[tmp + (c & 0xff)];
+	else
+		tmp = c;
+	return tmp;
 }
 
 /* Compare unicode strings, return values like normal strcmp */
@@ -215,7 +215,7 @@ int hfsplus_uni2asc(struct super_block *sb,
 				goto done;
 			}
 		}
-	same:
+same:
 		switch (c0) {
 		case 0:
 			cc = 0x2400;
@@ -226,7 +226,7 @@ int hfsplus_uni2asc(struct super_block *sb,
 		default:
 			cc = c0;
 		}
-	done:
+done:
 		res = nls->uni2char(cc, op, len);
 		if (res < 0) {
 			if (res == -ENAMETOOLONG)

@@ -355,7 +355,7 @@ static const struct inode_operations hfsplus_file_inode_operations = {
 };
 
 static const struct file_operations hfsplus_file_operations = {
-	.llseek 	= generic_file_llseek,
+	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
 	.aio_read	= generic_file_aio_read,
 	.write		= do_sync_write,

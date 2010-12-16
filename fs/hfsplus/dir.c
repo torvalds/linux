@@ -213,7 +213,7 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			err = -EIO;
 			goto out;
 		}
-	next:
+next:
 		filp->f_pos++;
 		if (filp->f_pos >= inode->i_size)
 			goto out;
