@@ -41,6 +41,20 @@ static inline struct autogroup *autogroup_kref_get(struct autogroup *ag)
 	return ag;
 }
 
+static inline struct autogroup *autogroup_task_get(struct task_struct *p)
+{
+	struct autogroup *ag;
+	unsigned long flags;
+
+	if (!lock_task_sighand(p, &flags))
+		return autogroup_kref_get(&autogroup_default);
+
+	ag = autogroup_kref_get(p->signal->autogroup);
+	unlock_task_sighand(p, &flags);
+
+	return ag;
+}
+
 static inline struct autogroup *autogroup_create(void)
 {
 	struct autogroup *ag = kzalloc(sizeof(*ag), GFP_KERNEL);
@@ -149,11 +163,7 @@ EXPORT_SYMBOL(sched_autogroup_detach);
 
 void sched_autogroup_fork(struct signal_struct *sig)
 {
-	struct task_struct *p = current;
-
-	spin_lock_irq(&p->sighand->siglock);
-	sig->autogroup = autogroup_kref_get(p->signal->autogroup);
-	spin_unlock_irq(&p->sighand->siglock);
+	sig->autogroup = autogroup_task_get(current);
 }
 
 void sched_autogroup_exit(struct signal_struct *sig)
@@ -172,7 +182,6 @@ __setup("noautogroup", setup_autogroup);
 
 #ifdef CONFIG_PROC_FS
 
-/* Called with siglock held. */
 int proc_sched_autogroup_set_nice(struct task_struct *p, int *nice)
 {
 	static unsigned long next = INITIAL_JIFFIES;
@@ -194,7 +203,7 @@ int proc_sched_autogroup_set_nice(struct task_struct *p, int *nice)
 		return -EAGAIN;
 
 	next = HZ / 10 + jiffies;
-	ag = autogroup_kref_get(p->signal->autogroup);
+	ag = autogroup_task_get(p);
 
 	down_write(&ag->lock);
 	err = sched_group_set_shares(ag->tg, prio_to_weight[*nice + 20]);
@@ -209,7 +218,7 @@ int proc_sched_autogroup_set_nice(struct task_struct *p, int *nice)
 
 void proc_sched_autogroup_show_task(struct task_struct *p, struct seq_file *m)
 {
-	struct autogroup *ag = autogroup_kref_get(p->signal->autogroup);
+	struct autogroup *ag = autogroup_task_get(p);
 
 	down_read(&ag->lock);
 	seq_printf(m, "/autogroup-%ld nice %d\n", ag->id, ag->nice);
