@@ -295,8 +295,8 @@ static struct mc13xxx_regulator mc13892_regulators[] = {
 	MC13892_GPO_DEFINE(PWGT2SPI, POWERMISC, mc13892_pwgtdrv),
 };
 
-int mc13892_powermisc_rmw(struct mc13xxx_regulator_priv *priv, u32 mask,
-		u32 val)
+static int mc13892_powermisc_rmw(struct mc13xxx_regulator_priv *priv, u32 mask,
+				 u32 val)
 {
 	struct mc13xxx *mc13892 = priv->mc13xxx;
 	int ret;
@@ -496,7 +496,7 @@ static int mc13892_vcam_set_mode(struct regulator_dev *rdev, unsigned int mode)
 	return ret;
 }
 
-unsigned int mc13892_vcam_get_mode(struct regulator_dev *rdev)
+static unsigned int mc13892_vcam_get_mode(struct regulator_dev *rdev)
 {
 	struct mc13xxx_regulator_priv *priv = rdev_get_drvdata(rdev);
 	int ret, id = rdev_get_id(rdev);
