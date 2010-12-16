@@ -1419,7 +1419,9 @@ struct ieee80211_txrx_stypes {
 
 /**
  * struct wiphy - wireless hardware description
- * @reg_notifier: the driver's regulatory notification callback
+ * @reg_notifier: the driver's regulatory notification callback,
+ *	note that if your driver uses wiphy_apply_custom_regulatory()
+ *	the reg_notifier's request can be passed as NULL
  * @regd: the driver's regulatory domain, if one was requested via
  * 	the regulatory_hint() API. This can be used by the driver
  *	on the reg_notifier() if it chooses to ignore future
