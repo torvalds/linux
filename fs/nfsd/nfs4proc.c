@@ -769,6 +769,9 @@ nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	} else
 		secinfo->si_exp = exp;
 	dput(dentry);
+	if (cstate->minorversion)
+		/* See rfc 5661 section 2.6.3.1.1.8 */
+		fh_put(&cstate->current_fh);
 	return err;
 }
 
