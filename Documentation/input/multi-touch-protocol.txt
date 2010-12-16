@@ -161,7 +161,8 @@ against the glass. The inner region will increase, and in general, the
 ratio ABS_MT_TOUCH_MAJOR / ABS_MT_WIDTH_MAJOR, which is always smaller than
 unity, is related to the contact pressure. For pressure-based devices,
 ABS_MT_PRESSURE may be used to provide the pressure on the contact area
-instead.
+instead. Devices capable of contact hovering can use ABS_MT_DISTANCE to
+indicate the distance between the contact and the surface.
 
 In addition to the MAJOR parameters, the oval shape of the contact can be
 described by adding the MINOR parameters, such that MAJOR and MINOR are the
@@ -212,6 +213,12 @@ ABS_MT_PRESSURE
 The pressure, in arbitrary units, on the contact area. May be used instead
 of TOUCH and WIDTH for pressure-based devices or any device with a spatial
 signal intensity distribution.
+
+ABS_MT_DISTANCE
+
+The distance, in surface units, between the contact and the surface. Zero
+distance means the contact is touching the surface. A positive number means
+the contact is hovering above the surface.
 
 ABS_MT_ORIENTATION
 

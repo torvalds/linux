@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/serio.h>
 #include <linux/init.h>
 #include <linux/ctype.h>
@@ -47,8 +47,6 @@ MODULE_LICENSE("GPL");
 #define W8001_PKTLEN_TPCPEN	9
 #define W8001_PKTLEN_TPCCTL	11	/* control packet */
 #define W8001_PKTLEN_TOUCH2FG	13
-
-#define MAX_TRACKING_ID		0xFF	/* arbitrarily chosen */
 
 struct w8001_coord {
 	u8 rdy;
@@ -87,7 +85,6 @@ struct w8001 {
 	char phys[32];
 	int type;
 	unsigned int pktlen;
-	int trkid[2];
 };
 
 static void parse_data(u8 *data, struct w8001_coord *coord)
@@ -116,28 +113,23 @@ static void parse_data(u8 *data, struct w8001_coord *coord)
 
 static void parse_touch(struct w8001 *w8001)
 {
-	static int trkid;
 	struct input_dev *dev = w8001->dev;
 	unsigned char *data = w8001->data;
 	int i;
 
 	for (i = 0; i < 2; i++) {
-		input_mt_slot(dev, i);
+		bool touch = data[0] & (1 << i);
 
-		if (data[0] & (1 << i)) {
+		input_mt_slot(dev, i);
+		input_mt_report_slot_state(dev, MT_TOOL_FINGER, touch);
+		if (touch) {
 			int x = (data[6 * i + 1] << 7) | (data[6 * i + 2]);
 			int y = (data[6 * i + 3] << 7) | (data[6 * i + 4]);
 			/* data[5,6] and [11,12] is finger capacity */
 
 			input_report_abs(dev, ABS_MT_POSITION_X, x);
 			input_report_abs(dev, ABS_MT_POSITION_Y, y);
-			input_report_abs(dev, ABS_MT_TOOL_TYPE, MT_TOOL_FINGER);
-			if (w8001->trkid[i] < 0)
-				w8001->trkid[i] = trkid++ & MAX_TRACKING_ID;
-		} else {
-			w8001->trkid[i] = -1;
 		}
-		input_report_abs(dev, ABS_MT_TRACKING_ID, w8001->trkid[i]);
 	}
 
 	input_sync(dev);
@@ -318,15 +310,13 @@ static int w8001_setup(struct w8001 *w8001)
 		case 5:
 			w8001->pktlen = W8001_PKTLEN_TOUCH2FG;
 
-			input_mt_create_slots(dev, 2);
-			input_set_abs_params(dev, ABS_MT_TRACKING_ID,
-						0, MAX_TRACKING_ID, 0, 0);
+			input_mt_init_slots(dev, 2);
 			input_set_abs_params(dev, ABS_MT_POSITION_X,
 						0, touch.x, 0, 0);
 			input_set_abs_params(dev, ABS_MT_POSITION_Y,
 						0, touch.y, 0, 0);
 			input_set_abs_params(dev, ABS_MT_TOOL_TYPE,
-						0, 0, 0, 0);
+						0, MT_TOOL_MAX, 0, 0);
 			break;
 		}
 	}
@@ -372,7 +362,6 @@ static int w8001_connect(struct serio *serio, struct serio_driver *drv)
 	w8001->serio = serio;
 	w8001->id = serio->id.id;
 	w8001->dev = input_dev;
-	w8001->trkid[0] = w8001->trkid[1] = -1;
 	init_completion(&w8001->cmd_done);
 	snprintf(w8001->phys, sizeof(w8001->phys), "%s/input0", serio->phys);
 
