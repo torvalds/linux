@@ -49,3 +49,4 @@ obj-$(CONFIG_RK1000_CONTROL)    += rk2818/rk1000_control/
 obj-$(CONFIG_RK1000_TVOUT)    += rk2818/rk1000_tv/
 obj-$(CONFIG_RK2818_POWER) 				+= rk2818/rk2818_power/
 obj-$(CONFIG_VIVANTE)           += rk29/vivante/
+obj-$(CONFIG_RK29_IPP)           += rk29/ipp/

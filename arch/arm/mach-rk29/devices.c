@@ -437,6 +437,29 @@ struct platform_device rk29_device_camera = {
 };
 #endif
 
+#ifdef CONFIG_RK29_IPP
+/* rk29 ipp resource */
+static struct resource rk29_ipp_resource[] = {
+	[0] = {
+		.start = RK29_IPP_PHYS,
+		.end   = RK29_IPP_PHYS + RK29_IPP_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_IPP,
+		.end   = IRQ_IPP,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+/*platform_device*/
+struct platform_device rk29_device_ipp = {
+	.name		  = "rk29-ipp",
+	.id		  = -1,
+	.num_resources	  = ARRAY_SIZE(rk29_ipp_resource),
+	.resource	  = rk29_ipp_resource,
+};
+#endif
 #if defined(CONFIG_MTD_NAND_RK29XX)  
 static struct resource rk29xxnand_resources[] = {
 	{

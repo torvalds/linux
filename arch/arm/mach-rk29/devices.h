@@ -56,4 +56,5 @@ extern struct usb_mass_storage_platform_data mass_storage_pdata;
 extern struct platform_device usb_mass_storage_device;
 extern struct platform_device rk29_device_vmac;
 extern struct rk29_vmac_platform_data rk29_vmac_pdata;
+extern struct platform_device rk29_device_ipp;
 #endif
