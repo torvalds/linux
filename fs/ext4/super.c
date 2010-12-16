@@ -4166,6 +4166,21 @@ static int ext4_unfreeze(struct super_block *sb)
 	return 0;
 }
 
+/*
+ * Structure to save mount options for ext4_remount's benefit
+ */
+struct ext4_mount_options {
+	unsigned long s_mount_opt;
+	uid_t s_resuid;
+	gid_t s_resgid;
+	unsigned long s_commit_interval;
+	u32 s_min_batch_time, s_max_batch_time;
+#ifdef CONFIG_QUOTA
+	int s_jquota_fmt;
+	char *s_qf_names[MAXQUOTAS];
+#endif
+};
+
 static int ext4_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct ext4_super_block *es;

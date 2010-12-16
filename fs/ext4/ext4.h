@@ -561,22 +561,6 @@ struct ext4_new_group_data {
 #define EXT4_IOC32_SETVERSION_OLD	FS_IOC32_SETVERSION
 #endif
 
-
-/*
- *  Mount options
- */
-struct ext4_mount_options {
-	unsigned long s_mount_opt;
-	uid_t s_resuid;
-	gid_t s_resgid;
-	unsigned long s_commit_interval;
-	u32 s_min_batch_time, s_max_batch_time;
-#ifdef CONFIG_QUOTA
-	int s_jquota_fmt;
-	char *s_qf_names[MAXQUOTAS];
-#endif
-};
-
 /* Max physical block we can addres w/o extents */
 #define EXT4_MAX_BLOCK_FILE_PHYS	0xFFFFFFFF
 
