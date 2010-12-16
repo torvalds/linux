@@ -1429,6 +1429,7 @@ unsigned int cdrom_check_events(struct cdrom_device_info *cdi,
 	cdi->vfs_events = 0;
 	return events;
 }
+EXPORT_SYMBOL(cdrom_check_events);
 
 /* We want to make media_changed accessible to the user through an
  * ioctl. The main problem now is that we must double-buffer the
