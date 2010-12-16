@@ -137,7 +137,7 @@ static void rk29_nand_wait_bchdone(struct mtd_info *mtd, uint32_t timeout)
 	{
 		timeout--;
 		udelay(1);
-		if(pRK29NC->BCHST &(1<<1))
+		if(pRK29NC->BCHST[0] &(1<<1))
 			break;		
 	}
 	
@@ -324,15 +324,13 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 
        case NAND_CMD_READID:
 	   	pRK29NC ->chip[master->cs].cmd = command;
-		rk29_nand_wait_ready(mtd);
 		pRK29NC ->chip[master->cs].addr = 0x0;
-		rk29_nand_wait_ready(mtd);
+              udelay(1);
 		rk29_nand_wait_busy(mtd,READ_BUSY_COUNT);
 	   	break;
 		
        case NAND_CMD_READ0:
               pRK29NC ->chip[master->cs].cmd = command;
-			rk29_nand_wait_ready(mtd);
 	       if ( column>= 0 )
 	         {
                    pRK29NC ->chip[master->cs].addr = column & 0xff;	
@@ -345,11 +343,10 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 			pRK29NC ->chip[master->cs].addr = (page_addr >> 8) & 0xFF;
 			pRK29NC ->chip[master->cs].addr = (page_addr >> 16) & 0xff;
 		   }
-		rk29_nand_wait_ready(mtd);
 		if( mtd->writesize > 512)
-		    pRK29NC ->chip[0].cmd = NAND_CMD_READSTART;
+		    pRK29NC ->chip[master->cs].cmd = NAND_CMD_READSTART;
 
-		rk29_nand_wait_ready(mtd);
+              udelay(1);
 		rk29_nand_wait_busy(mtd,READ_BUSY_COUNT);
 		
 	   	break;
@@ -366,7 +363,6 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
     		
 		pRK29NC ->chip[master->cs].cmd = command;  
 
-			rk29_nand_wait_ready(mtd);
               if ( mtd->writesize >512 )
                {
 			if ( column>= 0 )
@@ -386,8 +382,7 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 		{
 		   pRK29NC ->chip[master->cs].addr = column;
 		}
-			rk29_nand_wait_ready(mtd);
-			
+		udelay(1);
 		rk29_nand_wait_busy(mtd,READ_BUSY_COUNT);
 		
 	 
@@ -396,11 +391,10 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 	case NAND_CMD_PAGEPROG:
 		pRK29NC ->FMCTL |= FMC_WP;  //解除写保护
 		pRK29NC ->chip[master->cs].cmd = command;
-		rk29_nand_wait_ready(mtd);
+		udelay(1);
 		rk29_nand_wait_busy(mtd,PROGRAM_BUSY_COUNT);
 		
 		pRK29NC ->chip[master->cs].cmd  = NAND_CMD_STATUS;
-		rk29_nand_wait_ready(mtd);
 		status = pRK29NC ->chip[master->cs].data;
 		
 		if(status&0x1)
@@ -414,7 +408,6 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 		pRK29NC ->FMCTL |= FMC_WP;  //解除写保护
 		pRK29NC ->BCHCTL = 0x0;
 		pRK29NC ->chip[master->cs].cmd  = command;
-		rk29_nand_wait_ready(mtd);
 		if ( page_addr>=0 )
 		   {
 			pRK29NC ->chip[master->cs].addr = page_addr & 0xff;
@@ -426,10 +419,8 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 	case NAND_CMD_ERASE2:
 		pRK29NC ->FMCTL |= FMC_WP;  //解除写保护
 		pRK29NC ->chip[master->cs].cmd  = command;	       
-		rk29_nand_wait_ready(mtd);
 		rk29_nand_wait_busy(mtd,ERASE_BUSY_COUNT);
 		pRK29NC ->chip[master->cs].cmd  = NAND_CMD_STATUS;
-		rk29_nand_wait_ready(mtd);
 		status = pRK29NC ->chip[master->cs].data;
 		
 		if(status&0x1)
@@ -442,7 +433,6 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 	case NAND_CMD_SEQIN:
 		pRK29NC ->FMCTL |= FMC_WP;  //解除写保护
 		pRK29NC ->chip[master->cs].cmd  = command;
-		rk29_nand_wait_ready(mtd);
 		if ( column>= 0 )
 		  {
                    pRK29NC ->chip[master->cs].addr = column;
@@ -461,19 +451,17 @@ static void rk29_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int column,
 	case NAND_CMD_STATUS:
 		pRK29NC ->BCHCTL = 0x0;
 		pRK29NC ->chip[master->cs].cmd = command;
-		rk29_nand_wait_ready(mtd);
 		break;
 
 	case NAND_CMD_RESET:
 		pRK29NC ->chip[master->cs].cmd = command;
-		rk29_nand_wait_ready(mtd);
+		udelay(1);  
 		rk29_nand_wait_busy(mtd,RESET_BUSY_COUNT);
 		break;
 
 	/* This applies to read commands */
 	default:
 	       pRK29NC ->chip[master->cs].cmd = command;
-			rk29_nand_wait_ready(mtd);
 		break;
 	}
 
@@ -521,7 +509,7 @@ int rk29_nand_calculate_ecc(struct mtd_info *mtd,const uint8_t *dat,uint8_t *ecc
      	pNANDC pRK29NC=  (pNANDC)(master->regs);		
 
 	// hw correct data
-       if( pRK29NC->BCHST & (1<<2) )
+       if( pRK29NC->BCHST[0] & (1<<2) )
 	 {
 		DEBUG(MTD_DEBUG_LEVEL0,
 		      "rk2818 nand :hw ecc uncorrectable error\n");
@@ -561,7 +549,7 @@ int rk29_nand_calculate_ecc(struct mtd_info *mtd,const uint8_t *dat,uint8_t *ecc
 	       pRK29NC ->BCHCTL = BCH_RST;
 	       pRK29NC ->FLCTL = (0<<4)|FL_COR_EN|(0x1<<5)|FL_BYPASS|FL_START ; 	
 		wait_op_done(mtd,TROP_US_DELAY,0);   
-		//rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;
+		rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;
           
               memcpy(buf+i*0x400,(u_char *)(pRK29NC->buf),0x400);  //  only use nandc sram0
 	}
@@ -597,16 +585,16 @@ void  rk29_nand_write_page(struct mtd_info *mtd,struct nand_chip *chip,const uin
 	 		
 	  for(i=0;i<mtd->writesize/0x400;i++)
 	   {
+		pRK29NC ->BCHCTL = BCH_WR|BCH_RST;		
 	       memcpy((u_char *)(pRK29NC->buf),(buf+i*0x400),0x400);  //  only use nandc sram0		
 	       if(i==0)
 		   memcpy((u_char *)(pRK29NC->spare),(u_char *)(chip->oob_poi + chip->ops.ooboffs),4);  
 		   	
-		pRK29NC ->BCHCTL = BCH_WR|BCH_RST;		
 		pRK29NC ->FLCTL = (0<<4)|FL_COR_EN|(0x1<<5)|FL_RDN|FL_BYPASS|FL_START;
 		wait_op_done(mtd,TROP_US_DELAY,0);	
 	   }
 
-         pRK29NC ->chip[0].cmd = NAND_CMD_PAGEPROG;
+         pRK29NC ->chip[chipnr].cmd = NAND_CMD_PAGEPROG;
 	 
 
 	  
@@ -655,7 +643,7 @@ int rk29_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip, int page, i
 	       pRK29NC ->BCHCTL = BCH_RST;
 	       pRK29NC ->FLCTL = (0<<4)|FL_COR_EN|(0x1<<5)|FL_BYPASS|FL_START ; 	
 		wait_op_done(mtd,TROP_US_DELAY,0);   
-		//rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;
+		rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;
               if(i==0)
                  memcpy((u_char *)(chip->oob_poi+ chip->ops.ooboffs),(u_char *)(pRK29NC->spare),4); 
 	}
@@ -698,7 +686,7 @@ int	rk29_nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip, uint8_
 	       pRK29NC ->BCHCTL = BCH_RST;
 	       pRK29NC ->FLCTL = (0<<4)|FL_COR_EN|(0x1<<5)|FL_BYPASS|FL_START ; 	
 		wait_op_done(mtd,TROP_US_DELAY,0);   
-		//rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;
+		 rk29_nand_wait_bchdone(mtd,TROP_US_DELAY) ;
               memcpy(buf+i*0x400,(u_char *)(pRK29NC->buf),0x400);  //  only use nandc sram0
               if(i==0)
                  memcpy((u_char *)(chip->oob_poi+ chip->ops.ooboffs),(u_char *)(pRK29NC->spare),4); 
@@ -725,12 +713,12 @@ static int rk29_nand_setrate(struct rk29_nand_mtd *info)
 
 
 // some nand flashs have not  timing id and almost all nand flash access time is 25ns, so need to  fix accesstime to 40 ns
-	accesstime = 40;
+	accesstime = 50;
 
        info->clk_rate = clkrate;
 	clkrate /= 1000000;	/* turn clock into MHz for ease of use */
 	
-	if(clkrate>0 && clkrate<=250)
+	if(clkrate>0 && clkrate<=400)
 	   ns= 1000/clkrate; // ns
 	else
 	   return -1;
