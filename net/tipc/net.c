@@ -116,7 +116,8 @@
 */
 
 DEFINE_RWLOCK(tipc_net_lock);
-struct network tipc_net = { NULL };
+struct _zone *tipc_zones[256] = { NULL, };
+struct network tipc_net = { tipc_zones };
 
 struct tipc_node *tipc_net_select_remote_node(u32 addr, u32 ref)
 {
@@ -158,28 +159,12 @@ void tipc_net_send_external_routes(u32 dest)
 	}
 }
 
-static int net_init(void)
-{
-	memset(&tipc_net, 0, sizeof(tipc_net));
-	tipc_net.zones = kcalloc(tipc_max_zones + 1, sizeof(struct _zone *), GFP_ATOMIC);
-	if (!tipc_net.zones) {
-		return -ENOMEM;
-	}
-	return 0;
-}
-
 static void net_stop(void)
 {
 	u32 z_num;
 
-	if (!tipc_net.zones)
-		return;
-
-	for (z_num = 1; z_num <= tipc_max_zones; z_num++) {
+	for (z_num = 1; z_num <= tipc_max_zones; z_num++)
 		tipc_zone_delete(tipc_net.zones[z_num]);
-	}
-	kfree(tipc_net.zones);
-	tipc_net.zones = NULL;
 }
 
 static void net_route_named_msg(struct sk_buff *buf)
@@ -282,9 +267,7 @@ int tipc_net_start(u32 addr)
 	tipc_named_reinit();
 	tipc_port_reinit();
 
-	if ((res = tipc_bearer_init()) ||
-	    (res = net_init()) ||
-	    (res = tipc_cltr_init()) ||
+	if ((res = tipc_cltr_init()) ||
 	    (res = tipc_bclink_init())) {
 		return res;
 	}

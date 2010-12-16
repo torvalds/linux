@@ -95,7 +95,10 @@ static void nmi_cpu_save_registers(struct op_msrs *msrs)
 static void nmi_cpu_start(void *dummy)
 {
 	struct op_msrs const *msrs = &__get_cpu_var(cpu_msrs);
-	model->start(msrs);
+	if (!msrs->controls)
+		WARN_ON_ONCE(1);
+	else
+		model->start(msrs);
 }
 
 static int nmi_start(void)
@@ -107,7 +110,10 @@ static int nmi_start(void)
 static void nmi_cpu_stop(void *dummy)
 {
 	struct op_msrs const *msrs = &__get_cpu_var(cpu_msrs);
-	model->stop(msrs);
+	if (!msrs->controls)
+		WARN_ON_ONCE(1);
+	else
+		model->stop(msrs);
 }
 
 static void nmi_stop(void)
@@ -159,7 +165,7 @@ static int nmi_setup_mux(void)
 
 	for_each_possible_cpu(i) {
 		per_cpu(cpu_msrs, i).multiplex =
-			kmalloc(multiplex_size, GFP_KERNEL);
+			kzalloc(multiplex_size, GFP_KERNEL);
 		if (!per_cpu(cpu_msrs, i).multiplex)
 			return 0;
 	}
@@ -179,7 +185,6 @@ static void nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs)
 		if (counter_config[i].enabled) {
 			multiplex[i].saved = -(u64)counter_config[i].count;
 		} else {
-			multiplex[i].addr  = 0;
 			multiplex[i].saved = 0;
 		}
 	}
@@ -189,25 +194,27 @@ static void nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs)
 
 static void nmi_cpu_save_mpx_registers(struct op_msrs *msrs)
 {
+	struct op_msr *counters = msrs->counters;
 	struct op_msr *multiplex = msrs->multiplex;
 	int i;
 
 	for (i = 0; i < model->num_counters; ++i) {
 		int virt = op_x86_phys_to_virt(i);
-		if (multiplex[virt].addr)
-			rdmsrl(multiplex[virt].addr, multiplex[virt].saved);
+		if (counters[i].addr)
+			rdmsrl(counters[i].addr, multiplex[virt].saved);
 	}
 }
 
 static void nmi_cpu_restore_mpx_registers(struct op_msrs *msrs)
 {
+	struct op_msr *counters = msrs->counters;
 	struct op_msr *multiplex = msrs->multiplex;
 	int i;
 
 	for (i = 0; i < model->num_counters; ++i) {
 		int virt = op_x86_phys_to_virt(i);
-		if (multiplex[virt].addr)
-			wrmsrl(multiplex[virt].addr, multiplex[virt].saved);
+		if (counters[i].addr)
+			wrmsrl(counters[i].addr, multiplex[virt].saved);
 	}
 }
 
@@ -303,11 +310,11 @@ static int allocate_msrs(void)
 
 	int i;
 	for_each_possible_cpu(i) {
-		per_cpu(cpu_msrs, i).counters = kmalloc(counters_size,
+		per_cpu(cpu_msrs, i).counters = kzalloc(counters_size,
 							GFP_KERNEL);
 		if (!per_cpu(cpu_msrs, i).counters)
 			return 0;
-		per_cpu(cpu_msrs, i).controls = kmalloc(controls_size,
+		per_cpu(cpu_msrs, i).controls = kzalloc(controls_size,
 							GFP_KERNEL);
 		if (!per_cpu(cpu_msrs, i).controls)
 			return 0;
@@ -511,8 +518,13 @@ static int __init init_sysfs(void)
 	int error;
 
 	error = sysdev_class_register(&oprofile_sysclass);
-	if (!error)
-		error = sysdev_register(&device_oprofile);
+	if (error)
+		return error;
+
+	error = sysdev_register(&device_oprofile);
+	if (error)
+		sysdev_class_unregister(&oprofile_sysclass);
+
 	return error;
 }
 
@@ -523,8 +535,10 @@ static void exit_sysfs(void)
 }
 
 #else
-#define init_sysfs() do { } while (0)
-#define exit_sysfs() do { } while (0)
+
+static inline int  init_sysfs(void) { return 0; }
+static inline void exit_sysfs(void) { }
+
 #endif /* CONFIG_PM */
 
 static int __init p4_init(char **cpu_type)
@@ -577,6 +591,18 @@ static int __init ppro_init(char **cpu_type)
 	if (force_arch_perfmon && cpu_has_arch_perfmon)
 		return 0;
 
+	/*
+	 * Documentation on identifying Intel processors by CPU family
+	 * and model can be found in the Intel Software Developer's
+	 * Manuals (SDM):
+	 *
+	 *  http://www.intel.com/products/processor/manuals/
+	 *
+	 * As of May 2010 the documentation for this was in the:
+	 * "Intel 64 and IA-32 Architectures Software Developer's
+	 * Manual Volume 3B: System Programming Guide", "Table B-1
+	 * CPUID Signature Values of DisplayFamily_DisplayModel".
+	 */
 	switch (cpu_model) {
 	case 0 ... 2:
 		*cpu_type = "i386/ppro";
@@ -595,15 +621,19 @@ static int __init ppro_init(char **cpu_type)
 	case 14:
 		*cpu_type = "i386/core";
 		break;
-	case 15: case 23:
+	case 0x0f:
+	case 0x16:
+	case 0x17:
+	case 0x1d:
 		*cpu_type = "i386/core_2";
 		break;
+	case 0x1a:
+	case 0x1e:
 	case 0x2e:
-	case 26:
 		spec = &op_arch_perfmon_spec;
 		*cpu_type = "i386/core_i7";
 		break;
-	case 28:
+	case 0x1c:
 		*cpu_type = "i386/atom";
 		break;
 	default:
@@ -624,6 +654,8 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	__u8 family = boot_cpu_data.x86;
 	char *cpu_type = NULL;
 	int ret = 0;
+
+	using_nmi = 0;
 
 	if (!cpu_has_apic)
 		return -ENODEV;
@@ -707,7 +739,10 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 
 	mux_init(ops);
 
-	init_sysfs();
+	ret = init_sysfs();
+	if (ret)
+		return ret;
+
 	using_nmi = 1;
 	printk(KERN_INFO "oprofile: using NMI interrupt.\n");
 	return 0;

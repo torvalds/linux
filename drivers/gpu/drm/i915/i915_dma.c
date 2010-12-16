@@ -683,8 +683,10 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 		ret = copy_from_user(cliprects, batch->cliprects,
 				     batch->num_cliprects *
 				     sizeof(struct drm_clip_rect));
-		if (ret != 0)
+		if (ret != 0) {
+			ret = -EFAULT;
 			goto fail_free;
+		}
 	}
 
 	mutex_lock(&dev->struct_mutex);
@@ -725,8 +727,10 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 		return -ENOMEM;
 
 	ret = copy_from_user(batch_data, cmdbuf->buf, cmdbuf->sz);
-	if (ret != 0)
+	if (ret != 0) {
+		ret = -EFAULT;
 		goto fail_batch_free;
+	}
 
 	if (cmdbuf->num_cliprects) {
 		cliprects = kcalloc(cmdbuf->num_cliprects,
@@ -737,8 +741,10 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 		ret = copy_from_user(cliprects, cmdbuf->cliprects,
 				     cmdbuf->num_cliprects *
 				     sizeof(struct drm_clip_rect));
-		if (ret != 0)
+		if (ret != 0) {
+			ret = -EFAULT;
 			goto fail_clip_free;
+		}
 	}
 
 	mutex_lock(&dev->struct_mutex);
@@ -1526,6 +1532,15 @@ int i915_driver_unload(struct drm_device *dev)
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		/*
+		 * free the memory space allocated for the child device
+		 * config parsed from VBT
+		 */
+		if (dev_priv->child_dev && dev_priv->child_dev_num) {
+			kfree(dev_priv->child_dev);
+			dev_priv->child_dev = NULL;
+			dev_priv->child_dev_num = 0;
+		}
 		drm_irq_uninstall(dev);
 		vga_client_register(dev->pdev, NULL, NULL, NULL);
 	}

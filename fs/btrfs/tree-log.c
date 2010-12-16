@@ -542,8 +542,8 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 
 	saved_nbytes = inode_get_bytes(inode);
 	/* drop any overlapping extents */
-	ret = btrfs_drop_extents(trans, root, inode,
-			 start, extent_end, extent_end, start, &alloc_hint, 1);
+	ret = btrfs_drop_extents(trans, inode, start, extent_end,
+				 &alloc_hint, 1);
 	BUG_ON(ret);
 
 	if (found_type == BTRFS_FILE_EXTENT_REG ||
@@ -930,6 +930,17 @@ out_nowrite:
 	return 0;
 }
 
+static int insert_orphan_item(struct btrfs_trans_handle *trans,
+			      struct btrfs_root *root, u64 offset)
+{
+	int ret;
+	ret = btrfs_find_orphan_item(root, offset);
+	if (ret > 0)
+		ret = btrfs_insert_orphan_item(trans, root, offset);
+	return ret;
+}
+
+
 /*
  * There are a few corners where the link count of the file can't
  * be properly maintained during replay.  So, instead of adding
@@ -997,9 +1008,13 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 	}
 	BTRFS_I(inode)->index_cnt = (u64)-1;
 
-	if (inode->i_nlink == 0 && S_ISDIR(inode->i_mode)) {
-		ret = replay_dir_deletes(trans, root, NULL, path,
-					 inode->i_ino, 1);
+	if (inode->i_nlink == 0) {
+		if (S_ISDIR(inode->i_mode)) {
+			ret = replay_dir_deletes(trans, root, NULL, path,
+						 inode->i_ino, 1);
+			BUG_ON(ret);
+		}
+		ret = insert_orphan_item(trans, root, inode->i_ino);
 		BUG_ON(ret);
 	}
 	btrfs_free_path(path);
@@ -1587,7 +1602,6 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 		/* inode keys are done during the first stage */
 		if (key.type == BTRFS_INODE_ITEM_KEY &&
 		    wc->stage == LOG_WALK_REPLAY_INODES) {
-			struct inode *inode;
 			struct btrfs_inode_item *inode_item;
 			u32 mode;
 
@@ -1603,31 +1617,16 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 					     eb, i, &key);
 			BUG_ON(ret);
 
-			/* for regular files, truncate away
-			 * extents past the new EOF
+			/* for regular files, make sure corresponding
+			 * orhpan item exist. extents past the new EOF
+			 * will be truncated later by orphan cleanup.
 			 */
 			if (S_ISREG(mode)) {
-				inode = read_one_inode(root,
-						       key.objectid);
-				BUG_ON(!inode);
-
-				ret = btrfs_truncate_inode_items(wc->trans,
-					root, inode, inode->i_size,
-					BTRFS_EXTENT_DATA_KEY);
+				ret = insert_orphan_item(wc->trans, root,
+							 key.objectid);
 				BUG_ON(ret);
-
-				/* if the nlink count is zero here, the iput
-				 * will free the inode.  We bump it to make
-				 * sure it doesn't get freed until the link
-				 * count fixup is done
-				 */
-				if (inode->i_nlink == 0) {
-					btrfs_inc_nlink(inode);
-					btrfs_update_inode(wc->trans,
-							   root, inode);
-				}
-				iput(inode);
 			}
+
 			ret = link_to_fixup_dir(wc->trans, root,
 						path, key.objectid);
 			BUG_ON(ret);
@@ -1977,10 +1976,11 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 {
 	int index1;
 	int index2;
+	int mark;
 	int ret;
 	struct btrfs_root *log = root->log_root;
 	struct btrfs_root *log_root_tree = root->fs_info->log_root_tree;
-	u64 log_transid = 0;
+	unsigned long log_transid = 0;
 
 	mutex_lock(&root->log_mutex);
 	index1 = root->log_transid % 2;
@@ -2014,24 +2014,29 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
+	log_transid = root->log_transid;
+	if (log_transid % 2 == 0)
+		mark = EXTENT_DIRTY;
+	else
+		mark = EXTENT_NEW;
+
 	/* we start IO on  all the marked extents here, but we don't actually
 	 * wait for them until later.
 	 */
-	ret = btrfs_write_marked_extents(log, &log->dirty_log_pages);
+	ret = btrfs_write_marked_extents(log, &log->dirty_log_pages, mark);
 	BUG_ON(ret);
 
 	btrfs_set_root_node(&log->root_item, log->node);
 
 	root->log_batch = 0;
-	log_transid = root->log_transid;
 	root->log_transid++;
 	log->log_transid = root->log_transid;
 	root->log_start_pid = 0;
 	smp_mb();
 	/*
-	 * log tree has been flushed to disk, new modifications of
-	 * the log will be written to new positions. so it's safe to
-	 * allow log writers to go in.
+	 * IO has been started, blocks of the log tree have WRITTEN flag set
+	 * in their headers. new modifications of the log will be written to
+	 * new positions. so it's safe to allow log writers to go in.
 	 */
 	mutex_unlock(&root->log_mutex);
 
@@ -2052,7 +2057,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 
 	index2 = log_root_tree->log_transid % 2;
 	if (atomic_read(&log_root_tree->log_commit[index2])) {
-		btrfs_wait_marked_extents(log, &log->dirty_log_pages);
+		btrfs_wait_marked_extents(log, &log->dirty_log_pages, mark);
 		wait_log_commit(trans, log_root_tree,
 				log_root_tree->log_transid);
 		mutex_unlock(&log_root_tree->log_mutex);
@@ -2072,16 +2077,17 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	 * check the full commit flag again
 	 */
 	if (root->fs_info->last_trans_log_full_commit == trans->transid) {
-		btrfs_wait_marked_extents(log, &log->dirty_log_pages);
+		btrfs_wait_marked_extents(log, &log->dirty_log_pages, mark);
 		mutex_unlock(&log_root_tree->log_mutex);
 		ret = -EAGAIN;
 		goto out_wake_log_root;
 	}
 
 	ret = btrfs_write_and_wait_marked_extents(log_root_tree,
-				&log_root_tree->dirty_log_pages);
+				&log_root_tree->dirty_log_pages,
+				EXTENT_DIRTY | EXTENT_NEW);
 	BUG_ON(ret);
-	btrfs_wait_marked_extents(log, &log->dirty_log_pages);
+	btrfs_wait_marked_extents(log, &log->dirty_log_pages, mark);
 
 	btrfs_set_super_log_root(&root->fs_info->super_for_commit,
 				log_root_tree->node->start);
@@ -2147,12 +2153,12 @@ int btrfs_free_log(struct btrfs_trans_handle *trans, struct btrfs_root *root)
 
 	while (1) {
 		ret = find_first_extent_bit(&log->dirty_log_pages,
-				    0, &start, &end, EXTENT_DIRTY);
+				0, &start, &end, EXTENT_DIRTY | EXTENT_NEW);
 		if (ret)
 			break;
 
-		clear_extent_dirty(&log->dirty_log_pages,
-				   start, end, GFP_NOFS);
+		clear_extent_bits(&log->dirty_log_pages, start, end,
+				  EXTENT_DIRTY | EXTENT_NEW, GFP_NOFS);
 	}
 
 	if (log->log_transid > 0) {

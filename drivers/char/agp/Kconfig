@@ -57,7 +57,7 @@ config AGP_AMD
 
 config AGP_AMD64
 	tristate "AMD Opteron/Athlon64 on-CPU GART support" if !GART_IOMMU
-	depends on AGP && X86
+	depends on AGP && X86 && K8_NB
 	default y if GART_IOMMU
 	help
 	  This option gives you AGP support for the GLX component of

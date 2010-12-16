@@ -145,6 +145,15 @@ int acpi_processor_ffh_cstate_probe(unsigned int cpu,
 		percpu_entry->states[cx->index].eax = cx->address;
 		percpu_entry->states[cx->index].ecx = MWAIT_ECX_INTERRUPT_BREAK;
 	}
+
+	/*
+	 * For _CST FFH on Intel, if GAS.access_size bit 1 is cleared,
+	 * then we should skip checking BM_STS for this C-state.
+	 * ref: "Intel Processor Vendor-Specific ACPI Interface Specification"
+	 */
+	if ((c->x86_vendor == X86_VENDOR_INTEL) && !(reg->access_size & 0x2))
+		cx->bm_sts_skip = 1;
+
 	return retval;
 }
 EXPORT_SYMBOL_GPL(acpi_processor_ffh_cstate_probe);

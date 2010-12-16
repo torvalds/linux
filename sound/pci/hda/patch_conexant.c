@@ -1175,9 +1175,12 @@ static int patch_cxt5045(struct hda_codec *codec)
 
 	switch (codec->subsystem_id >> 16) {
 	case 0x103c:
-		/* HP laptop has a really bad sound over 0dB on NID 0x17.
-		 * Fix max PCM level to 0 dB
-		 * (originall it has 0x2b steps with 0dB offset 0x14)
+	case 0x1631:
+	case 0x1734:
+	case 0x17aa:
+		/* HP, Packard Bell, Fujitsu-Siemens & Lenovo laptops have
+		 * really bad sound over 0dB on NID 0x17. Fix max PCM level to
+		 * 0 dB (originally it has 0x2b steps with 0dB offset 0x14)
 		 */
 		snd_hda_override_amp_caps(codec, 0x17, HDA_INPUT,
 					  (0x14 << AC_AMPCAP_OFFSET_SHIFT) |
@@ -1581,6 +1584,21 @@ static int patch_cxt5047(struct hda_codec *codec)
 #endif	
 	}
 	spec->vmaster_nid = 0x13;
+
+	switch (codec->subsystem_id >> 16) {
+	case 0x103c:
+		/* HP laptops have really bad sound over 0 dB on NID 0x10.
+		 * Fix max PCM level to 0 dB (originally it has 0x1e steps
+		 * with 0 dB offset 0x17)
+		 */
+		snd_hda_override_amp_caps(codec, 0x10, HDA_INPUT,
+					  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
+					  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+					  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+					  (1 << AC_AMPCAP_MUTE_SHIFT));
+		break;
+	}
+
 	return 0;
 }
 
@@ -2333,6 +2351,8 @@ static struct snd_pci_quirk cxt5066_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x02f5, "Dell",
 		      CXT5066_DELL_LAPTOP),
 	SND_PCI_QUIRK(0x152d, 0x0833, "OLPC XO-1.5", CXT5066_OLPC_XO_1_5),
+	SND_PCI_QUIRK(0x1179, 0xff50, "Toshiba Satellite P500-PSPGSC-01800T", CXT5066_OLPC_XO_1_5),
+	SND_PCI_QUIRK(0x1179, 0xffe0, "Toshiba Satellite Pro T130-15F", CXT5066_OLPC_XO_1_5),
 	{}
 };
 

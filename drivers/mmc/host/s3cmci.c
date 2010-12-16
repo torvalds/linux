@@ -1178,7 +1178,7 @@ static int s3cmci_card_present(struct mmc_host *mmc)
 	struct s3c24xx_mci_pdata *pdata = host->pdata;
 	int ret;
 
-	if (pdata->gpio_detect == 0)
+	if (pdata->no_detect)
 		return -ENOSYS;
 
 	ret = gpio_get_value(pdata->gpio_detect) ? 0 : 1;
@@ -1361,6 +1361,8 @@ static struct mmc_host_ops s3cmci_ops = {
 static struct s3c24xx_mci_pdata s3cmci_def_pdata = {
 	/* This is currently here to avoid a number of if (host->pdata)
 	 * checks. Any zero fields to ensure reaonable defaults are picked. */
+	.no_wprotect = 1,
+	.no_detect = 1,
 };
 
 #ifdef CONFIG_CPU_FREQ

@@ -269,12 +269,6 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	if (wk->bss->wmm_used)
 		wmm = 1;
 
-	/* get all rates supported by the device and the AP as
-	 * some APs don't like getting a superset of their rates
-	 * in the association request (e.g. D-Link DAP 1353 in
-	 * b-only mode) */
-	rates_len = ieee80211_compatible_rates(wk->bss, sband, &rates);
-
 	if ((wk->bss->cbss.capability & WLAN_CAPABILITY_SPECTRUM_MGMT) &&
 	    (local->hw.flags & IEEE80211_HW_SPECTRUM_MGMT))
 		capab |= WLAN_CAPABILITY_SPECTRUM_MGMT;
@@ -308,6 +302,17 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	*pos++ = WLAN_EID_SSID;
 	*pos++ = wk->ssid_len;
 	memcpy(pos, wk->ssid, wk->ssid_len);
+
+	if (wk->bss->supp_rates_len) {
+		/* get all rates supported by the device and the AP as
+		 * some APs don't like getting a superset of their rates
+		 * in the association request (e.g. D-Link DAP 1353 in
+		 * b-only mode) */
+		rates_len = ieee80211_compatible_rates(wk->bss, sband, &rates);
+	} else {
+		rates = ~0;
+		rates_len = sband->n_bitrates;
+	}
 
 	/* add all rates which were marked to be used above */
 	supp_rates_len = rates_len;
@@ -650,8 +655,11 @@ static void ieee80211_enable_ps(struct ieee80211_local *local,
 	} else {
 		if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
 			ieee80211_send_nullfunc(local, sdata, 1);
-		conf->flags |= IEEE80211_CONF_PS;
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+
+		if (!(local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)) {
+			conf->flags |= IEEE80211_CONF_PS;
+			ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+		}
 	}
 }
 
@@ -742,6 +750,7 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		container_of(work, struct ieee80211_local,
 			     dynamic_ps_enable_work);
 	struct ieee80211_sub_if_data *sdata = local->ps_sdata;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	/* can only happen when PS was just disabled anyway */
 	if (!sdata)
@@ -750,11 +759,16 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	if (local->hw.conf.flags & IEEE80211_CONF_PS)
 		return;
 
-	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
+	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
+	    (!(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED)))
 		ieee80211_send_nullfunc(local, sdata, 1);
 
-	local->hw.conf.flags |= IEEE80211_CONF_PS;
-	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+	if (!(local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) ||
+	    (ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED)) {
+		ifmgd->flags &= ~IEEE80211_STA_NULLFUNC_ACKED;
+		local->hw.conf.flags |= IEEE80211_CONF_PS;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
+	}
 }
 
 void ieee80211_dynamic_ps_timer(unsigned long data)
@@ -2458,6 +2472,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	list_add(&wk->list, &ifmgd->work_list);
 
 	ifmgd->flags &= ~IEEE80211_STA_DISABLE_11N;
+	ifmgd->flags &= ~IEEE80211_STA_NULLFUNC_ACKED;
 
 	for (i = 0; i < req->crypto.n_ciphers_pairwise; i++)
 		if (req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP40 ||

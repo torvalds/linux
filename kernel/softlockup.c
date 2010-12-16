@@ -140,11 +140,11 @@ void softlockup_tick(void)
 	 * Wake up the high-prio watchdog task twice per
 	 * threshold timespan.
 	 */
-	if (now > touch_timestamp + softlockup_thresh/2)
+	if (time_after(now - softlockup_thresh/2, touch_timestamp))
 		wake_up_process(per_cpu(watchdog_task, this_cpu));
 
 	/* Warn about unreasonable delays: */
-	if (now <= (touch_timestamp + softlockup_thresh))
+	if (time_before_eq(now - softlockup_thresh, touch_timestamp))
 		return;
 
 	per_cpu(print_timestamp, this_cpu) = touch_timestamp;

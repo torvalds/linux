@@ -174,7 +174,7 @@ int sc_ioctl(int card, scs_ioctl *data)
 		pr_debug("%s: SCIOGETSPID: ioctl received\n",
 				sc_adapter[card]->devicename);
 
-		spid = kmalloc(SCIOC_SPIDSIZE, GFP_KERNEL);
+		spid = kzalloc(SCIOC_SPIDSIZE, GFP_KERNEL);
 		if (!spid) {
 			kfree(rcvmsg);
 			return -ENOMEM;
@@ -194,7 +194,7 @@ int sc_ioctl(int card, scs_ioctl *data)
 			kfree(rcvmsg);
 			return status;
 		}
-		strcpy(spid, rcvmsg->msg_data.byte_array);
+		strlcpy(spid, rcvmsg->msg_data.byte_array, SCIOC_SPIDSIZE);
 
 		/*
 		 * Package the switch type and send to user space
@@ -272,12 +272,12 @@ int sc_ioctl(int card, scs_ioctl *data)
 			return status;
 		}
 
-		dn = kmalloc(SCIOC_DNSIZE, GFP_KERNEL);
+		dn = kzalloc(SCIOC_DNSIZE, GFP_KERNEL);
 		if (!dn) {
 			kfree(rcvmsg);
 			return -ENOMEM;
 		}
-		strcpy(dn, rcvmsg->msg_data.byte_array);
+		strlcpy(dn, rcvmsg->msg_data.byte_array, SCIOC_DNSIZE);
 		kfree(rcvmsg);
 
 		/*
@@ -348,7 +348,7 @@ int sc_ioctl(int card, scs_ioctl *data)
 		pr_debug("%s: SCIOSTAT: ioctl received\n",
 				sc_adapter[card]->devicename);
 
-		bi = kmalloc (sizeof(boardInfo), GFP_KERNEL);
+		bi = kzalloc(sizeof(boardInfo), GFP_KERNEL);
 		if (!bi) {
 			kfree(rcvmsg);
 			return -ENOMEM;

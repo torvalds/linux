@@ -89,6 +89,7 @@ static void radeon_legacy_lvds_dpms(struct drm_encoder *encoder, int mode)
 		udelay(panel_pwr_delay * 1000);
 		WREG32(RADEON_LVDS_GEN_CNTL, lvds_gen_cntl);
 		WREG32_PLL(RADEON_PIXCLKS_CNTL, pixclks_cntl);
+		udelay(panel_pwr_delay * 1000);
 		break;
 	}
 

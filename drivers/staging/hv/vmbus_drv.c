@@ -24,6 +24,8 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
+#include <linux/pci.h>
+#include <linux/dmi.h>
 #include "osd.h"
 #include "logging.h"
 #include "vmbus.h"
@@ -946,6 +948,19 @@ static irqreturn_t vmbus_isr(int irq, void *dev_id)
 	}
 }
 
+static struct dmi_system_id __initdata microsoft_hv_dmi_table[] = {
+	{
+		.ident = "Hyper-V",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Virtual Machine"),
+			DMI_MATCH(DMI_BOARD_NAME, "Virtual Machine"),
+		},
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(dmi, microsoft_hv_dmi_table);
+
 static int __init vmbus_init(void)
 {
 	int ret = 0;
@@ -956,6 +971,9 @@ static int __init vmbus_init(void)
 		"Vmbus initializing.... current log level 0x%x (%x,%x)",
 		vmbus_loglevel, HIWORD(vmbus_loglevel), LOWORD(vmbus_loglevel));
 	/* Todo: it is used for loglevel, to be ported to new kernel. */
+
+	if (!dmi_check_system(microsoft_hv_dmi_table))
+		return -ENODEV;
 
 	ret = vmbus_bus_init(VmbusInitialize);
 
@@ -972,6 +990,18 @@ static void __exit vmbus_exit(void)
 	DPRINT_EXIT(VMBUS_DRV);
 	return;
 }
+
+/*
+ * We use a PCI table to determine if we should autoload this driver  This is
+ * needed by distro tools to determine if the hyperv drivers should be
+ * installed and/or configured.  We don't do anything else with the table, but
+ * it needs to be present.
+ */
+const static struct pci_device_id microsoft_hv_pci_table[] = {
+	{ PCI_DEVICE(0x1414, 0x5353) },	/* VGA compatible controller */
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, microsoft_hv_pci_table);
 
 MODULE_LICENSE("GPL");
 module_param(vmbus_irq, int, S_IRUGO);

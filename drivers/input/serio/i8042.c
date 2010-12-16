@@ -1412,8 +1412,8 @@ static int __init i8042_init(void)
 
 static void __exit i8042_exit(void)
 {
-	platform_driver_unregister(&i8042_driver);
 	platform_device_unregister(i8042_platform_device);
+	platform_driver_unregister(&i8042_driver);
 	i8042_platform_exit();
 
 	panic_blink = NULL;

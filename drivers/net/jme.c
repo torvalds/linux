@@ -946,6 +946,8 @@ jme_alloc_and_feed_skb(struct jme_adapter *jme, int idx)
 				jme->jme_vlan_rx(skb, jme->vlgrp,
 					le16_to_cpu(rxdesc->descwb.vlan));
 				NET_STAT(jme).rx_bytes += 4;
+			} else {
+				dev_kfree_skb(skb);
 			}
 		} else {
 			jme->jme_rx(skb);
@@ -1576,6 +1578,16 @@ jme_free_irq(struct jme_adapter *jme)
 	}
 }
 
+static inline void
+jme_phy_on(struct jme_adapter *jme)
+{
+	u32 bmcr;
+
+	bmcr = jme_mdio_read(jme->dev, jme->mii_if.phy_id, MII_BMCR);
+	bmcr &= ~BMCR_PDOWN;
+	jme_mdio_write(jme->dev, jme->mii_if.phy_id, MII_BMCR, bmcr);
+}
+
 static int
 jme_open(struct net_device *netdev)
 {
@@ -1596,10 +1608,12 @@ jme_open(struct net_device *netdev)
 
 	jme_start_irq(jme);
 
-	if (test_bit(JME_FLAG_SSET, &jme->flags))
+	if (test_bit(JME_FLAG_SSET, &jme->flags)) {
+		jme_phy_on(jme);
 		jme_set_settings(netdev, &jme->old_ecmd);
-	else
+	} else {
 		jme_reset_phy_processor(jme);
+	}
 
 	jme_reset_link(jme);
 
@@ -2085,12 +2099,45 @@ jme_tx_timeout(struct net_device *netdev)
 	jme_reset_link(jme);
 }
 
+static inline void jme_pause_rx(struct jme_adapter *jme)
+{
+	atomic_dec(&jme->link_changing);
+
+	jme_set_rx_pcc(jme, PCC_OFF);
+	if (test_bit(JME_FLAG_POLL, &jme->flags)) {
+		JME_NAPI_DISABLE(jme);
+	} else {
+		tasklet_disable(&jme->rxclean_task);
+		tasklet_disable(&jme->rxempty_task);
+	}
+}
+
+static inline void jme_resume_rx(struct jme_adapter *jme)
+{
+	struct dynpcc_info *dpi = &(jme->dpi);
+
+	if (test_bit(JME_FLAG_POLL, &jme->flags)) {
+		JME_NAPI_ENABLE(jme);
+	} else {
+		tasklet_hi_enable(&jme->rxclean_task);
+		tasklet_hi_enable(&jme->rxempty_task);
+	}
+	dpi->cur		= PCC_P1;
+	dpi->attempt		= PCC_P1;
+	dpi->cnt		= 0;
+	jme_set_rx_pcc(jme, PCC_P1);
+
+	atomic_inc(&jme->link_changing);
+}
+
 static void
 jme_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 
+	jme_pause_rx(jme);
 	jme->vlgrp = grp;
+	jme_resume_rx(jme);
 }
 
 static void
@@ -2978,10 +3025,12 @@ jme_resume(struct pci_dev *pdev)
 	jme_clear_pm(jme);
 	pci_restore_state(pdev);
 
-	if (test_bit(JME_FLAG_SSET, &jme->flags))
+	if (test_bit(JME_FLAG_SSET, &jme->flags)) {
+		jme_phy_on(jme);
 		jme_set_settings(netdev, &jme->old_ecmd);
-	else
+	} else {
 		jme_reset_phy_processor(jme);
+	}
 
 	jme_start_irq(jme);
 	netif_device_attach(netdev);

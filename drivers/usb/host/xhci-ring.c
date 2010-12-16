@@ -124,7 +124,7 @@ static void next_trb(struct xhci_hcd *xhci,
 		*seg = (*seg)->next;
 		*trb = ((*seg)->trbs);
 	} else {
-		*trb = (*trb)++;
+		(*trb)++;
 	}
 }
 
@@ -241,10 +241,27 @@ static int room_on_ring(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	int i;
 	union xhci_trb *enq = ring->enqueue;
 	struct xhci_segment *enq_seg = ring->enq_seg;
+	struct xhci_segment *cur_seg;
+	unsigned int left_on_ring;
 
 	/* Check if ring is empty */
-	if (enq == ring->dequeue)
+	if (enq == ring->dequeue) {
+		/* Can't use link trbs */
+		left_on_ring = TRBS_PER_SEGMENT - 1;
+		for (cur_seg = enq_seg->next; cur_seg != enq_seg;
+				cur_seg = cur_seg->next)
+			left_on_ring += TRBS_PER_SEGMENT - 1;
+
+		/* Always need one TRB free in the ring. */
+		left_on_ring -= 1;
+		if (num_trbs > left_on_ring) {
+			xhci_warn(xhci, "Not enough room on ring; "
+					"need %u TRBs, %u TRBs left\n",
+					num_trbs, left_on_ring);
+			return 0;
+		}
 		return 1;
+	}
 	/* Make sure there's an extra empty TRB available */
 	for (i = 0; i <= num_trbs; ++i) {
 		if (enq == ring->dequeue)
@@ -333,7 +350,8 @@ static struct xhci_segment *find_trb_seg(
 	while (cur_seg->trbs > trb ||
 			&cur_seg->trbs[TRBS_PER_SEGMENT - 1] < trb) {
 		generic_trb = &cur_seg->trbs[TRBS_PER_SEGMENT - 1].generic;
-		if (TRB_TYPE(generic_trb->field[3]) == TRB_LINK &&
+		if ((generic_trb->field[3] & TRB_TYPE_BITMASK) ==
+				TRB_TYPE(TRB_LINK) &&
 				(generic_trb->field[3] & LINK_TOGGLE))
 			*cycle_state = ~(*cycle_state) & 0x1;
 		cur_seg = cur_seg->next;
@@ -389,7 +407,7 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 		BUG();
 
 	trb = &state->new_deq_ptr->generic;
-	if (TRB_TYPE(trb->field[3]) == TRB_LINK &&
+	if ((trb->field[3] & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK) &&
 				(trb->field[3] & LINK_TOGGLE))
 		state->new_cycle_state = ~(state->new_cycle_state) & 0x1;
 	next_trb(xhci, ep_ring, &state->new_deq_seg, &state->new_deq_ptr);
@@ -548,6 +566,8 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 		/* Otherwise just ring the doorbell to restart the ring */
 		ring_ep_doorbell(xhci, slot_id, ep_index);
 	}
+	ep->stopped_td = NULL;
+	ep->stopped_trb = NULL;
 
 	/*
 	 * Drop the lock and complete the URBs in the cancelled TD list.
@@ -1065,8 +1085,13 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 
 			ep->stopped_td = td;
 			ep->stopped_trb = event_trb;
+
 			xhci_queue_reset_ep(xhci, slot_id, ep_index);
 			xhci_cleanup_stalled_ring(xhci, td->urb->dev, ep_index);
+
+			ep->stopped_td = NULL;
+			ep->stopped_trb = NULL;
+
 			xhci_ring_cmd_db(xhci);
 			goto td_cleanup;
 		default:
@@ -1186,8 +1211,10 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			for (cur_trb = ep_ring->dequeue, cur_seg = ep_ring->deq_seg;
 					cur_trb != event_trb;
 					next_trb(xhci, ep_ring, &cur_seg, &cur_trb)) {
-				if (TRB_TYPE(cur_trb->generic.field[3]) != TRB_TR_NOOP &&
-						TRB_TYPE(cur_trb->generic.field[3]) != TRB_LINK)
+				if ((cur_trb->generic.field[3] &
+				 TRB_TYPE_BITMASK) != TRB_TYPE(TRB_TR_NOOP) &&
+				    (cur_trb->generic.field[3] &
+				 TRB_TYPE_BITMASK) != TRB_TYPE(TRB_LINK))
 					td->urb->actual_length +=
 						TRB_LEN(cur_trb->generic.field[2]);
 			}

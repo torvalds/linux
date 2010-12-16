@@ -859,6 +859,12 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
 	unsigned long expired;
 	long nr_pages;
 
+	/*
+	 * When set to zero, disable periodic writeback
+	 */
+	if (!dirty_writeback_interval)
+		return 0;
+
 	expired = wb->last_old_flush +
 			msecs_to_jiffies(dirty_writeback_interval * 10);
 	if (time_before(jiffies, expired))
@@ -954,8 +960,12 @@ int bdi_writeback_task(struct bdi_writeback *wb)
 				break;
 		}
 
-		wait_jiffies = msecs_to_jiffies(dirty_writeback_interval * 10);
-		schedule_timeout_interruptible(wait_jiffies);
+		if (dirty_writeback_interval) {
+			wait_jiffies = msecs_to_jiffies(dirty_writeback_interval * 10);
+			schedule_timeout_interruptible(wait_jiffies);
+		} else
+			schedule();
+
 		try_to_freeze();
 	}
 
@@ -1211,6 +1221,23 @@ void writeback_inodes_sb(struct super_block *sb)
 	bdi_start_writeback(sb->s_bdi, sb, nr_to_write);
 }
 EXPORT_SYMBOL(writeback_inodes_sb);
+
+/**
+ * writeback_inodes_sb_if_idle	-	start writeback if none underway
+ * @sb: the superblock
+ *
+ * Invoke writeback_inodes_sb if no writeback is currently underway.
+ * Returns 1 if writeback was started, 0 if not.
+ */
+int writeback_inodes_sb_if_idle(struct super_block *sb)
+{
+	if (!writeback_in_progress(sb->s_bdi)) {
+		writeback_inodes_sb(sb);
+		return 1;
+	} else
+		return 0;
+}
+EXPORT_SYMBOL(writeback_inodes_sb_if_idle);
 
 /**
  * sync_inodes_sb	-	sync sb inode pages

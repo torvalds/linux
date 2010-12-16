@@ -238,6 +238,8 @@ static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
 		if (ret)
 			goto fail;
 
+		file_update_time(file);
+
 		transfer_result = lo_do_transfer(lo, WRITE, page, offset,
 				bvec->bv_page, bv_offs, size, IV);
 		copied = size;

@@ -72,9 +72,7 @@ in6_min_alarm		5v  output undervoltage alarm
 in7_min_alarm		3v  output undervoltage alarm
 in8_min_alarm		Vee (-12v) output undervoltage alarm
 
-in9_input		GPIO #1 voltage data
-in10_input		GPIO #2 voltage data
-in11_input		GPIO #3 voltage data
+in9_input		GPIO voltage data
 
 power1_input		12v power usage (mW)
 power2_input		5v  power usage (mW)

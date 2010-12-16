@@ -73,9 +73,6 @@ static int __cpuinit m4kc_tlbp_war(void)
 enum label_id {
 	label_second_part = 1,
 	label_leave,
-#ifdef MODULE_START
-	label_module_alloc,
-#endif
 	label_vmalloc,
 	label_vmalloc_done,
 	label_tlbw_hazard,
@@ -92,9 +89,6 @@ enum label_id {
 
 UASM_L_LA(_second_part)
 UASM_L_LA(_leave)
-#ifdef MODULE_START
-UASM_L_LA(_module_alloc)
-#endif
 UASM_L_LA(_vmalloc)
 UASM_L_LA(_vmalloc_done)
 UASM_L_LA(_tlbw_hazard)
@@ -731,10 +725,15 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 	 * create the plain linear handler
 	 */
 	if (bcm1250_m3_war()) {
-		UASM_i_MFC0(&p, K0, C0_BADVADDR);
-		UASM_i_MFC0(&p, K1, C0_ENTRYHI);
+		unsigned int segbits = 44;
+
+		uasm_i_dmfc0(&p, K0, C0_BADVADDR);
+		uasm_i_dmfc0(&p, K1, C0_ENTRYHI);
 		uasm_i_xor(&p, K0, K0, K1);
-		UASM_i_SRL(&p, K0, K0, PAGE_SHIFT + 1);
+		uasm_i_dsrl32(&p, K1, K0, 62 - 32);
+		uasm_i_dsrl(&p, K0, K0, 12 + 1);
+		uasm_i_dsll32(&p, K0, K0, 64 + 12 + 1 - segbits - 32);
+		uasm_i_or(&p, K0, K0, K1);
 		uasm_il_bnez(&p, &r, K0, label_leave);
 		/* No need for uasm_i_nop */
 	}
@@ -802,8 +801,6 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 	} else {
 #if defined(CONFIG_HUGETLB_PAGE)
 		const enum label_id ls = label_tlb_huge_update;
-#elif defined(MODULE_START)
-		const enum label_id ls = label_module_alloc;
 #else
 		const enum label_id ls = label_vmalloc;
 #endif
@@ -1250,10 +1247,15 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 	memset(relocs, 0, sizeof(relocs));
 
 	if (bcm1250_m3_war()) {
-		UASM_i_MFC0(&p, K0, C0_BADVADDR);
-		UASM_i_MFC0(&p, K1, C0_ENTRYHI);
+		unsigned int segbits = 44;
+
+		uasm_i_dmfc0(&p, K0, C0_BADVADDR);
+		uasm_i_dmfc0(&p, K1, C0_ENTRYHI);
 		uasm_i_xor(&p, K0, K0, K1);
-		UASM_i_SRL(&p, K0, K0, PAGE_SHIFT + 1);
+		uasm_i_dsrl32(&p, K1, K0, 62 - 32);
+		uasm_i_dsrl(&p, K0, K0, 12 + 1);
+		uasm_i_dsll32(&p, K0, K0, 64 + 12 + 1 - segbits - 32);
+		uasm_i_or(&p, K0, K0, K1);
 		uasm_il_bnez(&p, &r, K0, label_leave);
 		/* No need for uasm_i_nop */
 	}

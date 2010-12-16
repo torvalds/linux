@@ -71,7 +71,7 @@ _GLOBAL(strcmp)
 
 _GLOBAL(strncmp)
 	PPC_LCMPI r5,0
-	beqlr
+	ble-	2f
 	mtctr	r5
 	addi	r5,r3,-1
 	addi	r4,r4,-1
@@ -81,6 +81,8 @@ _GLOBAL(strncmp)
 	subf.	r3,r0,r3
 	beqlr	1
 	bdnzt	eq,1b
+	blr
+2:	li	r3,0
 	blr
 
 _GLOBAL(strlen)

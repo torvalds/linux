@@ -511,8 +511,6 @@ static void dlm_lockres_release(struct kref *kref)
 
 	atomic_dec(&dlm->res_cur_count);
 
-	dlm_put(dlm);
-
 	if (!hlist_unhashed(&res->hash_node) ||
 	    !list_empty(&res->granted) ||
 	    !list_empty(&res->converting) ||
@@ -585,8 +583,6 @@ static void dlm_init_lockres(struct dlm_ctxt *dlm,
 	res->migration_pending = 0;
 	res->inflight_locks = 0;
 
-	/* put in dlm_lockres_release */
-	dlm_grab(dlm);
 	res->dlm = dlm;
 
 	kref_init(&res->refs);
@@ -3046,8 +3042,6 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,
 	/* check for pre-existing lock */
 	spin_lock(&dlm->spinlock);
 	res = __dlm_lookup_lockres(dlm, name, namelen, hash);
-	spin_lock(&dlm->master_lock);
-
 	if (res) {
 		spin_lock(&res->spinlock);
 		if (res->state & DLM_LOCK_RES_RECOVERING) {
@@ -3065,14 +3059,15 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,
 		spin_unlock(&res->spinlock);
 	}
 
+	spin_lock(&dlm->master_lock);
 	/* ignore status.  only nonzero status would BUG. */
 	ret = dlm_add_migration_mle(dlm, res, mle, &oldmle,
 				    name, namelen,
 				    migrate->new_master,
 				    migrate->master);
 
-unlock:
 	spin_unlock(&dlm->master_lock);
+unlock:
 	spin_unlock(&dlm->spinlock);
 
 	if (oldmle) {

@@ -349,8 +349,8 @@ static ssize_t midi_set_midi_mask_receive(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(midi_mask_transmit, S_IWUGO | S_IRUGO, midi_get_midi_mask_transmit, midi_set_midi_mask_transmit);
-static DEVICE_ATTR(midi_mask_receive, S_IWUGO | S_IRUGO, midi_get_midi_mask_receive, midi_set_midi_mask_receive);
+static DEVICE_ATTR(midi_mask_transmit, S_IWUSR | S_IRUGO, midi_get_midi_mask_transmit, midi_set_midi_mask_transmit);
+static DEVICE_ATTR(midi_mask_receive, S_IWUSR | S_IRUGO, midi_get_midi_mask_receive, midi_set_midi_mask_receive);
 
 /* MIDI device destructor */
 static int snd_line6_midi_free(struct snd_device *device)

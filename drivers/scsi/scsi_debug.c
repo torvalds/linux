@@ -914,7 +914,8 @@ static int resp_start_stop(struct scsi_cmnd * scp,
 static sector_t get_sdebug_capacity(void)
 {
 	if (scsi_debug_virtual_gb > 0)
-		return 2048 * 1024 * (sector_t)scsi_debug_virtual_gb;
+		return (sector_t)scsi_debug_virtual_gb *
+			(1073741824 / scsi_debug_sector_size);
 	else
 		return sdebug_store_sectors;
 }
