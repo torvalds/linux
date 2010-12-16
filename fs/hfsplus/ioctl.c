@@ -28,7 +28,7 @@ static int hfsplus_ioctl_getflags(struct file *file, int __user *user_flags)
 
 	if (inode->i_flags & S_IMMUTABLE)
 		flags |= FS_IMMUTABLE_FL;
-	if (inode->i_flags |= S_APPEND)
+	if (inode->i_flags & S_APPEND)
 		flags |= FS_APPEND_FL;
 	if (hip->userflags & HFSPLUS_FLG_NODUMP)
 		flags |= FS_NODUMP_FL;
