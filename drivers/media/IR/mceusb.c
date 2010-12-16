@@ -1073,6 +1073,7 @@ static struct input_dev *mceusb_init_input_dev(struct mceusb_dev *ir)
 	props->priv = ir;
 	props->driver_type = RC_DRIVER_IR_RAW;
 	props->allowed_protos = IR_TYPE_ALL;
+	props->timeout = MS_TO_NS(1000);
 	if (!ir->flags.no_tx) {
 		props->s_tx_mask = mceusb_set_tx_mask;
 		props->s_tx_carrier = mceusb_set_tx_carrier;
