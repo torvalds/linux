@@ -42,6 +42,12 @@
 #include "board-stingray.h"
 #include "gpio-names.h"
 
+/* For the PWR + VOL UP reset, CPCAP can perform a hard or a soft reset. A hard
+ * reset will reset the entire system, where a soft reset will reset only the
+ * T20. Uncomment this line to use soft resets (should not be enabled on
+ * production builds). */
+/* #define ENABLE_SOFT_RESET_DEBUGGING */
+
 static struct cpcap_device *cpcap_di;
 
 static int cpcap_validity_reboot(struct notifier_block *this,
@@ -174,7 +180,6 @@ static int cpcap_validity_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "Not starting macro 14 (no hw support)\n");
 
 	/* Enable workaround to allow soft resets to work */
-	/* TODO: Only enable this on non-production hardware. */
 	cpcap_regacc_write(cpcap_di, CPCAP_REG_PGC,
 			   CPCAP_BIT_SYS_RST_MODE, CPCAP_BIT_SYS_RST_MODE);
 	err = cpcap_uc_start(cpcap_di, CPCAP_MACRO_15);
@@ -705,6 +710,12 @@ int __init stingray_power_init(void)
 
 	if (stingray_revision() <= STINGRAY_REVISION_M1)
 		stingray_max8649_pdata.mode = 3;
+
+#ifdef ENABLE_SOFT_RESET_DEBUGGING
+	/* Only P3 and later hardware supports CPCAP resetting the T20. */
+	if (stingray_revision() >= STINGRAY_REVISION_P3)
+		stingray_cpcap_data.hwcfg[1] |= CPCAP_HWCFG1_SOFT_RESET_HOST;
+#endif
 
 	tegra_gpio_enable(TEGRA_GPIO_PT2);
 	gpio_request(TEGRA_GPIO_PT2, "usb_host_pwr_en");
