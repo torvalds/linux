@@ -728,6 +728,15 @@
 /* DCE 3.2 */
 #       define DC_HPDx_EN                                 (1 << 28)
 
+#define D1GRPH_INTERRUPT_STATUS                           0x6158
+#define D2GRPH_INTERRUPT_STATUS                           0x6958
+#       define DxGRPH_PFLIP_INT_OCCURRED                  (1 << 0)
+#       define DxGRPH_PFLIP_INT_CLEAR                     (1 << 8)
+#define D1GRPH_INTERRUPT_CONTROL                          0x615c
+#define D2GRPH_INTERRUPT_CONTROL                          0x695c
+#       define DxGRPH_PFLIP_INT_MASK                      (1 << 0)
+#       define DxGRPH_PFLIP_INT_TYPE                      (1 << 8)
+
 /*
  * PM4
  */

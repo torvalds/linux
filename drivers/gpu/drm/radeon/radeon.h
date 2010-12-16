@@ -69,6 +69,7 @@
 #include <ttm/ttm_bo_driver.h>
 #include <ttm/ttm_placement.h>
 #include <ttm/ttm_module.h>
+#include <ttm/ttm_execbuf_util.h>
 
 #include "radeon_family.h"
 #include "radeon_mode.h"
@@ -180,6 +181,7 @@ void rs690_pm_info(struct radeon_device *rdev);
 extern u32 rv6xx_get_temp(struct radeon_device *rdev);
 extern u32 rv770_get_temp(struct radeon_device *rdev);
 extern u32 evergreen_get_temp(struct radeon_device *rdev);
+extern u32 sumo_get_temp(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -259,13 +261,12 @@ struct radeon_bo {
 };
 
 struct radeon_bo_list {
-	struct list_head	list;
+	struct ttm_validate_buffer tv;
 	struct radeon_bo	*bo;
 	uint64_t		gpu_offset;
 	unsigned		rdomain;
 	unsigned		wdomain;
 	u32			tiling_flags;
-	bool			reserved;
 };
 
 /*
@@ -377,11 +378,56 @@ void radeon_scratch_free(struct radeon_device *rdev, uint32_t reg);
 /*
  * IRQS.
  */
+
+struct radeon_unpin_work {
+	struct work_struct work;
+	struct radeon_device *rdev;
+	int crtc_id;
+	struct radeon_fence *fence;
+	struct drm_pending_vblank_event *event;
+	struct radeon_bo *old_rbo;
+	u64 new_crtc_base;
+};
+
+struct r500_irq_stat_regs {
+	u32 disp_int;
+};
+
+struct r600_irq_stat_regs {
+	u32 disp_int;
+	u32 disp_int_cont;
+	u32 disp_int_cont2;
+	u32 d1grph_int;
+	u32 d2grph_int;
+};
+
+struct evergreen_irq_stat_regs {
+	u32 disp_int;
+	u32 disp_int_cont;
+	u32 disp_int_cont2;
+	u32 disp_int_cont3;
+	u32 disp_int_cont4;
+	u32 disp_int_cont5;
+	u32 d1grph_int;
+	u32 d2grph_int;
+	u32 d3grph_int;
+	u32 d4grph_int;
+	u32 d5grph_int;
+	u32 d6grph_int;
+};
+
+union radeon_irq_stat_regs {
+	struct r500_irq_stat_regs r500;
+	struct r600_irq_stat_regs r600;
+	struct evergreen_irq_stat_regs evergreen;
+};
+
 struct radeon_irq {
 	bool		installed;
 	bool		sw_int;
 	/* FIXME: use a define max crtc rather than hardcode it */
 	bool		crtc_vblank_int[6];
+	bool		pflip[6];
 	wait_queue_head_t	vblank_queue;
 	/* FIXME: use defines for max hpd/dacs */
 	bool            hpd[6];
@@ -392,12 +438,17 @@ struct radeon_irq {
 	bool		hdmi[2];
 	spinlock_t sw_lock;
 	int sw_refcount;
+	union radeon_irq_stat_regs stat_regs;
+	spinlock_t pflip_lock[6];
+	int pflip_refcount[6];
 };
 
 int radeon_irq_kms_init(struct radeon_device *rdev);
 void radeon_irq_kms_fini(struct radeon_device *rdev);
 void radeon_irq_kms_sw_irq_get(struct radeon_device *rdev);
 void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev);
+void radeon_irq_kms_pflip_irq_get(struct radeon_device *rdev, int crtc);
+void radeon_irq_kms_pflip_irq_put(struct radeon_device *rdev, int crtc);
 
 /*
  * CP & ring.
@@ -687,6 +738,7 @@ enum radeon_int_thermal_type {
 	THERMAL_TYPE_RV6XX,
 	THERMAL_TYPE_RV770,
 	THERMAL_TYPE_EVERGREEN,
+	THERMAL_TYPE_SUMO,
 };
 
 struct radeon_voltage {
@@ -881,6 +933,10 @@ struct radeon_asic {
 	void (*pm_finish)(struct radeon_device *rdev);
 	void (*pm_init_profile)(struct radeon_device *rdev);
 	void (*pm_get_dynpm_state)(struct radeon_device *rdev);
+	/* pageflipping */
+	void (*pre_page_flip)(struct radeon_device *rdev, int crtc);
+	u32 (*page_flip)(struct radeon_device *rdev, int crtc, u64 crtc_base);
+	void (*post_page_flip)(struct radeon_device *rdev, int crtc);
 };
 
 /*
@@ -1269,6 +1325,7 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 #define ASIC_IS_DCE3(rdev) ((rdev->family >= CHIP_RV620))
 #define ASIC_IS_DCE32(rdev) ((rdev->family >= CHIP_RV730))
 #define ASIC_IS_DCE4(rdev) ((rdev->family >= CHIP_CEDAR))
+#define ASIC_IS_DCE41(rdev) ((rdev->family >= CHIP_PALM))
 
 /*
  * BIOS helpers.
@@ -1344,6 +1401,9 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_pm_finish(rdev) (rdev)->asic->pm_finish((rdev))
 #define radeon_pm_init_profile(rdev) (rdev)->asic->pm_init_profile((rdev))
 #define radeon_pm_get_dynpm_state(rdev) (rdev)->asic->pm_get_dynpm_state((rdev))
+#define radeon_pre_page_flip(rdev, crtc) rdev->asic->pre_page_flip((rdev), (crtc))
+#define radeon_page_flip(rdev, crtc, base) rdev->asic->page_flip((rdev), (crtc), (base))
+#define radeon_post_page_flip(rdev, crtc) rdev->asic->post_page_flip((rdev), (crtc))
 
 /* Common functions */
 /* AGP */
@@ -1432,7 +1492,6 @@ extern void rs690_line_buffer_adjust(struct radeon_device *rdev,
 					struct drm_display_mode *mode2);
 
 /* r600, rv610, rv630, rv620, rv635, rv670, rs780, rs880 */
-extern void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern bool r600_card_posted(struct radeon_device *rdev);
 extern void r600_cp_stop(struct radeon_device *rdev);
 extern int r600_cp_start(struct radeon_device *rdev);
@@ -1478,6 +1537,7 @@ extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mo
 extern int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 extern void r600_hdmi_update_audio_settings(struct drm_encoder *encoder);
 
+extern void r700_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern void r700_cp_stop(struct radeon_device *rdev);
 extern void r700_cp_fini(struct radeon_device *rdev);
 extern void evergreen_disable_interrupt_state(struct radeon_device *rdev);

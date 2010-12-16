@@ -59,17 +59,11 @@ nouveau_dma_init(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj *obj = NULL;
 	int ret, i;
 
 	/* Create NV_MEMORY_TO_MEMORY_FORMAT for buffer moves */
-	ret = nouveau_gpuobj_gr_new(chan, dev_priv->card_type < NV_50 ?
-				    0x0039 : 0x5039, &obj);
-	if (ret)
-		return ret;
-
-	ret = nouveau_ramht_insert(chan, NvM2MF, obj);
-	nouveau_gpuobj_ref(NULL, &obj);
+	ret = nouveau_gpuobj_gr_new(chan, NvM2MF, dev_priv->card_type < NV_50 ?
+				    0x0039 : 0x5039);
 	if (ret)
 		return ret;
 
