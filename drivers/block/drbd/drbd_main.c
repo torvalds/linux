@@ -3020,6 +3020,8 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
 	D_ASSERT(list_empty(&mdev->resync_work.list));
 	D_ASSERT(list_empty(&mdev->unplug_work.list));
 	D_ASSERT(list_empty(&mdev->go_diskless.list));
+
+	drbd_set_defaults(mdev);
 }
 
 
