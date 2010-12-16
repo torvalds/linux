@@ -65,6 +65,8 @@ void xen_mc_flush(void)
 	   something in the middle */
 	local_irq_save(flags);
 
+	trace_xen_mc_flush(b->mcidx, b->argidx, b->cbidx);
+
 	if (b->mcidx) {
 #if MC_DEBUG
 		memcpy(b->debug, b->entries,
@@ -116,11 +118,15 @@ struct multicall_space __xen_mc_entry(size_t args)
 	struct multicall_space ret;
 	unsigned argidx = roundup(b->argidx, sizeof(u64));
 
+	trace_xen_mc_entry_alloc(args);
+
 	BUG_ON(preemptible());
 	BUG_ON(b->argidx >= MC_ARGS);
 
 	if (b->mcidx == MC_BATCH ||
 	    (argidx + args) >= MC_ARGS) {
+		trace_xen_mc_flush_reason((b->mcidx == MC_BATCH) ?
+					  XEN_MC_FL_BATCH : XEN_MC_FL_ARGS);
 		xen_mc_flush();
 		argidx = roundup(b->argidx, sizeof(u64));
 	}
@@ -145,20 +151,25 @@ struct multicall_space xen_mc_extend_args(unsigned long op, size_t size)
 	BUG_ON(preemptible());
 	BUG_ON(b->argidx >= MC_ARGS);
 
-	if (b->mcidx == 0)
-		return ret;
+	if (unlikely(b->mcidx == 0 ||
+		     b->entries[b->mcidx - 1].op != op)) {
+		trace_xen_mc_extend_args(op, size, XEN_MC_XE_BAD_OP);
+		goto out;
+	}
 
-	if (b->entries[b->mcidx - 1].op != op)
-		return ret;
-
-	if ((b->argidx + size) >= MC_ARGS)
-		return ret;
+	if (unlikely((b->argidx + size) >= MC_ARGS)) {
+		trace_xen_mc_extend_args(op, size, XEN_MC_XE_NO_SPACE);
+		goto out;
+	}
 
 	ret.mc = &b->entries[b->mcidx - 1];
 	ret.args = &b->args[b->argidx];
 	b->argidx += size;
 
 	BUG_ON(b->argidx >= MC_ARGS);
+
+	trace_xen_mc_extend_args(op, size, XEN_MC_XE_OK);
+out:
 	return ret;
 }
 
@@ -167,8 +178,12 @@ void xen_mc_callback(void (*fn)(void *), void *data)
 	struct mc_buffer *b = &__get_cpu_var(mc_buffer);
 	struct callback *cb;
 
-	if (b->cbidx == MC_BATCH)
+	if (b->cbidx == MC_BATCH) {
+		trace_xen_mc_flush_reason(XEN_MC_FL_CALLBACK);
 		xen_mc_flush();
+	}
+
+	trace_xen_mc_callback(fn, data);
 
 	cb = &b->callbacks[b->cbidx++];
 	cb->fn = fn;

@@ -25,6 +25,7 @@ static inline void xen_mc_batch(void)
 
 	/* need to disable interrupts until this entry is complete */
 	local_irq_save(flags);
+	trace_xen_mc_batch(paravirt_get_lazy_mode());
 	__this_cpu_write(xen_mc_irq_flags, flags);
 }
 
@@ -40,6 +41,8 @@ void xen_mc_flush(void);
 /* Issue a multicall if we're not in a lazy mode */
 static inline void xen_mc_issue(unsigned mode)
 {
+	trace_xen_mc_issue(mode);
+
 	if ((paravirt_get_lazy_mode() & mode) == 0)
 		xen_mc_flush();
 
