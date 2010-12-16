@@ -30,12 +30,12 @@
 #include "../wifi.h"
 #include "../pci.h"
 #include "../ps.h"
-#include "rtl8192c-reg.h"
-#include "rtl8192c-def.h"
-#include "rtl8192c-phy.h"
-#include "rtl8192c-rf.h"
-#include "rtl8192c-dm.h"
-#include "rtl8192c-table.h"
+#include "reg.h"
+#include "def.h"
+#include "phy.h"
+#include "rf.h"
+#include "dm.h"
+#include "table.h"
 
 static u32 _rtl92c_phy_fw_rf_serial_read(struct ieee80211_hw *hw,
 					 enum radio_path rfpath, u32 offset);

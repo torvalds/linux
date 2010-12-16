@@ -29,7 +29,7 @@
  *
  *****************************************************************************/
 
-#include "rtl8192c-table.h"
+#include "table.h"
 
 
 u32 RTL8192CEPHY_REG_2TARRAY[PHY_REG_2TARRAY_LENGTH] = {

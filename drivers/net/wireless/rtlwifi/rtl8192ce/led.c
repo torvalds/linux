@@ -29,8 +29,8 @@
 
 #include "../wifi.h"
 #include "../pci.h"
-#include "rtl8192c-reg.h"
-#include "rtl8192c-led.h"
+#include "reg.h"
+#include "led.h"
 
 void rtl92ce_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
 {

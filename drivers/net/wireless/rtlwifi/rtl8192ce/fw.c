@@ -31,10 +31,10 @@
 #include "../wifi.h"
 #include "../pci.h"
 #include "../base.h"
-#include "rtl8192c-reg.h"
-#include "rtl8192c-def.h"
-#include "rtl8192c-fw.h"
-#include "rtl8192c-table.h"
+#include "reg.h"
+#include "def.h"
+#include "fw.h"
+#include "table.h"
 
 static void _rtl92c_enable_fw_download(struct ieee80211_hw *hw, bool enable)
 {

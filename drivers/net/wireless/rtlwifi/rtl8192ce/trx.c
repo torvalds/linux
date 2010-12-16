@@ -30,11 +30,11 @@
 #include "../wifi.h"
 #include "../pci.h"
 #include "../base.h"
-#include "rtl8192c-reg.h"
-#include "rtl8192c-def.h"
-#include "rtl8192c-phy.h"
-#include "rtl8192c-trx.h"
-#include "rtl8192c-led.h"
+#include "reg.h"
+#include "def.h"
+#include "phy.h"
+#include "trx.h"
+#include "led.h"
 
 static enum rtl_desc_qsel _rtl92ce_map_hwqueue_to_fwqueue(u16 fc,
 							  unsigned int

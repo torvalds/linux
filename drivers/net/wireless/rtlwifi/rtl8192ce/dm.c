@@ -29,11 +29,11 @@
 
 #include "../wifi.h"
 #include "../base.h"
-#include "rtl8192c-reg.h"
-#include "rtl8192c-def.h"
-#include "rtl8192c-phy.h"
-#include "rtl8192c-dm.h"
-#include "rtl8192c-fw.h"
+#include "reg.h"
+#include "def.h"
+#include "phy.h"
+#include "dm.h"
+#include "fw.h"
 
 struct dig_t dm_digtable;
 static struct ps_t dm_pstable;

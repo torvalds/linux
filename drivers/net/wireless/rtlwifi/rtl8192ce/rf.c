@@ -28,11 +28,11 @@
  *****************************************************************************/
 
 #include "../wifi.h"
-#include "rtl8192c-reg.h"
-#include "rtl8192c-def.h"
-#include "rtl8192c-phy.h"
-#include "rtl8192c-rf.h"
-#include "rtl8192c-dm.h"
+#include "reg.h"
+#include "def.h"
+#include "phy.h"
+#include "rf.h"
+#include "dm.h"
 
 static bool _rtl92c_phy_rf6052_config_parafile(struct ieee80211_hw *hw);
 

@@ -33,13 +33,13 @@
 #include "../cam.h"
 #include "../ps.h"
 #include "../pci.h"
-#include "rtl8192c-reg.h"
-#include "rtl8192c-def.h"
-#include "rtl8192c-phy.h"
-#include "rtl8192c-dm.h"
-#include "rtl8192c-fw.h"
-#include "rtl8192c-led.h"
-#include "rtl8192c-hw.h"
+#include "reg.h"
+#include "def.h"
+#include "phy.h"
+#include "dm.h"
+#include "fw.h"
+#include "led.h"
+#include "hw.h"
 
 #define LLT_CONFIG	5
 

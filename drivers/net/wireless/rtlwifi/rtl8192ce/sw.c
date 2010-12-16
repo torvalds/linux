@@ -32,14 +32,14 @@
 #include "../wifi.h"
 #include "../core.h"
 #include "../pci.h"
-#include "rtl8192c-reg.h"
-#include "rtl8192c-def.h"
-#include "rtl8192c-phy.h"
-#include "rtl8192c-dm.h"
-#include "rtl8192c-hw.h"
-#include "rtl8192c-sw.h"
-#include "rtl8192c-trx.h"
-#include "rtl8192c-led.h"
+#include "reg.h"
+#include "def.h"
+#include "phy.h"
+#include "dm.h"
+#include "hw.h"
+#include "sw.h"
+#include "trx.h"
+#include "led.h"
 
 int rtl92c_init_sw_vars(struct ieee80211_hw *hw)
 {
