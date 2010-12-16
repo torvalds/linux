@@ -1038,7 +1038,13 @@ static inline int tcp_paws_check(const struct tcp_options_received *rx_opt,
 		return 1;
 	if (unlikely(get_seconds() >= rx_opt->ts_recent_stamp + TCP_PAWS_24DAYS))
 		return 1;
-
+	/*
+	 * Some OSes send SYN and SYNACK messages with tsval=0 tsecr=0,
+	 * then following tcp messages have valid values. Ignore 0 value,
+	 * or else 'negative' tsval might forbid us to accept their packets.
+	 */
+	if (!rx_opt->ts_recent)
+		return 1;
 	return 0;
 }
 
