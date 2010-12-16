@@ -23,9 +23,11 @@
 #define DBG_EXTENT	0x00000020
 #define DBG_BITMAP	0x00000040
 
-//#define DBG_MASK	(DBG_EXTENT|DBG_INODE|DBG_BNODE_MOD)
-//#define DBG_MASK	(DBG_BNODE_MOD|DBG_CAT_MOD|DBG_INODE)
-//#define DBG_MASK	(DBG_CAT_MOD|DBG_BNODE_REFS|DBG_INODE|DBG_EXTENT)
+#if 0
+#define DBG_MASK	(DBG_EXTENT|DBG_INODE|DBG_BNODE_MOD)
+#define DBG_MASK	(DBG_BNODE_MOD|DBG_CAT_MOD|DBG_INODE)
+#define DBG_MASK	(DBG_CAT_MOD|DBG_BNODE_REFS|DBG_INODE|DBG_EXTENT)
+#endif
 #define DBG_MASK	(0)
 
 #define dprint(flg, fmt, args...) \
@@ -62,7 +64,6 @@ struct hfs_btree {
 	unsigned int max_key_len;
 	unsigned int depth;
 
-	//unsigned int map1_size, map_size;
 	struct mutex tree_lock;
 
 	unsigned int pages_per_bnode;
