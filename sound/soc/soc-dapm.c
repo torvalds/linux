@@ -56,6 +56,7 @@ static int dapm_up_seq[] = {
 	[snd_soc_dapm_aif_out] = 3,
 	[snd_soc_dapm_mic] = 4,
 	[snd_soc_dapm_mux] = 5,
+	[snd_soc_dapm_virt_mux] = 5,
 	[snd_soc_dapm_value_mux] = 5,
 	[snd_soc_dapm_dac] = 6,
 	[snd_soc_dapm_mixer] = 7,
@@ -81,6 +82,7 @@ static int dapm_down_seq[] = {
 	[snd_soc_dapm_mic] = 7,
 	[snd_soc_dapm_micbias] = 8,
 	[snd_soc_dapm_mux] = 9,
+	[snd_soc_dapm_virt_mux] = 9,
 	[snd_soc_dapm_value_mux] = 9,
 	[snd_soc_dapm_aif_in] = 10,
 	[snd_soc_dapm_aif_out] = 10,
@@ -214,6 +216,20 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 			if (!(strcmp(p->name, e->texts[i])) && item == i)
 				p->connect = 1;
 		}
+	}
+	break;
+	case snd_soc_dapm_virt_mux: {
+		struct soc_enum *e = (struct soc_enum *)w->kcontrols[i].private_value;
+
+		p->connect = 0;
+		/* since a virtual mux has no backing registers to
+		 * decide which path to connect, it will try to match
+		 * with the first enumeration.  This is to ensure
+		 * that the default mux choice (the first) will be
+		 * correctly powered up during initialization.
+		 */
+		if (!strcmp(p->name, e->texts[0]))
+			p->connect = 1;
 	}
 	break;
 	case snd_soc_dapm_value_mux: {
@@ -1228,6 +1244,7 @@ static int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
 	int found = 0;
 
 	if (widget->id != snd_soc_dapm_mux &&
+	    widget->id != snd_soc_dapm_virt_mux &&
 	    widget->id != snd_soc_dapm_value_mux)
 		return -ENODEV;
 
@@ -1534,6 +1551,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_dapm_context *dapm,
 		path->connect = 1;
 		return 0;
 	case snd_soc_dapm_mux:
+	case snd_soc_dapm_virt_mux:
 	case snd_soc_dapm_value_mux:
 		ret = dapm_connect_mux(dapm, wsource, wsink, path, control,
 			&wsink->kcontrols[0]);
@@ -1623,6 +1641,7 @@ int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 			dapm_new_mixer(dapm, w);
 			break;
 		case snd_soc_dapm_mux:
+		case snd_soc_dapm_virt_mux:
 		case snd_soc_dapm_value_mux:
 			w->power_check = dapm_generic_check_power;
 			dapm_new_mux(dapm, w);
