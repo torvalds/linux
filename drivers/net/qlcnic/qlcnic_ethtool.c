@@ -834,16 +834,27 @@ static int qlcnic_set_tso(struct net_device *dev, u32 data)
 static int qlcnic_blink_led(struct net_device *dev, u32 val)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
+	int max_sds_rings = adapter->max_sds_rings;
+	int dev_down = 0;
 	int ret;
 
-	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
-		return -EIO;
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
+		dev_down = 1;
+		if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+			return -EIO;
+
+		ret = qlcnic_diag_alloc_res(dev, QLCNIC_LED_TEST);
+		if (ret) {
+			clear_bit(__QLCNIC_RESETTING, &adapter->state);
+			return ret;
+		}
+	}
 
 	ret = adapter->nic_ops->config_led(adapter, 1, 0xf);
 	if (ret) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to set LED blink state.\n");
-		return ret;
+		goto done;
 	}
 
 	msleep_interruptible(val * 1000);
@@ -852,10 +863,16 @@ static int qlcnic_blink_led(struct net_device *dev, u32 val)
 	if (ret) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to reset LED blink state.\n");
-		return ret;
+		goto done;
 	}
 
-	return 0;
+done:
+	if (dev_down) {
+		qlcnic_diag_free_res(dev, max_sds_rings);
+		clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	}
+	return ret;
+
 }
 
 static void

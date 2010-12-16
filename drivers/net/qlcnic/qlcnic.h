@@ -925,6 +925,7 @@ struct qlcnic_ipaddr {
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
+#define QLCNIC_LED_TEST		3
 
 #define QLCNIC_FILTER_AGE	80
 #define QLCNIC_READD_AGE	20
