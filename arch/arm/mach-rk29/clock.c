@@ -31,6 +31,13 @@
 #include <mach/rk29_iomap.h>
 #include <mach/cru.h>
 
+
+#define PWM_VCORE_120	40
+#define PWM_VCORE_125	32
+#define	PWM_VCORE_130	21
+#define	PWM_VCORE_135	10
+#define	PWM_VCORE_140	0
+
 /* CRU PLL CON */
 #define PLL_HIGH_BAND	(0x01 << 16)
 #define PLL_LOW_BAND	(0x00 << 16)
@@ -360,11 +367,11 @@ static const struct arm_pll_set arm_pll[] = {
 	ARM_PLL(1152, 1, 48, 1, 41, 21, 81),
 	ARM_PLL(1104, 1, 46, 1, 41, 21, 81),
 	ARM_PLL(1056, 1, 44, 1, 41, 21, 81),
-	ARM_PLL(1008, 1, 42, 1, 31, 21, 81),
-	ARM_PLL( 960, 1, 40, 1, 31, 21, 81),
-	ARM_PLL( 912, 1, 38, 1, 31, 21, 81),
+	ARM_PLL(1008, 1, 42, 1, 41, 21, 81),
+	ARM_PLL( 960, 1, 40, 1, 41, 21, 81),
+	ARM_PLL( 912, 1, 38, 1, 41, 21, 81),
 	ARM_PLL( 888, 2, 74, 1, 31, 21, 81),
-	ARM_PLL( 624, 1, 52, 2, 21, 21, 81),
+	ARM_PLL( 624, 1, 52, 2, 31, 21, 81),
 	// last item, pll power down.
 	ARM_PLL(  24, 1, 64, 8, 21, 21, 41),
 };
@@ -462,7 +469,7 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 		pt++;
 	}
 
-	PWMInit(1 * MHZ, 0);	// 1.4V
+	PWMInit(1 * MHZ, PWM_VCORE_135);	// 1.35V
 
 	/* make aclk safe & reparent to periph pll */
 	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK)) | CORE_PARENT_PERIPH_PLL | CORE_ACLK_21, CRU_CLKSEL0_CON);
@@ -2257,9 +2264,9 @@ static void rk29_clock_common_init(void)
 	/* periph pll */
 	clk_set_rate_nolock(&periph_pll_clk, 624 * MHZ);
 	clk_set_parent_nolock(&aclk_periph, &periph_pll_clk);
-	clk_set_rate_nolock(&aclk_periph, 312 * MHZ);
-	clk_set_rate_nolock(&hclk_periph, 156 * MHZ);
-	clk_set_rate_nolock(&pclk_periph, 78 * MHZ);
+	clk_set_rate_nolock(&aclk_periph, 208 * MHZ);
+	clk_set_rate_nolock(&hclk_periph, 104 * MHZ);
+	clk_set_rate_nolock(&pclk_periph, 52 * MHZ);
 	clk_set_parent_nolock(&clk_uhost, &periph_pll_clk);
 	clk_set_rate_nolock(&clk_uhost, 48 * MHZ);
 	clk_set_parent_nolock(&clk_i2s0_div, &periph_pll_clk);
