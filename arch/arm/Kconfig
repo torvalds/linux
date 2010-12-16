@@ -1164,7 +1164,7 @@ config ISA_DMA_API
 	bool
 
 config PCI
-	bool "PCI support" if ARCH_INTEGRATOR_AP || ARCH_VERSATILE_PB || ARCH_IXP4XX || ARCH_KS8695 || MACH_ARMCORE || ARCH_CNS3XXX
+	bool "PCI support" if ARCH_INTEGRATOR_AP || ARCH_VERSATILE_PB || ARCH_IXP4XX || ARCH_KS8695 || MACH_ARMCORE || ARCH_CNS3XXX || SA1100_NANOENGINE
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
@@ -1174,6 +1174,12 @@ config PCI
 config PCI_DOMAINS
 	bool
 	depends on PCI
+
+config PCI_NANOENGINE
+	bool "BSE nanoEngine PCI support"
+	depends on SA1100_NANOENGINE
+	help
+	  Enable PCI on the BSE nanoEngine board.
 
 config PCI_SYSCALL
 	def_bool PCI

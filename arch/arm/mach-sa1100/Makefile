@@ -38,6 +38,7 @@ obj-$(CONFIG_SA1100_LART)		+= lart.o
 led-$(CONFIG_SA1100_LART)		+= leds-lart.o
 
 obj-$(CONFIG_SA1100_NANOENGINE)		+= nanoengine.o
+obj-$(CONFIG_PCI_NANOENGINE)		+= pci-nanoengine.o
 
 obj-$(CONFIG_SA1100_PLEB)		+= pleb.o
 

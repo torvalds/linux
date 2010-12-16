@@ -26,6 +26,7 @@
 #include <asm/mach/serial_sa1100.h>
 
 #include <mach/hardware.h>
+#include <mach/nanoengine.h>
 
 #include "generic.h"
 
@@ -75,10 +76,16 @@ static struct map_desc nanoengine_io_desc[] __initdata = {
 		.length		= 0x00100000,
 		.type		= MT_DEVICE
 	}, {
+		/* Internal PCI Memory Read/Write */
+		.virtual	= NANO_PCI_MEM_RW_VIRT,
+		.pfn		= __phys_to_pfn(NANO_PCI_MEM_RW_PHYS),
+		.length		= NANO_PCI_MEM_RW_SIZE,
+		.type		= MT_DEVICE
+	}, {
 		/* Internal PCI Config Space */
-		.virtual	= 0xf1000000,
-		.pfn		= __phys_to_pfn(0x18A00000),
-		.length		= 0x00100000,
+		.virtual	= NANO_PCI_CONFIG_SPACE_VIRT,
+		.pfn		= __phys_to_pfn(NANO_PCI_CONFIG_SPACE_PHYS),
+		.length		= NANO_PCI_CONFIG_SPACE_SIZE,
 		.type		= MT_DEVICE
 	}
 };
