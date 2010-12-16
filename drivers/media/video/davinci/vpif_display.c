@@ -580,7 +580,10 @@ static void vpif_config_addr(struct channel_obj *ch, int muxmode)
 static int vpif_mmap(struct file *filep, struct vm_area_struct *vma)
 {
 	struct vpif_fh *fh = filep->private_data;
-	struct common_obj *common = &fh->channel->common[VPIF_VIDEO_INDEX];
+	struct channel_obj *ch = fh->channel;
+	struct common_obj *common = &(ch->common[VPIF_VIDEO_INDEX]);
+
+	vpif_dbg(2, debug, "vpif_mmap\n");
 
 	return videobuf_mmap_mapper(&common->buffer_queue, vma);
 }
@@ -692,7 +695,12 @@ static int vpif_release(struct file *filep)
 }
 
 /* functions implementing ioctls */
-
+/**
+ * vpif_querycap() - QUERYCAP handler
+ * @file: file ptr
+ * @priv: file handle
+ * @cap: ptr to v4l2_capability structure
+ */
 static int vpif_querycap(struct file *file, void  *priv,
 				struct v4l2_capability *cap)
 {
@@ -1106,7 +1114,7 @@ static int vpif_streamon(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	/* Call videobuf_streamon to start streaming  in videobuf */
+	/* Call videobuf_streamon to start streaming in videobuf */
 	ret = videobuf_streamon(&common->buffer_queue);
 	if (ret < 0) {
 		vpif_err("videobuf_streamon\n");
@@ -1873,6 +1881,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 			vpif_obj.sd[i]->grp_id = 1 << i;
 	}
 
+	v4l2_info(&vpif_obj.v4l2_dev,
+			"DM646x VPIF display driver initialized\n");
 	return 0;
 
 probe_subdev_out:

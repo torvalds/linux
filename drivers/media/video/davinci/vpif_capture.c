@@ -329,7 +329,7 @@ static void vpif_schedule_next_buffer(struct common_obj *common)
  * @dev_id: dev_id ptr
  *
  * It changes status of the captured buffer, takes next buffer from the queue
- * and sets its address in VPIF  registers
+ * and sets its address in VPIF registers
  */
 static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 {
@@ -422,13 +422,11 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	struct vpif_params *vpifparams = &ch->vpifparams;
 	const struct vpif_channel_config_params *config;
-	struct vpif_channel_config_params *std_info;
+	struct vpif_channel_config_params *std_info = &vpifparams->std_info;
 	struct video_obj *vid_ch = &ch->video;
 	int index;
 
 	vpif_dbg(2, debug, "vpif_update_std_info\n");
-
-	std_info = &vpifparams->std_info;
 
 	for (index = 0; index < vpif_ch_params_count; index++) {
 		config = &ch_params[index];
@@ -458,6 +456,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	common->fmt.fmt.pix.bytesperline = std_info->width;
 	vpifparams->video_params.hpitch = std_info->width;
 	vpifparams->video_params.storage_mode = std_info->frm_fmt;
+
 	return 0;
 }
 
@@ -1692,7 +1691,7 @@ static int vpif_s_fmt_vid_cap(struct file *file, void *priv,
 	struct v4l2_pix_format *pixfmt;
 	int ret = 0;
 
-	vpif_dbg(2, debug, "VIDIOC_S_FMT\n");
+	vpif_dbg(2, debug, "%s\n", __func__);
 
 	/* If streaming is started, return error */
 	if (common->started) {
@@ -2336,9 +2335,9 @@ static __init int vpif_probe(struct platform_device *pdev)
 		if (vpif_obj.sd[i])
 			vpif_obj.sd[i]->grp_id = 1 << i;
 	}
-	v4l2_info(&vpif_obj.v4l2_dev, "DM646x VPIF Capture driver"
-		  " initialized\n");
 
+	v4l2_info(&vpif_obj.v4l2_dev,
+			"DM646x VPIF capture driver initialized\n");
 	return 0;
 
 probe_subdev_out:
