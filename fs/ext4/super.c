@@ -1895,12 +1895,12 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 	ext4_commit_super(sb, 1);
 	if (test_opt(sb, DEBUG))
 		printk(KERN_INFO "[EXT4 FS bs=%lu, gc=%u, "
-				"bpg=%lu, ipg=%lu, mo=%04x]\n",
+				"bpg=%lu, ipg=%lu, mo=%04x, mo2=%04x]\n",
 			sb->s_blocksize,
 			sbi->s_groups_count,
 			EXT4_BLOCKS_PER_GROUP(sb),
 			EXT4_INODES_PER_GROUP(sb),
-			sbi->s_mount_opt);
+			sbi->s_mount_opt, sbi->s_mount_opt2);
 
 	return res;
 }
@@ -4171,6 +4171,7 @@ static int ext4_unfreeze(struct super_block *sb)
  */
 struct ext4_mount_options {
 	unsigned long s_mount_opt;
+	unsigned long s_mount_opt2;
 	uid_t s_resuid;
 	gid_t s_resgid;
 	unsigned long s_commit_interval;
@@ -4201,6 +4202,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	lock_super(sb);
 	old_sb_flags = sb->s_flags;
 	old_opts.s_mount_opt = sbi->s_mount_opt;
+	old_opts.s_mount_opt2 = sbi->s_mount_opt2;
 	old_opts.s_resuid = sbi->s_resuid;
 	old_opts.s_resgid = sbi->s_resgid;
 	old_opts.s_commit_interval = sbi->s_commit_interval;
@@ -4354,6 +4356,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 restore_opts:
 	sb->s_flags = old_sb_flags;
 	sbi->s_mount_opt = old_opts.s_mount_opt;
+	sbi->s_mount_opt2 = old_opts.s_mount_opt2;
 	sbi->s_resuid = old_opts.s_resuid;
 	sbi->s_resgid = old_opts.s_resgid;
 	sbi->s_commit_interval = old_opts.s_commit_interval;

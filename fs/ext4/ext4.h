@@ -908,6 +908,13 @@ struct ext4_inode_info {
 #define test_opt(sb, opt)		(EXT4_SB(sb)->s_mount_opt & \
 					 EXT4_MOUNT_##opt)
 
+#define clear_opt2(sb, opt)		EXT4_SB(sb)->s_mount_opt2 &= \
+						~EXT4_MOUNT2_##opt
+#define set_opt2(sb, opt)		EXT4_SB(sb)->s_mount_opt2 |= \
+						EXT4_MOUNT2_##opt
+#define test_opt2(sb, opt)		(EXT4_SB(sb)->s_mount_opt2 & \
+					 EXT4_MOUNT2_##opt)
+
 #define ext4_set_bit			ext2_set_bit
 #define ext4_set_bit_atomic		ext2_set_bit_atomic
 #define ext4_clear_bit			ext2_clear_bit
@@ -1073,6 +1080,7 @@ struct ext4_sb_info {
 	struct ext4_super_block *s_es;	/* Pointer to the super block in the buffer */
 	struct buffer_head **s_group_desc;
 	unsigned int s_mount_opt;
+	unsigned int s_mount_opt2;
 	unsigned int s_mount_flags;
 	ext4_fsblk_t s_sb_block;
 	uid_t s_resuid;
