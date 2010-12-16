@@ -135,7 +135,8 @@ u32 xhci_port_state_to_neutral(u32 state)
 /*
  * find slot id based on port number.
  */
-int xhci_find_slot_id_by_port(struct xhci_hcd *xhci, u16 port)
+int xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
+		u16 port)
 {
 	int slot_id;
 	int i;
@@ -349,7 +350,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 				xhci_dbg(xhci, "set port %d resume\n",
 					wIndex + 1);
-				slot_id = xhci_find_slot_id_by_port(xhci,
+				slot_id = xhci_find_slot_id_by_port(hcd, xhci,
 								 wIndex + 1);
 				if (!slot_id) {
 					xhci_dbg(xhci, "slot_id is zero\n");
@@ -404,7 +405,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				goto error;
 			}
 
-			slot_id = xhci_find_slot_id_by_port(xhci, wIndex + 1);
+			slot_id = xhci_find_slot_id_by_port(hcd, xhci,
+					wIndex + 1);
 			if (!slot_id) {
 				xhci_warn(xhci, "slot_id is zero\n");
 				goto error;
@@ -498,7 +500,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 				bus_state->port_c_suspend |= 1 << wIndex;
 			}
 
-			slot_id = xhci_find_slot_id_by_port(xhci, wIndex + 1);
+			slot_id = xhci_find_slot_id_by_port(hcd, xhci,
+					wIndex + 1);
 			if (!slot_id) {
 				xhci_dbg(xhci, "slot_id is zero\n");
 				goto error;
@@ -632,7 +635,7 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 
 		if ((t1 & PORT_PE) && !(t1 & PORT_PLS_MASK)) {
 			xhci_dbg(xhci, "port %d not suspended\n", port_index);
-			slot_id = xhci_find_slot_id_by_port(xhci,
+			slot_id = xhci_find_slot_id_by_port(hcd, xhci,
 					port_index + 1);
 			if (slot_id) {
 				spin_unlock_irqrestore(&xhci->lock, flags);
@@ -748,7 +751,8 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 				temp |= PORT_LINK_STROBE | XDEV_U0;
 				xhci_writel(xhci, temp, port_array[port_index]);
 			}
-			slot_id = xhci_find_slot_id_by_port(xhci, port_index + 1);
+			slot_id = xhci_find_slot_id_by_port(hcd,
+					xhci, port_index + 1);
 			if (slot_id)
 				xhci_ring_device(xhci, slot_id);
 		} else

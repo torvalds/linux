@@ -1213,7 +1213,8 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			temp &= ~PORT_PLS_MASK;
 			temp |= PORT_LINK_STROBE | XDEV_U0;
 			xhci_writel(xhci, temp, port_array[faked_port_index]);
-			slot_id = xhci_find_slot_id_by_port(xhci, port_id);
+			slot_id = xhci_find_slot_id_by_port(hcd, xhci,
+					faked_port_index);
 			if (!slot_id) {
 				xhci_dbg(xhci, "slot_id is zero\n");
 				goto cleanup;
