@@ -1047,9 +1047,9 @@ composite_unbind(struct usb_gadget *gadget)
 		kfree(cdev->req->buf);
 		usb_ep_free_request(gadget->ep0, cdev->req);
 	}
+	device_remove_file(&gadget->dev, &dev_attr_suspended);
 	kfree(cdev);
 	set_gadget_data(gadget, NULL);
-	device_remove_file(&gadget->dev, &dev_attr_suspended);
 	composite = NULL;
 }
 
