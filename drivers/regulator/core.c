@@ -1667,6 +1667,10 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 		ret = -EINVAL;
 	}
 
+	if (ret == 0)
+		_notifier_call_chain(rdev, REGULATOR_EVENT_VOLTAGE_CHANGE,
+				     NULL);
+
 	trace_regulator_set_voltage_complete(rdev_get_name(rdev), selector);
 
 	return ret;
@@ -1718,7 +1722,6 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	ret = _regulator_do_set_voltage(rdev, min_uV, max_uV);
 
 out:
-	_notifier_call_chain(rdev, REGULATOR_EVENT_VOLTAGE_CHANGE, NULL);
 	mutex_unlock(&rdev->mutex);
 	return ret;
 }
