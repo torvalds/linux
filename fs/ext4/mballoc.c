@@ -2617,7 +2617,7 @@ static inline int ext4_issue_discard(struct super_block *sb,
 	ret = sb_issue_discard(sb, discard_block, count, GFP_NOFS, 0);
 	if (ret == -EOPNOTSUPP) {
 		ext4_warning(sb, "discard not supported, disabling");
-		clear_opt(EXT4_SB(sb)->s_mount_opt, DISCARD);
+		clear_opt(sb, DISCARD);
 	}
 	return ret;
 }
