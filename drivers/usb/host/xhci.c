@@ -375,6 +375,21 @@ void xhci_event_ring_work(unsigned long arg)
 }
 #endif
 
+static int xhci_run_finished(struct xhci_hcd *xhci)
+{
+	if (xhci_start(xhci)) {
+		xhci_halt(xhci);
+		return -ENODEV;
+	}
+	xhci->shared_hcd->state = HC_STATE_RUNNING;
+
+	if (xhci->quirks & XHCI_NEC_HOST)
+		xhci_ring_cmd_db(xhci);
+
+	xhci_dbg(xhci, "Finished xhci_run for USB3 roothub\n");
+	return 0;
+}
+
 /*
  * Start the HC after it was halted.
  *
@@ -395,7 +410,13 @@ int xhci_run(struct usb_hcd *hcd)
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	struct pci_dev  *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
 
+	/* Start the xHCI host controller running only after the USB 2.0 roothub
+	 * is setup.
+	 */
+
 	hcd->uses_new_polling = 1;
+	if (!usb_hcd_is_primary_hcd(hcd))
+		return xhci_run_finished(xhci);
 
 	xhci_dbg(xhci, "xhci_run\n");
 	/* unregister the legacy interrupt */
@@ -469,16 +490,23 @@ int xhci_run(struct usb_hcd *hcd)
 		xhci_queue_vendor_command(xhci, 0, 0, 0,
 				TRB_TYPE(TRB_NEC_GET_FW));
 
-	if (xhci_start(xhci)) {
-		xhci_halt(xhci);
-		return -ENODEV;
-	}
-
-	if (xhci->quirks & XHCI_NEC_HOST)
-		xhci_ring_cmd_db(xhci);
-
-	xhci_dbg(xhci, "Finished xhci_run\n");
+	xhci_dbg(xhci, "Finished xhci_run for USB2 roothub\n");
 	return 0;
+}
+
+static void xhci_only_stop_hcd(struct usb_hcd *hcd)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+
+	spin_lock_irq(&xhci->lock);
+	xhci_halt(xhci);
+
+	/* The shared_hcd is going to be deallocated shortly (the USB core only
+	 * calls this function when allocation fails in usb_add_hcd(), or
+	 * usb_remove_hcd() is called).  So we need to unset xHCI's pointer.
+	 */
+	xhci->shared_hcd = NULL;
+	spin_unlock_irq(&xhci->lock);
 }
 
 /*
@@ -495,7 +523,15 @@ void xhci_stop(struct usb_hcd *hcd)
 	u32 temp;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 
+	if (!usb_hcd_is_primary_hcd(hcd)) {
+		xhci_only_stop_hcd(xhci->shared_hcd);
+		return;
+	}
+
 	spin_lock_irq(&xhci->lock);
+	/* Make sure the xHC is halted for a USB3 roothub
+	 * (xhci_stop() could be called as part of failed init).
+	 */
 	xhci_halt(xhci);
 	xhci_reset(xhci);
 	spin_unlock_irq(&xhci->lock);
@@ -528,6 +564,8 @@ void xhci_stop(struct usb_hcd *hcd)
  * This is called when the machine is rebooting or halting.  We assume that the
  * machine will be powered off, and the HC's internal state will be reset.
  * Don't bother to free memory.
+ *
+ * This will only ever be called with the main usb_hcd (the USB3 roothub).
  */
 void xhci_shutdown(struct usb_hcd *hcd)
 {
@@ -694,10 +732,12 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
 	int			retval;
 
-	/* Wait a bit if the bus needs to settle from the transistion to
-	 * suspend.
+	/* Wait a bit if either of the roothubs need to settle from the
+	 * transistion into bus suspend.
 	 */
-	if (time_before(jiffies, xhci->bus_state[0].next_statechange))
+	if (time_before(jiffies, xhci->bus_state[0].next_statechange) ||
+			time_before(jiffies,
+				xhci->bus_state[1].next_statechange))
 		msleep(100);
 
 	spin_lock_irq(&xhci->lock);

@@ -866,7 +866,7 @@ void xhci_stop_endpoint_command_watchdog(unsigned long arg)
 	}
 	spin_unlock(&xhci->lock);
 	xhci_dbg(xhci, "Calling usb_hc_died()\n");
-	usb_hc_died(xhci_to_hcd(xhci));
+	usb_hc_died(xhci_to_hcd(xhci)->primary_hcd);
 	xhci_dbg(xhci, "xHCI host controller is dead.\n");
 }
 
@@ -1155,20 +1155,56 @@ static void handle_vendor_event(struct xhci_hcd *xhci,
 		handle_cmd_completion(xhci, &event->event_cmd);
 }
 
+/* @port_id: the one-based port ID from the hardware (indexed from array of all
+ * port registers -- USB 3.0 and USB 2.0).
+ *
+ * Returns a zero-based port number, which is suitable for indexing into each of
+ * the split roothubs' port arrays and bus state arrays.
+ */
+static unsigned int find_faked_portnum_from_hw_portnum(struct usb_hcd *hcd,
+		struct xhci_hcd *xhci, u32 port_id)
+{
+	unsigned int i;
+	unsigned int num_similar_speed_ports = 0;
+
+	/* port_id from the hardware is 1-based, but port_array[], usb3_ports[],
+	 * and usb2_ports are 0-based indexes.  Count the number of similar
+	 * speed ports, up to 1 port before this port.
+	 */
+	for (i = 0; i < (port_id - 1); i++) {
+		u8 port_speed = xhci->port_array[i];
+
+		/*
+		 * Skip ports that don't have known speeds, or have duplicate
+		 * Extended Capabilities port speed entries.
+		 */
+		if (port_speed == 0 || port_speed == -1)
+			continue;
+
+		/*
+		 * USB 3.0 ports are always under a USB 3.0 hub.  USB 2.0 and
+		 * 1.1 ports are under the USB 2.0 hub.  If the port speed
+		 * matches the device speed, it's a similar speed port.
+		 */
+		if ((port_speed == 0x03) == (hcd->speed == HCD_USB3))
+			num_similar_speed_ports++;
+	}
+	return num_similar_speed_ports;
+}
+
 static void handle_port_status(struct xhci_hcd *xhci,
 		union xhci_trb *event)
 {
-	struct usb_hcd *hcd = xhci_to_hcd(xhci);
+	struct usb_hcd *hcd;
 	u32 port_id;
 	u32 temp, temp1;
 	int max_ports;
 	int slot_id;
 	unsigned int faked_port_index;
-	u32 __iomem *port_array[15 + USB_MAXCHILDREN];
-	int i;
+	u8 major_revision;
 	struct xhci_bus_state *bus_state;
+	u32 __iomem **port_array;
 
-	bus_state = &xhci->bus_state[0];
 	/* Port status change events always have a successful completion code */
 	if (GET_COMP_CODE(event->generic.field[2]) != COMP_SUCCESS) {
 		xhci_warn(xhci, "WARN: xHC returned failed port status event\n");
@@ -1183,15 +1219,43 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		goto cleanup;
 	}
 
-	for (i = 0; i < max_ports; i++) {
-		if (i < xhci->num_usb3_ports)
-			port_array[i] = xhci->usb3_ports[i];
-		else
-			port_array[i] =
-				xhci->usb2_ports[i - xhci->num_usb3_ports];
+	/* Figure out which usb_hcd this port is attached to:
+	 * is it a USB 3.0 port or a USB 2.0/1.1 port?
+	 */
+	major_revision = xhci->port_array[port_id - 1];
+	if (major_revision == 0) {
+		xhci_warn(xhci, "Event for port %u not in "
+				"Extended Capabilities, ignoring.\n",
+				port_id);
+		goto cleanup;
+	}
+	if (major_revision == (u8) -1) {
+		xhci_warn(xhci, "Event for port %u duplicated in"
+				"Extended Capabilities, ignoring.\n",
+				port_id);
+		goto cleanup;
 	}
 
-	faked_port_index = port_id;
+	/*
+	 * Hardware port IDs reported by a Port Status Change Event include USB
+	 * 3.0 and USB 2.0 ports.  We want to check if the port has reported a
+	 * resume event, but we first need to translate the hardware port ID
+	 * into the index into the ports on the correct split roothub, and the
+	 * correct bus_state structure.
+	 */
+	/* Find the right roothub. */
+	hcd = xhci_to_hcd(xhci);
+	if ((major_revision == 0x03) != (hcd->speed == HCD_USB3))
+		hcd = xhci->shared_hcd;
+	bus_state = &xhci->bus_state[hcd_index(hcd)];
+	if (hcd->speed == HCD_USB3)
+		port_array = xhci->usb3_ports;
+	else
+		port_array = xhci->usb2_ports;
+	/* Find the faked port hub number */
+	faked_port_index = find_faked_portnum_from_hw_portnum(hcd, xhci,
+			port_id);
+
 	temp = xhci_readl(xhci, port_array[faked_port_index]);
 	if (hcd->state == HC_STATE_SUSPENDED) {
 		xhci_dbg(xhci, "resume root hub\n");
@@ -1228,10 +1292,10 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			xhci_writel(xhci, temp, port_array[faked_port_index]);
 		} else {
 			xhci_dbg(xhci, "resume HS port %d\n", port_id);
-			bus_state->resume_done[port_id - 1] = jiffies +
+			bus_state->resume_done[faked_port_index] = jiffies +
 				msecs_to_jiffies(20);
 			mod_timer(&hcd->rh_timer,
-				  bus_state->resume_done[port_id - 1]);
+				  bus_state->resume_done[faked_port_index]);
 			/* Do the rest in GetPortStatus */
 		}
 	}
@@ -1242,7 +1306,7 @@ cleanup:
 
 	spin_unlock(&xhci->lock);
 	/* Pass this up to the core */
-	usb_hcd_poll_rh_status(xhci_to_hcd(xhci));
+	usb_hcd_poll_rh_status(hcd);
 	spin_lock(&xhci->lock);
 }
 

@@ -28,13 +28,20 @@
 #define	PORT_RWC_BITS	(PORT_CSC | PORT_PEC | PORT_WRC | PORT_OCC | \
 			 PORT_RC | PORT_PLC | PORT_PE)
 
-static void xhci_hub_descriptor(struct xhci_hcd *xhci,
+static void xhci_hub_descriptor(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 		struct usb_hub_descriptor *desc)
 {
 	int ports;
 	u16 temp;
 
-	ports = HCS_MAX_PORTS(xhci->hcs_params1);
+	if (hcd->speed == HCD_USB3)
+		ports = xhci->num_usb3_ports;
+	else
+		ports = xhci->num_usb2_ports;
+
+	/* FIXME: return a USB 3.0 hub descriptor if this request was for the
+	 * USB3 roothub.
+	 */
 
 	/* USB 3.0 hubs have a different descriptor, but we fake this for now */
 	desc->bDescriptorType = 0x29;
@@ -134,18 +141,22 @@ u32 xhci_port_state_to_neutral(u32 state)
 
 /*
  * find slot id based on port number.
+ * @port: The one-based port number from one of the two split roothubs.
  */
 int xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 		u16 port)
 {
 	int slot_id;
 	int i;
+	enum usb_device_speed speed;
 
 	slot_id = 0;
 	for (i = 0; i < MAX_HC_SLOTS; i++) {
 		if (!xhci->devs[i])
 			continue;
-		if (xhci->devs[i]->port == port) {
+		speed = xhci->devs[i]->udev->speed;
+		if (((speed == USB_SPEED_SUPER) == (hcd->speed == HCD_USB3))
+				&& xhci->devs[i]->port == port) {
 			slot_id = i;
 			break;
 		}
@@ -226,11 +237,11 @@ void xhci_ring_device(struct xhci_hcd *xhci, int slot_id)
 	return;
 }
 
-static void xhci_disable_port(struct xhci_hcd *xhci, u16 wIndex,
-		u32 __iomem *addr, u32 port_status)
+static void xhci_disable_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
+		u16 wIndex, u32 __iomem *addr, u32 port_status)
 {
 	/* Don't allow the USB core to disable SuperSpeed ports. */
-	if (xhci->port_array[wIndex] == 0x03) {
+	if (hcd->speed == HCD_USB3) {
 		xhci_dbg(xhci, "Ignoring request to disable "
 				"SuperSpeed port.\n");
 		return;
@@ -289,18 +300,16 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	unsigned long flags;
 	u32 temp, temp1, status;
 	int retval = 0;
-	u32 __iomem *port_array[15 + USB_MAXCHILDREN];
-	int i;
+	u32 __iomem **port_array;
 	int slot_id;
 	struct xhci_bus_state *bus_state;
 
-	ports = HCS_MAX_PORTS(xhci->hcs_params1);
-	for (i = 0; i < ports; i++) {
-		if (i < xhci->num_usb3_ports)
-			port_array[i] = xhci->usb3_ports[i];
-		else
-			port_array[i] =
-				xhci->usb2_ports[i - xhci->num_usb3_ports];
+	if (hcd->speed == HCD_USB3) {
+		ports = xhci->num_usb3_ports;
+		port_array = xhci->usb3_ports;
+	} else {
+		ports = xhci->num_usb2_ports;
+		port_array = xhci->usb2_ports;
 	}
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
@@ -311,7 +320,8 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		memset(buf, 0, 4);
 		break;
 	case GetHubDescriptor:
-		xhci_hub_descriptor(xhci, (struct usb_hub_descriptor *) buf);
+		xhci_hub_descriptor(hcd, xhci,
+				(struct usb_hub_descriptor *) buf);
 		break;
 	case GetPortStatus:
 		if (!wIndex || wIndex > ports)
@@ -518,7 +528,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 					port_array[wIndex], temp);
 			break;
 		case USB_PORT_FEAT_ENABLE:
-			xhci_disable_port(xhci, wIndex,
+			xhci_disable_port(hcd, xhci, wIndex,
 					port_array[wIndex], temp);
 			break;
 		default:
@@ -550,16 +560,15 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int i, retval;
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ports;
-	u32 __iomem *port_array[15 + USB_MAXCHILDREN];
+	u32 __iomem **port_array;
 	struct xhci_bus_state *bus_state;
 
-	ports = HCS_MAX_PORTS(xhci->hcs_params1);
-	for (i = 0; i < ports; i++) {
-		if (i < xhci->num_usb3_ports)
-			port_array[i] = xhci->usb3_ports[i];
-		else
-			port_array[i] =
-				xhci->usb2_ports[i - xhci->num_usb3_ports];
+	if (hcd->speed == HCD_USB3) {
+		ports = xhci->num_usb3_ports;
+		port_array = xhci->usb3_ports;
+	} else {
+		ports = xhci->num_usb2_ports;
+		port_array = xhci->usb2_ports;
 	}
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
@@ -592,19 +601,18 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int max_ports, port_index;
-	u32 __iomem *port_array[15 + USB_MAXCHILDREN];
-	int i;
+	u32 __iomem **port_array;
 	struct xhci_bus_state *bus_state;
 	unsigned long flags;
 
-	xhci_dbg(xhci, "suspend root hub\n");
-	max_ports = HCS_MAX_PORTS(xhci->hcs_params1);
-	for (i = 0; i < max_ports; i++) {
-		if (i < xhci->num_usb3_ports)
-			port_array[i] = xhci->usb3_ports[i];
-		else
-			port_array[i] =
-				xhci->usb2_ports[i - xhci->num_usb3_ports];
+	if (hcd->speed == HCD_USB3) {
+		max_ports = xhci->num_usb3_ports;
+		port_array = xhci->usb3_ports;
+		xhci_dbg(xhci, "suspend USB 3.0 root hub\n");
+	} else {
+		max_ports = xhci->num_usb2_ports;
+		port_array = xhci->usb2_ports;
+		xhci_dbg(xhci, "suspend USB 2.0 root hub\n");
 	}
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
 
@@ -685,20 +693,19 @@ int xhci_bus_resume(struct usb_hcd *hcd)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int max_ports, port_index;
-	u32 __iomem *port_array[15 + USB_MAXCHILDREN];
-	int i;
+	u32 __iomem **port_array;
 	struct xhci_bus_state *bus_state;
 	u32 temp;
 	unsigned long flags;
 
-	xhci_dbg(xhci, "resume root hub\n");
-	max_ports = HCS_MAX_PORTS(xhci->hcs_params1);
-	for (i = 0; i < max_ports; i++) {
-		if (i < xhci->num_usb3_ports)
-			port_array[i] = xhci->usb3_ports[i];
-		else
-			port_array[i] =
-				xhci->usb2_ports[i - xhci->num_usb3_ports];
+	if (hcd->speed == HCD_USB3) {
+		max_ports = xhci->num_usb3_ports;
+		port_array = xhci->usb3_ports;
+		xhci_dbg(xhci, "resume USB 3.0 root hub\n");
+	} else {
+		max_ports = xhci->num_usb2_ports;
+		port_array = xhci->usb2_ports;
+		xhci_dbg(xhci, "resume USB 2.0 root hub\n");
 	}
 	bus_state = &xhci->bus_state[hcd_index(hcd)];
 

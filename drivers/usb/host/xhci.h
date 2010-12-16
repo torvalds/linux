@@ -1174,12 +1174,16 @@ struct xhci_bus_state {
 
 static inline unsigned int hcd_index(struct usb_hcd *hcd)
 {
-	return 0;
+	if (hcd->speed == HCD_USB3)
+		return 0;
+	else
+		return 1;
 }
 
 /* There is one ehci_hci structure per controller */
 struct xhci_hcd {
 	struct usb_hcd *main_hcd;
+	struct usb_hcd *shared_hcd;
 	/* glue to PCI and HCD framework */
 	struct xhci_cap_regs __iomem *cap_regs;
 	struct xhci_op_regs __iomem *op_regs;
@@ -1262,10 +1266,8 @@ struct xhci_hcd {
 #define	XHCI_LINK_TRB_QUIRK	(1 << 0)
 #define XHCI_RESET_EP_QUIRK	(1 << 1)
 #define XHCI_NEC_HOST		(1 << 2)
-	/* There's only one roothub to keep track of bus suspend info for
-	 * (right now).
-	 */
-	struct xhci_bus_state   bus_state[1];
+	/* There are two roothubs to keep track of bus suspend info for */
+	struct xhci_bus_state   bus_state[2];
 	/* Is each xHCI roothub port a USB 3.0, USB 2.0, or USB 1.1 port? */
 	u8			*port_array;
 	/* Array of pointers to USB 3.0 PORTSC registers */

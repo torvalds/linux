@@ -50,18 +50,44 @@ static int xhci_pci_reinit(struct xhci_hcd *xhci, struct pci_dev *pdev)
 /* called during probe() after chip reset completes */
 static int xhci_pci_setup(struct usb_hcd *hcd)
 {
-	struct xhci_hcd		*xhci = hcd_to_xhci(hcd);
+	struct xhci_hcd		*xhci;
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
 	int			retval;
 	u32			temp;
 
 	hcd->self.sg_tablesize = TRBS_PER_SEGMENT - 2;
 
-	xhci = kzalloc(sizeof(struct xhci_hcd), GFP_KERNEL);
-	if (!xhci)
-		return -ENOMEM;
-	*((struct xhci_hcd **) hcd->hcd_priv) = xhci;
-	xhci->main_hcd = hcd;
+	if (usb_hcd_is_primary_hcd(hcd)) {
+		xhci = kzalloc(sizeof(struct xhci_hcd), GFP_KERNEL);
+		if (!xhci)
+			return -ENOMEM;
+		*((struct xhci_hcd **) hcd->hcd_priv) = xhci;
+		xhci->main_hcd = hcd;
+		/* Mark the first roothub as being USB 2.0.
+		 * The xHCI driver will register the USB 3.0 roothub.
+		 */
+		hcd->speed = HCD_USB2;
+		hcd->self.root_hub->speed = USB_SPEED_HIGH;
+		/*
+		 * USB 2.0 roothub under xHCI has an integrated TT,
+		 * (rate matching hub) as opposed to having an OHCI/UHCI
+		 * companion controller.
+		 */
+		hcd->has_tt = 1;
+	} else {
+		/* xHCI private pointer was set in xhci_pci_probe for the second
+		 * registered roothub.
+		 */
+		xhci = hcd_to_xhci(hcd);
+		temp = xhci_readl(xhci, &xhci->cap_regs->hcc_params);
+		if (HCC_64BIT_ADDR(temp)) {
+			xhci_dbg(xhci, "Enabling 64-bit DMA addresses.\n");
+			dma_set_mask(hcd->self.controller, DMA_BIT_MASK(64));
+		} else {
+			dma_set_mask(hcd->self.controller, DMA_BIT_MASK(32));
+		}
+		return 0;
+	}
 
 	xhci->cap_regs = hcd->regs;
 	xhci->op_regs = hcd->regs +
@@ -128,11 +154,67 @@ error:
 	return retval;
 }
 
+/*
+ * We need to register our own PCI probe function (instead of the USB core's
+ * function) in order to create a second roothub under xHCI.
+ */
+static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+{
+	int retval;
+	struct xhci_hcd *xhci;
+	struct hc_driver *driver;
+	struct usb_hcd *hcd;
+
+	driver = (struct hc_driver *)id->driver_data;
+	/* Register the USB 2.0 roothub.
+	 * FIXME: USB core must know to register the USB 2.0 roothub first.
+	 * This is sort of silly, because we could just set the HCD driver flags
+	 * to say USB 2.0, but I'm not sure what the implications would be in
+	 * the other parts of the HCD code.
+	 */
+	retval = usb_hcd_pci_probe(dev, id);
+
+	if (retval)
+		return retval;
+
+	/* USB 2.0 roothub is stored in the PCI device now. */
+	hcd = dev_get_drvdata(&dev->dev);
+	xhci = hcd_to_xhci(hcd);
+	xhci->shared_hcd = usb_create_shared_hcd(driver, &dev->dev,
+				pci_name(dev), hcd);
+	if (!xhci->shared_hcd) {
+		retval = -ENOMEM;
+		goto dealloc_usb2_hcd;
+	}
+
+	/* Set the xHCI pointer before xhci_pci_setup() (aka hcd_driver.reset)
+	 * is called by usb_add_hcd().
+	 */
+	*((struct xhci_hcd **) xhci->shared_hcd->hcd_priv) = xhci;
+
+	retval = usb_add_hcd(xhci->shared_hcd, dev->irq,
+			IRQF_DISABLED | IRQF_SHARED);
+	if (retval)
+		goto put_usb3_hcd;
+	/* Roothub already marked as USB 3.0 speed */
+	return 0;
+
+put_usb3_hcd:
+	usb_put_hcd(xhci->shared_hcd);
+dealloc_usb2_hcd:
+	usb_hcd_pci_remove(dev);
+	return retval;
+}
+
 static void xhci_pci_remove(struct pci_dev *dev)
 {
 	struct xhci_hcd *xhci;
 
 	xhci = hcd_to_xhci(pci_get_drvdata(dev));
+	if (xhci->shared_hcd) {
+		usb_remove_hcd(xhci->shared_hcd);
+		usb_put_hcd(xhci->shared_hcd);
+	}
 	usb_hcd_pci_remove(dev);
 	kfree(xhci);
 }
@@ -170,7 +252,7 @@ static const struct hc_driver xhci_pci_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq =			xhci_irq,
-	.flags =		HCD_MEMORY | HCD_USB3,
+	.flags =		HCD_MEMORY | HCD_USB3 | HCD_SHARED,
 
 	/*
 	 * basic lifecycle operations
@@ -231,7 +313,7 @@ static struct pci_driver xhci_pci_driver = {
 	.name =		(char *) hcd_name,
 	.id_table =	pci_ids,
 
-	.probe =	usb_hcd_pci_probe,
+	.probe =	xhci_pci_probe,
 	.remove =	xhci_pci_remove,
 	/* suspend and resume implemented later */
 
