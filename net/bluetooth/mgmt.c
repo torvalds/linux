@@ -316,3 +316,13 @@ int mgmt_index_removed(u16 index)
 
 	return mgmt_event(MGMT_EV_INDEX_REMOVED, &ev, sizeof(ev));
 }
+
+int mgmt_powered(u16 index, u8 powered)
+{
+	struct mgmt_ev_powered ev;
+
+	put_unaligned_le16(index, &ev.index);
+	ev.powered = powered;
+
+	return mgmt_event(MGMT_EV_POWERED, &ev, sizeof(ev));
+}

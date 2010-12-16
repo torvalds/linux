@@ -85,3 +85,9 @@ struct mgmt_ev_index_added {
 struct mgmt_ev_index_removed {
 	__le16 index;
 } __packed;
+
+#define MGMT_EV_POWERED			0x0006
+struct mgmt_ev_powered {
+	__le16 index;
+	__u8 powered;
+} __packed;
