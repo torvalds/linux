@@ -355,7 +355,7 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 		ipp_write(req->src0.CbrMst, IPP_SRC0_CBR_MST);
 	}
 	ipp_write(req->src0.h<<16|req->src0.w, IPP_SRC_IMG_INFO);
-	ipp_write(ipp_read(IPP_CONFIG)|req->src0.fmt, IPP_CONFIG);
+	ipp_write((ipp_read(IPP_CONFIG)&(~0x7))|req->src0.fmt, IPP_CONFIG);
 
 	/* Configure destination image */
 	DBG("dst YrgbMst 0x%x , CbrMst0x%x, %dx%d\n", dst0_YrgbMst,dst0_CbrMst,
@@ -403,8 +403,8 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 
 			DBG("!!!!!pre_scale_h %d,pre_scale_w %d \n",pre_scale_h,pre_scale_w);
 
-			ipp_write(ipp_read(IPP_CONFIG)|PRE_SCALE, IPP_CONFIG); 		//enable pre_scale
-			ipp_write(ipp_read(IPP_PRE_SCL_PARA)|(pre_scale_h-1)<<3|(pre_scale_w-1),IPP_PRE_SCL_PARA);
+			ipp_write((ipp_read(IPP_CONFIG)&0xffffffef)|PRE_SCALE, IPP_CONFIG); 		//enable pre_scale
+			ipp_write((pre_scale_h-1)<<3|(pre_scale_w-1),IPP_PRE_SCL_PARA);
 
 			if((req->src0.w%pre_scale_w)!=0) //向上取整 ceil
 			{
@@ -450,8 +450,8 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 
 			DBG("!!!!!pre_scale_h %d,pre_scale_w %d \n",pre_scale_h,pre_scale_w);
 
-			ipp_write(ipp_read(IPP_CONFIG)|PRE_SCALE, IPP_CONFIG); 		//enable pre_scale
-			ipp_write(ipp_read(IPP_PRE_SCL_PARA)|(pre_scale_h-1)<<3|(pre_scale_w-1),IPP_PRE_SCL_PARA);
+			ipp_write((ipp_read(IPP_CONFIG)&0xffffffef)|PRE_SCALE, IPP_CONFIG); 		//enable pre_scale
+			ipp_write((pre_scale_h-1)<<3|(pre_scale_w-1),IPP_PRE_SCL_PARA);
 
 			if((req->src0.w%pre_scale_w)!=0) //向上取整 ceil
 			{
@@ -576,7 +576,7 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 			post_scale_h = (uint32_t)(4096*(post_scale_target_h -1)/(req->dst0.h-1));
 
 		}
-		ipp_write(ipp_read(IPP_CONFIG)|POST_SCALE, IPP_CONFIG); //enable post_scale
+		ipp_write((ipp_read(IPP_CONFIG)&0xfffffff7)|POST_SCALE, IPP_CONFIG); //enable post_scale
 		ipp_write((post_scale_h<<16)|post_scale_w, IPP_POST_SCL_PARA);
 	}
 	else //no post_scale
