@@ -910,15 +910,9 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		else
 			args.v3.ucLaneNum = 4;
 
-		if (ASIC_IS_DCE41(rdev)) {
-			args.v3.acConfig.ucEncoderSel = dig->dig_encoder;
-			if (dig->linkb)
-				args.v3.acConfig.ucLinkSel = 1;
-		} else {
-			if (dig->linkb) {
-				args.v3.acConfig.ucLinkSel = 1;
-				args.v3.acConfig.ucEncoderSel = 1;
-			}
+		if (dig->linkb) {
+			args.v3.acConfig.ucLinkSel = 1;
+			args.v3.acConfig.ucEncoderSel = 1;
 		}
 
 		/* Select the PLL for the PHY
@@ -1535,32 +1529,34 @@ static int radeon_atom_pick_dig_encoder(struct drm_encoder *encoder)
 	struct radeon_encoder_atom_dig *dig;
 	uint32_t dig_enc_in_use = 0;
 
-	/* on DCE41 and encoder can driver any phy so just crtc id */
-	if (ASIC_IS_DCE41(rdev)) {
-		return radeon_crtc->crtc_id;
-	}
-
 	if (ASIC_IS_DCE4(rdev)) {
 		dig = radeon_encoder->enc_priv;
-		switch (radeon_encoder->encoder_id) {
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+		if (ASIC_IS_DCE41(rdev)) {
 			if (dig->linkb)
 				return 1;
 			else
 				return 0;
-			break;
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
-			if (dig->linkb)
-				return 3;
-			else
-				return 2;
-			break;
-		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-			if (dig->linkb)
-				return 5;
-			else
-				return 4;
-			break;
+		} else {
+			switch (radeon_encoder->encoder_id) {
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+				if (dig->linkb)
+					return 1;
+				else
+					return 0;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+				if (dig->linkb)
+					return 3;
+				else
+					return 2;
+				break;
+			case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+				if (dig->linkb)
+					return 5;
+				else
+					return 4;
+				break;
+			}
 		}
 	}
 
