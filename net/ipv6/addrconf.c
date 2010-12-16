@@ -2672,7 +2672,6 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	/* Flush routes if device is being removed or it is not loopback */
 	if (how || !(dev->flags & IFF_LOOPBACK))
 		rt6_ifdown(net, dev);
-	neigh_ifdown(&nd_tbl, dev);
 
 	idev = __in6_dev_get(dev);
 	if (idev == NULL)
