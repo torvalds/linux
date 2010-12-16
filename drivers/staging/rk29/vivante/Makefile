@@ -72,7 +72,7 @@ SDK_DIR		?= $(AQROOT)/build/sdk
 USE_3D_VG	= 1
 
 DEBUG       = 0
-gcdkREPORT_VIDMEM_USAGE = 1
+gcdkREPORT_VIDMEM_USAGE = 0
 
 #DRIVER_OUT_DIR = hal/driver
 #KERNEL_DIR ?= $(TOOL_DIR)/kernel
