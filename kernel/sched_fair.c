@@ -564,10 +564,6 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr,
 
 #if defined CONFIG_SMP && defined CONFIG_FAIR_GROUP_SCHED
 	cfs_rq->load_unacc_exec_time += delta_exec;
-	if (cfs_rq->load_unacc_exec_time > sysctl_sched_shares_window) {
-		update_cfs_load(cfs_rq, 0);
-		update_cfs_shares(cfs_rq, 0);
-	}
 #endif
 }
 
@@ -809,12 +805,24 @@ static void update_cfs_shares(struct cfs_rq *cfs_rq, long weight_delta)
 
 	reweight_entity(cfs_rq_of(se), se, shares);
 }
+
+static void update_entity_shares_tick(struct cfs_rq *cfs_rq)
+{
+	if (cfs_rq->load_unacc_exec_time > sysctl_sched_shares_window) {
+		update_cfs_load(cfs_rq, 0);
+		update_cfs_shares(cfs_rq, 0);
+	}
+}
 #else /* CONFIG_FAIR_GROUP_SCHED */
 static void update_cfs_load(struct cfs_rq *cfs_rq, int global_update)
 {
 }
 
 static inline void update_cfs_shares(struct cfs_rq *cfs_rq, long weight_delta)
+{
+}
+
+static inline void update_entity_shares_tick(struct cfs_rq *cfs_rq)
 {
 }
 #endif /* CONFIG_FAIR_GROUP_SCHED */
@@ -1132,6 +1140,11 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
 	 * Update run-time statistics of the 'current'.
 	 */
 	update_curr(cfs_rq);
+
+	/*
+	 * Update share accounting for long-running entities.
+	 */
+	update_entity_shares_tick(cfs_rq);
 
 #ifdef CONFIG_SCHED_HRTICK
 	/*
