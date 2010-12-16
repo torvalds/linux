@@ -621,7 +621,7 @@ enum {
 #define PCIX_INT_MASK		(0x10104)
 
 #define PCIX_OCM_WINDOW		(0x10800)
-#define PCIX_OCM_WINDOW_REG(func)	(PCIX_OCM_WINDOW + 0x20 * (func))
+#define PCIX_OCM_WINDOW_REG(func)	(PCIX_OCM_WINDOW + 0x4 * (func))
 
 #define PCIX_TARGET_STATUS	(0x10118)
 #define PCIX_TARGET_STATUS_F1	(0x10160)
