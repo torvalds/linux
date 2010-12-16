@@ -1548,6 +1548,9 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	if (os.disk < D_UP_TO_DATE && os.conn >= C_SYNC_SOURCE && ns.conn == C_CONNECTED)
 		drbd_send_state(mdev);
 
+	if (os.conn > C_CONNECTED && ns.conn == C_CONNECTED)
+		drbd_queue_bitmap_io(mdev, &drbd_bm_write, NULL, "write from resync_finished");
+
 	/* free tl_hash if we Got thawed and are C_STANDALONE */
 	if (ns.conn == C_STANDALONE && !is_susp(ns) && mdev->tl_hash)
 		drbd_free_tl_hash(mdev);
@@ -3860,13 +3863,16 @@ int drbd_bmio_clear_n_write(struct drbd_conf *mdev)
 static int w_bitmap_io(struct drbd_conf *mdev, struct drbd_work *w, int unused)
 {
 	struct bm_io_work *work = container_of(w, struct bm_io_work, w);
-	int rv;
+	int rv = -EIO;
 
 	D_ASSERT(atomic_read(&mdev->ap_bio_cnt) == 0);
 
-	drbd_bm_lock(mdev, work->why);
-	rv = work->io_fn(mdev);
-	drbd_bm_unlock(mdev);
+	if (get_ldev(mdev)) {
+		drbd_bm_lock(mdev, work->why);
+		rv = work->io_fn(mdev);
+		drbd_bm_unlock(mdev);
+		put_ldev(mdev);
+	}
 
 	clear_bit(BITMAP_IO, &mdev->flags);
 	smp_mb__after_clear_bit();

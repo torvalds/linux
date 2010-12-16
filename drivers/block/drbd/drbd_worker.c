@@ -907,9 +907,6 @@ out:
 
 	drbd_md_sync(mdev);
 
-	dev_info(DEV, "Writing changed bitmap pages\n");
-	drbd_queue_bitmap_io(mdev, &drbd_bm_write, NULL, "write from resync_finished");
-
 	if (khelper_cmd)
 		drbd_khelper(mdev, khelper_cmd);
 
