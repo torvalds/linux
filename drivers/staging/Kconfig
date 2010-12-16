@@ -129,8 +129,6 @@ source "drivers/staging/wlags49_h2/Kconfig"
 
 source "drivers/staging/wlags49_h25/Kconfig"
 
-source "drivers/staging/batman-adv/Kconfig"
-
 source "drivers/staging/samsung-laptop/Kconfig"
 
 source "drivers/staging/sm7xx/Kconfig"
