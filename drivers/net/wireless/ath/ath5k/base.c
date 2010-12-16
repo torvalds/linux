@@ -2351,6 +2351,10 @@ ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 		BIT(NL80211_IFTYPE_ADHOC) |
 		BIT(NL80211_IFTYPE_MESH_POINT);
 
+	/* both antennas can be configured as RX or TX */
+	hw->wiphy->available_antennas_tx = 0x3;
+	hw->wiphy->available_antennas_rx = 0x3;
+
 	hw->extra_tx_headroom = 2;
 	hw->channel_change_time = 5000;
 
