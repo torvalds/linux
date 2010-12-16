@@ -765,8 +765,12 @@ static void update_cfs_load(struct cfs_rq *cfs_rq, int global_update)
 static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 			    unsigned long weight)
 {
-	if (se->on_rq)
+	if (se->on_rq) {
+		/* commit outstanding execution time */
+		if (cfs_rq->curr == se)
+			update_curr(cfs_rq);
 		account_entity_dequeue(cfs_rq, se);
+	}
 
 	update_load_set(&se->load, weight);
 
