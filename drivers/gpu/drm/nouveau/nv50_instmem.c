@@ -182,16 +182,17 @@ nv50_instmem_init(struct drm_device *dev)
 	nv_wr32(dev, 0x001704, 0x40000000 | (chan->ramin->vinst >> 12));
 	nv_wr32(dev, 0x00170c, 0x80000000 | (priv->bar3_dmaobj->cinst >> 4));
 
-	tmp = nv_ri32(dev, 0);
-	nv_wi32(dev, 0, ~tmp);
-	if (nv_ri32(dev, 0) != ~tmp) {
+	dev_priv->engine.instmem.flush(dev);
+	dev_priv->ramin_available = true;
+
+	tmp = nv_ro32(chan->ramin, 0);
+	nv_wo32(chan->ramin, 0, ~tmp);
+	if (nv_ro32(chan->ramin, 0) != ~tmp) {
 		NV_ERROR(dev, "PRAMIN readback failed\n");
 		ret = -EIO;
 		goto error;
 	}
-	nv_wi32(dev, 0, tmp);
-
-	dev_priv->ramin_available = true;
+	nv_wo32(chan->ramin, 0, tmp);
 
 	/* BAR1 */
 	ret = nouveau_vm_new(dev, BAR1_VM_BASE, BAR1_VM_SIZE, BAR1_VM_BASE,
