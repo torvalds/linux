@@ -1045,7 +1045,9 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 
 	/* Set the SDVO control regs. */
 	if (INTEL_INFO(dev)->gen >= 4) {
-		sdvox = SDVO_BORDER_ENABLE;
+		sdvox = 0;
+		if (INTEL_INFO(dev)->gen < 5)
+			sdvox |= SDVO_BORDER_ENABLE;
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 			sdvox |= SDVO_VSYNC_ACTIVE_HIGH;
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
@@ -1075,7 +1077,8 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 		sdvox |= (pixel_multiplier - 1) << SDVO_PORT_MULTIPLY_SHIFT;
 	}
 
-	if (input_dtd.part2.sdvo_flags & SDVO_NEED_TO_STALL)
+	if (input_dtd.part2.sdvo_flags & SDVO_NEED_TO_STALL &&
+	    INTEL_INFO(dev)->gen < 5)
 		sdvox |= SDVO_STALL_SELECT;
 	intel_sdvo_write_sdvox(intel_sdvo, sdvox);
 }
