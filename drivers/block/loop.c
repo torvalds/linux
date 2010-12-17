@@ -397,10 +397,6 @@ lo_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	sector_t IV;
 	int size, ret;
 
-	ret = buf->ops->confirm(pipe, buf);
-	if (unlikely(ret))
-		return ret;
-
 	IV = ((sector_t) page->index << (PAGE_CACHE_SHIFT - 9)) +
 							(buf->offset >> 9);
 	size = sd->len;

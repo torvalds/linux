@@ -847,10 +847,6 @@ nfsd_splice_actor(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	size_t size;
 	int ret;
 
-	ret = buf->ops->confirm(pipe, buf);
-	if (unlikely(ret))
-		return ret;
-
 	size = sd->len;
 
 	if (rqstp->rq_res.page_len == 0) {

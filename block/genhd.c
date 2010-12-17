@@ -244,7 +244,7 @@ static struct blk_major_name {
 } *major_names[BLKDEV_MAJOR_HASH_SIZE];
 
 /* index in the above - for now: assume no multimajor ranges */
-static inline int major_to_index(int major)
+static inline int major_to_index(unsigned major)
 {
 	return major % BLKDEV_MAJOR_HASH_SIZE;
 }
@@ -828,7 +828,7 @@ static void *show_partition_start(struct seq_file *seqf, loff_t *pos)
 	static void *p;
 
 	p = disk_seqf_start(seqf, pos);
-	if (!IS_ERR(p) && p && !*pos)
+	if (!IS_ERR_OR_NULL(p) && !*pos)
 		seq_puts(seqf, "major minor  #blocks  name\n\n");
 	return p;
 }
