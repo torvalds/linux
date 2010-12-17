@@ -182,7 +182,7 @@
     Size of the MMU page table in bytes.  Each 4 bytes can hold 4kB worth of
     virtual data.
 */
-#define gcdMMU_SIZE                 (128 << 10)
+#define gcdMMU_SIZE                 (256 << 10)
 
 /*
     gcdSECURE_USER

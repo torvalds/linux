@@ -53,6 +53,7 @@
 
 #include "./display/screen/screen.h"
 
+#define ANDROID_USE_THREE_BUFS  1       //android use three buffers to accelerate UI display in rgb plane
 
 #if 0
 	#define fbprintk(msg...)	printk(msg);
@@ -189,6 +190,10 @@ static int win1fb_set_par(struct fb_info *info);
 
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 static int wq_condition = 0;
+
+#if ANDROID_USE_THREE_BUFS
+static int new_frame_seted = 1;
+#endif
 
 void set_lcd_pin(struct platform_device *pdev, int enable)
 {
@@ -1389,6 +1394,14 @@ static int win1fb_set_par(struct fb_info *info)
 
     addr = fix->smem_start + offset;
 
+#if ANDROID_USE_THREE_BUFS
+    if(0==new_frame_seted) {
+        wq_condition = 0;
+        wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
+    }
+    new_frame_seted = 0;
+#endif
+
     LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE|m_W1_FORMAT, v_W1_ENABLE(1)|v_W1_FORMAT(format));
 
     xpos += (screen->left_margin + screen->hsync_len);
@@ -1459,6 +1472,7 @@ static int win1fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 
 	mcu_refresh(inf);
 
+#if !ANDROID_USE_THREE_BUFS
     // flush end when wq_condition=1 in mcu panel, but not in rgb panel
     if(SCREEN_MCU == inf->cur_screen->type) {
         wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
@@ -1467,6 +1481,7 @@ static int win1fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
         wq_condition = 0;
         wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
     }
+#endif
 
     return 0;
 }
@@ -1600,6 +1615,10 @@ static irqreturn_t rk29fb_irq(int irq, void *dev_id)
             }
         }
 	}
+
+#if ANDROID_USE_THREE_BUFS
+    new_frame_seted = 1;
+#endif
 
 	wq_condition = 1;
  	wake_up_interruptible(&wq);
