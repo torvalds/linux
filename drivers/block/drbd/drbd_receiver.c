@@ -3599,6 +3599,16 @@ static int receive_out_of_sync(struct drbd_conf *mdev, enum drbd_packets cmd, un
 {
 	struct p_block_desc *p = &mdev->data.rbuf.block_desc;
 
+	switch (mdev->state.conn) {
+	case C_WF_SYNC_UUID:
+	case C_WF_BITMAP_T:
+	case C_BEHIND:
+			break;
+	default:
+		dev_err(DEV, "ASSERT FAILED cstate = %s, expected: WFSyncUUID|WFBitMapT|Behind\n",
+				drbd_conn_str(mdev->state.conn));
+	}
+
 	drbd_set_out_of_sync(mdev, be64_to_cpu(p->sector), be32_to_cpu(p->blksize));
 
 	return true;
