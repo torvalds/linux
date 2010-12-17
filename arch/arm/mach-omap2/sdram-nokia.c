@@ -223,10 +223,14 @@ struct omap_sdrc_params *nokia_get_sdram_timings(void)
 	int err = 0;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(nokia_timings); i++)
+	for (i = 0; i < ARRAY_SIZE(nokia_timings); i++) {
 		err |= sdrc_timings(i, nokia_timings[i].rate,
 				       nokia_timings[i].data);
+		if (err)
+			pr_err("%s: error with rate %ld: %d\n", __func__,
+			       nokia_timings[i].rate, err);
+	}
 
-	return &nokia_sdrc_params[0];
+	return err ? NULL : nokia_sdrc_params;
 }
 
