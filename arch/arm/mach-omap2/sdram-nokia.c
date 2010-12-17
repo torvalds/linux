@@ -69,7 +69,6 @@ static const struct {
 	long rate;
 	struct sdram_timings const *data;
 } nokia_timings[] = {
-	{ 41500000, nokia_166mhz_timings },
 	{ 83000000, nokia_166mhz_timings },
 	{ 166000000, nokia_166mhz_timings },
 };
