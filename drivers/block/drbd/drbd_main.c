@@ -1387,6 +1387,17 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		spin_unlock_irq(&mdev->req_lock);
 	}
 
+	/* Became sync source.  With protocol >= 96, we still need to send out
+	 * the sync uuid now. Need to do that before any drbd_send_state, or
+	 * the other side may go "paused sync" before receiving the sync uuids,
+	 * which is unexpected. */
+	if ((os.conn != C_SYNC_SOURCE && os.conn != C_PAUSED_SYNC_S) &&
+	    (ns.conn == C_SYNC_SOURCE || ns.conn == C_PAUSED_SYNC_S) &&
+	    mdev->agreed_pro_version >= 96 && get_ldev(mdev)) {
+		drbd_gen_and_send_sync_uuid(mdev);
+		put_ldev(mdev);
+	}
+
 	/* Do not change the order of the if above and the two below... */
 	if (os.pdsk == D_DISKLESS && ns.pdsk > D_DISKLESS) {      /* attach on the peer */
 		drbd_send_uuids(mdev);
@@ -1980,12 +1991,17 @@ int drbd_send_uuids_skip_initial_sync(struct drbd_conf *mdev)
 	return _drbd_send_uuids(mdev, 8);
 }
 
-
-int drbd_send_sync_uuid(struct drbd_conf *mdev, u64 val)
+int drbd_gen_and_send_sync_uuid(struct drbd_conf *mdev)
 {
 	struct p_rs_uuid p;
+	u64 uuid;
 
-	p.uuid = cpu_to_be64(val);
+	D_ASSERT(mdev->state.disk == D_UP_TO_DATE);
+
+	get_random_bytes(&uuid, sizeof(u64));
+	drbd_uuid_set(mdev, UI_BITMAP, uuid);
+	drbd_md_sync(mdev);
+	p.uuid = cpu_to_be64(uuid);
 
 	return drbd_send_cmd(mdev, USE_DATA_SOCKET, P_SYNC_UUID,
 			     (struct p_header80 *)&p, sizeof(p));

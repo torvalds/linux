@@ -1516,18 +1516,6 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 		return;
 	}
 
-	if (side == C_SYNC_TARGET) {
-		mdev->bm_resync_fo = 0;
-	} else /* side == C_SYNC_SOURCE */ {
-		u64 uuid;
-
-		get_random_bytes(&uuid, sizeof(u64));
-		drbd_uuid_set(mdev, UI_BITMAP, uuid);
-		drbd_send_sync_uuid(mdev, uuid);
-
-		D_ASSERT(mdev->state.disk == D_UP_TO_DATE);
-	}
-
 	write_lock_irq(&global_state_lock);
 	ns = mdev->state;
 
@@ -1565,7 +1553,19 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 		_drbd_pause_after(mdev);
 	}
 	write_unlock_irq(&global_state_lock);
-	put_ldev(mdev);
+
+	if (side == C_SYNC_TARGET)
+		mdev->bm_resync_fo = 0;
+
+	/* Since protocol 96, we must serialize drbd_gen_and_send_sync_uuid
+	 * with w_send_oos, or the sync target will get confused as to
+	 * how much bits to resync.  We cannot do that always, because for an
+	 * empty resync and protocol < 95, we need to do it here, as we call
+	 * drbd_resync_finished from here in that case.
+	 * We drbd_gen_and_send_sync_uuid here for protocol < 96,
+	 * and from after_state_ch otherwise. */
+	if (side == C_SYNC_SOURCE && mdev->agreed_pro_version < 96)
+		drbd_gen_and_send_sync_uuid(mdev);
 
 	if (r == SS_SUCCESS) {
 		dev_info(DEV, "Began resync as %s (will sync %lu KB [%lu bits set]).\n",
@@ -1601,6 +1601,7 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 
 		drbd_md_sync(mdev);
 	}
+	put_ldev(mdev);
 	drbd_state_unlock(mdev);
 }
 
