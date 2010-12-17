@@ -684,9 +684,6 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int startup, int stream)
 		fsi_reg_write(fsi, DOFF_ST, 0) :
 		fsi_reg_write(fsi, DIFF_ST, 0);
 
-	/* re-enable irq */
-	fsi_irq_enable(fsi, is_play);
-
 	if (over_period)
 		snd_pcm_period_elapsed(substream);
 
@@ -859,6 +856,7 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				frames_to_bytes(runtime, runtime->buffer_size),
 				frames_to_bytes(runtime, runtime->period_size));
 		ret = is_play ? fsi_data_push(fsi, 1) : fsi_data_pop(fsi, 1);
+		fsi_irq_enable(fsi, is_play);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		fsi_irq_disable(fsi, is_play);
