@@ -2359,13 +2359,6 @@ static int setup_window_lock(struct bttv_fh *fh, struct bttv *btv,
 	fh->ov.field    = win->field;
 	fh->ov.setup_ok = 1;
 
-	/*
-	 * FIXME: btv is protected by btv->lock mutex, while btv->init
-	 *	  is protected by fh->cap.vb_lock. This seems to open the
-	 *	  possibility for some race situations. Maybe the better would
-	 *	  be to unify those locks or to use another way to store the
-	 *	  init values that will be consumed by videobuf callbacks
-	 */
 	btv->init.ov.w.width   = win->w.width;
 	btv->init.ov.w.height  = win->w.height;
 	btv->init.ov.field     = win->field;
@@ -3220,15 +3213,6 @@ static int bttv_open(struct file *file)
 		return -ENOMEM;
 	file->private_data = fh;
 
-	/*
-	 * btv is protected by btv->lock mutex, while btv->init and other
-	 * streaming vars are protected by fh->cap.vb_lock. We need to take
-	 * care of both locks to avoid troubles. However, vb_lock is used also
-	 * inside videobuf, without calling buf->lock. So, it is a very bad
-	 * idea to hold both locks at the same time.
-	 * Let's first copy btv->init at fh, holding cap.vb_lock, and then work
-	 * with the rest of init, holding btv->lock.
-	 */
 	*fh = btv->init;
 
 	fh->type = type;
@@ -3303,10 +3287,6 @@ static int bttv_release(struct file *file)
 
 	/* free stuff */
 
-	/*
-	 * videobuf uses cap.vb_lock - we should avoid holding btv->lock,
-	 * otherwise we may have dead lock conditions
-	 */
 	videobuf_mmap_free(&fh->cap);
 	videobuf_mmap_free(&fh->vbi);
 	v4l2_prio_close(&btv->prio, fh->prio);
