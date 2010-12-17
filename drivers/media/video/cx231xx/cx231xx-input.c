@@ -27,7 +27,7 @@
 static int get_key_isdbt(struct IR_i2c *ir, u32 *ir_key,
 			 u32 *ir_raw)
 {
-	u8	cmd;
+	u8	cmd, scancode;
 
 	dev_dbg(&ir->rc->input_dev->dev, "%s\n", __func__);
 
@@ -42,10 +42,21 @@ static int get_key_isdbt(struct IR_i2c *ir, u32 *ir_key,
 	if (cmd == 0xff)
 		return 0;
 
-	dev_dbg(&ir->rc->input_dev->dev, "scancode = %02x\n", cmd);
+	scancode =
+		 ((cmd & 0x01) ? 0x80 : 0) |
+		 ((cmd & 0x02) ? 0x40 : 0) |
+		 ((cmd & 0x04) ? 0x20 : 0) |
+		 ((cmd & 0x08) ? 0x10 : 0) |
+		 ((cmd & 0x10) ? 0x08 : 0) |
+		 ((cmd & 0x20) ? 0x04 : 0) |
+		 ((cmd & 0x40) ? 0x02 : 0) |
+		 ((cmd & 0x80) ? 0x01 : 0);
 
-	*ir_key = cmd;
-	*ir_raw = cmd;
+	dev_dbg(&ir->rc->input_dev->dev, "cmd %02x, scan = %02x\n",
+		cmd, scancode);
+
+	*ir_key = scancode;
+	*ir_raw = scancode;
 	return 1;
 }
 
