@@ -417,6 +417,36 @@ do {									\
 # define this_cpu_xor(pcp, val)		__pcpu_size_call(this_cpu_or_, (pcp), (val))
 #endif
 
+#define _this_cpu_generic_add_return(pcp, val)				\
+({									\
+	typeof(pcp) ret__;						\
+	preempt_disable();						\
+	__this_cpu_add(pcp, val);					\
+	ret__ = __this_cpu_read(pcp);					\
+	preempt_enable();						\
+	ret__;								\
+})
+
+#ifndef this_cpu_add_return
+# ifndef this_cpu_add_return_1
+#  define this_cpu_add_return_1(pcp, val)	_this_cpu_generic_add_return(pcp, val)
+# endif
+# ifndef this_cpu_add_return_2
+#  define this_cpu_add_return_2(pcp, val)	_this_cpu_generic_add_return(pcp, val)
+# endif
+# ifndef this_cpu_add_return_4
+#  define this_cpu_add_return_4(pcp, val)	_this_cpu_generic_add_return(pcp, val)
+# endif
+# ifndef this_cpu_add_return_8
+#  define this_cpu_add_return_8(pcp, val)	_this_cpu_generic_add_return(pcp, val)
+# endif
+# define this_cpu_add_return(pcp, val)	__pcpu_size_call_return2(this_cpu_add_return_, pcp, val)
+#endif
+
+#define this_cpu_sub_return(pcp, val)	this_cpu_add_return(pcp, -(val))
+#define this_cpu_inc_return(pcp)	this_cpu_add_return(pcp, 1)
+#define this_cpu_dec_return(pcp)	this_cpu_add_return(pcp, -1)
+
 /*
  * Generic percpu operations that do not require preemption handling.
  * Either we do not care about races or the caller has the
@@ -543,36 +573,6 @@ do {									\
 # endif
 # define __this_cpu_xor(pcp, val)	__pcpu_size_call(__this_cpu_xor_, (pcp), (val))
 #endif
-
-#define _this_cpu_generic_add_return(pcp, val)				\
-({									\
-	typeof(pcp) ret__;						\
-	preempt_disable();						\
-	__this_cpu_add(pcp, val);					\
-	ret__ = __this_cpu_read(pcp);					\
-	preempt_enable();						\
-	ret__;								\
-})
-
-#ifndef this_cpu_add_return
-# ifndef this_cpu_add_return_1
-#  define this_cpu_add_return_1(pcp, val)	_this_cpu_generic_add_return(pcp, val)
-# endif
-# ifndef this_cpu_add_return_2
-#  define this_cpu_add_return_2(pcp, val)	_this_cpu_generic_add_return(pcp, val)
-# endif
-# ifndef this_cpu_add_return_4
-#  define this_cpu_add_return_4(pcp, val)	_this_cpu_generic_add_return(pcp, val)
-# endif
-# ifndef this_cpu_add_return_8
-#  define this_cpu_add_return_8(pcp, val)	_this_cpu_generic_add_return(pcp, val)
-# endif
-# define this_cpu_add_return(pcp, val)	__pcpu_size_call_return2(this_cpu_add_return_, pcp, val)
-#endif
-
-#define this_cpu_sub_return(pcp, val)	this_cpu_add_return(pcp, -(val))
-#define this_cpu_inc_return(pcp)	this_cpu_add_return(pcp, 1)
-#define this_cpu_dec_return(pcp)	this_cpu_add_return(pcp, -1)
 
 #define __this_cpu_generic_add_return(pcp, val)				\
 ({									\
