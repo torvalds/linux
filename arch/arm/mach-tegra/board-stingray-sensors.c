@@ -30,10 +30,10 @@
 #include <media/ov5650.h>
 #include <media/soc2030.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 
 #include <linux/regulator/consumer.h>
-
-#include <mach/gpio.h>
+#include <linux/nct1008.h>
 
 #include "board-stingray.h"
 #include "gpio-names.h"
@@ -49,6 +49,9 @@
 #define SOC2030_RESETN_GPIO	TEGRA_GPIO_PD5
 #define SOC2030_PWRDN_GPIO	TEGRA_GPIO_PBB5
 #define CAP_PROX_IRQ_GPIO	TEGRA_GPIO_PZ3
+#define NCT1008_THERM2_GPIO	TEGRA_GPIO_PQ7
+
+extern void tegra_throttling_enable(bool enable);
 
 static int stingray_ov5650_power_on(void)
 {
@@ -343,6 +346,30 @@ static void stingray_lm3559_init(void)
 	#endif
 }
 
+static struct nct1008_platform_data stingray_nct1008_data = {
+	.supported_hwrev = true,
+	.ext_range = true,
+	.conv_rate = 0x08,
+	.offset = 6,
+	.hysteresis = 5,
+	.shutdown_ext_limit = 115,
+	.shutdown_local_limit = 120,
+	.throttling_ext_limit = 90,
+	.alarm_fn = tegra_throttling_enable,
+};
+
+static int stingray_nct1008_init(void)
+{
+	if (stingray_revision() >= STINGRAY_REVISION_P2) {
+		tegra_gpio_enable(NCT1008_THERM2_GPIO);
+		gpio_request(NCT1008_THERM2_GPIO, "nct1008_therm2");
+		gpio_direction_input(NCT1008_THERM2_GPIO);
+	} else {
+		stingray_nct1008_data.supported_hwrev = false;
+	}
+	return 0;
+}
+
 static struct i2c_board_info __initdata stingray_i2c_bus4_sensor_info[] = {
 	{
 		I2C_BOARD_INFO("akm8975", 0x0C),
@@ -355,6 +382,8 @@ static struct i2c_board_info __initdata stingray_i2c_bus4_sensor_info[] = {
 	},
 	{
 		I2C_BOARD_INFO("nct1008", 0x4C),
+		.platform_data = &stingray_nct1008_data,
+		.irq = TEGRA_GPIO_TO_IRQ(NCT1008_THERM2_GPIO),
 	},
 	{
 		I2C_BOARD_INFO("cap-prox", 0x12),
@@ -414,6 +443,7 @@ int __init stingray_sensors_init(void)
 	stingray_ov5650_init();
 	stingray_soc2030_init();
 	stingray_cap_prox_init();
+	stingray_nct1008_init();
 
 	i2c_register_board_info(3, stingray_i2c_bus4_sensor_info,
 		ARRAY_SIZE(stingray_i2c_bus4_sensor_info));
