@@ -53,13 +53,29 @@ xfs_inode_ag_walk_grab(
 {
 	struct inode		*inode = VFS_I(ip);
 
+	ASSERT(rcu_read_lock_held());
+
+	/*
+	 * check for stale RCU freed inode
+	 *
+	 * If the inode has been reallocated, it doesn't matter if it's not in
+	 * the AG we are walking - we are walking for writeback, so if it
+	 * passes all the "valid inode" checks and is dirty, then we'll write
+	 * it back anyway.  If it has been reallocated and still being
+	 * initialised, the XFS_INEW check below will catch it.
+	 */
+	spin_lock(&ip->i_flags_lock);
+	if (!ip->i_ino)
+		goto out_unlock_noent;
+
+	/* avoid new or reclaimable inodes. Leave for reclaim code to flush */
+	if (__xfs_iflags_test(ip, XFS_INEW | XFS_IRECLAIMABLE | XFS_IRECLAIM))
+		goto out_unlock_noent;
+	spin_unlock(&ip->i_flags_lock);
+
 	/* nothing to sync during shutdown */
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return EFSCORRUPTED;
-
-	/* avoid new or reclaimable inodes. Leave for reclaim code to flush */
-	if (xfs_iflags_test(ip, XFS_INEW | XFS_IRECLAIMABLE | XFS_IRECLAIM))
-		return ENOENT;
 
 	/* If we can't grab the inode, it must on it's way to reclaim. */
 	if (!igrab(inode))
@@ -72,6 +88,10 @@ xfs_inode_ag_walk_grab(
 
 	/* inode is valid */
 	return 0;
+
+out_unlock_noent:
+	spin_unlock(&ip->i_flags_lock);
+	return ENOENT;
 }
 
 STATIC int
@@ -98,12 +118,12 @@ restart:
 		int		error = 0;
 		int		i;
 
-		read_lock(&pag->pag_ici_lock);
+		rcu_read_lock();
 		nr_found = radix_tree_gang_lookup(&pag->pag_ici_root,
 					(void **)batch, first_index,
 					XFS_LOOKUP_BATCH);
 		if (!nr_found) {
-			read_unlock(&pag->pag_ici_lock);
+			rcu_read_unlock();
 			break;
 		}
 
@@ -118,18 +138,26 @@ restart:
 				batch[i] = NULL;
 
 			/*
-			 * Update the index for the next lookup. Catch overflows
-			 * into the next AG range which can occur if we have inodes
-			 * in the last block of the AG and we are currently
-			 * pointing to the last inode.
+			 * Update the index for the next lookup. Catch
+			 * overflows into the next AG range which can occur if
+			 * we have inodes in the last block of the AG and we
+			 * are currently pointing to the last inode.
+			 *
+			 * Because we may see inodes that are from the wrong AG
+			 * due to RCU freeing and reallocation, only update the
+			 * index if it lies in this AG. It was a race that lead
+			 * us to see this inode, so another lookup from the
+			 * same index will not find it again.
 			 */
+			if (XFS_INO_TO_AGNO(mp, ip->i_ino) != pag->pag_agno)
+				continue;
 			first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
 			if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino))
 				done = 1;
 		}
 
 		/* unlock now we've grabbed the inodes. */
-		read_unlock(&pag->pag_ici_lock);
+		rcu_read_unlock();
 
 		for (i = 0; i < nr_found; i++) {
 			if (!batch[i])
@@ -639,9 +667,14 @@ xfs_reclaim_inode_grab(
 	struct xfs_inode	*ip,
 	int			flags)
 {
+	ASSERT(rcu_read_lock_held());
+
+	/* quick check for stale RCU freed inode */
+	if (!ip->i_ino)
+		return 1;
 
 	/*
-	 * do some unlocked checks first to avoid unnecceary lock traffic.
+	 * do some unlocked checks first to avoid unnecessary lock traffic.
 	 * The first is a flush lock check, the second is a already in reclaim
 	 * check. Only do these checks if we are not going to block on locks.
 	 */
@@ -654,11 +687,16 @@ xfs_reclaim_inode_grab(
 	 * The radix tree lock here protects a thread in xfs_iget from racing
 	 * with us starting reclaim on the inode.  Once we have the
 	 * XFS_IRECLAIM flag set it will not touch us.
+	 *
+	 * Due to RCU lookup, we may find inodes that have been freed and only
+	 * have XFS_IRECLAIM set.  Indeed, we may see reallocated inodes that
+	 * aren't candidates for reclaim at all, so we must check the
+	 * XFS_IRECLAIMABLE is set first before proceeding to reclaim.
 	 */
 	spin_lock(&ip->i_flags_lock);
-	ASSERT_ALWAYS(__xfs_iflags_test(ip, XFS_IRECLAIMABLE));
-	if (__xfs_iflags_test(ip, XFS_IRECLAIM)) {
-		/* ignore as it is already under reclaim */
+	if (!__xfs_iflags_test(ip, XFS_IRECLAIMABLE) ||
+	    __xfs_iflags_test(ip, XFS_IRECLAIM)) {
+		/* not a reclaim candidate. */
 		spin_unlock(&ip->i_flags_lock);
 		return 1;
 	}
@@ -864,14 +902,14 @@ restart:
 			struct xfs_inode *batch[XFS_LOOKUP_BATCH];
 			int	i;
 
-			write_lock(&pag->pag_ici_lock);
+			rcu_read_lock();
 			nr_found = radix_tree_gang_lookup_tag(
 					&pag->pag_ici_root,
 					(void **)batch, first_index,
 					XFS_LOOKUP_BATCH,
 					XFS_ICI_RECLAIM_TAG);
 			if (!nr_found) {
-				write_unlock(&pag->pag_ici_lock);
+				rcu_read_unlock();
 				break;
 			}
 
@@ -891,14 +929,24 @@ restart:
 				 * occur if we have inodes in the last block of
 				 * the AG and we are currently pointing to the
 				 * last inode.
+				 *
+				 * Because we may see inodes that are from the
+				 * wrong AG due to RCU freeing and
+				 * reallocation, only update the index if it
+				 * lies in this AG. It was a race that lead us
+				 * to see this inode, so another lookup from
+				 * the same index will not find it again.
 				 */
+				if (XFS_INO_TO_AGNO(mp, ip->i_ino) !=
+								pag->pag_agno)
+					continue;
 				first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
 				if (first_index < XFS_INO_TO_AGINO(mp, ip->i_ino))
 					done = 1;
 			}
 
 			/* unlock now we've grabbed the inodes. */
-			write_unlock(&pag->pag_ici_lock);
+			rcu_read_unlock();
 
 			for (i = 0; i < nr_found; i++) {
 				if (!batch[i])
