@@ -722,10 +722,11 @@ config ARCH_RK29
 	select CPU_V7
 	select HAVE_CLK
 	select COMMON_CLKDEV
+	select ARCH_HAS_CPUFREQ
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
-    select ARM_GIC
+	select ARM_GIC
 	help
 	  Support for Rockchip RK29 soc.
 
