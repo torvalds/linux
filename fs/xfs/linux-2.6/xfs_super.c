@@ -834,8 +834,11 @@ xfsaild_wakeup(
 	struct xfs_ail		*ailp,
 	xfs_lsn_t		threshold_lsn)
 {
-	ailp->xa_target = threshold_lsn;
-	wake_up_process(ailp->xa_task);
+	/* only ever move the target forwards */
+	if (XFS_LSN_CMP(threshold_lsn, ailp->xa_target) > 0) {
+		ailp->xa_target = threshold_lsn;
+		wake_up_process(ailp->xa_task);
+	}
 }
 
 STATIC int
@@ -847,8 +850,17 @@ xfsaild(
 	long		tout = 0; /* milliseconds */
 
 	while (!kthread_should_stop()) {
-		schedule_timeout_interruptible(tout ?
-				msecs_to_jiffies(tout) : MAX_SCHEDULE_TIMEOUT);
+		/*
+		 * for short sleeps indicating congestion, don't allow us to
+		 * get woken early. Otherwise all we do is bang on the AIL lock
+		 * without making progress.
+		 */
+		if (tout && tout <= 20)
+			__set_current_state(TASK_KILLABLE);
+		else
+			__set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(tout ?
+				 msecs_to_jiffies(tout) : MAX_SCHEDULE_TIMEOUT);
 
 		/* swsusp */
 		try_to_freeze();
