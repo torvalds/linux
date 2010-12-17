@@ -116,7 +116,7 @@ struct bmp085_reg {
 	{"EE_MD_L", BMP085_EEPROM_MD_L},
 };
 #endif
-static uint32_t bmp085_debug = 0x01;
+static uint32_t bmp085_debug = 0x00;
 module_param_named(baro_debug, bmp085_debug, uint, 0664);
 
 #define I2C_RETRY_DELAY		5
