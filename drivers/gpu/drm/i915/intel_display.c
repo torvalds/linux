@@ -6141,6 +6141,7 @@ static void gen6_enable_rc6(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC_CONTROL,
 		   GEN6_RC_CTL_RC6p_ENABLE |
 		   GEN6_RC_CTL_RC6_ENABLE |
+		   GEN6_RC_CTL_EI_MODE(1) |
 		   GEN6_RC_CTL_HW_ENABLE);
 
 	I915_WRITE(GEN6_RC_NORMAL_FREQ,
