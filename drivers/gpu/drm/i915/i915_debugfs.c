@@ -797,15 +797,51 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	u16 rgvswctl = I915_READ16(MEMSWCTL);
-	u16 rgvstat = I915_READ16(MEMSTAT_ILK);
 
-	seq_printf(m, "Requested P-state: %d\n", (rgvswctl >> 8) & 0xf);
-	seq_printf(m, "Requested VID: %d\n", rgvswctl & 0x3f);
-	seq_printf(m, "Current VID: %d\n", (rgvstat & MEMSTAT_VID_MASK) >>
-		   MEMSTAT_VID_SHIFT);
-	seq_printf(m, "Current P-state: %d\n",
-		   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
+	if (IS_GEN5(dev)) {
+		u16 rgvswctl = I915_READ16(MEMSWCTL);
+		u16 rgvstat = I915_READ16(MEMSTAT_ILK);
+
+		seq_printf(m, "Requested P-state: %d\n", (rgvswctl >> 8) & 0xf);
+		seq_printf(m, "Requested VID: %d\n", rgvswctl & 0x3f);
+		seq_printf(m, "Current VID: %d\n", (rgvstat & MEMSTAT_VID_MASK) >>
+			   MEMSTAT_VID_SHIFT);
+		seq_printf(m, "Current P-state: %d\n",
+			   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
+	} else if (IS_GEN6(dev)) {
+		u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
+		u32 rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
+		u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+		int max_freq;
+
+		/* RPSTAT1 is in the GT power well */
+		__gen6_force_wake_get(dev_priv);
+
+		seq_printf(m, "GT_PERF_STATUS: 0x%08x\n", gt_perf_status);
+		seq_printf(m, "RPSTAT1: 0x%08x\n", I915_READ(GEN6_RPSTAT1));
+		seq_printf(m, "Render p-state ratio: %d\n",
+			   (gt_perf_status & 0xff00) >> 8);
+		seq_printf(m, "Render p-state VID: %d\n",
+			   gt_perf_status & 0xff);
+		seq_printf(m, "Render p-state limit: %d\n",
+			   rp_state_limits & 0xff);
+
+		max_freq = (rp_state_cap & 0xff0000) >> 16;
+		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
+			   max_freq * 100);
+
+		max_freq = (rp_state_cap & 0xff00) >> 8;
+		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
+			   max_freq * 100);
+
+		max_freq = rp_state_cap & 0xff;
+		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
+			   max_freq * 100);
+
+		__gen6_force_wake_put(dev_priv);
+	} else {
+		seq_printf(m, "no P-state info available\n");
+	}
 
 	return 0;
 }

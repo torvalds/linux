@@ -6021,6 +6021,25 @@ void ironlake_disable_drps(struct drm_device *dev)
 
 }
 
+void gen6_set_rps(struct drm_device *dev, u8 val)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 swreq;
+
+	swreq = (val & 0x3ff) << 25;
+	I915_WRITE(GEN6_RPNSWREQ, swreq);
+}
+
+void gen6_disable_rps(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(GEN6_RPNSWREQ, 1 << 31);
+	I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
+	I915_WRITE(GEN6_PMIER, 0);
+	I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
+}
+
 static unsigned long intel_pxfreq(u32 vidfreq)
 {
 	unsigned long freq;
@@ -6107,7 +6126,7 @@ void intel_init_emon(struct drm_device *dev)
 	dev_priv->corr = (lcfuse & LCFUSE_HIV_MASK);
 }
 
-static void gen6_enable_rc6(struct drm_i915_private *dev_priv)
+void gen6_enable_rps(struct drm_i915_private *dev_priv)
 {
 	int i;
 
@@ -6120,7 +6139,7 @@ static void gen6_enable_rc6(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC_STATE, 0);
 	__gen6_force_wake_get(dev_priv);
 
-	/* disable the counters and set determistic thresholds */
+	/* disable the counters and set deterministic thresholds */
 	I915_WRITE(GEN6_RC_CONTROL, 0);
 
 	I915_WRITE(GEN6_RC1_WAKE_RATE_LIMIT, 1000 << 16);
@@ -6144,7 +6163,7 @@ static void gen6_enable_rc6(struct drm_i915_private *dev_priv)
 		   GEN6_RC_CTL_EI_MODE(1) |
 		   GEN6_RC_CTL_HW_ENABLE);
 
-	I915_WRITE(GEN6_RC_NORMAL_FREQ,
+	I915_WRITE(GEN6_RPNSWREQ,
 		   GEN6_FREQUENCY(10) |
 		   GEN6_OFFSET(0) |
 		   GEN6_AGGRESSIVE_TURBO);
@@ -6189,6 +6208,9 @@ static void gen6_enable_rc6(struct drm_i915_private *dev_priv)
 		   GEN6_PM_RP_DOWN_THRESHOLD |
 		   GEN6_PM_RP_UP_EI_EXPIRED |
 		   GEN6_PM_RP_DOWN_EI_EXPIRED);
+	I915_WRITE(GEN6_PMIMR, 0);
+	/* enable all PM interrupts */
+	I915_WRITE(GEN6_PMINTRMSK, 0);
 
 	__gen6_force_wake_put(dev_priv);
 }
@@ -6381,9 +6403,6 @@ void intel_enable_clock_gating(struct drm_device *dev)
 				   I915_READ(MCHBAR_RENDER_STANDBY) & ~RCX_SW_EXIT);
 		}
 	}
-
-	if (IS_GEN6(dev))
-		gen6_enable_rc6(dev_priv);
 }
 
 void intel_disable_clock_gating(struct drm_device *dev)
@@ -6657,6 +6676,9 @@ void intel_modeset_init(struct drm_device *dev)
 		intel_init_emon(dev);
 	}
 
+	if (IS_GEN6(dev))
+		gen6_enable_rps(dev_priv);
+
 	INIT_WORK(&dev_priv->idle_work, intel_idle_update);
 	setup_timer(&dev_priv->idle_timer, intel_gpu_idle_timer,
 		    (unsigned long)dev);
@@ -6690,6 +6712,8 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	if (IS_IRONLAKE_M(dev))
 		ironlake_disable_drps(dev);
+	if (IS_GEN6(dev))
+		gen6_disable_rps(dev);
 
 	intel_disable_clock_gating(dev);
 

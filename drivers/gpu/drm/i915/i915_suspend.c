@@ -817,8 +817,10 @@ int i915_save_state(struct drm_device *dev)
 		dev_priv->saveIMR = I915_READ(IMR);
 	}
 
-	if (HAS_PCH_SPLIT(dev))
+	if (IS_IRONLAKE_M(dev))
 		ironlake_disable_drps(dev);
+	if (IS_GEN6(dev))
+		gen6_disable_rps(dev);
 
 	intel_disable_clock_gating(dev);
 
@@ -867,10 +869,13 @@ int i915_restore_state(struct drm_device *dev)
 	/* Clock gating state */
 	intel_enable_clock_gating(dev);
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (IS_IRONLAKE_M(dev)) {
 		ironlake_enable_drps(dev);
 		intel_init_emon(dev);
 	}
+
+	if (IS_GEN6(dev))
+		gen6_enable_rps(dev_priv);
 
 	/* Cache mode state */
 	I915_WRITE (CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);

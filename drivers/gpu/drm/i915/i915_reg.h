@@ -1188,6 +1188,10 @@
 #define DDRMPLL1		0X12c20
 #define PEG_BAND_GAP_DATA	0x14d68
 
+#define GEN6_GT_PERF_STATUS	0x145948
+#define GEN6_RP_STATE_LIMITS	0x145994
+#define GEN6_RP_STATE_CAP	0x145998
+
 /*
  * Logical Context regs
  */
@@ -3169,7 +3173,7 @@
 #define  FORCEWAKE				0xA18C
 #define  FORCEWAKE_ACK				0x130090
 
-#define GEN6_RC_NORMAL_FREQ			0xA008
+#define GEN6_RPNSWREQ				0xA008
 #define   GEN6_TURBO_DISABLE			(1<<31)
 #define   GEN6_FREQUENCY(x)			((x)<<25)
 #define   GEN6_OFFSET(x)			((x)<<19)
@@ -3185,6 +3189,7 @@
 #define   GEN6_RC_CTL_HW_ENABLE			(1<<31)
 #define GEN6_RP_DOWN_TIMEOUT			0xA010
 #define GEN6_RP_INTERRUPT_LIMITS		0xA014
+#define GEN6_RPSTAT1				0xA01C
 #define GEN6_RP_CONTROL				0xA024
 #define   GEN6_RP_MEDIA_TURBO			(1<<11)
 #define   GEN6_RP_USE_NORMAL_FREQ		(1<<9)
@@ -3208,6 +3213,7 @@
 #define GEN6_RC6_THRESHOLD			0xA0B8
 #define GEN6_RC6p_THRESHOLD			0xA0BC
 #define GEN6_RC6pp_THRESHOLD			0xA0C0
+#define GEN6_PMINTRMSK				0xA168
 
 #define GEN6_PMISR				0x44020
 #define GEN6_PMIMR				0x44024

@@ -397,11 +397,49 @@ static void notify_ring(struct drm_device *dev,
 		  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
 }
 
+static void gen6_pm_irq_handler(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u8 new_delay = dev_priv->cur_delay;
+	u32 pm_iir;
+
+	pm_iir = I915_READ(GEN6_PMIIR);
+	if (!pm_iir)
+		return;
+
+	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD) {
+		if (dev_priv->cur_delay != dev_priv->max_delay)
+			new_delay = dev_priv->cur_delay + 1;
+		if (new_delay > dev_priv->max_delay)
+			new_delay = dev_priv->max_delay;
+	} else if (pm_iir & (GEN6_PM_RP_DOWN_THRESHOLD | GEN6_PM_RP_DOWN_TIMEOUT)) {
+		if (dev_priv->cur_delay != dev_priv->min_delay)
+			new_delay = dev_priv->cur_delay - 1;
+		if (new_delay < dev_priv->min_delay) {
+			new_delay = dev_priv->min_delay;
+			I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
+				   I915_READ(GEN6_RP_INTERRUPT_LIMITS) |
+				   ((new_delay << 16) & 0x3f0000));
+		} else {
+			/* Make sure we continue to get down interrupts
+			 * until we hit the minimum frequency */
+			I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
+				   I915_READ(GEN6_RP_INTERRUPT_LIMITS) & ~0x3f0000);
+		}
+
+	}
+
+	gen6_set_rps(dev, new_delay);
+	dev_priv->cur_delay = new_delay;
+
+	I915_WRITE(GEN6_PMIIR, pm_iir);
+}
+
 static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
-	u32 de_iir, gt_iir, de_ier, pch_iir;
+	u32 de_iir, gt_iir, de_ier, pch_iir, pm_iir;
 	u32 hotplug_mask;
 	struct drm_i915_master_private *master_priv;
 	u32 bsd_usr_interrupt = GT_BSD_USER_INTERRUPT;
@@ -417,8 +455,10 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	de_iir = I915_READ(DEIIR);
 	gt_iir = I915_READ(GTIIR);
 	pch_iir = I915_READ(SDEIIR);
+	pm_iir = I915_READ(GEN6_PMIIR);
 
-	if (de_iir == 0 && gt_iir == 0 && pch_iir == 0)
+	if (de_iir == 0 && gt_iir == 0 && pch_iir == 0 &&
+	    (!IS_GEN6(dev) || pm_iir == 0))
 		goto done;
 
 	if (HAS_PCH_CPT(dev))
@@ -469,6 +509,9 @@ static irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 		I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
 		i915_handle_rps_change(dev);
 	}
+
+	if (IS_GEN6(dev))
+		gen6_pm_irq_handler(dev);
 
 	/* should clear PCH hotplug event before clear CPU irq */
 	I915_WRITE(SDEIIR, pch_iir);
