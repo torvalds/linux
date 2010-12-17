@@ -878,6 +878,7 @@ static int tegra_aes_probe(struct platform_device *pdev)
 	struct tegra_aes_dev *dd;
 	struct resource *res;
 	int err = -ENOMEM, i = 0, j;
+	bool clk_enabled = false;
 
 	if (aes_dev)
 		return -EEXIST;
@@ -932,6 +933,7 @@ static int tegra_aes_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto out;
 	}
+	clk_enabled = true;
 
 	/*
 	 * the foll contiguous memory is allocated as follows -
@@ -991,6 +993,8 @@ static int tegra_aes_probe(struct platform_device *pdev)
 			goto out;
 	}
 
+	clk_disable(dd->iclk);
+
 	dev_info(dev, "registered");
 	return 0;
 
@@ -1008,6 +1012,8 @@ out:
 			dd->buf_out, dd->dma_buf_out);
 	if (dd->io_base)
 		iounmap(dd->io_base);
+	if (clk_enabled)
+		clk_disable(dd->iclk);
 	if (dd->iclk)
 		clk_put(dd->iclk);
 
