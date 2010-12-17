@@ -82,25 +82,27 @@ typedef volatile struct tagCHIP_IF
 }CHIP_IF, *pCHIP_IF;
 
 //NANDC Registers
-typedef volatile struct tagNANDC
+typedef  volatile struct tagNANDC
 {
        volatile  uint32_t FMCTL; 
        volatile  uint32_t FMWAIT;
        volatile  uint32_t FLCTL;
        volatile  uint32_t BCHCTL; 
-       volatile  uint32_t BCHST; 
-       volatile  uint32_t RESERVED1[(0x200-0x14)/4];   //FLR
+       volatile  uint32_t MTRANS_CFG;
+       volatile  uint32_t MTRANS_SADDR0;
+       volatile  uint32_t MTRANS_SADDR1;
+       volatile  uint32_t MTRANS_STAT;
+        
+       volatile  uint32_t BCHST[8]; 
+       volatile  uint32_t FLR1[(0x160-0x40)/4]; 
+       volatile  uint32_t NANDC_VER;
+       volatile  uint32_t FLR2[(0x200-0x164)/4]; 
        volatile  uint32_t spare[0x200/4]; 
-	   volatile  uint32_t FMCTL1; 
-       volatile  uint32_t FMWAIT1;
-       volatile  uint32_t FLCTL1;
-       volatile  uint32_t BCHCTL1; 
-       volatile  uint32_t BCHST1; 
-       volatile  uint32_t RESERVED2[(0x200-0x14)/4]; 
-	   volatile  uint32_t RESERVED3[0x200/4]; 
+       volatile  uint32_t RESERVED2[0x400/4]; 
        volatile  CHIP_IF chip[8];
        volatile  uint32_t buf[0x800/4]; 
 }NANDC, *pNANDC;
+
 
 struct rk29_nand_flash {
 	const struct rk29_nand_timing *timing;        /* NAND Flash timing */

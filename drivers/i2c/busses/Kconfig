@@ -4,6 +4,270 @@
 
 menu "I2C Hardware Bus support"
 
+comment "PC SMBus host controller drivers"
+	depends on PCI
+
+config I2C_ALI1535
+	tristate "ALI 1535"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the SMB
+	  Host controller on Acer Labs Inc. (ALI) M1535 South Bridges.  The SMB
+	  controller is part of the 7101 device, which is an ACPI-compliant
+	  Power Management Unit (PMU).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-ali1535.
+
+config I2C_ALI1563
+	tristate "ALI 1563"
+	depends on PCI && EXPERIMENTAL
+	help
+	  If you say yes to this option, support will be included for the SMB
+	  Host controller on Acer Labs Inc. (ALI) M1563 South Bridges.  The SMB
+	  controller is part of the 7101 device, which is an ACPI-compliant
+	  Power Management Unit (PMU).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-ali1563.
+
+config I2C_ALI15X3
+	tristate "ALI 15x3"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the
+	  Acer Labs Inc. (ALI) M1514 and M1543 motherboard I2C interfaces.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-ali15x3.
+
+config I2C_AMD756
+	tristate "AMD 756/766/768/8111 and nVidia nForce"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the AMD
+	  756/766/768 mainboard I2C interfaces.  The driver also includes
+	  support for the first (SMBus 1.0) I2C interface of the AMD 8111 and
+	  the nVidia nForce I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-amd756.
+
+config I2C_AMD756_S4882
+	tristate "SMBus multiplexing on the Tyan S4882"
+	depends on I2C_AMD756 && X86 && EXPERIMENTAL
+	help
+	  Enabling this option will add specific SMBus support for the Tyan
+	  S4882 motherboard.  On this 4-CPU board, the SMBus is multiplexed
+	  over 8 different channels, where the various memory module EEPROMs
+	  and temperature sensors live.  Saying yes here will give you access
+	  to these in addition to the trunk.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-amd756-s4882.
+
+config I2C_AMD8111
+	tristate "AMD 8111"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the
+	  second (SMBus 2.0) AMD 8111 mainboard I2C interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-amd8111.
+
+config I2C_I801
+	tristate "Intel 82801 (ICH/PCH)"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the Intel
+	  801 family of mainboard I2C interfaces.  Specifically, the following
+	  versions of the chipset are supported:
+	    82801AA
+	    82801AB
+	    82801BA
+	    82801CA/CAM
+	    82801DB
+	    82801EB/ER (ICH5/ICH5R)
+	    6300ESB
+	    ICH6
+	    ICH7
+	    ESB2
+	    ICH8
+	    ICH9
+	    Tolapai
+	    ICH10
+	    3400/5 Series (PCH)
+	    Cougar Point (PCH)
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-i801.
+
+config I2C_ISCH
+	tristate "Intel SCH SMBus 1.0"
+	depends on PCI
+	help
+	  Say Y here if you want to use SMBus controller on the Intel SCH
+	  based systems.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called i2c-isch.
+
+config I2C_PIIX4
+	tristate "Intel PIIX4 and compatible (ATI/AMD/Serverworks/Broadcom/SMSC)"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the Intel
+	  PIIX4 family of mainboard I2C interfaces.  Specifically, the following
+	  versions of the chipset are supported (note that Serverworks is part
+	  of Broadcom):
+	    Intel PIIX4
+	    Intel 440MX
+	    ATI IXP200
+	    ATI IXP300
+	    ATI IXP400
+	    ATI SB600
+	    ATI SB700
+	    ATI SB800
+	    AMD Hudson-2
+	    Serverworks OSB4
+	    Serverworks CSB5
+	    Serverworks CSB6
+	    Serverworks HT-1000
+	    Serverworks HT-1100
+	    SMSC Victory66
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-piix4.
+
+config I2C_NFORCE2
+	tristate "Nvidia nForce2, nForce3 and nForce4"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the Nvidia
+	  nForce2, nForce3 and nForce4 families of mainboard I2C interfaces.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-nforce2.
+
+config I2C_NFORCE2_S4985
+	tristate "SMBus multiplexing on the Tyan S4985"
+	depends on I2C_NFORCE2 && X86 && EXPERIMENTAL
+	help
+	  Enabling this option will add specific SMBus support for the Tyan
+	  S4985 motherboard.  On this 4-CPU board, the SMBus is multiplexed
+	  over 4 different channels, where the various memory module EEPROMs
+	  live.  Saying yes here will give you access to these in addition
+	  to the trunk.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-nforce2-s4985.
+
+config I2C_SIS5595
+	tristate "SiS 5595"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the
+	  SiS5595 SMBus (a subset of I2C) interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-sis5595.
+
+config I2C_SIS630
+	tristate "SiS 630/730"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the
+	  SiS630 and SiS730 SMBus (a subset of I2C) interface.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-sis630.
+
+config I2C_SIS96X
+	tristate "SiS 96x"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the SiS
+	  96x SMBus (a subset of I2C) interfaces.  Specifically, the following
+	  chipsets are supported:
+	    645/961
+	    645DX/961
+	    645DX/962
+	    648/961
+	    650/961
+	    735
+	    745
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-sis96x.
+
+config I2C_VIA
+	tristate "VIA VT82C586B"
+	depends on PCI && EXPERIMENTAL
+	select I2C_ALGOBIT
+	help
+	  If you say yes to this option, support will be included for the VIA
+          82C586B I2C interface
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-via.
+
+config I2C_VIAPRO
+	tristate "VIA VT82C596/82C686/82xx and CX700/VX8xx"
+	depends on PCI
+	help
+	  If you say yes to this option, support will be included for the VIA
+	  VT82C596 and later SMBus interface.  Specifically, the following
+	  chipsets are supported:
+	    VT82C596A/B
+	    VT82C686A/B
+	    VT8231
+	    VT8233/A
+	    VT8235
+	    VT8237R/A/S
+	    VT8251
+	    CX700
+	    VX800/VX820
+	    VX855/VX875
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-viapro.
+
+if ACPI
+
+comment "ACPI drivers"
+
+config I2C_SCMI
+	tristate "SMBus Control Method Interface"
+	help
+	  This driver supports the SMBus Control Method Interface. It needs the
+	  BIOS to declare ACPI control methods as described in the SMBus Control
+	  Method Interface specification.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called i2c-scmi.
+
+endif # ACPI
+
+comment "Mac SMBus host controller drivers"
+	depends on PPC_CHRP || PPC_PMAC
+
+config I2C_HYDRA
+	tristate "CHRP Apple Hydra Mac I/O I2C interface"
+	depends on PCI && PPC_CHRP && EXPERIMENTAL
+	select I2C_ALGOBIT
+	help
+	  This supports the use of the I2C interface in the Apple Hydra Mac
+	  I/O chip on some CHRP machines (e.g. the LongTrail).  Say Y if you
+	  have such a machine.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-hydra.
+
+config I2C_POWERMAC
+	tristate "Powermac I2C interface"
+	depends on PPC_PMAC
+
 config I2C_RK2818
 	tristate "RK2818 i2c interface (I2C)"
 	depends on ARCH_RK2818

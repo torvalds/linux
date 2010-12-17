@@ -50,8 +50,12 @@
  */
 #define TWL4030_MAX_ROWS	8	/* TWL4030 hard limit */
 #define TWL4030_MAX_COLS	8
-#define TWL4030_ROW_SHIFT	3
-#define TWL4030_KEYMAP_SIZE	(TWL4030_MAX_ROWS * TWL4030_MAX_COLS)
+/*
+ * Note that we add space for an extra column so that we can handle
+ * row lines connected to the gnd (see twl4030_col_xlate()).
+ */
+#define TWL4030_ROW_SHIFT	4
+#define TWL4030_KEYMAP_SIZE	(TWL4030_MAX_ROWS << TWL4030_ROW_SHIFT)
 
 struct twl4030_keypad {
 	unsigned short	keymap[TWL4030_KEYMAP_SIZE];
@@ -181,7 +185,7 @@ static int twl4030_read_kp_matrix_state(struct twl4030_keypad *kp, u16 *state)
 	return ret;
 }
 
-static int twl4030_is_in_ghost_state(struct twl4030_keypad *kp, u16 *key_state)
+static bool twl4030_is_in_ghost_state(struct twl4030_keypad *kp, u16 *key_state)
 {
 	int i;
 	u16 check = 0;
@@ -190,12 +194,12 @@ static int twl4030_is_in_ghost_state(struct twl4030_keypad *kp, u16 *key_state)
 		u16 col = key_state[i];
 
 		if ((col & check) && hweight16(col) > 1)
-			return 1;
+			return true;
 
 		check |= col;
 	}
 
-	return 0;
+	return false;
 }
 
 static void twl4030_kp_scan(struct twl4030_keypad *kp, bool release_all)
@@ -224,7 +228,8 @@ static void twl4030_kp_scan(struct twl4030_keypad *kp, bool release_all)
 		if (!changed)
 			continue;
 
-		for (col = 0; col < kp->n_cols; col++) {
+		/* Extra column handles "all gnd" rows */
+		for (col = 0; col < kp->n_cols + 1; col++) {
 			int code;
 
 			if (!(changed & (1 << col)))

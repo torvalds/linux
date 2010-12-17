@@ -473,7 +473,8 @@ static void vp_del_vqs(struct virtio_device *vdev)
 
 	list_for_each_entry_safe(vq, n, &vdev->vqs, list) {
 		info = vq->priv;
-		if (vp_dev->per_vq_vectors)
+		if (vp_dev->per_vq_vectors &&
+			info->msix_vector != VIRTIO_MSI_NO_VECTOR)
 			free_irq(vp_dev->msix_entries[info->msix_vector].vector,
 				 vq);
 		vp_del_vq(vq);
@@ -633,6 +634,9 @@ static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 	vp_dev->pci_dev = pci_dev;
 	INIT_LIST_HEAD(&vp_dev->virtqueues);
 	spin_lock_init(&vp_dev->lock);
+
+	/* Disable MSI/MSIX to bring device to a known good state. */
+	pci_msi_off(pci_dev);
 
 	/* enable the device */
 	err = pci_enable_device(pci_dev);

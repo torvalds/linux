@@ -92,6 +92,15 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			flags &= ~EXT4_EXTENTS_FL;
 		}
 
+		if (flags & EXT4_EOFBLOCKS_FL) {
+			/* we don't support adding EOFBLOCKS flag */
+			if (!(oldflags & EXT4_EOFBLOCKS_FL)) {
+				err = -EOPNOTSUPP;
+				goto flags_out;
+			}
+		} else if (oldflags & EXT4_EOFBLOCKS_FL)
+			ext4_truncate(inode);
+
 		handle = ext4_journal_start(inode, 1);
 		if (IS_ERR(handle)) {
 			err = PTR_ERR(handle);
@@ -249,7 +258,8 @@ setversion_out:
 		if (me.moved_len > 0)
 			file_remove_suid(donor_filp);
 
-		if (copy_to_user((struct move_extent *)arg, &me, sizeof(me)))
+		if (copy_to_user((struct move_extent __user *)arg,
+				 &me, sizeof(me)))
 			err = -EFAULT;
 mext_out:
 		fput(donor_filp);
@@ -363,7 +373,30 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case EXT4_IOC32_SETRSVSZ:
 		cmd = EXT4_IOC_SETRSVSZ;
 		break;
-	case EXT4_IOC_GROUP_ADD:
+	case EXT4_IOC32_GROUP_ADD: {
+		struct compat_ext4_new_group_input __user *uinput;
+		struct ext4_new_group_input input;
+		mm_segment_t old_fs;
+		int err;
+
+		uinput = compat_ptr(arg);
+		err = get_user(input.group, &uinput->group);
+		err |= get_user(input.block_bitmap, &uinput->block_bitmap);
+		err |= get_user(input.inode_bitmap, &uinput->inode_bitmap);
+		err |= get_user(input.inode_table, &uinput->inode_table);
+		err |= get_user(input.blocks_count, &uinput->blocks_count);
+		err |= get_user(input.reserved_blocks,
+				&uinput->reserved_blocks);
+		if (err)
+			return -EFAULT;
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		err = ext4_ioctl(file, EXT4_IOC_GROUP_ADD,
+				 (unsigned long) &input);
+		set_fs(old_fs);
+		return err;
+	}
+	case EXT4_IOC_MOVE_EXT:
 		break;
 	default:
 		return -ENOIOCTLCMD;

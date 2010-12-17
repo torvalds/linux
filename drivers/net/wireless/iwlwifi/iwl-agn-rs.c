@@ -402,10 +402,23 @@ static void rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 				      struct iwl_lq_sta *lq_data, u8 tid,
 				      struct ieee80211_sta *sta)
 {
+	int ret;
+
 	if (rs_tl_get_load(lq_data, tid) > IWL_AGG_LOAD_THRESHOLD) {
 		IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
 				sta->addr, tid);
-		ieee80211_start_tx_ba_session(priv->hw, sta->addr, tid);
+		ret = ieee80211_start_tx_ba_session(priv->hw, sta->addr, tid);
+		if (ret == -EAGAIN) {
+			/*
+			 * driver and mac80211 is out of sync
+			 * this might be cause by reloading firmware
+			 * stop the tx ba session here
+			 */
+			IWL_DEBUG_HT(priv, "Fail start Tx agg on tid: %d\n",
+				tid);
+			ret = ieee80211_stop_tx_ba_session(priv->hw, sta->addr, tid,
+						WLAN_BACK_INITIATOR);
+		}
 	}
 }
 
@@ -2180,9 +2193,12 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 
 	/* Else we have enough samples; calculate estimate of
 	 * actual average throughput */
-
-	BUG_ON(window->average_tpt != ((window->success_ratio *
-			tbl->expected_tpt[index] + 64) / 128));
+	if (window->average_tpt != ((window->success_ratio *
+			tbl->expected_tpt[index] + 64) / 128)) {
+		IWL_ERR(priv, "expected_tpt should have been calculated by now\n");
+		window->average_tpt = ((window->success_ratio *
+					tbl->expected_tpt[index] + 64) / 128);
+	}
 
 	/* If we are searching for better modulation mode, check success. */
 	if (lq_sta->search_better_tbl &&

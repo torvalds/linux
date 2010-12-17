@@ -40,6 +40,8 @@ static struct pci_device_id p54p_table[] __devinitdata = {
 	{ PCI_DEVICE(0x1260, 0x3877) },
 	/* Intersil PRISM Javelin/Xbow Wireless LAN adapter */
 	{ PCI_DEVICE(0x1260, 0x3886) },
+	/* Intersil PRISM Xbow Wireless LAN adapter (Symbol AP-300) */
+	{ PCI_DEVICE(0x1260, 0xffff) },
 	{ },
 };
 
@@ -157,6 +159,14 @@ static void p54p_refill_rx_ring(struct ieee80211_hw *dev,
 						 skb_tail_pointer(skb),
 						 priv->common.rx_mtu + 32,
 						 PCI_DMA_FROMDEVICE);
+
+			if (pci_dma_mapping_error(priv->pdev, mapping)) {
+				dev_kfree_skb_any(skb);
+				dev_err(&priv->pdev->dev,
+					"RX DMA Mapping error\n");
+				break;
+			}
+
 			desc->host_addr = cpu_to_le32(mapping);
 			desc->device_addr = 0;	// FIXME: necessary?
 			desc->len = cpu_to_le16(priv->common.rx_mtu + 32);
@@ -197,6 +207,14 @@ static void p54p_check_rx_ring(struct ieee80211_hw *dev, u32 *index,
 			i %= ring_limit;
 			continue;
 		}
+
+		if (unlikely(len > priv->common.rx_mtu)) {
+			if (net_ratelimit())
+				dev_err(&priv->pdev->dev, "rx'd frame size "
+					"exceeds length threshold.\n");
+
+			len = priv->common.rx_mtu;
+		}
 		skb_put(skb, len);
 
 		if (p54_rx(dev, skb)) {
@@ -229,7 +247,7 @@ static void p54p_check_tx_ring(struct ieee80211_hw *dev, u32 *index,
 	u32 idx, i;
 
 	i = (*index) % ring_limit;
-	(*index) = idx = le32_to_cpu(ring_control->device_idx[1]);
+	(*index) = idx = le32_to_cpu(ring_control->device_idx[ring_index]);
 	idx %= ring_limit;
 
 	while (i != idx) {
@@ -317,14 +335,20 @@ static void p54p_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	u32 device_idx, idx, i;
 
 	spin_lock_irqsave(&priv->lock, flags);
-
 	device_idx = le32_to_cpu(ring_control->device_idx[1]);
 	idx = le32_to_cpu(ring_control->host_idx[1]);
 	i = idx % ARRAY_SIZE(ring_control->tx_data);
 
-	priv->tx_buf_data[i] = skb;
 	mapping = pci_map_single(priv->pdev, skb->data, skb->len,
 				 PCI_DMA_TODEVICE);
+	if (pci_dma_mapping_error(priv->pdev, mapping)) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		p54_free_skb(dev, skb);
+		dev_err(&priv->pdev->dev, "TX DMA mapping error\n");
+		return ;
+	}
+	priv->tx_buf_data[i] = skb;
+
 	desc = &ring_control->tx_data[i];
 	desc->host_addr = cpu_to_le32(mapping);
 	desc->device_addr = ((struct p54_hdr *)skb->data)->req_id;

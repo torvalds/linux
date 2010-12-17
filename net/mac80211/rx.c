@@ -1220,7 +1220,8 @@ ieee80211_drop_unencrypted(struct ieee80211_rx_data *rx, __le16 fc)
 		     (rx->key || rx->sdata->drop_unencrypted)))
 		return -EACCES;
 	if (rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP)) {
-		if (unlikely(ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
+		if (unlikely(!ieee80211_has_protected(fc) &&
+			     ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
 			     rx->key))
 			return -EACCES;
 		/* BIP does not use Protected field, so need to check MMIE */
@@ -1590,6 +1591,7 @@ static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 {
 	struct net_device *dev = rx->dev;
+	struct ieee80211_local *local = rx->local;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 	__le16 fc = hdr->frame_control;
 	int err;
@@ -1611,6 +1613,13 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += rx->skb->len;
+
+	if (ieee80211_is_data(hdr->frame_control) &&
+	    !is_multicast_ether_addr(hdr->addr1) &&
+	    local->hw.conf.dynamic_ps_timeout > 0 && local->ps_sdata) {
+		mod_timer(&local->dynamic_ps_timer, jiffies +
+			  msecs_to_jiffies(local->hw.conf.dynamic_ps_timeout));
+	}
 
 	ieee80211_deliver_skb(rx);
 
@@ -1808,6 +1817,11 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			 */
 			return RX_CONTINUE;
 		}
+		break;
+	case WLAN_CATEGORY_MESH_PLINK:
+	case WLAN_CATEGORY_MESH_PATH_SEL:
+		if (ieee80211_vif_is_mesh(&sdata->vif))
+			return ieee80211_mesh_rx_mgmt(sdata, rx->skb);
 		break;
 	default:
 		/* do not process rejected action frames */

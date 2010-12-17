@@ -235,6 +235,7 @@ static void __exit rtc_exit(void)
 {
 	rtc_dev_exit();
 	class_destroy(rtc_class);
+	idr_destroy(&rtc_idr);
 }
 
 subsys_initcall(rtc_init);

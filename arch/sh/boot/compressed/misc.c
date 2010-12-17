@@ -132,7 +132,7 @@ void decompress_kernel(void)
 	output_addr = (CONFIG_MEMORY_START + 0x2000);
 #else
 	output_addr = PHYSADDR((unsigned long)&_text+PAGE_SIZE);
-#ifdef CONFIG_29BIT
+#if defined(CONFIG_29BIT) || defined(CONFIG_PMB_FIXED)
 	output_addr |= P2SEG;
 #endif
 #endif

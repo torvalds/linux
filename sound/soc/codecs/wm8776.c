@@ -93,7 +93,6 @@ SOC_DAPM_SINGLE("Bypass Switch", WM8776_OUTMUX, 2, 1, 0),
 
 static const struct snd_soc_dapm_widget wm8776_dapm_widgets[] = {
 SND_SOC_DAPM_INPUT("AUX"),
-SND_SOC_DAPM_INPUT("AUX"),
 
 SND_SOC_DAPM_INPUT("AIN1"),
 SND_SOC_DAPM_INPUT("AIN2"),
@@ -177,13 +176,6 @@ static int wm8776_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
 		iface |= 0x0001;
-		break;
-		/* FIXME: CHECK A/B */
-	case SND_SOC_DAIFMT_DSP_A:
-		iface |= 0x0003;
-		break;
-	case SND_SOC_DAIFMT_DSP_B:
-		iface |= 0x0007;
 		break;
 	default:
 		return -EINVAL;

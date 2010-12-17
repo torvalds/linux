@@ -626,6 +626,7 @@ static int prism2_config(struct pcmcia_device *link)
 	int ret = 1;
 	int last_fn, last_ret;
 	struct hostap_cs_priv *hw_priv;
+	unsigned long flags;
 
 	PDEBUG(DEBUG_FLOW, "prism2_config()\n");
 
@@ -661,6 +662,12 @@ static int prism2_config(struct pcmcia_device *link)
 	link->dev_node = &hw_priv->node;
 
 	/*
+	 * Make sure the IRQ handler cannot proceed until at least
+	 * dev->base_addr is initialized.
+	 */
+	spin_lock_irqsave(&local->irq_init_lock, flags);
+
+	/*
 	 * Allocate an interrupt line.  Note that this does not assign a
 	 * handler to the interrupt, unless the 'Handler' member of the
 	 * irq structure is initialized.
@@ -685,6 +692,8 @@ static int prism2_config(struct pcmcia_device *link)
 
 	dev->irq = link->irq.AssignedIRQ;
 	dev->base_addr = link->io.BasePort1;
+
+	spin_unlock_irqrestore(&local->irq_init_lock, flags);
 
 	/* Finally, report what we've done */
 	printk(KERN_INFO "%s: index 0x%02x: ",
@@ -715,6 +724,7 @@ static int prism2_config(struct pcmcia_device *link)
 	return ret;
 
  cs_failed:
+	spin_unlock_irqrestore(&local->irq_init_lock, flags);
 	cs_error(link, last_fn, last_ret);
 
  failed:

@@ -785,8 +785,8 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	intel_clock_t clock;
 	int max_n;
 	bool found;
-	/* approximately equals target * 0.00488 */
-	int err_most = (target >> 8) + (target >> 10);
+	/* approximately equals target * 0.00585 */
+	int err_most = (target >> 8) + (target >> 9);
 	found = false;
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
@@ -1402,6 +1402,7 @@ static void igdng_enable_pll_edp (struct drm_crtc *crtc)
 	dpa_ctl = I915_READ(DP_A);
 	dpa_ctl |= DP_PLL_ENABLE;
 	I915_WRITE(DP_A, dpa_ctl);
+	POSTING_READ(DP_A);
 	udelay(200);
 }
 
@@ -1952,6 +1953,9 @@ static void intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	bool enabled;
+
+	if (intel_crtc->dpms_mode == mode)
+		return;
 
 	dev_priv->display.dpms(crtc, mode);
 
@@ -3999,7 +4003,7 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	}
 
 	intel_crtc->cursor_addr = 0;
-	intel_crtc->dpms_mode = DRM_MODE_DPMS_OFF;
+	intel_crtc->dpms_mode = -1;
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 
 	intel_crtc->busy = false;
@@ -4322,7 +4326,7 @@ static void intel_init_display(struct drm_device *dev)
 	}
 
 	/* Returns the core display clock speed */
-	if (IS_I945G(dev))
+	if (IS_I945G(dev) || (IS_G33(dev) && ! IS_IGDGM(dev)))
 		dev_priv->display.get_display_clock_speed =
 			i945_get_display_clock_speed;
 	else if (IS_I915G(dev))

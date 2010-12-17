@@ -68,12 +68,12 @@ static struct btrfs_dir_item *insert_with_overflow(struct btrfs_trans_handle
  * into the tree
  */
 int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
-			    struct btrfs_root *root, const char *name,
-			    u16 name_len, const void *data, u16 data_len,
-			    u64 dir)
+			    struct btrfs_root *root,
+			    struct btrfs_path *path, u64 objectid,
+			    const char *name, u16 name_len,
+			    const void *data, u16 data_len)
 {
 	int ret = 0;
-	struct btrfs_path *path;
 	struct btrfs_dir_item *dir_item;
 	unsigned long name_ptr, data_ptr;
 	struct btrfs_key key, location;
@@ -81,15 +81,11 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 	struct extent_buffer *leaf;
 	u32 data_size;
 
-	key.objectid = dir;
+	BUG_ON(name_len + data_len > BTRFS_MAX_XATTR_SIZE(root));
+
+	key.objectid = objectid;
 	btrfs_set_key_type(&key, BTRFS_XATTR_ITEM_KEY);
 	key.offset = btrfs_name_hash(name, name_len);
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-	if (name_len + data_len + sizeof(struct btrfs_dir_item) >
-	    BTRFS_LEAF_DATA_SIZE(root) - sizeof(struct btrfs_item))
-		return -ENOSPC;
 
 	data_size = sizeof(*dir_item) + name_len + data_len;
 	dir_item = insert_with_overflow(trans, root, path, &key, data_size,
@@ -117,7 +113,6 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 	write_extent_buffer(leaf, data, data_ptr, data_len);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 
-	btrfs_free_path(path);
 	return ret;
 }
 

@@ -460,6 +460,8 @@ event	code	Key		Notes
 				For Lenovo ThinkPads with a new
 				BIOS, it has to be handled either
 				by the ACPI OSI, or by userspace.
+				The driver does the right thing,
+				never mess with this.
 0x1011	0x10	FN+END		Brightness down.  See brightness
 				up for details.
 
@@ -582,46 +584,15 @@ with hotkey_report_mode.
 
 Brightness hotkey notes:
 
-These are the current sane choices for brightness key mapping in
-thinkpad-acpi:
+Don't mess with the brightness hotkeys in a Thinkpad.  If you want
+notifications for OSD, use the sysfs backlight class event support.
 
-For IBM and Lenovo models *without* ACPI backlight control (the ones on
-which thinkpad-acpi will autoload its backlight interface by default,
-and on which ACPI video does not export a backlight interface):
-
-1. Don't enable or map the brightness hotkeys in thinkpad-acpi, as
-   these older firmware versions unfortunately won't respect the hotkey
-   mask for brightness keys anyway, and always reacts to them.  This
-   usually work fine, unless X.org drivers are doing something to block
-   the BIOS.  In that case, use (3) below.  This is the default mode of
-   operation.
-
-2. Enable the hotkeys, but map them to something else that is NOT
-   KEY_BRIGHTNESS_UP/DOWN or any other keycode that would cause
-   userspace to try to change the backlight level, and use that as an
-   on-screen-display hint.
-
-3. IF AND ONLY IF X.org drivers find a way to block the firmware from
-   automatically changing the brightness, enable the hotkeys and map
-   them to KEY_BRIGHTNESS_UP and KEY_BRIGHTNESS_DOWN, and feed that to
-   something that calls xbacklight.  thinkpad-acpi will not be able to
-   change brightness in that case either, so you should disable its
-   backlight interface.
-
-For Lenovo models *with* ACPI backlight control:
-
-1. Load up ACPI video and use that.  ACPI video will report ACPI
-   events for brightness change keys.  Do not mess with thinkpad-acpi
-   defaults in this case.  thinkpad-acpi should not have anything to do
-   with backlight events in a scenario where ACPI video is loaded:
-   brightness hotkeys must be disabled, and the backlight interface is
-   to be kept disabled as well.  This is the default mode of operation.
-
-2. Do *NOT* load up ACPI video, enable the hotkeys in thinkpad-acpi,
-   and map them to KEY_BRIGHTNESS_UP and KEY_BRIGHTNESS_DOWN.  Process
-   these keys on userspace somehow (e.g. by calling xbacklight).
-   The driver will do this automatically if it detects that ACPI video
-   has been disabled.
+The driver will issue KEY_BRIGHTNESS_UP and KEY_BRIGHTNESS_DOWN events
+automatically for the cases were userspace has to do something to
+implement brightness changes.  When you override these events, you will
+either fail to handle properly the ThinkPads that require explicit
+action to change backlight brightness, or the ThinkPads that require
+that no action be taken to work properly.
 
 
 Bluetooth
@@ -678,6 +649,10 @@ LCD, CRT or DVI (if available). The following commands are available:
 	echo auto_disable > /proc/acpi/ibm/video
 	echo expand_toggle > /proc/acpi/ibm/video
 	echo video_switch > /proc/acpi/ibm/video
+
+NOTE: Access to this feature is restricted to processes owning the
+CAP_SYS_ADMIN capability for safety reasons, as it can interact badly
+enough with some versions of X.org to crash it.
 
 Each video output device can be enabled or disabled individually.
 Reading /proc/acpi/ibm/video shows the status of each device.
@@ -1465,3 +1440,5 @@ Sysfs interface changelog:
 		and it is always able to disable hot keys.  Very old
 		thinkpads are properly supported.  hotkey_bios_mask
 		is deprecated and marked for removal.
+
+0x020600:	Marker for backlight change event support.

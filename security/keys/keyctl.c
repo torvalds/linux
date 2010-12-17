@@ -1259,6 +1259,7 @@ long keyctl_session_to_parent(void)
 	keyring_r = NULL;
 
 	me = current;
+	rcu_read_lock();
 	write_lock_irq(&tasklist_lock);
 
 	parent = me->real_parent;
@@ -1291,7 +1292,8 @@ long keyctl_session_to_parent(void)
 		goto not_permitted;
 
 	/* the keyrings must have the same UID */
-	if (pcred ->tgcred->session_keyring->uid != mycred->euid ||
+	if ((pcred->tgcred->session_keyring &&
+	     pcred->tgcred->session_keyring->uid != mycred->euid) ||
 	    mycred->tgcred->session_keyring->uid != mycred->euid)
 		goto not_permitted;
 
@@ -1313,6 +1315,7 @@ long keyctl_session_to_parent(void)
 	set_ti_thread_flag(task_thread_info(parent), TIF_NOTIFY_RESUME);
 
 	write_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	if (oldcred)
 		put_cred(oldcred);
 	return 0;
@@ -1321,6 +1324,7 @@ already_same:
 	ret = 0;
 not_permitted:
 	write_unlock_irq(&tasklist_lock);
+	rcu_read_unlock();
 	put_cred(cred);
 	return ret;
 

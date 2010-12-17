@@ -31,6 +31,13 @@
 #include <mach/rk29_iomap.h>
 #include <mach/cru.h>
 
+
+#define PWM_VCORE_120	40
+#define PWM_VCORE_125	32
+#define	PWM_VCORE_130	21
+#define	PWM_VCORE_135	10
+#define	PWM_VCORE_140	0
+
 /* CRU PLL CON */
 #define PLL_HIGH_BAND	(0x01 << 16)
 #define PLL_LOW_BAND	(0x00 << 16)
@@ -355,11 +362,16 @@ struct arm_pll_set {
 static const struct arm_pll_set arm_pll[] = {
 	// rate = 24 * NF / (NR * NO)
 	//      rate NR  NF NO adiv hdiv pdiv
-	ARM_PLL(1008, 1, 42, 1, 31, 21, 81),
-	ARM_PLL( 960, 1, 40, 1, 31, 21, 81),
-	ARM_PLL( 912, 1, 38, 1, 31, 21, 41),
-	ARM_PLL( 888, 2, 74, 1, 31, 21, 41),
-	ARM_PLL( 624, 1, 52, 2, 21, 21, 41),
+	ARM_PLL(1200, 1, 50, 1, 41, 21, 81),
+	ARM_PLL(1176, 2, 98, 1, 41, 21, 81),
+	ARM_PLL(1152, 1, 48, 1, 41, 21, 81),
+	ARM_PLL(1104, 1, 46, 1, 41, 21, 81),
+	ARM_PLL(1056, 1, 44, 1, 41, 21, 81),
+	ARM_PLL(1008, 1, 42, 1, 41, 21, 81),
+	ARM_PLL( 960, 1, 40, 1, 41, 21, 81),
+	ARM_PLL( 912, 1, 38, 1, 41, 21, 81),
+	ARM_PLL( 888, 2, 74, 1, 31, 21, 81),
+	ARM_PLL( 624, 1, 52, 2, 31, 21, 81),
 	// last item, pll power down.
 	ARM_PLL(  24, 1, 64, 8, 21, 21, 41),
 };
@@ -367,6 +379,75 @@ static const struct arm_pll_set arm_pll[] = {
 #define CORE_PARENT_MASK	(3 << 23)
 #define CORE_PARENT_ARM_PLL	(0 << 23)
 #define CORE_PARENT_PERIPH_PLL	(1 << 23)
+
+#define PWM_DIV2            (0<<9)
+#define PWM_DIV4            (1<<9)
+#define PWM_DIV8            (2<<9)
+#define PWM_DIV16           (3<<9)
+#define PWM_DIV32           (4<<9)
+#define PWM_DIV64           (5<<9)
+#define PWM_DIV128          (6<<9)
+#define PWM_DIV256          (7<<9)
+#define PWM_DIV512          (8<<9)
+#define PWM_DIV1024         (9<<9)
+
+#define PWM_CAPTURE         (1<<8)
+#define PWM_RESET           (1<<7)
+#define PWM_INTCLR          (1<<6)
+#define PWM_INTEN           (1<<5)
+#define PWM_SINGLE          (1<<6)
+
+#define PWM_ENABLE          (1<<3)
+#define PWM_TimeEN          (1)
+
+#define PWM_DIV    PWM_DIV2
+
+static struct clk pclk_periph;
+void PWMInit(u32 nHz, u32 rate)
+{
+	u32 divh;
+
+	// iomux to pwm2
+#define     REG_FILE_BASE_ADDR         RK29_GRF_BASE
+	volatile unsigned int * pGRF_GPIO2L_IOMUX =  (volatile unsigned int *)(REG_FILE_BASE_ADDR + 0x58);
+	*pGRF_GPIO2L_IOMUX &= ~(0x3<<6);
+	*pGRF_GPIO2L_IOMUX |= (0x2<<6);
+	// pwm2 clk enable
+
+	// set pwm rate
+#define     PWM_BASE_ADDR              RK29_PWM_BASE
+	volatile unsigned int * pPWM2_CTRL = (volatile unsigned int *)(PWM_BASE_ADDR + 0x2C);
+	volatile unsigned int * pPWM2_LRC = (volatile unsigned int *)(PWM_BASE_ADDR + 0x28);
+	volatile unsigned int * pPWM2_HRC = (volatile unsigned int *)(PWM_BASE_ADDR + 0x24);
+	volatile unsigned int * pPWM2_CNTR = (volatile unsigned int *)(PWM_BASE_ADDR + 0x20);
+
+#define     GPIO2_BASE_ADDR            RK29_GPIO2_BASE
+	volatile unsigned int *pGPIO2_DIR = (volatile unsigned int *)(GPIO2_BASE_ADDR + 0x4);
+	volatile unsigned int *pGPIO2_LEVEL = (volatile unsigned int *)GPIO2_BASE_ADDR;
+
+	if (rate == 0) {
+		// iomux pwm2 to gpio2_a[3]
+		*pGRF_GPIO2L_IOMUX &= ~(0x3<<6);
+		// set gpio to low level
+		*pGPIO2_DIR |= 0x1<<3;
+		*pGPIO2_LEVEL &= ~(0x1<<3);
+	} else {
+		*pPWM2_CTRL= PWM_DIV|PWM_RESET;
+		divh = pclk_periph.rate / nHz;
+		divh = divh >> (1+(PWM_DIV>>9));
+		*pPWM2_LRC = (divh == 0)?1:divh;
+
+		divh = (*pPWM2_LRC)*rate/100;
+		*pPWM2_HRC = divh?divh:1;
+
+		*pPWM2_CNTR = 0x0;
+		*pPWM2_CTRL = PWM_DIV|PWM_ENABLE|PWM_TimeEN;
+		printk("pclk_periph %d LRC %08x HRC %08x\n", pclk_periph.rate, *pPWM2_LRC, *pPWM2_HRC);
+	}
+
+	int i; for (i = 0; i < 6000; i++)
+		delay_500ns();
+}
 
 static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 {
@@ -387,6 +468,8 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 			break;
 		pt++;
 	}
+
+	PWMInit(1 * MHZ, PWM_VCORE_135);	// 1.35V
 
 	/* make aclk safe & reparent to periph pll */
 	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK)) | CORE_PARENT_PERIPH_PLL | CORE_ACLK_21, CRU_CLKSEL0_CON);
@@ -410,11 +493,11 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 		delay_500ns();
 	pll_wait_lock(ARM_PLL_IDX, 2400000);
 
-	/* enter normal mode */
-	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_NORMAL, CRU_MODE_CON);
-
 	/* reparent to arm pll & set aclk/hclk/pclk */
 	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK | ACLK_HCLK_MASK | ACLK_PCLK_MASK)) | CORE_PARENT_ARM_PLL | ps->clksel0_con, CRU_CLKSEL0_CON);
+
+	/* enter normal mode */
+	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_NORMAL, CRU_MODE_CON);
 
 	return 0;
 }
@@ -2181,9 +2264,9 @@ static void rk29_clock_common_init(void)
 	/* periph pll */
 	clk_set_rate_nolock(&periph_pll_clk, 624 * MHZ);
 	clk_set_parent_nolock(&aclk_periph, &periph_pll_clk);
-	clk_set_rate_nolock(&aclk_periph, 312 * MHZ);
-	clk_set_rate_nolock(&hclk_periph, 156 * MHZ);
-	clk_set_rate_nolock(&pclk_periph, 78 * MHZ);
+	clk_set_rate_nolock(&aclk_periph, 208 * MHZ);
+	clk_set_rate_nolock(&hclk_periph, 104 * MHZ);
+	clk_set_rate_nolock(&pclk_periph, 52 * MHZ);
 	clk_set_parent_nolock(&clk_uhost, &periph_pll_clk);
 	clk_set_rate_nolock(&clk_uhost, 48 * MHZ);
 	clk_set_parent_nolock(&clk_i2s0_div, &periph_pll_clk);

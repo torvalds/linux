@@ -234,7 +234,7 @@ struct hc_driver {
 	/* xHCI specific functions */
 		/* Called by usb_alloc_dev to alloc HC device structures */
 	int	(*alloc_dev)(struct usb_hcd *, struct usb_device *);
-		/* Called by usb_release_dev to free HC device structures */
+		/* Called by usb_disconnect to free HC device structures */
 	void	(*free_dev)(struct usb_hcd *, struct usb_device *);
 
 	/* Bandwidth computation functions */

@@ -40,6 +40,12 @@
 
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
+#define PAGE_ALLOC_LIMIT        1   // ÏÞÖÆPageÉêÇëÊý
+
+#if PAGE_ALLOC_LIMIT
+int g_pages_alloced = 0;
+#endif
+
 #define MEMORY_LOCK(os) \
     gcmkVERIFY_OK(gckOS_AcquireMutex( \
                                 (os), \
@@ -2656,7 +2662,20 @@ gceSTATUS gckOS_AllocatePagedMemoryEx(
 
     if (Contiguous)
     {
+#if PAGE_ALLOC_LIMIT
+        if((g_pages_alloced + numPages) > 256*32) {
+            //printk("full %d! \n", g_pages_alloced);
+            addr = NULL;
+        } else {
+            addr = (char *)__get_free_pages(GFP_ATOMIC | GFP_DMA, GetOrder(numPages));
+            if(addr) {
+                g_pages_alloced += numPages;
+                //printk("alloc %d / %d \n", numPages, g_pages_alloced);
+            }
+        }
+#else
         addr = (char *)__get_free_pages(GFP_ATOMIC | GFP_DMA, GetOrder(numPages));
+#endif
     }
     else
     {
@@ -2809,6 +2828,11 @@ gceSTATUS gckOS_FreePagedMemory(
     if (mdl->contiguous)
     {
         free_pages((unsigned long)mdl->addr, GetOrder(mdl->numPages));
+#if PAGE_ALLOC_LIMIT
+        g_pages_alloced -= mdl->numPages;
+        //printk("free %d / %d \n", mdl->numPages, g_pages_alloced);
+        if(g_pages_alloced<0)    g_pages_alloced = 0;
+#endif
     }
     else
     {

@@ -254,6 +254,9 @@ struct bitmap {
 	wait_queue_head_t write_wait;
 	wait_queue_head_t overflow_wait;
 
+#ifndef __GENKSYMS__
+	wait_queue_head_t behind_wait;
+#endif
 };
 
 /* the bitmap API */

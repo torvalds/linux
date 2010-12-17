@@ -308,6 +308,9 @@ int scsi_nonblockable_ioctl(struct scsi_device *sdev, int cmd,
 		case SG_SCSI_RESET_DEVICE:
 			val = SCSI_TRY_RESET_DEVICE;
 			break;
+		case SG_SCSI_RESET_TARGET:
+			val = SCSI_TRY_RESET_TARGET;
+			break;
 		case SG_SCSI_RESET_BUS:
 			val = SCSI_TRY_RESET_BUS;
 			break;

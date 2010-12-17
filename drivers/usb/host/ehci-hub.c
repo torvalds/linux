@@ -292,6 +292,16 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	/* manually resume the ports we suspended during bus_suspend() */
 	i = HCS_N_PORTS (ehci->hcs_params);
 	while (i--) {
+		/* clear phy low power mode before resume */
+		if (ehci->has_hostpc) {
+			u32 __iomem	*hostpc_reg =
+				(u32 __iomem *)((u8 *)ehci->regs
+				+ HOSTPC0 + 4 * (i & 0xff));
+			temp = ehci_readl(ehci, hostpc_reg);
+			ehci_writel(ehci, temp & ~HOSTPC_PHCD,
+				hostpc_reg);
+			mdelay(5);
+		}
 		temp = ehci_readl(ehci, &ehci->regs->port_status [i]);
 		temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
 		if (test_bit(i, &ehci->bus_suspended) &&
@@ -676,6 +686,13 @@ static int ehci_hub_control (
 			if (temp & PORT_SUSPEND) {
 				if ((temp & PORT_PE) == 0)
 					goto error;
+				/* clear phy low power mode before resume */
+				if (hostpc_reg) {
+					temp1 = ehci_readl(ehci, hostpc_reg);
+					ehci_writel(ehci, temp1 & ~HOSTPC_PHCD,
+						hostpc_reg);
+					mdelay(5);
+				}
 				/* resume signaling for 20 msec */
 				temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
 				ehci_writel(ehci, temp | PORT_RESUME,

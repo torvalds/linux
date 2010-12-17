@@ -97,6 +97,33 @@ int xhci_halt(struct xhci_hcd *xhci)
 }
 
 /*
+ * Set the run bit and wait for the host to be running.
+ */
+int xhci_start(struct xhci_hcd *xhci)
+{
+	u32 temp;
+	int ret;
+
+	temp = xhci_readl(xhci, &xhci->op_regs->command);
+	temp |= (CMD_RUN);
+	xhci_dbg(xhci, "// Turn on HC, cmd = 0x%x.\n",
+			temp);
+	xhci_writel(xhci, temp, &xhci->op_regs->command);
+
+	/*
+	 * Wait for the HCHalted Status bit to be 0 to indicate the host is
+	 * running.
+	 */
+	ret = handshake(xhci, &xhci->op_regs->status,
+			STS_HALT, 0, XHCI_MAX_HALT_USEC);
+	if (ret == -ETIMEDOUT)
+		xhci_err(xhci, "Host took too long to start, "
+				"waited %u microseconds.\n",
+				XHCI_MAX_HALT_USEC);
+	return ret;
+}
+
+/*
  * Reset a halted HC, and set the internal HC state to HC_STATE_HALT.
  *
  * This resets pipelines, timers, counters, state machines, etc.
@@ -107,6 +134,7 @@ int xhci_reset(struct xhci_hcd *xhci)
 {
 	u32 command;
 	u32 state;
+	int ret;
 
 	state = xhci_readl(xhci, &xhci->op_regs->status);
 	if ((state & STS_HALT) == 0) {
@@ -121,7 +149,17 @@ int xhci_reset(struct xhci_hcd *xhci)
 	/* XXX: Why does EHCI set this here?  Shouldn't other code do this? */
 	xhci_to_hcd(xhci)->state = HC_STATE_HALT;
 
-	return handshake(xhci, &xhci->op_regs->command, CMD_RESET, 0, 250 * 1000);
+	ret = handshake(xhci, &xhci->op_regs->command,
+			CMD_RESET, 0, 250 * 1000);
+	if (ret)
+		return ret;
+
+	xhci_dbg(xhci, "Wait for controller to be ready for doorbell rings\n");
+	/*
+	 * xHCI cannot write to any doorbells or operational registers other
+	 * than status until the "Controller Not Ready" flag is cleared.
+	 */
+	return handshake(xhci, &xhci->op_regs->status, STS_CNR, 0, 250 * 1000);
 }
 
 /*
@@ -460,13 +498,11 @@ int xhci_run(struct usb_hcd *hcd)
 	if (NUM_TEST_NOOPS > 0)
 		doorbell = xhci_setup_one_noop(xhci);
 
-	temp = xhci_readl(xhci, &xhci->op_regs->command);
-	temp |= (CMD_RUN);
-	xhci_dbg(xhci, "// Turn on HC, cmd = 0x%x.\n",
-			temp);
-	xhci_writel(xhci, temp, &xhci->op_regs->command);
-	/* Flush PCI posted writes */
-	temp = xhci_readl(xhci, &xhci->op_regs->command);
+	if (xhci_start(xhci)) {
+		xhci_halt(xhci);
+		return -ENODEV;
+	}
+
 	xhci_dbg(xhci, "// @%p = 0x%x\n", &xhci->op_regs->command, temp);
 	if (doorbell)
 		(*doorbell)(xhci);
@@ -1157,6 +1193,7 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 		cmd_completion = &virt_dev->cmd_completion;
 		cmd_status = &virt_dev->cmd_status;
 	}
+	init_completion(cmd_completion);
 
 	if (!ctx_change)
 		ret = xhci_queue_configure_endpoint(xhci, in_ctx->dma,
@@ -1413,6 +1450,8 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 		kfree(virt_ep->stopped_td);
 		xhci_ring_cmd_db(xhci);
 	}
+	virt_ep->stopped_td = NULL;
+	virt_ep->stopped_trb = NULL;
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	if (ret)

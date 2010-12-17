@@ -11,7 +11,7 @@
 #define OUT_TYPE		SCREEN_RGB
 #define OUT_FACE		OUT_D888_P666
 #define OUT_CLK			 65000000
-#define LCDC_ACLK       150000000     //29 lcdc axi DMA ÆµÂÊ
+#define LCDC_ACLK        312000000           //29 lcdc axi DMA ÆµÂÊ
 
 /* Timing */
 #define H_PW			10

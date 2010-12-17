@@ -182,6 +182,10 @@ extern int  sysctl_x25_clear_request_timeout;
 extern int  sysctl_x25_ack_holdback_timeout;
 extern int  sysctl_x25_forward;
 
+extern int x25_parse_address_block(struct sk_buff *skb,
+		struct x25_address *called_addr,
+		struct x25_address *calling_addr);
+
 extern int  x25_addr_ntoa(unsigned char *, struct x25_address *,
 			  struct x25_address *);
 extern int  x25_addr_aton(unsigned char *, struct x25_address *,

@@ -22,7 +22,7 @@
  */
 
 #define TPACPI_VERSION "0.23"
-#define TPACPI_SYSFS_VERSION 0x020500
+#define TPACPI_SYSFS_VERSION 0x020600
 
 /*
  *  Changelog:
@@ -61,6 +61,7 @@
 
 #include <linux/nvram.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/sysfs.h>
 #include <linux/backlight.h>
 #include <linux/fb.h>
@@ -256,7 +257,7 @@ struct tp_acpi_drv_struct {
 struct ibm_struct {
 	char *name;
 
-	int (*read) (char *);
+	int (*read) (struct seq_file *);
 	int (*write) (char *);
 	void (*exit) (void);
 	void (*resume) (void);
@@ -280,6 +281,7 @@ struct ibm_init_struct {
 	char param[32];
 
 	int (*init) (struct ibm_init_struct *);
+	mode_t base_procfs_mode;
 	struct ibm_struct *data;
 };
 
@@ -776,36 +778,25 @@ static int __init register_tpacpi_subdriver(struct ibm_struct *ibm)
  ****************************************************************************
  ****************************************************************************/
 
-static int dispatch_procfs_read(char *page, char **start, off_t off,
-			int count, int *eof, void *data)
+static int dispatch_proc_show(struct seq_file *m, void *v)
 {
-	struct ibm_struct *ibm = data;
-	int len;
+	struct ibm_struct *ibm = m->private;
 
 	if (!ibm || !ibm->read)
 		return -EINVAL;
-
-	len = ibm->read(page);
-	if (len < 0)
-		return len;
-
-	if (len <= off + count)
-		*eof = 1;
-	*start = page + off;
-	len -= off;
-	if (len > count)
-		len = count;
-	if (len < 0)
-		len = 0;
-
-	return len;
+	return ibm->read(m);
 }
 
-static int dispatch_procfs_write(struct file *file,
-			const char __user *userbuf,
-			unsigned long count, void *data)
+static int dispatch_proc_open(struct inode *inode, struct file *file)
 {
-	struct ibm_struct *ibm = data;
+	return single_open(file, dispatch_proc_show, PDE(inode)->data);
+}
+
+static ssize_t dispatch_proc_write(struct file *file,
+			const char __user *userbuf,
+			size_t count, loff_t *pos)
+{
+	struct ibm_struct *ibm = PDE(file->f_path.dentry->d_inode)->data;
 	char *kernbuf;
 	int ret;
 
@@ -833,6 +824,15 @@ static int dispatch_procfs_write(struct file *file,
 
 	return ret;
 }
+
+static const struct file_operations dispatch_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= dispatch_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= dispatch_proc_write,
+};
 
 static char *next_cmd(char **cmds)
 {
@@ -1264,6 +1264,7 @@ static int __init tpacpi_new_rfkill(const enum tpacpi_rfk_id id,
 	struct tpacpi_rfk *atp_rfk;
 	int res;
 	bool sw_state = false;
+	bool hw_state;
 	int sw_status;
 
 	BUG_ON(id >= TPACPI_RFK_SW_MAX || tpacpi_rfkill_switches[id]);
@@ -1298,7 +1299,8 @@ static int __init tpacpi_new_rfkill(const enum tpacpi_rfk_id id,
 			rfkill_init_sw_state(atp_rfk->rfkill, sw_state);
 		}
 	}
-	rfkill_set_hw_state(atp_rfk->rfkill, tpacpi_rfk_check_hwblock_state());
+	hw_state = tpacpi_rfk_check_hwblock_state();
+	rfkill_set_hw_state(atp_rfk->rfkill, hw_state);
 
 	res = rfkill_register(atp_rfk->rfkill);
 	if (res < 0) {
@@ -1311,6 +1313,9 @@ static int __init tpacpi_new_rfkill(const enum tpacpi_rfk_id id,
 	}
 
 	tpacpi_rfkill_switches[id] = atp_rfk;
+
+	printk(TPACPI_INFO "rfkill switch %s: radio is %sblocked\n",
+		name, (sw_state || hw_state) ? "" : "un");
 	return 0;
 }
 
@@ -1383,12 +1388,11 @@ static ssize_t tpacpi_rfk_sysfs_enable_store(const enum tpacpi_rfk_id id,
 }
 
 /* procfs -------------------------------------------------------------- */
-static int tpacpi_rfk_procfs_read(const enum tpacpi_rfk_id id, char *p)
+static int tpacpi_rfk_procfs_read(const enum tpacpi_rfk_id id,
+				  struct seq_file *m)
 {
-	int len = 0;
-
 	if (id >= TPACPI_RFK_SW_MAX)
-		len += sprintf(p + len, "status:\t\tnot supported\n");
+		seq_printf(m, "status:\t\tnot supported\n");
 	else {
 		int status;
 
@@ -1402,13 +1406,13 @@ static int tpacpi_rfk_procfs_read(const enum tpacpi_rfk_id id, char *p)
 				return status;
 		}
 
-		len += sprintf(p + len, "status:\t\t%s\n",
+		seq_printf(m, "status:\t\t%s\n",
 				(status == TPACPI_RFK_RADIO_ON) ?
 					"enabled" : "disabled");
-		len += sprintf(p + len, "commands:\tenable, disable\n");
+		seq_printf(m, "commands:\tenable, disable\n");
 	}
 
-	return len;
+	return 0;
 }
 
 static int tpacpi_rfk_procfs_write(const enum tpacpi_rfk_id id, char *buf)
@@ -1779,7 +1783,7 @@ static const struct tpacpi_quirk tpacpi_bios_version_qtable[] __initconst = {
 
 	TPV_QL1('7', '9',  'E', '3',  '5', '0'), /* T60/p */
 	TPV_QL1('7', 'C',  'D', '2',  '2', '2'), /* R60, R60i */
-	TPV_QL0('7', 'E',  'D', '0'),		 /* R60e, R60i */
+	TPV_QL1('7', 'E',  'D', '0',  '1', '5'), /* R60e, R60i */
 
 	/*      BIOS FW    BIOS VERS  EC FW     EC VERS */
 	TPV_QI2('1', 'W',  '9', '0',  '1', 'V', '2', '8'), /* R50e (1) */
@@ -1795,8 +1799,8 @@ static const struct tpacpi_quirk tpacpi_bios_version_qtable[] __initconst = {
 	TPV_QI1('7', '4',  '6', '4',  '2', '7'), /* X41 (0) */
 	TPV_QI1('7', '5',  '6', '0',  '2', '0'), /* X41t (0) */
 
-	TPV_QL0('7', 'B',  'D', '7'),		 /* X60/s */
-	TPV_QL0('7', 'J',  '3', '0'),		 /* X60t */
+	TPV_QL1('7', 'B',  'D', '7',  '4', '0'), /* X60/s */
+	TPV_QL1('7', 'J',  '3', '0',  '1', '3'), /* X60t */
 
 	/* (0) - older versions lack DMI EC fw string and functionality */
 	/* (1) - older versions known to lack functionality */
@@ -1886,14 +1890,11 @@ static int __init thinkpad_acpi_driver_init(struct ibm_init_struct *iibm)
 	return 0;
 }
 
-static int thinkpad_acpi_driver_read(char *p)
+static int thinkpad_acpi_driver_read(struct seq_file *m)
 {
-	int len = 0;
-
-	len += sprintf(p + len, "driver:\t\t%s\n", TPACPI_DESC);
-	len += sprintf(p + len, "version:\t%s\n", TPACPI_VERSION);
-
-	return len;
+	seq_printf(m, "driver:\t\t%s\n", TPACPI_DESC);
+	seq_printf(m, "version:\t%s\n", TPACPI_VERSION);
+	return 0;
 }
 
 static struct ibm_struct thinkpad_acpi_driver_data = {
@@ -2073,6 +2074,7 @@ static struct attribute_set *hotkey_dev_attributes;
 
 static void tpacpi_driver_event(const unsigned int hkey_event);
 static void hotkey_driver_event(const unsigned int scancode);
+static void hotkey_poll_setup(const bool may_warn);
 
 /* HKEY.MHKG() return bits */
 #define TP_HOTKEY_TABLET_MASK (1 << 3)
@@ -2189,7 +2191,8 @@ static int hotkey_mask_set(u32 mask)
 		       fwmask, hotkey_acpi_mask);
 	}
 
-	hotkey_mask_warn_incomplete_mask();
+	if (tpacpi_lifecycle != TPACPI_LIFE_EXITING)
+		hotkey_mask_warn_incomplete_mask();
 
 	return rc;
 }
@@ -2254,6 +2257,8 @@ static int tpacpi_hotkey_driver_mask_set(const u32 mask)
 
 	rc = hotkey_mask_set((hotkey_acpi_mask | hotkey_driver_mask) &
 							~hotkey_source_mask);
+	hotkey_poll_setup(true);
+
 	mutex_unlock(&hotkey_mutex);
 
 	return rc;
@@ -2538,7 +2543,7 @@ static void hotkey_poll_stop_sync(void)
 }
 
 /* call with hotkey_mutex held */
-static void hotkey_poll_setup(bool may_warn)
+static void hotkey_poll_setup(const bool may_warn)
 {
 	const u32 poll_driver_mask = hotkey_driver_mask & hotkey_source_mask;
 	const u32 poll_user_mask = hotkey_user_mask & hotkey_source_mask;
@@ -2569,7 +2574,7 @@ static void hotkey_poll_setup(bool may_warn)
 	}
 }
 
-static void hotkey_poll_setup_safe(bool may_warn)
+static void hotkey_poll_setup_safe(const bool may_warn)
 {
 	mutex_lock(&hotkey_mutex);
 	hotkey_poll_setup(may_warn);
@@ -2587,7 +2592,11 @@ static void hotkey_poll_set_freq(unsigned int freq)
 
 #else /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 
-static void hotkey_poll_setup_safe(bool __unused)
+static void hotkey_poll_setup(const bool __unused)
+{
+}
+
+static void hotkey_poll_setup_safe(const bool __unused)
 {
 }
 
@@ -2597,16 +2606,11 @@ static int hotkey_inputdev_open(struct input_dev *dev)
 {
 	switch (tpacpi_lifecycle) {
 	case TPACPI_LIFE_INIT:
-		/*
-		 * hotkey_init will call hotkey_poll_setup_safe
-		 * at the appropriate moment
-		 */
-		return 0;
-	case TPACPI_LIFE_EXITING:
-		return -EBUSY;
 	case TPACPI_LIFE_RUNNING:
 		hotkey_poll_setup_safe(false);
 		return 0;
+	case TPACPI_LIFE_EXITING:
+		return -EBUSY;
 	}
 
 	/* Should only happen if tpacpi_lifecycle is corrupt */
@@ -2617,7 +2621,7 @@ static int hotkey_inputdev_open(struct input_dev *dev)
 static void hotkey_inputdev_close(struct input_dev *dev)
 {
 	/* disable hotkey polling when possible */
-	if (tpacpi_lifecycle == TPACPI_LIFE_RUNNING &&
+	if (tpacpi_lifecycle != TPACPI_LIFE_EXITING &&
 	    !(hotkey_source_mask & hotkey_driver_mask))
 		hotkey_poll_setup_safe(false);
 }
@@ -3185,6 +3189,8 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	int res, i;
 	int status;
 	int hkeyv;
+	bool radiosw_state  = false;
+	bool tabletsw_state = false;
 
 	unsigned long quirks;
 
@@ -3290,6 +3296,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
 	if (dbg_wlswemul) {
 		tp_features.hotkey_wlsw = 1;
+		radiosw_state = !!tpacpi_wlsw_emulstate;
 		printk(TPACPI_INFO
 			"radio switch emulation enabled\n");
 	} else
@@ -3297,6 +3304,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	/* Not all thinkpads have a hardware radio switch */
 	if (acpi_evalf(hkey_handle, &status, "WLSW", "qd")) {
 		tp_features.hotkey_wlsw = 1;
+		radiosw_state = !!status;
 		printk(TPACPI_INFO
 			"radio switch found; radios are %s\n",
 			enabled(status, 0));
@@ -3308,11 +3316,11 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	/* For X41t, X60t, X61t Tablets... */
 	if (!res && acpi_evalf(hkey_handle, &status, "MHKG", "qd")) {
 		tp_features.hotkey_tablet = 1;
+		tabletsw_state = !!(status & TP_HOTKEY_TABLET_MASK);
 		printk(TPACPI_INFO
 			"possible tablet mode switch found; "
 			"ThinkPad in %s mode\n",
-			(status & TP_HOTKEY_TABLET_MASK)?
-				"tablet" : "laptop");
+			(tabletsw_state) ? "tablet" : "laptop");
 		res = add_to_attr_set(hotkey_dev_attributes,
 				&dev_attr_hotkey_tablet_mode.attr);
 	}
@@ -3347,16 +3355,14 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			TPACPI_HOTKEY_MAP_SIZE);
 	}
 
-	set_bit(EV_KEY, tpacpi_inputdev->evbit);
-	set_bit(EV_MSC, tpacpi_inputdev->evbit);
-	set_bit(MSC_SCAN, tpacpi_inputdev->mscbit);
+	input_set_capability(tpacpi_inputdev, EV_MSC, MSC_SCAN);
 	tpacpi_inputdev->keycodesize = TPACPI_HOTKEY_MAP_TYPESIZE;
 	tpacpi_inputdev->keycodemax = TPACPI_HOTKEY_MAP_LEN;
 	tpacpi_inputdev->keycode = hotkey_keycode_map;
 	for (i = 0; i < TPACPI_HOTKEY_MAP_LEN; i++) {
 		if (hotkey_keycode_map[i] != KEY_RESERVED) {
-			set_bit(hotkey_keycode_map[i],
-				tpacpi_inputdev->keybit);
+			input_set_capability(tpacpi_inputdev, EV_KEY,
+						hotkey_keycode_map[i]);
 		} else {
 			if (i < sizeof(hotkey_reserved_mask)*8)
 				hotkey_reserved_mask |= 1 << i;
@@ -3364,12 +3370,14 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	}
 
 	if (tp_features.hotkey_wlsw) {
-		set_bit(EV_SW, tpacpi_inputdev->evbit);
-		set_bit(SW_RFKILL_ALL, tpacpi_inputdev->swbit);
+		input_set_capability(tpacpi_inputdev, EV_SW, SW_RFKILL_ALL);
+		input_report_switch(tpacpi_inputdev,
+				    SW_RFKILL_ALL, radiosw_state);
 	}
 	if (tp_features.hotkey_tablet) {
-		set_bit(EV_SW, tpacpi_inputdev->evbit);
-		set_bit(SW_TABLET_MODE, tpacpi_inputdev->swbit);
+		input_set_capability(tpacpi_inputdev, EV_SW, SW_TABLET_MODE);
+		input_report_switch(tpacpi_inputdev,
+				    SW_TABLET_MODE, tabletsw_state);
 	}
 
 	/* Do not issue duplicate brightness change events to
@@ -3436,8 +3444,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	tpacpi_inputdev->close = &hotkey_inputdev_close;
 
 	hotkey_poll_setup_safe(true);
-	tpacpi_send_radiosw_update();
-	tpacpi_input_send_tabletsw();
 
 	return 0;
 
@@ -3545,49 +3551,57 @@ static bool hotkey_notify_usrevent(const u32 hkey,
 	}
 }
 
+static void thermal_dump_all_sensors(void);
+
 static bool hotkey_notify_thermal(const u32 hkey,
 				 bool *send_acpi_ev,
 				 bool *ignore_acpi_ev)
 {
+	bool known = true;
+
 	/* 0x6000-0x6FFF: thermal alarms */
 	*send_acpi_ev = true;
 	*ignore_acpi_ev = false;
 
 	switch (hkey) {
-	case TP_HKEY_EV_ALARM_BAT_HOT:
-		printk(TPACPI_CRIT
-			"THERMAL ALARM: battery is too hot!\n");
-		/* recommended action: warn user through gui */
-		return true;
-	case TP_HKEY_EV_ALARM_BAT_XHOT:
-		printk(TPACPI_ALERT
-			"THERMAL EMERGENCY: battery is extremely hot!\n");
-		/* recommended action: immediate sleep/hibernate */
-		return true;
-	case TP_HKEY_EV_ALARM_SENSOR_HOT:
-		printk(TPACPI_CRIT
-			"THERMAL ALARM: "
-			"a sensor reports something is too hot!\n");
-		/* recommended action: warn user through gui, that */
-		/* some internal component is too hot */
-		return true;
-	case TP_HKEY_EV_ALARM_SENSOR_XHOT:
-		printk(TPACPI_ALERT
-			"THERMAL EMERGENCY: "
-			"a sensor reports something is extremely hot!\n");
-		/* recommended action: immediate sleep/hibernate */
-		return true;
 	case TP_HKEY_EV_THM_TABLE_CHANGED:
 		printk(TPACPI_INFO
 			"EC reports that Thermal Table has changed\n");
 		/* recommended action: do nothing, we don't have
 		 * Lenovo ATM information */
 		return true;
+	case TP_HKEY_EV_ALARM_BAT_HOT:
+		printk(TPACPI_CRIT
+			"THERMAL ALARM: battery is too hot!\n");
+		/* recommended action: warn user through gui */
+		break;
+	case TP_HKEY_EV_ALARM_BAT_XHOT:
+		printk(TPACPI_ALERT
+			"THERMAL EMERGENCY: battery is extremely hot!\n");
+		/* recommended action: immediate sleep/hibernate */
+		break;
+	case TP_HKEY_EV_ALARM_SENSOR_HOT:
+		printk(TPACPI_CRIT
+			"THERMAL ALARM: "
+			"a sensor reports something is too hot!\n");
+		/* recommended action: warn user through gui, that */
+		/* some internal component is too hot */
+		break;
+	case TP_HKEY_EV_ALARM_SENSOR_XHOT:
+		printk(TPACPI_ALERT
+			"THERMAL EMERGENCY: "
+			"a sensor reports something is extremely hot!\n");
+		/* recommended action: immediate sleep/hibernate */
+		break;
 	default:
 		printk(TPACPI_ALERT
 			 "THERMAL ALERT: unknown thermal alarm received\n");
-		return false;
+		known = false;
 	}
+
+	thermal_dump_all_sensors();
+
+	return known;
 }
 
 static void hotkey_notify(struct ibm_struct *ibm, u32 event)
@@ -3635,13 +3649,19 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			break;
 		case 3:
 			/* 0x3000-0x3FFF: bay-related wakeups */
-			if (hkey == TP_HKEY_EV_BAYEJ_ACK) {
+			switch (hkey) {
+			case TP_HKEY_EV_BAYEJ_ACK:
 				hotkey_autosleep_ack = 1;
 				printk(TPACPI_INFO
 				       "bay ejected\n");
 				hotkey_wakeup_hotunplug_complete_notify_change();
 				known_ev = true;
-			} else {
+				break;
+			case TP_HKEY_EV_OPTDRV_EJ:
+				/* FIXME: kick libata if SATA link offline */
+				known_ev = true;
+				break;
+			default:
 				known_ev = false;
 			}
 			break;
@@ -3730,14 +3750,13 @@ static void hotkey_resume(void)
 }
 
 /* procfs -------------------------------------------------------------- */
-static int hotkey_read(char *p)
+static int hotkey_read(struct seq_file *m)
 {
 	int res, status;
-	int len = 0;
 
 	if (!tp_features.hotkey) {
-		len += sprintf(p + len, "status:\t\tnot supported\n");
-		return len;
+		seq_printf(m, "status:\t\tnot supported\n");
+		return 0;
 	}
 
 	if (mutex_lock_killable(&hotkey_mutex))
@@ -3749,17 +3768,16 @@ static int hotkey_read(char *p)
 	if (res)
 		return res;
 
-	len += sprintf(p + len, "status:\t\t%s\n", enabled(status, 0));
+	seq_printf(m, "status:\t\t%s\n", enabled(status, 0));
 	if (hotkey_all_mask) {
-		len += sprintf(p + len, "mask:\t\t0x%08x\n", hotkey_user_mask);
-		len += sprintf(p + len,
-			       "commands:\tenable, disable, reset, <mask>\n");
+		seq_printf(m, "mask:\t\t0x%08x\n", hotkey_user_mask);
+		seq_printf(m, "commands:\tenable, disable, reset, <mask>\n");
 	} else {
-		len += sprintf(p + len, "mask:\t\tnot supported\n");
-		len += sprintf(p + len, "commands:\tenable, disable, reset\n");
+		seq_printf(m, "mask:\t\tnot supported\n");
+		seq_printf(m, "commands:\tenable, disable, reset\n");
 	}
 
-	return len;
+	return 0;
 }
 
 static void hotkey_enabledisable_warn(bool enable)
@@ -3852,7 +3870,7 @@ enum {
 	TP_ACPI_BLUETOOTH_HWPRESENT	= 0x01,	/* Bluetooth hw available */
 	TP_ACPI_BLUETOOTH_RADIOSSW	= 0x02,	/* Bluetooth radio enabled */
 	TP_ACPI_BLUETOOTH_RESUMECTRL	= 0x04,	/* Bluetooth state at resume:
-						   off / last state */
+						   0 = disable, 1 = enable */
 };
 
 enum {
@@ -3898,10 +3916,11 @@ static int bluetooth_set_status(enum tpacpi_rfkill_state state)
 	}
 #endif
 
-	/* We make sure to keep TP_ACPI_BLUETOOTH_RESUMECTRL off */
-	status = TP_ACPI_BLUETOOTH_RESUMECTRL;
 	if (state == TPACPI_RFK_RADIO_ON)
-		status |= TP_ACPI_BLUETOOTH_RADIOSSW;
+		status = TP_ACPI_BLUETOOTH_RADIOSSW
+			  | TP_ACPI_BLUETOOTH_RESUMECTRL;
+	else
+		status = 0;
 
 	if (!acpi_evalf(hkey_handle, NULL, "SBDC", "vd", status))
 		return -EIO;
@@ -4025,9 +4044,9 @@ static int __init bluetooth_init(struct ibm_init_struct *iibm)
 }
 
 /* procfs -------------------------------------------------------------- */
-static int bluetooth_read(char *p)
+static int bluetooth_read(struct seq_file *m)
 {
-	return tpacpi_rfk_procfs_read(TPACPI_RFK_BLUETOOTH_SW_ID, p);
+	return tpacpi_rfk_procfs_read(TPACPI_RFK_BLUETOOTH_SW_ID, m);
 }
 
 static int bluetooth_write(char *buf)
@@ -4052,7 +4071,7 @@ enum {
 	TP_ACPI_WANCARD_HWPRESENT	= 0x01,	/* Wan hw available */
 	TP_ACPI_WANCARD_RADIOSSW	= 0x02,	/* Wan radio enabled */
 	TP_ACPI_WANCARD_RESUMECTRL	= 0x04,	/* Wan state at resume:
-						   off / last state */
+						   0 = disable, 1 = enable */
 };
 
 #define TPACPI_RFK_WWAN_SW_NAME		"tpacpi_wwan_sw"
@@ -4089,10 +4108,11 @@ static int wan_set_status(enum tpacpi_rfkill_state state)
 	}
 #endif
 
-	/* We make sure to set TP_ACPI_WANCARD_RESUMECTRL */
-	status = TP_ACPI_WANCARD_RESUMECTRL;
 	if (state == TPACPI_RFK_RADIO_ON)
-		status |= TP_ACPI_WANCARD_RADIOSSW;
+		status = TP_ACPI_WANCARD_RADIOSSW
+			 | TP_ACPI_WANCARD_RESUMECTRL;
+	else
+		status = 0;
 
 	if (!acpi_evalf(hkey_handle, NULL, "SWAN", "vd", status))
 		return -EIO;
@@ -4215,9 +4235,9 @@ static int __init wan_init(struct ibm_init_struct *iibm)
 }
 
 /* procfs -------------------------------------------------------------- */
-static int wan_read(char *p)
+static int wan_read(struct seq_file *m)
 {
-	return tpacpi_rfk_procfs_read(TPACPI_RFK_WWAN_SW_ID, p);
+	return tpacpi_rfk_procfs_read(TPACPI_RFK_WWAN_SW_ID, m);
 }
 
 static int wan_write(char *buf)
@@ -4592,15 +4612,18 @@ static int video_expand_toggle(void)
 	/* not reached */
 }
 
-static int video_read(char *p)
+static int video_read(struct seq_file *m)
 {
 	int status, autosw;
-	int len = 0;
 
 	if (video_supported == TPACPI_VIDEO_NONE) {
-		len += sprintf(p + len, "status:\t\tnot supported\n");
-		return len;
+		seq_printf(m, "status:\t\tnot supported\n");
+		return 0;
 	}
+
+	/* Even reads can crash X.org, so... */
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	status = video_outputsw_get();
 	if (status < 0)
@@ -4610,20 +4633,20 @@ static int video_read(char *p)
 	if (autosw < 0)
 		return autosw;
 
-	len += sprintf(p + len, "status:\t\tsupported\n");
-	len += sprintf(p + len, "lcd:\t\t%s\n", enabled(status, 0));
-	len += sprintf(p + len, "crt:\t\t%s\n", enabled(status, 1));
+	seq_printf(m, "status:\t\tsupported\n");
+	seq_printf(m, "lcd:\t\t%s\n", enabled(status, 0));
+	seq_printf(m, "crt:\t\t%s\n", enabled(status, 1));
 	if (video_supported == TPACPI_VIDEO_NEW)
-		len += sprintf(p + len, "dvi:\t\t%s\n", enabled(status, 3));
-	len += sprintf(p + len, "auto:\t\t%s\n", enabled(autosw, 0));
-	len += sprintf(p + len, "commands:\tlcd_enable, lcd_disable\n");
-	len += sprintf(p + len, "commands:\tcrt_enable, crt_disable\n");
+		seq_printf(m, "dvi:\t\t%s\n", enabled(status, 3));
+	seq_printf(m, "auto:\t\t%s\n", enabled(autosw, 0));
+	seq_printf(m, "commands:\tlcd_enable, lcd_disable\n");
+	seq_printf(m, "commands:\tcrt_enable, crt_disable\n");
 	if (video_supported == TPACPI_VIDEO_NEW)
-		len += sprintf(p + len, "commands:\tdvi_enable, dvi_disable\n");
-	len += sprintf(p + len, "commands:\tauto_enable, auto_disable\n");
-	len += sprintf(p + len, "commands:\tvideo_switch, expand_toggle\n");
+		seq_printf(m, "commands:\tdvi_enable, dvi_disable\n");
+	seq_printf(m, "commands:\tauto_enable, auto_disable\n");
+	seq_printf(m, "commands:\tvideo_switch, expand_toggle\n");
 
-	return len;
+	return 0;
 }
 
 static int video_write(char *buf)
@@ -4634,6 +4657,10 @@ static int video_write(char *buf)
 
 	if (video_supported == TPACPI_VIDEO_NONE)
 		return -ENODEV;
+
+	/* Even reads can crash X.org, let alone writes... */
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	enable = 0;
 	disable = 0;
@@ -4815,25 +4842,24 @@ static void light_exit(void)
 		flush_workqueue(tpacpi_wq);
 }
 
-static int light_read(char *p)
+static int light_read(struct seq_file *m)
 {
-	int len = 0;
 	int status;
 
 	if (!tp_features.light) {
-		len += sprintf(p + len, "status:\t\tnot supported\n");
+		seq_printf(m, "status:\t\tnot supported\n");
 	} else if (!tp_features.light_status) {
-		len += sprintf(p + len, "status:\t\tunknown\n");
-		len += sprintf(p + len, "commands:\ton, off\n");
+		seq_printf(m, "status:\t\tunknown\n");
+		seq_printf(m, "commands:\ton, off\n");
 	} else {
 		status = light_get_status();
 		if (status < 0)
 			return status;
-		len += sprintf(p + len, "status:\t\t%s\n", onoff(status, 0));
-		len += sprintf(p + len, "commands:\ton, off\n");
+		seq_printf(m, "status:\t\t%s\n", onoff(status, 0));
+		seq_printf(m, "commands:\ton, off\n");
 	}
 
-	return len;
+	return 0;
 }
 
 static int light_write(char *buf)
@@ -4911,20 +4937,18 @@ static void cmos_exit(void)
 	device_remove_file(&tpacpi_pdev->dev, &dev_attr_cmos_command);
 }
 
-static int cmos_read(char *p)
+static int cmos_read(struct seq_file *m)
 {
-	int len = 0;
-
 	/* cmos not supported on 570, 600e/x, 770e, 770x, A21e, A2xm/p,
 	   R30, R31, T20-22, X20-21 */
 	if (!cmos_handle)
-		len += sprintf(p + len, "status:\t\tnot supported\n");
+		seq_printf(m, "status:\t\tnot supported\n");
 	else {
-		len += sprintf(p + len, "status:\t\tsupported\n");
-		len += sprintf(p + len, "commands:\t<cmd> (<cmd> is 0-21)\n");
+		seq_printf(m, "status:\t\tsupported\n");
+		seq_printf(m, "commands:\t<cmd> (<cmd> is 0-21)\n");
 	}
 
-	return len;
+	return 0;
 }
 
 static int cmos_write(char *buf)
@@ -5299,15 +5323,13 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	((s) == TPACPI_LED_OFF ? "off" : \
 		((s) == TPACPI_LED_ON ? "on" : "blinking"))
 
-static int led_read(char *p)
+static int led_read(struct seq_file *m)
 {
-	int len = 0;
-
 	if (!led_supported) {
-		len += sprintf(p + len, "status:\t\tnot supported\n");
-		return len;
+		seq_printf(m, "status:\t\tnot supported\n");
+		return 0;
 	}
-	len += sprintf(p + len, "status:\t\tsupported\n");
+	seq_printf(m, "status:\t\tsupported\n");
 
 	if (led_supported == TPACPI_LED_570) {
 		/* 570 */
@@ -5316,15 +5338,15 @@ static int led_read(char *p)
 			status = led_get_status(i);
 			if (status < 0)
 				return -EIO;
-			len += sprintf(p + len, "%d:\t\t%s\n",
+			seq_printf(m, "%d:\t\t%s\n",
 				       i, str_led_status(status));
 		}
 	}
 
-	len += sprintf(p + len, "commands:\t"
+	seq_printf(m, "commands:\t"
 		       "<led> on, <led> off, <led> blink (<led> is 0-15)\n");
 
-	return len;
+	return 0;
 }
 
 static int led_write(char *buf)
@@ -5397,18 +5419,16 @@ static int __init beep_init(struct ibm_init_struct *iibm)
 	return (beep_handle)? 0 : 1;
 }
 
-static int beep_read(char *p)
+static int beep_read(struct seq_file *m)
 {
-	int len = 0;
-
 	if (!beep_handle)
-		len += sprintf(p + len, "status:\t\tnot supported\n");
+		seq_printf(m, "status:\t\tnot supported\n");
 	else {
-		len += sprintf(p + len, "status:\t\tsupported\n");
-		len += sprintf(p + len, "commands:\t<cmd> (<cmd> is 0-17)\n");
+		seq_printf(m, "status:\t\tsupported\n");
+		seq_printf(m, "commands:\t<cmd> (<cmd> is 0-17)\n");
 	}
 
-	return len;
+	return 0;
 }
 
 static int beep_write(char *buf)
@@ -5461,7 +5481,10 @@ enum { /* TPACPI_THERMAL_TPEC_* */
 	TP_EC_THERMAL_TMP0 = 0x78,	/* ACPI EC regs TMP 0..7 */
 	TP_EC_THERMAL_TMP8 = 0xC0,	/* ACPI EC regs TMP 8..15 */
 	TP_EC_THERMAL_TMP_NA = -128,	/* ACPI EC sensor not available */
+
+	TPACPI_THERMAL_SENSOR_NA = -128000, /* Sensor not available */
 };
+
 
 #define TPACPI_MAX_THERMAL_SENSORS 16	/* Max thermal sensors supported */
 struct ibm_thermal_sensors_struct {
@@ -5552,6 +5575,28 @@ static int thermal_get_sensors(struct ibm_thermal_sensors_struct *s)
 	return n;
 }
 
+static void thermal_dump_all_sensors(void)
+{
+	int n, i;
+	struct ibm_thermal_sensors_struct t;
+
+	n = thermal_get_sensors(&t);
+	if (n <= 0)
+		return;
+
+	printk(TPACPI_NOTICE
+		"temperatures (Celsius):");
+
+	for (i = 0; i < n; i++) {
+		if (t.temp[i] != TPACPI_THERMAL_SENSOR_NA)
+			printk(KERN_CONT " %d", (int)(t.temp[i] / 1000));
+		else
+			printk(KERN_CONT " N/A");
+	}
+
+	printk(KERN_CONT "\n");
+}
+
 /* sysfs temp##_input -------------------------------------------------- */
 
 static ssize_t thermal_temp_input_show(struct device *dev,
@@ -5567,7 +5612,7 @@ static ssize_t thermal_temp_input_show(struct device *dev,
 	res = thermal_get_sensor(idx, &value);
 	if (res)
 		return res;
-	if (value == TP_EC_THERMAL_TMP_NA * 1000)
+	if (value == TPACPI_THERMAL_SENSOR_NA)
 		return -ENXIO;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", value);
@@ -5736,7 +5781,7 @@ static void thermal_exit(void)
 	case TPACPI_THERMAL_ACPI_TMP07:
 	case TPACPI_THERMAL_ACPI_UPDT:
 		sysfs_remove_group(&tpacpi_sensors_pdev->dev.kobj,
-				   &thermal_temp_input16_group);
+				   &thermal_temp_input8_group);
 		break;
 	case TPACPI_THERMAL_NONE:
 	default:
@@ -5744,9 +5789,8 @@ static void thermal_exit(void)
 	}
 }
 
-static int thermal_read(char *p)
+static int thermal_read(struct seq_file *m)
 {
-	int len = 0;
 	int n, i;
 	struct ibm_thermal_sensors_struct t;
 
@@ -5754,16 +5798,16 @@ static int thermal_read(char *p)
 	if (unlikely(n < 0))
 		return n;
 
-	len += sprintf(p + len, "temperatures:\t");
+	seq_printf(m, "temperatures:\t");
 
 	if (n > 0) {
 		for (i = 0; i < (n - 1); i++)
-			len += sprintf(p + len, "%d ", t.temp[i] / 1000);
-		len += sprintf(p + len, "%d\n", t.temp[i] / 1000);
+			seq_printf(m, "%d ", t.temp[i] / 1000);
+		seq_printf(m, "%d\n", t.temp[i] / 1000);
 	} else
-		len += sprintf(p + len, "not supported\n");
+		seq_printf(m, "not supported\n");
 
-	return len;
+	return 0;
 }
 
 static struct ibm_struct thermal_driver_data = {
@@ -5778,39 +5822,38 @@ static struct ibm_struct thermal_driver_data = {
 
 static u8 ecdump_regs[256];
 
-static int ecdump_read(char *p)
+static int ecdump_read(struct seq_file *m)
 {
-	int len = 0;
 	int i, j;
 	u8 v;
 
-	len += sprintf(p + len, "EC      "
+	seq_printf(m, "EC      "
 		       " +00 +01 +02 +03 +04 +05 +06 +07"
 		       " +08 +09 +0a +0b +0c +0d +0e +0f\n");
 	for (i = 0; i < 256; i += 16) {
-		len += sprintf(p + len, "EC 0x%02x:", i);
+		seq_printf(m, "EC 0x%02x:", i);
 		for (j = 0; j < 16; j++) {
 			if (!acpi_ec_read(i + j, &v))
 				break;
 			if (v != ecdump_regs[i + j])
-				len += sprintf(p + len, " *%02x", v);
+				seq_printf(m, " *%02x", v);
 			else
-				len += sprintf(p + len, "  %02x", v);
+				seq_printf(m, "  %02x", v);
 			ecdump_regs[i + j] = v;
 		}
-		len += sprintf(p + len, "\n");
+		seq_putc(m, '\n');
 		if (j != 16)
 			break;
 	}
 
 	/* These are way too dangerous to advertise openly... */
 #if 0
-	len += sprintf(p + len, "commands:\t0x<offset> 0x<value>"
+	seq_printf(m, "commands:\t0x<offset> 0x<value>"
 		       " (<offset> is 00-ff, <value> is 00-ff)\n");
-	len += sprintf(p + len, "commands:\t0x<offset> <value>  "
+	seq_printf(m, "commands:\t0x<offset> <value>  "
 		       " (<offset> is 00-ff, <value> is 0-255)\n");
 #endif
-	return len;
+	return 0;
 }
 
 static int ecdump_write(char *buf)
@@ -6073,6 +6116,12 @@ static int brightness_get(struct backlight_device *bd)
 	return status & TP_EC_BACKLIGHT_LVLMSK;
 }
 
+static void tpacpi_brightness_notify_change(void)
+{
+	backlight_force_update(ibm_backlight_device,
+			       BACKLIGHT_UPDATE_HOTKEY);
+}
+
 static struct backlight_ops ibm_backlight_data = {
 	.get_brightness = brightness_get,
 	.update_status  = brightness_update_status,
@@ -6094,13 +6143,13 @@ static const struct tpacpi_quirk brightness_quirk_table[] __initconst = {
 	TPACPI_Q_IBM('1', 'Y', TPACPI_BRGHT_Q_EC),	/* T43/p ATI */
 
 	/* Models with ATI GPUs that can use ECNVRAM */
-	TPACPI_Q_IBM('1', 'R', TPACPI_BRGHT_Q_EC),
+	TPACPI_Q_IBM('1', 'R', TPACPI_BRGHT_Q_EC),	/* R50,51 T40-42 */
 	TPACPI_Q_IBM('1', 'Q', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
-	TPACPI_Q_IBM('7', '6', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
+	TPACPI_Q_IBM('7', '6', TPACPI_BRGHT_Q_EC),	/* R52 */
 	TPACPI_Q_IBM('7', '8', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
 
 	/* Models with Intel Extreme Graphics 2 */
-	TPACPI_Q_IBM('1', 'U', TPACPI_BRGHT_Q_NOEC),
+	TPACPI_Q_IBM('1', 'U', TPACPI_BRGHT_Q_NOEC),	/* X40 */
 	TPACPI_Q_IBM('1', 'V', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
 	TPACPI_Q_IBM('1', 'W', TPACPI_BRGHT_Q_ASK|TPACPI_BRGHT_Q_EC),
 
@@ -6227,6 +6276,12 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	ibm_backlight_device->props.brightness = b & TP_EC_BACKLIGHT_LVLMSK;
 	backlight_update_status(ibm_backlight_device);
 
+	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
+			"brightness: registering brightness hotkeys "
+			"as change notification\n");
+	tpacpi_hotkey_driver_mask_set(hotkey_driver_mask
+				| TP_ACPI_HKEY_BRGHTUP_MASK
+				| TP_ACPI_HKEY_BRGHTDWN_MASK);;
 	return 0;
 }
 
@@ -6251,23 +6306,22 @@ static void brightness_exit(void)
 	tpacpi_brightness_checkpoint_nvram();
 }
 
-static int brightness_read(char *p)
+static int brightness_read(struct seq_file *m)
 {
-	int len = 0;
 	int level;
 
 	level = brightness_get(NULL);
 	if (level < 0) {
-		len += sprintf(p + len, "level:\t\tunreadable\n");
+		seq_printf(m, "level:\t\tunreadable\n");
 	} else {
-		len += sprintf(p + len, "level:\t\t%d\n", level);
-		len += sprintf(p + len, "commands:\tup, down\n");
-		len += sprintf(p + len, "commands:\tlevel <level>"
+		seq_printf(m, "level:\t\t%d\n", level);
+		seq_printf(m, "commands:\tup, down\n");
+		seq_printf(m, "commands:\tlevel <level>"
 			       " (<level> is 0-%d)\n",
 			       (tp_features.bright_16levels) ? 15 : 7);
 	}
 
-	return len;
+	return 0;
 }
 
 static int brightness_write(char *buf)
@@ -6303,6 +6357,9 @@ static int brightness_write(char *buf)
 	 * Doing it this way makes the syscall restartable in case of EINTR
 	 */
 	rc = brightness_set(level);
+	if (!rc && ibm_backlight_device)
+		backlight_force_update(ibm_backlight_device,
+					BACKLIGHT_UPDATE_SYSFS);
 	return (rc == -EINTR)? -ERESTARTSYS : rc;
 }
 
@@ -6321,22 +6378,21 @@ static struct ibm_struct brightness_driver_data = {
 
 static int volume_offset = 0x30;
 
-static int volume_read(char *p)
+static int volume_read(struct seq_file *m)
 {
-	int len = 0;
 	u8 level;
 
 	if (!acpi_ec_read(volume_offset, &level)) {
-		len += sprintf(p + len, "level:\t\tunreadable\n");
+		seq_printf(m, "level:\t\tunreadable\n");
 	} else {
-		len += sprintf(p + len, "level:\t\t%d\n", level & 0xf);
-		len += sprintf(p + len, "mute:\t\t%s\n", onoff(level, 6));
-		len += sprintf(p + len, "commands:\tup, down, mute\n");
-		len += sprintf(p + len, "commands:\tlevel <level>"
+		seq_printf(m, "level:\t\t%d\n", level & 0xf);
+		seq_printf(m, "mute:\t\t%s\n", onoff(level, 6));
+		seq_printf(m, "commands:\tup, down, mute\n");
+		seq_printf(m, "commands:\tlevel <level>"
 			       " (<level> is 0-15)\n");
 	}
 
-	return len;
+	return 0;
 }
 
 static int volume_write(char *buf)
@@ -7488,9 +7544,8 @@ static void fan_resume(void)
 	}
 }
 
-static int fan_read(char *p)
+static int fan_read(struct seq_file *m)
 {
-	int len = 0;
 	int rc;
 	u8 status;
 	unsigned int speed = 0;
@@ -7502,7 +7557,7 @@ static int fan_read(char *p)
 		if (rc < 0)
 			return rc;
 
-		len += sprintf(p + len, "status:\t\t%s\n"
+		seq_printf(m, "status:\t\t%s\n"
 			       "level:\t\t%d\n",
 			       (status != 0) ? "enabled" : "disabled", status);
 		break;
@@ -7513,54 +7568,54 @@ static int fan_read(char *p)
 		if (rc < 0)
 			return rc;
 
-		len += sprintf(p + len, "status:\t\t%s\n",
+		seq_printf(m, "status:\t\t%s\n",
 			       (status != 0) ? "enabled" : "disabled");
 
 		rc = fan_get_speed(&speed);
 		if (rc < 0)
 			return rc;
 
-		len += sprintf(p + len, "speed:\t\t%d\n", speed);
+		seq_printf(m, "speed:\t\t%d\n", speed);
 
 		if (status & TP_EC_FAN_FULLSPEED)
 			/* Disengaged mode takes precedence */
-			len += sprintf(p + len, "level:\t\tdisengaged\n");
+			seq_printf(m, "level:\t\tdisengaged\n");
 		else if (status & TP_EC_FAN_AUTO)
-			len += sprintf(p + len, "level:\t\tauto\n");
+			seq_printf(m, "level:\t\tauto\n");
 		else
-			len += sprintf(p + len, "level:\t\t%d\n", status);
+			seq_printf(m, "level:\t\t%d\n", status);
 		break;
 
 	case TPACPI_FAN_NONE:
 	default:
-		len += sprintf(p + len, "status:\t\tnot supported\n");
+		seq_printf(m, "status:\t\tnot supported\n");
 	}
 
 	if (fan_control_commands & TPACPI_FAN_CMD_LEVEL) {
-		len += sprintf(p + len, "commands:\tlevel <level>");
+		seq_printf(m, "commands:\tlevel <level>");
 
 		switch (fan_control_access_mode) {
 		case TPACPI_FAN_WR_ACPI_SFAN:
-			len += sprintf(p + len, " (<level> is 0-7)\n");
+			seq_printf(m, " (<level> is 0-7)\n");
 			break;
 
 		default:
-			len += sprintf(p + len, " (<level> is 0-7, "
+			seq_printf(m, " (<level> is 0-7, "
 				       "auto, disengaged, full-speed)\n");
 			break;
 		}
 	}
 
 	if (fan_control_commands & TPACPI_FAN_CMD_ENABLE)
-		len += sprintf(p + len, "commands:\tenable, disable\n"
+		seq_printf(m, "commands:\tenable, disable\n"
 			       "commands:\twatchdog <timeout> (<timeout> "
 			       "is 0 (off), 1-120 (seconds))\n");
 
 	if (fan_control_commands & TPACPI_FAN_CMD_SPEED)
-		len += sprintf(p + len, "commands:\tspeed <speed>"
+		seq_printf(m, "commands:\tspeed <speed>"
 			       " (<speed> is 0-65535)\n");
 
-	return len;
+	return 0;
 }
 
 static int fan_write_cmd_level(const char *cmd, int *rc)
@@ -7702,6 +7757,13 @@ static struct ibm_struct fan_driver_data = {
  */
 static void tpacpi_driver_event(const unsigned int hkey_event)
 {
+	if (ibm_backlight_device) {
+		switch (hkey_event) {
+		case TP_HKEY_EV_BRGHT_UP:
+		case TP_HKEY_EV_BRGHT_DOWN:
+			tpacpi_brightness_notify_change();
+		}
+	}
 }
 
 
@@ -7834,19 +7896,20 @@ static int __init ibm_init(struct ibm_init_struct *iibm)
 		"%s installed\n", ibm->name);
 
 	if (ibm->read) {
-		entry = create_proc_entry(ibm->name,
-					  S_IFREG | S_IRUGO | S_IWUSR,
-					  proc_dir);
+		mode_t mode = iibm->base_procfs_mode;
+
+		if (!mode)
+			mode = S_IRUGO;
+		if (ibm->write)
+			mode |= S_IWUSR;
+		entry = proc_create_data(ibm->name, mode, proc_dir,
+					 &dispatch_proc_fops, ibm);
 		if (!entry) {
 			printk(TPACPI_ERR "unable to create proc entry %s\n",
 			       ibm->name);
 			ret = -ENODEV;
 			goto err_out;
 		}
-		entry->data = ibm;
-		entry->read_proc = &dispatch_procfs_read;
-		if (ibm->write)
-			entry->write_proc = &dispatch_procfs_write;
 		ibm->flags.proc_created = 1;
 	}
 
@@ -8027,6 +8090,7 @@ static struct ibm_init_struct ibms_init[] __initdata = {
 #ifdef CONFIG_THINKPAD_ACPI_VIDEO
 	{
 		.init = video_init,
+		.base_procfs_mode = S_IRUSR,
 		.data = &video_driver_data,
 	},
 #endif
@@ -8093,32 +8157,32 @@ static int __init set_ibm_param(const char *val, struct kernel_param *kp)
 	return -EINVAL;
 }
 
-module_param(experimental, int, 0);
+module_param(experimental, int, 0444);
 MODULE_PARM_DESC(experimental,
 		 "Enables experimental features when non-zero");
 
 module_param_named(debug, dbg_level, uint, 0);
 MODULE_PARM_DESC(debug, "Sets debug level bit-mask");
 
-module_param(force_load, bool, 0);
+module_param(force_load, bool, 0444);
 MODULE_PARM_DESC(force_load,
 		 "Attempts to load the driver even on a "
 		 "mis-identified ThinkPad when true");
 
-module_param_named(fan_control, fan_control_allowed, bool, 0);
+module_param_named(fan_control, fan_control_allowed, bool, 0444);
 MODULE_PARM_DESC(fan_control,
 		 "Enables setting fan parameters features when true");
 
-module_param_named(brightness_mode, brightness_mode, uint, 0);
+module_param_named(brightness_mode, brightness_mode, uint, 0444);
 MODULE_PARM_DESC(brightness_mode,
 		 "Selects brightness control strategy: "
 		 "0=auto, 1=EC, 2=UCMS, 3=EC+NVRAM");
 
-module_param(brightness_enable, uint, 0);
+module_param(brightness_enable, uint, 0444);
 MODULE_PARM_DESC(brightness_enable,
 		 "Enables backlight control when 1, disables when 0");
 
-module_param(hotkey_report_mode, uint, 0);
+module_param(hotkey_report_mode, uint, 0444);
 MODULE_PARM_DESC(hotkey_report_mode,
 		 "used for backwards compatibility with userspace, "
 		 "see documentation");
@@ -8141,25 +8205,25 @@ TPACPI_PARAM(volume);
 TPACPI_PARAM(fan);
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
-module_param(dbg_wlswemul, uint, 0);
+module_param(dbg_wlswemul, uint, 0444);
 MODULE_PARM_DESC(dbg_wlswemul, "Enables WLSW emulation");
 module_param_named(wlsw_state, tpacpi_wlsw_emulstate, bool, 0);
 MODULE_PARM_DESC(wlsw_state,
 		 "Initial state of the emulated WLSW switch");
 
-module_param(dbg_bluetoothemul, uint, 0);
+module_param(dbg_bluetoothemul, uint, 0444);
 MODULE_PARM_DESC(dbg_bluetoothemul, "Enables bluetooth switch emulation");
 module_param_named(bluetooth_state, tpacpi_bluetooth_emulstate, bool, 0);
 MODULE_PARM_DESC(bluetooth_state,
 		 "Initial state of the emulated bluetooth switch");
 
-module_param(dbg_wwanemul, uint, 0);
+module_param(dbg_wwanemul, uint, 0444);
 MODULE_PARM_DESC(dbg_wwanemul, "Enables WWAN switch emulation");
 module_param_named(wwan_state, tpacpi_wwan_emulstate, bool, 0);
 MODULE_PARM_DESC(wwan_state,
 		 "Initial state of the emulated WWAN switch");
 
-module_param(dbg_uwbemul, uint, 0);
+module_param(dbg_uwbemul, uint, 0444);
 MODULE_PARM_DESC(dbg_uwbemul, "Enables UWB switch emulation");
 module_param_named(uwb_state, tpacpi_uwb_emulstate, bool, 0);
 MODULE_PARM_DESC(uwb_state,
@@ -8352,6 +8416,7 @@ static int __init thinkpad_acpi_module_init(void)
 						PCI_VENDOR_ID_IBM;
 		tpacpi_inputdev->id.product = TPACPI_HKEY_INPUT_PRODUCT;
 		tpacpi_inputdev->id.version = TPACPI_HKEY_INPUT_VERSION;
+		tpacpi_inputdev->dev.parent = &tpacpi_pdev->dev;
 	}
 	for (i = 0; i < ARRAY_SIZE(ibms_init); i++) {
 		ret = ibm_init(&ibms_init[i]);
@@ -8362,6 +8427,9 @@ static int __init thinkpad_acpi_module_init(void)
 			return ret;
 		}
 	}
+
+	tpacpi_lifecycle = TPACPI_LIFE_RUNNING;
+
 	ret = input_register_device(tpacpi_inputdev);
 	if (ret < 0) {
 		printk(TPACPI_ERR "unable to register input device\n");
@@ -8371,7 +8439,6 @@ static int __init thinkpad_acpi_module_init(void)
 		tp_features.input_device_registered = 1;
 	}
 
-	tpacpi_lifecycle = TPACPI_LIFE_RUNNING;
 	return 0;
 }
 

@@ -62,7 +62,7 @@ module_param(contiguousBase, ulong, 0644);
 long bankSize = 32 << 20;
 module_param(bankSize, long, 0644);
 
-int fastClear = -1;
+int fastClear = 0;   //-1;
 module_param(fastClear, int, 0644);
 
 int compression = -1;

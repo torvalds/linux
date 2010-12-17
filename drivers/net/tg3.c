@@ -4995,7 +4995,7 @@ static void tg3_poll_controller(struct net_device *dev)
 	struct tg3 *tp = netdev_priv(dev);
 
 	for (i = 0; i < tp->irq_cnt; i++)
-		tg3_interrupt(tp->napi[i].irq_vec, dev);
+		tg3_interrupt(tp->napi[i].irq_vec, &tp->napi[i]);
 }
 #endif
 
@@ -5392,7 +5392,7 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 	mss = 0;
 	if ((mss = skb_shinfo(skb)->gso_size) != 0) {
 		struct iphdr *iph;
-		int tcp_opt_len, ip_tcp_len, hdr_len;
+		u32 tcp_opt_len, ip_tcp_len, hdr_len;
 
 		if (skb_header_cloned(skb) &&
 		    pskb_expand_head(skb, 0, 0, GFP_ATOMIC)) {
@@ -5423,8 +5423,10 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 								 IPPROTO_TCP,
 								 0);
 
-		if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO) ||
-		    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705)) {
+		if (tp->tg3_flags2 & TG3_FLG2_HW_TSO_2)
+			mss |= hdr_len << 9;
+		else if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_1) ||
+			GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5705) {
 			if (tcp_opt_len || iph->ihl > 5) {
 				int tsflags;
 
@@ -5459,6 +5461,9 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 
 	would_hit_hwbug = 0;
 
+	if ((tp->tg3_flags3 & TG3_FLG3_SHORT_DMA_BUG) && len <= 8)
+		would_hit_hwbug = 1;
+
 	if (tp->tg3_flags3 & TG3_FLG3_5701_DMA_BUG)
 		would_hit_hwbug = 1;
 	else if (tg3_4g_overflow_test(mapping, len))
@@ -5481,6 +5486,10 @@ static netdev_tx_t tg3_start_xmit_dma_bug(struct sk_buff *skb,
 			mapping = sp->dma_maps[i];
 
 			tnapi->tx_buffers[entry].skb = NULL;
+
+			if ((tp->tg3_flags3 & TG3_FLG3_SHORT_DMA_BUG) &&
+				len <= 8)
+					would_hit_hwbug = 1;
 
 			if (tg3_4g_overflow_test(mapping, len))
 				would_hit_hwbug = 1;
@@ -8159,6 +8168,7 @@ static int tg3_test_msi(struct tg3 *tp)
 	pci_disable_msi(tp->pdev);
 
 	tp->tg3_flags2 &= ~TG3_FLG2_USING_MSI;
+	tp->napi[0].irq_vec = tp->pdev->irq;
 
 	err = tg3_request_irq(tp, 0);
 	if (err)
@@ -12608,6 +12618,9 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		}
 	}
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
+		tp->tg3_flags3 |= TG3_FLG3_SHORT_DMA_BUG;
+
 	tp->irq_max = 1;
 
 #ifdef TG3_NAPI
@@ -13975,8 +13988,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
-	if ((tp->tg3_flags3 & TG3_FLG3_5755_PLUS) ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
+	if (tp->tg3_flags3 & TG3_FLG3_5755_PLUS)
 		dev->netdev_ops = &tg3_netdev_ops;
 	else
 		dev->netdev_ops = &tg3_netdev_ops_dma_bug;

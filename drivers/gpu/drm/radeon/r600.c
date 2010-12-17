@@ -1686,13 +1686,14 @@ int r600_init(struct radeon_device *rdev)
 	if (rdev->accel_working) {
 		r = radeon_ib_pool_init(rdev);
 		if (r) {
-			DRM_ERROR("radeon: failled initializing IB pool (%d).\n", r);
+			dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
 			rdev->accel_working = false;
-		}
-		r = r600_ib_test(rdev);
-		if (r) {
-			DRM_ERROR("radeon: failled testing IB (%d).\n", r);
-			rdev->accel_working = false;
+		} else {
+			r = r600_ib_test(rdev);
+			if (r) {
+				dev_err(rdev->dev, "IB test failed (%d).\n", r);
+				rdev->accel_working = false;
+			}
 		}
 	}
 	return 0;

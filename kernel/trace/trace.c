@@ -748,10 +748,10 @@ out:
 	mutex_unlock(&trace_types_lock);
 }
 
-static void __tracing_reset(struct trace_array *tr, int cpu)
+static void __tracing_reset(struct ring_buffer *buffer, int cpu)
 {
 	ftrace_disable_cpu();
-	ring_buffer_reset_cpu(tr->buffer, cpu);
+	ring_buffer_reset_cpu(buffer, cpu);
 	ftrace_enable_cpu();
 }
 
@@ -763,7 +763,7 @@ void tracing_reset(struct trace_array *tr, int cpu)
 
 	/* Make sure all commits have finished */
 	synchronize_sched();
-	__tracing_reset(tr, cpu);
+	__tracing_reset(buffer, cpu);
 
 	ring_buffer_record_enable(buffer);
 }
@@ -781,7 +781,7 @@ void tracing_reset_online_cpus(struct trace_array *tr)
 	tr->time_start = ftrace_now(tr->cpu);
 
 	for_each_online_cpu(cpu)
-		__tracing_reset(tr, cpu);
+		__tracing_reset(buffer, cpu);
 
 	ring_buffer_record_enable(buffer);
 }
@@ -858,6 +858,8 @@ void tracing_start(void)
 		goto out;
 	}
 
+	/* Prevent the buffers from switching */
+	__raw_spin_lock(&ftrace_max_lock);
 
 	buffer = global_trace.buffer;
 	if (buffer)
@@ -866,6 +868,8 @@ void tracing_start(void)
 	buffer = max_tr.buffer;
 	if (buffer)
 		ring_buffer_record_enable(buffer);
+
+	__raw_spin_unlock(&ftrace_max_lock);
 
 	ftrace_start();
  out:
@@ -888,6 +892,9 @@ void tracing_stop(void)
 	if (trace_stop_count++)
 		goto out;
 
+	/* Prevent the buffers from switching */
+	__raw_spin_lock(&ftrace_max_lock);
+
 	buffer = global_trace.buffer;
 	if (buffer)
 		ring_buffer_record_disable(buffer);
@@ -895,6 +902,8 @@ void tracing_stop(void)
 	buffer = max_tr.buffer;
 	if (buffer)
 		ring_buffer_record_disable(buffer);
+
+	__raw_spin_unlock(&ftrace_max_lock);
 
  out:
 	spin_unlock_irqrestore(&tracing_start_lock, flags);
@@ -1160,6 +1169,13 @@ ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 	struct stack_trace trace;
 
 	if (!(trace_flags & TRACE_ITER_USERSTACKTRACE))
+		return;
+
+	/*
+	 * NMIs can not handle page faults, even with fix ups.
+	 * The save user stack can (and often does) fault.
+	 */
+	if (unlikely(in_nmi()))
 		return;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_USER_STACK,

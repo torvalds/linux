@@ -499,6 +499,10 @@ static int __devinit agp_amd64_probe(struct pci_dev *pdev,
 	u8 cap_ptr;
 	int err;
 
+	/* The Highlander principle */
+	if (agp_bridges_found)
+		return -ENODEV;
+
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
 		return -ENODEV;
@@ -562,6 +566,8 @@ static void __devexit agp_amd64_remove(struct pci_dev *pdev)
 			   amd64_aperture_sizes[bridge->aperture_size_idx].size);
 	agp_remove_bridge(bridge);
 	agp_put_bridge(bridge);
+
+	agp_bridges_found--;
 }
 
 #ifdef CONFIG_PM
@@ -709,6 +715,11 @@ static struct pci_device_id agp_amd64_pci_table[] = {
 
 MODULE_DEVICE_TABLE(pci, agp_amd64_pci_table);
 
+static DEFINE_PCI_DEVICE_TABLE(agp_amd64_pci_promisc_table) = {
+	{ PCI_DEVICE_CLASS(0, 0) },
+	{ }
+};
+
 static struct pci_driver agp_amd64_pci_driver = {
 	.name		= "agpgart-amd64",
 	.id_table	= agp_amd64_pci_table,
@@ -733,7 +744,6 @@ int __init agp_amd64_init(void)
 		return err;
 
 	if (agp_bridges_found == 0) {
-		struct pci_dev *dev;
 		if (!agp_try_unsupported && !agp_try_unsupported_boot) {
 			printk(KERN_INFO PFX "No supported AGP bridge found.\n");
 #ifdef MODULE
@@ -749,17 +759,10 @@ int __init agp_amd64_init(void)
 			return -ENODEV;
 
 		/* Look for any AGP bridge */
-		dev = NULL;
-		err = -ENODEV;
-		for_each_pci_dev(dev) {
-			if (!pci_find_capability(dev, PCI_CAP_ID_AGP))
-				continue;
-			/* Only one bridge supported right now */
-			if (agp_amd64_probe(dev, NULL) == 0) {
-				err = 0;
-				break;
-			}
-		}
+		agp_amd64_pci_driver.id_table = agp_amd64_pci_promisc_table;
+		err = driver_attach(&agp_amd64_pci_driver.driver);
+		if (err == 0 && agp_bridges_found == 0)
+			err = -ENODEV;
 	}
 	return err;
 }

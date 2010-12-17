@@ -786,8 +786,6 @@ bool creds_are_invalid(const struct cred *cred)
 {
 	if (cred->magic != CRED_MAGIC)
 		return true;
-	if (atomic_read(&cred->usage) < atomic_read(&cred->subscribers))
-		return true;
 #ifdef CONFIG_SECURITY_SELINUX
 	if (selinux_is_enabled()) {
 		if ((unsigned long) cred->security < PAGE_SIZE)

@@ -1274,6 +1274,7 @@ static void cxgb_down(struct adapter *adapter)
 
 	free_irq_resources(adapter);
 	quiesce_rx(adapter);
+	t3_sge_stop(adapter);
 	flush_workqueue(cxgb3_wq);	/* wait for external IRQ handler */
 }
 
@@ -2273,6 +2274,8 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 	}
 	case CHELSIO_GET_QSET_NUM:{
 		struct ch_reg edata;
+
+		memset(&edata, 0, sizeof(struct ch_reg));
 
 		edata.cmd = CHELSIO_GET_QSET_NUM;
 		edata.val = pi->nqsets;

@@ -68,6 +68,7 @@
 #include <linux/utsname.h>
 #include <linux/wakelock.h>
 #include <linux/platform_device.h>
+#include <linux/power_supply.h>
 
 #include <linux/usb.h>
 #include <linux/usb_usual.h>
@@ -468,8 +469,7 @@ static void put_be32(u8 *buf, u32 val)
 
 static void set_msc_connect_flag( int connected )
 {
-	//GPIOSetPinLevel(CHARGE_OK_PIN,GPIO_LOW);
-    printk("set usb_msc_connect status = %d 20100520\n" , connected);	
+    printk("%s status = %d 20101216\n" , __func__, connected);	
     if( usb_msc_connected == connected )
             return;
 	usb_msc_connected = connected;//usb mass storage is ok
@@ -479,6 +479,7 @@ int get_msc_connect_flag( void )
 {
 	return usb_msc_connected;
 }
+EXPORT_SYMBOL(get_msc_connect_flag);
 
 /*-------------------------------------------------------------------------*/
 
@@ -2936,10 +2937,63 @@ static void fsg_function_disable(struct usb_function *f)
 	set_msc_connect_flag(0);
 }
 
+static enum power_supply_property usb_props[] = {
+//	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_ONLINE,
+};
+
+static int usb_get_property(struct power_supply *psy,
+					enum power_supply_property psp,
+					union power_supply_propval *val)
+{
+	int ret = 0;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+        #ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+	    val->intval = get_msc_connect_flag();
+	    #else
+	    val->intval = 0;
+	    #endif
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+int usb_power_supply_register(struct device* parent)
+{
+	struct power_supply *ps;
+	int retval = 0;
+
+    ps = kzalloc(sizeof(*ps), GFP_KERNEL);
+	if (!ps) {
+		dev_err(parent, "failed to allocate power supply data\n");
+		retval = -ENOMEM;
+		goto out;
+	}
+	ps->name = "usb";
+	ps->type = POWER_SUPPLY_TYPE_USB;
+	ps->properties = usb_props;
+	ps->num_properties = ARRAY_SIZE(usb_props);
+	ps->get_property = usb_get_property;
+	ps->external_power_changed = NULL;
+    retval = power_supply_register(parent, ps);
+    if (retval) {
+        dev_err(parent, "failed to register battery\n");
+        goto out;
+    }
+out:
+    return retval;
+}
+
 static int __init fsg_probe(struct platform_device *pdev)
 {
 	struct usb_mass_storage_platform_data *pdata = pdev->dev.platform_data;
 	struct fsg_dev *fsg = the_fsg;
+	int retval = 0;
 
 	fsg->pdev = pdev;
 	printk(KERN_INFO "fsg_probe pdata: %p\n", pdata);
@@ -2956,7 +3010,16 @@ static int __init fsg_probe(struct platform_device *pdev)
 		fsg->nluns = pdata->nluns;
 	}
 
-	return 0;
+    /*
+     * Initialize usb power supply
+     */
+    retval = usb_power_supply_register(&pdev->dev);
+	if (retval != 0) 
+	{
+		dev_err(&pdev->dev, "usb_power_supply_register failed\n");
+	}
+
+	return retval;
 }
 
 static struct platform_driver fsg_platform_driver = {

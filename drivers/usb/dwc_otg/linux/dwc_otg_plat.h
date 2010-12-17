@@ -41,16 +41,20 @@
 #include <asm/io.h>
 
 #include <mach/rk29_iomap.h>
+#include <mach/iomux.h>
 #define GRF_REG_BASE	RK29_GRF_BASE	
 #define USB20_OTG0_BASE	RK29_USBOTG0_PHYS
 #define USB20_OTG1_BASE	RK29_USBOTG1_PHYS
 #define USB11_HOST_BASE	RK29_USBHOST_PHYS
 #define USBOTG_SIZE	RK29_USBOTG0_SIZE
-#define USB_GRF_CON	(GRF_REG_BASE+0X9C)
-#define USB_CLKGATE_CON	(RK29_CRU_BASE+0X60)
+#define USB_GRF_CON	(GRF_REG_BASE+0x9C)
+#define USB_GRF_IOMUX	(GRF_REG_BASE+0x68)
+#define USB_CLKGATE_CON	(RK29_CRU_BASE+0x60)
+#define USB_CLKSEL_CON	(RK29_CRU_BASE+0x18)
 #ifndef SCU_BASE_ADDR_VA
 #define SCU_BASE_ADDR_VA RK29_CRU_BASE
 #endif
+#define USB_IOMUX_INIT(a,b) rk29_mux_api_set(a,b)
 /**
  * @file 
  *
@@ -220,7 +224,7 @@ static inline uint32_t SET_DEBUG_LEVEL( const uint32_t _new )
 #define DBG_OFF		0
 
 /** Prefix string for DWC_DEBUG print macros. */
-#define USB_DWC "DWC_otg: "
+#define USB_DWC "DWC_OTG: "
 
 /** 
  * Print a debug message when the Global debug level variable contains
@@ -240,8 +244,8 @@ static inline uint32_t SET_DEBUG_LEVEL( const uint32_t _new )
  * </code>
  */
 #ifdef DEBUG
-//# define DWC_DEBUGPL(lvl, x...) do{ if ((lvl)&g_dbg_lvl)printk( KERN_DEBUG USB_DWC x ); }while(0) 
-# define DWC_DEBUGPL(lvl, x...) printk( ">>> " x ) 
+# define DWC_DEBUGPL(lvl, x...) do{ if ((lvl)&g_dbg_lvl)printk( KERN_DEBUG USB_DWC x ); }while(0) 
+//# define DWC_DEBUGPL(lvl, x...) printk( ">>> " x ) 
 # define DWC_DEBUGP(x...)	DWC_DEBUGPL(DBG_ANY, x )
 
 # define CHK_DEBUG_LEVEL(level) ((level) & g_dbg_lvl)

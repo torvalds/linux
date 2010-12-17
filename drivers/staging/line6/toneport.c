@@ -117,8 +117,8 @@ static ssize_t toneport_set_led_green(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(led_red, S_IWUGO | S_IRUGO, line6_nop_read, toneport_set_led_red);
-static DEVICE_ATTR(led_green, S_IWUGO | S_IRUGO, line6_nop_read, toneport_set_led_green);
+static DEVICE_ATTR(led_red, S_IWUSR | S_IRUGO, line6_nop_read, toneport_set_led_red);
+static DEVICE_ATTR(led_green, S_IWUSR | S_IRUGO, line6_nop_read, toneport_set_led_green);
 
 
 static int toneport_send_cmd(struct usb_device *usbdev, int cmd1, int cmd2)

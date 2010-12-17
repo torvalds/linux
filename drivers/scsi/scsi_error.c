@@ -301,7 +301,20 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 		if (scmd->device->allow_restart &&
 		    (sshdr.asc == 0x04) && (sshdr.ascq == 0x02))
 			return FAILED;
-		return SUCCESS;
+
+		if (blk_barrier_rq(scmd->request))
+			/*
+			 * barrier requests should always retry on UA
+			 * otherwise block will get a spurious error
+			 */
+			return NEEDS_RETRY;
+		else
+			/*
+			 * for normal (non barrier) commands, pass the
+			 * UA upwards for a determination in the
+			 * completion functions
+			 */
+			return SUCCESS;
 
 		/* these three are not supported */
 	case COPY_ABORTED:

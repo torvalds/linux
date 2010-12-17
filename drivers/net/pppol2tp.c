@@ -1178,7 +1178,8 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	/* Calculate UDP checksum if configured to do so */
 	if (sk_tun->sk_no_check == UDP_CSUM_NOXMIT)
 		skb->ip_summed = CHECKSUM_NONE;
-	else if (!(skb_dst(skb)->dev->features & NETIF_F_V4_CSUM)) {
+	else if ((skb_dst(skb) && skb_dst(skb)->dev) &&
+		 (!(skb_dst(skb)->dev->features & NETIF_F_V4_CSUM))) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		csum = skb_checksum(skb, 0, udp_len, 0);
 		uh->check = csum_tcpudp_magic(inet->saddr, inet->daddr,

@@ -133,6 +133,8 @@ static void ams_pmu_get_xyz(s8 *x, s8 *y, s8 *z)
 
 static void ams_pmu_exit(void)
 {
+	ams_sensor_detach();
+
 	/* Disable interrupts */
 	ams_pmu_set_irq(AMS_IRQ_ALL, 0);
 

@@ -346,11 +346,12 @@ void r300_gpu_init(struct radeon_device *rdev)
 
 	r100_hdp_reset(rdev);
 	/* FIXME: rv380 one pipes ? */
-	if ((rdev->family == CHIP_R300) || (rdev->family == CHIP_R350)) {
+	if ((rdev->family == CHIP_R300 && rdev->pdev->device != 0x4144) ||
+	    (rdev->family == CHIP_R350)) {
 		/* r300,r350 */
 		rdev->num_gb_pipes = 2;
 	} else {
-		/* rv350,rv370,rv380 */
+		/* rv350,rv370,rv380,r300 AD */
 		rdev->num_gb_pipes = 1;
 	}
 	rdev->num_z_pipes = 1;

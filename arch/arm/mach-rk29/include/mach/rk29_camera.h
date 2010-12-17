@@ -53,10 +53,16 @@ struct rk29camera_gpio_res {
     const char *dev_name;
 };
 
+struct rk29camera_mem_res {
+	const char *name;
+	unsigned int start;
+	unsigned int size;
+};
 struct rk29camera_platform_data {
     int (*io_init)(void);
     int (*io_deinit)(void);
     struct rk29camera_gpio_res gpio_res[2];
+	struct rk29camera_mem_res meminfo;
 };
 
 #endif /* __ASM_ARCH_CAMERA_H_ */

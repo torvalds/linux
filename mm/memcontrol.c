@@ -2008,12 +2008,12 @@ int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
 	}
 	unlock_page_cgroup(pc);
 
+	*ptr = mem;
 	if (mem) {
-		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false,
+		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false,
 						page);
 		css_put(&mem->css);
 	}
-	*ptr = mem;
 	return ret;
 }
 

@@ -1155,8 +1155,12 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
 		atombios_dac_setup(encoder, ATOM_ENABLE);
-		if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
-			atombios_tv_setup(encoder, ATOM_ENABLE);
+		if (radeon_encoder->devices & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT)) {
+			if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
+				atombios_tv_setup(encoder, ATOM_ENABLE);
+			else
+				atombios_tv_setup(encoder, ATOM_DISABLE);
+		}
 		break;
 	}
 	atombios_apply_encoder_quirks(encoder, adjusted_mode);

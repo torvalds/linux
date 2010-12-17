@@ -1299,24 +1299,24 @@ static int dispatch_ioctl(struct client *client,
 	int ret;
 
 	if (_IOC_TYPE(cmd) != '#' ||
-	    _IOC_NR(cmd) >= ARRAY_SIZE(ioctl_handlers))
+	    _IOC_NR(cmd) >= ARRAY_SIZE(ioctl_handlers) ||
+	    _IOC_SIZE(cmd) > sizeof(buffer))
 		return -EINVAL;
 
-	if (_IOC_DIR(cmd) & _IOC_WRITE) {
-		if (_IOC_SIZE(cmd) > sizeof(buffer) ||
-		    copy_from_user(buffer, arg, _IOC_SIZE(cmd)))
+	if (_IOC_DIR(cmd) == _IOC_READ)
+		memset(&buffer, 0, _IOC_SIZE(cmd));
+
+	if (_IOC_DIR(cmd) & _IOC_WRITE)
+		if (copy_from_user(buffer, arg, _IOC_SIZE(cmd)))
 			return -EFAULT;
-	}
 
 	ret = ioctl_handlers[_IOC_NR(cmd)](client, buffer);
 	if (ret < 0)
 		return ret;
 
-	if (_IOC_DIR(cmd) & _IOC_READ) {
-		if (_IOC_SIZE(cmd) > sizeof(buffer) ||
-		    copy_to_user(arg, buffer, _IOC_SIZE(cmd)))
+	if (_IOC_DIR(cmd) & _IOC_READ)
+		if (copy_to_user(arg, buffer, _IOC_SIZE(cmd)))
 			return -EFAULT;
-	}
 
 	return ret;
 }

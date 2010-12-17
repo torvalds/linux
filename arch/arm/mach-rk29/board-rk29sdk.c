@@ -57,17 +57,23 @@
 #else
 #define SDRAM_SIZE          SZ_512M
 #endif
-#define PMEM_GPU_SIZE       SZ_48M
+#define PMEM_GPU_SIZE       SZ_64M
 #define PMEM_UI_SIZE        SZ_32M
 #define PMEM_VPU_SIZE       SZ_32M
-#define PMEM_CAM_SIZE       SZ_16M
-#define MEM_FB_SIZE         SZ_4M
+#define PMEM_CAM_SIZE       0x00c00000
+#ifdef CONFIG_VIDEO_RK29_WORK_IPP
+#define MEM_CAMIPP_SIZE     SZ_4M
+#else
+#define MEM_CAMIPP_SIZE     0
+#endif
+#define MEM_FB_SIZE         (3*SZ_2M)
 
 #define PMEM_GPU_BASE       ((u32)RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
 #define PMEM_UI_BASE        (PMEM_GPU_BASE - PMEM_UI_SIZE)
 #define PMEM_VPU_BASE       (PMEM_UI_BASE - PMEM_VPU_SIZE)
 #define PMEM_CAM_BASE       (PMEM_VPU_BASE - PMEM_CAM_SIZE)
-#define MEM_FB_BASE         (PMEM_CAM_BASE - MEM_FB_SIZE)
+#define MEM_CAMIPP_BASE     (PMEM_CAM_BASE - MEM_CAMIPP_SIZE)
+#define MEM_FB_BASE         (MEM_CAMIPP_BASE - MEM_FB_SIZE)
 #define LINUX_SIZE          (MEM_FB_BASE - RK29_SDRAM_PHYS)
 
 extern struct sys_timer rk29_timer;
@@ -541,7 +547,14 @@ struct rk29camera_platform_data rk29_camera_platform_data = {
             .gpio_flag = (SENSOR_POWERACTIVE_LEVEL_1|SENSOR_RESETACTIVE_LEVEL_1),
             .dev_name = SENSOR_NAME_1,
         }
-    }
+    },
+	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
+	.meminfo = {
+	    .name  = "camera_ipp_mem",
+		.start = MEM_CAMIPP_BASE,
+		.size   = MEM_CAMIPP_SIZE,
+	}
+	#endif
 };
 
 static int rk29_sensor_io_init(void)
@@ -701,7 +714,32 @@ struct platform_device rk29_soc_camera_pdrv_1 = {
 };
 
 
-extern struct platform_device rk29_device_camera;
+static u64 rockchip_device_camera_dmamask = 0xffffffffUL;
+struct resource rk29_camera_resource[] = {
+	[0] = {
+		.start = RK29_VIP_PHYS,
+		.end   = RK29_VIP_PHYS + RK29_VIP_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_VIP,
+		.end   = IRQ_VIP,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+/*platform_device : */
+struct platform_device rk29_device_camera = {
+	.name		  = RK29_CAM_DRV_NAME,
+	.id		  = RK29_CAM_PLATFORM_DEV_ID,               /* This is used to put cameras on this interface */
+	.num_resources	  = ARRAY_SIZE(rk29_camera_resource),
+	.resource	  = rk29_camera_resource,
+	.dev            = {
+		.dma_mask = &rockchip_device_camera_dmamask,
+		.coherent_dma_mask = 0xffffffffUL,
+		.platform_data  = &rk29_camera_platform_data,
+	}
+};
 #endif
 /*****************************************************************************************
  * backlight  devices
@@ -969,7 +1007,7 @@ static struct resource resources_gpu[] = {
     [1] = {
 		.name = "gpu_base",
         .start  = RK29_GPU_PHYS,
-        .end    = RK29_GPU_PHYS + (256 << 10),
+        .end    = RK29_GPU_PHYS + RK29_GPU_PHYS_SIZE,
         .flags  = IORESOURCE_MEM,
     },
     [2] = {
@@ -996,13 +1034,6 @@ static struct platform_device rk29_device_keys = {
 	},
 };
 #endif
-/********************usb*********************/
-struct usb_mass_storage_platform_data mass_storage_pdata = {
-	.nluns		= 1,
-	.vendor		= "RockChip",
-	.product	= "rk9 sdk",
-	.release	= 0x0100,
-};
 
 static void __init rk29_board_iomux_init(void)
 {
@@ -1135,12 +1166,21 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&android_pmem_device,
 	&rk29_vpu_mem_device,
-#ifdef CONFIG_DWC_OTG
-	&rk29_device_dwc_otg,
+#ifdef CONFIG_USB20_OTG
+	&rk29_device_usb20_otg,
+#endif
+#ifdef CONFIG_USB20_HOST
+	&rk29_device_usb20_host,
+#endif
+#ifdef CONFIG_USB11_HOST
+	&rk29_device_usb11_host,
 #endif
 #ifdef CONFIG_USB_ANDROID
 	&android_usb_device,
 	&usb_mass_storage_device,
+#endif
+#ifdef CONFIG_RK29_IPP
+	&rk29_device_ipp,
 #endif
 };
 

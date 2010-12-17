@@ -1347,16 +1347,22 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 
 	sense_len = rsp_info_len = resid_len = fw_resid_len = 0;
 	if (IS_FWI2_CAPABLE(ha)) {
-		sense_len = le32_to_cpu(sts24->sense_len);
-		rsp_info_len = le32_to_cpu(sts24->rsp_data_len);
-		resid_len = le32_to_cpu(sts24->rsp_residual_count);
-		fw_resid_len = le32_to_cpu(sts24->residual_len);
+		if (scsi_status & SS_SENSE_LEN_VALID)
+			sense_len = le32_to_cpu(sts24->sense_len);
+		if (scsi_status & SS_RESPONSE_INFO_LEN_VALID)
+			rsp_info_len = le32_to_cpu(sts24->rsp_data_len);
+		if (scsi_status & (SS_RESIDUAL_UNDER | SS_RESIDUAL_OVER))
+			resid_len = le32_to_cpu(sts24->rsp_residual_count);
+		if (comp_status == CS_DATA_UNDERRUN)
+			fw_resid_len = le32_to_cpu(sts24->residual_len);
 		rsp_info = sts24->data;
 		sense_data = sts24->data;
 		host_to_fcp_swap(sts24->data, sizeof(sts24->data));
 	} else {
-		sense_len = le16_to_cpu(sts->req_sense_length);
-		rsp_info_len = le16_to_cpu(sts->rsp_info_len);
+		if (scsi_status & SS_SENSE_LEN_VALID)
+			sense_len = le16_to_cpu(sts->req_sense_length);
+		if (scsi_status & SS_RESPONSE_INFO_LEN_VALID)
+			rsp_info_len = le16_to_cpu(sts->rsp_info_len);
 		resid_len = le32_to_cpu(sts->residual_length);
 		rsp_info = sts->rsp_info;
 		sense_data = sts->req_sense_data;
@@ -1443,38 +1449,62 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		break;
 
 	case CS_DATA_UNDERRUN:
-		resid = resid_len;
+		DEBUG2(printk(KERN_INFO
+		    "scsi(%ld:%d:%d) UNDERRUN status detected 0x%x-0x%x. "
+		    "resid=0x%x fw_resid=0x%x cdb=0x%x os_underflow=0x%x\n",
+		    vha->host_no, cp->device->id, cp->device->lun, comp_status,
+		    scsi_status, resid_len, fw_resid_len, cp->cmnd[0],
+		    cp->underflow));
+
 		/* Use F/W calculated residual length. */
-		if (IS_FWI2_CAPABLE(ha)) {
-			if (!(scsi_status & SS_RESIDUAL_UNDER)) {
-				lscsi_status = 0;
-			} else if (resid != fw_resid_len) {
-				scsi_status &= ~SS_RESIDUAL_UNDER;
-				lscsi_status = 0;
-			}
-			resid = fw_resid_len;
-		}
-
+		resid = IS_FWI2_CAPABLE(ha) ? fw_resid_len : resid_len;
+		scsi_set_resid(cp, resid);
 		if (scsi_status & SS_RESIDUAL_UNDER) {
-			scsi_set_resid(cp, resid);
-		} else {
-			DEBUG2(printk(KERN_INFO
-			    "scsi(%ld:%d:%d) UNDERRUN status detected "
-			    "0x%x-0x%x. resid=0x%x fw_resid=0x%x cdb=0x%x "
-			    "os_underflow=0x%x\n", vha->host_no,
-			    cp->device->id, cp->device->lun, comp_status,
-			    scsi_status, resid_len, resid, cp->cmnd[0],
-			    cp->underflow));
+			if (IS_FWI2_CAPABLE(ha) && fw_resid_len != resid_len) {
+				DEBUG2(printk(
+				    "scsi(%ld:%d:%d:%d) Dropped frame(s) "
+				    "detected (%x of %x bytes)...residual "
+				    "length mismatch...retrying command.\n",
+				    vha->host_no, cp->device->channel,
+				    cp->device->id, cp->device->lun, resid,
+				    scsi_bufflen(cp)));
 
+				cp->result = DID_ERROR << 16 | lscsi_status;
+				break;
+			}
+
+			if (!lscsi_status &&
+			    ((unsigned)(scsi_bufflen(cp) - resid) <
+			    cp->underflow)) {
+				qla_printk(KERN_INFO, ha,
+				    "scsi(%ld:%d:%d:%d): Mid-layer underflow "
+				    "detected (%x of %x bytes)...returning "
+				    "error status.\n", vha->host_no,
+				    cp->device->channel, cp->device->id,
+				    cp->device->lun, resid, scsi_bufflen(cp));
+
+				cp->result = DID_ERROR << 16;
+				break;
+			}
+		} else if (!lscsi_status) {
+			DEBUG2(printk(
+			    "scsi(%ld:%d:%d:%d) Dropped frame(s) detected "
+			    "(%x of %x bytes)...firmware reported underrun..."
+			    "retrying command.\n", vha->host_no,
+			    cp->device->channel, cp->device->id,
+			    cp->device->lun, resid, scsi_bufflen(cp)));
+
+			cp->result = DID_ERROR << 16;
+			break;
 		}
+
+		cp->result = DID_OK << 16 | lscsi_status;
 
 		/*
 		 * Check to see if SCSI Status is non zero. If so report SCSI
 		 * Status.
 		 */
 		if (lscsi_status != 0) {
-			cp->result = DID_OK << 16 | lscsi_status;
-
 			if (lscsi_status == SAM_STAT_TASK_SET_FULL) {
 				DEBUG2(printk(KERN_INFO
 				    "scsi(%ld): QUEUE FULL status detected "
@@ -1501,42 +1531,6 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 				break;
 
 			qla2x00_handle_sense(sp, sense_data, sense_len, rsp);
-		} else {
-			/*
-			 * If RISC reports underrun and target does not report
-			 * it then we must have a lost frame, so tell upper
-			 * layer to retry it by reporting an error.
-			 */
-			if (!(scsi_status & SS_RESIDUAL_UNDER)) {
-				DEBUG2(printk("scsi(%ld:%d:%d:%d) Dropped "
-					      "frame(s) detected (%x of %x bytes)..."
-					      "retrying command.\n",
-					vha->host_no, cp->device->channel,
-					cp->device->id, cp->device->lun, resid,
-					scsi_bufflen(cp)));
-
-				scsi_set_resid(cp, resid);
-				cp->result = DID_ERROR << 16;
-				break;
-			}
-
-			/* Handle mid-layer underflow */
-			if ((unsigned)(scsi_bufflen(cp) - resid) <
-			    cp->underflow) {
-				qla_printk(KERN_INFO, ha,
-					   "scsi(%ld:%d:%d:%d): Mid-layer underflow "
-					   "detected (%x of %x bytes)...returning "
-					   "error status.\n", vha->host_no,
-					   cp->device->channel, cp->device->id,
-					   cp->device->lun, resid,
-					   scsi_bufflen(cp));
-
-				cp->result = DID_ERROR << 16;
-				break;
-			}
-
-			/* Everybody online, looking good... */
-			cp->result = DID_OK << 16;
 		}
 		break;
 
@@ -2018,7 +2012,7 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 
 	spin_lock_irq(&ha->hardware_lock);
 
-	vha = qla25xx_get_host(rsp);
+	vha = pci_get_drvdata(ha->pdev);
 	qla24xx_process_response_queue(vha, rsp);
 	if (!ha->mqenable) {
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
@@ -2246,28 +2240,26 @@ qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 
 	/* If possible, enable MSI-X. */
 	if (!IS_QLA2432(ha) && !IS_QLA2532(ha) &&
-	    !IS_QLA8432(ha) && !IS_QLA8001(ha))
-		goto skip_msix;
+		!IS_QLA8432(ha) && !IS_QLA8001(ha))
+		goto skip_msi;
+
+	if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_HP &&
+		(ha->pdev->subsystem_device == 0x7040 ||
+		ha->pdev->subsystem_device == 0x7041 ||
+		ha->pdev->subsystem_device == 0x1705)) {
+		DEBUG2(qla_printk(KERN_WARNING, ha,
+			"MSI-X: Unsupported ISP2432 SSVID/SSDID (0x%X,0x%X).\n",
+			ha->pdev->subsystem_vendor,
+			ha->pdev->subsystem_device));
+		goto skip_msi;
+	}
 
 	if (IS_QLA2432(ha) && (ha->pdev->revision < QLA_MSIX_CHIP_REV_24XX ||
 		!QLA_MSIX_FW_MODE_1(ha->fw_attributes))) {
 		DEBUG2(qla_printk(KERN_WARNING, ha,
 		"MSI-X: Unsupported ISP2432 (0x%X, 0x%X).\n",
 			ha->pdev->revision, ha->fw_attributes));
-
 		goto skip_msix;
-	}
-
-	if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_HP &&
-	    (ha->pdev->subsystem_device == 0x7040 ||
-		ha->pdev->subsystem_device == 0x7041 ||
-		ha->pdev->subsystem_device == 0x1705)) {
-		DEBUG2(qla_printk(KERN_WARNING, ha,
-		    "MSI-X: Unsupported ISP2432 SSVID/SSDID (0x%X, 0x%X).\n",
-		    ha->pdev->subsystem_vendor,
-		    ha->pdev->subsystem_device));
-
-		goto skip_msi;
 	}
 
 	ret = qla24xx_enable_msix(ha, rsp);
@@ -2356,31 +2348,4 @@ int qla25xx_request_irq(struct rsp_que *rsp)
 	msix->have_irq = 1;
 	msix->rsp = rsp;
 	return ret;
-}
-
-struct scsi_qla_host *
-qla25xx_get_host(struct rsp_que *rsp)
-{
-	srb_t *sp;
-	struct qla_hw_data *ha = rsp->hw;
-	struct scsi_qla_host *vha = NULL;
-	struct sts_entry_24xx *pkt;
-	struct req_que *req;
-	uint16_t que;
-	uint32_t handle;
-
-	pkt = (struct sts_entry_24xx *) rsp->ring_ptr;
-	que = MSW(pkt->handle);
-	handle = (uint32_t) LSW(pkt->handle);
-	req = ha->req_q_map[que];
-	if (handle < MAX_OUTSTANDING_COMMANDS) {
-		sp = req->outstanding_cmds[handle];
-		if (sp)
-			return  sp->fcport->vha;
-		else
-			goto base_que;
-	}
-base_que:
-	vha = pci_get_drvdata(ha->pdev);
-	return vha;
 }

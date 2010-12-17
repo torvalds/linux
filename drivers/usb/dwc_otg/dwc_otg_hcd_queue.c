@@ -143,7 +143,7 @@ void dwc_otg_hcd_qh_init(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh, struct urb *_ur
 	 * _urb->dev->tt->hub may be null
 	 */
 	if((_urb->dev->tt)&&(!_urb->dev->tt->hub))
-		printk("%s tt->hub null!\n",__func__);
+		DWC_PRINT("%s tt->hub null!\n",__func__);
 	if (((_urb->dev->speed == USB_SPEED_LOW) || 
 	     (_urb->dev->speed == USB_SPEED_FULL)) &&
 	    (_urb->dev->tt) && (_urb->dev->tt->hub)&&
@@ -241,9 +241,8 @@ static int periodic_channel_available(dwc_otg_hcd_t *_hcd)
 	 * non-periodic transactions.
 	 */
 	int status;
-/*yk@rk modified for usb host 1.1*/
-#if 0
 	int num_channels;
+
 	num_channels = _hcd->core_if->core_params->host_channels;
 	if ((_hcd->periodic_channels + _hcd->non_periodic_channels < num_channels) &&
 	    (_hcd->periodic_channels < num_channels - 1)) {
@@ -255,9 +254,7 @@ static int periodic_channel_available(dwc_otg_hcd_t *_hcd)
 			   _hcd->non_periodic_channels);
 		status = -ENOSPC;
 	}
-#else
-	status = 0;
-#endif
+
 	return status;
 }
 

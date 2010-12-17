@@ -64,7 +64,6 @@ xfs_inode_ag_lookup(
 	 * as the tree is sparse and a gang lookup walks to find
 	 * the number of objects requested.
 	 */
-	read_lock(&pag->pag_ici_lock);
 	if (tag == XFS_ICI_NO_TAG) {
 		nr_found = radix_tree_gang_lookup(&pag->pag_ici_root,
 				(void **)&ip, *first_index, 1);
@@ -73,7 +72,7 @@ xfs_inode_ag_lookup(
 				(void **)&ip, *first_index, 1, tag);
 	}
 	if (!nr_found)
-		goto unlock;
+		return NULL;
 
 	/*
 	 * Update the index for the next lookup. Catch overflows
@@ -83,13 +82,8 @@ xfs_inode_ag_lookup(
 	 */
 	*first_index = XFS_INO_TO_AGINO(mp, ip->i_ino + 1);
 	if (*first_index < XFS_INO_TO_AGINO(mp, ip->i_ino))
-		goto unlock;
-
+		return NULL;
 	return ip;
-
-unlock:
-	read_unlock(&pag->pag_ici_lock);
-	return NULL;
 }
 
 STATIC int
@@ -99,7 +93,9 @@ xfs_inode_ag_walk(
 	int			(*execute)(struct xfs_inode *ip,
 					   struct xfs_perag *pag, int flags),
 	int			flags,
-	int			tag)
+	int			tag,
+	int			exclusive,
+	int			*nr_to_scan)
 {
 	struct xfs_perag	*pag = &mp->m_perag[ag];
 	uint32_t		first_index;
@@ -113,10 +109,20 @@ restart:
 		int		error = 0;
 		xfs_inode_t	*ip;
 
+		if (exclusive)
+			write_lock(&pag->pag_ici_lock);
+		else
+			read_lock(&pag->pag_ici_lock);
 		ip = xfs_inode_ag_lookup(mp, pag, &first_index, tag);
-		if (!ip)
+		if (!ip) {
+			if (exclusive)
+				write_unlock(&pag->pag_ici_lock);
+			else
+				read_unlock(&pag->pag_ici_lock);
 			break;
+		}
 
+		/* execute releases pag->pag_ici_lock */
 		error = execute(ip, pag, flags);
 		if (error == EAGAIN) {
 			skipped++;
@@ -124,13 +130,12 @@ restart:
 		}
 		if (error)
 			last_error = error;
-		/*
-		 * bail out if the filesystem is corrupted.
-		 */
+
+		/* bail out if the filesystem is corrupted.  */
 		if (error == EFSCORRUPTED)
 			break;
 
-	} while (1);
+	} while ((*nr_to_scan)--);
 
 	if (skipped) {
 		delay(1);
@@ -147,22 +152,31 @@ xfs_inode_ag_iterator(
 	int			(*execute)(struct xfs_inode *ip,
 					   struct xfs_perag *pag, int flags),
 	int			flags,
-	int			tag)
+	int			tag,
+	int			exclusive,
+	int			*nr_to_scan)
 {
 	int			error = 0;
 	int			last_error = 0;
 	xfs_agnumber_t		ag;
+	int			nr;
 
+	nr = nr_to_scan ? *nr_to_scan : INT_MAX;
 	for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
 		if (!mp->m_perag[ag].pag_ici_init)
 			continue;
-		error = xfs_inode_ag_walk(mp, ag, execute, flags, tag);
+		error = xfs_inode_ag_walk(mp, ag, execute, flags, tag,
+						exclusive, &nr);
 		if (error) {
 			last_error = error;
 			if (error == EFSCORRUPTED)
 				break;
 		}
+		if (nr <= 0)
+			break;
 	}
+	if (nr_to_scan)
+		*nr_to_scan = nr;
 	return XFS_ERROR(last_error);
 }
 
@@ -173,30 +187,31 @@ xfs_sync_inode_valid(
 	struct xfs_perag	*pag)
 {
 	struct inode		*inode = VFS_I(ip);
+	int			error = EFSCORRUPTED;
 
 	/* nothing to sync during shutdown */
-	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-		read_unlock(&pag->pag_ici_lock);
-		return EFSCORRUPTED;
-	}
+	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
+		goto out_unlock;
 
-	/*
-	 * If we can't get a reference on the inode, it must be in reclaim.
-	 * Leave it for the reclaim code to flush. Also avoid inodes that
-	 * haven't been fully initialised.
-	 */
-	if (!igrab(inode)) {
-		read_unlock(&pag->pag_ici_lock);
-		return ENOENT;
-	}
-	read_unlock(&pag->pag_ici_lock);
+	/* avoid new or reclaimable inodes. Leave for reclaim code to flush */
+	error = ENOENT;
+	if (xfs_iflags_test(ip, XFS_INEW | XFS_IRECLAIMABLE | XFS_IRECLAIM))
+		goto out_unlock;
 
-	if (is_bad_inode(inode) || xfs_iflags_test(ip, XFS_INEW)) {
+	/* If we can't grab the inode, it must on it's way to reclaim. */
+	if (!igrab(inode))
+		goto out_unlock;
+
+	if (is_bad_inode(inode)) {
 		IRELE(ip);
-		return ENOENT;
+		goto out_unlock;
 	}
 
-	return 0;
+	/* inode is valid */
+	error = 0;
+out_unlock:
+	read_unlock(&pag->pag_ici_lock);
+	return error;
 }
 
 STATIC int
@@ -281,7 +296,7 @@ xfs_sync_data(
 	ASSERT((flags & ~(SYNC_TRYLOCK|SYNC_WAIT)) == 0);
 
 	error = xfs_inode_ag_iterator(mp, xfs_sync_inode_data, flags,
-				      XFS_ICI_NO_TAG);
+				      XFS_ICI_NO_TAG, 0, NULL);
 	if (error)
 		return XFS_ERROR(error);
 
@@ -303,7 +318,7 @@ xfs_sync_attr(
 	ASSERT((flags & ~SYNC_WAIT) == 0);
 
 	return xfs_inode_ag_iterator(mp, xfs_sync_inode_attr, flags,
-				     XFS_ICI_NO_TAG);
+				     XFS_ICI_NO_TAG, 0, NULL);
 }
 
 STATIC int
@@ -663,35 +678,71 @@ xfs_syncd_stop(
 	kthread_stop(mp->m_sync_task);
 }
 
-int
-xfs_reclaim_inode(
-	xfs_inode_t	*ip,
-	int		locked,
-	int		sync_mode)
+void
+__xfs_inode_set_reclaim_tag(
+	struct xfs_perag	*pag,
+	struct xfs_inode	*ip)
 {
-	xfs_perag_t	*pag = xfs_get_perag(ip->i_mount, ip->i_ino);
+	radix_tree_tag_set(&pag->pag_ici_root,
+			   XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino),
+			   XFS_ICI_RECLAIM_TAG);
+	pag->pag_ici_reclaimable++;
+}
 
-	/* The hash lock here protects a thread in xfs_iget_core from
-	 * racing with us on linking the inode back with a vnode.
-	 * Once we have the XFS_IRECLAIM flag set it will not touch
-	 * us.
-	 */
+/*
+ * We set the inode flag atomically with the radix tree tag.
+ * Once we get tag lookups on the radix tree, this inode flag
+ * can go away.
+ */
+void
+xfs_inode_set_reclaim_tag(
+	xfs_inode_t	*ip)
+{
+	xfs_mount_t	*mp = ip->i_mount;
+	xfs_perag_t	*pag = xfs_get_perag(mp, ip->i_ino);
+
 	write_lock(&pag->pag_ici_lock);
 	spin_lock(&ip->i_flags_lock);
-	if (__xfs_iflags_test(ip, XFS_IRECLAIM) ||
-	    !__xfs_iflags_test(ip, XFS_IRECLAIMABLE)) {
+	__xfs_inode_set_reclaim_tag(pag, ip);
+	__xfs_iflags_set(ip, XFS_IRECLAIMABLE);
+	spin_unlock(&ip->i_flags_lock);
+	write_unlock(&pag->pag_ici_lock);
+	xfs_put_perag(mp, pag);
+}
+
+void
+__xfs_inode_clear_reclaim_tag(
+	xfs_mount_t	*mp,
+	xfs_perag_t	*pag,
+	xfs_inode_t	*ip)
+{
+	radix_tree_tag_clear(&pag->pag_ici_root,
+			XFS_INO_TO_AGINO(mp, ip->i_ino), XFS_ICI_RECLAIM_TAG);
+	pag->pag_ici_reclaimable--;
+}
+
+STATIC int
+xfs_reclaim_inode(
+	struct xfs_inode	*ip,
+	struct xfs_perag	*pag,
+	int			sync_mode)
+{
+	/*
+	 * The radix tree lock here protects a thread in xfs_iget from racing
+	 * with us starting reclaim on the inode.  Once we have the
+	 * XFS_IRECLAIM flag set it will not touch us.
+	 */
+	spin_lock(&ip->i_flags_lock);
+	ASSERT_ALWAYS(__xfs_iflags_test(ip, XFS_IRECLAIMABLE));
+	if (__xfs_iflags_test(ip, XFS_IRECLAIM)) {
+		/* ignore as it is already under reclaim */
 		spin_unlock(&ip->i_flags_lock);
 		write_unlock(&pag->pag_ici_lock);
-		if (locked) {
-			xfs_ifunlock(ip);
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		}
-		return -EAGAIN;
+		return 0;
 	}
 	__xfs_iflags_set(ip, XFS_IRECLAIM);
 	spin_unlock(&ip->i_flags_lock);
 	write_unlock(&pag->pag_ici_lock);
-	xfs_put_perag(ip->i_mount, pag);
 
 	/*
 	 * If the inode is still dirty, then flush it out.  If the inode
@@ -704,10 +755,8 @@ xfs_reclaim_inode(
 	 * We get the flush lock regardless, though, just to make sure
 	 * we don't free it while it is being flushed.
 	 */
-	if (!locked) {
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		xfs_iflock(ip);
-	}
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	xfs_iflock(ip);
 
 	/*
 	 * In the case of a forced shutdown we rely on xfs_iflush() to
@@ -724,68 +773,94 @@ xfs_reclaim_inode(
 	return 0;
 }
 
-void
-__xfs_inode_set_reclaim_tag(
-	struct xfs_perag	*pag,
-	struct xfs_inode	*ip)
-{
-	radix_tree_tag_set(&pag->pag_ici_root,
-			   XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino),
-			   XFS_ICI_RECLAIM_TAG);
-}
-
-/*
- * We set the inode flag atomically with the radix tree tag.
- * Once we get tag lookups on the radix tree, this inode flag
- * can go away.
- */
-void
-xfs_inode_set_reclaim_tag(
-	xfs_inode_t	*ip)
-{
-	xfs_mount_t	*mp = ip->i_mount;
-	xfs_perag_t	*pag = xfs_get_perag(mp, ip->i_ino);
-
-	read_lock(&pag->pag_ici_lock);
-	spin_lock(&ip->i_flags_lock);
-	__xfs_inode_set_reclaim_tag(pag, ip);
-	__xfs_iflags_set(ip, XFS_IRECLAIMABLE);
-	spin_unlock(&ip->i_flags_lock);
-	read_unlock(&pag->pag_ici_lock);
-	xfs_put_perag(mp, pag);
-}
-
-void
-__xfs_inode_clear_reclaim_tag(
-	xfs_mount_t	*mp,
-	xfs_perag_t	*pag,
-	xfs_inode_t	*ip)
-{
-	radix_tree_tag_clear(&pag->pag_ici_root,
-			XFS_INO_TO_AGINO(mp, ip->i_ino), XFS_ICI_RECLAIM_TAG);
-}
-
-STATIC int
-xfs_reclaim_inode_now(
-	struct xfs_inode	*ip,
-	struct xfs_perag	*pag,
-	int			flags)
-{
-	/* ignore if already under reclaim */
-	if (xfs_iflags_test(ip, XFS_IRECLAIM)) {
-		read_unlock(&pag->pag_ici_lock);
-		return 0;
-	}
-	read_unlock(&pag->pag_ici_lock);
-
-	return xfs_reclaim_inode(ip, 0, flags);
-}
-
 int
 xfs_reclaim_inodes(
 	xfs_mount_t	*mp,
 	int		mode)
 {
-	return xfs_inode_ag_iterator(mp, xfs_reclaim_inode_now, mode,
-					XFS_ICI_RECLAIM_TAG);
+	return xfs_inode_ag_iterator(mp, xfs_reclaim_inode, mode,
+					XFS_ICI_RECLAIM_TAG, 1, NULL);
+}
+
+/*
+ * Shrinker infrastructure.
+ *
+ * This is all far more complex than it needs to be. It adds a global list of
+ * mounts because the shrinkers can only call a global context. We need to make
+ * the shrinkers pass a context to avoid the need for global state.
+ */
+static LIST_HEAD(xfs_mount_list);
+static struct rw_semaphore xfs_mount_list_lock;
+
+static int
+xfs_reclaim_inode_shrink(
+	int		nr_to_scan,
+	gfp_t		gfp_mask)
+{
+	struct xfs_mount *mp;
+	xfs_agnumber_t	ag;
+	int		reclaimable = 0;
+
+	if (nr_to_scan) {
+		if (!(gfp_mask & __GFP_FS))
+			return -1;
+
+		down_read(&xfs_mount_list_lock);
+		list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
+			xfs_inode_ag_iterator(mp, xfs_reclaim_inode, 0,
+					XFS_ICI_RECLAIM_TAG, 1, &nr_to_scan);
+			if (nr_to_scan <= 0)
+				break;
+		}
+		up_read(&xfs_mount_list_lock);
+	}
+
+	down_read(&xfs_mount_list_lock);
+	list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
+		for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
+
+			if (!mp->m_perag[ag].pag_ici_init)
+				continue;
+			reclaimable += mp->m_perag[ag].pag_ici_reclaimable;
+		}
+	}
+	up_read(&xfs_mount_list_lock);
+	return reclaimable;
+}
+
+static struct shrinker xfs_inode_shrinker = {
+	.shrink = xfs_reclaim_inode_shrink,
+	.seeks = DEFAULT_SEEKS,
+};
+
+void __init
+xfs_inode_shrinker_init(void)
+{
+	init_rwsem(&xfs_mount_list_lock);
+	register_shrinker(&xfs_inode_shrinker);
+}
+
+void
+xfs_inode_shrinker_destroy(void)
+{
+	ASSERT(list_empty(&xfs_mount_list));
+	unregister_shrinker(&xfs_inode_shrinker);
+}
+
+void
+xfs_inode_shrinker_register(
+	struct xfs_mount	*mp)
+{
+	down_write(&xfs_mount_list_lock);
+	list_add_tail(&mp->m_mplist, &xfs_mount_list);
+	up_write(&xfs_mount_list_lock);
+}
+
+void
+xfs_inode_shrinker_unregister(
+	struct xfs_mount	*mp)
+{
+	down_write(&xfs_mount_list_lock);
+	list_del(&mp->m_mplist);
+	up_write(&xfs_mount_list_lock);
 }

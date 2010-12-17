@@ -66,18 +66,28 @@ static struct usb_device_id ar9170_usb_ids[] = {
 	{ USB_DEVICE(0x0cf3, 0x1001) },
 	/* TP-Link TL-WN821N v2 */
 	{ USB_DEVICE(0x0cf3, 0x1002) },
+	/* 3Com Dual Band 802.11n USB Adapter */
+	{ USB_DEVICE(0x0cf3, 0x1010) },
+	/* H3C Dual Band 802.11n USB Adapter */
+	{ USB_DEVICE(0x0cf3, 0x1011) },
 	/* Cace Airpcap NX */
 	{ USB_DEVICE(0xcace, 0x0300) },
 	/* D-Link DWA 160 A1 */
 	{ USB_DEVICE(0x07d1, 0x3c10) },
 	/* D-Link DWA 160 A2 */
 	{ USB_DEVICE(0x07d1, 0x3a09) },
+	/* Netgear WNA1000 */
+	{ USB_DEVICE(0x0846, 0x9040) },
 	/* Netgear WNDA3100 */
 	{ USB_DEVICE(0x0846, 0x9010) },
 	/* Netgear WN111 v2 */
 	{ USB_DEVICE(0x0846, 0x9001) },
 	/* Zydas ZD1221 */
 	{ USB_DEVICE(0x0ace, 0x1221) },
+	/* Proxim ORiNOCO 802.11n USB */
+	{ USB_DEVICE(0x1435, 0x0804) },
+	/* WNC Generic 11n USB Dongle */
+	{ USB_DEVICE(0x1435, 0x0326) },
 	/* ZyXEL NWD271N */
 	{ USB_DEVICE(0x0586, 0x3417) },
 	/* Z-Com UB81 BG */
@@ -414,7 +424,7 @@ static int ar9170_usb_exec_cmd(struct ar9170 *ar, enum ar9170_cmd cmd,
 	spin_unlock_irqrestore(&aru->common.cmdlock, flags);
 
 	usb_fill_int_urb(urb, aru->udev,
-			 usb_sndbulkpipe(aru->udev, AR9170_EP_CMD),
+			 usb_sndintpipe(aru->udev, AR9170_EP_CMD),
 			 aru->common.cmdbuf, plen + 4,
 			 ar9170_usb_tx_urb_complete, NULL, 1);
 

@@ -1019,7 +1019,7 @@ static int win0fb_set_par(struct fb_info *info)
     fix->smem_len = smem_len;
     fix->mmio_start = uv_addr;
 
-    par->addr_seted = ((-1==(int)y_addr)&&(-1==(int)uv_addr)) ? 0 : 1;
+    par->addr_seted = (((-1==(int)y_addr)&&(-1==(int)uv_addr))||((0==(int)y_addr)&&(0==(int)uv_addr))) ? 0 : 1;
     fbprintk("buffer alloced by user fix->smem_start = %8x, fix->smem_len = %8x, fix->mmio_start = %8x \n", (u32)fix->smem_start, (u32)fix->smem_len, (u32)fix->mmio_start);
 
 	// calculate the display phy address
@@ -1056,7 +1056,7 @@ static int win0fb_set_par(struct fb_info *info)
     LcdWrReg(inf, WIN0_YRGB_MST, y_addr);
     LcdWrReg(inf, WIN0_CBR_MST, uv_addr);
 
-    LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE | m_W0_FORMAT, v_W0_ENABLE(win0_en) | v_W0_FORMAT(format));
+    LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE | m_W0_FORMAT, v_W0_ENABLE(win0_en && par->addr_seted) | v_W0_FORMAT(format));
 
     LcdMskReg(inf, WIN0_VIR, m_WORDLO | m_WORDHI, v_VIRWIDTH(xvir) | v_VIRHEIGHT((yvir)) );
     LcdMskReg(inf, WIN0_ACT_INFO, m_WORDLO | m_WORDHI, v_WORDLO(xact) | v_WORDHI(yact));
@@ -1415,7 +1415,7 @@ static int win1fb_set_par(struct fb_info *info)
     else
     {
      LcdMskReg(inf, SWAP_CTRL, m_W1_8_SWAP | m_W1_16_SWAP | m_W1_R_SHIFT_SWAP | m_W1_565_RB_SWAP,
-            v_W1_8_SWAP(0) | v_W1_16_SWAP(0) | v_W1_R_SHIFT_SWAP(0) | v_W1_565_RB_SWAP(0) );
+            v_W1_8_SWAP(1) | v_W1_16_SWAP(1) | v_W1_R_SHIFT_SWAP(1) | v_W1_565_RB_SWAP(0) );
 
      LcdMskReg(inf, DSP_CTRL0, m_W1_TRANSP_FROM, v_W1_TRANSP_FROM(TRSP_FMRAM==trspmode) );
     }
@@ -1713,6 +1713,8 @@ static int __init rk29fb_probe (struct platform_device *pdev)
     int ret = 0;
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
+
+    *(volatile u32 *)(RK29_GRF_BASE+0xac) = ((*(volatile u32 *)(RK29_GRF_BASE+0xac)) & ~0x3FF) | 0x246;
 
     /* Malloc rk29fb_inf and set it to pdev for drvdata */
     fbprintk(">> Malloc rk29fb_inf and set it to pdev for drvdata \n");

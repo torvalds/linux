@@ -190,6 +190,7 @@ static void rtl8180_handle_tx(struct ieee80211_hw *dev, unsigned int prio)
 			info->flags |= IEEE80211_TX_STAT_ACK;
 
 		info->status.rates[0].count = (flags & 0xFF) + 1;
+		info->status.rates[1].idx = -1;
 
 		ieee80211_tx_status_irqsafe(dev, skb);
 		if (ring->entries - skb_queue_len(&ring->queue) == 2)

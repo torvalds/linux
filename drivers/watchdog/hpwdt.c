@@ -443,7 +443,7 @@ static void hpwdt_ping(void)
 static int hpwdt_change_timer(int new_margin)
 {
 	/* Arbitrary, can't find the card's limits */
-	if (new_margin < 30 || new_margin > 600) {
+	if (new_margin < 5 || new_margin > 600) {
 		printk(KERN_WARNING
 			"hpwdt: New value passed in is invalid: %d seconds.\n",
 			new_margin);

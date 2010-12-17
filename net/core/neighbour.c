@@ -945,7 +945,10 @@ static void neigh_update_hhs(struct neighbour *neigh)
 {
 	struct hh_cache *hh;
 	void (*update)(struct hh_cache*, const struct net_device*, const unsigned char *)
-		= neigh->dev->header_ops->cache_update;
+		= NULL;
+
+	if (neigh->dev->header_ops)
+		update = neigh->dev->header_ops->cache_update;
 
 	if (update) {
 		for (hh = neigh->hh; hh; hh = hh->hh_next) {

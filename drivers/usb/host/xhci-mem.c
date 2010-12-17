@@ -496,6 +496,19 @@ static inline unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
 	return EP_INTERVAL(interval);
 }
 
+/* The "Mult" field in the endpoint context is only set for SuperSpeed devices.
+ * High speed endpoint descriptors can define "the number of additional
+ * transaction opportunities per microframe", but that goes in the Max Burst
+ * endpoint context field.
+ */
+static inline u32 xhci_get_endpoint_mult(struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	if (udev->speed != USB_SPEED_SUPER || !ep->ss_ep_comp)
+		return 0;
+	return ep->ss_ep_comp->desc.bmAttributes;
+}
+
 static inline u32 xhci_get_endpoint_type(struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
@@ -526,6 +539,36 @@ static inline u32 xhci_get_endpoint_type(struct usb_device *udev,
 	return type;
 }
 
+/* Return the maximum endpoint service interval time (ESIT) payload.
+ * Basically, this is the maxpacket size, multiplied by the burst size
+ * and mult size.
+ */
+static inline u32 xhci_get_max_esit_payload(struct xhci_hcd *xhci,
+		struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	int max_burst;
+	int max_packet;
+
+	/* Only applies for interrupt or isochronous endpoints */
+	if (usb_endpoint_xfer_control(&ep->desc) ||
+			usb_endpoint_xfer_bulk(&ep->desc))
+		return 0;
+
+	if (udev->speed == USB_SPEED_SUPER) {
+		if (ep->ss_ep_comp)
+			return ep->ss_ep_comp->desc.wBytesPerInterval;
+		xhci_warn(xhci, "WARN no SS endpoint companion descriptor.\n");
+		/* Assume no bursts, no multiple opportunities to send. */
+		return ep->desc.wMaxPacketSize;
+	}
+
+	max_packet = ep->desc.wMaxPacketSize & 0x3ff;
+	max_burst = (ep->desc.wMaxPacketSize & 0x1800) >> 11;
+	/* A 0 in max burst means 1 transfer per ESIT */
+	return max_packet * (max_burst + 1);
+}
+
 int xhci_endpoint_init(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev,
 		struct usb_device *udev,
@@ -537,6 +580,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	struct xhci_ring *ep_ring;
 	unsigned int max_packet;
 	unsigned int max_burst;
+	u32 max_esit_payload;
 
 	ep_index = xhci_get_endpoint_index(&ep->desc);
 	ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);
@@ -550,6 +594,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	ep_ctx->deq = ep_ring->first_seg->dma | ep_ring->cycle_state;
 
 	ep_ctx->ep_info = xhci_get_endpoint_interval(udev, ep);
+	ep_ctx->ep_info |= EP_MULT(xhci_get_endpoint_mult(udev, ep));
 
 	/* FIXME dig Mult and streams info out of ep companion desc */
 
@@ -595,6 +640,26 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	default:
 		BUG();
 	}
+	max_esit_payload = xhci_get_max_esit_payload(xhci, udev, ep);
+	ep_ctx->tx_info = MAX_ESIT_PAYLOAD_FOR_EP(max_esit_payload);
+
+	/*
+	 * XXX no idea how to calculate the average TRB buffer length for bulk
+	 * endpoints, as the driver gives us no clue how big each scatter gather
+	 * list entry (or buffer) is going to be.
+	 *
+	 * For isochronous and interrupt endpoints, we set it to the max
+	 * available, until we have new API in the USB core to allow drivers to
+	 * declare how much bandwidth they actually need.
+	 *
+	 * Normally, it would be calculated by taking the total of the buffer
+	 * lengths in the TD and then dividing by the number of TRBs in a TD,
+	 * including link TRBs, No-op TRBs, and Event data TRBs.  Since we don't
+	 * use Event Data TRBs, and we don't chain in a link TRB on short
+	 * transfers, we're basically dividing by 1.
+	 */
+	ep_ctx->tx_info |= AVG_TRB_LENGTH_FOR_EP(max_esit_payload);
+
 	/* FIXME Debug endpoint context */
 	return 0;
 }

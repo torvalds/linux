@@ -78,11 +78,11 @@ config B43_SDIO
 
 	  If unsure, say N.
 
-# Data transfers to the device via PIO
-# This is only needed on PCMCIA and SDIO devices. All others can do DMA properly.
+#Data transfers to the device via PIO. We want it as a fallback even
+# if we can do DMA.
 config B43_PIO
 	bool
-	depends on B43 && (B43_SDIO || B43_PCMCIA || B43_FORCE_PIO)
+	depends on B43
 	select SSB_BLOCKIO
 	default y
 
