@@ -22,7 +22,7 @@
 #include <dspbridge/procpriv.h>
 
 #include <dspbridge/nodedefs.h>
-#include <dspbridge/dispdefs.h>
+#include <dspbridge/disp.h>
 #include <dspbridge/nldrdefs.h>
 #include <dspbridge/drv.h>
 

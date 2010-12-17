@@ -31,7 +31,6 @@
 
 /*  ----------------------------------- This */
 #include <ioobj.h>
-#include <dspbridge/iodefs.h>
 #include <dspbridge/io.h>
 
 /*  ----------------------------------- Globals */

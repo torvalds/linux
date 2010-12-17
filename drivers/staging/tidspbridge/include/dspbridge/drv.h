@@ -23,8 +23,10 @@
 
 #include <dspbridge/devdefs.h>
 
-#include <dspbridge/drvdefs.h>
 #include <linux/idr.h>
+
+/* Bridge Driver Object */
+struct drv_object;
 
 /* Provide the DSP Internal memory windows that can be accessed from L3 address
  * space */

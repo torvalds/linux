@@ -23,7 +23,12 @@
 #include <dspbridge/_chnl_sm.h>
 #include <dspbridge/host_os.h>
 
-#include <dspbridge/iodefs.h>
+#include <dspbridge/io.h>
+#include <dspbridge/mbx_sh.h>	/* shared mailbox codes */
+
+/* Magic code used to determine if DSP signaled exception. */
+#define DEH_BASE        MBX_DEH_BASE
+#define DEH_LIMIT       MBX_DEH_LIMIT
 
 #define IO_INPUT            0
 #define IO_OUTPUT           1

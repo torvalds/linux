@@ -23,9 +23,9 @@
 #include <dspbridge/chnldefs.h>
 #include <dspbridge/cmm.h>
 #include <dspbridge/cod.h>
-#include <dspbridge/dehdefs.h>
+#include <dspbridge/dspdeh.h>
 #include <dspbridge/nodedefs.h>
-#include <dspbridge/dispdefs.h>
+#include <dspbridge/disp.h>
 #include <dspbridge/dspdefs.h>
 #include <dspbridge/dmm.h>
 #include <dspbridge/host_os.h>

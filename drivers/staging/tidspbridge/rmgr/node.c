@@ -64,7 +64,6 @@
 #include <dspbridge/nldr.h>
 
 #include <dspbridge/drv.h>
-#include <dspbridge/drvdefs.h>
 #include <dspbridge/resourcecleanup.h>
 #include <_tiomap.h>
 

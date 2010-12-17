@@ -22,7 +22,18 @@
 #include <dspbridge/cfgdefs.h>
 #include <dspbridge/devdefs.h>
 
-#include <dspbridge/iodefs.h>
+/* IO Objects: */
+struct io_mgr;
+
+/* IO manager attributes: */
+struct io_attrs {
+	u8 birq;		/* Channel's I/O IRQ number. */
+	bool irq_shared;	/* TRUE if the IRQ is shareable. */
+	u32 word_size;		/* DSP Word size. */
+	u32 shm_base;		/* Physical base address of shared memory. */
+	u32 usm_length;		/* Size (in bytes) of shared memory. */
+};
+
 
 /*
  *  ======== io_create ========

@@ -32,9 +32,9 @@
 #include <dspbridge/brddefs.h>
 #include <dspbridge/cfgdefs.h>
 #include <dspbridge/chnlpriv.h>
-#include <dspbridge/dehdefs.h>
+#include <dspbridge/dspdeh.h>
 #include <dspbridge/devdefs.h>
-#include <dspbridge/iodefs.h>
+#include <dspbridge/io.h>
 #include <dspbridge/msgdefs.h>
 
 /* Handle to Bridge driver's private device context. */

@@ -18,7 +18,13 @@
 #define PWR_
 
 #include <dspbridge/dbdefs.h>
-#include <dspbridge/pwr_sh.h>
+#include <dspbridge/mbx_sh.h>
+
+/* valid sleep command codes that can be sent by GPP via mailbox: */
+#define PWR_DEEPSLEEP           MBX_PM_DSPIDLE
+#define PWR_EMERGENCYDEEPSLEEP  MBX_PM_EMERGENCYSLEEP
+#define PWR_WAKEUP              MBX_PM_DSPWAKEUP
+
 
 /*
  *  ======== pwr_sleep_dsp ========

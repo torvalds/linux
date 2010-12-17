@@ -29,13 +29,13 @@
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/brddefs.h>
 #include <dspbridge/dev.h>
-#include <dspbridge/iodefs.h>
+#include <dspbridge/io.h>
 
 /* ------------------------------------ Hardware Abstraction Layer */
 #include <hw_defs.h>
 #include <hw_mmu.h>
 
-#include <dspbridge/pwr_sh.h>
+#include <dspbridge/pwr.h>
 
 /*  ----------------------------------- Bridge Driver */
 #include <dspbridge/dspdeh.h>
