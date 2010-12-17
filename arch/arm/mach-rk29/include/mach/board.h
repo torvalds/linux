@@ -131,6 +131,16 @@ struct p1003_platform_data {
     void    (*exit_platform_hw)(void);
 };
 
+struct mma8452_platform_data {
+    u16     model;
+	u16     swap_xy;
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*mma8452_platform_sleep)(void);
+    int     (*mma8452_platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+
 void __init rk29_map_common_io(void);
 void __init rk29_clock_init(void);
 
