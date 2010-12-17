@@ -229,6 +229,24 @@ static void xen_extend_mmu_update(const struct mmu_update *update)
 	*u = *update;
 }
 
+static void xen_extend_mmuext_op(const struct mmuext_op *op)
+{
+	struct multicall_space mcs;
+	struct mmuext_op *u;
+
+	mcs = xen_mc_extend_args(__HYPERVISOR_mmuext_op, sizeof(*u));
+
+	if (mcs.mc != NULL) {
+		mcs.mc->args[1]++;
+	} else {
+		mcs = __xen_mc_entry(sizeof(*u));
+		MULTI_mmuext_op(mcs.mc, mcs.args, 1, NULL, DOMID_SELF);
+	}
+
+	u = mcs.args;
+	*u = *op;
+}
+
 static void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
 {
 	struct mmu_update u;
@@ -810,14 +828,12 @@ static void xen_pte_unlock(void *v)
 
 static void xen_do_pin(unsigned level, unsigned long pfn)
 {
-	struct mmuext_op *op;
-	struct multicall_space mcs;
+	struct mmuext_op op;
 
-	mcs = __xen_mc_entry(sizeof(*op));
-	op = mcs.args;
-	op->cmd = level;
-	op->arg1.mfn = pfn_to_mfn(pfn);
-	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
+	op.cmd = level;
+	op.arg1.mfn = pfn_to_mfn(pfn);
+
+	xen_extend_mmuext_op(&op);
 }
 
 static int xen_pin_page(struct mm_struct *mm, struct page *page,
@@ -1307,8 +1323,7 @@ static void set_current_cr3(void *v)
 
 static void __xen_write_cr3(bool kernel, unsigned long cr3)
 {
-	struct mmuext_op *op;
-	struct multicall_space mcs;
+	struct mmuext_op op;
 	unsigned long mfn;
 
 	trace_xen_mmu_write_cr3(kernel, cr3);
@@ -1320,13 +1335,10 @@ static void __xen_write_cr3(bool kernel, unsigned long cr3)
 
 	WARN_ON(mfn == 0 && kernel);
 
-	mcs = __xen_mc_entry(sizeof(*op));
+	op.cmd = kernel ? MMUEXT_NEW_BASEPTR : MMUEXT_NEW_USER_BASEPTR;
+	op.arg1.mfn = mfn;
 
-	op = mcs.args;
-	op->cmd = kernel ? MMUEXT_NEW_BASEPTR : MMUEXT_NEW_USER_BASEPTR;
-	op->arg1.mfn = mfn;
-
-	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
+	xen_extend_mmuext_op(&op);
 
 	if (kernel) {
 		percpu_write(xen_cr3, cr3);
