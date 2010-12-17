@@ -208,8 +208,7 @@ static int zram_read(struct zram *zram, struct bio *bio)
 	struct bio_vec *bvec;
 
 	if (unlikely(!zram->init_done)) {
-		set_bit(BIO_UPTODATE, &bio->bi_flags);
-		bio_endio(bio, 0);
+		bio_endio(bio, -ENXIO);
 		return 0;
 	}
 
