@@ -1,6 +1,6 @@
 config ZRAM
 	tristate "Compressed RAM block device support"
-	depends on BLOCK
+	depends on BLOCK && SYSFS
 	select LZO_COMPRESS
 	select LZO_DECOMPRESS
 	default n
