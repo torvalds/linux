@@ -1,7 +1,7 @@
 /*
- * SDRC register values for RX51
+ * SDRC register values for Nokia boards
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008, 2010 Nokia Corporation
  *
  * Lauri Leukkunen <lauri.leukkunen@nokia.com>
  *
@@ -22,6 +22,7 @@
 #include <plat/clock.h>
 #include <plat/sdrc.h>
 
+#include "sdram-nokia.h"
 
 /* In picoseconds, except for tREF (ns), tXP, tCKE, tWTR (clks) */
 struct sdram_timings {
@@ -43,9 +44,28 @@ struct sdram_timings {
 	u32 tWTR;
 };
 
-static struct omap_sdrc_params rx51_sdrc_params[4];
+static const struct sdram_timings nokia_97dot6mhz_timings[] = {
+	{
+		.casl = 3,
+		.tDAL = 30725,
+		.tDPL = 15362,
+		.tRRD = 10241,
+		.tRCD = 20483,
+		.tRP = 15362,
+		.tRAS = 40967,
+		.tRC = 56330,
+		.tRFC = 138266,
+		.tXSR = 204839,
 
-static const struct sdram_timings rx51_timings[] = {
+		.tREF = 7798,
+
+		.tXP = 2,
+		.tCKE = 4,
+		.tWTR = 2,
+	},
+};
+
+static const struct sdram_timings nokia_166mhz_timings[] = {
 	{
 		.casl = 3,
 		.tDAL = 33000,
@@ -65,6 +85,38 @@ static const struct sdram_timings rx51_timings[] = {
 		.tWTR = 2
 	},
 };
+
+static const struct sdram_timings nokia_195dot2mhz_timings[] = {
+	{
+		.casl = 3,
+		.tDAL = 30725,
+		.tDPL = 15362,
+		.tRRD = 10241,
+		.tRCD = 20483,
+		.tRP = 15362,
+		.tRAS = 40967,
+		.tRC = 56330,
+		.tRFC = 138266,
+		.tXSR = 204839,
+
+		.tREF = 7752,
+
+		.tXP = 2,
+		.tCKE = 4,
+		.tWTR = 2,
+	},
+};
+
+static const struct {
+	long rate;
+	struct sdram_timings const *data;
+} nokia_timings[] = {
+	{ 83000000, nokia_166mhz_timings },
+	{ 97600000, nokia_97dot6mhz_timings },
+	{ 166000000, nokia_166mhz_timings },
+	{ 195200000, nokia_195dot2mhz_timings },
+};
+static struct omap_sdrc_params nokia_sdrc_params[ARRAY_SIZE(nokia_timings) + 1];
 
 static unsigned long sdrc_get_fclk_period(long rate)
 {
@@ -110,12 +162,12 @@ static int set_sdrc_timing_regval(u32 *regval, int st_bit, int end_bit,
 #ifdef DEBUG
 #define SDRC_SET_ONE(reg, st, end, field, rate) \
 	if (set_sdrc_timing_regval((reg), (st), (end), \
-			rx51_timings->field, (rate), #field) < 0) \
+			memory_timings->field, (rate), #field) < 0) \
 		err = -1;
 #else
 #define SDRC_SET_ONE(reg, st, end, field, rate) \
 	if (set_sdrc_timing_regval((reg), (st), (end), \
-			rx51_timings->field) < 0) \
+			memory_timings->field) < 0) \
 		err = -1;
 #endif
 
@@ -148,18 +200,19 @@ static int set_sdrc_timing_regval_ps(u32 *regval, int st_bit, int end_bit,
 #ifdef DEBUG
 #define SDRC_SET_ONE_PS(reg, st, end, field, rate) \
 	if (set_sdrc_timing_regval_ps((reg), (st), (end), \
-			rx51_timings->field, \
+			memory_timings->field, \
 			(rate), #field) < 0) \
 		err = -1;
 
 #else
 #define SDRC_SET_ONE_PS(reg, st, end, field, rate) \
 	if (set_sdrc_timing_regval_ps((reg), (st), (end), \
-			rx51_timings->field, (rate)) < 0) \
+			memory_timings->field, (rate)) < 0) \
 		err = -1;
 #endif
 
-static int sdrc_timings(int id, long rate)
+static int sdrc_timings(int id, long rate,
+			const struct sdram_timings *memory_timings)
 {
 	u32 ticks_per_ms;
 	u32 rfr, l;
@@ -184,7 +237,7 @@ static int sdrc_timings(int id, long rate)
 	SDRC_SET_ONE(&actim_ctrlb, 16, 17, tWTR, l3_rate);
 
 	ticks_per_ms = l3_rate;
-	rfr = rx51_timings[0].tREF * ticks_per_ms / 1000000;
+	rfr = memory_timings[0].tREF * ticks_per_ms / 1000000;
 	if (rfr > 65535 + 50)
 		rfr = 65535;
 	else
@@ -197,25 +250,30 @@ static int sdrc_timings(int id, long rate)
 	l = rfr << 8;
 	rfr_ctrl = l | 0x1; /* autorefresh, reload counter with 1xARCV */
 
-	rx51_sdrc_params[id].rate = rate;
-	rx51_sdrc_params[id].actim_ctrla = actim_ctrla;
-	rx51_sdrc_params[id].actim_ctrlb = actim_ctrlb;
-	rx51_sdrc_params[id].rfr_ctrl = rfr_ctrl;
-	rx51_sdrc_params[id].mr = 0x32;
+	nokia_sdrc_params[id].rate = rate;
+	nokia_sdrc_params[id].actim_ctrla = actim_ctrla;
+	nokia_sdrc_params[id].actim_ctrlb = actim_ctrlb;
+	nokia_sdrc_params[id].rfr_ctrl = rfr_ctrl;
+	nokia_sdrc_params[id].mr = 0x32;
 
-	rx51_sdrc_params[id + 1].rate = 0;
+	nokia_sdrc_params[id + 1].rate = 0;
 
 	return err;
 }
 
-struct omap_sdrc_params *rx51_get_sdram_timings(void)
+struct omap_sdrc_params *nokia_get_sdram_timings(void)
 {
-	int err;
+	int err = 0;
+	int i;
 
-	err = sdrc_timings(0, 41500000);
-	err |= sdrc_timings(1, 83000000);
-	err |= sdrc_timings(2, 166000000);
+	for (i = 0; i < ARRAY_SIZE(nokia_timings); i++) {
+		err |= sdrc_timings(i, nokia_timings[i].rate,
+				       nokia_timings[i].data);
+		if (err)
+			pr_err("%s: error with rate %ld: %d\n", __func__,
+			       nokia_timings[i].rate, err);
+	}
 
-	return &rx51_sdrc_params[0];
+	return err ? NULL : nokia_sdrc_params;
 }
 

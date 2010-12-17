@@ -495,7 +495,7 @@ again:
 		add_async_extent(async_cow, start, num_bytes,
 				 total_compressed, pages, nr_pages_ret);
 
-		if (start + num_bytes < end && start + num_bytes < actual_end) {
+		if (start + num_bytes < end) {
 			start += num_bytes;
 			pages = NULL;
 			cond_resched();
@@ -5712,9 +5712,9 @@ static void btrfs_end_dio_bio(struct bio *bio, int err)
 
 	if (err) {
 		printk(KERN_ERR "btrfs direct IO failed ino %lu rw %lu "
-		      "disk_bytenr %lu len %u err no %d\n",
-		      dip->inode->i_ino, bio->bi_rw, bio->bi_sector,
-		      bio->bi_size, err);
+		      "sector %#Lx len %u err no %d\n",
+		      dip->inode->i_ino, bio->bi_rw,
+		      (unsigned long long)bio->bi_sector, bio->bi_size, err);
 		dip->errors = 1;
 
 		/*
@@ -5934,8 +5934,7 @@ free_ordered:
 	 */
 	if (write) {
 		struct btrfs_ordered_extent *ordered;
-		ordered = btrfs_lookup_ordered_extent(inode,
-						      dip->logical_offset);
+		ordered = btrfs_lookup_ordered_extent(inode, file_offset);
 		if (!test_bit(BTRFS_ORDERED_PREALLOC, &ordered->flags) &&
 		    !test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags))
 			btrfs_free_reserved_extent(root, ordered->start,

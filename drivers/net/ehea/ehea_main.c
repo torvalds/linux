@@ -683,7 +683,7 @@ static void ehea_proc_skb(struct ehea_port_res *pr, struct ehea_cqe *cqe,
 	int vlan_extracted = ((cqe->status & EHEA_CQE_VLAN_TAG_XTRACT) &&
 			      pr->port->vgrp);
 
-	if (use_lro) {
+	if (skb->dev->features & NETIF_F_LRO) {
 		if (vlan_extracted)
 			lro_vlan_hwaccel_receive_skb(&pr->lro_mgr, skb,
 						     pr->port->vgrp,
@@ -787,7 +787,7 @@ static int ehea_proc_rwqes(struct net_device *dev,
 		}
 		cqe = ehea_poll_rq1(qp, &wqe_index);
 	}
-	if (use_lro)
+	if (dev->features & NETIF_F_LRO)
 		lro_flush_all(&pr->lro_mgr);
 
 	pr->rx_packets += processed;
@@ -3277,6 +3277,9 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 		      | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER
 		      | NETIF_F_LLTX;
 	dev->watchdog_timeo = EHEA_WATCH_DOG_TIMEOUT;
+
+	if (use_lro)
+		dev->features |= NETIF_F_LRO;
 
 	INIT_WORK(&port->reset_task, ehea_reset_port);
 
