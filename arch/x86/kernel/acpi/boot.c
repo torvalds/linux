@@ -198,6 +198,11 @@ static void __cpuinit acpi_register_lapic(int id, u8 enabled)
 {
 	unsigned int ver = 0;
 
+	if (id >= (MAX_LOCAL_APIC-1)) {
+		printk(KERN_INFO PREFIX "skipped apicid that is too big\n");
+		return;
+	}
+
 	if (!enabled) {
 		++disabled_cpus;
 		return;
