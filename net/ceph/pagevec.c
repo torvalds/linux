@@ -26,12 +26,12 @@ struct page **ceph_get_direct_page_vector(const char __user *data,
 	rc = get_user_pages(current, current->mm, (unsigned long)data,
 			    num_pages, write_page, 0, pages, NULL);
 	up_read(&current->mm->mmap_sem);
-	if (rc < 0)
+	if (rc < num_pages)
 		goto fail;
 	return pages;
 
 fail:
-	kfree(pages);
+	ceph_put_page_vector(pages, rc > 0 ? rc : 0, false);
 	return ERR_PTR(rc);
 }
 EXPORT_SYMBOL(ceph_get_direct_page_vector);
