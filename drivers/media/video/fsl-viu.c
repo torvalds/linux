@@ -915,6 +915,8 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (fh->type != i)
 		return -EINVAL;
 
+	viu_start_dma(fh->dev);
+
 	return videobuf_streamon(&fh->vb_vidq);
 }
 
@@ -926,6 +928,8 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 		return -EINVAL;
 	if (fh->type != i)
 		return -EINVAL;
+
+	viu_stop_dma(fh->dev);
 
 	return videobuf_streamoff(&fh->vb_vidq);
 }
@@ -1331,6 +1335,7 @@ static int viu_release(struct file *file)
 
 	viu_stop_dma(dev);
 	videobuf_stop(&fh->vb_vidq);
+	videobuf_mmap_free(&fh->vb_vidq);
 
 	kfree(fh);
 
