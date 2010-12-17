@@ -517,9 +517,8 @@ int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 	 */
 
 	if (q->merge_bvec_fn && !ti->type->merge)
-		limits->max_sectors =
-			min_not_zero(limits->max_sectors,
-				     (unsigned int) (PAGE_SIZE >> 9));
+		blk_limits_max_hw_sectors(limits,
+					  (unsigned int) (PAGE_SIZE >> 9));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dm_set_device_limits);
