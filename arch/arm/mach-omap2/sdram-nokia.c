@@ -46,7 +46,7 @@ struct sdram_timings {
 
 static struct omap_sdrc_params nokia_sdrc_params[4];
 
-static const struct sdram_timings memory_timings[] = {
+static const struct sdram_timings nokia_166mhz_timings[] = {
 	{
 		.casl = 3,
 		.tDAL = 33000,
@@ -160,7 +160,8 @@ static int set_sdrc_timing_regval_ps(u32 *regval, int st_bit, int end_bit,
 		err = -1;
 #endif
 
-static int sdrc_timings(int id, long rate)
+static int sdrc_timings(int id, long rate,
+			const struct sdram_timings *memory_timings)
 {
 	u32 ticks_per_ms;
 	u32 rfr, l;
@@ -213,9 +214,9 @@ struct omap_sdrc_params *nokia_get_sdram_timings(void)
 {
 	int err;
 
-	err = sdrc_timings(0, 41500000);
-	err |= sdrc_timings(1, 83000000);
-	err |= sdrc_timings(2, 166000000);
+	err = sdrc_timings(0, 41500000, nokia_166mhz_timings);
+	err |= sdrc_timings(1, 83000000, nokia_166mhz_timings);
+	err |= sdrc_timings(2, 166000000, nokia_166mhz_timings);
 
 	return &nokia_sdrc_params[0];
 }
