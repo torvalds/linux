@@ -124,15 +124,6 @@ void mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata)
 		ieee80211_mesh_housekeeping_timer((unsigned long) sdata);
 }
 
-void mesh_ids_set_default(struct ieee80211_if_mesh *sta)
-{
-	sta->mesh_pp_id = 0;	/* HWMP */
-	sta->mesh_pm_id = 0;	/* Airtime */
-	sta->mesh_cc_id = 0;	/* Disabled */
-	sta->mesh_sp_id = 0;	/* Neighbor Offset */
-	sta->mesh_auth_id = 0;	/* Disabled */
-}
-
 int mesh_rmc_init(struct ieee80211_sub_if_data *sdata)
 {
 	int i;
@@ -525,6 +516,9 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	atomic_inc(&local->iff_allmultis);
 	ieee80211_configure_filter(local);
 
+	ifmsh->mesh_cc_id = 0;	/* Disabled */
+	ifmsh->mesh_sp_id = 0;	/* Neighbor Offset */
+	ifmsh->mesh_auth_id = 0;	/* Disabled */
 	set_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags);
 	ieee80211_mesh_root_setup(ifmsh);
 	ieee80211_queue_work(&local->hw, &sdata->work);
@@ -695,7 +689,6 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	/* Allocate all mesh structures when creating the first mesh interface. */
 	if (!mesh_allocated)
 		ieee80211s_init();
-	mesh_ids_set_default(ifmsh);
 	setup_timer(&ifmsh->mesh_path_timer,
 		    ieee80211_mesh_path_timer,
 		    (unsigned long) sdata);
