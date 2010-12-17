@@ -920,8 +920,9 @@ static void bm_async_io_complete(struct bio *bio, int error)
 	if (!error && !uptodate)
 		error = -EIO;
 
-	if (!bm_test_page_unchanged(b->bm_pages[idx]))
-		dev_info(DEV, "bitmap page idx %u changed during IO!\n", idx);
+	if ((ctx->flags & BM_AIO_COPY_PAGES) == 0 &&
+	    !bm_test_page_unchanged(b->bm_pages[idx]))
+		dev_warn(DEV, "bitmap page idx %u changed during IO!\n", idx);
 
 	if (error) {
 		/* ctx error will hold the completed-last non-zero error code,
@@ -1135,7 +1136,7 @@ int drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(loc
 	struct bm_aio_ctx ctx = { .flags = BM_AIO_COPY_PAGES, };
 
 	if (bm_test_page_unchanged(mdev->bitmap->bm_pages[idx])) {
-		dev_info(DEV, "skipped bm page write for idx %u\n", idx);
+		dynamic_dev_dbg(DEV, "skipped bm page write for idx %u\n", idx);
 		return 0;
 	}
 
