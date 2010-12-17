@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/wakelock.h>
 
 #define TEGRA_USB_PHY_WAKEUP_REG_OFFSET		0x408
 #define   TEGRA_VBUS_WAKEUP_SW_VALUE		(1 << 12)
@@ -40,6 +41,7 @@ struct cpcap_otg_data {
 	struct clk *clk;
 	struct platform_device *host;
 	struct platform_device *pdev;
+	struct wake_lock wake_lock;
 };
 
 static const char *cpcap_state_name(enum usb_otg_state state)
@@ -129,6 +131,9 @@ static int cpcap_otg_notify(struct notifier_block *nb, unsigned long event,
 		return 0;
 	otg->state = to;
 
+	if (to != OTG_STATE_A_SUSPEND)
+		wake_lock(&cpcap->wake_lock);
+
 	dev_info(cpcap->otg.dev, "%s --> %s", cpcap_state_name(from),
 					      cpcap_state_name(to));
 
@@ -172,6 +177,9 @@ static int cpcap_otg_notify(struct notifier_block *nb, unsigned long event,
 	}
 
 	clk_disable(cpcap->clk);
+
+	if (to == OTG_STATE_A_SUSPEND)
+		wake_unlock(&cpcap->wake_lock);
 
 	return 0;
 }
@@ -219,6 +227,7 @@ static int cpcap_otg_probe(struct platform_device *pdev)
 	cpcap->otg.set_suspend = cpcap_otg_set_suspend;
 	cpcap->otg.set_power = cpcap_otg_set_power;
 	cpcap->host = pdev->dev.platform_data;
+	wake_lock_init(&cpcap->wake_lock, WAKE_LOCK_SUSPEND, "cpcap_otg");
 
 	platform_set_drvdata(pdev, cpcap);
 
@@ -273,6 +282,7 @@ err_io:
 err_clken:
 	clk_put(cpcap->clk);
 err_clk:
+	wake_lock_destroy(&cpcap->wake_lock);
 	platform_set_drvdata(pdev, NULL);
 	kfree(cpcap);
 	return err;
@@ -286,6 +296,7 @@ static int __exit cpcap_otg_remove(struct platform_device *pdev)
 	iounmap(cpcap->regs);
 	clk_disable(cpcap->clk);
 	clk_put(cpcap->clk);
+	wake_lock_destroy(&cpcap->wake_lock);
 	platform_set_drvdata(pdev, NULL);
 	kfree(cpcap);
 
