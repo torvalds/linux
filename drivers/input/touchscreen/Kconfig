@@ -582,4 +582,27 @@ config HANNSTAR_P1003
 	help
 	  RK29 hannstar touch
 
+	config HANNSTAR_MAX_X
+	        int "hannstar touch x max"
+		depends on HANNSTAR_P1003
+		default 1087
+		help 
+		  RK29 hannstar touch max X size
+
+	config HANNSTAR_MAX_Y
+                int "hannstar touch Y max"
+                depends on HANNSTAR_P1003
+		default 800
+                help
+                  RK29 hannstar touch max Y size
+
+
+	config HANNSTAR_DEBUG
+       		bool "hannstar debug"
+       		depends on HANNSTAR_P1003
+		default n
+		help
+        	  RK29 hannstar touch debug
+
+
 endif

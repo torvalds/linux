@@ -86,14 +86,17 @@ static void p1003_report_event(struct ts_p1003 *ts,struct multitouch_event *tc)
             input_report_abs(input, ABS_MT_POSITION_Y, tc->point_data[i].y);				
             input_mt_sync(input);	
 
-            sakura_dbg_report_key_msg("ABS_MT_TRACKING_ID = %x, ABS_MT_TOUCH_MAJOR = %x\n",
-                " ABS_MT_POSITION_X = %x, ABS_MT_POSITION_Y = %x\n",i,tc->point_data[i].status,tc->point_data[i].x,tc->point_data[i].y);
+            sakura_dbg_report_key_msg("ABS_MT_TRACKING_ID = %x, ABS_MT_TOUCH_MAJOR = %x\n ABS_MT_POSITION_X = %x, ABS_MT_POSITION_Y = %x\n",i,tc->point_data[i].status,tc->point_data[i].x,tc->point_data[i].y);
+#if defined(CONFIG_HANNSTAR_DEBUG)
+			printk("hannstar p1003 Px = [%d],Py = [%d] \n",tc->point_data[i].x,tc->point_data[i].y);
+#endif
 
             if(tc->point_data[i].status == 0)					
             	tc->point_data[i].status--;			
         }
         
     }	
+
     ts->pendown = pandown;
     input_sync(input);
 }
@@ -207,7 +210,7 @@ static int __devinit p1003_probe(struct i2c_client *client,
 	struct p1003_platform_data *pdata = pdata = client->dev.platform_data;
 	struct input_dev *input_dev;
 	int err;
-
+	
 	if (!pdata) {
 		dev_err(&client->dev, "platform data is required!\n");
 		return -EINVAL;
@@ -247,21 +250,21 @@ static int __devinit p1003_probe(struct i2c_client *client,
 	set_bit(BTN_TOUCH, input_dev->keybit);
 	set_bit(BTN_2, input_dev->keybit);
 	set_bit(EV_ABS, input_dev->evbit);
-	input_set_abs_params(input_dev,ABS_X,0,1087,0,0);
-	input_set_abs_params(input_dev,ABS_Y,0,800,0,0);
+	input_set_abs_params(input_dev,ABS_X,0,CONFIG_HANNSTAR_MAX_X,0,0);
+	input_set_abs_params(input_dev,ABS_Y,0,CONFIG_HANNSTAR_MAX_Y,0,0);
 #else
 	ts->has_relative_report = 0;
 	input_dev->evbit[0] = BIT_MASK(EV_ABS)|BIT_MASK(EV_KEY)|BIT_MASK(EV_SYN);
 	input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
 	input_dev->keybit[BIT_WORD(BTN_2)] = BIT_MASK(BTN_2); //jaocbchen for dual
-	input_set_abs_params(input_dev, ABS_X, 0, 1087, 0, 0);
-	input_set_abs_params(input_dev, ABS_Y, 0, 800, 0, 0);
+	input_set_abs_params(input_dev, ABS_X, 0, CONFIG_HANNSTAR_MAX_X, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, CONFIG_HANNSTAR_MAX_Y, 0, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, 255, 0, 0);
 	input_set_abs_params(input_dev, ABS_TOOL_WIDTH, 0, 15, 0, 0);
-	input_set_abs_params(input_dev, ABS_HAT0X, 0, 1087, 0, 0);
-	input_set_abs_params(input_dev, ABS_HAT0Y, 0, 800, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_X,0, 1087, 0, 0);
-	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0, 800, 0, 0);
+	input_set_abs_params(input_dev, ABS_HAT0X, 0, CONFIG_HANNSTAR_MAX_X, 0, 0);
+	input_set_abs_params(input_dev, ABS_HAT0Y, 0, CONFIG_HANNSTAR_MAX_Y, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_POSITION_X,0, CONFIG_HANNSTAR_MAX_X, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, 0, CONFIG_HANNSTAR_MAX_Y, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_WIDTH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_TRACKING_ID, 0, 10, 0, 0);   
