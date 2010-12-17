@@ -381,6 +381,30 @@ TRACE_EVENT(xen_mmu_release_ptpage,
 		      __entry->pinned ? "" : "un")
 	);
 
+TRACE_EVENT(xen_mmu_pgd_pin,
+	    TP_PROTO(struct mm_struct *mm, pgd_t *pgd),
+	    TP_ARGS(mm, pgd),
+	    TP_STRUCT__entry(
+		    __field(struct mm_struct *, mm)
+		    __field(pgd_t *, pgd)
+		    ),
+	    TP_fast_assign(__entry->mm = mm;
+			   __entry->pgd = pgd),
+	    TP_printk("mm %p pgd %p", __entry->mm, __entry->pgd)
+	);
+
+TRACE_EVENT(xen_mmu_pgd_unpin,
+	    TP_PROTO(struct mm_struct *mm, pgd_t *pgd),
+	    TP_ARGS(mm, pgd),
+	    TP_STRUCT__entry(
+		    __field(struct mm_struct *, mm)
+		    __field(pgd_t *, pgd)
+		    ),
+	    TP_fast_assign(__entry->mm = mm;
+			   __entry->pgd = pgd),
+	    TP_printk("mm %p pgd %p", __entry->mm, __entry->pgd)
+	);
+
 #endif /*  _TRACE_XEN_H */
 
 /* This part must be outside protection */
