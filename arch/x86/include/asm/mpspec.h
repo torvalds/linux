@@ -6,7 +6,7 @@
 #include <asm/mpspec_def.h>
 #include <asm/x86_init.h>
 
-extern int apic_version[MAX_APICS];
+extern int apic_version[];
 extern int pic_mode;
 
 #ifdef CONFIG_X86_32
