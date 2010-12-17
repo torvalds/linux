@@ -27,9 +27,6 @@
 /*  ----------------------------------- Trace & Debug */
 #include <dspbridge/dbc.h>
 
-/*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/ldr.h>
-
 /*  ----------------------------------- Platform Manager */
 #include <dspbridge/cod.h>
 #include <dspbridge/drv.h>
@@ -75,7 +72,6 @@ struct dev_object {
 	struct io_mgr *hio_mgr;	/* IO manager (CHNL, msg_ctrl) */
 	struct cmm_object *hcmm_mgr;	/* SM memory manager. */
 	struct dmm_object *dmm_mgr;	/* Dynamic memory manager. */
-	struct ldr_module *module_obj;	/* Bridge Module handle. */
 	u32 word_size;		/* DSP word size: quick access. */
 	struct drv_object *hdrv_obj;	/* Driver Object */
 	/* List of Processors attached to this device */
@@ -139,7 +135,6 @@ int dev_create_device(struct dev_object **device_obj,
 			     struct cfg_devnode *dev_node_obj)
 {
 	struct cfg_hostres *host_res;
-	struct ldr_module *module_obj = NULL;
 	struct bridge_drv_interface *drv_fxns = NULL;
 	struct dev_object *dev_obj = NULL;
 	struct chnl_mgrattrs mgr_attrs;
@@ -179,7 +174,6 @@ int dev_create_device(struct dev_object **device_obj,
 		if (dev_obj) {
 			/* Fill out the rest of the Dev Object structure: */
 			dev_obj->dev_node_obj = dev_node_obj;
-			dev_obj->module_obj = module_obj;
 			dev_obj->cod_mgr = NULL;
 			dev_obj->hchnl_mgr = NULL;
 			dev_obj->hdeh_mgr = NULL;
@@ -953,7 +947,7 @@ static int init_cod_mgr(struct dev_object *dev_obj)
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(!dev_obj || (dev_obj->cod_mgr == NULL));
 
-	status = cod_create(&dev_obj->cod_mgr, sz_dummy_file, NULL);
+	status = cod_create(&dev_obj->cod_mgr, sz_dummy_file);
 
 	return status;
 }

@@ -37,11 +37,6 @@ struct cod_manager;
 /* COD library handle */
 struct cod_libraryobj;
 
-/* COD attributes */
-struct cod_attrs {
-	u32 ul_reserved;
-};
-
 /*
  *  Function prototypes for writing memory to a DSP system, allocating
  *  and freeing DSP memory.
@@ -76,8 +71,6 @@ extern void cod_close(struct cod_libraryobj *lib);
  *  Parameters:
  *      manager:        created manager object
  *      str_zl_file:    ZL DLL filename, of length < COD_MAXPATHLENGTH.
- *      attrs:          attributes to be used by this object. A NULL value
- *                      will cause default attrs to be used.
  *  Returns:
  *      0:                Success.
  *      -ESPIPE:   ZL_Create failed.
@@ -89,8 +82,7 @@ extern void cod_close(struct cod_libraryobj *lib);
  *  Ensures:
  */
 extern int cod_create(struct cod_manager **mgr,
-			     char *str_zl_file,
-			     const struct cod_attrs *attrs);
+			     char *str_zl_file);
 
 /*
  *  ======== cod_delete ========

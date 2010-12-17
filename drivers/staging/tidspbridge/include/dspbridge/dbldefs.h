@@ -25,26 +25,6 @@
 typedef s32 dbl_flags;
 
 /*
- *  ======== dbl_sect_info ========
- *  For collecting info on overlay sections
- */
-struct dbl_sect_info {
-	const char *name;	/* name of section */
-	u32 sect_run_addr;	/* run address of section */
-	u32 sect_load_addr;	/* load address of section */
-	u32 size;		/* size of section (target MAUs) */
-	dbl_flags type;		/* Code, data, or BSS */
-};
-
-/*
- *  ======== dbl_symbol ========
- *  (Needed for dynamic load library)
- */
-struct dbl_symbol {
-	u32 value;
-};
-
-/*
  *  ======== dbl_alloc_fxn ========
  *  Allocate memory function.  Allocate or reserve (if reserved == TRUE)
  *  "size" bytes of memory from segment "space" and return the address in
@@ -97,34 +77,5 @@ typedef bool(*dbl_sym_lookup) (void *handle, void *parg, void *rmm_handle,
  */
 typedef s32(*dbl_write_fxn) (void *hdl, u32 dsp_address, void *buf,
 			     u32 n, s32 mtype);
-
-/*
- *  ======== dbl_attrs ========
- */
-struct dbl_attrs {
-	dbl_alloc_fxn alloc;
-	dbl_free_fxn free;
-	void *rmm_handle;	/* Handle to pass to alloc, free functions */
-	dbl_write_fxn write;
-	void *input_params;	/* Handle to pass to write, cinit function */
-
-	dbl_log_write_fxn log_write;
-	void *log_write_handle;
-
-	/* Symbol matching function and handle to pass to it */
-	dbl_sym_lookup sym_lookup;
-	void *sym_handle;
-	void *sym_arg;
-
-	/*
-	 *  These file manipulation functions should be compatible with the
-	 *  "C" run time library functions of the same name.
-	 */
-	 s32(*fread) (void *, size_t, size_t, void *);
-	 s32(*fseek) (void *, long, int);
-	 s32(*ftell) (void *);
-	 s32(*fclose) (void *);
-	void *(*fopen) (const char *, const char *);
-};
 
 #endif /* DBLDEFS_ */

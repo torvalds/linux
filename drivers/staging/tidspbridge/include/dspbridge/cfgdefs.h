@@ -58,10 +58,4 @@ struct cfg_hostres {
 	void __iomem *dw_dmmu_base;
 };
 
-struct cfg_dspmemdesc {
-	u32 mem_type;		/* Type of memory. */
-	u32 ul_min;		/* Minimum amount of memory of this type. */
-	u32 ul_max;		/* Maximum amount of memory of this type. */
-};
-
 #endif /* CFGDEFS_ */

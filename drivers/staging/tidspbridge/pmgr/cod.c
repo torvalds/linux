@@ -33,9 +33,6 @@
 /*  ----------------------------------- Trace & Debug */
 #include <dspbridge/dbc.h>
 
-/*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/ldr.h>
-
 /*  ----------------------------------- Platform Manager */
 /* Include appropriate loader header file */
 #include <dspbridge/dbll.h>
@@ -51,7 +48,6 @@ struct cod_manager {
 	struct dbll_library_obj *base_lib;
 	bool loaded;		/* Base library loaded? */
 	u32 ul_entry;
-	struct ldr_module *dll_obj;
 	struct dbll_fxns fxns;
 	struct dbll_attrs attrs;
 	char sz_zl_file[COD_MAXPATHLENGTH];
@@ -206,8 +202,7 @@ void cod_close(struct cod_libraryobj *lib)
  *      dynamically loaded object files.
  *
  */
-int cod_create(struct cod_manager **mgr, char *str_zl_file,
-		      const struct cod_attrs *attrs)
+int cod_create(struct cod_manager **mgr, char *str_zl_file)
 {
 	struct cod_manager *mgr_new;
 	struct dbll_attrs zl_attrs;
@@ -218,10 +213,6 @@ int cod_create(struct cod_manager **mgr, char *str_zl_file,
 
 	/* assume failure */
 	*mgr = NULL;
-
-	/* we don't support non-default attrs yet */
-	if (attrs != NULL)
-		return -ENOSYS;
 
 	mgr_new = kzalloc(sizeof(struct cod_manager), GFP_KERNEL);
 	if (mgr_new == NULL)

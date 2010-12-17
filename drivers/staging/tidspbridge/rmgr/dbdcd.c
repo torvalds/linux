@@ -134,7 +134,7 @@ int dcd_create_manager(char *sz_zl_dll_name,
 	DBC_REQUIRE(refs >= 0);
 	DBC_REQUIRE(dcd_mgr);
 
-	status = cod_create(&cod_mgr, sz_zl_dll_name, NULL);
+	status = cod_create(&cod_mgr, sz_zl_dll_name);
 	if (status)
 		goto func_end;
 

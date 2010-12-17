@@ -120,10 +120,6 @@ union trapped_args {
 
 	struct {
 		void *hprocessor;
-	} args_proc_start;
-
-	struct {
-		void *hprocessor;
 		u32 ul_size;
 		void *__user *pp_rsv_addr;
 	} args_proc_rsvmem;
@@ -162,10 +158,6 @@ union trapped_args {
 		u32 ul_size;
 		u32 ul_flags;
 	} args_proc_flushmemory;
-
-	struct {
-		void *hprocessor;
-	} args_proc_stop;
 
 	struct {
 		void *hprocessor;

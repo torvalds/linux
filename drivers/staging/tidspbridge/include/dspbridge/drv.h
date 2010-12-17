@@ -96,17 +96,6 @@ struct dmm_rsv_object {
 	u32 dsp_reserved_addr;
 };
 
-/* New structure (member of process context) abstracts DMM resource info */
-struct dspheap_res_object {
-	s32 heap_allocated;	/* DMM status */
-	u32 ul_mpu_addr;
-	u32 ul_dsp_addr;
-	u32 ul_dsp_res_addr;
-	u32 heap_size;
-	void *hprocessor;
-	struct dspheap_res_object *next;
-};
-
 /* New structure (member of process context) abstracts stream resource info */
 struct strm_res_object {
 	s32 stream_allocated;	/* Stream status */
@@ -150,9 +139,6 @@ struct process_context {
 	/* DMM reserved memory resources */
 	struct list_head dmm_rsv_list;
 	spinlock_t dmm_rsv_lock;
-
-	/* DSP Heap resources */
-	struct dspheap_res_object *pdspheap_list;
 
 	/* Stream resources */
 	struct idr *stream_id;
