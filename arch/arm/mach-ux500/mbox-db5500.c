@@ -38,7 +38,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/completion.h>
-#include <mach/mbox.h>
+#include <mach/mbox-db5500.h>
 
 #define MBOX_NAME "mbox"
 
