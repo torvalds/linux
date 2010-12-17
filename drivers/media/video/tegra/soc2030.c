@@ -18,11 +18,13 @@
 #include <linux/i2c.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 #include <linux/uaccess.h>
 #include <media/soc2030.h>
 
 struct soc2030_info {
 	int mode;
+	struct mutex lock;
 	struct i2c_client *i2c_client;
 	struct soc2030_platform_data *pdata;
 };
@@ -1154,7 +1156,12 @@ static int soc2030_get_status(struct soc2030_info *info, u16 *status)
 static long soc2030_ioctl(struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
+	int err = 0;
 	struct soc2030_info *info = file->private_data;
+
+	err = mutex_lock_interruptible(&info->lock);
+	if (err)
+		return err;
 
 	switch (cmd) {
 	case SOC2030_IOCTL_SET_MODE:
@@ -1164,14 +1171,15 @@ static long soc2030_ioctl(struct file *file,
 				   (const void __user *)arg,
 				   sizeof(struct soc2030_mode))) {
 			pr_info("%s: Error copying from user\n", __func__);
-			return -EFAULT;
+			err = -EFAULT;
+			break;
 		}
 
-		return soc2030_set_mode(info, &mode);
+		err = soc2030_set_mode(info, &mode);
+		break;
 	}
 	case SOC2030_IOCTL_SET_PRIVATE:
 	{
-		int err;
 		int size = SOC2030_MAX_PRIVATE_SIZE *
 			sizeof(struct soc2030_regs);
 		struct soc2030_regs *reg_sequence =
@@ -1179,44 +1187,43 @@ static long soc2030_ioctl(struct file *file,
 
 		if (NULL == reg_sequence) {
 			pr_info("%s: Error allocating memory\n", __func__);
-			return -ENOMEM;
+			err = -ENOMEM;
+			break;
 		}
 
 		if (copy_from_user(reg_sequence,
 				   (const void __user *)arg, size)) {
 			pr_info("%s: Error copying from user\n", __func__);
 			kfree(reg_sequence);
-			return -EFAULT;
+			err = -EFAULT;
+			break;
 		}
 		err = soc2030_write_table(info->i2c_client, reg_sequence);
 		kfree(reg_sequence);
-		if (err)
-			return -EINVAL;
-		return 0;
+		break;
 	}
 	case SOC2030_IOCTL_GET_STATUS:
 	{
-		int err;
 		u16 status[5];
 
 		err = soc2030_get_status(info, status);
 		if (err)
-			return err;
+			break;
 		if (copy_to_user((void __user *)arg, &status,
 				 10)) {
 			pr_info("%s: Error copying to user\n", __func__);
-			return -EFAULT;
+			err = -EFAULT;
 		}
-		return 0;
+		break;
 	}
 	case SOC2030_IOCTL_GET_MODES:
 	{
 		if (copy_to_user((void __user *)arg, &modes,
 				 sizeof(modes))) {
 			pr_info("%s: Error copying to user\n", __func__);
-			return -EFAULT;
+			err = -EFAULT;
 		}
-		return 0;
+		break;
 	}
 	case SOC2030_IOCTL_GET_NUM_MODES:
 	{
@@ -1224,53 +1231,52 @@ static long soc2030_ioctl(struct file *file,
 		if (copy_to_user((void __user *)arg, &num_modes,
 				 sizeof(num_modes))) {
 			pr_info("%s: Error copying to user\n", __func__);
-			return -EFAULT;
+			err = -EFAULT;
 		}
-		return 0;
+		break;
 	}
 	case SOC2030_IOCTL_SET_EFFECT:
 	{
-		int err;
 
-		if ((unsigned int)arg >= EFFECT_MAX)
-			return -EINVAL;
+		if ((unsigned int)arg >= EFFECT_MAX) {
+			err = -EINVAL;
+			break;
+		}
 		err = soc2030_write_table(info->i2c_client,
 				effect_table[(unsigned int)arg]);
 		if (err)
-			return -EFAULT;
+			break;
+
 		err = soc2030_write_table(info->i2c_client, refresh_state);
-		if (err)
-			return -EFAULT;
-		return 0;
+		break;
 	}
 	case SOC2030_IOCTL_SET_WHITEBALANCE:
 	{
-		int err;
 
-		if ((unsigned int)arg >= WB_MAX)
-			return -EINVAL;
+		if ((unsigned int)arg >= WB_MAX) {
+			err = -EINVAL;
+			break;
+		}
 
 		/* Re-set context, this insures MAX AE Index is set correctly */
 		/* As night mode may have been previously set */
 		err = soc2030_write_table(info->i2c_client,
 				modes[info->mode].regset);
 		if (err)
-			return -EFAULT;
+			break;
 
 		err = soc2030_write_table(info->i2c_client,
 				SetCCMCommonSequence);
 		if (err)
-			return -EFAULT;
+			break;
+
 		err = soc2030_write_table(info->i2c_client,
 				wb_table[(unsigned int)arg]);
-		if (err)
-			return -EFAULT;
-		return 0;
+		break;
 	}
 
 	case SOC2030_IOCTL_SET_EXP_COMP:
 	{
-		int err;
 		int req_ev = (int)arg;
 		int step;
 		int step_size = 0;
@@ -1280,7 +1286,8 @@ static long soc2030_ioctl(struct file *file,
 		if ((req_ev > SOC_EV_MAX) || (req_ev < SOC_EV_MIN)) {
 			pr_err("%s: Invalid exposure parameter %i\n",
 				__func__, req_ev);
-			return -EINVAL;
+			err = -EINVAL;
+			break;
 		}
 
 		if (req_ev < 0) {
@@ -1304,27 +1311,30 @@ static long soc2030_ioctl(struct file *file,
 			pr_err("%s: Bad exposure target %i (0x%x)\n",
 				__func__, new_target,
 			       (u16)new_target);
-			return -EFAULT;
+			err = -EINVAL;
+			break;
 		}
 
 		err = soc2030_write_xdma_reg(info->i2c_client,
 						0xA24F, (u16)new_target);
 		if (err) {
 			pr_err("%s: Failed to update EV parameter\n", __func__);
-			return -EFAULT;
+			break;
 		}
 		err = soc2030_write_table(info->i2c_client, refresh_state);
-		if (err) {
+		if (err)
 			pr_err("%s: Failed to update EV parameter\n", __func__);
-			return -EFAULT;
-		}
-		return 0;
+		break;
 	}
 
 	default:
-		return -ENOTTY;
+		err = -EINVAL;
+		pr_err("%s: unknown IOCTL cmd 0x%x\n", __func__, cmd);
+		break;
 	}
-	return 0;
+
+	mutex_unlock(&info->lock);
+	return err;
 }
 
 static struct soc2030_info *info;
@@ -1380,6 +1390,7 @@ static int soc2030_probe(struct i2c_client *client,
 		return err;
 	}
 
+	mutex_init(&info->lock);
 	info->pdata = client->dev.platform_data;
 	info->i2c_client = client;
 	i2c_set_clientdata(client, info);
