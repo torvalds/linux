@@ -192,8 +192,11 @@ typedef struct dwc_otg_pcd
 	/** vbus status in device mode */
 	uint8_t vbus_status;
 
+	/** enable connect to PC in device mode */
+	uint8_t conn_en;
+
 	/** connect status used during enumeration */
-	int16_t conn_status;
+	int8_t conn_status;
             /** Timer for check vbus at usb suspend.
 	 * every 500 ms. */
 	struct timer_list check_vbus_timer;

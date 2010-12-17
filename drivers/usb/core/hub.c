@@ -38,9 +38,6 @@
 #endif
 #endif
 
-// cmy@091222: 记录Host端口所连接的设备
-static struct usb_device *g_usb_device = 0;
-
 struct usb_hub {
 	struct device		*intfdev;	/* the "interface" device */
 	struct usb_device	*hdev;
@@ -1171,8 +1168,6 @@ static void hub_disconnect(struct usb_interface *intf)
 
 	kref_put(&hub->kref, hub_release);
 }
-struct usb_hub *g_root_hub20 = NULL;
-struct usb_hub *g_root_hub11 = NULL;
 static int hub_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_host_interface *desc;
@@ -1222,13 +1217,6 @@ descriptor_error:
 	if (!hub) {
 		dev_dbg (&intf->dev, "couldn't kmalloc hub struct\n");
 		return -ENOMEM;
-	}
-	if(hdev->parent == NULL)
-	{
-		if(!g_root_hub20)
-			g_root_hub20 = hub;
-		else if(!g_root_hub11)
-			g_root_hub11 = hub;
 	}
 	kref_init(&hub->kref);
 	INIT_LIST_HEAD(&hub->event_list);
@@ -1598,16 +1586,6 @@ void usb_disconnect(struct usb_device **pdev)
 
 	usb_stop_pm(udev);
     
-    // cmy: 不处理hub设备
-    if(USB_CLASS_HUB != udev->descriptor.bDeviceClass)
-    {
-        if(udev == g_usb_device)
-            g_usb_device = 0;
-
-#ifdef CONFIG_ANDROID_POWER
-        android_unlock_suspend(&hub_suspend_lock);
-#endif
-    }
 
 	hub_free_dev(udev);
 
@@ -1812,14 +1790,6 @@ int usb_new_device(struct usb_device *udev)
 		dev_err(&udev->dev, "can't device_add, error %d\n", err);
 		goto fail;
 	}
-    // cmy: 在启动时自动会添加lm0的hub设备，不需记录，不需上锁
-    if(USB_CLASS_HUB != udev->descriptor.bDeviceClass)
-    {
-        g_usb_device = udev;
-#ifdef CONFIG_ANDROID_POWER
-        android_lock_suspend(&hub_suspend_lock);
-#endif
-    }
 
 	(void) usb_create_ep_devs(&udev->dev, &udev->ep0, udev);
 	return err;

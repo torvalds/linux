@@ -1630,7 +1630,7 @@ static int32_t ep0_complete_request( dwc_otg_pcd_ep_t *_ep )
 /*
 	else if (req->req.zero) 
 	{
-		printk("%s--------------------------------------------------\n",__func__);
+		DWC_PRINT("%s--------------------------------------------------\n",__func__);
 		req->req.actual = _ep->dwc_ep.xfer_count;
 		//do_setup_in_status_phase (pcd);
 		req->req.zero = 0;
@@ -1777,7 +1777,7 @@ static void complete_ep( dwc_otg_pcd_ep_t *_ep )
 			}
 			request_done(_ep, req, 0);
         } else {
-            printk("\n++++++FIND NULL req,ep=%s++++++++++\n" , _ep->ep.name );
+            DWC_PRINT("\n++++++FIND NULL req,ep=%s++++++++++\n" , _ep->ep.name );
             _ep->pcd->request_pending = 0;
         }
 		_ep->dwc_ep.start_xfer_buff = 0;

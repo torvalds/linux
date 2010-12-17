@@ -1,55 +1,57 @@
-config RK2818_HOST11
-	tristate "RockChip USB Host 1.1 support"
+config USB11_HOST 
+	tristate "RockChip USB 1.1 host controller"
 	---help---
-	  This driver supports Rockchip USB HOST 1.1
-	  controller in RK281X.
+	  This driver supports Rockchip USB 1.1 HOST
+	  controller.
 
-config DWC_OTG
-	tristate "RockChip USB OTG 2.0 support"
+config USB20_HOST
+	tristate "Rockchip USB 2.0 host controller"
+	---help---
+	  This driver supports Rockchip USB2.0 host
+	  controller.
+
+config USB20_OTG
+	tristate "RockChip USB 2.0 OTG controller"
         ---help---
-          This driver supports Rockchip DWC_OTG 
-
-config DWC_OTG_DEBUG
-	bool "enable debug mode"
-	depends on DWC_OTG
-
+          This driver supports Rockchip USB2.0  DWC_OTG 
+	  controller.
 choice
-	tristate "DWC_OTG OPMODE"
-	default DWC_OTG_BOTH_HOST_SLAVE
-	depends on DWC_OTG
+	bool "USB2.0 OTG controller mode"
+	depends on USB20_OTG
+	default DWC_OTG_DEVICE_ONLY
 	help
 	   RockChip DWC_OTG Controller can only work
-	   one of following mode
+	   in one of following mode
 	
 config DWC_OTG_HOST_ONLY
-        bool "HOST ONLY MODE"
-        depends on DWC_OTG && USB
+        boolean "HOST ONLY MODE"
+        depends on USB20_OTG && USB 
+	help
+	   USB2.0 OTG controller worked in host mode 
+	   and device can support other gadgets.
 
 config DWC_OTG_DEVICE_ONLY
-        bool "DEVICE ONLY MODE"
-        depends on DWC_OTG && USB_GADGET
+        boolean "DEVICE ONLY MODE"
+        depends on USB20_OTG && USB_GADGET
+	help 
+	  USB2.0 OTG controller worked in device mode
+     	  and device can connect to PC via USB cable.
 
-config DWC_OTG_BOTH_HOST_SLAVE
-	bool "BOTH HOST AND SLAVE"
-	depends on DWC_OTG && USB_GADGET && USB
 endchoice
-choice
-	bool "USB controller mode"
-	depends on DWC_OTG
-	default DWC_OTG_NORMAL_PREFRENCE
+
+config DWC_CONN_EN
+	bool "connect to PC when vbus detect"
+	default y
+	depends on DWC_OTG_DEVICE_ONLY
 	help
-	  Rockchip dwc_otg controller
+	  USB2.0 OTG controller always polling the USB vbus
+	  
+	  if selected, device will connect to PC automatic
 
-config DWC_OTG_NORMAL_PREFERENCE
-	bool "NORMAL MODE"
-	depends on DWC_OTG_BOTH_HOST_SLAVE
+config DWC_OTG_DEBUG
+	bool "DWC_OTG debug messages"
+	depends on USB11_HOST || USB20_HOST || USB20_OTG
 
-config DWC_OTG_HOST_PREFERENCE
-        bool "HOST PREFERENCE MODE"
-	depends on DWC_OTG_HOST_ONLY || DWC_OTG_BOTH_HOST_SLAVE
-
-config DWC_OTG_DEVICE_PREFERENCE
-        bool "DEVICE PREFERENCE MODE"
-	depends on DWC_OTG_DEVICE_ONLY || DWC_OTG_BOTH_HOST_SLAVE
-
-endchoice								 
+config DWC_OTG
+	tristate	
+	default y if USB11_HOST || USB20_HOST || USB20_OTG
