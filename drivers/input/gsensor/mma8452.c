@@ -28,11 +28,11 @@
 #include <linux/mma8452.h>
 #include <mach/gpio.h>
 #include <mach/board.h> 
-#ifdef CONFIG_ANDROID_POWER
-#include <linux/android_power.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
 #endif
 
-#if 1
+#if 0
 #define mmaprintk(x...) printk(x)
 #else
 #define mmaprintk(x...)
@@ -48,8 +48,8 @@ static struct miscdevice mma8452_device;
 
 static DECLARE_WAIT_QUEUE_HEAD(data_ready_wq);
 
-#ifdef CONFIG_ANDROID_POWER
-static android_early_suspend_t mma8452_early_suspend;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static struct early_suspend mma8452_early_suspend;
 #endif
 static int revision = -1;
 /* AKM HW info */
@@ -205,6 +205,7 @@ static int mma8452_start_dev(struct i2c_client *client, char rate)
 {
 	int ret = 0;
 	int tmp;
+	struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
 
 	mmaprintk("-------------------------mma8452 start ------------------------\n");	
 	/* standby */
@@ -222,6 +223,7 @@ static int mma8452_start_dev(struct i2c_client *client, char rate)
 	/* set bus 8bit/14bit(FREAD = 1,FMODE = 0) ,data rate*/
 	tmp = (rate<< MMA8452_RATE_SHIFT) | FREAD_MASK;
 	ret = mma845x_write_reg(client,MMA8452_REG_CTRL_REG1,tmp);
+	mma8452->curr_tate = rate;
 	mmaprintk("mma8452 MMA8452_REG_CTRL_REG1:%x\n",mma845x_read_reg(client,MMA8452_REG_CTRL_REG1));
 	
 	mmaprintk("mma8452 MMA8452_REG_SYSMOD:%x\n",mma845x_read_reg(client,MMA8452_REG_SYSMOD));
@@ -485,27 +487,27 @@ static int mma8452_remove(struct i2c_client *client)
     input_free_device(mma8452->input_dev);
     free_irq(client->irq, mma8452);
     kfree(mma8452); 
-#ifdef CONFIG_ANDROID_POWER
-    android_unregister_early_suspend(&mma8452_early_suspend);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+    unregister_early_suspend(&mma8452_early_suspend);
 #endif      
     this_client = NULL;
 	return 0;
 }
 
-#ifdef CONFIG_ANDROID_POWER
-static int mma8452_suspend(android_early_suspend_t *h)
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void mma8452_suspend(struct early_suspend *h)
 {
 	struct i2c_client *client = container_of(mma8452_device.parent, struct i2c_client, dev);
 	mmaprintk("Gsensor mma7760 enter suspend\n");
-	return mma8452_close_dev(client);
+	mma8452_close_dev(client);
 }
 
-static int mma8452_resume(android_early_suspend_t *h)
+static void mma8452_resume(struct early_suspend *h)
 {
 	struct i2c_client *client = container_of(mma8452_device.parent, struct i2c_client, dev);
     struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
 	mmaprintk("Gsensor mma7760 resume!!\n");
-	return mma8452_start_dev(mma8452->curr_tate);
+	mma8452_start_dev(client,mma8452->curr_tate);
 }
 #else
 static int mma8452_suspend(struct i2c_client *client, pm_message_t mesg)
@@ -533,7 +535,7 @@ static struct i2c_driver mma8452_driver = {
 	.id_table 	= mma8452_id,
 	.probe		= mma8452_probe,
 	.remove		= __devexit_p(mma8452_remove),
-#ifndef CONFIG_ANDROID_POWER	
+#ifndef CONFIG_HAS_EARLYSUSPEND	
 	.suspend = &mma8452_suspend,
 	.resume = &mma8452_resume,
 #endif	
@@ -647,18 +649,18 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 		goto exit_gsensor_sysfs_init_failed;
 	}
 	
-#ifdef CONFIG_ANDROID_POWER
+#ifdef CONFIG_HAS_EARLYSUSPEND
     mma8452_early_suspend.suspend = mma8452_suspend;
     mma8452_early_suspend.resume = mma8452_resume;
     mma8452_early_suspend.level = 0x2;
-    android_register_early_suspend(&mma8452_early_suspend);
+    register_early_suspend(&mma8452_early_suspend);
 #endif
 	mma8452_get_devid(this_client);
 	mmaprintk(KERN_INFO "mma8452 probe ok\n");
 	
 
 	mma8452->status = -1;
-#if  1	
+#if  0	
 //	mma8452_start_test(this_client);
 	mma8452_start(client, MMA8452_RATE_12P5);
 #endif
