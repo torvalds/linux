@@ -9,17 +9,20 @@ typedef volatile unsigned char  	REG8;
 typedef int BOOLEAN;
 typedef BOOLEAN BOOL;
 
+
 #define	FALSE	0
 #define TRUE    (!FALSE)
-#define	NULL	0
-#define     OK                  0
-#define     ERROR               !0
+#ifndef NULL
+    #define	NULL	0
+#endif
+#define OK                  0
+#define ERROR               !0
 
 //typedef char * va_list; 
 
 
-typedef unsigned int            uint32;
-typedef unsigned int			UINT32;
+typedef unsigned long            uint32;
+typedef unsigned long			UINT32;
 typedef unsigned short			UINT16;
 typedef unsigned char 			UINT8;
 typedef int						INT32;

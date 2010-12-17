@@ -42,6 +42,7 @@ Revision:   1.00
 
 #ifdef CONFIG_MTD_NAND_RK29XX_DEBUG
 #undef RKNAND_DEBUG
+#define DEBUG_MSG
 #define RKNAND_DEBUG(format, arg...) \
 		printk(KERN_NOTICE format, ## arg);
 #else

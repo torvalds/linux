@@ -27,6 +27,7 @@ Modify log:
 说    明:上电只需调用一次初始化即可
 ***************************************************************************/
 extern int FtlInit(unsigned int nandcBaseAddr,unsigned char pageRemapEn);
+extern int FTLInit_WithoutPageRemap(void);
 extern int FTLInit(void);
 
 

@@ -24,6 +24,12 @@ config RKFTL_PAGECACHE_SIZE
 	help 
 	  default size is 64MB,and "swap" size is (128 - 64)MB.if you config this size up to 128MB,then "swap" funtion will disable. 
  
+config MTD_RKNAND_BUFFER 
+	tristate "RK29 Nand buffer write enables" 
+	depends on MTD_RKNAND 
+    default y 
+	help 
+ 
 config MTD_NAND_RK29XX_DEBUG 
 	tristate "RK29 Nand driver debug enables" 
 	depends on MTD_RKNAND 
