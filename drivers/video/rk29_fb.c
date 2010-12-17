@@ -53,7 +53,7 @@
 
 #include "./display/screen/screen.h"
 
-#define ANDROID_USE_THREE_BUFS  1       //android use three buffers to accelerate UI display in rgb plane
+#define ANDROID_USE_THREE_BUFS  0       //android use three buffers to accelerate UI display in rgb plane
 
 #if 0
 	#define fbprintk(msg...)	printk(msg);
