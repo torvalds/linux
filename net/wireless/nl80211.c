@@ -2773,6 +2773,14 @@ static const struct nla_policy nl80211_meshconf_params_policy[NL80211_MESHCONF_A
 	[NL80211_MESHCONF_HWMP_NET_DIAM_TRVS_TIME] = { .type = NLA_U16 },
 };
 
+static const struct nla_policy
+	nl80211_mesh_setup_params_policy[NL80211_MESH_SETUP_ATTR_MAX+1] = {
+	[NL80211_MESH_SETUP_ENABLE_VENDOR_PATH_SEL] = { .type = NLA_U8 },
+	[NL80211_MESH_SETUP_ENABLE_VENDOR_METRIC] = { .type = NLA_U8 },
+	[NL80211_MESH_SETUP_VENDOR_PATH_SEL_IE] = { .type = NLA_BINARY,
+		.len = IEEE80211_MAX_DATA_LEN },
+};
+
 static int nl80211_parse_mesh_config(struct genl_info *info,
 				     struct mesh_config *cfg,
 				     u32 *mask_out)
@@ -2839,12 +2847,48 @@ do {\
 			dot11MeshHWMPRootMode, mask,
 			NL80211_MESHCONF_HWMP_ROOTMODE,
 			nla_get_u8);
-
 	if (mask_out)
 		*mask_out = mask;
+
 	return 0;
 
 #undef FILL_IN_MESH_PARAM_IF_SET
+}
+
+static int nl80211_parse_mesh_setup(struct genl_info *info,
+				     struct mesh_setup *setup)
+{
+	struct nlattr *tb[NL80211_MESH_SETUP_ATTR_MAX + 1];
+
+	if (!info->attrs[NL80211_ATTR_MESH_SETUP])
+		return -EINVAL;
+	if (nla_parse_nested(tb, NL80211_MESH_SETUP_ATTR_MAX,
+			     info->attrs[NL80211_ATTR_MESH_SETUP],
+			     nl80211_mesh_setup_params_policy))
+		return -EINVAL;
+
+	if (tb[NL80211_MESH_SETUP_ENABLE_VENDOR_PATH_SEL])
+		setup->path_sel_proto =
+		(nla_get_u8(tb[NL80211_MESH_SETUP_ENABLE_VENDOR_PATH_SEL])) ?
+		 IEEE80211_PATH_PROTOCOL_VENDOR :
+		 IEEE80211_PATH_PROTOCOL_HWMP;
+
+	if (tb[NL80211_MESH_SETUP_ENABLE_VENDOR_METRIC])
+		setup->path_metric =
+		(nla_get_u8(tb[NL80211_MESH_SETUP_ENABLE_VENDOR_METRIC])) ?
+		 IEEE80211_PATH_METRIC_VENDOR :
+		 IEEE80211_PATH_METRIC_AIRTIME;
+
+	if (tb[NL80211_MESH_SETUP_VENDOR_PATH_SEL_IE]) {
+		struct nlattr *ieattr =
+			tb[NL80211_MESH_SETUP_VENDOR_PATH_SEL_IE];
+		if (!is_valid_ie_attr(ieattr))
+			return -EINVAL;
+		setup->vendor_ie = nla_data(ieattr);
+		setup->vendor_ie_len = nla_len(ieattr);
+	}
+
+	return 0;
 }
 
 static int nl80211_update_mesh_config(struct sk_buff *skb,
@@ -4667,10 +4711,12 @@ static int nl80211_join_mesh(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct mesh_config cfg;
+	struct mesh_setup setup;
 	int err;
 
 	/* start with default */
 	memcpy(&cfg, &default_mesh_config, sizeof(cfg));
+	memcpy(&setup, &default_mesh_setup, sizeof(setup));
 
 	if (info->attrs[NL80211_ATTR_MESH_CONFIG]) {
 		/* and parse parameters if given */
@@ -4683,10 +4729,17 @@ static int nl80211_join_mesh(struct sk_buff *skb, struct genl_info *info)
 	    !nla_len(info->attrs[NL80211_ATTR_MESH_ID]))
 		return -EINVAL;
 
-	return cfg80211_join_mesh(rdev, dev,
-				  nla_data(info->attrs[NL80211_ATTR_MESH_ID]),
-				  nla_len(info->attrs[NL80211_ATTR_MESH_ID]),
-				  &cfg);
+	setup.mesh_id = nla_data(info->attrs[NL80211_ATTR_MESH_ID]);
+	setup.mesh_id_len = nla_len(info->attrs[NL80211_ATTR_MESH_ID]);
+
+	if (info->attrs[NL80211_ATTR_MESH_SETUP]) {
+		/* parse additional setup parameters if given */
+		err = nl80211_parse_mesh_setup(info, &setup);
+		if (err)
+			return err;
+	}
+
+	return cfg80211_join_mesh(rdev, dev, &setup, &cfg);
 }
 
 static int nl80211_leave_mesh(struct sk_buff *skb, struct genl_info *info)

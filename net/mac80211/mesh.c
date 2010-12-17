@@ -287,6 +287,13 @@ void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	*pos++ |= sdata->u.mesh.accepting_plinks ?
 	    MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
 	*pos++ = 0x00;
+
+	if (sdata->u.mesh.vendor_ie) {
+		int len = sdata->u.mesh.vendor_ie_len;
+		const u8 *data = sdata->u.mesh.vendor_ie;
+		if (skb_tailroom(skb) > len)
+			memcpy(skb_put(skb, len), data, len);
+	}
 }
 
 u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata, struct mesh_table *tbl)

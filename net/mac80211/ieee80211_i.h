@@ -484,6 +484,8 @@ struct ieee80211_if_mesh {
 	struct mesh_config mshcfg;
 	u32 mesh_seqnum;
 	bool accepting_plinks;
+	const u8 *vendor_ie;
+	u8 vendor_ie_len;
 };
 
 #ifdef CONFIG_MAC80211_MESH
@@ -585,9 +587,7 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_vlan vlan;
 		struct ieee80211_if_managed mgd;
 		struct ieee80211_if_ibss ibss;
-#ifdef CONFIG_MAC80211_MESH
 		struct ieee80211_if_mesh mesh;
-#endif
 		u32 mntr_flags;
 	} u;
 

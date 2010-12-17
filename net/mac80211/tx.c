@@ -2290,7 +2290,8 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		u8 *pos;
 
 		/* headroom, head length, tail length and maximum TIM length */
-		skb = dev_alloc_skb(local->tx_headroom + 400);
+		skb = dev_alloc_skb(local->tx_headroom + 400 +
+				sdata->u.mesh.vendor_ie_len);
 		if (!skb)
 			goto out;
 
