@@ -119,6 +119,7 @@ void rc_map_init(void);
 #define RC_MAP_PINNACLE_PCTV_HD          "rc-pinnacle-pctv-hd"
 #define RC_MAP_PIXELVIEW_NEW             "rc-pixelview-new"
 #define RC_MAP_PIXELVIEW                 "rc-pixelview"
+#define RC_MAP_PIXELVIEW_002T		 "rc-pixelview-002t"
 #define RC_MAP_PIXELVIEW_MK12            "rc-pixelview-mk12"
 #define RC_MAP_POWERCOLOR_REAL_ANGEL     "rc-powercolor-real-angel"
 #define RC_MAP_PROTEUS_2309              "rc-proteus-2309"
