@@ -1,7 +1,7 @@
 /*
- * SDRC register values for RX51
+ * SDRC register values for Nokia boards
  *
- * Copyright (C) 2008 Nokia Corporation
+ * Copyright (C) 2008, 2010 Nokia Corporation
  *
  * Lauri Leukkunen <lauri.leukkunen@nokia.com>
  *
@@ -43,9 +43,9 @@ struct sdram_timings {
 	u32 tWTR;
 };
 
-static struct omap_sdrc_params rx51_sdrc_params[4];
+static struct omap_sdrc_params nokia_sdrc_params[4];
 
-static const struct sdram_timings rx51_timings[] = {
+static const struct sdram_timings memory_timings[] = {
 	{
 		.casl = 3,
 		.tDAL = 33000,
@@ -110,12 +110,12 @@ static int set_sdrc_timing_regval(u32 *regval, int st_bit, int end_bit,
 #ifdef DEBUG
 #define SDRC_SET_ONE(reg, st, end, field, rate) \
 	if (set_sdrc_timing_regval((reg), (st), (end), \
-			rx51_timings->field, (rate), #field) < 0) \
+			memory_timings->field, (rate), #field) < 0) \
 		err = -1;
 #else
 #define SDRC_SET_ONE(reg, st, end, field, rate) \
 	if (set_sdrc_timing_regval((reg), (st), (end), \
-			rx51_timings->field) < 0) \
+			memory_timings->field) < 0) \
 		err = -1;
 #endif
 
@@ -148,14 +148,14 @@ static int set_sdrc_timing_regval_ps(u32 *regval, int st_bit, int end_bit,
 #ifdef DEBUG
 #define SDRC_SET_ONE_PS(reg, st, end, field, rate) \
 	if (set_sdrc_timing_regval_ps((reg), (st), (end), \
-			rx51_timings->field, \
+			memory_timings->field, \
 			(rate), #field) < 0) \
 		err = -1;
 
 #else
 #define SDRC_SET_ONE_PS(reg, st, end, field, rate) \
 	if (set_sdrc_timing_regval_ps((reg), (st), (end), \
-			rx51_timings->field, (rate)) < 0) \
+			memory_timings->field, (rate)) < 0) \
 		err = -1;
 #endif
 
@@ -184,7 +184,7 @@ static int sdrc_timings(int id, long rate)
 	SDRC_SET_ONE(&actim_ctrlb, 16, 17, tWTR, l3_rate);
 
 	ticks_per_ms = l3_rate;
-	rfr = rx51_timings[0].tREF * ticks_per_ms / 1000000;
+	rfr = memory_timings[0].tREF * ticks_per_ms / 1000000;
 	if (rfr > 65535 + 50)
 		rfr = 65535;
 	else
@@ -197,18 +197,18 @@ static int sdrc_timings(int id, long rate)
 	l = rfr << 8;
 	rfr_ctrl = l | 0x1; /* autorefresh, reload counter with 1xARCV */
 
-	rx51_sdrc_params[id].rate = rate;
-	rx51_sdrc_params[id].actim_ctrla = actim_ctrla;
-	rx51_sdrc_params[id].actim_ctrlb = actim_ctrlb;
-	rx51_sdrc_params[id].rfr_ctrl = rfr_ctrl;
-	rx51_sdrc_params[id].mr = 0x32;
+	nokia_sdrc_params[id].rate = rate;
+	nokia_sdrc_params[id].actim_ctrla = actim_ctrla;
+	nokia_sdrc_params[id].actim_ctrlb = actim_ctrlb;
+	nokia_sdrc_params[id].rfr_ctrl = rfr_ctrl;
+	nokia_sdrc_params[id].mr = 0x32;
 
-	rx51_sdrc_params[id + 1].rate = 0;
+	nokia_sdrc_params[id + 1].rate = 0;
 
 	return err;
 }
 
-struct omap_sdrc_params *rx51_get_sdram_timings(void)
+struct omap_sdrc_params *nokia_get_sdram_timings(void)
 {
 	int err;
 
@@ -216,6 +216,6 @@ struct omap_sdrc_params *rx51_get_sdram_timings(void)
 	err |= sdrc_timings(1, 83000000);
 	err |= sdrc_timings(2, 166000000);
 
-	return &rx51_sdrc_params[0];
+	return &nokia_sdrc_params[0];
 }
 
