@@ -40,7 +40,7 @@ QUICK_TRANSFER用于快速传输，同时可指定半双工或全双工，
 
 //#define QUICK_TRANSFER         
 
-#if 1
+#if 0
 #define DBG   printk
 #else
 #define DBG(x...)
@@ -274,6 +274,7 @@ static int null_writer(struct rk29xx_spi *dws)
 static int null_reader(struct rk29xx_spi *dws)
 {
 	u8 n_bytes = dws->n_bytes;
+	DBG("func: %s, line: %d\n", __FUNCTION__, __LINE__);
 	while ((!(rk29xx_readw(dws, SPIM_SR) & SR_RF_EMPT))
 		&& (dws->rx < dws->rx_end)) {
 		rk29xx_readw(dws, SPIM_RXDR);
@@ -299,9 +300,11 @@ static int u8_writer(struct rk29xx_spi *dws)
 
 static int u8_reader(struct rk29xx_spi *dws)
 {
+    spi_dump_regs(dws);
 	while (!(rk29xx_readw(dws, SPIM_SR) & SR_RF_EMPT)
 		&& (dws->rx < dws->rx_end)) {
 		*(u8 *)(dws->rx) = rk29xx_readw(dws, SPIM_RXDR) & 0xFFU;
+		DBG("rx: 0x%02x\n", *(u8 *)(dws->rx));
 		++dws->rx;
 	}
 
@@ -330,6 +333,7 @@ static int u16_reader(struct rk29xx_spi *dws)
 		&& (dws->rx < dws->rx_end)) {
 		temp = rk29xx_readw(dws, SPIM_RXDR);
 		*(u16 *)(dws->rx) = temp;
+		//DBG("rx: 0x%04x\n", *(u16 *)(dws->rx));
 		dws->rx += 2;
 	}
 
@@ -551,13 +555,33 @@ static irqreturn_t interrupt_transfer(struct rk29xx_spi *dws)
 			dws->write(dws);
 			wait_till_not_busy(dws);
 		}
-		dws->read(dws);
+		if (dws->rx) {
+		    dws->read(dws);
+		}
 
 		/* Re-enable the IRQ if there is still data left to tx */
 		if (dws->tx_end > dws->tx)
 			spi_umask_intr(dws, SPI_INT_TXEI);
 		else
 			transfer_complete(dws);
+	}
+
+	if (irq_status & SPI_INT_RXFI) {
+		spi_mask_intr(dws, SPI_INT_RXFI);
+		
+		dws->read(dws);
+
+		/* Re-enable the IRQ if there is still data left to rx */
+		if (dws->rx_end > dws->rx) {
+			left = ((dws->rx_end - dws->rx) / dws->n_bytes) - 1;
+		    left = (left > int_level) ? int_level : left;
+
+			rk29xx_writew(dws, SPIM_RXFTLR, left);
+			spi_umask_intr(dws, SPI_INT_RXFI);
+		}
+		else {
+			transfer_complete(dws);
+		}
 	}
 
 	return IRQ_HANDLED;
@@ -609,11 +633,12 @@ static void pump_transfers(unsigned long data)
 	u8 imask = 0;
 	u8 cs_change = 0;
 	u16 txint_level = 0;
+	u16 rxint_level = 0;
 	u16 clk_div = 0;
 	u32 speed = 0;
 	u32 cr0 = 0;
 
-	DBG(KERN_INFO "pump_transfers");
+	DBG(KERN_INFO "pump_transfers\n");
 
 	/* Get current state information */
 	message = dws->cur_msg;
@@ -742,11 +767,20 @@ static void pump_transfers(unsigned long data)
 	 * we only need set the TXEI IRQ, as TX/RX always happen syncronizely
 	 */
 	if (!dws->dma_mapped && !chip->poll_mode) {
-		int templen = dws->len / dws->n_bytes;
-		txint_level = dws->fifo_len / 2;
-		txint_level = (templen > txint_level) ? txint_level : templen;
-
-		imask |= SPI_INT_TXEI;
+		int templen ;
+		
+		if (chip->tmode == SPI_TMOD_RO) {
+			templen = dws->len / dws->n_bytes - 1;
+			rxint_level = dws->fifo_len / 2;
+			rxint_level = (templen > rxint_level) ? rxint_level : templen;
+			imask |= SPI_INT_RXFI;
+		}
+		else {	
+			templen = dws->len / dws->n_bytes;
+			txint_level = dws->fifo_len / 2;
+			txint_level = (templen > txint_level) ? txint_level : templen;
+			imask |= SPI_INT_TXEI;
+		}
 		dws->transfer_handler = interrupt_transfer;
 	}
 
@@ -763,15 +797,19 @@ static void pump_transfers(unsigned long data)
 
 		spi_set_clk(dws, clk_div ? clk_div : chip->clk_div);		
 		spi_chip_sel(dws, spi->chip_select);
+
+        rk29xx_writew(dws, SPIM_CTRLR1, dws->len-1);
+		spi_enable_chip(dws, 1);
+
+		if (txint_level)
+			rk29xx_writew(dws, SPIM_TXFTLR, txint_level);
+		if (rxint_level)
+			rk29xx_writew(dws, SPIM_RXFTLR, rxint_level);
 		/* Set the interrupt mask, for poll mode just diable all int */
 		spi_mask_intr(dws, 0xff);
 		if (imask)
 			spi_umask_intr(dws, imask);
-		if (txint_level)
-			rk29xx_writew(dws, SPIM_TXFTLR, txint_level);
-
-        rk29xx_writew(dws, SPIM_CTRLR1, dws->len-1);
-		spi_enable_chip(dws, 1);
+		
 		if (cs_change)
 			dws->prev_chip = chip;
 	} 
@@ -1093,7 +1131,7 @@ static void pump_messages(struct work_struct *work)
     dws->prev_chip = NULL; //每个pump message时强制更新cs dxj
     
 	/* Mark as busy and launch transfers */
-	if(dws->cur_msg->is_dma_mapped && dws->cur_transfer->len > DMA_MIN_BYTES) {
+	if(dws->cur_msg->is_dma_mapped /*&& dws->cur_transfer->len > DMA_MIN_BYTES*/) {
 		dws->busy = 1;
 	    spin_unlock_irqrestore(&dws->lock, flags);
 		dma_transfer(dws);
@@ -1606,7 +1644,6 @@ static int rk29xx_spi_setup(struct spi_device *spi)
 			| (chip->tmode << SPI_TMOD_OFFSET);
 
 	spi_set_ctldata(spi, chip);
-	DBG("RK29XX_SPI_SETUP: CRO: 0x%x ???????????????????\n", chip->cr0);
 	return 0;
 }
 
