@@ -44,6 +44,27 @@ struct sdram_timings {
 	u32 tWTR;
 };
 
+static const struct sdram_timings nokia_97dot6mhz_timings[] = {
+	{
+		.casl = 3,
+		.tDAL = 30725,
+		.tDPL = 15362,
+		.tRRD = 10241,
+		.tRCD = 20483,
+		.tRP = 15362,
+		.tRAS = 40967,
+		.tRC = 56330,
+		.tRFC = 138266,
+		.tXSR = 204839,
+
+		.tREF = 7798,
+
+		.tXP = 2,
+		.tCKE = 4,
+		.tWTR = 2,
+	},
+};
+
 static const struct sdram_timings nokia_166mhz_timings[] = {
 	{
 		.casl = 3,
@@ -65,12 +86,35 @@ static const struct sdram_timings nokia_166mhz_timings[] = {
 	},
 };
 
+static const struct sdram_timings nokia_195dot2mhz_timings[] = {
+	{
+		.casl = 3,
+		.tDAL = 30725,
+		.tDPL = 15362,
+		.tRRD = 10241,
+		.tRCD = 20483,
+		.tRP = 15362,
+		.tRAS = 40967,
+		.tRC = 56330,
+		.tRFC = 138266,
+		.tXSR = 204839,
+
+		.tREF = 7752,
+
+		.tXP = 2,
+		.tCKE = 4,
+		.tWTR = 2,
+	},
+};
+
 static const struct {
 	long rate;
 	struct sdram_timings const *data;
 } nokia_timings[] = {
 	{ 83000000, nokia_166mhz_timings },
+	{ 97600000, nokia_97dot6mhz_timings },
 	{ 166000000, nokia_166mhz_timings },
+	{ 195200000, nokia_195dot2mhz_timings },
 };
 static struct omap_sdrc_params nokia_sdrc_params[ARRAY_SIZE(nokia_timings) + 1];
 
