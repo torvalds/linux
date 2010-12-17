@@ -34,7 +34,7 @@ is an Intel(R) Ethernet Server Adapter X520-2, then it only supports Intel
 optics and/or the direct attach cables listed below.
 
 When 82599-based SFP+ devices are connected back to back, they should be set to
-the same Speed setting via Ethtool. Results may vary if you mix speed settings.
+the same Speed setting via ethtool. Results may vary if you mix speed settings.
 82598-based adapters support all passive direct attach cables that comply
 with SFF-8431 v4.1 and SFF-8472 v10.4 specifications. Active direct attach
 cables are not supported.
@@ -110,7 +110,7 @@ threshold.  When rx is enabled, the transmit unit will halt for the time delay
 specified when a PAUSE frame is received.
 
 Flow Control is enabled by default. If you want to disable a flow control
-capable link partner, use Ethtool:
+capable link partner, use ethtool:
 
      ethtool -A eth? autoneg off RX off TX off
 
@@ -181,10 +181,10 @@ Additional Configurations
   -------
   The driver utilizes the ethtool interface for driver configuration and
   diagnostics, as well as displaying statistical information. The latest
-  Ethtool version is required for this functionality.
+  ethtool version is required for this functionality.
 
   The latest release of ethtool can be found from
-  http://sourceforge.net/projects/gkernel.
+  http://ftp.kernel.org/pub/software/network/ethtool/
 
   FCoE
   ----

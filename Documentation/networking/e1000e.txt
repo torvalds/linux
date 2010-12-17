@@ -269,26 +269,26 @@ Additional Configurations
   -------
   The driver utilizes the ethtool interface for driver configuration and
   diagnostics, as well as displaying statistical information.  We
-  strongly recommend downloading the latest version of Ethtool at:
+  strongly recommend downloading the latest version of ethtool at:
 
-  http://sourceforge.net/projects/gkernel.
+  http://ftp.kernel.org/pub/software/network/ethtool/
 
   Speed and Duplex
   ----------------
-  Speed and Duplex are configured through the Ethtool* utility. For
-  instructions,  refer to the Ethtool man page.
+  Speed and Duplex are configured through the ethtool* utility. For
+  instructions,  refer to the ethtool man page.
 
   Enabling Wake on LAN* (WoL)
   ---------------------------
-  WoL is configured through the Ethtool* utility. For instructions on
-  enabling WoL with Ethtool, refer to the Ethtool man page.
+  WoL is configured through the ethtool* utility. For instructions on
+  enabling WoL with ethtool, refer to the ethtool man page.
 
   WoL will be enabled on the system during the next shut down or reboot.
   For this driver version, in order to enable WoL, the e1000e driver must be
   loaded when shutting down or rebooting the system.
 
   In most cases Wake On LAN is only supported on port A for multiple port
-  adapters. To verify if a port supports Wake on Lan run Ethtool eth<X>.
+  adapters. To verify if a port supports Wake on Lan run ethtool eth<X>.
 
 Support
 =======
