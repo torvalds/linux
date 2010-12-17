@@ -1545,21 +1545,6 @@ static struct i2c_driver aic3x_i2c_driver = {
 	.remove = aic3x_i2c_remove,
 	.id_table = aic3x_i2c_id,
 };
-
-static inline void aic3x_i2c_init(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&aic3x_i2c_driver);
-	if (ret)
-		printk(KERN_ERR "%s: error regsitering i2c driver, %d\n",
-		       __func__, ret);
-}
-
-static inline void aic3x_i2c_exit(void)
-{
-	i2c_del_driver(&aic3x_i2c_driver);
-}
 #endif
 
 static int __init aic3x_modinit(void)
