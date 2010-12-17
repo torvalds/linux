@@ -787,16 +787,15 @@ static int check_corruption(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
 		 * erased, so it became unstable and corrupted, and should be
 		 * erased.
 		 */
-		return 0;
+		err = 0;
+		goto out_unlock;
 	}
 
 	if (err)
-		return err;
+		goto out_unlock;
 
-	if (ubi_check_pattern(ubi->peb_buf1, 0xFF, ubi->leb_size)) {
-		mutex_unlock(&ubi->buf_mutex);
-		return 0;
-	}
+	if (ubi_check_pattern(ubi->peb_buf1, 0xFF, ubi->leb_size))
+		goto out_unlock;
 
 	ubi_err("PEB %d contains corrupted VID header, and the data does not "
 		"contain all 0xFF, this may be a non-UBI PEB or a severe VID "
@@ -806,8 +805,11 @@ static int check_corruption(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
 		pnum, ubi->leb_start, ubi->leb_size);
 	ubi_dbg_print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
 			       ubi->peb_buf1, ubi->leb_size, 1);
+	err = 1;
+
+out_unlock:
 	mutex_unlock(&ubi->buf_mutex);
-	return 1;
+	return err;
 }
 
 /**
@@ -951,6 +953,10 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 			 * impossible to distinguish it from a PEB which just
 			 * contains garbage because of a power cut during erase
 			 * operation. So we just schedule this PEB for erasure.
+			 *
+			 * Besides, in case of NOR flash, we deliberatly
+			 * corrupt both headers because NOR flash erasure is
+			 * slow and can start from the end.
 			 */
 			err = 0;
 		else

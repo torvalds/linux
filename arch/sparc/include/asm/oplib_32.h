@@ -60,25 +60,6 @@ extern char *prom_getbootargs(void);
 extern char *prom_mapio(char *virt_hint, int io_space, unsigned int phys_addr, unsigned int num_bytes);
 extern void prom_unmapio(char *virt_addr, unsigned int num_bytes);
 
-/* Device operations. */
-
-/* Open the device described by the passed string.  Note, that the format
- * of the string is different on V0 vs. V2->higher proms.  The caller must
- * know what he/she is doing!  Returns the device descriptor, an int.
- */
-extern int prom_devopen(char *device_string);
-
-/* Close a previously opened device described by the passed integer
- * descriptor.
- */
-extern int prom_devclose(int device_handle);
-
-/* Do a seek operation on the device described by the passed integer
- * descriptor.
- */
-extern void prom_seek(int device_handle, unsigned int seek_hival,
-		      unsigned int seek_lowval);
-
 /* Miscellaneous routines, don't really fit in any category per se. */
 
 /* Reboot the machine with the command line passed. */
@@ -121,19 +102,8 @@ extern int prom_getrev(void);
 /* Get the prom firmware revision. */
 extern int prom_getprev(void);
 
-/* Character operations to/from the console.... */
-
-/* Non-blocking get character from console. */
-extern int prom_nbgetchar(void);
-
-/* Non-blocking put character to console. */
-extern int prom_nbputchar(char character);
-
-/* Blocking get character from console. */
-extern char prom_getchar(void);
-
-/* Blocking put character to console. */
-extern void prom_putchar(char character);
+/* Write a buffer of characters to the console. */
+extern void prom_console_write_buf(const char *buf, int len);
 
 /* Prom's internal routines, don't use in kernel/boot code. */
 extern void prom_printf(const char *fmt, ...);
@@ -238,7 +208,6 @@ extern int prom_node_has_property(phandle node, char *property);
 extern int prom_setprop(phandle node, const char *prop_name, char *prop_value,
 			int value_size);
 
-extern phandle prom_pathtoinode(char *path);
 extern phandle prom_inst2pkg(int);
 
 /* Dorking with Bus ranges... */

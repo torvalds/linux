@@ -44,6 +44,7 @@ struct btrfs_device {
 
 	int writeable;
 	int in_fs_metadata;
+	int missing;
 
 	spinlock_t io_lock;
 
@@ -93,6 +94,7 @@ struct btrfs_fs_devices {
 	u64 num_devices;
 	u64 open_devices;
 	u64 rw_devices;
+	u64 missing_devices;
 	u64 total_rw_bytes;
 	struct block_device *latest_bdev;
 

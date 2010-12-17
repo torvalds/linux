@@ -744,24 +744,34 @@ static void rtl8169_xmii_reset_enable(void __iomem *ioaddr)
 	mdio_write(ioaddr, MII_BMCR, val & 0xffff);
 }
 
-static void rtl8169_check_link_status(struct net_device *dev,
+static void __rtl8169_check_link_status(struct net_device *dev,
 				      struct rtl8169_private *tp,
-				      void __iomem *ioaddr)
+				      void __iomem *ioaddr,
+				      bool pm)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->lock, flags);
 	if (tp->link_ok(ioaddr)) {
 		/* This is to cancel a scheduled suspend if there's one. */
-		pm_request_resume(&tp->pci_dev->dev);
+		if (pm)
+			pm_request_resume(&tp->pci_dev->dev);
 		netif_carrier_on(dev);
 		netif_info(tp, ifup, dev, "link up\n");
 	} else {
 		netif_carrier_off(dev);
 		netif_info(tp, ifdown, dev, "link down\n");
-		pm_schedule_suspend(&tp->pci_dev->dev, 100);
+		if (pm)
+			pm_schedule_suspend(&tp->pci_dev->dev, 100);
 	}
 	spin_unlock_irqrestore(&tp->lock, flags);
+}
+
+static void rtl8169_check_link_status(struct net_device *dev,
+				      struct rtl8169_private *tp,
+				      void __iomem *ioaddr)
+{
+	__rtl8169_check_link_status(dev, tp, ioaddr, false);
 }
 
 #define WAKE_ANY (WAKE_PHY | WAKE_MAGIC | WAKE_UCAST | WAKE_BCAST | WAKE_MCAST)
@@ -4440,8 +4450,7 @@ static inline void rtl8169_rx_csum(struct sk_buff *skb, u32 opts1)
 	u32 status = opts1 & RxProtoMask;
 
 	if (((status == RxProtoTCP) && !(opts1 & TCPFail)) ||
-	    ((status == RxProtoUDP) && !(opts1 & UDPFail)) ||
-	    ((status == RxProtoIP) && !(opts1 & IPFail)))
+	    ((status == RxProtoUDP) && !(opts1 & UDPFail)))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
 		skb_checksum_none_assert(skb);
@@ -4601,7 +4610,7 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 		}
 
 		if (status & LinkChg)
-			rtl8169_check_link_status(dev, tp, ioaddr);
+			__rtl8169_check_link_status(dev, tp, ioaddr, true);
 
 		/* We need to see the lastest version of tp->intr_mask to
 		 * avoid ignoring an MSI interrupt and having to wait for
@@ -4891,11 +4900,7 @@ static int rtl8169_runtime_idle(struct device *device)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	if (!tp->TxDescArray)
-		return 0;
-
-	rtl8169_check_link_status(dev, tp, tp->mmio_addr);
-	return -EBUSY;
+	return tp->TxDescArray ? -EBUSY : 0;
 }
 
 static const struct dev_pm_ops rtl8169_pm_ops = {

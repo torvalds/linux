@@ -38,8 +38,7 @@
 
 static uint32_t i915_gem_get_gtt_alignment(struct drm_gem_object *obj);
 
-static int i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj,
-						  bool pipelined);
+static int i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj);
 static void i915_gem_object_flush_gtt_write_domain(struct drm_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_gem_object *obj);
 static int i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj,
@@ -547,6 +546,19 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_object *obj_priv;
 	int ret = 0;
 
+	if (args->size == 0)
+		return 0;
+
+	if (!access_ok(VERIFY_WRITE,
+		       (char __user *)(uintptr_t)args->data_ptr,
+		       args->size))
+		return -EFAULT;
+
+	ret = fault_in_pages_writeable((char __user *)(uintptr_t)args->data_ptr,
+				       args->size);
+	if (ret)
+		return -EFAULT;
+
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
 		return ret;
@@ -561,23 +573,6 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	/* Bounds check source.  */
 	if (args->offset > obj->size || args->size > obj->size - args->offset) {
 		ret = -EINVAL;
-		goto out;
-	}
-
-	if (args->size == 0)
-		goto out;
-
-	if (!access_ok(VERIFY_WRITE,
-		       (char __user *)(uintptr_t)args->data_ptr,
-		       args->size)) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	ret = fault_in_pages_writeable((char __user *)(uintptr_t)args->data_ptr,
-				       args->size);
-	if (ret) {
-		ret = -EFAULT;
 		goto out;
 	}
 
@@ -981,7 +976,20 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_pwrite *args = data;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
-	int ret = 0;
+	int ret;
+
+	if (args->size == 0)
+		return 0;
+
+	if (!access_ok(VERIFY_READ,
+		       (char __user *)(uintptr_t)args->data_ptr,
+		       args->size))
+		return -EFAULT;
+
+	ret = fault_in_pages_readable((char __user *)(uintptr_t)args->data_ptr,
+				      args->size);
+	if (ret)
+		return -EFAULT;
 
 	ret = i915_mutex_lock_interruptible(dev);
 	if (ret)
@@ -994,27 +1002,9 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	}
 	obj_priv = to_intel_bo(obj);
 
-
 	/* Bounds check destination. */
 	if (args->offset > obj->size || args->size > obj->size - args->offset) {
 		ret = -EINVAL;
-		goto out;
-	}
-
-	if (args->size == 0)
-		goto out;
-
-	if (!access_ok(VERIFY_READ,
-		       (char __user *)(uintptr_t)args->data_ptr,
-		       args->size)) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	ret = fault_in_pages_readable((char __user *)(uintptr_t)args->data_ptr,
-				      args->size);
-	if (ret) {
-		ret = -EFAULT;
 		goto out;
 	}
 
@@ -2603,7 +2593,7 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj,
 	if (reg->gpu) {
 		int ret;
 
-		ret = i915_gem_object_flush_gpu_write_domain(obj, true);
+		ret = i915_gem_object_flush_gpu_write_domain(obj);
 		if (ret)
 			return ret;
 
@@ -2751,8 +2741,7 @@ i915_gem_clflush_object(struct drm_gem_object *obj)
 
 /** Flushes any GPU write domain for the object if it's dirty. */
 static int
-i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj,
-				       bool pipelined)
+i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
 	uint32_t old_write_domain;
@@ -2771,10 +2760,7 @@ i915_gem_object_flush_gpu_write_domain(struct drm_gem_object *obj,
 					    obj->read_domains,
 					    old_write_domain);
 
-	if (pipelined)
-		return 0;
-
-	return i915_gem_object_wait_rendering(obj, true);
+	return 0;
 }
 
 /** Flushes the GTT write domain for the object if it's dirty. */
@@ -2835,17 +2821,14 @@ i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
 	if (obj_priv->gtt_space == NULL)
 		return -EINVAL;
 
-	ret = i915_gem_object_flush_gpu_write_domain(obj, false);
+	ret = i915_gem_object_flush_gpu_write_domain(obj);
 	if (ret != 0)
+		return ret;
+	ret = i915_gem_object_wait_rendering(obj, true);
+	if (ret)
 		return ret;
 
 	i915_gem_object_flush_cpu_write_domain(obj);
-
-	if (write) {
-		ret = i915_gem_object_wait_rendering(obj, true);
-		if (ret)
-			return ret;
-	}
 
 	old_write_domain = obj->write_domain;
 	old_read_domains = obj->read_domains;
@@ -2884,7 +2867,7 @@ i915_gem_object_set_to_display_plane(struct drm_gem_object *obj,
 	if (obj_priv->gtt_space == NULL)
 		return -EINVAL;
 
-	ret = i915_gem_object_flush_gpu_write_domain(obj, true);
+	ret = i915_gem_object_flush_gpu_write_domain(obj);
 	if (ret)
 		return ret;
 
@@ -2907,6 +2890,20 @@ i915_gem_object_set_to_display_plane(struct drm_gem_object *obj,
 	return 0;
 }
 
+int
+i915_gem_object_flush_gpu(struct drm_i915_gem_object *obj,
+			  bool interruptible)
+{
+	if (!obj->active)
+		return 0;
+
+	if (obj->base.write_domain & I915_GEM_GPU_DOMAINS)
+		i915_gem_flush_ring(obj->base.dev, NULL, obj->ring,
+				    0, obj->base.write_domain);
+
+	return i915_gem_object_wait_rendering(&obj->base, interruptible);
+}
+
 /**
  * Moves a single object to the CPU read, and possibly write domain.
  *
@@ -2919,8 +2916,11 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
 	uint32_t old_write_domain, old_read_domains;
 	int ret;
 
-	ret = i915_gem_object_flush_gpu_write_domain(obj, false);
+	ret = i915_gem_object_flush_gpu_write_domain(obj);
 	if (ret != 0)
+		return ret;
+	ret = i915_gem_object_wait_rendering(obj, true);
+	if (ret)
 		return ret;
 
 	i915_gem_object_flush_gtt_write_domain(obj);
@@ -2929,12 +2929,6 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
 	 * finish invalidating it and free the per-page flags.
 	 */
 	i915_gem_object_set_to_full_cpu_read_domain(obj);
-
-	if (write) {
-		ret = i915_gem_object_wait_rendering(obj, true);
-		if (ret)
-			return ret;
-	}
 
 	old_write_domain = obj->write_domain;
 	old_read_domains = obj->read_domains;
@@ -3200,9 +3194,13 @@ i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 	if (offset == 0 && size == obj->size)
 		return i915_gem_object_set_to_cpu_domain(obj, 0);
 
-	ret = i915_gem_object_flush_gpu_write_domain(obj, false);
+	ret = i915_gem_object_flush_gpu_write_domain(obj);
 	if (ret != 0)
 		return ret;
+	ret = i915_gem_object_wait_rendering(obj, true);
+	if (ret)
+		return ret;
+
 	i915_gem_object_flush_gtt_write_domain(obj);
 
 	/* If we're already fully in the CPU read domain, we're done. */
@@ -3249,192 +3247,230 @@ i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 	return 0;
 }
 
-/**
- * Pin an object to the GTT and evaluate the relocations landing in it.
- */
 static int
-i915_gem_execbuffer_relocate(struct drm_i915_gem_object *obj,
-			     struct drm_file *file_priv,
-			     struct drm_i915_gem_exec_object2 *entry)
+i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
+				   struct drm_file *file_priv,
+				   struct drm_i915_gem_exec_object2 *entry,
+				   struct drm_i915_gem_relocation_entry *reloc)
 {
 	struct drm_device *dev = obj->base.dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_relocation_entry __user *user_relocs;
-	struct drm_gem_object *target_obj = NULL;
-	uint32_t target_handle = 0;
-	int i, ret = 0;
+	struct drm_gem_object *target_obj;
+	uint32_t target_offset;
+	int ret = -EINVAL;
 
-	user_relocs = (void __user *)(uintptr_t)entry->relocs_ptr;
-	for (i = 0; i < entry->relocation_count; i++) {
-		struct drm_i915_gem_relocation_entry reloc;
-		uint32_t target_offset;
+	target_obj = drm_gem_object_lookup(dev, file_priv,
+					   reloc->target_handle);
+	if (target_obj == NULL)
+		return -ENOENT;
 
-		if (__copy_from_user_inatomic(&reloc,
-					      user_relocs+i,
-					      sizeof(reloc))) {
-			ret = -EFAULT;
-			break;
-		}
-
-		if (reloc.target_handle != target_handle) {
-			drm_gem_object_unreference(target_obj);
-
-			target_obj = drm_gem_object_lookup(dev, file_priv,
-							   reloc.target_handle);
-			if (target_obj == NULL) {
-				ret = -ENOENT;
-				break;
-			}
-
-			target_handle = reloc.target_handle;
-		}
-		target_offset = to_intel_bo(target_obj)->gtt_offset;
+	target_offset = to_intel_bo(target_obj)->gtt_offset;
 
 #if WATCH_RELOC
-		DRM_INFO("%s: obj %p offset %08x target %d "
-			 "read %08x write %08x gtt %08x "
-			 "presumed %08x delta %08x\n",
-			 __func__,
-			 obj,
-			 (int) reloc.offset,
-			 (int) reloc.target_handle,
-			 (int) reloc.read_domains,
-			 (int) reloc.write_domain,
-			 (int) target_offset,
-			 (int) reloc.presumed_offset,
-			 reloc.delta);
+	DRM_INFO("%s: obj %p offset %08x target %d "
+		 "read %08x write %08x gtt %08x "
+		 "presumed %08x delta %08x\n",
+		 __func__,
+		 obj,
+		 (int) reloc->offset,
+		 (int) reloc->target_handle,
+		 (int) reloc->read_domains,
+		 (int) reloc->write_domain,
+		 (int) target_offset,
+		 (int) reloc->presumed_offset,
+		 reloc->delta);
 #endif
 
-		/* The target buffer should have appeared before us in the
-		 * exec_object list, so it should have a GTT space bound by now.
-		 */
-		if (target_offset == 0) {
-			DRM_ERROR("No GTT space found for object %d\n",
-				  reloc.target_handle);
-			ret = -EINVAL;
-			break;
-		}
-
-		/* Validate that the target is in a valid r/w GPU domain */
-		if (reloc.write_domain & (reloc.write_domain - 1)) {
-			DRM_ERROR("reloc with multiple write domains: "
-				  "obj %p target %d offset %d "
-				  "read %08x write %08x",
-				  obj, reloc.target_handle,
-				  (int) reloc.offset,
-				  reloc.read_domains,
-				  reloc.write_domain);
-			ret = -EINVAL;
-			break;
-		}
-		if (reloc.write_domain & I915_GEM_DOMAIN_CPU ||
-		    reloc.read_domains & I915_GEM_DOMAIN_CPU) {
-			DRM_ERROR("reloc with read/write CPU domains: "
-				  "obj %p target %d offset %d "
-				  "read %08x write %08x",
-				  obj, reloc.target_handle,
-				  (int) reloc.offset,
-				  reloc.read_domains,
-				  reloc.write_domain);
-			ret = -EINVAL;
-			break;
-		}
-		if (reloc.write_domain && target_obj->pending_write_domain &&
-		    reloc.write_domain != target_obj->pending_write_domain) {
-			DRM_ERROR("Write domain conflict: "
-				  "obj %p target %d offset %d "
-				  "new %08x old %08x\n",
-				  obj, reloc.target_handle,
-				  (int) reloc.offset,
-				  reloc.write_domain,
-				  target_obj->pending_write_domain);
-			ret = -EINVAL;
-			break;
-		}
-
-		target_obj->pending_read_domains |= reloc.read_domains;
-		target_obj->pending_write_domain |= reloc.write_domain;
-
-		/* If the relocation already has the right value in it, no
-		 * more work needs to be done.
-		 */
-		if (target_offset == reloc.presumed_offset)
-			continue;
-
-		/* Check that the relocation address is valid... */
-		if (reloc.offset > obj->base.size - 4) {
-			DRM_ERROR("Relocation beyond object bounds: "
-				  "obj %p target %d offset %d size %d.\n",
-				  obj, reloc.target_handle,
-				  (int) reloc.offset, (int) obj->base.size);
-			ret = -EINVAL;
-			break;
-		}
-		if (reloc.offset & 3) {
-			DRM_ERROR("Relocation not 4-byte aligned: "
-				  "obj %p target %d offset %d.\n",
-				  obj, reloc.target_handle,
-				  (int) reloc.offset);
-			ret = -EINVAL;
-			break;
-		}
-
-		/* and points to somewhere within the target object. */
-		if (reloc.delta >= target_obj->size) {
-			DRM_ERROR("Relocation beyond target object bounds: "
-				  "obj %p target %d delta %d size %d.\n",
-				  obj, reloc.target_handle,
-				  (int) reloc.delta, (int) target_obj->size);
-			ret = -EINVAL;
-			break;
-		}
-
-		reloc.delta += target_offset;
-		if (obj->base.write_domain == I915_GEM_DOMAIN_CPU) {
-			uint32_t page_offset = reloc.offset & ~PAGE_MASK;
-			char *vaddr;
-
-			vaddr = kmap_atomic(obj->pages[reloc.offset >> PAGE_SHIFT]);
-			*(uint32_t *)(vaddr + page_offset) = reloc.delta;
-			kunmap_atomic(vaddr);
-		} else {
-			uint32_t __iomem *reloc_entry;
-			void __iomem *reloc_page;
-
-			ret = i915_gem_object_set_to_gtt_domain(&obj->base, 1);
-			if (ret)
-				break;
-
-			/* Map the page containing the relocation we're going to perform.  */
-			reloc.offset += obj->gtt_offset;
-			reloc_page = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
-							      reloc.offset & PAGE_MASK);
-			reloc_entry = (uint32_t __iomem *)
-				(reloc_page + (reloc.offset & ~PAGE_MASK));
-			iowrite32(reloc.delta, reloc_entry);
-			io_mapping_unmap_atomic(reloc_page);
-		}
-
-		/* and update the user's relocation entry */
-		reloc.presumed_offset = target_offset;
-		if (__copy_to_user_inatomic(&user_relocs[i].presumed_offset,
-					      &reloc.presumed_offset,
-					      sizeof(reloc.presumed_offset))) {
-		    ret = -EFAULT;
-		    break;
-		}
+	/* The target buffer should have appeared before us in the
+	 * exec_object list, so it should have a GTT space bound by now.
+	 */
+	if (target_offset == 0) {
+		DRM_ERROR("No GTT space found for object %d\n",
+			  reloc->target_handle);
+		goto err;
 	}
 
+	/* Validate that the target is in a valid r/w GPU domain */
+	if (reloc->write_domain & (reloc->write_domain - 1)) {
+		DRM_ERROR("reloc with multiple write domains: "
+			  "obj %p target %d offset %d "
+			  "read %08x write %08x",
+			  obj, reloc->target_handle,
+			  (int) reloc->offset,
+			  reloc->read_domains,
+			  reloc->write_domain);
+		goto err;
+	}
+	if (reloc->write_domain & I915_GEM_DOMAIN_CPU ||
+	    reloc->read_domains & I915_GEM_DOMAIN_CPU) {
+		DRM_ERROR("reloc with read/write CPU domains: "
+			  "obj %p target %d offset %d "
+			  "read %08x write %08x",
+			  obj, reloc->target_handle,
+			  (int) reloc->offset,
+			  reloc->read_domains,
+			  reloc->write_domain);
+		goto err;
+	}
+	if (reloc->write_domain && target_obj->pending_write_domain &&
+	    reloc->write_domain != target_obj->pending_write_domain) {
+		DRM_ERROR("Write domain conflict: "
+			  "obj %p target %d offset %d "
+			  "new %08x old %08x\n",
+			  obj, reloc->target_handle,
+			  (int) reloc->offset,
+			  reloc->write_domain,
+			  target_obj->pending_write_domain);
+		goto err;
+	}
+
+	target_obj->pending_read_domains |= reloc->read_domains;
+	target_obj->pending_write_domain |= reloc->write_domain;
+
+	/* If the relocation already has the right value in it, no
+	 * more work needs to be done.
+	 */
+	if (target_offset == reloc->presumed_offset)
+		goto out;
+
+	/* Check that the relocation address is valid... */
+	if (reloc->offset > obj->base.size - 4) {
+		DRM_ERROR("Relocation beyond object bounds: "
+			  "obj %p target %d offset %d size %d.\n",
+			  obj, reloc->target_handle,
+			  (int) reloc->offset,
+			  (int) obj->base.size);
+		goto err;
+	}
+	if (reloc->offset & 3) {
+		DRM_ERROR("Relocation not 4-byte aligned: "
+			  "obj %p target %d offset %d.\n",
+			  obj, reloc->target_handle,
+			  (int) reloc->offset);
+		goto err;
+	}
+
+	/* and points to somewhere within the target object. */
+	if (reloc->delta >= target_obj->size) {
+		DRM_ERROR("Relocation beyond target object bounds: "
+			  "obj %p target %d delta %d size %d.\n",
+			  obj, reloc->target_handle,
+			  (int) reloc->delta,
+			  (int) target_obj->size);
+		goto err;
+	}
+
+	reloc->delta += target_offset;
+	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU) {
+		uint32_t page_offset = reloc->offset & ~PAGE_MASK;
+		char *vaddr;
+
+		vaddr = kmap_atomic(obj->pages[reloc->offset >> PAGE_SHIFT]);
+		*(uint32_t *)(vaddr + page_offset) = reloc->delta;
+		kunmap_atomic(vaddr);
+	} else {
+		struct drm_i915_private *dev_priv = dev->dev_private;
+		uint32_t __iomem *reloc_entry;
+		void __iomem *reloc_page;
+
+		ret = i915_gem_object_set_to_gtt_domain(&obj->base, 1);
+		if (ret)
+			goto err;
+
+		/* Map the page containing the relocation we're going to perform.  */
+		reloc->offset += obj->gtt_offset;
+		reloc_page = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
+						      reloc->offset & PAGE_MASK);
+		reloc_entry = (uint32_t __iomem *)
+			(reloc_page + (reloc->offset & ~PAGE_MASK));
+		iowrite32(reloc->delta, reloc_entry);
+		io_mapping_unmap_atomic(reloc_page);
+	}
+
+	/* and update the user's relocation entry */
+	reloc->presumed_offset = target_offset;
+
+out:
+	ret = 0;
+err:
 	drm_gem_object_unreference(target_obj);
 	return ret;
 }
 
 static int
-i915_gem_execbuffer_pin(struct drm_device *dev,
-			struct drm_file *file,
-			struct drm_gem_object **object_list,
-			struct drm_i915_gem_exec_object2 *exec_list,
-			int count)
+i915_gem_execbuffer_relocate_object(struct drm_i915_gem_object *obj,
+				    struct drm_file *file_priv,
+				    struct drm_i915_gem_exec_object2 *entry)
+{
+	struct drm_i915_gem_relocation_entry __user *user_relocs;
+	int i, ret;
+
+	user_relocs = (void __user *)(uintptr_t)entry->relocs_ptr;
+	for (i = 0; i < entry->relocation_count; i++) {
+		struct drm_i915_gem_relocation_entry reloc;
+
+		if (__copy_from_user_inatomic(&reloc,
+					      user_relocs+i,
+					      sizeof(reloc)))
+			return -EFAULT;
+
+		ret = i915_gem_execbuffer_relocate_entry(obj, file_priv, entry, &reloc);
+		if (ret)
+			return ret;
+
+		if (__copy_to_user_inatomic(&user_relocs[i].presumed_offset,
+					    &reloc.presumed_offset,
+					    sizeof(reloc.presumed_offset)))
+			return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int
+i915_gem_execbuffer_relocate_object_slow(struct drm_i915_gem_object *obj,
+					 struct drm_file *file_priv,
+					 struct drm_i915_gem_exec_object2 *entry,
+					 struct drm_i915_gem_relocation_entry *relocs)
+{
+	int i, ret;
+
+	for (i = 0; i < entry->relocation_count; i++) {
+		ret = i915_gem_execbuffer_relocate_entry(obj, file_priv, entry, &relocs[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int
+i915_gem_execbuffer_relocate(struct drm_device *dev,
+			     struct drm_file *file,
+			     struct drm_gem_object **object_list,
+			     struct drm_i915_gem_exec_object2 *exec_list,
+			     int count)
+{
+	int i, ret;
+
+	for (i = 0; i < count; i++) {
+		struct drm_i915_gem_object *obj = to_intel_bo(object_list[i]);
+		obj->base.pending_read_domains = 0;
+		obj->base.pending_write_domain = 0;
+		ret = i915_gem_execbuffer_relocate_object(obj, file,
+							  &exec_list[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int
+i915_gem_execbuffer_reserve(struct drm_device *dev,
+			    struct drm_file *file,
+			    struct drm_gem_object **object_list,
+			    struct drm_i915_gem_exec_object2 *exec_list,
+			    int count)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i, retry;
@@ -3494,6 +3530,87 @@ i915_gem_execbuffer_pin(struct drm_device *dev,
 	}
 
 	return 0;
+}
+
+static int
+i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
+				  struct drm_file *file,
+				  struct drm_gem_object **object_list,
+				  struct drm_i915_gem_exec_object2 *exec_list,
+				  int count)
+{
+	struct drm_i915_gem_relocation_entry *reloc;
+	int i, total, ret;
+
+	for (i = 0; i < count; i++) {
+		struct drm_i915_gem_object *obj = to_intel_bo(object_list[i]);
+		obj->in_execbuffer = false;
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+
+	total = 0;
+	for (i = 0; i < count; i++)
+		total += exec_list[i].relocation_count;
+
+	reloc = drm_malloc_ab(total, sizeof(*reloc));
+	if (reloc == NULL) {
+		mutex_lock(&dev->struct_mutex);
+		return -ENOMEM;
+	}
+
+	total = 0;
+	for (i = 0; i < count; i++) {
+		struct drm_i915_gem_relocation_entry __user *user_relocs;
+
+		user_relocs = (void __user *)(uintptr_t)exec_list[i].relocs_ptr;
+
+		if (copy_from_user(reloc+total, user_relocs,
+				   exec_list[i].relocation_count *
+				   sizeof(*reloc))) {
+			ret = -EFAULT;
+			mutex_lock(&dev->struct_mutex);
+			goto err;
+		}
+
+		total += exec_list[i].relocation_count;
+	}
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret) {
+		mutex_lock(&dev->struct_mutex);
+		goto err;
+	}
+
+	ret = i915_gem_execbuffer_reserve(dev, file,
+					  object_list, exec_list,
+					  count);
+	if (ret)
+		goto err;
+
+	total = 0;
+	for (i = 0; i < count; i++) {
+		struct drm_i915_gem_object *obj = to_intel_bo(object_list[i]);
+		obj->base.pending_read_domains = 0;
+		obj->base.pending_write_domain = 0;
+		ret = i915_gem_execbuffer_relocate_object_slow(obj, file,
+							       &exec_list[i],
+							       reloc + total);
+		if (ret)
+			goto err;
+
+		total += exec_list[i].relocation_count;
+	}
+
+	/* Leave the user relocations as are, this is the painfully slow path,
+	 * and we want to avoid the complication of dropping the lock whilst
+	 * having buffers reserved in the aperture and so causing spurious
+	 * ENOSPC for random operations.
+	 */
+
+err:
+	drm_free_large(reloc);
+	return ret;
 }
 
 static int
@@ -3625,8 +3742,15 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 
 	for (i = 0; i < count; i++) {
 		char __user *ptr = (char __user *)(uintptr_t)exec[i].relocs_ptr;
-		size_t length = exec[i].relocation_count * sizeof(struct drm_i915_gem_relocation_entry);
+		int length; /* limited by fault_in_pages_readable() */
 
+		/* First check for malicious input causing overflow */
+		if (exec[i].relocation_count >
+		    INT_MAX / sizeof(struct drm_i915_gem_relocation_entry))
+			return -EINVAL;
+
+		length = exec[i].relocation_count *
+			sizeof(struct drm_i915_gem_relocation_entry);
 		if (!access_ok(VERIFY_READ, ptr, length))
 			return -EFAULT;
 
@@ -3769,18 +3893,24 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	/* Move the objects en-masse into the GTT, evicting if necessary. */
-	ret = i915_gem_execbuffer_pin(dev, file,
-				      object_list, exec_list,
-				      args->buffer_count);
+	ret = i915_gem_execbuffer_reserve(dev, file,
+					  object_list, exec_list,
+					  args->buffer_count);
 	if (ret)
 		goto err;
 
 	/* The objects are in their final locations, apply the relocations. */
-	for (i = 0; i < args->buffer_count; i++) {
-		struct drm_i915_gem_object *obj = to_intel_bo(object_list[i]);
-		obj->base.pending_read_domains = 0;
-		obj->base.pending_write_domain = 0;
-		ret = i915_gem_execbuffer_relocate(obj, file, &exec_list[i]);
+	ret = i915_gem_execbuffer_relocate(dev, file,
+					   object_list, exec_list,
+					   args->buffer_count);
+	if (ret) {
+		if (ret == -EFAULT) {
+			ret = i915_gem_execbuffer_relocate_slow(dev, file,
+								object_list,
+								exec_list,
+								args->buffer_count);
+			BUG_ON(!mutex_is_locked(&dev->struct_mutex));
+		}
 		if (ret)
 			goto err;
 	}
@@ -4244,10 +4374,20 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		 * use this buffer rather sooner than later, so issuing the required
 		 * flush earlier is beneficial.
 		 */
-		if (obj->write_domain & I915_GEM_GPU_DOMAINS)
+		if (obj->write_domain & I915_GEM_GPU_DOMAINS) {
 			i915_gem_flush_ring(dev, file_priv,
 					    obj_priv->ring,
 					    0, obj->write_domain);
+		} else if (obj_priv->ring->outstanding_lazy_request) {
+			/* This ring is not being cleared by active usage,
+			 * so emit a request to do so.
+			 */
+			u32 seqno = i915_add_request(dev,
+						     NULL, NULL,
+						     obj_priv->ring);
+			if (seqno == 0)
+				ret = -ENOMEM;
+		}
 
 		/* Update the active list for the hardware's current position.
 		 * Otherwise this only updates on a delayed timer or when irqs

@@ -3339,7 +3339,7 @@ static irqreturn_t wm8962_irq(int irq, void *data)
 	int mask;
 	int active;
 
-	mask = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2);
+	mask = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2_MASK);
 
 	active = snd_soc_read(codec, WM8962_INTERRUPT_STATUS_2);
 	active &= ~mask;
@@ -3500,8 +3500,11 @@ static ssize_t wm8962_beep_set(struct device *dev,
 {
 	struct wm8962_priv *wm8962 = dev_get_drvdata(dev);
 	long int time;
+	int ret;
 
-	strict_strtol(buf, 10, &time);
+	ret = strict_strtol(buf, 10, &time);
+	if (ret != 0)
+		return ret;
 
 	input_event(wm8962->beep, EV_SND, SND_TONE, time);
 

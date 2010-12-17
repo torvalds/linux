@@ -18,7 +18,7 @@
 #include <asm/system.h>
 #include <asm/ldc.h>
 
-int prom_service_exists(const char *service_name)
+static int prom_service_exists(const char *service_name)
 {
 	unsigned long args[5];
 
@@ -148,20 +148,6 @@ void prom_halt_power_off(void)
 
 	/* if nothing else helps, we just halt */
 	prom_halt();
-}
-
-/* Set prom sync handler to call function 'funcp'. */
-void prom_setcallback(callback_func_t funcp)
-{
-	unsigned long args[5];
-	if (!funcp)
-		return;
-	args[0] = (unsigned long) "set-callback";
-	args[1] = 1;
-	args[2] = 1;
-	args[3] = (unsigned long) funcp;
-	args[4] = (unsigned long) -1;
-	p1275_cmd_direct(args);
 }
 
 /* Get the idprom and stuff it into buffer 'idbuf'.  Returns the

@@ -959,7 +959,7 @@ static int dlm_match_regions(struct dlm_ctxt *dlm,
 		r += O2HB_MAX_REGION_NAME_LEN;
 	}
 
-	local = kmalloc(sizeof(qr->qr_regions), GFP_KERNEL);
+	local = kmalloc(sizeof(qr->qr_regions), GFP_ATOMIC);
 	if (!local) {
 		status = -ENOMEM;
 		goto bail;

@@ -2266,7 +2266,7 @@ nfs4_file_downgrade(struct nfs4_file *fp, unsigned int share_access)
  * Spawn a thread to perform a recall on the delegation represented
  * by the lease (file_lock)
  *
- * Called from break_lease() with lock_kernel() held.
+ * Called from break_lease() with lock_flocks() held.
  * Note: we assume break_lease will only call this *once* for any given
  * lease.
  */
@@ -2290,7 +2290,7 @@ void nfsd_break_deleg_cb(struct file_lock *fl)
 	list_add_tail(&dp->dl_recall_lru, &del_recall_lru);
 	spin_unlock(&recall_lock);
 
-	/* only place dl_time is set. protected by lock_kernel*/
+	/* only place dl_time is set. protected by lock_flocks*/
 	dp->dl_time = get_seconds();
 
 	/*
@@ -2307,7 +2307,7 @@ void nfsd_break_deleg_cb(struct file_lock *fl)
 /*
  * The file_lock is being reapd.
  *
- * Called by locks_free_lock() with lock_kernel() held.
+ * Called by locks_free_lock() with lock_flocks() held.
  */
 static
 void nfsd_release_deleg_cb(struct file_lock *fl)
@@ -2322,7 +2322,7 @@ void nfsd_release_deleg_cb(struct file_lock *fl)
 }
 
 /*
- * Called from setlease() with lock_kernel() held
+ * Called from setlease() with lock_flocks() held
  */
 static
 int nfsd_same_client_deleg_cb(struct file_lock *onlist, struct file_lock *try)

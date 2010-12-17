@@ -28,6 +28,7 @@
 #include <linux/freezer.h>
 #include <linux/crc32c.h>
 #include <linux/slab.h>
+#include <linux/migrate.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -355,6 +356,8 @@ static int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	ret = btree_read_extent_buffer_pages(root, eb, start + PAGE_CACHE_SIZE,
 					     btrfs_header_generation(eb));
 	BUG_ON(ret);
+	WARN_ON(!btrfs_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN));
+
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
 		WARN_ON(1);
@@ -693,6 +696,27 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 				   __btree_submit_bio_done);
 }
 
+#ifdef CONFIG_MIGRATION
+static int btree_migratepage(struct address_space *mapping,
+			struct page *newpage, struct page *page)
+{
+	/*
+	 * we can't safely write a btree page from here,
+	 * we haven't done the locking hook
+	 */
+	if (PageDirty(page))
+		return -EAGAIN;
+	/*
+	 * Buffers may be managed in a filesystem specific way.
+	 * We must have no buffers or drop them.
+	 */
+	if (page_has_private(page) &&
+	    !try_to_release_page(page, GFP_KERNEL))
+		return -EAGAIN;
+	return migrate_page(mapping, newpage, page);
+}
+#endif
+
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct extent_io_tree *tree;
@@ -707,8 +731,7 @@ static int btree_writepage(struct page *page, struct writeback_control *wbc)
 	}
 
 	redirty_page_for_writepage(wbc, page);
-	eb = btrfs_find_tree_block(root, page_offset(page),
-				      PAGE_CACHE_SIZE);
+	eb = btrfs_find_tree_block(root, page_offset(page), PAGE_CACHE_SIZE);
 	WARN_ON(!eb);
 
 	was_dirty = test_and_set_bit(EXTENT_BUFFER_DIRTY, &eb->bflags);
@@ -799,6 +822,9 @@ static const struct address_space_operations btree_aops = {
 	.releasepage	= btree_releasepage,
 	.invalidatepage = btree_invalidatepage,
 	.sync_page	= block_sync_page,
+#ifdef CONFIG_MIGRATION
+	.migratepage	= btree_migratepage,
+#endif
 };
 
 int readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize,
@@ -981,7 +1007,10 @@ static int find_and_setup_root(struct btrfs_root *tree_root,
 	blocksize = btrfs_level_size(root, btrfs_root_level(&root->root_item));
 	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
 				     blocksize, generation);
-	BUG_ON(!root->node);
+	if (!root->node || !btrfs_buffer_uptodate(root->node, generation)) {
+		free_extent_buffer(root->node);
+		return -EIO;
+	}
 	root->commit_root = btrfs_root_node(root);
 	return 0;
 }
@@ -1538,10 +1567,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 						 GFP_NOFS);
 	struct btrfs_root *csum_root = kzalloc(sizeof(struct btrfs_root),
 						 GFP_NOFS);
-	struct btrfs_root *tree_root = kzalloc(sizeof(struct btrfs_root),
-					       GFP_NOFS);
-	struct btrfs_fs_info *fs_info = kzalloc(sizeof(*fs_info),
-						GFP_NOFS);
+	struct btrfs_root *tree_root = btrfs_sb(sb);
+	struct btrfs_fs_info *fs_info = tree_root->fs_info;
 	struct btrfs_root *chunk_root = kzalloc(sizeof(struct btrfs_root),
 						GFP_NOFS);
 	struct btrfs_root *dev_root = kzalloc(sizeof(struct btrfs_root),

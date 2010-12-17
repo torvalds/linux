@@ -153,26 +153,42 @@ nouveau_ramht_insert(struct nouveau_channel *chan, u32 handle,
 	return -ENOMEM;
 }
 
+static struct nouveau_ramht_entry *
+nouveau_ramht_remove_entry(struct nouveau_channel *chan, u32 handle)
+{
+	struct nouveau_ramht *ramht = chan ? chan->ramht : NULL;
+	struct nouveau_ramht_entry *entry;
+	unsigned long flags;
+
+	if (!ramht)
+		return NULL;
+
+	spin_lock_irqsave(&ramht->lock, flags);
+	list_for_each_entry(entry, &ramht->entries, head) {
+		if (entry->channel == chan &&
+		    (!handle || entry->handle == handle)) {
+			list_del(&entry->head);
+			spin_unlock_irqrestore(&ramht->lock, flags);
+
+			return entry;
+		}
+	}
+	spin_unlock_irqrestore(&ramht->lock, flags);
+
+	return NULL;
+}
+
 static void
-nouveau_ramht_remove_locked(struct nouveau_channel *chan, u32 handle)
+nouveau_ramht_remove_hash(struct nouveau_channel *chan, u32 handle)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_instmem_engine *instmem = &dev_priv->engine.instmem;
 	struct nouveau_gpuobj *ramht = chan->ramht->gpuobj;
-	struct nouveau_ramht_entry *entry, *tmp;
+	unsigned long flags;
 	u32 co, ho;
 
-	list_for_each_entry_safe(entry, tmp, &chan->ramht->entries, head) {
-		if (entry->channel != chan || entry->handle != handle)
-			continue;
-
-		nouveau_gpuobj_ref(NULL, &entry->gpuobj);
-		list_del(&entry->head);
-		kfree(entry);
-		break;
-	}
-
+	spin_lock_irqsave(&chan->ramht->lock, flags);
 	co = ho = nouveau_ramht_hash_handle(chan, handle);
 	do {
 		if (nouveau_ramht_entry_valid(dev, ramht, co) &&
@@ -184,7 +200,7 @@ nouveau_ramht_remove_locked(struct nouveau_channel *chan, u32 handle)
 			nv_wo32(ramht, co + 0, 0x00000000);
 			nv_wo32(ramht, co + 4, 0x00000000);
 			instmem->flush(dev);
-			return;
+			goto out;
 		}
 
 		co += 8;
@@ -194,17 +210,22 @@ nouveau_ramht_remove_locked(struct nouveau_channel *chan, u32 handle)
 
 	NV_ERROR(dev, "RAMHT entry not found. ch=%d, handle=0x%08x\n",
 		 chan->id, handle);
+out:
+	spin_unlock_irqrestore(&chan->ramht->lock, flags);
 }
 
 void
 nouveau_ramht_remove(struct nouveau_channel *chan, u32 handle)
 {
-	struct nouveau_ramht *ramht = chan->ramht;
-	unsigned long flags;
+	struct nouveau_ramht_entry *entry;
 
-	spin_lock_irqsave(&ramht->lock, flags);
-	nouveau_ramht_remove_locked(chan, handle);
-	spin_unlock_irqrestore(&ramht->lock, flags);
+	entry = nouveau_ramht_remove_entry(chan, handle);
+	if (!entry)
+		return;
+
+	nouveau_ramht_remove_hash(chan, entry->handle);
+	nouveau_gpuobj_ref(NULL, &entry->gpuobj);
+	kfree(entry);
 }
 
 struct nouveau_gpuobj *
@@ -265,23 +286,19 @@ void
 nouveau_ramht_ref(struct nouveau_ramht *ref, struct nouveau_ramht **ptr,
 		  struct nouveau_channel *chan)
 {
-	struct nouveau_ramht_entry *entry, *tmp;
+	struct nouveau_ramht_entry *entry;
 	struct nouveau_ramht *ramht;
-	unsigned long flags;
 
 	if (ref)
 		kref_get(&ref->refcount);
 
 	ramht = *ptr;
 	if (ramht) {
-		spin_lock_irqsave(&ramht->lock, flags);
-		list_for_each_entry_safe(entry, tmp, &ramht->entries, head) {
-			if (entry->channel != chan)
-				continue;
-
-			nouveau_ramht_remove_locked(chan, entry->handle);
+		while ((entry = nouveau_ramht_remove_entry(chan, 0))) {
+			nouveau_ramht_remove_hash(chan, entry->handle);
+			nouveau_gpuobj_ref(NULL, &entry->gpuobj);
+			kfree(entry);
 		}
-		spin_unlock_irqrestore(&ramht->lock, flags);
 
 		kref_put(&ramht->refcount, nouveau_ramht_del);
 	}
