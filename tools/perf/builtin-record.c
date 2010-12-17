@@ -197,7 +197,7 @@ static void sig_atexit(void)
 	if (child_pid > 0)
 		kill(child_pid, SIGTERM);
 
-	if (signr == -1)
+	if (signr == -1 || signr == SIGUSR1)
 		return;
 
 	signal(signr, SIG_DFL);
@@ -515,6 +515,7 @@ static int __cmd_record(int argc, const char **argv)
 	atexit(sig_atexit);
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
+	signal(SIGUSR1, sig_handler);
 
 	if (forks && (pipe(child_ready_pipe) < 0 || pipe(go_pipe) < 0)) {
 		perror("failed to create pipes");
@@ -606,6 +607,7 @@ static int __cmd_record(int argc, const char **argv)
 			execvp(argv[0], (char **)argv);
 
 			perror(argv[0]);
+			kill(getppid(), SIGUSR1);
 			exit(-1);
 		}
 
@@ -762,7 +764,7 @@ static int __cmd_record(int argc, const char **argv)
 		}
 	}
 
-	if (quiet)
+	if (quiet || signr == SIGUSR1)
 		return 0;
 
 	fprintf(stderr, "[ perf record: Woken up %ld times to write data ]\n", waking);

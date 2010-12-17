@@ -47,6 +47,20 @@ Date:		January 2007
 KernelVersion:	2.6.20
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
 Description:
-		Control the bluetooth device. 1 means on, 0 means off.
+		Control the wlan device. 1 means on, 0 means off.
 		This may control the led, the device or both.
 Users:		Lapsus
+
+What:		/sys/devices/platform/asus_laptop/wimax
+Date:		October 2010
+KernelVersion:	2.6.37
+Contact:	"Corentin Chary" <corentincj@iksaif.net>
+Description:
+		Control the wimax device. 1 means on, 0 means off.
+
+What:		/sys/devices/platform/asus_laptop/wwan
+Date:		October 2010
+KernelVersion:	2.6.37
+Contact:	"Corentin Chary" <corentincj@iksaif.net>
+Description:
+		Control the wwan (3G) device. 1 means on, 0 means off.

@@ -958,10 +958,6 @@ static void packetizeRx(struct hso_net *odev, unsigned char *ip_pkt,
 				/* Packet is complete. Inject into stack. */
 				/* We have IP packet here */
 				odev->skb_rx_buf->protocol = cpu_to_be16(ETH_P_IP);
-				/* don't check it */
-				odev->skb_rx_buf->ip_summed =
-					CHECKSUM_UNNECESSARY;
-
 				skb_reset_mac_header(odev->skb_rx_buf);
 
 				/* Ship it off to the kernel */

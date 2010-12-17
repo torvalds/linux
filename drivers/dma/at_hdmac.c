@@ -722,7 +722,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			desc->lli.daddr = mem;
 			desc->lli.ctrla = ctrla
 					| ATC_DST_WIDTH(mem_width)
-					| len >> mem_width;
+					| len >> reg_width;
 			desc->lli.ctrlb = ctrlb;
 
 			if (!first) {

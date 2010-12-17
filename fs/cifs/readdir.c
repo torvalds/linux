@@ -759,18 +759,6 @@ static int cifs_filldir(char *pfindEntry, struct file *file, filldir_t filldir,
 	rc = filldir(direntry, qstring.name, qstring.len, file->f_pos,
 		     ino, fattr.cf_dtype);
 
-	/*
-	 * we can not return filldir errors to the caller since they are
-	 * "normal" when the stat blocksize is too small - we return remapped
-	 * error instead
-	 *
-	 * FIXME: This looks bogus. filldir returns -EOVERFLOW in the above
-	 * case already. Why should we be clobbering other errors from it?
-	 */
-	if (rc) {
-		cFYI(1, "filldir rc = %d", rc);
-		rc = -EOVERFLOW;
-	}
 	dput(tmp_dentry);
 	return rc;
 }

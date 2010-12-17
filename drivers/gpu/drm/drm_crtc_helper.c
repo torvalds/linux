@@ -241,7 +241,7 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		if (!drm_helper_encoder_in_use(encoder)) {
+		if (encoder->crtc && !drm_helper_encoder_in_use(encoder)) {
 			drm_encoder_disable(encoder);
 			/* disconnector encoder from any connector */
 			encoder->crtc = NULL;
