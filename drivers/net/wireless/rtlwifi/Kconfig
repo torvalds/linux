@@ -7,7 +7,7 @@ config RTL8192CE
 	This is the driver for Realtek RTL8192CE/RTL8188CE 802.11n PCIe
 	wireless network adapters.
 
-	If you choose to build it as a module, it will be calledrtl8192ce.
+	If you choose to build it as a module, it will be called rtl8192ce
 
 config RTLWIFI
 	tristate
