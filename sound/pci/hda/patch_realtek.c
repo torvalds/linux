@@ -10830,7 +10830,8 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i, err;
+	int i, err, type;
+	int type_idx = 0;
 	hda_nid_t nid;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
@@ -10839,9 +10840,15 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 		nid = cfg->inputs[i].pin;
 		if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP) {
 			char label[32];
+			type = cfg->inputs[i].type;
+			if (i > 0 && type == cfg->inputs[i - 1].type)
+				type_idx++;
+			else
+				type_idx = 0;
 			snprintf(label, sizeof(label), "%s Boost",
 				 hda_get_autocfg_input_label(codec, cfg, i));
-			err = add_control(spec, ALC_CTL_WIDGET_VOL, label, 0,
+			err = add_control(spec, ALC_CTL_WIDGET_VOL, label,
+					  type_idx,
 				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
 			if (err < 0)
 				return err;
