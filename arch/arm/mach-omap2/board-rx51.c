@@ -32,10 +32,10 @@
 
 #include "mux.h"
 #include "pm.h"
+#include "sdram-nokia.h"
 
 #define RX51_GPIO_SLEEP_IND 162
 
-struct omap_sdrc_params *nokia_get_sdram_timings(void);
 extern void rx51_video_mem_init(void);
 
 static struct gpio_led gpio_leds[] = {

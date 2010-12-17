@@ -22,6 +22,7 @@
 #include <plat/clock.h>
 #include <plat/sdrc.h>
 
+#include "sdram-nokia.h"
 
 /* In picoseconds, except for tREF (ns), tXP, tCKE, tWTR (clks) */
 struct sdram_timings {
