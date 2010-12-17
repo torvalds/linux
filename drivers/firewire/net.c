@@ -9,6 +9,7 @@
 #include <linux/bug.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/ethtool.h>
 #include <linux/firewire.h>
 #include <linux/firewire-constants.h>
 #include <linux/highmem.h>
@@ -178,8 +179,8 @@ struct fwnet_device {
 
 	/* Number of tx datagrams that have been queued but not yet acked */
 	int queued_datagrams;
-	int peer_count;
 
+	int peer_count;
 	struct list_head peer_list;
 	struct fw_card *card;
 	struct net_device *netdev;
@@ -1222,6 +1223,14 @@ static int fwnet_broadcast_start(struct fwnet_device *dev)
 	return retval;
 }
 
+static void set_carrier_state(struct fwnet_device *dev)
+{
+	if (dev->peer_count > 1)
+		netif_carrier_on(dev->netdev);
+	else
+		netif_carrier_off(dev->netdev);
+}
+
 /* ifup */
 static int fwnet_open(struct net_device *net)
 {
@@ -1234,6 +1243,10 @@ static int fwnet_open(struct net_device *net)
 			return ret;
 	}
 	netif_start_queue(net);
+
+	spin_lock_irq(&dev->lock);
+	set_carrier_state(dev);
+	spin_unlock_irq(&dev->lock);
 
 	return 0;
 }
@@ -1429,7 +1442,6 @@ static void fwnet_init_dev(struct net_device *net)
 	net->type		= ARPHRD_IEEE1394;
 	net->tx_queue_len	= FWNET_TX_QUEUE_LEN;
 	net->ethtool_ops	= &fwnet_ethtool_ops;
-
 }
 
 /* caller must hold fwnet_device_mutex */
@@ -1471,6 +1483,7 @@ static int fwnet_add_peer(struct fwnet_device *dev,
 	spin_lock_irq(&dev->lock);
 	list_add_tail(&peer->peer_link, &dev->peer_list);
 	dev->peer_count++;
+	set_carrier_state(dev);
 	spin_unlock_irq(&dev->lock);
 
 	return 0;
@@ -1542,9 +1555,6 @@ static int fwnet_probe(struct device *_dev)
 		unregister_netdev(net);
 		list_del(&dev->dev_link);
 	}
-
-	if (dev->peer_count > 1)
-		netif_carrier_on(net);
  out:
 	if (ret && allocated_netdev)
 		free_netdev(net);
@@ -1554,14 +1564,15 @@ static int fwnet_probe(struct device *_dev)
 	return ret;
 }
 
-static void fwnet_remove_peer(struct fwnet_peer *peer)
+static void fwnet_remove_peer(struct fwnet_peer *peer, struct fwnet_device *dev)
 {
 	struct fwnet_partial_datagram *pd, *pd_next;
 
-	spin_lock_irq(&peer->dev->lock);
+	spin_lock_irq(&dev->lock);
 	list_del(&peer->peer_link);
-	peer->dev->peer_count--;
-	spin_unlock_irq(&peer->dev->lock);
+	dev->peer_count--;
+	set_carrier_state(dev);
+	spin_unlock_irq(&dev->lock);
 
 	list_for_each_entry_safe(pd, pd_next, &peer->pd_list, pd_link)
 		fwnet_pd_delete(pd);
@@ -1578,12 +1589,7 @@ static int fwnet_remove(struct device *_dev)
 
 	mutex_lock(&fwnet_device_mutex);
 
-	fwnet_remove_peer(peer);
-
-	/* If we serve just one node, that means we lost link
-		with outer world */
-	if (dev->peer_count == 1)
-		netif_carrier_off(dev->netdev);
+	fwnet_remove_peer(peer, dev);
 
 	if (list_empty(&dev->peer_list)) {
 		net = dev->netdev;
