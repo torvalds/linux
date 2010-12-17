@@ -520,11 +520,12 @@ static struct console grlib_apbuart_console = {
 };
 
 
-static void grlib_apbuart_configure(void);
+static int grlib_apbuart_configure(void);
 
 static int __init apbuart_console_init(void)
 {
-	grlib_apbuart_configure();
+	if (grlib_apbuart_configure())
+		return -ENODEV;
 	register_console(&grlib_apbuart_console);
 	return 0;
 }
