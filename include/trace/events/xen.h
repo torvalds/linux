@@ -405,6 +405,81 @@ TRACE_EVENT(xen_mmu_pgd_unpin,
 	    TP_printk("mm %p pgd %p", __entry->mm, __entry->pgd)
 	);
 
+/* CPU */
+TRACE_EVENT(xen_cpu_write_ldt_entry,
+	    TP_PROTO(struct desc_struct *dt, int entrynum, u64 desc),
+	    TP_ARGS(dt, entrynum, desc),
+	    TP_STRUCT__entry(
+		    __field(struct desc_struct *, dt)
+		    __field(int, entrynum)
+		    __field(u64, desc)
+		    ),
+	    TP_fast_assign(__entry->dt = dt;
+			   __entry->entrynum = entrynum;
+			   __entry->desc = desc;
+		    ),
+	    TP_printk("dt %p  entrynum %d  entry %016llx",
+		      __entry->dt, __entry->entrynum,
+		      (unsigned long long)__entry->desc)
+	);
+
+TRACE_EVENT(xen_cpu_write_idt_entry,
+	    TP_PROTO(gate_desc *dt, int entrynum, const gate_desc *ent),
+	    TP_ARGS(dt, entrynum, ent),
+	    TP_STRUCT__entry(
+		    __field(gate_desc *, dt)
+		    __field(int, entrynum)
+		    ),
+	    TP_fast_assign(__entry->dt = dt;
+			   __entry->entrynum = entrynum;
+		    ),
+	    TP_printk("dt %p  entrynum %d",
+		      __entry->dt, __entry->entrynum)
+	);
+
+TRACE_EVENT(xen_cpu_load_idt,
+	    TP_PROTO(const struct desc_ptr *desc),
+	    TP_ARGS(desc),
+	    TP_STRUCT__entry(
+		    __field(unsigned long, addr)
+		    ),
+	    TP_fast_assign(__entry->addr = desc->address),
+	    TP_printk("addr %lx", __entry->addr)
+	);
+
+TRACE_EVENT(xen_cpu_write_gdt_entry,
+	    TP_PROTO(struct desc_struct *dt, int entrynum, const void *desc, int type),
+	    TP_ARGS(dt, entrynum, desc, type),
+	    TP_STRUCT__entry(
+		    __field(u64, desc)
+		    __field(struct desc_struct *, dt)
+		    __field(int, entrynum)
+		    __field(int, type)
+		    ),
+	    TP_fast_assign(__entry->dt = dt;
+			   __entry->entrynum = entrynum;
+			   __entry->desc = *(u64 *)desc;
+			   __entry->type = type;
+		    ),
+	    TP_printk("dt %p  entrynum %d  type %d  desc %016llx",
+		      __entry->dt, __entry->entrynum, __entry->type,
+		      (unsigned long long)__entry->desc)
+	);
+
+TRACE_EVENT(xen_cpu_set_ldt,
+	    TP_PROTO(const void *addr, unsigned entries),
+	    TP_ARGS(addr, entries),
+	    TP_STRUCT__entry(
+		    __field(const void *, addr)
+		    __field(unsigned, entries)
+		    ),
+	    TP_fast_assign(__entry->addr = addr;
+			   __entry->entries = entries),
+	    TP_printk("addr %p  entries %u",
+		      __entry->addr, __entry->entries)
+	);
+
+
 #endif /*  _TRACE_XEN_H */
 
 /* This part must be outside protection */
