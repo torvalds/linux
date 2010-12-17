@@ -170,7 +170,6 @@ static DEVICE_ATTR(dock_prop, S_IRUGO | S_IWUSR, dock_prop_show, NULL);
 static void vusb_enable(struct cpcap_whisper_data *data)
 {
 	if (!data->is_vusb_enabled) {
-		wake_lock(&data->wake_lock);
 		regulator_enable(data->regulator);
 		data->is_vusb_enabled = 1;
 	}
@@ -179,7 +178,6 @@ static void vusb_enable(struct cpcap_whisper_data *data)
 static void vusb_disable(struct cpcap_whisper_data *data)
 {
 	if (data->is_vusb_enabled) {
-		wake_unlock(&data->wake_lock);
 		regulator_disable(data->regulator);
 		data->is_vusb_enabled = 0;
 	}
@@ -339,6 +337,8 @@ static void whisper_notify(struct cpcap_whisper_data *di, enum cpcap_accy accy)
 		memset(di->dock_prop, 0, CPCAP_WHISPER_PROP_SIZE);
 		tegra_cpcap_audio_dock_state(false);
 	}
+
+	wake_lock_timeout(&di->wake_lock, HZ / 2);
 }
 
 static void whisper_audio_check(struct cpcap_whisper_data *di)
@@ -387,6 +387,7 @@ static void whisper_det_work(struct work_struct *work)
 
 	switch (data->state) {
 	case CONFIG:
+		wake_lock(&data->wake_lock);
 		vusb_enable(data);
 		cpcap_irq_mask(data->cpcap, CPCAP_IRQ_CHRG_DET);
 		cpcap_irq_mask(data->cpcap, CPCAP_IRQ_IDFLOAT);
