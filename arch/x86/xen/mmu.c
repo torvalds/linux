@@ -1478,8 +1478,11 @@ static void __init xen_release_pmd_init(unsigned long pfn)
 static void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn, unsigned level)
 {
 	struct page *page = pfn_to_page(pfn);
+	int pinned = PagePinned(virt_to_page(mm->pgd));
+ 
+	trace_xen_mmu_alloc_ptpage(mm, pfn, level, pinned);
 
-	if (PagePinned(virt_to_page(mm->pgd))) {
+	if (pinned) {
 		SetPagePinned(page);
 
 		if (!PageHighMem(page)) {
@@ -1508,8 +1511,11 @@ static void xen_alloc_pmd(struct mm_struct *mm, unsigned long pfn)
 static void xen_release_ptpage(unsigned long pfn, unsigned level)
 {
 	struct page *page = pfn_to_page(pfn);
+	bool pinned = PagePinned(page);
 
-	if (PagePinned(page)) {
+	trace_xen_mmu_release_ptpage(pfn, level, pinned);
+
+	if (pinned) {
 		if (!PageHighMem(page)) {
 			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
 				pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);

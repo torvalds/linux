@@ -347,6 +347,39 @@ TRACE_EVENT(xen_mmu_ptep_modify_prot_commit,
 		      (int)sizeof(pteval_t) * 2, (unsigned long long)__entry->pteval)
 	);
 
+TRACE_EVENT(xen_mmu_alloc_ptpage,
+	    TP_PROTO(struct mm_struct *mm, unsigned long pfn, unsigned level, bool pinned),
+	    TP_ARGS(mm, pfn, level, pinned),
+	    TP_STRUCT__entry(
+		    __field(struct mm_struct *, mm)
+		    __field(unsigned long, pfn)
+		    __field(unsigned, level)
+		    __field(bool, pinned)
+		    ),
+	    TP_fast_assign(__entry->mm = mm;
+			   __entry->pfn = pfn;
+			   __entry->level = level;
+			   __entry->pinned = pinned),
+	    TP_printk("mm %p  pfn %lx  level %d  %spinned",
+		      __entry->mm, __entry->pfn, __entry->level,
+		      __entry->pinned ? "" : "un")
+	);
+
+TRACE_EVENT(xen_mmu_release_ptpage,
+	    TP_PROTO(unsigned long pfn, unsigned level, bool pinned),
+	    TP_ARGS(pfn, level, pinned),
+	    TP_STRUCT__entry(
+		    __field(unsigned long, pfn)
+		    __field(unsigned, level)
+		    __field(bool, pinned)
+		    ),
+	    TP_fast_assign(__entry->pfn = pfn;
+			   __entry->level = level;
+			   __entry->pinned = pinned),
+	    TP_printk("pfn %lx  level %d  %spinned",
+		      __entry->pfn, __entry->level,
+		      __entry->pinned ? "" : "un")
+	);
 
 #endif /*  _TRACE_XEN_H */
 
