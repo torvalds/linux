@@ -984,7 +984,7 @@ static int ieee80211_dump_mpath(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
-static int ieee80211_get_mesh_params(struct wiphy *wiphy,
+static int ieee80211_get_mesh_config(struct wiphy *wiphy,
 				struct net_device *dev,
 				struct mesh_config *conf)
 {
@@ -1000,7 +1000,7 @@ static inline bool _chg_mesh_attr(enum nl80211_meshconf_params parm, u32 mask)
 	return (mask >> (parm-1)) & 0x1;
 }
 
-static int ieee80211_update_mesh_params(struct wiphy *wiphy,
+static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 					struct net_device *dev, u32 mask,
 					const struct mesh_config *nconf)
 {
@@ -1787,8 +1787,8 @@ struct cfg80211_ops mac80211_config_ops = {
 	.change_mpath = ieee80211_change_mpath,
 	.get_mpath = ieee80211_get_mpath,
 	.dump_mpath = ieee80211_dump_mpath,
-	.update_mesh_params = ieee80211_update_mesh_params,
-	.get_mesh_params = ieee80211_get_mesh_params,
+	.update_mesh_config = ieee80211_update_mesh_config,
+	.get_mesh_config = ieee80211_get_mesh_config,
 	.join_mesh = ieee80211_join_mesh,
 	.leave_mesh = ieee80211_leave_mesh,
 #endif

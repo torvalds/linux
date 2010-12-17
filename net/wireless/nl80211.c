@@ -123,7 +123,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 					   .len = NL80211_MAX_SUPP_RATES },
 	[NL80211_ATTR_BSS_HT_OPMODE] = { .type = NLA_U16 },
 
-	[NL80211_ATTR_MESH_PARAMS] = { .type = NLA_NESTED },
+	[NL80211_ATTR_MESH_CONFIG] = { .type = NLA_NESTED },
 
 	[NL80211_ATTR_HT_CAPABILITY] = { .type = NLA_BINARY,
 					 .len = NL80211_HT_CAPABILITY_LEN },
@@ -719,7 +719,7 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	CMD(add_beacon, NEW_BEACON);
 	CMD(add_station, NEW_STATION);
 	CMD(add_mpath, NEW_MPATH);
-	CMD(update_mesh_params, SET_MESH_PARAMS);
+	CMD(update_mesh_config, SET_MESH_CONFIG);
 	CMD(change_bss, SET_BSS);
 	CMD(auth, AUTHENTICATE);
 	CMD(assoc, ASSOCIATE);
@@ -2673,7 +2673,7 @@ static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
 	return r;
 }
 
-static int nl80211_get_mesh_params(struct sk_buff *skb,
+static int nl80211_get_mesh_config(struct sk_buff *skb,
 				   struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
@@ -2688,7 +2688,7 @@ static int nl80211_get_mesh_params(struct sk_buff *skb,
 	if (wdev->iftype != NL80211_IFTYPE_MESH_POINT)
 		return -EOPNOTSUPP;
 
-	if (!rdev->ops->get_mesh_params)
+	if (!rdev->ops->get_mesh_config)
 		return -EOPNOTSUPP;
 
 	wdev_lock(wdev);
@@ -2696,7 +2696,7 @@ static int nl80211_get_mesh_params(struct sk_buff *skb,
 	if (!wdev->mesh_id_len)
 		memcpy(&cur_params, &default_mesh_config, sizeof(cur_params));
 	else
-		err = rdev->ops->get_mesh_params(&rdev->wiphy, dev,
+		err = rdev->ops->get_mesh_config(&rdev->wiphy, dev,
 						 &cur_params);
 	wdev_unlock(wdev);
 
@@ -2708,10 +2708,10 @@ static int nl80211_get_mesh_params(struct sk_buff *skb,
 	if (!msg)
 		return -ENOMEM;
 	hdr = nl80211hdr_put(msg, info->snd_pid, info->snd_seq, 0,
-			     NL80211_CMD_GET_MESH_PARAMS);
+			     NL80211_CMD_GET_MESH_CONFIG);
 	if (!hdr)
 		goto nla_put_failure;
-	pinfoattr = nla_nest_start(msg, NL80211_ATTR_MESH_PARAMS);
+	pinfoattr = nla_nest_start(msg, NL80211_ATTR_MESH_CONFIG);
 	if (!pinfoattr)
 		goto nla_put_failure;
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
@@ -2773,7 +2773,7 @@ static const struct nla_policy nl80211_meshconf_params_policy[NL80211_MESHCONF_A
 	[NL80211_MESHCONF_HWMP_NET_DIAM_TRVS_TIME] = { .type = NLA_U16 },
 };
 
-static int nl80211_parse_mesh_params(struct genl_info *info,
+static int nl80211_parse_mesh_config(struct genl_info *info,
 				     struct mesh_config *cfg,
 				     u32 *mask_out)
 {
@@ -2789,10 +2789,10 @@ do {\
 } while (0);\
 
 
-	if (!info->attrs[NL80211_ATTR_MESH_PARAMS])
+	if (!info->attrs[NL80211_ATTR_MESH_CONFIG])
 		return -EINVAL;
 	if (nla_parse_nested(tb, NL80211_MESHCONF_ATTR_MAX,
-			     info->attrs[NL80211_ATTR_MESH_PARAMS],
+			     info->attrs[NL80211_ATTR_MESH_CONFIG],
 			     nl80211_meshconf_params_policy))
 		return -EINVAL;
 
@@ -2847,7 +2847,7 @@ do {\
 #undef FILL_IN_MESH_PARAM_IF_SET
 }
 
-static int nl80211_update_mesh_params(struct sk_buff *skb,
+static int nl80211_update_mesh_config(struct sk_buff *skb,
 				      struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
@@ -2860,10 +2860,10 @@ static int nl80211_update_mesh_params(struct sk_buff *skb,
 	if (wdev->iftype != NL80211_IFTYPE_MESH_POINT)
 		return -EOPNOTSUPP;
 
-	if (!rdev->ops->update_mesh_params)
+	if (!rdev->ops->update_mesh_config)
 		return -EOPNOTSUPP;
 
-	err = nl80211_parse_mesh_params(info, &cfg, &mask);
+	err = nl80211_parse_mesh_config(info, &cfg, &mask);
 	if (err)
 		return err;
 
@@ -2872,7 +2872,7 @@ static int nl80211_update_mesh_params(struct sk_buff *skb,
 		err = -ENOLINK;
 
 	if (!err)
-		err = rdev->ops->update_mesh_params(&rdev->wiphy, dev,
+		err = rdev->ops->update_mesh_config(&rdev->wiphy, dev,
 						    mask, &cfg);
 
 	wdev_unlock(wdev);
@@ -4672,9 +4672,9 @@ static int nl80211_join_mesh(struct sk_buff *skb, struct genl_info *info)
 	/* start with default */
 	memcpy(&cfg, &default_mesh_config, sizeof(cfg));
 
-	if (info->attrs[NL80211_ATTR_MESH_PARAMS]) {
+	if (info->attrs[NL80211_ATTR_MESH_CONFIG]) {
 		/* and parse parameters if given */
-		err = nl80211_parse_mesh_params(info, &cfg, NULL);
+		err = nl80211_parse_mesh_config(info, &cfg, NULL);
 		if (err)
 			return err;
 	}
@@ -4952,16 +4952,16 @@ static struct genl_ops nl80211_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 	},
 	{
-		.cmd = NL80211_CMD_GET_MESH_PARAMS,
-		.doit = nl80211_get_mesh_params,
+		.cmd = NL80211_CMD_GET_MESH_CONFIG,
+		.doit = nl80211_get_mesh_config,
 		.policy = nl80211_policy,
 		/* can be retrieved by unprivileged users */
 		.internal_flags = NL80211_FLAG_NEED_NETDEV |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
-		.cmd = NL80211_CMD_SET_MESH_PARAMS,
-		.doit = nl80211_update_mesh_params,
+		.cmd = NL80211_CMD_SET_MESH_CONFIG,
+		.doit = nl80211_update_mesh_config,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |

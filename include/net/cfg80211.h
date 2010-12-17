@@ -1096,9 +1096,9 @@ struct cfg80211_pmksa {
  * @get_mpath: get a mesh path for the given parameters
  * @dump_mpath: dump mesh path callback -- resume dump at index @idx
  *
- * @get_mesh_params: Put the current mesh parameters into *params
+ * @get_mesh_config: Get the current mesh configuration
  *
- * @update_mesh_params: Update mesh parameters on a running mesh.
+ * @update_mesh_config: Update mesh parameters on a running mesh.
  *	The mask is a bitfield which tells us which parameters to
  *	set, and which to leave alone.
  *
@@ -1246,10 +1246,10 @@ struct cfg80211_ops {
 	int	(*dump_mpath)(struct wiphy *wiphy, struct net_device *dev,
 			       int idx, u8 *dst, u8 *next_hop,
 			       struct mpath_info *pinfo);
-	int	(*get_mesh_params)(struct wiphy *wiphy,
+	int	(*get_mesh_config)(struct wiphy *wiphy,
 				struct net_device *dev,
 				struct mesh_config *conf);
-	int	(*update_mesh_params)(struct wiphy *wiphy,
+	int	(*update_mesh_config)(struct wiphy *wiphy,
 				      struct net_device *dev, u32 mask,
 				      const struct mesh_config *nconf);
 	int	(*join_mesh)(struct wiphy *wiphy, struct net_device *dev,
