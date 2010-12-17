@@ -102,6 +102,7 @@ struct ictimesync_data{
 #define HV_SHUTDOWN_MSG		0
 #define HV_TIMESYNC_MSG		1
 #define HV_HEARTBEAT_MSG	2
+#define HV_KVP_MSG		3
 
 struct hyperv_service_callback {
 	u8 msg_type;

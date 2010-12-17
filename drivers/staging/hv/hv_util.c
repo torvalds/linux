@@ -37,6 +37,7 @@
 #include "vmbus_private.h"
 #include "vmbus_api.h"
 #include "utils.h"
+#include "hv_kvp.h"
 
 static u8 *shut_txf_buf;
 static u8 *time_txf_buf;
@@ -255,6 +256,10 @@ static int __init init_hyperv_utils(void)
 {
 	printk(KERN_INFO "Registering HyperV Utility Driver\n");
 
+	if (hv_kvp_init())
+		return -ENODEV;
+
+
 	if (!dmi_check_system(hv_utils_dmi_table))
 		return -ENODEV;
 
@@ -283,6 +288,11 @@ static int __init init_hyperv_utils(void)
 		&heartbeat_onchannelcallback;
 	hv_cb_utils[HV_HEARTBEAT_MSG].callback = &heartbeat_onchannelcallback;
 
+	hv_cb_utils[HV_KVP_MSG].channel->onchannel_callback =
+		&hv_kvp_onchannelcallback;
+
+
+
 	return 0;
 }
 
@@ -301,6 +311,10 @@ static void exit_hyperv_utils(void)
 	hv_cb_utils[HV_HEARTBEAT_MSG].channel->onchannel_callback =
 		&chn_cb_negotiate;
 	hv_cb_utils[HV_HEARTBEAT_MSG].callback = &chn_cb_negotiate;
+
+	hv_cb_utils[HV_KVP_MSG].channel->onchannel_callback =
+		&chn_cb_negotiate;
+	hv_kvp_deinit();
 
 	kfree(shut_txf_buf);
 	kfree(time_txf_buf);
