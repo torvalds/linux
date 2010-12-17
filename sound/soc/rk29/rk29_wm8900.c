@@ -36,6 +36,8 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         struct snd_soc_pcm_runtime *rtd = substream->private_data;
         struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
         struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+        unsigned int pll_out = 0; 
+        unsigned int lrclk = 0;
         int ret;
           
         DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
@@ -61,7 +63,7 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
                 #endif
                 if (ret < 0)
                   return ret; 
-                #if 0
+
                 /* set cpu DAI configuration */
                 #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
                 ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
@@ -73,13 +75,39 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
                 #endif		
                 if (ret < 0)
                   return ret;
-                #endif
+
         }
 
+
+        switch(params_rate(params)) {
+        case 8000:
+        case 16000:
+        case 24000:
+        case 32000:
+        case 48000:
+                pll_out = 12288000;
+                break;
+        case 11025:
+        case 22050:
+        case 44100:
+                pll_out = 11289600;
+                break;
+        default:
+                DBG("Enter:%s, %d, Error rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
+                return -EINVAL;
+                break;
+        }
+        DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
+
+        pll_out = 12000000;
+        //snd_soc_dai_set_pll(codec_dai, NULL, 12000000, pll_out);
+        
         snd_soc_dai_set_clkdiv(codec_dai, WM8900_BCLK_DIV, WM8900_BCLK_DIV_4);
         snd_soc_dai_set_clkdiv(codec_dai, WM8900_LRCLK_MODE, 0x400);
-        snd_soc_dai_set_clkdiv(codec_dai, WM8900_DAC_LRCLK,0x40);
-
+        snd_soc_dai_set_clkdiv(codec_dai, WM8900_DAC_LRCLK,(pll_out/4)/params_rate(params));
+        snd_soc_dai_set_clkdiv(codec_dai, WM8900_ADC_LRCLK,(pll_out/4)/params_rate(params));
+        DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));
+        
         return 0;
 }
 
