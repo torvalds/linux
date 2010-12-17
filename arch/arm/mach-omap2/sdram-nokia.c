@@ -44,8 +44,6 @@ struct sdram_timings {
 	u32 tWTR;
 };
 
-static struct omap_sdrc_params nokia_sdrc_params[4];
-
 static const struct sdram_timings nokia_166mhz_timings[] = {
 	{
 		.casl = 3,
@@ -66,6 +64,16 @@ static const struct sdram_timings nokia_166mhz_timings[] = {
 		.tWTR = 2
 	},
 };
+
+static const struct {
+	long rate;
+	struct sdram_timings const *data;
+} nokia_timings[] = {
+	{ 41500000, nokia_166mhz_timings },
+	{ 83000000, nokia_166mhz_timings },
+	{ 166000000, nokia_166mhz_timings },
+};
+static struct omap_sdrc_params nokia_sdrc_params[ARRAY_SIZE(nokia_timings) + 1];
 
 static unsigned long sdrc_get_fclk_period(long rate)
 {
@@ -212,11 +220,12 @@ static int sdrc_timings(int id, long rate,
 
 struct omap_sdrc_params *nokia_get_sdram_timings(void)
 {
-	int err;
+	int err = 0;
+	int i;
 
-	err = sdrc_timings(0, 41500000, nokia_166mhz_timings);
-	err |= sdrc_timings(1, 83000000, nokia_166mhz_timings);
-	err |= sdrc_timings(2, 166000000, nokia_166mhz_timings);
+	for (i = 0; i < ARRAY_SIZE(nokia_timings); i++)
+		err |= sdrc_timings(i, nokia_timings[i].rate,
+				       nokia_timings[i].data);
 
 	return &nokia_sdrc_params[0];
 }
