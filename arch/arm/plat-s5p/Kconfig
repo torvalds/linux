@@ -56,3 +56,13 @@ config S5P_DEV_ONENAND
 	bool
 	help
 	  Compile in platform device definition for OneNAND controller
+
+config S5P_DEV_CSIS0
+	bool
+	help
+	  Compile in platform device definitions for MIPI-CSIS channel 0
+
+config S5P_DEV_CSIS1
+	bool
+	help
+	  Compile in platform device definitions for MIPI-CSIS channel 1
