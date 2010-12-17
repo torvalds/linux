@@ -1497,22 +1497,52 @@ static void __init xen_release_pmd_init(unsigned long pfn)
 	make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
 }
 
+static inline void __pin_pagetable_pfn(unsigned cmd, unsigned long pfn)
+{
+	struct multicall_space mcs;
+	struct mmuext_op *op;
+
+	mcs = __xen_mc_entry(sizeof(*op));
+	op = mcs.args;
+	op->cmd = cmd;
+	op->arg1.mfn = pfn_to_mfn(pfn);
+
+	MULTI_mmuext_op(mcs.mc, mcs.args, 1, NULL, DOMID_SELF);
+}
+
+static inline void __set_pfn_prot(unsigned long pfn, pgprot_t prot)
+{
+	struct multicall_space mcs;
+	unsigned long addr = (unsigned long)__va(pfn << PAGE_SHIFT);
+
+	mcs = __xen_mc_entry(0);
+	MULTI_update_va_mapping(mcs.mc, (unsigned long)addr,
+				pfn_pte(pfn, prot), 0);
+}
+
 /* This needs to make sure the new pte page is pinned iff its being
    attached to a pinned pagetable. */
-static void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn, unsigned level)
+static inline void xen_alloc_ptpage(struct mm_struct *mm, unsigned long pfn,
+				    unsigned level)
 {
-	struct page *page = pfn_to_page(pfn);
-	int pinned = PagePinned(virt_to_page(mm->pgd));
- 
+	bool pinned = PagePinned(virt_to_page(mm->pgd));
+
 	trace_xen_mmu_alloc_ptpage(mm, pfn, level, pinned);
 
 	if (pinned) {
+		struct page *page = pfn_to_page(pfn);
+
 		SetPagePinned(page);
 
 		if (!PageHighMem(page)) {
-			make_lowmem_page_readonly(__va(PFN_PHYS((unsigned long)pfn)));
+			xen_mc_batch();
+
+			__set_pfn_prot(pfn, PAGE_KERNEL_RO);
+
 			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
-				pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
+				__pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
+
+			xen_mc_issue(PARAVIRT_LAZY_MMU);
 		} else {
 			/* make sure there are no stray mappings of
 			   this page */
@@ -1532,7 +1562,7 @@ static void xen_alloc_pmd(struct mm_struct *mm, unsigned long pfn)
 }
 
 /* This should never happen until we're OK to use struct page */
-static void xen_release_ptpage(unsigned long pfn, unsigned level)
+static inline void xen_release_ptpage(unsigned long pfn, unsigned level)
 {
 	struct page *page = pfn_to_page(pfn);
 	bool pinned = PagePinned(page);
@@ -1541,9 +1571,14 @@ static void xen_release_ptpage(unsigned long pfn, unsigned level)
 
 	if (pinned) {
 		if (!PageHighMem(page)) {
+			xen_mc_batch();
+
 			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
-				pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
-			make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
+				__pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
+
+			__set_pfn_prot(pfn, PAGE_KERNEL);
+
+			xen_mc_issue(PARAVIRT_LAZY_MMU);
 		}
 		ClearPagePinned(page);
 	}
