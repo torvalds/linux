@@ -1811,7 +1811,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			hdrlen = ieee80211_fill_mesh_addresses(&hdr, &fc,
 					skb->data, skb->data + ETH_ALEN);
 			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr,
-					sdata, NULL, NULL, NULL);
+					sdata, NULL, NULL);
 		} else {
 			/* packet from other interface */
 			struct mesh_path *mppath;
@@ -1844,13 +1844,11 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 					ieee80211_new_mesh_header(&mesh_hdr,
 							sdata,
 							skb->data + ETH_ALEN,
-							NULL,
 							NULL);
 			else
 				meshhdrlen =
 					ieee80211_new_mesh_header(&mesh_hdr,
 							sdata,
-							NULL,
 							skb->data,
 							skb->data + ETH_ALEN);
 
