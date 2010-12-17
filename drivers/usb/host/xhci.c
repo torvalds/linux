@@ -512,8 +512,9 @@ void xhci_stop(struct usb_hcd *hcd)
 	spin_lock_irq(&xhci->lock);
 	xhci_halt(xhci);
 	xhci_reset(xhci);
-	xhci_cleanup_msix(xhci);
 	spin_unlock_irq(&xhci->lock);
+
+	xhci_cleanup_msix(xhci);
 
 #ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
 	/* Tell the event ring poll function not to reschedule */
@@ -548,8 +549,9 @@ void xhci_shutdown(struct usb_hcd *hcd)
 
 	spin_lock_irq(&xhci->lock);
 	xhci_halt(xhci);
-	xhci_cleanup_msix(xhci);
 	spin_unlock_irq(&xhci->lock);
+
+	xhci_cleanup_msix(xhci);
 
 	xhci_dbg(xhci, "xhci_shutdown completed - status = %x\n",
 		    xhci_readl(xhci, &xhci->op_regs->status));
