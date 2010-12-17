@@ -393,10 +393,12 @@ static void cfi_fixup_major_minor(struct cfi_private *cfi,
 				  struct cfi_pri_amdstd *extp)
 {
 	if (cfi->mfr == CFI_MFR_SAMSUNG) {
-		if (extp->MajorVersion == '0' && extp->MinorVersion == '0') {
+		if ((extp->MajorVersion == '0' && extp->MinorVersion == '0') ||
+		    (extp->MajorVersion == '3' && extp->MinorVersion == '3')) {
 			/*
 			 * Samsung K8P2815UQB and K8D6x16UxM chips
 			 * report major=0 / minor=0.
+			 * K8D3x16UxC chips report major=3 / minor=3.
 			 */
 			printk(KERN_NOTICE "  Fixing Samsung's Amd/Fujitsu"
 			       " Extended Query version to 1.%c\n",
