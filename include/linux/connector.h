@@ -42,8 +42,9 @@
 #define CN_VAL_DM_USERSPACE_LOG		0x1
 #define CN_IDX_DRBD			0x8
 #define CN_VAL_DRBD			0x1
+#define CN_KVP_IDX			0x9	/* HyperV KVP */
 
-#define CN_NETLINK_USERS		8
+#define CN_NETLINK_USERS		9
 
 /*
  * Maximum connector's message size.
