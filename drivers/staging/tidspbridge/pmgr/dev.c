@@ -880,7 +880,7 @@ int dev_start_device(struct cfg_devnode *dev_node_obj)
 {
 	struct dev_object *hdev_obj = NULL;	/* handle to 'Bridge Device */
 	/* Bridge driver filename */
-	char bridge_file_name[CFG_MAXSEARCHPATHLEN] = "UMA";
+	char *bridge_file_name = "UMA";
 	int status;
 	struct mgr_object *hmgr_obj = NULL;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);

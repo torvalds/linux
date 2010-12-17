@@ -31,9 +31,6 @@
 /* API return value and calling convention */
 #define DBAPI                       int
 
-/* Infinite time value for the utimeout parameter to DSPStream_Select() */
-#define DSP_FOREVER                 (-1)
-
 /* Maximum length of node name, used in dsp_ndbprops */
 #define DSP_MAXNAMELEN              32
 
@@ -74,15 +71,8 @@
 #define DSP_NODE_MIN_PRIORITY       1
 #define DSP_NODE_MAX_PRIORITY       15
 
-/* Pre-Defined Message Command Codes available to user: */
-#define DSP_RMSUSERCODESTART RMS_USER	/* Start of RMS user cmd codes */
-/* end of user codes */
-#define DSP_RMSUSERCODEEND (RMS_USER + RMS_MAXUSERCODES);
 /* msg_ctrl contains SM buffer description */
 #define DSP_RMSBUFDESC RMS_BUFDESC
-
-/* Shared memory identifier for MEM segment named "SHMSEG0" */
-#define DSP_SHMSEG0     (u32)(-1)
 
 /* Processor ID numbers */
 #define DSP_UNIT    0
@@ -90,15 +80,6 @@
 
 #define DSPWORD       unsigned char
 #define DSPWORDSIZE     sizeof(DSPWORD)
-
-/* Power control enumerations */
-#define PROC_PWRCONTROL             0x8070
-
-#define PROC_PWRMGT_ENABLE          (PROC_PWRCONTROL + 0x3)
-#define PROC_PWRMGT_DISABLE         (PROC_PWRCONTROL + 0x4)
-
-/* Bridge Code Version */
-#define BRIDGE_VERSION_CODE         333
 
 #define    MAX_PROFILES     16
 
@@ -500,13 +481,6 @@ bit 15 - Output (writeable) buffer
 
 #define DSPPROCTYPE_C64		6410
 #define IVAPROCTYPE_ARM7	470
-
-#define REG_MGR_OBJECT	1
-#define REG_DRV_OBJECT	2
-
-/* registry */
-#define DRVOBJECT	"DrvObject"
-#define MGROBJECT	"MgrObject"
 
 /* Max registry path length. Also the max registry value length. */
 #define MAXREGPATHLENGTH	255

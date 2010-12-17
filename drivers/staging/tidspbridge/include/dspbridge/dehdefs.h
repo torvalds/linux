@@ -26,7 +26,6 @@ struct deh_mgr;
 
 /* Magic code used to determine if DSP signaled exception. */
 #define DEH_BASE        MBX_DEH_BASE
-#define DEH_USERS_BASE  MBX_DEH_USERS_BASE
 #define DEH_LIMIT       MBX_DEH_LIMIT
 
 #endif /* _DEHDEFS_H */

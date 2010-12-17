@@ -19,24 +19,11 @@
 #ifndef CFGDEFS_
 #define CFGDEFS_
 
-/* Maximum length of module search path. */
-#define CFG_MAXSEARCHPATHLEN    255
-
-/* Maximum length of general paths. */
-#define CFG_MAXPATH             255
-
 /* Host Resources: */
 #define CFG_MAXMEMREGISTERS     9
-#define CFG_MAXIOPORTS          20
-#define CFG_MAXIRQS             7
-#define CFG_MAXDMACHANNELS      7
 
 /* IRQ flag */
 #define CFG_IRQSHARED           0x01	/* IRQ can be shared */
-
-/* DSP Resources: */
-#define CFG_DSPMAXMEMTYPES      10
-#define CFG_DEFAULT_NUM_WINDOWS 1	/* We support only one window. */
 
 /* A platform-related device handle: */
 struct cfg_devnode;

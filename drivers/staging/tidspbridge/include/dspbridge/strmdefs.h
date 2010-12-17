@@ -19,8 +19,6 @@
 #ifndef STRMDEFS_
 #define STRMDEFS_
 
-#define STRM_MAXEVTNAMELEN      32
-
 struct strm_mgr;
 
 struct strm_object;

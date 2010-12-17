@@ -28,7 +28,6 @@
 #define IO_INPUT            0
 #define IO_OUTPUT           1
 #define IO_SERVICE          2
-#define IO_MAXSERVICE       IO_SERVICE
 
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 /* The maximum number of OPPs that are supported */

@@ -22,9 +22,6 @@
 /* Channel id option. */
 #define CHNL_PICKFREE       (~0UL)	/* Let manager pick a free channel. */
 
-/* Channel manager limits: */
-#define CHNL_INITIOREQS      4	/* Default # of I/O requests. */
-
 /* Channel modes */
 #define CHNL_MODETODSP		0	/* Data streaming to the DSP. */
 #define CHNL_MODEFROMDSP	1	/* Data streaming from the DSP. */

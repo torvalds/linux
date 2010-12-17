@@ -22,27 +22,18 @@
 
 #include <dspbridge/rmstypes.h>
 
-/* Node Types: */
-#define RMS_TASK                1	/* Task node */
-#define RMS_DAIS                2	/* xDAIS socket node */
-#define RMS_MSG                 3	/* Message node */
-
 /* Memory Types: */
 #define RMS_CODE                0	/* Program space */
 #define RMS_DATA                1	/* Data space */
-#define RMS_IO                	2	/* I/O space */
 
 /* RM Server Command and Response Buffer Sizes: */
 #define RMS_COMMANDBUFSIZE     256	/* Size of command buffer */
-#define RMS_RESPONSEBUFSIZE    16	/* Size of response buffer */
 
 /* Pre-Defined Command/Response Codes: */
 #define RMS_EXIT                0x80000000	/* GPP->Node: shutdown */
 #define RMS_EXITACK             0x40000000	/* Node->GPP: ack shutdown */
 #define RMS_BUFDESC             0x20000000	/* Arg1 SM buf, Arg2 SM size */
 #define RMS_KILLTASK            0x10000000	/* GPP->Node: Kill Task */
-#define RMS_USER                0x0	/* Start of user-defined msg codes */
-#define RMS_MAXUSERCODES        0xfff	/* Maximum user defined C/R Codes */
 
 /* RM Server RPC Command Structure: */
 struct rms_command {

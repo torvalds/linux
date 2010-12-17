@@ -24,10 +24,6 @@
 /* valid sleep command codes that can be sent by GPP via mailbox: */
 #define PWR_DEEPSLEEP           MBX_PM_DSPIDLE
 #define PWR_EMERGENCYDEEPSLEEP  MBX_PM_EMERGENCYSLEEP
-#define PWR_SLEEPUNTILRESTART   MBX_PM_SLEEPUNTILRESTART
 #define PWR_WAKEUP              MBX_PM_DSPWAKEUP
-#define PWR_AUTOENABLE          MBX_PM_PWRENABLE
-#define PWR_AUTODISABLE         MBX_PM_PWRDISABLE
-#define PWR_RETENTION             MBX_PM_DSPRETN
 
 #endif /* PWR_SH_ */

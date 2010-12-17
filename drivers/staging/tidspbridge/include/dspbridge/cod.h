@@ -27,9 +27,6 @@
 #define COD_TRACEBEG            "SYS_PUTCBEG"
 #define COD_TRACEEND            "SYS_PUTCEND"
 #define COD_TRACECURPOS	"BRIDGE_SYS_PUTC_current"
-#define COD_TRACESECT           "trace"
-#define COD_TRACEBEGOLD         "PUTCBEG"
-#define COD_TRACEENDOLD         "PUTCEND"
 
 #define COD_NOLOAD              DBLL_NOLOAD
 #define COD_SYMB                DBLL_SYMB

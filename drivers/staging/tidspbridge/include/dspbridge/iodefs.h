@@ -19,8 +19,6 @@
 #ifndef IODEFS_
 #define IODEFS_
 
-#define IO_MAXIRQ   0xff	/* Arbitrarily large number. */
-
 /* IO Objects: */
 struct io_mgr;
 

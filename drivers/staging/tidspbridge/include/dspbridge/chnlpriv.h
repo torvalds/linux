@@ -39,12 +39,6 @@
  */
 #define CHNL_PCPY       0	/* Proc-copy transport 0 */
 
-#define CHNL_MAXIRQ     0xff	/* Arbitrarily large number. */
-
-/* The following modes are private: */
-#define CHNL_MODEUSEREVENT  0x1000	/* User provided the channel event. */
-#define CHNL_MODEMASK       0x1001
-
 /* Higher level channel states: */
 #define CHNL_STATEREADY		0	/* Channel ready for I/O. */
 #define CHNL_STATECANCEL	1	/* I/O was cancelled. */
@@ -56,13 +50,6 @@
 
 /* Types of channel class libraries: */
 #define CHNL_TYPESM         1	/* Shared memory driver. */
-#define CHNL_TYPEBM         2	/* Bus Mastering driver. */
-
-/* Max string length of channel I/O completion event name - change if needed */
-#define CHNL_MAXEVTNAMELEN  32
-
-/* Max memory pages lockable in CHNL_PrepareBuffer() - change if needed */
-#define CHNL_MAXLOCKPAGES   64
 
 /* Channel info. */
 struct chnl_info {

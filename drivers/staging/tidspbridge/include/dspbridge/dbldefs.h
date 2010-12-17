@@ -17,17 +17,6 @@
 #ifndef DBLDEFS_
 #define DBLDEFS_
 
-/*
- *  Bit masks for dbl_flags.
- */
-#define DBL_NOLOAD   0x0	/* Don't load symbols, code, or data */
-#define DBL_SYMB     0x1	/* load symbols */
-#define DBL_CODE     0x2	/* load code */
-#define DBL_DATA     0x4	/* load data */
-#define DBL_DYNAMIC  0x8	/* dynamic load */
-#define DBL_BSS      0x20	/* Unitialized section */
-
-#define DBL_MAXPATHLENGTH       255
 
 /*
  *  ======== dbl_flags ========

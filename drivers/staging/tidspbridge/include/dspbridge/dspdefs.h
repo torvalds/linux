@@ -37,12 +37,6 @@
 #include <dspbridge/iodefs.h>
 #include <dspbridge/msgdefs.h>
 
-/*
- *  Any IOCTLS at or above this value are reserved for standard Bridge driver
- *  interfaces.
- */
-#define BRD_RESERVEDIOCTLBASE   0x8000
-
 /* Handle to Bridge driver's private device context. */
 struct bridge_dev_context;
 
