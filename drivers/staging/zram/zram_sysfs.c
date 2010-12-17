@@ -14,6 +14,7 @@
 
 #include <linux/device.h>
 #include <linux/genhd.h>
+#include <linux/mm.h>
 
 #include "zram_drv.h"
 
@@ -65,7 +66,7 @@ static ssize_t disksize_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	zram->disksize &= PAGE_MASK;
+	zram->disksize = PAGE_ALIGN(zram->disksize);
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
 
 	return len;
