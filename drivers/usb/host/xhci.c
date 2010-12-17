@@ -730,6 +730,7 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 {
 	u32			command, temp = 0;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
+	struct usb_hcd		*secondary_hcd;
 	int			retval;
 
 	/* Wait a bit if either of the roothubs need to settle from the
@@ -790,15 +791,29 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		xhci_dbg(xhci, "xhci_stop completed - status = %x\n",
 			    xhci_readl(xhci, &xhci->op_regs->status));
 
-		xhci_dbg(xhci, "Initialize the HCD\n");
-		retval = xhci_init(hcd);
+		/* USB core calls the PCI reinit and start functions twice:
+		 * first with the primary HCD, and then with the secondary HCD.
+		 * If we don't do the same, the host will never be started.
+		 */
+		if (!usb_hcd_is_primary_hcd(hcd))
+			secondary_hcd = hcd;
+		else
+			secondary_hcd = xhci->shared_hcd;
+
+		xhci_dbg(xhci, "Initialize the xhci_hcd\n");
+		retval = xhci_init(hcd->primary_hcd);
 		if (retval)
 			return retval;
+		xhci_dbg(xhci, "Start the primary HCD\n");
+		retval = xhci_run(hcd->primary_hcd);
+		if (retval)
+			goto failed_restart;
 
-		xhci_dbg(xhci, "Start the HCD\n");
-		retval = xhci_run(hcd);
+		xhci_dbg(xhci, "Start the secondary HCD\n");
+		retval = xhci_run(secondary_hcd);
 		if (!retval)
 			set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+failed_restart:
 		hcd->state = HC_STATE_SUSPENDED;
 		return retval;
 	}
