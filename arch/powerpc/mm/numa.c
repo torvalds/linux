@@ -28,6 +28,7 @@
 #include <asm/smp.h>
 #include <asm/firmware.h>
 #include <asm/paca.h>
+#include <asm/hvcall.h>
 
 static int numa_enabled = 1;
 
@@ -167,7 +168,7 @@ static void __init get_node_active_region(unsigned long start_pfn,
 	work_with_active_regions(nid, get_active_region_work_fn, node_ar);
 }
 
-static void __cpuinit map_cpu_to_node(int cpu, int node)
+static void map_cpu_to_node(int cpu, int node)
 {
 	numa_cpu_lookup_table[cpu] = node;
 
@@ -177,7 +178,7 @@ static void __cpuinit map_cpu_to_node(int cpu, int node)
 		cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_PPC_SPLPAR)
 static void unmap_cpu_from_node(unsigned long cpu)
 {
 	int node = numa_cpu_lookup_table[cpu];
@@ -191,7 +192,7 @@ static void unmap_cpu_from_node(unsigned long cpu)
 		       cpu, node);
 	}
 }
-#endif /* CONFIG_HOTPLUG_CPU */
+#endif /* CONFIG_HOTPLUG_CPU || CONFIG_PPC_SPLPAR */
 
 /* must hold reference to node during call */
 static const int *of_get_associativity(struct device_node *dev)
@@ -1289,6 +1290,7 @@ u64 memory_hotplug_max(void)
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
 /* Vrtual Processor Home Node (VPHN) support */
+#ifdef CONFIG_PPC_SPLPAR
 #define VPHN_NR_CHANGE_CTRS (8)
 static u8 vphn_cpu_change_counts[NR_CPUS][VPHN_NR_CHANGE_CTRS];
 static cpumask_t cpu_associativity_changes_mask;
@@ -1531,3 +1533,4 @@ int stop_topology_update(void)
 	vphn_enabled = 0;
 	return del_timer_sync(&topology_timer);
 }
+#endif /* CONFIG_PPC_SPLPAR */
