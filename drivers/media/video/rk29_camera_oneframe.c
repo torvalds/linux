@@ -1080,9 +1080,14 @@ static int rk29_camera_try_fmt(struct soc_camera_device *icd,
     ret = v4l2_subdev_call(sd, video, try_fmt, f);
     pix->pixelformat = pixfmt;
 	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
-	if ((pix->width != usr_w) || (pix->height != usr_h)) {
+	if ((pix->width > usr_w) && (pix->height > usr_h)) {
 		pix->width = usr_w;
 		pix->height = usr_h;
+	} else if ((pix->width < usr_w) && (pix->height < usr_h)) {
+		if (((usr_w>>1) < pix->width) && ((usr_h>>1) < pix->height)) {
+			pix->width = usr_w;
+			pix->height = usr_h;
+		}
 	}
 	#endif
 
