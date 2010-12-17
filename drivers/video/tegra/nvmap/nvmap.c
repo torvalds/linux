@@ -414,6 +414,13 @@ static int nvmap_validate_get_pin_array(struct nvmap_client *client,
 
 		ref = _nvmap_validate_id_locked(client, arr[i].pin_mem);
 
+		if (!ref)
+			nvmap_warn(client, "falied to validate id\n");
+		else if (!ref->handle)
+			nvmap_warn(client, "id had no associated handle\n");
+		else if (!ref->handle->alloc)
+			nvmap_warn(client, "handle had no allocation\n");
+
 		if (!ref || !ref->handle || !ref->handle->alloc) {
 			ret = -EPERM;
 			break;
@@ -492,6 +499,7 @@ int nvmap_pin_array(struct nvmap_client *client, struct nvmap_handle *gather,
 	count = nvmap_validate_get_pin_array(client, arr, nr, unique_arr);
 	if (count < 0) {
 		mutex_unlock(&client->share->pin_lock);
+		nvmap_warn(client, "failed to validate pin array\n");
 		return count;
 	}
 
