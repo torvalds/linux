@@ -134,6 +134,9 @@ struct fsi_stream {
 	int buff_len;
 	int period_len;
 	int period_num;
+
+	int uerr_num;
+	int oerr_num;
 };
 
 struct fsi_priv {
@@ -326,17 +329,29 @@ static void fsi_stream_push(struct fsi_priv *fsi,
 	io->buff_offset	= 0;
 	io->period_len	= period_len;
 	io->period_num	= 0;
+	io->oerr_num	= -1; /* ignore 1st err */
+	io->uerr_num	= -1; /* ignore 1st err */
 }
 
 static void fsi_stream_pop(struct fsi_priv *fsi, int is_play)
 {
 	struct fsi_stream *io = fsi_get_stream(fsi, is_play);
+	struct snd_soc_dai *dai = fsi_get_dai(io->substream);
+
+
+	if (io->oerr_num > 0)
+		dev_err(dai->dev, "over_run = %d\n", io->oerr_num);
+
+	if (io->uerr_num > 0)
+		dev_err(dai->dev, "under_run = %d\n", io->uerr_num);
 
 	io->substream	= NULL;
 	io->buff_len	= 0;
 	io->buff_offset	= 0;
 	io->period_len	= 0;
 	io->period_num	= 0;
+	io->oerr_num	= 0;
+	io->uerr_num	= 0;
 }
 
 static int fsi_get_fifo_data_num(struct fsi_priv *fsi, int is_play)
@@ -373,6 +388,27 @@ static int fsi_get_frame_width(struct fsi_priv *fsi, int is_play)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	return frames_to_bytes(runtime, 1) / io->chan_num;
+}
+
+static void fsi_count_fifo_err(struct fsi_priv *fsi)
+{
+	u32 ostatus = fsi_reg_read(fsi, DOFF_ST);
+	u32 istatus = fsi_reg_read(fsi, DIFF_ST);
+
+	if (ostatus & ERR_OVER)
+		fsi->playback.oerr_num++;
+
+	if (ostatus & ERR_UNDER)
+		fsi->playback.uerr_num++;
+
+	if (istatus & ERR_OVER)
+		fsi->capture.oerr_num++;
+
+	if (istatus & ERR_UNDER)
+		fsi->capture.uerr_num++;
+
+	fsi_reg_write(fsi, DOFF_ST, 0);
+	fsi_reg_write(fsi, DIFF_ST, 0);
 }
 
 /*
@@ -574,7 +610,7 @@ static void fsi_soft_all_reset(struct fsi_master *master)
 	mdelay(10);
 }
 
-static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int startup, int stream)
+static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int stream)
 {
 	struct snd_pcm_runtime *runtime;
 	struct snd_pcm_substream *substream = NULL;
@@ -667,37 +703,20 @@ static int fsi_fifo_data_ctrl(struct fsi_priv *fsi, int startup, int stream)
 	/* update buff_offset */
 	io->buff_offset += fsi_num2offset(data_num, ch_width);
 
-	/* check fifo status */
-	if (!startup) {
-		struct snd_soc_dai *dai = fsi_get_dai(substream);
-		u32 status = is_play ?
-			fsi_reg_read(fsi, DOFF_ST) :
-			fsi_reg_read(fsi, DIFF_ST);
-
-		if (status & ERR_OVER)
-			dev_err(dai->dev, "over run\n");
-		if (status & ERR_UNDER)
-			dev_err(dai->dev, "under run\n");
-	}
-
-	is_play ?
-		fsi_reg_write(fsi, DOFF_ST, 0) :
-		fsi_reg_write(fsi, DIFF_ST, 0);
-
 	if (over_period)
 		snd_pcm_period_elapsed(substream);
 
 	return 0;
 }
 
-static int fsi_data_pop(struct fsi_priv *fsi, int startup)
+static int fsi_data_pop(struct fsi_priv *fsi)
 {
-	return fsi_fifo_data_ctrl(fsi, startup, SNDRV_PCM_STREAM_CAPTURE);
+	return fsi_fifo_data_ctrl(fsi, SNDRV_PCM_STREAM_CAPTURE);
 }
 
-static int fsi_data_push(struct fsi_priv *fsi, int startup)
+static int fsi_data_push(struct fsi_priv *fsi)
 {
-	return fsi_fifo_data_ctrl(fsi, startup, SNDRV_PCM_STREAM_PLAYBACK);
+	return fsi_fifo_data_ctrl(fsi, SNDRV_PCM_STREAM_PLAYBACK);
 }
 
 static irqreturn_t fsi_interrupt(int irq, void *data)
@@ -710,13 +729,16 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
 	fsi_master_mask_set(master, SOFT_RST, IR, IR);
 
 	if (int_st & AB_IO(1, AO_SHIFT))
-		fsi_data_push(&master->fsia, 0);
+		fsi_data_push(&master->fsia);
 	if (int_st & AB_IO(1, BO_SHIFT))
-		fsi_data_push(&master->fsib, 0);
+		fsi_data_push(&master->fsib);
 	if (int_st & AB_IO(1, AI_SHIFT))
-		fsi_data_pop(&master->fsia, 0);
+		fsi_data_pop(&master->fsia);
 	if (int_st & AB_IO(1, BI_SHIFT))
-		fsi_data_pop(&master->fsib, 0);
+		fsi_data_pop(&master->fsib);
+
+	fsi_count_fifo_err(&master->fsia);
+	fsi_count_fifo_err(&master->fsib);
 
 	fsi_irq_clear_status(&master->fsia);
 	fsi_irq_clear_status(&master->fsib);
@@ -855,7 +877,7 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		fsi_stream_push(fsi, is_play, substream,
 				frames_to_bytes(runtime, runtime->buffer_size),
 				frames_to_bytes(runtime, runtime->period_size));
-		ret = is_play ? fsi_data_push(fsi, 1) : fsi_data_pop(fsi, 1);
+		ret = is_play ? fsi_data_push(fsi) : fsi_data_pop(fsi);
 		fsi_irq_enable(fsi, is_play);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
