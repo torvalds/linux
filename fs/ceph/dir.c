@@ -40,7 +40,8 @@ int ceph_init_dentry(struct dentry *dentry)
 	if (dentry->d_fsdata)
 		return 0;
 
-	if (ceph_snap(dentry->d_parent->d_inode) == CEPH_NOSNAP)
+	if (dentry->d_parent == NULL ||   /* nfs fh_to_dentry */
+	    ceph_snap(dentry->d_parent->d_inode) == CEPH_NOSNAP)
 		dentry->d_op = &ceph_dentry_ops;
 	else if (ceph_snap(dentry->d_parent->d_inode) == CEPH_SNAPDIR)
 		dentry->d_op = &ceph_snapdir_dentry_ops;
