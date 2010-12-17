@@ -48,6 +48,8 @@
 #include <linux/memblock.h>
 #include <linux/seq_file.h>
 
+#include <trace/events/xen.h>
+
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/fixmap.h>
@@ -194,6 +196,8 @@ void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid)
 	struct multicall_space mcs;
 	struct mmu_update *u;
 
+	trace_xen_mmu_set_domain_pte(ptep, pteval, domid);
+
 	mcs = xen_mc_entry(sizeof(*u));
 	u = mcs.args;
 
@@ -245,6 +249,8 @@ static void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
 
 static void xen_set_pmd(pmd_t *ptr, pmd_t val)
 {
+	trace_xen_mmu_set_pmd(ptr, val);
+
 	/* If page is not pinned, we can just update the entry
 	   directly */
 	if (!xen_page_pinned(ptr)) {
@@ -282,22 +288,30 @@ static bool xen_batched_set_pte(pte_t *ptep, pte_t pteval)
 	return true;
 }
 
-static void xen_set_pte(pte_t *ptep, pte_t pteval)
+static inline void __xen_set_pte(pte_t *ptep, pte_t pteval)
 {
 	if (!xen_batched_set_pte(ptep, pteval))
 		native_set_pte(ptep, pteval);
 }
 
+static void xen_set_pte(pte_t *ptep, pte_t pteval)
+{
+	trace_xen_mmu_set_pte(ptep, pteval);
+	__xen_set_pte(ptep, pteval);
+}
+
 static void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 		    pte_t *ptep, pte_t pteval)
 {
-	xen_set_pte(ptep, pteval);
+	trace_xen_mmu_set_pte_at(mm, addr, ptep, pteval);
+	__xen_set_pte(ptep, pteval);
 }
 
 pte_t xen_ptep_modify_prot_start(struct mm_struct *mm,
 				 unsigned long addr, pte_t *ptep)
 {
 	/* Just return the pte as-is.  We preserve the bits on commit */
+	trace_xen_mmu_ptep_modify_prot_start(mm, addr, ptep, *ptep);
 	return *ptep;
 }
 
@@ -306,6 +320,7 @@ void xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 {
 	struct mmu_update u;
 
+	trace_xen_mmu_ptep_modify_prot_commit(mm, addr, ptep, pte);
 	xen_mc_batch();
 
 	u.ptr = virt_to_machine(ptep).maddr | MMU_PT_UPDATE_PRESERVE_AD;
@@ -530,6 +545,8 @@ static void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 
 static void xen_set_pud(pud_t *ptr, pud_t val)
 {
+	trace_xen_mmu_set_pud(ptr, val);
+
 	/* If page is not pinned, we can just update the entry
 	   directly */
 	if (!xen_page_pinned(ptr)) {
@@ -543,17 +560,20 @@ static void xen_set_pud(pud_t *ptr, pud_t val)
 #ifdef CONFIG_X86_PAE
 static void xen_set_pte_atomic(pte_t *ptep, pte_t pte)
 {
+	trace_xen_mmu_set_pte_atomic(ptep, pte);
 	set_64bit((u64 *)ptep, native_pte_val(pte));
 }
 
 static void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
+	trace_xen_mmu_pte_clear(mm, addr, ptep);
 	if (!xen_batched_set_pte(ptep, native_make_pte(0)))
 		native_pte_clear(mm, addr, ptep);
 }
 
 static void xen_pmd_clear(pmd_t *pmdp)
 {
+	trace_xen_mmu_pmd_clear(pmdp);
 	set_pmd(pmdp, __pmd(0));
 }
 #endif	/* CONFIG_X86_PAE */
@@ -628,6 +648,8 @@ static void __init xen_set_pgd_hyper(pgd_t *ptr, pgd_t val)
 static void xen_set_pgd(pgd_t *ptr, pgd_t val)
 {
 	pgd_t *user_ptr = xen_get_user_pgd(ptr);
+
+	trace_xen_mmu_set_pgd(ptr, user_ptr, val);
 
 	/* If page is not pinned, we can just update the entry
 	   directly */
