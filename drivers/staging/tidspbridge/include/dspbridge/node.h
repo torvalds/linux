@@ -113,24 +113,6 @@ extern int node_alloc_msg_buf(struct node_object *hnode,
 extern int node_change_priority(struct node_object *hnode, s32 prio);
 
 /*
- *  ======== node_close_orphans ========
- *  Purpose:
- *      Delete all nodes whose owning processor is being destroyed.
- *  Parameters:
- *      hnode_mgr:       Node manager object.
- *      proc:          Handle to processor object being destroyed.
- *  Returns:
- *      0:        Success.
- *      -EPERM:      Unable to delete all nodes belonging to proc.
- *  Requires:
- *      Valid hnode_mgr.
- *      proc != NULL.
- *  Ensures:
- */
-extern int node_close_orphans(struct node_mgr *hnode_mgr,
-				     struct proc_object *proc);
-
-/*
  *  ======== node_connect ========
  *  Purpose:
  *      Connect two nodes on the DSP, or a node on the DSP to the GPP. In the

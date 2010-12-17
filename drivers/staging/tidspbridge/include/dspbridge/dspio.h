@@ -34,7 +34,6 @@ extern int bridge_io_destroy(struct io_mgr *hio_mgr);
 
 extern int bridge_io_on_loaded(struct io_mgr *hio_mgr);
 
-extern int iva_io_on_loaded(struct io_mgr *hio_mgr);
 extern int bridge_io_get_proc_load(struct io_mgr *hio_mgr,
 				       struct dsp_procloadstat *proc_lstat);
 

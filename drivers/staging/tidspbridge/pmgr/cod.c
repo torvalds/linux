@@ -78,12 +78,9 @@ static struct dbll_fxns ldr_fxns = {
 	(dbll_get_sect_fxn) dbll_get_sect,
 	(dbll_init_fxn) dbll_init,
 	(dbll_load_fxn) dbll_load,
-	(dbll_load_sect_fxn) dbll_load_sect,
 	(dbll_open_fxn) dbll_open,
 	(dbll_read_sect_fxn) dbll_read_sect,
-	(dbll_set_attrs_fxn) dbll_set_attrs,
 	(dbll_unload_fxn) dbll_unload,
-	(dbll_unload_sect_fxn) dbll_unload_sect,
 };
 
 static bool no_op(void);

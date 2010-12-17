@@ -95,20 +95,4 @@ extern void io_exit(void);
  */
 extern bool io_init(void);
 
-/*
- *  ======== io_on_loaded ========
- *  Purpose:
- *      Called when a program is loaded so IO manager can update its
- *      internal state.
- *  Parameters:
- *      hio_mgr:         IOmanager object.
- *  Returns:
- *      0:        Success.
- *      -EFAULT:    hio_mgr was invalid.
- *  Requires:
- *      io_init(void) called.
- *  Ensures:
- */
-extern int io_on_loaded(struct io_mgr *hio_mgr);
-
 #endif /* CHNL_ */

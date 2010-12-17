@@ -259,8 +259,6 @@ void bridge_drv_entry(struct bridge_drv_interface **drv_intf,
 
 	DBC_REQUIRE(driver_file_name != NULL);
 
-	io_sm_init();		/* Initialization of io_sm module */
-
 	if (strcmp(driver_file_name, "UMA") == 0)
 		*drv_intf = &drv_interface_fxns;
 	else

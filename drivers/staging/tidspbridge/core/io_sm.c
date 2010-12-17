@@ -1682,10 +1682,6 @@ int bridge_io_get_proc_load(struct io_mgr *hio_mgr,
 	return 0;
 }
 
-void io_sm_init(void)
-{
-	/* Do nothing */
-}
 
 #if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
 void print_dsp_debug_trace(struct io_mgr *hio_mgr)

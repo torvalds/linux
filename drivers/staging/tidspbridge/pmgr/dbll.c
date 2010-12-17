@@ -568,18 +568,6 @@ int dbll_load(struct dbll_library_obj *lib, dbll_flags flags,
 }
 
 /*
- *  ======== dbll_load_sect ========
- *  Not supported for COFF.
- */
-int dbll_load_sect(struct dbll_library_obj *zl_lib, char *sec_name,
-			  struct dbll_attrs *attrs)
-{
-	DBC_REQUIRE(zl_lib);
-
-	return -ENOSYS;
-}
-
-/*
  *  ======== dbll_open ========
  */
 int dbll_open(struct dbll_tar_obj *target, char *file, dbll_flags flags,
@@ -794,22 +782,6 @@ func_cont:
 }
 
 /*
- *  ======== dbll_set_attrs ========
- *  Set the attributes of the target.
- */
-void dbll_set_attrs(struct dbll_tar_obj *target, struct dbll_attrs *pattrs)
-{
-	struct dbll_tar_obj *zl_target = (struct dbll_tar_obj *)target;
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(zl_target);
-	DBC_REQUIRE(pattrs != NULL);
-
-	if ((pattrs != NULL) && (zl_target != NULL))
-		zl_target->attrs = *pattrs;
-
-}
-
-/*
  *  ======== dbll_unload ========
  */
 void dbll_unload(struct dbll_library_obj *lib, struct dbll_attrs *attrs)
@@ -845,19 +817,6 @@ void dbll_unload(struct dbll_library_obj *lib, struct dbll_attrs *attrs)
 	dof_close(zl_lib);
 func_end:
 	DBC_ENSURE(zl_lib->load_ref >= 0);
-}
-
-/*
- *  ======== dbll_unload_sect ========
- *  Not supported for COFF.
- */
-int dbll_unload_sect(struct dbll_library_obj *lib, char *sec_name,
-			    struct dbll_attrs *attrs)
-{
-	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(sec_name != NULL);
-
-	return -ENOSYS;
 }
 
 /*

@@ -485,12 +485,9 @@ struct dbll_fxns {
 	dbll_get_sect_fxn get_sect_fxn;
 	dbll_init_fxn init_fxn;
 	dbll_load_fxn load_fxn;
-	dbll_load_sect_fxn load_sect_fxn;
 	dbll_open_fxn open_fxn;
 	dbll_read_sect_fxn read_sect_fxn;
-	dbll_set_attrs_fxn set_attrs_fxn;
 	dbll_unload_fxn unload_fxn;
-	dbll_unload_sect_fxn unload_sect_fxn;
 };
 
 #endif /* DBLDEFS_ */

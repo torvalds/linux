@@ -142,25 +142,6 @@ extern int strm_free_buffer(struct strm_res_object *strmres,
 				   struct process_context *pr_ctxt);
 
 /*
- *  ======== strm_get_event_handle ========
- *  Purpose:
- *      Get stream's user event handle. This function is used when closing
- *      a stream, so the event can be closed.
- *  Parameter:
- *      stream_obj:      Stream handle returned from strm_open().
- *      ph_event:        Location to store event handle on output.
- *  Returns:
- *      0:        Success.
- *      -EFAULT:    Invalid stream_obj.
- *  Requires:
- *      strm_init(void) called.
- *      ph_event != NULL.
- *  Ensures:
- */
-extern int strm_get_event_handle(struct strm_object *stream_obj,
-					void **ph_event);
-
-/*
  *  ======== strm_get_info ========
  *  Purpose:
  *      Get information about a stream. User's dsp_streaminfo is contained
@@ -276,27 +257,6 @@ extern int strm_open(struct node_object *hnode, u32 dir,
 			    struct process_context *pr_ctxt);
 
 /*
- *  ======== strm_prepare_buffer ========
- *  Purpose:
- *      Prepare a data buffer not allocated by DSPStream_AllocateBuffers()
- *      for use with a stream.
- *  Parameter:
- *      stream_obj:     Stream handle returned from strm_open().
- *      usize:          Size (GPP bytes) of the buffer.
- *      pbuffer:        Buffer address.
- *  Returns:
- *      0:        Success.
- *      -EFAULT:    Invalid stream_obj.
- *      -EPERM:      Failure occurred, unable to prepare buffer.
- *  Requires:
- *      strm_init(void) called.
- *      pbuffer != NULL.
- *  Ensures:
- */
-extern int strm_prepare_buffer(struct strm_object *stream_obj,
-				      u32 usize, u8 *pbuffer);
-
-/*
  *  ======== strm_reclaim ========
  *  Purpose:
  *      Request a buffer back from a stream.
@@ -378,27 +338,5 @@ extern int strm_register_notify(struct strm_object *stream_obj,
  */
 extern int strm_select(struct strm_object **strm_tab,
 			      u32 strms, u32 *pmask, u32 utimeout);
-
-/*
- *  ======== strm_unprepare_buffer ========
- *  Purpose:
- *      Unprepare a data buffer that was previously prepared for a stream
- *      with DSPStream_PrepareBuffer(), and that will no longer be used with
- *      the stream.
- *  Parameter:
- *      stream_obj:     Stream handle returned from strm_open().
- *      usize:          Size (GPP bytes) of the buffer.
- *      pbuffer:        Buffer address.
- *  Returns:
- *      0:        Success.
- *      -EFAULT:    Invalid stream_obj.
- *      -EPERM:      Failure occurred, unable to unprepare buffer.
- *  Requires:
- *      strm_init(void) called.
- *      pbuffer != NULL.
- *  Ensures:
- */
-extern int strm_unprepare_buffer(struct strm_object *stream_obj,
-					u32 usize, u8 *pbuffer);
 
 #endif /* STRM_ */
