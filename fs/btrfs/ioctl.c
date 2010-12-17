@@ -683,7 +683,7 @@ static int btrfs_defrag_file(struct file *file,
 		total_read++;
 		mutex_lock(&inode->i_mutex);
 		if (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS)
-			BTRFS_I(inode)->force_compress = 1;
+			BTRFS_I(inode)->force_compress = BTRFS_COMPRESS_ZLIB;
 
 		ret  = btrfs_delalloc_reserve_space(inode, PAGE_CACHE_SIZE);
 		if (ret)
@@ -781,7 +781,7 @@ loop_unlock:
 		atomic_dec(&root->fs_info->async_submit_draining);
 
 		mutex_lock(&inode->i_mutex);
-		BTRFS_I(inode)->force_compress = 0;
+		BTRFS_I(inode)->force_compress = BTRFS_COMPRESS_NONE;
 		mutex_unlock(&inode->i_mutex);
 	}
 

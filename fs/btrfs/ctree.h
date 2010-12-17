@@ -551,9 +551,10 @@ struct btrfs_timespec {
 } __attribute__ ((__packed__));
 
 enum btrfs_compression_type {
-	BTRFS_COMPRESS_NONE = 0,
-	BTRFS_COMPRESS_ZLIB = 1,
-	BTRFS_COMPRESS_LAST = 2,
+	BTRFS_COMPRESS_NONE  = 0,
+	BTRFS_COMPRESS_ZLIB  = 1,
+	BTRFS_COMPRESS_TYPES = 1,
+	BTRFS_COMPRESS_LAST  = 2,
 };
 
 struct btrfs_inode_item {
@@ -895,7 +896,8 @@ struct btrfs_fs_info {
 	 */
 	u64 last_trans_log_full_commit;
 	u64 open_ioctl_trans;
-	unsigned long mount_opt;
+	unsigned long mount_opt:20;
+	unsigned long compress_type:4;
 	u64 max_inline;
 	u64 alloc_start;
 	struct btrfs_transaction *running_transaction;

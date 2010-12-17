@@ -224,6 +224,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 
 			split->bdev = em->bdev;
 			split->flags = flags;
+			split->compress_type = em->compress_type;
 			ret = add_extent_mapping(em_tree, split);
 			BUG_ON(ret);
 			free_extent_map(split);
@@ -238,6 +239,7 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 			split->len = em->start + em->len - (start + len);
 			split->bdev = em->bdev;
 			split->flags = flags;
+			split->compress_type = em->compress_type;
 
 			if (compressed) {
 				split->block_len = em->block_len;

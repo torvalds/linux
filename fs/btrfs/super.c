@@ -69,9 +69,9 @@ enum {
 	Opt_degraded, Opt_subvol, Opt_subvolid, Opt_device, Opt_nodatasum,
 	Opt_nodatacow, Opt_max_inline, Opt_alloc_start, Opt_nobarrier, Opt_ssd,
 	Opt_nossd, Opt_ssd_spread, Opt_thread_pool, Opt_noacl, Opt_compress,
-	Opt_compress_force, Opt_notreelog, Opt_ratio, Opt_flushoncommit,
-	Opt_discard, Opt_space_cache, Opt_clear_cache, Opt_err,
-	Opt_user_subvol_rm_allowed,
+	Opt_compress_type, Opt_compress_force, Opt_compress_force_type,
+	Opt_notreelog, Opt_ratio, Opt_flushoncommit, Opt_discard,
+	Opt_space_cache, Opt_clear_cache, Opt_user_subvol_rm_allowed, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -86,7 +86,9 @@ static match_table_t tokens = {
 	{Opt_alloc_start, "alloc_start=%s"},
 	{Opt_thread_pool, "thread_pool=%d"},
 	{Opt_compress, "compress"},
+	{Opt_compress_type, "compress=%s"},
 	{Opt_compress_force, "compress-force"},
+	{Opt_compress_force_type, "compress-force=%s"},
 	{Opt_ssd, "ssd"},
 	{Opt_ssd_spread, "ssd_spread"},
 	{Opt_nossd, "nossd"},
@@ -112,6 +114,8 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 	char *p, *num, *orig;
 	int intarg;
 	int ret = 0;
+	char *compress_type;
+	bool compress_force = false;
 
 	if (!options)
 		return 0;
@@ -154,14 +158,29 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			btrfs_set_opt(info->mount_opt, NODATACOW);
 			btrfs_set_opt(info->mount_opt, NODATASUM);
 			break;
-		case Opt_compress:
-			printk(KERN_INFO "btrfs: use compression\n");
-			btrfs_set_opt(info->mount_opt, COMPRESS);
-			break;
 		case Opt_compress_force:
-			printk(KERN_INFO "btrfs: forcing compression\n");
-			btrfs_set_opt(info->mount_opt, FORCE_COMPRESS);
+		case Opt_compress_force_type:
+			compress_force = true;
+		case Opt_compress:
+		case Opt_compress_type:
+			if (token == Opt_compress ||
+			    token == Opt_compress_force ||
+			    strcmp(args[0].from, "zlib") == 0) {
+				compress_type = "zlib";
+				info->compress_type = BTRFS_COMPRESS_ZLIB;
+			} else {
+				ret = -EINVAL;
+				goto out;
+			}
+
 			btrfs_set_opt(info->mount_opt, COMPRESS);
+			if (compress_force) {
+				btrfs_set_opt(info->mount_opt, FORCE_COMPRESS);
+				pr_info("btrfs: force %s compression\n",
+					compress_type);
+			} else
+				pr_info("btrfs: use %s compression\n",
+					compress_type);
 			break;
 		case Opt_ssd:
 			printk(KERN_INFO "btrfs: use ssd allocation scheme\n");
@@ -898,9 +917,13 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		return err;
 
-	err = btrfs_init_cachep();
+	err = btrfs_init_compress();
 	if (err)
 		goto free_sysfs;
+
+	err = btrfs_init_cachep();
+	if (err)
+		goto free_compress;
 
 	err = extent_io_init();
 	if (err)
@@ -929,6 +952,8 @@ free_extent_io:
 	extent_io_exit();
 free_cachep:
 	btrfs_destroy_cachep();
+free_compress:
+	btrfs_exit_compress();
 free_sysfs:
 	btrfs_exit_sysfs();
 	return err;
@@ -943,7 +968,7 @@ static void __exit exit_btrfs_fs(void)
 	unregister_filesystem(&btrfs_fs_type);
 	btrfs_exit_sysfs();
 	btrfs_cleanup_fs_uuids();
-	btrfs_zlib_exit();
+	btrfs_exit_compress();
 }
 
 module_init(init_btrfs_fs)
