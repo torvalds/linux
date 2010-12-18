@@ -933,6 +933,50 @@ TRACE_EVENT(drv_get_antenna,
 	)
 );
 
+TRACE_EVENT(drv_remain_on_channel,
+	TP_PROTO(struct ieee80211_local *local, struct ieee80211_channel *chan,
+		 enum nl80211_channel_type chantype, unsigned int duration),
+
+	TP_ARGS(local, chan, chantype, duration),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(int, center_freq)
+		__field(int, channel_type)
+		__field(unsigned int, duration)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->center_freq = chan->center_freq;
+		__entry->channel_type = chantype;
+		__entry->duration = duration;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " freq:%dMHz duration:%dms",
+		LOCAL_PR_ARG, __entry->center_freq, __entry->duration
+	)
+);
+
+TRACE_EVENT(drv_cancel_remain_on_channel,
+	TP_PROTO(struct ieee80211_local *local),
+
+	TP_ARGS(local),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT, LOCAL_PR_ARG
+	)
+);
+
 /*
  * Tracing for API calls that drivers call.
  */
@@ -1167,6 +1211,42 @@ TRACE_EVENT(api_chswitch_done,
 	TP_printk(
 		VIF_PR_FMT " success=%d",
 		VIF_PR_ARG, __entry->success
+	)
+);
+
+TRACE_EVENT(api_ready_on_channel,
+	TP_PROTO(struct ieee80211_local *local),
+
+	TP_ARGS(local),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT, LOCAL_PR_ARG
+	)
+);
+
+TRACE_EVENT(api_remain_on_channel_expired,
+	TP_PROTO(struct ieee80211_local *local),
+
+	TP_ARGS(local),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT, LOCAL_PR_ARG
 	)
 );
 

@@ -465,4 +465,34 @@ static inline int drv_get_antenna(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline int drv_remain_on_channel(struct ieee80211_local *local,
+					struct ieee80211_channel *chan,
+					enum nl80211_channel_type chantype,
+					unsigned int duration)
+{
+	int ret;
+
+	might_sleep();
+
+	trace_drv_remain_on_channel(local, chan, chantype, duration);
+	ret = local->ops->remain_on_channel(&local->hw, chan, chantype,
+					    duration);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline int drv_cancel_remain_on_channel(struct ieee80211_local *local)
+{
+	int ret;
+
+	might_sleep();
+
+	trace_drv_cancel_remain_on_channel(local);
+	ret = local->ops->cancel_remain_on_channel(&local->hw);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

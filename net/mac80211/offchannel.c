@@ -14,6 +14,7 @@
  */
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
+#include "driver-trace.h"
 
 /*
  * inform AP that we will go to sleep so that it will buffer the frames
@@ -189,4 +190,78 @@ void ieee80211_offchannel_return(struct ieee80211_local *local,
 				sdata, BSS_CHANGED_BEACON_ENABLED);
 	}
 	mutex_unlock(&local->iflist_mtx);
+}
+
+static void ieee80211_hw_roc_start(struct work_struct *work)
+{
+	struct ieee80211_local *local =
+		container_of(work, struct ieee80211_local, hw_roc_start);
+
+	mutex_lock(&local->mtx);
+
+	if (!local->hw_roc_channel) {
+		mutex_unlock(&local->mtx);
+		return;
+	}
+
+	ieee80211_recalc_idle(local);
+
+	cfg80211_ready_on_channel(local->hw_roc_dev, local->hw_roc_cookie,
+				  local->hw_roc_channel,
+				  local->hw_roc_channel_type,
+				  local->hw_roc_duration,
+				  GFP_KERNEL);
+	mutex_unlock(&local->mtx);
+}
+
+void ieee80211_ready_on_channel(struct ieee80211_hw *hw)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	trace_api_ready_on_channel(local);
+
+	ieee80211_queue_work(hw, &local->hw_roc_start);
+}
+EXPORT_SYMBOL_GPL(ieee80211_ready_on_channel);
+
+static void ieee80211_hw_roc_done(struct work_struct *work)
+{
+	struct ieee80211_local *local =
+		container_of(work, struct ieee80211_local, hw_roc_done);
+
+	mutex_lock(&local->mtx);
+
+	if (!local->hw_roc_channel) {
+		mutex_unlock(&local->mtx);
+		return;
+	}
+
+	cfg80211_remain_on_channel_expired(local->hw_roc_dev,
+					   local->hw_roc_cookie,
+					   local->hw_roc_channel,
+					   local->hw_roc_channel_type,
+					   GFP_KERNEL);
+
+	local->hw_roc_channel = NULL;
+	local->hw_roc_cookie = 0;
+
+	ieee80211_recalc_idle(local);
+
+	mutex_unlock(&local->mtx);
+}
+
+void ieee80211_remain_on_channel_expired(struct ieee80211_hw *hw)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	trace_api_remain_on_channel_expired(local);
+
+	ieee80211_queue_work(hw, &local->hw_roc_done);
+}
+EXPORT_SYMBOL_GPL(ieee80211_remain_on_channel_expired);
+
+void ieee80211_hw_roc_setup(struct ieee80211_local *local)
+{
+	INIT_WORK(&local->hw_roc_start, ieee80211_hw_roc_start);
+	INIT_WORK(&local->hw_roc_done, ieee80211_hw_roc_done);
 }

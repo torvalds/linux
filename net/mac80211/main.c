@@ -609,6 +609,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	ieee80211_led_names(local);
 
+	ieee80211_hw_roc_setup(local);
+
 	return local_to_hw(local);
 }
 EXPORT_SYMBOL(ieee80211_alloc_hw);
@@ -753,7 +755,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		}
 	}
 
-	local->hw.wiphy->max_remain_on_channel_duration = 5000;
+	if (!local->ops->remain_on_channel)
+		local->hw.wiphy->max_remain_on_channel_duration = 5000;
 
 	result = wiphy_register(local->hw.wiphy);
 	if (result < 0)

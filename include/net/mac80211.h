@@ -365,6 +365,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_NL80211_FRAME_TX	= BIT(21),
 	IEEE80211_TX_CTL_LDPC			= BIT(22),
 	IEEE80211_TX_CTL_STBC			= BIT(23) | BIT(24),
+	IEEE80211_TX_CTL_TX_OFFCHAN		= BIT(25),
 };
 
 #define IEEE80211_TX_CTL_STBC_SHIFT		23
@@ -1824,6 +1825,12 @@ struct ieee80211_ops {
 	int (*napi_poll)(struct ieee80211_hw *hw, int budget);
 	int (*set_antenna)(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant);
 	int (*get_antenna)(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant);
+
+	int (*remain_on_channel)(struct ieee80211_hw *hw,
+				 struct ieee80211_channel *chan,
+				 enum nl80211_channel_type channel_type,
+				 int duration);
+	int (*cancel_remain_on_channel)(struct ieee80211_hw *hw);
 };
 
 /**
@@ -2728,6 +2735,18 @@ void ieee80211_request_smps(struct ieee80211_vif *vif,
  * key it tries to disable may still be used until it returns.
  */
 void ieee80211_key_removed(struct ieee80211_key_conf *key_conf);
+
+/**
+ * ieee80211_ready_on_channel - notification of remain-on-channel start
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ */
+void ieee80211_ready_on_channel(struct ieee80211_hw *hw);
+
+/**
+ * ieee80211_remain_on_channel_expired - remain_on_channel duration expired
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ */
+void ieee80211_remain_on_channel_expired(struct ieee80211_hw *hw);
 
 /* Rate control API */
 
