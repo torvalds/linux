@@ -608,8 +608,6 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 	ret = 0;
 
 out:
-	if (fw)
-		release_firmware(fw);
-
+	release_firmware(fw);
 	return ret;
 }
