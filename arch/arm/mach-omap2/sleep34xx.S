@@ -79,6 +79,7 @@ ENTRY(get_restore_pointer)
         ldmfd   sp!, {pc}     @ restore regs and return
 ENTRY(get_restore_pointer_sz)
         .word   . - get_restore_pointer
+
 	.text
 /* Function call to get the restore pointer for 3630 resume from OFF */
 ENTRY(get_omap3630_restore_pointer)
@@ -89,9 +90,18 @@ ENTRY(get_omap3630_restore_pointer_sz)
         .word   . - get_omap3630_restore_pointer
 
 	.text
+/* Function call to get the restore pointer for ES3 to resume from OFF */
+ENTRY(get_es3_restore_pointer)
+	stmfd	sp!, {lr}	@ save registers on stack
+	adr	r0, restore_es3
+	ldmfd	sp!, {pc}	@ restore regs and return
+ENTRY(get_es3_restore_pointer_sz)
+	.word	. - get_es3_restore_pointer
+
+	.text
 /*
  * L2 cache needs to be toggled for stable OFF mode functionality on 3630.
- * This function sets up a fflag that will allow for this toggling to take
+ * This function sets up a flag that will allow for this toggling to take
  * place on 3630. Hopefully some version in the future maynot need this
  */
 ENTRY(enable_omap3630_toggle_l2_on_restore)
@@ -100,58 +110,6 @@ ENTRY(enable_omap3630_toggle_l2_on_restore)
 	mov	r1, #0x1
 	str	r1, l2dis_3630
         ldmfd   sp!, {pc}     @ restore regs and return
-
-	.text
-/* Function call to get the restore pointer for for ES3 to resume from OFF */
-ENTRY(get_es3_restore_pointer)
-	stmfd	sp!, {lr}	@ save registers on stack
-	adr	r0, restore_es3
-	ldmfd	sp!, {pc}	@ restore regs and return
-ENTRY(get_es3_restore_pointer_sz)
-	.word	. - get_es3_restore_pointer
-
-ENTRY(es3_sdrc_fix)
-	ldr	r4, sdrc_syscfg		@ get config addr
-	ldr	r5, [r4]		@ get value
-	tst	r5, #0x100		@ is part access blocked
-	it	eq
-	biceq	r5, r5, #0x100		@ clear bit if set
-	str	r5, [r4]		@ write back change
-	ldr	r4, sdrc_mr_0		@ get config addr
-	ldr	r5, [r4]		@ get value
-	str	r5, [r4]		@ write back change
-	ldr	r4, sdrc_emr2_0		@ get config addr
-	ldr	r5, [r4]		@ get value
-	str	r5, [r4]		@ write back change
-	ldr	r4, sdrc_manual_0	@ get config addr
-	mov	r5, #0x2		@ autorefresh command
-	str	r5, [r4]		@ kick off refreshes
-	ldr	r4, sdrc_mr_1		@ get config addr
-	ldr	r5, [r4]		@ get value
-	str	r5, [r4]		@ write back change
-	ldr	r4, sdrc_emr2_1		@ get config addr
-	ldr	r5, [r4]		@ get value
-	str	r5, [r4]		@ write back change
-	ldr	r4, sdrc_manual_1	@ get config addr
-	mov	r5, #0x2		@ autorefresh command
-	str	r5, [r4]		@ kick off refreshes
-	bx	lr
-sdrc_syscfg:
-	.word	SDRC_SYSCONFIG_P
-sdrc_mr_0:
-	.word	SDRC_MR_0_P
-sdrc_emr2_0:
-	.word	SDRC_EMR2_0_P
-sdrc_manual_0:
-	.word	SDRC_MANUAL_0_P
-sdrc_mr_1:
-	.word	SDRC_MR_1_P
-sdrc_emr2_1:
-	.word	SDRC_EMR2_1_P
-sdrc_manual_1:
-	.word	SDRC_MANUAL_1_P
-ENTRY(es3_sdrc_fix_sz)
-	.word	. - es3_sdrc_fix
 
 /* Function to call rom code to save secure ram context */
 ENTRY(save_secure_ram_context)
@@ -577,6 +535,56 @@ skip_l2_inval:
 	bl wait_sdrc_ok
 	/* restore regs and return */
 	ldmfd   sp!, {r0-r12, pc}
+
+
+/*
+ * Internal functions
+ */
+
+	.text
+ENTRY(es3_sdrc_fix)
+	ldr	r4, sdrc_syscfg		@ get config addr
+	ldr	r5, [r4]		@ get value
+	tst	r5, #0x100		@ is part access blocked
+	it	eq
+	biceq	r5, r5, #0x100		@ clear bit if set
+	str	r5, [r4]		@ write back change
+	ldr	r4, sdrc_mr_0		@ get config addr
+	ldr	r5, [r4]		@ get value
+	str	r5, [r4]		@ write back change
+	ldr	r4, sdrc_emr2_0		@ get config addr
+	ldr	r5, [r4]		@ get value
+	str	r5, [r4]		@ write back change
+	ldr	r4, sdrc_manual_0	@ get config addr
+	mov	r5, #0x2		@ autorefresh command
+	str	r5, [r4]		@ kick off refreshes
+	ldr	r4, sdrc_mr_1		@ get config addr
+	ldr	r5, [r4]		@ get value
+	str	r5, [r4]		@ write back change
+	ldr	r4, sdrc_emr2_1		@ get config addr
+	ldr	r5, [r4]		@ get value
+	str	r5, [r4]		@ write back change
+	ldr	r4, sdrc_manual_1	@ get config addr
+	mov	r5, #0x2		@ autorefresh command
+	str	r5, [r4]		@ kick off refreshes
+	bx	lr
+
+sdrc_syscfg:
+	.word	SDRC_SYSCONFIG_P
+sdrc_mr_0:
+	.word	SDRC_MR_0_P
+sdrc_emr2_0:
+	.word	SDRC_EMR2_0_P
+sdrc_manual_0:
+	.word	SDRC_MANUAL_0_P
+sdrc_mr_1:
+	.word	SDRC_MR_1_P
+sdrc_emr2_1:
+	.word	SDRC_EMR2_1_P
+sdrc_manual_1:
+	.word	SDRC_MANUAL_1_P
+ENTRY(es3_sdrc_fix_sz)
+	.word	. - es3_sdrc_fix
 
 /* Make sure SDRC accesses are ok */
 wait_sdrc_ok:
