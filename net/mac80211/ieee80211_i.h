@@ -953,10 +953,12 @@ struct ieee80211_local {
 
 	struct ieee80211_channel *hw_roc_channel;
 	struct net_device *hw_roc_dev;
+	struct sk_buff *hw_roc_skb;
 	struct work_struct hw_roc_start, hw_roc_done;
 	enum nl80211_channel_type hw_roc_channel_type;
 	unsigned int hw_roc_duration;
 	u32 hw_roc_cookie;
+	bool hw_roc_for_tx;
 
 	/* dummy netdev for use w/ NAPI */
 	struct net_device napi_dev;

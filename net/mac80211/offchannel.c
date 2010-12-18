@@ -196,6 +196,7 @@ static void ieee80211_hw_roc_start(struct work_struct *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, hw_roc_start);
+	struct ieee80211_sub_if_data *sdata;
 
 	mutex_lock(&local->mtx);
 
@@ -206,11 +207,19 @@ static void ieee80211_hw_roc_start(struct work_struct *work)
 
 	ieee80211_recalc_idle(local);
 
-	cfg80211_ready_on_channel(local->hw_roc_dev, local->hw_roc_cookie,
-				  local->hw_roc_channel,
-				  local->hw_roc_channel_type,
-				  local->hw_roc_duration,
-				  GFP_KERNEL);
+	if (local->hw_roc_skb) {
+		sdata = IEEE80211_DEV_TO_SUB_IF(local->hw_roc_dev);
+		ieee80211_tx_skb(sdata, local->hw_roc_skb);
+		local->hw_roc_skb = NULL;
+	} else {
+		cfg80211_ready_on_channel(local->hw_roc_dev,
+					  local->hw_roc_cookie,
+					  local->hw_roc_channel,
+					  local->hw_roc_channel_type,
+					  local->hw_roc_duration,
+					  GFP_KERNEL);
+	}
+
 	mutex_unlock(&local->mtx);
 }
 
@@ -236,11 +245,12 @@ static void ieee80211_hw_roc_done(struct work_struct *work)
 		return;
 	}
 
-	cfg80211_remain_on_channel_expired(local->hw_roc_dev,
-					   local->hw_roc_cookie,
-					   local->hw_roc_channel,
-					   local->hw_roc_channel_type,
-					   GFP_KERNEL);
+	if (!local->hw_roc_for_tx)
+		cfg80211_remain_on_channel_expired(local->hw_roc_dev,
+						   local->hw_roc_cookie,
+						   local->hw_roc_channel,
+						   local->hw_roc_channel_type,
+						   GFP_KERNEL);
 
 	local->hw_roc_channel = NULL;
 	local->hw_roc_cookie = 0;
