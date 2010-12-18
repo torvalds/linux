@@ -26,6 +26,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <plat/sram.h>
 #include <mach/io.h>
 
 #include "cm.h"
