@@ -692,14 +692,14 @@ int tegra_usb_phy_power_off(struct tegra_usb_phy *phy)
 
 int tegra_usb_phy_preresume(struct tegra_usb_phy *phy)
 {
-	if (phy->instance == 2)
+	if (phy->instance != 1)
 		utmi_phy_preresume(phy);
 	return 0;
 }
 
 int tegra_usb_phy_postresume(struct tegra_usb_phy *phy)
 {
-	if (phy->instance == 2)
+	if (phy->instance != 1)
 		utmi_phy_postresume(phy);
 	return 0;
 }
