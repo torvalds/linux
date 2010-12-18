@@ -239,7 +239,14 @@ void omap3_save_scratchpad_contents(void)
 	struct omap3_scratchpad_prcm_block prcm_block_contents;
 	struct omap3_scratchpad_sdrc_block sdrc_block_contents;
 
-	/* Populate the Scratchpad contents */
+	/*
+	 * Populate the Scratchpad contents
+	 *
+	 * The "get_*restore_pointer" functions are used to provide a
+	 * physical restore address where the ROM code jumps while waking
+	 * up from MPU OFF/OSWR state.
+	 * The restore pointer is stored into the scratchpad.
+	 */
 	scratchpad_contents.boot_config_ptr = 0x0;
 	if (cpu_is_omap3630())
 		scratchpad_contents.public_restore_ptr =
