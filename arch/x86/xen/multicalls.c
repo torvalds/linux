@@ -55,6 +55,7 @@ DEFINE_PER_CPU(unsigned long, xen_mc_irq_flags);
 void xen_mc_flush(void)
 {
 	struct mc_buffer *b = &__get_cpu_var(mc_buffer);
+	struct multicall_entry *mc;
 	int ret = 0;
 	unsigned long flags;
 	int i;
@@ -67,7 +68,24 @@ void xen_mc_flush(void)
 
 	trace_xen_mc_flush(b->mcidx, b->argidx, b->cbidx);
 
-	if (b->mcidx) {
+	switch (b->mcidx) {
+	case 0:
+		/* no-op */
+		BUG_ON(b->argidx != 0);
+		break;
+
+	case 1:
+		/* Singleton multicall - bypass multicall machinery
+		   and just do the call directly. */
+		mc = &b->entries[0];
+
+		mc->result = privcmd_call(mc->op,
+					  mc->args[0], mc->args[1], mc->args[2], 
+					  mc->args[3], mc->args[4]);
+		ret = mc->result < 0;
+		break;
+
+	default:
 #if MC_DEBUG
 		memcpy(b->debug, b->entries,
 		       b->mcidx * sizeof(struct multicall_entry));
@@ -94,11 +112,10 @@ void xen_mc_flush(void)
 			}
 		}
 #endif
+	}
 
-		b->mcidx = 0;
-		b->argidx = 0;
-	} else
-		BUG_ON(b->argidx != 0);
+	b->mcidx = 0;
+	b->argidx = 0;
 
 	for (i = 0; i < b->cbidx; i++) {
 		struct callback *cb = &b->callbacks[i];
