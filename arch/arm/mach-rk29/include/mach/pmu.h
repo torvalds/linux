@@ -1,4 +1,4 @@
-/* arch/arm/mach-rk29/include/mach/rk29_pmu.h
+/* arch/arm/mach-rk29/include/mach/pmu.h
  *
  * Copyright (C) 2010 ROCKCHIP, Inc.
  *
