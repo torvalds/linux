@@ -476,7 +476,7 @@ int32_t dwc_otg_handle_disconnect_intr( dwc_otg_core_if_t *_core_if)
                     op_state_str(_core_if));
 
 /** @todo Consolidate this if statement. */
-#ifndef DWC_HOST_ONLY
+#if 0//ndef DWC_HOST_ONLY
         if (_core_if->op_state == B_HOST) {
                 /* If in device mode Disconnect and stop the HCD, then
                  * start the PCD. */

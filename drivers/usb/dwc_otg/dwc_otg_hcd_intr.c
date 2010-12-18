@@ -35,7 +35,7 @@
 #include "dwc_otg_driver.h"
 #include "dwc_otg_hcd.h"
 #include "dwc_otg_regs.h"
-int csplit_nak = 0;
+
 /** @file 
  * This file contains the implementation of the HCD Interrupt handlers. 
  */
@@ -792,8 +792,6 @@ static void release_channel(dwc_otg_hcd_t *_hcd,
 	dwc_otg_transaction_type_e tr_type;
 	int free_qtd;
 
-	int continue_trans = 1;
-
 	DWC_DEBUGPL(DBG_HCDV, "  %s: channel %d, halt_status %d\n",
 		    __func__, _hc->hc_num, _halt_status);
 	switch (_halt_status) {
@@ -830,11 +828,7 @@ static void release_channel(dwc_otg_hcd_t *_hcd,
 		free_qtd = 0;
 		break;
 	}
-	if(csplit_nak)
-	{
-		continue_trans = 0;
-		csplit_nak = 0;
-	}
+
 
 	deactivate_qh(_hcd, _hc->qh, free_qtd);
 
@@ -861,13 +855,11 @@ static void release_channel(dwc_otg_hcd_t *_hcd,
 		 */
 		break;
 	}
-	if(continue_trans)
-	{
-		/* Try to queue more transfers now that there's a free channel. */
-		tr_type = dwc_otg_hcd_select_transactions(_hcd);
-		if (tr_type != DWC_OTG_TRANSACTION_NONE) {
-			dwc_otg_hcd_queue_transactions(_hcd, tr_type);
-		}
+
+	/* Try to queue more transfers now that there's a free channel. */
+	tr_type = dwc_otg_hcd_select_transactions(_hcd);
+	if (tr_type != DWC_OTG_TRANSACTION_NONE) {
+		dwc_otg_hcd_queue_transactions(_hcd, tr_type);
 	}
 	/*
 	 * Make sure the start of frame interrupt is enabled now that
@@ -1209,7 +1201,6 @@ static int32_t handle_hc_nak_intr(dwc_otg_hcd_t *_hcd,
 		if (_hc->complete_split) {
 			_qtd->error_count = 0;
 		}
-		csplit_nak = 1;
 		_qtd->complete_split = 0;
 		halt_channel(_hcd, _hc, _qtd, DWC_OTG_HC_XFER_NAK);
 		goto handle_nak_done;

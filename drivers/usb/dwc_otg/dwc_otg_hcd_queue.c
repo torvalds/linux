@@ -241,6 +241,7 @@ static int periodic_channel_available(dwc_otg_hcd_t *_hcd)
 	 * non-periodic transactions.
 	 */
 	int status;
+#if 0
 	int num_channels;
 
 	num_channels = _hcd->core_if->core_params->host_channels;
@@ -254,7 +255,9 @@ static int periodic_channel_available(dwc_otg_hcd_t *_hcd)
 			   _hcd->non_periodic_channels);
 		status = -ENOSPC;
 	}
-
+#else
+	status = 0;
+#endif
 	return status;
 }
 

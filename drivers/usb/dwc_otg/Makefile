@@ -9,13 +9,13 @@ endif
 # Use one of the following flags to compile the software in host-only or
 # device-only mode.
 
-#ifeq ($(CONFIG_DWC_OTG_HOST_ONLY),y)
-#EXTRA_CFLAGS   += -DDWC_HOST_ONLY
-#endif
+ifeq ($(CONFIG_DWC_OTG_HOST_ONLY),y)
+EXTRA_CFLAGS   += -DDWC_HOST_ONLY
+endif
 
-#ifeq ($(CONFIG_DWC_OTG_DEVICE_ONLY),y)
-#EXTRA_CFLAGS   += -DDWC_DEVICE_ONLY
-#endif
+ifneq ($(CONFIG_USB),y)
+EXTRA_CFLAGS   += -DDWC_DEVICE_ONLY
+endif
 
 #EXTRA_CFLAGS += -Dlinux -DDWC_HS_ELECT_TST
 

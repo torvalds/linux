@@ -2759,8 +2759,10 @@ dwc_otg_transaction_type_e dwc_otg_hcd_select_transactions(dwc_otg_hcd_t *_hcd)
 	qh_ptr = _hcd->non_periodic_sched_inactive.next;
 	num_channels = _hcd->core_if->core_params->host_channels;
 	while (qh_ptr != &_hcd->non_periodic_sched_inactive &&
+		/*yk@rk 20100714
 	       (_hcd->non_periodic_channels <
 		num_channels - _hcd->periodic_channels) &&
+		*/
 	       !list_empty(&_hcd->free_hc_list)) {
 
 		qh = list_entry(qh_ptr, dwc_otg_qh_t, qh_list_entry);
