@@ -596,6 +596,7 @@ usettbr0:
  * Internal functions
  */
 
+/* This function implements the erratum ID i443 WA, applies to 34xx >= ES3.0 */
 	.text
 ENTRY(es3_sdrc_fix)
 	ldr	r4, sdrc_syscfg		@ get config addr
@@ -640,6 +641,16 @@ sdrc_manual_1:
 	.word	SDRC_MANUAL_1_P
 ENTRY(es3_sdrc_fix_sz)
 	.word	. - es3_sdrc_fix
+
+/*
+ * This function implements the erratum ID i581 WA:
+ *  SDRC state restore before accessing the SDRAM
+ *
+ * Only used at return from non-OFF mode. For OFF
+ * mode the ROM code configures the SDRC and
+ * the DPLL before calling the restore code directly
+ * from DDR.
+ */
 
 /* Make sure SDRC accesses are ok */
 wait_sdrc_ok:
