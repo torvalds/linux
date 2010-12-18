@@ -164,8 +164,12 @@ int __cpuinit __cpu_up(unsigned int cpu)
 			barrier();
 		}
 
-		if (!cpu_online(cpu))
+		if (!cpu_online(cpu)) {
+			pr_crit("CPU%u: failed to come online\n", cpu);
 			ret = -EIO;
+		}
+	} else {
+		pr_err("CPU%u: failed to boot: %d\n", cpu, ret);
 	}
 
 	secondary_data.stack = NULL;
@@ -180,14 +184,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	}
 
 	pgd_free(&init_mm, pgd);
-
-	if (ret) {
-		printk(KERN_CRIT "CPU%u: processor failed to boot\n", cpu);
-
-		/*
-		 * FIXME: We need to clean up the new idle thread. --rmk
-		 */
-	}
 
 	return ret;
 }
