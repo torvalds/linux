@@ -36,6 +36,7 @@
 
 
 struct mc_buffer {
+	unsigned mcidx, argidx, cbidx;
 	struct multicall_entry entries[MC_BATCH];
 #if MC_DEBUG
 	struct multicall_entry debug[MC_BATCH];
@@ -46,7 +47,6 @@ struct mc_buffer {
 		void (*fn)(void *);
 		void *data;
 	} callbacks[MC_BATCH];
-	unsigned mcidx, argidx, cbidx;
 };
 
 static DEFINE_PER_CPU(struct mc_buffer, mc_buffer);
