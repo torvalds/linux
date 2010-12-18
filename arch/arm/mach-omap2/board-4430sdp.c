@@ -464,6 +464,9 @@ static struct i2c_board_info __initdata sdp4430_i2c_3_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("tmp105", 0x48),
 	},
+	{
+		I2C_BOARD_INFO("bh1780", 0x29),
+	},
 };
 static struct i2c_board_info __initdata sdp4430_i2c_4_boardinfo[] = {
 	{
