@@ -538,32 +538,6 @@ set_timer:
 	}
 }
 
-/*
- * Update tx/rx chainmask. For legacy association,
- * hard code chainmask to 1x1, for 11n association, use
- * the chainmask configuration, for bt coexistence, use
- * the chainmask configuration even in legacy mode.
- */
-void ath_update_chainmask(struct ath_softc *sc, int is_ht)
-{
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	if ((sc->sc_flags & SC_OP_OFFCHANNEL) || is_ht ||
-	    (ah->btcoex_hw.scheme != ATH_BTCOEX_CFG_NONE)) {
-		common->tx_chainmask = ah->caps.tx_chainmask;
-		common->rx_chainmask = ah->caps.rx_chainmask;
-	} else {
-		common->tx_chainmask = 1;
-		common->rx_chainmask = 1;
-	}
-
-	ath_dbg(common, ATH_DBG_CONFIG,
-		"tx chmask: %d, rx chmask: %d\n",
-		common->tx_chainmask,
-		common->rx_chainmask);
-}
-
 static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta)
 {
 	struct ath_node *an;
@@ -1679,8 +1653,6 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 		/* XXX: remove me eventualy */
 		ath9k_update_ichannel(sc, hw, &sc->sc_ah->channels[pos]);
 
-		ath_update_chainmask(sc, conf_is_ht(conf));
-
 		/* update survey stats for the old channel before switching */
 		spin_lock_irqsave(&common->cc_lock, flags);
 		ath_update_survey_stats(sc);
@@ -1911,10 +1883,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 
 		/* Set aggregation protection mode parameters */
 		sc->config.ath_aggr_prot = 0;
-
-		/* Only legacy IBSS for now */
-		if (vif->type == NL80211_IFTYPE_ADHOC)
-			ath_update_chainmask(sc, 0);
 
 		ath_dbg(common, ATH_DBG_CONFIG, "BSSID: %pM aid: 0x%x\n",
 			common->curbssid, common->curaid);
