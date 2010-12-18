@@ -33,7 +33,7 @@ int direct_gbpages
 static void __init find_early_table_space(unsigned long end, int use_pse,
 					  int use_gbpages)
 {
-	unsigned long puds, pmds, ptes, tables, start;
+	unsigned long puds, pmds, ptes, tables, start = 0, good_end = end;
 	phys_addr_t base;
 
 	puds = (end + PUD_SIZE - 1) >> PUD_SHIFT;
@@ -73,12 +73,9 @@ static void __init find_early_table_space(unsigned long end, int use_pse,
 	 * need roughly 0.5KB per GB.
 	 */
 #ifdef CONFIG_X86_32
-	start = 0x7000;
-#else
-	start = 0x8000;
+	good_end = max_pfn_mapped << PAGE_SHIFT;
 #endif
-	base = memblock_find_in_range(start, max_pfn_mapped<<PAGE_SHIFT,
-					tables, PAGE_SIZE);
+	base = memblock_find_in_range(start, good_end, tables, PAGE_SIZE);
 	if (base == MEMBLOCK_ERROR)
 		panic("Cannot find space for the kernel page tables");
 
