@@ -358,7 +358,7 @@ static void send_stop_cmd(struct rk29_sdmmc *host, struct mmc_data *data)
 	int time_out=100, time_out2=3;
 	unsigned long flags;
 	
-	/*等待前面传输处理完成*/
+	
 	while(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_DATA_BUSY)) {
 		mdelay(5);
 		time_out --;		
@@ -375,7 +375,7 @@ static void send_stop_cmd(struct rk29_sdmmc *host, struct mmc_data *data)
 			
 		}
 	}
-	/*检查FIFO,如果不为空，清空*/
+	
 	if(!(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_FIFO_EMPTY)) {
 		local_irq_save(flags);  
 		rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | ( SDMMC_CTRL_FIFO_RESET ));
@@ -552,7 +552,7 @@ static void rk29_sdmmc_start_request(struct rk29_sdmmc *host)
 	unsigned long flags;
 	
 	mrq = host->mrq;
-	/*等待前面传输处理完成*/
+	
 	while(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_DATA_BUSY)) {
 		mdelay(5);
 		time_out --;		
@@ -569,7 +569,7 @@ static void rk29_sdmmc_start_request(struct rk29_sdmmc *host)
 			
 		}
 	}
-	/*检查FIFO,如果不为空，清空*/
+
 	if(!(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_FIFO_EMPTY)) {
 		local_irq_save(flags);  
 		rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | ( SDMMC_CTRL_FIFO_RESET ));
@@ -726,7 +726,7 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_request *
 	WARN_ON(host->cmd || host->data);
 	host->curr_mrq = NULL;
 	host->mrq = NULL;
-	/*等待前面传输处理完成*/
+
 	while(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & (SDMMC_STAUTS_DATA_BUSY)) {
 		mdelay(5);
 		time_out --;		
@@ -742,7 +742,7 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_request *
 				break;
 		}
 	}
-	/*检查FIFO,如果不为空，清空*/
+	
 	if(!(rk29_sdmmc_read(host->regs, SDMMC_STATUS) & SDMMC_STAUTS_FIFO_EMPTY)) {
 		local_irq_save(flags);  
 		rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | ( SDMMC_CTRL_FIFO_RESET ));
