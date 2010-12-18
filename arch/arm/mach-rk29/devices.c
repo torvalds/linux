@@ -451,7 +451,7 @@ struct platform_device rk29_device_nand = {
 static struct resource rk29_iis_2ch_resource[] = {
         [0] = {
                 .start = RK29_I2S_2CH_PHYS,
-                .end   = RK29_I2S_2CH_PHYS + RK29_I2S_2CH_SIZE,
+                .end   = RK29_I2S_2CH_PHYS + RK29_I2S_2CH_SIZE -1,
                 .flags = IORESOURCE_MEM,
         },
         [1] = {
@@ -481,7 +481,7 @@ struct platform_device rk29_device_iis_2ch = {
 static struct resource rk29_iis_8ch_resource[] = {
         [0] = {
                 .start = RK29_I2S_8CH_PHYS,
-                .end   = RK29_I2S_8CH_PHYS + RK29_I2S_8CH_SIZE,
+                .end   = RK29_I2S_8CH_PHYS + RK29_I2S_8CH_SIZE - 1,
                 .flags = IORESOURCE_MEM,
         },
         [1] = {
