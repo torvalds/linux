@@ -643,9 +643,6 @@ static void frontend_init(struct budget *budget)
 					&budget->i2c_adap,
 					&tt1600_isl6423_config);
 
-			} else {
-				dvb_frontend_detach(budget->dvb_frontend);
-				budget->dvb_frontend = NULL;
 			}
 		}
 		break;

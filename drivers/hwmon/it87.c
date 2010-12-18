@@ -80,6 +80,13 @@ superio_inb(int reg)
 	return inb(VAL);
 }
 
+static inline void
+superio_outb(int reg, int val)
+{
+	outb(reg, REG);
+	outb(val, VAL);
+}
+
 static int superio_inw(int reg)
 {
 	int val;
@@ -1036,6 +1043,21 @@ static int __init it87_find(unsigned short *address,
 			sio_data->vid_value = superio_inb(IT87_SIO_VID_REG);
 
 		reg = superio_inb(IT87_SIO_PINX2_REG);
+		/*
+		 * The IT8720F has no VIN7 pin, so VCCH should always be
+		 * routed internally to VIN7 with an internal divider.
+		 * Curiously, there still is a configuration bit to control
+		 * this, which means it can be set incorrectly. And even
+		 * more curiously, many boards out there are improperly
+		 * configured, even though the IT8720F datasheet claims
+		 * that the internal routing of VCCH to VIN7 is the default
+		 * setting. So we force the internal routing in this case.
+		 */
+		if (sio_data->type == it8720 && !(reg & (1 << 1))) {
+			reg |= (1 << 1);
+			superio_outb(IT87_SIO_PINX2_REG, reg);
+			pr_notice("it87: Routing internal VCCH to in7\n");
+		}
 		if (reg & (1 << 0))
 			pr_info("it87: in3 is VCC (+5V)\n");
 		if (reg & (1 << 1))

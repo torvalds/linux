@@ -55,7 +55,7 @@ int32_t dwc_otg_hcd_handle_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
         if (dwc_otg_is_host_mode(core_if)) {
 		gintsts.d32 = dwc_otg_read_core_intr(core_if);
 		if (!gintsts.d32) {
-			DWC_PRINT("%s,GINTSTS = 0\n",__func__);
+//			DWC_PRINT("%s,GINTSTS = 0\n",__func__);
 			return 0;
 		}
 
@@ -196,7 +196,7 @@ int32_t dwc_otg_hcd_handle_sof_intr (dwc_otg_hcd_t *_hcd)
 			 * fix bug for alcro hub
 			 * do not send csplit after start_split_frame+4
 			 */
-			if(dwc_frame_num_gt(_hcd->frame_number, 
+			if((qh->do_split)&&dwc_frame_num_gt(_hcd->frame_number, 
 				dwc_frame_num_inc(qh->start_split_frame, 4)))
 			{
 				qtd = list_entry(qh->qtd_list.next, dwc_otg_qtd_t, qtd_list_entry);
@@ -792,19 +792,8 @@ static void release_channel(dwc_otg_hcd_t *_hcd,
 	dwc_otg_transaction_type_e tr_type;
 	int free_qtd;
 
-	int continue_trans = 0;
-
 	DWC_DEBUGPL(DBG_HCDV, "  %s: channel %d, halt_status %d\n",
 		    __func__, _hc->hc_num, _halt_status);
-	if((!_hc->halt_pending)||
-//		(!list_empty(&_hcd->non_periodic_sched_inactive))
-		(_hcd->core_if->core_params->host_channels > 2)||
-		(!_hc->ep_is_in)||
-		(_hc->ep_type != DWC_OTG_EP_TYPE_BULK)
-		)
-	{
-		continue_trans = 1;
-	}
 	switch (_halt_status) {
 	case DWC_OTG_HC_XFER_URB_COMPLETE:
 		free_qtd = 1;
@@ -866,13 +855,11 @@ static void release_channel(dwc_otg_hcd_t *_hcd,
 		 */
 		break;
 	}
-	if(continue_trans)
-	{
-		/* Try to queue more transfers now that there's a free channel. */
-		tr_type = dwc_otg_hcd_select_transactions(_hcd);
-		if (tr_type != DWC_OTG_TRANSACTION_NONE) {
-			dwc_otg_hcd_queue_transactions(_hcd, tr_type);
-		}
+
+	/* Try to queue more transfers now that there's a free channel. */
+	tr_type = dwc_otg_hcd_select_transactions(_hcd);
+	if (tr_type != DWC_OTG_TRANSACTION_NONE) {
+		dwc_otg_hcd_queue_transactions(_hcd, tr_type);
 	}
 	/*
 	 * Make sure the start of frame interrupt is enabled now that
@@ -1230,12 +1217,6 @@ static int32_t handle_hc_nak_intr(dwc_otg_hcd_t *_hcd,
 			 * occurs. The core will continue transferring data.
 			 */
 			_qtd->error_count = 0;
-			//yk@rk 20100714
-			#if 1
-			if((_hcd->core_if->core_params->host_channels <= 2)
-				&&(!_hc->halt_pending))
-			dwc_otg_hc_halt(_hcd->core_if, _hc, DWC_OTG_HC_XFER_NAK);
-			#endif
 			goto handle_nak_done;
 		}
 
@@ -1274,7 +1255,6 @@ static int32_t handle_hc_nak_intr(dwc_otg_hcd_t *_hcd,
 
  handle_nak_done:
  	clear_hc_int(_hc_regs,nak);
-	if(_hcd->core_if->core_params->host_channels > 2)
 	disable_hc_int(_hc_regs,nak);
 
 	return 1;
@@ -1734,23 +1714,6 @@ static void handle_hc_chhltd_intr_dma(dwc_otg_hcd_t *_hcd,
 	hcint.d32 = dwc_read_reg32(&_hc_regs->hcint);
 	hcintmsk.d32 = dwc_read_reg32(&_hc_regs->hcintmsk);
 
-	if((!hcint.b.xfercomp)&&
-		(_hcd->core_if->core_params->host_channels <= 2)&&
-		(_hc->halt_pending)&&
-		(_hc->ep_is_in)&&
-		(_hc->ep_type == DWC_OTG_EP_TYPE_BULK))
-	{
-		if(hcint.b.ack && !hcintmsk.b.ack)
-		{
-			//DWC_PRINT("Halt pending, ack!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-			handle_hc_xfercomp_intr(_hcd, _hc, _hc_regs, _qtd);
-			return;
-		}
-		release_channel(_hcd, _hc, _qtd, DWC_OTG_HC_XFER_NAK);
-		clear_hc_int(_hc_regs,chhltd); 	
-		return;
-	}
-	
 	if (hcint.b.xfercomp) {
 		/** @todo This is here because of a possible hardware bug.  Spec
 		 * says that on SPLIT-ISOC OUT transfers in DMA mode that a HALT
@@ -1800,7 +1763,7 @@ static void handle_hc_chhltd_intr_dma(dwc_otg_hcd_t *_hcd,
 		 */
 		handle_hc_ack_intr(_hcd, _hc, _hc_regs, _qtd);
 	} else if(hcint.b.datatglerr){
-	     DWC_PRINT("%s, DATA toggle error\n");
+	     DWC_PRINT("%s, DATA toggle error, Channel %d\n",__func__, _hc->hc_num);
             dwc_debug(1);
 				clear_hc_int(_hc_regs,chhltd);
 	} else {

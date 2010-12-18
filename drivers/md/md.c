@@ -1122,7 +1122,7 @@ super_90_rdev_size_change(mdk_rdev_t *rdev, sector_t num_sectors)
 	md_super_write(rdev->mddev, rdev, rdev->sb_start, rdev->sb_size,
 		       rdev->sb_page);
 	md_super_wait(rdev->mddev);
-	return num_sectors / 2; /* kB for sysfs */
+	return num_sectors;
 }
 
 
@@ -1485,7 +1485,7 @@ super_1_rdev_size_change(mdk_rdev_t *rdev, sector_t num_sectors)
 	md_super_write(rdev->mddev, rdev, rdev->sb_start, rdev->sb_size,
 		       rdev->sb_page);
 	md_super_wait(rdev->mddev);
-	return num_sectors / 2; /* kB for sysfs */
+	return num_sectors;
 }
 
 static struct super_type super_types[] = {
@@ -2011,12 +2011,18 @@ repeat:
 		if (!mddev->in_sync || mddev->recovery_cp != MaxSector) { /* not clean */
 			/* .. if the array isn't clean, an 'even' event must also go
 			 * to spares. */
-			if ((mddev->events&1)==0)
+			if ((mddev->events&1)==0) {
 				nospares = 0;
+				sync_req = 2; /* force a second update to get the
+					       * even/odd in sync */
+			}
 		} else {
 			/* otherwise an 'odd' event must go to spares */
-			if ((mddev->events&1))
+			if ((mddev->events&1)) {
 				nospares = 0;
+				sync_req = 2; /* force a second update to get the
+					       * even/odd in sync */
+			}
 		}
 	}
 
@@ -5328,6 +5334,7 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 	int err = 0;
 	void __user *argp = (void __user *)arg;
 	mddev_t *mddev = NULL;
+	int ro;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -5463,6 +5470,34 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 			err = do_md_stop(mddev, 1, 1);
 			goto done_unlock;
 
+		case BLKROSET:
+			if (get_user(ro, (int __user *)(arg))) {
+				err = -EFAULT;
+				goto done_unlock;
+			}
+			err = -EINVAL;
+
+			/* if the bdev is going readonly the value of mddev->ro
+			 * does not matter, no writes are coming
+			 */
+			if (ro)
+				goto done_unlock;
+
+			/* are we are already prepared for writes? */
+			if (mddev->ro != 1)
+				goto done_unlock;
+
+			/* transitioning to readauto need only happen for
+			 * arrays that call md_write_start
+			 */
+			if (mddev->pers) {
+				err = restart_array(mddev);
+				if (err == 0) {
+					mddev->ro = 2;
+					set_disk_ro(mddev->gendisk, 0);
+				}
+			}
+			goto done_unlock;
 	}
 
 	/*

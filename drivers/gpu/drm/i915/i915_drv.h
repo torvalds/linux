@@ -258,7 +258,7 @@ typedef struct drm_i915_private {
 
 	struct notifier_block lid_notifier;
 
-	int crt_ddc_bus; /* -1 = unknown, else GPIO to use for CRT DDC */
+	int crt_ddc_bus; /* 0 = unknown, else GPIO to use for CRT DDC */
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
@@ -555,6 +555,8 @@ typedef struct drm_i915_private {
 	struct timer_list idle_timer;
 	bool busy;
 	u16 orig_clock;
+	int child_dev_num;
+	struct child_device_config *child_dev;
 	struct drm_connector *int_lvds_connector;
 } drm_i915_private_t;
 

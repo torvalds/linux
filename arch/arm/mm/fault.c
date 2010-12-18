@@ -386,6 +386,9 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 	if (addr < TASK_SIZE)
 		return do_page_fault(addr, fsr, regs);
 
+	if (user_mode(regs))
+		goto bad_area;
+
 	index = pgd_index(addr);
 
 	/*

@@ -2,7 +2,7 @@
  * pata_pdc202xx_old.c 	- Promise PDC202xx PATA for new ATA layer
  *			  (C) 2005 Red Hat Inc
  *			  Alan Cox <alan@lxorguk.ukuu.org.uk>
- *			  (C) 2007,2009 Bartlomiej Zolnierkiewicz
+ *			  (C) 2007,2009,2010 Bartlomiej Zolnierkiewicz
  *
  * Based in part on linux/drivers/ide/pci/pdc202xx_old.c
  *
@@ -33,6 +33,15 @@ static int pdc2026x_cable_detect(struct ata_port *ap)
 	if (cis & (1 << (10 + ap->port_no)))
 		return ATA_CBL_PATA40;
 	return ATA_CBL_PATA80;
+}
+
+static void pdc202xx_exec_command(struct ata_port *ap,
+				  const struct ata_taskfile *tf)
+{
+	DPRINTK("ata%u: cmd 0x%X\n", ap->print_id, tf->command);
+
+	iowrite8(tf->command, ap->ioaddr.command_addr);
+	ndelay(400);
 }
 
 /**
@@ -271,6 +280,8 @@ static struct ata_port_operations pdc2024x_port_ops = {
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= pdc202xx_set_piomode,
 	.set_dmamode		= pdc202xx_set_dmamode,
+
+	.sff_exec_command	= pdc202xx_exec_command,
 };
 
 static struct ata_port_operations pdc2026x_port_ops = {
@@ -284,6 +295,8 @@ static struct ata_port_operations pdc2026x_port_ops = {
 	.dev_config		= pdc2026x_dev_config,
 
 	.port_start		= pdc2026x_port_start,
+
+	.sff_exec_command	= pdc202xx_exec_command,
 };
 
 static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)

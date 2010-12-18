@@ -89,6 +89,7 @@ static int x25_queue_rx_frame(struct sock *sk, struct sk_buff *skb, int more)
 static int x25_state1_machine(struct sock *sk, struct sk_buff *skb, int frametype)
 {
 	struct x25_address source_addr, dest_addr;
+	int len;
 
 	switch (frametype) {
 		case X25_CALL_ACCEPTED: {
@@ -106,11 +107,19 @@ static int x25_state1_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 			 *	Parse the data in the frame.
 			 */
 			skb_pull(skb, X25_STD_MIN_LEN);
-			skb_pull(skb, x25_addr_ntoa(skb->data, &source_addr, &dest_addr));
-			skb_pull(skb,
-				 x25_parse_facilities(skb, &x25->facilities,
+
+			len = x25_parse_address_block(skb, &source_addr,
+						&dest_addr);
+			if (len > 0)
+				skb_pull(skb, len);
+
+			len = x25_parse_facilities(skb, &x25->facilities,
 						&x25->dte_facilities,
-						&x25->vc_facil_mask));
+						&x25->vc_facil_mask);
+			if (len > 0)
+				skb_pull(skb, len);
+			else
+				return -1;
 			/*
 			 *	Copy any Call User Data.
 			 */

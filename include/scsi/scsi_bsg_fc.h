@@ -292,7 +292,7 @@ struct fc_bsg_request {
 		struct fc_bsg_rport_els		r_els;
 		struct fc_bsg_rport_ct		r_ct;
 	} rqst_data;
-};
+} __attribute__((packed));
 
 
 /* response (request sense data) structure of the sg_io_v4 */

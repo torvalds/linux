@@ -577,11 +577,19 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 {
 	const u8		epnum = req->epnum;
 	struct usb_request	*request = &req->request;
-	struct musb_ep		*musb_ep = &musb->endpoints[epnum].ep_out;
+	struct musb_ep		*musb_ep;
 	void __iomem		*epio = musb->endpoints[epnum].regs;
 	unsigned		fifo_count = 0;
-	u16			len = musb_ep->packet_sz;
+	u16			len;
 	u16			csr = musb_readw(epio, MUSB_RXCSR);
+	struct musb_hw_ep	*hw_ep = &musb->endpoints[epnum];
+
+	if (hw_ep->is_shared_fifo)
+		musb_ep = &hw_ep->ep_in;
+	else
+		musb_ep = &hw_ep->ep_out;
+
+	len = musb_ep->packet_sz;
 
 	/* We shouldn't get here while DMA is active, but we do... */
 	if (dma_channel_status(musb_ep->dma) == MUSB_DMA_STATUS_BUSY) {
@@ -749,9 +757,15 @@ void musb_g_rx(struct musb *musb, u8 epnum)
 	u16			csr;
 	struct usb_request	*request;
 	void __iomem		*mbase = musb->mregs;
-	struct musb_ep		*musb_ep = &musb->endpoints[epnum].ep_out;
+	struct musb_ep		*musb_ep;
 	void __iomem		*epio = musb->endpoints[epnum].regs;
 	struct dma_channel	*dma;
+	struct musb_hw_ep	*hw_ep = &musb->endpoints[epnum];
+
+	if (hw_ep->is_shared_fifo)
+		musb_ep = &hw_ep->ep_in;
+	else
+		musb_ep = &hw_ep->ep_out;
 
 	musb_ep_select(mbase, epnum);
 
@@ -1074,7 +1088,7 @@ struct free_record {
 /*
  * Context: controller locked, IRQs blocked.
  */
-static void musb_ep_restart(struct musb *musb, struct musb_request *req)
+void musb_ep_restart(struct musb *musb, struct musb_request *req)
 {
 	DBG(3, "<== %s request %p len %u on hw_ep%d\n",
 		req->tx ? "TX/IN" : "RX/OUT",

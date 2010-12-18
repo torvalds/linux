@@ -557,7 +557,7 @@ void intel_crt_init(struct drm_device *dev)
 	else {
 		i2c_reg = GPIOA;
 		/* Use VBT information for CRT DDC if available */
-		if (dev_priv->crt_ddc_bus != -1)
+		if (dev_priv->crt_ddc_bus != 0)
 			i2c_reg = dev_priv->crt_ddc_bus;
 	}
 	intel_output->ddc_bus = intel_i2c_create(dev, i2c_reg, "CRTDDC_A");

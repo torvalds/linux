@@ -252,11 +252,11 @@ static int region_check(int index)
 }
 
 /*
- * split allocated block from free block
+ * split new allocated block from free block
  * the bitmap_sem and region_list_sem must be hold together
  * the pnode is a ouput region node
  */
-static int region_split(struct list_head *region_list, struct vpu_mem_region_node *node, int index, int pfn)
+static int region_new(struct list_head *region_list, int index, int pfn)
 {
     int pfn_free = VPU_MEM_PFN(index);
     // check pfn is smaller then target index region
@@ -274,8 +274,9 @@ static int region_split(struct list_head *region_list, struct vpu_mem_region_nod
         return -EINVAL;
     }
 
-    if (NULL == node) {
+    {
         struct list_head *last;
+        struct vpu_mem_region_node *node;
         // check target index region first
         if (!VPU_MEM_IS_FREE(index)) {
 #if VPU_MEM_DEBUG
@@ -312,10 +313,56 @@ static int region_split(struct list_head *region_list, struct vpu_mem_region_nod
         region_set_ref_count(index, VPU_MEM_REFC(index) + 1);
         node->region.index = index;
         node->region.ref_count = 1;
+    }
+
+    return 0;
+}
+
+/*
+ * link allocated block from free block
+ * the bitmap_sem and region_list_sem must be hold together
+ * the pnode is a ouput region node
+ */
+static int region_link(struct list_head *region_list, int index)
+{
+    struct vpu_mem_region_node *node = NULL;
+    struct list_head *list, *tmp;
+    list_for_each_safe(list, tmp, region_list) {
+        struct vpu_mem_region_node *p = list_entry(list, struct vpu_mem_region_node, list);
+        if (index == NODE_REGION_INDEX(p)) {
+            node = p;
+            break;
+        }
+    }
+
+    if (NULL == node) {
+        struct list_head *last;
+        DLOG("link non-exists index %d\n", index);
+
+        // malloc vpu_mem_region_node
+        node = kmalloc(sizeof(struct vpu_mem_region_node), GFP_KERNEL);
+        if (NULL == node) {
+#if VPU_MEM_DEBUG
+            printk(KERN_INFO "No space to allocate struct vpu_mem_region_node!");
+#endif
+            return -ENOMEM;
+        }
+
+        // search the last node
+        DLOG("search the last node\n");
+        for (last = region_list; !list_is_last(last, region_list);)
+            last = last->next;
+
+        DLOG("list_add_tail\n");
+        list_add_tail(&node->list, last);
+
+        node->region.index = index;
+        node->region.ref_count = 1;
     } else {
-        region_set_ref_count(index, VPU_MEM_REFC(index) + 1);
+        DLOG("link existed index %d\n", index);
         node->region.ref_count++;
     }
+    region_set_ref_count(index, VPU_MEM_REFC(index) + 1);
 
     return 0;
 }
@@ -391,11 +438,11 @@ static long vpu_mem_allocate(struct file *file, unsigned int len)
 			}
 		}
 #if VPU_MEM_DEBUG
-        printk(KERN_INFO "vpu_mem: search curr %d\n!", curr);
+        //printk(KERN_INFO "vpu_mem: search curr %d\n!", curr);
 #endif
 		curr = VPU_MEM_NEXT_INDEX(curr);
 #if VPU_MEM_DEBUG
-        printk(KERN_INFO "vpu_mem: search next %d\n!", curr);
+        //printk(KERN_INFO "vpu_mem: search next %d\n!", curr);
 #endif
 	}
 
@@ -413,7 +460,7 @@ static long vpu_mem_allocate(struct file *file, unsigned int len)
 
     down_write(&data->sem);
     {
-        int ret = region_split(&data->region_list, NULL, best_fit, pfn);
+        int ret = region_new(&data->region_list, best_fit, pfn);
         if (ret)
             best_fit = -1;
     }
@@ -518,6 +565,7 @@ static int vpu_mem_duplicate(struct file *file, int index)
 
 static int vpu_mem_link(struct file *file, int index)
 {
+    int err;
     struct vpu_mem_data *data = (struct vpu_mem_data *)file->private_data;
 
 	if (!is_vpu_mem_file(file)) {
@@ -534,26 +582,21 @@ static int vpu_mem_link(struct file *file, int index)
         return -EINVAL;
     }
 
+    // check target index region first
+    if (VPU_MEM_IS_FREE(index)) {
+#if VPU_MEM_DEBUG
+        printk(KERN_INFO "try to link free region %d!", index);
+#endif
+        return -1;
+    }
+
 	/* caller should hold the write lock on vpu_mem_sem! */
-	DLOG("link index %d\n", index);
-
 	down_write(&data->sem);
-    {   // search exists index
-        struct list_head *list, *tmp;
-        list_for_each_safe(list, tmp, &data->region_list) {
-    		struct vpu_mem_region_node *node = list_entry(list, struct vpu_mem_region_node, list);
-            if (index == NODE_REGION_INDEX(node)) {
-                region_split(&data->region_list, node, index, VPU_MEM_PFN(index));
-                up_write(&data->sem);
-                return 0;
-            }
-        }
-        // non-exists index
-        region_split(&data->region_list, NULL, index, VPU_MEM_PFN(index));
-	}
+    err = region_link(&data->region_list, index);
 	up_write(&data->sem);
+    DLOG("link index %d ret %d\n", index, err);
 
-	return 0;
+	return err;
 }
 
 void vpu_mem_flush(struct file *file, long index)

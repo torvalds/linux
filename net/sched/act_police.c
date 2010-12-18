@@ -340,22 +340,19 @@ tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_police *police = a->priv;
-	struct tc_police opt;
+	struct tc_police opt = {
+		.index = police->tcf_index,
+		.action = police->tcf_action,
+		.mtu = police->tcfp_mtu,
+		.burst = police->tcfp_burst,
+		.refcnt = police->tcf_refcnt - ref,
+		.bindcnt = police->tcf_bindcnt - bind,
+	};
 
-	opt.index = police->tcf_index;
-	opt.action = police->tcf_action;
-	opt.mtu = police->tcfp_mtu;
-	opt.burst = police->tcfp_burst;
-	opt.refcnt = police->tcf_refcnt - ref;
-	opt.bindcnt = police->tcf_bindcnt - bind;
 	if (police->tcfp_R_tab)
 		opt.rate = police->tcfp_R_tab->rate;
-	else
-		memset(&opt.rate, 0, sizeof(opt.rate));
 	if (police->tcfp_P_tab)
 		opt.peakrate = police->tcfp_P_tab->rate;
-	else
-		memset(&opt.peakrate, 0, sizeof(opt.peakrate));
 	NLA_PUT(skb, TCA_POLICE_TBF, sizeof(opt), &opt);
 	if (police->tcfp_result)
 		NLA_PUT_U32(skb, TCA_POLICE_RESULT, police->tcfp_result);

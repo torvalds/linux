@@ -163,6 +163,8 @@ void rh_port_disconnect(int rhport)
 	 * spin_unlock(&vdev->ud.lock); */
 
 	spin_unlock_irqrestore(&the_controller->lock, flags);
+
+	usb_hcd_poll_rh_status(vhci_to_hcd(the_controller));
 }
 
 

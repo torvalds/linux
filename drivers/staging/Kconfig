@@ -81,8 +81,6 @@ source "drivers/staging/rtl8192su/Kconfig"
 
 source "drivers/staging/rtl8192e/Kconfig"
 
-source "drivers/staging/mimio/Kconfig"
-
 source "drivers/staging/frontier/Kconfig"
 
 source "drivers/staging/android/Kconfig"
@@ -132,5 +130,6 @@ source "drivers/staging/rk2818/rk1000_control/Kconfig"
 source "drivers/staging/rk2818/rk2818_power/Kconfig"
 
 source "drivers/staging/rk29/vivante/Kconfig"
+source "drivers/staging/rk29/ipp/Kconfig"
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

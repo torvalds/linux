@@ -1,0 +1,8 @@
+menu "IPP"
+config RK29_IPP
+	tristate "ROCKCHIP RK29 IPP"
+	default y
+	help
+          rk29 ipp module.
+endmenu
+

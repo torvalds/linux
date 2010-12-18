@@ -485,7 +485,11 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 						     OCFS2_BH_IGNORE_CACHE);
 	} else {
 		status = ocfs2_read_blocks_sync(osb, args->fi_blkno, 1, &bh);
-		if (!status)
+		/*
+		 * If buffer is in jbd, then its checksum may not have been
+		 * computed as yet.
+		 */
+		if (!status && !buffer_jbd(bh))
 			status = ocfs2_validate_inode_block(osb->sb, bh);
 	}
 	if (status < 0) {
@@ -559,6 +563,7 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 		handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 		if (IS_ERR(handle)) {
 			status = PTR_ERR(handle);
+			handle = NULL;
 			mlog_errno(status);
 			goto out;
 		}

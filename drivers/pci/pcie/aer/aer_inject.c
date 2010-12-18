@@ -302,7 +302,7 @@ static int aer_inject(struct aer_error_inj *einj)
 	unsigned long flags;
 	unsigned int devfn = PCI_DEVFN(einj->dev, einj->fn);
 	int pos_cap_err, rp_pos_cap_err;
-	u32 sever;
+	u32 sever, cor_mask, uncor_mask;
 	int ret = 0;
 
 	dev = pci_get_bus_and_slot(einj->bus, devfn);
@@ -320,6 +320,9 @@ static int aer_inject(struct aer_error_inj *einj)
 		goto out_put;
 	}
 	pci_read_config_dword(dev, pos_cap_err + PCI_ERR_UNCOR_SEVER, &sever);
+	pci_read_config_dword(dev, pos_cap_err + PCI_ERR_COR_MASK, &cor_mask);
+	pci_read_config_dword(dev, pos_cap_err + PCI_ERR_UNCOR_MASK,
+			      &uncor_mask);
 
 	rp_pos_cap_err = pci_find_ext_capability(rpdev, PCI_EXT_CAP_ID_ERR);
 	if (!rp_pos_cap_err) {
@@ -353,6 +356,21 @@ static int aer_inject(struct aer_error_inj *einj)
 	err->header_log1 = einj->header_log1;
 	err->header_log2 = einj->header_log2;
 	err->header_log3 = einj->header_log3;
+
+	if (einj->cor_status && !(einj->cor_status & ~cor_mask)) {
+		ret = -EINVAL;
+		printk(KERN_WARNING "The correctable error(s) is masked "
+				"by device\n");
+		spin_unlock_irqrestore(&inject_lock, flags);
+		goto out_put;
+	}
+	if (einj->uncor_status && !(einj->uncor_status & ~uncor_mask)) {
+		ret = -EINVAL;
+		printk(KERN_WARNING "The uncorrectable error(s) is masked "
+				"by device\n");
+		spin_unlock_irqrestore(&inject_lock, flags);
+		goto out_put;
+	}
 
 	rperr = __find_aer_error_by_dev(rpdev);
 	if (!rperr) {

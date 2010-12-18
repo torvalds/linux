@@ -272,7 +272,7 @@ __v7_setup:
 	bic	r5, r5, #7 << 6
 	bic	r5, r5, #15
 	orr	r5, r5, #3 << 6			@ Tag RAM latency: b011 = 4 cycles
-	orr	r5, r5, #5			@ Data RAM latency: b0101 = 6 cycles
+	orr	r5, r5, #12			@ Data RAM latency: b0101 = 6 cycles
 	mcr	p15, 1, r5, c9, c0, 2
 #endif
 

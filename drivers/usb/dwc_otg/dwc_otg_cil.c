@@ -210,7 +210,7 @@ dwc_otg_core_if_t *dwc_otg_cil_init(const uint32_t *_reg_base_addr,
 	core_if->srp_timer_started = 0;
 
 	core_if->usb_wakeup = 0;
-	if(dwc_core_if  ==  NULL)
+//	if(dwc_core_if  ==  NULL)
              dwc_core_if = core_if;
 	return core_if;
 }
@@ -243,7 +243,7 @@ void dwc_otg_cil_remove( dwc_otg_core_if_t *_core_if )
  *
  * @param[in] _core_if Programming view of DWC_otg controller.
  */
-extern void dwc_otg_enable_global_interrupts( dwc_otg_core_if_t *_core_if )
+void dwc_otg_enable_global_interrupts( dwc_otg_core_if_t *_core_if )
 {
 	gahbcfg_data_t ahbcfg = { .d32 = 0};
 	ahbcfg.b.glblintrmsk = 1; /* Enable interrupts */
@@ -442,9 +442,7 @@ void dwc_otg_core_init(dwc_otg_core_if_t *_core_if)
 	/* Common Initialization */
 
 	usbcfg.d32 = dwc_read_reg32(&global_regs->gusbcfg);
-	//printk("%s:::::::::::::gusbcfg is %x\n",__func__,usbcfg.d32);
 	regvalue = dwc_read_reg32(&global_regs->gintsts);
-	//printk("%s:::::::::::::gusbcfg is %x\n",__func__,regvalue);
 	/* Program the ULPI External VBUS bit if needed */
 	usbcfg.b.ulpi_ext_vbus_drv = 
 		(_core_if->core_params->phy_ulpi_ext_vbus == DWC_PHY_ULPI_EXTERNAL_VBUS) ? 1 : 0;
@@ -485,8 +483,6 @@ void dwc_otg_core_init(dwc_otg_core_if_t *_core_if)
 	_core_if->nperio_tx_fifo_size = 
 			dwc_read_reg32( &global_regs->gnptxfsiz) >> 16;
 
-	//printk( "%s::Total FIFO SZ=%d, Rx FIFO SZ=%d,NP Tx FIFO SZ=%d\n",__func__, _core_if->total_fifo_size,
-	//        _core_if->rx_fifo_size, _core_if->nperio_tx_fifo_size);
 	DWC_DEBUGPL(DBG_CIL, "Total FIFO SZ=%d\n", _core_if->total_fifo_size);
 	DWC_DEBUGPL(DBG_CIL, "Rx FIFO SZ=%d\n", _core_if->rx_fifo_size);
 	DWC_DEBUGPL(DBG_CIL, "NP Tx FIFO SZ=%d\n", _core_if->nperio_tx_fifo_size);
@@ -1050,16 +1046,6 @@ void dwc_otg_hc_init(dwc_otg_core_if_t *_core_if, dwc_hc_t *_hc)
 				}
 			}
 		}
-#if 1
-		//yk@rk 20100714
-		if((_core_if->core_params->host_channels <= 2)&&
-			_hc->ep_is_in && 
-			_hc->ep_type == DWC_OTG_EP_TYPE_BULK)
-		{
-			//DWC_PRINT("%s bulk in\n",__func__);
-			hc_intr_mask.b.nak = 1;
-		}
-#endif
 	} 
 	else 
 	{
@@ -1236,7 +1222,11 @@ void dwc_otg_hc_halt(dwc_otg_core_if_t *_core_if,
 	dwc_otg_hc_regs_t		*hc_regs;
 	dwc_otg_core_global_regs_t	*global_regs;
 	dwc_otg_host_global_regs_t	*host_global_regs;
-
+	if((!_core_if)||(!_hc))
+	{
+		DWC_PRINT("%s parm error _core_if:0x%x, _hc:0x%x\n",__func__,(uint32_t)_core_if,(uint32_t)_hc);
+		return;
+	}
 	hc_regs = _core_if->host_if->hc_regs[_hc->hc_num];
 	global_regs = _core_if->core_global_regs;
 	host_global_regs = _core_if->host_if->host_global_regs;
@@ -2999,22 +2989,6 @@ extern void dwc_otg_cil_register_pcd_callbacks( dwc_otg_core_if_t *_core_if,
 	_cb->p = _p;
 }
 
-void rk28_usb_force_disconnect( dwc_otg_core_if_t *core_if )
-{
-        gotgctl_data_t    gctrl;
-        dctl_data_t dctl = {.d32=0};
-
-        gctrl.d32 = dwc_read_reg32( &core_if->core_global_regs->gotgctl );
-        if( !gctrl.b.bsesvld )
-                return ;
-
-        printk("%s\n" , __func__);
-        /* soft disconnect */
-        dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
-        dctl.b.sftdiscon = 1;
-        dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
-}
-
 /**
  * This functions reads the device registers and prints them
  *
@@ -3279,40 +3253,87 @@ void dwc_otg_dump_global_registers(dwc_otg_core_if_t *_core_if)
 void dump_scu_regs(void)
 {
 	int regvalue;
-    printk("_______________________System Regs________________________________\n");
+    DWC_PRINT("_______________________System Regs________________________________\n");
 	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x00));
-	printk("SCU_APLL_CON:     0x%08x\n",regvalue);
+	DWC_PRINT("CRU_APLL_CON:     0x%08x\n",regvalue);
 	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x04));
-	printk("SCU_DPLL_CON:     0x%08x\n",regvalue);
+	DWC_PRINT("CRU_DPLL_CON:     0x%08x\n",regvalue);
 	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x08));
-	printk("SCU_CPLL_CON:     0x%08x\n",regvalue);
+	DWC_PRINT("CRU_CPLL_CON:     0x%08x\n",regvalue);
 	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x0c));
-	printk("SCU_MODE_CON:     0x%08x\n",regvalue);
+	DWC_PRINT("CRU_PPLL_CON:     0x%08x\n",regvalue);
 	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x10));
-	printk("SCU_PMU_MODE:     0x%08x\n",regvalue);
+	DWC_PRINT("CRU_MODE_CON:     0x%08x\n",regvalue);
+	
+	///////////////////////////////////////////////////////////////
 	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x14));
-	printk("SCU_CLKSEL0_CON:  0x%08x\n",regvalue);
+	DWC_PRINT("CRU_CLKSEL0_CON:  0x%08x\n",regvalue);
 	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x18));
-	printk("SCU_CLKSEL1_CON:  0x%08x\n",regvalue);
-	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x1c));
-	printk("SCU_CLKGATE0_CON: 0x%08x\n",regvalue);
+	DWC_PRINT("CRU_CLKSEL1_CON:  0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x1C));
+	DWC_PRINT("CRU_CLKSEL2_CON:  0x%08x\n",regvalue);
 	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x20));
-	printk("SCU_CLKGATE1_CON: 0x%08x\n",regvalue);
+	DWC_PRINT("CRU_CLKSEL3_CON:  0x%08x\n",regvalue);
 	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x24));
-	printk("SCU_CLKGATE2_CON: 0x%08x\n",regvalue);
+	DWC_PRINT("CRU_CLKSEL4_CON:  0x%08x\n",regvalue);
 	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x28));
-	printk("SCU_SOFTRST_CON:  0x%08x\n",regvalue);
+	DWC_PRINT("CRU_CLKSEL5_CON:  0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x2C));
+	DWC_PRINT("CRU_CLKSEL6_CON:  0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x30));
+	DWC_PRINT("CRU_CLKSEL7_CON:  0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x34));
+	DWC_PRINT("CRU_CLKSEL8_CON:  0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x38));
+	DWC_PRINT("CRU_CLKSEL9_CON:  0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x3C));
+	DWC_PRINT("CRU_CLKSEL10_CON: 0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x40));
+	DWC_PRINT("CRU_CLKSEL11_CON: 0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x44));
+	DWC_PRINT("CRU_CLKSEL12_CON: 0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x48));
+	DWC_PRINT("CRU_CLKSEL12_CON: 0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x4C));
+	DWC_PRINT("CRU_CLKSEL14_CON: 0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x50));
+	DWC_PRINT("CRU_CLKSEL15_CON: 0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x54));
+	DWC_PRINT("CRU_CLKSEL16_CON: 0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x58));
+	DWC_PRINT("CRU_CLKSEL17_CON: 0x%08x\n",regvalue);
+	
+	///////////////////////////////////////////////////////////////
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x5c));
+	DWC_PRINT("CRU_CLKGATE0_CON: 0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x60));
+	DWC_PRINT("CRU_CLKGATE1_CON: 0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x64));
+	DWC_PRINT("CRU_CLKGATE2_CON: 0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x68));
+	DWC_PRINT("CRU_CLKGATE3_CON: 0x%08x\n",regvalue);
+	
+	///////////////////////////////////////////////////////////////
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x6C));
+	DWC_PRINT("CRU_SOFTRST0_CON: 0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x70));
+	DWC_PRINT("CRU_SOFTRST1_CON: 0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x74));
+	DWC_PRINT("CRU_SOFTRST2_CON: 0x%08x\n",regvalue);
+
+	/////////////////////////////////////////////////////////////
 	regvalue = dwc_read_reg32((uint32_t *)(USB_GRF_CON));
-	printk("USB_PHY_CON1:     0x%08x\n",regvalue);
+	DWC_PRINT("USB_PHY_CON1:     0x%08x\n",regvalue);
+	regvalue = dwc_read_reg32((uint32_t *)(USB_GRF_IOMUX));
+	DWC_PRINT("GRF_GPIO4L_IOMUX: 0x%08x\n",regvalue);
 }
 void dwc_otg_dump_flags(dwc_otg_core_if_t *_core_if)
 {
-    printk("_______________________dwc_otg flags_______________________________\n");
-	printk("core_if->op_state = %x\n",_core_if->op_state);
-	printk("core_if->usb_mode = %x\n",_core_if->usb_mode);
-	printk("core_if->usb_wakeup = %x\n",_core_if->usb_wakeup);
+    DWC_PRINT("_______________________dwc_otg flags_______________________________\n");
+	DWC_PRINT("core_if->op_state = %x\n",_core_if->op_state);
+	DWC_PRINT("core_if->usb_mode = %x\n",_core_if->usb_mode);
+	DWC_PRINT("core_if->usb_wakeup = %x\n",_core_if->usb_wakeup);
 }
-int dwc_step = 0;
 int dwc_debug(int flag)
 {
 	dwc_otg_core_if_t *core_if = dwc_core_if;
@@ -3342,7 +3363,6 @@ int dwc_debug(int flag)
 			dwc_otg_dump_flags(core_if);
 			break;
 		case 8:
-		    dwc_step = 0;
 			break;
 		case 9:
 			dwc_otg_dump_flags(core_if);

@@ -54,6 +54,31 @@ late_initcall(print_ipi_mode);
 
 void default_setup_apic_routing(void)
 {
+	int version = apic_version[boot_cpu_physical_apicid];
+
+	if (num_possible_cpus() > 8) {
+		switch (boot_cpu_data.x86_vendor) {
+		case X86_VENDOR_INTEL:
+			if (!APIC_XAPIC(version)) {
+				def_to_bigsmp = 0;
+				break;
+			}
+			/* If P4 and above fall through */
+		case X86_VENDOR_AMD:
+			def_to_bigsmp = 1;
+		}
+	}
+
+#ifdef CONFIG_X86_BIGSMP
+	generic_bigsmp_probe();
+#endif
+
+	if (apic->setup_apic_routing)
+		apic->setup_apic_routing();
+}
+
+void setup_apic_flat_routing(void)
+{
 #ifdef CONFIG_X86_IO_APIC
 	printk(KERN_INFO
 		"Enabling APIC mode:  Flat.  Using %d I/O APICs\n",
@@ -103,7 +128,7 @@ struct apic apic_default = {
 	.init_apic_ldr			= default_init_apic_ldr,
 
 	.ioapic_phys_id_map		= default_ioapic_phys_id_map,
-	.setup_apic_routing		= default_setup_apic_routing,
+	.setup_apic_routing		= setup_apic_flat_routing,
 	.multi_timer_check		= NULL,
 	.apicid_to_node			= default_apicid_to_node,
 	.cpu_to_logical_apicid		= default_cpu_to_logical_apicid,

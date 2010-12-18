@@ -104,12 +104,15 @@ static void __save_processor_state(struct saved_context *ctxt)
 	ctxt->cr4 = read_cr4();
 	ctxt->cr8 = read_cr8();
 #endif
+	ctxt->misc_enable_saved = !rdmsrl_safe(MSR_IA32_MISC_ENABLE,
+					       &ctxt->misc_enable);
 }
 
 /* Needed by apm.c */
 void save_processor_state(void)
 {
 	__save_processor_state(&saved_context);
+	save_sched_clock_state();
 }
 #ifdef CONFIG_X86_32
 EXPORT_SYMBOL(save_processor_state);
@@ -176,6 +179,8 @@ static void fix_processor_context(void)
  */
 static void __restore_processor_state(struct saved_context *ctxt)
 {
+	if (ctxt->misc_enable_saved)
+		wrmsrl(MSR_IA32_MISC_ENABLE, ctxt->misc_enable);
 	/*
 	 * control registers
 	 */
@@ -249,6 +254,7 @@ static void __restore_processor_state(struct saved_context *ctxt)
 void restore_processor_state(void)
 {
 	__restore_processor_state(&saved_context);
+	restore_sched_clock_state();
 }
 #ifdef CONFIG_X86_32
 EXPORT_SYMBOL(restore_processor_state);

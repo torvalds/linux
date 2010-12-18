@@ -69,6 +69,7 @@ asmlinkage void __cpuinit start_secondary(void)
 	unsigned int cpu;
 	struct mm_struct *mm = &init_mm;
 
+	enable_mmu();
 	atomic_inc(&mm->mm_count);
 	atomic_inc(&mm->mm_users);
 	current->active_mm = mm;

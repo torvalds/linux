@@ -75,7 +75,7 @@ int reiserfs_security_init(struct inode *dir, struct inode *inode,
 		return error;
 	}
 
-	if (sec->length) {
+	if (sec->length && reiserfs_xattrs_initialized(inode->i_sb)) {
 		blocks = reiserfs_xattr_jcreate_nblocks(inode) +
 			 reiserfs_xattr_nblocks(inode, sec->length);
 		/* We don't want to count the directories twice if we have

@@ -1121,8 +1121,8 @@ iso_stream_find (struct ehci_hcd *ehci, struct urb *urb)
 					urb->interval);
 		}
 
-	/* if dev->ep [epnum] is a QH, info1.maxpacket is nonzero */
-	} else if (unlikely (stream->hw_info1 != 0)) {
+	/* if dev->ep [epnum] is a QH, hw is set */
+	} else if (unlikely (stream->hw != NULL)) {
 		ehci_dbg (ehci, "dev %s ep%d%s, not iso??\n",
 			urb->dev->devpath, epnum,
 			usb_pipein(urb->pipe) ? "in" : "out");
@@ -1553,13 +1553,27 @@ itd_patch(
 static inline void
 itd_link (struct ehci_hcd *ehci, unsigned frame, struct ehci_itd *itd)
 {
-	/* always prepend ITD/SITD ... only QH tree is order-sensitive */
-	itd->itd_next = ehci->pshadow [frame];
-	itd->hw_next = ehci->periodic [frame];
-	ehci->pshadow [frame].itd = itd;
+	union ehci_shadow	*prev = &ehci->pshadow[frame];
+	__hc32			*hw_p = &ehci->periodic[frame];
+	union ehci_shadow	here = *prev;
+	__hc32			type = 0;
+
+	/* skip any iso nodes which might belong to previous microframes */
+	while (here.ptr) {
+		type = Q_NEXT_TYPE(ehci, *hw_p);
+		if (type == cpu_to_hc32(ehci, Q_TYPE_QH))
+			break;
+		prev = periodic_next_shadow(ehci, prev, type);
+		hw_p = shadow_next_periodic(ehci, &here, type);
+		here = *prev;
+	}
+
+	itd->itd_next = here;
+	itd->hw_next = *hw_p;
+	prev->itd = itd;
 	itd->frame = frame;
 	wmb ();
-	ehci->periodic[frame] = cpu_to_hc32(ehci, itd->itd_dma | Q_TYPE_ITD);
+	*hw_p = cpu_to_hc32(ehci, itd->itd_dma | Q_TYPE_ITD);
 }
 
 /* fit urb's itds into the selected schedule slot; activate as needed */
@@ -2113,13 +2127,27 @@ sitd_complete (
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out");
 	}
 	iso_stream_put (ehci, stream);
-	/* OK to recycle this SITD now that its completion callback ran. */
+
 done:
 	sitd->urb = NULL;
-	sitd->stream = NULL;
-	list_move(&sitd->sitd_list, &stream->free_list);
-	iso_stream_put(ehci, stream);
-
+	if (ehci->clock_frame != sitd->frame) {
+		/* OK to recycle this SITD now. */
+		sitd->stream = NULL;
+		list_move(&sitd->sitd_list, &stream->free_list);
+		iso_stream_put(ehci, stream);
+	} else {
+		/* HW might remember this SITD, so we can't recycle it yet.
+		 * Move it to a safe place until a new frame starts.
+		 */
+		list_move(&sitd->sitd_list, &ehci->cached_sitd_list);
+		if (stream->refcount == 2) {
+			/* If iso_stream_put() were called here, stream
+			 * would be freed.  Instead, just prevent reuse.
+			 */
+			stream->ep->hcpriv = NULL;
+			stream->ep = NULL;
+		}
+	}
 	return retval;
 }
 
@@ -2185,14 +2213,22 @@ done:
 
 /*-------------------------------------------------------------------------*/
 
-static void free_cached_itd_list(struct ehci_hcd *ehci)
+static void free_cached_lists(struct ehci_hcd *ehci)
 {
 	struct ehci_itd *itd, *n;
+	struct ehci_sitd *sitd, *sn;
 
 	list_for_each_entry_safe(itd, n, &ehci->cached_itd_list, itd_list) {
 		struct ehci_iso_stream	*stream = itd->stream;
 		itd->stream = NULL;
 		list_move(&itd->itd_list, &stream->free_list);
+		iso_stream_put(ehci, stream);
+	}
+
+	list_for_each_entry_safe(sitd, sn, &ehci->cached_sitd_list, sitd_list) {
+		struct ehci_iso_stream	*stream = sitd->stream;
+		sitd->stream = NULL;
+		list_move(&sitd->sitd_list, &stream->free_list);
 		iso_stream_put(ehci, stream);
 	}
 }
@@ -2221,7 +2257,7 @@ scan_periodic (struct ehci_hcd *ehci)
 		clock_frame = -1;
 	}
 	if (ehci->clock_frame != clock_frame) {
-		free_cached_itd_list(ehci);
+		free_cached_lists(ehci);
 		ehci->clock_frame = clock_frame;
 	}
 	clock %= mod;
@@ -2384,7 +2420,7 @@ restart:
 			clock = now;
 			clock_frame = clock >> 3;
 			if (ehci->clock_frame != clock_frame) {
-				free_cached_itd_list(ehci);
+				free_cached_lists(ehci);
 				ehci->clock_frame = clock_frame;
 			}
 		} else {

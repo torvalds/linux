@@ -140,12 +140,14 @@ radeon_connector_analog_encoder_conflict_solve(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_connector *conflict;
+	struct radeon_connector *radeon_conflict;
 	int i;
 
 	list_for_each_entry(conflict, &dev->mode_config.connector_list, head) {
 		if (conflict == connector)
 			continue;
 
+		radeon_conflict = to_radeon_connector(conflict);
 		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
 			if (conflict->encoder_ids[i] == 0)
 				break;
@@ -153,6 +155,9 @@ radeon_connector_analog_encoder_conflict_solve(struct drm_connector *connector,
 			/* if the IDs match */
 			if (conflict->encoder_ids[i] == encoder->base.id) {
 				if (conflict->status != connector_status_connected)
+					continue;
+
+				if (radeon_conflict->use_digital)
 					continue;
 
 				if (priority == true) {
@@ -281,7 +286,7 @@ int radeon_connector_set_property(struct drm_connector *connector, struct drm_pr
 		radeon_encoder = to_radeon_encoder(encoder);
 		if (!radeon_encoder->enc_priv)
 			return 0;
-		if (rdev->is_atom_bios) {
+		if (ASIC_IS_AVIVO(rdev) || radeon_r4xx_atom) {
 			struct radeon_encoder_atom_dac *dac_int;
 			dac_int = radeon_encoder->enc_priv;
 			dac_int->tv_std = val;

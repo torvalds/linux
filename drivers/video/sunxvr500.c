@@ -242,10 +242,26 @@ static int __devinit e3d_set_fbinfo(struct e3d_info *ep)
 static int __devinit e3d_pci_register(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
+	struct device_node *of_node;
+	const char *device_type;
 	struct fb_info *info;
 	struct e3d_info *ep;
 	unsigned int line_length;
 	int err;
+
+	of_node = pci_device_to_OF_node(pdev);
+	if (!of_node) {
+		printk(KERN_ERR "e3d: Cannot find OF node of %s\n",
+		       pci_name(pdev));
+		return -ENODEV;
+	}
+
+	device_type = of_get_property(of_node, "device_type", NULL);
+	if (!device_type) {
+		printk(KERN_INFO "e3d: Ignoring secondary output device "
+		       "at %s\n", pci_name(pdev));
+		return -ENODEV;
+	}
 
 	err = pci_enable_device(pdev);
 	if (err < 0) {
@@ -265,13 +281,7 @@ static int __devinit e3d_pci_register(struct pci_dev *pdev,
 	ep->info = info;
 	ep->pdev = pdev;
 	spin_lock_init(&ep->lock);
-	ep->of_node = pci_device_to_OF_node(pdev);
-	if (!ep->of_node) {
-		printk(KERN_ERR "e3d: Cannot find OF node of %s\n",
-		       pci_name(pdev));
-		err = -ENODEV;
-		goto err_release_fb;
-	}
+	ep->of_node = of_node;
 
 	/* Read the PCI base register of the frame buffer, which we
 	 * need in order to interpret the RAMDAC_VID_*FB* values in
@@ -400,6 +410,7 @@ static void __devexit e3d_pci_unregister(struct pci_dev *pdev)
 
 static struct pci_device_id e3d_pci_table[] = {
 	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x7a0),	},
+	{	PCI_DEVICE(0x1091, 0x7a0),			},
 	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x7a2),	},
 	{	.vendor = PCI_VENDOR_ID_3DLABS,
 		.device = PCI_ANY_ID,

@@ -691,6 +691,7 @@ static struct priority_group *parse_priority_group(struct arg_set *as,
 
 		if (as->argc < nr_params) {
 			ti->error = "not enough path parameters";
+			r = -EINVAL;
 			goto bad;
 		}
 

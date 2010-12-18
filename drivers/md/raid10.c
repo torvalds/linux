@@ -493,7 +493,7 @@ static int raid10_mergeable_bvec(struct request_queue *q,
  */
 static int read_balance(conf_t *conf, r10bio_t *r10_bio)
 {
-	const unsigned long this_sector = r10_bio->sector;
+	const sector_t this_sector = r10_bio->sector;
 	int disk, slot, nslot;
 	const int sectors = r10_bio->sectors;
 	sector_t new_distance, current_distance;
@@ -824,10 +824,28 @@ static int make_request(struct request_queue *q, struct bio * bio)
 		 */
 		bp = bio_split(bio,
 			       chunk_sects - (bio->bi_sector & (chunk_sects - 1)) );
+
+		/* Each of these 'make_request' calls will call 'wait_barrier'.
+		 * If the first succeeds but the second blocks due to the resync
+		 * thread raising the barrier, we will deadlock because the
+		 * IO to the underlying device will be queued in generic_make_request
+		 * and will never complete, so will never reduce nr_pending.
+		 * So increment nr_waiting here so no new raise_barriers will
+		 * succeed, and so the second wait_barrier cannot block.
+		 */
+		spin_lock_irq(&conf->resync_lock);
+		conf->nr_waiting++;
+		spin_unlock_irq(&conf->resync_lock);
+
 		if (make_request(q, &bp->bio1))
 			generic_make_request(&bp->bio1);
 		if (make_request(q, &bp->bio2))
 			generic_make_request(&bp->bio2);
+
+		spin_lock_irq(&conf->resync_lock);
+		conf->nr_waiting--;
+		wake_up(&conf->wait_barrier);
+		spin_unlock_irq(&conf->resync_lock);
 
 		bio_pair_release(bp);
 		return 0;
@@ -1155,13 +1173,17 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 
 			disk_stack_limits(mddev->gendisk, rdev->bdev,
 					  rdev->data_offset << 9);
-			/* as we don't honour merge_bvec_fn, we must never risk
-			 * violating it, so limit ->max_sector to one PAGE, as
-			 * a one page request is never in violation.
+			/* as we don't honour merge_bvec_fn, we must
+			 * never risk violating it, so limit
+			 * ->max_phys_segments to one lying with a single
+			 * page, as a one page request is never in
+			 * violation.
 			 */
-			if (rdev->bdev->bd_disk->queue->merge_bvec_fn &&
-			    queue_max_sectors(mddev->queue) > (PAGE_SIZE>>9))
-				blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
+			if (rdev->bdev->bd_disk->queue->merge_bvec_fn) {
+				blk_queue_max_phys_segments(mddev->queue, 1);
+				blk_queue_segment_boundary(mddev->queue,
+							   PAGE_CACHE_SIZE - 1);
+			}
 
 			p->head_position = 0;
 			rdev->raid_disk = mirror;
@@ -2155,12 +2177,14 @@ static int run(mddev_t *mddev)
 		disk_stack_limits(mddev->gendisk, rdev->bdev,
 				  rdev->data_offset << 9);
 		/* as we don't honour merge_bvec_fn, we must never risk
-		 * violating it, so limit ->max_sector to one PAGE, as
-		 * a one page request is never in violation.
+		 * violating it, so limit max_phys_segments to 1 lying
+		 * within a single page.
 		 */
-		if (rdev->bdev->bd_disk->queue->merge_bvec_fn &&
-		    queue_max_sectors(mddev->queue) > (PAGE_SIZE>>9))
-			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
+		if (rdev->bdev->bd_disk->queue->merge_bvec_fn) {
+			blk_queue_max_phys_segments(mddev->queue, 1);
+			blk_queue_segment_boundary(mddev->queue,
+						   PAGE_CACHE_SIZE - 1);
+		}
 
 		disk->head_position = 0;
 	}

@@ -717,17 +717,18 @@ gss_pipe_release(struct inode *inode)
 	struct rpc_inode *rpci = RPC_I(inode);
 	struct gss_upcall_msg *gss_msg;
 
+restart:
 	spin_lock(&inode->i_lock);
-	while (!list_empty(&rpci->in_downcall)) {
+	list_for_each_entry(gss_msg, &rpci->in_downcall, list) {
 
-		gss_msg = list_entry(rpci->in_downcall.next,
-				struct gss_upcall_msg, list);
+		if (!list_empty(&gss_msg->msg.list))
+			continue;
 		gss_msg->msg.errno = -EPIPE;
 		atomic_inc(&gss_msg->count);
 		__gss_unhash_msg(gss_msg);
 		spin_unlock(&inode->i_lock);
 		gss_release_msg(gss_msg);
-		spin_lock(&inode->i_lock);
+		goto restart;
 	}
 	spin_unlock(&inode->i_lock);
 
@@ -1273,9 +1274,8 @@ alloc_enc_pages(struct rpc_rqst *rqstp)
 	rqstp->rq_release_snd_buf = priv_release_snd_buf;
 	return 0;
 out_free:
-	for (i--; i >= 0; i--) {
-		__free_page(rqstp->rq_enc_pages[i]);
-	}
+	rqstp->rq_enc_pages_num = i;
+	priv_release_snd_buf(rqstp);
 out:
 	return -EAGAIN;
 }

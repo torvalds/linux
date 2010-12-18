@@ -404,39 +404,6 @@ struct platform_device rk29xx_device_spi1m = {
 	},
 };
 
-/* RK29 Camera :  ddl@rock-chips.com  */
-#ifdef CONFIG_VIDEO_RK29
-extern struct rk29camera_platform_data rk29_camera_platform_data;
-
-static struct resource rk29_camera_resource[] = {
-	[0] = {
-		.start = RK29_VIP_PHYS,
-		.end   = RK29_VIP_PHYS + RK29_VIP_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = IRQ_VIP,
-		.end   = IRQ_VIP,
-		.flags = IORESOURCE_IRQ,
-	}
-};
-
-static u64 rockchip_device_camera_dmamask = 0xffffffffUL;
-
-/*platform_device : */
-struct platform_device rk29_device_camera = {
-	.name		  = RK29_CAM_DRV_NAME,
-	.id		  = RK29_CAM_PLATFORM_DEV_ID,               /* This is used to put cameras on this interface */
-	.num_resources	  = ARRAY_SIZE(rk29_camera_resource),
-	.resource	  = rk29_camera_resource,
-	.dev            = {
-		.dma_mask = &rockchip_device_camera_dmamask,
-		.coherent_dma_mask = 0xffffffffUL,
-		.platform_data  = &rk29_camera_platform_data,
-	}
-};
-#endif
-
 #if defined(CONFIG_MTD_NAND_RK29XX)  
 static struct resource rk29xxnand_resources[] = {
 	{
@@ -541,9 +508,34 @@ struct platform_device rk29_device_iis_8ch = {
         .resource       = rk29_iis_8ch_resource,
 };
 #endif
-#ifdef CONFIG_DWC_OTG
+#ifdef CONFIG_RK29_IPP
+/* rk29 ipp resource */
+static struct resource rk29_ipp_resource[] = {
+	[0] = {
+		.start = RK29_IPP_PHYS,
+		.end   = RK29_IPP_PHYS + RK29_IPP_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_IPP,
+		.end   = IRQ_IPP,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+/*platform_device*/
+//extern struct rk29ipp_info rk29_ipp_info;
+struct platform_device rk29_device_ipp = {
+	.name		  = "rk29-ipp",
+	.id		  = -1,
+	.num_resources	  = ARRAY_SIZE(rk29_ipp_resource),
+	.resource	  = rk29_ipp_resource,
+};
+#endif
+
+#ifdef CONFIG_USB20_OTG
 /*DWC_OTG*/
-static struct resource dwc_otg_resource[] = {
+static struct resource usb20_otg_resource[] = {
 	{
 		.start = IRQ_USB_OTG0,
 		.end   = IRQ_USB_OTG0,
@@ -557,12 +549,14 @@ static struct resource dwc_otg_resource[] = {
 
 };
 
-struct platform_device rk29_device_dwc_otg = {
-	.name		  = "dwc_otg",
+struct platform_device rk29_device_usb20_otg = {
+	.name		  = "usb20_otg",
 	.id		  = -1,
-	.num_resources	  = ARRAY_SIZE(dwc_otg_resource),
-	.resource	  = dwc_otg_resource,
+	.num_resources	  = ARRAY_SIZE(usb20_otg_resource),
+	.resource	  = usb20_otg_resource,
 };
+#endif
+#ifdef CONFIG_USB_ANDROID
 
 static char *usb_functions_rockchip[] = {
 	"usb_mass_storage",
@@ -615,7 +609,7 @@ static struct android_usb_product usb_products[] = {
 		.functions	= usb_functions_rockchip,
 	},
 	{
-		.product_id	= 0x4e12,
+		.product_id	= 0x2810,//0x0c02,//0x4e12,
 		.num_functions	= ARRAY_SIZE(usb_functions_rockchip_adb),
 		.functions	= usb_functions_rockchip_adb,
 	},
@@ -637,7 +631,10 @@ static struct android_usb_product usb_products[] = {
 	},
 #endif
 };
-
+/*
+ * if anyone want to use adb driver of HTC G1,
+ * please change vendor_id to 0x0bb4 and product_id to 0x0c02.
+ */
 static struct android_usb_platform_data android_usb_pdata = {
 	.vendor_id	= 0x2207,//0x0bb4,//0x18d1,
 	.product_id	= 0x2810,//0x4e11,
@@ -659,6 +656,14 @@ struct platform_device android_usb_device = {
 	},
 };
 
+/********************usb*********************/
+struct usb_mass_storage_platform_data mass_storage_pdata = {
+	.nluns		= 1,
+	.vendor		= "RockChip",
+	.product	= "rk29 sdk",
+	.release	= 0x0100,
+};
+
 //static 
 struct platform_device usb_mass_storage_device = {
 	.name	= "usb_mass_storage",
@@ -668,3 +673,48 @@ struct platform_device usb_mass_storage_device = {
 	},
 };
 #endif
+#ifdef CONFIG_USB11_HOST
+static struct resource usb11_host_resource[] = {
+    {
+        .start = IRQ_USB_HOST,
+        .end   = IRQ_USB_HOST,
+        .flags = IORESOURCE_IRQ,
+    },
+    {
+        .start = RK29_USBHOST_PHYS,
+        .end   = RK29_USBHOST_PHYS + RK29_USBHOST_SIZE - 1,
+        .flags = IORESOURCE_MEM,
+    },
+
+};
+
+struct platform_device rk29_device_usb11_host = {
+    .name             = "usb11_host",
+    .id               = -1,
+    .num_resources    = ARRAY_SIZE(usb11_host_resource),
+    .resource         = usb11_host_resource,
+};
+#endif
+#ifdef CONFIG_USB20_HOST
+static struct resource usb20_host_resource[] = {
+    {
+        .start = IRQ_USB_OTG1,
+        .end   = IRQ_USB_OTG1,
+        .flags = IORESOURCE_IRQ,
+    },
+    {
+        .start = RK29_USBOTG1_PHYS,
+        .end   = RK29_USBOTG1_PHYS + RK29_USBOTG1_SIZE - 1,
+        .flags = IORESOURCE_MEM,
+    },
+
+};
+
+struct platform_device rk29_device_usb20_host = {
+    .name             = "usb20_host",
+    .id               = -1,
+    .num_resources    = ARRAY_SIZE(usb20_host_resource),
+    .resource         = usb20_host_resource,
+};
+#endif
+

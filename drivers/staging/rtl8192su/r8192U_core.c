@@ -112,20 +112,25 @@ u32 rt_global_debug_component = \
 
 static struct usb_device_id rtl8192_usb_id_tbl[] = {
 	/* Realtek */
+	{USB_DEVICE(0x0bda, 0x8171)},
 	{USB_DEVICE(0x0bda, 0x8192)},
 	{USB_DEVICE(0x0bda, 0x8709)},
 	/* Corega */
 	{USB_DEVICE(0x07aa, 0x0043)},
 	/* Belkin */
 	{USB_DEVICE(0x050d, 0x805E)},
+	{USB_DEVICE(0x050d, 0x815F)}, /* Belkin F5D8053 v6 */
 	/* Sitecom */
 	{USB_DEVICE(0x0df6, 0x0031)},
+	{USB_DEVICE(0x0df6, 0x004b)},	/* WL-349 */
 	/* EnGenius */
 	{USB_DEVICE(0x1740, 0x9201)},
 	/* Dlink */
 	{USB_DEVICE(0x2001, 0x3301)},
 	/* Zinwell */
 	{USB_DEVICE(0x5a57, 0x0290)},
+	/* Guillemot */
+	{USB_DEVICE(0x06f8, 0xe031)},
 	//92SU
 	{USB_DEVICE(0x0bda, 0x8172)},
 	{}

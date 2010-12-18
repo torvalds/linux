@@ -214,7 +214,7 @@
 #define   I830_FENCE_SIZE_BITS(size)	((ffs((size) >> 19) - 1) << 8)
 #define   I830_FENCE_PITCH_SHIFT	4
 #define   I830_FENCE_REG_VALID		(1<<0)
-#define   I915_FENCE_MAX_PITCH_VAL	0x10
+#define   I915_FENCE_MAX_PITCH_VAL	4
 #define   I830_FENCE_MAX_PITCH_VAL	6
 #define   I830_FENCE_MAX_SIZE_VAL	(1<<8)
 
@@ -307,6 +307,70 @@
 #define LM_BURST_LENGTH     0x00000700
 #define LM_FIFO_WATERMARK   0x0000001F
 #define MI_ARB_STATE	0x020e4 /* 915+ only */
+#define   MI_ARB_MASK_SHIFT	  16	/* shift for enable bits */
+
+/* Make render/texture TLB fetches lower priorty than associated data
+ *   fetches. This is not turned on by default
+ */
+#define   MI_ARB_RENDER_TLB_LOW_PRIORITY	(1 << 15)
+
+/* Isoch request wait on GTT enable (Display A/B/C streams).
+ * Make isoch requests stall on the TLB update. May cause
+ * display underruns (test mode only)
+ */
+#define   MI_ARB_ISOCH_WAIT_GTT			(1 << 14)
+
+/* Block grant count for isoch requests when block count is
+ * set to a finite value.
+ */
+#define   MI_ARB_BLOCK_GRANT_MASK		(3 << 12)
+#define   MI_ARB_BLOCK_GRANT_8			(0 << 12)	/* for 3 display planes */
+#define   MI_ARB_BLOCK_GRANT_4			(1 << 12)	/* for 2 display planes */
+#define   MI_ARB_BLOCK_GRANT_2			(2 << 12)	/* for 1 display plane */
+#define   MI_ARB_BLOCK_GRANT_0			(3 << 12)	/* don't use */
+
+/* Enable render writes to complete in C2/C3/C4 power states.
+ * If this isn't enabled, render writes are prevented in low
+ * power states. That seems bad to me.
+ */
+#define   MI_ARB_C3_LP_WRITE_ENABLE		(1 << 11)
+
+/* This acknowledges an async flip immediately instead
+ * of waiting for 2TLB fetches.
+ */
+#define   MI_ARB_ASYNC_FLIP_ACK_IMMEDIATE	(1 << 10)
+
+/* Enables non-sequential data reads through arbiter
+ */
+#define   MI_ARB_DUAL_DATA_PHASE_DISABLE       	(1 << 9)
+
+/* Disable FSB snooping of cacheable write cycles from binner/render
+ * command stream
+ */
+#define   MI_ARB_CACHE_SNOOP_DISABLE		(1 << 8)
+
+/* Arbiter time slice for non-isoch streams */
+#define   MI_ARB_TIME_SLICE_MASK		(7 << 5)
+#define   MI_ARB_TIME_SLICE_1			(0 << 5)
+#define   MI_ARB_TIME_SLICE_2			(1 << 5)
+#define   MI_ARB_TIME_SLICE_4			(2 << 5)
+#define   MI_ARB_TIME_SLICE_6			(3 << 5)
+#define   MI_ARB_TIME_SLICE_8			(4 << 5)
+#define   MI_ARB_TIME_SLICE_10			(5 << 5)
+#define   MI_ARB_TIME_SLICE_14			(6 << 5)
+#define   MI_ARB_TIME_SLICE_16			(7 << 5)
+
+/* Low priority grace period page size */
+#define   MI_ARB_LOW_PRIORITY_GRACE_4KB		(0 << 4)	/* default */
+#define   MI_ARB_LOW_PRIORITY_GRACE_8KB		(1 << 4)
+
+/* Disable display A/B trickle feed */
+#define   MI_ARB_DISPLAY_TRICKLE_FEED_DISABLE	(1 << 2)
+
+/* Set display plane priority */
+#define   MI_ARB_DISPLAY_PRIORITY_A_B		(0 << 0)	/* display A > display B */
+#define   MI_ARB_DISPLAY_PRIORITY_B_A		(1 << 0)	/* display B > display A */
+
 #define CACHE_MODE_0	0x02120 /* 915+ only */
 #define   CM0_MASK_SHIFT          16
 #define   CM0_IZ_OPT_DISABLE      (1<<6)

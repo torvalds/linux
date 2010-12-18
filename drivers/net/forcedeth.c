@@ -5900,7 +5900,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	/* Limit the number of tx's outstanding for hw bug */
 	if (id->driver_data & DEV_NEED_TX_LIMIT) {
 		np->tx_limit = 1;
-		if ((id->driver_data & DEV_NEED_TX_LIMIT2) &&
+		if (((id->driver_data & DEV_NEED_TX_LIMIT2) == DEV_NEED_TX_LIMIT2) &&
 		    pci_dev->revision >= 0xA2)
 			np->tx_limit = 0;
 	}

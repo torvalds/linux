@@ -696,7 +696,7 @@ static ssize_t rd_reg_test_show( struct device *_dev,
 	int start_jiffies;
         dwc_otg_device_t *otg_dev = _dev->platform_data;
 
-	printk("HZ %d, MSEC_PER_JIFFIE %d, loops_per_jiffy %lu\n",
+	DWC_PRINT("HZ %d, MSEC_PER_JIFFIE %d, loops_per_jiffy %lu\n",
 	       HZ, MSEC_PER_JIFFIE, loops_per_jiffy);
 	start_jiffies = jiffies;
 	for (i = 0; i < RW_REG_COUNT; i++) {
@@ -722,7 +722,7 @@ static ssize_t wr_reg_test_show( struct device *_dev,
         dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t reg_val;
 
-	printk("HZ %d, MSEC_PER_JIFFIE %d, loops_per_jiffy %lu\n",
+	DWC_PRINT("HZ %d, MSEC_PER_JIFFIE %d, loops_per_jiffy %lu\n",
 	       HZ, MSEC_PER_JIFFIE, loops_per_jiffy);
 	reg_val = dwc_read_reg32(&otg_dev->core_if->core_global_regs->gnptxfsiz);
 	start_jiffies = jiffies;
@@ -757,7 +757,7 @@ static ssize_t debug_store( struct device *_dev,
    	return count;
 }
 
-DEVICE_ATTR(step, S_IRUGO|S_IWUSR, debug_show, debug_store);
+DEVICE_ATTR(debug, S_IRUGO|S_IWUSR, debug_show, debug_store);
 /**@}*/
 
 /**
@@ -794,7 +794,7 @@ void dwc_otg_attr_create (struct device *dev)
 	error |= device_create_file(dev, &dev_attr_hcd_frrem);
 	error |= device_create_file(dev, &dev_attr_rd_reg_test);
 	error |= device_create_file(dev, &dev_attr_wr_reg_test);
-	error |= device_create_file(dev, &dev_attr_step);
+	error |= device_create_file(dev, &dev_attr_debug);
 	if (error)
 		pr_err("DWC_OTG: Creating some device files failed\n");
 }
@@ -832,5 +832,5 @@ void dwc_otg_attr_remove (struct device *dev)
 	device_remove_file(dev, &dev_attr_hcd_frrem);
 	device_remove_file(dev, &dev_attr_rd_reg_test);
 	device_remove_file(dev, &dev_attr_wr_reg_test);
-	device_remove_file(dev, &dev_attr_step);
+	device_remove_file(dev, &dev_attr_debug);
 }

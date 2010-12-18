@@ -1286,6 +1286,7 @@ static int lm85_probe(struct i2c_client *client,
 	switch (data->type) {
 	case adm1027:
 	case adt7463:
+	case adt7468:
 	case emc6d100:
 	case emc6d102:
 		data->freq_map = adm1027_freq_map;

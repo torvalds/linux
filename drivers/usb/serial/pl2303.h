@@ -127,6 +127,10 @@
 #define CRESSI_VENDOR_ID	0x04b8
 #define CRESSI_EDY_PRODUCT_ID	0x0521
 
+/* Zeagle dive computer interface */
+#define ZEAGLE_VENDOR_ID	0x04b8
+#define ZEAGLE_N2ITION3_PRODUCT_ID	0x0522
+
 /* Sony, USB data cable for CMD-Jxx mobile phones */
 #define SONY_VENDOR_ID		0x054c
 #define SONY_QN3USB_PRODUCT_ID	0x0437

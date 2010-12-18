@@ -66,7 +66,7 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
     
     if(core_if->op_state == B_PERIPHERAL)
     {
-    	printk("%s, usb device mode\n", __func__);
+    	DWC_PRINT("%s, usb device mode\n", __func__);
     	return 0;
     }
     hprt0.d32 = dwc_read_reg32(core_if->host_if->hprt0);
@@ -115,7 +115,7 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
 	
     if(core_if->op_state == B_PERIPHERAL)
     {
-    	printk("%s, usb device mode\n", __func__);
+    	DWC_PRINT("%s, usb device mode\n", __func__);
     	return 0;
     }
 #if 1
@@ -204,10 +204,48 @@ static const struct hc_driver dwc_otg_hc_driver = {
 	//.hub_resume =		
 };
 
-#ifdef CONFIG_RK2818_HOST11
-static const struct hc_driver rk28_host11_hc_driver = {
+#ifdef CONFIG_USB11_HOST
+static const struct hc_driver host11_hc_driver = {
 
-	.description =		"rk28_host11_hcd",
+	.description =		"host11_hcd",
+	.product_desc = 	"DWC OTG Controller",
+	.hcd_priv_size = 	sizeof(dwc_otg_hcd_t),
+
+	.irq =			dwc_otg_hcd_irq,
+
+	.flags =		HCD_MEMORY | HCD_USB2,
+
+	//.reset =
+	.start =		dwc_otg_hcd_start,
+	//.suspend =	
+	//.resume =	
+	
+	/* yk@rk 20100625
+	 * core/hcd.c call hcd->driver->bus_suspend
+	 * otherwise system can not be suspended
+	 */
+#ifdef CONFIG_PM
+	.bus_suspend =		dwc_otg_hcd_suspend,
+	.bus_resume =		dwc_otg_hcd_resume,
+#endif
+	.stop =			dwc_otg_hcd_stop,
+
+	.urb_enqueue =		dwc_otg_hcd_urb_enqueue,
+	.urb_dequeue =		dwc_otg_hcd_urb_dequeue,
+	.endpoint_disable =	dwc_otg_hcd_endpoint_disable,
+
+	.get_frame_number =	dwc_otg_hcd_get_frame_number,
+
+	.hub_status_data =	dwc_otg_hcd_hub_status_data,
+	.hub_control =		dwc_otg_hcd_hub_control,
+	//.hub_suspend =	
+	//.hub_resume =		
+};
+#endif
+#ifdef CONFIG_USB20_HOST
+static const struct hc_driver host20_hc_driver = {
+
+	.description =		"host20_hcd",
 	.product_desc = 	"DWC OTG Controller",
 	.hcd_priv_size = 	sizeof(dwc_otg_hcd_t),
 
@@ -247,7 +285,6 @@ static const struct hc_driver rk28_host11_hc_driver = {
  * Work queue function for starting the HCD when A-Cable is connected.
  * The dwc_otg_hcd_start() must be called in a process context.
  */
-// cmy
 static void hcd_start_func(struct work_struct *work)
 {
     dwc_otg_hcd_t *dwc_otg_hcd = container_of(work, dwc_otg_hcd_t, start_work);
@@ -381,7 +418,7 @@ static int32_t dwc_otg_hcd_disconnect_cb( void *_p )
         /* 
          * Set status flags for the hub driver.
          */
-     printk("dwc_otg_hcd_disconnect_cb");
+//     DWC_PRINT("dwc_otg_hcd_disconnect_cb");
         dwc_otg_hcd->flags.b.port_connect_status_change = 1;
 	dwc_otg_hcd->flags.b.port_connect_status = 0;
 
@@ -572,20 +609,16 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 	/* Set device flags indicating whether the HCD supports DMA. */
 	static u64 usb_dmamask = 0xffffffffUL;
 	if (otg_dev->core_if->dma_enable) {
-//		DWC_PRINT("Using DMA mode\n");
 		dev->dma_mask = &usb_dmamask;
 		dev->coherent_dma_mask = ~0;
 	} else {
-//		DWC_PRINT("Using Slave mode\n");
 		dev->dma_mask = (void *)0;
 		dev->coherent_dma_mask = 0;
 	}
 #endif
-	printk("dwc_otg_hcd_init everest\n");
+	DWC_PRINT("dwc_otg_hcd_init everest\n");
 //	g_dbg_lvl = 0xff;
 	
-	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD INIT\n");
-
 	/*
 	 * Allocate memory for the base HCD plus the DWC OTG HCD.
 	 * Initialize the base HCD.
@@ -696,12 +729,12 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 	usb_put_hcd(hcd);
 
  error1:
- 	printk("dwc_otg_hcd_init error,everest\n");
+ 	DWC_PRINT("dwc_otg_hcd_init error,everest\n");
 	return retval;
 }
 
-#ifdef CONFIG_RK2818_HOST11
-static dwc_otg_cil_callbacks_t rk28_host11_cil_callbacks = {
+#ifdef CONFIG_USB11_HOST
+static dwc_otg_cil_callbacks_t host11_cil_callbacks = {
         .start = dwc_otg_hcd_start_cb,
         .stop = dwc_otg_hcd_stop_cb,
         .disconnect = dwc_otg_hcd_disconnect_cb,
@@ -709,7 +742,7 @@ static dwc_otg_cil_callbacks_t rk28_host11_cil_callbacks = {
         .p = 0,//hcd
 };
 
-static struct tasklet_struct rk28_host11_reset_tasklet = { 
+static struct tasklet_struct host11_reset_tasklet = { 
 	.next = NULL,
 	.state = 0,
 	.count = ATOMIC_INIT(0),
@@ -717,7 +750,7 @@ static struct tasklet_struct rk28_host11_reset_tasklet = {
 	.data = 0,
 };
 
-int __devinit rk28_host11_hcd_init(struct device *dev)
+int __devinit host11_hcd_init(struct device *dev)
 {
 	struct usb_hcd *hcd = NULL;
 	dwc_otg_hcd_t *dwc_otg_hcd = NULL;
@@ -741,7 +774,7 @@ int __devinit rk28_host11_hcd_init(struct device *dev)
 		dev->coherent_dma_mask = 0;
 	}
 #endif
-	printk("%s everest\n",__func__);
+	DWC_PRINT("%s everest\n",__func__);
 //	g_dbg_lvl = 0xff;
 	
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD INIT\n");
@@ -750,7 +783,7 @@ int __devinit rk28_host11_hcd_init(struct device *dev)
 	 * Allocate memory for the base HCD plus the DWC OTG HCD.
 	 * Initialize the base HCD.
 	 */
-	hcd = usb_create_hcd(&rk28_host11_hc_driver, dev, dev_name(dev));
+	hcd = usb_create_hcd(&host11_hc_driver, dev, dev_name(dev));
 	if (hcd == NULL) {
 		retval = -ENOMEM;
 		goto error1;
@@ -768,7 +801,7 @@ int __devinit rk28_host11_hcd_init(struct device *dev)
 
         /* Register the HCD CIL Callbacks */
         dwc_otg_cil_register_hcd_callbacks(otg_dev->core_if, 
-					   &rk28_host11_cil_callbacks, hcd);
+					   &host11_cil_callbacks, hcd);
 
 	/* Initialize the non-periodic schedule. */
 	INIT_LIST_HEAD(&dwc_otg_hcd->non_periodic_sched_inactive);
@@ -807,8 +840,8 @@ int __devinit rk28_host11_hcd_init(struct device *dev)
         init_timer( &dwc_otg_hcd->conn_timer );
 
 	/* Initialize reset tasklet. */
-	rk28_host11_reset_tasklet.data = (unsigned long) dwc_otg_hcd;
-	dwc_otg_hcd->reset_tasklet = &rk28_host11_reset_tasklet;
+	host11_reset_tasklet.data = (unsigned long) dwc_otg_hcd;
+	dwc_otg_hcd->reset_tasklet = &host11_reset_tasklet;
 	/*
 	 * Finish generic HCD initialization and start the HCD. This function
 	 * allocates the DMA buffer pool, registers the USB bus, requests the
@@ -856,10 +889,171 @@ int __devinit rk28_host11_hcd_init(struct device *dev)
 	usb_put_hcd(hcd);
 
  error1:
- 	printk("dwc_otg_hcd_init error,everest\n");
+ 	DWC_PRINT("dwc_otg_hcd_init error,everest\n");
 	return retval;
 }
 #endif
+#ifdef CONFIG_USB20_HOST
+static dwc_otg_cil_callbacks_t host20_cil_callbacks = {
+        .start = dwc_otg_hcd_start_cb,
+        .stop = dwc_otg_hcd_stop_cb,
+        .disconnect = dwc_otg_hcd_disconnect_cb,
+        .session_start = dwc_otg_hcd_session_start_cb,
+        .p = 0,//hcd
+};
+
+static struct tasklet_struct host20_reset_tasklet = { 
+	.next = NULL,
+	.state = 0,
+	.count = ATOMIC_INIT(0),
+	.func = reset_tasklet_func,
+	.data = 0,
+};
+
+int __devinit host20_hcd_init(struct device *dev)
+{
+	struct usb_hcd *hcd = NULL;
+	dwc_otg_hcd_t *dwc_otg_hcd = NULL;
+    dwc_otg_device_t *otg_dev = dev->platform_data;
+
+	int 		num_channels;
+	int 		i;
+	dwc_hc_t	*channel;
+
+	int retval = 0;
+#if 1  //kaiker .these code must execute before usb_create_hcd
+	/* Set device flags indicating whether the HCD supports DMA. */
+	static u64 usb_dmamask = 0xffffffffUL;
+	if (otg_dev->core_if->dma_enable) {
+//		DWC_PRINT("Using DMA mode\n");
+		dev->dma_mask = &usb_dmamask;
+		dev->coherent_dma_mask = ~0;
+	} else {
+//		DWC_PRINT("Using Slave mode\n");
+		dev->dma_mask = (void *)0;
+		dev->coherent_dma_mask = 0;
+	}
+#endif
+	DWC_PRINT("%s everest\n",__func__);
+//	g_dbg_lvl = 0xff;
+	
+	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD INIT\n");
+
+	/*
+	 * Allocate memory for the base HCD plus the DWC OTG HCD.
+	 * Initialize the base HCD.
+	 */
+	hcd = usb_create_hcd(&host20_hc_driver, dev, dev_name(dev));
+	if (hcd == NULL) {
+		retval = -ENOMEM;
+		goto error1;
+	}
+	hcd->regs = otg_dev->base;
+	hcd->self.otg_port = 1;	 
+
+	/* Initialize the DWC OTG HCD. */
+	dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
+	dwc_otg_hcd->core_if = otg_dev->core_if;
+	otg_dev->hcd = dwc_otg_hcd;
+
+	spin_lock_init(&dwc_otg_hcd->global_lock);
+
+
+        /* Register the HCD CIL Callbacks */
+        dwc_otg_cil_register_hcd_callbacks(otg_dev->core_if, 
+					   &host20_cil_callbacks, hcd);
+
+	/* Initialize the non-periodic schedule. */
+	INIT_LIST_HEAD(&dwc_otg_hcd->non_periodic_sched_inactive);
+	INIT_LIST_HEAD(&dwc_otg_hcd->non_periodic_sched_active);
+
+	/* Initialize the periodic schedule. */
+	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_inactive);
+	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_ready);
+	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_assigned);
+	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_queued);
+
+	/*
+	 * Create a host channel descriptor for each host channel implemented
+	 * in the controller. Initialize the channel descriptor array.
+	 */
+	INIT_LIST_HEAD(&dwc_otg_hcd->free_hc_list);
+	num_channels = dwc_otg_hcd->core_if->core_params->host_channels;
+	for (i = 0; i < num_channels; i++) {
+		channel = kmalloc(sizeof(dwc_hc_t), GFP_KERNEL);
+		if (channel == NULL) {
+			retval = -ENOMEM;
+			DWC_ERROR("%s: host channel allocation failed\n", __func__);
+			goto error2;
+		}
+		memset(channel, 0, sizeof(dwc_hc_t));
+		channel->hc_num = i;
+		dwc_otg_hcd->hc_ptr_array[i] = channel;
+#ifdef DEBUG
+		init_timer(&dwc_otg_hcd->core_if->hc_xfer_timer[i]);
+#endif		
+
+		DWC_DEBUGPL(DBG_HCDV, "HCD Added channel #%d, hc=%p\n", i, channel);
+	}
+	
+        /* Initialize the Connection timeout timer. */
+        init_timer( &dwc_otg_hcd->conn_timer );
+
+	/* Initialize reset tasklet. */
+	host20_reset_tasklet.data = (unsigned long) dwc_otg_hcd;
+	dwc_otg_hcd->reset_tasklet = &host20_reset_tasklet;
+	/*
+	 * Finish generic HCD initialization and start the HCD. This function
+	 * allocates the DMA buffer pool, registers the USB bus, requests the
+	 * IRQ line, and calls dwc_otg_hcd_start method.
+	 */
+	retval = usb_add_hcd(hcd, platform_get_irq(to_platform_device(dev), 0), 
+					IRQF_SHARED);
+	if (retval < 0) {
+		DWC_ERROR("usb_add_hcd fail,everest\n");
+		goto error2;
+	}
+	/*
+	 * Allocate space for storing data on status transactions. Normally no
+	 * data is sent, but this space acts as a bit bucket. This must be
+	 * done after usb_add_hcd since that function allocates the DMA buffer
+	 * pool.
+	 */
+	if (otg_dev->core_if->dma_enable) {
+		dwc_otg_hcd->status_buf =
+			dma_alloc_coherent(dev,
+					   DWC_OTG_HCD_STATUS_BUF_SIZE,
+					   &dwc_otg_hcd->status_buf_dma,
+					   GFP_KERNEL | GFP_DMA);
+	} else {
+		dwc_otg_hcd->status_buf = kmalloc(DWC_OTG_HCD_STATUS_BUF_SIZE,
+						  GFP_KERNEL);
+	}
+	if (dwc_otg_hcd->status_buf == NULL) {
+		retval = -ENOMEM;
+		DWC_ERROR("%s: status_buf allocation failed\n", __func__);
+		goto error3;
+	}
+
+	DWC_PRINT("%s end,everest\n",__func__);
+//	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD Initialized HCD, bus=%s, usbbus=%d\n", 
+//		    dev->bus_id, hcd->self.busnum);
+        
+	return 0;
+
+	/* Error conditions */
+ error3:
+	usb_remove_hcd(hcd);
+ error2:
+	dwc_otg_hcd_free(hcd);
+	usb_put_hcd(hcd);
+
+ error1:
+ 	DWC_PRINT("dwc_otg_hcd_init error,everest\n");
+	return retval;
+}
+#endif
+
 /**
  * Removes the HCD.
  * Frees memory and resources associated with the HCD and deregisters the bus.
@@ -934,32 +1128,11 @@ int dwc_otg_hcd_start(struct usb_hcd *_hcd)
     dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
 	unsigned long flags;
 	
-  	struct usb_device *udev;
   	struct usb_bus *bus;
 
 	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD START\n");
 	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
-#if 0
-	unsigned int regvalue;
-	printk("__________________________________________________________________\n");
-	regvalue = dwc_read_reg32(&dwc_otg_hcd->core_if->core_global_regs->gotgctl);
-	printk("gotgctl is %08x\n",regvalue);
-        regvalue = dwc_read_reg32(&dwc_otg_hcd->core_if->core_global_regs->gotgint);
-        printk("gotgint is %08x\n",regvalue);
-        regvalue = dwc_read_reg32(&dwc_otg_hcd->core_if->core_global_regs->gahbcfg);
-        printk("gahbcfg is %08x\n",regvalue);
-        regvalue = dwc_read_reg32(&dwc_otg_hcd->core_if->core_global_regs->gusbcfg);
-        printk("gusbcfg is %08x\n",regvalue);
-        regvalue = dwc_read_reg32(&dwc_otg_hcd->core_if->core_global_regs->grstctl);
-        printk("grstctl is %08x\n",regvalue);
-        regvalue = dwc_read_reg32(&dwc_otg_hcd->core_if->core_global_regs->gintsts);
-        printk("gintsts is %08x\n",regvalue);
-        regvalue = dwc_read_reg32(&dwc_otg_hcd->core_if->core_global_regs->gintmsk);
-        printk("gintmsk is %08x\n",regvalue);
-        regvalue = dwc_read_reg32(&dwc_otg_hcd->core_if->core_global_regs->gotgctl);
-        printk("gotgctl is %08x\n",regvalue);	
-	printk("__________________________________________________________________\n");
-#endif	
+
 	DWC_PRINT("dwc_otg_hcd_start! everest\n");
 	bus = hcd_to_bus(_hcd);
 	_hcd->state = HC_STATE_RUNNING;
@@ -971,13 +1144,17 @@ int dwc_otg_hcd_start(struct usb_hcd *_hcd)
 		usb_hcd_resume_root_hub(_hcd);
         }
 	else {
+	    /*
+	     * no use 
+	     * yk@rk 2010121
+  	    struct usb_device *udev;6
 		udev = usb_alloc_dev(NULL, bus, 0);
 		udev->speed = USB_SPEED_HIGH;
 		if (!udev) {
 			DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD Error udev alloc\n");
 			return -ENODEV;
 		}
-
+        */
 	    /* Not needed - VJ
 	       if ((retval = usb_hcd_register_root_hub(udev, _hcd)) != 0) {
    		   DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD Error registering %d\n", retval);
@@ -988,7 +1165,7 @@ int dwc_otg_hcd_start(struct usb_hcd *_hcd)
 	/* Initialize the bus state.  If the core is in Device Mode
 	 * HALT the USB bus and return. */
 	if (dwc_otg_is_device_mode (core_if)) {
-		printk("dwc_otg_hcd_start controller in device mode,everest\n");
+		DWC_PRINT("dwc_otg_hcd_start controller in device mode,everest\n");
 		//_hcd->state = HC_STATE_HALT;
 		goto out;
 	}
@@ -1110,7 +1287,6 @@ void dwc_otg_hcd_free(struct usb_hcd *_hcd)
 #ifdef DEBUG
 static void dump_urb_info(struct urb *_urb, char* _fn_name)
 {
-	DWC_PRINT("%s, urb %p,%x\n", _fn_name, _urb,_urb);
 	DWC_PRINT("  Device address: %d\n", usb_pipedevice(_urb->pipe));
 	DWC_PRINT("  Endpoint: %d, %s\n", usb_pipeendpoint(_urb->pipe),
 		  (usb_pipein(_urb->pipe) ? "IN" : "OUT"));
@@ -1219,7 +1395,7 @@ int dwc_otg_hcd_urb_enqueue(struct usb_hcd *_hcd,
 	retval = usb_hcd_link_urb_to_ep(_hcd, _urb);
 	if (retval)
 	{
-		printk("%s, usb_hcd_link_urb_to_ep error\n", __func__);
+		DWC_PRINT("%s, usb_hcd_link_urb_to_ep error\n", __func__);
 		return retval;
 	}
 	spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
@@ -1277,8 +1453,8 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
 	urb_qtd = (dwc_otg_qtd_t *) _urb->hcpriv;
 	if(_ep==NULL)
 	{
-		printk("%s=====================================================\n",__func__);
-		printk("urb->ep is null\n");
+		DWC_PRINT("%s=====================================================\n",__func__);
+		DWC_PRINT("urb->ep is null\n");
 		return -1;
 	}
 	qh = (dwc_otg_qh_t *) _ep->hcpriv;
@@ -1288,7 +1464,11 @@ int dwc_otg_hcd_urb_dequeue(struct usb_hcd *_hcd, struct urb *_urb, int _status)
 		spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
 		return retval;
 	}
-
+	if(urb_qtd == NULL)
+	{
+		DWC_PRINT("%s,urb_qtd is null\n",__func__);
+		//return -1;
+	}
 	dwc_otg_hcd = hcd_to_dwc_otg_hcd(_hcd);
 
 #ifdef DEBUG
@@ -2389,8 +2569,18 @@ static void assign_and_init_hc(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
 
 	if (urb->dev->speed == USB_SPEED_LOW) {
 		hc->speed = DWC_OTG_EP_SPEED_LOW;
+		/*
+		 * yk@rk 20101216 fix bandwidth check error when full/low speed
+		 * device connected.
+		 */
+        _hcd->core_if->core_params->speed = DWC_SPEED_PARAM_FULL;
 	} else if (urb->dev->speed == USB_SPEED_FULL) {
 		hc->speed = DWC_OTG_EP_SPEED_FULL;
+		/*
+		 * yk@rk 20101216 fix bandwidth check error when full/low speed
+		 * device connected. warning: only support 1 device at root hub.
+		 */
+        _hcd->core_if->core_params->speed = DWC_SPEED_PARAM_FULL;
 	} else {
 		hc->speed = DWC_OTG_EP_SPEED_HIGH;
 	}
@@ -2574,10 +2764,6 @@ dwc_otg_transaction_type_e dwc_otg_hcd_select_transactions(dwc_otg_hcd_t *_hcd)
 		num_channels - _hcd->periodic_channels) &&
 		*/
 	       !list_empty(&_hcd->free_hc_list)) {
-	       
-	    if((num_channels > 2)&&(_hcd->non_periodic_channels >=
-		num_channels - _hcd->periodic_channels))
-			break;
 
 		qh = list_entry(qh_ptr, dwc_otg_qh_t, qh_list_entry);
 		assign_and_init_hc(_hcd, qh);

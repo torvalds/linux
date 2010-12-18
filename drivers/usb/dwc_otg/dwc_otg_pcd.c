@@ -568,7 +568,7 @@ static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep,
 	/* 20091226,HSL@RK */
 	if ( !list_empty(&req->queue) ) 
 	{
-        printk("%s::ep %s req not empty,done it error!\n" , __func__, _ep->name);
+        DWC_PRINT("%s::ep %s req not empty,done it error!\n" , __func__, _ep->name);
 		return -EINVAL;
         while(!list_empty(&req->queue) ) {
                 ep = container_of(_ep, dwc_otg_pcd_ep_t, ep);
@@ -1526,7 +1526,7 @@ int dwc_pcd_reset(dwc_otg_pcd_t *pcd)
         //rockchip_scu_reset_unit(12);
         dwc_otg_pcd_reinit( pcd );
         dwc_otg_core_dev_init(core_if);
-        //printk("%s\n" , __func__ );
+        //DWC_PRINT("%s\n" , __func__ );
         dwc_otg_enable_global_interrupts( core_if );
         return 0;
 }
@@ -1589,7 +1589,7 @@ int dwc_otg_reset( void )
     dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
     dctl.b.sftdiscon = 1;
     dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
-    //printk("%s::otg reset connect!!!\n" , __func__ );
+    //DWC_PRINT("%s::otg reset connect!!!\n" , __func__ );
     return 0;
 }
 void dwc_otg_msc_lock(void)
@@ -1605,7 +1605,6 @@ void dwc_otg_msc_unlock(void)
 	android_unlock_suspend(&usb_msc_lock);
 #endif
 }
-extern int dwc_step;
 static void dwc_phy_reconnect(struct work_struct *work)
 {
         dwc_otg_pcd_t *pcd;
@@ -1618,23 +1617,17 @@ static void dwc_phy_reconnect(struct work_struct *work)
         gctrl.d32 = dwc_read_reg32( &core_if->core_global_regs->gotgctl );
         if( gctrl.b.bsesvld  ) {
             dwc_otg_msc_lock();
-            pcd->vbus_status = 1;    /* set after softconnect */
+//            pcd->vbus_status = 1;    /* set after softconnect */
             pcd->conn_status++;
 		   dwc_pcd_reset(pcd);
 		/*
 		 * Enable the global interrupt after all the interrupt
 		 * handlers are installed.
 		 */
-		#if 0
-		printk("debug while 1, please enter command to continue!\n");
-		dwc_step = 1;
-        while(dwc_step)
-            mdelay(5);
-        #endif
         dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
         dctl.b.sftdiscon = 0;
         dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );	   
-        printk("********soft connect!!!*****************************************\n");
+        DWC_PRINT("********soft connect!!!*****************************************\n");
         } 
 }
 
@@ -1654,19 +1647,24 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
     if( gctrl.b.bsesvld ) {
             /* if usb not connect before ,then start connect */
              if( _pcd->vbus_status == 0 ) {
-                    printk("********soft disconnect*****************************************\n");
+                    DWC_PRINT("********vbus detect*********************************************\n");
+//		    _pcd->conn_status =
+		    _pcd->vbus_status = 1;
                     /* soft disconnect */
 			        dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
 			        dctl.b.sftdiscon = 1;
 			        dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
                     /* Clear any pending interrupts */
                     dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF); 
-                    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
+                    if(_pcd->conn_en)
+		    {
+		    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
    		     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
+		    }
 
             } else if((_pcd->conn_status>0)&&(_pcd->conn_status <3)) {
                     dwc_otg_msc_unlock();
-                    printk("********soft reconnect******************************************\n");
+                    DWC_PRINT("********soft reconnect******************************************\n");
                     _pcd->vbus_status =0;
                     
                     /* soft disconnect */
@@ -1676,6 +1674,12 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
                     /* Clear any pending interrupts */
                     dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF); 
             }
+	    else if((_pcd->conn_en)&&(_pcd->conn_status == 0))
+	    {
+		
+		    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
+   		     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
+	    }
             else if(_pcd->conn_status ==3)
             {
 					//*连接不上时释放锁，允许系统进入二级睡眠，yk@rk,20100331*//
@@ -1683,7 +1687,7 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
                     _pcd->conn_status++;
             }
     } else {
-            //printk("new vbus=%d,old vbus=%d\n" , gctrl.b.bsesvld , _pcd->vbus_status );
+            //DWC_PRINT("new vbus=%d,old vbus=%d\n" , gctrl.b.bsesvld , _pcd->vbus_status );
             _pcd->vbus_status = 0;
             if(_pcd->conn_status)
             {
@@ -1702,7 +1706,7 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
                  
             }
     }
-    //printk("%s:restart check vbus timer\n" , __func__ );
+    //DWC_PRINT("%s:restart check vbus timer\n" , __func__ );
     add_timer(&_pcd->check_vbus_timer); 
 	local_irq_restore(flags);
 }
@@ -1726,6 +1730,8 @@ int dwc_vbus_status( void )
     dwc_otg_pcd_t *pcd = s_pcd;
     return pcd->vbus_status ;
 }
+EXPORT_SYMBOL(dwc_vbus_status);
+
 int dwc_otg_set_phy_status(uint8_t status)
 {
     dwc_otg_pcd_t *pcd = s_pcd;
@@ -1744,7 +1750,7 @@ int dwc_otg_pcd_init(struct device *dev)
     dwc_otg_core_if_t *core_if = otg_dev->core_if;
 	int retval = 0;
 	int irq;
-	printk("dwc_otg_pcd_init,everest\n");
+	DWC_PRINT("dwc_otg_pcd_init,everest\n");
 	 /*
 	 * Allocate PCD structure
 	 */
@@ -1772,7 +1778,11 @@ int dwc_otg_pcd_init(struct device *dev)
 	pcd->gadget.is_dualspeed = 0;
 	pcd->gadget.is_otg = 0;
 	pcd->driver = 0;
-	
+#ifdef CONFIG_DWC_CONN_EN
+    pcd->conn_en = 1;
+#else
+    pcd->conn_en = 0;
+#endif
 	/* Register the gadget device */
 	retval = device_register( &pcd->gadget.dev );
 	if(retval != 0)
@@ -1825,7 +1835,7 @@ int dwc_otg_pcd_init(struct device *dev)
 	
 	if (pcd->setup_pkt == 0) 
 	{
-		printk("pcd->setup_pkt alloc fail,everest\n");
+		DWC_PRINT("pcd->setup_pkt alloc fail,everest\n");
 		kfree (pcd);
 		return -ENOMEM;
 	}
@@ -1951,7 +1961,7 @@ EXPORT_SYMBOL(usb_gadget_register_driver);
  */
 int usb_gadget_unregister_driver(struct usb_gadget_driver *_driver)
 {
-	//DWC_DEBUGPL(DBG_PCDV,"%s(%p)\n", __func__, _driver);
+	DWC_DEBUGPL(DBG_PCDV,"%s(%p)\n", __func__, _driver);
 
 	if (s_pcd == 0) 
 	{
@@ -1974,18 +1984,4 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *_driver)
 	return 0;
 }
 EXPORT_SYMBOL(usb_gadget_unregister_driver);
-#else
-int rk28_usb_suspend( int exitsuspend )
-{
-	return 0;
-}
-int dwc_vbus_status( void )
-{
-	return 0;
-}
-int get_msc_connect_flag( void )
-{
-    return 0;
-}
-
 #endif /* DWC_HOST_ONLY */

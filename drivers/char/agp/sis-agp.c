@@ -415,14 +415,6 @@ static struct pci_device_id agp_sis_pci_table[] = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 	},
-	{
-		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
-		.class_mask	= ~0,
-		.vendor		= PCI_VENDOR_ID_SI,
-		.device		= PCI_DEVICE_ID_SI_760,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-	},
 	{ }
 };
 
