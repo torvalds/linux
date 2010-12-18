@@ -174,6 +174,12 @@ cifs_read_super(struct super_block *sb, void *data,
 		goto out_no_root;
 	}
 
+	/* do that *after* d_alloc_root() - we want NULL ->d_op for root here */
+	if (cifs_sb_master_tcon(cifs_sb)->nocase)
+		sb->s_d_op = &cifs_ci_dentry_ops;
+	else
+		sb->s_d_op = &cifs_dentry_ops;
+
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
 		cFYI(1, "export ops supported");
