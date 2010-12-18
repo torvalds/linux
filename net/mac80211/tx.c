@@ -1934,7 +1934,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 */
 	if (skb_shared(skb)) {
 		tmp_skb = skb;
-		skb = skb_copy(skb, GFP_ATOMIC);
+		skb = skb_clone(skb, GFP_ATOMIC);
 		kfree_skb(tmp_skb);
 
 		if (!skb) {
