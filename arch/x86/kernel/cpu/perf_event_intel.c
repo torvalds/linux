@@ -649,7 +649,7 @@ static void intel_pmu_enable_event(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 
 	if (unlikely(hwc->idx == X86_PMC_IDX_FIXED_BTS)) {
-		if (!__get_cpu_var(cpu_hw_events).enabled)
+		if (!__this_cpu_read(cpu_hw_events.enabled))
 			return;
 
 		intel_pmu_enable_bts(hwc->config);
@@ -679,7 +679,7 @@ static int intel_pmu_save_and_restart(struct perf_event *event)
 
 static void intel_pmu_reset(void)
 {
-	struct debug_store *ds = __get_cpu_var(cpu_hw_events).ds;
+	struct debug_store *ds = __this_cpu_read(cpu_hw_events.ds);
 	unsigned long flags;
 	int idx;
 

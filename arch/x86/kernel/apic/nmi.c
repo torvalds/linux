@@ -306,12 +306,12 @@ void acpi_nmi_disable(void)
  */
 void cpu_nmi_set_wd_enabled(void)
 {
-	__get_cpu_var(wd_enabled) = 1;
+	__this_cpu_write(wd_enabled, 1);
 }
 
 void setup_apic_nmi_watchdog(void *unused)
 {
-	if (__get_cpu_var(wd_enabled))
+	if (__this_cpu_read(wd_enabled))
 		return;
 
 	/* cheap hack to support suspend/resume */
@@ -322,12 +322,12 @@ void setup_apic_nmi_watchdog(void *unused)
 	switch (nmi_watchdog) {
 	case NMI_LOCAL_APIC:
 		if (lapic_watchdog_init(nmi_hz) < 0) {
-			__get_cpu_var(wd_enabled) = 0;
+			__this_cpu_write(wd_enabled, 0);
 			return;
 		}
 		/* FALL THROUGH */
 	case NMI_IO_APIC:
-		__get_cpu_var(wd_enabled) = 1;
+		__this_cpu_write(wd_enabled, 1);
 		atomic_inc(&nmi_active);
 	}
 }
@@ -337,13 +337,13 @@ void stop_apic_nmi_watchdog(void *unused)
 	/* only support LOCAL and IO APICs for now */
 	if (!nmi_watchdog_active())
 		return;
-	if (__get_cpu_var(wd_enabled) == 0)
+	if (__this_cpu_read(wd_enabled) == 0)
 		return;
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		lapic_watchdog_stop();
 	else
 		__acpi_nmi_disable(NULL);
-	__get_cpu_var(wd_enabled) = 0;
+	__this_cpu_write(wd_enabled, 0);
 	atomic_dec(&nmi_active);
 }
 
@@ -403,8 +403,8 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 
 	sum = get_timer_irqs(cpu);
 
-	if (__get_cpu_var(nmi_touch)) {
-		__get_cpu_var(nmi_touch) = 0;
+	if (__this_cpu_read(nmi_touch)) {
+		__this_cpu_write(nmi_touch, 0);
 		touched = 1;
 	}
 
@@ -427,7 +427,7 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 		touched = 1;
 
 	/* if the none of the timers isn't firing, this cpu isn't doing much */
-	if (!touched && __get_cpu_var(last_irq_sum) == sum) {
+	if (!touched && __this_cpu_read(last_irq_sum) == sum) {
 		/*
 		 * Ayiee, looks like this CPU is stuck ...
 		 * wait a few IRQs (5 seconds) before doing the oops ...
@@ -440,12 +440,12 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 			die_nmi("BUG: NMI Watchdog detected LOCKUP",
 				regs, panic_on_timeout);
 	} else {
-		__get_cpu_var(last_irq_sum) = sum;
+		__this_cpu_write(last_irq_sum, sum);
 		__this_cpu_write(alert_counter, 0);
 	}
 
 	/* see if the nmi watchdog went off */
-	if (!__get_cpu_var(wd_enabled))
+	if (!__this_cpu_read(wd_enabled))
 		return rc;
 	switch (nmi_watchdog) {
 	case NMI_LOCAL_APIC:
@@ -467,7 +467,7 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 
 static void enable_ioapic_nmi_watchdog_single(void *unused)
 {
-	__get_cpu_var(wd_enabled) = 1;
+	__this_cpu_write(wd_enabled, 1);
 	atomic_inc(&nmi_active);
 	__acpi_nmi_enable(NULL);
 }
