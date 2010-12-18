@@ -774,7 +774,7 @@ done:
 		J_EXPECT_JH(jh, buffer_uptodate(jh2bh(jh)),
 			    "Possible IO failure.\n");
 		page = jh2bh(jh)->b_page;
-		offset = ((unsigned long) jh2bh(jh)->b_data) & ~PAGE_MASK;
+		offset = offset_in_page(jh2bh(jh)->b_data);
 		source = kmap_atomic(page, KM_USER0);
 		/* Fire data frozen trigger just before we copy the data */
 		jbd2_buffer_frozen_trigger(jh, source + offset,
