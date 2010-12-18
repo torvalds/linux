@@ -30,7 +30,7 @@
 
 #define MC_BATCH	32
 
-#define MC_DEBUG	1
+#define MC_DEBUG	0
 
 #define MC_ARGS		(MC_BATCH * 16)
 
@@ -132,7 +132,7 @@ struct multicall_space __xen_mc_entry(size_t args)
 	}
 
 	ret.mc = &b->entries[b->mcidx];
-#ifdef MC_DEBUG
+#if MC_DEBUG
 	b->caller[b->mcidx] = __builtin_return_address(0);
 #endif
 	b->mcidx++;
