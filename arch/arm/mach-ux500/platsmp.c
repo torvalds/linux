@@ -27,6 +27,19 @@
  */
 volatile int __cpuinitdata pen_release = -1;
 
+/*
+ * Write pen_release in a way that is guaranteed to be visible to all
+ * observers, irrespective of whether they're taking part in coherency
+ * or not.  This is necessary for the hotplug code to work reliably.
+ */
+static void write_pen_release(int val)
+{
+	pen_release = val;
+	smp_wmb();
+	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
+	outer_clean_range(__pa(&pen_release), __pa(&pen_release + 1));
+}
+
 static DEFINE_SPINLOCK(boot_lock);
 
 void __cpuinit platform_secondary_init(unsigned int cpu)
@@ -42,7 +55,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
 	 */
-	pen_release = -1;
+	write_pen_release(-1);
 
 	/*
 	 * Synchronise with the boot thread.
@@ -66,9 +79,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * the holding pen - release it, then wait for it to flag
 	 * that it has been released by resetting pen_release.
 	 */
-	pen_release = cpu;
-	__cpuc_flush_dcache_area((void *)&pen_release, sizeof(pen_release));
-	outer_clean_range(__pa(&pen_release), __pa(&pen_release) + 1);
+	write_pen_release(cpu);
 
 	smp_cross_call(cpumask_of(cpu), 1);
 
@@ -89,9 +100,6 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init wakeup_secondary(void)
 {
-	/* nobody is to be released from the pen yet */
-	pen_release = -1;
-
 	/*
 	 * write the address of secondary startup into the backup ram register
 	 * at offset 0x1FF4, then write the magic number 0xA1FEED01 to the
