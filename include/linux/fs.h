@@ -1423,6 +1423,7 @@ struct super_block {
 	 * generic_show_options()
 	 */
 	char __rcu *s_options;
+	const struct dentry_operations *s_d_op; /* default d_op for dentries */
 };
 
 extern struct timespec current_fs_time(struct super_block *sb);
