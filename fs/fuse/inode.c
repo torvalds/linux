@@ -617,10 +617,8 @@ static struct dentry *fuse_get_dentry(struct super_block *sb,
 		goto out_iput;
 
 	entry = d_obtain_alias(inode);
-	if (!IS_ERR(entry) && get_node_id(inode) != FUSE_ROOT_ID) {
-		d_set_d_op(entry, &fuse_dentry_operations);
+	if (!IS_ERR(entry) && get_node_id(inode) != FUSE_ROOT_ID)
 		fuse_invalidate_entry_cache(entry);
-	}
 
 	return entry;
 
@@ -719,10 +717,8 @@ static struct dentry *fuse_get_parent(struct dentry *child)
 	}
 
 	parent = d_obtain_alias(inode);
-	if (!IS_ERR(parent) && get_node_id(inode) != FUSE_ROOT_ID) {
-		d_set_d_op(parent, &fuse_dentry_operations);
+	if (!IS_ERR(parent) && get_node_id(inode) != FUSE_ROOT_ID)
 		fuse_invalidate_entry_cache(parent);
-	}
 
 	return parent;
 }
@@ -989,6 +985,8 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 		iput(root);
 		goto err_put_conn;
 	}
+	/* only now - we want root dentry with NULL ->d_op */
+	sb->s_d_op = &fuse_dentry_operations;
 
 	init_req = fuse_request_alloc();
 	if (!init_req)

@@ -350,7 +350,6 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	}
 
 	entry = newent ? newent : entry;
-	d_set_d_op(entry, &fuse_dentry_operations);
 	if (outarg_valid)
 		fuse_change_entry_timeout(entry, &outarg);
 	else
