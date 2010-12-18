@@ -835,6 +835,7 @@ struct ath_hw {
 	unsigned int paprd_target_power;
 	unsigned int paprd_training_power;
 	unsigned int paprd_ratemask;
+	unsigned int paprd_ratemask_ht40;
 	bool paprd_table_write_done;
 	u32 paprd_gain_table_entries[PAPRD_GAIN_TABLE_ENTRIES];
 	u8 paprd_gain_table_index[PAPRD_GAIN_TABLE_ENTRIES];

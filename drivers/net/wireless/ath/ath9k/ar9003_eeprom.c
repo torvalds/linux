@@ -4762,6 +4762,7 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+	struct ar9300_modal_eep_header *modal_hdr;
 	u8 targetPowerValT2[ar9300RateSize];
 	u8 target_power_val_t2_eep[ar9300RateSize];
 	unsigned int i = 0, paprd_scale_factor = 0;
@@ -4771,15 +4772,17 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 
 	if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD)) {
 		if (IS_CHAN_2GHZ(chan))
-			ah->paprd_ratemask = (IS_CHAN_HT40(chan) ?
-				le32_to_cpu(eep->modalHeader2G.papdRateMaskHt40) :
-				le32_to_cpu(eep->modalHeader2G.papdRateMaskHt20))
-				& AR9300_PAPRD_RATE_MASK;
+			modal_hdr = &eep->modalHeader2G;
 		else
-			ah->paprd_ratemask = (IS_CHAN_HT40(chan) ?
-				le32_to_cpu(eep->modalHeader5G.papdRateMaskHt40) :
-				le32_to_cpu(eep->modalHeader5G.papdRateMaskHt20))
-				& AR9300_PAPRD_RATE_MASK;
+			modal_hdr = &eep->modalHeader5G;
+
+		ah->paprd_ratemask =
+			le32_to_cpu(modal_hdr->papdRateMaskHt20) &
+			AR9300_PAPRD_RATE_MASK;
+
+		ah->paprd_ratemask_ht40 =
+			le32_to_cpu(modal_hdr->papdRateMaskHt40) &
+			AR9300_PAPRD_RATE_MASK;
 
 		paprd_scale_factor = ar9003_get_paprd_scale_factor(ah, chan);
 		min_pwridx = IS_CHAN_HT40(chan) ? ALL_TARGET_HT40_0_8_16 :
