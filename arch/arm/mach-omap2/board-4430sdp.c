@@ -23,6 +23,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/regulator/machine.h>
 #include <linux/leds.h>
+#include <linux/leds_pwm.h>
 
 #include <mach/hardware.h>
 #include <mach/omap4-common.h>
@@ -95,6 +96,28 @@ static struct gpio_keys_button sdp4430_gpio_keys[] = {
 static struct gpio_led_platform_data sdp4430_led_data = {
 	.leds	= sdp4430_gpio_leds,
 	.num_leds	= ARRAY_SIZE(sdp4430_gpio_leds),
+};
+
+static struct led_pwm sdp4430_pwm_leds[] = {
+	{
+		.name		= "omap4:green:chrg",
+		.pwm_id		= 1,
+		.max_brightness	= 255,
+		.pwm_period_ns	= 7812500,
+	},
+};
+
+static struct led_pwm_platform_data sdp4430_pwm_data = {
+	.num_leds	= ARRAY_SIZE(sdp4430_pwm_leds),
+	.leds		= sdp4430_pwm_leds,
+};
+
+static struct platform_device sdp4430_leds_pwm = {
+	.name	= "leds_pwm",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &sdp4430_pwm_data,
+	},
 };
 
 static int omap_prox_activate(struct device *dev)
@@ -204,6 +227,7 @@ static struct platform_device *sdp4430_devices[] __initdata = {
 	&sdp4430_lcd_device,
 	&sdp4430_gpio_keys_device,
 	&sdp4430_leds_gpio,
+	&sdp4430_leds_pwm,
 };
 
 static struct omap_lcd_config sdp4430_lcd_config __initdata = {
