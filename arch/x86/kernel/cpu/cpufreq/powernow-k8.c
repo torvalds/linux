@@ -521,7 +521,7 @@ static void check_supported_cpu(void *_rc)
 
 	*rc = -ENODEV;
 
-	if (current_cpu_data.x86_vendor != X86_VENDOR_AMD)
+	if (__this_cpu_read(cpu_info.x86_vendor) != X86_VENDOR_AMD)
 		return;
 
 	eax = cpuid_eax(CPUID_PROCESSOR_SIGNATURE);
