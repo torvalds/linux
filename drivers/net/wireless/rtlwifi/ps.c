@@ -286,8 +286,9 @@ void rtl_ips_nic_on(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	enum rf_pwrstate rtstate;
+	unsigned long flags;
 
-	mutex_lock(&rtlpriv->locks.ips_mutex);
+	spin_lock_irqsave(&rtlpriv->locks.ips_lock, flags);
 
 	if (ppsc->b_inactiveps) {
 		rtstate = ppsc->rfpwr_state;
@@ -303,7 +304,7 @@ void rtl_ips_nic_on(struct ieee80211_hw *hw)
 		}
 	}
 
-	mutex_unlock(&rtlpriv->locks.ips_mutex);
+	spin_unlock_irqrestore(&rtlpriv->locks.ips_lock, flags);
 }
 
 /*for FW LPS*/
