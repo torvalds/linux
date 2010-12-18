@@ -1439,7 +1439,11 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		put_ldev(mdev);
 	}
 
-	if (os.role == R_PRIMARY && ns.role == R_SECONDARY && get_ldev(mdev)) {
+	/* Write out all changed bits on demote.
+	 * Though, no need to da that just yet
+	 * if there is a resync going on still */
+	if (os.role == R_PRIMARY && ns.role == R_SECONDARY &&
+		mdev->state.conn <= C_CONNECTED && get_ldev(mdev)) {
 		drbd_bitmap_io_from_worker(mdev, &drbd_bm_write, "demote");
 		put_ldev(mdev);
 	}
@@ -1559,7 +1563,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	if (os.disk < D_UP_TO_DATE && os.conn >= C_SYNC_SOURCE && ns.conn == C_CONNECTED)
 		drbd_send_state(mdev);
 
-	if (os.conn > C_CONNECTED && ns.conn == C_CONNECTED)
+	if (os.conn > C_CONNECTED && ns.conn <= C_CONNECTED)
 		drbd_queue_bitmap_io(mdev, &drbd_bm_write, NULL, "write from resync_finished");
 
 	/* free tl_hash if we Got thawed and are C_STANDALONE */
