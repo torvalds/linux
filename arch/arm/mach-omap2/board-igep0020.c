@@ -377,24 +377,21 @@ static void __init igep2_leds_init(void)
 static inline void igep2_leds_init(void)
 {
 	if ((gpio_request(IGEP2_GPIO_LED0_RED, "gpio-led:red:d0") == 0) &&
-	    (gpio_direction_output(IGEP2_GPIO_LED0_RED, 1) == 0)) {
+	    (gpio_direction_output(IGEP2_GPIO_LED0_RED, 0) == 0))
 		gpio_export(IGEP2_GPIO_LED0_RED, 0);
-		gpio_set_value(IGEP2_GPIO_LED0_RED, 0);
-	} else
+	else
 		pr_warning("IGEP v2: Could not obtain gpio GPIO_LED0_RED\n");
 
 	if ((gpio_request(IGEP2_GPIO_LED0_GREEN, "gpio-led:green:d0") == 0) &&
-	    (gpio_direction_output(IGEP2_GPIO_LED0_GREEN, 1) == 0)) {
+	    (gpio_direction_output(IGEP2_GPIO_LED0_GREEN, 0) == 0))
 		gpio_export(IGEP2_GPIO_LED0_GREEN, 0);
-		gpio_set_value(IGEP2_GPIO_LED0_GREEN, 0);
-	} else
+	else
 		pr_warning("IGEP v2: Could not obtain gpio GPIO_LED0_GREEN\n");
 
 	if ((gpio_request(IGEP2_GPIO_LED1_RED, "gpio-led:red:d1") == 0) &&
-	    (gpio_direction_output(IGEP2_GPIO_LED1_RED, 1) == 0)) {
+	    (gpio_direction_output(IGEP2_GPIO_LED1_RED, 0) == 0))
 		gpio_export(IGEP2_GPIO_LED1_RED, 0);
-		gpio_set_value(IGEP2_GPIO_LED1_RED, 0);
-	} else
+	else
 		pr_warning("IGEP v2: Could not obtain gpio GPIO_LED1_RED\n");
 
 }
@@ -426,10 +423,9 @@ static int igep2_twl_gpio_setup(struct device *dev,
 	/* TWL4030_GPIO_MAX + 1 == ledB (out, active low LED) */
 #if !defined(CONFIG_LEDS_GPIO) && !defined(CONFIG_LEDS_GPIO_MODULE)
 	if ((gpio_request(gpio+TWL4030_GPIO_MAX+1, "gpio-led:green:d1") == 0)
-	    && (gpio_direction_output(gpio + TWL4030_GPIO_MAX + 1, 1) == 0)) {
+	    && (gpio_direction_output(gpio + TWL4030_GPIO_MAX + 1, 0) == 0))
 		gpio_export(gpio + TWL4030_GPIO_MAX + 1, 0);
-		gpio_set_value(gpio + TWL4030_GPIO_MAX + 1, 0);
-	} else
+	else
 		pr_warning("IGEP v2: Could not obtain gpio GPIO_LED1_GREEN\n");
 #else
 	igep2_gpio_leds[3].gpio = gpio + TWL4030_GPIO_MAX + 1;
