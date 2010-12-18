@@ -1546,8 +1546,10 @@ static int ieee80211_skb_resize(struct ieee80211_local *local,
 
 	if (skb_header_cloned(skb))
 		I802_DEBUG_INC(local->tx_expand_skb_head_cloned);
-	else
+	else if (head_need || tail_need)
 		I802_DEBUG_INC(local->tx_expand_skb_head);
+	else
+		return 0;
 
 	if (pskb_expand_head(skb, head_need, tail_need, GFP_ATOMIC)) {
 		wiphy_debug(local->hw.wiphy,
