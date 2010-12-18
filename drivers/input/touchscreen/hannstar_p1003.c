@@ -51,6 +51,7 @@ struct ts_p1003 {
 	struct input_dev	*input;
 	char			phys[32];
 	struct delayed_work	work;
+	struct workqueue_struct *wq;
 
 	struct i2c_client	*client;
     struct multitouch_event mt_event;
@@ -96,6 +97,8 @@ static void p1003_report_event(struct ts_p1003 *ts,struct multitouch_event *tc)
     ts->pendown = pandown;
     input_sync(input);
 }
+
+#if defined (Singltouch_Mode)
 static void p1003_report_single_event(struct ts_p1003 *ts,struct multitouch_event *tc)
 {
 	struct input_dev *input = ts->input;
@@ -114,6 +117,8 @@ static void p1003_report_single_event(struct ts_p1003 *ts,struct multitouch_even
         sakura_dbg_report_key_msg("%s x =0x%x,y = 0x%x \n",ts->status?"down":"up",tc->point_data[cid].x,tc->point_data[cid].y);
     }
 }
+#endif
+
 static inline int p1003_read_values(struct ts_p1003 *ts, struct multitouch_event *tc)
 {
     int data;
@@ -164,13 +169,9 @@ static void p1003_work(struct work_struct *work)
 
 out:    
 	if (ts->pendown)
-		schedule_delayed_work(&ts->work,
-				      msecs_to_jiffies(10));
+		queue_delayed_work(ts->wq, &ts->work, msecs_to_jiffies(10));
 	else
 		enable_irq(ts->irq);
-	
-
-	return;
 }
 
 static irqreturn_t p1003_irq(int irq, void *handle)
@@ -179,8 +180,7 @@ static irqreturn_t p1003_irq(int irq, void *handle)
 #if 1
 	if (!ts->get_pendown_state || likely(ts->get_pendown_state())) {
 		disable_irq_nosync(ts->irq);
-		schedule_delayed_work(&ts->work,
-				      msecs_to_jiffies(10));
+		queue_delayed_work(ts->wq, &ts->work, 0);
 	}
 
 #endif
@@ -228,7 +228,8 @@ static int __devinit p1003_probe(struct i2c_client *client,
 	ts->input = input_dev;
 	ts->status =0 ;// fjp add by 2010-9-30
 	ts->pendown = 0; // fjp add by 2010-10-06
-	
+
+	ts->wq = create_rt_workqueue("p1003_wq");
 	INIT_DELAYED_WORK(&ts->work, p1003_work);
 
 	ts->model             = pdata->model;

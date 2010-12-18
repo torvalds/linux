@@ -407,7 +407,9 @@ int rockchip_i2s_resume(struct snd_soc_dai *cpu_dai)
 #define rockchip_i2s_resume NULL
 #endif
 
-#define ROCKCHIP_I2S_RATES SNDRV_PCM_RATE_48000
+#define ROCKCHIP_I2S_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
+		            SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |\
+		            SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
 static struct snd_soc_dai_ops rockchip_i2s_dai_ops = {
 	.trigger = rockchip_i2s_trigger,

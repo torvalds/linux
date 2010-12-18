@@ -119,8 +119,8 @@
 #define WM8900_REG_CLOCKING1_BCLK_MASK  (~0x01e)
 #define WM8900_REG_CLOCKING1_OPCLK_MASK (~0x7000)
 
-#define WM8900_REG_CLOCKING2_ADC_CLKDIV 0xe0
-#define WM8900_REG_CLOCKING2_DAC_CLKDIV 0x1c
+#define WM8900_REG_CLOCKING2_ADC_CLKDIV 0x1c
+#define WM8900_REG_CLOCKING2_DAC_CLKDIV 0xe0
 
 #define WM8900_REG_DACCTRL_MUTE          0x004
 #define WM8900_REG_DACCTRL_DAC_SB_FILT   0x100
@@ -440,11 +440,11 @@ SOC_SINGLE("LINEOUT2 LP -12dB", WM8900_REG_LOUTMIXCTL1,
 
 };
 
-static const struct snd_kcontrol_new wm8900_dapm_loutput2_control =
-SOC_DAPM_SINGLE("LINEOUT2L Switch", WM8900_REG_POWER3, 6, 1, 0);
+static const struct snd_kcontrol_new wm8900_dapm_loutput2_control[] = {
+SOC_DAPM_SINGLE("LINEOUT2L Switch", WM8900_REG_POWER3, 6, 1, 0),};
 
-static const struct snd_kcontrol_new wm8900_dapm_routput2_control =
-SOC_DAPM_SINGLE("LINEOUT2R Switch", WM8900_REG_POWER3, 5, 1, 0);
+static const struct snd_kcontrol_new wm8900_dapm_routput2_control[] = {
+SOC_DAPM_SINGLE("LINEOUT2R Switch", WM8900_REG_POWER3, 5, 1, 0),};
 
 static const struct snd_kcontrol_new wm8900_loutmix_controls[] = {
 SOC_DAPM_SINGLE("LINPUT3 Bypass Switch", WM8900_REG_LOUTMIXCTL1, 7, 1, 0),
@@ -477,15 +477,20 @@ SOC_DAPM_SINGLE("Input PGA Switch", WM8900_REG_ADCPATH, 2, 1, 0),
 };
 
 static const struct snd_kcontrol_new wm8900_linpga_controls[] = {
-SOC_DAPM_SINGLE("LINPUT1 Switch", WM8900_REG_INCTL, 6, 1, 0),
-SOC_DAPM_SINGLE("LINPUT2 Switch", WM8900_REG_INCTL, 5, 1, 0),
-SOC_DAPM_SINGLE("LINPUT3 Switch", WM8900_REG_INCTL, 4, 1, 0),
+SOC_SINGLE("MIC LINPUT1 Switch", WM8900_REG_INCTL, 6, 1, 0),
+SOC_SINGLE("MIC LINPUT2 Switch", WM8900_REG_INCTL, 5, 1, 0),
+SOC_SINGLE("MIC LINPUT3 Switch", WM8900_REG_INCTL, 4, 1, 0),
 };
 
 static const struct snd_kcontrol_new wm8900_rinpga_controls[] = {
-SOC_DAPM_SINGLE("RINPUT1 Switch", WM8900_REG_INCTL, 2, 1, 0),
-SOC_DAPM_SINGLE("RINPUT2 Switch", WM8900_REG_INCTL, 1, 1, 0),
-SOC_DAPM_SINGLE("RINPUT3 Switch", WM8900_REG_INCTL, 0, 1, 0),
+SOC_SINGLE("MIC RINPUT1 Switch", WM8900_REG_INCTL, 2, 1, 0),
+SOC_SINGLE("MIC RINPUT2 Switch", WM8900_REG_INCTL, 1, 1, 0),
+SOC_SINGLE("MIC RINPUT3 Switch", WM8900_REG_INCTL, 0, 1, 0),
+};
+
+static const struct snd_kcontrol_new wm8900_inmix_controls[] = {
+SOC_SINGLE("LINPUT PGA Switch", WM8900_REG_ADCPATH, 6, 1, 0),
+SOC_SINGLE("RINPUT PGA Switch", WM8900_REG_ADCPATH, 2, 1, 0),
 };
 
 static const char *wm9700_lp_mux[] = { "Disabled", "Enabled" };
@@ -687,8 +692,39 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
         	snd_soc_write(codec, WM8900_REG_LOUT2CTL, 0x126);
         	snd_soc_write(codec, WM8900_REG_ROUT2CTL, 0x126);
         	snd_soc_write(codec, WM8900_REG_HPCTL1, 0xC0);		
-	}
+	} else {
+                snd_soc_write(codec, WM8900_REG_POWER1, 0x211D);
+                snd_soc_write(codec, WM8900_REG_POWER2, 0xC03F);
+                
+                //User for asound.conf File
+                snd_soc_write(codec, WM8900_REG_LADC_DV, 0x00C1);
+                snd_soc_write(codec, WM8900_REG_RADC_DV, 0x01C0);
 
+                snd_soc_write(codec, WM8900_REG_INCTL, 0x0066);
+                
+                snd_soc_write(codec, WM8900_REG_LINVOL, 0x0115);
+                snd_soc_write(codec, WM8900_REG_RINVOL, 0x0115);
+                snd_soc_write(codec, WM8900_REG_INBOOSTMIX1, 0x0042);
+                snd_soc_write(codec, WM8900_REG_INBOOSTMIX2, 0x0042);
+                snd_soc_write(codec, WM8900_REG_ADCPATH, 0x0077);
+                
+                
+                /*
+                // MIC to DAC
+                snd_soc_write(codec, 0x01, 0x211D);
+                snd_soc_write(codec, 0x02, 0xC03C);
+                snd_soc_write(codec, 0x03, 0x00EC);                
+                snd_soc_write(codec, 0x16, 0x0115);
+                snd_soc_write(codec, 0x17, 0x0115);
+                snd_soc_write(codec, 0x1A, 0x0077);
+
+                snd_soc_write(codec, 0x2E, 0x00DD);                
+                snd_soc_write(codec, 0x35, 0x011F);
+                snd_soc_write(codec, 0x36, 0x011F);
+                snd_soc_write(codec, 0x3A, 0x00C0);
+                */
+	}
+        WM8900_DBG("<<<<<<<<<<<<<<<<<<<<Exit:%s, %d \n", __FUNCTION__, __LINE__);
 	return 0;
 }
 
@@ -1424,6 +1460,13 @@ static int wm8900_probe(struct platform_device *pdev)
 
 	snd_soc_add_controls(codec, wm8900_snd_controls,
 				ARRAY_SIZE(wm8900_snd_controls));
+	snd_soc_add_controls(codec, wm8900_linpga_controls,
+	                        ARRAY_SIZE(wm8900_linpga_controls));
+        snd_soc_add_controls(codec, wm8900_rinpga_controls,
+	                        ARRAY_SIZE(wm8900_rinpga_controls));
+        snd_soc_add_controls(codec, wm8900_inmix_controls,
+                                ARRAY_SIZE(wm8900_inmix_controls));
+                              
 	wm8900_add_widgets(codec);
 
 	ret = snd_soc_init_card(socdev);
