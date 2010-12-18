@@ -340,9 +340,7 @@ handle_t *jbd2__journal_start(journal_t *journal, int nblocks, int gfp_mask)
 		jbd2_free_handle(handle);
 		current->journal_info = NULL;
 		handle = ERR_PTR(err);
-		goto out;
 	}
-out:
 	return handle;
 }
 EXPORT_SYMBOL(jbd2__journal_start);
