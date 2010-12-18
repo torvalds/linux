@@ -123,8 +123,8 @@ struct multicall_space __xen_mc_entry(size_t args)
 	BUG_ON(preemptible());
 	BUG_ON(b->argidx >= MC_ARGS);
 
-	if (b->mcidx == MC_BATCH ||
-	    (argidx + args) >= MC_ARGS) {
+	if (unlikely(b->mcidx == MC_BATCH ||
+		     (argidx + args) >= MC_ARGS)) {
 		trace_xen_mc_flush_reason((b->mcidx == MC_BATCH) ?
 					  XEN_MC_FL_BATCH : XEN_MC_FL_ARGS);
 		xen_mc_flush();
