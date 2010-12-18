@@ -1351,7 +1351,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			if (ns.conn == C_CONNECTED)
 				what = resend, nsm.susp_nod = 0;
 			else /* ns.conn > C_CONNECTED */
-				dev_err(DEV, "Unexpected Resynd going on!\n");
+				dev_err(DEV, "Unexpected Resync going on!\n");
 		}
 
 		if (os.disk == D_ATTACHING && ns.disk > D_ATTACHING)
