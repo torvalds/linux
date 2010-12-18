@@ -2019,7 +2019,10 @@ err_access:
 
 static int max98088_remove(struct snd_soc_codec *codec)
 {
+       struct max98088_priv *max98088 = snd_soc_codec_get_drvdata(codec);
+
        max98088_set_bias_level(codec, SND_SOC_BIAS_OFF);
+       kfree(max98088->eq_texts);
 
        return 0;
 }

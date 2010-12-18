@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/serial_8250.h>
 #include <linux/pm_runtime.h>
+#include <linux/console.h>
 
 #ifdef CONFIG_SERIAL_OMAP
 #include <plat/omap-serial.h>
@@ -406,7 +407,7 @@ void omap_uart_resume_idle(int num)
 	struct omap_uart_state *uart;
 
 	list_for_each_entry(uart, &uart_list, node) {
-		if (num == uart->num) {
+		if (num == uart->num && uart->can_sleep) {
 			omap_uart_enable_clocks(uart);
 
 			/* Check for IO pad wakeup */
@@ -807,6 +808,8 @@ void __init omap_serial_init_port(int port)
 
 	oh->dev_attr = uart;
 
+	acquire_console_sem(); /* in case the earlycon is on the UART */
+
 	/*
 	 * Because of early UART probing, UART did not get idled
 	 * on init.  Now that omap_device is ready, ensure full idle
@@ -830,6 +833,8 @@ void __init omap_serial_init_port(int port)
 		uart->timeout = (30 * HZ);
 	omap_uart_block_sleep(uart);
 	uart->timeout = DEFAULT_TIMEOUT;
+
+	release_console_sem();
 
 	if ((cpu_is_omap34xx() && uart->padconf) ||
 	    (uart->wk_en && uart->wk_mask)) {

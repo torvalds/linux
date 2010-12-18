@@ -808,9 +808,9 @@ struct btrfs_block_group_cache {
 	int extents_thresh;
 	int free_extents;
 	int total_bitmaps;
-	int ro:1;
-	int dirty:1;
-	int iref:1;
+	unsigned int ro:1;
+	unsigned int dirty:1;
+	unsigned int iref:1;
 
 	int disk_cache_state;
 
