@@ -87,6 +87,7 @@ static void iop_set_mode(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_PERIODIC:
 		write_tmr0(tmr & ~IOP_TMR_EN);
 		write_tcr0(ticks_per_jiffy - 1);
+		write_trr0(ticks_per_jiffy - 1);
 		tmr |= (IOP_TMR_RELOAD | IOP_TMR_EN);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
@@ -152,6 +153,7 @@ void __init iop_init_time(unsigned long tick_rate)
 	 * Set up interrupting clockevent timer 0.
 	 */
 	write_tmr0(timer_ctl & ~IOP_TMR_EN);
+	write_tisr(1);
 	setup_irq(IRQ_IOP_TIMER0, &iop_timer_irq);
 	clockevents_calc_mult_shift(&iop_clockevent,
 				    tick_rate, IOP_MIN_RANGE);
@@ -161,9 +163,6 @@ void __init iop_init_time(unsigned long tick_rate)
 		clockevent_delta2ns(0xf, &iop_clockevent);
 	iop_clockevent.cpumask = cpumask_of(0);
 	clockevents_register_device(&iop_clockevent);
-	write_trr0(ticks_per_jiffy - 1);
-	write_tcr0(ticks_per_jiffy - 1);
-	write_tmr0(timer_ctl);
 
 	/*
 	 * Set up free-running clocksource timer 1.
