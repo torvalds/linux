@@ -132,15 +132,15 @@
 #define MAX_BYTES_PER_PIXEL		4
 
 #define MIN_FRAME_WIDTH			64
-#define MAX_USB_WIDTH			320  //384
-#define MAX_FRAME_WIDTH			320  //384			/*streching sometimes causes crashes*/
+#define MAX_USB_WIDTH			320  /* 384 */
+#define MAX_FRAME_WIDTH			320  /* 384 */			/* streching sometimes causes crashes*/
 
 #define MIN_FRAME_HEIGHT		48
-#define MAX_USB_HEIGHT			240  //288
-#define MAX_FRAME_HEIGHT		240  //288			/*Streching sometimes causes crashes*/
+#define MAX_USB_HEIGHT			240  /* 288 */
+#define MAX_FRAME_HEIGHT		240  /* 288 */			/* Streching sometimes causes crashes*/
 
 #define MAX_FRAME_SIZE     		(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * MAX_BYTES_PER_PIXEL)
-#define USBVISION_CLIPMASK_SIZE		(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT / 8) //bytesize of clipmask
+#define USBVISION_CLIPMASK_SIZE		(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT / 8) /* bytesize of clipmask */
 
 #define USBVISION_URB_FRAMES		32
 
@@ -148,7 +148,7 @@
 #define USBVISION_NUMFRAMES		3  /* Maximum number of frames an application can get */
 #define USBVISION_NUMSBUF		2 /* Dimensioning the USB S buffering */
 
-#define USBVISION_POWEROFF_TIME		3 * (HZ)		// 3 seconds
+#define USBVISION_POWEROFF_TIME		3 * (HZ)		/* 3 seconds */
 
 
 #define FRAMERATE_MIN	0
@@ -287,7 +287,7 @@ struct usbvision_frame_header {
 	unsigned char magic_1;				/* 0 magic */
 	unsigned char magic_2;				/* 1  magic */
 	unsigned char header_length;			/* 2 */
-	unsigned char frame_num;				/* 3 */
+	unsigned char frame_num;			/* 3 */
 	unsigned char frame_phase;			/* 4 */
 	unsigned char frame_latency;			/* 5 */
 	unsigned char data_format;			/* 6 */
@@ -322,7 +322,7 @@ struct usbvision_frame {
 	struct usbvision_v4l2_format_st v4l2_format;	/* format the user needs*/
 	int v4l2_linesize;				/* bytes for one videoline*/
 	struct timeval timestamp;
-	int sequence;					// How many video frames we send to user
+	int sequence;					/* How many video frames we send to user */
 };
 
 #define CODEC_SAA7113	7113
@@ -369,19 +369,19 @@ struct usb_usbvision {
 	unsigned char ctrl_urb_buffer[8];
 	int ctrl_urb_busy;
 	struct usb_ctrlrequest ctrl_urb_setup;
-	wait_queue_head_t ctrl_urb_wq;					// Processes waiting
+	wait_queue_head_t ctrl_urb_wq;					/* Processes waiting */
 
 	/* configuration part */
 	int have_tuner;
 	int tuner_type;
-	int bridge_type;							// NT1003, NT1004, NT1005
+	int bridge_type;						/* NT1003, NT1004, NT1005 */
 	int radio;
-	int video_inputs;						// # of inputs
+	int video_inputs;						/* # of inputs */
 	unsigned long freq;
 	int audio_mute;
 	int audio_channel;
-	int isoc_mode;							// format of video data for the usb isoc-transfer
-	unsigned int nr;						// Number of the device
+	int isoc_mode;							/* format of video data for the usb isoc-transfer */
+	unsigned int nr;						/* Number of the device */
 
 	/* Device structure */
 	struct usb_device *dev;
@@ -389,7 +389,7 @@ struct usb_usbvision {
 	int num_alt;		/* Number of alternative settings */
 	unsigned int *alt_max_pkt_size;	/* array of max_packet_size */
 	unsigned char iface;						/* Video interface number */
-	unsigned char iface_alt;			/* Alt settings */
+	unsigned char iface_alt;					/* Alt settings */
 	unsigned char vin_reg2_preset;
 	struct mutex v4l2_lock;
 	struct timer_list power_off_timer;
@@ -411,10 +411,10 @@ struct usb_usbvision {
 	struct list_head inqueue, outqueue;                             /* queued frame list and ready to dequeue frame list */
 	wait_queue_head_t wait_frame;					/* Processes waiting */
 	wait_queue_head_t wait_stream;					/* Processes waiting */
-	struct usbvision_frame *cur_frame;				// pointer to current frame, set by usbvision_find_header
-	struct usbvision_frame frame[USBVISION_NUMFRAMES];		// frame buffer
-	int num_frames;							// number of frames allocated
-	struct usbvision_sbuf sbuf[USBVISION_NUMSBUF];			// S buffering
+	struct usbvision_frame *cur_frame;				/* pointer to current frame, set by usbvision_find_header */
+	struct usbvision_frame frame[USBVISION_NUMFRAMES];		/* frame buffer */
+	int num_frames;							/* number of frames allocated */
+	struct usbvision_sbuf sbuf[USBVISION_NUMSBUF];			/* S buffering */
 	volatile int remove_pending;					/* If set then about to exit */
 
 	/* Scratch space from the Isochronous Pipe.*/
@@ -432,32 +432,32 @@ struct usb_usbvision {
 	v4l2_std_id tvnorm_id;						/* selected tv norm */
 	unsigned char video_endp;					/* 0x82 for USBVISION devices based */
 
-	// Decompression stuff:
+	/* Decompression stuff: */
 	unsigned char *intra_frame_buffer;				/* Buffer for reference frame */
-	int block_pos; 							//for test only
-	int request_intra;						// 0 = normal; 1 = intra frame is requested;
-	int last_isoc_frame_num;						// check for lost isoc frames
-	int isoc_packet_size;						// need to calculate used_bandwidth
-	int used_bandwidth;						// used bandwidth 0-100%, need to set compr_level
-	int compr_level;							// How strong (100) or weak (0) is compression
-	int last_compr_level;						// How strong (100) or weak (0) was compression
+	int block_pos; 							/* for test only */
+	int request_intra;						/* 0 = normal; 1 = intra frame is requested; */
+	int last_isoc_frame_num;					/* check for lost isoc frames */
+	int isoc_packet_size;						/* need to calculate used_bandwidth */
+	int used_bandwidth;						/* used bandwidth 0-100%, need to set compr_level */
+	int compr_level;						/* How strong (100) or weak (0) is compression */
+	int last_compr_level;						/* How strong (100) or weak (0) was compression */
 	int usb_bandwidth;						/* Mbit/s */
 
 	/* Statistics that can be overlayed on the screen */
-	unsigned long isoc_urb_count;			// How many URBs we received so far
+	unsigned long isoc_urb_count;			/* How many URBs we received so far */
 	unsigned long urb_length;			/* Length of last URB */
 	unsigned long isoc_data_count;			/* How many bytes we received */
 	unsigned long header_count;			/* How many frame headers we found */
 	unsigned long scratch_ovf_count;		/* How many times we overflowed scratch */
 	unsigned long isoc_skip_count;			/* How many empty ISO packets received */
 	unsigned long isoc_err_count;			/* How many bad ISO packets received */
-	unsigned long isoc_packet_count;			// How many packets we totally got
-	unsigned long time_in_irq;			// How long do we need for interrupt
+	unsigned long isoc_packet_count;		/* How many packets we totally got */
+	unsigned long time_in_irq;			/* How long do we need for interrupt */
 	int isoc_measure_bandwidth_count;
-	int frame_num;					// How many video frames we send to user
-	int max_strip_len;				// How big is the biggest strip
+	int frame_num;					/* How many video frames we send to user */
+	int max_strip_len;				/* How big is the biggest strip */
 	int comprblock_pos;
-	int strip_len_errors;				// How many times was block_pos greater than strip_len
+	int strip_len_errors;				/* How many times was block_pos greater than strip_len */
 	int strip_magic_errors;
 	int strip_line_number_errors;
 	int compr_block_types[4];
