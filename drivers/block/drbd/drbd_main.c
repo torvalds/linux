@@ -1652,7 +1652,7 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packet cmd,
 	return err;
 }
 
-int drbd_send_oos(struct drbd_conf *mdev, struct drbd_request *req)
+int drbd_send_out_of_sync(struct drbd_conf *mdev, struct drbd_request *req)
 {
 	struct p_block_desc p;
 

@@ -305,7 +305,7 @@ static inline bool drbd_should_do_remote(union drbd_state s)
 	   That is equivalent since before 96 IO was frozen in the C_WF_BITMAP*
 	   states. */
 }
-static inline bool drbd_should_send_oos(union drbd_state s)
+static inline bool drbd_should_send_out_of_sync(union drbd_state s)
 {
 	return s.conn == C_AHEAD || s.conn == C_WF_BITMAP_S;
 	/* pdsk = D_INCONSISTENT as a consequence. Protocol 96 check not necessary

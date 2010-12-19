@@ -714,7 +714,7 @@ int w_ov_finished(struct drbd_work *w, int cancel)
 {
 	struct drbd_conf *mdev = w->mdev;
 	kfree(w);
-	ov_oos_print(mdev);
+	ov_out_of_sync_print(mdev);
 	drbd_resync_finished(mdev);
 
 	return 0;
@@ -1102,7 +1102,7 @@ out:
 	return err;
 }
 
-void drbd_ov_oos_found(struct drbd_conf *mdev, sector_t sector, int size)
+void drbd_ov_out_of_sync_found(struct drbd_conf *mdev, sector_t sector, int size)
 {
 	if (mdev->ov_last_oos_start + mdev->ov_last_oos_size == sector) {
 		mdev->ov_last_oos_size += size>>9;
@@ -1158,9 +1158,9 @@ int w_e_end_ov_reply(struct drbd_work *w, int cancel)
 	 * drbd_pp_alloc due to pp_in_use > max_buffers. */
 	drbd_free_ee(mdev, peer_req);
 	if (!eq)
-		drbd_ov_oos_found(mdev, sector, size);
+		drbd_ov_out_of_sync_found(mdev, sector, size);
 	else
-		ov_oos_print(mdev);
+		ov_out_of_sync_print(mdev);
 
 	err = drbd_send_ack_ex(mdev, P_OV_RESULT, sector, size,
 			       eq ? ID_IN_SYNC : ID_OUT_OF_SYNC);
@@ -1174,7 +1174,7 @@ int w_e_end_ov_reply(struct drbd_work *w, int cancel)
 		drbd_advance_rs_marks(mdev, mdev->ov_left);
 
 	if (mdev->ov_left == 0) {
-		ov_oos_print(mdev);
+		ov_out_of_sync_print(mdev);
 		drbd_resync_finished(mdev);
 	}
 
@@ -1230,7 +1230,7 @@ int w_send_write_hint(struct drbd_work *w, int cancel)
 	return drbd_send_short_cmd(mdev, P_UNPLUG_REMOTE);
 }
 
-int w_send_oos(struct drbd_work *w, int cancel)
+int w_send_out_of_sync(struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);
 	struct drbd_conf *mdev = w->mdev;
@@ -1241,7 +1241,7 @@ int w_send_oos(struct drbd_work *w, int cancel)
 		return 0;
 	}
 
-	err = drbd_send_oos(mdev, req);
+	err = drbd_send_out_of_sync(mdev, req);
 	req_mod(req, OOS_HANDED_TO_NETWORK);
 
 	return err;

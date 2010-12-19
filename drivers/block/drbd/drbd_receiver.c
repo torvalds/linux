@@ -4699,9 +4699,9 @@ static int got_OVResult(struct drbd_conf *mdev, enum drbd_packet cmd)
 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
 
 	if (be64_to_cpu(p->block_id) == ID_OUT_OF_SYNC)
-		drbd_ov_oos_found(mdev, sector, size);
+		drbd_ov_out_of_sync_found(mdev, sector, size);
 	else
-		ov_oos_print(mdev);
+		ov_out_of_sync_print(mdev);
 
 	if (!get_ldev(mdev))
 		return true;
@@ -4723,7 +4723,7 @@ static int got_OVResult(struct drbd_conf *mdev, enum drbd_packet cmd)
 			drbd_queue_work_front(&mdev->tconn->data.work, w);
 		} else {
 			dev_err(DEV, "kmalloc(w) failed.");
-			ov_oos_print(mdev);
+			ov_out_of_sync_print(mdev);
 			drbd_resync_finished(mdev);
 		}
 	}

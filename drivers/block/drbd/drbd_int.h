@@ -1191,7 +1191,7 @@ extern void drbd_send_ack_dp(struct drbd_conf *mdev, enum drbd_packet cmd,
 			     struct p_data *dp, int data_size);
 extern int drbd_send_ack_ex(struct drbd_conf *mdev, enum drbd_packet cmd,
 			    sector_t sector, int blksize, u64 block_id);
-extern int drbd_send_oos(struct drbd_conf *mdev, struct drbd_request *req);
+extern int drbd_send_out_of_sync(struct drbd_conf *, struct drbd_request *);
 extern int drbd_send_block(struct drbd_conf *, enum drbd_packet,
 			   struct drbd_peer_request *);
 extern int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req);
@@ -1528,10 +1528,10 @@ extern int drbd_resync_finished(struct drbd_conf *mdev);
 /* maybe rather drbd_main.c ? */
 extern int drbd_md_sync_page_io(struct drbd_conf *mdev,
 		struct drbd_backing_dev *bdev, sector_t sector, int rw);
-extern void drbd_ov_oos_found(struct drbd_conf*, sector_t, int);
+extern void drbd_ov_out_of_sync_found(struct drbd_conf *, sector_t, int);
 extern void drbd_rs_controller_reset(struct drbd_conf *mdev);
 
-static inline void ov_oos_print(struct drbd_conf *mdev)
+static inline void ov_out_of_sync_print(struct drbd_conf *mdev)
 {
 	if (mdev->ov_last_oos_size) {
 		dev_err(DEV, "Out of sync: start=%llu, size=%lu (sectors)\n",
@@ -1562,7 +1562,7 @@ extern int w_send_read_req(struct drbd_work *, int);
 extern int w_prev_work_done(struct drbd_work *, int);
 extern int w_e_reissue(struct drbd_work *, int);
 extern int w_restart_disk_io(struct drbd_work *, int);
-extern int w_send_oos(struct drbd_work *, int);
+extern int w_send_out_of_sync(struct drbd_work *, int);
 extern int w_start_resync(struct drbd_work *, int);
 
 extern void resync_timer_fn(unsigned long data);

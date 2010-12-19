@@ -477,7 +477,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 	case QUEUE_FOR_SEND_OOS:
 		req->rq_state |= RQ_NET_QUEUED;
-		req->w.cb =  w_send_oos;
+		req->w.cb =  w_send_out_of_sync;
 		drbd_queue_work(&mdev->tconn->data.work, &req->w);
 		break;
 
@@ -786,7 +786,7 @@ int __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long s
 	}
 
 	remote = remote && drbd_should_do_remote(mdev->state);
-	send_oos = rw == WRITE && drbd_should_send_oos(mdev->state);
+	send_oos = rw == WRITE && drbd_should_send_out_of_sync(mdev->state);
 	D_ASSERT(!(remote && send_oos));
 
 	if (!(local || remote) && !is_susp(mdev->state)) {
@@ -842,7 +842,7 @@ allocate_barrier:
 
 	if (remote || send_oos) {
 		remote = drbd_should_do_remote(mdev->state);
-		send_oos = rw == WRITE && drbd_should_send_oos(mdev->state);
+		send_oos = rw == WRITE && drbd_should_send_out_of_sync(mdev->state);
 		D_ASSERT(!(remote && send_oos));
 
 		if (!(remote || send_oos))
