@@ -26,9 +26,6 @@
 #include "../pci.h"
 #include "portdrv.h"
 
-#define PCI_EXP_RTSTA_PME	0x10000 /* PME status */
-#define PCI_EXP_RTSTA_PENDING	0x20000 /* PME pending */
-
 /*
  * If this switch is set, MSI will not be used for PCIe PME signaling.  This
  * causes the PCIe port driver to use INTx interrupts only, but it turns out
@@ -71,22 +68,6 @@ void pcie_pme_interrupt_enable(struct pci_dev *dev, bool enable)
 	else
 		rtctl &= ~PCI_EXP_RTCTL_PMEIE;
 	pci_write_config_word(dev, rtctl_pos, rtctl);
-}
-
-/**
- * pcie_pme_clear_status - Clear root port PME interrupt status.
- * @dev: PCIe root port or event collector.
- */
-static void pcie_pme_clear_status(struct pci_dev *dev)
-{
-	int rtsta_pos;
-	u32 rtsta;
-
-	rtsta_pos = pci_pcie_cap(dev) + PCI_EXP_RTSTA;
-
-	pci_read_config_dword(dev, rtsta_pos, &rtsta);
-	rtsta |= PCI_EXP_RTSTA_PME;
-	pci_write_config_dword(dev, rtsta_pos, rtsta);
 }
 
 /**
@@ -253,7 +234,7 @@ static void pcie_pme_work_fn(struct work_struct *work)
 			 * Clear PME status of the port.  If there are other
 			 * pending PMEs, the status will be set again.
 			 */
-			pcie_pme_clear_status(port);
+			pcie_clear_root_pme_status(port);
 
 			spin_unlock_irq(&data->lock);
 			pcie_pme_handle_request(port, rtsta & 0xffff);
@@ -378,7 +359,7 @@ static int pcie_pme_probe(struct pcie_device *srv)
 
 	port = srv->port;
 	pcie_pme_interrupt_enable(port, false);
-	pcie_pme_clear_status(port);
+	pcie_clear_root_pme_status(port);
 
 	ret = request_irq(srv->irq, pcie_pme_irq, IRQF_SHARED, "PCIe PME", srv);
 	if (ret) {
@@ -402,7 +383,7 @@ static int pcie_pme_suspend(struct pcie_device *srv)
 
 	spin_lock_irq(&data->lock);
 	pcie_pme_interrupt_enable(port, false);
-	pcie_pme_clear_status(port);
+	pcie_clear_root_pme_status(port);
 	data->noirq = true;
 	spin_unlock_irq(&data->lock);
 
@@ -422,7 +403,7 @@ static int pcie_pme_resume(struct pcie_device *srv)
 
 	spin_lock_irq(&data->lock);
 	data->noirq = false;
-	pcie_pme_clear_status(port);
+	pcie_clear_root_pme_status(port);
 	pcie_pme_interrupt_enable(port, true);
 	spin_unlock_irq(&data->lock);
 

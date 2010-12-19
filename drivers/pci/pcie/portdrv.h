@@ -35,6 +35,8 @@ extern void pcie_port_bus_unregister(void);
 
 struct pci_dev;
 
+extern void pcie_clear_root_pme_status(struct pci_dev *dev);
+
 #ifdef CONFIG_PCIE_PME
 extern bool pcie_pme_msi_disabled;
 
