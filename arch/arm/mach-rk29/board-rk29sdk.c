@@ -52,8 +52,8 @@
 
 
 /* Set memory size of pmem */
-#ifdef CONFIG_MACH_RK29SDK_MEM_SIZE_M
-#define SDRAM_SIZE          (CONFIG_MACH_RK29SDK_MEM_SIZE_M * SZ_1M)
+#ifdef CONFIG_RK29_MEM_SIZE_M
+#define SDRAM_SIZE          (CONFIG_RK29_MEM_SIZE_M * SZ_1M)
 #else
 #define SDRAM_SIZE          SZ_512M
 #endif

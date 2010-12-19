@@ -1,22 +1,26 @@
+if ARCH_RK29
+
+choice
+	prompt "Select Board Type"
+	depends on ARCH_RK29
+	default MACH_RK29SDK
+
 config MACH_RK29SDK
 	depends on ARCH_RK29
-	default y
 	bool "ROCKCHIP Board Rk29 For Sdk"
-        select PL330	
         help
 	  Support for the ROCKCHIP Board For Rk29 Sdk.
 
 config MACH_RK29WINACCORD
 	depends on ARCH_RK29
-	default y
 	bool "ROCKCHIP Board Rk29 For Winaccord"
-        select PL330	
         help
 	  Support for the ROCKCHIP Board For Rk29 Winaccord.
 
-config MACH_RK29SDK_MEM_SIZE_M
+endchoice
+
+config RK29_MEM_SIZE_M
 	int "Memory size (in MiB)"
-	depends on MACH_RK29SDK || MACH_RK29WINACCORD
 	default 512
 
 config WIFI_CONTROL_FUNC
@@ -48,3 +52,5 @@ config RK29_VPU_HW_PERFORMANCE
           say N here.  This enables RK29 VPU driver HW_PERFORMANCE ioctl.
 
 endmenu
+
+endif
