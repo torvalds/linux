@@ -671,17 +671,16 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
  *   since size may be bigger than BM_BLOCK_SIZE,
  *   we may need to check several bits.
  */
-static int drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int size)
+static bool drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int size)
 {
 	unsigned long sbnr, ebnr;
 	sector_t esector, nr_sectors;
 
 	if (mdev->state.disk == D_UP_TO_DATE)
-		return 1;
+		return true;
 	if (mdev->state.disk != D_INCONSISTENT)
-		return 0;
+		return false;
 	esector = sector + (size >> 9) - 1;
-
 	nr_sectors = drbd_get_capacity(mdev->this_bdev);
 	D_ASSERT(sector  < nr_sectors);
 	D_ASSERT(esector < nr_sectors);
@@ -689,7 +688,7 @@ static int drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int s
 	sbnr = BM_SECT_TO_BIT(sector);
 	ebnr = BM_SECT_TO_BIT(esector);
 
-	return 0 == drbd_bm_count_bits(mdev, sbnr, ebnr);
+	return drbd_bm_count_bits(mdev, sbnr, ebnr) == 0;
 }
 
 /*
