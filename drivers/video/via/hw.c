@@ -2117,9 +2117,6 @@ void viafb_update_device_setting(int hres, int vres,
 	int bpp, int vmode_refresh, int flag)
 {
 	if (flag == 0) {
-		viaparinfo->crt_setting_info->h_active = hres;
-		viaparinfo->crt_setting_info->v_active = vres;
-		viaparinfo->crt_setting_info->bpp = bpp;
 		viaparinfo->crt_setting_info->refresh_rate =
 			vmode_refresh;
 
@@ -2129,13 +2126,9 @@ void viafb_update_device_setting(int hres, int vres,
 		viaparinfo->lvds_setting_info->h_active = hres;
 		viaparinfo->lvds_setting_info->v_active = vres;
 		viaparinfo->lvds_setting_info->bpp = bpp;
-		viaparinfo->lvds_setting_info->refresh_rate =
-			vmode_refresh;
 		viaparinfo->lvds_setting_info2->h_active = hres;
 		viaparinfo->lvds_setting_info2->v_active = vres;
 		viaparinfo->lvds_setting_info2->bpp = bpp;
-		viaparinfo->lvds_setting_info2->refresh_rate =
-			vmode_refresh;
 	} else {
 
 		if (viaparinfo->tmds_setting_info->iga_path == IGA2) {
@@ -2147,15 +2140,11 @@ void viafb_update_device_setting(int hres, int vres,
 			viaparinfo->lvds_setting_info->h_active = hres;
 			viaparinfo->lvds_setting_info->v_active = vres;
 			viaparinfo->lvds_setting_info->bpp = bpp;
-			viaparinfo->lvds_setting_info->refresh_rate =
-				vmode_refresh;
 		}
 		if (IGA2 == viaparinfo->lvds_setting_info2->iga_path) {
 			viaparinfo->lvds_setting_info2->h_active = hres;
 			viaparinfo->lvds_setting_info2->v_active = vres;
 			viaparinfo->lvds_setting_info2->bpp = bpp;
-			viaparinfo->lvds_setting_info2->refresh_rate =
-				vmode_refresh;
 		}
 	}
 }

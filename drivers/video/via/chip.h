@@ -139,9 +139,6 @@ struct chip_information {
 
 struct crt_setting_information {
 	int iga_path;
-	int h_active;
-	int v_active;
-	int bpp;
 	int refresh_rate;
 };
 
@@ -159,7 +156,6 @@ struct lvds_setting_information {
 	int h_active;
 	int v_active;
 	int bpp;
-	int refresh_rate;
 	int lcd_panel_hres;
 	int lcd_panel_vres;
 	int display_method;
