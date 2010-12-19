@@ -413,6 +413,11 @@ static void poll_transfer(struct dw_spi *dws)
 {
 	while (dws->write(dws))
 		dws->read(dws);
+	/*
+	 * There is a possibility that the last word of a transaction
+	 * will be lost if data is not ready. Re-read to solve this issue.
+	 */
+	dws->read(dws);
 
 	transfer_complete(dws);
 }

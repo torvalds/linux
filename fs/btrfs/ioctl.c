@@ -947,23 +947,42 @@ out:
 
 static noinline int btrfs_ioctl_snap_create(struct file *file,
 					    void __user *arg, int subvol,
-					    int async)
+					    int v2)
 {
 	struct btrfs_ioctl_vol_args *vol_args = NULL;
-	struct btrfs_ioctl_async_vol_args *async_vol_args = NULL;
+	struct btrfs_ioctl_vol_args_v2 *vol_args_v2 = NULL;
 	char *name;
 	u64 fd;
-	u64 transid = 0;
 	int ret;
 
-	if (async) {
-		async_vol_args = memdup_user(arg, sizeof(*async_vol_args));
-		if (IS_ERR(async_vol_args))
-			return PTR_ERR(async_vol_args);
+	if (v2) {
+		u64 transid = 0;
+		u64 *ptr = NULL;
 
-		name = async_vol_args->name;
-		fd = async_vol_args->fd;
-		async_vol_args->name[BTRFS_SNAPSHOT_NAME_MAX] = '\0';
+		vol_args_v2 = memdup_user(arg, sizeof(*vol_args_v2));
+		if (IS_ERR(vol_args_v2))
+			return PTR_ERR(vol_args_v2);
+
+		if (vol_args_v2->flags & ~BTRFS_SUBVOL_CREATE_ASYNC) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		name = vol_args_v2->name;
+		fd = vol_args_v2->fd;
+		vol_args_v2->name[BTRFS_SUBVOL_NAME_MAX] = '\0';
+
+		if (vol_args_v2->flags & BTRFS_SUBVOL_CREATE_ASYNC)
+			ptr = &transid;
+
+		ret = btrfs_ioctl_snap_create_transid(file, name, fd,
+						      subvol, ptr);
+
+		if (ret == 0 && ptr &&
+		    copy_to_user(arg +
+				 offsetof(struct btrfs_ioctl_vol_args_v2,
+					  transid), ptr, sizeof(*ptr)))
+			ret = -EFAULT;
 	} else {
 		vol_args = memdup_user(arg, sizeof(*vol_args));
 		if (IS_ERR(vol_args))
@@ -971,20 +990,13 @@ static noinline int btrfs_ioctl_snap_create(struct file *file,
 		name = vol_args->name;
 		fd = vol_args->fd;
 		vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
+
+		ret = btrfs_ioctl_snap_create_transid(file, name, fd,
+						      subvol, NULL);
 	}
-
-	ret = btrfs_ioctl_snap_create_transid(file, name, fd,
-					      subvol, &transid);
-
-	if (!ret && async) {
-		if (copy_to_user(arg +
-				offsetof(struct btrfs_ioctl_async_vol_args,
-				transid), &transid, sizeof(transid)))
-			return -EFAULT;
-	}
-
+out:
 	kfree(vol_args);
-	kfree(async_vol_args);
+	kfree(vol_args_v2);
 
 	return ret;
 }
@@ -2246,7 +2258,7 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_getversion(file, argp);
 	case BTRFS_IOC_SNAP_CREATE:
 		return btrfs_ioctl_snap_create(file, argp, 0, 0);
-	case BTRFS_IOC_SNAP_CREATE_ASYNC:
+	case BTRFS_IOC_SNAP_CREATE_V2:
 		return btrfs_ioctl_snap_create(file, argp, 0, 1);
 	case BTRFS_IOC_SUBVOL_CREATE:
 		return btrfs_ioctl_snap_create(file, argp, 1, 0);

@@ -4771,6 +4771,9 @@ void ixgbe_clear_interrupt_scheme(struct ixgbe_adapter *adapter)
 		adapter->rx_ring[i] = NULL;
 	}
 
+	adapter->num_tx_queues = 0;
+	adapter->num_rx_queues = 0;
+
 	ixgbe_free_q_vectors(adapter);
 	ixgbe_reset_interrupt_capability(adapter);
 }

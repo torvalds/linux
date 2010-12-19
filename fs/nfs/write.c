@@ -390,6 +390,7 @@ static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 		if (nfs_have_delegation(inode, FMODE_WRITE))
 			nfsi->change_attr++;
 	}
+	set_bit(PG_MAPPED, &req->wb_flags);
 	SetPagePrivate(req->wb_page);
 	set_page_private(req->wb_page, (unsigned long)req);
 	nfsi->npages++;
@@ -415,6 +416,7 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 	spin_lock(&inode->i_lock);
 	set_page_private(req->wb_page, 0);
 	ClearPagePrivate(req->wb_page);
+	clear_bit(PG_MAPPED, &req->wb_flags);
 	radix_tree_delete(&nfsi->nfs_page_tree, req->wb_index);
 	nfsi->npages--;
 	if (!nfsi->npages) {
@@ -422,7 +424,6 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 		iput(inode);
 	} else
 		spin_unlock(&inode->i_lock);
-	nfs_clear_request(req);
 	nfs_release_request(req);
 }
 
