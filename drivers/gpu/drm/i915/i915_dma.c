@@ -778,6 +778,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_COHERENT_RINGS:
 		value = 1;
 		break;
+	case I915_PARAM_HAS_EXEC_CONSTANTS:
+		value = INTEL_INFO(dev)->gen >= 4;
+		break;
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
 				 param->param);

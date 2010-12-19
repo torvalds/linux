@@ -957,7 +957,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct intel_ring_buffer *ring;
 	u32 exec_start, exec_len;
 	u32 seqno;
-	int ret, i;
+	int ret, mode, i;
 
 	if (!i915_gem_check_execbuffer(args)) {
 		DRM_ERROR("execbuf with invalid offset/length\n");
@@ -994,6 +994,39 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	default:
 		DRM_ERROR("execbuf with unknown ring: %d\n",
 			  (int)(args->flags & I915_EXEC_RING_MASK));
+		return -EINVAL;
+	}
+
+	mode = args->flags & I915_EXEC_CONSTANTS_MASK;
+	switch (mode) {
+	case I915_EXEC_CONSTANTS_REL_GENERAL:
+	case I915_EXEC_CONSTANTS_ABSOLUTE:
+	case I915_EXEC_CONSTANTS_REL_SURFACE:
+		if (ring == &dev_priv->ring[RCS] &&
+		    mode != dev_priv->relative_constants_mode) {
+			if (INTEL_INFO(dev)->gen < 4)
+				return -EINVAL;
+
+			if (INTEL_INFO(dev)->gen > 5 &&
+			    mode == I915_EXEC_CONSTANTS_REL_SURFACE)
+				return -EINVAL;
+
+			ret = intel_ring_begin(ring, 4);
+			if (ret)
+				return ret;
+
+			intel_ring_emit(ring, MI_NOOP);
+			intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+			intel_ring_emit(ring, INSTPM);
+			intel_ring_emit(ring,
+					I915_EXEC_CONSTANTS_MASK << 16 | mode);
+			intel_ring_advance(ring);
+
+			dev_priv->relative_constants_mode = mode;
+		}
+		break;
+	default:
+		DRM_ERROR("execbuf with unknown constants: %d\n", mode);
 		return -EINVAL;
 	}
 
