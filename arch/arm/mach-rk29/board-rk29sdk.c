@@ -700,7 +700,7 @@ static int rk29_sensor_power(struct device *dev, int on)
     }
     return 0;
 }
-
+#if (SENSOR_IIC_ADDR_0 != 0x00)
 static struct i2c_board_info rk29_i2c_cam_info_0[] = {
 	{
 		I2C_BOARD_INFO(SENSOR_NAME_0, SENSOR_IIC_ADDR_0>>1)
@@ -724,7 +724,7 @@ struct platform_device rk29_soc_camera_pdrv_0 = {
 		.platform_data = &rk29_iclink_0,
 	},
 };
-
+#endif
 static struct i2c_board_info rk29_i2c_cam_info_1[] = {
 	{
 		I2C_BOARD_INFO(SENSOR_NAME_1, SENSOR_IIC_ADDR_1>>1)
@@ -1196,7 +1196,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_VIDEO_RK29
  	&rk29_device_camera,      /* ddl@rock-chips.com : camera support  */
+ 	#if (SENSOR_IIC_ADDR_0 != 0x00)
  	&rk29_soc_camera_pdrv_0,
+ 	#endif
  	&rk29_soc_camera_pdrv_1,
  	&android_pmem_cam_device,
 #endif

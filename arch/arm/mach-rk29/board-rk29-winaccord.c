@@ -209,7 +209,7 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
         gpio_direction_output(FB_LCD_CABC_EN_PIN, 0);
         gpio_set_value(FB_LCD_CABC_EN_PIN, GPIO_LOW);
     }
-    
+
     return ret;
 }
 
@@ -466,7 +466,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "stc3100",
 		.addr           = 0x70,
 		.flags			= 0,
-	}, 
+	},
 #endif
 #if defined (CONFIG_BATTERY_BQ27510)
 	{
@@ -549,7 +549,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK29
 #define SENSOR_NAME_0 RK29_CAM_SENSOR_NAME_OV5642			/* back camera sensor */
-#define SENSOR_IIC_ADDR_0 	    0x78
+#define SENSOR_IIC_ADDR_0 	    0x00
 #define SENSOR_IIC_ADAPTER_ID_0    1
 #define SENSOR_POWER_PIN_0         RK29_PIN6_PB7
 #define SENSOR_RESET_PIN_0         INVALID_GPIO
@@ -557,7 +557,7 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
 #define SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
 
 
-#define SENSOR_NAME_1 RK29_CAM_SENSOR_NAME_OV2659			/* front camera sensor */
+#define SENSOR_NAME_1 RK29_CAM_SENSOR_NAME_OV2655			/* front camera sensor */
 #define SENSOR_IIC_ADDR_1 	    0x60
 #define SENSOR_IIC_ADAPTER_ID_1    1
 #define SENSOR_POWER_PIN_1         RK29_PIN5_PD7
@@ -700,7 +700,7 @@ static int rk29_sensor_power(struct device *dev, int on)
     }
     return 0;
 }
-
+#if (SENSOR_IIC_ADDR_0 != 0x00)
 static struct i2c_board_info rk29_i2c_cam_info_0[] = {
 	{
 		I2C_BOARD_INFO(SENSOR_NAME_0, SENSOR_IIC_ADDR_0>>1)
@@ -724,7 +724,7 @@ struct platform_device rk29_soc_camera_pdrv_0 = {
 		.platform_data = &rk29_iclink_0,
 	},
 };
-
+#endif
 static struct i2c_board_info rk29_i2c_cam_info_1[] = {
 	{
 		I2C_BOARD_INFO(SENSOR_NAME_1, SENSOR_IIC_ADDR_1>>1)
@@ -852,7 +852,7 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
 	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
 	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
-	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);	
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
 	rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
 	gpio_request(RK29_PIN5_PD5,"sdmmc");
 	gpio_set_value(RK29_PIN5_PD5,GPIO_HIGH);
@@ -890,7 +890,7 @@ static int rk29_sdmmc1_cfg_gpio(void)
 	return 0;
 }
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC 
+#ifdef CONFIG_WIFI_CONTROL_FUNC
 static int rk29sdk_wifi_status(struct device *dev);
 static int rk29sdk_wifi_status_register(void (*callback)(int card_presend, void *dev_id), void *dev_id);
 #endif
@@ -949,27 +949,27 @@ static int rk29sdk_wifi_bt_gpio_control_init(void)
 {
     if (gpio_request(RK29SDK_WIFI_BT_GPIO_POWER_N, "wifi_bt_power")) {
            pr_info("%s: request wifi_bt power gpio failed\n", __func__);
-           return -1; 
+           return -1;
     }
-   
+
     if (gpio_request(RK29SDK_WIFI_GPIO_RESET_N, "wifi reset")) {
            pr_info("%s: request wifi reset gpio failed\n", __func__);
            gpio_free(RK29SDK_WIFI_BT_GPIO_POWER_N);
            return -1;
     }
-   
+
     if (gpio_request(RK29SDK_BT_GPIO_RESET_N, "bt reset")) {
           pr_info("%s: request bt reset gpio failed\n", __func__);
           gpio_free(RK29SDK_WIFI_GPIO_RESET_N);
           return -1;
     }
-   
+
     gpio_direction_output(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
     gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
-    gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW); 
-    
+    gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW);
+
     pr_info("%s: init finished\n",__func__);
-   
+
     return 0;
 }
 
@@ -1196,7 +1196,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_VIDEO_RK29
  	&rk29_device_camera,      /* ddl@rock-chips.com : camera support  */
+ 	#if (SENSOR_IIC_ADDR_0 != 0x00)
  	&rk29_soc_camera_pdrv_0,
+ 	#endif
  	&rk29_soc_camera_pdrv_1,
  	&android_pmem_cam_device,
 #endif
@@ -1226,7 +1228,7 @@ static struct platform_device *devices[] __initdata = {
  *****************************************************************************************/
 static int rk29_vmac_register_set(void)
 {
-	//config rk29 vmac as rmii, 100MHz 
+	//config rk29 vmac as rmii, 100MHz
 	u32 value= readl(RK29_GRF_BASE + 0xbc);
 	value = (value & 0xfff7ff) | (0x400);
 	writel(value, RK29_GRF_BASE + 0xbc);
@@ -1255,10 +1257,10 @@ static int rk29_rmii_io_init(void)
 		gpio_free(RK29_PIN2_PD3);
 		printk("-------request RK29_PIN6_PB0 fail--------\n");
 		return -1;
-	}	
+	}
 	gpio_direction_output(RK29_PIN6_PB0, GPIO_HIGH);
 	gpio_set_value(RK29_PIN6_PB0, GPIO_HIGH);
-	
+
 	return 0;
 }
 
@@ -1272,7 +1274,7 @@ static int rk29_rmii_power_control(int enable)
 		//enable rmii power
 		gpio_direction_output(RK29_PIN6_PB0, GPIO_HIGH);
 		gpio_set_value(RK29_PIN6_PB0, GPIO_HIGH);
-		
+
 	}
 	else {
 		gpio_direction_output(RK29_PIN6_PB0, GPIO_LOW);
@@ -1497,7 +1499,7 @@ static void __init machine_rk29_init_irq(void)
 static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
-	gpio_request(POWER_ON_PIN,"poweronpin");	
+	gpio_request(POWER_ON_PIN,"poweronpin");
 	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 
