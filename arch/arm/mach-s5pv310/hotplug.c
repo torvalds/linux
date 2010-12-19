@@ -56,7 +56,7 @@ static inline void cpu_leave_lowpower(void)
 	  : "cc");
 }
 
-static inline void platform_do_lowpower(unsigned int cpu)
+static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 {
 	/*
 	 * there is no power-control hardware on this platform, so all
@@ -80,16 +80,13 @@ static inline void platform_do_lowpower(unsigned int cpu)
 		}
 
 		/*
-		 * getting here, means that we have come out of WFI without
+		 * Getting here, means that we have come out of WFI without
 		 * having been woken up - this shouldn't happen
 		 *
-		 * The trouble is, letting people know about this is not really
-		 * possible, since we are currently running incoherently, and
-		 * therefore cannot safely call printk() or anything else
+		 * Just note it happening - when we're woken, we can report
+		 * its occurrence.
 		 */
-#ifdef DEBUG
-		printk(KERN_WARN "CPU%u: spurious wakeup call\n", cpu);
-#endif
+		(*spurious)++;
 	}
 }
 
@@ -105,17 +102,22 @@ int platform_cpu_kill(unsigned int cpu)
  */
 void platform_cpu_die(unsigned int cpu)
 {
+	int spurious = 0;
+
 	/*
 	 * we're ready for shutdown now, so do it
 	 */
 	cpu_enter_lowpower();
-	platform_do_lowpower(cpu);
+	platform_do_lowpower(cpu, &spurious);
 
 	/*
 	 * bring this CPU back into the world of cache
 	 * coherency, and then restore interrupts
 	 */
 	cpu_leave_lowpower();
+
+	if (spurious)
+		pr_warn("CPU%u: %u spurious wakeup calls\n", cpu, spurious);
 }
 
 int platform_cpu_disable(unsigned int cpu)
