@@ -673,8 +673,10 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 	}
 
 	if ((!aligned && (host->sg_len > 1 || sg->length > PAGE_CACHE_SIZE ||
-			  align >= MAX_ALIGN)) || !multiple)
+			  align >= MAX_ALIGN)) || !multiple) {
+		ret = -EINVAL;
 		goto pio;
+	}
 
 	/* The only sg element can be unaligned, use our bounce buffer then */
 	if (!aligned) {
@@ -748,8 +750,10 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 	}
 
 	if ((!aligned && (host->sg_len > 1 || sg->length > PAGE_CACHE_SIZE ||
-			  align >= MAX_ALIGN)) || !multiple)
+			  align >= MAX_ALIGN)) || !multiple) {
+		ret = -EINVAL;
 		goto pio;
+	}
 
 	/* The only sg element can be unaligned, use our bounce buffer then */
 	if (!aligned) {
