@@ -244,7 +244,7 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 	PDEBUG(DBG_I2C, "i2c bus for %s registered", usbvision->i2c_adap.name);
 
 	/* Request the load of the i2c modules we need */
-	switch (usbvision_device_data[usbvision->DevModel].Codec) {
+	switch (usbvision_device_data[usbvision->dev_model].codec) {
 	case CODEC_SAA7113:
 	case CODEC_SAA7111:
 		/* Without this delay the detection of the saa711x is
@@ -255,7 +255,7 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 				"saa7115_auto", 0, saa711x_addrs);
 		break;
 	}
-	if (usbvision_device_data[usbvision->DevModel].Tuner == 1) {
+	if (usbvision_device_data[usbvision->dev_model].tuner == 1) {
 		struct v4l2_subdev *sd;
 		enum v4l2_i2c_tuner_type type;
 		struct tuner_setup tun_setup;
@@ -426,18 +426,18 @@ static int usbvision_i2c_write_max4(struct usb_usbvision *usbvision,
 static int usbvision_i2c_write(struct usb_usbvision *usbvision, unsigned char addr, char *buf,
 			    short len)
 {
-	char *bufPtr = buf;
+	char *buf_ptr = buf;
 	int retval;
 	int wrcount = 0;
 	int count;
-	int maxLen = 4;
+	int max_len = 4;
 
 	while (len > 0) {
-		count = (len > maxLen) ? maxLen : len;
-		retval = usbvision_i2c_write_max4(usbvision, addr, bufPtr, count);
+		count = (len > max_len) ? max_len : len;
+		retval = usbvision_i2c_write_max4(usbvision, addr, buf_ptr, count);
 		if (retval > 0) {
 			len -= count;
-			bufPtr += count;
+			buf_ptr += count;
 			wrcount += count;
 		} else
 			return (retval < 0) ? retval : -EFAULT;
