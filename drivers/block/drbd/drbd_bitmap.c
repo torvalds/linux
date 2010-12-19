@@ -897,7 +897,7 @@ void drbd_bm_clear_all(struct drbd_conf *mdev)
 struct bm_aio_ctx {
 	struct drbd_conf *mdev;
 	atomic_t in_flight;
-	wait_queue_head_t io_wait;
+	struct completion done;
 	unsigned flags;
 #define BM_AIO_COPY_PAGES	1
 	int error;
@@ -948,7 +948,7 @@ static void bm_async_io_complete(struct bio *bio, int error)
 	bio_put(bio);
 
 	if (atomic_dec_and_test(&ctx->in_flight))
-		wake_up(&ctx->io_wait);
+		complete(&ctx->done);
 }
 
 static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must_hold(local)
@@ -1009,8 +1009,12 @@ static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must
  */
 static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_idx) __must_hold(local)
 {
-	struct bm_aio_ctx ctx =
-		{ .flags = lazy_writeout_upper_idx ? BM_AIO_COPY_PAGES : 0 };
+	struct bm_aio_ctx ctx = {
+		.mdev = mdev,
+		.in_flight = ATOMIC_INIT(1),
+		.done = COMPLETION_INITIALIZER_ONSTACK(ctx.done),
+		.flags = lazy_writeout_upper_idx ? BM_AIO_COPY_PAGES : 0,
+	};
 	struct drbd_bitmap *b = mdev->bitmap;
 	int num_pages, i, count = 0;
 	unsigned long now;
@@ -1031,10 +1035,6 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 	num_pages = b->bm_number_of_pages;
 
 	now = jiffies;
-	ctx.mdev = mdev;
-	atomic_set(&ctx.in_flight, 1); /* one extra ref */
-	init_waitqueue_head(&ctx.io_wait);
-	ctx.error = 0;
 
 	/* let the layers below us try to merge these bios... */
 	for (i = 0; i < num_pages; i++) {
@@ -1060,8 +1060,13 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 		cond_resched();
 	}
 
-	atomic_dec(&ctx.in_flight); /* drop the extra ref */
-	wait_event(ctx.io_wait, atomic_read(&ctx.in_flight) == 0);
+	/*
+	 * We initialize ctx.in_flight to one to make sure bm_async_io_complete
+	 * will not complete() early, and decrement / test it here.  If there
+	 * are still some bios in flight, we need to wait for them here.
+	 */
+	if (!atomic_dec_and_test(&ctx.in_flight))
+		wait_for_completion(&ctx.done);
 	dev_info(DEV, "bitmap %s of %u pages took %lu jiffies\n",
 			rw == WRITE ? "WRITE" : "READ",
 			count, jiffies - now);
@@ -1133,19 +1138,20 @@ int drbd_bm_write_lazy(struct drbd_conf *mdev, unsigned upper_idx) __must_hold(l
  */
 int drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(local)
 {
-	struct bm_aio_ctx ctx = { .flags = BM_AIO_COPY_PAGES, };
+	struct bm_aio_ctx ctx = {
+		.mdev = mdev,
+		.in_flight = ATOMIC_INIT(1),
+		.done = COMPLETION_INITIALIZER_ONSTACK(ctx.done),
+		.flags = BM_AIO_COPY_PAGES,
+	};
 
 	if (bm_test_page_unchanged(mdev->bitmap->bm_pages[idx])) {
 		dynamic_dev_dbg(DEV, "skipped bm page write for idx %u\n", idx);
 		return 0;
 	}
 
-	ctx.mdev = mdev;
-	atomic_set(&ctx.in_flight, 1);
-	init_waitqueue_head(&ctx.io_wait);
-
 	bm_page_io_async(&ctx, idx, WRITE_SYNC);
-	wait_event(ctx.io_wait, atomic_read(&ctx.in_flight) == 0);
+	wait_for_completion(&ctx.done);
 
 	if (ctx.error)
 		drbd_chk_io_error(mdev, 1, true);
