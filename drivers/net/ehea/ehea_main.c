@@ -740,13 +740,13 @@ static int ehea_proc_rwqes(struct net_device *dev,
 							  skb_arr_rq1_len,
 							  wqe_index);
 				if (unlikely(!skb)) {
-					netif_err(port, rx_err, dev,
+					netif_info(port, rx_err, dev,
 						  "LL rq1: skb=NULL\n");
 
 					skb = netdev_alloc_skb(dev,
 							       EHEA_L_PKT_SIZE);
 					if (!skb) {
-						netdev_info(dev, "Not enough memory to allocate skb\n");
+						netdev_err(dev, "Not enough memory to allocate skb\n");
 						break;
 					}
 				}
