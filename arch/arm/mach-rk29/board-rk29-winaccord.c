@@ -59,7 +59,7 @@
 #endif
 #define PMEM_GPU_SIZE       SZ_64M
 #define PMEM_UI_SIZE        SZ_32M
-#define PMEM_VPU_SIZE       SZ_32M
+#define PMEM_VPU_SIZE       SZ_64M
 #define PMEM_CAM_SIZE       0x00c00000
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
 #define MEM_CAMIPP_SIZE     SZ_4M
