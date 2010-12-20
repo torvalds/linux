@@ -157,24 +157,30 @@ static void ivtv_write_vbi(struct ivtv *itv,
 		ivtv_write_vbi_cc_lines(itv, &cc);
 }
 
-void ivtv_write_vbi_from_user(struct ivtv *itv,
-			      const struct v4l2_sliced_vbi_data __user *sliced,
-			      size_t cnt)
+ssize_t
+ivtv_write_vbi_from_user(struct ivtv *itv,
+			 const struct v4l2_sliced_vbi_data __user *sliced,
+			 size_t cnt)
 {
 	struct vbi_cc cc = { .odd = { 0x80, 0x80 }, .even = { 0x80, 0x80 } };
 	int found_cc = 0;
 	size_t i;
 	struct v4l2_sliced_vbi_data d;
+	ssize_t ret = cnt * sizeof(struct v4l2_sliced_vbi_data);
 
 	for (i = 0; i < cnt; i++) {
 		if (copy_from_user(&d, sliced + i,
-				   sizeof(struct v4l2_sliced_vbi_data)))
+				   sizeof(struct v4l2_sliced_vbi_data))) {
+			ret = -EFAULT;
 			break;
+		}
 		ivtv_write_vbi_line(itv, sliced + i, &cc, &found_cc);
 	}
 
 	if (found_cc)
 		ivtv_write_vbi_cc_lines(itv, &cc);
+
+	return ret;
 }
 
 static void copy_vbi_data(struct ivtv *itv, int lines, u32 pts_stamp)
