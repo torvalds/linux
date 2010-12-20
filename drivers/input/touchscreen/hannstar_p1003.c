@@ -20,6 +20,8 @@
 #include <mach/board.h>
 
 #define MAX_SUPPORT_POINT	2// //  4
+#define PACKGE_BUFLEN		10
+
 //#define Singltouch_Mode
 #define SAKURA_DBG                  0
 #if SAKURA_DBG 
@@ -122,33 +124,69 @@ static void p1003_report_single_event(struct ts_p1003 *ts,struct multitouch_even
 }
 #endif
 
-static inline int p1003_read_values(struct ts_p1003 *ts, struct multitouch_event *tc)
+static inline int p1003_check_firmwork(struct ts_p1003 *ts)
 {
     int data;
     int len = 10;
-    char buf[10];
+    char buf[10] = {0x03 , 0x03 , 0x0a , 0x01 , 'D' , 0x00 , 0x00 , 0x00 , 0x00 , 0x00};
+	int i;
     short contactid=0;
 
-    data = i2c_master_normal_recv(ts->client, buf,len, 200*1000);
+    data = i2c_master_normal_send(ts->client, buf,len, 200*1000);
 
-    if (data < 0 || (buf[0]!=0x04)) {
-		int i;
-		dev_err(&ts->client->dev, "i2c io error: %d or Hannstar read reg failed\n", data);
-		for(i = 0; i < 10 ; i++)
-			dev_err(&ts->client->dev," hannstar reg[%d] = 0x%x\n",i,buf[i]);
-		data = -1;
-    	return data;
-    }
+	if(data < 0){
+		dev_err(&ts->client->dev, "i2c io error %d \n", data);
+		return data;
+	}
 
-    contactid = (buf[1]&0x7C)>>2;
-    tc->contactid = contactid;
-    tc->point_data[contactid].status = buf[1]&0x01; 
-    tc->point_data[contactid].x = ((buf[3]<<8) + buf[2])>>4;
-    tc->point_data[contactid].y = ((buf[5]<<8) + buf[4])>>4;
-    tc->validtouch = buf[1]&0x80;
-    ts->status = tc->point_data[contactid].status;
-//    printk("validtouch =%d,status= %d,contactid =%d\n",tc->validtouch,tc->point_data[contactid].status,contactid);
+	data = i2c_master_normal_recv(ts->client, buf,len, 200*1000);
+
+	if(data < 0){
+		dev_err(&ts->client->dev, "i2c io error %d \n", data);
+		return data;
+	}
+
+	printk("p1003 reg[5] = %c ,reg[6] = %c, reg[7] = %c, reg[8] = %c\n" , buf[5],buf[6],buf[7],buf[8]);
+	printk("p1003 reg[5] = %x ,reg[6] = %x, reg[7] = %x, reg[8] = %x\n" , buf[5],buf[6],buf[7],buf[8]);
     return data;
+}
+
+
+static inline int p1003_read_values(struct ts_p1003 *ts, struct multitouch_event *tc)
+{
+    int data, j;
+    int len = 10;
+    char *buf;
+	char tempbuf[(MAX_SUPPORT_POINT * 10) << 1];
+    short contactid=0;
+
+	for(j = 0; j < MAX_SUPPORT_POINT ; j++){
+		buf = &tempbuf[j*10];
+    	data = i2c_master_normal_recv(ts->client, buf, len, 200*1000);
+		if(data < 0)
+			return data;
+		if(tempbuf[j*10] != 0x04){
+			if(j == 0){
+				data = -1;
+				ts->pendown = 0;
+	    		return data;
+			}else{
+				
+				break;
+			}
+		}
+		
+		contactid = (buf[1]&0x7C)>>2;
+		tc->contactid = contactid;
+		tc->point_data[contactid].status = buf[1]&0x01; 
+		tc->point_data[contactid].x = ((buf[3]<<8) + buf[2])>>4;
+		tc->point_data[contactid].y = ((buf[5]<<8) + buf[4])>>4;
+		tc->validtouch = buf[1]&0x80;
+		ts->status = tc->point_data[contactid].status;
+	}
+	
+//    printk("validtouch =%d,status= %d,contactid =%d\n",tc->validtouch,tc->point_data[contactid].status,contactid);
+    return 10;
 }
 
 
@@ -157,7 +195,7 @@ static void p1003_work(struct work_struct *work)
 	struct ts_p1003 *ts =
 		container_of(to_delayed_work(work), struct ts_p1003, work);
 	struct multitouch_event *tc = &ts->mt_event;
-	u32 rt;
+	int rt;
     
 	rt = p1003_read_values(ts,tc);
     
@@ -170,11 +208,14 @@ static void p1003_work(struct work_struct *work)
     p1003_report_event(ts,tc);
 #endif
 
-out:    
-	if (ts->pendown)
+out:               
+	if (ts->pendown){
 		queue_delayed_work(ts->wq, &ts->work, msecs_to_jiffies(10));
-	else
+		ts->pendown = 0;
+	}
+	else{
 		enable_irq(ts->irq);
+	}
 }
 
 static irqreturn_t p1003_irq(int irq, void *handle)
@@ -305,6 +346,8 @@ static int __devinit p1003_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, ts);
 
+	p1003_check_firmwork(ts);
+	
 	return 0;
 
  err_free_irq:
