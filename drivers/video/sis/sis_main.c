@@ -4105,7 +4105,6 @@ sisfb_find_rom(struct pci_dev *pdev)
 	struct sis_video_info *ivideo = pci_get_drvdata(pdev);
 	void __iomem *rom_base;
 	unsigned char *myrombase = NULL;
-	u32 temp;
 	size_t romsize;
 
 	/* First, try the official pci ROM functions (except
@@ -4132,26 +4131,29 @@ sisfb_find_rom(struct pci_dev *pdev)
 	/* Otherwise do it the conventional way. */
 
 #if defined(__i386__) || defined(__x86_64__)
+	{
+		u32 temp;
 
-	for(temp = 0x000c0000; temp < 0x000f0000; temp += 0x00001000) {
+		for (temp = 0x000c0000; temp < 0x000f0000; temp += 0x00001000) {
 
-		rom_base = ioremap(temp, 65536);
-		if(!rom_base)
-			continue;
+			rom_base = ioremap(temp, 65536);
+			if (!rom_base)
+				continue;
 
-		if(!sisfb_check_rom(rom_base, ivideo)) {
+			if (!sisfb_check_rom(rom_base, ivideo)) {
+				iounmap(rom_base);
+				continue;
+			}
+
+			if ((myrombase = vmalloc(65536)))
+				memcpy_fromio(myrombase, rom_base, 65536);
+
 			iounmap(rom_base);
-			continue;
+			break;
+
 		}
 
-		if((myrombase = vmalloc(65536)))
-			memcpy_fromio(myrombase, rom_base, 65536);
-
-		iounmap(rom_base);
-		break;
-
-        }
-
+	}
 #endif
 
 	return myrombase;
