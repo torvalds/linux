@@ -291,7 +291,7 @@ static int __devinit wm8505fb_probe(struct platform_device *pdev)
 		goto failed_fbi;
 	}
 
-	res = request_mem_region(res->start, resource_size(res), "wm8505fb");
+	res = request_mem_region(res->start, resource_size(res), DRIVER_NAME);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "failed to request I/O memory\n");
 		ret = -EBUSY;
