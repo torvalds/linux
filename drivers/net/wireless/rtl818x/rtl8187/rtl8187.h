@@ -16,7 +16,7 @@
 #define RTL8187_H
 
 #include "rtl818x.h"
-#include "rtl8187_leds.h"
+#include "leds.h"
 
 #define RTL8187_EEPROM_TXPWR_BASE	0x05
 #define RTL8187_EEPROM_MAC_ADDR		0x07

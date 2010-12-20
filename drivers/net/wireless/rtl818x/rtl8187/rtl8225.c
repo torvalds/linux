@@ -21,7 +21,7 @@
 #include <net/mac80211.h>
 
 #include "rtl8187.h"
-#include "rtl8187_rtl8225.h"
+#include "rtl8225.h"
 
 static void rtl8225_write_bitbang(struct ieee80211_hw *dev, u8 addr, u16 data)
 {
