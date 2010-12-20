@@ -165,14 +165,15 @@ void drbd_endio_sec(struct bio *bio, int error)
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 	int is_write = bio_data_dir(bio) == WRITE;
 
-	if (error)
+	if (error && __ratelimit(&drbd_ratelimit_state))
 		dev_warn(DEV, "%s: error=%d s=%llus\n",
 				is_write ? "write" : "read", error,
 				(unsigned long long)e->sector);
 	if (!error && !uptodate) {
-		dev_warn(DEV, "%s: setting error to -EIO s=%llus\n",
-				is_write ? "write" : "read",
-				(unsigned long long)e->sector);
+		if (__ratelimit(&drbd_ratelimit_state))
+			dev_warn(DEV, "%s: setting error to -EIO s=%llus\n",
+					is_write ? "write" : "read",
+					(unsigned long long)e->sector);
 		/* strange behavior of some lower level drivers...
 		 * fail the request by clearing the uptodate flag,
 		 * but do not return any error?! */
