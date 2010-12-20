@@ -1,0 +1,7 @@
+choice
+	prompt "HDMI chips select"
+config ANX7150
+	bool "anx7150"
+config ANX9030
+	bool "anx9030"
+endchoice

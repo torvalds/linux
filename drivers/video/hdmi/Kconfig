@@ -1,0 +1,19 @@
+#
+# Display drivers configuration
+#
+
+menu "HDMI support"
+
+config HDMI
+	tristate "hdmi support"
+	help
+		nothing
+if HDMI
+source "drivers/video/hdmi/chips/Kconfig"
+config HDMI_DEBUG
+	bool "hdmi debug"
+	help
+		nothing
+endif
+
+endmenu

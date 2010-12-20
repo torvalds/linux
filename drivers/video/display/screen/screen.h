@@ -1,3 +1,5 @@
+#include <mach/board.h>
+
 typedef enum _SCREEN_TYPE {
     SCREEN_NULL = 0,
     SCREEN_RGB,
