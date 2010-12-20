@@ -373,26 +373,30 @@ int show_line_range(struct line_range *lr, const char *module)
 		return -errno;
 	}
 	/* Skip to starting line number */
-	while (l < lr->start && ret >= 0)
+	while (l < lr->start) {
 		ret = show_one_line(fp, l++, true, false);
-	if (ret < 0)
-		goto end;
+		if (ret < 0)
+			goto end;
+	}
 
 	list_for_each_entry(ln, &lr->line_list, list) {
-		while (ln->line > l && ret >= 0)
-			ret = show_one_line(fp, (l++) - lr->offset,
-					    false, false);
-		if (ret >= 0)
-			ret = show_one_line(fp, (l++) - lr->offset,
-					    false, true);
+		for (; ln->line > l; l++) {
+			ret = show_one_line(fp, l - lr->offset, false, false);
+			if (ret < 0)
+				goto end;
+		}
+		ret = show_one_line(fp, l++ - lr->offset, false, true);
 		if (ret < 0)
 			goto end;
 	}
 
 	if (lr->end == INT_MAX)
 		lr->end = l + NR_ADDITIONAL_LINES;
-	while (l <= lr->end && !feof(fp) && ret >= 0)
-		ret = show_one_line(fp, (l++) - lr->offset, false, false);
+	while (l <= lr->end && !feof(fp)) {
+		ret = show_one_line(fp, l++ - lr->offset, false, false);
+		if (ret < 0)
+			break;
+	}
 end:
 	fclose(fp);
 	return ret;
