@@ -254,7 +254,8 @@ static int __init smdk_audio_init(void)
 	int ret;
 	char *str;
 
-	if (machine_is_smdkc100() || machine_is_smdk6442()) {
+	if (machine_is_smdkc100() || machine_is_smdk6442()
+			|| machine_is_smdkv210()) {
 		smdk.num_links = 3;
 		/* Secondary is at offset SAMSUNG_I2S_SECOFF from Primary */
 		str = (char *)smdk_dai[SEC_PLAYBACK].cpu_dai_name;
