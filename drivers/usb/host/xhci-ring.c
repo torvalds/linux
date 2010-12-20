@@ -2421,7 +2421,10 @@ static void giveback_first_trb(struct xhci_hcd *xhci, int slot_id,
 	 * isn't reordered.
 	 */
 	wmb();
-	start_trb->field[3] |= start_cycle;
+	if (start_cycle)
+		start_trb->field[3] |= start_cycle;
+	else
+		start_trb->field[3] &= ~0x1;
 	xhci_ring_ep_doorbell(xhci, slot_id, ep_index, stream_id);
 }
 
@@ -2551,9 +2554,11 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		u32 remainder = 0;
 
 		/* Don't change the cycle bit of the first TRB until later */
-		if (first_trb)
+		if (first_trb) {
 			first_trb = false;
-		else
+			if (start_cycle == 0)
+				field |= 0x1;
+		} else
 			field |= ep_ring->cycle_state;
 
 		/* Chain all the TRBs together; clear the chain bit in the last
@@ -2711,9 +2716,11 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		field = 0;
 
 		/* Don't change the cycle bit of the first TRB until later */
-		if (first_trb)
+		if (first_trb) {
 			first_trb = false;
-		else
+			if (start_cycle == 0)
+				field |= 0x1;
+		} else
 			field |= ep_ring->cycle_state;
 
 		/* Chain all the TRBs together; clear the chain bit in the last
@@ -2818,13 +2825,17 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* Queue setup TRB - see section 6.4.1.2.1 */
 	/* FIXME better way to translate setup_packet into two u32 fields? */
 	setup = (struct usb_ctrlrequest *) urb->setup_packet;
+	field = 0;
+	field |= TRB_IDT | TRB_TYPE(TRB_SETUP);
+	if (start_cycle == 0)
+		field |= 0x1;
 	queue_trb(xhci, ep_ring, false, true,
 			/* FIXME endianness is probably going to bite my ass here. */
 			setup->bRequestType | setup->bRequest << 8 | setup->wValue << 16,
 			setup->wIndex | setup->wLength << 16,
 			TRB_LEN(8) | TRB_INTR_TARGET(0),
 			/* Immediate data in pointer */
-			TRB_IDT | TRB_TYPE(TRB_SETUP));
+			field);
 
 	/* If there's data, queue data TRBs */
 	field = 0;
@@ -2951,7 +2962,10 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				field |= TRB_TYPE(TRB_ISOC);
 				/* Assume URB_ISO_ASAP is set */
 				field |= TRB_SIA;
-				if (i > 0)
+				if (i == 0) {
+					if (start_cycle == 0)
+						field |= 0x1;
+				} else
 					field |= ep_ring->cycle_state;
 				first_trb = false;
 			} else {
