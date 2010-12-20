@@ -1930,14 +1930,13 @@ static int ext4_fill_flex_info(struct super_block *sb)
 	size = flex_group_count * sizeof(struct flex_groups);
 	sbi->s_flex_groups = kzalloc(size, GFP_KERNEL);
 	if (sbi->s_flex_groups == NULL) {
-		sbi->s_flex_groups = vmalloc(size);
-		if (sbi->s_flex_groups)
-			memset(sbi->s_flex_groups, 0, size);
-	}
-	if (sbi->s_flex_groups == NULL) {
-		ext4_msg(sb, KERN_ERR, "not enough memory for "
-				"%u flex groups", flex_group_count);
-		goto failed;
+		sbi->s_flex_groups = vzalloc(size);
+		if (sbi->s_flex_groups == NULL) {
+			ext4_msg(sb, KERN_ERR,
+				 "not enough memory for %u flex groups",
+				 flex_group_count);
+			goto failed;
+		}
 	}
 
 	for (i = 0; i < sbi->s_groups_count; i++) {
