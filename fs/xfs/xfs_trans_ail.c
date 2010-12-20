@@ -523,70 +523,6 @@ xfs_trans_ail_update_bulk(
 }
 
 /*
- * Delete the given item from the AIL.  It must already be in
- * the AIL.
- *
- * Wakeup anyone with an lsn less than item's lsn.    If the item
- * we delete in the AIL is the minimum one, update the tail lsn in the
- * log manager.
- *
- * Clear the IN_AIL flag from the item, reset its lsn to 0, and
- * bump the AIL's generation count to indicate that the tree
- * has changed.
- *
- * This function must be called with the AIL lock held.  The lock
- * is dropped before returning.
- */
-void
-xfs_trans_ail_delete(
-	struct xfs_ail	*ailp,
-	xfs_log_item_t	*lip) __releases(ailp->xa_lock)
-{
-	xfs_log_item_t		*mlip;
-	xfs_lsn_t		tail_lsn;
-
-	if (lip->li_flags & XFS_LI_IN_AIL) {
-		mlip = xfs_ail_min(ailp);
-		xfs_ail_delete(ailp, lip);
-
-
-		lip->li_flags &= ~XFS_LI_IN_AIL;
-		lip->li_lsn = 0;
-
-		if (mlip == lip) {
-			mlip = xfs_ail_min(ailp);
-			/*
-			 * It is not safe to access mlip after the AIL lock
-			 * is dropped, so we must get a copy of li_lsn
-			 * before we do so.  This is especially important
-			 * on 32-bit platforms where accessing and updating
-			 * 64-bit values like li_lsn is not atomic.
-			 */
-			tail_lsn = mlip ? mlip->li_lsn : 0;
-			spin_unlock(&ailp->xa_lock);
-			xfs_log_move_tail(ailp->xa_mount, tail_lsn);
-		} else {
-			spin_unlock(&ailp->xa_lock);
-		}
-	}
-	else {
-		/*
-		 * If the file system is not being shutdown, we are in
-		 * serious trouble if we get to this stage.
-		 */
-		struct xfs_mount	*mp = ailp->xa_mount;
-
-		spin_unlock(&ailp->xa_lock);
-		if (!XFS_FORCED_SHUTDOWN(mp)) {
-			xfs_cmn_err(XFS_PTAG_AILDELETE, CE_ALERT, mp,
-		"%s: attempting to delete a log item that is not in the AIL",
-					__func__);
-			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-		}
-	}
-}
-
-/*
  * xfs_trans_ail_delete_bulk - remove multiple log items from the AIL
  *
  * @xfs_trans_ail_delete_bulk takes an array of log items that all need to
@@ -659,7 +595,6 @@ xfs_trans_ail_delete_bulk(
 	spin_unlock(&ailp->xa_lock);
 	xfs_log_move_tail(ailp->xa_mount, tail_lsn);
 }
-
 
 /*
  * The active item list (AIL) is a doubly linked list of log
