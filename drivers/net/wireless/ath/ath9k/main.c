@@ -1328,6 +1328,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	ath9k_ps_restore(sc);
 
 	sc->ps_idle = true;
+	ath9k_set_wiphy_idle(aphy, true);
 	ath_radio_disable(sc, hw);
 
 	sc->sc_flags |= SC_OP_INVALID;
