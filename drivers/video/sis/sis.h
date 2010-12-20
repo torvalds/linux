@@ -307,7 +307,20 @@
 #define VB2_LCDOVER1600BRIDGE	(VB2_307T  | VB2_307LV)
 #define VB2_RAMDAC202MHZBRIDGE	(VB2_301C  | VB2_307T)
 
-/* I/O port access macros */
+/* I/O port access macros and functions */
+
+void SiS_SetReg(SISIOADDRESS, unsigned short, unsigned short);
+void SiS_SetRegByte(SISIOADDRESS, unsigned short);
+void SiS_SetRegShort(SISIOADDRESS, unsigned short);
+void SiS_SetRegLong(SISIOADDRESS, unsigned int);
+void SiS_SetRegANDOR(SISIOADDRESS, unsigned short, unsigned short, unsigned short);
+void SiS_SetRegAND(SISIOADDRESS, unsigned short, unsigned short);
+void SiS_SetRegOR(SISIOADDRESS, unsigned short, unsigned short);
+unsigned char SiS_GetReg(SISIOADDRESS, unsigned short);
+unsigned char SiS_GetRegByte(SISIOADDRESS);
+unsigned short SiS_GetRegShort(SISIOADDRESS);
+unsigned int SiS_GetRegLong(SISIOADDRESS);
+
 #define inSISREG(base)		inb(base)
 
 #define outSISREG(base,val)	outb(val,base)
