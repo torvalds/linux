@@ -57,8 +57,7 @@ typedef struct tag_IMAGE_PARAMS
 #define IMAGE_PARAMS_PHYS	0xC01F0000
 
 static void __init
-fortunet_fixup(struct machine_desc *desc, struct tag *tags,
-		 char **cmdline, struct meminfo *mi)
+fortunet_fixup(struct tag *tags, char **cmdline, struct meminfo *mi)
 {
 	IMAGE_PARAMS *ip = phys_to_virt(IMAGE_PARAMS_PHYS);
 	*cmdline = phys_to_virt(ip->command_line);

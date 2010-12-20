@@ -41,8 +41,7 @@
 #include "clock.h"
 
 /* Only e800 has 128MB RAM */
-void __init eseries_fixup(struct machine_desc *desc,
-	struct tag *tags, char **cmdline, struct meminfo *mi)
+void __init eseries_fixup(struct tag *tags, char **cmdline, struct meminfo *mi)
 {
 	mi->nr_banks=1;
 	mi->bank[0].start = 0xa0000000;

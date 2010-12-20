@@ -316,8 +316,7 @@ static void realview_pb1176_reset(char mode)
 	__raw_writel(REALVIEW_PB1176_SYS_SOFT_RESET, reset_ctrl);
 }
 
-static void realview_pb1176_fixup(struct machine_desc *mdesc,
-				  struct tag *tags, char **from,
+static void realview_pb1176_fixup(struct tag *tags, char **from,
 				  struct meminfo *meminfo)
 {
 	/*

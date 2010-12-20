@@ -92,8 +92,7 @@ static struct platform_device *smdk2413_devices[] __initdata = {
 	&s3c_device_usbgadget,
 };
 
-static void __init smdk2413_fixup(struct machine_desc *desc,
-				  struct tag *tags, char **cmdline,
+static void __init smdk2413_fixup(struct tag *tags, char **cmdline,
 				  struct meminfo *mi)
 {
 	if (tags != phys_to_virt(S3C2410_SDRAM_PA + 0x100)) {
