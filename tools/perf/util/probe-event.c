@@ -529,6 +529,19 @@ int show_available_vars(struct perf_probe_event *pevs __unused,
 }
 #endif
 
+static int parse_line_num(char **ptr, int *val, const char *what)
+{
+	const char *start = *ptr;
+
+	errno = 0;
+	*val = strtol(*ptr, ptr, 0);
+	if (errno || *ptr == start) {
+		semantic_error("'%s' is not a valid number.\n", what);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 /*
  * Stuff 'lr' according to the line range described by 'arg'.
  * The line range syntax is described by:
@@ -538,50 +551,65 @@ int show_available_vars(struct perf_probe_event *pevs __unused,
  */
 int parse_line_range_desc(const char *arg, struct line_range *lr)
 {
-	const char *ptr;
-	char *tmp;
+	char *range, *name = strdup(arg);
+	int err;
 
-	ptr = strchr(arg, ':');
-	if (ptr) {
-		lr->start = (int)strtoul(ptr + 1, &tmp, 0);
-		if (*tmp == '+') {
-			lr->end = lr->start + (int)strtoul(tmp + 1, &tmp, 0);
-			lr->end--;	/*
-					 * Adjust the number of lines here.
-					 * If the number of lines == 1, the
-					 * the end of line should be equal to
-					 * the start of line.
-					 */
-		} else if (*tmp == '-')
-			lr->end = (int)strtoul(tmp + 1, &tmp, 0);
-		else
-			lr->end = INT_MAX;
+	if (!name)
+		return -ENOMEM;
+
+	lr->start = 0;
+	lr->end = INT_MAX;
+
+	range = strchr(name, ':');
+	if (range) {
+		*range++ = '\0';
+
+		err = parse_line_num(&range, &lr->start, "start line");
+		if (err)
+			goto err;
+
+		if (*range == '+' || *range == '-') {
+			const char c = *range++;
+
+			err = parse_line_num(&range, &lr->end, "end line");
+			if (err)
+				goto err;
+
+			if (c == '+') {
+				lr->end += lr->start;
+				/*
+				 * Adjust the number of lines here.
+				 * If the number of lines == 1, the
+				 * the end of line should be equal to
+				 * the start of line.
+				 */
+				lr->end--;
+			}
+		}
+
 		pr_debug("Line range is %d to %d\n", lr->start, lr->end);
+
+		err = -EINVAL;
 		if (lr->start > lr->end) {
 			semantic_error("Start line must be smaller"
 				       " than end line.\n");
-			return -EINVAL;
+			goto err;
 		}
-		if (*tmp != '\0') {
-			semantic_error("Tailing with invalid character '%d'.\n",
-				       *tmp);
-			return -EINVAL;
+		if (*range != '\0') {
+			semantic_error("Tailing with invalid str '%s'.\n", range);
+			goto err;
 		}
-		tmp = strndup(arg, (ptr - arg));
-	} else {
-		tmp = strdup(arg);
-		lr->end = INT_MAX;
 	}
 
-	if (tmp == NULL)
-		return -ENOMEM;
-
-	if (strchr(tmp, '.'))
-		lr->file = tmp;
+	if (strchr(name, '.'))
+		lr->file = name;
 	else
-		lr->function = tmp;
+		lr->function = name;
 
 	return 0;
+err:
+	free(name);
+	return err;
 }
 
 /* Check the name is good for event/group */
