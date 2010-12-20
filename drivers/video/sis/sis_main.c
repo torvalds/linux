@@ -3855,7 +3855,7 @@ sisfb_post_setmode(struct sis_video_info *ivideo)
 			reg1 = 0x00;
 		}
 		SiS_SetRegANDOR(SISCR, ivideo->SiS_Pr.SiS_MyCR63, ~0x40, reg);
-		SiS_SetRegANDOR(SISSR, 0x1f, ~0xc0, reg1);
+		SiS_SetRegANDOR(SISSR, 0x1f, 0x3f, reg1);
 	}
 #endif
 
