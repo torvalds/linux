@@ -68,7 +68,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	struct drm_gem_object *fbo = NULL;
 	struct drm_i915_gem_object *obj_priv;
 	struct device *device = &dev->pdev->dev;
-	int size, ret, mmio_bar = IS_GEN2(dev) ? 1 : 0;
+	int size, ret;
 
 	/* we don't do packed 24bpp */
 	if (sizes->surface_bpp == 24)
@@ -155,10 +155,6 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
 	drm_fb_helper_fill_var(info, &ifbdev->helper, sizes->fb_width, sizes->fb_height);
-
-	/* FIXME: we really shouldn't expose mmio space at all */
-	info->fix.mmio_start = pci_resource_start(dev->pdev, mmio_bar);
-	info->fix.mmio_len = pci_resource_len(dev->pdev, mmio_bar);
 
 	info->pixmap.size = 64*1024;
 	info->pixmap.buf_align = 8;
