@@ -134,6 +134,7 @@
 #define I2S_TLP_OPPSITE         (1<<24)
 
 #define I2S_MCLK_DIV(x)         ((0xFF&x)<<16)
+#define I2S_MCLK_DIV_MASK       ((0xFF)<<16)
 
 #define I2S_TSD_FIXED           (0<<12)
 #define I2S_TSD_CHANGED         (1<<12)
@@ -145,6 +146,7 @@
 #define I2S_TX_LRCK_DELAY_MASK  (3<<10)
 
 #define I2S_TX_SCLK_DIV(x)      (x&0x3FF)
+#define I2S_TX_SCLK_DIV_MASK    (0x3FF);
 
 
 /* I2S_DMACR */

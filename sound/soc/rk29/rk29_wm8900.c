@@ -99,13 +99,21 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         }
         DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
 
-        pll_out = 12000000;
+        //pll_out = 12000000;
         //snd_soc_dai_set_pll(codec_dai, NULL, 12000000, pll_out);
-        
-        snd_soc_dai_set_clkdiv(codec_dai, WM8900_BCLK_DIV, WM8900_BCLK_DIV_4);
-        snd_soc_dai_set_clkdiv(codec_dai, WM8900_LRCLK_MODE, 0x400);
+        snd_soc_dai_set_clkdiv(codec_dai, WM8900_LRCLK_MODE, 0x000);
+
+        #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+        snd_soc_dai_set_clkdiv(codec_dai, WM8900_BCLK_DIV, WM8900_BCLK_DIV_4);        
         snd_soc_dai_set_clkdiv(codec_dai, WM8900_DAC_LRCLK,(pll_out/4)/params_rate(params));
         snd_soc_dai_set_clkdiv(codec_dai, WM8900_ADC_LRCLK,(pll_out/4)/params_rate(params));
+        #endif
+
+        #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
+        snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+        snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out/4)/params_rate(params)-1);
+        snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);
+        #endif
         DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));
         
         return 0;

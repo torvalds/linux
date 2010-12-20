@@ -273,25 +273,20 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
                 iismod |= I2S_DATA_WIDTH(31);
                 break;
         }
+        #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+        iismod |= I2S_MASTER_MODE;
+        #endif
 
+        #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
         iismod |= I2S_SLAVE_MODE;
+        #endif
 
         writel((16<<24) |(16<<18)|(16<<12)|(16<<6)|16, &(pheadi2s->I2S_FIFOLR));
 
 	I2S_DBG("Enter %s, %d I2S_TXCR=0x%08X\n", __func__, __LINE__, iismod);  
 	writel(iismod, &(pheadi2s->I2S_TXCR));
         iismod = iismod & 0x00007FFF;
-        writel(iismod, &(pheadi2s->I2S_RXCR));
-
-        /*stereo mode MCLK/SCK=4*/  
-	
-	iismod = I2S_TX_SCLK_DIV(63) | I2S_MCLK_DIV(7); 
-	
-        //iismod = (3<<16) | 63;
-        I2S_DBG("Enter %s, %d I2S_TXCKR=0x%08X\n", __func__, __LINE__, iismod); 
-        writel(iismod, &(pheadi2s->I2S_TXCKR));
-        writel(iismod, &(pheadi2s->I2S_RXCKR));
-        
+        writel(iismod, &(pheadi2s->I2S_RXCR));        
         return 0;
 }
 
@@ -334,9 +329,13 @@ static int rockchip_i2s_trigger(struct snd_pcm_substream *substream, int cmd, st
 static int rockchip_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 	int clk_id, unsigned int freq, int dir)
 {
-        I2S_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-        /*add scu clk source and enable clk*/
+        struct rk29_i2s_info *i2s;        
 
+        i2s = to_info(cpu_dai);
+        
+        I2S_DBG("Enter:%s, %d, i2s=0x%p, freq=%d\n", __FUNCTION__, __LINE__, i2s, freq);
+        /*add scu clk source and enable clk*/
+        clk_set_rate(i2s->iis_clk, freq);
         return 0;
 }
 
@@ -346,27 +345,35 @@ static int rockchip_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 static int rockchip_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	int div_id, int div)
 {
-        //u32 reg;
+        struct rk29_i2s_info *i2s;
+        u32    reg;
 
-        I2S_DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+        i2s = to_info(cpu_dai);
+        
+        /*stereo mode MCLK/SCK=4*/  
+	
+        reg    = readl(&(pheadi2s->I2S_TXCKR));
+
+        I2S_DBG("Enter:%s, %d, div_id=0x%08X, div=0x%08X\n", __FUNCTION__, __LINE__, div_id, div);
+        
         /*when i2s in master mode ,must set codec pll div*/
         switch (div_id) {
         case ROCKCHIP_DIV_BCLK:
-                //reg = readl(&(pheadi2s->I2S_TXCTL)) & ~S3C2410_IISMOD_FS_MASK;
-                //writel(reg | div, &(pheadi2s->I2S_TXCTL));
+                reg &= ~I2S_TX_SCLK_DIV_MASK;
+                reg |= I2S_TX_SCLK_DIV(div);
                 break;
         case ROCKCHIP_DIV_MCLK:
-                //reg = readl(rockchip_i2s.regs + S3C2410_IISMOD) & ~(S3C2410_IISMOD_384FS);
-                //writel(reg | div, s3c24xx_i2s.regs + S3C2410_IISMOD);
+                reg &= ~I2S_MCLK_DIV_MASK;
+                reg |= I2S_MCLK_DIV(div);
                 break;
         case ROCKCHIP_DIV_PRESCALER:
-                //writel(div, s3c24xx_i2s.regs + S3C2410_IISPSR);
-                //reg = readl(s3c24xx_i2s.regs + S3C2410_IISCON);
-                //writel(reg | S3C2410_IISCON_PSCEN, s3c24xx_i2s.regs + S3C2410_IISCON);
+                
                 break;
         default:
                 return -EINVAL;
         }
+        writel(reg, &(pheadi2s->I2S_TXCKR));
+        writel(reg, &(pheadi2s->I2S_RXCKR));
         return 0;
 }
 
@@ -517,7 +524,7 @@ static int rk29_i2s_register_dai(struct snd_soc_dai *dai)
 		ops->hw_params = rockchip_i2s_hw_params;
 	ops->set_fmt = rockchip_i2s_set_fmt;
 	ops->set_clkdiv = rockchip_i2s_set_clkdiv;
-	ops->set_sysclk = rockchip_set_sysclk;
+	ops->set_sysclk = rockchip_i2s_set_sysclk;
 
 	dai->suspend = rockchip_i2s_suspend;
 	dai->resume = rockchip_i2s_resume;
@@ -591,7 +598,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	}
 
 	clk_enable(i2s->iis_clk);
-        clk_set_rate(i2s->iis_clk, 12000000);
+        clk_set_rate(i2s->iis_clk, 11289600);
 	ret = rk29_i2s_probe(pdev, dai, i2s, 0);
 	if (ret)
 		goto err_clk;

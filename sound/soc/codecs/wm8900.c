@@ -700,7 +700,7 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
                 snd_soc_write(codec, WM8900_REG_LADC_DV, 0x00C1);
                 snd_soc_write(codec, WM8900_REG_RADC_DV, 0x01C0);
 
-                snd_soc_write(codec, WM8900_REG_INCTL, 0x0066);
+                snd_soc_write(codec, WM8900_REG_INCTL, 0x0040);
                 
                 snd_soc_write(codec, WM8900_REG_LINVOL, 0x0115);
                 snd_soc_write(codec, WM8900_REG_RINVOL, 0x0115);
