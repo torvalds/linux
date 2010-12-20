@@ -49,6 +49,7 @@
 
 #define MXC_OTG_OFFSET		0
 #define MXC_H1_OFFSET		0x200
+#define MXC_H2_OFFSET		0x400
 
 /* USB_CTRL */
 #define MXC_OTG_UCTRL_OWIE_BIT		(1 << 27)	/* OTG wakeup intr enable */
@@ -60,6 +61,11 @@
 /* USB_PHY_CTRL_FUNC */
 #define MXC_OTG_PHYCTRL_OC_DIS_BIT	(1 << 8)	/* OTG Disable Overcurrent Event */
 #define MXC_H1_OC_DIS_BIT			(1 << 5)	/* UH1 Disable Overcurrent Event */
+
+/* USBH2CTRL */
+#define MXC_H2_UCTRL_H2UIE_BIT		(1 << 8)
+#define MXC_H2_UCTRL_H2WIE_BIT		(1 << 7)
+#define MXC_H2_UCTRL_H2PM_BIT		(1 << 4)
 
 #define MXC_USBCMD_OFFSET			0x140
 
@@ -266,6 +272,9 @@ int mxc_initialize_usb_hw(int port, unsigned int flags)
 		case 1:	/* Host 1 port */
 			usbotg_base = usb_base + MXC_H1_OFFSET;
 			break;
+		case 2: /* Host 2 port */
+			usbotg_base = usb_base + MXC_H2_OFFSET;
+			break;
 		default:
 			printk(KERN_ERR"%s no such port %d\n", __func__, port);
 			ret = -ENOENT;
@@ -328,6 +337,22 @@ int mxc_initialize_usb_hw(int port, unsigned int flags)
 				/* Interrupt Threshold Control:Immediate (no threshold) */
 				v &= MXC_UCMD_ITC_NO_THRESHOLD_MASK;
 			__raw_writel(v, usbotg_base + MXC_USBCMD_OFFSET);
+			break;
+		case 2: /* Host 2 ULPI */
+			v = __raw_readl(usbother_base + MXC_USBH2CTRL_OFFSET);
+			if (flags & MXC_EHCI_WAKEUP_ENABLED) {
+				/* HOST1 wakeup/ULPI intr enable */
+				v |= (MXC_H2_UCTRL_H2WIE_BIT | MXC_H2_UCTRL_H2UIE_BIT);
+			} else {
+				/* HOST1 wakeup/ULPI intr disable */
+				v &= ~(MXC_H2_UCTRL_H2WIE_BIT | MXC_H2_UCTRL_H2UIE_BIT);
+			}
+
+			if (flags & MXC_EHCI_POWER_PINS_ENABLED)
+				v &= ~MXC_H2_UCTRL_H2PM_BIT; /* HOST2 power mask used*/
+			else
+				v |= MXC_H2_UCTRL_H2PM_BIT; /* HOST2 power mask used*/
+			__raw_writel(v, usbother_base + MXC_USBH2CTRL_OFFSET);
 			break;
 		}
 

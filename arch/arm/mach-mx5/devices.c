@@ -97,6 +97,29 @@ struct platform_device mxc_usbh1_device = {
 	},
 };
 
+static struct resource usbh2_resources[] = {
+	{
+		.start = MX51_OTG_BASE_ADDR + 0x400,
+		.end = MX51_OTG_BASE_ADDR + 0x400 + 0x1ff,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = MX51_MXC_INT_USB_H2,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_usbh2_device = {
+	.name = "mxc-ehci",
+	.id = 2,
+	.num_resources = ARRAY_SIZE(usbh2_resources),
+	.resource = usbh2_resources,
+	.dev = {
+		.dma_mask = &usb_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+};
+
 static struct resource mxc_kpp_resources[] = {
 	{
 		.start = MX51_MXC_INT_KPP,
