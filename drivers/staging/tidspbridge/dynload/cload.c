@@ -1131,9 +1131,6 @@ static void dload_data(struct dload_state *dlthis)
 	u16 curr_sect;
 	struct doff_scnhdr_t *sptr = dlthis->sect_hdrs;
 	struct ldr_section_info *lptr = dlthis->ldr_sections;
-#ifdef OPT_ZERO_COPY_LOADER
-	bool zero_copy = false;
-#endif
 	u8 *dest;
 
 	struct {
@@ -1192,17 +1189,6 @@ static void dload_data(struct dload_state *dlthis)
 					return;
 				}
 				dest = ibuf.bufr;
-#ifdef OPT_ZERO_COPY_LOADER
-				zero_copy = false;
-				if (!dload_check_type(sptr, DLOAD_CINIT) {
-					dlthis->myio->writemem(dlthis->myio,
-							       &dest,
-							       lptr->load_addr +
-							       image_offset,
-							       lptr, 0);
-					zero_copy = (dest != ibuf.bufr);
-				}
-#endif
 				/* End of determination */
 
 				if (dlthis->strm->read_buffer(dlthis->strm,
@@ -1266,33 +1252,27 @@ static void dload_data(struct dload_state *dlthis)
 							    &ibuf.ipacket);
 						cinit_processed = true;
 					} else {
-#ifdef OPT_ZERO_COPY_LOADER
-						if (!zero_copy) {
-#endif
-							/* FIXME */
-							if (!dlthis->myio->
-							    writemem(dlthis->
-								myio,
-								ibuf.bufr,
-								lptr->
-								load_addr +
-								image_offset,
-								lptr,
-								BYTE_TO_HOST
-								(ibuf.
-								ipacket.
-								packet_size))) {
-								DL_ERROR
-								  ("Write to "
-								  FMT_UI32
-								  " failed",
-								  lptr->
-								  load_addr +
-								  image_offset);
-							}
-#ifdef OPT_ZERO_COPY_LOADER
+						/* FIXME */
+						if (!dlthis->myio->
+						    writemem(dlthis->
+							myio,
+							ibuf.bufr,
+							lptr->
+							load_addr +
+							image_offset,
+							lptr,
+							BYTE_TO_HOST
+							(ibuf.
+							ipacket.
+							packet_size))) {
+							DL_ERROR
+							  ("Write to "
+							  FMT_UI32
+							  " failed",
+							  lptr->
+							  load_addr +
+							  image_offset);
 						}
-#endif
 					}
 				}
 				image_offset +=
