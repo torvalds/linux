@@ -12,6 +12,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <asm/memory.h>
 
 	__INIT
 
@@ -23,4 +24,4 @@
 	.align  12
 ENTRY(shmobile_secondary_vector)
 	ldr     pc, 1f
-1:	.long   secondary_startup - CONFIG_PAGE_OFFSET + CONFIG_MEMORY_START
+1:	.long   secondary_startup - PAGE_OFFSET + PHYS_OFFSET
