@@ -22,15 +22,17 @@ struct xfs_log_item;
 struct xfs_log_item_desc;
 struct xfs_mount;
 struct xfs_trans;
+struct xfs_ail;
+struct xfs_log_vec;
 
 void	xfs_trans_add_item(struct xfs_trans *, struct xfs_log_item *);
 void	xfs_trans_del_item(struct xfs_log_item *);
 void	xfs_trans_free_items(struct xfs_trans *tp, xfs_lsn_t commit_lsn,
 				int flags);
-void	xfs_trans_item_committed(struct xfs_log_item *lip,
-				xfs_lsn_t commit_lsn, int aborted);
 void	xfs_trans_unreserve_and_mod_sb(struct xfs_trans *tp);
 
+void	xfs_trans_committed_bulk(struct xfs_ail *ailp, struct xfs_log_vec *lv,
+				xfs_lsn_t commit_lsn, int aborted);
 /*
  * AIL traversal cursor.
  *
@@ -75,6 +77,10 @@ struct xfs_ail {
  */
 void			xfs_trans_ail_update(struct xfs_ail *ailp,
 					struct xfs_log_item *lip, xfs_lsn_t lsn)
+					__releases(ailp->xa_lock);
+void			 xfs_trans_ail_update_bulk(struct xfs_ail *ailp,
+					struct xfs_log_item **log_items,
+					int nr_items, xfs_lsn_t lsn)
 					__releases(ailp->xa_lock);
 void			xfs_trans_ail_delete(struct xfs_ail *ailp,
 					struct xfs_log_item *lip)
