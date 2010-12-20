@@ -52,14 +52,14 @@
 
 
 /* Set memory size of pmem */
-#ifdef CONFIG_RK29_MEM_SIZE_M
-#define SDRAM_SIZE          (CONFIG_RK29_MEM_SIZE_M * SZ_1M)
+#ifdef CONFIG_MACH_RK29SDK_MEM_SIZE_M
+#define SDRAM_SIZE          (CONFIG_MACH_RK29SDK_MEM_SIZE_M * SZ_1M)
 #else
 #define SDRAM_SIZE          SZ_512M
 #endif
 #define PMEM_GPU_SIZE       SZ_64M
 #define PMEM_UI_SIZE        SZ_32M
-#define PMEM_VPU_SIZE       SZ_32M
+#define PMEM_VPU_SIZE       SZ_48M
 #define PMEM_CAM_SIZE       0x00c00000
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
 #define MEM_CAMIPP_SIZE     SZ_4M
@@ -328,9 +328,9 @@ int p1003_init_platform_hw(void)
     }
     gpio_pull_updown(TOUCH_INT_PIN, 1);
     gpio_direction_output(TOUCH_RESET_PIN, 0);
-    msleep(500);
+    mdelay(500);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
-    msleep(500);
+    mdelay(500);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
 
     return 0;
@@ -521,15 +521,6 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.irq			= RK29_PIN4_PA1,
 	},
 #endif
-#if defined (CONFIG_ANX7150)
-	{
-		.type    		= "anx7150",
-		.addr           = 0x39,               //0x39, 0x3d
-		.flags			= 0,
-		.irq			= RK29_PIN1_PD7,
-	},
-#endif
-
 };
 #endif
 
@@ -709,7 +700,7 @@ static int rk29_sensor_power(struct device *dev, int on)
     }
     return 0;
 }
-#if (SENSOR_IIC_ADDR_0 != 0x00)
+
 static struct i2c_board_info rk29_i2c_cam_info_0[] = {
 	{
 		I2C_BOARD_INFO(SENSOR_NAME_0, SENSOR_IIC_ADDR_0>>1)
@@ -733,7 +724,7 @@ struct platform_device rk29_soc_camera_pdrv_0 = {
 		.platform_data = &rk29_iclink_0,
 	},
 };
-#endif
+
 static struct i2c_board_info rk29_i2c_cam_info_1[] = {
 	{
 		I2C_BOARD_INFO(SENSOR_NAME_1, SENSOR_IIC_ADDR_1>>1)
@@ -1205,9 +1196,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_VIDEO_RK29
  	&rk29_device_camera,      /* ddl@rock-chips.com : camera support  */
- 	#if (SENSOR_IIC_ADDR_0 != 0x00)
  	&rk29_soc_camera_pdrv_0,
- 	#endif
  	&rk29_soc_camera_pdrv_1,
  	&android_pmem_cam_device,
 #endif
@@ -1507,10 +1496,10 @@ static void __init machine_rk29_init_irq(void)
 #define POWER_ON_PIN RK29_PIN4_PA4
 static void __init machine_rk29_board_init(void)
 {
-	rk29_board_iomux_init();
+        rk29_board_iomux_init();
 	gpio_request(POWER_ON_PIN,"poweronpin");	
-	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
-	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
+		gpio_set_value(POWER_ON_PIN, 1);
+		gpio_direction_output(POWER_ON_PIN, 1);
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
                 rk29sdk_wifi_bt_gpio_control_init();
