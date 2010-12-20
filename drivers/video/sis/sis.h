@@ -309,17 +309,17 @@
 
 /* I/O port access macros and functions */
 
-void SiS_SetReg(SISIOADDRESS, unsigned short, unsigned short);
-void SiS_SetRegByte(SISIOADDRESS, unsigned short);
-void SiS_SetRegShort(SISIOADDRESS, unsigned short);
-void SiS_SetRegLong(SISIOADDRESS, unsigned int);
-void SiS_SetRegANDOR(SISIOADDRESS, unsigned short, unsigned short, unsigned short);
-void SiS_SetRegAND(SISIOADDRESS, unsigned short, unsigned short);
-void SiS_SetRegOR(SISIOADDRESS, unsigned short, unsigned short);
-unsigned char SiS_GetReg(SISIOADDRESS, unsigned short);
-unsigned char SiS_GetRegByte(SISIOADDRESS);
-unsigned short SiS_GetRegShort(SISIOADDRESS);
-unsigned int SiS_GetRegLong(SISIOADDRESS);
+void SiS_SetReg(SISIOADDRESS, u8, u8);
+void SiS_SetRegByte(SISIOADDRESS, u8);
+void SiS_SetRegShort(SISIOADDRESS, u16);
+void SiS_SetRegLong(SISIOADDRESS, u32);
+void SiS_SetRegANDOR(SISIOADDRESS, u8, u8, u8);
+void SiS_SetRegAND(SISIOADDRESS, u8, u8);
+void SiS_SetRegOR(SISIOADDRESS, u8, u8);
+u8 SiS_GetReg(SISIOADDRESS, u8);
+u8 SiS_GetRegByte(SISIOADDRESS);
+u16 SiS_GetRegShort(SISIOADDRESS);
+u32 SiS_GetRegLong(SISIOADDRESS);
 
 #define inSISREG(base)		inb(base)
 
