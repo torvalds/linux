@@ -85,6 +85,10 @@ void			 xfs_trans_ail_update_bulk(struct xfs_ail *ailp,
 void			xfs_trans_ail_delete(struct xfs_ail *ailp,
 					struct xfs_log_item *lip)
 					__releases(ailp->xa_lock);
+void			xfs_trans_ail_delete_bulk(struct xfs_ail *ailp,
+					struct xfs_log_item **log_items,
+					int nr_items)
+					__releases(ailp->xa_lock);
 void			xfs_trans_ail_push(struct xfs_ail *, xfs_lsn_t);
 void			xfs_trans_unlocked_item(struct xfs_ail *,
 					xfs_log_item_t *);

@@ -639,6 +639,79 @@ xfs_trans_ail_delete(
 	}
 }
 
+/*
+ * xfs_trans_ail_delete_bulk - remove multiple log items from the AIL
+ *
+ * @xfs_trans_ail_delete_bulk takes an array of log items that all need to
+ * removed from the AIL. The caller is already holding the AIL lock, and done
+ * all the checks necessary to ensure the items passed in via @log_items are
+ * ready for deletion. This includes checking that the items are in the AIL.
+ *
+ * For each log item to be removed, unlink it  from the AIL, clear the IN_AIL
+ * flag from the item and reset the item's lsn to 0. If we remove the first
+ * item in the AIL, update the log tail to match the new minimum LSN in the
+ * AIL.
+ *
+ * This function will not drop the AIL lock until all items are removed from
+ * the AIL to minimise the amount of lock traffic on the AIL. This does not
+ * greatly increase the AIL hold time, but does significantly reduce the amount
+ * of traffic on the lock, especially during IO completion.
+ *
+ * This function must be called with the AIL lock held.  The lock is dropped
+ * before returning.
+ */
+void
+xfs_trans_ail_delete_bulk(
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	**log_items,
+	int			nr_items) __releases(ailp->xa_lock)
+{
+	xfs_log_item_t		*mlip;
+	xfs_lsn_t		tail_lsn;
+	int			mlip_changed = 0;
+	int			i;
+
+	mlip = xfs_ail_min(ailp);
+
+	for (i = 0; i < nr_items; i++) {
+		struct xfs_log_item *lip = log_items[i];
+		if (!(lip->li_flags & XFS_LI_IN_AIL)) {
+			struct xfs_mount	*mp = ailp->xa_mount;
+
+			spin_unlock(&ailp->xa_lock);
+			if (!XFS_FORCED_SHUTDOWN(mp)) {
+				xfs_cmn_err(XFS_PTAG_AILDELETE, CE_ALERT, mp,
+		"%s: attempting to delete a log item that is not in the AIL",
+						__func__);
+				xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+			}
+			return;
+		}
+
+		xfs_ail_delete(ailp, lip);
+		lip->li_flags &= ~XFS_LI_IN_AIL;
+		lip->li_lsn = 0;
+		if (mlip == lip)
+			mlip_changed = 1;
+	}
+
+	if (!mlip_changed) {
+		spin_unlock(&ailp->xa_lock);
+		return;
+	}
+
+	/*
+	 * It is not safe to access mlip after the AIL lock is dropped, so we
+	 * must get a copy of li_lsn before we do so.  This is especially
+	 * important on 32-bit platforms where accessing and updating 64-bit
+	 * values like li_lsn is not atomic. It is possible we've emptied the
+	 * AIL here, so if that is the case, pass an LSN of 0 to the tail move.
+	 */
+	mlip = xfs_ail_min(ailp);
+	tail_lsn = mlip ? mlip->li_lsn : 0;
+	spin_unlock(&ailp->xa_lock);
+	xfs_log_move_tail(ailp->xa_mount, tail_lsn);
+}
 
 
 /*
