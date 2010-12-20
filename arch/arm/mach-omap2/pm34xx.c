@@ -996,8 +996,11 @@ void omap_push_sram_idle(void)
 
 static void __init pm_errata_configure(void)
 {
-	if (cpu_is_omap3630())
+	if (cpu_is_omap3630()) {
 		pm34xx_errata |= PM_RTA_ERRATUM_i608;
+		/* Enable the l2 cache toggling in sleep logic */
+		enable_omap3630_toggle_l2_on_restore();
+	}
 }
 
 static int __init omap3_pm_init(void)

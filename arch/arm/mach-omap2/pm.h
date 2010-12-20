@@ -90,8 +90,10 @@ extern unsigned int omap34xx_cpu_suspend_sz;
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3)
 extern u16 pm34xx_errata;
 #define IS_PM34XX_ERRATUM(id)		(pm34xx_errata & (id))
+extern void enable_omap3630_toggle_l2_on_restore(void);
 #else
 #define IS_PM34XX_ERRATUM(id)		0
+static inline void enable_omap3630_toggle_l2_on_restore(void) { }
 #endif		/* defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3) */
 
 #endif

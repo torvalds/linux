@@ -111,6 +111,19 @@ ENTRY(get_omap3630_restore_pointer_sz)
         .word   . - get_omap3630_restore_pointer
 
 	.text
+/*
+ * L2 cache needs to be toggled for stable OFF mode functionality on 3630.
+ * This function sets up a fflag that will allow for this toggling to take
+ * place on 3630. Hopefully some version in the future maynot need this
+ */
+ENTRY(enable_omap3630_toggle_l2_on_restore)
+        stmfd   sp!, {lr}     @ save registers on stack
+	/* Setup so that we will disable and enable l2 */
+	mov	r1, #0x1
+	str	r1, l2dis_3630
+        ldmfd   sp!, {pc}     @ restore regs and return
+
+	.text
 /* Function call to get the restore pointer for for ES3 to resume from OFF */
 ENTRY(get_es3_restore_pointer)
 	stmfd	sp!, {lr}	@ save registers on stack
@@ -283,6 +296,14 @@ restore:
         moveq   r9, #0x3        @ MPU OFF => L1 and L2 lost
 	movne	r9, #0x1	@ Only L1 and L2 lost => avoid L2 invalidation
 	bne	logic_l1_restore
+
+	ldr	r0, l2dis_3630
+	cmp	r0, #0x1	@ should we disable L2 on 3630?
+	bne	skipl2dis
+	mrc	p15, 0, r0, c1, c0, 1
+	bic	r0, r0, #2	@ disable L2 cache
+	mcr	p15, 0, r0, c1, c0, 1
+skipl2dis:
 	ldr	r0, control_stat
 	ldr	r1, [r0]
 	and	r1, #0x700
@@ -343,6 +364,13 @@ smi:    .word 0xE1600070		@ Call SMI monitor (smieq)
 	mov	r12, #0x2
 	.word 0xE1600070	@ Call SMI monitor (smieq)
 logic_l1_restore:
+	ldr	r1, l2dis_3630
+	cmp	r1, #0x1	@ Do we need to re-enable L2 on 3630?
+	bne	skipl2reen
+	mrc	p15, 0, r1, c1, c0, 1
+	orr	r1, r1, #2	@ re-enable L2 cache
+	mcr	p15, 0, r1, c1, c0, 1
+skipl2reen:
 	mov	r1, #0
 	/* Invalidate all instruction caches to PoU
 	 * and flush branch target cache */
@@ -679,6 +707,8 @@ control_mem_rta:
 	.word	CONTROL_MEM_RTA_CTRL
 kernel_flush:
 	.word v7_flush_dcache_all
+l2dis_3630:
+	.word 0
 	/*
 	 * When exporting to userspace while the counters are in SRAM,
 	 * these 2 words need to be at the end to facilitate retrival!
