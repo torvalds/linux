@@ -162,7 +162,7 @@ int hna_local_fill_buffer(struct bat_priv *bat_priv,
 		atomic_set(&bat_priv->hna_local_changed, 0);
 
 	spin_unlock_bh(&bat_priv->hna_lhash_lock);
-	return i;
+	return count;
 }
 
 int hna_local_seq_print_text(struct seq_file *seq, void *offset)
