@@ -1547,13 +1547,6 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 	struct sk_buff *skb2 = NULL;
 	struct packet_type *pt_prev = NULL;
 
-#ifdef CONFIG_NET_CLS_ACT
-	if (!(skb->tstamp.tv64 && (G_TC_FROM(skb->tc_verd) & AT_INGRESS)))
-		net_timestamp_set(skb);
-#else
-	net_timestamp_set(skb);
-#endif
-
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
 		/* Never send packets back to the socket
@@ -1571,6 +1564,8 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 			skb2 = skb_clone(skb, GFP_ATOMIC);
 			if (!skb2)
 				break;
+
+			net_timestamp_set(skb2);
 
 			/* skb->nh should be correctly
 			   set by sender, so that the second statement is
