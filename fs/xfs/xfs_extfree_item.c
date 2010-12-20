@@ -99,10 +99,11 @@ xfs_efi_item_pin(
 }
 
 /*
- * While EFIs cannot really be pinned, the unpin operation is the
- * last place at which the EFI is manipulated during a transaction.
- * Here we coordinate with xfs_efi_cancel() to determine who gets to
- * free the EFI.
+ * While EFIs cannot really be pinned, the unpin operation is the last place at
+ * which the EFI is manipulated during a transaction.  If we are being asked to
+ * remove the EFI it's because the transaction has been cancelled and by
+ * definition that means the EFI cannot be in the AIL so remove it from the
+ * transaction and free it.
  */
 STATIC void
 xfs_efi_item_unpin(
@@ -113,17 +114,14 @@ xfs_efi_item_unpin(
 	struct xfs_ail		*ailp = lip->li_ailp;
 
 	spin_lock(&ailp->xa_lock);
-	if (efip->efi_flags & XFS_EFI_CANCELED) {
-		if (remove)
-			xfs_trans_del_item(lip);
-
-		/* xfs_trans_ail_delete() drops the AIL lock. */
-		xfs_trans_ail_delete(ailp, lip);
+	if (remove) {
+		ASSERT(!(lip->li_flags & XFS_LI_IN_AIL));
+		xfs_trans_del_item(lip);
 		xfs_efi_item_free(efip);
 	} else {
 		efip->efi_flags |= XFS_EFI_COMMITTED;
-		spin_unlock(&ailp->xa_lock);
 	}
+	spin_unlock(&ailp->xa_lock);
 }
 
 /*

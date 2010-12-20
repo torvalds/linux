@@ -115,7 +115,6 @@ typedef struct xfs_efd_log_format_64 {
  */
 #define	XFS_EFI_RECOVERED	0x1
 #define	XFS_EFI_COMMITTED	0x2
-#define	XFS_EFI_CANCELED	0x4
 
 /*
  * This is the "extent free intention" log item.  It is used
