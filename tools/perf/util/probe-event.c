@@ -515,15 +515,18 @@ int show_available_vars(struct perf_probe_event *pevs __unused,
 }
 #endif
 
+/*
+ * Stuff 'lr' according to the line range described by 'arg'.
+ * The line range syntax is described by:
+ *
+ *         SRC[:SLN[+NUM|-ELN]]
+ *         FNC[:SLN[+NUM|-ELN]]
+ */
 int parse_line_range_desc(const char *arg, struct line_range *lr)
 {
 	const char *ptr;
 	char *tmp;
-	/*
-	 * <Syntax>
-	 * SRC:SLN[+NUM|-ELN]
-	 * FUNC[:SLN[+NUM|-ELN]]
-	 */
+
 	ptr = strchr(arg, ':');
 	if (ptr) {
 		lr->start = (int)strtoul(ptr + 1, &tmp, 0);
