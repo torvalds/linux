@@ -143,5 +143,5 @@ static int __init omap2_common_pm_init(void)
 
 	return 0;
 }
-device_initcall(omap2_common_pm_init);
+postcore_initcall(omap2_common_pm_init);
 
