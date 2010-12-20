@@ -132,7 +132,6 @@ struct inet_connection_sock {
 #define ICSK_TIME_RETRANS	1	/* Retransmit timer */
 #define ICSK_TIME_DACK		2	/* Delayed ack timer */
 #define ICSK_TIME_PROBE0	3	/* Zero window probe timer */
-#define ICSK_TIME_KEEPOPEN	4	/* Keepalive timer */
 
 static inline struct inet_connection_sock *inet_csk(const struct sock *sk)
 {

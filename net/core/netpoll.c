@@ -35,7 +35,6 @@
 
 #define MAX_UDP_CHUNK 1460
 #define MAX_SKBS 32
-#define MAX_QUEUE_DEPTH (MAX_SKBS / 2)
 
 static struct sk_buff_head skb_pool;
 

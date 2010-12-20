@@ -1158,8 +1158,6 @@ struct tcp_md5sig_pool {
 	union tcp_md5sum_block	md5_blk;
 };
 
-#define TCP_MD5SIG_MAXKEYS	(~(u32)0)	/* really?! */
-
 /* - functions */
 extern int tcp_v4_md5_hash_skb(char *md5_hash, struct tcp_md5sig_key *key,
 			       struct sock *sk, struct request_sock *req,
