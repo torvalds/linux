@@ -27,6 +27,7 @@ static struct snd_soc_card smdk;
  *   SMDKC100: Set CFG6 1-3 On, CFG7 1   On
  *   SMDKC110: Set CFGB10 1-2 Off, CFGB12 1-3 On
  *   SMDKV210: Set CFGB10 1-2 Off, CFGB12 1-3 On
+ *   SMDKV310: Set CFG2 1-2 Off, CFG4 All On, CFG7 All Off, CFG8 1-On
  */
 
 /*
