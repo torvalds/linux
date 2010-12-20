@@ -2583,6 +2583,11 @@ int evergreen_resume(struct radeon_device *rdev)
 {
 	int r;
 
+	/* reset the asic, the gfx blocks are often in a bad state
+	 * after the driver is unloaded or after a resume
+	 */
+	if (radeon_asic_reset(rdev))
+		dev_warn(rdev->dev, "GPU reset failed !\n");
 	/* Do not reset GPU before posting, on rv770 hw unlike on r500 hw,
 	 * posting will perform necessary task to bring back GPU into good
 	 * shape.
@@ -2699,6 +2704,11 @@ int evergreen_init(struct radeon_device *rdev)
 	r = radeon_atombios_init(rdev);
 	if (r)
 		return r;
+	/* reset the asic, the gfx blocks are often in a bad state
+	 * after the driver is unloaded or after a resume
+	 */
+	if (radeon_asic_reset(rdev))
+		dev_warn(rdev->dev, "GPU reset failed !\n");
 	/* Post card if necessary */
 	if (!evergreen_card_posted(rdev)) {
 		if (!rdev->bios) {
