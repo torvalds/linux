@@ -75,13 +75,18 @@ struct xfs_ail {
 /*
  * From xfs_trans_ail.c
  */
-void			xfs_trans_ail_update(struct xfs_ail *ailp,
-					struct xfs_log_item *lip, xfs_lsn_t lsn)
-					__releases(ailp->xa_lock);
-void			 xfs_trans_ail_update_bulk(struct xfs_ail *ailp,
-					struct xfs_log_item **log_items,
-					int nr_items, xfs_lsn_t lsn)
-					__releases(ailp->xa_lock);
+void	xfs_trans_ail_update_bulk(struct xfs_ail *ailp,
+				struct xfs_log_item **log_items, int nr_items,
+				xfs_lsn_t lsn) __releases(ailp->xa_lock);
+static inline void
+xfs_trans_ail_update(
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	*lip,
+	xfs_lsn_t		lsn) __releases(ailp->xa_lock)
+{
+	xfs_trans_ail_update_bulk(ailp, &lip, 1, lsn);
+}
+
 void			xfs_trans_ail_delete(struct xfs_ail *ailp,
 					struct xfs_log_item *lip)
 					__releases(ailp->xa_lock);

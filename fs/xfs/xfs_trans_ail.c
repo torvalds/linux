@@ -28,7 +28,6 @@
 #include "xfs_trans_priv.h"
 #include "xfs_error.h"
 
-STATIC void xfs_ail_insert(struct xfs_ail *, xfs_log_item_t *);
 STATIC void xfs_ail_splice(struct xfs_ail *, struct list_head *, xfs_lsn_t);
 STATIC void xfs_ail_delete(struct xfs_ail *, xfs_log_item_t *);
 STATIC xfs_log_item_t * xfs_ail_min(struct xfs_ail *);
@@ -450,58 +449,6 @@ xfs_trans_unlocked_item(
 		xfs_log_move_tail(ailp->xa_mount, 1);
 }	/* xfs_trans_unlocked_item */
 
-
-/*
- * Update the position of the item in the AIL with the new
- * lsn.  If it is not yet in the AIL, add it.  Otherwise, move
- * it to its new position by removing it and re-adding it.
- *
- * Wakeup anyone with an lsn less than the item's lsn.  If the item
- * we move in the AIL is the minimum one, update the tail lsn in the
- * log manager.
- *
- * This function must be called with the AIL lock held.  The lock
- * is dropped before returning.
- */
-void
-xfs_trans_ail_update(
-	struct xfs_ail	*ailp,
-	xfs_log_item_t	*lip,
-	xfs_lsn_t	lsn) __releases(ailp->xa_lock)
-{
-	xfs_log_item_t		*mlip;	/* ptr to minimum lip */
-	xfs_lsn_t		tail_lsn;
-
-	mlip = xfs_ail_min(ailp);
-
-	if (lip->li_flags & XFS_LI_IN_AIL) {
-		xfs_ail_delete(ailp, lip);
-	} else {
-		lip->li_flags |= XFS_LI_IN_AIL;
-	}
-
-	lip->li_lsn = lsn;
-	xfs_ail_insert(ailp, lip);
-
-	if (mlip == lip) {
-		mlip = xfs_ail_min(ailp);
-		/*
-		 * It is not safe to access mlip after the AIL lock is
-		 * dropped, so we must get a copy of li_lsn before we do
-		 * so.  This is especially important on 32-bit platforms
-		 * where accessing and updating 64-bit values like li_lsn
-		 * is not atomic.
-		 */
-		tail_lsn = mlip->li_lsn;
-		spin_unlock(&ailp->xa_lock);
-		xfs_log_move_tail(ailp->xa_mount, tail_lsn);
-	} else {
-		spin_unlock(&ailp->xa_lock);
-	}
-
-
-}	/* xfs_trans_update_ail */
-
 /*
  * xfs_trans_ail_update - bulk AIL insertion operation.
  *
@@ -761,41 +708,6 @@ xfs_trans_ail_destroy(
 
 	xfsaild_stop(ailp);
 	kmem_free(ailp);
-}
-
-/*
- * Insert the given log item into the AIL.
- * We almost always insert at the end of the list, so on inserts
- * we search from the end of the list to find where the
- * new item belongs.
- */
-STATIC void
-xfs_ail_insert(
-	struct xfs_ail	*ailp,
-	xfs_log_item_t	*lip)
-{
-	xfs_log_item_t	*next_lip;
-
-	/*
-	 * If the list is empty, just insert the item.
-	 */
-	if (list_empty(&ailp->xa_ail)) {
-		list_add(&lip->li_ail, &ailp->xa_ail);
-		return;
-	}
-
-	list_for_each_entry_reverse(next_lip, &ailp->xa_ail, li_ail) {
-		if (XFS_LSN_CMP(next_lip->li_lsn, lip->li_lsn) <= 0)
-			break;
-	}
-
-	ASSERT(&next_lip->li_ail == &ailp->xa_ail ||
-	       XFS_LSN_CMP(next_lip->li_lsn, lip->li_lsn) <= 0);
-
-	list_add(&lip->li_ail, &next_lip->li_ail);
-
-	xfs_ail_check(ailp, lip);
-	return;
 }
 
 /*

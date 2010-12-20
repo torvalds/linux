@@ -2573,7 +2573,7 @@ xlog_recover_efi_pass2(
 	/*
 	 * xfs_trans_ail_update() drops the AIL lock.
 	 */
-	xfs_trans_ail_update(log->l_ailp, (xfs_log_item_t *)efip, lsn);
+	xfs_trans_ail_update(log->l_ailp, &efip->efi_item, lsn);
 	return 0;
 }
 
