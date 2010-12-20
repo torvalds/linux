@@ -65,6 +65,18 @@ static inline int __maybe_unused r10000_llsc_war(void)
 	return R10000_LLSC_WAR;
 }
 
+static int use_bbit_insns(void)
+{
+	switch (current_cpu_type()) {
+	case CPU_CAVIUM_OCTEON:
+	case CPU_CAVIUM_OCTEON_PLUS:
+	case CPU_CAVIUM_OCTEON2:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
 /*
  * Found by experiment: At least some revisions of the 4kc throw under
  * some circumstances a machine check exception, triggered by invalid
@@ -511,8 +523,12 @@ build_is_huge_pte(u32 **p, struct uasm_reloc **r, unsigned int tmp,
 		unsigned int pmd, int lid)
 {
 	UASM_i_LW(p, tmp, 0, pmd);
-	uasm_i_andi(p, tmp, tmp, _PAGE_HUGE);
-	uasm_il_bnez(p, r, tmp, lid);
+	if (use_bbit_insns()) {
+		uasm_il_bbit1(p, r, tmp, ilog2(_PAGE_HUGE), lid);
+	} else {
+		uasm_i_andi(p, tmp, tmp, _PAGE_HUGE);
+		uasm_il_bnez(p, r, tmp, lid);
+	}
 }
 
 static __cpuinit void build_huge_update_entries(u32 **p,
@@ -1187,14 +1203,20 @@ build_pte_present(u32 **p, struct uasm_reloc **r,
 		  unsigned int pte, unsigned int ptr, enum label_id lid)
 {
 	if (kernel_uses_smartmips_rixi) {
-		uasm_i_andi(p, pte, pte, _PAGE_PRESENT);
-		uasm_il_beqz(p, r, pte, lid);
+		if (use_bbit_insns()) {
+			uasm_il_bbit0(p, r, pte, ilog2(_PAGE_PRESENT), lid);
+			uasm_i_nop(p);
+		} else {
+			uasm_i_andi(p, pte, pte, _PAGE_PRESENT);
+			uasm_il_beqz(p, r, pte, lid);
+			iPTE_LW(p, pte, ptr);
+		}
 	} else {
 		uasm_i_andi(p, pte, pte, _PAGE_PRESENT | _PAGE_READ);
 		uasm_i_xori(p, pte, pte, _PAGE_PRESENT | _PAGE_READ);
 		uasm_il_bnez(p, r, pte, lid);
+		iPTE_LW(p, pte, ptr);
 	}
-	iPTE_LW(p, pte, ptr);
 }
 
 /* Make PTE valid, store result in PTR. */
@@ -1215,10 +1237,17 @@ static void __cpuinit
 build_pte_writable(u32 **p, struct uasm_reloc **r,
 		   unsigned int pte, unsigned int ptr, enum label_id lid)
 {
-	uasm_i_andi(p, pte, pte, _PAGE_PRESENT | _PAGE_WRITE);
-	uasm_i_xori(p, pte, pte, _PAGE_PRESENT | _PAGE_WRITE);
-	uasm_il_bnez(p, r, pte, lid);
-	iPTE_LW(p, pte, ptr);
+	if (use_bbit_insns()) {
+		uasm_il_bbit0(p, r, pte, ilog2(_PAGE_PRESENT), lid);
+		uasm_i_nop(p);
+		uasm_il_bbit0(p, r, pte, ilog2(_PAGE_WRITE), lid);
+		uasm_i_nop(p);
+	} else {
+		uasm_i_andi(p, pte, pte, _PAGE_PRESENT | _PAGE_WRITE);
+		uasm_i_xori(p, pte, pte, _PAGE_PRESENT | _PAGE_WRITE);
+		uasm_il_bnez(p, r, pte, lid);
+		iPTE_LW(p, pte, ptr);
+	}
 }
 
 /* Make PTE writable, update software status bits as well, then store
@@ -1242,9 +1271,14 @@ static void __cpuinit
 build_pte_modifiable(u32 **p, struct uasm_reloc **r,
 		     unsigned int pte, unsigned int ptr, enum label_id lid)
 {
-	uasm_i_andi(p, pte, pte, _PAGE_WRITE);
-	uasm_il_beqz(p, r, pte, lid);
-	iPTE_LW(p, pte, ptr);
+	if (use_bbit_insns()) {
+		uasm_il_bbit0(p, r, pte, ilog2(_PAGE_WRITE), lid);
+		uasm_i_nop(p);
+	} else {
+		uasm_i_andi(p, pte, pte, _PAGE_WRITE);
+		uasm_il_beqz(p, r, pte, lid);
+		iPTE_LW(p, pte, ptr);
+	}
 }
 
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT
@@ -1491,14 +1525,23 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 		 * If the page is not _PAGE_VALID, RI or XI could not
 		 * have triggered it.  Skip the expensive test..
 		 */
-		uasm_i_andi(&p, K0, K0, _PAGE_VALID);
-		uasm_il_beqz(&p, &r, K0, label_tlbl_goaround1);
+		if (use_bbit_insns()) {
+			uasm_il_bbit0(&p, &r, K0, ilog2(_PAGE_VALID),
+				      label_tlbl_goaround1);
+		} else {
+			uasm_i_andi(&p, K0, K0, _PAGE_VALID);
+			uasm_il_beqz(&p, &r, K0, label_tlbl_goaround1);
+		}
 		uasm_i_nop(&p);
 
 		uasm_i_tlbr(&p);
 		/* Examine  entrylo 0 or 1 based on ptr. */
-		uasm_i_andi(&p, K0, K1, sizeof(pte_t));
-		uasm_i_beqz(&p, K0, 8);
+		if (use_bbit_insns()) {
+			uasm_i_bbit0(&p, K1, ilog2(sizeof(pte_t)), 8);
+		} else {
+			uasm_i_andi(&p, K0, K1, sizeof(pte_t));
+			uasm_i_beqz(&p, K0, 8);
+		}
 
 		UASM_i_MFC0(&p, K0, C0_ENTRYLO0); /* load it in the delay slot*/
 		UASM_i_MFC0(&p, K0, C0_ENTRYLO1); /* load it if ptr is odd */
@@ -1506,12 +1549,18 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 		 * If the entryLo (now in K0) is valid (bit 1), RI or
 		 * XI must have triggered it.
 		 */
-		uasm_i_andi(&p, K0, K0, 2);
-		uasm_il_bnez(&p, &r, K0, label_nopage_tlbl);
-
-		uasm_l_tlbl_goaround1(&l, p);
-		/* Reload the PTE value */
-		iPTE_LW(&p, K0, K1);
+		if (use_bbit_insns()) {
+			uasm_il_bbit1(&p, &r, K0, 1, label_nopage_tlbl);
+			/* Reload the PTE value */
+			iPTE_LW(&p, K0, K1);
+			uasm_l_tlbl_goaround1(&l, p);
+		} else {
+			uasm_i_andi(&p, K0, K0, 2);
+			uasm_il_bnez(&p, &r, K0, label_nopage_tlbl);
+			uasm_l_tlbl_goaround1(&l, p);
+			/* Reload the PTE value */
+			iPTE_LW(&p, K0, K1);
+		}
 	}
 	build_make_valid(&p, &r, K0, K1);
 	build_r4000_tlbchange_handler_tail(&p, &l, &r, K0, K1);
@@ -1531,23 +1580,35 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 		 * If the page is not _PAGE_VALID, RI or XI could not
 		 * have triggered it.  Skip the expensive test..
 		 */
-		uasm_i_andi(&p, K0, K0, _PAGE_VALID);
-		uasm_il_beqz(&p, &r, K0, label_tlbl_goaround2);
+		if (use_bbit_insns()) {
+			uasm_il_bbit0(&p, &r, K0, ilog2(_PAGE_VALID),
+				      label_tlbl_goaround2);
+		} else {
+			uasm_i_andi(&p, K0, K0, _PAGE_VALID);
+			uasm_il_beqz(&p, &r, K0, label_tlbl_goaround2);
+		}
 		uasm_i_nop(&p);
 
 		uasm_i_tlbr(&p);
 		/* Examine  entrylo 0 or 1 based on ptr. */
-		uasm_i_andi(&p, K0, K1, sizeof(pte_t));
-		uasm_i_beqz(&p, K0, 8);
-
+		if (use_bbit_insns()) {
+			uasm_i_bbit0(&p, K1, ilog2(sizeof(pte_t)), 8);
+		} else {
+			uasm_i_andi(&p, K0, K1, sizeof(pte_t));
+			uasm_i_beqz(&p, K0, 8);
+		}
 		UASM_i_MFC0(&p, K0, C0_ENTRYLO0); /* load it in the delay slot*/
 		UASM_i_MFC0(&p, K0, C0_ENTRYLO1); /* load it if ptr is odd */
 		/*
 		 * If the entryLo (now in K0) is valid (bit 1), RI or
 		 * XI must have triggered it.
 		 */
-		uasm_i_andi(&p, K0, K0, 2);
-		uasm_il_beqz(&p, &r, K0, label_tlbl_goaround2);
+		if (use_bbit_insns()) {
+			uasm_il_bbit0(&p, &r, K0, 1, label_tlbl_goaround2);
+		} else {
+			uasm_i_andi(&p, K0, K0, 2);
+			uasm_il_beqz(&p, &r, K0, label_tlbl_goaround2);
+		}
 		/* Reload the PTE value */
 		iPTE_LW(&p, K0, K1);
 
