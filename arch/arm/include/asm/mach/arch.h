@@ -46,6 +46,11 @@ struct machine_desc {
 };
 
 /*
+ * Current machine - only accessible during boot.
+ */
+extern struct machine_desc *machine_desc;
+
+/*
  * Set of macros to define architecture features.  This is built into
  * a table by the linker.
  */

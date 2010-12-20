@@ -37,6 +37,7 @@
 #include <linux/proc_fs.h>
 
 #include <asm/system.h>
+#include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
@@ -47,8 +48,6 @@
 #define irq_finish(irq) do { } while (0)
 #endif
 
-unsigned int arch_nr_irqs;
-void (*init_arch_irq)(void) __initdata = NULL;
 unsigned long irq_err_count;
 
 int show_interrupts(struct seq_file *p, void *v)
@@ -154,13 +153,13 @@ void set_irq_flags(unsigned int irq, unsigned int iflags)
 
 void __init init_IRQ(void)
 {
-	init_arch_irq();
+	machine_desc->init_irq();
 }
 
 #ifdef CONFIG_SPARSE_IRQ
 int __init arch_probe_nr_irqs(void)
 {
-	nr_irqs = arch_nr_irqs ? arch_nr_irqs : NR_IRQS;
+	nr_irqs = machine_desc->nr_irqs ? machine_desc->nr_irqs : NR_IRQS;
 	return nr_irqs;
 }
 #endif
