@@ -1710,8 +1710,7 @@ static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		/* Others already handled above */
 		break;
 	}
-	dev_dbg(&td->urb->dev->dev,
-			"ep %#x - asked for %d bytes, "
+	xhci_dbg(xhci, "ep %#x - asked for %d bytes, "
 			"%d bytes untransferred\n",
 			td->urb->ep->desc.bEndpointAddress,
 			td->urb->transfer_buffer_length,
@@ -2389,7 +2388,8 @@ static unsigned int count_sg_trbs_needed(struct xhci_hcd *xhci, struct urb *urb)
 	}
 	xhci_dbg(xhci, "\n");
 	if (!in_interrupt())
-		dev_dbg(&urb->dev->dev, "ep %#x - urb len = %d, sglist used, num_trbs = %d\n",
+		xhci_dbg(xhci, "ep %#x - urb len = %d, sglist used, "
+				"num_trbs = %d\n",
 				urb->ep->desc.bEndpointAddress,
 				urb->transfer_buffer_length,
 				num_trbs);
@@ -2676,7 +2676,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* FIXME: this doesn't deal with URB_ZERO_PACKET - need one more */
 
 	if (!in_interrupt())
-		dev_dbg(&urb->dev->dev, "ep %#x - urb len = %#x (%d), addr = %#llx, num_trbs = %d\n",
+		xhci_dbg(xhci, "ep %#x - urb len = %#x (%d), "
+				"addr = %#llx, num_trbs = %d\n",
 				urb->ep->desc.bEndpointAddress,
 				urb->transfer_buffer_length,
 				urb->transfer_buffer_length,
@@ -2922,7 +2923,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	}
 
 	if (!in_interrupt())
-		dev_dbg(&urb->dev->dev, "ep %#x - urb len = %#x (%d),"
+		xhci_dbg(xhci, "ep %#x - urb len = %#x (%d),"
 				" addr = %#llx, num_tds = %d\n",
 				urb->ep->desc.bEndpointAddress,
 				urb->transfer_buffer_length,
