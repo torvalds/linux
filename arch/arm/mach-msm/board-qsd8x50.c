@@ -42,7 +42,7 @@ static const unsigned        qsd8x50_surf_smc91x_gpio __initdata = 156;
  * at run-time: they vary from board to board, and the true
  * configuration won't be known until boot.
  */
-static struct resource smc91x_resources[] __initdata = {
+static struct resource smc91x_resources[] = {
 	[0] = {
 		.flags = IORESOURCE_MEM,
 	},
@@ -51,7 +51,7 @@ static struct resource smc91x_resources[] __initdata = {
 	},
 };
 
-static struct platform_device smc91x_device __initdata = {
+static struct platform_device smc91x_device = {
 	.name           = "smc91x",
 	.id             = 0,
 	.num_resources  = ARRAY_SIZE(smc91x_resources),
