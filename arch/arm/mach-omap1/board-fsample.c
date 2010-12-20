@@ -69,36 +69,35 @@
 #define fsample_cpld_clear(bit) \
     fsample_cpld_write(0xf0 | ((bit) & 15), FSAMPLE_CPLD_SET_CLR)
 
-static int fsample_keymap[] = {
-	KEY(0,0,KEY_UP),
-	KEY(0,1,KEY_RIGHT),
-	KEY(0,2,KEY_LEFT),
-	KEY(0,3,KEY_DOWN),
-	KEY(0,4,KEY_ENTER),
-	KEY(1,0,KEY_F10),
-	KEY(1,1,KEY_SEND),
-	KEY(1,2,KEY_END),
-	KEY(1,3,KEY_VOLUMEDOWN),
-	KEY(1,4,KEY_VOLUMEUP),
-	KEY(1,5,KEY_RECORD),
-	KEY(2,0,KEY_F9),
-	KEY(2,1,KEY_3),
-	KEY(2,2,KEY_6),
-	KEY(2,3,KEY_9),
-	KEY(2,4,KEY_KPDOT),
-	KEY(3,0,KEY_BACK),
-	KEY(3,1,KEY_2),
-	KEY(3,2,KEY_5),
-	KEY(3,3,KEY_8),
-	KEY(3,4,KEY_0),
-	KEY(3,5,KEY_KPSLASH),
-	KEY(4,0,KEY_HOME),
-	KEY(4,1,KEY_1),
-	KEY(4,2,KEY_4),
-	KEY(4,3,KEY_7),
-	KEY(4,4,KEY_KPASTERISK),
-	KEY(4,5,KEY_POWER),
-	0
+static const unsigned int fsample_keymap[] = {
+	KEY(0, 0, KEY_UP),
+	KEY(1, 0, KEY_RIGHT),
+	KEY(2, 0, KEY_LEFT),
+	KEY(3, 0, KEY_DOWN),
+	KEY(4, 0, KEY_ENTER),
+	KEY(0, 1, KEY_F10),
+	KEY(1, 1, KEY_SEND),
+	KEY(2, 1, KEY_END),
+	KEY(3, 1, KEY_VOLUMEDOWN),
+	KEY(4, 1, KEY_VOLUMEUP),
+	KEY(5, 1, KEY_RECORD),
+	KEY(0, 2, KEY_F9),
+	KEY(1, 2, KEY_3),
+	KEY(2, 2, KEY_6),
+	KEY(3, 2, KEY_9),
+	KEY(4, 2, KEY_KPDOT),
+	KEY(0, 3, KEY_BACK),
+	KEY(1, 3, KEY_2),
+	KEY(2, 3, KEY_5),
+	KEY(3, 3, KEY_8),
+	KEY(4, 3, KEY_0),
+	KEY(5, 3, KEY_KPSLASH),
+	KEY(0, 4, KEY_HOME),
+	KEY(1, 4, KEY_1),
+	KEY(2, 4, KEY_4),
+	KEY(3, 4, KEY_7),
+	KEY(4, 4, KEY_KPASTERISK),
+	KEY(5, 4, KEY_POWER),
 };
 
 static struct smc91x_platdata smc91x_info = {
@@ -253,11 +252,15 @@ static struct resource kp_resources[] = {
 	},
 };
 
+static const struct matrix_keymap_data fsample_keymap_data = {
+	.keymap		= fsample_keymap,
+	.keymap_size	= ARRAY_SIZE(fsample_keymap),
+};
+
 static struct omap_kp_platform_data kp_data = {
 	.rows		= 8,
 	.cols		= 8,
-	.keymap		= fsample_keymap,
-	.keymapsize	= ARRAY_SIZE(fsample_keymap),
+	.keymap_data	= &fsample_keymap_data,
 	.delay		= 4,
 };
 
