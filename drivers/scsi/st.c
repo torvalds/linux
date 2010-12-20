@@ -17,7 +17,7 @@
    Last modified: 18-JAN-1998 Richard Gooch <rgooch@atnf.csiro.au> Devfs support
  */
 
-static const char *verstr = "20100829";
+static const char *verstr = "20101219";
 
 #include <linux/module.h>
 
@@ -3732,6 +3732,7 @@ static int enlarge_buffer(struct st_buffer * STbuffer, int new_size, int need_dm
 		     order < ST_MAX_ORDER && b_size < new_size;
 		     order++, b_size *= 2)
 			;  /* empty */
+		STbuffer->reserved_page_order = order;
 	}
 	if (max_segs * (PAGE_SIZE << order) < new_size) {
 		if (order == ST_MAX_ORDER)
@@ -3758,7 +3759,6 @@ static int enlarge_buffer(struct st_buffer * STbuffer, int new_size, int need_dm
 		segs++;
 	}
 	STbuffer->b_data = page_address(STbuffer->reserved_pages[0]);
-	STbuffer->reserved_page_order = order;
 
 	return 1;
 }
