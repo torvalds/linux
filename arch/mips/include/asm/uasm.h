@@ -117,6 +117,8 @@ Ip_u2u1u3(_xori);
 Ip_u2u1msbu3(_dins);
 Ip_u2u1msbu3(_dinsm);
 Ip_u1(_syscall);
+Ip_u1u2s3(_bbit0);
+Ip_u1u2s3(_bbit1);
 
 /* Handle labels. */
 struct uasm_label {
