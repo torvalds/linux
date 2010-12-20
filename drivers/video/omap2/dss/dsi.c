@@ -4090,6 +4090,11 @@ err1:
 static void dsi_exit(void)
 {
 	if (dsi.vdds_dsi_reg != NULL) {
+		if (dsi.vdds_dsi_enabled) {
+			regulator_disable(dsi.vdds_dsi_reg);
+			dsi.vdds_dsi_enabled = false;
+		}
+
 		regulator_put(dsi.vdds_dsi_reg);
 		dsi.vdds_dsi_reg = NULL;
 	}
