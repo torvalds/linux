@@ -917,7 +917,7 @@ void omap3_pm_off_mode_enable(int enable)
 		state = PWRDM_POWER_RET;
 
 #ifdef CONFIG_CPU_IDLE
-	omap3_cpuidle_update_states();
+	omap3_cpuidle_update_states(state, state);
 #endif
 
 	list_for_each_entry(pwrst, &pwrst_list, node) {

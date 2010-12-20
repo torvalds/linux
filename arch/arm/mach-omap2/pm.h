@@ -58,7 +58,7 @@ extern u32 sleep_while_idle;
 #endif
 
 #if defined(CONFIG_CPU_IDLE)
-extern void omap3_cpuidle_update_states(void);
+extern void omap3_cpuidle_update_states(u32, u32);
 #endif
 
 #if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
