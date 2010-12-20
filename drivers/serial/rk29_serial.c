@@ -36,6 +36,12 @@
 #include <mach/board.h>
 #include "rk2818_serial.h"
 
+#define DBG_PORT    0
+#if 0
+#define DBG     printk
+#else
+#define DBG
+#endif
 /*
  * We wrap our port structure around the generic uart_port.
  */
@@ -174,6 +180,11 @@ static void rk29_serial_stop_tx(struct uart_port *port)
 static void rk29_serial_start_tx(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->state->xmit;
+
+    if(DBG_PORT == port->line) {
+        DBG("TX:");
+    }
+    
 	while(!(uart_circ_empty(xmit)))
 	{
 		while (!(rk29_uart_read(port,UART_USR) & UART_TRANSMIT_FIFO_NOT_FULL)){
@@ -181,6 +192,11 @@ static void rk29_serial_start_tx(struct uart_port *port)
             return;
         }
         rk29_uart_write(port,xmit->buf[xmit->tail],UART_THR);
+        
+        if(DBG_PORT == port->line) {
+            DBG("0x%x, ", xmit->buf[xmit->tail]);
+        }
+        
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		port->icount.tx++;
 	}
@@ -188,6 +204,10 @@ static void rk29_serial_start_tx(struct uart_port *port)
 		rk29_uart_write(port,UART_IER_RECV_DATA_AVAIL_INT_ENABLE,UART_IER);
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);	
+    
+    if(DBG_PORT == port->line) {
+        DBG("\n");
+    }
 }
 
 /*
@@ -221,6 +241,11 @@ static void rk29_serial_break_ctl(struct uart_port *port, int break_state)
 static void rk29_rx_chars(struct uart_port *port)
 {
 	unsigned int ch, flag;
+    
+    if(DBG_PORT == port->line) {
+        DBG("RX:");
+    }
+    
 	while((rk29_uart_read(port,UART_USR) & UART_RECEIVE_FIFO_NOT_EMPTY) == UART_RECEIVE_FIFO_NOT_EMPTY)
 	{
 		u32 lsr = rk29_uart_read(port, UART_LSR);
@@ -237,9 +262,16 @@ static void rk29_rx_chars(struct uart_port *port)
 			continue;
 		} 
 		uart_insert_char(port, 0, 0, ch, flag);
+        
+        if(DBG_PORT == port->line) {
+            DBG("0x%x, ", ch);
+        }
 	}
 	tty_flip_buffer_push(port->state->port.tty);
-	
+
+    if(DBG_PORT == port->line) {
+        DBG("\n");
+    }
 }
 
 /*
@@ -277,7 +309,20 @@ static int rk29_serial_startup(struct uart_port *port)
 	struct rk29_port *rk29_port = UART_TO_RK29(port);
 	struct tty_struct *tty = port->state->port.tty;	
 	int retval;	
-		
+
+    if(2 == port->line) {
+        rk29_mux_api_set(GPIO2B1_UART2SOUT_NAME, GPIO2L_UART2_SOUT);
+        rk29_mux_api_set(GPIO2B0_UART2SIN_NAME, GPIO2L_UART2_SIN);
+        rk29_mux_api_set(GPIO2A7_UART2RTSN_NAME, GPIO2L_UART2_RTS_N);
+        rk29_mux_api_set(GPIO2A6_UART2CTSN_NAME, GPIO2L_UART2_CTS_N);
+    }
+    else if(0 == port->line) {
+        rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_UART0_SOUT);
+        rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_UART0_SIN);
+        rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
+        rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_UART0_CTS_N);
+    }
+    
 	retval = request_irq(port->irq,rk29_uart_interrupt,IRQF_SHARED,
 		     tty ? tty->name : "rk29_serial",port);
 	if(retval)
