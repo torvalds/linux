@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/async.h>
 #include <mach/gpio.h>
 #include <linux/irq.h>
 #include <mach/board.h>
@@ -393,10 +394,16 @@ static struct i2c_driver p1003_driver = {
 	.remove		= __devexit_p(p1003_remove),
 };
 
-static int __init p1003_init(void)
+static void __init p1003_init_async(void *unused, async_cookie_t cookie)
 {
 	printk("--------> %s <-------------\n",__func__);
-	return i2c_add_driver(&p1003_driver);
+	i2c_add_driver(&p1003_driver);
+}
+
+static int __init p1003_init(void)
+{
+	async_schedule(p1003_init_async, NULL);
+	return 0;
 }
 
 static void __exit p1003_exit(void)

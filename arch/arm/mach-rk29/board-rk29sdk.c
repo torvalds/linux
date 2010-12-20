@@ -328,9 +328,9 @@ int p1003_init_platform_hw(void)
     }
     gpio_pull_updown(TOUCH_INT_PIN, 1);
     gpio_direction_output(TOUCH_RESET_PIN, 0);
-    mdelay(500);
+    msleep(500);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
-    mdelay(500);
+    msleep(500);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
 
     return 0;
