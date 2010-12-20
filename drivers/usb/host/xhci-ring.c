@@ -2900,6 +2900,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	int running_total, trb_buff_len, td_len, td_remain_len, ret;
 	u64 start_addr, addr;
 	int i, j;
+	bool more_trbs_coming;
 
 	ep_ring = xhci->devs[slot_id]->eps[ep_index].ring;
 
@@ -2965,9 +2966,11 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			 */
 			if (j < trbs_per_td - 1) {
 				field |= TRB_CHAIN;
+				more_trbs_coming = true;
 			} else {
 				td->last_trb = ep_ring->enqueue;
 				field |= TRB_IOC;
+				more_trbs_coming = false;
 			}
 
 			/* Calculate TRB length */
@@ -2980,7 +2983,7 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			length_field = TRB_LEN(trb_buff_len) |
 				remainder |
 				TRB_INTR_TARGET(0);
-			queue_trb(xhci, ep_ring, false, false,
+			queue_trb(xhci, ep_ring, false, more_trbs_coming,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
