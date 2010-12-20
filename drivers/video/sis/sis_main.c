@@ -768,7 +768,7 @@ sisfbcheckvretracecrt1(struct sis_video_info *ivideo)
 	if(!sisfballowretracecrt1(ivideo))
 		return false;
 
-	if(inSISREG(SISINPSTAT) & 0x08)
+	if (SiS_GetRegByte(SISINPSTAT) & 0x08)
 		return true;
 	else
 		return false;
@@ -783,9 +783,9 @@ sisfbwaitretracecrt1(struct sis_video_info *ivideo)
 		return;
 
 	watchdog = 65536;
-	while((!(inSISREG(SISINPSTAT) & 0x08)) && --watchdog);
+	while ((!(SiS_GetRegByte(SISINPSTAT) & 0x08)) && --watchdog);
 	watchdog = 65536;
-	while((inSISREG(SISINPSTAT) & 0x08) && --watchdog);
+	while ((SiS_GetRegByte(SISINPSTAT) & 0x08) && --watchdog);
 }
 
 static bool
@@ -853,7 +853,7 @@ sisfb_setupvbblankflags(struct sis_video_info *ivideo, u32 *vcount, u32 *hcount)
 			FB_VBLANK_HAVE_VBLANK |
 			FB_VBLANK_HAVE_VCOUNT |
 			FB_VBLANK_HAVE_HCOUNT);
-		reg1 = inSISREG(SISINPSTAT);
+		reg1 = SiS_GetRegByte(SISINPSTAT);
 		if(reg1 & 0x08) ret |= FB_VBLANK_VSYNCING;
 		if(reg1 & 0x01) ret |= FB_VBLANK_VBLANKING;
 		inSISIDXREG(SISCR,0x20,reg1);
@@ -2233,9 +2233,9 @@ sisfb_sense_crt1(struct sis_video_info *ivideo)
           outSISIDXREG(SISCR, 0x57, 0x5f);
        }
        orSISIDXREG(SISCR, 0x53, 0x02);
-       while((inSISREG(SISINPSTAT)) & 0x01)    break;
-       while(!((inSISREG(SISINPSTAT)) & 0x01)) break;
-       if((inSISREG(SISMISCW)) & 0x10) temp = 1;
+	while ((SiS_GetRegByte(SISINPSTAT)) & 0x01)    break;
+	while (!((SiS_GetRegByte(SISINPSTAT)) & 0x01)) break;
+	if ((SiS_GetRegByte(SISMISCW)) & 0x10) temp = 1;
        andSISIDXREG(SISCR, 0x53, 0xfd);
        andSISIDXREG(SISCR, 0x57, 0x00);
     }
@@ -4998,11 +4998,11 @@ sisfb_post_xgi(struct pci_dev *pdev)
 	};
 
 	/* VGA enable */
-	reg = inSISREG(SISVGAENABLE) | 0x01;
+	reg = SiS_GetRegByte(SISVGAENABLE) | 0x01;
 	outSISREG(SISVGAENABLE, reg);
 
 	/* Misc */
-	reg = inSISREG(SISMISCR) | 0x01;
+	reg = SiS_GetRegByte(SISMISCR) | 0x01;
 	outSISREG(SISMISCW, reg);
 
 	/* Unlock SR */
