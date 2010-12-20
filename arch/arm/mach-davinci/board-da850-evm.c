@@ -822,7 +822,7 @@ static struct regulator_init_data tps65070_regulator_data[] = {
 	{
 		.constraints = {
 			.min_uV = 950000,
-			.max_uV = 1320000,
+			.max_uV = 1350000,
 			.valid_ops_mask = (REGULATOR_CHANGE_VOLTAGE |
 				REGULATOR_CHANGE_STATUS),
 			.boot_on = 1,
@@ -1018,6 +1018,27 @@ static struct edma_rsv_info *da850_edma_rsv[2] = {
 	&da850_edma_cc1_rsv,
 };
 
+#ifdef CONFIG_CPU_FREQ
+static __init int da850_evm_init_cpufreq(void)
+{
+	switch (system_rev & 0xF) {
+	case 3:
+		da850_max_speed = 456000;
+		break;
+	case 2:
+		da850_max_speed = 408000;
+		break;
+	case 1:
+		da850_max_speed = 372000;
+		break;
+	}
+
+	return da850_register_cpufreq("pll0_sysclk3");
+}
+#else
+static __init int da850_evm_init_cpufreq(void) { return 0; }
+#endif
+
 static __init void da850_evm_init(void)
 {
 	int ret;
@@ -1118,7 +1139,7 @@ static __init void da850_evm_init(void)
 	if (ret)
 		pr_warning("da850_evm_init: rtc setup failed: %d\n", ret);
 
-	ret = da850_register_cpufreq("pll0_sysclk3");
+	ret = da850_evm_init_cpufreq();
 	if (ret)
 		pr_warning("da850_evm_init: cpufreq registration failed: %d\n",
 				ret);
