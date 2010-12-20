@@ -18,8 +18,11 @@
 #define EBT_IP6_PROTO 0x08
 #define EBT_IP6_SPORT 0x10
 #define EBT_IP6_DPORT 0x20
+#define EBT_IP6_ICMP6 0x40
+
 #define EBT_IP6_MASK (EBT_IP6_SOURCE | EBT_IP6_DEST | EBT_IP6_TCLASS |\
-		      EBT_IP6_PROTO | EBT_IP6_SPORT | EBT_IP6_DPORT)
+		      EBT_IP6_PROTO | EBT_IP6_SPORT | EBT_IP6_DPORT | \
+		      EBT_IP6_ICMP6)
 #define EBT_IP6_MATCH "ip6"
 
 /* the same values are used for the invflags */
@@ -32,8 +35,14 @@ struct ebt_ip6_info {
 	uint8_t  protocol;
 	uint8_t  bitmask;
 	uint8_t  invflags;
-	uint16_t sport[2];
-	uint16_t dport[2];
+	union {
+		uint16_t sport[2];
+		uint8_t icmpv6_type[2];
+	};
+	union {
+		uint16_t dport[2];
+		uint8_t icmpv6_code[2];
+	};
 };
 
 #endif
