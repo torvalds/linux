@@ -405,6 +405,54 @@ TRACE_EVENT(xen_mmu_pgd_unpin,
 	    TP_printk("mm %p pgd %p", __entry->mm, __entry->pgd)
 	);
 
+TRACE_EVENT(xen_mmu_flush_tlb,
+	    TP_PROTO(int x),
+	    TP_ARGS(x),
+	    TP_STRUCT__entry(__array(char, x, 0)),
+	    TP_fast_assign((void)x),
+	    TP_printk("%s", "")
+	);
+
+TRACE_EVENT(xen_mmu_flush_tlb_single,
+	    TP_PROTO(unsigned long addr),
+	    TP_ARGS(addr),
+	    TP_STRUCT__entry(
+		    __field(unsigned long, addr)
+		    ),
+	    TP_fast_assign(__entry->addr = addr),
+	    TP_printk("addr %lx", __entry->addr)
+	);
+
+TRACE_EVENT(xen_mmu_flush_tlb_others,
+	    TP_PROTO(const struct cpumask *cpus, struct mm_struct *mm,
+		     unsigned long addr),
+	    TP_ARGS(cpus, mm, addr),
+	    TP_STRUCT__entry(
+		    __field(unsigned, ncpus)
+		    __field(struct mm_struct *, mm)
+		    __field(unsigned long, addr)
+		    ),
+	    TP_fast_assign(__entry->ncpus = cpumask_weight(cpus);
+			   __entry->mm = mm;
+			   __entry->addr = addr),
+	    TP_printk("ncpus %d mm %p addr %lx",
+		      __entry->ncpus, __entry->mm, __entry->addr)
+	);
+
+TRACE_EVENT(xen_mmu_write_cr3,
+	    TP_PROTO(bool kernel, unsigned long cr3),
+	    TP_ARGS(kernel, cr3),
+	    TP_STRUCT__entry(
+		    __field(bool, kernel)
+		    __field(unsigned long, cr3)
+		    ),
+	    TP_fast_assign(__entry->kernel = kernel;
+			   __entry->cr3 = cr3),
+	    TP_printk("%s cr3 %lx",
+		      __entry->kernel ? "kernel" : "user", __entry->cr3)
+	);
+
+
 /* CPU */
 TRACE_EVENT(xen_cpu_write_ldt_entry,
 	    TP_PROTO(struct desc_struct *dt, int entrynum, u64 desc),

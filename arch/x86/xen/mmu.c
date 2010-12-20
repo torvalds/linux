@@ -1222,6 +1222,8 @@ static void xen_flush_tlb(void)
 	struct mmuext_op *op;
 	struct multicall_space mcs;
 
+	trace_xen_mmu_flush_tlb(0);
+
 	preempt_disable();
 
 	mcs = xen_mc_entry(sizeof(*op));
@@ -1239,6 +1241,8 @@ static void xen_flush_tlb_single(unsigned long addr)
 {
 	struct mmuext_op *op;
 	struct multicall_space mcs;
+
+	trace_xen_mmu_flush_tlb_single(addr);
 
 	preempt_disable();
 
@@ -1265,6 +1269,8 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 #endif
 	} *args;
 	struct multicall_space mcs;
+
+	trace_xen_mmu_flush_tlb_others(cpus, mm, va);
 
 	if (cpumask_empty(cpus))
 		return;		/* nothing to do */
@@ -1304,6 +1310,8 @@ static void __xen_write_cr3(bool kernel, unsigned long cr3)
 	struct mmuext_op *op;
 	struct multicall_space mcs;
 	unsigned long mfn;
+
+	trace_xen_mmu_write_cr3(kernel, cr3);
 
 	if (cr3)
 		mfn = pfn_to_mfn(PFN_DOWN(cr3));
