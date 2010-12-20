@@ -381,22 +381,14 @@ void __init smp_prepare_boot_cpu(void)
 	per_cpu(cpu_data, cpu).idle = current;
 }
 
-static void send_ipi_message(const struct cpumask *mask, enum ipi_msg_type msg)
-{
-	/*
-	 * Call the platform specific cross-CPU call function.
-	 */
-	smp_cross_call(mask, msg);
-}
-
 void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
-	send_ipi_message(mask, IPI_CALL_FUNC);
+	smp_cross_call(mask, IPI_CALL_FUNC);
 }
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	send_ipi_message(cpumask_of(cpu), IPI_CALL_FUNC_SINGLE);
+	smp_cross_call(cpumask_of(cpu), IPI_CALL_FUNC_SINGLE);
 }
 
 void show_ipi_list(struct seq_file *p)
@@ -454,7 +446,7 @@ asmlinkage void __exception do_local_timer(struct pt_regs *regs)
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 static void smp_timer_broadcast(const struct cpumask *mask)
 {
-	send_ipi_message(mask, IPI_TIMER);
+	smp_cross_call(mask, IPI_TIMER);
 }
 #else
 #define smp_timer_broadcast	NULL
@@ -560,7 +552,7 @@ asmlinkage void __exception do_IPI(int ipinr, struct pt_regs *regs)
 
 void smp_send_reschedule(int cpu)
 {
-	send_ipi_message(cpumask_of(cpu), IPI_RESCHEDULE);
+	smp_cross_call(cpumask_of(cpu), IPI_RESCHEDULE);
 }
 
 void smp_send_stop(void)
@@ -568,7 +560,7 @@ void smp_send_stop(void)
 	cpumask_t mask = cpu_online_map;
 	cpu_clear(smp_processor_id(), mask);
 	if (!cpus_empty(mask))
-		send_ipi_message(&mask, IPI_CPU_STOP);
+		smp_cross_call(&mask, IPI_CPU_STOP);
 }
 
 /*
