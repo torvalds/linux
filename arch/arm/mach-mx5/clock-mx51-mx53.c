@@ -954,6 +954,41 @@ static struct clk usboh3_clk = {
 	.parent = &pll2_sw_clk,
 	.get_rate = clk_usboh3_get_rate,
 	.set_parent = clk_usboh3_set_parent,
+	.enable = _clk_ccgr_enable,
+	.disable = _clk_ccgr_disable,
+	.enable_reg = MXC_CCM_CCGR2,
+	.enable_shift = MXC_CCM_CCGRx_CG14_OFFSET,
+};
+
+static struct clk usb_ahb_clk = {
+	.parent = &ipg_clk,
+	.enable = _clk_ccgr_enable,
+	.disable = _clk_ccgr_disable,
+	.enable_reg = MXC_CCM_CCGR2,
+	.enable_shift = MXC_CCM_CCGRx_CG13_OFFSET,
+};
+
+static int clk_usb_phy1_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 reg;
+
+	reg = __raw_readl(MXC_CCM_CSCMR1) & ~MXC_CCM_CSCMR1_USB_PHY_CLK_SEL;
+
+	if (parent == &pll3_sw_clk)
+		reg |= 1 << MXC_CCM_CSCMR1_USB_PHY_CLK_SEL_OFFSET;
+
+	__raw_writel(reg, MXC_CCM_CSCMR1);
+
+	return 0;
+}
+
+static struct clk usb_phy1_clk = {
+	.parent = &pll3_sw_clk,
+	.set_parent = clk_usb_phy1_set_parent,
+	.enable = _clk_ccgr_enable,
+	.enable_reg = MXC_CCM_CCGR2,
+	.enable_shift = MXC_CCM_CCGRx_CG0_OFFSET,
+	.disable = _clk_ccgr_disable,
 };
 
 /* eCSPI */
@@ -1094,9 +1129,12 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK("imx-i2c.1", NULL, i2c2_clk)
 	_REGISTER_CLOCK("imx-i2c.2", NULL, hsi2c_clk)
 	_REGISTER_CLOCK("mxc-ehci.0", "usb", usboh3_clk)
-	_REGISTER_CLOCK("mxc-ehci.0", "usb_ahb", ahb_clk)
+	_REGISTER_CLOCK("mxc-ehci.0", "usb_ahb", usb_ahb_clk)
+	_REGISTER_CLOCK("mxc-ehci.0", "usb_phy1", usb_phy1_clk)
 	_REGISTER_CLOCK("mxc-ehci.1", "usb", usboh3_clk)
-	_REGISTER_CLOCK("mxc-ehci.1", "usb_ahb", ahb_clk)
+	_REGISTER_CLOCK("mxc-ehci.1", "usb_ahb", usb_ahb_clk)
+	_REGISTER_CLOCK("mxc-ehci.2", "usb", usboh3_clk)
+	_REGISTER_CLOCK("mxc-ehci.2", "usb_ahb", usb_ahb_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usboh3_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", ahb_clk)
 	_REGISTER_CLOCK("imx-keypad.0", NULL, kpp_clk)
@@ -1169,6 +1207,9 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 	clk_enable(&iim_clk);
 	mx51_revision();
 	clk_disable(&iim_clk);
+
+	/* move usb_phy_clk to 24MHz */
+	clk_set_parent(&usb_phy1_clk, &osc_clk);
 
 	/* set the usboh3_clk parent to pll2_sw_clk */
 	clk_set_parent(&usboh3_clk, &pll2_sw_clk);
