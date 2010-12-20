@@ -996,6 +996,8 @@ void omap_push_sram_idle(void)
 
 static void __init pm_errata_configure(void)
 {
+	if (cpu_is_omap3630())
+		pm34xx_errata |= PM_RTA_ERRATUM_i608;
 }
 
 static int __init omap3_pm_init(void)
@@ -1055,6 +1057,14 @@ static int __init omap3_pm_init(void)
 
 	pm_idle = omap3_pm_idle;
 	omap3_idle_init();
+
+	/*
+	 * RTA is disabled during initialization as per erratum i608
+	 * it is safer to disable RTA by the bootloader, but we would like
+	 * to be doubly sure here and prevent any mishaps.
+	 */
+	if (IS_PM34XX_ERRATUM(PM_RTA_ERRATUM_i608))
+		omap3630_ctrl_disable_rta();
 
 	clkdm_add_wkdep(neon_clkdm, mpu_clkdm);
 	if (omap_type() != OMAP2_DEVICE_TYPE_GP) {

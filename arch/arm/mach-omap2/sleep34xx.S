@@ -45,6 +45,8 @@
 #define CM_IDLEST_CKGEN_V	OMAP34XX_CM_REGADDR(PLL_MOD, CM_IDLEST)
 #define SRAM_BASE_P		0x40200000
 #define CONTROL_STAT		0x480022F0
+#define CONTROL_MEM_RTA_CTRL	(OMAP343X_CTRL_BASE\
+					+ OMAP36XX_CONTROL_MEM_RTA_CTRL)
 #define SCRATCHPAD_MEM_OFFS	0x310 /* Move this as correct place is
 				       * available */
 #define SCRATCHPAD_BASE_P	(OMAP343X_CTRL_BASE + OMAP343X_CONTROL_MEM_WKUP\
@@ -99,6 +101,14 @@ ENTRY(get_restore_pointer)
         ldmfd   sp!, {pc}     @ restore regs and return
 ENTRY(get_restore_pointer_sz)
         .word   . - get_restore_pointer
+	.text
+/* Function call to get the restore pointer for 3630 resume from OFF */
+ENTRY(get_omap3630_restore_pointer)
+        stmfd   sp!, {lr}     @ save registers on stack
+	adr	r0, restore_3630
+        ldmfd   sp!, {pc}     @ restore regs and return
+ENTRY(get_omap3630_restore_pointer_sz)
+        .word   . - get_omap3630_restore_pointer
 
 	.text
 /* Function call to get the restore pointer for for ES3 to resume from OFF */
@@ -246,6 +256,20 @@ copy_to_sram:
 	bne	copy_to_sram
 	ldr	r1, sram_base
 	blx	r1
+	b	restore
+
+restore_3630:
+	/*b restore_es3630*/		@ Enable to debug restore code
+	ldr	r1, pm_prepwstst_core_p
+	ldr	r2, [r1]
+	and	r2, r2, #0x3
+	cmp	r2, #0x0	@ Check if previous power state of CORE is OFF
+	bne	restore
+	/* Disable RTA before giving control */
+	ldr	r1, control_mem_rta
+	mov	r2, #OMAP36XX_RTA_DISABLE
+	str	r2, [r1]
+	/* Fall thru for the remaining logic */
 restore:
 	/* b restore*/  @ Enable to debug restore code
         /* Check what was the reason for mpu reset and store the reason in r9*/
@@ -651,6 +675,8 @@ cache_pred_disable_mask:
 	.word	0xFFFFE7FB
 control_stat:
 	.word	CONTROL_STAT
+control_mem_rta:
+	.word	CONTROL_MEM_RTA_CTRL
 kernel_flush:
 	.word v7_flush_dcache_all
 	/*

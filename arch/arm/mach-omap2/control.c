@@ -241,7 +241,10 @@ void omap3_save_scratchpad_contents(void)
 
 	/* Populate the Scratchpad contents */
 	scratchpad_contents.boot_config_ptr = 0x0;
-	if (omap_rev() != OMAP3430_REV_ES3_0 &&
+	if (cpu_is_omap3630())
+		scratchpad_contents.public_restore_ptr =
+			virt_to_phys(get_omap3630_restore_pointer());
+	else if (omap_rev() != OMAP3430_REV_ES3_0 &&
 					omap_rev() != OMAP3430_REV_ES3_1)
 		scratchpad_contents.public_restore_ptr =
 			virt_to_phys(get_restore_pointer());
@@ -474,4 +477,12 @@ void omap3_control_restore_context(void)
 	omap_ctrl_writel(control_context.csi, OMAP343X_CONTROL_CSI);
 	return;
 }
+
+void omap3630_ctrl_disable_rta(void)
+{
+	if (!cpu_is_omap3630())
+		return;
+	omap_ctrl_writel(OMAP36XX_RTA_DISABLE, OMAP36XX_CONTROL_MEM_RTA_CTRL);
+}
+
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */
