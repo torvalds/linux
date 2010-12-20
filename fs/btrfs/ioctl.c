@@ -147,6 +147,9 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	unsigned int flags, oldflags;
 	int ret;
 
+	if (btrfs_root_readonly(root))
+		return -EROFS;
+
 	if (copy_from_user(&flags, arg, sizeof(flags)))
 		return -EFAULT;
 
@@ -360,7 +363,8 @@ fail:
 }
 
 static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
-			   char *name, int namelen, u64 *async_transid)
+			   char *name, int namelen, u64 *async_transid,
+			   bool readonly)
 {
 	struct inode *inode;
 	struct dentry *parent;
@@ -378,6 +382,7 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 	btrfs_init_block_rsv(&pending_snapshot->block_rsv);
 	pending_snapshot->dentry = dentry;
 	pending_snapshot->root = root;
+	pending_snapshot->readonly = readonly;
 
 	trans = btrfs_start_transaction(root->fs_info->extent_root, 5);
 	if (IS_ERR(trans)) {
@@ -509,7 +514,7 @@ static inline int btrfs_may_create(struct inode *dir, struct dentry *child)
 static noinline int btrfs_mksubvol(struct path *parent,
 				   char *name, int namelen,
 				   struct btrfs_root *snap_src,
-				   u64 *async_transid)
+				   u64 *async_transid, bool readonly)
 {
 	struct inode *dir  = parent->dentry->d_inode;
 	struct dentry *dentry;
@@ -541,7 +546,7 @@ static noinline int btrfs_mksubvol(struct path *parent,
 
 	if (snap_src) {
 		error = create_snapshot(snap_src, dentry,
-					name, namelen, async_transid);
+					name, namelen, async_transid, readonly);
 	} else {
 		error = create_subvol(BTRFS_I(dir)->root, dentry,
 				      name, namelen, async_transid);
@@ -901,7 +906,8 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 						    char *name,
 						    unsigned long fd,
 						    int subvol,
-						    u64 *transid)
+						    u64 *transid,
+						    bool readonly)
 {
 	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
 	struct file *src_file;
@@ -919,7 +925,7 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 
 	if (subvol) {
 		ret = btrfs_mksubvol(&file->f_path, name, namelen,
-				     NULL, transid);
+				     NULL, transid, readonly);
 	} else {
 		struct inode *src_inode;
 		src_file = fget(fd);
@@ -938,7 +944,7 @@ static noinline int btrfs_ioctl_snap_create_transid(struct file *file,
 		}
 		ret = btrfs_mksubvol(&file->f_path, name, namelen,
 				     BTRFS_I(src_inode)->root,
-				     transid);
+				     transid, readonly);
 		fput(src_file);
 	}
 out:
@@ -957,7 +963,8 @@ static noinline int btrfs_ioctl_snap_create(struct file *file,
 	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
 
 	ret = btrfs_ioctl_snap_create_transid(file, vol_args->name,
-					      vol_args->fd, subvol, NULL);
+					      vol_args->fd, subvol,
+					      NULL, false);
 
 	kfree(vol_args);
 	return ret;
@@ -970,22 +977,27 @@ static noinline int btrfs_ioctl_snap_create_v2(struct file *file,
 	int ret;
 	u64 transid = 0;
 	u64 *ptr = NULL;
+	bool readonly = false;
 
 	vol_args = memdup_user(arg, sizeof(*vol_args));
 	if (IS_ERR(vol_args))
 		return PTR_ERR(vol_args);
 	vol_args->name[BTRFS_SUBVOL_NAME_MAX] = '\0';
 
-	if (vol_args->flags & ~BTRFS_SUBVOL_CREATE_ASYNC) {
-		ret = -EINVAL;
+	if (vol_args->flags &
+	    ~(BTRFS_SUBVOL_CREATE_ASYNC | BTRFS_SUBVOL_RDONLY)) {
+		ret = -EOPNOTSUPP;
 		goto out;
 	}
 
 	if (vol_args->flags & BTRFS_SUBVOL_CREATE_ASYNC)
 		ptr = &transid;
+	if (vol_args->flags & BTRFS_SUBVOL_RDONLY)
+		readonly = true;
 
 	ret = btrfs_ioctl_snap_create_transid(file, vol_args->name,
-					      vol_args->fd, subvol, ptr);
+					      vol_args->fd, subvol,
+					      ptr, readonly);
 
 	if (ret == 0 && ptr &&
 	    copy_to_user(arg +
@@ -1505,6 +1517,9 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 	struct btrfs_ioctl_defrag_range_args *range;
 	int ret;
 
+	if (btrfs_root_readonly(root))
+		return -EROFS;
+
 	ret = mnt_want_write(file->f_path.mnt);
 	if (ret)
 		return ret;
@@ -1632,6 +1647,9 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	/* the destination must be opened for writing */
 	if (!(file->f_mode & FMODE_WRITE) || (file->f_flags & O_APPEND))
 		return -EINVAL;
+
+	if (btrfs_root_readonly(root))
+		return -EROFS;
 
 	ret = mnt_want_write(file->f_path.mnt);
 	if (ret)
@@ -1952,6 +1970,10 @@ static long btrfs_ioctl_trans_start(struct file *file)
 
 	ret = -EINPROGRESS;
 	if (file->private_data)
+		goto out;
+
+	ret = -EROFS;
+	if (btrfs_root_readonly(root))
 		goto out;
 
 	ret = mnt_want_write(file->f_path.mnt);
