@@ -980,7 +980,7 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 		}
 	} else {
 		tq->stats.drop_hdr_inspect_err++;
-		goto drop_pkt;
+		goto unlock_drop_pkt;
 	}
 
 	/* fill tx descs related to addr & len */
@@ -1052,6 +1052,8 @@ vmxnet3_tq_xmit(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 
 hdr_too_big:
 	tq->stats.drop_oversized_hdr++;
+unlock_drop_pkt:
+	spin_unlock_irqrestore(&tq->tx_lock, flags);
 drop_pkt:
 	tq->stats.drop_total++;
 	dev_kfree_skb(skb);
