@@ -250,7 +250,7 @@ int ath9k_wmi_cmd(struct wmi *wmi, enum wmi_cmd_id cmd_id,
 	int time_left, ret = 0;
 	unsigned long flags;
 
-	if (wmi->drv_priv->op_flags & OP_UNPLUGGED)
+	if (ah->ah_flags & AH_UNPLUGGED)
 		return 0;
 
 	skb = alloc_skb(headroom + cmd_len, GFP_ATOMIC);

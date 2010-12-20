@@ -993,16 +993,16 @@ static void ath9k_hif_usb_disconnect(struct usb_interface *interface)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct hif_device_usb *hif_dev = usb_get_intfdata(interface);
+	bool unplugged = (udev->state == USB_STATE_NOTATTACHED) ? true : false;
 
 	if (hif_dev) {
-		ath9k_htc_hw_deinit(hif_dev->htc_handle,
-		    (udev->state == USB_STATE_NOTATTACHED) ? true : false);
+		ath9k_htc_hw_deinit(hif_dev->htc_handle, unplugged);
 		ath9k_htc_hw_free(hif_dev->htc_handle);
 		ath9k_hif_usb_dev_deinit(hif_dev);
 		usb_set_intfdata(interface, NULL);
 	}
 
-	if (hif_dev->flags & HIF_USB_START)
+	if (!unplugged && (hif_dev->flags & HIF_USB_START))
 		ath9k_hif_usb_reboot(udev);
 
 	kfree(hif_dev);

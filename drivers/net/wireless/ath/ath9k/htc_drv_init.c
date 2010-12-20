@@ -851,9 +851,6 @@ int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
 	if (ret)
 		goto err_init;
 
-	/* The device may have been unplugged earlier. */
-	priv->op_flags &= ~OP_UNPLUGGED;
-
 	ret = ath9k_init_device(priv, devid, product, drv_info);
 	if (ret)
 		goto err_init;
@@ -873,7 +870,7 @@ void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug)
 
 		/* Check if the device has been yanked out. */
 		if (hotunplug)
-			htc_handle->drv_priv->op_flags |= OP_UNPLUGGED;
+			htc_handle->drv_priv->ah->ah_flags |= AH_UNPLUGGED;
 
 		ath9k_deinit_device(htc_handle->drv_priv);
 		ath9k_deinit_wmi(htc_handle->drv_priv);

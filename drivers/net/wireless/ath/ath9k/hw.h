@@ -646,6 +646,10 @@ struct ath_nf_limits {
 	s16 nominal;
 };
 
+/* ah_flags */
+#define AH_USE_EEPROM   0x1
+#define AH_UNPLUGGED    0x2 /* The card has been physically removed. */
+
 struct ath_hw {
 	struct ieee80211_hw *hw;
 	struct ath_common common;

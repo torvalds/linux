@@ -339,9 +339,8 @@ void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv);
 #define OP_ASSOCIATED		   BIT(7)
 #define OP_ENABLE_BEACON	   BIT(8)
 #define OP_LED_DEINIT		   BIT(9)
-#define OP_UNPLUGGED		   BIT(10)
-#define OP_BT_PRIORITY_DETECTED	   BIT(11)
-#define OP_BT_SCAN		   BIT(12)
+#define OP_BT_PRIORITY_DETECTED    BIT(10)
+#define OP_BT_SCAN                 BIT(11)
 
 struct ath9k_htc_priv {
 	struct device *dev;
