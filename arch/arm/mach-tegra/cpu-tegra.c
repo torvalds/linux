@@ -105,49 +105,30 @@ static void tegra_throttle_work_func(struct work_struct *work)
 	mutex_unlock(&tegra_cpu_lock);
 }
 
-/**
+/*
  * tegra_throttling_enable
  * This function may sleep
  */
-void tegra_throttling_enable(void)
+void tegra_throttling_enable(bool enable)
 {
 	mutex_lock(&throttling_lock);
 
-	if (!is_throttling) {
+	if (enable && !is_throttling) {
 		is_throttling = true;
 		queue_delayed_work(workqueue, &throttle_work, NO_DELAY);
-	}
-
-	mutex_unlock(&throttling_lock);
-}
-EXPORT_SYMBOL_GPL(tegra_throttling_enable);
-
-/**
- * tegra_throttling_disable
- * This function may sleep
- */
-void tegra_throttling_disable(void)
-{
-	mutex_lock(&throttling_lock);
-
-	if (is_throttling) {
+	} else if (!enable && is_throttling) {
 		cancel_delayed_work_sync(&throttle_work);
 		is_throttling = false;
 	}
 
 	mutex_unlock(&throttling_lock);
 }
-EXPORT_SYMBOL_GPL(tegra_throttling_disable);
+EXPORT_SYMBOL_GPL(tegra_throttling_enable);
 
 #ifdef CONFIG_DEBUG_FS
 static int throttle_debug_set(void *data, u64 val)
 {
-	if (val) {
-		tegra_throttling_enable();
-	} else {
-		tegra_throttling_disable();
-	}
-
+	tegra_throttling_enable(val);
 	return 0;
 }
 static int throttle_debug_get(void *data, u64 *val)
@@ -189,6 +170,10 @@ module_exit(tegra_cpu_debug_exit);
 
 #else /* CONFIG_TEGRA_THERMAL_THROTTLE */
 #define tegra_cpu_is_throttling() (0)
+
+void tegra_throttling_enable(bool enable)
+{
+}
 #endif /* CONFIG_TEGRA_THERMAL_THROTTLE */
 
 int tegra_verify_speed(struct cpufreq_policy *policy)
