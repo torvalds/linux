@@ -290,28 +290,21 @@ static int get_real_path(const char *raw_path, const char *comp_dir,
 static int show_one_line(FILE *fp, int l, bool skip, bool show_num)
 {
 	char buf[LINEBUF_SIZE];
-	const char *color = PERF_COLOR_BLUE;
+	const char *color = show_num ? "" : PERF_COLOR_BLUE;
+	const char *prefix = NULL;
 
-	if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
-		goto error;
-	if (!skip) {
-		if (show_num)
-			fprintf(stdout, "%7d  %s", l, buf);
-		else
-			color_fprintf(stdout, color, "         %s", buf);
-	}
-
-	while (strlen(buf) == LINEBUF_SIZE - 1 &&
-	       buf[LINEBUF_SIZE - 2] != '\n') {
+	do {
 		if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
 			goto error;
-		if (!skip) {
-			if (show_num)
-				fprintf(stdout, "%s", buf);
-			else
-				color_fprintf(stdout, color, "%s", buf);
+		if (skip)
+			continue;
+		if (!prefix) {
+			prefix = show_num ? "%7d  " : "         ";
+			color_fprintf(stdout, color, prefix, l);
 		}
-	}
+		color_fprintf(stdout, color, "%s", buf);
+
+	} while (strchr(buf, '\n') == NULL);
 
 	return 0;
 error:
