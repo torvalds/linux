@@ -86,6 +86,7 @@ extern unsigned int omap24xx_cpu_suspend_sz;
 extern unsigned int omap34xx_cpu_suspend_sz;
 
 #define PM_RTA_ERRATUM_i608		(1 << 0)
+#define PM_SDRC_WAKEUP_ERRATUM_i583	(1 << 1)
 
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3)
 extern u16 pm34xx_errata;

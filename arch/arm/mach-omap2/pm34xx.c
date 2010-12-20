@@ -917,12 +917,29 @@ void omap3_pm_off_mode_enable(int enable)
 		state = PWRDM_POWER_RET;
 
 #ifdef CONFIG_CPU_IDLE
-	omap3_cpuidle_update_states(state, state);
+	/*
+	 * Erratum i583: implementation for ES rev < Es1.2 on 3630. We cannot
+	 * enable OFF mode in a stable form for previous revisions, restrict
+	 * instead to RET
+	 */
+	if (IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583))
+		omap3_cpuidle_update_states(state, PWRDM_POWER_RET);
+	else
+		omap3_cpuidle_update_states(state, state);
 #endif
 
 	list_for_each_entry(pwrst, &pwrst_list, node) {
-		pwrst->next_state = state;
-		omap_set_pwrdm_state(pwrst->pwrdm, state);
+		if (IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583) &&
+				pwrst->pwrdm == core_pwrdm &&
+				state == PWRDM_POWER_OFF) {
+			pwrst->next_state = PWRDM_POWER_RET;
+			WARN_ONCE(1,
+				"%s: Core OFF disabled due to errata i583\n",
+				__func__);
+		} else {
+			pwrst->next_state = state;
+		}
+		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->next_state);
 	}
 }
 
@@ -1000,6 +1017,8 @@ static void __init pm_errata_configure(void)
 		pm34xx_errata |= PM_RTA_ERRATUM_i608;
 		/* Enable the l2 cache toggling in sleep logic */
 		enable_omap3630_toggle_l2_on_restore();
+		if (omap_rev() < OMAP3630_REV_ES1_2)
+			pm34xx_errata |= PM_SDRC_WAKEUP_ERRATUM_i583;
 	}
 }
 

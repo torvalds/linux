@@ -453,6 +453,18 @@ void omap_init_power_states(void)
 	omap3_power_states[OMAP3_STATE_C7].core_state = PWRDM_POWER_OFF;
 	omap3_power_states[OMAP3_STATE_C7].flags = CPUIDLE_FLAG_TIME_VALID |
 				CPUIDLE_FLAG_CHECK_BM;
+
+	/*
+	 * Erratum i583: implementation for ES rev < Es1.2 on 3630. We cannot
+	 * enable OFF mode in a stable form for previous revisions.
+	 * we disable C7 state as a result.
+	 */
+	if (IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583)) {
+		omap3_power_states[OMAP3_STATE_C7].valid = 0;
+		cpuidle_params_table[OMAP3_STATE_C7].valid = 0;
+		WARN_ONCE(1, "%s: core off state C7 disabled due to i583\n",
+				__func__);
+	}
 }
 
 struct cpuidle_driver omap3_idle_driver = {
