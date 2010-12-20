@@ -259,11 +259,6 @@ static void pdc_dostart(struct pch_dma_chan *pd_chan, struct pch_dma_desc* desc)
 		return;
 	}
 
-	channel_writel(pd_chan, DEV_ADDR, desc->regs.dev_addr);
-	channel_writel(pd_chan, MEM_ADDR, desc->regs.mem_addr);
-	channel_writel(pd_chan, SIZE, desc->regs.size);
-	channel_writel(pd_chan, NEXT, desc->regs.next);
-
 	dev_dbg(chan2dev(&pd_chan->chan), "chan %d -> dev_addr: %x\n",
 		pd_chan->chan.chan_id, desc->regs.dev_addr);
 	dev_dbg(chan2dev(&pd_chan->chan), "chan %d -> mem_addr: %x\n",
@@ -273,10 +268,16 @@ static void pdc_dostart(struct pch_dma_chan *pd_chan, struct pch_dma_desc* desc)
 	dev_dbg(chan2dev(&pd_chan->chan), "chan %d -> next: %x\n",
 		pd_chan->chan.chan_id, desc->regs.next);
 
-	if (list_empty(&desc->tx_list))
+	if (list_empty(&desc->tx_list)) {
+		channel_writel(pd_chan, DEV_ADDR, desc->regs.dev_addr);
+		channel_writel(pd_chan, MEM_ADDR, desc->regs.mem_addr);
+		channel_writel(pd_chan, SIZE, desc->regs.size);
+		channel_writel(pd_chan, NEXT, desc->regs.next);
 		pdc_set_mode(&pd_chan->chan, DMA_CTL0_ONESHOT);
-	else
+	} else {
+		channel_writel(pd_chan, NEXT, desc->txd.phys);
 		pdc_set_mode(&pd_chan->chan, DMA_CTL0_SG);
+	}
 
 	val = dma_readl(pd, CTL2);
 	val |= 1 << (DMA_CTL2_START_SHIFT_BITS + pd_chan->chan.chan_id);

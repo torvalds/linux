@@ -455,6 +455,8 @@ u32 ath9k_htc_calcrxfilter(struct ath9k_htc_priv *priv);
 void ath9k_htc_ps_wakeup(struct ath9k_htc_priv *priv);
 void ath9k_htc_ps_restore(struct ath9k_htc_priv *priv);
 void ath9k_ps_work(struct work_struct *work);
+bool ath9k_htc_setpower(struct ath9k_htc_priv *priv,
+			enum ath9k_power_mode mode);
 
 void ath9k_start_rfkill_poll(struct ath9k_htc_priv *priv);
 void ath9k_init_leds(struct ath9k_htc_priv *priv);
@@ -464,6 +466,7 @@ int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
 			   u16 devid, char *product);
 void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug);
 #ifdef CONFIG_PM
+void ath9k_htc_suspend(struct htc_target *htc_handle);
 int ath9k_htc_resume(struct htc_target *htc_handle);
 #endif
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS

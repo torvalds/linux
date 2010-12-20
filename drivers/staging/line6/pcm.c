@@ -79,9 +79,9 @@ static ssize_t pcm_set_impulse_period(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(impulse_volume, S_IWUGO | S_IRUGO, pcm_get_impulse_volume,
+static DEVICE_ATTR(impulse_volume, S_IWUSR | S_IRUGO, pcm_get_impulse_volume,
 		   pcm_set_impulse_volume);
-static DEVICE_ATTR(impulse_period, S_IWUGO | S_IRUGO, pcm_get_impulse_period,
+static DEVICE_ATTR(impulse_period, S_IWUSR | S_IRUGO, pcm_get_impulse_period,
 		   pcm_set_impulse_period);
 
 #endif

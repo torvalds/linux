@@ -37,7 +37,7 @@ u8 r8712_usb_hal_bus_init(struct _adapter *padapter)
 {
 	u8 val8 = 0;
 	u8 ret = _SUCCESS;
-	u8 PollingCnt = 20;
+	int PollingCnt = 20;
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 
 	if (pregistrypriv->chip_version == RTL8712_FPGA) {

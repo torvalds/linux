@@ -76,8 +76,8 @@ static void zfcp_scsi_command_fail(struct scsi_cmnd *scpnt, int result)
 	scpnt->scsi_done(scpnt);
 }
 
-static int zfcp_scsi_queuecommand_lck(struct scsi_cmnd *scpnt,
-				  void (*done) (struct scsi_cmnd *))
+static
+int zfcp_scsi_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scpnt)
 {
 	struct zfcp_scsi_dev *zfcp_sdev = sdev_to_zfcp(scpnt->device);
 	struct zfcp_adapter *adapter = zfcp_sdev->port->adapter;
@@ -87,7 +87,6 @@ static int zfcp_scsi_queuecommand_lck(struct scsi_cmnd *scpnt,
 	/* reset the status for this request */
 	scpnt->result = 0;
 	scpnt->host_scribble = NULL;
-	scpnt->scsi_done = done;
 
 	scsi_result = fc_remote_port_chkready(rport);
 	if (unlikely(scsi_result)) {
@@ -126,8 +125,6 @@ static int zfcp_scsi_queuecommand_lck(struct scsi_cmnd *scpnt,
 
 	return ret;
 }
-
-static DEF_SCSI_QCMD(zfcp_scsi_queuecommand)
 
 static int zfcp_scsi_slave_alloc(struct scsi_device *sdev)
 {

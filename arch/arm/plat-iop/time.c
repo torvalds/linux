@@ -18,6 +18,7 @@
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/timex.h>
+#include <linux/sched.h>
 #include <linux/io.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
@@ -36,7 +37,7 @@
 /*
  * IOP clocksource (free-running timer 1).
  */
-static cycle_t iop_clocksource_read(struct clocksource *unused)
+static cycle_t notrace iop_clocksource_read(struct clocksource *unused)
 {
 	return 0xffffffffu - read_tcr1();
 }

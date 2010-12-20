@@ -63,8 +63,8 @@ static enum htc_phymode ath9k_htc_get_curmode(struct ath9k_htc_priv *priv,
 	return mode;
 }
 
-static bool ath9k_htc_setpower(struct ath9k_htc_priv *priv,
-			       enum ath9k_power_mode mode)
+bool ath9k_htc_setpower(struct ath9k_htc_priv *priv,
+			enum ath9k_power_mode mode)
 {
 	bool ret;
 
