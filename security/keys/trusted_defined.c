@@ -511,7 +511,7 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 	/* get session for sealing key */
 	ret = osap(tb, &sess, keyauth, keytype, keyhandle);
 	if (ret < 0)
-		return ret;
+		goto out;
 	dump_sess(&sess);
 
 	/* calculate encrypted authorization value */
@@ -519,11 +519,11 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 	memcpy(td->xorwork + SHA1_DIGEST_SIZE, sess.enonce, SHA1_DIGEST_SIZE);
 	ret = TSS_sha1(td->xorwork, SHA1_DIGEST_SIZE * 2, td->xorhash);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = tpm_get_random(tb, td->nonceodd, TPM_NONCE_SIZE);
 	if (ret < 0)
-		return ret;
+		goto out;
 	ordinal = htonl(TPM_ORD_SEAL);
 	datsize = htonl(datalen);
 	pcrsize = htonl(pcrinfosize);
@@ -552,7 +552,7 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 				   &datsize, datalen, data, 0, 0);
 	}
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	/* build and send the TPM request packet */
 	INIT_BUF(tb);
@@ -572,7 +572,7 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 
 	ret = trusted_tpm_send(TPM_ANY_NUM, tb->data, MAX_BUF_SIZE);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	/* calculate the size of the returned Blob */
 	sealinfosize = LOAD32(tb->data, TPM_DATA_OFFSET + sizeof(uint32_t));
@@ -591,6 +591,8 @@ static int tpm_seal(struct tpm_buf *tb, uint16_t keytype,
 		memcpy(blob, tb->data + TPM_DATA_OFFSET, storedsize);
 		*bloblen = storedsize;
 	}
+out:
+	kfree(td);
 	return ret;
 }
 
