@@ -170,17 +170,6 @@ again:
 	return IRQ_HANDLED;
 }
 
-static void tc3589x_irq_dummy(unsigned int irq)
-{
-	/* No mask/unmask at this level */
-}
-
-static struct irq_chip tc3589x_irq_chip = {
-	.name	= "tc3589x",
-	.mask	= tc3589x_irq_dummy,
-	.unmask	= tc3589x_irq_dummy,
-};
-
 static int tc3589x_irq_init(struct tc3589x *tc3589x)
 {
 	int base = tc3589x->irq_base;
@@ -188,7 +177,7 @@ static int tc3589x_irq_init(struct tc3589x *tc3589x)
 
 	for (irq = base; irq < base + TC3589x_NR_INTERNAL_IRQS; irq++) {
 		set_irq_chip_data(irq, tc3589x);
-		set_irq_chip_and_handler(irq, &tc3589x_irq_chip,
+		set_irq_chip_and_handler(irq, &dummy_irq_chip,
 					 handle_edge_irq);
 		set_irq_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
