@@ -1009,6 +1009,85 @@ out:
 	return ret;
 }
 
+static noinline int btrfs_ioctl_subvol_getflags(struct file *file,
+						void __user *arg)
+{
+	struct inode *inode = fdentry(file)->d_inode;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	int ret = 0;
+	u64 flags = 0;
+
+	if (inode->i_ino != BTRFS_FIRST_FREE_OBJECTID)
+		return -EINVAL;
+
+	down_read(&root->fs_info->subvol_sem);
+	if (btrfs_root_readonly(root))
+		flags |= BTRFS_SUBVOL_RDONLY;
+	up_read(&root->fs_info->subvol_sem);
+
+	if (copy_to_user(arg, &flags, sizeof(flags)))
+		ret = -EFAULT;
+
+	return ret;
+}
+
+static noinline int btrfs_ioctl_subvol_setflags(struct file *file,
+					      void __user *arg)
+{
+	struct inode *inode = fdentry(file)->d_inode;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_trans_handle *trans;
+	u64 root_flags;
+	u64 flags;
+	int ret = 0;
+
+	if (root->fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
+	if (inode->i_ino != BTRFS_FIRST_FREE_OBJECTID)
+		return -EINVAL;
+
+	if (copy_from_user(&flags, arg, sizeof(flags)))
+		return -EFAULT;
+
+	if (flags & ~BTRFS_SUBVOL_CREATE_ASYNC)
+		return -EINVAL;
+
+	if (flags & ~BTRFS_SUBVOL_RDONLY)
+		return -EOPNOTSUPP;
+
+	down_write(&root->fs_info->subvol_sem);
+
+	/* nothing to do */
+	if (!!(flags & BTRFS_SUBVOL_RDONLY) == btrfs_root_readonly(root))
+		goto out;
+
+	root_flags = btrfs_root_flags(&root->root_item);
+	if (flags & BTRFS_SUBVOL_RDONLY)
+		btrfs_set_root_flags(&root->root_item,
+				     root_flags | BTRFS_ROOT_SUBVOL_RDONLY);
+	else
+		btrfs_set_root_flags(&root->root_item,
+				     root_flags & ~BTRFS_ROOT_SUBVOL_RDONLY);
+
+	trans = btrfs_start_transaction(root, 1);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		goto out_reset;
+	}
+
+	ret = btrfs_update_root(trans, root,
+				&root->root_key, &root->root_item);
+
+	btrfs_commit_transaction(trans, root);
+out_reset:
+	if (ret)
+		btrfs_set_root_flags(&root->root_item, root_flags);
+out:
+	up_write(&root->fs_info->subvol_sem);
+	return ret;
+}
+
 /*
  * helper to check if the subvolume references other subvolumes
  */
@@ -2282,6 +2361,10 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_snap_create(file, argp, 1);
 	case BTRFS_IOC_SNAP_DESTROY:
 		return btrfs_ioctl_snap_destroy(file, argp);
+	case BTRFS_IOC_SUBVOL_GETFLAGS:
+		return btrfs_ioctl_subvol_getflags(file, argp);
+	case BTRFS_IOC_SUBVOL_SETFLAGS:
+		return btrfs_ioctl_subvol_setflags(file, argp);
 	case BTRFS_IOC_DEFAULT_SUBVOL:
 		return btrfs_ioctl_default_subvol(file, argp);
 	case BTRFS_IOC_DEFRAG:
