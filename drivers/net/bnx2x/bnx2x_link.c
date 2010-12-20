@@ -354,9 +354,6 @@ u8 bnx2x_ets_strict(const struct link_params *params, const u8 strict_cos)
 	struct bnx2x *bp = params->bp;
 	u32 val	= 0;
 
-	if ((1 < strict_cos) && (NULL == params))
-		return -EINVAL;
-
 	DP(NETIF_MSG_LINK, "ETS enabled strict configuration\n");
 	/**
 	 * Bitmap of 5bits length. Each bit specifies whether the entry behaves
