@@ -317,8 +317,7 @@ static int __devinit cs5535_mfgpt_probe(struct platform_device *pdev)
 	cs5535_mfgpt_chip.pdev = pdev;
 	spin_lock_init(&cs5535_mfgpt_chip.lock);
 
-	dev_info(&pdev->dev, "region 0x%x - 0x%x reserved\n", res->start,
-			res->end);
+	dev_info(&pdev->dev, "reserved resource region %pR\n", res);
 
 	/* detect the available timers */
 	t = scan_timers(&cs5535_mfgpt_chip);
