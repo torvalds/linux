@@ -807,6 +807,10 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_MMCCMD0, NULL);
 	gpio_request(GPIO_FN_MMCCLK0, NULL);
 
+	/* enable GPS module (GT-720F) */
+	gpio_request(GPIO_FN_SCIFA2_TXD1, NULL);
+	gpio_request(GPIO_FN_SCIFA2_RXD1, NULL);
+
 	i2c_register_board_info(0, i2c0_devices,
 				ARRAY_SIZE(i2c0_devices));
 	i2c_register_board_info(1, i2c1_devices,
