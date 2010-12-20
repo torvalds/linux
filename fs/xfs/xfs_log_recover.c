@@ -2567,8 +2567,7 @@ xlog_recover_efi_pass2(
 		xfs_efi_item_free(efip);
 		return error;
 	}
-	efip->efi_next_extent = efi_formatp->efi_nextents;
-	efip->efi_flags |= XFS_EFI_COMMITTED;
+	atomic_set(&efip->efi_next_extent, efi_formatp->efi_nextents);
 
 	spin_lock(&log->l_ailp->xa_lock);
 	/*
@@ -2878,7 +2877,7 @@ xlog_recover_process_efi(
 	xfs_extent_t		*extp;
 	xfs_fsblock_t		startblock_fsb;
 
-	ASSERT(!(efip->efi_flags & XFS_EFI_RECOVERED));
+	ASSERT(!test_bit(XFS_EFI_RECOVERED, &efip->efi_flags));
 
 	/*
 	 * First check the validity of the extents described by the
@@ -2917,7 +2916,7 @@ xlog_recover_process_efi(
 					 extp->ext_len);
 	}
 
-	efip->efi_flags |= XFS_EFI_RECOVERED;
+	set_bit(XFS_EFI_RECOVERED, &efip->efi_flags);
 	error = xfs_trans_commit(tp, 0);
 	return error;
 
@@ -2974,7 +2973,7 @@ xlog_recover_process_efis(
 		 * Skip EFIs that we've already processed.
 		 */
 		efip = (xfs_efi_log_item_t *)lip;
-		if (efip->efi_flags & XFS_EFI_RECOVERED) {
+		if (test_bit(XFS_EFI_RECOVERED, &efip->efi_flags)) {
 			lip = xfs_trans_ail_cursor_next(ailp, &cur);
 			continue;
 		}
