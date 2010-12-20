@@ -189,6 +189,8 @@ int __cpuinit __cpu_up(unsigned int cpu)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+static void percpu_timer_stop(void);
+
 /*
  * __cpu_disable runs on the processor to be shutdown.
  */
@@ -216,7 +218,7 @@ int __cpu_disable(void)
 	/*
 	 * Stop the local timer for this CPU.
 	 */
-	local_timer_stop();
+	percpu_timer_stop();
 
 	/*
 	 * Flush user cache and TLB mappings, and then remove this CPU
@@ -538,6 +540,21 @@ void __cpuinit percpu_timer_setup(void)
 
 	local_timer_setup(evt);
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * The generic clock events code purposely does not stop the local timer
+ * on CPU_DEAD/CPU_DEAD_FROZEN hotplug events, so we have to do it
+ * manually here.
+ */
+static void percpu_timer_stop(void)
+{
+	unsigned int cpu = smp_processor_id();
+	struct clock_event_device *evt = &per_cpu(percpu_clockevent, cpu);
+
+	evt->set_mode(CLOCK_EVT_MODE_UNUSED, evt);
+}
+#endif
 
 static DEFINE_SPINLOCK(stop_lock);
 
