@@ -717,13 +717,15 @@ static inline int rt_is_expired(struct rtable *rth)
  * Can be called by a softirq or a process.
  * In the later case, we want to be reschedule if necessary
  */
-static void rt_do_flush(int process_context)
+static void rt_do_flush(struct net *net, int process_context)
 {
 	unsigned int i;
 	struct rtable *rth, *next;
-	struct rtable * tail;
 
 	for (i = 0; i <= rt_hash_mask; i++) {
+		struct rtable __rcu **pprev;
+		struct rtable *list;
+
 		if (process_context && need_resched())
 			cond_resched();
 		rth = rcu_dereference_raw(rt_hash_table[i].chain);
@@ -731,50 +733,32 @@ static void rt_do_flush(int process_context)
 			continue;
 
 		spin_lock_bh(rt_hash_lock_addr(i));
-#ifdef CONFIG_NET_NS
-		{
-		struct rtable __rcu **prev;
-		struct rtable *p;
 
-		rth = rcu_dereference_protected(rt_hash_table[i].chain,
+		list = NULL;
+		pprev = &rt_hash_table[i].chain;
+		rth = rcu_dereference_protected(*pprev,
 			lockdep_is_held(rt_hash_lock_addr(i)));
 
-		/* defer releasing the head of the list after spin_unlock */
-		for (tail = rth; tail;
-		     tail = rcu_dereference_protected(tail->dst.rt_next,
-				lockdep_is_held(rt_hash_lock_addr(i))))
-			if (!rt_is_expired(tail))
-				break;
-		if (rth != tail)
-			rt_hash_table[i].chain = tail;
+		while (rth) {
+			next = rcu_dereference_protected(rth->dst.rt_next,
+				lockdep_is_held(rt_hash_lock_addr(i)));
 
-		/* call rt_free on entries after the tail requiring flush */
-		prev = &rt_hash_table[i].chain;
-		for (p = rcu_dereference_protected(*prev,
-				lockdep_is_held(rt_hash_lock_addr(i)));
-		     p != NULL;
-		     p = next) {
-			next = rcu_dereference_protected(p->dst.rt_next,
-				lockdep_is_held(rt_hash_lock_addr(i)));
-			if (!rt_is_expired(p)) {
-				prev = &p->dst.rt_next;
+			if (!net ||
+			    net_eq(dev_net(rth->dst.dev), net)) {
+				rcu_assign_pointer(*pprev, next);
+				rcu_assign_pointer(rth->dst.rt_next, list);
+				list = rth;
 			} else {
-				*prev = next;
-				rt_free(p);
+				pprev = &rth->dst.rt_next;
 			}
+			rth = next;
 		}
-		}
-#else
-		rth = rcu_dereference_protected(rt_hash_table[i].chain,
-			lockdep_is_held(rt_hash_lock_addr(i)));
-		rcu_assign_pointer(rt_hash_table[i].chain, NULL);
-		tail = NULL;
-#endif
+
 		spin_unlock_bh(rt_hash_lock_addr(i));
 
-		for (; rth != tail; rth = next) {
-			next = rcu_dereference_protected(rth->dst.rt_next, 1);
-			rt_free(rth);
+		for (; list; list = next) {
+			next = rcu_dereference_protected(list->dst.rt_next, 1);
+			rt_free(list);
 		}
 	}
 }
@@ -922,13 +906,13 @@ void rt_cache_flush(struct net *net, int delay)
 {
 	rt_cache_invalidate(net);
 	if (delay >= 0)
-		rt_do_flush(!in_softirq());
+		rt_do_flush(net, !in_softirq());
 }
 
 /* Flush previous cache invalidated entries from the cache */
-void rt_cache_flush_batch(void)
+void rt_cache_flush_batch(struct net *net)
 {
-	rt_do_flush(!in_softirq());
+	rt_do_flush(net, !in_softirq());
 }
 
 static void rt_emergency_hash_rebuild(struct net *net)
