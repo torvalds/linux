@@ -39,7 +39,7 @@
 #define HDMI_I2S_Fs_48000 2
 
 /* I2S default sample rate */
-#define HDMI_I2S_DEFAULT_Fs HDMI_I2S_Fs_48000
+#define HDMI_I2S_DEFAULT_Fs HDMI_I2S_Fs_44100
 
 /* ANX7150 state machine */
 enum{

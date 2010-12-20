@@ -16,6 +16,7 @@ static ssize_t hdmi_show_state_attrs(struct device *dev,
 						"0 -- 1280x720p_50Hz\n"
 						"1 -- 1280x720p_60Hz\n"
 						"2 -- 720x576p_50Hz\n"
+						"3 -- 1920x1080p_50Hz\n"
 						"--------------------------\n"
 						"auto_switch=%d\n"
 						"hdcp_on=%d\n"

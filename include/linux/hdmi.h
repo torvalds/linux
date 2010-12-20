@@ -30,6 +30,8 @@ typedef int 		BOOL;
 #define HDMI_1280x720p_50Hz 	0
 #define HDMI_1280x720p_60Hz		1
 #define HDMI_720x576p_50Hz		2
+#define HDMI_1920x1080p_50Hz	3
+
 
 #define HDMI_MAX_ID		32
 

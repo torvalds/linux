@@ -45,6 +45,18 @@
 #define V_VD3			576
 #define V_FP3			5
 
+/* 1080p@50Hz Timing */
+#define OUT_CLK4		148500000
+#define H_PW4			44
+#define H_BP4			148
+#define H_VD4			1920
+#define H_FP4			528
+#define V_PW4			5
+#define V_BP4			35
+#define V_VD4			1080
+#define V_FP4			5
+
+
 extern int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable );
 
 static int anx7150_init(void)
@@ -61,6 +73,7 @@ static void hdmi_set_info(struct rk29fb_screen *screen)
 {
     struct rk29fb_screen *screen2 = screen + 1;
 	struct rk29fb_screen *screen3 = screen + 2;
+	struct rk29fb_screen *screen4 = screen + 3;
 
     /* ****************** 720p@60Hz ******************* */
     /* screen type & face */
@@ -167,12 +180,46 @@ static void hdmi_set_info(struct rk29fb_screen *screen)
 	/* Operation function*/
 	screen3->init = anx7150_init;
 	screen3->standby = anx7150_standby;
+	/* ****************** 1080p@50Hz ******************* */
+	/* screen type & face */
+	screen4->type = OUT_TYPE;
+	screen4->face = OUT_FACE;
+
+	/* Screen size */
+	screen4->x_res = H_VD4;
+	screen4->y_res = V_VD4;
+
+	/* Timing */
+	screen4->pixclock = OUT_CLK4;
+	screen4->left_margin = H_BP4;
+	screen4->right_margin = H_FP4;
+	screen4->hsync_len = H_PW4;
+	screen4->upper_margin = V_BP4;
+	screen4->lower_margin = V_FP4;
+	screen4->vsync_len = V_PW4;
+
+	/* Pin polarity */
+	screen4->pin_hsync = 0;
+	screen4->pin_vsync = 0;
+	screen4->pin_den = 0;
+	screen4->pin_dclk = DCLK_POL;
+
+	/* Swap rule */
+	screen4->swap_rb = SWAP_RB;
+	screen4->swap_rg = 0;
+	screen4->swap_gb = 0;
+	screen4->swap_delta = 0;
+	screen4->swap_dumy = 0;
+
+	/* Operation function*/
+	screen4->init = anx7150_init;
+	screen4->standby = anx7150_standby;
 }
 
 int hdmi_switch_fb(int resolution, int type)
 {
 	int rc = 0;
-	struct rk29fb_screen hdmi_info[3];
+	struct rk29fb_screen hdmi_info[4];
 
 	hdmi_set_info(&hdmi_info[0]);
 
@@ -186,6 +233,9 @@ int hdmi_switch_fb(int resolution, int type)
 			break;
 		case HDMI_720x576p_50Hz:
 			rc = FB_Switch_Screen(&hdmi_info[2], type);
+			break;
+		case HDMI_1920x1080p_50Hz:
+			rc = FB_Switch_Screen(&hdmi_info[3], type);
 			break;
 		default:
 			rc = FB_Switch_Screen(&hdmi_info[1], type);

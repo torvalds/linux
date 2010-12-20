@@ -35,10 +35,10 @@ int anx7150_i2c_write_p1_reg(struct i2c_client *client, char reg, char *val)
 static int rk29_hdmi_enter(struct anx7150_dev_s *dev)
 {
 	if(dev->rk29_output_status == RK29_OUTPUT_STATUS_LCD) {
-		printk("%s, resolution = %d\n", __func__, dev->resolution_real);
-		if(hdmi_switch_fb(dev->resolution_real, 1) < 0)
+		printk("%s, resolution = %d\n", __func__, dev->resolution_set);
+		if(hdmi_switch_fb(dev->resolution_set, 1) < 0)
 			return -1;
-		dev->hdmi->resolution = dev->resolution_real;
+		dev->hdmi->resolution = dev->resolution_set;
 		dev->rk29_output_status = RK29_OUTPUT_STATUS_HDMI;
 	}
 	return 0;
@@ -47,7 +47,7 @@ static int rk29_hdmi_exit(struct anx7150_dev_s *dev)
 {
 	if(dev->rk29_output_status == RK29_OUTPUT_STATUS_HDMI) {
 		printk("%s\n", __func__);
-		if(hdmi_switch_fb(dev->resolution_real, 0) < 0)
+		if(hdmi_switch_fb(dev->resolution_set, 0) < 0)
 			return -1;
 		dev->rk29_output_status = RK29_OUTPUT_STATUS_LCD;
 	}

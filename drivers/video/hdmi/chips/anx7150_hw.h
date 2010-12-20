@@ -56,6 +56,7 @@ struct ANX7150_video_timingtype{ //CEA-861C format
     u8 ANX7150_1280x720p_60Hz[18];//format 4
     u8 ANX7150_1920x1080i_60Hz[18];//format 5
     u8 ANX7150_720x480i_60Hz[18];//format 6 & 7
+    u8 ANX7150_1920x1080p_60Hz[18];
     //u8 ANX7150_720x240p_60Hz[18];//format 8 & 9
     //u8 ANX7150_2880x480i_60Hz[18];//format 10 & 11
     //u8 ANX7150_2880x240p_60Hz[18];//format 12 & 13
@@ -65,6 +66,7 @@ struct ANX7150_video_timingtype{ //CEA-861C format
     u8 ANX7150_1280x720p_50Hz[18];//format 19
     u8 ANX7150_1920x1080i_50Hz[18];//format 20*/
     u8 ANX7150_720x576i_50Hz[18];//format 21 & 22
+	u8 ANX7150_1920x1080p_50Hz[18];
     /* u8 ANX7150_720x288p_50Hz[18];//formats 23 & 24
     u8 ANX7150_2880x576i_50Hz[18];//formats 25 & 26
     u8 ANX7150_2880x288p_50Hz[18];//formats 27 & 28

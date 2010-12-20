@@ -38,7 +38,13 @@ struct ANX7150_video_timingtype ANX7150_video_timingtype_table =
      0xe0/*ACT_LINE_LOW*/, 0x01/*ACT_LINE_HIGH*/, 0x03/*VSYNC_WIDTH*/, 0x0f/*V_BP_LINE*/,
      0x04/*V_FP_LINE*/, 0x13/*H_FP_LOW*/, 0x00/*H_FP_HIGH*/,
      ANX7150_Interlace, ANX7150_Neg_Hsync_pol, ANX7150_Neg_Vsync_pol},											//update
-    //576p-50hz
+	//1080p-60hz
+		{0x98/*H_RES_LOW*/, 0x08/*H_RES_HIGH*/, 0x80/*ACT_PIX_LOW*/, 0x07/*ACT_PIX_HIGH*/,
+		 0x2c/*HSYNC_WIDTH_LOW*/, 0x00/*HSYNC_WIDTH_HIGH*/, 0x94/*H_BP_LOW*/, 0x00/*H_BP_HIGH*/,
+		 0x38/*ACT_LINE_LOW*/, 0x04/*ACT_LINE_HIGH*/, 0x05/*VSYNC_WIDTH*/, 0x24/*V_BP_LINE*/,
+		 0x04/*V_FP_LINE*/, 0x58/*H_FP_LOW*/, 0x00/*H_FP_HIGH*/,
+		 ANX7150_Interlace, ANX7150_Pos_Hsync_pol, ANX7150_Pos_Vsync_pol},
+	//576p-50hz
     {0x60/*H_RES_LOW*/,0x03 /*H_RES_HIGH*/,0xd0 /*ACT_PIX_LOW*/, 0x02/*ACT_PIX_HIGH*/,
      0x40/*HSYNC_WIDTH_LOW*/, 0x00/*HSYNC_WIDTH_HIGH*/, 0x44/*H_BP_LOW*/,0x00 /*H_BP_HIGH*/,
      0x40/*ACT_LINE_LOW*/, 0x02/*ACT_LINE_HIGH*/, 0x05/*VSYNC_WIDTH*/, 0x27/*V_BP_LINE*/,
@@ -62,6 +68,13 @@ struct ANX7150_video_timingtype ANX7150_video_timingtype_table =
      0x40/*ACT_LINE_LOW*/,0x02 /*ACT_LINE_HIGH*/, 0x03/*VSYNC_WIDTH*/, 0x13/*V_BP_LINE*/,
      0x02/*V_FP_LINE*/, 0x0c/*H_FP_LOW*/, 0x00/*H_FP_HIGH*/,
      ANX7150_Interlace, ANX7150_Neg_Hsync_pol, ANX7150_Neg_Vsync_pol},
+     
+	//1080p-50hz
+	 {0x50/*H_RES_LOW*/, 0x0a/*H_RES_HIGH*/, 0x80/*ACT_PIX_LOW*/, 0x07/*ACT_PIX_HIGH*/,
+	  0x2c/*HSYNC_WIDTH_LOW*/, 0x00/*HSYNC_WIDTH_HIGH*/, 0x94/*H_BP_LOW*/, 0x00/*H_BP_HIGH*/,
+	  0x38/*ACT_LINE_LOW*/, 0x04/*ACT_LINE_HIGH*/, 0x05/*VSYNC_WIDTH*/, 0x24/*V_BP_LINE*/,
+	  0x04/*V_FP_LINE*/, 0x10/*H_FP_LOW*/, 0x02/*H_FP_HIGH*/,
+	  ANX7150_Interlace, ANX7150_Pos_Hsync_pol, ANX7150_Pos_Vsync_pol},
 };
 //#endif
 int anx7150_mass_read_need_delay = 0;
@@ -1827,7 +1840,9 @@ int ANX7150_Parse_EDID(struct i2c_client *client, struct anx7150_dev_s *dev)
         hdmi_dbg(&client->dev,"ANX7150_edid_result.ycbcr444_supported = 0x%.2x\n",(u32)ANX7150_edid_result.ycbcr444_supported);
         hdmi_dbg(&client->dev,"ANX7150_edid_result.supported_1080i_60Hz = 0x%.2x\n",(u32)ANX7150_edid_result.supported_1080i_60Hz);
         hdmi_dbg(&client->dev,"ANX7150_edid_result.supported_1080i_50Hz = 0x%.2x\n",(u32)ANX7150_edid_result.supported_1080i_50Hz);
-        hdmi_dbg(&client->dev,"ANX7150_edid_result.supported_720p_60Hz = 0x%.2x\n",(u32)ANX7150_edid_result.supported_720p_60Hz);
+		hdmi_dbg(&client->dev,"ANX7150_edid_result.supported_1080p_60Hz = 0x%.2x\n",(u32)ANX7150_edid_result.supported_1080p_60Hz);
+		hdmi_dbg(&client->dev,"ANX7150_edid_result.supported_1080p_50Hz = 0x%.2x\n",(u32)ANX7150_edid_result.supported_1080p_50Hz);
+		hdmi_dbg(&client->dev,"ANX7150_edid_result.supported_720p_60Hz = 0x%.2x\n",(u32)ANX7150_edid_result.supported_720p_60Hz);
         hdmi_dbg(&client->dev,"ANX7150_edid_result.supported_720p_50Hz = 0x%.2x\n",(u32)ANX7150_edid_result.supported_720p_50Hz);
         hdmi_dbg(&client->dev,"ANX7150_edid_result.supported_640x480p_60Hz = 0x%.2x\n",(u32)ANX7150_edid_result.supported_640x480p_60Hz);
         hdmi_dbg(&client->dev,"ANX7150_edid_result.supported_720x480p_60Hz = 0x%.2x\n",(u32)ANX7150_edid_result.supported_720x480p_60Hz);
@@ -1888,6 +1903,12 @@ int ANX7150_Get_Optimal_resolution(int resolution_set)
 			find_resolution = 1;
 		}
 		break;
+	case HDMI_1920x1080p_50Hz:
+		if(ANX7150_edid_result.supported_1080p_50Hz){
+			resolution_real = HDMI_1920x1080p_50Hz;
+			find_resolution = 1;
+		}
+		break;
 	default:
 		break;
 	}
@@ -1900,6 +1921,8 @@ int ANX7150_Get_Optimal_resolution(int resolution_set)
 			resolution_real = HDMI_1280x720p_60Hz;
 		else if(ANX7150_edid_result.supported_576p_50Hz)
 			resolution_real = HDMI_720x576p_50Hz;
+		else if(ANX7150_edid_result.supported_1080p_50Hz)
+			resolution_real = HDMI_1920x1080p_50Hz;
 		else
 			resolution_real = HDMI_1280x720p_50Hz;
 	}
@@ -2034,6 +2057,7 @@ static int anx7150_blue_screen_format_config(struct i2c_client *client)
 static void ANX7150_Get_Video_Timing(void)
 {
     u8 i;
+	
 //#ifdef ITU656
     for (i = 0; i < 18; i++)
     {
@@ -2762,7 +2786,7 @@ int ANX7150_Config_Video(struct i2c_client *client)
     rc = anx7150_i2c_read_p0_reg(client, ANX7150_VID_CTRL_REG, &c);
 	c |= (ANX7150_VID_CTRL_IN_EN);
 	rc = anx7150_i2c_write_p0_reg(client, ANX7150_VID_CTRL_REG, &c);
-
+	msleep(200);
     //D("Video configure OK!\n");
 	rc = anx7150_i2c_read_p0_reg(client, ANX7150_VID_STATUS_REG, &c);
     if (!(c & ANX7150_VID_STATUS_VID_STABLE))
@@ -3063,6 +3087,7 @@ u8 ANX7150_Config_Audio(struct i2c_client *client)
     {
         //disable super audio output
         hdmi_dbg(&client->dev, "ANX7150: disable super audio output.\n");
+		c = 0x00;
 		rc = anx7150_i2c_write_p0_reg(client, ANX7150_ONEu8_AUD_CTRL_REG, &c);
     }
 
@@ -3143,11 +3168,11 @@ u8 ANX7150_Config_Audio(struct i2c_client *client)
 		rc = anx7150_i2c_write_p1_reg(client, ANX7150_ACR_N2_SW_REG, &c);
 		c = 0x00;
 		rc = anx7150_i2c_write_p1_reg(client, ANX7150_ACR_N3_SW_REG, &c);
-		rc = anx7150_i2c_read_p0_reg(client, ANX7150_HDMI_AUDCTRL0_REG, &c);
-		c = (c & 0xf8) | FREQ_MCLK;
-		rc = anx7150_i2c_write_p0_reg(client, ANX7150_HDMI_AUDCTRL0_REG, &c);
 	
         // set the relation of MCLK and Fs  xy 070117
+        rc = anx7150_i2c_read_p0_reg(client, ANX7150_HDMI_AUDCTRL0_REG, &c);
+		c = (c & 0xf8) | FREQ_MCLK;
+		rc = anx7150_i2c_write_p0_reg(client, ANX7150_HDMI_AUDCTRL0_REG, &c);
        hdmi_dbg(&client->dev, "Audio MCLK input mode is: %.2x\n",(u32)FREQ_MCLK);
 
         //Enable control of ACR
@@ -4169,6 +4194,9 @@ void  HDMI_Set_Video_Format(u8 video_format) //CPU set the lowpower mode
 			break;
 		case HDMI_720x576p_50Hz:
 			g_video_format = ANX7150_V720x576p_50Hz_4x3;
+			break;
+		case HDMI_1920x1080p_50Hz:
+			g_video_format = ANX7150_V1920x1080p_50Hz;
 			break;
         default:
             g_video_format = ANX7150_V1280x720p_50Hz;
