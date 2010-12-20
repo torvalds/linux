@@ -822,7 +822,9 @@ int i915_save_state(struct drm_device *dev)
 	if (IS_GEN6(dev))
 		gen6_disable_rps(dev);
 
+	/* XXX disabling the clock gating breaks suspend on gm45
 	intel_disable_clock_gating(dev);
+	 */
 
 	/* Cache mode state */
 	dev_priv->saveCACHE_MODE_0 = I915_READ(CACHE_MODE_0);
