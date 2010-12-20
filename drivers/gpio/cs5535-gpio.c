@@ -329,8 +329,7 @@ static int __devinit cs5535_gpio_probe(struct platform_device *pdev)
 	cs5535_gpio_chip.pdev = pdev;
 	spin_lock_init(&cs5535_gpio_chip.lock);
 
-	dev_info(&pdev->dev, "region 0x%x - 0x%x reserved\n",
-			res->start, res->end);
+	dev_info(&pdev->dev, "reserved resource region %pR\n", res);
 
 	/* mask out reserved pins */
 	mask &= 0x1F7FFFFF;
