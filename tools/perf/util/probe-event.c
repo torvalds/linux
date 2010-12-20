@@ -371,7 +371,7 @@ int show_line_range(struct line_range *lr, const char *module)
 		fprintf(stdout, "<%s:%d>\n", lr->function,
 			lr->start - lr->offset);
 	else
-		fprintf(stdout, "<%s:%d>\n", lr->file, lr->start);
+		fprintf(stdout, "<%s:%d>\n", lr->path, lr->start);
 
 	fp = fopen(lr->path, "r");
 	if (fp == NULL) {
