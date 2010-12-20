@@ -667,6 +667,7 @@ extern struct ieee80211_ops ath9k_ops;
 extern int modparam_nohwcrypt;
 extern int led_blink;
 extern int ath9k_pm_qos_value;
+extern bool is_ath9k_unloaded;
 
 irqreturn_t ath_isr(int irq, void *dev);
 int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
