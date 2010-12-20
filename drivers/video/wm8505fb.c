@@ -88,7 +88,7 @@ static int wm8505fb_set_timing(struct fb_info *info)
 	int v_start = info->var.upper_margin;
 	int v_end = v_start + info->var.yres;
 	int v_all = v_end + info->var.lower_margin;
-	int v_sync = info->var.vsync_len + 1;
+	int v_sync = info->var.vsync_len;
 
 	writel(0, fbi->regbase + WMT_GOVR_TG);
 
