@@ -147,6 +147,7 @@ static struct platform_device *smdkc210_devices[] __initdata = {
 	&s3c_device_rtc,
 	&s3c_device_wdt,
 	&smdkc210_smsc911x,
+	&s5pv310_device_ac97,
 };
 
 static void __init smdkc210_smsc911x_init(void)
