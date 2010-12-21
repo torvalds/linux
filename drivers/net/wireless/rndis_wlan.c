@@ -3398,9 +3398,9 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 	rndis_set_wiphy_params(wiphy,
 			WIPHY_PARAM_FRAG_THRESHOLD | WIPHY_PARAM_RTS_THRESHOLD);
 
-	/* turn radio on */
-	priv->radio_on = true;
-	disassociate(usbdev, true);
+	/* turn radio off on init */
+	priv->radio_on = false;
+	disassociate(usbdev, false);
 	netif_carrier_off(usbdev->net);
 
 	return 0;
