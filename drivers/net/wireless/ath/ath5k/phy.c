@@ -609,10 +609,10 @@ done:
 /* Write initial RF gain table to set the RF sensitivity
  * this one works on all RF chips and has nothing to do
  * with gain_F calibration */
-static int ath5k_hw_rfgain_init(struct ath5k_hw *ah, unsigned int freq)
+static int ath5k_hw_rfgain_init(struct ath5k_hw *ah, enum ieee80211_band band)
 {
 	const struct ath5k_ini_rfgain *ath5k_rfg;
-	unsigned int i, size;
+	unsigned int i, size, index;
 
 	switch (ah->ah_radio) {
 	case AR5K_RF5111:
@@ -644,17 +644,11 @@ static int ath5k_hw_rfgain_init(struct ath5k_hw *ah, unsigned int freq)
 		return -EINVAL;
 	}
 
-	switch (freq) {
-	case AR5K_INI_RFGAIN_2GHZ:
-	case AR5K_INI_RFGAIN_5GHZ:
-		break;
-	default:
-		return -EINVAL;
-	}
+	index = (band == IEEE80211_BAND_2GHZ) ? 1 : 0;
 
 	for (i = 0; i < size; i++) {
 		AR5K_REG_WAIT(i);
-		ath5k_hw_reg_write(ah, ath5k_rfg[i].rfg_value[freq],
+		ath5k_hw_reg_write(ah, ath5k_rfg[i].rfg_value[index],
 			(u32)ath5k_rfg[i].rfg_register);
 	}
 
@@ -3246,7 +3240,7 @@ int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 \*************/
 
 int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
-				u8 mode, u8 ee_mode, u8 freq, bool fast)
+				u8 mode, u8 ee_mode, bool fast)
 {
 	struct ieee80211_channel *curr_channel;
 	int ret, i;
@@ -3305,7 +3299,7 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		 * Write initial RF gain settings
 		 * This should work for both 5111/5112
 		 */
-		ret = ath5k_hw_rfgain_init(ah, freq);
+		ret = ath5k_hw_rfgain_init(ah, channel->band);
 		if (ret)
 			return ret;
 

@@ -1020,13 +1020,12 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		struct ieee80211_channel *channel, bool fast, bool skip_pcu)
 {
 	u32 s_seq[10], s_led[3], tsf_up, tsf_lo;
-	u8 mode, freq, ee_mode;
+	u8 mode, ee_mode;
 	int i, ret;
 
 	ee_mode = 0;
 	tsf_up = 0;
 	tsf_lo = 0;
-	freq = 0;
 	mode = 0;
 
 	/*
@@ -1071,7 +1070,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	switch (channel->hw_value & CHANNEL_MODES) {
 	case CHANNEL_A:
 		mode = AR5K_MODE_11A;
-		freq = AR5K_INI_RFGAIN_5GHZ;
 		ee_mode = AR5K_EEPROM_MODE_11A;
 		break;
 	case CHANNEL_G:
@@ -1083,7 +1081,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		}
 
 		mode = AR5K_MODE_11G;
-		freq = AR5K_INI_RFGAIN_2GHZ;
 		ee_mode = AR5K_EEPROM_MODE_11G;
 		break;
 	case CHANNEL_B:
@@ -1095,7 +1092,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		}
 
 		mode = AR5K_MODE_11B;
-		freq = AR5K_INI_RFGAIN_2GHZ;
 		ee_mode = AR5K_EEPROM_MODE_11B;
 		break;
 	case CHANNEL_XR:
@@ -1105,7 +1101,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 			return -EINVAL;
 		}
 		mode = AR5K_MODE_XR;
-		freq = AR5K_INI_RFGAIN_5GHZ;
 		ee_mode = AR5K_EEPROM_MODE_11A;
 		break;
 	default:
@@ -1120,7 +1115,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 */
 	if (fast) {
 		ret = ath5k_hw_phy_init(ah, channel, mode,
-					ee_mode, freq, true);
+					ee_mode, true);
 		if (ret) {
 			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_RESET,
 				"fast chan change failed, falling back to normal reset\n");
@@ -1256,7 +1251,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	/*
 	 * Initialize PHY
 	 */
-	ret = ath5k_hw_phy_init(ah, channel, mode, ee_mode, freq, false);
+	ret = ath5k_hw_phy_init(ah, channel, mode, ee_mode, false);
 	if (ret) {
 		ATH5K_ERR(ah->ah_sc,
 			"failed to initialize PHY (%i) !\n", ret);
