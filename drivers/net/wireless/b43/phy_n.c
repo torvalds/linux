@@ -401,15 +401,44 @@ static void b43_radio_init2055(struct b43_wldev *dev)
 	b43_radio_init2055_post(dev);
 }
 
+static void b43_radio_init2056_pre(struct b43_wldev *dev)
+{
+	b43_phy_mask(dev, B43_NPHY_RFCTL_CMD,
+		     ~B43_NPHY_RFCTL_CMD_CHIP0PU);
+	/* Maybe wl meant to reset and set (order?) RFCTL_CMD_OEPORFORCE? */
+	b43_phy_mask(dev, B43_NPHY_RFCTL_CMD,
+		     B43_NPHY_RFCTL_CMD_OEPORFORCE);
+	b43_phy_set(dev, B43_NPHY_RFCTL_CMD,
+		    ~B43_NPHY_RFCTL_CMD_OEPORFORCE);
+	b43_phy_set(dev, B43_NPHY_RFCTL_CMD,
+		    B43_NPHY_RFCTL_CMD_CHIP0PU);
+}
+
+static void b43_radio_init2056_post(struct b43_wldev *dev)
+{
+	b43_radio_set(dev, B2056_SYN_COM_CTRL, 0xB);
+	b43_radio_set(dev, B2056_SYN_COM_PU, 0x2);
+	b43_radio_set(dev, B2056_SYN_COM_RESET, 0x2);
+	msleep(1);
+	b43_radio_mask(dev, B2056_SYN_COM_RESET, ~0x2);
+	b43_radio_mask(dev, B2056_SYN_PLL_MAST2, ~0xFC);
+	b43_radio_mask(dev, B2056_SYN_RCCAL_CTRL0, ~0x1);
+	/*
+	if (nphy->init_por)
+		Call Radio 2056 Recalibrate
+	*/
+}
+
 /*
  * Initialize a Broadcom 2056 N-radio
  * http://bcm-v4.sipsolutions.net/802.11/Radio/2056/Init
  */
 static void b43_radio_init2056(struct b43_wldev *dev)
 {
-	/* TODO */
+	b43_radio_init2056_pre(dev);
+	b2056_upload_inittabs(dev, 0, 0);
+	b43_radio_init2056_post(dev);
 }
-
 
 /*
  * Upload the N-PHY tables.

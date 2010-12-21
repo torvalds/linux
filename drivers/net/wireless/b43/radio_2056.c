@@ -24,6 +24,39 @@
 #include "radio_2056.h"
 #include "phy_common.h"
 
+struct b2056_inittab_entry {
+	/* Value to write if we use the 5GHz band. */
+	u16 ghz5;
+	/* Value to write if we use the 2.4GHz band. */
+	u16 ghz2;
+	/* Flags */
+	u8 flags;
+};
+#define B2056_INITTAB_ENTRY_OK	0x01
+#define B2056_INITTAB_UPLOAD	0x02
+#define UPLOAD		.flags = B2056_INITTAB_ENTRY_OK | B2056_INITTAB_UPLOAD
+#define NOUPLOAD	.flags = B2056_INITTAB_ENTRY_OK
+
+struct b2056_inittabs_pts {
+	const struct b2056_inittab_entry *syn;
+	unsigned int syn_length;
+	const struct b2056_inittab_entry *tx;
+	unsigned int tx_length;
+	const struct b2056_inittab_entry *rx;
+	unsigned int rx_length;
+};
+
+#define INITTABSPTS(prefix) \
+	.syn		= prefix##_syn,			\
+	.syn_length	= ARRAY_SIZE(prefix##_syn),	\
+	.tx		= prefix##_tx,			\
+	.tx_length	= ARRAY_SIZE(prefix##_tx),	\
+	.rx		= prefix##_rx,			\
+	.rx_length	= ARRAY_SIZE(prefix##_rx)
+
+struct b2056_inittabs_pts b2056_inittabs[] = {
+};
+
 #define RADIOREGS3(r00, r01, r02, r03, r04, r05, r06, r07, r08, r09, \
 		   r10, r11, r12, r13, r14, r15, r16, r17, r18, r19, \
 		   r20, r21, r22, r23, r24, r25, r26, r27, r28, r29, \
@@ -6044,6 +6077,50 @@ static const struct b43_nphy_channeltab_entry_rev3 b43_nphy_channeltab_rev8[] = 
 	PHYREGS(0x03e6, 0x03e2, 0x03de, 0x041b, 0x041f, 0x0424),
   },
 };
+
+static void b2056_upload_inittab(struct b43_wldev *dev, bool ghz5,
+				 bool ignore_uploadflag, u16 routing,
+				 const struct b2056_inittab_entry *e,
+				 unsigned int length)
+{
+	unsigned int i;
+	u16 value;
+
+	for (i = 0; i < length; i++, e++) {
+		if (!(e->flags & B2056_INITTAB_ENTRY_OK))
+			continue;
+		if ((e->flags & B2056_INITTAB_UPLOAD) || ignore_uploadflag) {
+			if (ghz5)
+				value = e->ghz5;
+			else
+				value = e->ghz2;
+			b43_radio_write(dev, routing | i, value);
+		}
+	}
+}
+
+void b2056_upload_inittabs(struct b43_wldev *dev,
+			   bool ghz5, bool ignore_uploadflag)
+{
+	struct b2056_inittabs_pts *pts;
+
+	if (dev->phy.rev >= ARRAY_SIZE(b2056_inittabs)) {
+		B43_WARN_ON(1);
+		return;
+	}
+	pts = &b2056_inittabs[dev->phy.rev];
+
+	b2056_upload_inittab(dev, ghz5, ignore_uploadflag,
+				B2056_SYN, pts->syn, pts->syn_length);
+	b2056_upload_inittab(dev, ghz5, ignore_uploadflag,
+				B2056_TX0, pts->tx, pts->tx_length);
+	b2056_upload_inittab(dev, ghz5, ignore_uploadflag,
+				B2056_TX1, pts->tx, pts->tx_length);
+	b2056_upload_inittab(dev, ghz5, ignore_uploadflag,
+				B2056_RX0, pts->rx, pts->rx_length);
+	b2056_upload_inittab(dev, ghz5, ignore_uploadflag,
+				B2056_RX1, pts->rx, pts->rx_length);
+}
 
 /* TODO: add support for rev4+ devices by searching in rev4+ tables */
 const struct b43_nphy_channeltab_entry_rev3 *

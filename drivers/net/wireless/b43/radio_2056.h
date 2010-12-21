@@ -1114,4 +1114,7 @@ struct b43_nphy_channeltab_entry_rev3 {
 	struct b43_phy_n_sfo_cfg phy_regs;
 };
 
+void b2056_upload_inittabs(struct b43_wldev *dev,
+			   bool ghz5, bool ignore_uploadflag);
+
 #endif /* B43_RADIO_2056_H_ */
