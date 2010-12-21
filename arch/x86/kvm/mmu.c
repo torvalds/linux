@@ -3348,7 +3348,7 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
 	if (r)
 		goto out;
 
-	er = emulate_instruction(vcpu, cr2, error_code, 0);
+	er = x86_emulate_instruction(vcpu, cr2, 0);
 
 	switch (er) {
 	case EMULATE_DONE:

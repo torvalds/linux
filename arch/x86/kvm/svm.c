@@ -475,7 +475,7 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 		svm->next_rip = svm->vmcb->control.next_rip;
 
 	if (!svm->next_rip) {
-		if (emulate_instruction(vcpu, 0, 0, EMULTYPE_SKIP) !=
+		if (emulate_instruction(vcpu, EMULTYPE_SKIP) !=
 				EMULATE_DONE)
 			printk(KERN_DEBUG "%s: NOP\n", __func__);
 		return;
@@ -1586,7 +1586,7 @@ static int ud_interception(struct vcpu_svm *svm)
 {
 	int er;
 
-	er = emulate_instruction(&svm->vcpu, 0, 0, EMULTYPE_TRAP_UD);
+	er = emulate_instruction(&svm->vcpu, EMULTYPE_TRAP_UD);
 	if (er != EMULATE_DONE)
 		kvm_queue_exception(&svm->vcpu, UD_VECTOR);
 	return 1;
@@ -1703,7 +1703,7 @@ static int io_interception(struct vcpu_svm *svm)
 	string = (io_info & SVM_IOIO_STR_MASK) != 0;
 	in = (io_info & SVM_IOIO_TYPE_MASK) != 0;
 	if (string || in)
-		return emulate_instruction(vcpu, 0, 0, 0) == EMULATE_DONE;
+		return emulate_instruction(vcpu, 0) == EMULATE_DONE;
 
 	port = io_info >> 16;
 	size = (io_info & SVM_IOIO_SIZE_MASK) >> SVM_IOIO_SIZE_SHIFT;
@@ -2648,12 +2648,12 @@ static int iret_interception(struct vcpu_svm *svm)
 
 static int invlpg_interception(struct vcpu_svm *svm)
 {
-	return emulate_instruction(&svm->vcpu, 0, 0, 0) == EMULATE_DONE;
+	return emulate_instruction(&svm->vcpu, 0) == EMULATE_DONE;
 }
 
 static int emulate_on_interception(struct vcpu_svm *svm)
 {
-	return emulate_instruction(&svm->vcpu, 0, 0, 0) == EMULATE_DONE;
+	return emulate_instruction(&svm->vcpu, 0) == EMULATE_DONE;
 }
 
 static int cr0_write_interception(struct vcpu_svm *svm)
@@ -2661,7 +2661,7 @@ static int cr0_write_interception(struct vcpu_svm *svm)
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 	int r;
 
-	r = emulate_instruction(&svm->vcpu, 0, 0, 0);
+	r = emulate_instruction(&svm->vcpu, 0);
 
 	if (svm->nested.vmexit_rip) {
 		kvm_register_write(vcpu, VCPU_REGS_RIP, svm->nested.vmexit_rip);
@@ -2680,7 +2680,7 @@ static int cr8_write_interception(struct vcpu_svm *svm)
 
 	u8 cr8_prev = kvm_get_cr8(&svm->vcpu);
 	/* instruction emulation calls kvm_set_cr8() */
-	r = emulate_instruction(&svm->vcpu, 0, 0, 0);
+	r = emulate_instruction(&svm->vcpu, 0);
 	if (irqchip_in_kernel(svm->vcpu.kvm)) {
 		clr_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 		return r == EMULATE_DONE;

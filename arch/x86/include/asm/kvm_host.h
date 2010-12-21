@@ -634,8 +634,15 @@ enum emulation_result {
 #define EMULTYPE_NO_DECODE	    (1 << 0)
 #define EMULTYPE_TRAP_UD	    (1 << 1)
 #define EMULTYPE_SKIP		    (1 << 2)
-int emulate_instruction(struct kvm_vcpu *vcpu,
-			unsigned long cr2, u16 error_code, int emulation_type);
+int x86_emulate_instruction(struct kvm_vcpu *vcpu,
+			unsigned long cr2, int emulation_type);
+
+static inline int emulate_instruction(struct kvm_vcpu *vcpu,
+			int emulation_type)
+{
+	return x86_emulate_instruction(vcpu, 0, emulation_type);
+}
+
 void realmode_lgdt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);
 void realmode_lidt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);
 
