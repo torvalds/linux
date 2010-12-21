@@ -295,6 +295,13 @@
 #define DMA_ERRATA_3_3			BIT(0x5)
 #define DMA_ROMCODE_BUG			BIT(0x6)
 
+/* Attributes for OMAP DMA Contrller */
+#define DMA_LINKED_LCH			BIT(0x0)
+#define GLOBAL_PRIORITY			BIT(0x1)
+#define RESERVE_CHANNEL			BIT(0x2)
+#define IS_CSSA_32			BIT(0x3)
+#define IS_CDSA_32			BIT(0x4)
+
 enum omap_reg_offsets {
 
 GCR,		GSCR,		GRST1,		HW_ID,
@@ -389,6 +396,10 @@ struct omap_dma_channel_params {
 #endif
 };
 
+struct omap_dma_dev_attr {
+	u32 dev_caps;
+	u16 lch_count;
+};
 
 extern void omap_set_dma_priority(int lch, int dst_port, int priority);
 extern int omap_request_dma(int dev_id, const char *dev_name,
