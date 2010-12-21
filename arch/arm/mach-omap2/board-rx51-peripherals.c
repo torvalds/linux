@@ -343,6 +343,8 @@ static struct regulator_consumer_supply rx51_vmmc2_supplies[] = {
 	/* tlv320aic3x analog supplies */
 	REGULATOR_SUPPLY("AVDD", "2-0018"),
 	REGULATOR_SUPPLY("DRVDD", "2-0018"),
+	REGULATOR_SUPPLY("AVDD", "2-0019"),
+	REGULATOR_SUPPLY("DRVDD", "2-0019"),
 	/* tpa6130a2 */
 	REGULATOR_SUPPLY("Vdd", "2-0060"),
 	/* Keep vmmc as last item. It is not iterated for newer boards */
@@ -353,6 +355,8 @@ static struct regulator_consumer_supply rx51_vio_supplies[] = {
 	/* tlv320aic3x digital supplies */
 	REGULATOR_SUPPLY("IOVDD", "2-0018"),
 	REGULATOR_SUPPLY("DVDD", "2-0018"),
+	REGULATOR_SUPPLY("IOVDD", "2-0019"),
+	REGULATOR_SUPPLY("DVDD", "2-0019"),
 };
 
 #if defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE)
@@ -743,10 +747,18 @@ static struct aic3x_pdata rx51_aic3x_data = {
 	.gpio_reset = 60,
 };
 
+static struct aic3x_pdata rx51_aic3x_data2 = {
+	.gpio_reset = 60,
+};
+
 static struct i2c_board_info __initdata rx51_peripherals_i2c_board_info_2[] = {
 	{
 		I2C_BOARD_INFO("tlv320aic3x", 0x18),
 		.platform_data = &rx51_aic3x_data,
+	},
+	{
+		I2C_BOARD_INFO("tlv320aic3x", 0x19),
+		.platform_data = &rx51_aic3x_data2,
 	},
 #if defined(CONFIG_SENSORS_TSL2563) || defined(CONFIG_SENSORS_TSL2563_MODULE)
 	{
