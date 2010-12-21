@@ -95,38 +95,6 @@ STATIC void	xlog_verify_tail_lsn(xlog_t *log, xlog_in_core_t *iclog,
 
 STATIC int	xlog_iclogs_empty(xlog_t *log);
 
-
-static void
-xlog_ins_ticketq(struct xlog_ticket **qp, struct xlog_ticket *tic)
-{
-	if (*qp) {
-		tic->t_next	    = (*qp);
-		tic->t_prev	    = (*qp)->t_prev;
-		(*qp)->t_prev->t_next = tic;
-		(*qp)->t_prev	    = tic;
-	} else {
-		tic->t_prev = tic->t_next = tic;
-		*qp = tic;
-	}
-
-	tic->t_flags |= XLOG_TIC_IN_Q;
-}
-
-static void
-xlog_del_ticketq(struct xlog_ticket **qp, struct xlog_ticket *tic)
-{
-	if (tic == tic->t_next) {
-		*qp = NULL;
-	} else {
-		*qp = tic->t_next;
-		tic->t_next->t_prev = tic->t_prev;
-		tic->t_prev->t_next = tic->t_next;
-	}
-
-	tic->t_next = tic->t_prev = NULL;
-	tic->t_flags &= ~XLOG_TIC_IN_Q;
-}
-
 static void
 xlog_grant_sub_space(struct log *log, int bytes)
 {
@@ -724,7 +692,7 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 		log->l_tail_lsn = tail_lsn;
 	}
 
-	if ((tic = log->l_write_headq)) {
+	if (!list_empty(&log->l_writeq)) {
 #ifdef DEBUG
 		if (log->l_flags & XLOG_ACTIVE_RECOVERY)
 			panic("Recovery problem");
@@ -732,7 +700,7 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 		cycle = log->l_grant_write_cycle;
 		bytes = log->l_grant_write_bytes;
 		free_bytes = xlog_space_left(log, cycle, bytes);
-		do {
+		list_for_each_entry(tic, &log->l_writeq, t_queue) {
 			ASSERT(tic->t_flags & XLOG_TIC_PERM_RESERV);
 
 			if (free_bytes < tic->t_unit_res && tail_lsn != 1)
@@ -740,10 +708,10 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 			tail_lsn = 0;
 			free_bytes -= tic->t_unit_res;
 			sv_signal(&tic->t_wait);
-			tic = tic->t_next;
-		} while (tic != log->l_write_headq);
+		}
 	}
-	if ((tic = log->l_reserve_headq)) {
+
+	if (!list_empty(&log->l_reserveq)) {
 #ifdef DEBUG
 		if (log->l_flags & XLOG_ACTIVE_RECOVERY)
 			panic("Recovery problem");
@@ -751,7 +719,7 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 		cycle = log->l_grant_reserve_cycle;
 		bytes = log->l_grant_reserve_bytes;
 		free_bytes = xlog_space_left(log, cycle, bytes);
-		do {
+		list_for_each_entry(tic, &log->l_reserveq, t_queue) {
 			if (tic->t_flags & XLOG_TIC_PERM_RESERV)
 				need_bytes = tic->t_unit_res*tic->t_cnt;
 			else
@@ -761,8 +729,7 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 			tail_lsn = 0;
 			free_bytes -= need_bytes;
 			sv_signal(&tic->t_wait);
-			tic = tic->t_next;
-		} while (tic != log->l_reserve_headq);
+		}
 	}
 	spin_unlock(&log->l_grant_lock);
 }	/* xfs_log_move_tail */
@@ -1053,6 +1020,8 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	log->l_curr_cycle  = 1;	    /* 0 is bad since this is initial value */
 	log->l_grant_reserve_cycle = 1;
 	log->l_grant_write_cycle = 1;
+	INIT_LIST_HEAD(&log->l_reserveq);
+	INIT_LIST_HEAD(&log->l_writeq);
 
 	error = EFSCORRUPTED;
 	if (xfs_sb_version_hassector(&mp->m_sb)) {
@@ -2550,8 +2519,8 @@ xlog_grant_log_space(xlog_t	   *log,
 	trace_xfs_log_grant_enter(log, tic);
 
 	/* something is already sleeping; insert new transaction at end */
-	if (log->l_reserve_headq) {
-		xlog_ins_ticketq(&log->l_reserve_headq, tic);
+	if (!list_empty(&log->l_reserveq)) {
+		list_add_tail(&tic->t_queue, &log->l_reserveq);
 
 		trace_xfs_log_grant_sleep1(log, tic);
 
@@ -2583,8 +2552,8 @@ redo:
 	free_bytes = xlog_space_left(log, log->l_grant_reserve_cycle,
 				     log->l_grant_reserve_bytes);
 	if (free_bytes < need_bytes) {
-		if ((tic->t_flags & XLOG_TIC_IN_Q) == 0)
-			xlog_ins_ticketq(&log->l_reserve_headq, tic);
+		if (list_empty(&tic->t_queue))
+			list_add_tail(&tic->t_queue, &log->l_reserveq);
 
 		trace_xfs_log_grant_sleep2(log, tic);
 
@@ -2602,8 +2571,9 @@ redo:
 		trace_xfs_log_grant_wake2(log, tic);
 
 		goto redo;
-	} else if (tic->t_flags & XLOG_TIC_IN_Q)
-		xlog_del_ticketq(&log->l_reserve_headq, tic);
+	}
+
+	list_del_init(&tic->t_queue);
 
 	/* we've got enough space */
 	xlog_grant_add_space(log, need_bytes);
@@ -2626,9 +2596,7 @@ redo:
 	return 0;
 
  error_return:
-	if (tic->t_flags & XLOG_TIC_IN_Q)
-		xlog_del_ticketq(&log->l_reserve_headq, tic);
-
+	list_del_init(&tic->t_queue);
 	trace_xfs_log_grant_error(log, tic);
 
 	/*
@@ -2653,7 +2621,6 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 			     xlog_ticket_t *tic)
 {
 	int		free_bytes, need_bytes;
-	xlog_ticket_t	*ntic;
 #ifdef DEBUG
 	xfs_lsn_t	tail_lsn;
 #endif
@@ -2683,22 +2650,23 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 	 * this transaction.
 	 */
 	need_bytes = tic->t_unit_res;
-	if ((ntic = log->l_write_headq)) {
+	if (!list_empty(&log->l_writeq)) {
+		struct xlog_ticket *ntic;
 		free_bytes = xlog_space_left(log, log->l_grant_write_cycle,
 					     log->l_grant_write_bytes);
-		do {
+		list_for_each_entry(ntic, &log->l_writeq, t_queue) {
 			ASSERT(ntic->t_flags & XLOG_TIC_PERM_RESERV);
 
 			if (free_bytes < ntic->t_unit_res)
 				break;
 			free_bytes -= ntic->t_unit_res;
 			sv_signal(&ntic->t_wait);
-			ntic = ntic->t_next;
-		} while (ntic != log->l_write_headq);
+		}
 
-		if (ntic != log->l_write_headq) {
-			if ((tic->t_flags & XLOG_TIC_IN_Q) == 0)
-				xlog_ins_ticketq(&log->l_write_headq, tic);
+		if (ntic != list_first_entry(&log->l_writeq,
+						struct xlog_ticket, t_queue)) {
+			if (list_empty(&tic->t_queue))
+				list_add_tail(&tic->t_queue, &log->l_writeq);
 
 			trace_xfs_log_regrant_write_sleep1(log, tic);
 
@@ -2727,8 +2695,8 @@ redo:
 	free_bytes = xlog_space_left(log, log->l_grant_write_cycle,
 				     log->l_grant_write_bytes);
 	if (free_bytes < need_bytes) {
-		if ((tic->t_flags & XLOG_TIC_IN_Q) == 0)
-			xlog_ins_ticketq(&log->l_write_headq, tic);
+		if (list_empty(&tic->t_queue))
+			list_add_tail(&tic->t_queue, &log->l_writeq);
 		spin_unlock(&log->l_grant_lock);
 		xlog_grant_push_ail(log->l_mp, need_bytes);
 		spin_lock(&log->l_grant_lock);
@@ -2745,8 +2713,9 @@ redo:
 
 		trace_xfs_log_regrant_write_wake2(log, tic);
 		goto redo;
-	} else if (tic->t_flags & XLOG_TIC_IN_Q)
-		xlog_del_ticketq(&log->l_write_headq, tic);
+	}
+
+	list_del_init(&tic->t_queue);
 
 	/* we've got enough space */
 	xlog_grant_add_space_write(log, need_bytes);
@@ -2766,9 +2735,7 @@ redo:
 
 
  error_return:
-	if (tic->t_flags & XLOG_TIC_IN_Q)
-		xlog_del_ticketq(&log->l_reserve_headq, tic);
-
+	list_del_init(&tic->t_queue);
 	trace_xfs_log_regrant_write_error(log, tic);
 
 	/*
@@ -3435,6 +3402,7 @@ xlog_ticket_alloc(
         }
 
 	atomic_set(&tic->t_ref, 1);
+	INIT_LIST_HEAD(&tic->t_queue);
 	tic->t_unit_res		= unit_bytes;
 	tic->t_curr_res		= unit_bytes;
 	tic->t_cnt		= cnt;
@@ -3742,26 +3710,17 @@ xfs_log_force_umount(
 	spin_unlock(&log->l_icloglock);
 
 	/*
-	 * We don't want anybody waiting for log reservations
-	 * after this. That means we have to wake up everybody
-	 * queued up on reserve_headq as well as write_headq.
-	 * In addition, we make sure in xlog_{re}grant_log_space
-	 * that we don't enqueue anything once the SHUTDOWN flag
-	 * is set, and this action is protected by the GRANTLOCK.
+	 * We don't want anybody waiting for log reservations after this. That
+	 * means we have to wake up everybody queued up on reserveq as well as
+	 * writeq.  In addition, we make sure in xlog_{re}grant_log_space that
+	 * we don't enqueue anything once the SHUTDOWN flag is set, and this
+	 * action is protected by the GRANTLOCK.
 	 */
-	if ((tic = log->l_reserve_headq)) {
-		do {
-			sv_signal(&tic->t_wait);
-			tic = tic->t_next;
-		} while (tic != log->l_reserve_headq);
-	}
+	list_for_each_entry(tic, &log->l_reserveq, t_queue)
+		sv_signal(&tic->t_wait);
 
-	if ((tic = log->l_write_headq)) {
-		do {
-			sv_signal(&tic->t_wait);
-			tic = tic->t_next;
-		} while (tic != log->l_write_headq);
-	}
+	list_for_each_entry(tic, &log->l_writeq, t_queue)
+		sv_signal(&tic->t_wait);
 	spin_unlock(&log->l_grant_lock);
 
 	if (!(log->l_iclog->ic_state & XLOG_STATE_IOERROR)) {

@@ -766,8 +766,8 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 		__field(int, curr_res)
 		__field(int, unit_res)
 		__field(unsigned int, flags)
-		__field(void *, reserve_headq)
-		__field(void *, write_headq)
+		__field(int, reserveq)
+		__field(int, writeq)
 		__field(int, grant_reserve_cycle)
 		__field(int, grant_reserve_bytes)
 		__field(int, grant_write_cycle)
@@ -784,8 +784,8 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 		__entry->curr_res = tic->t_curr_res;
 		__entry->unit_res = tic->t_unit_res;
 		__entry->flags = tic->t_flags;
-		__entry->reserve_headq = log->l_reserve_headq;
-		__entry->write_headq = log->l_write_headq;
+		__entry->reserveq = list_empty(&log->l_reserveq);
+		__entry->writeq = list_empty(&log->l_writeq);
 		__entry->grant_reserve_cycle = log->l_grant_reserve_cycle;
 		__entry->grant_reserve_bytes = log->l_grant_reserve_bytes;
 		__entry->grant_write_cycle = log->l_grant_write_cycle;
@@ -795,8 +795,8 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 		__entry->tail_lsn = log->l_tail_lsn;
 	),
 	TP_printk("dev %d:%d type %s t_ocnt %u t_cnt %u t_curr_res %u "
-		  "t_unit_res %u t_flags %s reserve_headq 0x%p "
-		  "write_headq 0x%p grant_reserve_cycle %d "
+		  "t_unit_res %u t_flags %s reserveq %s "
+		  "writeq %s grant_reserve_cycle %d "
 		  "grant_reserve_bytes %d grant_write_cycle %d "
 		  "grant_write_bytes %d curr_cycle %d curr_block %d "
 		  "tail_cycle %d tail_block %d",
@@ -807,8 +807,8 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 		  __entry->curr_res,
 		  __entry->unit_res,
 		  __print_flags(__entry->flags, "|", XLOG_TIC_FLAGS),
-		  __entry->reserve_headq,
-		  __entry->write_headq,
+		  __entry->reserveq ? "empty" : "active",
+		  __entry->writeq ? "empty" : "active",
 		  __entry->grant_reserve_cycle,
 		  __entry->grant_reserve_bytes,
 		  __entry->grant_write_cycle,

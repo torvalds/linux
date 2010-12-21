@@ -132,12 +132,10 @@ static inline uint xlog_get_client_id(__be32 i)
  */
 #define XLOG_TIC_INITED		0x1	/* has been initialized */
 #define XLOG_TIC_PERM_RESERV	0x2	/* permanent reservation */
-#define XLOG_TIC_IN_Q		0x4
 
 #define XLOG_TIC_FLAGS \
 	{ XLOG_TIC_INITED,	"XLOG_TIC_INITED" }, \
-	{ XLOG_TIC_PERM_RESERV,	"XLOG_TIC_PERM_RESERV" }, \
-	{ XLOG_TIC_IN_Q,	"XLOG_TIC_IN_Q" }
+	{ XLOG_TIC_PERM_RESERV,	"XLOG_TIC_PERM_RESERV" }
 
 #endif	/* __KERNEL__ */
 
@@ -244,8 +242,7 @@ typedef struct xlog_res {
 
 typedef struct xlog_ticket {
 	sv_t		   t_wait;	 /* ticket wait queue            : 20 */
-	struct xlog_ticket *t_next;	 /*			         :4|8 */
-	struct xlog_ticket *t_prev;	 /*				 :4|8 */
+	struct list_head   t_queue;	 /* reserve/write queue */
 	xlog_tid_t	   t_tid;	 /* transaction identifier	 : 4  */
 	atomic_t	   t_ref;	 /* ticket reference count       : 4  */
 	int		   t_curr_res;	 /* current reservation in bytes : 4  */
@@ -519,8 +516,8 @@ typedef struct log {
 
 	/* The following block of fields are changed while holding grant_lock */
 	spinlock_t		l_grant_lock ____cacheline_aligned_in_smp;
-	xlog_ticket_t		*l_reserve_headq;
-	xlog_ticket_t		*l_write_headq;
+	struct list_head	l_reserveq;
+	struct list_head	l_writeq;
 	int			l_grant_reserve_cycle;
 	int			l_grant_reserve_bytes;
 	int			l_grant_write_cycle;
