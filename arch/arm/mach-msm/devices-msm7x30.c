@@ -56,6 +56,77 @@ struct platform_device msm_device_smd = {
 	.id     = -1,
 };
 
+static struct resource resources_otg[] = {
+	{
+		.start	= MSM_HSUSB_PHYS,
+		.end	= MSM_HSUSB_PHYS + MSM_HSUSB_SIZE,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= INT_USB_HS,
+		.end	= INT_USB_HS,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device msm_device_otg = {
+	.name		= "msm_otg",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resources_otg),
+	.resource	= resources_otg,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
+};
+
+static struct resource resources_hsusb[] = {
+	{
+		.start	= MSM_HSUSB_PHYS,
+		.end	= MSM_HSUSB_PHYS + MSM_HSUSB_SIZE,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= INT_USB_HS,
+		.end	= INT_USB_HS,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device msm_device_hsusb = {
+	.name		= "msm_hsusb",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resources_hsusb),
+	.resource	= resources_hsusb,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
+};
+
+static u64 dma_mask = 0xffffffffULL;
+static struct resource resources_hsusb_host[] = {
+	{
+		.start	= MSM_HSUSB_PHYS,
+		.end	= MSM_HSUSB_PHYS + MSM_HSUSB_SIZE,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= INT_USB_HS,
+		.end	= INT_USB_HS,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device msm_device_hsusb_host = {
+	.name		= "msm_hsusb_host",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(resources_hsusb_host),
+	.resource	= resources_hsusb_host,
+	.dev		= {
+		.dma_mask               = &dma_mask,
+		.coherent_dma_mask      = 0xffffffffULL,
+	},
+};
+
 struct clk msm_clocks_7x30[] = {
 	CLK_PCOM("adm_clk",	ADM_CLK,	NULL, 0),
 	CLK_PCOM("adsp_clk",	ADSP_CLK,	NULL, 0),
@@ -107,6 +178,7 @@ struct clk msm_clocks_7x30[] = {
 	CLK_PCOM("tv_dac_clk",	TV_DAC_CLK,	NULL, 0),
 	CLK_PCOM("tv_enc_clk",	TV_ENC_CLK,	NULL, 0),
 	CLK_PCOM("uart_clk",	UART2_CLK,	&msm_device_uart2.dev, 0),
+	CLK_PCOM("usb_phy_clk",	USB_PHY_CLK,	NULL, 0),
 	CLK_PCOM("usb_hs_clk",		USB_HS_CLK,		NULL, OFF),
 	CLK_PCOM("usb_hs_pclk",		USB_HS_P_CLK,		NULL, OFF),
 	CLK_PCOM("usb_hs_core_clk",	USB_HS_CORE_CLK,	NULL, OFF),
