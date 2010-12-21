@@ -2745,6 +2745,30 @@ static int cr0_write_interception(struct vcpu_svm *svm)
 	return r;
 }
 
+static int dr_interception(struct vcpu_svm *svm)
+{
+	int reg, dr;
+	unsigned long val;
+	int err;
+
+	if (!boot_cpu_has(X86_FEATURE_DECODEASSISTS))
+		return emulate_on_interception(svm);
+
+	reg = svm->vmcb->control.exit_info_1 & SVM_EXITINFO_REG_MASK;
+	dr = svm->vmcb->control.exit_code - SVM_EXIT_READ_DR0;
+
+	if (dr >= 16) { /* mov to DRn */
+		val = kvm_register_read(&svm->vcpu, reg);
+		kvm_set_dr(&svm->vcpu, dr - 16, val);
+	} else {
+		err = kvm_get_dr(&svm->vcpu, dr, &val);
+		if (!err)
+			kvm_register_write(&svm->vcpu, reg, val);
+	}
+
+	return 1;
+}
+
 static int cr8_write_interception(struct vcpu_svm *svm)
 {
 	struct kvm_run *kvm_run = svm->vcpu.run;
@@ -3010,22 +3034,22 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_WRITE_CR3]			= cr_interception,
 	[SVM_EXIT_WRITE_CR4]			= cr_interception,
 	[SVM_EXIT_WRITE_CR8]			= cr8_write_interception,
-	[SVM_EXIT_READ_DR0]			= emulate_on_interception,
-	[SVM_EXIT_READ_DR1]			= emulate_on_interception,
-	[SVM_EXIT_READ_DR2]			= emulate_on_interception,
-	[SVM_EXIT_READ_DR3]			= emulate_on_interception,
-	[SVM_EXIT_READ_DR4]			= emulate_on_interception,
-	[SVM_EXIT_READ_DR5]			= emulate_on_interception,
-	[SVM_EXIT_READ_DR6]			= emulate_on_interception,
-	[SVM_EXIT_READ_DR7]			= emulate_on_interception,
-	[SVM_EXIT_WRITE_DR0]			= emulate_on_interception,
-	[SVM_EXIT_WRITE_DR1]			= emulate_on_interception,
-	[SVM_EXIT_WRITE_DR2]			= emulate_on_interception,
-	[SVM_EXIT_WRITE_DR3]			= emulate_on_interception,
-	[SVM_EXIT_WRITE_DR4]			= emulate_on_interception,
-	[SVM_EXIT_WRITE_DR5]			= emulate_on_interception,
-	[SVM_EXIT_WRITE_DR6]			= emulate_on_interception,
-	[SVM_EXIT_WRITE_DR7]			= emulate_on_interception,
+	[SVM_EXIT_READ_DR0]			= dr_interception,
+	[SVM_EXIT_READ_DR1]			= dr_interception,
+	[SVM_EXIT_READ_DR2]			= dr_interception,
+	[SVM_EXIT_READ_DR3]			= dr_interception,
+	[SVM_EXIT_READ_DR4]			= dr_interception,
+	[SVM_EXIT_READ_DR5]			= dr_interception,
+	[SVM_EXIT_READ_DR6]			= dr_interception,
+	[SVM_EXIT_READ_DR7]			= dr_interception,
+	[SVM_EXIT_WRITE_DR0]			= dr_interception,
+	[SVM_EXIT_WRITE_DR1]			= dr_interception,
+	[SVM_EXIT_WRITE_DR2]			= dr_interception,
+	[SVM_EXIT_WRITE_DR3]			= dr_interception,
+	[SVM_EXIT_WRITE_DR4]			= dr_interception,
+	[SVM_EXIT_WRITE_DR5]			= dr_interception,
+	[SVM_EXIT_WRITE_DR6]			= dr_interception,
+	[SVM_EXIT_WRITE_DR7]			= dr_interception,
 	[SVM_EXIT_EXCP_BASE + DB_VECTOR]	= db_interception,
 	[SVM_EXIT_EXCP_BASE + BP_VECTOR]	= bp_interception,
 	[SVM_EXIT_EXCP_BASE + UD_VECTOR]	= ud_interception,
