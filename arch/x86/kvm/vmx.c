@@ -477,7 +477,7 @@ static void vmcs_clear(struct vmcs *vmcs)
 	u8 error;
 
 	asm volatile (__ex(ASM_VMX_VMCLEAR_RAX) "; setna %0"
-		      : "=g"(error) : "a"(&phys_addr), "m"(phys_addr)
+		      : "=qm"(error) : "a"(&phys_addr), "m"(phys_addr)
 		      : "cc", "memory");
 	if (error)
 		printk(KERN_ERR "kvm: vmclear fail: %p/%llx\n",
@@ -490,7 +490,7 @@ static void vmcs_load(struct vmcs *vmcs)
 	u8 error;
 
 	asm volatile (__ex(ASM_VMX_VMPTRLD_RAX) "; setna %0"
-			: "=g"(error) : "a"(&phys_addr), "m"(phys_addr)
+			: "=qm"(error) : "a"(&phys_addr), "m"(phys_addr)
 			: "cc", "memory");
 	if (error)
 		printk(KERN_ERR "kvm: vmptrld %p/%llx fail\n",
