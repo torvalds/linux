@@ -129,6 +129,7 @@ MODULE_PARM_DESC(workaround_interval,
 #define OID_802_11_RTS_THRESHOLD		cpu_to_le32(0x0d01020a)
 #define OID_802_11_SUPPORTED_RATES		cpu_to_le32(0x0d01020e)
 #define OID_802_11_CONFIGURATION		cpu_to_le32(0x0d010211)
+#define OID_802_11_POWER_MODE			cpu_to_le32(0x0d010216)
 #define OID_802_11_BSSID_LIST			cpu_to_le32(0x0d010217)
 
 
@@ -237,6 +238,12 @@ enum ndis_80211_addkey_bits {
 enum ndis_80211_addwep_bits {
 	NDIS_80211_ADDWEP_PERCLIENT_KEY = cpu_to_le32(1 << 30),
 	NDIS_80211_ADDWEP_TRANSMIT_KEY = cpu_to_le32(1 << 31)
+};
+
+enum ndis_80211_power_mode {
+	NDIS_80211_POWER_MODE_CAM,
+	NDIS_80211_POWER_MODE_MAX_PSP,
+	NDIS_80211_POWER_MODE_FAST_PSP,
 };
 
 struct ndis_80211_auth_request {
@@ -503,6 +510,7 @@ struct rndis_wlan_private {
 
 	/* hardware state */
 	bool radio_on;
+	int power_mode;
 	int infra_mode;
 	bool connected;
 	u8 bssid[ETH_ALEN];
@@ -572,6 +580,9 @@ static int rndis_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 
 static int rndis_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev);
 
+static int rndis_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
+				bool enabled, int timeout);
+
 static int rndis_set_cqm_rssi_config(struct wiphy *wiphy,
 					struct net_device *dev,
 					s32 rssi_thold, u32 rssi_hyst);
@@ -595,6 +606,7 @@ static const struct cfg80211_ops rndis_config_ops = {
 	.set_pmksa = rndis_set_pmksa,
 	.del_pmksa = rndis_del_pmksa,
 	.flush_pmksa = rndis_flush_pmksa,
+	.set_power_mgmt = rndis_set_power_mgmt,
 	.set_cqm_rssi_config = rndis_set_cqm_rssi_config,
 };
 
@@ -694,6 +706,7 @@ static const char *oid_to_string(__le32 oid)
 		OID_STR(OID_802_11_ADD_KEY);
 		OID_STR(OID_802_11_REMOVE_KEY);
 		OID_STR(OID_802_11_ASSOCIATION_INFORMATION);
+		OID_STR(OID_802_11_CAPABILITY);
 		OID_STR(OID_802_11_PMKID);
 		OID_STR(OID_802_11_NETWORK_TYPES_SUPPORTED);
 		OID_STR(OID_802_11_NETWORK_TYPE_IN_USE);
@@ -704,6 +717,7 @@ static const char *oid_to_string(__le32 oid)
 		OID_STR(OID_802_11_RTS_THRESHOLD);
 		OID_STR(OID_802_11_SUPPORTED_RATES);
 		OID_STR(OID_802_11_CONFIGURATION);
+		OID_STR(OID_802_11_POWER_MODE);
 		OID_STR(OID_802_11_BSSID_LIST);
 #undef OID_STR
 	}
@@ -2574,6 +2588,38 @@ static int rndis_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 	return rndis_set_oid(usbdev, OID_802_11_PMKID, &pmkid, sizeof(pmkid));
 }
 
+static int rndis_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
+				bool enabled, int timeout)
+{
+	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
+	struct usbnet *usbdev = priv->usbdev;
+	int power_mode;
+	__le32 mode;
+	int ret;
+
+	netdev_dbg(usbdev->net, "%s(): %s, %d\n", __func__,
+				enabled ? "enabled" : "disabled",
+				timeout);
+
+	if (enabled)
+		power_mode = NDIS_80211_POWER_MODE_FAST_PSP;
+	else
+		power_mode = NDIS_80211_POWER_MODE_CAM;
+
+	if (power_mode == priv->power_mode)
+		return 0;
+
+	priv->power_mode = power_mode;
+
+	mode = cpu_to_le32(power_mode);
+	ret = rndis_set_oid(usbdev, OID_802_11_POWER_MODE, &mode, sizeof(mode));
+
+	netdev_dbg(usbdev->net, "%s(): OID_802_11_POWER_MODE -> %d\n",
+				__func__, ret);
+
+	return ret;
+}
+
 static int rndis_set_cqm_rssi_config(struct wiphy *wiphy,
 					struct net_device *dev,
 					s32 rssi_thold, u32 rssi_hyst)
@@ -3440,6 +3486,8 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 	}
 
 	set_default_iw_params(usbdev);
+
+	priv->power_mode = -1;
 
 	/* set default rts/frag */
 	rndis_set_wiphy_params(wiphy,
