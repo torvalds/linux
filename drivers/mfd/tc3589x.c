@@ -132,11 +132,27 @@ static struct resource gpio_resources[] = {
 	},
 };
 
+static struct resource keypad_resources[] = {
+	{
+		.start  = TC3589x_INT_KBDIRQ,
+		.end    = TC3589x_INT_KBDIRQ,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
 static struct mfd_cell tc3589x_dev_gpio[] = {
 	{
 		.name		= "tc3589x-gpio",
 		.num_resources	= ARRAY_SIZE(gpio_resources),
 		.resources	= &gpio_resources[0],
+	},
+};
+
+static struct mfd_cell tc3589x_dev_keypad[] = {
+	{
+		.name           = "tc3589x-keypad",
+		.num_resources  = ARRAY_SIZE(keypad_resources),
+		.resources      = &keypad_resources[0],
 	},
 };
 
@@ -255,8 +271,18 @@ static int __devinit tc3589x_device_init(struct tc3589x *tc3589x)
 		dev_info(tc3589x->dev, "added gpio block\n");
 	}
 
-	return ret;
+	if (blocks & TC3589x_BLOCK_KEYPAD) {
+		ret = mfd_add_devices(tc3589x->dev, -1, tc3589x_dev_keypad,
+				ARRAY_SIZE(tc3589x_dev_keypad), NULL,
+				tc3589x->irq_base);
+		if (ret) {
+			dev_err(tc3589x->dev, "failed to keypad child\n");
+			return ret;
+		}
+		dev_info(tc3589x->dev, "added keypad block\n");
+	}
 
+	return ret;
 }
 
 static int __devinit tc3589x_probe(struct i2c_client *i2c,

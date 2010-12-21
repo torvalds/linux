@@ -20,6 +20,17 @@ enum tx3589x_block {
 #define TC3589x_RSTCTRL_KBDRST	(1 << 1)
 #define TC3589x_RSTCTRL_GPIRST	(1 << 0)
 
+/* Keyboard Configuration Registers */
+#define TC3589x_KBDSETTLE_REG   0x01
+#define TC3589x_KBDBOUNCE       0x02
+#define TC3589x_KBDSIZE         0x03
+#define TC3589x_KBCFG_LSB       0x04
+#define TC3589x_KBCFG_MSB       0x05
+#define TC3589x_KBDIC           0x08
+#define TC3589x_KBDMSK          0x09
+#define TC3589x_EVTCODE_FIFO    0x10
+#define TC3589x_KBDMFS		0x8F
+
 #define TC3589x_IRQST		0x91
 
 #define TC3589x_MANFCODE_MAGIC	0x03
@@ -34,6 +45,14 @@ enum tx3589x_block {
 #define TC3589x_RSTCTRL		0x82
 #define TC3589x_EXTRSTN		0x83
 #define TC3589x_RSTINTCLR	0x84
+
+/* Pull up/down configuration registers */
+#define TC3589x_IOCFG           0xA7
+#define TC3589x_IOPULLCFG0_LSB  0xAA
+#define TC3589x_IOPULLCFG0_MSB  0xAB
+#define TC3589x_IOPULLCFG1_LSB  0xAC
+#define TC3589x_IOPULLCFG1_MSB  0xAD
+#define TC3589x_IOPULLCFG2_LSB  0xAE
 
 #define TC3589x_GPIOIS0		0xC9
 #define TC3589x_GPIOIS1		0xCA
@@ -112,6 +131,37 @@ extern int tc3589x_block_write(struct tc3589x *tc3589x, u8 reg, u8 length,
 			       const u8 *values);
 extern int tc3589x_set_bits(struct tc3589x *tc3589x, u8 reg, u8 mask, u8 val);
 
+/*
+ * Keypad related platform specific constants
+ * These values may be modified for fine tuning
+ */
+#define TC_KPD_ROWS             0x8
+#define TC_KPD_COLUMNS          0x8
+#define TC_KPD_DEBOUNCE_PERIOD  0xA3
+#define TC_KPD_SETTLE_TIME      0xA3
+
+/**
+ * struct tc35893_platform_data - data structure for platform specific data
+ * @keymap_data:        matrix scan code table for keycodes
+ * @krow:               mask for available rows, value is 0xFF
+ * @kcol:               mask for available columns, value is 0xFF
+ * @debounce_period:    platform specific debounce time
+ * @settle_time:        platform specific settle down time
+ * @irqtype:            type of interrupt, falling or rising edge
+ * @enable_wakeup:      specifies if keypad event can wake up system from sleep
+ * @no_autorepeat:      flag for auto repetition
+ */
+struct tc3589x_keypad_platform_data {
+	const struct matrix_keymap_data *keymap_data;
+	u8                      krow;
+	u8                      kcol;
+	u8                      debounce_period;
+	u8                      settle_time;
+	unsigned long           irqtype;
+	bool                    enable_wakeup;
+	bool                    no_autorepeat;
+};
+
 /**
  * struct tc3589x_gpio_platform_data - TC3589x GPIO platform data
  * @gpio_base: first gpio number assigned to TC3589x.  A maximum of
@@ -130,11 +180,13 @@ struct tc3589x_gpio_platform_data {
  * @block: bitmask of blocks to enable (use TC3589x_BLOCK_*)
  * @irq_base: base IRQ number.  %TC3589x_NR_IRQS irqs will be used.
  * @gpio: GPIO-specific platform data
+ * @keypad: keypad-specific platform data
  */
 struct tc3589x_platform_data {
 	unsigned int block;
 	int irq_base;
 	struct tc3589x_gpio_platform_data *gpio;
+	const struct tc3589x_keypad_platform_data *keypad;
 };
 
 #define TC3589x_NR_GPIOS	24
