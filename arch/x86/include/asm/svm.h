@@ -260,6 +260,8 @@ struct __attribute__ ((__packed__)) vmcb {
 #define SVM_EXITINFOSHIFT_TS_REASON_JMP 38
 #define SVM_EXITINFOSHIFT_TS_HAS_ERROR_CODE 44
 
+#define SVM_EXITINFO_REG_MASK 0x0F
+
 #define	SVM_EXIT_READ_CR0 	0x000
 #define	SVM_EXIT_READ_CR3 	0x003
 #define	SVM_EXIT_READ_CR4 	0x004
