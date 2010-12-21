@@ -786,10 +786,12 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 		__entry->flags = tic->t_flags;
 		__entry->reserveq = list_empty(&log->l_reserveq);
 		__entry->writeq = list_empty(&log->l_writeq);
-		__entry->grant_reserve_cycle = log->l_grant_reserve_cycle;
-		__entry->grant_reserve_bytes = log->l_grant_reserve_bytes;
-		__entry->grant_write_cycle = log->l_grant_write_cycle;
-		__entry->grant_write_bytes = log->l_grant_write_bytes;
+		xlog_crack_grant_head(&log->l_grant_reserve_head,
+				&__entry->grant_reserve_cycle,
+				&__entry->grant_reserve_bytes);
+		xlog_crack_grant_head(&log->l_grant_write_head,
+				&__entry->grant_write_cycle,
+				&__entry->grant_write_bytes);
 		__entry->curr_cycle = log->l_curr_cycle;
 		__entry->curr_block = log->l_curr_block;
 		__entry->tail_lsn = log->l_tail_lsn;

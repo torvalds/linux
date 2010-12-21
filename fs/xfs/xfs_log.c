@@ -47,7 +47,7 @@ STATIC xlog_t *  xlog_alloc_log(xfs_mount_t	*mp,
 				xfs_buftarg_t	*log_target,
 				xfs_daddr_t	blk_offset,
 				int		num_bblks);
-STATIC int	 xlog_space_left(xlog_t *log, int cycle, int bytes);
+STATIC int	 xlog_space_left(struct log *log, int64_t *head);
 STATIC int	 xlog_sync(xlog_t *log, xlog_in_core_t *iclog);
 STATIC void	 xlog_dealloc_log(xlog_t *log);
 
@@ -100,32 +100,44 @@ STATIC int	xlog_iclogs_empty(xlog_t *log);
 static void
 xlog_grant_sub_space(
 	struct log	*log,
-	int		*cycle,
-	int		*space,
+	int64_t		*head,
 	int		bytes)
 {
-	*space -= bytes;
-	if (*space < 0) {
-		*space += log->l_logsize;
-		(*cycle)--;
+	int		cycle, space;
+
+	xlog_crack_grant_head(head, &cycle, &space);
+
+	space -= bytes;
+	if (space < 0) {
+		space += log->l_logsize;
+		cycle--;
 	}
+
+	xlog_assign_grant_head(head, cycle, space);
 }
 
 static void
 xlog_grant_add_space(
 	struct log	*log,
-	int		*cycle,
-	int		*space,
+	int64_t		*head,
 	int		bytes)
 {
-	int tmp = log->l_logsize - *space;
+	int		tmp;
+	int		cycle, space;
+
+	xlog_crack_grant_head(head, &cycle, &space);
+
+	tmp = log->l_logsize - space;
 	if (tmp > bytes)
-		*space += bytes;
+		space += bytes;
 	else {
-		*space = bytes - tmp;
-		(*cycle)++;
+		space = bytes - tmp;
+		cycle++;
 	}
+
+	xlog_assign_grant_head(head, cycle, space);
 }
+
 static void
 xlog_tic_reset_res(xlog_ticket_t *tic)
 {
@@ -654,7 +666,7 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 {
 	xlog_ticket_t	*tic;
 	xlog_t		*log = mp->m_log;
-	int		need_bytes, free_bytes, cycle, bytes;
+	int		need_bytes, free_bytes;
 
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return;
@@ -680,9 +692,7 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 		if (log->l_flags & XLOG_ACTIVE_RECOVERY)
 			panic("Recovery problem");
 #endif
-		cycle = log->l_grant_write_cycle;
-		bytes = log->l_grant_write_bytes;
-		free_bytes = xlog_space_left(log, cycle, bytes);
+		free_bytes = xlog_space_left(log, &log->l_grant_write_head);
 		list_for_each_entry(tic, &log->l_writeq, t_queue) {
 			ASSERT(tic->t_flags & XLOG_TIC_PERM_RESERV);
 
@@ -699,9 +709,7 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 		if (log->l_flags & XLOG_ACTIVE_RECOVERY)
 			panic("Recovery problem");
 #endif
-		cycle = log->l_grant_reserve_cycle;
-		bytes = log->l_grant_reserve_bytes;
-		free_bytes = xlog_space_left(log, cycle, bytes);
+		free_bytes = xlog_space_left(log, &log->l_grant_reserve_head);
 		list_for_each_entry(tic, &log->l_reserveq, t_queue) {
 			if (tic->t_flags & XLOG_TIC_PERM_RESERV)
 				need_bytes = tic->t_unit_res*tic->t_cnt;
@@ -814,21 +822,26 @@ xlog_assign_tail_lsn(xfs_mount_t *mp)
  * result is that we return the size of the log as the amount of space left.
  */
 STATIC int
-xlog_space_left(xlog_t *log, int cycle, int bytes)
+xlog_space_left(
+	struct log	*log,
+	int64_t		*head)
 {
-	int free_bytes;
-	int tail_bytes;
-	int tail_cycle;
+	int		free_bytes;
+	int		tail_bytes;
+	int		tail_cycle;
+	int		head_cycle;
+	int		head_bytes;
 
+	xlog_crack_grant_head(head, &head_cycle, &head_bytes);
 	tail_bytes = BBTOB(BLOCK_LSN(log->l_tail_lsn));
 	tail_cycle = CYCLE_LSN(log->l_tail_lsn);
-	if ((tail_cycle == cycle) && (bytes >= tail_bytes)) {
-		free_bytes = log->l_logsize - (bytes - tail_bytes);
-	} else if ((tail_cycle + 1) < cycle) {
+	if (tail_cycle == head_cycle && head_bytes >= tail_bytes)
+		free_bytes = log->l_logsize - (head_bytes - tail_bytes);
+	else if (tail_cycle + 1 < head_cycle)
 		return 0;
-	} else if (tail_cycle < cycle) {
-		ASSERT(tail_cycle == (cycle - 1));
-		free_bytes = tail_bytes - bytes;
+	else if (tail_cycle < head_cycle) {
+		ASSERT(tail_cycle == (head_cycle - 1));
+		free_bytes = tail_bytes - head_bytes;
 	} else {
 		/*
 		 * The reservation head is behind the tail.
@@ -839,12 +852,12 @@ xlog_space_left(xlog_t *log, int cycle, int bytes)
 			"xlog_space_left: head behind tail\n"
 			"  tail_cycle = %d, tail_bytes = %d\n"
 			"  GH   cycle = %d, GH   bytes = %d",
-			tail_cycle, tail_bytes, cycle, bytes);
+			tail_cycle, tail_bytes, head_cycle, head_bytes);
 		ASSERT(0);
 		free_bytes = log->l_logsize;
 	}
 	return free_bytes;
-}	/* xlog_space_left */
+}
 
 
 /*
@@ -1001,8 +1014,8 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	/* log->l_tail_lsn = 0x100000000LL; cycle = 1; current block = 0 */
 	log->l_last_sync_lsn = log->l_tail_lsn;
 	log->l_curr_cycle  = 1;	    /* 0 is bad since this is initial value */
-	log->l_grant_reserve_cycle = 1;
-	log->l_grant_write_cycle = 1;
+	xlog_assign_grant_head(&log->l_grant_reserve_head, 1, 0);
+	xlog_assign_grant_head(&log->l_grant_write_head, 1, 0);
 	INIT_LIST_HEAD(&log->l_reserveq);
 	INIT_LIST_HEAD(&log->l_writeq);
 
@@ -1190,9 +1203,7 @@ xlog_grant_push_ail(xfs_mount_t	*mp,
     ASSERT(BTOBB(need_bytes) < log->l_logBBsize);
 
     spin_lock(&log->l_grant_lock);
-    free_bytes = xlog_space_left(log,
-				 log->l_grant_reserve_cycle,
-				 log->l_grant_reserve_bytes);
+    free_bytes = xlog_space_left(log, &log->l_grant_reserve_head);
     tail_lsn = log->l_tail_lsn;
     free_blocks = BTOBBT(free_bytes);
 
@@ -1325,10 +1336,8 @@ xlog_sync(xlog_t		*log,
 
 	/* move grant heads by roundoff in sync */
 	spin_lock(&log->l_grant_lock);
-	xlog_grant_add_space(log, &log->l_grant_reserve_cycle,
-				&log->l_grant_reserve_bytes, roundoff);
-	xlog_grant_add_space(log, &log->l_grant_write_cycle,
-				&log->l_grant_write_bytes, roundoff);
+	xlog_grant_add_space(log, &log->l_grant_reserve_head, roundoff);
+	xlog_grant_add_space(log, &log->l_grant_write_head, roundoff);
 	spin_unlock(&log->l_grant_lock);
 
 	/* put cycle number in every block */
@@ -2531,8 +2540,7 @@ redo:
 	if (XLOG_FORCED_SHUTDOWN(log))
 		goto error_return;
 
-	free_bytes = xlog_space_left(log, log->l_grant_reserve_cycle,
-				     log->l_grant_reserve_bytes);
+	free_bytes = xlog_space_left(log, &log->l_grant_reserve_head);
 	if (free_bytes < need_bytes) {
 		if (list_empty(&tic->t_queue))
 			list_add_tail(&tic->t_queue, &log->l_reserveq);
@@ -2558,10 +2566,8 @@ redo:
 	list_del_init(&tic->t_queue);
 
 	/* we've got enough space */
-	xlog_grant_add_space(log, &log->l_grant_reserve_cycle,
-				&log->l_grant_reserve_bytes, need_bytes);
-	xlog_grant_add_space(log, &log->l_grant_write_cycle,
-				&log->l_grant_write_bytes, need_bytes);
+	xlog_grant_add_space(log, &log->l_grant_reserve_head, need_bytes);
+	xlog_grant_add_space(log, &log->l_grant_write_head, need_bytes);
 	trace_xfs_log_grant_exit(log, tic);
 	xlog_verify_grant_head(log, 1);
 	xlog_verify_grant_tail(log);
@@ -2622,8 +2628,7 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 	need_bytes = tic->t_unit_res;
 	if (!list_empty(&log->l_writeq)) {
 		struct xlog_ticket *ntic;
-		free_bytes = xlog_space_left(log, log->l_grant_write_cycle,
-					     log->l_grant_write_bytes);
+		free_bytes = xlog_space_left(log, &log->l_grant_write_head);
 		list_for_each_entry(ntic, &log->l_writeq, t_queue) {
 			ASSERT(ntic->t_flags & XLOG_TIC_PERM_RESERV);
 
@@ -2662,8 +2667,7 @@ redo:
 	if (XLOG_FORCED_SHUTDOWN(log))
 		goto error_return;
 
-	free_bytes = xlog_space_left(log, log->l_grant_write_cycle,
-				     log->l_grant_write_bytes);
+	free_bytes = xlog_space_left(log, &log->l_grant_write_head);
 	if (free_bytes < need_bytes) {
 		if (list_empty(&tic->t_queue))
 			list_add_tail(&tic->t_queue, &log->l_writeq);
@@ -2688,8 +2692,7 @@ redo:
 	list_del_init(&tic->t_queue);
 
 	/* we've got enough space */
-	xlog_grant_add_space(log, &log->l_grant_write_cycle,
-				&log->l_grant_write_bytes, need_bytes);
+	xlog_grant_add_space(log, &log->l_grant_write_head, need_bytes);
 	trace_xfs_log_regrant_write_exit(log, tic);
 	xlog_verify_grant_head(log, 1);
 	xlog_verify_grant_tail(log);
@@ -2730,12 +2733,10 @@ xlog_regrant_reserve_log_space(xlog_t	     *log,
 		ticket->t_cnt--;
 
 	spin_lock(&log->l_grant_lock);
-	xlog_grant_sub_space(log, &log->l_grant_reserve_cycle,
-				&log->l_grant_reserve_bytes,
-				ticket->t_curr_res);
-	xlog_grant_sub_space(log, &log->l_grant_write_cycle,
-				&log->l_grant_write_bytes,
-				ticket->t_curr_res);
+	xlog_grant_sub_space(log, &log->l_grant_reserve_head,
+					ticket->t_curr_res);
+	xlog_grant_sub_space(log, &log->l_grant_write_head,
+					ticket->t_curr_res);
 	ticket->t_curr_res = ticket->t_unit_res;
 	xlog_tic_reset_res(ticket);
 
@@ -2749,9 +2750,8 @@ xlog_regrant_reserve_log_space(xlog_t	     *log,
 		return;
 	}
 
-	xlog_grant_add_space(log, &log->l_grant_reserve_cycle,
-				&log->l_grant_reserve_bytes,
-				ticket->t_unit_res);
+	xlog_grant_add_space(log, &log->l_grant_reserve_head,
+					ticket->t_unit_res);
 
 	trace_xfs_log_regrant_reserve_exit(log, ticket);
 
@@ -2799,10 +2799,8 @@ xlog_ungrant_log_space(xlog_t	     *log,
 		bytes += ticket->t_unit_res*ticket->t_cnt;
 	}
 
-	xlog_grant_sub_space(log, &log->l_grant_reserve_cycle,
-				&log->l_grant_reserve_bytes, bytes);
-	xlog_grant_sub_space(log, &log->l_grant_write_cycle,
-				&log->l_grant_write_bytes, bytes);
+	xlog_grant_sub_space(log, &log->l_grant_reserve_head, bytes);
+	xlog_grant_sub_space(log, &log->l_grant_write_head, bytes);
 
 	trace_xfs_log_ungrant_exit(log, ticket);
 
@@ -3430,22 +3428,31 @@ xlog_verify_dest_ptr(
 STATIC void
 xlog_verify_grant_head(xlog_t *log, int equals)
 {
-    if (log->l_grant_reserve_cycle == log->l_grant_write_cycle) {
-	if (equals)
-	    ASSERT(log->l_grant_reserve_bytes >= log->l_grant_write_bytes);
-	else
-	    ASSERT(log->l_grant_reserve_bytes > log->l_grant_write_bytes);
-    } else {
-	ASSERT(log->l_grant_reserve_cycle-1 == log->l_grant_write_cycle);
-	ASSERT(log->l_grant_write_bytes >= log->l_grant_reserve_bytes);
-    }
-}	/* xlog_verify_grant_head */
+	int	reserve_cycle, reserve_space;
+	int	write_cycle, write_space;
+
+	xlog_crack_grant_head(&log->l_grant_reserve_head,
+					&reserve_cycle, &reserve_space);
+	xlog_crack_grant_head(&log->l_grant_write_head,
+					&write_cycle, &write_space);
+
+	if (reserve_cycle == write_cycle) {
+		if (equals)
+			ASSERT(reserve_space >= write_space);
+		else
+			ASSERT(reserve_space > write_space);
+	} else {
+		ASSERT(reserve_cycle - 1 == write_cycle);
+		ASSERT(write_space >= reserve_space);
+	}
+}
 
 STATIC void
 xlog_verify_grant_tail(
 	struct log	*log)
 {
 	xfs_lsn_t	tail_lsn = log->l_tail_lsn;
+	int		cycle, space;
 
 	/*
 	 * Check to make sure the grant write head didn't just over lap the
@@ -3453,9 +3460,10 @@ xlog_verify_grant_tail(
 	 * Otherwise, make sure that the cycles differ by exactly one and
 	 * check the byte count.
 	 */
-	if (CYCLE_LSN(tail_lsn) != log->l_grant_write_cycle) {
-		ASSERT(log->l_grant_write_cycle - 1 == CYCLE_LSN(tail_lsn));
-		ASSERT(log->l_grant_write_bytes <= BBTOB(BLOCK_LSN(tail_lsn)));
+	xlog_crack_grant_head(&log->l_grant_write_head, &cycle, &space);
+	if (CYCLE_LSN(tail_lsn) != cycle) {
+		ASSERT(cycle - 1 == CYCLE_LSN(tail_lsn));
+		ASSERT(space <= BBTOB(BLOCK_LSN(tail_lsn)));
 	}
 }
 

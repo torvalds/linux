@@ -518,10 +518,8 @@ typedef struct log {
 	spinlock_t		l_grant_lock ____cacheline_aligned_in_smp;
 	struct list_head	l_reserveq;
 	struct list_head	l_writeq;
-	int			l_grant_reserve_cycle;
-	int			l_grant_reserve_bytes;
-	int			l_grant_write_cycle;
-	int			l_grant_write_bytes;
+	int64_t			l_grant_reserve_head;
+	int64_t			l_grant_write_head;
 
 	/* The following field are used for debugging; need to hold icloglock */
 #ifdef DEBUG
@@ -559,6 +557,26 @@ void	xlog_print_tic_res(struct xfs_mount *mp, struct xlog_ticket *ticket);
 int	xlog_write(struct log *log, struct xfs_log_vec *log_vector,
 				struct xlog_ticket *tic, xfs_lsn_t *start_lsn,
 				xlog_in_core_t **commit_iclog, uint flags);
+
+/*
+ * When we crack the grrant head, we sample it first so that the value will not
+ * change while we are cracking it into the component values. This means we
+ * will always get consistent component values to work from.
+ */
+static inline void
+xlog_crack_grant_head(int64_t *head, int *cycle, int *space)
+{
+	int64_t	val = *head;
+
+	*cycle = val >> 32;
+	*space = val & 0xffffffff;
+}
+
+static inline void
+xlog_assign_grant_head(int64_t *head, int cycle, int space)
+{
+	*head = ((int64_t)cycle << 32) | space;
+}
 
 /*
  * Committed Item List interfaces
