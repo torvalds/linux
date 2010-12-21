@@ -154,4 +154,3 @@ int omap2_prm_deassert_hardreset(s16 prm_mod, u8 shift)
 
 	return (c == MAX_MODULE_HARDRESET_WAIT) ? -EBUSY : 0;
 }
-

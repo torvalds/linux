@@ -31,9 +31,6 @@ int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, u8 idlest,
 #define START_PADCONF_SAVE 0x2
 #define PADCONF_SAVE_DONE  0x1
 
-void omap3_prcm_save_context(void);
-void omap3_prcm_restore_context(void);
-
 u32 omap4_prm_read_bits_shift(void __iomem *reg, u32 mask);
 u32 omap4_prm_rmw_reg_bits(u32 mask, u32 bits, void __iomem *reg);
 

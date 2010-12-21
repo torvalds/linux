@@ -128,4 +128,11 @@ extern u32 cm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx);
 /* CM_IDLEST_GFX */
 #define OMAP_ST_GFX_MASK				(1 << 0)
 
+
+/* Function prototypes */
+# ifndef __ASSEMBLER__
+extern void omap3_cm_save_context(void);
+extern void omap3_cm_restore_context(void);
+# endif
+
 #endif
