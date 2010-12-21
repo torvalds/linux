@@ -2435,6 +2435,9 @@ static int rndis_set_default_key(struct wiphy *wiphy, struct net_device *netdev,
 
 	priv->encr_tx_key_index = key_index;
 
+	if (is_wpa_key(priv, key_index))
+		return 0;
+
 	key = priv->encr_keys[key_index];
 
 	return add_wep_key(usbdev, key.material, key.len, key_index);
