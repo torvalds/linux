@@ -241,7 +241,7 @@ typedef struct xlog_res {
 } xlog_res_t;
 
 typedef struct xlog_ticket {
-	sv_t		   t_wait;	 /* ticket wait queue            : 20 */
+	wait_queue_head_t  t_wait;	 /* ticket wait queue */
 	struct list_head   t_queue;	 /* reserve/write queue */
 	xlog_tid_t	   t_tid;	 /* transaction identifier	 : 4  */
 	atomic_t	   t_ref;	 /* ticket reference count       : 4  */
@@ -349,8 +349,8 @@ typedef union xlog_in_core2 {
  * and move everything else out to subsequent cachelines.
  */
 typedef struct xlog_in_core {
-	sv_t			ic_force_wait;
-	sv_t			ic_write_wait;
+	wait_queue_head_t	ic_force_wait;
+	wait_queue_head_t	ic_write_wait;
 	struct xlog_in_core	*ic_next;
 	struct xlog_in_core	*ic_prev;
 	struct xfs_buf		*ic_bp;
@@ -417,7 +417,7 @@ struct xfs_cil {
 	struct xfs_cil_ctx	*xc_ctx;
 	struct rw_semaphore	xc_ctx_lock;
 	struct list_head	xc_committing;
-	sv_t			xc_commit_wait;
+	wait_queue_head_t	xc_commit_wait;
 	xfs_lsn_t		xc_current_sequence;
 };
 
@@ -499,7 +499,7 @@ typedef struct log {
 	int			l_logBBsize;    /* size of log in BB chunks */
 
 	/* The following block of fields are changed while holding icloglock */
-	sv_t			l_flush_wait ____cacheline_aligned_in_smp;
+	wait_queue_head_t	l_flush_wait ____cacheline_aligned_in_smp;
 						/* waiting for iclog flush */
 	int			l_covered_state;/* state of "covering disk
 						 * log entries" */
@@ -602,6 +602,21 @@ xlog_cil_force(struct log *log)
  */
 #define XLOG_UNMOUNT_REC_TYPE	(-1U)
 
+/*
+ * Wrapper function for waiting on a wait queue serialised against wakeups
+ * by a spinlock. This matches the semantics of all the wait queues used in the
+ * log code.
+ */
+static inline void xlog_wait(wait_queue_head_t *wq, spinlock_t *lock)
+{
+	DECLARE_WAITQUEUE(wait, current);
+
+	add_wait_queue_exclusive(wq, &wait);
+	__set_current_state(TASK_UNINTERRUPTIBLE);
+	spin_unlock(lock);
+	schedule();
+	remove_wait_queue(wq, &wait);
+}
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_LOG_PRIV_H__ */

@@ -547,8 +547,8 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 		if (!(iclog->ic_state == XLOG_STATE_ACTIVE ||
 		      iclog->ic_state == XLOG_STATE_DIRTY)) {
 			if (!XLOG_FORCED_SHUTDOWN(log)) {
-				sv_wait(&iclog->ic_force_wait, PMEM,
-					&log->l_icloglock, s);
+				xlog_wait(&iclog->ic_force_wait,
+							&log->l_icloglock);
 			} else {
 				spin_unlock(&log->l_icloglock);
 			}
@@ -588,8 +588,8 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 			|| iclog->ic_state == XLOG_STATE_DIRTY
 			|| iclog->ic_state == XLOG_STATE_IOERROR) ) {
 
-				sv_wait(&iclog->ic_force_wait, PMEM,
-					&log->l_icloglock, s);
+				xlog_wait(&iclog->ic_force_wait,
+							&log->l_icloglock);
 		} else {
 			spin_unlock(&log->l_icloglock);
 		}
@@ -700,7 +700,7 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 				break;
 			tail_lsn = 0;
 			free_bytes -= tic->t_unit_res;
-			sv_signal(&tic->t_wait);
+			wake_up(&tic->t_wait);
 		}
 	}
 
@@ -719,7 +719,7 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 				break;
 			tail_lsn = 0;
 			free_bytes -= need_bytes;
-			sv_signal(&tic->t_wait);
+			wake_up(&tic->t_wait);
 		}
 	}
 	spin_unlock(&log->l_grant_lock);
@@ -1060,7 +1060,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 
 	spin_lock_init(&log->l_icloglock);
 	spin_lock_init(&log->l_grant_lock);
-	sv_init(&log->l_flush_wait, 0, "flush_wait");
+	init_waitqueue_head(&log->l_flush_wait);
 
 	/* log record size must be multiple of BBSIZE; see xlog_rec_header_t */
 	ASSERT((XFS_BUF_SIZE(bp) & BBMASK) == 0);
@@ -1116,8 +1116,8 @@ xlog_alloc_log(xfs_mount_t	*mp,
 
 		ASSERT(XFS_BUF_ISBUSY(iclog->ic_bp));
 		ASSERT(XFS_BUF_VALUSEMA(iclog->ic_bp) <= 0);
-		sv_init(&iclog->ic_force_wait, SV_DEFAULT, "iclog-force");
-		sv_init(&iclog->ic_write_wait, SV_DEFAULT, "iclog-write");
+		init_waitqueue_head(&iclog->ic_force_wait);
+		init_waitqueue_head(&iclog->ic_write_wait);
 
 		iclogp = &iclog->ic_next;
 	}
@@ -1132,11 +1132,8 @@ xlog_alloc_log(xfs_mount_t	*mp,
 out_free_iclog:
 	for (iclog = log->l_iclog; iclog; iclog = prev_iclog) {
 		prev_iclog = iclog->ic_next;
-		if (iclog->ic_bp) {
-			sv_destroy(&iclog->ic_force_wait);
-			sv_destroy(&iclog->ic_write_wait);
+		if (iclog->ic_bp)
 			xfs_buf_free(iclog->ic_bp);
-		}
 		kmem_free(iclog);
 	}
 	spinlock_destroy(&log->l_icloglock);
@@ -1453,8 +1450,6 @@ xlog_dealloc_log(xlog_t *log)
 
 	iclog = log->l_iclog;
 	for (i=0; i<log->l_iclog_bufs; i++) {
-		sv_destroy(&iclog->ic_force_wait);
-		sv_destroy(&iclog->ic_write_wait);
 		xfs_buf_free(iclog->ic_bp);
 		next_iclog = iclog->ic_next;
 		kmem_free(iclog);
@@ -2261,7 +2256,7 @@ xlog_state_do_callback(
 			xlog_state_clean_log(log);
 
 			/* wake up threads waiting in xfs_log_force() */
-			sv_broadcast(&iclog->ic_force_wait);
+			wake_up_all(&iclog->ic_force_wait);
 
 			iclog = iclog->ic_next;
 		} while (first_iclog != iclog);
@@ -2308,7 +2303,7 @@ xlog_state_do_callback(
 	spin_unlock(&log->l_icloglock);
 
 	if (wake)
-		sv_broadcast(&log->l_flush_wait);
+		wake_up_all(&log->l_flush_wait);
 }
 
 
@@ -2359,7 +2354,7 @@ xlog_state_done_syncing(
 	 * iclog buffer, we wake them all, one will get to do the
 	 * I/O, the others get to wait for the result.
 	 */
-	sv_broadcast(&iclog->ic_write_wait);
+	wake_up_all(&iclog->ic_write_wait);
 	spin_unlock(&log->l_icloglock);
 	xlog_state_do_callback(log, aborted, iclog);	/* also cleans log */
 }	/* xlog_state_done_syncing */
@@ -2408,7 +2403,7 @@ restart:
 		XFS_STATS_INC(xs_log_noiclogs);
 
 		/* Wait for log writes to have flushed */
-		sv_wait(&log->l_flush_wait, 0, &log->l_icloglock, 0);
+		xlog_wait(&log->l_flush_wait, &log->l_icloglock);
 		goto restart;
 	}
 
@@ -2523,7 +2518,8 @@ xlog_grant_log_space(xlog_t	   *log,
 			goto error_return;
 
 		XFS_STATS_INC(xs_sleep_logspace);
-		sv_wait(&tic->t_wait, PINOD|PLTWAIT, &log->l_grant_lock, s);
+		xlog_wait(&tic->t_wait, &log->l_grant_lock);
+
 		/*
 		 * If we got an error, and the filesystem is shutting down,
 		 * we'll catch it down below. So just continue...
@@ -2552,7 +2548,7 @@ redo:
 		spin_lock(&log->l_grant_lock);
 
 		XFS_STATS_INC(xs_sleep_logspace);
-		sv_wait(&tic->t_wait, PINOD|PLTWAIT, &log->l_grant_lock, s);
+		xlog_wait(&tic->t_wait, &log->l_grant_lock);
 
 		spin_lock(&log->l_grant_lock);
 		if (XLOG_FORCED_SHUTDOWN(log))
@@ -2635,7 +2631,7 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 			if (free_bytes < ntic->t_unit_res)
 				break;
 			free_bytes -= ntic->t_unit_res;
-			sv_signal(&ntic->t_wait);
+			wake_up(&ntic->t_wait);
 		}
 
 		if (ntic != list_first_entry(&log->l_writeq,
@@ -2650,8 +2646,7 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 			spin_lock(&log->l_grant_lock);
 
 			XFS_STATS_INC(xs_sleep_logspace);
-			sv_wait(&tic->t_wait, PINOD|PLTWAIT,
-				&log->l_grant_lock, s);
+			xlog_wait(&tic->t_wait, &log->l_grant_lock);
 
 			/* If we're shutting down, this tic is already
 			 * off the queue */
@@ -2677,8 +2672,7 @@ redo:
 
 		XFS_STATS_INC(xs_sleep_logspace);
 		trace_xfs_log_regrant_write_sleep2(log, tic);
-
-		sv_wait(&tic->t_wait, PINOD|PLTWAIT, &log->l_grant_lock, s);
+		xlog_wait(&tic->t_wait, &log->l_grant_lock);
 
 		/* If we're shutting down, this tic is already off the queue */
 		spin_lock(&log->l_grant_lock);
@@ -3029,7 +3023,7 @@ maybe_sleep:
 			return XFS_ERROR(EIO);
 		}
 		XFS_STATS_INC(xs_log_force_sleep);
-		sv_wait(&iclog->ic_force_wait, PINOD, &log->l_icloglock, s);
+		xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
 		/*
 		 * No need to grab the log lock here since we're
 		 * only deciding whether or not to return EIO
@@ -3147,8 +3141,8 @@ try_again:
 
 				XFS_STATS_INC(xs_log_force_sleep);
 
-				sv_wait(&iclog->ic_prev->ic_write_wait,
-					PSWP, &log->l_icloglock, s);
+				xlog_wait(&iclog->ic_prev->ic_write_wait,
+							&log->l_icloglock);
 				if (log_flushed)
 					*log_flushed = 1;
 				already_slept = 1;
@@ -3176,7 +3170,7 @@ try_again:
 				return XFS_ERROR(EIO);
 			}
 			XFS_STATS_INC(xs_log_force_sleep);
-			sv_wait(&iclog->ic_force_wait, PSWP, &log->l_icloglock, s);
+			xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
 			/*
 			 * No need to grab the log lock here since we're
 			 * only deciding whether or not to return EIO
@@ -3251,10 +3245,8 @@ xfs_log_ticket_put(
 	xlog_ticket_t	*ticket)
 {
 	ASSERT(atomic_read(&ticket->t_ref) > 0);
-	if (atomic_dec_and_test(&ticket->t_ref)) {
-		sv_destroy(&ticket->t_wait);
+	if (atomic_dec_and_test(&ticket->t_ref))
 		kmem_zone_free(xfs_log_ticket_zone, ticket);
-	}
 }
 
 xlog_ticket_t *
@@ -3387,7 +3379,7 @@ xlog_ticket_alloc(
 	tic->t_trans_type	= 0;
 	if (xflags & XFS_LOG_PERM_RESERV)
 		tic->t_flags |= XLOG_TIC_PERM_RESERV;
-	sv_init(&tic->t_wait, SV_DEFAULT, "logtick");
+	init_waitqueue_head(&tic->t_wait);
 
 	xlog_tic_reset_res(tic);
 
@@ -3719,10 +3711,10 @@ xfs_log_force_umount(
 	 * action is protected by the GRANTLOCK.
 	 */
 	list_for_each_entry(tic, &log->l_reserveq, t_queue)
-		sv_signal(&tic->t_wait);
+		wake_up(&tic->t_wait);
 
 	list_for_each_entry(tic, &log->l_writeq, t_queue)
-		sv_signal(&tic->t_wait);
+		wake_up(&tic->t_wait);
 	spin_unlock(&log->l_grant_lock);
 
 	if (!(log->l_iclog->ic_state & XLOG_STATE_IOERROR)) {
