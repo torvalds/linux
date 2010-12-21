@@ -59,7 +59,8 @@ static void plist_check_head(struct plist_head *head)
 		WARN_ON_SMP(!raw_spin_is_locked(head->rawlock));
 	if (head->spinlock)
 		WARN_ON_SMP(!spin_is_locked(head->spinlock));
-	plist_check_list(&head->prio_list);
+	if (!plist_head_empty(head))
+		plist_check_list(&plist_first(head)->prio_list);
 	plist_check_list(&head->node_list);
 }
 
@@ -75,25 +76,33 @@ static void plist_check_head(struct plist_head *head)
  */
 void plist_add(struct plist_node *node, struct plist_head *head)
 {
-	struct plist_node *iter;
+	struct plist_node *first, *iter, *prev = NULL;
+	struct list_head *node_next = &head->node_list;
 
 	plist_check_head(head);
 	WARN_ON(!plist_node_empty(node));
+	WARN_ON(!list_empty(&node->prio_list));
 
-	list_for_each_entry(iter, &head->prio_list, plist.prio_list) {
-		if (node->prio < iter->prio)
-			goto lt_prio;
-		else if (node->prio == iter->prio) {
-			iter = list_entry(iter->plist.prio_list.next,
-					struct plist_node, plist.prio_list);
-			goto eq_prio;
+	if (plist_head_empty(head))
+		goto ins_node;
+
+	first = iter = plist_first(head);
+
+	do {
+		if (node->prio < iter->prio) {
+			node_next = &iter->node_list;
+			break;
 		}
-	}
 
-lt_prio:
-	list_add_tail(&node->plist.prio_list, &iter->plist.prio_list);
-eq_prio:
-	list_add_tail(&node->plist.node_list, &iter->plist.node_list);
+		prev = iter;
+		iter = list_entry(iter->prio_list.next,
+				struct plist_node, prio_list);
+	} while (iter != first);
+
+	if (!prev || prev->prio != node->prio)
+		list_add_tail(&node->prio_list, &iter->prio_list);
+ins_node:
+	list_add_tail(&node->node_list, node_next);
 
 	plist_check_head(head);
 }
@@ -108,14 +117,21 @@ void plist_del(struct plist_node *node, struct plist_head *head)
 {
 	plist_check_head(head);
 
-	if (!list_empty(&node->plist.prio_list)) {
-		struct plist_node *next = plist_first(&node->plist);
+	if (!list_empty(&node->prio_list)) {
+		if (node->node_list.next != &head->node_list) {
+			struct plist_node *next;
 
-		list_move_tail(&next->plist.prio_list, &node->plist.prio_list);
-		list_del_init(&node->plist.prio_list);
+			next = list_entry(node->node_list.next,
+					struct plist_node, node_list);
+
+			/* add the next plist_node into prio_list */
+			if (list_empty(&next->prio_list))
+				list_add(&next->prio_list, &node->prio_list);
+		}
+		list_del_init(&node->prio_list);
 	}
 
-	list_del_init(&node->plist.node_list);
+	list_del_init(&node->node_list);
 
 	plist_check_head(head);
 }
