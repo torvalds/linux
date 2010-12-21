@@ -48,6 +48,7 @@
  * device.
  */
 
+#include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -1518,7 +1519,7 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
     clk = clk_get(NULL, "otgphy1");
      if (IS_ERR(clk)) {
              retval = PTR_ERR(clk);
-             DWC_ERROR(&"can't get USB clock of otgphy1\n");
+             DWC_ERROR("can't get USB clock of otgphy1\n");
             goto fail;
      }
      clk_enable(clk);
