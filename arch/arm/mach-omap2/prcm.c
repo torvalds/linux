@@ -42,7 +42,6 @@ static void __iomem *cm2_base;
 #define MAX_MODULE_ENABLE_WAIT		100000
 
 struct omap3_prcm_regs {
-	u32 control_padconf_sys_nirq;
 	u32 iva2_cm_clksel1;
 	u32 iva2_cm_clksel2;
 	u32 cm_sysconfig;
@@ -312,8 +311,6 @@ void __init omap2_set_globals_prcm(struct omap_globals *omap2_globals)
 #ifdef CONFIG_ARCH_OMAP3
 void omap3_prcm_save_context(void)
 {
-	prcm_context.control_padconf_sys_nirq =
-			 omap_ctrl_readl(OMAP343X_CONTROL_PADCONF_SYSNIRQ);
 	prcm_context.iva2_cm_clksel1 =
 			 cm_read_mod_reg(OMAP3430_IVA2_MOD, CM_CLKSEL1);
 	prcm_context.iva2_cm_clksel2 =
@@ -466,8 +463,6 @@ void omap3_prcm_save_context(void)
 
 void omap3_prcm_restore_context(void)
 {
-	omap_ctrl_writel(prcm_context.control_padconf_sys_nirq,
-					 OMAP343X_CONTROL_PADCONF_SYSNIRQ);
 	cm_write_mod_reg(prcm_context.iva2_cm_clksel1, OMAP3430_IVA2_MOD,
 					 CM_CLKSEL1);
 	cm_write_mod_reg(prcm_context.iva2_cm_clksel2, OMAP3430_IVA2_MOD,

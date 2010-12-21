@@ -134,6 +134,7 @@ struct omap3_control_regs {
 	u32 sramldo4;
 	u32 sramldo5;
 	u32 csi;
+	u32 padconf_sys_nirq;
 };
 
 static struct omap3_control_regs control_context;
@@ -457,6 +458,8 @@ void omap3_control_save_context(void)
 	control_context.sramldo4 = omap_ctrl_readl(OMAP343X_CONTROL_SRAMLDO4);
 	control_context.sramldo5 = omap_ctrl_readl(OMAP343X_CONTROL_SRAMLDO5);
 	control_context.csi = omap_ctrl_readl(OMAP343X_CONTROL_CSI);
+	control_context.padconf_sys_nirq =
+		omap_ctrl_readl(OMAP343X_CONTROL_PADCONF_SYSNIRQ);
 	return;
 }
 
@@ -513,6 +516,8 @@ void omap3_control_restore_context(void)
 	omap_ctrl_writel(control_context.sramldo4, OMAP343X_CONTROL_SRAMLDO4);
 	omap_ctrl_writel(control_context.sramldo5, OMAP343X_CONTROL_SRAMLDO5);
 	omap_ctrl_writel(control_context.csi, OMAP343X_CONTROL_CSI);
+	omap_ctrl_writel(control_context.padconf_sys_nirq,
+			 OMAP343X_CONTROL_PADCONF_SYSNIRQ);
 	return;
 }
 
