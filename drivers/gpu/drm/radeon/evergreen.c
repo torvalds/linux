@@ -2782,6 +2782,11 @@ static int evergreen_startup(struct radeon_device *rdev)
 		rdev->asic->copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
 	}
+	/* XXX: ontario has problems blitting to gart at the moment */
+	if (rdev->family == CHIP_PALM) {
+		rdev->asic->copy = NULL;
+		rdev->mc.active_vram_size = rdev->mc.visible_vram_size;
+	}
 
 	/* allocate wb buffer */
 	r = radeon_wb_init(rdev);
