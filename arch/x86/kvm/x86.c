@@ -662,7 +662,7 @@ int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr3);
 
-int __kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
+int kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
 {
 	if (cr8 & CR8_RESERVED_BITS)
 		return 1;
@@ -671,12 +671,6 @@ int __kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
 	else
 		vcpu->arch.cr8 = cr8;
 	return 0;
-}
-
-void kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
-{
-	if (__kvm_set_cr8(vcpu, cr8))
-		kvm_inject_gp(vcpu, 0);
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr8);
 
@@ -4104,7 +4098,7 @@ static int emulator_set_cr(int cr, unsigned long val, struct kvm_vcpu *vcpu)
 		res = kvm_set_cr4(vcpu, mk_cr_64(kvm_read_cr4(vcpu), val));
 		break;
 	case 8:
-		res = __kvm_set_cr8(vcpu, val & 0xfUL);
+		res = kvm_set_cr8(vcpu, val);
 		break;
 	default:
 		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __func__, cr);
@@ -5381,8 +5375,12 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	/* re-sync apic's tpr */
-	if (!irqchip_in_kernel(vcpu->kvm))
-		kvm_set_cr8(vcpu, kvm_run->cr8);
+	if (!irqchip_in_kernel(vcpu->kvm)) {
+		if (kvm_set_cr8(vcpu, kvm_run->cr8) != 0) {
+			r = -EINVAL;
+			goto out;
+		}
+	}
 
 	if (vcpu->arch.pio.count || vcpu->mmio_needed) {
 		if (vcpu->mmio_needed) {

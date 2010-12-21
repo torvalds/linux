@@ -2676,16 +2676,17 @@ static int cr0_write_interception(struct vcpu_svm *svm)
 static int cr8_write_interception(struct vcpu_svm *svm)
 {
 	struct kvm_run *kvm_run = svm->vcpu.run;
+	int r;
 
 	u8 cr8_prev = kvm_get_cr8(&svm->vcpu);
 	/* instruction emulation calls kvm_set_cr8() */
-	emulate_instruction(&svm->vcpu, 0, 0, 0);
+	r = emulate_instruction(&svm->vcpu, 0, 0, 0);
 	if (irqchip_in_kernel(svm->vcpu.kvm)) {
 		clr_cr_intercept(svm, INTERCEPT_CR8_WRITE);
-		return 1;
+		return r == EMULATE_DONE;
 	}
 	if (cr8_prev <= kvm_get_cr8(&svm->vcpu))
-		return 1;
+		return r == EMULATE_DONE;
 	kvm_run->exit_reason = KVM_EXIT_SET_TPR;
 	return 0;
 }

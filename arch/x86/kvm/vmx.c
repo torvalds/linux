@@ -3185,8 +3185,8 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 		case 8: {
 				u8 cr8_prev = kvm_get_cr8(vcpu);
 				u8 cr8 = kvm_register_read(vcpu, reg);
-				kvm_set_cr8(vcpu, cr8);
-				skip_emulated_instruction(vcpu);
+				err = kvm_set_cr8(vcpu, cr8);
+				complete_insn_gp(vcpu, err);
 				if (irqchip_in_kernel(vcpu->kvm))
 					return 1;
 				if (cr8_prev <= cr8)
