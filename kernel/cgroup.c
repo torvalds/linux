@@ -763,8 +763,6 @@ EXPORT_SYMBOL_GPL(cgroup_unlock);
  * -> cgroup_mkdir.
  */
 
-static struct dentry *cgroup_lookup(struct inode *dir,
-			struct dentry *dentry, struct nameidata *nd);
 static int cgroup_mkdir(struct inode *dir, struct dentry *dentry, int mode);
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry);
 static int cgroup_populate_dir(struct cgroup *cgrp);
@@ -1451,6 +1449,10 @@ static int cgroup_set_super(struct super_block *sb, void *data)
 
 static int cgroup_get_rootdir(struct super_block *sb)
 {
+	static const struct dentry_operations cgroup_dops = {
+		.d_iput = cgroup_diput,
+	};
+
 	struct inode *inode =
 		cgroup_new_inode(S_IFDIR | S_IRUGO | S_IXUGO | S_IWUSR, sb);
 	struct dentry *dentry;
@@ -1468,6 +1470,8 @@ static int cgroup_get_rootdir(struct super_block *sb)
 		return -ENOMEM;
 	}
 	sb->s_root = dentry;
+	/* for everything else we want ->d_op set */
+	sb->s_d_op = &cgroup_dops;
 	return 0;
 }
 
@@ -2191,7 +2195,7 @@ static const struct file_operations cgroup_file_operations = {
 };
 
 static const struct inode_operations cgroup_dir_inode_operations = {
-	.lookup = cgroup_lookup,
+	.lookup = simple_lookup,
 	.mkdir = cgroup_mkdir,
 	.rmdir = cgroup_rmdir,
 	.rename = cgroup_rename,
@@ -2205,26 +2209,6 @@ static inline struct cftype *__file_cft(struct file *file)
 	if (file->f_dentry->d_inode->i_fop != &cgroup_file_operations)
 		return ERR_PTR(-EINVAL);
 	return __d_cft(file->f_dentry);
-}
-
-static int cgroup_delete_dentry(const struct dentry *dentry)
-{
-	return 1;
-}
-
-static struct dentry *cgroup_lookup(struct inode *dir,
-			struct dentry *dentry, struct nameidata *nd)
-{
-	static const struct dentry_operations cgroup_dentry_operations = {
-		.d_delete = cgroup_delete_dentry,
-		.d_iput = cgroup_diput,
-	};
-
-	if (dentry->d_name.len > NAME_MAX)
-		return ERR_PTR(-ENAMETOOLONG);
-	d_set_d_op(dentry, &cgroup_dentry_operations);
-	d_add(dentry, NULL);
-	return NULL;
 }
 
 static int cgroup_create_file(struct dentry *dentry, mode_t mode,
