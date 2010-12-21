@@ -359,17 +359,8 @@ static struct regulator_consumer_supply rx51_vio_supplies[] = {
 	REGULATOR_SUPPLY("DVDD", "2-0019"),
 };
 
-#if defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE)
-extern struct platform_device rx51_display_device;
-#endif
-
 static struct regulator_consumer_supply rx51_vaux1_consumers[] = {
-#if defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE)
-	{
-		.supply	= "vdds_sdi",
-		.dev	= &rx51_display_device.dev,
-	},
-#endif
+	REGULATOR_SUPPLY("vdds_sdi", "omapdss"),
 };
 
 static struct regulator_init_data rx51_vaux1 = {
