@@ -469,7 +469,7 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 		pt++;
 	}
 
-	PWMInit(1 * MHZ, PWM_VCORE_135);	// 1.35V
+	PWMInit(1 * MHZ, PWM_VCORE_130);	// 1.30V
 
 	/* make aclk safe & reparent to periph pll */
 	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK)) | CORE_PARENT_PERIPH_PLL | CORE_ACLK_21, CRU_CLKSEL0_CON);
