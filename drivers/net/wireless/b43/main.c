@@ -4056,7 +4056,7 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		break;
 #ifdef CONFIG_B43_PHY_N
 	case B43_PHYTYPE_N:
-		if (phy_rev > 2)
+		if (phy_rev > 9)
 			unsupported = 1;
 		break;
 #endif
