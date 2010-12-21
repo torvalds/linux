@@ -72,6 +72,10 @@ module_param_named(max_sectors, max_sectors, int, 0);
 MODULE_PARM_DESC(max_sectors,
 	"Maximum number of sectors per IO command");
 
+static int msix_disable;
+module_param(msix_disable, int, S_IRUGO);
+MODULE_PARM_DESC(msix_disable, "Disable MSI-X interrupt handling. Default: 0");
+
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGASAS_VERSION);
 MODULE_AUTHOR("megaraidlinux@lsi.com");
@@ -3863,10 +3867,20 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (megasas_init_mfi(instance))
 		goto fail_init_mfi;
 
+	/* Try to enable MSI-X */
+	if ((instance->pdev->device != PCI_DEVICE_ID_LSI_SAS1078R) &&
+	    (instance->pdev->device != PCI_DEVICE_ID_LSI_SAS1078DE) &&
+	    (instance->pdev->device != PCI_DEVICE_ID_LSI_VERDE_ZCR) &&
+	    !msix_disable && !pci_enable_msix(instance->pdev,
+					      &instance->msixentry, 1))
+		instance->msi_flag = 1;
+
 	/*
 	 * Register IRQ
 	 */
-	if (request_irq(pdev->irq, megasas_isr, IRQF_SHARED, "megasas", instance)) {
+	if (request_irq(instance->msi_flag ? instance->msixentry.vector :
+			pdev->irq, megasas_isr,
+			IRQF_SHARED, "megasas", instance)) {
 		printk(KERN_DEBUG "megasas: Failed to register IRQ\n");
 		goto fail_irq;
 	}
@@ -3911,8 +3925,10 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, NULL);
 	instance->instancet->disable_intr(instance->reg_set);
-	free_irq(instance->pdev->irq, instance);
-
+	free_irq(instance->msi_flag ? instance->msixentry.vector :
+		 instance->pdev->irq, instance);
+	if (instance->msi_flag)
+		pci_disable_msix(instance->pdev);
 	megasas_release_mfi(instance);
 
       fail_irq:
@@ -4053,7 +4069,10 @@ megasas_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	pci_set_drvdata(instance->pdev, instance);
 	instance->instancet->disable_intr(instance->reg_set);
-	free_irq(instance->pdev->irq, instance);
+	free_irq(instance->msi_flag ? instance->msixentry.vector :
+		 instance->pdev->irq, instance);
+	if (instance->msi_flag)
+		pci_disable_msix(instance->pdev);
 
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
@@ -4116,11 +4135,16 @@ megasas_resume(struct pci_dev *pdev)
 	tasklet_init(&instance->isr_tasklet, megasas_complete_cmd_dpc,
 			(unsigned long)instance);
 
+	/* Now re-enable MSI-X */
+	if (instance->msi_flag)
+		pci_enable_msix(instance->pdev, &instance->msixentry, 1);
+
 	/*
 	 * Register IRQ
 	 */
-	if (request_irq(pdev->irq, megasas_isr, IRQF_SHARED,
-		"megasas", instance)) {
+	if (request_irq(instance->msi_flag ? instance->msixentry.vector :
+			pdev->irq, megasas_isr,
+			IRQF_SHARED, "megasas", instance)) {
 		printk(KERN_ERR "megasas: Failed to register IRQ\n");
 		goto fail_irq;
 	}
@@ -4218,7 +4242,10 @@ static void __devexit megasas_detach_one(struct pci_dev *pdev)
 
 	instance->instancet->disable_intr(instance->reg_set);
 
-	free_irq(instance->pdev->irq, instance);
+	free_irq(instance->msi_flag ? instance->msixentry.vector :
+		 instance->pdev->irq, instance);
+	if (instance->msi_flag)
+		pci_disable_msix(instance->pdev);
 
 	megasas_release_mfi(instance);
 
