@@ -141,7 +141,7 @@ static int nst_seq_show(struct seq_file *seq, void *v)
 			   "  sock acquiry: %lu.%ld\n"
 			   "  send start:   %lu.%ld\n"
 			   "  wait start:   %lu.%ld\n",
-			   nst, (unsigned long)nst->st_task->pid,
+			   nst, (unsigned long)task_pid_nr(nst->st_task),
 			   (unsigned long)nst->st_task->tgid,
 			   nst->st_task->comm, nst->st_node,
 			   nst->st_sc, nst->st_id, nst->st_msg_type,
@@ -421,23 +421,17 @@ int o2net_debugfs_init(void)
 
 	return 0;
 bail:
-	if (sc_dentry)
-		debugfs_remove(sc_dentry);
-	if (nst_dentry)
-		debugfs_remove(nst_dentry);
-	if (o2net_dentry)
-		debugfs_remove(o2net_dentry);
+	debugfs_remove(sc_dentry);
+	debugfs_remove(nst_dentry);
+	debugfs_remove(o2net_dentry);
 	return -ENOMEM;
 }
 
 void o2net_debugfs_exit(void)
 {
-	if (sc_dentry)
-		debugfs_remove(sc_dentry);
-	if (nst_dentry)
-		debugfs_remove(nst_dentry);
-	if (o2net_dentry)
-		debugfs_remove(o2net_dentry);
+	debugfs_remove(sc_dentry);
+	debugfs_remove(nst_dentry);
+	debugfs_remove(o2net_dentry);
 }
 
 #endif	/* CONFIG_DEBUG_FS */

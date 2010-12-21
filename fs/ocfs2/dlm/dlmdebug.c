@@ -743,7 +743,7 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 	/* Thread Pid: xxx  Node: xxx  State: xxxxx */
 	out += snprintf(buf + out, len - out,
 			"Thread Pid: %d  Node: %d  State: %s\n",
-			dlm->dlm_thread_task->pid, dlm->node_num, state);
+			task_pid_nr(dlm->dlm_thread_task), dlm->node_num, state);
 
 	/* Number of Joins: xxx  Joining Node: xxx */
 	out += snprintf(buf + out, len - out,
@@ -823,7 +823,7 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 	/* Recovery Pid: xxxx  Master: xxx  State: xxxx */
 	out += snprintf(buf + out, len - out,
 			"Recovery Pid: %d  Master: %d  State: %s\n",
-			dlm->dlm_reco_thread_task->pid,
+			task_pid_nr(dlm->dlm_reco_thread_task),
 			dlm->reco.new_master, state);
 
 	/* Recovery Map: xx xx */
@@ -956,14 +956,10 @@ void dlm_debug_shutdown(struct dlm_ctxt *dlm)
 	struct dlm_debug_ctxt *dc = dlm->dlm_debug_ctxt;
 
 	if (dc) {
-		if (dc->debug_purgelist_dentry)
-			debugfs_remove(dc->debug_purgelist_dentry);
-		if (dc->debug_mle_dentry)
-			debugfs_remove(dc->debug_mle_dentry);
-		if (dc->debug_lockres_dentry)
-			debugfs_remove(dc->debug_lockres_dentry);
-		if (dc->debug_state_dentry)
-			debugfs_remove(dc->debug_state_dentry);
+		debugfs_remove(dc->debug_purgelist_dentry);
+		debugfs_remove(dc->debug_mle_dentry);
+		debugfs_remove(dc->debug_lockres_dentry);
+		debugfs_remove(dc->debug_state_dentry);
 		dlm_debug_put(dc);
 	}
 }
@@ -994,8 +990,7 @@ bail:
 
 void dlm_destroy_debugfs_subroot(struct dlm_ctxt *dlm)
 {
-	if (dlm->dlm_debugfs_subroot)
-		debugfs_remove(dlm->dlm_debugfs_subroot);
+	debugfs_remove(dlm->dlm_debugfs_subroot);
 }
 
 /* debugfs root */
@@ -1011,7 +1006,6 @@ int dlm_create_debugfs_root(void)
 
 void dlm_destroy_debugfs_root(void)
 {
-	if (dlm_debugfs_root)
-		debugfs_remove(dlm_debugfs_root);
+	debugfs_remove(dlm_debugfs_root);
 }
 #endif	/* CONFIG_DEBUG_FS */
