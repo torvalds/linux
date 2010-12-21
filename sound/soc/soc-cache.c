@@ -988,6 +988,7 @@ static int snd_soc_rbtree_cache_init(struct snd_soc_codec *codec)
 	return 0;
 }
 
+#ifdef CONFIG_SND_SOC_CACHE_LZO
 struct snd_soc_lzo_ctx {
 	void *wmem;
 	void *dst;
@@ -1399,6 +1400,7 @@ err_tofree:
 	}
 	return ret;
 }
+#endif
 
 static int snd_soc_flat_cache_sync(struct snd_soc_codec *codec)
 {
@@ -1541,6 +1543,7 @@ static const struct snd_soc_cache_ops cache_types[] = {
 		.write = snd_soc_flat_cache_write,
 		.sync = snd_soc_flat_cache_sync
 	},
+#ifdef CONFIG_SND_SOC_CACHE_LZO
 	{
 		.id = SND_SOC_LZO_COMPRESSION,
 		.name = "LZO",
@@ -1550,6 +1553,7 @@ static const struct snd_soc_cache_ops cache_types[] = {
 		.write = snd_soc_lzo_cache_write,
 		.sync = snd_soc_lzo_cache_sync
 	},
+#endif
 	{
 		.id = SND_SOC_RBTREE_COMPRESSION,
 		.name = "rbtree",
