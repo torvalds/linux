@@ -27,7 +27,7 @@ struct alg_type_list {
 	struct list_head list;
 };
 
-static atomic_t alg_memory_allocated;
+static atomic_long_t alg_memory_allocated;
 
 static struct proto alg_proto = {
 	.name			= "ALG",
