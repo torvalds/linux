@@ -53,7 +53,6 @@ struct xfs_mount;
 	BTOBB(XLOG_MAX_ICLOGS << (xfs_sb_version_haslogv2(&log->l_mp->m_sb) ? \
 	 XLOG_MAX_RECORD_BSHIFT : XLOG_BIG_RECORD_BSHIFT))
 
-
 static inline xfs_lsn_t xlog_assign_lsn(uint cycle, uint block)
 {
 	return ((xfs_lsn_t)cycle << 32) | block;
@@ -505,8 +504,6 @@ typedef struct log {
 						 * log entries" */
 	xlog_in_core_t		*l_iclog;       /* head log queue	*/
 	spinlock_t		l_icloglock;    /* grab to change iclog state */
-	xfs_lsn_t		l_tail_lsn;     /* lsn of 1st LR with unflushed
-						 * buffers */
 	int			l_curr_cycle;   /* Cycle number of log writes */
 	int			l_prev_cycle;   /* Cycle number before last
 						 * block increment */
@@ -521,12 +518,15 @@ typedef struct log {
 	int64_t			l_grant_write_head;
 
 	/*
-	 * l_last_sync_lsn is an atomic so it can be set and read without
-	 * needing to hold specific locks. To avoid operations contending with
-	 * other hot objects, place it on a separate cacheline.
+	 * l_last_sync_lsn and l_tail_lsn are atomics so they can be set and
+	 * read without needing to hold specific locks. To avoid operations
+	 * contending with other hot objects, place each of them on a separate
+	 * cacheline.
 	 */
 	/* lsn of last LR on disk */
 	atomic64_t		l_last_sync_lsn ____cacheline_aligned_in_smp;
+	/* lsn of 1st LR with unflushed * buffers */
+	atomic64_t		l_tail_lsn ____cacheline_aligned_in_smp;
 
 	/* The following field are used for debugging; need to hold icloglock */
 #ifdef DEBUG
@@ -564,6 +564,31 @@ void	xlog_print_tic_res(struct xfs_mount *mp, struct xlog_ticket *ticket);
 int	xlog_write(struct log *log, struct xfs_log_vec *log_vector,
 				struct xlog_ticket *tic, xfs_lsn_t *start_lsn,
 				xlog_in_core_t **commit_iclog, uint flags);
+
+/*
+ * When we crack an atomic LSN, we sample it first so that the value will not
+ * change while we are cracking it into the component values. This means we
+ * will always get consistent component values to work from. This should always
+ * be used to smaple and crack LSNs taht are stored and updated in atomic
+ * variables.
+ */
+static inline void
+xlog_crack_atomic_lsn(atomic64_t *lsn, uint *cycle, uint *block)
+{
+	xfs_lsn_t val = atomic64_read(lsn);
+
+	*cycle = CYCLE_LSN(val);
+	*block = BLOCK_LSN(val);
+}
+
+/*
+ * Calculate and assign a value to an atomic LSN variable from component pieces.
+ */
+static inline void
+xlog_assign_atomic_lsn(atomic64_t *lsn, uint cycle, uint block)
+{
+	atomic64_set(lsn, xlog_assign_lsn(cycle, block));
+}
 
 /*
  * When we crack the grrant head, we sample it first so that the value will not

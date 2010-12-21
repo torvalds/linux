@@ -678,15 +678,11 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 	if (tail_lsn == 0)
 		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
 
+	/* tail_lsn == 1 implies that we weren't passed a valid value.  */
+	if (tail_lsn != 1)
+		atomic64_set(&log->l_tail_lsn, tail_lsn);
+
 	spin_lock(&log->l_grant_lock);
-
-	/* Also an invalid lsn.  1 implies that we aren't passing in a valid
-	 * tail_lsn.
-	 */
-	if (tail_lsn != 1) {
-		log->l_tail_lsn = tail_lsn;
-	}
-
 	if (!list_empty(&log->l_writeq)) {
 #ifdef DEBUG
 		if (log->l_flags & XLOG_ACTIVE_RECOVERY)
@@ -789,21 +785,19 @@ xfs_log_need_covered(xfs_mount_t *mp)
  * We may be holding the log iclog lock upon entering this routine.
  */
 xfs_lsn_t
-xlog_assign_tail_lsn(xfs_mount_t *mp)
+xlog_assign_tail_lsn(
+	struct xfs_mount	*mp)
 {
-	xfs_lsn_t tail_lsn;
-	xlog_t	  *log = mp->m_log;
+	xfs_lsn_t		tail_lsn;
+	struct log		*log = mp->m_log;
 
 	tail_lsn = xfs_trans_ail_tail(mp->m_ail);
-	spin_lock(&log->l_grant_lock);
 	if (!tail_lsn)
 		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
-	log->l_tail_lsn = tail_lsn;
-	spin_unlock(&log->l_grant_lock);
 
+	atomic64_set(&log->l_tail_lsn, tail_lsn);
 	return tail_lsn;
-}	/* xlog_assign_tail_lsn */
-
+}
 
 /*
  * Return the space in the log between the tail and the head.  The head
@@ -831,8 +825,8 @@ xlog_space_left(
 	int		head_bytes;
 
 	xlog_crack_grant_head(head, &head_cycle, &head_bytes);
-	tail_bytes = BBTOB(BLOCK_LSN(log->l_tail_lsn));
-	tail_cycle = CYCLE_LSN(log->l_tail_lsn);
+	xlog_crack_atomic_lsn(&log->l_tail_lsn, &tail_cycle, &tail_bytes);
+	tail_bytes = BBTOB(tail_bytes);
 	if (tail_cycle == head_cycle && head_bytes >= tail_bytes)
 		free_bytes = log->l_logsize - (head_bytes - tail_bytes);
 	else if (tail_cycle + 1 < head_cycle)
@@ -1009,8 +1003,8 @@ xlog_alloc_log(xfs_mount_t	*mp,
 
 	log->l_prev_block  = -1;
 	/* log->l_tail_lsn = 0x100000000LL; cycle = 1; current block = 0 */
-	log->l_tail_lsn	   = xlog_assign_lsn(1, 0);
-	atomic64_set(&log->l_last_sync_lsn, xlog_assign_lsn(1, 0));
+	xlog_assign_atomic_lsn(&log->l_tail_lsn, 1, 0);
+	xlog_assign_atomic_lsn(&log->l_last_sync_lsn, 1, 0);
 	log->l_curr_cycle  = 1;	    /* 0 is bad since this is initial value */
 	xlog_assign_grant_head(&log->l_grant_reserve_head, 1, 0);
 	xlog_assign_grant_head(&log->l_grant_write_head, 1, 0);
@@ -1189,7 +1183,6 @@ xlog_grant_push_ail(
 {
 	xfs_lsn_t	threshold_lsn = 0;
 	xfs_lsn_t	last_sync_lsn;
-	xfs_lsn_t	tail_lsn;
 	int		free_blocks;
 	int		free_bytes;
 	int		threshold_block;
@@ -1198,7 +1191,6 @@ xlog_grant_push_ail(
 
 	ASSERT(BTOBB(need_bytes) < log->l_logBBsize);
 
-	tail_lsn = log->l_tail_lsn;
 	free_bytes = xlog_space_left(log, &log->l_grant_reserve_head);
 	free_blocks = BTOBBT(free_bytes);
 
@@ -1213,8 +1205,9 @@ xlog_grant_push_ail(
 	if (free_blocks >= free_threshold)
 		return;
 
-	threshold_block = BLOCK_LSN(tail_lsn) + free_threshold;
-	threshold_cycle = CYCLE_LSN(tail_lsn);
+	xlog_crack_atomic_lsn(&log->l_tail_lsn, &threshold_cycle,
+						&threshold_block);
+	threshold_block += free_threshold;
 	if (threshold_block >= log->l_logBBsize) {
 		threshold_block -= log->l_logBBsize;
 		threshold_cycle += 1;
@@ -2828,11 +2821,11 @@ xlog_state_release_iclog(
 
 	if (iclog->ic_state == XLOG_STATE_WANT_SYNC) {
 		/* update tail before writing to iclog */
-		xlog_assign_tail_lsn(log->l_mp);
+		xfs_lsn_t tail_lsn = xlog_assign_tail_lsn(log->l_mp);
 		sync++;
 		iclog->ic_state = XLOG_STATE_SYNCING;
-		iclog->ic_header.h_tail_lsn = cpu_to_be64(log->l_tail_lsn);
-		xlog_verify_tail_lsn(log, iclog, log->l_tail_lsn);
+		iclog->ic_header.h_tail_lsn = cpu_to_be64(tail_lsn);
+		xlog_verify_tail_lsn(log, iclog, tail_lsn);
 		/* cycle incremented when incrementing curr_block */
 	}
 	spin_unlock(&log->l_icloglock);
@@ -3435,7 +3428,7 @@ STATIC void
 xlog_verify_grant_tail(
 	struct log	*log)
 {
-	xfs_lsn_t	tail_lsn = log->l_tail_lsn;
+	int		tail_cycle, tail_blocks;
 	int		cycle, space;
 
 	/*
@@ -3445,9 +3438,10 @@ xlog_verify_grant_tail(
 	 * check the byte count.
 	 */
 	xlog_crack_grant_head(&log->l_grant_write_head, &cycle, &space);
-	if (CYCLE_LSN(tail_lsn) != cycle) {
-		ASSERT(cycle - 1 == CYCLE_LSN(tail_lsn));
-		ASSERT(space <= BBTOB(BLOCK_LSN(tail_lsn)));
+	xlog_crack_atomic_lsn(&log->l_tail_lsn, &tail_cycle, &tail_blocks);
+	if (tail_cycle != cycle) {
+		ASSERT(cycle - 1 == tail_cycle);
+		ASSERT(space <= BBTOB(tail_blocks));
 	}
 }
 

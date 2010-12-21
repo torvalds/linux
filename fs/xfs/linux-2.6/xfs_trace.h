@@ -794,7 +794,7 @@ DECLARE_EVENT_CLASS(xfs_loggrant_class,
 				&__entry->grant_write_bytes);
 		__entry->curr_cycle = log->l_curr_cycle;
 		__entry->curr_block = log->l_curr_block;
-		__entry->tail_lsn = log->l_tail_lsn;
+		__entry->tail_lsn = atomic64_read(&log->l_tail_lsn);
 	),
 	TP_printk("dev %d:%d type %s t_ocnt %u t_cnt %u t_curr_res %u "
 		  "t_unit_res %u t_flags %s reserveq %s "
