@@ -2345,8 +2345,13 @@
 
 /* Memory latency timer register */
 #define MLTR_ILK		0x11222
+#define  MLTR_WM1_SHIFT		0
+#define  MLTR_WM2_SHIFT		8
 /* the unit of memory self-refresh latency time is 0.5us */
 #define  ILK_SRLT_MASK		0x3f
+#define ILK_LATENCY(shift)	(I915_READ(MLTR_ILK) >> (shift) & ILK_SRLT_MASK)
+#define ILK_READ_WM1_LATENCY()	ILK_LATENCY(MLTR_WM1_SHIFT)
+#define ILK_READ_WM2_LATENCY()	ILK_LATENCY(MLTR_WM2_SHIFT)
 
 /* define the fifo size on Ironlake */
 #define ILK_DISPLAY_FIFO	128

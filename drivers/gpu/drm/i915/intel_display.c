@@ -3456,14 +3456,109 @@ static bool ironlake_compute_wm0(struct drm_device *dev,
 	return true;
 }
 
+/*
+ * Check the wm result.
+ *
+ * If any calculated watermark values is larger than the maximum value that
+ * can be programmed into the associated watermark register, that watermark
+ * must be disabled.
+ */
+static bool ironlake_check_srwm(struct drm_device *dev, int level,
+				int fbc_wm, int display_wm, int cursor_wm,
+				const struct intel_watermark_params *display,
+				const struct intel_watermark_params *cursor)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	DRM_DEBUG_KMS("watermark %d: display plane %d, fbc lines %d,"
+		      " cursor %d\n", level, display_wm, fbc_wm, cursor_wm);
+
+	if (fbc_wm > SNB_FBC_MAX_SRWM) {
+		DRM_DEBUG_KMS("fbc watermark(%d) is too large(%d), disabling wm%d+\n",
+			      fbc_wm, SNB_FBC_MAX_SRWM, level);
+
+		/* fbc has it's own way to disable FBC WM */
+		I915_WRITE(DISP_ARB_CTL,
+			   I915_READ(DISP_ARB_CTL) | DISP_FBC_WM_DIS);
+		return false;
+	}
+
+	if (display_wm > display->max_wm) {
+		DRM_DEBUG_KMS("display watermark(%d) is too large(%d), disabling wm%d+\n",
+			      display_wm, SNB_DISPLAY_MAX_SRWM, level);
+		return false;
+	}
+
+	if (cursor_wm > cursor->max_wm) {
+		DRM_DEBUG_KMS("cursor watermark(%d) is too large(%d), disabling wm%d+\n",
+			      cursor_wm, SNB_CURSOR_MAX_SRWM, level);
+		return false;
+	}
+
+	if (!(fbc_wm || display_wm || cursor_wm)) {
+		DRM_DEBUG_KMS("latency %d is 0, disabling wm%d+\n", level, level);
+		return false;
+	}
+
+	return true;
+}
+
+/*
+ * Compute watermark values of WM[1-3],
+ */
+static bool ironlake_compute_srwm(struct drm_device *dev, int level,
+				  int hdisplay, int htotal,
+				  int pixel_size, int clock, int latency_ns,
+				  const struct intel_watermark_params *display,
+				  const struct intel_watermark_params *cursor,
+				  int *fbc_wm, int *display_wm, int *cursor_wm)
+{
+
+	unsigned long line_time_us;
+	int line_count, line_size;
+	int small, large;
+	int entries;
+
+	if (!latency_ns) {
+		*fbc_wm = *display_wm = *cursor_wm = 0;
+		return false;
+	}
+
+	line_time_us = (htotal * 1000) / clock;
+	line_count = (latency_ns / line_time_us + 1000) / 1000;
+	line_size = hdisplay * pixel_size;
+
+	/* Use the minimum of the small and large buffer method for primary */
+	small = ((clock * pixel_size / 1000) * latency_ns) / 1000;
+	large = line_count * line_size;
+
+	entries = DIV_ROUND_UP(min(small, large), display->cacheline_size);
+	*display_wm = entries + display->guard_size;
+
+	/*
+	 * Spec says:
+	 * FBC WM = ((Final Primary WM * 64) / number of bytes per line) + 2
+	 */
+	*fbc_wm = DIV_ROUND_UP(*display_wm * 64, line_size) + 2;
+
+	/* calculate the self-refresh watermark for display cursor */
+	entries = line_count * pixel_size * 64;
+	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
+	*cursor_wm = entries + cursor->guard_size;
+
+	return ironlake_check_srwm(dev, level,
+				   *fbc_wm, *display_wm, *cursor_wm,
+				   display, cursor);
+}
+
 static void ironlake_update_wm(struct drm_device *dev,
 			       int planea_clock, int planeb_clock,
-			       int sr_hdisplay, int sr_htotal,
+			       int hdisplay, int htotal,
 			       int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int plane_wm, cursor_wm, enabled;
-	int tmp;
+	int fbc_wm, plane_wm, cursor_wm, enabled;
+	int clock;
 
 	enabled = 0;
 	if (ironlake_compute_wm0(dev, 0,
@@ -3498,152 +3593,49 @@ static void ironlake_update_wm(struct drm_device *dev,
 	 * Calculate and update the self-refresh watermark only when one
 	 * display plane is used.
 	 */
-	tmp = 0;
-	if (enabled == 1) {
-		unsigned long line_time_us;
-		int small, large, plane_fbc;
-		int sr_clock, entries;
-		int line_count, line_size;
-		/* Read the self-refresh latency. The unit is 0.5us */
-		int ilk_sr_latency = I915_READ(MLTR_ILK) & ILK_SRLT_MASK;
+	I915_WRITE(WM3_LP_ILK, 0);
+	I915_WRITE(WM2_LP_ILK, 0);
+	I915_WRITE(WM1_LP_ILK, 0);
 
-		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = (sr_htotal * 1000) / sr_clock;
+	if (enabled != 1)
+		return;
 
-		/* Use ns/us then divide to preserve precision */
-		line_count = ((ilk_sr_latency * 500) / line_time_us + 1000)
-			/ 1000;
-		line_size = sr_hdisplay * pixel_size;
+	clock = planea_clock ? planea_clock : planeb_clock;
 
-		/* Use the minimum of the small and large buffer method for primary */
-		small = ((sr_clock * pixel_size / 1000) * (ilk_sr_latency * 500)) / 1000;
-		large = line_count * line_size;
+	/* WM1 */
+	if (!ironlake_compute_srwm(dev, 1, hdisplay, htotal, pixel_size,
+				   clock, ILK_READ_WM1_LATENCY() * 500,
+				   &ironlake_display_srwm_info,
+				   &ironlake_cursor_srwm_info,
+				   &fbc_wm, &plane_wm, &cursor_wm))
+		return;
 
-		entries = DIV_ROUND_UP(min(small, large),
-				       ironlake_display_srwm_info.cacheline_size);
+	I915_WRITE(WM1_LP_ILK,
+		   WM1_LP_SR_EN |
+		   (ILK_READ_WM1_LATENCY() << WM1_LP_LATENCY_SHIFT) |
+		   (fbc_wm << WM1_LP_FBC_SHIFT) |
+		   (plane_wm << WM1_LP_SR_SHIFT) |
+		   cursor_wm);
 
-		plane_fbc = entries * 64;
-		plane_fbc = DIV_ROUND_UP(plane_fbc, line_size);
+	/* WM2 */
+	if (!ironlake_compute_srwm(dev, 2, hdisplay, htotal, pixel_size,
+				   clock, ILK_READ_WM2_LATENCY() * 500,
+				   &ironlake_display_srwm_info,
+				   &ironlake_cursor_srwm_info,
+				   &fbc_wm, &plane_wm, &cursor_wm))
+		return;
 
-		plane_wm = entries + ironlake_display_srwm_info.guard_size;
-		if (plane_wm > (int)ironlake_display_srwm_info.max_wm)
-			plane_wm = ironlake_display_srwm_info.max_wm;
-
-		/* calculate the self-refresh watermark for display cursor */
-		entries = line_count * pixel_size * 64;
-		entries = DIV_ROUND_UP(entries,
-				       ironlake_cursor_srwm_info.cacheline_size);
-
-		cursor_wm = entries + ironlake_cursor_srwm_info.guard_size;
-		if (cursor_wm > (int)ironlake_cursor_srwm_info.max_wm)
-			cursor_wm = ironlake_cursor_srwm_info.max_wm;
-
-		/* configure watermark and enable self-refresh */
-		tmp = (WM1_LP_SR_EN |
-		       (ilk_sr_latency << WM1_LP_LATENCY_SHIFT) |
-		       (plane_fbc << WM1_LP_FBC_SHIFT) |
-		       (plane_wm << WM1_LP_SR_SHIFT) |
-		       cursor_wm);
-		DRM_DEBUG_KMS("self-refresh watermark: display plane %d, fbc lines %d,"
-			      " cursor %d\n", plane_wm, plane_fbc, cursor_wm);
-	}
-	I915_WRITE(WM1_LP_ILK, tmp);
-	/* XXX setup WM2 and WM3 */
-}
-
-/*
- * Check the wm result.
- *
- * If any calculated watermark values is larger than the maximum value that
- * can be programmed into the associated watermark register, that watermark
- * must be disabled.
- *
- * Also return true if all of those watermark values is 0, which is set by
- * sandybridge_compute_srwm, to indicate the latency is ZERO.
- */
-static bool sandybridge_check_srwm(struct drm_device *dev, int level,
-				   int fbc_wm, int display_wm, int cursor_wm)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	DRM_DEBUG_KMS("watermark %d: display plane %d, fbc lines %d,"
-		      " cursor %d\n", level, display_wm, fbc_wm, cursor_wm);
-
-	if (fbc_wm > SNB_FBC_MAX_SRWM) {
-		DRM_DEBUG_KMS("fbc watermark(%d) is too large(%d), disabling wm%d+\n",
-				fbc_wm, SNB_FBC_MAX_SRWM, level);
-
-		/* fbc has it's own way to disable FBC WM */
-		I915_WRITE(DISP_ARB_CTL,
-			   I915_READ(DISP_ARB_CTL) | DISP_FBC_WM_DIS);
-		return false;
-	}
-
-	if (display_wm > SNB_DISPLAY_MAX_SRWM) {
-		DRM_DEBUG_KMS("display watermark(%d) is too large(%d), disabling wm%d+\n",
-				display_wm, SNB_DISPLAY_MAX_SRWM, level);
-		return false;
-	}
-
-	if (cursor_wm > SNB_CURSOR_MAX_SRWM) {
-		DRM_DEBUG_KMS("cursor watermark(%d) is too large(%d), disabling wm%d+\n",
-				cursor_wm, SNB_CURSOR_MAX_SRWM, level);
-		return false;
-	}
-
-	if (!(fbc_wm || display_wm || cursor_wm)) {
-		DRM_DEBUG_KMS("latency %d is 0, disabling wm%d+\n", level, level);
-		return false;
-	}
-
-	return true;
-}
-
-/*
- * Compute watermark values of WM[1-3],
- */
-static bool sandybridge_compute_srwm(struct drm_device *dev, int level,
-				     int hdisplay, int htotal, int pixel_size,
-				     int clock, int latency_ns, int *fbc_wm,
-				     int *display_wm, int *cursor_wm)
-{
-
-	unsigned long line_time_us;
-	int small, large;
-	int entries;
-	int line_count, line_size;
-
-	if (!latency_ns) {
-		*fbc_wm = *display_wm = *cursor_wm = 0;
-		return false;
-	}
-
-	line_time_us = (htotal * 1000) / clock;
-	line_count = (latency_ns / line_time_us + 1000) / 1000;
-	line_size = hdisplay * pixel_size;
-
-	/* Use the minimum of the small and large buffer method for primary */
-	small = ((clock * pixel_size / 1000) * latency_ns) / 1000;
-	large = line_count * line_size;
-
-	entries = DIV_ROUND_UP(min(small, large),
-				sandybridge_display_srwm_info.cacheline_size);
-	*display_wm = entries + sandybridge_display_srwm_info.guard_size;
+	I915_WRITE(WM2_LP_ILK,
+		   WM2_LP_EN |
+		   (ILK_READ_WM2_LATENCY() << WM1_LP_LATENCY_SHIFT) |
+		   (fbc_wm << WM1_LP_FBC_SHIFT) |
+		   (plane_wm << WM1_LP_SR_SHIFT) |
+		   cursor_wm);
 
 	/*
-	 * Spec said:
-	 * FBC WM = ((Final Primary WM * 64) / number of bytes per line) + 2
+	 * WM3 is unsupported on ILK, probably because we don't have latency
+	 * data for that power state
 	 */
-	*fbc_wm = DIV_ROUND_UP(*display_wm * 64, line_size) + 2;
-
-	/* calculate the self-refresh watermark for display cursor */
-	entries = line_count * pixel_size * 64;
-	entries = DIV_ROUND_UP(entries,
-			       sandybridge_cursor_srwm_info.cacheline_size);
-	*cursor_wm = entries + sandybridge_cursor_srwm_info.guard_size;
-
-	return sandybridge_check_srwm(dev, level,
-				      *fbc_wm, *display_wm, *cursor_wm);
 }
 
 static void sandybridge_update_wm(struct drm_device *dev,
@@ -3701,9 +3693,11 @@ static void sandybridge_update_wm(struct drm_device *dev,
 	clock = planea_clock ? planea_clock : planeb_clock;
 
 	/* WM1 */
-	if (!sandybridge_compute_srwm(dev, 1, hdisplay, htotal, pixel_size,
-				      clock, SNB_READ_WM1_LATENCY() * 500,
-				      &fbc_wm, &plane_wm, &cursor_wm))
+	if (!ironlake_compute_srwm(dev, 1, hdisplay, htotal, pixel_size,
+				   clock, SNB_READ_WM1_LATENCY() * 500,
+				   &sandybridge_display_srwm_info,
+				   &sandybridge_cursor_srwm_info,
+				   &fbc_wm, &plane_wm, &cursor_wm))
 		return;
 
 	I915_WRITE(WM1_LP_ILK,
@@ -3714,10 +3708,12 @@ static void sandybridge_update_wm(struct drm_device *dev,
 		   cursor_wm);
 
 	/* WM2 */
-	if (!sandybridge_compute_srwm(dev, 2,
-				      hdisplay, htotal, pixel_size,
-				      clock, SNB_READ_WM2_LATENCY() * 500,
-				      &fbc_wm, &plane_wm, &cursor_wm))
+	if (!ironlake_compute_srwm(dev, 2,
+				   hdisplay, htotal, pixel_size,
+				   clock, SNB_READ_WM2_LATENCY() * 500,
+				   &sandybridge_display_srwm_info,
+				   &sandybridge_cursor_srwm_info,
+				   &fbc_wm, &plane_wm, &cursor_wm))
 		return;
 
 	I915_WRITE(WM2_LP_ILK,
@@ -3728,10 +3724,12 @@ static void sandybridge_update_wm(struct drm_device *dev,
 		   cursor_wm);
 
 	/* WM3 */
-	if (!sandybridge_compute_srwm(dev, 3,
-				      hdisplay, htotal, pixel_size,
-				      clock, SNB_READ_WM3_LATENCY() * 500,
-				      &fbc_wm, &plane_wm, &cursor_wm))
+	if (!ironlake_compute_srwm(dev, 3,
+				   hdisplay, htotal, pixel_size,
+				   clock, SNB_READ_WM3_LATENCY() * 500,
+				   &sandybridge_display_srwm_info,
+				   &sandybridge_cursor_srwm_info,
+				   &fbc_wm, &plane_wm, &cursor_wm))
 		return;
 
 	I915_WRITE(WM3_LP_ILK,
