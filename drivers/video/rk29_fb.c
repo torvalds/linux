@@ -835,7 +835,6 @@ static int win0_set_par(struct fb_info *info)
     u32 ScaleYrgbX=0x1000,ScaleYrgbY=0x1000;
     u32 ScaleCbrX=0x1000, ScaleCbrY=0x1000;
 
-    u8 data_format = var->nonstd&0x0f;
     u32 y_addr = 0;       //user alloc buf addr y
     u32 uv_addr = 0;
 
@@ -850,18 +849,17 @@ static int win0_set_par(struct fb_info *info)
     ScaleYrgbX = CalScaleW0(xact, par->xsize);
     ScaleYrgbY = CalScaleW0(yact, par->ysize);
 
-    switch (data_format)
+    switch (par->format)
     {
-       case 1:// yuv422
+       case 2:// yuv422
            ScaleCbrX= CalScaleW0((xact/2), par->xsize);
            ScaleCbrY =  CalScaleW0(yact, par->ysize);
            break;
-       case 2: // yuv4200
-       case 3: // yuv4201
+       case 3: // yuv4200
+       case 4: // yuv4201
            ScaleCbrX= CalScaleW0(xact/2, par->xsize);
            ScaleCbrY =  CalScaleW0(yact/2, par->ysize);
-           break;
-       case 4: // none
+           break;       
        case 5:// yuv444
            ScaleCbrX= CalScaleW0(xact, par->xsize);
            ScaleCbrY =  CalScaleW0(yact, par->ysize);
@@ -889,7 +887,8 @@ static int win0_set_par(struct fb_info *info)
     {
     case 0:  //rgb888
         LcdMskReg(inf, SWAP_CTRL, m_W0_YRGB_8_SWAP | m_W0_YRGB_16_SWAP | m_W0_YRGB_R_SHIFT_SWAP | m_W0_565_RB_SWAP | m_W0_YRGB_M8_SWAP | m_W0_CBR_8_SWAP,
-            v_W0_YRGB_8_SWAP(1) | v_W0_YRGB_16_SWAP(1) | v_W0_YRGB_R_SHIFT_SWAP(1) | v_W0_565_RB_SWAP(1) | v_W0_YRGB_M8_SWAP(0) | v_W0_CBR_8_SWAP(0));
+            v_W0_YRGB_8_SWAP(1) | v_W0_YRGB_16_SWAP(1) | v_W0_YRGB_R_SHIFT_SWAP(1) | v_W0_565_RB_SWAP(0) | v_W0_YRGB_M8_SWAP(0) | v_W0_CBR_8_SWAP(0));
+		break;
     case 1:  //rgb565
         LcdMskReg(inf, SWAP_CTRL, m_W0_YRGB_8_SWAP | m_W0_YRGB_16_SWAP | m_W0_YRGB_R_SHIFT_SWAP | m_W0_565_RB_SWAP | m_W0_YRGB_M8_SWAP | m_W0_CBR_8_SWAP,
             v_W0_YRGB_8_SWAP(0) | v_W0_YRGB_16_SWAP(0) | v_W0_YRGB_R_SHIFT_SWAP(0) | v_W0_565_RB_SWAP(0) | v_W0_YRGB_M8_SWAP(0) | v_W0_CBR_8_SWAP(0));
@@ -902,6 +901,7 @@ static int win0_set_par(struct fb_info *info)
     default:
         LcdMskReg(inf, SWAP_CTRL, m_W0_YRGB_8_SWAP | m_W0_YRGB_16_SWAP | m_W0_YRGB_R_SHIFT_SWAP | m_W0_565_RB_SWAP | m_W0_YRGB_M8_SWAP | m_W0_CBR_8_SWAP,
             v_W0_YRGB_8_SWAP(0) | v_W0_YRGB_16_SWAP(0) | v_W0_YRGB_R_SHIFT_SWAP(0) | v_W0_565_RB_SWAP(0) | v_W0_YRGB_M8_SWAP(0) | v_W0_CBR_8_SWAP(0) );
+		break;
     }
 
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
