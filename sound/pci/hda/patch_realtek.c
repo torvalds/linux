@@ -15104,28 +15104,29 @@ static int patch_alc269(struct hda_codec *codec)
 
 	alc_auto_parse_customize_define(codec);
 
-	coef = alc_read_coef_idx(codec, 0);
-	if ((coef & 0x00f0) == 0x0010) {
-		if (codec->bus->pci->subsystem_vendor == 0x1025 &&
-		    spec->cdefine.platform_type == 1) {
-			alc_codec_rename(codec, "ALC271X");
-			spec->codec_variant = ALC269_TYPE_ALC271X;
-		} else if ((coef & 0xf000) == 0x1000) {
-			spec->codec_variant = ALC269_TYPE_ALC270;
-		} else if ((coef & 0xf000) == 0x2000) {
-			alc_codec_rename(codec, "ALC259");
-			spec->codec_variant = ALC269_TYPE_ALC259;
-		} else if ((coef & 0xf000) == 0x3000) {
-			alc_codec_rename(codec, "ALC258");
-			spec->codec_variant = ALC269_TYPE_ALC258;
-		} else {
-			alc_codec_rename(codec, "ALC269VB");
-			spec->codec_variant = ALC269_TYPE_ALC269VB;
-		}
-	} else
-		alc_fix_pll_init(codec, 0x20, 0x04, 15);
-
-	alc269_fill_coef(codec);
+	if (codec->vendor_id == 0x10ec0269) {
+		coef = alc_read_coef_idx(codec, 0);
+		if ((coef & 0x00f0) == 0x0010) {
+			if (codec->bus->pci->subsystem_vendor == 0x1025 &&
+			    spec->cdefine.platform_type == 1) {
+				alc_codec_rename(codec, "ALC271X");
+				spec->codec_variant = ALC269_TYPE_ALC271X;
+			} else if ((coef & 0xf000) == 0x1000) {
+				spec->codec_variant = ALC269_TYPE_ALC270;
+			} else if ((coef & 0xf000) == 0x2000) {
+				alc_codec_rename(codec, "ALC259");
+				spec->codec_variant = ALC269_TYPE_ALC259;
+			} else if ((coef & 0xf000) == 0x3000) {
+				alc_codec_rename(codec, "ALC258");
+				spec->codec_variant = ALC269_TYPE_ALC258;
+			} else {
+				alc_codec_rename(codec, "ALC269VB");
+				spec->codec_variant = ALC269_TYPE_ALC269VB;
+			}
+		} else
+			alc_fix_pll_init(codec, 0x20, 0x04, 15);
+		alc269_fill_coef(codec);
+	}
 
 	board_config = snd_hda_check_board_config(codec, ALC269_MODEL_LAST,
 						  alc269_models,
