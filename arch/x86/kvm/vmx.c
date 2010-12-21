@@ -191,6 +191,8 @@ static unsigned long *vmx_io_bitmap_b;
 static unsigned long *vmx_msr_bitmap_legacy;
 static unsigned long *vmx_msr_bitmap_longmode;
 
+static bool cpu_has_load_ia32_efer;
+
 static DECLARE_BITMAP(vmx_vpid_bitmap, VMX_NR_VPIDS);
 static DEFINE_SPINLOCK(vmx_vpid_lock);
 
@@ -664,6 +666,12 @@ static void clear_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr)
 	unsigned i;
 	struct msr_autoload *m = &vmx->msr_autoload;
 
+	if (msr == MSR_EFER && cpu_has_load_ia32_efer) {
+		vmcs_clear_bits(VM_ENTRY_CONTROLS, VM_ENTRY_LOAD_IA32_EFER);
+		vmcs_clear_bits(VM_EXIT_CONTROLS, VM_EXIT_LOAD_IA32_EFER);
+		return;
+	}
+
 	for (i = 0; i < m->nr; ++i)
 		if (m->guest[i].index == msr)
 			break;
@@ -682,6 +690,14 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 {
 	unsigned i;
 	struct msr_autoload *m = &vmx->msr_autoload;
+
+	if (msr == MSR_EFER && cpu_has_load_ia32_efer) {
+		vmcs_write64(GUEST_IA32_EFER, guest_val);
+		vmcs_write64(HOST_IA32_EFER, host_val);
+		vmcs_set_bits(VM_ENTRY_CONTROLS, VM_ENTRY_LOAD_IA32_EFER);
+		vmcs_set_bits(VM_EXIT_CONTROLS, VM_EXIT_LOAD_IA32_EFER);
+		return;
+	}
 
 	for (i = 0; i < m->nr; ++i)
 		if (m->guest[i].index == msr)
@@ -1418,6 +1434,14 @@ static __init int adjust_vmx_controls(u32 ctl_min, u32 ctl_opt,
 	return 0;
 }
 
+static __init bool allow_1_setting(u32 msr, u32 ctl)
+{
+	u32 vmx_msr_low, vmx_msr_high;
+
+	rdmsr(msr, vmx_msr_low, vmx_msr_high);
+	return vmx_msr_high & ctl;
+}
+
 static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 {
 	u32 vmx_msr_low, vmx_msr_high;
@@ -1531,6 +1555,12 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	vmcs_conf->cpu_based_2nd_exec_ctrl = _cpu_based_2nd_exec_control;
 	vmcs_conf->vmexit_ctrl         = _vmexit_control;
 	vmcs_conf->vmentry_ctrl        = _vmentry_control;
+
+	cpu_has_load_ia32_efer =
+		allow_1_setting(MSR_IA32_VMX_ENTRY_CTLS,
+				VM_ENTRY_LOAD_IA32_EFER)
+		&& allow_1_setting(MSR_IA32_VMX_EXIT_CTLS,
+				   VM_EXIT_LOAD_IA32_EFER);
 
 	return 0;
 }
