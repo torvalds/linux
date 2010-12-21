@@ -9053,15 +9053,44 @@ void b2056_upload_inittabs(struct b43_wldev *dev,
 				B2056_RX1, pts->rx, pts->rx_length);
 }
 
-/* TODO: add support for rev4+ devices by searching in rev4+ tables */
 const struct b43_nphy_channeltab_entry_rev3 *
 b43_nphy_get_chantabent_rev3(struct b43_wldev *dev, u16 freq)
 {
 	const struct b43_nphy_channeltab_entry_rev3 *e;
-	unsigned int i;
+	unsigned int length, i;
 
-	for (i = 0; i < ARRAY_SIZE(b43_nphy_channeltab_rev3); i++) {
-		e = &(b43_nphy_channeltab_rev3[i]);
+	switch (dev->phy.rev) {
+	case 3:
+		e = b43_nphy_channeltab_rev3;
+		length = ARRAY_SIZE(b43_nphy_channeltab_rev3);
+		break;
+	case 4:
+		e = b43_nphy_channeltab_rev4;
+		length = ARRAY_SIZE(b43_nphy_channeltab_rev4);
+		break;
+	case 5:
+		e = b43_nphy_channeltab_rev5;
+		length = ARRAY_SIZE(b43_nphy_channeltab_rev5);
+		break;
+	case 6:
+		e = b43_nphy_channeltab_rev6;
+		length = ARRAY_SIZE(b43_nphy_channeltab_rev6);
+		break;
+	case 7:
+	case 9:
+		e = b43_nphy_channeltab_rev7_9;
+		length = ARRAY_SIZE(b43_nphy_channeltab_rev7_9);
+		break;
+	case 8:
+		e = b43_nphy_channeltab_rev8;
+		length = ARRAY_SIZE(b43_nphy_channeltab_rev8);
+		break;
+	default:
+		B43_WARN_ON(1);
+		return NULL;
+	}
+
+	for (i = 0; i < length; i++, e++) {
 		if (e->freq == freq)
 			return e;
 	}

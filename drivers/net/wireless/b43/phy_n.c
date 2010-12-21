@@ -3607,7 +3607,6 @@ static int b43_nphy_set_channel(struct b43_wldev *dev,
 	if (dev->phy.rev >= 3) {
 		tabent_r3 = b43_nphy_get_chantabent_rev3(dev,
 							channel->center_freq);
-		tabent_r3 = NULL;
 		if (!tabent_r3)
 			return -ESRCH;
 	} else {
