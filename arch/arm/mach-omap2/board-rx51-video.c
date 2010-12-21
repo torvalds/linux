@@ -24,9 +24,6 @@
 #include "mux.h"
 
 #define RX51_LCD_RESET_GPIO	90
-/* REVISIT  to verify with rx51.c at sound/soc/omap */
-#define RX51_TVOUT_SEL_GPIO	40
-
 
 #if defined(CONFIG_FB_OMAP2) || defined(CONFIG_FB_OMAP2_MODULE)
 
@@ -37,17 +34,6 @@ static int rx51_lcd_enable(struct omap_dss_device *dssdev)
 }
 
 static void rx51_lcd_disable(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(dssdev->reset_gpio, 0);
-}
-
-static int rx51_tvout_enable(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(dssdev->reset_gpio, 1);
-	return 0;
-}
-
-static void rx51_tvout_disable(struct omap_dss_device *dssdev)
 {
 	gpio_set_value(dssdev->reset_gpio, 0);
 }
@@ -67,9 +53,6 @@ static struct omap_dss_device  rx51_tv_device = {
 	.type			= OMAP_DISPLAY_TYPE_VENC,
 	.driver_name		= "venc",
 	.phy.venc.type	        = OMAP_DSS_VENC_TYPE_COMPOSITE,
-	.reset_gpio	        = RX51_TVOUT_SEL_GPIO,
-	.platform_enable        = rx51_tvout_enable,
-	.platform_disable       = rx51_tvout_disable,
 };
 
 static struct omap_dss_device *rx51_dss_devices[] = {
@@ -111,9 +94,6 @@ static int __init rx51_video_init(void)
 	}
 
 	gpio_direction_output(RX51_LCD_RESET_GPIO, 1);
-
-	/* REVISIT  to verify with rx51.c at sound/soc/omap */
-	gpio_direction_output(RX51_TVOUT_SEL_GPIO, 1);
 
 	platform_add_devices(rx51_video_devices,
 				ARRAY_SIZE(rx51_video_devices));
