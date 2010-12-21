@@ -467,6 +467,16 @@ static struct clk init_clocks_disable[] = {
 		.enable		= s5pv310_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 10),
 	}, {
+		.name		= "pdma",
+		.id		= 0,
+		.enable		= s5pv310_clk_ip_fsys_ctrl,
+		.ctrlbit	= (1 << 0),
+	}, {
+		.name		= "pdma",
+		.id		= 1,
+		.enable		= s5pv310_clk_ip_fsys_ctrl,
+		.ctrlbit	= (1 << 1),
+	}, {
 		.name		= "adc",
 		.id		= -1,
 		.enable		= s5pv310_clk_ip_peril_ctrl,
