@@ -3096,7 +3096,7 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
 
 	/* Min/max in 0.25dB units */
 	ah->ah_txpower.txp_min_pwr = 2 * rates[7];
-	ah->ah_txpower.txp_max_pwr = 2 * rates[0];
+	ah->ah_txpower.txp_cur_pwr = 2 * rates[0];
 	ah->ah_txpower.txp_ofdm = rates[7];
 }
 
@@ -3150,8 +3150,6 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		/* Reset TX power values */
 		memset(&ah->ah_txpower, 0, sizeof(ah->ah_txpower));
 		ah->ah_txpower.txp_tpc = AR5K_TUNE_TPC_TXPOWER;
-		ah->ah_txpower.txp_min_pwr = 0;
-		ah->ah_txpower.txp_max_pwr = AR5K_TUNE_MAX_TXPOWER;
 
 		/* Calculate the powertable */
 		ret = ath5k_setup_channel_powertable(ah, channel,
@@ -3290,7 +3288,8 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	 * properly set curve indices.
 	 */
 	ret = ath5k_hw_txpower(ah, channel, ee_mode,
-				ah->ah_txpower.txp_max_pwr / 2);
+		ah->ah_txpower.txp_cur_pwr ?
+			ah->ah_txpower.txp_cur_pwr / 2 : AR5K_TUNE_MAX_TXPOWER);
 	if (ret)
 		return ret;
 
