@@ -20,7 +20,7 @@
 #include <plat/cpu.h>
 #include <plat/prcm.h>
 
-#include "prm.h"
+#include "prm44xx.h"
 #include "prm-regbits-44xx.h"
 
 /*

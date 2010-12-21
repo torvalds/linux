@@ -26,10 +26,10 @@
 #include "powerdomains.h"
 
 #include "prcm-common.h"
-#include "cm.h"
-#include "cm-regbits-44xx.h"
 #include "prm.h"
 #include "prm-regbits-44xx.h"
+#include "prm44xx.h"
+#include "prcm_mpu44xx.h"
 
 /* core_44xx_pwrdm: CORE power domain */
 static struct powerdomain core_44xx_pwrdm = {

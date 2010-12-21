@@ -22,10 +22,7 @@
 			OMAP2_L4_IO_ADDRESS(OMAP2430_CM_BASE + (module) + (reg))
 #define OMAP34XX_CM_REGADDR(module, reg)				\
 			OMAP2_L4_IO_ADDRESS(OMAP3430_CM_BASE + (module) + (reg))
-#define OMAP44XX_CM1_REGADDR(module, reg)				\
-			OMAP2_L4_IO_ADDRESS(OMAP4430_CM1_BASE + (module) + (reg))
-#define OMAP44XX_CM2_REGADDR(module, reg)				\
-			OMAP2_L4_IO_ADDRESS(OMAP4430_CM2_BASE + (module) + (reg))
+
 
 #include "cm44xx.h"
 

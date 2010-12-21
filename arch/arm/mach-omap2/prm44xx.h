@@ -17,10 +17,51 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
+ * XXX This file needs to be updated to align on one of "OMAP4", "OMAP44XX",
+ *     or "OMAP4430".
  */
 
 #ifndef __ARCH_ARM_MACH_OMAP2_PRM44XX_H
 #define __ARCH_ARM_MACH_OMAP2_PRM44XX_H
+
+#include "prcm-common.h"
+
+#define OMAP4430_PRM_BASE		0x4a306000
+
+#define OMAP44XX_PRM_REGADDR(module, reg)				\
+	OMAP2_L4_IO_ADDRESS(OMAP4430_PRM_BASE +	(module) + (reg))
+
+
+/* PRM instances */
+#define OMAP4430_PRM_OCP_SOCKET_MOD	0x0000
+#define OMAP4430_PRM_CKGEN_MOD		0x0100
+#define OMAP4430_PRM_MPU_MOD		0x0300
+#define OMAP4430_PRM_TESLA_MOD		0x0400
+#define OMAP4430_PRM_ABE_MOD		0x0500
+#define OMAP4430_PRM_ALWAYS_ON_MOD	0x0600
+#define OMAP4430_PRM_CORE_MOD		0x0700
+#define OMAP4430_PRM_IVAHD_MOD		0x0f00
+#define OMAP4430_PRM_CAM_MOD		0x1000
+#define OMAP4430_PRM_DSS_MOD		0x1100
+#define OMAP4430_PRM_GFX_MOD		0x1200
+#define OMAP4430_PRM_L3INIT_MOD		0x1300
+#define OMAP4430_PRM_L4PER_MOD		0x1400
+#define OMAP4430_PRM_CEFUSE_MOD		0x1600
+#define OMAP4430_PRM_WKUP_MOD		0x1700
+#define OMAP4430_PRM_WKUP_CM_MOD	0x1800
+#define OMAP4430_PRM_EMU_MOD		0x1900
+#define OMAP4430_PRM_EMU_CM_MOD		0x1a00
+#define OMAP4430_PRM_DEVICE_MOD		0x1b00
+#define OMAP4430_PRM_INSTR_MOD		0x1f00
+
+
+/* OMAP4 specific register offsets */
+#define OMAP4_RM_RSTCTRL				0x0000
+#define OMAP4_RM_RSTTIME				0x0004
+#define OMAP4_RM_RSTST					0x0008
+#define OMAP4_PM_PWSTCTRL				0x0000
+#define OMAP4_PM_PWSTST					0x0004
 
 
 /* PRM */
@@ -699,54 +740,22 @@
 #define OMAP4_PRM_VC_ERRST_OFFSET			0x00f8
 #define OMAP4430_PRM_VC_ERRST				OMAP44XX_PRM_REGADDR(OMAP4430_PRM_DEVICE_MOD, 0x00f8)
 
-/*
- * PRCM_MPU
- *
- * The PRCM_MPU is a local PRCM inside the MPU subsystem. For the PRCM (global)
- * point of view the PRCM_MPU is a single entity. It shares the same
- * programming model as the global PRCM and thus can be assimilate as two new
- * MOD inside the PRCM
- */
+/* Function prototypes */
+# ifndef __ASSEMBLER__
 
-/* PRCM_MPU.OCP_SOCKET_PRCM register offsets */
-#define OMAP4_REVISION_PRCM_OFFSET			0x0000
-#define OMAP4430_REVISION_PRCM				OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_OCP_SOCKET_PRCM_MOD, 0x0000)
+extern u32 omap4_prm_read_mod_reg(s16 module, u16 idx);
+extern void omap4_prm_write_mod_reg(u32 val, s16 module, u16 idx);
+extern u32 omap4_prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx);
+extern u32 omap4_prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask);
+extern u32 omap4_prm_read_bits_shift(void __iomem *reg, u32 mask);
+extern u32 omap4_prm_rmw_reg_bits(u32 mask, u32 bits, void __iomem *reg);
+extern u32 omap4_prm_set_mod_reg_bits(u32 bits, s16 module, s16 idx);
+extern u32 omap4_prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx);
 
-/* PRCM_MPU.DEVICE_PRM register offsets */
-#define OMAP4_PRCM_MPU_PRM_RSTST_OFFSET			0x0000
-#define OMAP4430_PRCM_MPU_PRM_RSTST			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_DEVICE_PRM_MOD, 0x0000)
-#define OMAP4_PRCM_MPU_PRM_PSCON_COUNT_OFFSET		0x0004
-#define OMAP4430_PRCM_MPU_PRM_PSCON_COUNT		OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_DEVICE_PRM_MOD, 0x0004)
+extern int omap4_prm_is_hardreset_asserted(void __iomem *rstctrl_reg, u8 shift);
+extern int omap4_prm_assert_hardreset(void __iomem *rstctrl_reg, u8 shift);
+extern int omap4_prm_deassert_hardreset(void __iomem *rstctrl_reg, u8 shift);
 
-/* PRCM_MPU.CPU0 register offsets */
-#define OMAP4_PM_CPU0_PWRSTCTRL_OFFSET			0x0000
-#define OMAP4430_PM_CPU0_PWRSTCTRL			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU0_MOD, 0x0000)
-#define OMAP4_PM_CPU0_PWRSTST_OFFSET			0x0004
-#define OMAP4430_PM_CPU0_PWRSTST			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU0_MOD, 0x0004)
-#define OMAP4_RM_CPU0_CPU0_CONTEXT_OFFSET		0x0008
-#define OMAP4430_RM_CPU0_CPU0_CONTEXT			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU0_MOD, 0x0008)
-#define OMAP4_RM_CPU0_CPU0_RSTCTRL_OFFSET		0x000c
-#define OMAP4430_RM_CPU0_CPU0_RSTCTRL			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU0_MOD, 0x000c)
-#define OMAP4_RM_CPU0_CPU0_RSTST_OFFSET			0x0010
-#define OMAP4430_RM_CPU0_CPU0_RSTST			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU0_MOD, 0x0010)
-#define OMAP4_CM_CPU0_CPU0_CLKCTRL_OFFSET		0x0014
-#define OMAP4430_CM_CPU0_CPU0_CLKCTRL			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU0_MOD, 0x0014)
-#define OMAP4_CM_CPU0_CLKSTCTRL_OFFSET			0x0018
-#define OMAP4430_CM_CPU0_CLKSTCTRL			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU0_MOD, 0x0018)
+# endif
 
-/* PRCM_MPU.CPU1 register offsets */
-#define OMAP4_PM_CPU1_PWRSTCTRL_OFFSET			0x0000
-#define OMAP4430_PM_CPU1_PWRSTCTRL			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU1_MOD, 0x0000)
-#define OMAP4_PM_CPU1_PWRSTST_OFFSET			0x0004
-#define OMAP4430_PM_CPU1_PWRSTST			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU1_MOD, 0x0004)
-#define OMAP4_RM_CPU1_CPU1_CONTEXT_OFFSET		0x0008
-#define OMAP4430_RM_CPU1_CPU1_CONTEXT			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU1_MOD, 0x0008)
-#define OMAP4_RM_CPU1_CPU1_RSTCTRL_OFFSET		0x000c
-#define OMAP4430_RM_CPU1_CPU1_RSTCTRL			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU1_MOD, 0x000c)
-#define OMAP4_RM_CPU1_CPU1_RSTST_OFFSET			0x0010
-#define OMAP4430_RM_CPU1_CPU1_RSTST			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU1_MOD, 0x0010)
-#define OMAP4_CM_CPU1_CPU1_CLKCTRL_OFFSET		0x0014
-#define OMAP4430_CM_CPU1_CPU1_CLKCTRL			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU1_MOD, 0x0014)
-#define OMAP4_CM_CPU1_CLKSTCTRL_OFFSET			0x0018
-#define OMAP4430_CM_CPU1_CLKSTCTRL			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU1_MOD, 0x0018)
 #endif

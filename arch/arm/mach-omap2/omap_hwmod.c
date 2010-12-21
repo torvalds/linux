@@ -147,6 +147,7 @@
 
 #include "cm.h"
 #include "prm.h"
+#include "prm44xx.h"
 
 /* Maximum microseconds to wait for OMAP module to softreset */
 #define MAX_MODULE_SOFTRESET_WAIT	10000

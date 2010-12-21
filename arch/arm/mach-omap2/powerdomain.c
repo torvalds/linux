@@ -19,6 +19,7 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include "prm44xx.h"
 
 #include <plat/cpu.h>
 #include <plat/powerdomain.h>

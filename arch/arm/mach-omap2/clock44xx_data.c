@@ -30,9 +30,11 @@
 
 #include "clock.h"
 #include "clock44xx.h"
-#include "cm.h"
+#include "cm1_44xx.h"
+#include "cm2_44xx.h"
 #include "cm-regbits-44xx.h"
 #include "prm.h"
+#include "prm44xx.h"
 #include "prm-regbits-44xx.h"
 #include "control.h"
 

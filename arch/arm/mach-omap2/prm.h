@@ -22,12 +22,6 @@
 		OMAP2_L4_IO_ADDRESS(OMAP2430_PRM_BASE + (module) + (reg))
 #define OMAP34XX_PRM_REGADDR(module, reg)				\
 		OMAP2_L4_IO_ADDRESS(OMAP3430_PRM_BASE + (module) + (reg))
-#define OMAP44XX_PRM_REGADDR(module, reg)				\
-		OMAP2_L4_IO_ADDRESS(OMAP4430_PRM_BASE + (module) + (reg))
-#define OMAP44XX_PRCM_MPU_REGADDR(module, reg)				\
-		OMAP2_L4_IO_ADDRESS(OMAP4430_PRCM_MPU_BASE + (module) + (reg))
-
-#include "prm44xx.h"
 
 /*
  * Architecture-specific global PRM registers
@@ -220,13 +214,6 @@
 #define OMAP3430_PRM_IRQSTATUS_IVA2			0x00f8
 #define OMAP3430_PRM_IRQENABLE_IVA2			0x00fc
 
-/* Omap4 specific registers */
-#define OMAP4_RM_RSTCTRL				0x0000
-#define OMAP4_RM_RSTTIME				0x0004
-#define OMAP4_RM_RSTST					0x0008
-#define OMAP4_PM_PWSTCTRL				0x0000
-#define OMAP4_PM_PWSTST					0x0004
-
 
 #ifndef __ASSEMBLER__
 
@@ -250,10 +237,6 @@ static inline u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 int omap2_prm_is_hardreset_asserted(s16 prm_mod, u8 shift);
 int omap2_prm_assert_hardreset(s16 prm_mod, u8 shift);
 int omap2_prm_deassert_hardreset(s16 prm_mod, u8 shift);
-
-int omap4_prm_is_hardreset_asserted(void __iomem *rstctrl_reg, u8 shift);
-int omap4_prm_assert_hardreset(void __iomem *rstctrl_reg, u8 shift);
-int omap4_prm_deassert_hardreset(void __iomem *rstctrl_reg, u8 shift);
 
 #endif
 
