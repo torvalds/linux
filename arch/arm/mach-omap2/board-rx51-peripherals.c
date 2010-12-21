@@ -23,7 +23,6 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/mmc/host.h>
-#include <sound/tlv320aic3x.h>
 
 #include <plat/mcspi.h>
 #include <plat/board.h>
