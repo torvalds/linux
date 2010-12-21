@@ -56,15 +56,22 @@ static struct cs5535_gpio_chip {
  * registers, see include/linux/cs5535.h.
  */
 
-static void errata_outl(u32 val, unsigned long addr)
+static void errata_outl(struct cs5535_gpio_chip *chip, u32 val,
+		unsigned int reg)
 {
+	unsigned long addr = chip->base + 0x80 + reg;
+
 	/*
 	 * According to the CS5536 errata (#36), after suspend
 	 * a write to the high bank GPIO register will clear all
 	 * non-selected bits; the recommended workaround is a
 	 * read-modify-write operation.
+	 *
+	 * Don't apply this errata to the edge status GPIOs, as writing
+	 * to their lower bits will clear them.
 	 */
-	val |= inl(addr);
+	if (reg != GPIO_POSITIVE_EDGE_STS && reg != GPIO_NEGATIVE_EDGE_STS)
+		val |= inl(addr);
 	outl(val, addr);
 }
 
@@ -76,7 +83,7 @@ static void __cs5535_gpio_set(struct cs5535_gpio_chip *chip, unsigned offset,
 		outl(1 << offset, chip->base + reg);
 	else
 		/* high bank register */
-		errata_outl(1 << (offset - 16), chip->base + 0x80 + reg);
+		errata_outl(chip, 1 << (offset - 16), reg);
 }
 
 void cs5535_gpio_set(unsigned offset, unsigned int reg)
@@ -98,7 +105,7 @@ static void __cs5535_gpio_clear(struct cs5535_gpio_chip *chip, unsigned offset,
 		outl(1 << (offset + 16), chip->base + reg);
 	else
 		/* high bank register */
-		errata_outl(1 << offset, chip->base + 0x80 + reg);
+		errata_outl(chip, 1 << offset, reg);
 }
 
 void cs5535_gpio_clear(unsigned offset, unsigned int reg)
