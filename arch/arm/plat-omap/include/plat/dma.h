@@ -21,19 +21,15 @@
 #ifndef __ASM_ARCH_DMA_H
 #define __ASM_ARCH_DMA_H
 
+#include <linux/platform_device.h>
+
+/*
+ * TODO: These dma channel defines should go away once all
+ * the omap drivers hwmod adapted.
+ */
+
 /* Move omap4 specific defines to dma-44xx.h */
 #include "dma-44xx.h"
-
-/* Hardware registers for omap1 */
-#define OMAP1_DMA_BASE			(0xfffed800)
-
-/* Hardware registers for omap2 and omap3 */
-#define OMAP24XX_DMA4_BASE		(L4_24XX_BASE + 0x56000)
-#define OMAP34XX_DMA4_BASE		(L4_34XX_BASE + 0x56000)
-#define OMAP44XX_DMA4_BASE		(L4_44XX_BASE + 0x56000)
-
-#define OMAP1_LOGICAL_DMA_CH_COUNT	17
-#define OMAP_DMA4_LOGICAL_DMA_CH_COUNT	32	/* REVISIT: Is this 32 + 2? */
 
 /* DMA channels for omap1 */
 #define OMAP_DMA_NO_DEVICE		0
@@ -302,6 +298,14 @@
 #define IS_CSSA_32			BIT(0x3)
 #define IS_CDSA_32			BIT(0x4)
 #define IS_RW_PRIORITY			BIT(0x5)
+#define ENABLE_1510_MODE		BIT(0x6)
+#define SRC_PORT			BIT(0x7)
+#define DST_PORT			BIT(0x8)
+#define SRC_INDEX			BIT(0x9)
+#define DST_INDEX			BIT(0xA)
+#define IS_BURST_ONLY4			BIT(0xB)
+#define CLEAR_CSR_ON_READ		BIT(0xC)
+#define IS_WORD_16			BIT(0xD)
 
 enum omap_reg_offsets {
 
@@ -397,9 +401,40 @@ struct omap_dma_channel_params {
 #endif
 };
 
+struct omap_dma_lch {
+	int next_lch;
+	int dev_id;
+	u16 saved_csr;
+	u16 enabled_irqs;
+	const char *dev_name;
+	void (*callback)(int lch, u16 ch_status, void *data);
+	void *data;
+	long flags;
+	/* required for Dynamic chaining */
+	int prev_linked_ch;
+	int next_linked_ch;
+	int state;
+	int chain_id;
+	int status;
+};
+
 struct omap_dma_dev_attr {
 	u32 dev_caps;
 	u16 lch_count;
+	u16 chan_count;
+	struct omap_dma_lch *chan;
+};
+
+/* System DMA platform data structure */
+struct omap_system_dma_plat_info {
+	struct omap_dma_dev_attr *dma_attr;
+	u32 errata;
+	void (*disable_irq_lch)(int lch);
+	void (*show_dma_caps)(void);
+	void (*clear_lch_regs)(int lch);
+	void (*clear_dma)(int lch);
+	void (*dma_write)(u32 val, int reg, int lch);
+	u32 (*dma_read)(int reg, int lch);
 };
 
 extern void omap_set_dma_priority(int lch, int dst_port, int priority);
