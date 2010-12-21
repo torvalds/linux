@@ -66,15 +66,23 @@
 #define PIN_BASED_NMI_EXITING                   0x00000008
 #define PIN_BASED_VIRTUAL_NMIS                  0x00000020
 
+#define VM_EXIT_SAVE_DEBUG_CONTROLS             0x00000002
 #define VM_EXIT_HOST_ADDR_SPACE_SIZE            0x00000200
+#define VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL      0x00001000
 #define VM_EXIT_ACK_INTR_ON_EXIT                0x00008000
 #define VM_EXIT_SAVE_IA32_PAT			0x00040000
 #define VM_EXIT_LOAD_IA32_PAT			0x00080000
+#define VM_EXIT_SAVE_IA32_EFER                  0x00100000
+#define VM_EXIT_LOAD_IA32_EFER                  0x00200000
+#define VM_EXIT_SAVE_VMX_PREEMPTION_TIMER       0x00400000
 
+#define VM_ENTRY_LOAD_DEBUG_CONTROLS            0x00000002
 #define VM_ENTRY_IA32E_MODE                     0x00000200
 #define VM_ENTRY_SMM                            0x00000400
 #define VM_ENTRY_DEACT_DUAL_MONITOR             0x00000800
+#define VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL     0x00002000
 #define VM_ENTRY_LOAD_IA32_PAT			0x00004000
+#define VM_ENTRY_LOAD_IA32_EFER                 0x00008000
 
 /* VMCS Encodings */
 enum vmcs_field {
