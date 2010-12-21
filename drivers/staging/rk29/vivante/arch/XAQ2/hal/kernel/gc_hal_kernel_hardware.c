@@ -124,15 +124,6 @@ _IdentifyHardware(
                                0x00034,
                                ChipMinorFeatures0));
 
-        /* Disable fast clear flush on some specific cores. */
-        if (((*ChipModel == gcv600) && (*ChipRevision == 0x4302))
-/*        ||  ((*ChipModel == gcv530) && (*ChipRevision == 0x4303))
-		||	((*ChipModel == gcv800) && (*ChipRevision == 0x4301)) */
-        )
-        {
-            *ChipMinorFeatures0 = ((((gctUINT32) (*ChipMinorFeatures0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 6:6) - (0 ? 6:6) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 6:6) - (0 ? 6:6) + 1))))))) << (0 ? 6:6))) | (((gctUINT32) (0x0 & ((gctUINT32) ((((1 ? 6:6) - (0 ? 6:6) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 6:6) - (0 ? 6:6) + 1))))))) << (0 ? 6:6)));
-        }
-
         if (((((gctUINT32) (*ChipMinorFeatures0)) >> (0 ? 21:21) & ((gctUINT32) ((((1 ? 21:21) - (0 ? 21:21) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 21:21) - (0 ? 21:21) + 1)))))) == (0x1 & ((gctUINT32) ((((1 ? 21:21) - (0 ? 21:21) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 21:21) - (0 ? 21:21) + 1)))))))
         )
         {

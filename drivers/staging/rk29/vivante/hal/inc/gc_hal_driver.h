@@ -113,6 +113,11 @@ typedef enum _gceHAL_COMMAND_CODES
 
     /* Cache stuff. */
     gcvHAL_CACHE,
+
+#if gcdGPU_TIMEOUT
+    /* Broadcast GPU stuck */
+    gcvHAL_BROADCAST_GPU_STUCK,
+#endif
 }
 gceHAL_COMMAND_CODES;
 

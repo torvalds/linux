@@ -33,6 +33,7 @@
 #if USE_PLATFORM_DRIVER
 #include <linux/platform_device.h>
 #endif
+#include <mach/rk29_iomap.h>
 
 MODULE_DESCRIPTION("Vivante Graphics Driver");
 MODULE_LICENSE("GPL");
@@ -505,6 +506,9 @@ static int drv_init(void)
         return -EAGAIN;
     }
     clk_enable(clk_gpu);
+
+    // enable ram clock gate
+    writel(readl(RK29_GRF_BASE+0xc0) & ~0x100000, RK29_GRF_BASE+0xc0);
 #endif
 
 	if (showArgs)

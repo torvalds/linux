@@ -968,6 +968,15 @@ gckKERNEL_Dispatch(
         }
         break;
 
+#if gcdGPU_TIMEOUT
+    case gcvHAL_BROADCAST_GPU_STUCK:
+        /* Broadcast GPU stuck */
+        status = gckOS_Broadcast(Kernel->os,
+                                 Kernel->hardware,
+                                 gcvBROADCAST_GPU_STUCK);
+        break;
+#endif
+
     default:
         /* Invalid command. */
         gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
