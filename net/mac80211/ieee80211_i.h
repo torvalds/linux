@@ -631,6 +631,7 @@ enum queue_stop_reason {
 	IEEE80211_QUEUE_STOP_REASON_SKB_ADD,
 };
 
+#ifdef CONFIG_MAC80211_LEDS
 struct tpt_led_trigger {
 	struct led_trigger trig;
 	char name[32];
@@ -642,6 +643,7 @@ struct tpt_led_trigger {
 	unsigned int active, want;
 	bool running;
 };
+#endif
 
 /**
  * mac80211 scan flags - currently active scan mode
