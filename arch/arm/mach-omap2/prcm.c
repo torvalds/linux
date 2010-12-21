@@ -146,7 +146,7 @@ void omap_prcm_arch_reset(char mode, const char *cmd)
 		prcm_offs = OMAP3430_GR_MOD;
 		omap3_ctrl_write_boot_mode((cmd ? (u8)*cmd : 0));
 	} else if (cpu_is_omap44xx())
-		prcm_offs = OMAP4430_PRM_DEVICE_MOD;
+		prcm_offs = OMAP4430_PRM_DEVICE_INST;
 	else
 		WARN_ON(1);
 
