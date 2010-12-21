@@ -17,6 +17,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/err.h>
@@ -46,6 +47,10 @@ static LIST_HEAD(regulator_list);
 static LIST_HEAD(regulator_map_list);
 static bool has_full_constraints;
 static bool board_wants_dummy_regulator;
+
+#ifdef CONFIG_DEBUG_FS
+static struct dentry *debugfs_root;
+#endif
 
 /*
  * struct regulator_map
@@ -2404,6 +2409,23 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
 	return status;
 }
 
+static void rdev_init_debugfs(struct regulator_dev *rdev)
+{
+#ifdef CONFIG_DEBUG_FS
+	rdev->debugfs = debugfs_create_dir(rdev_get_name(rdev), debugfs_root);
+	if (IS_ERR(rdev->debugfs) || !rdev->debugfs) {
+		rdev_warn(rdev, "Failed to create debugfs directory\n");
+		rdev->debugfs = NULL;
+		return;
+	}
+
+	debugfs_create_u32("use_count", 0444, rdev->debugfs,
+			   &rdev->use_count);
+	debugfs_create_u32("open_count", 0444, rdev->debugfs,
+			   &rdev->open_count);
+#endif
+}
+
 /**
  * regulator_register - register regulator
  * @regulator_desc: regulator to register
@@ -2548,6 +2570,8 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	}
 
 	list_add(&rdev->list, &regulator_list);
+
+	rdev_init_debugfs(rdev);
 out:
 	mutex_unlock(&regulator_list_mutex);
 	return rdev;
@@ -2580,6 +2604,9 @@ void regulator_unregister(struct regulator_dev *rdev)
 		return;
 
 	mutex_lock(&regulator_list_mutex);
+#ifdef CONFIG_DEBUG_FS
+	debugfs_remove_recursive(rdev->debugfs);
+#endif
 	WARN_ON(rdev->open_count);
 	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
@@ -2722,6 +2749,14 @@ static int __init regulator_init(void)
 	int ret;
 
 	ret = class_register(&regulator_class);
+
+#ifdef CONFIG_DEBUG_FS
+	debugfs_root = debugfs_create_dir("regulator", NULL);
+	if (IS_ERR(debugfs_root) || !debugfs_root) {
+		pr_warn("regulator: Failed to create debugfs directory\n");
+		debugfs_root = NULL;
+	}
+#endif
 
 	regulator_dummy_init();
 
