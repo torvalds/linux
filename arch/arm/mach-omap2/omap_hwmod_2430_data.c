@@ -480,8 +480,6 @@ static struct omap_hwmod_class i2c_class = {
 	.sysc		= &i2c_sysc,
 };
 
-static struct omap_i2c_dev_attr i2c_dev_attr;
-
 /* I2C1 */
 
 static struct omap_i2c_dev_attr i2c1_dev_attr = {
