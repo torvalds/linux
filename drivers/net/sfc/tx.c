@@ -30,50 +30,6 @@
  */
 #define EFX_TXQ_THRESHOLD(_efx) ((_efx)->txq_entries / 2u)
 
-/* We need to be able to nest calls to netif_tx_stop_queue(), partly
- * because of the 2 hardware queues associated with each core queue,
- * but also so that we can inhibit TX for reasons other than a full
- * hardware queue. */
-void efx_stop_queue(struct efx_channel *channel)
-{
-	struct efx_nic *efx = channel->efx;
-	struct efx_tx_queue *tx_queue = efx_channel_get_tx_queue(channel, 0);
-
-	if (!tx_queue)
-		return;
-
-	spin_lock_bh(&channel->tx_stop_lock);
-	netif_vdbg(efx, tx_queued, efx->net_dev, "stop TX queue\n");
-
-	atomic_inc(&channel->tx_stop_count);
-	netif_tx_stop_queue(
-		netdev_get_tx_queue(efx->net_dev,
-				    tx_queue->queue / EFX_TXQ_TYPES));
-
-	spin_unlock_bh(&channel->tx_stop_lock);
-}
-
-/* Decrement core TX queue stop count and wake it if the count is 0 */
-void efx_wake_queue(struct efx_channel *channel)
-{
-	struct efx_nic *efx = channel->efx;
-	struct efx_tx_queue *tx_queue = efx_channel_get_tx_queue(channel, 0);
-
-	if (!tx_queue)
-		return;
-
-	local_bh_disable();
-	if (atomic_dec_and_lock(&channel->tx_stop_count,
-				&channel->tx_stop_lock)) {
-		netif_vdbg(efx, tx_queued, efx->net_dev, "waking TX queue\n");
-		netif_tx_wake_queue(
-			netdev_get_tx_queue(efx->net_dev,
-					    tx_queue->queue / EFX_TXQ_TYPES));
-		spin_unlock(&channel->tx_stop_lock);
-	}
-	local_bh_enable();
-}
-
 static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 			       struct efx_tx_buffer *buffer)
 {
@@ -234,9 +190,9 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 				 * checked.  Update the xmit path's
 				 * copy of read_count.
 				 */
-				++tx_queue->stopped;
+				netif_tx_stop_queue(tx_queue->core_txq);
 				/* This memory barrier protects the
-				 * change of stopped from the access
+				 * change of queue state from the access
 				 * of read_count. */
 				smp_mb();
 				tx_queue->old_read_count =
@@ -244,10 +200,12 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 				fill_level = (tx_queue->insert_count
 					      - tx_queue->old_read_count);
 				q_space = efx->txq_entries - 1 - fill_level;
-				if (unlikely(q_space-- <= 0))
-					goto stop;
+				if (unlikely(q_space-- <= 0)) {
+					rc = NETDEV_TX_BUSY;
+					goto unwind;
+				}
 				smp_mb();
-				--tx_queue->stopped;
+				netif_tx_start_queue(tx_queue->core_txq);
 			}
 
 			insert_ptr = tx_queue->insert_count & tx_queue->ptr_mask;
@@ -307,13 +265,6 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 
 	/* Mark the packet as transmitted, and free the SKB ourselves */
 	dev_kfree_skb_any(skb);
-	goto unwind;
-
- stop:
-	rc = NETDEV_TX_BUSY;
-
-	if (tx_queue->stopped == 1)
-		efx_stop_queue(tx_queue->channel);
 
  unwind:
 	/* Work backwards until we hit the original insert pointer value */
@@ -400,32 +351,21 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 {
 	unsigned fill_level;
 	struct efx_nic *efx = tx_queue->efx;
-	struct netdev_queue *queue;
 
 	EFX_BUG_ON_PARANOID(index > tx_queue->ptr_mask);
 
 	efx_dequeue_buffers(tx_queue, index);
 
 	/* See if we need to restart the netif queue.  This barrier
-	 * separates the update of read_count from the test of
-	 * stopped. */
+	 * separates the update of read_count from the test of the
+	 * queue state. */
 	smp_mb();
-	if (unlikely(tx_queue->stopped) && likely(efx->port_enabled)) {
+	if (unlikely(netif_tx_queue_stopped(tx_queue->core_txq)) &&
+	    likely(efx->port_enabled)) {
 		fill_level = tx_queue->insert_count - tx_queue->read_count;
 		if (fill_level < EFX_TXQ_THRESHOLD(efx)) {
 			EFX_BUG_ON_PARANOID(!efx_dev_registered(efx));
-
-			/* Do this under netif_tx_lock(), to avoid racing
-			 * with efx_xmit(). */
-			queue = netdev_get_tx_queue(
-				efx->net_dev,
-				tx_queue->queue / EFX_TXQ_TYPES);
-			__netif_tx_lock(queue, smp_processor_id());
-			if (tx_queue->stopped) {
-				tx_queue->stopped = 0;
-				efx_wake_queue(tx_queue->channel);
-			}
-			__netif_tx_unlock(queue);
+			netif_tx_wake_queue(tx_queue->core_txq);
 		}
 	}
 
@@ -487,7 +427,6 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 	tx_queue->read_count = 0;
 	tx_queue->old_read_count = 0;
 	tx_queue->empty_read_count = 0 | EFX_EMPTY_COUNT_VALID;
-	BUG_ON(tx_queue->stopped);
 
 	/* Set up TX descriptor ring */
 	efx_nic_init_tx(tx_queue);
@@ -523,12 +462,6 @@ void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 
 	/* Free up TSO header cache */
 	efx_fini_tso(tx_queue);
-
-	/* Release queue's stop on port, if any */
-	if (tx_queue->stopped) {
-		tx_queue->stopped = 0;
-		efx_wake_queue(tx_queue->channel);
-	}
 }
 
 void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
@@ -770,9 +703,9 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 			 * since the xmit path last checked.  Update
 			 * the xmit path's copy of read_count.
 			 */
-			++tx_queue->stopped;
+			netif_tx_stop_queue(tx_queue->core_txq);
 			/* This memory barrier protects the change of
-			 * stopped from the access of read_count. */
+			 * queue state from the access of read_count. */
 			smp_mb();
 			tx_queue->old_read_count =
 				ACCESS_ONCE(tx_queue->read_count);
@@ -784,7 +717,7 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
 				return 1;
 			}
 			smp_mb();
-			--tx_queue->stopped;
+			netif_tx_start_queue(tx_queue->core_txq);
 		}
 
 		insert_ptr = tx_queue->insert_count & tx_queue->ptr_mask;
@@ -1124,8 +1057,10 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 
 	while (1) {
 		rc = tso_fill_packet_with_fragment(tx_queue, skb, &state);
-		if (unlikely(rc))
-			goto stop;
+		if (unlikely(rc)) {
+			rc2 = NETDEV_TX_BUSY;
+			goto unwind;
+		}
 
 		/* Move onto the next fragment? */
 		if (state.in_len == 0) {
@@ -1154,14 +1089,6 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 	netif_err(efx, tx_err, efx->net_dev,
 		  "Out of memory for TSO headers, or PCI mapping error\n");
 	dev_kfree_skb_any(skb);
-	goto unwind;
-
- stop:
-	rc2 = NETDEV_TX_BUSY;
-
-	/* Stop the queue if it wasn't stopped before. */
-	if (tx_queue->stopped == 1)
-		efx_stop_queue(tx_queue->channel);
 
  unwind:
 	/* Free the DMA mapping we were in the process of writing out */

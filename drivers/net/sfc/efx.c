@@ -461,9 +461,6 @@ efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
 		}
 	}
 
-	spin_lock_init(&channel->tx_stop_lock);
-	atomic_set(&channel->tx_stop_count, 1);
-
 	rx_queue = &channel->rx_queue;
 	rx_queue->efx = efx;
 	setup_timer(&rx_queue->slow_fill, efx_rx_slow_fill,
@@ -1406,11 +1403,11 @@ static void efx_start_all(struct efx_nic *efx)
 	 * restart the transmit interface early so the watchdog timer stops */
 	efx_start_port(efx);
 
-	efx_for_each_channel(channel, efx) {
-		if (efx_dev_registered(efx))
-			efx_wake_queue(channel);
+	if (efx_dev_registered(efx))
+		netif_tx_wake_all_queues(efx->net_dev);
+
+	efx_for_each_channel(channel, efx)
 		efx_start_channel(channel);
-	}
 
 	if (efx->legacy_irq)
 		efx->legacy_irq_enabled = true;
@@ -1498,9 +1495,7 @@ static void efx_stop_all(struct efx_nic *efx)
 	/* Stop the kernel transmit interface late, so the watchdog
 	 * timer isn't ticking over the flush */
 	if (efx_dev_registered(efx)) {
-		struct efx_channel *channel;
-		efx_for_each_channel(channel, efx)
-			efx_stop_queue(channel);
+		netif_tx_stop_all_queues(efx->net_dev);
 		netif_tx_lock_bh(efx->net_dev);
 		netif_tx_unlock_bh(efx->net_dev);
 	}
@@ -1896,6 +1891,7 @@ static DEVICE_ATTR(phy_type, 0644, show_phy_type, NULL);
 static int efx_register_netdev(struct efx_nic *efx)
 {
 	struct net_device *net_dev = efx->net_dev;
+	struct efx_channel *channel;
 	int rc;
 
 	net_dev->watchdog_timeo = 5 * HZ;
@@ -1917,6 +1913,14 @@ static int efx_register_netdev(struct efx_nic *efx)
 	rc = register_netdevice(net_dev);
 	if (rc)
 		goto fail_locked;
+
+	efx_for_each_channel(channel, efx) {
+		struct efx_tx_queue *tx_queue;
+		efx_for_each_channel_tx_queue(tx_queue, channel) {
+			tx_queue->core_txq = netdev_get_tx_queue(
+				efx->net_dev, tx_queue->queue / EFX_TXQ_TYPES);
+		}
+	}
 
 	/* Always start with carrier off; PHY events will detect the link */
 	netif_carrier_off(efx->net_dev);
