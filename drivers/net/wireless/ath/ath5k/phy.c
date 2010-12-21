@@ -1355,20 +1355,7 @@ void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 		return;
 	}
 
-	switch (ah->ah_current_channel->hw_value & CHANNEL_MODES) {
-	case CHANNEL_A:
-	case CHANNEL_XR:
-		ee_mode = AR5K_EEPROM_MODE_11A;
-		break;
-	case CHANNEL_G:
-		ee_mode = AR5K_EEPROM_MODE_11G;
-		break;
-	default:
-	case CHANNEL_B:
-		ee_mode = AR5K_EEPROM_MODE_11B;
-		break;
-	}
-
+	ee_mode = ath5k_eeprom_mode_from_channel(ah->ah_current_channel);
 
 	/* completed NF calibration, test threshold */
 	nf = ath5k_hw_read_measured_noise_floor(ah);
@@ -1941,18 +1928,8 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 
 	def_ant = ah->ah_def_ant;
 
-	switch (channel->hw_value & CHANNEL_MODES) {
-	case CHANNEL_A:
-	case CHANNEL_XR:
-		ee_mode = AR5K_EEPROM_MODE_11A;
-		break;
-	case CHANNEL_G:
-		ee_mode = AR5K_EEPROM_MODE_11G;
-		break;
-	case CHANNEL_B:
-		ee_mode = AR5K_EEPROM_MODE_11B;
-		break;
-	default:
+	ee_mode = ath5k_eeprom_mode_from_channel(channel);
+	if (ee_mode < 0) {
 		ATH5K_ERR(ah->ah_sc,
 			"invalid channel: %d\n", channel->center_freq);
 		return;
@@ -3100,15 +3077,22 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
  */
 static int
 ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
-		u8 ee_mode, u8 txpower)
+		 u8 txpower)
 {
 	struct ath5k_rate_pcal_info rate_info;
 	struct ieee80211_channel *curr_channel = ah->ah_current_channel;
-	u8 type;
+	u8 type, ee_mode;
 	int ret;
 
 	if (txpower > AR5K_TUNE_MAX_TXPOWER) {
 		ATH5K_ERR(ah->ah_sc, "invalid tx power: %u\n", txpower);
+		return -EINVAL;
+	}
+
+	ee_mode = ath5k_eeprom_mode_from_channel(channel);
+	if (ee_mode < 0) {
+		ATH5K_ERR(ah->ah_sc,
+			"invalid channel: %d\n", channel->center_freq);
 		return -EINVAL;
 	}
 
@@ -3208,31 +3192,10 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 
 int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 {
-	/*Just a try M.F.*/
-	struct ieee80211_channel *channel = ah->ah_current_channel;
-	u8 ee_mode;
-
-	switch (channel->hw_value & CHANNEL_MODES) {
-	case CHANNEL_A:
-	case CHANNEL_XR:
-		ee_mode = AR5K_EEPROM_MODE_11A;
-		break;
-	case CHANNEL_G:
-		ee_mode = AR5K_EEPROM_MODE_11G;
-		break;
-	case CHANNEL_B:
-		ee_mode = AR5K_EEPROM_MODE_11B;
-		break;
-	default:
-		ATH5K_ERR(ah->ah_sc,
-			"invalid channel: %d\n", channel->center_freq);
-		return -EINVAL;
-	}
-
 	ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_TXPOWER,
 		"changing txpower to %d\n", txpower);
 
-	return ath5k_hw_txpower(ah, channel, ee_mode, txpower);
+	return ath5k_hw_txpower(ah, ah->ah_current_channel, txpower);
 }
 
 /*************\
@@ -3240,7 +3203,7 @@ int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 \*************/
 
 int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
-				u8 mode, u8 ee_mode, bool fast)
+		      u8 mode, bool fast)
 {
 	struct ieee80211_channel *curr_channel;
 	int ret, i;
@@ -3281,8 +3244,7 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	 * RF buffer settings on 5211/5212+ so that we
 	 * properly set curve indices.
 	 */
-	ret = ath5k_hw_txpower(ah, channel, ee_mode,
-		ah->ah_txpower.txp_cur_pwr ?
+	ret = ath5k_hw_txpower(ah, channel, ah->ah_txpower.txp_cur_pwr ?
 			ah->ah_txpower.txp_cur_pwr / 2 : AR5K_TUNE_MAX_TXPOWER);
 	if (ret)
 		return ret;

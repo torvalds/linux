@@ -1318,7 +1318,7 @@ void ath5k_hw_set_antenna_switch(struct ath5k_hw *ah, u8 ee_mode);
 int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower);
 /* Init function */
 int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
-				u8 mode, u8 ee_mode, bool fast);
+				u8 mode, bool fast);
 
 /*
  * Functions used internaly

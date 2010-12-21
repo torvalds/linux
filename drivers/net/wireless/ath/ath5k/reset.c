@@ -866,14 +866,17 @@ static void ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 }
 
 static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
-		struct ieee80211_channel *channel, u8 ee_mode)
+		struct ieee80211_channel *channel)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	s16 cck_ofdm_pwr_delta;
+	u8 ee_mode;
 
 	/* TODO: Add support for AR5210 EEPROM */
 	if (ah->ah_version == AR5K_AR5210)
 		return;
+
+	ee_mode = ath5k_eeprom_mode_from_channel(channel);
 
 	/* Adjust power delta for channel 14 */
 	if (channel->center_freq == 2484)
@@ -1020,10 +1023,9 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		struct ieee80211_channel *channel, bool fast, bool skip_pcu)
 {
 	u32 s_seq[10], s_led[3], tsf_up, tsf_lo;
-	u8 mode, ee_mode;
+	u8 mode;
 	int i, ret;
 
-	ee_mode = 0;
 	tsf_up = 0;
 	tsf_lo = 0;
 	mode = 0;
@@ -1070,7 +1072,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	switch (channel->hw_value & CHANNEL_MODES) {
 	case CHANNEL_A:
 		mode = AR5K_MODE_11A;
-		ee_mode = AR5K_EEPROM_MODE_11A;
 		break;
 	case CHANNEL_G:
 
@@ -1081,7 +1082,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		}
 
 		mode = AR5K_MODE_11G;
-		ee_mode = AR5K_EEPROM_MODE_11G;
 		break;
 	case CHANNEL_B:
 
@@ -1092,7 +1092,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		}
 
 		mode = AR5K_MODE_11B;
-		ee_mode = AR5K_EEPROM_MODE_11B;
 		break;
 	case CHANNEL_XR:
 		if (ah->ah_version == AR5K_AR5211) {
@@ -1101,7 +1100,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 			return -EINVAL;
 		}
 		mode = AR5K_MODE_XR;
-		ee_mode = AR5K_EEPROM_MODE_11A;
 		break;
 	default:
 		ATH5K_ERR(ah->ah_sc,
@@ -1114,8 +1112,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 * go on. If it fails continue with a normal reset.
 	 */
 	if (fast) {
-		ret = ath5k_hw_phy_init(ah, channel, mode,
-					ee_mode, true);
+		ret = ath5k_hw_phy_init(ah, channel, mode, true);
 		if (ret) {
 			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_RESET,
 				"fast chan change failed, falling back to normal reset\n");
@@ -1212,7 +1209,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	ath5k_hw_tweak_initval_settings(ah, channel);
 
 	/* Commit values from EEPROM */
-	ath5k_hw_commit_eeprom_settings(ah, channel, ee_mode);
+	ath5k_hw_commit_eeprom_settings(ah, channel);
 
 
 	/*
@@ -1251,7 +1248,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	/*
 	 * Initialize PHY
 	 */
-	ret = ath5k_hw_phy_init(ah, channel, mode, ee_mode, false);
+	ret = ath5k_hw_phy_init(ah, channel, mode, false);
 	if (ret) {
 		ATH5K_ERR(ah->ah_sc,
 			"failed to initialize PHY (%i) !\n", ret);
