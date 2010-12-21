@@ -1540,30 +1540,29 @@ int rk28_usb_suspend( int exitsuspend )
 {
 	dwc_otg_pcd_t *pcd = s_pcd;
 
-        unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
-//        unsigned int * usb_core_ctrl_reg = (unsigned int*)(USB_OTG_BASE_ADDR_VA);
-        if(exitsuspend && (pcd->phy_suspend == 1)) {
-                pcd->phy_suspend = 0;
-                *otg_phy_con1 |= (0x01<<2);
-                *otg_phy_con1 |= (0x01<<3);    // exit suspend.
-                *otg_phy_con1 &= ~(0x01<<2);
-                
-                /* 20091011,reenable usb phy ,will raise reset intr */
-                //debug_print("enable usb phy\n");
-                DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
-        }
-        if( !exitsuspend && (pcd->phy_suspend == 0)) {
-                if(1) {//!__rkusb_debug_mod()
-                        pcd->phy_suspend = 1;
-                        *otg_phy_con1 |= (0x01<<2);
-                        *otg_phy_con1 &= ~(0x01<<3);    // enter suspend.
-                        //*otg_phy_con1 &= ~(0x01<<2);
-                        //debug_print("disable usb phy\n");
-                }
-                DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
-        }
+    unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
+    if(exitsuspend && (pcd->phy_suspend == 1)) {
+        clk_enable(pcd->otg_dev->clk);
+        pcd->phy_suspend = 0;
+        *otg_phy_con1 |= (0x01<<2);
+        *otg_phy_con1 |= (0x01<<3);    // exit suspend.
+        *otg_phy_con1 &= ~(0x01<<2);
         
-        return pcd->phy_suspend;
+        /* 20091011,reenable usb phy ,will raise reset intr */
+        //debug_print("enable usb phy\n");
+        DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
+    }
+    if( !exitsuspend && (pcd->phy_suspend == 0)) {
+        pcd->phy_suspend = 1;
+        *otg_phy_con1 |= (0x01<<2);
+        *otg_phy_con1 &= ~(0x01<<3);    // enter suspend.
+        clk_disable(pcd->otg_dev->clk);
+        //*otg_phy_con1 &= ~(0x01<<2);
+        //debug_print("disable usb phy\n");
+        DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
+    }
+    
+    return pcd->phy_suspend;
 }
 void rk28_usb_force_resume( void )
 {
@@ -1607,28 +1606,27 @@ void dwc_otg_msc_unlock(void)
 }
 static void dwc_phy_reconnect(struct work_struct *work)
 {
-        dwc_otg_pcd_t *pcd;
-        dwc_otg_core_if_t *core_if;
-        gotgctl_data_t    gctrl;
-        dctl_data_t dctl = {.d32=0};
+    dwc_otg_pcd_t *pcd;
+    dwc_otg_core_if_t *core_if;
+    gotgctl_data_t    gctrl;
+    dctl_data_t dctl = {.d32=0};
 
-        pcd = container_of(work, dwc_otg_pcd_t, reconnect.work);
-        core_if = GET_CORE_IF(pcd); 
-        gctrl.d32 = dwc_read_reg32( &core_if->core_global_regs->gotgctl );
-        if( gctrl.b.bsesvld  ) {
-            dwc_otg_msc_lock();
-//            pcd->vbus_status = 1;    /* set after softconnect */
-            pcd->conn_status++;
-		   dwc_pcd_reset(pcd);
-		/*
-		 * Enable the global interrupt after all the interrupt
-		 * handlers are installed.
-		 */
+    pcd = container_of(work, dwc_otg_pcd_t, reconnect.work);
+    core_if = GET_CORE_IF(pcd); 
+    gctrl.d32 = dwc_read_reg32( &core_if->core_global_regs->gotgctl );
+    if( gctrl.b.bsesvld  ) {
+        dwc_otg_msc_lock();
+        pcd->conn_status++;
+	    dwc_pcd_reset(pcd);
+    	/*
+    	 * Enable the global interrupt after all the interrupt
+    	 * handlers are installed.
+    	 */
         dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
         dctl.b.sftdiscon = 0;
         dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );	   
         DWC_PRINT("********soft connect!!!*****************************************\n");
-        } 
+    } 
 }
 
 static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
@@ -1645,66 +1643,65 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
 
     _pcd->check_vbus_timer.expires = jiffies + (HZ); /* 1 s */
     if( gctrl.b.bsesvld ) {
-            /* if usb not connect before ,then start connect */
-             if( _pcd->vbus_status == 0 ) {
-                    DWC_PRINT("********vbus detect*********************************************\n");
-//		    _pcd->conn_status =
-		    _pcd->vbus_status = 1;
-                    /* soft disconnect */
-			        dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
-			        dctl.b.sftdiscon = 1;
-			        dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
-                    /* Clear any pending interrupts */
-                    dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF); 
-                    if(_pcd->conn_en)
-		    {
-		    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
-   		     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
-		    }
-
-            } else if((_pcd->conn_status>0)&&(_pcd->conn_status <3)) {
-                    dwc_otg_msc_unlock();
-                    DWC_PRINT("********soft reconnect******************************************\n");
-                    _pcd->vbus_status =0;
-                    
-                    /* soft disconnect */
-			        dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
-			        dctl.b.sftdiscon = 1;
-			        dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
-                    /* Clear any pending interrupts */
-                    dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF); 
-            }
-	    else if((_pcd->conn_en)&&(_pcd->conn_status == 0))
+        /* if usb not connect before ,then start connect */
+         if( _pcd->vbus_status == 0 ) {
+            DWC_PRINT("********vbus detect*********************************************\n");
+	    _pcd->vbus_status = 1;
+        /* soft disconnect */
+        dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
+        dctl.b.sftdiscon = 1;
+        dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+        /* Clear any pending interrupts */
+        dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF); 
+        if(_pcd->conn_en)
 	    {
-		
-		    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
-   		     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
+    	    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
+		     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
 	    }
-            else if(_pcd->conn_status ==3)
-            {
-					//*连接不上时释放锁，允许系统进入二级睡眠，yk@rk,20100331*//
-                    dwc_otg_msc_unlock();
-                    _pcd->conn_status++;
-            }
+
+        } else if((_pcd->conn_status>0)&&(_pcd->conn_status <3)) {
+            dwc_otg_msc_unlock();
+            DWC_PRINT("********soft reconnect******************************************\n");
+            _pcd->vbus_status =0;
+            
+            /* soft disconnect */
+	        dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
+	        dctl.b.sftdiscon = 1;
+	        dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+            /* Clear any pending interrupts */
+            dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF); 
+        }
+        else if((_pcd->conn_en)&&(_pcd->conn_status == 0))
+        {
+    	
+    	    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
+		     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
+        }
+        else if(_pcd->conn_status ==3)
+        {
+			//*连接不上时释放锁，允许系统进入二级睡眠，yk@rk,20100331*//
+            dwc_otg_msc_unlock();
+            _pcd->conn_status++;
+        }
     } else {
-            //DWC_PRINT("new vbus=%d,old vbus=%d\n" , gctrl.b.bsesvld , _pcd->vbus_status );
-            _pcd->vbus_status = 0;
-            if(_pcd->conn_status)
-            {
-                 _pcd->conn_status = 0;
-                 dwc_otg_msc_unlock();
-            }
-            /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
-            if( _pcd->phy_suspend == 0 ) {
-                    /* no vbus detect here , close usb phy for 500ms */
-                 rk28_usb_suspend( 0 );
-                  _pcd->check_vbus_timer.expires = jiffies + (HZ/2); /* 500 ms */
-            } else if( _pcd->phy_suspend  == 1 ) { 
-                 rk28_usb_suspend( 1 );
-                 /*20100325 yk@rk,delay 2-->8,for host connect id detect*/
-                 _pcd->check_vbus_timer.expires = jiffies + 8; /* 20091127,HSL@RK,1-->2  */
-                 
-            }
+        //DWC_PRINT("new vbus=%d,old vbus=%d\n" , gctrl.b.bsesvld , _pcd->vbus_status );
+        _pcd->vbus_status = 0;
+        if(_pcd->conn_status)
+        {
+             _pcd->conn_status = 0;
+             dwc_otg_msc_unlock();
+        }
+        /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
+        if( _pcd->phy_suspend == 0 ) {
+                /* no vbus detect here , close usb phy for 500ms */
+             rk28_usb_suspend( 0 );
+              _pcd->check_vbus_timer.expires = jiffies + (HZ/2); /* 500 ms */
+        } else if( _pcd->phy_suspend  == 1 ) { 
+             rk28_usb_suspend( 1 );
+             /*20100325 yk@rk,delay 2-->8,for host connect id detect*/
+             _pcd->check_vbus_timer.expires = jiffies + 8; /* 20091127,HSL@RK,1-->2  */
+             
+        }
     }
     //DWC_PRINT("%s:restart check vbus timer\n" , __func__ );
     add_timer(&_pcd->check_vbus_timer); 
@@ -1851,6 +1848,7 @@ int dwc_otg_pcd_init(struct device *dev)
     
     INIT_DELAYED_WORK(&pcd->reconnect , dwc_phy_reconnect);
     pcd->vbus_status  = 0;
+    pcd->phy_suspend  = 0;
     if(dwc_otg_is_device_mode(core_if))
     	dwc_otg_pcd_start_vbus_timer( pcd );
 	return 0;

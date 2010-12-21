@@ -824,6 +824,8 @@ static int dwc_otg_driver_remove(struct platform_device *pdev)
 	{
 		iounmap(otg_dev->base);
 	}
+	clk_put(otg_dev->clk);
+	clk_disable(otg_dev->clk);
 	kfree(otg_dev);
 
 	/*
@@ -853,8 +855,8 @@ static int dwc_otg_driver_remove(struct platform_device *pdev)
  */
 static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 {
-	struct resource *res_base;
 	int retval = 0;
+	struct resource *res_base;
 	struct device *dev = &pdev->dev;
 	dwc_otg_device_t *dwc_otg_device;
 	int32_t snpsid;
@@ -864,7 +866,16 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	 *Enable usb phy
 	 */
     unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
+    struct clk* clk;
     
+    clk = clk_get(NULL, "otgphy0");
+     if (IS_ERR(clk)) {
+             retval = PTR_ERR(clk);
+             DWC_ERROR("can't get USB clock of otgphy0\n");
+            goto fail;
+     }
+     clk_enable(clk);
+
     regval = * otg_phy_con1;
     regval |= (0x01<<2);
     regval |= (0x01<<3);    // exit suspend.
@@ -896,6 +907,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	
 	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
 	dwc_otg_device->reg_offset = 0xFFFFFFFF;
+	dwc_otg_device->clk = clk;
 	/*
 	 * Map the DWC_otg Core memory into virtual address space.
 	 */
@@ -1046,7 +1058,6 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	dwc_otg_enable_global_interrupts( dwc_otg_device->core_if );
 	DWC_PRINT("dwc_otg_driver_probe end, everest\n");
 	return 0;
-
  fail:
 	devm_kfree(&pdev->dev, dwc_otg_device);
 	DWC_PRINT("dwc_otg_driver_probe fail,everest\n");
@@ -1191,6 +1202,8 @@ static int host11_driver_remove(struct platform_device *pdev)
 	{
 		iounmap(otg_dev->base);
 	}
+	clk_put(otg_dev->clk);
+	clk_disable(otg_dev->clk);
 	kfree(otg_dev);
 
 	/*
@@ -1224,6 +1237,25 @@ static __devinit int host11_driver_probe(struct platform_device *pdev)
 	 *Enable usb phy
 	 */
     unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
+    struct clk* clk;
+    
+    clk = clk_get(NULL, "uhost");
+     if (IS_ERR(clk)) {
+             retval = PTR_ERR(clk);
+             DWC_ERROR("can't get USB clock of uhost\n");
+            goto fail;
+     }
+     clk_enable(clk);
+    if (clk_get_rate(clk) != 48000000) {
+        DWC_PRINT("Bad USB clock (%d Hz), changing to 48000000 Hz\n",
+                 (int)clk_get_rate(clk));
+        if (clk_set_rate(clk, 48000000)) {
+            DWC_ERROR("Unable to set correct USB clock (48MHz)\n");
+            retval = -EIO;
+            goto fail1;
+        }
+    }
+    
     *otg_phy_con1 &= ~(0x01<<28);    // exit suspend.
     #if 0
     *otg_phy_con1 |= (0x01<<2);
@@ -1246,6 +1278,7 @@ static __devinit int host11_driver_probe(struct platform_device *pdev)
 	
 	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
 	dwc_otg_device->reg_offset = 0xFFFFFFFF;
+	dwc_otg_device->clk = clk;
 	/*
 	 * Map the DWC_otg Core memory into virtual address space.
 	 */
@@ -1358,6 +1391,10 @@ static __devinit int host11_driver_probe(struct platform_device *pdev)
 	dwc_otg_enable_global_interrupts( dwc_otg_device->core_if );
 	DWC_PRINT("host11_driver_probe end, everest\n");
 	return 0;
+    
+fail1:
+    clk_put(clk);
+    clk_disable(clk);
 
  fail:
 	devm_kfree(&pdev->dev, dwc_otg_device);
@@ -1439,12 +1476,15 @@ static int host20_driver_remove(struct platform_device *pdev)
 	{
 		iounmap(otg_dev->base);
 	}
+	clk_put(otg_dev->clk);
+	clk_disable(otg_dev->clk);
 	kfree(otg_dev);
 
 	/*
 	 * Clear the drvdata pointer.
 	 */
 	dev->platform_data = 0;
+	
 
 	return 0;
 }
@@ -1473,6 +1513,16 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	 *Enable usb phy
 	 */
     unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
+    struct clk* clk;
+    
+    clk = clk_get(NULL, "otgphy1");
+     if (IS_ERR(clk)) {
+             retval = PTR_ERR(clk);
+             DWC_ERROR(&"can't get USB clock of otgphy1\n");
+            goto fail;
+     }
+     clk_enable(clk);
+    
     otgreg = * otg_phy_con1;
     otgreg |= (0x01<<13);    // software control
     otgreg |= (0x01<<14);    // exit suspend.
@@ -1499,6 +1549,7 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	
 	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
 	dwc_otg_device->reg_offset = 0xFFFFFFFF;
+	dwc_otg_device->clk = clk;
 	/*
 	 * Map the DWC_otg Core memory into virtual address space.
 	 */

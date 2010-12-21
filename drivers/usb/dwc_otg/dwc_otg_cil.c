@@ -614,7 +614,7 @@ void dwc_otg_core_init(dwc_otg_core_if_t *_core_if)
 	case DWC_INT_DMA_ARCH:
 		/* rockchip dwc_otg */
 		DWC_DEBUGPL(DBG_CIL, "Internal DMA Mode\n");
-		ahbcfg.b.hburstlen = DWC_GAHBCFG_INT_DMA_BURST_INCR;
+		ahbcfg.b.hburstlen = DWC_GAHBCFG_INT_DMA_BURST_INCR16; // yk@20101221
 	_core_if->dma_enable = (_core_if->core_params->dma_enable != 0);
 		break;
 
@@ -812,6 +812,7 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *_core_if)
     gahbcfg.d32 = 0;
     gahbcfg.b.glblintrmsk = 1;
     gahbcfg.b.dmaenable = 1;
+	gahbcfg.b.hburstlen = DWC_GAHBCFG_INT_DMA_BURST_INCR16; // yk@20101221
     dwc_write_reg32( &global_regs->gahbcfg, gahbcfg.d32 );
 }
 
