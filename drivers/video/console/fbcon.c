@@ -823,10 +823,10 @@ static int set_con2fb_map(int unit, int newidx, int user)
 	if (oldidx == newidx)
 		return 0;
 
-	if (!info || fbcon_has_exited)
+	if (!info)
 		return -EINVAL;
 
- 	if (!err && !search_for_mapped_con()) {
+	if (!search_for_mapped_con() || !con_is_bound(&fb_con)) {
 		info_idx = newidx;
 		return fbcon_takeover(0);
 	}
