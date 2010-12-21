@@ -301,6 +301,7 @@
 #define RESERVE_CHANNEL			BIT(0x2)
 #define IS_CSSA_32			BIT(0x3)
 #define IS_CDSA_32			BIT(0x4)
+#define IS_RW_PRIORITY			BIT(0x5)
 
 enum omap_reg_offsets {
 
