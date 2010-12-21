@@ -1031,6 +1031,7 @@ struct evergreen_asic {
 	unsigned tiling_npipes;
 	unsigned tiling_group_size;
 	unsigned tile_config;
+	struct r100_gpu_lockup	lockup;
 };
 
 union radeon_asic_config {
