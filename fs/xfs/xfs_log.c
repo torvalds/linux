@@ -82,6 +82,7 @@ STATIC void xlog_ungrant_log_space(xlog_t	 *log,
 #if defined(DEBUG)
 STATIC void	xlog_verify_dest_ptr(xlog_t *log, char *ptr);
 STATIC void	xlog_verify_grant_head(xlog_t *log, int equals);
+STATIC void	xlog_verify_grant_tail(struct log *log);
 STATIC void	xlog_verify_iclog(xlog_t *log, xlog_in_core_t *iclog,
 				  int count, boolean_t syncing);
 STATIC void	xlog_verify_tail_lsn(xlog_t *log, xlog_in_core_t *iclog,
@@ -89,6 +90,7 @@ STATIC void	xlog_verify_tail_lsn(xlog_t *log, xlog_in_core_t *iclog,
 #else
 #define xlog_verify_dest_ptr(a,b)
 #define xlog_verify_grant_head(a,b)
+#define xlog_verify_grant_tail(a)
 #define xlog_verify_iclog(a,b,c,d)
 #define xlog_verify_tail_lsn(a,b,c)
 #endif
@@ -2503,10 +2505,6 @@ xlog_grant_log_space(xlog_t	   *log,
 {
 	int		 free_bytes;
 	int		 need_bytes;
-#ifdef DEBUG
-	xfs_lsn_t	 tail_lsn;
-#endif
-
 
 #ifdef DEBUG
 	if (log->l_flags & XLOG_ACTIVE_RECOVERY)
@@ -2577,21 +2575,9 @@ redo:
 
 	/* we've got enough space */
 	xlog_grant_add_space(log, need_bytes);
-#ifdef DEBUG
-	tail_lsn = log->l_tail_lsn;
-	/*
-	 * Check to make sure the grant write head didn't just over lap the
-	 * tail.  If the cycles are the same, we can't be overlapping.
-	 * Otherwise, make sure that the cycles differ by exactly one and
-	 * check the byte count.
-	 */
-	if (CYCLE_LSN(tail_lsn) != log->l_grant_write_cycle) {
-		ASSERT(log->l_grant_write_cycle-1 == CYCLE_LSN(tail_lsn));
-		ASSERT(log->l_grant_write_bytes <= BBTOB(BLOCK_LSN(tail_lsn)));
-	}
-#endif
 	trace_xfs_log_grant_exit(log, tic);
 	xlog_verify_grant_head(log, 1);
+	xlog_verify_grant_tail(log);
 	spin_unlock(&log->l_grant_lock);
 	return 0;
 
@@ -2621,9 +2607,6 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 			     xlog_ticket_t *tic)
 {
 	int		free_bytes, need_bytes;
-#ifdef DEBUG
-	xfs_lsn_t	tail_lsn;
-#endif
 
 	tic->t_curr_res = tic->t_unit_res;
 	xlog_tic_reset_res(tic);
@@ -2719,17 +2702,9 @@ redo:
 
 	/* we've got enough space */
 	xlog_grant_add_space_write(log, need_bytes);
-#ifdef DEBUG
-	tail_lsn = log->l_tail_lsn;
-	if (CYCLE_LSN(tail_lsn) != log->l_grant_write_cycle) {
-		ASSERT(log->l_grant_write_cycle-1 == CYCLE_LSN(tail_lsn));
-		ASSERT(log->l_grant_write_bytes <= BBTOB(BLOCK_LSN(tail_lsn)));
-	}
-#endif
-
 	trace_xfs_log_regrant_write_exit(log, tic);
-
 	xlog_verify_grant_head(log, 1);
+	xlog_verify_grant_tail(log);
 	spin_unlock(&log->l_grant_lock);
 	return 0;
 
@@ -3464,6 +3439,24 @@ xlog_verify_grant_head(xlog_t *log, int equals)
 	ASSERT(log->l_grant_write_bytes >= log->l_grant_reserve_bytes);
     }
 }	/* xlog_verify_grant_head */
+
+STATIC void
+xlog_verify_grant_tail(
+	struct log	*log)
+{
+	xfs_lsn_t	tail_lsn = log->l_tail_lsn;
+
+	/*
+	 * Check to make sure the grant write head didn't just over lap the
+	 * tail.  If the cycles are the same, we can't be overlapping.
+	 * Otherwise, make sure that the cycles differ by exactly one and
+	 * check the byte count.
+	 */
+	if (CYCLE_LSN(tail_lsn) != log->l_grant_write_cycle) {
+		ASSERT(log->l_grant_write_cycle - 1 == CYCLE_LSN(tail_lsn));
+		ASSERT(log->l_grant_write_bytes <= BBTOB(BLOCK_LSN(tail_lsn)));
+	}
+}
 
 /* check if it will fit */
 STATIC void
