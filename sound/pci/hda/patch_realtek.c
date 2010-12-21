@@ -14806,6 +14806,7 @@ static int alc269_resume(struct hda_codec *codec)
 
 enum {
 	ALC269_FIXUP_SONY_VAIO,
+	ALC275_FIX_SONY_VAIO_GPIO2,
 	ALC269_FIXUP_DELL_M101Z,
 	ALC269_FIXUP_SKU_IGNORE,
 	ALC269_FIXUP_ASUS_G73JW,
@@ -14816,6 +14817,14 @@ static const struct alc_fixup alc269_fixups[] = {
 		.verbs = (const struct hda_verb[]) {
 			{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREFGRD},
 			{}
+		}
+	},
+	[ALC275_FIX_SONY_VAIO_GPIO2] = {
+		.verbs = (const struct hda_verb[]) {
+			{0x01, AC_VERB_SET_GPIO_MASK, 0x04},
+			{0x01, AC_VERB_SET_GPIO_DIRECTION, 0x04},
+			{0x01, AC_VERB_SET_GPIO_DATA, 0x00},
+			{ }
 		}
 	},
 	[ALC269_FIXUP_DELL_M101Z] = {
@@ -14839,6 +14848,9 @@ static const struct alc_fixup alc269_fixups[] = {
 
 static struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK_VENDOR(0x104d, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
+	SND_PCI_QUIRK(0x104d, 0x9073, "Sony VAIO", ALC275_FIX_SONY_VAIO_GPIO2),
+	SND_PCI_QUIRK(0x104d, 0x907b, "Sony VAIO", ALC275_FIX_SONY_VAIO_GPIO2),
+	SND_PCI_QUIRK(0x104d, 0x9084, "Sony VAIO", ALC275_FIX_SONY_VAIO_GPIO2),
 	SND_PCI_QUIRK(0x1028, 0x0470, "Dell M101z", ALC269_FIXUP_DELL_M101Z),
 	SND_PCI_QUIRK(0x17aa, 0x21b8, "Thinkpad Edge 14", ALC269_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Thinkpad SL410/510", ALC269_FIXUP_SKU_IGNORE),
