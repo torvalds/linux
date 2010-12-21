@@ -429,7 +429,7 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return ERR_PTR(-ENOMEM);
-	task_setup_data.callback_data = data,
+	task_setup_data.callback_data = data;
 
 	data->cred = rpc_lookup_cred();
 	if (IS_ERR(data->cred)) {
