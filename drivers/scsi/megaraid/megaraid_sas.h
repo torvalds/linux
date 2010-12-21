@@ -1364,6 +1364,13 @@ struct megasas_instance_template {
 		struct megasas_register_set __iomem *);
 	int (*check_reset)(struct megasas_instance *, \
 		struct megasas_register_set __iomem *);
+	irqreturn_t (*service_isr)(int irq, void *devp);
+	void (*tasklet)(unsigned long);
+	u32 (*init_adapter)(struct megasas_instance *);
+	u32 (*build_and_issue_cmd) (struct megasas_instance *,
+				    struct scsi_cmnd *);
+	void (*issue_dcmd) (struct megasas_instance *instance,
+			    struct megasas_cmd *cmd);
 };
 
 #define MEGASAS_IS_LOGICAL(scp)						\
