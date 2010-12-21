@@ -6208,7 +6208,7 @@ static int bnx2x_func_stop(struct bnx2x *bp)
  * @param cam_offset offset in a CAM to use
  * @param is_bcast is the set MAC a broadcast address (for E1 only)
  */
-static void bnx2x_set_mac_addr_gen(struct bnx2x *bp, int set, u8 *mac,
+static void bnx2x_set_mac_addr_gen(struct bnx2x *bp, int set, const u8 *mac,
 				   u32 cl_bit_vec, u8 cam_offset,
 				   u8 is_bcast)
 {
@@ -6400,7 +6400,9 @@ void bnx2x_set_eth_mac(struct bnx2x *bp, int set)
 
 	if (CHIP_IS_E1(bp)) {
 		/* broadcast MAC */
-		u8 bcast[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+		static const u8 bcast[ETH_ALEN] = {
+			0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+		};
 		bnx2x_set_mac_addr_gen(bp, set, bcast, 0, cam_offset + 1, 1);
 	}
 }

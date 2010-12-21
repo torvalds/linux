@@ -1131,7 +1131,9 @@ static int
 vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 		       struct vmxnet3_adapter *adapter, int quota)
 {
-	static u32 rxprod_reg[2] = {VMXNET3_REG_RXPROD, VMXNET3_REG_RXPROD2};
+	static const u32 rxprod_reg[2] = {
+		VMXNET3_REG_RXPROD, VMXNET3_REG_RXPROD2
+	};
 	u32 num_rxd = 0;
 	struct Vmxnet3_RxCompDesc *rcd;
 	struct vmxnet3_rx_ctx *ctx = &rq->rx_ctx;
