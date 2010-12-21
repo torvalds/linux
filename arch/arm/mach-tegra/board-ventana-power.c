@@ -34,88 +34,7 @@
 #include "board.h"
 
 #define PMC_CTRL		0x0
- #define PMC_CTRL_INTR_LOW	(1 << 17)
-
-static int ac_ok		= TEGRA_GPIO_PV3;
-static int charge_disable	= TEGRA_GPIO_PR6;
-
-static int charge_init(struct device *dev)
-{
-	int ret = gpio_request(charge_disable, "chg_disable");
-	if (ret < 0)
-		return ret;
-
-	ret = gpio_request(ac_ok, "ac_ok");
-	if (ret < 0) {
-		gpio_free(charge_disable);
-		return ret;
-	}
-
-	ret = gpio_direction_output(charge_disable, 0);
-	if (ret < 0)
-		goto cleanup;
-
-	ret = gpio_direction_input(ac_ok);
-	if (ret < 0)
-		goto cleanup;
-
-	tegra_gpio_enable(ac_ok);
-	tegra_gpio_enable(charge_disable);
-
-	return 0;
-
-cleanup:
-	gpio_free(ac_ok);
-	gpio_free(charge_disable);
-	return ret;
-}
-
-static void charge_exit(struct device *dev)
-{
-	gpio_free(charge_disable);
-}
-
-static int ac_online(void)
-{
-	return !gpio_get_value(ac_ok);
-}
-
-static void set_charge(int flags)
-{
-	if (flags == PDA_POWER_CHARGE_AC)
-		gpio_set_value(charge_disable, 0);
-	else if (!flags)
-		gpio_set_value(charge_disable, 1);
-	/* USB charging not supported on Ventana */
-}
-
-static struct resource ventana_pda_resources[] = {
-	[0] = {
-		.name	= "ac",
-		.start	= TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV3),
-		.end	= TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV3),
-		.flags	= (IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
-			   IORESOURCE_IRQ_LOWEDGE),
-	},
-};
-
-static struct pda_power_pdata ventana_pda_data = {
-	.is_ac_online	= ac_online,
-	.exit		= charge_exit,
-	.init		= charge_init,
-	.set_charge	= set_charge,
-};
-
-static struct platform_device ventana_pda_power_device = {
-	.name		= "pda-power",
-	.id		= -1,
-	.resource	= ventana_pda_resources,
-	.num_resources	= ARRAY_SIZE(ventana_pda_resources),
-	.dev	= {
-		.platform_data	= &ventana_pda_data,
-	},
-};
-
+#define PMC_CTRL_INTR_LOW	(1 << 17)
 
 static struct regulator_consumer_supply tps658621_sm0_supply[] = {
 	REGULATOR_SUPPLY("vdd_core", NULL),
@@ -264,7 +183,6 @@ int __init ventana_regulator_init(void)
 	 * interrupts when low */
 	pmc_ctrl = readl(pmc + PMC_CTRL);
 	writel(pmc_ctrl | PMC_CTRL_INTR_LOW, pmc + PMC_CTRL);
-	platform_device_register(&ventana_pda_power_device);
 	i2c_register_board_info(4, ventana_regulators, 1);
 	tegra_init_suspend(&ventana_suspend_data);
 	return 0;
