@@ -121,3 +121,10 @@ config TEGRA_IOVMM
 
 config TEGRA_ARB_SEMAPHORE
 	bool
+
+config TEGRA_THERMAL_THROTTLE
+       bool "Enable throttling of CPU speed on overtemp"
+       depends on CPU_FREQ
+       default y
+       help
+         Also requires enabling a temperature sensor such as NCT1008.

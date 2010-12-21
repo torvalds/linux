@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.c,v 1.51.4.9.2.6.4.142.4.61 2010/12/03 22:09:41 Exp $
+ * $Id: wl_iw.c,v 1.51.4.9.2.6.4.142.4.69 2010/12/21 03:00:08 Exp $
  */
 
 
@@ -228,7 +228,7 @@ typedef struct iscan_info {
 	wl_iscan_params_t *iscan_ex_params_p;
 	int iscan_ex_param_size;
 } iscan_info_t;
-#define COEX_DHCP 1 
+#define COEX_DHCP 1
 
 #define BT_DHCP_eSCO_FIX
 #define BT_DHCP_USE_FLAGS
@@ -749,7 +749,7 @@ static bool btcoex_is_sco_active(struct net_device *dev)
 	if (ioc_res == 0) {
 		WL_TRACE_COEX(("%s: read btc_params[4] = %x\n", __FUNCTION__, temp));
 
-		if (temp > 0xea0) {
+		if ((temp > 0xea0) && (temp < 0xed8)) {
 			WL_TRACE_COEX(("%s: BT SCO/eSCO is ACTIVE\n", __FUNCTION__));
 			res = true;
 		} else {
@@ -926,7 +926,6 @@ wl_iw_set_btcoex_dhcp(
 		   (!dev_wlc_intvar_get_reg(dev, "btc_params", 66,  &saved_reg66)) &&
 		   (!dev_wlc_intvar_get_reg(dev, "btc_params", 41,  &saved_reg41)) &&
 		   (!dev_wlc_intvar_get_reg(dev, "btc_params", 68,  &saved_reg68))) {
-			saved_status = TRUE;
 			WL_TRACE_COEX(("save regs {66,41,68} ->: 0x%x 0x%x 0x%x\n", \
 				saved_reg66, saved_reg41, saved_reg68));
 
@@ -934,18 +933,25 @@ wl_iw_set_btcoex_dhcp(
 			dev_wlc_ioctl(dev, WLC_SET_PM, &pm_local, sizeof(pm_local));
 #endif
 
-			dev_wlc_bufvar_set(dev, "btc_params", \
-				(char *)&buf_reg66va_dhcp_on[0], sizeof(buf_reg66va_dhcp_on));
-			dev_wlc_bufvar_set(dev, "btc_params", \
-				(char *)&buf_reg41va_dhcp_on[0], sizeof(buf_reg41va_dhcp_on));
-			dev_wlc_bufvar_set(dev, "btc_params", \
-				(char *)&buf_reg68va_dhcp_on[0], sizeof(buf_reg68va_dhcp_on));
+				if (btcoex_is_sco_active(dev)) {
 
-			if (btcoex_is_sco_active(dev)) {
-				g_bt->bt_state = BT_DHCP_START;
-				g_bt->timer_on = 1;
-				mod_timer(&g_bt->timer, g_bt->timer.expires);
-				WL_TRACE_COEX(("%s enable BT DHCP Timer\n", \
+					dev_wlc_bufvar_set(dev, "btc_params", \
+						(char *)&buf_reg66va_dhcp_on[0], \
+						 sizeof(buf_reg66va_dhcp_on));
+
+					dev_wlc_bufvar_set(dev, "btc_params", \
+						(char *)&buf_reg41va_dhcp_on[0], \
+						 sizeof(buf_reg41va_dhcp_on));
+
+					dev_wlc_bufvar_set(dev, "btc_params", \
+						(char *)&buf_reg68va_dhcp_on[0], \
+						 sizeof(buf_reg68va_dhcp_on));
+					saved_status = TRUE;
+
+					g_bt->bt_state = BT_DHCP_START;
+					g_bt->timer_on = 1;
+					mod_timer(&g_bt->timer, g_bt->timer.expires);
+					WL_TRACE_COEX(("%s enable BT DHCP Timer\n", \
 					__FUNCTION__));
 			}
 		}
@@ -976,10 +982,10 @@ wl_iw_set_btcoex_dhcp(
 			}
 		}
 
-		dev_wlc_bufvar_set(dev, "btc_flags", \
+		if (saved_status == TRUE) {
+			dev_wlc_bufvar_set(dev, "btc_flags", \
 				(char *)&buf_flag7_default[0], sizeof(buf_flag7_default));
 
-		if (saved_status) {
 			regaddr = 66;
 			dev_wlc_intvar_set_reg(dev, "btc_params", \
 				(char *)&regaddr, (char *)&saved_reg66);
