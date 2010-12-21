@@ -44,7 +44,7 @@
 static DEFINE_MUTEX(regulator_list_mutex);
 static LIST_HEAD(regulator_list);
 static LIST_HEAD(regulator_map_list);
-static int has_full_constraints;
+static bool has_full_constraints;
 static bool board_wants_dummy_regulator;
 
 /*
