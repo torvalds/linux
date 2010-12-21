@@ -96,7 +96,7 @@ static void ath_pci_bt_coex_prep(struct ath_common *common)
 	struct pci_dev *pdev = to_pci_dev(sc->dev);
 	u8 aspm;
 
-	if (!pdev->is_pcie)
+	if (!pci_is_pcie(pdev))
 		return;
 
 	pci_read_config_byte(pdev, ATH_PCIE_CAP_LINK_CTRL, &aspm);
