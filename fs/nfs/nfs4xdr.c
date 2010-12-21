@@ -71,8 +71,8 @@ static int nfs4_stat_to_errno(int);
 /* lock,open owner id:
  * we currently use size 2 (u64) out of (NFS4_OPAQUE_LIMIT  >> 2)
  */
-#define open_owner_id_maxsz	(1 + 4)
-#define lock_owner_id_maxsz	(1 + 4)
+#define open_owner_id_maxsz	(1 + 1 + 4)
+#define lock_owner_id_maxsz	(1 + 1 + 4)
 #define decode_lockowner_maxsz	(1 + XDR_QUADLEN(IDMAP_NAMESZ))
 #define compound_encode_hdr_maxsz	(3 + (NFS4_MAXTAGLEN >> 2))
 #define compound_decode_hdr_maxsz	(3 + (NFS4_MAXTAGLEN >> 2))
@@ -1088,10 +1088,11 @@ static void encode_lockowner(struct xdr_stream *xdr, const struct nfs_lowner *lo
 {
 	__be32 *p;
 
-	p = reserve_space(xdr, 28);
+	p = reserve_space(xdr, 32);
 	p = xdr_encode_hyper(p, lowner->clientid);
-	*p++ = cpu_to_be32(16);
+	*p++ = cpu_to_be32(20);
 	p = xdr_encode_opaque_fixed(p, "lock id:", 8);
+	*p++ = cpu_to_be32(lowner->s_dev);
 	xdr_encode_hyper(p, lowner->id);
 }
 
@@ -1210,10 +1211,11 @@ static inline void encode_openhdr(struct xdr_stream *xdr, const struct nfs_opena
 	*p++ = cpu_to_be32(OP_OPEN);
 	*p = cpu_to_be32(arg->seqid->sequence->counter);
 	encode_share_access(xdr, arg->fmode);
-	p = reserve_space(xdr, 28);
+	p = reserve_space(xdr, 32);
 	p = xdr_encode_hyper(p, arg->clientid);
-	*p++ = cpu_to_be32(16);
+	*p++ = cpu_to_be32(20);
 	p = xdr_encode_opaque_fixed(p, "open id:", 8);
+	*p++ = cpu_to_be32(arg->server->s_dev);
 	xdr_encode_hyper(p, arg->id);
 }
 

@@ -317,6 +317,7 @@ struct nfs_closeres {
 struct nfs_lowner {
 	__u64			clientid;
 	__u64			id;
+	dev_t			s_dev;
 };
 
 struct nfs_lock_args {
