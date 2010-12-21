@@ -81,7 +81,6 @@ STATIC void xlog_ungrant_log_space(xlog_t	 *log,
 
 #if defined(DEBUG)
 STATIC void	xlog_verify_dest_ptr(xlog_t *log, char *ptr);
-STATIC void	xlog_verify_grant_head(xlog_t *log, int equals);
 STATIC void	xlog_verify_grant_tail(struct log *log);
 STATIC void	xlog_verify_iclog(xlog_t *log, xlog_in_core_t *iclog,
 				  int count, boolean_t syncing);
@@ -89,7 +88,6 @@ STATIC void	xlog_verify_tail_lsn(xlog_t *log, xlog_in_core_t *iclog,
 				     xfs_lsn_t tail_lsn);
 #else
 #define xlog_verify_dest_ptr(a,b)
-#define xlog_verify_grant_head(a,b)
 #define xlog_verify_grant_tail(a)
 #define xlog_verify_iclog(a,b,c,d)
 #define xlog_verify_tail_lsn(a,b,c)
@@ -103,17 +101,24 @@ xlog_grant_sub_space(
 	atomic64_t	*head,
 	int		bytes)
 {
-	int		cycle, space;
+	int64_t	head_val = atomic64_read(head);
+	int64_t new, old;
 
-	xlog_crack_grant_head(head, &cycle, &space);
+	do {
+		int	cycle, space;
 
-	space -= bytes;
-	if (space < 0) {
-		space += log->l_logsize;
-		cycle--;
-	}
+		xlog_crack_grant_head_val(head_val, &cycle, &space);
 
-	xlog_assign_grant_head(head, cycle, space);
+		space -= bytes;
+		if (space < 0) {
+			space += log->l_logsize;
+			cycle--;
+		}
+
+		old = head_val;
+		new = xlog_assign_grant_head_val(cycle, space);
+		head_val = atomic64_cmpxchg(head, old, new);
+	} while (head_val != old);
 }
 
 static void
@@ -122,20 +127,27 @@ xlog_grant_add_space(
 	atomic64_t	*head,
 	int		bytes)
 {
-	int		tmp;
-	int		cycle, space;
+	int64_t	head_val = atomic64_read(head);
+	int64_t new, old;
 
-	xlog_crack_grant_head(head, &cycle, &space);
+	do {
+		int		tmp;
+		int		cycle, space;
 
-	tmp = log->l_logsize - space;
-	if (tmp > bytes)
-		space += bytes;
-	else {
-		space = bytes - tmp;
-		cycle++;
-	}
+		xlog_crack_grant_head_val(head_val, &cycle, &space);
 
-	xlog_assign_grant_head(head, cycle, space);
+		tmp = log->l_logsize - space;
+		if (tmp > bytes)
+			space += bytes;
+		else {
+			space = bytes - tmp;
+			cycle++;
+		}
+
+		old = head_val;
+		new = xlog_assign_grant_head_val(cycle, space);
+		head_val = atomic64_cmpxchg(head, old, new);
+	} while (head_val != old);
 }
 
 static void
@@ -318,9 +330,7 @@ xfs_log_reserve(
 
 		trace_xfs_log_reserve(log, internal_ticket);
 
-		spin_lock(&log->l_grant_lock);
 		xlog_grant_push_ail(log, internal_ticket->t_unit_res);
-		spin_unlock(&log->l_grant_lock);
 		retval = xlog_regrant_write_log_space(log, internal_ticket);
 	} else {
 		/* may sleep if need to allocate more tickets */
@@ -334,11 +344,9 @@ xfs_log_reserve(
 
 		trace_xfs_log_reserve(log, internal_ticket);
 
-		spin_lock(&log->l_grant_lock);
 		xlog_grant_push_ail(log,
 				    (internal_ticket->t_unit_res *
 				     internal_ticket->t_cnt));
-		spin_unlock(&log->l_grant_lock);
 		retval = xlog_grant_log_space(log, internal_ticket);
 	}
 
@@ -1057,7 +1065,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	log->l_xbuf = bp;
 
 	spin_lock_init(&log->l_icloglock);
-	spin_lock_init(&log->l_grant_lock);
 	init_waitqueue_head(&log->l_flush_wait);
 
 	/* log record size must be multiple of BBSIZE; see xlog_rec_header_t */
@@ -1135,7 +1142,6 @@ out_free_iclog:
 		kmem_free(iclog);
 	}
 	spinlock_destroy(&log->l_icloglock);
-	spinlock_destroy(&log->l_grant_lock);
 	xfs_buf_free(log->l_xbuf);
 out_free_log:
 	kmem_free(log);
@@ -1331,10 +1337,8 @@ xlog_sync(xlog_t		*log,
 		 roundoff < BBTOB(1)));
 
 	/* move grant heads by roundoff in sync */
-	spin_lock(&log->l_grant_lock);
 	xlog_grant_add_space(log, &log->l_grant_reserve_head, roundoff);
 	xlog_grant_add_space(log, &log->l_grant_write_head, roundoff);
-	spin_unlock(&log->l_grant_lock);
 
 	/* put cycle number in every block */
 	xlog_pack_data(log, iclog, roundoff); 
@@ -1455,7 +1459,6 @@ xlog_dealloc_log(xlog_t *log)
 		iclog = next_iclog;
 	}
 	spinlock_destroy(&log->l_icloglock);
-	spinlock_destroy(&log->l_grant_lock);
 
 	xfs_buf_free(log->l_xbuf);
 	log->l_mp->m_log = NULL;
@@ -2574,13 +2577,10 @@ redo:
 	}
 
 	/* we've got enough space */
-	spin_lock(&log->l_grant_lock);
 	xlog_grant_add_space(log, &log->l_grant_reserve_head, need_bytes);
 	xlog_grant_add_space(log, &log->l_grant_write_head, need_bytes);
 	trace_xfs_log_grant_exit(log, tic);
-	xlog_verify_grant_head(log, 1);
 	xlog_verify_grant_tail(log);
-	spin_unlock(&log->l_grant_lock);
 	return 0;
 
 error_return_unlocked:
@@ -2694,12 +2694,9 @@ redo:
 	}
 
 	/* we've got enough space */
-	spin_lock(&log->l_grant_lock);
 	xlog_grant_add_space(log, &log->l_grant_write_head, need_bytes);
 	trace_xfs_log_regrant_write_exit(log, tic);
-	xlog_verify_grant_head(log, 1);
 	xlog_verify_grant_tail(log);
-	spin_unlock(&log->l_grant_lock);
 	return 0;
 
 
@@ -2737,7 +2734,6 @@ xlog_regrant_reserve_log_space(xlog_t	     *log,
 	if (ticket->t_cnt > 0)
 		ticket->t_cnt--;
 
-	spin_lock(&log->l_grant_lock);
 	xlog_grant_sub_space(log, &log->l_grant_reserve_head,
 					ticket->t_curr_res);
 	xlog_grant_sub_space(log, &log->l_grant_write_head,
@@ -2747,21 +2743,15 @@ xlog_regrant_reserve_log_space(xlog_t	     *log,
 
 	trace_xfs_log_regrant_reserve_sub(log, ticket);
 
-	xlog_verify_grant_head(log, 1);
-
 	/* just return if we still have some of the pre-reserved space */
-	if (ticket->t_cnt > 0) {
-		spin_unlock(&log->l_grant_lock);
+	if (ticket->t_cnt > 0)
 		return;
-	}
 
 	xlog_grant_add_space(log, &log->l_grant_reserve_head,
 					ticket->t_unit_res);
 
 	trace_xfs_log_regrant_reserve_exit(log, ticket);
 
-	xlog_verify_grant_head(log, 0);
-	spin_unlock(&log->l_grant_lock);
 	ticket->t_curr_res = ticket->t_unit_res;
 	xlog_tic_reset_res(ticket);
 }	/* xlog_regrant_reserve_log_space */
@@ -2790,7 +2780,6 @@ xlog_ungrant_log_space(xlog_t	     *log,
 	if (ticket->t_cnt > 0)
 		ticket->t_cnt--;
 
-	spin_lock(&log->l_grant_lock);
 	trace_xfs_log_ungrant_enter(log, ticket);
 	trace_xfs_log_ungrant_sub(log, ticket);
 
@@ -2809,8 +2798,6 @@ xlog_ungrant_log_space(xlog_t	     *log,
 
 	trace_xfs_log_ungrant_exit(log, ticket);
 
-	xlog_verify_grant_head(log, 1);
-	spin_unlock(&log->l_grant_lock);
 	xfs_log_move_tail(log->l_mp, 1);
 }	/* xlog_ungrant_log_space */
 
@@ -3426,28 +3413,6 @@ xlog_verify_dest_ptr(
 
 	if (!good_ptr)
 		xlog_panic("xlog_verify_dest_ptr: invalid ptr");
-}
-
-STATIC void
-xlog_verify_grant_head(xlog_t *log, int equals)
-{
-	int	reserve_cycle, reserve_space;
-	int	write_cycle, write_space;
-
-	xlog_crack_grant_head(&log->l_grant_reserve_head,
-					&reserve_cycle, &reserve_space);
-	xlog_crack_grant_head(&log->l_grant_write_head,
-					&write_cycle, &write_space);
-
-	if (reserve_cycle == write_cycle) {
-		if (equals)
-			ASSERT(reserve_space >= write_space);
-		else
-			ASSERT(reserve_space > write_space);
-	} else {
-		ASSERT(reserve_cycle - 1 == write_cycle);
-		ASSERT(write_space >= reserve_space);
-	}
 }
 
 STATIC void

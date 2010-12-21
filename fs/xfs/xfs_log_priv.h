@@ -510,9 +510,6 @@ typedef struct log {
 	int			l_curr_block;   /* current logical log block */
 	int			l_prev_block;   /* previous logical log block */
 
-	/* The following block of fields are changed while holding grant_lock */
-	spinlock_t		l_grant_lock ____cacheline_aligned_in_smp;
-
 	/*
 	 * l_last_sync_lsn and l_tail_lsn are atomics so they can be set and
 	 * read without needing to hold specific locks. To avoid operations
@@ -599,23 +596,33 @@ xlog_assign_atomic_lsn(atomic64_t *lsn, uint cycle, uint block)
 }
 
 /*
- * When we crack the grrant head, we sample it first so that the value will not
+ * When we crack the grant head, we sample it first so that the value will not
  * change while we are cracking it into the component values. This means we
  * will always get consistent component values to work from.
  */
 static inline void
-xlog_crack_grant_head(atomic64_t *head, int *cycle, int *space)
+xlog_crack_grant_head_val(int64_t val, int *cycle, int *space)
 {
-	int64_t	val = atomic64_read(head);
-
 	*cycle = val >> 32;
 	*space = val & 0xffffffff;
 }
 
 static inline void
+xlog_crack_grant_head(atomic64_t *head, int *cycle, int *space)
+{
+	xlog_crack_grant_head_val(atomic64_read(head), cycle, space);
+}
+
+static inline int64_t
+xlog_assign_grant_head_val(int cycle, int space)
+{
+	return ((int64_t)cycle << 32) | space;
+}
+
+static inline void
 xlog_assign_grant_head(atomic64_t *head, int cycle, int space)
 {
-	atomic64_set(head, ((int64_t)cycle << 32) | space);
+	atomic64_set(head, xlog_assign_grant_head_val(cycle, space));
 }
 
 /*
