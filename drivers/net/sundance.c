@@ -294,6 +294,9 @@ enum alta_offsets {
 	/* Aliased and bogus values! */
 	RxStatus = 0x0c,
 };
+
+#define ASIC_HI_WORD(x)	((x) + 2)
+
 enum ASICCtrl_HiWord_bit {
 	GlobalReset = 0x0001,
 	RxReset = 0x0002,
@@ -1772,10 +1775,10 @@ static int netdev_close(struct net_device *dev)
     	}
 
     	iowrite16(GlobalReset | DMAReset | FIFOReset | NetworkReset,
-			ioaddr +ASICCtrl + 2);
+			ioaddr + ASIC_HI_WORD(ASICCtrl));
 
     	for (i = 2000; i > 0; i--) {
- 		if ((ioread16(ioaddr + ASICCtrl +2) & ResetBusy) == 0)
+		if ((ioread16(ioaddr + ASIC_HI_WORD(ASICCtrl)) & ResetBusy) == 0)
 			break;
 		mdelay(1);
     	}
