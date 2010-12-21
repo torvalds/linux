@@ -26,8 +26,10 @@
 #include <linux/smp.h>
 #include <linux/string.h>
 #include <linux/init.h>
+#include <linux/cache.h>
 
-#include <asm/mmu_context.h>
+#include <asm/cacheflush.h>
+#include <asm/pgtable.h>
 #include <asm/war.h>
 #include <asm/uasm.h>
 
@@ -173,11 +175,38 @@ static struct uasm_reloc relocs[128] __cpuinitdata;
 static int check_for_high_segbits __cpuinitdata;
 #endif
 
-#ifndef CONFIG_MIPS_PGD_C0_CONTEXT
+#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
+
+static unsigned int kscratch_used_mask __cpuinitdata;
+
+static int __cpuinit allocate_kscratch(void)
+{
+	int r;
+	unsigned int a = cpu_data[0].kscratch_mask & ~kscratch_used_mask;
+
+	r = ffs(a);
+
+	if (r == 0)
+		return -1;
+
+	r--; /* make it zero based */
+
+	kscratch_used_mask |= (1 << r);
+
+	return r;
+}
+
+static int pgd_reg __cpuinitdata;
+
+#else /* !CONFIG_MIPS_PGD_C0_CONTEXT*/
 /*
  * CONFIG_MIPS_PGD_C0_CONTEXT implies 64 bit and lack of pgd_current,
  * we cannot do r3000 under these circumstances.
+ *
+ * Declare pgd_current here instead of including mmu_context.h to avoid type
+ * conflicts for tlbmiss_handler_setup_pgd
  */
+extern unsigned long pgd_current[];
 
 /*
  * The R3000 TLB handler is simple.
@@ -573,13 +602,22 @@ build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 	/* No uasm_i_nop needed here, since the next insn doesn't touch TMP. */
 
 #ifdef CONFIG_MIPS_PGD_C0_CONTEXT
-	/*
-	 * &pgd << 11 stored in CONTEXT [23..63].
-	 */
-	UASM_i_MFC0(p, ptr, C0_CONTEXT);
-	uasm_i_dins(p, ptr, 0, 0, 23); /* Clear lower 23 bits of context. */
-	uasm_i_ori(p, ptr, ptr, 0x540); /* 1 0  1 0 1  << 6  xkphys cached */
-	uasm_i_drotr(p, ptr, ptr, 11);
+	if (pgd_reg != -1) {
+		/* pgd is in pgd_reg */
+		UASM_i_MFC0(p, ptr, 31, pgd_reg);
+	} else {
+		/*
+		 * &pgd << 11 stored in CONTEXT [23..63].
+		 */
+		UASM_i_MFC0(p, ptr, C0_CONTEXT);
+
+		/* Clear lower 23 bits of context. */
+		uasm_i_dins(p, ptr, 0, 0, 23);
+
+		/* 1 0  1 0 1  << 6  xkphys cached */
+		uasm_i_ori(p, ptr, ptr, 0x540);
+		uasm_i_drotr(p, ptr, ptr, 11);
+	}
 #elif defined(CONFIG_SMP)
 # ifdef  CONFIG_MIPS_MT_SMTC
 	/*
@@ -1014,6 +1052,55 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 u32 handle_tlbl[FASTPATH_SIZE] __cacheline_aligned;
 u32 handle_tlbs[FASTPATH_SIZE] __cacheline_aligned;
 u32 handle_tlbm[FASTPATH_SIZE] __cacheline_aligned;
+#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
+u32 tlbmiss_handler_setup_pgd[16] __cacheline_aligned;
+
+static void __cpuinit build_r4000_setup_pgd(void)
+{
+	const int a0 = 4;
+	const int a1 = 5;
+	u32 *p = tlbmiss_handler_setup_pgd;
+	struct uasm_label *l = labels;
+	struct uasm_reloc *r = relocs;
+
+	memset(tlbmiss_handler_setup_pgd, 0, sizeof(tlbmiss_handler_setup_pgd));
+	memset(labels, 0, sizeof(labels));
+	memset(relocs, 0, sizeof(relocs));
+
+	pgd_reg = allocate_kscratch();
+
+	if (pgd_reg == -1) {
+		/* PGD << 11 in c0_Context */
+		/*
+		 * If it is a ckseg0 address, convert to a physical
+		 * address.  Shifting right by 29 and adding 4 will
+		 * result in zero for these addresses.
+		 *
+		 */
+		UASM_i_SRA(&p, a1, a0, 29);
+		UASM_i_ADDIU(&p, a1, a1, 4);
+		uasm_il_bnez(&p, &r, a1, label_tlbl_goaround1);
+		uasm_i_nop(&p);
+		uasm_i_dinsm(&p, a0, 0, 29, 64 - 29);
+		uasm_l_tlbl_goaround1(&l, p);
+		UASM_i_SLL(&p, a0, a0, 11);
+		uasm_i_jr(&p, 31);
+		UASM_i_MTC0(&p, a0, C0_CONTEXT);
+	} else {
+		/* PGD in c0_KScratch */
+		uasm_i_jr(&p, 31);
+		UASM_i_MTC0(&p, a0, 31, pgd_reg);
+	}
+	if (p - tlbmiss_handler_setup_pgd > ARRAY_SIZE(tlbmiss_handler_setup_pgd))
+		panic("tlbmiss_handler_setup_pgd space exceeded");
+	uasm_resolve_relocs(relocs, labels);
+	pr_debug("Wrote tlbmiss_handler_setup_pgd (%u instructions).\n",
+		 (unsigned int)(p - tlbmiss_handler_setup_pgd));
+
+	dump_handler(tlbmiss_handler_setup_pgd,
+		     ARRAY_SIZE(tlbmiss_handler_setup_pgd));
+}
+#endif
 
 static void __cpuinit
 iPTE_LW(u32 **p, unsigned int pte, unsigned int ptr)
@@ -1161,6 +1248,8 @@ build_pte_modifiable(u32 **p, struct uasm_reloc **r,
 }
 
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT
+
+
 /*
  * R3000 style TLB load/store/modify handlers.
  */
@@ -1623,13 +1712,16 @@ void __cpuinit build_tlb_refill_handler(void)
 		break;
 
 	default:
-		build_r4000_tlb_refill_handler();
 		if (!run_once) {
+#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
+			build_r4000_setup_pgd();
+#endif
 			build_r4000_tlb_load_handler();
 			build_r4000_tlb_store_handler();
 			build_r4000_tlb_modify_handler();
 			run_once++;
 		}
+		build_r4000_tlb_refill_handler();
 	}
 }
 
@@ -1641,4 +1733,8 @@ void __cpuinit flush_tlb_handlers(void)
 			   (unsigned long)handle_tlbs + sizeof(handle_tlbs));
 	local_flush_icache_range((unsigned long)handle_tlbm,
 			   (unsigned long)handle_tlbm + sizeof(handle_tlbm));
+#ifdef CONFIG_MIPS_PGD_C0_CONTEXT
+	local_flush_icache_range((unsigned long)tlbmiss_handler_setup_pgd,
+			   (unsigned long)tlbmiss_handler_setup_pgd + sizeof(handle_tlbm));
+#endif
 }
