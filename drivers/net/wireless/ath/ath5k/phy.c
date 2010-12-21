@@ -2593,7 +2593,7 @@ ath5k_combine_linear_pcdac_curves(struct ath5k_hw *ah, s16* table_min,
 
 /* Write PCDAC values on hw */
 static void
-ath5k_setup_pcdac_table(struct ath5k_hw *ah)
+ath5k_write_pcdac_table(struct ath5k_hw *ah)
 {
 	u8 	*pcdac_out = ah->ah_txpower.txp_pd_table;
 	int	i;
@@ -2742,7 +2742,7 @@ ath5k_combine_pwr_to_pdadc_curves(struct ath5k_hw *ah,
 
 /* Write PDADC values on hw */
 static void
-ath5k_setup_pwr_to_pdadc_table(struct ath5k_hw *ah, u8 ee_mode)
+ath5k_write_pwr_to_pdadc_table(struct ath5k_hw *ah, u8 ee_mode)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	u8 *pdadc_out = ah->ah_txpower.txp_pd_table;
@@ -2957,8 +2957,7 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 					(s16) pcinfo_R->freq,
 					pcinfo_L->max_pwr, pcinfo_R->max_pwr);
 
-	/* We are ready to go, fill PCDAC/PDADC
-	 * table and write settings on hardware */
+	/* Fill PCDAC/PDADC table */
 	switch (type) {
 	case AR5K_PWRTABLE_LINEAR_PCDAC:
 		/* For RF5112 we can have one or two curves
@@ -2971,9 +2970,6 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 		 * match max power value with max
 		 * table index */
 		ah->ah_txpower.txp_offset = 64 - (table_max[0] / 2);
-
-		/* Write settings on hw */
-		ath5k_setup_pcdac_table(ah);
 		break;
 	case AR5K_PWRTABLE_PWR_TO_PCDAC:
 		/* We are done for RF5111 since it has only
@@ -2983,18 +2979,12 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 		/* No rate powertable adjustment for RF5111 */
 		ah->ah_txpower.txp_min_idx = 0;
 		ah->ah_txpower.txp_offset = 0;
-
-		/* Write settings on hw */
-		ath5k_setup_pcdac_table(ah);
 		break;
 	case AR5K_PWRTABLE_PWR_TO_PDADC:
 		/* Set PDADC boundaries and fill
 		 * final PDADC table */
 		ath5k_combine_pwr_to_pdadc_curves(ah, table_min, table_max,
 						ee->ee_pd_gains[ee_mode]);
-
-		/* Write settings on hw */
-		ath5k_setup_pwr_to_pdadc_table(ah, ee_mode);
 
 		/* Set txp.offset, note that table_min
 		 * can be negative */
@@ -3009,6 +2999,15 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 	return 0;
 }
 
+/* Write power table for current channel to hw */
+static void
+ath5k_write_channel_powertable(struct ath5k_hw *ah, u8 ee_mode, u8 type)
+{
+	if (type == AR5K_PWRTABLE_PWR_TO_PDADC)
+		ath5k_write_pwr_to_pdadc_table(ah, ee_mode);
+	else
+		ath5k_write_pcdac_table(ah);
+}
 
 /*
  * Per-rate tx power setting
@@ -3159,11 +3158,10 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 							ee_mode, type);
 		if (ret)
 			return ret;
-	/* Write cached table on hw */
-	} else if (type == AR5K_PWRTABLE_PWR_TO_PDADC)
-		ath5k_setup_pwr_to_pdadc_table(ah, ee_mode);
-	else
-		ath5k_setup_pcdac_table(ah);
+	}
+
+	/* Write table on hw */
+	ath5k_write_channel_powertable(ah, ee_mode, type);
 
 	/* Limit max power if we have a CTL available */
 	ath5k_get_max_ctl_power(ah, channel);
