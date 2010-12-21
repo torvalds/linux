@@ -3254,16 +3254,8 @@ static void drbd_delete_device(unsigned int minor)
 		return;
 
 	/* paranoia asserts */
-	if (mdev->open_cnt != 0)
-		dev_err(DEV, "open_cnt = %d in %s:%u", mdev->open_cnt,
-				__FILE__ , __LINE__);
-
-	if (!expect(list_empty(&mdev->data.work.q))) {
-		struct list_head *lp;
-		list_for_each(lp, &mdev->data.work.q) {
-			dev_err(DEV, "lp = %p\n", lp);
-		}
-	};
+	D_ASSERT(mdev->open_cnt == 0);
+	D_ASSERT(list_empty(&mdev->data.work.q));
 	/* end paranoia asserts */
 
 	del_gendisk(mdev->vdisk);
