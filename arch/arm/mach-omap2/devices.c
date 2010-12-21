@@ -33,7 +33,6 @@
 
 #include "mux.h"
 #include "control.h"
-#include "wd_timer.h"
 
 #if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
 
@@ -956,26 +955,12 @@ static inline void omap_init_vout(void) {}
 
 /*-------------------------------------------------------------------------*/
 
-static int omap2_disable_wdt(struct omap_hwmod *oh, void *unused)
-{
-	return omap2_wd_timer_disable(oh);
-}
-
-static void __init omap_disable_wdt(void)
-{
-	if (cpu_class_is_omap2())
-		omap_hwmod_for_each_by_class("wd_timer",
-					     omap2_disable_wdt, NULL);
-	return;
-}
-
 static int __init omap2_init_devices(void)
 {
 	/*
 	 * please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
-	omap_disable_wdt();
 	omap_hsmmc_reset();
 	omap_init_audio();
 	omap_init_camera();

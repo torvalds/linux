@@ -27,7 +27,6 @@
 int omap2_wd_timer_disable(struct omap_hwmod *oh)
 {
 	void __iomem *base;
-	int ret;
 
 	if (!oh) {
 		pr_err("%s: Could not look up wdtimer_hwmod\n", __func__);
@@ -41,14 +40,6 @@ int omap2_wd_timer_disable(struct omap_hwmod *oh)
 		return -EINVAL;
 	}
 
-	/* Enable the clocks before accessing the WDT registers */
-	ret = omap_hwmod_enable(oh);
-	if (ret) {
-		pr_err("%s: Could not enable clocks for %s\n",
-				oh->name, __func__);
-		return ret;
-	}
-
 	/* sequence required to disable watchdog */
 	__raw_writel(0xAAAA, base + OMAP_WDT_SPR);
 	while (__raw_readl(base + OMAP_WDT_WPS) & 0x10)
@@ -58,11 +49,6 @@ int omap2_wd_timer_disable(struct omap_hwmod *oh)
 	while (__raw_readl(base + OMAP_WDT_WPS) & 0x10)
 		cpu_relax();
 
-	ret = omap_hwmod_idle(oh);
-	if (ret)
-		pr_err("%s: Could not disable clocks for %s\n",
-				oh->name, __func__);
-
-	return ret;
+	return 0;
 }
 

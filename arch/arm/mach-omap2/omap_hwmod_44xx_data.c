@@ -29,6 +29,7 @@
 
 #include "cm.h"
 #include "prm-regbits-44xx.h"
+#include "wd_timer.h"
 
 /* Base offset for all OMAP4 interrupts external to MPUSS */
 #define OMAP44XX_IRQ_GIC_START	32
@@ -728,8 +729,9 @@ static struct omap_hwmod_class_sysconfig omap44xx_uart_sysc = {
 };
 
 static struct omap_hwmod_class omap44xx_wd_timer_hwmod_class = {
-	.name = "wd_timer",
-	.sysc = &omap44xx_wd_timer_sysc,
+	.name		= "wd_timer",
+	.sysc		= &omap44xx_wd_timer_sysc,
+	.pre_shutdown	= &omap2_wd_timer_disable
 };
 
 /* wd_timer2 */
