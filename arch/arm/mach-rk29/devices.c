@@ -636,8 +636,8 @@ static struct android_usb_product usb_products[] = {
  * please change vendor_id to 0x0bb4 and product_id to 0x0c02.
  */
 static struct android_usb_platform_data android_usb_pdata = {
-	.vendor_id	= 0x2207,//0x0bb4,//0x18d1,
-	.product_id	= 0x2810,//0x4e11,
+	.vendor_id	= 0x0bb4,//0x2207,//0x0bb4,//0x18d1,
+	.product_id	= 0x4e11,//0x2810,//0x4e11,
 	.version	= 0x0100,
 	.product_name		= "rk2818 sdk",
 	.manufacturer_name	= "RockChip",
@@ -658,7 +658,7 @@ struct platform_device android_usb_device = {
 
 /********************usb*********************/
 struct usb_mass_storage_platform_data mass_storage_pdata = {
-	.nluns		= 1,
+	.nluns		= 2,
 	.vendor		= "RockChip",
 	.product	= "rk29 sdk",
 	.release	= 0x0100,
