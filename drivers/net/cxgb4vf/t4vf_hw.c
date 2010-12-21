@@ -116,7 +116,7 @@ static void dump_mbox(struct adapter *adapter, const char *tag, u32 mbox_data)
 int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 		      void *rpl, bool sleep_ok)
 {
-	static int delay[] = {
+	static const int delay[] = {
 		1, 1, 3, 5, 10, 10, 20, 50, 100
 	};
 

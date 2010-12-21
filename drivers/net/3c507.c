@@ -311,8 +311,8 @@ static int mem_start;
 struct net_device * __init el16_probe(int unit)
 {
 	struct net_device *dev = alloc_etherdev(sizeof(struct net_local));
-	static unsigned ports[] = { 0x300, 0x320, 0x340, 0x280, 0};
-	unsigned *port;
+	static const unsigned ports[] = { 0x300, 0x320, 0x340, 0x280, 0};
+	const unsigned *port;
 	int err = -ENODEV;
 
 	if (!dev)
