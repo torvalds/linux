@@ -39,10 +39,12 @@ userspace. Top-level directories in sysfs represent the common
 ancestors of object hierarchies; i.e. the subsystems the objects
 belong to. 
 
-Sysfs internally stores the kobject that owns the directory in the
-->d_fsdata pointer of the directory's dentry. This allows sysfs to do
-reference counting directly on the kobject when the file is opened and
-closed. 
+Sysfs internally stores a pointer to the kobject that implements a
+directory in the sysfs_dirent object associated with the directory. In
+the past this kobject pointer has been used by sysfs to do reference
+counting directly on the kobject whenever the file is opened or closed.
+With the current sysfs implementation the kobject reference count is
+only modified directly by the function sysfs_schedule_callback().
 
 
 Attributes
