@@ -478,6 +478,9 @@ struct rndis_wlan_private {
 	struct mutex command_lock;
 	unsigned long work_pending;
 	int last_qual;
+	s32 cqm_rssi_thold;
+	u32 cqm_rssi_hyst;
+	int last_cqm_event_rssi;
 
 	struct ieee80211_supported_band band;
 	struct ieee80211_channel channels[ARRAY_SIZE(rndis_channels)];
@@ -569,6 +572,10 @@ static int rndis_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 
 static int rndis_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev);
 
+static int rndis_set_cqm_rssi_config(struct wiphy *wiphy,
+					struct net_device *dev,
+					s32 rssi_thold, u32 rssi_hyst);
+
 static const struct cfg80211_ops rndis_config_ops = {
 	.change_virtual_intf = rndis_change_virtual_intf,
 	.scan = rndis_scan,
@@ -588,6 +595,7 @@ static const struct cfg80211_ops rndis_config_ops = {
 	.set_pmksa = rndis_set_pmksa,
 	.del_pmksa = rndis_del_pmksa,
 	.flush_pmksa = rndis_flush_pmksa,
+	.set_cqm_rssi_config = rndis_set_cqm_rssi_config,
 };
 
 static void *rndis_wiphy_privid = &rndis_wiphy_privid;
@@ -2566,6 +2574,19 @@ static int rndis_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 	return rndis_set_oid(usbdev, OID_802_11_PMKID, &pmkid, sizeof(pmkid));
 }
 
+static int rndis_set_cqm_rssi_config(struct wiphy *wiphy,
+					struct net_device *dev,
+					s32 rssi_thold, u32 rssi_hyst)
+{
+	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
+
+	priv->cqm_rssi_thold = rssi_thold;
+	priv->cqm_rssi_hyst = rssi_hyst;
+	priv->last_cqm_event_rssi = 0;
+
+	return 0;
+}
+
 static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 					   struct ndis_80211_assoc_info *info)
 {
@@ -3095,6 +3116,32 @@ static int rndis_wlan_get_caps(struct usbnet *usbdev, struct wiphy *wiphy)
 	return retval;
 }
 
+static void rndis_do_cqm(struct usbnet *usbdev, s32 rssi)
+{
+	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
+	enum nl80211_cqm_rssi_threshold_event event;
+	int thold, hyst, last_event;
+
+	if (priv->cqm_rssi_thold >= 0 || rssi >= 0)
+		return;
+	if (priv->infra_mode != NDIS_80211_INFRA_INFRA)
+		return;
+
+	last_event = priv->last_cqm_event_rssi;
+	thold = priv->cqm_rssi_thold;
+	hyst = priv->cqm_rssi_hyst;
+
+	if (rssi < thold && (last_event == 0 || rssi < last_event - hyst))
+		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
+	else if (rssi > thold && (last_event == 0 || rssi > last_event + hyst))
+		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
+	else
+		return;
+
+	priv->last_cqm_event_rssi = rssi;
+	cfg80211_cqm_rssi_notify(usbdev->net, event, GFP_KERNEL);
+}
+
 #define DEVICE_POLLER_JIFFIES (HZ)
 static void rndis_device_poller(struct work_struct *work)
 {
@@ -3129,8 +3176,10 @@ static void rndis_device_poller(struct work_struct *work)
 
 	len = sizeof(rssi);
 	ret = rndis_query_oid(usbdev, OID_802_11_RSSI, &rssi, &len);
-	if (ret == 0)
+	if (ret == 0) {
 		priv->last_qual = level_to_qual(le32_to_cpu(rssi));
+		rndis_do_cqm(usbdev, le32_to_cpu(rssi));
+	}
 
 	netdev_dbg(usbdev->net, "dev-poller: OID_802_11_RSSI -> %d, rssi:%d, qual: %d\n",
 		   ret, le32_to_cpu(rssi), level_to_qual(le32_to_cpu(rssi)));
