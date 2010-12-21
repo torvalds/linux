@@ -1608,7 +1608,7 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 		pcipriv->ndis_adapter.pcibridge_funcnum =
 		    PCI_FUNC(bridge_pdev->devfn);
 		pcipriv->ndis_adapter.pcibridge_pciehdr_offset =
-		    bridge_pdev->pcie_cap;
+		    pci_pcie_cap(bridge_pdev);
 		pcipriv->ndis_adapter.pcicfg_addrport =
 		    (pcipriv->ndis_adapter.pcibridge_busnum << 16) |
 		    (pcipriv->ndis_adapter.pcibridge_devnum << 11) |
