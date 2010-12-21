@@ -363,6 +363,10 @@ static struct regulator_consumer_supply rx51_vaux1_consumers[] = {
 	REGULATOR_SUPPLY("vdds_sdi", "omapdss"),
 };
 
+static struct regulator_consumer_supply rx51_vdac_supply[] = {
+	REGULATOR_SUPPLY("vdda_dac", "omapdss"),
+};
+
 static struct regulator_init_data rx51_vaux1 = {
 	.constraints = {
 		.name			= "V28",
@@ -480,14 +484,17 @@ static struct regulator_init_data rx51_vsim = {
 
 static struct regulator_init_data rx51_vdac = {
 	.constraints = {
+		.name			= "VDAC",
 		.min_uV			= 1800000,
 		.max_uV			= 1800000,
+		.apply_uV		= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE
-					| REGULATOR_CHANGE_MODE
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= rx51_vdac_supply,
 };
 
 static struct regulator_init_data rx51_vio = {
