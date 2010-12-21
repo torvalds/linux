@@ -334,6 +334,15 @@ void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned nr)
 }
 EXPORT_SYMBOL_GPL(kvm_requeue_exception);
 
+void kvm_complete_insn_gp(struct kvm_vcpu *vcpu, int err)
+{
+	if (err)
+		kvm_inject_gp(vcpu, 0);
+	else
+		kvm_x86_ops->skip_emulated_instruction(vcpu);
+}
+EXPORT_SYMBOL_GPL(kvm_complete_insn_gp);
+
 void kvm_inject_page_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault)
 {
 	++vcpu->stat.pf_guest;

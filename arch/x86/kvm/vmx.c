@@ -3147,14 +3147,6 @@ vmx_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
 	hypercall[2] = 0xc1;
 }
 
-static void complete_insn_gp(struct kvm_vcpu *vcpu, int err)
-{
-	if (err)
-		kvm_inject_gp(vcpu, 0);
-	else
-		skip_emulated_instruction(vcpu);
-}
-
 static int handle_cr(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification, val;
@@ -3172,21 +3164,21 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 		switch (cr) {
 		case 0:
 			err = kvm_set_cr0(vcpu, val);
-			complete_insn_gp(vcpu, err);
+			kvm_complete_insn_gp(vcpu, err);
 			return 1;
 		case 3:
 			err = kvm_set_cr3(vcpu, val);
-			complete_insn_gp(vcpu, err);
+			kvm_complete_insn_gp(vcpu, err);
 			return 1;
 		case 4:
 			err = kvm_set_cr4(vcpu, val);
-			complete_insn_gp(vcpu, err);
+			kvm_complete_insn_gp(vcpu, err);
 			return 1;
 		case 8: {
 				u8 cr8_prev = kvm_get_cr8(vcpu);
 				u8 cr8 = kvm_register_read(vcpu, reg);
 				err = kvm_set_cr8(vcpu, cr8);
-				complete_insn_gp(vcpu, err);
+				kvm_complete_insn_gp(vcpu, err);
 				if (irqchip_in_kernel(vcpu->kvm))
 					return 1;
 				if (cr8_prev <= cr8)

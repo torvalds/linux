@@ -828,4 +828,6 @@ void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
 bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu);
 extern bool kvm_find_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn);
 
+void kvm_complete_insn_gp(struct kvm_vcpu *vcpu, int err);
+
 #endif /* _ASM_X86_KVM_HOST_H */
