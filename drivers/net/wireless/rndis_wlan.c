@@ -503,7 +503,6 @@ struct rndis_wlan_private {
 	int infra_mode;
 	bool connected;
 	u8 bssid[ETH_ALEN];
-	struct ndis_80211_ssid essid;
 	__le32 current_command_oid;
 
 	/* encryption stuff */
@@ -1026,7 +1025,6 @@ static int set_essid(struct usbnet *usbdev, struct ndis_80211_ssid *ssid)
 		return ret;
 	}
 	if (ret == 0) {
-		memcpy(&priv->essid, ssid, sizeof(priv->essid));
 		priv->radio_on = true;
 		netdev_dbg(usbdev->net, "%s(): radio_on = true\n", __func__);
 	}
