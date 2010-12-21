@@ -755,7 +755,7 @@ static bool guid_already_parsed(const char *guid_string)
 	struct wmi_block *wblock;
 
 	list_for_each_entry(wblock, &wmi_block_list, list)
-		if (strncmp(wblock->gblock.guid, guid_string, 16) == 0)
+		if (memcmp(wblock->gblock.guid, guid_string, 16) == 0)
 			return true;
 
 	return false;

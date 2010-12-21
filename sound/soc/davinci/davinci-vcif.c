@@ -97,9 +97,6 @@ static int davinci_vcif_hw_params(struct snd_pcm_substream *substream,
 			&davinci_vcif_dev->dma_params[substream->stream];
 	u32 w;
 
-	dai->capture_dma_data = davinci_vcif_dev->dma_params;
-	dai->playback_dma_data = davinci_vcif_dev->dma_params;
-
 	/* Restart the codec before setup */
 	davinci_vcif_stop(substream);
 	davinci_vcif_start(substream);
@@ -174,9 +171,19 @@ static int davinci_vcif_trigger(struct snd_pcm_substream *substream, int cmd,
 	return ret;
 }
 
+static int davinci_vcif_startup(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct davinci_vcif_dev *dev = snd_soc_dai_get_drvdata(dai);
+
+	snd_soc_dai_set_dma_data(dai, substream, dev->dma_params);
+	return 0;
+}
+
 #define DAVINCI_VCIF_RATES	SNDRV_PCM_RATE_8000_48000
 
 static struct snd_soc_dai_ops davinci_vcif_dai_ops = {
+	.startup	= davinci_vcif_startup,
 	.trigger	= davinci_vcif_trigger,
 	.hw_params	= davinci_vcif_hw_params,
 };
@@ -240,7 +247,10 @@ fail:
 
 static int davinci_vcif_remove(struct platform_device *pdev)
 {
+	struct davinci_vcif_dev *davinci_vcif_dev = dev_get_drvdata(&pdev->dev);
+
 	snd_soc_unregister_dai(&pdev->dev);
+	kfree(davinci_vcif_dev);
 
 	return 0;
 }

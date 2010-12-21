@@ -536,6 +536,7 @@ static const struct file_operations yurex_fops = {
 	.open =		yurex_open,
 	.release =	yurex_release,
 	.fasync	=	yurex_fasync,
+	.llseek =	default_llseek,
 };
 
 

@@ -622,11 +622,13 @@ nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, struct nfs_s
 	entry->prev_cookie = entry->cookie;
 	p = xdr_decode_hyper(p, &entry->cookie);
 
+	entry->d_type = DT_UNKNOWN;
 	if (plus) {
 		entry->fattr->valid = 0;
 		p = xdr_decode_post_op_attr_stream(xdr, entry->fattr);
 		if (IS_ERR(p))
 			goto out_overflow_exit;
+		entry->d_type = nfs_umode_to_dtype(entry->fattr->mode);
 		/* In fact, a post_op_fh3: */
 		p = xdr_inline_decode(xdr, 4);
 		if (unlikely(!p))
@@ -656,7 +658,7 @@ nfs3_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry, struct nfs_s
 out_overflow:
 	print_overflow_msg(__func__, xdr);
 out_overflow_exit:
-	return ERR_PTR(-EIO);
+	return ERR_PTR(-EAGAIN);
 }
 
 /*

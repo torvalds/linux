@@ -6208,6 +6208,10 @@ __be32 *nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 	if (entry->fattr->valid & NFS_ATTR_FATTR_FILEID)
 		entry->ino = entry->fattr->fileid;
 
+	entry->d_type = DT_UNKNOWN;
+	if (entry->fattr->valid & NFS_ATTR_FATTR_TYPE)
+		entry->d_type = nfs_umode_to_dtype(entry->fattr->mode);
+
 	if (verify_attr_len(xdr, p, len) < 0)
 		goto out_overflow;
 
@@ -6221,7 +6225,7 @@ __be32 *nfs4_decode_dirent(struct xdr_stream *xdr, struct nfs_entry *entry,
 
 out_overflow:
 	print_overflow_msg(__func__, xdr);
-	return ERR_PTR(-EIO);
+	return ERR_PTR(-EAGAIN);
 }
 
 /*

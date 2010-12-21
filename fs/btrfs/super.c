@@ -244,6 +244,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_space_cache:
 			printk(KERN_INFO "btrfs: enabling disk space caching\n");
 			btrfs_set_opt(info->mount_opt, SPACE_CACHE);
+			break;
 		case Opt_clear_cache:
 			printk(KERN_INFO "btrfs: force clearing of disk cache\n");
 			btrfs_set_opt(info->mount_opt, CLEAR_CACHE);
@@ -562,11 +563,25 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 
 static int btrfs_test_super(struct super_block *s, void *data)
 {
-	struct btrfs_fs_devices *test_fs_devices = data;
+	struct btrfs_root *test_root = data;
 	struct btrfs_root *root = btrfs_sb(s);
 
-	return root->fs_info->fs_devices == test_fs_devices;
+	/*
+	 * If this super block is going away, return false as it
+	 * can't match as an existing super block.
+	 */
+	if (!atomic_read(&s->s_active))
+		return 0;
+	return root->fs_info->fs_devices == test_root->fs_info->fs_devices;
 }
+
+static int btrfs_set_super(struct super_block *s, void *data)
+{
+	s->s_fs_info = data;
+
+	return set_anon_super(s, data);
+}
+
 
 /*
  * Find a superblock for the given device / mount point.
@@ -581,6 +596,8 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	struct super_block *s;
 	struct dentry *root;
 	struct btrfs_fs_devices *fs_devices = NULL;
+	struct btrfs_root *tree_root = NULL;
+	struct btrfs_fs_info *fs_info = NULL;
 	fmode_t mode = FMODE_READ;
 	char *subvol_name = NULL;
 	u64 subvol_objectid = 0;
@@ -608,8 +625,24 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 		goto error_close_devices;
 	}
 
+	/*
+	 * Setup a dummy root and fs_info for test/set super.  This is because
+	 * we don't actually fill this stuff out until open_ctree, but we need
+	 * it for searching for existing supers, so this lets us do that and
+	 * then open_ctree will properly initialize everything later.
+	 */
+	fs_info = kzalloc(sizeof(struct btrfs_fs_info), GFP_NOFS);
+	tree_root = kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
+	if (!fs_info || !tree_root) {
+		error = -ENOMEM;
+		goto error_close_devices;
+	}
+	fs_info->tree_root = tree_root;
+	fs_info->fs_devices = fs_devices;
+	tree_root->fs_info = fs_info;
+
 	bdev = fs_devices->latest_bdev;
-	s = sget(fs_type, btrfs_test_super, set_anon_super, fs_devices);
+	s = sget(fs_type, btrfs_test_super, btrfs_set_super, tree_root);
 	if (IS_ERR(s))
 		goto error_s;
 
@@ -675,6 +708,8 @@ error_s:
 	error = PTR_ERR(s);
 error_close_devices:
 	btrfs_close_devices(fs_devices);
+	kfree(fs_info);
+	kfree(tree_root);
 error_free_subvol_name:
 	kfree(subvol_name);
 	return ERR_PTR(error);

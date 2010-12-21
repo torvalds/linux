@@ -1120,8 +1120,6 @@ struct drm_device {
 	/*@{ */
 	spinlock_t object_name_lock;
 	struct idr object_name_idr;
-	uint32_t invalidate_domains;    /* domains pending invalidation */
-	uint32_t flush_domains;         /* domains pending flush */
 	/*@} */
 
 };
@@ -1411,7 +1409,6 @@ extern int drm_agp_unbind_ioctl(struct drm_device *dev, void *data,
 extern int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request);
 extern int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
-extern void drm_agp_chipset_flush(struct drm_device *dev);
 
 				/* Stub support (drm_stub.h) */
 extern int drm_setmaster_ioctl(struct drm_device *dev, void *data,

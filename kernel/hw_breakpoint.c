@@ -620,7 +620,7 @@ static struct pmu perf_breakpoint = {
 	.read		= hw_breakpoint_pmu_read,
 };
 
-static int __init init_hw_breakpoint(void)
+int __init init_hw_breakpoint(void)
 {
 	unsigned int **task_bp_pinned;
 	int cpu, err_cpu;
@@ -655,6 +655,5 @@ static int __init init_hw_breakpoint(void)
 
 	return -ENOMEM;
 }
-core_initcall(init_hw_breakpoint);
 
 

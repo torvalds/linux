@@ -85,8 +85,9 @@ static u32 get_reserved(struct intel_gpio *gpio)
 
 	/* On most chips, these bits must be preserved in software. */
 	if (!IS_I830(dev) && !IS_845G(dev))
-		reserved = I915_READ(gpio->reg) & (GPIO_DATA_PULLUP_DISABLE |
-						   GPIO_CLOCK_PULLUP_DISABLE);
+		reserved = I915_READ_NOTRACE(gpio->reg) &
+					     (GPIO_DATA_PULLUP_DISABLE |
+					      GPIO_CLOCK_PULLUP_DISABLE);
 
 	return reserved;
 }
@@ -96,9 +97,9 @@ static int get_clock(void *data)
 	struct intel_gpio *gpio = data;
 	struct drm_i915_private *dev_priv = gpio->dev_priv;
 	u32 reserved = get_reserved(gpio);
-	I915_WRITE(gpio->reg, reserved | GPIO_CLOCK_DIR_MASK);
-	I915_WRITE(gpio->reg, reserved);
-	return (I915_READ(gpio->reg) & GPIO_CLOCK_VAL_IN) != 0;
+	I915_WRITE_NOTRACE(gpio->reg, reserved | GPIO_CLOCK_DIR_MASK);
+	I915_WRITE_NOTRACE(gpio->reg, reserved);
+	return (I915_READ_NOTRACE(gpio->reg) & GPIO_CLOCK_VAL_IN) != 0;
 }
 
 static int get_data(void *data)
@@ -106,9 +107,9 @@ static int get_data(void *data)
 	struct intel_gpio *gpio = data;
 	struct drm_i915_private *dev_priv = gpio->dev_priv;
 	u32 reserved = get_reserved(gpio);
-	I915_WRITE(gpio->reg, reserved | GPIO_DATA_DIR_MASK);
-	I915_WRITE(gpio->reg, reserved);
-	return (I915_READ(gpio->reg) & GPIO_DATA_VAL_IN) != 0;
+	I915_WRITE_NOTRACE(gpio->reg, reserved | GPIO_DATA_DIR_MASK);
+	I915_WRITE_NOTRACE(gpio->reg, reserved);
+	return (I915_READ_NOTRACE(gpio->reg) & GPIO_DATA_VAL_IN) != 0;
 }
 
 static void set_clock(void *data, int state_high)
@@ -124,7 +125,7 @@ static void set_clock(void *data, int state_high)
 		clock_bits = GPIO_CLOCK_DIR_OUT | GPIO_CLOCK_DIR_MASK |
 			GPIO_CLOCK_VAL_MASK;
 
-	I915_WRITE(gpio->reg, reserved | clock_bits);
+	I915_WRITE_NOTRACE(gpio->reg, reserved | clock_bits);
 	POSTING_READ(gpio->reg);
 }
 
@@ -141,7 +142,7 @@ static void set_data(void *data, int state_high)
 		data_bits = GPIO_DATA_DIR_OUT | GPIO_DATA_DIR_MASK |
 			GPIO_DATA_VAL_MASK;
 
-	I915_WRITE(gpio->reg, reserved | data_bits);
+	I915_WRITE_NOTRACE(gpio->reg, reserved | data_bits);
 	POSTING_READ(gpio->reg);
 }
 
