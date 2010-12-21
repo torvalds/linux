@@ -70,7 +70,7 @@ STATIC void xlog_state_want_sync(xlog_t	*log, xlog_in_core_t *iclog);
 /* local functions to manipulate grant head */
 STATIC int  xlog_grant_log_space(xlog_t		*log,
 				 xlog_ticket_t	*xtic);
-STATIC void xlog_grant_push_ail(xfs_mount_t	*mp,
+STATIC void xlog_grant_push_ail(struct log	*log,
 				int		need_bytes);
 STATIC void xlog_regrant_reserve_log_space(xlog_t	 *log,
 					   xlog_ticket_t *ticket);
@@ -318,7 +318,9 @@ xfs_log_reserve(
 
 		trace_xfs_log_reserve(log, internal_ticket);
 
-		xlog_grant_push_ail(mp, internal_ticket->t_unit_res);
+		spin_lock(&log->l_grant_lock);
+		xlog_grant_push_ail(log, internal_ticket->t_unit_res);
+		spin_unlock(&log->l_grant_lock);
 		retval = xlog_regrant_write_log_space(log, internal_ticket);
 	} else {
 		/* may sleep if need to allocate more tickets */
@@ -332,9 +334,11 @@ xfs_log_reserve(
 
 		trace_xfs_log_reserve(log, internal_ticket);
 
-		xlog_grant_push_ail(mp,
+		spin_lock(&log->l_grant_lock);
+		xlog_grant_push_ail(log,
 				    (internal_ticket->t_unit_res *
 				     internal_ticket->t_cnt));
+		spin_unlock(&log->l_grant_lock);
 		retval = xlog_grant_log_space(log, internal_ticket);
 	}
 
@@ -1185,59 +1189,58 @@ xlog_commit_record(
  * water mark.  In this manner, we would be creating a low water mark.
  */
 STATIC void
-xlog_grant_push_ail(xfs_mount_t	*mp,
-		    int		need_bytes)
+xlog_grant_push_ail(
+	struct log	*log,
+	int		need_bytes)
 {
-    xlog_t	*log = mp->m_log;	/* pointer to the log */
-    xfs_lsn_t	tail_lsn;		/* lsn of the log tail */
-    xfs_lsn_t	threshold_lsn = 0;	/* lsn we'd like to be at */
-    int		free_blocks;		/* free blocks left to write to */
-    int		free_bytes;		/* free bytes left to write to */
-    int		threshold_block;	/* block in lsn we'd like to be at */
-    int		threshold_cycle;	/* lsn cycle we'd like to be at */
-    int		free_threshold;
+	xfs_lsn_t	threshold_lsn = 0;
+	xfs_lsn_t	tail_lsn;
+	int		free_blocks;
+	int		free_bytes;
+	int		threshold_block;
+	int		threshold_cycle;
+	int		free_threshold;
 
-    ASSERT(BTOBB(need_bytes) < log->l_logBBsize);
+	ASSERT(BTOBB(need_bytes) < log->l_logBBsize);
 
-    spin_lock(&log->l_grant_lock);
-    free_bytes = xlog_space_left(log, &log->l_grant_reserve_head);
-    tail_lsn = log->l_tail_lsn;
-    free_blocks = BTOBBT(free_bytes);
+	tail_lsn = log->l_tail_lsn;
+	free_bytes = xlog_space_left(log, &log->l_grant_reserve_head);
+	free_blocks = BTOBBT(free_bytes);
 
-    /*
-     * Set the threshold for the minimum number of free blocks in the
-     * log to the maximum of what the caller needs, one quarter of the
-     * log, and 256 blocks.
-     */
-    free_threshold = BTOBB(need_bytes);
-    free_threshold = MAX(free_threshold, (log->l_logBBsize >> 2));
-    free_threshold = MAX(free_threshold, 256);
-    if (free_blocks < free_threshold) {
+	/*
+	 * Set the threshold for the minimum number of free blocks in the
+	 * log to the maximum of what the caller needs, one quarter of the
+	 * log, and 256 blocks.
+	 */
+	free_threshold = BTOBB(need_bytes);
+	free_threshold = MAX(free_threshold, (log->l_logBBsize >> 2));
+	free_threshold = MAX(free_threshold, 256);
+	if (free_blocks >= free_threshold)
+		return;
+
 	threshold_block = BLOCK_LSN(tail_lsn) + free_threshold;
 	threshold_cycle = CYCLE_LSN(tail_lsn);
 	if (threshold_block >= log->l_logBBsize) {
-	    threshold_block -= log->l_logBBsize;
-	    threshold_cycle += 1;
+		threshold_block -= log->l_logBBsize;
+		threshold_cycle += 1;
 	}
-	threshold_lsn = xlog_assign_lsn(threshold_cycle, threshold_block);
-
-	/* Don't pass in an lsn greater than the lsn of the last
+	threshold_lsn = xlog_assign_lsn(threshold_cycle,
+					threshold_block);
+	/*
+	 * Don't pass in an lsn greater than the lsn of the last
 	 * log record known to be on disk.
 	 */
 	if (XFS_LSN_CMP(threshold_lsn, log->l_last_sync_lsn) > 0)
-	    threshold_lsn = log->l_last_sync_lsn;
-    }
-    spin_unlock(&log->l_grant_lock);
+		threshold_lsn = log->l_last_sync_lsn;
 
-    /*
-     * Get the transaction layer to kick the dirty buffers out to
-     * disk asynchronously. No point in trying to do this if
-     * the filesystem is shutting down.
-     */
-    if (threshold_lsn &&
-	!XLOG_FORCED_SHUTDOWN(log))
-	    xfs_trans_ail_push(log->l_ailp, threshold_lsn);
-}	/* xlog_grant_push_ail */
+	/*
+	 * Get the transaction layer to kick the dirty buffers out to
+	 * disk asynchronously. No point in trying to do this if
+	 * the filesystem is shutting down.
+	 */
+	if (!XLOG_FORCED_SHUTDOWN(log))
+		xfs_trans_ail_push(log->l_ailp, threshold_lsn);
+}
 
 /*
  * The bdstrat callback function for log bufs. This gives us a central
@@ -2543,9 +2546,7 @@ redo:
 
 		trace_xfs_log_grant_sleep2(log, tic);
 
-		spin_unlock(&log->l_grant_lock);
-		xlog_grant_push_ail(log->l_mp, need_bytes);
-		spin_lock(&log->l_grant_lock);
+		xlog_grant_push_ail(log, need_bytes);
 
 		XFS_STATS_INC(xs_sleep_logspace);
 		xlog_wait(&tic->t_wait, &log->l_grant_lock);
@@ -2641,9 +2642,7 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 
 			trace_xfs_log_regrant_write_sleep1(log, tic);
 
-			spin_unlock(&log->l_grant_lock);
-			xlog_grant_push_ail(log->l_mp, need_bytes);
-			spin_lock(&log->l_grant_lock);
+			xlog_grant_push_ail(log, need_bytes);
 
 			XFS_STATS_INC(xs_sleep_logspace);
 			xlog_wait(&tic->t_wait, &log->l_grant_lock);
@@ -2666,9 +2665,7 @@ redo:
 	if (free_bytes < need_bytes) {
 		if (list_empty(&tic->t_queue))
 			list_add_tail(&tic->t_queue, &log->l_writeq);
-		spin_unlock(&log->l_grant_lock);
-		xlog_grant_push_ail(log->l_mp, need_bytes);
-		spin_lock(&log->l_grant_lock);
+		xlog_grant_push_ail(log, need_bytes);
 
 		XFS_STATS_INC(xs_sleep_logspace);
 		trace_xfs_log_regrant_write_sleep2(log, tic);
