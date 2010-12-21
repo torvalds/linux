@@ -517,6 +517,21 @@ static struct clk init_clocks_disable[] = {
 		.enable		= s5pv310_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 18),
 	}, {
+		.name		= "iis",
+		.id		= 0,
+		.enable		= s5pv310_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 19),
+	}, {
+		.name		= "iis",
+		.id		= 1,
+		.enable		= s5pv310_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 20),
+	}, {
+		.name		= "iis",
+		.id		= 2,
+		.enable		= s5pv310_clk_ip_peril_ctrl,
+		.ctrlbit	= (1 << 21),
+	}, {
 		.name		= "ac97",
 		.id		= -1,
 		.enable		= s5pv310_clk_ip_peril_ctrl,
