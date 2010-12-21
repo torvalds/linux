@@ -2610,7 +2610,7 @@ done:
 }
 
 int
-x86_decode_insn(struct x86_emulate_ctxt *ctxt)
+x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
 {
 	struct x86_emulate_ops *ops = ctxt->ops;
 	struct decode_cache *c = &ctxt->decode;
@@ -2621,7 +2621,10 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt)
 	struct operand memop = { .type = OP_NONE };
 
 	c->eip = ctxt->eip;
-	c->fetch.start = c->fetch.end = c->eip;
+	c->fetch.start = c->eip;
+	c->fetch.end = c->fetch.start + insn_len;
+	if (insn_len > 0)
+		memcpy(c->fetch.data, insn, insn_len);
 	ctxt->cs_base = seg_base(ctxt, ops, VCPU_SREG_CS);
 
 	switch (mode) {

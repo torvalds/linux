@@ -3330,7 +3330,8 @@ void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 	}
 }
 
-int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
+int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code,
+		       void *insn, int insn_len)
 {
 	int r;
 	enum emulation_result er;
@@ -3348,7 +3349,7 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
 	if (r)
 		goto out;
 
-	er = x86_emulate_instruction(vcpu, cr2, 0);
+	er = x86_emulate_instruction(vcpu, cr2, 0, insn, insn_len);
 
 	switch (er) {
 	case EMULATE_DONE:

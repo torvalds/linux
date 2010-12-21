@@ -3055,7 +3055,7 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 
 		if (kvm_event_needs_reinjection(vcpu))
 			kvm_mmu_unprotect_page_virt(vcpu, cr2);
-		return kvm_mmu_page_fault(vcpu, cr2, error_code);
+		return kvm_mmu_page_fault(vcpu, cr2, error_code, NULL, 0);
 	}
 
 	if (vmx->rmode.vm86_active &&
@@ -3502,7 +3502,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 
 	gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
 	trace_kvm_page_fault(gpa, exit_qualification);
-	return kvm_mmu_page_fault(vcpu, gpa, exit_qualification & 0x3);
+	return kvm_mmu_page_fault(vcpu, gpa, exit_qualification & 0x3, NULL, 0);
 }
 
 static u64 ept_rsvd_mask(u64 spte, int level)

@@ -265,7 +265,7 @@ struct x86_emulate_ctxt {
 #define X86EMUL_MODE_HOST X86EMUL_MODE_PROT64
 #endif
 
-int x86_decode_insn(struct x86_emulate_ctxt *ctxt);
+int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len);
 #define EMULATION_FAILED -1
 #define EMULATION_OK 0
 #define EMULATION_RESTART 1

@@ -634,13 +634,13 @@ enum emulation_result {
 #define EMULTYPE_NO_DECODE	    (1 << 0)
 #define EMULTYPE_TRAP_UD	    (1 << 1)
 #define EMULTYPE_SKIP		    (1 << 2)
-int x86_emulate_instruction(struct kvm_vcpu *vcpu,
-			unsigned long cr2, int emulation_type);
+int x86_emulate_instruction(struct kvm_vcpu *vcpu, unsigned long cr2,
+			    int emulation_type, void *insn, int insn_len);
 
 static inline int emulate_instruction(struct kvm_vcpu *vcpu,
 			int emulation_type)
 {
-	return x86_emulate_instruction(vcpu, 0, emulation_type);
+	return x86_emulate_instruction(vcpu, 0, emulation_type, NULL, 0);
 }
 
 void realmode_lgdt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);
@@ -721,7 +721,8 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu);
 
 int kvm_fix_hypercall(struct kvm_vcpu *vcpu);
 
-int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva, u32 error_code);
+int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva, u32 error_code,
+		       void *insn, int insn_len);
 void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva);
 
 void kvm_enable_tdp(void);
