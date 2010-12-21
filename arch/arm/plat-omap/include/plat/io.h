@@ -291,8 +291,9 @@ static inline void omap44xx_map_common_io(void)
 }
 #endif
 
-extern void omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
-				 struct omap_sdrc_params *sdrc_cs1);
+extern void omap2_init_common_infrastructure(void);
+extern void omap2_init_common_devices(struct omap_sdrc_params *sdrc_cs0,
+				      struct omap_sdrc_params *sdrc_cs1);
 
 #define __arch_ioremap	omap_ioremap
 #define __arch_iounmap	omap_iounmap

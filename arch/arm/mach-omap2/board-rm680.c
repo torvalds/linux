@@ -145,8 +145,9 @@ static void __init rm680_init_irq(void)
 {
 	struct omap_sdrc_params *sdrc_params;
 
+	omap2_init_common_infrastructure();
 	sdrc_params = nokia_get_sdram_timings();
-	omap2_init_common_hw(sdrc_params, sdrc_params);
+	omap2_init_common_devices(sdrc_params, sdrc_params);
 	omap_init_irq();
 }
 

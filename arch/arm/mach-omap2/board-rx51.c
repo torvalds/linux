@@ -105,8 +105,9 @@ static void __init rx51_init_irq(void)
 	omap_board_config = rx51_config;
 	omap_board_config_size = ARRAY_SIZE(rx51_config);
 	omap3_pm_init_cpuidle(rx51_cpuidle_params);
+	omap2_init_common_infrastructure();
 	sdrc_params = nokia_get_sdram_timings();
-	omap2_init_common_hw(sdrc_params, sdrc_params);
+	omap2_init_common_devices(sdrc_params, sdrc_params);
 	omap_init_irq();
 }
 

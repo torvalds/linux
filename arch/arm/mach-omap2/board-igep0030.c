@@ -289,7 +289,9 @@ static struct twl4030_usb_data igep3_twl4030_usb_data = {
 
 static void __init igep3_init_irq(void)
 {
-	omap2_init_common_hw(m65kxxxxam_sdrc_params, m65kxxxxam_sdrc_params);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(m65kxxxxam_sdrc_params,
+				  m65kxxxxam_sdrc_params);
 	omap_init_irq();
 }
 

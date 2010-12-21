@@ -331,11 +331,8 @@ static inline void omap_irq_base_init(void)
 #endif
 }
 
-void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
-				 struct omap_sdrc_params *sdrc_cs1)
+void __init omap2_init_common_infrastructure(void)
 {
-	u8 skip_setup_idle = 0;
-
 	pwrdm_init(powerdomains_omap);
 	clkdm_init(clockdomains_omap, clkdm_autodeps);
 	if (cpu_is_omap242x())
@@ -359,6 +356,17 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 		omap4xxx_clk_init();
 	else
 		pr_err("Could not init clock framework - unknown CPU\n");
+}
+
+/*
+ * XXX Ideally, this function will dwindle into nothingness over time;
+ * almost all device init code should be possible through initcalls
+ * and other generalized mechanisms
+ */
+void __init omap2_init_common_devices(struct omap_sdrc_params *sdrc_cs0,
+				      struct omap_sdrc_params *sdrc_cs1)
+{
+	u8 skip_setup_idle = 0;
 
 	omap_serial_early_init();
 
