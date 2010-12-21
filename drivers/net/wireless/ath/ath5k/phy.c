@@ -3004,6 +3004,8 @@ ath5k_setup_channel_powertable(struct ath5k_hw *ah,
 		return -EINVAL;
 	}
 
+	ah->ah_txpower.txp_setup = true;
+
 	return 0;
 }
 
@@ -3105,9 +3107,10 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
  */
 static int
 ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
-		u8 ee_mode, u8 txpower, bool fast)
+		u8 ee_mode, u8 txpower)
 {
 	struct ath5k_rate_pcal_info rate_info;
+	struct ieee80211_channel *curr_channel = ah->ah_current_channel;
 	u8 type;
 	int ret;
 
@@ -3138,10 +3141,13 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		return -EINVAL;
 	}
 
-	/* If fast is set it means we are on the same channel/mode
-	 * so there is no need to recalculate the powertable, we 'll
-	 * just use the cached one */
-	if (!fast) {
+	/*
+	 * If we don't change channel/mode skip tx powertable calculation
+	 * and use the cached one.
+	 */
+	if (!ah->ah_txpower.txp_setup ||
+	    (channel->hw_value != curr_channel->hw_value) ||
+	    (channel->center_freq != curr_channel->center_freq)) {
 		/* Reset TX power values */
 		memset(&ah->ah_txpower, 0, sizeof(ah->ah_txpower));
 		ah->ah_txpower.txp_tpc = AR5K_TUNE_TPC_TXPOWER;
@@ -3158,8 +3164,6 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		ath5k_setup_pwr_to_pdadc_table(ah, ee_mode);
 	else
 		ath5k_setup_pcdac_table(ah);
-
-
 
 	/* Limit max power if we have a CTL available */
 	ath5k_get_max_ctl_power(ah, channel);
@@ -3238,7 +3242,7 @@ int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 	ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_TXPOWER,
 		"changing txpower to %d\n", txpower);
 
-	return ath5k_hw_txpower(ah, channel, ee_mode, txpower, true);
+	return ath5k_hw_txpower(ah, channel, ee_mode, txpower);
 }
 
 /*************\
@@ -3251,7 +3255,6 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	struct ieee80211_channel *curr_channel;
 	int ret, i;
 	u32 phy_tst1;
-	bool fast_txp;
 	ret = 0;
 
 	/*
@@ -3282,17 +3285,6 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	}
 
 	/*
-	 * If we don't change channel/mode skip
-	 * tx powertable calculation and use the
-	 * cached one.
-	 */
-	if ((channel->hw_value == curr_channel->hw_value) &&
-	(channel->center_freq == curr_channel->center_freq))
-		fast_txp = true;
-	else
-		fast_txp = false;
-
-	/*
 	 * Set TX power
 	 *
 	 * Note: We need to do that before we set
@@ -3300,8 +3292,7 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	 * properly set curve indices.
 	 */
 	ret = ath5k_hw_txpower(ah, channel, ee_mode,
-				ah->ah_txpower.txp_max_pwr / 2,
-				fast_txp);
+				ah->ah_txpower.txp_max_pwr / 2);
 	if (ret)
 		return ret;
 

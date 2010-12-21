@@ -1113,6 +1113,7 @@ struct ath5k_hw {
 		s16		txp_cck_ofdm_gainf_delta;
 		/* Value in dB units */
 		s16		txp_cck_ofdm_pwr_delta;
+		bool		txp_setup;
 	} ah_txpower;
 
 	struct {
