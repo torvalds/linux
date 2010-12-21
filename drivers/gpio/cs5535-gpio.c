@@ -70,8 +70,12 @@ static void errata_outl(struct cs5535_gpio_chip *chip, u32 val,
 	 * Don't apply this errata to the edge status GPIOs, as writing
 	 * to their lower bits will clear them.
 	 */
-	if (reg != GPIO_POSITIVE_EDGE_STS && reg != GPIO_NEGATIVE_EDGE_STS)
-		val |= inl(addr);
+	if (reg != GPIO_POSITIVE_EDGE_STS && reg != GPIO_NEGATIVE_EDGE_STS) {
+		if (val & 0xffff)
+			val |= (inl(addr) & 0xffff); /* ignore the high bits */
+		else
+			val |= (inl(addr) ^ (val >> 16));
+	}
 	outl(val, addr);
 }
 
