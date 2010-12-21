@@ -135,7 +135,7 @@ jme_reset_phy_processor(struct jme_adapter *jme)
 
 static void
 jme_setup_wakeup_frame(struct jme_adapter *jme,
-		u32 *mask, u32 crc, int fnr)
+		       const u32 *mask, u32 crc, int fnr)
 {
 	int i;
 
@@ -163,7 +163,7 @@ jme_setup_wakeup_frame(struct jme_adapter *jme,
 static inline void
 jme_reset_mac_processor(struct jme_adapter *jme)
 {
-	u32 mask[WAKEUP_FRAME_MASK_DWNR] = {0, 0, 0, 0};
+	static const u32 mask[WAKEUP_FRAME_MASK_DWNR] = {0, 0, 0, 0};
 	u32 crc = 0xCDCDCDCD;
 	u32 gpreg0;
 	int i;
