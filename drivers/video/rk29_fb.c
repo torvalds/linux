@@ -95,21 +95,33 @@ static struct rk29fb_rgb def_rgb_16 = {
      transp: { offset: 0,  length: 0, },
 };
 
+struct win_set {
+	volatile u32 y_offset;
+	volatile u32 c_offset;
+};
+
 struct win0_par {
-	u32 refcount;
-	u32	pseudo_pal[16];
-	u32 y_offset;
-	u32 uv_offset;
+    u32 refcount;
+    u32	pseudo_pal[16];
+    u32 y_offset;
+    u32 c_offset;
     u32 xpos;         //size in panel
     u32 ypos;
     u32 xsize;        //start point in panel
     u32 ysize;
     u32 format;
 
+    struct rw_semaphore sem;
+    wait_queue_head_t wait;
+    struct win_set mirror;
+    struct win_set displ;
+    struct win_set done;
+
     u8 par_seted;
     u8 addr_seted;
 };
 
+/*
 struct win1_par {
 	u32 refcount;
 	u32	pseudo_pal[16];
@@ -121,6 +133,7 @@ struct win1_par {
     u32 format;
     u32 addr_offset;
 };
+*/
 
 struct rk29fb_inf {
     struct fb_info *fb1;
@@ -186,7 +199,7 @@ typedef enum _TRSP_MODE
 
 
 struct platform_device *g_pdev = NULL;
-static int win1fb_set_par(struct fb_info *info);
+//static int win1fb_set_par(struct fb_info *info);
 
 #if 0
 #define CHK_SUSPEND(inf)	\
@@ -587,7 +600,7 @@ void load_screen(struct fb_info *info, bool initscreen)
     clk_set_parent(inf->dclk, inf->dclk_divider);
     clk_set_parent(inf->aclk, inf->aclk_parent);
 
-    fbprintk(">>>>>> set lcdc dclk need %d HZ, clk_parent = %d hz \n ", screen->pixclock, clk_rate);
+    fbprintk(">>>>>> set lcdc dclk need %d HZ, clk_parent = %d hz \n ", screen->pixclock, screen->lcdc_aclk);
 
     ret = clk_set_rate(inf->dclk_divider, screen->pixclock);
     if(ret)
@@ -827,8 +840,8 @@ static int win0_set_par(struct fb_info *info)
 	u32 yact = var->yres;
 	u32 xvir = var->xres_virtual;		/* virtual resolution		*/
 	u32 yvir = var->yres_virtual;
-	u32 xact_st = var->xoffset;			/* offset from virtual to visible */
-	u32 yact_st = var->yoffset;			/* resolution			*/
+	//u32 xact_st = var->xoffset;         /* offset from virtual to visible */
+	//u32 yact_st = var->yoffset;         /* resolution			*/
     u32 xpos = par->xpos;
     u32 ypos = par->ypos;
 
@@ -844,7 +857,7 @@ static int win0_set_par(struct fb_info *info)
 
 	// calculate the display phy address
     y_addr = fix->smem_start + par->y_offset;
-    uv_addr = fix->mmio_start + par->uv_offset;
+    uv_addr = fix->mmio_start + par->c_offset;
 
     ScaleYrgbX = CalScaleW0(xact, par->xsize);
     ScaleYrgbY = CalScaleW0(yact, par->ysize);
@@ -923,7 +936,7 @@ static int win0_pan( struct fb_info *info )
 	CHK_SUSPEND(inf);
 
     y_addr = fix0->smem_start +  par->y_offset;//y_offset;
-    uv_addr = fix0->mmio_start + par->uv_offset ;//uv_offset;
+    uv_addr = fix0->mmio_start + par->c_offset ;//c_offset;
 
     LcdWrReg(inf, WIN0_YRGB_MST, y_addr);
     LcdWrReg(inf, WIN0_CBR_MST, uv_addr);
@@ -967,12 +980,13 @@ static int win1_set_par(struct fb_info *info)
     struct rk29fb_screen *screen = inf->cur_screen;
     struct win0_par *par = info->par;
 
-    u32 offset=0, addr=0, map_size=0, smem_len=0;
+    //u32 offset=0, addr=0, map_size=0, smem_len=0;
+    u32 addr=0;
 
     u16 xres_virtual = var->xres_virtual;      //virtual screen size
 
-    u16 xpos_virtual = var->xoffset;           //visiable offset in virtual screen
-    u16 ypos_virtual = var->yoffset;
+    //u16 xpos_virtual = var->xoffset;           //visiable offset in virtual screen
+    //u16 ypos_virtual = var->yoffset;
 
     u16 xpos = par->xpos;                 //visiable offset in panel
     u16 ypos = par->ypos;
@@ -1023,7 +1037,7 @@ static int win1_set_par(struct fb_info *info)
 static int win1_pan( struct fb_info *info )
 {
     struct rk29fb_inf *inf = dev_get_drvdata(info->device);
-    struct fb_var_screeninfo *var1 = &info->var;
+    //struct fb_var_screeninfo *var1 = &info->var;
     struct fb_fix_screeninfo *fix1 = &info->fix;
     struct win0_par *par = info->par;
 
@@ -1117,20 +1131,21 @@ static int fb0_set_par(struct fb_info *info)
     struct rk29fb_screen *screen = inf->cur_screen;
     struct win0_par *par = info->par;
 
-    u8 format = 0;
-    u32 offset=0, addr=0, map_size=0, smem_len=0;
+    //u8 format = 0;
+    //u32 offset=0, addr=0, map_size=0, smem_len=0;
+    u32 offset=0, smem_len=0;
 
     u16 xres_virtual = var->xres_virtual;      //virtual screen size
 
     u16 xpos_virtual = var->xoffset;           //visiable offset in virtual screen
     u16 ypos_virtual = var->yoffset;
 
-    u16 xpos = (screen->x_res - var->xres)/2;                 //visiable offset in panel
-    u16 ypos = (screen->y_res - var->yres)/2;
-    u16 xsize = screen->x_res;    //visiable size in panel
-    u16 ysize = screen->y_res;
-    u8 trspmode = TRSP_CLOSE;
-    u8 trspval = 0;
+    //u16 xpos = (screen->x_res - var->xres)/2;                 //visiable offset in panel
+    //u16 ypos = (screen->y_res - var->yres)/2;
+    //u16 xsize = screen->x_res;    //visiable size in panel
+    //u16 ysize = screen->y_res;
+    //u8 trspmode = TRSP_CLOSE;
+    //u8 trspval = 0;
 
     //fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
@@ -1152,7 +1167,7 @@ static int fb0_set_par(struct fb_info *info)
     }
 
     smem_len = fix->line_length * var->yres_virtual;
-    map_size = PAGE_ALIGN(smem_len);
+    //map_size = PAGE_ALIGN(smem_len);
 
     if (smem_len > fix->smem_len)     // buffer need realloc
     {
@@ -1186,7 +1201,7 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
     struct rk29fb_inf *inf = dev_get_drvdata(info->device);
     struct fb_var_screeninfo *var1 = &info->var;
-    struct fb_fix_screeninfo *fix1 = &info->fix;
+    //struct fb_fix_screeninfo *fix1 = &info->fix;
     struct win0_par *par = info->par;
 
     u32 offset = 0;
@@ -1375,8 +1390,8 @@ static int fb1_set_par(struct fb_info *info)
     u8 format = 0;
     u32 cblen=0, crlen=0, map_size=0, smem_len=0;
 
-	u32 xact = var->xres;			    /* visible resolution		*/
-	u32 yact = var->yres;
+	//u32 xact = var->xres;			    /* visible resolution		*/
+	//u32 yact = var->yres;
 	u32 xvir = var->xres_virtual;		/* virtual resolution		*/
 	u32 yvir = var->yres_virtual;
 	u32 xact_st = var->xoffset;			/* offset from virtual to visible */
@@ -1387,8 +1402,8 @@ static int fb1_set_par(struct fb_info *info)
     u16 xsize = (var->grayscale>>8) & 0xfff;  //visiable size in panel
     u16 ysize = (var->grayscale>>20) & 0xfff;
 
-    u32 ScaleYrgbX=0x1000,ScaleYrgbY=0x1000;
-    u32 ScaleCbrX=0x1000, ScaleCbrY=0x1000;
+    //u32 ScaleYrgbX=0x1000,ScaleYrgbY=0x1000;
+    //u32 ScaleCbrX=0x1000, ScaleCbrY=0x1000;
 
     u8 data_format = var->nonstd&0x0f;
     u32 win0_en = var->reserved[2];
@@ -1404,7 +1419,7 @@ static int fb1_set_par(struct fb_info *info)
     xsize = (xsize * screen->x_res) / inf->panel1_info.x_res;
     ysize = (ysize * screen->y_res) / inf->panel1_info.y_res;
 
-	/* calculate y_offset,uv_offset,line_length,cblen and crlen  */
+	/* calculate y_offset,c_offset,line_length,cblen and crlen  */
     switch (data_format)
     {
     case 0: // rgb
@@ -1429,7 +1444,7 @@ static int fb1_set_par(struct fb_info *info)
         fix->line_length = xvir;
         cblen = crlen = (xvir*yvir)/2;
         par->y_offset = yact_st*xvir + xact_st;
-        par->uv_offset = yact_st*xvir + xact_st;
+        par->c_offset = yact_st*xvir + xact_st;
         break;
     case 2: // yuv4200
         format = 3;
@@ -1437,14 +1452,14 @@ static int fb1_set_par(struct fb_info *info)
         cblen = crlen = (xvir*yvir)/4;
 
         par->y_offset = yact_st*xvir + xact_st;
-        par->uv_offset = (yact_st/2)*xvir + xact_st;
+        par->c_offset = (yact_st/2)*xvir + xact_st;
 
         break;
     case 3: // yuv4201
         format = 4;
         fix->line_length = xvir;
         par->y_offset = (yact_st/2)*2*xvir + (xact_st)*2;
-        par->uv_offset = (yact_st/2)*xvir + xact_st;
+        par->c_offset = (yact_st/2)*xvir + xact_st;
         cblen = crlen = (xvir*yvir)/4;
         break;
     case 4: // none
@@ -1452,7 +1467,7 @@ static int fb1_set_par(struct fb_info *info)
         format = 5;
         fix->line_length = xvir;
         par->y_offset = yact_st*xvir + xact_st;
-        par->uv_offset = yact_st*2*xvir + xact_st*2;
+        par->c_offset = yact_st*2*xvir + xact_st*2;
         cblen = crlen = (xvir*yvir);
         break;
     default:
@@ -1567,11 +1582,12 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
     case FB1_IOCTL_SET_YUV_ADDR:    //set y&uv address to register direct
         {
             u32 yuv_phy[2];
+            int ret = 0;
             if (copy_from_user(yuv_phy, argp, 8))
 			    return -EFAULT;
 
             yuv_phy[0] += par->y_offset;
-            yuv_phy[1] += par->uv_offset;
+            yuv_phy[1] += par->c_offset;
 
             LcdWrReg(inf, WIN0_YRGB_MST, yuv_phy[0]);
             LcdWrReg(inf, WIN0_CBR_MST, yuv_phy[1]);
@@ -1579,8 +1595,20 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
             // enable win0 after the win0 par is seted
             par->addr_seted = 1;
             if(par->par_seted) {
+                if (par->mirror.c_offset) {
+                    ret = wait_event_interruptible_timeout(par->wait,
+                        (0 == par->mirror.c_offset), HZ/20);
+                    if (ret <= 0)
+                        break;
+                }
+
+                down_write(&par->sem);
     	        LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(1));
                 mcu_refresh(inf);
+                par->mirror.y_offset = yuv_phy[0];
+                par->mirror.c_offset = yuv_phy[1];
+                //printk("0x%.8x 0x%.8x mirror\n", par->mirror.y_offset, par->mirror.c_offset);
+                up_write(&par->sem);
             }
         }
         break;
@@ -1664,6 +1692,7 @@ static irqreturn_t rk29fb_irq(int irq, void *dev_id)
 {
 	struct platform_device *pdev = (struct platform_device*)dev_id;
     struct rk29fb_inf *inf = platform_get_drvdata(pdev);
+    struct win0_par *par = (struct win0_par *)inf->fb1->par;
     if(!inf)
         return IRQ_HANDLED;
 
@@ -1705,6 +1734,25 @@ static irqreturn_t rk29fb_irq(int irq, void *dev_id)
             }
         }
 	}
+
+    if(waitqueue_active(&par->wait)) {
+        down_write(&par->sem);
+        if (par->mirror.c_offset == 0)
+            printk("error: no new buffer to display\n");
+
+        par->done.y_offset = par->displ.y_offset;
+        par->done.c_offset = par->displ.c_offset;
+        par->displ.y_offset = par->mirror.y_offset;
+        par->displ.c_offset = par->mirror.c_offset;
+        par->mirror.y_offset = 0;
+        par->mirror.c_offset = 0;
+
+        //printk("0x%.8x 0x%.8x displaying\n", par->displ.y_offset, par->displ.c_offset);
+        //printk("0x%.8x 0x%.8x done\n", par->done.y_offset, par->done.c_offset);
+
+        up_write(&par->sem);
+        wake_up_interruptible(&par->wait);
+    }
 
 	wq_condition = 1;
  	wake_up_interruptible(&wq);
@@ -1814,6 +1862,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
     struct resource *mem = NULL;
     struct rk29fb_info *mach_info = NULL;
     struct rk29fb_screen *screen = NULL;
+    struct win0_par* par = NULL;
 	int irq = 0;
     int ret = 0;
 
@@ -1885,6 +1934,7 @@ static int __init rk29fb_probe (struct platform_device *pdev)
 		goto release_win1fb;
     }
 
+    par = (struct win0_par*)inf->fb0->par;
     strcpy(inf->fb0->fix.id, "fb0");
     inf->fb0->fix.type        = FB_TYPE_PACKED_PIXELS;
     inf->fb0->fix.type_aux    = 0;
@@ -1924,10 +1974,11 @@ static int __init rk29fb_probe (struct platform_device *pdev)
 
     inf->fb0->fbops           = &fb0_ops;
     inf->fb0->flags           = FBINFO_FLAG_DEFAULT;
-    inf->fb0->pseudo_palette  = ((struct win0_par*)inf->fb0->par)->pseudo_pal;
+    inf->fb0->pseudo_palette  = par->pseudo_pal;
     inf->fb0->screen_base     = 0;
 
-    memset(inf->fb0->par, 0, sizeof(struct win0_par));
+    memset(par, 0, sizeof(struct win0_par));
+
 	ret = fb_alloc_cmap(&inf->fb0->cmap, 256, 0);
 	if (ret < 0)
 		goto release_cmap;
@@ -1955,6 +2006,8 @@ static int __init rk29fb_probe (struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto release_win0fb;
     }
+
+    par = (struct win0_par*)inf->fb1->par;
 
     strcpy(inf->fb1->fix.id, "fb1");
 	inf->fb1->fix.type	      = FB_TYPE_PACKED_PIXELS;
@@ -1995,10 +2048,13 @@ static int __init rk29fb_probe (struct platform_device *pdev)
 
     inf->fb1->fbops           = &fb1_ops;
 	inf->fb1->flags		      = FBINFO_FLAG_DEFAULT;
-	inf->fb1->pseudo_palette  = ((struct win0_par*)inf->fb1->par)->pseudo_pal;
+	inf->fb1->pseudo_palette  = par->pseudo_pal;
 	inf->fb1->screen_base     = 0;
 
-    memset(inf->fb1->par, 0, sizeof(struct win0_par));
+    memset(par, 0, sizeof(struct win0_par));
+
+	init_rwsem(&par->sem);
+	init_waitqueue_head(&par->wait);
 
  	/* Init all lcdc and lcd before register_framebuffer. */
  	/* because after register_framebuffer, the win1fb_check_par and winfb_set_par execute immediately */
