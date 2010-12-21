@@ -179,12 +179,11 @@ static void __init ag5evm_map_io(void)
 
 void __init ag5evm_init_irq(void)
 {
+	sh73a0_init_irq();
+
 	/* setup PINT: enable PINTA2 as active low */
 	__raw_writel(__raw_readl(PINTER0A) | (1<<29), PINTER0A);
 	__raw_writew(__raw_readw(PINTCR0A) | (2<<10), PINTCR0A);
-
-	gic_dist_init(0, __io(0xf0001000), 29);
-	gic_cpu_init(0, __io(0xf0000100));
 }
 
 static void __init ag5evm_init(void)
