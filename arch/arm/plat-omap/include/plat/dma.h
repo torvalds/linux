@@ -283,6 +283,18 @@
 #define DMA_CH_PRIO_HIGH		0x1
 #define DMA_CH_PRIO_LOW			0x0 /* Def */
 
+/* Errata handling */
+#define IS_DMA_ERRATA(id)		(errata & (id))
+#define SET_DMA_ERRATA(id)		(errata |= (id))
+
+#define DMA_ERRATA_IFRAME_BUFFERING	BIT(0x0)
+#define DMA_ERRATA_PARALLEL_CHANNELS	BIT(0x1)
+#define DMA_ERRATA_i378			BIT(0x2)
+#define DMA_ERRATA_i541			BIT(0x3)
+#define DMA_ERRATA_i88			BIT(0x4)
+#define DMA_ERRATA_3_3			BIT(0x5)
+#define DMA_ROMCODE_BUG			BIT(0x6)
+
 enum omap_reg_offsets {
 
 GCR,		GSCR,		GRST1,		HW_ID,

@@ -144,6 +144,7 @@ enum { DMA_CHAIN_STARTED, DMA_CHAIN_NOTSTARTED };
 #define OMAP_FUNC_MUX_ARM_BASE		(0xfffe1000 + 0xec)
 
 static int enable_1510_mode;
+static u32 errata;
 
 static struct omap_dma_global_context_registers {
 	u32 dma_irqenable_l0;
@@ -1088,31 +1089,17 @@ void omap_start_dma(int lch)
 
 			cur_lch = next_lch;
 		} while (next_lch != -1);
-	} else if (cpu_is_omap242x() ||
-		(cpu_is_omap243x() &&  omap_type() <= OMAP2430_REV_ES1_0)) {
-
-		/* Errata: Need to write lch even if not using chaining */
+	} else if (IS_DMA_ERRATA(DMA_ERRATA_PARALLEL_CHANNELS))
 		dma_write(lch, CLNK_CTRL, lch);
-	}
 
 	omap_enable_channel_irq(lch);
 
 	l = dma_read(CCR, lch);
 
-	/*
-	 * Errata: Inter Frame DMA buffering issue (All OMAP2420 and
-	 * OMAP2430ES1.0): DMA will wrongly buffer elements if packing and
-	 * bursting is enabled. This might result in data gets stalled in
-	 * FIFO at the end of the block.
-	 * Workaround: DMA channels must have BUFFERING_DISABLED bit set to
-	 * guarantee no data will stay in the DMA FIFO in case inter frame
-	 * buffering occurs.
-	 */
-	if (cpu_is_omap2420() ||
-	    (cpu_is_omap2430() && (omap_type() == OMAP2430_REV_ES1_0)))
-		l |= OMAP_DMA_CCR_BUFFERING_DISABLE;
-
+	if (IS_DMA_ERRATA(DMA_ERRATA_IFRAME_BUFFERING))
+			l |= OMAP_DMA_CCR_BUFFERING_DISABLE;
 	l |= OMAP_DMA_CCR_EN;
+
 	dma_write(l, CCR, lch);
 
 	dma_chan[lch].flags |= OMAP_DMA_ACTIVE;
@@ -1128,8 +1115,8 @@ void omap_stop_dma(int lch)
 		dma_write(0, CICR, lch);
 
 	l = dma_read(CCR, lch);
-	/* OMAP3 Errata i541: sDMA FIFO draining does not finish */
-	if (cpu_is_omap34xx() && (l & OMAP_DMA_CCR_SEL_SRC_DST_SYNC)) {
+	if (IS_DMA_ERRATA(DMA_ERRATA_i541) &&
+			(l & OMAP_DMA_CCR_SEL_SRC_DST_SYNC)) {
 		int i = 0;
 		u32 sys_cf;
 
@@ -1229,11 +1216,7 @@ dma_addr_t omap_get_dma_src_pos(int lch)
 	else
 		offset = dma_read(CSAC, lch);
 
-	/*
-	 * omap 3.2/3.3 erratum: sometimes 0 is returned if CSAC/CDAC is
-	 * read before the DMA controller finished disabling the channel.
-	 */
-	if (!cpu_is_omap15xx() && offset == 0)
+	if (IS_DMA_ERRATA(DMA_ERRATA_3_3) && offset == 0)
 		offset = dma_read(CSAC, lch);
 
 	if (cpu_class_is_omap1())
@@ -1814,7 +1797,7 @@ int omap_stop_dma_chain_transfers(int chain_id)
 {
 	int *channels;
 	u32 l, i;
-	u32 sys_cf;
+	u32 sys_cf = 0;
 
 	/* Check for input params */
 	if (unlikely((chain_id < 0 || chain_id >= dma_lch_count))) {
@@ -1829,15 +1812,13 @@ int omap_stop_dma_chain_transfers(int chain_id)
 	}
 	channels = dma_linked_lch[chain_id].linked_dmach_q;
 
-	/*
-	 * DMA Errata:
-	 * Special programming model needed to disable DMA before end of block
-	 */
-	sys_cf = dma_read(OCP_SYSCONFIG, 0);
-	l = sys_cf;
-	/* Middle mode reg set no Standby */
-	l &= ~((1 << 12)|(1 << 13));
-	dma_write(l, OCP_SYSCONFIG, 0);
+	if (IS_DMA_ERRATA(DMA_ERRATA_i88)) {
+		sys_cf = dma_read(OCP_SYSCONFIG, 0);
+		l = sys_cf;
+		/* Middle mode reg set no Standby */
+		l &= ~((1 << 12)|(1 << 13));
+		dma_write(l, OCP_SYSCONFIG, 0);
+	}
 
 	for (i = 0; i < dma_linked_lch[chain_id].no_of_lchs_linked; i++) {
 
@@ -1856,8 +1837,8 @@ int omap_stop_dma_chain_transfers(int chain_id)
 	/* Reset the Queue pointers */
 	OMAP_DMA_CHAIN_QINIT(chain_id);
 
-	/* Errata - put in the old value */
-	dma_write(sys_cf, OCP_SYSCONFIG, 0);
+	if (IS_DMA_ERRATA(DMA_ERRATA_i88))
+		dma_write(sys_cf, OCP_SYSCONFIG, 0);
 
 	return 0;
 }
@@ -2063,12 +2044,7 @@ static int omap2_dma_handle_ch(int ch)
 	if (unlikely(status & OMAP2_DMA_TRANS_ERR_IRQ)) {
 		printk(KERN_INFO "DMA transaction error with device %d\n",
 		       dma_chan[ch].dev_id);
-		if (cpu_class_is_omap2()) {
-			/*
-			 * Errata: sDMA Channel is not disabled
-			 * after a transaction error. So we explicitely
-			 * disable the channel
-			 */
+		if (IS_DMA_ERRATA(DMA_ERRATA_i378)) {
 			u32 ccr;
 
 			ccr = dma_read(CCR, ch);
@@ -2168,18 +2144,93 @@ void omap_dma_global_context_restore(void)
 	dma_write(omap_dma_global_context.dma_irqenable_l0,
 		IRQENABLE_L0, 0);
 
-	/*
-	 * A bug in ROM code leaves IRQ status for channels 0 and 1 uncleared
-	 * after secure sram context save and restore. Hence we need to
-	 * manually clear those IRQs to avoid spurious interrupts. This
-	 * affects only secure devices.
-	 */
-	if (cpu_is_omap34xx() && (omap_type() != OMAP2_DEVICE_TYPE_GP))
+	if (IS_DMA_ERRATA(DMA_ROMCODE_BUG))
 		dma_write(0x3 , IRQSTATUS_L0, 0);
 
 	for (ch = 0; ch < dma_chan_count; ch++)
 		if (dma_chan[ch].dev_id != -1)
 			omap_clear_dma(ch);
+}
+
+static void configure_dma_errata(void)
+{
+
+	/*
+	 * Errata applicable for OMAP2430ES1.0 and all omap2420
+	 *
+	 * I.
+	 * Erratum ID: Not Available
+	 * Inter Frame DMA buffering issue DMA will wrongly
+	 * buffer elements if packing and bursting is enabled. This might
+	 * result in data gets stalled in FIFO at the end of the block.
+	 * Workaround: DMA channels must have BUFFERING_DISABLED bit set to
+	 * guarantee no data will stay in the DMA FIFO in case inter frame
+	 * buffering occurs
+	 *
+	 * II.
+	 * Erratum ID: Not Available
+	 * DMA may hang when several channels are used in parallel
+	 * In the following configuration, DMA channel hanging can occur:
+	 * a. Channel i, hardware synchronized, is enabled
+	 * b. Another channel (Channel x), software synchronized, is enabled.
+	 * c. Channel i is disabled before end of transfer
+	 * d. Channel i is reenabled.
+	 * e. Steps 1 to 4 are repeated a certain number of times.
+	 * f. A third channel (Channel y), software synchronized, is enabled.
+	 * Channel x and Channel y may hang immediately after step 'f'.
+	 * Workaround:
+	 * For any channel used - make sure NextLCH_ID is set to the value j.
+	 */
+	if (cpu_is_omap2420() || (cpu_is_omap2430() &&
+				(omap_type() == OMAP2430_REV_ES1_0))) {
+		SET_DMA_ERRATA(DMA_ERRATA_IFRAME_BUFFERING);
+		SET_DMA_ERRATA(DMA_ERRATA_PARALLEL_CHANNELS);
+	}
+
+	/*
+	 * Erratum ID: i378: OMAP2plus: sDMA Channel is not disabled
+	 * after a transaction error.
+	 * Workaround: SW should explicitely disable the channel.
+	 */
+	if (cpu_class_is_omap2())
+		SET_DMA_ERRATA(DMA_ERRATA_i378);
+
+	/*
+	 * Erratum ID: i541: sDMA FIFO draining does not finish
+	 * If sDMA channel is disabled on the fly, sDMA enters standby even
+	 * through FIFO Drain is still in progress
+	 * Workaround: Put sDMA in NoStandby more before a logical channel is
+	 * disabled, then put it back to SmartStandby right after the channel
+	 * finishes FIFO draining.
+	 */
+	if (cpu_is_omap34xx())
+		SET_DMA_ERRATA(DMA_ERRATA_i541);
+
+	/*
+	 * Erratum ID: i88 : Special programming model needed to disable DMA
+	 * before end of block.
+	 * Workaround: software must ensure that the DMA is configured in No
+	 * Standby mode(DMAx_OCP_SYSCONFIG.MIDLEMODE = "01")
+	 */
+	if (cpu_is_omap34xx() && (omap_type() == OMAP3430_REV_ES1_0))
+		SET_DMA_ERRATA(DMA_ERRATA_i88);
+
+	/*
+	 * Erratum 3.2/3.3: sometimes 0 is returned if CSAC/CDAC is
+	 * read before the DMA controller finished disabling the channel.
+	 */
+	if (!cpu_is_omap15xx())
+		SET_DMA_ERRATA(DMA_ERRATA_3_3);
+
+	/*
+	 * Erratum ID: Not Available
+	 * A bug in ROM code leaves IRQ status for channels 0 and 1 uncleared
+	 * after secure sram context save and restore.
+	 * Work around: Hence we need to manually clear those IRQs to avoid
+	 * spurious interrupts. This affects only secure devices.
+	 */
+	if (cpu_is_omap34xx() && (omap_type() != OMAP2_DEVICE_TYPE_GP))
+		SET_DMA_ERRATA(DMA_ROMCODE_BUG);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2342,6 +2393,7 @@ static int __init omap_init_dma(void)
 			dma_chan[1].dev_id = 1;
 		}
 	}
+	configure_dma_errata();
 
 	return 0;
 
