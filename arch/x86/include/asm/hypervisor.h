@@ -21,6 +21,7 @@
 #define _ASM_X86_HYPERVISOR_H
 
 #include <asm/kvm_para.h>
+#include <asm/xen/hypervisor.h>
 
 extern void init_hypervisor(struct cpuinfo_x86 *c);
 extern void init_hypervisor_platform(void);
@@ -52,6 +53,8 @@ extern const struct hypervisor_x86 x86_hyper_xen_hvm;
 static inline bool hypervisor_x2apic_available(void)
 {
 	if (kvm_para_available())
+		return true;
+	if (xen_x2apic_para_available())
 		return true;
 	return false;
 }
