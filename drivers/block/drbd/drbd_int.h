@@ -643,11 +643,9 @@ static inline enum drbd_thread_state get_t_state(struct drbd_thread *thi)
 	return thi->t_state;
 }
 
-struct drbd_work;
-typedef int (*drbd_work_cb)(struct drbd_work *, int cancel);
 struct drbd_work {
 	struct list_head list;
-	drbd_work_cb cb;
+	int (*cb)(struct drbd_work *, int cancel);
 	union {
 		struct drbd_conf *mdev;
 		struct drbd_tconn *tconn;
