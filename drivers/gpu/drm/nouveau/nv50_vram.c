@@ -42,7 +42,7 @@ nv50_vram_flags_valid(struct drm_device *dev, u32 tile_flags)
 {
 	int type = (tile_flags & NOUVEAU_GEM_TILE_LAYOUT_MASK) >> 8;
 
-	if (likely(type < sizeof(types) && types[type]))
+	if (likely(type < ARRAY_SIZE(types) && types[type]))
 		return true;
 	return false;
 }

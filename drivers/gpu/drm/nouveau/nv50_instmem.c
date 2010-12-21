@@ -151,20 +151,19 @@ nv50_instmem_init(struct drm_device *dev)
 
 	/* BAR3 */
 	ret = nouveau_vm_new(dev, BAR3_VM_BASE, BAR3_VM_SIZE, BAR3_VM_BASE,
-			     29, 12, 16, &dev_priv->bar3_vm);
+			     &dev_priv->bar3_vm);
 	if (ret)
 		goto error;
 
 	ret = nouveau_gpuobj_new(dev, NULL, (BAR3_VM_SIZE >> 12) * 8,
 				 0x1000, NVOBJ_FLAG_DONT_MAP |
 				 NVOBJ_FLAG_ZERO_ALLOC,
-				 &dev_priv->bar3_vm->pgt[0].obj);
+				 &dev_priv->bar3_vm->pgt[0].obj[0]);
 	if (ret)
 		goto error;
-	dev_priv->bar3_vm->pgt[0].page_shift = 12;
-	dev_priv->bar3_vm->pgt[0].refcount = 1;
+	dev_priv->bar3_vm->pgt[0].refcount[0] = 1;
 
-	nv50_instmem_map(dev_priv->bar3_vm->pgt[0].obj);
+	nv50_instmem_map(dev_priv->bar3_vm->pgt[0].obj[0]);
 
 	ret = nv50_channel_new(dev, 128 * 1024, dev_priv->bar3_vm, &chan);
 	if (ret)
@@ -195,8 +194,7 @@ nv50_instmem_init(struct drm_device *dev)
 	nv_wo32(chan->ramin, 0, tmp);
 
 	/* BAR1 */
-	ret = nouveau_vm_new(dev, BAR1_VM_BASE, BAR1_VM_SIZE, BAR1_VM_BASE,
-			     29, 12, 16, &vm);
+	ret = nouveau_vm_new(dev, BAR1_VM_BASE, BAR1_VM_SIZE, BAR1_VM_BASE, &vm);
 	if (ret)
 		goto error;
 
@@ -220,7 +218,7 @@ nv50_instmem_init(struct drm_device *dev)
 	 * to catch "NULL pointer" references
 	 */
 	ret = nouveau_vm_new(dev, 0, (1ULL << 40), 0x0020000000ULL,
-			     29, 12, 16, &dev_priv->chan_vm);
+			     &dev_priv->chan_vm);
 	if (ret)
 		return ret;
 
@@ -258,7 +256,7 @@ nv50_instmem_takedown(struct drm_device *dev)
 	dev_priv->channels.ptr[127] = 0;
 	nv50_channel_del(&dev_priv->channels.ptr[0]);
 
-	nouveau_gpuobj_ref(NULL, &dev_priv->bar3_vm->pgt[0].obj);
+	nouveau_gpuobj_ref(NULL, &dev_priv->bar3_vm->pgt[0].obj[0]);
 	nouveau_vm_ref(NULL, &dev_priv->bar3_vm, NULL);
 
 	if (dev_priv->ramin_heap.free_stack.next)

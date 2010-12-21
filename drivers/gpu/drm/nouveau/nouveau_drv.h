@@ -69,6 +69,7 @@ struct nouveau_vram {
 	struct drm_device *dev;
 
 	struct nouveau_vma bar_vma;
+	u8  page_shift;
 
 	struct list_head regions;
 	u32 memtype;
@@ -239,6 +240,7 @@ struct nouveau_channel {
 	/* PFIFO context */
 	struct nouveau_gpuobj *ramfc;
 	struct nouveau_gpuobj *cache;
+	void *fifo_priv;
 
 	/* PGRAPH context */
 	/* XXX may be merge 2 pointers as private data ??? */
@@ -336,6 +338,7 @@ struct nouveau_fb_engine {
 };
 
 struct nouveau_fifo_engine {
+	void *priv;
 	int  channels;
 
 	struct nouveau_gpuobj *playlist[2];
@@ -362,6 +365,7 @@ struct nouveau_pgraph_engine {
 	bool accel_blocked;
 	bool registered;
 	int grctx_size;
+	void *priv;
 
 	/* NV2x/NV3x context table (0x400780) */
 	struct nouveau_gpuobj *ctx_table;
@@ -841,6 +845,9 @@ extern void nv10_mem_put_tile_region(struct drm_device *dev,
 				     struct nouveau_fence *fence);
 extern const struct ttm_mem_type_manager_func nouveau_vram_manager;
 
+/* nvc0_vram.c */
+extern const struct ttm_mem_type_manager_func nvc0_vram_manager;
+
 /* nouveau_notifier.c */
 extern int  nouveau_notifier_init_channel(struct nouveau_channel *);
 extern void nouveau_notifier_takedown_channel(struct nouveau_channel *);
@@ -1228,11 +1235,6 @@ extern int  nvc0_instmem_init(struct drm_device *);
 extern void nvc0_instmem_takedown(struct drm_device *);
 extern int  nvc0_instmem_suspend(struct drm_device *);
 extern void nvc0_instmem_resume(struct drm_device *);
-extern int  nvc0_instmem_get(struct nouveau_gpuobj *, u32 size, u32 align);
-extern void nvc0_instmem_put(struct nouveau_gpuobj *);
-extern int  nvc0_instmem_map(struct nouveau_gpuobj *);
-extern void nvc0_instmem_unmap(struct nouveau_gpuobj *);
-extern void nvc0_instmem_flush(struct drm_device *);
 
 /* nv04_mc.c */
 extern int  nv04_mc_init(struct drm_device *);

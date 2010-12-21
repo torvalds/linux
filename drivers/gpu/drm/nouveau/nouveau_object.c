@@ -643,10 +643,13 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, u32 handle, int class)
 found:
 	switch (oc->engine) {
 	case NVOBJ_ENGINE_SW:
-		ret = nouveau_gpuobj_sw_new(chan, class, &gpuobj);
-		if (ret)
-			return ret;
-		goto insert;
+		if (dev_priv->card_type < NV_C0) {
+			ret = nouveau_gpuobj_sw_new(chan, class, &gpuobj);
+			if (ret)
+				return ret;
+			goto insert;
+		}
+		break;
 	case NVOBJ_ENGINE_GR:
 		if (dev_priv->card_type >= NV_50 && !chan->ramin_grctx) {
 			struct nouveau_pgraph_engine *pgraph =
@@ -668,6 +671,10 @@ found:
 		}
 		break;
 	}
+
+	/* we're done if this is fermi */
+	if (dev_priv->card_type >= NV_C0)
+		return 0;
 
 	ret = nouveau_gpuobj_new(dev, chan,
 				 nouveau_gpuobj_class_instmem_size(dev, class),
@@ -772,6 +779,25 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 
 	NV_DEBUG(dev, "ch%d vram=0x%08x tt=0x%08x\n", chan->id, vram_h, tt_h);
 
+	if (dev_priv->card_type == NV_C0) {
+		struct nouveau_vm *vm = dev_priv->chan_vm;
+		struct nouveau_vm_pgd *vpgd;
+
+		ret = nouveau_gpuobj_new(dev, NULL, 4096, 0x1000, 0,
+					 &chan->ramin);
+		if (ret)
+			return ret;
+
+		nouveau_vm_ref(vm, &chan->vm, NULL);
+
+		vpgd = list_first_entry(&vm->pgd_list, struct nouveau_vm_pgd, head);
+		nv_wo32(chan->ramin, 0x0200, lower_32_bits(vpgd->obj->vinst));
+		nv_wo32(chan->ramin, 0x0204, upper_32_bits(vpgd->obj->vinst));
+		nv_wo32(chan->ramin, 0x0208, 0xffffffff);
+		nv_wo32(chan->ramin, 0x020c, 0x000000ff);
+		return 0;
+	}
+
 	/* Allocate a chunk of memory for per-channel object storage */
 	ret = nouveau_gpuobj_channel_init_pramin(chan);
 	if (ret) {
@@ -779,7 +805,7 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 		return ret;
 	}
 
-	/* NV50/NVC0 VM
+	/* NV50 VM
 	 *  - Allocate per-channel page-directory
 	 *  - Link with shared channel VM
 	 */
@@ -876,9 +902,6 @@ nouveau_gpuobj_channel_takedown(struct nouveau_channel *chan)
 	struct drm_device *dev = chan->dev;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
-
-	if (!chan->ramht)
-		return;
 
 	nouveau_ramht_ref(NULL, &chan->ramht, chan);
 

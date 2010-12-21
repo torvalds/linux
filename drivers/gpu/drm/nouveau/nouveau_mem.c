@@ -255,9 +255,6 @@ nouveau_mem_detect(struct drm_device *dev)
 	if (dev_priv->card_type < NV_50) {
 		dev_priv->vram_size  = nv_rd32(dev, NV04_PFB_FIFO_DATA);
 		dev_priv->vram_size &= NV10_PFB_FIFO_DATA_RAM_AMOUNT_MB_MASK;
-	} else {
-		dev_priv->vram_size  = nv_rd32(dev, 0x10f20c) << 20;
-		dev_priv->vram_size *= nv_rd32(dev, 0x121c74);
 	}
 
 	if (dev_priv->vram_size)
@@ -730,6 +727,10 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 			(nvbo->tile_flags >> 8) & 0xff, &node);
 	if (ret)
 		return ret;
+
+	node->page_shift = 12;
+	if (nvbo->vma.node)
+		node->page_shift = nvbo->vma.node->type;
 
 	mem->mm_node = node;
 	mem->start   = node->offset >> PAGE_SHIFT;

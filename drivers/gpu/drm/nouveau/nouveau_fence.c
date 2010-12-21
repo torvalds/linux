@@ -32,7 +32,8 @@
 #include "nouveau_dma.h"
 
 #define USE_REFCNT(dev) (nouveau_private(dev)->chipset >= 0x10)
-#define USE_SEMA(dev) (nouveau_private(dev)->chipset >= 0x17)
+#define USE_SEMA(dev) (nouveau_private(dev)->chipset >= 0x17 && \
+		       nouveau_private(dev)->card_type < NV_C0)
 
 struct nouveau_fence {
 	struct nouveau_channel *channel;
@@ -139,6 +140,7 @@ nouveau_fence_emit(struct nouveau_fence *fence)
 {
 	struct nouveau_channel *chan = fence->channel;
 	struct drm_device *dev = chan->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int ret;
 
 	ret = RING_SPACE(chan, 2);
@@ -159,8 +161,15 @@ nouveau_fence_emit(struct nouveau_fence *fence)
 	list_add_tail(&fence->entry, &chan->fence.pending);
 	spin_unlock(&chan->fence.lock);
 
-	BEGIN_RING(chan, NvSubSw, USE_REFCNT(dev) ? 0x0050 : 0x0150, 1);
-	OUT_RING(chan, fence->sequence);
+	if (USE_REFCNT(dev)) {
+		if (dev_priv->card_type < NV_C0)
+			BEGIN_RING(chan, NvSubSw, 0x0050, 1);
+		else
+			BEGIN_NVC0(chan, 2, NvSubSw, 0x0050, 1);
+	} else {
+		BEGIN_RING(chan, NvSubSw, 0x0150, 1);
+	}
+	OUT_RING (chan, fence->sequence);
 	FIRE_RING(chan);
 
 	return 0;
@@ -445,11 +454,14 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 	if (ret)
 		return ret;
 
-	ret = RING_SPACE(chan, 2);
-	if (ret)
-		return ret;
-	BEGIN_RING(chan, NvSubSw, 0, 1);
-	OUT_RING(chan, NvSw);
+	/* we leave subchannel empty for nvc0 */
+	if (dev_priv->card_type < NV_C0) {
+		ret = RING_SPACE(chan, 2);
+		if (ret)
+			return ret;
+		BEGIN_RING(chan, NvSubSw, 0, 1);
+		OUT_RING(chan, NvSw);
+	}
 
 	/* Create a DMA object for the shared cross-channel sync area. */
 	if (USE_SEMA(dev)) {

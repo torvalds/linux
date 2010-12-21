@@ -68,6 +68,8 @@ nouveau_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		else
 		if (dev_priv->card_type < NV_C0)
 			ret = nv50_fbcon_fillrect(info, rect);
+		else
+			ret = nvc0_fbcon_fillrect(info, rect);
 		mutex_unlock(&dev_priv->channel->mutex);
 	}
 
@@ -98,6 +100,8 @@ nouveau_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *image)
 		else
 		if (dev_priv->card_type < NV_C0)
 			ret = nv50_fbcon_copyarea(info, image);
+		else
+			ret = nvc0_fbcon_copyarea(info, image);
 		mutex_unlock(&dev_priv->channel->mutex);
 	}
 
@@ -128,6 +132,8 @@ nouveau_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 		else
 		if (dev_priv->card_type < NV_C0)
 			ret = nv50_fbcon_imageblit(info, image);
+		else
+			ret = nvc0_fbcon_imageblit(info, image);
 		mutex_unlock(&dev_priv->channel->mutex);
 	}
 
@@ -163,10 +169,18 @@ nouveau_fbcon_sync(struct fb_info *info)
 		return 0;
 	}
 
-	BEGIN_RING(chan, 0, 0x0104, 1);
-	OUT_RING(chan, 0);
-	BEGIN_RING(chan, 0, 0x0100, 1);
-	OUT_RING(chan, 0);
+	if (dev_priv->card_type >= NV_C0) {
+		BEGIN_NVC0(chan, 2, NvSub2D, 0x010c, 1);
+		OUT_RING  (chan, 0);
+		BEGIN_NVC0(chan, 2, NvSub2D, 0x0100, 1);
+		OUT_RING  (chan, 0);
+	} else {
+		BEGIN_RING(chan, 0, 0x0104, 1);
+		OUT_RING  (chan, 0);
+		BEGIN_RING(chan, 0, 0x0100, 1);
+		OUT_RING  (chan, 0);
+	}
+
 	nouveau_bo_wr32(chan->notifier_bo, chan->m2mf_ntfy + 3, 0xffffffff);
 	FIRE_RING(chan);
 	mutex_unlock(&chan->mutex);
@@ -370,6 +384,8 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 		else
 		if (dev_priv->card_type < NV_C0)
 			ret = nv50_fbcon_accel_init(info);
+		else
+			ret = nvc0_fbcon_accel_init(info);
 
 		if (ret == 0)
 			info->fbops = &nouveau_fbcon_ops;

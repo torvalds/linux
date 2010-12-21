@@ -413,7 +413,7 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_VRAM:
-		if (dev_priv->card_type == NV_50) {
+		if (dev_priv->card_type >= NV_50) {
 			man->func = &nouveau_vram_manager;
 			man->io_reserve_fastpath = false;
 			man->use_io_reserve_lru = true;
@@ -512,6 +512,58 @@ nouveau_bo_mem_ctxdma(struct ttm_buffer_object *bo,
 	if (mem->mem_type == TTM_PL_TT)
 		return chan->gart_handle;
 	return chan->vram_handle;
+}
+
+static int
+nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
+		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+{
+	struct drm_nouveau_private *dev_priv = nouveau_bdev(bo->bdev);
+	struct nouveau_bo *nvbo = nouveau_bo(bo);
+	u64 src_offset = old_mem->start << PAGE_SHIFT;
+	u64 dst_offset = new_mem->start << PAGE_SHIFT;
+	u32 page_count = new_mem->num_pages;
+	int ret;
+
+	if (!nvbo->no_vm) {
+		if (old_mem->mem_type == TTM_PL_VRAM)
+			src_offset  = nvbo->vma.offset;
+		else
+			src_offset += dev_priv->gart_info.aper_base;
+
+		if (new_mem->mem_type == TTM_PL_VRAM)
+			dst_offset  = nvbo->vma.offset;
+		else
+			dst_offset += dev_priv->gart_info.aper_base;
+	}
+
+	page_count = new_mem->num_pages;
+	while (page_count) {
+		int line_count = (page_count > 2047) ? 2047 : page_count;
+
+		ret = RING_SPACE(chan, 12);
+		if (ret)
+			return ret;
+
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0238, 2);
+		OUT_RING  (chan, upper_32_bits(dst_offset));
+		OUT_RING  (chan, lower_32_bits(dst_offset));
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x030c, 6);
+		OUT_RING  (chan, upper_32_bits(src_offset));
+		OUT_RING  (chan, lower_32_bits(src_offset));
+		OUT_RING  (chan, PAGE_SIZE); /* src_pitch */
+		OUT_RING  (chan, PAGE_SIZE); /* dst_pitch */
+		OUT_RING  (chan, PAGE_SIZE); /* line_length */
+		OUT_RING  (chan, line_count);
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0300, 1);
+		OUT_RING  (chan, 0x00100110);
+
+		page_count -= line_count;
+		src_offset += (PAGE_SIZE * line_count);
+		dst_offset += (PAGE_SIZE * line_count);
+	}
+
+	return 0;
 }
 
 static int
@@ -690,7 +742,10 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	if (dev_priv->card_type < NV_50)
 		ret = nv04_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
 	else
+	if (dev_priv->card_type < NV_C0)
 		ret = nv50_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
+	else
+		ret = nvc0_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
 	if (ret == 0) {
 		ret = nouveau_bo_move_accel_cleanup(chan, nvbo, evict,
 						    no_wait_reserve,
@@ -901,6 +956,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 	case TTM_PL_VRAM:
 	{
 		struct nouveau_vram *vram = mem->mm_node;
+		u8 page_shift;
 
 		if (!dev_priv->bar1_vm) {
 			mem->bus.offset = mem->start << PAGE_SHIFT;
@@ -909,8 +965,14 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 			break;
 		}
 
-		ret = nouveau_vm_get(dev_priv->bar1_vm, mem->bus.size, 12,
-				     NV_MEM_ACCESS_RW, &vram->bar_vma);
+		if (dev_priv->card_type == NV_C0)
+			page_shift = vram->page_shift;
+		else
+			page_shift = 12;
+
+		ret = nouveau_vm_get(dev_priv->bar1_vm, mem->bus.size,
+				     page_shift, NV_MEM_ACCESS_RW,
+				     &vram->bar_vma);
 		if (ret)
 			return ret;
 
@@ -920,8 +982,9 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 			return ret;
 		}
 
-		mem->bus.offset  = vram->bar_vma.offset;
-		mem->bus.offset -= 0x0020000000ULL;
+		mem->bus.offset = vram->bar_vma.offset;
+		if (dev_priv->card_type == NV_50) /*XXX*/
+			mem->bus.offset -= 0x0020000000ULL;
 		mem->bus.base = pci_resource_start(dev->pdev, 1);
 		mem->bus.is_iomem = true;
 	}

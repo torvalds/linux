@@ -38,9 +38,14 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 	int ret;
 
 	if (dev_priv->card_type >= NV_50) {
-		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
-					     (1ULL << 40), NV_MEM_ACCESS_RO,
-					     NV_MEM_TARGET_VM, &pushbuf);
+		if (dev_priv->card_type < NV_C0) {
+			ret = nouveau_gpuobj_dma_new(chan,
+						     NV_CLASS_DMA_IN_MEMORY, 0,
+						     (1ULL << 40),
+						     NV_MEM_ACCESS_RO,
+						     NV_MEM_TARGET_VM,
+						     &pushbuf);
+		}
 		chan->pushbuf_base = pb->bo.offset;
 	} else
 	if (pb->bo.mem.mem_type == TTM_PL_TT) {
@@ -71,7 +76,7 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 
 	nouveau_gpuobj_ref(pushbuf, &chan->pushbuf);
 	nouveau_gpuobj_ref(NULL, &pushbuf);
-	return 0;
+	return ret;
 }
 
 static struct nouveau_bo *
@@ -95,6 +100,13 @@ nouveau_channel_user_pushbuf_alloc(struct drm_device *dev)
 	ret = nouveau_bo_pin(pushbuf, location);
 	if (ret) {
 		NV_ERROR(dev, "error pinning DMA push buffer: %d\n", ret);
+		nouveau_bo_ref(NULL, &pushbuf);
+		return NULL;
+	}
+
+	ret = nouveau_bo_map(pushbuf);
+	if (ret) {
+		nouveau_bo_unpin(pushbuf);
 		nouveau_bo_ref(NULL, &pushbuf);
 		return NULL;
 	}

@@ -31,9 +31,8 @@
 #include "nouveau_mm.h"
 
 struct nouveau_vm_pgt {
-	struct nouveau_gpuobj *obj;
-	u32 page_shift;
-	u32 refcount;
+	struct nouveau_gpuobj *obj[2];
+	u32 refcount[2];
 };
 
 struct nouveau_vm_pgd {
@@ -65,9 +64,8 @@ struct nouveau_vm {
 	u8  spg_shift;
 	u8  lpg_shift;
 
-	void (*map_pgt)(struct nouveau_gpuobj *pgd, u32 type, u32 pde,
-			struct nouveau_gpuobj *pgt);
-	void (*unmap_pgt)(struct nouveau_gpuobj *pgd, u32 pde);
+	void (*map_pgt)(struct nouveau_gpuobj *pgd, u32 pde,
+			struct nouveau_gpuobj *pgt[2]);
 	void (*map)(struct nouveau_vma *, struct nouveau_gpuobj *,
 		    struct nouveau_vram *, u32 pte, u32 cnt, u64 phys);
 	void (*map_sg)(struct nouveau_vma *, struct nouveau_gpuobj *,
@@ -78,7 +76,6 @@ struct nouveau_vm {
 
 /* nouveau_vm.c */
 int  nouveau_vm_new(struct drm_device *, u64 offset, u64 length, u64 mm_offset,
-		    u8 pgt_bits, u8 spg_shift, u8 lpg_shift,
 		    struct nouveau_vm **);
 int  nouveau_vm_ref(struct nouveau_vm *, struct nouveau_vm **,
 		    struct nouveau_gpuobj *pgd);
@@ -93,9 +90,8 @@ void nouveau_vm_map_sg(struct nouveau_vma *, u64 offset, u64 length,
 		       dma_addr_t *);
 
 /* nv50_vm.c */
-void nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 type, u32 pde,
-		     struct nouveau_gpuobj *pgt);
-void nv50_vm_unmap_pgt(struct nouveau_gpuobj *pgd, u32 pde);
+void nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
+		     struct nouveau_gpuobj *pgt[2]);
 void nv50_vm_map(struct nouveau_vma *, struct nouveau_gpuobj *,
 		 struct nouveau_vram *, u32 pte, u32 cnt, u64 phys);
 void nv50_vm_map_sg(struct nouveau_vma *, struct nouveau_gpuobj *,
@@ -103,5 +99,15 @@ void nv50_vm_map_sg(struct nouveau_vma *, struct nouveau_gpuobj *,
 void nv50_vm_unmap(struct nouveau_gpuobj *, u32 pte, u32 cnt);
 void nv50_vm_flush(struct nouveau_vm *);
 void nv50_vm_flush_engine(struct drm_device *, int engine);
+
+/* nvc0_vm.c */
+void nvc0_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
+		     struct nouveau_gpuobj *pgt[2]);
+void nvc0_vm_map(struct nouveau_vma *, struct nouveau_gpuobj *,
+		 struct nouveau_vram *, u32 pte, u32 cnt, u64 phys);
+void nvc0_vm_map_sg(struct nouveau_vma *, struct nouveau_gpuobj *,
+		    u32 pte, dma_addr_t *, u32 cnt);
+void nvc0_vm_unmap(struct nouveau_gpuobj *, u32 pte, u32 cnt);
+void nvc0_vm_flush(struct nouveau_vm *);
 
 #endif

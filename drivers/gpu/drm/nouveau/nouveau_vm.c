@@ -32,6 +32,7 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_vram *vram)
 {
 	struct nouveau_vm *vm = vma->vm;
 	struct nouveau_mm_node *r;
+	int big = vma->node->type != vm->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
 	u32 pde  = (offset >> vm->pgt_bits) - vm->fpde;
@@ -44,7 +45,7 @@ nouveau_vm_map_at(struct nouveau_vma *vma, u64 delta, struct nouveau_vram *vram)
 		u32 num  = r->length >> bits;
 
 		while (num) {
-			struct nouveau_gpuobj *pgt = vm->pgt[pde].obj;
+			struct nouveau_gpuobj *pgt = vm->pgt[pde].obj[big];
 
 			end = (pte + num);
 			if (unlikely(end >= max))
@@ -76,6 +77,7 @@ nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 		  dma_addr_t *list)
 {
 	struct nouveau_vm *vm = vma->vm;
+	int big = vma->node->type != vm->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
 	u32 num  = length >> vma->node->type;
@@ -85,7 +87,7 @@ nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 	u32 end, len;
 
 	while (num) {
-		struct nouveau_gpuobj *pgt = vm->pgt[pde].obj;
+		struct nouveau_gpuobj *pgt = vm->pgt[pde].obj[big];
 
 		end = (pte + num);
 		if (unlikely(end >= max))
@@ -110,6 +112,7 @@ void
 nouveau_vm_unmap_at(struct nouveau_vma *vma, u64 delta, u64 length)
 {
 	struct nouveau_vm *vm = vma->vm;
+	int big = vma->node->type != vm->spg_shift;
 	u32 offset = vma->node->offset + (delta >> 12);
 	u32 bits = vma->node->type - 12;
 	u32 num  = length >> vma->node->type;
@@ -119,7 +122,7 @@ nouveau_vm_unmap_at(struct nouveau_vma *vma, u64 delta, u64 length)
 	u32 end, len;
 
 	while (num) {
-		struct nouveau_gpuobj *pgt = vm->pgt[pde].obj;
+		struct nouveau_gpuobj *pgt = vm->pgt[pde].obj[big];
 
 		end = (pte + num);
 		if (unlikely(end >= max))
@@ -146,7 +149,7 @@ nouveau_vm_unmap(struct nouveau_vma *vma)
 }
 
 static void
-nouveau_vm_unmap_pgt(struct nouveau_vm *vm, u32 fpde, u32 lpde)
+nouveau_vm_unmap_pgt(struct nouveau_vm *vm, int big, u32 fpde, u32 lpde)
 {
 	struct nouveau_vm_pgd *vpgd;
 	struct nouveau_vm_pgt *vpgt;
@@ -155,15 +158,15 @@ nouveau_vm_unmap_pgt(struct nouveau_vm *vm, u32 fpde, u32 lpde)
 
 	for (pde = fpde; pde <= lpde; pde++) {
 		vpgt = &vm->pgt[pde - vm->fpde];
-		if (--vpgt->refcount)
+		if (--vpgt->refcount[big])
 			continue;
 
-		list_for_each_entry(vpgd, &vm->pgd_list, head) {
-			vm->unmap_pgt(vpgd->obj, pde);
-		}
+		pgt = vpgt->obj[big];
+		vpgt->obj[big] = NULL;
 
-		pgt = vpgt->obj;
-		vpgt->obj = NULL;
+		list_for_each_entry(vpgd, &vm->pgd_list, head) {
+			vm->map_pgt(vpgd->obj, pde, vpgt->obj);
+		}
 
 		mutex_unlock(&vm->mm->mutex);
 		nouveau_gpuobj_ref(NULL, &pgt);
@@ -177,6 +180,7 @@ nouveau_vm_map_pgt(struct nouveau_vm *vm, u32 pde, u32 type)
 	struct nouveau_vm_pgt *vpgt = &vm->pgt[pde - vm->fpde];
 	struct nouveau_vm_pgd *vpgd;
 	struct nouveau_gpuobj *pgt;
+	int big = (type != vm->spg_shift);
 	u32 pgt_size;
 	int ret;
 
@@ -191,19 +195,18 @@ nouveau_vm_map_pgt(struct nouveau_vm *vm, u32 pde, u32 type)
 		return ret;
 
 	/* someone beat us to filling the PDE while we didn't have the lock */
-	if (unlikely(vpgt->refcount++)) {
+	if (unlikely(vpgt->refcount[big]++)) {
 		mutex_unlock(&vm->mm->mutex);
 		nouveau_gpuobj_ref(NULL, &pgt);
 		mutex_lock(&vm->mm->mutex);
 		return 0;
 	}
 
+	vpgt->obj[big] = pgt;
 	list_for_each_entry(vpgd, &vm->pgd_list, head) {
-		vm->map_pgt(vpgd->obj, type, pde, pgt);
+		vm->map_pgt(vpgd->obj, pde, vpgt->obj);
 	}
 
-	vpgt->page_shift = type;
-	vpgt->obj = pgt;
 	return 0;
 }
 
@@ -227,16 +230,17 @@ nouveau_vm_get(struct nouveau_vm *vm, u64 size, u32 page_shift,
 	lpde = (vma->node->offset + vma->node->length - 1) >> vm->pgt_bits;
 	for (pde = fpde; pde <= lpde; pde++) {
 		struct nouveau_vm_pgt *vpgt = &vm->pgt[pde - vm->fpde];
+		int big = (vma->node->type != vm->spg_shift);
 
-		if (likely(vpgt->refcount)) {
-			vpgt->refcount++;
+		if (likely(vpgt->refcount[big])) {
+			vpgt->refcount[big]++;
 			continue;
 		}
 
 		ret = nouveau_vm_map_pgt(vm, pde, vma->node->type);
 		if (ret) {
 			if (pde != fpde)
-				nouveau_vm_unmap_pgt(vm, fpde, pde - 1);
+				nouveau_vm_unmap_pgt(vm, big, fpde, pde - 1);
 			nouveau_mm_put(vm->mm, vma->node);
 			mutex_unlock(&vm->mm->mutex);
 			vma->node = NULL;
@@ -263,21 +267,20 @@ nouveau_vm_put(struct nouveau_vma *vma)
 	lpde = (vma->node->offset + vma->node->length - 1) >> vm->pgt_bits;
 
 	mutex_lock(&vm->mm->mutex);
+	nouveau_vm_unmap_pgt(vm, vma->node->type != vm->spg_shift, fpde, lpde);
 	nouveau_mm_put(vm->mm, vma->node);
 	vma->node = NULL;
-	nouveau_vm_unmap_pgt(vm, fpde, lpde);
 	mutex_unlock(&vm->mm->mutex);
 }
 
 int
 nouveau_vm_new(struct drm_device *dev, u64 offset, u64 length, u64 mm_offset,
-	       u8 pgt_bits, u8 spg_shift, u8 lpg_shift,
 	       struct nouveau_vm **pvm)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_vm *vm;
 	u64 mm_length = (offset + length) - mm_offset;
-	u32 block;
+	u32 block, pgt_bits;
 	int ret;
 
 	vm = kzalloc(sizeof(*vm), GFP_KERNEL);
@@ -286,11 +289,40 @@ nouveau_vm_new(struct drm_device *dev, u64 offset, u64 length, u64 mm_offset,
 
 	if (dev_priv->card_type == NV_50) {
 		vm->map_pgt = nv50_vm_map_pgt;
-		vm->unmap_pgt = nv50_vm_unmap_pgt;
 		vm->map = nv50_vm_map;
 		vm->map_sg = nv50_vm_map_sg;
 		vm->unmap = nv50_vm_unmap;
 		vm->flush = nv50_vm_flush;
+		vm->spg_shift = 12;
+		vm->lpg_shift = 16;
+
+		pgt_bits = 29;
+		block = (1 << pgt_bits);
+		if (length < block)
+			block = length;
+
+	} else
+	if (dev_priv->card_type == NV_C0) {
+		vm->map_pgt = nvc0_vm_map_pgt;
+		vm->map = nvc0_vm_map;
+		vm->map_sg = nvc0_vm_map_sg;
+		vm->unmap = nvc0_vm_unmap;
+		vm->flush = nvc0_vm_flush;
+		vm->spg_shift = 12;
+		vm->lpg_shift = 17;
+		pgt_bits = 27;
+
+		/* Should be 4096 everywhere, this is a hack that's
+		 * currently necessary to avoid an elusive bug that
+		 * causes corruption when mixing small/large pages
+		 */
+		if (length < (1ULL << 40))
+			block = 4096;
+		else {
+			block = (1 << pgt_bits);
+			if (length < block)
+				block = length;
+		}
 	} else {
 		kfree(vm);
 		return -ENOSYS;
@@ -308,12 +340,6 @@ nouveau_vm_new(struct drm_device *dev, u64 offset, u64 length, u64 mm_offset,
 	vm->dev = dev;
 	vm->refcount = 1;
 	vm->pgt_bits = pgt_bits - 12;
-	vm->spg_shift = spg_shift;
-	vm->lpg_shift = lpg_shift;
-
-	block = (1 << pgt_bits);
-	if (length < block)
-		block = length;
 
 	ret = nouveau_mm_init(&vm->mm, mm_offset >> 12, mm_length >> 12,
 			      block >> 12);
@@ -342,16 +368,8 @@ nouveau_vm_link(struct nouveau_vm *vm, struct nouveau_gpuobj *pgd)
 	nouveau_gpuobj_ref(pgd, &vpgd->obj);
 
 	mutex_lock(&vm->mm->mutex);
-	for (i = vm->fpde; i <= vm->lpde; i++) {
-		struct nouveau_vm_pgt *vpgt = &vm->pgt[i - vm->fpde];
-
-		if (!vpgt->obj) {
-			vm->unmap_pgt(pgd, i);
-			continue;
-		}
-
-		vm->map_pgt(pgd, vpgt->page_shift, i, vpgt->obj);
-	}
+	for (i = vm->fpde; i <= vm->lpde; i++)
+		vm->map_pgt(pgd, i, vm->pgt[i - vm->fpde].obj);
 	list_add(&vpgd->head, &vm->pgd_list);
 	mutex_unlock(&vm->mm->mutex);
 	return 0;
