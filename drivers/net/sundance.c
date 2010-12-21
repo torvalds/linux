@@ -434,6 +434,7 @@ static void netdev_error(struct net_device *dev, int intr_status);
 static void netdev_error(struct net_device *dev, int intr_status);
 static void set_rx_mode(struct net_device *dev);
 static int __set_mac_addr(struct net_device *dev);
+static int sundance_set_mac_addr(struct net_device *dev, void *data);
 static struct net_device_stats *get_stats(struct net_device *dev);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int  netdev_close(struct net_device *dev);
@@ -467,7 +468,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_do_ioctl 		= netdev_ioctl,
 	.ndo_tx_timeout		= tx_timeout,
 	.ndo_change_mtu		= change_mtu,
-	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_set_mac_address 	= sundance_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
@@ -1592,6 +1593,19 @@ static int __set_mac_addr(struct net_device *dev)
 	iowrite16(addr16, np->base + StationAddr+2);
 	addr16 = (dev->dev_addr[4] | (dev->dev_addr[5] << 8));
 	iowrite16(addr16, np->base + StationAddr+4);
+	return 0;
+}
+
+/* Invoked with rtnl_lock held */
+static int sundance_set_mac_addr(struct net_device *dev, void *data)
+{
+	const struct sockaddr *addr = data;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	__set_mac_addr(dev);
+
 	return 0;
 }
 
