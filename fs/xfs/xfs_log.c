@@ -98,53 +98,34 @@ STATIC void	xlog_verify_tail_lsn(xlog_t *log, xlog_in_core_t *iclog,
 STATIC int	xlog_iclogs_empty(xlog_t *log);
 
 static void
-xlog_grant_sub_space(struct log *log, int bytes)
+xlog_grant_sub_space(
+	struct log	*log,
+	int		*cycle,
+	int		*space,
+	int		bytes)
 {
-	log->l_grant_write_bytes -= bytes;
-	if (log->l_grant_write_bytes < 0) {
-		log->l_grant_write_bytes += log->l_logsize;
-		log->l_grant_write_cycle--;
-	}
-
-	log->l_grant_reserve_bytes -= bytes;
-	if ((log)->l_grant_reserve_bytes < 0) {
-		log->l_grant_reserve_bytes += log->l_logsize;
-		log->l_grant_reserve_cycle--;
-	}
-
-}
-
-static void
-xlog_grant_add_space_write(struct log *log, int bytes)
-{
-	int tmp = log->l_logsize - log->l_grant_write_bytes;
-	if (tmp > bytes)
-		log->l_grant_write_bytes += bytes;
-	else {
-		log->l_grant_write_cycle++;
-		log->l_grant_write_bytes = bytes - tmp;
+	*space -= bytes;
+	if (*space < 0) {
+		*space += log->l_logsize;
+		(*cycle)--;
 	}
 }
 
 static void
-xlog_grant_add_space_reserve(struct log *log, int bytes)
+xlog_grant_add_space(
+	struct log	*log,
+	int		*cycle,
+	int		*space,
+	int		bytes)
 {
-	int tmp = log->l_logsize - log->l_grant_reserve_bytes;
+	int tmp = log->l_logsize - *space;
 	if (tmp > bytes)
-		log->l_grant_reserve_bytes += bytes;
+		*space += bytes;
 	else {
-		log->l_grant_reserve_cycle++;
-		log->l_grant_reserve_bytes = bytes - tmp;
+		*space = bytes - tmp;
+		(*cycle)++;
 	}
 }
-
-static inline void
-xlog_grant_add_space(struct log *log, int bytes)
-{
-	xlog_grant_add_space_write(log, bytes);
-	xlog_grant_add_space_reserve(log, bytes);
-}
-
 static void
 xlog_tic_reset_res(xlog_ticket_t *tic)
 {
@@ -1344,7 +1325,10 @@ xlog_sync(xlog_t		*log,
 
 	/* move grant heads by roundoff in sync */
 	spin_lock(&log->l_grant_lock);
-	xlog_grant_add_space(log, roundoff);
+	xlog_grant_add_space(log, &log->l_grant_reserve_cycle,
+				&log->l_grant_reserve_bytes, roundoff);
+	xlog_grant_add_space(log, &log->l_grant_write_cycle,
+				&log->l_grant_write_bytes, roundoff);
 	spin_unlock(&log->l_grant_lock);
 
 	/* put cycle number in every block */
@@ -2574,7 +2558,10 @@ redo:
 	list_del_init(&tic->t_queue);
 
 	/* we've got enough space */
-	xlog_grant_add_space(log, need_bytes);
+	xlog_grant_add_space(log, &log->l_grant_reserve_cycle,
+				&log->l_grant_reserve_bytes, need_bytes);
+	xlog_grant_add_space(log, &log->l_grant_write_cycle,
+				&log->l_grant_write_bytes, need_bytes);
 	trace_xfs_log_grant_exit(log, tic);
 	xlog_verify_grant_head(log, 1);
 	xlog_verify_grant_tail(log);
@@ -2701,7 +2688,8 @@ redo:
 	list_del_init(&tic->t_queue);
 
 	/* we've got enough space */
-	xlog_grant_add_space_write(log, need_bytes);
+	xlog_grant_add_space(log, &log->l_grant_write_cycle,
+				&log->l_grant_write_bytes, need_bytes);
 	trace_xfs_log_regrant_write_exit(log, tic);
 	xlog_verify_grant_head(log, 1);
 	xlog_verify_grant_tail(log);
@@ -2742,7 +2730,12 @@ xlog_regrant_reserve_log_space(xlog_t	     *log,
 		ticket->t_cnt--;
 
 	spin_lock(&log->l_grant_lock);
-	xlog_grant_sub_space(log, ticket->t_curr_res);
+	xlog_grant_sub_space(log, &log->l_grant_reserve_cycle,
+				&log->l_grant_reserve_bytes,
+				ticket->t_curr_res);
+	xlog_grant_sub_space(log, &log->l_grant_write_cycle,
+				&log->l_grant_write_bytes,
+				ticket->t_curr_res);
 	ticket->t_curr_res = ticket->t_unit_res;
 	xlog_tic_reset_res(ticket);
 
@@ -2756,7 +2749,9 @@ xlog_regrant_reserve_log_space(xlog_t	     *log,
 		return;
 	}
 
-	xlog_grant_add_space_reserve(log, ticket->t_unit_res);
+	xlog_grant_add_space(log, &log->l_grant_reserve_cycle,
+				&log->l_grant_reserve_bytes,
+				ticket->t_unit_res);
 
 	trace_xfs_log_regrant_reserve_exit(log, ticket);
 
@@ -2785,23 +2780,29 @@ STATIC void
 xlog_ungrant_log_space(xlog_t	     *log,
 		       xlog_ticket_t *ticket)
 {
+	int	bytes;
+
 	if (ticket->t_cnt > 0)
 		ticket->t_cnt--;
 
 	spin_lock(&log->l_grant_lock);
 	trace_xfs_log_ungrant_enter(log, ticket);
-
-	xlog_grant_sub_space(log, ticket->t_curr_res);
-
 	trace_xfs_log_ungrant_sub(log, ticket);
 
-	/* If this is a permanent reservation ticket, we may be able to free
+	/*
+	 * If this is a permanent reservation ticket, we may be able to free
 	 * up more space based on the remaining count.
 	 */
+	bytes = ticket->t_curr_res;
 	if (ticket->t_cnt > 0) {
 		ASSERT(ticket->t_flags & XLOG_TIC_PERM_RESERV);
-		xlog_grant_sub_space(log, ticket->t_unit_res*ticket->t_cnt);
+		bytes += ticket->t_unit_res*ticket->t_cnt;
 	}
+
+	xlog_grant_sub_space(log, &log->l_grant_reserve_cycle,
+				&log->l_grant_reserve_bytes, bytes);
+	xlog_grant_sub_space(log, &log->l_grant_write_cycle,
+				&log->l_grant_write_bytes, bytes);
 
 	trace_xfs_log_ungrant_exit(log, ticket);
 
