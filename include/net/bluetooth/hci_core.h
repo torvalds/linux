@@ -129,6 +129,7 @@ struct hci_dev {
 	wait_queue_head_t	req_wait_q;
 	__u32			req_status;
 	__u32			req_result;
+	__u16			req_last_cmd;
 
 	struct inquiry_cache	inq_cache;
 	struct hci_conn_hash	conn_hash;
@@ -693,6 +694,6 @@ struct hci_sec_filter {
 #define hci_req_lock(d)		mutex_lock(&d->req_lock)
 #define hci_req_unlock(d)	mutex_unlock(&d->req_lock)
 
-void hci_req_complete(struct hci_dev *hdev, int result);
+void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result);
 
 #endif /* __HCI_CORE_H */
