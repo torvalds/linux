@@ -512,10 +512,6 @@ typedef struct log {
 
 	/* The following block of fields are changed while holding grant_lock */
 	spinlock_t		l_grant_lock ____cacheline_aligned_in_smp;
-	struct list_head	l_reserveq;
-	struct list_head	l_writeq;
-	atomic64_t			l_grant_reserve_head;
-	atomic64_t			l_grant_write_head;
 
 	/*
 	 * l_last_sync_lsn and l_tail_lsn are atomics so they can be set and
@@ -527,6 +523,18 @@ typedef struct log {
 	atomic64_t		l_last_sync_lsn ____cacheline_aligned_in_smp;
 	/* lsn of 1st LR with unflushed * buffers */
 	atomic64_t		l_tail_lsn ____cacheline_aligned_in_smp;
+
+	/*
+	 * ticket grant locks, queues and accounting have their own cachlines
+	 * as these are quite hot and can be operated on concurrently.
+	 */
+	spinlock_t		l_grant_reserve_lock ____cacheline_aligned_in_smp;
+	struct list_head	l_reserveq;
+	atomic64_t		l_grant_reserve_head;
+
+	spinlock_t		l_grant_write_lock ____cacheline_aligned_in_smp;
+	struct list_head	l_writeq;
+	atomic64_t		l_grant_write_head;
 
 	/* The following field are used for debugging; need to hold icloglock */
 #ifdef DEBUG
