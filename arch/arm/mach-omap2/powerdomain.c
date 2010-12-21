@@ -19,6 +19,9 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include "cm2xxx_3xxx.h"
+#include "cm44xx.h"
+#include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
 
 #include <plat/cpu.h>

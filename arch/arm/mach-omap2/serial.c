@@ -40,9 +40,9 @@
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
 
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
 #include "pm.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
 #include "prm-regbits-34xx.h"
 #include "control.h"
 

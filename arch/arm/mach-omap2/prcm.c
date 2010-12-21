@@ -29,16 +29,17 @@
 
 #include "clock.h"
 #include "clock2xxx.h"
-#include "cm.h"
-#include "prm.h"
+#include "cm2xxx_3xxx.h"
+#include "cm44xx.h"
+#include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
 #include "prm-regbits-24xx.h"
 #include "prm-regbits-44xx.h"
 #include "control.h"
 
-static void __iomem *prm_base;
-static void __iomem *cm_base;
-static void __iomem *cm2_base;
+void __iomem *prm_base;
+void __iomem *cm_base;
+void __iomem *cm2_base;
 
 #define MAX_MODULE_ENABLE_WAIT		100000
 
@@ -158,56 +159,6 @@ void omap_prcm_arch_reset(char mode, const char *cmd)
 				     prcm_offs, OMAP4_RM_RSTCTRL);
 }
 
-static inline u32 __omap_prcm_read(void __iomem *base, s16 module, u16 reg)
-{
-	BUG_ON(!base);
-	return __raw_readl(base + module + reg);
-}
-
-static inline void __omap_prcm_write(u32 value, void __iomem *base,
-						s16 module, u16 reg)
-{
-	BUG_ON(!base);
-	__raw_writel(value, base + module + reg);
-}
-
-/* Read a register in a PRM module */
-u32 prm_read_mod_reg(s16 module, u16 idx)
-{
-	return __omap_prcm_read(prm_base, module, idx);
-}
-
-/* Write into a register in a PRM module */
-void prm_write_mod_reg(u32 val, s16 module, u16 idx)
-{
-	__omap_prcm_write(val, prm_base, module, idx);
-}
-
-/* Read-modify-write a register in a PRM module. Caller must lock */
-u32 prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
-{
-	u32 v;
-
-	v = prm_read_mod_reg(module, idx);
-	v &= ~mask;
-	v |= bits;
-	prm_write_mod_reg(v, module, idx);
-
-	return v;
-}
-
-/* Read a PRM register, AND it, and shift the result down to bit 0 */
-u32 prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask)
-{
-	u32 v;
-
-	v = prm_read_mod_reg(domain, idx);
-	v &= mask;
-	v >>= __ffs(mask);
-
-	return v;
-}
-
 /* Read a PRM register, AND it, and shift the result down to bit 0 */
 u32 omap4_prm_read_bits_shift(void __iomem *reg, u32 mask)
 {
@@ -232,30 +183,6 @@ u32 omap4_prm_rmw_reg_bits(u32 mask, u32 bits, void __iomem *reg)
 
 	return v;
 }
-/* Read a register in a CM module */
-u32 cm_read_mod_reg(s16 module, u16 idx)
-{
-	return __omap_prcm_read(cm_base, module, idx);
-}
-
-/* Write into a register in a CM module */
-void cm_write_mod_reg(u32 val, s16 module, u16 idx)
-{
-	__omap_prcm_write(val, cm_base, module, idx);
-}
-
-/* Read-modify-write a register in a CM module. Caller must lock */
-u32 cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
-{
-	u32 v;
-
-	v = cm_read_mod_reg(module, idx);
-	v &= ~mask;
-	v |= bits;
-	cm_write_mod_reg(v, module, idx);
-
-	return v;
-}
 
 /**
  * omap2_cm_wait_idlest - wait for IDLEST bit to indicate module readiness
@@ -266,6 +193,9 @@ u32 cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
  *
  * Returns 1 if the module indicated readiness in time, or 0 if it
  * failed to enable in roughly MAX_MODULE_ENABLE_WAIT microseconds.
+ *
+ * XXX This function is deprecated.  It should be removed once the
+ * hwmod conversion is complete.
  */
 int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, u8 idlest,
 				const char *name)

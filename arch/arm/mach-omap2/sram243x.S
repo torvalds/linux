@@ -27,8 +27,8 @@
 #include <mach/io.h>
 #include <mach/hardware.h>
 
-#include "prm.h"
-#include "cm.h"
+#include "prm2xxx_3xxx.h"
+#include "cm2xxx_3xxx.h"
 #include "sdrc.h"
 
 	.text

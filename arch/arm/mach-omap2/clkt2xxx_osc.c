@@ -27,7 +27,7 @@
 
 #include "clock.h"
 #include "clock2xxx.h"
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
 
 static int omap2_enable_osc_ck(struct clk *clk)

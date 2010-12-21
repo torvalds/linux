@@ -33,10 +33,14 @@
 #include "cm1_44xx.h"
 #include "cm2_44xx.h"
 #include "cm-regbits-44xx.h"
-#include "prm.h"
+#include "prm44xx.h"
 #include "prm44xx.h"
 #include "prm-regbits-44xx.h"
 #include "control.h"
+
+/* OMAP4 modulemode control */
+#define OMAP4430_MODULEMODE_HWCTRL			0
+#define OMAP4430_MODULEMODE_SWCTRL			1
 
 /* Root clocks */
 

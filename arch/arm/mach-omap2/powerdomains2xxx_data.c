@@ -19,10 +19,8 @@
 #include "powerdomains.h"
 
 #include "prcm-common.h"
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
-#include "cm.h"
-#include "cm-regbits-24xx.h"
 
 /* 24XX powerdomains and dependencies */
 

@@ -145,8 +145,9 @@
 #include <plat/omap_hwmod.h>
 #include <plat/prcm.h>
 
-#include "cm.h"
-#include "prm.h"
+#include "cm2xxx_3xxx.h"
+#include "cm44xx.h"
+#include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
 
 /* Maximum microseconds to wait for OMAP module to softreset */

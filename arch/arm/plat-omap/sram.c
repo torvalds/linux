@@ -33,9 +33,10 @@
 
 #include "sram.h"
 #include "fb.h"
+
+/* XXX These "sideways" includes are a sign that something is wrong */
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-# include "../mach-omap2/prm.h"
-# include "../mach-omap2/cm.h"
+# include "../mach-omap2/prm2xxx_3xxx.h"
 # include "../mach-omap2/sdrc.h"
 #endif
 

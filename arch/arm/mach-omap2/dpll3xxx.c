@@ -32,9 +32,7 @@
 #include <asm/clkdev.h>
 
 #include "clock.h"
-#include "prm.h"
-#include "prm-regbits-34xx.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
 
 /* CM_AUTOIDLE_PLL*.AUTO_* bit values */

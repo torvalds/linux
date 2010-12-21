@@ -32,7 +32,7 @@
 #include <mach/io.h>
 
 #include "sdrc.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
 
 	.text
 

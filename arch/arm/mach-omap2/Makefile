@@ -6,7 +6,7 @@
 obj-y := id.o io.o control.o mux.o devices.o serial.o gpmc.o timer-gp.o pm.o \
 	 common.o gpio.o dma.o wd_timer.o
 
-omap-2-3-common				= irq.o sdrc.o prm2xxx_3xxx.o
+omap-2-3-common				= irq.o sdrc.o
 hwmod-common				= omap_hwmod.o \
 					  omap_hwmod_common_data.o
 clock-common				= clock.o clock_common_data.o \
@@ -72,9 +72,12 @@ endif
 endif
 
 # PRCM
-obj-$(CONFIG_ARCH_OMAP2)		+= prcm.o cm.o
-obj-$(CONFIG_ARCH_OMAP3)		+= prcm.o cm.o
-obj-$(CONFIG_ARCH_OMAP4)		+= prcm.o cm4xxx.o
+obj-$(CONFIG_ARCH_OMAP2)		+= prcm.o cm2xxx_3xxx.o prm2xxx_3xxx.o
+obj-$(CONFIG_ARCH_OMAP3)		+= prcm.o cm2xxx_3xxx.o prm2xxx_3xxx.o
+# XXX The presence of cm2xxx_3xxx.o on the line below is temporary and
+# will be removed once the OMAP4 part of the codebase is converted to
+# use OMAP4-specific PRCM functions.
+obj-$(CONFIG_ARCH_OMAP4)		+= prcm.o cm2xxx_3xxx.o cm4xxx.o
 
 # OMAP powerdomain framework
 powerdomain-common			+= powerdomain.o powerdomain-common.o

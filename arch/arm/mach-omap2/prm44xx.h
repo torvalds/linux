@@ -26,6 +26,7 @@
 #define __ARCH_ARM_MACH_OMAP2_PRM44XX_H
 
 #include "prcm-common.h"
+#include "prm.h"
 
 #define OMAP4430_PRM_BASE		0x4a306000
 

@@ -36,8 +36,8 @@
 #include <linux/io.h>
 
 #include <plat/clockdomain.h>
-#include "cm.h"
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
+#include "cm2xxx_3xxx.h"
 #include "cm-regbits-24xx.h"
 #include "cm-regbits-34xx.h"
 #include "cm-regbits-44xx.h"

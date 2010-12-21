@@ -23,7 +23,7 @@
 
 #include <plat/common.h>
 
-#include "cm.h"
+#include "cm44xx.h"
 #include "cm-regbits-44xx.h"
 
 /**

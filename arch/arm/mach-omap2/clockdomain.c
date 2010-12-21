@@ -27,9 +27,10 @@
 
 #include <linux/bitops.h>
 
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
+#include "cm2xxx_3xxx.h"
 
 #include <plat/clock.h>
 #include <plat/powerdomain.h>

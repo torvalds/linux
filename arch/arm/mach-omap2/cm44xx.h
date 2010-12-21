@@ -18,6 +18,7 @@
 
 
 #include "prcm-common.h"
+#include "cm.h"
 
 #define OMAP4_CM_CLKSTCTRL				0x0000
 

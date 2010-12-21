@@ -18,6 +18,7 @@
 
 #include <plat/powerdomain.h>
 #include <plat/prcm.h>
+#include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
 #include "prm-regbits-44xx.h"
 #include "powerdomains.h"

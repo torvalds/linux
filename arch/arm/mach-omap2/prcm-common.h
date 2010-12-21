@@ -396,5 +396,11 @@
  */
 #define MAX_MODULE_HARDRESET_WAIT		10000
 
+# ifndef __ASSEMBLER__
+extern void __iomem *prm_base;
+extern void __iomem *cm_base;
+extern void __iomem *cm2_base;
+# endif
+
 #endif
 

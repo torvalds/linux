@@ -33,8 +33,8 @@
 #include <plat/clockdomain.h>
 #include <plat/dmtimer.h>
 
-#include "prm.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
+#include "prm2xxx_3xxx.h"
 #include "pm.h"
 
 int omap2_pm_debug;
