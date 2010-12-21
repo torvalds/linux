@@ -518,7 +518,8 @@ void rk29_sdmmc_setup_bus(struct rk29_sdmmc *host)
 
 	if (host->clock != host->current_speed) {
 		div  = (((host->bus_hz + (host->bus_hz / 5)) / host->clock)) >> 1;
-		
+		if(!div)
+			div = 1;
 		/* store the actual clock for calculations */
 		host->clock = (host->bus_hz / div) >> 1;
 		/* disable clock */
@@ -1169,7 +1170,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 				} else {
 					clear_bit(RK29_SDMMC_CARD_PRESENT, &host->flags);
 				}							
-				mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(20));
+				mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(100));
 			}
 		}	
 		if(pending & RK29_SDMMC_CMD_ERROR_FLAGS) {
@@ -1251,8 +1252,6 @@ static void rk29_sdmmc_detect_change(unsigned long data)
 		  	/* wait till resets clear */
 			while (rk29_sdmmc_read(host->regs, SDMMC_CTRL) & (SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
 			/* FIFO threshold settings  */
-  			rk29_sdmmc_write(host->regs, SDMMC_FIFOTH, ((0x3 << 28) | (0x0f << 16) | (0x10 << 0))); // RXMark = 15, TXMark = 16, DMA Size = 16
-  			rk29_sdmmc_write(host->regs, SDMMC_PWREN, 1);
 			rk29_sdmmc_write(host->regs, SDMMC_CTRL, rk29_sdmmc_read(host->regs, SDMMC_CTRL) | SDMMC_CTRL_INT_ENABLE);
 			host->data = NULL;
 			host->cmd = NULL;
@@ -1448,7 +1447,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host); 	
 	mmc->ops = &rk29_sdmmc_ops[pdev->id];
 	mmc->f_min = host->bus_hz/510;
-	mmc->f_max = host->bus_hz/2;  //2;  ///20; //max f is clock to mmc_clk/2
+	mmc->f_max = host->bus_hz/20;  //2;  ///20; //max f is clock to mmc_clk/2
 	mmc->ocr_avail = pdata->host_ocr_avail;
 	mmc->caps = pdata->host_caps;
 	mmc->max_phys_segs = 64;
