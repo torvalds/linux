@@ -1531,6 +1531,7 @@ static int snd_soc_flat_cache_init(struct snd_soc_codec *codec)
 
 /* an array of all supported compression types */
 static const struct snd_soc_cache_ops cache_types[] = {
+	/* Flat *must* be the first entry for fallback */
 	{
 		.id = SND_SOC_FLAT_COMPRESSION,
 		.name = "flat",
@@ -1567,10 +1568,12 @@ int snd_soc_cache_init(struct snd_soc_codec *codec)
 	for (i = 0; i < ARRAY_SIZE(cache_types); ++i)
 		if (cache_types[i].id == codec->compress_type)
 			break;
+
+	/* Fall back to flat compression */
 	if (i == ARRAY_SIZE(cache_types)) {
-		dev_err(codec->dev, "Could not match compress type: %d\n",
-			codec->compress_type);
-		return -EINVAL;
+		dev_warn(codec->dev, "Could not match compress type: %d\n",
+			 codec->compress_type);
+		i = 0;
 	}
 
 	mutex_init(&codec->cache_rw_mutex);
