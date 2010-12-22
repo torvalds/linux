@@ -194,6 +194,8 @@ struct viu_dev {
 
 	/* decoder */
 	struct v4l2_subdev	*decoder;
+
+	v4l2_std_id		std;
 };
 
 struct viu_fh {
@@ -937,11 +939,28 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 #define decoder_call(viu, o, f, args...) \
 	v4l2_subdev_call(viu->decoder, o, f, ##args)
 
+static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
+{
+	struct viu_fh *fh = priv;
+
+	decoder_call(fh->dev, video, querystd, std_id);
+	return 0;
+}
+
 static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct viu_fh *fh = priv;
 
+	fh->dev->std = *id;
 	decoder_call(fh->dev, core, s_std, *id);
+	return 0;
+}
+
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *std_id)
+{
+	struct viu_fh *fh = priv;
+
+	*std_id = fh->dev->std;
 	return 0;
 }
 
@@ -1402,7 +1421,9 @@ static const struct v4l2_ioctl_ops viu_ioctl_ops = {
 	.vidioc_querybuf      = vidioc_querybuf,
 	.vidioc_qbuf          = vidioc_qbuf,
 	.vidioc_dqbuf         = vidioc_dqbuf,
+	.vidioc_g_std         = vidioc_g_std,
 	.vidioc_s_std         = vidioc_s_std,
+	.vidioc_querystd      = vidioc_querystd,
 	.vidioc_enum_input    = vidioc_enum_input,
 	.vidioc_g_input       = vidioc_g_input,
 	.vidioc_s_input       = vidioc_s_input,
