@@ -1512,6 +1512,7 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 				if (((sp_bsg->type == SRB_CT_CMD) ||
 					(sp_bsg->type == SRB_ELS_CMD_HST))
 					&& (sp_bsg->u.bsg_job == bsg_job)) {
+					spin_unlock_irqrestore(&ha->hardware_lock, flags);
 					if (ha->isp_ops->abort_command(sp)) {
 						DEBUG2(qla_printk(KERN_INFO, ha,
 						    "scsi(%ld): mbx "
@@ -1527,6 +1528,7 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 						bsg_job->req->errors =
 						bsg_job->reply->result = 0;
 					}
+					spin_lock_irqsave(&ha->hardware_lock, flags);
 					goto done;
 				}
 			}
