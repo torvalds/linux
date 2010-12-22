@@ -2004,8 +2004,8 @@ wl_update_pmklist(struct net_device *dev, struct wl_pmk_list *pmk_list,
 	WL_DBG("No of elements %d\n", pmk_list->pmkids.npmkid);
 	for (i = 0; i < pmk_list->pmkids.npmkid; i++) {
 		WL_DBG("PMKID[%d]: %pM =\n", i,
-		       &pmk_list->pmkids.pmkid[i].BSSID);
-		for (j = 0; j < WPA2_PMKID_LEN; j++) {
+			&pmk_list->pmkids.pmkid[i].BSSID);
+		for (j = 0; j < WLAN_PMKID_LEN; j++) {
 			WL_DBG("%02x\n", pmk_list->pmkids.pmkid[i].PMKID[j]);
 		}
 	}
@@ -2034,7 +2034,7 @@ wl_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 		memcpy(&wl->pmk_list->pmkids.pmkid[i].BSSID, pmksa->bssid,
 		       ETH_ALEN);
 		memcpy(&wl->pmk_list->pmkids.pmkid[i].PMKID, pmksa->pmkid,
-		       WPA2_PMKID_LEN);
+		       WLAN_PMKID_LEN);
 		if (i == wl->pmk_list->pmkids.npmkid)
 			wl->pmk_list->pmkids.npmkid++;
 	} else {
@@ -2042,7 +2042,7 @@ wl_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
 	}
 	WL_DBG("set_pmksa,IW_PMKSA_ADD - PMKID: %pM =\n",
 	       &wl->pmk_list->pmkids.pmkid[wl->pmk_list->pmkids.npmkid].BSSID);
-	for (i = 0; i < WPA2_PMKID_LEN; i++) {
+	for (i = 0; i < WLAN_PMKID_LEN; i++) {
 		WL_DBG("%02x\n",
 		       wl->pmk_list->pmkids.pmkid[wl->pmk_list->pmkids.npmkid].
 		       PMKID[i]);
@@ -2064,11 +2064,11 @@ wl_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 
 	CHECK_SYS_UP();
 	memcpy(&pmkid.pmkid[0].BSSID, pmksa->bssid, ETH_ALEN);
-	memcpy(&pmkid.pmkid[0].PMKID, pmksa->pmkid, WPA2_PMKID_LEN);
+	memcpy(&pmkid.pmkid[0].PMKID, pmksa->pmkid, WLAN_PMKID_LEN);
 
 	WL_DBG("del_pmksa,IW_PMKSA_REMOVE - PMKID: %pM =\n",
 	       &pmkid.pmkid[0].BSSID);
-	for (i = 0; i < WPA2_PMKID_LEN; i++) {
+	for (i = 0; i < WLAN_PMKID_LEN; i++) {
 		WL_DBG("%02x\n", pmkid.pmkid[0].PMKID[i]);
 	}
 
@@ -2087,7 +2087,7 @@ wl_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *dev,
 			       ETH_ALEN);
 			memcpy(&wl->pmk_list->pmkids.pmkid[i].PMKID,
 			       &wl->pmk_list->pmkids.pmkid[i + 1].PMKID,
-			       WPA2_PMKID_LEN);
+			       WLAN_PMKID_LEN);
 		}
 		wl->pmk_list->pmkids.npmkid--;
 	} else {

@@ -24,7 +24,6 @@
 #include <bcmwifi.h>
 #include <siutils.h>
 #include <bcmendian.h>
-#include <proto/wpa.h>
 #include <pcicfg.h>
 #include <bcmsrom.h>
 #include <wlioctl.h>
@@ -54,6 +53,15 @@
 #include <net/mac80211.h>
 #include <wl_dbg.h>
 
+
+/*
+ * WPA(2) definitions
+ */
+#define RSN_CAP_4_REPLAY_CNTRS		2
+#define RSN_CAP_16_REPLAY_CNTRS		3
+
+#define WPA_CAP_4_REPLAY_CNTRS		RSN_CAP_4_REPLAY_CNTRS
+#define WPA_CAP_16_REPLAY_CNTRS		RSN_CAP_16_REPLAY_CNTRS
 
 /*
  * buffer length needed for wlc_format_ssid

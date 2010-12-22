@@ -17,6 +17,7 @@
 #ifndef _wlioctl_h_
 #define	_wlioctl_h_
 
+#include <linux/ieee80211.h>
 #include <proto/ethernet.h>
 #ifdef BRCM_FULLMAC
 #include <proto/bcmeth.h>
@@ -535,7 +536,7 @@ typedef struct {
 
 typedef struct _pmkid {
 	struct ether_addr BSSID;
-	u8 PMKID[WPA2_PMKID_LEN];
+	u8 PMKID[WLAN_PMKID_LEN];
 } pmkid_t;
 
 typedef struct _pmkid_list {

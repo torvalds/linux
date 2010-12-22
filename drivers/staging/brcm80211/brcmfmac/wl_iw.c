@@ -2652,11 +2652,11 @@ wl_iw_set_pmksa(struct net_device *dev,
 			bcopy(&iwpmksa->bssid.sa_data[0],
 			      &pmkidptr->pmkid[0].BSSID, ETH_ALEN);
 			bcopy(&iwpmksa->pmkid[0], &pmkidptr->pmkid[0].PMKID,
-			      WPA2_PMKID_LEN);
+			      WLAN_PMKID_LEN);
 
-			WL_WSEC("wl_iw_set_pmksa:IW_PMKSA_REMOVE:PMKID: %pM = ",
-				&pmkidptr->pmkid[0].BSSID);
-			for (j = 0; j < WPA2_PMKID_LEN; j++)
+			WL_WSEC("wl_iw_set_pmksa:IW_PMKSA_REMOVE:PMKID: "
+				"%pM = ", &pmkidptr->pmkid[0].BSSID);
+			for (j = 0; j < WLAN_PMKID_LEN; j++)
 				WL_WSEC("%02x ", pmkidptr->pmkid[0].PMKID[j]);
 			WL_WSEC("\n");
 		}
@@ -2676,7 +2676,7 @@ wl_iw_set_pmksa(struct net_device *dev,
 				      ETH_ALEN);
 				bcopy(&pmkid_list.pmkids.pmkid[i + 1].PMKID,
 				      &pmkid_list.pmkids.pmkid[i].PMKID,
-				      WPA2_PMKID_LEN);
+				      WLAN_PMKID_LEN);
 			}
 			pmkid_list.pmkids.npmkid--;
 		} else
@@ -2695,7 +2695,7 @@ wl_iw_set_pmksa(struct net_device *dev,
 			      ETH_ALEN);
 			bcopy(&iwpmksa->pmkid[0],
 			      &pmkid_list.pmkids.pmkid[i].PMKID,
-			      WPA2_PMKID_LEN);
+			      WLAN_PMKID_LEN);
 			if (i == pmkid_list.pmkids.npmkid)
 				pmkid_list.pmkids.npmkid++;
 		} else
@@ -2706,7 +2706,7 @@ wl_iw_set_pmksa(struct net_device *dev,
 			k = pmkid_list.pmkids.npmkid;
 			WL_WSEC("wl_iw_set_pmksa,IW_PMKSA_ADD - PMKID: %pM = ",
 				&pmkid_list.pmkids.pmkid[k].BSSID);
-			for (j = 0; j < WPA2_PMKID_LEN; j++)
+			for (j = 0; j < WLAN_PMKID_LEN; j++)
 				WL_WSEC("%02x ",
 					pmkid_list.pmkids.pmkid[k].PMKID[j]);
 			WL_WSEC("\n");
@@ -2718,7 +2718,7 @@ wl_iw_set_pmksa(struct net_device *dev,
 		uint j;
 		WL_WSEC("PMKID[%d]: %pM = ",
 			i, &pmkid_list.pmkids.pmkid[i].BSSID);
-		for (j = 0; j < WPA2_PMKID_LEN; j++)
+		for (j = 0; j < WLAN_PMKID_LEN; j++)
 			WL_WSEC("%02x ", pmkid_list.pmkids.pmkid[i].PMKID[j]);
 		WL_WSEC("\n");
 	}
