@@ -19,18 +19,17 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __ARCH_ARM_MACH_OMAP2_POWERDOMAINS44XX_H
-#define __ARCH_ARM_MACH_OMAP2_POWERDOMAINS44XX_H
+#include <linux/kernel.h>
+#include <linux/init.h>
 
 #include <plat/powerdomain.h>
+#include "powerdomains.h"
 
 #include "prcm-common.h"
 #include "cm.h"
 #include "cm-regbits-44xx.h"
 #include "prm.h"
 #include "prm-regbits-44xx.h"
-
-#if defined(CONFIG_ARCH_OMAP4)
 
 /* core_44xx_pwrdm: CORE power domain */
 static struct powerdomain core_44xx_pwrdm = {
@@ -314,6 +313,28 @@ static struct powerdomain cefuse_44xx_pwrdm = {
  * stdefuse
  */
 
-#endif
+/* As powerdomains are added or removed above, this list must also be changed */
+static struct powerdomain *powerdomains_omap44xx[] __initdata = {
+	&core_44xx_pwrdm,
+	&gfx_44xx_pwrdm,
+	&abe_44xx_pwrdm,
+	&dss_44xx_pwrdm,
+	&tesla_44xx_pwrdm,
+	&wkup_44xx_pwrdm,
+	&cpu0_44xx_pwrdm,
+	&cpu1_44xx_pwrdm,
+	&emu_44xx_pwrdm,
+	&mpu_44xx_pwrdm,
+	&ivahd_44xx_pwrdm,
+	&cam_44xx_pwrdm,
+	&l3init_44xx_pwrdm,
+	&l4per_44xx_pwrdm,
+	&always_on_core_44xx_pwrdm,
+	&cefuse_44xx_pwrdm,
+	NULL
+};
 
-#endif
+void __init omap44xx_powerdomains_init(void)
+{
+	pwrdm_init(powerdomains_omap44xx, &omap4_pwrdm_operations);
+}

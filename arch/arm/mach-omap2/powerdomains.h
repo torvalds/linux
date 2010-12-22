@@ -10,8 +10,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef ARCH_ARM_MACH_OMAP2_POWERDOMAINS
-#define ARCH_ARM_MACH_OMAP2_POWERDOMAINS
+#ifndef ARCH_ARM_MACH_OMAP2_POWERDOMAINS_H
+#define ARCH_ARM_MACH_OMAP2_POWERDOMAINS_H
 
 #include <plat/powerdomain.h>
 
@@ -24,4 +24,7 @@ extern u32 omap2_pwrdm_get_mem_bank_onstate_mask(u8 bank);
 extern u32 omap2_pwrdm_get_mem_bank_retst_mask(u8 bank);
 extern u32 omap2_pwrdm_get_mem_bank_stst_mask(u8 bank);
 
-#endif /* ARCH_ARM_MACH_OMAP2_POWERDOMAINS */
+extern struct powerdomain wkup_omap2_pwrdm;
+extern struct powerdomain gfx_omap2_pwrdm;
+
+#endif

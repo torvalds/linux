@@ -339,18 +339,25 @@ void __init omap2_init_common_infrastructure(void)
 {
 	u8 postsetup_state;
 
-	pwrdm_fw_init();
-	clkdm_init(clockdomains_omap, clkdm_autodeps);
-	if (cpu_is_omap242x())
+	if (cpu_is_omap242x()) {
+		omap2xxx_powerdomains_init();
+		clkdm_init(clockdomains_omap, clkdm_autodeps);
 		omap2420_hwmod_init();
-	else if (cpu_is_omap243x())
+	} else if (cpu_is_omap243x()) {
+		omap2xxx_powerdomains_init();
+		clkdm_init(clockdomains_omap, clkdm_autodeps);
 		omap2430_hwmod_init();
-	else if (cpu_is_omap34xx())
+	} else if (cpu_is_omap34xx()) {
+		omap3xxx_powerdomains_init();
+		clkdm_init(clockdomains_omap, clkdm_autodeps);
 		omap3xxx_hwmod_init();
-	else if (cpu_is_omap44xx())
+	} else if (cpu_is_omap44xx()) {
+		omap44xx_powerdomains_init();
+		clkdm_init(clockdomains_omap, clkdm_autodeps);
 		omap44xx_hwmod_init();
-	else
+	} else {
 		pr_err("Could not init hwmod data - unknown SoC\n");
+        }
 
 	/* Set the default postsetup state for all hwmods */
 #ifdef CONFIG_PM_RUNTIME

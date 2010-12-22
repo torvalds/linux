@@ -2,17 +2,20 @@
  * OMAP2/3 powerdomain control
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2009 Nokia Corporation
+ * Copyright (C) 2007-2010 Nokia Corporation
  *
  * Written by Paul Walmsley
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
+ * XXX This should be moved to the mach-omap2/ directory at the earliest
+ * opportunity.
  */
 
-#ifndef ASM_ARM_ARCH_OMAP_POWERDOMAIN
-#define ASM_ARM_ARCH_OMAP_POWERDOMAIN
+#ifndef ASM_ARM_PLAT_OMAP_INCLUDE_PLAT_POWERDOMAIN
+#define ASM_ARM_PLAT_OMAP_INCLUDE_PLAT_POWERDOMAIN
 
 #include <linux/types.h>
 #include <linux/list.h>
@@ -205,5 +208,9 @@ int pwrdm_clkdm_state_switch(struct clockdomain *clkdm);
 int pwrdm_pre_transition(void);
 int pwrdm_post_transition(void);
 int pwrdm_set_lowpwrstchange(struct powerdomain *pwrdm);
+
+extern void omap2xxx_powerdomains_init(void);
+extern void omap3xxx_powerdomains_init(void);
+extern void omap44xx_powerdomains_init(void);
 
 #endif
