@@ -1206,23 +1206,7 @@ nadtlb_miss_20w:
 	nop
 
 nadtlb_check_alias_20w:
-	do_alias	spc,t0,t1,va,pte,prot,nadtlb_check_flush_20w
-
-	idtlbt          pte,prot
-
-	rfir
-	nop
-
-nadtlb_check_flush_20w:
-	bb,>=,n          pte,_PAGE_FLUSH_BIT,nadtlb_emulate
-
-	/* Insert a "flush only" translation */
-
-	depdi,z         7,7,3,prot
-	depdi           1,10,1,prot
-
-	/* Drop prot bits from pte and convert to page addr for idtlbt */
-	convert_for_tlb_insert20 pte
+	do_alias	spc,t0,t1,va,pte,prot,nadtlb_emulate
 
 	idtlbt          pte,prot
 
@@ -1286,34 +1270,10 @@ nadtlb_miss_11:
 	nop
 
 nadtlb_check_alias_11:
-	do_alias	spc,t0,t1,va,pte,prot,nadtlb_check_flush_11
+	do_alias	spc,t0,t1,va,pte,prot,nadtlb_emulate
 
 	idtlba          pte,(va)
 	idtlbp          prot,(va)
-
-	rfir
-	nop
-
-nadtlb_check_flush_11:
-	bb,>=,n          pte,_PAGE_FLUSH_BIT,nadtlb_emulate
-
-	/* Insert a "flush only" translation */
-
-	zdepi           7,7,3,prot
-	depi            1,10,1,prot
-
-	/* Get rid of prot bits and convert to page addr for idtlba */
-
-	depi		0,31,ASM_PFN_PTE_SHIFT,pte
-	SHRREG		pte,(ASM_PFN_PTE_SHIFT-(31-26)),pte
-
-	mfsp		%sr1,t0  /* Save sr1 so we can use it in tlb inserts */
-	mtsp		spc,%sr1
-
-	idtlba		pte,(%sr1,va)
-	idtlbp		prot,(%sr1,va)
-
-	mtsp		t0, %sr1	/* Restore sr1 */
 
 	rfir
 	nop
@@ -1363,28 +1323,13 @@ nadtlb_miss_20:
 	nop
 
 nadtlb_check_alias_20:
-	do_alias	spc,t0,t1,va,pte,prot,nadtlb_check_flush_20
+	do_alias	spc,t0,t1,va,pte,prot,nadtlb_emulate
 
 	idtlbt          pte,prot
 
 	rfir
 	nop
 
-nadtlb_check_flush_20:
-	bb,>=,n          pte,_PAGE_FLUSH_BIT,nadtlb_emulate
-
-	/* Insert a "flush only" translation */
-
-	depdi,z         7,7,3,prot
-	depdi           1,10,1,prot
-
-	/* Drop prot bits from pte and convert to page addr for idtlbt */
-	convert_for_tlb_insert20 pte
-
-	idtlbt          pte,prot
-
-	rfir
-	nop
 #endif
 
 nadtlb_emulate:
