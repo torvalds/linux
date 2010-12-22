@@ -670,6 +670,7 @@ extern int ath9k_pm_qos_value;
 extern bool is_ath9k_unloaded;
 
 irqreturn_t ath_isr(int irq, void *dev);
+void ath9k_init_crypto(struct ath_softc *sc);
 int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 		    const struct ath_bus_ops *bus_ops);
 void ath9k_deinit_device(struct ath_softc *sc);

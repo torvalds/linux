@@ -311,6 +311,14 @@ static int ath_pci_resume(struct device *device)
 			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
 
+	  /*
+	   * Reset key cache to sane defaults (all entries cleared) instead of
+	   * semi-random values after suspend/resume.
+	   */
+	ath9k_ps_wakeup(sc);
+	ath9k_init_crypto(sc);
+	ath9k_ps_restore(sc);
+
 	sc->ps_idle = true;
 	ath9k_set_wiphy_idle(aphy, true);
 	ath_radio_disable(sc, hw);
