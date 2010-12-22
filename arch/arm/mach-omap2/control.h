@@ -315,7 +315,7 @@
 #define		FEAT_SGX_NONE		2
 
 #define OMAP3_IVA_SHIFT			12
-#define OMAP3_IVA_MASK			(1 << OMAP3_SGX_SHIFT)
+#define OMAP3_IVA_MASK			(1 << OMAP3_IVA_SHIFT)
 #define		FEAT_IVA		0
 #define		FEAT_IVA_NONE		1
 
