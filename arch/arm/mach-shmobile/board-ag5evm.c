@@ -197,14 +197,14 @@ static void __init ag5evm_init(void)
 	gpio_request(GPIO_FN_SCIFA2_CTS1_, NULL);
 
 	/* enable KEYSC */
-	gpio_request(GPIO_FN_KEYIN0, NULL);
-	gpio_request(GPIO_FN_KEYIN1, NULL);
-	gpio_request(GPIO_FN_KEYIN2, NULL);
-	gpio_request(GPIO_FN_KEYIN3, NULL);
-	gpio_request(GPIO_FN_KEYIN4, NULL);
-	gpio_request(GPIO_FN_KEYIN5, NULL);
-	gpio_request(GPIO_FN_KEYIN6, NULL);
-	gpio_request(GPIO_FN_KEYIN7, NULL);
+	gpio_request(GPIO_FN_KEYIN0_PU, NULL);
+	gpio_request(GPIO_FN_KEYIN1_PU, NULL);
+	gpio_request(GPIO_FN_KEYIN2_PU, NULL);
+	gpio_request(GPIO_FN_KEYIN3_PU, NULL);
+	gpio_request(GPIO_FN_KEYIN4_PU, NULL);
+	gpio_request(GPIO_FN_KEYIN5_PU, NULL);
+	gpio_request(GPIO_FN_KEYIN6_PU, NULL);
+	gpio_request(GPIO_FN_KEYIN7_PU, NULL);
 	gpio_request(GPIO_FN_KEYOUT0, NULL);
 	gpio_request(GPIO_FN_KEYOUT1, NULL);
 	gpio_request(GPIO_FN_KEYOUT2, NULL);
