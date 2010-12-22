@@ -222,9 +222,9 @@ static int __init at91sam9g20ek_init(void)
 	}
 
 	pllb = clk_get(NULL, "pllb");
-	if (IS_ERR(mclk)) {
+	if (IS_ERR(pllb)) {
 		printk(KERN_ERR "ASoC: Failed to get PLLB\n");
-		ret = PTR_ERR(mclk);
+		ret = PTR_ERR(pllb);
 		goto err_mclk;
 	}
 	ret = clk_set_parent(mclk, pllb);
@@ -240,6 +240,7 @@ static int __init at91sam9g20ek_init(void)
 	if (!at91sam9g20ek_snd_device) {
 		printk(KERN_ERR "ASoC: Platform device allocation failed\n");
 		ret = -ENOMEM;
+		goto err_mclk;
 	}
 
 	platform_set_drvdata(at91sam9g20ek_snd_device,
@@ -248,11 +249,13 @@ static int __init at91sam9g20ek_init(void)
 	ret = platform_device_add(at91sam9g20ek_snd_device);
 	if (ret) {
 		printk(KERN_ERR "ASoC: Platform device allocation failed\n");
-		platform_device_put(at91sam9g20ek_snd_device);
+		goto err_device_add;
 	}
 
 	return ret;
 
+err_device_add:
+	platform_device_put(at91sam9g20ek_snd_device);
 err_mclk:
 	clk_put(mclk);
 	mclk = NULL;

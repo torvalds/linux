@@ -585,6 +585,6 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	ppc64_rma_size = min_t(u64, first_memblock_size, 0x40000000);
 
 	/* Finally limit subsequent allocations */
-	memblock_set_current_limit(ppc64_memblock_base + ppc64_rma_size);
+	memblock_set_current_limit(first_memblock_base + ppc64_rma_size);
 }
 #endif /* CONFIG_PPC64 */

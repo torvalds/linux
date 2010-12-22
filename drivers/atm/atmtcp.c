@@ -366,7 +366,7 @@ static int atmtcp_create(int itf,int persist,struct atm_dev **result)
 	if (!dev_data)
 		return -ENOMEM;
 
-	dev = atm_dev_register(DEV_LABEL,&atmtcp_v_dev_ops,itf,NULL);
+	dev = atm_dev_register(DEV_LABEL,NULL,&atmtcp_v_dev_ops,itf,NULL);
 	if (!dev) {
 		kfree(dev_data);
 		return itf == -1 ? -ENOMEM : -EBUSY;

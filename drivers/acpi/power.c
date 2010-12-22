@@ -213,11 +213,13 @@ static int acpi_power_on(acpi_handle handle)
 				  resource->name));
 	} else {
 		result = __acpi_power_on(resource);
+		if (result)
+			resource->ref_count--;
 	}
 
 	mutex_unlock(&resource->resource_lock);
 
-	return 0;
+	return result;
 }
 
 static int acpi_power_off_device(acpi_handle handle)
@@ -465,9 +467,11 @@ int acpi_power_transition(struct acpi_device *device, int state)
 	struct acpi_handle_list *tl = NULL;	/* Target Resources */
 	int i = 0;
 
-
 	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3))
 		return -EINVAL;
+
+	if (device->power.state == state)
+		return 0;
 
 	if ((device->power.state < ACPI_STATE_D0)
 	    || (device->power.state > ACPI_STATE_D3))
@@ -486,10 +490,6 @@ int acpi_power_transition(struct acpi_device *device, int state)
 		result = acpi_power_on(tl->handles[i]);
 		if (result)
 			goto end;
-	}
-
-	if (device->power.state == state) {
-		goto end;
 	}
 
 	/*

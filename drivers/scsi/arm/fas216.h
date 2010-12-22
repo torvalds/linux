@@ -345,7 +345,7 @@ extern int fas216_queue_command(struct Scsi_Host *h, struct scsi_cmnd *SCpnt);
  *	   : SCpnt - Command to queue
  * Returns : 0 - success, else error
  */
-extern int fas216_noqueue_command(struct Scsi_Host *, struct scsi_cmnd *)
+extern int fas216_noqueue_command(struct Scsi_Host *, struct scsi_cmnd *);
 
 /* Function: irqreturn_t fas216_intr (FAS216_Info *info)
  * Purpose : handle interrupts from the interface to progress a command

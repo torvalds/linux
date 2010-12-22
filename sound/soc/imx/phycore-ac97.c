@@ -20,9 +20,6 @@
 #include <sound/soc-dapm.h>
 #include <asm/mach-types.h>
 
-#include "../codecs/wm9712.h"
-#include "imx-ssi.h"
-
 static struct snd_soc_card imx_phycore;
 
 static struct snd_soc_ops imx_phycore_hifi_ops = {
@@ -41,11 +38,12 @@ static struct snd_soc_dai_link imx_phycore_dai_ac97[] = {
 };
 
 static struct snd_soc_card imx_phycore = {
-	.name		= "PhyCORE-audio",
+	.name		= "PhyCORE-ac97-audio",
 	.dai_link	= imx_phycore_dai_ac97,
 	.num_links	= ARRAY_SIZE(imx_phycore_dai_ac97),
 };
 
+static struct platform_device *imx_phycore_snd_ac97_device;
 static struct platform_device *imx_phycore_snd_device;
 
 static int __init imx_phycore_init(void)
@@ -56,29 +54,42 @@ static int __init imx_phycore_init(void)
 		/* return happy. We might run on a totally different machine */
 		return 0;
 
-	imx_phycore_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!imx_phycore_snd_device)
+	imx_phycore_snd_ac97_device = platform_device_alloc("soc-audio", -1);
+	if (!imx_phycore_snd_ac97_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(imx_phycore_snd_device, &imx_phycore);
-	ret = platform_device_add(imx_phycore_snd_device);
+	platform_set_drvdata(imx_phycore_snd_ac97_device, &imx_phycore);
+	ret = platform_device_add(imx_phycore_snd_ac97_device);
+	if (ret)
+		goto fail1;
 
 	imx_phycore_snd_device = platform_device_alloc("wm9712-codec", -1);
-	if (!imx_phycore_snd_device)
-		return -ENOMEM;
+	if (!imx_phycore_snd_device) {
+		ret = -ENOMEM;
+		goto fail2;
+	}
 	ret = platform_device_add(imx_phycore_snd_device);
 
 	if (ret) {
 		printk(KERN_ERR "ASoC: Platform device allocation failed\n");
-		platform_device_put(imx_phycore_snd_device);
+		goto fail3;
 	}
 
+	return 0;
+
+fail3:
+	platform_device_put(imx_phycore_snd_device);
+fail2:
+	platform_device_del(imx_phycore_snd_ac97_device);
+fail1:
+	platform_device_put(imx_phycore_snd_ac97_device);
 	return ret;
 }
 
 static void __exit imx_phycore_exit(void)
 {
 	platform_device_unregister(imx_phycore_snd_device);
+	platform_device_unregister(imx_phycore_snd_ac97_device);
 }
 
 late_initcall(imx_phycore_init);

@@ -43,16 +43,18 @@ MODULE_ALIAS("wmi:B6F3EEF2-3D2F-49DC-9DE3-85BCE18C62F2");
 
 #define dprintk(msg...) pr_debug(DRV_PFX msg)
 
-#define KEYCODE_BASE 0xD0
-#define MSI_WMI_BRIGHTNESSUP   KEYCODE_BASE
-#define MSI_WMI_BRIGHTNESSDOWN (KEYCODE_BASE + 1)
-#define MSI_WMI_VOLUMEUP       (KEYCODE_BASE + 2)
-#define MSI_WMI_VOLUMEDOWN     (KEYCODE_BASE + 3)
+#define SCANCODE_BASE 0xD0
+#define MSI_WMI_BRIGHTNESSUP   SCANCODE_BASE
+#define MSI_WMI_BRIGHTNESSDOWN (SCANCODE_BASE + 1)
+#define MSI_WMI_VOLUMEUP       (SCANCODE_BASE + 2)
+#define MSI_WMI_VOLUMEDOWN     (SCANCODE_BASE + 3)
+#define MSI_WMI_MUTE           (SCANCODE_BASE + 4)
 static struct key_entry msi_wmi_keymap[] = {
 	{ KE_KEY, MSI_WMI_BRIGHTNESSUP,   {KEY_BRIGHTNESSUP} },
 	{ KE_KEY, MSI_WMI_BRIGHTNESSDOWN, {KEY_BRIGHTNESSDOWN} },
 	{ KE_KEY, MSI_WMI_VOLUMEUP,       {KEY_VOLUMEUP} },
 	{ KE_KEY, MSI_WMI_VOLUMEDOWN,     {KEY_VOLUMEDOWN} },
+	{ KE_KEY, MSI_WMI_MUTE,           {KEY_MUTE} },
 	{ KE_END, 0}
 };
 static ktime_t last_pressed[ARRAY_SIZE(msi_wmi_keymap) - 1];
@@ -169,7 +171,7 @@ static void msi_wmi_notify(u32 value, void *context)
 			ktime_t diff;
 			cur = ktime_get_real();
 			diff = ktime_sub(cur, last_pressed[key->code -
-					KEYCODE_BASE]);
+					SCANCODE_BASE]);
 			/* Ignore event if the same event happened in a 50 ms
 			   timeframe -> Key press may result in 10-20 GPEs */
 			if (ktime_to_us(diff) < 1000 * 50) {
@@ -178,7 +180,7 @@ static void msi_wmi_notify(u32 value, void *context)
 					 key->code, ktime_to_us(diff));
 				return;
 			}
-			last_pressed[key->code - KEYCODE_BASE] = cur;
+			last_pressed[key->code - SCANCODE_BASE] = cur;
 
 			if (key->type == KE_KEY &&
 			/* Brightness is served via acpi video driver */

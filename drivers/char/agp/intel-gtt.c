@@ -812,8 +812,10 @@ static int intel_fake_agp_fetch_size(void)
 
 static void i830_cleanup(void)
 {
-	kunmap(intel_private.i8xx_page);
-	intel_private.i8xx_flush_page = NULL;
+	if (intel_private.i8xx_flush_page) {
+		kunmap(intel_private.i8xx_flush_page);
+		intel_private.i8xx_flush_page = NULL;
+	}
 
 	__free_page(intel_private.i8xx_page);
 	intel_private.i8xx_page = NULL;

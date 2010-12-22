@@ -831,7 +831,7 @@ static int wm8350_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	}
 
 	/* MCLK direction */
-	if (dir == WM8350_MCLK_DIR_OUT)
+	if (dir == SND_SOC_CLOCK_OUT)
 		wm8350_set_bits(wm8350, WM8350_CLOCK_CONTROL_2,
 				WM8350_MCLK_DIR);
 	else
@@ -1585,6 +1585,13 @@ static  int wm8350_codec_probe(struct snd_soc_codec *codec)
 			WM8350_OUT1_VU | WM8350_OUT1R_MUTE);
 	wm8350_set_bits(wm8350, WM8350_ROUT2_VOLUME,
 			WM8350_OUT2_VU | WM8350_OUT2R_MUTE);
+
+	/* Make sure AIF tristating is disabled by default */
+	wm8350_clear_bits(wm8350, WM8350_AI_FORMATING, WM8350_AIF_TRI);
+
+	/* Make sure we've got a sane companding setup too */
+	wm8350_clear_bits(wm8350, WM8350_ADC_DAC_COMP,
+			  WM8350_DAC_COMP | WM8350_LOOPBACK);
 
 	/* Make sure jack detect is disabled to start off with */
 	wm8350_clear_bits(wm8350, WM8350_JACK_DETECT,

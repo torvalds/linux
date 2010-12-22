@@ -94,6 +94,7 @@
 #define in_nmi()	(preempt_count() & NMI_MASK)
 
 #if defined(CONFIG_PREEMPT) && defined(CONFIG_BKL)
+# include <linux/sched.h>
 # define PREEMPT_INATOMIC_BASE (current->lock_depth >= 0)
 #else
 # define PREEMPT_INATOMIC_BASE 0

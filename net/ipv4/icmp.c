@@ -569,6 +569,9 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		/* No need to clone since we're just using its address. */
 		rt2 = rt;
 
+		if (!fl.nl_u.ip4_u.saddr)
+			fl.nl_u.ip4_u.saddr = rt->rt_src;
+
 		err = xfrm_lookup(net, (struct dst_entry **)&rt, &fl, NULL, 0);
 		switch (err) {
 		case 0:

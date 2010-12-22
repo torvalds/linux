@@ -1986,7 +1986,6 @@ static __init int vpfe_probe(struct platform_device *pdev)
 		vpfe_dev->sd[i] =
 			v4l2_i2c_new_subdev_board(&vpfe_dev->v4l2_dev,
 						  i2c_adap,
-						  NULL,
 						  &sdinfo->board_info,
 						  NULL);
 		if (vpfe_dev->sd[i]) {
