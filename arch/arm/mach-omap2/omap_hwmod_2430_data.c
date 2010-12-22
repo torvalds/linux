@@ -483,11 +483,11 @@ static struct omap_hwmod_class i2c_class = {
 	.sysc		= &i2c_sysc,
 };
 
-/* I2C1 */
-
-static struct omap_i2c_dev_attr i2c1_dev_attr = {
+static struct omap_i2c_dev_attr i2c_dev_attr = {
 	.fifo_depth	= 8, /* bytes */
 };
+
+/* I2C1 */
 
 static struct omap_hwmod_irq_info i2c1_mpu_irqs[] = {
 	{ .irq = INT_24XX_I2C1_IRQ, },
@@ -529,15 +529,11 @@ static struct omap_hwmod omap2430_i2c1_hwmod = {
 	.slaves		= omap2430_i2c1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap2430_i2c1_slaves),
 	.class		= &i2c_class,
-	.dev_attr	= &i2c1_dev_attr,
+	.dev_attr	= &i2c_dev_attr,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2430),
 };
 
 /* I2C2 */
-
-static struct omap_i2c_dev_attr i2c2_dev_attr = {
-	.fifo_depth	= 8, /* bytes */
-};
 
 static struct omap_hwmod_irq_info i2c2_mpu_irqs[] = {
 	{ .irq = INT_24XX_I2C2_IRQ, },
@@ -571,7 +567,7 @@ static struct omap_hwmod omap2430_i2c2_hwmod = {
 	.slaves		= omap2430_i2c2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap2430_i2c2_slaves),
 	.class		= &i2c_class,
-	.dev_attr	= &i2c2_dev_attr,
+	.dev_attr	= &i2c_dev_attr,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2430),
 };
 
