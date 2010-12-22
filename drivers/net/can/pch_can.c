@@ -1078,15 +1078,17 @@ static int pch_can_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	/* Save Tx buffer enable state */
 	for (i = PCH_TX_OBJ_START; i <= PCH_TX_OBJ_END; i++)
-		priv->tx_enable[i] = pch_can_get_rxtx_ir(priv, i, PCH_TX_IFREG);
+		priv->tx_enable[i - 1] = pch_can_get_rxtx_ir(priv, i,
+							     PCH_TX_IFREG);
 
 	/* Disable all Transmit buffers */
 	pch_can_set_tx_all(priv, 0);
 
 	/* Save Rx buffer enable state */
 	for (i = PCH_RX_OBJ_START; i <= PCH_RX_OBJ_END; i++) {
-		priv->rx_enable[i] = pch_can_get_rxtx_ir(priv, i, PCH_RX_IFREG);
-		priv->rx_link[i] = pch_can_get_rx_buffer_link(priv, i);
+		priv->rx_enable[i - 1] = pch_can_get_rxtx_ir(priv, i,
+							     PCH_RX_IFREG);
+		priv->rx_link[i - 1] = pch_can_get_rx_buffer_link(priv, i);
 	}
 
 	/* Disable all Receive buffers */
@@ -1139,15 +1141,15 @@ static int pch_can_resume(struct pci_dev *pdev)
 
 	/* Enabling the transmit buffer. */
 	for (i = PCH_TX_OBJ_START; i <= PCH_TX_OBJ_END; i++)
-		pch_can_set_rxtx(priv, i, priv->tx_enable[i], PCH_TX_IFREG);
+		pch_can_set_rxtx(priv, i, priv->tx_enable[i - 1], PCH_TX_IFREG);
 
 	/* Configuring the receive buffer and enabling them. */
 	for (i = PCH_RX_OBJ_START; i <= PCH_RX_OBJ_END; i++) {
 		/* Restore buffer link */
-		pch_can_set_rx_buffer_link(priv, i, priv->rx_link[i]);
+		pch_can_set_rx_buffer_link(priv, i, priv->rx_link[i - 1]);
 
 		/* Restore buffer enables */
-		pch_can_set_rxtx(priv, i, priv->rx_enable[i], PCH_RX_IFREG);
+		pch_can_set_rxtx(priv, i, priv->rx_enable[i - 1], PCH_RX_IFREG);
 	}
 
 	/* Enable CAN Interrupts */
