@@ -354,5 +354,7 @@ unsigned long omap_pm_cpu_get_freq(void);
  */
 u32 omap_pm_get_dev_context_loss_count(struct device *dev);
 
+void omap_pm_enable_off_mode(void);
+void omap_pm_disable_off_mode(void);
 
 #endif
