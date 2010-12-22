@@ -4586,7 +4586,7 @@ F:	drivers/pcmcia/
 F:	include/pcmcia/
 
 PCNET32 NETWORK DRIVER
-M:	Don Fry <pcnet32@verizon.net>
+M:	Don Fry <pcnet32@frontier.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/pcnet32.c
