@@ -137,6 +137,8 @@ static int bcm4329_set_block(void *data, bool blocked)
 
     	if (false == blocked) { 
        		gpio_set_value(BT_GPIO_POWER, GPIO_HIGH);  /* bt power on */
+                gpio_set_value(BT_GPIO_RESET, GPIO_LOW);
+                mdelay(20);
     		gpio_set_value(BT_GPIO_RESET, GPIO_HIGH);  /* bt reset deactive*/
     		mdelay(20);
         
