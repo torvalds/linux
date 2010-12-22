@@ -4,19 +4,17 @@
 
 # Common support
 obj-y := id.o io.o control.o mux.o devices.o serial.o gpmc.o timer-gp.o pm.o \
-	 common.o gpio.o dma.o
+	 common.o gpio.o dma.o wd_timer.o
 
-omap-2-3-common				= irq.o sdrc.o prm2xxx_3xxx.o
+omap-2-3-common				= irq.o sdrc.o
 hwmod-common				= omap_hwmod.o \
 					  omap_hwmod_common_data.o
-prcm-common				= prcm.o powerdomain.o
 clock-common				= clock.o clock_common_data.o \
-					  clockdomain.o clkt_dpll.o \
-					  clkt_clksel.o
+					  clkt_dpll.o clkt_clksel.o
 
-obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(prcm-common) $(hwmod-common)
-obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(prcm-common) $(hwmod-common)
-obj-$(CONFIG_ARCH_OMAP4) += $(prcm-common) prm44xx.o $(hwmod-common)
+obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(hwmod-common)
+obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(hwmod-common)
+obj-$(CONFIG_ARCH_OMAP4) += prm44xx.o $(hwmod-common)
 
 obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
 
@@ -74,10 +72,36 @@ endif
 endif
 
 # PRCM
-obj-$(CONFIG_ARCH_OMAP2)		+= cm.o
-obj-$(CONFIG_ARCH_OMAP3)		+= cm.o
-obj-$(CONFIG_ARCH_OMAP4)		+= cm4xxx.o
+obj-$(CONFIG_ARCH_OMAP2)		+= prcm.o cm2xxx_3xxx.o prm2xxx_3xxx.o
+obj-$(CONFIG_ARCH_OMAP3)		+= prcm.o cm2xxx_3xxx.o prm2xxx_3xxx.o
+# XXX The presence of cm2xxx_3xxx.o on the line below is temporary and
+# will be removed once the OMAP4 part of the codebase is converted to
+# use OMAP4-specific PRCM functions.
+obj-$(CONFIG_ARCH_OMAP4)		+= prcm.o cm2xxx_3xxx.o cminst44xx.o \
+					   cm44xx.o prcm_mpu44xx.o \
+					   prminst44xx.o
 
+# OMAP powerdomain framework
+powerdomain-common			+= powerdomain.o powerdomain-common.o
+obj-$(CONFIG_ARCH_OMAP2)		+= $(powerdomain-common) \
+					   powerdomain2xxx_3xxx.o \
+					   powerdomains2xxx_data.o \
+					   powerdomains2xxx_3xxx_data.o
+obj-$(CONFIG_ARCH_OMAP3)		+= $(powerdomain-common) \
+					   powerdomain2xxx_3xxx.o \
+					   powerdomains3xxx_data.o \
+					   powerdomains2xxx_3xxx_data.o
+obj-$(CONFIG_ARCH_OMAP4)		+= $(powerdomain-common) \
+					   powerdomain44xx.o \
+					   powerdomains44xx_data.o
+
+# PRCM clockdomain control
+obj-$(CONFIG_ARCH_OMAP2)		+= clockdomain.o \
+					   clockdomains2xxx_3xxx_data.o
+obj-$(CONFIG_ARCH_OMAP3)		+= clockdomain.o \
+					   clockdomains2xxx_3xxx_data.o
+obj-$(CONFIG_ARCH_OMAP4)		+= clockdomain.o \
+					   clockdomains44xx_data.o
 # Clock framework
 obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common) clock2xxx.o \
 					   clkt2xxx_sys.o \

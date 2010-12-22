@@ -27,8 +27,8 @@
 #include <plat/sram.h>
 #include <mach/io.h>
 
-#include "cm.h"
-#include "prm.h"
+#include "cm2xxx_3xxx.h"
+#include "prm2xxx_3xxx.h"
 #include "sdrc.h"
 #include "control.h"
 

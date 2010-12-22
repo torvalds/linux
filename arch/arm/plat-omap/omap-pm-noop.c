@@ -20,11 +20,14 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/device.h>
+#include <linux/platform_device.h>
 
 /* Interface documentation is in mach/omap-pm.h */
 #include <plat/omap-pm.h>
+#include <plat/omap_device.h>
 
-#include <plat/powerdomain.h>
+static bool off_mode_enabled;
+static u32 dummy_context_loss_counter;
 
 /*
  * Device-driver-originated constraints (via board-*.c files)
@@ -280,28 +283,66 @@ unsigned long omap_pm_cpu_get_freq(void)
 	return 0;
 }
 
+/**
+ * omap_pm_enable_off_mode - notify OMAP PM that off-mode is enabled
+ *
+ * Intended for use only by OMAP PM core code to notify this layer
+ * that off mode has been enabled.
+ */
+void omap_pm_enable_off_mode(void)
+{
+	off_mode_enabled = true;
+}
+
+/**
+ * omap_pm_disable_off_mode - notify OMAP PM that off-mode is disabled
+ *
+ * Intended for use only by OMAP PM core code to notify this layer
+ * that off mode has been disabled.
+ */
+void omap_pm_disable_off_mode(void)
+{
+	off_mode_enabled = false;
+}
+
 /*
  * Device context loss tracking
  */
 
-int omap_pm_get_dev_context_loss_count(struct device *dev)
+#ifdef CONFIG_ARCH_OMAP2PLUS
+
+u32 omap_pm_get_dev_context_loss_count(struct device *dev)
 {
-	if (!dev) {
-		WARN_ON(1);
-		return -EINVAL;
-	};
+	struct platform_device *pdev = to_platform_device(dev);
+	u32 count;
 
-	pr_debug("OMAP PM: returning context loss count for dev %s\n",
-		 dev_name(dev));
+	if (WARN_ON(!dev))
+		return 0;
 
-	/*
-	 * Map the device to the powerdomain.  Return the powerdomain
-	 * off counter.
-	 */
+	if (dev->parent == &omap_device_parent) {
+		count = omap_device_get_context_loss_count(pdev);
+	} else {
+		WARN_ONCE(off_mode_enabled, "omap_pm: using dummy context loss counter; device %s should be converted to omap_device",
+			  dev_name(dev));
+		if (off_mode_enabled)
+			dummy_context_loss_counter++;
+		count = dummy_context_loss_counter;
+	}
 
-	return 0;
+	pr_debug("OMAP PM: context loss count for dev %s = %d\n",
+		 dev_name(dev), count);
+
+	return count;
 }
 
+#else
+
+u32 omap_pm_get_dev_context_loss_count(struct device *dev)
+{
+	return dummy_context_loss_counter;
+}
+
+#endif
 
 /* Should be called before clk framework init */
 int __init omap_pm_if_early_init(void)

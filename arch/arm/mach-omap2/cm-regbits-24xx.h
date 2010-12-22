@@ -14,8 +14,6 @@
  * published by the Free Software Foundation.
  */
 
-#include "cm.h"
-
 /* Bits shared between registers */
 
 /* CM_FCLKEN1_CORE and CM_ICLKEN1_CORE shared bits */
@@ -435,5 +433,10 @@
 /* 2430 only */
 #define OMAP2430_AUTOSTATE_MDM_SHIFT			0
 #define OMAP2430_AUTOSTATE_MDM_MASK			(1 << 0)
+
+/* OMAP24XX CM_CLKSTCTRL_*.AUTOSTATE_* register bit values */
+#define OMAP24XX_CLKSTCTRL_DISABLE_AUTO		0x0
+#define OMAP24XX_CLKSTCTRL_ENABLE_AUTO		0x1
+
 
 #endif

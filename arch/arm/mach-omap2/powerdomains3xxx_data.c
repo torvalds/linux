@@ -4,28 +4,23 @@
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
  * Copyright (C) 2007-2010 Nokia Corporation
  *
- * Written by Paul Walmsley
- * Debugging and integration fixes by Jouni Högander
+ * Paul Walmsley, Jouni Högander
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-#ifndef ARCH_ARM_MACH_OMAP2_POWERDOMAINS34XX
-#define ARCH_ARM_MACH_OMAP2_POWERDOMAINS34XX
+#include <linux/kernel.h>
+#include <linux/init.h>
 
-/*
- * N.B. If powerdomains are added or removed from this file, update
- * the array in mach-omap2/powerdomains.h.
- */
-
-#include <plat/powerdomain.h>
+#include "powerdomain.h"
+#include "powerdomains2xxx_3xxx_data.h"
 
 #include "prcm-common.h"
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
 #include "prm-regbits-34xx.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
 #include "cm-regbits-34xx.h"
 
 /*
@@ -260,8 +255,33 @@ static struct powerdomain dpll5_pwrdm = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
 };
 
+/* As powerdomains are added or removed above, this list must also be changed */
+static struct powerdomain *powerdomains_omap3xxx[] __initdata = {
 
-#endif    /* CONFIG_ARCH_OMAP3 */
-
-
+	&wkup_omap2_pwrdm,
+	&gfx_omap2_pwrdm,
+	&iva2_pwrdm,
+	&mpu_3xxx_pwrdm,
+	&neon_pwrdm,
+	&core_3xxx_pre_es3_1_pwrdm,
+	&core_3xxx_es3_1_pwrdm,
+	&cam_pwrdm,
+	&dss_pwrdm,
+	&per_pwrdm,
+	&emu_pwrdm,
+	&sgx_pwrdm,
+	&usbhost_pwrdm,
+	&dpll1_pwrdm,
+	&dpll2_pwrdm,
+	&dpll3_pwrdm,
+	&dpll4_pwrdm,
+	&dpll5_pwrdm,
 #endif
+	NULL
+};
+
+
+void __init omap3xxx_powerdomains_init(void)
+{
+	pwrdm_init(powerdomains_omap3xxx, &omap3_pwrdm_operations);
+}

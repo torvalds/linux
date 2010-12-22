@@ -1,6 +1,3 @@
-#ifndef __ARCH_ARM_MACH_OMAP2_PRM_REGBITS_34XX_H
-#define __ARCH_ARM_MACH_OMAP2_PRM_REGBITS_34XX_H
-
 /*
  * OMAP3430 Power/Reset Management register bits
  *
@@ -13,8 +10,11 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#ifndef __ARCH_ARM_MACH_OMAP2_PRM_REGBITS_34XX_H
+#define __ARCH_ARM_MACH_OMAP2_PRM_REGBITS_34XX_H
 
-#include "prm.h"
+
+#include "prm2xxx_3xxx.h"
 
 /* Shared register bits */
 

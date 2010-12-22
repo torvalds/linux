@@ -292,7 +292,8 @@ static void __init omap_ldp_init_irq(void)
 {
 	omap_board_config = ldp_config;
 	omap_board_config_size = ARRAY_SIZE(ldp_config);
-	omap2_init_common_hw(NULL, NULL);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(NULL, NULL);
 	omap_init_irq();
 }
 

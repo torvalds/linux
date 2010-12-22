@@ -1,36 +1,27 @@
 /*
- * OMAP24XX powerdomain definitions
+ * OMAP2XXX powerdomain definitions
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
- * Copyright (C) 2007-2009 Nokia Corporation
+ * Copyright (C) 2007-2010 Nokia Corporation
  *
- * Written by Paul Walmsley
- * Debugging and integration fixes by Jouni Högander
+ * Paul Walmsley, Jouni Högander
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-#ifndef ARCH_ARM_MACH_OMAP2_POWERDOMAINS24XX
-#define ARCH_ARM_MACH_OMAP2_POWERDOMAINS24XX
+#include <linux/kernel.h>
+#include <linux/init.h>
 
-/*
- * N.B. If powerdomains are added or removed from this file, update
- * the array in mach-omap2/powerdomains.h.
- */
-
-#include <plat/powerdomain.h>
+#include "powerdomain.h"
+#include "powerdomains2xxx_3xxx_data.h"
 
 #include "prcm-common.h"
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
-#include "cm.h"
-#include "cm-regbits-24xx.h"
 
 /* 24XX powerdomains and dependencies */
-
-#ifdef CONFIG_ARCH_OMAP2
 
 /* Powerdomains */
 
@@ -82,9 +73,6 @@ static struct powerdomain core_24xx_pwrdm = {
 	},
 };
 
-#endif	   /* CONFIG_ARCH_OMAP2 */
-
-
 
 /*
  * 2430-specific powerdomains
@@ -111,5 +99,25 @@ static struct powerdomain mdm_pwrdm = {
 
 #endif     /* CONFIG_ARCH_OMAP2430 */
 
+/* As powerdomains are added or removed above, this list must also be changed */
+static struct powerdomain *powerdomains_omap2xxx[] __initdata = {
 
+	&wkup_omap2_pwrdm,
+	&gfx_omap2_pwrdm,
+
+#ifdef CONFIG_ARCH_OMAP2
+	&dsp_pwrdm,
+	&mpu_24xx_pwrdm,
+	&core_24xx_pwrdm,
 #endif
+
+#ifdef CONFIG_ARCH_OMAP2430
+	&mdm_pwrdm,
+#endif
+	NULL
+};
+
+void __init omap2xxx_powerdomains_init(void)
+{
+	pwrdm_init(powerdomains_omap2xxx, &omap2_pwrdm_operations);
+}

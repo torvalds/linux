@@ -40,9 +40,9 @@
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
 
-#include "prm.h"
+#include "prm2xxx_3xxx.h"
 #include "pm.h"
-#include "cm.h"
+#include "cm2xxx_3xxx.h"
 #include "prm-regbits-34xx.h"
 #include "control.h"
 
@@ -106,21 +106,16 @@ struct omap_uart_state {
 static LIST_HEAD(uart_list);
 static u8 num_uarts;
 
-/*
- * Since these idle/enable hooks are used in the idle path itself
- * which has interrupts disabled, use the non-locking versions of
- * the hwmod enable/disable functions.
- */
 static int uart_idle_hwmod(struct omap_device *od)
 {
-	_omap_hwmod_idle(od->hwmods[0]);
+	omap_hwmod_idle(od->hwmods[0]);
 
 	return 0;
 }
 
 static int uart_enable_hwmod(struct omap_device *od)
 {
-	_omap_hwmod_enable(od->hwmods[0]);
+	omap_hwmod_enable(od->hwmods[0]);
 
 	return 0;
 }
@@ -495,6 +490,7 @@ static void omap_uart_idle_init(struct omap_uart_state *uart)
 		u32 wk_mask = 0;
 		u32 padconf = 0;
 
+		/* XXX These PRM accesses do not belong here */
 		uart->wk_en = OMAP34XX_PRM_REGADDR(mod, PM_WKEN1);
 		uart->wk_st = OMAP34XX_PRM_REGADDR(mod, PM_WKST1);
 		switch (uart->num) {

@@ -35,12 +35,13 @@
 
 static void __init omap_zoom_init_irq(void)
 {
+	omap2_init_common_infrastructure();
 	if (machine_is_omap_zoom2())
-		omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
-				mt46h32m32lf6_sdrc_params);
+		omap2_init_common_devices(mt46h32m32lf6_sdrc_params,
+					  mt46h32m32lf6_sdrc_params);
 	else if (machine_is_omap_zoom3())
-		omap2_init_common_hw(h8mbx00u0mer0em_sdrc_params,
-				h8mbx00u0mer0em_sdrc_params);
+		omap2_init_common_devices(h8mbx00u0mer0em_sdrc_params,
+					  h8mbx00u0mer0em_sdrc_params);
 
 	omap_init_irq();
 }

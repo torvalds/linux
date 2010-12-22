@@ -197,7 +197,8 @@ static inline void __init board_smsc911x_init(void)
 
 static void __init omap3logic_init_irq(void)
 {
-	omap2_init_common_hw(NULL, NULL);
+	omap2_init_common_infrastructure();
+	omap2_init_common_devices(NULL, NULL);
 	omap_init_irq();
 }
 

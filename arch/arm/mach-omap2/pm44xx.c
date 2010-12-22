@@ -16,7 +16,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
-#include <plat/powerdomain.h>
+#include "powerdomain.h"
 #include <mach/omap4-common.h>
 
 struct power_state {

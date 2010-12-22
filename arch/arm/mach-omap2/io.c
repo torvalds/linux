@@ -39,12 +39,9 @@
 #include "io.h"
 
 #include <plat/omap-pm.h>
-#include <plat/powerdomain.h>
-#include "powerdomains.h"
+#include "powerdomain.h"
 
-#include <plat/clockdomain.h>
-#include "clockdomains.h"
-
+#include "clockdomain.h"
 #include <plat/omap_hwmod.h>
 #include <plat/multi.h>
 
@@ -312,6 +309,11 @@ static int __init _omap2_init_reprogram_sdrc(void)
 	return v;
 }
 
+static int _set_hwmod_postsetup_state(struct omap_hwmod *oh, void *data)
+{
+	return omap_hwmod_set_postsetup_state(oh, *(u8 *)data);
+}
+
 /*
  * Initialize asm_irq_base for entry-macro.S
  */
@@ -331,21 +333,55 @@ static inline void omap_irq_base_init(void)
 #endif
 }
 
-void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
-				 struct omap_sdrc_params *sdrc_cs1)
+void __init omap2_init_common_infrastructure(void)
 {
-	u8 skip_setup_idle = 0;
+	u8 postsetup_state;
 
-	pwrdm_init(powerdomains_omap);
-	clkdm_init(clockdomains_omap, clkdm_autodeps);
-	if (cpu_is_omap242x())
+	if (cpu_is_omap242x()) {
+		omap2xxx_powerdomains_init();
+		omap2_clockdomains_init();
 		omap2420_hwmod_init();
-	else if (cpu_is_omap243x())
+	} else if (cpu_is_omap243x()) {
+		omap2xxx_powerdomains_init();
+		omap2_clockdomains_init();
 		omap2430_hwmod_init();
-	else if (cpu_is_omap34xx())
+	} else if (cpu_is_omap34xx()) {
+		omap3xxx_powerdomains_init();
+		omap2_clockdomains_init();
 		omap3xxx_hwmod_init();
-	else if (cpu_is_omap44xx())
+	} else if (cpu_is_omap44xx()) {
+		omap44xx_powerdomains_init();
+		omap44xx_clockdomains_init();
 		omap44xx_hwmod_init();
+	} else {
+		pr_err("Could not init hwmod data - unknown SoC\n");
+        }
+
+	/* Set the default postsetup state for all hwmods */
+#ifdef CONFIG_PM_RUNTIME
+	postsetup_state = _HWMOD_STATE_IDLE;
+#else
+	postsetup_state = _HWMOD_STATE_ENABLED;
+#endif
+	omap_hwmod_for_each(_set_hwmod_postsetup_state, &postsetup_state);
+
+	/*
+	 * Set the default postsetup state for unusual modules (like
+	 * MPU WDT).
+	 *
+	 * The postsetup_state is not actually used until
+	 * omap_hwmod_late_init(), so boards that desire full watchdog
+	 * coverage of kernel initialization can reprogram the
+	 * postsetup_state between the calls to
+	 * omap2_init_common_infra() and omap2_init_common_devices().
+	 *
+	 * XXX ideally we could detect whether the MPU WDT was currently
+	 * enabled here and make this conditional
+	 */
+	postsetup_state = _HWMOD_STATE_DISABLED;
+	omap_hwmod_for_each_by_class("wd_timer",
+				     _set_hwmod_postsetup_state,
+				     &postsetup_state);
 
 	omap_pm_if_early_init();
 
@@ -358,14 +394,16 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 	else if (cpu_is_omap44xx())
 		omap4xxx_clk_init();
 	else
-		pr_err("Could not init clock framework - unknown CPU\n");
+		pr_err("Could not init clock framework - unknown SoC\n");
+}
 
+void __init omap2_init_common_devices(struct omap_sdrc_params *sdrc_cs0,
+				      struct omap_sdrc_params *sdrc_cs1)
+{
 	omap_serial_early_init();
 
-#ifndef CONFIG_PM_RUNTIME
-	skip_setup_idle = 1;
-#endif
-	omap_hwmod_late_init(skip_setup_idle);
+	omap_hwmod_late_init();
+
 	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 		omap2_sdrc_init(sdrc_cs0, sdrc_cs1);
 		_omap2_init_reprogram_sdrc();

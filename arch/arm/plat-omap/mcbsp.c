@@ -28,6 +28,8 @@
 #include <plat/dma.h>
 #include <plat/mcbsp.h>
 
+/* XXX These "sideways" includes are a sign that something is wrong */
+#include "../mach-omap2/cm2xxx_3xxx.h"
 #include "../mach-omap2/cm-regbits-34xx.h"
 
 struct omap_mcbsp **mcbsp_ptr;
@@ -234,9 +236,9 @@ static void omap_st_on(struct omap_mcbsp *mcbsp)
 	 * Sidetone uses McBSP ICLK - which must not idle when sidetones
 	 * are enabled or sidetones start sounding ugly.
 	 */
-	w = cm_read_mod_reg(OMAP3430_PER_MOD, CM_AUTOIDLE);
+	w = omap2_cm_read_mod_reg(OMAP3430_PER_MOD, CM_AUTOIDLE);
 	w &= ~(1 << (mcbsp->id - 2));
-	cm_write_mod_reg(w, OMAP3430_PER_MOD, CM_AUTOIDLE);
+	omap2_cm_write_mod_reg(w, OMAP3430_PER_MOD, CM_AUTOIDLE);
 
 	/* Enable McBSP Sidetone */
 	w = MCBSP_READ(mcbsp, SSELCR);
@@ -263,9 +265,9 @@ static void omap_st_off(struct omap_mcbsp *mcbsp)
 	w = MCBSP_READ(mcbsp, SSELCR);
 	MCBSP_WRITE(mcbsp, SSELCR, w & ~(SIDETONEEN));
 
-	w = cm_read_mod_reg(OMAP3430_PER_MOD, CM_AUTOIDLE);
+	w = omap2_cm_read_mod_reg(OMAP3430_PER_MOD, CM_AUTOIDLE);
 	w |= 1 << (mcbsp->id - 2);
-	cm_write_mod_reg(w, OMAP3430_PER_MOD, CM_AUTOIDLE);
+	omap2_cm_write_mod_reg(w, OMAP3430_PER_MOD, CM_AUTOIDLE);
 }
 
 static void omap_st_fir_write(struct omap_mcbsp *mcbsp, s16 *fir)
