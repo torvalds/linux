@@ -558,6 +558,9 @@ config IT8712F_WDT
 	  This is the driver for the built-in watchdog timer on the IT8712F
 	  Super I/0 chipset used on many motherboards.
 
+	  If the driver does not work, then make sure that the game port in
+	  the BIOS is enabled.
+
 	  To compile this driver as a module, choose M here: the
 	  module will be called it8712f_wdt.
 

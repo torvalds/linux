@@ -261,6 +261,13 @@ static void ehea_get_ethtool_stats(struct net_device *dev,
 
 }
 
+static int ehea_set_flags(struct net_device *dev, u32 data)
+{
+	return ethtool_op_set_flags(dev, data, ETH_FLAG_LRO
+					| ETH_FLAG_TXVLAN
+					| ETH_FLAG_RXVLAN);
+}
+
 const struct ethtool_ops ehea_ethtool_ops = {
 	.get_settings = ehea_get_settings,
 	.get_drvinfo = ehea_get_drvinfo,
@@ -273,6 +280,8 @@ const struct ethtool_ops ehea_ethtool_ops = {
 	.get_ethtool_stats = ehea_get_ethtool_stats,
 	.get_rx_csum = ehea_get_rx_csum,
 	.set_settings = ehea_set_settings,
+	.get_flags = ethtool_op_get_flags,
+	.set_flags = ehea_set_flags,
 	.nway_reset = ehea_nway_reset,		/* Restart autonegotiation */
 };
 

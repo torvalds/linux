@@ -466,7 +466,7 @@ static void __init fixup_poodle(struct machine_desc *desc,
 
 MACHINE_START(POODLE, "SHARP Poodle")
 	.fixup		= fixup_poodle,
-	.map_io		= pxa_map_io,
+	.map_io		= pxa25x_map_io,
 	.nr_irqs	= POODLE_NR_IRQS,	/* 4 for LoCoMo */
 	.init_irq	= pxa25x_init_irq,
 	.timer		= &pxa_timer,

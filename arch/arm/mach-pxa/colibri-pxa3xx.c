@@ -64,55 +64,6 @@ void __init colibri_pxa3xx_init_eth(struct ax_plat_data *plat_data)
 }
 #endif
 
-#if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
-static int mmc_detect_pin;
-
-static int colibri_pxa3xx_mci_init(struct device *dev,
-				   irq_handler_t colibri_mmc_detect_int,
-				   void *data)
-{
-	int ret;
-
-	ret = gpio_request(mmc_detect_pin, "mmc card detect");
-	if (ret)
-		return ret;
-
-	gpio_direction_input(mmc_detect_pin);
-	ret = request_irq(gpio_to_irq(mmc_detect_pin), colibri_mmc_detect_int,
-			  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			  "MMC card detect", data);
-	if (ret) {
-		gpio_free(mmc_detect_pin);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void colibri_pxa3xx_mci_exit(struct device *dev, void *data)
-{
-	free_irq(mmc_detect_pin, data);
-	gpio_free(gpio_to_irq(mmc_detect_pin));
-}
-
-static struct pxamci_platform_data colibri_pxa3xx_mci_platform_data = {
-	.detect_delay_ms	= 200,
-	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.init			= colibri_pxa3xx_mci_init,
-	.exit			= colibri_pxa3xx_mci_exit,
-	.gpio_card_detect	= -1,
-	.gpio_card_ro		= -1,
-	.gpio_power		= -1,
-};
-
-void __init colibri_pxa3xx_init_mmc(mfp_cfg_t *pins, int len, int detect_pin)
-{
-	pxa3xx_mfp_config(pins, len);
-	mmc_detect_pin = detect_pin;
-	pxa_set_mci_info(&colibri_pxa3xx_mci_platform_data);
-}
-#endif /* CONFIG_MMC_PXA || CONFIG_MMC_PXA_MODULE */
-
 #if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
 static int lcd_bl_pin;
 

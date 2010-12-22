@@ -427,8 +427,10 @@ extern rwlock_t vcc_sklist_lock;
 
 #define ATM_SKB(skb) (((struct atm_skb_data *) (skb)->cb))
 
-struct atm_dev *atm_dev_register(const char *type,const struct atmdev_ops *ops,
-    int number,unsigned long *flags); /* number == -1: pick first available */
+struct atm_dev *atm_dev_register(const char *type, struct device *parent,
+				 const struct atmdev_ops *ops,
+				 int number, /* -1 == pick first available */
+				 unsigned long *flags);
 struct atm_dev *atm_dev_lookup(int number);
 void atm_dev_deregister(struct atm_dev *dev);
 

@@ -1619,12 +1619,14 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 #ifdef CONFIG_SND_SOC_AC97_BUS
 	/* register any AC97 codecs */
 	for (i = 0; i < card->num_rtd; i++) {
-			ret = soc_register_ac97_dai_link(&card->rtd[i]);
-			if (ret < 0) {
-				printk(KERN_ERR "asoc: failed to register AC97 %s\n", card->name);
-				goto probe_dai_err;
-			}
+		ret = soc_register_ac97_dai_link(&card->rtd[i]);
+		if (ret < 0) {
+			printk(KERN_ERR "asoc: failed to register AC97 %s\n", card->name);
+			while (--i >= 0)
+				soc_unregister_ac97_dai_link(&card->rtd[i]);
+			goto probe_dai_err;
 		}
+	}
 #endif
 
 	card->instantiated = 1;
@@ -3072,7 +3074,9 @@ int snd_soc_register_dais(struct device *dev,
 		pr_debug("Registered DAI '%s'\n", dai->name);
 	}
 
+	mutex_lock(&client_mutex);
 	snd_soc_instantiate_cards();
+	mutex_unlock(&client_mutex);
 	return 0;
 
 err:

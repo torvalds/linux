@@ -360,7 +360,7 @@ void drain_local_pages(void *dummy);
 
 extern gfp_t gfp_allowed_mask;
 
-extern void set_gfp_allowed_mask(gfp_t mask);
-extern gfp_t clear_gfp_allowed_mask(gfp_t mask);
+extern void pm_restrict_gfp_mask(void);
+extern void pm_restore_gfp_mask(void);
 
 #endif /* __LINUX_GFP_H */

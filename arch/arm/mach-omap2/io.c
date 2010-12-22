@@ -297,7 +297,7 @@ static int __init _omap2_init_reprogram_sdrc(void)
 		return 0;
 
 	dpll3_m2_ck = clk_get(NULL, "dpll3_m2_ck");
-	if (!dpll3_m2_ck)
+	if (IS_ERR(dpll3_m2_ck))
 		return -EINVAL;
 
 	rate = clk_get_rate(dpll3_m2_ck);
