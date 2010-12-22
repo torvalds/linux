@@ -18,7 +18,6 @@
 #define _802_11_H_
 
 #include <proto/ethernet.h>
-#include <packed_section_start.h>
 
 #define DOT11_A3_HDR_LEN		24
 #define DOT11_A4_HDR_LEN		30
@@ -45,7 +44,7 @@
 
 #define DOT11_OUI_LEN			3
 
-BWL_PRE_PACKED_STRUCT struct dot11_header {
+struct dot11_header {
 	u16 fc;
 	u16 durid;
 	struct ether_addr a1;
@@ -53,14 +52,14 @@ BWL_PRE_PACKED_STRUCT struct dot11_header {
 	struct ether_addr a3;
 	u16 seq;
 	struct ether_addr a4;
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 
-BWL_PRE_PACKED_STRUCT struct dot11_rts_frame {
+struct dot11_rts_frame {
 	u16 fc;
 	u16 durid;
 	struct ether_addr ra;
 	struct ether_addr ta;
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 
 #define	DOT11_RTS_LEN		16
 #define	DOT11_CTS_LEN		10
@@ -69,21 +68,21 @@ BWL_PRE_PACKED_STRUCT struct dot11_rts_frame {
 #define DOT11_BA_BITMAP_LEN		128
 #define DOT11_BA_LEN		4
 
-BWL_PRE_PACKED_STRUCT struct dot11_management_header {
+struct dot11_management_header {
 	u16 fc;
 	u16 durid;
 	struct ether_addr da;
 	struct ether_addr sa;
 	struct ether_addr bssid;
 	u16 seq;
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 #define	DOT11_MGMT_HDR_LEN	24
 
-BWL_PRE_PACKED_STRUCT struct dot11_bcn_prb {
+struct dot11_bcn_prb {
 	u32 timestamp[2];
 	u16 beacon_interval;
 	u16 capability;
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 #define	DOT11_BCN_PRB_LEN	12
 
 #define WME_OUI			"\x00\x50\xf2"
@@ -102,14 +101,14 @@ typedef u8 ac_bitmap_t;
 #define AC_BITMAP_ALL		0xf
 #define AC_BITMAP_TST(ab, ac)	(((ab) & (1 << (ac))) != 0)
 
-BWL_PRE_PACKED_STRUCT struct edcf_acparam {
+struct edcf_acparam {
 	u8 ACI;
 	u8 ECW;
 	u16 TXOP;
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 typedef struct edcf_acparam edcf_acparam_t;
 
-BWL_PRE_PACKED_STRUCT struct wme_param_ie {
+struct wme_param_ie {
 	u8 oui[3];
 	u8 type;
 	u8 subtype;
@@ -117,7 +116,7 @@ BWL_PRE_PACKED_STRUCT struct wme_param_ie {
 	u8 qosinfo;
 	u8 rsvd;
 	edcf_acparam_t acparam[AC_COUNT];
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 typedef struct wme_param_ie wme_param_ie_t;
 #define WME_PARAM_IE_LEN            24
 
@@ -253,14 +252,14 @@ typedef struct d11cnt {
 
 #define MCSSET_LEN	16
 
-BWL_PRE_PACKED_STRUCT struct ht_cap_ie {
+struct ht_cap_ie {
 	u16 cap;
 	u8 params;
 	u8 supp_mcs[MCSSET_LEN];
 	u16 ext_htcap;
 	u32 txbf_cap;
 	u8 as_cap;
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 typedef struct ht_cap_ie ht_cap_ie_t;
 
 #define HT_CAP_IE_LEN		26
@@ -317,6 +316,5 @@ typedef struct ht_cap_ie ht_cap_ie_t;
 #define AES_KEY_SIZE		16
 
 #define BRCM_OUI		"\x00\x10\x18"
-#include <packed_section_end.h>
 
 #endif				/* _802_11_H_ */

@@ -17,10 +17,6 @@
 #ifndef _dhdioctl_h_
 #define	_dhdioctl_h_
 
-/* require default structure packing */
-#define BWL_DEFAULT_PACKING
-#include <packed_section_start.h>
-
 /* Linux network driver ioctl encoding */
 typedef struct dhd_ioctl {
 	uint cmd;		/* common ioctl definition */
@@ -100,8 +96,5 @@ typedef struct dhd_pktgen {
 				 when idle */
 #define DHD_IDLE_STOP   (-1)	/* Request SD clock be stopped
 				 (and use SD1 mode) */
-
-/* require default structure packing */
-#include <packed_section_end.h>
 
 #endif				/* _dhdioctl_h_ */

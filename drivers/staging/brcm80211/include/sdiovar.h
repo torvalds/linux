@@ -17,10 +17,6 @@
 #ifndef _sdiovar_h_
 #define _sdiovar_h_
 
-/* require default structure packing */
-#define BWL_DEFAULT_PACKING
-#include <packed_section_start.h>
-
 typedef struct sdreg {
 	int func;
 	int offset;
@@ -38,7 +34,5 @@ typedef struct sdreg {
 #define SDH_DMA_VAL		0x0080	/* DMA */
 
 #define NUM_PREV_TRANSACTIONS	16
-
-#include <packed_section_end.h>
 
 #endif				/* _sdiovar_h_ */

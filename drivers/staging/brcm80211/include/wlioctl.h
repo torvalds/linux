@@ -30,10 +30,6 @@
 #define INTF_NAME_SIZ	16
 #endif
 
-/* require default structure packing */
-#define BWL_DEFAULT_PACKING
-#include <packed_section_start.h>
-
 #ifdef BRCM_FULLMAC
 
 #define	WL_BSS_INFO_VERSION	108	/* current ver of wl_bss_info struct */
@@ -1668,9 +1664,6 @@ typedef struct wl_pkt_filter_enable {
 
 
 #define	WLC_RSSI_INVALID	 0	/* invalid RSSI value */
-
-/* require default structure packing */
-#include <packed_section_end.h>
 
 /* n-mode support capability */
 /* 2x2 includes both 1x1 & 2x2 devices

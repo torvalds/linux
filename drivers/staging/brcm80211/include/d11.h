@@ -17,9 +17,6 @@
 #ifndef	_D11_H
 #define	_D11_H
 
-/* This marks the start of a packed structure section. */
-#include <packed_section_start.h>
-
 #ifndef WL_RSSI_ANT_MAX
 #define WL_RSSI_ANT_MAX		4	/* max possible rx antennas */
 #elif WL_RSSI_ANT_MAX != 4
@@ -625,11 +622,11 @@ typedef volatile struct _d11regs {
 
 /* 802.11a PLCP header def */
 typedef struct ofdm_phy_hdr ofdm_phy_hdr_t;
-BWL_PRE_PACKED_STRUCT struct ofdm_phy_hdr {
+struct ofdm_phy_hdr {
 	u8 rlpt[3];		/* rate, length, parity, tail */
 	u16 service;
 	u8 pad;
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 
 #define	D11A_PHY_HDR_GRATE(phdr)	((phdr)->rlpt[0] & 0x0f)
 #define	D11A_PHY_HDR_GRES(phdr)		(((phdr)->rlpt[0] >> 4) & 0x01)
@@ -660,12 +657,12 @@ BWL_PRE_PACKED_STRUCT struct ofdm_phy_hdr {
 
 /* 802.11b PLCP header def */
 typedef struct cck_phy_hdr cck_phy_hdr_t;
-BWL_PRE_PACKED_STRUCT struct cck_phy_hdr {
+struct cck_phy_hdr {
 	u8 signal;
 	u8 service;
 	u16 length;
 	u16 crc;
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 
 #define	D11B_PHY_HDR_LEN	6
 
@@ -706,7 +703,7 @@ BWL_PRE_PACKED_STRUCT struct cck_phy_hdr {
 
 /* TX DMA buffer header */
 typedef struct d11txh d11txh_t;
-BWL_PRE_PACKED_STRUCT struct d11txh {
+struct d11txh {
 	u16 MacTxControlLow;	/* 0x0 */
 	u16 MacTxControlHigh;	/* 0x1 */
 	u16 MacFrameControl;	/* 0x2 */
@@ -741,7 +738,7 @@ BWL_PRE_PACKED_STRUCT struct d11txh {
 	u8 RTSPhyHeader[D11_PHY_HDR_LEN];	/* 0x2c - 0x2e */
 	struct dot11_rts_frame rts_frame;	/* 0x2f - 0x36 */
 	u16 PAD;		/* 0x37 */
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 
 #define	D11_TXH_LEN		112	/* bytes */
 
@@ -850,7 +847,7 @@ BWL_PRE_PACKED_STRUCT struct d11txh {
 
 /* tx status packet */
 typedef struct tx_status tx_status_t;
-BWL_PRE_PACKED_STRUCT struct tx_status {
+struct tx_status {
 	u16 framelen;
 	u16 PAD;
 	u16 frameid;
@@ -859,7 +856,7 @@ BWL_PRE_PACKED_STRUCT struct tx_status {
 	u16 sequence;
 	u16 phyerr;
 	u16 ackphyrxsh;
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 
 #define	TXSTATUS_LEN	16
 
@@ -1243,7 +1240,7 @@ BWL_PRE_PACKED_STRUCT struct tx_status {
 #define MIMO_ANTSEL_OVERRIDE	0x8000	/* flag */
 
 typedef struct shm_acparams shm_acparams_t;
-BWL_PRE_PACKED_STRUCT struct shm_acparams {
+struct shm_acparams {
 	u16 txop;
 	u16 cwmin;
 	u16 cwmax;
@@ -1253,7 +1250,7 @@ BWL_PRE_PACKED_STRUCT struct shm_acparams {
 	u16 reggap;
 	u16 status;
 	u16 rsvd[8];
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 #define M_EDCF_QLEN	(16 * 2)
 
 #define WME_STATUS_NEWAC	(1 << 8)
@@ -1302,7 +1299,7 @@ BWL_PRE_PACKED_STRUCT struct shm_acparams {
 
 /* Receive Frame Data Header for 802.11b DCF-only frames */
 typedef struct d11rxhdr d11rxhdr_t;
-BWL_PRE_PACKED_STRUCT struct d11rxhdr {
+struct d11rxhdr {
 	u16 RxFrameSize;	/* Actual byte length of the frame data received */
 	u16 PAD;
 	u16 PhyRxStatus_0;	/* PhyRxStatus 15:0 */
@@ -1315,13 +1312,13 @@ BWL_PRE_PACKED_STRUCT struct d11rxhdr {
 	u16 RxStatus2;	/* extended MAC Rx status */
 	u16 RxTSFTime;	/* RxTSFTime time of first MAC symbol + M_PHY_PLCPRX_DLY */
 	u16 RxChan;		/* gain code, channel radio code, and phy type */
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 
 #define	RXHDR_LEN		24	/* sizeof d11rxhdr_t */
 #define	FRAMELEN(h)		((h)->RxFrameSize)
 
 typedef struct wlc_d11rxhdr wlc_d11rxhdr_t;
-BWL_PRE_PACKED_STRUCT struct wlc_d11rxhdr {
+struct wlc_d11rxhdr {
 	d11rxhdr_t rxhdr;
 	u32 tsf_l;		/* TSF_L reading */
 	s8 rssi;		/* computed instanteneous rssi in BMAC */
@@ -1329,7 +1326,7 @@ BWL_PRE_PACKED_STRUCT struct wlc_d11rxhdr {
 	s8 rxpwr1;		/* obsoleted, place holder for legacy ROM code. use rxpwr[] */
 	s8 do_rssi_ma;	/* do per-pkt sampling for per-antenna ma in HIGH */
 	s8 rxpwr[WL_RSSI_ANT_MAX];	/* rssi for supported antennas */
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 
 /* PhyRxStatus_0: */
 #define	PRXS0_FT_MASK		0x0003	/* NPHY only: CCK, OFDM, preN, N */
@@ -1761,9 +1758,6 @@ typedef struct macstat {
 #define	TST_TXTEST_RATE_5_5MBPS	2
 #define	TST_TXTEST_RATE_11MBPS	3
 #define	TST_TXTEST_RATE_SHIFT	3
-
-/* This marks the end of a packed structure section. */
-#include <packed_section_end.h>
 
 #define SHM_BYT_CNT	0x2	/* IHR location */
 #define MAX_BYT_CNT	0x600	/* Maximum frame len */

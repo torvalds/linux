@@ -19,15 +19,11 @@
 
 #include <linux/if_ether.h>
 
-#include <packed_section_start.h>
 
-
-BWL_PRE_PACKED_STRUCT struct ether_addr {
+struct ether_addr {
 	u8 octet[ETH_ALEN];
-} BWL_POST_PACKED_STRUCT;
+} __attribute__((packed));
 
 static const struct ether_addr ether_bcast = { {255, 255, 255, 255, 255, 255} };
-
-#include <packed_section_end.h>
 
 #endif				/* _NET_ETHERNET_H_ */
