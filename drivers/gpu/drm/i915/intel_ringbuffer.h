@@ -49,6 +49,7 @@ struct  intel_ring_buffer {
 	u32		tail;
 	int		space;
 	int		size;
+	int		effective_size;
 	struct intel_hw_status_page status_page;
 
 	u32		irq_seqno;		/* last seq seem at irq time */

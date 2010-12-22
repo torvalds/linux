@@ -785,6 +785,14 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	if (ret)
 		goto err_unmap;
 
+	/* Workaround an erratum on the i830 which causes a hang if
+	 * the TAIL pointer points to within the last 2 cachelines
+	 * of the buffer.
+	 */
+	ring->effective_size = ring->size;
+	if (IS_I830(ring->dev))
+		ring->effective_size -= 128;
+
 	return 0;
 
 err_unmap:
@@ -827,8 +835,7 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
 {
 	unsigned int *virt;
-	int rem;
-	rem = ring->size - ring->tail;
+	int rem = ring->size - ring->tail;
 
 	if (ring->space < rem) {
 		int ret = intel_wait_ring_buffer(ring, rem);
@@ -895,7 +902,7 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	int n = 4*num_dwords;
 	int ret;
 
-	if (unlikely(ring->tail + n > ring->size)) {
+	if (unlikely(ring->tail + n > ring->effective_size)) {
 		ret = intel_wrap_ring_buffer(ring);
 		if (unlikely(ret))
 			return ret;
