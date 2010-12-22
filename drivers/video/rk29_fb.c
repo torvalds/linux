@@ -510,8 +510,11 @@ void load_screen(struct fb_info *info, bool initscreen)
         case OUT_P888:
             face = OUT_P888;
             LcdMskReg(inf, DSP_CTRL0, m_DITHER_UP_EN, v_DITHER_UP_EN(1));
+            LcdMskReg(inf, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(0) | v_DITHER_DOWN_MODE(0));
             break;
         default:
+            LcdMskReg(inf, DSP_CTRL0, m_DITHER_UP_EN, v_DITHER_UP_EN(0));
+            LcdMskReg(inf, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(0) | v_DITHER_DOWN_MODE(0));
             face = screen->face;
             break;
     }
@@ -597,7 +600,6 @@ void load_screen(struct fb_info *info, bool initscreen)
     if(initscreen == 0)    //not init
     {
         clk_disable(inf->dclk);
-        clk_disable(inf->clk);
         clk_disable(inf->aclk);
     }
 
@@ -876,7 +878,7 @@ static int win0_set_par(struct fb_info *info)
        case 4: // yuv4201
            ScaleCbrX= CalScaleW0(xact/2, par->xsize);
            ScaleCbrY =  CalScaleW0(yact/2, par->ysize);
-           break;       
+           break;
        case 5:// yuv444
            ScaleCbrX= CalScaleW0(xact, par->xsize);
            ScaleCbrY =  CalScaleW0(yact, par->ysize);
@@ -1818,7 +1820,7 @@ void suspend(struct early_suspend *h)
             clk_disable(inf->dclk);
         }
         if(inf->clk){
-            clk_disable(inf->clk);
+            clk_disable(inf->aclk);
         }
 
 		inf->in_suspend = 1;
@@ -1847,7 +1849,7 @@ void resume(struct early_suspend *h)
             clk_enable(inf->dclk);
         }
         if(inf->clk){
-            clk_enable(inf->clk);
+            clk_enable(inf->aclk);
         }
         msleep(100);
 	}
