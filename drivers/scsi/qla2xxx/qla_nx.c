@@ -2561,7 +2561,7 @@ qla2xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
 			*cur_dsd++ = cpu_to_le32(LSD(sle_dma));
 			*cur_dsd++ = cpu_to_le32(MSD(sle_dma));
 			*cur_dsd++ = cpu_to_le32(sg_dma_len(cur_seg));
-			cur_seg++;
+			cur_seg = sg_next(cur_seg);
 			avail_dsds--;
 		}
 	}
