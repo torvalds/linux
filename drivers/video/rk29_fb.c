@@ -53,6 +53,7 @@
 
 #include "./display/screen/screen.h"
 
+#define ANDROID_USE_THREE_BUFS  0       //android use three buffers to accelerate UI display in rgb plane
 
 #if 0
 	#define fbprintk(msg...)	printk(msg);
@@ -213,6 +214,9 @@ struct platform_device *g_pdev = NULL;
 
 static DECLARE_WAIT_QUEUE_HEAD(wq);
 static int wq_condition = 0;
+#if ANDROID_USE_THREE_BUFS
+static int new_frame_seted = 1;
+#endif
 
 void set_lcd_pin(struct platform_device *pdev, int enable)
 {
@@ -524,10 +528,10 @@ void load_screen(struct fb_info *info, bool initscreen)
 
     printk("screen->hsync_len =%d,  screen->left_margin =%d, x_res =%d,  right_margin = %d \n",
         screen->hsync_len , screen->left_margin , x_res , right_margin );
-    LcdMskReg(inf, DSP_HTOTAL_HS_END, m_BIT11LO | m_BIT11HI, v_BIT11LO(screen->hsync_len) |
-             v_BIT11HI(screen->hsync_len + screen->left_margin + x_res + right_margin));
-    LcdMskReg(inf, DSP_HACT_ST_END, m_BIT11LO | m_BIT11HI, v_BIT11LO(screen->hsync_len + screen->left_margin + x_res) |
-             v_BIT11HI(screen->hsync_len + screen->left_margin));
+    LcdMskReg(inf, DSP_HTOTAL_HS_END, m_BIT12LO | m_BIT12HI, v_BIT12LO(screen->hsync_len) |
+             v_BIT12HI(screen->hsync_len + screen->left_margin + x_res + right_margin));
+    LcdMskReg(inf, DSP_HACT_ST_END, m_BIT12LO | m_BIT12HI, v_BIT12LO(screen->hsync_len + screen->left_margin + x_res) |
+             v_BIT12HI(screen->hsync_len + screen->left_margin));
 
     LcdMskReg(inf, DSP_VTOTAL_VS_END, m_BIT11LO | m_BIT11HI, v_BIT11LO(screen->vsync_len) |
               v_BIT11HI(screen->vsync_len + screen->upper_margin + y_res + lower_margin));
@@ -892,7 +896,7 @@ static int win0_set_par(struct fb_info *info)
     LcdMskReg(inf, WIN0_VIR, m_WORDLO | m_WORDHI, v_VIRWIDTH(xvir) | v_VIRHEIGHT((yvir)) );
     LcdMskReg(inf, WIN0_ACT_INFO, m_WORDLO | m_WORDHI, v_WORDLO(xact) | v_WORDHI(yact));
     LcdMskReg(inf, WIN0_DSP_ST, m_BIT11LO | m_BIT11HI, v_BIT11LO(xpos) | v_BIT11HI(ypos));
-    LcdMskReg(inf, WIN0_DSP_INFO, m_BIT11LO | m_BIT11HI,  v_BIT11LO(par->xsize) | v_BIT11HI(par->ysize));
+    LcdMskReg(inf, WIN0_DSP_INFO, m_BIT12LO | m_BIT12HI,  v_BIT12LO(par->xsize) | v_BIT12HI(par->ysize));
     LcdMskReg(inf, WIN0_SCL_FACTOR_YRGB, m_WORDLO | m_WORDHI, v_WORDLO(ScaleYrgbX) | v_WORDHI(ScaleYrgbY));
     LcdMskReg(inf, WIN0_SCL_FACTOR_CBR, m_WORDLO | m_WORDHI, v_WORDLO(ScaleCbrX) | v_WORDHI(ScaleCbrY));
 
@@ -1006,7 +1010,7 @@ static int win1_set_par(struct fb_info *info)
     LcdWrReg(inf, WIN1_YRGB_MST, addr);
 
     LcdMskReg(inf, WIN1_DSP_ST, m_BIT11LO|m_BIT11HI, v_BIT11LO(xpos) | v_BIT11HI(ypos));
-    LcdMskReg(inf, WIN1_DSP_INFO, m_BIT11LO|m_BIT11HI, v_BIT11LO(par->xsize) | v_BIT11HI(par->ysize));
+    LcdMskReg(inf, WIN1_DSP_INFO, m_BIT12LO|m_BIT12HI, v_BIT12LO(par->xsize) | v_BIT12HI(par->ysize));
 
     LcdMskReg(inf, WIN1_VIR, m_WORDLO , v_WORDLO(xres_virtual));
 
@@ -1176,6 +1180,13 @@ static int fb0_set_par(struct fb_info *info)
 
     par->y_offset = offset;
     par->addr_seted = 1;
+#if ANDROID_USE_THREE_BUFS
+    if(0==new_frame_seted) {
+        wq_condition = 0;
+        wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
+    }
+    new_frame_seted = 0;
+#endif
 
     if(inf->video_mode == 1)
     {
@@ -1234,6 +1245,8 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
         win0_pan(info);
     }
         // flush end when wq_condition=1 in mcu panel, but not in rgb panel
+#if !ANDROID_USE_THREE_BUFS
+    // flush end when wq_condition=1 in mcu panel, but not in rgb panel
     if(SCREEN_MCU == inf->cur_screen->type) {
         wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
         wq_condition = 0;
@@ -1241,6 +1254,7 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
         wq_condition = 0;
         wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
     }
+#endif
     return 0;
 }
 
@@ -1734,6 +1748,9 @@ static irqreturn_t rk29fb_irq(int irq, void *dev_id)
             }
         }
 	}
+#if ANDROID_USE_THREE_BUFS
+    new_frame_seted = 1;
+#endif
 
     if(waitqueue_active(&par->wait)) {
         down_write(&par->sem);
