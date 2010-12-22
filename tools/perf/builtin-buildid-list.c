@@ -36,7 +36,6 @@ static const struct option options[] = {
 
 static int __cmd_buildid_list(void)
 {
-	int err = -1;
 	struct perf_session *session;
 
 	session = perf_session__new(input_name, O_RDONLY, force, false);
@@ -49,7 +48,7 @@ static int __cmd_buildid_list(void)
 	perf_session__fprintf_dsos_buildid(session, stdout, with_hits);
 
 	perf_session__delete(session);
-	return err;
+	return 0;
 }
 
 int cmd_buildid_list(int argc, const char **argv, const char *prefix __used)
