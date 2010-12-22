@@ -17,21 +17,11 @@
 #include <linux/nmi.h>
 #include <linux/module.h>
 
-#ifdef ARCH_HAS_NMI_WATCHDOG
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
 u64 hw_nmi_get_sample_period(void)
 {
 	return (u64)(cpu_khz) * 1000 * 60;
 }
-#endif
-
-#ifndef CONFIG_HARDLOCKUP_DETECTOR
-void touch_nmi_watchdog(void)
-{
-	touch_softlockup_watchdog();
-}
-EXPORT_SYMBOL(touch_nmi_watchdog);
-#endif
 #endif
 
 #ifdef arch_trigger_all_cpu_backtrace

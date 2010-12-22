@@ -5,7 +5,7 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 
-#ifdef ARCH_HAS_NMI_WATCHDOG
+#ifdef CONFIG_X86_LOCAL_APIC
 
 extern void die_nmi(char *str, struct pt_regs *regs, int do_panic);
 extern int avail_to_resrv_perfctr_nmi_bit(unsigned int);

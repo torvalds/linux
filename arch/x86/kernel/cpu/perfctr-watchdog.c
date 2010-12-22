@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/smp.h>
-#include <linux/nmi.h>
+#include <asm/nmi.h>
 #include <linux/kprobes.h>
 
 #include <asm/apic.h>
