@@ -104,7 +104,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	enum data_queue_qid qid = skb_get_queue_mapping(skb);
-	struct data_queue *queue;
+	struct data_queue *queue = NULL;
 
 	/*
 	 * Mac80211 might be calling this function while we are trying
@@ -153,7 +153,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		goto exit_fail;
 
 	if (rt2x00queue_threshold(queue))
-		ieee80211_stop_queue(rt2x00dev->hw, qid);
+		rt2x00queue_pause_queue(queue);
 
 	return NETDEV_TX_OK;
 
@@ -352,7 +352,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 * if for any reason the link tuner must be reset, this will be
 	 * handled by rt2x00lib_config().
 	 */
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_RX_OFF);
+	rt2x00queue_stop_queue(rt2x00dev->rx);
 
 	/*
 	 * When we've just turned on the radio, we want to reprogram
@@ -370,7 +370,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	rt2x00lib_config_antenna(rt2x00dev, rt2x00dev->default_ant);
 
 	/* Turn RX back on */
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_RX_ON);
+	rt2x00queue_start_queue(rt2x00dev->rx);
 
 	return 0;
 }
@@ -718,36 +718,8 @@ void rt2x00mac_flush(struct ieee80211_hw *hw, bool drop)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct data_queue *queue;
-	unsigned int i = 0;
 
-	ieee80211_stop_queues(hw);
-
-	/*
-	 * Run over all queues to kick them, this will force
-	 * any pending frames to be transmitted.
-	 */
-	tx_queue_for_each(rt2x00dev, queue) {
-		rt2x00dev->ops->lib->kick_tx_queue(queue);
-	}
-
-	/**
-	 * All queues have been kicked, now wait for each queue
-	 * to become empty. With a bit of luck, we only have to wait
-	 * for the first queue to become empty, because while waiting
-	 * for the that queue, the other queues will have transmitted
-	 * all their frames as well (since they were already kicked).
-	 */
-	tx_queue_for_each(rt2x00dev, queue) {
-		for (i = 0; i < 10; i++) {
-			if (rt2x00queue_empty(queue))
-				break;
-			msleep(100);
-		}
-
-		if (!rt2x00queue_empty(queue))
-			WARNING(rt2x00dev, "Failed to flush queue %d", queue->qid);
-	}
-
-	ieee80211_wake_queues(hw);
+	tx_queue_for_each(rt2x00dev, queue)
+		rt2x00queue_flush_queue(queue, drop);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_flush);

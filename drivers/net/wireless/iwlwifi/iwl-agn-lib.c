@@ -1845,6 +1845,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 			bt_cmd.flags |= IWLAGN_BT_FLAG_CHANNEL_INHIBITION;
 		IWL_DEBUG_INFO(priv, "BT coex flag: 0X%x\n", bt_cmd.flags);
 	}
+	priv->bt_enable_flag = bt_cmd.flags;
 	if (priv->bt_full_concurrent)
 		memcpy(bt_cmd.bt3_lookup_table, iwlagn_concurrent_lookup,
 			sizeof(iwlagn_concurrent_lookup));

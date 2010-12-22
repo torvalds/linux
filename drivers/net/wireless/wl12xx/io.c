@@ -113,6 +113,7 @@ int wl1271_set_partition(struct wl1271 *wl,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wl1271_set_partition);
 
 void wl1271_io_reset(struct wl1271 *wl)
 {

@@ -66,7 +66,7 @@
 
 #ifdef CONFIG_RT2X00_DEBUG
 #define DEBUG_PRINTK(__dev, __kernlvl, __lvl, __msg, __args...)	\
-	DEBUG_PRINTK_MSG(__dev, __kernlvl, __lvl, __msg, ##__args);
+	DEBUG_PRINTK_MSG(__dev, __kernlvl, __lvl, __msg, ##__args)
 #else
 #define DEBUG_PRINTK(__dev, __kernlvl, __lvl, __msg, __args...)	\
 	do { } while (0)
@@ -567,7 +567,15 @@ struct rt2x00lib_ops {
 			     struct link_qual *qual);
 	void (*link_tuner) (struct rt2x00_dev *rt2x00dev,
 			    struct link_qual *qual, const u32 count);
+
+	/*
+	 * Data queue handlers.
+	 */
 	void (*watchdog) (struct rt2x00_dev *rt2x00dev);
+	void (*start_queue) (struct data_queue *queue);
+	void (*kick_queue) (struct data_queue *queue);
+	void (*stop_queue) (struct data_queue *queue);
+	void (*flush_queue) (struct data_queue *queue);
 
 	/*
 	 * TX control handlers
@@ -579,8 +587,6 @@ struct rt2x00lib_ops {
 	void (*write_beacon) (struct queue_entry *entry,
 			      struct txentry_desc *txdesc);
 	int (*get_tx_data_len) (struct queue_entry *entry);
-	void (*kick_tx_queue) (struct data_queue *queue);
-	void (*kill_tx_queue) (struct data_queue *queue);
 
 	/*
 	 * RX control handlers
@@ -1068,6 +1074,78 @@ struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
 struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
 					  enum queue_index index);
 
+/**
+ * rt2x00queue_pause_queue - Pause a data queue
+ * @queue: Pointer to &struct data_queue.
+ *
+ * This function will pause the data queue locally, preventing
+ * new frames to be added to the queue (while the hardware is
+ * still allowed to run).
+ */
+void rt2x00queue_pause_queue(struct data_queue *queue);
+
+/**
+ * rt2x00queue_unpause_queue - unpause a data queue
+ * @queue: Pointer to &struct data_queue.
+ *
+ * This function will unpause the data queue locally, allowing
+ * new frames to be added to the queue again.
+ */
+void rt2x00queue_unpause_queue(struct data_queue *queue);
+
+/**
+ * rt2x00queue_start_queue - Start a data queue
+ * @queue: Pointer to &struct data_queue.
+ *
+ * This function will start handling all pending frames in the queue.
+ */
+void rt2x00queue_start_queue(struct data_queue *queue);
+
+/**
+ * rt2x00queue_stop_queue - Halt a data queue
+ * @queue: Pointer to &struct data_queue.
+ *
+ * This function will stop all pending frames in the queue.
+ */
+void rt2x00queue_stop_queue(struct data_queue *queue);
+
+/**
+ * rt2x00queue_flush_queue - Flush a data queue
+ * @queue: Pointer to &struct data_queue.
+ * @drop: True to drop all pending frames.
+ *
+ * This function will flush the queue. After this call
+ * the queue is guarenteed to be empty.
+ */
+void rt2x00queue_flush_queue(struct data_queue *queue, bool drop);
+
+/**
+ * rt2x00queue_start_queues - Start all data queues
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ *
+ * This function will loop through all available queues to start them
+ */
+void rt2x00queue_start_queues(struct rt2x00_dev *rt2x00dev);
+
+/**
+ * rt2x00queue_stop_queues - Halt all data queues
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ *
+ * This function will loop through all available queues to stop
+ * any pending frames.
+ */
+void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev);
+
+/**
+ * rt2x00queue_flush_queues - Flush all data queues
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @drop: True to drop all pending frames.
+ *
+ * This function will loop through all available queues to flush
+ * any pending frames.
+ */
+void rt2x00queue_flush_queues(struct rt2x00_dev *rt2x00dev, bool drop);
+
 /*
  * Debugfs handlers.
  */
@@ -1093,6 +1171,7 @@ static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
  */
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_pretbtt(struct rt2x00_dev *rt2x00dev);
+void rt2x00lib_dmastart(struct queue_entry *entry);
 void rt2x00lib_dmadone(struct queue_entry *entry);
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc);

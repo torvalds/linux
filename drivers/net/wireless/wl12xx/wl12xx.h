@@ -60,31 +60,32 @@ enum {
 	DEBUG_ALL	= ~0,
 };
 
-#define DEBUG_LEVEL (DEBUG_NONE)
+extern u32 wl12xx_debug_level;
 
 #define DEBUG_DUMP_LIMIT 1024
 
 #define wl1271_error(fmt, arg...) \
-	printk(KERN_ERR DRIVER_PREFIX "ERROR " fmt "\n", ##arg)
+	pr_err(DRIVER_PREFIX "ERROR " fmt "\n", ##arg)
 
 #define wl1271_warning(fmt, arg...) \
-	printk(KERN_WARNING DRIVER_PREFIX "WARNING " fmt "\n", ##arg)
+	pr_warning(DRIVER_PREFIX "WARNING " fmt "\n", ##arg)
 
 #define wl1271_notice(fmt, arg...) \
-	printk(KERN_INFO DRIVER_PREFIX fmt "\n", ##arg)
+	pr_info(DRIVER_PREFIX fmt "\n", ##arg)
 
 #define wl1271_info(fmt, arg...) \
-	printk(KERN_DEBUG DRIVER_PREFIX fmt "\n", ##arg)
+	pr_info(DRIVER_PREFIX fmt "\n", ##arg)
 
 #define wl1271_debug(level, fmt, arg...) \
 	do { \
-		if (level & DEBUG_LEVEL) \
-			printk(KERN_DEBUG DRIVER_PREFIX fmt "\n", ##arg); \
+		if (level & wl12xx_debug_level) \
+			pr_debug(DRIVER_PREFIX fmt "\n", ##arg); \
 	} while (0)
 
+/* TODO: use pr_debug_hex_dump when it will be available */
 #define wl1271_dump(level, prefix, buf, len)	\
 	do { \
-		if (level & DEBUG_LEVEL) \
+		if (level & wl12xx_debug_level) \
 			print_hex_dump(KERN_DEBUG, DRIVER_PREFIX prefix, \
 				       DUMP_PREFIX_OFFSET, 16, 1,	\
 				       buf,				\
@@ -94,7 +95,7 @@ enum {
 
 #define wl1271_dump_ascii(level, prefix, buf, len)	\
 	do { \
-		if (level & DEBUG_LEVEL) \
+		if (level & wl12xx_debug_level) \
 			print_hex_dump(KERN_DEBUG, DRIVER_PREFIX prefix, \
 				       DUMP_PREFIX_OFFSET, 16, 1,	\
 				       buf,				\
@@ -172,108 +173,6 @@ struct wl1271_stats {
 
 	unsigned int retry_count;
 	unsigned int excessive_retries;
-};
-
-struct wl1271_debugfs {
-	struct dentry *rootdir;
-	struct dentry *fw_statistics;
-
-	struct dentry *tx_internal_desc_overflow;
-
-	struct dentry *rx_out_of_mem;
-	struct dentry *rx_hdr_overflow;
-	struct dentry *rx_hw_stuck;
-	struct dentry *rx_dropped;
-	struct dentry *rx_fcs_err;
-	struct dentry *rx_xfr_hint_trig;
-	struct dentry *rx_path_reset;
-	struct dentry *rx_reset_counter;
-
-	struct dentry *dma_rx_requested;
-	struct dentry *dma_rx_errors;
-	struct dentry *dma_tx_requested;
-	struct dentry *dma_tx_errors;
-
-	struct dentry *isr_cmd_cmplt;
-	struct dentry *isr_fiqs;
-	struct dentry *isr_rx_headers;
-	struct dentry *isr_rx_mem_overflow;
-	struct dentry *isr_rx_rdys;
-	struct dentry *isr_irqs;
-	struct dentry *isr_tx_procs;
-	struct dentry *isr_decrypt_done;
-	struct dentry *isr_dma0_done;
-	struct dentry *isr_dma1_done;
-	struct dentry *isr_tx_exch_complete;
-	struct dentry *isr_commands;
-	struct dentry *isr_rx_procs;
-	struct dentry *isr_hw_pm_mode_changes;
-	struct dentry *isr_host_acknowledges;
-	struct dentry *isr_pci_pm;
-	struct dentry *isr_wakeups;
-	struct dentry *isr_low_rssi;
-
-	struct dentry *wep_addr_key_count;
-	struct dentry *wep_default_key_count;
-	/* skipping wep.reserved */
-	struct dentry *wep_key_not_found;
-	struct dentry *wep_decrypt_fail;
-	struct dentry *wep_packets;
-	struct dentry *wep_interrupt;
-
-	struct dentry *pwr_ps_enter;
-	struct dentry *pwr_elp_enter;
-	struct dentry *pwr_missing_bcns;
-	struct dentry *pwr_wake_on_host;
-	struct dentry *pwr_wake_on_timer_exp;
-	struct dentry *pwr_tx_with_ps;
-	struct dentry *pwr_tx_without_ps;
-	struct dentry *pwr_rcvd_beacons;
-	struct dentry *pwr_power_save_off;
-	struct dentry *pwr_enable_ps;
-	struct dentry *pwr_disable_ps;
-	struct dentry *pwr_fix_tsf_ps;
-	/* skipping cont_miss_bcns_spread for now */
-	struct dentry *pwr_rcvd_awake_beacons;
-
-	struct dentry *mic_rx_pkts;
-	struct dentry *mic_calc_failure;
-
-	struct dentry *aes_encrypt_fail;
-	struct dentry *aes_decrypt_fail;
-	struct dentry *aes_encrypt_packets;
-	struct dentry *aes_decrypt_packets;
-	struct dentry *aes_encrypt_interrupt;
-	struct dentry *aes_decrypt_interrupt;
-
-	struct dentry *event_heart_beat;
-	struct dentry *event_calibration;
-	struct dentry *event_rx_mismatch;
-	struct dentry *event_rx_mem_empty;
-	struct dentry *event_rx_pool;
-	struct dentry *event_oom_late;
-	struct dentry *event_phy_transmit_error;
-	struct dentry *event_tx_stuck;
-
-	struct dentry *ps_pspoll_timeouts;
-	struct dentry *ps_upsd_timeouts;
-	struct dentry *ps_upsd_max_sptime;
-	struct dentry *ps_upsd_max_apturn;
-	struct dentry *ps_pspoll_max_apturn;
-	struct dentry *ps_pspoll_utilization;
-	struct dentry *ps_upsd_utilization;
-
-	struct dentry *rxpipe_rx_prep_beacon_drop;
-	struct dentry *rxpipe_descr_host_int_trig_rx_data;
-	struct dentry *rxpipe_beacon_buffer_thres_host_int_trig_rx_data;
-	struct dentry *rxpipe_missed_beacon_host_int_trig_rx_data;
-	struct dentry *rxpipe_tx_xfr_host_int_trig_rx_data;
-
-	struct dentry *tx_queue_len;
-
-	struct dentry *retry_count;
-	struct dentry *excessive_retries;
-	struct dentry *gpio_power;
 };
 
 #define NUM_TX_QUEUES              4
@@ -393,7 +292,8 @@ struct wl1271 {
 	int session_counter;
 
 	/* Frames scheduled for transmission, not handled yet */
-	struct sk_buff_head tx_queue;
+	struct sk_buff_head tx_queue[NUM_TX_QUEUES];
+	int tx_queue_count;
 
 	struct work_struct tx_work;
 
@@ -430,6 +330,9 @@ struct wl1271 {
 	/* Are we currently scanning */
 	struct wl1271_scan scan;
 	struct delayed_work scan_complete_work;
+
+	/* probe-req template for the current AP */
+	struct sk_buff *probereq;
 
 	/* Our association ID */
 	u16 aid;
@@ -475,7 +378,7 @@ struct wl1271 {
 	int last_rssi_event;
 
 	struct wl1271_stats stats;
-	struct wl1271_debugfs debugfs;
+	struct dentry *rootdir;
 
 	__le32 buffer_32;
 	u32 buffer_cmd;

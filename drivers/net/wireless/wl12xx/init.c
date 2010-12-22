@@ -53,18 +53,16 @@ static int wl1271_init_hwenc_config(struct wl1271 *wl)
 int wl1271_init_templates_config(struct wl1271 *wl)
 {
 	int ret, i;
-	size_t size;
 
 	/* send empty templates for fw memory reservation */
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4, NULL,
-				      sizeof(struct wl12xx_probe_req_template),
+				      WL1271_CMD_TEMPL_MAX_SIZE,
 				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
 
-	size = sizeof(struct wl12xx_probe_req_template);
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
-				      NULL, size, 0,
+				      NULL, WL1271_CMD_TEMPL_MAX_SIZE, 0,
 				      WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
@@ -98,6 +96,13 @@ int wl1271_init_templates_config(struct wl1271 *wl)
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_BEACON, NULL,
 				      sizeof
 				      (struct wl12xx_beacon_template),
+				      0, WL1271_RATE_AUTOMATIC);
+	if (ret < 0)
+		return ret;
+
+	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_ARP_RSP, NULL,
+				      sizeof
+				      (struct wl12xx_arp_rsp_template),
 				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;

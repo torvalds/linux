@@ -856,6 +856,9 @@ ssize_t iwl_ucode_bt_stats_read(struct file *file,
 	if (!iwl_is_alive(priv))
 		return -EAGAIN;
 
+	if (!priv->bt_enable_flag)
+		return -EINVAL;
+
 	/* make request to uCode to retrieve statistics information */
 	mutex_lock(&priv->mutex);
 	ret = iwl_send_statistics_request(priv, CMD_SYNC, false);

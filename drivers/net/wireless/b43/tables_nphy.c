@@ -1835,12 +1835,12 @@ void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev)
 	/* Volatile tables */
 	ntab_upload(dev, B43_NTAB_BDI, b43_ntab_bdi);
 	ntab_upload(dev, B43_NTAB_PILOTLT, b43_ntab_pilotlt);
+	ntab_upload(dev, B43_NTAB_C0_GAINCTL, b43_ntab_gainctl0);
+	ntab_upload(dev, B43_NTAB_C1_GAINCTL, b43_ntab_gainctl1);
 	ntab_upload(dev, B43_NTAB_C0_ESTPLT, b43_ntab_estimatepowerlt0);
 	ntab_upload(dev, B43_NTAB_C1_ESTPLT, b43_ntab_estimatepowerlt1);
 	ntab_upload(dev, B43_NTAB_C0_ADJPLT, b43_ntab_adjustpower0);
 	ntab_upload(dev, B43_NTAB_C1_ADJPLT, b43_ntab_adjustpower1);
-	ntab_upload(dev, B43_NTAB_C0_GAINCTL, b43_ntab_gainctl0);
-	ntab_upload(dev, B43_NTAB_C1_GAINCTL, b43_ntab_gainctl1);
 	ntab_upload(dev, B43_NTAB_C0_IQLT, b43_ntab_iqlt0);
 	ntab_upload(dev, B43_NTAB_C1_IQLT, b43_ntab_iqlt1);
 	ntab_upload(dev, B43_NTAB_C0_LOFEEDTH, b43_ntab_loftlt0);

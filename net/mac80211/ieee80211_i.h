@@ -484,6 +484,8 @@ struct ieee80211_if_mesh {
 	struct mesh_config mshcfg;
 	u32 mesh_seqnum;
 	bool accepting_plinks;
+	const u8 *vendor_ie;
+	u8 vendor_ie_len;
 };
 
 #ifdef CONFIG_MAC80211_MESH
@@ -557,7 +559,7 @@ struct ieee80211_sub_if_data {
 	unsigned int fragment_next;
 
 	struct ieee80211_key *keys[NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS];
-	struct ieee80211_key *default_key;
+	struct ieee80211_key *default_unicast_key, *default_multicast_key;
 	struct ieee80211_key *default_mgmt_key;
 
 	u16 sequence_number;
@@ -585,9 +587,7 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_vlan vlan;
 		struct ieee80211_if_managed mgd;
 		struct ieee80211_if_ibss ibss;
-#ifdef CONFIG_MAC80211_MESH
 		struct ieee80211_if_mesh mesh;
-#endif
 		u32 mntr_flags;
 	} u;
 
@@ -595,7 +595,8 @@ struct ieee80211_sub_if_data {
 	struct {
 		struct dentry *dir;
 		struct dentry *subdir_stations;
-		struct dentry *default_key;
+		struct dentry *default_unicast_key;
+		struct dentry *default_multicast_key;
 		struct dentry *default_mgmt_key;
 	} debugfs;
 #endif

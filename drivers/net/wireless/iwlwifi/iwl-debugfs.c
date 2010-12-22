@@ -1567,6 +1567,13 @@ static ssize_t iwl_dbgfs_bt_traffic_read(struct file *file,
 	const size_t bufsz = sizeof(buf);
 	ssize_t ret;
 
+	if (!priv->bt_enable_flag) {
+		pos += scnprintf(buf + pos, bufsz - pos, "BT coex disabled\n");
+		ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+		return ret;
+	}
+	pos += scnprintf(buf + pos, bufsz - pos, "BT enable flag: 0x%x\n",
+		priv->bt_enable_flag);
 	pos += scnprintf(buf + pos, bufsz - pos, "BT in %s mode\n",
 		priv->bt_full_concurrent ? "full concurrency" : "3-wire");
 	pos += scnprintf(buf + pos, bufsz - pos, "BT status: %s, "

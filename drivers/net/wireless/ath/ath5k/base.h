@@ -258,6 +258,8 @@ struct ath5k_softc {
 	struct tasklet_struct	ani_tasklet;	/* ANI calibration */
 
 	struct delayed_work	tx_complete_work;
+
+	struct survey_info	survey;		/* collected survey info */
 };
 
 #define ath5k_hw_hasbssidmask(_ah) \

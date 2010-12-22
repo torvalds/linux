@@ -1422,7 +1422,8 @@ static int lbs_cfg_disconnect(struct wiphy *wiphy, struct net_device *dev,
 
 static int lbs_cfg_set_default_key(struct wiphy *wiphy,
 				   struct net_device *netdev,
-				   u8 key_index)
+				   u8 key_index, bool unicast,
+				   bool multicast)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
 

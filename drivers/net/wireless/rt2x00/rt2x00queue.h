@@ -45,10 +45,10 @@
 /**
  * enum data_queue_qid: Queue identification
  *
+ * @QID_AC_VO: AC VO queue
+ * @QID_AC_VI: AC VI queue
  * @QID_AC_BE: AC BE queue
  * @QID_AC_BK: AC BK queue
- * @QID_AC_VI: AC VI queue
- * @QID_AC_VO: AC VO queue
  * @QID_HCCA: HCCA queue
  * @QID_MGMT: MGMT queue (prio queue)
  * @QID_RX: RX queue
@@ -57,10 +57,10 @@
  * @QID_ATIM: Atim queue (value unspeficied, don't send it to device)
  */
 enum data_queue_qid {
-	QID_AC_BE = 0,
-	QID_AC_BK = 1,
-	QID_AC_VI = 2,
-	QID_AC_VO = 3,
+	QID_AC_VO = 0,
+	QID_AC_VI = 1,
+	QID_AC_BE = 2,
+	QID_AC_BK = 3,
 	QID_HCCA = 4,
 	QID_MGMT = 13,
 	QID_RX = 14,
@@ -340,12 +340,16 @@ struct txentry_desc {
  * @ENTRY_DATA_IO_FAILED: Hardware indicated that an IO error occured
  *	while transfering the data to the hardware. No TX status report will
  *	be expected from the hardware.
+ * @ENTRY_DATA_STATUS_PENDING: The entry has been send to the device and
+ *	returned. It is now waiting for the status reporting before the
+ *	entry can be reused again.
  */
 enum queue_entry_flags {
 	ENTRY_BCN_ASSIGNED,
 	ENTRY_OWNER_DEVICE_DATA,
 	ENTRY_DATA_PENDING,
-	ENTRY_DATA_IO_FAILED
+	ENTRY_DATA_IO_FAILED,
+	ENTRY_DATA_STATUS_PENDING,
 };
 
 /**
@@ -392,12 +396,32 @@ enum queue_index {
 };
 
 /**
+ * enum data_queue_flags: Status flags for data queues
+ *
+ * @QUEUE_STARTED: The queue has been started. Fox RX queues this means the
+ *	device might be DMA'ing skbuffers. TX queues will accept skbuffers to
+ *	be transmitted and beacon queues will start beaconing the configured
+ *	beacons.
+ * @QUEUE_PAUSED: The queue has been started but is currently paused.
+ *	When this bit is set, the queue has been stopped in mac80211,
+ *	preventing new frames to be enqueued. However, a few frames
+ *	might still appear shortly after the pausing...
+ */
+enum data_queue_flags {
+	QUEUE_STARTED,
+	QUEUE_PAUSED,
+};
+
+/**
  * struct data_queue: Data queue
  *
  * @rt2x00dev: Pointer to main &struct rt2x00dev where this queue belongs to.
  * @entries: Base address of the &struct queue_entry which are
  *	part of this queue.
  * @qid: The queue identification, see &enum data_queue_qid.
+ * @flags: Entry flags, see &enum queue_entry_flags.
+ * @status_lock: The mutex for protecting the start/stop/flush
+ *	handling on this queue.
  * @index_lock: Spinlock to protect index handling. Whenever @index, @index_done or
  *	@index_crypt needs to be changed this lock should be grabbed to prevent
  *	index corruption due to concurrency.
@@ -421,8 +445,11 @@ struct data_queue {
 	struct queue_entry *entries;
 
 	enum data_queue_qid qid;
+	unsigned long flags;
 
+	struct mutex status_lock;
 	spinlock_t index_lock;
+
 	unsigned int count;
 	unsigned short limit;
 	unsigned short threshold;

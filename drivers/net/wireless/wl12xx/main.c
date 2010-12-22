@@ -336,7 +336,8 @@ out:
 }
 
 static int wl1271_reg_notify(struct wiphy *wiphy,
-			     struct regulatory_request *request) {
+			     struct regulatory_request *request)
+{
 	struct ieee80211_supported_band *band;
 	struct ieee80211_channel *ch;
 	int i;
@@ -569,7 +570,7 @@ static void wl1271_irq_work(struct work_struct *work)
 
 			/* Check if any tx blocks were freed */
 			if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
-					!skb_queue_empty(&wl->tx_queue)) {
+			    wl->tx_queue_count) {
 				/*
 				 * In order to avoid starvation of the TX path,
 				 * call the work function directly.
@@ -890,6 +891,7 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_tx_info *txinfo = IEEE80211_SKB_CB(skb);
 	struct ieee80211_sta *sta = txinfo->control.sta;
 	unsigned long flags;
+	int q;
 
 	/*
 	 * peek into the rates configured in the STA entry.
@@ -917,10 +919,12 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		set_bit(WL1271_FLAG_STA_RATES_CHANGED, &wl->flags);
 	}
 #endif
+	wl->tx_queue_count++;
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	/* queue the packet */
-	skb_queue_tail(&wl->tx_queue, skb);
+	q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
+	skb_queue_tail(&wl->tx_queue[q], skb);
 
 	/*
 	 * The chip specific setup must run before the first TX packet -
@@ -934,7 +938,7 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * The workqueue is slow to process the tx_queue and we need stop
 	 * the queue here, otherwise the queue will get too long.
 	 */
-	if (skb_queue_len(&wl->tx_queue) >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
+	if (wl->tx_queue_count >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
 		wl1271_debug(DEBUG_TX, "op_tx: stopping queues");
 
 		spin_lock_irqsave(&wl->wl_lock, flags);
@@ -1064,6 +1068,16 @@ power_off:
 	strncpy(wiphy->fw_version, wl->chip.fw_ver,
 		sizeof(wiphy->fw_version));
 
+	/*
+	 * Now we know if 11a is supported (info from the NVS), so disable
+	 * 11a channels if not supported
+	 */
+	if (!wl->enable_11a)
+		wiphy->bands[IEEE80211_BAND_5GHZ]->n_channels = 0;
+
+	wl1271_debug(DEBUG_MAC80211, "11a is %ssupported",
+		     wl->enable_11a ? "" : "not ");
+
 out:
 	mutex_unlock(&wl->mutex);
 
@@ -1157,10 +1171,16 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	struct wl1271 *wl = hw->priv;
 
 	mutex_lock(&wl->mutex);
-	WARN_ON(wl->vif != vif);
-	__wl1271_op_remove_interface(wl);
-	mutex_unlock(&wl->mutex);
+	/*
+	 * wl->vif can be null here if someone shuts down the interface
+	 * just when hardware recovery has been started.
+	 */
+	if (wl->vif) {
+		WARN_ON(wl->vif != vif);
+		__wl1271_op_remove_interface(wl);
+	}
 
+	mutex_unlock(&wl->mutex);
 	cancel_work_sync(&wl->recovery_work);
 }
 
@@ -1801,21 +1821,21 @@ out:
 	return ret;
 }
 
-static void wl1271_ssid_set(struct wl1271 *wl, struct sk_buff *beacon)
+static void wl1271_ssid_set(struct wl1271 *wl, struct sk_buff *skb,
+			    int offset)
 {
-	u8 *ptr = beacon->data +
-		offsetof(struct ieee80211_mgmt, u.beacon.variable);
+	u8 *ptr = skb->data + offset;
 
 	/* find the location of the ssid in the beacon */
-	while (ptr < beacon->data + beacon->len) {
+	while (ptr < skb->data + skb->len) {
 		if (ptr[0] == WLAN_EID_SSID) {
 			wl->ssid_len = ptr[1];
 			memcpy(wl->ssid, ptr+2, wl->ssid_len);
 			return;
 		}
-		ptr += ptr[1];
+		ptr += (ptr[1] + 2);
 	}
-	wl1271_error("ad-hoc beacon template has no SSID!\n");
+	wl1271_error("No SSID in IEs!\n");
 }
 
 static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
@@ -1858,8 +1878,11 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 
 		if (beacon) {
 			struct ieee80211_hdr *hdr;
+			int ieoffset = offsetof(struct ieee80211_mgmt,
+						u.beacon.variable);
 
-			wl1271_ssid_set(wl, beacon);
+			wl1271_ssid_set(wl, beacon, ieoffset);
+
 			ret = wl1271_cmd_template_set(wl, CMD_TEMPL_BEACON,
 						      beacon->data,
 						      beacon->len, 0,
@@ -1939,6 +1962,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
 			u32 rates;
+			int ieoffset;
 			wl->aid = bss_conf->aid;
 			set_assoc = true;
 
@@ -1967,13 +1991,13 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 				goto out_sleep;
 
 			/*
-			 * The SSID is intentionally set to NULL here - the
-			 * firmware will set the probe request with a
-			 * broadcast SSID regardless of what we set in the
-			 * template.
+			 * Get a template for hardware connection maintenance
 			 */
-			ret = wl1271_cmd_build_probe_req(wl, NULL, 0,
-							 NULL, 0, wl->band);
+			dev_kfree_skb(wl->probereq);
+			wl->probereq = wl1271_cmd_build_ap_probe_req(wl, NULL);
+			ieoffset = offsetof(struct ieee80211_mgmt,
+					    u.probe_req.variable);
+			wl1271_ssid_set(wl, wl->probereq, ieoffset);
 
 			/* enable the connection monitoring feature */
 			ret = wl1271_acx_conn_monit_params(wl, true);
@@ -1995,6 +2019,10 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			clear_bit(WL1271_FLAG_STA_STATE_SENT, &wl->flags);
 			clear_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags);
 			wl->aid = 0;
+
+			/* free probe-request template */
+			dev_kfree_skb(wl->probereq);
+			wl->probereq = NULL;
 
 			/* re-enable dynamic ps - just in case */
 			ieee80211_enable_dyn_ps(wl->vif);
@@ -2085,10 +2113,26 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 		__be32 addr = bss_conf->arp_addr_list[0];
 		WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
 
-		if (bss_conf->arp_addr_cnt == 1 && bss_conf->arp_filter_enabled)
-			ret = wl1271_acx_arp_ip_filter(wl, true, addr);
-		else
-			ret = wl1271_acx_arp_ip_filter(wl, false, addr);
+		if (bss_conf->arp_addr_cnt == 1 &&
+		    bss_conf->arp_filter_enabled) {
+			/*
+			 * The template should have been configured only upon
+			 * association. however, it seems that the correct ip
+			 * isn't being set (when sending), so we have to
+			 * reconfigure the template upon every ip change.
+			 */
+			ret = wl1271_cmd_build_arp_rsp(wl, addr);
+			if (ret < 0) {
+				wl1271_warning("build arp rsp failed: %d", ret);
+				goto out_sleep;
+			}
+
+			ret = wl1271_acx_arp_ip_filter(wl,
+				(ACX_ARP_FILTER_ARP_FILTERING |
+				 ACX_ARP_FILTER_AUTO_ARP),
+				addr);
+		} else
+			ret = wl1271_acx_arp_ip_filter(wl, 0, addr);
 
 		if (ret < 0)
 			goto out_sleep;
@@ -2353,14 +2397,6 @@ static struct ieee80211_rate wl1271_rates_5ghz[] = {
 
 /* 5 GHz band channels for WL1273 */
 static struct ieee80211_channel wl1271_channels_5ghz[] = {
-	{ .hw_value = 183, .center_freq = 4915},
-	{ .hw_value = 184, .center_freq = 4920},
-	{ .hw_value = 185, .center_freq = 4925},
-	{ .hw_value = 187, .center_freq = 4935},
-	{ .hw_value = 188, .center_freq = 4940},
-	{ .hw_value = 189, .center_freq = 4945},
-	{ .hw_value = 192, .center_freq = 4960},
-	{ .hw_value = 196, .center_freq = 4980},
 	{ .hw_value = 7, .center_freq = 5035},
 	{ .hw_value = 8, .center_freq = 5040},
 	{ .hw_value = 9, .center_freq = 5045},
@@ -2581,6 +2617,8 @@ int wl1271_register_hw(struct wl1271 *wl)
 
 	wl->mac80211_registered = true;
 
+	wl1271_debugfs_init(wl);
+
 	register_netdevice_notifier(&wl1271_dev_notifier);
 
 	wl1271_notice("loaded");
@@ -2631,6 +2669,13 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);
 	wl->hw->wiphy->max_scan_ssids = 1;
+	/*
+	 * Maximum length of elements in scanning probe request templates
+	 * should be the maximum length possible for a template, without
+	 * the IEEE80211 header of the template
+	 */
+	wl->hw->wiphy->max_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
+			sizeof(struct ieee80211_header);
 	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1271_band_2ghz;
 	wl->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &wl1271_band_5ghz;
 
@@ -2677,7 +2722,8 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->hw = hw;
 	wl->plat_dev = plat_dev;
 
-	skb_queue_head_init(&wl->tx_queue);
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		skb_queue_head_init(&wl->tx_queue[i]);
 
 	INIT_DELAYED_WORK(&wl->elp_work, wl1271_elp_work);
 	INIT_DELAYED_WORK(&wl->pspoll_work, wl1271_pspoll_work);
@@ -2714,8 +2760,6 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	/* Apply default driver configuration. */
 	wl1271_conf_init(wl);
-
-	wl1271_debugfs_init(wl);
 
 	order = get_order(WL1271_AGGR_BUFFER_SIZE);
 	wl->aggr_buf = (u8 *)__get_free_pages(GFP_KERNEL, order);
@@ -2792,6 +2836,11 @@ int wl1271_free_hw(struct wl1271 *wl)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wl1271_free_hw);
+
+u32 wl12xx_debug_level;
+EXPORT_SYMBOL_GPL(wl12xx_debug_level);
+module_param_named(debug_level, wl12xx_debug_level, uint, DEBUG_NONE);
+MODULE_PARM_DESC(debug_level, "wl12xx debugging level");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <luciano.coelho@nokia.com>");

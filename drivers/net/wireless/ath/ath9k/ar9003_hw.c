@@ -21,18 +21,6 @@
 
 /* General hardware code for the AR9003 hadware family */
 
-static bool ar9003_hw_macversion_supported(u32 macversion)
-{
-	switch (macversion) {
-	case AR_SREV_VERSION_9300:
-	case AR_SREV_VERSION_9485:
-		return true;
-	default:
-		break;
-	}
-	return false;
-}
-
 /*
  * The AR9003 family uses a new INI format (pre, core, post
  * arrays per subsystem). This provides support for the
@@ -322,7 +310,6 @@ void ar9003_hw_attach_ops(struct ath_hw *ah)
 
 	priv_ops->init_mode_regs = ar9003_hw_init_mode_regs;
 	priv_ops->init_mode_gain_regs = ar9003_hw_init_mode_gain_regs;
-	priv_ops->macversion_supported = ar9003_hw_macversion_supported;
 
 	ops->config_pci_powersave = ar9003_hw_configpcipowersave;
 

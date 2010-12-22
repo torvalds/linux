@@ -178,7 +178,7 @@ void ieee80211_key_removed(struct ieee80211_key_conf *key_conf)
 EXPORT_SYMBOL_GPL(ieee80211_key_removed);
 
 static void __ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata,
-					int idx)
+					int idx, bool uni, bool multi)
 {
 	struct ieee80211_key *key = NULL;
 
@@ -187,18 +187,19 @@ static void __ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata,
 	if (idx >= 0 && idx < NUM_DEFAULT_KEYS)
 		key = sdata->keys[idx];
 
-	rcu_assign_pointer(sdata->default_key, key);
+	if (uni)
+		rcu_assign_pointer(sdata->default_unicast_key, key);
+	if (multi)
+		rcu_assign_pointer(sdata->default_multicast_key, key);
 
-	if (key) {
-		ieee80211_debugfs_key_remove_default(key->sdata);
-		ieee80211_debugfs_key_add_default(key->sdata);
-	}
+	ieee80211_debugfs_key_update_default(sdata);
 }
 
-void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx)
+void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx,
+			       bool uni, bool multi)
 {
 	mutex_lock(&sdata->local->key_mtx);
-	__ieee80211_set_default_key(sdata, idx);
+	__ieee80211_set_default_key(sdata, idx, uni, multi);
 	mutex_unlock(&sdata->local->key_mtx);
 }
 
@@ -215,10 +216,7 @@ __ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata, int idx)
 
 	rcu_assign_pointer(sdata->default_mgmt_key, key);
 
-	if (key) {
-		ieee80211_debugfs_key_remove_mgmt_default(key->sdata);
-		ieee80211_debugfs_key_add_mgmt_default(key->sdata);
-	}
+	ieee80211_debugfs_key_update_default(sdata);
 }
 
 void ieee80211_set_default_mgmt_key(struct ieee80211_sub_if_data *sdata,
@@ -236,7 +234,8 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_key *old,
 				    struct ieee80211_key *new)
 {
-	int idx, defkey, defmgmtkey;
+	int idx;
+	bool defunikey, defmultikey, defmgmtkey;
 
 	if (new)
 		list_add(&new->list, &sdata->key_list);
@@ -257,17 +256,24 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 		else
 			idx = new->conf.keyidx;
 
-		defkey = old && sdata->default_key == old;
+		defunikey = old && sdata->default_unicast_key == old;
+		defmultikey = old && sdata->default_multicast_key == old;
 		defmgmtkey = old && sdata->default_mgmt_key == old;
 
-		if (defkey && !new)
-			__ieee80211_set_default_key(sdata, -1);
+		if (defunikey && !new)
+			__ieee80211_set_default_key(sdata, -1, true, false);
+		if (defmultikey && !new)
+			__ieee80211_set_default_key(sdata, -1, false, true);
 		if (defmgmtkey && !new)
 			__ieee80211_set_default_mgmt_key(sdata, -1);
 
 		rcu_assign_pointer(sdata->keys[idx], new);
-		if (defkey && new)
-			__ieee80211_set_default_key(sdata, new->conf.keyidx);
+		if (defunikey && new)
+			__ieee80211_set_default_key(sdata, new->conf.keyidx,
+						    true, false);
+		if (defmultikey && new)
+			__ieee80211_set_default_key(sdata, new->conf.keyidx,
+						    false, true);
 		if (defmgmtkey && new)
 			__ieee80211_set_default_mgmt_key(sdata,
 							 new->conf.keyidx);
@@ -509,11 +515,12 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 
 	mutex_lock(&sdata->local->key_mtx);
 
-	ieee80211_debugfs_key_remove_default(sdata);
 	ieee80211_debugfs_key_remove_mgmt_default(sdata);
 
 	list_for_each_entry_safe(key, tmp, &sdata->key_list, list)
 		__ieee80211_key_free(key);
+
+	ieee80211_debugfs_key_update_default(sdata);
 
 	mutex_unlock(&sdata->local->key_mtx);
 }

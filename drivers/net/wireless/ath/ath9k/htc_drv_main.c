@@ -1170,9 +1170,6 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	/* setup initial channel */
 	init_channel = ath9k_cmn_get_curchannel(hw, ah);
 
-	/* Reset SERDES registers */
-	ath9k_hw_configpcipowersave(ah, 0, 0);
-
 	ath9k_hw_htc_resetinit(ah);
 	ret = ath9k_hw_reset(ah, init_channel, ah->caldata, false);
 	if (ret) {
@@ -1258,7 +1255,6 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 
 	ath9k_hw_phy_disable(ah);
 	ath9k_hw_disable(ah);
-	ath9k_hw_configpcipowersave(ah, 1, 1);
 	ath9k_htc_ps_restore(priv);
 	ath9k_htc_setpower(priv, ATH9K_PM_FULL_SLEEP);
 

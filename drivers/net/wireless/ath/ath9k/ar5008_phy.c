@@ -961,18 +961,6 @@ static void ar5008_hw_rfbus_done(struct ath_hw *ah)
 	REG_WRITE(ah, AR_PHY_RFBUS_REQ, 0);
 }
 
-static void ar5008_hw_enable_rfkill(struct ath_hw *ah)
-{
-	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
-		    AR_GPIO_INPUT_EN_VAL_RFSILENT_BB);
-
-	REG_CLR_BIT(ah, AR_GPIO_INPUT_MUX2,
-		    AR_GPIO_INPUT_MUX2_RFSILENT);
-
-	ath9k_hw_cfg_gpio_input(ah, ah->rfkill_gpio);
-	REG_SET_BIT(ah, AR_PHY_TEST, RFSILENT_BB);
-}
-
 static void ar5008_restore_chainmask(struct ath_hw *ah)
 {
 	int rx_chainmask = ah->rxchainmask;
@@ -1629,7 +1617,6 @@ void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->set_delta_slope = ar5008_hw_set_delta_slope;
 	priv_ops->rfbus_req = ar5008_hw_rfbus_req;
 	priv_ops->rfbus_done = ar5008_hw_rfbus_done;
-	priv_ops->enable_rfkill = ar5008_hw_enable_rfkill;
 	priv_ops->restore_chainmask = ar5008_restore_chainmask;
 	priv_ops->set_diversity = ar5008_set_diversity;
 	priv_ops->do_getnf = ar5008_hw_do_getnf;

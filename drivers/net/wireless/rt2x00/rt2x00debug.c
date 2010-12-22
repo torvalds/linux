@@ -339,12 +339,13 @@ static ssize_t rt2x00debug_read_queue_stats(struct file *file,
 		return -ENOMEM;
 
 	temp = data +
-	    sprintf(data, "qid\tcount\tlimit\tlength\tindex\tdma done\tdone\n");
+	    sprintf(data, "qid\tflags\t\tcount\tlimit\tlength\tindex\tdma done\tdone\n");
 
 	queue_for_each(intf->rt2x00dev, queue) {
 		spin_lock_irqsave(&queue->index_lock, irqflags);
 
-		temp += sprintf(temp, "%d\t%d\t%d\t%d\t%d\t%d\t%d\n", queue->qid,
+		temp += sprintf(temp, "%d\t0x%.8x\t%d\t%d\t%d\t%d\t%d\t\t%d\n",
+				queue->qid, (unsigned int)queue->flags,
 				queue->count, queue->limit, queue->length,
 				queue->index[Q_INDEX],
 				queue->index[Q_INDEX_DMA_DONE],
