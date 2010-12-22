@@ -53,6 +53,8 @@ extern void qla2x00_update_fcport(scsi_qla_host_t *, fc_port_t *);
 extern void qla2x00_alloc_fw_dump(scsi_qla_host_t *);
 extern void qla2x00_try_to_stop_firmware(scsi_qla_host_t *);
 
+extern int qla2x00_get_thermal_temp(scsi_qla_host_t *, uint16_t *, uint16_t *);
+
 extern void qla84xx_put_chip(struct scsi_qla_host *);
 
 extern int qla2x00_async_login(struct scsi_qla_host *, fc_port_t *,

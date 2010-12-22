@@ -2426,7 +2426,8 @@ struct qla_hw_data {
 		uint32_t	fcp_prio_enabled	:1;
 		uint32_t	fw_hung	:1;
 		uint32_t        quiesce_owner:1;
-		/* 29 bits */
+		uint32_t	thermal_supported:1;
+		/* 26 bits */
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
