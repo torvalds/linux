@@ -74,6 +74,7 @@ struct vendor_data {
 	unsigned int		lcrh_tx;
 	unsigned int		lcrh_rx;
 	bool			oversampling;
+	bool			dma_threshold;
 };
 
 static struct vendor_data vendor_arm = {
@@ -82,6 +83,7 @@ static struct vendor_data vendor_arm = {
 	.lcrh_tx		= UART011_LCRH,
 	.lcrh_rx		= UART011_LCRH,
 	.oversampling		= false,
+	.dma_threshold		= false,
 };
 
 static struct vendor_data vendor_st = {
@@ -90,6 +92,7 @@ static struct vendor_data vendor_st = {
 	.lcrh_tx		= ST_UART011_LCRH_TX,
 	.lcrh_rx		= ST_UART011_LCRH_RX,
 	.oversampling		= true,
+	.dma_threshold		= true,
 };
 
 /* Deals with DMA transactions */
@@ -527,6 +530,15 @@ static void pl011_dma_startup(struct uart_amba_port *uap)
 	/* Turn on DMA error (RX/TX will be enabled on demand) */
 	uap->dmacr |= UART011_DMAONERR;
 	writew(uap->dmacr, uap->port.membase + UART011_DMACR);
+
+	/*
+	 * ST Micro variants has some specific dma burst threshold
+	 * compensation. Set this to 16 bytes, so burst will only
+	 * be issued above/below 16 bytes.
+	 */
+	if (uap->vendor->dma_threshold)
+		writew(ST_UART011_DMAWM_RX_16 | ST_UART011_DMAWM_TX_16,
+			       uap->port.membase + ST_UART011_DMAWM);
 }
 
 static void pl011_dma_shutdown(struct uart_amba_port *uap)
