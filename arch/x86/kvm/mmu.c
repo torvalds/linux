@@ -3445,6 +3445,9 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 		if (!test_bit(slot, sp->slot_bitmap))
 			continue;
 
+		if (sp->role.level != PT_PAGE_TABLE_LEVEL)
+			continue;
+
 		pt = sp->spt;
 		for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
 			/* avoid RMW */
