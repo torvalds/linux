@@ -1233,6 +1233,7 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 	struct wl1271_acx_ht_capabilities *acx;
 	u8 mac_address[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	int ret = 0;
+	u32 ht_capabilites = 0;
 
 	wl1271_debug(DEBUG_ACX, "acx ht capabilities setting");
 
@@ -1244,16 +1245,16 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 
 	/* Allow HT Operation ? */
 	if (allow_ht_operation) {
-		acx->ht_capabilites =
+		ht_capabilites =
 			WL1271_ACX_FW_CAP_HT_OPERATION;
 		if (ht_cap->cap & IEEE80211_HT_CAP_GRN_FLD)
-			acx->ht_capabilites |=
+			ht_capabilites |=
 				WL1271_ACX_FW_CAP_GREENFIELD_FRAME_FORMAT;
 		if (ht_cap->cap & IEEE80211_HT_CAP_SGI_20)
-			acx->ht_capabilites |=
+			ht_capabilites |=
 				WL1271_ACX_FW_CAP_SHORT_GI_FOR_20MHZ_PACKETS;
 		if (ht_cap->cap & IEEE80211_HT_CAP_LSIG_TXOP_PROT)
-			acx->ht_capabilites |=
+			ht_capabilites |=
 				WL1271_ACX_FW_CAP_LSIG_TXOP_PROTECTION;
 
 		/* get data from A-MPDU parameters field */
@@ -1261,9 +1262,9 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 		acx->ampdu_min_spacing = ht_cap->ampdu_density;
 
 		memcpy(acx->mac_address, mac_address, ETH_ALEN);
-	} else { /* HT operations are not allowed */
-		acx->ht_capabilites = 0;
 	}
+
+	acx->ht_capabilites = cpu_to_le32(ht_capabilites);
 
 	ret = wl1271_cmd_configure(wl, ACX_PEER_HT_CAP, acx, sizeof(*acx));
 	if (ret < 0) {

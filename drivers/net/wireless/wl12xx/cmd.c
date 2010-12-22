@@ -659,15 +659,15 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, __be32 ip_addr)
 
 	/* llc layer */
 	memcpy(tmpl.llc_hdr, rfc1042_header, sizeof(rfc1042_header));
-	tmpl.llc_type = htons(ETH_P_ARP);
+	tmpl.llc_type = cpu_to_be16(ETH_P_ARP);
 
 	/* arp header */
 	arp_hdr = &tmpl.arp_hdr;
-	arp_hdr->ar_hrd = htons(ARPHRD_ETHER);
-	arp_hdr->ar_pro = htons(ETH_P_IP);
+	arp_hdr->ar_hrd = cpu_to_be16(ARPHRD_ETHER);
+	arp_hdr->ar_pro = cpu_to_be16(ETH_P_IP);
 	arp_hdr->ar_hln = ETH_ALEN;
 	arp_hdr->ar_pln = 4;
-	arp_hdr->ar_op = htons(ARPOP_REPLY);
+	arp_hdr->ar_op = cpu_to_be16(ARPOP_REPLY);
 
 	/* arp payload */
 	memcpy(tmpl.sender_hw, wl->vif->addr, ETH_ALEN);

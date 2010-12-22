@@ -138,13 +138,13 @@ struct wl12xx_arp_rsp_template {
 	struct ieee80211_hdr_3addr hdr;
 
 	u8 llc_hdr[sizeof(rfc1042_header)];
-	u16 llc_type;
+	__be16 llc_type;
 
 	struct arphdr arp_hdr;
 	u8 sender_hw[ETH_ALEN];
-	u32 sender_ip;
+	__be32 sender_ip;
 	u8 target_hw[ETH_ALEN];
-	u32 target_ip;
+	__be32 target_ip;
 } __packed;
 
 
