@@ -104,14 +104,14 @@
 
 #ifndef __ASSEMBLER__
 
-extern u32 cm_read_mod_reg(s16 module, u16 idx);
-extern void cm_write_mod_reg(u32 val, s16 module, u16 idx);
-extern u32 cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx);
+extern u32 omap2_cm_read_mod_reg(s16 module, u16 idx);
+extern void omap2_cm_write_mod_reg(u32 val, s16 module, u16 idx);
+extern u32 omap2_cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx);
 
 extern int omap2_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id,
 				      u8 idlest_shift);
-extern u32 cm_set_mod_reg_bits(u32 bits, s16 module, s16 idx);
-extern u32 cm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx);
+extern u32 omap2_cm_set_mod_reg_bits(u32 bits, s16 module, s16 idx);
+extern u32 omap2_cm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx);
 
 #endif
 

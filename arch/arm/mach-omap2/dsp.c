@@ -38,12 +38,12 @@ static struct omap_dsp_platform_data omap_dsp_pdata __initdata = {
 	.cpu_set_freq = omap_pm_cpu_set_freq,
 	.cpu_get_freq = omap_pm_cpu_get_freq,
 #endif
-	.dsp_prm_read = prm_read_mod_reg,
-	.dsp_prm_write = prm_write_mod_reg,
-	.dsp_prm_rmw_bits = prm_rmw_mod_reg_bits,
-	.dsp_cm_read = cm_read_mod_reg,
-	.dsp_cm_write = cm_write_mod_reg,
-	.dsp_cm_rmw_bits = cm_rmw_mod_reg_bits,
+	.dsp_prm_read = omap2_prm_read_mod_reg,
+	.dsp_prm_write = omap2_prm_write_mod_reg,
+	.dsp_prm_rmw_bits = omap2_prm_rmw_mod_reg_bits,
+	.dsp_cm_read = omap2_cm_read_mod_reg,
+	.dsp_cm_write = omap2_cm_write_mod_reg,
+	.dsp_cm_rmw_bits = omap2_cm_rmw_mod_reg_bits,
 };
 
 static int __init omap_dsp_init(void)

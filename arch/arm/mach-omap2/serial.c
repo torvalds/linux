@@ -490,6 +490,7 @@ static void omap_uart_idle_init(struct omap_uart_state *uart)
 		u32 wk_mask = 0;
 		u32 padconf = 0;
 
+		/* XXX These PRM accesses do not belong here */
 		uart->wk_en = OMAP34XX_PRM_REGADDR(mod, PM_WKEN1);
 		uart->wk_st = OMAP34XX_PRM_REGADDR(mod, PM_WKST1);
 		switch (uart->num) {

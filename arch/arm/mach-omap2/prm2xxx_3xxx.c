@@ -25,49 +25,49 @@
 #include "prm-regbits-24xx.h"
 #include "prm-regbits-34xx.h"
 
-u32 prm_read_mod_reg(s16 module, u16 idx)
+u32 omap2_prm_read_mod_reg(s16 module, u16 idx)
 {
 	return __raw_readl(prm_base + module + idx);
 }
 
-void prm_write_mod_reg(u32 val, s16 module, u16 idx)
+void omap2_prm_write_mod_reg(u32 val, s16 module, u16 idx)
 {
 	__raw_writel(val, prm_base + module + idx);
 }
 
 /* Read-modify-write a register in a PRM module. Caller must lock */
-u32 prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
+u32 omap2_prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
 {
 	u32 v;
 
-	v = prm_read_mod_reg(module, idx);
+	v = omap2_prm_read_mod_reg(module, idx);
 	v &= ~mask;
 	v |= bits;
-	prm_write_mod_reg(v, module, idx);
+	omap2_prm_write_mod_reg(v, module, idx);
 
 	return v;
 }
 
 /* Read a PRM register, AND it, and shift the result down to bit 0 */
-u32 prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask)
+u32 omap2_prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask)
 {
 	u32 v;
 
-	v = prm_read_mod_reg(domain, idx);
+	v = omap2_prm_read_mod_reg(domain, idx);
 	v &= mask;
 	v >>= __ffs(mask);
 
 	return v;
 }
 
-u32 prm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
+u32 omap2_prm_set_mod_reg_bits(u32 bits, s16 module, s16 idx)
 {
-	return prm_rmw_mod_reg_bits(bits, bits, module, idx);
+	return omap2_prm_rmw_mod_reg_bits(bits, bits, module, idx);
 }
 
-u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
+u32 omap2_prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 {
-	return prm_rmw_mod_reg_bits(bits, 0x0, module, idx);
+	return omap2_prm_rmw_mod_reg_bits(bits, 0x0, module, idx);
 }
 
 
@@ -86,7 +86,7 @@ int omap2_prm_is_hardreset_asserted(s16 prm_mod, u8 shift)
 	if (!(cpu_is_omap24xx() || cpu_is_omap34xx()))
 		return -EINVAL;
 
-	return prm_read_mod_bits_shift(prm_mod, OMAP2_RM_RSTCTRL,
+	return omap2_prm_read_mod_bits_shift(prm_mod, OMAP2_RM_RSTCTRL,
 				       (1 << shift));
 }
 
@@ -110,7 +110,7 @@ int omap2_prm_assert_hardreset(s16 prm_mod, u8 shift)
 		return -EINVAL;
 
 	mask = 1 << shift;
-	prm_rmw_mod_reg_bits(mask, mask, prm_mod, OMAP2_RM_RSTCTRL);
+	omap2_prm_rmw_mod_reg_bits(mask, mask, prm_mod, OMAP2_RM_RSTCTRL);
 
 	return 0;
 }
@@ -140,15 +140,15 @@ int omap2_prm_deassert_hardreset(s16 prm_mod, u8 shift)
 	mask = 1 << shift;
 
 	/* Check the current status to avoid de-asserting the line twice */
-	if (prm_read_mod_bits_shift(prm_mod, OMAP2_RM_RSTCTRL, mask) == 0)
+	if (omap2_prm_read_mod_bits_shift(prm_mod, OMAP2_RM_RSTCTRL, mask) == 0)
 		return -EEXIST;
 
 	/* Clear the reset status by writing 1 to the status bit */
-	prm_rmw_mod_reg_bits(0xffffffff, mask, prm_mod, OMAP2_RM_RSTST);
+	omap2_prm_rmw_mod_reg_bits(0xffffffff, mask, prm_mod, OMAP2_RM_RSTST);
 	/* de-assert the reset control line */
-	prm_rmw_mod_reg_bits(mask, 0, prm_mod, OMAP2_RM_RSTCTRL);
+	omap2_prm_rmw_mod_reg_bits(mask, 0, prm_mod, OMAP2_RM_RSTCTRL);
 	/* wait the status to be set */
-	omap_test_timeout(prm_read_mod_bits_shift(prm_mod, OMAP2_RM_RSTST,
+	omap_test_timeout(omap2_prm_read_mod_bits_shift(prm_mod, OMAP2_RM_RSTST,
 						  mask),
 			  MAX_MODULE_HARDRESET_WAIT, c);
 

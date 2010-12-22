@@ -17,7 +17,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/module.h>
+
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -30,10 +31,9 @@
 #include "clock.h"
 #include "clock2xxx.h"
 #include "cm2xxx_3xxx.h"
-#include "cm44xx.h"
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
-#include "prcm44xx.h"
+#include "prminst44xx.h"
 #include "prm-regbits-24xx.h"
 #include "prm-regbits-44xx.h"
 #include "control.h"
@@ -48,9 +48,9 @@ u32 omap_prcm_get_reset_sources(void)
 {
 	/* XXX This presumably needs modification for 34XX */
 	if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		return prm_read_mod_reg(WKUP_MOD, OMAP2_RM_RSTST) & 0x7f;
+		return omap2_prm_read_mod_reg(WKUP_MOD, OMAP2_RM_RSTST) & 0x7f;
 	if (cpu_is_omap44xx())
-		return prm_read_mod_reg(WKUP_MOD, OMAP4_RM_RSTST) & 0x7f;
+		return omap2_prm_read_mod_reg(WKUP_MOD, OMAP4_RM_RSTST) & 0x7f;
 
 	return 0;
 }
@@ -75,9 +75,9 @@ void omap_prcm_arch_reset(char mode, const char *cmd)
 	}
 
 	/* XXX should be moved to some OMAP2/3 specific code */
-	prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, prcm_offs,
-			     OMAP2_RM_RSTCTRL);
-	prm_read_mod_reg(prcm_offs, OMAP2_RM_RSTCTRL); /* OCP barrier */
+	omap2_prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, prcm_offs,
+				   OMAP2_RM_RSTCTRL);
+	omap2_prm_read_mod_reg(prcm_offs, OMAP2_RM_RSTCTRL); /* OCP barrier */
 }
 
 /**

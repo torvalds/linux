@@ -13,7 +13,6 @@
  */
 #undef DEBUG
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/list.h>
@@ -29,7 +28,6 @@
 
 #include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
-#include "cm2xxx_3xxx.h"
 #include "cm2xxx_3xxx.h"
 
 #include <plat/clock.h>
@@ -410,7 +408,7 @@ int clkdm_add_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 		pr_debug("clockdomain: hardware will wake up %s when %s wakes "
 			 "up\n", clkdm1->name, clkdm2->name);
 
-		prm_set_mod_reg_bits((1 << clkdm2->dep_bit),
+		omap2_prm_set_mod_reg_bits((1 << clkdm2->dep_bit),
 				     clkdm1->pwrdm.ptr->prcm_offs, PM_WKDEP);
 	}
 
@@ -445,7 +443,7 @@ int clkdm_del_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 		pr_debug("clockdomain: hardware will no longer wake up %s "
 			 "after %s wakes up\n", clkdm1->name, clkdm2->name);
 
-		prm_clear_mod_reg_bits((1 << clkdm2->dep_bit),
+		omap2_prm_clear_mod_reg_bits((1 << clkdm2->dep_bit),
 				       clkdm1->pwrdm.ptr->prcm_offs, PM_WKDEP);
 	}
 
@@ -481,7 +479,7 @@ int clkdm_read_wkdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 	}
 
 	/* XXX It's faster to return the atomic wkdep_usecount */
-	return prm_read_mod_bits_shift(clkdm1->pwrdm.ptr->prcm_offs, PM_WKDEP,
+	return omap2_prm_read_mod_bits_shift(clkdm1->pwrdm.ptr->prcm_offs, PM_WKDEP,
 				       (1 << clkdm2->dep_bit));
 }
 
@@ -515,7 +513,7 @@ int clkdm_clear_all_wkdeps(struct clockdomain *clkdm)
 		atomic_set(&cd->wkdep_usecount, 0);
 	}
 
-	prm_clear_mod_reg_bits(mask, clkdm->pwrdm.ptr->prcm_offs, PM_WKDEP);
+	omap2_prm_clear_mod_reg_bits(mask, clkdm->pwrdm.ptr->prcm_offs, PM_WKDEP);
 
 	return 0;
 }
@@ -554,7 +552,7 @@ int clkdm_add_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 		pr_debug("clockdomain: will prevent %s from sleeping if %s "
 			 "is active\n", clkdm1->name, clkdm2->name);
 
-		cm_set_mod_reg_bits((1 << clkdm2->dep_bit),
+		omap2_cm_set_mod_reg_bits((1 << clkdm2->dep_bit),
 				    clkdm1->pwrdm.ptr->prcm_offs,
 				    OMAP3430_CM_SLEEPDEP);
 	}
@@ -597,7 +595,7 @@ int clkdm_del_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 			 "sleeping if %s is active\n", clkdm1->name,
 			 clkdm2->name);
 
-		cm_clear_mod_reg_bits((1 << clkdm2->dep_bit),
+		omap2_cm_clear_mod_reg_bits((1 << clkdm2->dep_bit),
 				      clkdm1->pwrdm.ptr->prcm_offs,
 				      OMAP3430_CM_SLEEPDEP);
 	}
@@ -640,7 +638,7 @@ int clkdm_read_sleepdep(struct clockdomain *clkdm1, struct clockdomain *clkdm2)
 	}
 
 	/* XXX It's faster to return the atomic sleepdep_usecount */
-	return prm_read_mod_bits_shift(clkdm1->pwrdm.ptr->prcm_offs,
+	return omap2_prm_read_mod_bits_shift(clkdm1->pwrdm.ptr->prcm_offs,
 				       OMAP3430_CM_SLEEPDEP,
 				       (1 << clkdm2->dep_bit));
 }
@@ -678,7 +676,7 @@ int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
 		atomic_set(&cd->sleepdep_usecount, 0);
 	}
 
-	prm_clear_mod_reg_bits(mask, clkdm->pwrdm.ptr->prcm_offs,
+	omap2_prm_clear_mod_reg_bits(mask, clkdm->pwrdm.ptr->prcm_offs,
 			       OMAP3430_CM_SLEEPDEP);
 
 	return 0;
@@ -730,7 +728,7 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
 
 	if (cpu_is_omap24xx()) {
 
-		cm_set_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
+		omap2_cm_set_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
 			    clkdm->pwrdm.ptr->prcm_offs, OMAP2_PM_PWSTCTRL);
 
 	} else if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
@@ -774,7 +772,7 @@ int omap2_clkdm_wakeup(struct clockdomain *clkdm)
 
 	if (cpu_is_omap24xx()) {
 
-		cm_clear_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
+		omap2_cm_clear_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
 			      clkdm->pwrdm.ptr->prcm_offs, OMAP2_PM_PWSTCTRL);
 
 	} else if (cpu_is_omap34xx() || cpu_is_omap44xx()) {

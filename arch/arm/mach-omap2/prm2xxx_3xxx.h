@@ -230,12 +230,12 @@
 #ifndef __ASSEMBLER__
 
 /* Power/reset management domain register get/set */
-extern u32 prm_read_mod_reg(s16 module, u16 idx);
-extern void prm_write_mod_reg(u32 val, s16 module, u16 idx);
-extern u32 prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx);
-extern u32 prm_set_mod_reg_bits(u32 bits, s16 module, s16 idx);
-extern u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx);
-extern u32 prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask);
+extern u32 omap2_prm_read_mod_reg(s16 module, u16 idx);
+extern void omap2_prm_write_mod_reg(u32 val, s16 module, u16 idx);
+extern u32 omap2_prm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx);
+extern u32 omap2_prm_set_mod_reg_bits(u32 bits, s16 module, s16 idx);
+extern u32 omap2_prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx);
+extern u32 omap2_prm_read_mod_bits_shift(s16 domain, s16 idx, u32 mask);
 
 /* These omap2_ PRM functions apply to both OMAP2 and 3 */
 extern int omap2_prm_is_hardreset_asserted(s16 prm_mod, u8 shift);

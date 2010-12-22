@@ -133,21 +133,21 @@ int omap2_select_table_rate(struct clk *clk, unsigned long rate)
 			done_rate = CORE_CLK_SRC_DPLL;
 
 		/* MPU divider */
-		cm_write_mod_reg(prcm->cm_clksel_mpu, MPU_MOD, CM_CLKSEL);
+		omap2_cm_write_mod_reg(prcm->cm_clksel_mpu, MPU_MOD, CM_CLKSEL);
 
 		/* dsp + iva1 div(2420), iva2.1(2430) */
-		cm_write_mod_reg(prcm->cm_clksel_dsp,
+		omap2_cm_write_mod_reg(prcm->cm_clksel_dsp,
 				 OMAP24XX_DSP_MOD, CM_CLKSEL);
 
-		cm_write_mod_reg(prcm->cm_clksel_gfx, GFX_MOD, CM_CLKSEL);
+		omap2_cm_write_mod_reg(prcm->cm_clksel_gfx, GFX_MOD, CM_CLKSEL);
 
 		/* Major subsystem dividers */
-		tmp = cm_read_mod_reg(CORE_MOD, CM_CLKSEL1) & OMAP24XX_CLKSEL_DSS2_MASK;
-		cm_write_mod_reg(prcm->cm_clksel1_core | tmp, CORE_MOD,
+		tmp = omap2_cm_read_mod_reg(CORE_MOD, CM_CLKSEL1) & OMAP24XX_CLKSEL_DSS2_MASK;
+		omap2_cm_write_mod_reg(prcm->cm_clksel1_core | tmp, CORE_MOD,
 				 CM_CLKSEL1);
 
 		if (cpu_is_omap2430())
-			cm_write_mod_reg(prcm->cm_clksel_mdm,
+			omap2_cm_write_mod_reg(prcm->cm_clksel_mdm,
 					 OMAP2430_MDM_MOD, CM_CLKSEL);
 
 		/* x2 to enter omap2xxx_sdrc_init_params() */

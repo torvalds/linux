@@ -25,7 +25,7 @@
 
 static int omap4_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
 {
-	prm_rmw_mod_reg_bits(OMAP_POWERSTATE_MASK,
+	omap2_prm_rmw_mod_reg_bits(OMAP_POWERSTATE_MASK,
 				(pwrst << OMAP_POWERSTATE_SHIFT),
 				pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL);
 	return 0;
@@ -33,25 +33,25 @@ static int omap4_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
 
 static int omap4_pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
 {
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs,
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
 				OMAP4_PM_PWSTCTRL, OMAP_POWERSTATE_MASK);
 }
 
 static int omap4_pwrdm_read_pwrst(struct powerdomain *pwrdm)
 {
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs,
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
 				OMAP4_PM_PWSTST, OMAP_POWERSTATEST_MASK);
 }
 
 static int omap4_pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
 {
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP4_PM_PWSTST,
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP4_PM_PWSTST,
 				OMAP4430_LASTPOWERSTATEENTERED_MASK);
 }
 
 static int omap4_pwrdm_set_lowpwrstchange(struct powerdomain *pwrdm)
 {
-	prm_rmw_mod_reg_bits(OMAP4430_LOWPOWERSTATECHANGE_MASK,
+	omap2_prm_rmw_mod_reg_bits(OMAP4430_LOWPOWERSTATECHANGE_MASK,
 				(1 << OMAP4430_LOWPOWERSTATECHANGE_SHIFT),
 				pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL);
 	return 0;
@@ -59,7 +59,7 @@ static int omap4_pwrdm_set_lowpwrstchange(struct powerdomain *pwrdm)
 
 static int omap4_pwrdm_clear_all_prev_pwrst(struct powerdomain *pwrdm)
 {
-	prm_rmw_mod_reg_bits(OMAP4430_LASTPOWERSTATEENTERED_MASK,
+	omap2_prm_rmw_mod_reg_bits(OMAP4430_LASTPOWERSTATEENTERED_MASK,
 				OMAP4430_LASTPOWERSTATEENTERED_MASK,
 				pwrdm->prcm_offs, OMAP4_PM_PWSTST);
 	return 0;
@@ -70,7 +70,7 @@ static int omap4_pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
 	u32 v;
 
 	v = pwrst << __ffs(OMAP4430_LOGICRETSTATE_MASK);
-	prm_rmw_mod_reg_bits(OMAP4430_LOGICRETSTATE_MASK, v,
+	omap2_prm_rmw_mod_reg_bits(OMAP4430_LOGICRETSTATE_MASK, v,
 				pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL);
 
 	return 0;
@@ -83,7 +83,7 @@ static int omap4_pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank,
 
 	m = omap2_pwrdm_get_mem_bank_onstate_mask(bank);
 
-	prm_rmw_mod_reg_bits(m, (pwrst << __ffs(m)), pwrdm->prcm_offs,
+	omap2_prm_rmw_mod_reg_bits(m, (pwrst << __ffs(m)), pwrdm->prcm_offs,
 				OMAP4_PM_PWSTCTRL);
 
 	return 0;
@@ -96,7 +96,7 @@ static int omap4_pwrdm_set_mem_retst(struct powerdomain *pwrdm, u8 bank,
 
 	m = omap2_pwrdm_get_mem_bank_retst_mask(bank);
 
-	prm_rmw_mod_reg_bits(m, (pwrst << __ffs(m)), pwrdm->prcm_offs,
+	omap2_prm_rmw_mod_reg_bits(m, (pwrst << __ffs(m)), pwrdm->prcm_offs,
 				OMAP4_PM_PWSTCTRL);
 
 	return 0;
@@ -104,14 +104,15 @@ static int omap4_pwrdm_set_mem_retst(struct powerdomain *pwrdm, u8 bank,
 
 static int omap4_pwrdm_read_logic_pwrst(struct powerdomain *pwrdm)
 {
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP4_PM_PWSTST,
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP4_PM_PWSTST,
 				OMAP4430_LOGICSTATEST_MASK);
 }
 
 static int omap4_pwrdm_read_logic_retst(struct powerdomain *pwrdm)
 {
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL,
-				OMAP4430_LOGICRETSTATE_MASK);
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP4_PM_PWSTCTRL,
+					     OMAP4430_LOGICRETSTATE_MASK);
 }
 
 static int omap4_pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
@@ -120,7 +121,8 @@ static int omap4_pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
 
 	m = omap2_pwrdm_get_mem_bank_stst_mask(bank);
 
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP4_PM_PWSTST, m);
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP4_PM_PWSTST,
+					     m);
 }
 
 static int omap4_pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank)
@@ -129,7 +131,8 @@ static int omap4_pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank)
 
 	m = omap2_pwrdm_get_mem_bank_retst_mask(bank);
 
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL, m);
+	return omap2_prm_read_mod_bits_shift(pwrdm->prcm_offs,
+					     OMAP4_PM_PWSTCTRL, m);
 }
 
 static int omap4_pwrdm_wait_transition(struct powerdomain *pwrdm)
@@ -143,7 +146,7 @@ static int omap4_pwrdm_wait_transition(struct powerdomain *pwrdm)
 	 */
 
 	/* XXX Is this udelay() value meaningful? */
-	while ((prm_read_mod_reg(pwrdm->prcm_offs, OMAP4_PM_PWSTST) &
+	while ((omap2_prm_read_mod_reg(pwrdm->prcm_offs, OMAP4_PM_PWSTST) &
 		OMAP_INTRANSITION_MASK) &&
 		(c++ < PWRDM_TRANSITION_BAILOUT))
 			udelay(1);
