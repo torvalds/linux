@@ -73,7 +73,15 @@ static struct omap_hwmod_ocp_if omap44xx_l3_main_1__dmm = {
 	.master		= &omap44xx_l3_main_1_hwmod,
 	.slave		= &omap44xx_dmm_hwmod,
 	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+	.user		= OCP_USER_SDMA,
+};
+
+static struct omap_hwmod_addr_space omap44xx_dmm_addrs[] = {
+	{
+		.pa_start	= 0x4e000000,
+		.pa_end		= 0x4e0007ff,
+		.flags		= ADDR_TYPE_RT
+	},
 };
 
 /* mpu -> dmm */
@@ -81,7 +89,9 @@ static struct omap_hwmod_ocp_if omap44xx_mpu__dmm = {
 	.master		= &omap44xx_mpu_hwmod,
 	.slave		= &omap44xx_dmm_hwmod,
 	.clk		= "l3_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+	.addr		= omap44xx_dmm_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap44xx_dmm_addrs),
+	.user		= OCP_USER_MPU,
 };
 
 /* dmm slave ports */
@@ -121,12 +131,22 @@ static struct omap_hwmod_ocp_if omap44xx_dmm__emif_fw = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+static struct omap_hwmod_addr_space omap44xx_emif_fw_addrs[] = {
+	{
+		.pa_start	= 0x4a20c000,
+		.pa_end		= 0x4a20c0ff,
+		.flags		= ADDR_TYPE_RT
+	},
+};
+
 /* l4_cfg -> emif_fw */
 static struct omap_hwmod_ocp_if omap44xx_l4_cfg__emif_fw = {
 	.master		= &omap44xx_l4_cfg_hwmod,
 	.slave		= &omap44xx_emif_fw_hwmod,
 	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+	.addr		= omap44xx_emif_fw_addrs,
+	.addr_cnt	= ARRAY_SIZE(omap44xx_emif_fw_addrs),
+	.user		= OCP_USER_MPU,
 };
 
 /* emif_fw slave ports */
