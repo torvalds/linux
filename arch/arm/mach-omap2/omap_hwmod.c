@@ -393,7 +393,8 @@ static int _enable_wakeup(struct omap_hwmod *oh, u32 *v)
 	u32 wakeup_mask;
 
 	if (!oh->class->sysc ||
-	    !(oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP))
+	    !((oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP) ||
+	      (oh->class->sysc->idlemodes & SIDLE_SMART_WKUP)))
 		return -EINVAL;
 
 	if (!oh->class->sysc->sysc_fields) {
@@ -404,6 +405,9 @@ static int _enable_wakeup(struct omap_hwmod *oh, u32 *v)
 	wakeup_mask = (0x1 << oh->class->sysc->sysc_fields->enwkup_shift);
 
 	*v |= wakeup_mask;
+
+	if (oh->class->sysc->idlemodes & SIDLE_SMART_WKUP)
+		_set_slave_idlemode(oh, HWMOD_IDLEMODE_SMART_WKUP, v);
 
 	/* XXX test pwrdm_get_wken for this hwmod's subsystem */
 
@@ -424,7 +428,8 @@ static int _disable_wakeup(struct omap_hwmod *oh, u32 *v)
 	u32 wakeup_mask;
 
 	if (!oh->class->sysc ||
-	    !(oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP))
+	    !((oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP) ||
+	      (oh->class->sysc->idlemodes & SIDLE_SMART_WKUP)))
 		return -EINVAL;
 
 	if (!oh->class->sysc->sysc_fields) {
@@ -435,6 +440,9 @@ static int _disable_wakeup(struct omap_hwmod *oh, u32 *v)
 	wakeup_mask = (0x1 << oh->class->sysc->sysc_fields->enwkup_shift);
 
 	*v &= ~wakeup_mask;
+
+	if (oh->class->sysc->idlemodes & SIDLE_SMART_WKUP)
+		_set_slave_idlemode(oh, HWMOD_IDLEMODE_SMART, v);
 
 	/* XXX test pwrdm_get_wken for this hwmod's subsystem */
 
@@ -831,6 +839,10 @@ static void _idle_sysc(struct omap_hwmod *oh)
 			HWMOD_IDLEMODE_FORCE : HWMOD_IDLEMODE_SMART;
 		_set_master_standbymode(oh, idlemode, &v);
 	}
+
+	/* If slave is in SMARTIDLE, also enable wakeup */
+	if ((sf & SYSC_HAS_SIDLEMODE) && !(oh->flags & HWMOD_SWSUP_SIDLE))
+		_enable_wakeup(oh, &v);
 
 	_write_sysconfig(v, oh);
 }

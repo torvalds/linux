@@ -76,6 +76,8 @@ extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2;
 #define HWMOD_IDLEMODE_FORCE		(1 << 0)
 #define HWMOD_IDLEMODE_NO		(1 << 1)
 #define HWMOD_IDLEMODE_SMART		(1 << 2)
+/* Slave idle mode flag only */
+#define HWMOD_IDLEMODE_SMART_WKUP	(1 << 3)
 
 /**
  * struct omap_hwmod_irq_info - MPU IRQs used by the hwmod
@@ -227,11 +229,12 @@ struct omap_hwmod_ocp_if {
 /* Macros for use in struct omap_hwmod_sysconfig */
 
 /* Flags for use in omap_hwmod_sysconfig.idlemodes */
-#define MASTER_STANDBY_SHIFT	2
+#define MASTER_STANDBY_SHIFT	4
 #define SLAVE_IDLE_SHIFT	0
 #define SIDLE_FORCE		(HWMOD_IDLEMODE_FORCE << SLAVE_IDLE_SHIFT)
 #define SIDLE_NO		(HWMOD_IDLEMODE_NO << SLAVE_IDLE_SHIFT)
 #define SIDLE_SMART		(HWMOD_IDLEMODE_SMART << SLAVE_IDLE_SHIFT)
+#define SIDLE_SMART_WKUP	(HWMOD_IDLEMODE_SMART_WKUP << SLAVE_IDLE_SHIFT)
 #define MSTANDBY_FORCE		(HWMOD_IDLEMODE_FORCE << MASTER_STANDBY_SHIFT)
 #define MSTANDBY_NO		(HWMOD_IDLEMODE_NO << MASTER_STANDBY_SHIFT)
 #define MSTANDBY_SMART		(HWMOD_IDLEMODE_SMART << MASTER_STANDBY_SHIFT)
