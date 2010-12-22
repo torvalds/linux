@@ -917,7 +917,7 @@ static int configure_dma(struct pl022 *pl022)
 	};
 	unsigned int pages;
 	int ret;
-	int sglen;
+	int rx_sglen, tx_sglen;
 	struct dma_chan *rxchan = pl022->dma_rx_channel;
 	struct dma_chan *txchan = pl022->dma_tx_channel;
 	struct dma_async_tx_descriptor *rxdesc;
@@ -991,20 +991,20 @@ static int configure_dma(struct pl022 *pl022)
 			  pl022->cur_transfer->len, &pl022->sgt_tx);
 
 	/* Map DMA buffers */
-	sglen = dma_map_sg(rxchan->device->dev, pl022->sgt_rx.sgl,
+	rx_sglen = dma_map_sg(rxchan->device->dev, pl022->sgt_rx.sgl,
 			   pl022->sgt_rx.nents, DMA_FROM_DEVICE);
-	if (!sglen)
+	if (!rx_sglen)
 		goto err_rx_sgmap;
 
-	sglen = dma_map_sg(txchan->device->dev, pl022->sgt_tx.sgl,
+	tx_sglen = dma_map_sg(txchan->device->dev, pl022->sgt_tx.sgl,
 			   pl022->sgt_tx.nents, DMA_TO_DEVICE);
-	if (!sglen)
+	if (!tx_sglen)
 		goto err_tx_sgmap;
 
 	/* Send both scatterlists */
 	rxdesc = rxchan->device->device_prep_slave_sg(rxchan,
 				      pl022->sgt_rx.sgl,
-				      pl022->sgt_rx.nents,
+				      rx_sglen,
 				      DMA_FROM_DEVICE,
 				      DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!rxdesc)
@@ -1012,7 +1012,7 @@ static int configure_dma(struct pl022 *pl022)
 
 	txdesc = txchan->device->device_prep_slave_sg(txchan,
 				      pl022->sgt_tx.sgl,
-				      pl022->sgt_tx.nents,
+				      tx_sglen,
 				      DMA_TO_DEVICE,
 				      DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!txdesc)
