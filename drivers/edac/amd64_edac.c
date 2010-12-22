@@ -1148,11 +1148,11 @@ static u64 f10_get_error_address(struct mem_ctl_info *mci,
 static void f10_read_dram_ctl_register(struct amd64_pvt *pvt)
 {
 
-	if (!amd64_read_dct_pci_cfg(pvt, F10_DCTL_SEL_LOW, &pvt->dct_sel_low)) {
-		debugf0("F2x110 (DCTL Sel. Low): 0x%08x, High range addrs at: 0x%x\n",
-			pvt->dct_sel_low, dct_sel_baseaddr(pvt));
+	if (!amd64_read_dct_pci_cfg(pvt, DCT_SEL_LO, &pvt->dct_sel_lo)) {
+		debugf0("F2x110 (DCTSelLow): 0x%08x, High range addrs at: 0x%x\n",
+			pvt->dct_sel_lo, dct_sel_baseaddr(pvt));
 
-		debugf0("  DCT mode: %s, All DCTs on: %s\n",
+		debugf0("  mode: %s, All DCTs on: %s\n",
 			(dct_ganging_enabled(pvt) ? "ganged" : "unganged"),
 			(dct_dram_enabled(pvt) ? "yes"   : "no"));
 
@@ -1160,18 +1160,18 @@ static void f10_read_dram_ctl_register(struct amd64_pvt *pvt)
 			debugf0("  Address range split per DCT: %s\n",
 				(dct_high_range_enabled(pvt) ? "yes" : "no"));
 
-		debugf0("  DCT data interleave for ECC: %s, "
+		debugf0("  data interleave for ECC: %s, "
 			"DRAM cleared since last warm reset: %s\n",
 			(dct_data_intlv_enabled(pvt) ? "enabled" : "disabled"),
 			(dct_memory_cleared(pvt) ? "yes" : "no"));
 
-		debugf0("  DCT channel interleave: %s, "
-			"DCT interleave bits selector: 0x%x\n",
+		debugf0("  channel interleave: %s, "
+			"interleave bits selector: 0x%x\n",
 			(dct_interleave_enabled(pvt) ? "enabled" : "disabled"),
 			dct_sel_interleave_addr(pvt));
 	}
 
-	amd64_read_dct_pci_cfg(pvt, F10_DCTL_SEL_HIGH, &pvt->dct_sel_hi);
+	amd64_read_dct_pci_cfg(pvt, DCT_SEL_HI, &pvt->dct_sel_hi);
 }
 
 /*
@@ -1181,7 +1181,7 @@ static void f10_read_dram_ctl_register(struct amd64_pvt *pvt)
 static u8 f10_determine_channel(struct amd64_pvt *pvt, u64 sys_addr,
 				bool hi_range_sel, u8 intlv_en)
 {
-	u32 dct_sel_high = (pvt->dct_sel_low >> 1) & 1;
+	u32 dct_sel_high = (pvt->dct_sel_lo >> 1) & 1;
 
 	if (dct_ganging_enabled(pvt))
 		return 0;
@@ -1955,7 +1955,7 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 	amd64_read_dct_pci_cfg(pvt, DCLR0, &pvt->dclr0);
 	amd64_read_dct_pci_cfg(pvt, DCHR0, &pvt->dchr0);
 
-	if (!dct_ganging_enabled(pvt) && boot_cpu_data.x86 > 0xf) {
+	if (!dct_ganging_enabled(pvt)) {
 		amd64_read_dct_pci_cfg(pvt, DCLR1, &pvt->dclr1);
 		amd64_read_dct_pci_cfg(pvt, DCHR1, &pvt->dchr1);
 	}

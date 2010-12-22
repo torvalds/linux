@@ -227,19 +227,19 @@
 #define DCHR1				0x194
 #define DDR3_MODE			BIT(8)
 
-#define F10_DCTL_SEL_LOW		0x110
-#define dct_sel_baseaddr(pvt)		((pvt->dct_sel_low) & 0xFFFFF800)
-#define dct_sel_interleave_addr(pvt)	(((pvt->dct_sel_low) >> 6) & 0x3)
-#define dct_high_range_enabled(pvt)	(pvt->dct_sel_low & BIT(0))
-#define dct_interleave_enabled(pvt)	(pvt->dct_sel_low & BIT(2))
+#define DCT_SEL_LO			0x110
+#define dct_sel_baseaddr(pvt)		((pvt)->dct_sel_lo & 0xFFFFF800)
+#define dct_sel_interleave_addr(pvt)	(((pvt)->dct_sel_lo >> 6) & 0x3)
+#define dct_high_range_enabled(pvt)	((pvt)->dct_sel_lo & BIT(0))
+#define dct_interleave_enabled(pvt)	((pvt)->dct_sel_lo & BIT(2))
 
-#define dct_ganging_enabled(pvt)	((boot_cpu_data.x86 == 0x10) && ((pvt)->dct_sel_low & BIT(4)))
+#define dct_ganging_enabled(pvt)	((boot_cpu_data.x86 == 0x10) && ((pvt)->dct_sel_lo & BIT(4)))
 
-#define dct_data_intlv_enabled(pvt)	(pvt->dct_sel_low & BIT(5))
-#define dct_dram_enabled(pvt)		(pvt->dct_sel_low & BIT(8))
-#define dct_memory_cleared(pvt)		(pvt->dct_sel_low & BIT(10))
+#define dct_data_intlv_enabled(pvt)	((pvt)->dct_sel_lo & BIT(5))
+#define dct_dram_enabled(pvt)		((pvt)->dct_sel_lo & BIT(8))
+#define dct_memory_cleared(pvt)		((pvt)->dct_sel_lo & BIT(10))
 
-#define F10_DCTL_SEL_HIGH		0x114
+#define DCT_SEL_HI			0x114
 
 /*
  * Function 3 - Misc Control
@@ -419,8 +419,8 @@ struct amd64_pvt {
 	u64 top_mem;		/* top of memory below 4GB */
 	u64 top_mem2;		/* top of memory above 4GB */
 
-	u32 dct_sel_low;	/* DRAM Controller Select Low Reg */
-	u32 dct_sel_hi;		/* DRAM Controller Select High Reg */
+	u32 dct_sel_lo;		/* DRAM Controller Select Low */
+	u32 dct_sel_hi;		/* DRAM Controller Select High */
 	u32 online_spare;	/* On-Line spare Reg */
 
 	/* x4 or x8 syndromes in use */
