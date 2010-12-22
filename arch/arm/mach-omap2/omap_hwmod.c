@@ -390,9 +390,9 @@ static int _set_module_autoidle(struct omap_hwmod *oh, u8 autoidle,
  * Allow the hardware module @oh to send wakeups.  Returns -EINVAL
  * upon error or 0 upon success.
  */
-static int _enable_wakeup(struct omap_hwmod *oh)
+static int _enable_wakeup(struct omap_hwmod *oh, u32 *v)
 {
-	u32 v, wakeup_mask;
+	u32 wakeup_mask;
 
 	if (!oh->class->sysc ||
 	    !(oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP))
@@ -405,9 +405,7 @@ static int _enable_wakeup(struct omap_hwmod *oh)
 
 	wakeup_mask = (0x1 << oh->class->sysc->sysc_fields->enwkup_shift);
 
-	v = oh->_sysc_cache;
-	v |= wakeup_mask;
-	_write_sysconfig(v, oh);
+	*v |= wakeup_mask;
 
 	/* XXX test pwrdm_get_wken for this hwmod's subsystem */
 
@@ -423,9 +421,9 @@ static int _enable_wakeup(struct omap_hwmod *oh)
  * Prevent the hardware module @oh to send wakeups.  Returns -EINVAL
  * upon error or 0 upon success.
  */
-static int _disable_wakeup(struct omap_hwmod *oh)
+static int _disable_wakeup(struct omap_hwmod *oh, u32 *v)
 {
-	u32 v, wakeup_mask;
+	u32 wakeup_mask;
 
 	if (!oh->class->sysc ||
 	    !(oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP))
@@ -438,9 +436,7 @@ static int _disable_wakeup(struct omap_hwmod *oh)
 
 	wakeup_mask = (0x1 << oh->class->sysc->sysc_fields->enwkup_shift);
 
-	v = oh->_sysc_cache;
-	v &= ~wakeup_mask;
-	_write_sysconfig(v, oh);
+	*v &= ~wakeup_mask;
 
 	/* XXX test pwrdm_get_wken for this hwmod's subsystem */
 
@@ -788,11 +784,11 @@ static void _enable_sysc(struct omap_hwmod *oh)
 	    (sf & SYSC_HAS_CLOCKACTIVITY))
 		_set_clockactivity(oh, oh->class->sysc->clockact, &v);
 
-	_write_sysconfig(v, oh);
-
 	/* If slave is in SMARTIDLE, also enable wakeup */
 	if ((sf & SYSC_HAS_SIDLEMODE) && !(oh->flags & HWMOD_SWSUP_SIDLE))
-		_enable_wakeup(oh);
+		_enable_wakeup(oh, &v);
+
+	_write_sysconfig(v, oh);
 
 	/*
 	 * Set the autoidle bit only after setting the smartidle bit
@@ -2011,13 +2007,16 @@ int omap_hwmod_del_initiator_dep(struct omap_hwmod *oh,
 int omap_hwmod_enable_wakeup(struct omap_hwmod *oh)
 {
 	unsigned long flags;
+	u32 v;
 
 	if (!oh->class->sysc ||
 	    !(oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP))
 		return -EINVAL;
 
 	spin_lock_irqsave(&oh->_lock, flags);
-	_enable_wakeup(oh);
+	v = oh->_sysc_cache;
+	_enable_wakeup(oh, &v);
+	_write_sysconfig(v, oh);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
@@ -2038,13 +2037,16 @@ int omap_hwmod_enable_wakeup(struct omap_hwmod *oh)
 int omap_hwmod_disable_wakeup(struct omap_hwmod *oh)
 {
 	unsigned long flags;
+	u32 v;
 
 	if (!oh->class->sysc ||
 	    !(oh->class->sysc->sysc_flags & SYSC_HAS_ENAWAKEUP))
 		return -EINVAL;
 
 	spin_lock_irqsave(&oh->_lock, flags);
-	_disable_wakeup(oh);
+	v = oh->_sysc_cache;
+	_disable_wakeup(oh, &v);
+	_write_sysconfig(v, oh);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
