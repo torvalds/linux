@@ -20,9 +20,11 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/device.h>
+#include <linux/platform_device.h>
 
 /* Interface documentation is in mach/omap-pm.h */
 #include <plat/omap-pm.h>
+#include <plat/omap_device.h>
 
 /*
  * Device-driver-originated constraints (via board-*.c files)
@@ -282,22 +284,19 @@ unsigned long omap_pm_cpu_get_freq(void)
  * Device context loss tracking
  */
 
-int omap_pm_get_dev_context_loss_count(struct device *dev)
+u32 omap_pm_get_dev_context_loss_count(struct device *dev)
 {
-	if (!dev) {
-		WARN_ON(1);
-		return -EINVAL;
-	};
+	struct platform_device *pdev = to_platform_device(dev);
+	u32 count;
 
-	pr_debug("OMAP PM: returning context loss count for dev %s\n",
-		 dev_name(dev));
+	if (WARN_ON(!dev))
+		return 0;
 
-	/*
-	 * Map the device to the powerdomain.  Return the powerdomain
-	 * off counter.
-	 */
+	count = omap_device_get_context_loss_count(pdev);
+	pr_debug("OMAP PM: context loss count for dev %s = %d\n",
+		 dev_name(dev), count);
 
-	return 0;
+	return count;
 }
 
 

@@ -2188,3 +2188,25 @@ ohsps_unlock:
 
 	return ret;
 }
+
+/**
+ * omap_hwmod_get_context_loss_count - get lost context count
+ * @oh: struct omap_hwmod *
+ *
+ * Query the powerdomain of of @oh to get the context loss
+ * count for this device.
+ *
+ * Returns the context loss count of the powerdomain assocated with @oh
+ * upon success, or zero if no powerdomain exists for @oh.
+ */
+u32 omap_hwmod_get_context_loss_count(struct omap_hwmod *oh)
+{
+	struct powerdomain *pwrdm;
+	int ret = 0;
+
+	pwrdm = omap_hwmod_get_pwrdm(oh);
+	if (pwrdm)
+		ret = pwrdm_get_context_loss_count(pwrdm);
+
+	return ret;
+}
