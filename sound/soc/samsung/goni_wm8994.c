@@ -131,7 +131,7 @@ static int goni_wm8994_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_sync(dapm);
 
 	/* Headset jack detection */
-	ret = snd_soc_jack_new(&goni, "Headset Jack",
+	ret = snd_soc_jack_new(codec, "Headset Jack",
 			SND_JACK_HEADSET | SND_JACK_MECHANICAL | SND_JACK_AVOUT,
 			&jack);
 	if (ret)
