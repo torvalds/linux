@@ -515,8 +515,6 @@ struct omap_hwmod {
 };
 
 int omap_hwmod_init(struct omap_hwmod **ohs);
-int omap_hwmod_register(struct omap_hwmod *oh);
-int omap_hwmod_unregister(struct omap_hwmod *oh);
 struct omap_hwmod *omap_hwmod_lookup(const char *name);
 int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
 			void *data);

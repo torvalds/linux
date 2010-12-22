@@ -1418,6 +1418,60 @@ static int _setup(struct omap_hwmod *oh, void *data)
 	return 0;
 }
 
+/**
+ * _register - register a struct omap_hwmod
+ * @oh: struct omap_hwmod *
+ *
+ * Registers the omap_hwmod @oh.  Returns -EEXIST if an omap_hwmod
+ * already has been registered by the same name; -EINVAL if the
+ * omap_hwmod is in the wrong state, if @oh is NULL, if the
+ * omap_hwmod's class field is NULL; if the omap_hwmod is missing a
+ * name, or if the omap_hwmod's class is missing a name; or 0 upon
+ * success.
+ *
+ * XXX The data should be copied into bootmem, so the original data
+ * should be marked __initdata and freed after init.  This would allow
+ * unneeded omap_hwmods to be freed on multi-OMAP configurations.  Note
+ * that the copy process would be relatively complex due to the large number
+ * of substructures.
+ */
+static int _register(struct omap_hwmod *oh)
+{
+	int ret, ms_id;
+
+	if (!oh || !oh->name || !oh->class || !oh->class->name ||
+	    (oh->_state != _HWMOD_STATE_UNKNOWN))
+		return -EINVAL;
+
+	mutex_lock(&omap_hwmod_mutex);
+
+	pr_debug("omap_hwmod: %s: registering\n", oh->name);
+
+	if (_lookup(oh->name)) {
+		ret = -EEXIST;
+		goto ohr_unlock;
+	}
+
+	ms_id = _find_mpu_port_index(oh);
+	if (!IS_ERR_VALUE(ms_id)) {
+		oh->_mpu_port_index = ms_id;
+		oh->_mpu_rt_va = _find_mpu_rt_base(oh, oh->_mpu_port_index);
+	} else {
+		oh->_int_flags |= _HWMOD_NO_MPU_PORT;
+	}
+
+	list_add_tail(&oh->node, &omap_hwmod_list);
+
+	spin_lock_init(&oh->_lock);
+
+	oh->_state = _HWMOD_STATE_REGISTERED;
+
+	ret = 0;
+
+ohr_unlock:
+	mutex_unlock(&omap_hwmod_mutex);
+	return ret;
+}
 
 
 /* Public functions */
@@ -1468,61 +1522,6 @@ int omap_hwmod_set_slave_idlemode(struct omap_hwmod *oh, u8 idlemode)
 		_write_sysconfig(v, oh);
 
 	return retval;
-}
-
-/**
- * omap_hwmod_register - register a struct omap_hwmod
- * @oh: struct omap_hwmod *
- *
- * Registers the omap_hwmod @oh.  Returns -EEXIST if an omap_hwmod
- * already has been registered by the same name; -EINVAL if the
- * omap_hwmod is in the wrong state, if @oh is NULL, if the
- * omap_hwmod's class field is NULL; if the omap_hwmod is missing a
- * name, or if the omap_hwmod's class is missing a name; or 0 upon
- * success.
- *
- * XXX The data should be copied into bootmem, so the original data
- * should be marked __initdata and freed after init.  This would allow
- * unneeded omap_hwmods to be freed on multi-OMAP configurations.  Note
- * that the copy process would be relatively complex due to the large number
- * of substructures.
- */
-int omap_hwmod_register(struct omap_hwmod *oh)
-{
-	int ret, ms_id;
-
-	if (!oh || !oh->name || !oh->class || !oh->class->name ||
-	    (oh->_state != _HWMOD_STATE_UNKNOWN))
-		return -EINVAL;
-
-	mutex_lock(&omap_hwmod_mutex);
-
-	pr_debug("omap_hwmod: %s: registering\n", oh->name);
-
-	if (_lookup(oh->name)) {
-		ret = -EEXIST;
-		goto ohr_unlock;
-	}
-
-	ms_id = _find_mpu_port_index(oh);
-	if (!IS_ERR_VALUE(ms_id)) {
-		oh->_mpu_port_index = ms_id;
-		oh->_mpu_rt_va = _find_mpu_rt_base(oh, oh->_mpu_port_index);
-	} else {
-		oh->_int_flags |= _HWMOD_NO_MPU_PORT;
-	}
-
-	list_add_tail(&oh->node, &omap_hwmod_list);
-
-	spin_lock_init(&oh->_lock);
-
-	oh->_state = _HWMOD_STATE_REGISTERED;
-
-	ret = 0;
-
-ohr_unlock:
-	mutex_unlock(&omap_hwmod_mutex);
-	return ret;
 }
 
 /**
@@ -1604,8 +1603,8 @@ int omap_hwmod_init(struct omap_hwmod **ohs)
 	oh = *ohs;
 	while (oh) {
 		if (omap_chip_is(oh->omap_chip)) {
-			r = omap_hwmod_register(oh);
-			WARN(r, "omap_hwmod: %s: omap_hwmod_register returned "
+			r = _register(oh);
+			WARN(r, "omap_hwmod: %s: _register returned "
 			     "%d\n", oh->name, r);
 		}
 		oh = *++ohs;
@@ -1634,32 +1633,6 @@ int omap_hwmod_late_init(void)
 	     MPU_INITIATOR_NAME);
 
 	omap_hwmod_for_each(_setup, NULL);
-
-	return 0;
-}
-
-/**
- * omap_hwmod_unregister - unregister an omap_hwmod
- * @oh: struct omap_hwmod *
- *
- * Unregisters a previously-registered omap_hwmod @oh.  There's probably
- * no use case for this, so it is likely to be removed in a later version.
- *
- * XXX Free all of the bootmem-allocated structures here when that is
- * implemented.  Make it clear that core code is the only code that is
- * expected to unregister modules.
- */
-int omap_hwmod_unregister(struct omap_hwmod *oh)
-{
-	if (!oh)
-		return -EINVAL;
-
-	pr_debug("omap_hwmod: %s: unregistering\n", oh->name);
-
-	mutex_lock(&omap_hwmod_mutex);
-	iounmap(oh->_mpu_rt_va);
-	list_del(&oh->node);
-	mutex_unlock(&omap_hwmod_mutex);
 
 	return 0;
 }
