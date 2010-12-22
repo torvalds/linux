@@ -2330,7 +2330,6 @@ static int __init clk_disable_unused(void)
 		if (ck->usecount > 0 || ck->mode == NULL)
 			continue;
 
-printk("disable %s\n", ck->name);
 		LOCK();
 		clk_enable_nolock(ck);
 		clk_disable_nolock(ck);
