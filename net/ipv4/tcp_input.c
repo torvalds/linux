@@ -916,25 +916,20 @@ static void tcp_init_metrics(struct sock *sk)
 		tp->mdev_max = tp->rttvar = max(tp->mdev, tcp_rto_min(sk));
 	}
 	tcp_set_rto(sk);
-	if (inet_csk(sk)->icsk_rto < TCP_TIMEOUT_INIT && !tp->rx_opt.saw_tstamp)
-		goto reset;
-
-cwnd:
+	if (inet_csk(sk)->icsk_rto < TCP_TIMEOUT_INIT && !tp->rx_opt.saw_tstamp) {
+reset:
+		/* Play conservative. If timestamps are not
+		 * supported, TCP will fail to recalculate correct
+		 * rtt, if initial rto is too small. FORGET ALL AND RESET!
+		 */
+		if (!tp->rx_opt.saw_tstamp && tp->srtt) {
+			tp->srtt = 0;
+			tp->mdev = tp->mdev_max = tp->rttvar = TCP_TIMEOUT_INIT;
+			inet_csk(sk)->icsk_rto = TCP_TIMEOUT_INIT;
+		}
+	}
 	tp->snd_cwnd = tcp_init_cwnd(tp, dst);
 	tp->snd_cwnd_stamp = tcp_time_stamp;
-	return;
-
-reset:
-	/* Play conservative. If timestamps are not
-	 * supported, TCP will fail to recalculate correct
-	 * rtt, if initial rto is too small. FORGET ALL AND RESET!
-	 */
-	if (!tp->rx_opt.saw_tstamp && tp->srtt) {
-		tp->srtt = 0;
-		tp->mdev = tp->mdev_max = tp->rttvar = TCP_TIMEOUT_INIT;
-		inet_csk(sk)->icsk_rto = TCP_TIMEOUT_INIT;
-	}
-	goto cwnd;
 }
 
 static void tcp_update_reordering(struct sock *sk, const int metric,
