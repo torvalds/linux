@@ -673,7 +673,7 @@ static void _disable_optional_clocks(struct omap_hwmod *oh)
  * Returns the array index of the OCP slave port that the MPU
  * addresses the device on, or -EINVAL upon error or not found.
  */
-static int _find_mpu_port_index(struct omap_hwmod *oh)
+static int __init _find_mpu_port_index(struct omap_hwmod *oh)
 {
 	int i;
 	int found = 0;
@@ -707,7 +707,7 @@ static int _find_mpu_port_index(struct omap_hwmod *oh)
  * Return the virtual address of the base of the register target of
  * device @oh, or NULL on error.
  */
-static void __iomem *_find_mpu_rt_base(struct omap_hwmod *oh, u8 index)
+static void __iomem * __init _find_mpu_rt_base(struct omap_hwmod *oh, u8 index)
 {
 	struct omap_hwmod_ocp_if *os;
 	struct omap_hwmod_addr_space *mem;
@@ -1435,7 +1435,7 @@ static int _setup(struct omap_hwmod *oh, void *data)
  * that the copy process would be relatively complex due to the large number
  * of substructures.
  */
-static int _register(struct omap_hwmod *oh)
+static int __init _register(struct omap_hwmod *oh)
 {
 	int ret, ms_id;
 
@@ -1587,7 +1587,7 @@ int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
  * listed in @ohs that are valid for this chip.  Returns -EINVAL if
  * omap_hwmod_init() has already been called or 0 otherwise.
  */
-int omap_hwmod_init(struct omap_hwmod **ohs)
+int __init omap_hwmod_init(struct omap_hwmod **ohs)
 {
 	struct omap_hwmod *oh;
 	int r;
