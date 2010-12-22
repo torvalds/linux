@@ -155,17 +155,17 @@ static void o2net_init_nst(struct o2net_send_tracking *nst, u32 msgtype,
 
 static void o2net_set_nst_sock_time(struct o2net_send_tracking *nst)
 {
-	do_gettimeofday(&nst->st_sock_time);
+	nst->st_sock_time = ktime_get();
 }
 
 static void o2net_set_nst_send_time(struct o2net_send_tracking *nst)
 {
-	do_gettimeofday(&nst->st_send_time);
+	nst->st_send_time = ktime_get();
 }
 
 static void o2net_set_nst_status_time(struct o2net_send_tracking *nst)
 {
-	do_gettimeofday(&nst->st_status_time);
+	nst->st_status_time = ktime_get();
 }
 
 static void o2net_set_nst_sock_container(struct o2net_send_tracking *nst,

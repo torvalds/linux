@@ -220,9 +220,9 @@ struct o2net_send_tracking {
 	u32				st_msg_type;
 	u32				st_msg_key;
 	u8				st_node;
-	struct timeval			st_sock_time;
-	struct timeval			st_send_time;
-	struct timeval			st_status_time;
+	ktime_t				st_sock_time;
+	ktime_t				st_send_time;
+	ktime_t				st_status_time;
 };
 #else
 struct o2net_send_tracking {

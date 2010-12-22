@@ -123,9 +123,16 @@ static void *nst_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 static int nst_seq_show(struct seq_file *seq, void *v)
 {
 	struct o2net_send_tracking *nst, *dummy_nst = seq->private;
+	ktime_t now;
+	s64 sock, send, status;
 
 	spin_lock(&o2net_debug_lock);
 	nst = next_nst(dummy_nst);
+
+	now = ktime_get();
+	sock = ktime_to_us(ktime_sub(now, nst->st_sock_time));
+	send = ktime_to_us(ktime_sub(now, nst->st_send_time));
+	status = ktime_to_us(ktime_sub(now, nst->st_status_time));
 
 	if (nst != NULL) {
 		/* get_task_comm isn't exported.  oh well. */
@@ -138,20 +145,17 @@ static int nst_seq_show(struct seq_file *seq, void *v)
 			   "  message id:   %d\n"
 			   "  message type: %u\n"
 			   "  message key:  0x%08x\n"
-			   "  sock acquiry: %lu.%ld\n"
-			   "  send start:   %lu.%ld\n"
-			   "  wait start:   %lu.%ld\n",
+			   "  sock acquiry: %lld usecs ago\n"
+			   "  send start:   %lld usecs ago\n"
+			   "  wait start:   %lld usecs ago\n",
 			   nst, (unsigned long)task_pid_nr(nst->st_task),
 			   (unsigned long)nst->st_task->tgid,
 			   nst->st_task->comm, nst->st_node,
 			   nst->st_sc, nst->st_id, nst->st_msg_type,
 			   nst->st_msg_key,
-			   nst->st_sock_time.tv_sec,
-			   (long)nst->st_sock_time.tv_usec,
-			   nst->st_send_time.tv_sec,
-			   (long)nst->st_send_time.tv_usec,
-			   nst->st_status_time.tv_sec,
-			   (long)nst->st_status_time.tv_usec);
+			   (long long)sock,
+			   (long long)send,
+			   (long long)status);
 	}
 
 	spin_unlock(&o2net_debug_lock);
