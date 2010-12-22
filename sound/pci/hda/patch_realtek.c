@@ -1438,6 +1438,7 @@ do_sku:
 		spec->init_amp = ALC_INIT_GPIO3;
 		break;
 	case 5:
+	default:
 		spec->init_amp = ALC_INIT_DEFAULT;
 		break;
 	}
@@ -9664,7 +9665,6 @@ static struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3bfc, "Lenovo NB0763", ALC883_LENOVO_NB0763),
 	SND_PCI_QUIRK(0x17aa, 0x3bfd, "Lenovo NB0763", ALC883_LENOVO_NB0763),
 	SND_PCI_QUIRK(0x17aa, 0x101d, "Lenovo Sky", ALC888_LENOVO_SKY),
-	SND_PCI_QUIRK(0x17c0, 0x4071, "MEDION MD2", ALC883_MEDION_MD2),
 	SND_PCI_QUIRK(0x17c0, 0x4085, "MEDION MD96630", ALC888_LENOVO_MS7195_DIG),
 	SND_PCI_QUIRK(0x17f2, 0x5000, "Albatron KI690-AM2", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1991, 0x5625, "Haier W66", ALC883_HAIER_W66),
@@ -16557,7 +16557,7 @@ static struct alc_config_preset alc861vd_presets[] = {
 static int alc861vd_auto_create_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	return alc_auto_create_input_ctls(codec, cfg, 0x15, 0x09, 0);
+	return alc_auto_create_input_ctls(codec, cfg, 0x0b, 0x22, 0);
 }
 
 
@@ -18612,6 +18612,8 @@ static inline hda_nid_t alc662_mix_to_dac(hda_nid_t nid)
 		return 0x02;
 	else if (nid >= 0x0c && nid <= 0x0e)
 		return nid - 0x0c + 0x02;
+	else if (nid == 0x26) /* ALC887-VD has this DAC too */
+		return 0x25;
 	else
 		return 0;
 }
@@ -18620,7 +18622,7 @@ static inline hda_nid_t alc662_mix_to_dac(hda_nid_t nid)
 static hda_nid_t alc662_dac_to_mix(struct hda_codec *codec, hda_nid_t pin,
 				   hda_nid_t dac)
 {
-	hda_nid_t mix[4];
+	hda_nid_t mix[5];
 	int i, num;
 
 	num = snd_hda_get_connections(codec, pin, mix, ARRAY_SIZE(mix));
@@ -18935,6 +18937,36 @@ static void alc662_auto_init(struct hda_codec *codec)
 		alc_inithook(codec);
 }
 
+enum {
+	ALC662_FIXUP_ASPIRE,
+	ALC662_FIXUP_IDEAPAD,
+};
+
+static const struct alc_fixup alc662_fixups[] = {
+	[ALC662_FIXUP_ASPIRE] = {
+		.pins = (const struct alc_pincfg[]) {
+			{ 0x15, 0x99130112 }, /* subwoofer */
+			{ }
+		}
+	},
+	[ALC662_FIXUP_IDEAPAD] = {
+		.pins = (const struct alc_pincfg[]) {
+			{ 0x17, 0x99130112 }, /* subwoofer */
+			{ }
+		}
+	},
+};
+
+static struct snd_pci_quirk alc662_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x1025, 0x038b, "Acer Aspire 8943G", ALC662_FIXUP_ASPIRE),
+	SND_PCI_QUIRK(0x144d, 0xc051, "Samsung R720", ALC662_FIXUP_IDEAPAD),
+	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo Ideapad Y550P", ALC662_FIXUP_IDEAPAD),
+	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo Ideapad Y550", ALC662_FIXUP_IDEAPAD),
+	{}
+};
+
+
+
 static int patch_alc662(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
@@ -18967,6 +18999,7 @@ static int patch_alc662(struct hda_codec *codec)
 	}
 
 	if (board_config == ALC662_AUTO) {
+		alc_pick_fixup(codec, alc662_fixup_tbl, alc662_fixups, 1);
 		/* automatic parse from the BIOS config */
 		err = alc662_parse_auto_config(codec);
 		if (err < 0) {
@@ -19025,8 +19058,11 @@ static int patch_alc662(struct hda_codec *codec)
 	spec->vmaster_nid = 0x02;
 
 	codec->patch_ops = alc_patch_ops;
-	if (board_config == ALC662_AUTO)
+	if (board_config == ALC662_AUTO) {
 		spec->init_hook = alc662_auto_init;
+		alc_pick_fixup(codec, alc662_fixup_tbl, alc662_fixups, 0);
+	}
+
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc662_loopbacks;
@@ -19039,7 +19075,10 @@ static int patch_alc888(struct hda_codec *codec)
 {
 	if ((alc_read_coef_idx(codec, 0) & 0x00f0)==0x0030){
 		kfree(codec->chip_name);
-		codec->chip_name = kstrdup("ALC888-VD", GFP_KERNEL);
+		if (codec->vendor_id == 0x10ec0887)
+			codec->chip_name = kstrdup("ALC887-VD", GFP_KERNEL);
+		else
+			codec->chip_name = kstrdup("ALC888-VD", GFP_KERNEL);
 		if (!codec->chip_name) {
 			alc_free(codec);
 			return -ENOMEM;
@@ -19521,7 +19560,7 @@ static struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0885, .rev = 0x100103, .name = "ALC889A",
 	  .patch = patch_alc882 },
 	{ .id = 0x10ec0885, .name = "ALC885", .patch = patch_alc882 },
-	{ .id = 0x10ec0887, .name = "ALC887", .patch = patch_alc882 },
+	{ .id = 0x10ec0887, .name = "ALC887", .patch = patch_alc888 },
 	{ .id = 0x10ec0888, .rev = 0x100101, .name = "ALC1200",
 	  .patch = patch_alc882 },
 	{ .id = 0x10ec0888, .name = "ALC888", .patch = patch_alc888 },

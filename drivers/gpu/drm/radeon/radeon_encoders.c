@@ -595,6 +595,7 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 int
 atombios_get_encoder_mode(struct drm_encoder *encoder)
 {
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_connector *connector;
@@ -602,9 +603,20 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
 	struct radeon_connector_atom_dig *dig_connector;
 
 	connector = radeon_get_connector_for_encoder(encoder);
-	if (!connector)
-		return 0;
-
+	if (!connector) {
+		switch (radeon_encoder->encoder_id) {
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
+		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
+		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
+		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
+			return ATOM_ENCODER_MODE_DVI;
+		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
+		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
+		default:
+			return ATOM_ENCODER_MODE_CRT;
+		}
+	}
 	radeon_connector = to_radeon_connector(connector);
 
 	switch (connector->connector_type) {
@@ -1547,6 +1559,23 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig;
+
+	/* check for pre-DCE3 cards with shared encoders;
+	 * can't really use the links individually, so don't disable
+	 * the encoder if it's in use by another connector
+	 */
+	if (!ASIC_IS_DCE3(rdev)) {
+		struct drm_encoder *other_encoder;
+		struct radeon_encoder *other_radeon_encoder;
+
+		list_for_each_entry(other_encoder, &dev->mode_config.encoder_list, head) {
+			other_radeon_encoder = to_radeon_encoder(other_encoder);
+			if ((radeon_encoder->encoder_id == other_radeon_encoder->encoder_id) &&
+			    drm_helper_encoder_in_use(other_encoder))
+				goto disable_done;
+		}
+	}
+
 	radeon_atom_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
 
 	switch (radeon_encoder->encoder_id) {
@@ -1586,6 +1615,7 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 		break;
 	}
 
+disable_done:
 	if (radeon_encoder_is_digital(encoder)) {
 		if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI)
 			r600_hdmi_disable(encoder);

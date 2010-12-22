@@ -188,7 +188,6 @@ static int wm8900_volatile_register(unsigned int reg)
 {
 	switch (reg) {
 	case WM8900_REG_ID:
-	case WM8900_REG_POWER1:
 		return 1;
 	default:
 		return 0;
@@ -1235,11 +1234,6 @@ static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 		ret = -ENODEV;
 		goto err;
 	}
-
-	/* Read back from the chip */
-	reg = snd_soc_read(codec, WM8900_REG_POWER1);
-	reg = (reg >> 12) & 0xf;
-	dev_info(&i2c->dev, "WM8900 revision %d\n", reg);
 
 	wm8900_reset(codec);
 

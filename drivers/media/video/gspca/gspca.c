@@ -652,7 +652,7 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 				   : USB_ENDPOINT_XFER_ISOC;
 	i = gspca_dev->alt;			/* previous alt setting */
 	if (gspca_dev->cam.reverse_alts) {
-		if (gspca_dev->audio)
+		if (gspca_dev->audio && i < gspca_dev->nbalt - 2)
 			i++;
 		while (++i < gspca_dev->nbalt) {
 			ep = alt_xfer(&intf->altsetting[i], xfer);
@@ -660,7 +660,7 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 				break;
 		}
 	} else {
-		if (gspca_dev->audio)
+		if (gspca_dev->audio && i > 1)
 			i--;
 		while (--i >= 0) {
 			ep = alt_xfer(&intf->altsetting[i], xfer);

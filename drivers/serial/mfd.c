@@ -892,8 +892,7 @@ serial_hsu_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned char cval, fcr = 0;
 	unsigned long flags;
 	unsigned int baud, quot;
-	u32 mul = 0x3600;
-	u32 ps = 0x10;
+	u32 ps, mul;
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
@@ -937,20 +936,19 @@ serial_hsu_set_termios(struct uart_port *port, struct ktermios *termios,
 		ps = 0xC;
 		quot = 1;
 		break;
-	case 2500000:
-		mul = 0x2710;
-		ps = 0x10;
-		quot = 1;
-		break;
 	case 18432000:
 		mul = 0x2400;
 		ps = 0x10;
 		quot = 1;
 		break;
+	case 3000000:
+	case 2500000:
+	case 2000000:
 	case 1500000:
-		mul = 0x1D4C;
-		ps = 0xc;
-		quot = 1;
+ 	case 1000000:
+ 	case 500000:
+		/* mul/ps/quot = 0x9C4/0x10/0x1 will make a 500000 bps */
+		mul = baud / 500000 * 0x9C4;
 		break;
 	default:
 		;

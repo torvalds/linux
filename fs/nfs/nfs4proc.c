@@ -255,9 +255,6 @@ static int nfs4_handle_exception(const struct nfs_server *server, int errorcode,
 			nfs4_state_mark_reclaim_nograce(clp, state);
 			goto do_state_recovery;
 		case -NFS4ERR_STALE_STATEID:
-			if (state == NULL)
-				break;
-			nfs4_state_mark_reclaim_reboot(clp, state);
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_EXPIRED:
 			goto do_state_recovery;
@@ -1120,6 +1117,7 @@ static int nfs4_open_recover(struct nfs4_opendata *opendata, struct nfs4_state *
 	clear_bit(NFS_DELEGATED_STATE, &state->flags);
 	smp_rmb();
 	if (state->n_rdwr != 0) {
+		clear_bit(NFS_O_RDWR_STATE, &state->flags);
 		ret = nfs4_open_recover_helper(opendata, FMODE_READ|FMODE_WRITE, &newstate);
 		if (ret != 0)
 			return ret;
@@ -1127,6 +1125,7 @@ static int nfs4_open_recover(struct nfs4_opendata *opendata, struct nfs4_state *
 			return -ESTALE;
 	}
 	if (state->n_wronly != 0) {
+		clear_bit(NFS_O_WRONLY_STATE, &state->flags);
 		ret = nfs4_open_recover_helper(opendata, FMODE_WRITE, &newstate);
 		if (ret != 0)
 			return ret;
@@ -1134,6 +1133,7 @@ static int nfs4_open_recover(struct nfs4_opendata *opendata, struct nfs4_state *
 			return -ESTALE;
 	}
 	if (state->n_rdonly != 0) {
+		clear_bit(NFS_O_RDONLY_STATE, &state->flags);
 		ret = nfs4_open_recover_helper(opendata, FMODE_READ, &newstate);
 		if (ret != 0)
 			return ret;
@@ -3490,9 +3490,6 @@ nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, 
 			nfs4_state_mark_reclaim_nograce(clp, state);
 			goto do_state_recovery;
 		case -NFS4ERR_STALE_STATEID:
-			if (state == NULL)
-				break;
-			nfs4_state_mark_reclaim_reboot(clp, state);
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_EXPIRED:
 			goto do_state_recovery;

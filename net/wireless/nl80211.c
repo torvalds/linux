@@ -761,11 +761,13 @@ static int nl80211_set_channel(struct sk_buff *skb, struct genl_info *info)
 
 	result = get_rdev_dev_by_info_ifindex(info, &rdev, &netdev);
 	if (result)
-		goto unlock;
+		goto unlock_rtnl;
 
 	result = __nl80211_set_channel(rdev, netdev->ieee80211_ptr, info);
 
- unlock:
+	dev_put(netdev);
+	cfg80211_unlock_rdev(rdev);
+ unlock_rtnl:
 	rtnl_unlock();
 
 	return result;
@@ -4996,7 +4998,7 @@ static int nl80211_set_cqm_rssi(struct genl_info *info,
 
 	err = get_rdev_dev_by_info_ifindex(info, &rdev, &dev);
 	if (err)
-		goto unlock_rdev;
+		goto unlock_rtnl;
 
 	wdev = dev->ieee80211_ptr;
 
@@ -5013,9 +5015,10 @@ static int nl80211_set_cqm_rssi(struct genl_info *info,
 	err = rdev->ops->set_cqm_rssi_config(wdev->wiphy, dev,
 					     threshold, hysteresis);
 
-unlock_rdev:
+ unlock_rdev:
 	cfg80211_unlock_rdev(rdev);
 	dev_put(dev);
+ unlock_rtnl:
 	rtnl_unlock();
 
 	return err;

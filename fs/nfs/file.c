@@ -551,7 +551,7 @@ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct file *filp = vma->vm_file;
 	struct dentry *dentry = filp->f_path.dentry;
 	unsigned pagelen;
-	int ret = -EINVAL;
+	int ret = VM_FAULT_NOPAGE;
 	struct address_space *mapping;
 
 	dfprintk(PAGECACHE, "NFS: vm_page_mkwrite(%s/%s(%ld), offset %lld)\n",
@@ -567,21 +567,20 @@ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (mapping != dentry->d_inode->i_mapping)
 		goto out_unlock;
 
-	ret = 0;
 	pagelen = nfs_page_length(page);
 	if (pagelen == 0)
 		goto out_unlock;
 
-	ret = nfs_flush_incompatible(filp, page);
-	if (ret != 0)
-		goto out_unlock;
+	ret = VM_FAULT_LOCKED;
+	if (nfs_flush_incompatible(filp, page) == 0 &&
+	    nfs_updatepage(filp, page, 0, pagelen) == 0)
+		goto out;
 
-	ret = nfs_updatepage(filp, page, 0, pagelen);
+	ret = VM_FAULT_SIGBUS;
 out_unlock:
-	if (!ret)
-		return VM_FAULT_LOCKED;
 	unlock_page(page);
-	return VM_FAULT_SIGBUS;
+out:
+	return ret;
 }
 
 static const struct vm_operations_struct nfs_file_vm_ops = {
