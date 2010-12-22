@@ -299,6 +299,7 @@ out:
 	local_irq_enable();
 }
 
+#ifdef CONFIG_SUSPEND
 static int omap2_pm_begin(suspend_state_t state)
 {
 	disable_hlt();
@@ -355,6 +356,9 @@ static struct platform_suspend_ops omap_pm_ops = {
 	.end		= omap2_pm_end,
 	.valid		= suspend_valid_only_mem,
 };
+#else
+static const struct platform_suspend_ops __initdata omap_pm_ops;
+#endif /* CONFIG_SUSPEND */
 
 /* XXX This function should be shareable between OMAP2xxx and OMAP3 */
 static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
