@@ -25,6 +25,7 @@
 #include <asm/tls.h>
 
 #include "entry-header.S"
+#include <asm/entry-macro-multi.S>
 
 /*
  * Interrupt handling.  Preserves r7, r8, r9
@@ -38,35 +39,7 @@
 	teq	r5, #0
 	movne	pc, r5
 #endif
-	get_irqnr_preamble r5, lr
-1:	get_irqnr_and_base r0, r6, r5, lr
-	movne	r1, sp
-	@
-	@ routine called with r0 = irq number, r1 = struct pt_regs *
-	@
-	adrne	lr, BSYM(1b)
-	bne	asm_do_IRQ
-
-#ifdef CONFIG_SMP
-	/*
-	 * XXX
-	 *
-	 * this macro assumes that irqstat (r6) and base (r5) are
-	 * preserved from get_irqnr_and_base above
-	 */
-	ALT_SMP(test_for_ipi r0, r6, r5, lr)
-	ALT_UP_B(9997f)
-	movne	r0, sp
-	adrne	lr, BSYM(1b)
-	bne	do_IPI
-
-#ifdef CONFIG_LOCAL_TIMERS
-	test_for_ltirq r0, r6, r5, lr
-	movne	r0, sp
-	adrne	lr, BSYM(1b)
-	bne	do_local_timer
-#endif
-#endif
+	arch_irq_handler_default
 9997:
 	.endm
 
