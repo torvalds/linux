@@ -335,6 +335,24 @@ bail:
 	drbd_force_state(mdev, NS(conn, C_PROTOCOL_ERROR));
 }
 
+
+/* In C_AHEAD mode only out_of_sync packets are sent for requests. Detach
+ * those requests from the newsest barrier when changing to an other cstate.
+ *
+ * That headless list vanishes when the last request finished its write or
+ * send out_of_sync packet.  */
+static void tl_forget(struct drbd_conf *mdev)
+{
+	struct drbd_tl_epoch *b;
+
+	if (test_bit(CREATE_BARRIER, &mdev->flags))
+		return;
+
+	b = mdev->newest_tle;
+	list_del(&b->requests);
+	_tl_add_barrier(mdev, b);
+}
+
 /**
  * _tl_restart() - Walks the transfer log, and applies an action to all requests
  * @mdev:	DRBD device.
@@ -1241,6 +1259,9 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	/* Resume AL writing if we get a connection */
 	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
 		drbd_resume_al(mdev);
+
+	if (os.conn == C_AHEAD && ns.conn != C_AHEAD)
+		tl_forget(mdev);
 
 	ascw = kmalloc(sizeof(*ascw), GFP_ATOMIC);
 	if (ascw) {
