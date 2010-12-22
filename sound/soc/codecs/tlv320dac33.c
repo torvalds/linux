@@ -764,6 +764,8 @@ static int dac33_startup(struct snd_pcm_substream *substream,
 	/* Stream started, save the substream pointer */
 	dac33->substream = substream;
 
+	snd_pcm_hw_constraint_msbits(substream->runtime, 0, 32, 24);
+
 	return 0;
 }
 
@@ -802,6 +804,10 @@ static int dac33_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S16_LE:
 		dac33->fifo_size = DAC33_FIFO_SIZE_16BIT;
 		dac33->burst_rate = CALC_BURST_RATE(dac33->burst_bclkdiv, 32);
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		dac33->fifo_size = DAC33_FIFO_SIZE_24BIT;
+		dac33->burst_rate = CALC_BURST_RATE(dac33->burst_bclkdiv, 64);
 		break;
 	default:
 		dev_err(codec->dev, "unsupported format %d\n",
@@ -855,6 +861,9 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 	case SNDRV_PCM_FORMAT_S16_LE:
 		aictrl_a |= (DAC33_NCYCL_16 | DAC33_WLEN_16);
 		fifoctrl_a |= DAC33_WIDTH;
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		aictrl_a |= (DAC33_NCYCL_32 | DAC33_WLEN_24);
 		break;
 	default:
 		dev_err(codec->dev, "unsupported format %d\n",
@@ -990,7 +999,10 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 		dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_C,
 							dac33->burst_bclkdiv);
 	else
-		dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_C, 32);
+		if (substream->runtime->format == SNDRV_PCM_FORMAT_S16_LE)
+			dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_C, 32);
+		else
+			dac33_write(codec, DAC33_SER_AUDIOIF_CTRL_C, 16);
 
 	switch (dac33->fifo_mode) {
 	case DAC33_FIFO_MODE1:
@@ -1438,7 +1450,7 @@ static struct snd_soc_codec_driver soc_codec_dev_tlv320dac33 = {
 
 #define DAC33_RATES	(SNDRV_PCM_RATE_44100 | \
 			 SNDRV_PCM_RATE_48000)
-#define DAC33_FORMATS	SNDRV_PCM_FMTBIT_S16_LE
+#define DAC33_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_ops dac33_dai_ops = {
 	.startup	= dac33_startup,
