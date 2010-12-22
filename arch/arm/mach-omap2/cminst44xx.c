@@ -26,6 +26,7 @@
 #include "cm2_44xx.h"
 #include "cm44xx.h"
 #include "cminst44xx.h"
+#include "cm-regbits-34xx.h"
 #include "cm-regbits-44xx.h"
 #include "prcm44xx.h"
 #include "prm44xx.h"
@@ -72,6 +73,110 @@ u32 omap4_cminst_rmw_inst_reg_bits(u32 mask, u32 bits, u8 part, s16 inst,
 	return v;
 }
 
+/*
+ *
+ */
+
+/**
+ * _clktrctrl_write - write @c to a CM_CLKSTCTRL.CLKTRCTRL register bitfield
+ * @c: CLKTRCTRL register bitfield (LSB = bit 0, i.e., unshifted)
+ * @part: PRCM partition ID that the CM_CLKSTCTRL register exists in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ *
+ * @c must be the unshifted value for CLKTRCTRL - i.e., this function
+ * will handle the shift itself.
+ */
+static void _clktrctrl_write(u8 c, u8 part, s16 inst, u16 cdoffs)
+{
+	u32 v;
+
+	v = omap4_cminst_read_inst_reg(part, inst, cdoffs + OMAP4_CM_CLKSTCTRL);
+	v &= ~OMAP4430_CLKTRCTRL_MASK;
+	v |= c << OMAP4430_CLKTRCTRL_SHIFT;
+	omap4_cminst_write_inst_reg(v, part, inst, cdoffs + OMAP4_CM_CLKSTCTRL);
+}
+
+/**
+ * omap4_cminst_is_clkdm_in_hwsup - is a clockdomain in hwsup idle mode?
+ * @part: PRCM partition ID that the CM_CLKSTCTRL register exists in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ *
+ * Returns true if the clockdomain referred to by (@part, @inst, @cdoffs)
+ * is in hardware-supervised idle mode, or 0 otherwise.
+ */
+bool omap4_cminst_is_clkdm_in_hwsup(u8 part, s16 inst, u16 cdoffs)
+{
+	u32 v;
+
+	v = omap4_cminst_read_inst_reg(part, inst, cdoffs + OMAP4_CM_CLKSTCTRL);
+	v &= OMAP4430_CLKTRCTRL_MASK;
+	v >>= OMAP4430_CLKTRCTRL_SHIFT;
+
+	return (v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO) ? true : false;
+}
+
+/**
+ * omap4_cminst_clkdm_enable_hwsup - put a clockdomain in hwsup-idle mode
+ * @part: PRCM partition ID that the clockdomain registers exist in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ *
+ * Put a clockdomain referred to by (@part, @inst, @cdoffs) into
+ * hardware-supervised idle mode.  No return value.
+ */
+void omap4_cminst_clkdm_enable_hwsup(u8 part, s16 inst, u16 cdoffs)
+{
+	_clktrctrl_write(OMAP34XX_CLKSTCTRL_ENABLE_AUTO, part, inst, cdoffs);
+}
+
+/**
+ * omap4_cminst_clkdm_disable_hwsup - put a clockdomain in swsup-idle mode
+ * @part: PRCM partition ID that the clockdomain registers exist in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ *
+ * Put a clockdomain referred to by (@part, @inst, @cdoffs) into
+ * software-supervised idle mode, i.e., controlled manually by the
+ * Linux OMAP clockdomain code.  No return value.
+ */
+void omap4_cminst_clkdm_disable_hwsup(u8 part, s16 inst, u16 cdoffs)
+{
+	_clktrctrl_write(OMAP34XX_CLKSTCTRL_DISABLE_AUTO, part, inst, cdoffs);
+}
+
+/**
+ * omap4_cminst_clkdm_force_sleep - try to put a clockdomain into idle
+ * @part: PRCM partition ID that the clockdomain registers exist in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ *
+ * Put a clockdomain referred to by (@part, @inst, @cdoffs) into idle
+ * No return value.
+ */
+void omap4_cminst_clkdm_force_sleep(u8 part, s16 inst, u16 cdoffs)
+{
+	_clktrctrl_write(OMAP34XX_CLKSTCTRL_FORCE_SLEEP, part, inst, cdoffs);
+}
+
+/**
+ * omap4_cminst_clkdm_force_sleep - try to take a clockdomain out of idle
+ * @part: PRCM partition ID that the clockdomain registers exist in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ *
+ * Take a clockdomain referred to by (@part, @inst, @cdoffs) out of idle,
+ * waking it up.  No return value.
+ */
+void omap4_cminst_clkdm_force_wakeup(u8 part, s16 inst, u16 cdoffs)
+{
+	_clktrctrl_write(OMAP34XX_CLKSTCTRL_FORCE_WAKEUP, part, inst, cdoffs);
+}
+
+/*
+ *
+ */
 
 /**
  * omap4_cm_wait_module_ready - wait for a module to be in 'func' state

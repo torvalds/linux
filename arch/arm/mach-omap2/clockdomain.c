@@ -29,6 +29,9 @@
 #include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
 #include "cm2xxx_3xxx.h"
+#include "cm-regbits-34xx.h"
+#include "cminst44xx.h"
+#include "prcm44xx.h"
 
 #include <plat/clock.h>
 #include <plat/powerdomain.h>
@@ -247,13 +250,21 @@ static void _enable_hwsup(struct clockdomain *clkdm)
 
 	if (cpu_is_omap24xx())
 		bits = OMAP24XX_CLKSTCTRL_ENABLE_AUTO;
-	else if (cpu_is_omap34xx() || cpu_is_omap44xx())
+	else if (cpu_is_omap34xx())
 		bits = OMAP34XX_CLKSTCTRL_ENABLE_AUTO;
+	else if (cpu_is_omap44xx())
+		return omap4_cminst_clkdm_enable_hwsup(clkdm->prcm_partition,
+						       clkdm->cm_inst,
+						       clkdm->clkdm_offs);
 	else
 		BUG();
 
 	bits = bits << __ffs(clkdm->clktrctrl_mask);
 
+	/*
+	 * XXX clkstctrl_reg is known on OMAP2 - this clkdm
+	 * field is not needed
+	 */
 	v = __raw_readl(clkdm->clkstctrl_reg);
 	v &= ~(clkdm->clktrctrl_mask);
 	v |= bits;
@@ -275,21 +286,27 @@ static void _disable_hwsup(struct clockdomain *clkdm)
 {
 	u32 bits, v;
 
-	if (cpu_is_omap24xx()) {
+	if (cpu_is_omap24xx())
 		bits = OMAP24XX_CLKSTCTRL_DISABLE_AUTO;
-	} else if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
+	else if (cpu_is_omap34xx())
 		bits = OMAP34XX_CLKSTCTRL_DISABLE_AUTO;
-	} else {
+	else if (cpu_is_omap44xx())
+		return omap4_cminst_clkdm_disable_hwsup(clkdm->prcm_partition,
+							clkdm->cm_inst,
+							clkdm->clkdm_offs);
+	else
 		BUG();
-	}
 
 	bits = bits << __ffs(clkdm->clktrctrl_mask);
 
+	/*
+	 * XXX clkstctrl_reg is known on OMAP2 - this clkdm
+	 * field is not needed
+	 */
 	v = __raw_readl(clkdm->clkstctrl_reg);
 	v &= ~(clkdm->clktrctrl_mask);
 	v |= bits;
 	__raw_writel(v, clkdm->clkstctrl_reg);
-
 }
 
 /* Public functions */
@@ -727,14 +744,20 @@ int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
  */
 static int omap2_clkdm_clktrctrl_read(struct clockdomain *clkdm)
 {
-	u32 v;
+	u32 v = 0;
 
 	if (!clkdm)
 		return -EINVAL;
 
-	v = __raw_readl(clkdm->clkstctrl_reg);
-	v &= clkdm->clktrctrl_mask;
-	v >>= __ffs(clkdm->clktrctrl_mask);
+	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
+		v = __raw_readl(clkdm->clkstctrl_reg);
+		v &= clkdm->clktrctrl_mask;
+		v >>= __ffs(clkdm->clktrctrl_mask);
+	} else if (cpu_is_omap44xx()) {
+		pr_warn("OMAP4 clockdomain: missing wakeup/sleep deps\n");
+	} else {
+		BUG();
+	}
 
 	return v;
 }
@@ -750,6 +773,8 @@ static int omap2_clkdm_clktrctrl_read(struct clockdomain *clkdm)
  */
 int omap2_clkdm_sleep(struct clockdomain *clkdm)
 {
+	u32 bits, v;
+
 	if (!clkdm)
 		return -EINVAL;
 
@@ -766,15 +791,21 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
 		omap2_cm_set_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
 			    clkdm->pwrdm.ptr->prcm_offs, OMAP2_PM_PWSTCTRL);
 
-	} else if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
+	} else if (cpu_is_omap34xx()) {
 
-		u32 bits = (OMAP34XX_CLKSTCTRL_FORCE_SLEEP <<
-			 __ffs(clkdm->clktrctrl_mask));
+		bits = (OMAP34XX_CLKSTCTRL_FORCE_SLEEP <<
+			__ffs(clkdm->clktrctrl_mask));
 
-		u32 v = __raw_readl(clkdm->clkstctrl_reg);
+		v = __raw_readl(clkdm->clkstctrl_reg);
 		v &= ~(clkdm->clktrctrl_mask);
 		v |= bits;
 		__raw_writel(v, clkdm->clkstctrl_reg);
+
+	} else if (cpu_is_omap44xx()) {
+
+		omap4_cminst_clkdm_force_sleep(clkdm->prcm_partition,
+					       clkdm->cm_inst,
+					       clkdm->clkdm_offs);
 
 	} else {
 		BUG();
@@ -794,6 +825,8 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
  */
 int omap2_clkdm_wakeup(struct clockdomain *clkdm)
 {
+	u32 bits, v;
+
 	if (!clkdm)
 		return -EINVAL;
 
@@ -810,15 +843,21 @@ int omap2_clkdm_wakeup(struct clockdomain *clkdm)
 		omap2_cm_clear_mod_reg_bits(OMAP24XX_FORCESTATE_MASK,
 			      clkdm->pwrdm.ptr->prcm_offs, OMAP2_PM_PWSTCTRL);
 
-	} else if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
+	} else if (cpu_is_omap34xx()) {
 
-		u32 bits = (OMAP34XX_CLKSTCTRL_FORCE_WAKEUP <<
-			 __ffs(clkdm->clktrctrl_mask));
+		bits = (OMAP34XX_CLKSTCTRL_FORCE_WAKEUP <<
+			__ffs(clkdm->clktrctrl_mask));
 
-		u32 v = __raw_readl(clkdm->clkstctrl_reg);
+		v = __raw_readl(clkdm->clkstctrl_reg);
 		v &= ~(clkdm->clktrctrl_mask);
 		v |= bits;
 		__raw_writel(v, clkdm->clkstctrl_reg);
+
+	} else if (cpu_is_omap44xx()) {
+
+		omap4_cminst_clkdm_force_wakeup(clkdm->prcm_partition,
+						clkdm->cm_inst,
+						clkdm->clkdm_offs);
 
 	} else {
 		BUG();
