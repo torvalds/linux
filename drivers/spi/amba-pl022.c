@@ -782,9 +782,9 @@ static void *next_transfer(struct pl022 *pl022)
 static void unmap_free_dma_scatter(struct pl022 *pl022)
 {
 	/* Unmap and free the SG tables */
-	dma_unmap_sg(&pl022->adev->dev, pl022->sgt_tx.sgl,
+	dma_unmap_sg(pl022->dma_tx_channel->device->dev, pl022->sgt_tx.sgl,
 		     pl022->sgt_tx.nents, DMA_TO_DEVICE);
-	dma_unmap_sg(&pl022->adev->dev, pl022->sgt_rx.sgl,
+	dma_unmap_sg(pl022->dma_rx_channel->device->dev, pl022->sgt_rx.sgl,
 		     pl022->sgt_rx.nents, DMA_FROM_DEVICE);
 	sg_free_table(&pl022->sgt_rx);
 	sg_free_table(&pl022->sgt_tx);
@@ -991,12 +991,12 @@ static int configure_dma(struct pl022 *pl022)
 			  pl022->cur_transfer->len, &pl022->sgt_tx);
 
 	/* Map DMA buffers */
-	sglen = dma_map_sg(&pl022->adev->dev, pl022->sgt_rx.sgl,
+	sglen = dma_map_sg(rxchan->device->dev, pl022->sgt_rx.sgl,
 			   pl022->sgt_rx.nents, DMA_FROM_DEVICE);
 	if (!sglen)
 		goto err_rx_sgmap;
 
-	sglen = dma_map_sg(&pl022->adev->dev, pl022->sgt_tx.sgl,
+	sglen = dma_map_sg(txchan->device->dev, pl022->sgt_tx.sgl,
 			   pl022->sgt_tx.nents, DMA_TO_DEVICE);
 	if (!sglen)
 		goto err_tx_sgmap;
@@ -1040,10 +1040,10 @@ err_txdesc:
 	txchan->device->device_control(txchan, DMA_TERMINATE_ALL, 0);
 err_rxdesc:
 	rxchan->device->device_control(rxchan, DMA_TERMINATE_ALL, 0);
-	dma_unmap_sg(&pl022->adev->dev, pl022->sgt_tx.sgl,
+	dma_unmap_sg(txchan->device->dev, pl022->sgt_tx.sgl,
 		     pl022->sgt_tx.nents, DMA_TO_DEVICE);
 err_tx_sgmap:
-	dma_unmap_sg(&pl022->adev->dev, pl022->sgt_rx.sgl,
+	dma_unmap_sg(rxchan->device->dev, pl022->sgt_rx.sgl,
 		     pl022->sgt_tx.nents, DMA_FROM_DEVICE);
 err_rx_sgmap:
 	sg_free_table(&pl022->sgt_tx);
