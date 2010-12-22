@@ -215,8 +215,8 @@ static void tpt_trig_timer(unsigned long data)
 	read_unlock(&tpt_trig->trig.leddev_list_lock);
 }
 
-extern char *__ieee80211_create_tpt_led_trigger(
-				struct ieee80211_hw *hw, unsigned int flags,
+char *__ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw,
+				unsigned int flags,
 				const struct ieee80211_tpt_blink *blink_table,
 				unsigned int blink_table_len)
 {
