@@ -1542,7 +1542,8 @@ int rk28_usb_suspend( int exitsuspend )
 
     unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
     if(exitsuspend && (pcd->phy_suspend == 1)) {
-        clk_enable(pcd->otg_dev->clk);
+        clk_enable(pcd->otg_dev->ahbclk);
+        clk_enable(pcd->otg_dev->phyclk);
         pcd->phy_suspend = 0;
         *otg_phy_con1 |= (0x01<<2);
         *otg_phy_con1 |= (0x01<<3);    // exit suspend.
@@ -1556,7 +1557,8 @@ int rk28_usb_suspend( int exitsuspend )
         pcd->phy_suspend = 1;
         *otg_phy_con1 |= (0x01<<2);
         *otg_phy_con1 &= ~(0x01<<3);    // enter suspend.
-        clk_disable(pcd->otg_dev->clk);
+        clk_disable(pcd->otg_dev->phyclk);
+        clk_disable(pcd->otg_dev->ahbclk);
         //*otg_phy_con1 &= ~(0x01<<2);
         //debug_print("disable usb phy\n");
         DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
