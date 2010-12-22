@@ -63,22 +63,6 @@
 #define UART_DR_ERROR		(UART011_DR_OE|UART011_DR_BE|UART011_DR_PE|UART011_DR_FE)
 #define UART_DUMMY_DR_RX	(1 << 16)
 
-/*
- * We wrap our port structure around the generic uart_port.
- */
-struct uart_amba_port {
-	struct uart_port	port;
-	struct clk		*clk;
-	unsigned int		im;		/* interrupt mask */
-	unsigned int		old_status;
-	unsigned int		ifls;		/* vendor-specific */
-	unsigned int		lcrh_tx;	/* vendor-specific */
-	unsigned int		lcrh_rx;	/* vendor-specific */
-	bool			oversampling;   /* vendor-specific */
-	bool			autorts;
-	char			type[12];
-};
-
 /* There is by now at least one vendor with differing details, so handle it */
 struct vendor_data {
 	unsigned int		ifls;
@@ -102,6 +86,21 @@ static struct vendor_data vendor_st = {
 	.lcrh_tx		= ST_UART011_LCRH_TX,
 	.lcrh_rx		= ST_UART011_LCRH_RX,
 	.oversampling		= true,
+};
+
+/*
+ * We wrap our port structure around the generic uart_port.
+ */
+struct uart_amba_port {
+	struct uart_port	port;
+	struct clk		*clk;
+	const struct vendor_data *vendor;
+	unsigned int		im;		/* interrupt mask */
+	unsigned int		old_status;
+	unsigned int		lcrh_tx;	/* vendor-specific */
+	unsigned int		lcrh_rx;	/* vendor-specific */
+	bool			autorts;
+	char			type[12];
 };
 
 static void pl011_stop_tx(struct uart_port *port)
@@ -397,7 +396,7 @@ static int pl011_startup(struct uart_port *port)
 	if (retval)
 		goto clk_dis;
 
-	writew(uap->ifls, uap->port.membase + UART011_IFLS);
+	writew(uap->vendor->ifls, uap->port.membase + UART011_IFLS);
 
 	/*
 	 * Provoke TX FIFO interrupt into asserting.
@@ -503,13 +502,18 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
 	unsigned int lcr_h, old_cr;
 	unsigned long flags;
-	unsigned int baud, quot;
+	unsigned int baud, quot, clkdiv;
+
+	if (uap->vendor->oversampling)
+		clkdiv = 8;
+	else
+		clkdiv = 16;
 
 	/*
 	 * Ask the core to calculate the divisor for us.
 	 */
 	baud = uart_get_baud_rate(port, termios, old, 0,
-				  port->uartclk/(uap->oversampling ? 8 : 16));
+				  port->uartclk / clkdiv);
 
 	if (baud > port->uartclk/16)
 		quot = DIV_ROUND_CLOSEST(port->uartclk * 8, baud);
@@ -593,8 +597,8 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 		uap->autorts = false;
 	}
 
-	if (uap->oversampling) {
-		if (baud > port->uartclk/16)
+	if (uap->vendor->oversampling) {
+		if (baud > port->uartclk / 16)
 			old_cr |= ST_UART011_CR_OVSFACT;
 		else
 			old_cr &= ~ST_UART011_CR_OVSFACT;
@@ -767,7 +771,7 @@ pl011_console_get_options(struct uart_amba_port *uap, int *baud,
 
 		*baud = uap->port.uartclk * 4 / (64 * ibrd + fbrd);
 
-		if (uap->oversampling) {
+		if (uap->vendor->oversampling) {
 			if (readw(uap->port.membase + UART011_CR)
 				  & ST_UART011_CR_OVSFACT)
 				*baud *= 2;
@@ -864,10 +868,9 @@ static int pl011_probe(struct amba_device *dev, struct amba_id *id)
 		goto unmap;
 	}
 
-	uap->ifls = vendor->ifls;
+	uap->vendor = vendor;
 	uap->lcrh_rx = vendor->lcrh_rx;
 	uap->lcrh_tx = vendor->lcrh_tx;
-	uap->oversampling = vendor->oversampling;
 	uap->port.dev = &dev->dev;
 	uap->port.mapbase = dev->res.start;
 	uap->port.membase = base;
