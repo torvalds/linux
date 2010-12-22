@@ -643,10 +643,11 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 	else
 		gb_tiling_config |= BANK_TILING((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
 	rdev->config.rv770.tiling_nbanks = 4 << ((gb_tiling_config >> 4) & 0x3);
-
-	gb_tiling_config |= GROUP_SIZE(0);
-	rdev->config.rv770.tiling_group_size = 256;
-
+	gb_tiling_config |= GROUP_SIZE((mc_arb_ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT);
+	if ((mc_arb_ramcfg & BURSTLENGTH_MASK) >> BURSTLENGTH_SHIFT)
+		rdev->config.rv770.tiling_group_size = 512;
+	else
+		rdev->config.rv770.tiling_group_size = 256;
 	if (((mc_arb_ramcfg & NOOFROWS_MASK) >> NOOFROWS_SHIFT) > 3) {
 		gb_tiling_config |= ROW_TILING(3);
 		gb_tiling_config |= SAMPLE_SPLIT(3);

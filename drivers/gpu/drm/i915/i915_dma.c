@@ -2306,6 +2306,9 @@ int i915_driver_unload(struct drm_device *dev)
 		i915_gem_lastclose(dev);
 
 		intel_cleanup_overlay(dev);
+
+		if (!I915_NEED_GFX_HWS(dev))
+			i915_free_hws(dev);
 	}
 
 	intel_teardown_mchbar(dev);

@@ -3258,8 +3258,9 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 			continue;
 
 		/* Bypass ports whose FCP-4 type is not FCP_SCSI */
-		if (new_fcport->fc4_type != FC4_TYPE_FCP_SCSI &&
-		    new_fcport->fc4_type != FC4_TYPE_UNKNOWN)
+		if (ql2xgffidenable &&
+		    (new_fcport->fc4_type != FC4_TYPE_FCP_SCSI &&
+		    new_fcport->fc4_type != FC4_TYPE_UNKNOWN))
 			continue;
 
 		/* Locate matching device in database. */

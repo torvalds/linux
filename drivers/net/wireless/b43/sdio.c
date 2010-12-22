@@ -163,6 +163,7 @@ static int b43_sdio_probe(struct sdio_func *func,
 err_free_ssb:
 	kfree(sdio);
 err_disable_func:
+	sdio_claim_host(func);
 	sdio_disable_func(func);
 err_release_host:
 	sdio_release_host(func);
@@ -175,7 +176,9 @@ static void b43_sdio_remove(struct sdio_func *func)
 	struct b43_sdio *sdio = sdio_get_drvdata(func);
 
 	ssb_bus_unregister(&sdio->ssb);
+	sdio_claim_host(func);
 	sdio_disable_func(func);
+	sdio_release_host(func);
 	kfree(sdio);
 	sdio_set_drvdata(func, NULL);
 }
