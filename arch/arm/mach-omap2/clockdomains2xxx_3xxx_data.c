@@ -4,7 +4,7 @@
  * Copyright (C) 2008-2009 Texas Instruments, Inc.
  * Copyright (C) 2008-2010 Nokia Corporation
  *
- * Written by Paul Walmsley and Jouni Högander
+ * Paul Walmsley, Jouni Högander
  *
  * This file contains clockdomains and clockdomain wakeup/sleep
  * dependencies for the OMAP2/3 chips.  Some notes:
@@ -32,8 +32,8 @@
  *    from the Power domain framework
  */
 
-#ifndef __ARCH_ARM_MACH_OMAP2_CLOCKDOMAINS_H
-#define __ARCH_ARM_MACH_OMAP2_CLOCKDOMAINS_H
+#include <linux/kernel.h>
+#include <linux/io.h>
 
 #include <plat/clockdomain.h>
 #include "cm.h"
@@ -88,8 +88,6 @@ static struct clkdm_dep gfx_sgx_wkdeps[] = {
 
 
 /* 24XX-specific possible dependencies */
-
-#ifdef CONFIG_ARCH_OMAP2
 
 /* Wakeup dependency source arrays */
 
@@ -169,8 +167,6 @@ static struct clkdm_dep core_24xx_wkdeps[] = {
 	},
 	{ NULL },
 };
-
-#endif
 
 
 /* 2430-specific possible wakeup dependencies */
@@ -430,8 +426,6 @@ static struct clkdm_dep gfx_sgx_sleepdeps[] = {
  * sys_clkout/sys_clkout2.
  */
 
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-
 /* This is an implicit clockdomain - it is never defined as such in TRM */
 static struct clockdomain wkup_clkdm = {
 	.name		= "wkup_clkdm",
@@ -451,8 +445,6 @@ static struct clockdomain cm_clkdm = {
 	.pwrdm		= { .name = "core_pwrdm" },
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP24XX | CHIP_IS_OMAP3430),
 };
-
-#endif
 
 /*
  * 2420-only clockdomains
@@ -836,8 +828,6 @@ static struct clockdomain dpll5_clkdm = {
 
 #endif   /* CONFIG_ARCH_OMAP3 */
 
-#include "clockdomains44xx.h"
-
 /*
  * Clockdomain hwsup dependencies (OMAP3 only)
  */
@@ -856,17 +846,10 @@ static struct clkdm_autodep clkdm_autodeps[] = {
 	}
 };
 
-/*
- * List of clockdomain pointers per platform
- */
-
-static struct clockdomain *clockdomains_omap[] = {
-
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+static struct clockdomain *clockdomains_omap2[] __initdata = {
 	&wkup_clkdm,
 	&cm_clkdm,
 	&prm_clkdm,
-#endif
 
 #ifdef CONFIG_ARCH_OMAP2420
 	&mpu_2420_clkdm,
@@ -908,35 +891,10 @@ static struct clockdomain *clockdomains_omap[] = {
 	&dpll4_clkdm,
 	&dpll5_clkdm,
 #endif
-
-#ifdef CONFIG_ARCH_OMAP4
-	&l4_cefuse_44xx_clkdm,
-	&l4_cfg_44xx_clkdm,
-	&tesla_44xx_clkdm,
-	&l3_gfx_44xx_clkdm,
-	&ivahd_44xx_clkdm,
-	&l4_secure_44xx_clkdm,
-	&l4_per_44xx_clkdm,
-	&abe_44xx_clkdm,
-	&l3_instr_44xx_clkdm,
-	&l3_init_44xx_clkdm,
-	&mpuss_44xx_clkdm,
-	&mpu0_44xx_clkdm,
-	&mpu1_44xx_clkdm,
-	&l3_emif_44xx_clkdm,
-	&l4_ao_44xx_clkdm,
-	&ducati_44xx_clkdm,
-	&l3_2_44xx_clkdm,
-	&l3_1_44xx_clkdm,
-	&l3_d2d_44xx_clkdm,
-	&iss_44xx_clkdm,
-	&l3_dss_44xx_clkdm,
-	&l4_wkup_44xx_clkdm,
-	&emu_sys_44xx_clkdm,
-	&l3_dma_44xx_clkdm,
-#endif
-
 	NULL,
 };
 
-#endif
+void __init omap2_clockdomains_init(void)
+{
+	clkdm_init(clockdomains_omap2, clkdm_autodeps);
+}

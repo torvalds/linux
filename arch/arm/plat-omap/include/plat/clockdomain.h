@@ -4,17 +4,21 @@
  * OMAP2/3 clockdomain framework functions
  *
  * Copyright (C) 2008 Texas Instruments, Inc.
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2010 Nokia Corporation
  *
- * Written by Paul Walmsley
+ * Paul Walmsley
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
+ * XXX This should be moved to mach-omap2/ at the earliest opportunity.
  */
 
 #ifndef __ASM_ARM_ARCH_OMAP_CLOCKDOMAIN_H
 #define __ASM_ARM_ARCH_OMAP_CLOCKDOMAIN_H
+
+#include <linux/init.h>
 
 #include <plat/powerdomain.h>
 #include <plat/clock.h>
@@ -137,5 +141,8 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm);
 
 int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk);
 int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk);
+
+extern void __init omap2_clockdomains_init(void);
+extern void __init omap44xx_clockdomains_init(void);
 
 #endif

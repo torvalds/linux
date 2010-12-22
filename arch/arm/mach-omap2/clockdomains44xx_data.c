@@ -23,12 +23,15 @@
  * -> Populate the Sleep/Wakeup dependencies for the domains
  */
 
-#ifndef __ARCH_ARM_MACH_OMAP2_CLOCKDOMAINS44XX_H
-#define __ARCH_ARM_MACH_OMAP2_CLOCKDOMAINS44XX_H
+#include <linux/kernel.h>
+#include <linux/io.h>
 
 #include <plat/clockdomain.h>
 
-#if defined(CONFIG_ARCH_OMAP4)
+#include "cm44xx.h"
+#include "prm44xx.h"
+#include "cm-regbits-44xx.h"
+#include "prm-regbits-44xx.h"
 
 static struct clockdomain l4_cefuse_44xx_clkdm = {
 	.name		  = "l4_cefuse_clkdm",
@@ -245,6 +248,35 @@ static struct clockdomain l3_dma_44xx_clkdm = {
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
 };
 
-#endif
+static struct clockdomain *clockdomains_omap44xx[] __initdata = {
+	&l4_cefuse_44xx_clkdm,
+	&l4_cfg_44xx_clkdm,
+	&tesla_44xx_clkdm,
+	&l3_gfx_44xx_clkdm,
+	&ivahd_44xx_clkdm,
+	&l4_secure_44xx_clkdm,
+	&l4_per_44xx_clkdm,
+	&abe_44xx_clkdm,
+	&l3_instr_44xx_clkdm,
+	&l3_init_44xx_clkdm,
+	&mpuss_44xx_clkdm,
+	&mpu0_44xx_clkdm,
+	&mpu1_44xx_clkdm,
+	&l3_emif_44xx_clkdm,
+	&l4_ao_44xx_clkdm,
+	&ducati_44xx_clkdm,
+	&l3_2_44xx_clkdm,
+	&l3_1_44xx_clkdm,
+	&l3_d2d_44xx_clkdm,
+	&iss_44xx_clkdm,
+	&l3_dss_44xx_clkdm,
+	&l4_wkup_44xx_clkdm,
+	&emu_sys_44xx_clkdm,
+	&l3_dma_44xx_clkdm,
+	NULL,
+};
 
-#endif
+void __init omap44xx_clockdomains_init(void)
+{
+	clkdm_init(clockdomains_omap44xx, NULL);
+}

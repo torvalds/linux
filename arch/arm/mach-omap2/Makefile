@@ -10,8 +10,7 @@ omap-2-3-common				= irq.o sdrc.o prm2xxx_3xxx.o
 hwmod-common				= omap_hwmod.o \
 					  omap_hwmod_common_data.o
 clock-common				= clock.o clock_common_data.o \
-					  clockdomain.o clkt_dpll.o \
-					  clkt_clksel.o
+					  clkt_dpll.o clkt_clksel.o
 
 obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(hwmod-common)
 obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(hwmod-common)
@@ -91,6 +90,13 @@ obj-$(CONFIG_ARCH_OMAP4)		+= $(powerdomain-common) \
 					   powerdomain44xx.o \
 					   powerdomains44xx_data.o
 
+# PRCM clockdomain control
+obj-$(CONFIG_ARCH_OMAP2)		+= clockdomain.o \
+					   clockdomains2xxx_3xxx_data.o
+obj-$(CONFIG_ARCH_OMAP3)		+= clockdomain.o \
+					   clockdomains2xxx_3xxx_data.o
+obj-$(CONFIG_ARCH_OMAP4)		+= clockdomain.o \
+					   clockdomains44xx_data.o
 # Clock framework
 obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common) clock2xxx.o \
 					   clkt2xxx_sys.o \
