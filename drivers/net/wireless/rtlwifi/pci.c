@@ -612,10 +612,22 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 						    num_rx_inperiod++;
 				}
 
-				if (unlikely(!rtl_action_proc(hw, skb, false)))
+				if (unlikely(!rtl_action_proc(hw, skb,
+				    false))) {
 					dev_kfree_skb_any(skb);
-				else
-					ieee80211_rx_irqsafe(hw, skb);
+				} else {
+					struct sk_buff *uskb = NULL;
+					u8 *pdata;
+					uskb = dev_alloc_skb(skb->len + 128);
+					memcpy(IEEE80211_SKB_RXCB(uskb),
+							&rx_status,
+							sizeof(rx_status));
+					pdata = (u8 *)skb_put(uskb, skb->len);
+					memcpy(pdata, skb->data, skb->len);
+					dev_kfree_skb_any(skb);
+
+					ieee80211_rx_irqsafe(hw, uskb);
+				}
 			} else {
 				dev_kfree_skb_any(skb);
 			}
