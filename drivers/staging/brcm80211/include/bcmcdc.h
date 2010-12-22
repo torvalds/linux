@@ -24,7 +24,7 @@ typedef struct cdc_ioctl {
 } cdc_ioctl_t;
 
 /* Max valid buffer size that can be sent to the dongle */
-#define CDC_MAX_MSG_SIZE   ETHER_MAX_LEN
+#define CDC_MAX_MSG_SIZE	(ETH_FRAME_LEN+ETH_FCS_LEN)
 
 /* len field is divided into input and output buffer lengths */
 #define CDCL_IOC_OUTLEN_MASK   0x0000FFFF	/* maximum or expected
