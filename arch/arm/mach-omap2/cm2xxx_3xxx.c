@@ -62,6 +62,74 @@ u32 omap2_cm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 	return omap2_cm_rmw_mod_reg_bits(bits, 0x0, module, idx);
 }
 
+/*
+ *
+ */
+
+static void _write_clktrctrl(u8 c, s16 module, u32 mask)
+{
+	u32 v;
+
+	v = omap2_cm_read_mod_reg(module, OMAP2_CM_CLKSTCTRL);
+	v &= ~mask;
+	v |= c << __ffs(mask);
+	omap2_cm_write_mod_reg(v, module, OMAP2_CM_CLKSTCTRL);
+}
+
+bool omap2_cm_is_clkdm_in_hwsup(s16 module, u32 mask)
+{
+	u32 v;
+	bool ret = 0;
+
+	BUG_ON(!cpu_is_omap24xx() && !cpu_is_omap34xx());
+
+	v = omap2_cm_read_mod_reg(module, OMAP2_CM_CLKSTCTRL);
+	v &= mask;
+	v >>= __ffs(mask);
+
+	if (cpu_is_omap24xx())
+		ret = (v == OMAP24XX_CLKSTCTRL_ENABLE_AUTO) ? 1 : 0;
+	else
+		ret = (v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO) ? 1 : 0;
+
+	return ret;
+}
+
+void omap2xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask)
+{
+	_write_clktrctrl(OMAP24XX_CLKSTCTRL_ENABLE_AUTO, module, mask);
+}
+
+void omap2xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask)
+{
+	_write_clktrctrl(OMAP24XX_CLKSTCTRL_DISABLE_AUTO, module, mask);
+}
+
+void omap3xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask)
+{
+	_write_clktrctrl(OMAP34XX_CLKSTCTRL_ENABLE_AUTO, module, mask);
+}
+
+void omap3xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask)
+{
+	_write_clktrctrl(OMAP34XX_CLKSTCTRL_DISABLE_AUTO, module, mask);
+}
+
+void omap3xxx_cm_clkdm_force_sleep(s16 module, u32 mask)
+{
+	_write_clktrctrl(OMAP34XX_CLKSTCTRL_FORCE_SLEEP, module, mask);
+}
+
+void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask)
+{
+	_write_clktrctrl(OMAP34XX_CLKSTCTRL_FORCE_WAKEUP, module, mask);
+}
+
+
+/*
+ *
+ */
+
 /**
  * omap2_cm_wait_idlest_ready - wait for a module to leave idle or standby
  * @prcm_mod: PRCM module offset

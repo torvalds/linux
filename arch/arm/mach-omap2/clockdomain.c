@@ -29,7 +29,7 @@
 #include "prm2xxx_3xxx.h"
 #include "prm-regbits-24xx.h"
 #include "cm2xxx_3xxx.h"
-#include "cm-regbits-34xx.h"
+#include "cm-regbits-24xx.h"
 #include "cminst44xx.h"
 #include "prcm44xx.h"
 
@@ -246,30 +246,18 @@ static void _clkdm_del_autodeps(struct clockdomain *clkdm)
  */
 static void _enable_hwsup(struct clockdomain *clkdm)
 {
-	u32 bits, v;
-
 	if (cpu_is_omap24xx())
-		bits = OMAP24XX_CLKSTCTRL_ENABLE_AUTO;
+		omap2xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					       clkdm->clktrctrl_mask);
 	else if (cpu_is_omap34xx())
-		bits = OMAP34XX_CLKSTCTRL_ENABLE_AUTO;
+		omap3xxx_cm_clkdm_enable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+					       clkdm->clktrctrl_mask);
 	else if (cpu_is_omap44xx())
 		return omap4_cminst_clkdm_enable_hwsup(clkdm->prcm_partition,
 						       clkdm->cm_inst,
 						       clkdm->clkdm_offs);
 	else
 		BUG();
-
-	bits = bits << __ffs(clkdm->clktrctrl_mask);
-
-	/*
-	 * XXX clkstctrl_reg is known on OMAP2 - this clkdm
-	 * field is not needed
-	 */
-	v = __raw_readl(clkdm->clkstctrl_reg);
-	v &= ~(clkdm->clktrctrl_mask);
-	v |= bits;
-	__raw_writel(v, clkdm->clkstctrl_reg);
-
 }
 
 /**
@@ -284,29 +272,18 @@ static void _enable_hwsup(struct clockdomain *clkdm)
  */
 static void _disable_hwsup(struct clockdomain *clkdm)
 {
-	u32 bits, v;
-
 	if (cpu_is_omap24xx())
-		bits = OMAP24XX_CLKSTCTRL_DISABLE_AUTO;
+		omap2xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+						clkdm->clktrctrl_mask);
 	else if (cpu_is_omap34xx())
-		bits = OMAP34XX_CLKSTCTRL_DISABLE_AUTO;
+		omap3xxx_cm_clkdm_disable_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+						clkdm->clktrctrl_mask);
 	else if (cpu_is_omap44xx())
 		return omap4_cminst_clkdm_disable_hwsup(clkdm->prcm_partition,
 							clkdm->cm_inst,
 							clkdm->clkdm_offs);
 	else
 		BUG();
-
-	bits = bits << __ffs(clkdm->clktrctrl_mask);
-
-	/*
-	 * XXX clkstctrl_reg is known on OMAP2 - this clkdm
-	 * field is not needed
-	 */
-	v = __raw_readl(clkdm->clkstctrl_reg);
-	v &= ~(clkdm->clktrctrl_mask);
-	v |= bits;
-	__raw_writel(v, clkdm->clkstctrl_reg);
 }
 
 /* Public functions */
@@ -735,34 +712,6 @@ int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm)
 }
 
 /**
- * omap2_clkdm_clktrctrl_read - read the clkdm's current state transition mode
- * @clkdm: struct clkdm * of a clockdomain
- *
- * Return the clockdomain @clkdm current state transition mode from the
- * corresponding domain CM_CLKSTCTRL register.	Returns -EINVAL if @clkdm
- * is NULL or the current mode upon success.
- */
-static int omap2_clkdm_clktrctrl_read(struct clockdomain *clkdm)
-{
-	u32 v = 0;
-
-	if (!clkdm)
-		return -EINVAL;
-
-	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
-		v = __raw_readl(clkdm->clkstctrl_reg);
-		v &= clkdm->clktrctrl_mask;
-		v >>= __ffs(clkdm->clktrctrl_mask);
-	} else if (cpu_is_omap44xx()) {
-		pr_warn("OMAP4 clockdomain: missing wakeup/sleep deps\n");
-	} else {
-		BUG();
-	}
-
-	return v;
-}
-
-/**
  * omap2_clkdm_sleep - force clockdomain sleep transition
  * @clkdm: struct clockdomain *
  *
@@ -773,8 +722,6 @@ static int omap2_clkdm_clktrctrl_read(struct clockdomain *clkdm)
  */
 int omap2_clkdm_sleep(struct clockdomain *clkdm)
 {
-	u32 bits, v;
-
 	if (!clkdm)
 		return -EINVAL;
 
@@ -793,13 +740,8 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
 
 	} else if (cpu_is_omap34xx()) {
 
-		bits = (OMAP34XX_CLKSTCTRL_FORCE_SLEEP <<
-			__ffs(clkdm->clktrctrl_mask));
-
-		v = __raw_readl(clkdm->clkstctrl_reg);
-		v &= ~(clkdm->clktrctrl_mask);
-		v |= bits;
-		__raw_writel(v, clkdm->clkstctrl_reg);
+		omap3xxx_cm_clkdm_force_sleep(clkdm->pwrdm.ptr->prcm_offs,
+					      clkdm->clktrctrl_mask);
 
 	} else if (cpu_is_omap44xx()) {
 
@@ -825,8 +767,6 @@ int omap2_clkdm_sleep(struct clockdomain *clkdm)
  */
 int omap2_clkdm_wakeup(struct clockdomain *clkdm)
 {
-	u32 bits, v;
-
 	if (!clkdm)
 		return -EINVAL;
 
@@ -845,13 +785,8 @@ int omap2_clkdm_wakeup(struct clockdomain *clkdm)
 
 	} else if (cpu_is_omap34xx()) {
 
-		bits = (OMAP34XX_CLKSTCTRL_FORCE_WAKEUP <<
-			__ffs(clkdm->clktrctrl_mask));
-
-		v = __raw_readl(clkdm->clkstctrl_reg);
-		v &= ~(clkdm->clktrctrl_mask);
-		v |= bits;
-		__raw_writel(v, clkdm->clkstctrl_reg);
+		omap3xxx_cm_clkdm_force_wakeup(clkdm->pwrdm.ptr->prcm_offs,
+					       clkdm->clktrctrl_mask);
 
 	} else if (cpu_is_omap44xx()) {
 
@@ -964,7 +899,7 @@ void omap2_clkdm_deny_idle(struct clockdomain *clkdm)
  */
 int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 {
-	int v;
+	bool hwsup = false;
 
 	/*
 	 * XXX Rewrite this code to maintain a list of enabled
@@ -982,13 +917,23 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 	pr_debug("clockdomain: clkdm %s: clk %s now enabled\n", clkdm->name,
 		 clk->name);
 
-	if (!clkdm->clkstctrl_reg)
-		return 0;
+	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 
-	v = omap2_clkdm_clktrctrl_read(clkdm);
+		if (!clkdm->clktrctrl_mask)
+			return 0;
 
-	if ((cpu_is_omap34xx() && v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO) ||
-	    (cpu_is_omap24xx() && v == OMAP24XX_CLKSTCTRL_ENABLE_AUTO)) {
+		hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+						   clkdm->clktrctrl_mask);
+
+	} else if (cpu_is_omap44xx()) {
+
+		hwsup = omap4_cminst_is_clkdm_in_hwsup(clkdm->prcm_partition,
+						       clkdm->cm_inst,
+						       clkdm->clkdm_offs);
+
+	}
+
+	if (hwsup) {
 		/* Disable HW transitions when we are changing deps */
 		_disable_hwsup(clkdm);
 		_clkdm_add_autodeps(clkdm);
@@ -1019,7 +964,7 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
  */
 int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 {
-	int v;
+	bool hwsup = false;
 
 	/*
 	 * XXX Rewrite this code to maintain a list of enabled
@@ -1044,13 +989,23 @@ int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 	pr_debug("clockdomain: clkdm %s: clk %s now disabled\n", clkdm->name,
 		 clk->name);
 
-	if (!clkdm->clkstctrl_reg)
-		return 0;
+	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 
-	v = omap2_clkdm_clktrctrl_read(clkdm);
+		if (!clkdm->clktrctrl_mask)
+			return 0;
 
-	if ((cpu_is_omap34xx() && v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO) ||
-	    (cpu_is_omap24xx() && v == OMAP24XX_CLKSTCTRL_ENABLE_AUTO)) {
+		hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
+						   clkdm->clktrctrl_mask);
+
+	} else if (cpu_is_omap44xx()) {
+
+		hwsup = omap4_cminst_is_clkdm_in_hwsup(clkdm->prcm_partition,
+						       clkdm->cm_inst,
+						       clkdm->clkdm_offs);
+
+	}
+
+	if (hwsup) {
 		/* Disable HW transitions when we are changing deps */
 		_disable_hwsup(clkdm);
 		_clkdm_del_autodeps(clkdm);

@@ -113,6 +113,15 @@ extern int omap2_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id,
 extern u32 omap2_cm_set_mod_reg_bits(u32 bits, s16 module, s16 idx);
 extern u32 omap2_cm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx);
 
+extern bool omap2_cm_is_clkdm_in_hwsup(s16 module, u32 mask);
+extern void omap2xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask);
+extern void omap2xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask);
+
+extern void omap3xxx_cm_clkdm_enable_hwsup(s16 module, u32 mask);
+extern void omap3xxx_cm_clkdm_disable_hwsup(s16 module, u32 mask);
+extern void omap3xxx_cm_clkdm_force_sleep(s16 module, u32 mask);
+extern void omap3xxx_cm_clkdm_force_wakeup(s16 module, u32 mask);
+
 #endif
 
 /* CM register bits shared between 24XX and 3430 */

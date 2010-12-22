@@ -34,10 +34,6 @@
 #define CLKDM_CAN_SWSUP		(CLKDM_CAN_FORCE_SLEEP | CLKDM_CAN_FORCE_WAKEUP)
 #define CLKDM_CAN_HWSUP_SWSUP	(CLKDM_CAN_SWSUP | CLKDM_CAN_HWSUP)
 
-/* OMAP24XX CM_CLKSTCTRL_*.AUTOSTATE_* register bit values */
-#define OMAP24XX_CLKSTCTRL_DISABLE_AUTO		0x0
-#define OMAP24XX_CLKSTCTRL_ENABLE_AUTO		0x1
-
 /**
  * struct clkdm_autodep - clkdm deps to add when entering/exiting hwsup mode
  * @clkdm: clockdomain to add wkdep+sleepdep on - set name member only
@@ -110,7 +106,6 @@ struct clockdomain {
 		struct powerdomain *ptr;
 	} pwrdm;
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-	void __iomem *clkstctrl_reg;
 	const u16 clktrctrl_mask;
 #endif
 	const u8 flags;
