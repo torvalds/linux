@@ -224,6 +224,28 @@ static inline void o2net_set_func_stop_time(struct o2net_sock_container *sc)
 # define o2net_set_func_stop_time(a)
 #endif /* CONFIG_DEBUG_FS */
 
+#ifdef CONFIG_OCFS2_FS_STATS
+static void o2net_update_send_stats(struct o2net_send_tracking *nst,
+				    struct o2net_sock_container *sc)
+{
+	sc->sc_tv_status_total = ktime_add(sc->sc_tv_status_total,
+					   ktime_sub(ktime_get(),
+						     nst->st_status_time));
+	sc->sc_tv_send_total = ktime_add(sc->sc_tv_send_total,
+					 ktime_sub(nst->st_status_time,
+						   nst->st_send_time));
+	sc->sc_tv_acquiry_total = ktime_add(sc->sc_tv_acquiry_total,
+					    ktime_sub(nst->st_send_time,
+						      nst->st_sock_time));
+	sc->sc_send_count++;
+}
+
+#else
+
+# define o2net_update_send_stats(a, b)
+
+#endif /* CONFIG_OCFS2_FS_STATS */
+
 static inline int o2net_reconnect_delay(void)
 {
 	return o2nm_single_cluster->cl_reconnect_delay_ms;
@@ -1092,6 +1114,8 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	/* wait on other node's handler */
 	o2net_set_nst_status_time(&nst);
 	wait_event(nsw.ns_wq, o2net_nsw_completed(nn, &nsw));
+
+	o2net_update_send_stats(&nst, sc);
 
 	/* Note that we avoid overwriting the callers status return
 	 * variable if a system error was reported on the other

@@ -179,6 +179,12 @@ struct o2net_sock_container {
 	ktime_t			sc_tv_func_start;
 	ktime_t			sc_tv_func_stop;
 #endif
+#ifdef CONFIG_OCFS2_FS_STATS
+	ktime_t			sc_tv_acquiry_total;
+	ktime_t			sc_tv_send_total;
+	ktime_t			sc_tv_status_total;
+	u32			sc_send_count;
+#endif
 	struct mutex		sc_send_lock;
 };
 
