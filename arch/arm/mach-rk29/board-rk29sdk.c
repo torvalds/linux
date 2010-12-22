@@ -855,7 +855,7 @@ struct rk29_bl_info rk29_bl_info = {
 
 static struct regulator_consumer_supply pwm_consumers[] = {
 	{
-		.supply = "pwm-voltage",
+		.supply = "vcore",
 	}
 };
 
