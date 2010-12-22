@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/memory.h>
 #include <linux/gpio.h>
+#include <linux/usb/otg.h>
 
 #include <linux/mtd/physmap.h>
 
@@ -125,12 +126,32 @@ static const struct fsl_usb2_platform_data usb_otg_pdata __initconst = {
 	.phy_mode	= FSL_USB2_PHY_UTMI_WIDE,
 };
 
+static struct mxc_usbh_platform_data otg_pdata __initdata = {
+	.portsc	= MXC_EHCI_MODE_UTMI,
+	.flags	= MXC_EHCI_INTERNAL_PHY,
+};
+
 /* USB HOST config */
 static const struct mxc_usbh_platform_data usb_host_pdata __initconst = {
 	.portsc		= MXC_EHCI_MODE_SERIAL,
 	.flags		= MXC_EHCI_INTERFACE_SINGLE_UNI |
 			  MXC_EHCI_INTERNAL_PHY,
 };
+
+static int otg_mode_host;
+
+static int __init mx35_3ds_otg_mode(char *options)
+{
+	if (!strcmp(options, "host"))
+		otg_mode_host = 1;
+	else if (!strcmp(options, "device"))
+		otg_mode_host = 0;
+	else
+		pr_info("otg_mode neither \"host\" nor \"device\". "
+			"Defaulting to device\n");
+	return 0;
+}
+__setup("otg_mode=", mx35_3ds_otg_mode);
 
 /*
  * Board specific initialization.
@@ -145,9 +166,13 @@ static void __init mxc_board_init(void)
 
 	imx35_add_imx_uart0(&uart_pdata);
 
-	imx35_add_fsl_usb2_udc(&usb_otg_pdata);
+	if (otg_mode_host)
+		imx35_add_mxc_ehci_otg(&otg_pdata);
 
 	imx35_add_mxc_ehci_hs(&usb_host_pdata);
+
+	if (!otg_mode_host)
+		imx35_add_fsl_usb2_udc(&usb_otg_pdata);
 
 	imx35_add_mxc_nand(&mx35pdk_nand_board_info);
 	imx35_add_sdhci_esdhc_imx(0, NULL);
