@@ -545,10 +545,15 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev, unsigned int framesize)
 
 	/* De-allocates all pending stuff */
 	tm6000_uninit_isoc(dev);
+	/* Stop interrupt USB pipe */
+	tm6000_ir_int_stop(dev);
 
 	usb_set_interface(dev->udev,
 			  dev->isoc_in.bInterfaceNumber,
 			  dev->isoc_in.bAlternateSetting);
+
+	/* Start interrupt USB pipe */
+	tm6000_ir_int_start(dev);
 
 	pipe = usb_rcvisocpipe(dev->udev,
 			       dev->isoc_in.endp->desc.bEndpointAddress &
