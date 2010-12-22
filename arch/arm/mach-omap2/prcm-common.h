@@ -243,13 +243,14 @@
 #define OMAP24XX_EN_GPT1_MASK				(1 << 0)
 
 /* PM_WKST_WKUP, CM_IDLEST_WKUP shared bits */
-#define OMAP24XX_ST_GPIOS_SHIFT				(1 << 2)
-#define OMAP24XX_ST_GPIOS_MASK				2
-#define OMAP24XX_ST_GPT1_SHIFT				(1 << 0)
-#define OMAP24XX_ST_GPT1_MASK				0
+#define OMAP24XX_ST_GPIOS_SHIFT				2
+#define OMAP24XX_ST_GPIOS_MASK				(1 << 2)
+#define OMAP24XX_ST_GPT1_SHIFT				0
+#define OMAP24XX_ST_GPT1_MASK				(1 << 0)
 
 /* CM_IDLEST_MDM and PM_WKST_MDM shared bits */
-#define OMAP2430_ST_MDM_SHIFT				(1 << 0)
+#define OMAP2430_ST_MDM_SHIFT				0
+#define OMAP2430_ST_MDM_MASK				(1 << 0)
 
 
 /* 3430 register bits shared between CM & PRM registers */

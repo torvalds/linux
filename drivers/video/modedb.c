@@ -855,6 +855,7 @@ const struct fb_videomode *fb_find_nearest_mode(const struct fb_videomode *mode,
 			abs(cmode->yres - mode->yres);
 		if (diff > d) {
 			diff = d;
+			diff_refresh = abs(cmode->refresh - mode->refresh);
 			best = cmode;
 		} else if (diff == d) {
 			d = abs(cmode->refresh - mode->refresh);

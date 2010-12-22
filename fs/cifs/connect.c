@@ -105,6 +105,7 @@ struct smb_vol {
 	unsigned int wsize;
 	bool sockopt_tcp_nodelay:1;
 	unsigned short int port;
+	unsigned long actimeo; /* attribute cache timeout (jiffies) */
 	char *prepath;
 	struct sockaddr_storage srcaddr; /* allow binding to a local IP */
 	struct nls_table *local_nls;
@@ -806,23 +807,20 @@ cifs_parse_mount_options(char *options, const char *devname,
 	short int override_gid = -1;
 	bool uid_specified = false;
 	bool gid_specified = false;
+	char *nodename = utsname()->nodename;
 
 	separator[0] = ',';
 	separator[1] = 0;
 
-	if (Local_System_Name[0] != 0)
-		memcpy(vol->source_rfc1001_name, Local_System_Name, 15);
-	else {
-		char *nodename = utsname()->nodename;
-		int n = strnlen(nodename, 15);
-		memset(vol->source_rfc1001_name, 0x20, 15);
-		for (i = 0; i < n; i++) {
-			/* does not have to be perfect mapping since field is
-			informational, only used for servers that do not support
-			port 445 and it can be overridden at mount time */
-			vol->source_rfc1001_name[i] = toupper(nodename[i]);
-		}
-	}
+	/*
+	 * does not have to be perfect mapping since field is
+	 * informational, only used for servers that do not support
+	 * port 445 and it can be overridden at mount time
+	 */
+	memset(vol->source_rfc1001_name, 0x20, 15);
+	for (i = 0; i < strnlen(nodename, 15); i++)
+		vol->source_rfc1001_name[i] = toupper(nodename[i]);
+
 	vol->source_rfc1001_name[15] = 0;
 	/* null target name indicates to use *SMBSERVR default called name
 	   if we end up sending RFC1001 session initialize */
@@ -839,6 +837,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 	vol->posix_paths = 1;
 	/* default to using server inode numbers where available */
 	vol->server_ino = 1;
+
+	vol->actimeo = CIFS_DEF_ACTIMEO;
 
 	if (!options)
 		return 1;
@@ -1213,6 +1213,16 @@ cifs_parse_mount_options(char *options, const char *devname,
 				if ((i == 15) && (value[i] != 0))
 					printk(KERN_WARNING "CIFS: server net"
 					"biosname longer than 15 truncated.\n");
+			}
+		} else if (strnicmp(data, "actimeo", 7) == 0) {
+			if (value && *value) {
+				vol->actimeo = HZ * simple_strtoul(value,
+								   &value, 0);
+				if (vol->actimeo > CIFS_MAX_ACTIMEO) {
+					cERROR(1, "CIFS: attribute cache"
+							"timeout too large");
+					return 1;
+				}
 			}
 		} else if (strnicmp(data, "credentials", 4) == 0) {
 			/* ignore */
@@ -2571,6 +2581,8 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 	cFYI(1, "file mode: 0x%x  dir mode: 0x%x",
 		cifs_sb->mnt_file_mode, cifs_sb->mnt_dir_mode);
 
+	cifs_sb->actimeo = pvolume_info->actimeo;
+
 	if (pvolume_info->noperm)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_NO_PERM;
 	if (pvolume_info->setuids)
@@ -2821,13 +2833,13 @@ remote_path_check:
 	/* check if a whole path (including prepath) is not remote */
 	if (!rc && cifs_sb->prepathlen && tcon) {
 		/* build_path_to_root works only when we have a valid tcon */
-		full_path = cifs_build_path_to_root(cifs_sb);
+		full_path = cifs_build_path_to_root(cifs_sb, tcon);
 		if (full_path == NULL) {
 			rc = -ENOMEM;
 			goto mount_fail_check;
 		}
 		rc = is_path_accessible(xid, tcon, cifs_sb, full_path);
-		if (rc != -EREMOTE) {
+		if (rc != 0 && rc != -EREMOTE) {
 			kfree(full_path);
 			goto mount_fail_check;
 		}

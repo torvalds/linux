@@ -838,6 +838,10 @@ static bool ath9k_rx_accept(struct ath_common *common,
 			    struct ath_rx_status *rx_stats,
 			    bool *decrypt_error)
 {
+#define is_mc_or_valid_tkip_keyix ((is_mc ||			\
+		(rx_stats->rs_keyix != ATH9K_RXKEYIX_INVALID && \
+		test_bit(rx_stats->rs_keyix, common->tkip_keymap))))
+
 	struct ath_hw *ah = common->ah;
 	__le16 fc;
 	u8 rx_status_len = ah->caps.rx_status_len;
@@ -879,15 +883,18 @@ static bool ath9k_rx_accept(struct ath_common *common,
 		if (rx_stats->rs_status & ATH9K_RXERR_DECRYPT) {
 			*decrypt_error = true;
 		} else if (rx_stats->rs_status & ATH9K_RXERR_MIC) {
+			bool is_mc;
 			/*
 			 * The MIC error bit is only valid if the frame
 			 * is not a control frame or fragment, and it was
 			 * decrypted using a valid TKIP key.
 			 */
+			is_mc = !!is_multicast_ether_addr(hdr->addr1);
+
 			if (!ieee80211_is_ctl(fc) &&
 			    !ieee80211_has_morefrags(fc) &&
 			    !(le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG) &&
-			    test_bit(rx_stats->rs_keyix, common->tkip_keymap))
+			    is_mc_or_valid_tkip_keyix)
 				rxs->flag |= RX_FLAG_MMIC_ERROR;
 			else
 				rx_stats->rs_status &= ~ATH9K_RXERR_MIC;

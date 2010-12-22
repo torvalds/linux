@@ -4595,6 +4595,7 @@ static struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1734, 0x10b0, "Fujitsu", ALC880_FUJITSU),
 	SND_PCI_QUIRK(0x1854, 0x0018, "LG LW20", ALC880_LG_LW),
 	SND_PCI_QUIRK(0x1854, 0x003b, "LG", ALC880_LG),
+	SND_PCI_QUIRK(0x1854, 0x005f, "LG P1 Express", ALC880_LG),
 	SND_PCI_QUIRK(0x1854, 0x0068, "LG w1", ALC880_LG),
 	SND_PCI_QUIRK(0x1854, 0x0077, "LG LW25", ALC880_LG_LW),
 	SND_PCI_QUIRK(0x19db, 0x4188, "TCL S700", ALC880_TCL_S700),
@@ -10829,7 +10830,8 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i, err;
+	int i, err, type;
+	int type_idx = 0;
 	hda_nid_t nid;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
@@ -10838,9 +10840,15 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 		nid = cfg->inputs[i].pin;
 		if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP) {
 			char label[32];
+			type = cfg->inputs[i].type;
+			if (i > 0 && type == cfg->inputs[i - 1].type)
+				type_idx++;
+			else
+				type_idx = 0;
 			snprintf(label, sizeof(label), "%s Boost",
 				 hda_get_autocfg_input_label(codec, cfg, i));
-			err = add_control(spec, ALC_CTL_WIDGET_VOL, label, 0,
+			err = add_control(spec, ALC_CTL_WIDGET_VOL, label,
+					  type_idx,
 				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
 			if (err < 0)
 				return err;
@@ -14799,6 +14807,8 @@ static int alc269_resume(struct hda_codec *codec)
 enum {
 	ALC269_FIXUP_SONY_VAIO,
 	ALC269_FIXUP_DELL_M101Z,
+	ALC269_FIXUP_LENOVO_EDGE14,
+	ALC269_FIXUP_ASUS_G73JW,
 };
 
 static const struct alc_fixup alc269_fixups[] = {
@@ -14816,11 +14826,22 @@ static const struct alc_fixup alc269_fixups[] = {
 			{}
 		}
 	},
+	[ALC269_FIXUP_LENOVO_EDGE14] = {
+		.sku = ALC_FIXUP_SKU_IGNORE,
+	},
+	[ALC269_FIXUP_ASUS_G73JW] = {
+		.pins = (const struct alc_pincfg[]) {
+			{ 0x17, 0x99130111 }, /* subwoofer */
+			{ }
+		}
+	},
 };
 
 static struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK_VENDOR(0x104d, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
 	SND_PCI_QUIRK(0x1028, 0x0470, "Dell M101z", ALC269_FIXUP_DELL_M101Z),
+	SND_PCI_QUIRK(0x17aa, 0x21b8, "Thinkpad Edge 14", ALC269_FIXUP_LENOVO_EDGE14),
+	SND_PCI_QUIRK(0x1043, 0x1a13, "Asus G73Jw", ALC269_FIXUP_ASUS_G73JW),
 	{}
 };
 

@@ -378,6 +378,12 @@ static struct max8998_regulator_data aquila_regulators[] = {
 static struct max8998_platform_data aquila_max8998_pdata = {
 	.num_regulators	= ARRAY_SIZE(aquila_regulators),
 	.regulators	= aquila_regulators,
+	.buck1_set1	= S5PV210_GPH0(3),
+	.buck1_set2	= S5PV210_GPH0(4),
+	.buck2_set3	= S5PV210_GPH0(5),
+	.buck1_max_voltage1 = 1200000,
+	.buck1_max_voltage2 = 1200000,
+	.buck2_max_voltage = 1200000,
 };
 #endif
 

@@ -1962,7 +1962,8 @@ static void enic_poll_controller(struct net_device *netdev)
 	case VNIC_DEV_INTR_MODE_MSIX:
 		for (i = 0; i < enic->rq_count; i++) {
 			intr = enic_msix_rq_intr(enic, i);
-			enic_isr_msix_rq(enic->msix_entry[intr].vector, enic);
+			enic_isr_msix_rq(enic->msix_entry[intr].vector,
+				&enic->napi[i]);
 		}
 		intr = enic_msix_wq_intr(enic, i);
 		enic_isr_msix_wq(enic->msix_entry[intr].vector, enic);
