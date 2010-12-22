@@ -68,17 +68,16 @@ void omap_prcm_arch_reset(char mode, const char *cmd)
 	} else if (cpu_is_omap34xx()) {
 		prcm_offs = OMAP3430_GR_MOD;
 		omap3_ctrl_write_boot_mode((cmd ? (u8)*cmd : 0));
-	} else if (cpu_is_omap44xx())
-		prcm_offs = OMAP4430_PRM_DEVICE_INST;
-	else
+	} else if (cpu_is_omap44xx()) {
+		omap4_prm_global_warm_sw_reset(); /* never returns */
+	} else {
 		WARN_ON(1);
+	}
 
-	if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, prcm_offs,
-						 OMAP2_RM_RSTCTRL);
-	if (cpu_is_omap44xx())
-		prm_set_mod_reg_bits(OMAP4430_RST_GLOBAL_WARM_SW_MASK,
-				     prcm_offs, OMAP4_RM_RSTCTRL);
+	/* XXX should be moved to some OMAP2/3 specific code */
+	prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, prcm_offs,
+			     OMAP2_RM_RSTCTRL);
+	prm_read_mod_reg(prcm_offs, OMAP2_RM_RSTCTRL); /* OCP barrier */
 }
 
 /**

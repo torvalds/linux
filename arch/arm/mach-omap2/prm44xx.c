@@ -179,3 +179,17 @@ int omap4_prm_deassert_hardreset(void __iomem *rstctrl_reg, u8 shift)
 	return (c == MAX_MODULE_HARDRESET_WAIT) ? -EBUSY : 0;
 }
 
+void omap4_prm_global_warm_sw_reset(void)
+{
+	u32 v;
+
+	v = omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST,
+				    OMAP4_RM_RSTCTRL);
+	v |= OMAP4430_RST_GLOBAL_WARM_SW_MASK;
+	omap4_prm_write_inst_reg(v, OMAP4430_PRM_DEVICE_INST,
+				 OMAP4_RM_RSTCTRL);
+
+	/* OCP barrier */
+	v = omap4_prm_read_inst_reg(OMAP4430_PRM_DEVICE_INST,
+				    OMAP4_RM_RSTCTRL);
+}
