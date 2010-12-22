@@ -2287,15 +2287,11 @@ static void clk_enable_init_clocks(void)
 	clk_enable_nolock(&clk_ddr_vepu_axi);
 	clk_enable_nolock(&clk_display_matrix_ahb);
 	clk_enable_nolock(&clk_display_matrix_axi);
-	clk_enable_nolock(&clk_ipp_ahb);
-	clk_enable_nolock(&clk_ipp_axi);
 	clk_enable_nolock(&clk_ddr_lcdc_axi);
 	clk_enable_nolock(&clk_uhost_ahb);
 	clk_enable_nolock(&clk_usbotg1);
 	clk_enable_nolock(&clk_usbotg0);
 	clk_enable_nolock(&clk_nandc);
-	clk_enable_nolock(&clk_smc);
-	clk_enable_nolock(&clk_smc_axi);
 	clk_enable_nolock(&clk_periph_cpu);
 	clk_enable_nolock(&clk_ddr_periph);
 	clk_enable_nolock(&clk_usb);
@@ -2308,10 +2304,6 @@ static void clk_enable_init_clocks(void)
 	clk_enable_nolock(&clk_dma2);
 	clk_enable_nolock(&clk_dma1);
 	clk_enable_nolock(&clk_dma0);
-	clk_enable_nolock(&clk_spdif);
-	clk_enable_nolock(&clk_i2s0);
-	/* backlight */
-	clk_enable_nolock(&clk_pwm);
 	/* vpu */
 	clk_enable_nolock(&aclk_vdpu);
 	clk_enable_nolock(&hclk_vdpu);
