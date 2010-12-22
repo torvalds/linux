@@ -26,8 +26,6 @@ void flush_user_dcache_range_asm(unsigned long, unsigned long);
 void flush_kernel_dcache_range_asm(unsigned long, unsigned long);
 void flush_kernel_dcache_page_asm(void *);
 void flush_kernel_icache_page(void *);
-void flush_user_dcache_page(unsigned long);
-void flush_user_icache_page(unsigned long);
 void flush_user_dcache_range(unsigned long, unsigned long);
 void flush_user_icache_range(unsigned long, unsigned long);
 
@@ -90,12 +88,15 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned
 void flush_cache_range(struct vm_area_struct *vma,
 		unsigned long start, unsigned long end);
 
+/* defined in pacache.S exported in cache.c used by flush_anon_page */
+void flush_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
+
 #define ARCH_HAS_FLUSH_ANON_PAGE
 static inline void
 flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned long vmaddr)
 {
 	if (PageAnon(page))
-		flush_user_dcache_page(vmaddr);
+		flush_dcache_page_asm(page_to_phys(page), vmaddr);
 }
 
 #define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
