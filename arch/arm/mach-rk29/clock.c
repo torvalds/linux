@@ -30,6 +30,7 @@
 #include <asm/clkdev.h>
 #include <mach/rk29_iomap.h>
 #include <mach/cru.h>
+#include <mach/pmu.h>
 
 
 #define PWM_VCORE_120	40
@@ -402,10 +403,12 @@ static const struct arm_pll_set arm_pll[] = {
 #define PWM_DIV    PWM_DIV2
 
 static struct clk pclk_periph;
+static struct clk clk_pwm;
 void PWMInit(u32 nHz, u32 rate)
 {
 	u32 divh;
 
+	clk_enable_nolock(&clk_pwm);
 	// iomux to pwm2
 #define     REG_FILE_BASE_ADDR         RK29_GRF_BASE
 	volatile unsigned int * pGRF_GPIO2L_IOMUX =  (volatile unsigned int *)(REG_FILE_BASE_ADDR + 0x58);
@@ -2281,20 +2284,13 @@ static void rk29_clock_common_init(void)
 static void clk_enable_init_clocks(void)
 {
 	clk_enable_nolock(&clk_cpu_display_ahb);
-	clk_enable_nolock(&clk_cpu_vcodec_ahb);
 	clk_enable_nolock(&clk_ddr_gpu_axi);
-	clk_enable_nolock(&clk_ddr_vdpu_axi);
-	clk_enable_nolock(&clk_ddr_vepu_axi);
 	clk_enable_nolock(&clk_display_matrix_ahb);
 	clk_enable_nolock(&clk_display_matrix_axi);
 	clk_enable_nolock(&clk_ddr_lcdc_axi);
-	clk_enable_nolock(&clk_uhost_ahb);
-	clk_enable_nolock(&clk_usbotg1);
-	clk_enable_nolock(&clk_usbotg0);
 	clk_enable_nolock(&clk_nandc);
 	clk_enable_nolock(&clk_periph_cpu);
 	clk_enable_nolock(&clk_ddr_periph);
-	clk_enable_nolock(&clk_usb);
 	clk_enable_nolock(&clk_grf);
 	clk_enable_nolock(&clk_pmu);
 	clk_enable_nolock(&clk_ddr_cpu);
@@ -2304,6 +2300,9 @@ static void clk_enable_init_clocks(void)
 	clk_enable_nolock(&clk_dma2);
 	clk_enable_nolock(&clk_dma1);
 	clk_enable_nolock(&clk_dma0);
+#ifdef CONFIG_DEBUG_LL
+	clk_enable_nolock(&clk_uart1);
+#endif
 	/* vpu */
 	clk_enable_nolock(&aclk_vdpu);
 	clk_enable_nolock(&hclk_vdpu);
@@ -2329,6 +2328,10 @@ static int __init clk_disable_unused(void)
 	}
 	mutex_unlock(&clocks_mutex);
 
+//	pmu_set_power_domain(PD_VCODEC, false);
+//	pmu_set_power_domain(PD_DISPLAY, false);
+//	pmu_set_power_domain(PD_GPU, false);
+
 	return 0;
 }
 
@@ -2346,12 +2349,6 @@ void __init rk29_clock_init(void)
 
 	clk_recalculate_root_clocks_nolock();
 
-	rk29_clock_common_init();
-
-	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/ppll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz\n",
-	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, periph_pll_clk.rate / MHZ, clk_core.rate / MHZ,
-	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
-
 	/*
 	 * Only enable those clocks we will need, let the drivers
 	 * enable other clocks as necessary
@@ -2362,6 +2359,13 @@ void __init rk29_clock_init(void)
 	 * Disable any unused clocks left on by the bootloader
 	 */
 	clk_disable_unused();
+
+	rk29_clock_common_init();
+
+	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/ppll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz\n",
+	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, periph_pll_clk.rate / MHZ, clk_core.rate / MHZ,
+	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
+
 }
 
 #ifdef CONFIG_PROC_FS
