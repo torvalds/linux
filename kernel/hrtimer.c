@@ -1774,7 +1774,7 @@ schedule_hrtimeout_range_clock(ktime_t *expires, unsigned long delta,
 	}
 
 	/*
-	 * A NULL parameter means "inifinte"
+	 * A NULL parameter means "infinite"
 	 */
 	if (!expires) {
 		schedule();
