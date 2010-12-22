@@ -52,6 +52,9 @@ extern int m2p_remove_override(struct page *page);
 extern struct page *m2p_find_override(unsigned long mfn);
 extern unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn);
 
+#ifdef CONFIG_XEN_DEBUG_FS
+extern int p2m_dump_show(struct seq_file *m, void *v);
+#endif
 static inline unsigned long pfn_to_mfn(unsigned long pfn)
 {
 	unsigned long mfn;

@@ -153,6 +153,7 @@
 #include <linux/list.h>
 #include <linux/hash.h>
 #include <linux/sched.h>
+#include <linux/seq_file.h>
 
 #include <asm/cache.h>
 #include <asm/setup.h>
@@ -758,3 +759,80 @@ unsigned long m2p_find_override_pfn(unsigned long mfn, unsigned long pfn)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(m2p_find_override_pfn);
+
+#ifdef CONFIG_XEN_DEBUG_FS
+
+int p2m_dump_show(struct seq_file *m, void *v)
+{
+	static const char * const level_name[] = { "top", "middle",
+						"entry", "abnormal" };
+	static const char * const type_name[] = { "identity", "missing",
+						"pfn", "abnormal"};
+#define TYPE_IDENTITY 0
+#define TYPE_MISSING 1
+#define TYPE_PFN 2
+#define TYPE_UNKNOWN 3
+	unsigned long pfn, prev_pfn_type = 0, prev_pfn_level = 0;
+	unsigned int uninitialized_var(prev_level);
+	unsigned int uninitialized_var(prev_type);
+
+	if (!p2m_top)
+		return 0;
+
+	for (pfn = 0; pfn < MAX_DOMAIN_PAGES; pfn++) {
+		unsigned topidx = p2m_top_index(pfn);
+		unsigned mididx = p2m_mid_index(pfn);
+		unsigned idx = p2m_index(pfn);
+		unsigned lvl, type;
+
+		lvl = 4;
+		type = TYPE_UNKNOWN;
+		if (p2m_top[topidx] == p2m_mid_missing) {
+			lvl = 0; type = TYPE_MISSING;
+		} else if (p2m_top[topidx] == NULL) {
+			lvl = 0; type = TYPE_UNKNOWN;
+		} else if (p2m_top[topidx][mididx] == NULL) {
+			lvl = 1; type = TYPE_UNKNOWN;
+		} else if (p2m_top[topidx][mididx] == p2m_identity) {
+			lvl = 1; type = TYPE_IDENTITY;
+		} else if (p2m_top[topidx][mididx] == p2m_missing) {
+			lvl = 1; type = TYPE_MISSING;
+		} else if (p2m_top[topidx][mididx][idx] == 0) {
+			lvl = 2; type = TYPE_UNKNOWN;
+		} else if (p2m_top[topidx][mididx][idx] == IDENTITY_FRAME(pfn)) {
+			lvl = 2; type = TYPE_IDENTITY;
+		} else if (p2m_top[topidx][mididx][idx] == INVALID_P2M_ENTRY) {
+			lvl = 2; type = TYPE_MISSING;
+		} else if (p2m_top[topidx][mididx][idx] == pfn) {
+			lvl = 2; type = TYPE_PFN;
+		} else if (p2m_top[topidx][mididx][idx] != pfn) {
+			lvl = 2; type = TYPE_PFN;
+		}
+		if (pfn == 0) {
+			prev_level = lvl;
+			prev_type = type;
+		}
+		if (pfn == MAX_DOMAIN_PAGES-1) {
+			lvl = 3;
+			type = TYPE_UNKNOWN;
+		}
+		if (prev_type != type) {
+			seq_printf(m, " [0x%lx->0x%lx] %s\n",
+				prev_pfn_type, pfn, type_name[prev_type]);
+			prev_pfn_type = pfn;
+			prev_type = type;
+		}
+		if (prev_level != lvl) {
+			seq_printf(m, " [0x%lx->0x%lx] level %s\n",
+				prev_pfn_level, pfn, level_name[prev_level]);
+			prev_pfn_level = pfn;
+			prev_level = lvl;
+		}
+	}
+	return 0;
+#undef TYPE_IDENTITY
+#undef TYPE_MISSING
+#undef TYPE_PFN
+#undef TYPE_UNKNOWN
+}
+#endif
