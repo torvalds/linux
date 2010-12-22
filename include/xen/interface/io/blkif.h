@@ -51,11 +51,7 @@ typedef uint64_t blkif_sector_t;
  */
 #define BLKIF_MAX_SEGMENTS_PER_REQUEST 11
 
-struct blkif_request {
-	uint8_t        operation;    /* BLKIF_OP_???                         */
-	uint8_t        nr_segments;  /* number of segments                   */
-	blkif_vdev_t   handle;       /* only for read/write requests         */
-	uint64_t       id;           /* private guest value, echoed in resp  */
+struct blkif_request_rw {
 	blkif_sector_t sector_number;/* start sector idx on disk (r/w only)  */
 	struct blkif_request_segment {
 		grant_ref_t gref;        /* reference to I/O buffer frame        */
@@ -63,6 +59,16 @@ struct blkif_request {
 		/* @last_sect: last sector in frame to transfer (inclusive).     */
 		uint8_t     first_sect, last_sect;
 	} seg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+};
+
+struct blkif_request {
+	uint8_t        operation;    /* BLKIF_OP_???                         */
+	uint8_t        nr_segments;  /* number of segments                   */
+	blkif_vdev_t   handle;       /* only for read/write requests         */
+	uint64_t       id;           /* private guest value, echoed in resp  */
+	union {
+		struct blkif_request_rw rw;
+	} u;
 };
 
 struct blkif_response {
