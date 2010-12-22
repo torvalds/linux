@@ -204,9 +204,9 @@ extern void wlc_bmac_copyfrom_vars(struct wlc_hw_info *wlc_hw, char **buf,
 extern void wlc_bmac_process_ps_switch(struct wlc_hw_info *wlc,
 				       struct ether_addr *ea, s8 ps_on);
 extern void wlc_bmac_hw_etheraddr(struct wlc_hw_info *wlc_hw,
-				  struct ether_addr *ea);
+				  u8 *ea);
 extern void wlc_bmac_set_hw_etheraddr(struct wlc_hw_info *wlc_hw,
-				      struct ether_addr *ea);
+				      u8 *ea);
 extern bool wlc_bmac_validate_chip_access(struct wlc_hw_info *wlc_hw);
 
 extern bool wlc_bmac_radio_read_hwdisabled(struct wlc_hw_info *wlc_hw);
@@ -227,10 +227,10 @@ extern void wlc_ucode_wake_override_clear(struct wlc_hw_info *wlc_hw,
 					  u32 override_bit);
 
 extern void wlc_bmac_set_rcmta(struct wlc_hw_info *wlc_hw, int idx,
-			       const struct ether_addr *addr);
+			       const u8 *addr);
 extern void wlc_bmac_set_addrmatch(struct wlc_hw_info *wlc_hw,
 				   int match_reg_offset,
-				   const struct ether_addr *addr);
+				   const u8 *addr);
 extern void wlc_bmac_write_hw_bcntemplates(struct wlc_hw_info *wlc_hw,
 					   void *bcn, int len, bool both);
 

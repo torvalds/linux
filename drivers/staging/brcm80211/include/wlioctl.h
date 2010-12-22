@@ -18,7 +18,6 @@
 #define	_wlioctl_h_
 
 #include <linux/ieee80211.h>
-#include <proto/ethernet.h>
 #ifdef BRCM_FULLMAC
 #include <proto/bcmeth.h>
 #endif
@@ -43,7 +42,7 @@ typedef struct wl_bss_info {
 	u32 length;		/* byte length of data in this record,
 				 * starting at version and including IEs
 				 */
-	struct ether_addr BSSID;
+	u8 BSSID[ETH_ALEN];
 	u16 beacon_period;	/* units are Kusec */
 	u16 capability;	/* Capability information */
 	u8 SSID_len;
@@ -125,7 +124,7 @@ typedef struct wl_extdscan_params {
 
 typedef struct wl_scan_params {
 	wlc_ssid_t ssid;	/* default: {0, ""} */
-	struct ether_addr bssid;	/* default: bcast */
+	u8 bssid[ETH_ALEN];	/* default: bcast */
 	s8 bss_type;		/* default: any,
 				 * DOT11_BSSTYPE_ANY/INFRASTRUCTURE/INDEPENDENT
 				 */
@@ -231,8 +230,8 @@ typedef struct wl_iscan_results {
 
 typedef struct wl_probe_params {
 	wlc_ssid_t ssid;
-	struct ether_addr bssid;
-	struct ether_addr mac;
+	u8 bssid[ETH_ALEN];
+	u8 mac[ETH_ALEN];
 } wl_probe_params_t;
 #endif /* BRCM_FULLMAC */
 
@@ -259,7 +258,7 @@ typedef struct wl_u32_list {
 
 /* used for association with a specific BSSID and chanspec list */
 typedef struct wl_assoc_params {
-	struct ether_addr bssid;	/* 00:00:00:00:00:00: broadcast scan */
+	u8 bssid[ETH_ALEN];	/* 00:00:00:00:00:00: broadcast scan */
 	s32 chanspec_num;	/* 0: all available channels,
 				 * otherwise count of chanspecs in chanspec_list
 				 */
@@ -489,7 +488,7 @@ typedef struct wl_wsec_key {
 		u16 lo;	/* lower 16 bits of IV */
 	} rxiv;
 	u32 pad_5[2];
-	struct ether_addr ea;	/* per station */
+	u8 ea[ETH_ALEN];	/* per station */
 } wl_wsec_key_t;
 
 #define WSEC_MIN_PSK_LEN	8
@@ -531,7 +530,7 @@ typedef struct {
 #define	MAXPMKID		16
 
 typedef struct _pmkid {
-	struct ether_addr BSSID;
+	u8 BSSID[ETH_ALEN];
 	u8 PMKID[WLAN_PMKID_LEN];
 } pmkid_t;
 
@@ -541,7 +540,7 @@ typedef struct _pmkid_list {
 } pmkid_list_t;
 
 typedef struct _pmkid_cand {
-	struct ether_addr BSSID;
+	u8 BSSID[ETH_ALEN];
 	u8 preauth;
 } pmkid_cand_t;
 
@@ -569,7 +568,7 @@ typedef struct {
 /* Used to get specific STA parameters */
 typedef struct {
 	u32 val;
-	struct ether_addr ea;
+	u8 ea[ETH_ALEN];
 } scb_val_t;
 #endif /* BRCM_FULLMAC */
 
@@ -583,7 +582,7 @@ typedef struct channel_info {
 /* For ioctls that take a list of MAC addresses */
 struct maclist {
 	uint count;		/* number of MAC addresses */
-	struct ether_addr ea[1];	/* variable length array of MAC addresses */
+	u8 ea[1][ETH_ALEN];	/* variable length array of MAC addresses */
 };
 
 /* get pkt count struct passed through ioctl */
@@ -1611,7 +1610,7 @@ struct ampdu_tid_control {
 
 /* structure for identifying ea/tid for sending addba/delba */
 struct ampdu_ea_tid {
-	struct ether_addr ea;	/* Station address */
+	u8 ea[ETH_ALEN];	/* Station address */
 	u8 tid;		/* tid */
 };
 /* structure for identifying retry/tid for retry_limit_tid/rr_retry_limit_tid */

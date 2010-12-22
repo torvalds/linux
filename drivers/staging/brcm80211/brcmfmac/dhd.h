@@ -95,8 +95,8 @@ typedef struct dhd_pub {
 	/* Dongle media info */
 	bool iswl;		/* Dongle-resident driver is wl */
 	unsigned long drv_version;	/* Version of dongle-resident driver */
-	struct ether_addr mac;	/* MAC address obtained from dongle */
-	dngl_stats_t dstats;	/* Stats for dongle-based data */
+	u8 mac[ETH_ALEN];			/* MAC address obtained from dongle */
+	dngl_stats_t dstats;		/* Stats for dongle-based data */
 
 	/* Additional stats for the bus level */
 	unsigned long tx_packets;	/* Data packets sent to dongle */

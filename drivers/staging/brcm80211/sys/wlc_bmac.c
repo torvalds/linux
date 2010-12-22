@@ -1032,9 +1032,9 @@ int wlc_bmac_attach(struct wlc_info *wlc, u16 vendor, u16 device, uint unit,
 		err = 21;
 		goto fail;
 	}
-	bcm_ether_atoe(macaddr, &wlc_hw->etheraddr);
-	if (is_broadcast_ether_addr(wlc_hw->etheraddr.octet) ||
-	    is_zero_ether_addr(wlc_hw->etheraddr.octet)) {
+	bcm_ether_atoe(macaddr, wlc_hw->etheraddr);
+	if (is_broadcast_ether_addr(wlc_hw->etheraddr) ||
+	    is_zero_ether_addr(wlc_hw->etheraddr)) {
 		WL_ERROR("wl%d: wlc_bmac_attach: bad macaddr %s\n",
 			 unit, macaddr);
 		err = 22;
@@ -1348,15 +1348,15 @@ void wlc_bmac_wait_for_wake(struct wlc_hw_info *wlc_hw)
 	ASSERT(wlc_bmac_read_shm(wlc_hw, M_UCODE_DBGST) != DBGST_ASLEEP);
 }
 
-void wlc_bmac_hw_etheraddr(struct wlc_hw_info *wlc_hw, struct ether_addr *ea)
+void wlc_bmac_hw_etheraddr(struct wlc_hw_info *wlc_hw, u8 *ea)
 {
-	bcopy(&wlc_hw->etheraddr, ea, ETH_ALEN);
+	bcopy(wlc_hw->etheraddr, ea, ETH_ALEN);
 }
 
 void wlc_bmac_set_hw_etheraddr(struct wlc_hw_info *wlc_hw,
-			       struct ether_addr *ea)
+			       u8 *ea)
 {
-	bcopy(ea, &wlc_hw->etheraddr, ETH_ALEN);
+	bcopy(ea, wlc_hw->etheraddr, ETH_ALEN);
 }
 
 int wlc_bmac_bandtype(struct wlc_hw_info *wlc_hw)
@@ -1721,7 +1721,7 @@ static void wlc_ucode_mute_override_clear(struct wlc_hw_info *wlc_hw)
  */
 void
 wlc_bmac_set_rcmta(struct wlc_hw_info *wlc_hw, int idx,
-		   const struct ether_addr *addr)
+		   const u8 *addr)
 {
 	d11regs_t *regs = wlc_hw->regs;
 	volatile u16 *objdata16 = (volatile u16 *)&regs->objdata;
@@ -1734,10 +1734,9 @@ wlc_bmac_set_rcmta(struct wlc_hw_info *wlc_hw, int idx,
 	ASSERT(wlc_hw->corerev > 4);
 
 	mac_hm =
-	    (addr->octet[3] << 24) | (addr->octet[2] << 16) | (addr->
-							       octet[1] << 8) |
-	    addr->octet[0];
-	mac_l = (addr->octet[5] << 8) | addr->octet[4];
+	    (addr[3] << 24) | (addr[2] << 16) |
+	    (addr[1] << 8) | addr[0];
+	mac_l = (addr[5] << 8) | addr[4];
 
 	osh = wlc_hw->osh;
 
@@ -1754,7 +1753,7 @@ wlc_bmac_set_rcmta(struct wlc_hw_info *wlc_hw, int idx,
  */
 void
 wlc_bmac_set_addrmatch(struct wlc_hw_info *wlc_hw, int match_reg_offset,
-		       const struct ether_addr *addr)
+		       const u8 *addr)
 {
 	d11regs_t *regs;
 	u16 mac_l;
@@ -1767,9 +1766,9 @@ wlc_bmac_set_addrmatch(struct wlc_hw_info *wlc_hw, int match_reg_offset,
 	ASSERT((match_reg_offset < RCM_SIZE) || (wlc_hw->corerev == 4));
 
 	regs = wlc_hw->regs;
-	mac_l = addr->octet[0] | (addr->octet[1] << 8);
-	mac_m = addr->octet[2] | (addr->octet[3] << 8);
-	mac_h = addr->octet[4] | (addr->octet[5] << 8);
+	mac_l = addr[0] | (addr[1] << 8);
+	mac_m = addr[2] | (addr[3] << 8);
+	mac_h = addr[4] | (addr[5] << 8);
 
 	osh = wlc_hw->osh;
 
@@ -3042,7 +3041,7 @@ void wlc_intrsrestore(struct wlc_info *wlc, u32 macintmask)
 
 void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool on, mbool flags)
 {
-	struct ether_addr null_ether_addr = { {0, 0, 0, 0, 0, 0} };
+	u8 null_ether_addr[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
 
 	if (on) {
 		/* suspend tx fifos */
@@ -3053,7 +3052,7 @@ void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool on, mbool flags)
 
 		/* zero the address match register so we do not send ACKs */
 		wlc_bmac_set_addrmatch(wlc_hw, RCM_MAC_OFFSET,
-				       &null_ether_addr);
+				       null_ether_addr);
 	} else {
 		/* resume tx fifos */
 		if (!wlc_hw->wlc->tx_suspended) {
@@ -3065,7 +3064,7 @@ void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool on, mbool flags)
 
 		/* Restore address */
 		wlc_bmac_set_addrmatch(wlc_hw, RCM_MAC_OFFSET,
-				       &wlc_hw->etheraddr);
+				       wlc_hw->etheraddr);
 	}
 
 	wlc_phy_mute_upd(wlc_hw->band->pi, on, flags);

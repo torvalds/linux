@@ -36,7 +36,6 @@
 #include <bcmutils.h>
 #include <bcmendian.h>
 
-#include <proto/ethernet.h>
 #include <dngl_stats.h>
 #include <dhd.h>
 #include <dhd_bus.h>
@@ -248,7 +247,7 @@ typedef struct dhd_info {
 	struct semaphore sysioc_sem;
 	bool set_multicast;
 	bool set_macaddress;
-	struct ether_addr macvalue;
+	u8 macvalue[ETH_ALEN];
 	wait_queue_head_t ctrl_wait;
 	atomic_t pend_8021x_cnt;
 
@@ -804,7 +803,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 }
 
 static int
-_dhd_set_mac_address(dhd_info_t *dhd, int ifidx, struct ether_addr *addr)
+_dhd_set_mac_address(dhd_info_t *dhd, int ifidx, u8 *addr)
 {
 	char buf[32];
 	wl_ioctl_t ioc;
@@ -977,7 +976,7 @@ static int _dhd_sysioc_thread(void *data)
 				if (dhd->set_macaddress) {
 					dhd->set_macaddress = false;
 					_dhd_set_mac_address(dhd, i,
-							     &dhd->macvalue);
+							     dhd->macvalue);
 				}
 			}
 		}
@@ -1867,7 +1866,7 @@ static int dhd_open(struct net_device *net)
 		}
 		atomic_set(&dhd->pend_8021x_cnt, 0);
 
-		memcpy(net->dev_addr, dhd->pub.mac.octet, ETH_ALEN);
+		memcpy(net->dev_addr, dhd->pub.mac, ETH_ALEN);
 
 #ifdef TOE
 		/* Get current TOE mode from dongle */
@@ -2300,7 +2299,7 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 	 */
 	if (ifidx != 0) {
 		/* for virtual interfaces use the primary MAC  */
-		memcpy(temp_addr, dhd->pub.mac.octet, ETH_ALEN);
+		memcpy(temp_addr, dhd->pub.mac, ETH_ALEN);
 
 	}
 

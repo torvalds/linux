@@ -86,13 +86,6 @@
 /* fn(pkt, arg).  return true if pkt belongs to if */
 	typedef bool(*ifpkt_cb_t) (void *, int);
 
-/* forward definition of ether_addr structure used by some function prototypes */
-
-	struct ether_addr;
-
-	extern int ether_isbcast(const void *ea);
-	extern int ether_isnulladdr(const void *ea);
-
 /* operations on a specific precedence in packet queue */
 
 #define pktq_psetmax(pq, prec, _max)    ((pq)->q[prec].max = (_max))
@@ -157,7 +150,7 @@ extern struct sk_buff *pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out);
 	extern uint pkttotlen(struct osl_info *osh, struct sk_buff *p);
 
 /* ethernet address */
-	extern int bcm_ether_atoe(char *p, struct ether_addr *ea);
+	extern int bcm_ether_atoe(char *p, u8 *ea);
 
 /* ip address */
 	struct ipv4_addr;

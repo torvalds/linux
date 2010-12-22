@@ -308,7 +308,7 @@ static int _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 		      struct wlc_if *wlcif);
 
 #if defined(BCMDBG)
-void wlc_get_rcmta(struct wlc_info *wlc, int idx, struct ether_addr *addr)
+void wlc_get_rcmta(struct wlc_info *wlc, int idx, u8 *addr)
 {
 	d11regs_t *regs = wlc->regs;
 	u32 v32;
@@ -323,15 +323,15 @@ void wlc_get_rcmta(struct wlc_info *wlc, int idx, struct ether_addr *addr)
 	W_REG(osh, &regs->objaddr, (OBJADDR_RCMTA_SEL | (idx * 2)));
 	(void)R_REG(osh, &regs->objaddr);
 	v32 = R_REG(osh, &regs->objdata);
-	addr->octet[0] = (u8) v32;
-	addr->octet[1] = (u8) (v32 >> 8);
-	addr->octet[2] = (u8) (v32 >> 16);
-	addr->octet[3] = (u8) (v32 >> 24);
+	addr[0] = (u8) v32;
+	addr[1] = (u8) (v32 >> 8);
+	addr[2] = (u8) (v32 >> 16);
+	addr[3] = (u8) (v32 >> 24);
 	W_REG(osh, &regs->objaddr, (OBJADDR_RCMTA_SEL | ((idx * 2) + 1)));
 	(void)R_REG(osh, &regs->objaddr);
 	v32 = R_REG(osh, (volatile u16 *)&regs->objdata);
-	addr->octet[4] = (u8) v32;
-	addr->octet[5] = (u8) (v32 >> 8);
+	addr[4] = (u8) v32;
+	addr[5] = (u8) (v32 >> 8);
 }
 #endif				/* defined(BCMDBG) */
 
@@ -687,7 +687,7 @@ int wlc_set_mac(wlc_bsscfg_t *cfg)
 
 	if (cfg == wlc->cfg) {
 		/* enter the MAC addr into the RXE match registers */
-		wlc_set_addrmatch(wlc, RCM_MAC_OFFSET, &cfg->cur_etheraddr);
+		wlc_set_addrmatch(wlc, RCM_MAC_OFFSET, cfg->cur_etheraddr);
 	}
 
 	wlc_ampdu_macaddr_upd(wlc);
@@ -704,7 +704,7 @@ void wlc_set_bssid(wlc_bsscfg_t *cfg)
 
 	/* if primary config, we need to update BSSID in RXE match registers */
 	if (cfg == wlc->cfg) {
-		wlc_set_addrmatch(wlc, RCM_BSSID_OFFSET, &cfg->BSSID);
+		wlc_set_addrmatch(wlc, RCM_BSSID_OFFSET, cfg->BSSID);
 	}
 #ifdef SUPPORT_HWKEYS
 	else if (BSSCFG_STA(cfg) && cfg->BSS) {
@@ -1736,7 +1736,6 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	ASSERT(WSEC_MAX_DEFAULT_KEYS == WLC_DEFAULT_KEYS);
 
 	/* some code depends on packed structures */
-	ASSERT(sizeof(struct ether_addr) == ETH_ALEN);
 	ASSERT(sizeof(struct ethhdr) == ETH_HLEN);
 	ASSERT(sizeof(d11regs_t) == SI_CORE_SIZE);
 	ASSERT(sizeof(ofdm_phy_hdr_t) == D11_PHY_HDR_LEN);
@@ -1846,7 +1845,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 			wlc->core->txavail[i] = wlc->hw->txavail[i];
 	}
 
-	wlc_bmac_hw_etheraddr(wlc->hw, &wlc->perm_etheraddr);
+	wlc_bmac_hw_etheraddr(wlc->hw, wlc->perm_etheraddr);
 
 	bcopy((char *)&wlc->perm_etheraddr, (char *)&pub->cur_etheraddr,
 	      ETH_ALEN);
@@ -3610,7 +3609,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 				if (src_key->flags & WSEC_PRIMARY_KEY)
 					key.flags |= WL_PRIMARY_KEY;
 
-				bcopy(src_key->ea.octet, key.ea.octet,
+				bcopy(src_key->ea, key.ea,
 				      ETH_ALEN);
 			}
 
@@ -3647,7 +3646,7 @@ _wlc_ioctl(struct wlc_info *wlc, int cmd, void *arg, int len,
 				u32 hi;
 				/* group keys in WPA-NONE (IBSS only, AES and TKIP) use a global TXIV */
 				if ((bsscfg->WPA_auth & WPA_AUTH_NONE) &&
-				    is_zero_ether_addr(key->ea.octet)) {
+				    is_zero_ether_addr(key->ea)) {
 					lo = bsscfg->wpa_none_txiv.lo;
 					hi = bsscfg->wpa_none_txiv.hi;
 				} else {
@@ -5819,7 +5818,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 			rspec[k] = WLC_RATE_1M;
 		} else {
 			if (WLANTSEL_ENAB(wlc) &&
-			    !is_multicast_ether_addr(h->a1.octet)) {
+			    !is_multicast_ether_addr(h->a1)) {
 				/* set tx antenna config */
 				wlc_antsel_antcfg_get(wlc->asi, false, false, 0,
 						      0, &antcfg, &fbantcfg);
@@ -5982,7 +5981,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 
 	/* DUR field for main rate */
 	if ((fc != FC_PS_POLL) &&
-	    !is_multicast_ether_addr(h->a1.octet) && !use_rifs) {
+	    !is_multicast_ether_addr(h->a1) && !use_rifs) {
 		durid =
 		    wlc_compute_frame_dur(wlc, rspec[0], preamble_type[0],
 					  next_frag_len);
@@ -6000,7 +5999,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	/* DUR field for fallback rate */
 	if (fc == FC_PS_POLL)
 		txh->FragDurFallback = h->durid;
-	else if (is_multicast_ether_addr(h->a1.octet) || use_rifs)
+	else if (is_multicast_ether_addr(h->a1) || use_rifs)
 		txh->FragDurFallback = 0;
 	else {
 		durid = wlc_compute_frame_dur(wlc, rspec[1],
@@ -6012,7 +6011,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	if (frag == 0)
 		mcl |= TXC_STARTMSDU;
 
-	if (!is_multicast_ether_addr(h->a1.octet))
+	if (!is_multicast_ether_addr(h->a1))
 		mcl |= TXC_IMMEDACK;
 
 	if (BAND_5G(wlc->band->bandtype))
@@ -6241,7 +6240,7 @@ wlc_d11hdrs_mac80211(struct wlc_info *wlc, struct ieee80211_hw *hw,
 	if (SCB_WME(scb) && qos && wlc->edcf_txop[ac]) {
 		uint frag_dur, dur, dur_fallback;
 
-		ASSERT(!is_multicast_ether_addr(h->a1.octet));
+		ASSERT(!is_multicast_ether_addr(h->a1));
 
 		/* WME: Update TXOP threshold */
 		if ((!(tx_info->flags & IEEE80211_TX_CTL_AMPDU)) && (frag == 0)) {
@@ -7051,8 +7050,8 @@ void BCMFASTPATH wlc_recv(struct wlc_info *wlc, struct sk_buff *p)
 	if (!is_amsdu) {
 		/* CTS and ACK CTL frames are w/o a2 */
 		if (FC_TYPE(fc) == FC_TYPE_DATA || FC_TYPE(fc) == FC_TYPE_MNG) {
-			if ((is_zero_ether_addr(h->a2.octet) ||
-			     is_multicast_ether_addr(h->a2.octet))) {
+			if ((is_zero_ether_addr(h->a2) ||
+			     is_multicast_ether_addr(h->a2))) {
 				WL_ERROR("wl%d: %s: dropping a frame with invalid src mac address, a2: %pM\n",
 					 wlc->pub->unit, __func__, &h->a2);
 				WLCNTINCR(wlc->pub->_cnt->rxbadsrcmac);
@@ -7622,6 +7621,7 @@ static void
 wlc_bcn_prb_template(struct wlc_info *wlc, uint type, ratespec_t bcn_rspec,
 		     wlc_bsscfg_t *cfg, u16 *buf, int *len)
 {
+	static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
 	cck_phy_hdr_t *plcp;
 	struct dot11_management_header *h;
 	int hdr_len, body_len;
@@ -8232,12 +8232,12 @@ void wlc_write_hw_bcntemplates(struct wlc_info *wlc, void *bcn, int len,
 
 void
 wlc_set_addrmatch(struct wlc_info *wlc, int match_reg_offset,
-		  const struct ether_addr *addr)
+		  const u8 *addr)
 {
 	wlc_bmac_set_addrmatch(wlc->hw, match_reg_offset, addr);
 }
 
-void wlc_set_rcmta(struct wlc_info *wlc, int idx, const struct ether_addr *addr)
+void wlc_set_rcmta(struct wlc_info *wlc, int idx, const u8 *addr)
 {
 	wlc_bmac_set_rcmta(wlc->hw, idx, addr);
 }

@@ -58,7 +58,7 @@ struct scb {
 	u32 flags;		/* various bit flags as defined below */
 	u32 flags2;		/* various bit flags2 as defined below */
 	u8 state;		/* current state bitfield of auth/assoc process */
-	struct ether_addr ea;	/* station address */
+	u8 ea[ETH_ALEN];	/* station address */
 	void *fragbuf[NUMPRIO];	/* defragmentation buffer per prio */
 	uint fragresid[NUMPRIO];	/* #bytes unused in frag buffer per prio */
 

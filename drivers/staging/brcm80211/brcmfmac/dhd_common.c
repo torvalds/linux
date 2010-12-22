@@ -599,7 +599,7 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 	auth_type = ntoh32(event->auth_type);
 	datalen = ntoh32(event->datalen);
 	/* debug dump of event messages */
-	sprintf(eabuf, "%pM", event->addr.octet);
+	sprintf(eabuf, "%pM", event->addr);
 
 	event_name = "UNKNOWN";
 	for (i = 0; i < ARRAY_SIZE(event_names); i++) {
@@ -1242,7 +1242,7 @@ int dhd_preinit_ioctls(dhd_pub_t *dhd)
 	int scan_unassoc_time = 40;
 #ifdef GET_CUSTOM_MAC_ENABLE
 	int ret = 0;
-	struct ether_addr ea_addr;
+	u8 ea_addr[ETH_ALEN];
 #endif				/* GET_CUSTOM_MAC_ENABLE */
 
 	dhd_os_proto_block(dhd);
@@ -1254,9 +1254,9 @@ int dhd_preinit_ioctls(dhd_pub_t *dhd)
 	 ** firmware but unique per board mac address maybe provided by
 	 ** customer code
 	 */
-	ret = dhd_custom_get_mac_address(ea_addr.octet);
+	ret = dhd_custom_get_mac_address(ea_addr);
 	if (!ret) {
-		bcm_mkiovar("cur_etheraddr", (void *)&ea_addr, ETH_ALEN,
+		bcm_mkiovar("cur_etheraddr", (void *)ea_addr, ETH_ALEN,
 			    buf, sizeof(buf));
 		ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
 		if (ret < 0) {

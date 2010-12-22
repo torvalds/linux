@@ -87,7 +87,7 @@ typedef struct wsec_iv {
 #define WLC_NUMRXIVS	16	/* # rx IVs (one per 802.11e TID) */
 
 typedef struct wsec_key {
-	struct ether_addr ea;	/* per station */
+	u8 ea[ETH_ALEN];	/* per station */
 	u8 idx;		/* key index in wsec_keys array */
 	u8 id;		/* key ID [0-3] */
 	u8 algo;		/* CRYPTO_ALGO_AES_CCM, CRYPTO_ALGO_WEP128, etc */

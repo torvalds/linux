@@ -477,7 +477,7 @@ int dhd_prot_init(dhd_pub_t *dhd)
 		dhd_os_proto_unblock(dhd);
 		return ret;
 	}
-	memcpy(dhd->mac.octet, buf, ETH_ALEN);
+	memcpy(dhd->mac, buf, ETH_ALEN);
 
 	dhd_os_proto_unblock(dhd);
 

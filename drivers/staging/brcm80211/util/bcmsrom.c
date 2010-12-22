@@ -45,7 +45,6 @@
 #endif
 
 #include <linux/if_ether.h>
-#include <proto/ethernet.h>	/* for sprom content groking */
 
 #define	BS_ERROR(args)
 
@@ -1726,16 +1725,16 @@ static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, varbuf_t *b)
 			continue;
 
 		if (flags & SRFL_ETHADDR) {
-			struct ether_addr ea;
+			u8 ea[ETH_ALEN];
 
-			ea.octet[0] = (srom[srv->off - off] >> 8) & 0xff;
-			ea.octet[1] = srom[srv->off - off] & 0xff;
-			ea.octet[2] = (srom[srv->off + 1 - off] >> 8) & 0xff;
-			ea.octet[3] = srom[srv->off + 1 - off] & 0xff;
-			ea.octet[4] = (srom[srv->off + 2 - off] >> 8) & 0xff;
-			ea.octet[5] = srom[srv->off + 2 - off] & 0xff;
+			ea[0] = (srom[srv->off - off] >> 8) & 0xff;
+			ea[1] = srom[srv->off - off] & 0xff;
+			ea[2] = (srom[srv->off + 1 - off] >> 8) & 0xff;
+			ea[3] = srom[srv->off + 1 - off] & 0xff;
+			ea[4] = (srom[srv->off + 2 - off] >> 8) & 0xff;
+			ea[5] = srom[srv->off + 2 - off] & 0xff;
 
-			varbuf_append(b, "%s=%pM", name, ea.octet);
+			varbuf_append(b, "%s=%pM", name, ea);
 		} else {
 			ASSERT(mask_valid(srv->mask));
 			ASSERT(mask_width(srv->mask));

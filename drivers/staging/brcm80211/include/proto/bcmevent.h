@@ -17,6 +17,8 @@
 #ifndef _BCMEVENT_H_
 #define _BCMEVENT_H_
 
+#include <linux/if_ether.h>
+
 #define BCM_EVENT_MSG_VERSION		1
 #define BCM_MSG_IFNAME_MAX		16
 
@@ -32,7 +34,7 @@ typedef struct {
 	u32 reason;
 	u32 auth_type;
 	u32 datalen;
-	struct ether_addr addr;
+	u8 addr[ETH_ALEN];
 	char ifname[BCM_MSG_IFNAME_MAX];
 } __attribute__((packed)) wl_event_msg_t;
 

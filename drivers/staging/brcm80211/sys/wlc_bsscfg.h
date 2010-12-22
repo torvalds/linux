@@ -93,8 +93,8 @@ struct wlc_bsscfg {
 	u32 tk_cm_bt_tmstmp;	/* Timestamp when TKIP BT is activated */
 	bool tk_cm_activate;	/* activate countermeasures after EAPOL-Key sent */
 
-	struct ether_addr BSSID;	/* BSSID (associated) */
-	struct ether_addr cur_etheraddr;	/* h/w address */
+	u8 BSSID[ETH_ALEN];	/* BSSID (associated) */
+	u8 cur_etheraddr[ETH_ALEN];	/* h/w address */
 	u16 bcmc_fid;	/* the last BCMC FID queued to TX_BCMC_FIFO */
 	u16 bcmc_fid_shm;	/* the last BCMC FID written to shared mem */
 

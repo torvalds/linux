@@ -20,7 +20,6 @@
 #include <linux/wireless.h>
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
-#include <proto/ethernet.h>
 #include <wlioctl.h>
 
 struct wl_conf;
@@ -316,7 +315,7 @@ struct wl_priv {
 						 cfg80211 layer */
 	struct wl_ie ie;	/* information element object for
 					 internal purpose */
-	struct ether_addr bssid;	/* bssid of currently engaged network */
+	u8 bssid[ETH_ALEN];	/* bssid of currently engaged network */
 	struct semaphore event_sync;	/* for synchronization of main event
 					 thread */
 	struct wl_profile *profile;	/* holding dongle profile */

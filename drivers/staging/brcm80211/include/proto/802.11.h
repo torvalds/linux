@@ -17,7 +17,7 @@
 #ifndef _802_11_H_
 #define _802_11_H_
 
-#include <proto/ethernet.h>
+#include <linux/if_ether.h>
 
 #define DOT11_A3_HDR_LEN		24
 #define DOT11_A4_HDR_LEN		30
@@ -47,18 +47,18 @@
 struct dot11_header {
 	u16 fc;
 	u16 durid;
-	struct ether_addr a1;
-	struct ether_addr a2;
-	struct ether_addr a3;
+	u8 a1[ETH_ALEN];
+	u8 a2[ETH_ALEN];
+	u8 a3[ETH_ALEN];
 	u16 seq;
-	struct ether_addr a4;
+	u8 a4[ETH_ALEN];
 } __attribute__((packed));
 
 struct dot11_rts_frame {
 	u16 fc;
 	u16 durid;
-	struct ether_addr ra;
-	struct ether_addr ta;
+	u8 ra[ETH_ALEN];
+	u8 ta[ETH_ALEN];
 } __attribute__((packed));
 
 #define	DOT11_RTS_LEN		16
@@ -71,9 +71,9 @@ struct dot11_rts_frame {
 struct dot11_management_header {
 	u16 fc;
 	u16 durid;
-	struct ether_addr da;
-	struct ether_addr sa;
-	struct ether_addr bssid;
+	u8 da[ETH_ALEN];
+	u8 sa[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 	u16 seq;
 } __attribute__((packed));
 #define	DOT11_MGMT_HDR_LEN	24

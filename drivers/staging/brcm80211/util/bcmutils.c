@@ -28,7 +28,6 @@
 #include <bcmnvram.h>
 #include <bcmendian.h>
 #include <bcmdevs.h>
-#include <proto/ethernet.h>
 #include <proto/802.1d.h>
 #include <proto/802.11.h>
 
@@ -348,12 +347,12 @@ struct sk_buff *BCMFASTPATH pktq_mdeq(struct pktq *pq, uint prec_bmp,
 }
 
 /* parse a xx:xx:xx:xx:xx:xx format ethernet address */
-int bcm_ether_atoe(char *p, struct ether_addr *ea)
+int bcm_ether_atoe(char *p, u8 *ea)
 {
 	int i = 0;
 
 	for (;;) {
-		ea->octet[i++] = (char)simple_strtoul(p, &p, 16);
+		ea[i++] = (char)simple_strtoul(p, &p, 16);
 		if (!*p++ || i == 6)
 			break;
 	}

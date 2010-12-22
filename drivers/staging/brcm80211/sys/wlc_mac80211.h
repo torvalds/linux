@@ -470,7 +470,7 @@ struct wlc_hw_info {
 	uint mac_suspend_depth;	/* current depth of mac_suspend levels */
 	u32 wake_override;	/* Various conditions to force MAC to WAKE mode */
 	u32 mute_override;	/* Prevent ucode from sending beacons */
-	struct ether_addr etheraddr;	/* currently configured ethernet address */
+	u8 etheraddr[ETH_ALEN];	/* currently configured ethernet address */
 	u32 led_gpio_mask;	/* LED GPIO Mask */
 	bool noreset;		/* true= do not reset hw, used by WLC_OUT */
 	bool forcefastclk;	/* true if the h/w is forcing the use of fast clk */
@@ -566,7 +566,7 @@ struct wlc_info {
 
 	u32 machwcap;	/* MAC capabilities, BMAC shadow */
 
-	struct ether_addr perm_etheraddr;	/* original sprom local ethernet address */
+	u8 perm_etheraddr[ETH_ALEN];	/* original sprom local ethernet address */
 
 	bool bandlocked;	/* disable auto multi-band switching */
 	bool bandinit_pending;	/* track band init in auto band */
@@ -836,12 +836,12 @@ extern void wlc_write_hw_bcntemplates(struct wlc_info *wlc, void *bcn, int len,
 				      bool both);
 #if defined(BCMDBG)
 extern void wlc_get_rcmta(struct wlc_info *wlc, int idx,
-			  struct ether_addr *addr);
+			  u8 *addr);
 #endif
 extern void wlc_set_rcmta(struct wlc_info *wlc, int idx,
-			  const struct ether_addr *addr);
+			  const u8 *addr);
 extern void wlc_set_addrmatch(struct wlc_info *wlc, int match_reg_offset,
-			      const struct ether_addr *addr);
+			      const u8 *addr);
 extern void wlc_read_tsf(struct wlc_info *wlc, u32 *tsf_l_ptr,
 			 u32 *tsf_h_ptr);
 extern void wlc_set_cwmin(struct wlc_info *wlc, u16 newmin);

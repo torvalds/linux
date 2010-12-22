@@ -396,7 +396,7 @@ wl_ops_bss_info_changed(struct ieee80211_hw *hw,
 		/* BSSID changed, for whatever reason (IBSS and managed mode) */
 		/* FIXME: need to store bssid in bsscfg */
 		wlc_set_addrmatch(wl->wlc, RCM_BSSID_OFFSET,
-				  (struct ether_addr *)info->bssid);
+				  info->bssid);
 	}
 	if (changed & BSS_CHANGED_BEACON) {
 		WL_ERROR("BSS_CHANGED_BEACON\n");

@@ -135,6 +135,9 @@ typedef struct iscan_info {
 	int iscan_ex_param_size;
 } iscan_info_t;
 iscan_info_t *g_iscan;
+
+static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
+
 static void wl_iw_timerfunc(unsigned long data);
 static void wl_iw_set_event_mask(struct net_device *dev);
 static int wl_iw_iscan(iscan_info_t *iscan, wlc_ssid_t *ssid, u16 action);
@@ -688,7 +691,7 @@ wl_iw_set_spy(struct net_device *dev,
 
 	iw->spy_num = min_t(int, ARRAY_SIZE(iw->spy_addr), dwrq->length);
 	for (i = 0; i < iw->spy_num; i++)
-		memcpy(&iw->spy_addr[i], addr[i].sa_data, ETH_ALEN);
+		memcpy(iw->spy_addr[i], addr[i].sa_data, ETH_ALEN);
 	memset(iw->spy_qual, 0, sizeof(iw->spy_qual));
 
 	return 0;
@@ -710,7 +713,7 @@ wl_iw_get_spy(struct net_device *dev,
 
 	dwrq->length = iw->spy_num;
 	for (i = 0; i < iw->spy_num; i++) {
-		memcpy(addr[i].sa_data, &iw->spy_addr[i], ETH_ALEN);
+		memcpy(addr[i].sa_data, iw->spy_addr[i], ETH_ALEN);
 		addr[i].sa_family = AF_UNIX;
 		memcpy(&qual[i], &iw->spy_qual[i], sizeof(struct iw_quality));
 		iw->spy_qual[i].updated = 0;
@@ -1013,7 +1016,7 @@ static int wl_iw_iscan_prep(wl_scan_params_t *params, wlc_ssid_t *ssid)
 {
 	int err = 0;
 
-	memcpy(&params->bssid, &ether_bcast, ETH_ALEN);
+	memcpy(params->bssid, ether_bcast, ETH_ALEN);
 	params->bss_type = DOT11_BSSTYPE_ANY;
 	params->scan_type = 0;
 	params->nprobes = -1;
@@ -1917,7 +1920,7 @@ wl_iw_set_essid(struct net_device *dev,
 
 	memcpy(&join_params.ssid.SSID, g_ssid.SSID, g_ssid.SSID_len);
 	join_params.ssid.SSID_len = htod32(g_ssid.SSID_len);
-	memcpy(&join_params.params.bssid, &ether_bcast, ETH_ALEN);
+	memcpy(join_params.params.bssid, ether_bcast, ETH_ALEN);
 
 	wl_iw_ch_to_chanspec(g_wl_iw_params.target_channel, &join_params,
 			     &join_params_size);

@@ -165,7 +165,7 @@ typedef struct wlc_event {
 
 /* wlc internal bss_info, wl external one is in wlioctl.h */
 typedef struct wlc_bss_info {
-	struct ether_addr BSSID;	/* network BSSID */
+	u8 BSSID[ETH_ALEN];	/* network BSSID */
 	u16 flags;		/* flags for internal attributes */
 	u8 SSID_len;		/* the length of SSID */
 	u8 SSID[32];		/* SSID string */
@@ -291,9 +291,9 @@ struct wlc_pub {
 	s8 _coex;		/* 20/40 MHz BSS Management AUTO, ENAB, DISABLE */
 	bool _priofc;		/* Priority-based flowcontrol */
 
-	struct ether_addr cur_etheraddr;	/* our local ethernet address */
+	u8 cur_etheraddr[ETH_ALEN];	/* our local ethernet address */
 
-	struct ether_addr *multicast;	/* ptr to list of multicast addresses */
+	u8 *multicast;	/* ptr to list of multicast addresses */
 	uint nmulticast;	/* # enabled multicast addresses */
 
 	u32 wlfeatureflag;	/* Flags to control sw features from registry */
@@ -524,7 +524,7 @@ extern void wlc_statsupd(struct wlc_info *wlc);
 extern int wlc_get_header_len(void);
 extern void wlc_mac_bcn_promisc_change(struct wlc_info *wlc, bool promisc);
 extern void wlc_set_addrmatch(struct wlc_info *wlc, int match_reg_offset,
-			      const struct ether_addr *addr);
+			      const u8 *addr);
 extern void wlc_wme_setparams(struct wlc_info *wlc, u16 aci, void *arg,
 			      bool suspend);
 
