@@ -79,7 +79,12 @@ obj-$(CONFIG_ARCH_OMAP4)		+= prcm.o cm4xxx.o
 
 # OMAP powerdomain framework
 powerdomain-common			+= powerdomain.o powerdomains_data.o
-obj-y					+= $(powerdomain-common)
+obj-$(CONFIG_ARCH_OMAP2)		+= $(powerdomain-common) \
+					   powerdomain2xxx_3xxx.o
+obj-$(CONFIG_ARCH_OMAP3)		+= $(powerdomain-common) \
+					   powerdomain2xxx_3xxx.o
+obj-$(CONFIG_ARCH_OMAP4)		+= $(powerdomain-common) \
+					   powerdomain44xx.o
 
 # Clock framework
 obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common) clock2xxx.o \

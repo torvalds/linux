@@ -439,6 +439,8 @@ int pwrdm_get_mem_bank_count(struct powerdomain *pwrdm)
  */
 int pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
 {
+	int ret = -EINVAL;
+
 	if (!pwrdm)
 		return -EINVAL;
 
@@ -448,11 +450,10 @@ int pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
 	pr_debug("powerdomain: setting next powerstate for %s to %0x\n",
 		 pwrdm->name, pwrst);
 
-	prm_rmw_mod_reg_bits(OMAP_POWERSTATE_MASK,
-			     (pwrst << OMAP_POWERSTATE_SHIFT),
-			     pwrdm->prcm_offs, pwrstctrl_reg_offs);
+	if (arch_pwrdm && arch_pwrdm->pwrdm_set_next_pwrst)
+		ret = arch_pwrdm->pwrdm_set_next_pwrst(pwrdm, pwrst);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -465,11 +466,15 @@ int pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
  */
 int pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
 {
+	int ret = -EINVAL;
+
 	if (!pwrdm)
 		return -EINVAL;
 
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs,
-				 pwrstctrl_reg_offs, OMAP_POWERSTATE_MASK);
+	if (arch_pwrdm && arch_pwrdm->pwrdm_read_next_pwrst)
+		ret = arch_pwrdm->pwrdm_read_next_pwrst(pwrdm);
+
+	return ret;
 }
 
 /**
@@ -482,11 +487,15 @@ int pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
  */
 int pwrdm_read_pwrst(struct powerdomain *pwrdm)
 {
+	int ret = -EINVAL;
+
 	if (!pwrdm)
 		return -EINVAL;
 
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs,
-				 pwrstst_reg_offs, OMAP_POWERSTATEST_MASK);
+	if (arch_pwrdm && arch_pwrdm->pwrdm_read_pwrst)
+		ret = arch_pwrdm->pwrdm_read_pwrst(pwrdm);
+
+	return ret;
 }
 
 /**
@@ -499,11 +508,15 @@ int pwrdm_read_pwrst(struct powerdomain *pwrdm)
  */
 int pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
 {
+	int ret = -EINVAL;
+
 	if (!pwrdm)
 		return -EINVAL;
 
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP3430_PM_PREPWSTST,
-					OMAP3430_LASTPOWERSTATEENTERED_MASK);
+	if (arch_pwrdm && arch_pwrdm->pwrdm_read_prev_pwrst)
+		ret = arch_pwrdm->pwrdm_read_prev_pwrst(pwrdm);
+
+	return ret;
 }
 
 /**

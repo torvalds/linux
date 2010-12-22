@@ -55,6 +55,7 @@
 #include "powerdomains24xx.h"
 #include "powerdomains34xx.h"
 #include "powerdomains44xx.h"
+#include "powerdomains.h"
 
 /* OMAP2/3-common powerdomains */
 
@@ -149,5 +150,10 @@ static struct powerdomain *powerdomains_omap[] __initdata = {
 
 void pwrdm_fw_init(void)
 {
-	pwrdm_init(powerdomains_omap, NULL);
+	if (cpu_is_omap24xx())
+		pwrdm_init(powerdomains_omap, &omap2_pwrdm_operations);
+	else if (cpu_is_omap34xx())
+		pwrdm_init(powerdomains_omap, &omap3_pwrdm_operations);
+	else if (cpu_is_omap44xx())
+		pwrdm_init(powerdomains_omap, &omap4_pwrdm_operations);
 }
