@@ -382,7 +382,7 @@ pipe_read(struct kiocb *iocb, const struct iovec *_iov,
 			error = ops->confirm(pipe, buf);
 			if (error) {
 				if (!ret)
-					error = ret;
+					ret = error;
 				break;
 			}
 
@@ -1197,12 +1197,24 @@ int pipe_proc_fn(struct ctl_table *table, int write, void __user *buf,
 	return ret;
 }
 
+/*
+ * After the inode slimming patch, i_pipe/i_bdev/i_cdev share the same
+ * location, so checking ->i_pipe is not enough to verify that this is a
+ * pipe.
+ */
+struct pipe_inode_info *get_pipe_info(struct file *file)
+{
+	struct inode *i = file->f_path.dentry->d_inode;
+
+	return S_ISFIFO(i->i_mode) ? i->i_pipe : NULL;
+}
+
 long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct pipe_inode_info *pipe;
 	long ret;
 
-	pipe = file->f_path.dentry->d_inode->i_pipe;
+	pipe = get_pipe_info(file);
 	if (!pipe)
 		return -EBADF;
 

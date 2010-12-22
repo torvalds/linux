@@ -228,7 +228,7 @@ static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 				__func__, __LINE__, pitch);
 			return -EINVAL;
 		}
-		if (!IS_ALIGNED((height / 8), track->nbanks)) {
+		if (!IS_ALIGNED((height / 8), track->npipes)) {
 			dev_warn(p->dev, "%s:%d cb height (%d) invalid\n",
 				 __func__, __LINE__, height);
 			return -EINVAL;
@@ -367,7 +367,7 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 						 __func__, __LINE__, pitch);
 					return -EINVAL;
 				}
-				if ((height / 8) & (track->nbanks - 1)) {
+				if (!IS_ALIGNED((height / 8), track->npipes)) {
 					dev_warn(p->dev, "%s:%d db height (%d) invalid\n",
 						 __func__, __LINE__, height);
 					return -EINVAL;

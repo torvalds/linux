@@ -109,13 +109,26 @@ static void run_again(struct ieee80211_if_managed *ifmgd,
 		mod_timer(&ifmgd->timer, timeout);
 }
 
-static void mod_beacon_timer(struct ieee80211_sub_if_data *sdata)
+void ieee80211_sta_reset_beacon_monitor(struct ieee80211_sub_if_data *sdata)
 {
 	if (sdata->local->hw.flags & IEEE80211_HW_BEACON_FILTER)
 		return;
 
 	mod_timer(&sdata->u.mgd.bcn_mon_timer,
 		  round_jiffies_up(jiffies + IEEE80211_BEACON_LOSS_TIME));
+}
+
+void ieee80211_sta_reset_conn_monitor(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
+		return;
+
+	mod_timer(&sdata->u.mgd.conn_mon_timer,
+		  round_jiffies_up(jiffies + IEEE80211_CONNECTION_IDLE_TIME));
+
+	ifmgd->probe_send_count = 0;
 }
 
 static int ecw2cw(int ecw)
@@ -1006,21 +1019,26 @@ void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
 	if (is_multicast_ether_addr(hdr->addr1))
 		return;
 
-	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
-		return;
-
-	mod_timer(&sdata->u.mgd.conn_mon_timer,
-		  round_jiffies_up(jiffies + IEEE80211_CONNECTION_IDLE_TIME));
+	ieee80211_sta_reset_conn_monitor(sdata);
 }
 
 static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	const u8 *ssid;
+	u8 *dst = ifmgd->associated->bssid;
+	u8 unicast_limit = max(1, IEEE80211_MAX_PROBE_TRIES - 3);
+
+	/*
+	 * Try sending broadcast probe requests for the last three
+	 * probe requests after the first ones failed since some
+	 * buggy APs only support broadcast probe requests.
+	 */
+	if (ifmgd->probe_send_count >= unicast_limit)
+		dst = NULL;
 
 	ssid = ieee80211_bss_get_ie(ifmgd->associated, WLAN_EID_SSID);
-	ieee80211_send_probe_req(sdata, ifmgd->associated->bssid,
-				 ssid + 2, ssid[1], NULL, 0);
+	ieee80211_send_probe_req(sdata, dst, ssid + 2, ssid[1], NULL, 0);
 
 	ifmgd->probe_send_count++;
 	ifmgd->probe_timeout = jiffies + IEEE80211_PROBE_WAIT;
@@ -1262,7 +1280,7 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 
 	rates = 0;
 	basic_rates = 0;
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	sband = local->hw.wiphy->bands[wk->chan->band];
 
 	for (i = 0; i < elems.supp_rates_len; i++) {
 		int rate = (elems.supp_rates[i] & 0x7f) * 5;
@@ -1298,11 +1316,11 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 		}
 	}
 
-	sta->sta.supp_rates[local->hw.conf.channel->band] = rates;
+	sta->sta.supp_rates[wk->chan->band] = rates;
 	sdata->vif.bss_conf.basic_rates = basic_rates;
 
 	/* cf. IEEE 802.11 9.2.12 */
-	if (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ &&
+	if (wk->chan->band == IEEE80211_BAND_2GHZ &&
 	    have_higher_than_11mbit)
 		sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
 	else
@@ -1362,7 +1380,7 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	 * Also start the timer that will detect beacon loss.
 	 */
 	ieee80211_sta_rx_notify(sdata, (struct ieee80211_hdr *)mgmt);
-	mod_beacon_timer(sdata);
+	ieee80211_sta_reset_beacon_monitor(sdata);
 
 	return true;
 }
@@ -1465,7 +1483,7 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 		 * we have or will be receiving any beacons or data, so let's
 		 * schedule the timers again, just in case.
 		 */
-		mod_beacon_timer(sdata);
+		ieee80211_sta_reset_beacon_monitor(sdata);
 
 		mod_timer(&ifmgd->conn_mon_timer,
 			  round_jiffies_up(jiffies +
@@ -1540,7 +1558,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	ifmgd->last_beacon_signal = rx_status->signal;
 	if (ifmgd->flags & IEEE80211_STA_RESET_SIGNAL_AVE) {
 		ifmgd->flags &= ~IEEE80211_STA_RESET_SIGNAL_AVE;
-		ifmgd->ave_beacon_signal = rx_status->signal;
+		ifmgd->ave_beacon_signal = rx_status->signal * 16;
 		ifmgd->last_cqm_event_signal = 0;
 	} else {
 		ifmgd->ave_beacon_signal =
@@ -1588,7 +1606,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	 * Push the beacon loss detection into the future since
 	 * we are processing a beacon from the AP just now.
 	 */
-	mod_beacon_timer(sdata);
+	ieee80211_sta_reset_beacon_monitor(sdata);
 
 	ncrc = crc32_be(0, (void *)&mgmt->u.beacon.beacon_int, 4);
 	ncrc = ieee802_11_parse_elems_crc(mgmt->u.beacon.variable,

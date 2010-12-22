@@ -568,7 +568,6 @@ struct pmcraid_cmd {
 	struct pmcraid_control_block *ioa_cb;
 	dma_addr_t ioa_cb_bus_addr;
 	dma_addr_t dma_handle;
-	u8 *sense_buffer;
 
 	/* pointer to mid layer structure of SCSI commands */
 	struct scsi_cmnd *scsi_cmd;

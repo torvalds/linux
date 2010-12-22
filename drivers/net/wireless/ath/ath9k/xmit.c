@@ -61,6 +61,8 @@ static int ath_tx_num_badfrms(struct ath_softc *sc, struct ath_buf *bf,
 			      struct ath_tx_status *ts, int txok);
 static void ath_tx_rc_status(struct ath_buf *bf, struct ath_tx_status *ts,
 			     int nbad, int txok, bool update_rc);
+static void ath_tx_update_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
+			      int seqno);
 
 enum {
 	MCS_HT20,
@@ -143,18 +145,23 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 	struct ath_txq *txq = &sc->tx.txq[tid->ac->qnum];
 	struct ath_buf *bf;
 	struct list_head bf_head;
+	struct ath_tx_status ts;
+
 	INIT_LIST_HEAD(&bf_head);
 
-	WARN_ON(!tid->paused);
-
+	memset(&ts, 0, sizeof(ts));
 	spin_lock_bh(&txq->axq_lock);
-	tid->paused = false;
 
 	while (!list_empty(&tid->buf_q)) {
 		bf = list_first_entry(&tid->buf_q, struct ath_buf, list);
-		BUG_ON(bf_isretried(bf));
 		list_move_tail(&bf->list, &bf_head);
-		ath_tx_send_ht_normal(sc, txq, tid, &bf_head);
+
+		if (bf_isretried(bf)) {
+			ath_tx_update_baw(sc, tid, bf->bf_seqno);
+			ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0, 0);
+		} else {
+			ath_tx_send_ht_normal(sc, txq, tid, &bf_head);
+		}
 	}
 
 	spin_unlock_bh(&txq->axq_lock);
@@ -312,6 +319,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	int isaggr, txfail, txpending, sendbar = 0, needreset = 0, nbad = 0;
 	bool rc_update = true;
 	struct ieee80211_tx_rate rates[4];
+	int nframes;
 
 	skb = bf->bf_mpdu;
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -320,6 +328,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	hw = bf->aphy->hw;
 
 	memcpy(rates, tx_info->control.rates, sizeof(rates));
+	nframes = bf->bf_nframes;
 
 	rcu_read_lock();
 
@@ -337,7 +346,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			    !bf->bf_stale || bf_next != NULL)
 				list_move_tail(&bf->list, &bf_head);
 
-			ath_tx_rc_status(bf, ts, 0, 0, false);
+			ath_tx_rc_status(bf, ts, 1, 0, false);
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, ts,
 				0, 0);
 
@@ -431,7 +440,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			list_move_tail(&bf->list, &bf_head);
 		}
 
-		if (!txpending) {
+		if (!txpending || (tid->state & AGGR_CLEANUP)) {
 			/*
 			 * complete the acked-ones/xretried ones; update
 			 * block-ack window
@@ -442,6 +451,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 			if (rc_update && (acked_cnt == 1 || txfail_cnt == 1)) {
 				memcpy(tx_info->control.rates, rates, sizeof(rates));
+				bf->bf_nframes = nframes;
 				ath_tx_rc_status(bf, ts, nbad, txok, true);
 				rc_update = false;
 			} else {
@@ -510,15 +520,12 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	}
 
 	if (tid->state & AGGR_CLEANUP) {
+		ath_tx_flush_tid(sc, tid);
+
 		if (tid->baw_head == tid->baw_tail) {
 			tid->state &= ~AGGR_ADDBA_COMPLETE;
 			tid->state &= ~AGGR_CLEANUP;
-
-			/* send buffered frames as singles */
-			ath_tx_flush_tid(sc, tid);
 		}
-		rcu_read_unlock();
-		return;
 	}
 
 	rcu_read_unlock();
@@ -785,17 +792,23 @@ static void ath_tx_sched_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		 status != ATH_AGGR_BAW_CLOSED);
 }
 
-void ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
-		       u16 tid, u16 *ssn)
+int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
+		      u16 tid, u16 *ssn)
 {
 	struct ath_atx_tid *txtid;
 	struct ath_node *an;
 
 	an = (struct ath_node *)sta->drv_priv;
 	txtid = ATH_AN_2_TID(an, tid);
+
+	if (txtid->state & (AGGR_CLEANUP | AGGR_ADDBA_COMPLETE))
+		return -EAGAIN;
+
 	txtid->state |= AGGR_ADDBA_PROGRESS;
 	txtid->paused = true;
 	*ssn = txtid->seq_start;
+
+	return 0;
 }
 
 void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
@@ -803,12 +816,6 @@ void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 	struct ath_atx_tid *txtid = ATH_AN_2_TID(an, tid);
 	struct ath_txq *txq = &sc->tx.txq[txtid->ac->qnum];
-	struct ath_tx_status ts;
-	struct ath_buf *bf;
-	struct list_head bf_head;
-
-	memset(&ts, 0, sizeof(ts));
-	INIT_LIST_HEAD(&bf_head);
 
 	if (txtid->state & AGGR_CLEANUP)
 		return;
@@ -818,31 +825,22 @@ void ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
 		return;
 	}
 
-	/* drop all software retried frames and mark this TID */
 	spin_lock_bh(&txq->axq_lock);
 	txtid->paused = true;
-	while (!list_empty(&txtid->buf_q)) {
-		bf = list_first_entry(&txtid->buf_q, struct ath_buf, list);
-		if (!bf_isretried(bf)) {
-			/*
-			 * NB: it's based on the assumption that
-			 * software retried frame will always stay
-			 * at the head of software queue.
-			 */
-			break;
-		}
-		list_move_tail(&bf->list, &bf_head);
-		ath_tx_update_baw(sc, txtid, bf->bf_seqno);
-		ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0, 0);
-	}
+
+	/*
+	 * If frames are still being transmitted for this TID, they will be
+	 * cleaned up during tx completion. To prevent race conditions, this
+	 * TID can only be reused after all in-progress subframes have been
+	 * completed.
+	 */
+	if (txtid->baw_head != txtid->baw_tail)
+		txtid->state |= AGGR_CLEANUP;
+	else
+		txtid->state &= ~AGGR_ADDBA_COMPLETE;
 	spin_unlock_bh(&txq->axq_lock);
 
-	if (txtid->baw_head != txtid->baw_tail) {
-		txtid->state |= AGGR_CLEANUP;
-	} else {
-		txtid->state &= ~AGGR_ADDBA_COMPLETE;
-		ath_tx_flush_tid(sc, txtid);
-	}
+	ath_tx_flush_tid(sc, txtid);
 }
 
 void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid)
@@ -1103,15 +1101,6 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 	txq->axq_tx_inprogress = false;
 	spin_unlock_bh(&txq->axq_lock);
 
-	/* flush any pending frames if aggregation is enabled */
-	if (sc->sc_flags & SC_OP_TXAGGR) {
-		if (!retry_tx) {
-			spin_lock_bh(&txq->axq_lock);
-			ath_txq_drain_pending_buffers(sc, txq);
-			spin_unlock_bh(&txq->axq_lock);
-		}
-	}
-
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		spin_lock_bh(&txq->axq_lock);
 		while (!list_empty(&txq->txq_fifo_pending)) {
@@ -1131,6 +1120,15 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 			spin_lock_bh(&txq->axq_lock);
 		}
 		spin_unlock_bh(&txq->axq_lock);
+	}
+
+	/* flush any pending frames if aggregation is enabled */
+	if (sc->sc_flags & SC_OP_TXAGGR) {
+		if (!retry_tx) {
+			spin_lock_bh(&txq->axq_lock);
+			ath_txq_drain_pending_buffers(sc, txq);
+			spin_unlock_bh(&txq->axq_lock);
+		}
 	}
 }
 
@@ -2024,8 +2022,14 @@ static void ath_tx_rc_status(struct ath_buf *bf, struct ath_tx_status *ts,
 
 	if (ts->ts_status & ATH9K_TXERR_FILT)
 		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
-	if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) && update_rc)
+	if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) && update_rc) {
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
+
+		BUG_ON(nbad > bf->bf_nframes);
+
+		tx_info->status.ampdu_len = bf->bf_nframes;
+		tx_info->status.ampdu_ack_len = bf->bf_nframes - nbad;
+	}
 
 	if ((ts->ts_status & ATH9K_TXERR_FILT) == 0 &&
 	    (bf->bf_flags & ATH9K_TXDESC_NOACK) == 0 && update_rc) {
@@ -2036,8 +2040,6 @@ static void ath_tx_rc_status(struct ath_buf *bf, struct ath_tx_status *ts,
 			if ((ts->ts_status & ATH9K_TXERR_XRETRY) ||
 			    (ts->ts_status & ATH9K_TXERR_FIFO))
 				tx_info->pad[0] |= ATH_TX_INFO_XRETRY;
-			tx_info->status.ampdu_len = bf->bf_nframes;
-			tx_info->status.ampdu_ack_len = bf->bf_nframes - nbad;
 		}
 	}
 
@@ -2159,7 +2161,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			 */
 			if (ts.ts_status & ATH9K_TXERR_XRETRY)
 				bf->bf_state.bf_type |= BUF_XRETRY;
-			ath_tx_rc_status(bf, &ts, 0, txok, true);
+			ath_tx_rc_status(bf, &ts, txok ? 0 : 1, txok, true);
 		}
 
 		if (bf_isampdu(bf))
@@ -2204,7 +2206,7 @@ static void ath_tx_complete_poll_work(struct work_struct *work)
 		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_RESET,
 			  "tx hung, resetting the chip\n");
 		ath9k_ps_wakeup(sc);
-		ath_reset(sc, false);
+		ath_reset(sc, true);
 		ath9k_ps_restore(sc);
 	}
 
@@ -2288,7 +2290,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 		if (!bf_isampdu(bf)) {
 			if (txs.ts_status & ATH9K_TXERR_XRETRY)
 				bf->bf_state.bf_type |= BUF_XRETRY;
-			ath_tx_rc_status(bf, &txs, 0, txok, true);
+			ath_tx_rc_status(bf, &txs, txok ? 0 : 1, txok, true);
 		}
 
 		if (bf_isampdu(bf))
