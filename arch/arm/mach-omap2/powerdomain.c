@@ -909,3 +909,32 @@ int pwrdm_post_transition(void)
 	pwrdm_for_each(_pwrdm_post_transition_cb, NULL);
 	return 0;
 }
+
+/**
+ * pwrdm_get_context_loss_count - get powerdomain's context loss count
+ * @pwrdm: struct powerdomain * to wait for
+ *
+ * Context loss count is the sum of powerdomain off-mode counter, the
+ * logic off counter and the per-bank memory off counter.  Returns 0
+ * (and WARNs) upon error, otherwise, returns the context loss count.
+ */
+u32 pwrdm_get_context_loss_count(struct powerdomain *pwrdm)
+{
+	int i, count;
+
+	if (!pwrdm) {
+		WARN(1, "powerdomain: %s: pwrdm is null\n", __func__);
+		return 0;
+	}
+
+	count = pwrdm->state_counter[PWRDM_POWER_OFF];
+	count += pwrdm->ret_logic_off_counter;
+
+	for (i = 0; i < pwrdm->banks; i++)
+		count += pwrdm->ret_mem_off_counter[i];
+
+	pr_debug("powerdomain: %s: context loss count = %u\n",
+		 pwrdm->name, count);
+
+	return count;
+}
