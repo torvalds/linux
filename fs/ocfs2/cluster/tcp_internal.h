@@ -184,6 +184,8 @@ struct o2net_sock_container {
 	ktime_t			sc_tv_send_total;
 	ktime_t			sc_tv_status_total;
 	u32			sc_send_count;
+	u32			sc_recv_count;
+	ktime_t			sc_tv_process_total;
 #endif
 	struct mutex		sc_send_lock;
 };

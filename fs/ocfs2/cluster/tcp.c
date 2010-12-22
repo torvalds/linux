@@ -209,6 +209,11 @@ static inline void o2net_set_func_stop_time(struct o2net_sock_container *sc)
 {
 	sc->sc_tv_func_stop = ktime_get();
 }
+
+static ktime_t o2net_get_func_run_time(struct o2net_sock_container *sc)
+{
+	return ktime_sub(sc->sc_tv_func_stop, sc->sc_tv_func_start);
+}
 #else  /* CONFIG_DEBUG_FS */
 # define o2net_init_nst(a, b, c, d, e)
 # define o2net_set_nst_sock_time(a)
@@ -222,6 +227,7 @@ static inline void o2net_set_func_stop_time(struct o2net_sock_container *sc)
 # define o2net_set_advance_stop_time(a)
 # define o2net_set_func_start_time(a)
 # define o2net_set_func_stop_time(a)
+# define o2net_get_func_run_time(a)		(ktime_t)0
 #endif /* CONFIG_DEBUG_FS */
 
 #ifdef CONFIG_OCFS2_FS_STATS
@@ -238,6 +244,13 @@ static void o2net_update_send_stats(struct o2net_send_tracking *nst,
 					    ktime_sub(nst->st_send_time,
 						      nst->st_sock_time));
 	sc->sc_send_count++;
+}
+
+static void o2net_update_recv_stats(struct o2net_sock_container *sc)
+{
+	sc->sc_tv_process_total = ktime_add(sc->sc_tv_process_total,
+					    o2net_get_func_run_time(sc));
+	sc->sc_recv_count++;
 }
 
 #else
@@ -1237,6 +1250,8 @@ static int o2net_process_message(struct o2net_sock_container *sc,
 					     be16_to_cpu(hdr->data_len),
 					nmh->nh_func_data, &ret_data);
 	o2net_set_func_stop_time(sc);
+
+	o2net_update_recv_stats(sc);
 
 out_respond:
 	/* this destroys the hdr, so don't use it after this */
