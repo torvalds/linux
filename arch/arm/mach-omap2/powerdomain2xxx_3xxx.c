@@ -41,6 +41,17 @@ static int omap2_pwrdm_read_pwrst(struct powerdomain *pwrdm)
 				OMAP2_PM_PWSTST, OMAP_POWERSTATEST_MASK);
 }
 
+static int omap2_pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
+{
+	u32 v;
+
+	v = pwrst << __ffs(OMAP3430_LOGICL1CACHERETSTATE_MASK);
+	prm_rmw_mod_reg_bits(OMAP3430_LOGICL1CACHERETSTATE_MASK, v,
+				pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL);
+
+	return 0;
+}
+
 /* Applicable only for OMAP3. Not supported on OMAP2 */
 static int omap3_pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
 {
@@ -48,10 +59,29 @@ static int omap3_pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
 				OMAP3430_LASTPOWERSTATEENTERED_MASK);
 }
 
+static int omap3_pwrdm_read_logic_pwrst(struct powerdomain *pwrdm)
+{
+	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP2_PM_PWSTST,
+				OMAP3430_LOGICSTATEST_MASK);
+}
+
+static int omap3_pwrdm_read_logic_retst(struct powerdomain *pwrdm)
+{
+	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP2_PM_PWSTCTRL,
+				OMAP3430_LOGICSTATEST_MASK);
+}
+
+static int omap3_pwrdm_read_prev_logic_pwrst(struct powerdomain *pwrdm)
+{
+	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP3430_PM_PREPWSTST,
+				OMAP3430_LASTLOGICSTATEENTERED_MASK);
+}
+
 struct pwrdm_ops omap2_pwrdm_operations = {
 	.pwrdm_set_next_pwrst	= omap2_pwrdm_set_next_pwrst,
 	.pwrdm_read_next_pwrst	= omap2_pwrdm_read_next_pwrst,
 	.pwrdm_read_pwrst	= omap2_pwrdm_read_pwrst,
+	.pwrdm_set_logic_retst	= omap2_pwrdm_set_logic_retst,
 };
 
 struct pwrdm_ops omap3_pwrdm_operations = {
@@ -59,4 +89,8 @@ struct pwrdm_ops omap3_pwrdm_operations = {
 	.pwrdm_read_next_pwrst	= omap2_pwrdm_read_next_pwrst,
 	.pwrdm_read_pwrst	= omap2_pwrdm_read_pwrst,
 	.pwrdm_read_prev_pwrst	= omap3_pwrdm_read_prev_pwrst,
+	.pwrdm_set_logic_retst	= omap2_pwrdm_set_logic_retst,
+	.pwrdm_read_logic_pwrst	= omap3_pwrdm_read_logic_pwrst,
+	.pwrdm_read_logic_retst	= omap3_pwrdm_read_logic_retst,
+	.pwrdm_read_prev_logic_pwrst	= omap3_pwrdm_read_prev_logic_pwrst,
 };
