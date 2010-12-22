@@ -235,10 +235,13 @@ endchoice
 config MACH_MX27_3DS
 	bool "MX27PDK platform"
 	select SOC_IMX27
+	select IMX_HAVE_PLATFORM_FSL_USB2_UDC
 	select IMX_HAVE_PLATFORM_IMX2_WDT
 	select IMX_HAVE_PLATFORM_IMX_KEYPAD
 	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_MXC_EHCI
 	select IMX_HAVE_PLATFORM_MXC_MMC
+	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for MX27PDK platform. This includes specific
 	  configurations for the board and its peripherals.
