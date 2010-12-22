@@ -41,6 +41,7 @@ __SYSCALL(__NR_cmpxchg_badaddr, sys_cmpxchg_badaddr)
 #ifdef CONFIG_COMPAT
 #define __ARCH_WANT_SYS_LLSEEK
 #endif
+#define __ARCH_WANT_SYS_NEWFSTATAT
 #endif
 
 #endif /* _ASM_TILE_UNISTD_H */

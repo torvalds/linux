@@ -71,7 +71,7 @@ qla2x00_ctx_sp_free(srb_t *sp)
 	struct srb_iocb *iocb = ctx->u.iocb_cmd;
 	struct scsi_qla_host *vha = sp->fcport->vha;
 
-	del_timer_sync(&iocb->timer);
+	del_timer(&iocb->timer);
 	kfree(iocb);
 	kfree(ctx);
 	mempool_free(sp, sp->fcport->vha->hw->srb_mempool);
@@ -1344,6 +1344,13 @@ cont_alloc:
 		qla_printk(KERN_WARNING, ha, "Unable to allocate (%d KB) for "
 		    "firmware dump!!!\n", dump_size / 1024);
 
+		if (ha->fce) {
+			dma_free_coherent(&ha->pdev->dev, FCE_SIZE, ha->fce,
+			    ha->fce_dma);
+			ha->fce = NULL;
+			ha->fce_dma = 0;
+		}
+
 		if (ha->eft) {
 			dma_free_coherent(&ha->pdev->dev, eft_size, ha->eft,
 			    ha->eft_dma);
@@ -1818,14 +1825,14 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		qla2x00_init_response_q_entries(rsp);
 	}
 
-	spin_lock_irqsave(&ha->vport_slock, flags);
+	spin_lock(&ha->vport_slock);
 	/* Clear RSCN queue. */
 	list_for_each_entry(vp, &ha->vp_list, list) {
 		vp->rscn_in_ptr = 0;
 		vp->rscn_out_ptr = 0;
 	}
 
-	spin_unlock_irqrestore(&ha->vport_slock, flags);
+	spin_unlock(&ha->vport_slock);
 
 	ha->isp_ops->config_rings(vha);
 
@@ -2916,21 +2923,13 @@ qla2x00_reg_remote_port(scsi_qla_host_t *vha, fc_port_t *fcport)
 void
 qla2x00_update_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 {
-	struct qla_hw_data *ha = vha->hw;
-
 	fcport->vha = vha;
 	fcport->login_retry = 0;
-	fcport->port_login_retry_count = ha->port_down_retry_count *
-	    PORT_RETRY_TIME;
-	atomic_set(&fcport->port_down_timer, ha->port_down_retry_count *
-	    PORT_RETRY_TIME);
 	fcport->flags &= ~(FCF_LOGIN_NEEDED | FCF_ASYNC_SENT);
 
 	qla2x00_iidma_fcport(vha, fcport);
-
-	atomic_set(&fcport->state, FCS_ONLINE);
-
 	qla2x00_reg_remote_port(vha, fcport);
+	atomic_set(&fcport->state, FCS_ONLINE);
 }
 
 /*
@@ -3292,8 +3291,9 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 			continue;
 
 		/* Bypass ports whose FCP-4 type is not FCP_SCSI */
-		if (new_fcport->fc4_type != FC4_TYPE_FCP_SCSI &&
-		    new_fcport->fc4_type != FC4_TYPE_UNKNOWN)
+		if (ql2xgffidenable &&
+		    (new_fcport->fc4_type != FC4_TYPE_FCP_SCSI &&
+		    new_fcport->fc4_type != FC4_TYPE_UNKNOWN))
 			continue;
 
 		/* Locate matching device in database. */

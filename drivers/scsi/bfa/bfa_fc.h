@@ -1029,7 +1029,7 @@ struct link_e2e_beacon_req_s {
 	struct link_e2e_beacon_param_s beacon_parm;
 };
 
-/**
+/*
  * If RPSC request is sent to the Domain Controller, the request is for
  * all the ports within that domain (TODO - I don't think FOS implements
  * this...).
@@ -1049,7 +1049,7 @@ struct fc_rpsc_acc_s {
 	struct fc_rpsc_speed_info_s speed_info[1];
 };
 
-/**
+/*
  * If RPSC2 request is sent to the Domain Controller,
  */
 #define FC_BRCD_TOKEN    0x42524344
@@ -1094,7 +1094,7 @@ struct fc_rpsc2_acc_s {
     struct fc_rpsc2_port_info_s port_info[1];    /* port information */
 };
 
-/**
+/*
  * bit fields so that multiple classes can be specified
  */
 enum fc_cos {
@@ -1131,7 +1131,7 @@ struct fc_alpabm_s {
 #define FC_VF_ID_MAX     0xEFF
 #define FC_VF_ID_CTL     0xFEF	/*  control VF_ID */
 
-/**
+/*
  * Virtual Fabric Tagging header format
  * @caution This is defined only in BIG ENDIAN format.
  */
@@ -1463,7 +1463,7 @@ struct fcgs_gidpn_resp_s {
 	u32	dap:24;	/* port identifier */
 };
 
-/**
+/*
  * RFT_ID
  */
 struct fcgs_rftid_req_s {
@@ -1472,7 +1472,7 @@ struct fcgs_rftid_req_s {
 	u32	fc4_type[8];	/* fc4 types */
 };
 
-/**
+/*
  * RFF_ID : Register FC4 features.
  */
 
@@ -1487,7 +1487,7 @@ struct fcgs_rffid_req_s {
     u32    fc4_type:8;		/* corresponding FC4 Type */
 };
 
-/**
+/*
  * GID_FT Request
  */
 struct fcgs_gidft_req_s {
@@ -1497,7 +1497,7 @@ struct fcgs_gidft_req_s {
 	u8	fc4_type;	/* FC_TYPE_FCP for SCSI devices */
 };		/* GID_FT Request */
 
-/**
+/*
  * GID_FT Response
  */
 struct fcgs_gidft_resp_s {
@@ -1506,7 +1506,7 @@ struct fcgs_gidft_resp_s {
 	u32	pid:24;	/* port identifier */
 };		/* GID_FT Response */
 
-/**
+/*
  * RSPN_ID
  */
 struct fcgs_rspnid_req_s {
@@ -1516,7 +1516,7 @@ struct fcgs_rspnid_req_s {
 	u8		spn[256];	/* symbolic port name */
 };
 
-/**
+/*
  * RPN_ID
  */
 struct fcgs_rpnid_req_s {
@@ -1525,7 +1525,7 @@ struct fcgs_rpnid_req_s {
 	wwn_t		port_name;
 };
 
-/**
+/*
  * RNN_ID
  */
 struct fcgs_rnnid_req_s {
@@ -1534,7 +1534,7 @@ struct fcgs_rnnid_req_s {
 	wwn_t		node_name;
 };
 
-/**
+/*
  * RCS_ID
  */
 struct fcgs_rcsid_req_s {
@@ -1543,7 +1543,7 @@ struct fcgs_rcsid_req_s {
 	u32	cos;
 };
 
-/**
+/*
  * RPT_ID
  */
 struct fcgs_rptid_req_s {
@@ -1553,7 +1553,7 @@ struct fcgs_rptid_req_s {
 	u32	rsvd1:24;
 };
 
-/**
+/*
  * GA_NXT Request
  */
 struct fcgs_ganxt_req_s {
@@ -1561,7 +1561,7 @@ struct fcgs_ganxt_req_s {
 	u32	port_id:24;
 };
 
-/**
+/*
  * GA_NXT Response
  */
 struct fcgs_ganxt_rsp_s {

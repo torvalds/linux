@@ -82,7 +82,7 @@ static struct ltc4261_data *ltc4261_update_device(struct device *dev)
 			val = i2c_smbus_read_byte_data(client, i);
 			if (unlikely(val < 0)) {
 				dev_dbg(dev,
-					"Failed to read ADC value: error %d",
+					"Failed to read ADC value: error %d\n",
 					val);
 				ret = ERR_PTR(val);
 				goto abort;
@@ -230,8 +230,7 @@ static int ltc4261_probe(struct i2c_client *client,
 		return -ENODEV;
 
 	if (i2c_smbus_read_byte_data(client, LTC4261_STATUS) < 0) {
-		dev_err(&client->dev, "Failed to read register %d:%02x:%02x\n",
-			adapter->id, client->addr, LTC4261_STATUS);
+		dev_err(&client->dev, "Failed to read status register\n");
 		return -ENODEV;
 	}
 

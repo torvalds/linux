@@ -28,6 +28,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/console.h>
 
 #include <plat/sram.h>
 #include <plat/clockdomain.h>
@@ -48,6 +49,19 @@
 #include "pm.h"
 #include "sdrc.h"
 #include "control.h"
+
+#ifdef CONFIG_SUSPEND
+static suspend_state_t suspend_state = PM_SUSPEND_ON;
+static inline bool is_suspending(void)
+{
+	return (suspend_state != PM_SUSPEND_ON);
+}
+#else
+static inline bool is_suspending(void)
+{
+	return false;
+}
+#endif
 
 /* Scratchpad offsets */
 #define OMAP343X_TABLE_ADDRESS_OFFSET	   0xc4
@@ -385,6 +399,13 @@ void omap_sram_idle(void)
 		omap3_enable_io_chain();
 	}
 
+	/* Block console output in case it is on one of the OMAP UARTs */
+	if (!is_suspending())
+		if (per_next_state < PWRDM_POWER_ON ||
+		    core_next_state < PWRDM_POWER_ON)
+			if (try_acquire_console_sem())
+				goto console_still_active;
+
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
 		omap_uart_prepare_idle(2);
@@ -463,6 +484,10 @@ void omap_sram_idle(void)
 		omap_uart_resume_idle(3);
 	}
 
+	if (!is_suspending())
+		release_console_sem();
+
+console_still_active:
 	/* Disable IO-PAD and IO-CHAIN wakeup */
 	if (omap3_has_io_wakeup() &&
 	    (per_next_state < PWRDM_POWER_ON ||
@@ -504,8 +529,6 @@ out:
 }
 
 #ifdef CONFIG_SUSPEND
-static suspend_state_t suspend_state;
-
 static int omap3_pm_prepare(void)
 {
 	disable_hlt();

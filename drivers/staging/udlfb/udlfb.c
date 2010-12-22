@@ -887,7 +887,7 @@ static int dlfb_ops_open(struct fb_info *info, int user)
 
 		struct fb_deferred_io *fbdefio;
 
-		fbdefio = kmalloc(GFP_KERNEL, sizeof(struct fb_deferred_io));
+		fbdefio = kmalloc(sizeof(struct fb_deferred_io), GFP_KERNEL);
 
 		if (fbdefio) {
 			fbdefio->delay = DL_DEFIO_WRITE_DELAY;
@@ -1441,7 +1441,7 @@ static struct device_attribute fb_device_attrs[] = {
 	__ATTR_RO(metrics_bytes_identical),
 	__ATTR_RO(metrics_bytes_sent),
 	__ATTR_RO(metrics_cpu_kcycles_used),
-	__ATTR(metrics_reset, S_IWUGO, NULL, metrics_reset_store),
+	__ATTR(metrics_reset, S_IWUSR, NULL, metrics_reset_store),
 };
 
 /*

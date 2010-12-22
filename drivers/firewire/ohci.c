@@ -242,6 +242,7 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 
 static char ohci_driver_name[] = KBUILD_MODNAME;
 
+#define PCI_DEVICE_ID_AGERE_FW643	0x5901
 #define PCI_DEVICE_ID_JMICRON_JMB38X_FW	0x2380
 #define PCI_DEVICE_ID_TI_TSB12LV22	0x8009
 
@@ -253,18 +254,34 @@ static char ohci_driver_name[] = KBUILD_MODNAME;
 
 /* In case of multiple matches in ohci_quirks[], only the first one is used. */
 static const struct {
-	unsigned short vendor, device, flags;
+	unsigned short vendor, device, revision, flags;
 } ohci_quirks[] = {
-	{PCI_VENDOR_ID_TI,	PCI_DEVICE_ID_TI_TSB12LV22, QUIRK_CYCLE_TIMER |
-							    QUIRK_RESET_PACKET |
-							    QUIRK_NO_1394A},
-	{PCI_VENDOR_ID_TI,	PCI_ANY_ID,	QUIRK_RESET_PACKET},
-	{PCI_VENDOR_ID_AL,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
-	{PCI_VENDOR_ID_JMICRON,	PCI_DEVICE_ID_JMICRON_JMB38X_FW, QUIRK_NO_MSI},
-	{PCI_VENDOR_ID_NEC,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
-	{PCI_VENDOR_ID_VIA,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
-	{PCI_VENDOR_ID_RICOH,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
-	{PCI_VENDOR_ID_APPLE,	PCI_DEVICE_ID_APPLE_UNI_N_FW, QUIRK_BE_HEADERS},
+	{PCI_VENDOR_ID_AL, PCI_ANY_ID, PCI_ANY_ID,
+		QUIRK_CYCLE_TIMER},
+
+	{PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_UNI_N_FW, PCI_ANY_ID,
+		QUIRK_BE_HEADERS},
+
+	{PCI_VENDOR_ID_ATT, PCI_DEVICE_ID_AGERE_FW643, 6,
+		QUIRK_NO_MSI},
+
+	{PCI_VENDOR_ID_JMICRON, PCI_DEVICE_ID_JMICRON_JMB38X_FW, PCI_ANY_ID,
+		QUIRK_NO_MSI},
+
+	{PCI_VENDOR_ID_NEC, PCI_ANY_ID, PCI_ANY_ID,
+		QUIRK_CYCLE_TIMER},
+
+	{PCI_VENDOR_ID_RICOH, PCI_ANY_ID, PCI_ANY_ID,
+		QUIRK_CYCLE_TIMER},
+
+	{PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_TSB12LV22, PCI_ANY_ID,
+		QUIRK_CYCLE_TIMER | QUIRK_RESET_PACKET | QUIRK_NO_1394A},
+
+	{PCI_VENDOR_ID_TI, PCI_ANY_ID, PCI_ANY_ID,
+		QUIRK_RESET_PACKET},
+
+	{PCI_VENDOR_ID_VIA, PCI_ANY_ID, PCI_ANY_ID,
+		QUIRK_CYCLE_TIMER | QUIRK_NO_MSI},
 };
 
 /* This overrides anything that was found in ohci_quirks[]. */
@@ -577,16 +594,10 @@ static int ohci_update_phy_reg(struct fw_card *card, int addr,
 	return ret;
 }
 
-static int ar_context_add_page(struct ar_context *ctx)
+static void ar_context_link_page(struct ar_context *ctx,
+				 struct ar_buffer *ab, dma_addr_t ab_bus)
 {
-	struct device *dev = ctx->ohci->card.device;
-	struct ar_buffer *ab;
-	dma_addr_t uninitialized_var(ab_bus);
 	size_t offset;
-
-	ab = dma_alloc_coherent(dev, PAGE_SIZE, &ab_bus, GFP_ATOMIC);
-	if (ab == NULL)
-		return -ENOMEM;
 
 	ab->next = NULL;
 	memset(&ab->descriptor, 0, sizeof(ab->descriptor));
@@ -606,6 +617,19 @@ static int ar_context_add_page(struct ar_context *ctx)
 
 	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
 	flush_writes(ctx->ohci);
+}
+
+static int ar_context_add_page(struct ar_context *ctx)
+{
+	struct device *dev = ctx->ohci->card.device;
+	struct ar_buffer *ab;
+	dma_addr_t uninitialized_var(ab_bus);
+
+	ab = dma_alloc_coherent(dev, PAGE_SIZE, &ab_bus, GFP_ATOMIC);
+	if (ab == NULL)
+		return -ENOMEM;
+
+	ar_context_link_page(ctx, ab, ab_bus);
 
 	return 0;
 }
@@ -730,16 +754,17 @@ static __le32 *handle_ar_packet(struct ar_context *ctx, __le32 *buffer)
 static void ar_context_tasklet(unsigned long data)
 {
 	struct ar_context *ctx = (struct ar_context *)data;
-	struct fw_ohci *ohci = ctx->ohci;
 	struct ar_buffer *ab;
 	struct descriptor *d;
 	void *buffer, *end;
+	__le16 res_count;
 
 	ab = ctx->current_buffer;
 	d = &ab->descriptor;
 
-	if (d->res_count == 0) {
-		size_t size, rest, offset;
+	res_count = ACCESS_ONCE(d->res_count);
+	if (res_count == 0) {
+		size_t size, size2, rest, pktsize, size3, offset;
 		dma_addr_t start_bus;
 		void *start;
 
@@ -750,29 +775,63 @@ static void ar_context_tasklet(unsigned long data)
 		 */
 
 		offset = offsetof(struct ar_buffer, data);
-		start = buffer = ab;
+		start = ab;
 		start_bus = le32_to_cpu(ab->descriptor.data_address) - offset;
+		buffer = ab->data;
 
 		ab = ab->next;
 		d = &ab->descriptor;
-		size = buffer + PAGE_SIZE - ctx->pointer;
+		size = start + PAGE_SIZE - ctx->pointer;
+		/* valid buffer data in the next page */
 		rest = le16_to_cpu(d->req_count) - le16_to_cpu(d->res_count);
+		/* what actually fits in this page */
+		size2 = min(rest, (size_t)PAGE_SIZE - offset - size);
 		memmove(buffer, ctx->pointer, size);
-		memcpy(buffer + size, ab->data, rest);
-		ctx->current_buffer = ab;
-		ctx->pointer = (void *) ab->data + rest;
-		end = buffer + size + rest;
+		memcpy(buffer + size, ab->data, size2);
 
-		while (buffer < end)
-			buffer = handle_ar_packet(ctx, buffer);
+		while (size > 0) {
+			void *next = handle_ar_packet(ctx, buffer);
+			pktsize = next - buffer;
+			if (pktsize >= size) {
+				/*
+				 * We have handled all the data that was
+				 * originally in this page, so we can now
+				 * continue in the next page.
+				 */
+				buffer = next;
+				break;
+			}
+			/* move the next packet to the start of the buffer */
+			memmove(buffer, next, size + size2 - pktsize);
+			size -= pktsize;
+			/* fill up this page again */
+			size3 = min(rest - size2,
+				    (size_t)PAGE_SIZE - offset - size - size2);
+			memcpy(buffer + size + size2,
+			       (void *) ab->data + size2, size3);
+			size2 += size3;
+		}
 
-		dma_free_coherent(ohci->card.device, PAGE_SIZE,
-				  start, start_bus);
-		ar_context_add_page(ctx);
+		if (rest > 0) {
+			/* handle the packets that are fully in the next page */
+			buffer = (void *) ab->data +
+					(buffer - (start + offset + size));
+			end = (void *) ab->data + rest;
+
+			while (buffer < end)
+				buffer = handle_ar_packet(ctx, buffer);
+
+			ctx->current_buffer = ab;
+			ctx->pointer = end;
+
+			ar_context_link_page(ctx, start, start_bus);
+		} else {
+			ctx->pointer = start + PAGE_SIZE;
+		}
 	} else {
 		buffer = ctx->pointer;
 		ctx->pointer = end =
-			(void *) ab + PAGE_SIZE - le16_to_cpu(d->res_count);
+			(void *) ab + PAGE_SIZE - le16_to_cpu(res_count);
 
 		while (buffer < end)
 			buffer = handle_ar_packet(ctx, buffer);
@@ -2885,9 +2944,11 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	}
 
 	for (i = 0; i < ARRAY_SIZE(ohci_quirks); i++)
-		if (ohci_quirks[i].vendor == dev->vendor &&
-		    (ohci_quirks[i].device == dev->device ||
-		     ohci_quirks[i].device == (unsigned short)PCI_ANY_ID)) {
+		if ((ohci_quirks[i].vendor == dev->vendor) &&
+		    (ohci_quirks[i].device == (unsigned short)PCI_ANY_ID ||
+		     ohci_quirks[i].device == dev->device) &&
+		    (ohci_quirks[i].revision == (unsigned short)PCI_ANY_ID ||
+		     ohci_quirks[i].revision >= dev->revision)) {
 			ohci->quirks = ohci_quirks[i].flags;
 			break;
 		}

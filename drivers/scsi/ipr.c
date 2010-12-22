@@ -5709,7 +5709,7 @@ static void ipr_scsi_done(struct ipr_cmnd *ipr_cmd)
  *	SCSI_MLQUEUE_DEVICE_BUSY if device is busy
  *	SCSI_MLQUEUE_HOST_BUSY if host is busy
  **/
-static int ipr_queuecommand(struct scsi_cmnd *scsi_cmd,
+static int ipr_queuecommand_lck(struct scsi_cmnd *scsi_cmd,
 			    void (*done) (struct scsi_cmnd *))
 {
 	struct ipr_ioa_cfg *ioa_cfg;
@@ -5791,6 +5791,8 @@ static int ipr_queuecommand(struct scsi_cmnd *scsi_cmd,
 
 	return 0;
 }
+
+static DEF_SCSI_QCMD(ipr_queuecommand)
 
 /**
  * ipr_ioctl - IOCTL handler
@@ -9025,6 +9027,8 @@ static struct pci_device_id ipr_pci_table[] __devinitdata = {
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_574D, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_FPGA_E2,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B2, 0, 0, 0 },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_FPGA_E2,
+		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57C4, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_ASIC_E2,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_57B4, 0, 0, 0 },
 	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CROC_ASIC_E2,

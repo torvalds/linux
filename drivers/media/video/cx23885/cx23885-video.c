@@ -26,7 +26,6 @@
 #include <linux/kmod.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
@@ -743,8 +742,6 @@ static int video_open(struct file *file)
 	if (NULL == fh)
 		return -ENOMEM;
 
-	lock_kernel();
-
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -761,8 +758,6 @@ static int video_open(struct file *file)
 			    fh, NULL);
 
 	dprintk(1, "post videobuf_queue_init()\n");
-
-	unlock_kernel();
 
 	return 0;
 }
@@ -1512,10 +1507,10 @@ int cx23885_video_register(struct cx23885_dev *dev)
 		if (dev->tuner_addr)
 			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[1].i2c_adap,
-				NULL, "tuner", dev->tuner_addr, NULL);
+				"tuner", dev->tuner_addr, NULL);
 		else
 			sd = v4l2_i2c_new_subdev(&dev->v4l2_dev,
-				&dev->i2c_bus[1].i2c_adap, NULL,
+				&dev->i2c_bus[1].i2c_adap,
 				"tuner", 0, v4l2_i2c_tuner_addrs(ADDRS_TV));
 		if (sd) {
 			struct tuner_setup tun_setup;

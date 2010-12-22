@@ -224,6 +224,9 @@ struct scatterlist *rds_message_alloc_sgs(struct rds_message *rm, int nents)
 	WARN_ON(rm->m_used_sgs + nents > rm->m_total_sgs);
 	WARN_ON(!nents);
 
+	if (rm->m_used_sgs + nents > rm->m_total_sgs)
+		return NULL;
+
 	sg_ret = &sg_first[rm->m_used_sgs];
 	sg_init_table(sg_ret, nents);
 	rm->m_used_sgs += nents;
@@ -246,6 +249,10 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(total_len);
 	rm->data.op_nents = ceil(total_len, PAGE_SIZE);
 	rm->data.op_sg = rds_message_alloc_sgs(rm, num_sgs);
+	if (!rm->data.op_sg) {
+		rds_message_put(rm);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	for (i = 0; i < rm->data.op_nents; ++i) {
 		sg_set_page(&rm->data.op_sg[i],

@@ -44,7 +44,7 @@ static struct v4l2_subdev *fimc_subdev_register(struct fimc_dev *fimc,
 		return ERR_PTR(-ENOMEM);
 
 	sd = v4l2_i2c_new_subdev_board(&vid_cap->v4l2_dev, i2c_adap,
-				       MODULE_NAME, isp_info->board_info, NULL);
+				       isp_info->board_info, NULL);
 	if (!sd) {
 		v4l2_err(&vid_cap->v4l2_dev, "failed to acquire subdev\n");
 		return NULL;

@@ -334,7 +334,7 @@ int cyasblkdev_init_queue(struct cyasblkdev_queue *bq, spinlock_t *lock)
 
 	init_completion(&bq->thread_complete);
 	init_waitqueue_head(&bq->thread_wq);
-	init_MUTEX(&bq->thread_sem);
+	sema_init(&bq->thread_sem, 1);
 
 	ret = kernel_thread(cyasblkdev_queue_thread, bq, CLONE_KERNEL);
 	if (ret >= 0) {

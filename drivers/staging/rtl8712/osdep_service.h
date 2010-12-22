@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/kref.h>
-#include <linux/smp_lock.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/usb.h>
@@ -161,7 +160,7 @@ static inline u32 _down_sema(struct semaphore *sema)
 
 static inline void _rtl_rwlock_init(struct semaphore *prwlock)
 {
-	init_MUTEX(prwlock);
+	sema_init(prwlock, 1);
 }
 
 static inline void _init_listhead(struct list_head *list)

@@ -1001,13 +1001,15 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		}
 #endif
 		case IOCTL_BE_BUCKET_SIZE:
-			Adapter->BEBucketSize = *(PULONG)arg;
-			Status = STATUS_SUCCESS;
+			Status = 0;
+			if (get_user(Adapter->BEBucketSize, (unsigned long __user *)arg))
+				Status = -EFAULT;
 			break;
 
 		case IOCTL_RTPS_BUCKET_SIZE:
-			Adapter->rtPSBucketSize = *(PULONG)arg;
-			Status = STATUS_SUCCESS;
+			Status = 0;
+			if (get_user(Adapter->rtPSBucketSize, (unsigned long __user *)arg))
+				Status = -EFAULT;
 			break;
 		case IOCTL_CHIP_RESET:
 	    {
@@ -1028,11 +1030,15 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		case IOCTL_QOS_THRESHOLD:
 		{
 			USHORT uiLoopIndex;
-			for(uiLoopIndex = 0 ; uiLoopIndex < NO_OF_QUEUES ; uiLoopIndex++)
-			{
-				Adapter->PackInfo[uiLoopIndex].uiThreshold = *(PULONG)arg;
+
+			Status = 0;
+			for (uiLoopIndex = 0; uiLoopIndex < NO_OF_QUEUES; uiLoopIndex++) {
+				if (get_user(Adapter->PackInfo[uiLoopIndex].uiThreshold,
+						(unsigned long __user *)arg)) {
+					Status = -EFAULT;
+					break;
+				}
 			}
-			Status = STATUS_SUCCESS;
 			break;
 		}
 
@@ -1093,7 +1099,8 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		}
 		case IOCTL_BCM_GET_CURRENT_STATUS:
 		{
-			LINK_STATE *plink_state = NULL;
+			LINK_STATE plink_state;
+
 			/* Copy Ioctl Buffer structure */
 			if(copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
 			{
@@ -1101,13 +1108,19 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 				Status = -EFAULT;
 				break;
 			}
-			plink_state = (LINK_STATE*)arg;
-			plink_state->bIdleMode = (UCHAR)Adapter->IdleMode;
-			plink_state->bShutdownMode = Adapter->bShutStatus;
-			plink_state->ucLinkStatus = (UCHAR)Adapter->LinkStatus;
-			if(copy_to_user(IoBuffer.OutputBuffer,
-				(PUCHAR)plink_state, (UINT)IoBuffer.OutputLength))
-			{
+			if (IoBuffer.OutputLength != sizeof(plink_state)) {
+				Status = -EINVAL;
+				break;
+			}
+
+			if (copy_from_user(&plink_state, (void __user *)arg, sizeof(plink_state))) {
+				Status = -EFAULT;
+				break;
+			}
+			plink_state.bIdleMode = (UCHAR)Adapter->IdleMode;
+			plink_state.bShutdownMode = Adapter->bShutStatus;
+			plink_state.ucLinkStatus = (UCHAR)Adapter->LinkStatus;
+			if (copy_to_user(IoBuffer.OutputBuffer, &plink_state, IoBuffer.OutputLength)) {
 				BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0, "Copy_to_user Failed..\n");
 				Status = -EFAULT;
 				break;
@@ -1331,7 +1344,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 						BCM_DEBUG_PRINT(Adapter,DBG_TYPE_PRINTK, 0, 0,"Copy From User space failed. status :%d", Status);
 						return -EFAULT;
 					}
-					uiSectorSize = *((PUINT)(IoBuffer.InputBuffer)); /* FIXME: unchecked __user access */
+					if (get_user(uiSectorSize, (unsigned int __user *)IoBuffer.InputBuffer))
+						return -EFAULT;
+
 					if((uiSectorSize < MIN_SECTOR_SIZE) || (uiSectorSize > MAX_SECTOR_SIZE))
 					{
 

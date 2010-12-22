@@ -122,7 +122,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		break;
 
 	case PTRACE_SET_THREAD_AREA:
-		ret = ptrace_set_thread_area(child, addr, datavp);
+		ret = ptrace_set_thread_area(child, addr, vp);
 		break;
 
 	case PTRACE_FAULTINFO: {

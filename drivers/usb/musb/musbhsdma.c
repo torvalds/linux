@@ -158,6 +158,8 @@ static int dma_channel_program(struct dma_channel *channel,
 				dma_addr_t dma_addr, u32 len)
 {
 	struct musb_dma_channel *musb_channel = channel->private_data;
+	struct musb_dma_controller *controller = musb_channel->controller;
+	struct musb *musb = controller->private_data;
 
 	DBG(2, "ep%d-%s pkt_sz %d, dma_addr 0x%x length %d, mode %d\n",
 		musb_channel->epnum,
@@ -166,6 +168,18 @@ static int dma_channel_program(struct dma_channel *channel,
 
 	BUG_ON(channel->status == MUSB_DMA_STATUS_UNKNOWN ||
 		channel->status == MUSB_DMA_STATUS_BUSY);
+
+	/*
+	 * The DMA engine in RTL1.8 and above cannot handle
+	 * DMA addresses that are not aligned to a 4 byte boundary.
+	 * It ends up masking the last two bits of the address
+	 * programmed in DMA_ADDR.
+	 *
+	 * Fail such DMA transfers, so that the backup PIO mode
+	 * can carry out the transfer
+	 */
+	if ((musb->hwvers >= MUSB_HWVERS_1800) && (dma_addr % 4))
+		return false;
 
 	channel->actual_len = 0;
 	musb_channel->start_addr = dma_addr;

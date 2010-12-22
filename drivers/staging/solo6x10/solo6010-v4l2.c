@@ -437,7 +437,7 @@ static int solo_v4l2_open(struct file *file)
 				    &solo_dev->pdev->dev, &fh->slock,
 				    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				    SOLO_DISP_PIX_FIELD,
-				    sizeof(struct videobuf_buffer), fh);
+				    sizeof(struct videobuf_buffer), fh, NULL);
 
 	return 0;
 }

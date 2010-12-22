@@ -157,7 +157,7 @@ struct cyasblkdev_blk_data {
 /* pointer to west bridge block data device superstructure */
 static struct cyasblkdev_blk_data *gl_bd;
 
-static DECLARE_MUTEX(open_lock);
+static DEFINE_SEMAPHORE(open_lock);
 
 /* local forwardd declarationss  */
 static cy_as_device_handle *cyas_dev_handle;

@@ -186,7 +186,6 @@ static int wm8900_volatile_register(unsigned int reg)
 {
 	switch (reg) {
 	case WM8900_REG_ID:
-	case WM8900_REG_POWER1:
 		return 1;
 	default:
 		return 0;
@@ -1199,11 +1198,6 @@ static int wm8900_probe(struct snd_soc_codec *codec)
 		dev_err(codec->dev, "Device is not a WM8900 - ID %x\n", reg);
 		return -ENODEV;
 	}
-
-	/* Read back from the chip */
-	reg = snd_soc_read(codec, WM8900_REG_POWER1);
-	reg = (reg >> 12) & 0xf;
-	dev_info(codec->dev, "WM8900 revision %d\n", reg);
 
 	wm8900_reset(codec);
 

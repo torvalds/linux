@@ -812,8 +812,10 @@ static int intel_fake_agp_fetch_size(void)
 
 static void i830_cleanup(void)
 {
-	kunmap(intel_private.i8xx_page);
-	intel_private.i8xx_flush_page = NULL;
+	if (intel_private.i8xx_flush_page) {
+		kunmap(intel_private.i8xx_flush_page);
+		intel_private.i8xx_flush_page = NULL;
+	}
 
 	__free_page(intel_private.i8xx_page);
 	intel_private.i8xx_page = NULL;
@@ -1210,14 +1212,14 @@ static void gen6_write_entry(dma_addr_t addr, unsigned int entry,
 	unsigned int gfdt = flags & AGP_USER_CACHED_MEMORY_GFDT;
 	u32 pte_flags;
 
-	if (type_mask == AGP_USER_UNCACHED_MEMORY)
+	if (type_mask == AGP_USER_MEMORY)
 		pte_flags = GEN6_PTE_UNCACHED | I810_PTE_VALID;
 	else if (type_mask == AGP_USER_CACHED_MEMORY_LLC_MLC) {
-		pte_flags = GEN6_PTE_LLC | I810_PTE_VALID;
+		pte_flags = GEN6_PTE_LLC_MLC | I810_PTE_VALID;
 		if (gfdt)
 			pte_flags |= GEN6_PTE_GFDT;
 	} else { /* set 'normal'/'cached' to LLC by default */
-		pte_flags = GEN6_PTE_LLC_MLC | I810_PTE_VALID;
+		pte_flags = GEN6_PTE_LLC | I810_PTE_VALID;
 		if (gfdt)
 			pte_flags |= GEN6_PTE_GFDT;
 	}

@@ -691,6 +691,7 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 
 	fence_rep.error = ret;
 	fence_rep.fence_seq = (uint64_t) sequence;
+	fence_rep.pad64 = 0;
 
 	user_fence_rep = (struct drm_vmw_fence_rep __user *)
 	    (unsigned long)arg->fence_rep;

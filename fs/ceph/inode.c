@@ -2,7 +2,6 @@
 
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
@@ -471,7 +470,9 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 
 	if (issued & (CEPH_CAP_FILE_EXCL|
 		      CEPH_CAP_FILE_WR|
-		      CEPH_CAP_FILE_BUFFER)) {
+		      CEPH_CAP_FILE_BUFFER|
+		      CEPH_CAP_AUTH_EXCL|
+		      CEPH_CAP_XATTR_EXCL)) {
 		if (timespec_compare(ctime, &inode->i_ctime) > 0) {
 			dout("ctime %ld.%09ld -> %ld.%09ld inc w/ cap\n",
 			     inode->i_ctime.tv_sec, inode->i_ctime.tv_nsec,
@@ -511,7 +512,7 @@ void ceph_fill_file_time(struct inode *inode, int issued,
 			warn = 1;
 		}
 	} else {
-		/* we have no write caps; whatever the MDS says is true */
+		/* we have no write|excl caps; whatever the MDS says is true */
 		if (ceph_seq_cmp(time_warp_seq, ci->i_time_warp_seq) >= 0) {
 			inode->i_ctime = *ctime;
 			inode->i_mtime = *mtime;
@@ -567,12 +568,17 @@ static int fill_inode(struct inode *inode,
 
 	/*
 	 * provided version will be odd if inode value is projected,
-	 * even if stable.  skip the update if we have a newer info
-	 * (e.g., due to inode info racing form multiple MDSs), or if
-	 * we are getting projected (unstable) inode info.
+	 * even if stable.  skip the update if we have newer stable
+	 * info (ours>=theirs, e.g. due to racing mds replies), unless
+	 * we are getting projected (unstable) info (in which case the
+	 * version is odd, and we want ours>theirs).
+	 *   us   them
+	 *   2    2     skip
+	 *   3    2     skip
+	 *   3    3     update
 	 */
 	if (le64_to_cpu(info->version) > 0 &&
-	    (ci->i_version & ~1) > le64_to_cpu(info->version))
+	    (ci->i_version & ~1) >= le64_to_cpu(info->version))
 		goto no_change;
 
 	issued = __ceph_caps_issued(ci, &implemented);
@@ -606,7 +612,14 @@ static int fill_inode(struct inode *inode,
 			    le32_to_cpu(info->time_warp_seq),
 			    &ctime, &mtime, &atime);
 
-	ci->i_max_size = le64_to_cpu(info->max_size);
+	/* only update max_size on auth cap */
+	if ((info->cap.flags & CEPH_CAP_FLAG_AUTH) &&
+	    ci->i_max_size != le64_to_cpu(info->max_size)) {
+		dout("max_size %lld -> %llu\n", ci->i_max_size,
+		     le64_to_cpu(info->max_size));
+		ci->i_max_size = le64_to_cpu(info->max_size);
+	}
+
 	ci->i_layout = info->layout;
 	inode->i_blkbits = fls(le32_to_cpu(info->layout.fl_stripe_unit)) - 1;
 
@@ -1055,7 +1068,8 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 		ininfo = rinfo->targeti.in;
 		vino.ino = le64_to_cpu(ininfo->ino);
 		vino.snap = le64_to_cpu(ininfo->snapid);
-		if (!dn->d_inode) {
+		in = dn->d_inode;
+		if (!in) {
 			in = ceph_get_inode(sb, vino);
 			if (IS_ERR(in)) {
 				pr_err("fill_trace bad get_inode "
@@ -1386,11 +1400,8 @@ static void ceph_invalidate_work(struct work_struct *work)
 	spin_lock(&inode->i_lock);
 	dout("invalidate_pages %p gen %d revoking %d\n", inode,
 	     ci->i_rdcache_gen, ci->i_rdcache_revoking);
-	if (ci->i_rdcache_gen == 0 ||
-	    ci->i_rdcache_revoking != ci->i_rdcache_gen) {
-		BUG_ON(ci->i_rdcache_revoking > ci->i_rdcache_gen);
+	if (ci->i_rdcache_revoking != ci->i_rdcache_gen) {
 		/* nevermind! */
-		ci->i_rdcache_revoking = 0;
 		spin_unlock(&inode->i_lock);
 		goto out;
 	}
@@ -1400,15 +1411,16 @@ static void ceph_invalidate_work(struct work_struct *work)
 	ceph_invalidate_nondirty_pages(inode->i_mapping);
 
 	spin_lock(&inode->i_lock);
-	if (orig_gen == ci->i_rdcache_gen) {
+	if (orig_gen == ci->i_rdcache_gen &&
+	    orig_gen == ci->i_rdcache_revoking) {
 		dout("invalidate_pages %p gen %d successful\n", inode,
 		     ci->i_rdcache_gen);
-		ci->i_rdcache_gen = 0;
-		ci->i_rdcache_revoking = 0;
+		ci->i_rdcache_revoking--;
 		check = 1;
 	} else {
-		dout("invalidate_pages %p gen %d raced, gen now %d\n",
-		     inode, orig_gen, ci->i_rdcache_gen);
+		dout("invalidate_pages %p gen %d raced, now %d revoking %d\n",
+		     inode, orig_gen, ci->i_rdcache_gen,
+		     ci->i_rdcache_revoking);
 	}
 	spin_unlock(&inode->i_lock);
 
@@ -1739,7 +1751,7 @@ int ceph_do_getattr(struct inode *inode, int mask)
 		return 0;
 	}
 
-	dout("do_getattr inode %p mask %s\n", inode, ceph_cap_string(mask));
+	dout("do_getattr inode %p mask %s mode 0%o\n", inode, ceph_cap_string(mask), inode->i_mode);
 	if (ceph_caps_issued_mask(ceph_inode(inode), mask, 1))
 		return 0;
 

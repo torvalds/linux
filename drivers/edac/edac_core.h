@@ -41,10 +41,10 @@
 #define MC_PROC_NAME_MAX_LEN	7
 
 #if PAGE_SHIFT < 20
-#define PAGES_TO_MiB( pages )	( ( pages ) >> ( 20 - PAGE_SHIFT ) )
-#define MiB_TO_PAGES(mb)	((mb) >> (20 - PAGE_SHIFT))
+#define PAGES_TO_MiB(pages)	((pages) >> (20 - PAGE_SHIFT))
+#define MiB_TO_PAGES(mb)	((mb) << (20 - PAGE_SHIFT))
 #else				/* PAGE_SHIFT > 20 */
-#define PAGES_TO_MiB( pages )	( ( pages ) << ( PAGE_SHIFT - 20 ) )
+#define PAGES_TO_MiB(pages)	((pages) << (PAGE_SHIFT - 20))
 #define MiB_TO_PAGES(mb)	((mb) >> (PAGE_SHIFT - 20))
 #endif
 

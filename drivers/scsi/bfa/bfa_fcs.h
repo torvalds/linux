@@ -196,7 +196,7 @@ struct bfa_fcs_fabric_s {
 #define bfa_fcs_fabric_is_switched(__f)			\
 	((__f)->fab_type == BFA_FCS_FABRIC_SWITCHED)
 
-/**
+/*
  *   The design calls for a single implementation of base fabric and vf.
  */
 #define bfa_fcs_vf_t struct bfa_fcs_fabric_s
@@ -216,7 +216,7 @@ struct bfa_fcs_fabric_s;
 
 #define bfa_fcs_lport_t struct bfa_fcs_lport_s
 
-/**
+/*
  * Symbolic Name related defines
  *  Total bytes 255.
  *  Physical Port's symbolic name 128 bytes.
@@ -239,7 +239,7 @@ struct bfa_fcs_fabric_s;
 #define BFA_FCS_PORT_SYMBNAME_OSINFO_SZ			48
 #define BFA_FCS_PORT_SYMBNAME_OSPATCH_SZ		16
 
-/**
+/*
  * Get FC port ID for a logical port.
  */
 #define bfa_fcs_lport_get_fcid(_lport)	((_lport)->pid)
@@ -262,7 +262,7 @@ bfa_fcs_lport_get_drvport(struct bfa_fcs_lport_s *port)
 #define bfa_fcs_lport_get_fabric_ipaddr(_lport)		\
 		((_lport)->fabric->fabric_ip_addr)
 
-/**
+/*
  * bfa fcs port public functions
  */
 
@@ -342,7 +342,7 @@ struct bfa_fcs_vport_s {
 #define bfa_fcs_vport_get_port(vport)			\
 	((struct bfa_fcs_lport_s  *)(&vport->port))
 
-/**
+/*
  * bfa fcs vport public functions
  */
 bfa_status_t bfa_fcs_vport_create(struct bfa_fcs_vport_s *vport,
@@ -393,7 +393,7 @@ struct bfa_fcs_rpf_s {
 	enum bfa_port_speed	rpsc_speed;
 	/*  Current Speed from RPSC. O if RPSC fails */
 	enum bfa_port_speed	assigned_speed;
-	/**
+	/*
 	 * Speed assigned by the user.  will be used if RPSC is
 	 * not supported by the rport.
 	 */
@@ -434,7 +434,7 @@ bfa_fcs_rport_get_halrport(struct bfa_fcs_rport_s *rport)
 	return rport->bfa_rport;
 }
 
-/**
+/*
  * bfa fcs rport API functions
  */
 bfa_status_t bfa_fcs_rport_add(struct bfa_fcs_lport_s *port, wwn_t *pwwn,
@@ -573,7 +573,7 @@ bfa_fcs_itnim_get_halitn(struct bfa_fcs_itnim_s *itnim)
 	return itnim->bfa_itnim;
 }
 
-/**
+/*
  * bfa fcs FCP Initiator mode API functions
  */
 void bfa_fcs_itnim_get_attr(struct bfa_fcs_itnim_s *itnim,
@@ -677,22 +677,9 @@ void bfa_fcs_exit(struct bfa_fcs_s *fcs);
 void bfa_fcs_trc_init(struct bfa_fcs_s *fcs, struct bfa_trc_mod_s *trcmod);
 void		bfa_fcs_start(struct bfa_fcs_s *fcs);
 
-/**
+/*
  * bfa fcs vf public functions
  */
-bfa_status_t bfa_fcs_vf_mode_enable(struct bfa_fcs_s *fcs, u16 vf_id);
-bfa_status_t bfa_fcs_vf_mode_disable(struct bfa_fcs_s *fcs);
-bfa_status_t bfa_fcs_vf_create(bfa_fcs_vf_t *vf, struct bfa_fcs_s *fcs,
-			       u16 vf_id, struct bfa_lport_cfg_s *port_cfg,
-			       struct bfad_vf_s *vf_drv);
-bfa_status_t bfa_fcs_vf_delete(bfa_fcs_vf_t *vf);
-void bfa_fcs_vf_list(struct bfa_fcs_s *fcs, u16 *vf_ids, int *nvfs);
-void bfa_fcs_vf_list_all(struct bfa_fcs_s *fcs, u16 *vf_ids, int *nvfs);
-void bfa_fcs_vf_get_attr(bfa_fcs_vf_t *vf, struct bfa_vf_attr_s *vf_attr);
-void bfa_fcs_vf_get_stats(bfa_fcs_vf_t *vf,
-			  struct bfa_vf_stats_s *vf_stats);
-void bfa_fcs_vf_clear_stats(bfa_fcs_vf_t *vf);
-void bfa_fcs_vf_get_ports(bfa_fcs_vf_t *vf, wwn_t vpwwn[], int *nports);
 bfa_fcs_vf_t *bfa_fcs_vf_lookup(struct bfa_fcs_s *fcs, u16 vf_id);
 u16 bfa_fcs_fabric_vport_count(struct bfa_fcs_fabric_s *fabric);
 
@@ -729,11 +716,11 @@ u16 bfa_fcs_fabric_get_switch_oui(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_uf_attach(struct bfa_fcs_s *fcs);
 void bfa_fcs_port_attach(struct bfa_fcs_s *fcs);
 
-/**
+/*
  * BFA FCS callback interfaces
  */
 
-/**
+/*
  * fcb Main fcs callbacks
  */
 
@@ -742,7 +729,7 @@ struct bfad_vf_s;
 struct bfad_vport_s;
 struct bfad_rport_s;
 
-/**
+/*
  * lport callbacks
  */
 struct bfad_port_s *bfa_fcb_lport_new(struct bfad_s *bfad,
@@ -754,19 +741,19 @@ void bfa_fcb_lport_delete(struct bfad_s *bfad, enum bfa_lport_role roles,
 			  struct bfad_vf_s *vf_drv,
 			  struct bfad_vport_s *vp_drv);
 
-/**
+/*
  * vport callbacks
  */
 void bfa_fcb_pbc_vport_create(struct bfad_s *bfad, struct bfi_pbc_vport_s);
 
-/**
+/*
  * rport callbacks
  */
 bfa_status_t bfa_fcb_rport_alloc(struct bfad_s *bfad,
 				 struct bfa_fcs_rport_s **rport,
 				 struct bfad_rport_s **rport_drv);
 
-/**
+/*
  * itnim callbacks
  */
 void bfa_fcb_itnim_alloc(struct bfad_s *bfad, struct bfa_fcs_itnim_s **itnim,

@@ -233,7 +233,8 @@ static noinline int create_subvol(struct btrfs_root *root,
 	struct btrfs_inode_item *inode_item;
 	struct extent_buffer *leaf;
 	struct btrfs_root *new_root;
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct dentry *parent = dget_parent(dentry);
+	struct inode *dir;
 	int ret;
 	int err;
 	u64 objectid;
@@ -242,8 +243,13 @@ static noinline int create_subvol(struct btrfs_root *root,
 
 	ret = btrfs_find_free_objectid(NULL, root->fs_info->tree_root,
 				       0, &objectid);
-	if (ret)
+	if (ret) {
+		dput(parent);
 		return ret;
+	}
+
+	dir = parent->d_inode;
+
 	/*
 	 * 1 - inode item
 	 * 2 - refs
@@ -251,8 +257,10 @@ static noinline int create_subvol(struct btrfs_root *root,
 	 * 2 - dir items
 	 */
 	trans = btrfs_start_transaction(root, 6);
-	if (IS_ERR(trans))
+	if (IS_ERR(trans)) {
+		dput(parent);
 		return PTR_ERR(trans);
+	}
 
 	leaf = btrfs_alloc_free_block(trans, root, root->leafsize,
 				      0, objectid, NULL, 0, 0, 0);
@@ -339,6 +347,7 @@ static noinline int create_subvol(struct btrfs_root *root,
 
 	d_instantiate(dentry, btrfs_lookup_dentry(dir, dentry));
 fail:
+	dput(parent);
 	if (async_transid) {
 		*async_transid = trans->transid;
 		err = btrfs_commit_transaction_async(trans, root, 1);
@@ -354,6 +363,7 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 			   char *name, int namelen, u64 *async_transid)
 {
 	struct inode *inode;
+	struct dentry *parent;
 	struct btrfs_pending_snapshot *pending_snapshot;
 	struct btrfs_trans_handle *trans;
 	int ret;
@@ -396,7 +406,9 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 
 	btrfs_orphan_cleanup(pending_snapshot->snap);
 
-	inode = btrfs_lookup_dentry(dentry->d_parent->d_inode, dentry);
+	parent = dget_parent(dentry);
+	inode = btrfs_lookup_dentry(parent->d_inode, dentry);
+	dput(parent);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
 		goto fail;
@@ -935,23 +947,42 @@ out:
 
 static noinline int btrfs_ioctl_snap_create(struct file *file,
 					    void __user *arg, int subvol,
-					    int async)
+					    int v2)
 {
 	struct btrfs_ioctl_vol_args *vol_args = NULL;
-	struct btrfs_ioctl_async_vol_args *async_vol_args = NULL;
+	struct btrfs_ioctl_vol_args_v2 *vol_args_v2 = NULL;
 	char *name;
 	u64 fd;
-	u64 transid = 0;
 	int ret;
 
-	if (async) {
-		async_vol_args = memdup_user(arg, sizeof(*async_vol_args));
-		if (IS_ERR(async_vol_args))
-			return PTR_ERR(async_vol_args);
+	if (v2) {
+		u64 transid = 0;
+		u64 *ptr = NULL;
 
-		name = async_vol_args->name;
-		fd = async_vol_args->fd;
-		async_vol_args->name[BTRFS_SNAPSHOT_NAME_MAX] = '\0';
+		vol_args_v2 = memdup_user(arg, sizeof(*vol_args_v2));
+		if (IS_ERR(vol_args_v2))
+			return PTR_ERR(vol_args_v2);
+
+		if (vol_args_v2->flags & ~BTRFS_SUBVOL_CREATE_ASYNC) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		name = vol_args_v2->name;
+		fd = vol_args_v2->fd;
+		vol_args_v2->name[BTRFS_SUBVOL_NAME_MAX] = '\0';
+
+		if (vol_args_v2->flags & BTRFS_SUBVOL_CREATE_ASYNC)
+			ptr = &transid;
+
+		ret = btrfs_ioctl_snap_create_transid(file, name, fd,
+						      subvol, ptr);
+
+		if (ret == 0 && ptr &&
+		    copy_to_user(arg +
+				 offsetof(struct btrfs_ioctl_vol_args_v2,
+					  transid), ptr, sizeof(*ptr)))
+			ret = -EFAULT;
 	} else {
 		vol_args = memdup_user(arg, sizeof(*vol_args));
 		if (IS_ERR(vol_args))
@@ -959,20 +990,13 @@ static noinline int btrfs_ioctl_snap_create(struct file *file,
 		name = vol_args->name;
 		fd = vol_args->fd;
 		vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
+
+		ret = btrfs_ioctl_snap_create_transid(file, name, fd,
+						      subvol, NULL);
 	}
-
-	ret = btrfs_ioctl_snap_create_transid(file, name, fd,
-					      subvol, &transid);
-
-	if (!ret && async) {
-		if (copy_to_user(arg +
-				offsetof(struct btrfs_ioctl_async_vol_args,
-				transid), &transid, sizeof(transid)))
-			return -EFAULT;
-	}
-
+out:
 	kfree(vol_args);
-	kfree(async_vol_args);
+	kfree(vol_args_v2);
 
 	return ret;
 }
@@ -1669,12 +1693,11 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 		olen = len = src->i_size - off;
 	/* if we extend to eof, continue to block boundary */
 	if (off + len == src->i_size)
-		len = ((src->i_size + bs-1) & ~(bs-1))
-			- off;
+		len = ALIGN(src->i_size, bs) - off;
 
 	/* verify the end result is block aligned */
-	if ((off & (bs-1)) ||
-	    ((off + len) & (bs-1)))
+	if (!IS_ALIGNED(off, bs) || !IS_ALIGNED(off + len, bs) ||
+	    !IS_ALIGNED(destoff, bs))
 		goto out_unlock;
 
 	/* do any pending delalloc/csum calc on src, one way or
@@ -1874,8 +1897,8 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			 * but shouldn't round up the file size
 			 */
 			endoff = new_key.offset + datal;
-			if (endoff > off+olen)
-				endoff = off+olen;
+			if (endoff > destoff+olen)
+				endoff = destoff+olen;
 			if (endoff > inode->i_size)
 				btrfs_i_size_write(inode, endoff);
 
@@ -2235,7 +2258,7 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_getversion(file, argp);
 	case BTRFS_IOC_SNAP_CREATE:
 		return btrfs_ioctl_snap_create(file, argp, 0, 0);
-	case BTRFS_IOC_SNAP_CREATE_ASYNC:
+	case BTRFS_IOC_SNAP_CREATE_V2:
 		return btrfs_ioctl_snap_create(file, argp, 0, 1);
 	case BTRFS_IOC_SUBVOL_CREATE:
 		return btrfs_ioctl_snap_create(file, argp, 1, 0);

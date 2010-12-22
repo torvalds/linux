@@ -2131,7 +2131,7 @@ static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 	} else {
 		struct sock *sk = skb->sk;
 		queue_index = sk_tx_queue_get(sk);
-		if (queue_index < 0) {
+		if (queue_index < 0 || queue_index >= dev->real_num_tx_queues) {
 
 			queue_index = 0;
 			if (dev->real_num_tx_queues > 1)

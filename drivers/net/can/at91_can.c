@@ -1,7 +1,7 @@
 /*
  * at91_can.c - CAN network driver for AT91 SoC CAN controller
  *
- * (C) 2007 by Hans J. Koch <hjk@linutronix.de>
+ * (C) 2007 by Hans J. Koch <hjk@hansjkoch.de>
  * (C) 2008, 2009, 2010 by Marc Kleine-Budde <kernel@pengutronix.de>
  *
  * This software may be distributed under the terms of the GNU General

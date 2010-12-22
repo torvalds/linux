@@ -853,6 +853,7 @@ restart:
 		if (trylock) {
 			if (!mutex_trylock(&pag->pag_ici_reclaim_lock)) {
 				skipped++;
+				xfs_perag_put(pag);
 				continue;
 			}
 			first_index = pag->pag_ici_reclaim_cursor;

@@ -291,7 +291,8 @@ static int carl9170_fw(struct ar9170 *ar, const __u8 *data, size_t len)
 
 		if (SUPP(CARL9170FW_WLANTX_CAB)) {
 			ar->hw->wiphy->interface_modes |=
-				BIT(NL80211_IFTYPE_AP);
+				BIT(NL80211_IFTYPE_AP) |
+				BIT(NL80211_IFTYPE_P2P_GO);
 		}
 	}
 

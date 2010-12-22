@@ -1075,7 +1075,6 @@ static int mid_setup_dma(struct pci_dev *pdev)
 	if (NULL == dma->dma_pool) {
 		pr_err("ERR_MDMA:pci_pool_create failed\n");
 		err = -ENOMEM;
-		kfree(dma);
 		goto err_dma_pool;
 	}
 
@@ -1186,7 +1185,6 @@ err_engine:
 	free_irq(pdev->irq, dma);
 err_irq:
 	pci_pool_destroy(dma->dma_pool);
-	kfree(dma);
 err_dma_pool:
 	pr_err("ERR_MDMA:setup_dma failed: %d\n", err);
 	return err;
@@ -1413,7 +1411,7 @@ static const struct dev_pm_ops intel_mid_dma_pm = {
 	.runtime_idle = dma_runtime_idle,
 };
 
-static struct pci_driver intel_mid_dma_pci = {
+static struct pci_driver intel_mid_dma_pci_driver = {
 	.name		=	"Intel MID DMA",
 	.id_table	=	intel_mid_dma_ids,
 	.probe		=	intel_mid_dma_probe,
@@ -1431,13 +1429,13 @@ static int __init intel_mid_dma_init(void)
 {
 	pr_debug("INFO_MDMA: LNW DMA Driver Version %s\n",
 			INTEL_MID_DMA_DRIVER_VERSION);
-	return pci_register_driver(&intel_mid_dma_pci);
+	return pci_register_driver(&intel_mid_dma_pci_driver);
 }
 fs_initcall(intel_mid_dma_init);
 
 static void __exit intel_mid_dma_exit(void)
 {
-	pci_unregister_driver(&intel_mid_dma_pci);
+	pci_unregister_driver(&intel_mid_dma_pci_driver);
 }
 module_exit(intel_mid_dma_exit);
 

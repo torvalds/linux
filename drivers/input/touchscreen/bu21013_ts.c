@@ -514,7 +514,7 @@ err_free_irq:
 err_cs_disable:
 	pdata->cs_dis(pdata->cs_pin);
 err_free_mem:
-	input_free_device(bu21013_data->in_dev);
+	input_free_device(in_dev);
 	kfree(bu21013_data);
 
 	return error;

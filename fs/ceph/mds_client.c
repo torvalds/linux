@@ -6,7 +6,6 @@
 #include <linux/sched.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -203,6 +202,38 @@ out_bad:
 }
 
 /*
+ * parse fcntl F_GETLK results
+ */
+static int parse_reply_info_filelock(void **p, void *end,
+                struct ceph_mds_reply_info_parsed *info)
+{
+	if (*p + sizeof(*info->filelock_reply) > end)
+		goto bad;
+
+	info->filelock_reply = *p;
+	*p += sizeof(*info->filelock_reply);
+
+	if (unlikely(*p != end))
+		goto bad;
+	return 0;
+
+bad:
+	return -EIO;
+}
+
+/*
+ * parse extra results
+ */
+static int parse_reply_info_extra(void **p, void *end,
+                struct ceph_mds_reply_info_parsed *info)
+{
+	if (info->head->op == CEPH_MDS_OP_GETFILELOCK)
+		return parse_reply_info_filelock(p, end, info);
+	else
+		return parse_reply_info_dir(p, end, info);
+}
+
+/*
  * parse entire mds reply
  */
 static int parse_reply_info(struct ceph_msg *msg,
@@ -224,10 +255,10 @@ static int parse_reply_info(struct ceph_msg *msg,
 			goto out_bad;
 	}
 
-	/* dir content */
+	/* extra */
 	ceph_decode_32_safe(&p, end, len, bad);
 	if (len > 0) {
-		err = parse_reply_info_dir(&p, p+len, info);
+		err = parse_reply_info_extra(&p, p+len, info);
 		if (err < 0)
 			goto out_bad;
 	}
@@ -528,6 +559,9 @@ static void __register_request(struct ceph_mds_client *mdsc,
 	dout("__register_request %p tid %lld\n", req, req->r_tid);
 	ceph_mdsc_get_request(req);
 	__insert_request(mdsc, req);
+
+	req->r_uid = current_fsuid();
+	req->r_gid = current_fsgid();
 
 	if (dir) {
 		struct ceph_inode_info *ci = ceph_inode(dir);
@@ -1588,8 +1622,8 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 
 	head->mdsmap_epoch = cpu_to_le32(mdsc->mdsmap->m_epoch);
 	head->op = cpu_to_le32(req->r_op);
-	head->caller_uid = cpu_to_le32(current_fsuid());
-	head->caller_gid = cpu_to_le32(current_fsgid());
+	head->caller_uid = cpu_to_le32(req->r_uid);
+	head->caller_gid = cpu_to_le32(req->r_gid);
 	head->args = req->r_args;
 
 	ceph_encode_filepath(&p, end, ino1, path1);
@@ -2072,7 +2106,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 
 	mutex_lock(&session->s_mutex);
 	if (err < 0) {
-		pr_err("mdsc_handle_reply got corrupt reply mds%d\n", mds);
+		pr_err("mdsc_handle_reply got corrupt reply mds%d(tid:%lld)\n", mds, tid);
 		ceph_msg_dump(msg);
 		goto out_err;
 	}
@@ -2092,7 +2126,8 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	mutex_lock(&req->r_fill_mutex);
 	err = ceph_fill_trace(mdsc->fsc->sb, req, req->r_session);
 	if (err == 0) {
-		if (result == 0 && rinfo->dir_nr)
+		if (result == 0 && req->r_op != CEPH_MDS_OP_GETFILELOCK &&
+		    rinfo->dir_nr)
 			ceph_readdir_prepopulate(req, req->r_session);
 		ceph_unreserve_caps(mdsc, &req->r_caps_reservation);
 	}

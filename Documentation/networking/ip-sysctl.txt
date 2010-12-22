@@ -20,6 +20,15 @@ ip_no_pmtu_disc - BOOLEAN
 min_pmtu - INTEGER
 	default 562 - minimum discovered Path MTU
 
+route/max_size - INTEGER
+	Maximum number of routes allowed in the kernel.  Increase
+	this when using large numbers of interfaces and/or routes.
+
+neigh/default/gc_thresh3 - INTEGER
+	Maximum number of neighbor entries allowed.  Increase this
+	when using large numbers of interfaces and when communicating
+	with large numbers of directly-connected peers.
+
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
 
@@ -135,6 +144,7 @@ tcp_adv_win_scale - INTEGER
 	Count buffering overhead as bytes/2^tcp_adv_win_scale
 	(if tcp_adv_win_scale > 0) or bytes-bytes/2^(-tcp_adv_win_scale),
 	if it is <= 0.
+	Possible values are [-31, 31], inclusive.
 	Default: 2
 
 tcp_allowed_congestion_control - STRING

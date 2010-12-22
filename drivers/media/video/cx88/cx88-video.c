@@ -31,7 +31,6 @@
 #include <linux/kmod.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
@@ -1896,14 +1895,13 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	if (core->board.audio_chip == V4L2_IDENT_WM8775)
 		v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
-				NULL, "wm8775", 0x36 >> 1, NULL);
+				"wm8775", 0x36 >> 1, NULL);
 
 	if (core->board.audio_chip == V4L2_IDENT_TVAUDIO) {
 		/* This probes for a tda9874 as is used on some
 		   Pixelview Ultra boards. */
-		v4l2_i2c_new_subdev(&core->v4l2_dev,
-				&core->i2c_adap,
-				NULL, "tvaudio", 0, I2C_ADDRS(0xb0 >> 1));
+		v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
+				"tvaudio", 0, I2C_ADDRS(0xb0 >> 1));
 	}
 
 	switch (core->boardnr) {

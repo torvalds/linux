@@ -186,7 +186,7 @@ static int __devexit lis3lv02d_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int lis3lv02d_i2c_suspend(struct device *dev)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
@@ -213,12 +213,9 @@ static int lis3lv02d_i2c_resume(struct device *dev)
 
 	return 0;
 }
-#else
-#define lis3lv02d_i2c_suspend	NULL
-#define lis3lv02d_i2c_resume	NULL
-#define lis3lv02d_i2c_shutdown	NULL
-#endif
+#endif /* CONFIG_PM_SLEEP */
 
+#ifdef CONFIG_PM_RUNTIME
 static int lis3_i2c_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
@@ -236,6 +233,7 @@ static int lis3_i2c_runtime_resume(struct device *dev)
 	lis3lv02d_poweron(lis3);
 	return 0;
 }
+#endif /* CONFIG_PM_RUNTIME */
 
 static const struct i2c_device_id lis3lv02d_id[] = {
 	{"lis3lv02d", 0 },

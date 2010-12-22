@@ -866,7 +866,7 @@ static wl_info_t *wl_attach(u16 vendor, u16 device, unsigned long regs,
 	spin_lock_init(&wl->rpcq_lock);
 	spin_lock_init(&wl->txq_lock);
 
-	init_MUTEX(&wl->sem);
+	sema_init(&wl->sem, 1);
 #else
 	spin_lock_init(&wl->lock);
 	spin_lock_init(&wl->isr_lock);
