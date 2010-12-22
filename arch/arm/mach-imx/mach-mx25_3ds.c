@@ -30,6 +30,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/usb/otg.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -184,13 +185,24 @@ static const struct matrix_keymap_data mx25pdk_keymap_data __initdata = {
 	.keymap_size	= ARRAY_SIZE(mx25pdk_keymap),
 };
 
+static const struct mxc_usbh_platform_data usbh2_pdata __initconst = {
+	.portsc	= MXC_EHCI_MODE_SERIAL,
+	.flags	= MXC_EHCI_INTERNAL_PHY,
+};
+
+static const struct fsl_usb2_platform_data otg_device_pdata __initconst = {
+	.operating_mode = FSL_USB2_DR_DEVICE,
+	.phy_mode       = FSL_USB2_PHY_UTMI,
+};
+
 static void __init mx25pdk_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx25pdk_pads,
 			ARRAY_SIZE(mx25pdk_pads));
 
 	imx25_add_imx_uart0(&uart_pdata);
-	imx25_add_mxc_ehci_hs(NULL);
+	imx25_add_fsl_usb2_udc(&otg_device_pdata);
+	imx25_add_mxc_ehci_hs(&usbh2_pdata);
 	imx25_add_mxc_nand(&mx25pdk_nand_board_info);
 	imx25_add_imxdi_rtc(NULL);
 	imx25_add_imx_fb(&mx25pdk_fb_pdata);
