@@ -246,7 +246,7 @@ void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid)
 	u = mcs.args;
 
 	/* ptep might be kmapped when using 32-bit HIGHPTE */
-	u->ptr = arbitrary_virt_to_machine(ptep).maddr;
+	u->ptr = virt_to_machine(ptep).maddr;
 	u->val = pte_val_ma(pteval);
 
 	MULTI_mmu_update(mcs.mc, mcs.args, 1, NULL, domid);
@@ -292,7 +292,7 @@ static void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
 	xen_mc_batch();
 
 	/* ptr may be ioremapped for 64-bit pagetable setup */
-	u.ptr = arbitrary_virt_to_machine(ptr).maddr;
+	u.ptr = virt_to_machine(ptr).maddr;
 	u.val = pmd_val_ma(val);
 	xen_extend_mmu_update(&u);
 
@@ -375,7 +375,7 @@ void xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 
 	xen_mc_batch();
 
-	u.ptr = arbitrary_virt_to_machine(ptep).maddr | MMU_PT_UPDATE_PRESERVE_AD;
+	u.ptr = virt_to_machine(ptep).maddr | MMU_PT_UPDATE_PRESERVE_AD;
 	u.val = pte_val_ma(pte);
 	xen_extend_mmu_update(&u);
 
@@ -589,7 +589,7 @@ static void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 	xen_mc_batch();
 
 	/* ptr may be ioremapped for 64-bit pagetable setup */
-	u.ptr = arbitrary_virt_to_machine(ptr).maddr;
+	u.ptr = virt_to_machine(ptr).maddr;
 	u.val = pud_val_ma(val);
 	xen_extend_mmu_update(&u);
 
@@ -2331,7 +2331,7 @@ static int remap_area_mfn_pte_fn(pte_t *ptep, pgtable_t token,
 	struct remap_data *rmd = data;
 	pte_t pte = pte_mkspecial(pfn_pte(rmd->mfn++, rmd->prot));
 
-	rmd->mmu_update->ptr = arbitrary_virt_to_machine(ptep).maddr;
+	rmd->mmu_update->ptr = virt_to_machine(ptep).maddr;
 	rmd->mmu_update->val = pte_val_ma(pte);
 	rmd->mmu_update++;
 
