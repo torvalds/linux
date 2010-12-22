@@ -2024,6 +2024,7 @@ qla2x00_configure_hba(scsi_qla_host_t *vha)
 	    &loop_id, &al_pa, &area, &domain, &topo, &sw_cap);
 	if (rval != QLA_SUCCESS) {
 		if (LOOP_TRANSITION(vha) || atomic_read(&ha->loop_down_timer) ||
+		    IS_QLA8XXX_TYPE(ha) ||
 		    (rval == QLA_COMMAND_ERROR && loop_id == 0x7)) {
 			DEBUG2(printk("%s(%ld) Loop is in a transition state\n",
 			    __func__, vha->host_no));
