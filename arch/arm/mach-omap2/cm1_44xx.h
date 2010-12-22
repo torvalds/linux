@@ -248,4 +248,9 @@
 #define OMAP4_CM_DYN_DEP_PRESCAL_RESTORE_OFFSET		0x0040
 #define OMAP4430_CM_DYN_DEP_PRESCAL_RESTORE		OMAP44XX_CM1_REGADDR(OMAP4430_CM1_RESTORE_INST, 0x0040)
 
+/* Function prototypes */
+extern u32 omap4_cm1_read_inst_reg(s16 inst, u16 idx);
+extern void omap4_cm1_write_inst_reg(u32 val, s16 inst, u16 idx);
+extern u32 omap4_cm1_rmw_inst_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx);
+
 #endif

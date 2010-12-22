@@ -480,4 +480,10 @@
 #define OMAP4430_CM_L3INIT_USB_TLL_CLKCTRL_RESTORE	OMAP44XX_CM2_REGADDR(OMAP4430_CM2_RESTORE_INST, 0x0058)
 #define OMAP4_CM_SDMA_STATICDEP_RESTORE_OFFSET		0x005c
 #define OMAP4430_CM_SDMA_STATICDEP_RESTORE		OMAP44XX_CM2_REGADDR(OMAP4430_CM2_RESTORE_INST, 0x005c)
+
+/* Function prototypes */
+extern u32 omap4_cm2_read_inst_reg(s16 inst, u16 idx);
+extern void omap4_cm2_write_inst_reg(u32 val, s16 inst, u16 idx);
+extern u32 omap4_cm2_rmw_inst_reg_bits(u32 mask, u32 bits, s16 inst, s16 idx);
+
 #endif

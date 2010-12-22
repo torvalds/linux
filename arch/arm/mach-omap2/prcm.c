@@ -33,6 +33,7 @@
 #include "cm44xx.h"
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
+#include "prcm44xx.h"
 #include "prm-regbits-24xx.h"
 #include "prm-regbits-44xx.h"
 #include "control.h"
@@ -78,31 +79,6 @@ void omap_prcm_arch_reset(char mode, const char *cmd)
 	if (cpu_is_omap44xx())
 		prm_set_mod_reg_bits(OMAP4430_RST_GLOBAL_WARM_SW_MASK,
 				     prcm_offs, OMAP4_RM_RSTCTRL);
-}
-
-/* Read a PRM register, AND it, and shift the result down to bit 0 */
-u32 omap4_prm_read_bits_shift(void __iomem *reg, u32 mask)
-{
-	u32 v;
-
-	v = __raw_readl(reg);
-	v &= mask;
-	v >>= __ffs(mask);
-
-	return v;
-}
-
-/* Read-modify-write a register in a PRM module. Caller must lock */
-u32 omap4_prm_rmw_reg_bits(u32 mask, u32 bits, void __iomem *reg)
-{
-	u32 v;
-
-	v = __raw_readl(reg);
-	v &= ~mask;
-	v |= bits;
-	__raw_writel(v, reg);
-
-	return v;
 }
 
 /**

@@ -88,4 +88,12 @@
 #define OMAP4_CM_CPU1_CLKSTCTRL_OFFSET			0x0018
 #define OMAP4430_CM_CPU1_CLKSTCTRL			OMAP44XX_PRCM_MPU_REGADDR(OMAP4430_PRCM_MPU_CPU1_INST, 0x0018)
 
+/* Function prototypes */
+# ifndef __ASSEMBLER__
+extern u32 omap4_prcm_mpu_read_inst_reg(s16 inst, u16 idx);
+extern void omap4_prcm_mpu_write_inst_reg(u32 val, s16 inst, u16 idx);
+extern u32 omap4_prcm_mpu_rmw_inst_reg_bits(u32 mask, u32 bits, s16 inst,
+					    s16 idx);
+# endif
+
 #endif
