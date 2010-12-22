@@ -812,7 +812,7 @@ static struct clk dss2_fck = {		/* Alt clk used in power management */
 	.clksel_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_CLKSEL1),
 	.clksel_mask	= OMAP24XX_CLKSEL_DSS2_MASK,
 	.clksel		= dss2_fck_clksel,
-	.recalc		= &followparent_recalc,
+	.recalc		= &omap2_clksel_recalc,
 };
 
 static struct clk dss_54m_fck = {	/* Alt clk used in power management */
