@@ -280,8 +280,6 @@ static void *sc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	return sc; /* unused, just needs to be null when done */
 }
 
-#define TV_SEC_USEC(TV) TV.tv_sec, (long)TV.tv_usec
-
 static int sc_seq_show(struct seq_file *seq, void *v)
 {
 	struct o2net_sock_container *sc, *dummy_sc = seq->private;
@@ -313,13 +311,13 @@ static int sc_seq_show(struct seq_file *seq, void *v)
 			   "  remote node:     %s\n"
 			   "  page off:        %zu\n"
 			   "  handshake ok:    %u\n"
-			   "  timer:           %lu.%ld\n"
-			   "  data ready:      %lu.%ld\n"
-			   "  advance start:   %lu.%ld\n"
-			   "  advance stop:    %lu.%ld\n"
-			   "  func start:      %lu.%ld\n"
-			   "  func stop:       %lu.%ld\n"
-			   "  func key:        %u\n"
+			   "  timer:           %lld usecs\n"
+			   "  data ready:      %lld usecs\n"
+			   "  advance start:   %lld usecs\n"
+			   "  advance stop:    %lld usecs\n"
+			   "  func start:      %lld usecs\n"
+			   "  func stop:       %lld usecs\n"
+			   "  func key:        0x%08x\n"
 			   "  func type:       %u\n",
 			   sc,
 			   atomic_read(&sc->sc_kref.refcount),
@@ -328,12 +326,12 @@ static int sc_seq_show(struct seq_file *seq, void *v)
 			   sc->sc_node->nd_name,
 			   sc->sc_page_off,
 			   sc->sc_handshake_ok,
-			   TV_SEC_USEC(sc->sc_tv_timer),
-			   TV_SEC_USEC(sc->sc_tv_data_ready),
-			   TV_SEC_USEC(sc->sc_tv_advance_start),
-			   TV_SEC_USEC(sc->sc_tv_advance_stop),
-			   TV_SEC_USEC(sc->sc_tv_func_start),
-			   TV_SEC_USEC(sc->sc_tv_func_stop),
+			   (long long)ktime_to_us(sc->sc_tv_timer),
+			   (long long)ktime_to_us(sc->sc_tv_data_ready),
+			   (long long)ktime_to_us(sc->sc_tv_advance_start),
+			   (long long)ktime_to_us(sc->sc_tv_advance_stop),
+			   (long long)ktime_to_us(sc->sc_tv_func_start),
+			   (long long)ktime_to_us(sc->sc_tv_func_stop),
 			   sc->sc_msg_key,
 			   sc->sc_msg_type);
 	}

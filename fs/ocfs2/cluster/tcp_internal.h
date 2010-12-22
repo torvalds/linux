@@ -166,18 +166,19 @@ struct o2net_sock_container {
 	/* original handlers for the sockets */
 	void			(*sc_state_change)(struct sock *sk);
 	void			(*sc_data_ready)(struct sock *sk, int bytes);
-#ifdef CONFIG_DEBUG_FS
-	struct list_head        sc_net_debug_item;
-#endif
-	struct timeval 		sc_tv_timer;
-	struct timeval 		sc_tv_data_ready;
-	struct timeval 		sc_tv_advance_start;
-	struct timeval 		sc_tv_advance_stop;
-	struct timeval 		sc_tv_func_start;
-	struct timeval 		sc_tv_func_stop;
+
 	u32			sc_msg_key;
 	u16			sc_msg_type;
 
+#ifdef CONFIG_DEBUG_FS
+	struct list_head        sc_net_debug_item;
+	ktime_t			sc_tv_timer;
+	ktime_t			sc_tv_data_ready;
+	ktime_t			sc_tv_advance_start;
+	ktime_t			sc_tv_advance_stop;
+	ktime_t			sc_tv_func_start;
+	ktime_t			sc_tv_func_stop;
+#endif
 	struct mutex		sc_send_lock;
 };
 
