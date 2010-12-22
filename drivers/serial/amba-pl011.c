@@ -247,10 +247,11 @@ static void pl011_modem_status(struct uart_amba_port *uap)
 static irqreturn_t pl011_int(int irq, void *dev_id)
 {
 	struct uart_amba_port *uap = dev_id;
+	unsigned long flags;
 	unsigned int status, pass_counter = AMBA_ISR_PASS_LIMIT;
 	int handled = 0;
 
-	spin_lock(&uap->port.lock);
+	spin_lock_irqsave(&uap->port.lock, flags);
 
 	status = readw(uap->port.membase + UART011_MIS);
 	if (status) {
@@ -275,7 +276,7 @@ static irqreturn_t pl011_int(int irq, void *dev_id)
 		handled = 1;
 	}
 
-	spin_unlock(&uap->port.lock);
+	spin_unlock_irqrestore(&uap->port.lock, flags);
 
 	return IRQ_RETVAL(handled);
 }
