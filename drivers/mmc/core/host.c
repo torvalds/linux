@@ -235,7 +235,8 @@ static inline void mmc_host_clk_exit(struct mmc_host *host)
 		mmc_host_clk_gate_delayed(host);
 	if (host->clk_gated)
 		mmc_host_clk_ungate(host);
-	BUG_ON(host->clk_requests > 0);
+	/* There should be only one user now */
+	WARN_ON(host->clk_requests > 1);
 }
 
 #else
