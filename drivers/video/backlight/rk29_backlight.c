@@ -250,7 +250,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	
 	if (!pwm_clk)
 		pwm_clk = clk_get(NULL, "pwm");
-	if (!pwm_clk || IS_ERR(pwm_clk)) {
+	if (IS_ERR(pwm_clk)) {
 		printk(KERN_ERR "failed to get pwm clock source\n");
 		return -ENODEV;	
 	}

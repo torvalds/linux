@@ -405,6 +405,14 @@ int init_lcdc(struct fb_info *info)
 
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
+    inf->clk = clk_get(NULL, "hclk_lcdc");
+    if (IS_ERR(inf->clk))
+    {
+        printk(KERN_ERR "failed to get lcdc_hclk source\n");
+        return inf->clk;
+    }
+    clk_enable(inf->clk);
+
 	// set AHB access rule and disable all windows
     LcdWrReg(inf, SYS_CONFIG, 0x20000000);
     LcdWrReg(inf, SWAP_CTRL, 0);
@@ -544,51 +552,44 @@ void load_screen(struct fb_info *info, bool initscreen)
 	// let above to take effect
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
 
-    inf->clk = clk_get(&g_pdev->dev, "hclk_lcdc");
-    if (!inf->clk || IS_ERR(inf->clk))
+    inf->dclk = clk_get(NULL, "dclk_lcdc");
+    if (IS_ERR(inf->dclk))
     {
-        printk(KERN_ERR "failed to get lcdc_hclk source\n");
+        printk(KERN_ERR "failed to get lcd dclock source\n");
         return ;
     }
-
-    inf->dclk = clk_get(&g_pdev->dev, "dclk_lcdc");
-	if (!inf->dclk || IS_ERR(inf->dclk))
+    inf->dclk_divider= clk_get(NULL, "dclk_lcdc_div");
+    if (IS_ERR(inf->dclk_divider))
     {
-		printk(KERN_ERR "failed to get lcd dclock source\n");
+        printk(KERN_ERR "failed to get lcd clock lcdc_divider source \n");
 		return ;
-	}
-    inf->dclk_divider= clk_get(&g_pdev->dev, "dclk_lcdc_div");
-    if (!inf->dclk_divider || IS_ERR(inf->dclk_divider))
-    {
-		printk(KERN_ERR "failed to get lcd clock lcdc_divider source \n");
-		return ;
-	}
+    }
 
     if(inf->cur_screen == &inf->panel1_info)    {
-        inf->dclk_parent = clk_get(&g_pdev->dev, "periph_pll");
+        inf->dclk_parent = clk_get(NULL, "periph_pll");
     }    else    {
-        inf->dclk_parent = clk_get(&g_pdev->dev, "codec_pll");
+        inf->dclk_parent = clk_get(NULL, "codec_pll");
 		clk_set_rate(inf->dclk_parent, 297000000);
     }
 
-    if (!inf->dclk_parent || IS_ERR(inf->dclk_parent))
+    if (IS_ERR(inf->dclk_parent))
     {
-		printk(KERN_ERR "failed to get lcd dclock parent source\n");
-		return ;
-	}
+        printk(KERN_ERR "failed to get lcd dclock parent source\n");
+        return;
+    }
 
-    inf->aclk = clk_get(&g_pdev->dev, "aclk_lcdc");
-    if (!inf->aclk || IS_ERR(inf->aclk))
+    inf->aclk = clk_get(NULL, "aclk_lcdc");
+    if (IS_ERR(inf->aclk))
     {
-		printk(KERN_ERR "failed to get lcd clock clk_share_mem source \n");
-		return ;
-	}
-    inf->aclk_parent = clk_get(&g_pdev->dev, "periph_pll");
-    if (!inf->dclk_parent || IS_ERR(inf->dclk_parent))
+        printk(KERN_ERR "failed to get lcd clock clk_share_mem source \n");
+        return;
+    }
+    inf->aclk_parent = clk_get(NULL, "periph_pll");
+    if (IS_ERR(inf->dclk_parent))
     {
-		printk(KERN_ERR "failed to get lcd dclock parent source\n");
-		return ;
-	}
+        printk(KERN_ERR "failed to get lcd dclock parent source\n");
+        return ;
+    }
 
     // set lcdc clk
     if(SCREEN_MCU==screen->type)    screen->pixclock = 150000000; //mcu fix to 150 MHz
@@ -621,7 +622,6 @@ void load_screen(struct fb_info *info, bool initscreen)
     }
 
     clk_enable(inf->dclk);
-    clk_enable(inf->clk);
     clk_enable(inf->aclk);
 
     // init screen panel

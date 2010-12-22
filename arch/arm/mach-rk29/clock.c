@@ -84,7 +84,6 @@
 /* bit 0 is free */
 #define RATE_FIXED		(1 << 1)	/* Fixed clock rate */
 #define CONFIG_PARTICIPANT	(1 << 10)	/* Fundamental clock */
-#define ENABLE_ON_INIT		(1 << 11)	/* Enable upon framework init */
 
 #define cru_readl(offset)	readl(RK29_CRU_BASE + offset)
 #define cru_writel(v, offset)	writel(v, RK29_CRU_BASE + offset)
@@ -1788,11 +1787,11 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "pclk_periph", &pclk_periph),
 
 	CLK1(vip),
-	CLK("rk29_otgphy.0", "otgphy", &clk_otgphy0),
-	CLK("rk29_otgphy.1", "otgphy", &clk_otgphy1),
-	CLK(NULL, "uhost", &clk_uhost),
-	CLK(NULL, "mac_ref_div", &clk_mac_ref_div),
-	CLK(NULL, "mac_ref", &clk_mac_ref),
+	CLK1(otgphy0),
+	CLK1(otgphy1),
+	CLK1(uhost),
+	CLK1(mac_ref_div),
+	CLK1(mac_ref),
 
 	CLK("rk29_i2s.0", "i2s_div", &clk_i2s0_div),
 	CLK("rk29_i2s.0", "i2s_frac_div", &clk_i2s0_frac_div),
@@ -1805,8 +1804,8 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "spdif", &clk_spdif),
 
 	CLK1(spi_src),
-	CLK("rk29xx_spim.0", "spi0", &clk_spi0),
-	CLK("rk29xx_spim.1", "spi1", &clk_spi1),
+	CLK("rk29xx_spim.0", "spi", &clk_spi0),
+	CLK("rk29xx_spim.1", "spi", &clk_spi1),
 
 	CLK1(saradc),
 	CLK1(timer0),
@@ -2249,16 +2248,6 @@ static int clk_register(struct clk *clk)
 	return 0;
 }
 
-static void clk_enable_init_clocks(void)
-{
-	struct clk *clkp;
-
-	list_for_each_entry(clkp, &clocks, node) {
-		if (clkp->flags & ENABLE_ON_INIT)
-			clk_enable(clkp);
-	}
-}
-
 static void rk29_clock_common_init(void)
 {
 	/* periph pll */
@@ -2289,6 +2278,69 @@ static void rk29_clock_common_init(void)
 	clk_set_rate_nolock(&arm_pll_clk, 624 * MHZ);
 }
 
+static void clk_enable_init_clocks(void)
+{
+	clk_enable_nolock(&clk_cpu_display_ahb);
+	clk_enable_nolock(&clk_cpu_vcodec_ahb);
+	clk_enable_nolock(&clk_ddr_gpu_axi);
+	clk_enable_nolock(&clk_ddr_vdpu_axi);
+	clk_enable_nolock(&clk_ddr_vepu_axi);
+	clk_enable_nolock(&clk_display_matrix_ahb);
+	clk_enable_nolock(&clk_display_matrix_axi);
+	clk_enable_nolock(&clk_ipp_ahb);
+	clk_enable_nolock(&clk_ipp_axi);
+	clk_enable_nolock(&clk_ddr_lcdc_axi);
+	clk_enable_nolock(&clk_uhost_ahb);
+	clk_enable_nolock(&clk_usbotg1);
+	clk_enable_nolock(&clk_usbotg0);
+	clk_enable_nolock(&clk_nandc);
+	clk_enable_nolock(&clk_smc);
+	clk_enable_nolock(&clk_smc_axi);
+	clk_enable_nolock(&clk_periph_cpu);
+	clk_enable_nolock(&clk_ddr_periph);
+	clk_enable_nolock(&clk_usb);
+	clk_enable_nolock(&clk_grf);
+	clk_enable_nolock(&clk_pmu);
+	clk_enable_nolock(&clk_ddr_cpu);
+	clk_enable_nolock(&clk_ddr_reg);
+	clk_enable_nolock(&clk_ddr_phy);
+	clk_enable_nolock(&clk_gic);
+	clk_enable_nolock(&clk_dma2);
+	clk_enable_nolock(&clk_dma1);
+	clk_enable_nolock(&clk_dma0);
+	clk_enable_nolock(&clk_spdif);
+	clk_enable_nolock(&clk_i2s0);
+	/* backlight */
+	clk_enable_nolock(&clk_pwm);
+	/* vpu */
+	clk_enable_nolock(&aclk_vdpu);
+	clk_enable_nolock(&hclk_vdpu);
+	clk_enable_nolock(&clk_ddr_vdpu_axi);
+	clk_enable_nolock(&aclk_vepu);
+	clk_enable_nolock(&hclk_vepu);
+	clk_enable_nolock(&clk_ddr_vepu_axi);
+	clk_enable_nolock(&clk_cpu_vcodec_ahb);
+}
+
+static int __init clk_disable_unused(void)
+{
+	struct clk *ck;
+
+	list_for_each_entry(ck, &clocks, node) {
+		if (ck->usecount > 0 || ck->mode == NULL)
+			continue;
+
+printk("disable %s\n", ck->name);
+		LOCK();
+		clk_enable_nolock(ck);
+		clk_disable_nolock(ck);
+		UNLOCK();
+	}
+	mutex_unlock(&clocks_mutex);
+
+	return 0;
+}
+
 void __init rk29_clock_init(void)
 {
 	struct clk_lookup *lk;
@@ -2314,6 +2366,11 @@ void __init rk29_clock_init(void)
 	 * enable other clocks as necessary
 	 */
 	clk_enable_init_clocks();
+
+	/*
+	 * Disable any unused clocks left on by the bootloader
+	 */
+	clk_disable_unused();
 }
 
 #ifdef CONFIG_PROC_FS

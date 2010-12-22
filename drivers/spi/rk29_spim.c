@@ -1800,7 +1800,6 @@ static int __init rk29xx_spim_probe(struct platform_device *pdev)
 	int			irq; 
 	int ret;
 	struct rk29xx_spi_platform_data *pdata = pdev->dev.platform_data;
-	char szBuf[8];
 
 	if (pdata && pdata->io_init) {
 		ret = pdata->io_init(pdata->chipselect_gpios, pdata->num_chipselect);
@@ -1836,12 +1835,10 @@ static int __init rk29xx_spim_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, master);
 	dws = spi_master_get_devdata(master);
-	memset(szBuf, 0, sizeof(szBuf));
-	sprintf(szBuf, "%s%d", "spi", pdev->id);
-    dws->clock_spim = clk_get(&pdev->dev, szBuf);
+	dws->clock_spim = clk_get(&pdev->dev, "spi");
 	clk_enable(dws->clock_spim);
 	if (IS_ERR(dws->clock_spim)) {
-		dev_err(&pdev->dev, "clk_get for %s fail(%p)\n", szBuf, dws->clock_spim);
+		dev_err(&pdev->dev, "clk_get for spi fail(%p)\n", dws->clock_spim);
 		return PTR_ERR(dws->clock_spim);
 	}
 	
