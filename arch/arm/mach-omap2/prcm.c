@@ -143,16 +143,8 @@ void omap_prcm_arch_reset(char mode, const char *cmd)
 
 		prcm_offs = WKUP_MOD;
 	} else if (cpu_is_omap34xx()) {
-		u32 l;
-
 		prcm_offs = OMAP3430_GR_MOD;
-		l = ('B' << 24) | ('M' << 16) | (cmd ? (u8)*cmd : 0);
-		/* Reserve the first word in scratchpad for communicating
-		 * with the boot ROM. A pointer to a data structure
-		 * describing the boot process can be stored there,
-		 * cf. OMAP34xx TRM, Initialization / Software Booting
-		 * Configuration. */
-		omap_writel(l, OMAP343X_SCRATCHPAD + 4);
+		omap3_ctrl_write_boot_mode((cmd ? (u8)*cmd : 0));
 	} else if (cpu_is_omap44xx())
 		prcm_offs = OMAP4430_PRM_DEVICE_MOD;
 	else

@@ -209,6 +209,37 @@ void omap4_ctrl_pad_writel(u32 val, u16 offset)
 	__raw_writel(val, OMAP4_CTRL_PAD_REGADDR(offset));
 }
 
+#ifdef CONFIG_ARCH_OMAP3
+
+/**
+ * omap3_ctrl_write_boot_mode - set scratchpad boot mode for the next boot
+ * @bootmode: 8-bit value to pass to some boot code
+ *
+ * Set the bootmode in the scratchpad RAM.  This is used after the
+ * system restarts.  Not sure what actually uses this - it may be the
+ * bootloader, rather than the boot ROM - contrary to the preserved
+ * comment below.  No return value.
+ */
+void omap3_ctrl_write_boot_mode(u8 bootmode)
+{
+	u32 l;
+
+	l = ('B' << 24) | ('M' << 16) | bootmode;
+
+	/*
+	 * Reserve the first word in scratchpad for communicating
+	 * with the boot ROM. A pointer to a data structure
+	 * describing the boot process can be stored there,
+	 * cf. OMAP34xx TRM, Initialization / Software Booting
+	 * Configuration.
+	 *
+	 * XXX This should use some omap_ctrl_writel()-type function
+	 */
+	__raw_writel(l, OMAP2_L4_IO_ADDRESS(OMAP343X_SCRATCHPAD + 4));
+}
+
+#endif
+
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 /*
  * Clears the scratchpad contents in case of cold boot-
