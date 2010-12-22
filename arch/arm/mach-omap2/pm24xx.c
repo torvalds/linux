@@ -50,7 +50,7 @@
 #include "pm.h"
 #include "control.h"
 
-#include <plat/powerdomain.h>
+#include "powerdomain.h"
 #include "clockdomain.h"
 
 #ifdef CONFIG_SUSPEND
@@ -120,7 +120,7 @@ static void omap2_enter_full_retention(void)
 	l = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0) | OMAP24XX_USBSTANDBYCTRL;
 	omap_ctrl_writel(l, OMAP2_CONTROL_DEVCONF0);
 
-	omap2_gpio_prepare_for_idle(PWRDM_POWER_RET);
+	omap2_gpio_prepare_for_idle(0);
 
 	if (omap2_pm_debug) {
 		omap2_pm_dump(0, 0, 0);

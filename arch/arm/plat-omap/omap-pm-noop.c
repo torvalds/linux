@@ -24,8 +24,6 @@
 /* Interface documentation is in mach/omap-pm.h */
 #include <plat/omap-pm.h>
 
-#include <plat/powerdomain.h>
-
 /*
  * Device-driver-originated constraints (via board-*.c files)
  */

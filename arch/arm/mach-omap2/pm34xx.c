@@ -32,7 +32,7 @@
 
 #include <plat/sram.h>
 #include "clockdomain.h"
-#include <plat/powerdomain.h>
+#include "powerdomain.h"
 #include <plat/serial.h>
 #include <plat/sdrc.h>
 #include <plat/prcm.h>
@@ -360,6 +360,7 @@ void omap_sram_idle(void)
 	int mpu_next_state = PWRDM_POWER_ON;
 	int per_next_state = PWRDM_POWER_ON;
 	int core_next_state = PWRDM_POWER_ON;
+	int per_going_off;
 	int core_prev_state, per_prev_state;
 	u32 sdrc_pwr = 0;
 
@@ -411,9 +412,10 @@ void omap_sram_idle(void)
 
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
+		per_going_off = (per_next_state == PWRDM_POWER_OFF) ? 1 : 0;
 		omap_uart_prepare_idle(2);
 		omap_uart_prepare_idle(3);
-		omap2_gpio_prepare_for_idle(per_next_state);
+		omap2_gpio_prepare_for_idle(per_going_off);
 		if (per_next_state == PWRDM_POWER_OFF)
 				omap3_per_save_context();
 	}

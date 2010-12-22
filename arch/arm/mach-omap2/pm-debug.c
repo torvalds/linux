@@ -29,7 +29,7 @@
 
 #include <plat/clock.h>
 #include <plat/board.h>
-#include <plat/powerdomain.h>
+#include "powerdomain.h"
 #include "clockdomain.h"
 #include <plat/dmtimer.h>
 

@@ -20,7 +20,6 @@
 #include "cm-regbits-44xx.h"
 #include "prm-regbits-34xx.h"
 #include "prm-regbits-44xx.h"
-#include "powerdomains.h"
 
 /*
  * OMAP3 and OMAP4 specific register bit initialisations

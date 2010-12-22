@@ -29,7 +29,6 @@
 #include <mach/irqs.h>
 #include <mach/gpio.h>
 #include <asm/mach/irq.h>
-#include <plat/powerdomain.h>
 
 /*
  * OMAP1510 GPIO registers
@@ -1864,7 +1863,7 @@ static struct sys_device omap_gpio_device = {
 
 static int workaround_enabled;
 
-void omap2_gpio_prepare_for_idle(int power_state)
+void omap2_gpio_prepare_for_idle(int off_mode)
 {
 	int i, c = 0;
 	int min = 0;
@@ -1880,7 +1879,7 @@ void omap2_gpio_prepare_for_idle(int power_state)
 		for (j = 0; j < hweight_long(bank->dbck_enable_mask); j++)
 			clk_disable(bank->dbck);
 
-		if (power_state > PWRDM_POWER_OFF)
+		if (!off_mode)
 			continue;
 
 		/* If going to OFF, remove triggering for all

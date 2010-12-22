@@ -1,10 +1,10 @@
 /*
  * OMAP2/3/4 powerdomain control
  *
- * Copyright (C) 2007-2008 Texas Instruments, Inc.
+ * Copyright (C) 2007-2008, 2010 Texas Instruments, Inc.
  * Copyright (C) 2007-2010 Nokia Corporation
  *
- * Written by Paul Walmsley
+ * Paul Walmsley
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,13 +14,13 @@
  * opportunity.
  */
 
-#ifndef ASM_ARM_PLAT_OMAP_INCLUDE_PLAT_POWERDOMAIN
-#define ASM_ARM_PLAT_OMAP_INCLUDE_PLAT_POWERDOMAIN
+#ifndef __ARCH_ARM_MACH_OMAP2_POWERDOMAIN_H
+#define __ARCH_ARM_MACH_OMAP2_POWERDOMAIN_H
 
 #include <linux/types.h>
 #include <linux/list.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 
 #include <plat/cpu.h>
 
@@ -215,5 +215,18 @@ int pwrdm_set_lowpwrstchange(struct powerdomain *pwrdm);
 extern void omap2xxx_powerdomains_init(void);
 extern void omap3xxx_powerdomains_init(void);
 extern void omap44xx_powerdomains_init(void);
+
+extern struct pwrdm_ops omap2_pwrdm_operations;
+extern struct pwrdm_ops omap3_pwrdm_operations;
+extern struct pwrdm_ops omap4_pwrdm_operations;
+
+/* Common Internal functions used across OMAP rev's */
+extern u32 omap2_pwrdm_get_mem_bank_onstate_mask(u8 bank);
+extern u32 omap2_pwrdm_get_mem_bank_retst_mask(u8 bank);
+extern u32 omap2_pwrdm_get_mem_bank_stst_mask(u8 bank);
+
+extern struct powerdomain wkup_omap2_pwrdm;
+extern struct powerdomain gfx_omap2_pwrdm;
+
 
 #endif

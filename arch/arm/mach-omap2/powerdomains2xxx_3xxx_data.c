@@ -45,12 +45,10 @@
  * address offset is different between the C55 and C64 DSPs.
  */
 
-#include <plat/powerdomain.h>
+#include "powerdomain.h"
 
 #include "prcm-common.h"
 #include "prm.h"
-
-#include "powerdomains.h"
 
 /* OMAP2/3-common powerdomains */
 

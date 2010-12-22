@@ -24,7 +24,7 @@
  * be removed.  No driver should call pwrdm_* or clkdm_* functions
  * directly; they should rely on OMAP core code to do this.
  */
-#include <plat/powerdomain.h>
+#include <mach-omap2/powerdomain.h>
 #include <mach-omap2/clockdomain.h>
 /*
  * XXX These mach-omap2/ includes are wrong and should be removed.  No

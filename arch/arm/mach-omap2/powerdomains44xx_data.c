@@ -22,8 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <plat/powerdomain.h>
-#include "powerdomains.h"
+#include "powerdomain.h"
 
 #include "prcm-common.h"
 #include "prcm44xx.h"

@@ -34,7 +34,7 @@
 #include "prcm44xx.h"
 
 #include <plat/clock.h>
-#include <plat/powerdomain.h>
+#include "powerdomain.h"
 #include "clockdomain.h"
 #include <plat/prcm.h>
 

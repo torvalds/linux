@@ -11,7 +11,7 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_PM_H
 #define __ARCH_ARM_MACH_OMAP2_PM_H
 
-#include <plat/powerdomain.h>
+#include "powerdomain.h"
 
 extern void *omap3_secure_ram_storage;
 extern void omap3_pm_off_mode_enable(int);

@@ -18,7 +18,7 @@
 
 #include <linux/init.h>
 
-#include <plat/powerdomain.h>
+#include "powerdomain.h"
 #include <plat/clock.h>
 #include <plat/cpu.h>
 
