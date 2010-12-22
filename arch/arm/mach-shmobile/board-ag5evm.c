@@ -32,6 +32,8 @@
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
+#include <linux/mmc/host.h>
+#include <linux/mmc/sh_mmcif.h>
 
 #include <sound/sh_fsi.h>
 
@@ -146,10 +148,46 @@ static struct platform_device fsi_device = {
 	},
 };
 
+static struct resource sh_mmcif_resources[] = {
+	[0] = {
+		.name	= "MMCIF",
+		.start	= 0xe6bd0000,
+		.end	= 0xe6bd00ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_spi(141),
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= gic_spi(140),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct sh_mmcif_plat_data sh_mmcif_platdata = {
+	.sup_pclk	= 0,
+	.ocr		= MMC_VDD_165_195,
+	.caps		= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE,
+};
+
+static struct platform_device mmc_device = {
+	.name		= "sh_mmcif",
+	.id		= 0,
+	.dev		= {
+		.dma_mask		= NULL,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data		= &sh_mmcif_platdata,
+	},
+	.num_resources	= ARRAY_SIZE(sh_mmcif_resources),
+	.resource	= sh_mmcif_resources,
+};
+
 static struct platform_device *ag5evm_devices[] __initdata = {
 	&eth_device,
 	&keysc_device,
 	&fsi_device,
+	&mmc_device,
 };
 
 static struct map_desc ag5evm_io_desc[] __initdata = {
@@ -216,11 +254,25 @@ static void __init ag5evm_init(void)
 	gpio_request(GPIO_FN_KEYOUT8, NULL);
 	gpio_request(GPIO_FN_PORT149_KEYOUT9, NULL);
 
-	/* enable IC2 2 and 3 */
+	/* enable I2C channel 2 and 3 */
 	gpio_request(GPIO_FN_PORT236_I2C_SDA2, NULL);
 	gpio_request(GPIO_FN_PORT237_I2C_SCL2, NULL);
 	gpio_request(GPIO_FN_PORT248_I2C_SCL3, NULL);
 	gpio_request(GPIO_FN_PORT249_I2C_SDA3, NULL);
+
+	/* enable MMCIF */
+	gpio_request(GPIO_FN_MMCCLK0, NULL);
+	gpio_request(GPIO_FN_MMCCMD0_PU, NULL);
+	gpio_request(GPIO_FN_MMCD0_0, NULL);
+	gpio_request(GPIO_FN_MMCD0_1, NULL);
+	gpio_request(GPIO_FN_MMCD0_2, NULL);
+	gpio_request(GPIO_FN_MMCD0_3, NULL);
+	gpio_request(GPIO_FN_MMCD0_4, NULL);
+	gpio_request(GPIO_FN_MMCD0_5, NULL);
+	gpio_request(GPIO_FN_MMCD0_6, NULL);
+	gpio_request(GPIO_FN_MMCD0_7, NULL);
+	gpio_request(GPIO_PORT208, NULL); /* Reset */
+	gpio_direction_output(GPIO_PORT208, 1);
 
 	/* enable SMSC911X */
 	gpio_request(GPIO_PORT144, NULL); /* PINTA2 */
