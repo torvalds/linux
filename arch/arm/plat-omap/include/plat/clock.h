@@ -124,8 +124,7 @@ struct clksel {
  *
  * Possible values for @flags:
  * DPLL_J_TYPE: "J-type DPLL" (only some 36xx, 4xxx DPLLs)
- * NO_DCO_SEL: don't program DCO (only for some J-type DPLLs)
-
+ *
  * @freqsel_mask is only used on the OMAP34xx family and AM35xx.
  *
  * XXX Some DPLLs have multiple bypass inputs, so it's not technically
@@ -161,6 +160,8 @@ struct dpll_data {
 	u32			autoidle_mask;
 	u32			freqsel_mask;
 	u32			idlest_mask;
+	u32			dco_mask;
+	u32			sddiv_mask;
 	u8			auto_recal_bit;
 	u8			recal_en_bit;
 	u8			recal_st_bit;
