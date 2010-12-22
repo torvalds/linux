@@ -251,16 +251,14 @@ void rtl_init_rfkill(struct ieee80211_hw *hw)
 	bool blocked;
 	u8 valid = 0;
 
-	/*set init state to rf on */
-	rtlpriv->rfkill.rfkill_state = 1;
-
 	radio_state = rtlpriv->cfg->ops->radio_onoff_checking(hw, &valid);
 
-	if (valid) {
-		RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
-			 (KERN_INFO "wireless switch is %s\n",
-			  rtlpriv->rfkill.rfkill_state ? "on" : "off"));
+	/*set init state to that of switch */
+	rtlpriv->rfkill.rfkill_state = radio_state;
+	printk(KERN_INFO "rtlwifi: wireless switch is %s\n",
+	       rtlpriv->rfkill.rfkill_state ? "on" : "off");
 
+	if (valid) {
 		rtlpriv->rfkill.rfkill_state = radio_state;
 
 		blocked = (rtlpriv->rfkill.rfkill_state == 1) ? 0 : 1;

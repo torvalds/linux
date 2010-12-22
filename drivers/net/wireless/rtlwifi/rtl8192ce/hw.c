@@ -962,17 +962,6 @@ int rtl92ce_hw_init(struct ieee80211_hw *hw)
 	rtl_cam_reset_all_entry(hw);
 	rtl92ce_enable_hw_security_config(hw);
 	ppsc->rfpwr_state = ERFON;
-	tmp_u1b = rtl_read_byte(rtlpriv, REG_MAC_PINMUX_CFG)&(~BIT(3));
-	rtl_write_byte(rtlpriv, REG_MAC_PINMUX_CFG, tmp_u1b);
-	tmp_u1b = rtl_read_byte(rtlpriv, REG_GPIO_IO_SEL);
-	ppsc->rfoff_reason |= (tmp_u1b & BIT(3)) ? 0 : RF_CHANGE_BY_HW;
-	if (ppsc->rfoff_reason > RF_CHANGE_BY_PS)
-		rtl_ps_set_rf_state(hw, ERFOFF, ppsc->rfoff_reason, true);
-	else {
-		ppsc->rfpwr_state = ERFON;
-		ppsc->rfoff_reason = 0;
-		rtlpriv->cfg->ops->led_control(hw, LED_CTL_POWER_ON);
-	}
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_ETHER_ADDR, mac->mac_addr);
 	_rtl92ce_enable_aspm_back_door(hw);
 	rtlpriv->intf_ops->enable_aspm(hw);
