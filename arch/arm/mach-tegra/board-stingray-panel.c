@@ -115,7 +115,7 @@ static struct tegra_dc_mode stingray_panel_modes[] = {
 		.v_back_porch = 3,
 		.h_active = 1280,
 		.v_active = 800,
-		.h_front_porch = 50,
+		.h_front_porch = 45,
 		.v_front_porch = 3,
 	},
 };
