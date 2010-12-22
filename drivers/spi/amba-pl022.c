@@ -369,7 +369,7 @@ struct pl022 {
 	struct work_struct		pump_messages;
 	spinlock_t			queue_lock;
 	struct list_head		queue;
-	int				busy;
+	bool				busy;
 	int				run;
 	/* Message transfer pump */
 	struct tasklet_struct		pump_transfers;
@@ -1461,7 +1461,7 @@ static void pump_messages(struct work_struct *work)
 	/* Lock queue and check for queue work */
 	spin_lock_irqsave(&pl022->queue_lock, flags);
 	if (list_empty(&pl022->queue) || pl022->run == QUEUE_STOPPED) {
-		pl022->busy = 0;
+		pl022->busy = false;
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
 		return;
 	}
@@ -1475,7 +1475,7 @@ static void pump_messages(struct work_struct *work)
 	    list_entry(pl022->queue.next, struct spi_message, queue);
 
 	list_del_init(&pl022->cur_msg->queue);
-	pl022->busy = 1;
+	pl022->busy = true;
 	spin_unlock_irqrestore(&pl022->queue_lock, flags);
 
 	/* Initial message state */
@@ -1508,7 +1508,7 @@ static int __init init_queue(struct pl022 *pl022)
 	spin_lock_init(&pl022->queue_lock);
 
 	pl022->run = QUEUE_STOPPED;
-	pl022->busy = 0;
+	pl022->busy = false;
 
 	tasklet_init(&pl022->pump_transfers,
 			pump_transfers,	(unsigned long)pl022);
