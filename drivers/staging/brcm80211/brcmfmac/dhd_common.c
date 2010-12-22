@@ -868,7 +868,7 @@ wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 				if (ifevent->action == WLC_E_IF_ADD)
 					dhd_add_if(dhd, ifevent->ifidx,
 						   NULL, event->ifname,
-						   pvt_data->eth.ether_dhost,
+						   pvt_data->eth.h_dest,
 						   ifevent->flags,
 						   ifevent->bssidx);
 				else

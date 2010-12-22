@@ -44,6 +44,7 @@
 #include <sbsdpcmdev.h>
 #endif
 
+#include <linux/if_ether.h>
 #include <proto/ethernet.h>	/* for sprom content groking */
 
 #define	BS_ERROR(args)

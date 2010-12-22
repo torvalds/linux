@@ -44,7 +44,6 @@
 #include <sbsdpcmdev.h>
 #include <bcmsdpcm.h>
 
-#include <proto/ethernet.h>
 #include <proto/802.1d.h>
 #include <proto/802.11.h>
 

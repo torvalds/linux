@@ -1031,11 +1031,11 @@ int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 	/* Update multicast statistic */
 	if (pktbuf->len >= ETH_ALEN) {
 		u8 *pktdata = (u8 *) (pktbuf->data);
-		struct ether_header *eh = (struct ether_header *)pktdata;
+		struct ethhdr *eh = (struct ethhdr *)pktdata;
 
-		if (is_multicast_ether_addr(eh->ether_dhost))
+		if (is_multicast_ether_addr(eh->h_dest))
 			dhdp->tx_multicast++;
-		if (ntoh16(eh->ether_type) == ETH_P_PAE)
+		if (ntoh16(eh->h_proto) == ETH_P_PAE)
 			atomic_inc(&dhd->pend_8021x_cnt);
 	}
 
@@ -1255,13 +1255,13 @@ void dhd_txcomplete(dhd_pub_t *dhdp, struct sk_buff *txp, bool success)
 {
 	uint ifidx;
 	dhd_info_t *dhd = (dhd_info_t *) (dhdp->info);
-	struct ether_header *eh;
+	struct ethhdr *eh;
 	u16 type;
 
 	dhd_prot_hdrpull(dhdp, &ifidx, txp);
 
-	eh = (struct ether_header *)(txp->data);
-	type = ntoh16(eh->ether_type);
+	eh = (struct ethhdr *)(txp->data);
+	type = ntoh16(eh->h_proto);
 
 	if (type == ETH_P_PAE)
 		atomic_dec(&dhd->pend_8021x_cnt);

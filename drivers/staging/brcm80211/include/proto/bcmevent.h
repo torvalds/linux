@@ -40,7 +40,7 @@ typedef BWL_PRE_PACKED_STRUCT struct {
 
 #ifdef BRCM_FULLMAC
 typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
-	struct ether_header eth;
+	struct ethhdr eth;
 	bcmeth_hdr_t		bcm_hdr;
 	wl_event_msg_t		event;
 } BWL_POST_PACKED_STRUCT bcm_event_t;

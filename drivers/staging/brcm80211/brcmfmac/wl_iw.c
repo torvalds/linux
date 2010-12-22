@@ -23,7 +23,6 @@
 
 #include <bcmutils.h>
 #include <bcmendian.h>
-#include <proto/ethernet.h>
 
 #include <linux/if_arp.h>
 #include <asm/uaccess.h>
@@ -35,7 +34,6 @@
 typedef const struct si_pub si_t;
 #include <wlioctl.h>
 
-#include <proto/ethernet.h>
 #include <dngl_stats.h>
 #include <dhd.h>
 

@@ -1729,7 +1729,7 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 
 	/* some code depends on packed structures */
 	ASSERT(sizeof(struct ether_addr) == ETH_ALEN);
-	ASSERT(sizeof(struct ether_header) == ETH_HLEN);
+	ASSERT(sizeof(struct ethhdr) == ETH_HLEN);
 	ASSERT(sizeof(d11regs_t) == SI_CORE_SIZE);
 	ASSERT(sizeof(ofdm_phy_hdr_t) == D11_PHY_HDR_LEN);
 	ASSERT(sizeof(cck_phy_hdr_t) == D11_PHY_HDR_LEN);

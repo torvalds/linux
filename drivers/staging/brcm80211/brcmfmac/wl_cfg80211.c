@@ -20,7 +20,6 @@
 
 #include <bcmutils.h>
 #include <bcmendian.h>
-#include <proto/ethernet.h>
 
 #include <asm/uaccess.h>
 
