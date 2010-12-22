@@ -20,6 +20,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include "cm2xxx_3xxx.h"
+#include "prcm44xx.h"
 #include "cm44xx.h"
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
@@ -72,11 +73,18 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 {
 	int i;
 
-	if (!pwrdm)
+	if (!pwrdm || !pwrdm->name)
 		return -EINVAL;
 
 	if (!omap_chip_is(pwrdm->omap_chip))
 		return -EINVAL;
+
+	if (cpu_is_omap44xx() &&
+	    pwrdm->prcm_partition == OMAP4430_INVALID_PRCM_PARTITION) {
+		pr_err("powerdomain: %s: missing OMAP4 PRCM partition ID\n",
+		       pwrdm->name);
+		return -EINVAL;
+	}
 
 	if (_pwrdm_lookup(pwrdm->name))
 		return -EEXIST;

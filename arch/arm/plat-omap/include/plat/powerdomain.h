@@ -1,5 +1,5 @@
 /*
- * OMAP2/3 powerdomain control
+ * OMAP2/3/4 powerdomain control
  *
  * Copyright (C) 2007-2008 Texas Instruments, Inc.
  * Copyright (C) 2007-2010 Nokia Corporation
@@ -23,7 +23,6 @@
 #include <asm/atomic.h>
 
 #include <plat/cpu.h>
-
 
 /* Powerdomain basic power states */
 #define PWRDM_POWER_OFF		0x0
@@ -84,6 +83,7 @@ struct powerdomain;
  * @name: Powerdomain name
  * @omap_chip: represents the OMAP chip types containing this pwrdm
  * @prcm_offs: the address offset from CM_BASE/PRM_BASE
+ * @prcm_partition: (OMAP4 only) the PRCM partition ID containing @prcm_offs
  * @pwrsts: Possible powerdomain power states
  * @pwrsts_logic_ret: Possible logic power states when pwrdm in RETENTION
  * @flags: Powerdomain flags
@@ -96,6 +96,8 @@ struct powerdomain;
  * @state_counter:
  * @timer:
  * @state_timer:
+ *
+ * @prcm_partition possible values are defined in mach-omap2/prcm44xx.h.
  */
 struct powerdomain {
 	const char *name;
@@ -107,6 +109,7 @@ struct powerdomain {
 	const u8 banks;
 	const u8 pwrsts_mem_ret[PWRDM_MAX_MEM_BANKS];
 	const u8 pwrsts_mem_on[PWRDM_MAX_MEM_BANKS];
+	const u8 prcm_partition;
 	struct clockdomain *pwrdm_clkdms[PWRDM_MAX_CLKDMS];
 	struct list_head node;
 	int state;
