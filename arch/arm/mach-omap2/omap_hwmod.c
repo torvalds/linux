@@ -159,8 +159,6 @@
 /* omap_hwmod_list contains all registered struct omap_hwmods */
 static LIST_HEAD(omap_hwmod_list);
 
-static DEFINE_MUTEX(omap_hwmod_mutex);
-
 /* mpu_oh: used to add/remove MPU initiator from sleepdep list */
 static struct omap_hwmod *mpu_oh;
 
@@ -872,7 +870,6 @@ static void _shutdown_sysc(struct omap_hwmod *oh)
  * @name: find an omap_hwmod by name
  *
  * Return a pointer to an omap_hwmod by name, or NULL if not found.
- * Caller must hold omap_hwmod_mutex.
  */
 static struct omap_hwmod *_lookup(const char *name)
 {
@@ -1443,14 +1440,10 @@ static int __init _register(struct omap_hwmod *oh)
 	    (oh->_state != _HWMOD_STATE_UNKNOWN))
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
-
 	pr_debug("omap_hwmod: %s: registering\n", oh->name);
 
-	if (_lookup(oh->name)) {
-		ret = -EEXIST;
-		goto ohr_unlock;
-	}
+	if (_lookup(oh->name))
+		return -EEXIST;
 
 	ms_id = _find_mpu_port_index(oh);
 	if (!IS_ERR_VALUE(ms_id)) {
@@ -1468,8 +1461,6 @@ static int __init _register(struct omap_hwmod *oh)
 
 	ret = 0;
 
-ohr_unlock:
-	mutex_unlock(&omap_hwmod_mutex);
 	return ret;
 }
 
@@ -1538,9 +1529,7 @@ struct omap_hwmod *omap_hwmod_lookup(const char *name)
 	if (!name)
 		return NULL;
 
-	mutex_lock(&omap_hwmod_mutex);
 	oh = _lookup(name);
-	mutex_unlock(&omap_hwmod_mutex);
 
 	return oh;
 }
@@ -1566,13 +1555,11 @@ int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
 	if (!fn)
 		return -EINVAL;
 
-	mutex_lock(&omap_hwmod_mutex);
 	list_for_each_entry(temp_oh, &omap_hwmod_list, node) {
 		ret = (*fn)(temp_oh, data);
 		if (ret)
 			break;
 	}
-	mutex_unlock(&omap_hwmod_mutex);
 
 	return ret;
 }
@@ -2112,9 +2099,8 @@ int omap_hwmod_read_hardreset(struct omap_hwmod *oh, const char *name)
  * @fn: callback function pointer to call for each hwmod in class @classname
  * @user: arbitrary context data to pass to the callback function
  *
- * For each omap_hwmod of class @classname, call @fn.  Takes
- * omap_hwmod_mutex to prevent the hwmod list from changing during the
- * iteration.  If the callback function returns something other than
+ * For each omap_hwmod of class @classname, call @fn.
+ * If the callback function returns something other than
  * zero, the iterator is terminated, and the callback function's return
  * value is passed back to the caller.  Returns 0 upon success, -EINVAL
  * if @classname or @fn are NULL, or passes back the error code from @fn.
@@ -2133,8 +2119,6 @@ int omap_hwmod_for_each_by_class(const char *classname,
 	pr_debug("omap_hwmod: %s: looking for modules of class %s\n",
 		 __func__, classname);
 
-	mutex_lock(&omap_hwmod_mutex);
-
 	list_for_each_entry(temp_oh, &omap_hwmod_list, node) {
 		if (!strcmp(temp_oh->class->name, classname)) {
 			pr_debug("omap_hwmod: %s: %s: calling callback fn\n",
@@ -2144,8 +2128,6 @@ int omap_hwmod_for_each_by_class(const char *classname,
 				break;
 		}
 	}
-
-	mutex_unlock(&omap_hwmod_mutex);
 
 	if (ret)
 		pr_debug("omap_hwmod: %s: iterator terminated early: %d\n",
