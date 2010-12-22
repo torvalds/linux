@@ -18,9 +18,6 @@
  *    Clock Domain Framework
  */
 
-#ifndef ARCH_ARM_MACH_OMAP2_POWERDOMAINS
-#define ARCH_ARM_MACH_OMAP2_POWERDOMAINS
-
 /*
  * This file contains all of the powerdomains that have some element
  * of software control for the OMAP24xx and OMAP34xx chips.
@@ -49,6 +46,7 @@
  * address offset is different between the C55 and C64 DSPs.
  */
 
+#include <linux/init.h>
 #include <plat/powerdomain.h>
 
 #include "prcm-common.h"
@@ -149,5 +147,7 @@ static struct powerdomain *powerdomains_omap[] __initdata = {
 	NULL
 };
 
-
-#endif
+void pwrdm_fw_init(void)
+{
+	pwrdm_init(powerdomains_omap);
+}

@@ -118,6 +118,7 @@ struct powerdomain {
 };
 
 
+void pwrdm_fw_init(void);
 void pwrdm_init(struct powerdomain **pwrdm_list);
 
 struct powerdomain *pwrdm_lookup(const char *name);
