@@ -450,34 +450,34 @@ static void fimc_set_yuv_order(struct fimc_ctx *ctx)
 	/* Set order for 1 plane input formats. */
 	switch (ctx->s_frame.fmt->color) {
 	case S5P_FIMC_YCRYCB422:
-		ctx->in_order_1p = S5P_FIMC_IN_YCRYCB;
+		ctx->in_order_1p = S5P_MSCTRL_ORDER422_CBYCRY;
 		break;
 	case S5P_FIMC_CBYCRY422:
-		ctx->in_order_1p = S5P_FIMC_IN_CBYCRY;
+		ctx->in_order_1p = S5P_MSCTRL_ORDER422_YCRYCB;
 		break;
 	case S5P_FIMC_CRYCBY422:
-		ctx->in_order_1p = S5P_FIMC_IN_CRYCBY;
+		ctx->in_order_1p = S5P_MSCTRL_ORDER422_YCBYCR;
 		break;
 	case S5P_FIMC_YCBYCR422:
 	default:
-		ctx->in_order_1p = S5P_FIMC_IN_YCBYCR;
+		ctx->in_order_1p = S5P_MSCTRL_ORDER422_CRYCBY;
 		break;
 	}
 	dbg("ctx->in_order_1p= %d", ctx->in_order_1p);
 
 	switch (ctx->d_frame.fmt->color) {
 	case S5P_FIMC_YCRYCB422:
-		ctx->out_order_1p = S5P_FIMC_OUT_YCRYCB;
+		ctx->out_order_1p = S5P_CIOCTRL_ORDER422_CBYCRY;
 		break;
 	case S5P_FIMC_CBYCRY422:
-		ctx->out_order_1p = S5P_FIMC_OUT_CBYCRY;
+		ctx->out_order_1p = S5P_CIOCTRL_ORDER422_YCRYCB;
 		break;
 	case S5P_FIMC_CRYCBY422:
-		ctx->out_order_1p = S5P_FIMC_OUT_CRYCBY;
+		ctx->out_order_1p = S5P_CIOCTRL_ORDER422_YCBYCR;
 		break;
 	case S5P_FIMC_YCBYCR422:
 	default:
-		ctx->out_order_1p = S5P_FIMC_OUT_YCBYCR;
+		ctx->out_order_1p = S5P_CIOCTRL_ORDER422_CRYCBY;
 		break;
 	}
 	dbg("ctx->out_order_1p= %d", ctx->out_order_1p);
