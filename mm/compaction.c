@@ -279,7 +279,6 @@ static unsigned long isolate_migratepages(struct zone *zone,
 		/* Successfully isolated */
 		del_page_from_lru_list(zone, page, page_lru(page));
 		list_add(&page->lru, migratelist);
-		mem_cgroup_del_lru(page);
 		cc->nr_migratepages++;
 
 		/* Avoid isolating too much */
