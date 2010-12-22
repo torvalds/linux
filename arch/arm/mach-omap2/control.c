@@ -26,6 +26,10 @@
 #include "pm.h"
 #include "control.h"
 
+/* Used by omap3_ctrl_save_padconf() */
+#define START_PADCONF_SAVE		0x2
+#define PADCONF_SAVE_DONE		0x1
+
 static void __iomem *omap2_ctrl_base;
 static void __iomem *omap4_ctrl_pad_base;
 
@@ -528,6 +532,33 @@ void omap3630_ctrl_disable_rta(void)
 	if (!cpu_is_omap3630())
 		return;
 	omap_ctrl_writel(OMAP36XX_RTA_DISABLE, OMAP36XX_CONTROL_MEM_RTA_CTRL);
+}
+
+/**
+ * omap3_ctrl_save_padconf - save padconf registers to scratchpad RAM
+ *
+ * Tell the SCM to start saving the padconf registers, then wait for
+ * the process to complete.  Returns 0 unconditionally, although it
+ * should also eventually be able to return -ETIMEDOUT, if the save
+ * does not complete.
+ *
+ * XXX This function is missing a timeout.  What should it be?
+ */
+int omap3_ctrl_save_padconf(void)
+{
+	u32 cpo;
+
+	/* Save the padconf registers */
+	cpo = omap_ctrl_readl(OMAP343X_CONTROL_PADCONF_OFF);
+	cpo |= START_PADCONF_SAVE;
+	omap_ctrl_writel(cpo, OMAP343X_CONTROL_PADCONF_OFF);
+
+	/* wait for the save to complete */
+	while (!(omap_ctrl_readl(OMAP343X_CONTROL_GENERAL_PURPOSE_STATUS)
+		 & PADCONF_SAVE_DONE))
+		udelay(1);
+
+	return 0;
 }
 
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */

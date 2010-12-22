@@ -359,6 +359,7 @@ extern void omap3_control_save_context(void);
 extern void omap3_control_restore_context(void);
 extern void omap3_ctrl_write_boot_mode(u8 bootmode);
 extern void omap3630_ctrl_disable_rta(void);
+extern int omap3_ctrl_save_padconf(void);
 #else
 #define omap_ctrl_base_get()		0
 #define omap_ctrl_readb(x)		0

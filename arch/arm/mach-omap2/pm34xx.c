@@ -133,16 +133,7 @@ static void omap3_disable_io_chain(void)
 
 static void omap3_core_save_context(void)
 {
-	u32 control_padconf_off;
-
-	/* Save the padconf registers */
-	control_padconf_off = omap_ctrl_readl(OMAP343X_CONTROL_PADCONF_OFF);
-	control_padconf_off |= START_PADCONF_SAVE;
-	omap_ctrl_writel(control_padconf_off, OMAP343X_CONTROL_PADCONF_OFF);
-	/* wait for the save to complete */
-	while (!(omap_ctrl_readl(OMAP343X_CONTROL_GENERAL_PURPOSE_STATUS)
-			& PADCONF_SAVE_DONE))
-		udelay(1);
+	omap3_ctrl_save_padconf();
 
 	/*
 	 * Force write last pad into memory, as this can fail in some
