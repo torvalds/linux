@@ -68,6 +68,9 @@ static inline bool is_suspending(void)
 #define OMAP343X_TABLE_VALUE_OFFSET	   0xc0
 #define OMAP343X_CONTROL_REG_VALUE_OFFSET  0xc8
 
+/* pm34xx errata defined in pm.h */
+u16 pm34xx_errata;
+
 struct power_state {
 	struct powerdomain *pwrdm;
 	u32 next_state;
@@ -143,7 +146,7 @@ static void omap3_core_save_context(void)
 
 	/*
 	 * Force write last pad into memory, as this can fail in some
-	 * cases according to erratas 1.157, 1.185
+	 * cases according to errata 1.157, 1.185
 	 */
 	omap_ctrl_writel(omap_ctrl_readl(OMAP343X_PADCONF_ETK_D14),
 		OMAP343X_CONTROL_MEM_WKUP + 0x2a0);
@@ -430,7 +433,7 @@ void omap_sram_idle(void)
 	/*
 	* On EMU/HS devices ROM code restores a SRDC value
 	* from scratchpad which has automatic self refresh on timeout
-	* of AUTO_CNT = 1 enabled. This takes care of errata 1.142.
+	* of AUTO_CNT = 1 enabled. This takes care of erratum ID i443.
 	* Hence store/restore the SDRC_POWER register here.
 	*/
 	if (omap_rev() >= OMAP3430_REV_ES3_0 &&
@@ -529,12 +532,6 @@ out:
 }
 
 #ifdef CONFIG_SUSPEND
-static int omap3_pm_prepare(void)
-{
-	disable_hlt();
-	return 0;
-}
-
 static int omap3_pm_suspend(void)
 {
 	struct power_state *pwrst;
@@ -597,14 +594,10 @@ static int omap3_pm_enter(suspend_state_t unused)
 	return ret;
 }
 
-static void omap3_pm_finish(void)
-{
-	enable_hlt();
-}
-
 /* Hooks to enable / disable UART interrupts during suspend */
 static int omap3_pm_begin(suspend_state_t state)
 {
+	disable_hlt();
 	suspend_state = state;
 	omap_uart_enable_irqs(0);
 	return 0;
@@ -614,15 +607,14 @@ static void omap3_pm_end(void)
 {
 	suspend_state = PM_SUSPEND_ON;
 	omap_uart_enable_irqs(1);
+	enable_hlt();
 	return;
 }
 
 static struct platform_suspend_ops omap_pm_ops = {
 	.begin		= omap3_pm_begin,
 	.end		= omap3_pm_end,
-	.prepare	= omap3_pm_prepare,
 	.enter		= omap3_pm_enter,
-	.finish		= omap3_pm_finish,
 	.valid		= suspend_valid_only_mem,
 };
 #endif /* CONFIG_SUSPEND */
@@ -925,12 +917,29 @@ void omap3_pm_off_mode_enable(int enable)
 		state = PWRDM_POWER_RET;
 
 #ifdef CONFIG_CPU_IDLE
-	omap3_cpuidle_update_states();
+	/*
+	 * Erratum i583: implementation for ES rev < Es1.2 on 3630. We cannot
+	 * enable OFF mode in a stable form for previous revisions, restrict
+	 * instead to RET
+	 */
+	if (IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583))
+		omap3_cpuidle_update_states(state, PWRDM_POWER_RET);
+	else
+		omap3_cpuidle_update_states(state, state);
 #endif
 
 	list_for_each_entry(pwrst, &pwrst_list, node) {
-		pwrst->next_state = state;
-		omap_set_pwrdm_state(pwrst->pwrdm, state);
+		if (IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583) &&
+				pwrst->pwrdm == core_pwrdm &&
+				state == PWRDM_POWER_OFF) {
+			pwrst->next_state = PWRDM_POWER_RET;
+			WARN_ONCE(1,
+				"%s: Core OFF disabled due to errata i583\n",
+				__func__);
+		} else {
+			pwrst->next_state = state;
+		}
+		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->next_state);
 	}
 }
 
@@ -1002,6 +1011,17 @@ void omap_push_sram_idle(void)
 				save_secure_ram_context_sz);
 }
 
+static void __init pm_errata_configure(void)
+{
+	if (cpu_is_omap3630()) {
+		pm34xx_errata |= PM_RTA_ERRATUM_i608;
+		/* Enable the l2 cache toggling in sleep logic */
+		enable_omap3630_toggle_l2_on_restore();
+		if (omap_rev() < OMAP3630_REV_ES1_2)
+			pm34xx_errata |= PM_SDRC_WAKEUP_ERRATUM_i583;
+	}
+}
+
 static int __init omap3_pm_init(void)
 {
 	struct power_state *pwrst, *tmp;
@@ -1010,6 +1030,8 @@ static int __init omap3_pm_init(void)
 
 	if (!cpu_is_omap34xx())
 		return -ENODEV;
+
+	pm_errata_configure();
 
 	printk(KERN_ERR "Power Management for TI OMAP3.\n");
 
@@ -1057,6 +1079,14 @@ static int __init omap3_pm_init(void)
 
 	pm_idle = omap3_pm_idle;
 	omap3_idle_init();
+
+	/*
+	 * RTA is disabled during initialization as per erratum i608
+	 * it is safer to disable RTA by the bootloader, but we would like
+	 * to be doubly sure here and prevent any mishaps.
+	 */
+	if (IS_PM34XX_ERRATUM(PM_RTA_ERRATUM_i608))
+		omap3630_ctrl_disable_rta();
 
 	clkdm_add_wkdep(neon_clkdm, mpu_clkdm);
 	if (omap_type() != OMAP2_DEVICE_TYPE_GP) {

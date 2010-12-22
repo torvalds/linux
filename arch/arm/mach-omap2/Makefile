@@ -4,7 +4,7 @@
 
 # Common support
 obj-y := id.o io.o control.o mux.o devices.o serial.o gpmc.o timer-gp.o pm.o \
-	 common.o gpio.o
+	 common.o gpio.o dma.o
 
 omap-2-3-common				= irq.o sdrc.o prm2xxx_3xxx.o
 hwmod-common				= omap_hwmod.o \
@@ -48,6 +48,13 @@ obj-$(CONFIG_ARCH_OMAP4)		+= mux44xx.o
 # SMS/SDRC
 obj-$(CONFIG_ARCH_OMAP2)		+= sdrc2xxx.o
 # obj-$(CONFIG_ARCH_OMAP3)		+= sdrc3xxx.o
+
+# OPP table initialization
+ifeq ($(CONFIG_PM_OPP),y)
+obj-y					+= opp.o
+obj-$(CONFIG_ARCH_OMAP3)		+= opp3xxx_data.o
+obj-$(CONFIG_ARCH_OMAP4)		+= opp4xxx_data.o
+endif
 
 # Power Management
 ifeq ($(CONFIG_PM),y)
