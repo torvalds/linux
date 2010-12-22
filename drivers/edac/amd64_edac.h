@@ -218,27 +218,23 @@
 
 #define DBAM_MAX_VALUE			11
 
-
-#define F10_DCLR_0			0x90
-#define F10_DCLR_1			0x190
+#define DCLR0				0x90
+#define DCLR1				0x190
 #define REVE_WIDTH_128			BIT(16)
 #define F10_WIDTH_128			BIT(11)
 
-
-#define F10_DCHR_0			0x94
-#define F10_DCHR_1			0x194
-
-#define F10_DCHR_FOUR_RANK_DIMM		BIT(18)
+#define DCHR0				0x94
+#define DCHR1				0x194
 #define DDR3_MODE			BIT(8)
-#define F10_DCHR_MblMode		BIT(6)
-
 
 #define F10_DCTL_SEL_LOW		0x110
 #define dct_sel_baseaddr(pvt)		((pvt->dct_sel_low) & 0xFFFFF800)
 #define dct_sel_interleave_addr(pvt)	(((pvt->dct_sel_low) >> 6) & 0x3)
 #define dct_high_range_enabled(pvt)	(pvt->dct_sel_low & BIT(0))
 #define dct_interleave_enabled(pvt)	(pvt->dct_sel_low & BIT(2))
-#define dct_ganging_enabled(pvt)	(pvt->dct_sel_low & BIT(4))
+
+#define dct_ganging_enabled(pvt)	((boot_cpu_data.x86 == 0x10) && ((pvt)->dct_sel_low & BIT(4)))
+
 #define dct_data_intlv_enabled(pvt)	(pvt->dct_sel_low & BIT(5))
 #define dct_dram_enabled(pvt)		(pvt->dct_sel_low & BIT(8))
 #define dct_memory_cleared(pvt)		(pvt->dct_sel_low & BIT(10))
@@ -261,7 +257,6 @@
 #define K8_NBCFG_ECC_ENABLE		BIT(22)
 
 #define K8_NBSL				0x48
-
 
 /* Family F10h: Normalized Extended Error Codes */
 #define F10_NBSL_EXT_ERR_RES		0x0

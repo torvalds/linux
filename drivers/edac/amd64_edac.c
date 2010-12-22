@@ -799,7 +799,7 @@ static u16 extract_syndrome(struct err_regs *err)
  */
 static enum edac_type amd64_determine_edac_cap(struct amd64_pvt *pvt)
 {
-	int bit;
+	u8 bit;
 	enum dev_type edac_cap = EDAC_FLAG_NONE;
 
 	bit = (boot_cpu_data.x86 > 0xf || pvt->ext_model >= K8_REV_F)
@@ -826,8 +826,9 @@ static void amd64_dump_dramcfg_low(u32 dclr, int chan)
 	debugf1("  PAR/ERR parity: %s\n",
 		(dclr & BIT(8)) ?  "enabled" : "disabled");
 
-	debugf1("  DCT 128bit mode width: %s\n",
-		(dclr & BIT(11)) ?  "128b" : "64b");
+	if (boot_cpu_data.x86 == 0x10)
+		debugf1("  DCT 128bit mode width: %s\n",
+			(dclr & BIT(11)) ?  "128b" : "64b");
 
 	debugf1("  x4 logical DIMMs present: L0: %s L1: %s L2: %s L3: %s\n",
 		(dclr & BIT(12)) ?  "yes" : "no",
@@ -939,7 +940,10 @@ static enum mem_type amd64_determine_memory_type(struct amd64_pvt *pvt, int cs)
 {
 	enum mem_type type;
 
-	if (boot_cpu_data.x86 >= 0x10 || pvt->ext_model >= K8_REV_F) {
+	/* F15h supports only DDR3 */
+	if (boot_cpu_data.x86 >= 0x15)
+		type = (pvt->dclr0 & BIT(16)) ?	MEM_DDR3 : MEM_RDDR3;
+	else if (boot_cpu_data.x86 == 0x10 || pvt->ext_model >= K8_REV_F) {
 		if (pvt->dchr0 & DDR3_MODE)
 			type = (pvt->dclr0 & BIT(16)) ?	MEM_DDR3 : MEM_RDDR3;
 		else
@@ -953,22 +957,10 @@ static enum mem_type amd64_determine_memory_type(struct amd64_pvt *pvt, int cs)
 	return type;
 }
 
-/*
- * Read the DRAM Configuration Low register. It differs between CG, D & E revs
- * and the later RevF memory controllers (DDR vs DDR2)
- *
- * Return:
- *      number of memory channels in operation
- * Pass back:
- *      contents of the DCL0_LOW register
- */
+/* Get the number of DCT channels the memory controller is using. */
 static int k8_early_channel_count(struct amd64_pvt *pvt)
 {
-	int flag, err = 0;
-
-	err = amd64_read_dct_pci_cfg(pvt, F10_DCLR_0, &pvt->dclr0);
-	if (err)
-		return err;
+	int flag;
 
 	if (pvt->ext_model >= K8_REV_F)
 		/* RevF (NPT) and later */
@@ -983,7 +975,7 @@ static int k8_early_channel_count(struct amd64_pvt *pvt)
 	return (flag) ? 2 : 1;
 }
 
-/* extract the ERROR ADDRESS for the K8 CPUs */
+/* Extract the ERROR ADDRESS for the K8 CPUs */
 static u64 k8_get_error_address(struct mem_ctl_info *mci,
 				struct err_regs *info)
 {
@@ -1486,7 +1478,7 @@ static void f10_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
 
 /*
  * debug routine to display the memory sizes of all logical DIMMs and its
- * CSROWs as well
+ * CSROWs
  */
 static void amd64_debug_display_dimm_sizes(int ctrl, struct amd64_pvt *pvt)
 {
@@ -1960,12 +1952,12 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 
 	amd64_read_pci_cfg(pvt->F3, F10_ONLINE_SPARE, &pvt->online_spare);
 
-	amd64_read_dct_pci_cfg(pvt, F10_DCLR_0, &pvt->dclr0);
-	amd64_read_dct_pci_cfg(pvt, F10_DCHR_0, &pvt->dchr0);
+	amd64_read_dct_pci_cfg(pvt, DCLR0, &pvt->dclr0);
+	amd64_read_dct_pci_cfg(pvt, DCHR0, &pvt->dchr0);
 
-	if (!dct_ganging_enabled(pvt)) {
-		amd64_read_dct_pci_cfg(pvt, F10_DCLR_1, &pvt->dclr1);
-		amd64_read_dct_pci_cfg(pvt, F10_DCHR_1, &pvt->dchr1);
+	if (!dct_ganging_enabled(pvt) && boot_cpu_data.x86 > 0xf) {
+		amd64_read_dct_pci_cfg(pvt, DCLR1, &pvt->dclr1);
+		amd64_read_dct_pci_cfg(pvt, DCHR1, &pvt->dchr1);
 	}
 
 	if (boot_cpu_data.x86 >= 0x10) {
