@@ -40,6 +40,11 @@
 #define OMAP4430_CM1_RESTORE_INST	0x0e00
 #define OMAP4430_CM1_INSTR_INST		0x0f00
 
+/* CM1 clockdomain register offsets (from instance start) */
+#define OMAP4430_CM1_ABE_ABE_CDOFFS		0x0000
+#define OMAP4430_CM1_MPU_MPU_CDOFFS		0x0000
+#define OMAP4430_CM1_TESLA_TESLA_CDOFFS		0x0000
+
 /* CM1 */
 
 /* CM1.OCP_SOCKET_CM1 register offsets */

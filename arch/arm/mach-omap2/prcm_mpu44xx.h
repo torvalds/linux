@@ -37,6 +37,11 @@
 #define OMAP4430_PRCM_MPU_CPU0_INST		0x0400
 #define OMAP4430_PRCM_MPU_CPU1_INST		0x0800
 
+/* PRCM_MPU clockdomain register offsets (from instance start) */
+#define OMAP4430_PRCM_MPU_CPU0_MPU_CDOFFS	0x0000
+#define OMAP4430_PRCM_MPU_CPU1_MPU_CDOFFS	0x0000
+
+
 /*
  * PRCM_MPU
  *
