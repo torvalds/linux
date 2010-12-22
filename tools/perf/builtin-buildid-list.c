@@ -39,7 +39,8 @@ static int __cmd_buildid_list(void)
 	int err = -1;
 	struct perf_session *session;
 
-	session = perf_session__new(input_name, O_RDONLY, force, false);
+	session = perf_session__new(input_name, O_RDONLY, force, false,
+				    &build_id__mark_dso_hit_ops);
 	if (session == NULL)
 		return -1;
 

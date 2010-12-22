@@ -86,6 +86,7 @@ struct symbol_conf {
        struct strlist	*dso_list,
 			*comm_list,
 			*sym_list;
+	const char	*symfs;
 };
 
 extern struct symbol_conf symbol_conf;

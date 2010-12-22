@@ -78,9 +78,12 @@ struct perf_event_ops {
 			build_id;
 	event_op2	finished_round;
 	bool		ordered_samples;
+	bool		ordering_requires_timestamps;
 };
 
-struct perf_session *perf_session__new(const char *filename, int mode, bool force, bool repipe);
+struct perf_session *perf_session__new(const char *filename, int mode,
+				       bool force, bool repipe,
+				       struct perf_event_ops *ops);
 void perf_session__delete(struct perf_session *self);
 
 void perf_event_header__bswap(struct perf_event_header *self);

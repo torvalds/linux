@@ -61,6 +61,8 @@ static struct perf_event_ops event_ops = {
 	.exit	= event__process_task,
 	.fork	= event__process_task,
 	.lost	= event__process_lost,
+	.ordered_samples = true,
+	.ordering_requires_timestamps = true,
 };
 
 static void perf_session__insert_hist_entry_by_name(struct rb_root *root,
@@ -142,8 +144,8 @@ static int __cmd_diff(void)
 	int ret, i;
 	struct perf_session *session[2];
 
-	session[0] = perf_session__new(input_old, O_RDONLY, force, false);
-	session[1] = perf_session__new(input_new, O_RDONLY, force, false);
+	session[0] = perf_session__new(input_old, O_RDONLY, force, false, &event_ops);
+	session[1] = perf_session__new(input_new, O_RDONLY, force, false, &event_ops);
 	if (session[0] == NULL || session[1] == NULL)
 		return -ENOMEM;
 
@@ -192,6 +194,8 @@ static const struct option options[] = {
 	OPT_STRING('t', "field-separator", &symbol_conf.field_sep, "separator",
 		   "separator for columns, no spaces will be added between "
 		   "columns '.' is reserved."),
+	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
+		    "Look for files with symbols relative to this directory"),
 	OPT_END()
 };
 
