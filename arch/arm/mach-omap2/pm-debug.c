@@ -30,7 +30,7 @@
 #include <plat/clock.h>
 #include <plat/board.h>
 #include <plat/powerdomain.h>
-#include <plat/clockdomain.h>
+#include "clockdomain.h"
 #include <plat/dmtimer.h>
 
 #include "cm2xxx_3xxx.h"

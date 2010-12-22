@@ -26,7 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-#include <plat/clockdomain.h>
+#include "clockdomain.h"
 #include "cm1_44xx.h"
 #include "cm2_44xx.h"
 

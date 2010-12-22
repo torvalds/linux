@@ -35,7 +35,7 @@
 
 #include <plat/clock.h>
 #include <plat/powerdomain.h>
-#include <plat/clockdomain.h>
+#include "clockdomain.h"
 #include <plat/prcm.h>
 
 /* clkdm_list contains all registered struct clockdomains */

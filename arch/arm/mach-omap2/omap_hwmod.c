@@ -139,7 +139,7 @@
 
 #include <plat/common.h>
 #include <plat/cpu.h>
-#include <plat/clockdomain.h>
+#include "clockdomain.h"
 #include <plat/powerdomain.h>
 #include <plat/clock.h>
 #include <plat/omap_hwmod.h>

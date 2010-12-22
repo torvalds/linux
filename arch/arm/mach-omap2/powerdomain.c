@@ -27,7 +27,7 @@
 
 #include <plat/cpu.h>
 #include <plat/powerdomain.h>
-#include <plat/clockdomain.h>
+#include "clockdomain.h"
 #include <plat/prcm.h>
 
 #include "pm.h"

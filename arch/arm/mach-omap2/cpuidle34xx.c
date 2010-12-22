@@ -28,7 +28,7 @@
 #include <plat/prcm.h>
 #include <plat/irqs.h>
 #include <plat/powerdomain.h>
-#include <plat/clockdomain.h>
+#include "clockdomain.h"
 #include <plat/serial.h>
 
 #include "pm.h"

@@ -31,7 +31,7 @@
 #include <linux/console.h>
 
 #include <plat/sram.h>
-#include <plat/clockdomain.h>
+#include "clockdomain.h"
 #include <plat/powerdomain.h>
 #include <plat/serial.h>
 #include <plat/sdrc.h>

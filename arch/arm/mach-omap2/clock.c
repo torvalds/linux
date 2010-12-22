@@ -24,7 +24,7 @@
 #include <linux/bitops.h>
 
 #include <plat/clock.h>
-#include <plat/clockdomain.h>
+#include "clockdomain.h"
 #include <plat/cpu.h>
 #include <plat/prcm.h>
 
