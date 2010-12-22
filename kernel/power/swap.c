@@ -30,7 +30,7 @@
 
 #include "power.h"
 
-#define HIBERNATE_SIG	"LINHIB0001"
+#define HIBERNATE_SIG	"S1SUSPEND"
 
 /*
  *	The swap map is a data structure used for keeping track of each page
