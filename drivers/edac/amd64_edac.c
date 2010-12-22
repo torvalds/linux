@@ -2196,21 +2196,20 @@ static bool enable_ecc_error_reporting(struct ecc_settings *s, u8 nid,
 				       struct pci_dev *F3)
 {
 	bool ret = true;
-	u32 value, mask = K8_NBCTL_CECCEn | K8_NBCTL_UECCEn;
+	u32 value, mask = 0x3;		/* UECC/CECC enable */
 
 	if (toggle_ecc_err_reporting(s, nid, ON)) {
 		amd64_warn("Error enabling ECC reporting over MCGCTL!\n");
 		return false;
 	}
 
-	amd64_read_pci_cfg(F3, K8_NBCTL, &value);
+	amd64_read_pci_cfg(F3, NBCTL, &value);
 
-	/* turn on UECCEn and CECCEn bits */
 	s->old_nbctl   = value & mask;
 	s->nbctl_valid = true;
 
 	value |= mask;
-	amd64_write_pci_cfg(F3, K8_NBCTL, value);
+	amd64_write_pci_cfg(F3, NBCTL, value);
 
 	amd64_read_pci_cfg(F3, K8_NBCFG, &value);
 
@@ -2250,16 +2249,17 @@ static bool enable_ecc_error_reporting(struct ecc_settings *s, u8 nid,
 static void restore_ecc_error_reporting(struct ecc_settings *s, u8 nid,
 					struct pci_dev *F3)
 {
-	u32 value, mask = K8_NBCTL_CECCEn | K8_NBCTL_UECCEn;
+	u32 value, mask = 0x3;		/* UECC/CECC enable */
+
 
 	if (!s->nbctl_valid)
 		return;
 
-	amd64_read_pci_cfg(F3, K8_NBCTL, &value);
+	amd64_read_pci_cfg(F3, NBCTL, &value);
 	value &= ~mask;
 	value |= s->old_nbctl;
 
-	amd64_write_pci_cfg(F3, K8_NBCTL, value);
+	amd64_write_pci_cfg(F3, NBCTL, value);
 
 	/* restore previous BIOS DRAM ECC "off" setting we force-enabled */
 	if (!s->flags.nb_ecc_prev) {

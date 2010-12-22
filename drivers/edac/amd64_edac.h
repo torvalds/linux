@@ -244,13 +244,7 @@
 /*
  * Function 3 - Misc Control
  */
-#define K8_NBCTL			0x40
-
-/* Correctable ECC error reporting enable */
-#define K8_NBCTL_CECCEn			BIT(0)
-
-/* UnCorrectable ECC error reporting enable */
-#define K8_NBCTL_UECCEn			BIT(1)
+#define NBCTL				0x40
 
 #define K8_NBCFG			0x44
 #define K8_NBCFG_CHIPKILL		BIT(23)
