@@ -253,11 +253,6 @@
 #define STATE_ERROR			((void *) -1)
 
 /*
- * Queue State
- */
-#define QUEUE_RUNNING			(0)
-#define QUEUE_STOPPED			(1)
-/*
  * SSP State - Whether Enabled or Disabled
  */
 #define SSP_DISABLED			(0)
@@ -344,7 +339,7 @@ struct vendor_data {
  * @lock: spinlock to syncronise access to driver data
  * @workqueue: a workqueue on which any spi_message request is queued
  * @busy: workqueue is busy
- * @run: workqueue is running
+ * @running: workqueue is running
  * @pump_transfers: Tasklet used in Interrupt Transfer mode
  * @cur_msg: Pointer to current spi_message being processed
  * @cur_transfer: Pointer to current spi_transfer
@@ -370,7 +365,7 @@ struct pl022 {
 	spinlock_t			queue_lock;
 	struct list_head		queue;
 	bool				busy;
-	int				run;
+	bool				running;
 	/* Message transfer pump */
 	struct tasklet_struct		pump_transfers;
 	struct spi_message		*cur_msg;
@@ -1460,7 +1455,7 @@ static void pump_messages(struct work_struct *work)
 
 	/* Lock queue and check for queue work */
 	spin_lock_irqsave(&pl022->queue_lock, flags);
-	if (list_empty(&pl022->queue) || pl022->run == QUEUE_STOPPED) {
+	if (list_empty(&pl022->queue) || !pl022->running) {
 		pl022->busy = false;
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
 		return;
@@ -1507,7 +1502,7 @@ static int __init init_queue(struct pl022 *pl022)
 	INIT_LIST_HEAD(&pl022->queue);
 	spin_lock_init(&pl022->queue_lock);
 
-	pl022->run = QUEUE_STOPPED;
+	pl022->running = false;
 	pl022->busy = false;
 
 	tasklet_init(&pl022->pump_transfers,
@@ -1529,12 +1524,12 @@ static int start_queue(struct pl022 *pl022)
 
 	spin_lock_irqsave(&pl022->queue_lock, flags);
 
-	if (pl022->run == QUEUE_RUNNING || pl022->busy) {
+	if (pl022->running || pl022->busy) {
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
 		return -EBUSY;
 	}
 
-	pl022->run = QUEUE_RUNNING;
+	pl022->running = true;
 	pl022->cur_msg = NULL;
 	pl022->cur_transfer = NULL;
 	pl022->cur_chip = NULL;
@@ -1566,7 +1561,8 @@ static int stop_queue(struct pl022 *pl022)
 
 	if (!list_empty(&pl022->queue) || pl022->busy)
 		status = -EBUSY;
-	else pl022->run = QUEUE_STOPPED;
+	else
+		pl022->running = false;
 
 	spin_unlock_irqrestore(&pl022->queue_lock, flags);
 
@@ -1684,7 +1680,7 @@ static int pl022_transfer(struct spi_device *spi, struct spi_message *msg)
 
 	spin_lock_irqsave(&pl022->queue_lock, flags);
 
-	if (pl022->run == QUEUE_STOPPED) {
+	if (!pl022->running) {
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
 		return -ESHUTDOWN;
 	}
@@ -1693,7 +1689,7 @@ static int pl022_transfer(struct spi_device *spi, struct spi_message *msg)
 	msg->state = STATE_START;
 
 	list_add_tail(&msg->queue, &pl022->queue);
-	if (pl022->run == QUEUE_RUNNING && !pl022->busy)
+	if (pl022->running && !pl022->busy)
 		queue_work(pl022->workqueue, &pl022->pump_messages);
 
 	spin_unlock_irqrestore(&pl022->queue_lock, flags);
