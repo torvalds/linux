@@ -281,6 +281,7 @@ static inline struct sk_buff *slot_dequeue_tail(struct sfq_slot *slot)
 	struct sk_buff *skb = slot->skblist_prev;
 
 	slot->skblist_prev = skb->prev;
+	skb->prev->next = (struct sk_buff *)slot;
 	skb->next = skb->prev = NULL;
 	return skb;
 }
@@ -608,14 +609,19 @@ static int sfq_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 				struct gnet_dump *d)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
-	const struct sfq_slot *slot = &q->slots[q->ht[cl - 1]];
-	struct gnet_stats_queue qs = { .qlen = slot->qlen };
-	struct tc_sfq_xstats xstats = { .allot = slot->allot };
+	sfq_index idx = q->ht[cl - 1];
+	struct gnet_stats_queue qs = { 0 };
+	struct tc_sfq_xstats xstats = { 0 };
 	struct sk_buff *skb;
 
-	slot_queue_walk(slot, skb)
-		qs.backlog += qdisc_pkt_len(skb);
+	if (idx != SFQ_EMPTY_SLOT) {
+		const struct sfq_slot *slot = &q->slots[idx];
 
+		xstats.allot = slot->allot;
+		qs.qlen = slot->qlen;
+		slot_queue_walk(slot, skb)
+			qs.backlog += qdisc_pkt_len(skb);
+	}
 	if (gnet_stats_copy_queue(d, &qs) < 0)
 		return -1;
 	return gnet_stats_copy_app(d, &xstats, sizeof(xstats));
