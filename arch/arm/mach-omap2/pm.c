@@ -89,6 +89,10 @@ static void omap2_init_processor_devices(void)
 	}
 }
 
+/* Types of sleep_switch used in omap_set_pwrdm_state */
+#define FORCEWAKEUP_SWITCH	0
+#define LOWPOWERSTATE_SWITCH	1
+
 /*
  * This sets pwrdm state (other than mpu & core. Currently only ON &
  * RET are supported. Function is assuming that clkdm doesn't have
@@ -114,9 +118,14 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 		return ret;
 
 	if (pwrdm_read_pwrst(pwrdm) < PWRDM_POWER_ON) {
-		omap2_clkdm_wakeup(pwrdm->pwrdm_clkdms[0]);
-		sleep_switch = 1;
-		pwrdm_wait_transition(pwrdm);
+		if ((pwrdm_read_pwrst(pwrdm) > state) &&
+			(pwrdm->flags & PWRDM_HAS_LOWPOWERSTATECHANGE)) {
+			sleep_switch = LOWPOWERSTATE_SWITCH;
+		} else {
+			omap2_clkdm_wakeup(pwrdm->pwrdm_clkdms[0]);
+			pwrdm_wait_transition(pwrdm);
+			sleep_switch = FORCEWAKEUP_SWITCH;
+		}
 	}
 
 	ret = pwrdm_set_next_pwrst(pwrdm, state);
@@ -126,12 +135,19 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 		goto err;
 	}
 
-	if (sleep_switch) {
+	switch (sleep_switch) {
+	case FORCEWAKEUP_SWITCH:
 		omap2_clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
-		pwrdm_wait_transition(pwrdm);
-		pwrdm_state_switch(pwrdm);
+		break;
+	case LOWPOWERSTATE_SWITCH:
+		pwrdm_set_lowpwrstchange(pwrdm);
+		break;
+	default:
+		return ret;
 	}
 
+	pwrdm_wait_transition(pwrdm);
+	pwrdm_state_switch(pwrdm);
 err:
 	return ret;
 }
