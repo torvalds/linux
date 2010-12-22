@@ -19,4 +19,9 @@ extern struct pwrdm_ops omap2_pwrdm_operations;
 extern struct pwrdm_ops omap3_pwrdm_operations;
 extern struct pwrdm_ops omap4_pwrdm_operations;
 
+/* Common Internal functions used across OMAP rev's */
+extern u32 omap2_pwrdm_get_mem_bank_onstate_mask(u8 bank);
+extern u32 omap2_pwrdm_get_mem_bank_retst_mask(u8 bank);
+extern u32 omap2_pwrdm_get_mem_bank_stst_mask(u8 bank);
+
 #endif /* ARCH_ARM_MACH_OMAP2_POWERDOMAINS */

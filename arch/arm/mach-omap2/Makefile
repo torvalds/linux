@@ -78,7 +78,7 @@ obj-$(CONFIG_ARCH_OMAP3)		+= prcm.o cm.o
 obj-$(CONFIG_ARCH_OMAP4)		+= prcm.o cm4xxx.o
 
 # OMAP powerdomain framework
-powerdomain-common			+= powerdomain.o powerdomains_data.o
+powerdomain-common			+= powerdomain.o powerdomains_data.o powerdomain-common.o
 obj-$(CONFIG_ARCH_OMAP2)		+= $(powerdomain-common) \
 					   powerdomain2xxx_3xxx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= $(powerdomain-common) \
