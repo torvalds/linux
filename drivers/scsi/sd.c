@@ -991,50 +991,30 @@ out:
 
 static void set_media_not_present(struct scsi_disk *sdkp)
 {
-	if (sdkp->media_present)
-		sdkp->device->changed = 1;
 	sdkp->media_present = 0;
 	sdkp->capacity = 0;
-}
-
-static int media_not_present(struct scsi_disk *sdkp,
-			     struct scsi_sense_hdr *sshdr)
-{
-	if (!scsi_sense_valid(sshdr))
-		return 0;
-
-	/* not invoked for commands that could return deferred errors */
-	switch (sshdr->sense_key) {
-	case UNIT_ATTENTION:
-		sdkp->device->changed = 1;
-		/* fall through */
-	case NOT_READY:
-		/* medium not present */
-		if (sshdr->asc == 0x3A) {
-			set_media_not_present(sdkp);
-			return 1;
-		}
-	}
-	return 0;
+	sdkp->device->changed = 1;
 }
 
 /**
- *	sd_check_events - check media events
- *	@disk: kernel device descriptor
- *	@clearing: disk events currently being cleared
+ *	sd_media_changed - check if our medium changed
+ *	@disk: kernel device descriptor 
  *
- *	Returns mask of DISK_EVENT_*.
+ *	Returns 0 if not applicable or no change; 1 if change
  *
  *	Note: this function is invoked from the block subsystem.
  **/
-static unsigned int sd_check_events(struct gendisk *disk, unsigned int clearing)
+static int sd_media_changed(struct gendisk *disk)
 {
 	struct scsi_disk *sdkp = scsi_disk(disk);
 	struct scsi_device *sdp = sdkp->device;
 	struct scsi_sense_hdr *sshdr = NULL;
 	int retval;
 
-	SCSI_LOG_HLQUEUE(3, sd_printk(KERN_INFO, sdkp, "sd_check_events\n"));
+	SCSI_LOG_HLQUEUE(3, sd_printk(KERN_INFO, sdkp, "sd_media_changed\n"));
+
+	if (!sdp->removable)
+		return 0;
 
 	/*
 	 * If the device is offline, don't send any commands - just pretend as
@@ -1044,6 +1024,7 @@ static unsigned int sd_check_events(struct gendisk *disk, unsigned int clearing)
 	 */
 	if (!scsi_device_online(sdp)) {
 		set_media_not_present(sdkp);
+		retval = 1;
 		goto out;
 	}
 
@@ -1064,30 +1045,26 @@ static unsigned int sd_check_events(struct gendisk *disk, unsigned int clearing)
 					      sshdr);
 	}
 
-	/* failed to execute TUR, assume media not present */
-	if (host_byte(retval)) {
+	if (retval) {
 		set_media_not_present(sdkp);
+		retval = 1;
 		goto out;
 	}
 
-	if (media_not_present(sdkp, sshdr))
-		goto out;
-
 	/*
 	 * For removable scsi disk we have to recognise the presence
-	 * of a disk in the drive.
+	 * of a disk in the drive. This is kept in the struct scsi_disk
+	 * struct and tested at open !  Daniel Roche (dan@lectra.fr)
 	 */
-	if (!sdkp->media_present)
-		sdp->changed = 1;
 	sdkp->media_present = 1;
-out:
-	/* for backward compatibility */
-	if (sdp->changed)
-		sdev_evt_send_simple(sdp, SDEV_EVT_MEDIA_CHANGE, GFP_KERNEL);
-	kfree(sshdr);
 
-	retval = sdp->changed ? DISK_EVENT_MEDIA_CHANGE : 0;
+	retval = sdp->changed;
 	sdp->changed = 0;
+out:
+	if (retval != sdkp->previous_state)
+		sdev_evt_send_simple(sdp, SDEV_EVT_MEDIA_CHANGE, GFP_KERNEL);
+	sdkp->previous_state = retval;
+	kfree(sshdr);
 	return retval;
 }
 
@@ -1180,7 +1157,7 @@ static const struct block_device_operations sd_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= sd_compat_ioctl,
 #endif
-	.check_events		= sd_check_events,
+	.media_changed		= sd_media_changed,
 	.revalidate_disk	= sd_revalidate_disk,
 	.unlock_native_capacity	= sd_unlock_native_capacity,
 };
@@ -1314,6 +1291,23 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 	}
 
 	return good_bytes;
+}
+
+static int media_not_present(struct scsi_disk *sdkp,
+			     struct scsi_sense_hdr *sshdr)
+{
+
+	if (!scsi_sense_valid(sshdr))
+		return 0;
+	/* not invoked for commands that could return deferred errors */
+	if (sshdr->sense_key != NOT_READY &&
+	    sshdr->sense_key != UNIT_ATTENTION)
+		return 0;
+	if (sshdr->asc != 0x3A) /* medium not present */
+		return 0;
+
+	set_media_not_present(sdkp);
+	return 1;
 }
 
 /*
@@ -1490,7 +1484,7 @@ static void read_capacity_error(struct scsi_disk *sdkp, struct scsi_device *sdp,
 	 */
 	if (sdp->removable &&
 	    sense_valid && sshdr->sense_key == NOT_READY)
-		set_media_not_present(sdkp);
+		sdp->changed = 1;
 
 	/*
 	 * We used to set media_present to 0 here to indicate no media
@@ -2345,10 +2339,8 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 
 	gd->driverfs_dev = &sdp->sdev_gendev;
 	gd->flags = GENHD_FL_EXT_DEVT;
-	if (sdp->removable) {
+	if (sdp->removable)
 		gd->flags |= GENHD_FL_REMOVABLE;
-		gd->events |= DISK_EVENT_MEDIA_CHANGE;
-	}
 
 	add_disk(gd);
 	sd_dif_config_host(sdkp);
@@ -2430,6 +2422,7 @@ static int sd_probe(struct device *dev)
 	sdkp->disk = gd;
 	sdkp->index = index;
 	atomic_set(&sdkp->openers, 0);
+	sdkp->previous_state = 1;
 
 	if (!sdp->request_queue->rq_timeout) {
 		if (sdp->type != TYPE_MOD)
