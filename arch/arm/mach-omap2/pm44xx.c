@@ -31,12 +31,6 @@ struct power_state {
 static LIST_HEAD(pwrst_list);
 
 #ifdef CONFIG_SUSPEND
-static int omap4_pm_prepare(void)
-{
-	disable_hlt();
-	return 0;
-}
-
 static int omap4_pm_suspend(void)
 {
 	do_wfi();
@@ -59,28 +53,22 @@ static int omap4_pm_enter(suspend_state_t suspend_state)
 	return ret;
 }
 
-static void omap4_pm_finish(void)
-{
-	enable_hlt();
-	return;
-}
-
 static int omap4_pm_begin(suspend_state_t state)
 {
+	disable_hlt();
 	return 0;
 }
 
 static void omap4_pm_end(void)
 {
+	enable_hlt();
 	return;
 }
 
 static struct platform_suspend_ops omap_pm_ops = {
 	.begin		= omap4_pm_begin,
 	.end		= omap4_pm_end,
-	.prepare	= omap4_pm_prepare,
 	.enter		= omap4_pm_enter,
-	.finish		= omap4_pm_finish,
 	.valid		= suspend_valid_only_mem,
 };
 #endif /* CONFIG_SUSPEND */

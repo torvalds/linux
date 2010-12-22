@@ -239,9 +239,19 @@ void omap3_save_scratchpad_contents(void)
 	struct omap3_scratchpad_prcm_block prcm_block_contents;
 	struct omap3_scratchpad_sdrc_block sdrc_block_contents;
 
-	/* Populate the Scratchpad contents */
+	/*
+	 * Populate the Scratchpad contents
+	 *
+	 * The "get_*restore_pointer" functions are used to provide a
+	 * physical restore address where the ROM code jumps while waking
+	 * up from MPU OFF/OSWR state.
+	 * The restore pointer is stored into the scratchpad.
+	 */
 	scratchpad_contents.boot_config_ptr = 0x0;
-	if (omap_rev() != OMAP3430_REV_ES3_0 &&
+	if (cpu_is_omap3630())
+		scratchpad_contents.public_restore_ptr =
+			virt_to_phys(get_omap3630_restore_pointer());
+	else if (omap_rev() != OMAP3430_REV_ES3_0 &&
 					omap_rev() != OMAP3430_REV_ES3_1)
 		scratchpad_contents.public_restore_ptr =
 			virt_to_phys(get_restore_pointer());
@@ -474,4 +484,12 @@ void omap3_control_restore_context(void)
 	omap_ctrl_writel(control_context.csi, OMAP343X_CONTROL_CSI);
 	return;
 }
+
+void omap3630_ctrl_disable_rta(void)
+{
+	if (!cpu_is_omap3630())
+		return;
+	omap_ctrl_writel(OMAP36XX_RTA_DISABLE, OMAP36XX_CONTROL_MEM_RTA_CTRL);
+}
+
 #endif /* CONFIG_ARCH_OMAP3 && CONFIG_PM */

@@ -301,14 +301,8 @@ out:
 
 static int omap2_pm_begin(suspend_state_t state)
 {
-	suspend_state = state;
-	return 0;
-}
-
-static int omap2_pm_prepare(void)
-{
-	/* We cannot sleep in idle until we have resumed */
 	disable_hlt();
+	suspend_state = state;
 	return 0;
 }
 
@@ -349,21 +343,15 @@ static int omap2_pm_enter(suspend_state_t state)
 	return ret;
 }
 
-static void omap2_pm_finish(void)
-{
-	enable_hlt();
-}
-
 static void omap2_pm_end(void)
 {
 	suspend_state = PM_SUSPEND_ON;
+	enable_hlt();
 }
 
 static struct platform_suspend_ops omap_pm_ops = {
 	.begin		= omap2_pm_begin,
-	.prepare	= omap2_pm_prepare,
 	.enter		= omap2_pm_enter,
-	.finish		= omap2_pm_finish,
 	.end		= omap2_pm_end,
 	.valid		= suspend_valid_only_mem,
 };

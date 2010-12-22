@@ -58,7 +58,7 @@ extern u32 sleep_while_idle;
 #endif
 
 #if defined(CONFIG_CPU_IDLE)
-extern void omap3_cpuidle_update_states(void);
+extern void omap3_cpuidle_update_states(u32, u32);
 #endif
 
 #if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
@@ -80,9 +80,20 @@ extern void save_secure_ram_context(u32 *addr);
 extern void omap3_save_scratchpad_contents(void);
 
 extern unsigned int omap24xx_idle_loop_suspend_sz;
-extern unsigned int omap34xx_suspend_sz;
 extern unsigned int save_secure_ram_context_sz;
 extern unsigned int omap24xx_cpu_suspend_sz;
 extern unsigned int omap34xx_cpu_suspend_sz;
+
+#define PM_RTA_ERRATUM_i608		(1 << 0)
+#define PM_SDRC_WAKEUP_ERRATUM_i583	(1 << 1)
+
+#if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3)
+extern u16 pm34xx_errata;
+#define IS_PM34XX_ERRATUM(id)		(pm34xx_errata & (id))
+extern void enable_omap3630_toggle_l2_on_restore(void);
+#else
+#define IS_PM34XX_ERRATUM(id)		0
+static inline void enable_omap3630_toggle_l2_on_restore(void) { }
+#endif		/* defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP3) */
 
 #endif
