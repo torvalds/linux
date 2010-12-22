@@ -45,7 +45,8 @@
 
 #include <wl_cfg80211.h>
 
-#define EPI_VERSION_STR         "4.218.248.5"
+#define EPI_VERSION_STR		"4.218.248.5"
+#define ETH_P_BRCM			0x886c
 
 #if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
 #include <linux/wifi_tiwlan.h>
@@ -1215,7 +1216,7 @@ void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf,
 		skb_pull(skb, ETH_HLEN);
 
 		/* Process special event packets and then discard them */
-		if (ntoh16(skb->protocol) == ETHER_TYPE_BRCM)
+		if (ntoh16(skb->protocol) == ETH_P_BRCM)
 			dhd_wl_host_event(dhd, &ifidx,
 					  skb_mac_header(skb),
 					  &event, &data);
