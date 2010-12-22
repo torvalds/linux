@@ -823,12 +823,10 @@ int __init omap1_clk_init(void)
 			crystal_type = info->system_clock_type;
 	}
 
-#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
-	ck_ref.rate = 13000000;
-#elif defined(CONFIG_ARCH_OMAP16XX)
-	if (crystal_type == 2)
+	if (cpu_is_omap7xx())
+		ck_ref.rate = 13000000;
+	if (cpu_is_omap16xx() && crystal_type == 2)
 		ck_ref.rate = 19200000;
-#endif
 
 	pr_info("Clocks: ARM_SYSST: 0x%04x DPLL_CTL: 0x%04x ARM_CKCTL: "
 		"0x%04x\n", omap_readw(ARM_SYSST), omap_readw(DPLL_CTL),
@@ -883,10 +881,11 @@ int __init omap1_clk_init(void)
 	       ck_dpll1.rate / 1000000, (ck_dpll1.rate / 100000) % 10,
 	       arm_ck.rate / 1000000, (arm_ck.rate / 100000) % 10);
 
-#if defined(CONFIG_MACH_OMAP_PERSEUS2) || defined(CONFIG_MACH_OMAP_FSAMPLE)
-	/* Select slicer output as OMAP input clock */
-	omap_writew(omap_readw(OMAP7XX_PCC_UPLD_CTRL) & ~0x1, OMAP7XX_PCC_UPLD_CTRL);
-#endif
+	if (machine_is_omap_perseus2() || machine_is_omap_fsample()) {
+		/* Select slicer output as OMAP input clock */
+		omap_writew(omap_readw(OMAP7XX_PCC_UPLD_CTRL) & ~0x1,
+				OMAP7XX_PCC_UPLD_CTRL);
+	}
 
 	/* Amstrad Delta wants BCLK high when inactive */
 	if (machine_is_ams_delta())
