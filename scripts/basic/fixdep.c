@@ -286,7 +286,7 @@ static void do_config_file(const char *filename)
 
 	fd = open(filename, O_RDONLY);
 	if (fd < 0) {
-		fprintf(stderr, "fixdep: ");
+		fprintf(stderr, "fixdep: error opening config file: ");
 		perror(filename);
 		exit(2);
 	}
@@ -357,11 +357,15 @@ static void print_deps(void)
 
 	fd = open(depfile, O_RDONLY);
 	if (fd < 0) {
-		fprintf(stderr, "fixdep: ");
+		fprintf(stderr, "fixdep: error opening depfile: ");
 		perror(depfile);
 		exit(2);
 	}
-	fstat(fd, &st);
+	if (fstat(fd, &st) < 0) {
+                fprintf(stderr, "fixdep: error fstat'ing depfile: ");
+                perror(depfile);
+                exit(2);
+        }
 	if (st.st_size == 0) {
 		fprintf(stderr,"fixdep: %s is empty\n",depfile);
 		close(fd);
