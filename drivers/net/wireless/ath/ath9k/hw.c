@@ -494,6 +494,15 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 
 	ath9k_hw_read_revisions(ah);
 
+	/*
+	 * Read back AR_WA into a permanent copy and set bits 14 and 17.
+	 * We need to do this to avoid RMW of this register. We cannot
+	 * read the reg when chip is asleep.
+	 */
+	ah->WARegVal = REG_READ(ah, AR_WA);
+	ah->WARegVal |= (AR_WA_D3_L1_DISABLE |
+			 AR_WA_ASPM_TIMER_BASED_DISABLE);
+
 	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON)) {
 		ath_err(common, "Couldn't reset chip\n");
 		return -EIO;
@@ -562,14 +571,6 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 
 	ath9k_hw_init_mode_regs(ah);
 
-	/*
-	 * Read back AR_WA into a permanent copy and set bits 14 and 17.
-	 * We need to do this to avoid RMW of this register. We cannot
-	 * read the reg when chip is asleep.
-	 */
-	ah->WARegVal = REG_READ(ah, AR_WA);
-	ah->WARegVal |= (AR_WA_D3_L1_DISABLE |
-			 AR_WA_ASPM_TIMER_BASED_DISABLE);
 
 	if (ah->is_pciexpress)
 		ath9k_hw_configpcipowersave(ah, 0, 0);
