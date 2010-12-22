@@ -315,10 +315,14 @@ static void radeon_print_display_setup(struct drm_device *dev)
 				 radeon_connector->ddc_bus->rec.en_data_reg,
 				 radeon_connector->ddc_bus->rec.y_clk_reg,
 				 radeon_connector->ddc_bus->rec.y_data_reg);
-			if (radeon_connector->router_bus)
+			if (radeon_connector->router.ddc_valid)
 				DRM_INFO("  DDC Router 0x%x/0x%x\n",
-					 radeon_connector->router.mux_control_pin,
-					 radeon_connector->router.mux_state);
+					 radeon_connector->router.ddc_mux_control_pin,
+					 radeon_connector->router.ddc_mux_state);
+			if (radeon_connector->router.cd_valid)
+				DRM_INFO("  Clock/Data Router 0x%x/0x%x\n",
+					 radeon_connector->router.cd_mux_control_pin,
+					 radeon_connector->router.cd_mux_state);
 		} else {
 			if (connector->connector_type == DRM_MODE_CONNECTOR_VGA ||
 			    connector->connector_type == DRM_MODE_CONNECTOR_DVII ||
@@ -398,8 +402,8 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 	int ret = 0;
 
 	/* on hw with routers, select right port */
-	if (radeon_connector->router.valid)
-		radeon_router_select_port(radeon_connector);
+	if (radeon_connector->router.ddc_valid)
+		radeon_router_select_ddc_port(radeon_connector);
 
 	if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
 	    (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)) {
@@ -432,8 +436,8 @@ static int radeon_ddc_dump(struct drm_connector *connector)
 	int ret = 0;
 
 	/* on hw with routers, select right port */
-	if (radeon_connector->router.valid)
-		radeon_router_select_port(radeon_connector);
+	if (radeon_connector->router.ddc_valid)
+		radeon_router_select_ddc_port(radeon_connector);
 
 	if (!radeon_connector->ddc_bus)
 		return -1;

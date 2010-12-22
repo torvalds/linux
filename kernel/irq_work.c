@@ -145,7 +145,9 @@ void irq_work_run(void)
 		 * Clear the BUSY bit and return to the free state if
 		 * no-one else claimed it meanwhile.
 		 */
-		cmpxchg(&entry->next, next_flags(NULL, IRQ_WORK_BUSY), NULL);
+		(void)cmpxchg(&entry->next,
+			      next_flags(NULL, IRQ_WORK_BUSY),
+			      NULL);
 	}
 }
 EXPORT_SYMBOL_GPL(irq_work_run);

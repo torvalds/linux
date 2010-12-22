@@ -748,8 +748,7 @@ static int hw_breakpoint_pending(unsigned long addr, unsigned int fsr,
 		breakpoint_handler(addr, regs);
 		break;
 	case ARM_ENTRY_ASYNC_WATCHPOINT:
-		WARN_ON("Asynchronous watchpoint exception taken. "
-			"Debugging results may be unreliable");
+		WARN(1, "Asynchronous watchpoint exception taken. Debugging results may be unreliable\n");
 	case ARM_ENTRY_SYNC_WATCHPOINT:
 		watchpoint_handler(addr, regs);
 		break;

@@ -418,8 +418,11 @@ int clk_register(struct clk *clk)
 		list_add(&clk->sibling, &root_clks);
 
 	list_add(&clk->node, &clock_list);
+
+#ifdef CONFIG_SH_CLK_CPG_LEGACY
 	if (clk->ops && clk->ops->init)
 		clk->ops->init(clk);
+#endif
 
 out_unlock:
 	mutex_unlock(&clock_list_sem);
@@ -455,19 +458,13 @@ EXPORT_SYMBOL_GPL(clk_get_rate);
 
 int clk_set_rate(struct clk *clk, unsigned long rate)
 {
-	return clk_set_rate_ex(clk, rate, 0);
-}
-EXPORT_SYMBOL_GPL(clk_set_rate);
-
-int clk_set_rate_ex(struct clk *clk, unsigned long rate, int algo_id)
-{
 	int ret = -EOPNOTSUPP;
 	unsigned long flags;
 
 	spin_lock_irqsave(&clock_lock, flags);
 
 	if (likely(clk->ops && clk->ops->set_rate)) {
-		ret = clk->ops->set_rate(clk, rate, algo_id);
+		ret = clk->ops->set_rate(clk, rate);
 		if (ret != 0)
 			goto out_unlock;
 	} else {
@@ -485,7 +482,7 @@ out_unlock:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(clk_set_rate_ex);
+EXPORT_SYMBOL_GPL(clk_set_rate);
 
 int clk_set_parent(struct clk *clk, struct clk *parent)
 {
@@ -571,7 +568,7 @@ long clk_round_parent(struct clk *clk, unsigned long target,
 					*best_freq = freq_max;
 			}
 
-			pr_debug("too low freq %lu, error %lu\n", freq->frequency,
+			pr_debug("too low freq %u, error %lu\n", freq->frequency,
 				 target - freq_max);
 
 			if (!error)
@@ -591,7 +588,7 @@ long clk_round_parent(struct clk *clk, unsigned long target,
 					*best_freq = freq_min;
 			}
 
-			pr_debug("too high freq %lu, error %lu\n", freq->frequency,
+			pr_debug("too high freq %u, error %lu\n", freq->frequency,
 				 freq_min - target);
 
 			if (!error)
@@ -653,8 +650,7 @@ static int clks_sysdev_suspend(struct sys_device *dev, pm_message_t state)
 					clkp->ops->set_parent(clkp,
 						clkp->parent);
 				if (likely(clkp->ops->set_rate))
-					clkp->ops->set_rate(clkp,
-						rate, NO_CHANGE);
+					clkp->ops->set_rate(clkp, rate);
 				else if (likely(clkp->ops->recalc))
 					clkp->rate = clkp->ops->recalc(clkp);
 			}

@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-at91/board-ek.c
+ * linux/arch/arm/mach-at91/board-rm9200ek.c
  *
  *  Copyright (C) 2005 SAN People
  *
@@ -84,12 +84,14 @@ static struct at91_udc_data __initdata ek_udc_data = {
 	.pullup_pin	= AT91_PIN_PD5,
 };
 
+#ifndef CONFIG_MTD_AT91_DATAFLASH_CARD
 static struct at91_mmc_data __initdata ek_mmc_data = {
 	.det_pin	= AT91_PIN_PB27,
 	.slot_b		= 0,
 	.wire4		= 1,
 	.wp_pin		= AT91_PIN_PA17,
 };
+#endif
 
 static struct spi_board_info ek_spi_devices[] = {
 	{	/* DataFlash chip */

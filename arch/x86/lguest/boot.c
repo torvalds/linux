@@ -531,7 +531,10 @@ static void lguest_write_cr3(unsigned long cr3)
 {
 	lguest_data.pgdir = cr3;
 	lazy_hcall1(LHCALL_NEW_PGTABLE, cr3);
-	cr3_changed = true;
+
+	/* These two page tables are simple, linear, and used during boot */
+	if (cr3 != __pa(swapper_pg_dir) && cr3 != __pa(initial_page_table))
+		cr3_changed = true;
 }
 
 static unsigned long lguest_read_cr3(void)
@@ -703,9 +706,9 @@ static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
  * to forget all of them.  Fortunately, this is very rare.
  *
  * ... except in early boot when the kernel sets up the initial pagetables,
- * which makes booting astonishingly slow: 1.83 seconds!  So we don't even tell
- * the Host anything changed until we've done the first page table switch,
- * which brings boot back to 0.25 seconds.
+ * which makes booting astonishingly slow: 48 seconds!  So we don't even tell
+ * the Host anything changed until we've done the first real page table switch,
+ * which brings boot back to 4.3 seconds.
  */
 static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 {
@@ -1002,7 +1005,7 @@ static void lguest_time_init(void)
 	clockevents_register_device(&lguest_clockevent);
 
 	/* Finally, we unblock the timer interrupt. */
-	enable_lguest_irq(0);
+	clear_bit(0, lguest_data.blocked_interrupts);
 }
 
 /*
@@ -1348,9 +1351,6 @@ __init void lguest_init(void)
 	 * per-cpu segment descriptor register %fs as well.
 	 */
 	switch_to_new_gdt(0);
-
-	/* We actually boot with all memory mapped, but let's say 128MB. */
-	max_pfn_mapped = (128*1024*1024) >> PAGE_SHIFT;
 
 	/*
 	 * The Host<->Guest Switcher lives at the top of our address space, and

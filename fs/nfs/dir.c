@@ -34,6 +34,7 @@
 #include <linux/mount.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
+#include <linux/kmemleak.h>
 
 #include "delegation.h"
 #include "iostat.h"
@@ -56,7 +57,7 @@ static int nfs_rename(struct inode *, struct dentry *,
 		      struct inode *, struct dentry *);
 static int nfs_fsync_dir(struct file *, int);
 static loff_t nfs_llseek_dir(struct file *, loff_t, int);
-static int nfs_readdir_clear_array(struct page*, gfp_t);
+static void nfs_readdir_clear_array(struct page*);
 
 const struct file_operations nfs_dir_operations = {
 	.llseek		= nfs_llseek_dir,
@@ -82,8 +83,8 @@ const struct inode_operations nfs_dir_inode_operations = {
 	.setattr	= nfs_setattr,
 };
 
-const struct address_space_operations nfs_dir_addr_space_ops = {
-	.releasepage = nfs_readdir_clear_array,
+const struct address_space_operations nfs_dir_aops = {
+	.freepage = nfs_readdir_clear_array,
 };
 
 #ifdef CONFIG_NFS_V3
@@ -161,6 +162,7 @@ struct nfs_cache_array_entry {
 	u64 cookie;
 	u64 ino;
 	struct qstr string;
+	unsigned char d_type;
 };
 
 struct nfs_cache_array {
@@ -170,14 +172,13 @@ struct nfs_cache_array {
 	struct nfs_cache_array_entry array[0];
 };
 
-#define MAX_READDIR_ARRAY ((PAGE_SIZE - sizeof(struct nfs_cache_array)) / sizeof(struct nfs_cache_array_entry))
-
 typedef __be32 * (*decode_dirent_t)(struct xdr_stream *, struct nfs_entry *, struct nfs_server *, int);
 typedef struct {
 	struct file	*file;
 	struct page	*page;
 	unsigned long	page_index;
 	u64		*dir_cookie;
+	u64		last_cookie;
 	loff_t		current_index;
 	decode_dirent_t	decode;
 
@@ -194,9 +195,13 @@ typedef struct {
 static
 struct nfs_cache_array *nfs_readdir_get_array(struct page *page)
 {
+	void *ptr;
 	if (page == NULL)
 		return ERR_PTR(-EIO);
-	return (struct nfs_cache_array *)kmap(page);
+	ptr = kmap(page);
+	if (ptr == NULL)
+		return ERR_PTR(-ENOMEM);
+	return ptr;
 }
 
 static
@@ -209,14 +214,15 @@ void nfs_readdir_release_array(struct page *page)
  * we are freeing strings created by nfs_add_to_readdir_array()
  */
 static
-int nfs_readdir_clear_array(struct page *page, gfp_t mask)
+void nfs_readdir_clear_array(struct page *page)
 {
-	struct nfs_cache_array *array = nfs_readdir_get_array(page);
+	struct nfs_cache_array *array;
 	int i;
+
+	array = kmap_atomic(page, KM_USER0);
 	for (i = 0; i < array->size; i++)
 		kfree(array->array[i].string.name);
-	nfs_readdir_release_array(page);
-	return 0;
+	kunmap_atomic(array, KM_USER0);
 }
 
 /*
@@ -231,6 +237,11 @@ int nfs_readdir_make_qstr(struct qstr *string, const char *name, unsigned int le
 	string->name = kmemdup(name, len, GFP_KERNEL);
 	if (string->name == NULL)
 		return -ENOMEM;
+	/*
+	 * Avoid a kmemleak false positive. The pointer to the name is stored
+	 * in a page cache page which kmemleak does not scan.
+	 */
+	kmemleak_not_leak(string->name);
 	string->hash = full_name_hash(name, len);
 	return 0;
 }
@@ -244,20 +255,24 @@ int nfs_readdir_add_to_array(struct nfs_entry *entry, struct page *page)
 
 	if (IS_ERR(array))
 		return PTR_ERR(array);
-	ret = -EIO;
-	if (array->size >= MAX_READDIR_ARRAY)
-		goto out;
 
 	cache_entry = &array->array[array->size];
+
+	/* Check that this entry lies within the page bounds */
+	ret = -ENOSPC;
+	if ((char *)&cache_entry[1] - (char *)page_address(page) > PAGE_SIZE)
+		goto out;
+
 	cache_entry->cookie = entry->prev_cookie;
 	cache_entry->ino = entry->ino;
+	cache_entry->d_type = entry->d_type;
 	ret = nfs_readdir_make_qstr(&cache_entry->string, entry->name, entry->len);
 	if (ret)
 		goto out;
 	array->last_cookie = entry->cookie;
-	if (entry->eof == 1)
-		array->eof_index = array->size;
 	array->size++;
+	if (entry->eof != 0)
+		array->eof_index = array->size;
 out:
 	nfs_readdir_release_array(page);
 	return ret;
@@ -272,7 +287,7 @@ int nfs_readdir_search_for_pos(struct nfs_cache_array *array, nfs_readdir_descri
 	if (diff < 0)
 		goto out_eof;
 	if (diff >= array->size) {
-		if (array->eof_index > 0)
+		if (array->eof_index >= 0)
 			goto out_eof;
 		desc->current_index += array->size;
 		return -EAGAIN;
@@ -281,8 +296,6 @@ int nfs_readdir_search_for_pos(struct nfs_cache_array *array, nfs_readdir_descri
 	index = (unsigned int)diff;
 	*desc->dir_cookie = array->array[index].cookie;
 	desc->cache_entry_index = index;
-	if (index == array->eof_index)
-		desc->eof = 1;
 	return 0;
 out_eof:
 	desc->eof = 1;
@@ -296,17 +309,16 @@ int nfs_readdir_search_for_cookie(struct nfs_cache_array *array, nfs_readdir_des
 	int status = -EAGAIN;
 
 	for (i = 0; i < array->size; i++) {
-		if (i == array->eof_index) {
-			desc->eof = 1;
-			status = -EBADCOOKIE;
-		}
 		if (array->array[i].cookie == *desc->dir_cookie) {
 			desc->cache_entry_index = i;
-			status = 0;
-			break;
+			return 0;
 		}
 	}
-
+	if (array->eof_index >= 0) {
+		status = -EBADCOOKIE;
+		if (*desc->dir_cookie == array->last_cookie)
+			desc->eof = 1;
+	}
 	return status;
 }
 
@@ -314,10 +326,7 @@ static
 int nfs_readdir_search_array(nfs_readdir_descriptor_t *desc)
 {
 	struct nfs_cache_array *array;
-	int status = -EBADCOOKIE;
-
-	if (desc->dir_cookie == NULL)
-		goto out;
+	int status;
 
 	array = nfs_readdir_get_array(desc->page);
 	if (IS_ERR(array)) {
@@ -330,6 +339,10 @@ int nfs_readdir_search_array(nfs_readdir_descriptor_t *desc)
 	else
 		status = nfs_readdir_search_for_cookie(array, desc);
 
+	if (status == -EAGAIN) {
+		desc->last_cookie = array->last_cookie;
+		desc->page_index++;
+	}
 	nfs_readdir_release_array(desc->page);
 out:
 	return status;
@@ -381,13 +394,9 @@ int xdr_decode(nfs_readdir_descriptor_t *desc, struct nfs_entry *entry, struct x
 static
 int nfs_same_file(struct dentry *dentry, struct nfs_entry *entry)
 {
-	struct nfs_inode *node;
 	if (dentry->d_inode == NULL)
 		goto different;
-	node = NFS_I(dentry->d_inode);
-	if (node->fh.size != entry->fh->size)
-		goto different;
-	if (strncmp(node->fh.data, entry->fh->data, node->fh.size) != 0)
+	if (nfs_compare_fh(entry->fh, NFS_FH(dentry->d_inode)) != 0)
 		goto different;
 	return 1;
 different:
@@ -449,14 +458,15 @@ out:
 
 /* Perform conversion from xdr to cache array */
 static
-void nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *entry,
+int nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *entry,
 				void *xdr_page, struct page *page, unsigned int buflen)
 {
 	struct xdr_stream stream;
 	struct xdr_buf buf;
 	__be32 *ptr = xdr_page;
-	int status;
 	struct nfs_cache_array *array;
+	unsigned int count = 0;
+	int status;
 
 	buf.head->iov_base = xdr_page;
 	buf.head->iov_len = buflen;
@@ -471,21 +481,32 @@ void nfs_readdir_page_filler(nfs_readdir_descriptor_t *desc, struct nfs_entry *e
 
 	do {
 		status = xdr_decode(desc, entry, &stream);
+		if (status != 0) {
+			if (status == -EAGAIN)
+				status = 0;
+			break;
+		}
+
+		count++;
+
+		if (desc->plus != 0)
+			nfs_prime_dcache(desc->file->f_path.dentry, entry);
+
+		status = nfs_readdir_add_to_array(entry, page);
 		if (status != 0)
 			break;
-
-		if (nfs_readdir_add_to_array(entry, page) == -1)
-			break;
-		if (desc->plus == 1)
-			nfs_prime_dcache(desc->file->f_path.dentry, entry);
 	} while (!entry->eof);
 
-	if (status == -EBADCOOKIE && entry->eof) {
+	if (count == 0 || (status == -EBADCOOKIE && entry->eof != 0)) {
 		array = nfs_readdir_get_array(page);
-		array->eof_index = array->size - 1;
-		status = 0;
-		nfs_readdir_release_array(page);
+		if (!IS_ERR(array)) {
+			array->eof_index = array->size;
+			status = 0;
+			nfs_readdir_release_array(page);
+		} else
+			status = PTR_ERR(array);
 	}
+	return status;
 }
 
 static
@@ -537,11 +558,11 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 	struct nfs_entry entry;
 	struct file	*file = desc->file;
 	struct nfs_cache_array *array;
-	int status = 0;
+	int status = -ENOMEM;
 	unsigned int array_size = ARRAY_SIZE(pages);
 
 	entry.prev_cookie = 0;
-	entry.cookie = *desc->dir_cookie;
+	entry.cookie = desc->last_cookie;
 	entry.eof = 0;
 	entry.fh = nfs_alloc_fhandle();
 	entry.fattr = nfs_alloc_fattr();
@@ -549,6 +570,10 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 		goto out;
 
 	array = nfs_readdir_get_array(page);
+	if (IS_ERR(array)) {
+		status = PTR_ERR(array);
+		goto out;
+	}
 	memset(array, 0, sizeof(struct nfs_cache_array));
 	array->eof_index = -1;
 
@@ -556,12 +581,19 @@ int nfs_readdir_xdr_to_array(nfs_readdir_descriptor_t *desc, struct page *page, 
 	if (!pages_ptr)
 		goto out_release_array;
 	do {
+		unsigned int pglen;
 		status = nfs_readdir_xdr_filler(pages, desc, &entry, file, inode);
 
 		if (status < 0)
 			break;
-		nfs_readdir_page_filler(desc, &entry, pages_ptr, page, array_size * PAGE_SIZE);
-	} while (array->eof_index < 0 && array->size < MAX_READDIR_ARRAY);
+		pglen = status;
+		status = nfs_readdir_page_filler(desc, &entry, pages_ptr, page, pglen);
+		if (status < 0) {
+			if (status == -ENOSPC)
+				status = 0;
+			break;
+		}
+	} while (array->eof_index < 0);
 
 	nfs_readdir_free_large_page(pages_ptr, pages, array_size);
 out_release_array:
@@ -582,8 +614,10 @@ static
 int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page* page)
 {
 	struct inode	*inode = desc->file->f_path.dentry->d_inode;
+	int ret;
 
-	if (nfs_readdir_xdr_to_array(desc, page, inode) < 0)
+	ret = nfs_readdir_xdr_to_array(desc, page, inode);
+	if (ret < 0)
 		goto error;
 	SetPageUptodate(page);
 
@@ -595,12 +629,14 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page* page)
 	return 0;
  error:
 	unlock_page(page);
-	return -EIO;
+	return ret;
 }
 
 static
 void cache_page_release(nfs_readdir_descriptor_t *desc)
 {
+	if (!desc->page->mapping)
+		nfs_readdir_clear_array(desc->page);
 	page_cache_release(desc->page);
 	desc->page = NULL;
 }
@@ -608,12 +644,8 @@ void cache_page_release(nfs_readdir_descriptor_t *desc)
 static
 struct page *get_cache_page(nfs_readdir_descriptor_t *desc)
 {
-	struct page *page;
-	page = read_cache_page(desc->file->f_path.dentry->d_inode->i_mapping,
+	return read_cache_page(desc->file->f_path.dentry->d_inode->i_mapping,
 			desc->page_index, (filler_t *)nfs_readdir_filler, desc);
-	if (IS_ERR(page))
-		desc->eof = 1;
-	return page;
 }
 
 /*
@@ -629,9 +661,8 @@ int find_cache_page(nfs_readdir_descriptor_t *desc)
 		return PTR_ERR(desc->page);
 
 	res = nfs_readdir_search_array(desc);
-	if (res == 0)
-		return 0;
-	cache_page_release(desc);
+	if (res != 0)
+		cache_page_release(desc);
 	return res;
 }
 
@@ -639,20 +670,16 @@ int find_cache_page(nfs_readdir_descriptor_t *desc)
 static inline
 int readdir_search_pagecache(nfs_readdir_descriptor_t *desc)
 {
-	int res = -EAGAIN;
+	int res;
 
-	while (1) {
-		res = find_cache_page(desc);
-		if (res != -EAGAIN)
-			break;
-		desc->page_index++;
+	if (desc->page_index == 0) {
+		desc->current_index = 0;
+		desc->last_cookie = 0;
 	}
+	do {
+		res = find_cache_page(desc);
+	} while (res == -EAGAIN);
 	return res;
-}
-
-static inline unsigned int dt_type(struct inode *inode)
-{
-	return (inode->i_mode >> 12) & 15;
 }
 
 /*
@@ -666,35 +693,35 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 	int i = 0;
 	int res = 0;
 	struct nfs_cache_array *array = NULL;
-	unsigned int d_type = DT_UNKNOWN;
-	struct dentry *dentry = NULL;
 
 	array = nfs_readdir_get_array(desc->page);
+	if (IS_ERR(array)) {
+		res = PTR_ERR(array);
+		goto out;
+	}
 
 	for (i = desc->cache_entry_index; i < array->size; i++) {
-		d_type = DT_UNKNOWN;
+		struct nfs_cache_array_entry *ent;
 
-		res = filldir(dirent, array->array[i].string.name,
-			array->array[i].string.len, file->f_pos,
-			nfs_compat_user_ino64(array->array[i].ino), d_type);
-		if (res < 0)
+		ent = &array->array[i];
+		if (filldir(dirent, ent->string.name, ent->string.len,
+		    file->f_pos, nfs_compat_user_ino64(ent->ino),
+		    ent->d_type) < 0) {
+			desc->eof = 1;
 			break;
+		}
 		file->f_pos++;
-		desc->cache_entry_index = i;
 		if (i < (array->size-1))
 			*desc->dir_cookie = array->array[i+1].cookie;
 		else
 			*desc->dir_cookie = array->last_cookie;
-		if (i == array->eof_index) {
-			desc->eof = 1;
-			break;
-		}
 	}
+	if (array->eof_index >= 0)
+		desc->eof = 1;
 
 	nfs_readdir_release_array(desc->page);
+out:
 	cache_page_release(desc);
-	if (dentry != NULL)
-		dput(dentry);
 	dfprintk(DIRCACHE, "NFS: nfs_do_filldir() filling ended @ cookie %Lu; returning = %d\n",
 			(unsigned long long)*desc->dir_cookie, res);
 	return res;
@@ -729,13 +756,14 @@ int uncached_readdir(nfs_readdir_descriptor_t *desc, void *dirent,
 		goto out;
 	}
 
-	if (nfs_readdir_xdr_to_array(desc, page, inode) == -1) {
-		status = -EIO;
-		goto out_release;
-	}
-
 	desc->page_index = 0;
+	desc->last_cookie = *desc->dir_cookie;
 	desc->page = page;
+
+	status = nfs_readdir_xdr_to_array(desc, page, inode);
+	if (status < 0)
+		goto out_release;
+
 	status = nfs_do_filldir(desc, dirent, filldir);
 
  out:
@@ -757,7 +785,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	struct inode	*inode = dentry->d_inode;
 	nfs_readdir_descriptor_t my_desc,
 			*desc = &my_desc;
-	int res = -ENOMEM;
+	int res;
 
 	dfprintk(FILE, "NFS: readdir(%s/%s) starting at cookie %llu\n",
 			dentry->d_parent->d_name.name, dentry->d_name.name,
@@ -782,18 +810,18 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	if (res < 0)
 		goto out;
 
-	while (desc->eof != 1) {
+	do {
 		res = readdir_search_pagecache(desc);
 
 		if (res == -EBADCOOKIE) {
+			res = 0;
 			/* This means either end of directory */
 			if (*desc->dir_cookie && desc->eof == 0) {
 				/* Or that the server has 'lost' a cookie */
 				res = uncached_readdir(desc, dirent, filldir);
-				if (res >= 0)
+				if (res == 0)
 					continue;
 			}
-			res = 0;
 			break;
 		}
 		if (res == -ETOOSMALL && desc->plus) {
@@ -808,11 +836,9 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			break;
 
 		res = nfs_do_filldir(desc, dirent, filldir);
-		if (res < 0) {
-			res = 0;
+		if (res < 0)
 			break;
-		}
-	}
+	} while (!desc->eof);
 out:
 	nfs_unblock_sillyrename(dentry);
 	if (res > 0)
@@ -1345,12 +1371,12 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 				res = NULL;
 				goto out;
 			/* This turned out not to be a regular file */
-			case -EISDIR:
 			case -ENOTDIR:
 				goto no_open;
 			case -ELOOP:
 				if (!(nd->intent.open.flags & O_NOFOLLOW))
 					goto no_open;
+			/* case -EISDIR: */
 			/* case -EINVAL: */
 			default:
 				res = ERR_CAST(inode);

@@ -275,6 +275,7 @@ xfs_free_perag(
 		pag = radix_tree_delete(&mp->m_perag_tree, agno);
 		spin_unlock(&mp->m_perag_lock);
 		ASSERT(pag);
+		ASSERT(atomic_read(&pag->pag_ref) == 0);
 		call_rcu(&pag->rcu_head, __xfs_free_perag);
 	}
 }
