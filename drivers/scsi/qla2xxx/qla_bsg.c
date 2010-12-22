@@ -753,7 +753,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 			command_sent = INT_DEF_LB_LOOPBACK_CMD;
 			rval = qla2x00_loopback_test(vha, &elreq, response);
 
-			if (new_config[1]) {
+			if (new_config[0]) {
 				/* Revert back to original port config
 				 * Also clear internal loopback
 				 */
