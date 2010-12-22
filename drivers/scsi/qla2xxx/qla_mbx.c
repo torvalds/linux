@@ -4125,7 +4125,7 @@ qla24xx_set_fcp_prio(scsi_qla_host_t *vha, uint16_t loop_id, uint16_t priority,
 		return QLA_FUNCTION_FAILED;
 
 	DEBUG11(printk(KERN_INFO
-	    "%s(%ld): entered.\n", __func__, ha->host_no));
+	    "%s(%ld): entered.\n", __func__, vha->host_no));
 
 	mcp->mb[0] = MBC_PORT_PARAMS;
 	mcp->mb[1] = loop_id;
