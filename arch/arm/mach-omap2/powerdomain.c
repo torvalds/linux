@@ -80,6 +80,8 @@ static u16 pwrstst_reg_offs;
 /* pwrdm_list contains all registered struct powerdomains */
 static LIST_HEAD(pwrdm_list);
 
+static struct pwrdm_ops *arch_pwrdm;
+
 /* Private functions */
 
 static struct powerdomain *_pwrdm_lookup(const char *name)
@@ -211,6 +213,7 @@ static int _pwrdm_post_transition_cb(struct powerdomain *pwrdm, void *unused)
 /**
  * pwrdm_init - set up the powerdomain layer
  * @pwrdm_list: array of struct powerdomain pointers to register
+ * @custom_funcs: func pointers for arch specfic implementations
  *
  * Loop through the array of powerdomains @pwrdm_list, registering all
  * that are available on the current CPU. If pwrdm_list is supplied
@@ -218,7 +221,7 @@ static int _pwrdm_post_transition_cb(struct powerdomain *pwrdm, void *unused)
  * registered.  No return value.  XXX pwrdm_list is not really a
  * "list"; it is an array.  Rename appropriately.
  */
-void pwrdm_init(struct powerdomain **pwrdm_list)
+void pwrdm_init(struct powerdomain **pwrdm_list, struct pwrdm_ops *custom_funcs)
 {
 	struct powerdomain **p = NULL;
 
@@ -233,6 +236,11 @@ void pwrdm_init(struct powerdomain **pwrdm_list)
 							"this CPU\n");
 		return;
 	}
+
+	if (!custom_funcs)
+		WARN(1, "powerdomain: No custom pwrdm functions registered\n");
+	else
+		arch_pwrdm = custom_funcs;
 
 	if (pwrdm_list) {
 		for (p = pwrdm_list; *p; p++)
@@ -1074,4 +1082,3 @@ int pwrdm_post_transition(void)
 	pwrdm_for_each(_pwrdm_post_transition_cb, NULL);
 	return 0;
 }
-

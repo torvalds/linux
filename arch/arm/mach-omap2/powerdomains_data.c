@@ -149,5 +149,5 @@ static struct powerdomain *powerdomains_omap[] __initdata = {
 
 void pwrdm_fw_init(void)
 {
-	pwrdm_init(powerdomains_omap);
+	pwrdm_init(powerdomains_omap, NULL);
 }

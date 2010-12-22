@@ -117,9 +117,50 @@ struct powerdomain {
 #endif
 };
 
+/**
+ * struct pwrdm_ops - Arch specfic function implementations
+ * @pwrdm_set_next_pwrst: Set the target power state for a pd
+ * @pwrdm_read_next_pwrst: Read the target power state set for a pd
+ * @pwrdm_read_pwrst: Read the current power state of a pd
+ * @pwrdm_read_prev_pwrst: Read the prev power state entered by the pd
+ * @pwrdm_set_logic_retst: Set the logic state in RET for a pd
+ * @pwrdm_set_mem_onst: Set the Memory state in ON for a pd
+ * @pwrdm_set_mem_retst: Set the Memory state in RET for a pd
+ * @pwrdm_read_logic_pwrst: Read the current logic state of a pd
+ * @pwrdm_read_prev_logic_pwrst: Read the previous logic state entered by a pd
+ * @pwrdm_read_logic_retst: Read the logic state in RET for a pd
+ * @pwrdm_read_mem_pwrst: Read the current memory state of a pd
+ * @pwrdm_read_prev_mem_pwrst: Read the previous memory state entered by a pd
+ * @pwrdm_read_mem_retst: Read the memory state in RET for a pd
+ * @pwrdm_clear_all_prev_pwrst: Clear all previous power states logged for a pd
+ * @pwrdm_enable_hdwr_sar: Enable Hardware Save-Restore feature for the pd
+ * @pwrdm_disable_hdwr_sar: Disable Hardware Save-Restore feature for a pd
+ * @pwrdm_set_lowpwrstchange: Enable pd transitions from a shallow to deep sleep
+ * @pwrdm_wait_transition: Wait for a pd state transition to complete
+ */
+struct pwrdm_ops {
+	int	(*pwrdm_set_next_pwrst)(struct powerdomain *pwrdm, u8 pwrst);
+	int	(*pwrdm_read_next_pwrst)(struct powerdomain *pwrdm);
+	int	(*pwrdm_read_pwrst)(struct powerdomain *pwrdm);
+	int	(*pwrdm_read_prev_pwrst)(struct powerdomain *pwrdm);
+	int	(*pwrdm_set_logic_retst)(struct powerdomain *pwrdm, u8 pwrst);
+	int	(*pwrdm_set_mem_onst)(struct powerdomain *pwrdm, u8 bank, u8 pwrst);
+	int	(*pwrdm_set_mem_retst)(struct powerdomain *pwrdm, u8 bank, u8 pwrst);
+	int	(*pwrdm_read_logic_pwrst)(struct powerdomain *pwrdm);
+	int	(*pwrdm_read_prev_logic_pwrst)(struct powerdomain *pwrdm);
+	int	(*pwrdm_read_logic_retst)(struct powerdomain *pwrdm);
+	int	(*pwrdm_read_mem_pwrst)(struct powerdomain *pwrdm, u8 bank);
+	int	(*pwrdm_read_prev_mem_pwrst)(struct powerdomain *pwrdm, u8 bank);
+	int	(*pwrdm_read_mem_retst)(struct powerdomain *pwrdm, u8 bank);
+	int	(*pwrdm_clear_all_prev_pwrst)(struct powerdomain *pwrdm);
+	int	(*pwrdm_enable_hdwr_sar)(struct powerdomain *pwrdm);
+	int	(*pwrdm_disable_hdwr_sar)(struct powerdomain *pwrdm);
+	int	(*pwrdm_set_lowpwrstchange)(struct powerdomain *pwrdm);
+	int	(*pwrdm_wait_transition)(struct powerdomain *pwrdm);
+};
 
 void pwrdm_fw_init(void);
-void pwrdm_init(struct powerdomain **pwrdm_list);
+void pwrdm_init(struct powerdomain **pwrdm_list, struct pwrdm_ops *custom_funcs);
 
 struct powerdomain *pwrdm_lookup(const char *name);
 
