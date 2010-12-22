@@ -95,8 +95,7 @@ static void omap2_init_processor_devices(void)
 
 /*
  * This sets pwrdm state (other than mpu & core. Currently only ON &
- * RET are supported. Function is assuming that clkdm doesn't have
- * hw_sup mode enabled.
+ * RET are supported.
  */
 int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 {
@@ -137,7 +136,10 @@ int omap_set_pwrdm_state(struct powerdomain *pwrdm, u32 state)
 
 	switch (sleep_switch) {
 	case FORCEWAKEUP_SWITCH:
-		omap2_clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
+		if (pwrdm->pwrdm_clkdms[0]->flags & CLKDM_CAN_ENABLE_AUTO)
+			omap2_clkdm_allow_idle(pwrdm->pwrdm_clkdms[0]);
+		else
+			omap2_clkdm_sleep(pwrdm->pwrdm_clkdms[0]);
 		break;
 	case LOWPOWERSTATE_SWITCH:
 		pwrdm_set_lowpwrstchange(pwrdm);
