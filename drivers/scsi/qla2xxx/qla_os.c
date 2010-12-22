@@ -2371,7 +2371,7 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	list_for_each_entry(vha, &ha->vp_list, list) {
 		atomic_inc(&vha->vref_count);
 
-		if (vha && vha->fc_vport) {
+		if (vha->fc_vport) {
 			spin_unlock_irqrestore(&ha->vport_slock, flags);
 
 			fc_vport_terminate(vha->fc_vport);
