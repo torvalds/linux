@@ -6694,12 +6694,7 @@ void intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.max_width = 8192;
 		dev->mode_config.max_height = 8192;
 	}
-
-	/* set memory base */
-	if (IS_GEN2(dev))
-		dev->mode_config.fb_base = pci_resource_start(dev->pdev, 0);
-	else
-		dev->mode_config.fb_base = pci_resource_start(dev->pdev, 2);
+	dev->mode_config.fb_base = dev->agp->base;
 
 	if (IS_MOBILE(dev) || !IS_GEN2(dev))
 		dev_priv->num_pipe = 2;

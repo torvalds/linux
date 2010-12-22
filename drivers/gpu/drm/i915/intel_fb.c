@@ -62,6 +62,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 			  struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_device *dev = ifbdev->helper.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd mode_cmd;
@@ -77,7 +78,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	mode_cmd.height = sizes->surface_height;
 
 	mode_cmd.bpp = sizes->surface_bpp;
-	mode_cmd.pitch = ALIGN(mode_cmd.width * ((mode_cmd.bpp + 1) / 8), 64);
+	mode_cmd.pitch = ALIGN(mode_cmd.width * ((mode_cmd.bpp + 7) / 8), 64);
 	mode_cmd.depth = sizes->surface_depth;
 
 	size = mode_cmd.pitch * mode_cmd.height;
@@ -120,6 +121,11 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &intelfb_ops;
 
+	ret = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (ret) {
+		ret = -ENOMEM;
+		goto out_unpin;
+	}
 	/* setup aperture base/size for vesafb takeover */
 	info->apertures = alloc_apertures(1);
 	if (!info->apertures) {
@@ -127,10 +133,8 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 		goto out_unpin;
 	}
 	info->apertures->ranges[0].base = dev->mode_config.fb_base;
-	if (!IS_GEN2(dev))
-		info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 2);
-	else
-		info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 0);
+	info->apertures->ranges[0].size =
+		dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
 
 	info->fix.smem_start = dev->mode_config.fb_base + obj->gtt_offset;
 	info->fix.smem_len = size;
@@ -138,12 +142,6 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	info->screen_base = ioremap_wc(dev->agp->base + obj->gtt_offset, size);
 	if (!info->screen_base) {
 		ret = -ENOSPC;
-		goto out_unpin;
-	}
-
-	ret = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (ret) {
-		ret = -ENOMEM;
 		goto out_unpin;
 	}
 	info->screen_size = size;
