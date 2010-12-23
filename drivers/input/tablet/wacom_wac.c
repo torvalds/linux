@@ -1444,9 +1444,15 @@ static struct wacom_features wacom_features_0xDA =
 	{ "Wacom Bamboo 2FG 4x5 SE", WACOM_PKGLEN_BBFUN,  14720,  9200, 1023, 63, BAMBOO_PT };
 static struct wacom_features wacom_features_0xDB =
 	{ "Wacom Bamboo 2FG 6x8 SE", WACOM_PKGLEN_BBFUN,  21648, 13530, 1023, 63, BAMBOO_PT };
+static const struct wacom_features wacom_features_0x6004 =
+	{ "ISD-V4",               WACOM_PKGLEN_GRAPHIRE,  12800, 8000, 255, 0, TABLETPC };
 
 #define USB_DEVICE_WACOM(prod)					\
 	USB_DEVICE(USB_VENDOR_ID_WACOM, prod),			\
+	.driver_info = (kernel_ulong_t)&wacom_features_##prod
+
+#define USB_DEVICE_LENOVO(prod)					\
+	USB_DEVICE(USB_VENDOR_ID_LENOVO, prod),			\
 	.driver_info = (kernel_ulong_t)&wacom_features_##prod
 
 const struct usb_device_id wacom_ids[] = {
@@ -1525,6 +1531,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0xE2) },
 	{ USB_DEVICE_WACOM(0xE3) },
 	{ USB_DEVICE_WACOM(0x47) },
+	{ USB_DEVICE_LENOVO(0x6004) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, wacom_ids);
