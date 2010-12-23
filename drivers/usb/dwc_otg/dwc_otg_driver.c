@@ -904,7 +904,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
 	dwc_otg_device->reg_offset = 0xFFFFFFFF;
 	
-    busclk = clk_get(NULL, "usb");
+    busclk = clk_get(NULL, "hclk_usb_peri");
     if (IS_ERR(busclk)) {
             retval = PTR_ERR(busclk);
             DWC_ERROR("can't get USB PERIPH AHB bus clock\n");
@@ -1295,7 +1295,7 @@ static __devinit int host11_driver_probe(struct platform_device *pdev)
     }
     clk_enable(phyclk);
     
-    ahbclk = clk_get(NULL, "uhost_ahb");
+    ahbclk = clk_get(NULL, "hclk_uhost");
     if (IS_ERR(ahbclk)) {
             retval = PTR_ERR(ahbclk);
             DWC_ERROR("can't get UHOST ahb bus clock\n");

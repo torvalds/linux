@@ -1379,10 +1379,10 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		rk29_dma_set_buffdone_fn(host->dma_chn, rk29_sdmmc_dma_complete);	
 		host->dma_addr = regs->start + SDMMC_DATA;
 	}		
-	host->clk = clk_get(&pdev->dev, "sdmmc");
+	host->clk = clk_get(&pdev->dev, "mmc");
 	clk_set_rate(host->clk,52000000);
 	clk_enable(host->clk);
-	clk_enable(clk_get(&pdev->dev, "sdmmc_ahb"));
+	clk_enable(clk_get(&pdev->dev, "hclk_mmc"));
 	host->bus_hz = clk_get_rate(host->clk);  ///40000000;  ////cgu_get_clk_freq(CGU_SB_SD_MMC_CCLK_IN_ID); 
 
   	/* reset all blocks */
