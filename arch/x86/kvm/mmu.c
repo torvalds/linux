@@ -1983,6 +1983,8 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 
 	if (host_writable)
 		spte |= SPTE_HOST_WRITEABLE;
+	else
+		pte_access &= ~ACC_WRITE_MASK;
 
 	spte |= (u64)pfn << PAGE_SHIFT;
 
@@ -2222,8 +2224,6 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 		if (iterator.level == level) {
 			unsigned pte_access = ACC_ALL;
 
-			if (!map_writable)
-				pte_access &= ~ACC_WRITE_MASK;
 			mmu_set_spte(vcpu, iterator.sptep, ACC_ALL, pte_access,
 				     0, write, 1, &pt_write,
 				     level, gfn, pfn, prefault, map_writable);

@@ -511,9 +511,6 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		link_shadow_page(it.sptep, sp);
 	}
 
-	if (!map_writable)
-		access &= ~ACC_WRITE_MASK;
-
 	mmu_set_spte(vcpu, it.sptep, access, gw->pte_access & access,
 		     user_fault, write_fault, dirty, ptwrite, it.level,
 		     gw->gfn, pfn, prefault, map_writable);
@@ -809,12 +806,8 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 		nr_present++;
 		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte);
-		if (!(sp->spt[i] & SPTE_HOST_WRITEABLE)) {
-			pte_access &= ~ACC_WRITE_MASK;
-			host_writable = 0;
-		} else {
-			host_writable = 1;
-		}
+		host_writable = sp->spt[i] & SPTE_HOST_WRITEABLE;
+
 		set_spte(vcpu, &sp->spt[i], pte_access, 0, 0,
 			 is_dirty_gpte(gpte), PT_PAGE_TABLE_LEVEL, gfn,
 			 spte_to_pfn(sp->spt[i]), true, false,
