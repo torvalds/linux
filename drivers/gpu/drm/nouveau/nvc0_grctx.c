@@ -1875,9 +1875,11 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 	}
 
 	if (1) {
-		u32 data[6] = {};
+		u32 data[6] = {}, data2[2] = {};
 		u8 tpnr[GPC_MAX];
+		u8 shift, ntpcv;
 
+		/* calculate first set of magics */
 		memcpy(tpnr, priv->tp_nr, sizeof(priv->tp_nr));
 
 		for (tp = 0; tp < priv->tp_total; tp++) {
@@ -1892,6 +1894,20 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 		for (; tp < 32; tp++)
 			data[tp / 6] |= 7 << ((tp % 6) * 5);
 
+		/* and the second... */
+		shift = 0;
+		ntpcv = priv->tp_total;
+		while (!(ntpcv & (1 << 4))) {
+			ntpcv <<= 1;
+			shift++;
+		}
+
+		data2[0]  = (ntpcv << 16);
+		data2[0] |= (shift << 21);
+		data2[0] |= (((1 << (0 + 5)) % ntpcv) << 24);
+		for (i = 1; i < 7; i++)
+			data2[1] |= ((1 << (i + 5)) % ntpcv) << ((i - 1) * 5);
+
 		// GPC_BROADCAST
 		nv_wr32(dev, 0x418bb8, (priv->tp_total << 8) |
 					priv->magic_not_rop_nr);
@@ -1900,9 +1916,9 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 
 		// GPC_BROADCAST.TP_BROADCAST
 		nv_wr32(dev, 0x419bd0, (priv->tp_total << 8) |
-					priv->magic_not_rop_nr |
-					priv->magic419bd0);
-		nv_wr32(dev, 0x419be4, priv->magic419be4);
+				       priv->magic_not_rop_nr |
+				       data2[0]);
+		nv_wr32(dev, 0x419be4, data2[1]);
 		for (i = 0; i < 6; i++)
 			nv_wr32(dev, 0x419b00 + (i * 4), data[i]);
 

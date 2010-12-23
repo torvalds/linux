@@ -334,8 +334,6 @@ nvc0_graph_create(struct drm_device *dev)
 	case 0xc0:
 		if (priv->tp_total == 11) { /* 465, 3/4/4/0, 4 */
 			priv->magic_not_rop_nr = 0x07;
-			priv->magic419bd0      = 0x0a360000;
-			priv->magic419be4      = 0x04c33a54;
 			/* filled values up to tp_total, the rest 0 */
 			priv->magicgpc980[0]   = 0x22111000;
 			priv->magicgpc980[1]   = 0x00000233;
@@ -345,8 +343,6 @@ nvc0_graph_create(struct drm_device *dev)
 		} else
 		if (priv->tp_total == 14) { /* 470, 3/3/4/4, 5 */
 			priv->magic_not_rop_nr = 0x05;
-			priv->magic419bd0      = 0x043c0000;
-			priv->magic419be4      = 0x09041208;
 			priv->magicgpc980[0]   = 0x11110000;
 			priv->magicgpc980[1]   = 0x00233222;
 			priv->magicgpc980[2]   = 0x00000000;
@@ -355,8 +351,6 @@ nvc0_graph_create(struct drm_device *dev)
 		} else
 		if (priv->tp_total == 15) { /* 480, 3/4/4/4, 6 */
 			priv->magic_not_rop_nr = 0x06;
-			priv->magic419bd0      = 0x023e0000;
-			priv->magic419be4      = 0x10414104;
 			priv->magicgpc980[0]   = 0x11110000;
 			priv->magicgpc980[1]   = 0x03332222;
 			priv->magicgpc980[2]   = 0x00000000;
@@ -366,8 +360,6 @@ nvc0_graph_create(struct drm_device *dev)
 		break;
 	case 0xc3: /* 450, 4/0/0/0, 2 */
 		priv->magic_not_rop_nr = 0x03;
-		priv->magic419bd0      = 0x00500000;
-		priv->magic419be4      = 0x00000000;
 		priv->magicgpc980[0]   = 0x00003210;
 		priv->magicgpc980[1]   = 0x00000000;
 		priv->magicgpc980[2]   = 0x00000000;
@@ -376,8 +368,6 @@ nvc0_graph_create(struct drm_device *dev)
 		break;
 	case 0xc4: /* 460, 3/4/0/0, 4 */
 		priv->magic_not_rop_nr = 0x01;
-		priv->magic419bd0      = 0x045c0000;
-		priv->magic419be4      = 0x09041208;
 		priv->magicgpc980[0]   = 0x02321100;
 		priv->magicgpc980[1]   = 0x00000000;
 		priv->magicgpc980[2]   = 0x00000000;
@@ -386,14 +376,12 @@ nvc0_graph_create(struct drm_device *dev)
 		break;
 	}
 
-	if (!priv->magic419bd0) {
+	if (!priv->magic_not_rop_nr) {
 		NV_ERROR(dev, "PGRAPH: unknown config: %d/%d/%d/%d, %d\n",
 			 priv->tp_nr[0], priv->tp_nr[1], priv->tp_nr[2],
 			 priv->tp_nr[3], priv->rop_nr);
 		/* use 0xc3's values... */
 		priv->magic_not_rop_nr = 0x03;
-		priv->magic419bd0      = 0x00500000;
-		priv->magic419be4      = 0x00000000;
 		priv->magicgpc980[0]   = 0x00003210;
 		priv->magicgpc980[1]   = 0x00000000;
 		priv->magicgpc980[2]   = 0x00000000;
