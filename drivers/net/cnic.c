@@ -322,6 +322,8 @@ static int cnic_send_nlmsg(struct cnic_local *cp, u32 type,
 	return 0;
 }
 
+static void cnic_cm_upcall(struct cnic_local *, struct cnic_sock *, u8);
+
 static int cnic_iscsi_nl_msg_recv(struct cnic_dev *dev, u32 msg_type,
 				  char *buf, u16 len)
 {
@@ -351,7 +353,9 @@ static int cnic_iscsi_nl_msg_recv(struct cnic_dev *dev, u32 msg_type,
 		}
 		csk = &cp->csk_tbl[l5_cid];
 		csk_hold(csk);
-		if (cnic_in_use(csk)) {
+		if (cnic_in_use(csk) &&
+		    test_bit(SK_F_CONNECT_START, &csk->flags)) {
+
 			memcpy(csk->ha, path_resp->mac_addr, 6);
 			if (test_bit(SK_F_IPV6, &csk->flags))
 				memcpy(&csk->src_ip[0], &path_resp->src.v6_addr,
@@ -359,8 +363,16 @@ static int cnic_iscsi_nl_msg_recv(struct cnic_dev *dev, u32 msg_type,
 			else
 				memcpy(&csk->src_ip[0], &path_resp->src.v4_addr,
 				       sizeof(struct in_addr));
-			if (is_valid_ether_addr(csk->ha))
+
+			if (is_valid_ether_addr(csk->ha)) {
 				cnic_cm_set_pg(csk);
+			} else if (!test_bit(SK_F_OFFLD_SCHED, &csk->flags) &&
+				!test_bit(SK_F_OFFLD_COMPLETE, &csk->flags)) {
+
+				cnic_cm_upcall(cp, csk,
+					L4_KCQE_OPCODE_VALUE_CONNECT_COMPLETE);
+				clear_bit(SK_F_CONNECT_START, &csk->flags);
+			}
 		}
 		csk_put(csk);
 		rcu_read_unlock();
