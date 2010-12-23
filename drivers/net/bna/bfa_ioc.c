@@ -58,9 +58,6 @@
 #define bfa_ioc_notify_hbfail(__ioc)			\
 			((__ioc)->ioc_hwif->ioc_notify_hbfail(__ioc))
 
-#define bfa_ioc_is_optrom(__ioc)	\
-	(bfa_cb_image_get_size(BFA_IOC_FWIMG_TYPE(__ioc)) < BFA_IOC_FWIMG_MINSZ)
-
 #define bfa_ioc_mbox_cmd_pending(__ioc)		\
 			(!list_empty(&((__ioc)->mbox_mod.cmd_q)) || \
 			readl((__ioc)->ioc_regs.hfn_mbox_cmd))
@@ -101,7 +98,6 @@ static void bfa_ioc_get_adapter_manufacturer(struct bfa_ioc *ioc,
 						char *manufacturer);
 static void bfa_ioc_get_adapter_model(struct bfa_ioc *ioc, char *model);
 static u64 bfa_ioc_get_pwwn(struct bfa_ioc *ioc);
-static mac_t bfa_ioc_get_mfg_mac(struct bfa_ioc *ioc);
 
 /**
  * IOC state machine events
@@ -865,12 +861,6 @@ bfa_ioc_fwver_valid(struct bfa_ioc *ioc)
 {
 	struct bfi_ioc_image_hdr fwhdr, *drv_fwhdr;
 
-	/**
-	 * If bios/efi boot (flash based) -- return true
-	 */
-	if (bfa_ioc_is_optrom(ioc))
-		return true;
-
 	bfa_nw_ioc_fwver_get(ioc, &fwhdr);
 	drv_fwhdr = (struct bfi_ioc_image_hdr *)
 		bfa_cb_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc), 0);
@@ -934,13 +924,8 @@ bfa_ioc_hwinit(struct bfa_ioc *ioc, bool force)
 	/**
 	 * If IOC function is disabled and firmware version is same,
 	 * just re-enable IOC.
-	 *
-	 * If option rom, IOC must not be in operational state. With
-	 * convergence, IOC will be in operational state when 2nd driver
-	 * is loaded.
 	 */
-	if (ioc_fwstate == BFI_IOC_DISABLED ||
-	    (!bfa_ioc_is_optrom(ioc) && ioc_fwstate == BFI_IOC_OP)) {
+	if (ioc_fwstate == BFI_IOC_DISABLED || ioc_fwstate == BFI_IOC_OP) {
 		/**
 		 * When using MSI-X any pending firmware ready event should
 		 * be flushed. Otherwise MSI-X interrupts are not delivered.
@@ -1078,11 +1063,6 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 	 */
 	bfa_ioc_lmem_init(ioc);
 
-	/**
-	 * Flash based firmware boot
-	 */
-	if (bfa_ioc_is_optrom(ioc))
-		boot_type = BFI_BOOT_TYPE_FLASH;
 	fwimg = bfa_cb_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc), chunkno);
 
 	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
@@ -1689,28 +1669,7 @@ bfa_ioc_get_pwwn(struct bfa_ioc *ioc)
 mac_t
 bfa_nw_ioc_get_mac(struct bfa_ioc *ioc)
 {
-	/*
-	 * Currently mfg mac is used as FCoE enode mac (not configured by PBC)
-	 */
-	if (bfa_ioc_get_type(ioc) == BFA_IOC_TYPE_FCoE)
-		return bfa_ioc_get_mfg_mac(ioc);
-	else
-		return ioc->attr->mac;
-}
-
-static mac_t
-bfa_ioc_get_mfg_mac(struct bfa_ioc *ioc)
-{
-	mac_t	m;
-
-	m = ioc->attr->mfg_mac;
-	if (bfa_mfg_is_old_wwn_mac_model(ioc->attr->card_type))
-		m.mac[MAC_ADDRLEN - 1] += bfa_ioc_pcifn(ioc);
-	else
-		bfa_mfg_increment_wwn_mac(&(m.mac[MAC_ADDRLEN-3]),
-			bfa_ioc_pcifn(ioc));
-
-	return m;
+	return ioc->attr->mac;
 }
 
 /**
