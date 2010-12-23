@@ -422,6 +422,9 @@ struct bnx2x_bd_chain_next {
 		 (CNIC_RD(dev, BNX2X_SHMEM2_ADDR(base, size)) >	\
 		  offsetof(struct shmem2_region, field)))
 
+#define BNX2X_MF_CFG_ADDR(base, field)				\
+			((base) + offsetof(struct mf_cfg, field))
+
 #define CNIC_PORT(cp)			((cp)->pfid & 1)
 #define CNIC_FUNC(cp)			((cp)->func)
 #define CNIC_PATH(cp)			(!BNX2X_CHIP_IS_E2(cp->chip_id) ? 0 :\

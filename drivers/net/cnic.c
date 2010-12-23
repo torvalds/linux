@@ -4247,10 +4247,36 @@ static void cnic_init_bnx2x_rx_ring(struct cnic_dev *dev,
 	cp->rx_cons = *cp->rx_cons_ptr;
 }
 
+static int cnic_read_bnx2x_iscsi_mac(struct cnic_dev *dev, u32 upper_addr,
+				     u32 lower_addr)
+{
+	u32 val;
+	u8 mac[6];
+
+	val = CNIC_RD(dev, upper_addr);
+
+	mac[0] = (u8) (val >> 8);
+	mac[1] = (u8) val;
+
+	val = CNIC_RD(dev, lower_addr);
+
+	mac[2] = (u8) (val >> 24);
+	mac[3] = (u8) (val >> 16);
+	mac[4] = (u8) (val >> 8);
+	mac[5] = (u8) val;
+
+	if (is_valid_ether_addr(mac)) {
+		memcpy(dev->mac_addr, mac, 6);
+		return 0;
+	} else {
+		return -EINVAL;
+	}
+}
+
 static void cnic_get_bnx2x_iscsi_info(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
-	u32 base, base2, addr, val;
+	u32 base, base2, addr, addr1, val;
 	int port = CNIC_PORT(cp);
 
 	dev->max_iscsi_conn = 0;
@@ -4263,20 +4289,10 @@ static void cnic_get_bnx2x_iscsi_info(struct cnic_dev *dev)
 	addr = BNX2X_SHMEM_ADDR(base,
 		dev_info.port_hw_config[port].iscsi_mac_upper);
 
-	val = CNIC_RD(dev, addr);
-
-	dev->mac_addr[0] = (u8) (val >> 8);
-	dev->mac_addr[1] = (u8) val;
-
-	addr = BNX2X_SHMEM_ADDR(base,
+	addr1 = BNX2X_SHMEM_ADDR(base,
 		dev_info.port_hw_config[port].iscsi_mac_lower);
 
-	val = CNIC_RD(dev, addr);
-
-	dev->mac_addr[2] = (u8) (val >> 24);
-	dev->mac_addr[3] = (u8) (val >> 16);
-	dev->mac_addr[4] = (u8) (val >> 8);
-	dev->mac_addr[5] = (u8) val;
+	cnic_read_bnx2x_iscsi_mac(dev, addr, addr1);
 
 	addr = BNX2X_SHMEM_ADDR(base, validity_map[port]);
 	val = CNIC_RD(dev, addr);
@@ -4302,21 +4318,53 @@ static void cnic_get_bnx2x_iscsi_info(struct cnic_dev *dev)
 		else
 			mf_cfg_addr = base + BNX2X_SHMEM_MF_BLK_OFFSET;
 
-		addr = mf_cfg_addr +
-			offsetof(struct mf_cfg, func_mf_config[func].e1hov_tag);
+		if (BNX2X_CHIP_IS_E2(cp->chip_id)) {
+			/* Must determine if the MF is SD vs SI mode */
+			addr = BNX2X_SHMEM_ADDR(base,
+					dev_info.shared_feature_config.config);
+			val = CNIC_RD(dev, addr);
+			if ((val & SHARED_FEAT_CFG_FORCE_SF_MODE_MASK) ==
+			    SHARED_FEAT_CFG_FORCE_SF_MODE_SWITCH_INDEPT) {
+				int rc;
+
+				/* MULTI_FUNCTION_SI mode */
+				addr = BNX2X_MF_CFG_ADDR(mf_cfg_addr,
+					func_ext_config[func].func_cfg);
+				val = CNIC_RD(dev, addr);
+				if (!(val & MACP_FUNC_CFG_FLAGS_ISCSI_OFFLOAD))
+					dev->max_iscsi_conn = 0;
+
+				addr = BNX2X_MF_CFG_ADDR(mf_cfg_addr,
+					func_ext_config[func].
+					iscsi_mac_addr_upper);
+				addr1 = BNX2X_MF_CFG_ADDR(mf_cfg_addr,
+					func_ext_config[func].
+					iscsi_mac_addr_lower);
+				rc = cnic_read_bnx2x_iscsi_mac(dev, addr,
+								addr1);
+				if (rc && func > 1)
+					dev->max_iscsi_conn = 0;
+
+				return;
+			}
+		}
+
+		addr = BNX2X_MF_CFG_ADDR(mf_cfg_addr,
+			func_mf_config[func].e1hov_tag);
 
 		val = CNIC_RD(dev, addr);
 		val &= FUNC_MF_CFG_E1HOV_TAG_MASK;
 		if (val != FUNC_MF_CFG_E1HOV_TAG_DEFAULT) {
-			addr = mf_cfg_addr +
-				offsetof(struct mf_cfg,
-					 func_mf_config[func].config);
+			addr = BNX2X_MF_CFG_ADDR(mf_cfg_addr,
+				func_mf_config[func].config);
 			val = CNIC_RD(dev, addr);
 			val &= FUNC_MF_CFG_PROTOCOL_MASK;
 			if (val != FUNC_MF_CFG_PROTOCOL_ISCSI)
 				dev->max_iscsi_conn = 0;
 		}
 	}
+	if (!is_valid_ether_addr(dev->mac_addr))
+		dev->max_iscsi_conn = 0;
 }
 
 static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
