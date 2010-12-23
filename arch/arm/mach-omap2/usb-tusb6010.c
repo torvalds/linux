@@ -216,6 +216,7 @@ static struct resource tusb_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{ /* IRQ */
+		.name	= "mc",
 		.flags	= IORESOURCE_IRQ,
 	},
 };
