@@ -32,8 +32,6 @@ extern const u32 bna_napi_dim_vector[][BNA_BIAS_T_MAX];
 /* Log string size */
 #define BNA_MESSAGE_SIZE		256
 
-#define bna_device_timer(_dev)		bfa_timer_beat(&((_dev)->timer_mod))
-
 /* MBOX API for PORT, TX, RX */
 #define bna_mbox_qe_fill(_qe, _cmd, _cmd_len, _cbfn, _cbarg)		\
 do {									\

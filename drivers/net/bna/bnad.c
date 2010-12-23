@@ -1425,13 +1425,24 @@ bnad_ioc_hb_check(unsigned long data)
 }
 
 static void
-bnad_ioc_sem_timeout(unsigned long data)
+bnad_iocpf_timeout(unsigned long data)
 {
 	struct bnad *bnad = (struct bnad *)data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
-	bfa_nw_ioc_sem_timeout((void *) &bnad->bna.device.ioc);
+	bfa_nw_iocpf_timeout((void *) &bnad->bna.device.ioc);
+	spin_unlock_irqrestore(&bnad->bna_lock, flags);
+}
+
+static void
+bnad_iocpf_sem_timeout(unsigned long data)
+{
+	struct bnad *bnad = (struct bnad *)data;
+	unsigned long flags;
+
+	spin_lock_irqsave(&bnad->bna_lock, flags);
+	bfa_nw_iocpf_sem_timeout((void *) &bnad->bna.device.ioc);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }
 
@@ -3132,11 +3143,13 @@ bnad_pci_probe(struct pci_dev *pdev,
 				((unsigned long)bnad));
 	setup_timer(&bnad->bna.device.ioc.hb_timer, bnad_ioc_hb_check,
 				((unsigned long)bnad));
-	setup_timer(&bnad->bna.device.ioc.sem_timer, bnad_ioc_sem_timeout,
+	setup_timer(&bnad->bna.device.ioc.iocpf_timer, bnad_iocpf_timeout,
+				((unsigned long)bnad));
+	setup_timer(&bnad->bna.device.ioc.sem_timer, bnad_iocpf_sem_timeout,
 				((unsigned long)bnad));
 
 	/* Now start the timer before calling IOC */
-	mod_timer(&bnad->bna.device.ioc.ioc_timer,
+	mod_timer(&bnad->bna.device.ioc.iocpf_timer,
 		  jiffies + msecs_to_jiffies(BNA_IOC_TIMER_FREQ));
 
 	/*
