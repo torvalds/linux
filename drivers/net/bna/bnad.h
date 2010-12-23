@@ -51,6 +51,7 @@
  */
 struct bnad_rx_ctrl {
 	struct bna_ccb *ccb;
+	unsigned long  flags;
 	struct napi_struct	napi;
 };
 
@@ -82,6 +83,7 @@ struct bnad_rx_ctrl {
 
 /* Bit positions for tcb->flags */
 #define BNAD_TXQ_FREE_SENT		0
+#define BNAD_TXQ_TX_STARTED		1
 
 /* Bit positions for rcb->flags */
 #define BNAD_RXQ_REFILL			0
@@ -199,12 +201,12 @@ struct bnad_unmap_q {
 /* Set, tested & cleared using xxx_bit() functions */
 /* Values indicated bit positions */
 #define	BNAD_RF_CEE_RUNNING		1
-#define BNAD_RF_HW_ERROR 		2
-#define BNAD_RF_MBOX_IRQ_DISABLED	3
-#define BNAD_RF_TX_STARTED		4
-#define BNAD_RF_RX_STARTED		5
-#define BNAD_RF_DIM_TIMER_RUNNING	6
-#define BNAD_RF_STATS_TIMER_RUNNING	7
+#define BNAD_RF_MBOX_IRQ_DISABLED	2
+#define BNAD_RF_RX_STARTED		3
+#define BNAD_RF_DIM_TIMER_RUNNING	4
+#define BNAD_RF_STATS_TIMER_RUNNING	5
+#define BNAD_RF_TX_SHUTDOWN_DELAYED	6
+#define BNAD_RF_RX_SHUTDOWN_DELAYED	7
 
 struct bnad {
 	struct net_device 	*netdev;
@@ -320,9 +322,11 @@ extern void bnad_netdev_hwstats_fill(struct bnad *bnad, struct rtnl_link_stats64
 
 #define bnad_enable_rx_irq_unsafe(_ccb)			\
 {							\
-	bna_ib_coalescing_timer_set((_ccb)->i_dbell,	\
-		(_ccb)->rx_coalescing_timeo);		\
-	bna_ib_ack((_ccb)->i_dbell, 0);			\
+	if (likely(test_bit(BNAD_RXQ_STARTED, &ccb->rcb[0]->flags))) {\
+		bna_ib_coalescing_timer_set((_ccb)->i_dbell,	\
+			(_ccb)->rx_coalescing_timeo);		\
+		bna_ib_ack((_ccb)->i_dbell, 0);			\
+	}							\
 }
 
 #define bnad_dim_timer_running(_bnad)				\
