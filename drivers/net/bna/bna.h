@@ -390,8 +390,8 @@ void bna_mbox_send(struct bna *bna, struct bna_mbox_qe *mbox_qe);
 
 /* API for RX */
 int bna_port_mtu_get(struct bna_port *port);
-void bna_llport_admin_up(struct bna_llport *llport);
-void bna_llport_admin_down(struct bna_llport *llport);
+void bna_llport_rx_started(struct bna_llport *llport);
+void bna_llport_rx_stopped(struct bna_llport *llport);
 
 /* API for BNAD */
 void bna_port_enable(struct bna_port *port);

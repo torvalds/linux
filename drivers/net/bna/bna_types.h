@@ -249,8 +249,9 @@ enum bna_link_status {
 };
 
 enum bna_llport_flags {
-	BNA_LLPORT_F_ENABLED 	= 1,
-	BNA_LLPORT_F_RX_ENABLED	= 2
+	BNA_LLPORT_F_ADMIN_UP	 	= 1,
+	BNA_LLPORT_F_PORT_ENABLED	= 2,
+	BNA_LLPORT_F_RX_STARTED		= 4
 };
 
 enum bna_port_flags {
@@ -405,7 +406,7 @@ struct bna_llport {
 
 	enum bna_link_status link_status;
 
-	int			admin_up_count;
+	int			rx_started_count;
 
 	void (*stop_cbfn)(struct bna_port *, enum bna_cb_status);
 

@@ -59,14 +59,70 @@ bna_port_cb_link_down(struct bna_port *port, int status)
 	port->link_cbfn(port->bna->bnad, BNA_LINK_DOWN);
 }
 
+static inline int
+llport_can_be_up(struct bna_llport *llport)
+{
+	int ready = 0;
+	if (llport->type == BNA_PORT_T_REGULAR)
+		ready = ((llport->flags & BNA_LLPORT_F_ADMIN_UP) &&
+			 (llport->flags & BNA_LLPORT_F_RX_STARTED) &&
+			 (llport->flags & BNA_LLPORT_F_PORT_ENABLED));
+	else
+		ready = ((llport->flags & BNA_LLPORT_F_ADMIN_UP) &&
+			 (llport->flags & BNA_LLPORT_F_RX_STARTED) &&
+			 !(llport->flags & BNA_LLPORT_F_PORT_ENABLED));
+	return ready;
+}
+
+#define llport_is_up llport_can_be_up
+
+enum bna_llport_event {
+	LLPORT_E_START			= 1,
+	LLPORT_E_STOP			= 2,
+	LLPORT_E_FAIL			= 3,
+	LLPORT_E_UP			= 4,
+	LLPORT_E_DOWN			= 5,
+	LLPORT_E_FWRESP_UP_OK		= 6,
+	LLPORT_E_FWRESP_UP_FAIL		= 7,
+	LLPORT_E_FWRESP_DOWN		= 8
+};
+
+static void
+bna_llport_cb_port_enabled(struct bna_llport *llport)
+{
+	llport->flags |= BNA_LLPORT_F_PORT_ENABLED;
+
+	if (llport_can_be_up(llport))
+		bfa_fsm_send_event(llport, LLPORT_E_UP);
+}
+
+static void
+bna_llport_cb_port_disabled(struct bna_llport *llport)
+{
+	int llport_up = llport_is_up(llport);
+
+	llport->flags &= ~BNA_LLPORT_F_PORT_ENABLED;
+
+	if (llport_up)
+		bfa_fsm_send_event(llport, LLPORT_E_DOWN);
+}
+
 /**
  * MBOX
  */
 static int
 bna_is_aen(u8 msg_id)
 {
-	return msg_id == BFI_LL_I2H_LINK_DOWN_AEN ||
-	       msg_id == BFI_LL_I2H_LINK_UP_AEN;
+	switch (msg_id) {
+	case BFI_LL_I2H_LINK_DOWN_AEN:
+	case BFI_LL_I2H_LINK_UP_AEN:
+	case BFI_LL_I2H_PORT_ENABLE_AEN:
+	case BFI_LL_I2H_PORT_DISABLE_AEN:
+		return 1;
+
+	default:
+		return 0;
+	}
 }
 
 static void
@@ -80,6 +136,12 @@ bna_mbox_aen_callback(struct bna *bna, struct bfi_mbmsg *msg)
 		break;
 	case BFI_LL_I2H_LINK_DOWN_AEN:
 		bna_port_cb_link_down(&bna->port, aen->reason);
+		break;
+	case BFI_LL_I2H_PORT_ENABLE_AEN:
+		bna_llport_cb_port_enabled(&bna->port.llport);
+		break;
+	case BFI_LL_I2H_PORT_DISABLE_AEN:
+		bna_llport_cb_port_disabled(&bna->port.llport);
 		break;
 	default:
 		break;
@@ -251,16 +313,6 @@ static void bna_llport_start(struct bna_llport *llport);
 static void bna_llport_stop(struct bna_llport *llport);
 static void bna_llport_fail(struct bna_llport *llport);
 
-enum bna_llport_event {
-	LLPORT_E_START			= 1,
-	LLPORT_E_STOP			= 2,
-	LLPORT_E_FAIL			= 3,
-	LLPORT_E_UP			= 4,
-	LLPORT_E_DOWN			= 5,
-	LLPORT_E_FWRESP_UP		= 6,
-	LLPORT_E_FWRESP_DOWN		= 7
-};
-
 enum bna_llport_state {
 	BNA_LLPORT_STOPPED		= 1,
 	BNA_LLPORT_DOWN			= 2,
@@ -320,7 +372,7 @@ bna_llport_sm_stopped(struct bna_llport *llport,
 		/* No-op */
 		break;
 
-	case LLPORT_E_FWRESP_UP:
+	case LLPORT_E_FWRESP_UP_OK:
 	case LLPORT_E_FWRESP_DOWN:
 		/**
 		 * These events are received due to flushing of mbox when
@@ -366,6 +418,7 @@ bna_llport_sm_down(struct bna_llport *llport,
 static void
 bna_llport_sm_up_resp_wait_entry(struct bna_llport *llport)
 {
+	BUG_ON(!llport_can_be_up(llport));
 	/**
 	 * NOTE: Do not call bna_fw_llport_up() here. That will over step
 	 * mbox due to down_resp_wait -> up_resp_wait transition on event
@@ -390,8 +443,12 @@ bna_llport_sm_up_resp_wait(struct bna_llport *llport,
 		bfa_fsm_set_state(llport, bna_llport_sm_down_resp_wait);
 		break;
 
-	case LLPORT_E_FWRESP_UP:
+	case LLPORT_E_FWRESP_UP_OK:
 		bfa_fsm_set_state(llport, bna_llport_sm_up);
+		break;
+
+	case LLPORT_E_FWRESP_UP_FAIL:
+		bfa_fsm_set_state(llport, bna_llport_sm_down);
 		break;
 
 	case LLPORT_E_FWRESP_DOWN:
@@ -431,11 +488,12 @@ bna_llport_sm_down_resp_wait(struct bna_llport *llport,
 		bfa_fsm_set_state(llport, bna_llport_sm_up_resp_wait);
 		break;
 
-	case LLPORT_E_FWRESP_UP:
+	case LLPORT_E_FWRESP_UP_OK:
 		/* up_resp_wait->down_resp_wait transition on LLPORT_E_DOWN */
 		bna_fw_llport_down(llport);
 		break;
 
+	case LLPORT_E_FWRESP_UP_FAIL:
 	case LLPORT_E_FWRESP_DOWN:
 		bfa_fsm_set_state(llport, bna_llport_sm_down);
 		break;
@@ -496,11 +554,12 @@ bna_llport_sm_last_resp_wait(struct bna_llport *llport,
 		/* No-op */
 		break;
 
-	case LLPORT_E_FWRESP_UP:
+	case LLPORT_E_FWRESP_UP_OK:
 		/* up_resp_wait->last_resp_wait transition on LLPORT_T_STOP */
 		bna_fw_llport_down(llport);
 		break;
 
+	case LLPORT_E_FWRESP_UP_FAIL:
 	case LLPORT_E_FWRESP_DOWN:
 		bfa_fsm_set_state(llport, bna_llport_sm_stopped);
 		break;
@@ -541,7 +600,14 @@ bna_fw_cb_llport_up(void *arg, int status)
 	struct bna_llport *llport = (struct bna_llport *)arg;
 
 	bfa_q_qe_init(&llport->mbox_qe.qe);
-	bfa_fsm_send_event(llport, LLPORT_E_FWRESP_UP);
+	if (status == BFI_LL_CMD_FAIL) {
+		if (llport->type == BNA_PORT_T_REGULAR)
+			llport->flags &= ~BNA_LLPORT_F_PORT_ENABLED;
+		else
+			llport->flags &= ~BNA_LLPORT_F_ADMIN_UP;
+		bfa_fsm_send_event(llport, LLPORT_E_FWRESP_UP_FAIL);
+	} else
+		bfa_fsm_send_event(llport, LLPORT_E_FWRESP_UP_OK);
 }
 
 static void
@@ -588,13 +654,14 @@ bna_port_cb_llport_stopped(struct bna_port *port,
 static void
 bna_llport_init(struct bna_llport *llport, struct bna *bna)
 {
-	llport->flags |= BNA_LLPORT_F_ENABLED;
+	llport->flags |= BNA_LLPORT_F_ADMIN_UP;
+	llport->flags |= BNA_LLPORT_F_PORT_ENABLED;
 	llport->type = BNA_PORT_T_REGULAR;
 	llport->bna = bna;
 
 	llport->link_status = BNA_LINK_DOWN;
 
-	llport->admin_up_count = 0;
+	llport->rx_started_count = 0;
 
 	llport->stop_cbfn = NULL;
 
@@ -606,7 +673,8 @@ bna_llport_init(struct bna_llport *llport, struct bna *bna)
 static void
 bna_llport_uninit(struct bna_llport *llport)
 {
-	llport->flags &= ~BNA_LLPORT_F_ENABLED;
+	llport->flags &= ~BNA_LLPORT_F_ADMIN_UP;
+	llport->flags &= ~BNA_LLPORT_F_PORT_ENABLED;
 
 	llport->bna = NULL;
 }
@@ -628,6 +696,8 @@ bna_llport_stop(struct bna_llport *llport)
 static void
 bna_llport_fail(struct bna_llport *llport)
 {
+	/* Reset the physical port status to enabled */
+	llport->flags |= BNA_LLPORT_F_PORT_ENABLED;
 	bfa_fsm_send_event(llport, LLPORT_E_FAIL);
 }
 
@@ -638,25 +708,31 @@ bna_llport_state_get(struct bna_llport *llport)
 }
 
 void
-bna_llport_admin_up(struct bna_llport *llport)
+bna_llport_rx_started(struct bna_llport *llport)
 {
-	llport->admin_up_count++;
+	llport->rx_started_count++;
 
-	if (llport->admin_up_count == 1) {
-		llport->flags |= BNA_LLPORT_F_RX_ENABLED;
-		if (llport->flags & BNA_LLPORT_F_ENABLED)
+	if (llport->rx_started_count == 1) {
+
+		llport->flags |= BNA_LLPORT_F_RX_STARTED;
+
+		if (llport_can_be_up(llport))
 			bfa_fsm_send_event(llport, LLPORT_E_UP);
 	}
 }
 
 void
-bna_llport_admin_down(struct bna_llport *llport)
+bna_llport_rx_stopped(struct bna_llport *llport)
 {
-	llport->admin_up_count--;
+	int llport_up = llport_is_up(llport);
 
-	if (llport->admin_up_count == 0) {
-		llport->flags &= ~BNA_LLPORT_F_RX_ENABLED;
-		if (llport->flags & BNA_LLPORT_F_ENABLED)
+	llport->rx_started_count--;
+
+	if (llport->rx_started_count == 0) {
+
+		llport->flags &= ~BNA_LLPORT_F_RX_STARTED;
+
+		if (llport_up)
 			bfa_fsm_send_event(llport, LLPORT_E_DOWN);
 	}
 }

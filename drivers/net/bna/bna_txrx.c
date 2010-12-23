@@ -1947,7 +1947,7 @@ bna_rx_sm_started_entry(struct bna_rx *rx)
 		bna_ib_ack(&rxp->cq.ib->door_bell, 0);
 	}
 
-	bna_llport_admin_up(&rx->bna->port.llport);
+	bna_llport_rx_started(&rx->bna->port.llport);
 }
 
 void
@@ -1955,13 +1955,13 @@ bna_rx_sm_started(struct bna_rx *rx, enum bna_rx_event event)
 {
 	switch (event) {
 	case RX_E_FAIL:
-		bna_llport_admin_down(&rx->bna->port.llport);
+		bna_llport_rx_stopped(&rx->bna->port.llport);
 		bfa_fsm_set_state(rx, bna_rx_sm_stopped);
 		rx_ib_fail(rx);
 		bna_rxf_fail(&rx->rxf);
 		break;
 	case RX_E_STOP:
-		bna_llport_admin_down(&rx->bna->port.llport);
+		bna_llport_rx_stopped(&rx->bna->port.llport);
 		bfa_fsm_set_state(rx, bna_rx_sm_rxf_stop_wait);
 		break;
 	default:
@@ -3373,7 +3373,7 @@ __bna_txq_start(struct bna_tx *tx, struct bna_txq *txq)
 
 	txq_cfg.cns_ptr2_n_q_state = BNA_Q_IDLE_STATE;
 	txq_cfg.nxt_qid_n_fid_n_pri = (((tx->txf.txf_id & 0x3f) << 3) |
-			(txq->priority & 0x3));
+			(txq->priority & 0x7));
 	txq_cfg.wvc_n_cquota_n_rquota =
 			((((u32)BFI_TX_MAX_WRR_QUOTA & 0xfff) << 12) |
 			(BFI_TX_MAX_WRR_QUOTA & 0xfff));
