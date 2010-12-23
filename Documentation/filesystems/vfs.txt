@@ -534,6 +534,7 @@ struct address_space_operations {
 	sector_t (*bmap)(struct address_space *, sector_t);
 	int (*invalidatepage) (struct page *, unsigned long);
 	int (*releasepage) (struct page *, int);
+	void (*freepage)(struct page *);
 	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs);
 	struct page* (*get_xip_page)(struct address_space *, sector_t,
@@ -660,11 +661,10 @@ struct address_space_operations {
   releasepage: releasepage is called on PagePrivate pages to indicate
         that the page should be freed if possible.  ->releasepage
         should remove any private data from the page and clear the
-        PagePrivate flag.  It may also remove the page from the
-        address_space.  If this fails for some reason, it may indicate
-        failure with a 0 return value.
-	This is used in two distinct though related cases.  The first
-        is when the VM finds a clean page with no active users and
+        PagePrivate flag. If releasepage() fails for some reason, it must
+	indicate failure with a 0 return value.
+	releasepage() is used in two distinct though related cases.  The
+	first is when the VM finds a clean page with no active users and
         wants to make it a free page.  If ->releasepage succeeds, the
         page will be removed from the address_space and become free.
 
@@ -678,6 +678,12 @@ struct address_space_operations {
         that all pages are invalidated, then its releasepage will
         need to ensure this.  Possibly it can clear the PageUptodate
         bit if it cannot free private data yet.
+
+  freepage: freepage is called once the page is no longer visible in
+        the page cache in order to allow the cleanup of any private
+	data. Since it may be called by the memory reclaimer, it
+	should not assume that the original address_space mapping still
+	exists, and it should not block.
 
   direct_IO: called by the generic read/write routines to perform
         direct_IO - that is IO requests which bypass the page cache

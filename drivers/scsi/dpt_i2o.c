@@ -423,7 +423,7 @@ static int adpt_slave_configure(struct scsi_device * device)
 	return 0;
 }
 
-static int adpt_queue(struct scsi_cmnd * cmd, void (*done) (struct scsi_cmnd *))
+static int adpt_queue_lck(struct scsi_cmnd * cmd, void (*done) (struct scsi_cmnd *))
 {
 	adpt_hba* pHba = NULL;
 	struct adpt_device* pDev = NULL;	/* dpt per device information */
@@ -490,6 +490,8 @@ static int adpt_queue(struct scsi_cmnd * cmd, void (*done) (struct scsi_cmnd *))
 	}
 	return adpt_scsi_to_i2o(pHba, cmd, pDev);
 }
+
+static DEF_SCSI_QCMD(adpt_queue)
 
 static int adpt_bios_param(struct scsi_device *sdev, struct block_device *dev,
 		sector_t capacity, int geom[])

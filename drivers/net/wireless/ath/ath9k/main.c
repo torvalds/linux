@@ -15,7 +15,6 @@
  */
 
 #include <linux/nl80211.h>
-#include <linux/pm_qos_params.h>
 #include "ath9k.h"
 #include "btcoex.h"
 
@@ -245,11 +244,12 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	 * the relevant bits of the h/w.
 	 */
 	ath9k_hw_set_interrupts(ah, 0);
-	ath_drain_all_txq(sc, false);
+	stopped = ath_drain_all_txq(sc, false);
 
 	spin_lock_bh(&sc->rx.pcu_lock);
 
-	stopped = ath_stoprecv(sc);
+	if (!ath_stoprecv(sc))
+		stopped = false;
 
 	/* XXX: do not flush receive queue here. We don't want
 	 * to flush data frames already in queue because of
@@ -1244,7 +1244,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 			ath9k_btcoex_timer_resume(sc);
 	}
 
-	pm_qos_update_request(&ath9k_pm_qos_req, 55);
+	pm_qos_update_request(&sc->pm_qos_req, 55);
 
 mutex_unlock:
 	mutex_unlock(&sc->mutex);
@@ -1423,7 +1423,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	sc->sc_flags |= SC_OP_INVALID;
 
-	pm_qos_update_request(&ath9k_pm_qos_req, PM_QOS_DEFAULT_VALUE);
+	pm_qos_update_request(&sc->pm_qos_req, PM_QOS_DEFAULT_VALUE);
 
 	mutex_unlock(&sc->mutex);
 
@@ -1520,7 +1520,6 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	struct ath_softc *sc = aphy->sc;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
-	int i;
 
 	ath_print(common, ATH_DBG_CONFIG, "Detach Interface\n");
 
@@ -1534,21 +1533,24 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	if ((sc->sc_ah->opmode == NL80211_IFTYPE_AP) ||
 	    (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC) ||
 	    (sc->sc_ah->opmode == NL80211_IFTYPE_MESH_POINT)) {
+		/* Disable SWBA interrupt */
+		sc->sc_ah->imask &= ~ATH9K_INT_SWBA;
 		ath9k_ps_wakeup(sc);
+		ath9k_hw_set_interrupts(sc->sc_ah, sc->sc_ah->imask);
 		ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
 		ath9k_ps_restore(sc);
+		tasklet_kill(&sc->bcon_tasklet);
 	}
 
 	ath_beacon_return(sc, avp);
 	sc->sc_flags &= ~SC_OP_BEACONS;
 
-	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++) {
-		if (sc->beacon.bslot[i] == vif) {
-			printk(KERN_DEBUG "%s: vif had allocated beacon "
-			       "slot\n", __func__);
-			sc->beacon.bslot[i] = NULL;
-			sc->beacon.bslot_aphy[i] = NULL;
-		}
+	if (sc->nbcnvifs) {
+		/* Re-enable SWBA interrupt */
+		sc->sc_ah->imask |= ATH9K_INT_SWBA;
+		ath9k_ps_wakeup(sc);
+		ath9k_hw_set_interrupts(sc->sc_ah, sc->sc_ah->imask);
+		ath9k_ps_restore(sc);
 	}
 
 	sc->nvifs--;

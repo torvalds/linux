@@ -494,9 +494,16 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
 		spin_unlock_irq(&mapping->tree_lock);
 		swapcache_free(swap, page);
 	} else {
+		void (*freepage)(struct page *);
+
+		freepage = mapping->a_ops->freepage;
+
 		__remove_from_page_cache(page);
 		spin_unlock_irq(&mapping->tree_lock);
 		mem_cgroup_uncharge_cache_page(page);
+
+		if (freepage != NULL)
+			freepage(page);
 	}
 
 	return 1;

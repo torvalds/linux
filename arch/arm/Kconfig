@@ -9,7 +9,7 @@ config ARM
 	select GENERIC_ATOMIC64 if (!CPU_32v6K || !AEABI)
 	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
 	select HAVE_ARCH_KGDB
-	select HAVE_KPROBES if (!XIP_KERNEL)
+	select HAVE_KPROBES if (!XIP_KERNEL && !THUMB2_KERNEL)
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	select HAVE_FUNCTION_TRACER if (!XIP_KERNEL)
 	select HAVE_FTRACE_MCOUNT_RECORD if (!XIP_KERNEL)
@@ -1311,7 +1311,7 @@ config HZ
 
 config THUMB2_KERNEL
 	bool "Compile the kernel in Thumb-2 mode"
-	depends on CPU_V7 && EXPERIMENTAL
+	depends on CPU_V7 && !CPU_V6 && EXPERIMENTAL
 	select AEABI
 	select ARM_ASM_UNIFIED
 	help
@@ -1759,7 +1759,7 @@ comment "At least one emulation must be selected"
 
 config FPE_NWFPE
 	bool "NWFPE math emulation"
-	depends on !AEABI || OABI_COMPAT
+	depends on (!AEABI || OABI_COMPAT) && !THUMB2_KERNEL
 	---help---
 	  Say Y to include the NWFPE floating point emulator in the kernel.
 	  This is necessary to run most binaries. Linux does not currently

@@ -1775,7 +1775,7 @@ static const struct v4l2_file_operations cafe_v4l_fops = {
 	.read = cafe_v4l_read,
 	.poll = cafe_v4l_poll,
 	.mmap = cafe_v4l_mmap,
-	.ioctl = video_ioctl2,
+	.unlocked_ioctl = video_ioctl2,
 };
 
 static const struct v4l2_ioctl_ops cafe_v4l_ioctl_ops = {
@@ -2066,8 +2066,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 
 	cam->sensor_addr = 0x42;
 	cam->sensor = v4l2_i2c_new_subdev_cfg(&cam->v4l2_dev, &cam->i2c_adapter,
-			"ov7670", "ov7670", 0, &sensor_cfg, cam->sensor_addr,
-			NULL);
+			"ov7670", 0, &sensor_cfg, cam->sensor_addr, NULL);
 	if (cam->sensor == NULL) {
 		ret = -ENODEV;
 		goto out_smbus;

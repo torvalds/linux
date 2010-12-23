@@ -2,6 +2,9 @@
 
 #ifndef SYS_DEF_H
 #define SYS_DEF_H
+
+#include <linux/delay.h>
+
 #define WB_LINUX
 #define WB_LINUX_WPA_PSK
 

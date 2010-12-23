@@ -371,10 +371,15 @@ static void md_end_flush(struct bio *bio, int err)
 	bio_put(bio);
 }
 
-static void submit_flushes(mddev_t *mddev)
+static void md_submit_flush_data(struct work_struct *ws);
+
+static void submit_flushes(struct work_struct *ws)
 {
+	mddev_t *mddev = container_of(ws, mddev_t, flush_work);
 	mdk_rdev_t *rdev;
 
+	INIT_WORK(&mddev->flush_work, md_submit_flush_data);
+	atomic_set(&mddev->flush_pending, 1);
 	rcu_read_lock();
 	list_for_each_entry_rcu(rdev, &mddev->disks, same_set)
 		if (rdev->raid_disk >= 0 &&
@@ -397,14 +402,14 @@ static void submit_flushes(mddev_t *mddev)
 			rdev_dec_pending(rdev, mddev);
 		}
 	rcu_read_unlock();
+	if (atomic_dec_and_test(&mddev->flush_pending))
+		queue_work(md_wq, &mddev->flush_work);
 }
 
 static void md_submit_flush_data(struct work_struct *ws)
 {
 	mddev_t *mddev = container_of(ws, mddev_t, flush_work);
 	struct bio *bio = mddev->flush_bio;
-
-	atomic_set(&mddev->flush_pending, 1);
 
 	if (bio->bi_size == 0)
 		/* an empty barrier - all done */
@@ -414,10 +419,9 @@ static void md_submit_flush_data(struct work_struct *ws)
 		if (mddev->pers->make_request(mddev, bio))
 			generic_make_request(bio);
 	}
-	if (atomic_dec_and_test(&mddev->flush_pending)) {
-		mddev->flush_bio = NULL;
-		wake_up(&mddev->sb_wait);
-	}
+
+	mddev->flush_bio = NULL;
+	wake_up(&mddev->sb_wait);
 }
 
 void md_flush_request(mddev_t *mddev, struct bio *bio)
@@ -429,13 +433,8 @@ void md_flush_request(mddev_t *mddev, struct bio *bio)
 	mddev->flush_bio = bio;
 	spin_unlock_irq(&mddev->write_lock);
 
-	atomic_set(&mddev->flush_pending, 1);
-	INIT_WORK(&mddev->flush_work, md_submit_flush_data);
-
-	submit_flushes(mddev);
-
-	if (atomic_dec_and_test(&mddev->flush_pending))
-		queue_work(md_wq, &mddev->flush_work);
+	INIT_WORK(&mddev->flush_work, submit_flushes);
+	queue_work(md_wq, &mddev->flush_work);
 }
 EXPORT_SYMBOL(md_flush_request);
 
@@ -1337,7 +1336,7 @@ super_90_rdev_size_change(mdk_rdev_t *rdev, sector_t num_sectors)
 	md_super_write(rdev->mddev, rdev, rdev->sb_start, rdev->sb_size,
 		       rdev->sb_page);
 	md_super_wait(rdev->mddev);
-	return num_sectors / 2; /* kB for sysfs */
+	return num_sectors;
 }
 
 
@@ -1704,7 +1703,7 @@ super_1_rdev_size_change(mdk_rdev_t *rdev, sector_t num_sectors)
 	md_super_write(rdev->mddev, rdev, rdev->sb_start, rdev->sb_size,
 		       rdev->sb_page);
 	md_super_wait(rdev->mddev);
-	return num_sectors / 2; /* kB for sysfs */
+	return num_sectors;
 }
 
 static struct super_type super_types[] = {
@@ -4296,9 +4295,6 @@ static int md_alloc(dev_t dev, char *name)
 		goto abort;
 	mddev->queue->queuedata = mddev;
 
-	/* Can be unlocked because the queue is new: no concurrency */
-	queue_flag_set_unlocked(QUEUE_FLAG_CLUSTER, mddev->queue);
-
 	blk_queue_make_request(mddev->queue, md_make_request);
 
 	disk = alloc_disk(1 << shift);
@@ -4338,6 +4334,8 @@ static int md_alloc(dev_t dev, char *name)
 	if (mddev->kobj.sd &&
 	    sysfs_create_group(&mddev->kobj, &md_bitmap_group))
 		printk(KERN_DEBUG "pointless warning\n");
+
+	blk_queue_flush(mddev->queue, REQ_FLUSH | REQ_FUA);
  abort:
 	mutex_unlock(&disks_mutex);
 	if (!error && mddev->kobj.sd) {
@@ -5158,7 +5156,7 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 				PTR_ERR(rdev));
 			return PTR_ERR(rdev);
 		}
-		/* set save_raid_disk if appropriate */
+		/* set saved_raid_disk if appropriate */
 		if (!mddev->persistent) {
 			if (info->state & (1<<MD_DISK_SYNC)  &&
 			    info->raid_disk < mddev->raid_disks)
@@ -5168,7 +5166,10 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		} else
 			super_types[mddev->major_version].
 				validate_super(mddev, rdev);
-		rdev->saved_raid_disk = rdev->raid_disk;
+		if (test_bit(In_sync, &rdev->flags))
+			rdev->saved_raid_disk = rdev->raid_disk;
+		else
+			rdev->saved_raid_disk = -1;
 
 		clear_bit(In_sync, &rdev->flags); /* just to be sure */
 		if (info->state & (1<<MD_DISK_WRITEMOSTLY))
@@ -6040,9 +6041,8 @@ static int md_thread(void * arg)
 			 || kthread_should_stop(),
 			 thread->timeout);
 
-		clear_bit(THREAD_WAKEUP, &thread->flags);
-
-		thread->run(thread->mddev);
+		if (test_and_clear_bit(THREAD_WAKEUP, &thread->flags))
+			thread->run(thread->mddev);
 	}
 
 	return 0;

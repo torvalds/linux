@@ -156,23 +156,25 @@ static int init_ring_common(struct drm_device *dev,
 
 	/* G45 ring initialization fails to reset head to zero */
 	if (head != 0) {
-		DRM_ERROR("%s head not reset to zero "
-				"ctl %08x head %08x tail %08x start %08x\n",
-				ring->name,
-				I915_READ_CTL(ring),
-				I915_READ_HEAD(ring),
-				I915_READ_TAIL(ring),
-				I915_READ_START(ring));
+		DRM_DEBUG_KMS("%s head not reset to zero "
+			      "ctl %08x head %08x tail %08x start %08x\n",
+			      ring->name,
+			      I915_READ_CTL(ring),
+			      I915_READ_HEAD(ring),
+			      I915_READ_TAIL(ring),
+			      I915_READ_START(ring));
 
 		I915_WRITE_HEAD(ring, 0);
 
-		DRM_ERROR("%s head forced to zero "
-				"ctl %08x head %08x tail %08x start %08x\n",
-				ring->name,
-				I915_READ_CTL(ring),
-				I915_READ_HEAD(ring),
-				I915_READ_TAIL(ring),
-				I915_READ_START(ring));
+		if (I915_READ_HEAD(ring) & HEAD_ADDR) {
+			DRM_ERROR("failed to set %s head to zero "
+				  "ctl %08x head %08x tail %08x start %08x\n",
+				  ring->name,
+				  I915_READ_CTL(ring),
+				  I915_READ_HEAD(ring),
+				  I915_READ_TAIL(ring),
+				  I915_READ_START(ring));
+		}
 	}
 
 	I915_WRITE_CTL(ring,

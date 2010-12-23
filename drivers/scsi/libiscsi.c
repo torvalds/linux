@@ -1599,7 +1599,7 @@ enum {
 	FAILURE_SESSION_NOT_READY,
 };
 
-int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
+static int iscsi_queuecommand_lck(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 {
 	struct iscsi_cls_session *cls_session;
 	struct Scsi_Host *host;
@@ -1736,6 +1736,8 @@ fault:
 	spin_lock(host->host_lock);
 	return 0;
 }
+
+DEF_SCSI_QCMD(iscsi_queuecommand)
 EXPORT_SYMBOL_GPL(iscsi_queuecommand);
 
 int iscsi_change_queue_depth(struct scsi_device *sdev, int depth, int reason)

@@ -298,8 +298,8 @@ static void eeepc_wmi_notify(u32 value, void *context)
 	kfree(obj);
 }
 
-static int store_cpufv(struct device *dev, struct device_attribute *attr,
-		       const char *buf, size_t count)
+static ssize_t store_cpufv(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
 {
 	int value;
 	struct acpi_buffer input = { (acpi_size)sizeof(value), &value };

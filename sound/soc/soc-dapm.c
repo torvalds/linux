@@ -683,12 +683,12 @@ static int dapm_seq_compare(struct snd_soc_dapm_widget *a,
 			    struct snd_soc_dapm_widget *b,
 			    int sort[])
 {
-	if (a->codec != b->codec)
-		return (unsigned long)a - (unsigned long)b;
 	if (sort[a->id] != sort[b->id])
 		return sort[a->id] - sort[b->id];
 	if (a->reg != b->reg)
 		return a->reg - b->reg;
+	if (a->codec != b->codec)
+		return (unsigned long)a->codec - (unsigned long)b->codec;
 
 	return 0;
 }
@@ -943,6 +943,9 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 		case SND_SOC_DAPM_STREAM_START:
 		case SND_SOC_DAPM_STREAM_RESUME:
 			sys_power = 1;
+			break;
+		case SND_SOC_DAPM_STREAM_STOP:
+			sys_power = !!codec->active;
 			break;
 		case SND_SOC_DAPM_STREAM_SUSPEND:
 			sys_power = 0;

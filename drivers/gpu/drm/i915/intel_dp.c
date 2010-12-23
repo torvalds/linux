@@ -584,17 +584,6 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		mode->clock = dev_priv->panel_fixed_mode->clock;
 	}
 
-	/* Just use VBT values for eDP */
-	if (is_edp(intel_dp)) {
-		intel_dp->lane_count = dev_priv->edp.lanes;
-		intel_dp->link_bw = dev_priv->edp.rate;
-		adjusted_mode->clock = intel_dp_link_clock(intel_dp->link_bw);
-		DRM_DEBUG_KMS("eDP link bw %02x lane count %d clock %d\n",
-			      intel_dp->link_bw, intel_dp->lane_count,
-			      adjusted_mode->clock);
-		return true;
-	}
-
 	for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
 		for (clock = 0; clock <= max_clock; clock++) {
 			int link_avail = intel_dp_max_data_rate(intel_dp_link_clock(bws[clock]), lane_count);
@@ -611,6 +600,19 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 				return true;
 			}
 		}
+	}
+
+	if (is_edp(intel_dp)) {
+		/* okay we failed just pick the highest */
+		intel_dp->lane_count = max_lane_count;
+		intel_dp->link_bw = bws[max_clock];
+		adjusted_mode->clock = intel_dp_link_clock(intel_dp->link_bw);
+		DRM_DEBUG_KMS("Force picking display port link bw %02x lane "
+			      "count %d clock %d\n",
+			      intel_dp->link_bw, intel_dp->lane_count,
+			      adjusted_mode->clock);
+
+		return true;
 	}
 
 	return false;
@@ -1087,21 +1089,11 @@ intel_get_adjust_train(struct intel_dp *intel_dp)
 }
 
 static uint32_t
-intel_dp_signal_levels(struct intel_dp *intel_dp)
+intel_dp_signal_levels(uint8_t train_set, int lane_count)
 {
-	struct drm_device *dev = intel_dp->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t signal_levels = 0;
-	u8 train_set = intel_dp->train_set[0];
-	u32 vswing = train_set & DP_TRAIN_VOLTAGE_SWING_MASK;
-	u32 preemphasis = train_set & DP_TRAIN_PRE_EMPHASIS_MASK;
+	uint32_t	signal_levels = 0;
 
-	if (is_edp(intel_dp)) {
-		vswing = dev_priv->edp.vswing;
-		preemphasis = dev_priv->edp.preemphasis;
-	}
-
-	switch (vswing) {
+	switch (train_set & DP_TRAIN_VOLTAGE_SWING_MASK) {
 	case DP_TRAIN_VOLTAGE_SWING_400:
 	default:
 		signal_levels |= DP_VOLTAGE_0_4;
@@ -1116,7 +1108,7 @@ intel_dp_signal_levels(struct intel_dp *intel_dp)
 		signal_levels |= DP_VOLTAGE_1_2;
 		break;
 	}
-	switch (preemphasis) {
+	switch (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) {
 	case DP_TRAIN_PRE_EMPHASIS_0:
 	default:
 		signal_levels |= DP_PRE_EMPHASIS_0;
@@ -1203,18 +1195,6 @@ intel_channel_eq_ok(struct intel_dp *intel_dp)
 }
 
 static bool
-intel_dp_aux_handshake_required(struct intel_dp *intel_dp)
-{
-	struct drm_device *dev = intel_dp->base.base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (is_edp(intel_dp) && dev_priv->no_aux_handshake)
-		return false;
-
-	return true;
-}
-
-static bool
 intel_dp_set_link_train(struct intel_dp *intel_dp,
 			uint32_t dp_reg_value,
 			uint8_t dp_train_pat)
@@ -1225,9 +1205,6 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 
 	I915_WRITE(intel_dp->output_reg, dp_reg_value);
 	POSTING_READ(intel_dp->output_reg);
-
-	if (!intel_dp_aux_handshake_required(intel_dp))
-		return true;
 
 	intel_dp_aux_native_write_1(intel_dp,
 				    DP_TRAINING_PATTERN_SET,
@@ -1261,11 +1238,10 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	POSTING_READ(intel_dp->output_reg);
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
-	if (intel_dp_aux_handshake_required(intel_dp))
-		/* Write the link configuration data */
-		intel_dp_aux_native_write(intel_dp, DP_LINK_BW_SET,
-					  intel_dp->link_configuration,
-					  DP_LINK_CONFIGURATION_SIZE);
+	/* Write the link configuration data */
+	intel_dp_aux_native_write(intel_dp, DP_LINK_BW_SET,
+				  intel_dp->link_configuration,
+				  DP_LINK_CONFIGURATION_SIZE);
 
 	DP |= DP_PORT_EN;
 	if (HAS_PCH_CPT(dev) && !is_edp(intel_dp))
@@ -1283,7 +1259,7 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 			signal_levels = intel_gen6_edp_signal_levels(intel_dp->train_set[0]);
 			DP = (DP & ~EDP_LINK_TRAIN_VOL_EMP_MASK_SNB) | signal_levels;
 		} else {
-			signal_levels = intel_dp_signal_levels(intel_dp);
+			signal_levels = intel_dp_signal_levels(intel_dp->train_set[0], intel_dp->lane_count);
 			DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
 		}
 
@@ -1297,37 +1273,33 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 			break;
 		/* Set training pattern 1 */
 
-		udelay(500);
-		if (intel_dp_aux_handshake_required(intel_dp)) {
+		udelay(100);
+		if (!intel_dp_get_link_status(intel_dp))
 			break;
-		} else {
-			if (!intel_dp_get_link_status(intel_dp))
-				break;
 
-			if (intel_clock_recovery_ok(intel_dp->link_status, intel_dp->lane_count)) {
-				clock_recovery = true;
-				break;
-			}
-
-			/* Check to see if we've tried the max voltage */
-			for (i = 0; i < intel_dp->lane_count; i++)
-				if ((intel_dp->train_set[i] & DP_TRAIN_MAX_SWING_REACHED) == 0)
-					break;
-			if (i == intel_dp->lane_count)
-				break;
-
-			/* Check to see if we've tried the same voltage 5 times */
-			if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) == voltage) {
-				++tries;
-				if (tries == 5)
-					break;
-			} else
-				tries = 0;
-			voltage = intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
-
-			/* Compute new intel_dp->train_set as requested by target */
-			intel_get_adjust_train(intel_dp);
+		if (intel_clock_recovery_ok(intel_dp->link_status, intel_dp->lane_count)) {
+			clock_recovery = true;
+			break;
 		}
+
+		/* Check to see if we've tried the max voltage */
+		for (i = 0; i < intel_dp->lane_count; i++)
+			if ((intel_dp->train_set[i] & DP_TRAIN_MAX_SWING_REACHED) == 0)
+				break;
+		if (i == intel_dp->lane_count)
+			break;
+
+		/* Check to see if we've tried the same voltage 5 times */
+		if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) == voltage) {
+			++tries;
+			if (tries == 5)
+				break;
+		} else
+			tries = 0;
+		voltage = intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
+
+		/* Compute new intel_dp->train_set as requested by target */
+		intel_get_adjust_train(intel_dp);
 	}
 
 	intel_dp->DP = DP;
@@ -1354,7 +1326,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 			signal_levels = intel_gen6_edp_signal_levels(intel_dp->train_set[0]);
 			DP = (DP & ~EDP_LINK_TRAIN_VOL_EMP_MASK_SNB) | signal_levels;
 		} else {
-			signal_levels = intel_dp_signal_levels(intel_dp);
+			signal_levels = intel_dp_signal_levels(intel_dp->train_set[0], intel_dp->lane_count);
 			DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
 		}
 
@@ -1368,28 +1340,24 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 					     DP_TRAINING_PATTERN_2))
 			break;
 
-		udelay(500);
-
-		if (!intel_dp_aux_handshake_required(intel_dp)) {
+		udelay(400);
+		if (!intel_dp_get_link_status(intel_dp))
 			break;
-		} else {
-			if (!intel_dp_get_link_status(intel_dp))
-				break;
 
-			if (intel_channel_eq_ok(intel_dp)) {
-				channel_eq = true;
-				break;
-			}
-
-			/* Try 5 times */
-			if (tries > 5)
-				break;
-
-			/* Compute new intel_dp->train_set as requested by target */
-			intel_get_adjust_train(intel_dp);
-			++tries;
+		if (intel_channel_eq_ok(intel_dp)) {
+			channel_eq = true;
+			break;
 		}
+
+		/* Try 5 times */
+		if (tries > 5)
+			break;
+
+		/* Compute new intel_dp->train_set as requested by target */
+		intel_get_adjust_train(intel_dp);
+		++tries;
 	}
+
 	if (HAS_PCH_CPT(dev) && !is_edp(intel_dp))
 		reg = DP | DP_LINK_TRAIN_OFF_CPT;
 	else
@@ -1407,6 +1375,9 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t DP = intel_dp->DP;
+
+	if ((I915_READ(intel_dp->output_reg) & DP_PORT_EN) == 0)
+		return;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -1430,6 +1401,28 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 
 	if (is_edp(intel_dp))
 		DP |= DP_LINK_TRAIN_OFF;
+
+	if (!HAS_PCH_CPT(dev) &&
+	    I915_READ(intel_dp->output_reg) & DP_PIPEB_SELECT) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(intel_dp->base.base.crtc);
+		/* Hardware workaround: leaving our transcoder select
+		 * set to transcoder B while it's off will prevent the
+		 * corresponding HDMI output on transcoder A.
+		 *
+		 * Combine this with another hardware workaround:
+		 * transcoder select bit can only be cleared while the
+		 * port is enabled.
+		 */
+		DP &= ~DP_PIPEB_SELECT;
+		I915_WRITE(intel_dp->output_reg, DP);
+
+		/* Changes to enable or select take place the vblank
+		 * after being written.
+		 */
+		intel_wait_for_vblank(intel_dp->base.base.dev,
+				      intel_crtc->pipe);
+	}
+
 	I915_WRITE(intel_dp->output_reg, DP & ~DP_PORT_EN);
 	POSTING_READ(intel_dp->output_reg);
 }

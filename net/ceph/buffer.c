@@ -19,7 +19,7 @@ struct ceph_buffer *ceph_buffer_new(size_t len, gfp_t gfp)
 	if (b->vec.iov_base) {
 		b->is_vmalloc = false;
 	} else {
-		b->vec.iov_base = __vmalloc(len, gfp, PAGE_KERNEL);
+		b->vec.iov_base = __vmalloc(len, gfp | __GFP_HIGHMEM, PAGE_KERNEL);
 		if (!b->vec.iov_base) {
 			kfree(b);
 			return NULL;

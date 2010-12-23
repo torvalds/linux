@@ -197,7 +197,6 @@ static int suspend_enter(suspend_state_t state)
 int suspend_devices_and_enter(suspend_state_t state)
 {
 	int error;
-	gfp_t saved_mask;
 
 	if (!suspend_ops)
 		return -ENOSYS;
@@ -208,7 +207,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 			goto Close;
 	}
 	suspend_console();
-	saved_mask = clear_gfp_allowed_mask(GFP_IOFS);
+	pm_restrict_gfp_mask();
 	suspend_test_start();
 	error = dpm_suspend_start(PMSG_SUSPEND);
 	if (error) {
@@ -225,7 +224,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 	suspend_test_start();
 	dpm_resume_end(PMSG_RESUME);
 	suspend_test_finish("resume devices");
-	set_gfp_allowed_mask(saved_mask);
+	pm_restore_gfp_mask();
 	resume_console();
  Close:
 	if (suspend_ops->end)

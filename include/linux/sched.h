@@ -143,7 +143,7 @@ extern unsigned long nr_iowait_cpu(int cpu);
 extern unsigned long this_cpu_load(void);
 
 
-extern void calc_global_load(void);
+extern void calc_global_load(unsigned long ticks);
 
 extern unsigned long get_parent_ip(unsigned long addr);
 
@@ -862,6 +862,7 @@ struct sched_group {
 	 * single CPU.
 	 */
 	unsigned int cpu_power, cpu_power_orig;
+	unsigned int group_weight;
 
 	/*
 	 * The CPUs this group covers.

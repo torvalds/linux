@@ -2458,6 +2458,12 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 	int status, i = 0, num_imgs = 0;
 	const u8 *p;
 
+	if (!netif_running(adapter->netdev)) {
+		dev_err(&adapter->pdev->dev,
+			"Firmware load not allowed (interface is down)\n");
+		return -EPERM;
+	}
+
 	strcpy(fw_file, func);
 
 	status = request_firmware(&fw, fw_file, &adapter->pdev->dev);

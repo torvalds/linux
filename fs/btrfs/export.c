@@ -166,7 +166,7 @@ static struct dentry *btrfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 static struct dentry *btrfs_get_parent(struct dentry *child)
 {
 	struct inode *dir = child->d_inode;
-	static struct dentry *dentry;
+	struct dentry *dentry;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
@@ -232,9 +232,85 @@ fail:
 	return ERR_PTR(ret);
 }
 
+static int btrfs_get_name(struct dentry *parent, char *name,
+			  struct dentry *child)
+{
+	struct inode *inode = child->d_inode;
+	struct inode *dir = parent->d_inode;
+	struct btrfs_path *path;
+	struct btrfs_root *root = BTRFS_I(dir)->root;
+	struct btrfs_inode_ref *iref;
+	struct btrfs_root_ref *rref;
+	struct extent_buffer *leaf;
+	unsigned long name_ptr;
+	struct btrfs_key key;
+	int name_len;
+	int ret;
+
+	if (!dir || !inode)
+		return -EINVAL;
+
+	if (!S_ISDIR(dir->i_mode))
+		return -EINVAL;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+	path->leave_spinning = 1;
+
+	if (inode->i_ino == BTRFS_FIRST_FREE_OBJECTID) {
+		key.objectid = BTRFS_I(inode)->root->root_key.objectid;
+		key.type = BTRFS_ROOT_BACKREF_KEY;
+		key.offset = (u64)-1;
+		root = root->fs_info->tree_root;
+	} else {
+		key.objectid = inode->i_ino;
+		key.offset = dir->i_ino;
+		key.type = BTRFS_INODE_REF_KEY;
+	}
+
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0) {
+		btrfs_free_path(path);
+		return ret;
+	} else if (ret > 0) {
+		if (inode->i_ino == BTRFS_FIRST_FREE_OBJECTID) {
+			path->slots[0]--;
+		} else {
+			btrfs_free_path(path);
+			return -ENOENT;
+		}
+	}
+	leaf = path->nodes[0];
+
+	if (inode->i_ino == BTRFS_FIRST_FREE_OBJECTID) {
+	       rref = btrfs_item_ptr(leaf, path->slots[0],
+				     struct btrfs_root_ref);
+	       name_ptr = (unsigned long)(rref + 1);
+	       name_len = btrfs_root_ref_name_len(leaf, rref);
+	} else {
+		iref = btrfs_item_ptr(leaf, path->slots[0],
+				      struct btrfs_inode_ref);
+		name_ptr = (unsigned long)(iref + 1);
+		name_len = btrfs_inode_ref_name_len(leaf, iref);
+	}
+
+	read_extent_buffer(leaf, name, name_ptr, name_len);
+	btrfs_free_path(path);
+
+	/*
+	 * have to add the null termination to make sure that reconnect_path
+	 * gets the right len for strlen
+	 */
+	name[name_len] = '\0';
+
+	return 0;
+}
+
 const struct export_operations btrfs_export_ops = {
 	.encode_fh	= btrfs_encode_fh,
 	.fh_to_dentry	= btrfs_fh_to_dentry,
 	.fh_to_parent	= btrfs_fh_to_parent,
 	.get_parent	= btrfs_get_parent,
+	.get_name	= btrfs_get_name,
 };
