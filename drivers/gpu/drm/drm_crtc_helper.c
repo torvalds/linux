@@ -241,7 +241,7 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		if (encoder->crtc && !drm_helper_encoder_in_use(encoder)) {
+		if (!drm_helper_encoder_in_use(encoder)) {
 			drm_encoder_disable(encoder);
 			/* disconnector encoder from any connector */
 			encoder->crtc = NULL;
@@ -874,7 +874,10 @@ static void output_poll_execute(struct work_struct *work)
 			continue;
 
 		connector->status = connector->funcs->detect(connector, false);
-		DRM_DEBUG_KMS("connector status updated to %d\n", connector->status);
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %d to %d\n",
+			      connector->base.id,
+			      drm_get_connector_name(connector),
+			      old_status, connector->status);
 		if (old_status != connector->status)
 			changed = true;
 	}

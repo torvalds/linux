@@ -30,8 +30,9 @@ struct  intel_ring_buffer {
 	struct		drm_device *dev;
 	struct		drm_gem_object *gem_object;
 
-	unsigned int	head;
-	unsigned int	tail;
+	u32		actual_head;
+	u32		head;
+	u32		tail;
 	int		space;
 	struct intel_hw_status_page status_page;
 
