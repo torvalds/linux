@@ -494,7 +494,22 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
       .platform_data  = &mma8452_info,
     },
 #endif
-
+#if defined (CONFIG_SENSORS_AK8973)
+	{
+		.type    		= "ak8973",
+		.addr           = 0x1d,
+		.flags			= 0,
+		.irq			= RK29_PIN0_PA4,
+	},
+#endif
+#if defined (CONFIG_SENSORS_AK8975)
+	{
+		.type    		= "ak8975",
+		.addr           = 0x1d,
+		.flags			= 0,
+		.irq			= RK29_PIN0_PA4,
+	},
+#endif
 };
 #endif
 
@@ -505,22 +520,6 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.type			= "rk1000_control",
 		.addr			= 0x40,
 		.flags			= 0,
-	},
-#endif
-#if defined (CONFIG_SENSORS_AK8973)
-	{
-		.type    		= "ak8973",
-		.addr           = 0x1c,
-		.flags			= 0,
-		.irq			= RK29_PIN4_PA1,
-	},
-#endif
-#if defined (CONFIG_SENSORS_AK8975)
-	{
-		.type    		= "ak8975",
-		.addr           = 0x1c,
-		.flags			= 0,
-		.irq			= RK29_PIN4_PA1,
 	},
 #endif
 #if defined (CONFIG_ANX7150)

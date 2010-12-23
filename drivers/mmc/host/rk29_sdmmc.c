@@ -1447,7 +1447,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host); 	
 	mmc->ops = &rk29_sdmmc_ops[pdev->id];
 	mmc->f_min = host->bus_hz/510;
-	mmc->f_max = host->bus_hz/20;  //2;  ///20; //max f is clock to mmc_clk/2
+	mmc->f_max = host->bus_hz/2;  //2;  ///20; //max f is clock to mmc_clk/2
 	mmc->ocr_avail = pdata->host_ocr_avail;
 	mmc->caps = pdata->host_caps;
 	mmc->max_phys_segs = 64;
