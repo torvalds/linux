@@ -1240,7 +1240,7 @@ enum vxge_hw_status vxge_hw_ring_rxd_next_completed(
 	*t_code	= (u8)VXGE_HW_RING_RXD_T_CODE_GET(control_0);
 
 	/* check whether it is not the end */
-	if (!own || ((*t_code == VXGE_HW_RING_T_CODE_FRM_DROP) && own)) {
+	if (!own || *t_code == VXGE_HW_RING_T_CODE_FRM_DROP) {
 
 		vxge_assert(((struct vxge_hw_ring_rxd_1 *)rxdp)->host_control !=
 				0);
