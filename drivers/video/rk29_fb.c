@@ -409,7 +409,7 @@ int init_lcdc(struct fb_info *info)
     if (IS_ERR(inf->clk))
     {
         printk(KERN_ERR "failed to get lcdc_hclk source\n");
-        return inf->clk;
+        return PTR_ERR(inf->clk);
     }
     clk_enable(inf->clk);
 
@@ -569,7 +569,7 @@ void load_screen(struct fb_info *info, bool initscreen)
     }
 
     if(inf->cur_screen == &inf->panel1_info)    {
-        inf->dclk_parent = clk_get(NULL, "periph_pll");
+        inf->dclk_parent = clk_get(NULL, "general_pll");
     }    else    {
         inf->dclk_parent = clk_get(NULL, "codec_pll");
 		clk_set_rate(inf->dclk_parent, 297000000);
@@ -587,7 +587,7 @@ void load_screen(struct fb_info *info, bool initscreen)
         printk(KERN_ERR "failed to get lcd clock clk_share_mem source \n");
         return;
     }
-    inf->aclk_parent = clk_get(NULL, "periph_pll");
+    inf->aclk_parent = clk_get(NULL, "general_pll");
     if (IS_ERR(inf->dclk_parent))
     {
         printk(KERN_ERR "failed to get lcd dclock parent source\n");

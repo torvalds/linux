@@ -141,7 +141,7 @@ enum cru_clk_gate
 #define CRU_APLL_CON		0x00
 #define CRU_DPLL_CON		0x04
 #define CRU_CPLL_CON		0x08
-#define CRU_PPLL_CON		0x0c
+#define CRU_GPLL_CON		0x0c
 #define CRU_MODE_CON		0x10
 #define CRU_CLKSEL0_CON		0x14
 #define CRU_CLKSEL1_CON		0x18

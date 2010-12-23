@@ -66,10 +66,10 @@
 #define CRU_CPU_MODE_NORMAL	(0x01u << 0)
 #define CRU_CPU_MODE_DSLOW	(0x02u << 0)
 
-#define CRU_PERIPH_MODE_MASK	(0x03u << 2)
-#define CRU_PERIPH_MODE_SLOW	(0x00u << 2)
-#define CRU_PERIPH_MODE_NORMAL	(0x01u << 2)
-#define CRU_PERIPH_MODE_DSLOW	(0x02u << 2)
+#define CRU_GENERAL_MODE_MASK	(0x03u << 2)
+#define CRU_GENERAL_MODE_SLOW	(0x00u << 2)
+#define CRU_GENERAL_MODE_NORMAL	(0x01u << 2)
+#define CRU_GENERAL_MODE_DSLOW	(0x02u << 2)
 
 #define CRU_CODEC_MODE_MASK	(0x03u << 4)
 #define CRU_CODEC_MODE_SLOW	(0x00u << 4)
@@ -128,7 +128,7 @@ static int clk_set_parent_nolock(struct clk *clk, struct clk *parent);
 static void __clk_reparent(struct clk *child, struct clk *parent);
 static void __propagate_rate(struct clk *tclk);
 static struct clk codec_pll_clk;
-static struct clk periph_pll_clk;
+static struct clk general_pll_clk;
 
 static unsigned long clksel_recalc_div(struct clk *clk)
 {
@@ -291,7 +291,7 @@ static void delay_500ns(void)
 }
 
 
-#define PERIPH_PLL_IDX     0
+#define GENERAL_PLL_IDX     0
 #define CODEC_PLL_IDX      1
 #define ARM_PLL_IDX        2
 #define DDR_PLL_IDX        3
@@ -363,22 +363,26 @@ static const struct arm_pll_set arm_pll[] = {
 	// rate = 24 * NF / (NR * NO)
 	//      rate NR  NF NO adiv hdiv pdiv
 	ARM_PLL(1200, 1, 50, 1, 41, 21, 81),
-	ARM_PLL(1176, 2, 98, 1, 41, 21, 81),
-	ARM_PLL(1152, 1, 48, 1, 41, 21, 81),
 	ARM_PLL(1104, 1, 46, 1, 41, 21, 81),
-	ARM_PLL(1056, 1, 44, 1, 41, 21, 81),
 	ARM_PLL(1008, 1, 42, 1, 41, 21, 81),
-	ARM_PLL( 960, 1, 40, 1, 41, 21, 81),
-	ARM_PLL( 912, 1, 38, 1, 41, 21, 81),
+	ARM_PLL( 912, 1, 38, 1, 31, 21, 81),
 	ARM_PLL( 888, 2, 74, 1, 31, 21, 81),
+	ARM_PLL( 816, 1, 34, 1, 31, 21, 81),
+	ARM_PLL( 696, 1, 58, 2, 31, 21, 81),
 	ARM_PLL( 624, 1, 52, 2, 31, 21, 81),
+	ARM_PLL( 600, 1, 50, 2, 21, 21, 81),
+	ARM_PLL( 504, 1, 42, 2, 21, 21, 81),
+	ARM_PLL( 408, 1, 34, 2, 21, 21, 81),
+	ARM_PLL( 300, 1, 50, 4, 21, 21, 41),
+	ARM_PLL( 204, 1, 34, 4, 21, 21, 41),
+	ARM_PLL( 102, 1, 34, 8, 21, 21, 41),
 	// last item, pll power down.
 	ARM_PLL(  24, 1, 64, 8, 21, 21, 41),
 };
 
 #define CORE_PARENT_MASK	(3 << 23)
 #define CORE_PARENT_ARM_PLL	(0 << 23)
-#define CORE_PARENT_PERIPH_PLL	(1 << 23)
+#define CORE_PARENT_GENERAL_PLL	(1 << 23)
 
 #define PWM_DIV2            (0<<9)
 #define PWM_DIV4            (1<<9)
@@ -473,8 +477,8 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 
 	PWMInit(1 * MHZ, PWM_VCORE_130);	// 1.30V
 
-	/* make aclk safe & reparent to periph pll */
-	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK)) | CORE_PARENT_PERIPH_PLL | CORE_ACLK_21, CRU_CLKSEL0_CON);
+	/* make aclk safe & reparent to general pll */
+	cru_writel((cru_readl(CRU_CLKSEL0_CON) & ~(CORE_PARENT_MASK | CORE_ACLK_MASK)) | CORE_PARENT_GENERAL_PLL | CORE_ACLK_21, CRU_CLKSEL0_CON);
 
 	/* enter slow mode */
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_SLOW, CRU_MODE_CON);
@@ -535,7 +539,7 @@ static unsigned long ddr_pll_clk_recalc(struct clk *clk)
 	return rate;
 }
 
-static struct clk *ddr_pll_parents[4] = { &xin24m, &xin27m, &codec_pll_clk, &periph_pll_clk };
+static struct clk *ddr_pll_parents[4] = { &xin24m, &xin27m, &codec_pll_clk, &general_pll_clk };
 
 static struct clk ddr_pll_clk = {
 	.name		= "ddr_pll",
@@ -570,7 +574,7 @@ static unsigned long codec_pll_clk_recalc(struct clk *clk)
 #define CODEC_PLL_PARENT_XIN24M	(0 << 11)
 #define CODEC_PLL_PARENT_XIN27M	(1 << 11)
 #define CODEC_PLL_PARENT_DDR_PLL	(2 << 11)
-#define CODEC_PLL_PARENT_PERIPH_PLL	(3 << 11)
+#define CODEC_PLL_PARENT_GENERAL_PLL	(3 << 11)
 
 static int codec_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 {
@@ -624,7 +628,7 @@ static int codec_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-static struct clk *codec_pll_parents[4] = { &xin24m, &xin27m, &ddr_pll_clk, &periph_pll_clk };
+static struct clk *codec_pll_parents[4] = { &xin24m, &xin27m, &ddr_pll_clk, &general_pll_clk };
 
 static struct clk codec_pll_clk = {
 	.name		= "codec_pll",
@@ -638,12 +642,12 @@ static struct clk codec_pll_clk = {
 };
 
 
-static unsigned long periph_pll_clk_recalc(struct clk *clk)
+static unsigned long general_pll_clk_recalc(struct clk *clk)
 {
 	unsigned long rate;
 
-	if ((cru_readl(CRU_MODE_CON) & CRU_PERIPH_MODE_MASK) == CRU_PERIPH_MODE_NORMAL) {
-		u32 v = cru_readl(CRU_PPLL_CON);
+	if ((cru_readl(CRU_MODE_CON) & CRU_GENERAL_MODE_MASK) == CRU_GENERAL_MODE_NORMAL) {
+		u32 v = cru_readl(CRU_GPLL_CON);
 		u64 rate64 = (u64) clk->parent->rate * PLL_NF(v);
 		do_div(rate64, PLL_NR(v));
 		rate = rate64 >> PLL_NO_SHIFT(v);
@@ -656,52 +660,52 @@ static unsigned long periph_pll_clk_recalc(struct clk *clk)
 	return rate;
 }
 
-static int periph_pll_clk_set_rate(struct clk *clk, unsigned long rate)
+static int general_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	int i;
 	/* 624M: high-band, NR=1, NF=26, NO=1 */
 	u32 v = PLL_HIGH_BAND | PLL_CLKR(1) | PLL_CLKF(26) | PLL_NO_1;
 
 	/* enter slow mode */
-	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_PERIPH_MODE_MASK) | CRU_PERIPH_MODE_SLOW, CRU_MODE_CON);
+	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_GENERAL_MODE_MASK) | CRU_GENERAL_MODE_SLOW, CRU_MODE_CON);
 
 	/* power down */
-	cru_writel(cru_readl(CRU_PPLL_CON) | PLL_PD, CRU_PPLL_CON);
+	cru_writel(cru_readl(CRU_GPLL_CON) | PLL_PD, CRU_GPLL_CON);
 
 	delay_500ns();
 
-	cru_writel(v | PLL_PD, CRU_PPLL_CON);
+	cru_writel(v | PLL_PD, CRU_GPLL_CON);
 
 	delay_500ns();
 
 	/* power up */
-	cru_writel(v, CRU_PPLL_CON);
+	cru_writel(v, CRU_GPLL_CON);
 
 	for (i = 0; i < 600; i++)
 		delay_500ns();
-	pll_wait_lock(PERIPH_PLL_IDX, 2400000);
+	pll_wait_lock(GENERAL_PLL_IDX, 2400000);
 
 	/* enter normal mode */
-	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_PERIPH_MODE_MASK) | CRU_PERIPH_MODE_NORMAL, CRU_MODE_CON);
+	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_GENERAL_MODE_MASK) | CRU_GENERAL_MODE_NORMAL, CRU_MODE_CON);
 
 	return 0;
 }
 
-static struct clk *periph_pll_parents[4] = { &xin24m, &xin27m, &ddr_pll_clk, &codec_pll_clk };
+static struct clk *general_pll_parents[4] = { &xin24m, &xin27m, &ddr_pll_clk, &codec_pll_clk };
 
-static struct clk periph_pll_clk = {
-	.name		= "periph_pll",
+static struct clk general_pll_clk = {
+	.name		= "general_pll",
 	.parent		= &xin24m,
-	.recalc		= periph_pll_clk_recalc,
-	.set_rate	= periph_pll_clk_set_rate,
+	.recalc		= general_pll_clk_recalc,
+	.set_rate	= general_pll_clk_set_rate,
 	.clksel_con	= CRU_MODE_CON,
 	.clksel_parent_mask	= 3,
 	.clksel_parent_shift	= 9,
-	.parents	= periph_pll_parents,
+	.parents	= general_pll_parents,
 };
 
 
-static struct clk *clk_core_parents[4] = { &arm_pll_clk, &periph_pll_clk, &codec_pll_clk, &ddr_pll_clk };
+static struct clk *clk_core_parents[4] = { &arm_pll_clk, &general_pll_clk, &codec_pll_clk, &ddr_pll_clk };
 
 static struct clk clk_core = {
 	.name		= "core",
@@ -757,7 +761,7 @@ static struct clk pclk_cpu = {
 	.clksel_maxdiv	= 8,
 };
 
-static struct clk *aclk_periph_parents[4] = { &periph_pll_clk, &arm_pll_clk, &ddr_pll_clk, &codec_pll_clk };
+static struct clk *aclk_periph_parents[4] = { &general_pll_clk, &arm_pll_clk, &ddr_pll_clk, &codec_pll_clk };
 
 static struct clk aclk_periph = {
 	.name		= "aclk_periph",
@@ -800,7 +804,7 @@ static struct clk hclk_periph = {
 };
 
 
-static struct clk *clk_uhost_parents[8] = { &periph_pll_clk, &ddr_pll_clk, &codec_pll_clk, &arm_pll_clk, &otgphy0_clkin, &otgphy1_clkin };
+static struct clk *clk_uhost_parents[8] = { &general_pll_clk, &ddr_pll_clk, &codec_pll_clk, &arm_pll_clk, &otgphy0_clkin, &otgphy1_clkin };
 
 static struct clk clk_uhost = {
 	.name		= "uhost",
@@ -843,7 +847,7 @@ static struct clk rmii_clkin = {
 	.name		= "rmii_clkin",
 };
 
-static struct clk *clk_mac_ref_div_parents[4] = { &arm_pll_clk, &periph_pll_clk, &codec_pll_clk, &ddr_pll_clk };
+static struct clk *clk_mac_ref_div_parents[4] = { &arm_pll_clk, &general_pll_clk, &codec_pll_clk, &ddr_pll_clk };
 
 static struct clk clk_mac_ref_div = {
 	.name		= "mac_ref_div",
@@ -870,7 +874,7 @@ static struct clk clk_mac_ref = {
 };
 
 
-static struct clk *clk_i2s_div_parents[8] = { &codec_pll_clk, &periph_pll_clk, &arm_pll_clk, &ddr_pll_clk, &otgphy0_clkin, &otgphy1_clkin };
+static struct clk *clk_i2s_div_parents[8] = { &codec_pll_clk, &general_pll_clk, &arm_pll_clk, &ddr_pll_clk, &otgphy0_clkin, &otgphy1_clkin };
 
 static struct clk clk_i2s0_div = {
 	.name		= "i2s0_div",
@@ -1034,7 +1038,7 @@ static struct clk clk_spdif = {
 };
 
 
-static struct clk *clk_spi_src_parents[4] = { &periph_pll_clk, &ddr_pll_clk, &codec_pll_clk, &arm_pll_clk };
+static struct clk *clk_spi_src_parents[4] = { &general_pll_clk, &ddr_pll_clk, &codec_pll_clk, &arm_pll_clk };
 
 static struct clk clk_spi_src = {
 	.name		= "spi_src",
@@ -1127,7 +1131,7 @@ static struct clk clk_timer3 = {
 };
 
 
-static struct clk *clk_mmc_src_parents[4] = { &arm_pll_clk, &periph_pll_clk, &codec_pll_clk, &ddr_pll_clk };
+static struct clk *clk_mmc_src_parents[4] = { &arm_pll_clk, &general_pll_clk, &codec_pll_clk, &ddr_pll_clk };
 
 static struct clk clk_mmc_src = {
 	.name		= "mmc_src",
@@ -1174,7 +1178,7 @@ static struct clk clk_emmc = {
 };
 
 
-static struct clk *clk_ddr_parents[8] = { &ddr_pll_clk, &periph_pll_clk, &codec_pll_clk, &arm_pll_clk };
+static struct clk *clk_ddr_parents[8] = { &ddr_pll_clk, &general_pll_clk, &codec_pll_clk, &arm_pll_clk };
 
 static struct clk clk_ddr = {
 	.name		= "ddr",
@@ -1286,7 +1290,7 @@ static int clk_uart_frac_div_set_rate(struct clk *clk, unsigned long rate)
 
 	return 0;
 }
-static struct clk *clk_uart_src_parents[8] = { &periph_pll_clk, &ddr_pll_clk, &codec_pll_clk, &arm_pll_clk, &otgphy0_clkin, &otgphy1_clkin };
+static struct clk *clk_uart_src_parents[8] = { &general_pll_clk, &ddr_pll_clk, &codec_pll_clk, &arm_pll_clk, &otgphy0_clkin, &otgphy1_clkin };
 
 static struct clk clk_uart01_src = {
 	.name		= "uart01_src",
@@ -1429,7 +1433,7 @@ static struct clk clk_uart3 = {
 };
 
 
-static struct clk *clk_hsadc_div_parents[8] = { &codec_pll_clk, &ddr_pll_clk, &periph_pll_clk, &arm_pll_clk, &otgphy0_clkin, &otgphy1_clkin };
+static struct clk *clk_hsadc_div_parents[8] = { &codec_pll_clk, &ddr_pll_clk, &general_pll_clk, &arm_pll_clk, &otgphy0_clkin, &otgphy1_clkin };
 
 static struct clk clk_hsadc_div = {
 	.name		= "hsadc_div",
@@ -1504,7 +1508,7 @@ static struct clk clk_hsadc_out = {
 };
 
 
-static struct clk *dclk_lcdc_div_parents[4] = { &codec_pll_clk, &ddr_pll_clk, &periph_pll_clk, &arm_pll_clk };
+static struct clk *dclk_lcdc_div_parents[4] = { &codec_pll_clk, &ddr_pll_clk, &general_pll_clk, &arm_pll_clk };
 
 static struct clk dclk_lcdc_div = {
 	.name		= "dclk_lcdc_div",
@@ -1544,7 +1548,7 @@ static struct clk dclk_ebook = {
 	.parents	= dclk_lcdc_div_parents,
 };
 
-static struct clk *aclk_lcdc_parents[4] = { &ddr_pll_clk, &codec_pll_clk, &periph_pll_clk, &arm_pll_clk };
+static struct clk *aclk_lcdc_parents[4] = { &ddr_pll_clk, &codec_pll_clk, &general_pll_clk, &arm_pll_clk };
 
 static struct clk aclk_lcdc = {
 	.name		= "aclk_lcdc",
@@ -1573,7 +1577,7 @@ static struct clk hclk_lcdc = {
 	.clksel_maxdiv	= 4,
 };
 
-static struct clk *xpu_parents[4] = { &periph_pll_clk, &ddr_pll_clk, &codec_pll_clk, &arm_pll_clk };
+static struct clk *xpu_parents[4] = { &general_pll_clk, &ddr_pll_clk, &codec_pll_clk, &arm_pll_clk };
 
 static struct clk aclk_vepu = {
 	.name		= "aclk_vepu",
@@ -1604,7 +1608,7 @@ static struct clk hclk_vepu = {
 
 static struct clk aclk_vdpu = {
 	.name		= "aclk_vdpu",
-	.parent		= &periph_pll_clk,
+	.parent		= &general_pll_clk,
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc_div,
 	.set_rate	= clksel_set_rate_div,
@@ -1777,7 +1781,7 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "arm_pll", &arm_pll_clk),
 	CLK(NULL, "ddr_pll", &ddr_pll_clk),
 	CLK(NULL, "codec_pll", &codec_pll_clk),
-	CLK(NULL, "periph_pll", &periph_pll_clk),
+	CLK(NULL, "general_pll", &general_pll_clk),
 
 	CLK1(core),
 	CLK(NULL, "aclk_cpu", &aclk_cpu),
@@ -2249,37 +2253,57 @@ static int clk_register(struct clk *clk)
 	return 0;
 }
 
-static void rk29_clock_common_init(void)
+static unsigned int __initdata armclk = 600 * MHZ;
+
+/*
+ * You can override arm_clk rate with armclk= cmdline option.
+ */
+static int __init armclk_setup(char *str)
 {
-	/* periph pll */
-	clk_set_rate_nolock(&periph_pll_clk, 624 * MHZ);
-	clk_set_parent_nolock(&aclk_periph, &periph_pll_clk);
+	get_option(&str, &armclk);
+
+	if (!armclk)
+		return 0;
+
+	if (armclk < 10000)
+		armclk *= MHZ;
+
+	clk_set_rate_nolock(&arm_pll_clk, armclk);
+	return 0;
+}
+early_param("armclk", armclk_setup);
+
+static void __init rk29_clock_common_init(void)
+{
+	/* general pll */
+	clk_set_rate_nolock(&general_pll_clk, 624 * MHZ);
+	clk_set_parent_nolock(&aclk_periph, &general_pll_clk);
 	clk_set_rate_nolock(&aclk_periph, 208 * MHZ);
 	clk_set_rate_nolock(&hclk_periph, 104 * MHZ);
 	clk_set_rate_nolock(&pclk_periph, 52 * MHZ);
-	clk_set_parent_nolock(&clk_uhost, &periph_pll_clk);
+	clk_set_parent_nolock(&clk_uhost, &general_pll_clk);
 	clk_set_rate_nolock(&clk_uhost, 48 * MHZ);
-	clk_set_parent_nolock(&clk_i2s0_div, &periph_pll_clk);
-	clk_set_parent_nolock(&clk_i2s1_div, &periph_pll_clk);
-	clk_set_parent_nolock(&clk_spdif_div, &periph_pll_clk);
-	clk_set_parent_nolock(&clk_spi_src, &periph_pll_clk);
-	clk_set_parent_nolock(&clk_mmc_src, &periph_pll_clk);
-	clk_set_parent_nolock(&clk_uart01_src, &periph_pll_clk);
-	clk_set_parent_nolock(&clk_uart23_src, &periph_pll_clk);
-	clk_set_parent_nolock(&dclk_lcdc_div, &periph_pll_clk);
-	clk_set_parent_nolock(&aclk_lcdc, &periph_pll_clk);
-	clk_set_parent_nolock(&aclk_vepu, &periph_pll_clk);
-	clk_set_parent_nolock(&aclk_vdpu, &periph_pll_clk);
-	clk_set_parent_nolock(&clk_gpu, &periph_pll_clk);
-	clk_set_parent_nolock(&aclk_gpu, &periph_pll_clk);
-	clk_set_parent_nolock(&clk_mac_ref_div, &periph_pll_clk);
-	clk_set_parent_nolock(&clk_hsadc_div, &periph_pll_clk);
+	clk_set_parent_nolock(&clk_i2s0_div, &general_pll_clk);
+	clk_set_parent_nolock(&clk_i2s1_div, &general_pll_clk);
+	clk_set_parent_nolock(&clk_spdif_div, &general_pll_clk);
+	clk_set_parent_nolock(&clk_spi_src, &general_pll_clk);
+	clk_set_parent_nolock(&clk_mmc_src, &general_pll_clk);
+	clk_set_parent_nolock(&clk_uart01_src, &general_pll_clk);
+	clk_set_parent_nolock(&clk_uart23_src, &general_pll_clk);
+	clk_set_parent_nolock(&dclk_lcdc_div, &general_pll_clk);
+	clk_set_parent_nolock(&aclk_lcdc, &general_pll_clk);
+	clk_set_parent_nolock(&aclk_vepu, &general_pll_clk);
+	clk_set_parent_nolock(&aclk_vdpu, &general_pll_clk);
+	clk_set_parent_nolock(&clk_gpu, &general_pll_clk);
+	clk_set_parent_nolock(&aclk_gpu, &general_pll_clk);
+	clk_set_parent_nolock(&clk_mac_ref_div, &general_pll_clk);
+	clk_set_parent_nolock(&clk_hsadc_div, &general_pll_clk);
 
 	/* arm pll */
-	clk_set_rate_nolock(&arm_pll_clk, 624 * MHZ);
+	clk_set_rate_nolock(&arm_pll_clk, armclk);
 }
 
-static void clk_enable_init_clocks(void)
+static void __init clk_enable_init_clocks(void)
 {
 	clk_enable_nolock(&clk_hclk_cpu_display);
 	clk_enable_nolock(&clk_aclk_ddr_gpu);
@@ -2359,8 +2383,8 @@ void __init rk29_clock_init(void)
 
 	rk29_clock_common_init();
 
-	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/ppll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz\n",
-	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, periph_pll_clk.rate / MHZ, clk_core.rate / MHZ,
+	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz\n",
+	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, general_pll_clk.rate / MHZ, clk_core.rate / MHZ,
 	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
 
 }
@@ -2433,7 +2457,7 @@ static int proc_clk_show(struct seq_file *s, void *v)
 	seq_printf(s, "APLL     : 0x%08x\n", cru_readl(CRU_APLL_CON));
 	seq_printf(s, "DPLL     : 0x%08x\n", cru_readl(CRU_DPLL_CON));
 	seq_printf(s, "CPLL     : 0x%08x\n", cru_readl(CRU_CPLL_CON));
-	seq_printf(s, "PPLL     : 0x%08x\n", cru_readl(CRU_PPLL_CON));
+	seq_printf(s, "GPLL     : 0x%08x\n", cru_readl(CRU_GPLL_CON));
 	seq_printf(s, "MODE     : 0x%08x\n", cru_readl(CRU_MODE_CON));
 	seq_printf(s, "CLKSEL0  : 0x%08x\n", cru_readl(CRU_CLKSEL0_CON));
 	seq_printf(s, "CLKSEL1  : 0x%08x\n", cru_readl(CRU_CLKSEL1_CON));
