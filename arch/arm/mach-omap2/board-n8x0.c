@@ -645,6 +645,43 @@ static struct omap_board_mux board_mux[] __initdata = {
 	OMAP2420_MUX(EAC_AC_DOUT, OMAP_MUX_MODE1 | OMAP_PIN_OUTPUT),
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
 };
+
+static struct omap_device_pad serial2_pads[] __initdata = {
+	{
+		.name	= "uart3_rx_irrx.uart3_rx_irrx",
+		.flags	= OMAP_DEVICE_PAD_REMUX | OMAP_DEVICE_PAD_WAKEUP,
+		.enable	= OMAP_MUX_MODE0,
+		.idle	= OMAP_MUX_MODE3	/* Mux as GPIO for idle */
+	},
+};
+
+static inline void board_serial_init(void)
+{
+	struct omap_board_data bdata;
+
+	bdata.flags = 0;
+	bdata.pads = NULL;
+	bdata.pads_cnt = 0;
+
+	bdata.id = 0;
+	omap_serial_init_port(&bdata);
+
+	bdata.id = 1;
+	omap_serial_init_port(&bdata);
+
+	bdata.id = 2;
+	bdata.pads = serial2_pads;
+	bdata.pads_cnt = ARRAY_SIZE(serial2_pads);
+	omap_serial_init_port(&bdata);
+}
+
+#else
+
+static inline void board_serial_init(void)
+{
+	omap_serial_init();
+}
+
 #endif
 
 static void __init n8x0_init_machine(void)
@@ -659,8 +696,7 @@ static void __init n8x0_init_machine(void)
 	if (machine_is_nokia_n810())
 		i2c_register_board_info(2, n810_i2c_board_info_2,
 					ARRAY_SIZE(n810_i2c_board_info_2));
-
-	omap_serial_init();
+	board_serial_init();
 	gpmc_onenand_init(board_onenand_data);
 	n8x0_mmc_init();
 	n8x0_usb_init();
