@@ -1226,8 +1226,7 @@ rxf_process_packet_filter_vlan(struct bna_rxf *rxf)
 	/* Apply the VLAN filter */
 	if (rxf->rxf_flags & BNA_RXF_FL_VLAN_CONFIG_PENDING) {
 		rxf->rxf_flags &= ~BNA_RXF_FL_VLAN_CONFIG_PENDING;
-		if (!(rxf->rxmode_active & BNA_RXMODE_PROMISC) &&
-			!(rxf->rxmode_active & BNA_RXMODE_DEFAULT))
+		if (!(rxf->rxmode_active & BNA_RXMODE_PROMISC))
 			__rxf_vlan_filter_set(rxf, rxf->vlan_filter_status);
 	}
 
@@ -1274,9 +1273,6 @@ rxf_process_packet_filter(struct bna_rxf *rxf)
 		return 1;
 
 	if (rxf_process_packet_filter_promisc(rxf))
-		return 1;
-
-	if (rxf_process_packet_filter_default(rxf))
 		return 1;
 
 	if (rxf_process_packet_filter_allmulti(rxf))
@@ -1340,9 +1336,6 @@ rxf_clear_packet_filter(struct bna_rxf *rxf)
 	if (rxf_clear_packet_filter_promisc(rxf))
 		return 1;
 
-	if (rxf_clear_packet_filter_default(rxf))
-		return 1;
-
 	if (rxf_clear_packet_filter_allmulti(rxf))
 		return 1;
 
@@ -1388,8 +1381,6 @@ rxf_reset_packet_filter(struct bna_rxf *rxf)
 	rxf->ucast_pending_set = 0;
 
 	rxf_reset_packet_filter_promisc(rxf);
-
-	rxf_reset_packet_filter_default(rxf);
 
 	rxf_reset_packet_filter_allmulti(rxf);
 }

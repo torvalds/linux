@@ -165,8 +165,7 @@ enum bna_rxp_type {
 
 enum bna_rxmode {
 	BNA_RXMODE_PROMISC 	= 1,
-	BNA_RXMODE_DEFAULT 	= 2,
-	BNA_RXMODE_ALLMULTI 	= 4
+	BNA_RXMODE_ALLMULTI 	= 2
 };
 
 enum bna_rx_event {
@@ -1118,7 +1117,6 @@ struct bna {
 
 	struct bna_rit_mod rit_mod;
 
-	int			rxf_default_id;
 	int			rxf_promisc_id;
 
 	struct bna_mbox_qe mbox_qe;
