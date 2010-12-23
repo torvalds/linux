@@ -21,6 +21,7 @@
 #include <linux/device.h>
 #include <linux/leds.h>
 #include <linux/completion.h>
+#include <linux/pm_qos_params.h>
 
 #include "debug.h"
 #include "common.h"
@@ -328,7 +329,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp);
 struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype);
 void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq);
 int ath_tx_setup(struct ath_softc *sc, int haltype);
-void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx);
+bool ath_drain_all_txq(struct ath_softc *sc, bool retry_tx);
 void ath_draintxq(struct ath_softc *sc,
 		     struct ath_txq *txq, bool retry_tx);
 void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an);
@@ -646,6 +647,8 @@ struct ath_softc {
 	struct ath_descdma txsdma;
 
 	struct ath_ant_comb ant_comb;
+
+	struct pm_qos_request_list pm_qos_req;
 };
 
 struct ath_wiphy {

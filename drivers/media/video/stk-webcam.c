@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 
 #include <linux/usb.h>
 #include <linux/mm.h>
@@ -673,14 +672,11 @@ static int v4l_stk_open(struct file *fp)
 	vdev = video_devdata(fp);
 	dev = vdev_to_camera(vdev);
 
-	lock_kernel();
 	if (dev == NULL || !is_present(dev)) {
-		unlock_kernel();
 		return -ENXIO;
 	}
 	fp->private_data = dev;
 	usb_autopm_get_interface(dev->interface);
-	unlock_kernel();
 
 	return 0;
 }

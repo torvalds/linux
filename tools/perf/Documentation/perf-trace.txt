@@ -8,7 +8,11 @@ perf-trace - Read perf.data (created by perf record) and display trace output
 SYNOPSIS
 --------
 [verse]
-'perf trace' {record <script> | report <script> [args] }
+'perf trace' [<options>]
+'perf trace' [<options>] record <script> [<record-options>] <command>
+'perf trace' [<options>] report <script> [script-args]
+'perf trace' [<options>] <script> <required-script-args> [<record-options>] <command>
+'perf trace' [<options>] <top-script> [script-args]
 
 DESCRIPTION
 -----------
@@ -24,23 +28,53 @@ There are several variants of perf trace:
   available via 'perf trace -l').  The following variants allow you to
   record and run those scripts:
 
-  'perf trace record <script>' to record the events required for 'perf
-  trace report'.  <script> is the name displayed in the output of
-  'perf trace --list' i.e. the actual script name minus any language
-  extension.
+  'perf trace record <script> <command>' to record the events required
+  for 'perf trace report'.  <script> is the name displayed in the
+  output of 'perf trace --list' i.e. the actual script name minus any
+  language extension.  If <command> is not specified, the events are
+  recorded using the -a (system-wide) 'perf record' option.
 
-  'perf trace report <script>' to run and display the results of
-  <script>.  <script> is the name displayed in the output of 'perf
+  'perf trace report <script> [args]' to run and display the results
+  of <script>.  <script> is the name displayed in the output of 'perf
   trace --list' i.e. the actual script name minus any language
   extension.  The perf.data output from a previous run of 'perf trace
   record <script>' is used and should be present for this command to
-  succeed.
+  succeed.  [args] refers to the (mainly optional) args expected by
+  the script.
+
+  'perf trace <script> <required-script-args> <command>' to both
+  record the events required for <script> and to run the <script>
+  using 'live-mode' i.e. without writing anything to disk.  <script>
+  is the name displayed in the output of 'perf trace --list' i.e. the
+  actual script name minus any language extension.  If <command> is
+  not specified, the events are recorded using the -a (system-wide)
+  'perf record' option.  If <script> has any required args, they
+  should be specified before <command>.  This mode doesn't allow for
+  optional script args to be specified; if optional script args are
+  desired, they can be specified using separate 'perf trace record'
+  and 'perf trace report' commands, with the stdout of the record step
+  piped to the stdin of the report script, using the '-o -' and '-i -'
+  options of the corresponding commands.
+
+  'perf trace <top-script>' to both record the events required for
+  <top-script> and to run the <top-script> using 'live-mode'
+  i.e. without writing anything to disk.  <top-script> is the name
+  displayed in the output of 'perf trace --list' i.e. the actual
+  script name minus any language extension; a <top-script> is defined
+  as any script name ending with the string 'top'.
+
+  [<record-options>] can be passed to the record steps of 'perf trace
+  record' and 'live-mode' variants; this isn't possible however for
+  <top-script> 'live-mode' or 'perf trace report' variants.
 
   See the 'SEE ALSO' section for links to language-specific
   information on how to write and run your own trace scripts.
 
 OPTIONS
 -------
+<command>...::
+	Any command you can specify in a shell.
+
 -D::
 --dump-raw-trace=::
         Display verbose dump of the trace data.
@@ -63,6 +97,13 @@ OPTIONS
 --gen-script=::
         Generate perf-trace.[ext] starter script for given language,
         using current perf.data.
+
+-a::
+        Force system-wide collection.  Scripts run without a <command>
+        normally use -a by default, while scripts run with a <command>
+        normally don't - this option allows the latter to be run in
+        system-wide mode.
+
 
 SEE ALSO
 --------

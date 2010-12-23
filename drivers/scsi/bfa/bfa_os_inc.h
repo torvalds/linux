@@ -15,10 +15,6 @@
  * General Public License for more details.
  */
 
-/**
- * Contains declarations all OS Specific files needed for BFA layer
- */
-
 #ifndef __BFA_OS_INC_H__
 #define __BFA_OS_INC_H__
 
@@ -44,11 +40,6 @@
 #define __BIGENDIAN
 #endif
 
-static inline u64 bfa_os_get_clock(void)
-{
-	return jiffies;
-}
-
 static inline u64 bfa_os_get_log_time(void)
 {
 	u64 system_time = 0;
@@ -63,13 +54,6 @@ static inline u64 bfa_os_get_log_time(void)
 #define bfa_io_lat_clock_res_div HZ
 #define bfa_io_lat_clock_res_mul 1000
 
-#define BFA_ASSERT(p) do {						\
-	if (!(p)) {      \
-		printk(KERN_ERR "assert(%s) failed at %s:%d\n",		\
-		#p, __FILE__, __LINE__);      \
-	}								\
-} while (0)
-
 #define BFA_LOG(level, bfad, mask, fmt, arg...)				\
 do {									\
 	if (((mask) == 4) || (level[1] <= '4'))				\
@@ -80,22 +64,6 @@ do {									\
 	((((_x) & 0xff) << 16) |		\
 	((_x) & 0x00ff00) |			\
 	(((_x) & 0xff0000) >> 16))
-
-#define bfa_swap_8b(_x)					\
-	((((_x) & 0xff00000000000000ull) >> 56)		\
-	 | (((_x) & 0x00ff000000000000ull) >> 40)	\
-	 | (((_x) & 0x0000ff0000000000ull) >> 24)	\
-	 | (((_x) & 0x000000ff00000000ull) >> 8)	\
-	 | (((_x) & 0x00000000ff000000ull) << 8)	\
-	 | (((_x) & 0x0000000000ff0000ull) << 24)	\
-	 | (((_x) & 0x000000000000ff00ull) << 40)	\
-	 | (((_x) & 0x00000000000000ffull) << 56))
-
-#define bfa_os_swap32(_x)			\
-	((((_x) & 0xff) << 24)		|	\
-	(((_x) & 0x0000ff00) << 8)	|	\
-	(((_x) & 0x00ff0000) >> 8)	|	\
-	(((_x) & 0xff000000) >> 24))
 
 #define bfa_os_swap_sgaddr(_x)  ((u64)(                                 \
 	(((u64)(_x) & (u64)0x00000000000000ffull) << 32)        |       \
@@ -108,59 +76,27 @@ do {									\
 	(((u64)(_x) & (u64)0xff00000000000000ull) >> 32)))
 
 #ifndef __BIGENDIAN
-#define bfa_os_htons(_x) ((u16)((((_x) & 0xff00) >> 8) | \
-				 (((_x) & 0x00ff) << 8)))
-#define bfa_os_htonl(_x)	bfa_os_swap32(_x)
-#define bfa_os_htonll(_x)	bfa_swap_8b(_x)
-#define bfa_os_hton3b(_x)	bfa_swap_3b(_x)
-#define bfa_os_wtole(_x)   (_x)
+#define bfa_os_hton3b(_x)  bfa_swap_3b(_x)
 #define bfa_os_sgaddr(_x)  (_x)
-
 #else
-
-#define bfa_os_htons(_x)   (_x)
-#define bfa_os_htonl(_x)   (_x)
 #define bfa_os_hton3b(_x)  (_x)
-#define bfa_os_htonll(_x)  (_x)
-#define bfa_os_wtole(_x)   bfa_os_swap32(_x)
 #define bfa_os_sgaddr(_x)  bfa_os_swap_sgaddr(_x)
-
 #endif
 
-#define bfa_os_ntohs(_x)   bfa_os_htons(_x)
-#define bfa_os_ntohl(_x)   bfa_os_htonl(_x)
-#define bfa_os_ntohll(_x)  bfa_os_htonll(_x)
 #define bfa_os_ntoh3b(_x)  bfa_os_hton3b(_x)
-
 #define bfa_os_u32(__pa64) ((__pa64) >> 32)
 
-#define bfa_os_memset	memset
-#define bfa_os_memcpy	memcpy
-#define bfa_os_udelay	udelay
-#define bfa_os_vsprintf vsprintf
-#define bfa_os_snprintf snprintf
-
-#define bfa_os_assign(__t, __s) __t = __s
-#define bfa_os_addr_t void __iomem *
-
-#define bfa_os_reg_read(_raddr) readl(_raddr)
-#define bfa_os_reg_write(_raddr, _val) writel((_val), (_raddr))
-#define bfa_os_mem_read(_raddr, _off)					\
-	bfa_os_swap32(readl(((_raddr) + (_off))))
-#define bfa_os_mem_write(_raddr, _off, _val)				\
-	writel(bfa_os_swap32((_val)), ((_raddr) + (_off)))
-
-#define BFA_TRC_TS(_trcm)						\
-			({						\
-				struct timeval tv;			\
-									\
-				do_gettimeofday(&tv);      \
-				(tv.tv_sec*1000000+tv.tv_usec);      \
-			 })
+#define BFA_TRC_TS(_trcm)				\
+	({						\
+		struct timeval tv;			\
+							\
+		do_gettimeofday(&tv);			\
+		(tv.tv_sec*1000000+tv.tv_usec);		\
+	 })
 
 #define boolean_t int
 
-/**
+/*
  * For current time stamp, OS API will fill-in
  */
 struct bfa_timeval_s {

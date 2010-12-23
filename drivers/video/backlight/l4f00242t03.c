@@ -78,7 +78,7 @@ static int l4f00242t03_lcd_power_set(struct lcd_device *ld, int power)
 	const u16 slpin = 0x10;
 	const u16 disoff = 0x28;
 
-	if (power) {
+	if (power <= FB_BLANK_NORMAL) {
 		if (priv->lcd_on)
 			return 0;
 

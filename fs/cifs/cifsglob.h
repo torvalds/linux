@@ -45,6 +45,16 @@
 #define CIFS_MIN_RCV_POOL 4
 
 /*
+ * default attribute cache timeout (jiffies)
+ */
+#define CIFS_DEF_ACTIMEO (1 * HZ)
+
+/*
+ * max attribute cache timeout (jiffies) - 2^30
+ */
+#define CIFS_MAX_ACTIMEO (1 << 30)
+
+/*
  * MAX_REQ is the maximum number of requests that WE will send
  * on one socket concurrently. It also matches the most common
  * value of max multiplex returned by servers.  We may
@@ -336,7 +346,8 @@ struct cifsTconInfo {
  * "get" on the container.
  */
 struct tcon_link {
-	unsigned long		tl_index;
+	struct rb_node		tl_rbnode;
+	uid_t			tl_uid;
 	unsigned long		tl_flags;
 #define TCON_LINK_MASTER	0
 #define TCON_LINK_PENDING	1
@@ -745,8 +756,6 @@ GLOBAL_EXTERN unsigned int GlobalTotalActiveXid; /* prot by GlobalMid_Sem */
 GLOBAL_EXTERN unsigned int GlobalMaxActiveXid;	/* prot by GlobalMid_Sem */
 GLOBAL_EXTERN spinlock_t GlobalMid_Lock;  /* protects above & list operations */
 					  /* on midQ entries */
-GLOBAL_EXTERN char Local_System_Name[15];
-
 /*
  *  Global counters, updated atomically
  */

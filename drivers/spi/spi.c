@@ -29,11 +29,6 @@
 #include <linux/spi/spi.h>
 #include <linux/of_spi.h>
 
-
-/* SPI bustype and spi_master class are registered after board init code
- * provides the SPI device tables, ensuring that both are present by the
- * time controller driver registration causes spi_devices to "enumerate".
- */
 static void spidev_release(struct device *dev)
 {
 	struct spi_device	*spi = to_spi_device(dev);
@@ -202,11 +197,16 @@ EXPORT_SYMBOL_GPL(spi_register_driver);
 
 struct boardinfo {
 	struct list_head	list;
-	unsigned		n_board_info;
-	struct spi_board_info	board_info[0];
+	struct spi_board_info	board_info;
 };
 
 static LIST_HEAD(board_list);
+static LIST_HEAD(spi_master_list);
+
+/*
+ * Used to protect add/del opertion for board_info list and
+ * spi_master list, and their matching process
+ */
 static DEFINE_MUTEX(board_lock);
 
 /**
@@ -300,16 +300,16 @@ int spi_add_device(struct spi_device *spi)
 	 */
 	status = spi_setup(spi);
 	if (status < 0) {
-		dev_err(dev, "can't %s %s, status %d\n",
-				"setup", dev_name(&spi->dev), status);
+		dev_err(dev, "can't setup %s, status %d\n",
+				dev_name(&spi->dev), status);
 		goto done;
 	}
 
 	/* Device may be bound to an active driver when this returns */
 	status = device_add(&spi->dev);
 	if (status < 0)
-		dev_err(dev, "can't %s %s, status %d\n",
-				"add", dev_name(&spi->dev), status);
+		dev_err(dev, "can't add %s, status %d\n",
+				dev_name(&spi->dev), status);
 	else
 		dev_dbg(dev, "registered child %s\n", dev_name(&spi->dev));
 
@@ -371,6 +371,20 @@ struct spi_device *spi_new_device(struct spi_master *master,
 }
 EXPORT_SYMBOL_GPL(spi_new_device);
 
+static void spi_match_master_to_boardinfo(struct spi_master *master,
+				struct spi_board_info *bi)
+{
+	struct spi_device *dev;
+
+	if (master->bus_num != bi->bus_num)
+		return;
+
+	dev = spi_new_device(master, bi);
+	if (!dev)
+		dev_err(master->dev.parent, "can't create new device for %s\n",
+			bi->modalias);
+}
+
 /**
  * spi_register_board_info - register SPI devices for a given board
  * @info: array of chip descriptors
@@ -393,43 +407,25 @@ EXPORT_SYMBOL_GPL(spi_new_device);
 int __init
 spi_register_board_info(struct spi_board_info const *info, unsigned n)
 {
-	struct boardinfo	*bi;
+	struct boardinfo *bi;
+	int i;
 
-	bi = kmalloc(sizeof(*bi) + n * sizeof *info, GFP_KERNEL);
+	bi = kzalloc(n * sizeof(*bi), GFP_KERNEL);
 	if (!bi)
 		return -ENOMEM;
-	bi->n_board_info = n;
-	memcpy(bi->board_info, info, n * sizeof *info);
 
-	mutex_lock(&board_lock);
-	list_add_tail(&bi->list, &board_list);
-	mutex_unlock(&board_lock);
-	return 0;
-}
+	for (i = 0; i < n; i++, bi++, info++) {
+		struct spi_master *master;
 
-/* FIXME someone should add support for a __setup("spi", ...) that
- * creates board info from kernel command lines
- */
-
-static void scan_boardinfo(struct spi_master *master)
-{
-	struct boardinfo	*bi;
-
-	mutex_lock(&board_lock);
-	list_for_each_entry(bi, &board_list, list) {
-		struct spi_board_info	*chip = bi->board_info;
-		unsigned		n;
-
-		for (n = bi->n_board_info; n > 0; n--, chip++) {
-			if (chip->bus_num != master->bus_num)
-				continue;
-			/* NOTE: this relies on spi_new_device to
-			 * issue diagnostics when given bogus inputs
-			 */
-			(void) spi_new_device(master, chip);
-		}
+		memcpy(&bi->board_info, info, sizeof(*info));
+		mutex_lock(&board_lock);
+		list_add_tail(&bi->list, &board_list);
+		list_for_each_entry(master, &spi_master_list, list)
+			spi_match_master_to_boardinfo(master, &bi->board_info);
+		mutex_unlock(&board_lock);
 	}
-	mutex_unlock(&board_lock);
+
+	return 0;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -512,6 +508,7 @@ int spi_register_master(struct spi_master *master)
 {
 	static atomic_t		dyn_bus_id = ATOMIC_INIT((1<<15) - 1);
 	struct device		*dev = master->dev.parent;
+	struct boardinfo	*bi;
 	int			status = -ENODEV;
 	int			dynamic = 0;
 
@@ -547,8 +544,12 @@ int spi_register_master(struct spi_master *master)
 	dev_dbg(dev, "registered master %s%s\n", dev_name(&master->dev),
 			dynamic ? " (dynamic)" : "");
 
-	/* populate children from any spi device tables */
-	scan_boardinfo(master);
+	mutex_lock(&board_lock);
+	list_add_tail(&master->list, &spi_master_list);
+	list_for_each_entry(bi, &board_list, list)
+		spi_match_master_to_boardinfo(master, &bi->board_info);
+	mutex_unlock(&board_lock);
+
 	status = 0;
 
 	/* Register devices from the device tree */
@@ -579,7 +580,12 @@ void spi_unregister_master(struct spi_master *master)
 {
 	int dummy;
 
-	dummy = device_for_each_child(&master->dev, NULL, __unregister);
+	mutex_lock(&board_lock);
+	list_del(&master->list);
+	mutex_unlock(&board_lock);
+
+	dummy = device_for_each_child(master->dev.parent, &master->dev,
+					__unregister);
 	device_unregister(&master->dev);
 }
 EXPORT_SYMBOL_GPL(spi_unregister_master);
@@ -652,7 +658,7 @@ int spi_setup(struct spi_device *spi)
 	 */
 	bad_bits = spi->mode & ~spi->master->mode_bits;
 	if (bad_bits) {
-		dev_dbg(&spi->dev, "setup: unsupported mode bits %x\n",
+		dev_err(&spi->dev, "setup: unsupported mode bits %x\n",
 			bad_bits);
 		return -EINVAL;
 	}

@@ -12,8 +12,6 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/magic.h>
-#include <linux/mm.h>
-#include <linux/backing-dev.h>
 
 #include <xen/xen.h>
 
@@ -24,28 +22,12 @@
 MODULE_DESCRIPTION("Xen filesystem");
 MODULE_LICENSE("GPL");
 
-static int xenfs_set_page_dirty(struct page *page)
-{
-	return !TestSetPageDirty(page);
-}
-
-static const struct address_space_operations xenfs_aops = {
-	.set_page_dirty = xenfs_set_page_dirty,
-};
-
-static struct backing_dev_info xenfs_backing_dev_info = {
-	.ra_pages	= 0,	/* No readahead */
-	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
-};
-
 static struct inode *xenfs_make_inode(struct super_block *sb, int mode)
 {
 	struct inode *ret = new_inode(sb);
 
 	if (ret) {
 		ret->i_mode = mode;
-		ret->i_mapping->a_ops = &xenfs_aops;
-		ret->i_mapping->backing_dev_info = &xenfs_backing_dev_info;
 		ret->i_uid = ret->i_gid = 0;
 		ret->i_blocks = 0;
 		ret->i_atime = ret->i_mtime = ret->i_ctime = CURRENT_TIME;
@@ -121,9 +103,9 @@ static int xenfs_fill_super(struct super_block *sb, void *data, int silent)
 	return rc;
 }
 
-static int xenfs_mount(struct file_system_type *fs_type,
-			int flags, const char *dev_name,
-			void *data)
+static struct dentry *xenfs_mount(struct file_system_type *fs_type,
+				  int flags, const char *dev_name,
+				  void *data)
 {
 	return mount_single(fs_type, flags, data, xenfs_fill_super);
 }
@@ -137,25 +119,11 @@ static struct file_system_type xenfs_type = {
 
 static int __init xenfs_init(void)
 {
-	int err;
-	if (!xen_domain()) {
-		printk(KERN_INFO "xenfs: not registering filesystem on non-xen platform\n");
-		return 0;
-	}
+	if (xen_domain())
+		return register_filesystem(&xenfs_type);
 
-	err = register_filesystem(&xenfs_type);
-	if (err) {
-		printk(KERN_ERR "xenfs: Unable to register filesystem!\n");
-		goto out;
-	}
-
-	err = bdi_init(&xenfs_backing_dev_info);
-	if (err)
-		unregister_filesystem(&xenfs_type);
-
- out:
-
-	return err;
+	printk(KERN_INFO "XENFS: not registering filesystem on non-xen platform\n");
+	return 0;
 }
 
 static void __exit xenfs_exit(void)

@@ -50,6 +50,9 @@
 #define SMSTPCR3	0xe615013c
 #define SMSTPCR4	0xe6150140
 
+#define FSIDIVA		0xFE1F8000
+#define FSIDIVB		0xFE1F8008
+
 /* Platforms must set frequency on their DV_CLKI pin */
 struct clk sh7372_dv_clki_clk = {
 };
@@ -217,8 +220,7 @@ static void pllc2_disable(struct clk *clk)
 	__raw_writel(__raw_readl(PLLC2CR) & ~0x80000000, PLLC2CR);
 }
 
-static int pllc2_set_rate(struct clk *clk,
-			  unsigned long rate, int algo_id)
+static int pllc2_set_rate(struct clk *clk, unsigned long rate)
 {
 	unsigned long value;
 	int idx;
@@ -227,20 +229,12 @@ static int pllc2_set_rate(struct clk *clk,
 	if (idx < 0)
 		return idx;
 
-	if (rate == clk->parent->rate) {
-		pllc2_disable(clk);
-		return 0;
-	}
+	if (rate == clk->parent->rate)
+		return -EINVAL;
 
 	value = __raw_readl(PLLC2CR) & ~(0x3f << 24);
 
-	if (value & 0x80000000)
-		pllc2_disable(clk);
-
 	__raw_writel((value & ~0x80000000) | ((idx + 19) << 24), PLLC2CR);
-
-	if (value & 0x80000000)
-		return pllc2_enable(clk);
 
 	return 0;
 }
@@ -288,6 +282,7 @@ struct clk sh7372_pllc2_clk = {
 	.ops		= &pllc2_clk_ops,
 	.parent		= &extal1_div2_clk,
 	.freq_table	= pllc2_freq_table,
+	.nr_freqs	= ARRAY_SIZE(pllc2_freq_table) - 1,
 	.parent_table	= pllc2_parent,
 	.parent_num	= ARRAY_SIZE(pllc2_parent),
 };
@@ -417,6 +412,93 @@ static struct clk div6_reparent_clks[DIV6_REPARENT_NR] = {
 				      fsibckcr_parent, ARRAY_SIZE(fsibckcr_parent), 6, 2),
 };
 
+/* FSI DIV */
+static unsigned long fsidiv_recalc(struct clk *clk)
+{
+	unsigned long value;
+
+	value = __raw_readl(clk->mapping->base);
+
+	if ((value & 0x3) != 0x3)
+		return 0;
+
+	value >>= 16;
+	if (value < 2)
+		return 0;
+
+	return clk->parent->rate / value;
+}
+
+static long fsidiv_round_rate(struct clk *clk, unsigned long rate)
+{
+	return clk_rate_div_range_round(clk, 2, 0xffff, rate);
+}
+
+static void fsidiv_disable(struct clk *clk)
+{
+	__raw_writel(0, clk->mapping->base);
+}
+
+static int fsidiv_enable(struct clk *clk)
+{
+	unsigned long value;
+
+	value  = __raw_readl(clk->mapping->base) >> 16;
+	if (value < 2)
+		return -EIO;
+
+	__raw_writel((value << 16) | 0x3, clk->mapping->base);
+
+	return 0;
+}
+
+static int fsidiv_set_rate(struct clk *clk, unsigned long rate)
+{
+	int idx;
+
+	idx = (clk->parent->rate / rate) & 0xffff;
+	if (idx < 2)
+		return -EINVAL;
+
+	__raw_writel(idx << 16, clk->mapping->base);
+	return 0;
+}
+
+static struct clk_ops fsidiv_clk_ops = {
+	.recalc		= fsidiv_recalc,
+	.round_rate	= fsidiv_round_rate,
+	.set_rate	= fsidiv_set_rate,
+	.enable		= fsidiv_enable,
+	.disable	= fsidiv_disable,
+};
+
+static struct clk_mapping sh7372_fsidiva_clk_mapping = {
+	.phys	= FSIDIVA,
+	.len	= 8,
+};
+
+struct clk sh7372_fsidiva_clk = {
+	.ops		= &fsidiv_clk_ops,
+	.parent		= &div6_reparent_clks[DIV6_FSIA], /* late install */
+	.mapping	= &sh7372_fsidiva_clk_mapping,
+};
+
+static struct clk_mapping sh7372_fsidivb_clk_mapping = {
+	.phys	= FSIDIVB,
+	.len	= 8,
+};
+
+struct clk sh7372_fsidivb_clk = {
+	.ops		= &fsidiv_clk_ops,
+	.parent		= &div6_reparent_clks[DIV6_FSIB],  /* late install */
+	.mapping	= &sh7372_fsidivb_clk_mapping,
+};
+
+static struct clk *late_main_clks[] = {
+	&sh7372_fsidiva_clk,
+	&sh7372_fsidivb_clk,
+};
+
 enum { MSTP001,
        MSTP131, MSTP130,
        MSTP129, MSTP128, MSTP127, MSTP126, MSTP125,
@@ -510,8 +592,6 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("vck3_clk", &div6_clks[DIV6_VCK3]),
 	CLKDEV_CON_ID("fmsi_clk", &div6_clks[DIV6_FMSI]),
 	CLKDEV_CON_ID("fmso_clk", &div6_clks[DIV6_FMSO]),
-	CLKDEV_CON_ID("fsia_clk", &div6_reparent_clks[DIV6_FSIA]),
-	CLKDEV_CON_ID("fsib_clk", &div6_reparent_clks[DIV6_FSIB]),
 	CLKDEV_CON_ID("sub_clk", &div6_clks[DIV6_SUB]),
 	CLKDEV_CON_ID("spu_clk", &div6_clks[DIV6_SPU]),
 	CLKDEV_CON_ID("vou_clk", &div6_clks[DIV6_VOU]),
@@ -548,8 +628,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh_cmt.10", &mstp_clks[MSTP329]), /* CMT10 */
 	CLKDEV_DEV_ID("sh_fsi2", &mstp_clks[MSTP328]), /* FSI2 */
 	CLKDEV_DEV_ID("i2c-sh_mobile.1", &mstp_clks[MSTP323]), /* IIC1 */
-	CLKDEV_DEV_ID("r8a66597_hcd.0", &mstp_clks[MSTP323]), /* USB0 */
-	CLKDEV_DEV_ID("r8a66597_udc.0", &mstp_clks[MSTP323]), /* USB0 */
+	CLKDEV_DEV_ID("r8a66597_hcd.0", &mstp_clks[MSTP322]), /* USB0 */
+	CLKDEV_DEV_ID("r8a66597_udc.0", &mstp_clks[MSTP322]), /* USB0 */
 	CLKDEV_DEV_ID("sh_mobile_sdhi.0", &mstp_clks[MSTP314]), /* SDHI0 */
 	CLKDEV_DEV_ID("sh_mobile_sdhi.1", &mstp_clks[MSTP313]), /* SDHI1 */
 	CLKDEV_DEV_ID("sh_mmcif.0", &mstp_clks[MSTP312]), /* MMC */
@@ -584,6 +664,9 @@ void __init sh7372_clock_init(void)
 
 	if (!ret)
 		ret = sh_clk_mstp32_register(mstp_clks, MSTP_NR);
+
+	for (k = 0; !ret && (k < ARRAY_SIZE(late_main_clks)); k++)
+		ret = clk_register(late_main_clks[k]);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 

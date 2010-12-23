@@ -27,6 +27,7 @@
 #include <dspbridge/nodedefs.h>
 #include <dspbridge/dispdefs.h>
 #include <dspbridge/dspdefs.h>
+#include <dspbridge/dmm.h>
 #include <dspbridge/host_os.h>
 
 /*  ----------------------------------- This */
@@ -231,6 +232,29 @@ extern int dev_get_chnl_mgr(struct dev_object *hdev_obj,
  */
 extern int dev_get_cmm_mgr(struct dev_object *hdev_obj,
 				  struct cmm_object **mgr);
+
+/*
+ *  ======== dev_get_dmm_mgr ========
+ *  Purpose:
+ *      Retrieve the handle to the dynamic memory manager created for this
+ *      device.
+ *  Parameters:
+ *      hdev_obj:     Handle to device object created with
+ *                      dev_create_device().
+ *      *mgr:           Ptr to location to store handle.
+ *  Returns:
+ *      0:        Success.
+ *      -EFAULT:    Invalid hdev_obj.
+ *  Requires:
+ *      mgr != NULL.
+ *      DEV Initialized.
+ *  Ensures:
+ *      0:        *mgr contains a handle to a channel manager object,
+ *                      or NULL.
+ *      else:           *mgr is NULL.
+ */
+extern int dev_get_dmm_mgr(struct dev_object *hdev_obj,
+				  struct dmm_object **mgr);
 
 /*
  *  ======== dev_get_cod_mgr ========

@@ -165,9 +165,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 
 	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
 		       list_empty(&dev_priv->mm.flushing_list) &&
-		       list_empty(&dev_priv->render_ring.active_list) &&
-		       list_empty(&dev_priv->bsd_ring.active_list) &&
-		       list_empty(&dev_priv->blt_ring.active_list));
+		       list_empty(&dev_priv->mm.active_list));
 	if (lists_empty)
 		return -ENOSPC;
 
@@ -184,9 +182,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 
 	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
 		       list_empty(&dev_priv->mm.flushing_list) &&
-		       list_empty(&dev_priv->render_ring.active_list) &&
-		       list_empty(&dev_priv->bsd_ring.active_list) &&
-		       list_empty(&dev_priv->blt_ring.active_list));
+		       list_empty(&dev_priv->mm.active_list));
 	BUG_ON(!lists_empty);
 
 	return 0;

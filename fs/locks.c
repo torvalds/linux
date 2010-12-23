@@ -122,7 +122,6 @@
 #include <linux/module.h>
 #include <linux/security.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/time.h>
 #include <linux/rcupdate.h>
@@ -235,11 +234,8 @@ static void locks_copy_private(struct file_lock *new, struct file_lock *fl)
 			fl->fl_ops->fl_copy_lock(new, fl);
 		new->fl_ops = fl->fl_ops;
 	}
-	if (fl->fl_lmops) {
-		if (fl->fl_lmops->fl_copy_lock)
-			fl->fl_lmops->fl_copy_lock(new, fl);
+	if (fl->fl_lmops)
 		new->fl_lmops = fl->fl_lmops;
-	}
 }
 
 /*
@@ -1428,8 +1424,9 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 		goto out;
 
 	if (my_before != NULL) {
-		*flp = *my_before;
 		error = lease->fl_lmops->fl_change(my_before, arg);
+		if (!error)
+			*flp = *my_before;
 		goto out;
 	}
 
@@ -1444,8 +1441,6 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	return 0;
 
 out:
-	if (arg != F_UNLCK)
-		locks_free_lock(lease);
 	return error;
 }
 EXPORT_SYMBOL(generic_setlease);
@@ -1508,9 +1503,8 @@ static int do_fcntl_delete_lease(struct file *filp)
 
 static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 {
-	struct file_lock *fl;
+	struct file_lock *fl, *ret;
 	struct fasync_struct *new;
-	struct inode *inode = filp->f_path.dentry->d_inode;
 	int error;
 
 	fl = lease_alloc(filp, arg);
@@ -1522,10 +1516,16 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 		locks_free_lock(fl);
 		return -ENOMEM;
 	}
+	ret = fl;
 	lock_flocks();
-	error = __vfs_setlease(filp, arg, &fl);
-	if (error)
-		goto out_unlock;
+	error = __vfs_setlease(filp, arg, &ret);
+	if (error) {
+		unlock_flocks();
+		locks_free_lock(fl);
+		goto out_free_fasync;
+	}
+	if (ret != fl)
+		locks_free_lock(fl);
 
 	/*
 	 * fasync_insert_entry() returns the old entry if any.
@@ -1533,20 +1533,13 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
 	 * inserted it into the fasync list. Clear new so that
 	 * we don't release it here.
 	 */
-	if (!fasync_insert_entry(fd, filp, &fl->fl_fasync, new))
+	if (!fasync_insert_entry(fd, filp, &ret->fl_fasync, new))
 		new = NULL;
 
-	if (error < 0) {
-		/* remove lease just inserted by setlease */
-		fl->fl_type = F_UNLCK | F_INPROGRESS;
-		fl->fl_break_time = jiffies - 10;
-		time_out_leases(inode);
-		goto out_unlock;
-	}
-
 	error = __f_setown(filp, task_pid(current), PIDTYPE_PID, 0);
-out_unlock:
 	unlock_flocks();
+
+out_free_fasync:
 	if (new)
 		fasync_free(new);
 	return error;

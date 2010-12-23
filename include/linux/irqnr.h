@@ -43,7 +43,7 @@ unsigned int irq_get_next_irq(unsigned int offset);
 		else
 
 #ifdef CONFIG_SMP
-#define irq_node(irq)	(irq_to_desc(irq)->node)
+#define irq_node(irq)	(irq_get_irq_data(irq)->node)
 #else
 #define irq_node(irq)	0
 #endif

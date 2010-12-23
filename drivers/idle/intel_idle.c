@@ -273,8 +273,6 @@ static int intel_idle_probe(void)
 
 	pr_debug(PREFIX "MWAIT substates: 0x%x\n", mwait_substates);
 
-	if (boot_cpu_has(X86_FEATURE_ARAT))	/* Always Reliable APIC Timer */
-		lapic_timer_reliable_states = 0xFFFFFFFF;
 
 	if (boot_cpu_data.x86 != 6)	/* family 6 */
 		return -ENODEV;
@@ -286,8 +284,6 @@ static int intel_idle_probe(void)
 	case 0x1F:	/* Core i7 and i5 Processor - Nehalem */
 	case 0x2E:	/* Nehalem-EX Xeon */
 	case 0x2F:	/* Westmere-EX Xeon */
-		lapic_timer_reliable_states = (1 << 1);	 /* C1 */
-
 	case 0x25:	/* Westmere */
 	case 0x2C:	/* Westmere */
 		cpuidle_state_table = nehalem_cstates;
@@ -295,7 +291,6 @@ static int intel_idle_probe(void)
 
 	case 0x1C:	/* 28 - Atom Processor */
 	case 0x26:	/* 38 - Lincroft Atom Processor */
-		lapic_timer_reliable_states = (1 << 1); /* C1 */
 		cpuidle_state_table = atom_cstates;
 		break;
 
@@ -303,16 +298,15 @@ static int intel_idle_probe(void)
 	case 0x2D:	/* SNB Xeon */
 		cpuidle_state_table = snb_cstates;
 		break;
-#ifdef FUTURE_USE
-	case 0x17:	/* 23 - Core 2 Duo */
-		lapic_timer_reliable_states = (1 << 2) | (1 << 1); /* C2, C1 */
-#endif
 
 	default:
 		pr_debug(PREFIX "does not run on family %d model %d\n",
 			boot_cpu_data.x86, boot_cpu_data.x86_model);
 		return -ENODEV;
 	}
+
+	if (boot_cpu_has(X86_FEATURE_ARAT))	/* Always Reliable APIC Timer */
+		lapic_timer_reliable_states = 0xFFFFFFFF;
 
 	pr_debug(PREFIX "v" INTEL_IDLE_VERSION
 		" model 0x%X\n", boot_cpu_data.x86_model);

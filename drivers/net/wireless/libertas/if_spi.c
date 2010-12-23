@@ -1055,7 +1055,6 @@ static int __devexit libertas_spi_remove(struct spi_device *spi)
 	lbs_stop_card(priv);
 	lbs_remove_card(priv); /* will call free_netdev */
 
-	priv->surpriseremoved = 1;
 	free_irq(spi->irq, card);
 	if_spi_terminate_spi_thread(card);
 	if (card->pdata->teardown)

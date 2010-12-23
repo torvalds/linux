@@ -116,7 +116,7 @@ cifs_read_super(struct super_block *sb, void *data,
 		return -ENOMEM;
 
 	spin_lock_init(&cifs_sb->tlink_tree_lock);
-	INIT_RADIX_TREE(&cifs_sb->tlink_tree, GFP_KERNEL);
+	cifs_sb->tlink_tree = RB_ROOT;
 
 	rc = bdi_setup_and_register(&cifs_sb->bdi, "cifs", BDI_CAP_MAP_COPY);
 	if (rc) {
@@ -321,8 +321,7 @@ cifs_alloc_inode(struct super_block *sb)
 	/* Until the file is open and we have gotten oplock
 	info back from the server, can not assume caching of
 	file data or metadata */
-	cifs_inode->clientCanCacheRead = false;
-	cifs_inode->clientCanCacheAll = false;
+	cifs_set_oplock_level(cifs_inode, 0);
 	cifs_inode->delete_pending = false;
 	cifs_inode->invalid_mapping = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
@@ -459,9 +458,13 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 		seq_printf(s, ",acl");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
 		seq_printf(s, ",mfsymlinks");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_FSCACHE)
+		seq_printf(s, ",fsc");
 
 	seq_printf(s, ",rsize=%d", cifs_sb->rsize);
 	seq_printf(s, ",wsize=%d", cifs_sb->wsize);
+	/* convert actimeo and display it in seconds */
+		seq_printf(s, ",actimeo=%lu", cifs_sb->actimeo / HZ);
 
 	return 0;
 }
@@ -625,11 +628,8 @@ static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 		   knows that the file won't be changed on the server
 		   by anyone else */
 		return generic_setlease(file, arg, lease);
-	else {
-		if (arg != F_UNLCK)
-			locks_free_lock(*lease);
+	else
 		return -EAGAIN;
-	}
 }
 
 struct file_system_type cifs_fs_type = {
@@ -937,7 +937,6 @@ init_cifs(void)
 	GlobalCurrentXid = 0;
 	GlobalTotalActiveXid = 0;
 	GlobalMaxActiveXid = 0;
-	memset(Local_System_Name, 0, 15);
 	spin_lock_init(&cifs_tcp_ses_lock);
 	spin_lock_init(&cifs_file_list_lock);
 	spin_lock_init(&GlobalMid_Lock);

@@ -633,8 +633,9 @@ static inline u8  musb_read_txhubaddr(void __iomem *mbase, u8 epnum)
 	return 0;
 }
 
-static inline void  musb_read_txhubport(void __iomem *mbase, u8 epnum)
+static inline u8 musb_read_txhubport(void __iomem *mbase, u8 epnum)
 {
+	return 0;
 }
 
 #endif /* CONFIG_BLACKFIN */

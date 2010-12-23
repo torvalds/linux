@@ -27,6 +27,7 @@
 static void alchemy_8250_pm(struct uart_port *port, unsigned int state,
 			    unsigned int old_state)
 {
+#ifdef CONFIG_SERIAL_8250
 	switch (state) {
 	case 0:
 		if ((__raw_readl(port->membase + UART_MOD_CNTRL) & 3) != 3) {
@@ -49,6 +50,7 @@ static void alchemy_8250_pm(struct uart_port *port, unsigned int state,
 		serial8250_do_pm(port, state, old_state);
 		break;
 	}
+#endif
 }
 
 #define PORT(_base, _irq)					\

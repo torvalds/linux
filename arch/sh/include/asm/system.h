@@ -10,6 +10,7 @@
 #include <linux/compiler.h>
 #include <linux/linkage.h>
 #include <asm/types.h>
+#include <asm/uncached.h>
 
 #define AT_VECTOR_SIZE_ARCH 5 /* entries in ARCH_DLINFO */
 
@@ -136,9 +137,6 @@ extern unsigned int instruction_size(unsigned int insn);
 #else
 #define instruction_size(insn)	(4)
 #endif
-
-extern unsigned long cached_to_uncached;
-extern unsigned long uncached_size;
 
 void per_cpu_trap_init(void);
 void default_idle(void);

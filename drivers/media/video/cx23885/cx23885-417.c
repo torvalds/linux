@@ -31,7 +31,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -1576,12 +1575,8 @@ static int mpeg_open(struct file *file)
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh), GFP_KERNEL);
-	if (NULL == fh) {
-		unlock_kernel();
+	if (!fh)
 		return -ENOMEM;
-	}
-
-	lock_kernel();
 
 	file->private_data = fh;
 	fh->dev      = dev;
@@ -1592,8 +1587,6 @@ static int mpeg_open(struct file *file)
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx23885_buffer),
 			    fh, NULL);
-	unlock_kernel();
-
 	return 0;
 }
 
