@@ -34,8 +34,9 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 #include <linux/input.h>
+#include <linux/usb.h>
+#include <linux/usb/input.h>
 #include <media/ir-core.h>
 
 #define DRIVER_VERSION	"1.61"
@@ -140,7 +141,9 @@ static struct usb_driver streamzap_driver = {
 
 static void sz_push(struct streamzap_ir *sz, struct ir_raw_event rawir)
 {
-	ir_raw_event_store(sz->idev, &rawir);
+	dev_dbg(sz->dev, "Storing %s with duration %u us\n",
+		(rawir.pulse ? "pulse" : "space"), rawir.duration);
+	ir_raw_event_store_with_filter(sz->idev, &rawir);
 }
 
 static void sz_push_full_pulse(struct streamzap_ir *sz,
@@ -167,7 +170,6 @@ static void sz_push_full_pulse(struct streamzap_ir *sz,
 			rawir.duration *= 1000;
 			rawir.duration &= IR_MAX_DURATION;
 		}
-		dev_dbg(sz->dev, "ls %u\n", rawir.duration);
 		sz_push(sz, rawir);
 
 		sz->idle = false;
@@ -180,7 +182,6 @@ static void sz_push_full_pulse(struct streamzap_ir *sz,
 	sz->sum += rawir.duration;
 	rawir.duration *= 1000;
 	rawir.duration &= IR_MAX_DURATION;
-	dev_dbg(sz->dev, "p %u\n", rawir.duration);
 	sz_push(sz, rawir);
 }
 
@@ -200,7 +201,6 @@ static void sz_push_full_space(struct streamzap_ir *sz,
 	rawir.duration += SZ_RESOLUTION / 2;
 	sz->sum += rawir.duration;
 	rawir.duration *= 1000;
-	dev_dbg(sz->dev, "s %u\n", rawir.duration);
 	sz_push(sz, rawir);
 }
 
@@ -221,8 +221,6 @@ static void streamzap_callback(struct urb *urb)
 	struct streamzap_ir *sz;
 	unsigned int i;
 	int len;
-	static int timeout = (((SZ_TIMEOUT * SZ_RESOLUTION * 1000) &
-				IR_MAX_DURATION) | 0x03000000);
 
 	if (!urb)
 		return;
@@ -246,7 +244,7 @@ static void streamzap_callback(struct urb *urb)
 
 	dev_dbg(sz->dev, "%s: received urb, len %d\n", __func__, len);
 	for (i = 0; i < len; i++) {
-		dev_dbg(sz->dev, "sz idx %d: %x\n",
+		dev_dbg(sz->dev, "sz->buf_in[%d]: %x\n",
 			i, (unsigned char)sz->buf_in[i]);
 		switch (sz->decoder_state) {
 		case PulseSpace:
@@ -273,7 +271,7 @@ static void streamzap_callback(struct urb *urb)
 				DEFINE_IR_RAW_EVENT(rawir);
 
 				rawir.pulse = false;
-				rawir.duration = timeout;
+				rawir.duration = sz->props->timeout;
 				sz->idle = true;
 				if (sz->timeout_enabled)
 					sz_push(sz, rawir);
@@ -334,6 +332,9 @@ static struct input_dev *streamzap_init_input_dev(struct streamzap_ir *sz)
 	props->allowed_protos = IR_TYPE_ALL;
 
 	sz->props = props;
+
+	usb_to_input_id(sz->usbdev, &idev->id);
+	idev->dev.parent = sz->dev;
 
 	ret = ir_input_register(idev, RC_MAP_STREAMZAP, props, DRIVER_NAME);
 	if (ret < 0) {
@@ -444,6 +445,8 @@ static int __devinit streamzap_probe(struct usb_interface *intf,
 	sz->decoder_state = PulseSpace;
 	/* FIXME: don't yet have a way to set this */
 	sz->timeout_enabled = true;
+	sz->props->timeout = (((SZ_TIMEOUT * SZ_RESOLUTION * 1000) &
+				IR_MAX_DURATION) | 0x03000000);
 	#if 0
 	/* not yet supported, depends on patches from maxim */
 	/* see also: LIRC_GET_REC_RESOLUTION and LIRC_SET_REC_TIMEOUT */
