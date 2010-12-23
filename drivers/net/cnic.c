@@ -2883,7 +2883,7 @@ static void cnic_cm_cleanup(struct cnic_sock *csk)
 		struct cnic_dev *dev = csk->dev;
 		struct cnic_local *cp = dev->cnic_priv;
 
-		cnic_free_id(&cp->csk_port_tbl, csk->src_port);
+		cnic_free_id(&cp->csk_port_tbl, be16_to_cpu(csk->src_port));
 		csk->src_port = 0;
 	}
 }
@@ -3014,7 +3014,8 @@ static int cnic_get_route(struct cnic_sock *csk, struct cnic_sockaddr *saddr)
 	int is_v6, rc = 0;
 	struct dst_entry *dst = NULL;
 	struct net_device *realdev;
-	u32 local_port;
+	__be16 local_port;
+	u32 port_id;
 
 	if (saddr->local.v6.sin6_family == AF_INET6 &&
 	    saddr->remote.v6.sin6_family == AF_INET6)
@@ -3054,19 +3055,21 @@ static int cnic_get_route(struct cnic_sock *csk, struct cnic_sockaddr *saddr)
 		}
 	}
 
-	if (local_port >= CNIC_LOCAL_PORT_MIN &&
-	    local_port < CNIC_LOCAL_PORT_MAX) {
-		if (cnic_alloc_id(&cp->csk_port_tbl, local_port))
-			local_port = 0;
+	port_id = be16_to_cpu(local_port);
+	if (port_id >= CNIC_LOCAL_PORT_MIN &&
+	    port_id < CNIC_LOCAL_PORT_MAX) {
+		if (cnic_alloc_id(&cp->csk_port_tbl, port_id))
+			port_id = 0;
 	} else
-		local_port = 0;
+		port_id = 0;
 
-	if (!local_port) {
-		local_port = cnic_alloc_new_id(&cp->csk_port_tbl);
-		if (local_port == -1) {
+	if (!port_id) {
+		port_id = cnic_alloc_new_id(&cp->csk_port_tbl);
+		if (port_id == -1) {
 			rc = -ENOMEM;
 			goto err_out;
 		}
+		local_port = cpu_to_be16(port_id);
 	}
 	csk->src_port = local_port;
 

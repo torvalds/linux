@@ -82,7 +82,7 @@ struct cnic_redirect_entry {
 #define MAX_ISCSI_TBL_SZ	256
 
 #define CNIC_LOCAL_PORT_MIN	60000
-#define CNIC_LOCAL_PORT_MAX	61000
+#define CNIC_LOCAL_PORT_MAX	61024
 #define CNIC_LOCAL_PORT_RANGE	(CNIC_LOCAL_PORT_MAX - CNIC_LOCAL_PORT_MIN)
 
 #define KWQE_CNT (BCM_PAGE_SIZE / sizeof(struct kwqe))
