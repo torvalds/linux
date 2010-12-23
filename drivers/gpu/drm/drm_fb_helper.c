@@ -607,6 +607,25 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 }
 EXPORT_SYMBOL(drm_fb_helper_fini);
 
+void drm_fb_helper_fill_fix(struct fb_info *info, struct drm_framebuffer *fb)
+{
+	info->fix.type = FB_TYPE_PACKED_PIXELS;
+	info->fix.visual = fb->depth == 8 ? FB_VISUAL_PSEUDOCOLOR :
+		FB_VISUAL_TRUECOLOR;
+	info->fix.mmio_start = 0;
+	info->fix.mmio_len = 0;
+	info->fix.type_aux = 0;
+	info->fix.xpanstep = 1; /* doing it in hw */
+	info->fix.ypanstep = 1; /* doing it in hw */
+	info->fix.ywrapstep = 0;
+	info->fix.accel = FB_ACCEL_NONE;
+	info->fix.type_aux = 0;
+
+	info->fix.line_length = fb->pitch;
+	return;
+}
+EXPORT_SYMBOL(drm_fb_helper_fill_fix);
+
 static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		     u16 blue, u16 regno, struct fb_info *info)
 {
@@ -816,6 +835,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 			mutex_unlock(&dev->mode_config.mutex);
 			return ret;
 		}
+		drm_fb_helper_fill_fix(info, fb_helper->fb);
 	}
 	mutex_unlock(&dev->mode_config.mutex);
 
@@ -953,6 +973,7 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 	if (new_fb) {
 		info->var.pixclock = 0;
+		drm_fb_helper_fill_fix(info, fb_helper->fb);
 		if (register_framebuffer(info) < 0) {
 			return -EINVAL;
 		}
@@ -978,26 +999,6 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_single_fb_probe);
-
-void drm_fb_helper_fill_fix(struct fb_info *info, uint32_t pitch,
-			    uint32_t depth)
-{
-	info->fix.type = FB_TYPE_PACKED_PIXELS;
-	info->fix.visual = depth == 8 ? FB_VISUAL_PSEUDOCOLOR :
-		FB_VISUAL_TRUECOLOR;
-	info->fix.mmio_start = 0;
-	info->fix.mmio_len = 0;
-	info->fix.type_aux = 0;
-	info->fix.xpanstep = 1; /* doing it in hw */
-	info->fix.ypanstep = 1; /* doing it in hw */
-	info->fix.ywrapstep = 0;
-	info->fix.accel = FB_ACCEL_NONE;
-	info->fix.type_aux = 0;
-
-	info->fix.line_length = pitch;
-	return;
-}
-EXPORT_SYMBOL(drm_fb_helper_fill_fix);
 
 void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helper,
 			    uint32_t fb_width, uint32_t fb_height)
