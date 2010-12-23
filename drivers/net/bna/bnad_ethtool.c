@@ -68,6 +68,7 @@ static char *bnad_net_stats_strings[BNAD_ETHTOOL_STATS_NUM] = {
 
 	"netif_queue_stop",
 	"netif_queue_wakeup",
+	"netif_queue_stopped",
 	"tso4",
 	"tso6",
 	"tso_err",
@@ -1179,6 +1180,9 @@ bnad_get_ethtool_stats(struct net_device *netdev, struct ethtool_stats *stats,
 	bnad_netdev_hwstats_fill(bnad, net_stats64);
 
 	bi = sizeof(*net_stats64) / sizeof(u64);
+
+	/* Get netif_queue_stopped from stack */
+	bnad->stats.drv_stats.netif_queue_stopped = netif_queue_stopped(netdev);
 
 	/* Fill driver stats into ethtool buffers */
 	stats64 = (u64 *)&bnad->stats.drv_stats;

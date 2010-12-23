@@ -109,7 +109,7 @@ static void
 bnad_free_all_txbufs(struct bnad *bnad,
 		 struct bna_tcb *tcb)
 {
-	u16 		unmap_cons;
+	u32 		unmap_cons;
 	struct bnad_unmap_q *unmap_q = tcb->unmap_q;
 	struct bnad_skb_unmap *unmap_array;
 	struct sk_buff 		*skb = NULL;
@@ -244,7 +244,7 @@ bnad_tx_free_tasklet(unsigned long bnad_ptr)
 {
 	struct bnad *bnad = (struct bnad *)bnad_ptr;
 	struct bna_tcb *tcb;
-	u32 		acked;
+	u32 		acked = 0;
 	int			i, j;
 
 	for (i = 0; i < bnad->num_tx; i++) {
@@ -262,6 +262,20 @@ bnad_tx_free_tasklet(unsigned long bnad_ptr)
 					bna_ib_ack(tcb->i_dbell, acked);
 				smp_mb__before_clear_bit();
 				clear_bit(BNAD_TXQ_FREE_SENT, &tcb->flags);
+			}
+			if (unlikely(!test_bit(BNAD_TXQ_TX_STARTED,
+						&tcb->flags)))
+				continue;
+			if (netif_queue_stopped(bnad->netdev)) {
+				if (acked && netif_carrier_ok(bnad->netdev) &&
+					BNA_QE_FREE_CNT(tcb, tcb->q_depth) >=
+						BNAD_NETIF_WAKE_THRESHOLD) {
+					netif_wake_queue(bnad->netdev);
+					/* TODO */
+					/* Counters for individual TxQs? */
+					BNAD_UPDATE_CTR(bnad,
+						netif_queue_wakeup);
+				}
 			}
 		}
 	}
@@ -334,8 +348,6 @@ bnad_free_all_rxbufs(struct bnad *bnad, struct bna_rcb *rcb)
 		skb = unmap_q->unmap_array[unmap_cons].skb;
 		if (!skb)
 			continue;
-		BUG_ON(!(pci_unmap_addr(
-			&unmap_q->unmap_array[unmap_cons], dma_addr)));
 		unmap_q->unmap_array[unmap_cons].skb = NULL;
 		pci_unmap_single(bnad->pcidev, pci_unmap_addr(&unmap_q->
 					unmap_array[unmap_cons],

@@ -126,6 +126,7 @@ struct bnad_completion {
 struct bnad_drv_stats {
 	u64 		netif_queue_stop;
 	u64		netif_queue_wakeup;
+	u64		netif_queue_stopped;
 	u64		tso4;
 	u64		tso6;
 	u64		tso_err;
@@ -308,8 +309,10 @@ extern void bnad_cleanup_rx(struct bnad *bnad, uint rx_id);
 extern void bnad_dim_timer_start(struct bnad *bnad);
 
 /* Statistics */
-extern void bnad_netdev_qstats_fill(struct bnad *bnad, struct rtnl_link_stats64 *stats);
-extern void bnad_netdev_hwstats_fill(struct bnad *bnad, struct rtnl_link_stats64 *stats);
+extern void bnad_netdev_qstats_fill(struct bnad *bnad,
+		struct rtnl_link_stats64 *stats);
+extern void bnad_netdev_hwstats_fill(struct bnad *bnad,
+		struct rtnl_link_stats64 *stats);
 
 /**
  * MACROS
