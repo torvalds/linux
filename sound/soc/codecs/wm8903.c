@@ -1014,7 +1014,7 @@ static int wm8903_add_widgets(struct snd_soc_codec *codec)
 static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	u16 reg, reg2;
+	u16 reg;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -1038,23 +1038,15 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 			wm8903_run_sequence(codec, 0);
 			wm8903_sync_reg_cache(codec, codec->reg_cache);
 
-			/* Enable low impedence charge pump output */
-			reg = snd_soc_read(codec,
-					  WM8903_CONTROL_INTERFACE_TEST_1);
-			snd_soc_write(codec, WM8903_CONTROL_INTERFACE_TEST_1,
-				     reg | WM8903_TEST_KEY);
-			reg2 = snd_soc_read(codec, WM8903_CHARGE_PUMP_TEST_1);
-			snd_soc_write(codec, WM8903_CHARGE_PUMP_TEST_1,
-				     reg2 | WM8903_CP_SW_KELVIN_MODE_MASK);
-			snd_soc_write(codec, WM8903_CONTROL_INTERFACE_TEST_1,
-				     reg);
-
 			/* By default no bypass paths are enabled so
 			 * enable Class W support.
 			 */
 			dev_dbg(codec->dev, "Enabling Class W\n");
-			snd_soc_write(codec, WM8903_CLASS_W_0, reg |
-				     WM8903_CP_DYN_FREQ | WM8903_CP_DYN_V);
+			snd_soc_update_bits(codec, WM8903_CLASS_W_0,
+					    WM8903_CP_DYN_FREQ |
+					    WM8903_CP_DYN_V,
+					    WM8903_CP_DYN_FREQ |
+					    WM8903_CP_DYN_V);
 		}
 
 		reg = snd_soc_read(codec, WM8903_VMID_CONTROL_0);
