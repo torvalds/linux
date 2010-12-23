@@ -611,6 +611,75 @@ out:
 	return ret;
 }
 
+struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
+					      struct sk_buff *skb)
+{
+	int ret;
+
+	if (!skb)
+		skb = ieee80211_ap_probereq_get(wl->hw, wl->vif);
+	if (!skb)
+		goto out;
+
+	wl1271_dump(DEBUG_SCAN, "AP PROBE REQ: ", skb->data, skb->len);
+
+	if (wl->band == IEEE80211_BAND_2GHZ)
+		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
+					      skb->data, skb->len, 0,
+					      wl->conf.tx.basic_rate);
+	else
+		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_5,
+					      skb->data, skb->len, 0,
+					      wl->conf.tx.basic_rate_5);
+
+	if (ret < 0)
+		wl1271_error("Unable to set ap probe request template.");
+
+out:
+	return skb;
+}
+
+int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, __be32 ip_addr)
+{
+	int ret;
+	struct wl12xx_arp_rsp_template tmpl;
+	struct ieee80211_hdr_3addr *hdr;
+	struct arphdr *arp_hdr;
+
+	memset(&tmpl, 0, sizeof(tmpl));
+
+	/* mac80211 header */
+	hdr = &tmpl.hdr;
+	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
+					 IEEE80211_STYPE_DATA |
+					 IEEE80211_FCTL_TODS);
+	memcpy(hdr->addr1, wl->vif->bss_conf.bssid, ETH_ALEN);
+	memcpy(hdr->addr2, wl->vif->addr, ETH_ALEN);
+	memset(hdr->addr3, 0xff, ETH_ALEN);
+
+	/* llc layer */
+	memcpy(tmpl.llc_hdr, rfc1042_header, sizeof(rfc1042_header));
+	tmpl.llc_type = htons(ETH_P_ARP);
+
+	/* arp header */
+	arp_hdr = &tmpl.arp_hdr;
+	arp_hdr->ar_hrd = htons(ARPHRD_ETHER);
+	arp_hdr->ar_pro = htons(ETH_P_IP);
+	arp_hdr->ar_hln = ETH_ALEN;
+	arp_hdr->ar_pln = 4;
+	arp_hdr->ar_op = htons(ARPOP_REPLY);
+
+	/* arp payload */
+	memcpy(tmpl.sender_hw, wl->vif->addr, ETH_ALEN);
+	tmpl.sender_ip = ip_addr;
+
+	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_ARP_RSP,
+				      &tmpl, sizeof(tmpl), 0,
+				      wl->basic_rate);
+
+	return ret;
+}
+
 int wl1271_build_qos_null_data(struct wl1271 *wl)
 {
 	struct ieee80211_qos_hdr template;

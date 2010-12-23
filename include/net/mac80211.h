@@ -1852,11 +1852,39 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
  */
 int ieee80211_register_hw(struct ieee80211_hw *hw);
 
+/**
+ * struct ieee80211_tpt_blink - throughput blink description
+ * @throughput: throughput in Kbit/sec
+ * @blink_time: blink time in milliseconds
+ *	(full cycle, ie. one off + one on period)
+ */
+struct ieee80211_tpt_blink {
+	int throughput;
+	int blink_time;
+};
+
+/**
+ * enum ieee80211_tpt_led_trigger_flags - throughput trigger flags
+ * @IEEE80211_TPT_LEDTRIG_FL_RADIO: enable blinking with radio
+ * @IEEE80211_TPT_LEDTRIG_FL_WORK: enable blinking when working
+ * @IEEE80211_TPT_LEDTRIG_FL_CONNECTED: enable blinking when at least one
+ *	interface is connected in some way, including being an AP
+ */
+enum ieee80211_tpt_led_trigger_flags {
+	IEEE80211_TPT_LEDTRIG_FL_RADIO		= BIT(0),
+	IEEE80211_TPT_LEDTRIG_FL_WORK		= BIT(1),
+	IEEE80211_TPT_LEDTRIG_FL_CONNECTED	= BIT(2),
+};
+
 #ifdef CONFIG_MAC80211_LEDS
 extern char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw);
 extern char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw);
 extern char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw);
 extern char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw);
+extern char *__ieee80211_create_tpt_led_trigger(
+				struct ieee80211_hw *hw, unsigned int flags,
+				const struct ieee80211_tpt_blink *blink_table,
+				unsigned int blink_table_len);
 #endif
 /**
  * ieee80211_get_tx_led_name - get name of TX LED
@@ -1929,6 +1957,30 @@ static inline char *ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
 {
 #ifdef CONFIG_MAC80211_LEDS
 	return __ieee80211_get_radio_led_name(hw);
+#else
+	return NULL;
+#endif
+}
+
+/**
+ * ieee80211_create_tpt_led_trigger - create throughput LED trigger
+ * @hw: the hardware to create the trigger for
+ * @flags: trigger flags, see &enum ieee80211_tpt_led_trigger_flags
+ * @blink_table: the blink table -- needs to be ordered by throughput
+ * @blink_table_len: size of the blink table
+ *
+ * This function returns %NULL (in case of error, or if no LED
+ * triggers are configured) or the name of the new trigger.
+ * This function must be called before ieee80211_register_hw().
+ */
+static inline char *
+ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw, unsigned int flags,
+				 const struct ieee80211_tpt_blink *blink_table,
+				 unsigned int blink_table_len)
+{
+#ifdef CONFIG_MAC80211_LEDS
+	return __ieee80211_create_tpt_led_trigger(hw, flags, blink_table,
+						  blink_table_len);
 #else
 	return NULL;
 #endif
@@ -2435,6 +2487,7 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
  * ieee80211_start_tx_ba_session - Start a tx Block Ack session.
  * @sta: the station for which to start a BA session
  * @tid: the TID to BA on.
+ * @timeout: session timeout value (in TUs)
  *
  * Return: success if addBA request was sent, failure otherwise
  *
@@ -2442,7 +2495,8 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
  * the need to start aggregation on a certain RA/TID, the session level
  * will be managed by the mac80211.
  */
-int ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, u16 tid);
+int ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, u16 tid,
+				  u16 timeout);
 
 /**
  * ieee80211_start_tx_ba_cb_irqsafe - low level driver ready to aggregate.

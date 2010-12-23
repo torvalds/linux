@@ -82,6 +82,13 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		skbdesc->desc_len = entry->queue->desc_size;
 
 		/*
+		 * DMA is already done, notify rt2x00lib that
+		 * it finished successfully.
+		 */
+		rt2x00lib_dmastart(entry);
+		rt2x00lib_dmadone(entry);
+
+		/*
 		 * Send the frame to rt2x00lib for further processing.
 		 */
 		rt2x00lib_rxdone(entry);

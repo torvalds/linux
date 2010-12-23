@@ -2351,6 +2351,10 @@ ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 		BIT(NL80211_IFTYPE_ADHOC) |
 		BIT(NL80211_IFTYPE_MESH_POINT);
 
+	/* both antennas can be configured as RX or TX */
+	hw->wiphy->available_antennas_tx = 0x3;
+	hw->wiphy->available_antennas_rx = 0x3;
+
 	hw->extra_tx_headroom = 2;
 	hw->channel_change_time = 5000;
 
@@ -2654,6 +2658,7 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 							bool skip_pcu)
 {
 	struct ath5k_hw *ah = sc->ah;
+	struct ath_common *common = ath5k_hw_common(ah);
 	int ret, ani_mode;
 
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "resetting\n");
@@ -2695,6 +2700,14 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 	ah->ah_cal_next_ani = jiffies;
 	ah->ah_cal_next_nf = jiffies;
 	ewma_init(&ah->ah_beacon_rssi_avg, 1024, 8);
+
+	/* clear survey data and cycle counters */
+	memset(&sc->survey, 0, sizeof(sc->survey));
+	spin_lock(&common->cc_lock);
+	ath_hw_cycle_counters_update(common);
+	memset(&common->cc_survey, 0, sizeof(common->cc_survey));
+	memset(&common->cc_ani, 0, sizeof(common->cc_ani));
+	spin_unlock(&common->cc_lock);
 
 	/*
 	 * Change channels and update the h/w rate map if we're switching;
@@ -3362,24 +3375,26 @@ static int ath5k_get_survey(struct ieee80211_hw *hw, int idx,
 	if (idx != 0)
 		return -ENOENT;
 
-	survey->channel = conf->channel;
-	survey->filled = SURVEY_INFO_NOISE_DBM;
-	survey->noise = sc->ah->ah_noise_floor;
-
 	spin_lock_bh(&common->cc_lock);
 	ath_hw_cycle_counters_update(common);
 	if (cc->cycles > 0) {
-		survey->filled |= SURVEY_INFO_CHANNEL_TIME |
-			SURVEY_INFO_CHANNEL_TIME_BUSY |
-			SURVEY_INFO_CHANNEL_TIME_RX |
-			SURVEY_INFO_CHANNEL_TIME_TX;
-		survey->channel_time += cc->cycles / div;
-		survey->channel_time_busy += cc->rx_busy / div;
-		survey->channel_time_rx += cc->rx_frame / div;
-		survey->channel_time_tx += cc->tx_frame / div;
+		sc->survey.channel_time += cc->cycles / div;
+		sc->survey.channel_time_busy += cc->rx_busy / div;
+		sc->survey.channel_time_rx += cc->rx_frame / div;
+		sc->survey.channel_time_tx += cc->tx_frame / div;
 	}
 	memset(cc, 0, sizeof(*cc));
 	spin_unlock_bh(&common->cc_lock);
+
+	memcpy(survey, &sc->survey, sizeof(*survey));
+
+	survey->channel = conf->channel;
+	survey->noise = sc->ah->ah_noise_floor;
+	survey->filled = SURVEY_INFO_NOISE_DBM |
+			SURVEY_INFO_CHANNEL_TIME |
+			SURVEY_INFO_CHANNEL_TIME_BUSY |
+			SURVEY_INFO_CHANNEL_TIME_RX |
+			SURVEY_INFO_CHANNEL_TIME_TX;
 
 	return 0;
 }

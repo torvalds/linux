@@ -1237,7 +1237,6 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	int i, sh, ack;
 	u16 seq_ctl = le16_to_cpu(ba_resp->seq_ctl);
 	u16 scd_flow = le16_to_cpu(ba_resp->scd_flow);
-	u64 bitmap, sent_bitmap;
 	int successes = 0;
 	struct ieee80211_tx_info *info;
 
@@ -1278,6 +1277,8 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 		IWL_DEBUG_HT(priv, "agg frames sent:%d, acked:%d\n",
 				ba_resp->txed, ba_resp->txed_2_done);
 	} else {
+		u64 bitmap, sent_bitmap;
+
 		/* don't use 64-bit values for now */
 		bitmap = le64_to_cpu(ba_resp->bitmap) >> sh;
 
@@ -1298,7 +1299,11 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 			sent_bitmap >>= 1;
 			++i;
 		}
+
+		IWL_DEBUG_TX_REPLY(priv, "Bitmap %llx\n",
+				   (unsigned long long)bitmap);
 	}
+
 	info = IEEE80211_SKB_CB(priv->txq[scd_flow].txb[agg->start_idx].skb);
 	memset(&info->status, 0, sizeof(info->status));
 	info->flags |= IEEE80211_TX_STAT_ACK;
@@ -1312,8 +1317,6 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 		info->status.ampdu_len = agg->frame_count;
 	}
 	iwlagn_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
-
-	IWL_DEBUG_TX_REPLY(priv, "Bitmap %llx\n", (unsigned long long)bitmap);
 
 	return 0;
 }

@@ -252,7 +252,7 @@ static int wl1251_sdio_probe(struct sdio_func *func,
 	wl->if_ops = &wl1251_sdio_ops;
 
 	wl12xx_board_data = wl12xx_get_platform_data();
-	if (wl12xx_board_data != NULL) {
+	if (!IS_ERR(wl12xx_board_data)) {
 		wl->set_power = wl12xx_board_data->set_power;
 		wl->irq = wl12xx_board_data->irq;
 		wl->use_eeprom = wl12xx_board_data->use_eeprom;

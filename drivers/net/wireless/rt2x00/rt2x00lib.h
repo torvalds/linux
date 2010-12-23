@@ -178,15 +178,6 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index);
 
 /**
- * rt2x00queue_stop_queues - Halt all data queues
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- *
- * This function will loop through all available queues to stop
- * any pending outgoing frames.
- */
-void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev);
-
-/**
  * rt2x00queue_init_queues - Initialize all data queues
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  *

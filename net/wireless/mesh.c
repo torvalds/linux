@@ -50,17 +50,19 @@ const struct mesh_config default_mesh_config = {
 	.min_discovery_timeout = MESH_MIN_DISCOVERY_TIMEOUT,
 };
 
+const struct mesh_setup default_mesh_setup = {
+	.path_sel_proto = IEEE80211_PATH_PROTOCOL_HWMP,
+	.path_metric = IEEE80211_PATH_METRIC_AIRTIME,
+	.vendor_ie = NULL,
+	.vendor_ie_len = 0,
+};
 
 int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev,
-			 const u8 *mesh_id, u8 mesh_id_len,
+			 const struct mesh_setup *setup,
 			 const struct mesh_config *conf)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct mesh_setup setup = {
-		.mesh_id = mesh_id,
-		.mesh_id_len = mesh_id_len,
-	};
 	int err;
 
 	BUILD_BUG_ON(IEEE80211_MAX_SSID_LEN != IEEE80211_MAX_MESH_ID_LEN);
@@ -73,16 +75,16 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	if (wdev->mesh_id_len)
 		return -EALREADY;
 
-	if (!mesh_id_len)
+	if (!setup->mesh_id_len)
 		return -EINVAL;
 
 	if (!rdev->ops->join_mesh)
 		return -EOPNOTSUPP;
 
-	err = rdev->ops->join_mesh(&rdev->wiphy, dev, conf, &setup);
+	err = rdev->ops->join_mesh(&rdev->wiphy, dev, conf, setup);
 	if (!err) {
-		memcpy(wdev->ssid, mesh_id, mesh_id_len);
-		wdev->mesh_id_len = mesh_id_len;
+		memcpy(wdev->ssid, setup->mesh_id, setup->mesh_id_len);
+		wdev->mesh_id_len = setup->mesh_id_len;
 	}
 
 	return err;
@@ -90,14 +92,14 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 
 int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev,
-		       const u8 *mesh_id, u8 mesh_id_len,
+		       const struct mesh_setup *setup,
 		       const struct mesh_config *conf)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
 	wdev_lock(wdev);
-	err = __cfg80211_join_mesh(rdev, dev, mesh_id, mesh_id_len, conf);
+	err = __cfg80211_join_mesh(rdev, dev, setup, conf);
 	wdev_unlock(wdev);
 
 	return err;

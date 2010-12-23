@@ -231,59 +231,6 @@ struct iwl_eeprom_enhanced_txpwr {
 #define EEPROM_6000_REG_BAND_24_HT40_CHANNELS  ((0x80)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 14  bytes */
 
-/* 6000 and up regulatory tx power - indirect access */
-/* max. elements per section */
-#define EEPROM_MAX_TXPOWER_SECTION_ELEMENTS	(8)
-#define EEPROM_TXPOWER_COMMON_HT40_INDEX	(2)
-
-/**
- * Partition the enhanced tx power portion of eeprom image into
- * 10 sections based on band, modulation, frequency and channel
- *
- * Section 1: all CCK channels
- * Section 2: all 2.4 GHz OFDM (Legacy, HT and HT40 ) channels
- * Section 3: all 5.2 GHz OFDM (Legacy, HT and HT40) channels
- * Section 4: 2.4 GHz 20MHz channels: 1, 2, 10, 11. Both Legacy and HT
- * Section 5: 2.4 GHz 40MHz channels: 1, 2, 6, 7, 9, (_above_)
- * Section 6: 5.2 GHz 20MHz channels: 36, 64, 100, both Legacy and HT
- * Section 7: 5.2 GHz 40MHz channels: 36, 60, 100 (_above_)
- * Section 8: 2.4 GHz channel 13, Both Legacy and HT
- * Section 9: 2.4 GHz channel 140, Both Legacy and HT
- * Section 10: 2.4 GHz 40MHz channels: 132, 44 (_above_)
- */
-/* 2.4 GHz band: CCK */
-#define EEPROM_LB_CCK_20_COMMON       ((0xA8)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 8 bytes */
-/* 2.4 GHz band: 20MHz-Legacy, 20MHz-HT, 40MHz-HT */
-#define EEPROM_LB_OFDM_COMMON       ((0xB0)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
-/* 5.2 GHz band: 20MHz-Legacy, 20MHz-HT, 40MHz-HT */
-#define EEPROM_HB_OFDM_COMMON       ((0xC8)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
-/* 2.4GHz band channels:
- *	1Legacy, 1HT, 2Legacy, 2HT, 10Legacy, 10HT, 11Legacy, 11HT */
-#define EEPROM_LB_OFDM_20_BAND       ((0xE0)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 64 bytes */
-/* 2.4 GHz band HT40 channels: (1,+1) (2,+1) (6,+1) (7,+1) (9,+1) */
-#define EEPROM_LB_OFDM_HT40_BAND       ((0x120)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 40 bytes */
-/* 5.2GHz band channels: 36Legacy, 36HT, 64Legacy, 64HT, 100Legacy, 100HT */
-#define EEPROM_HB_OFDM_20_BAND       ((0x148)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 48 bytes */
-/* 5.2 GHz band HT40 channels: (36,+1) (60,+1) (100,+1) */
-#define EEPROM_HB_OFDM_HT40_BAND       ((0x178)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
-/* 2.4 GHz band, channnel 13: Legacy, HT */
-#define EEPROM_LB_OFDM_20_CHANNEL_13       ((0x190)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 16 bytes */
-/* 5.2 GHz band, channnel 140: Legacy, HT */
-#define EEPROM_HB_OFDM_20_CHANNEL_140       ((0x1A0)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 16 bytes */
-/* 5.2 GHz band, HT40 channnels (132,+1) (44,+1) */
-#define EEPROM_HB_OFDM_HT40_BAND_1       ((0x1B0)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 16 bytes */
-
-
 /* 5050 Specific */
 #define EEPROM_5050_TX_POWER_VERSION    (4)
 #define EEPROM_5050_EEPROM_VERSION	(0x21E)

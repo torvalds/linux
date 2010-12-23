@@ -1116,6 +1116,7 @@ u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 void ieee80211_stop_device(struct ieee80211_local *local)
 {
 	ieee80211_led_radio(local, false);
+	ieee80211_mod_tpt_led_trig(local, 0, IEEE80211_TPT_LEDTRIG_FL_RADIO);
 
 	cancel_work_sync(&local->reconfig_filter);
 
@@ -1150,6 +1151,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		}
 
 		ieee80211_led_radio(local, true);
+		ieee80211_mod_tpt_led_trig(local,
+					   IEEE80211_TPT_LEDTRIG_FL_RADIO, 0);
 	}
 
 	/* add interfaces */

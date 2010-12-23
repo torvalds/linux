@@ -467,7 +467,8 @@ static void wl1271_boot_hw_version(struct wl1271 *wl)
 	wl->hw_pg_ver = (s8)fuse;
 }
 
-int wl1271_boot(struct wl1271 *wl)
+/* uploads NVS and firmware */
+int wl1271_load_firmware(struct wl1271 *wl)
 {
 	int ret = 0;
 	u32 tmp, clk, pause;
@@ -571,6 +572,20 @@ int wl1271_boot(struct wl1271 *wl)
 	ret = wl1271_boot_upload_firmware(wl);
 	if (ret < 0)
 		goto out;
+
+out:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wl1271_load_firmware);
+
+int wl1271_boot(struct wl1271 *wl)
+{
+	int ret;
+
+	/* upload NVS and firmware */
+	ret = wl1271_load_firmware(wl);
+	if (ret)
+		return ret;
 
 	/* 10.5 start firmware */
 	ret = wl1271_boot_run_firmware(wl);

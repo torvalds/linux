@@ -287,13 +287,14 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 
 /* mesh */
 extern const struct mesh_config default_mesh_config;
+extern const struct mesh_setup default_mesh_setup;
 int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev,
-			 const u8 *mesh_id, u8 mesh_id_len,
+			 const struct mesh_setup *setup,
 			 const struct mesh_config *conf);
 int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev,
-		       const u8 *mesh_id, u8 mesh_id_len,
+		       const struct mesh_setup *setup,
 		       const struct mesh_config *conf);
 int cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 			struct net_device *dev);

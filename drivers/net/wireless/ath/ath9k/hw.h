@@ -204,8 +204,6 @@ struct ath9k_hw_capabilities {
 	u16 tx_triglevel_max;
 	u16 reg_cap;
 	u8 num_gpio_pins;
-	u8 num_antcfg_2ghz;
-	u8 num_antcfg_5ghz;
 	u8 rx_hp_qdepth;
 	u8 rx_lp_qdepth;
 	u8 rx_status_len;
@@ -238,7 +236,6 @@ struct ath9k_ops_config {
 #define SPUR_DISABLE        	0
 #define SPUR_ENABLE_IOCTL   	1
 #define SPUR_ENABLE_EEPROM  	2
-#define AR_EEPROM_MODAL_SPURS   5
 #define AR_SPUR_5413_1      	1640
 #define AR_SPUR_5413_2      	1200
 #define AR_NO_SPUR      	0x8000
@@ -535,7 +532,6 @@ struct ath_hw_radar_conf {
  *
  * @init_mode_regs: Initializes mode registers
  * @init_mode_gain_regs: Initialize TX/RX gain registers
- * @macversion_supported: If this specific mac revision is supported
  *
  * @rf_set_freq: change frequency
  * @spur_mitigate_freq: spur mitigation
@@ -557,7 +553,6 @@ struct ath_hw_private_ops {
 
 	void (*init_mode_regs)(struct ath_hw *ah);
 	void (*init_mode_gain_regs)(struct ath_hw *ah);
-	bool (*macversion_supported)(u32 macversion);
 	void (*setup_calibration)(struct ath_hw *ah,
 				  struct ath9k_cal_list *currCal);
 
@@ -581,7 +576,6 @@ struct ath_hw_private_ops {
 	void (*set_delta_slope)(struct ath_hw *ah, struct ath9k_channel *chan);
 	bool (*rfbus_req)(struct ath_hw *ah);
 	void (*rfbus_done)(struct ath_hw *ah);
-	void (*enable_rfkill)(struct ath_hw *ah);
 	void (*restore_chainmask)(struct ath_hw *ah);
 	void (*set_diversity)(struct ath_hw *ah, bool value);
 	u32 (*compute_pll_control)(struct ath_hw *ah,
@@ -767,9 +761,7 @@ struct ath_hw {
 	u32 *bank6Temp;
 
 	u8 txpower_limit;
-	int16_t txpower_indexoffset;
 	int coverage_class;
-	u32 beacon_interval;
 	u32 slottime;
 	u32 globaltxtimeout;
 
@@ -840,6 +832,11 @@ struct ath_hw {
 	u32 bb_watchdog_last_status;
 	u32 bb_watchdog_timeout_ms; /* in ms, 0 to disable */
 
+	unsigned int paprd_target_power;
+	unsigned int paprd_training_power;
+	unsigned int paprd_ratemask;
+	unsigned int paprd_ratemask_ht40;
+	bool paprd_table_write_done;
 	u32 paprd_gain_table_entries[PAPRD_GAIN_TABLE_ENTRIES];
 	u8 paprd_gain_table_index[PAPRD_GAIN_TABLE_ENTRIES];
 	/*
@@ -871,6 +868,11 @@ static inline struct ath_hw_private_ops *ath9k_hw_private_ops(struct ath_hw *ah)
 static inline struct ath_hw_ops *ath9k_hw_ops(struct ath_hw *ah)
 {
 	return &ah->ops;
+}
+
+static inline u8 get_streams(int mask)
+{
+	return !!(mask & BIT(0)) + !!(mask & BIT(1)) + !!(mask & BIT(2));
 }
 
 /* Initialization, Detach, Reset */

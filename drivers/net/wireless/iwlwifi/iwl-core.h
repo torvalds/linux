@@ -364,6 +364,8 @@ struct iwl_ht_params {
  * @scan_antennas: available antenna for scan operation
  * @led_mode: 0=blinking, 1=On(RF On)/Off(RF Off)
  * @adv_pm: advance power management
+ * @rx_with_siso_diversity: 1x1 device with rx antenna diversity
+ * @internal_wimax_coex: internal wifi/wimax combo device
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
@@ -412,7 +414,8 @@ struct iwl_cfg {
 	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
 	enum iwl_led_mode led_mode;
 	const bool adv_pm;
-	const bool use_new_eeprom_reading; /* temporary, remove later */
+	const bool rx_with_siso_diversity;
+	const bool internal_wimax_coex;
 };
 
 /***************************

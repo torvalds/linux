@@ -54,13 +54,6 @@ static void ath9k_hw_init_mode_regs(struct ath_hw *ah)
 	ath9k_hw_private_ops(ah)->init_mode_regs(ah);
 }
 
-static bool ath9k_hw_macversion_supported(struct ath_hw *ah)
-{
-	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
-
-	return priv_ops->macversion_supported(ah->hw_version.macVersion);
-}
-
 static u32 ath9k_hw_compute_pll_control(struct ath_hw *ah,
 					struct ath9k_channel *chan)
 {
@@ -284,10 +277,8 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 
 static void ath9k_hw_disablepcie(struct ath_hw *ah)
 {
-	if (AR_SREV_9100(ah))
+	if (!AR_SREV_5416(ah))
 		return;
-
-	ENABLE_REGWRITE_BUFFER(ah);
 
 	REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fc00);
 	REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
@@ -300,8 +291,6 @@ static void ath9k_hw_disablepcie(struct ath_hw *ah)
 	REG_WRITE(ah, AR_PCIE_SERDES, 0x000e1007);
 
 	REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
-
-	REGWRITE_BUFFER_FLUSH(ah);
 }
 
 /* This should work for all families including legacy */
@@ -418,9 +407,8 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->sta_id1_defaults =
 		AR_STA_ID1_CRPT_MIC_ENABLE |
 		AR_STA_ID1_MCAST_KSRCH;
-	ah->beacon_interval = 100;
 	ah->enable_32kHz_clock = DONT_USE_32KHZ;
-	ah->slottime = (u32) -1;
+	ah->slottime = 20;
 	ah->globaltxtimeout = (u32) -1;
 	ah->power_mode = ATH9K_PM_UNDEFINED;
 }
@@ -538,7 +526,19 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	else
 		ah->config.max_txtrig_level = MAX_TX_FIFO_THRESHOLD;
 
-	if (!ath9k_hw_macversion_supported(ah)) {
+	switch (ah->hw_version.macVersion) {
+	case AR_SREV_VERSION_5416_PCI:
+	case AR_SREV_VERSION_5416_PCIE:
+	case AR_SREV_VERSION_9160:
+	case AR_SREV_VERSION_9100:
+	case AR_SREV_VERSION_9280:
+	case AR_SREV_VERSION_9285:
+	case AR_SREV_VERSION_9287:
+	case AR_SREV_VERSION_9271:
+	case AR_SREV_VERSION_9300:
+	case AR_SREV_VERSION_9485:
+		break;
+	default:
 		ath_err(common,
 			"Mac Chip Rev 0x%02x.%x is not supported by this driver\n",
 			ah->hw_version.macVersion, ah->hw_version.macRev);
@@ -808,7 +808,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	if (conf->channel && conf->channel->band == IEEE80211_BAND_2GHZ)
 		acktimeout += 64 - sifstime - ah->slottime;
 
-	ath9k_hw_setslottime(ah, slottime);
+	ath9k_hw_setslottime(ah, ah->slottime);
 	ath9k_hw_set_ack_timeout(ah, acktimeout);
 	ath9k_hw_set_cts_timeout(ah, acktimeout);
 	if (ah->globaltxtimeout != (u32) -1)
@@ -1272,6 +1272,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_mark_phy_inactive(ah);
 
+	ah->paprd_table_write_done = false;
+
 	/* Only required on the first reset */
 	if (AR_SREV_9271(ah) && ah->htc_reset_init) {
 		REG_WRITE(ah,
@@ -1383,7 +1385,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ath9k_hw_init_qos(ah);
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
-		ath9k_enable_rfkill(ah);
+		ath9k_hw_cfg_gpio_input(ah, ah->rfkill_gpio);
 
 	ath9k_hw_init_global_settings(ah);
 
@@ -1627,17 +1629,9 @@ void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 {
 	int flags = 0;
 
-	ah->beacon_interval = beacon_period;
-
 	ENABLE_REGWRITE_BUFFER(ah);
 
 	switch (ah->opmode) {
-	case NL80211_IFTYPE_STATION:
-		REG_WRITE(ah, AR_NEXT_TBTT_TIMER, TU_TO_USEC(next_beacon));
-		REG_WRITE(ah, AR_NEXT_DMA_BEACON_ALERT, 0xffff);
-		REG_WRITE(ah, AR_NEXT_SWBA, 0x7ffff);
-		flags |= AR_TBTT_TIMER_EN;
-		break;
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
 		REG_SET_BIT(ah, AR_TXCFG,
@@ -1661,14 +1655,6 @@ void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 			AR_TBTT_TIMER_EN | AR_DBA_TIMER_EN | AR_SWBA_TIMER_EN;
 		break;
 	default:
-		if (ah->is_monitoring) {
-			REG_WRITE(ah, AR_NEXT_TBTT_TIMER,
-					TU_TO_USEC(next_beacon));
-			REG_WRITE(ah, AR_NEXT_DMA_BEACON_ALERT, 0xffff);
-			REG_WRITE(ah, AR_NEXT_SWBA, 0x7ffff);
-			flags |= AR_TBTT_TIMER_EN;
-			break;
-		}
 		ath_dbg(ath9k_hw_common(ah), ATH_DBG_BEACON,
 			"%s: unsupported opmode: %d\n",
 			__func__, ah->opmode);
@@ -1919,11 +1905,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	if (regulatory->current_rd_ext & (1 << REG_EXT_FCC_MIDBAND) &&
 	    AR_SREV_5416(ah))
 		pCap->reg_cap |= AR_EEPROM_EEREGCAP_EN_FCC_MIDBAND;
-
-	pCap->num_antcfg_5ghz =
-		ah->eep_ops->get_num_ant_config(ah, ATH9K_HAL_FREQ_BAND_5GHZ);
-	pCap->num_antcfg_2ghz =
-		ah->eep_ops->get_num_ant_config(ah, ATH9K_HAL_FREQ_BAND_2GHZ);
 
 	if (AR_SREV_9280_20_OR_LATER(ah) && common->btcoex_enabled) {
 		btcoex_hw->btactive_gpio = ATH_BTACTIVE_GPIO;

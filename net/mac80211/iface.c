@@ -220,6 +220,8 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		/* we're brought up, everything changes */
 		hw_reconf_flags = ~0;
 		ieee80211_led_radio(local, true);
+		ieee80211_mod_tpt_led_trig(local,
+					   IEEE80211_TPT_LEDTRIG_FL_RADIO, 0);
 	}
 
 	/*
@@ -1264,6 +1266,7 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 	int count = 0;
 	bool working = false, scanning = false;
 	struct ieee80211_work *wk;
+	unsigned int led_trig_start = 0, led_trig_stop = 0;
 
 #ifdef CONFIG_PROVE_LOCKING
 	WARN_ON(debug_locks && !lockdep_rtnl_is_held() &&
@@ -1312,6 +1315,18 @@ u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
 			continue;
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_IDLE);
 	}
+
+	if (working || scanning)
+		led_trig_start |= IEEE80211_TPT_LEDTRIG_FL_WORK;
+	else
+		led_trig_stop |= IEEE80211_TPT_LEDTRIG_FL_WORK;
+
+	if (count)
+		led_trig_start |= IEEE80211_TPT_LEDTRIG_FL_CONNECTED;
+	else
+		led_trig_stop |= IEEE80211_TPT_LEDTRIG_FL_CONNECTED;
+
+	ieee80211_mod_tpt_led_trig(local, led_trig_start, led_trig_stop);
 
 	if (working)
 		return ieee80211_idle_off(local, "working");

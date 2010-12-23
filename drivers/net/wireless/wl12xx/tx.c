@@ -125,7 +125,6 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	/* queue (we use same identifiers for tid's and ac's */
 	ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 	desc->tid = ac;
-
 	desc->aid = TX_HW_DEFAULT_AID;
 	desc->reserved = 0;
 
@@ -228,13 +227,50 @@ static void handle_tx_low_watermark(struct wl1271 *wl)
 	unsigned long flags;
 
 	if (test_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags) &&
-	    skb_queue_len(&wl->tx_queue) <= WL1271_TX_QUEUE_LOW_WATERMARK) {
+	    wl->tx_queue_count <= WL1271_TX_QUEUE_LOW_WATERMARK) {
 		/* firmware buffer has space, restart queues */
 		spin_lock_irqsave(&wl->wl_lock, flags);
 		ieee80211_wake_queues(wl->hw);
 		clear_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	}
+}
+
+static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl)
+{
+	struct sk_buff *skb = NULL;
+	unsigned long flags;
+
+	skb = skb_dequeue(&wl->tx_queue[CONF_TX_AC_VO]);
+	if (skb)
+		goto out;
+	skb = skb_dequeue(&wl->tx_queue[CONF_TX_AC_VI]);
+	if (skb)
+		goto out;
+	skb = skb_dequeue(&wl->tx_queue[CONF_TX_AC_BE]);
+	if (skb)
+		goto out;
+	skb = skb_dequeue(&wl->tx_queue[CONF_TX_AC_BK]);
+
+out:
+	if (skb) {
+		spin_lock_irqsave(&wl->wl_lock, flags);
+		wl->tx_queue_count--;
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+	}
+
+	return skb;
+}
+
+static void wl1271_skb_queue_head(struct wl1271 *wl, struct sk_buff *skb)
+{
+	unsigned long flags;
+	int q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
+
+	skb_queue_head(&wl->tx_queue[q], skb);
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	wl->tx_queue_count++;
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
 }
 
 void wl1271_tx_work_locked(struct wl1271 *wl)
@@ -270,7 +306,7 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 		wl1271_acx_rate_policies(wl);
 	}
 
-	while ((skb = skb_dequeue(&wl->tx_queue))) {
+	while ((skb = wl1271_skb_dequeue(wl))) {
 		if (!woken_up) {
 			ret = wl1271_ps_elp_wakeup(wl, false);
 			if (ret < 0)
@@ -284,9 +320,9 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 			 * Aggregation buffer is full.
 			 * Flush buffer and try again.
 			 */
-			skb_queue_head(&wl->tx_queue, skb);
+			wl1271_skb_queue_head(wl, skb);
 			wl1271_write(wl, WL1271_SLV_MEM_DATA, wl->aggr_buf,
-				buf_offset, true);
+				     buf_offset, true);
 			sent_packets = true;
 			buf_offset = 0;
 			continue;
@@ -295,7 +331,7 @@ void wl1271_tx_work_locked(struct wl1271 *wl)
 			 * Firmware buffer is full.
 			 * Queue back last skb, and stop aggregating.
 			 */
-			skb_queue_head(&wl->tx_queue, skb);
+			wl1271_skb_queue_head(wl, skb);
 			/* No work left, avoid scheduling redundant tx work */
 			set_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags);
 			goto out_ack;
@@ -440,10 +476,13 @@ void wl1271_tx_reset(struct wl1271 *wl)
 	struct sk_buff *skb;
 
 	/* TX failure */
-	while ((skb = skb_dequeue(&wl->tx_queue))) {
-		wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
-		ieee80211_tx_status(wl->hw, skb);
+	for (i = 0; i < NUM_TX_QUEUES; i++) {
+		while ((skb = skb_dequeue(&wl->tx_queue[i]))) {
+			wl1271_debug(DEBUG_TX, "freeing skb 0x%p", skb);
+			ieee80211_tx_status(wl->hw, skb);
+		}
 	}
+	wl->tx_queue_count = 0;
 
 	/*
 	 * Make sure the driver is at a consistent state, in case this
@@ -472,8 +511,7 @@ void wl1271_tx_flush(struct wl1271 *wl)
 		mutex_lock(&wl->mutex);
 		wl1271_debug(DEBUG_TX, "flushing tx buffer: %d",
 			     wl->tx_frames_cnt);
-		if ((wl->tx_frames_cnt == 0) &&
-		    skb_queue_empty(&wl->tx_queue)) {
+		if ((wl->tx_frames_cnt == 0) && (wl->tx_queue_count == 0)) {
 			mutex_unlock(&wl->mutex);
 			return;
 		}

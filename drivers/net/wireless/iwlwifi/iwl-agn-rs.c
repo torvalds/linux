@@ -387,7 +387,7 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 	if (load > IWL_AGG_LOAD_THRESHOLD) {
 		IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
 				sta->addr, tid);
-		ret = ieee80211_start_tx_ba_session(sta, tid);
+		ret = ieee80211_start_tx_ba_session(sta, tid, 5000);
 		if (ret == -EAGAIN) {
 			/*
 			 * driver and mac80211 is out of sync
@@ -2872,6 +2872,10 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 	if (sband->band == IEEE80211_BAND_5GHZ)
 		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 	lq_sta->is_agg = 0;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	lq_sta->dbg_fixed_rate = 0;
+#endif
 
 	rs_initialize_lq(priv, conf, sta, lq_sta);
 }

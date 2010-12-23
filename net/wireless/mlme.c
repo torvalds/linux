@@ -263,6 +263,28 @@ void cfg80211_send_disassoc(struct net_device *dev, const u8 *buf, size_t len)
 }
 EXPORT_SYMBOL(cfg80211_send_disassoc);
 
+void cfg80211_send_unprot_deauth(struct net_device *dev, const u8 *buf,
+				 size_t len)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	nl80211_send_unprot_deauth(rdev, dev, buf, len, GFP_ATOMIC);
+}
+EXPORT_SYMBOL(cfg80211_send_unprot_deauth);
+
+void cfg80211_send_unprot_disassoc(struct net_device *dev, const u8 *buf,
+				   size_t len)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	nl80211_send_unprot_disassoc(rdev, dev, buf, len, GFP_ATOMIC);
+}
+EXPORT_SYMBOL(cfg80211_send_unprot_disassoc);
+
 static void __cfg80211_auth_remove(struct wireless_dev *wdev, const u8 *addr)
 {
 	int i;

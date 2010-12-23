@@ -288,7 +288,6 @@ void ath9k_wiphy_chan_work(struct work_struct *work)
 	/* sync hw configuration for hw code */
 	common->hw = aphy->hw;
 
-	ath_update_chainmask(sc, sc->chan_is_ht);
 	if (ath_set_channel(sc, aphy->hw,
 			    &sc->sc_ah->channels[sc->chan_idx]) < 0) {
 		printk(KERN_DEBUG "ath9k: Failed to set channel for new "
