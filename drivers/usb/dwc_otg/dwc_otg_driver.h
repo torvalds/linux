@@ -49,21 +49,25 @@ struct dwc_otg_hcd;
  */
 typedef struct dwc_otg_device
 {
-		/** Base address returned from ioremap() */
-		void *base;
+	/** Base address returned from ioremap() */
+	void *base;
 
-		/** Pointer to the core interface structure. */
-		dwc_otg_core_if_t *core_if;
+	/** Pointer to the core interface structure. */
+	dwc_otg_core_if_t *core_if;
 
-		/** Register offset for Diagnostic API.*/
-		uint32_t reg_offset;
-		
-		/** Pointer to the PCD structure. */
-		struct dwc_otg_pcd *pcd;
+	/** Register offset for Diagnostic API.*/
+	uint32_t reg_offset;
+	
+	/** Pointer to the PCD structure. */
+	struct dwc_otg_pcd *pcd;
 
-		/** Pointer to the HCD structure. */
-		struct dwc_otg_hcd *hcd;
+	/** Pointer to the HCD structure. */
+	struct dwc_otg_hcd *hcd;
 
+    struct clk* phyclk;
+    struct clk* ahbclk;
+    struct clk* busclk;
+    
 	/** Flag to indicate whether the common IRQ handler is installed. */
 	uint8_t common_irq_installed;
 

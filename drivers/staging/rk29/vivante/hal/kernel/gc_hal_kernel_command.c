@@ -96,6 +96,72 @@ _DumpCommand(
 }
 #endif
 
+gceSTATUS
+_WaitSignalFromGPU(
+    IN gckOS Os,
+    IN gckHARDWARE Hardware,
+    IN gctSIGNAL Signal
+    )
+{
+    gceSTATUS status;
+
+#if gcdGPU_TIMEOUT
+    gctUINT timer = 0;
+
+    do
+    {
+        /* Wait for the signal. */
+        status = gckOS_WaitSignal(Os, Signal, 250);
+
+        if (status == gcvSTATUS_TIMEOUT)
+        {
+#if gcdDEBUG
+            gctUINT32 idle;
+
+            /* Read idle register. */
+            gcmkVERIFY_OK(
+                gckHARDWARE_GetIdle(Hardware,
+                                    gcvFALSE,
+                                    &idle));
+
+            gcmkTRACE(gcvLEVEL_ERROR,
+                      "%s(%d): idle=%08x",
+                      __FUNCTION__, __LINE__, idle);
+#endif
+
+            /* Advance timer. */
+            timer += 250;
+        }
+        else
+        {
+            gcmkONERROR(status);
+        }
+    }
+    while (gcmIS_ERROR(status) && (timer < gcdGPU_TIMEOUT));
+
+    /* Bail out on timeout. */
+    if (gcmIS_ERROR(status))
+    {
+        /* Broadcast the stuck GPU. */
+        gcmkONERROR(gckOS_Broadcast(Os,
+                                    Hardware,
+                                    gcvBROADCAST_GPU_STUCK));
+
+        gcmkONERROR(gcvSTATUS_GPU_NOT_RESPONDING);
+    }
+
+#else
+    gcmkONERROR(gckOS_WaitSignal(Os, Signal, gcvINFINITE));
+#endif
+
+    /* Success. */
+    return gcvSTATUS_OK;
+
+OnError:
+    /* Return the status. */
+    return status;
+}
+
 /*******************************************************************************
 **
 **  _NewQueue
@@ -132,9 +198,9 @@ _NewQueue(
 #endif
 
     gcmkONERROR(
-        gckOS_WaitSignal(Command->os,
-                         Command->queues[newIndex].signal,
-                         gcvINFINITE));
+        _WaitSignalFromGPU(Command->os,
+                           Command->kernel->hardware,
+                           Command->queues[newIndex].signal));
 
     if (currentIndex >= 0)
     {

@@ -721,8 +721,6 @@ gckGALDEVICE_Construct(
             device->contiguousSize     = ContiguousSize;
             device->contiguousBase     = (gctPOINTER) ioremap_nocache(ContiguousBase, ContiguousSize);
             device->contiguousMapped   = gcvTRUE;
-            printk(">>>> gckGALDEVICE_Construct  device (contiguousBase=0x%08x, contiguousSize=0x%08x) \n", 
-                (u32)device->contiguousBase, (u32)device->contiguousSize);
 
             if (device->contiguousBase == gcvNULL)
             {

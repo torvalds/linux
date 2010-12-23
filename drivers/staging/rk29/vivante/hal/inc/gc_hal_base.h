@@ -322,6 +322,13 @@ gcoHAL_DestroySurface(
     IN gcoSURF Surface
     );
 
+/* Wait for a signal from GPU. */
+gceSTATUS
+gcoHAL_WaitSignalFromGPU(
+    IN gcoHAL Hal,
+    IN gctSIGNAL Signal
+    );
+
 /******************************************************************************\
 ********************************** gcoOS Object *********************************
 \******************************************************************************/

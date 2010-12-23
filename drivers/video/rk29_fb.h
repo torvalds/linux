@@ -294,6 +294,11 @@
 #define v_BIT11LO(x)        (((x)&0x7ff)<<0)
 #define v_BIT11HI(x)        (((x)&0x7ff)<<16)
 
+#define m_BIT12LO           (0xfff<<0)
+#define m_BIT12HI           (0xfff<<16)
+#define v_BIT12LO(x)        (((x)&0xfff)<<0)
+#define v_BIT12HI(x)        (((x)&0xfff)<<16)
+
 
 #define m_VIRWIDTH       (0xffff<<0)
 #define m_VIRHEIGHT      (0xffff<<16)

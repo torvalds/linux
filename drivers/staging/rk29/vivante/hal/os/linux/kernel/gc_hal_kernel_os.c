@@ -34,13 +34,15 @@
 #include <linux/dma-mapping.h>
 #endif /* NO_DMA_COHERENT */
 
+#include <mach/pmu.h>
+
 #if !USE_NEW_LINUX_SIGNAL
 #define USER_SIGNAL_TABLE_LEN_INIT  64
 #endif
 
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
-#define PAGE_ALLOC_LIMIT        1   // 限制Page申请数
+#define PAGE_ALLOC_LIMIT        0   // 限制Page申请数
 
 #if PAGE_ALLOC_LIMIT
 int g_pages_alloced = 0;
@@ -2667,14 +2669,14 @@ gceSTATUS gckOS_AllocatePagedMemoryEx(
             //printk("full %d! \n", g_pages_alloced);
             addr = NULL;
         } else {
-            addr = (char *)__get_free_pages(GFP_ATOMIC | GFP_DMA, GetOrder(numPages));
+            addr = (char *)__get_free_pages(GFP_ATOMIC | GFP_DMA | __GFP_NOWARN, GetOrder(numPages));
             if(addr) {
                 g_pages_alloced += numPages;
                 //printk("alloc %d / %d \n", numPages, g_pages_alloced);
             }
         }
 #else
-        addr = (char *)__get_free_pages(GFP_ATOMIC | GFP_DMA, GetOrder(numPages));
+        addr = (char *)__get_free_pages(GFP_ATOMIC | GFP_DMA | __GFP_NOWARN, GetOrder(numPages));
 #endif
     }
     else
@@ -5881,9 +5883,33 @@ gckOS_SetGPUPower(
     IN gctBOOL Power
     )
 {
-    gcmkHEADER_ARG("Os=0x%x Clock=%d Power=%d", Os, Clock, Power);
+    //gcmkHEADER_ARG("Os=0x%x Clock=%d Power=%d", Os, Clock, Power);
 
     /* TODO: Put your code here. */
+#if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
+
+    struct clk * clk_gpu = clk_get(NULL, "gpu");
+    struct clk * clk_aclk_gpu = clk_get(NULL, "aclk_gpu");
+    struct clk * clk_hclk_gpu = clk_get(NULL, "hclk_gpu");
+
+    if(Clock) {
+        if(!IS_ERR(clk_hclk_gpu))   clk_enable(clk_hclk_gpu);
+        if(!IS_ERR(clk_aclk_gpu))   clk_enable(clk_aclk_gpu);
+        if(!IS_ERR(clk_gpu))        clk_enable(clk_gpu);
+    } else {
+        if(!IS_ERR(clk_gpu))        clk_disable(clk_gpu);
+        if(!IS_ERR(clk_aclk_gpu))   clk_disable(clk_aclk_gpu);
+        if(!IS_ERR(clk_hclk_gpu))   clk_disable(clk_hclk_gpu);
+    }
+
+    if(Power) {
+        pmu_set_power_domain(PD_GPU, true);
+    } else {
+        pmu_set_power_domain(PD_GPU, false);
+    }
+    
+    printk("gckOS_SetGPUPowerOs=0x%p Clock=%d Power=%d \n", (void*)Os, Clock, Power)
+#endif
 
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;

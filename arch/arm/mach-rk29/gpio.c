@@ -39,6 +39,7 @@ struct rk29_gpio_chip {
 	struct rk29_gpio_chip	*next;		/* Bank sharing same clock */
 	struct rk29_gpio_bank	*bank;		/* Bank definition */
 	unsigned char  __iomem	*regbase;	/* Base of register bank */
+	struct clk *clk;
 };
 
 static struct lock_class_key gpio_lock_class;
@@ -68,13 +69,13 @@ static int rk29_gpiolib_to_irq(struct gpio_chip *chip,unsigned offset);
 	}
 
 static struct rk29_gpio_chip rk29gpio_chip[] = {
-	RK29_GPIO_CHIP("GPIO0ABCD", PIN_BASE + 0*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO1ABCD", PIN_BASE + 1*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO2ABCD", PIN_BASE + 2*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO3ABCD", PIN_BASE + 3*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO4ABCD", PIN_BASE + 4*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO5ABCD", PIN_BASE + 5*NUM_GROUP, NUM_GROUP),
-	RK29_GPIO_CHIP("GPIO6ABCD", PIN_BASE + 6*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("gpio0", PIN_BASE + 0*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("gpio1", PIN_BASE + 1*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("gpio2", PIN_BASE + 2*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("gpio3", PIN_BASE + 3*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("gpio4", PIN_BASE + 4*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("gpio5", PIN_BASE + 5*NUM_GROUP, NUM_GROUP),
+	RK29_GPIO_CHIP("gpio6", PIN_BASE + 6*NUM_GROUP, NUM_GROUP),
 };
 
 static inline void rk29_gpio_write(unsigned char  __iomem	*regbase, unsigned int regOff,unsigned int val)
@@ -647,6 +648,8 @@ void __init rk29_gpio_init(struct rk29_gpio_bank *data, int nr_banks)
 		rk29_gpio = &rk29gpio_chip[i];
 		rk29_gpio->bank = &data[i];
 		rk29_gpio->regbase = (unsigned char  __iomem *)rk29_gpio->bank->offset;		
+		rk29_gpio->clk = clk_get(NULL, rk29_gpio->chip.label);
+		clk_enable(rk29_gpio->clk);
 		if(last)
 			last->next = rk29_gpio;
 		last = rk29_gpio;

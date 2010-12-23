@@ -33,6 +33,7 @@
 #if USE_PLATFORM_DRIVER
 #include <linux/platform_device.h>
 #endif
+#include <mach/rk29_iomap.h>
 
 MODULE_DESCRIPTION("Vivante Graphics Driver");
 MODULE_LICENSE("GPL");
@@ -462,7 +463,7 @@ static int drv_init(void)
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
     struct clk * clk_gpu = NULL;
     struct clk * clk_aclk_gpu = NULL;
-    struct clk * clk_gpu_ahb = NULL;
+    struct clk * clk_hclk_gpu = NULL;
 #endif
 
     gcmkTRACE_ZONE(gcvLEVEL_VERBOSE, gcvZONE_DRIVER,
@@ -470,8 +471,8 @@ static int drv_init(void)
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
     // clk_gpu_ahb
-    clk_gpu_ahb = clk_get(NULL, "gpu_ahb");
-    if(!IS_ERR(clk_gpu_ahb))    clk_enable(clk_gpu_ahb);
+    clk_hclk_gpu = clk_get(NULL, "hclk_gpu");
+    if(!IS_ERR(clk_hclk_gpu))    clk_enable(clk_hclk_gpu);
 
     // clk_aclk_gpu
     clk_aclk_gpu = clk_get(NULL, "aclk_gpu");
@@ -505,6 +506,9 @@ static int drv_init(void)
         return -EAGAIN;
     }
     clk_enable(clk_gpu);
+
+    // enable ram clock gate
+    writel(readl(RK29_GRF_BASE+0xc0) & ~0x100000, RK29_GRF_BASE+0xc0);
 #endif
 
 	if (showArgs)
@@ -622,7 +626,7 @@ static void drv_exit(void)
 #if ENABLE_GPU_CLOCK_BY_DRIVER && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
     struct clk * clk_gpu = NULL;
     struct clk * clk_aclk_gpu = NULL;
-    struct clk * clk_gpu_ahb = NULL;
+    struct clk * clk_hclk_gpu = NULL;
 #endif
     gcmkTRACE_ZONE(gcvLEVEL_VERBOSE, gcvZONE_DRIVER,
     	    	  "[galcore] Entering drv_exit\n");
@@ -647,8 +651,8 @@ static void drv_exit(void)
     clk_aclk_gpu = clk_get(NULL, "aclk_gpu");
     if(!IS_ERR(clk_aclk_gpu))    clk_disable(clk_aclk_gpu);   
 
-    clk_gpu_ahb = clk_get(NULL, "gpu_ahb");
-    if(!IS_ERR(clk_gpu_ahb))    clk_disable(clk_gpu_ahb);
+    clk_hclk_gpu = clk_get(NULL, "hclk_gpu");
+    if(!IS_ERR(clk_hclk_gpu))    clk_disable(clk_hclk_gpu);
 #endif
 }
 

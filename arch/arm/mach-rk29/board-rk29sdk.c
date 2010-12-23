@@ -43,6 +43,8 @@
 #include <media/soc_camera.h>                               /* ddl@rock-chips.com : camera support */
 #include <mach/vpu_mem.h>
 
+#include <linux/regulator/rk29-pwm-regulator.h>
+#include <linux/regulator/machine.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -59,7 +61,7 @@
 #endif
 #define PMEM_GPU_SIZE       SZ_64M
 #define PMEM_UI_SIZE        SZ_32M
-#define PMEM_VPU_SIZE       SZ_64M
+#define PMEM_VPU_SIZE       SZ_32M
 #define PMEM_CAM_SIZE       0x00c00000
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
 #define MEM_CAMIPP_SIZE     SZ_4M
@@ -209,7 +211,7 @@ static int rk29_fb_io_init(struct rk29_fb_setting_info *fb_setting)
         gpio_direction_output(FB_LCD_CABC_EN_PIN, 0);
         gpio_set_value(FB_LCD_CABC_EN_PIN, GPIO_LOW);
     }
-    
+
     return ret;
 }
 
@@ -279,8 +281,8 @@ static struct android_pmem_platform_data android_pmem_cam_pdata = {
 	.name		= "pmem_cam",
 	.start		= PMEM_CAM_BASE,
 	.size		= PMEM_CAM_SIZE,
-	.no_allocator	= 0,
-	.cached		= 1,
+	.no_allocator	= 1,
+	.cached		= 0,
 };
 
 static struct platform_device android_pmem_cam_device = {
@@ -328,9 +330,9 @@ int p1003_init_platform_hw(void)
     }
     gpio_pull_updown(TOUCH_INT_PIN, 1);
     gpio_direction_output(TOUCH_RESET_PIN, 0);
-    msleep(500);
+    mdelay(500);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
-    msleep(500);
+    mdelay(500);
     gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
 
     return 0;
@@ -466,7 +468,7 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.type    		= "stc3100",
 		.addr           = 0x70,
 		.flags			= 0,
-	}, 
+	},
 #endif
 #if defined (CONFIG_BATTERY_BQ27510)
 	{
@@ -522,12 +524,12 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 	},
 #endif
 #if defined (CONFIG_ANX7150)
-	{
-		.type    		= "anx7150",
-		.addr           = 0x39,               //0x39, 0x3d
-		.flags			= 0,
-		.irq			= RK29_PIN1_PD7,
-	},
+    {
+		.type           = "anx7150",
+        .addr           = 0x39,             //0x39, 0x3d
+        .flags          = 0,
+        .irq            = RK29_PIN1_PD7,
+    },
 #endif
 
 };
@@ -850,6 +852,55 @@ struct rk29_bl_info rk29_bl_info = {
 };
 #endif
 /*****************************************************************************************
+* pwm voltage regulator devices
+******************************************************************************************/
+#if defined (CONFIG_RK29_PWM_REGULATOR)
+
+#define REGULATOR_PWM_ID					2
+#define REGULATOR_PWM_MUX_NAME      		GPIO2A3_SDMMC0WRITEPRT_PWM2_NAME
+#define REGULATOR_PWM_MUX_MODE      					GPIO2L_PWM2
+#define REGULATOR_PWM_MUX_MODE_GPIO 				GPIO2L_GPIO2A3
+#define REGULATOR_PWM_GPIO				RK29_PIN2_PA3
+
+static struct regulator_consumer_supply pwm_consumers[] = {
+	{
+		.supply = "vcore",
+	}
+};
+
+static struct regulator_init_data rk29_pwm_regulator_data = {
+	.constraints = {
+		.name = "PWM2",
+		.min_uV = 1200000,
+		.max_uV = 1400000,
+		.apply_uV = 1,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(pwm_consumers),
+	.consumer_supplies = pwm_consumers,
+};
+
+static struct pwm_platform_data rk29_regulator_pwm_platform_data = {
+	.pwm_id = REGULATOR_PWM_ID,
+	.pwm_gpio = REGULATOR_PWM_GPIO,
+	//.pwm_iomux_name[] = REGULATOR_PWM_MUX_NAME;
+	.pwm_iomux_name = REGULATOR_PWM_MUX_NAME,
+	.pwm_iomux_pwm = REGULATOR_PWM_MUX_MODE,
+	.pwm_iomux_gpio = REGULATOR_PWM_MUX_MODE_GPIO,
+	.init_data  = &rk29_pwm_regulator_data,
+};
+
+static struct platform_device rk29_device_pwm_regulator = {
+	.name = "pwm-voltage-regulator",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &rk29_regulator_pwm_platform_data,
+	},
+};
+
+#endif
+
+/*****************************************************************************************
  * SDMMC devices
 *****************************************************************************************/
 #ifdef CONFIG_SDMMC0_RK29
@@ -861,7 +912,7 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
 	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
 	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
-	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);	
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
 	rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
 	gpio_request(RK29_PIN5_PD5,"sdmmc");
 	gpio_set_value(RK29_PIN5_PD5,GPIO_HIGH);
@@ -899,7 +950,7 @@ static int rk29_sdmmc1_cfg_gpio(void)
 	return 0;
 }
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC 
+#ifdef CONFIG_WIFI_CONTROL_FUNC
 static int rk29sdk_wifi_status(struct device *dev);
 static int rk29sdk_wifi_status_register(void (*callback)(int card_presend, void *dev_id), void *dev_id);
 #endif
@@ -958,27 +1009,27 @@ static int rk29sdk_wifi_bt_gpio_control_init(void)
 {
     if (gpio_request(RK29SDK_WIFI_BT_GPIO_POWER_N, "wifi_bt_power")) {
            pr_info("%s: request wifi_bt power gpio failed\n", __func__);
-           return -1; 
+           return -1;
     }
-   
+
     if (gpio_request(RK29SDK_WIFI_GPIO_RESET_N, "wifi reset")) {
            pr_info("%s: request wifi reset gpio failed\n", __func__);
            gpio_free(RK29SDK_WIFI_BT_GPIO_POWER_N);
            return -1;
     }
-   
+
     if (gpio_request(RK29SDK_BT_GPIO_RESET_N, "bt reset")) {
           pr_info("%s: request bt reset gpio failed\n", __func__);
           gpio_free(RK29SDK_WIFI_GPIO_RESET_N);
           return -1;
     }
-   
+
     gpio_direction_output(RK29SDK_WIFI_BT_GPIO_POWER_N, GPIO_LOW);
     gpio_direction_output(RK29SDK_WIFI_GPIO_RESET_N,    GPIO_LOW);
-    gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW); 
-    
+    gpio_direction_output(RK29SDK_BT_GPIO_RESET_N,      GPIO_LOW);
+
     pr_info("%s: init finished\n",__func__);
-   
+
     return 0;
 }
 
@@ -1143,6 +1194,9 @@ static void __init rk29_board_iomux_init(void)
 	rk29_mux_api_set(GPIO0A7_MIIMDCLK_NAME, GPIO0L_MII_MDCLK);
 	rk29_mux_api_set(GPIO0A6_MIIMD_NAME, GPIO0L_MII_MD);
 	#endif
+	#ifdef CONFIG_RK29_PWM_REGULATOR
+	rk29_mux_api_set(REGULATOR_PWM_MUX_NAME,REGULATOR_PWM_MUX_MODE);
+	#endif
 }
 
 static struct platform_device *devices[] __initdata = {
@@ -1156,6 +1210,9 @@ static struct platform_device *devices[] __initdata = {
 	&rk29_device_uart2,
 #endif
 
+#ifdef CONFIG_RK29_PWM_REGULATOR
+	&rk29_device_pwm_regulator,
+#endif
 #ifdef CONFIG_SPIM0_RK29
     &rk29xx_device_spi0m,
 #endif
@@ -1257,7 +1314,7 @@ static struct platform_device *devices[] __initdata = {
  *****************************************************************************************/
 static int rk29_vmac_register_set(void)
 {
-	//config rk29 vmac as rmii, 100MHz 
+	//config rk29 vmac as rmii, 100MHz
 	u32 value= readl(RK29_GRF_BASE + 0xbc);
 	value = (value & 0xfff7ff) | (0x400);
 	writel(value, RK29_GRF_BASE + 0xbc);
@@ -1286,10 +1343,10 @@ static int rk29_rmii_io_init(void)
 		gpio_free(RK29_PIN2_PD3);
 		printk("-------request RK29_PIN6_PB0 fail--------\n");
 		return -1;
-	}	
+	}
 	gpio_direction_output(RK29_PIN6_PB0, GPIO_HIGH);
 	gpio_set_value(RK29_PIN6_PB0, GPIO_HIGH);
-	
+
 	return 0;
 }
 
@@ -1303,7 +1360,7 @@ static int rk29_rmii_power_control(int enable)
 		//enable rmii power
 		gpio_direction_output(RK29_PIN6_PB0, GPIO_HIGH);
 		gpio_set_value(RK29_PIN6_PB0, GPIO_HIGH);
-		
+
 	}
 	else {
 		gpio_direction_output(RK29_PIN6_PB0, GPIO_LOW);
@@ -1528,7 +1585,7 @@ static void __init machine_rk29_init_irq(void)
 static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
-	gpio_request(POWER_ON_PIN,"poweronpin");	
+	gpio_request(POWER_ON_PIN,"poweronpin");
 	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
 

@@ -812,16 +812,16 @@ static int __init ipp_drv_probe(struct platform_device *pdev)
 	}
 
 	/* get the clock */
-	data->axi_clk = clk_get(&pdev->dev, "ipp_axi");
-	if(NULL == data->axi_clk)
+	data->axi_clk = clk_get(&pdev->dev, "aclk_ipp");
+	if (IS_ERR(data->axi_clk))
 	{
 		ERR("failed to find ipp axi clock source\n");
 		ret = -ENOENT;
 		goto err_clock;
 	}
 
-	data->ahb_clk = clk_get(&pdev->dev, "ipp_ahb");
-	if(NULL == data->ahb_clk)
+	data->ahb_clk = clk_get(&pdev->dev, "hclk_ipp");
+	if (IS_ERR(data->ahb_clk))
 	{
 		ERR("failed to find ipp ahb clock source\n");
 		ret = -ENOENT;

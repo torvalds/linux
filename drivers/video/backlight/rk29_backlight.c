@@ -92,6 +92,9 @@ static s32 rk29_bl_get_brightness(struct backlight_device *bl)
 
 	DBG("%s:: %d div_total: %d\n",__func__,__LINE__,div_total);
 
+    if (!div_total)
+        return 0;
+
     if (ref) {
         return BL_STEP*divh/div_total;
     } else {
@@ -240,7 +243,11 @@ static int rk29_backlight_probe(struct platform_device *pdev)
                __func__); 
 		return -EEXIST;		
     }
-    
+
+    if (rk29_bl_info && rk29_bl_info->io_init) {
+        rk29_bl_info->io_init();
+    }
+
 	rk29_bl = backlight_device_register("rk28_bl", &pdev->dev, NULL, &rk29_bl_ops);
 	if (!rk29_bl) {
         DBG(KERN_CRIT "%s: backlight device register error\n",
@@ -248,9 +255,8 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 		return -ENODEV;		
 	}
 	
-	if (!pwm_clk)
-		pwm_clk = clk_get(NULL, "pwm");
-	if (!pwm_clk || IS_ERR(pwm_clk)) {
+	pwm_clk = clk_get(NULL, "pwm");
+	if (IS_ERR(pwm_clk)) {
 		printk(KERN_ERR "failed to get pwm clock source\n");
 		return -ENODEV;	
 	}
@@ -276,13 +282,12 @@ static int rk29_backlight_probe(struct platform_device *pdev)
     cpufreq_register_notifier(&rk29_bl_info->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
 #endif
         
-//	clk_disable(pwm_clk);
+    clk_enable(pwm_clk);
     write_pwm_reg(id, PWM_REG_CTRL, PWM_DIV|PWM_RESET);
     write_pwm_reg(id, PWM_REG_LRC, div_total);
     write_pwm_reg(id, PWM_REG_HRC, divh);
     write_pwm_reg(id, PWM_REG_CNTR, 0x0);
     write_pwm_reg(id, PWM_REG_CTRL, PWM_DIV|PWM_ENABLE|PWM_TIME_EN);
-	clk_enable(pwm_clk);
    
 	rk29_bl->props.power = FB_BLANK_UNBLANK;
 	rk29_bl->props.fb_blank = FB_BLANK_UNBLANK;
@@ -295,10 +300,6 @@ static int rk29_backlight_probe(struct platform_device *pdev)
     bl_early_suspend.level = ~0x0;
     register_early_suspend(&bl_early_suspend);
 #endif
-
-    if (rk29_bl_info && rk29_bl_info->io_init) {
-        rk29_bl_info->io_init();
-    }
 
     return ret;
 }
