@@ -1092,6 +1092,14 @@ static struct platform_device rk29sdk_wifi_device = {
 };
 #endif
 
+
+/* bluetooth rfkill device */
+static struct platform_device rk29sdk_rfkill = {
+        .name = "rk29sdk_rfkill",
+        .id = -1,
+};
+
+
 #ifdef CONFIG_VIVANTE
 static struct resource resources_gpu[] = {
     [0] = {
@@ -1195,6 +1203,13 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_UART1_RK29
 	&rk29_device_uart1,
 #endif
+#ifdef CONFIG_UART0_RK29
+	&rk29_device_uart0,
+#endif
+#ifdef CONFIG_UART2_RK29
+	&rk29_device_uart2,
+#endif
+
 #ifdef CONFIG_RK29_PWM_REGULATOR
 	&rk29_device_pwm_regulator,
 #endif
@@ -1244,6 +1259,11 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_WIFI_CONTROL_FUNC
         &rk29sdk_wifi_device,
 #endif
+
+#ifdef CONFIG_BT
+        &rk29sdk_rfkill,
+#endif
+
 #ifdef CONFIG_MTD_NAND_RK29
 	&rk29_device_nand,
 #endif
