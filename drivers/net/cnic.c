@@ -59,6 +59,7 @@ MODULE_DESCRIPTION("Broadcom NetXtreme II CNIC Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CNIC_MODULE_VERSION);
 
+/* cnic_dev_list modifications are protected by both rtnl and cnic_dev_lock */
 static LIST_HEAD(cnic_dev_list);
 static LIST_HEAD(cnic_udev_list);
 static DEFINE_RWLOCK(cnic_dev_lock);
@@ -445,14 +446,12 @@ int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops)
 
 	/* Prevent race conditions with netdev_event */
 	rtnl_lock();
-	read_lock(&cnic_dev_lock);
 	list_for_each_entry(dev, &cnic_dev_list, list) {
 		struct cnic_local *cp = dev->cnic_priv;
 
 		if (!test_and_set_bit(ULP_F_INIT, &cp->ulp_flags[ulp_type]))
 			ulp_ops->cnic_init(dev);
 	}
-	read_unlock(&cnic_dev_lock);
 	rtnl_unlock();
 
 	return 0;
