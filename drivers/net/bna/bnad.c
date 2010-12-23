@@ -3061,6 +3061,9 @@ bnad_pci_probe(struct pci_dev *pdev,
 	/* Initialize netdev structure, set up ethtool ops */
 	bnad_netdev_init(bnad, using_dac);
 
+	/* Set link to down state */
+	netif_carrier_off(netdev);
+
 	bnad_enable_msix(bnad);
 
 	/* Get resource requirement form bna */
@@ -3113,11 +3116,6 @@ bnad_pci_probe(struct pci_dev *pdev,
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
 	mutex_unlock(&bnad->conf_mutex);
-
-	/*
-	 * Make sure the link appears down to the stack
-	 */
-	netif_carrier_off(netdev);
 
 	/* Finally, reguister with net_device layer */
 	err = register_netdev(netdev);
