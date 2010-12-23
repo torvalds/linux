@@ -291,6 +291,10 @@ struct cnic_local {
 	atomic_t		iscsi_conn;
 	u32			iscsi_start_cid;
 
+	u32			fcoe_init_cid;
+	u32			fcoe_start_cid;
+	struct cnic_id_tbl	fcoe_cid_tbl;
+
 	u32			max_cid_space;
 
 	/* per connection parameters */
@@ -368,6 +372,10 @@ struct bnx2x_bd_chain_next {
 #define BNX2X_ISCSI_PBL_NOT_CACHED	0xff
 #define BNX2X_ISCSI_PDU_HEADER_NOT_CACHED	0xff
 
+#define BNX2X_FCOE_NUM_CONNECTIONS	128
+
+#define BNX2X_FCOE_L5_CID_BASE		MAX_ISCSI_TBL_SZ
+
 #define BNX2X_CHIP_NUM_57710		0x164e
 #define BNX2X_CHIP_NUM_57711		0x164f
 #define BNX2X_CHIP_NUM_57711E		0x1650
@@ -426,6 +434,10 @@ struct bnx2x_bd_chain_next {
 #define BNX2X_MF_CFG_ADDR(base, field)				\
 			((base) + offsetof(struct mf_cfg, field))
 
+#ifndef ETH_MAX_RX_CLIENTS_E2
+#define ETH_MAX_RX_CLIENTS_E2 		ETH_MAX_RX_CLIENTS_E1H
+#endif
+
 #define CNIC_PORT(cp)			((cp)->pfid & 1)
 #define CNIC_FUNC(cp)			((cp)->func)
 #define CNIC_PATH(cp)			(!BNX2X_CHIP_IS_E2(cp->chip_id) ? 0 :\
@@ -438,7 +450,9 @@ struct bnx2x_bd_chain_next {
 #define BNX2X_SW_CID(x)			(x & 0x1ffff)
 
 #define BNX2X_CL_QZONE_ID(cp, cli)					\
-		(cli + (CNIC_PORT(cp) * ETH_MAX_RX_CLIENTS_E1H))
+		(cli + (CNIC_PORT(cp) * (BNX2X_CHIP_IS_E2(cp->chip_id) ?\
+					ETH_MAX_RX_CLIENTS_E2 :		\
+					ETH_MAX_RX_CLIENTS_E1H)))
 
 #define TCP_TSTORM_OOO_DROP_AND_PROC_ACK	(0<<4)
 #endif

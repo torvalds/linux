@@ -850,6 +850,7 @@ static void cnic_free_resc(struct cnic_dev *dev)
 	kfree(cp->ctx_tbl);
 	cp->ctx_tbl = NULL;
 
+	cnic_free_id_tbl(&cp->fcoe_cid_tbl);
 	cnic_free_id_tbl(&cp->cid_tbl);
 }
 
@@ -1137,12 +1138,22 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 
 	cp->iro_arr = ethdev->iro_arr;
 
-	cp->max_cid_space = MAX_ISCSI_TBL_SZ;
+	cp->max_cid_space = MAX_ISCSI_TBL_SZ + BNX2X_FCOE_NUM_CONNECTIONS;
 	cp->iscsi_start_cid = start_cid;
+	cp->fcoe_start_cid = start_cid + MAX_ISCSI_TBL_SZ;
+
+	if (BNX2X_CHIP_IS_E2(cp->chip_id)) {
+		cp->max_cid_space += BNX2X_FCOE_NUM_CONNECTIONS;
+		cp->fcoe_init_cid = ethdev->fcoe_init_cid;
+		if (!cp->fcoe_init_cid)
+			cp->fcoe_init_cid = 0x10;
+	}
+
 	if (start_cid < BNX2X_ISCSI_START_CID) {
 		u32 delta = BNX2X_ISCSI_START_CID - start_cid;
 
 		cp->iscsi_start_cid = BNX2X_ISCSI_START_CID;
+		cp->fcoe_start_cid += delta;
 		cp->max_cid_space += delta;
 	}
 
@@ -1160,6 +1171,9 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 		cp->ctx_tbl[i].proto.iscsi = &cp->iscsi_tbl[i];
 		cp->ctx_tbl[i].ulp_proto_id = CNIC_ULP_ISCSI;
 	}
+
+	for (i = MAX_ISCSI_TBL_SZ; i < cp->max_cid_space; i++)
+		cp->ctx_tbl[i].ulp_proto_id = CNIC_ULP_FCOE;
 
 	pages = PAGE_ALIGN(cp->max_cid_space * CNIC_KWQ16_DATA_SIZE) /
 		PAGE_SIZE;
@@ -1454,8 +1468,11 @@ static void cnic_free_bnx2x_conn_resc(struct cnic_dev *dev, u32 l5_cid)
 		cnic_free_dma(dev, &iscsi->hq_info);
 		cnic_free_dma(dev, &iscsi->r2tq_info);
 		cnic_free_dma(dev, &iscsi->task_array_info);
+		cnic_free_id(&cp->cid_tbl, ctx->cid);
+	} else {
+		cnic_free_id(&cp->fcoe_cid_tbl, ctx->cid);
 	}
-	cnic_free_id(&cp->cid_tbl, ctx->cid);
+
 	ctx->cid = 0;
 }
 
@@ -1466,6 +1483,16 @@ static int cnic_alloc_bnx2x_conn_resc(struct cnic_dev *dev, u32 l5_cid)
 	struct cnic_local *cp = dev->cnic_priv;
 	struct cnic_context *ctx = &cp->ctx_tbl[l5_cid];
 	struct cnic_iscsi *iscsi = ctx->proto.iscsi;
+
+	if (ctx->ulp_proto_id == CNIC_ULP_FCOE) {
+		cid = cnic_alloc_new_id(&cp->fcoe_cid_tbl);
+		if (cid == -1) {
+			ret = -ENOMEM;
+			goto error;
+		}
+		ctx->cid = cid;
+		return 0;
+	}
 
 	cid = cnic_alloc_new_id(&cp->cid_tbl);
 	if (cid == -1) {
@@ -2107,8 +2134,307 @@ static int cnic_bnx2x_update_pg(struct cnic_dev *dev, struct kwqe *kwqe)
 	return 0;
 }
 
-static int cnic_submit_bnx2x_kwqes(struct cnic_dev *dev, struct kwqe *wqes[],
-				   u32 num_wqes)
+static int cnic_bnx2x_fcoe_stat(struct cnic_dev *dev, struct kwqe *kwqe)
+{
+	struct fcoe_kwqe_stat *req;
+	struct fcoe_stat_ramrod_params *fcoe_stat;
+	union l5cm_specific_data l5_data;
+	struct cnic_local *cp = dev->cnic_priv;
+	int ret;
+	u32 cid;
+
+	req = (struct fcoe_kwqe_stat *) kwqe;
+	cid = BNX2X_HW_CID(cp, cp->fcoe_init_cid);
+
+	fcoe_stat = cnic_get_kwqe_16_data(cp, BNX2X_FCOE_L5_CID_BASE, &l5_data);
+	if (!fcoe_stat)
+		return -ENOMEM;
+
+	memset(fcoe_stat, 0, sizeof(*fcoe_stat));
+	memcpy(&fcoe_stat->stat_kwqe, req, sizeof(*req));
+
+	ret = cnic_submit_kwqe_16(dev, FCOE_RAMROD_CMD_ID_STAT, cid,
+				  FCOE_CONNECTION_TYPE, &l5_data);
+	return ret;
+}
+
+static int cnic_bnx2x_fcoe_init1(struct cnic_dev *dev, struct kwqe *wqes[],
+				 u32 num, int *work)
+{
+	int ret;
+	struct cnic_local *cp = dev->cnic_priv;
+	u32 cid;
+	struct fcoe_init_ramrod_params *fcoe_init;
+	struct fcoe_kwqe_init1 *req1;
+	struct fcoe_kwqe_init2 *req2;
+	struct fcoe_kwqe_init3 *req3;
+	union l5cm_specific_data l5_data;
+
+	if (num < 3) {
+		*work = num;
+		return -EINVAL;
+	}
+	req1 = (struct fcoe_kwqe_init1 *) wqes[0];
+	req2 = (struct fcoe_kwqe_init2 *) wqes[1];
+	req3 = (struct fcoe_kwqe_init3 *) wqes[2];
+	if (req2->hdr.op_code != FCOE_KWQE_OPCODE_INIT2) {
+		*work = 1;
+		return -EINVAL;
+	}
+	if (req3->hdr.op_code != FCOE_KWQE_OPCODE_INIT3) {
+		*work = 2;
+		return -EINVAL;
+	}
+
+	if (sizeof(*fcoe_init) > CNIC_KWQ16_DATA_SIZE) {
+		netdev_err(dev->netdev, "fcoe_init size too big\n");
+		return -ENOMEM;
+	}
+	fcoe_init = cnic_get_kwqe_16_data(cp, BNX2X_FCOE_L5_CID_BASE, &l5_data);
+	if (!fcoe_init)
+		return -ENOMEM;
+
+	memset(fcoe_init, 0, sizeof(*fcoe_init));
+	memcpy(&fcoe_init->init_kwqe1, req1, sizeof(*req1));
+	memcpy(&fcoe_init->init_kwqe2, req2, sizeof(*req2));
+	memcpy(&fcoe_init->init_kwqe3, req3, sizeof(*req3));
+	fcoe_init->eq_addr.lo = cp->kcq2.dma.pg_map_arr[0] & 0xffffffff;
+	fcoe_init->eq_addr.hi = (u64) cp->kcq2.dma.pg_map_arr[0] >> 32;
+	fcoe_init->eq_next_page_addr.lo =
+		cp->kcq2.dma.pg_map_arr[1] & 0xffffffff;
+	fcoe_init->eq_next_page_addr.hi =
+		(u64) cp->kcq2.dma.pg_map_arr[1] >> 32;
+
+	fcoe_init->sb_num = cp->status_blk_num;
+	fcoe_init->eq_prod = MAX_KCQ_IDX;
+	fcoe_init->sb_id = HC_INDEX_FCOE_EQ_CONS;
+	cp->kcq2.sw_prod_idx = 0;
+
+	cid = BNX2X_HW_CID(cp, cp->fcoe_init_cid);
+	printk(KERN_ERR "bdbg: submitting INIT RAMROD \n");
+	ret = cnic_submit_kwqe_16(dev, FCOE_RAMROD_CMD_ID_INIT, cid,
+				  FCOE_CONNECTION_TYPE, &l5_data);
+	*work = 3;
+	return ret;
+}
+
+static int cnic_bnx2x_fcoe_ofld1(struct cnic_dev *dev, struct kwqe *wqes[],
+				 u32 num, int *work)
+{
+	int ret = 0;
+	u32 cid = -1, l5_cid;
+	struct cnic_local *cp = dev->cnic_priv;
+	struct fcoe_kwqe_conn_offload1 *req1;
+	struct fcoe_kwqe_conn_offload2 *req2;
+	struct fcoe_kwqe_conn_offload3 *req3;
+	struct fcoe_kwqe_conn_offload4 *req4;
+	struct fcoe_conn_offload_ramrod_params *fcoe_offload;
+	struct cnic_context *ctx;
+	struct fcoe_context *fctx;
+	struct regpair ctx_addr;
+	union l5cm_specific_data l5_data;
+	struct fcoe_kcqe kcqe;
+	struct kcqe *cqes[1];
+
+	if (num < 4) {
+		*work = num;
+		return -EINVAL;
+	}
+	req1 = (struct fcoe_kwqe_conn_offload1 *) wqes[0];
+	req2 = (struct fcoe_kwqe_conn_offload2 *) wqes[1];
+	req3 = (struct fcoe_kwqe_conn_offload3 *) wqes[2];
+	req4 = (struct fcoe_kwqe_conn_offload4 *) wqes[3];
+
+	*work = 4;
+
+	l5_cid = req1->fcoe_conn_id;
+	if (l5_cid >= BNX2X_FCOE_NUM_CONNECTIONS)
+		goto err_reply;
+
+	l5_cid += BNX2X_FCOE_L5_CID_BASE;
+
+	ctx = &cp->ctx_tbl[l5_cid];
+	if (test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags))
+		goto err_reply;
+
+	ret = cnic_alloc_bnx2x_conn_resc(dev, l5_cid);
+	if (ret) {
+		ret = 0;
+		goto err_reply;
+	}
+	cid = ctx->cid;
+
+	fctx = cnic_get_bnx2x_ctx(dev, cid, 1, &ctx_addr);
+	if (fctx) {
+		u32 hw_cid = BNX2X_HW_CID(cp, cid);
+		u32 val;
+
+		val = CDU_RSRVD_VALUE_TYPE_A(hw_cid, CDU_REGION_NUMBER_XCM_AG,
+					     FCOE_CONNECTION_TYPE);
+		fctx->xstorm_ag_context.cdu_reserved = val;
+		val = CDU_RSRVD_VALUE_TYPE_A(hw_cid, CDU_REGION_NUMBER_UCM_AG,
+					     FCOE_CONNECTION_TYPE);
+		fctx->ustorm_ag_context.cdu_usage = val;
+	}
+	if (sizeof(*fcoe_offload) > CNIC_KWQ16_DATA_SIZE) {
+		netdev_err(dev->netdev, "fcoe_offload size too big\n");
+		goto err_reply;
+	}
+	fcoe_offload = cnic_get_kwqe_16_data(cp, l5_cid, &l5_data);
+	if (!fcoe_offload)
+		goto err_reply;
+
+	memset(fcoe_offload, 0, sizeof(*fcoe_offload));
+	memcpy(&fcoe_offload->offload_kwqe1, req1, sizeof(*req1));
+	memcpy(&fcoe_offload->offload_kwqe2, req2, sizeof(*req2));
+	memcpy(&fcoe_offload->offload_kwqe3, req3, sizeof(*req3));
+	memcpy(&fcoe_offload->offload_kwqe4, req4, sizeof(*req4));
+
+	cid = BNX2X_HW_CID(cp, cid);
+	ret = cnic_submit_kwqe_16(dev, FCOE_RAMROD_CMD_ID_OFFLOAD_CONN, cid,
+				  FCOE_CONNECTION_TYPE, &l5_data);
+	if (!ret)
+		set_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags);
+
+	return ret;
+
+err_reply:
+	if (cid != -1)
+		cnic_free_bnx2x_conn_resc(dev, l5_cid);
+
+	memset(&kcqe, 0, sizeof(kcqe));
+	kcqe.op_code = FCOE_KCQE_OPCODE_OFFLOAD_CONN;
+	kcqe.fcoe_conn_id = req1->fcoe_conn_id;
+	kcqe.completion_status = FCOE_KCQE_COMPLETION_STATUS_CTX_ALLOC_FAILURE;
+
+	cqes[0] = (struct kcqe *) &kcqe;
+	cnic_reply_bnx2x_kcqes(dev, CNIC_ULP_FCOE, cqes, 1);
+	return ret;
+}
+
+static int cnic_bnx2x_fcoe_enable(struct cnic_dev *dev, struct kwqe *kwqe)
+{
+	struct fcoe_kwqe_conn_enable_disable *req;
+	struct fcoe_conn_enable_disable_ramrod_params *fcoe_enable;
+	union l5cm_specific_data l5_data;
+	int ret;
+	u32 cid, l5_cid;
+	struct cnic_local *cp = dev->cnic_priv;
+
+	req = (struct fcoe_kwqe_conn_enable_disable *) kwqe;
+	cid = req->context_id;
+	l5_cid = req->conn_id + BNX2X_FCOE_L5_CID_BASE;
+
+	if (sizeof(*fcoe_enable) > CNIC_KWQ16_DATA_SIZE) {
+		netdev_err(dev->netdev, "fcoe_enable size too big\n");
+		return -ENOMEM;
+	}
+	fcoe_enable = cnic_get_kwqe_16_data(cp, l5_cid, &l5_data);
+	if (!fcoe_enable)
+		return -ENOMEM;
+
+	memset(fcoe_enable, 0, sizeof(*fcoe_enable));
+	memcpy(&fcoe_enable->enable_disable_kwqe, req, sizeof(*req));
+	ret = cnic_submit_kwqe_16(dev, FCOE_RAMROD_CMD_ID_ENABLE_CONN, cid,
+				  FCOE_CONNECTION_TYPE, &l5_data);
+	return ret;
+}
+
+static int cnic_bnx2x_fcoe_disable(struct cnic_dev *dev, struct kwqe *kwqe)
+{
+	struct fcoe_kwqe_conn_enable_disable *req;
+	struct fcoe_conn_enable_disable_ramrod_params *fcoe_disable;
+	union l5cm_specific_data l5_data;
+	int ret;
+	u32 cid, l5_cid;
+	struct cnic_local *cp = dev->cnic_priv;
+
+	req = (struct fcoe_kwqe_conn_enable_disable *) kwqe;
+	cid = req->context_id;
+	l5_cid = req->conn_id;
+	if (l5_cid >= BNX2X_FCOE_NUM_CONNECTIONS)
+		return -EINVAL;
+
+	l5_cid += BNX2X_FCOE_L5_CID_BASE;
+
+	if (sizeof(*fcoe_disable) > CNIC_KWQ16_DATA_SIZE) {
+		netdev_err(dev->netdev, "fcoe_disable size too big\n");
+		return -ENOMEM;
+	}
+	fcoe_disable = cnic_get_kwqe_16_data(cp, l5_cid, &l5_data);
+	if (!fcoe_disable)
+		return -ENOMEM;
+
+	memset(fcoe_disable, 0, sizeof(*fcoe_disable));
+	memcpy(&fcoe_disable->enable_disable_kwqe, req, sizeof(*req));
+	ret = cnic_submit_kwqe_16(dev, FCOE_RAMROD_CMD_ID_DISABLE_CONN, cid,
+				  FCOE_CONNECTION_TYPE, &l5_data);
+	return ret;
+}
+
+static int cnic_bnx2x_fcoe_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
+{
+	struct fcoe_kwqe_conn_destroy *req;
+	union l5cm_specific_data l5_data;
+	int ret;
+	u32 cid, l5_cid;
+	struct cnic_local *cp = dev->cnic_priv;
+	struct cnic_context *ctx;
+	struct fcoe_kcqe kcqe;
+	struct kcqe *cqes[1];
+
+	req = (struct fcoe_kwqe_conn_destroy *) kwqe;
+	cid = req->context_id;
+	l5_cid = req->conn_id;
+	if (l5_cid >= BNX2X_FCOE_NUM_CONNECTIONS)
+		return -EINVAL;
+
+	l5_cid += BNX2X_FCOE_L5_CID_BASE;
+
+	ctx = &cp->ctx_tbl[l5_cid];
+
+	init_waitqueue_head(&ctx->waitq);
+	ctx->wait_cond = 0;
+
+	memset(&l5_data, 0, sizeof(l5_data));
+	ret = cnic_submit_kwqe_16(dev, FCOE_RAMROD_CMD_ID_TERMINATE_CONN, cid,
+				  FCOE_CONNECTION_TYPE, &l5_data);
+	if (ret == 0) {
+		wait_event(ctx->waitq, ctx->wait_cond);
+		set_bit(CTX_FL_DELETE_WAIT, &ctx->ctx_flags);
+		queue_delayed_work(cnic_wq, &cp->delete_task,
+				   msecs_to_jiffies(2000));
+	}
+
+	memset(&kcqe, 0, sizeof(kcqe));
+	kcqe.op_code = FCOE_KCQE_OPCODE_DESTROY_CONN;
+	kcqe.fcoe_conn_id = req->conn_id;
+	kcqe.fcoe_conn_context_id = cid;
+
+	cqes[0] = (struct kcqe *) &kcqe;
+	cnic_reply_bnx2x_kcqes(dev, CNIC_ULP_FCOE, cqes, 1);
+	return ret;
+}
+
+static int cnic_bnx2x_fcoe_fw_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
+{
+	struct fcoe_kwqe_destroy *req;
+	union l5cm_specific_data l5_data;
+	struct cnic_local *cp = dev->cnic_priv;
+	int ret;
+	u32 cid;
+
+	req = (struct fcoe_kwqe_destroy *) kwqe;
+	cid = BNX2X_HW_CID(cp, cp->fcoe_init_cid);
+
+	memset(&l5_data, 0, sizeof(l5_data));
+	ret = cnic_submit_kwqe_16(dev, FCOE_RAMROD_CMD_ID_DESTROY, cid,
+				  FCOE_CONNECTION_TYPE, &l5_data);
+	return ret;
+}
+
+static int cnic_submit_bnx2x_iscsi_kwqes(struct cnic_dev *dev,
+					 struct kwqe *wqes[], u32 num_wqes)
 {
 	int i, work, ret;
 	u32 opcode;
@@ -2172,6 +2498,98 @@ static int cnic_submit_bnx2x_kwqes(struct cnic_dev *dev, struct kwqe *wqes[],
 	return 0;
 }
 
+static int cnic_submit_bnx2x_fcoe_kwqes(struct cnic_dev *dev,
+					struct kwqe *wqes[], u32 num_wqes)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	int i, work, ret;
+	u32 opcode;
+	struct kwqe *kwqe;
+
+	if (!test_bit(CNIC_F_CNIC_UP, &dev->flags))
+		return -EAGAIN;		/* bnx2 is down */
+
+	if (BNX2X_CHIP_NUM(cp->chip_id) == BNX2X_CHIP_NUM_57710)
+		return -EINVAL;
+
+	for (i = 0; i < num_wqes; ) {
+		kwqe = wqes[i];
+		opcode = KWQE_OPCODE(kwqe->kwqe_op_flag);
+		work = 1;
+
+		switch (opcode) {
+		case FCOE_KWQE_OPCODE_INIT1:
+			ret = cnic_bnx2x_fcoe_init1(dev, &wqes[i],
+						    num_wqes - i, &work);
+			break;
+		case FCOE_KWQE_OPCODE_OFFLOAD_CONN1:
+			ret = cnic_bnx2x_fcoe_ofld1(dev, &wqes[i],
+						    num_wqes - i, &work);
+			break;
+		case FCOE_KWQE_OPCODE_ENABLE_CONN:
+			ret = cnic_bnx2x_fcoe_enable(dev, kwqe);
+			break;
+		case FCOE_KWQE_OPCODE_DISABLE_CONN:
+			ret = cnic_bnx2x_fcoe_disable(dev, kwqe);
+			break;
+		case FCOE_KWQE_OPCODE_DESTROY_CONN:
+			ret = cnic_bnx2x_fcoe_destroy(dev, kwqe);
+			break;
+		case FCOE_KWQE_OPCODE_DESTROY:
+			ret = cnic_bnx2x_fcoe_fw_destroy(dev, kwqe);
+			break;
+		case FCOE_KWQE_OPCODE_STAT:
+			ret = cnic_bnx2x_fcoe_stat(dev, kwqe);
+			break;
+		default:
+			ret = 0;
+			netdev_err(dev->netdev, "Unknown type of KWQE(0x%x)\n",
+				   opcode);
+			break;
+		}
+		if (ret < 0)
+			netdev_err(dev->netdev, "KWQE(0x%x) failed\n",
+				   opcode);
+		i += work;
+	}
+	return 0;
+}
+
+static int cnic_submit_bnx2x_kwqes(struct cnic_dev *dev, struct kwqe *wqes[],
+				   u32 num_wqes)
+{
+	int ret = -EINVAL;
+	u32 layer_code;
+
+	if (!test_bit(CNIC_F_CNIC_UP, &dev->flags))
+		return -EAGAIN;		/* bnx2x is down */
+
+	if (!num_wqes)
+		return 0;
+
+	layer_code = wqes[0]->kwqe_op_flag & KWQE_LAYER_MASK;
+	switch (layer_code) {
+	case KWQE_FLAGS_LAYER_MASK_L5_ISCSI:
+	case KWQE_FLAGS_LAYER_MASK_L4:
+	case KWQE_FLAGS_LAYER_MASK_L2:
+		ret = cnic_submit_bnx2x_iscsi_kwqes(dev, wqes, num_wqes);
+		break;
+
+	case KWQE_FLAGS_LAYER_MASK_L5_FCOE:
+		ret = cnic_submit_bnx2x_fcoe_kwqes(dev, wqes, num_wqes);
+		break;
+	}
+	return ret;
+}
+
+static inline u32 cnic_get_kcqe_layer_mask(u32 opflag)
+{
+	if (unlikely(KCQE_OPCODE(opflag) == FCOE_RAMROD_CMD_ID_TERMINATE_CONN))
+		return KCQE_FLAGS_LAYER_MASK_L4;
+
+	return opflag & KCQE_FLAGS_LAYER_MASK;
+}
+
 static void service_kcqes(struct cnic_dev *dev, int num_cqes)
 {
 	struct cnic_local *cp = dev->cnic_priv;
@@ -2183,7 +2601,7 @@ static void service_kcqes(struct cnic_dev *dev, int num_cqes)
 		struct cnic_ulp_ops *ulp_ops;
 		int ulp_type;
 		u32 kcqe_op_flag = cp->completed_kcq[i]->kcqe_op_flag;
-		u32 kcqe_layer = kcqe_op_flag & KCQE_FLAGS_LAYER_MASK;
+		u32 kcqe_layer = cnic_get_kcqe_layer_mask(kcqe_op_flag);
 
 		if (unlikely(kcqe_op_flag & KCQE_RAMROD_COMPLETION))
 			comp++;
@@ -2191,7 +2609,7 @@ static void service_kcqes(struct cnic_dev *dev, int num_cqes)
 		while (j < num_cqes) {
 			u32 next_op = cp->completed_kcq[i + j]->kcqe_op_flag;
 
-			if ((next_op & KCQE_FLAGS_LAYER_MASK) != kcqe_layer)
+			if (cnic_get_kcqe_layer_mask(next_op) != kcqe_layer)
 				break;
 
 			if (unlikely(next_op & KCQE_RAMROD_COMPLETION))
@@ -2203,6 +2621,8 @@ static void service_kcqes(struct cnic_dev *dev, int num_cqes)
 			ulp_type = CNIC_ULP_RDMA;
 		else if (kcqe_layer == KCQE_FLAGS_LAYER_MASK_L5_ISCSI)
 			ulp_type = CNIC_ULP_ISCSI;
+		else if (kcqe_layer == KCQE_FLAGS_LAYER_MASK_L5_FCOE)
+			ulp_type = CNIC_ULP_FCOE;
 		else if (kcqe_layer == KCQE_FLAGS_LAYER_MASK_L4)
 			ulp_type = CNIC_ULP_L4;
 		else if (kcqe_layer == KCQE_FLAGS_LAYER_MASK_L2)
@@ -3249,6 +3669,18 @@ done:
 	csk_put(csk);
 }
 
+static void cnic_process_fcoe_term_conn(struct cnic_dev *dev, struct kcqe *kcqe)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	struct fcoe_kcqe *fc_kcqe = (struct fcoe_kcqe *) kcqe;
+	u32 l5_cid = fc_kcqe->fcoe_conn_id + BNX2X_FCOE_L5_CID_BASE;
+	struct cnic_context *ctx = &cp->ctx_tbl[l5_cid];
+
+	ctx->timestamp = jiffies;
+	ctx->wait_cond = 1;
+	wake_up(&ctx->waitq);
+}
+
 static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 {
 	struct cnic_local *cp = dev->cnic_priv;
@@ -3257,6 +3689,10 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 	u32 l5_cid;
 	struct cnic_sock *csk;
 
+	if (opcode == FCOE_RAMROD_CMD_ID_TERMINATE_CONN) {
+		cnic_process_fcoe_term_conn(dev, kcqe);
+		return;
+	}
 	if (opcode == L4_KCQE_OPCODE_VALUE_OFFLOAD_PG ||
 	    opcode == L4_KCQE_OPCODE_VALUE_UPDATE_PG) {
 		cnic_cm_process_offld_pg(dev, l4kcqe);
@@ -3893,7 +4329,7 @@ static void cnic_shutdown_bnx2_rx_ring(struct cnic_dev *dev)
 
 	memset(&l2kwqe, 0, sizeof(l2kwqe));
 	wqes[0] = &l2kwqe;
-	l2kwqe.kwqe_op_flag = (L2_LAYER_CODE << KWQE_FLAGS_LAYER_SHIFT) |
+	l2kwqe.kwqe_op_flag = (L2_LAYER_CODE << KWQE_LAYER_SHIFT) |
 			      (L2_KWQE_OPCODE_VALUE_FLUSH <<
 			       KWQE_OPCODE_SHIFT) | 2;
 	dev->submit_kwqes(dev, wqes, 1);
@@ -4336,6 +4772,10 @@ static void cnic_get_bnx2x_iscsi_info(struct cnic_dev *dev)
 			val16 ^= 0x1e1e;
 		dev->max_iscsi_conn = val16;
 	}
+
+	if (BNX2X_CHIP_IS_E2(cp->chip_id))
+		dev->max_fcoe_conn = BNX2X_FCOE_NUM_CONNECTIONS;
+
 	if (BNX2X_CHIP_IS_E1H(cp->chip_id) || BNX2X_CHIP_IS_E2(cp->chip_id)) {
 		int func = CNIC_FUNC(cp);
 		u32 mf_cfg_addr;
@@ -4361,6 +4801,9 @@ static void cnic_get_bnx2x_iscsi_info(struct cnic_dev *dev)
 				val = CNIC_RD(dev, addr);
 				if (!(val & MACP_FUNC_CFG_FLAGS_ISCSI_OFFLOAD))
 					dev->max_iscsi_conn = 0;
+
+				if (!(val & MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD))
+					dev->max_fcoe_conn = 0;
 
 				addr = BNX2X_MF_CFG_ADDR(mf_cfg_addr,
 					func_ext_config[func].
@@ -4462,6 +4905,15 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 
 	if (ret)
 		return -ENOMEM;
+
+	if (BNX2X_CHIP_IS_E2(cp->chip_id)) {
+		ret = cnic_init_id_tbl(&cp->fcoe_cid_tbl,
+					BNX2X_FCOE_NUM_CONNECTIONS,
+					cp->fcoe_start_cid);
+
+		if (ret)
+			return -ENOMEM;
+	}
 
 	cp->bnx2x_igu_sb_id = ethdev->irq_arr[0].status_blk_num2;
 
