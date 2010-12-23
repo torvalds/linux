@@ -744,14 +744,44 @@ static const struct dmi_system_id __initconst toshiba_dmi_table[] = {
 #endif
 };
 
+static bool broken_olpc_ec;
+
+static const struct dmi_system_id __initconst olpc_dmi_table[] = {
+#if defined(CONFIG_DMI) && defined(CONFIG_OLPC)
+	{
+		/* OLPC XO-1 or XO-1.5 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "OLPC"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "XO"),
+		},
+	},
+	{ }
+#endif
+};
+
 void __init synaptics_module_init(void)
 {
 	impaired_toshiba_kbc = dmi_check_system(toshiba_dmi_table);
+	broken_olpc_ec = dmi_check_system(olpc_dmi_table);
 }
 
 int synaptics_init(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv;
+
+	/*
+	 * The OLPC XO has issues with Synaptics' absolute mode; similarly to
+	 * the HGPK, it quickly degrades and the hardware becomes jumpy and
+	 * overly sensitive.  Not only that, but the constant packet spew
+	 * (even at a lowered 40pps rate) overloads the EC such that key
+	 * presses on the keyboard are missed.  Given all of that, don't
+	 * even attempt to use Synaptics mode.  Relative mode seems to work
+	 * just fine.
+	 */
+	if (broken_olpc_ec) {
+		printk(KERN_INFO "synaptics: OLPC XO detected, not enabling Synaptics protocol.\n");
+		return -ENODEV;
+	}
 
 	psmouse->private = priv = kzalloc(sizeof(struct synaptics_data), GFP_KERNEL);
 	if (!priv)
