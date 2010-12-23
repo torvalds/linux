@@ -45,6 +45,7 @@
 #include "cm2xxx_3xxx.h"
 #include "prm-regbits-34xx.h"
 #include "control.h"
+#include "mux.h"
 
 #define UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV	0x52
 #define UART_OMAP_WER		0x17	/* Wake-up enable register */
@@ -694,16 +695,16 @@ void __init omap_serial_early_init(void)
 
 /**
  * omap_serial_init_port() - initialize single serial port
- * @port: serial port number (0-3)
+ * @bdata: port specific board data pointer
  *
- * This function initialies serial driver for given @port only.
+ * This function initialies serial driver for given port only.
  * Platforms can call this function instead of omap_serial_init()
  * if they don't plan to use all available UARTs as serial ports.
  *
  * Don't mix calls to omap_serial_init_port() and omap_serial_init(),
  * use only one of the two.
  */
-void __init omap_serial_init_port(int port)
+void __init omap_serial_init_port(struct omap_board_data *bdata)
 {
 	struct omap_uart_state *uart;
 	struct omap_hwmod *oh;
@@ -721,13 +722,15 @@ void __init omap_serial_init_port(int port)
 	struct omap_uart_port_info omap_up;
 #endif
 
-	if (WARN_ON(port < 0))
+	if (WARN_ON(!bdata))
 		return;
-	if (WARN_ON(port >= num_uarts))
+	if (WARN_ON(bdata->id < 0))
+		return;
+	if (WARN_ON(bdata->id >= num_uarts))
 		return;
 
 	list_for_each_entry(uart, &uart_list, node)
-		if (port == uart->num)
+		if (bdata->id == uart->num)
 			break;
 
 	oh = uart->oh;
@@ -799,6 +802,8 @@ void __init omap_serial_init_port(int port)
 	WARN(IS_ERR(od), "Could not build omap_device for %s: %s.\n",
 	     name, oh->name);
 
+	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
+
 	uart->irq = oh->mpu_irqs[0].irq;
 	uart->regshift = 2;
 	uart->mapbase = oh->slaves[0]->addr->pa_start;
@@ -856,7 +861,14 @@ void __init omap_serial_init_port(int port)
 void __init omap_serial_init(void)
 {
 	struct omap_uart_state *uart;
+	struct omap_board_data bdata;
 
-	list_for_each_entry(uart, &uart_list, node)
-		omap_serial_init_port(uart->num);
+	list_for_each_entry(uart, &uart_list, node) {
+		bdata.id = uart->num;
+		bdata.flags = 0;
+		bdata.pads = NULL;
+		bdata.pads_cnt = 0;
+		omap_serial_init_port(&bdata);
+
+	}
 }

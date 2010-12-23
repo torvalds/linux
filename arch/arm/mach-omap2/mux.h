@@ -87,6 +87,20 @@
 #define OMAP_MUX_GPIO_IN_MODE3		(1 << 1)
 
 /**
+ * struct omap_board_data - board specific device data
+ * @id: instance id
+ * @flags: additional flags for platform init code
+ * @pads: array of device specific pads
+ * @pads_cnt: ARRAY_SIZE() of pads
+ */
+struct omap_board_data {
+	int			id;
+	u32			flags;
+	struct omap_device_pad	*pads;
+	int			pads_cnt;
+};
+
+/**
  * struct mux_partition - contain partition related information
  * @name: name of the current partition
  * @flags: flags specific to this partition
