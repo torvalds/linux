@@ -1515,7 +1515,7 @@ int cx231xx_read_i2c_master(struct cx231xx *dev, u8 dev_addr, u16 saddr,
 
 	if (saddr_len == 0)
 		saddr = 0;
-	else if (saddr_len == 0)
+	else if (saddr_len == 1)
 		saddr &= 0xff;
 
 	/* prepare xfer_data struct */
@@ -1566,7 +1566,7 @@ int cx231xx_write_i2c_master(struct cx231xx *dev, u8 dev_addr, u16 saddr,
 
 	if (saddr_len == 0)
 		saddr = 0;
-	else if (saddr_len == 0)
+	else if (saddr_len == 1)
 		saddr &= 0xff;
 
 	/* prepare xfer_data struct */
@@ -1600,7 +1600,7 @@ int cx231xx_read_i2c_data(struct cx231xx *dev, u8 dev_addr, u16 saddr,
 
 	if (saddr_len == 0)
 		saddr = 0;
-	else if (saddr_len == 0)
+	else if (saddr_len == 1)
 		saddr &= 0xff;
 
 	/* prepare xfer_data struct */
@@ -1641,7 +1641,7 @@ int cx231xx_write_i2c_data(struct cx231xx *dev, u8 dev_addr, u16 saddr,
 
 	if (saddr_len == 0)
 		saddr = 0;
-	else if (saddr_len == 0)
+	else if (saddr_len == 1)
 		saddr &= 0xff;
 
 	/* prepare xfer_data struct */
