@@ -58,7 +58,7 @@ static DEFINE_MUTEX(battery_mutex);
 struct bq27510_device_info {
 	struct device 		*dev;
 	struct power_supply	bat;
-	struct power_supply	ac;
+	///struct power_supply	ac;
 	struct delayed_work work;
 	unsigned int interval;
 	struct i2c_client	*client;
@@ -337,10 +337,10 @@ static void bq27510_powersupply_init(struct bq27510_device_info *di)
 	di->bat.num_properties = ARRAY_SIZE(bq27510_battery_props);
 	di->bat.get_property = bq27510_battery_get_property;
 	
-	di->ac.type = POWER_SUPPLY_TYPE_MAINS;
+	/*di->ac.type = POWER_SUPPLY_TYPE_MAINS;
 	di->ac.properties = rk29_ac_props;
 	di->ac.num_properties = ARRAY_SIZE(rk29_ac_props);
-	di->ac.get_property = rk29_ac_get_property;
+	di->ac.get_property = rk29_ac_get_property;*/
 }
 
 
@@ -366,7 +366,7 @@ static int bq27510_battery_probe(struct i2c_client *client,
 	#ifdef CONFIG_CHECK_BATT_CAPACITY
 	u8 buf[2];
 	#endif
-	
+	 
 	di = kzalloc(sizeof(*di), GFP_KERNEL);
 	if (!di) {
 		dev_err(&client->dev, "failed to allocate device info data\n");
