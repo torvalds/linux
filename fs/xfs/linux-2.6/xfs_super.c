@@ -1118,6 +1118,8 @@ xfs_fs_evict_inode(
 	 */
 	ASSERT(!rwsem_is_locked(&ip->i_iolock.mr_lock));
 	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
+	lockdep_set_class_and_name(&ip->i_iolock.mr_lock,
+			&xfs_iolock_reclaimable, "xfs_iolock_reclaimable");
 
 	xfs_inactive(ip);
 }

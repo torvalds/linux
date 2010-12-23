@@ -43,6 +43,17 @@
 
 
 /*
+ * Define xfs inode iolock lockdep classes. We need to ensure that all active
+ * inodes are considered the same for lockdep purposes, including inodes that
+ * are recycled through the XFS_IRECLAIMABLE state. This is the the only way to
+ * guarantee the locks are considered the same when there are multiple lock
+ * initialisation siteѕ. Also, define a reclaimable inode class so it is
+ * obvious in lockdep reports which class the report is against.
+ */
+static struct lock_class_key xfs_iolock_active;
+struct lock_class_key xfs_iolock_reclaimable;
+
+/*
  * Allocate and initialise an xfs_inode.
  */
 STATIC struct xfs_inode *
@@ -71,6 +82,8 @@ xfs_inode_alloc(
 	ASSERT(completion_done(&ip->i_flush));
 
 	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
+	lockdep_set_class_and_name(&ip->i_iolock.mr_lock,
+			&xfs_iolock_active, "xfs_iolock_active");
 
 	/* initialise the xfs inode */
 	ip->i_ino = ino;
@@ -218,6 +231,12 @@ xfs_iget_cache_hit(
 		ip->i_flags |= XFS_INEW;
 		__xfs_inode_clear_reclaim_tag(mp, pag, ip);
 		inode->i_state = I_NEW;
+
+		ASSERT(!rwsem_is_locked(&ip->i_iolock.mr_lock));
+		mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
+		lockdep_set_class_and_name(&ip->i_iolock.mr_lock,
+				&xfs_iolock_active, "xfs_iolock_active");
+
 		spin_unlock(&ip->i_flags_lock);
 		write_unlock(&pag->pag_ici_lock);
 	} else {

@@ -438,6 +438,8 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 #define XFS_IOLOCK_DEP(flags)	(((flags) & XFS_IOLOCK_DEP_MASK) >> XFS_IOLOCK_SHIFT)
 #define XFS_ILOCK_DEP(flags)	(((flags) & XFS_ILOCK_DEP_MASK) >> XFS_ILOCK_SHIFT)
 
+extern struct lock_class_key xfs_iolock_reclaimable;
+
 /*
  * Flags for xfs_itruncate_start().
  */
