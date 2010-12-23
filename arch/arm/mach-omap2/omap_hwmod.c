@@ -116,7 +116,6 @@
  * - Open Core Protocol Specification 2.2
  *
  * To do:
- * - pin mux handling
  * - handle IO mapping
  * - bus throughput & module latency measurement code
  *
@@ -149,6 +148,7 @@
 #include "cm44xx.h"
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
+#include "mux.h"
 
 /* Maximum microseconds to wait for OMAP module to softreset */
 #define MAX_MODULE_SOFTRESET_WAIT	10000
@@ -1229,7 +1229,9 @@ static int _enable(struct omap_hwmod *oh)
 	     oh->_state == _HWMOD_STATE_DISABLED) && oh->rst_lines_cnt == 1)
 		_deassert_hardreset(oh, oh->rst_lines[0].name);
 
-	/* XXX mux balls */
+	/* Mux pins for device runtime if populated */
+	if (oh->mux)
+		omap_hwmod_mux(oh->mux, _HWMOD_STATE_ENABLED);
 
 	_add_initiator_dep(oh, mpu_oh);
 	_enable_clocks(oh);
@@ -1275,6 +1277,10 @@ static int _idle(struct omap_hwmod *oh)
 		_idle_sysc(oh);
 	_del_initiator_dep(oh, mpu_oh);
 	_disable_clocks(oh);
+
+	/* Mux pins for device idle if populated */
+	if (oh->mux)
+		omap_hwmod_mux(oh->mux, _HWMOD_STATE_IDLE);
 
 	oh->_state = _HWMOD_STATE_IDLE;
 
@@ -1334,7 +1340,9 @@ static int _shutdown(struct omap_hwmod *oh)
 	}
 	/* XXX Should this code also force-disable the optional clocks? */
 
-	/* XXX mux any associated balls to safe mode */
+	/* Mux pins to safe mode or use populated off mode values */
+	if (oh->mux)
+		omap_hwmod_mux(oh->mux, _HWMOD_STATE_DISABLED);
 
 	oh->_state = _HWMOD_STATE_DISABLED;
 

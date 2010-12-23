@@ -171,6 +171,8 @@ struct omap_device_pad {
 	struct omap_mux			*mux;
 };
 
+struct omap_hwmod_mux_info;
+
 #if defined(CONFIG_OMAP_MUX)
 
 /**
@@ -195,6 +197,15 @@ int omap_mux_init_signal(const char *muxname, int val);
 extern struct omap_hwmod_mux_info *
 omap_hwmod_mux_init(struct omap_device_pad *bpads, int nr_pads);
 
+/**
+ * omap_hwmod_mux - omap hwmod specific pin muxing
+ * @hmux:		Pads for a hwmod
+ * @state:		Desired _HWMOD_STATE
+ *
+ * Called only from omap_hwmod.c, do not use.
+ */
+void omap_hwmod_mux(struct omap_hwmod_mux_info *hmux, u8 state);
+
 #else
 
 static inline int omap_mux_init_gpio(int gpio, int val)
@@ -210,6 +221,10 @@ static inline struct omap_hwmod_mux_info *
 omap_hwmod_mux_init(struct omap_device_pad *bpads, int nr_pads)
 {
 	return NULL;
+}
+
+static inline void omap_hwmod_mux(struct omap_hwmod_mux_info *hmux, u8 state)
+{
 }
 
 static struct omap_board_mux *board_mux __initdata __maybe_unused;

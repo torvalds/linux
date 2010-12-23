@@ -317,6 +317,54 @@ err1:
 	return NULL;
 }
 
+/* Assumes the calling function takes care of locking */
+void omap_hwmod_mux(struct omap_hwmod_mux_info *hmux, u8 state)
+{
+	int i;
+
+	for (i = 0; i < hmux->nr_pads; i++) {
+		struct omap_device_pad *pad = &hmux->pads[i];
+		int flags, val = -EINVAL;
+
+		flags = pad->flags;
+
+		switch (state) {
+		case _HWMOD_STATE_ENABLED:
+			if (flags & OMAP_DEVICE_PAD_ENABLED)
+				break;
+			flags |= OMAP_DEVICE_PAD_ENABLED;
+			val = pad->enable;
+			pr_debug("%s: Enabling %s %x\n", __func__,
+					pad->name, val);
+			break;
+		case _HWMOD_STATE_IDLE:
+			if (!(flags & OMAP_DEVICE_PAD_REMUX))
+				break;
+			flags &= ~OMAP_DEVICE_PAD_ENABLED;
+			val = pad->idle;
+			pr_debug("%s: Idling %s %x\n", __func__,
+					pad->name, val);
+			break;
+		case _HWMOD_STATE_DISABLED:
+		default:
+			/* Use safe mode unless OMAP_DEVICE_PAD_REMUX */
+			if (flags & OMAP_DEVICE_PAD_REMUX)
+				val = pad->off;
+			else
+				val = OMAP_MUX_MODE7;
+			flags &= ~OMAP_DEVICE_PAD_ENABLED;
+			pr_debug("%s: Disabling %s %x\n", __func__,
+					pad->name, val);
+		};
+
+		if (val >= 0) {
+			omap_mux_write(pad->partition, val,
+					pad->mux->reg_offset);
+			pad->flags = flags;
+		}
+	}
+}
+
 #ifdef CONFIG_DEBUG_FS
 
 #define OMAP_MUX_MAX_NR_FLAGS	10
