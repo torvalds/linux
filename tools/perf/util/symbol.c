@@ -22,6 +22,10 @@
 #include <limits.h>
 #include <sys/utsname.h>
 
+#ifndef KSYM_NAME_LEN
+#define KSYM_NAME_LEN 128
+#endif
+
 #ifndef NT_GNU_BUILD_ID
 #define NT_GNU_BUILD_ID 3
 #endif
@@ -93,7 +97,7 @@ static void symbols__fixup_end(struct rb_root *self)
 		prev = curr;
 		curr = rb_entry(nd, struct symbol, rb_node);
 
-		if (prev->end == prev->start)
+		if (prev->end == prev->start && prev->end != curr->start)
 			prev->end = curr->start - 1;
 	}
 
@@ -426,15 +430,24 @@ size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp)
 
 int kallsyms__parse(const char *filename, void *arg,
 		    int (*process_symbol)(void *arg, const char *name,
-						     char type, u64 start))
+					  char type, u64 start, u64 end))
 {
 	char *line = NULL;
 	size_t n;
-	int err = 0;
+	int err = -1;
+	u64 prev_start = 0;
+	char prev_symbol_type = 0;
+	char *prev_symbol_name;
 	FILE *file = fopen(filename, "r");
 
 	if (file == NULL)
 		goto out_failure;
+
+	prev_symbol_name = malloc(KSYM_NAME_LEN);
+	if (prev_symbol_name == NULL)
+		goto out_close;
+
+	err = 0;
 
 	while (!feof(file)) {
 		u64 start;
@@ -455,14 +468,33 @@ int kallsyms__parse(const char *filename, void *arg,
 			continue;
 
 		symbol_type = toupper(line[len]);
-		symbol_name = line + len + 2;
+		len += 2;
+		symbol_name = line + len;
+		len = line_len - len;
 
-		err = process_symbol(arg, symbol_name, symbol_type, start);
-		if (err)
+		if (len >= KSYM_NAME_LEN) {
+			err = -1;
 			break;
+		}
+
+		if (prev_symbol_type) {
+			u64 end = start;
+			if (end != prev_start)
+				--end;
+			err = process_symbol(arg, prev_symbol_name,
+					     prev_symbol_type, prev_start, end);
+			if (err)
+				break;
+		}
+
+		memcpy(prev_symbol_name, symbol_name, len + 1);
+		prev_symbol_type = symbol_type;
+		prev_start = start;
 	}
 
+	free(prev_symbol_name);
 	free(line);
+out_close:
 	fclose(file);
 	return err;
 
@@ -484,7 +516,7 @@ static u8 kallsyms2elf_type(char type)
 }
 
 static int map__process_kallsym_symbol(void *arg, const char *name,
-				       char type, u64 start)
+				       char type, u64 start, u64 end)
 {
 	struct symbol *sym;
 	struct process_kallsyms_args *a = arg;
@@ -493,11 +525,8 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 	if (!symbol_type__is_a(type, a->map->type))
 		return 0;
 
-	/*
-	 * Will fix up the end later, when we have all symbols sorted.
-	 */
-	sym = symbol__new(start, 0, kallsyms2elf_type(type), name);
-
+	sym = symbol__new(start, end - start + 1,
+			  kallsyms2elf_type(type), name);
 	if (sym == NULL)
 		return -ENOMEM;
 	/*
@@ -650,7 +679,6 @@ int dso__load_kallsyms(struct dso *self, const char *filename,
 	if (dso__load_all_kallsyms(self, filename, map) < 0)
 		return -1;
 
-	symbols__fixup_end(&self->symbols[map->type]);
 	if (self->kernel == DSO_TYPE_GUEST_KERNEL)
 		self->origin = DSO__ORIG_GUEST_KERNEL;
 	else
@@ -2162,7 +2190,7 @@ struct process_args {
 };
 
 static int symbol__in_kernel(void *arg, const char *name,
-			     char type __used, u64 start)
+			     char type __used, u64 start, u64 end __used)
 {
 	struct process_args *args = arg;
 

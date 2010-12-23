@@ -119,10 +119,16 @@ static int test__vmlinux_matches_kallsyms(void)
 	 * end addresses too.
 	 */
 	for (nd = rb_first(&vmlinux_map->dso->symbols[type]); nd; nd = rb_next(nd)) {
-		struct symbol *pair;
+		struct symbol *pair, *first_pair;
+		bool backwards = true;
 
 		sym  = rb_entry(nd, struct symbol, rb_node);
-		pair = machine__find_kernel_symbol(&kallsyms, type, sym->start, NULL, NULL);
+
+		if (sym->start == sym->end)
+			continue;
+
+		first_pair = machine__find_kernel_symbol(&kallsyms, type, sym->start, NULL, NULL);
+		pair = first_pair;
 
 		if (pair && pair->start == sym->start) {
 next_pair:
@@ -143,8 +149,10 @@ next_pair:
 				pr_debug("%#Lx: diff end addr for %s v: %#Lx k: %#Lx\n",
 					 sym->start, sym->name, sym->end, pair->end);
 			} else {
-				struct rb_node *nnd = rb_prev(&pair->rb_node);
-
+				struct rb_node *nnd;
+detour:
+				nnd = backwards ? rb_prev(&pair->rb_node) :
+						  rb_next(&pair->rb_node);
 				if (nnd) {
 					struct symbol *next = rb_entry(nnd, struct symbol, rb_node);
 
@@ -153,6 +161,13 @@ next_pair:
 						goto next_pair;
 					}
 				}
+
+				if (backwards) {
+					backwards = false;
+					pair = first_pair;
+					goto detour;
+				}
+
 				pr_debug("%#Lx: diff name v: %s k: %s\n",
 					 sym->start, sym->name, pair->name);
 			}

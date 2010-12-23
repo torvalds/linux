@@ -309,7 +309,7 @@ static int __show_one_line(FILE *fp, int l, bool skip, bool show_num)
 	return 1;
 error:
 	if (ferror(fp)) {
-		pr_warning("Source file is shorter than expected.\n");
+		pr_warning("File read error: %s\n", strerror(errno));
 		return -1;
 	}
 	return 0;
