@@ -31,6 +31,7 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/wm8903.h>
+#include <trace/events/asoc.h>
 
 #include "wm8903.h"
 
@@ -1532,6 +1533,11 @@ static irqreturn_t wm8903_irq(int irq, void *data)
 	 */
 	mic_report = wm8903->mic_last_report;
 	int_pol = snd_soc_read(codec, WM8903_INTERRUPT_POLARITY_1);
+
+#ifndef CONFIG_SND_SOC_WM8903_MODULE
+	if (int_val & (WM8903_MICSHRT_EINT | WM8903_MICDET_EINT))
+		trace_snd_soc_jack_irq(dev_name(codec->dev));
+#endif
 
 	if (int_val & WM8903_MICSHRT_EINT) {
 		dev_dbg(codec->dev, "Microphone short (pol=%x)\n", int_pol);

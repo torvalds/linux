@@ -28,6 +28,7 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
+#include <trace/events/asoc.h>
 
 #include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/registers.h>
@@ -2755,6 +2756,8 @@ static irqreturn_t wm8994_mic_irq(int irq, void *data)
 	int reg;
 	int report;
 
+	trace_snd_soc_jack_irq(dev_name(codec->dev));
+
 	reg = snd_soc_read(codec, WM8994_INTERRUPT_RAW_STATUS_2);
 	if (reg < 0) {
 		dev_err(codec->dev, "Failed to read microphone status: %d\n",
@@ -2900,6 +2903,8 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 		dev_dbg(codec->dev, "Mic detect data not valid\n");
 		goto out;
 	}
+
+	trace_snd_soc_jack_irq(dev_name(codec->dev));
 
 	if (wm8994->jack_cb)
 		wm8994->jack_cb(reg, wm8994->jack_cb_data);
