@@ -380,7 +380,10 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 	if (haddr.hci_family != AF_BLUETOOTH)
 		return -EINVAL;
 
-	if (haddr.hci_channel != HCI_CHANNEL_RAW && !enable_mgmt)
+	if (haddr.hci_channel > HCI_CHANNEL_CONTROL)
+		return -EINVAL;
+
+	if (haddr.hci_channel == HCI_CHANNEL_CONTROL && !enable_mgmt)
 		return -EINVAL;
 
 	lock_sock(sk);
