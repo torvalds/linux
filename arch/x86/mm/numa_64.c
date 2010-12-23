@@ -324,6 +324,24 @@ static int __init setup_physnodes(unsigned long start, unsigned long end,
 	return ret;
 }
 
+static void __init fake_physnodes(int acpi, int amd, int nr_nodes)
+{
+	int i;
+
+	BUG_ON(acpi && amd);
+#ifdef CONFIG_ACPI_NUMA
+	if (acpi)
+		acpi_fake_nodes(nodes, nr_nodes);
+#endif
+#ifdef CONFIG_AMD_NUMA
+	if (amd)
+		amd_fake_nodes(nodes, nr_nodes);
+#endif
+	if (!acpi && !amd)
+		for (i = 0; i < nr_cpu_ids; i++)
+			numa_set_node(i, 0);
+}
+
 /*
  * Setups up nid to range from addr to addr + size.  If the end
  * boundary is greater than max_addr, then max_addr is used instead.
@@ -595,7 +613,7 @@ static int __init numa_emulation(unsigned long start_pfn,
 						nodes[i].end >> PAGE_SHIFT);
 		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
 	}
-	acpi_fake_nodes(nodes, num_nodes);
+	fake_physnodes(acpi, amd, num_nodes);
 	numa_init_array();
 	return 0;
 }

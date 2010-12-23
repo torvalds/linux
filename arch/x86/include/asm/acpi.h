@@ -193,11 +193,6 @@ extern int acpi_scan_nodes(unsigned long start, unsigned long end);
 extern void acpi_fake_nodes(const struct bootnode *fake_nodes,
 				   int num_nodes);
 #endif
-#else
-static inline void acpi_fake_nodes(const struct bootnode *fake_nodes,
-				   int num_nodes)
-{
-}
 #endif /* CONFIG_ACPI_NUMA */
 
 #define acpi_unlazy_tlb(x)	leave_mm(x)

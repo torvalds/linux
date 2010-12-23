@@ -497,8 +497,6 @@ void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
 {
 	int i, j;
 
-	printk(KERN_INFO "Faking PXM affinity for fake nodes on real "
-			 "topology.\n");
 	for (i = 0; i < num_nodes; i++) {
 		int nid, pxm;
 

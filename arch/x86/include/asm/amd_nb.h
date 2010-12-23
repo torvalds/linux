@@ -13,6 +13,7 @@ extern int amd_numa_init(unsigned long start_pfn, unsigned long end_pfn);
 extern int amd_scan_nodes(void);
 
 #ifdef CONFIG_NUMA_EMU
+extern void amd_fake_nodes(const struct bootnode *nodes, int nr_nodes);
 extern int amd_get_nodes(struct bootnode *nodes);
 #endif
 
