@@ -4119,7 +4119,7 @@ static void cnic_init_bnx2x_tx_ring(struct cnic_dev *dev,
 	struct host_sp_status_block *sb = cp->bnx2x_def_status_blk;
 	int port = CNIC_PORT(cp);
 	int i;
-	int cli = BNX2X_ISCSI_CL_ID(CNIC_E1HVN(cp));
+	u32 cli = cp->ethdev->iscsi_l2_client_id;
 	u32 val;
 
 	memset(txbd, 0, BCM_PAGE_SIZE);
@@ -4180,7 +4180,7 @@ static void cnic_init_bnx2x_rx_ring(struct cnic_dev *dev,
 	struct host_sp_status_block *sb = cp->bnx2x_def_status_blk;
 	int i;
 	int port = CNIC_PORT(cp);
-	int cli = BNX2X_ISCSI_CL_ID(CNIC_E1HVN(cp));
+	u32 cli = cp->ethdev->iscsi_l2_client_id;
 	int cl_qzone_id = BNX2X_CL_QZONE_ID(cp, cli);
 	u32 val;
 	dma_addr_t ring_map = udev->l2_ring_map;
@@ -4244,6 +4244,7 @@ static void cnic_init_bnx2x_rx_ring(struct cnic_dev *dev,
 
 	cp->rx_cons_ptr =
 		&sb->sp_sb.index_values[HC_SP_INDEX_ETH_ISCSI_RX_CQ_CONS];
+	cp->rx_cons = *cp->rx_cons_ptr;
 }
 
 static void cnic_get_bnx2x_iscsi_info(struct cnic_dev *dev)
@@ -4437,7 +4438,8 @@ static void cnic_init_rings(struct cnic_dev *dev)
 		cnic_init_bnx2_rx_ring(dev);
 		set_bit(CNIC_LCL_FL_RINGS_INITED, &cp->cnic_local_flags);
 	} else if (test_bit(CNIC_F_BNX2X_CLASS, &dev->flags)) {
-		u32 cli = BNX2X_ISCSI_CL_ID(CNIC_E1HVN(cp));
+		u32 cli = cp->ethdev->iscsi_l2_client_id;
+		u32 cid = cp->ethdev->iscsi_l2_cid;
 		u32 cl_qzone_id, type;
 		struct client_init_ramrod_data *data;
 		union l5cm_specific_data l5_data;
@@ -4478,7 +4480,7 @@ static void cnic_init_rings(struct cnic_dev *dev)
 		set_bit(CNIC_LCL_FL_RINGS_INITED, &cp->cnic_local_flags);
 
 		cnic_submit_kwqe_16(dev, RAMROD_CMD_ID_ETH_CLIENT_SETUP,
-			BNX2X_ISCSI_L2_CID, type, &l5_data);
+			cid, type, &l5_data);
 
 		i = 0;
 		while (test_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags) &&
@@ -4489,7 +4491,7 @@ static void cnic_init_rings(struct cnic_dev *dev)
 			netdev_err(dev->netdev,
 				"iSCSI CLIENT_SETUP did not complete\n");
 		cnic_spq_completion(dev, DRV_CTL_RET_L2_SPQ_CREDIT_CMD, 1);
-		cnic_ring_ctl(dev, BNX2X_ISCSI_L2_CID, cli, 1);
+		cnic_ring_ctl(dev, cid, cli, 1);
 	}
 }
 
@@ -4504,19 +4506,20 @@ static void cnic_shutdown_rings(struct cnic_dev *dev)
 		cnic_shutdown_bnx2_rx_ring(dev);
 	} else if (test_bit(CNIC_F_BNX2X_CLASS, &dev->flags)) {
 		struct cnic_local *cp = dev->cnic_priv;
-		u32 cli = BNX2X_ISCSI_CL_ID(CNIC_E1HVN(cp));
+		u32 cli = cp->ethdev->iscsi_l2_client_id;
+		u32 cid = cp->ethdev->iscsi_l2_cid;
 		union l5cm_specific_data l5_data;
 		int i;
 		u32 type;
 
-		cnic_ring_ctl(dev, BNX2X_ISCSI_L2_CID, cli, 0);
+		cnic_ring_ctl(dev, cid, cli, 0);
 
 		set_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags);
 
 		l5_data.phy_address.lo = cli;
 		l5_data.phy_address.hi = 0;
 		cnic_submit_kwqe_16(dev, RAMROD_CMD_ID_ETH_HALT,
-			BNX2X_ISCSI_L2_CID, ETH_CONNECTION_TYPE, &l5_data);
+			cid, ETH_CONNECTION_TYPE, &l5_data);
 		i = 0;
 		while (test_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags) &&
 		       ++i < 10)
@@ -4533,7 +4536,7 @@ static void cnic_shutdown_rings(struct cnic_dev *dev)
 		type |= ((cp->pfid << SPE_HDR_FUNCTION_ID_SHIFT) &
 			 SPE_HDR_FUNCTION_ID);
 		cnic_submit_kwqe_16(dev, RAMROD_CMD_ID_COMMON_CFC_DEL,
-			BNX2X_ISCSI_L2_CID, type, &l5_data);
+			cid, type, &l5_data);
 		msleep(10);
 	}
 	clear_bit(CNIC_LCL_FL_RINGS_INITED, &cp->cnic_local_flags);

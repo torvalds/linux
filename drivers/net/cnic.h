@@ -356,11 +356,6 @@ struct bnx2x_bd_chain_next {
 #define BNX2X_CONTEXT_MEM_SIZE		1024
 #define BNX2X_FCOE_CID			16
 
-/* iSCSI client IDs are 17, 19, 21, 23 */
-#define BNX2X_ISCSI_BASE_CL_ID		17
-#define BNX2X_ISCSI_CL_ID(vn)		(BNX2X_ISCSI_BASE_CL_ID + ((vn) << 1))
-
-#define BNX2X_ISCSI_L2_CID		17
 #define BNX2X_ISCSI_START_CID		18
 #define BNX2X_ISCSI_NUM_CONNECTIONS	128
 #define BNX2X_ISCSI_TASK_CONTEXT_SIZE	128
