@@ -260,7 +260,7 @@ void __init numa_init_array(void)
 #ifdef CONFIG_NUMA_EMU
 /* Numa emulation */
 static struct bootnode nodes[MAX_NUMNODES] __initdata;
-static struct bootnode physnodes[MAX_NUMNODES] __initdata;
+static struct bootnode physnodes[MAX_NUMNODES] __cpuinitdata;
 static char *cmdline __initdata;
 
 static int __init setup_physnodes(unsigned long start, unsigned long end,
@@ -270,6 +270,7 @@ static int __init setup_physnodes(unsigned long start, unsigned long end,
 	int ret = 0;
 	int i;
 
+	memset(physnodes, 0, sizeof(physnodes));
 #ifdef CONFIG_ACPI_NUMA
 	if (acpi)
 		nr_nodes = acpi_get_nodes(physnodes);
@@ -370,8 +371,7 @@ static int __init setup_node_range(int nid, u64 *addr, u64 size, u64 max_addr)
  * Sets up nr_nodes fake nodes interleaved over physical nodes ranging from addr
  * to max_addr.  The return value is the number of nodes allocated.
  */
-static int __init split_nodes_interleave(u64 addr, u64 max_addr,
-						int nr_phys_nodes, int nr_nodes)
+static int __init split_nodes_interleave(u64 addr, u64 max_addr, int nr_nodes)
 {
 	nodemask_t physnode_mask = NODE_MASK_NONE;
 	u64 size;
@@ -402,7 +402,7 @@ static int __init split_nodes_interleave(u64 addr, u64 max_addr,
 		return -1;
 	}
 
-	for (i = 0; i < nr_phys_nodes; i++)
+	for (i = 0; i < MAX_NUMNODES; i++)
 		if (physnodes[i].start != physnodes[i].end)
 			node_set(i, physnode_mask);
 
@@ -571,11 +571,9 @@ static int __init numa_emulation(unsigned long start_pfn,
 {
 	u64 addr = start_pfn << PAGE_SHIFT;
 	u64 max_addr = last_pfn << PAGE_SHIFT;
-	int num_phys_nodes;
 	int num_nodes;
 	int i;
 
-	num_phys_nodes = setup_physnodes(addr, max_addr, acpi, amd);
 	/*
 	 * If the numa=fake command-line contains a 'M' or 'G', it represents
 	 * the fixed node size.  Otherwise, if it is just a single number N,
@@ -590,7 +588,7 @@ static int __init numa_emulation(unsigned long start_pfn,
 		unsigned long n;
 
 		n = simple_strtoul(cmdline, NULL, 0);
-		num_nodes = split_nodes_interleave(addr, max_addr, num_phys_nodes, n);
+		num_nodes = split_nodes_interleave(addr, max_addr, n);
 	}
 
 	if (num_nodes < 0)
@@ -613,6 +611,7 @@ static int __init numa_emulation(unsigned long start_pfn,
 						nodes[i].end >> PAGE_SHIFT);
 		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
 	}
+	setup_physnodes(addr, max_addr, acpi, amd);
 	fake_physnodes(acpi, amd, num_nodes);
 	numa_init_array();
 	return 0;
@@ -628,8 +627,12 @@ void __init initmem_init(unsigned long start_pfn, unsigned long last_pfn,
 	nodes_clear(node_online_map);
 
 #ifdef CONFIG_NUMA_EMU
+	setup_physnodes(start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT,
+			acpi, amd);
 	if (cmdline && !numa_emulation(start_pfn, last_pfn, acpi, amd))
 		return;
+	setup_physnodes(start_pfn << PAGE_SHIFT, last_pfn << PAGE_SHIFT,
+			acpi, amd);
 	nodes_clear(node_possible_map);
 	nodes_clear(node_online_map);
 #endif
@@ -785,6 +788,7 @@ void __cpuinit numa_clear_node(int cpu)
 
 #ifndef CONFIG_DEBUG_PER_CPU_MAPS
 
+#ifndef CONFIG_NUMA_EMU
 void __cpuinit numa_add_cpu(int cpu)
 {
 	cpumask_set_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
@@ -794,6 +798,51 @@ void __cpuinit numa_remove_cpu(int cpu)
 {
 	cpumask_clear_cpu(cpu, node_to_cpumask_map[early_cpu_to_node(cpu)]);
 }
+#else
+void __cpuinit numa_add_cpu(int cpu)
+{
+	unsigned long addr;
+	u16 apicid;
+	int physnid;
+	int nid = NUMA_NO_NODE;
+
+	apicid = early_per_cpu(x86_cpu_to_apicid, cpu);
+	if (apicid != BAD_APICID)
+		nid = apicid_to_node[apicid];
+	if (nid == NUMA_NO_NODE)
+		nid = early_cpu_to_node(cpu);
+	BUG_ON(nid == NUMA_NO_NODE || !node_online(nid));
+
+	/*
+	 * Use the starting address of the emulated node to find which physical
+	 * node it is allocated on.
+	 */
+	addr = node_start_pfn(nid) << PAGE_SHIFT;
+	for (physnid = 0; physnid < MAX_NUMNODES; physnid++)
+		if (addr >= physnodes[physnid].start &&
+		    addr < physnodes[physnid].end)
+			break;
+
+	/*
+	 * Map the cpu to each emulated node that is allocated on the physical
+	 * node of the cpu's apic id.
+	 */
+	for_each_online_node(nid) {
+		addr = node_start_pfn(nid) << PAGE_SHIFT;
+		if (addr >= physnodes[physnid].start &&
+		    addr < physnodes[physnid].end)
+			cpumask_set_cpu(cpu, node_to_cpumask_map[nid]);
+	}
+}
+
+void __cpuinit numa_remove_cpu(int cpu)
+{
+	int i;
+
+	for_each_online_node(i)
+		cpumask_clear_cpu(cpu, node_to_cpumask_map[i]);
+}
+#endif /* !CONFIG_NUMA_EMU */
 
 #else /* CONFIG_DEBUG_PER_CPU_MAPS */
 
@@ -805,22 +854,32 @@ static void __cpuinit numa_set_cpumask(int cpu, int enable)
 	int node = early_cpu_to_node(cpu);
 	struct cpumask *mask;
 	char buf[64];
+	int i;
 
-	mask = node_to_cpumask_map[node];
-	if (mask == NULL) {
-		printk(KERN_ERR "node_to_cpumask_map[%i] NULL\n", node);
-		dump_stack();
-		return;
+	for_each_online_node(i) {
+		unsigned long addr;
+
+		addr = node_start_pfn(i) << PAGE_SHIFT;
+		if (addr < physnodes[node].start ||
+					addr >= physnodes[node].end)
+			continue;
+		mask = node_to_cpumask_map[node];
+		if (mask == NULL) {
+			pr_err("node_to_cpumask_map[%i] NULL\n", i);
+			dump_stack();
+			return;
+		}
+
+		if (enable)
+			cpumask_set_cpu(cpu, mask);
+		else
+			cpumask_clear_cpu(cpu, mask);
+
+		cpulist_scnprintf(buf, sizeof(buf), mask);
+		printk(KERN_DEBUG "%s cpu %d node %d: mask now %s\n",
+			enable ? "numa_add_cpu" : "numa_remove_cpu",
+			cpu, node, buf);
 	}
-
-	if (enable)
-		cpumask_set_cpu(cpu, mask);
-	else
-		cpumask_clear_cpu(cpu, mask);
-
-	cpulist_scnprintf(buf, sizeof(buf), mask);
-	printk(KERN_DEBUG "%s cpu %d node %d: mask now %s\n",
-		enable ? "numa_add_cpu" : "numa_remove_cpu", cpu, node, buf);
 }
 
 void __cpuinit numa_add_cpu(int cpu)
