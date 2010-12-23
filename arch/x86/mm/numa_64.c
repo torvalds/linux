@@ -266,25 +266,24 @@ static char *cmdline __initdata;
 static int __init setup_physnodes(unsigned long start, unsigned long end,
 					int acpi, int amd)
 {
-	int nr_nodes = 0;
 	int ret = 0;
 	int i;
 
 	memset(physnodes, 0, sizeof(physnodes));
 #ifdef CONFIG_ACPI_NUMA
 	if (acpi)
-		nr_nodes = acpi_get_nodes(physnodes);
+		acpi_get_nodes(physnodes, start, end);
 #endif
 #ifdef CONFIG_AMD_NUMA
 	if (amd)
-		nr_nodes = amd_get_nodes(physnodes);
+		amd_get_nodes(physnodes);
 #endif
 	/*
 	 * Basic sanity checking on the physical node map: there may be errors
 	 * if the SRAT or AMD code incorrectly reported the topology or the mem=
 	 * kernel parameter is used.
 	 */
-	for (i = 0; i < nr_nodes; i++) {
+	for (i = 0; i < MAX_NUMNODES; i++) {
 		if (physnodes[i].start == physnodes[i].end)
 			continue;
 		if (physnodes[i].start > end) {
@@ -299,17 +298,6 @@ static int __init setup_physnodes(unsigned long start, unsigned long end,
 			physnodes[i].start = start;
 		if (physnodes[i].end > end)
 			physnodes[i].end = end;
-	}
-
-	/*
-	 * Remove all nodes that have no memory or were truncated because of the
-	 * limited address range.
-	 */
-	for (i = 0; i < nr_nodes; i++) {
-		if (physnodes[i].start == physnodes[i].end)
-			continue;
-		physnodes[ret].start = physnodes[i].start;
-		physnodes[ret].end = physnodes[i].end;
 		ret++;
 	}
 

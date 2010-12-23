@@ -187,17 +187,14 @@ static s16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 };
 
-int __init amd_get_nodes(struct bootnode *physnodes)
+void __init amd_get_nodes(struct bootnode *physnodes)
 {
 	int i;
-	int ret = 0;
 
 	for_each_node_mask(i, nodes_parsed) {
-		physnodes[ret].start = nodes[i].start;
-		physnodes[ret].end = nodes[i].end;
-		ret++;
+		physnodes[i].start = nodes[i].start;
+		physnodes[i].end = nodes[i].end;
 	}
-	return ret;
 }
 
 static int __init find_node_by_addr(unsigned long addr)
