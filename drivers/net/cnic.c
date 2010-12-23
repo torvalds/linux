@@ -279,6 +279,7 @@ static int cnic_send_nlmsg(struct cnic_local *cp, u32 type,
 	u32 msg_type = ISCSI_KEVENT_IF_DOWN;
 	struct cnic_ulp_ops *ulp_ops;
 	struct cnic_uio_dev *udev = cp->udev;
+	int rc = 0, retry = 0;
 
 	if (!udev || udev->uio_dev == -1)
 		return -ENODEV;
@@ -303,11 +304,21 @@ static int cnic_send_nlmsg(struct cnic_local *cp, u32 type,
 		path_req.pmtu = csk->mtu;
 	}
 
-	rcu_read_lock();
-	ulp_ops = rcu_dereference(cnic_ulp_tbl[CNIC_ULP_ISCSI]);
-	if (ulp_ops)
-		ulp_ops->iscsi_nl_send_msg(cp->dev, msg_type, buf, len);
-	rcu_read_unlock();
+	while (retry < 3) {
+		rc = 0;
+		rcu_read_lock();
+		ulp_ops = rcu_dereference(cnic_ulp_tbl[CNIC_ULP_ISCSI]);
+		if (ulp_ops)
+			rc = ulp_ops->iscsi_nl_send_msg(
+				cp->ulp_handle[CNIC_ULP_ISCSI],
+				msg_type, buf, len);
+		rcu_read_unlock();
+		if (rc == 0 || msg_type != ISCSI_KEVENT_PATH_REQ)
+			break;
+
+		msleep(100);
+		retry++;
+	}
 	return 0;
 }
 

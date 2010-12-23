@@ -301,7 +301,7 @@ struct cnic_ulp_ops {
 	void (*cm_abort_complete)(struct cnic_sock *);
 	void (*cm_remote_close)(struct cnic_sock *);
 	void (*cm_remote_abort)(struct cnic_sock *);
-	void (*iscsi_nl_send_msg)(struct cnic_dev *dev, u32 msg_type,
+	int (*iscsi_nl_send_msg)(void *ulp_ctx, u32 msg_type,
 				  char *data, u16 data_size);
 	struct module *owner;
 	atomic_t ref_count;
