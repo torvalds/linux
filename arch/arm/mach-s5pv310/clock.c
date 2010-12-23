@@ -990,6 +990,17 @@ static struct clksrc_clk *sysclks[] = {
 	&clk_dout_mmc4,
 };
 
+static int xtal_rate;
+
+static unsigned long s5pv310_fout_apll_get_rate(struct clk *clk)
+{
+	return s5p_get_pll45xx(xtal_rate, __raw_readl(S5P_APLL_CON0), pll_4508);
+}
+
+static struct clk_ops s5pv310_fout_apll_ops = {
+	.get_rate = s5pv310_fout_apll_get_rate,
+};
+
 void __init_or_cpufreq s5pv310_setup_clocks(void)
 {
 	struct clk *xtal_clk;
@@ -1013,6 +1024,9 @@ void __init_or_cpufreq s5pv310_setup_clocks(void)
 	BUG_ON(IS_ERR(xtal_clk));
 
 	xtal = clk_get_rate(xtal_clk);
+
+	xtal_rate = xtal;
+
 	clk_put(xtal_clk);
 
 	printk(KERN_DEBUG "%s: xtal is %ld\n", __func__, xtal);
@@ -1026,7 +1040,7 @@ void __init_or_cpufreq s5pv310_setup_clocks(void)
 	vpll = s5p_get_pll46xx(vpllsrc, __raw_readl(S5P_VPLL_CON0),
 				__raw_readl(S5P_VPLL_CON1), pll_4650);
 
-	clk_fout_apll.rate = apll;
+	clk_fout_apll.ops = &s5pv310_fout_apll_ops;
 	clk_fout_mpll.rate = mpll;
 	clk_fout_epll.rate = epll;
 	clk_fout_vpll.rate = vpll;
