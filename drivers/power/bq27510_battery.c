@@ -21,6 +21,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
+#include <mach/gpio.h>
 
 #define DRIVER_VERSION			"1.1.0"
 
@@ -41,6 +42,8 @@
 
 #define BQ27510_SPEED 			300 * 1000
 
+#define DC_CHECK_PIN			RK29_PIN4_PA1
+
 #if 0
 #define DBG(x...) printk(KERN_INFO x)
 #else
@@ -55,6 +58,7 @@ static DEFINE_MUTEX(battery_mutex);
 struct bq27510_device_info {
 	struct device 		*dev;
 	struct power_supply	bat;
+	struct power_supply	ac;
 	struct delayed_work work;
 	unsigned int interval;
 	struct i2c_client	*client;
@@ -66,11 +70,16 @@ static enum power_supply_property bq27510_battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
-	//POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_TEMP,
 	//POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
 	//POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
 	//POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
 };
+
+static enum power_supply_property rk29_ac_props[] = {
+	POWER_SUPPLY_PROP_ONLINE,
+};
+
 
 /*
  * Common code for BQ27510 devices read
@@ -81,7 +90,14 @@ static int bq27510_read(struct i2c_client *client, u8 reg, u8 buf[], unsigned le
 	ret = i2c_master_reg8_recv(client, reg, buf, len, BQ27510_SPEED);
 	return ret; 
 }
-
+#ifdef CONFIG_CHECK_BATT_CAPACITY
+static int bq27510_write(struct i2c_client *client, u8 reg, u8 const buf[], unsigned len)
+{
+	int ret; 
+	ret = i2c_master_reg8_send(client, reg, buf, (int)len, BQ27510_SPEED);
+	return ret;
+}
+#endif
 /*
  * Return the battery temperature in tenths of degree Celsius
  * Or < 0 if something fails.
@@ -141,6 +157,9 @@ static int bq27510_battery_current(struct bq27510_device_info *di)
 	}
 
 	curr = get_unaligned_le16(buf);
+	if(curr>0x8000){
+		curr = 0xFFFF^(curr-1);
+	}
 	curr = curr * 1000;
 	DBG("Enter:%s %d--curr = %d\n",__FUNCTION__,__LINE__,curr);
 	return curr;
@@ -154,6 +173,9 @@ static int bq27510_battery_rsoc(struct bq27510_device_info *di)
 {
 	int ret;
 	int rsoc = 0;
+	#if 0
+	int nvcap = 0,facap = 0,remcap=0,fccap=0,full=0,cnt=0;
+	#endif
 	u8 buf[2];
 	
 	ret = bq27510_read(di->client,BQ27500_REG_SOC,buf,2); 
@@ -163,6 +185,29 @@ static int bq27510_battery_rsoc(struct bq27510_device_info *di)
 	}
 	rsoc = get_unaligned_le16(buf);
 	DBG("Enter:%s %d--rsoc = %d\n",__FUNCTION__,__LINE__,rsoc);
+	#if CONFIG_NO_BATTERY_IC
+	rsoc = 100;
+	#endif
+	#if 0
+	ret = bq27510_read(di->client,0x0c,buf,2);
+	nvcap = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--nvcap = %d\n",__FUNCTION__,__LINE__,nvcap);
+	ret = bq27510_read(di->client,0x0e,buf,2);
+	facap = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--facap = %d\n",__FUNCTION__,__LINE__,facap);
+	ret = bq27510_read(di->client,0x10,buf,2);
+	remcap = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--remcap = %d\n",__FUNCTION__,__LINE__,remcap);
+	ret = bq27510_read(di->client,0x12,buf,2);
+	fccap = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--fccap = %d\n",__FUNCTION__,__LINE__,fccap);
+	ret = bq27510_read(di->client,0x3c,buf,2);
+	full = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--full = %d\n",__FUNCTION__,__LINE__,full);
+	ret = bq27510_read(di->client,0x00,buf,2);
+	cnt = get_unaligned_le16(buf);
+	DBG("Enter:%s %d--full = %d\n",__FUNCTION__,__LINE__,cnt);
+	#endif
 	return rsoc;
 }
 
@@ -208,7 +253,7 @@ static int bq27510_battery_time(struct bq27510_device_info *di, int reg,
 		return ret;
 	}
 	tval = get_unaligned_le16(buf);
-	DBG("Enter:%s %d--no battery data\n",__FUNCTION__,__LINE__,val->intval);
+	DBG("Enter:%s %d--tval=%d\n",__FUNCTION__,__LINE__,tval);
 	if (tval == 65535)
 		return -ENODATA;
 
@@ -241,7 +286,7 @@ static int bq27510_battery_get_property(struct power_supply *psy,
 		val->intval = bq27510_battery_current(di);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		val->intval = 100; ///bq27510_battery_rsoc(di);
+		val->intval = bq27510_battery_rsoc(di);
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = bq27510_battery_temperature(di);
@@ -262,14 +307,42 @@ static int bq27510_battery_get_property(struct power_supply *psy,
 	return ret;
 }
 
+static int rk29_ac_get_property(struct power_supply *psy,
+			enum power_supply_property psp,
+			union power_supply_propval *val)
+{
+	int ret = 0;
+	switch (psp) {
+	case POWER_SUPPLY_PROP_ONLINE:
+		if (psy->type == POWER_SUPPLY_TYPE_MAINS){
+			if(gpio_get_value(DC_CHECK_PIN))
+				val->intval = 0;
+			else
+				val->intval = 1;	
+		}
+		DBG("%s:%d val->intval = %d\n",__FUNCTION__,__LINE__,val->intval);
+		break;
+		
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
 static void bq27510_powersupply_init(struct bq27510_device_info *di)
 {
 	di->bat.type = POWER_SUPPLY_TYPE_BATTERY;
 	di->bat.properties = bq27510_battery_props;
 	di->bat.num_properties = ARRAY_SIZE(bq27510_battery_props);
 	di->bat.get_property = bq27510_battery_get_property;
-	di->bat.external_power_changed = NULL;
+	
+	di->ac.type = POWER_SUPPLY_TYPE_MAINS;
+	di->ac.properties = rk29_ac_props;
+	di->ac.num_properties = ARRAY_SIZE(rk29_ac_props);
+	di->ac.get_property = rk29_ac_get_property;
 }
+
 
 static void bq27510_battery_update_status(struct bq27510_device_info *di)
 {
@@ -289,7 +362,11 @@ static int bq27510_battery_probe(struct i2c_client *client,
 {
 	struct bq27510_device_info *di;
 	int retval = 0;
-
+	
+	#ifdef CONFIG_CHECK_BATT_CAPACITY
+	u8 buf[2];
+	#endif
+	
 	di = kzalloc(sizeof(*di), GFP_KERNEL);
 	if (!di) {
 		dev_err(&client->dev, "failed to allocate device info data\n");
@@ -302,8 +379,18 @@ static int bq27510_battery_probe(struct i2c_client *client,
 	di->client = client;
 	/* 4 seconds between monotor runs interval */
 	di->interval = msecs_to_jiffies(4 * 1000);
+	
+	gpio_request(DC_CHECK_PIN,"dc_check");
+	gpio_direction_input(DC_CHECK_PIN);
 	bq27510_powersupply_init(di);
-
+	#ifdef CONFIG_CHECK_BATT_CAPACITY
+	buf[0] = 0x41;
+	buf[1] = 0x00;
+	bq27510_write(di->client,0x00,buf,2);
+	buf[0] = 0x21;
+	buf[1] = 0x00;
+	bq27510_write(di->client,0x00,buf,2);
+	#endif
 	retval = power_supply_register(&client->dev, &di->bat);
 	if (retval) {
 		dev_err(&client->dev, "failed to register battery\n");
