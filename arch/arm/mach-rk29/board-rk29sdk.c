@@ -523,6 +523,15 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.irq			= RK29_PIN4_PA1,
 	},
 #endif
+#if defined (CONFIG_ANX7150)
+    {
+		.type           = "anx7150",
+        .addr           = 0x39,             //0x39, 0x3d
+        .flags          = 0,
+        .irq            = RK29_PIN1_PD7,
+    },
+#endif
+
 };
 #endif
 
