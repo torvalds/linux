@@ -35,6 +35,8 @@
 
 #include <asm/system.h>
 
+#include <plat/omap_hwmod.h>
+
 #include "control.h"
 #include "mux.h"
 
@@ -250,6 +252,69 @@ int __init omap_mux_init_signal(const char *muxname, int val)
 	omap_mux_write(partition, mux_mode, mux->reg_offset);
 
 	return 0;
+}
+
+struct omap_hwmod_mux_info * __init
+omap_hwmod_mux_init(struct omap_device_pad *bpads, int nr_pads)
+{
+	struct omap_hwmod_mux_info *hmux;
+	int i;
+
+	if (!bpads || nr_pads < 1)
+		return NULL;
+
+	hmux = kzalloc(sizeof(struct omap_hwmod_mux_info), GFP_KERNEL);
+	if (!hmux)
+		goto err1;
+
+	hmux->nr_pads = nr_pads;
+
+	hmux->pads = kzalloc(sizeof(struct omap_device_pad) *
+				nr_pads, GFP_KERNEL);
+	if (!hmux->pads)
+		goto err2;
+
+	for (i = 0; i < hmux->nr_pads; i++) {
+		struct omap_mux_partition *partition;
+		struct omap_device_pad *bpad = &bpads[i], *pad = &hmux->pads[i];
+		struct omap_mux *mux;
+		int mux_mode;
+
+		mux_mode = omap_mux_get_by_name(bpad->name, &partition, &mux);
+		if (mux_mode < 0)
+			goto err3;
+		if (!pad->partition)
+			pad->partition = partition;
+		if (!pad->mux)
+			pad->mux = mux;
+
+		pad->name = kzalloc(strlen(bpad->name) + 1, GFP_KERNEL);
+		if (!pad->name) {
+			int j;
+
+			for (j = i - 1; j >= 0; j--)
+				kfree(hmux->pads[j].name);
+			goto err3;
+		}
+		strcpy(pad->name, bpad->name);
+
+		pad->flags = bpad->flags;
+		pad->enable = bpad->enable;
+		pad->idle = bpad->idle;
+		pad->off = bpad->off;
+		pr_debug("%s: Initialized %s\n", __func__, pad->name);
+	}
+
+	return hmux;
+
+err3:
+	kfree(hmux->pads);
+err2:
+	kfree(hmux);
+err1:
+	pr_err("%s: Could not allocate device mux entry\n", __func__);
+
+	return NULL;
 }
 
 #ifdef CONFIG_DEBUG_FS

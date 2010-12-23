@@ -145,6 +145,32 @@ struct omap_board_mux {
 	u16	value;
 };
 
+#define OMAP_DEVICE_PAD_ENABLED		BIT(7)	/* Not needed for board-*.c */
+#define OMAP_DEVICE_PAD_REMUX		BIT(1)	/* Dynamically remux a pad,
+						   needs enable, idle and off
+						   values */
+#define OMAP_DEVICE_PAD_WAKEUP		BIT(0)	/* Pad is wake-up capable */
+
+/**
+ * struct omap_device_pad - device specific pad configuration
+ * @name:		signal name
+ * @flags:		pad specific runtime flags
+ * @enable:		runtime value for a pad
+ * @idle:		idle value for a pad
+ * @off:		off value for a pad, defaults to safe mode
+ * @partition:		mux partition
+ * @mux:		mux register
+ */
+struct omap_device_pad {
+	char				*name;
+	u8				flags;
+	u16				enable;
+	u16				idle;
+	u16				off;
+	struct omap_mux_partition	*partition;
+	struct omap_mux			*mux;
+};
+
 #if defined(CONFIG_OMAP_MUX)
 
 /**
@@ -161,6 +187,14 @@ int omap_mux_init_gpio(int gpio, int val);
  */
 int omap_mux_init_signal(const char *muxname, int val);
 
+/**
+ * omap_hwmod_mux_init - initialize hwmod specific mux data
+ * @bpads:		Board specific device signal names
+ * @nr_pads:		Number of signal names for the device
+ */
+extern struct omap_hwmod_mux_info *
+omap_hwmod_mux_init(struct omap_device_pad *bpads, int nr_pads);
+
 #else
 
 static inline int omap_mux_init_gpio(int gpio, int val)
@@ -170,6 +204,12 @@ static inline int omap_mux_init_gpio(int gpio, int val)
 static inline int omap_mux_init_signal(char *muxname, int val)
 {
 	return 0;
+}
+
+static inline struct omap_hwmod_mux_info *
+omap_hwmod_mux_init(struct omap_device_pad *bpads, int nr_pads)
+{
+	return NULL;
 }
 
 static struct omap_board_mux *board_mux __initdata __maybe_unused;

@@ -81,6 +81,18 @@ extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2;
 #define HWMOD_IDLEMODE_SMART_WKUP	(1 << 3)
 
 /**
+ * struct omap_hwmod_mux_info - hwmod specific mux configuration
+ * @pads:              array of omap_device_pad entries
+ * @nr_pads:           number of omap_device_pad entries
+ *
+ * Note that this is currently built during init as needed.
+ */
+struct omap_hwmod_mux_info {
+	int				nr_pads;
+	struct omap_device_pad		*pads;
+};
+
+/**
  * struct omap_hwmod_irq_info - MPU IRQs used by the hwmod
  * @name: name of the IRQ channel (module local name)
  * @irq_ch: IRQ channel ID
@@ -487,6 +499,7 @@ struct omap_hwmod {
 	const char			*name;
 	struct omap_hwmod_class		*class;
 	struct omap_device		*od;
+	struct omap_hwmod_mux_info	*mux;
 	struct omap_hwmod_irq_info	*mpu_irqs;
 	struct omap_hwmod_dma_info	*sdma_reqs;
 	struct omap_hwmod_rst_info	*rst_lines;
