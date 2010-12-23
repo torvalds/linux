@@ -1441,12 +1441,16 @@ bna_rxf_init(struct bna_rxf *rxf,
 	memset(rxf->vlan_filter_table, 0,
 			(sizeof(u32) * ((BFI_MAX_VLAN + 1) / 32)));
 
+	/* Set up VLAN 0 for pure priority tagged packets */
+	rxf->vlan_filter_table[0] |= 1;
+
 	bfa_fsm_set_state(rxf, bna_rxf_sm_stopped);
 }
 
 static void
 bna_rxf_uninit(struct bna_rxf *rxf)
 {
+	struct bna *bna = rxf->rx->bna;
 	struct bna_mac *mac;
 
 	bna_rit_mod_seg_put(&rxf->rx->bna->rit_mod, rxf->rit_segment);
@@ -1472,6 +1476,27 @@ bna_rxf_uninit(struct bna_rxf *rxf)
 		bfa_q_qe_init(&mac->qe);
 		bna_mcam_mod_mac_put(&rxf->rx->bna->mcam_mod, mac);
 	}
+
+	/* Turn off pending promisc mode */
+	if (is_promisc_enable(rxf->rxmode_pending,
+				rxf->rxmode_pending_bitmask)) {
+		/* system promisc state should be pending */
+		BUG_ON(!(bna->rxf_promisc_id == rxf->rxf_id));
+		promisc_inactive(rxf->rxmode_pending,
+				rxf->rxmode_pending_bitmask);
+		 bna->rxf_promisc_id = BFI_MAX_RXF;
+	}
+	/* Promisc mode should not be active */
+	BUG_ON(rxf->rxmode_active & BNA_RXMODE_PROMISC);
+
+	/* Turn off pending all-multi mode */
+	if (is_allmulti_enable(rxf->rxmode_pending,
+				rxf->rxmode_pending_bitmask)) {
+		allmulti_inactive(rxf->rxmode_pending,
+				rxf->rxmode_pending_bitmask);
+	}
+	/* Allmulti mode should not be active */
+	BUG_ON(rxf->rxmode_active & BNA_RXMODE_ALLMULTI);
 
 	rxf->rx = NULL;
 }
