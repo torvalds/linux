@@ -1068,13 +1068,13 @@ static char *synthesize_perf_probe_point(struct perf_probe_point *pp)
 			goto error;
 	}
 	if (pp->file) {
-		len = strlen(pp->file) - 31;
-		if (len < 0)
-			len = 0;
-		tmp = strchr(pp->file + len, '/');
-		if (!tmp)
-			tmp = pp->file + len;
-		ret = e_snprintf(file, 32, "@%s", tmp + 1);
+		tmp = pp->file;
+		len = strlen(tmp);
+		if (len > 30) {
+			tmp = strchr(pp->file + len - 30, '/');
+			tmp = tmp ? tmp + 1 : pp->file + len - 30;
+		}
+		ret = e_snprintf(file, 32, "@%s", tmp);
 		if (ret <= 0)
 			goto error;
 	}
