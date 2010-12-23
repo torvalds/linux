@@ -1497,7 +1497,7 @@ static int fb1_set_par(struct fb_info *info)
     fix->smem_len = smem_len;
     fix->mmio_start = uv_addr;
 
-    par->addr_seted = (((-1==(int)y_addr)&&(-1==(int)uv_addr))||((0==(int)y_addr)&&(0==(int)uv_addr))) ? 0 : 1;
+    par->addr_seted = ((-1==(int)y_addr) || (0==(int)y_addr) || (win0_en==0)) ? 0 : 1;
     fbprintk("buffer alloced by user fix->smem_start = %8x, fix->smem_len = %8x, fix->mmio_start = %8x \n", (u32)fix->smem_start, (u32)fix->smem_len, (u32)fix->mmio_start);
 
     par->format = format;
@@ -1505,7 +1505,6 @@ static int fb1_set_par(struct fb_info *info)
     par->ypos = ypos;
     par->xsize = xsize;
     par->ysize = ysize;
-    par->addr_seted = (par->addr_seted && win0_en);
     win0_set_par(info);
 
     return 0;
@@ -1536,6 +1535,7 @@ int fb1_open(struct fb_info *info, int user)
         return -EACCES;
     } else {
         par->refcount++;
+        win0_blank(FB_BLANK_POWERDOWN, info);
         return 0;
     }
 }
@@ -1584,11 +1584,11 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
         {
             u32 panel_size[2];
              if(inf->fb1->var.rotate == 270) {
-                panel_size[0] = inf->cur_screen->y_res;
-                panel_size[1] = inf->cur_screen->x_res;
+                panel_size[0] = inf->panel1_info.y_res; //inf->cur_screen->y_res; change for hdmi video size
+                panel_size[1] = inf->panel1_info.x_res;
             } else {
-                panel_size[0] = inf->cur_screen->x_res;
-                panel_size[1] = inf->cur_screen->y_res;
+                panel_size[0] = inf->panel1_info.x_res;
+                panel_size[1] = inf->panel1_info.y_res;
             }
 
             if(copy_to_user(argp, panel_size, 8))  return -EFAULT;
