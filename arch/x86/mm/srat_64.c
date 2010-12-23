@@ -339,6 +339,7 @@ static int __init nodes_cover_memory(const struct bootnode *nodes)
 
 void __init acpi_numa_arch_fixup(void) {}
 
+#ifdef CONFIG_NUMA_EMU
 int __init acpi_get_nodes(struct bootnode *physnodes)
 {
 	int i;
@@ -351,6 +352,7 @@ int __init acpi_get_nodes(struct bootnode *physnodes)
 	}
 	return ret;
 }
+#endif /* CONFIG_NUMA_EMU */
 
 /* Use the information discovered above to actually set up the nodes. */
 int __init acpi_scan_nodes(unsigned long start, unsigned long end)

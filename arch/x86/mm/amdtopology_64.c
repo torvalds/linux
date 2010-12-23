@@ -69,6 +69,7 @@ static __init void early_get_boot_cpu_id(void)
 	early_init_lapic_mapping();
 }
 
+#ifdef CONFIG_NUMA_EMU
 int __init amd_get_nodes(struct bootnode *physnodes)
 {
 	int i;
@@ -81,6 +82,7 @@ int __init amd_get_nodes(struct bootnode *physnodes)
 	}
 	return ret;
 }
+#endif /* CONFIG_NUMA_EMU */
 
 int __init amd_numa_init(unsigned long start_pfn, unsigned long end_pfn)
 {
