@@ -183,6 +183,13 @@ static irqreturn_t max8998_irq_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+int max8998_irq_resume(struct max8998_dev *max8998)
+{
+	if (max8998->irq && max8998->irq_base)
+		max8998_irq_thread(max8998->irq_base, max8998);
+	return 0;
+}
+
 int max8998_irq_init(struct max8998_dev *max8998)
 {
 	int i;

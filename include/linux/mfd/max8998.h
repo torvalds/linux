@@ -88,6 +88,7 @@ struct max8998_platform_data {
 	int				buck1_set1;
 	int				buck1_set2;
 	int				buck2_set3;
+	bool				wakeup;
 };
 
 #endif /*  __LINUX_MFD_MAX8998_H */
