@@ -3418,9 +3418,9 @@ static void i830_update_wm(struct drm_device *dev, int planea_clock, int unused,
 static bool ironlake_compute_wm0(struct drm_device *dev,
 				 int pipe,
 				 const struct intel_watermark_params *display,
-				 int display_latency,
+				 int display_latency_ns,
 				 const struct intel_watermark_params *cursor,
-				 int cursor_latency,
+				 int cursor_latency_ns,
 				 int *plane_wm,
 				 int *cursor_wm)
 {
@@ -3438,7 +3438,7 @@ static bool ironlake_compute_wm0(struct drm_device *dev,
 	pixel_size = crtc->fb->bits_per_pixel / 8;
 
 	/* Use the small buffer method to calculate plane watermark */
-	entries = ((clock * pixel_size / 1000) * display_latency * 100) / 1000;
+	entries = ((clock * pixel_size / 1000) * display_latency_ns) / 1000;
 	entries = DIV_ROUND_UP(entries, display->cacheline_size);
 	*plane_wm = entries + display->guard_size;
 	if (*plane_wm > (int)display->max_wm)
@@ -3446,7 +3446,7 @@ static bool ironlake_compute_wm0(struct drm_device *dev,
 
 	/* Use the large buffer method to calculate cursor watermark */
 	line_time_us = ((htotal * 1000) / clock);
-	line_count = (cursor_latency * 100 / line_time_us + 1000) / 1000;
+	line_count = (cursor_latency_ns / line_time_us + 1000) / 1000;
 	entries = line_count * 64 * pixel_size;
 	entries = DIV_ROUND_UP(entries, cursor->cacheline_size);
 	*cursor_wm = entries + cursor->guard_size;
@@ -3644,7 +3644,7 @@ static void sandybridge_update_wm(struct drm_device *dev,
 			       int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int latency = SNB_READ_WM0_LATENCY();
+	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
 	int fbc_wm, plane_wm, cursor_wm, enabled;
 	int clock;
 
