@@ -2352,11 +2352,12 @@ static u32 cnic_service_bnx2_queues(struct cnic_dev *dev)
 static int cnic_service_bnx2(void *data, void *status_blk)
 {
 	struct cnic_dev *dev = data;
-	struct cnic_local *cp = dev->cnic_priv;
-	u32 status_idx = *cp->kcq1.status_idx_ptr;
 
-	if (unlikely(!test_bit(CNIC_F_CNIC_UP, &dev->flags)))
-		return status_idx;
+	if (unlikely(!test_bit(CNIC_F_CNIC_UP, &dev->flags))) {
+		struct status_block *sblk = status_blk;
+
+		return sblk->status_idx;
+	}
 
 	return cnic_service_bnx2_queues(dev);
 }
@@ -2375,9 +2376,10 @@ static void cnic_service_bnx2_msix(unsigned long data)
 static void cnic_doirq(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
-	u16 prod = cp->kcq1.sw_prod_idx & MAX_KCQ_IDX;
 
 	if (likely(test_bit(CNIC_F_CNIC_UP, &dev->flags))) {
+		u16 prod = cp->kcq1.sw_prod_idx & MAX_KCQ_IDX;
+
 		prefetch(cp->status_blk.gen);
 		prefetch(&cp->kcq1.kcq[KCQ_PG(prod)][KCQ_IDX(prod)]);
 
