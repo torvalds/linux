@@ -802,8 +802,8 @@ int synaptics_init(struct psmouse *psmouse)
 
 	/*
 	 * Toshiba's KBC seems to have trouble handling data from
-	 * Synaptics as full rate, switch to lower rate which is roughly
-	 * thye same as rate of standard PS/2 mouse.
+	 * Synaptics at full rate.  Switch to a lower rate (roughly
+	 * the same rate as a standard PS/2 mouse).
 	 */
 	if (psmouse->rate >= 80 && impaired_toshiba_kbc) {
 		printk(KERN_INFO "synaptics: Toshiba %s detected, limiting rate to 40pps.\n",
