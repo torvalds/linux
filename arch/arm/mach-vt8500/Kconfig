@@ -1,0 +1,73 @@
+if ARCH_VT8500
+
+config VTWM_VERSION_VT8500
+	bool
+
+config VTWM_VERSION_WM8505
+	bool
+
+config MACH_BV07
+	bool "Benign BV07-8500 Mini Netbook"
+	depends on ARCH_VT8500
+	select VTWM_VERSION_VT8500
+	help
+	  Add support for the inexpensive 7-inch netbooks sold by many
+	  Chinese distributors under various names. Note that there are
+	  many hardware implementations in identical exterior, make sure
+	  that yours is indeed based on a VIA VT8500 chip.
+
+config MACH_WM8505_7IN_NETBOOK
+	bool "WM8505 7-inch generic netbook"
+	depends on ARCH_VT8500
+	select VTWM_VERSION_WM8505
+	help
+	  Add support for the inexpensive 7-inch netbooks sold by many
+	  Chinese distributors under various names. Note that there are
+	  many hardware implementations in identical exterior, make sure
+	  that yours is indeed based on a WonderMedia WM8505 chip.
+
+comment "LCD panel size"
+
+config WMT_PANEL_800X480
+	bool "7-inch with 800x480 resolution"
+	depends on (FB_VT8500 || FB_WM8505)
+	default y
+	help
+	  These are found in most of the netbooks in generic cases, as
+	  well as in Eken M001 tablets and possibly elsewhere.
+
+	  To select this panel at runtime, say y here and append
+	  'panel=800x480' to your kernel command line. Otherwise, the
+	  largest one available will be used.
+
+config WMT_PANEL_800X600
+	bool "8-inch with 800x600 resolution"
+	depends on (FB_VT8500 || FB_WM8505)
+	help
+	  These are found in Eken M003 tablets and possibly elsewhere.
+
+	  To select this panel at runtime, say y here and append
+	  'panel=800x600' to your kernel command line. Otherwise, the
+	  largest one available will be used.
+
+config WMT_PANEL_1024X576
+	bool "10-inch with 1024x576 resolution"
+	depends on (FB_VT8500 || FB_WM8505)
+	help
+	  These are found in CherryPal netbooks and possibly elsewhere.
+
+	  To select this panel at runtime, say y here and append
+	  'panel=1024x576' to your kernel command line. Otherwise, the
+	  largest one available will be used.
+
+config WMT_PANEL_1024X600
+	bool "10-inch with 1024x600 resolution"
+	depends on (FB_VT8500 || FB_WM8505)
+	help
+	  These are found in Eken M006 tablets and possibly elsewhere.
+
+	  To select this panel at runtime, say y here and append
+	  'panel=1024x600' to your kernel command line. Otherwise, the
+	  largest one available will be used.
+
+endif
