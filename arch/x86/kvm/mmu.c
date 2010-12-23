@@ -3534,13 +3534,6 @@ static void mmu_destroy_caches(void)
 		kmem_cache_destroy(mmu_page_header_cache);
 }
 
-void kvm_mmu_module_exit(void)
-{
-	mmu_destroy_caches();
-	percpu_counter_destroy(&kvm_total_used_mmu_pages);
-	unregister_shrinker(&mmu_shrinker);
-}
-
 int kvm_mmu_module_init(void)
 {
 	pte_chain_cache = kmem_cache_create("kvm_pte_chain",
@@ -3733,12 +3726,6 @@ int kvm_mmu_get_spte_hierarchy(struct kvm_vcpu *vcpu, u64 addr, u64 sptes[4])
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_get_spte_hierarchy);
 
-#ifdef CONFIG_KVM_MMU_AUDIT
-#include "mmu_audit.c"
-#else
-static void mmu_audit_disable(void) { }
-#endif
-
 void kvm_mmu_destroy(struct kvm_vcpu *vcpu)
 {
 	ASSERT(vcpu);
@@ -3746,5 +3733,18 @@ void kvm_mmu_destroy(struct kvm_vcpu *vcpu)
 	destroy_kvm_mmu(vcpu);
 	free_mmu_pages(vcpu);
 	mmu_free_memory_caches(vcpu);
+}
+
+#ifdef CONFIG_KVM_MMU_AUDIT
+#include "mmu_audit.c"
+#else
+static void mmu_audit_disable(void) { }
+#endif
+
+void kvm_mmu_module_exit(void)
+{
+	mmu_destroy_caches();
+	percpu_counter_destroy(&kvm_total_used_mmu_pages);
+	unregister_shrinker(&mmu_shrinker);
 	mmu_audit_disable();
 }
