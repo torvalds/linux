@@ -206,6 +206,7 @@ struct expr *expr_extract_eq_and(struct expr **ep1, struct expr **ep2);
 struct expr *expr_extract_eq_or(struct expr **ep1, struct expr **ep2);
 void expr_extract_eq(enum expr_type type, struct expr **ep, struct expr **ep1, struct expr **ep2);
 struct expr *expr_trans_compare(struct expr *e, enum expr_type type, struct symbol *sym);
+struct expr *expr_simplify_unmet_dep(struct expr *e1, struct expr *e2);
 
 void expr_fprint(struct expr *e, FILE *out);
 struct gstr; /* forward */
