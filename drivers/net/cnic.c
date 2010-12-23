@@ -843,6 +843,7 @@ static void cnic_free_resc(struct cnic_dev *dev)
 	cnic_free_dma(dev, &cp->conn_buf_info);
 	cnic_free_dma(dev, &cp->kwq_info);
 	cnic_free_dma(dev, &cp->kwq_16_data_info);
+	cnic_free_dma(dev, &cp->kcq2.dma);
 	cnic_free_dma(dev, &cp->kcq1.dma);
 	kfree(cp->iscsi_tbl);
 	cp->iscsi_tbl = NULL;
@@ -1182,6 +1183,12 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 	ret = cnic_alloc_kcq(dev, &cp->kcq1);
 	if (ret)
 		goto error;
+
+	if (BNX2X_CHIP_IS_E2(cp->chip_id)) {
+		ret = cnic_alloc_kcq(dev, &cp->kcq2);
+		if (ret)
+			goto error;
+	}
 
 	pages = PAGE_ALIGN(BNX2X_ISCSI_NUM_CONNECTIONS *
 			   BNX2X_ISCSI_CONN_BUF_SIZE) / PAGE_SIZE;
@@ -2493,12 +2500,19 @@ static void cnic_service_bnx2x_bh(unsigned long data)
 	status_idx = cnic_service_bnx2x_kcq(dev, &cp->kcq1);
 
 	CNIC_WR16(dev, cp->kcq1.io_addr, cp->kcq1.sw_prod_idx + MAX_KCQ_IDX);
-	if (BNX2X_CHIP_IS_E2(cp->chip_id))
+
+	if (BNX2X_CHIP_IS_E2(cp->chip_id)) {
+		status_idx = cnic_service_bnx2x_kcq(dev, &cp->kcq2);
+
+		CNIC_WR16(dev, cp->kcq2.io_addr, cp->kcq2.sw_prod_idx +
+			  MAX_KCQ_IDX);
+
 		cnic_ack_igu_sb(dev, cp->bnx2x_igu_sb_id, IGU_SEG_ACCESS_DEF,
 				status_idx, IGU_INT_ENABLE, 1);
-	else
+	} else {
 		cnic_ack_bnx2x_int(dev, cp->bnx2x_igu_sb_id, USTORM_ID,
 				   status_idx, IGU_INT_ENABLE, 1);
+	}
 }
 
 static int cnic_service_bnx2x(void *data, void *status_blk)
@@ -4381,6 +4395,44 @@ static void cnic_get_bnx2x_iscsi_info(struct cnic_dev *dev)
 		dev->max_iscsi_conn = 0;
 }
 
+static void cnic_init_bnx2x_kcq(struct cnic_dev *dev)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	u32 pfid = cp->pfid;
+
+	cp->kcq1.io_addr = BAR_CSTRORM_INTMEM +
+			   CSTORM_ISCSI_EQ_PROD_OFFSET(pfid, 0);
+	cp->kcq1.sw_prod_idx = 0;
+
+	if (BNX2X_CHIP_IS_E2(cp->chip_id)) {
+		struct host_hc_status_block_e2 *sb = cp->status_blk.gen;
+
+		cp->kcq1.hw_prod_idx_ptr =
+			&sb->sb.index_values[HC_INDEX_ISCSI_EQ_CONS];
+		cp->kcq1.status_idx_ptr =
+			&sb->sb.running_index[SM_RX_ID];
+	} else {
+		struct host_hc_status_block_e1x *sb = cp->status_blk.gen;
+
+		cp->kcq1.hw_prod_idx_ptr =
+			&sb->sb.index_values[HC_INDEX_ISCSI_EQ_CONS];
+		cp->kcq1.status_idx_ptr =
+			&sb->sb.running_index[SM_RX_ID];
+	}
+
+	if (BNX2X_CHIP_IS_E2(cp->chip_id)) {
+		struct host_hc_status_block_e2 *sb = cp->status_blk.gen;
+
+		cp->kcq2.io_addr = BAR_USTRORM_INTMEM +
+					USTORM_FCOE_EQ_PROD_OFFSET(pfid);
+		cp->kcq2.sw_prod_idx = 0;
+		cp->kcq2.hw_prod_idx_ptr =
+			&sb->sb.index_values[HC_INDEX_FCOE_EQ_CONS];
+		cp->kcq2.status_idx_ptr =
+			&sb->sb.running_index[SM_RX_ID];
+	}
+}
+
 static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
@@ -4413,25 +4465,7 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 
 	cp->bnx2x_igu_sb_id = ethdev->irq_arr[0].status_blk_num2;
 
-	cp->kcq1.io_addr = BAR_CSTRORM_INTMEM +
-			  CSTORM_ISCSI_EQ_PROD_OFFSET(pfid, 0);
-	cp->kcq1.sw_prod_idx = 0;
-
-	if (BNX2X_CHIP_IS_E2(cp->chip_id)) {
-		struct host_hc_status_block_e2 *sb = cp->status_blk.gen;
-
-		cp->kcq1.hw_prod_idx_ptr =
-			&sb->sb.index_values[HC_INDEX_ISCSI_EQ_CONS];
-		cp->kcq1.status_idx_ptr =
-			&sb->sb.running_index[SM_RX_ID];
-	} else {
-		struct host_hc_status_block_e1x *sb = cp->status_blk.gen;
-
-		cp->kcq1.hw_prod_idx_ptr =
-			&sb->sb.index_values[HC_INDEX_ISCSI_EQ_CONS];
-		cp->kcq1.status_idx_ptr =
-			&sb->sb.running_index[SM_RX_ID];
-	}
+	cnic_init_bnx2x_kcq(dev);
 
 	cnic_get_bnx2x_iscsi_info(dev);
 

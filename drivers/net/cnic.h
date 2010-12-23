@@ -258,6 +258,7 @@ struct cnic_local {
 	u16		kwq_con_idx;
 
 	struct kcq_info	kcq1;
+	struct kcq_info	kcq2;
 
 	union {
 		void				*gen;
