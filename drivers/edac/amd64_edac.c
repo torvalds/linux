@@ -1011,7 +1011,7 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
 	syndrome = extract_syndrome(err_info);
 
 	/* CHIPKILL enabled */
-	if (err_info->nbcfg & K8_NBCFG_CHIPKILL) {
+	if (err_info->nbcfg & NBCFG_CHIPKILL) {
 		channel = get_channel_from_ecc_syndrome(mci, syndrome);
 		if (channel < 0) {
 			/*
@@ -1461,7 +1461,7 @@ static void f10_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
 	 * ganged. Otherwise @chan should already contain the channel at
 	 * this point.
 	 */
-	if (dct_ganging_enabled(pvt) && (pvt->nbcfg & K8_NBCFG_CHIPKILL))
+	if (dct_ganging_enabled(pvt))
 		chan = get_channel_from_ecc_syndrome(mci, syndrome);
 
 	if (chan >= 0)
@@ -2050,14 +2050,13 @@ static int init_csrows(struct mem_ctl_info *mci)
 	u32 val;
 	int i, empty = 1;
 
-	amd64_read_pci_cfg(pvt->F3, K8_NBCFG, &val);
+	amd64_read_pci_cfg(pvt->F3, NBCFG, &val);
 
 	pvt->nbcfg = val;
-	pvt->ctl_error_info.nbcfg = val;
 
 	debugf0("node %d, NBCFG=0x%08x[ChipKillEccCap: %d|DramEccEn: %d]\n",
 		pvt->mc_node_id, val,
-		!!(val & K8_NBCFG_CHIPKILL), !!(val & K8_NBCFG_ECC_ENABLE));
+		!!(val & NBCFG_CHIPKILL), !!(val & NBCFG_ECC_ENABLE));
 
 	for_each_chip_select(i, 0, pvt) {
 		csrow = &mci->csrows[i];
@@ -2099,9 +2098,9 @@ static int init_csrows(struct mem_ctl_info *mci)
 		/*
 		 * determine whether CHIPKILL or JUST ECC or NO ECC is operating
 		 */
-		if (pvt->nbcfg & K8_NBCFG_ECC_ENABLE)
+		if (pvt->nbcfg & NBCFG_ECC_ENABLE)
 			csrow->edac_mode =
-			    (pvt->nbcfg & K8_NBCFG_CHIPKILL) ?
+			    (pvt->nbcfg & NBCFG_CHIPKILL) ?
 			    EDAC_S4ECD4ED : EDAC_SECDED;
 		else
 			csrow->edac_mode = EDAC_NONE;
@@ -2211,24 +2210,23 @@ static bool enable_ecc_error_reporting(struct ecc_settings *s, u8 nid,
 	value |= mask;
 	amd64_write_pci_cfg(F3, NBCTL, value);
 
-	amd64_read_pci_cfg(F3, K8_NBCFG, &value);
+	amd64_read_pci_cfg(F3, NBCFG, &value);
 
-	debugf0("1: node %d, NBCFG=0x%08x[ChipKillEccCap: %d|DramEccEn: %d]\n",
-		nid, value,
-		!!(value & K8_NBCFG_CHIPKILL), !!(value & K8_NBCFG_ECC_ENABLE));
+	debugf0("1: node %d, NBCFG=0x%08x[DramEccEn: %d]\n",
+		nid, value, !!(value & NBCFG_ECC_ENABLE));
 
-	if (!(value & K8_NBCFG_ECC_ENABLE)) {
+	if (!(value & NBCFG_ECC_ENABLE)) {
 		amd64_warn("DRAM ECC disabled on this node, enabling...\n");
 
 		s->flags.nb_ecc_prev = 0;
 
 		/* Attempt to turn on DRAM ECC Enable */
-		value |= K8_NBCFG_ECC_ENABLE;
-		amd64_write_pci_cfg(F3, K8_NBCFG, value);
+		value |= NBCFG_ECC_ENABLE;
+		amd64_write_pci_cfg(F3, NBCFG, value);
 
-		amd64_read_pci_cfg(F3, K8_NBCFG, &value);
+		amd64_read_pci_cfg(F3, NBCFG, &value);
 
-		if (!(value & K8_NBCFG_ECC_ENABLE)) {
+		if (!(value & NBCFG_ECC_ENABLE)) {
 			amd64_warn("Hardware rejected DRAM ECC enable,"
 				   "check memory DIMM configuration.\n");
 			ret = false;
@@ -2239,9 +2237,8 @@ static bool enable_ecc_error_reporting(struct ecc_settings *s, u8 nid,
 		s->flags.nb_ecc_prev = 1;
 	}
 
-	debugf0("2: node %d, NBCFG=0x%08x[ChipKillEccCap: %d|DramEccEn: %d]\n",
-		nid, value,
-		!!(value & K8_NBCFG_CHIPKILL), !!(value & K8_NBCFG_ECC_ENABLE));
+	debugf0("2: node %d, NBCFG=0x%08x[DramEccEn: %d]\n",
+		nid, value, !!(value & NBCFG_ECC_ENABLE));
 
 	return ret;
 }
@@ -2263,9 +2260,9 @@ static void restore_ecc_error_reporting(struct ecc_settings *s, u8 nid,
 
 	/* restore previous BIOS DRAM ECC "off" setting we force-enabled */
 	if (!s->flags.nb_ecc_prev) {
-		amd64_read_pci_cfg(F3, K8_NBCFG, &value);
-		value &= ~K8_NBCFG_ECC_ENABLE;
-		amd64_write_pci_cfg(F3, K8_NBCFG, value);
+		amd64_read_pci_cfg(F3, NBCFG, &value);
+		value &= ~NBCFG_ECC_ENABLE;
+		amd64_write_pci_cfg(F3, NBCFG, value);
 	}
 
 	/* restore the NB Enable MCGCTL bit */
@@ -2291,9 +2288,9 @@ static bool ecc_enabled(struct pci_dev *F3, u8 nid)
 	u8 ecc_en = 0;
 	bool nb_mce_en = false;
 
-	amd64_read_pci_cfg(F3, K8_NBCFG, &value);
+	amd64_read_pci_cfg(F3, NBCFG, &value);
 
-	ecc_en = !!(value & K8_NBCFG_ECC_ENABLE);
+	ecc_en = !!(value & NBCFG_ECC_ENABLE);
 	amd64_info("DRAM ECC %s.\n", (ecc_en ? "enabled" : "disabled"));
 
 	nb_mce_en = amd64_nb_mce_bank_enabled_on_node(nid);

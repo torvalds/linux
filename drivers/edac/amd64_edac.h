@@ -246,9 +246,9 @@
  */
 #define NBCTL				0x40
 
-#define K8_NBCFG			0x44
-#define K8_NBCFG_CHIPKILL		BIT(23)
-#define K8_NBCFG_ECC_ENABLE		BIT(22)
+#define NBCFG				0x44
+#define NBCFG_CHIPKILL			BIT(23)
+#define NBCFG_ECC_ENABLE		BIT(22)
 
 #define K8_NBSL				0x48
 
@@ -419,9 +419,6 @@ struct amd64_pvt {
 
 	/* x4 or x8 syndromes in use */
 	u8 syn_type;
-
-	/* temp storage for when input is received from sysfs */
-	struct err_regs ctl_error_info;
 
 	/* place to store error injection parameters prior to issue */
 	struct error_injection injection;
