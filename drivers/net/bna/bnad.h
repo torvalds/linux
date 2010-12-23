@@ -65,7 +65,7 @@ struct bnad_rx_ctrl {
 #define BNAD_NAME			"bna"
 #define BNAD_NAME_LEN			64
 
-#define BNAD_VERSION			"2.3.2.0"
+#define BNAD_VERSION			"2.3.2.3"
 
 #define BNAD_MAILBOX_MSIX_VECTORS	1
 
