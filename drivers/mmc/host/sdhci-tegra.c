@@ -67,7 +67,7 @@ static void tegra_sdhci_enable_clock(struct tegra_sdhci_host *host, int enable)
 static void tegra_sdhci_set_clock(struct sdhci_host *sdhci, unsigned int clock)
 {
 	struct tegra_sdhci_host *host = sdhci_priv(sdhci);
-	pr_info("tegra sdhci clock %s %u enabled=%d\n",
+	pr_debug("tegra sdhci clock %s %u enabled=%d\n",
 		mmc_hostname(sdhci->mmc), clock, host->clk_enabled);
 
 	tegra_sdhci_enable_clock(host, clock);
