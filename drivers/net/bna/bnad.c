@@ -566,7 +566,8 @@ bnad_enable_rx_irq(struct bnad *bnad, struct bna_ccb *ccb)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&bnad->bna_lock, flags); /* Because of polling context */
+	/* Because of polling context */
+	spin_lock_irqsave(&bnad->bna_lock, flags);
 	bnad_enable_rx_irq_unsafe(ccb);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 }
@@ -1962,6 +1963,27 @@ bnad_enable_default_bcast(struct bnad *bnad)
 	return 0;
 }
 
+/* Called with bnad_conf_lock() held */
+static void
+bnad_restore_vlans(struct bnad *bnad, u32 rx_id)
+{
+	u16 vlan_id;
+	unsigned long flags;
+
+	if (!bnad->vlan_grp)
+		return;
+
+	BUG_ON(!(VLAN_N_VID == (BFI_MAX_VLAN + 1)));
+
+	for (vlan_id = 0; vlan_id < VLAN_N_VID; vlan_id++) {
+		if (!vlan_group_get_device(bnad->vlan_grp, vlan_id))
+			continue;
+		spin_lock_irqsave(&bnad->bna_lock, flags);
+		bna_rx_vlan_add(bnad->rx_info[rx_id].rx, vlan_id);
+		spin_unlock_irqrestore(&bnad->bna_lock, flags);
+	}
+}
+
 /* Statistics utilities */
 void
 bnad_netdev_qstats_fill(struct bnad *bnad, struct rtnl_link_stats64 *stats)
@@ -2336,6 +2358,9 @@ bnad_open(struct net_device *netdev)
 
 	/* Enable broadcast */
 	bnad_enable_default_bcast(bnad);
+
+	/* Restore VLANs, if any */
+	bnad_restore_vlans(bnad, 0);
 
 	/* Set the UCAST address */
 	spin_lock_irqsave(&bnad->bna_lock, flags);
@@ -3021,7 +3046,7 @@ static int __devinit
 bnad_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *pcidev_id)
 {
-	bool 	using_dac;
+	bool 	using_dac = false;
 	int 	err;
 	struct bnad *bnad;
 	struct bna *bna;
