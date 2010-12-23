@@ -1002,7 +1002,13 @@ allocate_barrier:
 			congested = 1;
 		}
 
-		if (congested) {
+		if (congested && atomic_read(&mdev->rs_pending_cnt) == 0) {
+			/* rs_pending_cnt must be zero, otherwise the two peers
+			   might get different bitmaps. With sane configurations
+			   the resync stalls long before we might want to go into
+			   AHEAD mode.
+			   We could force the resync into PAUSE mode here if
+			   rs_pending_cnt is > 0 ... */
 			queue_barrier(mdev);
 
 			if (mdev->net_conf->on_congestion == OC_PULL_AHEAD)
