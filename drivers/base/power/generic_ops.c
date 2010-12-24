@@ -185,7 +185,7 @@ static int __pm_generic_resume(struct device *dev, int event)
 		return 0;
 
 	ret = callback(dev);
-	if (!ret) {
+	if (!ret && pm_runtime_enabled(dev)) {
 		pm_runtime_disable(dev);
 		pm_runtime_set_active(dev);
 		pm_runtime_enable(dev);
