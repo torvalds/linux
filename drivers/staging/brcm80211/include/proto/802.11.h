@@ -48,14 +48,7 @@
 #define DOT11_BA_BITMAP_LEN		128
 #define DOT11_BA_LEN		4
 
-#define	DOT11_MGMT_HDR_LEN	24
-
-struct dot11_bcn_prb {
-	u32 timestamp[2];
-	u16 beacon_interval;
-	u16 capability;
-} __attribute__((packed));
-#define	DOT11_BCN_PRB_LEN	12
+#define DOT11_MGMT_HDR_LEN      24
 
 #define WME_OUI			"\x00\x50\xf2"
 #define WME_VER			1

@@ -180,8 +180,6 @@ typedef struct wlc_bss_info {
 	u8 dtim_period;	/* DTIM period */
 	s8 phy_noise;		/* noise right after tx (in dBm) */
 	u16 capability;	/* Capability information */
-	struct dot11_bcn_prb *bcn_prb;	/* beacon/probe response frame (ioctl na) */
-	u16 bcn_prb_len;	/* beacon/probe response frame length (ioctl na) */
 	u8 wme_qosinfo;	/* QoS Info from WME IE; valid if WLC_BSS_WME flag set */
 	struct rsn_parms wpa;
 	struct rsn_parms wpa2;

@@ -147,8 +147,6 @@ void wlc_bsscfg_mfree(struct osl_info *osh, wlc_bsscfg_t *cfg)
 
 	if (cfg->current_bss != NULL) {
 		wlc_bss_info_t *current_bss = cfg->current_bss;
-		if (current_bss->bcn_prb != NULL)
-			kfree(current_bss->bcn_prb);
 		kfree(current_bss);
 		cfg->current_bss = NULL;
 	}

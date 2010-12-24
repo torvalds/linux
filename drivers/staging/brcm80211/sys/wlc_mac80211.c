@@ -1746,7 +1746,6 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	ASSERT(sizeof(d11rxhdr_t) == RXHDR_LEN);
 	ASSERT(sizeof(struct ieee80211_hdr) == DOT11_A4_HDR_LEN);
 	ASSERT(sizeof(struct ieee80211_rts) == DOT11_RTS_LEN);
-	ASSERT(sizeof(struct dot11_bcn_prb) == DOT11_BCN_PRB_LEN);
 	ASSERT(sizeof(tx_status_t) == TXSTATUS_LEN);
 	ASSERT(sizeof(ht_cap_ie_t) == HT_CAP_IE_LEN);
 #ifdef BRCM_FULLMAC
@@ -6979,9 +6978,6 @@ void wlc_bss_list_free(struct wlc_info *wlc, wlc_bss_list_t *bss_list)
 	for (index = 0; index < bss_list->count; index++) {
 		bi = bss_list->ptrs[index];
 		if (bi) {
-			if (bi->bcn_prb) {
-				kfree(bi->bcn_prb);
-			}
 			kfree(bi);
 			bss_list->ptrs[index] = NULL;
 		}
