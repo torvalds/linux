@@ -1744,7 +1744,6 @@ void *wlc_attach(void *wl, u16 vendor, u16 device, uint unit, bool piomode,
 	ASSERT(sizeof(d11rxhdr_t) == RXHDR_LEN);
 	ASSERT(sizeof(struct ieee80211_hdr) == DOT11_A4_HDR_LEN);
 	ASSERT(sizeof(struct ieee80211_rts) == DOT11_RTS_LEN);
-	ASSERT(sizeof(struct dot11_management_header) == DOT11_MGMT_HDR_LEN);
 	ASSERT(sizeof(struct dot11_bcn_prb) == DOT11_BCN_PRB_LEN);
 	ASSERT(sizeof(tx_status_t) == TXSTATUS_LEN);
 	ASSERT(sizeof(ht_cap_ie_t) == HT_CAP_IE_LEN);
@@ -7625,7 +7624,7 @@ wlc_bcn_prb_template(struct wlc_info *wlc, uint type, ratespec_t bcn_rspec,
 {
 	static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
 	cck_phy_hdr_t *plcp;
-	struct dot11_management_header *h;
+	struct ieee80211_mgmt *h;
 	int hdr_len, body_len;
 
 	ASSERT(*len >= 142);
@@ -7658,12 +7657,12 @@ wlc_bcn_prb_template(struct wlc_info *wlc, uint type, ratespec_t bcn_rspec,
 		wlc_beacon_phytxctl_txant_upd(wlc, bcn_rspec);
 
 	if (MBSS_BCN_ENAB(cfg) && type == FC_BEACON)
-		h = (struct dot11_management_header *)&plcp[0];
+		h = (struct ieee80211_mgmt *)&plcp[0];
 	else
-		h = (struct dot11_management_header *)&plcp[1];
+		h = (struct ieee80211_mgmt *)&plcp[1];
 
 	/* fill in 802.11 header */
-	h->fc = htol16((u16) type);
+	h->frame_control = htol16((u16) type);
 
 	/* DUR is 0 for multicast bcn, or filled in by MAC for prb resp */
 	/* A1 filled in by MAC for prb resp, broadcast for bcn */

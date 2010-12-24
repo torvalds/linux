@@ -51,14 +51,6 @@
 #define DOT11_BA_BITMAP_LEN		128
 #define DOT11_BA_LEN		4
 
-struct dot11_management_header {
-	u16 fc;
-	u16 durid;
-	u8 da[ETH_ALEN];
-	u8 sa[ETH_ALEN];
-	u8 bssid[ETH_ALEN];
-	u16 seq;
-} __attribute__((packed));
 #define	DOT11_MGMT_HDR_LEN	24
 
 struct dot11_bcn_prb {
