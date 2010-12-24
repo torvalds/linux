@@ -2436,19 +2436,28 @@ static int wm8904_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Change some default settings - latch VU and enable ZC */
-	reg_cache[WM8904_ADC_DIGITAL_VOLUME_LEFT] |= WM8904_ADC_VU;
-	reg_cache[WM8904_ADC_DIGITAL_VOLUME_RIGHT] |= WM8904_ADC_VU;
-	reg_cache[WM8904_DAC_DIGITAL_VOLUME_LEFT] |= WM8904_DAC_VU;
-	reg_cache[WM8904_DAC_DIGITAL_VOLUME_RIGHT] |= WM8904_DAC_VU;
-	reg_cache[WM8904_ANALOGUE_OUT1_LEFT] |= WM8904_HPOUT_VU |
-		WM8904_HPOUTLZC;
-	reg_cache[WM8904_ANALOGUE_OUT1_RIGHT] |= WM8904_HPOUT_VU |
-		WM8904_HPOUTRZC;
-	reg_cache[WM8904_ANALOGUE_OUT2_LEFT] |= WM8904_LINEOUT_VU |
-		WM8904_LINEOUTLZC;
-	reg_cache[WM8904_ANALOGUE_OUT2_RIGHT] |= WM8904_LINEOUT_VU |
-		WM8904_LINEOUTRZC;
-	reg_cache[WM8904_CLOCK_RATES_0] &= ~WM8904_SR_MODE;
+	snd_soc_update_bits(codec, WM8904_ADC_DIGITAL_VOLUME_LEFT,
+			    WM8904_ADC_VU, WM8904_ADC_VU);
+	snd_soc_update_bits(codec, WM8904_ADC_DIGITAL_VOLUME_RIGHT,
+			    WM8904_ADC_VU, WM8904_ADC_VU);
+	snd_soc_update_bits(codec, WM8904_DAC_DIGITAL_VOLUME_LEFT,
+			    WM8904_DAC_VU, WM8904_DAC_VU);
+	snd_soc_update_bits(codec, WM8904_DAC_DIGITAL_VOLUME_RIGHT,
+			    WM8904_DAC_VU, WM8904_DAC_VU);
+	snd_soc_update_bits(codec, WM8904_ANALOGUE_OUT1_LEFT,
+			    WM8904_HPOUT_VU | WM8904_HPOUTLZC,
+			    WM8904_HPOUT_VU | WM8904_HPOUTLZC);
+	snd_soc_update_bits(codec, WM8904_ANALOGUE_OUT1_RIGHT,
+			    WM8904_HPOUT_VU | WM8904_HPOUTRZC,
+			    WM8904_HPOUT_VU | WM8904_HPOUTRZC);
+	snd_soc_update_bits(codec, WM8904_ANALOGUE_OUT2_LEFT,
+			    WM8904_LINEOUT_VU | WM8904_LINEOUTLZC,
+			    WM8904_LINEOUT_VU | WM8904_LINEOUTLZC);
+	snd_soc_update_bits(codec, WM8904_ANALOGUE_OUT2_RIGHT,
+			    WM8904_LINEOUT_VU | WM8904_LINEOUTRZC,
+			    WM8904_LINEOUT_VU | WM8904_LINEOUTRZC);
+	snd_soc_update_bits(codec, WM8904_CLOCK_RATES_0,
+			    WM8904_SR_MODE, 0);
 
 	/* Apply configuration from the platform data. */
 	if (wm8904->pdata) {
@@ -2469,10 +2478,12 @@ static int wm8904_probe(struct snd_soc_codec *codec)
 	/* Set Class W by default - this will be managed by the Class
 	 * G widget at runtime where bypass paths are available.
 	 */
-	reg_cache[WM8904_CLASS_W_0] |= WM8904_CP_DYN_PWR;
+	snd_soc_update_bits(codec, WM8904_CLASS_W_0,
+			    WM8904_CP_DYN_PWR, WM8904_CP_DYN_PWR);
 
 	/* Use normal bias source */
-	reg_cache[WM8904_BIAS_CONTROL_0] &= ~WM8904_POBCTRL;
+	snd_soc_update_bits(codec, WM8904_BIAS_CONTROL_0,
+			    WM8904_POBCTRL, 0);
 
 	wm8904_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 

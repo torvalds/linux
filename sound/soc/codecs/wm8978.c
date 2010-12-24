@@ -965,7 +965,7 @@ static int wm8978_probe(struct snd_soc_codec *codec)
 	 * written.
 	 */
 	for (i = 0; i < ARRAY_SIZE(update_reg); i++)
-		((u16 *)codec->reg_cache)[update_reg[i]] |= 0x100;
+		snd_soc_update_bits(codec, update_reg[i], 0x100, 0x100);
 
 	/* Reset the codec */
 	ret = snd_soc_write(codec, WM8978_RESET, 0);

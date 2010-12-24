@@ -3822,16 +3822,26 @@ static int wm8962_probe(struct snd_soc_codec *codec)
 	}
 
 	/* Latch volume update bits */
-	reg_cache[WM8962_LEFT_INPUT_VOLUME] |= WM8962_IN_VU;
-	reg_cache[WM8962_RIGHT_INPUT_VOLUME] |= WM8962_IN_VU;
-	reg_cache[WM8962_LEFT_ADC_VOLUME] |= WM8962_ADC_VU;
-	reg_cache[WM8962_RIGHT_ADC_VOLUME] |= WM8962_ADC_VU;
-	reg_cache[WM8962_LEFT_DAC_VOLUME] |= WM8962_DAC_VU;
-	reg_cache[WM8962_RIGHT_DAC_VOLUME] |= WM8962_DAC_VU;
-	reg_cache[WM8962_SPKOUTL_VOLUME] |= WM8962_SPKOUT_VU;
-	reg_cache[WM8962_SPKOUTR_VOLUME] |= WM8962_SPKOUT_VU;
-	reg_cache[WM8962_HPOUTL_VOLUME] |= WM8962_HPOUT_VU;
-	reg_cache[WM8962_HPOUTR_VOLUME] |= WM8962_HPOUT_VU;
+	snd_soc_update_bits(codec, WM8962_LEFT_INPUT_VOLUME,
+			    WM8962_IN_VU, WM8962_IN_VU);
+	snd_soc_update_bits(codec, WM8962_RIGHT_INPUT_VOLUME,
+			    WM8962_IN_VU, WM8962_IN_VU);
+	snd_soc_update_bits(codec, WM8962_LEFT_ADC_VOLUME,
+			    WM8962_ADC_VU, WM8962_ADC_VU);
+	snd_soc_update_bits(codec, WM8962_RIGHT_ADC_VOLUME,
+			    WM8962_ADC_VU, WM8962_ADC_VU);
+	snd_soc_update_bits(codec, WM8962_LEFT_DAC_VOLUME,
+			    WM8962_DAC_VU, WM8962_DAC_VU);
+	snd_soc_update_bits(codec, WM8962_RIGHT_DAC_VOLUME,
+			    WM8962_DAC_VU, WM8962_DAC_VU);
+	snd_soc_update_bits(codec, WM8962_SPKOUTL_VOLUME,
+			    WM8962_SPKOUT_VU, WM8962_SPKOUT_VU);
+	snd_soc_update_bits(codec, WM8962_SPKOUTR_VOLUME,
+			    WM8962_SPKOUT_VU, WM8962_SPKOUT_VU);
+	snd_soc_update_bits(codec, WM8962_HPOUTL_VOLUME,
+			    WM8962_HPOUT_VU, WM8962_HPOUT_VU);
+	snd_soc_update_bits(codec, WM8962_HPOUTR_VOLUME,
+			    WM8962_HPOUT_VU, WM8962_HPOUT_VU);
 
 	wm8962_add_widgets(codec);
 
