@@ -164,20 +164,23 @@ static inline void mrst_spi_debugfs_remove(struct dw_spi *dws)
 
 static void wait_till_not_busy(struct dw_spi *dws)
 {
-	unsigned long end = jiffies + 1 + usecs_to_jiffies(1000);
+	unsigned long end = jiffies + 1 + usecs_to_jiffies(5000);
 
 	while (time_before(jiffies, end)) {
 		if (!(dw_readw(dws, sr) & SR_BUSY))
 			return;
+		cpu_relax();
 	}
 	dev_err(&dws->master->dev,
-		"DW SPI: Status keeps busy for 1000us after a read/write!\n");
+		"DW SPI: Status keeps busy for 5000us after a read/write!\n");
 }
 
 static void flush(struct dw_spi *dws)
 {
-	while (dw_readw(dws, sr) & SR_RF_NOT_EMPT)
+	while (dw_readw(dws, sr) & SR_RF_NOT_EMPT) {
 		dw_readw(dws, dr);
+		cpu_relax();
+	}
 
 	wait_till_not_busy(dws);
 }
